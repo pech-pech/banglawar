@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="Conquest.Core/Conquest.Core.csproj" />
+  <Project Path="Conquest.Tests/Conquest.Tests.csproj" />
+</Solution>

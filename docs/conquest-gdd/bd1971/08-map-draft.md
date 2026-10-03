@@ -214,11 +214,11 @@ Digits are sector numbers, `b` = sector 11, `.` = water, outside, or sector 10 (
 
 ---
 
-## 3. Border entry points (16 land tiles)
+## 3. Border entry points (16 entry cells)
 
 All are land tiles of type `O` adjacent to the outside; none is adjacent to `D`. They are re-entry points for organising teams (`u.founder`, option D-A1), not camps and not refugee shelters. Source numbers: sector areas [T9] as corrected in 2.2; refugee and training states [G2][G7]; others as listed. **HQ names are no longer cited** (missing or disputed for sectors 2, 3 and 9, and given in two forms for others): the evidence column uses sector areas and crossing places only.
 
-| ID | Tile (x, y) | Crossing area (bordering Indian state) | Sector (my box) | Evidence | Status | Group (06) |
+| ID | Cell (x, y) | Crossing area (bordering Indian state) | Sector (my box) | Evidence | Status | Group (06) |
 |---|---|---|---|---|---|---|
 | E01 | (1, 2) | Panchagarh-Thakurgaon, north-west tip (West Bengal) | 6 | Sector 6 covers part of Dinajpur [T9]; camps in West Bengal [G2][G7] | MEDIUM, tile PROVISIONAL | entry.s06 (ASSUMED) |
 | E02 | (7, 1) | Lalmonirhat-Burimari (West Bengal / Assam side) | 6 | Lalmonirhat-Burimari lies in the sector 6 area (Rangpur) [T9]; the border crossing area, not an HQ | MEDIUM | entry.s06 (ASSUMED) |
@@ -238,6 +238,7 @@ All are land tiles of type `O` adjacent to the outside; none is adjacent to `D`.
 | E16 | (31, 20) | Hill Tracts, Mizoram side | 1 | Hill Tracts border Tripura and Mizoram [G21]; training camps in Mizoram [G2] | MEDIUM | entry.s01 (ASSUMED) |
 
 Notes:
+- **Cells, not tiles (16 N-19):** every (x, y) in this table, and in sections 4 and 5, is a **cell** of the 32x32 grid (1 cell = 4x4 tiles, section 0), not a tile of the later 128x128 map. Rule for the final map (to be mirrored in 06 and 05): each entry cell becomes the land tiles of its 4x4 block that touch the map edge, listed north to south, then west to east, so an entry group holds about 3-12 tiles (06's `entry.sNN` groups hold 1-3 cells each; the 06 table and this one give the same mapping). 06 and 05 still say "tiles"; they are edited separately.
 - **Group (06) column:** the mapping of the 16 tiles to 06's opaque `entry.sNN` group ids is the second-pass verifier's (12, M3), derived from the sector overlay and checked by script; it is ASSUMED, not sourced. `entry.s09` and `entry.s10` do not exist. 06 opens at `entry.s08` and `entry.s02` on turn 0; `entry.s02` contains E14, which is 4 tiles from Comilla (concern 3, Q6).
 - Teams per entry (scenario arrivals) are a T1 setting and are **not** specified here. Sector 10 (naval) has no entry tile.
 - **No entry on the Myanmar border** (south of x=29): no source in the files places any organising there.
@@ -266,7 +267,7 @@ The AI is "Pakistan Army, Eastern Command" (E-AI table in [03]). `bld.core` = **
 | Chittagong | (26, 23) | **Defence zone** (tag `defence_zone`) and seaport | independent defence zone [07a#5]; port on the Karnaphuli [G27]; Operation Jackpot target [T5] | Not counted by the fortress clause |
 | Sylhet | (26, 9) | **Defence zone** (tag `defence_zone`) | independent defence zone [07a#5]; battle 7 to 15 or 16 December (single source), heliborne landing, local surrender [T18]; haor and hill borderland [G22] | Not counted by the fortress clause |
 
-K = 6 (the six named fortresses; the earlier K = 5 list was contradicted by 07a). **N = 3** (owner decision, 2026-10-03). Surrender test, as the owner set it: the AI agrees to surrender when the player holds the **capital garrison (Dhaka)**, **and/or** holds **3 of the 6 fortress positions** while the AI holds **at or below 25% of its starting garrison positions**. The predicate form in [06 H4] is `any_of(holds capital, all_of(holds >= 3 fortress sites, AI garrison positions <= 25% of start))`; the 25% clause sits inside the fortress branch only. **Decided (owner, 2026-10-03): the 25% base is the AI's STARTING garrison positions only.** There are 20 at scenario start (1 capital garrison + 6 fortress + 2 defence zone + 11 other), so 25% is **5 positions** (06: `held * 100 <= 25 * 20`, i.e. the AI holds 5 or fewer). The two defence-zone positions are among the 20. Positions the AI founds later never count toward the base. Spec consequence for 06 (not edited here): the predicate must use the fixed start count, `site.camp_NN` outposts must not be added as AI start positions (they would change the base), and later-founded AI bases must not raise or lower the test. **Terminology (proposal for reviewers):** no town was held by the Pakistan Army at the start of the war, so this file calls the AI's starting sites "garrison positions", "fortress positions", "defence zones" and the "capital garrison" (Dhaka); opaque ids and grid coordinates are unchanged. The term is a proposal, not decided wording.
+K = 6 (the six named fortresses; the earlier K = 5 list was contradicted by 07a). **N = 3** (owner decision, 2026-10-03). Surrender test, as the owner set it: the AI agrees to surrender when the player holds the **capital garrison (Dhaka)**, **or** holds **3 of the 6 fortress positions** while the AI holds **at or below 25% of its starting garrison positions**. The predicate form in [06 H4] is `any_of(holds capital, all_of(holds >= 3 fortress sites, AI garrison positions <= 25% of start))`; the 25% clause sits inside the fortress branch only. **Decided (owner, 2026-10-03): the 25% base is the AI's STARTING garrison positions only.** There are 20 at scenario start (1 capital garrison + 6 fortress + 2 defence zone + 11 other), so 25% is **5 positions** (06: `held * 100 <= 25 * 20`, i.e. the AI holds 5 or fewer). The two defence-zone positions are among the 20. Positions the AI founds later never count toward the base. Spec consequence for 06 (not edited here): the predicate must use the fixed start count, outposts, if any, are excluded by the predicate's `tags_any` (06 H4), so they cannot change the base, and later-founded AI bases must not raise or lower the test. **Terminology (proposal for reviewers):** no town was held by the Pakistan Army at the start of the war, so this file calls the AI's starting sites "garrison positions", "fortress positions", "defence zones" and the "capital garrison" (Dhaka); opaque ids and grid coordinates are unchanged. The term is a proposal, not decided wording.
 
 Geography of the six: **west block** Rangpur, Bogura, Jessore, Jhenidah (four); **east block** Comilla and Bhoirab (two), plus Dhaka. So N = 3 can be met entirely inside the west block (Jessore and Jhenidah are 4 infantry turns apart, Bogura 12 more by land via Hardinge), which was not true of the earlier 3-of-5 list (3 west, 2 east); see 6.5 concern 6. Bhoirab is only 5.3 infantry turns from Dhaka by land, so one fortress sits beside the capital.
 
@@ -296,9 +297,29 @@ Geography of the six: **west block** Rangpur, Bogura, Jessore, Jhenidah (four); 
 
 **Not placed** (no support in the files, or inappropriate): any garrison in the Hill Tracts, Sundarbans or haors; Dinajpur, Pabna, Barisal, Noakhali and Cox's Bazar as garrisons (the gazetteer and orders of battle name only areas); Dhaka University and Kalurghat radio as map objects (see section 7); the **Dhaka airfield** (07c row 30: "Dacca airfield" is vague, Tejgaon and Kurmitola were both used; the name and position are **UNVERIFIED**, so no airfield tile is placed and any later one must name the field specifically); **Harina** (the sector 1 camp area in India: its location is UNVERIFIED, and India is not drawn anyway).
 
+### 4.5 The 11 other garrison positions: names for 05 to conform to (16 N-3)
+
+08 owns the positions. 05 `names/sites.json` (`site.town_01..11`) must use these names, in this order, with the Hili/Hilli display spelling as the owner's choice. All 20 positions, with the tag counts 06 uses (`tag_counts` 1 + 6 + 2 + 11 = 20):
+
+| Id (05/06) | Position | Cell (x, y) | Tags | Section |
+|---|---|---|---|---|
+| `site.town_01` | Khulna | (10, 21) | `garrison_town` | 4.2 |
+| `site.town_02` | Mymensingh | (16, 10) | `garrison_town` | 4.2 |
+| `site.town_03` | Brahmanbaria | (21, 15) | `garrison_town` | 4.3 |
+| `site.town_04` | Chandpur | (19, 19) | `garrison_town` | 4.3 |
+| `site.town_05` | Hilli (Hili) | (6, 7) | `garrison_town` | 4.3 |
+| `site.town_06` | Kushtia | (7, 15) | `garrison_town` | 4.3 |
+| `site.town_07` | Rajshahi | (4, 12) | `garrison_town` | 4.3 |
+| `site.town_08` | Tangail | (13, 13) | `garrison_town` | 4.3 |
+| `site.town_09` | Mongla | (12, 23) | `garrison_town` | 4.3 |
+| `site.town_10` | Narayanganj | (17, 16) | `garrison_town` | 4.3 |
+| `site.town_11` | Feni | (23, 20) | `garrison_town` | 4.3 |
+
+The other nine: `site.capital` = Dhaka (16, 15), tag `capital`; `site.fortress_1..6` = Jessore (8, 19), Jhenidah (7, 17), Bogura (9, 10), Rangpur (8, 5), Comilla (21, 17), Bhoirab (19, 14), tag `fortress`; `site.zone_1..2` = Chittagong (26, 23), Sylhet (26, 9), tag `defence_zone`. The id order for fortresses and zones follows the order of the 4.1 table. **Dinajpur, Pabna, Barisal and Noakhali are NOT placed** (see "Not placed" above); 05's current pool names for them (and Faridpur, Habiganj, which 08 does not place either) must be dropped from the 11 positions, and Chandpur, Hilli, Mongla, Narayanganj and Feni added to its name pool. Ashuganj is only an optional label, not a position.
+
 ### 4.4 Division names (gazetteer note)
 
-Only four divisions existed in 1971 (Dacca, Chittagong, Khulna, Rajshahi); Rangpur (2010), Sylhet (1996), Mymensingh (2015) and Barisal (1993) divisions did not [07c#25, A26]. Whenever the map text names a division, use "1971 / today":
+Only four divisions existed in 1971 (Dacca, Chittagong, Khulna, Rajshahi); Rangpur (2010), Sylhet (1996), Mymensingh (2015) and Barisal (1993) divisions did not [07c row 25, A26]. Whenever the map text names a division, use "1971 / today":
 
 | Place | 1971 | Today |
 |---|---|---|
@@ -310,7 +331,7 @@ Only four divisions existed in 1971 (Dacca, Chittagong, Khulna, Rajshahi); Rangp
 | Hardinge Bridge (cell (7,14)) | spans Ishwardi (Pabna, Rajshahi Division) to Bheramara (Kushtia, Khulna Division) | same districts, same two divisions |
 | Mujibnagar (not on the map) | Kushtia district, Khulna Division | Meherpur District |
 
-Spelling choice (period vs present: Dacca / Dhaka, Jessore / Jashore, Bogura / Bogura, Comilla / Cumilla) is an owner decision still open (errata A26); this file uses the owner's display spellings for the fortress list and the common spellings elsewhere.
+Spelling choice (period vs present: Dacca / Dhaka, Jessore / Jashore, Bogra / Bogura, Comilla / Cumilla) is an owner decision still open (errata A26); this file uses the owner's display spellings for the fortress list and the common spellings elsewhere.
 
 Start rule suggestion (T3 small, [03 E-AI]): all 20 bases exist at turn 0. The variant spec [06 H2] gives concrete core levels of 4 for the capital garrison, 3 for fortress and defence-zone positions, 2 for other garrison positions and 1 for camps; the levels are ASSUMED, and the anchors and contents are PLACEHOLDER (the earlier 2/2/1 suggestion here is superseded). Under the region cap [06, region cap section], pre-placed bases may exceed it at turn 0, so Dhaka, Comilla and Bhoirab (all in the sector 2 region) and Jessore and Jhenidah (both in the sector 8 region) may each hold a level-3-or-higher core at the start; the cap only blocks further qualifying upgrades there.
 
@@ -433,7 +454,7 @@ Other unit speeds scale these figures: shock x0.6 (5 points), scout x0.375 (8 po
 
 Concerns:
 1. **The founder crawls.** At 1 point per turn a founder takes 4 turns to cross one `O` cell, 8 on groves, 12 in mangrove. Founding near the entry tile works; walking a founder 10 cells inland takes about 40 turns. The founder speed is a GDD tunable, and the Easy setting x1.5 is the only relief; the owner may want a faster `u.founder` in this variant.
-2. **The whole map is slow for infantry.** The longest realistic march (E16 to Chittagong through the Hill Tracts) is 20 turns; Dhaka to Chittagong by land is 29 turns, a third of the 88-turn game. The pacing target "first battle turn 25-40" (GDD 4) fits the far entries but not E06, E13 and E14, which sit near an AI garrison position almost at once.
+2. **The whole map is slow for infantry.** The longest realistic march (E16 to Chittagong through the Hill Tracts) is 20 turns; Dhaka to Chittagong by land is 29 turns, a third of the 89-turn game (turns 0-88; turn 88 is 16 December), 29 of 89 turns = 33%. The pacing target "first battle turn 25-40" (GDD 4) fits the far entries but not E06, E13 and E14, which sit near an AI garrison position almost at once.
 3. **Three entries start in contact.** E14 is 4 tiles from Comilla (about one infantry turn); E06 is 8 tiles from Jessore; E11 is about 6 tiles from the Sylhet defence zone (2.7 turns). A level-1 base area is 5x5 tiles. Suggested rule (T1): no AI garrison position within 8 tiles of any entry may attack before turn N, or move those entries one cell away. This is a historically honest border (Comilla and Jessore are near the border), so the cost is a rule, not a map change.
 4. **Boats are required to reach the centre.** Without `u.transport` on the Jamuna and Padma, the west block can never reach Dhaka, and the AI's western garrisons are bypassed or isolated. The AI has `u.transport` ("river gunboat") but it must be able to use ghat tiles; the AI must be tested on this map. A fast transport (12 points) makes the rivers the fastest roads, which matches the waterway accounts [G14][G10].
 5. **Only two bridge cells.** If a rule can destroy a bridge cell (the sabotage story [G15][G30]), C1 or C2 becomes a decisive move. No such rule exists (open question Q2).
@@ -465,7 +486,7 @@ Concerns:
 2. **Bridges.** Do you want destructible bridge cells at (7,14) and (20,14) (needs a T3 hook: a cell that changes from `R` to `D`)? Or are they permanent crossings?
 3. **Map size and speed.** Keep 128x128 (4 tiles per cell, about 5 km per tile) with the 02 G1 speeds, or shrink to 96x96 (3 tiles per cell, distances x0.75), or raise movement for this variant? Founder speed in particular (concern 1, section 6.5).
 4. **"Link to outside".** Which edges count as the supply route: the Jamuna north edge (12,4) and the Padma west edge (1,13) only, or any entry tile too? The Bay edge is the AI patron's airlift path.
-5. **Surrender test.** *Decided 2026-10-03:* K = 6 fortress positions, N = 3, capital garrison and/or 3 of 6 with the AI at or below 25% of its STARTING garrison positions (20 at scenario start, 25% = 5; positions founded later never count); Chittagong and Sylhet are defence zones among the 20. *Closed:* the 25% base. *Still open:* is the west-block tilt of 3 of 6 acceptable (6.5 concern 6), or should N be 4?
+5. **Surrender test.** *Decided 2026-10-03:* K = 6 fortress positions, N = 3, the capital garrison, or 3 of 6 fortress positions with the AI at or below 25% of its STARTING garrison positions (20 at scenario start, 25% = 5; positions founded later never count); Chittagong and Sylhet are defence zones among the 20. *Closed:* the 25% base. *Still open:* is the west-block tilt of 3 of 6 acceptable (6.5 concern 6), or should N be 4?
 6. **Contact rule.** For E06, E11 and E14 (AI garrison position 4-8 tiles from the entry; E11 is next to the Sylhet defence zone): move the entry, delay AI aggression, or accept immediate contact?
 7. **Pre-placed AI strength.** Start levels for the 20 garrison positions (06 gives ASSUMED levels 4 / 3 / 3 / 2 / 1, anchors PLACEHOLDER), and whether the AI's patron (airlift) can reach them at all across the Bay.
 8. **Sector areas.** Replace the section 2.2 table and overlay once the 11 areas are checked against Banglapedia, the Liberation War Museum and a sector commander's memoir [03 §10]; decide whether sector 10 gets any marker on the map.
@@ -535,3 +556,24 @@ Date: 2026-10-03. Authority: 12 = 12-second-pass-verification (ids M, L, X as pr
 - **Pre-existing change-log wording** ("towns", "Colony count", "Bogra" aside): left, see S1.
 - **X-series and 05/06 items** (X6, X7, M1 and others): they touch other files, outside this task.
 - **Bhoirab versus Bhairab and the Jhenidah tile**: still need a native speaker and a map author; unchanged.
+
+---
+
+## Change log (third pass)
+
+Date: 2026-10-03. Authority: 16 = 16-final-consistency-check, 06 = variant and hooks spec. Only this file was edited. Checked by a script in the session scratchpad (`fix08.py`): every replaced string occurred exactly once; the 11 position rows plus the 9 others make 20 (1 + 6 + 2 + 11).
+
+| # | Change | Report id |
+|---|---|---|
+| T1 | 6.5 concern 2: "the 88-turn game" became "the 89-turn game (turns 0-88; turn 88 is 16 December)"; 29 of 89 turns = 33%, still "a third". | 16 M7 / N-26 |
+| T2 | 4.4 spelling note: "Bogura / Bogura" became "Bogra / Bogura" (period spelling / owner's display spelling). | 16 M2 / N-26 |
+| T3 | 4.4 intro: `[07c#25, A26]` became `[07c row 25, A26]`. | 16 M9 / N-26 |
+| T4 | 4.1 K/N paragraph: "`site.camp_NN` outposts must not be added..." replaced by "outposts, if any, are excluded by the predicate's `tags_any` (06 H4)"; 06 keeps `site.camp_01` and excludes it. | 16 M5 |
+| T5 | "and/or" became "or" in 4.1 and open question 5, so the 25% clause cannot be read as attaching to the capital branch. | 16 N-17 |
+| T6 | Section 3: heading "16 entry cells", column "Cell (x, y)", and a note that these coordinates (also in sections 4 and 5) are cells of the 32x32 grid, 1 cell = 4x4 tiles, with the rule for the final map (edge-touching tiles of each 4x4 block, north to south then west to east, about 3-12 tiles per group). | 16 N-19 |
+| T7 | New 4.5: table of the 11 `site.town_NN` positions with coordinates and tags (plus the other 9), as the names 05 should conform to; states that Dinajpur, Pabna, Barisal and Noakhali are NOT placed, and which of 05's names to drop and add. 08's positions are unchanged. | 16 N-3 |
+
+**Not applied, and why**
+- **Edits to 05, 06, 04, 11** in the same report (N-3 in 05, N-5, N-8, N-19 in 06 and 05, N-20, N-23, M10 in 05, L1 in 04): other files, outside this task.
+- **`site.town_NN` order**: 4.5 follows the order proposed in the report (Khulna, Mymensingh, Brahmanbaria, Chandpur, Hilli, Kushtia, Rajshahi, Tangail, Mongla, Narayanganj, Feni); that order is the report's, not a map fact.
+- **Tag names** (`garrison_town`, `capital`, `fortress`, `defence_zone`) are from the report and 06's tag counts; if 06 spells a tag differently, 06 wins.

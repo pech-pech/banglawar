@@ -114,7 +114,9 @@ Plain documents (PDF/DOCX, no code, no Markdown syntax, no internal IDs unless n
 - **No civilians in the simulation.** No civilian unit, resource, village, refugee stock, relief mechanic, score or event. A test checks this in the code.
 - **Attackable places are military installations only** (bases, cantonments, depots, river landings, bridges). Towns appear as map names. A site named after a real town can be captured but never destroyed.
 - **No body counts, no kill scores.** Losses appear as strength points. Nothing is rewarded for damage dealt.
-- **"Personnel", not "people".** A supply shortage means personnel stand down and go home; the simulation models nobody dying of hunger. (Caveat to disclose: this meaning lives in the wording, not in the rules; 09 section C.1.)
+- **"Personnel", not "people".** A supply shortage is shown as personnel standing down and going home. Caveat to disclose: the rules cannot tell going home from dying; the meaning is in the wording only (SC 3.1, 06 R-14; 09 section C.1).
+- **Capture.** A captured position keeps its staffing count, so the opponent's personnel are counted as the player's volunteers; the text never narrates this (06 R-7). The owner dropped the "personnel never change sides" switch on 2026-10-03. This is a disclosed, text-level mitigation, not a rule (SC 3.1 condition 5).
+- **Residual risk, stated plainly (Hybrid H).** Shortage and capture meanings rest on wording alone: shortage is shown as volunteers going home, and no one is killed by a shortage, but the rules cannot tell going home from dying. The wording is checked by V-04, V-05 and V-21 and reviewed by the historian (A.8).
 - **Atrocity is history, never play.** It is mentioned only in remembrance and encyclopedia text, plain and sourced; sexual violence is not depicted, and the contested range is named only in the encyclopedia, reviewer-gated.
 - **The human story is in text:** a remembrance line on the menu, a first-launch note, dignified end screens, credits with sources, and an encyclopedia including the language movement, the March non-cooperation movement, refugees and the contested casualty ranges. Dated context lines in the turn report can be switched off; the remembrance cannot.
 - **The opponent is a professional army, not a villain.** Same art quality, same rules, surrender (no annihilation); Razakar, Al-Badr and Al-Shams are never units.
@@ -122,7 +124,7 @@ Plain documents (PDF/DOCX, no code, no Markdown syntax, no internal IDs unless n
 
 ### 4.4 Decisions already made vs decisions the reviewer may influence
 
-**Made (owner), reviewer may comment but the structure will not change in review:** Hybrid H treatment; no civilians in the simulation; the two sides' roles; one turn = three days from 26 March 1971; 89 turns; December event on 3 December; own-government patron with tax 0; no real names in text; draw at the deadline; surrender win test (capital, or N fortress towns with the opponent at or below a quarter of its starting garrisons; N/K still open per 09 A.3.1); loss after 15 turns with no base area.
+**Made (owner), reviewer may comment but the structure will not change in review:** Hybrid H treatment; no civilians in the simulation; the two sides' roles; one turn = three days from 26 March 1971; 89 turns; December event on 3 December; own-government patron with tax 0; no real names in text; draw at the deadline; surrender win test (the capital garrison, or 3 of the 6 fortress positions while the opponent holds at most a quarter of its 20 starting garrison positions; owner set K = 6 and N = 3; 4 of 6 is still offered, 08 Q5); loss after 15 turns with no base area.
 
 **Reviewer may influence (examples; the cut/keep decision follows section 7):** any wording; whether an item ships, ships as a range, or is cut; the fortress list; the declaration and radio wording; spellings (period vs present-day); whether "Freedom-fighter section" is acceptable; the end-screen texts; the surrender entry and picture; whether to include cameo mentions of leaders; whether the game should exist in its current form (R1-R4 may say it should not; this is recorded, section 7.2).
 
@@ -149,7 +151,7 @@ Every question is answered per item with the verdict set in section 1 and record
 
 **A.1 Facts ranked by how much game text depends on them** (09 section E; ranks 1-22, most dependent first).
 1. The ten land sector regions (areas, not HQs) and the sector wording corrected in 09 A16-A19; sector boundary changes during the war (sector 8/9); sector 10 as a label only.
-2. The fortress towns (09 A27: Jessore, Jhenida, Bogra, Rangpur, Comilla, Bhairab Bazar; defence zones at Chittagong and Sylhet; another summary lists five) and the Eastern Command structure; **the N-of-K surrender threshold choice (owner needs a historian's view)**.
+2. The fortress positions (owner's display spellings: Jessore, Jhenidah, Bogura, Rangpur, Comilla, Bhoirab; 07a writes Jhenaidah, Bhairab Bazar; defence zones at Chittagong and Sylhet; another summary lists five) and the Eastern Command structure; **the surrender threshold (K = 6, N = 3 decided by the owner; ask the historian whether 3 of 6 plus the quarter clause is a fair reading, and whether 4 of 6 would be better, 08 Q5)**.
 3. 3 December as the start of the state war; "border fighting began earlier, late November".
 4. Season wording: monsoon June-September; the wider rainy season April-October; the turn-22 boundary is a design choice.
 5. **[SENSITIVE]** 26/27 March declaration wording; no person credited; the Kalurghat broadcasts.
@@ -163,7 +165,7 @@ Every question is answered per item with the verdict set in section 1 and record
 13. Razakar, Al-Badr, Al-Shams formation and roles; separation from any community. **[SENSITIVE]**
 14. 14 December (Martyred Intellectuals), Jessore 6 December, Kilo Flight (single sources), mid-April towns.
 15. The Commander-in-Chief sequence (9, 12, 17 April; July conference).
-16. Gazetteer items (Hardinge Bridge, Tangail drop, Feni, Bhairab bridge, Dacca airfield, Harina).
+16. Gazetteer items (Hardinge Bridge, Tangail drop, Feni, Bhoirab bridge (Bhairab to the reviewer), Dacca airfield; "Harina" is in India and is not a sector base, 08 Q16).
 17. Haor flood months, Hilli location, Plassey and Jackpot dates.
 
 **A.2 Contested figures.** For each figures block: Is the range fair? Is any claim missing or misattributed? Is the order respectful (09 D3 proposes the Government of Bangladesh figure first)? Should any figure be cut, shown as a range, or left out? Do you object to an unranked range for the toll? Is "this game does not choose a number" acceptable?
@@ -172,9 +174,11 @@ Every question is answered per item with the verdict set in section 1 and record
 
 **A.4 Dates.** Confirm or correct every date in the dated context lines (list supplied). Confirm the turn mapping for 16 December as the last turn.
 
-**A.5 Terminology.** `Mukti Bahini`, `Niyomito Bahini`, `Gono Bahini` (and the post-1975 homonym), `Muktijoddha` (legal sense), "Freedom-fighter section", "Garrison reserve", "Eastern Command", "Pakistan Army, Eastern Command" as the AI's name, "West Pakistan" vs "army headquarters in the west", "East Pakistan" vs "East Bengal" for the March line, "liberation war" vs "war of independence", "genocide" wording and attribution, "surrender" vs "capitulation".
+**A.5 Terminology.** `Mukti Bahini`, `Niyomito Bahini`, `Gono Bahini` (and the post-1975 homonym), `Muktijoddha` (legal sense), "Freedom-fighter section", "Garrison reserve", "Eastern Command", "Pakistan Army, Eastern Command" as the AI's name, "West Pakistan" vs "army headquarters in the west", "East Pakistan" vs "East Bengal" for the March line, "liberation war" vs "war of independence", "genocide" wording and attribution, "surrender" vs "capitulation"; and the proposed terms "garrison position", "fortress position", "defence zone", "capital garrison" used instead of "town" for the AI's starting sites (a proposed term, for reviewers to confirm): is "a quarter of its starting garrison positions" a fair reading (05 10.2 #20)?
 
 **A.6 Framing of both sides.** Does the text separate command decisions from individual soldiers? Does any line make the AI the perpetrator of what it does in the game? Does any line sanitise the record? Is Indian support shown at the right weight? Is the war framed as linguistic and political (not religious)? Is the refugee story stated fairly?
+
+**A.8 Text-level mitigation and capture disclosure [SENSITIVE].** (SC 3.1 and rule 4, item 0 of SC section 10.) Shortage templates (`ev.pop_lost*`, `warn.food_shortage*`), capture templates (`ev.site_taken.gained` and `.lost`), the `limits` entry and `debrief.different.body`: (a) Is the wording honest without promising what the rules cannot back (no "nobody dies", no "nobody was harmed")? Is "return home" or "stood down" acceptable for a shortage when the rules cannot tell going home from dying? (b) Capture: captured opposing-side personnel are counted as the player's volunteers under the neutral capture rule, and the text never says so. Is this disclosure acceptable, or does it need an on-screen note? Is it acceptable that a game rule can produce it at all? (c) Is the residual risk fairly stated to players and reviewers? Verdict per template; REJECT holds the release.
 
 **A.7 What not to do (ask them to add).** The questionnaire closes with: "What would you never want a game on this subject to do?" Record the answer verbatim; it becomes a standing rule list.
 
@@ -186,7 +190,7 @@ For each term/string: (a) correct Bengali script; (b) accepted romanisation(s) a
 
 **B.2 Script.** Each Bengali string currently marked "general knowledge" (07c): script, consistent conjuncts, correct letters, and whether Unicode normalisation is needed. Test rendering with the planned font (Noto Sans Bengali candidate): any missing conjuncts, broken matras, line-break problems.
 
-**B.3 Romanisation and display spellings.** The English display forms: Bogura (present-day official) vs Bogra (period); Jhenaidah/Jhenidah vs Jhenida; Chattogram vs Chittagong; Dhaka vs Dacca; Comilla/Cumilla; Jessore/Jashore; **Bhairab vs "Bhoirab"** (present-day name Bhairab; "Bhoirab" is a phonetic spelling: decide which one, record the reason); Sylhet/Sileṭ; Sunamganj; Kishoreganj. Recommendation under 09 A26: one rule for the whole game (period or present-day), with the other beside it in the encyclopedia. The linguist picks a rule for ambiguous cases; the owner decides policy.
+**B.3 Romanisation and display spellings.** The English display forms: Bogura (the owner's current display choice; present-day official) vs Bogra (period); Jhenidah (owner's current choice) vs Jhenaidah/Jhenida; Chattogram vs Chittagong; Dhaka vs Dacca; Comilla/Cumilla; Jessore/Jashore; **"Bhoirab" (owner's current display choice) vs Bhairab** (present-day name Bhairab; "Bhoirab" is a phonetic spelling: native-speaker reviewer decides which one, records the reason); Sylhet/Sileṭ; Sunamganj; Kishoreganj. Recommendation under 09 A26: one rule for the whole game (period or present-day), with the other beside it in the encyclopedia. The linguist picks a rule for ambiguous cases; the owner decides policy.
 
 **B.4 Name pools.** All base, flotilla and callsign words (the pool is 16 base words per 09 A44; bird and river names): script, meaning, connotation (Shapla = water lily, on the state emblem; Doel = national bird), any word that has a political or religious sense, spelling of "Beel/Bil".
 
@@ -202,7 +206,7 @@ For each term/string: (a) correct Bengali script; (b) accepted romanisation(s) a
 2. **Remembrance.** Does the game remember the right groups? Should the genocide be named explicitly in the always-on text (not only in the encyclopedia)? Is the 14 December Martyred Intellectuals reference suitable?
 3. **Credits.** Source list; "Historical review by" wording; whether to name your institution (default: no). May we link to your institution's website as "learn more"?
 4. **Imagery limits.** Check each rule: no civilians, no destroyed villages, no victims, no photographs or real faces, no protected emblems, no real flag or state emblem without review, equal art quality for both sides, dignified surrender (two delegations, equal dignity, no trampled flags), no gore, no celebratory effects around death. What else would you forbid? What would you require?
-5. **Human cost.** Is a game with no civilians in the simulation acceptable if the text carries the story? Is the "personnel stand down" wording acceptable? Are the dated context lines adequate or do they feel bolted on? Should they be always on?
+5. **Human cost.** Is a game with no civilians in the simulation acceptable if the text carries the story? Is the "personnel stand down" wording acceptable, given that the rules cannot tell going home from dying (see A.8)? Is the capture disclosure (opposing personnel counted as the player's volunteers, never narrated) acceptable? Are the dated context lines adequate or do they feel bolted on? Should they be always on?
 6. **Do/Don't.** What should a game about 1971 do that we have not done? What would make you ask us to withdraw it?
 7. **Marketing.** Review the store description, trailer script and screenshots plan (before they are made).
 
@@ -273,6 +277,7 @@ A release (including a public demo) is blocked until every line is true and reco
 - [ ] Zero UNVERIFIED items in the release build (V-17 passes); `terms` and `violence` entries remain `ship: false` unless R1 and R3 approved them.
 - [ ] Every figure in the game is in a figures block with attribution (V-07); no single casualty or strength figure in UI text.
 - [ ] No person named in game text (V-06), no slogan excluded by R2 (Joy Bangla), no religious labels, no unit named after the groups excluded by the content rules.
+- [ ] The text-level mitigation (A.8: shortage templates, capture templates, the `limits` entry, `debrief.different.body`) has ACCEPT or ACCEPT WITH CHANGE from R1, V-04, V-05 and V-21 pass on the exact text, and the capture disclosure (4.3) was shown to every reviewer.
 - [ ] Remembrance line, first-launch note, end-screen dedications and credits approved by R3 (and R4 if engaged).
 - [ ] Any flag or emblem decision recorded (section 9.2); no state emblem; flag labelled 1971 or current if shown.
 - [ ] R5 reviewed the AI-side labels, or the AI-side text is reduced to plain military terms with no history claims.
@@ -291,7 +296,7 @@ Durations are planning estimates (author's judgement), not commitments; reviewer
 | Stage | When | What | Reviewers | Output |
 |---|---|---|---|---|
 | **0. Prepare** | Before outreach (1-2 weeks) | Sync 05/06/08/09 to final wording; build packs; legal read of sharing terms; decide budget and credit options | none | Briefing packs v1, outreach list |
-| **1. Before first playable** | Weeks 1-6 | Recruit R1 and R2 (with R3 if possible). R1 pass 1: the ranked facts 1-10 and the toll/figures framing. R2 pass 1: glossary and name pools. Feed results into the rules that depend on facts (fortress list, N/K, sector areas, season boundary) | R1, R2, (R3) | Evidence log entries for facts 1-10 and terms; cut/keep list; decisions on N/K and spellings policy |
+| **1. Before first playable** | Weeks 1-6 | Recruit R1 and R2 (with R3 if possible). R1 pass 1: the ranked facts 1-10 and the toll/figures framing. R2 pass 1: glossary and name pools. Feed results into the rules that depend on facts (fortress list, K = 6 / N = 3 check, sector areas, season boundary) | R1, R2, (R3) | Evidence log entries for facts 1-10 and terms; cut/keep list; historian's view on the K = 6 / N = 3 reading (decided by the owner) and the spellings policy (Bogura, Jhenidah, Bhoirab are the owner's current choices) |
 | **2. First playable (internal)** | Week 6-10 | The game runs with English text, development builds mark UNVERIFIED items | none | Internal build |
 | **3. Before public demo** | Weeks 10-18 | R1 pass 2 (rest of the facts, context lines, encyclopedia); R3 review of all remembrance texts and images; R4 short selection; R5 questionnaire D; sign-off on the demo content set (a subset: only reviewed items) | R1, R3, R4, R5 | Demo content set = only items with ACCEPT; log frozen for the demo |
 | **4. Before release** | Weeks 18-30 | Everything else: remaining encyclopedia entries, `bn` locale (R2, R6), legal check, store text; re-review of changed items; release gate checklist (7.3) | all roles | Signed log; release notes; credits |
@@ -343,3 +348,14 @@ If a required sign-off is missing at the release gate:
 3. Decide the credit default (named / anonymous / none) and the confidentiality terms; have a lawyer read 3.4.
 4. Decide whether to engage R4, R5 and R6 before the demo or only before release.
 5. After the other agents finish 05/06/08, ask for a regenerated extract of section 10, the glossary, the name pools, the gazetteer and the figures blocks to build the packs.
+
+## Change log (third pass)
+
+Applied (report 16):
+1. N-6: 4.3 personnel bullet now says a shortage is shown as personnel standing down and going home, and discloses that the rules cannot tell going home from dying.
+2. N-8a: 4.4 and the timeline: N/K closed (K = 6, N = 3 decided; the capital garrison, or 3 of the 6 fortress positions while the opponent holds at most a quarter of its 20 starting garrison positions; 4 of 6 still offered, 08 Q5). A.1 item 2 asks the historian to check the reading, not to choose.
+3. N-8b: spellings use the owner's choices (Jessore, Jhenidah, Bogura, Rangpur, Comilla, Bhoirab; Bhoirab vs Bhairab goes to the native-speaker reviewer, B.3); "fortress towns" replaced by "fortress positions"; Harina noted as in India (A.1 item 16).
+4. N-8c: new 4.3 bullet "Capture" (opponent personnel count as the player's volunteers, never narrated, a disclosed text-level mitigation) and a plain residual-risk bullet for Hybrid H.
+5. N-8d: new A.8 (text-level mitigation and capture disclosure, SENSITIVE, historian); A.5 gains the "garrison position" family of terms and the quarter reading (05 10.2 #20); 5.3 item 5 extended with the going-home/dying caveat and the capture disclosure; release gate (7.3) has a new line requiring R1 sign-off on A.8, V-04/V-05/V-21 passing, and the capture disclosure shown to every reviewer.
+
+Not applied / notes: A.8 sits before A.7 (A.7 stays the closing question). "Garrison position" is kept as a proposed term for reviewers, as decided. Packs, questionnaires sent to nobody; nothing was sent. The art method remains PROVISIONAL and is not touched here.

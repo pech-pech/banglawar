@@ -1,0 +1,25 @@
+# Unity
+/[Ll]ibrary/
+/[Tt]emp/
+/[Oo]bj/
+/[Bb]uild/
+/[Bb]uilds/
+/[Ll]ogs/
+/[Uu]ser[Ss]ettings/
+/Memory Captures/
+/Recordings/
+*.csproj
+*.sln
+*.slnx
+*.suo
+*.user
+.vs/
+.idea/
+.vscode/
+*.pidb.meta
+*.pdb.meta
+*.mdb.meta
+sysinfo.txt
+*.apk
+*.aab
+*.unitypackage

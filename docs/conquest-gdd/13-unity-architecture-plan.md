@@ -64,7 +64,7 @@ The game is a Unity application whose **simulation, rules, data validation and A
 - Variant format with RFC 6901 JSON Pointer ops (VH H0.4, TA-1); default elision for the rules hash and the state hash (VH H0.1); hooks H1-H7 and their pipeline steps 3a/5a (VH §2).
 - The event and key table and the `@<slot>` template rule (VH §8, TP X-1).
 - The no-civilian-state allow-list test and its ten checks (VH §5, TP10 §7).
-- Every test name in TP10; only the harness changes (section 10 maps them).
+- Every test name in TP10 except the Python-specific ones, which are renamed as follows (section 10 maps the rest; only the harness changes for them): pygame bans (`test_no_conditional_pygame_import_anywhere_in_core`, `test_core_has_no_pygame`) -> `UnityEngine` reference ban (10.4); `test_core_dataclasses_are_frozen` -> sealed/`readonly` scan; `test_core_math_names_are_integer_safe` (`math.isqrt` and kin) -> float/`double`/`decimal` and `/`, `%` scan; `test_no_unordered_iteration` (`SetIterGuard`) -> `Dictionary`/`HashSet` enumeration scan; `test_replay_identical_under_two_hash_seeds` and `test_hash_seed_runner_really_varies_hash` -> three-runtime replay and the `tr-TR` sanity check (3.5); `test_hash_stable_across_python_versions` -> LangVersion 9 / `netstandard2.1` parity between Unity and dotnet (2.2). Python-only names do not carry over as names.
 
 ---
 
@@ -173,13 +173,15 @@ StreamingAssets/conquest/
   rules/core/*.json               # ruleset.json, resources, terrain, buildings, units, factions,
                                   # discoveries, abilities, combat, economy, scoring, events,
                                   # terrain_affinity, hooks.json (VH H0.1)
-  rules/variants/*.json           # equal-nations, mvp, no-patron, bd1971 (+ *.allow.json, TP10 §1.4)
+  rules/variants/*.json           # equal-nations, mvp, no-patron, bd1971 (allow-lists are NOT here: see below)
   engine/text/en.json             # neutral base locale (TA §5)
   themes/<id>/...                 # theme.json, roles.json, factions.json, calendar.json, names/, text/,
                                   # flavour/, encyclopedia/ (TP X-2), shapes.json, assets/, audio/
   settings/presets/*.json
   scenarios/*.json, scenarios/maps/*.map.json
 ```
+
+**Test allow-lists never ship in a player build (N-14).** The variant allow-lists (`*.allow.json`, TP10 §1.4, VH §5), the source-scan allow-lists of 10.4 and the golden files live in `dotnet/Conquest.Tests/allowlists/` and `dotnet/Conquest.Tests/golden/` (matches VH's `tests/allowlists/`; this settles TP10 Q2). `dotnet/` is outside Unity's import scope (2.2), so they are never in `Assets/` or `StreamingAssets/`. The `index.json` generator only walks `StreamingAssets/conquest/`, and a test fails if any `*.allow.json` or `allowlists/` folder appears under `Assets/` or `Packages/`, or in the generated `index.json`. Build scripts and `tools/ci-local.sh` package only `Assets/` content; the tools read the allow-lists from `dotnet/` directly.
 
 ### 2.4 StreamingAssets vs Resources vs Addressables (and 6.6 Content Directories)
 
@@ -241,10 +243,11 @@ Goal (GDD §18, CR H-8): the same ruleset, variants, settings, seed and order li
 - No `Parallel.For`, no tasks inside Core; the AI may run on a thread *as a whole* (section 11) because it is a pure function of an immutable snapshot.
 
 ### 3.4 Hashing (rules hash and state hash)
-- **Canonical form**: our own writer serialises objects with keys sorted ordinally, integers in invariant decimal, no whitespace, UTF-8, `null`/default values omitted per VH H0.1 (default elision). The same writer produces save files (pretty-printed variant) so "hash of save == hash of state" is checkable.
-- `rules_hash` = SHA-256 of the canonical merged rules (after variants, before themes), formatted `sha256:<hex>`. SHA-256 from `System.Security.Cryptography.SHA256` is in .NET Standard 2.1; availability and speed in IL2CPP and Web players is UNVERIFIED. **REC:** ship a small managed SHA-256 (about 150 lines, tested against the NIST vectors) in Core so every platform uses identical code with no dependency, and test it against the BCL implementation under `dotnet test`.
+- **Canonical form**: our own writer serialises objects with keys sorted ordinally, integers in invariant decimal, no whitespace, UTF-8, and values equal to their declared default omitted per VH H0.1 (default elision; `null` is omitted only where `null` is the declared default, not for every null). The same writer produces save files (pretty-printed variant) so "hash of save == hash of state" is checkable.
+- **Three hash rules fixed by the other specs (N-12):** (1) `_note` and every `_`-prefixed key are stripped before hashing (TP10 6.3 `test_rules_hash_independent_of_note_keys`); (2) the ruleset version string is not hashed (VH H0.1; TP10 `test_rules_hash_independent_of_version_string`); (3) the variant stack, as ids and versions in order, is hashed beside the merged document (TP10 `test_variant_ids_and_versions_are_in_the_hash`).
+- `rules_hash` = SHA-256 of the canonical merged rules (after variants, before themes) plus the variant stack per rule (3) above, formatted `sha256:<hex>`. SHA-256 from `System.Security.Cryptography.SHA256` is in .NET Standard 2.1; availability and speed in IL2CPP and Web players is UNVERIFIED. **REC:** ship a small managed SHA-256 (about 150 lines, tested against the NIST vectors) in Core so every platform uses identical code with no dependency, and test it against the BCL implementation under `dotnet test`.
 - `rules_state_hash` (per turn, many per test) = 64-bit **xxHash64** (or SplitMix-based streaming hash) over the canonical state bytes, own implementation with published test vectors; SHA-256 only for saves. Endianness is fixed by writing bytes explicitly (`BinaryPrimitives.WriteInt64LittleEndian`, available in .NET Standard 2.1).
-- Hashed field list is explicit (`golden/hash_fields.json`, TP10 §3.4): the state hasher walks a declared list of fields per type, not reflection order (reflection field order is not guaranteed).
+- Hashed field list is explicit (`golden/hash_fields.json`, TP10 §3.4): the state hasher walks a declared list of fields per type, not reflection order (reflection field order is not guaranteed). This list is the **hashed subset only**; it deliberately omits bookkeeping fields (for example `jumps`-style counters). It must never be used as the list of all state fields (see 10.5, N-10).
 - Never use C# `record` auto-generated `GetHashCode`/`Equals` for anything persisted or hashed: they call `GetHashCode()` on members, including strings.
 
 ### 3.5 Runtime differences (Mono, IL2CPP, CoreCLR; 32/64-bit)
@@ -483,7 +486,8 @@ Window inventory from GDD §14.1 mapped to UXML documents: `MainMenu`, `Scenario
 
 ### 8.3 Templates and per-slot overrides
 - Lookup for receiving slot S and key K: `K@S` in active locale -> `K` in active locale -> same two in theme default locale -> parent theme -> engine neutral base -> `[K]` + one warning (TA §6.2 text chain, TP X-1, VH §8 rule 1). `ev.match_won` maps to `ev.match_won.player`/`.opponent` first (VH §8 rule 2).
-- Opaque ids in payloads (`site`, `group`, `season`, `region`, `slot`, `building`) render through the theme's name maps (VH §4 display-name rule); a payload never carries free text.
+- Opaque ids in payloads (`site`, `group`, `season`, `region`, `slot`, `winner_slot`, `building`) render through the theme's name maps (VH §4 display-name rule); a payload never carries free text. `{unit}` (for example in `ev.unit_healed`) renders as the unit's generated name or, if it has none, its role label (N-15; to be mirrored in VH §8 by its owner).
+- Events sent to both parties get no base template and are chosen by the receiving slot: besides `ev.match_won` (`.player` / `.opponent`), `ev.site_taken` maps to `ev.site_taken.gained` (receiving slot equals `to`) or `ev.site_taken.lost` (otherwise) (N-2, as VH §8 rule 2 is being extended).
 - Formatter rejects unknown placeholders; CI renders every `ev.*`/`err.*` template with a sample payload built from the VH §8 field list (TP V-11).
 
 ### 8.4 Fonts and Bengali shaping (flagged unknowns)
@@ -541,7 +545,7 @@ The Python-specific tests change shape: `PYTHONHASHSEED` runs become the three-r
 
 ### 10.5 Theme-swap determinism and the allow-list test
 - `ThemeSwapDeterminism` (TP10 §4.1): seeds S1..S5 x 60 turns x {each shipped theme, `__empty__`, `second`}; the headless app driver loads a `Presentation` (the point of the test) but passes only state and rules to Core; per-turn hashes and typed event lists must be identical.
-- `Bd1971NoCivilianState` (VH §5, TP10 §7): all ten checks against the merged rules, the reflected `GameState` field paths (declared field lists, 3.4), the event id/payload table from `events.json`, and the 20-seed x 89-turn soak; plus the two planted-violation self-tests (a dummy `civilians` state field via a test-only schema extension, and a dummy `ev.village_burned` event).
+- `Bd1971NoCivilianState` (VH §5, TP10 §7): all ten checks against the merged rules, the **full set of `GameState` field paths**, the event id/payload table from `events.json`, and the 20-seed x 89-turn soak; plus the planted-violation table of TP10 7.3-7.4 (including a dummy `civilians` state field via a test-only schema extension and a dummy `ev.village_burned` event). **State-field snapshot (N-10):** the guard snapshots ALL state fields, hashed or not, enumerated by reflection in the test assembly (or from a generated field list produced at build time by a test-side generator that walks every field of every state type); reflection is allowed in tests, never in Core. Separately it asserts that the hashed subset (`golden/hash_fields.json`, 3.4) is a subset of that full snapshot, and that every field of the snapshot not in the hashed subset is on a reviewed `unhashed-fields` allow-list in `dotnet/Conquest.Tests/allowlists/`. So an unhashed field (a civilian counter, say) cannot slip past check 3 of VH §5 because it is missing from the hash field list.
 
 ### 10.6 Coverage and the 80% gate
 - Gate measured on the engine-free assemblies with **coverlet** under `dotnet test` (`coverlet.collector` or `coverlet.msbuild`, NuGet, approval): global 80% line, per-package floors as TP10 §13.1 (Core 90/85, Ai 80, Rules 90, Theme 85, App 70).
@@ -681,3 +685,21 @@ Packages in `My project` that this plan does **not** need: `ai.assistant`, `ai.i
 - [Web multithreading, Unity manual](https://docs.unity3d.com/Manual/web-multithreading-intro.html)
 - [Localization package: Plural Formatter](https://docs.unity3d.com/Packages/com.unity.localization@1.5/manual/Smart/Plural-Formatter.html)
 - [Unity pricing updates](https://unity.com/products/pricing-updates)
+
+---
+
+## Change log (third pass)
+
+Source: bd1971/16-final-consistency-check.md. Decisions, UNVERIFIED tags and the section 14 approval list are unchanged.
+
+| Report id | Change in this file | Notes |
+|---|---|---|
+| N-9 | Section 1.3 last bullet rewritten: "Every test name in TP10 except the Python-specific ones", each renamed (pygame bans, frozen dataclasses, `math` names, set iteration, two hash seeds, Python versions) | applied as suggested |
+| N-10 | Section 10.5 `Bd1971NoCivilianState`: the guard snapshots ALL state fields by reflection in the test assembly (or a generated field list), and separately asserts the hashed subset is contained in it, with an `unhashed-fields` allow-list; section 3.4 now says `hash_fields.json` is the hashed subset only | the `unhashed-fields` allow-list is my addition to make the subset check enforceable; TP10 (being rewritten) should mention it |
+| N-12 | Section 3.4: `_note`/`_`-prefixed keys stripped, version string not hashed, variant stack (ids and versions, in order) hashed beside the merged document; "null omitted" narrowed to "values equal to the declared default (null only where null is the default)" | matches VH H0.1 and the TP10 test names |
+| N-13 | Section 10.5: "the planted-violation table of TP10 7.3-7.4" replaces "two planted-violation self-tests" | applied |
+| N-14 | Section 2.3: variant `*.allow.json` removed from the `StreamingAssets` tree; new paragraph puts allow-lists and goldens in `dotnet/Conquest.Tests/allowlists/` and `golden/` (outside Unity's import scope), with a test that fails if any allow-list appears under `Assets/`, `Packages/` or `index.json`, and builds excluding them | settles TP10 Q2 on the 13 side; 10 and 06 are owned by others |
+| N-15 | Section 8.3: `winner_slot` added to the opaque ids; `{unit}` renders as generated name or role label | the matching line in 06 is for that file's owner |
+| N-2 (13 part) | Section 8.3: `ev.site_taken` mapped to `.gained` / `.lost` beside `ev.match_won` | depends on 06 section 8 rule 2 being extended; 06 still showed a single `ev.site_taken` row when read, so the sentence says it is being extended. Re-check once 06 is final |
+| N-25 | not applied | the fix is a note in 10 (13 6.1 already states 16.7 ms) |
+| N-16, N-1, N-3 to N-8, N-11, N-17 to N-24, N-26 | not applied | do not touch 13 |

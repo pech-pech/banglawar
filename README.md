@@ -37,6 +37,12 @@ Some of the guarantees behind this are text-level, not rule-level, and need hist
 - Reference manual: the rules were extracted from a 1996 game manual. Mechanics and numbers are reproduced for design
   reference only; no original art, text or names are intended to be shipped.
 
+## Code scaffolding (Phase 0, in progress)
+
+- [`conquest/dotnet/`](conquest/dotnet/): engine-free C# core (`netstandard2.1`, C# 9) with an NUnit test project and coverlet coverage. A first smoke slice (integer `FloorDiv` and `Percent` helpers) is in place; run `dotnet test conquest/dotnet/Conquest.slnx`.
+- [`conquest/unity/`](conquest/unity/): Unity 6000.6.3f1 project from the Universal 2D template. It contains a Noto Sans Bengali font (SIL Open Font License, text included) for the planned Bengali text-shaping test.
+- No game logic, art or generated images are in this repository. Visual direction is undecided; see `docs/conquest-gdd/bd1971/17-visual-direction-scores.md`.
+
 ## Licence
 
 Not yet chosen.
