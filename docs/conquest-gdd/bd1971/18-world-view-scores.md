@@ -79,5 +79,35 @@ Notes by the assistant (not the owner's scores): the "full tiles" wording worked
 
 Ranking by total across all 17 images: N5 20, M2 19, M1 18, N1 18, N4 18. Concept spend to date: 650 credits (420 + 125 + 45 + 30 + 30); balance 4,179.
 
+## Refinement round (sent 2026-10-04, Seedream 4.5 text route, 30 credits, balance 4,179 to 4,149; audit passes)
+
+Brief from the owner: generate two more using N5 and M2 as a base. Route chosen: text prompts built on the N5 and M2 prompts with their faults fixed (forest crowns "with no gaps" instead of "dark gaps", hill tiles filling most of the tile and taller than the trees, tiles floating alone, no rain).
+
+| Image | Based on | Overall | Viewpoint | Colour | Lighting | Total |
+|---|---|---|---|---|---|---|
+| R1 | N5: 12 x 8 tile field, river to a strip of sea tiles | **5** (note below) | **5** | not scored (note below) | **5** | 15 + colour |
+| R2 | M2: closer 9 x 6 tile field, about half forest | **5** | **5** | **5** | **5** | **20** |
+
+Owner's note on R1: "the ground/land texture is weak" (overall) and "the texture and color of the ground next to paddy fields need changing" (colour; no number given). Assistant's reading: R1 ignored "no bare tile": many tiles are plain tan squares in a checkerboard around the planted paddy tiles, so those tiles do not look full, and the sea is one large flat slab. Next prompt: name the ground tiles ("grass-green meadow tiles with short faceted grass tufts" or "damp brown earth tiles covered in rice stubble") instead of leaving the ground unnamed, and do not ask for a strip of sea tiles beside the field.
+
+Notes on R2 (assistant): tiles are full, the forest is a tidy row of low-poly pines, round trees and bamboo, and the planted paddy tiles with their raised rims read clearly. Faults to keep an eye on: two grey cloud-like puffs sit on top of the hills, only one small mangrove tile, faint rain streaks.
+
+Ranking by total across all 19 images: N5 20 and R2 20 (tied), M2 19, then M1, N1 and N4 at 18. R2 is the best picture of the full-tile, forest-rich look and the strongest candidate for the style anchor (N5's flat tile field plus M2's dense forest and full tiles). Concept spend to date: 680 credits (420 + 125 + 45 + 30 + 30 + 30); balance 4,149.
+
+## Second refinement round (sent 2026-10-04, Seedream 4.5 text route, 30 credits, balance 4,149 to 4,119; audit passes)
+
+Brief from the owner: one more of each of R1 and R2; no bare tiles for R1; clouds kept away from the hill tiles for R2; add some grass tiles to R2's successor (R4). Prompts were measured under the 2,000-character rule (1,973 and 1,993).
+
+| Image | Based on | Overall | Viewpoint | Colour | Lighting | Total |
+|---|---|---|---|---|---|---|
+| R3 | R1: ground tiles named (meadow tufts, rice stubble), no bare, plain or tan tile, sea strip kept | **5** | 4 | **5** | **5** | **19** |
+| R4 | R2: nothing on or above the hill tops, grass tiles added, three mangrove tiles | 4 | **5** | **5** | 4 | 18 |
+
+Adherence check by the assistant (not the owner's scores): R3 mostly met "no bare tiles" (meadow, stubble, paddy and reeds fill the ground), with two exceptions, a row of five flat grey slab tiles in the top left and one brown mud tile; the frame also crops the field. R4 met the cloud instruction (plain green hill tops, nothing above them) but the grass tiles are weak (most tiles are flooded paddy with grass tufts) and the lower-right trees are photoreal, not faceted.
+
+Ranking by total across all 21 images: N5 20 and R2 20, then R3 19 and M2 19, then R4, M1, N1 and N4 at 18. Concept spend to date: 710 credits (420 + 125 + 45 + 30 + 30 + 30 + 30); balance 4,119.
+
+Lesson for the prompt engineer: naming each ground tile type ("meadow tiles covered in green grass tufts", "damp earth tiles covered in rice stubble") fixed the empty tan tiles far better than "no bare tile" alone, but an unnamed leftover (the grey slabs) still appeared, so every tile type in the field has to be named; and "grass tiles" must say "dry meadow, no standing water" to avoid flooded paddy with tufts.
+
 ## Next test (proposed, not sent; superseded by the follow-up rounds above)
 Combine the winning parts: W4's steep overhead sea-to-hills composition and W5's tile-field framing, with W2's overcast soft light and slate/blue-green palette; no sky, no horizon, no clouds, and no wall-like ridge; never the phrase "world map". Three variations on Seedream 4.5 (45 credits): N1 overcast sea-to-hills; N2 overcast tile-field of one river land; N3 sea-to-hills with a soft low warm band from the top left over cool slate shade.
