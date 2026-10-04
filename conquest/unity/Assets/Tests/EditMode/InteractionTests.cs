@@ -89,6 +89,55 @@ namespace Conquest.UnityView.Tests
         }
 
         [Test]
+        public void TheMouseIsToldToClickAgainAndATouchToTapAgain()
+        {
+            var f = new Fixture();
+            f.Interaction.Click(f.OnBanner(f.Scout), false);
+            var target = new GridPos(f.Scout.Pos.X + 2, f.Scout.Pos.Y);
+
+            f.Interaction.Click(f.OnTile(target.X, target.Y), false);
+            Assert.AreEqual("Click it again to confirm", f.Interaction.Message);
+
+            f.Interaction.Cancel();
+            f.Interaction.Click(f.OnTile(target.X, target.Y), false, touch: true);
+            Assert.AreEqual("Tap again to confirm", f.Interaction.Message);
+        }
+
+        [Test]
+        public void TheMouseConfirmHintIsBengaliInBengali()
+        {
+            Localizer text = TestContent.Load().Text;
+            text.SetLocale(Localizer.Bengali);
+            Assert.IsTrue(text.Get("ui.hint_confirm_click").Any(c => c >= 'ঀ' && c <= '৿'));
+            Assert.IsTrue(text.Get("ui.no_moves_left").Any(c => c >= 'ঀ' && c <= '৿'));
+            Assert.AreNotEqual(text.Get("ui.hint_confirm"), text.Get("ui.hint_confirm_click"));
+        }
+
+        [Test]
+        public void AUnitWithNoMovesLeftGetsTheNoMovesMessageNotTheUnreachableOne()
+        {
+            var f = new Fixture();
+            f.Interaction.Click(f.OnBanner(f.Scout), false);
+            for (int i = 0; i < 40; i++)
+            {
+                f.Session.State.TryGetUnit(f.Scout.Id, out UnitView now);
+                if (now.MovesLeft == 0) break;
+                int dx = i % 2 == 0 ? 1 : -1;
+                f.Interaction.SecondaryClick(f.OnTile(now.Pos.X + dx, now.Pos.Y));
+            }
+
+            f.Session.State.TryGetUnit(f.Scout.Id, out UnitView spent);
+            Assert.AreEqual(0, spent.MovesLeft, "setup: the scout spent all its moves");
+
+            f.Interaction.Click(f.OnTile(spent.Pos.X + 1, spent.Pos.Y), false);
+
+            Assert.AreEqual("No moves left this turn", f.Interaction.Message);
+            Assert.IsNull(f.Interaction.PendingTarget);
+            Assert.IsFalse(f.Interaction.Preview.Found);
+            Assert.AreNotEqual("Cannot reach that tile this turn", f.Interaction.Message);
+        }
+
+        [Test]
         public void FarTilePreviewsAMultiTurnPathButConfirmingIsRefusedForThisTurn()
         {
             var f = new Fixture();

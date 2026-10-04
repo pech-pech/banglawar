@@ -1,3 +1,4 @@
+using Conquest.Presentation;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -24,6 +25,9 @@ namespace Conquest.UnityView
         public bool ToggleLanguage;
         public bool Skip;
         public bool Touch;
+
+        /// <summary>The last device used (see <see cref="PointerModeLatch"/>): true means touch wording, large targets and the touch HUD.</summary>
+        public bool TouchMode;
     }
 
     /// <summary>
@@ -45,14 +49,30 @@ namespace Conquest.UnityView
         private Vector2 touchStart;
         private bool touchDragging;
         private float lastPinchDistance;
+        private PointerModeLatch? latch;
+        private bool mouseUsed;
+        private bool keyUsed;
+        private Vector2? lastMousePos;
 
         public InputFrame Poll(float deltaSeconds)
         {
             var frame = new InputFrame { PinchFactor = 1f };
+            mouseUsed = false;
+            keyUsed = false;
             PollMouse(ref frame);
             PollTouch(ref frame);
             PollKeyboard(ref frame, deltaSeconds);
+            frame.TouchMode = UpdateMode(frame.Touch);
             return frame;
+        }
+
+        private bool UpdateMode(bool touched)
+        {
+            bool hasMouse = Mouse.current != null;
+            bool hasScreen = Touchscreen.current != null;
+            PointerModeLatch current = latch ?? PointerModeLatch.Start(hasMouse, hasScreen);
+            latch = current.Next(new PointerActivity(hasMouse, hasScreen, touched, mouseUsed || keyUsed));
+            return latch.Value.IsTouch;
         }
 
         private void PollMouse(ref InputFrame frame)
@@ -62,6 +82,8 @@ namespace Conquest.UnityView
             Vector2 pos = mouse.position.ReadValue();
             frame.Pointer = pos;
             frame.HasPointer = touchId < 0;
+            mouseUsed = mouse.delta.ReadValue() != Vector2.zero || (lastMousePos.HasValue && lastMousePos.Value != pos) || mouse.leftButton.wasPressedThisFrame || mouse.rightButton.wasPressedThisFrame || Mathf.Abs(mouse.scroll.ReadValue().y) > 0.01f;
+            lastMousePos = pos;
             if (mouse.leftButton.wasPressedThisFrame)
             {
                 mouseDown = true;
@@ -156,10 +178,11 @@ namespace Conquest.UnityView
             }
         }
 
-        private static void PollKeyboard(ref InputFrame frame, float dt)
+        private void PollKeyboard(ref InputFrame frame, float dt)
         {
             Keyboard? k = Keyboard.current;
             if (k == null) return;
+            keyUsed = k.anyKey.wasPressedThisFrame;
             frame.Additive = k.leftShiftKey.isPressed || k.rightShiftKey.isPressed;
             float x = (k.dKey.isPressed || k.rightArrowKey.isPressed ? 1f : 0f) - (k.aKey.isPressed || k.leftArrowKey.isPressed ? 1f : 0f);
             float y = (k.wKey.isPressed || k.upArrowKey.isPressed ? 1f : 0f) - (k.sKey.isPressed || k.downArrowKey.isPressed ? 1f : 0f);

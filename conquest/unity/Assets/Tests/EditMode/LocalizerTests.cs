@@ -13,7 +13,7 @@ namespace Conquest.UnityView.Tests
         {
             string json = ContentFiles.Read(GameApp.StringsFile);
             Localizer text = Localizer.FromJson(json, null);
-            string[] chromeKeys = { "ui.end_turn", "ui.turn", "ui.level", "ui.strength", "ui.moves", "ui.found_base", "ui.language", "ui.hint_move", "ui.hint_confirm", "ui.hint_touch", "err.unreachable", "err.unknown", "label.season.wet" };
+            string[] chromeKeys = { "ui.end_turn", "ui.turn", "ui.level", "ui.strength", "ui.moves", "ui.found_base", "ui.language", "ui.hint_move", "ui.hint_confirm", "ui.hint_confirm_click", "ui.no_moves_left", "ui.hint_touch", "err.unreachable", "err.unknown", "label.season.wet" };
 
             text.SetLocale(Localizer.Bengali);
 

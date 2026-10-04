@@ -37,10 +37,20 @@ namespace Conquest.Presentation
                 throw new ArgumentOutOfRangeException(nameof(frontTile), "Tile must be on the map.");
             }
 
-            int depth = Depth(frontTile);
+            return ForDepth(Depth(frontTile), tiebreak, bias);
+        }
+
+        /// <summary>The same key from a bare depth (x + y of the front tile, possibly lifted); depth 0..<see cref="MaxDepth"/>.</summary>
+        public static int ForDepth(int depth, int tiebreak, int bias)
+        {
+            if (depth < 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(depth), "Depth cannot be negative.");
+            }
+
             if (depth > MaxDepth)
             {
-                throw new ArgumentOutOfRangeException(nameof(frontTile), "Map too large for a 16-bit sort key.");
+                throw new ArgumentOutOfRangeException(nameof(depth), "Map too large for a 16-bit sort key.");
             }
 
             if (tiebreak < 0 || tiebreak > MaxTiebreak || bias < 0 || bias > MaxBias)

@@ -60,6 +60,15 @@ namespace Conquest.UnityView
 
         public Transform Root => root;
 
+        /// <summary>Every overlay piece that is switched on right now (name and world position), for tests and the debug panel.</summary>
+        public IEnumerable<(string name, Vector3 position)> ActivePieces()
+        {
+            foreach (SpriteRenderer r in root.GetComponentsInChildren<SpriteRenderer>())
+            {
+                if (r.enabled) yield return (r.gameObject.name, r.transform.position);
+            }
+        }
+
         /// <summary>The path dots currently shown (for layering checks).</summary>
         public IEnumerable<SpriteRenderer> Dots
         {

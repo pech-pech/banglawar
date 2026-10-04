@@ -293,7 +293,7 @@ namespace Conquest.UnityView
             if (f.EndTurn) OnEndTurn();
             if (f.Cancel) Interaction.Cancel();
             if (f.NextUnit && !Runner.IsBusy) CenterOnSelection(Interaction.SelectNext());
-            bool touch = f.Touch || (Touchscreen() && !f.HasPointer);
+            bool touch = f.TouchMode;
             Hud.SetTouchMode(touch);
             Banners.MinHitPx = HitTargets.MinTargetPx(touch, Mathf.RoundToInt(Screen.dpi));
             ApplyCamera(f);
@@ -303,8 +303,6 @@ namespace Conquest.UnityView
             if (f.Click && !Hud.IsPointerOverUi(f.ClickPosition)) ClickAt(f.ClickPosition, f.Additive);
             if (f.SecondaryClick && !Hud.IsPointerOverUi(f.ClickPosition)) Interaction.SecondaryClick(PickAt(f.ClickPosition));
         }
-
-        private static bool Touchscreen() => UnityEngine.InputSystem.Touchscreen.current != null;
 
         private void ApplyCamera(InputFrame f)
         {
@@ -353,7 +351,7 @@ namespace Conquest.UnityView
                 return;
             }
 
-            Interaction.Click(pick, additive);
+            Interaction.Click(pick, additive, Hud.TouchMode);
         }
 
         /// <summary>The stack badge under a screen position (Unity origin), if any.</summary>

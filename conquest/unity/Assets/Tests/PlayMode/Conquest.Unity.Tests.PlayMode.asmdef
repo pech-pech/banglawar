@@ -10,7 +10,9 @@
         "Conquest.Assets",
         "Conquest.Glue",
         "Conquest.Unity.Art",
-        "Conquest.Unity.Presentation"
+        "Conquest.Unity.Presentation",
+        "Unity.InputSystem",
+        "UnityEngine.UI"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

@@ -71,6 +71,28 @@ namespace Conquest.Presentation
         /// <summary>Terrain and structure art: always the shared world, by depth.</summary>
         public static DrawKey World(int depthKey) => new DrawKey(0, depthKey);
 
+        /// <summary>The structure tiebreak (above terrain 0, below units 3).</summary>
+        public const int StructureTiebreak = 2;
+
+        /// <summary>
+        /// How many iso depth rows (x + y) in front of a structure a terrain tile may be and still draw BEHIND it. A tree crown
+        /// is tall, so a wood tile one or two rows nearer the viewer used to hide a founded base completely. 3 rows covers
+        /// the crowns of the shipped art; anything nearer than that still hides the structure (a forest in front of it).
+        /// </summary>
+        public const int StructureDepthLift = 3;
+
+        /// <summary>
+        /// Sort key of a structure (base core, building). In <see cref="LayeringMode.Bands"/> (the default) the structure sorts as if
+        /// it stood <see cref="StructureDepthLift"/> rows nearer, so terrain and tree crowns up to that many rows in front draw under
+        /// it; structures keep their order among themselves (all lifted by the same amount), units and banners are unaffected
+        /// (banners sit in their own band above, units use the unit tiebreak and are not lifted). Other layering modes keep the plain key.
+        /// </summary>
+        public static int Structure(LayeringMode mode, GridPos frontTile)
+        {
+            int lift = mode == LayeringMode.Bands ? StructureDepthLift : 0;
+            return SortKey.ForDepth(Math.Min(SortKey.MaxDepth, SortKey.Depth(frontTile) + lift), StructureTiebreak, 0);
+        }
+
         /// <summary>A ground overlay piece (path dot, ring) on a tile; <paramref name="layer"/> separates pieces on one tile (0..9).</summary>
         public static DrawKey Overlay(LayeringMode mode, GridPos tile, int layer)
         {

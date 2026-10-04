@@ -50,6 +50,7 @@ namespace Conquest.UnityView
         private readonly Dictionary<Conquest.Presentation.PolishDecision, Button> polishButtons = new Dictionary<Conquest.Presentation.PolishDecision, Button>();
         private float messageUntil;
         private bool touchMode;
+        private bool hasSelection;
         private bool narrow;
 
         /// <summary>Below this panel width (a phone held upright) the HUD drops the resource names and re-flows the message line.</summary>
@@ -89,6 +90,7 @@ namespace Conquest.UnityView
             text = localizer;
             seasons = seasonLookup;
             fonts = new FontProvider(assets != null ? assets.bengaliFont : null);
+            EnsureEventSystem();
             PanelSettings settings = assets != null && assets.panelSettings != null ? assets.panelSettings : CreatePanelSettings();
             document = host.AddComponent<UIDocument>();
             document.panelSettings = settings;
@@ -109,6 +111,19 @@ namespace Conquest.UnityView
             text.LocaleChanged += OnLocaleChanged;
             ApplyFonts();
             RefreshStaticText();
+        }
+
+        /// <summary>
+        /// UI Toolkit buttons only hear the pointer through an EventSystem with the Input System UI module. Neither scene
+        /// carries one, so a playtest with real (virtual) mouse and touch devices never reached End turn or the language
+        /// button. One is made here when the scene has none.
+        /// </summary>
+        private static void EnsureEventSystem()
+        {
+            if (UnityEngine.EventSystems.EventSystem.current != null || UnityEngine.Object.FindFirstObjectByType<UnityEngine.EventSystems.EventSystem>() != null) return;
+            var go = new GameObject("EventSystem");
+            go.AddComponent<UnityEngine.EventSystems.EventSystem>();
+            go.AddComponent<UnityEngine.InputSystem.UI.InputSystemUIInputModule>();
         }
 
         private static PanelSettings CreatePanelSettings()
@@ -432,7 +447,7 @@ namespace Conquest.UnityView
         {
             languageButton.text = text.Get("ui.language_switch");
             foundButton.text = text.Get("ui.found_base");
-            hint.text = text.Get(touchMode ? "ui.hint_touch" : "ui.hint_move");
+            hint.text = text.Get(touchMode ? "ui.hint_touch" : hasSelection ? "ui.hint_move" : "ui.hint_select");
         }
 
         private void SetNarrow(bool value)
@@ -441,7 +456,17 @@ namespace Conquest.UnityView
             narrow = value;
             message.style.left = value ? 14 : 340;
             message.style.right = value ? 14 : 260;
-            message.style.bottom = value ? 100 : 20;
+            // narrow screens: the unit card is as wide as the message line, so the message goes under the hint strip instead of above the bottom row
+            if (value)
+            {
+                message.style.bottom = StyleKeyword.Auto;
+                message.style.top = Conquest.Presentation.HudLayout.TopInsetPx + 8;
+            }
+            else
+            {
+                message.style.top = StyleKeyword.Auto;
+                message.style.bottom = 20;
+            }
             resourceBar.Query<VisualElement>(className: null).ForEach(e =>
             {
                 if (e.name != null && e.name.StartsWith("chip-")) StyleChip(e);
@@ -455,6 +480,9 @@ namespace Conquest.UnityView
             Label? name = chip.Q<Label>("name");
             if (name != null) name.style.display = narrow ? DisplayStyle.None : DisplayStyle.Flex;
         }
+
+        /// <summary>True while the last device used was a finger.</summary>
+        public bool TouchMode => touchMode;
 
         public void SetTouchMode(bool value)
         {
@@ -474,6 +502,7 @@ namespace Conquest.UnityView
             endTurnButton.style.backgroundColor = bar.EndTurnEnabled ? ButtonFill : ButtonOff;
             UnitCardModel? card = selectedUnit >= 0 ? HudModels.Card(state, selectedUnit, localSlot, text) : null;
             ShowCard(card);
+            hasSelection = selectedUnit >= 0;
             RefreshStaticText();
         }
 

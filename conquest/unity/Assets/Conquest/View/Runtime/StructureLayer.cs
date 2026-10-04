@@ -40,13 +40,13 @@ namespace Conquest.UnityView
     /// </summary>
     public sealed class StructureLayer
     {
-        private const int StructureTiebreak = 2;
         private readonly Transform root;
         private readonly ArtLibrary art;
         private readonly IsoProjection iso;
         private readonly List<StructurePiece> pieces = new List<StructurePiece>();
         private AnchorConvention anchor = PolishSettings.Anchor;
         private PlaceholderStyle style = PolishSettings.Placeholders;
+        private LayeringMode layering = PolishSettings.Layering;
         private GameState? last;
 
         public StructureLayer(Transform parent, ArtLibrary art, IsoProjection iso)
@@ -67,6 +67,7 @@ namespace Conquest.UnityView
         {
             anchor = options.Anchor;
             style = options.Placeholders;
+            layering = options.Layering;
             if (last != null) Rebuild(last);
         }
 
@@ -115,7 +116,7 @@ namespace Conquest.UnityView
             go.transform.position = ViewSpace.ToWorld(placement.CentreWorld(iso), art.PixelsPerUnit);
             float scale = placement.ScalePermille / 1000f;
             go.transform.localScale = new Vector3(scale, scale, 1f);
-            renderer.sortingOrder = SortKey.ForDepthLayer(ClampToMap(placement.Front), StructureTiebreak, 0);
+            renderer.sortingOrder = DrawOrder.Structure(layering, ClampToMap(placement.Front));
             pieces.Add(new StructurePiece(role, ruleTile, placement, renderer, usesArt));
         }
 

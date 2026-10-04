@@ -51,7 +51,7 @@ namespace Conquest.UnityView
             Changed?.Invoke();
         }
 
-        public void Click(PickResult pick, bool additive)
+        public void Click(PickResult pick, bool additive, bool touch = false)
         {
             if (!pick.Tile.HasValue)
             {
@@ -78,6 +78,15 @@ namespace Conquest.UnityView
             }
 
             GridPos tile = pick.Tile.Value;
+            if (SelectionHasNoMoves())
+            {
+                PendingTarget = null;
+                ClearPreview();
+                Message = text.Get("ui.no_moves_left");
+                Changed?.Invoke();
+                return;
+            }
+
             if (PendingTarget.HasValue && PendingTarget.Value == tile)
             {
                 Confirm(tile);
@@ -86,8 +95,20 @@ namespace Conquest.UnityView
 
             Plan(tile);
             PendingTarget = Preview.Found ? tile : (GridPos?)null;
-            Message = Preview.Found ? text.Get("ui.hint_confirm") : text.ErrorText(Conquest.Core.Turn.Err.Unreachable);
+            Message = Preview.Found ? text.Get(touch ? "ui.hint_confirm" : "ui.hint_confirm_click") : text.ErrorText(Conquest.Core.Turn.Err.Unreachable);
             Changed?.Invoke();
+        }
+
+        /// <summary>True when every selected unit has spent its moves this turn (a move order cannot go anywhere).</summary>
+        private bool SelectionHasNoMoves()
+        {
+            if (Selection.SelectedIds.Count == 0) return false;
+            foreach (int id in Selection.SelectedIds)
+            {
+                if (!session.State.TryGetUnit(id, out UnitView u) || u.MovesLeft > 0) return false;
+            }
+
+            return true;
         }
 
         /// <summary>

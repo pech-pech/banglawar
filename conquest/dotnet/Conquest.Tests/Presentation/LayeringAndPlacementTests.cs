@@ -29,6 +29,33 @@ namespace Conquest.Tests.Presentation
         }
 
         [Test]
+        public void ABaseCoreIsNotHiddenByTreeCrownsUpToTheLiftRowsInFront()
+        {
+            var core = new GridPos(3, 3);
+            DrawKey structure = DrawOrder.World(DrawOrder.Structure(LayeringMode.Bands, core));
+            for (int lift = 1; lift <= DrawOrder.StructureDepthLift; lift++)
+            {
+                var treeTile = new GridPos(core.X + lift, core.Y);
+                Assert.That(structure.CompareTo(Tree(treeTile)), Is.GreaterThan(0), "tree " + lift + " row(s) in front must be under the base");
+            }
+
+            var farTree = new GridPos(core.X + DrawOrder.StructureDepthLift + 1, core.Y);
+            Assert.That(structure.CompareTo(Tree(farTree)), Is.LessThan(0), "a forest well in front still hides it");
+        }
+
+        [Test]
+        public void StructuresKeepTheirOrderAmongThemselvesAndUnitsKeepTheirs()
+        {
+            var back = new GridPos(2, 2);
+            var front = new GridPos(4, 4);
+            Assert.That(DrawOrder.Structure(LayeringMode.Bands, front), Is.GreaterThan(DrawOrder.Structure(LayeringMode.Bands, back)));
+            // banners ignore the lift: they sit in their own band above every structure
+            Assert.That(DrawOrder.Banner(LayeringMode.Bands, SortKey.ForDepthLayer(back, SortKey.UnitTiebreak, 0)).CompareTo(DrawOrder.World(DrawOrder.Structure(LayeringMode.Bands, front))), Is.GreaterThan(0));
+            Assert.That(DrawOrder.Structure(LayeringMode.OverlayInDepth, front), Is.EqualTo(SortKey.ForDepthLayer(front, DrawOrder.StructureTiebreak, 0)), "other modes do not lift");
+            Assert.That(DrawOrder.Structure(LayeringMode.Bands, new GridPos(255, 255)), Is.LessThan(DrawOrder.OverlayBand), "a lifted key never reaches the overlay band");
+        }
+
+        [Test]
         public void BandsKeepBannersDepthSortedAmongThemselves()
         {
             DrawKey back = Banner(LayeringMode.Bands, new GridPos(2, 2));
