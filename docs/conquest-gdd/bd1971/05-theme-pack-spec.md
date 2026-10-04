@@ -664,8 +664,8 @@ Art and audio statements in this file are PROVISIONAL; the art method is undecid
   "credits.sources": "Sources: see Remembrance and sources. Contested figures are shown as ranges with who claims what.",
   "credits.review": "Historical review: {reviewers}",
   "credits.thanks": "Thanks to the institutions that agreed to be named: {institutions}",
-  "credits.licence": "All pictures and text are original to this project. No photographs, anthems or insignia are used.",
-  "_credits.licence.note": "PROVISIONAL: the picture part of this line depends on the undecided art method; the no-photographs, no-anthem and no-insignia part is a binding content limit."
+  "credits.licence": "",
+  "_credits.licence.note": "REMOVED by the owner on 2026-10-04 for prototyping: the former line 'All pictures and text are original to this project' no longer applies, so third-party and open-licensed assets may be used in prototypes (see ASSET_LICENSING and the blender-panel records). The key stays empty so loaders and string-count tests keep working; a credits line is to be rewritten from the licence records before any release. The content limits (no photographs, anthems or insignia in shipped pictures) are NOT removed: they remain binding in section 8.3."
 }
 ```
 

@@ -144,3 +144,25 @@ No commit, no push, no credits, no OpenArt calls, no hook, settings or CLAUDE.md
 7. **Tile list:** keep six tiles (including paddy) or the five named in the brief.
 8. **Where the pilot lives:** this repo (scratch folder) or the conquest project (14 Q1), and whether `.blend`/PNG files go through Git LFS (14 Q2).
 9. **Pass bar for step 9:** no category below 4 (default), or a stricter bar of 5 on overall.
+
+
+## Amendment 1 (owner, 2026-10-04, via the question window; basis: blender-panel/00-panel-report.md)
+- Section 3.2 style: crowns and hills may be smooth-shaded (R8a, the settled anchor, is smooth and clay-like); structures stay flat-faceted. Crown budget becomes 1,000 to 1,600 faces (check renamed `crown_faces_1000_to_1600`) instead of 20 to 80.
+- Rework round (step 9): Cycles is allowed for the final look only if two separate processes give a byte-identical image; otherwise EEVEE soft is final. Lighting follows the panel recipe (sun aligned to the camera azimuth, elevation 70 degrees, grey world 0.5).
+- Projection stays 2:1 (viewpoint scored 5).
+- Open question still to decide: which copy ships (palette-snapped or graded master); a mockup of both is being made.
+- Still unchanged: no downloads or installs in this round; content rules; pass bar (no category under 4, overall at least 4).
+
+
+## Amendment 2 (owner, 2026-10-04, via the question window): prototyping limits lifted
+- Licence policy: any licence may be used in PRIVATE prototypes (record licence, URL, date and hash per asset in a licence record); nothing with a non-permissive licence ships without a fresh owner decision.
+- Third-party assets and tools: open assets, kits, add-ons and ML tools are allowed in prototypes. Every download or install is still its own window approval (file name, source, licence, size, risk).
+- Plan 19 technical limits replaced by quick iteration: the "no new tools" rule, the single rework round, the face budgets and the palette lock no longer bind prototypes. The 2 px feature rule and the determinism checks stay as measurements, not blockers.
+- Credits line: theme string `credits.licence` removed (key kept empty; see 05-theme-pack-spec).
+- NOT lifted: the content depiction rules of the theme pack section 8.3 (no people, faces, weapons, flags, insignia, lettering, photographs; equal quality for both sides).
+- Animation is needed: walk or idle cycles for units and markers are in scope; the Sprite Sheet Maker add-on (panel item A1) and Blender Lab's Clay Pencil (in progress, not usable yet) are the candidates.
+- Blender Lab (https://www.blender.org/lab/, read 2026-10-04): an innovation space; its MCP Server is "Released" and is the add-on already connected in this session, so nothing new to adopt; Clay Pencil (2D animation to 3D meshes) is in progress; the others (touch UX, volume rendering, light transport, USD, VR/XR) do not help this pipeline.
+
+
+## Result of the rework rounds (2026-10-04)
+Step 9 pass bar met by the 256 px composite: overall 4, viewpoint 5, colour 4, lighting 4 (no category under 4). The pilot answers its three questions: Look yes (4 to 5 on all), Control yes (exact 2:1, tree height 1.5 x HQ within 3%, deterministic hashes), Cost: a full 6x5 scene renders in about 11 s; building the detailed pieces took several agent rounds. Recommendation: adopt Blender for the game's world pieces; remaining polish listed in 18-world-view-scores.md.
