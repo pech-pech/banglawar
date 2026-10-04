@@ -1,0 +1,144 @@
+{
+  "schema": "theme/1",
+  "id": "bd1971",
+  "version": "0.1.0",
+  "_note": "Theme pack data for the first playable scenario (docs 05 sections 2, 3, 7.5, 8). Labels follow 05; place and group names are neutral placeholders (05 7.5 wording: garrison position, fortress position, defence zone, capital garrison). Names here describe things and places only. Asset values are role-level keys for the asset manifest (kind.role, with level and @slot added by the resolver); glyph names are the fallback painter hints of 05 section 8.1 and are PROVISIONAL.",
+  "requires_ruleset": {"id": "conquest-core", "major": 1},
+  "default_locale": "en",
+  "display_name": "1971: The Liberation War",
+
+  "factions": {
+    "f1": {"name": "Bangladesh Forces", "adjective": "Bangladeshi", "color": "#1f6f4a"},
+    "f2": {"name": "Pakistan Army, Eastern Command", "adjective": "Eastern Command", "color": "#44507f"}
+  },
+
+  "labels": {
+    "res.basic": "Bamboo and timber",
+    "res.hard": "Arms and ammunition",
+    "res.coin": "Funds",
+    "res.wares": "Field supplies",
+    "res.food": "Rice",
+    "res.pop": "Volunteers",
+    "res.pop@f2": "Personnel",
+    "res.coin@f2": "Pay and funds",
+    "res.wares@f2": "Field stores",
+    "res.food@f2": "Rations",
+
+    "bld.core": "Base area HQ",
+    "bld.core@f2": "Garrison HQ",
+    "bld.food": "Paddy and granary",
+    "bld.food@f2": "Ration depot",
+    "bld.basic_extractor": "Bamboo cutters",
+    "bld.basic_extractor@f2": "Timber yard",
+    "bld.hard_extractor": "Arms cache",
+    "bld.hard_extractor@f2": "Ordnance depot",
+    "bld.coin_extractor": "Support committee",
+    "bld.coin_extractor@f2": "Pay office",
+    "bld.converter": "Field workshop",
+    "bld.converter@f2": "Ordnance workshop",
+    "bld.habitat": "Volunteer shelter",
+    "bld.habitat@f2": "Barracks block",
+    "bld.attractor": "Radio listening and leaflet centre",
+    "bld.attractor@f2": "Reinforcement airhead",
+    "bld.scout_post": "Field hospital",
+    "bld.scout_post@f2": "Military hospital",
+    "bld.garrison": "Fighters' camp",
+    "bld.garrison@f2": "Strongpoint",
+    "bld.port": "Ghat (river post)",
+    "bld.port@f2": "River jetty",
+    "bld.academy": "Instructors' cadre",
+    "bld.academy@f2": "Staff school",
+
+    "u.scout": "Guide team",
+    "u.scout@f2": "Reconnaissance patrol",
+    "u.founder": "Organising team",
+    "u.founder@f2": "Garrison engineering detachment",
+    "u.commander": "Sub-sector commander",
+    "u.commander@f2": "Field commander",
+    "u.line": "Freedom-fighter section",
+    "u.line@f2": "Infantry company",
+    "u.shock": "Raiding party",
+    "u.shock@f2": "Armoured troop",
+    "u.ranged": "Mortar section",
+    "u.ranged@f2": "Artillery battery",
+    "u.transport": "Country-boat flotilla",
+    "u.transport@f2": "River gunboat",
+    "u.militia": "Base guard",
+    "u.militia@f2": "Garrison reserve",
+
+    "t.deep": "Great river",
+    "t.still": "Haor and beel (seasonal wetland)",
+    "t.river": "Khal and small river",
+    "t.open": "Paddy land",
+    "t.wood_a": "Village grove and bamboo",
+    "t.wood_b": "Mangrove and sal forest",
+    "t.rough": "Hills and tea-garden slopes",
+    "t.peak": "High hills"
+  },
+
+  "terrain_assets": {
+    "meadow": "tile.meadow",
+    "paddy_water": "tile.paddy_water",
+    "paddy_dense": "tile.paddy_dense",
+    "stubble": "tile.stubble",
+    "forest": "tile.forest",
+    "tea": "tile.tea",
+    "water": "tile.water"
+  },
+
+  "building_assets": {
+    "bld.core": {"asset": "bld.core", "glyph": "keep"},
+    "bld.food": {"asset": "bld.food", "glyph": "sheaf"},
+    "bld.basic_extractor": {"asset": "bld.basic_extractor", "glyph": "log"},
+    "bld.hard_extractor": {"asset": "bld.hard_extractor", "glyph": "crate"},
+    "bld.coin_extractor": {"asset": "bld.coin_extractor", "glyph": "coin"},
+    "bld.converter": {"asset": "bld.converter", "glyph": "anvil"},
+    "bld.habitat": {"asset": "bld.habitat", "glyph": "hut"},
+    "bld.attractor": {"asset": "bld.attractor", "glyph": "antenna"},
+    "bld.scout_post": {"asset": "bld.scout_post", "glyph": "stretcher"},
+    "bld.garrison": {"asset": "bld.garrison", "glyph": "tent"},
+    "bld.port": {"asset": "bld.port", "glyph": "jetty"},
+    "bld.academy": {"asset": "bld.academy", "glyph": "book"}
+  },
+
+  "unit_assets": {
+    "u.scout": {"asset": "u.scout", "glyph": "figure"},
+    "u.founder": {"asset": "u.founder", "glyph": "figure_tools"},
+    "u.commander": {"asset": "u.commander", "glyph": "marker"},
+    "u.line": {"asset": "u.line", "glyph": "figure_shield"},
+    "u.shock": {"asset": "u.shock", "glyph": "dash"},
+    "u.ranged": {"asset": "u.ranged", "glyph": "barrel"},
+    "u.transport": {"asset": "u.transport", "glyph": "hull"},
+    "u.militia": {"asset": "u.militia", "glyph": "figure_shield"}
+  },
+
+  "planned_assets": [],
+
+  "calendar": {
+    "season_labels": {
+      "season.pre_wet": "Before the rains",
+      "season.wet": "Monsoon",
+      "season.dry": "Dry season"
+    }
+  },
+
+  "names": {
+    "sites": {
+      "site.capital": "Capital garrison",
+      "site.fortress_1": "Fortress position 1",
+      "site.fortress_2": "Fortress position 2",
+      "site.zone_1": "Defence zone 1",
+      "site.town_01": "Garrison position 1",
+      "site.town_02": "Garrison position 2"
+    },
+    "entries": {
+      "entry.s08": "Sector 8",
+      "entry.s06": "Sector 6",
+      "entry.s02": "Sector 2"
+    },
+    "regions": {
+      "region.r08": "Sector 8",
+      "region.r02": "Sector 2"
+    }
+  }
+}

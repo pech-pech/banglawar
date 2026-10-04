@@ -1,0 +1,773 @@
+{
+ "entries": [
+  {
+   "atlas_group": "buildings",
+   "dir": null,
+   "events": [],
+   "footprint": [
+    2,
+    2
+   ],
+   "fps": null,
+   "frame_count": 1,
+   "frames": [
+    {
+     "page": 0,
+     "rect": [
+      2,
+      2,
+      40,
+      60
+     ]
+    }
+   ],
+   "key": "bld.core.L1",
+   "kind": "bld",
+   "layer": "structure",
+   "level": 1,
+   "loop": false,
+   "pivot_px": [
+    28,
+    6
+   ],
+   "pixel_sha256": "8d4c1e4675b9babf9658803f2c45847cd9f84ba8b834184ed31dd8b6fdb1f509",
+   "review": {
+    "status": "prototype"
+   },
+   "role": "core",
+   "size": [
+    40,
+    60
+   ],
+   "slot": null,
+   "sort": {
+    "bias": 0,
+    "point_offset_px": [
+     0,
+     -32
+    ],
+    "rule": "custom_axis_y"
+   },
+   "source_anchor_px": [
+    48,
+    64
+   ],
+   "source_sha256": "652287fa7c187e276213af3aad6b92516cba42619c3c1874d9015ecbf93265fc",
+   "source_size": [
+    96,
+    80
+   ],
+   "state": null,
+   "tags": [
+    "structure"
+   ],
+   "trim_offset": [
+    20,
+    10
+   ],
+   "variant": null
+  },
+  {
+   "atlas_group": "fx",
+   "dir": null,
+   "events": [],
+   "footprint": [
+    2,
+    2
+   ],
+   "fps": 4,
+   "frame_count": 2,
+   "frames": [
+    {
+     "page": 1,
+     "rect": [
+      2,
+      2,
+      10,
+      12
+     ]
+    },
+    {
+     "page": 1,
+     "rect": [
+      14,
+      2,
+      10,
+      12
+     ]
+    }
+   ],
+   "key": "fx.core_smoke",
+   "kind": "fx",
+   "layer": "fx",
+   "level": null,
+   "loop": true,
+   "pivot_px": [
+    5,
+    -4
+   ],
+   "pixel_sha256": "762370f7c12dffde8355b151b8d89d0b0ffb6d0f300e8af063e35478627fac8a",
+   "review": {
+    "status": "prototype"
+   },
+   "role": "core_smoke",
+   "size": [
+    10,
+    12
+   ],
+   "slot": null,
+   "sort": {
+    "bias": 0,
+    "point_offset_px": [
+     0,
+     0
+    ],
+    "rule": "fixed_layer"
+   },
+   "source_anchor_px": [
+    10,
+    16
+   ],
+   "source_sha256": "569b658fb8706ade5e141767631db891b3196757c1e1e18f238835b08cf4b755",
+   "source_size": [
+    20,
+    20
+   ],
+   "state": null,
+   "tags": [
+    "animated",
+    "structure"
+   ],
+   "trim_offset": [
+    5,
+    0
+   ],
+   "variant": null
+  },
+  {
+   "atlas_group": "tiles",
+   "dir": null,
+   "events": [],
+   "footprint": [
+    1,
+    1
+   ],
+   "fps": null,
+   "frame_count": 1,
+   "frames": [
+    {
+     "page": 2,
+     "rect": [
+      2,
+      2,
+      56,
+      16
+     ]
+    }
+   ],
+   "key": "tile.meadow",
+   "kind": "tile",
+   "layer": "terrain",
+   "level": null,
+   "loop": false,
+   "pivot_px": [
+    28,
+    6
+   ],
+   "pixel_sha256": "edec00a6419655bcdafc0e88bbf6c76f414f9e46331461266fd82da0f86b3388",
+   "review": {
+    "status": "prototype"
+   },
+   "role": "meadow",
+   "size": [
+    56,
+    16
+   ],
+   "slot": null,
+   "sort": {
+    "bias": 0,
+    "point_offset_px": [
+     0,
+     -16
+    ],
+    "rule": "custom_axis_y"
+   },
+   "source_anchor_px": [
+    32,
+    30
+   ],
+   "source_sha256": "b2c2c4878156fb1d569b09de9b69588dcacb7afa4219a74cc59354f21cce5da1",
+   "source_size": [
+    64,
+    40
+   ],
+   "state": null,
+   "tags": [
+    "terrain"
+   ],
+   "trim_offset": [
+    4,
+    20
+   ],
+   "variant": null
+  },
+  {
+   "atlas_group": "tiles",
+   "dir": null,
+   "events": [],
+   "footprint": [
+    1,
+    1
+   ],
+   "fps": null,
+   "frame_count": 1,
+   "frames": [
+    {
+     "page": 2,
+     "rect": [
+      60,
+      2,
+      56,
+      16
+     ]
+    }
+   ],
+   "key": "tile.stubble.v2",
+   "kind": "tile",
+   "layer": "terrain",
+   "level": null,
+   "loop": false,
+   "pivot_px": [
+    28,
+    6
+   ],
+   "pixel_sha256": "ee4a14bc1cbc1029c011d85389fa8a9cebea0abc5f9f59aed82f6b42697f88a2",
+   "review": {
+    "status": "prototype"
+   },
+   "role": "stubble",
+   "size": [
+    56,
+    16
+   ],
+   "slot": null,
+   "sort": {
+    "bias": 0,
+    "point_offset_px": [
+     0,
+     -16
+    ],
+    "rule": "custom_axis_y"
+   },
+   "source_anchor_px": [
+    32,
+    30
+   ],
+   "source_sha256": "0ab645721ed7295527f339df0d1b1fec17e63f402f9765df25b41b9420b06e4f",
+   "source_size": [
+    64,
+    40
+   ],
+   "state": null,
+   "tags": [
+    "terrain"
+   ],
+   "trim_offset": [
+    4,
+    20
+   ],
+   "variant": 2
+  },
+  {
+   "atlas_group": "units",
+   "dir": null,
+   "events": [
+    {
+     "frame": 0,
+     "name": "loop_start"
+    }
+   ],
+   "footprint": [
+    1,
+    1
+   ],
+   "fps": 8,
+   "frame_count": 4,
+   "frames": [
+    {
+     "page": 3,
+     "rect": [
+      178,
+      2,
+      14,
+      26
+     ]
+    },
+    {
+     "page": 3,
+     "rect": [
+      194,
+      2,
+      14,
+      26
+     ]
+    },
+    {
+     "page": 3,
+     "rect": [
+      210,
+      2,
+      14,
+      26
+     ]
+    },
+    {
+     "page": 3,
+     "rect": [
+      226,
+      2,
+      14,
+      26
+     ]
+    }
+   ],
+   "key": "u.scout.idle@f1",
+   "kind": "u",
+   "layer": "unit",
+   "level": null,
+   "loop": true,
+   "pivot_px": [
+    7,
+    -6
+   ],
+   "pixel_sha256": "18e8a2398fe9092c1723095bf0013f0bda5f979b1773ad9126ed9863ea0209ae",
+   "review": {
+    "status": "prototype"
+   },
+   "role": "scout",
+   "size": [
+    14,
+    26
+   ],
+   "slot": "f1",
+   "sort": {
+    "bias": 0,
+    "point_offset_px": [
+     0,
+     -16
+    ],
+    "rule": "custom_axis_y"
+   },
+   "source_anchor_px": [
+    15,
+    36
+   ],
+   "source_sha256": "554dfb2bdd6618908a197c524bb782ee6bf3768afd98b6d02231581c2b02e6dd",
+   "source_size": [
+    30,
+    40
+   ],
+   "state": "idle",
+   "tags": [
+    "animated",
+    "banner",
+    "unit"
+   ],
+   "trim_offset": [
+    8,
+    4
+   ],
+   "variant": null
+  },
+  {
+   "atlas_group": "units",
+   "dir": null,
+   "events": [],
+   "footprint": [
+    1,
+    1
+   ],
+   "fps": 6,
+   "frame_count": 3,
+   "frames": [
+    {
+     "page": 3,
+     "rect": [
+      2,
+      2,
+      20,
+      35
+     ]
+    },
+    {
+     "page": 3,
+     "rect": [
+      24,
+      2,
+      20,
+      35
+     ]
+    },
+    {
+     "page": 3,
+     "rect": [
+      46,
+      2,
+      20,
+      35
+     ]
+    }
+   ],
+   "key": "u.scout.pulse@f1",
+   "kind": "u",
+   "layer": "unit",
+   "level": null,
+   "loop": false,
+   "pivot_px": [
+    10,
+    -16
+   ],
+   "pixel_sha256": "1faa098e7c393f78c844899b4e6d25ca1f38c03cb3b016e430c6b06eb134b0cf",
+   "review": {
+    "status": "prototype"
+   },
+   "role": "scout",
+   "size": [
+    20,
+    35
+   ],
+   "slot": "f1",
+   "sort": {
+    "bias": 0,
+    "point_offset_px": [
+     0,
+     -16
+    ],
+    "rule": "custom_axis_y"
+   },
+   "source_anchor_px": [
+    20,
+    56
+   ],
+   "source_sha256": "f7360ce06c3ef597bd69bd0c2be4b6597b0f21dc77207a6d266d0902220510d2",
+   "source_size": [
+    40,
+    60
+   ],
+   "state": "pulse",
+   "tags": [
+    "unit"
+   ],
+   "trim_offset": [
+    10,
+    5
+   ],
+   "variant": null
+  },
+  {
+   "atlas_group": "units",
+   "dir": null,
+   "events": [],
+   "footprint": [
+    1,
+    1
+   ],
+   "fps": 6,
+   "frame_count": 3,
+   "frames": [
+    {
+     "page": 3,
+     "rect": [
+      68,
+      2,
+      20,
+      35
+     ]
+    },
+    {
+     "page": 3,
+     "rect": [
+      90,
+      2,
+      20,
+      35
+     ]
+    },
+    {
+     "page": 3,
+     "rect": [
+      112,
+      2,
+      20,
+      35
+     ]
+    }
+   ],
+   "key": "u.scout.pulse@f2",
+   "kind": "u",
+   "layer": "unit",
+   "level": null,
+   "loop": false,
+   "pivot_px": [
+    10,
+    -16
+   ],
+   "pixel_sha256": "1b23ebeb2f1a2f4f27660934b71de2e8264c6d3cd911d13d72e1c10552e0f7de",
+   "review": {
+    "status": "prototype"
+   },
+   "role": "scout",
+   "size": [
+    20,
+    35
+   ],
+   "slot": "f2",
+   "sort": {
+    "bias": 0,
+    "point_offset_px": [
+     0,
+     -16
+    ],
+    "rule": "custom_axis_y"
+   },
+   "source_anchor_px": [
+    20,
+    56
+   ],
+   "source_sha256": "31b608fced4e5ea2a2295bb946087e9f0a6ba55be023952ed803ca9c8e119b42",
+   "source_size": [
+    40,
+    60
+   ],
+   "state": "pulse",
+   "tags": [
+    "unit"
+   ],
+   "trim_offset": [
+    10,
+    5
+   ],
+   "variant": null
+  },
+  {
+   "atlas_group": "units",
+   "dir": null,
+   "events": [],
+   "footprint": [
+    1,
+    1
+   ],
+   "fps": null,
+   "frame_count": 1,
+   "frames": [
+    {
+     "page": 3,
+     "rect": [
+      134,
+      2,
+      20,
+      35
+     ]
+    }
+   ],
+   "key": "u.scout@f1",
+   "kind": "u",
+   "layer": "unit",
+   "level": null,
+   "loop": false,
+   "pivot_px": [
+    10,
+    -16
+   ],
+   "pixel_sha256": "6455bad9812d37829ca9d9476c4135fac79f7b1dd29b2219bb5395bd1f98b3c0",
+   "review": {
+    "status": "prototype"
+   },
+   "role": "scout",
+   "size": [
+    20,
+    35
+   ],
+   "slot": "f1",
+   "sort": {
+    "bias": 0,
+    "point_offset_px": [
+     0,
+     -16
+    ],
+    "rule": "custom_axis_y"
+   },
+   "source_anchor_px": [
+    20,
+    56
+   ],
+   "source_sha256": "ad347a7384f3a6e0915b9371f3116078530cf37a3d4d6d93f70e91f15dfbc138",
+   "source_size": [
+    40,
+    60
+   ],
+   "state": null,
+   "tags": [
+    "unit"
+   ],
+   "trim_offset": [
+    10,
+    5
+   ],
+   "variant": null
+  },
+  {
+   "atlas_group": "units",
+   "dir": null,
+   "events": [],
+   "footprint": [
+    1,
+    1
+   ],
+   "fps": null,
+   "frame_count": 1,
+   "frames": [
+    {
+     "page": 3,
+     "rect": [
+      156,
+      2,
+      20,
+      35
+     ]
+    }
+   ],
+   "key": "u.scout@f2",
+   "kind": "u",
+   "layer": "unit",
+   "level": null,
+   "loop": false,
+   "pivot_px": [
+    10,
+    -16
+   ],
+   "pixel_sha256": "cec9c5752a99ca08b501fb6ad1c697fd2f68bdb7ff98d2579348d8a0fa7432c1",
+   "review": {
+    "status": "prototype"
+   },
+   "role": "scout",
+   "size": [
+    20,
+    35
+   ],
+   "slot": "f2",
+   "sort": {
+    "bias": 0,
+    "point_offset_px": [
+     0,
+     -16
+    ],
+    "rule": "custom_axis_y"
+   },
+   "source_anchor_px": [
+    20,
+    56
+   ],
+   "source_sha256": "153d3d7fcef4d983444d1f94f93cdfd3d3914281d6d946b4f2a285ce7b56d870",
+   "source_size": [
+    40,
+    60
+   ],
+   "state": null,
+   "tags": [
+    "unit"
+   ],
+   "trim_offset": [
+    10,
+    5
+   ],
+   "variant": null
+  }
+ ],
+ "generator": {
+  "name": "pack_atlas",
+  "version": "1.0.0"
+ },
+ "layers": [
+  {
+   "id": "ground",
+   "order": 0,
+   "sorting": "fixed",
+   "tiebreak": 0
+  },
+  {
+   "id": "terrain",
+   "order": 10,
+   "sorting": "depth",
+   "tiebreak": 0
+  },
+  {
+   "id": "structure",
+   "order": 20,
+   "sorting": "depth",
+   "tiebreak": 2
+  },
+  {
+   "id": "unit",
+   "order": 30,
+   "sorting": "depth",
+   "tiebreak": 3
+  },
+  {
+   "id": "fx",
+   "order": 40,
+   "sorting": "fixed",
+   "tiebreak": 0
+  }
+ ],
+ "max_page": 256,
+ "padding": 2,
+ "pages": [
+  {
+   "file": "atlas_buildings_00.png",
+   "group": "buildings",
+   "sha256": "63090a9fecb258f083eabfb19125506f6be93093037639b10180a59255146725",
+   "size": [
+    64,
+    64
+   ]
+  },
+  {
+   "file": "atlas_fx_00.png",
+   "group": "fx",
+   "sha256": "a4434d47cd7a01fd8325f8edf6de1418da6c637eeeca47c961cb1e7e9e884354",
+   "size": [
+    32,
+    16
+   ]
+  },
+  {
+   "file": "atlas_tiles_00.png",
+   "group": "tiles",
+   "sha256": "a7bc360c18d1c0353f459592c0b3bf44714a5b3504fbea761a2c17cd357c1aa7",
+   "size": [
+    128,
+    32
+   ]
+  },
+  {
+   "file": "atlas_units_00.png",
+   "group": "units",
+   "sha256": "43e6f3b2e98556ddd3b05930a4f94cb777a46275665375cc23cd340532ecd8d2",
+   "size": [
+    256,
+    64
+   ]
+  }
+ ],
+ "pixels_per_unit": 64,
+ "projection": {
+  "kind": "iso_2_1",
+  "tile_h": 32,
+  "tile_w": 64
+ },
+ "schema": "sprite-sheet/1",
+ "theme": "fixture",
+ "tile_px": 64,
+ "variant": "snapped"
+}

@@ -1,0 +1,20 @@
+{
+    "name": "Conquest.Unity.Art.Editor",
+    "rootNamespace": "Conquest.Unity.Art.Editor",
+    "references": [
+        "Conquest.Assets",
+        "Conquest.Unity.Art",
+        "Unity.2D.Sprite.Editor"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

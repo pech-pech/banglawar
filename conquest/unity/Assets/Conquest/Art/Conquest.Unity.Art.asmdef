@@ -1,0 +1,16 @@
+{
+    "name": "Conquest.Unity.Art",
+    "rootNamespace": "Conquest.Unity.Art",
+    "references": [
+        "Conquest.Assets"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Compiles the engine-free source that lives in the Unity package (plan 13, section 2.2 option C).
+       LangVersion 9 / netstandard2.1 reject syntax that Unity 6 cannot compile. -->
+  <PropertyGroup>
+    <TargetFramework>netstandard2.1</TargetFramework>
+    <LangVersion>9.0</LangVersion>
+    <Nullable>enable</Nullable>
+    <RootNamespace>Conquest.Assets</RootNamespace>
+    <AssemblyName>Conquest.Assets</AssemblyName>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="..\..\unity\Packages\com.conquest.engine\Runtime\Assets\**\*.cs" />
+  </ItemGroup>
+
+</Project>

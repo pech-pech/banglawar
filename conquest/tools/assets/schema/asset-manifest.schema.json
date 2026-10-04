@@ -1,0 +1,83 @@
+{
+ "$schema": "https://json-schema.org/draft/2020-12/schema",
+ "$id": "asset-manifest/1",
+ "title": "Theme-neutral asset manifest (input of pack_atlas.py)",
+ "description": "One entry per role id (+ level, variant, state, slot). Key grammar: <kind>.<role>[.L<level>][.v<variant>][.<state>][@<slot>]. Anchors are pixels from the source frame's TOP-LEFT and mark the ground point of the cell (footprint centre). The authoritative checker is asset_schema.validate_manifest; tests keep this file in step with it.",
+ "type": "object",
+ "required": ["schema", "theme", "tile_px", "projection", "layers", "roots", "entries"],
+ "properties": {
+  "schema": {"const": "asset-manifest/1"},
+  "theme": {"type": "string"},
+  "tile_px": {"type": "integer", "minimum": 2, "description": "Tile width in pixels; also Unity pixels-per-unit."},
+  "projection": {
+   "type": "object",
+   "required": ["kind", "tile_w", "tile_h"],
+   "properties": {"kind": {"const": "iso_2_1"}, "tile_w": {"type": "integer"}, "tile_h": {"type": "integer", "description": "tile_w / 2"}}
+  },
+  "layers": {
+   "type": "array",
+   "items": {
+    "type": "object",
+    "required": ["id", "order", "sorting", "tiebreak"],
+    "properties": {
+     "id": {"type": "string"},
+     "order": {"type": "integer", "description": "Draw order of the layer when sorting is fixed."},
+     "sorting": {"enum": ["depth", "fixed"], "description": "depth: shares the isometric depth sort with the other depth layers; fixed: always above/below by order."},
+     "tiebreak": {"type": "integer", "description": "Order between depth layers at equal depth (terrain 0, prop 1, structure 2, unit 3)."}
+    }
+   }
+  },
+  "roots": {"type": "array", "items": {"type": "string"}, "description": "Names of source roots; the directories are given to the tools on the command line, never stored here."},
+  "entries": {"type": "array", "items": {"$ref": "#/$defs/entry"}}
+ },
+ "$defs": {
+  "pair": {"type": "array", "items": {"type": "integer"}, "minItems": 2, "maxItems": 2},
+  "entry": {
+   "type": "object",
+   "required": ["key", "kind", "role", "level", "variant", "state", "slot", "dir", "atlas_group", "layer", "sort", "footprint", "source", "anchor_px", "fps", "loop", "events", "tags", "provenance", "review"],
+   "properties": {
+    "key": {"type": "string"},
+    "kind": {"enum": ["tile", "bld", "u", "mk", "env", "fx"]},
+    "role": {"type": "string", "description": "Role id from the ruleset, never a label."},
+    "level": {"type": ["integer", "null"], "minimum": 1},
+    "variant": {"type": ["integer", "null"], "minimum": 1},
+    "state": {"type": ["string", "null"]},
+    "slot": {"type": ["string", "null"], "pattern": "^f", "description": "Faction slot: f1 player, f2 opposing."},
+    "dir": {"type": ["string", "null"], "description": "Screen direction for directional clips (ne, se, sw, nw); informational, also encoded in the state."},
+    "atlas_group": {"enum": ["tiles", "buildings", "units", "props", "fx"]},
+    "layer": {"type": "string"},
+    "sort": {
+     "type": "object",
+     "required": ["rule", "bias", "point_offset_px"],
+     "properties": {
+      "rule": {"enum": ["custom_axis_y", "fixed_layer"]},
+      "bias": {"type": "integer", "minimum": -9, "maximum": 9},
+      "point_offset_px": {"$ref": "#/$defs/pair", "description": "Sort point relative to the pivot; (0, -(fw+fh)*tile_h/4) is the front corner of the footprint."}
+     }
+    },
+    "footprint": {"$ref": "#/$defs/pair"},
+    "source": {
+     "type": "object",
+     "required": ["root", "path", "sha256", "graded_path", "graded_sha256", "frames", "frame_size", "layout"],
+     "properties": {
+      "root": {"type": "string"},
+      "path": {"type": "string", "description": "Palette-snapped copy (the default), relative to the root."},
+      "sha256": {"type": "string", "minLength": 64, "maxLength": 64},
+      "graded_path": {"type": ["string", "null"]},
+      "graded_sha256": {"type": ["string", "null"]},
+      "frames": {"type": "integer", "minimum": 1},
+      "frame_size": {"$ref": "#/$defs/pair"},
+      "layout": {"enum": ["single", "strip_h"], "description": "strip_h: frames side by side, left to right, equal size."}
+     }
+    },
+    "anchor_px": {"$ref": "#/$defs/pair"},
+    "fps": {"type": ["integer", "null"], "minimum": 1},
+    "loop": {"type": "boolean"},
+    "events": {"type": "array", "items": {"type": "object", "required": ["frame", "name"], "properties": {"frame": {"type": "integer"}, "name": {"type": "string"}}}},
+    "tags": {"type": "array", "items": {"type": "string"}},
+    "provenance": {"type": "object"},
+    "review": {"type": "object", "required": ["status"], "properties": {"status": {"enum": ["prototype", "draft", "internal", "in_review", "approved", "rejected"]}}}
+   }
+  }
+ }
+}

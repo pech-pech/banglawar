@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Turns a loaded scenario (Conquest.Content) into a playable game (Conquest.Core): initial state, services, turn-0 events.
+       Engine-free. Content and Core do not know each other; this is the only place that does. -->
+  <PropertyGroup>
+    <TargetFramework>netstandard2.1</TargetFramework>
+    <LangVersion>9.0</LangVersion>
+    <Nullable>enable</Nullable>
+    <RootNamespace>Conquest.Bootstrap</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Conquest.Core\Conquest.Core.csproj" />
+    <ProjectReference Include="..\Conquest.Content\Conquest.Content.csproj" />
+  </ItemGroup>
+
+</Project>

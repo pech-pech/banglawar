@@ -1,0 +1,112 @@
+{
+ "cases": [
+  {
+   "chain": [
+    "tile.meadow"
+   ],
+   "key": "tile.meadow",
+   "request": {
+    "kind": "tile",
+    "role": "meadow"
+   }
+  },
+  {
+   "chain": [
+    "tile.t.open.v1",
+    "tile.t.open"
+   ],
+   "key": "tile.t.open.v1",
+   "request": {
+    "kind": "tile",
+    "role": "t.open",
+    "variant": 1
+   }
+  },
+  {
+   "chain": [
+    "bld.core.L1",
+    "bld.core"
+   ],
+   "key": "bld.core.L1",
+   "request": {
+    "kind": "bld",
+    "level": 1,
+    "role": "core"
+   }
+  },
+  {
+   "chain": [
+    "u.shock.L1.walk@f1",
+    "u.shock.L1@f1",
+    "u.shock.walk@f1",
+    "u.shock@f1",
+    "u.shock.L1.walk",
+    "u.shock.L1",
+    "u.shock.walk",
+    "u.shock"
+   ],
+   "key": "u.shock.L1.walk@f1",
+   "request": {
+    "kind": "u",
+    "level": 1,
+    "role": "shock",
+    "slot": "f1",
+    "state": "walk"
+   }
+  },
+  {
+   "chain": [
+    "u.scout.selected@f2",
+    "u.scout@f2",
+    "u.scout.selected",
+    "u.scout"
+   ],
+   "key": "u.scout.selected@f2",
+   "request": {
+    "kind": "u",
+    "role": "scout",
+    "slot": "f2",
+    "state": "selected"
+   }
+  },
+  {
+   "chain": [
+    "u.line.L3.v2.idle@f1",
+    "u.line.L3.idle@f1",
+    "u.line.L3.v2@f1",
+    "u.line.L3@f1",
+    "u.line.v2.idle@f1",
+    "u.line.idle@f1",
+    "u.line.v2@f1",
+    "u.line@f1",
+    "u.line.L3.v2.idle",
+    "u.line.L3.idle",
+    "u.line.L3.v2",
+    "u.line.L3",
+    "u.line.v2.idle",
+    "u.line.idle",
+    "u.line.v2",
+    "u.line"
+   ],
+   "key": "u.line.L3.v2.idle@f1",
+   "request": {
+    "kind": "u",
+    "level": 3,
+    "role": "line",
+    "slot": "f1",
+    "state": "idle",
+    "variant": 2
+   }
+  },
+  {
+   "chain": [
+    "fx.core_smoke"
+   ],
+   "key": "fx.core_smoke",
+   "request": {
+    "kind": "fx",
+    "role": "core_smoke"
+   }
+  }
+ ]
+}

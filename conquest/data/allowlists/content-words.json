@@ -1,0 +1,16 @@
+{
+  "schema": "allowlist/1",
+  "_note": "Exact exceptions to the forbidden-word scan (docs 05 section 9 and 06 section 5). An entry names the file scope, the JSON path, and the one word it covers; an entry that no longer matches anything fails the build, so this list cannot rot. Every entry here is a role LABEL taken from the theme spec 05 section 2, a name of a kind of unit or stock, never a description of a picture. Reviewer status is pending until the native-speaker and historian review of 05 section 10.",
+  "entries": [
+    {"scope": "theme", "path": "$.labels.res.hard", "word": "ammunition", "reviewer": "pending",
+     "reason": "05 section 2.1 label for the hard resource; a stock name, shows no weapon."},
+    {"scope": "theme", "path": "$.labels.u.ranged", "word": "mortar", "reviewer": "pending",
+     "reason": "05 section 2.3 label for the ranged unit role; a unit name, shows no weapon."},
+    {"scope": "theme", "path": "$.labels.u.ranged@f2", "word": "artillery", "reviewer": "pending",
+     "reason": "05 section 2.3 label for the opposing ranged unit; plain factual military term."},
+    {"scope": "theme", "path": "$.labels.u.shock@f2", "word": "armoured", "reviewer": "pending",
+     "reason": "05 section 2.3 label for the opposing shock unit; plain factual military term."},
+    {"scope": "theme", "path": "$.labels.u.transport@f2", "word": "gunboat", "reviewer": "pending",
+     "reason": "05 section 2.3 label for the opposing river unit; plain factual military term."}
+  ]
+}

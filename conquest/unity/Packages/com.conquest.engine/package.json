@@ -1,0 +1,7 @@
+{
+  "name": "com.conquest.engine",
+  "displayName": "Conquest engine-free code",
+  "version": "0.1.0",
+  "unity": "6000.0",
+  "description": "Engine-free C# (no UnityEngine references). The sibling dotnet/ solution compiles the same files for dotnet test."
+}

@@ -1,0 +1,20 @@
+{
+    "name": "Conquest.Glue",
+    "rootNamespace": "Conquest.Glue",
+    "references": [
+        "Conquest.Core",
+        "Conquest.Content",
+        "Conquest.Bootstrap",
+        "Conquest.Presentation",
+        "Conquest.Assets"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": true
+}

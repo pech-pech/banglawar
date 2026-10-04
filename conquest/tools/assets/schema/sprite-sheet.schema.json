@@ -1,0 +1,38 @@
+{
+ "$schema": "https://json-schema.org/draft/2020-12/schema",
+ "$id": "sprite-sheet/1",
+ "title": "Sprite sheet (output of pack_atlas.py, input of the Unity importer and Conquest.Assets)",
+ "description": "Rectangles are in atlas pixels from the page's TOP-LEFT. pivot_px is from the BOTTOM-LEFT of the trimmed rectangle (Unity's convention) and may lie outside it. The C# parser (SheetParser) additionally checks that every rectangle lies inside its page and has the entry's size.",
+ "type": "object",
+ "required": ["schema", "theme", "tile_px", "pixels_per_unit", "projection", "variant", "padding", "max_page", "generator", "layers", "pages", "entries"],
+ "properties": {
+  "schema": {"const": "sprite-sheet/1"},
+  "theme": {"type": "string"},
+  "tile_px": {"type": "integer"},
+  "pixels_per_unit": {"type": "integer"},
+  "variant": {"enum": ["snapped", "graded"]},
+  "projection": {"type": "object"},
+  "padding": {"type": "integer"},
+  "max_page": {"type": "integer", "maximum": 4096},
+  "generator": {"type": "object"},
+  "layers": {"type": "array"},
+  "pages": {
+   "type": "array",
+   "items": {
+    "type": "object",
+    "required": ["file", "group", "size", "sha256"],
+    "properties": {"file": {"type": "string"}, "group": {"type": "string"}, "size": {"type": "array", "items": {"type": "integer"}, "minItems": 2, "maxItems": 2}, "sha256": {"type": "string"}}
+   }
+  },
+  "entries": {
+   "type": "array",
+   "items": {
+    "type": "object",
+    "required": ["key", "kind", "role", "level", "variant", "state", "slot", "dir", "atlas_group", "layer", "sort", "footprint", "fps", "loop", "events", "tags", "review", "frame_count", "size", "pivot_px", "source_size", "source_anchor_px", "trim_offset", "frames", "pixel_sha256", "source_sha256"],
+    "properties": {
+     "frames": {"type": "array", "items": {"type": "object", "required": ["page", "rect"], "properties": {"page": {"type": "integer"}, "rect": {"type": "array", "items": {"type": "integer"}, "minItems": 4, "maxItems": 4}}}}
+    }
+   }
+  }
+ }
+}

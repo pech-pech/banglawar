@@ -1,0 +1,25 @@
+{
+ "schema": "palette-additions/1",
+ "theme": "bd1971",
+ "_note": "Owner decision 2026-10-04 (question window): ADD the 12 polish water/bank colours and the 3 sand tones to the pilot palette (prototype allowed). The palette itself lives with the pilot (art-src/bd1971-pilot/pilot_palette.json); the shipped *_snapped.png files already use these tones (water tiles: missing/mrender_tile.py WATER_TONES; garrison pictures: out/missing/palette_additions_sand.json). This file records what was added so the pilot palette can be updated from one place.",
+ "water_and_bank": {
+  "water_deep": "#477f9c",
+  "water_mid": "#6aa5be",
+  "water_light": "#bfe0ec",
+  "water_shallow": "#8fc7cf",
+  "water_reflection": "#2c5668",
+  "water_glint": "#f2fbf8",
+  "mud_dark": "#55612c",
+  "mud_light": "#6d7a35",
+  "earth": "#6a5034",
+  "earth_dark": "#4a3826",
+  "reed_dark": "#41601f",
+  "reed_tip": "#b2bd62"
+ },
+ "sand": {
+  "sand_clay": "#b99d74",
+  "sand_pale": "#d0bc92",
+  "sand_trod": "#a68764"
+ },
+ "reused_from_pilot_palette": {"grey_brown": "#8c7e72"}
+}

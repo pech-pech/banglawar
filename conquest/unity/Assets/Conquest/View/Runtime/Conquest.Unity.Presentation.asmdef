@@ -1,0 +1,22 @@
+{
+    "name": "Conquest.Unity.Presentation",
+    "rootNamespace": "Conquest.UnityView",
+    "references": [
+        "Conquest.Core",
+        "Conquest.Content",
+        "Conquest.Presentation",
+        "Conquest.Assets",
+        "Conquest.Glue",
+        "Conquest.Unity.Art",
+        "Unity.InputSystem"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

@@ -1,0 +1,176 @@
+{
+  "schema": "scenario/1",
+  "id": "liberation-1971-skirmish",
+  "version": "0.1.0",
+  "_note": "First playable scenario: a 12 x 10 schematic cut-down of liberation-1971 (docs 06 section 4, 08). Opaque ids only; the theme names them. Scale-downs from the full spec (6 starting garrison positions instead of 20, 2 fortress positions instead of 6, a 50 percent clause instead of 25) are ASSUMED and marked in end_conditions._note. Nothing here is a survey or a boundary.",
+  "requires": {"ruleset": "conquest-core", "major": 1, "min_minor": 1, "variants": ["bd1971@0.1"]},
+  "theme_hint": "bd1971",
+
+  "settings": {
+    "max_turns": 89,
+    "native_settlements": 0,
+    "computer_players": 1,
+    "difficulty": "normal",
+    "resources": "normal",
+    "movement": "normal"
+  },
+
+  "calendar": {"epoch": "1971-03-26", "step_days": 3},
+
+  "map": {
+    "width": 12,
+    "height": 10,
+    "_legend_note": "Several looks share one terrain role: meadow, paddy and stubble are all t.open (the role is rules, the look is art). The river runs as a two-tile staircase from the north-east corner to the south-west; the lake sits in the south-west, beside where the river bends away (it moved from beside the capital so unit markers and buildings do not hide it; the port stands on the river at [6, 6]).",
+    "legend": {
+      "o": {"terrain": "t.open", "look": "meadow"},
+      "p": {"terrain": "t.open", "look": "paddy_water"},
+      "d": {"terrain": "t.open", "look": "paddy_dense"},
+      "s": {"terrain": "t.open", "look": "stubble"},
+      "f": {"terrain": "t.wood_a", "look": "forest"},
+      "h": {"terrain": "t.rough", "look": "tea"},
+      "r": {"terrain": "t.river", "look": "water"},
+      "l": {"terrain": "t.still", "look": "water"}
+    },
+    "rows": [
+      "ffoohhoppoor",
+      "fooshhopdsrr",
+      "fossooopdrro",
+      "oossofoorrof",
+      "oooofforrddd",
+      "oooooorropof",
+      "olllorrooooo",
+      "olllrroooooh",
+      "oolrrooooohh",
+      "oorroooooooo"
+    ]
+  },
+
+  "players": [
+    {"slot": "f1", "control": "human", "start": {"mode": "entry_tiles"},
+     "start_kit": {"res.basic": 12, "res.hard": 4, "res.coin": 6, "res.wares": 3, "res.food": 15, "res.pop": 100},
+     "_note": "The kit goes to the first base the player founds (it has no base at the start)."},
+    {"slot": "f2", "control": "ai", "start": {"mode": "pre_placed"}}
+  ],
+
+  "entry_groups": {
+    "entry.s08": {"slot": "f1", "tiles": [[0, 3], [0, 4], [0, 5]]},
+    "entry.s06": {"slot": "f1", "tiles": [[2, 0], [3, 0]]},
+    "entry.s02": {"slot": "f1", "tiles": [[9, 0], [10, 0]]}
+  },
+
+  "arrivals": [
+    {"turn": 0, "slot": "f1", "entry": {"group": "entry.s08"}, "attach_to_first_commander": true,
+     "units": [{"role": "u.founder", "level": 1, "count": 1}, {"role": "u.scout", "level": 1, "count": 1},
+               {"role": "u.commander", "level": 1, "count": 1}, {"role": "u.line", "level": 1, "count": 2}]},
+    {"turn": 0, "slot": "f1", "entry": {"group": "entry.s06"},
+     "units": [{"role": "u.founder", "level": 1, "count": 1}, {"role": "u.line", "level": 1, "count": 1}]},
+    {"turn": 6, "slot": "f1", "entry": {"group": "entry.s02"},
+     "units": [{"role": "u.founder", "level": 1, "count": 1}, {"role": "u.scout", "level": 1, "count": 1}]},
+    {"turn": 34, "slot": "f1", "entry": {"group": "entry.s06"}, "attach_to_first_commander": true,
+     "units": [{"role": "u.commander", "level": 2, "count": 1}, {"role": "u.line", "level": 3, "count": 3}],
+     "_note": "First regular brigade of July, generic label in the theme."},
+    {"turn": 12, "slot": "f2", "via_patron": true,
+     "units": [{"role": "u.line", "level": 2, "count": 2}],
+     "_note": "AI reinforcement through its patron link; no entry group (neutral transport-at-edge rule). Suppressed after the link cut."}
+  ],
+
+  "pre_placed_bases": [
+    {"site_id": "site.capital", "owner": "f2", "anchor": [9, 8], "core_level": 3,
+     "buildings": [
+       {"role": "bld.garrison", "level": 3, "at": [7, 8]},
+       {"role": "bld.scout_post", "level": 1, "at": [9, 9]},
+       {"role": "bld.food", "level": 1, "at": [10, 9]},
+       {"role": "bld.habitat", "level": 1, "at": [11, 9]},
+       {"role": "bld.port", "level": 1, "at": [6, 6]}],
+     "stock": {"res.basic": 7, "res.hard": 5, "res.coin": 6, "res.wares": 3, "res.food": 9}, "pop": 120,
+     "garrison": [{"role": "u.line", "level": 2, "count": 3}, {"role": "u.shock", "level": 1, "count": 1},
+                  {"role": "u.ranged", "level": 1, "count": 1}],
+     "commander": {"level": 3}, "tags": ["capital"], "real_place": true, "raid_can_destroy": false,
+     "intel_seed": "all_position_only"},
+    {"site_id": "site.fortress_1", "owner": "f2", "anchor": [10, 3], "core_level": 2,
+     "buildings": [
+       {"role": "bld.garrison", "level": 2, "at": [10, 4]},
+       {"role": "bld.scout_post", "level": 1, "at": [9, 4]}],
+     "stock": {"res.basic": 3, "res.hard": 2, "res.coin": 2, "res.wares": 1, "res.food": 4}, "pop": 60,
+     "garrison": [{"role": "u.line", "level": 2, "count": 2}, {"role": "u.ranged", "level": 1, "count": 1}],
+     "commander": {"level": 2}, "tags": ["fortress"], "real_place": true, "raid_can_destroy": false,
+     "intel_seed": "all_position_only"},
+    {"site_id": "site.fortress_2", "owner": "f2", "anchor": [6, 7], "core_level": 2,
+     "buildings": [
+       {"role": "bld.garrison", "level": 2, "at": [5, 8]},
+       {"role": "bld.scout_post", "level": 1, "at": [7, 7]}],
+     "stock": {"res.basic": 3, "res.hard": 2, "res.coin": 2, "res.wares": 1, "res.food": 4}, "pop": 60,
+     "garrison": [{"role": "u.line", "level": 2, "count": 2}, {"role": "u.ranged", "level": 1, "count": 1}],
+     "commander": {"level": 2}, "tags": ["fortress"], "real_place": true, "raid_can_destroy": false,
+     "intel_seed": "all_position_only"},
+    {"site_id": "site.zone_1", "owner": "f2", "anchor": [11, 6], "core_level": 2,
+     "buildings": [{"role": "bld.scout_post", "level": 1, "at": [10, 6]}],
+     "stock": {"res.basic": 2, "res.hard": 1, "res.coin": 1, "res.wares": 0, "res.food": 3}, "pop": 40,
+     "garrison": [{"role": "u.line", "level": 1, "count": 2}],
+     "tags": ["defence_zone"], "real_place": true, "raid_can_destroy": false,
+     "intel_seed": "all_position_only"},
+    {"site_id": "site.town_01", "owner": "f2", "anchor": [4, 9], "core_level": 1,
+     "buildings": [],
+     "stock": {"res.basic": 1, "res.hard": 1, "res.coin": 0, "res.wares": 0, "res.food": 2}, "pop": 20,
+     "garrison": [{"role": "u.line", "level": 1, "count": 1}],
+     "tags": ["garrison_town"], "real_place": true, "raid_can_destroy": false,
+     "intel_seed": "all_position_only"},
+    {"site_id": "site.town_02", "owner": "f2", "anchor": [8, 5], "core_level": 1,
+     "buildings": [],
+     "stock": {"res.basic": 1, "res.hard": 1, "res.coin": 0, "res.wares": 0, "res.food": 2}, "pop": 20,
+     "garrison": [{"role": "u.line", "level": 1, "count": 1}],
+     "tags": ["garrison_town"], "real_place": true, "raid_can_destroy": false,
+     "intel_seed": "all_position_only"}
+  ],
+
+  "regions": [
+    {"id": "region.r08", "rects": [[0, 0, 6, 10]]},
+    {"id": "region.r02", "rects": [[6, 0, 6, 10]]}
+  ],
+  "region_cap_slots": ["f1", "f2"],
+
+  "season_table": {
+    "season.pre_wet": {"move_cost_pct_land": 100, "move_cost_pct_water": 100, "food_output_pct": 90},
+    "season.wet": {"move_cost_pct_land": 150, "move_cost_pct_water": 100, "food_output_pct": 100},
+    "season.dry": {"move_cost_pct_land": 100, "move_cost_pct_water": 100, "food_output_pct": 115},
+    "_note": "Mirror of the variant's season definitions (06 H3); all values ASSUMED. The variant stays the source of truth once the rules loader exists."
+  },
+  "season_schedule": [
+    {"from_turn": 0, "to_turn": 21, "season": "season.pre_wet"},
+    {"from_turn": 22, "to_turn": 62, "season": "season.wet", "first_turn_contains_date": "1971-06-01"},
+    {"from_turn": 63, "to_turn": 88, "season": "season.dry", "first_turn_contains_date": "1971-10-01"}
+  ],
+
+  "timed_effects": [{
+    "id": "te.link_cut", "from_turn": 84, "to_turn": null, "target_slot": "f2", "announce": true,
+    "first_turn_contains_date": "1971-12-03",
+    "effects": [
+      {"kind": "patron_link_cut", "in_flight": "cancel_refund"},
+      {"kind": "panic_modifier", "scope": "defending_base", "permille": 100}],
+    "_note": "PLACEHOLDER turn (06 H5). No units are granted to f1."
+  }],
+
+  "balance": {
+    "commodity_bounds": {
+      "res.basic": [1, 30], "res.hard": [1, 15], "res.coin": [1, 20], "res.wares": [1, 10], "res.food": [1, 40]
+    },
+    "max_slot_ratio_pct": 200,
+    "_note": "Per slot, the opening total of each commodity must sit inside its bounds, and the larger slot total may be at most this percent of the smaller (res.pop is not a commodity)."
+  },
+
+  "end_conditions": {
+    "surrender": [{
+      "slot": "f2", "winner_slot": "f1",
+      "when": {"any_of": [
+        {"holds_site": {"slot": "f1", "site": "site.capital"}},
+        {"all_of": [
+          {"holds_sites_count": {"slot": "f1", "tag": "fortress", "at_least": 2}},
+          {"initial_sites_held_at_most_pct": {"slot": "f2", "at_most_pct": 50,
+            "tags_any": ["capital", "fortress", "defence_zone", "garrison_town"]}}]}]}
+    }],
+    "elimination": {"homeless_turns_limit": 15, "no_base_no_founder_grace_turns": 15},
+    "deadline": {"max_turns": 89, "result": "draw", "winner_slot": null, "last_turn_contains_date": "1971-12-16"},
+    "tag_counts": {"capital": 1, "fortress": 2, "defence_zone": 1, "garrison_town": 2},
+    "_note": "Capital garrison, or both fortress positions while the AI holds at most half of its 6 starting garrison positions (ASSUMED scale-down of the 3-of-6 and 25 percent clauses; the full scenario keeps the owner's numbers)."
+  }
+}

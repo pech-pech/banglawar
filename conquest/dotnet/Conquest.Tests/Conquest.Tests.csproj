@@ -22,6 +22,18 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Conquest.Core\Conquest.Core.csproj" />
+    <ProjectReference Include="..\Conquest.Content\Conquest.Content.csproj" />
+    <ProjectReference Include="..\Conquest.Assets\Conquest.Assets.csproj" />
+    <ProjectReference Include="..\Conquest.Presentation\Conquest.Presentation.csproj" />
+    <ProjectReference Include="..\Conquest.Bootstrap\Conquest.Bootstrap.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\..\data\**\*.json" CopyToOutputDirectory="PreserveNewest" LinkBase="data" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="golden\**" CopyToOutputDirectory="PreserveNewest" LinkBase="golden" />
   </ItemGroup>
 
 </Project>

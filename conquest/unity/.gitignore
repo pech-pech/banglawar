@@ -23,3 +23,27 @@ sysinfo.txt
 *.apk
 *.aab
 *.unitypackage
+
+# Generated art (private, never committed): atlases, sprite sheet, clips and the catalog asset
+/[Aa]ssets/Art/Generated/
+/[Aa]ssets/Art/Generated.meta
+
+# Engine-free sources copied from conquest/dotnet by conquest/tools/unity/sync_engine_sources.sh (generated, never committed)
+/Packages/com.conquest.engine/Runtime/Core/
+/Packages/com.conquest.engine/Runtime/Core.meta
+/Packages/com.conquest.engine/Runtime/Content/
+/Packages/com.conquest.engine/Runtime/Content.meta
+/Packages/com.conquest.engine/Runtime/Presentation/
+/Packages/com.conquest.engine/Runtime/Presentation.meta
+/Packages/com.conquest.engine/Runtime/Bootstrap/
+/Packages/com.conquest.engine/Runtime/Bootstrap.meta
+
+# Screenshots captured by the slice (private)
+/Screenshots/
+# Data copied for the player by the slice editor setup
+/Assets/StreamingAssets/conquest/
+/Assets/StreamingAssets/conquest.meta
+
+# The view-assets data asset points at the generated art catalog, so it is generated too (Conquest > Slice > Prepare)
+/Assets/Conquest/View/Resources/ConquestViewAssets.asset
+/Assets/Conquest/View/Resources/ConquestViewAssets.asset.meta
