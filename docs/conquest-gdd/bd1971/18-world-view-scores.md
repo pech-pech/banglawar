@@ -181,3 +181,6 @@ W1 (2026-10-04, CLI, 2 references: R8a and B2, 30 credits; 985 and 982 character
 
 ## Next test (proposed, not sent; superseded by the follow-up rounds above)
 Combine the winning parts: W4's steep overhead sea-to-hills composition and W5's tile-field framing, with W2's overcast soft light and slate/blue-green palette; no sky, no horizon, no clouds, and no wall-like ridge; never the phrase "world map". Three variations on Seedream 4.5 (45 credits): N1 overcast sea-to-hills; N2 overcast tile-field of one river land; N3 sea-to-hills with a soft low warm band from the top left over cool slate shade.
+
+
+Decisions after the banner content check (user, 2026-10-04, via the window): keep the ox on the cart icon (an object-style animal pictogram; a written exception and a reworded exclusion tail are still needed in the theme pack and prompt rules, not yet done); call the cards "unit markers" in the docs, keeping "banner" for the faction pennant. Findings: docs/conquest-gdd/bd1971/20-banner-content-check.md (sickle and lantern flagged for a Bangladeshi reviewer).
