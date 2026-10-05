@@ -43,7 +43,7 @@ public class SourceScanTests
     public void The_simulation_projects_have_no_floats_clocks_random_or_hash_code_logic()
     {
         var failures = new List<string>();
-        foreach (string file in Files("Conquest.Core", "Conquest.Bootstrap", "Conquest.Presentation"))
+        foreach (string file in Files("Conquest.Core", "Conquest.Bootstrap", "Conquest.Presentation", "Conquest.Ai"))
         {
             var hits = SourceScanner.Scan(File.ReadAllText(Path.Combine(DotnetDir(), file)), allowUnsignedBitOps: true, allowHashCodeCalls: HashCodeFiles.Contains(file))
                 .Where(h => h.Rule != "raw-operator").ToList();
@@ -60,7 +60,7 @@ public class SourceScanTests
     public void Signed_remainders_and_shifts_go_through_IntMath()
     {
         var failures = new List<string>();
-        foreach (string file in Files("Conquest.Core", "Conquest.Bootstrap", "Conquest.Presentation"))
+        foreach (string file in Files("Conquest.Core", "Conquest.Bootstrap", "Conquest.Presentation", "Conquest.Ai"))
         {
             if (BitOpFiles.Contains(file) || file == "Conquest.Core/IntMath.cs")
             {
@@ -81,7 +81,7 @@ public class SourceScanTests
     public void No_dictionary_or_hash_set_is_ever_enumerated()
     {
         var failures = new List<string>();
-        foreach (string file in Files("Conquest.Core", "Conquest.Bootstrap", "Conquest.Presentation", "Conquest.Content"))
+        foreach (string file in Files("Conquest.Core", "Conquest.Bootstrap", "Conquest.Presentation", "Conquest.Content", "Conquest.Ai"))
         {
             var hits = SourceScanner.Scan(File.ReadAllText(Path.Combine(DotnetDir(), file)), allowUnsignedBitOps: true, allowHashCodeCalls: true)
                 .Where(h => h.Rule == "hashed-enumeration").ToList();

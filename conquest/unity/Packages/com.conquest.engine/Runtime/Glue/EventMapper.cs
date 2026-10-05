@@ -30,7 +30,41 @@ namespace Conquest.Glue
             }
 
             DeriveSpawnsAndExits(step, covered, result);
-            return result;
+            return viewerSlot < 0 ? result : OnlyWhatTheViewerSees(step, result, viewerSlot);
+        }
+
+        /// <summary>
+        /// Fog: an event about another side's unit or building is kept only when the viewer could see it (<see cref="FogView"/>).
+        /// A move needs its start seen before and its end seen after; a unit coming out of the fog or going into it is simply
+        /// dropped, and the view's reconcile shows it or removes it afterwards, so a banner never animates through unseen tiles.
+        /// A death is kept when the tile was seen before; a spawn or building when its tile is seen after. The viewer's own events always stay.
+        /// </summary>
+        private static IReadOnlyList<PresentationEvent> OnlyWhatTheViewerSees(AppliedStep step, List<PresentationEvent> events, int viewerSlot)
+        {
+            string own = SlotId(viewerSlot);
+            FogView before = FogView.Of(step.Before, viewerSlot);
+            FogView after = FogView.Of(step.After, viewerSlot);
+            var kept = new List<PresentationEvent>(events.Count);
+            foreach (PresentationEvent e in events)
+            {
+                if (e.Slot == null || e.Slot == own || SeenBy(e, before, after)) kept.Add(e);
+            }
+
+            return kept;
+        }
+
+        private static bool SeenBy(PresentationEvent e, FogView before, FogView after)
+        {
+            switch (e.Kind)
+            {
+                case PresentationEventKind.UnitMoved:
+                    GridPos start = e.Path != null && e.Path.Count > 0 ? e.Path[0] : e.Position;
+                    return before.IsVisible(start.X, start.Y) && after.IsVisible(e.Position.X, e.Position.Y);
+                case PresentationEventKind.UnitDestroyed:
+                    return before.IsVisible(e.Position.X, e.Position.Y);
+                default:
+                    return after.IsVisible(e.Position.X, e.Position.Y);
+            }
         }
 
         private static void MapOne(AppliedStep step, GameEvent e, TurnServices services, HashSet<int> covered, List<PresentationEvent> output)

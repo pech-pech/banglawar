@@ -15,7 +15,7 @@ namespace Conquest.UnityView
     /// Elements carry names (resource-bar, season-indicator, unit-card, end-turn, language-button, message,
     /// debug-panel) so tests can find them.
     /// </summary>
-    public sealed class HudController : MonoBehaviour
+    public sealed partial class HudController : MonoBehaviour
     {
         private static readonly Color Panel = new Color(0.08f, 0.11f, 0.1f, 0.86f);
         private static readonly Color Ink = new Color(0.95f, 0.96f, 0.92f);
@@ -103,10 +103,13 @@ namespace Conquest.UnityView
             root.pickingMode = PickingMode.Ignore;
             BuildBadges();
             BuildTopBar();
+            BuildLeftColumn();
             BuildUnitCard();
             BuildBottomRight();
+            BuildPanels();
             BuildMessages();
             BuildDebug();
+            BuildPause();
             root.RegisterCallback<GeometryChangedEvent>(e => SetNarrow(e.newRect.width > 0f && e.newRect.width < NarrowPanelWidth));
             text.LocaleChanged += OnLocaleChanged;
             ApplyFonts();
@@ -166,20 +169,25 @@ namespace Conquest.UnityView
             seasonLabel = MakeLabel("season-label", 14, Dim, false);
             season.Add(turnLabel);
             season.Add(seasonLabel);
+            ordersLabel = MakeLabel("orders-label", 12, Accent, false);
+            ordersLabel.style.display = DisplayStyle.None;
+            season.Add(ordersLabel);
             bar.Add(season);
             languageButton = MakeButton("language-button", ButtonFill, 16, () => LanguagePressed?.Invoke());
             languageButton.style.minWidth = 84;
             languageButton.style.height = 36;
             bar.Add(languageButton);
+            menuButton = MakeButton("menu-button", ButtonFill, 16, () => MenuPressed?.Invoke());
+            menuButton.style.minWidth = 84;
+            menuButton.style.height = 36;
+            menuButton.style.marginLeft = 8;
+            bar.Add(menuButton);
             root.Add(bar);
         }
 
         private void BuildUnitCard()
         {
             unitCard = Box("unit-card", Panel);
-            unitCard.style.position = Position.Absolute;
-            unitCard.style.left = 14;
-            unitCard.style.bottom = 14;
             unitCard.style.width = 300;
             unitCard.style.paddingLeft = 12;
             unitCard.style.paddingRight = 12;
@@ -215,7 +223,7 @@ namespace Conquest.UnityView
             unitCard.Add(cardMoves);
             unitCard.Add(foundButton);
             unitCard.style.display = DisplayStyle.None;
-            root.Add(unitCard);
+            leftColumn.Add(unitCard);
         }
 
         private void BuildBottomRight()
@@ -240,6 +248,12 @@ namespace Conquest.UnityView
             message.style.backgroundColor = Panel;
             message.style.paddingTop = 6;
             message.style.paddingBottom = 6;
+            message.style.paddingLeft = 10;
+            message.style.paddingRight = 10;
+            // a long line (turn, what the opponent did, a battle result) wraps inside the strip instead of running past its ends
+            message.style.whiteSpace = WhiteSpace.Normal;
+            message.style.overflow = Overflow.Hidden;
+            message.style.height = StyleKeyword.Auto;
             message.style.display = DisplayStyle.None;
             message.pickingMode = PickingMode.Ignore;
             root.Add(message);
@@ -410,9 +424,22 @@ namespace Conquest.UnityView
             return label;
         }
 
+        private static int uiClickFrame = int.MinValue / 2;
+
+        /// <summary>
+        /// True during the frame a HUD button was pressed and the frame after. A press can hide the very panel it was on,
+        /// so by the time the map reads the same pointer release nothing is under it any more; the map must not treat
+        /// that release as a click on the ground.
+        /// </summary>
+        public static bool ClickedUiRecently => Time.frameCount - uiClickFrame <= 1;
+
         private static Button MakeButton(string name, Color fill, int size, Action onClick)
         {
-            var button = new Button(onClick) { name = name };
+            var button = new Button(() =>
+            {
+                uiClickFrame = Time.frameCount;
+                onClick();
+            }) { name = name };
             button.style.backgroundColor = fill;
             button.style.color = Ink;
             button.style.fontSize = size;
@@ -446,6 +473,7 @@ namespace Conquest.UnityView
         private void RefreshStaticText()
         {
             languageButton.text = text.Get("ui.language_switch");
+            RefreshPanelText();
             foundButton.text = text.Get("ui.found_base");
             hint.text = text.Get(touchMode ? "ui.hint_touch" : hasSelection ? "ui.hint_move" : "ui.hint_select");
         }
@@ -467,6 +495,7 @@ namespace Conquest.UnityView
                 message.style.top = StyleKeyword.Auto;
                 message.style.bottom = 20;
             }
+            ApplyNarrowPanels(value);
             resourceBar.Query<VisualElement>(className: null).ForEach(e =>
             {
                 if (e.name != null && e.name.StartsWith("chip-")) StyleChip(e);

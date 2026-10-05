@@ -33,11 +33,19 @@ namespace Conquest.UnityView
         private int lastClickUnit = -1;
         private float lastClickTime = -10f;
         private readonly List<(StackBadge badge, PixelRect screen)> badgeRects = new List<(StackBadge, PixelRect)>();
+        private string? pendingBattleText;
+        private OpponentTally opponentTally = OpponentTally.Empty;
 
         /// <summary>Two clicks on one banner within this time select its whole stack.</summary>
         public const float DoubleClickSeconds = 0.35f;
 
         public GameSession Session { get; private set; } = null!;
+
+        /// <summary>What the local player sees right now (rebuilt at every reconcile). Opposing units, bases and buildings outside it are not drawn, picked or counted.</summary>
+        public FogView Fog { get; private set; } = null!;
+
+        /// <summary>Enemy bases seen earlier and not in sight now: drawn dim as last known. Kept by the view, not saved; reset when a save is loaded.</summary>
+        public IntelMemory Memory { get; private set; } = IntelMemory.Empty;
 
         public ArtLibrary Art { get; private set; } = null!;
 
@@ -60,6 +68,24 @@ namespace Conquest.UnityView
         public Localizer Text { get; private set; } = null!;
 
         public bool IsBuilt { get; private set; }
+
+        /// <summary>Where saves and settings live (see <see cref="SaveStorageFactory"/>).</summary>
+        public ISaveStorage Storage { get; private set; } = null!;
+
+        public GameSaveService Saves { get; private set; } = null!;
+
+        public UiSettings Settings { get; private set; } = UiSettings.Default;
+
+        public bool Paused { get; private set; }
+
+        /// <summary>What "Quit to title" does. The default reloads the Boot scene; a test replaces it. Nothing here ever quits the application.</summary>
+        public static System.Action<MapController>? QuitToTitleOverride { get; set; }
+
+        /// <summary>The last battle result shown to the player ("Attack succeeded at 4,9"), or null.</summary>
+        public string? LastBattleText { get; private set; }
+
+        /// <summary>The last "what the opponent did" line shown with a turn banner (null before the first visible opponent action).</summary>
+        public string? LastOpponentText { get; private set; }
 
         private void Start()
         {
@@ -93,8 +119,14 @@ namespace Conquest.UnityView
             Hud.LanguagePressed = () => Text.Toggle();
             Hud.PolishPressed = PolishSettings.Cycle;
             Hud.SetPolishLabels(PolishSettings.Current);
+            Storage = SaveStorageFactory.Create();
+            Saves = new GameSaveService(Storage, content.Scenario.Id);
+            Settings = UiSettings.Load(Storage);
+            if (Settings.Locale != Text.Locale) Text.SetLocale(Settings.Locale);
+            WireHudOrders();
             Text.LocaleChanged += OnLocaleChanged;
             Session.Applied += OnApplied;
+            Session.Restored += OnRestored;
             PolishSettings.Changed += OnPolishChanged;
             Reconcile();
             Hud.SetTouchMode(false);
@@ -104,7 +136,12 @@ namespace Conquest.UnityView
         private void OnDestroy()
         {
             if (Text != null) Text.LocaleChanged -= OnLocaleChanged;
-            if (Session != null) Session.Applied -= OnApplied;
+            if (Session != null)
+            {
+                Session.Applied -= OnApplied;
+                Session.Restored -= OnRestored;
+            }
+
             PolishSettings.Changed -= OnPolishChanged;
         }
 
@@ -209,6 +246,25 @@ namespace Conquest.UnityView
             foreach (PresentationEvent e in events) Log(e);
             Runner.Enqueue(director.DirectAll(events));
             stateDirty = true;
+            NoteBattles(step);
+            opponentTally = opponentTally.Add(OpponentTally.Of(events, EventMapper.SlotId(Session.LocalSlot)));
+        }
+
+        /// <summary>Turns the core's battle results into one line for the player; shown at once and again with the next turn banner.</summary>
+        private void NoteBattles(AppliedStep step)
+        {
+            var lines = new List<string>();
+            foreach (Conquest.Core.Contracts.GameEvent e in step.Events)
+            {
+                if (!(e is Conquest.Core.Contracts.AttackResolved resolved)) continue;
+                string? line = BattleMessages.For(resolved, Session.LocalSlot, Text);
+                if (line != null) lines.Add(line);
+            }
+
+            if (lines.Count == 0) return;
+            pendingBattleText = string.Join(" · ", lines);
+            LastBattleText = pendingBattleText;
+            Hud.ShowMessage(pendingBattleText, 5f);
         }
 
         private void Log(PresentationEvent e)
@@ -219,14 +275,27 @@ namespace Conquest.UnityView
 
         private void OnAnnounce(AnimationCue cue)
         {
-            if (cue.Kind == CueKind.ShowTurn) Hud.ShowMessage(Text.Get("ui.turn") + " " + Localizer.Number(Session.State.Turn + 1), 1.5f);
+            if (cue.Kind != CueKind.ShowTurn) return;
+            string turn = Text.Get("ui.turn") + " " + Localizer.Number(Session.State.Turn + 1);
+            if (!opponentTally.IsEmpty)
+            {
+                string did = opponentTally.Describe(Text);
+                pendingBattleText = pendingBattleText == null ? did : did + " · " + pendingBattleText;
+                LastOpponentText = did;
+            }
+
+            opponentTally = OpponentTally.Empty;
+            Hud.ShowMessage(pendingBattleText == null ? turn : turn + " · " + pendingBattleText, pendingBattleText == null ? 1.5f : 5f);
+            pendingBattleText = null;
         }
 
         /// <summary>Snaps banners, structures, the selection and the HUD to the session's state.</summary>
         public void Reconcile()
         {
-            Banners.Reconcile(Session.State);
-            Structures.Rebuild(Session.State);
+            Fog = FogView.Of(Session.State, Session.LocalSlot);
+            Memory = Memory.Observe(Fog, Session.State);
+            Banners.Reconcile(Session.State, Fog);
+            Structures.Rebuild(Session.State, Fog, Memory.OutOfSight(Fog));
             Interaction.Prune();
             Banners.SetSelection(Interaction.Selection);
             RefreshRings();
@@ -238,6 +307,39 @@ namespace Conquest.UnityView
         {
             int selected = Interaction.Selection.SelectedIds.Count > 0 ? Interaction.Selection.PrimaryId : -1;
             Hud.Refresh(Session.State, Session.LocalSlot, selected);
+            RefreshOrderPanels();
+        }
+
+        /// <summary>Attack card, base card, build panel and the queued-orders line follow the interaction and the state.</summary>
+        private void RefreshOrderPanels()
+        {
+            GameState state = Session.State;
+            AttackPreview? preview = Interaction.AttackPreviewValue;
+            Hud.SetAttackCard(preview != null ? AttackCardModel.From(preview, Text) : null);
+            int baseId = Interaction.CurrentBaseId;
+            string slotId = EventMapper.SlotId(Session.LocalSlot);
+            if (baseId >= 0 && !Interaction.BuildOpen && state.TryGetBase(baseId, out Conquest.Core.Contracts.BaseView b))
+            {
+                Hud.SetBaseCard(Text.Label("bld.core", slotId), Text.Get("ui.level") + " " + Localizer.Number(b.CoreLevel));
+            }
+            else
+            {
+                Hud.SetBaseCard(null, string.Empty);
+            }
+
+            Hud.SetBuildPanel(Interaction.BuildOpen && baseId >= 0
+                ? BuildPanelModel.Create(state, Session.Services, baseId, Session.LocalSlot, Text, Interaction.BuildRole, Interaction.BuildSite)
+                : null);
+            var queued = new List<GridPos>();
+            foreach (AttackOrder order in state.Attacks)
+            {
+                if (order.Slot == Session.LocalSlot) queued.Add(new GridPos(order.Target.X, order.Target.Y));
+            }
+
+            Overlay.SetQueuedAttacks(queued);
+            Hud.SetQueuedOrders(queued.Count == 0 ? null : Text.Format("ui.attacks_queued", queued.Count));
+            Overlay.SetAttackTarget(Interaction.PendingAttackTile);
+            Overlay.SetBuildSite(Interaction.BuildSite);
         }
 
         private void OnInteractionChanged()
@@ -246,6 +348,8 @@ namespace Conquest.UnityView
             RefreshRings();
             Overlay.SetHover(Interaction.Selection.HoveredTile);
             Overlay.SetPending(Interaction.PendingTarget);
+            Overlay.SetAttackTarget(Interaction.PendingAttackTile);
+            Overlay.SetBuildSite(Interaction.BuildSite);
             Overlay.ShowPath(Interaction.Preview, Interaction.PendingTarget ?? (Interaction.Selection.CanCommand ? Interaction.Selection.HoveredTile : null));
             if (Interaction.Message != null) Hud.ShowMessage(Interaction.Message, 3f);
             if (Hud != null && !stateDirty) RefreshHud();
@@ -253,19 +357,136 @@ namespace Conquest.UnityView
 
         private void OnLocaleChanged(string locale)
         {
+            Settings = Settings.WithLocale(locale);
+            Settings.Save(Storage);
+            if (Paused) RefreshPause(string.Empty);
             RefreshHud();
         }
 
         private void OnEndTurn()
         {
-            if (Runner.IsBusy) return;
-            Interaction.EndTurn();
+            if (Runner.IsBusy || Paused) return;
+            CommandOutcome outcome = Interaction.EndTurn();
+            if (outcome.Accepted && Settings.AutosaveOnEndTurn) Save(GameSaveService.Autosave, true);
         }
 
         private void OnFoundBase()
         {
-            if (Runner.IsBusy) return;
+            if (Runner.IsBusy || Paused) return;
             Interaction.FoundBase();
+        }
+
+        // ----- orders from the panels -----
+
+        private void WireHudOrders()
+        {
+            Hud.MenuPressed = OpenPause;
+            Hud.ResumePressed = ClosePause;
+            Hud.SavePressed = () => Save(GameSaveService.Quicksave, false);
+            Hud.LoadPressed = () => Load(GameSaveService.Quicksave);
+            Hud.AutosavePressed = ToggleAutosave;
+            Hud.QuitPressed = QuitToTitle;
+            Hud.AttackConfirmPressed = () => { if (!Runner.IsBusy) Interaction.ConfirmAttack(); };
+            Hud.AttackCancelPressed = () => Interaction.Cancel();
+            Hud.BuildOpenPressed = () => { if (!Runner.IsBusy) Interaction.OpenBuild(); };
+            Hud.BuildRolePressed = role => { if (!Runner.IsBusy) Interaction.ChooseRole(role); };
+            Hud.BuildConfirmPressed = () => { if (!Runner.IsBusy) Interaction.ConfirmBuild(); };
+            Hud.BuildBackPressed = Interaction.StopPlacing;
+            Hud.BuildClosePressed = Interaction.CloseBuild;
+        }
+
+        // ----- pause, save, load -----
+
+        public void OpenPause()
+        {
+            if (Paused) return;
+            Paused = true;
+            RefreshPause(string.Empty);
+            Hud.ShowPause(true);
+        }
+
+        public void ClosePause()
+        {
+            if (!Paused) return;
+            Paused = false;
+            Hud.ShowPause(false);
+        }
+
+        private void RefreshPause(string status)
+        {
+            Hud.SetPauseState(!Session.State.MatchOver, Saves.HasSave(GameSaveService.Quicksave) || Saves.HasSave(GameSaveService.Autosave), Settings.AutosaveOnEndTurn);
+            Hud.SetPauseStatus(status);
+        }
+
+        /// <summary>Saves the state to a slot and says how it went. Never throws; a failure is a message.</summary>
+        public SaveOutcome Save(string slot, bool automatic)
+        {
+            // the save is the session's state; whatever the view is still animating does not matter, so nothing is skipped
+            SaveOutcome outcome = Saves.Save(Session.State, slot);
+            string line = outcome.Ok ? Text.Get(automatic ? "ui.autosaved" : "ui.saved") : Text.ErrorText(outcome.ErrorCode);
+            if (!outcome.Ok) Debug.LogWarning("Save failed: " + outcome.Detail);
+            if (Paused) RefreshPause(line);
+            else Hud.ShowMessage(line, 2.5f);
+            return outcome;
+        }
+
+        /// <summary>Loads a slot (falling back to the autosave when the quick slot is empty) and rebuilds the view from it.</summary>
+        public LoadOutcome Load(string slot)
+        {
+            Runner.Skip();
+            string use = Saves.HasSave(slot) || !Saves.HasSave(GameSaveService.Autosave) ? slot : GameSaveService.Autosave;
+            LoadOutcome outcome = Saves.Load(use);
+            string line;
+            if (outcome.Ok)
+            {
+                Interaction.Deselect();
+                Session.Restore(outcome.State!);
+                line = Text.Get("ui.loaded");
+            }
+            else
+            {
+                line = outcome.ErrorCode == GameSaveService.ErrNoSave ? Text.Get("ui.no_save") : Text.ErrorText(outcome.ErrorCode);
+                Debug.LogWarning("Load failed: " + outcome.ErrorCode + " " + outcome.Detail);
+            }
+
+            if (Paused) RefreshPause(line);
+            else Hud.ShowMessage(line, 2.5f);
+            return outcome;
+        }
+
+        private void OnRestored()
+        {
+            if (!IsBuilt) return;
+            Runner.Skip();
+            Memory = IntelMemory.Empty; // a loaded game is another history: nothing seen in the old one is remembered
+            Reconcile();
+            CenterOnOwnForces();
+        }
+
+        private void CenterOnOwnForces()
+        {
+            PixelRect? own = OwnForcesWorld();
+            if (!own.HasValue) return;
+            Rig.CenterOnTile(iso.WorldToGrid(new PixelPoint((own.Value.Left + own.Value.Right) / 2, (own.Value.Top + own.Value.Bottom) / 2)));
+        }
+
+        private void ToggleAutosave()
+        {
+            Settings = Settings.WithAutosave(!Settings.AutosaveOnEndTurn);
+            Settings.Save(Storage);
+            RefreshPause(string.Empty);
+        }
+
+        public void QuitToTitle()
+        {
+            if (QuitToTitleOverride != null)
+            {
+                QuitToTitleOverride(this);
+                return;
+            }
+
+            GameApp.Reset();
+            UnityEngine.SceneManagement.SceneManager.LoadScene(BootBootstrap.BootSceneName);
         }
 
         // ----- per frame -----
@@ -289,9 +510,18 @@ namespace Conquest.UnityView
         {
             if (f.ToggleDebug) SetDebug(!debugVisible);
             if (f.ToggleLanguage) Text.Toggle();
+            if (f.Cancel)
+            {
+                if (Paused) ClosePause();
+                else if (!Interaction.Cancel()) OpenPause();
+            }
+
+            if (Paused) return;
+            if (f.QuickSave) Save(GameSaveService.Quicksave, false);
+            if (f.QuickLoad) Load(GameSaveService.Quicksave);
             if (f.Skip) Runner.Skip();
             if (f.EndTurn) OnEndTurn();
-            if (f.Cancel) Interaction.Cancel();
+            if (f.Build && !Runner.IsBusy) Interaction.OpenBuild();
             if (f.NextUnit && !Runner.IsBusy) CenterOnSelection(Interaction.SelectNext());
             bool touch = f.TouchMode;
             Hud.SetTouchMode(touch);
@@ -300,8 +530,9 @@ namespace Conquest.UnityView
             if (Runner.IsBusy) return;
             bool overUi = f.HasPointer && Hud.IsPointerOverUi(f.Pointer);
             if (f.HasPointer && !overUi && f.Pointer != lastHoverPointer) HoverAt(f.Pointer);
-            if (f.Click && !Hud.IsPointerOverUi(f.ClickPosition)) ClickAt(f.ClickPosition, f.Additive);
-            if (f.SecondaryClick && !Hud.IsPointerOverUi(f.ClickPosition)) Interaction.SecondaryClick(PickAt(f.ClickPosition));
+            bool uiPressed = HudController.ClickedUiRecently;
+            if (f.Click && !uiPressed && !Hud.IsPointerOverUi(f.ClickPosition)) ClickAt(f.ClickPosition, f.Additive);
+            if (f.SecondaryClick && !uiPressed && !Hud.IsPointerOverUi(f.ClickPosition)) Interaction.SecondaryClick(PickAt(f.ClickPosition));
         }
 
         private void ApplyCamera(InputFrame f)
@@ -341,7 +572,10 @@ namespace Conquest.UnityView
 
             PickResult pick = PickAt(unityScreen);
             float now = Time.unscaledTime;
-            bool doubleClick = pick.UnitId.HasValue && pick.UnitId.Value == lastClickUnit && now - lastClickTime <= DoubleClickSeconds && !additive;
+            // with own units selected, a click on an opposing stack is an attack click (preview, then confirm); it is never the
+            // double click that selects a whole stack
+            bool attackClick = pick.Tile.HasValue && Interaction.Selection.CanCommand && AttackPreview.HasOpposingTarget(Session.State, Session.LocalSlot, pick.Tile.Value);
+            bool doubleClick = pick.UnitId.HasValue && pick.UnitId.Value == lastClickUnit && now - lastClickTime <= DoubleClickSeconds && !additive && !attackClick;
             lastClickUnit = pick.UnitId ?? -1;
             lastClickTime = now;
             if (doubleClick && pick.Tile.HasValue)

@@ -11,6 +11,7 @@ namespace Conquest.UnityView
     public sealed class BootBootstrap : MonoBehaviour
     {
         public const string MapSceneName = "Map";
+        public const string BootSceneName = "Boot";
 
         [SerializeField] private bool loadMapScene = true;
 

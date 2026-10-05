@@ -263,7 +263,8 @@ namespace Conquest.UnityView.Tests
         public void ClickingAnOpposingStackBadgeOnlyInspects()
         {
             var f = new Fixture();
-            UnitView[] enemies = f.Session.State.AsView().Units.Where(u => u.Owner == 1)
+            // fog: only an opposing stack the player can see can be inspected (the hidden ones are covered in FogInteractionTests)
+            UnitView[] enemies = f.Session.State.AsView().Units.Where(u => u.Owner == 1 && f.Interaction.Sight.IsVisible(u.Pos))
                 .GroupBy(u => (u.Pos.X, u.Pos.Y)).OrderByDescending(g => g.Count()).First().ToArray();
 
             f.Interaction.ClickStack(new GridPos(enemies[0].Pos.X, enemies[0].Pos.Y));

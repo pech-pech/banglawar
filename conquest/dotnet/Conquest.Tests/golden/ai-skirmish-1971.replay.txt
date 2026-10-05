@@ -1,0 +1,637 @@
+found 0 19
+found 0 24
+build 0 7 bld.food 0 2
+build 0 8 bld.food 1 0
+end 0
+recruit 1 1 u.line 1
+build 1 1 bld.basic_extractor 8 7
+build 1 2 bld.basic_extractor 11 2
+build 1 3 bld.basic_extractor 7 6
+build 1 4 bld.habitat 10 5
+end 1
+build 0 7 bld.basic_extractor 1 2
+build 0 8 bld.garrison 3 0
+end 0
+build 1 1 bld.hard_extractor 9 7
+end 1
+build 0 7 bld.habitat 1 3
+recruit 0 8 u.line 1
+recruit 0 8 u.ranged 1
+build 0 8 bld.basic_extractor 1 1
+end 0
+end 1
+build 0 7 bld.hard_extractor 0 4
+recruit 0 8 u.shock 1
+recruit 0 8 u.line 1
+build 0 8 bld.habitat 2 1
+end 0
+build 1 2 bld.habitat 11 3
+build 1 3 bld.habitat 6 8
+end 1
+build 0 8 bld.hard_extractor 3 1
+end 0
+end 1
+build 0 8 bld.coin_extractor 0 0
+end 0
+end 1
+found 0 31
+build 0 9 bld.garrison 8 0
+move 0 21 3 1
+move 0 25 5 2
+move 0 29 7 0
+move 0 30 5 2
+end 0
+move 1 3 6 5
+move 1 4 6 3
+move 1 5 7 6
+move 1 6 6 4
+move 1 9 8 1
+move 1 10 8 1
+move 1 13 5 5
+move 1 14 6 4
+move 1 26 6 5
+attack 1 capture 7 0 9,10
+end 1
+recruit 0 8 u.shock 1
+recruit 0 9 u.line 1
+recruit 0 9 u.ranged 1
+build 0 9 bld.food 10 0
+move 0 21 6 1
+move 0 25 7 0
+move 0 30 7 0
+attack 0 capture 8 1 25,29,30
+end 0
+build 1 2 bld.food 11 4
+build 1 3 bld.food 7 8
+move 1 3 6 2
+move 1 4 7 1
+move 1 5 6 4
+move 1 6 7 1
+move 1 13 6 3
+move 1 14 7 1
+move 1 26 6 2
+attack 1 capture 7 0 4,6,10,14
+end 1
+recruit 0 8 u.line 1
+recruit 0 9 u.shock 1
+recruit 0 9 u.line 1
+build 0 9 bld.basic_extractor 8 1
+move 0 33 6 1
+end 0
+move 1 3 7 1
+move 1 5 6 2
+move 1 13 7 1
+move 1 26 7 1
+attack 1 capture 7 0 3,6,13,14,26
+end 1
+recruit 0 8 u.line 1
+build 0 9 bld.habitat 9 1
+move 0 36 5 2
+move 0 37 8 0
+move 0 38 8 0
+attack 0 capture 7 1 21,22,23,25,29,33,37,38
+end 0
+build 1 1 bld.coin_extractor 10 7
+move 1 5 7 1
+attack 1 capture 7 0 5,6,14
+end 1
+recruit 0 8 u.line 1
+build 0 9 bld.hard_extractor 7 0
+move 0 21 9 2
+move 0 25 9 2
+move 0 29 9 2
+move 0 33 9 2
+move 0 36 8 1
+move 0 37 9 2
+move 0 38 9 2
+move 0 39 5 2
+end 0
+end 1
+build 0 7 bld.coin_extractor 1 4
+recruit 0 8 u.line 1
+build 0 9 bld.coin_extractor 7 1
+move 0 36 9 2
+move 0 39 8 1
+move 0 40 5 2
+attack 0 capture 10 3 21,22,23,25,29,33,36,37,38
+end 0
+recruit 1 1 u.ranged 2
+build 1 2 bld.hard_extractor 8 1
+build 1 3 bld.hard_extractor 4 5
+end 1
+recruit 0 8 u.line 1
+recruit 0 9 u.line 1
+move 0 39 9 2
+move 0 40 8 1
+move 0 41 5 2
+end 0
+recruit 1 1 u.shock 1
+recruit 1 1 u.line 2
+move 1 42 7 6
+move 1 43 6 5
+move 1 44 6 5
+attack 1 capture 9 2 7,8
+end 1
+recruit 0 8 u.line 1
+recruit 0 9 u.line 1
+move 0 40 9 2
+move 0 41 8 1
+move 0 45 5 2
+move 0 46 9 2
+end 0
+recruit 1 1 u.line 1
+move 1 42 7 4
+move 1 43 8 3
+move 1 44 8 3
+move 1 47 8 3
+move 1 48 6 5
+attack 1 capture 9 2 7,8,43,44,47
+end 1
+recruit 0 8 u.line 1
+recruit 0 9 u.line 1
+move 0 41 7 2
+move 0 45 7 2
+move 0 49 5 2
+move 0 50 7 2
+end 0
+recruit 1 1 u.line 1
+move 1 42 8 2
+move 1 43 8 1
+move 1 44 8 1
+move 1 48 8 2
+move 1 51 6 5
+attack 1 capture 7 2 42,43,44,48
+end 1
+recruit 0 9 u.line 1
+move 0 49 7 0
+move 0 52 5 2
+end 0
+recruit 1 1 u.line 1
+move 1 42 7 1
+move 1 48 7 1
+move 1 51 6 2
+move 1 54 6 5
+attack 1 capture 7 0 42,43,44,48
+end 1
+move 0 52 7 0
+attack 0 capture 8 1 34,35,52,53,55
+end 0
+recruit 1 1 u.line 1
+move 1 51 6 1
+move 1 54 5 2
+move 1 56 6 5
+attack 1 capture 7 0 42,43,44,48,51
+end 1
+recruit 0 9 u.shock 1
+move 0 53 8 0
+end 0
+recruit 1 1 u.line 1
+move 1 51 7 0
+move 1 54 7 0
+move 1 56 6 2
+move 1 57 6 5
+attack 1 capture 8 0 42,48,51,54
+end 1
+recruit 0 8 u.shock 1
+recruit 0 9 u.line 1
+move 0 58 8 0
+end 0
+recruit 1 1 u.line 1
+move 1 56 7 1
+move 1 57 6 2
+move 1 59 6 5
+attack 1 capture 8 0 42,48,51,54,56
+end 1
+recruit 0 9 u.line 1
+move 0 60 6 1
+move 0 61 8 0
+end 0
+recruit 1 1 u.line 1
+build 1 2 bld.coin_extractor 9 1
+build 1 3 bld.coin_extractor 5 5
+move 1 57 7 1
+move 1 59 6 2
+move 1 62 6 5
+attack 1 capture 8 0 42,48,51,54,56,57
+end 1
+recruit 0 9 u.line 1
+move 0 63 8 0
+end 0
+recruit 1 1 u.line 1
+move 1 59 7 1
+move 1 62 6 2
+move 1 64 6 5
+attack 1 capture 8 0 42,48,51,54,56,57,59
+end 1
+build 0 7 bld.garrison 0 1
+move 0 65 8 0
+end 0
+recruit 1 1 u.line 1
+recruit 1 2 u.ranged 2
+recruit 1 3 u.ranged 2
+move 1 62 7 1
+move 1 64 6 2
+move 1 66 6 5
+attack 1 capture 8 0 42,48,51,54,56,57,59,62
+end 1
+recruit 0 7 u.line 1
+recruit 0 7 u.ranged 1
+end 0
+recruit 1 1 u.line 1
+recruit 1 2 u.shock 1
+recruit 1 3 u.shock 1
+move 1 42 8 0
+move 1 48 8 0
+move 1 51 8 0
+move 1 54 8 0
+move 1 56 8 0
+move 1 57 8 0
+move 1 59 8 0
+move 1 62 8 0
+move 1 64 8 0
+move 1 66 6 3
+move 1 67 7 6
+move 1 68 9 2
+move 1 69 5 6
+attack 1 capture 9 0 42,48,51,54,56,57,59,62,64
+end 1
+recruit 0 7 u.shock 1
+recruit 0 7 u.line 1
+end 0
+recruit 1 1 u.line 1
+recruit 1 2 u.line 1
+recruit 1 3 u.line 1
+move 1 42 7 0
+move 1 48 7 0
+move 1 54 7 0
+move 1 56 7 0
+move 1 57 7 0
+move 1 59 7 0
+move 1 62 7 0
+move 1 64 7 0
+move 1 66 5 2
+move 1 67 6 4
+move 1 68 8 1
+move 1 69 4 5
+move 1 72 7 6
+move 1 73 7 0
+move 1 74 3 4
+attack 1 capture 6 1 42,48,54,56,57,59,62,64,66,73
+end 1
+upgrade 0 8 -1
+move 0 75 3 1
+move 0 76 2 1
+end 0
+recruit 1 1 u.line 1
+recruit 1 2 u.line 1
+recruit 1 3 u.line 1
+move 1 42 6 1
+move 1 48 5 2
+move 1 54 5 2
+move 1 56 5 2
+move 1 57 5 2
+move 1 59 5 2
+move 1 62 5 2
+move 1 64 5 2
+move 1 66 4 1
+move 1 67 5 2
+move 1 68 7 0
+move 1 69 3 4
+move 1 72 5 5
+move 1 73 5 2
+move 1 74 1 1
+move 1 77 7 6
+move 1 78 8 1
+move 1 79 4 5
+end 1
+recruit 0 7 u.shock 1
+recruit 0 7 u.line 1
+move 0 75 2 0
+attack 0 capture 1 1 27,28,75,76
+end 0
+recruit 1 1 u.line 1
+recruit 1 2 u.line 1
+recruit 1 3 u.line 1
+move 1 42 5 2
+move 1 48 3 1
+move 1 54 3 1
+move 1 56 3 1
+move 1 57 3 1
+move 1 59 3 1
+move 1 62 3 1
+move 1 64 3 1
+move 1 66 3 0
+move 1 67 3 1
+move 1 68 6 1
+move 1 69 2 3
+move 1 72 3 4
+move 1 73 3 1
+move 1 77 6 5
+move 1 78 6 1
+move 1 79 2 3
+move 1 80 7 6
+move 1 81 8 1
+move 1 82 4 5
+attack 1 capture 2 0 48,54,56,57,59,62,64,66,67,73,74
+end 1
+move 0 76 1 2
+move 0 83 1 2
+move 0 84 1 2
+end 0
+recruit 1 2 u.line 1
+recruit 1 3 u.line 1
+build 1 9 bld.garrison 8 0
+move 1 42 4 2
+move 1 68 5 2
+move 1 69 2 2
+move 1 72 2 2
+move 1 77 5 4
+move 1 78 4 2
+move 1 79 1 1
+move 1 80 6 5
+move 1 81 6 1
+move 1 82 2 3
+move 1 85 7 6
+move 1 86 8 1
+move 1 87 4 5
+attack 1 capture 1 2 69,72,79,82
+end 1
+recruit 0 7 u.shock 1
+recruit 0 7 u.line 1
+end 0
+recruit 1 1 u.line 1
+recruit 1 3 u.line 1
+move 1 42 3 1
+move 1 68 4 2
+move 1 69 1 1
+move 1 72 1 1
+move 1 77 3 2
+move 1 78 3 1
+move 1 80 5 4
+move 1 81 4 2
+move 1 82 1 1
+move 1 85 6 5
+move 1 86 6 1
+move 1 87 2 3
+move 1 88 8 1
+move 1 89 4 5
+attack 1 capture 2 0 42,69,72,78,79,82
+end 1
+move 0 90 2 1
+move 0 91 2 1
+attack 0 capture 3 2 90,91
+end 0
+move 1 68 3 1
+move 1 77 3 1
+move 1 80 3 2
+move 1 81 3 1
+move 1 85 5 4
+move 1 86 4 2
+move 1 87 1 1
+move 1 88 6 1
+move 1 89 2 3
+move 1 92 7 6
+move 1 93 4 5
+attack 1 capture 2 0 68,77,81,87
+end 1
+recruit 0 7 u.shock 1
+recruit 0 7 u.line 1
+end 0
+move 1 80 2 1
+move 1 85 3 2
+move 1 86 3 1
+move 1 88 4 2
+move 1 89 1 1
+move 1 92 6 5
+move 1 93 2 3
+attack 1 capture 2 0 80,86,89
+end 1
+move 0 94 2 1
+move 0 95 2 1
+attack 0 capture 3 2 94,95
+end 0
+upgrade 1 1 2
+upgrade 1 2 4
+move 1 85 3 1
+move 1 88 3 1
+move 1 92 5 4
+move 1 93 1 1
+attack 1 capture 2 0 85,88,93
+end 1
+recruit 0 7 u.shock 1
+recruit 0 7 u.line 1
+end 0
+upgrade 1 3 4
+end 1
+end 0
+end 1
+end 0
+end 1
+upgrade 0 8 0
+move 0 94 5 2
+move 0 95 4 2
+move 0 96 3 1
+move 0 97 2 1
+move 0 98 4 2
+end 0
+recruit 1 2 u.line 1
+recruit 1 3 u.line 1
+move 1 92 4 3
+end 1
+recruit 0 7 u.shock 1
+recruit 0 7 u.line 1
+move 0 96 3 2
+move 0 97 3 2
+attack 0 capture 4 3 94,95,96,97,98,99,100,101
+end 0
+move 1 102 8 1
+move 1 103 4 5
+end 1
+move 0 95 6 3
+move 0 96 6 3
+move 0 97 5 2
+move 0 98 6 3
+move 0 104 3 1
+move 0 105 2 1
+end 0
+move 1 102 7 2
+move 1 103 5 4
+end 1
+recruit 0 7 u.shock 1
+recruit 0 7 u.line 1
+move 0 95 7 4
+move 0 96 7 4
+move 0 97 7 4
+move 0 98 7 4
+move 0 104 6 3
+move 0 105 4 2
+attack 0 capture 8 5 95,96,97,98,99,100,101
+end 0
+move 1 102 7 3
+move 1 103 6 4
+attack 1 capture 6 3 102,103
+end 1
+move 0 105 6 2
+move 0 106 3 1
+move 0 107 2 1
+attack 0 capture 7 3 98,99,100,101,105
+end 0
+move 1 103 6 3
+attack 1 capture 6 2 102,103
+end 1
+recruit 0 7 u.shock 1
+recruit 0 7 u.line 1
+move 0 106 5 2
+move 0 107 4 2
+attack 0 capture 6 3 98,99,100,101,106
+end 0
+end 1
+move 0 98 9 2
+move 0 106 8 1
+move 0 107 6 1
+move 0 108 3 1
+move 0 109 2 1
+attack 0 capture 9 0 106
+attack 0 capture 10 3 98,99,100,101
+end 0
+end 1
+recruit 0 7 u.shock 1
+recruit 0 7 u.line 1
+upgrade 0 7 -1
+move 0 107 8 1
+move 0 108 6 1
+move 0 109 4 2
+attack 0 capture 9 0 107
+end 0
+attack 1 capture 9 2 7,8
+end 1
+move 0 108 9 2
+move 0 109 6 1
+move 0 110 3 1
+move 0 111 2 1
+end 0
+attack 1 capture 9 2 7,8
+end 1
+recruit 0 7 u.shock 1
+recruit 0 7 u.line 1
+move 0 109 8 1
+move 0 110 6 1
+move 0 111 4 2
+attack 0 capture 9 0 109
+end 0
+end 1
+move 0 110 9 2
+move 0 111 6 1
+move 0 112 3 1
+move 0 113 2 1
+end 0
+attack 1 capture 9 2 7,8
+end 1
+move 0 111 8 1
+move 0 112 6 1
+move 0 113 4 2
+attack 0 capture 9 0 111
+end 0
+end 1
+move 0 112 9 2
+move 0 113 6 1
+end 0
+upgrade 1 9 -1
+attack 1 capture 9 2 7,8
+end 1
+recruit 0 7 u.shock 1
+move 0 113 8 1
+attack 0 capture 9 0 113
+end 0
+end 1
+move 0 114 3 1
+end 0
+end 1
+move 0 114 6 1
+end 0
+end 1
+move 0 114 9 2
+end 0
+attack 1 capture 9 2 7,8
+end 1
+upgrade 0 7 0
+end 0
+end 1
+end 0
+end 1
+end 0
+end 1
+end 0
+end 1
+end 0
+end 1
+end 0
+upgrade 1 9 0
+end 1
+end 0
+end 1
+end 0
+end 1
+upgrade 0 8 1
+end 0
+end 1
+end 0
+end 1
+end 0
+end 1
+end 0
+end 1
+end 0
+end 1
+end 0
+end 1
+end 0
+end 1
+end 0
+end 1
+end 0
+end 1
+end 0
+end 1
+end 0
+end 1
+end 0
+end 1
+end 0
+end 1
+end 0
+end 1
+end 0
+end 1
+end 0
+end 1
+end 0
+end 1
+upgrade 0 7 5
+end 0
+end 1
+end 0
+end 1
+end 0
+end 1
+end 0
+end 1
+end 0
+end 1
+end 0
+upgrade 1 9 5
+end 1
+end 0
+end 1
+end 0
+end 1
+end 0
+end 1
+end 0
+end 1
+end 0
+end 1
+end 0
+end 1
+end 0
+end 1

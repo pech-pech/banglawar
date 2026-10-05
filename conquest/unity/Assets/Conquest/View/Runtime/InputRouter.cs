@@ -24,6 +24,9 @@ namespace Conquest.UnityView
         public bool ToggleDebug;
         public bool ToggleLanguage;
         public bool Skip;
+        public bool Build;
+        public bool QuickSave;
+        public bool QuickLoad;
         public bool Touch;
 
         /// <summary>The last device used (see <see cref="PointerModeLatch"/>): true means touch wording, large targets and the touch HUD.</summary>
@@ -34,7 +37,8 @@ namespace Conquest.UnityView
     /// Reads the Input System devices (mouse, keyboard, touchscreen) and turns them into one <see cref="InputFrame"/>:
     /// click, tap, drag-pan after a pixel threshold (6 for the mouse, 12 for a finger), wheel and pinch zoom, and the
     /// key bindings of the design (WASD or arrows pan, + and - zoom, E ends the turn, Esc cancels, Tab selects the
-    /// next unit, F3 toggles the debug panel, L switches the language, Space skips animations).
+    /// next unit, B opens the build panel, F5 and F9 save and load, F3 toggles the debug panel, L switches the language,
+    /// Space skips animations; Esc backs out of whatever is in progress and otherwise opens the pause menu).
     /// </summary>
     public sealed class InputRouter
     {
@@ -195,6 +199,9 @@ namespace Conquest.UnityView
             frame.ToggleDebug = k.f3Key.wasPressedThisFrame || k.backquoteKey.wasPressedThisFrame;
             frame.ToggleLanguage = k.lKey.wasPressedThisFrame;
             frame.Skip = k.spaceKey.wasPressedThisFrame;
+            frame.Build = k.bKey.wasPressedThisFrame;
+            frame.QuickSave = k.f5Key.wasPressedThisFrame;
+            frame.QuickLoad = k.f9Key.wasPressedThisFrame;
         }
     }
 }

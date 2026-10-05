@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Copies the engine-free dotnet sources (Core, Content, Presentation, Bootstrap) into the Unity package so the editor compiles
+# Copies the engine-free dotnet sources (Core, Content, Presentation, Bootstrap, Ai) into the Unity package so the editor compiles
 # them with the asmdefs written here. The dotnet projects stay the single source of truth; the copies are generated
 # and git-ignored (conquest/unity/.gitignore). Re-run after any change in conquest/dotnet/Conquest.{Core,Content,Presentation}.
 #
@@ -12,7 +12,7 @@ RUNTIME="$(cd "$HERE/../../unity/Packages/com.conquest.engine/Runtime" && pwd)"
 copy() { # name
   local name="$1"
   mkdir -p "$RUNTIME/$name"
-  rsync -a --delete --include='*/' --include='*.cs' --exclude='*' --exclude='obj/' --exclude='bin/' \
+  rsync -a --delete --exclude='obj/' --exclude='bin/' --include='*/' --include='*.cs' --exclude='*' \
     --exclude='*.asmdef' --exclude='*.asmdef.meta' --exclude='csc.rsp' --exclude='csc.rsp.meta' \
     "$DOTNET/Conquest.$name/" "$RUNTIME/$name/"
 }
@@ -42,8 +42,10 @@ copy Core
 copy Content
 copy Presentation
 copy Bootstrap
+copy Ai
 asmdef Core '[]'
 asmdef Content '[]'
 asmdef Presentation '["Conquest.Core"]'
 asmdef Bootstrap '["Conquest.Core", "Conquest.Content"]'
-echo "synced Core, Content, Presentation into $RUNTIME"
+asmdef Ai '["Conquest.Core", "Conquest.Presentation"]'
+echo "synced Core, Content, Presentation, Bootstrap, Ai into $RUNTIME"

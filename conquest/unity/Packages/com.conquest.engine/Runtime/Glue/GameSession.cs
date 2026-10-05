@@ -38,7 +38,8 @@ namespace Conquest.Glue
     /// SWAP SPOT 2. The only class that calls <see cref="CommandEngine.Apply"/>, <see cref="Pathfinder"/> and
     /// <see cref="RuleTables"/>. It keeps the current <see cref="GameState"/>, maps <see cref="PresentationCommand"/>
     /// to core commands, answers path queries, and records every command it applied (for replay). The core has no
-    /// AI yet, so ending the local turn also ends the turn of every other slot (they do nothing).
+    /// AI wired in yet: ending the local turn asks the <see cref="Opponent"/> hook for each other slot's orders (none by
+    /// default) and then ends that slot's turn too.
     /// </summary>
     public sealed class GameSession : ICommandSink, IMovementQuery
     {
@@ -60,6 +61,21 @@ namespace Conquest.Glue
 
         public TurnServices Services => services;
 
+        /// <summary>
+        /// The computer opponent hook, asked once per other active slot after the local player ends the turn. Does nothing
+        /// by default. Its orders go through the same validation as the player's; a refused order is skipped and counted.
+        /// </summary>
+        public IOpponentTurn Opponent { get; set; } = NoOpponentTurn.Instance;
+
+        /// <summary>Opponent orders the core refused since the session began (a driver bug or a stale plan; never shown to the player).</summary>
+        public int OpponentRefusals { get; private set; }
+
+        /// <summary>The last problem the opponent hook caused (an exception message or a refused order's code); null when none.</summary>
+        public string? OpponentProblem { get; private set; }
+
+        /// <summary>Raised after <see cref="Restore"/> replaced the state (a loaded game); views must rebuild from <see cref="State"/>.</summary>
+        public event Action? Restored;
+
         /// <summary>Commands the core accepted, in order.</summary>
         public IReadOnlyList<Command> AcceptedCommands => accepted;
 
@@ -74,29 +90,62 @@ namespace Conquest.Glue
                 case CommandKind.Move: return SubmitMoves(command);
                 case CommandKind.Attack: return Outcome(Apply(new AttackCommand(LocalSlot, ImmArray<int>.From(command.UnitIds), ToCoord(command.Target))));
                 case CommandKind.EndTurn: return SubmitEndTurn();
+                case CommandKind.Build: return SubmitBuild(command);
                 default: return new CommandOutcome(false, ErrNotInSlice);
             }
         }
 
         public CommandOutcome FoundBase(int unitId) => Outcome(Apply(new FoundBaseCommand(LocalSlot, unitId)));
 
+        /// <summary>Orders a level-1 building at a base. Cost is paid now; it works next turn (core rule).</summary>
+        public CommandOutcome Build(int baseId, BuildingRole role, GridPos at) =>
+            Outcome(Apply(new BuildCommand(LocalSlot, baseId, role, ToCoord(at))));
+
+        /// <summary>
+        /// Replaces the state (a loaded save). The accepted-command record restarts, because it described a different
+        /// history. Raises <see cref="Restored"/> so the views rebuild.
+        /// </summary>
+        public void Restore(GameState state)
+        {
+            State = state ?? throw new ArgumentNullException(nameof(state));
+            accepted.Clear();
+            Restored?.Invoke();
+        }
+
+        // A build order from the presentation: UnitIds[0] is the base id, Detail the role id (for example "bld.food"), Target the tile.
+        private CommandOutcome SubmitBuild(PresentationCommand command)
+        {
+            if (command.UnitIds.Count == 0 || command.Detail == null || !RoleIds.TryParse(command.Detail, out BuildingRole role))
+            {
+                return new CommandOutcome(false, Err.UnknownBuilding);
+            }
+
+            return Build(command.UnitIds[0], role, command.Target);
+        }
+
         /// <summary>
         /// The core's own plan (<see cref="GameQueries"/>): the path may take several turns. Per-step costs are added
         /// here from <see cref="Pathfinder.StepCost"/> because the query returns tiles and a total only.
         /// </summary>
-        public Conquest.Presentation.MovePlan? PlanMove(int unitId, GridPos target)
+        public Conquest.Presentation.MovePlan? PlanMove(int unitId, GridPos target) => PlanMove(unitId, target, State);
+
+        /// <summary>
+        /// The same plan read from <paramref name="known"/>, the state as the local player knows it (fog masked): a route is planned
+        /// through tiles where an unseen opposing unit may stand, so the preview says nothing about them.
+        /// </summary>
+        public Conquest.Presentation.MovePlan? PlanMove(int unitId, GridPos target, GameState known)
         {
-            if (!State.TryGetUnit(unitId, out UnitView unit)) return null;
-            var queries = new GameQueries(State, services);
+            if (!known.TryGetUnit(unitId, out UnitView unit)) return null;
+            var queries = new GameQueries(known, services);
             Conquest.Core.Contracts.MovePlan plan = queries.PlanMove(unitId, ToCoord(target));
             if (!plan.Found || plan.Steps.Count == 0) return null;
             MoveClass cls = RoleIds.MoveClassOf(unit.Role);
-            int pct = services.Hooks.MoveCostPct(State.Turn, cls);
+            int pct = services.Hooks.MoveCostPct(known.Turn, cls);
             var steps = new List<PathStep>(plan.Steps.Count);
             for (int i = 0; i < plan.Steps.Count; i++)
             {
                 TileCoord t = plan.Steps[i];
-                steps.Add(new PathStep(new GridPos(t.X, t.Y), Pathfinder.StepCost(State.TerrainAt(t), cls, pct)));
+                steps.Add(new PathStep(new GridPos(t.X, t.Y), Pathfinder.StepCost(known.TerrainAt(t), cls, pct)));
             }
 
             int perTurn = queries.MovesPerTurn(unit.Role, unit.Level) * RuleTables.MovementScale;
@@ -147,10 +196,37 @@ namespace Conquest.Glue
             {
                 if (slot == LocalSlot || State.MatchOver) continue;
                 if (State.Factions[slot].Eliminated || State.Factions[slot].EndedTurn) continue;
+                RunOpponent(slot);
+                if (State.MatchOver || State.Factions[slot].Eliminated || State.Factions[slot].EndedTurn) continue;
                 step = Apply(new EndTurnCommand(slot));
             }
 
             return Outcome(step);
+        }
+
+        // The hook may throw or plan nonsense; neither may reach the player. Each planned order is validated by the core.
+        private void RunOpponent(int slot)
+        {
+            IReadOnlyList<Command> plan;
+            try
+            {
+                plan = Opponent.Plan(slot, State, services);
+            }
+            catch (Exception e)
+            {
+                OpponentProblem = "plan threw " + e.GetType().Name + ": " + e.Message;
+                return;
+            }
+
+            if (plan == null) return;
+            foreach (Command c in plan)
+            {
+                if (c == null || c.Slot != slot || c is EndTurnCommand || State.MatchOver) continue;
+                AppliedStep step = Apply(c);
+                if (step.Ok) continue;
+                OpponentRefusals++;
+                OpponentProblem = step.Error;
+            }
         }
 
         private AppliedStep Apply(Command command)

@@ -144,7 +144,7 @@ namespace Conquest.UnityView.Tests
         {
             yield return Boot();
             Conquest.Core.Contracts.UnitView mine = map.Session.State.AsView().Units.First(u => u.Owner == map.Session.LocalSlot);
-            Conquest.Core.Contracts.UnitView enemy = map.Session.State.AsView().Units.First(u => u.Owner != map.Session.LocalSlot);
+            Conquest.Core.Contracts.UnitView enemy = map.Session.State.AsView().Units.First(u => u.Owner != map.Session.LocalSlot && map.Fog.IsVisible(u.Pos)); // only a seen enemy has a banner to click
             map.SimulateClick(map.ScreenPointOfBanner(mine.Id));
             yield return null;
             Assert.AreEqual(1, map.Overlay.VisibleRings);

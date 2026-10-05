@@ -39,7 +39,7 @@ namespace Conquest.UnityView
             ContentBundle content = ContentBundle.Load(
                 ContentFiles.Read(ScenarioFile), ContentFiles.Read(ThemeFile), ContentFiles.Read(StringsFile), ContentFiles.Read(AllowListFile), null, bootstrap ?? new CoreScenarioBootstrap());
             Content = content;
-            Session = new GameSession(content.Boot.State, content.Boot.LocalSlot, content.Boot.Services);
+            Session = OpponentFactory.NewSession(content.Boot);
         }
 
         public static void EnsureStarted()

@@ -10,8 +10,9 @@ namespace Conquest.Glue
     /// <summary>The first game state of a scenario, the services the turn pipeline needs and the local player's slot.</summary>
     public sealed class StartResult
     {
-        public StartResult(GameState state, TurnServices services, int localSlot, IReadOnlyList<GameEvent> events)
+        public StartResult(GameState state, TurnServices services, int localSlot, IReadOnlyList<GameEvent> events, IReadOnlyList<int>? aiSlots = null)
         {
+            AiSlots = aiSlots ?? Array.Empty<int>();
             State = state;
             Services = services;
             LocalSlot = localSlot;
@@ -23,6 +24,9 @@ namespace Conquest.Glue
         public TurnServices Services { get; }
 
         public int LocalSlot { get; }
+
+        /// <summary>Slots the scenario gives to the computer (<c>control: "ai"</c>), ascending.</summary>
+        public IReadOnlyList<int> AiSlots { get; }
 
         /// <summary>Turn-0 events (arrival spawns).</summary>
         public IReadOnlyList<GameEvent> Events { get; }
@@ -52,13 +56,16 @@ namespace Conquest.Glue
                 throw new ContentLoadException(messages);
             }
 
-            int local = 0;
+            int local = -1;
+            var ai = new List<int>();
             foreach (BootPlayer p in boot.Players)
             {
-                if (string.Equals(p.Control, "human", StringComparison.Ordinal)) { local = p.Slot; break; }
+                if (string.Equals(p.Control, "ai", StringComparison.Ordinal)) ai.Add(p.Slot);
+                if (local < 0 && string.Equals(p.Control, "human", StringComparison.Ordinal)) local = p.Slot;
             }
 
-            return new StartResult(boot.State!, boot.Services!, local, boot.Events);
+            if (local < 0) local = 0;
+            return new StartResult(boot.State!, boot.Services!, local, boot.Events, ai);
         }
     }
 }

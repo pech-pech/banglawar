@@ -48,6 +48,7 @@ namespace Conquest.UnityView
         private readonly Dictionary<GridPos, List<StackMember>> stacks = new Dictionary<GridPos, List<StackMember>>();
         private readonly Dictionary<GridPos, int> leads = new Dictionary<GridPos, int>();
         private GameState state;
+        private FogView? fog;
         private SelectionModel selection;
         private PolishOptions options = PolishSettings.Current;
 
@@ -102,13 +103,19 @@ namespace Conquest.UnityView
             if (band.HasValue) group.sortingOrder = band.Value;
         }
 
-        /// <summary>Makes the banners match the state: one per unit, on its tile, none extra. Busy banners keep their position.</summary>
-        public void Reconcile(GameState current)
+        /// <summary>
+        /// Makes the banners match the state: one per unit, on its tile, none extra. Busy banners keep their position. With a
+        /// <paramref name="sight"/> an opposing unit outside it gets no banner (and loses the one it had), takes no part in a stack,
+        /// a badge or a pick: the layer never holds what the player may not see.
+        /// </summary>
+        public void Reconcile(GameState current, FogView? sight = null)
         {
             state = current;
+            fog = sight;
             stacks.Clear();
             foreach (Unit u in current.UnitTable)
             {
+                if (sight != null && !sight.CanSeeUnit(u)) continue;
                 var tile = new GridPos(u.Pos.X, u.Pos.Y);
                 if (!stacks.TryGetValue(tile, out List<StackMember>? list)) stacks[tile] = list = new List<StackMember>();
                 list.Add(new StackMember(u.Id, u.Owner, BannerSizeClasses.Of(EventMapper.RoleName(Conquest.Core.Contracts.RoleIds.Of(u.Role)))));
@@ -118,7 +125,9 @@ namespace Conquest.UnityView
             var gone = new List<int>();
             foreach (KeyValuePair<int, BannerView> pair in banners)
             {
-                if (current.FindUnitIndex(pair.Key) < 0 && !pair.Value.Dying) gone.Add(pair.Key);
+                int index = current.FindUnitIndex(pair.Key);
+                bool unseen = index >= 0 && sight != null && !sight.CanSeeUnit(current.UnitTable[index]);
+                if ((index < 0 || unseen) && !pair.Value.Dying) gone.Add(pair.Key);
             }
 
             foreach (int id in gone) Remove(id);
@@ -180,7 +189,7 @@ namespace Conquest.UnityView
             if (leads.TryGetValue(tile, out int lead) && lead != SelectionModel.NoUnit) return lead;
             foreach (Unit u in state.UnitTable)
             {
-                if (u.Pos.X == tile.X && u.Pos.Y == tile.Y) return u.Id;
+                if (u.Pos.X == tile.X && u.Pos.Y == tile.Y && (fog == null || fog.CanSeeUnit(u))) return u.Id;
             }
 
             return null;

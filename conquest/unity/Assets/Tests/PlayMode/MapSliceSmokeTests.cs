@@ -56,9 +56,11 @@ namespace Conquest.UnityView.Tests
             yield return BootAndWait();
 
             Assert.AreEqual(12 * 10, map.Tiles.TileCount);
-            Assert.AreEqual(map.Session.State.UnitTable.Count, map.Banners.Count);
+            Assert.AreEqual(map.Session.State.UnitTable.Count(u => map.Fog.CanSeeUnit(u)), map.Banners.Count);
             Assert.Greater(map.Banners.Count, 7);
-            Assert.AreEqual(map.Session.State.BaseTable.Count + map.Session.State.BaseTable.Sum(b => b.Buildings.Count), map.Structures.PieceCount);
+            int seenStructures = map.Session.State.BaseTable.Count(b => map.Fog.CanSeeBase(b))
+                + map.Session.State.BaseTable.Sum(b => map.Fog.VisibleBuildings(b).Count);
+            Assert.AreEqual(seenStructures, map.Structures.PieceCount - map.Structures.RememberedCount, "structures drawn live are the ones in sight");
             CameraModel cam = map.Rig.Model;
             Assert.GreaterOrEqual(cam.CenterX, cam.Bounds.Left - cam.Margin);
             Assert.LessOrEqual(cam.CenterX, cam.Bounds.Right + cam.Margin);

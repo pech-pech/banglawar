@@ -104,6 +104,19 @@ namespace Conquest.Glue
             return chips;
         }
 
+        /// <summary>A price or shortfall as shape badges and amounts ("■ 4  ▲ 1"); only non-zero parts, "-" for free.</summary>
+        public static string CostText(ResourceVector cost)
+        {
+            var parts = new List<string>();
+            for (int i = 0; i < Order.Length; i++)
+            {
+                int amount = cost.Get(Order[i]);
+                if (amount > 0) parts.Add(Badges[i] + " " + Localizer.Number(amount));
+            }
+
+            return parts.Count == 0 ? "-" : string.Join("  ", parts);
+        }
+
         public static UnitCardModel? Card(GameState state, int unitId, int localSlot, Localizer text)
         {
             if (!state.TryGetUnit(unitId, out UnitView u)) return null;

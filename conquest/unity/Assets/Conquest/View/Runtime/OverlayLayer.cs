@@ -18,6 +18,9 @@ namespace Conquest.UnityView
         private const int BlockedLayer = 2;
         private const int DotLayer = 4;
         private const int PendingLayer = 6;
+        private const int QueuedLayer = 3;
+        private const int AttackLayer = 7;
+        private const int SiteLayer = 8;
 
         private readonly Transform root;
         private readonly SortingGroup group;
@@ -26,6 +29,12 @@ namespace Conquest.UnityView
         private readonly SpriteRenderer hover;
         private readonly SpriteRenderer blocked;
         private readonly SpriteRenderer pending;
+        private readonly SpriteRenderer attackMark;
+        private readonly SpriteRenderer siteMark;
+        private readonly List<SpriteRenderer> queuedMarks = new List<SpriteRenderer>();
+        private readonly List<GridPos> queuedTiles = new List<GridPos>();
+        private GridPos? attackTile;
+        private GridPos? siteTile;
         private readonly List<SpriteRenderer> dots = new List<SpriteRenderer>();
         private readonly List<(SpriteRenderer edge, SpriteRenderer fill)> rings = new List<(SpriteRenderer, SpriteRenderer)>();
         private readonly Color nearColor = new Color(1f, 0.93f, 0.55f, 1f);
@@ -47,8 +56,16 @@ namespace Conquest.UnityView
             hover = Make("HoverDiamond", art.Placeholders.DiamondOutline(new Color(1f, 1f, 1f, 0.9f), 256, 128, 5));
             blocked = Make("BlockedDiamond", art.Placeholders.Diamond(new Color(0.85f, 0.15f, 0.12f, 0.45f), new Color(0.85f, 0.15f, 0.12f, 0.9f)));
             pending = Make("PendingDiamond", art.Placeholders.DiamondOutline(new Color(1f, 0.85f, 0.2f, 1f), 256, 128, 10));
+            attackMark = Make("AttackDiamond", art.Placeholders.DiamondOutline(new Color(0.9f, 0.18f, 0.12f, 1f), 256, 128, 12));
+            siteMark = Make("BuildSiteDiamond", art.Placeholders.DiamondOutline(new Color(0.35f, 0.9f, 0.45f, 1f), 256, 128, 12));
             SetOptions(PolishSettings.Current);
         }
+
+        public bool AttackMarkVisible => attackMark.enabled;
+
+        public bool SiteMarkVisible => siteMark.enabled;
+
+        public int VisibleQueuedMarks { get; private set; }
 
         public int VisibleDots { get; private set; }
 
@@ -114,6 +131,9 @@ namespace Conquest.UnityView
             if (hoverTile.HasValue) Order(hover, hoverTile.Value, HoverLayer);
             if (pendingTile.HasValue) Order(pending, pendingTile.Value, PendingLayer);
             if (blockedTile.HasValue) Order(blocked, blockedTile.Value, BlockedLayer);
+            if (attackTile.HasValue) Order(attackMark, attackTile.Value, AttackLayer);
+            if (siteTile.HasValue) Order(siteMark, siteTile.Value, SiteLayer);
+            for (int i = 0; i < VisibleQueuedMarks; i++) Order(queuedMarks[i], queuedTiles[i], QueuedLayer);
             for (int i = 0; i < VisibleDots; i++) Order(dots[i], dotTiles[i], DotLayer);
         }
 
@@ -122,6 +142,41 @@ namespace Conquest.UnityView
             hoverTile = tile;
             if (!tile.HasValue) hover.enabled = false;
             else Place(hover, tile.Value, HoverLayer);
+        }
+
+        /// <summary>The red diamond on a tile an attack is waiting to be confirmed on.</summary>
+        public void SetAttackTarget(GridPos? tile)
+        {
+            attackTile = tile;
+            if (!tile.HasValue) attackMark.enabled = false;
+            else Place(attackMark, tile.Value, AttackLayer);
+        }
+
+        /// <summary>The green diamond on the tile proposed for a building.</summary>
+        public void SetBuildSite(GridPos? tile)
+        {
+            siteTile = tile;
+            if (!tile.HasValue) siteMark.enabled = false;
+            else Place(siteMark, tile.Value, SiteLayer);
+        }
+
+        /// <summary>Faint red diamonds on the tiles of attacks already ordered this turn.</summary>
+        public void SetQueuedAttacks(IReadOnlyList<GridPos> tiles)
+        {
+            queuedTiles.Clear();
+            queuedTiles.AddRange(tiles);
+            while (queuedMarks.Count < queuedTiles.Count)
+            {
+                queuedMarks.Add(Make("QueuedAttack " + queuedMarks.Count, art.Placeholders.DiamondOutline(new Color(0.9f, 0.18f, 0.12f, 0.55f), 256, 128, 6)));
+            }
+
+            for (int i = 0; i < queuedMarks.Count; i++)
+            {
+                if (i < queuedTiles.Count) Place(queuedMarks[i], queuedTiles[i], QueuedLayer);
+                else queuedMarks[i].enabled = false;
+            }
+
+            VisibleQueuedMarks = queuedTiles.Count;
         }
 
         public void SetPending(GridPos? tile)
@@ -194,6 +249,8 @@ namespace Conquest.UnityView
             pending.enabled = false;
             blockedTile = null;
             pendingTile = null;
+            SetAttackTarget(null);
+            SetBuildSite(null);
         }
 
         private void HideDots()

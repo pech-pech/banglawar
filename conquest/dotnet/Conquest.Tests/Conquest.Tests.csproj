@@ -26,6 +26,7 @@
     <ProjectReference Include="..\Conquest.Assets\Conquest.Assets.csproj" />
     <ProjectReference Include="..\Conquest.Presentation\Conquest.Presentation.csproj" />
     <ProjectReference Include="..\Conquest.Bootstrap\Conquest.Bootstrap.csproj" />
+    <ProjectReference Include="..\Conquest.Ai\Conquest.Ai.csproj" />
   </ItemGroup>
 
   <ItemGroup>

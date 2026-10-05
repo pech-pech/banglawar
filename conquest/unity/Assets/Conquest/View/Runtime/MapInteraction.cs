@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using Conquest.Core.Contracts;
+using Conquest.Core.Turn;
 using Conquest.Glue;
 using Conquest.Presentation;
 
@@ -11,7 +12,7 @@ namespace Conquest.UnityView
     /// move by choosing the same tile twice (design decision O-8; the mouse also confirms with a right click). Orders
     /// only go out through <see cref="GameSession"/>, the answer decides what is shown.
     /// </summary>
-    public sealed class MapInteraction
+    public sealed partial class MapInteraction
     {
         private readonly GameSession session;
         private readonly Localizer text;
@@ -21,6 +22,41 @@ namespace Conquest.UnityView
             this.session = session;
             this.text = text;
             Selection = SelectionModel.Create(session.LocalSlot);
+        }
+
+        private GameState? knownFrom;
+        private FogView? sight;
+        private GameState? known;
+
+        /// <summary>What the local player can see right now (read from the session's state, cached per state).</summary>
+        public FogView Sight
+        {
+            get
+            {
+                Refresh();
+                return sight!;
+            }
+        }
+
+        /// <summary>
+        /// The state as the local player knows it: unseen opposing units, bases and queued attacks removed. Every hover, pick,
+        /// path plan, attack preview and message in this class reads this, never the real state, so nothing hidden can leak.
+        /// </summary>
+        public GameState Known
+        {
+            get
+            {
+                Refresh();
+                return known!;
+            }
+        }
+
+        private void Refresh()
+        {
+            if (ReferenceEquals(knownFrom, session.State) && sight != null) return;
+            knownFrom = session.State;
+            sight = FogView.Of(session.State, session.LocalSlot);
+            known = sight.Mask(session.State);
         }
 
         public SelectionModel Selection { get; private set; }
@@ -45,7 +81,7 @@ namespace Conquest.UnityView
         {
             UnitRef? unit = pick.UnitId.HasValue ? RefOf(pick.UnitId.Value) : (UnitRef?)null;
             Selection = Selection.WithHover(pick.Tile, unit);
-            if (PendingTarget.HasValue) return;
+            if (PendingTarget.HasValue || PendingAttackTile.HasValue || Placing) return;
             if (Selection.CanCommand && pick.Tile.HasValue && !pick.UnitId.HasValue) Plan(pick.Tile.Value);
             else ClearPreview();
             Changed?.Invoke();
@@ -53,18 +89,26 @@ namespace Conquest.UnityView
 
         public void Click(PickResult pick, bool additive, bool touch = false)
         {
+            if (Placing)
+            {
+                ClickSite(pick, touch);
+                return;
+            }
+
             if (!pick.Tile.HasValue)
             {
                 Deselect();
                 return;
             }
 
+            if (!additive && Selection.CanCommand && AttackClick(pick.Tile.Value, touch)) return;
             if (pick.UnitId.HasValue)
             {
                 UnitRef clicked = RefOf(pick.UnitId.Value);
                 Selection = UnitStack.Click(Selection, StackOf(pick.UnitId.Value), clicked, additive);
                 ClearPreview();
                 PendingTarget = null;
+                ClearOrderState();
                 Message = null;
                 Changed?.Invoke();
                 return;
@@ -72,7 +116,14 @@ namespace Conquest.UnityView
 
             if (!Selection.CanCommand)
             {
+                if (!additive && OwnBaseAt(pick.Tile.Value) is int baseId)
+                {
+                    SelectBase(baseId);
+                    return;
+                }
+
                 Selection = Selection.Click(null, additive);
+                ClearOrderState();
                 Changed?.Invoke();
                 return;
             }
@@ -122,6 +173,7 @@ namespace Conquest.UnityView
             Selection = UnitStack.SelectAll(Selection, members, UnitStack.LeadOf(members, Selection));
             ClearPreview();
             PendingTarget = null;
+            ClearOrderState();
             Message = null;
             Changed?.Invoke();
         }
@@ -130,7 +182,7 @@ namespace Conquest.UnityView
         public IReadOnlyList<StackMember> StackAt(GridPos tile)
         {
             var members = new List<StackMember>();
-            foreach (Conquest.Core.Turn.Unit u in session.State.UnitTable)
+            foreach (Conquest.Core.Turn.Unit u in Known.UnitTable)
             {
                 if (u.Pos.X != tile.X || u.Pos.Y != tile.Y) continue;
                 members.Add(new StackMember(u.Id, u.Owner, BannerSizeClasses.Of(EventMapper.RoleName(RoleIds.Of(u.Role)))));
@@ -145,28 +197,63 @@ namespace Conquest.UnityView
         /// <summary>Right click: order the move at once, no second step.</summary>
         public void SecondaryClick(PickResult pick)
         {
+            if (Placing)
+            {
+                if (pick.Tile.HasValue) ClickSite(pick, false);
+                if (BuildSite.HasValue && pick.Tile.HasValue && BuildSite.Value == pick.Tile.Value) ConfirmBuild();
+                return;
+            }
+
             if (!pick.Tile.HasValue || !Selection.CanCommand) return;
+            if (AttackPreview.HasOpposingTarget(Known, session.LocalSlot, pick.Tile.Value) && OrderAttack(pick.Tile.Value)) return;
             Confirm(pick.Tile.Value);
         }
 
-        public void Cancel()
+        /// <summary>
+        /// Backs out of the most recent thing in progress: a build placement, the build panel, a pending attack, a pending
+        /// move, then the selection. Returns false when there was nothing to back out of (the caller may open the pause menu).
+        /// </summary>
+        public bool Cancel()
         {
+            if (Placing)
+            {
+                StopPlacing();
+                return true;
+            }
+
+            if (BuildOpen)
+            {
+                CloseBuild();
+                return true;
+            }
+
+            if (PendingAttackTile.HasValue)
+            {
+                ClearAttack();
+                Message = null;
+                Changed?.Invoke();
+                return true;
+            }
+
             if (PendingTarget.HasValue)
             {
                 PendingTarget = null;
                 ClearPreview();
                 Message = null;
                 Changed?.Invoke();
-                return;
+                return true;
             }
 
+            if (Selection.SelectedIds.Count == 0 && SelectedBaseId < 0) return false;
             Deselect();
+            return true;
         }
 
         public void Deselect()
         {
             Selection = Selection.Cleared();
             PendingTarget = null;
+            ClearOrderState();
             ClearPreview();
             Message = null;
             Changed?.Invoke();
@@ -175,7 +262,8 @@ namespace Conquest.UnityView
         /// <summary>Drops units that no longer exist and an order target that is no longer valid. Call after the state changed.</summary>
         public void Prune()
         {
-            Selection = Selection.Prune(id => session.State.FindUnitIndex(id) >= 0);
+            Selection = Selection.Prune(id => Known.FindUnitIndex(id) >= 0);
+            PruneOrders();
             if (!Selection.CanCommand)
             {
                 PendingTarget = null;
@@ -202,8 +290,10 @@ namespace Conquest.UnityView
         public CommandOutcome? FoundBase()
         {
             if (Selection.Mode != SelectionMode.Single) return null;
+            GridPos at = session.State.TryGetUnit(Selection.PrimaryId, out UnitView founder) ? new GridPos(founder.Pos.X, founder.Pos.Y) : new GridPos(-1, -1);
             CommandOutcome outcome = session.FoundBase(Selection.PrimaryId);
             Report(outcome);
+            if (outcome.Accepted && OwnBaseAt(at) is int newBase) SelectBase(newBase);
             return outcome;
         }
 
@@ -221,6 +311,7 @@ namespace Conquest.UnityView
             int next = mine[(index + 1) % mine.Count];
             Selection = Selection.Click(RefOf(next), false);
             PendingTarget = null;
+            ClearOrderState();
             ClearPreview();
             Changed?.Invoke();
             return next;
@@ -233,8 +324,18 @@ namespace Conquest.UnityView
             OrdersSent++;
             PendingTarget = null;
             ClearPreview();
-            Report(outcome);
+            Report(HideUnseenCause(outcome, tile));
             Changed?.Invoke();
+        }
+
+        /// <summary>
+        /// A refused move onto a tile the player cannot see must not name what stands there: "occupied" becomes the plain
+        /// "cannot get there" the player would get from the terrain.
+        /// </summary>
+        private CommandOutcome HideUnseenCause(CommandOutcome outcome, GridPos tile)
+        {
+            if (outcome.Accepted || Sight.IsVisible(tile.X, tile.Y)) return outcome;
+            return outcome.ErrorCode == Err.TileOccupied ? new CommandOutcome(false, Err.Unreachable) : outcome;
         }
 
         private void Report(CommandOutcome outcome)
@@ -245,7 +346,7 @@ namespace Conquest.UnityView
 
         private void Plan(GridPos tile)
         {
-            Conquest.Presentation.MovePlan? plan = session.PlanMove(Selection.PrimaryId, tile);
+            Conquest.Presentation.MovePlan? plan = session.PlanMove(Selection.PrimaryId, tile, Known);
             if (plan == null || plan.Steps.Count == 0)
             {
                 Preview = PathPreview.None;

@@ -9,6 +9,7 @@
         "Conquest.Presentation",
         "Conquest.Assets",
         "Conquest.Glue",
+        "Conquest.Ai",
         "Conquest.Unity.Art",
         "Conquest.Unity.Presentation",
         "Unity.InputSystem",

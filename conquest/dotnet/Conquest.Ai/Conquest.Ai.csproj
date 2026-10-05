@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- The opponent planner: chooses legal commands for one slot from what that slot may know. Engine-free, integer-only, pure.
+       Depends on Conquest.Core only; it submits through the same CommandEngine as the player. -->
+  <PropertyGroup>
+    <TargetFramework>netstandard2.1</TargetFramework>
+    <LangVersion>9.0</LangVersion>
+    <Nullable>enable</Nullable>
+    <RootNamespace>Conquest.Ai</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Conquest.Core\Conquest.Core.csproj" />
+    <ProjectReference Include="..\Conquest.Presentation\Conquest.Presentation.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -48,6 +48,8 @@ namespace Conquest.UnityView
         private PlaceholderStyle style = PolishSettings.Placeholders;
         private LayeringMode layering = PolishSettings.Layering;
         private GameState? last;
+        private FogView? lastFog;
+        private IReadOnlyList<IntelRecord> lastRemembered = System.Array.Empty<IntelRecord>();
 
         public StructureLayer(Transform parent, ArtLibrary art, IsoProjection iso)
         {
@@ -61,6 +63,12 @@ namespace Conquest.UnityView
 
         public int ArtPieceCount { get; private set; }
 
+        /// <summary>How many of the pieces are bases remembered from earlier sight (drawn dim), not live.</summary>
+        public int RememberedCount { get; private set; }
+
+        /// <summary>Tint of a remembered (last known) base: dim and see-through, so it never reads as live.</summary>
+        public static readonly Color RememberedTint = new Color(0.62f, 0.68f, 0.8f, 0.8f);
+
         public IReadOnlyList<StructurePiece> Pieces => pieces;
 
         public void SetOptions(PolishOptions options)
@@ -68,27 +76,42 @@ namespace Conquest.UnityView
             anchor = options.Anchor;
             style = options.Placeholders;
             layering = options.Layering;
-            if (last != null) Rebuild(last);
+            if (last != null) Rebuild(last, lastFog, lastRemembered);
         }
 
-        public void Rebuild(GameState state)
+        /// <summary>
+        /// Redraws every structure the player may see: all own ones, and opposing ones only on seen tiles. Bases remembered from
+        /// earlier sight (GDD 5.2) are drawn as their dimmed core, labelled as last known, never from live state.
+        /// </summary>
+        public void Rebuild(GameState state, FogView? fog = null, IReadOnlyList<IntelRecord>? remembered = null)
         {
             last = state;
+            lastFog = fog;
+            lastRemembered = remembered ?? System.Array.Empty<IntelRecord>();
+            RememberedCount = 0;
             foreach (StructurePiece p in pieces) ViewUtil.Destroy(p.Renderer.gameObject);
             pieces.Clear();
             ArtPieceCount = 0;
             foreach (Base b in state.BaseTable)
             {
                 string slot = EventMapper.SlotId(b.Owner);
-                AddPiece("core", slot, b.Pos, "base " + b.Id);
+                if (fog == null || fog.CanSeeBase(b)) AddPiece("core", slot, b.Pos, "base " + b.Id);
                 foreach (Building building in b.Buildings)
                 {
+                    if (fog != null && b.Owner != fog.Viewer && !fog.IsVisible(building.Pos)) continue;
                     AddPiece(EventMapper.RoleName(RoleIds.Of(building.Role)), slot, building.Pos, RoleIds.Of(building.Role));
                 }
             }
+
+            foreach (IntelRecord record in lastRemembered)
+            {
+                StructurePiece piece = AddPiece("core", EventMapper.SlotId(record.Owner), record.Pos, "remembered base " + record.BaseId);
+                piece.Renderer.color = RememberedTint;
+                RememberedCount++;
+            }
         }
 
-        private void AddPiece(string role, string slot, TileCoord pos, string label)
+        private StructurePiece AddPiece(string role, string slot, TileCoord pos, string label)
         {
             var go = new GameObject("Structure " + label + " " + pos);
             go.transform.SetParent(root, false);
@@ -117,7 +140,9 @@ namespace Conquest.UnityView
             float scale = placement.ScalePermille / 1000f;
             go.transform.localScale = new Vector3(scale, scale, 1f);
             renderer.sortingOrder = DrawOrder.Structure(layering, ClampToMap(placement.Front));
-            pieces.Add(new StructurePiece(role, ruleTile, placement, renderer, usesArt));
+            var piece = new StructurePiece(role, ruleTile, placement, renderer, usesArt);
+            pieces.Add(piece);
+            return piece;
         }
 
         /// <summary>A footprint may hang off the map (the top-left candidate at the east edge); its sort key still needs a real tile.</summary>

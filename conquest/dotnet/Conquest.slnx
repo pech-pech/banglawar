@@ -2,6 +2,7 @@
   <Project Path="Conquest.Core/Conquest.Core.csproj" />
   <Project Path="Conquest.Presentation/Conquest.Presentation.csproj" />
   <Project Path="Conquest.Assets/Conquest.Assets.csproj" />
+  <Project Path="Conquest.Ai/Conquest.Ai.csproj" />
   <Project Path="Conquest.Bootstrap/Conquest.Bootstrap.csproj" />
   <Project Path="Conquest.Content/Conquest.Content.csproj" />
   <Project Path="Conquest.Tests/Conquest.Tests.csproj" />
