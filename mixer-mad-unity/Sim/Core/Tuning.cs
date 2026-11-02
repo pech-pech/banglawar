@@ -65,6 +65,8 @@ namespace MixerMad.Sim
         public double yardStopRadius = 1.3, yardStopSpeed = 0.6, yardBrakeDamp = 0.94;
         public double bodyLinkK = 1, wheelLinkK = 0.45;
         public int maxCatchUp = 8;
+        // behaviour switches (v7h = 0/0). v7i: crash() returns early (rest of the drive block skipped) and startLevel resets propBudget.
+        public int crashEarlyReturn = 0, resetPropBudgetOnStartLevel = 0;
 
         public VehPhys Phys(string v) { VehPhys p; return phys.TryGetValue(v, out p) ? p : phys["mixer"]; }
 

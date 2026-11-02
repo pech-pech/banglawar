@@ -89,7 +89,9 @@
   "yardBrakeDamp": 0.94,
   "maxCatchUp": 8,
   "bodyLinkK": 1,
-  "wheelLinkK": 0.45
+  "wheelLinkK": 0.45,
+  "crashEarlyReturn": 0,
+  "resetPropBudgetOnStartLevel": 0
  },
  "source": "v7h.html",
  "g": 15,

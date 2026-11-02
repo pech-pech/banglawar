@@ -120,7 +120,7 @@ namespace MixerMad.Sim
         Pt[] P; Link[] C; double[] wheelAng = new double[2];
         Phase state; GameMode mode; string vehicle, weather; int levelIdx, skin;
         Level L; VehGeom geo; Checkpoint cp; DailySpecResult dailyCur;
-        double crashT, finishT, crashWait, levelT, snow, airT, landT, wheelT, load, spillT, drumSpin;
+        double crashT, finishT, crashWait, levelT, snow, airT, landT, wheelT, load, drumSpin;
         bool wheelie, roofHit, bodyHit, isSnow; double wxGripVal;
         double run_t; bool run_brake; int run_crashes;
         double yardT; int yardCrashes; ActionState act;
@@ -175,6 +175,7 @@ namespace MixerMad.Sim
             }
             else L = LevelBuilder.BuildLevel(Data.levels[levelIdx], T.vinfo[vehicle].crevice, T);
             run_t = 0; run_brake = false; run_crashes = 0;
+            if (T.resetPropBudgetOnStartLevel != 0) propBudget = T.propBudgetMax;
             weather = Wx(); isSnow = weather == "snow";
             double gv; wxGripVal = T.wxGrip.TryGetValue(weather, out gv) ? gv : 0; // JS: (WXGRIP[wx()]||1) applied in GripK
             cp = null;

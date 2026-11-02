@@ -128,6 +128,7 @@ namespace MixerMad.Sim
                 if (P[0].y < L.minY - T.fallDepth) Crash("Fell off!");
                 else if (KillHit()) { }
                 else if (crashT > ph.tol) Crash(upsideDown ? "Flipped!" : "Roof hit!");
+                if (T.crashEarlyReturn != 0 && state == Phase.Crashed) return;
                 levelT += DT;
                 if (isSnow) { snow = Math.Min(1, snow + DT * T.snowRate); if (((int)(levelT * 120)) % 60 == 0) ApplyMass(); }
                 double cx = (P[0].x + P[1].x) / 2;
