@@ -91,6 +91,12 @@
   "bodyLinkK": 1,
   "wheelLinkK": 0.45,
   "crashEarlyReturn": 0,
+  "respawnClearLift": 0,
+  "respawnClear": 0.04,
+  "respawnFlatBack": 0,
+  "respawnFlatMaxBack": 12,
+  "respawnFlatTol": 0.06,
+  "respawnGrace": 0,
   "resetPropBudgetOnStartLevel": 0
  },
  "source": "v7h.html",

@@ -67,6 +67,12 @@ namespace MixerMad.Sim
         public int maxCatchUp = 8;
         // behaviour switches (v7h = 0/0). v7i: crash() returns early (rest of the drive block skipped) and startLevel resets propBudget.
         public int crashEarlyReturn = 0, resetPropBudgetOnStartLevel = 0;
+        // Unity-side respawn options (RESPAWN-REPORT.md). ALL default 0 = off = bit-exact v7h. Only applied on a respawn after a crash (ResetTruck(true)).
+        // respawnClearLift: raise the spawn height just enough that no wheel starts inside the ground (v7h spawns flat at groundY(sx)+spawnLift, which buries the wheels on a bump flank).
+        // respawnFlatBack: move the respawn back (never before spawnX) to the nearest spot where the ground under the truck is flat and has no zone/rock; respawnFlatMaxBack m search, respawnFlatTol m height range.
+        // respawnGrace: seconds after a respawn during which flip/roof crash time does not accumulate.
+        public int respawnClearLift = 0, respawnFlatBack = 0;
+        public double respawnClear = 0.04, respawnFlatMaxBack = 12, respawnFlatTol = 0.06, respawnGrace = 0;
 
         public VehPhys Phys(string v) { VehPhys p; return phys.TryGetValue(v, out p) ? p : phys["mixer"]; }
 

@@ -122,9 +122,11 @@ namespace MixerMad.Sim
             bool upsideDown = uy < T.upsideUy; bool tipped = Math.Abs(Math.Atan2(P[1].y - P[0].y, P[1].x - P[0].x)) > T.tippedAng;
             if (state == Phase.Drive)
             {
+                bool inGrace = graceT > 0; if (inGrace) graceT -= DT;
                 if ((geo != null ? roofHit : (P[2].c.ok || P[3].c.ok)) || upsideDown) crashT += DT;
                 else if (tipped && ((geo != null ? bodyHit : (P[0].c.ok || P[1].c.ok)) || P[4].c.ok || P[5].c.ok)) crashT += DT * T.tippedFactor;
                 else crashT = Math.Max(0, crashT - DT * T.crashDecay);
+                if (inGrace) crashT = 0;
                 if (P[0].y < L.minY - T.fallDepth) Crash("Fell off!");
                 else if (KillHit()) { }
                 else if (crashT > ph.tol) Crash(upsideDown ? "Flipped!" : "Roof hit!");
