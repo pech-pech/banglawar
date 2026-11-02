@@ -97,6 +97,8 @@ namespace MixerMad.Sim
         public double AirTime { get { return airT; } }
         public int Stars { get { return stars; } }
         public double Acc { get { return acc; } }
+        public double LastSpawnX { get { return lastSpawnX; } }  // read-only: where ResetTruck last put P-origin (for tools/tests)
+        public double LastSpawnY { get { return lastSpawnY; } }
         public double CrashWait { get { return crashWait; } }
         public List<SimEvent> Events { get { return events; } }
         public void ClearEvents() { events.Clear(); }
@@ -120,7 +122,7 @@ namespace MixerMad.Sim
         Pt[] P; Link[] C; double[] wheelAng = new double[2];
         Phase state; GameMode mode; string vehicle, weather; int levelIdx, skin;
         Level L; VehGeom geo; Checkpoint cp; DailySpecResult dailyCur;
-        double crashT, finishT, crashWait, levelT, snow, airT, landT, wheelT, load, drumSpin;
+        double lastSpawnX, lastSpawnY, graceT, crashT, finishT, crashWait, levelT, snow, airT, landT, wheelT, load, drumSpin;
         bool wheelie, roofHit, bodyHit, isSnow; double wxGripVal;
         double run_t; bool run_brake; int run_crashes;
         double yardT; int yardCrashes; ActionState act;
@@ -206,10 +208,21 @@ namespace MixerMad.Sim
         {
             if (!fromCp && cp != null) cp.hit = false;
             bool atCp = fromCp && cp != null && cp.hit;
-            double sx = atCp ? cp.x : T.spawnX, sy = L.GroundY(sx) + T.spawnLift;
+            double sx = atCp ? cp.x : T.spawnX;
             load = atCp ? cp.load : 100;
             geo = Data.Geom(vehicle, skin);
             double[][] pts = geo != null ? geo.pts : Data.local;
+            if (fromCp && T.respawnFlatBack != 0) sx = FlatRespawnX(sx, pts);
+            double sy = L.GroundY(sx) + T.spawnLift;
+            if (fromCp && T.respawnClearLift != 0)
+                for (int i = 0; i < pts.Length; i++)
+                {
+                    if (geo != null && i < 4) continue; // body corners do not collide with the ground when sprite geometry is present
+                    double r = i >= 4 ? (geo != null ? (i == 4 ? geo.r4 : geo.r5) : WHEEL_R) : 0.06;
+                    sy = Math.Max(sy, L.GroundY(sx + pts[i][0]) + r + T.respawnClear - pts[i][1]);
+                }
+            graceT = fromCp ? T.respawnGrace : 0;
+            lastSpawnX = sx; lastSpawnY = sy;
             P = new Pt[pts.Length];
             for (int i = 0; i < pts.Length; i++)
             {
@@ -229,6 +242,23 @@ namespace MixerMad.Sim
             ApplyMass(); SpawnProps();
             wheelAng[0] = 0; wheelAng[1] = 0; state = Phase.Drive; crashT = 0; finishT = 0; airT = 0;
             // JS also clears the finale/UI state here; none of it is sim state.
+        }
+        double FlatRespawnX(double cpx, double[][] pts)
+        {
+            double lo = 1e9, hi = -1e9; foreach (var q in pts) { lo = Math.Min(lo, q[0]); hi = Math.Max(hi, q[0]); }
+            lo -= 0.5; hi += 0.5;
+            for (double x = cpx; x >= T.spawnX && x >= cpx - T.respawnFlatMaxBack; x -= 0.5)
+            {
+                double gl = 1e9, gh = -1e9; bool clean = true;
+                for (double u = x + lo; u <= x + hi; u += 0.25)
+                {
+                    double y = L.GroundY(u); gl = Math.Min(gl, y); gh = Math.Max(gh, y);
+                    if (ZoneAt(u) != ZoneKind.None) clean = false;
+                }
+                if (L.rocks != null) foreach (var rk in L.rocks) if (rk.x >= x + lo && rk.x <= x + hi) clean = false;
+                if (clean && gh - gl <= T.respawnFlatTol) return x;
+            }
+            return cpx;
         }
         Link MakeLink(int a, int b, double k)
         {
