@@ -26,6 +26,7 @@ namespace MixerMad.Game
             public int simIndex;
             public float radius = 0.5f;
             [System.NonSerialized] public Vector3 restPos;
+            [System.NonSerialized] public Vector3 artRestPos;   // hub as modelled, before snapping to the sim
             [System.NonSerialized] public Spring offset;
             [System.NonSerialized] public Vector2 prevWorld;
             [System.NonSerialized] public Vector2 simRestLocal;
@@ -54,6 +55,7 @@ namespace MixerMad.Game
 
         SimDriver _sim;
         Quaternion _drumRest, _chuteRest, _bodyRest;
+        Vector3 _bodyRestPos;
         float _drumDeg;
         Spring _chute, _lean;
         float _chuteTarget;
@@ -89,7 +91,7 @@ namespace MixerMad.Game
             if (drum == null) drum = FindDeep(transform, "Drum");
             if (chute == null) chute = FindDeep(transform, "Chute");
             if (driverSeat == null) driverSeat = FindDeep(transform, "Driver_Seat");
-            if (squash == null) squash = visual.GetComponent<SquashStretch>() ?? (visual != transform ? visual.gameObject.AddComponent<SquashStretch>() : null);
+            if (squash == null) squash = visual.TryGetComponent<SquashStretch>(out var ss) ? ss : (visual != transform ? visual.gameObject.AddComponent<SquashStretch>() : null);
             if (driver == null) driver = GetComponentInChildren<DriverView>();
             if (driver == null && driverSeat != null && driverSeat.childCount > 0) driver = driverSeat.GetChild(0).gameObject.AddComponent<DriverView>();
             if (headlights == null || headlights.Length == 0) headlights = GetComponentsInChildren<Light>(true);
@@ -105,13 +107,29 @@ namespace MixerMad.Game
                     wheels.Add(new WheelBind { spin = t, susp = susp != null ? susp : t, simIndex = front ? 1 : 0, radius = wheelRadius });
                 }
             }
-            foreach (var w in wheels) if (w.susp) w.restPos = w.susp.localPosition;
+            foreach (var w in wheels) if (w.susp) { w.restPos = w.susp.localPosition; w.artRestPos = w.restPos; }
+            if (body) _bodyRestPos = body.localPosition;
             if (drum) _drumRest = drum.localRotation;
             if (chute) _chuteRest = chute.localRotation;
             if (body) _bodyRest = body.localRotation;
         }
 
         float _poke; bool _pokeDrum;
+
+        /// <summary>
+        /// The sim's chassis origin is not the art's origin (the vehicle data draws the sprite with an offset,
+        /// oy = -0.823 m for the mixer). Once the wheels are snapped to the sim, move the body by the same amount
+        /// the hubs moved, so body and wheels keep the modelled relation for any rig (Blender or placeholder).
+        /// </summary>
+        void AlignBodyToWheels()
+        {
+            if (body == null || body == visual) return;
+            Vector3 sum = Vector3.zero; int n = 0;
+            foreach (var w in wheels) { if (!w.restSet) return; sum += w.restPos - w.artRestPos; n++; }
+            if (n == 0) return;
+            Vector3 shift = sum / n; shift.z = 0f;
+            body.localPosition = _bodyRestPos + shift;
+        }
 
         /// <summary>Garage: tap a part to wiggle it (works while the sim is paused).</summary>
         public void Poke(bool drumPart) { _poke = 1.6f; _pokeDrum = drumPart; }
@@ -174,7 +192,7 @@ namespace MixerMad.Game
                 if (!w.restSet)
                 {
                     w.simRestLocal = local; w.restSet = true;
-                    if (snapWheelsToSim) w.restPos = new Vector3(local.x, local.y, w.restPos.z);
+                    if (snapWheelsToSim) { w.restPos = new Vector3(local.x, local.y, w.restPos.z); AlignBodyToWheels(); }
                 }
                 float target = Mathf.Clamp(local.y - w.simRestLocal.y + _bounce, -suspTravel, suspTravel);
                 if (dt > 0f) w.offset.Step(target, suspK, suspD, dt); else if (_first) w.offset.value = target;

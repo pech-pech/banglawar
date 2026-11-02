@@ -61,7 +61,7 @@ namespace MixerMad.Game
             camera.fieldOfView = Fov; camera.nearClipPlane = 1f; camera.farClipPlane = 700f;
             camera.transform.rotation = Quaternion.identity;
 
-            rig.brain = camera.GetComponent<CinemachineBrain>() ?? camera.gameObject.AddComponent<CinemachineBrain>();
+            rig.brain = camera.TryGetComponent<CinemachineBrain>(out var brain) ? brain : camera.gameObject.AddComponent<CinemachineBrain>();
             rig.brain.DefaultBlend = new CinemachineBlendDefinition(CinemachineBlendDefinition.Styles.EaseInOut, 0.5f);
             rig.brain.UpdateMethod = CinemachineBrain.UpdateMethods.LateUpdate;
 

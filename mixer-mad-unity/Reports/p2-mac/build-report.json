@@ -1,0 +1,14 @@
+{
+  "result": "Succeeded",
+  "output": "/Users/mmr/cl-Game/MixerMad3D/Builds/macOS/MixerMad.app",
+  "development": false,
+  "total_size_bytes": 82036907,
+  "total_size_mb": 78.2,
+  "build_time_s": 5.8,
+  "wall_time_s": 6.2,
+  "unity": "6000.6.3f1",
+  "warnings": 0,
+  "errors": 0,
+  "phases": [{"name":"project setup","s":0.3},{"name":"scene build","s":0.0},{"name":"BuildPipeline.BuildPlayer","s":5.9}],
+  "steps": [{"name":"Build player","s":5.8},{"name":"Call PrepareForBuild callbacks","s":0.0},{"name":"Call internal build started callbacks","s":0.0},{"name":"Preprocess Player","s":0.1},{"name":"Save scenes before build","s":0.0},{"name":"Prepare For Build","s":0.0},{"name":"ProducePlayerScriptAssemblies","s":2.6},{"name":"Prebuild Cleanup and Recompile","s":1.3},{"name":"Compile scripts","s":1.2},{"name":"Generate and validate platform script types","s":0.0},{"name":"Verify Build setup","s":0.1},{"name":"GetUnityAssemblies","s":0.0},{"name":"GetPlayerAssemblies","s":0.0},{"name":"Check old data build","s":0.1},{"name":"Prepare assets for target platform","s":0.0},{"name":"Prepare splash screen","s":0.0},{"name":"Build scripts DLLs","s":0.0},{"name":"GetSystemAssemblies","s":0.0},{"name":"Building scenes","s":0.0},{"name":"Building scene Assets/MixerMad/Scenes/SnowyPass.unity","s":0.0},{"name":"Build GlobalGameManagers file","s":0.0},{"name":"Writing asset files","s":0.2},{"name":"Packaging assets - globalgamemanagers.assets","s":0.2},{"name":"Packaging assets - resources.assets","s":0.0},{"name":"Packaging assets - sharedassets0.assets = additional assets for scene 0: Assets/MixerMad/Scenes/SnowyPass.unity","s":0.0},{"name":"Building Resources/unity_builtin_extra","s":0.1},{"name":"Write data build dirty tracking information","s":0.0},{"name":"Postprocess built player","s":2.3},{"name":"Setup incremental player build","s":0.1},{"name":"Incremental player build","s":2.2},{"name":"Report output files","s":0.0},{"name":"Call Post-Process callbacks","s":0.1}]
+}

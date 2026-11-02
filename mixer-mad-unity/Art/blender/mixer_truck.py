@@ -462,6 +462,102 @@ def build_blender(args, lods, rep):
     return arm, objs, col
 
 
+# ----------------------------------------------------------------------------------------
+# Unity drop-in: the node contract of Unity/README.md ("Blender art drop-in") and TruckView.
+# Plain empties + LOD0 meshes, no armature: Truck_Mixer > Visual > Body > (Chassis, Cab, axles,
+# Drum_Tilt > Drum > mesh, Chute > mesh, Driver_Seat, Headlight_L/R) and Visual > Susp_F_n > Wheel_F_n.
+# n = 0 is the near side (Blender -Y, Unity -Z, facing the camera), 1 the far side.
+# ----------------------------------------------------------------------------------------
+UNITY_ASSET = 'Truck_Mixer'
+UNITY_WHEELS = {'Wheel_FR': ('F', 0), 'Wheel_FL': ('F', 1), 'Wheel_RR': ('R', 0), 'Wheel_RL': ('R', 1)}
+
+
+def _bl_child(name, parent, local, collection, data=None):
+    o = bpy.data.objects.new(name, data)
+    if data is None:
+        o.empty_display_type = 'PLAIN_AXES'
+        o.empty_display_size = 0.15
+    collection.objects.link(o)
+    o.parent = parent
+    o.location = local
+    return o
+
+
+def _sub(a, b):
+    return tuple(x - y for x, y in zip(a, b))
+
+
+def build_unity_rig(lod0, mats):
+    """Second export for Unity: same LOD0 geometry, re-parented under the README node names."""
+    col = bl_collection('Unity_Truck_Mixer')
+    by_bone = {}
+    for p in lod0:
+        by_bone.setdefault(p.bone, []).append(p)
+
+    def mesh_obj(p, name):
+        o = bl_mesh_object(Part(name, p.mesh, p.pivot, p.bone, p.lod, p.outline), col, mats)
+        # Unity's importer drops concave n-gons it cannot triangulate ("self-intersecting"): triangulate here.
+        tri = o.modifiers.new('Triangulate', 'TRIANGULATE')
+        tri.quad_method = 'BEAUTY'
+        tri.ngon_method = 'BEAUTY'
+        return o
+
+    root = _bl_child(UNITY_ASSET, None, (0.0, 0.0, 0.0), col)
+    visual = _bl_child('Visual', root, (0.0, 0.0, 0.0), col)
+    body = _bl_child('Body', visual, (0.0, 0.0, 0.0), col)
+    for bone, label in (('Chassis', 'Chassis_Mesh'), ('Cab', 'Cab_Mesh'), ('Axle_F', 'Axle_F_Mesh'), ('Axle_R', 'Axle_R_Mesh')):
+        for p in by_bone.get(bone, []):
+            o = mesh_obj(p, label)
+            o.parent = body
+            o.location = p.pivot
+    # drum: the tilt node's local +X runs along the drum axis, so "spin on local X" spins about the real axis
+    oc = drum_origin()
+    ax = drum_axis()
+    theta = math.atan2(-ax[2], ax[0])
+    tilt = _bl_child('Drum_Tilt', body, oc, col)
+    tilt.rotation_euler = (0.0, theta, 0.0)
+    drum = _bl_child('Drum', tilt, (0.0, 0.0, 0.0), col)
+    for p in by_bone.get('Drum', []):
+        o = mesh_obj(p, 'Drum_Mesh')
+        o.parent = drum
+        o.location = (0.0, 0.0, 0.0)
+        o.rotation_euler = (0.0, -theta, 0.0)
+    hinge = (CHUTE_PIN[0], 0.0, CHUTE_PIN[1])
+    chute = _bl_child('Chute', body, hinge, col)
+    for p in by_bone.get('Chute', []):
+        o = mesh_obj(p, 'Chute_Mesh')
+        o.parent = chute
+        o.location = _sub(p.pivot, hinge)
+    _bl_child('Driver_Seat', body, SEAT_POS, col)
+    for sock, name in (('Socket_HeadlightL', 'Headlight_L'), ('Socket_HeadlightR', 'Headlight_R')):
+        pos = next(s[1] for s in SOCKETS if s[0] == sock)
+        _bl_child(name, body, pos, col)
+    for bone, (axle, n) in UNITY_WHEELS.items():
+        for p in by_bone.get(bone, []):
+            susp = _bl_child('Susp_%s_%d' % (axle, n), visual, p.pivot, col)
+            o = mesh_obj(p, 'Wheel_%s_%d' % (axle, n))
+            o.parent = susp
+            o.location = (0.0, 0.0, 0.0)
+    bpy.context.view_layer.update()
+    return [o for o in col.objects]
+
+
+def unity_rig_checks(rep, objs):
+    names = {o.name for o in objs}
+    need = ['Visual', 'Body', 'Drum', 'Chute', 'Driver_Seat', 'Headlight_L', 'Headlight_R'] + \
+           ['%s_%s_%d' % (k, a, n) for k in ('Susp', 'Wheel') for a in 'FR' for n in (0, 1)]
+    missing = [n for n in need if n not in names]
+    rep.check('unity node names present', not missing, ','.join(missing))
+    w = bpy.data.objects.get('Wheel_F_0')
+    if w is not None:
+        rep.check('unity near wheel on -Y (camera side)', w.matrix_world.translation.y < 0, '%.2f' % w.matrix_world.translation.y)
+    d = bpy.data.objects.get('Drum_Mesh')
+    if d is not None:
+        drift = max(abs(a - b) for a, b in zip(d.matrix_world.translation, drum_origin()))
+        rot = max(abs(r) for r in d.matrix_world.to_euler())
+        rep.check('unity drum mesh keeps its world pose', drift < 1e-4 and rot < 1e-4, 'pos %.5f rot %.5f' % (drift, rot))
+
+
 def write_meta(args, lods, rep):
     meta = {
         'asset': ASSET, 'blender_axes': 'x = forward (cab end), y = depth (camera at -Y), z = up; 1 unit = 1 m; origin = chassis bottom centre',
@@ -490,7 +586,7 @@ def write_meta(args, lods, rep):
 
 
 def main():
-    args = parse_args()
+    args = parse_args(lambda p: p.add_argument('--unity-forward', default='Z', help='FBX forward axis for the Unity drop-in export'))
     rep = Report(ASSET)
     lods, sil0 = {}, None
     for lod in (0, 1):
@@ -503,11 +599,20 @@ def main():
         finish(rep, args, args.out)
         return
     arm, objs, col = build_blender(args, lods, rep)
+    mats = {m.name: m for m in bpy.data.materials}
+    unity_objs = build_unity_rig(lods[0], mats)
+    unity_rig_checks(rep, unity_objs)
     blend = bl_save_blend(os.path.join(args.out, ASSET + '.blend'))
     print('[mm] saved', blend)
     if not args.no_export:
         fbx = bl_export_fbx(os.path.join(args.out, ASSET + '.fbx'), objs, bake_space=not args.no_bake_space)
         print('[mm] exported', fbx)
+        # Unity drop-in: Blender +Y (far side) -> FBX +Z, Z up -> FBX +Y, so after Unity's handedness flip the
+        # truck lands as Blender X -> Unity +X, Z -> +Y, Y -> +Z (near side at -Z). No bake: the importer handles a
+        # plain node hierarchy correctly only when every node carries its own converted transform.
+        ufbx = bl_export_fbx(os.path.join(args.out, UNITY_ASSET + '.fbx'), unity_objs, bake_space=False,
+                             axis_forward=args.unity_forward, axis_up='Y')
+        print('[mm] exported (Unity drop-in)', ufbx)
     print('[mm] meta', write_meta(args, lods, rep))
     print('[mm] qa', rep.save(args.out))
     finish(rep, args, args.out)

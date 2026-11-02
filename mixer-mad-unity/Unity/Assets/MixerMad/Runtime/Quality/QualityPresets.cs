@@ -52,6 +52,8 @@ namespace MixerMad.Game
     public sealed class QualityPresets : MonoBehaviour
     {
         public static QualityPresets Instance { get; private set; }
+        /// <summary>Soft (true) or hard main-light shadows for the active preset; DayNight reads it.</summary>
+        public static bool SoftShadowsOn { get; private set; } = true;
 
         public static readonly Preset[] Table =
         {
@@ -147,7 +149,11 @@ namespace MixerMad.Game
                 _clone.msaaSampleCount = p.msaa;
                 _clone.shadowCascadeCount = Mathf.Max(1, p.shadowCascades);
                 _clone.mainLightShadowmapResolution = p.shadowRes;
-                _clone.supportsSoftShadows = p.softShadows;
+                // URP 17.6: supportsSoftShadows has an internal setter. Soft vs hard is chosen per light instead
+                // (the build asset keeps soft shadows supported so the variants are not stripped).
+                SoftShadowsOn = p.softShadows;
+                if (RenderSettings.sun != null && RenderSettings.sun.shadows != LightShadows.None)
+                    RenderSettings.sun.shadows = p.softShadows ? LightShadows.Soft : LightShadows.Hard;
                 _clone.shadowDistance = (p.shadowCascades > 0 && FeatureToggles.Shadows) ? p.shadowDistance : 0f;   // 0 = shadows off, blob shadows take over
             }
 

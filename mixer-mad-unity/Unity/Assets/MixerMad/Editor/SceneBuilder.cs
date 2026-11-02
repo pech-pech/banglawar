@@ -38,18 +38,20 @@ namespace MixerMad.Editor
 
             var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
             var fbx = AssetDatabase.LoadAssetAtPath<GameObject>(TruckFbx);
-            var result = SliceAssembler.Assemble(null, fbx);
 
-            // lighting preview so the Scene view looks right before pressing Play (runtime components do this on Awake)
-            var dn = result.sim.GetComponent<DayNight>();
-            if (dn != null) dn.Preview();
+            // The slice is assembled at run time by SliceBootstrap. Its components keep their wiring in
+            // non-serialized fields, so a scene assembled here and saved would come back broken in the player.
+            var boot = new GameObject("SliceBootstrap").AddComponent<SliceBootstrap>();
+            boot.truckPrefab = fbx;
             RenderSettings.fog = true; RenderSettings.fogMode = FogMode.ExponentialSquared; RenderSettings.fogDensity = 0.014f;
 
             // keep the placeholder truck as a prefab so artists see the target hierarchy
             if (fbx == null)
             {
                 string pp = PrefabDir + "/Truck_Mixer_Placeholder.prefab";
-                PrefabUtility.SaveAsPrefabAssetAndConnect(result.truck.gameObject, pp, InteractionMode.AutomatedAction);
+                var placeholder = PlaceholderTruckFactory.CreateMixer();
+                PrefabUtility.SaveAsPrefabAsset(placeholder, pp);
+                Object.DestroyImmediate(placeholder);
             }
 
             EditorSceneManager.MarkSceneDirty(scene);
@@ -84,6 +86,7 @@ namespace MixerMad.Editor
                 var def = d;
                 Make(def.name, def.shader, reset, m => MMMaterials.ConfigureToy(m, def));
             }
+            Make(MMMaterials.GlassClearName, "Universal Render Pipeline/Lit", reset, m => MMMaterials.ConfigureGlassClear(m));
             Make("Snow_Road", "MixerMad/SnowIce", reset, m => { });
             Make("FX_Sky", "MixerMad/SkyGradient", reset, m => { });
             Make("FX_ParticleAlpha", "MixerMad/SoftParticle", reset, m => MMMaterials.ConfigureParticle(m, false));

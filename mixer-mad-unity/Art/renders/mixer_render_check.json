@@ -1,0 +1,17 @@
+{
+  "art_outside_collider_m": 0.0331,
+  "collider_outside_art_m": 0.0501,
+  "limits_m": [
+    0.04,
+    0.06
+  ],
+  "wheel_radius_m": 0.5,
+  "wheelbase_m": 2.368,
+  "truck_length_m": 4.632,
+  "engine": "BLENDER_EEVEE",
+  "files": [
+    "/Users/mmr/cl-Game/banglawar/mixer-mad-unity/Art/renders/mixer_side_by_side_skin1.png",
+    "/Users/mmr/cl-Game/banglawar/mixer-mad-unity/Art/renders/mixer_sprite_overlay_skin1.png"
+  ],
+  "ppm": 250
+}

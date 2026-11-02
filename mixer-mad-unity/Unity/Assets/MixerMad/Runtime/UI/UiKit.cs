@@ -136,11 +136,25 @@ namespace MixerMad.Game
 
         public static void EnsureEventSystem()
         {
-            if (UnityEngine.Object.FindFirstObjectByType<EventSystem>() != null) return;
+            if (UnityEngine.Object.FindAnyObjectByType<EventSystem>() != null) return;
             var go = new GameObject("EventSystem");
             go.AddComponent<EventSystem>();
-            var m = go.AddComponent<UnityEngine.InputSystem.UI.InputSystemUIInputModule>();
-            m.AssignDefaultActions();
+            go.AddComponent<UnityEngine.InputSystem.UI.InputSystemUIInputModule>();
+            // The default UI actions are created at run time. Assigning them while the editor builds the scene
+            // would save a run-time InputActionAsset inside the scene file, which the player cannot read.
+            go.AddComponent<UiDefaultActions>();
+        }
+    }
+
+    /// <summary>Gives the UI input module its default actions when the game starts (never at edit time).</summary>
+    [DefaultExecutionOrder(-100)]
+    public sealed class UiDefaultActions : MonoBehaviour
+    {
+        void Awake()
+        {
+            if (!Application.isPlaying) return;
+            var m = GetComponent<UnityEngine.InputSystem.UI.InputSystemUIInputModule>();
+            if (m != null && m.actionsAsset == null) m.AssignDefaultActions();
         }
     }
 

@@ -84,6 +84,42 @@ namespace MixerMad.Game
             return m;
         }
 
+        public const string GlassClearName = "Glass_Clear";
+        const string LitShader = "Universal Render Pipeline/Lit";
+
+        /// <summary>See-through cab glass (URP Lit, transparent) so the driver shows through the windows.</summary>
+        public static Material GlassClear()
+        {
+            if (Cache.TryGetValue(GlassClearName, out var m) && m != null) return m;
+            m = Resources.Load<Material>("MixerMad/" + GlassClearName);
+            if (m == null)
+            {
+                var lit = Shader.Find(LitShader);
+                if (lit != null) m = ConfigureGlassClear(new Material(lit) { name = GlassClearName });
+                else { Debug.LogError("[MixerMad] " + GlassClearName + " missing and URP Lit not in the build; using Toy_Glass."); m = Get("Toy_Glass"); }
+            }
+            Cache[GlassClearName] = m;
+            return m;
+        }
+
+        public static Material ConfigureGlassClear(Material m)
+        {
+            m.SetColor("_BaseColor", new Color(0.62f, 0.80f, 0.95f, 0.30f));
+            m.SetFloat("_Smoothness", 0.92f);
+            m.SetFloat("_Metallic", 0f);
+            m.SetFloat("_Surface", 1f);                                   // transparent
+            m.SetFloat("_Blend", 0f);                                     // alpha
+            m.SetFloat("_SrcBlend", (float)UnityEngine.Rendering.BlendMode.SrcAlpha);
+            m.SetFloat("_DstBlend", (float)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+            m.SetFloat("_SrcBlendAlpha", (float)UnityEngine.Rendering.BlendMode.One);
+            m.SetFloat("_DstBlendAlpha", (float)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+            m.SetFloat("_ZWrite", 0f);
+            m.SetOverrideTag("RenderType", "Transparent");
+            m.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+            m.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;
+            return m;
+        }
+
         /// <summary>Used by the editor builder and the fallback path alike.</summary>
         public static Material ConfigureToy(Material m, Def d)
         {

@@ -186,8 +186,8 @@ namespace MixerMad.Game
         {
             var args = Environment.GetCommandLineArgs();
             for (int i = 0; i < args.Length - 1; i++) if (args[i] == "-mmBenchmark" && float.TryParse(args[i + 1], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var s)) secondsPerPreset = s;
-            _perf = FindFirstObjectByType<PerfOverlay>();
-            var input = FindFirstObjectByType<InputReader>(); if (input) input.enabled = false;
+            _perf = FindAnyObjectByType<PerfOverlay>();
+            var input = FindAnyObjectByType<InputReader>(); if (input) input.enabled = false;
             if (SimDriver.Instance) SimDriver.Instance.InputSource = this;
             Next();
         }
@@ -205,9 +205,9 @@ namespace MixerMad.Game
         void Update()
         {
             _t += Time.unscaledDeltaTime;
-            if (_t > warmup) _frames.Add(Time.unscaledDeltaTime);
+            if (_t > Mathf.Min(warmup, secondsPerPreset * 0.25f)) _frames.Add(Time.unscaledDeltaTime);
             if (SimDriver.Instance && SimDriver.Instance.Curr.finished) SimDriver.Instance.Restart();
-            if (_t >= secondsPerPreset)
+            if (_t >= secondsPerPreset && _frames.Count > 0)
             {
                 _frames.Sort();
                 float sum = 0f; foreach (var f in _frames) sum += f;

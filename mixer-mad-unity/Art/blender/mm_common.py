@@ -965,7 +965,7 @@ def bl_skin(obj, arm):
     obj.parent = arm
 
 
-def bl_export_fbx(path, objects, bake_space=True):
+def bl_export_fbx(path, objects, bake_space=True, axis_forward='-Z', axis_up='Y'):
     bpy.ops.object.select_all(action='DESELECT')
     for o in objects:
         o.select_set(True)
@@ -974,7 +974,7 @@ def bl_export_fbx(path, objects, bake_space=True):
     bpy.ops.export_scene.fbx(
         filepath=path, check_existing=False, use_selection=True,
         global_scale=1.0, apply_unit_scale=True, apply_scale_options='FBX_SCALE_ALL',
-        bake_space_transform=bake_space, axis_forward='-Z', axis_up='Y',
+        bake_space_transform=bake_space, axis_forward=axis_forward, axis_up=axis_up,
         object_types={'ARMATURE', 'MESH', 'EMPTY'}, use_mesh_modifiers=True,
         mesh_smooth_type='OFF', use_custom_props=True, add_leaf_bones=False,
         primary_bone_axis='Y', secondary_bone_axis='X', armature_nodetype='NULL',

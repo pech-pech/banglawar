@@ -47,5 +47,9 @@ Counts are triangles from the pure-Python mesh; Blender triangulates n-gons the 
 ## Contract checks done in the scripts
 Wheel r 0.50 +-0.02, wheelbase 2.368 +-0.02, hub pivots, cab at +X, art vs the 5 convex colliders of `mixer_skin1` (art outside 0.033 m <= 0.04; collider outside art 0.050 m <= 0.06; wheel arches exempt), transforms applied, `MM_` names, UVs present. Lessons applied: AL-1 (facing stated and checked), AL-2 (no pink/magenta/violet, explicit glass colour), AL-4 (several convex parts, never one hull). AL-3 and AL-5 concern generated sprites and do not apply (no image generation here).
 
-## Not verified yet
+## First real run (2026-11-02, Blender 5.2.2 LTS on macOS)
+All four scripts run headless with `--strict` and pass every check; no bpy API changes were needed. `render_check.py -- --with-driver --engine eevee` renders the side-by-side and overlay stills into `../renders/`.
+`mixer_truck.py` now also exports `Truck_Mixer.fbx`, the Unity drop-in (see `Unity/README.md`): plain empties with the Unity node names, LOD0 meshes, a Triangulate modifier (Unity dropped concave n-gons), no axis bake, FBX forward `-Z` (`--unity-forward`). Copy it to `Unity/Assets/MixerMad/Art/Models/`.
+
+## Not verified yet (before the first run)
 Nothing ran in real Blender: bmesh-free, but the bpy calls (bone parenting, FBX options, colour attributes, shape keys, EEVEE render) are untested. Run each script once with `--strict`, open the .blend, and check the FBX in Unity. Hard-surface look is simple on purpose; polish passes come after the first Mac run.

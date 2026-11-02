@@ -56,7 +56,7 @@ namespace MixerMad.Game
         void Awake()
         {
             Instance = this;
-            if (sun == null) sun = FindFirstObjectByType<Light>();
+            if (sun == null) sun = FindAnyObjectByType<Light>();
             if (skyMaterial == null) skyMaterial = MMMaterials.Sky();
             RenderSettings.skybox = skyMaterial;
             RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Trilight;
@@ -130,7 +130,7 @@ namespace MixerMad.Game
                 sun.transform.rotation = Quaternion.LookRotation(-toSun, Vector3.up);
                 sun.color = k.sunCol;
                 sun.intensity = k.intensity;
-                sun.shadows = LightShadows.Soft;
+                sun.shadows = QualityPresets.SoftShadowsOn ? LightShadows.Soft : LightShadows.Hard;
             }
 
             RenderSettings.ambientSkyColor = k.ambSky;

@@ -140,8 +140,8 @@ namespace MixerMad.Game
             mesh.RecalculateBounds();
             BuiltMesh = mesh;
 
-            var mf = GetComponent<MeshFilter>() ?? gameObject.AddComponent<MeshFilter>();
-            var mr = GetComponent<MeshRenderer>() ?? gameObject.AddComponent<MeshRenderer>();
+            var mf = TryGetComponent<MeshFilter>(out var mf0) ? mf0 : gameObject.AddComponent<MeshFilter>();
+            var mr = TryGetComponent<MeshRenderer>(out var mr0) ? mr0 : gameObject.AddComponent<MeshRenderer>();
             mf.sharedMesh = mesh;
             mr.sharedMaterials = new[] { roadMaterial, roadMaterial };
             mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.On;

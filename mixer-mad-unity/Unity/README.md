@@ -86,6 +86,17 @@ Materials: assign the shared `Toy_*` materials (`ToyPlastic` shader); the 4 mixe
 6. Sim bridge: `MixerSimBackend` uses `World.Create`, `Step(InputFrame)`, `Events`, `TruckPose()`, `Points[4]/[5]`, `AirTime`, `State`, `Load`, `Level.X/Y/flagX/zones`. Re-check after the sim agent changes anything.
 7. The Input System UI module (`InputSystemUIInputModule.AssignDefaultActions`) and `Touchscreen.touches`.
 
+## First Mac run (P2, 2026-11-02): what changed
+Opened with editor 6000.6.3f1 on an Apple Silicon Mac. It compiles clean (no errors, no warnings), builds `Builds/macOS/MixerMad.app` (80 MB) and runs the benchmark and the stills.
+- Packages are pinned to what 6000.6.3f1 ships: URP 17.6.0, Input System 1.20.0, ProBuilder 6.1.2, Splines 2.9.1, Test Framework 1.8.0, uGUI 2.6.0. Cinemachine is 6.6.0, the editor-bundled successor of the Cinemachine 3 line (same `Unity.Cinemachine` API).
+- The scene holds only `SliceBootstrap` (with the Blender truck in `truckPrefab`); the slice is assembled at run time. Several components keep their wiring in non-serialized fields, so a scene assembled in the editor and saved came back broken in the player. The default UI input actions are also created at run time (`UiDefaultActions`): assigning them in the editor saved a run-time InputActionAsset into the scene, which made the player report `level0` as corrupted.
+- URP 17.6: `supportsSoftShadows` has an internal setter, so soft vs hard is chosen per light (`QualityPresets.SoftShadowsOn`). Forward+ keyword is `_CLUSTER_LIGHT_LOOP` only.
+- `GetComponent<T>() ?? AddComponent<T>()` does not work on Unity objects (fake null); replaced with `TryGetComponent`.
+- Blender truck: `Art/blender/mixer_truck.py` now also writes `Truck_Mixer.fbx` with the node names below (no armature, LOD0, triangulated). `ModelPostprocessor` resets every node to rotation 0 and moves Blender's axis change into the mesh data (only `Drum_Tilt`/`Drum` keep the 14.3 deg tilt), and `FbxTruckAdapter` swaps the `MM_*` materials for the shared `Toy_*` ones (glass becomes `Glass_Clear`, URP Lit transparent, so the driver shows), adds the headlight lights and seats the placeholder driver. `MixerMad > Check Truck FBX` (`MixerMad.Editor.FbxTruckCheck.Run`) checks the import contract.
+- The sim's chassis origin is not the art origin (the vehicle data draws the sprite with `oy` = -0.823 m). `TruckView` now moves `Body` by the same amount the hubs move when they snap to the sim wheels, so body and wheels keep the modelled relation.
+- `build-report.json` is valid JSON again (a `{2:F1}}}` format string printed `F1`).
+- Review stills: run the app with `-mmStills <folder>` (optional `-mmStillsQuality 0..3`). It drives with `StillsBot` and saves `01_start`, `02_mid_drive_snow`, `03_jump`, `04_finish` as PNG, then quits. `MixerMad.Editor.StillsBotSearch.Run` drives the real sim headlessly with a grid of bot settings and lists the ones that finish.
+
 ## Placeholder vs final
 Placeholder: all truck and driver geometry (primitives), pedal / button art (generated rounded rects instead of the glossy 9-slice kits), garage and HUD layout, pines / cabin / ridges, snow flake sprite (procedural), skies. Level shape = the v7 level index 2 (snow weather) from the sim data.
 Not in the slice: audio, finish toys / reward animations, results scene, other trucks and biomes, VFX Graph (Ultra particles use Shuriken at 30,000), SSAO (flag exists, no renderer feature yet), tire-track decals, light shafts and soft-particle depth fade, level 2-8 content.

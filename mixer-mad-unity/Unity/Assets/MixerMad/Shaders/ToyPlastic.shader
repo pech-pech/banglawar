@@ -69,8 +69,8 @@ Shader "MixerMad/ToyPlastic"
             #pragma multi_compile _ _ADDITIONAL_LIGHTS_VERTEX _ADDITIONAL_LIGHTS
             #pragma multi_compile_fragment _ _ADDITIONAL_LIGHT_SHADOWS
             #pragma multi_compile_fragment _ _SHADOWS_SOFT _SHADOWS_SOFT_LOW _SHADOWS_SOFT_MEDIUM _SHADOWS_SOFT_HIGH
-            // Forward+ was _FORWARD_PLUS in URP 14-17.0 and became _CLUSTER_LIGHT_LOOP later. Declare both; unused one is inert.
-            #pragma multi_compile _ _FORWARD_PLUS _CLUSTER_LIGHT_LOOP
+            // Forward+ keyword in URP 17.6 (the old _FORWARD_PLUS is deprecated and only aliased).
+            #pragma multi_compile _ _CLUSTER_LIGHT_LOOP
             #pragma multi_compile_fog
             #pragma multi_compile_instancing
             #pragma instancing_options renderinglayer

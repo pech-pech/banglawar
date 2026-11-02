@@ -28,6 +28,13 @@ namespace MixerMad.Editor
         [MenuItem("MixerMad/Build macOS App (development, profiler)", priority = 21)]
         public static void BuildDevMenu() { Run(true); }
 
+        // "{2:F1}}}" in a format string is parsed as the format "F1}" (prints "F1"), so numbers are formatted here.
+        static string Num(double v) { return v.ToString("F1", System.Globalization.CultureInfo.InvariantCulture); }
+        static string StepJson(int i, string name, double seconds)
+        {
+            return (i > 0 ? "," : "") + "{\"name\":\"" + name.Replace("\\", "/").Replace("\"", "'") + "\",\"s\":" + Num(seconds) + "}";
+        }
+
         public static void BuildMac()
         {
             var args = Environment.GetCommandLineArgs();
@@ -85,16 +92,16 @@ namespace MixerMad.Editor
             json.AppendFormat("  \"output\": \"{0}\",\n", s.outputPath.Replace("\\", "/"));
             json.AppendFormat("  \"development\": {0},\n", dev ? "true" : "false");
             json.AppendFormat("  \"total_size_bytes\": {0},\n", s.totalSize);
-            json.AppendFormat("  \"total_size_mb\": {0:F1},\n", s.totalSize / 1048576.0);
-            json.AppendFormat("  \"build_time_s\": {0:F1},\n", s.totalTime.TotalSeconds);
-            json.AppendFormat("  \"wall_time_s\": {0:F1},\n", total.Elapsed.TotalSeconds);
+            json.AppendFormat("  \"total_size_mb\": {0},\n", Num(s.totalSize / 1048576.0));
+            json.AppendFormat("  \"build_time_s\": {0},\n", Num(s.totalTime.TotalSeconds));
+            json.AppendFormat("  \"wall_time_s\": {0},\n", Num(total.Elapsed.TotalSeconds));
             json.AppendFormat("  \"unity\": \"{0}\",\n", Application.unityVersion);
             json.AppendFormat("  \"warnings\": {0},\n  \"errors\": {1},\n", warnings, errors);
             json.Append("  \"phases\": [");
-            for (int i = 0; i < phases.Count; i++) json.AppendFormat("{0}{{\"name\":\"{1}\",\"s\":{2:F1}}}", i > 0 ? "," : "", phases[i].Key, phases[i].Value);
+            for (int i = 0; i < phases.Count; i++) json.Append(StepJson(i, phases[i].Key, phases[i].Value));
             json.Append("],\n  \"steps\": [");
             for (int i = 0; i < report.steps.Length; i++)
-                json.AppendFormat("{0}{{\"name\":\"{1}\",\"s\":{2:F1}}}", i > 0 ? "," : "", report.steps[i].name.Replace("\"", "'"), report.steps[i].duration.TotalSeconds);
+                json.Append(StepJson(i, report.steps[i].name, report.steps[i].duration.TotalSeconds));
             json.Append("]\n}\n");
             Directory.CreateDirectory("Builds");
             File.WriteAllText("Builds/build-report.json", json.ToString());

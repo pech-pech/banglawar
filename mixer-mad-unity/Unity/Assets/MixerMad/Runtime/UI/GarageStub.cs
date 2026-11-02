@@ -112,7 +112,12 @@ namespace MixerMad.Game
             if (truck == null) return;
             var next = MMMaterials.Get(mat); var prev = MMMaterials.Get(_skin);
             foreach (var r in truck.GetComponentsInChildren<MeshRenderer>(true))
-                if (r.sharedMaterial == prev) r.sharedMaterial = next;
+            {
+                // Blender meshes carry several materials per renderer: swap every slot that uses the old skin
+                var mats = r.sharedMaterials; bool hit = false;
+                for (int i = 0; i < mats.Length; i++) if (mats[i] == prev) { mats[i] = next; hit = true; }
+                if (hit) r.sharedMaterials = mats;
+            }
             _skin = mat;
         }
 

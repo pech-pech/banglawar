@@ -68,7 +68,7 @@ namespace MixerMad.Game
 
             // ---- truck
             GameObject truckGo;
-            if (truckPrefab != null) { truckGo = Object.Instantiate(truckPrefab, world); truckGo.name = "Truck_Mixer"; if (truckGo.GetComponent<TruckView>() == null) truckGo.AddComponent<TruckView>(); }
+            if (truckPrefab != null) { truckGo = Object.Instantiate(truckPrefab, world); truckGo.name = "Truck_Mixer"; FbxTruckAdapter.Prepare(truckGo); if (truckGo.GetComponent<TruckView>() == null) truckGo.AddComponent<TruckView>(); }
             else truckGo = PlaceholderTruckFactory.CreateMixer();
             truckGo.transform.SetParent(world, false);
             r.truck = truckGo.GetComponent<TruckView>();
@@ -136,15 +136,20 @@ namespace MixerMad.Game
     [DefaultExecutionOrder(-1000)]
     public sealed class SliceBootstrap : MonoBehaviour
     {
+        [Tooltip("Blender truck (Art/Models/Truck_Mixer.fbx). Empty = primitive placeholder.")]
+        public GameObject truckPrefab;
+
         void Awake()
         {
-            if (FindFirstObjectByType<SimDriver>() == null) SliceAssembler.Assemble(null);
+            if (FindAnyObjectByType<SimDriver>() == null) SliceAssembler.Assemble(null, truckPrefab);
         }
 
         void Start()
         {
-            if (BenchmarkRunner.Requested && FindFirstObjectByType<BenchmarkRunner>() == null)
+            if (BenchmarkRunner.Requested && FindAnyObjectByType<BenchmarkRunner>() == null)
                 new GameObject("Benchmark").AddComponent<BenchmarkRunner>();
+            else if (StillsRunner.Requested && FindAnyObjectByType<StillsRunner>() == null)
+                new GameObject("Stills").AddComponent<StillsRunner>();
         }
     }
 }
