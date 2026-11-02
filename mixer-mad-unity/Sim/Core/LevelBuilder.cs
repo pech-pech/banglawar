@@ -23,7 +23,7 @@ namespace MixerMad.Sim
         /// <summary>JS buildLevel(spec). crevice = VINFO[vehicle].crevice &amp;&amp; !combo.</summary>
         public static Level BuildLevel(List<Seg> spec, bool crevice, Tuning T)
         {
-            var p = new Pts(); p.Push(-30, 0); p.Push(0, 0); double x = 0, y = 0;
+            var p = new Pts(); p.Push(-30, 0); p.Push(0, 0); double x = 0, y = 0; var jumps = new List<double[]>();
             foreach (var s in spec)
             {
                 string k = s.kind;
@@ -46,6 +46,7 @@ namespace MixerMad.Sim
                 }
                 else if (k == "jump")
                 {
+                    jumps.Add(new[] { x, x + s.a + 0.05 });
                     for (int i = 1; i <= 10; i++) { double t = i / 10.0; p.Push(x + s.a * t, y + s.b * t * t); }
                     x += s.a; y += s.b; p.Push(x + 0.05, y - s.c); x += 0.05; y -= s.c;
                 }
@@ -55,6 +56,7 @@ namespace MixerMad.Sim
             if (crevice) { p.Push(x + T.creviceSlant, y - depth); p.Push(x + gapW - T.creviceSlant, y - depth); p.Push(x + gapW, y); }
             x += gapW; p.Push(x + 25, y);
             var L = Finish(p);
+            L.jumps = jumps;
             L.flagX = flagX; L.edgeX = edgeX; L.gapL = edgeX; L.gapR = edgeX + gapW; L.gapBottom = top - depth; L.gapTop = top;
             return L;
         }

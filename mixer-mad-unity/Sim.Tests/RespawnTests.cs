@@ -13,12 +13,12 @@ namespace Sim.Tests
     /// </summary>
     public class RespawnTests : IClassFixture<Fixture>
     {
-        readonly Fixture fx;
+        readonly Fixture fx; readonly GameData gd = GameData.Load(Paths.DataV7h); // these tests pin the v7h defect, so they run on the archived v7h data
         public RespawnTests(Fixture f) { fx = f; }
 
         Tuning Tune(params (string k, double v)[] set)
         {
-            var t = Tuning.Load(Path.Combine(Paths.Data, "tuning.json"));
+            var t = Tuning.Load(Path.Combine(Paths.DataV7h, "tuning.json"));
             foreach (var (k, v) in set) { var f = typeof(Tuning).GetField(k); if (f.FieldType == typeof(int)) f.SetValue(t, (int)v); else f.SetValue(t, v); }
             return t;
         }
@@ -26,7 +26,7 @@ namespace Sim.Tests
         /// <summary>Drive t0.8-none until the Nth Reset event; returns the world right after that tick.</summary>
         World ToReset(Tuning t, int level, int nth, out long resetTick, out long lastCrashTick)
         {
-            var w = World.Create(t, fx.Data, new WorldConfig { Mode = GameMode.Classic, LevelIndex = level, Vehicle = "mixer", MixerSkin = 0 });
+            var w = World.Create(t, gd, new WorldConfig { Mode = GameMode.Classic, LevelIndex = level, Vehicle = "mixer", MixerSkin = 0 });
             double tg = t.Phys("mixer").maxV * 0.8; int seen = 0; lastCrashTick = -1;
             for (int i = 0; i < 120 * 200; i++)
             {
@@ -59,7 +59,7 @@ namespace Sim.Tests
         [Fact]
         public void Defaults_are_off()
         {
-            var t = Tuning.Load(Path.Combine(Paths.Data, "tuning.json"));
+            var t = Tuning.Load(Path.Combine(Paths.DataV7h, "tuning.json"));
             Assert.Equal(0, t.respawnClearLift); Assert.Equal(0, t.respawnFlatBack); Assert.Equal(0.0, t.respawnGrace);
             Assert.Equal(0.7, t.crashWait); Assert.Equal(0, t.crashEarlyReturn);
         }

@@ -7,14 +7,16 @@
 const { chromium } = require('playwright');
 const fs = require('fs'), path = require('path'), zlib = require('zlib');
 const HERE = __dirname;
-const HTML = path.join(HERE, 'oracle', 'mixer-mad-v7h.html');
-const TRACES = path.join(HERE, 'traces');
+const HTML = process.env.MM_HTML || path.join(HERE, 'oracle', 'mixer-mad-v7h.html');   // MM_HTML / MM_TRACES select the build (v7j: oracle/mixer-mad-v7j.html)
+const TRACES = process.env.MM_TRACES || path.join(HERE, 'traces');
 const SEED = 20261102;
 const PRNG_SRC = "function mulberry32(seed){ let t=seed>>>0; return ()=>{ t+=0x6D2B79F5; let r=Math.imul(t^t>>>15,1|t); r^=r+Math.imul(r^r>>>7,61|r); return ((r^r>>>14)>>>0)/4294967296; }; }";
 
 // ---- policies: identical to sweep-tools/sweep.js ----
 const POL = []; for (const f of [0.55, 0.8, 1.0]) for (const m of ['none', 'brake', 'pitch']) POL.push({ n: `t${f}-${m}`, f, m });
 for (const d of [0.5, 0.7, 0.85]) POL.push({ n: `duty${d}`, duty: d });
+// human-style drivers (added for v7j): pulsed gas with slow wobble, brake taps before hills / when fast. Deterministic functions of sim time.
+POL.push({ n: 'human1', human: 1 }); POL.push({ n: 'human2', human: 2 });
 const polByName = n => { const p = POL.find(x => x.n === n); if (!p) throw new Error('unknown policy ' + n + ' (have ' + POL.map(x => x.n).join(',') + ')'); return p; };
 const VEH = ['mixer', 'digger', 'dump', 'dozer', 'crane', 'roller'];
 const SET_A = ['t0.55-brake', 't0.8-none', 't1-none', 't0.8-pitch', 'duty0.5', 'duty0.85']; // mixer x 8 levels x 6
@@ -73,7 +75,8 @@ function inPage(cfg) {
       const pol = cfg.pol, ph = phys(), pose = truckPose();
       const vx = ((P[0].x - P[0].px) + (P[1].x - P[1].px)) / 2 / DT, ang = pose.ang;
       if (state === 'drive') {
-        if (pol.duty !== undefined) { g = ((t % 0.6) / 0.6) < pol.duty; }
+        if (pol.human) { const w1 = pol.human === 1 ? 1.3 : 0.9, w2 = pol.human === 1 ? 0.37 : 0.53; g = (Math.sin(t * w1) + Math.sin(t * w2 + pol.human)) > -0.7; if (vx > ph.maxV * 0.95 && Math.sin(t * 2.1 + pol.human) > 0.3) { g = false; br = Math.sin(t * 4.1) > 0.6; } if (vx < 0.5 && t < 1) g = true; }
+        else if (pol.duty !== undefined) { g = ((t % 0.6) / 0.6) < pol.duty; }
         else { const tg = ph.maxV * pol.f; g = vx < tg; if (pol.m === 'brake' && vx > tg + 2.5) { g = false; br = true; }
           if (pol.m === 'pitch') { if (ang > 0.55) g = false; if (vx > tg + 2.5 && ang < 0.2) { g = false; br = true; } } }
       }
@@ -137,6 +140,7 @@ function plan() {
   for (const v of VEH) for (let li = 0; li < 8; li++) for (const p of SET_B) { if (v === 'mixer') continue; jobs.push({ set: 'B', vehicle: v, level: li, policy: p }); }
   // mixer in set B is already covered by set A (all three B policies are in A)
   for (const s of [1, 2, 3]) for (let li = 0; li < 8; li++) jobs.push({ set: 'C-skin', vehicle: 'mixer', level: li, policy: 't0.8-none', skin: s });
+  for (const v of VEH) for (let li = 0; li < 8; li++) for (const p of ['human1', 'human2']) jobs.push({ set: 'F-human', vehicle: v, level: li, policy: p });
   for (let li = 0; li < 8; li++) jobs.push({ set: 'E-loadmode', vehicle: 'mixer', level: li, policy: 't1-pitch', mode: 'load' });
   for (const p of ['t0.8-none', 'duty0.7']) jobs.push({ set: 'D-daily', vehicle: 'digger', level: 0, policy: p, mode: 'daily', dailyKey: '2026-11-02' });
   return jobs;

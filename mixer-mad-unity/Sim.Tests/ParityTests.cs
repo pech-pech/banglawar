@@ -22,6 +22,7 @@ namespace Sim.Tests
                 if (File.Exists(Path.Combine(d, rel, marker)) || Directory.Exists(Path.Combine(d, rel)) && marker == "") return Path.Combine(d, rel);
             return null;
         }
+        public static string DataV7h { get { return Path.Combine(Path.GetDirectoryName(Data), "Data-v7h"); } }
         public static string Data { get { return Environment.GetEnvironmentVariable("MM_DATA") ?? Up(Path.Combine("Sim", "Data"), "tuning.json"); } }
         public static string Traces
         {

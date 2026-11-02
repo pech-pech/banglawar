@@ -32,6 +32,7 @@ namespace MixerMad.Sim
         public double[] X, Y; public int N;
         public double flagX, edgeX, gapL, gapR, gapBottom, gapTop, minY;
         public List<Zone> zones = new List<Zone>();
+        public List<double[]> jumps;       // [ramp, land] x of each jump (v7j zone clearance); null for yard
         public List<Rock> rocks;           // null when none (JS L.rocks=null)
         public List<Mover> movers;         // null for classic levels
         public List<Stop> stops;           // yard only

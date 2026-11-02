@@ -18,7 +18,7 @@ const html = fs.readFileSync(SRC, 'utf8');
 
 // ---- locate the game script (the one that declares PHYS) and the sprite manifest ----
 const scripts = []; { const re = /<script>([\s\S]*?)<\/script>/g; let m; while ((m = re.exec(html))) scripts.push(m[1]); }
-const game = scripts.find(s => /const PHYS\s*=/.test(s) && /function startLevel/.test(s));
+const game = scripts.find(s => /function startLevel/.test(s) && /function vehGeom/.test(s));
 if (!game) throw new Error('game script not found');
 const spriteScript = scripts.find(s => /window\.MM_SPRITES_DATA\s*=/.test(s.slice(0, 200)));
 if (!spriteScript) throw new Error('MM_SPRITES_DATA not found');
@@ -49,20 +49,24 @@ function grabFunc(name) {
 const ev = (code, ctx) => vm.runInNewContext('(' + code + ')', ctx || {});
 
 // ---- tables ----
-const LEVELS = ev(grabConst('LEVELS')), LEVEL_WX = ev(grabConst('LEVEL_WX'));
-const PHYS = ev(grabConst('PHYS')), PAR_K = ev(grabConst('PAR_K')), WXGRIP = ev(grabConst('WXGRIP'));
+// v7j and later keep every tuning number in window.MM_TUNING (drive, phys, crash, weather, props, par, levels). v7h keeps them as consts in the script.
+let BLOB = null; { const tm = /window\.MM_TUNING\s*=\s*/.exec(html); if (tm) { const i0 = html.indexOf('{', tm.index); BLOB = vm.runInNewContext('(' + html.slice(i0, matchEnd(html, i0) + 1) + ')'); } }
+let LEVELS, LEVEL_WX, PHYS, PAR_K, WXGRIP;
+if (BLOB) { LEVELS = BLOB.levels.classic; LEVEL_WX = BLOB.levels.wx; PHYS = {}; for (const k of Object.keys(BLOB.phys)) if (k[0] !== '_') PHYS[k] = BLOB.phys[k]; PAR_K = BLOB.par.K; WXGRIP = BLOB.weather.grip; }
+else { LEVELS = ev(grabConst('LEVELS')); LEVEL_WX = ev(grabConst('LEVEL_WX')); PHYS = ev(grabConst('PHYS')); PAR_K = ev(grabConst('PAR_K')); WXGRIP = ev(grabConst('WXGRIP')); }
 const LOCAL = ev(grabConst('LOCAL')), VSPR = ev(grabConst('VSPR')), VINFO_SRC = ev(grabConst('VINFO'));
 const WHEEL_R = ev(grabConst('WHEEL_R'));
 const HOLE_MAX = (/HOLE_MAX\s*=\s*([\d.]+)/.exec(game) || [])[1];
 const gm = /const G\s*=\s*([^,;]+),\s*DT\s*=\s*([^,;]+),\s*ITER\s*=\s*([^,;]+);/.exec(game); if (!gm) throw new Error('G/DT/ITER not found');
-const G = ev(gm[1]), DT = ev(gm[2]), ITER = ev(gm[3]);
+const num = (e, d) => { try { const v = ev(e); return typeof v === 'number' ? v : d; } catch (x) { return d; } };
+const G = num(gm[1], BLOB ? BLOB.drive.gravity : 15), DT = num(gm[2], 1 / 120), ITER = num(gm[3], 8);
 
 // YARD: the spec arrays only (names/par/veh); the geometry builder is ported by hand in C# (Yard.cs)
 const YARD = ev(grabConst('YARD')).map(y => ({ name: y.name, veh: y.veh, par: y.par, spec: y.spec }));
 const yardLevelNote = 'YARD specs are data; buildYard/mkPlank/mkSeesaw/mkLift are code in Sim/Yard.cs';
 
 // ---- vehicle geometry: run the HTML's own vehGeom() per vehicle (and per mixer skin) ----
-const geoCtx = { SPRM, VSPR, LOCAL, WHEEL_R, geoCache: {}, combo3: { skin: 0 }, Math, Object };
+const geoCtx = { SPRM, VSPR, LOCAL, WHEEL_R, PHYS, geoCache: {}, combo3: { skin: 0 }, Math, Object };
 vm.createContext(geoCtx);
 vm.runInContext(grabFunc('vspr') + '\n' + grabFunc('vehGeom'), geoCtx);
 function geomFor(v, skin) {
@@ -95,8 +99,21 @@ console.log('levels:', LEVELS.length, 'yard:', YARD.length, 'vehicles:', Object.
 
 if (WRITE_TUNING) {
   const tp = path.join(OUT, 'tuning.json'); const T = fs.existsSync(tp) ? JSON.parse(fs.readFileSync(tp, 'utf8')) : { consts: {} };
-  const phys = {}; for (const [k, p] of Object.entries(PHYS)) { const o = Object.assign({}, p); delete o.note; phys[k] = o; }
   const vinfo = {}; for (const [k, p] of Object.entries(VINFO_SRC)) vinfo[k] = { world: p.world, crevice: !!p.crevice };
-  Object.assign(T, { source: path.basename(SRC), g: G, dt: DT, iter: ITER, wheelR: WHEEL_R, holeMax: Number(HOLE_MAX), phys, parK: PAR_K, wxGrip: WXGRIP, vinfo });
-  fs.writeFileSync(tp, JSON.stringify(T, null, 1)); console.log('tuning.json refreshed (extracted tables only)');
+  let sections;
+  if (BLOB) { sections = { drive: BLOB.drive, phys: BLOB.phys, crash: BLOB.crash, weather: BLOB.weather, props: BLOB.props, par: BLOB.par }; }
+  else { // v7h: express the old consts in the MM_TUNING shape so one loader serves both builds (values are the v7h numbers; new v7j knobs set neutral)
+    const phys = {}; for (const [k, p] of Object.entries(PHYS)) phys[k] = { maxV: p.maxV, force: p.acc, mass: 1, torque: 0.8 * (p.gt || 1), air: p.air, spin: 4.5, coast: 1.2, link: 0.45, tol: p.tol, w: p.w, snowRoof: 0.8 };
+    const Z = k => ({ n: k[0], len: k[1] });
+    sections = {
+      drive: { gravity: G, damping: 0.999, brake: 26, brakeMinV: 0.5, reverse: 11, reverseMaxV: 7, gripHeadroom: 3, brakeGrip: 26 }, phys,
+      crash: { upsideUy: -0.2, tippedAng: 1.2, tippedRate: 0.4, decay: 2, roofPushDot: -0.4, airCounts: true, propTouch: false, wait: 0.7, fallDepth: 15, respawnClearLift: 0, respawnClear: 0.04 },
+      weather: { grip: WXGRIP, zoneGrip: { mud: 0.7, puddle: 0.85, slush: 0.8, sticky: 1.4 }, drag: { puddle: 5, mud: 3, mudGrow: 3.5, mudGrowT: 40, slush: 8, sticky: 0 }, zoneEase: 1.5, stickyPull: 7, snowRate: 0.035, snowVmaxCut: 0.15, rockKick: 2.6, bouncyRest: 0.85, bouncyMin: 6,
+        jumpClear: -1e9, propClear: {}, vmax: {}, pull: {}, gripCurve: {}, zones: { mud: Z([2, 5]), puddle: Z([3, 2.5]), slush: Z([3, 6]), sticky: Z([3, 5]), bouncy: Z([3, 2.5]) } },
+      props: { kinds: { cone: { r: 0.36, m: 0.3 }, barrel: { r: 0.42, m: 0.6 }, pipe: { r: 0.35, m: 0.9 } }, lump: { r0: 0.4, rVar: 0.2, m: 0.4, breakV: 4 }, budget: 1.5, refill: 3, maxPush: 0.3, bounce: 1.35 },
+      par: { K: PAR_K, T: {} } };
+    T.consts = Object.assign(T.consts || {}, { crashEarlyReturn: 0, resetPropBudgetOnStartLevel: 0 });
+  }
+  Object.assign(T, { source: path.basename(SRC), dt: DT, iter: ITER, wheelR: WHEEL_R, holeMax: Number(HOLE_MAX), vinfo }, sections);
+  fs.writeFileSync(tp, JSON.stringify(T, null, 1)); console.log('tuning.json refreshed (' + (BLOB ? 'MM_TUNING blob' : 'v7h consts converted') + ')');
 }

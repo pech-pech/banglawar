@@ -57,15 +57,15 @@ namespace MixerMad.Sim
                 double tx = w.c.ny, ty = -w.c.nx;
                 double v = ((w.x - w.px) * tx + (w.y - w.py) * ty) / DT;
                 double a = 0;
-                ZoneKind z = ZoneAt(w.x); double vmax = ph.maxV * (1 - T.snowVmax * snow);
-                if (gas && v < vmax) a = ph.acc;
-                if (brake) a = v > T.brakeVThresh ? T.brakeFast : ((v > -T.reverseMaxSpeed && Math.Min(P[0].x, P[3].x) > T.reverseMinX) ? T.brakeSlow : 0);
-                if (!gas && !brake) a = -JsMath.Sign(v) * Math.Min(Math.Abs(v) / DT, T.coastDecel * GripK(z));
-                double gl = (gas ? ph.acc + T.gripGasBonus : T.gripNoGas) * GripK(z); a = Math.Max(-gl, Math.Min(gl, a));
+                ZoneKind z = ZoneAt(w.x); double vmax = ph.maxV * wxVmaxW * (1 - T.snowVmaxCut * snow); // v7j: weather top-speed cut
+                if (gas && v < vmax) a = ph.pull * wxPullW;
+                if (brake) a = v > T.brakeMinV ? -T.brake : ((v > -T.reverseMaxV && Math.Min(P[0].x, P[3].x) > T.reverseMinX) ? -T.reverse : 0);
+                if (!gas && !brake) a = -JsMath.Sign(v) * Math.Min(Math.Abs(v) / DT, ph.coast * GripK(z));
+                double gl = gas ? (ph.pull + T.gripHeadroom) * GripK(z) * Math.Max(0.2, 1 - wxCurveW * Math.Min(1, Math.Abs(v) / ph.maxV)) : T.brakeGrip * GripK(z); a = Math.Max(-gl, Math.Min(gl, a));
                 Zone zz = null;
                 if (z != ZoneKind.None) { var zs = L.zones; for (int i = 0; i < zs.Count; i++) if (w.x >= zs[i].x0 && w.x <= zs[i].x1) { zz = zs[i]; break; } }
-                double ease = zz != null ? Math.Min(Math.Min(1, (w.x - zz.x0) / T.easeLen), (zz.x1 - w.x) / T.easeLen + T.easeTail) : 1;
-                double dragBase = z == ZoneKind.Puddle ? T.dragPuddle : z == ZoneKind.Mud ? T.dragMudBase + T.dragMudRamp * Math.Min(1, levelT / T.dragMudRampT)
+                double ease = zz != null ? Math.Min(Math.Min(1, (w.x - zz.x0) / T.zoneEase), (zz.x1 - w.x) / T.zoneEase + T.easeTail) : 1;
+                double dragBase = z == ZoneKind.Puddle ? T.dragPuddle : z == ZoneKind.Mud ? T.dragMud + T.dragMudGrow * Math.Min(1, levelT / T.dragMudGrowT)
                     : z == ZoneKind.Slush ? T.dragSlush : z == ZoneKind.Sticky ? T.dragSticky : 0;
                 double drag = dragBase * ease;
                 if (drag != 0) a -= JsMath.Sign(v) * Math.Min(Math.Abs(v) / DT, drag);
@@ -74,7 +74,7 @@ namespace MixerMad.Sim
                     for (int i = 0; i < L.rocks.Count; i++)
                     {
                         Rock r = L.rocks[i];
-                        if (!r.hit && Math.Abs(w.x - r.x) < T.rockReach) { r.hit = true; w.py -= T.rockImpulse * DT; Emit(SimEventType.RockHit, w.x, w.y, 0.5, "rock"); }
+                        if (!r.hit && Math.Abs(w.x - r.x) < T.rockReach) { r.hit = true; w.py -= T.rockKick * DT; Emit(SimEventType.RockHit, w.x, w.y, 0.5, "rock"); }
                     }
                 for (int i = 0; i < P.Length; i++) { Pt q = P[i]; q.px -= tx * a * 0.5 * DT * DT; q.py -= ty * a * 0.5 * DT * DT; }
             }
@@ -83,8 +83,8 @@ namespace MixerMad.Sim
             double tq = 0; if (gas) tq = 1; if (brake) tq = -1;
             if (tq != 0)
             {
-                double strength = grounded ? T.groundTorque * ph.gt : ph.air;
-                if (tq * omega < T.omegaMax)
+                double strength = grounded ? ph.gtq : ph.air;
+                if (tq * omega < ph.spin)
                 {
                     double k = tq * strength * DT * DT;
                     P[1].px -= ux * k; P[1].py -= uy * k; P[2].px -= ux * k; P[2].py -= uy * k;
@@ -93,7 +93,7 @@ namespace MixerMad.Sim
             }
             // constraints + collisions
             for (int i = 0; i < P.Length; i++) P[i].c = default(Hit);
-            roofHit = false; bodyHit = false;
+            roofHit = false; bodyHit = false; propHit = false;
             for (int it = 0; it < ITER; it++)
             {
                 for (int ci = 0; ci < C.Length; ci++)
@@ -120,12 +120,13 @@ namespace MixerMad.Sim
             JuiceStep(grounded);
             // crash: roof touches ground, or upside down too long
             bool upsideDown = uy < T.upsideUy; bool tipped = Math.Abs(Math.Atan2(P[1].y - P[0].y, P[1].x - P[0].x)) > T.tippedAng;
+            bool touching = (geo != null ? bodyHit : (P[0].c.ok || P[1].c.ok || P[2].c.ok || P[3].c.ok)) || P[4].c.ok || P[5].c.ok || (T.propTouch && propHit);
             if (state == Phase.Drive)
             {
                 bool inGrace = graceT > 0; if (inGrace) graceT -= DT;
-                if ((geo != null ? roofHit : (P[2].c.ok || P[3].c.ok)) || upsideDown) crashT += DT;
-                else if (tipped && ((geo != null ? bodyHit : (P[0].c.ok || P[1].c.ok)) || P[4].c.ok || P[5].c.ok)) crashT += DT * T.tippedFactor;
-                else crashT = Math.Max(0, crashT - DT * T.crashDecay);
+                if ((geo != null ? roofHit : (P[2].c.ok || P[3].c.ok)) || (upsideDown && (touching || T.airCounts))) crashT += DT;
+                else if (tipped && touching) crashT += DT * T.tippedRate;
+                else crashT = Math.Max(0, crashT - DT * T.decay);
                 if (inGrace) crashT = 0;
                 if (P[0].y < L.minY - T.fallDepth) Crash("Fell off!");
                 else if (KillHit()) { }
@@ -212,6 +213,7 @@ namespace MixerMad.Sim
         {
             double up = 0;
             if (mode == GameMode.Yard) return Data.yard[levelIdx].par;
+            double[] pt; if (mode == GameMode.Classic && T.parT.TryGetValue(vehicle, out pt) && levelIdx < pt.Length) return pt[levelIdx]; // v7j classic par table
             for (int i = 1; i < L.N; i++)
             {
                 if (L.X[i] < 5 || L.X[i] > L.flagX) continue;

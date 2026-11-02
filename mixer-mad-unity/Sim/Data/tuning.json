@@ -1,58 +1,22 @@
 {
  "consts": {
-  "damping": 0.999,
   "stopDamp": 0.96,
-  "coastDecel": 1.2,
-  "brakeFast": -26,
-  "brakeVThresh": 0.5,
-  "brakeSlow": -11,
-  "reverseMaxSpeed": 7,
   "reverseMinX": 0.5,
-  "gripGasBonus": 3,
-  "gripNoGas": 26,
-  "stickyPull": 7,
-  "rockImpulse": 2.6,
   "rockReach": 0.35,
-  "easeLen": 1.5,
   "easeTail": 0.3,
-  "dragPuddle": 5,
-  "dragSlush": 8,
-  "dragSticky": 0,
-  "dragMudBase": 3,
-  "dragMudRamp": 3.5,
-  "dragMudRampT": 40,
-  "gripMud": 0.7,
-  "gripPuddle": 0.85,
-  "gripSlush": 0.8,
-  "gripSticky": 1.4,
-  "groundTorque": 0.8,
-  "omegaMax": 4.5,
-  "bounceMinVn": -0.5,
-  "bounceRestitution": 0.85,
-  "bounceMinOut": 6,
-  "bounceWheelMinR": 0.3,
   "leftWallX": -1.5,
   "startSlowX": 3,
   "startSlowStop": 0.2,
   "startSlowFloor": 0.85,
-  "upsideUy": -0.2,
-  "tippedAng": 1.2,
-  "tippedFactor": 0.4,
-  "crashDecay": 2,
-  "fallDepth": 15,
-  "snowRate": 0.035,
-  "snowMass": 0.8,
-  "snowVmax": 0.15,
-  "snowLandMin": 0.15,
   "stopSpeed": 0.3,
   "stopTime": 0.4,
   "spawnX": 5,
   "spawnLift": 1.2,
-  "crashWait": 0.7,
   "landAirT": 0.25,
   "landVy": -2,
   "loadSpillVy": 6.5,
   "loadSpillK": 6,
+  "snowLandMin": 0.15,
   "wheelieRel": 0.45,
   "wheelieGrace": 0.6,
   "wheelieT": 0.3,
@@ -61,18 +25,12 @@
   "probeR": 0.04,
   "probeOffset": 0.1,
   "probeT0": 0.1,
-  "roofDot": -0.4,
   "skidNy": 0.1,
   "skidMaxPen": 0.2,
   "probeIters": 3,
   "propDamp": 0.995,
-  "propBudgetMax": 1.5,
-  "propBudgetRegen": 3,
   "propNear": 30,
-  "propLumpKillV": 4,
-  "propBounce": 1.35,
   "propLift": 0.8,
-  "propDvCap": 0.3,
   "propMassDiv": 6,
   "propGroundFric": 0.02,
   "flagOffset": 3,
@@ -87,126 +45,22 @@
   "yardStopRadius": 1.3,
   "yardStopSpeed": 0.6,
   "yardBrakeDamp": 0.94,
-  "maxCatchUp": 8,
   "bodyLinkK": 1,
-  "wheelLinkK": 0.45,
-  "crashEarlyReturn": 0,
-  "respawnClearLift": 0,
-  "respawnClear": 0.04,
+  "bounceWheelMinR": 0.3,
+  "bounceMinVn": -0.5,
+  "maxCatchUp": 8,
   "respawnFlatBack": 0,
   "respawnFlatMaxBack": 12,
   "respawnFlatTol": 0.06,
   "respawnGrace": 0,
-  "resetPropBudgetOnStartLevel": 0
+  "crashEarlyReturn": 1,
+  "resetPropBudgetOnStartLevel": 1
  },
- "source": "v7h.html",
- "g": 15,
+ "source": "v7j.html",
  "dt": 0.008333333333333333,
  "iter": 8,
  "wheelR": 0.5,
  "holeMax": 1.8,
- "phys": {
-  "mixer": {
-   "acc": 16,
-   "maxV": 13,
-   "air": 9,
-   "tol": 0.55,
-   "w": [
-    1.15,
-    1,
-    1,
-    1.2,
-    1,
-    1
-   ]
-  },
-  "digger": {
-   "acc": 18,
-   "maxV": 10.5,
-   "air": 8.5,
-   "tol": 0.7,
-   "w": [
-    1.5,
-    1.5,
-    1,
-    1,
-    1,
-    1
-   ]
-  },
-  "dump": {
-   "acc": 18,
-   "maxV": 15,
-   "air": 10,
-   "tol": 0.5,
-   "w": [
-    1.3,
-    1,
-    1,
-    1,
-    1,
-    1
-   ]
-  },
-  "dozer": {
-   "acc": 23,
-   "maxV": 9,
-   "air": 5.5,
-   "tol": 0.8,
-   "w": [
-    1,
-    1.7,
-    1,
-    1,
-    1,
-    1
-   ]
-  },
-  "crane": {
-   "acc": 16,
-   "maxV": 12,
-   "air": 8,
-   "tol": 0.5,
-   "gt": 0.35,
-   "w": [
-    1,
-    1,
-    1.4,
-    1.4,
-    1,
-    1
-   ]
-  },
-  "roller": {
-   "acc": 15,
-   "maxV": 10,
-   "air": 9,
-   "tol": 0.75,
-   "w": [
-    1,
-    1.9,
-    1,
-    1,
-    1,
-    1
-   ]
-  }
- },
- "parK": {
-  "mixer": 0.71,
-  "dump": 0.74,
-  "digger": 0.95,
-  "dozer": 1.19,
-  "crane": 0.83,
-  "roller": 0.96
- },
- "wxGrip": {
-  "clear": 1,
-  "rain": 0.7,
-  "snow": 0.8,
-  "slime": 1,
-  "dirty": 0.75
- },
  "vinfo": {
   "mixer": {
    "world": "mixer",
@@ -231,6 +85,342 @@
   "roller": {
    "world": "mixer",
    "crevice": false
+  }
+ },
+ "drive": {
+  "_doc": "Shared by all trucks. Brakes are instant and shared (M pick 4). No hill hold or parking brake: coasting rolls back (M pick 3).",
+  "gravity": 15,
+  "damping": 0.999,
+  "brake": 26,
+  "brakeMinV": 0.5,
+  "reverse": 11,
+  "reverseMaxV": 7,
+  "gripHeadroom": 3,
+  "brakeGrip": 26
+ },
+ "phys": {
+  "_doc": "Per truck (L-MM-5). pull = force/mass is the gas acceleration; ground torque = torque/mass is the gas/brake pitch push while a wheel touches (engine torque is the v7i 0.8, crane 0.28, so heavier trucks pitch less; the roller gets 1.12 to keep its v7i pitch push). maxV and pull are the identity numbers (M pick 2); air, spin, coast, link, w and tol stay at v7i values. w = point weights [rear-bottom, front-bottom, front-top, rear-top, rear wheel, front wheel] (centre of mass only). snowRoof = extra roof weight at full snow. hull = sprite whose colliders and wheels the physics uses.",
+  "mixer": {
+   "maxV": 12,
+   "force": 22.5,
+   "mass": 1.25,
+   "torque": 0.8,
+   "air": 9,
+   "spin": 4.5,
+   "coast": 1.2,
+   "link": 0.45,
+   "tol": 0.55,
+   "w": [
+    1.15,
+    1,
+    1,
+    1.2,
+    1,
+    1
+   ],
+   "snowRoof": 0.8,
+   "hull": "mixer_skin1",
+   "note": "heavy drum at the back: strong pull (18), low-mid top speed; heavy, so it pitches less"
+  },
+  "digger": {
+   "maxV": 10.5,
+   "force": 20.5,
+   "mass": 1.2,
+   "torque": 0.8,
+   "air": 8.5,
+   "spin": 4.5,
+   "coast": 1.2,
+   "link": 0.45,
+   "tol": 0.7,
+   "w": [
+    1.5,
+    1.5,
+    1,
+    1,
+    1,
+    1
+   ],
+   "snowRoof": 0.8,
+   "note": "low and stable, slow and steady (pull 17.1)"
+  },
+  "dump": {
+   "maxV": 16,
+   "force": 15,
+   "mass": 1,
+   "torque": 0.8,
+   "air": 10,
+   "spin": 4.5,
+   "coast": 1.2,
+   "link": 0.45,
+   "tol": 0.5,
+   "w": [
+    1.3,
+    1,
+    1,
+    1,
+    1,
+    1
+   ],
+   "snowRoof": 0.8,
+   "note": "fast and light: the top speed, the weakest pull uphill (15)"
+  },
+  "dozer": {
+   "maxV": 9,
+   "force": 32.25,
+   "mass": 1.5,
+   "torque": 0.8,
+   "air": 5.5,
+   "spin": 4.5,
+   "coast": 1.2,
+   "link": 0.45,
+   "tol": 0.8,
+   "w": [
+    1,
+    1.7,
+    1,
+    1,
+    1,
+    1
+   ],
+   "snowRoof": 0.8,
+   "note": "slow, the most pull (21.5)"
+  },
+  "crane": {
+   "maxV": 12,
+   "force": 19,
+   "mass": 1.2,
+   "torque": 0.28,
+   "air": 8,
+   "spin": 4.5,
+   "coast": 1.2,
+   "link": 0.45,
+   "tol": 0.5,
+   "w": [
+    1,
+    1,
+    1.4,
+    1.4,
+    1,
+    1
+   ],
+   "snowRoof": 0.4,
+   "note": "top-heavy, tips easily (snow roof load capped: roof weight max 1.96, was 2.52)"
+  },
+  "roller": {
+   "maxV": 10.5,
+   "force": 24,
+   "mass": 1.4,
+   "torque": 1.12,
+   "air": 9,
+   "spin": 4.5,
+   "coast": 1.2,
+   "link": 0.45,
+   "tol": 0.75,
+   "w": [
+    1,
+    1.9,
+    1,
+    1,
+    1,
+    1
+   ],
+   "snowRoof": 0.8,
+   "note": "nose-heavy drum, good pull (17.1)"
+  }
+ },
+ "crash": {
+  "_doc": "Crash time grows only while the truck touches something (ground, a mover or a prop): upside down or roof pushed from above at full rate, tipped at tippedRate. In the air it never grows (flips are a skill, M pick 1). Crash when crash time > phys[truck].tol. v7j respawn (RESPAWN-REPORT.md option A, same as the Unity sim): on a crash respawn (resetTruck(true)), respawnClearLift=1 raises the flat spawn just enough that every colliding point (wheels; body corners only without sprite geometry) sits respawnClear m above the ground under it; velocity stays 0. 0 = old spawn.",
+  "upsideUy": -0.2,
+  "tippedAng": 1.2,
+  "tippedRate": 0.4,
+  "decay": 2,
+  "roofPushDot": -0.4,
+  "airCounts": false,
+  "wait": 0.7,
+  "fallDepth": 15,
+  "respawnClearLift": 1,
+  "respawnClear": 0.04
+ },
+ "weather": {
+  "_doc": "L-MM-17 Mild patch values (weather thread, 2026-11-02 04:40), plus phase 3a (p3w): vmax = top-speed multiplier per weather (the lever that sets the time cost); pull = gas drive-force multiplier and gripCurve = how much the gas grip limit falls toward top speed, both per weather and both left neutral (swept, they moved pass rates more than time); brakes and brake grip are untouched (M picks 4/5) and the coast hold keeps its rollback (M pick 3). zones = count and length of each weather zone; jumpClear = L-MM-16 clearance (m) from every jump ramp start to its landing foot for zones and hidden rocks. Phase 3c (p3s): propClear = the same clearance (m) for pushable props (cones, barrels, pipes, snow lumps; body span x±r) per weather; 0 keeps the old spots. Clear stays 0 so the clear sweep (and par) is unchanged.",
+  "grip": {
+   "clear": 1,
+   "rain": 0.7,
+   "snow": 0.75,
+   "slime": 0.6,
+   "dirty": 0.7
+  },
+  "zoneGrip": {
+   "mud": 0.7,
+   "puddle": 0.85,
+   "slush": 0.95,
+   "sticky": 1.3
+  },
+  "drag": {
+   "puddle": 5,
+   "mud": 3,
+   "mudGrow": 3.5,
+   "mudGrowT": 40,
+   "slush": 2,
+   "sticky": 0
+  },
+  "zoneEase": 1.5,
+  "stickyPull": 2,
+  "snowRate": 0.035,
+  "snowVmaxCut": 0.35,
+  "rockKick": 2.6,
+  "bouncyRest": 0.85,
+  "bouncyMin": 6,
+  "jumpClear": 4,
+  "propClear": {
+   "clear": 0,
+   "rain": 0,
+   "snow": 4,
+   "slime": 0,
+   "dirty": 0
+  },
+  "vmax": {
+   "clear": 1,
+   "rain": 0.8,
+   "snow": 0.88,
+   "slime": 0.84,
+   "dirty": 0.84
+  },
+  "pull": {
+   "clear": 1,
+   "rain": 1,
+   "snow": 1,
+   "slime": 1,
+   "dirty": 1
+  },
+  "gripCurve": {
+   "clear": 0,
+   "rain": 0,
+   "snow": 0,
+   "slime": 0,
+   "dirty": 0
+  },
+  "zones": {
+   "mud": {
+    "n": 2,
+    "len": 5
+   },
+   "puddle": {
+    "n": 3,
+    "len": 2.5
+   },
+   "slush": {
+    "n": 3,
+    "len": 6
+   },
+   "sticky": {
+    "n": 3,
+    "len": 5
+   },
+   "bouncy": {
+    "n": 3,
+    "len": 2.5
+   }
+  }
+ },
+ "props": {
+  "_doc": "Light physics props (cones, barrels, pipes, snow lumps). The push a prop gives the truck is divided by phys[truck].mass.",
+  "kinds": {
+   "cone": {
+    "r": 0.36,
+    "m": 0.3
+   },
+   "barrel": {
+    "r": 0.42,
+    "m": 0.6
+   },
+   "pipe": {
+    "r": 0.35,
+    "m": 0.9
+   }
+  },
+  "lump": {
+   "r0": 0.4,
+   "rVar": 0.2,
+   "m": 0.4,
+   "breakV": 4
+  },
+  "budget": 1.5,
+  "refill": 3,
+  "maxPush": 0.3,
+  "bounce": 1.35
+ },
+ "par": {
+  "_doc": "Classic par per truck and level (s), v7j phase 3b (L-MM-21), measured on the v7j-p3w build in each level's own weather (classic always plays LEVEL_WX; par is not scaled by weather). Rule: the fast-quartile pass time of 30 bot policies (pitch18 + speed12, run.t), rounded up to 0.5 s; 0.1 or 0.05 s only where tie clumps would put over half the passes under par. v7j final: L3 and L8 (snow) re-measured with the same rule on the final build after the phase 3c snow-prop fix (other cells unchanged; their sweep rows are identical). See p3p/P3P.md and TUNING-v7j.md. K = fallback formula factor for Load and Daily (unchanged).",
+  "K": {
+   "mixer": 0.71,
+   "dump": 0.74,
+   "digger": 0.95,
+   "dozer": 1.19,
+   "crane": 0.83,
+   "roller": 0.96
+  },
+  "T": {
+   "mixer": [
+    9.45,
+    14.35,
+    17,
+    14.5,
+    16,
+    19.5,
+    22.5,
+    25.5
+   ],
+   "dump": [
+    8.9,
+    12.8,
+    15,
+    14.5,
+    14,
+    18.5,
+    24,
+    25
+   ],
+   "digger": [
+    9.8,
+    15.6,
+    16.5,
+    14.4,
+    16,
+    18.5,
+    22.5,
+    24.5
+   ],
+   "dozer": [
+    10.6,
+    15.5,
+    17.25,
+    15.1,
+    16.5,
+    19.5,
+    21.1,
+    21.2
+   ],
+   "crane": [
+    9.5,
+    15,
+    16.5,
+    14.1,
+    16.1,
+    18.2,
+    24.5,
+    22
+   ],
+   "roller": [
+    10.5,
+    15.8,
+    17,
+    15.5,
+    17.2,
+    18.9,
+    23.5,
+    23
+   ]
   }
  }
 }

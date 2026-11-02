@@ -28,3 +28,8 @@ Events: LevelStart, Crash, Reset, Land (Value 0..1), Checkpoint, FinishLine, Par
 
 ## Not ported (presentation or finale, not drive feel)
 Pour/fill gauge, excavator dig game, finish toys, crane/dozer/roller finish animations, Combo mode (dig then fill), Fossil Book, result screen, particles, audio. Parked/Done hands over to the 3D layer; `Stars`, `ParTime()`, `RaceStars()` are provided.
+
+## v7j (final tuned build)
+- `Data/` is v7j: `tuning.json` has the MM_TUNING sections (drive, phys, crash, weather, props, par) plus `vinfo` and `consts`; `levels.json` classic specs and weather come from `MM_TUNING.levels`. `Data-v7h/` is the archived v7h set (loads with the same code; its crash/prop flags are 0).
+- Refresh: `node tools/extract.js path/to/mixer-mad-vNN.html --tuning --out Sim/Data` (reads the blob when present, else converts the v7h consts).
+- Parity data: `parity/traces` = v7j (298), `parity/traces-v7h` = v7h (202). Select with `MM_DATA` / `MM_TRACES` env vars for `dotnet test`.
