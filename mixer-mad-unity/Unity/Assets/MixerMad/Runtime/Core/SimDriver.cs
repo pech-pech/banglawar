@@ -86,9 +86,21 @@ namespace MixerMad.Game
             Alpha = 0f;
         }
 
-        void Update()
+        void Update() { Tick(Time.unscaledDeltaTime); }
+
+        /// <summary>Tests: run the sim on a given backend without the factory (call before any Tick).</summary>
+        internal void InitForTests(ISimBackend backend)
         {
-            float dt = Mathf.Min(Time.unscaledDeltaTime, 0.1f);
+            Instance = this;
+            Backend = backend;
+            _clock = new FixedStepClock(Backend.StepSeconds);
+            SnapAll();
+        }
+
+        /// <summary>One frame of real time: steps the sim, raises events, interpolates Render.</summary>
+        internal void Tick(float realDelta)
+        {
+            float dt = Mathf.Min(realDelta, 0.1f);
             RealDelta = dt;
             float scale = Paused ? 0f : (slowMo != null && !slowMoOff ? slowMo.Scale : 1f);
             SpeedScale = scale;
@@ -109,7 +121,13 @@ namespace MixerMad.Game
                     while (Backend.TryDequeueEvent(out SimEvent e))
                     {
                         SimEventRaised?.Invoke(e);
-                        if (e.kind == SimEventKind.Respawn) { Prev.CopyFrom(Curr); Teleported?.Invoke(); }
+                        if (e.kind == SimEventKind.Respawn)
+                        {
+                            // The truck jumped: drop the pre-crash state everywhere BEFORE the views snap, or they
+                            // read the stale Render (the crash spot) and glide or pop to the respawn point a frame later.
+                            Prev.CopyFrom(Curr); Render.CopyFrom(Curr);
+                            Teleported?.Invoke();
+                        }
                     }
                 }
             }

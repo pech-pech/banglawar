@@ -134,10 +134,18 @@ namespace MixerMad.Game
         /// <summary>Garage: tap a part to wiggle it (works while the sim is paused).</summary>
         public void Poke(bool drumPart) { _poke = 1.6f; _pokeDrum = drumPart; }
 
-        void OnRestart()
+        /// <summary>
+        /// Restart or crash respawn. The sim puts the truck back in its rest shape, so the rest pose captured on the
+        /// first frame stays valid. Re-capturing here read a mid-fall frame (the respawn drops the truck) and moved the
+        /// body and the suspension by up to 8 and 20 cm per respawn. Only springs and history are cleared.
+        /// </summary>
+        internal void OnRestart()
         {
-            foreach (var w in wheels) { w.restSet = false; w.hasPrev = false; w.offset = default; }
-            _first = true; _chuteTarget = 0f; _bounce = 0f; _skipAccel = true;
+            foreach (var w in wheels) { w.hasPrev = false; w.offset = default; }
+            _first = true; _bounce = 0f; _skipAccel = true;
+            _lean = default; if (body) body.localRotation = _bodyRest;
+            if (squash) squash.ResetSprings();
+            if (_sim != null && _sim.Curr != null && !_sim.Curr.finished) { _chuteTarget = 0f; _chute = default; }
         }
 
         void OnSimEvent(SimEvent e)
@@ -154,8 +162,12 @@ namespace MixerMad.Game
         void Update()
         {
             if (_sim == null) return;
-            var s = _sim.Render;
-            float dt = _sim.PresentationDelta;
+            ApplyFrame(_sim.Render, _sim.PresentationDelta);
+        }
+
+        /// <summary>Maps one interpolated snapshot onto the rig (dt = presentation time, slow-mo aware).</summary>
+        internal void ApplyFrame(SimSnapshot s, float dt)
+        {
 
             if (_poke > 0f)
             {

@@ -129,10 +129,12 @@ namespace MixerMad.Game
                 if (_sim.slowMo != null) _sim.slowMo.ModeChanged += OnSlowMoMode;
                 SnapProxy();
             }
+            CinemachineCore.GetBlendOverride = BlendOverride;
         }
 
         void OnDestroy()
         {
+            if (CinemachineCore.GetBlendOverride == BlendOverride) CinemachineCore.GetBlendOverride = null;
             if (_sim != null)
             {
                 _sim.SimEventRaised -= OnSimEvent; _sim.Restarted -= OnRestart; _sim.Teleported -= SnapProxy;
@@ -140,13 +142,34 @@ namespace MixerMad.Game
             }
         }
 
-        void SnapProxy()
+        /// <summary>
+        /// Restart or respawn: a hard cut to the truck. Reads Curr (the post-teleport state), drops the crash/jump
+        /// cameras, kills any impulse and blend, and tells every Cinemachine camera its previous state is invalid,
+        /// so nothing damps, blends or shakes across the jump.
+        /// </summary>
+        internal void SnapProxy()
         {
-            var s = _sim.Render;
+            var s = _sim.Curr;
             _y = new Spring(s.chassisPos.y + 1.2f);
             _lead = 0f;
             proxy.position = new Vector3(s.chassisPos.x, _y.value, 0f);
-            if (cmMain != null) cmMain.PreviousStateIsValid = false;
+            if (!_finishing) { SetPriority(cmJump, 0); SetPriority(cmCrash, 0); }
+            foreach (var c in new[] { cmMain, cmJump, cmCrash, cmFinish })
+                if (c != null) c.PreviousStateIsValid = false;
+            if (CinemachineImpulseManager.Instance != null) CinemachineImpulseManager.Instance.Clear();
+            if (brain != null) brain.ResetState();
+            CutUntilFrame = Time.frameCount + CutFrames;   // the priority changes above take effect in the brain's next update
+        }
+
+        // ----------------------------------------------------------------------------- hard cuts
+        const int CutFrames = 2;
+        /// <summary>Until this frame every camera change is a cut: no blend from the crash/finish camera across a teleport.</summary>
+        internal static int CutUntilFrame = -1;
+
+        internal static CinemachineBlendDefinition BlendOverride(ICinemachineCamera from, ICinemachineCamera to, CinemachineBlendDefinition defaultBlend, Object owner)
+        {
+            if (Time.frameCount <= CutUntilFrame) return new CinemachineBlendDefinition(CinemachineBlendDefinition.Styles.Cut, 0f);
+            return defaultBlend;
         }
 
         void OnRestart()

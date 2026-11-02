@@ -135,7 +135,7 @@ namespace MixerMad.Game
             _bound = true;
         }
 
-        void OnRestart() { _crashT = _winT = _failT = -1f; SetEmotion(DriverEmotion.Idle, true); }
+        void OnRestart() { _crashT = _winT = _failT = -1f; SetEmotion(DriverEmotion.Idle, true); if (squash) squash.ResetSprings(); }
 
         void OnSimEvent(SimEvent e)
         {

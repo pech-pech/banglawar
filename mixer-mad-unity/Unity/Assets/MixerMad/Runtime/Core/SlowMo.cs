@@ -71,10 +71,13 @@ namespace MixerMad.Game
             Scale = 1f; SetMode(Mode.None);
         }
 
-        void OnSimEvent(SimEvent e)
+        void OnSimEvent(SimEvent e) { HandleEvent(e); }
+
+        internal void HandleEvent(SimEvent e)
         {
             switch (e.kind)
             {
+                case SimEventKind.Respawn: ForceEnd(); break;   // never carry crash slow-mo into the new attempt
                 case SimEventKind.BigAir: TryStart(Mode.Jump); break;
                 case SimEventKind.Crash: TryStart(Mode.Crash); break;
                 case SimEventKind.Finish: Blocked = true; ForceEnd(); break;

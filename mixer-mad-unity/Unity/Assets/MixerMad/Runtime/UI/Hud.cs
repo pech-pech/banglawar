@@ -150,12 +150,19 @@ namespace MixerMad.Game
                 case SimEventKind.BigAir: Toast("WOOO!"); break;
                 case SimEventKind.Crash: Toast("Ouch!"); break;
                 case SimEventKind.Finish: Toast("Delivered!"); _finishShowT = 1.5f; break;
+                case SimEventKind.Respawn: ClearTransient(); break;
             }
         }
 
-        void OnRestart() { _finish.SetActive(false); _finishShowT = -1f; }
+        void OnRestart() { _finish.SetActive(false); _finishShowT = -1f; ClearTransient(); }
+
+        /// <summary>A new attempt starts clean: no "Ouch!" or "WOOO!" left over from the last one.</summary>
+        internal void ClearTransient() { if (_toast != null) _toast.text = ""; _toastT = 0f; }
 
         public void Toast(string s) { _toast.text = s; _toastT = 1.5f; }
+        /// <summary>Read-only state for test harnesses and the crash repro log.</summary>
+        public string ToastText => _toast != null ? _toast.text : "";
+        public bool FinishShown => _finish != null && _finish.activeSelf;
 
         public void SetPaused(bool p)
         {

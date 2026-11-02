@@ -98,10 +98,10 @@ namespace MixerMad.Tests
         public void StepSize_IsNeverScaled()
         {
             var c = new FixedStepClock(1.0 / 120.0);
-            c.Add(0.5 * (1.0 / 60.0));          // half-speed frame
+            c.Add(0.5 * (1.0 / 120.0));         // a half-speed 120 Hz frame: 4.17 ms
             int n = 0; while (c.TryConsume()) n++;
-            Assert.AreEqual(0, n);               // 4.16 ms < 8.33 ms: no step yet
-            c.Add(0.5 * (1.0 / 60.0));
+            Assert.AreEqual(0, n);               // 4.17 ms < 8.33 ms: no step yet
+            c.Add(0.5 * (1.0 / 120.0));
             while (c.TryConsume()) n++;
             Assert.AreEqual(1, n);
         }

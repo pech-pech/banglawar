@@ -37,9 +37,12 @@ namespace MixerMad.Game
             set { Data.quality = (int)value; Save(); }
         }
 
+        /// <summary>Tests and review runs (-mmCalm 0/1): force Calm motion without writing the player's settings file.</summary>
+        internal static bool? CalmMotionOverride;
+
         public static bool CalmMotion
         {
-            get => Data.calmMotion;
+            get => CalmMotionOverride ?? Data.calmMotion;
             set { Data.calmMotion = value; Save(); }
         }
 

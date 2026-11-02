@@ -19,10 +19,16 @@ namespace MixerMad.Game
         Vector3 _baseScale = Vector3.one;
         float _accelStretch;
 
-        void Awake()
+        bool _init;
+
+        void Awake() { Init(); }
+
+        void Init()
         {
+            if (_init) return;
             if (target == null) target = transform;
             _baseScale = target.localScale;
+            _init = true;
         }
 
         float Calm => MMSettings.CalmMotion ? 0.5f : 1f;
@@ -34,6 +40,13 @@ namespace MixerMad.Game
         }
         public void Takeoff() { _s.value = 0.5f * maxStretch * gain; _s.velocity = 0f; }
         public void Crash() { _s.value = -0.25f * gain; _s.velocity = 0f; }
+        /// <summary>Teleport: drop any squash in progress and show the rest shape at once.</summary>
+        public void ResetSprings()
+        {
+            Init();
+            _s = default; _accelStretch = 0f;
+            if (target != null) target.localScale = _baseScale;
+        }
         public void Pop(float amount = 0.2f) { _s.value = amount * gain; _s.velocity = 0f; }
 
         /// <summary>Brake / accel stretch 0..0.06 along the travel direction (x).</summary>
@@ -42,6 +55,7 @@ namespace MixerMad.Game
         public void Tick(float dt)
         {
             if (dt <= 0f) return;
+            Init();
             _s.Step(0f, k, d, dt);
             float s = Mathf.Clamp(_s.value, -0.3f, 0.3f) * Calm;
             float sy = 1f + s;

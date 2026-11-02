@@ -150,6 +150,8 @@ namespace MixerMad.Game
                 new GameObject("Benchmark").AddComponent<BenchmarkRunner>();
             else if (StillsRunner.Requested && FindAnyObjectByType<StillsRunner>() == null)
                 new GameObject("Stills").AddComponent<StillsRunner>();
+            else if (CrashRepro.Requested && FindAnyObjectByType<CrashRepro>() == null)
+                new GameObject("CrashRepro").AddComponent<CrashRepro>();
         }
     }
 }
