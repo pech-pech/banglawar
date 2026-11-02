@@ -33,6 +33,7 @@ namespace MixerMad.Editor
             PlayerSettings.fullScreenMode = FullScreenMode.Windowed;
             PlayerSettings.resizableWindow = true;
             PlayerSettings.gpuSkinning = true;
+            DisableEngineReporting();
             PlayerSettings.SetApplicationIdentifier(NamedBuildTarget.Standalone, "com.pgs.mixermad3d");
             PlayerSettings.SetScriptingBackend(NamedBuildTarget.Standalone, ScriptingImplementation.Mono2x);   // fast builds for the prototype; IL2CPP needs Xcode tools
             PlayerSettings.SetUseDefaultGraphicsAPIs(BuildTarget.StandaloneOSX, false);
@@ -64,6 +65,22 @@ namespace MixerMad.Editor
                 if (!AssetDatabase.IsValidFolder(next)) AssetDatabase.CreateFolder(cur, parts[i]);
                 cur = next;
             }
+        }
+
+        /// <summary>
+        /// Kids' game, no network calls: turn off Unity's hardware-statistics upload ("submitAnalytics") and keep
+        /// analytics, crash reporting and engine diagnostics off. Set through the serialized PlayerSettings so it
+        /// works whatever the public API calls it in this editor version.
+        /// </summary>
+        static void DisableEngineReporting()
+        {
+            var ps = Unsupported.GetSerializedAssetInterfaceSingleton("PlayerSettings");
+            if (ps == null) { Debug.LogError("[MixerMad] PlayerSettings not found; submitAnalytics not changed."); return; }
+            var so = new SerializedObject(ps);
+            var p = so.FindProperty("submitAnalytics");
+            if (p == null) { Debug.LogError("[MixerMad] submitAnalytics property not found."); return; }
+            if (p.boolValue) { p.boolValue = false; so.ApplyModifiedPropertiesWithoutUndo(); }
+            PlayerSettings.enableCrashReportAPI = false;
         }
 
         public static void EnsureFolders(params string[] folders) { foreach (var f in folders) EnsureFolder(f); }
