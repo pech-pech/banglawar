@@ -72,10 +72,12 @@ namespace MixerMad.Game
             else truckGo = PlaceholderTruckFactory.CreateMixer();
             truckGo.transform.SetParent(world, false);
             r.truck = truckGo.GetComponent<TruckView>();
-            var blob = new GameObject("BlobShadow").AddComponent<BlobShadow>(); blob.transform.SetParent(world, false); blob.truck = truckGo.transform;
+            // contact blobs under every wheel (all presets) + a body blob when realtime shadows are off (replaces BlobShadow)
+            var contact = new GameObject("ContactShadows").AddComponent<ContactShadows>(); contact.transform.SetParent(world, false); contact.truck = r.truck; contact.road = r.road;
 
             // ---- camera rig (Cinemachine)
             r.rig = CameraRig.Build(r.camera, world);
+            FxInstaller.Install(world, r.truck, r.road, r.camera, r.sim);   // FX pack + living world (Runtime/FX)
 
             // ---- planar reflection for the frozen lake
             var pgo = new GameObject("PlanarReflection");

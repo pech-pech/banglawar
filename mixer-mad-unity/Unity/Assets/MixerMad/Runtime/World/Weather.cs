@@ -12,8 +12,13 @@ namespace MixerMad.Game
     /// Particle layers (all Shuriken/CPU, budgets from QualityPresets):
     ///   near flakes  z -12..-2   (big, in front of the truck)
     ///   far flakes   z  3..45    (small, behind it, parallax)
-    ///   mist         large slow soft puffs for blizzard / fog depth
+    ///   mist         large slow soft sheets behind the lane, tinted with the fog colour (depth between the hills)
     /// The rig follows the camera in x and y. Simulation speed follows slow-mo (flakes slow down with the world).
+    ///
+    /// Fog budget (L-MM-29, LightingBudget): Clear and Snow keep at most 10% haze over the truck lane at the
+    /// resting camera distance (31.7 m): exp2 density 0.006 / 0.0085 gives 4% / 7%. Blizzard (0.022, 39% at the lane) is the
+    /// documented exception: it is the one weather where the lane is meant to go soft.
+    /// `-mmWeather clear|snow|blizzard` on the command line pins the weather (review stills).
     /// </summary>
     [DefaultExecutionOrder(60)]
     [DisallowMultipleComponent]
@@ -23,7 +28,7 @@ namespace MixerMad.Game
 
         public WeatherKind kind = WeatherKind.Snow;
         [Range(0f, 1f)] public float baseWetness = 0.45f;     // icy-wet pass
-        public float clearFog = 0.0085f, snowFog = 0.014f, blizzardFog = 0.032f;
+        public float clearFog = 0.006f, snowFog = 0.0085f, blizzardFog = 0.022f;
         public float snowCoverRate = 0.01f;                    // per second toward the target cover
         public Camera followCamera;
 
@@ -34,10 +39,16 @@ namespace MixerMad.Game
         ParticleSystem _near, _far, _mist;
         Transform _rig;
         float _intensity, _fog, _wind, _gust;
+        WeatherKind? _pinned;
+
+        // Mist sheets: subtle, behind the lane, never in front of the truck.
+        const float MistAlpha = 0.10f, MistPerSheet = 6f, MistLife = 22f;
 
         void Awake()
         {
             Instance = this;
+            _pinned = PinnedWeather();
+            if (_pinned.HasValue) kind = _pinned.Value;
             RenderSettings.fog = true;
             RenderSettings.fogMode = FogMode.ExponentialSquared;
             BuildRig();
@@ -50,7 +61,20 @@ namespace MixerMad.Game
 
         void OnDestroy() { if (Instance == this) Instance = null; }
 
-        public void SetWeather(WeatherKind k) { kind = k; }
+        /// <summary>Changes the weather; a command-line pin (-mmWeather) wins so review stills stay as asked.</summary>
+        public void SetWeather(WeatherKind k) { kind = _pinned ?? k; }
+
+        static WeatherKind? PinnedWeather()
+        {
+            var a = System.Environment.GetCommandLineArgs();
+            for (int i = 0; i < a.Length - 1; i++)
+            {
+                if (a[i] != "-mmWeather") continue;
+                if (System.Enum.TryParse(a[i + 1], true, out WeatherKind k)) return k;
+                Debug.LogWarning("[MixerMad] -mmWeather needs clear, snow or blizzard, got " + a[i + 1]);
+            }
+            return null;
+        }
 
         float FogFor(WeatherKind k) => k == WeatherKind.Clear ? clearFog : k == WeatherKind.Snow ? snowFog : blizzardFog;
         static float IntensityFor(WeatherKind k) => k == WeatherKind.Clear ? 0f : k == WeatherKind.Snow ? 0.6f : 1f;
@@ -63,7 +87,8 @@ namespace MixerMad.Game
             _rig = go.transform;
             _near = MakeLayer("Flakes_Near", new Vector3(0f, 0f, -7f), new Vector3(46f, 0.4f, 10f), 0.07f, 0.14f, 2.6f, 9f, false);
             _far = MakeLayer("Flakes_Far", new Vector3(0f, 0f, 24f), new Vector3(90f, 0.4f, 42f), 0.10f, 0.22f, 1.7f, 12f, false);
-            _mist = MakeLayer("Mist", new Vector3(0f, -3f, 12f), new Vector3(90f, 8f, 30f), 5f, 12f, 0.25f, 22f, true);
+            // mist hangs around the hill foot behind the lane (the layer adds 12.5 m of height, so -14.5 = 2 m under the camera)
+            _mist = MakeLayer("Mist", new Vector3(0f, -14.5f, 16f), new Vector3(100f, 5f, 22f), 9f, 18f, 0.05f, MistLife, true);
         }
 
         ParticleSystem MakeLayer(string name, Vector3 center, Vector3 boxSize, float sMin, float sMax, float fall, float life, bool mist)
@@ -80,7 +105,7 @@ namespace MixerMad.Game
             main.startLifetime = life;
             main.startSpeed = 0f;
             main.startSize = new ParticleSystem.MinMaxCurve(sMin, sMax);
-            main.startColor = mist ? new Color(1f, 1f, 1f, 0.06f) : new Color(1f, 1f, 1f, 0.9f);
+            main.startColor = mist ? new Color(1f, 1f, 1f, MistAlpha) : new Color(1f, 1f, 1f, 0.9f);
             main.maxParticles = 4000;
             main.gravityModifier = 0f;
             main.startRotation = new ParticleSystem.MinMaxCurve(0f, 6.28f);
@@ -120,7 +145,7 @@ namespace MixerMad.Game
         void Update()
         {
             var cam = followCamera ? followCamera : Camera.main;
-            float dt = Time.unscaledDeltaTime;
+            float dt = ReviewClock.Delta;   // real time; held still while review stills are frozen (snow cover, wetness, fog)
             var sim = SimDriver.Instance;
             float speedScale = sim ? sim.SpeedScale : 1f;
 
@@ -130,7 +155,7 @@ namespace MixerMad.Game
             float tI = IntensityFor(kind);
             _intensity = MMMath.Damp(_intensity, tI, 1.5f, dt);
             _fog = MMMath.Damp(_fog, FogFor(kind), 2f, dt);
-            _gust = Mathf.PerlinNoise(Time.unscaledTime * 0.12f, 3.7f);
+            _gust = Mathf.PerlinNoise(ReviewClock.Now * 0.12f, 3.7f);
             _wind = (kind == WeatherKind.Blizzard ? 5.5f : 1.2f) * (0.4f + _gust);
             SnowCover = Mathf.MoveTowards(SnowCover, Mathf.Clamp01(tI * 0.9f), snowCoverRate * dt);
             Wetness = MMMath.Damp(Wetness, baseWetness * (kind == WeatherKind.Clear ? 0.6f : 1f) + 0.15f * _intensity, 3f, dt);
@@ -143,8 +168,9 @@ namespace MixerMad.Game
             int farN = Mathf.RoundToInt(budget * 0.55f * _intensity);
             SetRate(_near, nearN, 9f);
             SetRate(_far, farN, 12f);
-            int mistN = Mathf.RoundToInt(preset.fogSheets * 3f * (0.25f + _intensity) * FeatureToggles.FogSheets);
-            SetRate(_mist, mistN, 22f);
+            int mistN = Mathf.RoundToInt(preset.fogSheets * MistPerSheet * (0.35f + _intensity) * FeatureToggles.FogSheets);
+            SetRate(_mist, mistN, MistLife);
+            TintMist();
 
             // wind + gust push
             ApplyWind(_near, _wind, speedScale);
@@ -152,6 +178,14 @@ namespace MixerMad.Game
             ApplyWind(_mist, _wind * 0.4f, speedScale);
 
             Push();
+        }
+
+        /// <summary>New mist sheets take the current fog colour (dawn lilac, dusk pink, night navy), so they read as air, not paper.</summary>
+        void TintMist()
+        {
+            var main = _mist.main;
+            Color c = RenderSettings.fogColor; c.a = MistAlpha * (kind == WeatherKind.Blizzard ? 1.6f : 1f);
+            main.startColor = c;
         }
 
         void SetRate(ParticleSystem ps, int live, float life)

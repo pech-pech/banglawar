@@ -1,0 +1,44 @@
+2026-11-02 22:00:38.448 Mixer Mad 3D[66215:1399287] ApplePersistenceIgnoreState: Existing state will not be touched. New state will be written to /var/folders/69/6rghpmn1763gml5yc_07kld80000gn/T/com.pgs.mixermad3d.savedState
+Mono path[0] = '/Users/mmr/cl-Game/mm-fx/mixer-mad-unity/Unity/Builds/macOS/MixerMad.app/Contents/Resources/Data/Managed'
+Mono config path = '/Users/mmr/cl-Game/mm-fx/mixer-mad-unity/Unity/Builds/macOS/MixerMad.app/Contents/MonoBleedingEdge/etc'
+CodeReloadManager initialized
+Input System module state changed to: Initialized.
+[Physics::Module] Initialized fallback backend.
+[Physics::Module] Id: 0xdecafbad
+ preferred device: Apple M4 Pro (high power)
+Metal devices available: 1
+0: Apple M4 Pro (high power)
+Using device Apple M4 Pro (high power)
+Initialize engine version: 6000.6.3f1 (45d8eee7de74)
+[EntityIdStore] init: VM path (explicit commit), pageSize=16384, blockCount=262144, entitiesPerBlock=1024, slots reserved=4294967296 bytes
+[Subsystems] Discovering subsystems at path /Users/mmr/cl-Game/mm-fx/mixer-mad-unity/Unity/Builds/macOS/MixerMad.app/Contents/Resources/Data/UnitySubsystems
+GfxDevice: creating device client; kGfxThreadingModeThreaded
+Initializing Metal device caps: Apple M4 Pro
+Mac GPU Family: 2
+Apple GPU Family: 9
+MSL Version: 3.0
+Has Float MSAA: 1
+Has Float Filtering: 1
+ReadWrite Texture Tier: 2
+Begin MonoManager ReloadAssembly
+- Finished resetting the current domain, in  0.004 seconds
+[Physics::Module] Selected backend (deferred post-plugins).
+[Physics::Module] Name: PhysX
+[Physics::Module] Id: 0xf2b8ea05
+[Physics::Module] SDK Version: 4.1.2
+[Physics::Module] Integration Version: 1.0.0
+[Physics::Module] Threading Mode: Multi-Threaded
+Metal RecreateSurface[0x10e4515e0]: surface size 1920x1200
+UnloadTime: 0.382875 ms
+[MixerMad] still 01_start at t=2.2s x=5.1: /Users/mmr/cl-Game/mm-fx/mixer-mad-unity/Reports/p2-polish/fx/final/day_on/01_start.png
+[MixerMad] stills t=5s x=21.4/116 v=5.2 ang=0.11 grounded=False crashed=False load=1.00
+[MixerMad] still 02_mid_drive_snow at t=9.9s x=58.2: /Users/mmr/cl-Game/mm-fx/mixer-mad-unity/Reports/p2-polish/fx/final/day_on/02_mid_drive_snow.png
+[MixerMad] stills t=10s x=59.3/116 v=8.2 ang=0.32 grounded=False crashed=False load=1.00
+[MixerMad] fx still /Users/mmr/cl-Game/mm-fx/mixer-mad-unity/Reports/p2-polish/fx/final/day_on/05_fx_landing.png
+[MixerMad] stills t=15s x=93.0/116 v=4.4 ang=-0.20 grounded=False crashed=False load=1.00
+[MixerMad] fx: finish sparkle at (117.30, 1.49, -0.90) (budget 96, calm False, speed 1.00)
+[MixerMad] stills t=20s x=118.0/116 v=0.3 ang=0.00 grounded=True crashed=False load=1.00
+[MixerMad] fx: live particles at the finish still 57
+[MixerMad] fx still /Users/mmr/cl-Game/mm-fx/mixer-mad-unity/Reports/p2-polish/fx/final/day_on/06_fx_finish.png
+[MixerMad] still 04_finish at t=21.6s x=118.0: /Users/mmr/cl-Game/mm-fx/mixer-mad-unity/Reports/p2-polish/fx/final/day_on/04_finish.png
+[MixerMad] stills t=25s x=118.0/116 v=0.3 ang=0.00 grounded=True crashed=False load=1.00

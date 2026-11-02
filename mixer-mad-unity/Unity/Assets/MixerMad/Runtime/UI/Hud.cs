@@ -5,10 +5,12 @@ using UnityEngine.UI;
 namespace MixerMad.Game
 {
     /// <summary>
-    /// Clean 2D driving HUD (UGUI): pause, load meter, 3 stars, gas and brake pedals, toast line.
-    /// Gas/brake touch zones are the InputReader's 22%-wide columns; the pedal art (140 px) is just the hint.
-    /// All buttons are >= 64 px with an 80 px hit area. This is a STUB: plates are generated rounded rects,
-    /// to be replaced by the glossy 9-slice kits (same Image Sliced + Fill Center setup, so only the sprite changes).
+    /// Driving HUD (UGUI) on M's glossy candy kit (HudSkin): pause, LOAD bar, 3 stars, gas and brake pedals, toast line,
+    /// pause card and the DELIVERED card. Code-drawn plates are only the fallback when the kit art is missing.
+    /// Gas/brake touch zones are the InputReader's columns; the pedal art is the permanent hint. The zone outlines
+    /// (navy edge + white line, at least 3:1 on sky, snow and night) show for the first seconds of each run and then
+    /// fade out once (a cut in Calm motion), so they teach the zones without framing the play view all run. No pulsing.
+    /// Finish: pedals and zones hide, and the card goes in the top band where it does not cover the truck or the pour.
     ///
     /// Desktop shortcuts (QA): Esc pause, R restart, G garage, C calm motion, 1-4 quality,
     /// F3 cycle weather, T +10% time of day, F1 perf overlay, F2 CSV log.
@@ -16,19 +18,28 @@ namespace MixerMad.Game
     [DisallowMultipleComponent]
     public sealed class Hud : MonoBehaviour
     {
+        public const float ZoneHintSeconds = 3.5f, ZoneHintFadeSeconds = 0.8f;
+        public static readonly Vector2 FinishCardSize = new Vector2(520f, 210f);
+        const float LoadW = 374f, LoadH = 28f;
+
         public InputReader input;
         public GarageStub garage;
         public float finishX = 232f;
 
         SimDriver _sim;
-        RectTransform _safe, _gasZone, _brakeZone;
-        Image _gasPlate, _brakePlate, _loadBack, _loadFill, _gasHalo, _brakeHalo;
-        Image[] _stars = new Image[3];
-        Text _toast, _calmLabel, _finishTitle;
+        Canvas _canvas;
+        RectTransform _gasZone, _brakeZone, _finishRt;
+        Image _gasPedal, _brakePedal, _gasFrame, _brakeFrame, _loadFill;
+        readonly Image[] _stars = new Image[3];
+        Text _toast, _calmLabel;
         GameObject _pause, _finish;
-        float _toastT, _finishShowT = -1f;
-        bool _paused;
-        static readonly Color Gold = new Color(1f, 0.85f, 0.29f), Navy = new Color(0.13f, 0.145f, 0.17f), Plate = new Color(0.20f, 0.55f, 0.95f);
+        Renderer[] _truckRenderers;
+        float _toastT, _finishShowT = -1f, _runT;
+        float _loadFillMinW;
+        bool _paused, _pedalsVisible = true;
+
+        static readonly Color Gold = new Color(1f, 0.85f, 0.29f), Plate = new Color(0.20f, 0.55f, 0.95f);
+        static readonly Color SocketFallback = UiKit.Navy;
 
         public static Hud Build(Transform parent, InputReader input)
         {
@@ -45,6 +56,8 @@ namespace MixerMad.Game
         {
             _sim = SimDriver.Instance;
             if (_sim != null) { _sim.SimEventRaised += OnSimEvent; _sim.Restarted += OnRestart; finishX = _sim.Backend.FinishX; }
+            var truck = FindAnyObjectByType<TruckView>();
+            if (truck) _truckRenderers = truck.GetComponentsInChildren<Renderer>(true);
         }
 
         void OnDestroy() { if (_sim != null) { _sim.SimEventRaised -= OnSimEvent; _sim.Restarted -= OnRestart; } }
@@ -52,36 +65,25 @@ namespace MixerMad.Game
         // ------------------------------------------------------------------------------ build
         void BuildUi()
         {
-            var canvas = UiKit.Canvas(transform, "HUD_Canvas", 10);
-            var root = (RectTransform)canvas.transform;
+            _canvas = UiKit.Canvas(transform, "HUD_Canvas", 10);
+            var root = (RectTransform)_canvas.transform;
+            var skin = HudSkin.Current;
 
-            // touch-zone hints: faint columns, full height of the zone, art inside
-            _brakeZone = Zone(root, "BrakeZone"); _gasZone = Zone(root, "GasZone");
-            (_brakePlate, _brakeHalo) = Pedal(_brakeZone, "BRAKE", new Color(0.86f, 0.26f, 0.22f));
-            (_gasPlate, _gasHalo) = Pedal(_gasZone, "GAS", new Color(0.27f, 0.75f, 0.30f));
+            _brakeZone = Zone(root, "BrakeZone", out _brakeFrame); _gasZone = Zone(root, "GasZone", out _gasFrame);
+            _brakePedal = Pedal(_brakeZone, "BRAKE", skin ? skin.brake : null, new Vector2(176, 130), new Color(0.86f, 0.26f, 0.22f));
+            _gasPedal = Pedal(_gasZone, "GAS", skin ? skin.gas : null, new Vector2(92, 218), new Color(0.27f, 0.75f, 0.30f));
 
-            _safe = UiKit.Rect(root, "SafeArea", Vector2.zero, Vector2.one, new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
-            _safe.gameObject.AddComponent<SafeAreaRoot>();
-
-            // pause: 64 px art, 80 px hit area
-            var hit = UiKit.Rect(_safe, "Pause", new Vector2(0, 1), new Vector2(0, 1), new Vector2(0, 1), new Vector2(20, -20), new Vector2(80, 80));
-            var hitImg = hit.gameObject.AddComponent<Image>(); hitImg.color = new Color(0, 0, 0, 0.001f);
-            var pauseBtn = hit.gameObject.AddComponent<Button>(); pauseBtn.targetGraphic = hitImg;
-            pauseBtn.onClick.AddListener(() => SetPaused(true));
-            var art = UiKit.Plate(hit, "Art", new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(64, 64), Plate);
-            UiKit.Plate(art.transform, "BarL", new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(-9, 0), new Vector2(10, 28), Color.white);
-            UiKit.Plate(art.transform, "BarR", new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(9, 0), new Vector2(10, 28), Color.white);
-
-            // load meter (top centre)
-            _loadBack = UiKit.Plate(_safe, "LoadBack", new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, -24), new Vector2(380, 32), new Color(0.13f, 0.145f, 0.17f, 0.85f));
-            _loadFill = UiKit.Plate(_loadBack.transform, "Fill", new Vector2(0, 0.5f), new Vector2(0, 0.5f), new Vector2(3, 0), new Vector2(374, 26), Plate);
-            var lt = UiKit.Label(_loadBack.transform, "LOAD", 20, Color.white); lt.alignment = TextAnchor.MiddleCenter;
-
-            // 3 stars (top right)
+            var safe = UiKit.Rect(root, "SafeArea", Vector2.zero, Vector2.one, new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
+            safe.gameObject.AddComponent<SafeAreaRoot>();
+            BuildPauseButton(safe, skin);
+            BuildLoadBar(safe, skin);
             for (int i = 0; i < 3; i++)
-                _stars[i] = UiKit.Plate(_safe, "Star" + i, new Vector2(1, 1), new Vector2(1, 1), new Vector2(-24 - (2 - i) * 56 - 0, -26), new Vector2(46, 46), new Color(0.13f, 0.145f, 0.17f, 0.6f), false, UiKit.Circle);
+            {
+                _stars[i] = UiKit.Plate(safe, "Star" + i, new Vector2(1, 1), new Vector2(1, 1), new Vector2(-24 - (2 - i) * 60, -22), new Vector2(54, 54), SocketFallback, false, UiKit.Circle);
+                if (skin && skin.starEmpty) UiKit.ApplyKit(_stars[i], skin.starEmpty, new Vector2(54, 54), 1f);
+            }
 
-            _toast = UiKit.Label(_safe, "", 32, Color.white);
+            _toast = UiKit.Label(safe, "", 32, Color.white);
             var trt = _toast.rectTransform; trt.anchorMin = new Vector2(0.5f, 1); trt.anchorMax = new Vector2(0.5f, 1); trt.pivot = new Vector2(0.5f, 1);
             trt.anchoredPosition = new Vector2(0, -74); trt.sizeDelta = new Vector2(600, 48);
 
@@ -89,19 +91,57 @@ namespace MixerMad.Game
             BuildFinish(root);
         }
 
-        RectTransform Zone(RectTransform root, string name)
+        RectTransform Zone(RectTransform root, string name, out Image frame)
         {
             var z = UiKit.Rect(root, name, Vector2.zero, Vector2.zero, Vector2.zero, Vector2.zero, Vector2.zero);
-            var img = z.gameObject.AddComponent<Image>(); img.sprite = UiKit.Rounded; img.type = Image.Type.Sliced; img.color = new Color(1, 1, 1, 0.045f); img.raycastTarget = false;
+            var f = UiKit.Rect(z, "EdgeHint", Vector2.zero, Vector2.one, new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
+            f.offsetMin = new Vector2(10, 10); f.offsetMax = new Vector2(-10, -10);
+            frame = f.gameObject.AddComponent<Image>();
+            frame.sprite = UiKit.Frame; frame.type = Image.Type.Sliced; frame.fillCenter = false; frame.raycastTarget = false;
             return z;
         }
 
-        (Image, Image) Pedal(RectTransform zone, string label, Color c)
+        static Image Pedal(RectTransform zone, string label, Sprite art, Vector2 artSize, Color fallback)
         {
-            var halo = UiKit.Plate(zone, "Halo", new Vector2(0.5f, 0.28f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(176, 176), new Color(c.r, c.g, c.b, 0f), false, UiKit.Circle);
-            var plate = UiKit.Plate(zone, "Pedal", new Vector2(0.5f, 0.28f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(140, 140), c);
-            var t = UiKit.Label(plate.transform, label, 30, Color.white);
-            return (plate, halo);
+            var anchor = new Vector2(0.5f, 0.3f);
+            if (art != null)
+            {
+                var img = UiKit.Plate(zone, "Pedal", anchor, new Vector2(0.5f, 0.5f), Vector2.zero, artSize, Color.white);
+                UiKit.ApplyKit(img, art, artSize, 1f);
+                return img;
+            }
+            var plate = UiKit.Plate(zone, "Pedal", anchor, new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(140, 140), fallback);
+            UiKit.Label(plate.transform, label, 30, Color.white);
+            return plate;
+        }
+
+        void BuildPauseButton(RectTransform safe, HudSkin skin)
+        {
+            var hit = UiKit.Rect(safe, "Pause", new Vector2(0, 1), new Vector2(0, 1), new Vector2(0, 1), new Vector2(20, -20), new Vector2(80, 80));
+            var hitImg = hit.gameObject.AddComponent<Image>(); hitImg.color = new Color(0, 0, 0, 0.001f);
+            var btn = hit.gameObject.AddComponent<Button>(); btn.targetGraphic = hitImg; btn.transition = Selectable.Transition.None;
+            btn.onClick.AddListener(() => SetPaused(true));
+            hit.gameObject.AddComponent<PressScale>();
+            bool kit = skin && skin.button;
+            var art = UiKit.Plate(hit, "Art", new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(72, 72), Plate);
+            if (kit) UiKit.ApplyKit(art, skin.button, new Vector2(72, 72), UiKit.ButtonSliceScale);
+            var bar = kit ? UiKit.Navy : Color.white;
+            UiKit.Plate(art.transform, "BarL", new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(-9, 2), new Vector2(11, 30), bar);
+            UiKit.Plate(art.transform, "BarR", new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(9, 2), new Vector2(11, 30), bar);
+        }
+
+        void BuildLoadBar(RectTransform safe, HudSkin skin)
+        {
+            // navy track (a dark recess, so it holds 3:1 on sky and snow), candy plate as the fill
+            var track = UiKit.Plate(safe, "LoadBack", new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, -24), new Vector2(LoadW + 8, LoadH + 10), UiKit.Navy);
+            _loadFill = UiKit.Plate(track.transform, "Fill", new Vector2(0, 0.5f), new Vector2(0, 0.5f), new Vector2(4, 0), new Vector2(LoadW, LoadH), Plate);
+            if (skin && skin.button)
+            {
+                UiKit.ApplyKit(_loadFill, skin.button, new Vector2(LoadW, LoadH), UiKit.ButtonSliceScale);
+                var b = skin.button.border; _loadFillMinW = (b.x + b.z) / _loadFill.pixelsPerUnitMultiplier;
+            }
+            var lt = UiKit.Label(track.transform, "LOAD", 20, UiKit.Navy, TextAnchor.MiddleCenter, false);
+            var o = lt.gameObject.AddComponent<Outline>(); o.effectColor = Color.white; o.effectDistance = new Vector2(1.5f, -1.5f);
         }
 
         void BuildPause(RectTransform root)
@@ -110,21 +150,24 @@ namespace MixerMad.Game
             var rt = (RectTransform)_pause.transform; rt.SetParent(root, false);
             rt.anchorMin = Vector2.zero; rt.anchorMax = Vector2.one; rt.offsetMin = rt.offsetMax = Vector2.zero;
             var dim = _pause.AddComponent<Image>(); dim.color = new Color(0.08f, 0.1f, 0.16f, 0.55f);
-            var card = UiKit.Plate(rt, "Card", new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(640, 560), new Color(0.18f, 0.22f, 0.32f, 0.97f), true);
-            var title = UiKit.Label(card.transform, "PAUSED", 48, Color.white); title.rectTransform.anchorMin = new Vector2(0, 1); title.rectTransform.anchorMax = new Vector2(1, 1); title.rectTransform.pivot = new Vector2(0.5f, 1); title.rectTransform.sizeDelta = new Vector2(0, 90); title.rectTransform.anchoredPosition = new Vector2(0, -10);
+            var card = UiKit.KitPanel(rt, "Card", new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(660, 580));
+            var title = UiKit.Label(card.transform, "PAUSED", 48, UiKit.PanelInk, TextAnchor.MiddleCenter, false); TopStrip(title.rectTransform, 90, -24);
 
-            UiKit.Button(card.transform, "Resume", "RESUME", new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, -110), new Vector2(300, 88), new Color(0.27f, 0.75f, 0.30f), () => SetPaused(false), 32);
-            UiKit.Button(card.transform, "Retry", "RETRY", new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(-165, -214), new Vector2(150, 72), Plate, () => { SetPaused(false); _sim.Restart(); }, 26);
-            UiKit.Button(card.transform, "Garage", "GARAGE", new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, -214), new Vector2(160, 72), Plate, () => { SetPaused(false); if (garage) garage.Open(); }, 26);
-            var calm = UiKit.Button(card.transform, "Calm", "CALM MOTION", new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, -312), new Vector2(420, 72), new Color(0.38f, 0.42f, 0.55f), ToggleCalm, 26);
+            var grey = new Color(0.38f, 0.42f, 0.55f);
+            UiKit.KitButton(card.transform, "Resume", "RESUME", new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, -116), new Vector2(300, 88), new Color(0.27f, 0.75f, 0.30f), () => SetPaused(false), 32);
+            UiKit.KitButton(card.transform, "Retry", "RETRY", new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(-170, -216), new Vector2(160, 76), Plate, () => { SetPaused(false); _sim.Restart(); }, 26);
+            UiKit.KitButton(card.transform, "Garage", "GARAGE", new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, -216), new Vector2(170, 76), Plate, () => { SetPaused(false); if (garage) garage.Open(); }, 26);
+            var calm = UiKit.KitButton(card.transform, "Calm", "CALM MOTION", new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, -310), new Vector2(430, 76), grey, ToggleCalm, 26);
             _calmLabel = calm.GetComponentInChildren<Text>();
 
-            var ql = UiKit.Label(card.transform, "QUALITY", 24, new Color(0.85f, 0.9f, 1f)); ql.rectTransform.anchorMin = new Vector2(0.5f, 1); ql.rectTransform.anchorMax = new Vector2(0.5f, 1); ql.rectTransform.pivot = new Vector2(0.5f, 1); ql.rectTransform.sizeDelta = new Vector2(300, 32); ql.rectTransform.anchoredPosition = new Vector2(0, -392);
+            var ql = UiKit.Label(card.transform, "QUALITY", 24, UiKit.PanelInk, TextAnchor.MiddleCenter, false);
+            ql.rectTransform.anchorMin = ql.rectTransform.anchorMax = new Vector2(0.5f, 1); ql.rectTransform.pivot = new Vector2(0.5f, 1);
+            ql.rectTransform.sizeDelta = new Vector2(300, 32); ql.rectTransform.anchoredPosition = new Vector2(0, -394);
             string[] names = { "LOW", "MED", "HIGH", "ULTRA" };
             for (int i = 0; i < 4; i++)
             {
                 int lvl = i;
-                UiKit.Button(card.transform, "Q" + i, names[i], new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(-225 + i * 150, -430), new Vector2(136, 72), new Color(0.38f, 0.42f, 0.55f),
+                UiKit.KitButton(card.transform, "Q" + i, names[i], new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(-228 + i * 152, -432), new Vector2(140, 76), grey,
                     () => { if (QualityPresets.Instance) QualityPresets.Instance.SetLevel((QualityLevel)lvl); }, 22);
             }
             _pause.SetActive(false);
@@ -132,14 +175,37 @@ namespace MixerMad.Game
 
         void BuildFinish(RectTransform root)
         {
-            _finish = new GameObject("FinishPanel", typeof(RectTransform));
-            var rt = (RectTransform)_finish.transform; rt.SetParent(root, false);
-            rt.anchorMin = new Vector2(0.5f, 0.5f); rt.anchorMax = rt.anchorMin; rt.pivot = new Vector2(0.5f, 0.5f); rt.sizeDelta = new Vector2(560, 260); rt.anchoredPosition = new Vector2(0, 40);
-            var card = _finish.AddComponent<Image>(); card.sprite = UiKit.Rounded; card.type = Image.Type.Sliced; card.color = new Color(0.18f, 0.22f, 0.32f, 0.92f);
-            _finishTitle = UiKit.Label(rt, "DELIVERED!", 56, Gold); _finishTitle.rectTransform.anchorMin = new Vector2(0, 1); _finishTitle.rectTransform.anchorMax = new Vector2(1, 1); _finishTitle.rectTransform.pivot = new Vector2(0.5f, 1); _finishTitle.rectTransform.sizeDelta = new Vector2(0, 100); _finishTitle.rectTransform.anchoredPosition = new Vector2(0, -16);
-            UiKit.Button(rt, "Retry", "AGAIN", new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(-130, 30), new Vector2(220, 88), new Color(0.27f, 0.75f, 0.30f), () => { _sim.Restart(); }, 32);
-            UiKit.Button(rt, "Garage", "GARAGE", new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(130, 30), new Vector2(220, 88), Plate, () => { if (garage) garage.Open(); }, 32);
+            // compact card; placed in the top band by PlaceFinishCard (anchor bottom-left so screen pixels map directly)
+            var card = UiKit.KitPanel(root, "FinishPanel", Vector2.zero, Vector2.zero, Vector2.zero, FinishCardSize);
+            _finish = card.gameObject; _finishRt = card.rectTransform;
+            var title = UiKit.Label(_finishRt, "DELIVERED!", 52, UiKit.PanelInk, TextAnchor.MiddleCenter, false); TopStrip(title.rectTransform, 80, -18);
+            UiKit.KitButton(_finishRt, "Retry", "AGAIN", new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(-118, 26), new Vector2(210, 84), new Color(0.27f, 0.75f, 0.30f), () => { _sim.Restart(); }, 32);
+            UiKit.KitButton(_finishRt, "Garage", "GARAGE", new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(118, 26), new Vector2(210, 84), Plate, () => { if (garage) garage.Open(); }, 32);
             _finish.SetActive(false);
+        }
+
+        static void TopStrip(RectTransform rt, float height, float y)
+        {
+            rt.anchorMin = new Vector2(0, 1); rt.anchorMax = new Vector2(1, 1); rt.pivot = new Vector2(0.5f, 1);
+            rt.sizeDelta = new Vector2(0, height); rt.anchoredPosition = new Vector2(0, y);
+        }
+
+        // ------------------------------------------------------------------------------ state for tests and the crash repro
+        public string ToastText => _toast != null ? _toast.text : "";
+        public bool FinishShown => _finish != null && _finish.activeSelf;
+        public bool PedalsVisible => _pedalsVisible;
+        /// <summary>Screen-pixel rect of the DELIVERED card after the last placement.</summary>
+        public Rect FinishCardRect { get; private set; }
+        /// <summary>False when the last placement could not avoid the truck.</summary>
+        public bool FinishCardClear { get; private set; } = true;
+        public float ZoneHintAlpha => _gasFrame != null ? _gasFrame.color.a : 0f;
+
+        /// <summary>Zone-outline opacity after t seconds of a run: full, then one fade (a cut in Calm motion).</summary>
+        public static float ZoneHintAlphaAt(float t, bool calm)
+        {
+            if (t < ZoneHintSeconds) return 1f;
+            if (calm) return 0f;
+            return Mathf.Clamp01(1f - (t - ZoneHintSeconds) / ZoneHintFadeSeconds);
         }
 
         // ------------------------------------------------------------------------------ logic
@@ -149,20 +215,59 @@ namespace MixerMad.Game
             {
                 case SimEventKind.BigAir: Toast("WOOO!"); break;
                 case SimEventKind.Crash: Toast("Ouch!"); break;
-                case SimEventKind.Finish: Toast("Delivered!"); _finishShowT = 1.5f; break;
+                case SimEventKind.Finish: Toast("Delivered!"); _finishShowT = 1.5f; SetPedalsVisible(false); break;
                 case SimEventKind.Respawn: ClearTransient(); break;
             }
         }
 
-        void OnRestart() { _finish.SetActive(false); _finishShowT = -1f; ClearTransient(); }
+        void OnRestart() { _finish.SetActive(false); _finishShowT = -1f; _runT = 0f; SetPedalsVisible(true); ClearTransient(); }
 
         /// <summary>A new attempt starts clean: no "Ouch!" or "WOOO!" left over from the last one.</summary>
         internal void ClearTransient() { if (_toast != null) _toast.text = ""; _toastT = 0f; }
 
         public void Toast(string s) { _toast.text = s; _toastT = 1.5f; }
-        /// <summary>Read-only state for test harnesses and the crash repro log.</summary>
-        public string ToastText => _toast != null ? _toast.text : "";
-        public bool FinishShown => _finish != null && _finish.activeSelf;
+
+        internal void SetPedalsVisible(bool on)
+        {
+            _pedalsVisible = on;
+            if (_gasZone) _gasZone.gameObject.SetActive(on);
+            if (_brakeZone) _brakeZone.gameObject.SetActive(on);
+        }
+
+        /// <summary>Shows the DELIVERED card placed clear of the truck. All rects in screen pixels.</summary>
+        internal void ShowFinish(Rect safePx, Rect truckPx, float canvasScale)
+        {
+            SetPedalsVisible(false);
+            ClearTransient();
+            PlaceFinishCard(safePx, truckPx, canvasScale);
+            _finish.SetActive(true);
+        }
+
+        void PlaceFinishCard(Rect safePx, Rect truckPx, float canvasScale)
+        {
+            var r = HudLayout.PlaceFinishCard(safePx, canvasScale, FinishCardSize, truckPx, out bool clear);
+            float k = r.width / (FinishCardSize.x * canvasScale);
+            _finishRt.anchorMin = _finishRt.anchorMax = Vector2.zero; _finishRt.pivot = Vector2.zero;
+            _finishRt.sizeDelta = FinishCardSize; _finishRt.localScale = new Vector3(k, k, 1f);
+            _finishRt.anchoredPosition = r.position / canvasScale;
+            FinishCardRect = r; FinishCardClear = clear;
+        }
+
+        Rect TruckScreenRect()
+        {
+            var cam = Camera.main;
+            if (cam == null || _truckRenderers == null) return Rect.zero;
+            bool any = false; var b = new Bounds();
+            foreach (var r in _truckRenderers)
+            {
+                if (r == null || !r.enabled || !r.gameObject.activeInHierarchy) continue;
+                if (!any) { b = r.bounds; any = true; } else b.Encapsulate(r.bounds);
+            }
+            return any ? HudLayout.ScreenRect(cam, b) : Rect.zero;
+        }
+
+        Rect SafePx() => Screen.safeArea;
+        float CanvasScale() => _canvas != null && _canvas.scaleFactor > 0f ? _canvas.scaleFactor : HudLayout.CanvasScale(new Vector2(Screen.width, Screen.height));
 
         public void SetPaused(bool p)
         {
@@ -180,30 +285,52 @@ namespace MixerMad.Game
         {
             if (_sim == null) return;
             var s = _sim.Render;
+            if (!_sim.Paused) _runT += Time.unscaledDeltaTime;
 
-            // zones follow the input reader (swap pedals, near-square screens)
-            if (input)
+            if (s.finished && _pedalsVisible) SetPedalsVisible(false);
+            if (input && _pedalsVisible)
             {
                 SetZone(_gasZone, input.GasZone); SetZone(_brakeZone, input.BrakeZone);
-                Press(_gasPlate, _gasHalo, input.GasHeld); Press(_brakePlate, _brakeHalo, input.BrakeHeld);
+                Press(_gasPedal, input.GasHeld); Press(_brakePedal, input.BrakeHeld);
+                float a = ZoneHintAlphaAt(_runT, MMSettings.CalmMotion);
+                SetAlpha(_gasFrame, a); SetAlpha(_brakeFrame, a);
             }
 
-            float load = Mathf.Clamp01(s.load01);
-            _loadFill.rectTransform.sizeDelta = new Vector2(374f * load, 26f);
-            _loadFill.color = load >= 0.995f ? Gold : Plate;
-
-            float prog = Mathf.Clamp01(s.chassisPos.x / Mathf.Max(1f, finishX));
-            for (int i = 0; i < 3; i++)
-            {
-                bool on = s.finished || prog >= (i + 1) / 3.2f;
-                _stars[i].color = on ? Gold : new Color(0.13f, 0.145f, 0.17f, 0.6f);
-            }
+            UpdateLoad(Mathf.Clamp01(s.load01));
+            UpdateStars(s.finished, Mathf.Clamp01(s.chassisPos.x / Mathf.Max(1f, finishX)));
 
             if (_toastT > 0f) { _toastT -= Time.unscaledDeltaTime; if (_toastT <= 0f) _toast.text = ""; }
-            if (_finishShowT > 0f) { _finishShowT -= Time.unscaledDeltaTime; if (_finishShowT <= 0f) _finish.SetActive(true); }
+            if (_finishShowT > 0f) { _finishShowT -= Time.unscaledDeltaTime; if (_finishShowT <= 0f) ShowFinish(SafePx(), TruckScreenRect(), CanvasScale()); }
+            else if (FinishShown)
+            {
+                // the finish camera keeps moving: re-place only if the truck has come under the card
+                var truck = TruckScreenRect();
+                if (truck.Overlaps(FinishCardRect)) PlaceFinishCard(SafePx(), truck, CanvasScale());
+            }
 
             Keys();
         }
+
+        void UpdateLoad(float load)
+        {
+            float w = LoadW * load;
+            _loadFill.enabled = w >= Mathf.Max(2f, _loadFillMinW);
+            _loadFill.rectTransform.sizeDelta = new Vector2(w, LoadH);
+            if (_loadFillMinW <= 0f) _loadFill.color = load >= 0.995f ? Gold : Plate;   // fallback plate only: kit art is never tinted
+        }
+
+        void UpdateStars(bool finished, float prog)
+        {
+            var skin = HudSkin.Current;
+            for (int i = 0; i < 3; i++)
+            {
+                bool on = finished || prog >= (i + 1) / 3.2f;
+                if (skin && skin.starFull && skin.starEmpty) { var sp = on ? skin.starFull : skin.starEmpty; if (_stars[i].sprite != sp) _stars[i].sprite = sp; }
+                else _stars[i].color = on ? Gold : SocketFallback;
+            }
+        }
+
+        static void SetAlpha(Image img, float a) { var c = img.color; if (!Mathf.Approximately(c.a, a)) { c.a = a; img.color = c; } }
 
         static void SetZone(RectTransform z, Rect r)
         {
@@ -211,11 +338,10 @@ namespace MixerMad.Game
             z.offsetMin = z.offsetMax = Vector2.zero;
         }
 
-        static void Press(Image plate, Image halo, bool held)
+        static void Press(Image pedal, bool held)
         {
             float k = held ? 0.92f : 1f;
-            plate.transform.localScale = Vector3.Lerp(plate.transform.localScale, new Vector3(k, k, 1), 0.4f);
-            var c = halo.color; c.a = Mathf.MoveTowards(c.a, held ? 0.35f : 0f, Time.unscaledDeltaTime * 4f); halo.color = c;
+            pedal.transform.localScale = Vector3.Lerp(pedal.transform.localScale, new Vector3(k, k, 1), 0.4f);
         }
 
         void Keys()

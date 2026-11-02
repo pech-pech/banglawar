@@ -106,9 +106,12 @@ namespace MixerMad.Editor
             asset.msaaSampleCount = 2;
             asset.renderScale = 0.8f;                                                 // High; QualityPresets overrides at runtime
             asset.supportsCameraDepthTexture = true;                                  // finish depth of field
-            asset.shadowDistance = 35f;
+            asset.shadowDistance = 55f;                                               // lane (31.7 m) + 15 m and more (L-MM-30); QualityPresets sets it per preset
             asset.shadowCascadeCount = 2;
             EditorUtility.SetDirty(asset);
+            var rendererData = AssetDatabase.LoadAssetAtPath<UniversalRendererData>(rendererPath);
+            if (rendererData != null) { EnsurePostProcessData(rendererData); EnsureSsao(rendererData); }
+            else Debug.LogError("[MixerMad] " + rendererPath + " missing; SSAO feature not added.");
 
             GraphicsSettings.defaultRenderPipeline = asset;
             int current = QualitySettings.GetQualityLevel();
@@ -118,6 +121,72 @@ namespace MixerMad.Editor
                 QualitySettings.renderPipeline = asset;
             }
             QualitySettings.SetQualityLevel(current, false);
+        }
+
+        /// <summary>
+        /// Adds URP's SSAO renderer feature (Ultra only, L-MM-32) to the renderer. It stays ACTIVE on disk because
+        /// URP strips the SSAO shader and noise textures from a player build when no SSAO feature is active (the
+        /// player then fails to create the pipeline); QualityPresets switches it off at runtime for every preset
+        /// with ssao = false. Tuned for a side-on camera
+        /// about 32 m away: depth-only source (the custom shaders have DepthOnly passes, no DepthNormals),
+        /// a radius in metres that reaches wheel arches and the road lip, gentle intensity.
+        /// </summary>
+        static void EnsureSsao(UniversalRendererData rd)
+        {
+            ScreenSpaceAmbientOcclusion ssao = null;
+            foreach (var f in rd.rendererFeatures) if (f is ScreenSpaceAmbientOcclusion s) ssao = s;
+            if (ssao == null)
+            {
+                ssao = ScriptableObject.CreateInstance<ScreenSpaceAmbientOcclusion>();
+                ssao.name = "SSAO";
+                AssetDatabase.AddObjectToAsset(ssao, rd);
+                rd.rendererFeatures.Add(ssao);
+                var so = new SerializedObject(rd);
+                var map = so.FindProperty("m_RendererFeatureMap");
+                AssetDatabase.TryGetGUIDAndLocalFileIdentifier(ssao, out _, out long localId);
+                map.arraySize = rd.rendererFeatures.Count;
+                map.GetArrayElementAtIndex(map.arraySize - 1).longValue = localId;
+                so.ApplyModifiedPropertiesWithoutUndo();
+            }
+            ssao.SetActive(true);
+            var fs = new SerializedObject(ssao);
+            SetFloat(fs, "m_Settings.Intensity", 1.1f);
+            SetFloat(fs, "m_Settings.Radius", 0.6f);
+            SetFloat(fs, "m_Settings.DirectLightingStrength", 0.2f);
+            SetFloat(fs, "m_Settings.Falloff", 60f);
+            SetEnum(fs, "m_Settings.Source", 0);        // Depth
+            SetEnum(fs, "m_Settings.NormalSamples", 1); // Medium
+            SetEnum(fs, "m_Settings.Samples", 1);       // Medium (8)
+            fs.ApplyModifiedPropertiesWithoutUndo();
+            EditorUtility.SetDirty(ssao);
+            EditorUtility.SetDirty(rd);
+        }
+
+        /// <summary>
+        /// A renderer created with CreateInstance has no post-process data, and URP then switches ALL post-processing
+        /// off (bloom, tonemapping, grade, DoF) whatever the camera and Volume say. Point it at URP's own data.
+        /// </summary>
+        static void EnsurePostProcessData(UniversalRendererData rd)
+        {
+            if (rd.postProcessData != null) return;
+            const string path = "Packages/com.unity.render-pipelines.universal/Runtime/Data/PostProcessData.asset";
+            rd.postProcessData = AssetDatabase.LoadAssetAtPath<PostProcessData>(path);
+            if (rd.postProcessData == null) { Debug.LogError("[MixerMad] " + path + " not found; post-processing stays off."); return; }
+            EditorUtility.SetDirty(rd);
+        }
+
+        static void SetFloat(SerializedObject so, string path, float v)
+        {
+            var p = so.FindProperty(path);
+            if (p == null) { Debug.LogError("[MixerMad] SSAO setting not found: " + path); return; }
+            p.floatValue = v;
+        }
+
+        static void SetEnum(SerializedObject so, string path, int index)
+        {
+            var p = so.FindProperty(path);
+            if (p == null) { Debug.LogError("[MixerMad] SSAO setting not found: " + path); return; }
+            p.enumValueIndex = index;
         }
     }
 }

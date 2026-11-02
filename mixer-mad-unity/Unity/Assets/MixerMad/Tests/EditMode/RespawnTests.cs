@@ -133,6 +133,32 @@ namespace MixerMad.Tests
         }
 
         [Test]
+        public void CameraSnap_LandsOnTheSettledFraming_ForTheNewPose()
+        {
+            // R pressed mid-air at speed: the follow is zoomed out and leading; the restart pose is at rest
+            var camGo = Make("Cam"); var camera = camGo.AddComponent<Camera>();
+            var rig = CameraRig.Build(camera, Make("Rig").transform);
+            var fast = new SimSnapshot { chassisPos = new Vector2(10f, 1.7f), velocity = new Vector2(12f, 2f) };
+            var proxyStart = new SimSnapshot { chassisPos = fast.chassisPos };
+            rig.SnapTo(proxyStart);
+            for (int f = 0; f < 120; f++) rig.Follow(fast, 1f / 60f);
+            Assert.Greater(rig.VisibleHeight, CameraRig.HeightRest + 1f, "setup: the follow should be zoomed out at speed");
+
+            var rest = new SimSnapshot { chassisPos = new Vector2(5.05f, 1.2f), velocity = Vector2.zero };
+            rig.SnapTo(rest);
+            var pc = rig.cmMain.GetComponent<Unity.Cinemachine.CinemachinePositionComposer>();
+            Assert.AreEqual(CameraRig.HeightRest, rig.VisibleHeight, 1e-4f, "the zoom band carried over the cut and eases in afterwards");
+            Assert.AreEqual(CameraRig.DistanceFor(CameraRig.HeightRest), pc.CameraDistance, 1e-4f, "Composer distance not set on the cut");
+            Assert.AreEqual(5.05f, rig.proxy.position.x, 1e-4f, "look-ahead carried over the cut");
+
+            // after the cut the framing is already settled: a second of follow at rest moves nothing
+            float h = rig.VisibleHeight; Vector3 p = rig.proxy.position;
+            for (int f = 0; f < 60; f++) rig.Follow(rest, 1f / 60f);
+            Assert.AreEqual(h, rig.VisibleHeight, 1e-3f, "zoom drifted after the cut");
+            Assert.Less(Vector3.Distance(p, rig.proxy.position), 1e-3f, "proxy drifted after the cut");
+        }
+
+        [Test]
         public void Hud_ClearsToastOnRestartAndRespawn()
         {
             var canvasParent = Make("UI").transform;

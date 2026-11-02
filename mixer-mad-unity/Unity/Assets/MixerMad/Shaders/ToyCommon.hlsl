@@ -54,6 +54,17 @@ float3 MM_OutlineOffsetWS(float3 positionWS, float3 smoothNormalWS, float widthM
     return positionWS + normalize(smoothNormalWS) * (w * _MM_OutlineOn);
 }
 
+// Pushes an outline-hull vertex straight away from the camera (along its view ray, so its screen position does
+// not move). The hull then loses every depth tie with the surface it wraps: where a hull face sat within a
+// hair of the body (grazing bevels, the chassis top edge, thin fins) the two used to win alternate pixels,
+// which drew a dashed navy/white stipple along the edge. Gaps between separate parts are far bigger, so the
+// navy lines between the drum, the cab and the chassis stay.
+float3 MM_OutlineDepthPushWS(float3 positionWS, float pushMetres)
+{
+    float3 fromCam = positionWS - _WorldSpaceCameraPos;
+    return positionWS + normalize(fromCam) * (pushMetres * _MM_OutlineOn);
+}
+
 // Smooth normals are baked into vertex colour by MeshSmoothNormals (alpha = 0.5 marks "baked").
 float3 MM_DecodeSmoothNormalOS(float4 vertexColor, float3 fallbackNormalOS)
 {
@@ -86,6 +97,19 @@ half3 MM_Rim(half3 N, half3 V, Light mainLight, half3 rimColor, half strength, h
     rim = smoothstep(0.0h, 1.0h, rim);
     half facing = lerp(0.35h, 1.0h, saturate(dot(N, mainLight.direction) * 0.5h + 0.5h));
     return rimColor * rim * strength * facing * (0.4h + 0.6h * _MM_DayLight);
+}
+
+// Toy rim: the light half of the dual edge (the navy hull is the other half). Returns a 0..1 amount that the
+// shader blends TOWARD the rim colour (not added), so a yellow or white body never clips to flat white and the
+// pale band still reads against snow, where the navy line sits between it and the background.
+// Strongest on sky-facing edges (tops of the cab, chassis, drum), weak on edges that face the ground.
+half MM_ToyRimAmount(half3 N, half3 V, Light mainLight, half strength, half power)
+{
+    half rim = pow(1.0h - saturate(dot(N, V)), power);
+    rim = smoothstep(0.05h, 0.85h, rim);
+    half sky = lerp(0.3h, 1.0h, smoothstep(-0.2h, 0.8h, N.y));
+    half facing = lerp(0.6h, 1.0h, saturate(dot(N, mainLight.direction) * 0.5h + 0.5h));
+    return saturate(rim * strength * 1.8h * sky * facing * (0.4h + 0.6h * _MM_DayLight));
 }
 
 #endif

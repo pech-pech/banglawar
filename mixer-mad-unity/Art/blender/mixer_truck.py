@@ -38,8 +38,11 @@ CAB_HW = 0.92
 BUMPER_HW = 0.88
 DRUM_TILT = math.radians(14.3)      # axis points down toward the cab
 DRUM_C = (-1.035, 1.675)            # drum centre (x, z)
-DRUM_A, DRUM_B, DRUM_P = 1.09, 0.877, 2.337   # half length, radius, superellipse exponent (fitted to the sim collider)
-FIN_H = 0.02
+DRUM_A, DRUM_B, DRUM_P = 1.09, 0.867, 2.337   # half length, radius, superellipse exponent (fitted to the sim collider; radius 0.01 under the fit so the raised fins stay inside it)
+FIN_H = 0.035           # raised spiral fin height above the drum skin (fit-checked as drum r + FIN_H)
+FIN_W = 0.18            # fin width at its base
+FIN_TURNS = 1.0         # turns per fin over the drum length: reads as a spiral, not as crossing straps
+FIN_U = 0.84            # fins run over -FIN_U..+FIN_U of the drum half length
 ARCH_R = 0.54
 SEAT_POS = (0.95, 0.0, 1.16)        # driver hips (driver.py uses the same point)
 CHUTE_REST = math.radians(-26.0)    # rest angle, rear end down (sim default is about -0.45 rad)
@@ -55,8 +58,8 @@ SKINS = {   # material swaps only (sprite skins 1..4)
 BUDGET = {0: 12000, 1: 5000}       # S1 section 6: hero LOD0 10-12k (High), LOD1 5k (Low)
 
 QUALITY = {
-    0: dict(wseg=20, dseg=24, drings=14, rr=3, bev=0.035, bsegs=2, detail=True, fin_steps=36, lugs=20),
-    1: dict(wseg=12, dseg=12, drings=7, rr=1, bev=0.0, bsegs=0, detail=False, fin_steps=12, lugs=0),
+    0: dict(wseg=20, dseg=30, drings=18, rr=3, bev=0.035, bsegs=2, detail=True, fin_steps=40, lugs=20),
+    1: dict(wseg=12, dseg=14, drings=8, rr=1, bev=0.0, bsegs=0, detail=False, fin_steps=14, lugs=0),
 }
 
 
@@ -77,13 +80,21 @@ def chassis_poly():
 
 
 BUMPER = [(1.806, 0.013), (2.174, 0.013), (2.273, 0.112), (2.296, 0.18), (2.296, 0.382), (2.258, 0.458), (2.189, 0.526), (1.806, 0.526)]
-CAB_LOWER = [(0.15, 0.86), (1.80, 0.86), (1.80, 0.54), (2.19, 0.54), (2.233, 0.63), (2.233, 0.89), (2.16, 1.14), (2.125, 1.21), (2.04, 1.29), (1.806, 1.41), (1.786, 1.42), (0.15, 1.42)]
+# Side window: sill 1.30 (was 1.42) and rear pillar edge 0.42 (was 0.50) so the driver's face shows at drive zoom.
+SILL_Z = 1.30
+CAB_LOWER = [(0.15, 0.86), (1.80, 0.86), (1.80, 0.54), (2.19, 0.54), (2.233, 0.63), (2.233, 0.89), (2.16, 1.14), (2.125, 1.21), (2.04, 1.29), (1.806, 1.41), (1.786, 1.42), (1.64, 1.42), (1.64, SILL_Z), (0.15, SILL_Z)]
 ROOF = [(0.152, 2.20), (0.152, 2.205), (0.323, 2.376), (1.443, 2.376), (1.616, 2.202), (1.61, 2.20)]
-PILLAR_R = [(0.15, 1.42), (0.50, 1.42), (0.50, 2.20), (0.15, 2.20)]
-PILLAR_F = [(1.786, 1.42), (1.616, 2.202), (1.60, 2.20), (1.40, 2.20), (1.50, 1.42)]
-PED_F = [(-0.60, 0.86), (0.12, 0.86), (0.12, 1.96), (-0.2, 2.25), (-0.6, 1.75)]
-HOPPER = [(-2.28, 1.45), (-2.08, 0.86), (-1.7, 0.86), (-1.6, 2.15), (-1.9, 2.35), (-2.07, 2.31)]
-WINDOW = [(0.50, 1.42), (1.50, 1.42), (1.40, 2.20), (0.50, 2.20)]
+PILLAR_R = [(0.15, SILL_Z), (0.42, SILL_Z), (0.42, 2.20), (0.15, 2.20)]
+PILLAR_F = [(1.786, 1.42), (1.616, 2.202), (1.60, 2.20), (1.44, 2.20), (1.56, SILL_Z), (1.64, SILL_Z)]
+# Supports start 6 cm INSIDE the chassis (its top is z 0.86): a bottom face lying exactly on the chassis top
+# made their outline hull fight the chassis for depth, drawing a dashed navy line along the join.
+SUPPORT_Z0 = 0.80
+PED_F = [(-0.60, SUPPORT_Z0), (0.12, SUPPORT_Z0), (0.12, 1.96), (-0.2, 2.25), (-0.6, 1.75)]
+# Hopper and front pedestal are frame parts (body colour): in the drum colour they merged with the drum
+# into one lumpy mass with three bulges (GAMEUP-REVIEW P2, fix 8).
+SUPPORT_MAT = 'MM_Truck_Body'
+HOPPER = [(-2.28, 1.45), (-2.06, SUPPORT_Z0), (-1.7, SUPPORT_Z0), (-1.6, 2.15), (-1.9, 2.35), (-2.07, 2.31)]
+WINDOW = [(0.42, SILL_Z), (1.56, SILL_Z), (1.44, 2.20), (0.42, 2.20)]
 
 
 def drum_r(u):
@@ -99,12 +110,14 @@ def drum_origin():
     return (DRUM_C[0], 0.0, DRUM_C[1])
 
 
-def drum_silhouette(n=40):
+def drum_silhouette(n=40, extra=None):
+    """Side silhouette of the drum; extra(u) grows the radius (used for the fins)."""
+    ex = extra or (lambda u: 0.0)
     A = (math.cos(DRUM_TILT), -math.sin(DRUM_TILT))
     N = (math.sin(DRUM_TILT), math.cos(DRUM_TILT))
     us = [-DRUM_A * math.cos(math.pi * k / n) for k in range(n + 1)]
-    top = [(DRUM_C[0] + A[0] * u + N[0] * drum_r(u), DRUM_C[1] + A[1] * u + N[1] * drum_r(u)) for u in us]
-    bot = [(DRUM_C[0] + A[0] * u - N[0] * drum_r(u), DRUM_C[1] + A[1] * u - N[1] * drum_r(u)) for u in reversed(us)]
+    top = [(DRUM_C[0] + A[0] * u + N[0] * (drum_r(u) + ex(u)), DRUM_C[1] + A[1] * u + N[1] * (drum_r(u) + ex(u))) for u in us]
+    bot = [(DRUM_C[0] + A[0] * u - N[0] * (drum_r(u) + ex(u)), DRUM_C[1] + A[1] * u - N[1] * (drum_r(u) + ex(u))) for u in reversed(us)]
     return top + bot
 
 
@@ -162,10 +175,10 @@ def build_chassis(q, sil):
     m.extrude(bp, -BUMPER_HW, BUMPER_HW, 'MM_Truck_Accent', q['bev'], q['bsegs'], tag='bumper')
     hp = round_poly(HOPPER, 0.09, q['rr'])
     sil['hopper'] = hp
-    m.extrude(hp, -0.50, 0.50, 'MM_Truck_Accent', q['bev'], q['bsegs'], tag='hopper')
+    m.extrude(hp, -0.50, 0.50, SUPPORT_MAT, q['bev'], q['bsegs'], tag='hopper')
     pp = round_poly(PED_F, 0.09, q['rr'])
     sil['ped_f'] = pp
-    m.extrude(pp, -0.62, 0.62, 'MM_Truck_Accent', q['bev'], q['bsegs'], tag='pedestal')
+    m.extrude(pp, -0.62, 0.62, SUPPORT_MAT, q['bev'], q['bsegs'], tag='pedestal')
     if q['detail']:
         for sgn in (-1, 1):
             m.rbox((-2.285, sgn * 0.62, 0.50), (0.06, 0.18, 0.14), 0.02, 'MM_Light_Tail', tag='taillight')
@@ -198,7 +211,7 @@ def build_cab(q, sil):
     into it, headlights, grille, mirrors, seat back and steering wheel. Pivot = (1.0, 0, 0.86)."""
     m = Mesh()
     rr, bev, bs = q['rr'], q['bev'], q['bsegs']
-    lo = round_poly(CAB_LOWER, 0.07, rr, sharp=(0, 1, 11))
+    lo = round_poly(CAB_LOWER, 0.07, rr, sharp=(0, 1, 11, 12, 13))
     sil['cab_lower'] = lo
     m.extrude(lo, -CAB_HW, CAB_HW, 'MM_Truck_Body', bev, bs, tag='cab_lower')
     roof = round_poly(ROOF, 0.07, rr)
@@ -207,7 +220,7 @@ def build_cab(q, sil):
     pr = round_poly(PILLAR_R, 0.04, rr, sharp=(0, 1))
     sil['pillar_r'] = pr
     m.extrude(pr, -CAB_HW, CAB_HW, 'MM_Truck_Body', bev, bs, tag='pillar_rear')
-    pf = round_poly(PILLAR_F, 0.04, rr, sharp=(0, 4))
+    pf = round_poly(PILLAR_F, 0.04, rr, sharp=(0, 4, 5))
     sil['pillar_f'] = pf
     m.extrude(pf, -CAB_HW, CAB_HW, 'MM_Truck_Body', bev, bs, tag='pillar_front')
     # glass: one pane per side, recessed 0.04 inside the body face, with painted streak UVs
@@ -226,8 +239,8 @@ def build_cab(q, sil):
             # mirrors on arms, door handles, door seam
             m.cyl((0.62, sgn * 0.98, 1.88), (0, 1, 0), 0.016, 0.14, 6, 'MM_Chrome', tag='mirror_arm')
             m.rbox((0.62, sgn * 1.05, 1.88), (0.10, 0.05, 0.26), 0.02, 'MM_Truck_Trim', tag='mirror')
-            m.rbox((1.12, sgn * 0.935, 1.30), (0.20, 0.03, 0.045), 0.012, 'MM_Chrome', tag='handle')
-            m.rbox((0.50, sgn * 0.93, 1.15), (0.016, 0.02, 0.50), 0.0, 'MM_Truck_Trim', tag='door_seam')
+            m.rbox((1.12, sgn * 0.935, 1.18), (0.20, 0.03, 0.045), 0.012, 'MM_Chrome', tag='handle')
+            m.rbox((0.42, sgn * 0.93, 1.08), (0.016, 0.02, 0.42), 0.0, 'MM_Truck_Trim', tag='door_seam')
         # interior seen through the glass
         m.rbox((0.62, 0.0, 1.70), (0.14, 0.70, 0.55), 0.04, 'MM_Truck_Interior', tag='seat_back')
         m.cyl((1.40, 0.0, 1.47), (0.6, 0, 0.8), 0.022, 0.30, 6, 'MM_Truck_Trim', tag='steer_col')
@@ -242,9 +255,57 @@ def build_cab(q, sil):
     return m
 
 
+def fin_taper(t):
+    """Fin height/width factor along the fin (t = 0..1): grows out of the skin, full height in the middle."""
+    return smoothstep(0.0, 0.14, t) * smoothstep(1.0, 0.86, t)
+
+
+def fin_height_at(u):
+    """Highest fin point above the drum skin at axial position u (both fins share the same u range)."""
+    t = (u / DRUM_A + FIN_U) / (2.0 * FIN_U)
+    return FIN_H * fin_taper(t) if 0.0 <= t <= 1.0 else 0.0
+
+
+def spiral_fin(m, org, ax, u0, u1, phi0, turns, width, height, steps, mat, tag):
+    """A raised spiral fin on the drum skin: a rounded closed profile (base sunk 0.015 m into the skin,
+    so it never shows a gap) that tapers to nothing at both ends, so it grows out of the drum smoothly."""
+    a, p, qv = perp_basis(ax)
+    prof = [(-1.0, -0.015), (-0.85, 0.55), (-0.45, 1.0), (0.45, 1.0), (0.85, 0.55), (1.0, -0.015)]   # (across, up)
+    n = len(prof)
+    V, F = [], []
+    for i in range(steps + 1):
+        t = i / steps
+        u = u0 + (u1 - u0) * t
+        r = drum_r(u)
+        taper = fin_taper(t)
+        hw = 0.5 * width * (0.35 + 0.65 * taper)
+        h = height * taper
+        phi = phi0 + 2 * math.pi * turns * t
+        c = v_add(org, v_mul(a, u))
+        for (sx, sy) in prof:
+            rr = r + (sy * h if sy > 0 else sy)
+            ang = phi + sx * hw / max(r, 0.2)
+            V.append(v_add(c, v_add(v_mul(p, rr * math.cos(ang)), v_mul(qv, rr * math.sin(ang)))))
+    for i in range(steps):
+        b0, b1 = i * n, (i + 1) * n
+        for k in range(n - 1):
+            F.append((b0 + k, b0 + k + 1, b1 + k + 1, b1 + k))
+    F.append(tuple(range(n - 1, -1, -1)))
+    e = steps * n
+    F.append(tuple(e + k for k in range(n)))
+    mid = steps // 2
+    phm = phi0 + 2 * math.pi * turns * mid / steps
+    radial = v_add(v_mul(p, math.cos(phm)), v_mul(qv, math.sin(phm)))
+    # orientation probe: the top face of the middle cross-section must point away from the drum axis
+    probe = mid * (n - 1) + 2
+    m._add(V, F, mat, None, closed=False, flip_test=(probe, radial), tag=tag)
+
+
 def build_drum(q, sil):
-    """Drum: smooth superellipse body, two spiral fins (cream), a drive ring. Pivot = drum centre,
-    spin axis = the drum axis (tilted DRUM_TILT, front end down)."""
+    """Drum: one smooth superellipse body (more rings and segments than before, weighted normals in Blender)
+    and two raised spiral fins in the stripe colour that taper into the skin. The cream drive ring is gone:
+    with the old flat ribbons it read as straps. Pivot = drum centre, spin axis = the drum axis (tilted
+    DRUM_TILT, front end down)."""
     m = Mesh()
     ax, org = drum_axis(), drum_origin()
     n = q['drings']
@@ -253,12 +314,8 @@ def build_drum(q, sil):
     prof[-1] = (prof[-1][0], 0.0)
     m.revolve(org, ax, prof, q['dseg'], 'MM_Truck_Drum', tag='drum_body')
     for k, ph in enumerate((0.0, math.pi)):
-        m.helix_rib(org, ax, drum_r, -0.80 * DRUM_A, 0.80 * DRUM_A, ph, 0.85, 0.13, FIN_H, q['fin_steps'], 'MM_Truck_DrumStripe', tag='fin%d' % k)
-    if q['detail']:
-        u = 0.18
-        r = drum_r(u)
-        ring = [(u - 0.07, r - 0.01), (u + 0.07, r - 0.01), (u + 0.07, r + 0.045), (u + 0.04, r + 0.065), (u - 0.04, r + 0.065), (u - 0.07, r + 0.045)]
-        m.revolve(org, ax, ring, q['dseg'], 'MM_Truck_DrumStripe', closed_profile=True, tag='drive_ring')
+        spiral_fin(m, org, ax, -FIN_U * DRUM_A, FIN_U * DRUM_A, ph, FIN_TURNS, FIN_W, FIN_H, q['fin_steps'],
+                   'MM_Truck_DrumStripe', 'fin%d' % k)
     sil['drum'] = drum_silhouette()
     return m
 
@@ -383,6 +440,18 @@ def fit_check(sil, step=0.04):
     return worst_out, worst_in
 
 
+def fin_fit(sil, step=0.04):
+    """Worst distance outside the colliders of the drum silhouette grown by the fin height (the fins can reach
+    no further than r + FIN_H). Points hidden inside another art part are skipped, as in fit_check."""
+    others = [p for k, p in sil.items() if k != 'drum']
+    worst = 0.0
+    for p in sample_poly(drum_silhouette(extra=fin_height_at), step):
+        if any(point_in_poly(p, q) for q in others):
+            continue
+        worst = max(worst, dist_to_shapes(p, COLLIDERS_SKIN1))
+    return worst
+
+
 def run_checks(rep, lods, sil0):
     rb = WHEEL_CX[1] - WHEEL_CX[0]
     rep.check('wheelbase 2.368 +-0.02', abs(rb - 2.368) <= 0.02, '%.3f m' % rb)
@@ -402,8 +471,8 @@ def run_checks(rep, lods, sil0):
     o, i = fit_check(sil0)
     rep.check('art outside collider <= 0.04 m', o <= TOL_ART_OUT + 0.003, '%.3f m (limit 0.04, sample tol 0.003)' % o)
     rep.check('collider outside art <= 0.06 m', i <= TOL_COL_OUT + 0.01, '%.3f m (limit 0.06, sample tol 0.01; wheel arches exempt)' % i)
-    worst_fin = o + FIN_H
-    rep.check('worst case incl. fin height <= 0.06 m', worst_fin <= 0.06, '%.3f m (fins sit on the drum surface, only the top tangent point can reach it)' % worst_fin)
+    fo = fin_fit(sil0)
+    rep.check('drum + fins outside collider <= 0.06 m', fo <= 0.06, '%.3f m (drum silhouette grown by the tapered fin height, FIN_H %.3f; thin raised trim may use the 0.06 limit)' % (fo, FIN_H))
     xs = [x for p in lods[0] if p.name.split('_')[2] not in ('Chute',) for (x, y, z) in p.mesh.verts]
     zs = [z for p in lods[0] for (x, y, z) in p.mesh.verts]
     rep.check('body x extent inside sprite rect', min(xs) >= SPRITE_RECT[0] - 0.05 and max(xs) <= SPRITE_RECT[2] + 0.05, '%.3f .. %.3f' % (min(xs), max(xs)))
@@ -434,6 +503,18 @@ def material_specs(skin):
     }
 
 
+def crisp_normals(o):
+    """Face-area weighted normals (exported as the FBX normals). Every part is shade-smooth and welded, so plain
+    vertex normals bend the big flat faces toward their bevels; the long n-gon slivers then shade in a sawtooth
+    and the 2 px bevels sparkle as a dotted white line (the P2 "stipple" on the chassis top and drum straps).
+    Weighting by face area keeps flat faces flat and leaves the roundness to the bevel strips."""
+    wn = o.modifiers.new('WeightedNormal', 'WEIGHTED_NORMAL')
+    wn.mode = 'FACE_AREA'
+    wn.weight = 50
+    wn.keep_sharp = True
+    return wn
+
+
 def build_blender(args, lods, rep):
     out = args.out
     tex_dir = os.path.join(out, 'textures')
@@ -452,6 +533,7 @@ def build_blender(args, lods, rep):
     for lod in sorted(lods):
         for p in lods[lod]:
             o = bl_mesh_object(p, col, mats)
+            crisp_normals(o)
             bl_parent_to_bone(o, arm, p.bone)
             objs.append(o)
     for name, pos, bone in SOCKETS:
@@ -500,6 +582,7 @@ def build_unity_rig(lod0, mats):
         tri = o.modifiers.new('Triangulate', 'TRIANGULATE')
         tri.quad_method = 'BEAUTY'
         tri.ngon_method = 'BEAUTY'
+        crisp_normals(o)
         return o
 
     root = _bl_child(UNITY_ASSET, None, (0.0, 0.0, 0.0), col)

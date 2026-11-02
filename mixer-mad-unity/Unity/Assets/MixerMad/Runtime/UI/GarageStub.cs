@@ -47,7 +47,7 @@ namespace MixerMad.Game
             var title = UiKit.Label(safe, "GARAGE", 56, Color.white, TextAnchor.UpperLeft);
             title.rectTransform.anchorMin = new Vector2(0, 1); title.rectTransform.anchorMax = new Vector2(0, 1); title.rectTransform.pivot = new Vector2(0, 1);
             title.rectTransform.anchoredPosition = new Vector2(100, -24); title.rectTransform.sizeDelta = new Vector2(420, 70);
-            UiKit.Button(safe, "Back", "<", new Vector2(0, 1), new Vector2(0, 1), new Vector2(20, -20), new Vector2(72, 72), new Color(0.2f, 0.55f, 0.95f), Close, 36);
+            UiKit.KitButton(safe, "Back", "<", new Vector2(0, 1), new Vector2(0, 1), new Vector2(20, -20), new Vector2(72, 72), new Color(0.2f, 0.55f, 0.95f), Close, 36);
 
             var sub = UiKit.Label(safe, "Mixer (placeholder art)   speed|grip|load", 24, new Color(0.88f, 0.93f, 1f), TextAnchor.UpperLeft);
             sub.rectTransform.anchorMin = new Vector2(0, 1); sub.rectTransform.anchorMax = new Vector2(0, 1); sub.rectTransform.pivot = new Vector2(0, 1);
@@ -60,8 +60,8 @@ namespace MixerMad.Game
                 UiKit.Button(safe, "Skin" + i, "", new Vector2(0, 0), new Vector2(0, 0), new Vector2(24 + i * 84, 24), new Vector2(72, 72), SkinSwatch[i], () => ApplySkin(SkinNames[k]));
             }
             // wiggle parts
-            UiKit.Button(safe, "Drum", "DRUM", new Vector2(0, 0), new Vector2(0, 0), new Vector2(24, 112), new Vector2(150, 72), new Color(1f, 0.48f, 0.1f), () => { if (truck) truck.Poke(true); }, 24);
-            UiKit.Button(safe, "Chute", "CHUTE", new Vector2(0, 0), new Vector2(0, 0), new Vector2(186, 112), new Vector2(150, 72), new Color(1f, 0.48f, 0.1f), () => { if (truck) truck.Poke(false); }, 24);
+            UiKit.KitButton(safe, "Drum", "DRUM", new Vector2(0, 0), new Vector2(0, 0), new Vector2(24, 112), new Vector2(150, 72), new Color(1f, 0.48f, 0.1f), () => { if (truck) truck.Poke(true); }, 24);
+            UiKit.KitButton(safe, "Chute", "CHUTE", new Vector2(0, 0), new Vector2(0, 0), new Vector2(186, 112), new Vector2(150, 72), new Color(1f, 0.48f, 0.1f), () => { if (truck) truck.Poke(false); }, 24);
 
             // biome (right)
             var bl = UiKit.Label(safe, "BIOME", 24, new Color(0.88f, 0.93f, 1f), TextAnchor.UpperRight);
@@ -70,20 +70,21 @@ namespace MixerMad.Game
             string[] biomes = { "Snowy pass", "City site (soon)", "Desert dig (soon)", "Jungle quarry (soon)" };
             for (int i = 0; i < biomes.Length; i++)
             {
-                var b = UiKit.Button(safe, "Biome" + i, biomes[i], new Vector2(1, 1), new Vector2(1, 1), new Vector2(-24, -66 - i * 80), new Vector2(300, 72), i == 0 ? new Color(0.2f, 0.55f, 0.95f) : new Color(0.38f, 0.42f, 0.5f), null, 24);
+                var b = UiKit.KitButton(safe, "Biome" + i, biomes[i], new Vector2(1, 1), new Vector2(1, 1), new Vector2(-24, -66 - i * 80), new Vector2(300, 72), i == 0 ? new Color(0.2f, 0.55f, 0.95f) : new Color(0.38f, 0.42f, 0.5f), null, 24);
                 b.interactable = i == 0;
+                if (i > 0) { var t = b.GetComponentInChildren<Text>(); if (t) t.color = new Color(t.color.r, t.color.g, t.color.b, 0.55f); }
             }
 
             // settings: quality + calm
-            var calm = UiKit.Button(safe, "Calm", "CALM MOTION", new Vector2(1, 0), new Vector2(1, 0), new Vector2(-24, 220), new Vector2(380, 72), new Color(0.38f, 0.42f, 0.55f), () => { MMSettings.CalmMotion = !MMSettings.CalmMotion; RefreshCalm(); }, 24);
+            var calm = UiKit.KitButton(safe, "Calm", "CALM MOTION", new Vector2(1, 0), new Vector2(1, 0), new Vector2(-24, 220), new Vector2(380, 72), new Color(0.38f, 0.42f, 0.55f), () => { MMSettings.CalmMotion = !MMSettings.CalmMotion; RefreshCalm(); }, 24);
             _calmLabel = calm.GetComponentInChildren<Text>();
             string[] q = { "LOW", "MED", "HIGH", "ULTRA" };
             for (int i = 0; i < 4; i++)
             {
                 int lvl = i;
-                UiKit.Button(safe, "Q" + i, q[i], new Vector2(1, 0), new Vector2(1, 0), new Vector2(-24 - (3 - i) * 96 - 0, 130), new Vector2(88, 72), new Color(0.38f, 0.42f, 0.55f), () => { if (QualityPresets.Instance) QualityPresets.Instance.SetLevel((QualityLevel)lvl); }, 20);
+                UiKit.KitButton(safe, "Q" + i, q[i], new Vector2(1, 0), new Vector2(1, 0), new Vector2(-24 - (3 - i) * 96 - 0, 130), new Vector2(88, 72), new Color(0.38f, 0.42f, 0.55f), () => { if (QualityPresets.Instance) QualityPresets.Instance.SetLevel((QualityLevel)lvl); }, 20);
             }
-            UiKit.Button(safe, "Drive", "DRIVE", new Vector2(1, 0), new Vector2(1, 0), new Vector2(-24, 24), new Vector2(240, 88), new Color(0.27f, 0.75f, 0.30f), Close, 36);
+            UiKit.KitButton(safe, "Drive", "DRIVE", new Vector2(1, 0), new Vector2(1, 0), new Vector2(-24, 24), new Vector2(240, 88), new Color(0.27f, 0.75f, 0.30f), Close, 36);
             _root.SetActive(false);
         }
 

@@ -6,14 +6,18 @@ using UnityEngine.UI;
 namespace MixerMad.Game
 {
     /// <summary>
-    /// Tiny UGUI toolkit for the stub screens. The 4 glossy 9-slice kits are NOT here yet: these are generated
-    /// rounded-rect placeholders with the same slicing setup (Image Sliced + Fill Center, all four borders), so
-    /// swapping in kit sprites later changes only the sprite reference (L-MM-23). Minimum button 64 px.
+    /// Tiny UGUI toolkit. Buttons and panels use M's glossy candy kit (HudSkin: F04 9-slice plates, all four edges
+    /// sliced, Fill Center on, never tinted or covered by a gradient, L-MM-23). When the kit art is missing, the
+    /// generated rounded rects below are the fallback with the same slicing setup. Minimum button 64 px.
     /// </summary>
     public static class UiKit
     {
         public const float MinButton = 64f;
-        static Sprite _rounded, _circle;
+        /// <summary>Ink colour for text and glyphs on the kit plates (matches the kit's navy rim).</summary>
+        public static readonly Color Navy = new Color(0.12f, 0.14f, 0.25f, 1f);
+        /// <summary>9-slice border scale: kit plates are 2K art, drawn about 5x smaller on a 1280x800 canvas.</summary>
+        public const float ButtonSliceScale = 5.5f, PanelSliceScale = 3.6f;
+        static Sprite _rounded, _circle, _frame;
         static Font _font;
 
         public static Font Font
@@ -71,6 +75,80 @@ namespace MixerMad.Game
             }
         }
 
+        /// <summary>Outline-only 9-slice frame: a 4 px navy edge with a 2 px white line inside, clear centre.
+        /// Navy carries the edge on bright sky and snow, white carries it at night.</summary>
+        public static Sprite Frame
+        {
+            get
+            {
+                if (_frame != null) return _frame;
+                const int n = 48; const float r = 16f, navyW = 4f, whiteW = 2f;
+                var t = new Texture2D(n, n, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Clamp, filterMode = FilterMode.Bilinear, name = "UI_Frame" };
+                var px = new Color32[n * n];
+                Color32 navy = Navy, white = Color.white;
+                for (int y = 0; y < n; y++)
+                    for (int x = 0; x < n; x++)
+                    {
+                        float cx = Mathf.Clamp(x + 0.5f, r, n - r), cy = Mathf.Clamp(y + 0.5f, r, n - r);
+                        float inside = r - Vector2.Distance(new Vector2(x + 0.5f, y + 0.5f), new Vector2(cx, cy)); // px from the edge
+                        Color32 c = inside < navyW ? navy : inside < navyW + whiteW ? white : new Color32(0, 0, 0, 0);
+                        float a = Mathf.Clamp01(inside + 0.5f) * (inside < navyW + whiteW ? 1f : 0f);
+                        c.a = (byte)(a * 255f);
+                        px[y * n + x] = c;
+                    }
+                t.SetPixels32(px); t.Apply(false, true);
+                _frame = Sprite.Create(t, new Rect(0, 0, n, n), new Vector2(0.5f, 0.5f), 100f, 0, SpriteMeshType.FullRect, new Vector4(20, 20, 20, 20));
+                return _frame;
+            }
+        }
+
+        /// <summary>
+        /// Puts a kit sprite on an Image untinted. 9-slice sprites are Sliced with Fill Center, with the border scale
+        /// raised when the rect is too small for the corners; plain sprites keep their aspect.
+        /// </summary>
+        public static void ApplyKit(Image img, Sprite sprite, Vector2 size, float sliceScale)
+        {
+            img.sprite = sprite;
+            img.color = Color.white;
+            var b = sprite.border;
+            if (b.sqrMagnitude > 0f)
+            {
+                img.type = Image.Type.Sliced; img.fillCenter = true;
+                float need = Mathf.Max((b.x + b.z) / Mathf.Max(1f, size.x * 0.95f), (b.y + b.w) / Mathf.Max(1f, size.y * 0.95f));
+                img.pixelsPerUnitMultiplier = Mathf.Max(sliceScale, need);
+            }
+            else { img.type = Image.Type.Simple; img.preserveAspect = true; }
+        }
+
+        /// <summary>Kit button plate (candy F04) with a navy label; falls back to a coloured rounded plate.</summary>
+        public static Button KitButton(Transform parent, string name, string label, Vector2 anchor, Vector2 pivot, Vector2 pos, Vector2 size, Color fallback, Action onClick, int fontSize = 28)
+        {
+            var skin = HudSkin.Current;
+            if (skin == null || skin.button == null) return Button(parent, name, label, anchor, pivot, pos, size, fallback, onClick, fontSize);
+            var b = Button(parent, name, "", anchor, pivot, pos, size, Color.white, onClick, fontSize);
+            b.transition = Selectable.Transition.None;   // press feedback is PressScale only: the art is never tinted
+            var img = (Image)b.targetGraphic;
+            ApplyKit(img, skin.button, img.rectTransform.sizeDelta, ButtonSliceScale);
+            if (!string.IsNullOrEmpty(label))
+            {
+                var t = Label(img.transform, label, fontSize, Navy, TextAnchor.MiddleCenter, false);
+                t.rectTransform.offsetMin = new Vector2(0, 4);   // the plate's lip is at the bottom: centre on the face
+            }
+            return b;
+        }
+
+        /// <summary>Kit panel plate (candy F04); falls back to a dark rounded card.</summary>
+        public static Image KitPanel(Transform parent, string name, Vector2 anchor, Vector2 pivot, Vector2 pos, Vector2 size, bool raycast = true)
+        {
+            var skin = HudSkin.Current;
+            var img = Plate(parent, name, anchor, pivot, pos, size, new Color(0.18f, 0.22f, 0.32f, 0.97f), raycast);
+            if (skin != null && skin.panel != null) ApplyKit(img, skin.panel, size, PanelSliceScale);
+            return img;
+        }
+
+        /// <summary>Text colour for a title on a panel: navy on the light kit panel, white on the dark fallback.</summary>
+        public static Color PanelInk => HudSkin.Current != null && HudSkin.Current.panel != null ? Navy : Color.white;
+
         public static RectTransform Rect(Transform parent, string name, Vector2 anchorMin, Vector2 anchorMax, Vector2 pivot, Vector2 pos, Vector2 size)
         {
             var go = new GameObject(name, typeof(RectTransform));
@@ -127,9 +205,9 @@ namespace MixerMad.Game
             c.renderMode = RenderMode.ScreenSpaceOverlay; c.sortingOrder = order;
             var cs = go.AddComponent<CanvasScaler>();
             cs.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
-            cs.referenceResolution = new Vector2(1280f, 800f);
+            cs.referenceResolution = HudLayout.ReferenceResolution;
             cs.screenMatchMode = CanvasScaler.ScreenMatchMode.MatchWidthOrHeight;
-            cs.matchWidthOrHeight = 0.5f;
+            cs.matchWidthOrHeight = HudLayout.MatchWidthOrHeight;
             go.AddComponent<GraphicRaycaster>();
             return c;
         }

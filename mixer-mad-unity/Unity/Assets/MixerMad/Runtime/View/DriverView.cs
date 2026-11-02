@@ -42,7 +42,8 @@ namespace MixerMad.Game
 
         struct Pose
         {
-            public float eyeScale, browLift, browAngle, mouthW, mouthH, armRaise, headTilt, lean, sweat, stars, hat, bob, facepalm;
+            // armRaise: degrees, positive = up (0 = hands forward on the wheel). reach: 0 = in the cab, 1 = the near arm out of the window.
+            public float eyeScale, browLift, browAngle, mouthW, mouthH, armRaise, headTilt, lean, sweat, stars, hat, bob, facepalm, reach;
             public static Pose Lerp(Pose a, Pose b, float t)
             {
                 return new Pose
@@ -52,7 +53,8 @@ namespace MixerMad.Game
                     mouthH = Mathf.Lerp(a.mouthH, b.mouthH, t), armRaise = Mathf.Lerp(a.armRaise, b.armRaise, t),
                     headTilt = Mathf.Lerp(a.headTilt, b.headTilt, t), lean = Mathf.Lerp(a.lean, b.lean, t),
                     sweat = Mathf.Lerp(a.sweat, b.sweat, t), stars = Mathf.Lerp(a.stars, b.stars, t),
-                    hat = Mathf.Lerp(a.hat, b.hat, t), bob = Mathf.Lerp(a.bob, b.bob, t), facepalm = Mathf.Lerp(a.facepalm, b.facepalm, t)
+                    hat = Mathf.Lerp(a.hat, b.hat, t), bob = Mathf.Lerp(a.bob, b.bob, t), facepalm = Mathf.Lerp(a.facepalm, b.facepalm, t),
+                    reach = Mathf.Lerp(a.reach, b.reach, t)
                 };
             }
         }
@@ -64,10 +66,10 @@ namespace MixerMad.Game
             {
                 case DriverEmotion.Idle: p.bob = 1f; break;
                 case DriverEmotion.GasGrin: p.mouthW = 1.7f; p.mouthH = 0.5f; p.browLift = 0.06f; p.lean = 8f; p.eyeScale = 1.05f; break;
-                case DriverEmotion.AirWoo: p.mouthW = 0.7f; p.mouthH = 1.5f; p.armRaise = 150f; p.hat = 0.10f; p.browLift = 0.10f; p.eyeScale = 1.25f; break;
-                case DriverEmotion.Scared: p.eyeScale = 1.55f; p.browLift = 0.08f; p.browAngle = -18f; p.mouthW = 0.9f; p.mouthH = 0.9f; p.sweat = 1f; p.armRaise = 20f; p.lean = -6f; break;
+                case DriverEmotion.AirWoo: p.mouthW = 0.7f; p.mouthH = 1.5f; p.armRaise = 120f; p.reach = 1f; p.hat = 0.06f; p.browLift = 0.10f; p.eyeScale = 1.25f; break;
+                case DriverEmotion.Scared: p.eyeScale = 1.55f; p.browLift = 0.08f; p.browAngle = -18f; p.mouthW = 0.9f; p.mouthH = 0.9f; p.sweat = 1f; p.armRaise = 25f; p.lean = -6f; break;
                 case DriverEmotion.CrashDaze: p.eyeScale = 1.3f; p.mouthW = 1.1f; p.mouthH = 0.5f; p.stars = 1f; p.headTilt = 14f; p.browAngle = -10f; break;
-                case DriverEmotion.WinCheer: p.mouthW = 1.9f; p.mouthH = 0.85f; p.armRaise = 175f; p.browLift = 0.10f; p.bob = 2f; p.hat = 0.08f; break;
+                case DriverEmotion.WinCheer: p.mouthW = 1.9f; p.mouthH = 0.85f; p.armRaise = 110f; p.browLift = 0.10f; p.bob = 2f; p.hat = 0.06f; break;
                 case DriverEmotion.FailFacepalm: p.facepalm = 1f; p.headTilt = -10f; p.mouthW = 0.8f; p.mouthH = 0.12f; p.browAngle = -22f; p.eyeScale = 0.6f; break;
             }
             return p;
@@ -77,7 +79,7 @@ namespace MixerMad.Game
         float _hold, _blend = 1f, _t;
         Pose _from, _to, _shown;
         float _crashT = -1f, _winT = -1f, _failT = -1f;
-        Vector3 _headBase, _hatBase, _mouthBase, _eyeLBase, _eyeRBase, _browLBase, _browRBase, _sweatBase, _starsBase, _torsoBase;
+        Vector3 _headBase, _hatBase, _mouthBase, _eyeLBase, _eyeRBase, _browLBase, _browRBase, _sweatBase, _starsBase, _torsoBase, _pupilLBase, _pupilRBase;
         Quaternion _armLRest, _armRRest, _torsoRest;
         bool _bound;
         float _blinkT = 2f, _prevBrake, _decel;
@@ -126,6 +128,8 @@ namespace MixerMad.Game
             if (mouth) _mouthBase = mouth.localScale;
             if (eyeL) _eyeLBase = eyeL.localScale;
             if (eyeR) _eyeRBase = eyeR.localScale;
+            if (pupilL) _pupilLBase = pupilL.localPosition;
+            if (pupilR) _pupilRBase = pupilR.localPosition;
             if (browL) _browLBase = browL.localPosition;
             if (browR) _browRBase = browR.localPosition;
             if (sweat) _sweatBase = sweat.localScale;
@@ -239,12 +243,13 @@ namespace MixerMad.Game
             if (eyeL) eyeL.localScale = new Vector3(_eyeLBase.x * p.eyeScale, _eyeLBase.y * p.eyeScale * blink, _eyeLBase.z * p.eyeScale);
             if (eyeR) eyeR.localScale = new Vector3(_eyeRBase.x * p.eyeScale, _eyeRBase.y * p.eyeScale * blink, _eyeRBase.z * p.eyeScale);
 
-            // eyes look ahead; glance toward a hazard when scared (edge ahead)
+            // eyes look ahead (dizzy wobble when dazed). Offsets are added to the built position: the old code set
+            // z = -0.05, which sank the pupils inside the eye spheres, so the eyes read as blank white blobs.
             if (pupilL && pupilR)
             {
-                Vector3 look = new Vector3(0.35f, p.stars > 0.5f ? Mathf.Sin(_t * 12f) * 0.3f : 0f, 0f);
-                pupilL.localPosition = look * 0.1f + new Vector3(0, 0, -0.05f);
-                pupilR.localPosition = look * 0.1f + new Vector3(0, 0, -0.05f);
+                Vector3 look = new Vector3(0.35f, p.stars > 0.5f ? Mathf.Sin(_t * 12f) * 0.3f * calm : 0f, 0f) * 0.1f;
+                pupilL.localPosition = _pupilLBase + look;
+                pupilR.localPosition = _pupilRBase + look;
             }
 
             if (browL) { browL.localPosition = _browLBase + new Vector3(0, p.browLift, 0); browL.localRotation = Quaternion.Euler(0, 0, p.browAngle); }
@@ -258,8 +263,9 @@ namespace MixerMad.Game
                 starsRoot.localRotation = Quaternion.Euler(0, _t * 220f * calm, 0);
                 starsRoot.localScale = Vector3.one * Mathf.Clamp01(p.stars);
             }
-            if (armL) armL.localRotation = _armLRest * Quaternion.Euler(0, 0, p.facepalm > 0.5f ? 130f : -p.armRaise);
-            if (armR) armR.localRotation = _armRRest * Quaternion.Euler(0, 0, p.facepalm > 0.5f ? 130f : -p.armRaise);
+            float raise = p.facepalm > 0.5f ? FacepalmDeg : p.armRaise;
+            if (armR) armR.localRotation = _armRRest * Quaternion.Euler(0, 0, raise);
+            if (armL) PoseNearArm(raise, p.reach, calm);
 
             // art hooks
             if (face)
@@ -276,6 +282,34 @@ namespace MixerMad.Game
             if (animator && _blinkT < 0.12f && _blinkT > 0f) animator.SetTrigger("Blink");
         }
 
+        // The near arm (camera side, -Z) waves out of the side window for "woo": it swings from its in-cab pose to
+        // pointing out sideways and up, and stretches so the mitten clears the cab side.
+        void PoseNearArm(float raise, float reach, float calm)
+        {
+            float wave = reach > 0.5f ? Mathf.Sin(_t * 10f) * WaveDeg * calm : 0f;
+            var inCab = _armLRest * Quaternion.Euler(0, 0, raise);
+            var outOfWindow = _armLRest * Quaternion.Euler(0, 90f, OutOfWindowUpDeg + wave);   // +X turned to -Z, then tipped up
+            armL.localRotation = Quaternion.Slerp(inCab, outOfWindow, reach);
+            SetArmLength(armL, Mathf.Lerp(ArmLength, ReachArmLength, reach));
+        }
+
+        static void SetArmLength(Transform arm, float length)
+        {
+            var mesh = arm.Find("Mesh"); var mitten = arm.Find("Mitten");
+            if (mesh) { mesh.localPosition = new Vector3(length * 0.5f, 0, 0); mesh.localScale = new Vector3(length, ArmThickness, ArmThickness); }
+            if (mitten) mitten.localPosition = new Vector3(length + 0.02f, 0, 0);
+        }
+
+        /// <summary>Test hook: jump straight to an emotion's pose (no blend, no sim) and apply it.</summary>
+        internal void PoseForTests(DriverEmotion e, float time = 0f)
+        {
+            if (!_bound) Bind();
+            _t = time;
+            SetEmotion(e, true);
+            _shown = _to;
+            Apply(_shown, 0f, null);
+        }
+
         void SetShape(string n, float w)
         {
             int i = face.sharedMesh ? face.sharedMesh.GetBlendShapeIndex(n) : -1;
@@ -284,39 +318,32 @@ namespace MixerMad.Game
 
         // =====================================================================================
         //  Primitive placeholder driver (kid-sized builder with a yellow hard hat). Original character.
+        //  Sized for the drive camera (GAMEUP-REVIEW P2, fix 7): head 1.3x (0.73 m), sitting 0.10 m higher so the
+        //  whole face is above the window sill, hat brim raised clear of the eyes, big eyes with pupils that read at
+        //  8+ px at 1080p. The face looks 3/4 toward the camera (-Z); the driver faces +X like the truck.
         // =====================================================================================
+        public const float HeadSize = 0.56f * 1.3f;
+        public const float SeatLift = 0.10f;
+        public const float HeadHeight = 0.44f;          // head centre above the seat point (before the lift)
+        const float ArmLength = 0.5f, ReachArmLength = 1.0f, ArmThickness = 0.15f;
+        const float OutOfWindowUpDeg = 30f, WaveDeg = 14f, FacepalmDeg = 45f;
+
         public static GameObject BuildPlaceholder(Transform seat)
         {
             var root = new GameObject("Driver");
             root.transform.SetParent(seat, false);
+            root.transform.localPosition = new Vector3(0, SeatLift, 0);
 
             Mesh sph = Smooth(ProcMesh.Sphere(0.5f, 14, 22));
             Mesh box = Smooth(ProcMesh.RoundedBox(Vector3.one, 0.18f, 4));
 
-            var torso = Part(root.transform, "Torso", box, "Toy_Orange", new Vector3(0, -0.05f, 0), new Vector3(0.5f, 0.55f, 0.6f));
-            torso.transform.localPosition = new Vector3(0, -0.05f, 0);
-            var head = Part(root.transform, "Head", sph, "Toy_Skin", new Vector3(0, 0.38f, 0), Vector3.one * 0.56f);
-            Part(head.transform, "Hat", sph, "Toy_Hat", new Vector3(0, 0.30f, 0), new Vector3(1.12f, 0.62f, 1.12f)).transform.localPosition = new Vector3(0, 0.30f, 0);
-            // brim
-            Part(head.transform, "Brim", box, "Toy_Hat", new Vector3(0.36f, 0.12f, 0), new Vector3(0.45f, 0.08f, 0.9f));
-            // eyes: 3/4 view toward the camera (-z)
-            var eL = Part(head.transform, "Eye_L", sph, "Toy_White", new Vector3(0.20f, 0.04f, -0.40f), new Vector3(0.28f, 0.34f, 0.18f));
-            var eR = Part(head.transform, "Eye_R", sph, "Toy_White", new Vector3(0.00f, 0.04f, -0.44f), new Vector3(0.26f, 0.32f, 0.18f));
-            Part(eL.transform, "Pupil_L", sph, "Toy_Navy", new Vector3(0.05f, 0, -0.35f), new Vector3(0.55f, 0.55f, 0.4f));
-            Part(eR.transform, "Pupil_R", sph, "Toy_Navy", new Vector3(0.05f, 0, -0.35f), new Vector3(0.55f, 0.55f, 0.4f));
-            Part(head.transform, "Brow_L", box, "Toy_Navy", new Vector3(0.20f, 0.22f, -0.42f), new Vector3(0.24f, 0.06f, 0.08f));
-            Part(head.transform, "Brow_R", box, "Toy_Navy", new Vector3(0.00f, 0.22f, -0.46f), new Vector3(0.22f, 0.06f, 0.08f));
-            Part(head.transform, "Mouth", box, "Toy_Red", new Vector3(0.14f, -0.20f, -0.44f), new Vector3(0.2f, 0.07f, 0.06f));
-            Part(head.transform, "Sweat", sph, "Toy_Glass", new Vector3(0.3f, 0.2f, -0.42f), new Vector3(0.12f, 0.2f, 0.1f));
-            // arms (pivot at shoulder)
-            var aL = new GameObject("Arm_L"); aL.transform.SetParent(root.transform, false); aL.transform.localPosition = new Vector3(0.05f, 0.15f, -0.34f);
-            Part(aL.transform, "Mesh", box, "Toy_Orange", new Vector3(0.25f, 0, 0), new Vector3(0.5f, 0.15f, 0.15f));
-            Part(aL.transform, "Mitten", sph, "Toy_White", new Vector3(0.52f, 0, 0), Vector3.one * 0.2f);
-            var aR = new GameObject("Arm_R"); aR.transform.SetParent(root.transform, false); aR.transform.localPosition = new Vector3(0.05f, 0.15f, 0.34f);
-            Part(aR.transform, "Mesh", box, "Toy_Orange", new Vector3(0.25f, 0, 0), new Vector3(0.5f, 0.15f, 0.15f));
-            Part(aR.transform, "Mitten", sph, "Toy_White", new Vector3(0.52f, 0, 0), Vector3.one * 0.2f);
+            Part(root.transform, "Torso", box, "Toy_Orange", new Vector3(0, -0.05f, 0), new Vector3(0.5f, 0.55f, 0.6f));
+            var head = Part(root.transform, "Head", sph, "Toy_Skin", new Vector3(0, HeadHeight, 0), Vector3.one * HeadSize);
+            BuildFace(head.transform, sph, box);
+            BuildArm(root.transform, "Arm_L", -0.34f, sph, box);
+            BuildArm(root.transform, "Arm_R", 0.34f, sph, box);
             // crash stars orbit
-            var stars = new GameObject("Stars"); stars.transform.SetParent(head.transform, false); stars.transform.localPosition = new Vector3(0, 0.62f, 0);
+            var stars = new GameObject("Stars"); stars.transform.SetParent(head.transform, false); stars.transform.localPosition = new Vector3(0, 0.75f, 0);
             for (int i = 0; i < 3; i++)
             {
                 float a = i / 3f * Mathf.PI * 2f;
@@ -329,6 +356,31 @@ namespace MixerMad.Game
             dv.squash = root.GetComponent<SquashStretch>();
             // sweat starts hidden by scale 0 in the pose
             return root;
+        }
+
+        /// <summary>Hat, brim, eyes, pupils, brows, mouth and sweat drop, in head space (head radius 0.5).</summary>
+        static void BuildFace(Transform head, Mesh sph, Mesh box)
+        {
+            // hat dome sits high; the brim rides at the hat base, above the brows, so it never covers the eyes
+            Part(head, "Hat", sph, "Toy_Hat", new Vector3(0, 0.42f, 0), new Vector3(1.08f, 0.50f, 1.08f));
+            Part(head, "Brim", box, "Toy_Hat", new Vector3(0.34f, 0.34f, 0), new Vector3(0.42f, 0.07f, 0.88f));
+            var eL = Part(head, "Eye_L", sph, "Toy_White", new Vector3(0.24f, 0.04f, -0.40f), new Vector3(0.38f, 0.44f, 0.20f));
+            var eR = Part(head, "Eye_R", sph, "Toy_White", new Vector3(-0.10f, 0.04f, -0.43f), new Vector3(0.36f, 0.42f, 0.20f));
+            // pupils: 70% of the eye (about 9 px wide at 1080p in the 3/4 view), pushed out past the eye's front so they always show
+            Part(eL.transform, "Pupil_L", sph, "Toy_Navy", new Vector3(0.06f, -0.02f, -0.36f), new Vector3(0.70f, 0.70f, 0.4f));
+            Part(eR.transform, "Pupil_R", sph, "Toy_Navy", new Vector3(0.06f, -0.02f, -0.36f), new Vector3(0.70f, 0.70f, 0.4f));
+            Part(head, "Brow_L", box, "Toy_Navy", new Vector3(0.24f, 0.27f, -0.40f), new Vector3(0.26f, 0.06f, 0.08f));
+            Part(head, "Brow_R", box, "Toy_Navy", new Vector3(-0.10f, 0.27f, -0.42f), new Vector3(0.24f, 0.06f, 0.08f));
+            Part(head, "Mouth", box, "Toy_Red", new Vector3(0.10f, -0.22f, -0.44f), new Vector3(0.24f, 0.08f, 0.06f));
+            Part(head, "Sweat", sph, "Toy_Glass", new Vector3(0.36f, 0.16f, -0.40f), new Vector3(0.12f, 0.2f, 0.1f));
+        }
+
+        /// <summary>Arm with its pivot at the shoulder; the sleeve runs along +X (hands forward on the wheel).</summary>
+        static void BuildArm(Transform root, string name, float z, Mesh sph, Mesh box)
+        {
+            var arm = new GameObject(name); arm.transform.SetParent(root, false); arm.transform.localPosition = new Vector3(0.05f, 0.15f, z);
+            Part(arm.transform, "Mesh", box, "Toy_Orange", new Vector3(ArmLength * 0.5f, 0, 0), new Vector3(ArmLength, ArmThickness, ArmThickness));
+            Part(arm.transform, "Mitten", sph, "Toy_White", new Vector3(ArmLength + 0.02f, 0, 0), Vector3.one * 0.2f);
         }
 
         static Mesh Smooth(Mesh m) { MeshSmoothNormals.Bake(m); return m; }

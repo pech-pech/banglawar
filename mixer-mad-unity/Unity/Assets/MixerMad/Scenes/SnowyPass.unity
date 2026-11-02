@@ -119,7 +119,7 @@ NavMeshSettings:
     debug:
       m_Flags: 0
   m_NavMeshData: {fileID: 0}
---- !u!115 &379569389
+--- !u!115 &1594358980
 MonoScript:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -134,7 +134,7 @@ MonoScript:
   m_ClassName: SliceBootstrap
   m_Namespace: MixerMad.Game
   m_AssemblyName: MixerMad.Runtime
---- !u!1 &1405585365
+--- !u!1 &1697461088
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -142,8 +142,8 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 1405585367}
-  - component: {fileID: 1405585366}
+  - component: {fileID: 1697461090}
+  - component: {fileID: 1697461089}
   m_Layer: 0
   m_Name: SliceBootstrap
   m_TagString: Untagged
@@ -151,26 +151,26 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!114 &1405585366
+--- !u!114 &1697461089
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1405585365}
+  m_GameObject: {fileID: 1697461088}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 379569389}
+  m_Script: {fileID: 1594358980}
   m_Name: 
   m_EditorClassIdentifier: MixerMad.Runtime::MixerMad.Game.SliceBootstrap
   truckPrefab: {fileID: 919132149155446097, guid: 7d9441dcc873349bf8a4bbc81f5a36b9, type: 3}
---- !u!4 &1405585367
+--- !u!4 &1697461090
 Transform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1405585365}
+  m_GameObject: {fileID: 1697461088}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
@@ -183,4 +183,4 @@ Transform:
 SceneRoots:
   m_ObjectHideFlags: 0
   m_Roots:
-  - {fileID: 1405585367}
+  - {fileID: 1697461090}

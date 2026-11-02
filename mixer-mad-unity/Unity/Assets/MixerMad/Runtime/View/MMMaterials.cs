@@ -43,6 +43,16 @@ namespace MixerMad.Game
             new Def("Dress_Cabin", "MixerMad/ToyPlastic", Hex("#b5693a"), 0.3f, 0.3f, 0.25f, 0.04f),
             new Def("Dress_Roof",  "MixerMad/ToyPlastic", Hex("#e9eef5"), 0.25f, 0f, 0.2f, 0.04f),
             new Def("Dress_Pole",  "MixerMad/ToyPlastic", Hex("#ff7a1a"), 0.5f, 0.6f, 0.3f, 0.03f),
+            // FX emitters (HDR emission above the bloom threshold of 1.0, L-MM-33); swapped, never instanced
+            new Def("FX_Beacon_On",  "MixerMad/ToyPlastic", Hex("#ffb21a"), 0.7f, 1f, 0.3f, 0f) { emission = new Color(6f, 3.2f, 0.4f) },
+            new Def("FX_Beacon_Off", "MixerMad/ToyPlastic", Hex("#d08a1c"), 0.7f, 1f, 0.3f, 0f) { emission = new Color(0.35f, 0.18f, 0.02f) },
+            new Def("FX_Headlamp",   "MixerMad/ToyPlastic", Hex("#fff3d8"), 0.8f, 1f, 0.2f, 0f) { emission = new Color(5f, 4.6f, 3.6f) },
+            // living world (background rule: no outline, matte)
+            new Def("World_Navy",   "MixerMad/ToyPlastic", Hex("#2a3550"), 0.3f, 0f, 0.15f, 0f),
+            new Def("World_Red",    "MixerMad/ToyPlastic", Hex("#d42a2a"), 0.35f, 0.2f, 0.2f, 0f),
+            new Def("World_Orange", "MixerMad/ToyPlastic", Hex("#ff7a1a"), 0.35f, 0.2f, 0.2f, 0f),
+            new Def("World_Snow",   "MixerMad/ToyPlastic", Hex("#f6f9ff"), 0.25f, 0f, 0.2f, 0f),
+            new Def("FX_Gold",       "MixerMad/ToyPlastic", Hex("#ffcf3a"), 0.85f, 1f, 0.5f, 0.02f) { emission = new Color(1.6f, 1.1f, 0.2f) },
         };
 
         static readonly Dictionary<string, Material> Cache = new Dictionary<string, Material>();
@@ -63,6 +73,16 @@ namespace MixerMad.Game
             m = Resources.Load<Material>("MixerMad/" + n);
             if (m == null) m = ConfigureParticle(new Material(Shader.Find("MixerMad/SoftParticle")) { name = n }, additive);
             Cache[n] = m;
+            return m;
+        }
+
+        /// <summary>Soft round additive/alpha particle with an HDR tint (glow sprites, gold sparkle), one shared material per name.</summary>
+        public static Material ParticleTinted(string name, Color hdrTint, bool additive)
+        {
+            if (Cache.TryGetValue(name, out var m) && m != null) return m;
+            m = ConfigureParticle(new Material(Shader.Find("MixerMad/SoftParticle")) { name = name }, additive);
+            m.SetColor("_Color", hdrTint);
+            Cache[name] = m;
             return m;
         }
 
@@ -104,8 +124,12 @@ namespace MixerMad.Game
 
         public static Material ConfigureGlassClear(Material m)
         {
-            m.SetColor("_BaseColor", new Color(0.62f, 0.80f, 0.95f, 0.30f));
-            m.SetFloat("_Smoothness", 0.92f);
+            // Clear enough to read the driver's face at drive zoom: light tint, no sky reflection (it washed the face
+            // out over snow); the sun glint stays.
+            m.SetColor("_BaseColor", new Color(0.70f, 0.86f, 0.97f, 0.12f));
+            m.SetFloat("_Smoothness", 0.85f);
+            m.SetFloat("_EnvironmentReflections", 0f);
+            m.EnableKeyword("_ENVIRONMENTREFLECTIONS_OFF");
             m.SetFloat("_Metallic", 0f);
             m.SetFloat("_Surface", 1f);                                   // transparent
             m.SetFloat("_Blend", 0f);                                     // alpha

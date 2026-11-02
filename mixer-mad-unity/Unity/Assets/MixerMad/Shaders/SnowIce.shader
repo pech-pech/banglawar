@@ -1,6 +1,6 @@
 // MixerMad/SnowIce
 // Road, snow banks, ice and rock walls in one material, driven by vertex colour from RoadBuilder:
-//   R = snow cover (0 bare road .. 1 deep snow)   G = ice (frozen lake)   B = cliff wall
+//   R = snow cover (0 bare road .. 1 deep snow)   G = ice (frozen lake)   B = cliff wall   A = baked shade (1 = none)
 // Global values (set by Weather): _MM_Wetness darkens + glosses the road, _MM_Snow dusts up-facing surfaces.
 // Frozen lake mirrors the world through the planar reflection texture when _MM_PLANAR is on (High/Ultra),
 // otherwise it falls back to the reflection probe via high smoothness (Low/Medium).
@@ -9,8 +9,8 @@ Shader "MixerMad/SnowIce"
     Properties
     {
         _RoadColor ("Road", Color) = (0.42, 0.43, 0.46, 1)
-        _SnowColor ("Snow", Color) = (0.957, 0.973, 1, 1)
-        _ShadeColor ("Snow Shade", Color) = (0.725, 0.827, 0.937, 1)
+        _SnowColor ("Snow", Color) = (0.85, 0.87, 0.92, 1)       // P2 polish: about 0.85, under the clip point (L-MM-28)
+        _ShadeColor ("Snow Shade", Color) = (0.64, 0.73, 0.86, 1)
         _IceColor ("Ice", Color) = (0.62, 0.84, 0.96, 1)
         _WallColor ("Rock Wall", Color) = (0.60, 0.46, 0.33, 1)
         _LipColor ("Top Lip", Color) = (0.91, 0.878, 0.8, 1)
@@ -152,6 +152,7 @@ Shader "MixerMad/SnowIce"
                 half3 albedo = lerp(baseRoad, shadeMix, snow);
                 albedo = lerp(albedo, _LipColor.rgb, lip * 0.5);
                 albedo = lerp(albedo, _IceColor.rgb, iceVC);
+                albedo *= IN.color.a;   // A = baked shade from RoadBuilder (cut-face AO, strata, gradient); 1 everywhere else
 
                 half wet = _MM_Wetness * (1 - snow);
                 albedo *= 1 - wet * 0.35 * (1 - iceVC);

@@ -7,6 +7,7 @@ namespace MixerMad.Game
     /// <summary>
     /// `-mmStills &lt;folder&gt;` (optional `-mmStillsQuality 0..3`, default High): drives the run with the gas held and
     /// saves four stills: start, mid-drive in snowfall, the first big jump, the finish. Then quits.
+    /// Add `-mmStillsSet full` for the whole review set instead (see <see cref="StillsSetRunner"/>).
     /// Review tool only; it reads the sim like any view and never writes to it.
     /// </summary>
     public sealed class StillsRunner : MonoBehaviour, ISimInputSource
@@ -26,7 +27,7 @@ namespace MixerMad.Game
 
         public static bool Requested => ArgValue("-mmStills") != null;
 
-        static string ArgValue(string name)
+        internal static string ArgValue(string name)
         {
             var a = Environment.GetCommandLineArgs();
             for (int i = 0; i < a.Length - 1; i++) if (a[i] == name) return a[i + 1];
@@ -35,7 +36,7 @@ namespace MixerMad.Game
 
         // Settings that reached the finish without a crash in the headless search (MixerMad.Editor.StillsBotSearch).
         // The first is the fastest; a stalled attempt restarts with the next one.
-        static readonly StillsBot[] Bots =
+        internal static readonly StillsBot[] Bots =
         {
             new StillsBot(-0.60f, 0.35f, 1.0f, 13f),
             new StillsBot(-0.60f, 0.15f, 1.0f, 9f),
@@ -49,6 +50,13 @@ namespace MixerMad.Game
 
         void Start()
         {
+            if (StillsSet.IsFull(Environment.GetCommandLineArgs()))
+            {
+                // `-mmStillsSet full`: the whole review set (times of day, weather, ice, crash, Calm, on/off pairs).
+                gameObject.AddComponent<StillsSetRunner>();
+                Destroy(this);
+                return;
+            }
             _dir = ArgValue("-mmStills");
             try { Directory.CreateDirectory(_dir); }
             catch (Exception e) { Debug.LogError("[MixerMad] stills: cannot create " + _dir + ": " + e.Message); Application.Quit(3); return; }
@@ -118,23 +126,8 @@ namespace MixerMad.Game
             string path = Path.Combine(_dir, name + ".png");
             Debug.Log($"[MixerMad] still {name} at t={_t:F1}s x={_sim.Curr.chassisPos.x:F1}: {path}");
             _pending++;
-            StartCoroutine(CaptureAtEndOfFrame(path));
+            StartCoroutine(StillCapture.Capture(path, ok => { if (!ok) _failed++; _pending--; }));
             return true;   // the shot is taken; a failed write is counted in _failed and fails the run
-        }
-
-        System.Collections.IEnumerator CaptureAtEndOfFrame(string path)
-        {
-            yield return new WaitForEndOfFrame();
-            int w = Screen.width, h = Screen.height;
-            var tex = new Texture2D(w, h, TextureFormat.RGB24, false);
-            try
-            {
-                tex.ReadPixels(new Rect(0, 0, w, h), 0, 0, false);
-                tex.Apply(false);
-                PngWriter.Write(path, tex.GetPixels32(), w, h);
-            }
-            catch (Exception e) { _failed++; Debug.LogError("[MixerMad] still failed " + path + ": " + e.Message); }
-            finally { Destroy(tex); _pending--; }
         }
     }
 }

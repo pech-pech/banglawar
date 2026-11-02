@@ -7,7 +7,8 @@ namespace MixerMad.Game
     /// Snowy mountain pass set dressing, all procedural, all OFF the physics plane (z > 5 or behind the road):
     /// 4 layered ridge silhouettes with fog grading (no outline: background rule), pine stands merged into one
     /// mesh per band, snow fences, orange plough markers, a cabin with a night window light, and a few boulders.
-    /// Life never enters the play lane (z in [-3.6, 3.6] is empty of props).
+    /// Life never enters the play lane (z in [-3.6, 3.6] is empty of props). Fences stand at least 2 m behind the lane edge.
+    /// Everything sits on the ground: placement samples the lowest ground under each footprint (RoadBuilder.GroundMin).
     /// Deterministic: seeded, so every run and every machine builds the same mountains.
     /// </summary>
     public static class SnowyPassDecor
@@ -17,7 +18,8 @@ namespace MixerMad.Game
             var root = new GameObject("Decor").transform;
             root.SetParent(parent, false);
             var rng = new System.Random(seed);
-            float x0 = line[0].x - 60f, x1 = line[line.Length - 1].x + 80f;
+            float x0 = line[0].x - 60f, x1 = line[line.Length - 1].x + 80f;    // ridges run past the ends
+            float g0 = line[0].x, g1 = line[line.Length - 1].x;                  // props only where the ground mesh exists
 
             // ---- ridge layers (parallax comes free from the perspective camera)
             Layer(root, "Ridge_0", MMMaterials.Snow(), x0, x1, z: 38f, baseY: -2f, amp: 16f, freq: 0.045f, seed: seed + 1, snowLine: 0.35f);
@@ -25,76 +27,123 @@ namespace MixerMad.Game
             Layer(root, "Ridge_2", MMMaterials.Snow(), x0, x1, z: 130f, baseY: 8f, amp: 46f, freq: 0.020f, seed: seed + 3, snowLine: 0.2f);
             Layer(root, "Ridge_3", MMMaterials.Snow(), x0, x1, z: 200f, baseY: 14f, amp: 70f, freq: 0.012f, seed: seed + 4, snowLine: 0.15f);
 
-            // ---- pines on the back hill: three merged bands (near / mid / far)
-            var pineMesh = new Mesh[3];
-            float backZ = road.BackEdgeZ;
-            var near = new List<ProcMesh.Part>(); var far = new List<ProcMesh.Part>(); var trunks = new List<ProcMesh.Part>();
-            Mesh tier = ProcMesh.Cone(1f, 1f, 0f, 9);
-            Mesh trunk = ProcMesh.Cone(0.5f, 1f, 0.35f, 6);
-            int count = Mathf.RoundToInt((x1 - x0) / 5.5f);
-            for (int i = 0; i < count; i++)
-            {
-                float x = x0 + (i + (float)rng.NextDouble()) * 5.5f;
-                float z = Mathf.Lerp(road.roadHalfWidth + road.backShoulder + 3.5f, backZ + 18f, (float)rng.NextDouble());
-                if (z < 7.5f) z = 7.5f;                                              // nothing near the lane
-                if ((float)rng.NextDouble() < 0.18f) continue;                       // gaps for rhythm
-                float y = z <= backZ ? road.HeightAt(x, z) : road.HeightAt(x, backZ) + (z - backZ) * 0.22f;
-                float h = Mathf.Lerp(3.2f, 7.5f, (float)rng.NextDouble());
-                var list = z < 14f ? near : far;
-                // 3 stacked cones
-                for (int t = 0; t < 3; t++)
-                {
-                    float f = t / 3f;
-                    float r = Mathf.Lerp(1.5f, 0.7f, f) * h * 0.30f;
-                    float th = h * 0.42f;
-                    var p = new Vector3(x, y + h * 0.18f + f * h * 0.30f, z);
-                    list.Add(new ProcMesh.Part(tier, p, Quaternion.identity, new Vector3(r, th, r)));
-                }
-                trunks.Add(new ProcMesh.Part(trunk, new Vector3(x, y, z), Quaternion.identity, new Vector3(h * 0.07f, h * 0.22f, h * 0.07f)));
-            }
-            Mesh Merge(List<ProcMesh.Part> parts, string n) { var m = ProcMesh.Combine(parts, n); return m; }
-            Mat(root, "Pines_Near", Merge(near, "PinesNear"), "Dress_Pine");
-            Mat(root, "Pines_Far", Merge(far, "PinesFar"), "Dress_Pine");
-            Mat(root, "Pine_Trunks", Merge(trunks, "PineTrunks"), "Dress_Trunk");
+            // ---- pines on the back hill: near / far bands plus trunks, each merged into one mesh
+            BuildPines(root, road, g0, g1, rng);
 
-            // ---- snow fences along the back shoulder + orange plough markers on the front edge
-            var fence = new List<ProcMesh.Part>(); var poles = new List<ProcMesh.Part>();
-            Mesh post = ProcMesh.RoundedBox(new Vector3(0.12f, 1.4f, 0.12f), 0.04f, 3);
-            Mesh slat = ProcMesh.RoundedBox(new Vector3(2.4f, 0.14f, 0.05f), 0.02f, 2);
-            for (float x = x0 + 20f; x < x1 - 60f; x += 2.5f)
-            {
-                if ((int)(x / 2.5f) % 11 > 6) continue;                              // fence comes in runs
-                float z = road.roadHalfWidth + road.backShoulder + 0.5f;
-                float y = road.HeightAt(x, z);
-                fence.Add(new ProcMesh.Part(post, new Vector3(x, y + 0.7f, z), Quaternion.identity));
-                fence.Add(new ProcMesh.Part(slat, new Vector3(x + 1.25f, y + 0.5f, z - 0.05f), Quaternion.identity));
-                fence.Add(new ProcMesh.Part(slat, new Vector3(x + 1.25f, y + 1.0f, z - 0.05f), Quaternion.identity));
-            }
-            Mesh pole = ProcMesh.RoundedBox(new Vector3(0.10f, 2.0f, 0.10f), 0.04f, 3);
-            for (float x = x0 + 30f; x < x1 - 60f; x += 12f)
-            {
-                float z = -(road.roadHalfWidth + 0.55f);
-                float y = road.HeightAt(x, z);
-                poles.Add(new ProcMesh.Part(pole, new Vector3(x, y + 1.0f, z), Quaternion.identity));
-            }
-            Mat(root, "SnowFences", ProcMesh.Combine(fence, "Fences"), "Dress_Trunk");
-            Mat(root, "PloughMarkers", ProcMesh.Combine(poles, "Poles"), "Dress_Pole", outline: true);
+            // ---- snow fences up the back bank (post to post, following the slope) + orange plough markers on the front edge
+            BuildFences(root, road, g0, g1);
+            BuildPloughMarkers(root, road, g0, g1);
 
             // ---- cabin on the hill near the lake (warm window light at night)
             BuildCabin(root, road, 128f, 15f);
 
-            // ---- boulders (snow-capped)
+            // ---- boulders (snow-capped), sunk into the snow and kept clear of the fence
             var rocks = new List<ProcMesh.Part>();
             Mesh rockMesh = ProcMesh.Sphere(0.5f, 6, 10);
-            for (int i = 0; i < 26; i++)
-            {
-                float x = Mathf.Lerp(x0 + 30f, x1 - 50f, (float)rng.NextDouble());
-                float z = Mathf.Lerp(7f, 20f, (float)rng.NextDouble());
-                float s = Mathf.Lerp(0.8f, 2.2f, (float)rng.NextDouble());
-                rocks.Add(new ProcMesh.Part(rockMesh, new Vector3(x, road.HeightAt(x, z) + s * 0.2f, z), Quaternion.Euler(0, (float)rng.NextDouble() * 360f, 0), new Vector3(s * 1.3f, s * 0.8f, s)));
-            }
+            foreach (var b in PlaceBoulders(road, g0, g1, seed))
+                rocks.Add(new ProcMesh.Part(rockMesh, b.centre, Quaternion.Euler(0, b.yaw, 0), b.size));
             Mat(root, "Boulders", ProcMesh.Combine(rocks, "Boulders"), "Dress_Roof");
             return root;
+        }
+
+        // ------------------------------------------------------------------ placement rules (public so tests can check them)
+
+        // Fence z = lane edge + this (L-MM-31 asks for at least 2 m). With the camera framing the road at about 68% of the
+        // screen, the camera sits about 2.8 m above the road, so anything on the back slope nearer than about 10 m projects
+        // across the truck. At lane edge + 7 m the fence foot lands about 3.1 m up on the truck plane: above the cab and drum.
+        public const float FenceBehindLane = 7f;
+        public const float BoulderSink = 0.2f;          // fraction of a boulder's height below the lowest ground under it
+        public const float TrunkSink = 0.15f;
+        const int BoulderCount = 26;
+
+        public static float FenceZ(RoadBuilder road) => road.LaneEdgeZ + FenceBehindLane;
+
+        public static FencePlanner.Plan PlanFences(RoadBuilder road, float x0, float x1)
+            => FencePlanner.Make(road.HeightAt, x0 + 4f, x1 - 4f, FenceZ(road));
+
+        public struct Boulder { public Vector3 centre, size; public float yaw; }
+
+        /// <summary>Boulders on the back hill: bottom sunk BoulderSink of their height below the lowest ground under them.</summary>
+        public static List<Boulder> PlaceBoulders(RoadBuilder road, float x0, float x1, int seed)
+        {
+            var rng = new System.Random(seed * 31 + 5);
+            var list = new List<Boulder>();
+            float fenceZ = FenceZ(road);
+            for (int tries = 0; list.Count < BoulderCount && tries < BoulderCount * 8; tries++)
+            {
+                float x = Mathf.Lerp(x0 + 6f, x1 - 6f, (float)rng.NextDouble());
+                float s = Mathf.Lerp(0.8f, 2.2f, (float)rng.NextDouble());
+                float z = Mathf.Lerp(fenceZ + 1f, 26f, (float)rng.NextDouble());   // behind the fence, so never across the truck
+                float yaw = (float)rng.NextDouble() * 360f;
+                var size = new Vector3(s * 1.3f, s * 0.8f, s);
+                float halfXZ = size.x * 0.5f;                                     // yaw can turn the long side any way
+                if (Mathf.Abs(z - fenceZ) < halfXZ + 0.6f) continue;              // keep them off the fence
+                float half = size.y * 0.5f;
+                float ground = road.GroundMin(x, z, halfXZ * 0.8f, halfXZ * 0.8f);
+                list.Add(new Boulder { centre = new Vector3(x, ground + half - BoulderSink * size.y, z), size = size, yaw = yaw });
+            }
+            return list;
+        }
+
+        static void BuildFences(Transform root, RoadBuilder road, float x0, float x1)
+        {
+            var parts = new List<ProcMesh.Part>();
+            Mesh post = ProcMesh.RoundedBox(new Vector3(0.12f, FencePlanner.PostHeight, 0.12f), 0.04f, 3);
+            Mesh slat = ProcMesh.RoundedBox(new Vector3(1f, 0.12f, 0.05f), 0.02f, 2);
+            var plan = PlanFences(road, x0, x1);
+            foreach (var f in plan.postFeet)
+                parts.Add(new ProcMesh.Part(post, f + Vector3.up * (FencePlanner.PostHeight * 0.5f), Quaternion.identity));
+            foreach (var r in plan.rails)
+            {
+                Vector3 d = r.b - r.a;
+                float len = d.magnitude + 0.10f;                                   // tuck the ends into the posts
+                var rot = Quaternion.Euler(0f, 0f, Mathf.Atan2(d.y, d.x) * Mathf.Rad2Deg);
+                parts.Add(new ProcMesh.Part(slat, (r.a + r.b) * 0.5f + new Vector3(0f, 0f, -0.08f), rot, new Vector3(len, 1f, 1f)));
+            }
+            Mat(root, "SnowFences", ProcMesh.Combine(parts, "Fences"), "Dress_Trunk");
+        }
+
+        static void BuildPloughMarkers(Transform root, RoadBuilder road, float x0, float x1)
+        {
+            var poles = new List<ProcMesh.Part>();
+            Mesh pole = ProcMesh.RoundedBox(new Vector3(0.10f, 2.0f, 0.10f), 0.04f, 3);
+            for (float x = x0 + 10f; x < x1 - 10f; x += 12f)
+            {
+                float z = -(road.roadHalfWidth + 0.55f);
+                float y = road.GroundMin(x, z, 0.05f, 0.05f) - 0.05f;
+                poles.Add(new ProcMesh.Part(pole, new Vector3(x, y + 1.0f, z), Quaternion.identity));
+            }
+            Mat(root, "PloughMarkers", ProcMesh.Combine(poles, "Poles"), "Dress_Pole", outline: true);
+        }
+
+        static void BuildPines(Transform root, RoadBuilder road, float x0, float x1, System.Random rng)
+        {
+            var near = new List<ProcMesh.Part>(); var far = new List<ProcMesh.Part>(); var trunks = new List<ProcMesh.Part>();
+            Mesh tier = ProcMesh.Cone(1f, 1f, 0f, 9);
+            Mesh trunk = ProcMesh.Cone(0.5f, 1f, 0.35f, 6);
+            float zMin = FenceZ(road) + 3f, zMax = road.BackEdgeZ - 2f;
+            int count = Mathf.RoundToInt((x1 - x0) / 5.5f);
+            for (int i = 0; i < count; i++)
+            {
+                float x = x0 + 2f + (i + (float)rng.NextDouble()) * 5.5f;
+                if (x > x1 - 2f) break;
+                float z = Mathf.Lerp(zMin, zMax, (float)rng.NextDouble());
+                if ((float)rng.NextDouble() < 0.18f) continue;                       // gaps for rhythm
+                float h = Mathf.Lerp(3.2f, 7.5f, (float)rng.NextDouble());
+                float r0 = h * 0.07f * 0.5f;                                         // trunk base radius
+                float y = road.GroundMin(x, z, r0, r0) - TrunkSink;                  // sit on the lowest ground under the trunk
+                var list = z < 14f ? near : far;
+                for (int t = 0; t < 3; t++)                                          // 3 stacked cones
+                {
+                    float f = t / 3f;
+                    float r = Mathf.Lerp(1.5f, 0.7f, f) * h * 0.30f;
+                    list.Add(new ProcMesh.Part(tier, new Vector3(x, y + h * 0.18f + f * h * 0.30f, z), Quaternion.identity, new Vector3(r, h * 0.42f, r)));
+                }
+                trunks.Add(new ProcMesh.Part(trunk, new Vector3(x, y, z), Quaternion.identity, new Vector3(h * 0.07f, h * 0.22f + TrunkSink, h * 0.07f)));
+            }
+            Mat(root, "Pines_Near", ProcMesh.Combine(near, "PinesNear"), "Dress_Pine");
+            Mat(root, "Pines_Far", ProcMesh.Combine(far, "PinesFar"), "Dress_Pine");
+            Mat(root, "Pine_Trunks", ProcMesh.Combine(trunks, "PineTrunks"), "Dress_Trunk");
         }
 
         static GameObject Mat(Transform parent, string name, Mesh mesh, string mat, bool outline = false)
@@ -109,9 +158,11 @@ namespace MixerMad.Game
             return go;
         }
 
+        public static readonly Vector2 CabinHalf = new Vector2(2.6f, 2.0f);
+
         static void BuildCabin(Transform parent, RoadBuilder road, float x, float z)
         {
-            float y = road.HeightAt(x, z);
+            float y = road.GroundMin(x, z, CabinHalf.x, CabinHalf.y) - 0.1f;   // the uphill side digs in, the downhill side touches
             var cabin = new GameObject("Cabin"); cabin.transform.SetParent(parent, false); cabin.transform.position = new Vector3(x, y, z);
             var box = ProcMesh.RoundedBox(Vector3.one, 0.06f, 3); MeshSmoothNormals.Bake(box);
             Part(cabin.transform, "Walls", box, "Dress_Cabin", new Vector3(0, 1.5f, 0), new Vector3(5.2f, 3f, 4f));

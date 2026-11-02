@@ -22,6 +22,7 @@ Shader "MixerMad/ToyPlastic"
         _OutlineColor ("Navy Outline", Color) = (0.133, 0.145, 0.169, 1)
         _OutlineWidth ("Outline Width (m)", Range(0,0.2)) = 0.06
         _OutlineMinPixels ("Outline Min Pixels", Range(0,6)) = 1.5
+        _OutlineDepthPush ("Outline Depth Push (m)", Range(0,0.1)) = 0.025
     }
 
     SubShader
@@ -50,6 +51,7 @@ Shader "MixerMad/ToyPlastic"
             half _RimPower;
             half _OutlineWidth;
             half _OutlineMinPixels;
+            half _OutlineDepthPush;
         CBUFFER_END
         ENDHLSL
 
@@ -166,8 +168,8 @@ Shader "MixerMad/ToyPlastic"
 
                 Light mainLight = GetMainLight(id.shadowCoord, IN.positionWS, id.shadowMask);
                 color.rgb += MM_ClearCoat(N, V, mainLight, _ClearCoat, _ClearCoatSmoothness, 1.0h);
-                color.rgb += MM_Rim(N, V, mainLight, _RimColor.rgb, _RimStrength, _RimPower);
                 color.rgb = MM_ShadowFloor(color.rgb, albedo, _ShadowFloor);
+                color.rgb = lerp(color.rgb, _RimColor.rgb, MM_ToyRimAmount(N, V, mainLight, _RimStrength, _RimPower));
                 color.rgb = MixFog(color.rgb, id.fogCoord);
                 color.a = 1;
                 return color;
@@ -213,6 +215,7 @@ Shader "MixerMad/ToyPlastic"
                 float3 posWS = TransformObjectToWorld(IN.positionOS.xyz);
                 float3 nWS = TransformObjectToWorldNormal(nOS);
                 posWS = MM_OutlineOffsetWS(posWS, nWS, _OutlineWidth, _OutlineMinPixels);
+                posWS = MM_OutlineDepthPushWS(posWS, _OutlineDepthPush);
                 OUT.positionCS = TransformWorldToHClip(posWS);
                 OUT.fogFactor = ComputeFogFactor(OUT.positionCS.z);
                 return OUT;

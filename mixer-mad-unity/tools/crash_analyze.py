@@ -5,7 +5,8 @@ Checks (each prints PASS/FAIL with numbers):
   freeze      real seconds from Crash to Respawn (sim 0.7 s, stretched by slow-mo)
   slowmo      slow-mo scale back to 1.0 within 0.5 s after a respawn / restart
   upright     |angle| < 0.35 rad 0.5 s after the respawn, no Crash within 3 s (crash loop)
-  camera      largest camera step in the 1 s after the teleport vs the snap frame (no blend/glide > 1.5 m/frame after the snap)
+  camera      largest camera step in the 1 s after the teleport vs the snap frame (no blend/glide > 1.5 m/frame after the snap);
+              every window ends at the next teleport, so a fast restart loop is not scored against its own next cut
   rig         truck root equals the sim pose; Visual scale back to 1 +-0.03 by 0.6 s; body y stable; suspension steps < 0.08 m/frame
   driver      no CrashDaze 0.6 s after the respawn / restart
   hud         toast empty and finish card hidden 0.3 s after a restart
@@ -30,9 +31,16 @@ def window(frames, t0, t1):
 def cam_step(a, b):
     return math.dist((a['camX'], a['camY'], a['camZ']), (b['camX'], b['camY'], b['camZ']))
 
+def next_teleport(events, t_tp):
+    """Time of the next teleport after this one (a scripted restart loop can fire again within the 1 s camera window)."""
+    later = [e['t'] for e in events if e['event'] == 'teleported' and e['t'] > t_tp + 1e-6]
+    return min(later) if later else math.inf
+
 def analyse_teleport(frames, events, t_tp, label, scenario):
     out = {'label': label, 'scenario': scenario, 't': round(t_tp, 3)}
-    after = window(frames, t_tp, t_tp + 3.0)
+    # stop the window just before the next teleport, so its own cut is never scored as a glide after this one
+    t_end = min(t_tp + 3.0, next_teleport(events, t_tp) - 1e-6)
+    after = window(frames, t_tp, t_end)
     if len(after) < 5:
         out['note'] = 'run ended'; return out
     # slow-mo
