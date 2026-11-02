@@ -43,13 +43,18 @@ def analyse_teleport(frames, events, t_tp, label, scenario):
     r05 = late[0] if late else after[-1]
     out['angle_0.5s'] = round(r05['simAng'], 3)
     loops = [e for e in events if e['event'] == 'Crash' and t_tp < e['t'] <= t_tp + 3.0]
+    ys = [r['simY'] for r in after if r['t'] <= t_tp + 1.5]
+    out['lift_m'] = round(max(ys) - ys[0], 2) if ys else 0
     out['crash_within_3s'] = len(loops)
     out['upright_ok'] = abs(r05['simAng']) < 0.35 and not loops
     # camera: the snap frame may jump; after it, per-frame steps must look like normal follow (< 1.5 m)
+    # the cut may land on the event frame or the next one (event and log order); after the cut, normal follow only
     steps = [cam_step(a, b) for a, b in zip(after, after[1:])]
-    out['cam_snap_m'] = round(steps[0], 2) if steps else 0
-    out['cam_max_after_snap_m'] = round(max(steps[1:61]) if len(steps) > 1 else 0, 2)
-    glide = sum(1 for s in steps[1:61] if s > 0.6)
+    cut_i = max(range(min(3, len(steps))), key=lambda i: steps[i]) if steps else 0
+    out['cam_snap_m'] = round(steps[cut_i], 2) if steps else 0
+    rest = steps[cut_i + 1:cut_i + 61]
+    out['cam_max_after_snap_m'] = round(max(rest) if rest else 0, 2)
+    glide = sum(1 for s in rest if s > 0.6)
     out['cam_glide_frames'] = glide
     out['live_cams'] = sorted({r['liveCam'] for r in after[:60]})
     out['blending_frames'] = sum(1 for r in after[:60] if r['blending'] == '1')
@@ -60,8 +65,9 @@ def analyse_teleport(frames, events, t_tp, label, scenario):
     out['vis_scale_0.6s'] = (round(vis[0]['visScaleX'], 3), round(vis[0]['visScaleY'], 3)) if vis else None
     body = [r['bodyY'] for r in after[:180]]
     out['body_y_range'] = round(max(body) - min(body), 3)
-    susp_steps = [max(abs(b['susp0'] - a['susp0']), abs(b['susp1'] - a['susp1'])) for a, b in zip(after[1:], after[2:120])]
+    susp_steps = [max(abs(b['susp0'] - a['susp0']), abs(b['susp1'] - a['susp1'])) for a, b in zip(after[2:], after[3:120])]
     out['susp_max_step'] = round(max(susp_steps) if susp_steps else 0, 3)
+    # visScaleX may carry the deliberate acceleration stretch (up to 6%); squash shows on Y
     out['rig_ok'] = root_err < 0.25 and (not vis or abs(vis[0]['visScaleY'] - 1) < 0.03) and out['body_y_range'] < 0.02 and out['susp_max_step'] < 0.08
     out['root_err'] = round(root_err, 3)
     # driver

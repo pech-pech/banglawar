@@ -7,16 +7,17 @@
    "slow_at_0.5s": 1.0,
    "slowmo_ok": true,
    "angle_0.5s": -0.086,
+   "lift_m": 2.15,
    "crash_within_3s": 1,
    "upright_ok": false,
-   "cam_snap_m": 0.01,
-   "cam_max_after_snap_m": 6.42,
-   "cam_glide_frames": 1,
+   "cam_snap_m": 6.42,
+   "cam_max_after_snap_m": 0.09,
+   "cam_glide_frames": 0,
    "live_cams": [
     "CM_Main"
    ],
    "blending_frames": 0,
-   "camera_ok": false,
+   "camera_ok": true,
    "vis_scale_0.6s": [
     1.001,
     1.001
@@ -40,16 +41,17 @@
    "slow_at_0.5s": 1.0,
    "slowmo_ok": true,
    "angle_0.5s": -0.086,
+   "lift_m": 3.04,
    "crash_within_3s": 1,
    "upright_ok": false,
-   "cam_snap_m": 0.01,
-   "cam_max_after_snap_m": 3.28,
-   "cam_glide_frames": 1,
+   "cam_snap_m": 3.28,
+   "cam_max_after_snap_m": 0.1,
+   "cam_glide_frames": 0,
    "live_cams": [
     "CM_Main"
    ],
    "blending_frames": 0,
-   "camera_ok": false,
+   "camera_ok": true,
    "vis_scale_0.6s": [
     1.001,
     1.001
@@ -73,16 +75,17 @@
    "slow_at_0.5s": 1.0,
    "slowmo_ok": true,
    "angle_0.5s": -0.086,
+   "lift_m": 3.04,
    "crash_within_3s": 1,
    "upright_ok": false,
-   "cam_snap_m": 0.01,
-   "cam_max_after_snap_m": 3.28,
-   "cam_glide_frames": 1,
+   "cam_snap_m": 3.28,
+   "cam_max_after_snap_m": 0.1,
+   "cam_glide_frames": 0,
    "live_cams": [
     "CM_Main"
    ],
    "blending_frames": 0,
-   "camera_ok": false,
+   "camera_ok": true,
    "vis_scale_0.6s": [
     1.001,
     1.001
@@ -106,16 +109,17 @@
    "slow_at_0.5s": 1.0,
    "slowmo_ok": true,
    "angle_0.5s": -0.081,
+   "lift_m": 3.04,
    "crash_within_3s": 1,
    "upright_ok": false,
-   "cam_snap_m": 0.01,
-   "cam_max_after_snap_m": 3.28,
-   "cam_glide_frames": 1,
+   "cam_snap_m": 3.28,
+   "cam_max_after_snap_m": 0.1,
+   "cam_glide_frames": 0,
    "live_cams": [
     "CM_Main"
    ],
    "blending_frames": 0,
-   "camera_ok": false,
+   "camera_ok": true,
    "vis_scale_0.6s": [
     1.001,
     1.001
@@ -139,16 +143,17 @@
    "slow_at_0.5s": 1.0,
    "slowmo_ok": true,
    "angle_0.5s": -0.086,
+   "lift_m": 3.04,
    "crash_within_3s": 1,
    "upright_ok": false,
-   "cam_snap_m": 0.01,
-   "cam_max_after_snap_m": 3.29,
-   "cam_glide_frames": 1,
+   "cam_snap_m": 3.29,
+   "cam_max_after_snap_m": 0.11,
+   "cam_glide_frames": 0,
    "live_cams": [
     "CM_Main"
    ],
    "blending_frames": 0,
-   "camera_ok": false,
+   "camera_ok": true,
    "vis_scale_0.6s": [
     1.001,
     1.001
@@ -172,16 +177,17 @@
    "slow_at_0.5s": 1.0,
    "slowmo_ok": true,
    "angle_0.5s": 0.0,
+   "lift_m": 0.0,
    "crash_within_3s": 0,
    "upright_ok": true,
-   "cam_snap_m": 0.01,
-   "cam_max_after_snap_m": 49.62,
-   "cam_glide_frames": 1,
+   "cam_snap_m": 49.62,
+   "cam_max_after_snap_m": 0.15,
+   "cam_glide_frames": 0,
    "live_cams": [
     "CM_Main"
    ],
    "blending_frames": 0,
-   "camera_ok": false,
+   "camera_ok": true,
    "vis_scale_0.6s": [
     1.029,
     1.0
@@ -205,16 +211,17 @@
    "slow_at_0.5s": 1.0,
    "slowmo_ok": true,
    "angle_0.5s": -0.589,
+   "lift_m": 7.21,
    "crash_within_3s": 1,
    "upright_ok": false,
-   "cam_snap_m": 0.01,
-   "cam_max_after_snap_m": 22.27,
-   "cam_glide_frames": 1,
+   "cam_snap_m": 22.27,
+   "cam_max_after_snap_m": 0.16,
+   "cam_glide_frames": 0,
    "live_cams": [
     "CM_Main"
    ],
    "blending_frames": 0,
-   "camera_ok": false,
+   "camera_ok": true,
    "vis_scale_0.6s": [
     0.999,
     1.001
@@ -238,16 +245,17 @@
    "slow_at_0.5s": 1.0,
    "slowmo_ok": true,
    "angle_0.5s": -0.589,
+   "lift_m": 2.87,
    "crash_within_3s": 1,
    "upright_ok": false,
-   "cam_snap_m": 0.02,
-   "cam_max_after_snap_m": 5.5,
-   "cam_glide_frames": 1,
+   "cam_snap_m": 5.5,
+   "cam_max_after_snap_m": 0.1,
+   "cam_glide_frames": 0,
    "live_cams": [
     "CM_Main"
    ],
    "blending_frames": 0,
-   "camera_ok": false,
+   "camera_ok": true,
    "vis_scale_0.6s": [
     0.999,
     1.001
@@ -271,16 +279,17 @@
    "slow_at_0.5s": 1.0,
    "slowmo_ok": true,
    "angle_0.5s": -0.589,
+   "lift_m": 2.87,
    "crash_within_3s": 1,
    "upright_ok": false,
-   "cam_snap_m": 0.02,
-   "cam_max_after_snap_m": 5.5,
-   "cam_glide_frames": 1,
+   "cam_snap_m": 5.5,
+   "cam_max_after_snap_m": 0.1,
+   "cam_glide_frames": 0,
    "live_cams": [
     "CM_Main"
    ],
    "blending_frames": 0,
-   "camera_ok": false,
+   "camera_ok": true,
    "vis_scale_0.6s": [
     0.999,
     1.001
@@ -304,16 +313,17 @@
    "slow_at_0.5s": 1.0,
    "slowmo_ok": true,
    "angle_0.5s": -0.575,
+   "lift_m": 2.87,
    "crash_within_3s": 1,
    "upright_ok": false,
-   "cam_snap_m": 0.02,
-   "cam_max_after_snap_m": 5.5,
-   "cam_glide_frames": 1,
+   "cam_snap_m": 5.5,
+   "cam_max_after_snap_m": 0.1,
+   "cam_glide_frames": 0,
    "live_cams": [
     "CM_Main"
    ],
    "blending_frames": 0,
-   "camera_ok": false,
+   "camera_ok": true,
    "vis_scale_0.6s": [
     0.999,
     1.001
@@ -337,6 +347,7 @@
    "slow_at_0.5s": 1.0,
    "slowmo_ok": true,
    "angle_0.5s": 0.0,
+   "lift_m": 0.59,
    "crash_within_3s": 0,
    "upright_ok": true,
    "cam_snap_m": 5.2,
@@ -369,6 +380,7 @@
    "slow_at_0.5s": 1.0,
    "slowmo_ok": true,
    "angle_0.5s": 0.0,
+   "lift_m": 0.57,
    "crash_within_3s": 0,
    "upright_ok": true,
    "cam_snap_m": 5.23,
@@ -401,6 +413,7 @@
    "slow_at_0.5s": 1.0,
    "slowmo_ok": true,
    "angle_0.5s": 0.0,
+   "lift_m": 0.94,
    "crash_within_3s": 0,
    "upright_ok": true,
    "cam_snap_m": 5.16,
@@ -433,6 +446,7 @@
    "slow_at_0.5s": 1.0,
    "slowmo_ok": true,
    "angle_0.5s": 0.0,
+   "lift_m": 0.94,
    "crash_within_3s": 0,
    "upright_ok": true,
    "cam_snap_m": 38.28,
@@ -465,6 +479,7 @@
    "slow_at_0.5s": 1.0,
    "slowmo_ok": true,
    "angle_0.5s": 0.0,
+   "lift_m": 0.94,
    "crash_within_3s": 0,
    "upright_ok": true,
    "cam_snap_m": 38.34,
@@ -497,6 +512,7 @@
    "slow_at_0.5s": 1.0,
    "slowmo_ok": true,
    "angle_0.5s": 0.0,
+   "lift_m": 0.94,
    "crash_within_3s": 0,
    "upright_ok": true,
    "cam_snap_m": 38.28,
@@ -529,6 +545,7 @@
    "slow_at_0.5s": 1.0,
    "slowmo_ok": true,
    "angle_0.5s": 0.0,
+   "lift_m": 0.94,
    "crash_within_3s": 0,
    "upright_ok": true,
    "cam_snap_m": 102.27,
@@ -561,6 +578,7 @@
    "slow_at_0.5s": 1.0,
    "slowmo_ok": true,
    "angle_0.5s": 0.0,
+   "lift_m": 0.94,
    "crash_within_3s": 0,
    "upright_ok": true,
    "cam_snap_m": 102.27,
@@ -596,7 +614,6 @@
  ],
  "fails": {
   "upright_ok": 9,
-  "camera_ok": 10,
   "rig_ok": 6,
   "hud_ok": 3
  }
