@@ -3,8 +3,21 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <title>Hollow Slice - prototype v1</title>
 <style>
-html,body{margin:0;height:100%;background:#000;overflow:hidden;touch-action:none;user-select:none;-webkit-user-select:none;font-family:system-ui,Segoe UI,Roboto,sans-serif;color:#dff}
+html,body{margin:0;height:100%;background:var(--page-bg,#000);overflow:hidden;touch-action:none;user-select:none;-webkit-user-select:none;font-family:system-ui,Segoe UI,Roboto,sans-serif;color:#dff}
 #stage{position:absolute;left:0;top:0;width:1280px;height:800px;transform-origin:0 0;background:var(--clear,#05060d);overflow:hidden;touch-action:none}
+/* Layout round (2026-11-05): HUD groups. Default = identical to before (full-stage boxes, no transform). Skins with hsx.barHud get the groups moved into the
+   letterbox bars by layout() when the bars are tall enough (Fold portrait): html.hb, --hk = HUD scale, --hth/--hbh = bar height in HUD units. */
+#hudTop,#hudBot{position:absolute;left:0;top:0;width:1280px;height:800px;pointer-events:none}
+#hudTop>button{pointer-events:auto}
+#combo:empty{display:none}
+html.hb #stage{overflow-x:clip;overflow-y:visible}
+html.hb #hudTop,html.hb #hudBot{width:calc(1280px / var(--hk));height:var(--hbh);transform-origin:0 0;transform:scale(var(--hk));z-index:6}
+html.hb #hudTop{top:var(--htop)}
+html.hb #hudBot{top:800px}
+html.hb #combo{max-width:100%}
+html.hb #focusWrap{left:calc(50% - 300px)}html.hb #focusTxt{width:100%}
+#focusWrap,#focusTxt{transition:opacity .2s}
+.reduce #focusWrap,.reduce #focusTxt{transition:none}
 #stage canvas{position:absolute;left:0;top:0;width:1280px;height:800px;touch-action:none}
 .hud{position:absolute;pointer-events:none;color:var(--hud-text,#dff);text-shadow:0 0 8px var(--hud-glow,#0cf)}
 #score{left:24px;top:14px;font-size:34px;font-weight:700}
@@ -121,13 +134,14 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;touch-action:none
 <link rel="apple-touch-icon" href="icon-192.png">
 </head><body>
 <div id="stage">
- <div class="hud" id="score">0</div><div class="hud" id="wave"></div><div class="hud" id="lives"></div>
- <div class="hud" id="combo"></div><div class="hud" id="msg"></div>
- <div class="hud" id="focusTxt"></div><div class="hud" id="focusWrap"><div id="focusBar"></div></div>
- <div class="hud" id="warm"></div><div class="hud" id="wvBanner"></div><div class="hud" id="tag"></div>
+ <div id="hudTop"><div class="hud" id="score">0</div><div class="hud" id="wave"></div><div class="hud" id="lives"></div>
+ <div class="hud" id="combo"></div>
  <div id="toast"></div>
  <button id="btnPause" aria-label="Pause (P)" title="Pause (P)">II</button>
- <button id="btnMute" aria-label="Sound on/off (M)" title="Sound on/off (M)"></button>
+ <button id="btnMute" aria-label="Sound on/off (M)" title="Sound on/off (M)"></button></div>
+ <div class="hud" id="msg"></div>
+ <div id="hudBot"><div class="hud" id="focusTxt"></div><div class="hud" id="focusWrap"><div id="focusBar"></div></div></div>
+ <div class="hud" id="warm"></div><div class="hud" id="wvBanner"></div><div class="hud" id="tag"></div>
  <div class="ov" id="ovTitle" style="display:flex"><h1 data-t="HOLLOW SLICE">HOLLOW SLICE</h1>
   <button id="btnStart">PLAY<small id="playSub">Endless</small></button>
   <p id="modeInfo"></p>
@@ -1240,19 +1254,37 @@ window.__HS_DEFAULT_SKIN='ink';
   const MCOL=LAYERS.map(l=>mix(PAPER,WASH,l.t));
   const splats=[];
   function mount(dl,L,i,W,H){
-    const col=MCOL[i];const n=81,cw=W/(n-1)+10;
-    for(let k=0;k<n;k++){
-      const x=k*(W/(n-1)),top=L.base-L.amp*(.5+.5*Math.sin(x*L.f[0]+L.ph))-L.amp*.45*(.5+.5*Math.sin(x*L.f[1]+L.ph*2.3));
-      const h=H-top+40;dl.rrect(x,top+h/2,cw,h,0,4,col,1,0,false);
+    const col=gr(MCOL[i]),ridge=x=>L.base-L.amp*(.5+.5*Math.sin(x*L.f[0]+L.ph))-L.amp*.45*(.5+.5*Math.sin(x*L.f[1]+L.ph*2.3));
+    const n=61,cw=W/(n-1)+10,TH=14;
+    for(let k=0;k<n;k++){   // body: columns whose tops sit under the crest line, so no step is ever visible
+      const x=k*(W/(n-1)),top=ridge(x)+TH*.45,h=H-top+40;dl.rrect(x,top+h/2,cw,h,0,2,col,1,0,false);
     }
+    const m=Math.ceil(W/8);let px=-4,py=ridge(-4);   // crest: round-capped capsules along the exact curve, 8 px apart (smooth at device resolution)
+    for(let k=1;k<=m+1;k++){const x=-4+k*8,y=ridge(x);dl.line(px,py,x,y,TH,col,1,0,false);px=x;py=y;}
   }
   function blot(dl,x,y,r,a,col,seed){
     dl.circle(x,y,r,col,a,r*.7,false);
     for(let i=0;i<6;i++){const an=seed*6.283+i*1.047+(((seed*977+i*13)%7)-3)*.1,d=r*(1.6+((seed*131+i*7)%10)/6),rr=1.5+((seed*53+i*11)%9)*.55;dl.circle(x+Math.cos(an)*d,y+Math.sin(an)*d,rr,col,a*.9,2,false);}
   }
-  const dark=(a)=>mix(INK,[.2,.19,.22],a);
+  let TC=INK;   // current trail colour from the settings picker (core trailCol())
+  let FK=0,FT=0;   // focus (slow-mo) desaturation amount 0..1, eased with the real clock; skin-private state
+  const gr=c=>{if(FK<.01)return c;const l=c[0]*.3+c[1]*.59+c[2]*.11;return [c[0]+(l-c[0])*FK,c[1]+(l-c[1])*FK,c[2]+(l-c[2])*FK];};
+  function focusStep(ctx){const G=ctx.G,t=G.vt,dt=Math.max(0,Math.min(.1,t-FT));FT=t;const tg=(G.slowLeft>0&&G.state==='play')?1:0;FK+=(tg-FK)*(ctx.REDUCE?1:Math.min(1,dt*7));}
+  try{const hl=document.getElementById('helpList');if(hl)hl.innerHTML=hl.innerHTML.replace(/Cyan, violet and green foes: any slash \(violet needs a fast, strong swipe\)\./,'Ink drops and lacquer discs: any slash (the heavy ones need a fast, strong swipe).').replace(/Amber armoured foes/,'Gold-ringed armoured foes').replace(/the red bombs/,'the vermilion seal bombs');}catch(_){}
   const skin={
-    id:'ink',name:'Sumi Storm (ink)',audioTheme:'neon',cueLayer:'overlay',ownPalette:true,cpuParts:true,costHint:'light',
+    id:'ink',name:'Sumi Storm (ink)',audioTheme:'neon',cueLayer:'overlay',cueTicks:'inside',ownPalette:true,cpuParts:true,costHint:'light',
+    hsx:{pageBg:'#EFE6D2',barHud:true,demoKeepout:true,focusFade:true,
+  warn:{col:'#E0301E',stroke:'1.6px #15131a',shadow:'none'},
+  trailSwatches:{cyan:{tn:'Sumi',c:[.082,.075,.102]},lime:{tn:'Moss',c:[.24,.34,.16]},rose:{tn:'Plum',c:[.33,.17,.36]},violet:{tn:'Wisteria',c:[.42,.34,.62]},coral:{tn:'Umber',c:[.36,.25,.15]},
+    teal:{tn:'Pine',c:[.1,.3,.28]},sky:{tn:'Slate',c:[.27,.38,.5]},magenta:{tn:'Aubergine',c:[.24,.12,.3]},silver:{tn:'Ash',c:[.5,.49,.5]},indigo:{tn:'Indigo',c:[.15,.17,.42]},white:{tn:'Graphite',c:[.3,.3,.32]}},
+  css:`
+html.skin-ink,html.skin-ink body,.skin-ink .ov,.skin-ink .ov p,.skin-ink .foldCard,.skin-ink #toast,.skin-ink #seedWrap,.skin-ink #seedIn,.skin-ink button,.skin-ink #tag,.skin-ink .hud,.skin-ink #helpList,.skin-ink .ar{font-family:Georgia,"Times New Roman",serif}
+.skin-ink .foldCard{background:#efe6d2;color:#15131a}.skin-ink .foldCard h2{text-shadow:none;font-style:italic;font-weight:900}.skin-ink .foldCard svg{stroke:#15131a}
+html.skin-ink .ov button,html.skin-ink .ov button#btnStart,html.skin-ink .ov button.pk,html.skin-ink .ov button.sw{border-radius:0}
+html.skin-ink .ov button.sw.sel,html.skin-ink .ov button.pk.sel{background:#efe6d2;border-color:#15131a}
+html.skin-ink #seedIn{border-radius:0}
+html.hb.skin-ink #stage{box-shadow:0 2px 0 rgba(21,19,26,.35)}
+.skin-ink .ov button.sw.lock{color:#15131a}`},
     clear:PAPER.slice(),
     col:{orb:INK,small:INK,big:INK,split:INK,arm:GOLD,bomb:VERM,white:CREAM,blade:INK,gold:GOLD,slow:[.55,.55,.55]},
     hudVars:{'--hud-text':'#15131a','--hud-glow':'rgba(239,230,210,.85)','--hud-accent':'#c9a23a'},
@@ -1297,8 +1329,9 @@ window.__HS_DEFAULT_SKIN='ink';
 .skin-ink .foldCard svg{stroke:#15131a}
 `,
     backdrop:function(dl,ctx){
-      const G=ctx.G,W=ctx.W,H=ctx.H,T=G.bt;
+      const G=ctx.G,W=ctx.W,H=ctx.H,T=G.bt;focusStep(ctx);
       for(const f of FIB)dl.rrect(f.x,f.y,f.l,1.3,f.a,.6,[.45,.38,.28],f.k,0,false);   // paper fibres
+      if(FK>.01)dl.rrect(W/2,H/2,W+40,H+40,0,0,[.9,.9,.9],.95*FK,0,false);   // focus: the paper goes pure grey; ridges, stains, foes get gr() below (bomb and arrow cues stay saturated)
       for(let i=0;i<LAYERS.length;i++){
         mount(dl,LAYERS[i],i,W,H);
         if(i<2&&!ctx.REDUCE){const mx=(W*.5+Math.sin(T*.07+i*2)*W*.35);dl.circle(mx,LAYERS[i].base+30,8,PAPER,.5,150,false);}   // drifting ink mist between ridges
@@ -1307,7 +1340,7 @@ window.__HS_DEFAULT_SKIN='ink';
       for(let i=splats.length-1;i>=0;i--){   // old ink wicks into the paper: below 25% alpha within 3 s, gone by 3.6 s
         const s=splats[i],age=G.T-s.t;if(age<0||age>3.6){splats.splice(i,1);continue;}
         const k=Math.max(0,1-age/3.6),a=.55*k*k*(s.big?1.3:1);
-        blot(dl,s.x,s.y,s.r*(1+.35*Math.min(1,age)),Math.min(.6,a),s.bomb?mix(PAPER,VERM,.8):mix(PAPER,INK,.7),s.h);
+        blot(dl,s.x,s.y,s.r*(1+.35*Math.min(1,age)),Math.min(.6,a),s.bomb?mix(PAPER,VERM,.8):gr(mix(PAPER,INK,.7)),s.h);
       }
     },
     onEvent:function(e,ctx){
@@ -1318,8 +1351,11 @@ window.__HS_DEFAULT_SKIN='ink';
     title:function(dl,ctx,phase){
       const G=ctx.G,COL=ctx.COL,W=ctx.W;
       if(phase==='near'){
-        for(const d of G.demo){const r=d.r;dl.circle(d.x,d.y,r+8,WASH,.14,22,false);dl.circle(d.x,d.y,r,INK,.9,0,false);
-          if(d.t==='arm')dl.ring(d.x,d.y,r-2,5,GOLD,.9,0,false);else dl.ring(d.x,d.y,r-3,2,[.7,.68,.64],.5,0,false);}
+        for(const d of G.demo){const r=d.r;
+          const dx=Math.max(300-d.x,0,d.x-980),dy=Math.max(235-d.y,0,d.y-575),al=Math.min(1,Math.hypot(dx,dy)/90);   // keep demo foes out of the title + PLAY box: they fade before they reach it
+          if(al<.02)continue;
+          dl.circle(d.x,d.y,r+8,WASH,.14*al,22,false);dl.circle(d.x,d.y,r+3,PAPER,.9*al,0,false);dl.circle(d.x,d.y,r,INK,.9*al,0,false);
+          if(d.t==='arm')dl.ring(d.x,d.y,r-2,5,GOLD,.9*al,0,false);else dl.ring(d.x,d.y,r-3,2,[.7,.68,.64],.5*al,0,false);}
       }else{   // ensō: an open brush circle behind the title, painted in over ~1.6 s (static in reduced motion)
         const cx=W/2,cy=330,R=300,prog=ctx.REDUCE?1:Math.min(1,G.vt/1.6),n=64,end=Math.floor(n*.93*prog);
         for(let i=0;i<end;i++){
@@ -1331,9 +1367,11 @@ window.__HS_DEFAULT_SKIN='ink';
     foeBody:function(dl,f,p,ctx){
       const x=p.x,y=p.y,rr=p.rr,A=p.A,G=ctx.G;
       dl.circle(x,y+rr*.12,rr*1.02,WASH,.20*A,rr*.55,false);                                  // grey-wash halo / soft shadow
+      if(f.type!=='bomb')dl.circle(x,y,rr+3.2,PAPER,.96*A,0,false);                           // paper-cream rim: live foes always separate from ink above the fluid / the trail
       if(f.type==='bomb'){
         const pulse=.5+.5*Math.sin(G.T*Math.PI*4),sd=rr*.72;                                 // 2 Hz vermilion bleed into the paper
         dl.circle(x,y,rr*1.1,VERM,(.14+.14*pulse)*A,rr*.8,false);
+        dl.rrect(x,y,2*sd+14,2*sd+14,0,10,PAPER,.96*A,0,false);                                // cream rim above any ink
         dl.rrect(x,y,2*sd+9,2*sd+9,0,8,INK,.97*A,0,false);                                    // heavy dark frame = greyscale read
         dl.rrect(x,y,2*sd,2*sd,0,6,VERM,A,0,false);
         return;
@@ -1354,8 +1392,8 @@ window.__HS_DEFAULT_SKIN='ink';
         return;
       }
       if(f.type==='arm'){
-        dl.ring(x,y,r-2,6,GOLD,A,0,false);dl.ring(x,y,r-9*k,1.5,[.55,.45,.2],.7*A,0,false);                 // gold-leaf rim on black lacquer
-        for(let i=0;i<14;i++){const a=i*.449+f.ang*.0;dl.circle(x+Math.cos(a)*(r-2),y+Math.sin(a)*(r-2),1.4,CREAM,.8*A,0,false);}
+        const gold=gr(GOLD);dl.ring(x,y,r-2,6,gold,A,0,false);dl.ring(x,y,r-9*k,1.5,gr([.55,.45,.2]),.7*A,0,false);   // gold-leaf rim on black lacquer (everything stays inside the radius)
+        for(let i=0;i<14;i++){const a=i*.449;dl.circle(x+Math.cos(a)*(r-2),y+Math.sin(a)*(r-2),1.4,CREAM,.8*A,0,false);}
       }else if(f.type==='big'){
         dl.ring(x,y,r-2,7,INK,A,0,false);dl.ring(x,y,r-13*k,2.5,[.82,.78,.7],.7*A,0,false);                // heavier ensō-stone double ring
         dl.circle(x-r*.32,y-r*.34,r*.14,CREAM,.5*A,3,false);
@@ -1381,7 +1419,7 @@ window.__HS_DEFAULT_SKIN='ink';
       }
       const NG=16;
       for(let i=0;i<NG;i++){const d=(i+.5)/NG*r,hl=Math.sqrt(Math.max(0,r*r-d*d));dl.rrect(h.x+vx*d,h.y+vy*d,hl*2,r/NG+.8,A,0,body,al*.97,0,false);}
-      dl.line(h.x-ca*r,h.y-sa*r,h.x+ca*r,h.y+sa*r,2.5,[.9,.86,.76],al*.9,0,false);   // the clean cut edge, cream
+      dl.line(h.x-ca*r,h.y-sa*r,h.x+ca*r,h.y+sa*r,3.6,[.96,.92,.8],al,0,false);   // the clean cut edge, cream (never covered by the trail)
       dl.circle(h.x+vx*r*.5,h.y+vy*r*.5,r*.7,WASH,.12*al,r*.4,false);                  // feathered wash along the cut
     },
     part:function(dl,p,k){   // ink splatter (CPU path): dark droplets, vermilion only for bomb parts
@@ -1391,30 +1429,50 @@ window.__HS_DEFAULT_SKIN='ink';
       else if(p.k===3){const ca=Math.cos(p.a),sa=Math.sin(p.a),L=p.L*(.4+.6*k);dl.line(p.x-ca*L,p.y-sa*L,p.x,p.y,4*k+1.5,c,.9*k,0,false);}
       else if(p.k===4){const ca=Math.cos(p.a),sa=Math.sin(p.a),h2=p.len/2;dl.line(p.x-ca*h2,p.y-sa*h2,p.x+ca*h2,p.y+sa*h2,3,[.9,.86,.76],k,0,false);}
       else if(p.k===5)dl.rrect(p.x,p.y,24+(1-k)*p.grow,3,0,1.5,WASH,.45*k,0,false);
-      else dl.circle(p.x,p.y,p.sz*k*1.1+.8,c,.92*Math.min(1,k*1.5),0,false);
+      else dl.circle(p.x,p.y,p.sz*k*1.1+.8,c===VERM?VERM:[.3,.29,.32],(c===VERM?.9:.55)*Math.min(1,k*1.5),0,false);   // blade/kill droplets: lighter than the brush so they never read as dots on the stroke
     },
     trail:function(ctx,tier){
-      return {col:INK,strongCol:GOLD,wm:1+0.12*tier,life:ctx.REDUCE?0.15:0.34,life2:0.5,style:'dl'};
+      TC=ctx.trailCol?ctx.trailCol():INK;return {col:TC,strongCol:GOLD,wm:1+0.12*tier,life:ctx.REDUCE?0.15:0.34,life2:0.5,style:'dl'};
     },
-    trailDraw:function(dl,ctx,pts,ts,strong){   // brush stroke: tapered body, bristle streaks; gold-leaf core on a strong swipe. Drawn under foes and slice halves.
-      const n=pts.length;
-      for(let j=1;j<n;j++){
-        const a=pts[j-1],b=pts[j],th=Math.max(2,b.w*.62),al=b.a>.25?1:.7;
-        dl.line(a.x,a.y,b.x,b.y,th,INK,al,0,false);
-        const dx=b.x-a.x,dy=b.y-a.y,l=Math.hypot(dx,dy)||1,nx=-dy/l,ny=dx/l,o=th*.42;
-        dl.line(a.x+nx*o,a.y+ny*o,b.x+nx*o,b.y+ny*o,1.2,[.3,.28,.3],.5*al,0,false);
-        dl.line(a.x-nx*o,a.y-ny*o,b.x-nx*o,b.y-ny*o,1.2,[.3,.28,.3],.5*al,0,false);
-        if(strong)dl.line(a.x,a.y,b.x,b.y,Math.max(1.5,th*.22),GOLD,.95*b.a,0,false);
+    trailDraw:function(dl,ctx,pts,ts,strong){   // brush stroke: Catmull-Rom smoothed, age taper, bristle streaks; drawn UNDER the foes and slice halves.
+      const n=pts.length,G=ctx.G,foes=G.foes,out=[];                                     // 1) spline resample (3 sub-steps per span): no kinks in any renderer
+      for(let j=0;j<n-1;j++){
+        const p0=pts[Math.max(0,j-1)],p1=pts[j],p2=pts[j+1],p3=pts[Math.min(n-1,j+2)];
+        for(let k=0;k<3;k++){const t=k/3,t2=t*t,t3=t2*t,q=(a,b,c,d)=>.5*((2*b)+(-a+c)*t+(2*a-5*b+4*c-d)*t2+(-a+3*b-3*c+d)*t3);
+          out.push({x:q(p0.x,p1.x,p2.x,p3.x),y:q(p0.y,p1.y,p2.y,p3.y),w:p1.w+(p2.w-p1.w)*t,a:p1.a+(p2.a-p1.a)*t});}
       }
-      const h=pts[n-1];dl.circle(h.x,h.y,3+h.w*.18,INK,.9,0,false);
+      out.push(pts[n-1]);const m=out.length;
+      const over=(x,y)=>{for(const f of foes){if(f.dead)continue;const dx=x-f.x,dy=y-f.y,r=f.r*1.15+6;if(dx*dx+dy*dy<r*r)return true;}return false;};
+      const gold=gr(GOLD),brush=[TC[0]*.75+.05,TC[1]*.75+.05,TC[2]*.75+.05];
+      for(let j=1;j<m;j++){
+        const a=out[j-1],b=out[j],age=Math.max(0,Math.min(1,b.a)),th=Math.max(1.6,b.w*.62*(.25+.75*age));   // age taper: thin old tail, full head
+        const wash=over((a.x+b.x)/2,(a.y+b.y)/2);                                           // where the stroke crosses a foe it fades to a <=40% grey wash, so the foe and the cut stay readable
+        dl.line(a.x,a.y,b.x,b.y,th,wash?WASH:brush,wash?.38:1,0,false);
+        if(wash)continue;
+        const dx=b.x-a.x,dy=b.y-a.y,l=Math.hypot(dx,dy)||1,nx=-dy/l,ny=dx/l,o=th*.42;
+        const an=Math.atan2(dy,dx),mx=(a.x+b.x)/2,my=(a.y+b.y)/2;   // square-ended bristle streaks (round caps would stack into dots at every joint)
+        dl.rrect(mx+nx*o,my+ny*o,l,1.2,an,0,[.38,.36,.38],.5*age,0,false);
+        dl.rrect(mx-nx*o,my-ny*o,l,1.2,an,0,[.38,.36,.38],.5*age,0,false);
+        if(strong)dl.line(a.x,a.y,b.x,b.y,Math.max(1.5,th*.22),gold,.95*age,0,false);
+      }
+      const h=out[m-1];if(!over(h.x,h.y))dl.circle(h.x,h.y,3+h.w*.16,brush,.95,0,false);
     },
     sweep:function(){},
-    slowTint:function(dl,ctx){dl.rrect(ctx.W/2,ctx.H/2,ctx.W,ctx.H,0,0,[.5,.5,.5],.14+.03*Math.sin(ctx.G.T*6),0,false);},   // focus: pure grey desaturation wash
-    rim:function(dl,ctx,c,a,kind){   // vignette / damage rim on paper: normal blend. Red rim stays the fixed danger red.
-      const W=ctx.W,H=ctx.H,col=kind==='vig'?GOLD:c;
-      if(ctx.isC2D()){dl.push(false,W/2,H/2,W,H,0,6,146,0,col,a*1.6);return;}
-      const TH=[12,28,48,74,106,146],q=a*1.6/TH.length;
-      for(const th of TH){dl.rrect(W/2,th/2,W,th,0,0,col,q,8,false);dl.rrect(W/2,H-th/2,W,th,0,0,col,q,8,false);dl.rrect(th/2,H/2,th,H,0,0,col,q,8,false);dl.rrect(W-th/2,H/2,th,H,0,0,col,q,8,false);}
+    slowTint:function(){},   // focus slow-mo = desaturation (backdrop wash + gr()), not a dim
+    rim:function(dl,ctx,c,a,kind){   // vignette / damage rim on paper. Red kinds: edge-only vermilion bleed (<=10% luminance swing, one eased pulse) + a seal stamp.
+      const W=ctx.W,H=ctx.H;
+      if(kind==='vig'){const col=gr(GOLD),aa=Math.min(.16,a*1.2);
+        if(ctx.isC2D()){dl.push(false,W/2,H/2,W,H,0,6,146,0,col,aa);return;}
+        const TH=[12,28,48,74,106,146],q=aa/TH.length;
+        for(const th of TH){dl.rrect(W/2,th/2,W,th,0,0,col,q,8,false);dl.rrect(W/2,H-th/2,W,th,0,0,col,q,8,false);dl.rrect(th/2,H/2,th,H,0,0,col,q,8,false);dl.rrect(W-th/2,H/2,th,H,0,0,col,q,8,false);}
+        return;}
+      const k=Math.min(1,a/.42),aa=.10*k;   // peak alpha .10 of vermilion on paper = under a 10% luminance change
+      if(ctx.isC2D()){dl.push(false,W/2,H/2,W,H,0,6,60,0,VERM,aa);}
+      else{const TH=[10,22,38],q=aa/TH.length;for(const th of TH){dl.rrect(W/2,th/2,W,th,0,0,VERM,q,6,false);dl.rrect(W/2,H-th/2,W,th,0,0,VERM,q,6,false);dl.rrect(th/2,H/2,th,H,0,0,VERM,q,6,false);dl.rrect(W-th/2,H/2,th,H,0,0,VERM,q,6,false);}}
+      const sx=W-110,sy=H-120,sa=Math.min(1,k*1.6),S=34;   // hanko stamp, bottom right, fades with the pulse
+      dl.rrect(sx,sy,2*S+8,2*S+8,-.12,9,PAPER,.9*sa,0,false);
+      dl.rrect(sx,sy,2*S,2*S,-.12,7,VERM,sa,0,false);dl.rrect(sx,sy,2*S-14,2*S-14,-.12,4,CREAM,.9*sa,0,false);dl.rrect(sx,sy,2*S-22,2*S-22,-.12,3,VERM,sa,0,false);
+      dl.line(sx-14,sy+1.5,sx+14,sy-1.5,5,CREAM,sa,0,false);dl.line(sx+1.5,sy-14,sx-1.5,sy+14,5,CREAM,sa,0,false);
     },
     hudStyle:function(){return {tierCol:['#15131a','#3a2f10','#6a4e08','#8a6408'],tierGlow:['rgba(0,0,0,0)','rgba(0,0,0,0)','rgba(0,0,0,0)','rgba(0,0,0,0)'],tier3Col:'#8a6408',msgCol:'#15131a',msgGlow:'0 0 10px rgba(239,230,210,.95)'};}
   };
@@ -1464,7 +1522,7 @@ const ASP:f32=1.6;
     let d=(i.uv-a.xy)*vec2f(ASP,1.0); let g=exp(-dot(d,d)/(a.z*a.z))*a.w;
     if(b.z>0.5){ c.y=c.y+g; } else { c.x=c.x+g; }
   }
-  return vec4f(min(c,vec2f(2.5)),0.0,1.0);
+  return vec4f(min(c,vec2f(1.5)),0.0,1.0);
 }
 @fragment fn fsAdvectVel(i:FO)->@location(0) vec4f{   // t0 = t1 = velocity
   let v=T1(i.uv).xy;
@@ -1556,9 +1614,9 @@ fn vn(p:vec2f)->f32{ let i=floor(p); let f=fract(p); let u=f*f*(3.0-2.0*f);
       if(!reduce){
         for(const e of (FX.events||[])){
           const dx=e.dir?e.dir.x:0,dy=e.dir?e.dir.y:-1;
-          if(e.type==='kill'){for(let k=-1;k<=1;k++)add(e.x+dx*k*34,e.y+dy*k*34,.030,.55,dx*.9,dy*.9,0);}   // spatter along the swipe vector, flung down it
+          if(e.type==='kill'){for(let k=-1;k<=1;k++)add(e.x+dx*k*34,e.y+dy*k*34,.028,.38,dx*.9,dy*.9,0);}   // spatter along the swipe vector, flung down it
           else if(e.type==='hit')add(e.x,e.y,.028,.5,dx*.5,dy*.5,0);
-          else if(e.type==='bomb')add(e.x,e.y,.05,.9,.9,0,1);                                          // vermilion bleed + radial burst: the one place vermilion appears
+          else if(e.type==='bomb')add(e.x,e.y,.045,.7,.9,0,1);                                          // vermilion bleed + radial burst: the one place vermilion appears
         }
         const pts=FX.pts;
         if(pts&&pts.length>1){const a=pts[pts.length-2],b=pts[pts.length-1],q=Math.max(.004,b.t-a.t);add(b.x,b.y,.03,0,(b.x-a.x)/q/W*.30,(b.y-a.y)/q/H*.30,0);}   // the blade drags the ink along (velocity only)
@@ -1701,6 +1759,18 @@ const WAVE_LEN=+QP.get('wave')||45;
 const REDUCE=matchMedia('(prefers-reduced-motion: reduce)').matches;
 const $=id=>document.getElementById(id);
 const stage=$('stage');
+/* ---- skin "hsx" hooks (layout round 2026-11-05). A skin may declare  hsx:{...}  with any of these keys; every key defaults to the v6 behaviour.
+   The skin declares its own values in skins/<id>.js (hsx:{...}).
+     pageBg         CSS colour of the letterbox bars / page (default #000)
+     barHud         true = move the HUD into the letterbox bars when they are tall enough (Fold portrait)
+     warn           {col,stroke,shadow} of BOMB / WRONG WAY / MISS text (default #ff5a6a + red glow)
+     demoKeepout    true = title demo foes are hidden while they overlap the title text
+     focusFade      true = the focus bar fades while a live foe is behind it
+     trailSwatches  {trailId:{tn,c}} replaces the picker names / colours (and the colour trailCol() returns)
+     css            extra CSS appended after the skin's own css (wins ties) */
+const SKX=k=>{const sk=window.HSkin.active;if(sk.hsx&&sk.hsx[k]!==undefined)return sk.hsx[k];return undefined;};
+document.documentElement.style.setProperty('--page-bg',SKX('pageBg')||'#000');
+if(SKX('css')){const st=document.createElement('style');st.id='hsxCss';st.textContent=SKX('css');document.head.appendChild(st);}
 /* audio (v4): synthesized WebAudio in HBAudio (inlined below). au() is a safe no-op if audio is missing or fails. */
 /* local records (v4, low-risk engagement): best score + lifetime totals, browser storage only, every access guarded */
 function lsGet(k,d){try{const v=localStorage.getItem(k);return v===null?d:JSON.parse(v);}catch(_){return d;}}
@@ -1744,6 +1814,7 @@ const ACH=[
  {id:'nofocus',name:'Pure Blade',desc:'Win Classic without using FOCUS',trail:'silver',tn:'Silver',c:[.88,.9,1]},
  {id:'kills500',name:'Slayer',desc:'500 kills in total',trail:'indigo',tn:'Indigo',c:[.45,.4,1]},
  {id:'daily',name:'Daily Player',desc:'Play a Daily run',trail:'white',tn:'White',c:[1,1,1]}];
+const trailView=t=>{const sw=SKX('trailSwatches'),o=sw&&sw[t.id];return o?{tn:o.tn,c:o.c}:{tn:t.tn,c:t.c};};   // skin re-skin of picker names/colours (ink: sumi tones, no reds)
 const TRAILS=[{id:'cyan',tn:'Cyan',c:[.5,.9,1],ach:null}].concat(ACH.map(a=>({id:a.trail,tn:a.tn,c:a.c,ach:a.id})));
 const toastQ=[];let toastCur=null,toastEnd=0;
 function unlock(id){
@@ -1751,7 +1822,7 @@ function unlock(id){
   SAVE.ach[id]=Date.now()||1;saveSave();toastQ.push(a);return true;
 }
 function trailOk(t){return !t.ach||!!SAVE.ach[t.ach];}
-function trailCol(){const t=TRAILS.find(x=>x.id===SAVE.trail);return t&&t.id!=='cyan'&&trailOk(t)?t.c:COL.blade;}   // default trail follows the theme blade colour
+function trailCol(){const t=TRAILS.find(x=>x.id===SAVE.trail);return t&&t.id!=='cyan'&&trailOk(t)?trailView(t).c:COL.blade;}   // default trail follows the theme blade colour
 function toastTick(){
   const t=nowS(),el=$('toast');
   if(toastCur&&t>=toastEnd){toastCur=null;el.style.opacity=0;el.style.transform='';}
@@ -2877,6 +2948,10 @@ function newCanvas(){const c=document.createElement('canvas');stage.insertBefore
 function sizeCanvas(c){const dpr=Math.min(window.devicePixelRatio||1,2.5);c.width=Math.max(2,Math.round(W*layoutS*dpr));c.height=Math.max(2,Math.round(H*layoutS*dpr));}
 /* Fold cover screen: too small to play, so show "Unfold to play", pause the run, silence audio, block all input. Growing the viewport hides it; the run resumes from the normal pause menu. */
 let foldShown=false;
+function titleBox(){   // title text box in stage units (layout offsets, so the entrance transform doesn't matter), re-measured twice a second
+  const st=Math.floor(performance.now()/500);
+  if(!koBox||koBox.st!==st){const h=document.querySelector('#ovTitle h1');koBox=h&&h.offsetWidth?{st,x:h.offsetLeft,y:h.offsetTop,w:h.offsetWidth,h:h.offsetHeight}:{st,x:300,y:170,w:680,h:190};}
+  return koBox;}
 function foldCheck(){
   if(typeof G==='undefined')return;
   const small=innerHeight<420; if(small===foldShown)return; foldShown=small;
@@ -2885,9 +2960,14 @@ function foldCheck(){
   else{stage.removeAttribute('inert');if(!(G.state==='play'&&G.paused))au('resume');}
 }
 for(const ev of ['keydown','keyup'])addEventListener(ev,e=>{if(foldShown){e.stopImmediatePropagation();e.preventDefault();}},true);
+let hudK=1,koBox=null;
 function layout(){
   const vw=innerWidth,vh=innerHeight;layoutS=Math.min(vw/W,vh/H);
   stage.style.transform=`translate(${(vw-W*layoutS)/2}px,${(vh-H*layoutS)/2}px) scale(${layoutS})`;
+  /* HUD into the letterbox bars (skins with hsx.barHud): bars tall enough for a readable HUD (e = screen px per HUD unit, capped at 1:1). Playfield size is untouched. */
+  {const bar=(vh-H*layoutS)/2,e=Math.min(1,bar/250),on=!!SKX('barHud')&&bar>=100&&e>layoutS*1.15&&vh>=420,de=document.documentElement;
+   if(on){hudK=e/layoutS;const us=de.style;us.setProperty('--hk',hudK.toFixed(4));us.setProperty('--hbh',(bar/e).toFixed(1)+'px');us.setProperty('--htop',(-bar/layoutS).toFixed(1)+'px');}else hudK=1;
+   de.classList.toggle('hb',on);koBox=null;}
   if(R)sizeCanvas(R.canvas);
   foldCheck();
 }
@@ -3294,22 +3374,22 @@ function refreshTitle(){
 }
 function trailCaption(t){
   const a=ACH.find(x=>x.id===t.ach);
-  $('trailCap').textContent=trailOk(t)?'Trail: '+t.tn+(t.id===SAVE.trail?'':' (tap to use)'):'Locked: '+a.name+' - '+a.desc;
+  $('trailCap').textContent=trailOk(t)?'Trail: '+trailView(t).tn+(t.id===SAVE.trail?'':' (tap to use)'):'Locked: '+a.name+' - '+a.desc;
 }
 function buildPicker(){
   const el=$('trails');el.innerHTML='';
   for(const t of TRAILS){
     const a=ACH.find(x=>x.id===t.ach),un=trailOk(t),b=document.createElement('button');
     b.className='sw'+(un?'':' lock')+(SAVE.trail===t.id?' sel':'');b.dataset.trail=t.id;
-    b.title=un?t.tn:'Locked: '+a.name+' - '+a.desc;
-    b.innerHTML=`<i style="background:rgb(${t.c.map(v=>Math.round(v*255)).join(',')})">${un?'':'?'}</i><span>${un?t.tn:a.name}</span>`;
+    b.title=un?trailView(t).tn:'Locked: '+a.name+' - '+a.desc;
+    const tv=trailView(t);b.innerHTML=`<i style="background:rgb(${tv.c.map(v=>Math.round(v*255)).join(',')})">${un?'':'?'}</i><span>${un?tv.tn:a.name}</span>`;
     b.onclick=()=>{au('ui');if(un){SAVE.trail=t.id;saveSave();buildPicker();}trailCaption(t);};
     el.appendChild(b);
   }
   const cur=TRAILS.find(x=>x.id===SAVE.trail)||TRAILS[0];trailCaption(cur);
 }
 function buildAch(){
-  $('achList').innerHTML=ACH.map(a=>{const ts=SAVE.ach[a.id];return `<div class="ar${ts?'':' lock'}"><i style="background:rgb(${a.c.map(v=>Math.round(v*255)).join(',')})"></i><div>${a.name}${ts?' - unlocked':''}<small>${a.desc} &middot; unlocks the ${a.tn} trail</small></div></div>`;}).join('');
+  $('achList').innerHTML=ACH.map(a=>{const ts=SAVE.ach[a.id],tv=trailView({id:a.trail,tn:a.tn,c:a.c});return `<div class="ar${ts?'':' lock'}"><i style="background:rgb(${tv.c.map(v=>Math.round(v*255)).join(',')})"></i><div>${a.name}${ts?' - unlocked':''}<small>${a.desc} &middot; unlocks the ${tv.tn} trail</small></div></div>`;}).join('');
 }
 function accuracy(){const d=G.good+G.bad+G.miss;return d?G.good/d:0;}
 function finish(won,quit){
@@ -3492,7 +3572,8 @@ function foeCues(f,pose,part){
       dl.line(x-ca*25*k,y-sa*25*k,tx,ty,7,COL.white,A,6,true);
       for(const s2 of [-1,1]){const a=f.ang+Math.PI+s2*0.62;dl.line(tx,ty,tx+Math.cos(a)*20*k,ty+Math.sin(a)*20*k,7,COL.white,A,6,true);}}
     // 35 deg acceptance cone, both ends of the arrow axis: the gold ticks mark the edge of a good cut
-    for(const e of [0,Math.PI])for(const s2 of [-1,1]){const a=f.ang+e+s2*0.611;dl.line(x+Math.cos(a)*(r+2),y+Math.sin(a)*(r+2),x+Math.cos(a)*(r+16*k),y+Math.sin(a)*(r+16*k),3,c,.8*A,g(4),AD);}
+    {const ins=window.HSkin.active.cueTicks==='inside',r0=ins?r-10:r+2,r1=ins?r-2:r+16*k;   // skin.cueTicks==='inside': ticks stay inside the hitbox rim (default = v6, outside)
+    for(const e of [0,Math.PI])for(const s2 of [-1,1]){const a=f.ang+e+s2*0.611;dl.line(x+Math.cos(a)*r0,y+Math.sin(a)*r0,x+Math.cos(a)*r1,y+Math.sin(a)*r1,3,c,.8*A,g(4),AD);}}
   }else if(f.type==='big'){
     for(let i=0;i<f.hp;i++)dl.circle(x-(f.hp-1)*8+i*16,y,5,COL.white,A,g(6),AD);
     if(f.hp<2)dl.line(x-r*.5,y-r*.6,x+r*.4,y+r*.6,3,COL.white,.9*A,g(4),AD);
@@ -3518,8 +3599,10 @@ function draw(){
   const sh=G.trauma*G.trauma;
   dl.ox=REDUCE?0:24*sh*shn(G.vt,0);dl.oy=REDUCE?0:18*sh*shn(G.vt,1);
   if(title&&!REDUCE){dl.ox=G.px*22;dl.oy=G.py*14;   // near layer: demo orbs drift against the backdrop
+    const allDemo=G.demo,ko=SKX('demoKeepout')?titleBox():null;   // draw-only: the skin sees the demo foes that are clear of the title text (G.demo itself is not changed)
+    if(ko)G.demo=allDemo.filter(d=>!(d.x+d.r>ko.x&&d.x-d.r<ko.x+ko.w&&d.y+d.r>ko.y&&d.y-d.r<ko.y+ko.h));
     skCall('title',dl,SKCTX,'near');
-    dl.ox=0;dl.oy=0;}
+    G.demo=allDemo;dl.ox=0;dl.oy=0;}
   /* wave cinematic light sweep (idea 7): one additive slanted bar */
   if(!REDUCE&&G.state==='play'&&G.wvT<.9)skCall('sweep',dl,SKCTX,G.wvT/.9);
   if(title)skCall('title',dl,SKCTX,'hero');
@@ -3571,9 +3654,9 @@ function hud(){
   setT('wave',(MODE==='daily'?'DAILY '+DAILY+' · ':'')+'WAVE '+(G.wave+1)+(MODE==='classic'?' / 3':''));
   const lv=hasLives()?Math.max(G.lives,0):0;
   if(hasLives()&&hv.__lv!==undefined&&lv<hv.__lv&&G.state==='play'&&hv.__lv>0){   // a heart was lost: the old one shakes and shrinks out (CSS transform/opacity)
-    const g=document.createElement('span'),unit=$('lives').getBoundingClientRect().width/layoutS/hv.__lv;
+    const g=document.createElement('span'),unit=$('lives').getBoundingClientRect().width/(layoutS*hudK)/hv.__lv;
     g.className='ghostHeart';g.textContent='♥';g.style.right=(26+lv*unit)+'px';g.addEventListener('animationend',()=>g.remove());
-    stage.insertBefore(g,$('ovTitle'));
+    $('hudTop').appendChild(g);
   }
   hv.__lv=lv;
   setT('lives',hasLives()?'♥'.repeat(lv):'');
@@ -3583,9 +3666,12 @@ function hud(){
   const cs=REDUCE?1:+G.comboS.x.toFixed(3);if(hv.__cs!==cs){hv.__cs=cs;cb.style.transform=cs===1?'':`scale(${cs})`;}
   const fb=$('focusBar'),fv=+G.fbS.toFixed(3);if(hv.__fb!==fv){hv.__fb=fv;fb.style.transform=`scaleX(${fv})`;}
   const rdy=G.state==='play'&&G.slowLeft<=0&&G.focus>=1;if(hv.__rdy!==rdy){hv.__rdy=rdy;$('focusWrap').classList.toggle('ready',rdy);}
+  if(SKX('focusFade')){   // fade the focus bar while a live foe is behind it (the bar is opaque ink; in the letterbox bars it can't cover anything)
+    let beh=false;if(!document.documentElement.classList.contains('hb')&&G.state==='play')for(const f of G.foes){if(!f.dead&&f.y+f.r>H-72&&f.x+f.r>330&&f.x-f.r<950){beh=true;break;}}
+    if(hv.__ff!==beh){hv.__ff=beh;$('focusWrap').style.opacity=beh?.2:'';$('focusTxt').style.opacity=beh?.2:'';}}
   setT('focusTxt',G.slowLeft>0?'SLOW-MO':G.focus>=1?'FOCUS READY - tap this bar (or Space)':'');
   const m=$('msg'),show=G.msgT>G.T&&G.msg&&(G.state==='play');
-  if(show){setT('msg',G.msg);m.style.opacity=1;const warn=!G.msgSoft&&/BOMB|MISS|WRONG/.test(G.msg);const hs_=hudSt();m.style.color=warn?'#ff5a6a':hs_.msgCol;m.style.textShadow=warn?'0 0 12px #f23,0 0 24px #a00':hs_.msgGlow;}else m.style.opacity=0;
+  if(show){setT('msg',G.msg);m.style.opacity=1;const warn=!G.msgSoft&&/BOMB|MISS|WRONG/.test(G.msg);const hs_=hudSt();const wn=SKX('warn')||{col:'#ff5a6a',shadow:'0 0 12px #f23,0 0 24px #a00'};m.style.color=warn?wn.col:hs_.msgCol;m.style.textShadow=warn?wn.shadow:hs_.msgGlow;m.style.webkitTextStroke=warn&&wn.stroke?wn.stroke:'';m.style.paintOrder=warn&&wn.stroke?'stroke fill':'';}else m.style.opacity=0;
   /* wave banner (idea 7): slam in 2.0 -> 1.0 with ease-out-back, hold, slide away; reduced motion = fade only */
   {const bn=$('wvBanner'),w=G.wvT;let o=0,tf='';
     if(G.state==='play'&&!G.paused&&w<1.5){
