@@ -1427,12 +1427,12 @@ function finish(won,quit){
   $('stars').style.display=showStars?'':'none';
   const rw=$('resWord');
   if(isC){rw.textContent=won?{1:'Cleared - keep practising',2:'Sharp blade',3:'Flawless'}[s]:'No stars - try again';rw.style.display=quit?'none':'';}
-  else{rw.textContent='Reached wave '+reached;rw.style.display=quit?'none':'';}
+  else{rw.textContent='Reached wave '+reached;rw.style.display='';}
   $('resTxt').innerHTML=`Score ${G.score}<br>`+(isC?`Accuracy ${Math.round(acc*100)}% &middot; Lives left ${Math.max(G.lives,0)} &middot; Best combo ${G.bestCombo}`:`Waves reached ${reached} &middot; Waves cleared ${G.wave}<br>Accuracy ${Math.round(acc*100)}% &middot; Best combo ${G.bestCombo}`);
   const st=SAVE.stats;
   st.runs++;if(won)st.wins++;st.kills+=G.kills;st.bestCombo=Math.max(st.bestCombo,G.bestCombo);st.bestWave=Math.max(st.bestWave,reached);
   const prev=MODE==='daily'?(SAVE.daily[DAILY]|0):SAVE.best[MODE];
-  const nb=!quit&&G.score>prev&&G.score>0;
+  const nb=(!quit||!isC)&&G.score>prev&&G.score>0;   // M 2026-11-05: quitting Endless/Daily banks the score; Classic quits don't count
   if(nb){if(MODE==='daily')SAVE.daily[DAILY]=G.score;else SAVE.best[MODE]=G.score;}
   if(won){unlock('win1');if(s>=3)unlock('star3');if(G.focusUsed===0)unlock('nofocus');}
   if(st.kills>=500)unlock('kills500');
