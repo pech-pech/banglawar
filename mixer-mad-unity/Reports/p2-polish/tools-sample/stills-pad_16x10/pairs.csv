@@ -1,0 +1,9 @@
+flag,mean_abs_diff,changed_share,noise_floor,particles,verdict
+bloom,0.1596,0.0039,0.2041,frozen,NO-CHANGE
+dof,0.0298,0.0014,0.2041,frozen,NO-CHANGE
+fogsheets,0.2346,0.0074,0.3349,live,NO-CHANGE
+outline,0.4174,0.0052,0.2041,frozen,PASS
+planar,0.7499,0.0186,0.2041,frozen,PASS
+postprocess,0.0783,0.0004,0.2041,frozen,NO-CHANGE
+shadows,0.1122,0.0023,0.2041,frozen,NO-CHANGE
+weatherparticles,0.126,0.0026,0.3349,live,NO-CHANGE

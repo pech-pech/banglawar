@@ -1,0 +1,6 @@
+pause: edge #181d38 vs surround median #aac8f2 = 9.64:1, vs brightest 5% #dae9fa = 13.38:1
+load: edge #161a33 vs surround median #a6c6f2 = 9.74:1, vs brightest 5% #dae8f6 = 13.71:1
+star1: edge #242738 vs surround median #dae8f6 = 11.85:1, vs brightest 5% #dae8f6 = 11.85:1
+brake: edge #201f2c vs surround median #a69891 = 5.81:1, vs brightest 5% #a79a94 = 5.95:1
+gas: edge #1d1e2f vs surround median #a69891 = 5.88:1, vs brightest 5% #a89b96 = 6.09:1
+zone: edge #1f2440 vs surround median #a79a96 = 5.57:1, vs brightest 5% #ffffff = 15.17:1

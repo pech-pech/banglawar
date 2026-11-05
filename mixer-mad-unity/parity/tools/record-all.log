@@ -1,0 +1,22 @@
+[1/202] mixer_L1_t0.55-brake.json.gz pass steps=1958 142KB  +2s
+[11/202] mixer_L2_duty0.5.json.gz FAIL steps=14400 332KB  +8s
+[21/202] mixer_L4_t1-none.json.gz FAIL steps=3669 129KB  +18s
+[31/202] mixer_L6_t0.55-brake.json.gz pass steps=2797 138KB  +26s
+[41/202] mixer_L7_duty0.5.json.gz FAIL steps=14400 313KB  +38s
+[51/202] digger_L1_duty0.85.json.gz pass steps=1582 129KB  +46s
+[61/202] digger_L5_t0.8-none.json.gz FAIL steps=6170 172KB  +51s
+[71/202] digger_L8_t0.8-pitch.json.gz FAIL steps=4794 186KB  +58s
+[81/202] dump_L3_duty0.85.json.gz FAIL steps=8936 310KB  +65s
+[91/202] dump_L7_t0.8-none.json.gz FAIL steps=14400 222KB  +72s
+[101/202] dozer_L2_t0.8-pitch.json.gz FAIL steps=14400 339KB  +80s
+[111/202] dozer_L5_duty0.85.json.gz pass steps=1809 107KB  +84s
+[121/202] crane_L1_t0.8-none.json.gz pass steps=3066 169KB  +91s
+[131/202] crane_L4_t0.8-pitch.json.gz pass steps=1640 101KB  +96s
+[141/202] crane_L7_duty0.85.json.gz pass steps=5251 198KB  +103s
+[151/202] roller_L3_t0.8-none.json.gz FAIL steps=9630 303KB  +114s
+[161/202] roller_L6_t0.8-pitch.json.gz pass steps=2691 134KB  +121s
+[171/202] mixer_L3_t0.8-none_skin2.json.gz FAIL steps=9072 287KB  +128s
+[181/202] mixer_L5_t0.8-none_skin3.json.gz FAIL steps=5480 159KB  +133s
+[191/202] mixer_L7_t0.8-none_skin4.json.gz pass steps=2166 125KB  +143s
+[201/202] digger_L1_t0.8-none_daily.json.gz FAIL steps=10947 290KB  +152s
+wrote INDEX.json 202 traces 35.3 MB gz 154s

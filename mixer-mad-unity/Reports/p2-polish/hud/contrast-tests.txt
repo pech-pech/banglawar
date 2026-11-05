@@ -1,0 +1,23 @@
+F04-button-9slice body/rim vs darkest sky: 10.63:1
+F04-button-9slice rim #212331 vs brightest sky: 12.82:1
+F04-button-9slice rim vs snow: 14.62:1
+LOAD track / zone edge (navy) vs brightest sky: 12.54:1
+LOAD track / zone edge (navy) vs snow: 14.31:1
+LOAD track / zone edge (navy) vs white cloud: 15.23:1
+brightest sky #D6ECFF, snow #F4F8FF
+darkest sky #0A1236
+navy ink on button face vs button face: 9.13:1
+navy title on panel face vs panel face: 9.75:1
+ui2_candy_brake body/rim vs darkest sky: 10.18:1
+ui2_candy_brake rim #251A35 vs brightest sky: 13.54:1
+ui2_candy_brake rim vs snow: 15.44:1
+ui2_candy_gas body/rim vs darkest sky: 8.90:1
+ui2_candy_gas rim #211B30 vs brightest sky: 13.69:1
+ui2_candy_gas rim vs snow: 15.61:1
+ui2_candy_star_empty body/rim vs darkest sky: 5.14:1
+ui2_candy_star_empty rim #381E44 vs brightest sky: 12.04:1
+ui2_candy_star_empty rim vs snow: 13.73:1
+ui2_candy_star_full body/rim vs darkest sky: 11.63:1
+ui2_candy_star_full rim #212332 vs brightest sky: 12.81:1
+ui2_candy_star_full rim vs snow: 14.60:1
+zone edge inner line (white) vs darkest sky: 18.22:1
