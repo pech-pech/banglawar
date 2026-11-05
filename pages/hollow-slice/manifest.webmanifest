@@ -1,0 +1,17 @@
+{
+  "name": "Hollow Slice",
+  "short_name": "Hollow Slice",
+  "description": "Two-thumb ink-brush slashing game. Plays offline.",
+  "start_url": "./",
+  "scope": "./",
+  "id": "./",
+  "display": "fullscreen",
+  "orientation": "landscape",
+  "background_color": "#EFE6D2",
+  "theme_color": "#EFE6D2",
+  "icons": [
+    {"src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any"},
+    {"src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any"},
+    {"src": "icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"}
+  ]
+}
