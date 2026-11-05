@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<title>Hollow Blade - prototype v5</title>
+<title>Hollow Blade - prototype v6</title>
 <style>
 html,body{margin:0;height:100%;background:#000;overflow:hidden;touch-action:none;user-select:none;-webkit-user-select:none;font-family:system-ui,Segoe UI,Roboto,sans-serif;color:#dff}
 #stage{position:absolute;left:0;top:0;width:1280px;height:800px;transform-origin:0 0;background:var(--clear,#05060d);overflow:hidden;touch-action:none}
@@ -13,11 +13,13 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;touch-action:none
 #combo{left:0;width:1280px;text-align:center;top:12px;font-size:30px;font-weight:700;color:#ffd95a;text-shadow:0 0 12px #fa0}
 #msg{left:384px;width:512px;line-height:1.15;text-align:center;top:160px;font-size:44px;font-weight:800;letter-spacing:3px;opacity:0;transition:opacity .15s}
 #focusWrap{left:340px;bottom:18px;width:600px;height:18px;border:2px solid var(--hud-accent,#4af);border-radius:10px;background:#0a1020;box-shadow:0 0 10px var(--hud-accent,#08f)}
-#focusBar{height:100%;width:0;background:linear-gradient(90deg,#08f,#8ff);border-radius:8px}
+#focusBar{height:100%;width:100%;transform-origin:0 50%;transform:scaleX(0);background:linear-gradient(90deg,#08f,#8ff);border-radius:8px;will-change:transform}
 #focusTxt{left:0;width:1280px;text-align:center;bottom:44px;font-size:20px;color:var(--hud-accent,#8ff);letter-spacing:2px}
 #warm{left:0;width:1280px;text-align:center;top:104px;font-size:24px;font-weight:700;color:#9ff;letter-spacing:2px;opacity:0;transition:opacity .6s}
 #sumHint{font-size:18px;opacity:.7}
 #tag{right:8px;bottom:4px;font-size:11px;opacity:.55;text-shadow:none}
+.foldCard{position:fixed;inset:0;z-index:100000;background:#05060d;display:none;flex-direction:column;align-items:center;justify-content:center;gap:10px;text-align:center;color:#dff;font-size:18px;pointer-events:auto;touch-action:none}
+.foldCard h2{margin:0;font-size:30px;letter-spacing:.06em;text-shadow:0 0 14px #0cf}.foldCard p{margin:0;font-size:18px;opacity:.85}.foldCard svg{width:64px;height:64px}
 .ov{position:absolute;inset:0;background:rgba(3,4,12,.82);display:none;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:14px}
 .ov h1{margin:0;font-size:68px;letter-spacing:6px;text-shadow:0 0 18px #0cf}
 .ov p{margin:0;font-size:22px;max-width:900px;line-height:1.4;opacity:.9}
@@ -79,7 +81,39 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;touch-action:none
 .ar.lock{opacity:.45}
 .ar small{display:block;font-size:15px;opacity:.75}
 #toast{position:absolute;left:26px;top:100px;width:300px;box-sizing:border-box;padding:8px 14px;font-size:20px;font-weight:700;line-height:1.2;color:#ffd95a;background:rgba(10,20,40,.9);border:2px solid #ffd95a;border-radius:12px;opacity:0;transition:opacity .25s;z-index:9;pointer-events:none}
-.reduce #toast{transition:none}
+.reduce #toast{transition:none;transform:none!important}
+/* v6 motion round: transform/opacity only. Spring curve = cubic-bezier(.34,1.56,.64,1). */
+#toast{transform:translateX(-34px);transition:opacity .25s,transform .4s cubic-bezier(.34,1.56,.64,1)}
+#combo{transform-origin:50% 60%;will-change:transform}
+#score{transform-origin:0 50%}
+#wvBanner{left:0;width:1280px;text-align:center;top:250px;font-size:96px;font-weight:900;letter-spacing:12px;color:var(--hud-text,#dff);text-shadow:0 0 26px var(--hud-glow,#0cf),0 0 60px var(--hud-glow,#0cf);opacity:0;will-change:transform,opacity}
+#focusWrap::after{content:"";position:absolute;left:-10px;right:-10px;top:-10px;bottom:-10px;border-radius:18px;box-shadow:0 0 26px 6px var(--hud-accent,#4af);opacity:0;pointer-events:none}
+#focusWrap.ready::after{opacity:.85;animation:fbglow 1.1s ease-in-out infinite}
+#focusWrap.ready{animation:fbbreath 1.1s ease-in-out infinite}
+@keyframes fbglow{0%,100%{opacity:.35}50%{opacity:.95}}
+@keyframes fbbreath{0%,100%{transform:scale(1)}50%{transform:scale(1.035,1.25)}}
+.reduce #focusWrap.ready{animation:none}.reduce #focusWrap.ready::after{animation:none;opacity:.8}
+.ghostHeart{position:absolute;top:12px;font-size:36px;letter-spacing:6px;color:#ff4a6a;text-shadow:0 0 10px #f36;pointer-events:none;animation:heartout .55s ease-in forwards}
+@keyframes heartout{0%{transform:scale(1.2) translateX(0);opacity:1}18%{transform:scale(1.25) translateX(-7px)}34%{transform:scale(1.2) translateX(7px)}50%{transform:scale(1) translateX(-5px);opacity:.9}100%{transform:scale(0) translateY(26px);opacity:0}}
+.reduce .ghostHeart{animation:heartfade .3s linear forwards}
+@keyframes heartfade{to{opacity:0}}
+/* title/menu motion (v6): logo slide, blade glint every 6 s, staggered rise, spring buttons */
+#ovTitle{background:rgba(3,4,12,.5)}
+#ovTitle h1{position:relative;overflow:hidden;padding:18px 44px;margin:-18px -44px}
+#ovTitle h1::after{content:attr(data-t);position:absolute;top:0;bottom:0;left:0;right:0;padding:inherit;text-shadow:none;color:transparent;background:linear-gradient(100deg,transparent 42%,rgba(255,255,255,.9) 50%,transparent 58%) 100% 0/250% 100% no-repeat;-webkit-background-clip:text;background-clip:text;animation:glint 6s ease-in-out 1.4s infinite;pointer-events:none}   /* shine is clipped to the glyphs (a copy of the text carries the gradient) */
+@keyframes glint{0%{background-position:100% 0}14%,100%{background-position:0 0}}
+#ovTitle.enter>*{animation:rise .55s cubic-bezier(.34,1.3,.64,1) both;animation-delay:calc(var(--i,0)*70ms)}
+#ovTitle.enter>#btnGear{animation-name:fadein}
+@keyframes rise{from{opacity:0;transform:translateY(34px)}to{opacity:1;transform:none}}
+@keyframes fadein{from{opacity:0}to{opacity:1}}
+#ovTitle.enter>h1{animation-name:logoin}
+@keyframes logoin{from{opacity:0;transform:translateX(-90px) scale(.96)}to{opacity:1;transform:none}}
+.ov button,#btnMute,#btnPause{transition:transform .32s cubic-bezier(.34,1.56,.64,1)}
+.ov button:active,#btnMute:active,#btnPause:active{transform:scale(.94);transition-duration:.07s}
+.reduce #ovTitle h1::after{display:none}
+.reduce #ovTitle.enter>*,.reduce #ovTitle.enter>h1{animation:fadein .1s linear both;animation-delay:0s}
+.reduce .ov button,.reduce #btnMute,.reduce #btnPause{transition:opacity .1s}
+.reduce .ov button:active,.reduce #btnMute:active,.reduce #btnPause:active{transform:none;opacity:.8}
 </style><link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#05060d">
 <meta name="mobile-web-app-capable" content="yes">
@@ -90,11 +124,11 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;touch-action:none
  <div class="hud" id="score">0</div><div class="hud" id="wave"></div><div class="hud" id="lives"></div>
  <div class="hud" id="combo"></div><div class="hud" id="msg"></div>
  <div class="hud" id="focusTxt"></div><div class="hud" id="focusWrap"><div id="focusBar"></div></div>
- <div class="hud" id="warm"></div><div class="hud" id="tag"></div>
+ <div class="hud" id="warm"></div><div class="hud" id="wvBanner"></div><div class="hud" id="tag"></div>
  <div id="toast"></div>
  <button id="btnPause" aria-label="Pause (P)" title="Pause (P)">II</button>
  <button id="btnMute" aria-label="Sound on/off (M)" title="Sound on/off (M)"></button>
- <div class="ov" id="ovTitle" style="display:flex"><h1>HOLLOW BLADE</h1>
+ <div class="ov" id="ovTitle" style="display:flex"><h1 data-t="HOLLOW BLADE">HOLLOW BLADE</h1>
   <button id="btnStart">PLAY<small id="playSub">Endless</small></button>
   <p id="modeInfo"></p>
   <button id="btnGear" aria-label="Settings" title="Settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3.2"/><circle cx="12" cy="12" r="6.6"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2.1 2.1M16.9 16.9L19 19M19 5l-2.1 2.1M7.1 16.9L5 19"/></svg></button>
@@ -114,6 +148,7 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;touch-action:none
  <div class="ov" id="ovRes"><h1 id="resTitle"></h1><div id="stars"></div><p id="resWord" style="font-size:34px"></p><p id="resTxt"></p><div id="newBest"></div><div class="row"><button id="btnRestart">New run</button><button id="btnRetry" class="sec">Retry same seed</button><button id="btnMenu" class="sec">Menu</button></div></div>
  <div class="ov" id="ovPause"><h1>PAUSED</h1><p>Take your time.</p><div class="row"><button id="btnResume">Resume</button><button id="btnQuit" class="sec">Quit run</button></div></div>
 </div>
+<div id="foldCard" class="foldCard" role="alert"><svg viewBox="0 0 64 64" fill="none" stroke="#7ff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6" y="12" width="22" height="40" rx="4"/><rect x="36" y="12" width="22" height="40" rx="4"/><path d="M29 32h6M32 28l4 4-4 4" /></svg><h2>Unfold to play</h2><p>Open your Fold - your run is paused</p></div>
 <script>
 /* hb-audio.js - Hollow Blade procedural audio. Code-synthesized WebAudio only: no samples, no network.
    API: window.HBAudio (see bottom). Every call is a silent no-op before unlock() or when WebAudio is missing.
@@ -601,6 +636,36 @@ var A = {
     });
   }
 };
+/* v6 drop 3: music bands for visuals. HBAudio.bands -> {bass, mid, high, level, beat}, each 0..1, smoothed (fast attack, slow release).
+   Zeros when there is no context, the context is not running, or muted (the analyser sits after the master mute gain). Read-only, no side effects on audio. */
+(function () {
+  var out = { bass: 0, mid: 0, high: 0, level: 0, beat: 0 }, buf = null, last = 0, lastBeat = -9, prevBass = 0;
+  function bands() {
+    var now = (W.performance ? W.performance.now() : Date.now()) / 1000;
+    if (now - last < 0.012) return out;                       // at most one analysis per ~frame
+    var dt = Math.min(0.1, Math.max(0.001, now - last)); last = now;
+    var tb = 0, tm = 0, th = 0, tl = 0;
+    try {
+      if (G && G.an && G.c && G.c.state === 'running' && !offline && !muted) {
+        var n = G.an.frequencyBinCount; if (!buf || buf.length !== n) buf = new Uint8Array(n);
+        G.an.getByteFrequencyData(buf);
+        var hz = G.c.sampleRate / G.an.fftSize, i, sB = 0, nB = 0, sM = 0, nM = 0, sH = 0, nH = 0;
+        for (i = 1; i < n; i++) { var f = i * hz, v = buf[i] / 255;
+          if (f < 250) { sB += v; nB++; } else if (f < 2000) { sM += v; nM++; } else if (f < 8000) { sH += v; nH++; } }
+        tb = nB ? sB / nB : 0; tm = nM ? sM / nM : 0; th = nH ? sH / nH : 0;
+        tb = Math.pow(Math.max(0, (tb - 0.25) / 0.75), 1.4); tm = Math.pow(Math.max(0, (tm - 0.2) / 0.8), 1.4); th = Math.pow(Math.max(0, (th - 0.15) / 0.85), 1.4);   // noise floor, then gentle curve
+        tl = Math.min(1, (tb * 0.5 + tm * 0.35 + th * 0.15) * 1.3);
+      }
+    } catch (e) {}
+    function sm(c, t) { return c + (t - c) * (1 - Math.exp(-dt * (t > c ? 28 : 6))); }
+    out.bass = sm(out.bass, tb); out.mid = sm(out.mid, tm); out.high = sm(out.high, th); out.level = sm(out.level, tl);
+    out.beat = 0;
+    if (out.bass - prevBass > 0.08 && out.bass > 0.25 && now - lastBeat >= 0.34) { out.beat = 1; lastBeat = now; }   // beat events are rate-limited to under 3 per second
+    prevBass = out.bass;
+    return out;
+  }
+  Object.defineProperty(A, 'bands', { get: bands, enumerable: false });
+})();
 W.HBAudio = A;
 })(window);
 
@@ -630,7 +695,9 @@ W.HBAudio = A;
  *   - Unchanged on purpose in every theme: the bomb core [1,.9,.4], the red wrong-way flash ring, the red-flash overlay,
  *     the lives colour #ff4a6a. Those are danger signals and must not be themed.
  *
- * Rules kept: <=140 instances per frame, backdrop is non-additive or additive with alpha <= .12,
+ * v6: drawBackdrop(dl,theme,T,W,H,reduce,opt) also draws a per-theme ambient weather layer (28-32 instances, pure function of T);
+ *   opt.noWeather skips it. countInstances(theme,noWeather) counts it. T is passed as the backdrop clock (it runs slightly faster each wave).
+ * Rules kept: <=140 instances per frame (base backdrop; weather adds <=40 on top), backdrop is non-additive or additive with alpha <= .12,
  * deterministic from T (layouts precomputed from a fixed seed, no Math.random), reduceMotion freezes all motion.
  */
 (function (root) {
@@ -660,11 +727,11 @@ W.HBAudio = A;
     var hz = H * .6, i, k;
     for (i = 0; i < 8; i++) { var y0 = hz * i / 8, h = hz / 8 + 1; dl.rrect(W / 2, y0 + h / 2, W, h, 0, 0, mix(SY.skyTop, SY.skyLow, i / 7), 1, 0, false); }
     for (i = 0; i < SY.stars.length; i++) { var s = SY.stars[i]; dl.circle(s.x * W, s.y * hz, s.s, SY.star, .22 + .12 * Math.sin(T * .9 + s.ph), 0, false); }
-    // sun: 12 horizontal slices = vertical gradient; lower half cut by gaps that drift down
-    var R = H * .19, cx = W / 2, cy = hz - R * .25, top = cy - R, n = 12, sh = (hz - top) / n;
+    // sun: thin (~2 px) horizontal slices clipped to the circle (chord width per slice, capsule ends) = a smooth disc with a vertical gradient; lower half cut by gaps that drift down
+    var R = H * .19, cx = W / 2, cy = hz - R * .25, top = cy - R, n = Math.round((hz - top) / 1.1), sh = (hz - top) / n;
     for (i = 0; i < n; i++) {
       var yc = top + (i + .5) * sh, dy = Math.abs(yc - cy), half = Math.sqrt(Math.max(0, R * R - dy * dy));
-      dl.rrect(cx, yc, half * 2, sh + .6, 0, Math.min(6, sh / 2), mix(SY.sunTop, SY.sunLow, i / (n - 1)), 1, 0, false);
+      if (half > .5) dl.rrect(cx, yc, half * 2, sh + .5, 0, sh / 2, mix(SY.sunTop, SY.sunLow, i / (n - 1)), 1, 0, false);
     }
     var ph = mod(T * .12, 1);
     for (k = 0; k < 5; k++) {
@@ -737,10 +804,14 @@ W.HBAudio = A;
     for (i = 0; i < 6; i++) { var a = FR.aurora[i]; dl.rrect(a.x * W + Math.sin(T * .07 + a.ph) * 30, a.y * H, a.w, 46, a.rot + .05 * Math.sin(T * .11 + a.ph), 23, FR.aur, .028, 18, true); }
     for (i = 0; i < 7; i++) {
       var p = FR.peaks[i], x = p.x * W, y = hz + p.s * .18;
-      var tip = y - p.s * .7071, c = p.s * .34;              // snow cap = small diamond at the tip, lower edge notched
+      var tip = y - p.s * .7071, D = p.s * .24, st = 1.5, rows = Math.round(D / st), k, cd, hw, dd;   // snow cap = triangle that follows the 45-degree slopes from the tip (width = 2 x depth), built from thin slices
       dl.rrect(x, y, p.s, p.s, Math.PI / 4, 8, FR.rock, 1, 0, false);
-      dl.rrect(x, tip + c * .7071, c, c, Math.PI / 4, 4, FR.cap, 1, 0, false);
-      dl.rrect(x, tip + c * .7071 + c * .95, c * 1.1, c * 1.1, Math.PI / 4, 4, FR.rock, 1, 0, false);
+      for (k = 0; k < rows; k++) {
+        dd = (k + .5) * st;                                                  // depth below the geometric tip
+        hw = dd >= 5.66 ? dd : Math.sqrt(Math.max(0, 64 - (11.31 - dd) * (11.31 - dd)));   // rock tip is a radius-8 round: follow it, then the straight slope
+        hw -= 2;                                                          // sit just inside the rock edge
+        if (hw > .6) dl.rrect(x, tip + dd, hw * 2, st + .5, 0, Math.min(st / 2, hw), FR.cap, 1, 0, false);
+      }
     }
     dl.rrect(W / 2, H - 45, W, 90, 0, 0, FR.ground, 1, 0, false);
     dl.rrect(W / 2, H - 90, W, 4, 0, 2, FR.drift, 1, 0, false);
@@ -794,6 +865,51 @@ W.HBAudio = A;
     for (i = 0; i < 16; i++) { var f = JT.flies[i]; dl.circle(f.x * W + Math.sin(T * f.sp + f.ph) * 30, f.y * H + Math.cos(T * f.sp * 1.3 + f.ph) * 18, 1.4, JT.fly, .12 + .2 * (.5 + .5 * Math.sin(T * 2 + f.ph * 2)), 0, false); }
   }
 
+
+  /* ---------------- ambient weather (v6 motion round, idea 9) ----------------
+   * One small layer per theme, drawn AFTER the backdrop and BEFORE the foes. Pure function of T and the index: no state, no random,
+   * deterministic. 28-32 instances each (budget 24-40). Colours stay inside each theme's palette. Alpha is low (<= .55 for
+   * non-additive motes, <= .12 for additive halos) so it never competes with orbs or bombs. reduceMotion: T is 0, so motes are
+   * static twinkles at a fixed phase with no drift. Wrapped vertical travel uses mod() so there are no pops. */
+  function wLayout(seed, n) { return layout(seed, n, function (r) { return { x: r(), y: r(), v: r(), ph: r() * 6.28, s: r() }; }); }
+  var WX = { neon: wLayout(0x4E01, 30), synth: wLayout(0x4E02, 28), deep: wLayout(0x4E03, 30), ember: wLayout(0x4E04, 28), frost: wLayout(0x4E05, 28), jade: wLayout(0x4E06, 28) };
+  var WC = { neon: [.45, .8, 1], synth: [1, .55, .9], deep: [.5, 1, .95], ember: [1, .8, .35], frost: [.9, .96, 1], jade: [.75, 1, .4] };
+  function twk(T, ph, red) { return red ? .75 : .55 + .45 * Math.sin(T * 1.7 + ph * 2); }
+  function wxNeon(dl, T, W, H, red) {            // rising dust motes
+    var L = WX.neon, Hm = H + 40, c = WC.neon;
+    for (var i = 0; i < L.length; i++) { var m = L[i], y = mod(m.y * Hm - (8 + m.v * 16) * T, Hm) - 20;
+      dl.circle(m.x * W + Math.sin(T * .4 + m.ph) * 12, y, .9 + m.s * 1.5, c, (.22 + .3 * m.s) * twk(T, m.ph, red), 0, false); }
+  }
+  function wxSynth(dl, T, W, H, red) {           // drifting neon pixels, rise from the grid
+    var L = WX.synth, c = WC.synth, Hm = H * .62;
+    for (var i = 0; i < L.length; i++) { var m = L[i], y = H * .62 - mod(m.y * Hm + (10 + m.v * 14) * T, Hm);
+      dl.rrect(m.x * W + Math.sin(T * .5 + m.ph) * 16, y, 2.6, 2.6, T * .4 + m.ph, 0, c, (.2 + .28 * m.s) * twk(T, m.ph, red) * Math.min(1, (H * .62 - y) / 80 + .2), 0, false); }
+  }
+  function wxDeep(dl, T, W, H, red) {            // glowing plankton, slow swaying drift
+    var L = WX.deep, c = WC.deep;
+    for (var i = 0; i < L.length; i++) { var m = L[i], x = m.x * W + Math.sin(T * (.18 + m.v * .2) + m.ph) * 40, y = m.y * H * .9 + Math.cos(T * (.14 + m.s * .16) + m.ph) * 26;
+      dl.circle(x, y, 1.4 + m.s * 1.8, c, (.17 + .28 * m.v) * twk(T, m.ph, red), 0, false); }
+    for (var j = 0; j < 4; j++) { var h = L[j]; dl.circle(h.x * W + Math.sin(T * .2 + h.ph) * 40, h.y * H * .9, 9, c, .05 * twk(T, h.ph, red), 8, true); }
+  }
+  function wxEmber(dl, T, W, H, red) {           // sparks that rise, flicker and die out (shrink to nothing near the top of their life)
+    var L = WX.ember, Hm = H * .9;
+    for (var i = 0; i < L.length; i++) { var m = L[i], u = red ? m.y * .8 : mod(T * (.07 + m.v * .08) + m.y, 1), y = H - 10 - u * Hm, life = 1 - u;
+      dl.circle(m.x * W + Math.sin(T * 1.3 + m.ph) * (10 + 16 * u), y, (1 + m.s * 1.6) * (.3 + .7 * life), mix([1, .5, .12], [1, .85, .45], m.s), .55 * life * (red ? .8 : .7 + .3 * Math.sin(T * 9 + m.ph * 3)), 0, false); }
+  }
+  function wxFrost(dl, T, W, H, red) {           // near-camera big soft flakes, gentle sway
+    var L = WX.frost, c = WC.frost, Hm = H + 60;
+    for (var i = 0; i < L.length; i++) { var m = L[i], v = 22 + m.v * 30;
+      dl.circle(m.x * W + Math.sin(T * (.5 + m.s * .4) + m.ph) * (14 + m.s * 16), mod(m.y * Hm + v * T, Hm) - 30, 1.6 + m.s * 2.6, c, .1 + .18 * m.s, m.s > .6 ? 3 : 0, false); }
+  }
+  function wxJade(dl, T, W, H, red) {            // fireflies: blink in and out, halo on the bright ones
+    var L = WX.jade, c = WC.jade;
+    for (var i = 0; i < L.length; i++) { var m = L[i], x = m.x * W + Math.sin(T * (.25 + m.v * .35) + m.ph) * 34, y = H * (.4 + m.y * .55) + Math.cos(T * (.3 + m.s * .3) + m.ph * 1.3) * 22,
+        b = red ? .6 : Math.max(0, Math.sin(T * (.7 + m.s * .8) + m.ph * 2));
+      dl.circle(x, y, 1.5 + m.s * .8, c, .06 + .28 * b, 0, false);
+      if (i < 6) dl.circle(x, y, 5, c, .1 * b, 7, true); }
+  }
+  var WXF = { neon: wxNeon, synth: wxSynth, deep: wxDeep, ember: wxEmber, frost: wxFrost, jade: wxJade };
+
   /* ---------------- theme table ---------------- */
   // Foe palette rules: bomb = red family and the only red; arm = amber (white arrow drawn by drawFoe); every foe hue distinct;
   // split/small share a green family on purpose (small = shards of split).
@@ -826,17 +942,27 @@ W.HBAudio = A;
   var BY = {};
   THEMES.forEach(function (t) { t.clearCss = hex(t.clear); t.bd = { kind: t.id }; BY[t.id] = t; });
 
-  function drawBackdrop(dl, theme, T, W, H, reduceMotion) {
-    var t = theme && theme.draw ? theme : BY.neon;
-    t.draw(dl, t, reduceMotion ? 0 : (T || 0), W || 1280, H || 800);
+  function drawBackdrop(dl, theme, T, W, H, reduceMotion, opt) {
+    var t = theme && theme.draw ? theme : BY.neon, tt = reduceMotion ? 0 : (T || 0);
+    t.draw(dl, t, tt, W || 1280, H || 800);
+    if (!(opt && opt.noWeather) && WXF[t.id]) WXF[t.id](dl, tt, W || 1280, H || 800, !!reduceMotion);
+    if (opt && opt.bands && !reduceMotion) bandsLayer(dl, t, opt.bands, W || 1280, H || 800);
   }
-  function countInstances(theme) {
+  /* v6 drop 3: music-reactive layer (optional opt.bands = HBAudio.bands). Subtle: three additive bars, alpha <= ~0.25, smoothed by the audio side
+     (beats are rate-limited there to < 3 Hz). Off under reduced motion; absent when muted (bands are zero). */
+  function bandsLayer(dl, t, b, W, H) {
+    var c = (t.col && t.col.blade) || [.5, .9, 1], bass = Math.min(1, b.bass || 0), mid = Math.min(1, b.mid || 0), hi = Math.min(1, b.high || 0);
+    if (bass > 0.03) dl.rrect(W / 2, H - 3, W, 8 + bass * 12, 0, 0, c, .04 + .2 * bass, 22 + 20 * bass, true);        // horizon pulse
+    if (mid > 0.03) { var a = .03 + .12 * mid; dl.rrect(2, H * .5, 6, H, 0, 0, c, a, 30, true); dl.rrect(W - 2, H * .5, 6, H, 0, 0, c, a, 30, true); }   // edge breathing
+    if (hi > 0.06) for (var i = 0; i < 5; i++) dl.circle(W * (.12 + .19 * i) + Math.sin(i * 7.3) * 30, 14 + (i % 2) * 10, 2 + hi * 3, c, .08 + .3 * hi, 6, true);   // top glints
+  }
+  function countInstances(theme, noWeather) {
     var o = { n: 0, a: 0, maxAddAlpha: 0, push: function (add, x, y, sx, sy, rot, sh, p, gl, c, al) { if (add) { this.a++; this.maxAddAlpha = Math.max(this.maxAddAlpha, al); } else this.n++; } };
     o.circle = function (x, y, r, c, a, g, add) { this.push(!!add, 0, 0, 0, 0, 0, 0, 0, 0, c, a === undefined ? 1 : a); };
     o.ring = function (x, y, r, th, c, a, g, add) { this.push(add === undefined ? true : add, 0, 0, 0, 0, 0, 0, 0, 0, c, a === undefined ? 1 : a); };
     o.rrect = function (x, y, w, h, rot, rad, c, a, g, add) { this.push(!!add, 0, 0, 0, 0, 0, 0, 0, 0, c, a === undefined ? 1 : a); };
     o.line = function (x1, y1, x2, y2, th, c, a, g, add) { this.push(add === undefined ? true : add, 0, 0, 0, 0, 0, 0, 0, 0, c, a === undefined ? 1 : a); };
-    drawBackdrop(o, theme, 3.3, 1280, 800, false);
+    drawBackdrop(o, theme, 3.3, 1280, 800, false, { noWeather: !!noWeather });
     return { n: o.n, a: o.a, total: o.n + o.a, maxAddAlpha: +o.maxAddAlpha.toFixed(3) };
   }
 
@@ -912,8 +1038,8 @@ function trailOk(t){return !t.ach||!!SAVE.ach[t.ach];}
 function trailCol(){const t=TRAILS.find(x=>x.id===SAVE.trail);return t&&t.id!=='cyan'&&trailOk(t)?t.c:COL.blade;}   // default trail follows the theme blade colour
 function toastTick(){
   const t=nowS(),el=$('toast');
-  if(toastCur&&t>=toastEnd){toastCur=null;el.style.opacity=0;}
-  if(!toastCur&&toastQ.length){toastCur=toastQ.shift();toastEnd=t+3.4;el.textContent='Achievement: '+toastCur.name;el.style.opacity=1;au('focusReady');}
+  if(toastCur&&t>=toastEnd){toastCur=null;el.style.opacity=0;el.style.transform='';}
+  if(!toastCur&&toastQ.length){toastCur=toastQ.shift();toastEnd=t+3.4;el.textContent='Achievement: '+toastCur.name;el.style.opacity=1;el.style.transform='translateX(0)';au('focusReady');}
 }
 function au(fn,...a){const A=window.HBAudio;if(!A||typeof A[fn]!=='function')return;try{A[fn](...a);}catch(e){console.warn('audio',fn,e&&e.message);}}
 let auLastSlash=-9,auIntT=0,auInt=0,auFocusReadyFired=false,auUnlocked=false;
@@ -947,14 +1073,17 @@ seedRun();
 /* ---------------- draw list (shared by both renderers) ---------------- */
 // instance = x,y,sx,sy, rot,shape,param,glow, r,g,b,a ; shape 0 circle, 1 rounded rect/capsule, 2 ring
 class DrawList{
-  constructor(){this.N=new Float32Array(MAXI*12);this.A=new Float32Array(MAXI*12);this.nN=0;this.nA=0;this.ox=0;this.oy=0;}
-  reset(){this.nN=0;this.nA=0;}
+  constructor(){this.N=new Float32Array(MAXI*12);this.A=new Float32Array(MAXI*12);this.O=new Float32Array(MAXI*12);this.nN=0;this.nA=0;this.nO=0;this.ox=0;this.oy=0;this.zoom=1;}
+  reset(){this.nN=0;this.nA=0;this.nO=0;this.zoom=1;}
   push(add,x,y,sx,sy,rot,shape,param,glow,c,a){
-    const n=add?this.nA:this.nN; if(n>=MAXI)return;
-    const b=add?this.A:this.N,o=n*12;
+    const ov=add===2;   // 2 = overlay list: normal blend, drawn after bloom/tonemap (never bloomed), v6 drop 3
+    const n=ov?this.nO:add?this.nA:this.nN; if(n>=MAXI)return;
+    const b=ov?this.O:add?this.A:this.N,o=n*12;
+    const z=this.zoom;   // camera punch (v6): uniform scale about the stage centre, applies to every shape so Canvas2D gets it for free
+    if(z!==1){x=W/2+(x-W/2)*z;y=H/2+(y-H/2)*z;sx*=z;sy*=z;if(shape>0)param*=z;glow*=z;}
     b[o]=x+this.ox;b[o+1]=y+this.oy;b[o+2]=sx;b[o+3]=sy;b[o+4]=rot;b[o+5]=shape;b[o+6]=param;b[o+7]=glow;
     b[o+8]=c[0];b[o+9]=c[1];b[o+10]=c[2];b[o+11]=a;
-    if(add)this.nA++;else this.nN++;
+    if(ov)this.nO++;else if(add)this.nA++;else this.nN++;
   }
   circle(x,y,r,c,a=1,glow=0,add=false){this.push(add,x,y,r*2,r*2,0,0,0,glow,c,a);}
   ring(x,y,r,th,c,a=1,glow=0,add=true){this.push(add,x,y,r*2,r*2,0,2,th/2,glow,c,a);}
@@ -962,25 +1091,203 @@ class DrawList{
   line(x1,y1,x2,y2,th,c,a=1,glow=0,add=true){const dx=x2-x1,dy=y2-y1,l=Math.hypot(dx,dy);this.push(add,(x1+x2)/2,(y1+y2)/2,l+th,th,Math.atan2(dy,dx),1,th/2,glow,c,a);}
 }
 const dl=new DrawList();
+/* FX contract with the renderer (hb-gpu.js defines it too; until then this is the default). Never declare a global `FX` binding here:
+   always go through window.FX so a later definition in hb-gpu.js cannot clash. */
+window.FX||(window.FX={lit3d:false,gpuParts:false,bursts:[],now:0,ds:null,flash:0,flashCol:[1,1,1],chroma:0,slow:0,slowCenter:[640,400],shocks:[],bloom:1,trail:null,trailCol:[.5,.9,1],tier:'high',perf:null});
+/* ---- spring / easing helpers (T10). All pure; callers pass real dt so hit-stop and slow-mo never make UI stutter ---- */
+const clamp01=v=>v<0?0:v>1?1:v;
+const easeOutCubic=t=>1-Math.pow(1-clamp01(t),3);
+const easeOutBack=t=>{t=clamp01(t);const c1=1.70158,c3=c1+1;return 1+c3*Math.pow(t-1,3)+c1*Math.pow(t-1,2);};
+const smooth01=t=>{t=clamp01(t);return t*t*(3-2*t);};
+function spring(o,target,k,c,dt){   // semi-implicit damped spring on {x,v}; sub-stepped so a long frame cannot blow it up
+  const n=Math.max(1,Math.ceil(dt/0.008)),h=dt/n;
+  for(let i=0;i<n;i++){o.v+=(k*(target-o.x)-c*o.v)*h;o.x+=o.v*h;}
+  return o.x;
+}
 
-/* ---------------- WebGPU renderer ---------------- */
+</script>
+<script>
+/* ======================================================================================================
+   hb-gpu.js  -  Hollow Blade v6 renderers. DROP 1 of 3 (VFX-TECH-PROPOSAL package C).
+   Drop 1 = T1 HDR offscreen + bloom + tonemap, T2 chromatic aberration + hit flash, T3 slow-mo radial blur,
+            T4 SDF ribbon blade trail, T11 adaptive quality governor (HIGH/MID/LOW/SAFE).
+   Draw-only: never touches rS/rF/G. Honours REDUCE (no chroma, no radial blur, soft flash). Flash <= 3 Hz.
+
+   GAME <-> RENDERER CONTRACT: the game WRITES window.FX each frame (this file never writes game state):
+     FX.flash 0..1 (decays)   FX.flashCol [r,g,b]   FX.chroma 0..1   FX.slow 0..1   FX.slowCenter [x,y] stage px
+     FX.shocks [{x,y,t,amp}] stage px (drop 2 renders them; composite uniforms already wired, count = 0 today)
+     FX.bloom (intensity multiplier, 1 = default, 0 = off)
+     FX.trail [{x,y,w,t}] newest last, stage px, w = full width px, t = seconds on the nowS() clock; or null
+     FX.trailCol [r,g,b] (default cyan)   FX.trailLife seconds (optional, default 0.3)
+   The renderer WRITES: FX.tier ('high'|'mid'|'low'|'safe') and FX.perf (p50/p95/fps/cpu/gpu/scene size).
+
+   TIERS (index): 3 HIGH, 2 MID, 1 LOW, 0 SAFE.
+     HIGH  HDR scene (<= 2.6 MP) + bloom 5 mips from 1/2 res + 8-tap radial blur + chroma + tonemap
+     MID   HDR scene (<= 1.4 MP) + bloom 4 mips from 1/4 res + 4-tap radial blur + chroma + tonemap
+     LOW   plain WebGPU straight to the swapchain = the v5/v6 look (no post). Trail ribbon still drawn.
+     SAFE  Canvas2D renderer (also ?fx=off and ?gpu=0).
+   Fallback ladder: post chain -> plain WebGPU -> Canvas2D. Pipeline failure, device lost (one rebuild on plain
+   WebGPU, a second loss = Canvas2D) and a burst of uncaptured errors each step down one rung and log once.
+   Query: ?fx=high|mid|low|off locks the tier (errors still step down).  ?perf=1 shows the p50/p95 meter.
+
+   DROP 2 (this file + v6-src.html hooks):
+     T5 shockwave refraction: FX.shocks [{x,y,t,amp}] (t = game clock) aged against FX.now (game sets FX.now = G.T each frame).
+        Up to 4 rings in the composite pass (HIGH and MID), chromatic fringe on the leading edge. Skipped under reduced motion (game never pushes).
+     T6 compute GPU particles: FX.bursts [{x,y,n,speed,col,life,kind,dir,spread}] consumed every frame (cleared by the renderer).
+        n = intensity; the renderer multiplies by its budget (HIGH x36, ring of 98304; MID x14, ring of 32768; LOW/SAFE 0).
+        FX.gpuParts is true only while GPU particles are live (tier >= MID, pipelines ready, not reduced motion); the game then
+        pushes FX.bursts instead of its CPU sparks, otherwise it keeps the CPU particles (identical gameplay feedback).
+        Integration uses FX.ds (game sim dt) so slow-mo and pause apply. kind 0 spark, 1 ember (rises, wobbles), 2 glint shard.
+        No RNG from the game: GPU hash of (ring slot, frame head).
+     T7 blade lighting: instance-shader variant. Lights = blade tip (FX.trail head) + newest shocks + last two burst flashes
+        (HIGH 6 lights, MID 3). Adds a multiplicative lift and a facing-edge rim on every instance except full-screen ones.
+   HOOKS FOR DROP 2/3 (GpuEngine below, reachable as R.addStage / R.engine):
+     R.addStage(phase, fn)  'compute' (enc)  -> particle update, light buffer
+                            'scene'   (pass) -> draw into the HDR scene pass (target format R.hdrFormat; LOW = swapchain)
+                            'post'    (enc)  -> extra full-screen passes between bloom and composite
+     fn(ctx) gets {dev, enc, pass, tier, S, T, W, H, sceneW, sceneH, ubo}. Stage fns must be tier-aware.
+     Composite uniform CU already carries shocks[4] + shockN (drop 2: add the refraction loop in fsComp),
+     slow tint, exposure. Instance shapes: add shape ids in the scene fragment (drop 3 raymarched 3D).
+   ====================================================================================================== */
+const FX = window.FX = {flash:0, flashCol:[1,1,1], chroma:0, slow:0, slowCenter:[640,400], shocks:[], bloom:1, trail:null, trailCol:[0.35,0.85,1.0], tier:'high', perf:null, now:0, ds:null, bursts:[], gpuParts:false, lit3d:false};
+
+/* ---------------- WGSL: scene (instances + trail ribbon) ---------------- */
 const WGSL=`
-struct U{ v:vec4f };
+struct U{ v:vec4f, w:vec4f, tc:vec4f };   // v: W,H,aaScale,hdrGain | w: time,trailGlowPx,trailHdr,0 | tc: trail rgb
 @group(0) @binding(0) var<uniform> u:U;
+struct LU{ h:vec4f, p:array<vec4f,6>, c:array<vec4f,6> };   // h.x = light count; p = x,y,radius,intensity; c = rgb
+@group(0) @binding(1) var<uniform> lu:LU;
+override ADD:f32=0.0;
 struct VO{ @builtin(position) pos:vec4f, @location(0) l:vec2f, @location(1) c:vec4f,
- @location(2) @interpolate(flat) m:vec4f, @location(3) @interpolate(flat) hs:vec2f };
+ @location(2) @interpolate(flat) m:vec4f, @location(3) @interpolate(flat) hs:vec2f, @location(4) @interpolate(flat) wc:vec2f };
 @vertex fn vs(@builtin(vertex_index) vi:u32, @location(0) a:vec4f, @location(1) b:vec4f, @location(2) c:vec4f)->VO{
   var q=array<vec2f,6>(vec2f(-1,-1),vec2f(1,-1),vec2f(-1,1),vec2f(-1,1),vec2f(1,-1),vec2f(1,1));
   let pad=b.w*3.0+2.0;
   let hs=a.zw*0.5;
   let loc=q[vi]*(hs+vec2f(pad));
-  let cs=cos(b.x); let sn=sin(b.x);
+  let ang=select(b.x,0.0,b.y>3.5);   // shape 4 (3D body) keeps its quad unrotated; rot is the object spin
+  let cs=cos(ang); let sn=sin(ang);
   let w=a.xy+vec2f(loc.x*cs-loc.y*sn, loc.x*sn+loc.y*cs);
   var o:VO;
   o.pos=vec4f(w.x/u.v.x*2.0-1.0, 1.0-w.y/u.v.y*2.0, 0.0,1.0);
-  o.l=loc; o.c=c; o.m=b; o.hs=hs; return o;
+  o.l=loc; o.c=c; o.m=b; o.hs=hs; o.wc=a.xy; return o;
+}
+
+// ---- drop 3: lit 3D bodies (instance shape 4). param = kind: 0 glass orb, 1 metal armour, 2 heavy shell, 3 mine (raymarched), 4 cracked shell, 5 hero crystal (raymarched)
+// rot = object spin, quad is not rotated. hs.x = sphere radius. u.w.w = march steps (tier controlled). Opaque body, premultiplied alpha.
+fn rotY(p:vec3f,a:f32)->vec3f{ let c=cos(a); let s=sin(a); return vec3f(p.x*c+p.z*s,p.y,-p.x*s+p.z*c); }
+fn rotX(p:vec3f,a:f32)->vec3f{ let c=cos(a); let s=sin(a); return vec3f(p.x,p.y*c-p.z*s,p.y*s+p.z*c); }
+fn rotZ(p:vec3f,a:f32)->vec3f{ let c=cos(a); let s=sin(a); return vec3f(p.x*c-p.y*s,p.x*s+p.y*c,p.z); }
+fn sdSpike(a:vec3f,k:vec3f,len:f32,r0:f32)->f32{ let t=clamp(dot(a,k),0.0,len); return length(a-k*t)-mix(r0,0.012,t/len); }
+fn mapObj(q:vec3f,kind:f32)->f32{
+  if(kind>4.5){ let p=abs(vec3f(q.x,q.y*0.62,q.z)); return (p.x+p.y+p.z-0.62)*0.46; }
+  let a=abs(q); var d=length(q)-0.56;
+  d=min(d,sdSpike(a,vec3f(1,0,0),0.97,0.15)); d=min(d,sdSpike(a,vec3f(0,1,0),0.97,0.15)); d=min(d,sdSpike(a,vec3f(0,0,1),0.97,0.15));
+  d=min(d,sdSpike(a,vec3f(0.57735,0.57735,0.57735),0.93,0.13));
+  return d;
+}
+fn nrmObj(q:vec3f,kind:f32)->vec3f{
+  let e=0.0015; let k0=vec3f(1,-1,-1); let k1=vec3f(-1,-1,1); let k2=vec3f(-1,1,-1); let k3=vec3f(1,1,1);
+  return normalize(k0*mapObj(q+k0*e,kind)+k1*mapObj(q+k1*e,kind)+k2*mapObj(q+k2*e,kind)+k3*mapObj(q+k3*e,kind));
+}
+struct L3{ d:vec3f, s:vec3f };
+fn lights3(n:vec3f, rv:vec3f, wp:vec2f, shin:f32)->L3{
+  var o:L3; o.d=vec3f(0.0); o.s=vec3f(0.0);
+  for(var k=0;k<6;k++){
+    if(f32(k)>=lu.h.x){break;}
+    let p=lu.p[k]; let dv=p.xy-wp; let dd=length(dv);
+    if(dd<p.z){
+      let f=1.0-dd/p.z; let at=f*f*p.w*1.8;
+      let ld=normalize(vec3f(dv/max(dd,1.0)*0.85,0.5));
+      o.d=o.d+lu.c[k].rgb*at*max(dot(n,ld),0.0);
+      o.s=o.s+lu.c[k].rgb*at*pow(max(dot(rv,ld),0.0),shin);
+    }
+  }
+  return o;
+}
+fn shade3d(i:VO)->vec4f{
+  let R=i.hs.x; let kind=i.m.z; let spin=i.m.x; let base=i.c.rgb; let tm=u.w.x;
+  let p=i.l/R; let r2=dot(p,p);
+  let aa=0.75/(u.v.z*R);
+  let wp=i.wc+i.l;
+  let key=normalize(vec3f(-0.45,-0.6,0.66));
+  var col=vec3f(0.0); var cov=0.0;
+  if(kind<2.5||(kind>3.5&&kind<4.5)){
+    let rr=sqrt(r2); cov=1.0-smoothstep(1.0-2.0*aa,1.0,rr);
+    if(cov<=0.0){ discard; }
+    let z=sqrt(max(1.0-r2,0.0)); let n=vec3f(p.x,p.y,z);
+    let rv=reflect(vec3f(0.0,0.0,-1.0),n);
+    let o=rotY(n,spin);
+    let L=lights3(n,rv,wp,28.0);
+    let ndl=max(dot(n,key),0.0);
+    let fres=pow(1.0-z,3.0);
+    let sp=pow(max(dot(rv,key),0.0),44.0);
+    let env=smoothstep(-0.25,0.9,-rv.y);
+    if(kind<0.5){          // glass orb: deep tinted body, bright inner glow, sky reflection, rim, window highlight
+      col=base*(0.14+0.42*ndl)+base*pow(z,4.0)*0.28+mix(vec3f(0.0),vec3f(0.65,0.8,1.0),env)*fres*0.8+base*fres*0.55+vec3f(1.0)*sp*1.25+vec3f(1.0)*smoothstep(0.86,0.93,dot(rv,key))*0.35;
+    }else if(kind<1.5){    // metal armour: dark base, banded env reflection, hard spec, darker rim
+      let band=0.5+0.5*sin(rv.y*6.0+rv.x*2.5+1.0);
+      let metal=mix(base*0.25,mix(base,vec3f(1.0),0.25),band*env+0.1);
+      col=base*0.06+base*ndl*0.22+metal*(0.16+0.34*env)+vec3f(1.0,0.95,0.85)*pow(max(dot(rv,key),0.0),22.0)*0.55;
+      col=col*(0.5+0.5*z);
+    }else if(kind<2.5){    // heavy shell: grooved bands, matte-satin
+      let ridge=smoothstep(0.7,1.0,abs(sin(o.y*16.0)));
+      col=base*(0.12+0.5*ndl)*(1.0-0.45*ridge)+base*fres*0.7+vec3f(1.0)*sp*0.7*(1.0-ridge)+base*0.12*ridge;
+    }else{                 // cracked shell: matte with emissive fissures
+      let w=o.x*3.0+sin(o.y*3.3+spin)*1.1;
+      let crack=1.0-smoothstep(0.0,0.09,abs(sin(w*1.7+o.y*2.1)));
+      col=base*(0.12+0.45*ndl)+base*fres*0.6+vec3f(1.0)*sp*0.35;
+      col=mix(col,base*1.5+vec3f(0.15),crack*0.85);
+    }
+    col=col+L.d*base*1.4+L.s*0.8;
+  }else{
+    // raymarched body (mine / hero crystal): orthographic ray down +z through the unit disc
+    let ro=vec3f(p.x,p.y,-1.6);
+    var steps=i32(u.w.w); if(steps<8){ steps=14; } steps=min(steps,32);
+    var t=0.0; var dmin=1e9; var pm=ro; var hit=false;
+    for(var s=0;s<32;s++){
+      if(s>=steps){break;}
+      let q0=ro+vec3f(0.0,0.0,t);
+      var q=rotX(rotY(q0,spin),0.45);
+      if(kind<3.5){ q=rotX(rotZ(q0,spin),0.5); }
+      let d=mapObj(q,kind);
+      if(d<dmin){ dmin=d; pm=q0; }
+      if(d<0.003){ hit=true; pm=q0; break; }
+      t=t+d; if(t>3.2){break;}
+    }
+    cov=select(1.0-smoothstep(0.0,2.0*aa,dmin),1.0,hit);
+    if(cov<=0.0){ discard; }
+    var q=rotX(rotY(pm,spin),0.45);
+    if(kind<3.5){ q=rotX(rotZ(pm,spin),0.5); }
+    var nl=nrmObj(q,kind);                                    // object-space normal, rotate back to view space
+    var n=nl;
+    if(kind<3.5){ n=rotZ(rotX(nl,-0.5),-spin); } else { n=rotY(rotX(nl,-0.45),-spin); }
+    n=normalize(n);
+    let rv=reflect(vec3f(0.0,0.0,-1.0),n);
+    let ndl=max(dot(n,key),0.0);
+    let z=max(n.z,0.0); let fres=pow(1.0-z,3.0);
+    let sp=pow(max(dot(rv,key),0.0),30.0);
+    let L=lights3(n,rv,wp,24.0);
+    let env=smoothstep(-0.3,0.9,-rv.y);
+    if(kind<3.5){          // spiked mine: dark red-brown metal, hot glowing tips and core vent
+      let rq=length(q); let tip=smoothstep(0.62,0.95,rq); let pulse=0.6+0.4*sin(tm*12.0);
+      col=mix(vec3f(0.07,0.04,0.045),base*0.55,0.5)*(0.5+1.0*ndl)+vec3f(1.0,0.9,0.7)*sp*0.7+base*fres*0.5+mix(base,vec3f(1.0,0.9,0.4),0.6)*tip*pulse*1.1;
+      col=col+L.d*base*1.2+L.s*0.7;
+    }else{                 // hero crystal: faceted, key light, fresnel, slow inner shimmer
+      let shim=0.5+0.5*sin(tm*1.3+n.y*3.0+n.x*2.0);
+      let k2=normalize(vec3f(0.75,0.45,0.5)); let d2=pow(max(dot(n,k2),0.0),2.0);
+      let tint=mix(base,vec3f(0.85,0.45,1.0),0.5+0.5*n.x);
+      let ed=1.0-smoothstep(0.0,0.045,min(abs(q.x),min(abs(q.y*0.62),abs(q.z))));   // facet edges
+      col=base*(0.02+0.7*pow(ndl,3.0))+tint*d2*0.4+mix(base,vec3f(1.0),0.4)*fres*0.35+vec3f(1.0)*sp*0.5+base*shim*0.06;
+      col=col*(1.0-0.55*ed)+mix(base,vec3f(1.0),0.7)*ed*0.9;
+      col=col+L.d*base*0.8+L.s*0.5;
+    }
+  }
+  let al=i.c.a*cov;
+  return vec4f(col*al,al);
 }
 @fragment fn fs(i:VO)->@location(0) vec4f{
+  if(i.m.y>3.5){ return shade3d(i); }
   let sh=i.m.y; let prm=i.m.z; let glow=i.m.w;
   var d:f32;
   if(sh<0.5){ d=length(i.l)-i.hs.x; }
@@ -988,47 +1295,728 @@ struct VO{ @builtin(position) pos:vec4f, @location(0) l:vec2f, @location(1) c:ve
   else { d=abs(length(i.l)-i.hs.x)-prm; }
   let aa=0.75/u.v.z;
   let core=1.0-smoothstep(-aa,aa,d);
-  var g=0.0; if(glow>0.0){ g=exp(-max(d,0.0)/glow)*0.55; }
+  var g=0.0; if(glow>0.0){ g=exp(-max(d,0.0)/glow)*0.55; if(u.v.w>1.0){ g=g*(1.0-smoothstep(1.6*glow,3.0*glow,max(d,0.0))); } }   // HDR tiers: fade the halo out before the quad edge (no visible box)
   let v=core+g*(1.0-core);
   let al=i.c.a*v;
-  return vec4f(i.c.rgb*al, al);
+  var rgb=i.c.rgb;
+  // HDR: only objects that carry a halo (glow>0) get hot cores; full-screen tints (glow 0) stay unchanged.
+  if(glow>0.0 && u.v.w>1.0){ rgb=rgb*(1.0+(u.v.w-1.0)*core*(0.6+0.4*ADD)); }
+  // T7 blade lighting (instance variant): lift + facing-edge rim from up to 6 lights. Off at LOW (count 0) and for full-screen instances.
+  if(lu.h.x>0.5 && max(i.hs.x,i.hs.y)<400.0){
+    let cs=cos(i.m.x); let sn=sin(i.m.x);
+    let nl=normalize(i.l+vec2f(0.001,0.0));
+    let nw=vec2f(nl.x*cs-nl.y*sn, nl.x*sn+nl.y*cs);
+    let wp=i.wc+vec2f(i.l.x*cs-i.l.y*sn, i.l.x*sn+i.l.y*cs);
+    var lift=vec3f(0.0); var rim=vec3f(0.0);
+    for(var k=0;k<6;k++){
+      if(f32(k)>=lu.h.x){break;}
+      let p=lu.p[k]; let dv=p.xy-wp; let dd=length(dv);
+      if(dd<p.z){
+        let f=1.0-dd/p.z; let f2=f*f*p.w;
+        let ld=dv/max(dd,1.0);
+        lift=lift+lu.c[k].rgb*f2;
+        rim=rim+lu.c[k].rgb*pow(max(dot(nw,ld),0.0),2.0)*f2;
+      }
+    }
+    let edge=select(exp(d/6.0),0.35,d>0.0);
+    rgb=rgb*(1.0+lift*1.5)+rim*edge*(0.35+0.65*select(1.0,0.0,glow<=0.0))*1.2;
+  }
+  return vec4f(rgb*al, al);
+}
+// ---- blade trail ribbon (T4): triangle strip, additive. p=(x,y,across px,u)  q=(halfW,alpha,arc px,hot)
+struct TV{ @builtin(position) pos:vec4f, @location(0) a:vec4f, @location(1) b:vec4f };
+@vertex fn tvs(@location(0) p:vec4f, @location(1) q:vec4f)->TV{
+  var o:TV;
+  o.pos=vec4f(p.x/u.v.x*2.0-1.0, 1.0-p.y/u.v.y*2.0, 0.0, 1.0);
+  o.a=vec4f(p.z,p.w,q.x,q.y); o.b=vec4f(q.z,q.w,0.0,0.0); return o;
+}
+@fragment fn tfs(i:TV)->@location(0) vec4f{
+  let hw=i.a.z; let al=max(i.a.y-1.0,0.0)*(u.w.y*3.0+2.0);   // u>1 marks the round head cap
+  let d=length(vec2f(i.a.x,al))-hw;
+  let aa=0.75/u.v.z;
+  let core=1.0-smoothstep(-aa,aa,d);
+  let gl=exp(-max(d,0.0)/u.w.y);
+  let shim=0.84+0.16*sin(i.b.x*0.085-u.w.x*17.0);
+  let inner=1.0-smoothstep(0.0,max(hw*0.6,0.5),abs(i.a.x));
+  let base=mix(u.tc.rgb,vec3f(1.0),clamp(inner*0.9,0.0,1.0));
+  let I=(core*(0.75+u.w.z*i.b.y*inner)+gl*0.5*(1.0-core))*i.a.w*shim;
+  return vec4f(base*I,I);
 }`;
-async function makeGPU(canvas){
-  if(!navigator.gpu||QP.get('gpu')==='0')return null;
-  const ad=await navigator.gpu.requestAdapter(); if(!ad)return null;
-  const dev=await ad.requestDevice();window.__gpuKeep=[ad,dev];
-  const ctx=canvas.getContext('webgpu'); if(!ctx)return null;
+
+/* ---------------- WGSL: bloom (dual filter, soft-knee prefilter) ---------------- */
+const WGSL_BLOOM=`
+struct P{ t:vec4f };   // xy = source texel (scaled for the prefilter), z = threshold, w = knee
+@group(0) @binding(0) var bs:sampler;
+@group(0) @binding(1) var bt:texture_2d<f32>;
+@group(0) @binding(2) var<uniform> bp:P;
+struct FO{ @builtin(position) p:vec4f, @location(0) uv:vec2f };
+@vertex fn vsFull(@builtin(vertex_index) vi:u32)->FO{
+  var q=array<vec2f,3>(vec2f(-1,-1),vec2f(3,-1),vec2f(-1,3));
+  var o:FO; o.p=vec4f(q[vi],0.0,1.0); o.uv=vec2f((q[vi].x+1.0)*0.5,(1.0-q[vi].y)*0.5); return o;
+}
+fn tap(uv:vec2f)->vec3f{ return textureSampleLevel(bt,bs,uv,0.0).rgb; }
+fn thr(c:vec3f)->vec3f{
+  let m=max(c.r,max(c.g,c.b)); let T=bp.t.z; let K=bp.t.w;
+  var s=clamp(m-T+K,0.0,2.0*K); s=s*s/(4.0*K+1e-4);
+  let w=max(s,m-T)/max(m,1e-4); return c*w;
+}
+@fragment fn fsPre(i:FO)->@location(0) vec4f{
+  let h=bp.t.xy; let uv=i.uv;
+  let s=thr(tap(uv))*0.5+(thr(tap(uv+h*vec2f(-1,-1)))+thr(tap(uv+h*vec2f(1,-1)))+thr(tap(uv+h*vec2f(-1,1)))+thr(tap(uv+h*vec2f(1,1))))*0.125;
+  return vec4f(s,1.0);
+}
+@fragment fn fsDown(i:FO)->@location(0) vec4f{
+  let h=bp.t.xy; let uv=i.uv;
+  let s=tap(uv)*0.5+(tap(uv+h*vec2f(-1,-1))+tap(uv+h*vec2f(1,-1))+tap(uv+h*vec2f(-1,1))+tap(uv+h*vec2f(1,1)))*0.125;
+  return vec4f(s,1.0);
+}
+@fragment fn fsUp(i:FO)->@location(0) vec4f{
+  let h=bp.t.xy*0.5; let uv=i.uv;
+  var s=(tap(uv+vec2f(-2.0*h.x,0.0))+tap(uv+vec2f(2.0*h.x,0.0))+tap(uv+vec2f(0.0,2.0*h.y))+tap(uv+vec2f(0.0,-2.0*h.y)))/12.0;
+  s=s+(tap(uv+vec2f(-h.x,h.y))+tap(uv+vec2f(h.x,h.y))+tap(uv+vec2f(h.x,-h.y))+tap(uv+vec2f(-h.x,-h.y)))/6.0;
+  return vec4f(s,1.0);
+}`;
+
+/* ---------------- WGSL: composite (tonemap, bloom add, chroma, radial blur, flash, vignette, shock hook) ---------------- */
+const WGSL_COMP=`
+struct CU{ a:vec4f,   // sceneW, sceneH, time, 0
+           b:vec4f,   // flash, chroma, slow, bloomIntensity
+           c:vec4f,   // flashCol rgb, vignette
+           d:vec4f,   // slowCenter uv xy, taps, exposure
+           e:vec4f,   // slow tint rgb, shockN   (drop 2 reads shockN + s[])
+           s:array<vec4f,4> };  // shocks: x,y (uv), radius, strength  (drop 2)
+@group(0) @binding(0) var smp:sampler;
+@group(0) @binding(1) var scn:texture_2d<f32>;
+@group(0) @binding(2) var blm:texture_2d<f32>;
+@group(0) @binding(3) var<uniform> cu:CU;
+struct FO{ @builtin(position) p:vec4f, @location(0) uv:vec2f };
+@vertex fn vsFull(@builtin(vertex_index) vi:u32)->FO{
+  var q=array<vec2f,3>(vec2f(-1,-1),vec2f(3,-1),vec2f(-1,3));
+  var o:FO; o.p=vec4f(q[vi],0.0,1.0); o.uv=vec2f((q[vi].x+1.0)*0.5,(1.0-q[vi].y)*0.5); return o;
+}
+fn sc(uv:vec2f)->vec3f{ return textureSampleLevel(scn,smp,uv,0.0).rgb; }
+// identity below the knee (so the LDR look is unchanged), soft shoulder above, hue kept, hot cores drift to white
+fn tm(x:vec3f)->vec3f{
+  let m=max(x.r,max(x.g,x.b));
+  let k=0.8;
+  if(m<=k){ return x; }
+  let s=(k+(1.0-k)*(1.0-exp(-(m-k)/(1.0-k))))/m;
+  let y=x*s;
+  let mo=max(y.r,max(y.g,y.b));
+  return mix(y,vec3f(mo),smoothstep(1.0,2.6,m)*0.55);
+}
+@fragment fn fsComp(i:FO)->@location(0) vec4f{
+  let cen=vec2f(0.5);
+  let slow=cu.b.z; let ch=cu.b.y;
+  // T5 shockwave refraction: up to 4 rings (uv x,y | radius in height units | strength); signed profile bends the scene like glass
+  let asp=cu.a.x/cu.a.y;
+  var sOff=vec2f(0.0); var fr=0.0;
+  let nS=i32(cu.e.w);
+  for(var k=0;k<4;k++){
+    if(k>=nS){break;}
+    let s=cu.s[k]; let dv=(i.uv-s.xy)*vec2f(asp,1.0); let dist=length(dv);
+    let x=(dist-s.z)/0.055; let g=x*exp(-x*x);
+    sOff=sOff+(dv/max(dist,0.0001))*vec2f(1.0/asp,1.0)*g*s.w*2.0;
+    fr=fr+abs(g)*s.w;
+  }
+  let uv=cen+((i.uv-sOff)-cen)*(1.0-0.035*slow);          // lens punch-in (+ refraction)
+  let dir=uv-cen;
+  var col:vec3f;
+  if(slow>0.001){
+    let n=max(i32(cu.d.z),2);
+    let j=fract(52.9829189*fract(dot(i.p.xy,vec2f(0.06711056,0.00583715))));
+    let v=(cu.d.xy-uv)*(0.09*slow);
+    var acc=vec3f(0.0);
+    for(var k=0;k<n;k++){ let t=(f32(k)+j)/f32(n); acc=acc+sc(uv+v*t); }
+    col=acc/f32(n);
+    let lum=dot(col,vec3f(0.299,0.587,0.114));
+    col=mix(col,mix(vec3f(lum),vec3f(lum)*(vec3f(0.6)+cu.e.rgb*1.2),0.5),0.3*slow);   // desaturate toward the slow tint
+  }else{
+    col=sc(uv);
+  }
+  if(ch>0.001){
+    let off=dir*(ch*0.028*(0.3+2.0*dot(dir,dir)));
+    let r=sc(uv+off).r; let b=sc(uv-off).b;
+    if(slow>0.001){ col=vec3f(mix(col.r,r,0.6),col.g,mix(col.b,b,0.6)); } else { col=vec3f(r,col.g,b); }
+  }
+  if(fr>0.002){   // chromatic fringe along the refraction
+    let fo=sOff*0.6; col=vec3f(mix(col.r,sc(uv+fo).r,0.8),col.g,mix(col.b,sc(uv-fo).b,0.8));
+  }
+  col=col+textureSampleLevel(blm,smp,uv,0.0).rgb*cu.b.w;
+  col=tm(col*cu.d.w);
+  // vignette (breathing is driven from the CPU through c.w)
+  let vg=smoothstep(0.35,0.85,length(dir*vec2f(1.0,0.8)));
+  col=col*(1.0-cu.c.w*vg);
+  // hit flash (CPU already enforced <= 3 Hz and the reduced-motion cap)
+  col=col+cu.c.rgb*cu.b.x*0.55;
+  // dither against banding in dark gradients
+  let nz=fract(52.9829189*fract(dot(i.p.xy+vec2f(cu.a.z*60.0),vec2f(0.06711056,0.00583715))))-0.5;
+  return vec4f(clamp(col+vec3f(nz/255.0),vec3f(0.0),vec3f(1.0)),1.0);
+}`;
+
+/* ---------------- WGSL: GPU particles (T6). Compute emits into / integrates a ring buffer that is also the vertex buffer ---------------- */
+const WGSL_PCOMP=`
+struct P{ a:vec4f, b:vec4f, c:vec4f };    // a: pos.xy vel.zw | b: rgb kind | c: age life size seed
+struct Bu{ a:vec4f, b:vec4f, c:vec4f };   // a: x,y,speed,life | b: rgb kind | c: count,start,dir,spread
+struct EU{ h:vec4u, s:vec4f, b:array<Bu,32> };   // h: head,total,cap,nBursts | s: seed,dt,time,floorY
+@group(0) @binding(0) var<uniform> eu:EU;
+@group(0) @binding(1) var<storage,read_write> ps:array<P>;
+fn hsh(x:u32)->u32{ let v=x*747796405u+2891336453u; let w=((v>>((v>>28u)+4u))^v)*277803737u; return (w>>22u)^w; }
+fn rnd(x:u32)->f32{ return f32(hsh(x))/4294967295.0; }
+@compute @workgroup_size(64) fn emit(@builtin(global_invocation_id) g:vec3u){
+  let i=g.x; if(i>=eu.h.y){return;}
+  var k=0u; let fi=f32(i);
+  for(var j=0u;j<eu.h.w;j=j+1u){ let q=eu.b[j]; if(fi>=q.c.y && fi<q.c.y+q.c.x){k=j;break;} }
+  let b=eu.b[k];
+  let sd=hsh(i^(eu.h.x*2654435761u)^bitcast<u32>(eu.s.x));
+  let r1=rnd(sd); let r2=rnd(sd+1u); let r3=rnd(sd+2u); let r4=rnd(sd+3u); let r5=rnd(sd+4u); let r6=rnd(sd+5u);
+  let ang=b.c.z+(r1-0.5)*b.c.w;
+  var spd=b.a.z*(0.2+0.8*r2);
+  if(b.b.w>0.5&&b.b.w<1.5){ spd=b.a.z*(0.1+0.9*r2*r2); }
+  let dv=vec2f(cos(ang),sin(ang));
+  var p:P;
+  p.a=vec4f(b.a.xy+dv*r5*6.0, dv*spd);
+  p.b=b.b;
+  p.c=vec4f(0.0, b.a.w*(0.55+0.9*r3), 1.4+2.2*r4, r6);
+  ps[(eu.h.x+i)%eu.h.z]=p;
+}
+@compute @workgroup_size(64) fn step(@builtin(global_invocation_id) g:vec3u){
+  let i=g.x; if(i>=eu.h.z){return;}
+  var p=ps[i]; if(p.c.x>=p.c.y){return;}
+  let dt=eu.s.y; let kind=p.b.w;
+  var v=p.a.zw; var pos=p.a.xy;
+  var grav=520.0; var drag=1.1;
+  if(kind>0.5&&kind<1.5){ grav=-45.0; drag=0.7; v=v+vec2f(sin(p.c.x*6.0+p.c.w*40.0),cos(p.c.x*5.0+p.c.w*31.0))*55.0*dt; }
+  else if(kind>1.5){ grav=760.0; drag=0.9; }
+  v.y=v.y+grav*dt; v=v*exp(-drag*dt); pos=pos+v*dt;
+  if((kind<0.5||kind>1.5)&&pos.y>eu.s.w-4.0&&v.y>0.0){ pos.y=eu.s.w-4.0; v=vec2f(v.x*0.7,-v.y*0.35); }
+  p.a=vec4f(pos,v); p.c.x=p.c.x+dt; ps[i]=p;
+}`;
+const WGSL_PREND=`
+struct U{ v:vec4f, w:vec4f, tc:vec4f };
+@group(0) @binding(0) var<uniform> u:U;
+struct PO{ @builtin(position) pos:vec4f, @location(0) q:vec2f, @location(1) c:vec3f, @location(2) k:vec3f };
+@vertex fn pvs(@builtin(vertex_index) vi:u32, @location(0) a:vec4f, @location(1) b:vec4f, @location(2) c:vec4f)->PO{
+  var qd=array<vec2f,6>(vec2f(-1,-1),vec2f(1,-1),vec2f(-1,1),vec2f(-1,1),vec2f(1,-1),vec2f(1,1));
+  var o:PO;
+  if(c.x>=c.y){ o.pos=vec4f(2.0,2.0,0.0,1.0); o.q=vec2f(0.0); o.c=vec3f(0.0); o.k=vec3f(0.0); return o; }
+  let q=qd[vi];
+  let sp=length(a.zw);
+  var dir=vec2f(1.0,0.0); if(sp>1.0){ dir=a.zw/sp; }
+  let kind=b.w;
+  var st=1.0+min(sp*0.011,5.0);
+  if(kind>0.5&&kind<1.5){ st=1.0+min(sp*0.004,1.0); }
+  let loc=vec2f(q.x*(c.z*st+1.5), q.y*(c.z+1.5));
+  let w=a.xy+vec2f(dir.x*loc.x-dir.y*loc.y, dir.y*loc.x+dir.x*loc.y);
+  o.pos=vec4f(w.x/u.v.x*2.0-1.0, 1.0-w.y/u.v.y*2.0, 0.0, 1.0);
+  o.q=q; o.c=b.rgb; o.k=vec3f(1.0-c.x/c.y,kind,c.w); return o;
+}
+@fragment fn pfs(i:PO)->@location(0) vec4f{
+  let d=length(i.q);
+  var f=exp(-d*d*3.2);
+  if(i.k.y>1.5){ f=(1.0-smoothstep(0.55,1.0,d))*(0.55+0.9*abs(sin(i.k.x*38.0+i.k.z*6.2831))); }
+  else if(i.k.y>0.5){ f=exp(-d*d*2.2)*(0.7+0.3*sin(i.k.x*30.0+i.k.z*50.0)); }
+  let I=f*pow(clamp(i.k.x,0.0,1.0),1.3)*0.75;
+  let core=exp(-d*d*9.0);
+  let col=mix(i.c,vec3f(1.0),core*0.55)*(0.5+0.6*u.v.w);
+  return vec4f(col*I,I);
+}`;
+
+/* ---------------- shared per-frame FX state, governor, ribbon maths (used by WebGPU and Canvas2D) ---------------- */
+const HBG=(function(){
+  const reduceNow=()=>(typeof REDUCE!=='undefined'&&!!REDUCE);
+  const clamp=(x,a,b)=>x<a?a:x>b?b:x;
+  const TIERS=['safe','low','mid','high'];
+  const qfx=(()=>{try{return (QP.get('fx')||'').toLowerCase();}catch(_){return '';}})();
+  const FXMODE=({high:3,mid:2,low:1,off:0})[qfx];            // undefined = auto
+  const PERF=(()=>{try{return QP.get('perf')==='1';}catch(_){return false;}})();
+  const warned={};
+  const warnOnce=(k,...a)=>{if(warned[k])return;warned[k]=1;console.warn('[hb-gpu]',...a);};
+  const S={flash:0,flashCol:[1,1,1],chroma:0,slow:0,sx:0.5,sy:0.5,bloom:1,vig:0.15,reduce:false,t:0,dt:0.016};
+  let lastNow=0,env=0,rejected=false,lastOn=-9,prevRaw=0;
+  /* Smoothed/limited effect values for this frame. Flash onsets (a rise of > 0.12) are limited to 3 per second:
+     an onset inside 0.34 s of the last accepted one is not re-flashed; the flash keeps decaying from where it was. */
+  function frame(now){
+    const dt=lastNow?clamp(now-lastNow,0.001,0.1):0.016; lastNow=now; S.dt=dt; S.t=now; S.reduce=reduceNow();
+    const raw=clamp(+FX.flash||0,0,1);
+    if(raw-prevRaw>0.12){ if(now-lastOn>=0.34){rejected=false;lastOn=now;env=raw;} else rejected=true; }
+    if(rejected){ env*=Math.exp(-dt*6); if(raw<0.02)rejected=false; } else env=raw;
+    prevRaw=raw;
+    S.flash=Math.min(env,S.reduce?0.2:0.65);
+    const fc=FX.flashCol||[1,1,1]; S.flashCol[0]=fc[0];S.flashCol[1]=fc[1];S.flashCol[2]=fc[2];
+    S.chroma=S.reduce?0:clamp(+FX.chroma||0,0,1);
+    const ts=S.reduce?0:clamp(+FX.slow||0,0,1);
+    S.slow+=(ts-S.slow)*(1-Math.exp(-dt*(ts>S.slow?9:6)));   // eased, no popping
+    if(S.slow<0.002&&ts===0)S.slow=0;
+    const sc=FX.slowCenter||[W/2,H/2];
+    const tx=clamp(sc[0]/W,0,1),ty=clamp(sc[1]/H,0,1);
+    S.sx+=(tx-S.sx)*(1-Math.exp(-dt*12)); S.sy+=(ty-S.sy)*(1-Math.exp(-dt*12));
+    S.bloom=clamp(FX.bloom==null?1:+FX.bloom,0,3);
+    S.vig=S.reduce?0.15:0.15+0.02*Math.sin(now*1.2);
+    return S;
+  }
+  /* ---- governor + meter (T11) ---- */
+  function makeGov(start,max,locked){
+    const g={tier:start,max,locked,buf:new Float32Array(150),pos:0,cnt:0,warm:45,last:0,bad:null,good:null,lock:0,raisedAt:-1,ban:[false,false,false,false],
+      slowR:new Float32Array(300),sp:0,sc:0,p50:0,p95:0,period:16.7,frames:0,onChange:null,gpu:null,cpu:0,scene:''};
+    g.reset=function(warm){g.cnt=0;g.pos=0;g.bad=null;g.good=null;g.warm=warm==null?45:warm;};
+    g.push=function(dtMs,now){
+      if(dtMs>250||dtMs<=0){g.reset(10);return;}     // hidden tab / pause gap / first frame: not a perf signal
+      g.frames++;
+      if(g.warm>0){g.warm--;return;}
+      g.buf[g.pos]=dtMs;g.pos=(g.pos+1)%150;g.cnt=Math.min(g.cnt+1,150);
+      g.slowR[g.sp]=dtMs;g.sp=(g.sp+1)%300;g.sc=Math.min(g.sc+1,300);
+      if(now-g.last<0.5||g.cnt<60)return; g.last=now;
+      const a=Array.from(g.buf.subarray(0,g.cnt)).sort((x,y)=>x-y);
+      g.p50=a[(a.length*0.5)|0]; g.p95=a[Math.min(a.length-1,(a.length*0.95)|0)];
+      if(g.sc>=120){const b=Array.from(g.slowR.subarray(0,g.sc)).sort((x,y)=>x-y);g.period=clamp(b[(b.length*0.1)|0],4,17.5);}
+      if(g.locked)return;
+      if(g.p95>20){
+        if(g.bad==null)g.bad=now;
+        g.good=null;
+        if(g.tier>1&&(now-g.bad>=2||(g.p95>33&&now-g.bad>=1))){
+          const from=g.tier; if(g.raisedAt>0&&now-g.raisedAt<30)g.ban[from]=true;   // raised then failed within 30 s: no retry this session
+          g.tier--; g.lock=now+30; g.raisedAt=-1; g.reset(); if(g.onChange)g.onChange(g.tier,'p95 '+g.p95.toFixed(1)+' ms');
+        }
+      }else{
+        g.bad=null;
+        const ok=g.p95<g.period*1.2+1&&now>=g.lock&&g.tier<g.max&&!g.ban[g.tier+1];
+        if(ok){ if(g.good==null)g.good=now;
+          if(now-g.good>=10){g.tier++;g.raisedAt=now;g.reset();if(g.onChange)g.onChange(g.tier,'headroom p95 '+g.p95.toFixed(1)+' ms');}
+        }else g.good=null;
+      }
+    };
+    return g;
+  }
+  let ov=null,ovT=0;
+  function overlay(gov,tierName,extra){
+    if(!PERF)return;
+    const now=performance.now();
+    if(!ov){ov=document.createElement('div');ov.style.cssText='position:fixed;left:6px;top:6px;z-index:99999;pointer-events:none;font:11px/1.35 monospace;color:#9f9;background:rgba(0,0,0,.6);padding:4px 6px;white-space:pre;border-radius:4px';document.body.appendChild(ov);}
+    if(now-ovT<500)return; ovT=now;
+    const f=gov.p50>0?1000/gov.p50:0;
+    const gp=gov.gpu==null?'n/a':gov.gpu.toFixed(2)+' ms';
+    ov.textContent='tier '+tierName.toUpperCase()+(gov.locked?' (locked)':'')+'\nframe p50 '+gov.p50.toFixed(1)+'  p95 '+gov.p95.toFixed(1)+' ms  ('+f.toFixed(0)+' fps)\ncpu submit '+gov.cpu.toFixed(2)+' ms  gpu '+gp+'\ndisplay period ~'+gov.period.toFixed(1)+' ms  scene '+(gov.scene||'-')+(extra?'\n'+extra:'');
+  }
+  const perfObj={tier:'',p50:0,p95:0,fps:0,cpu:0,gpu:null,scene:'',frames:0,period:16.7};
+  function publish(gov,tierName){
+    FX.tier=tierName;
+    perfObj.tier=tierName;perfObj.p50=gov.p50;perfObj.p95=gov.p95;perfObj.fps=gov.p50>0?1000/gov.p50:0;perfObj.cpu=gov.cpu;perfObj.gpu=gov.gpu;perfObj.scene=gov.scene;perfObj.frames=gov.frames;perfObj.period=gov.period;
+    FX.perf=perfObj;
+  }
+  function storedTier(){try{const v=localStorage.getItem('hb.fxtier');const i=TIERS.indexOf(v);return i>=1?i:-1;}catch(_){return -1;}}
+  function storeTier(i){try{if(i>=1)localStorage.setItem('hb.fxtier',TIERS[i]);}catch(_){}}
+  /* ---- trail ribbon geometry (shared maths) ---- */
+  const RMAX=512, RSTRIDE=8;
+  const ribbonBuf=new Float32Array(RMAX*2*RSTRIDE);
+  const NP=(()=>{const a=[];for(let i=0;i<RMAX;i++)a.push({x:0,y:0,w:0,t:0});return a;})();
+  const trailNow=()=>(typeof nowS==='function'?nowS():performance.now()/1000);
+  const crom=(a,b,c,d,t,t2,t3)=>0.5*((2*b)+(-a+c)*t+(2*a-5*b+4*c-d)*t2+(-a+3*b-3*c+d)*t3);
+  /* Catmull-Rom subdivided centre line -> triangle-strip vertices in ribbonBuf. Returns the sample count (0 = nothing). */
+  const srcPts=[];
+  function buildRibbon(pts,glowPx){
+    if(!pts||pts.length<2)return 0;
+    srcPts.length=0; const from=Math.max(0,pts.length-48);
+    for(let i=from;i<pts.length;i++){
+      const p=pts[i]; if(!p||!isFinite(p.x)||!isFinite(p.y))continue;
+      const l=srcPts[srcPts.length-1]; if(l&&Math.hypot(p.x-l.x,p.y-l.y)<0.5)continue;
+      srcPts.push(p);
+    }
+    const src=srcPts, n=src.length; if(n<2)return 0;
+    const sub=n<=24?4:2, tNow=trailNow(), LIFE=+FX.trailLife>0?+FX.trailLife:0.3;
+    if((n-1)*sub+1>RMAX)return 0;
+    let k=0;
+    for(let i=0;i<n-1;i++){
+      const p0=src[Math.max(0,i-1)],p1=src[i],p2=src[i+1],p3=src[Math.min(n-1,i+2)];
+      for(let s=0;s<sub;s++){
+        const t=s/sub,t2=t*t,t3=t2*t, o=NP[k];
+        o.x=crom(p0.x,p1.x,p2.x,p3.x,t,t2,t3);o.y=crom(p0.y,p1.y,p2.y,p3.y,t,t2,t3);
+        o.w=(p1.w||8)+((p2.w||8)-(p1.w||8))*t; o.t=(p1.t!=null&&p2.t!=null)?p1.t+(p2.t-p1.t)*t:NaN;
+        k++;
+      }
+    }
+    {const o=NP[k],p=src[n-1];o.x=p.x;o.y=p.y;o.w=p.w||8;o.t=p.t!=null?p.t:NaN;k++;}
+    let total=0; for(let i=1;i<k;i++)total+=Math.hypot(NP[i].x-NP[i-1].x,NP[i].y-NP[i-1].y);
+    if(total<1)return 0;
+    const pad=glowPx*3+2;
+    let arc=0;
+    for(let i=0;i<k;i++){
+      const o=NP[i];
+      if(i>0)arc+=Math.hypot(o.x-NP[i-1].x,o.y-NP[i-1].y);
+      const a=NP[Math.max(0,i-1)],b=NP[Math.min(k-1,i+1)];
+      let tx=b.x-a.x,ty=b.y-a.y; const tl=Math.hypot(tx,ty)||1; tx/=tl;ty/=tl;
+      const nx=-ty,ny=tx, u=arc/total;
+      const age=tNow-o.t; let aAge;
+      if(isFinite(age)&&age>-1&&age<5)aAge=clamp(1-Math.max(age,0)/LIFE,0,1); else aAge=clamp(u*1.2,0,1);
+      const taper=0.08+0.92*Math.pow(clamp(u/0.9,0,1),0.75);
+      const hw=Math.max(0.6,0.5*o.w*taper*(0.35+0.65*aAge));
+      const alpha=aAge*(0.2+0.8*clamp(u*1.6,0,1));
+      const hot=clamp(o.w/12,0.35,1.3);
+      const e=hw+pad, B=i*2*RSTRIDE;
+      ribbonBuf[B]=o.x+nx*e; ribbonBuf[B+1]=o.y+ny*e; ribbonBuf[B+2]=e;  ribbonBuf[B+3]=u;
+      ribbonBuf[B+4]=hw;     ribbonBuf[B+5]=alpha;     ribbonBuf[B+6]=arc; ribbonBuf[B+7]=hot;
+      const C=B+RSTRIDE;
+      ribbonBuf[C]=o.x-nx*e; ribbonBuf[C+1]=o.y-ny*e; ribbonBuf[C+2]=-e; ribbonBuf[C+3]=u;
+      ribbonBuf[C+4]=hw;     ribbonBuf[C+5]=alpha;    ribbonBuf[C+6]=arc; ribbonBuf[C+7]=hot;
+      if(i===k-1){   // head cap: one more pair pushed `pad` px ahead, u runs 1 -> 2 so the fragment shader makes a round end
+        const D=C+RSTRIDE, E2=D+RSTRIDE, hx=o.x+tx*pad, hy=o.y+ty*pad;
+        ribbonBuf[D]=hx+nx*e; ribbonBuf[D+1]=hy+ny*e; ribbonBuf[D+2]=e;  ribbonBuf[D+3]=2;
+        ribbonBuf[D+4]=hw;    ribbonBuf[D+5]=alpha;    ribbonBuf[D+6]=arc+pad; ribbonBuf[D+7]=hot;
+        ribbonBuf[E2]=hx-nx*e; ribbonBuf[E2+1]=hy-ny*e; ribbonBuf[E2+2]=-e; ribbonBuf[E2+3]=2;
+        ribbonBuf[E2+4]=hw;    ribbonBuf[E2+5]=alpha;    ribbonBuf[E2+6]=arc+pad; ribbonBuf[E2+7]=hot;
+      }
+    }
+    return k+1;
+  }
+  return {TIERS,FXMODE,PERF,S,frame,makeGov,overlay,publish,storedTier,storeTier,buildRibbon,ribbonBuf,RSTRIDE,RMAX,warnOnce,clamp,reduceNow,trailNow};
+})();
+
+/* ================================================================================================
+   WebGPU
+   ================================================================================================ */
+const HDRF='rgba16float';
+
+/* Builds one device + every resource for it. Resolves to an engine; rejects if the device cannot be created. */
+async function HBG_createEngine(canvas,opts){
+  const {gov,wantPerf}=opts;
+  const ad=await navigator.gpu.requestAdapter(); if(!ad)throw new Error('no adapter');
+  const feats=[]; if(wantPerf&&ad.features&&ad.features.has('timestamp-query'))feats.push('timestamp-query');
+  const dev=await ad.requestDevice(feats.length?{requiredFeatures:feats}:undefined);
+  window.__gpuKeep=[ad,dev];
+  const ctx=canvas.getContext('webgpu'); if(!ctx)throw new Error('no webgpu context');
   const fmt=navigator.gpu.getPreferredCanvasFormat();
   ctx.configure({device:dev,format:fmt,alphaMode:'opaque'});
-  dev.addEventListener('uncapturederror',e=>console.error('WebGPU error',e.error&&e.error.message));
-  const mod=dev.createShaderModule({code:WGSL});
-  const ub=dev.createBuffer({size:16,usage:GPUBufferUsage.UNIFORM|GPUBufferUsage.COPY_DST});
-  const ib=dev.createBuffer({size:2*MAXI*48,usage:GPUBufferUsage.VERTEX|GPUBufferUsage.COPY_DST});
-  const layout={arrayStride:48,stepMode:'instance',attributes:[
+  const E={dev,ctx,fmt,hdrFormat:HDRF,adapter:ad,lostInfo:null,dead:false,tier:opts.startTier,stages:{compute:[],scene:[],post:[]},hasTs:feats.length>0,onLost:null,onErrors:null,compileMsgs:[]};
+  dev.lost.then(i=>{E.lostInfo=i;E.dead=true;if(E.onLost)E.onLost(i);});
+  const errWin=[];
+  dev.addEventListener('uncapturederror',e=>{
+    const m=e.error&&e.error.message; console.error('WebGPU error',m);
+    const t=performance.now(); errWin.push(t); while(errWin.length&&t-errWin[0]>2000)errWin.shift();
+    if(errWin.length>=4&&E.onErrors){errWin.length=0;E.onErrors(m);}
+  });
+
+  /* modules + compile diagnostics (a WGSL error here rejects, so the ladder steps down instead of drawing garbage) */
+  const mods={scene:dev.createShaderModule({code:WGSL}),bloom:dev.createShaderModule({code:WGSL_BLOOM}),comp:dev.createShaderModule({code:WGSL_COMP})};
+  for(const k in mods){
+    const ci=await mods[k].getCompilationInfo();
+    for(const m of ci.messages)E.compileMsgs.push(k+':'+m.lineNum+':'+m.type+':'+m.message);
+    const er=ci.messages.filter(m=>m.type==='error');
+    if(er.length&&k==='scene')throw new Error('WGSL scene: '+er.map(m=>m.lineNum+':'+m.message).join(' | '));
+    if(er.length)E['badMod_'+k]=true;
+  }
+
+  const ub=dev.createBuffer({size:48,usage:GPUBufferUsage.UNIFORM|GPUBufferUsage.COPY_DST});
+  const cub=dev.createBuffer({size:144,usage:GPUBufferUsage.UNIFORM|GPUBufferUsage.COPY_DST});
+  const lb=dev.createBuffer({size:208,usage:GPUBufferUsage.UNIFORM|GPUBufferUsage.COPY_DST});
+  const lA=new Float32Array(52);
+  const ub2=dev.createBuffer({size:48,usage:GPUBufferUsage.UNIFORM|GPUBufferUsage.COPY_DST}), lb0=dev.createBuffer({size:208,usage:GPUBufferUsage.UNIFORM|GPUBufferUsage.COPY_DST}), uB=new Float32Array(12); let ovBG=null;
+  const ib=dev.createBuffer({size:3*MAXI*48,usage:GPUBufferUsage.VERTEX|GPUBufferUsage.COPY_DST});
+  const tb=dev.createBuffer({size:HBG.RMAX*2*HBG.RSTRIDE*4,usage:GPUBufferUsage.VERTEX|GPUBufferUsage.COPY_DST});
+  const smp=dev.createSampler({magFilter:'linear',minFilter:'linear',addressModeU:'clamp-to-edge',addressModeV:'clamp-to-edge'});
+  const mkP=d=>dev.createRenderPipelineAsync?dev.createRenderPipelineAsync(d):Promise.resolve(dev.createRenderPipeline(d));
+  const ilayout={arrayStride:48,stepMode:'instance',attributes:[
     {shaderLocation:0,offset:0,format:'float32x4'},{shaderLocation:1,offset:16,format:'float32x4'},{shaderLocation:2,offset:32,format:'float32x4'}]};
-  const mk=(dstColor)=>dev.createRenderPipeline({layout:'auto',
-    vertex:{module:mod,entryPoint:'vs',buffers:[layout]},
-    fragment:{module:mod,entryPoint:'fs',targets:[{format:fmt,blend:{
-      color:{srcFactor:'one',dstFactor:dstColor,operation:'add'},alpha:{srcFactor:'one',dstFactor:dstColor,operation:'add'}}}]},
-    primitive:{topology:'triangle-list'}});
-  const pN=mk('one-minus-src-alpha'),pA=mk('one');
-  const bgN=dev.createBindGroup({layout:pN.getBindGroupLayout(0),entries:[{binding:0,resource:{buffer:ub}}]});
-  const bgA=dev.createBindGroup({layout:pA.getBindGroupLayout(0),entries:[{binding:0,resource:{buffer:ub}}]});
-  return {name:'WebGPU',canvas,
-    render(d){
-      dev.queue.writeBuffer(ub,0,new Float32Array([W,H,canvas.width/W,0]));
-      if(d.nN)dev.queue.writeBuffer(ib,0,d.N,0,d.nN*12);
-      if(d.nA)dev.queue.writeBuffer(ib,MAXI*48,d.A,0,d.nA*12);
-      const enc=dev.createCommandEncoder();
-      const pass=enc.beginRenderPass({colorAttachments:[{view:ctx.getCurrentTexture().createView(),
-        clearValue:{r:CLEAR[0],g:CLEAR[1],b:CLEAR[2],a:1},loadOp:'clear',storeOp:'store'}]});
-      pass.setVertexBuffer(0,ib);
-      if(d.nN){pass.setPipeline(pN);pass.setBindGroup(0,bgN);pass.draw(6,d.nN,0,0);}
-      if(d.nA){pass.setPipeline(pA);pass.setBindGroup(0,bgA);pass.draw(6,d.nA,0,MAXI);}
-      pass.end(); dev.queue.submit([enc.finish()]);
-    }};
+  const tlayout={arrayStride:HBG.RSTRIDE*4,stepMode:'vertex',attributes:[
+    {shaderLocation:0,offset:0,format:'float32x4'},{shaderLocation:1,offset:16,format:'float32x4'}]};
+  const blend=dst=>({color:{srcFactor:'one',dstFactor:dst,operation:'add'},alpha:{srcFactor:'one',dstFactor:dst,operation:'add'}});
+  const ready={direct:null,hdr:null,post:null}, pending={};
+  /* scene pipeline sets per target format: 'direct' (swapchain) and 'hdr' (rgba16float) */
+  function buildScene(kind){
+    const format=kind==='hdr'?HDRF:fmt;
+    const mk=add=>mkP({layout:'auto',vertex:{module:mods.scene,entryPoint:'vs',buffers:[ilayout]},
+      fragment:{module:mods.scene,entryPoint:'fs',constants:{ADD:add?1:0},targets:[{format,blend:blend(add?'one':'one-minus-src-alpha')}]},primitive:{topology:'triangle-list'}});
+    const mkT=()=>mkP({layout:'auto',vertex:{module:mods.scene,entryPoint:'tvs',buffers:[tlayout]},
+      fragment:{module:mods.scene,entryPoint:'tfs',targets:[{format,blend:blend('one')}]},primitive:{topology:'triangle-strip'}});
+    return Promise.all([mk(false),mk(true),mkT()]).then(([pN,pA,pT])=>{
+      const bg=(p,lit)=>dev.createBindGroup({layout:p.getBindGroupLayout(0),entries:lit?[{binding:0,resource:{buffer:ub}},{binding:1,resource:{buffer:lb}}]:[{binding:0,resource:{buffer:ub}}]});
+      ready[kind]={pN,pA,pT,bgN:bg(pN,true),bgA:bg(pA,true),bgT:bg(pT,false)};
+    });
+  }
+  function buildPost(){
+    if(E.badMod_bloom||E.badMod_comp)return Promise.reject(new Error('WGSL post module has errors'));
+    const mkF=(m,entry,format,bl)=>mkP({layout:'auto',vertex:{module:m,entryPoint:'vsFull'},fragment:{module:m,entryPoint:entry,targets:[bl?{format,blend:bl}:{format}]},primitive:{topology:'triangle-list'}});
+    return Promise.all([mkF(mods.bloom,'fsPre',HDRF),mkF(mods.bloom,'fsDown',HDRF),mkF(mods.bloom,'fsUp',HDRF,blend('one')),mkF(mods.comp,'fsComp',fmt)])
+      .then(([pre,down,up,comp])=>{ready.post={pre,down,up,comp};});
+  }
+  const once=(k,fn)=>pending[k]||(pending[k]=ready[k]?Promise.resolve():fn());
+
+  /* ---- timestamp queries (only with ?perf=1 and the feature) ---- */
+  let qs=null,qResolve=null,qRead=[],qBusy=[false,false],qI=0;
+  if(E.hasTs){
+    qs=dev.createQuerySet({type:'timestamp',count:2});
+    qResolve=dev.createBuffer({size:16,usage:GPUBufferUsage.QUERY_RESOLVE|GPUBufferUsage.COPY_SRC});
+    qRead=[0,1].map(()=>dev.createBuffer({size:16,usage:GPUBufferUsage.COPY_DST|GPUBufferUsage.MAP_READ}));
+  }
+
+  /* ---- offscreen resources, rebuilt on canvas resize / tier change (Fold unfold, DPR change) ---- */
+  let RS=null;
+  function freeRes(){ if(!RS)return; try{RS.scene.destroy();RS.bloom.destroy();RS.pbufs.forEach(b=>b.destroy());}catch(_){} RS=null; }
+  function allocRes(cw,ch,tier,P){
+    freeRes();
+    const cap=tier>=3?2.6e6:1.4e6, sc=Math.min(1,Math.sqrt(cap/(cw*ch)));
+    const sw=Math.max(2,Math.round(cw*sc)), sh=Math.max(2,Math.round(ch*sc));
+    const div=tier>=3?2:4, L0=tier>=3?5:4;
+    const bw=Math.max(2,Math.floor(sw/div)), bh=Math.max(2,Math.floor(sh/div));
+    const L=Math.max(1,Math.min(L0,Math.floor(Math.log2(Math.min(bw,bh)))+1));
+    const scene=dev.createTexture({size:[sw,sh],format:HDRF,usage:GPUTextureUsage.RENDER_ATTACHMENT|GPUTextureUsage.TEXTURE_BINDING});
+    const bloom=dev.createTexture({size:[bw,bh],mipLevelCount:L,format:HDRF,usage:GPUTextureUsage.RENDER_ATTACHMENT|GPUTextureUsage.TEXTURE_BINDING});
+    const sceneView=scene.createView();
+    const mv=i=>bloom.createView({baseMipLevel:i,mipLevelCount:1});
+    const msz=i=>[Math.max(1,bw>>i),Math.max(1,bh>>i)];
+    const pbufs=[]; const pbuf=(x,y,z,w)=>{const b=dev.createBuffer({size:16,usage:GPUBufferUsage.UNIFORM|GPUBufferUsage.COPY_DST});dev.queue.writeBuffer(b,0,new Float32Array([x,y,z,w]));pbufs.push(b);return b;};
+    const bgf=(pipe,view,buf)=>dev.createBindGroup({layout:pipe.getBindGroupLayout(0),entries:[{binding:0,resource:smp},{binding:1,resource:view},{binding:2,resource:{buffer:buf}}]});
+    const down=[],up=[];
+    down.push({view:mv(0),bg:bgf(P.pre,sceneView,pbuf(div/2/sw,div/2/sh,0.72,0.35)),pipe:P.pre});   // prefilter: offset scaled so a 4x reduction still averages its footprint
+    for(let i=1;i<L;i++){const [w,h]=msz(i-1);down.push({view:mv(i),bg:bgf(P.down,mv(i-1),pbuf(1/w,1/h,0,0)),pipe:P.down});}
+    for(let i=L-2;i>=0;i--){const [w,h]=msz(i+1);up.push({view:mv(i),bg:bgf(P.up,mv(i+1),pbuf(1/w,1/h,0,0)),pipe:P.up});}
+    const cbg=dev.createBindGroup({layout:P.comp.getBindGroupLayout(0),entries:[{binding:0,resource:smp},{binding:1,resource:sceneView},{binding:2,resource:mv(0)},{binding:3,resource:{buffer:cub}}]});
+    RS={cw,ch,sw,sh,tierKey:tier>=3?3:2,scene,sceneView,bloom,pbufs,down,up,cbg,L,bw,bh};
+    return RS;
+  }
+  const uA=new Float32Array(12), cA=new Float32Array(36);
+
+  /* ---- T6 GPU particles: storage ring buffer (also the vertex buffer), emit + step compute kernels ---- */
+  const PMAX=98304, partLayout={arrayStride:48,stepMode:'instance',attributes:[
+    {shaderLocation:0,offset:0,format:'float32x4'},{shaderLocation:1,offset:16,format:'float32x4'},{shaderLocation:2,offset:32,format:'float32x4'}]};
+  let part=null;
+  function buildPart(){
+    const mc=dev.createShaderModule({code:WGSL_PCOMP}), mr=dev.createShaderModule({code:WGSL_PREND});
+    return Promise.all([mc.getCompilationInfo(),mr.getCompilationInfo()]).then(async ([a,b])=>{
+      const er=[...a.messages,...b.messages].filter(m=>m.type==='error');
+      for(const m of [...a.messages,...b.messages])E.compileMsgs.push('part:'+m.lineNum+':'+m.type+':'+m.message);
+      if(er.length)throw new Error('WGSL particles: '+er.map(m=>m.lineNum+':'+m.message).join(' | '));
+      const pbuf=dev.createBuffer({size:PMAX*48,usage:GPUBufferUsage.STORAGE|GPUBufferUsage.VERTEX|GPUBufferUsage.COPY_DST});
+      const eub=dev.createBuffer({size:1568,usage:GPUBufferUsage.UNIFORM|GPUBufferUsage.COPY_DST});
+      const mkC=en=>{const d={layout:'auto',compute:{module:mc,entryPoint:en}};return dev.createComputePipelineAsync?dev.createComputePipelineAsync(d):Promise.resolve(dev.createComputePipeline(d));};
+      const [pe,pst,pr]=await Promise.all([mkC('emit'),mkC('step'),mkP({layout:'auto',vertex:{module:mr,entryPoint:'pvs',buffers:[partLayout]},
+        fragment:{module:mr,entryPoint:'pfs',targets:[{format:HDRF,blend:blend('one')}]},primitive:{topology:'triangle-list'}})]);
+      const bgc=p=>dev.createBindGroup({layout:p.getBindGroupLayout(0),entries:[{binding:0,resource:{buffer:eub}},{binding:1,resource:{buffer:pbuf}}]});
+      part={pbuf,eub,pe,pst,pr,bge:bgc(pe),bgs:bgc(pst),bgr:dev.createBindGroup({layout:pr.getBindGroupLayout(0),entries:[{binding:0,resource:{buffer:ub}}]}),head:0,hist:[]};
+    });
+  }
+  const eBuf=new ArrayBuffer(1568), eU=new Uint32Array(eBuf), eF=new Float32Array(eBuf);
+  const burstLights=[];   // {x,y,t,i,col} last burst flashes (T7)
+  E.partOK=()=>!!part;
+  E.prep=async function(tier){            // make sure pipelines for `tier` exist; resolves false on failure
+    try{ if(tier>=2){await Promise.all([once('hdr',()=>buildScene('hdr')),once('post',buildPost),once('direct',()=>buildScene('direct'))]); try{await once('part',buildPart);}catch(e){HBG.warnOnce('part','GPU particles unavailable, CPU particles stay:',e&&e.message);}} else await once('direct',()=>buildScene('direct')); return true; }
+    catch(e){ HBG.warnOnce('prep'+tier,'pipeline creation failed for tier',HBG.TIERS[tier],e&&e.message); return false; }
+  };
+  E.setTier=async function(t){
+    if(E.dead)return false;
+    if(!(await E.prep(t)))return false;
+    E.tier=t; if(t<2)freeRes(); return true;
+  };
+  E.addStage=function(phase,fn){ if(!E.stages[phase])throw new Error('bad phase '+phase); E.stages[phase].push(fn); };
+
+  E.render=function(d,S){
+    if(E.dead)return;
+    const tier=E.tier, usePost=tier>=2;
+    const cw=canvas.width,ch=canvas.height;
+    const sets_=usePost?ready.hdr:ready.direct, ps=usePost?ready.post:null;
+    if(!sets_||(usePost&&!ps))return;                       // pipelines not ready: skip the frame
+    if(usePost&&(!RS||RS.cw!==cw||RS.ch!==ch||RS.tierKey!==(tier>=3?3:2)))allocRes(cw,ch,tier,ps);
+    const sw=usePost?RS.sw:cw, sh=usePost?RS.sh:ch;
+    const gain=usePost?(tier>=3?1.9:1.7):1, trailHdr=usePost?(tier>=3?1.5:1.2):0.6;
+    const tc=FX.trailCol||[0.35,0.85,1.0];
+    uA[0]=W;uA[1]=H;uA[2]=sw/W;uA[3]=gain; uA[4]=S.t;uA[5]=9;uA[6]=trailHdr;uA[7]=usePost?(tier>=3?24:14):0; uA[8]=tc[0];uA[9]=tc[1];uA[10]=tc[2];uA[11]=1;
+    dev.queue.writeBuffer(ub,0,uA);
+    if(d.nN)dev.queue.writeBuffer(ib,0,d.N,0,d.nN*12);
+    if(d.nA)dev.queue.writeBuffer(ib,MAXI*48,d.A,0,d.nA*12);
+    if(d.nO)dev.queue.writeBuffer(ib,2*MAXI*48,d.O,0,d.nO*12);
+    const nT=HBG.buildRibbon(FX.trail,uA[5]);
+    if(nT>=2)dev.queue.writeBuffer(tb,0,HBG.ribbonBuf,0,nT*2*HBG.RSTRIDE);
+    /* ---- T7 lights, T5 shocks, T6 bursts (CPU side, draw-only) ---- */
+    const nowG=(typeof FX.now==='number'&&isFinite(FX.now))?FX.now:null, reduce=S.reduce;
+    let nL=0, nS=0;
+    cA.fill(0);
+    if(usePost){
+      const maxL=tier>=3?6:3, tNow=HBG.trailNow();
+      const addL=(x,y,r,I,c)=>{ if(nL>=maxL||I<0.01)return; const o=4+nL*4; lA[o]=x;lA[o+1]=y;lA[o+2]=r;lA[o+3]=I; lA[28+nL*4]=c[0];lA[29+nL*4]=c[1];lA[30+nL*4]=c[2];lA[31+nL*4]=0; nL++; };
+      const tr=FX.trail;
+      if(tr&&tr.length>1){ const h=tr[tr.length-1], age=tNow-h.t, k=isFinite(age)&&age>-1&&age<5?HBG.clamp(1-Math.max(age,0)/0.3,0,1):1;
+        const c=FX.trailCol||[0.35,0.85,1.0]; addL(h.x,h.y,230,0.9*k*HBG.clamp((h.w||8)/10,0.5,1.4),[c[0]*0.6+0.4,c[1]*0.6+0.4,c[2]*0.6+0.4]); }
+      const sh_=FX.shocks||[], SHW=0.8;
+      for(let k=sh_.length-1;k>=0&&nS<4;k--){
+        const q_=sh_[k]; if(!q_||nowG===null||reduce)continue;
+        const q=(nowG-q_.t)/SHW; if(!(q>=0&&q<1))continue;
+        const amp=q_.amp||1, e=1-(1-q)*(1-q)*(1-q);
+        const o=20+nS*4; cA[o]=q_.x/W;cA[o+1]=q_.y/H;cA[o+2]=e*0.6;cA[o+3]=amp*0.03*Math.pow(1-q,1.5); nS++;
+        addL(q_.x,q_.y,260+120*amp,amp*1.3*(1-q)*(1-q),[1,0.8,0.5]);
+      }
+      for(let k=burstLights.length-1;k>=0;k--){ const b=burstLights[k], a=(S.t-b.t)/0.22; if(a>=1){burstLights.splice(k,1);continue;} if(!reduce)addL(b.x,b.y,150,b.i*(1-a)*(1-a),b.col); }
+    }
+    lA[0]=nL; dev.queue.writeBuffer(lb,0,lA);
+    let gpuP=false, drawFirst=0, drawN=0, wrapN=0;
+    const bq=FX.bursts;
+    if(part&&usePost&&!reduce){
+      gpuP=true;
+      const cap=tier>=3?PMAX:32768, K=tier>=3?36:14, cnt=[]; let total=0;
+      if(bq&&bq.length){ for(const b of bq){ if(cnt.length>=32)break; const n=Math.max(1,Math.round((+b.n||10)*K)); cnt.push([b,n]); total+=n; } bq.length=0; }
+      const scale=total>12000?12000/total:1; total=0;
+      eF.fill(0);
+      for(let j=0;j<cnt.length;j++){ const b=cnt[j][0], n=Math.max(1,Math.floor(cnt[j][1]*scale)), o=8+j*12, c=b.col||[1,1,1];
+        eF[o]=b.x;eF[o+1]=b.y;eF[o+2]=+b.speed||400;eF[o+3]=+b.life||0.7; eF[o+4]=c[0];eF[o+5]=c[1];eF[o+6]=c[2];eF[o+7]=+b.kind||0;
+        eF[o+8]=n;eF[o+9]=total;eF[o+10]=+b.dir||0;eF[o+11]=b.spread==null?6.2832:+b.spread; total+=n;
+        if(b.kind!==1&&burstLights.length<6)burstLights.push({x:b.x,y:b.y,t:S.t,i:Math.min(1,(+b.n||10)/22)*0.9,col:[Math.min(1,(c[0]||0)*0.7+0.3),Math.min(1,(c[1]||0)*0.7+0.3),Math.min(1,(c[2]||0)*0.7+0.3)]}); }
+      part.head%=cap;
+      const dt=Math.min(0.05,(typeof FX.ds==='number'&&FX.ds>=0)?FX.ds:S.dt);
+      eU[0]=part.head;eU[1]=total;eU[2]=cap;eU[3]=cnt.length; eF[4]=S.t%1000;eF[5]=dt;eF[6]=S.t;eF[7]=H;
+      dev.queue.writeBuffer(part.eub,0,eBuf);
+      part.emitN=total; part.cap=cap;
+      part.hist.push([S.t,total]); while(part.hist.length&&S.t-part.hist[0][0]>2.1)part.hist.shift();
+      let recent=0; for(const h of part.hist)recent+=h[1]; recent=Math.min(cap,recent);
+      part.head=(part.head+total)%cap;
+      const start=(part.head-recent+cap)%cap;
+      if(start+recent<=cap){drawFirst=start;drawN=recent;}else{drawFirst=start;drawN=cap-start;wrapN=recent-drawN;}
+    }else if(bq&&bq.length)bq.length=0;
+    E.gpuParts=gpuP; FX.gpuParts=gpuP; FX.lit3d=usePost;
+    const enc=dev.createCommandEncoder();
+    if(gpuP){
+      const cp=enc.beginComputePass();
+      if(part.emitN>0){cp.setPipeline(part.pe);cp.setBindGroup(0,part.bge);cp.dispatchWorkgroups(Math.ceil(part.emitN/64));}
+      cp.setPipeline(part.pst);cp.setBindGroup(0,part.bgs);cp.dispatchWorkgroups(Math.ceil(part.cap/64));cp.end();
+    }
+    const sctx={dev,enc,pass:null,tier,S,T:S.t,W,H,sceneW:sw,sceneH:sh,ubo:ub};
+    for(const f of E.stages.compute)try{f(sctx);}catch(e){HBG.warnOnce('stc',e&&e.message);}
+    const tsOK=E.hasTs&&!qBusy[qI];
+    const view=usePost?RS.sceneView:ctx.getCurrentTexture().createView();
+    const pdesc={colorAttachments:[{view,clearValue:{r:CLEAR[0],g:CLEAR[1],b:CLEAR[2],a:1},loadOp:'clear',storeOp:'store'}]};
+    if(tsOK)pdesc.timestampWrites=usePost?{querySet:qs,beginningOfPassWriteIndex:0}:{querySet:qs,beginningOfPassWriteIndex:0,endOfPassWriteIndex:1};
+    const pass=enc.beginRenderPass(pdesc); sctx.pass=pass;
+    pass.setVertexBuffer(0,ib);
+    if(d.nN){pass.setPipeline(sets_.pN);pass.setBindGroup(0,sets_.bgN);pass.draw(6,d.nN,0,0);}
+    if(d.nA){pass.setPipeline(sets_.pA);pass.setBindGroup(0,sets_.bgA);pass.draw(6,d.nA,0,MAXI);}
+    if(gpuP&&(drawN>0||wrapN>0)){pass.setPipeline(part.pr);pass.setBindGroup(0,part.bgr);pass.setVertexBuffer(0,part.pbuf);
+      if(drawN>0)pass.draw(6,drawN,0,drawFirst); if(wrapN>0)pass.draw(6,wrapN,0,0);}
+    if(nT>=2){pass.setPipeline(sets_.pT);pass.setBindGroup(0,sets_.bgT);pass.setVertexBuffer(0,tb);pass.draw(nT*2,1,0,0);}
+    if(!usePost&&d.nO){pass.setPipeline(sets_.pN);pass.setBindGroup(0,sets_.bgN);pass.setVertexBuffer(0,ib);pass.draw(6,d.nO,0,2*MAXI);}
+    for(const f of E.stages.scene)try{f(sctx);}catch(e){HBG.warnOnce('sts',e&&e.message);}
+    pass.end();
+    if(usePost){
+      const bi=S.bloom*0.55;
+      const fp=(v,pipe,bg,load)=>{
+        const p=enc.beginRenderPass({colorAttachments:[{view:v,loadOp:load?'load':'clear',clearValue:{r:0,g:0,b:0,a:1},storeOp:'store'}]});
+        p.setPipeline(pipe);p.setBindGroup(0,bg);p.draw(3);p.end();
+      };
+      if(bi>0.01){
+        for(const s of RS.down)fp(s.view,s.pipe,s.bg,false);
+        for(const s of RS.up)fp(s.view,s.pipe,s.bg,true);
+      }
+      for(const f of E.stages.post)try{f(sctx);}catch(e){HBG.warnOnce('stp',e&&e.message);}
+      cA[0]=RS.sw;cA[1]=RS.sh;cA[2]=S.t; cA[4]=S.flash;cA[5]=S.chroma;cA[6]=S.slow;cA[7]=bi>0.01?bi:0;
+      cA[8]=S.flashCol[0];cA[9]=S.flashCol[1];cA[10]=S.flashCol[2];cA[11]=S.vig;
+      cA[12]=S.sx;cA[13]=S.sy;cA[14]=tier>=3?8:4;cA[15]=1.0;
+      cA[16]=0.1;cA[17]=0.3;cA[18]=0.8;cA[19]=nS;   // slow tint (= COL.slow), shockN
+      dev.queue.writeBuffer(cub,0,cA);
+      const swv=ctx.getCurrentTexture().createView();
+      const cd={colorAttachments:[{view:swv,loadOp:'clear',clearValue:{r:0,g:0,b:0,a:1},storeOp:'store'}]};
+      if(tsOK)cd.timestampWrites={querySet:qs,endOfPassWriteIndex:1};
+      const p=enc.beginRenderPass(cd);p.setPipeline(ps.comp);p.setBindGroup(0,RS.cbg);p.draw(3);p.end();
+      /* overlay list: drawn AFTER bloom/tonemap straight onto the swapchain, so it can never be bloomed or washed out (used for the armour direction arrow) */
+      if(d.nO&&ready.direct){
+        if(!ovBG)ovBG=dev.createBindGroup({layout:ready.direct.pN.getBindGroupLayout(0),entries:[{binding:0,resource:{buffer:ub2}},{binding:1,resource:{buffer:lb0}}]});
+        uB[0]=W;uB[1]=H;uB[2]=cw/W;uB[3]=1;uB[4]=S.t;uB[5]=9;uB[11]=1; dev.queue.writeBuffer(ub2,0,uB);
+        const op=enc.beginRenderPass({colorAttachments:[{view:swv,loadOp:'load',storeOp:'store'}]});
+        op.setPipeline(ready.direct.pN);op.setBindGroup(0,ovBG);op.setVertexBuffer(0,ib);op.draw(6,d.nO,0,2*MAXI);op.end();
+      }
+    }
+    if(tsOK){
+      enc.resolveQuerySet(qs,0,2,qResolve,0);
+      enc.copyBufferToBuffer(qResolve,0,qRead[qI],0,16);
+    }
+    dev.queue.submit([enc.finish()]);
+    if(tsOK){
+      const i=qI; qI=(qI+1)%2; qBusy[i]=true;
+      qRead[i].mapAsync(GPUMapMode.READ).then(()=>{
+        const a=new BigUint64Array(qRead[i].getMappedRange().slice(0)); qRead[i].unmap(); qBusy[i]=false;
+        const ms=Number(a[1]-a[0])/1e6; if(ms>=0&&ms<1000)gov.gpu=gov.gpu==null?ms:gov.gpu*0.8+ms*0.2;
+      }).catch(()=>{qBusy[i]=false;});
+    }
+    gov.scene=usePost?(RS.sw+'x'+RS.sh+' @'+(RS.sw/cw).toFixed(2)):(cw+'x'+ch+' direct');
+  };
+  E.destroy=function(){E.dead=true;try{freeRes();dev.destroy();}catch(_){}};
+  E.getRes=()=>RS;
+  E.module=mods;
+  return E;
 }
-/* ---------------- Canvas2D fallback (same draw list) ---------------- */
+
+async function makeGPU(canvas){
+  const H_=HBG;
+  if(!navigator.gpu||QP.get('gpu')==='0'||H_.FXMODE===0){FX.tier='safe';return null;}
+  const stored=H_.storedTier();
+  const start=H_.FXMODE!=null?H_.FXMODE:(stored>=1?stored:3);
+  const gov=H_.makeGov(start,3,H_.FXMODE!=null);
+  let eng=null,fb=null,busy=false,losses=0;
+  const logged={};
+  const log=(k,...a)=>{if(logged[k])return;logged[k]=1;console.warn('[hb-gpu]',...a);};
+  const wrap={canvas,gov,hdrFormat:HDRF,_last:0,
+    get engine(){return eng;},
+    get tier(){return fb?'safe':H_.TIERS[gov.tier];},
+    get base(){return fb?'Canvas fallback':'WebGPU';},
+    get name(){return this.base+' · '+this.tier.toUpperCase();},
+    addStage(p,f){if(eng)eng.addStage(p,f);},
+    stepDown(why){return stepDown(why);},
+    debugLose(){ if(eng)eng.destroy(); },
+    render(d){
+      const t0=performance.now();
+      if(fb){ fb.render(d); return; }
+      if(busy||!eng)return;
+      const S=H_.frame(t0/1000);
+      if(wrap._last)gov.push(t0-wrap._last,t0/1000); wrap._last=t0;
+      eng.render(d,S);
+      gov.cpu=gov.cpu*0.9+(performance.now()-t0)*0.1;
+      H_.publish(gov,wrap.tier); H_.overlay(gov,wrap.tier,'');
+    }};
+  function toC2D(why){
+    if(fb)return; log('c2d','falling back to Canvas2D:',why);
+    try{ if(eng)eng.dead=true; }catch(_){}
+    const c2=document.createElement('canvas'); c2.width=canvas.width; c2.height=canvas.height;
+    canvas.parentNode.insertBefore(c2,canvas);
+    canvas.style.opacity='0';                          // stays on top and keeps receiving pointer events (input is bound to it)
+    const f=makeC2D(c2); const r=f.render;
+    f.render=function(d){ if(c2.width!==canvas.width||c2.height!==canvas.height){c2.width=canvas.width;c2.height=canvas.height;} r.call(f,d); };
+    fb=f; busy=false; H_.publish(gov,'safe');
+  }
+  async function stepDown(why){
+    if(fb)return;
+    if(eng&&!eng.dead&&gov.tier>1){
+      log('sd','step down to LOW (plain WebGPU):',why);
+      gov.max=1; gov.locked=true; gov.tier=1;
+      const ok=await eng.setTier(1); if(!ok)toC2D('plain pipeline failed');
+    }else toC2D(why);
+  }
+  async function recover(info){
+    if(fb||busy)return; busy=true; losses++; FX.gpuParts=false; FX.lit3d=false;
+    log('lost'+losses,'device lost:',info&&info.message,'(reason '+(info&&info.reason)+')');
+    if(losses>1){ toC2D('second device loss'); return; }
+    try{
+      const e2=await HBG_createEngine(canvas,{gov,wantPerf:H_.PERF,startTier:1});
+      if(!(await e2.prep(1))){ e2.destroy(); throw new Error('plain pipelines failed'); }
+      e2.onLost=recover; e2.onErrors=m=>stepDown('uncaptured errors: '+m);
+      eng=e2; gov.tier=1; gov.max=1; gov.locked=true; busy=false; log('rebuilt','rebuilt on plain WebGPU (LOW)');
+    }catch(e){ toC2D('rebuild failed: '+(e&&e.message)); }
+  }
+  let e0;
+  try{ e0=await HBG_createEngine(canvas,{gov,wantPerf:H_.PERF,startTier:start}); }
+  catch(e){ console.warn('WebGPU unavailable:',e&&e.message); return null; }
+  let ok=await e0.prep(start);
+  if(!ok&&start>=2){ log('postfail','post chain failed, using plain WebGPU'); gov.tier=1; gov.max=1; gov.locked=true; ok=await e0.prep(1); }
+  if(!ok){ e0.destroy(); return null; }
+  e0.tier=gov.tier; eng=e0; e0.onLost=recover; e0.onErrors=m=>stepDown('uncaptured errors: '+m);
+  gov.onChange=(t,why)=>{
+    if(!eng||fb||busy)return; const prev=eng.tier;
+    eng.setTier(t).then(ok=>{
+      if(ok){ log('t'+t+'_'+Math.round(performance.now()/1000),'tier ->',H_.TIERS[t].toUpperCase(),'('+why+')'); if(H_.FXMODE==null)H_.storeTier(t); }
+      else{ gov.tier=prev; gov.max=Math.min(gov.max,prev); }
+    });
+  };
+  H_.publish(gov,wrap.tier);
+  return wrap;
+}
+
+/* ================================================================================================
+   Canvas2D fallback (same draw list). Tier SAFE. Trail = simple polyline, flash = additive rect, no chroma/blur.
+   ================================================================================================ */
 function makeC2D(canvas){
   const ctx=canvas.getContext('2d');
   /* L-TD-9: glow is baked ONCE into small sprites (shadowBlur only at bake time), then drawn with drawImage + globalAlpha.
@@ -1056,13 +2044,29 @@ function makeC2D(canvas){
     if(!e){if(cache.size>=CAP)cache.delete(cache.keys().next().value);e=bake(sh,qx,qy,qp,qg,cr,cg,cb,s);cache.set(key,e);}
     return e;
   }
-  const stats={baked:0};
   function pass(b,n,add,s){
     ctx.globalCompositeOperation=add?'lighter':'source-over';
     for(let i=0;i<n;i++){
       const o=i*12,x=b[o],y=b[o+1],sx=b[o+2],sy=b[o+3],rot=b[o+4],sh=b[o+5],p=b[o+6],gl=b[o+7],a=b[o+11];
-      if(a<=0.004)continue;
+      if(a<=0.004||sh>3.5&&sh<4.5||sh>6.5)continue;   // shape 4 (lit 3D body) is WebGPU-only; the game only emits it while FX.lit3d
       ctx.setTransform(s,0,0,s,0,0);
+      if(sh>4.5){   // Canvas2D-only shapes (the game emits them only on this renderer): 5 = half-disc fill/arc stroke, 6 = screen-edge rim gradient
+        const cr=b[o+8]*255|0,cg=b[o+9]*255|0,cb=b[o+10]*255|0;ctx.globalAlpha=1;
+        if(sh<5.5){   // sx = diameter, sy = 0 fill / >0 arc stroke width, p = side (+-1), rot = cut angle
+          ctx.translate(x,y);ctx.rotate(rot);ctx.beginPath();const sd=p<0?-1:1;
+          if(sy>0){ctx.arc(0,0,sx/2,sd>0?0:Math.PI,sd>0?Math.PI:2*Math.PI);ctx.lineWidth=sy;ctx.lineCap='round';ctx.strokeStyle=`rgba(${cr},${cg},${cb},${a})`;ctx.stroke();ctx.lineCap='butt';}
+          else{ctx.arc(0,0,sx/2,sd>0?0:Math.PI,sd>0?Math.PI:2*Math.PI);ctx.closePath();ctx.fillStyle=`rgba(${cr},${cg},${cb},${a})`;ctx.fill();}
+        }else{   // sx,sy = W,H ; p = rim depth. 4 mitred trapezoids, each a linear gradient from the edge (alpha a) to 0 at depth p
+          const w=p,hh=sy,ww=sx,rgb=`${cr},${cg},${cb}`;
+          const sides=[[0,0,0,w,[[0,0],[ww,0],[ww-w,w],[w,w]]],[0,hh,0,hh-w,[[0,hh],[ww,hh],[ww-w,hh-w],[w,hh-w]]],[0,0,w,0,[[0,0],[0,hh],[w,hh-w],[w,w]]],[ww,0,ww-w,0,[[ww,0],[ww,hh],[ww-w,hh-w],[ww-w,w]]]];
+          for(const sd2 of sides){
+            const g=ctx.createLinearGradient(sd2[0],sd2[1],sd2[2],sd2[3]);
+            g.addColorStop(0,`rgba(${rgb},${a})`);g.addColorStop(.15,`rgba(${rgb},${a*.7})`);g.addColorStop(.35,`rgba(${rgb},${a*.45})`);g.addColorStop(.6,`rgba(${rgb},${a*.22})`);g.addColorStop(.8,`rgba(${rgb},${a*.08})`);g.addColorStop(1,`rgba(${rgb},0)`);
+            ctx.fillStyle=g;ctx.beginPath();const q=sd2[4];ctx.moveTo(q[0][0],q[0][1]);for(let k=1;k<4;k++)ctx.lineTo(q[k][0],q[k][1]);ctx.closePath();ctx.fill();
+          }
+        }
+        continue;
+      }
       if(gl>0){
         const e=spriteFor(sh,sx,sy,p,gl,b[o+8],b[o+9],b[o+10],s);
         const kx=sh===1?sx/e.sx:1;           // stretch quantised length back to exact length
@@ -1079,21 +2083,61 @@ function makeC2D(canvas){
     }
     ctx.globalAlpha=1;
   }
-  return {name:'Canvas fallback',canvas,cacheSize:()=>cache.size,
+  /* simple polyline blade trail (T4 fallback): tapered round-cap segments, soft wide pass + white core, additive */
+  function trailPoly(pts,s){
+    if(!pts||pts.length<2)return;
+    const tc=FX.trailCol||[0.35,0.85,1.0], rgb=`${tc[0]*255|0},${tc[1]*255|0},${tc[2]*255|0}`;
+    const n=pts.length, from=Math.max(0,n-48), tNow=HBG.trailNow(), LIFE=+FX.trailLife>0?+FX.trailLife:0.3;
+    ctx.globalCompositeOperation='lighter';ctx.lineCap='round';ctx.lineJoin='round';ctx.setTransform(s,0,0,s,0,0);
+    for(let i=from+1;i<n;i++){
+      const a=pts[i-1],b=pts[i]; if(!a||!b)continue;
+      const u=(i-from)/(n-from), age=tNow-b.t;
+      const f=(isFinite(age)&&age>-1&&age<5)?HBG.clamp(1-Math.max(age,0)/LIFE,0,1):u;
+      const w=Math.max(1,(b.w||8)*(0.15+0.85*u)*(0.4+0.6*f));
+      ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);
+      ctx.globalAlpha=0.45*f*u;ctx.strokeStyle=`rgb(${rgb})`;ctx.lineWidth=w*1.8;ctx.stroke();
+      ctx.globalAlpha=f*u;ctx.strokeStyle='rgb(255,255,255)';ctx.lineWidth=w*0.5;ctx.stroke();
+    }
+    ctx.globalAlpha=1;ctx.lineCap='butt';
+  }
+  const gov=HBG.makeGov(0,0,true); let last=0;
+  FX.tier='safe'; FX.gpuParts=false; FX.lit3d=false; if(FX.bursts)FX.bursts.length=0;
+  return {name:'Canvas fallback · SAFE',base:'Canvas fallback',tier:'safe',canvas,gov,cacheSize:()=>cache.size,
     render(d){
+      const t0=performance.now();
+      const S=HBG.frame(t0/1000);
       const s=canvas.width/W;
       ctx.setTransform(1,0,0,1,0,0);ctx.globalCompositeOperation='source-over';ctx.globalAlpha=1;
       ctx.fillStyle=`rgb(${Math.round(CLEAR[0]*255)},${Math.round(CLEAR[1]*255)},${Math.round(CLEAR[2]*255)})`;ctx.fillRect(0,0,canvas.width,canvas.height);
-      pass(d.N,d.nN,false,s);pass(d.A,d.nA,true,s);
+      pass(d.N,d.nN,false,s);pass(d.A,d.nA,true,s);pass(d.O,d.nO,false,s);
+      trailPoly(FX.trail,s);
+      if(S.flash>0.01){ctx.setTransform(1,0,0,1,0,0);ctx.globalCompositeOperation='lighter';ctx.globalAlpha=Math.min(1,S.flash*0.45);
+        ctx.fillStyle=`rgb(${S.flashCol[0]*255|0},${S.flashCol[1]*255|0},${S.flashCol[2]*255|0})`;ctx.fillRect(0,0,canvas.width,canvas.height);ctx.globalAlpha=1;ctx.globalCompositeOperation='source-over';}
+      if(last)gov.push(t0-last,t0/1000); last=t0; gov.cpu=gov.cpu*0.9+(performance.now()-t0)*0.1; gov.scene=canvas.width+'x'+canvas.height+' c2d';
+      HBG.publish(gov,'safe'); HBG.overlay(gov,'safe','');
     }};
 }
+
+</script>
+<script>
 let R=null,layoutS=1;
 function newCanvas(){const c=document.createElement('canvas');stage.insertBefore(c,stage.firstChild);sizeCanvas(c);return c;}
 function sizeCanvas(c){const dpr=Math.min(window.devicePixelRatio||1,2.5);c.width=Math.max(2,Math.round(W*layoutS*dpr));c.height=Math.max(2,Math.round(H*layoutS*dpr));}
+/* Fold cover screen: too small to play, so show "Unfold to play", pause the run, silence audio, block all input. Growing the viewport hides it; the run resumes from the normal pause menu. */
+let foldShown=false;
+function foldCheck(){
+  if(typeof G==='undefined')return;
+  const small=innerHeight<420; if(small===foldShown)return; foldShown=small;
+  const card=$('foldCard');card.style.display=small?'flex':'none';
+  if(small){stage.setAttribute('inert','');if(G.state==='play')setPause(true);strokes.clear();au('suspend');}
+  else{stage.removeAttribute('inert');if(!(G.state==='play'&&G.paused))au('resume');}
+}
+for(const ev of ['keydown','keyup'])addEventListener(ev,e=>{if(foldShown){e.stopImmediatePropagation();e.preventDefault();}},true);
 function layout(){
   const vw=innerWidth,vh=innerHeight;layoutS=Math.min(vw/W,vh/H);
   stage.style.transform=`translate(${(vw-W*layoutS)/2}px,${(vh-H*layoutS)/2}px) scale(${layoutS})`;
   if(R)sizeCanvas(R.canvas);
+  foldCheck();
 }
 addEventListener('resize',layout);
 async function initRenderer(){
@@ -1112,7 +2156,12 @@ const EXT={speed:[1.36,1.96,4],interval:[0.7,0.42,5],armour:[0.45,0.42,4],bomb:[
 function wv(k,w){if(w<3)return WV[k][w];const e=EXT[k];return e[1]+(e[0]-e[1])*Math.exp(-(w-2)/e[2]);}
 const COL={orb:[.2,.9,1],arm:[1,.72,.2],big:[.72,.42,1],bomb:[1,.22,.28],split:[.4,1,.5],small:[.6,1,.7],white:[1,1,1],blade:[.5,.9,1],gold:[1,.85,.4],slow:[.1,.3,.8]};
 const G={mode:'classic',spared:0,focusUsed:0,spawnLog:[],missLog:[],lastLoss:-99,state:'title',wave:0,waveT:0,spawnT:0,T:0,lives:3,score:0,combo:0,lastKill:-9,focus:0,slowLeft:0,
-  foes:[],parts:[],good:0,bad:0,miss:0,kills:0,bestCombo:0,wstart:null,sumLeft:0,shake:0,redFlash:0,msg:'',msgT:0,paused:false,nextId:1,stars:0};
+  foes:[],parts:[],good:0,bad:0,miss:0,kills:0,bestCombo:0,wstart:null,sumLeft:0,shake:0,redFlash:0,msg:'',msgT:0,paused:false,nextId:1,stars:0,
+  /* v6 motion state: all of it advances in update(dt) only, all of it is reset in startGame */
+  vt:0,bt:0,shards:[],delayed:[],trauma:0,zoom:0,lk:0,lkDone:false,rimT:0,vig:0,wvT:99,wvNum:1,shownScore:0,comboS:{x:1,v:0},lastCombo:0,fbS:0,lastFlash:-9,demo:[],demoT:0,lastLives:3,ghosts:[],px:0,py:0,tx:0,ty:0,peak:0};
+const fxo=()=>window.FX;
+const tierOf=()=>Math.min(3,Math.floor(G.combo/5));
+const lowFx=()=>{const f=fxo();return !!f&&(f.tier==='low'||f.tier==='off'||f.tier==='safe');};
 const COL0={};for(const k in COL)COL0[k]=COL[k].slice();
 /* themes (optional module window.HBThemes; v5 works without it) */
 const HT=()=>window.HBThemes&&typeof window.HBThemes.get==='function'?window.HBThemes:null;
@@ -1191,14 +2240,66 @@ const inGrace=()=>hasLives()&&G.wave===0&&G.waveT<GRACE_LEN;
 function startGame(mode){
   MODE=mode||'classic';seedRun();auUnlock();au('seed',SEED^0x5bd1e995);au('ui');
   Object.assign(G,{spawnLog:[],missLog:[],lastLoss:-99,state:'play',wave:0,T:0,lives:3,score:0,combo:0,lastKill:-9,focus:0,slowLeft:0,foes:[],parts:[],good:0,bad:0,miss:0,kills:0,bestCombo:0,shake:0,redFlash:0,stars:0,hs:0,mode:MODE,spared:0,focusUsed:0});
+  resetFx();
   $('ovTitle').style.display='none';$('ovAch').style.display='none';$('ovCustom').style.display='none';$('ovHelp').style.display='none';$('ovSum').style.display='none';$('ovRes').style.display='none';$('ovPause').style.display='none';G.paused=false;
   auInt=0;auFocusReadyFired=false;au('music','play');au('setIntensity',0.15);
   if(MODE==='daily')unlock('daily');
   beginWave();
 }
+/* ---- v6 motion helpers (all draw-only randomness uses rD; state advances in update only) ---- */
+function resetFx(){
+  Object.assign(G,{shards:[],delayed:[],trauma:0,zoom:0,lk:0,lkDone:false,rimT:0,vig:0,wvT:99,shownScore:0,comboS:{x:1,v:0},lastCombo:0,fbS:0,lastFlash:-9,demo:[],ghosts:[],lastLives:3,bt:0});
+  const f=fxo();if(f){f.flash=0;f.chroma=0;f.slow=0;if(f.shocks)f.shocks.length=0;if(f.bursts)f.bursts.length=0;f.trail=null;}
+}
+function addTrauma(a){if(!REDUCE)G.trauma=Math.min(1,G.trauma+a);}
+function punch(a){if(!REDUCE)G.zoom=Math.max(G.zoom,Math.min(.03,a));}
+function fxFlash(a,col){   // exposure flash for the renderer; gated so it can never fire above ~2.9 Hz
+  const f=fxo();if(REDUCE||!f||G.vt-G.lastFlash<0.34)return;
+  G.lastFlash=G.vt;f.flash=Math.max(f.flash||0,a);if(f.flashCol&&col){f.flashCol[0]=col[0];f.flashCol[1]=col[1];f.flashCol[2]=col[2];}
+}
+/* drop 2: GPU particle bursts. The renderer (WebGPU HIGH/MID) consumes FX.bursts every frame; on LOW/SAFE/reduced motion the CPU particles below stay as they were.
+   {x,y,n,speed,col,life,kind,dir,spread}: n = intensity (renderer multiplies by its tier budget), kind 0 spark, 1 ember, 2 glint shard. Draw-only: uses no RNG. */
+/* drop 3: lit 3D bodies / title hero exist only while the renderer says so (WebGPU HIGH/MID); LOW and SAFE keep the 2D look exactly. */
+function lit3d(){const f=fxo();return !!f&&f.lit3d===true;}
+function gpuParts(){const f=fxo();return !REDUCE&&!!f&&f.gpuParts===true&&Array.isArray(f.bursts);}
+function fxBurst(x,y,n,speed,col,life,kind,dir,spread){const f=fxo();if(!f||!Array.isArray(f.bursts))return;f.bursts.push({x,y,n,speed,col:[col[0],col[1],col[2]],life:life||.7,kind:kind||0,dir:dir||0,spread:spread==null?6.2832:spread});while(f.bursts.length>48)f.bursts.shift();}
+function fxChroma(a){const f=fxo();if(!REDUCE&&f)f.chroma=Math.max(f.chroma||0,a);}
+function fxShock(x,y,amp){const f=fxo();if(REDUCE||!f||!f.shocks)return;f.shocks.push({x,y,t:G.T,amp});while(f.shocks.length>4)f.shocks.shift();}
+function pushShard(h){if(G.shards.length>=24)G.shards.shift();G.shards.push(h);}
+/* slice reveal (idea 1): two half-discs split along the real swipe line, built from shape 0-2 instances only */
+function sliceHalves(x,y,r,ang,c,vx0,vy0){
+  for(const s of [-1,1]){
+    const nx=-Math.sin(ang)*s,ny=Math.cos(ang)*s,sep=REDUCE?0:170+rD()*70;
+    pushShard({x,y,vx:REDUCE?0:vx0*.3+nx*sep,vy:REDUCE?0:vy0*.2+ny*sep-90,a:ang,rot:0,spin:REDUCE?0:s*(2.5+rD()*2.5),s,r,c,life:REDUCE?.25:.6,max:REDUCE?.25:.6});
+  }
+  if(!REDUCE)G.parts.push({k:4,x,y,a:ang,len:r*2.8,vx:0,vy:0,g:0,life:.08,max:.08,c:COL.white});
+}
+function cutAngle(dir){return dir?Math.atan2(dir.y,dir.x):rD()*Math.PI;}
+function deathFx(f,dir,ang){   // idea 2: a different break per foe type
+  const c=COL[f.type==='small'?'small':f.type],x=f.x,y=f.y,r=f.r;
+  if(f.type==='arm'&&!REDUCE){
+    for(const [d,sp] of [[0,1],[Math.PI,1],[Math.PI/2,.55]]){
+      const a=f.ang+d;G.parts.push({k:2,x,y,vx:Math.cos(a)*(320+rD()*120)*sp,vy:Math.sin(a)*(320+rD()*120)*sp-60,a:f.ang+d+rD()*.6-.3,spin:(rD()-.5)*10,w:30,h:11,life:.55,max:.55,c});
+    }
+    G.parts.push({k:4,x,y,a:ang,len:r*2.8,vx:0,vy:0,g:0,life:.08,max:.08,c:COL.white});
+  }else if(f.type==='big'&&!REDUCE){
+    for(let i=0;i<4;i++){const a=i*Math.PI/2+.4+rD()*.5;G.parts.push({k:4,x:x+Math.cos(a)*r*.45,y:y+Math.sin(a)*r*.45,a,len:r*.9,vx:0,vy:0,g:0,life:.07,max:.07,c:COL.white});}   // cracks, then the burst 60 ms later
+    G.delayed.push({t:G.vt+.06,kind:'big',x,y,r,ang,c,vx:f.vx,vy:f.vy});
+  }else sliceHalves(x,y,r,ang,c,f.vx,f.vy);
+}
+function bombFx(f){   // ring + radial spikes
+  const x=f.x,y=f.y,c=COL.bomb;
+  G.parts.push({k:1,x,y,vx:0,vy:0,life:REDUCE?.3:.55,max:REDUCE?.3:.55,sz:12,grow:REDUCE?60:210,c});
+  if(!REDUCE){
+    for(let i=0;i<14;i++){const a=i*Math.PI/7+rD()*.15,sp=520+rD()*260;G.parts.push({k:3,x,y,a,L:36+rD()*40,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp,g:0,life:.4,max:.4,c:i%2?[1,.9,.4]:c});}
+    addTrauma(.8);punch(.03);fxChroma(.9);fxFlash(.4,[1,.8,.5]);fxShock(x,y,1);
+    if(gpuParts()){fxBurst(x,y,26,760,[1,.85,.45],.9,2);fxBurst(x,y,18,260,[1,.45,.2],1.3,1);}
+  }
+}
+function floorRipple(x,c){if(!REDUCE)G.parts.push({k:5,x,y:H-5,vx:0,vy:0,g:0,life:.5,max:.5,grow:260,c});}
 function beginWave(){
   G.waveT=0;G.spawnT=0.8;G.wstart={good:G.good,bad:G.bad,miss:G.miss,kills:G.kills,score:G.score};
-  say('WAVE '+(G.wave+1),2);au('waveStart',Math.min(6,G.wave+1));   // pitch step capped at wave 6
+  G.wvT=0;G.wvNum=G.wave+1;G.lkDone=false;au('waveStart',Math.min(6,G.wave+1));   // pitch step capped at wave 6; the "WAVE n" text is the v6 banner (hud())
   trackForWave();
   if(MODE!=='classic'){if(G.wave+1>=6)unlock('ew6');if(G.wave+1>=10)unlock('ew10');}
 }
@@ -1217,27 +2318,32 @@ function spawn(){
   const a8=Math.floor(rS()*8)*Math.PI/4; if(t==='arm')f.ang=a8;
   if(G.spawnLog.length<4000)G.spawnLog.push([w,t,+f.x.toFixed(1),+f.y.toFixed(1),+f.vx.toFixed(1),+f.vy.toFixed(1),+f.ang.toFixed(3),inGrace()?1:0]);
   G.foes.push(f);
+  if(!REDUCE)G.parts.push({k:1,x:Math.max(26,Math.min(W-26,f.x)),y:f.y,vx:0,vy:0,g:0,life:.4,max:.4,sz:8,grow:46,c:COL[t==='arm'?'arm':t]});   // faint warp-in ring (no randomness)
 }
 function spawnSmall(x,y,dir){
   if(x<90)dir=1;else if(x>W-90)dir=-1;   // never throw a shard off the side of the field
   G.foes.push({id:G.nextId++,type:'small',x,y,vx:dir*rndF(120,260),vy:-rndF(250,420),r:22,hp:1,rot:0,spin:rndF(-5,5),flash:0,hitCd:G.T+0.25,born:G.T,ang:0});
 }
-function burst(x,y,c,n,spd){
-  for(let i=0;i<n;i++){const a=rndF(0,6.283),s=rndF(.3,1)*spd;G.parts.push({k:0,x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,life:rndF(.35,.7),max:.7,sz:rndF(2,5),c});}
+function burst(x,y,c,n,spd){   // v6: draw-only (rD), so a burst can never shift the rF stream that split children use
+  if(REDUCE){G.parts.push({k:1,x,y,vx:0,vy:0,life:.3,max:.3,sz:10,grow:40,c});return;}   // reduced motion: one fade ring, no fling
+  if(gpuParts()){fxBurst(x,y,n,spd,c,.75,0);G.parts.push({k:1,x,y,vx:0,vy:0,life:.35,max:.35,sz:10,c});return;}   // GPU sparks replace the CPU dots; the ring stays
+  if(lowFx())n=Math.ceil(n*.6);
+  if(G.parts.length>360)n=Math.min(n,4);
+  for(let i=0;i<n;i++){const a=rD()*6.283,s=(.3+rD()*.7)*spd;G.parts.push({k:0,x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,life:.35+rD()*.35,max:.7,sz:2+rD()*3,c});}
   G.parts.push({k:1,x,y,vx:0,vy:0,life:.35,max:.35,sz:10,c});
 }
 function loseLife(why){
   if(!hasLives()){
-    if(why==='BOMB!'){const lost=Math.min(G.score,Math.max(250,Math.round(G.score*0.1)));G.score-=lost;G.combo=0;G.redFlash=1;if(!REDUCE)G.shake=14;say('BOMB -'+lost,1.4);}   // existing bomb sound already played by applyHit
+    if(why==='BOMB!'){const lost=Math.min(G.score,Math.max(250,Math.round(G.score*0.1)));G.score-=lost;G.combo=0;G.redFlash=1;G.rimT=.32;say('BOMB -'+lost,1.4);}   // existing bomb sound already played by applyHit
     else{G.combo=0;say('MISSED',.9,true);au('miss');}
     return;
   }
   au('lifeLost');
-  G.lives--;G.lastLoss=G.T;G.combo=0;G.redFlash=1;if(!REDUCE)G.shake=14;say(why,1.4);
+  G.lives--;G.lastLoss=G.T;G.combo=0;G.redFlash=1;G.rimT=.32;addTrauma(.55);say(why,1.4);
   if(G.lives<=0)finish(false);
 }
 function addScore(base,strong){const m=1+0.1*Math.min(Math.max(G.combo-1,0),10);G.score+=Math.round(base*m*(strong?1.25:1));}
-function kill(f,strong){
+function kill(f,strong,dir){
   G.good++;G.kills++;
   if(G.T-G.lastKill<=1.2)G.combo++;else G.combo=1;
   G.lastKill=G.T;G.bestCombo=Math.max(G.bestCombo,G.combo);
@@ -1245,32 +2351,46 @@ function kill(f,strong){
   au('hit',f.type,G.combo);
   addScore({orb:100,arm:200,big:250,split:150,small:50}[f.type]||100,strong);
   if(G.slowLeft<=0&&G.focus<1)G.focus=Math.min(1,G.focus+0.07+0.012*Math.min(G.combo,8));
-  burst(f.x,f.y,COL[f.type==='small'?'small':f.type],f.type==='big'?26:14,f.type==='big'?520:380);
+  const big=f.type==='big',tier=tierOf(),cc=Math.min(G.combo,12);
+  burst(f.x,f.y,COL[f.type==='small'?'small':f.type],(big?26:14)+(tier>=3&&!REDUCE?8:0),big?520:380);   // tier 3 (combo 15+): 22 sparks
   f.dead=true;
-  if(!REDUCE)G.hs=Math.max(G.hs||0,(f.type==='big'||f.type==='arm')?0.055:0.03);
-  if(f.type==='split'){spawnSmall(f.x,f.y,-1);spawnSmall(f.x,f.y,1);}
+  if(!REDUCE)G.hs=Math.max(G.hs||0,((big||f.type==='arm')?0.055:0.03)+Math.min(0.02,G.combo*0.0015));   // hit-stop grows a little with the chain
+  const ang=cutAngle(dir);
+  deathFx(f,dir,ang);
+  if(f.type==='split'){   // the two small foes pop out of the two halves of the shell
+    let nx=-Math.sin(ang),ny=Math.cos(ang);if(nx>0||(nx===0&&ny>0)){nx=-nx;ny=-ny;}
+    spawnSmall(f.x+nx*f.r*.5,f.y+ny*f.r*.5,-1);spawnSmall(f.x-nx*f.r*.5,f.y-ny*f.r*.5,1);
+  }
+  addTrauma(big?.4:.05+.006*cc);punch(big?.03:.004+.0008*cc);fxChroma(big?.55:.16+.015*cc);
+  if(big){fxFlash(.18,[.8,.6,1]);fxShock(f.x,f.y,.6);}
+  if(!REDUCE&&(G.combo===10||G.combo===15||G.combo===25))G.parts.push({k:1,x:W/2,y:36,vx:0,vy:0,g:0,life:.7,max:.7,sz:20,grow:170,c:G.combo>=15?COL.gold:COL.blade});   // milestone ring from the combo text
+  /* last kill of a wave: gold ring, brief 0.3x slow-mo (not in reduced motion; the ring still plays) */
+  if(G.waveT>=WAVE_LEN&&!G.lkDone&&G.state==='play'&&!G.foes.some(o=>!o.dead)){
+    G.lkDone=true;G.parts.push({k:1,x:f.x,y:f.y,vx:0,vy:0,g:0,life:.7,max:.7,sz:16,grow:220,c:COL.gold});
+    if(!REDUCE){G.lk=.4;fxShock(f.x,f.y,.8);fxFlash(.22,[1,.88,.5]);}
+  }
 }
 function bounce(f,dir){
   f.flash=G.T+0.3;f.hitCd=G.T+0.4;f.vy=-260;f.vx=(dir?Math.sign(dir.x)||1:1)*180;
-  if(!REDUCE)G.shake=Math.max(G.shake,4);
+  addTrauma(.22);
 }
 function applyHit(f,dir,strong){
   if(f.hitCd>G.T)return;
-  if(f.type==='bomb'){au('bomb');G.bad++;f.dead=true;burst(f.x,f.y,COL.bomb,30,600);loseLife('BOMB!');return;}
+  if(f.type==='bomb'){au('bomb');G.bad++;f.dead=true;burst(f.x,f.y,COL.bomb,30,600);bombFx(f);loseLife('BOMB!');return;}
   if(f.type==='arm'){
     if(!dir)return;
     const dot=dir.x*Math.cos(f.ang)+dir.y*Math.sin(f.ang);
-    if(dot>=Math.cos(35*Math.PI/180))kill(f,strong);
+    if(dot>=Math.cos(35*Math.PI/180))kill(f,strong,dir);
     else{G.bad++;G.combo=0;bounce(f,dir);say('WRONG WAY',.8);au('wrong');}
     return;
   }
   if(f.type==='big'){
     f.hp-=strong?2:1;
-    if(f.hp<=0)kill(f,strong);
+    if(f.hp<=0)kill(f,strong,dir);
     else{au('clang');G.good++;f.flash=G.T+0.2;f.hitCd=G.T+0.3;f.vy=-200;say('CLANG - swipe faster',.8);burst(f.x,f.y,COL.big,8,250);}
     return;
   }
-  kill(f,strong);
+  kill(f,strong,dir);
 }
 
 /* ---------------- input ---------------- */
@@ -1335,6 +2455,8 @@ addEventListener('keydown',e=>{
   if(e.key==='p'||e.key==='P')setPause(!G.paused);
   if(e.key==='m'||e.key==='M')toggleMute();
 });
+addEventListener('pointermove',e=>{if(G.state==='title'){G.tx=(e.clientX/innerWidth-.5)*2;G.ty=(e.clientY/innerHeight-.5)*2;}},{passive:true});   // title parallax (idea 10): pointer ...
+addEventListener('deviceorientation',e=>{if(G.state==='title'&&e.gamma!=null){G.tx=Math.max(-1,Math.min(1,e.gamma/25));G.ty=Math.max(-1,Math.min(1,((e.beta||45)-45)/25));}},{passive:true});   // ... or device tilt
 document.addEventListener('visibilitychange',()=>{if(document.hidden){au('suspend');if(G.state==='play')setPause(true);}else if(!(G.state==='play'&&G.paused))au('resume');});
 addEventListener('pointerdown',auUnlock,{capture:true,passive:true});addEventListener('keydown',auUnlock,{capture:true});
 $('btnMute').addEventListener('pointerdown',e=>e.stopPropagation());
@@ -1379,6 +2501,7 @@ $('btnNext').onclick=nextWave;
 
 /* ---------------- flow ---------------- */
 function waveSummary(){
+  G.shownScore=G.score;
   const ws=G.wstart,g=G.good-ws.good,b=G.bad-ws.bad,m=G.miss-ws.miss;
   $('sumTitle').textContent='WAVE '+(G.wave+1)+' CLEARED';
   $('sumTxt').innerHTML=`Kills ${G.kills-ws.kills} &middot; Missed ${m} &middot; Bad slashes ${b}<br>Wave score ${G.score-ws.score} ${hasLives()?' &middot; Lives '+G.lives:''}`+(MODE==='classic'?'<br>Next: faster foes, more armour.':`<br>Waves cleared ${G.wave+1}<br>Next: it keeps getting faster.`);
@@ -1391,7 +2514,8 @@ function nextWave(){
   $('ovSum').style.display='none';G.wave++;G.state='play';beginWave();
 }
 function showTitle(){
-  G.state='title';G.paused=false;G.foes=[];clearMsg();
+  G.state='title';G.paused=false;G.foes=[];clearMsg();resetFx();G.parts=[];G.demoT=.3;
+  {const t=$('ovTitle');t.classList.remove('enter');void t.offsetWidth;let i=0;for(const ch of t.children)ch.style.setProperty('--i',i++);t.classList.add('enter');}
   for(const id of ['ovSum','ovRes','ovPause','ovAch','ovCustom','ovHelp'])$(id).style.display='none';
   $('ovTitle').style.display='flex';au('music','title');refreshTitle();
 }
@@ -1421,7 +2545,7 @@ function buildAch(){
 }
 function accuracy(){const d=G.good+G.bad+G.miss;return d?G.good/d:0;}
 function finish(won,quit){
-  G.state='result';G.paused=false;G.foes=[];clearMsg();
+  G.shownScore=G.score;G.state='result';G.paused=false;G.foes=[];clearMsg();
   const acc=accuracy(),isC=MODE==='classic';
   /* L-TD-8: bands from the 2026-11-05 bot sweep (6 seeds, 0.15/0.3/0.5/0.8 s skilled bots + naive + idle).
      Accuracy of every winning run was 0.95-0.996 and naive peaked at 0.85, so accuracy cannot separate skill; lives left did
@@ -1452,17 +2576,71 @@ function finish(won,quit){
 }
 
 /* ---------------- update (sim clock G.T; real dt only for slow-mo length / UI) ---------------- */
+const TIER_COL=['#ffd95a','#ffbf3f','#ff9433','#ff6a3a'];
+function fxUpdate(dt,ds){   // all v6 motion state; real dt for UI/camera, ds (sim) for things bound to foes
+  const f=fxo(),play=G.state==='play';
+  if(f){f.now=G.T;f.ds=ds;}   // drop 2: game clock for shock/light ages, sim dt for GPU particle integration
+  G.vt+=dt;
+  G.trauma=Math.max(0,G.trauma-1.5*dt);                 // decays in about 0.7 s from a bomb
+  G.zoom=G.zoom<.0004?0:G.zoom*Math.exp(-dt*13);        // punch eases back in ~0.2 s
+  if(G.rimT>0)G.rimT=Math.max(0,G.rimT-dt);
+  const vt=play&&tierOf()>=3?1:0;G.vig+=(vt-G.vig)*(REDUCE?1:Math.min(1,dt*1.6));
+  if(REDUCE){G.shownScore=G.score;G.comboS.x=1;G.comboS.v=0;G.fbS=play?(G.slowLeft>0?G.slowLeft/3:G.focus):0;}
+  else{
+    G.shownScore+=(G.score-G.shownScore)*Math.min(1,dt*10);if(Math.abs(G.score-G.shownScore)<.5)G.shownScore=G.score;
+    if(G.combo>G.lastCombo)G.comboS.v+=13;
+    spring(G.comboS,1,420,18,dt);
+    const tg=G.slowLeft>0?G.slowLeft/3:G.focus;G.fbS+=(tg-G.fbS)*Math.min(1,dt*12);
+  }
+  G.lastCombo=G.combo;
+  if(G.wvT<99)G.wvT+=dt;
+  if(f){   // renderer contract: decays here, never in draw
+    f.flash=Math.max(0,(f.flash||0)-dt*4);f.chroma=Math.max(0,(f.chroma||0)-dt*3);
+    const st=REDUCE?0:(G.slowLeft>0&&play?1:G.lk>0?.5:0);f.slow=(f.slow||0)+(st-(f.slow||0))*Math.min(1,dt*6);
+    if(f.shocks&&f.shocks.length){while(f.shocks.length&&G.T-f.shocks[0].t>1.6)f.shocks.shift();}
+    let cx=W/2,cy=H/2,best=null;for(const tr of strokes.values()){if(tr.active&&tr.pts.length)best=tr;}
+    if(best){const l=best.pts[best.pts.length-1];cx=l.x;cy=l.y;}
+    if(f.slowCenter){f.slowCenter[0]+=(cx-f.slowCenter[0])*Math.min(1,dt*8);f.slowCenter[1]+=(cy-f.slowCenter[1])*Math.min(1,dt*8);}
+  }
+  /* delayed effects (big foe: crack, then burst 60 ms later) */
+  for(let i=G.delayed.length-1;i>=0;i--){const d=G.delayed[i];if(G.vt<d.t)continue;G.delayed.splice(i,1);
+    if(d.kind==='big'){sliceHalves(d.x,d.y,d.r,d.ang,d.c,d.vx,d.vy);G.parts.push({k:1,x:d.x,y:d.y,vx:0,vy:0,g:0,life:.5,max:.5,sz:16,grow:130,c:d.c});if(gpuParts())fxBurst(d.x,d.y,16,560,d.c,.8,2);
+      for(let j=0;j<6;j++){const a=j*Math.PI/3+rD()*.4;G.parts.push({k:2,x:d.x,y:d.y,vx:Math.cos(a)*(300+rD()*160),vy:Math.sin(a)*(300+rD()*160)-80,a,spin:(rD()-.5)*12,w:22,h:9,life:.55,max:.55,c:d.c});}}}
+  /* blade sparks: strong swipes shed sparkles, tier 2+ leaves an ember wake (idea 4 + 11) */
+  if(play&&!REDUCE&&G.parts.length<360){
+    const now=nowS(),tier=tierOf();
+    for(const tr of strokes.values()){
+      if(!tr.active||!tr.pts.length)continue;const l=tr.pts[tr.pts.length-1];if(now-l.t>.05)continue;
+      if(tr.strong)G.parts.push({k:0,x:l.x+(rD()-.5)*8,y:l.y+(rD()-.5)*8,vx:(rD()-.5)*160,vy:(rD()-.5)*160,g:300,life:.25+rD()*.15,max:.4,sz:1.8+rD()*1.6,c:COL.gold});
+      if(tier>=2&&rD()<.6)G.parts.push({k:0,x:l.x+(rD()-.5)*10,y:l.y+(rD()-.5)*10,vx:(rD()-.5)*50,vy:-20-rD()*50,g:-40,life:.5+rD()*.4,max:.9,sz:2+rD()*2,c:[1,.5+rD()*.2,.15]});
+    }
+  }
+  /* title: demo orbs (draw-only, never in G.foes, rD only) + gentle parallax */
+  if(G.state==='title'){
+    if(!REDUCE){
+      G.demoT-=dt;if(G.demoT<=0&&G.demo.length<5){G.demoT=1.1+rD()*1.2;const left=rD()<.5,ty=['orb','arm','big','split'][Math.floor(rD()*4)];
+        G.demo.push({x:left?-40:W+40,y:560+rD()*160,vx:(left?1:-1)*(160+rD()*200),vy:-(620+rD()*240),r:{orb:34,arm:38,big:54,split:40}[ty],t:ty,rot:rD()*6,spin:(rD()-.5)*3});}
+      for(const d of G.demo){d.x+=d.vx*dt;d.vy+=620*dt;d.y+=d.vy*dt;d.rot+=d.spin*dt;}
+      G.demo=G.demo.filter(d=>d.y<H+80&&d.x>-120&&d.x<W+120);
+    }
+    G.px+=(G.tx-G.px)*Math.min(1,dt*3);G.py+=(G.ty-G.py)*Math.min(1,dt*3);
+  }else{G.demo.length=0;G.px*=.9;G.py*=.9;}
+}
 function update(dt){
+  fxUpdate(dt);
   if(G.state==='play'&&G.slowLeft>0){G.slowLeft=Math.max(0,G.slowLeft-dt);if(G.slowLeft<=0)au('focusOff');}
   if(G.state==='play'&&G.focus>=1&&!auFocusReadyFired){auFocusReadyFired=true;au('focusReady');}
   if(G.state==='play'){auInt+=((0.15+0.3*Math.min(G.wave,3)+0.045*Math.min(G.combo,10))-auInt)*Math.min(1,dt*1.5);auIntT-=dt;if(auIntT<=0){auIntT=0.25;au('setIntensity',Math.max(0,Math.min(1,auInt)));}}
   let ds=(G.slowLeft>0?0.35:1)*dt;
+  if(G.lk>0){G.lk=Math.max(0,G.lk-dt);ds*=0.3;}   // last-kill slow-mo: its own factor, never touches slowLeft or the focus meter
   if(G.hs>0){G.hs=Math.max(0,G.hs-dt);ds*=0.06;}   // hit-stop: foes and clocks nearly freeze 30-55 ms on a kill
   /* summary never auto-advances: waits for a tap on Next wave (M 2026-11-05) */
-  G.T+=ds;
-  for(const p of G.parts){p.x+=p.vx*ds;p.y+=p.vy*ds;p.vy+=500*ds;p.life-=ds;}
+  G.T+=ds;G.bt+=ds*(1+0.03*Math.min(G.wave,10));   // backdrop clock: runs a touch faster each wave
+  for(const p of G.parts){p.x+=p.vx*ds;p.y+=p.vy*ds;p.vy+=(p.g===undefined?500:p.g)*ds;if(p.spin)p.a+=p.spin*ds;p.life-=ds;}
   G.parts=G.parts.filter(p=>p.life>0);
-  G.shake=Math.max(0,G.shake-40*ds);G.redFlash=Math.max(0,G.redFlash-2*ds);
+  for(const h of G.shards){h.x+=h.vx*ds;h.y+=h.vy*ds;h.vy+=700*ds;h.rot+=h.spin*ds;h.life-=ds;}
+  G.shards=G.shards.filter(h=>h.life>0);
+  G.redFlash=Math.max(0,G.redFlash-2*ds);
   if(G.state!=='play')return;
   const w=G.wave,sp=wv('speed',w);
   G.waveT+=ds;
@@ -1482,7 +2660,7 @@ function update(dt){
       if(f.type==='bomb'&&G.state==='play'){G.spared++;if(G.spared>=20)unlock('spare20');}
       if(f.type!=='bomb'&&f.x>=-f.r&&f.x<=W+f.r){
         if(inGrace()){au('miss');/* warm-up: free miss, not counted */}
-        else{G.miss++;G.missLog.push([+G.T.toFixed(1),f.type,Math.round(f.x),+(G.T-f.born).toFixed(1)]);if(G.state==='play'){ const cost=G.T-G.lastLoss>=MERCY;burst(Math.max(40,Math.min(W-40,f.x)),H-14,cost?[1,.2,.3]:[.6,.7,.9],cost?18:8,300); if(!hasLives())loseLife('MISSED'); else if(cost)loseLife('MISSED'); else {say('Slipped past',.9);au('miss');} }}
+        else{G.miss++;G.missLog.push([+G.T.toFixed(1),f.type,Math.round(f.x),+(G.T-f.born).toFixed(1)]);if(G.state==='play'){ const cost=G.T-G.lastLoss>=MERCY;burst(Math.max(40,Math.min(W-40,f.x)),H-14,cost?[1,.2,.3]:[.6,.7,.9],cost?18:8,300); floorRipple(f.x,cost?[1,.2,.3]:[.6,.7,.9]); if(!hasLives())loseLife('MISSED'); else if(cost)loseLife('MISSED'); else {say('Slipped past',.9);au('miss');} }}
       }
     }else if(f.x<-160||f.x>W+160)f.dead=true;
   }
@@ -1490,7 +2668,7 @@ function update(dt){
   if(G.state!=='play')return;
   if(G.combo&&G.T-G.lastKill>1.2)G.combo=0;
   if(G.waveT>=WAVE_LEN+6)G.foes=G.foes.filter(f=>false);
-  if(G.waveT>=WAVE_LEN&&G.foes.length===0){
+  if(G.waveT>=WAVE_LEN&&G.foes.length===0&&G.lk<=0){   // wait out the last-kill slow-mo (<= 0.4 s real)
     if(MODE==='classic'&&G.wave>=2)finish(true);else waveSummary();
   }
 }
@@ -1498,85 +2676,197 @@ function update(dt){
 /* ---------------- drawing ---------------- */
 const stars=Array.from({length:60},(_,i)=>({x:(i*173.3)%W,y:(i*91.7)%H,r:1+(i%3)*.6,ph:i}));
 function drawFoe(f){
-  const c=COL[f.type==='arm'?'arm':f.type],x=f.x,y=f.y,r=f.r;
+  const c=COL[f.type==='arm'?'arm':f.type],x=f.x,y=f.y;
+  const age=G.T-f.born;
+  let s=1,A=1,st=0,br=1,gp=1;
+  if(REDUCE)A=clamp01(age/.15);                              // reduced motion: plain 0.15 s fade-in
+  else{
+    s=1-0.65*Math.exp(-age*14)*Math.cos(age*22);             // spawn pop with overshoot (idea 3)
+    st=0.35*Math.exp(-age*9);                                // launch stretch along the velocity
+    br=1+0.02*Math.sin(G.T*7.5+f.id);                        // idle breathing (idea 8), draw-only: f.r (hitbox) is untouched
+    gp=1+0.3*Math.sin(G.T*5+f.id*1.7);
+  }
+  const rr=f.r*s*br,k=rr/f.r;
+  let L=1+st,P=1/Math.sqrt(L),va=Math.atan2(f.vy,f.vx);
+  if(!REDUCE&&f.vy>0&&y>H-rr*1.6){const q=clamp01((y-(H-rr*1.6))/(rr*1.6));L=1+.25*q;P=1-.2*q;va=0;}   // floor squash
   const dim=[c[0]*.3,c[1]*.3,c[2]*.3];
-  dl.circle(x,y,r,dim,.75,0,false);
+  const lit=lit3d();
+  if(lit){   // drop 3: raymarched/analytic lit body (same radius, same hitbox); the neon ring + cues below are unchanged
+    const kind={orb:0,small:0,arm:1,big:2,bomb:3,split:4}[f.type]||0,sp=REDUCE?0:(f.type==='arm'?f.ang:f.rot),br3=Math.max(4,rr-(f.type==='bomb'?2:3));
+    dl.push(false,x,y,2*br3,2*br3,sp,4,kind,0,c,A);
+  }else dl.rrect(x,y,2*rr*L,2*rr*P,va,Math.min(rr*L,rr*P),dim,.75*A,0,false);
+  const r=rr;
   // wrong-way / clang flash: outer red ring only, never a filled disc; arrow is drawn after and stays visible
-  if(f.flash>G.T)dl.ring(x,y,r+1,9,[1,.2,.25],.9,14,true);
+  if(f.flash>G.T)dl.ring(x,y,r+1,9,[1,.2,.25],.9*A,14,true);
   if(f.type==='bomb'){
     const p=.6+.4*Math.sin(G.T*12);
-    dl.ring(x,y,r-2,5,c,p,12,true);
-    for(let i=0;i<8;i++){const a=i*Math.PI/4+f.rot;dl.line(x+Math.cos(a)*(r+2),y+Math.sin(a)*(r+2),x+Math.cos(a)*(r+14),y+Math.sin(a)*(r+14),4,c,.9,8,true);}
-    dl.circle(x,y,9,[1,.9,.4],p,10,true);
+    dl.ring(x,y,r-2,5,c,p*A,12*gp,true);
+    for(let i=0;i<8;i++){const a=i*Math.PI/4+f.rot;dl.line(x+Math.cos(a)*(r+2),y+Math.sin(a)*(r+2),x+Math.cos(a)*(r+14*k),y+Math.sin(a)*(r+14*k),4,c,.9*A,8,true);}
+    dl.circle(x,y,9*k,[1,.9,.4],p*A,10,true);
   }else if(f.type==='arm'){
-    dl.ring(x,y,r-2,6,c,1,10,true);dl.ring(x,y,r-12,2,[1,1,1],.5,0,true);
-    const ca=Math.cos(f.ang),sa=Math.sin(f.ang),tx=x+ca*25,ty=y+sa*25;
-    dl.line(x-ca*25,y-sa*25,tx,ty,7,COL.white,1,6,true);
-    for(const s of [-1,1]){const a=f.ang+Math.PI+s*0.62;dl.line(tx,ty,tx+Math.cos(a)*20,ty+Math.sin(a)*20,7,COL.white,1,6,true);}
+    dl.ring(x,y,r-2,6,c,A,10*gp,true);if(!lit)dl.ring(x,y,r-12*k,2,[1,1,1],.5*A,0,true);
+    const ca=Math.cos(f.ang),sa=Math.sin(f.ang),tx=x+ca*25*k,ty=y+sa*25*k;
+    if(lit){   // raised arrow on the overlay layer (after bloom, so it can never wash out): dark drop shadow, then the white arrow, thin gold edge
+      const OV=2,sg=[[x-ca*25*k,y-sa*25*k,tx,ty]];for(const s2 of [-1,1]){const a=f.ang+Math.PI+s2*0.62;sg.push([tx,ty,tx+Math.cos(a)*20*k,ty+Math.sin(a)*20*k]);}
+      for(const q of sg)dl.line(q[0]+2.5,q[1]+3.5,q[2]+2.5,q[3]+3.5,10,[0,0,0],.6*A,0,OV);
+      for(const q of sg)dl.line(q[0],q[1],q[2],q[3],9,[.35,.22,.02],A,0,OV);
+      for(const q of sg)dl.line(q[0],q[1],q[2],q[3],6,[1,1,.95],A,0,OV);
+    }else{
+    dl.line(x-ca*25*k,y-sa*25*k,tx,ty,7,COL.white,A,6,true);
+    for(const s2 of [-1,1]){const a=f.ang+Math.PI+s2*0.62;dl.line(tx,ty,tx+Math.cos(a)*20*k,ty+Math.sin(a)*20*k,7,COL.white,A,6,true);}}
     // 35 deg acceptance cone, both ends of the arrow axis: the gold ticks mark the edge of a good cut
-    for(const e of [0,Math.PI])for(const s of [-1,1]){const a=f.ang+e+s*0.611;dl.line(x+Math.cos(a)*(r+2),y+Math.sin(a)*(r+2),x+Math.cos(a)*(r+16),y+Math.sin(a)*(r+16),3,c,.8,4,true);}
+    for(const e of [0,Math.PI])for(const s2 of [-1,1]){const a=f.ang+e+s2*0.611;dl.line(x+Math.cos(a)*(r+2),y+Math.sin(a)*(r+2),x+Math.cos(a)*(r+16*k),y+Math.sin(a)*(r+16*k),3,c,.8*A,4,true);}
+    // slow highlight sweep along the ring (static in reduced motion)
+    const ha=REDUCE?.9:G.T*2.2+f.id;
+    for(let i=0;i<4;i++){const a=ha-i*.24;dl.circle(x+Math.cos(a)*(r-2),y+Math.sin(a)*(r-2),3.6-i*.7,COL.white,(.85-i*.2)*A,5,true);}
   }else if(f.type==='big'){
-    dl.ring(x,y,r-2,7,c,1,14,true);dl.ring(x,y,r-14,2,c,.5,0,true);
-    for(let i=0;i<f.hp;i++)dl.circle(x-(f.hp-1)*8+i*16,y,5,COL.white,1,6,true);
-    if(f.hp<2)dl.line(x-r*.5,y-r*.6,x+r*.4,y+r*.6,3,COL.white,.9,4,true);
+    dl.ring(x,y,r-2,7,c,A,14*gp,true);dl.ring(x,y,r-14*k,2,c,.5*A,0,true);
+    for(let i=0;i<f.hp;i++)dl.circle(x-(f.hp-1)*8+i*16,y,5,COL.white,A,6,true);
+    if(f.hp<2)dl.line(x-r*.5,y-r*.6,x+r*.4,y+r*.6,3,COL.white,.9*A,4,true);
   }else if(f.type==='split'){
-    dl.ring(x,y,r-2,4,c,1,10,true);
+    dl.ring(x,y,r-2,4,c,A,10*gp,true);
     const ca=Math.cos(f.rot),sa=Math.sin(f.rot);
-    dl.line(x-sa*r*.8,y+ca*r*.8,x+sa*r*.8,y-ca*r*.8,3,c,.8,4,true);
-    dl.circle(x+ca*r*.4,y+sa*r*.4,6,c,1,6,true);dl.circle(x-ca*r*.4,y-sa*r*.4,6,c,1,6,true);
+    if(!lit){dl.line(x-sa*r*.8,y+ca*r*.8,x+sa*r*.8,y-ca*r*.8,3,c,.8*A,4,true);
+    dl.circle(x+ca*r*.4,y+sa*r*.4,6,c,A,6,true);dl.circle(x-ca*r*.4,y-sa*r*.4,6,c,A,6,true);}
   }else{
-    dl.ring(x,y,r-2,f.type==='small'?3:4,c,1,10,true);
-    dl.circle(x-r*.3,y-r*.3,r*.16,COL.white,.7,4,true);
+    dl.ring(x,y,r-2,f.type==='small'?3:4,c,A,10*gp,true);
+    if(!lit)dl.circle(x-r*.3,y-r*.3,r*.16,COL.white,.7*A,4,true);
   }
 }
+function drawShard(h){
+  const k=clamp01(h.life/h.max),al=Math.min(1,k*1.6),r=h.r,N=6,A=h.a+h.rot,ca=Math.cos(A),sa=Math.sin(A),vx=-sa*h.s,vy=ca*h.s,c=h.c;
+  const dim=[c[0]*.22,c[1]*.22,c[2]*.22];   // opaque-looking fill (0.3 x 0.75), so overlapping chords leave no seams
+  if(isC2D()){   // Canvas2D: a true half-disc (shape 5: fill, then an additive arc stroke) instead of strips + beads
+    dl.push(false,h.x,h.y,2*r,0,A,5,h.s,0,dim,al);
+    dl.push(true,h.x,h.y,2*r,3,A,5,h.s,0,c,al);
+    dl.line(h.x-ca*r,h.y-sa*r,h.x+ca*r,h.y+sa*r,3,c,al,8,true);return;
+  }
+  const NG=16;   // GPU: 16 thin chords (was 6) + a polyline arc, so the half reads as a smooth disc; the glow blurs the rest
+  for(let i=0;i<NG;i++){const d=(i+.5)/NG*r,hl=Math.sqrt(Math.max(0,r*r-d*d));dl.rrect(h.x+vx*d,h.y+vy*d,hl*2,r/NG+.8,A,0,dim,al,0,false);}
+  dl.line(h.x-ca*r,h.y-sa*r,h.x+ca*r,h.y+sa*r,3,c,al,8,true);   // the clean cut edge
+  let px=h.x+ca*r,py=h.y+sa*r;
+  for(let i=1;i<=10;i++){const t=i/10*Math.PI,u=Math.cos(t)*r,v=Math.sin(t)*r,qx=h.x+ca*u+vx*v,qy=h.y+sa*u+vy*v;dl.line(px,py,qx,qy,3,c,al,5,true);px=qx;py=qy;}   // ring arc
+}
+const isC2D=()=>!!R&&R.base==='Canvas fallback';
+function shn(t,i){return Math.sin(t*37+i*1.7)*.5+Math.sin(t*23.3+i*4.1)*.3+Math.sin(t*61.7+i*2.3)*.2;}   // smooth trauma noise (sum of sines), -1..1
+function edgeRim(c,a,w){   // soft screen-edge rim: 6 stacked strips per side (24 instances) = stepped gradient that works in every renderer; the centre stays clear
+  if(isC2D()){dl.push(true,W/2,H/2,W,H,0,6,146,0,c,a);return;}   // Canvas2D: real gradients (shape 6, mitred corners, no strips)
+  const TH=[12,28,48,74,106,146],q=a/TH.length;
+  for(const th of TH){
+    dl.rrect(W/2,th/2,W,th,0,0,c,q,8,true);dl.rrect(W/2,H-th/2,W,th,0,0,c,q,8,true);
+    dl.rrect(th/2,H/2,th,H,0,0,c,q,8,true);dl.rrect(W-th/2,H/2,th,H,0,0,c,q,8,true);
+  }
+}
+const GOLDW=[1,.93,.65];
 function draw(){
   dl.reset();
-  const sh=G.shake;dl.ox=0;dl.oy=0;
+  const fx=fxo(),title=G.state==='title',tier=tierOf();
+  dl.zoom=REDUCE?1:1+G.zoom;
+  dl.ox=title&&!REDUCE?-G.px*10:0;dl.oy=title&&!REDUCE?-G.py*7:0;   // far layer parallax (title only)
   let bd=false;
-  if(THEME&&window.HBThemes&&typeof window.HBThemes.drawBackdrop==='function'){try{window.HBThemes.drawBackdrop(dl,THEME,G.T,W,H,REDUCE);bd=true;}catch(e){if(!draw.warned){draw.warned=1;console.warn('theme backdrop',e&&e.message);}}}
+  if(THEME&&window.HBThemes&&typeof window.HBThemes.drawBackdrop==='function'){try{window.HBThemes.drawBackdrop(dl,THEME,G.bt,W,H,REDUCE,REDUCE?undefined:{bands:(window.HBAudio&&window.HBAudio.bands)||null});bd=true;}catch(e){if(!draw.warned){draw.warned=1;console.warn('theme backdrop',e&&e.message);}}}
   if(!bd){for(const s of stars)dl.circle(s.x,s.y,s.r,[.5,.6,1],.25+.15*Math.sin(G.T*.8+s.ph),0,false);
   dl.rrect(W/2,H-4,W,8,0,0,[.1,.4,.7],.5,18,true);}
-  dl.ox=REDUCE?0:(rD()-.5)*sh;dl.oy=REDUCE?0:(rD()-.5)*sh;
+  /* camera: trauma^2 * smooth noise (idea 5 / T12) */
+  const sh=G.trauma*G.trauma;
+  dl.ox=REDUCE?0:24*sh*shn(G.vt,0);dl.oy=REDUCE?0:18*sh*shn(G.vt,1);
+  if(title&&!REDUCE){dl.ox=G.px*22;dl.oy=G.py*14;   // near layer: demo orbs drift against the backdrop
+    for(const d of G.demo){const c=COL[d.t],dim=[c[0]*.3,c[1]*.3,c[2]*.3];dl.circle(d.x,d.y,d.r,dim,.5,0,false);dl.ring(d.x,d.y,d.r-2,d.t==='big'?7:5,c,.55,8,true);if(d.t==='arm'){dl.line(d.x-20,d.y,d.x+20,d.y,6,COL.white,.5,4,true);}}
+    dl.ox=0;dl.oy=0;}
+  /* wave cinematic light sweep (idea 7): one additive slanted bar */
+  if(!REDUCE&&G.state==='play'&&G.wvT<.9){const q=G.wvT/.9;dl.rrect(-260+q*(W+520),H/2,150,H*1.5,.28,0,COL.blade,.10*Math.sin(Math.PI*q),50,true);}
+  if(title&&lit3d()){   // drop 3: title hero crystal, below the PLAY block (never behind the menu text), static in reduced motion
+    const hc=COL.blade,bob=REDUCE?0:Math.sin(G.vt*.9)*6,R=REDUCE?118:124;
+    dl.circle(W/2,650+bob,22,hc,.3,60,true);   // soft halo only (no solid disc)
+    dl.push(false,W/2,650+bob,2*R,2*R,REDUCE?.6:G.vt*.45,4,5,0,hc,1);
+  }
   for(const f of G.foes)drawFoe(f);
+  for(const h of G.shards)drawShard(h);
   for(const p of G.parts){
     const k=Math.max(0,p.life/p.max);
-    if(p.k===1)dl.ring(p.x,p.y,p.sz+(1-k)*70,3,p.c,k,6,true);
+    if(p.k===1)dl.ring(p.x,p.y,p.sz+(1-k)*(p.grow||70),3,p.c,k,6,true);
+    else if(p.k===2)dl.rrect(p.x,p.y,p.w,p.h,p.a,2,p.c,k,6,true);
+    else if(p.k===3){const ca=Math.cos(p.a),sa=Math.sin(p.a),L=p.L*(.4+.6*k);dl.line(p.x-ca*L,p.y-sa*L,p.x,p.y,4*k+1.5,p.c,k,8,true);}
+    else if(p.k===4){const ca=Math.cos(p.a),sa=Math.sin(p.a),h2=p.len/2;dl.line(p.x-ca*h2,p.y-sa*h2,p.x+ca*h2,p.y+sa*h2,4,p.c,k,10,true);}
+    else if(p.k===5)dl.rrect(p.x,p.y,24+(1-k)*p.grow,3,0,1.5,p.c,.8*k,8,true);
     else dl.circle(p.x,p.y,p.sz*k+.5,p.c,k,6,true);
   }
-  const t=nowS(),LIFE=0.3;
+  /* blade trail: tier colour + width (idea 4), tapered with head dot + afterimage (idea 11). The DrawList trail stays as the fallback until the GPU ribbon (FX.trail) is confirmed; remove OLD_TRAIL then. */
+  const OLD_TRAIL=false,t=nowS(),LIFE=REDUCE?0.15:0.3,LIFE2=0.5,wm=1+0.18*tier;
+  const tc=trailCol(),tcol=tier>0?[tc[0]+(GOLDW[0]-tc[0])*(.35+.2*tier),tc[1]+(GOLDW[1]-tc[1])*(.35+.2*tier),tc[2]+(GOLDW[2]-tc[2])*(.35+.2*tier)]:tc;
+  let best=null,bestT=-1;
   for(let i=trails.length-1;i>=0;i--){
-    const tr=trails[i],p=tr.pts;
-    if(!tr.active&&(p.length===0||t-p[p.length-1].t>LIFE)){trails.splice(i,1);continue;}
+    const tr=trails[i],p=tr.pts,echo=tr.strong&&!REDUCE;
+    if(!tr.active&&(p.length===0||t-p[p.length-1].t>(echo?LIFE2:LIFE))){trails.splice(i,1);continue;}
+    if(p.length&&p[p.length-1].t>bestT&&t-p[p.length-1].t<=LIFE){bestT=p[p.length-1].t;best=tr;}
+    if(!OLD_TRAIL)continue;
+    const col=tr.strong?COL.gold:tcol;
     for(let j=1;j<p.length;j++){
-      const a=1-(t-p[j].t)/LIFE;if(a<=0)continue;
-      const th=3+12*a*(j/p.length);
-      dl.line(p[j-1].x,p[j-1].y,p[j].x,p[j].y,th*1.6,tr.strong?COL.gold:trailCol(),.55*a,12,true);
+      const a=1-(t-p[j].t)/LIFE;
+      if(echo){const a2=1-(t-p[j].t)/LIFE2;if(a2>0)dl.line(p[j-1].x,p[j-1].y,p[j].x,p[j].y,(3+9*a2*(j/p.length))*.9,COL.gold,.2*a2,10,true);}
+      if(a<=0)continue;
+      const th=(3+12*a*(j/p.length))*.78*wm;
+      dl.line(p[j-1].x,p[j-1].y,p[j].x,p[j].y,th*1.6,col,.55*a,12,true);
       dl.line(p[j-1].x,p[j-1].y,p[j].x,p[j].y,th*.5,COL.white,a,3,true);
     }
+    if(p.length){const l=p[p.length-1],a=1-(t-l.t)/LIFE;if(a>0)dl.circle(l.x,l.y,4+tier,COL.white,.9*a,9,true);}   // bright leading head
   }
-  dl.ox=0;dl.oy=0;
+  /* renderer contract: blade ribbon points for the newest stroke, newest last */
+  if(fx){
+    if(best){const p=best.pts,out=[];
+      for(let j=0;j<p.length;j++){const a=1-(t-p[j].t)/LIFE;if(a<=0)continue;
+        const q=p[Math.max(0,j-1)],dtt=Math.max(.004,p[j].t-q.t),sp=Math.hypot(p[j].x-q.x,p[j].y-q.y)/dtt;
+        out.push({x:p[j].x,y:p[j].y,w:(5+14*clamp01(sp/2200))*wm*(.35+.65*a),t:p[j].t});}
+      fx.trail=out.length>1?out:null;
+    }else fx.trail=null;
+    const cc=best&&best.strong?COL.gold:tcol;
+    if(!fx.trailCol)fx.trailCol=[1,1,1];fx.trailCol[0]=cc[0];fx.trailCol[1]=cc[1];fx.trailCol[2]=cc[2];
+  }
+  dl.ox=0;dl.oy=0;dl.zoom=1;
   if(G.slowLeft>0)dl.rrect(W/2,H/2,W,H,0,0,COL.slow,.12+.04*Math.sin(G.T*6),0,true);
-  if(G.redFlash>0&&!REDUCE)dl.rrect(W/2,H/2,W,H,0,0,[1,.1,.15],.22*G.redFlash,0,true);
+  if(G.vig>.01)edgeRim(COL.blade,.14*G.vig,70);   // tier 3 (combo 15+): slow accent vignette, static in reduced motion
+  if(REDUCE){if(G.redFlash>0)edgeRim([1,.1,.15],.14*G.redFlash,40);}   // reduced motion: soft static rim, fades out, no flash
+  else if(G.rimT>0)edgeRim([1,.1,.15],.42*Math.sin(Math.PI*(1-G.rimT/.32)),60);   // eased in/out over 0.32 s, centre stays clear
+  const tot=dl.nN+dl.nA;if(tot>G.peak)G.peak=tot;
   R.render(dl);
   hud();
 }
 const hv={};
 function setT(id,v,html){if(hv[id]!==v){hv[id]=v;$(id)[html?'innerHTML':'textContent']=v;}}
 function hud(){
-  setT('score',String(G.score));
+  setT('score',String(Math.round(G.shownScore)));
   setT('wave',(MODE==='daily'?'DAILY '+DAILY+' · ':'')+'WAVE '+(G.wave+1)+(MODE==='classic'?' / 3':''));
-  setT('lives',hasLives()?'♥'.repeat(Math.max(G.lives,0)):'');
-  setT('combo',G.combo>1?'COMBO x'+G.combo:'');$('combo').style.opacity=G.combo>1?Math.max(.35,Math.min(1,(1.2-(G.T-G.lastKill))/.5)):1;   // fades as the 1.2 s chain window runs out
-  const fb=$('focusBar');fb.style.width=(G.slowLeft>0?G.slowLeft/3:G.focus)*100+'%';
+  const lv=hasLives()?Math.max(G.lives,0):0;
+  if(hasLives()&&hv.__lv!==undefined&&lv<hv.__lv&&G.state==='play'&&hv.__lv>0){   // a heart was lost: the old one shakes and shrinks out (CSS transform/opacity)
+    const g=document.createElement('span'),unit=$('lives').getBoundingClientRect().width/layoutS/hv.__lv;
+    g.className='ghostHeart';g.textContent='♥';g.style.right=(26+lv*unit)+'px';g.addEventListener('animationend',()=>g.remove());
+    stage.insertBefore(g,$('ovTitle'));
+  }
+  hv.__lv=lv;
+  setT('lives',hasLives()?'♥'.repeat(lv):'');
+  const cb=$('combo'),tr=tierOf();
+  setT('combo',G.combo>1?'COMBO x'+G.combo:'');cb.style.opacity=G.combo>1?Math.max(.35,Math.min(1,(1.2-(G.T-G.lastKill))/.5)):1;   // fades as the 1.2 s chain window runs out
+  if(hv.__tier!==tr){hv.__tier=tr;cb.style.color=TIER_COL[tr];cb.style.textShadow=`0 0 3px #000,0 1px 2px #000,0 0 7px rgba(0,0,0,.9),0 0 14px ${['#fa0','#f90','#f60','#f30'][tr]}`;if(tr===3)cb.style.color='#ffe9a8';}   // combo text warms with the tier
+  const cs=REDUCE?1:+G.comboS.x.toFixed(3);if(hv.__cs!==cs){hv.__cs=cs;cb.style.transform=cs===1?'':`scale(${cs})`;}
+  const fb=$('focusBar'),fv=+G.fbS.toFixed(3);if(hv.__fb!==fv){hv.__fb=fv;fb.style.transform=`scaleX(${fv})`;}
+  const rdy=G.state==='play'&&G.slowLeft<=0&&G.focus>=1;if(hv.__rdy!==rdy){hv.__rdy=rdy;$('focusWrap').classList.toggle('ready',rdy);}
   setT('focusTxt',G.slowLeft>0?'SLOW-MO':G.focus>=1?'FOCUS READY - tap this bar (or Space)':'');
   const m=$('msg'),show=G.msgT>G.T&&G.msg&&(G.state==='play');
   if(show){setT('msg',G.msg);m.style.opacity=1;const warn=!G.msgSoft&&/BOMB|MISS|WRONG/.test(G.msg);m.style.color=warn?'#ff5a6a':'#8ff';m.style.textShadow=warn?'0 0 12px #f23,0 0 24px #a00':'0 0 8px #0cf';}else m.style.opacity=0;
+  /* wave banner (idea 7): slam in 2.0 -> 1.0 with ease-out-back, hold, slide away; reduced motion = fade only */
+  {const bn=$('wvBanner'),w=G.wvT;let o=0,tf='';
+    if(G.state==='play'&&!G.paused&&w<1.5){
+      if(REDUCE){o=w<.25?w/.25:w<1.1?1:Math.max(0,1-(w-1.1)/.3);}
+      else{const sl=clamp01(w/.38),q=clamp01((w-1.0)/.42);o=clamp01(w/.1)*(1-q);tf=`translateX(${(q*q*560).toFixed(0)}px) scale(${(2-easeOutBack(sl)).toFixed(3)})`;}
+      setT('wvBanner','WAVE '+G.wvNum);
+    }
+    const ov=o.toFixed(2);if(hv.__bo!==ov||hv.__bt!==tf){hv.__bo=ov;hv.__bt=tf;bn.style.opacity=ov;bn.style.transform=tf;}}
   const wm=$('warm'),gl=G.state==='play'&&inGrace()?GRACE_LEN-G.waveT:0;
   if(gl>0){setT('warm','Warm-up - no lives lost, no bombs - '+Math.ceil(gl)+'s');wm.style.opacity=gl>1.2?0.9:0.35;}else wm.style.opacity=0;
   const hide=G.state!=='play'||G.paused;   // pause hides the whole HUD (M 2026-11-05)
   const pb=G.state==='play'&&!G.paused?'block':'none';if(hv.__pb!==pb){hv.__pb=pb;$('btnPause').style.display=pb;}
   toastTick();
-  if(hv.__hide!==hide){hv.__hide=hide;for(const id of ['score','wave','lives','combo','msg','focusTxt','focusWrap','warm'])$(id).style.visibility=hide?'hidden':'visible';}
+  if(hv.__hide!==hide){hv.__hide=hide;for(const id of ['score','wave','lives','combo','msg','focusTxt','focusWrap','warm','wvBanner'])$(id).style.visibility=hide?'hidden':'visible';}
   const tg=G.state==='title'||QP.has('debug');
   if(tg)setT('tag',R.name+' | seed '+SEED);
   if(hv.__tag!==tg){hv.__tag=tg;$('tag').style.visibility=tg?'visible':'hidden';}
@@ -1590,7 +2880,7 @@ function frame(ts){
   draw();
 }
 initRenderer().then(()=>{requestAnimationFrame(frame);});
-SAVE=loadSave();applyTheme(SAVE.theme||'neon');muteUI();refreshTitle();if(REDUCE)document.documentElement.classList.add('reduce');
+SAVE=loadSave();applyTheme(SAVE.theme||'neon');muteUI();refreshTitle();{const t=$('ovTitle');let i=0;for(const ch of t.children)ch.style.setProperty('--i',i++);t.classList.add('enter');}if(REDUCE)document.documentElement.classList.add('reduce');
 /* test hooks: deterministic stepping + synthetic strokes through the same addPoint path as real pointers */
 let bid=1000;
 function tick(dt){manualT+=dt;update(dt);}
@@ -1598,7 +2888,7 @@ function bStart(x,y){const tr={id:++bid,pts:[{x,y,t:nowS()}],len:0,down:nowS(),a
 function bMove(tr,x,y){addPoint(tr,x,y);}
 function bEnd(tr){tr.active=false;strokes.delete(tr.id);}
 function startHook(m,seed){TYPED=seed==null?null:(+seed>>>0);startGame(m||'classic');}
-window.__hb={autoTrackId,FILE_TRACKS,applyTheme,get THEME(){return THEME;},autoTrackIndex,trackForWave,buildMusic,get CLEAR(){return CLEAR;},COL,get SAVE(){return SAVE;},ACH,TRAILS,get MODE(){return MODE;},get DAILY(){return DAILY;},dailySeed,todayStr,unlock,showTitle,finish,toastQ,get toastCur(){return toastCur;},wv,buildPicker,loadSave,tick,draw,bStart,bMove,bEnd,setManual(v){manualClock=!!v;if(v){manualT=performance.now()/1000;lastTs=0;}},get seed(){return SEED;},clearTrails(){trails.length=0;},nextWave,
+window.__hb={get FX(){return window.FX;},get peak(){return G.peak;},tierOf,spring,easeOutBack,autoTrackId,FILE_TRACKS,applyTheme,get THEME(){return THEME;},autoTrackIndex,trackForWave,buildMusic,get CLEAR(){return CLEAR;},COL,get SAVE(){return SAVE;},ACH,TRAILS,get MODE(){return MODE;},get DAILY(){return DAILY;},dailySeed,todayStr,unlock,showTitle,finish,toastQ,get toastCur(){return toastCur;},wv,buildPicker,loadSave,tick,draw,bStart,bMove,bEnd,setManual(v){manualClock=!!v;if(v){manualT=performance.now()/1000;lastTs=0;}},get seed(){return SEED;},clearTrails(){trails.length=0;},nextWave,
   G,W,H,dl,get R(){return R},start:startHook,get renderer(){return R&&R.name;},accuracy,stage,au,get audio(){return window.HBAudio||null;}};
 </script><script>if('serviceWorker' in navigator&&isSecureContext)addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(e=>console.warn('sw',e)));try{screen.orientation&&screen.orientation.lock&&matchMedia('(display-mode: fullscreen)').matches&&screen.orientation.lock('landscape').catch(()=>{});}catch(_){}</script>
 </body></html>
