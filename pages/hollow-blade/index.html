@@ -50,7 +50,24 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;touch-action:none
 .sw.lock{opacity:.38}
 .ov button.sw.sel{border-color:#dff;box-shadow:0 0 12px #8ff}
 #trailCap{min-height:26px;font-size:19px!important;color:#bff}
-#ovTitle button.sec2{font-size:22px;min-width:0;min-height:74px;padding:0 24px;background:#081826;border-color:#4af;box-shadow:none}
+.ov button.sec2{font-size:22px;min-width:0;min-height:74px;padding:0 24px;background:#081826;border-color:#4af;box-shadow:none}
+/* v5 title simplification (UI review 2026-11-05): one hero PLAY, 3-way mode toggle, extras in panels */
+#ovTitle h1{font-size:84px;text-shadow:0 0 22px var(--hud-glow,#0cf)}
+#tagline{max-width:512px;font-size:22px!important;opacity:.85}
+.seg{display:flex;border:2px solid var(--hud-accent,#4af);border-radius:16px;overflow:hidden;background:#081826}
+.ov .seg button{min-width:210px;min-height:80px;padding:0 20px;border:0;border-radius:0;box-shadow:none;background:transparent;font-size:26px;line-height:1.1;color:#bcd}
+.ov .seg button+button{border-left:2px solid var(--hud-accent,#4af)}
+.ov .seg button small{display:block;font-size:15px;opacity:.7;margin-top:3px}
+.ov .seg button.sel{background:#0e3350;color:#fff;box-shadow:inset 0 0 0 3px var(--hud-text,#dff),inset 0 0 18px var(--hud-glow,#0cf)}
+.ov button#btnStart{min-width:380px;min-height:118px;font-size:46px;font-weight:800;letter-spacing:8px;padding:0 40px 0 48px;border-radius:20px;border:3px solid var(--hud-text,#dff);box-shadow:0 0 26px var(--hud-glow,#0cf);line-height:1.05}
+#btnStart small{display:block;font-size:18px;font-weight:400;letter-spacing:1px;opacity:.75;margin-top:4px}
+#modeInfo{min-height:30px;font-size:22px!important;color:var(--hud-text,#bff)}
+#ovTitle .trow.minor{gap:16px;margin-top:6px}
+#ovTitle .trow.minor button.sec2{font-size:21px;min-height:76px;min-width:150px}
+#ovCustom,#ovHelp{gap:12px}
+#ovCustom h1,#ovHelp h1,#ovAch h1{font-size:52px}
+.clab{font-size:17px;letter-spacing:3px;opacity:.7;margin-bottom:-4px}
+#helpList{text-align:left;font-size:22px;line-height:1.45;max-width:820px;margin:0;padding-left:28px}
 #achList{display:grid;grid-template-columns:1fr 1fr;gap:10px 28px;text-align:left;max-width:1120px}
 .ar{display:flex;gap:12px;align-items:center;font-size:20px;line-height:1.2}
 .ar i{flex:none;width:28px;height:28px;border-radius:14px}
@@ -73,15 +90,21 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;touch-action:none
  <button id="btnPause" aria-label="Pause (P)" title="Pause (P)">II</button>
  <button id="btnMute" aria-label="Sound on/off (M)" title="Sound on/off (M)"></button>
  <div class="ov" id="ovTitle" style="display:flex"><h1>HOLLOW BLADE</h1>
-  <p>Swipe to slash - use both thumbs. Cyan, violet and green foes: any slash (violet needs a fast, strong swipe).<br>
-  Amber armoured foes: slash along the arrow (within 35 deg). Never touch the red bombs.<br>
-  Chain kills to fill FOCUS, then tap the bar (or Space) for slow-mo. 3 hearts, no refills.</p>
-  <div class="trow"><button id="btnStart" class="mode">Classic<small>3 waves, stars</small></button><button id="btnEndless" class="mode">Endless<small>waves never stop</small></button><button id="btnDaily" class="mode">Daily<small id="dailyLbl"></small></button></div>
-  <div class="trow"><label id="seedWrap">Seed <input id="seedIn" type="text" inputmode="numeric" maxlength="10" placeholder="random" autocomplete="off" aria-label="Seed (empty = random)"></label><button id="btnAch" class="sec2">Achievements <span id="achCount"></span></button></div>
-  <div id="trails"></div><p id="trailCap"></p>
-  <div class="pick" id="musicRow" style="display:none"></div><div class="pick" id="themeRow" style="display:none"></div>
-  <p id="lifeTxt"></p></div>
- <div class="ov" id="ovAch"><h1>ACHIEVEMENTS</h1><div id="achList"></div><button id="btnAchBack">Back</button></div>
+  <p id="tagline">Slash with both thumbs. Avoid red bombs.</p>
+  <div class="seg" role="radiogroup" aria-label="Mode"><button id="segClassic" data-mode="classic" role="radio">Classic<small>3 waves, stars</small></button><button id="segEndless" data-mode="endless" role="radio">Endless<small>never stops</small></button><button id="segDaily" data-mode="daily" role="radio">Daily<small id="dailyLbl"></small></button></div>
+  <button id="btnStart">PLAY<small id="playSub">Classic</small></button>
+  <p id="modeInfo"></p>
+  <div class="trow minor"><button id="btnHelp" class="sec2">How to play</button><button id="btnCustom" class="sec2">Customize</button><button id="btnAch" class="sec2">Achievements <span id="achCount"></span></button></div>
+  <button id="btnEndless" style="display:none" tabindex="-1" aria-hidden="true">Endless</button><button id="btnDaily" style="display:none" tabindex="-1" aria-hidden="true">Daily</button></div>
+ <div class="ov" id="ovCustom"><h1>CUSTOMIZE</h1>
+  <div class="clab">BLADE TRAIL</div><div id="trails"></div><p id="trailCap"></p>
+  <div class="pick" id="themeRow" style="display:none"></div><div class="pick" id="musicRow" style="display:none"></div>
+  <div class="trow"><label id="seedWrap">Seed <input id="seedIn" type="text" inputmode="numeric" maxlength="10" placeholder="random" autocomplete="off" aria-label="Seed (empty = random)"></label><button id="btnSeedClr" class="sec2">Clear seed</button></div>
+  <button id="btnCustBack">Back</button></div>
+ <div class="ov" id="ovHelp"><h1>HOW TO PLAY</h1>
+  <ul id="helpList"><li>Swipe to slash - use both thumbs.</li><li>Cyan, violet and green foes: any slash (violet needs a fast, strong swipe).</li><li>Amber armoured foes: slash along the arrow (within 35 deg).</li><li>Never touch the red bombs.</li><li>Chain kills to fill FOCUS, then tap the bar (or Space) for slow-mo.</li><li>3 hearts, no refills.</li></ul>
+  <button id="btnHelpBack">Back</button></div>
+ <div class="ov" id="ovAch"><h1>ACHIEVEMENTS</h1><div id="achList"></div><p id="lifeTxt"></p><button id="btnAchBack">Back</button></div>
  <div class="ov" id="ovSum"><h1 id="sumTitle"></h1><p id="sumTxt"></p><button id="btnNext">Next wave</button><p id="sumHint">Take a breath. The next wave starts when you tap.</p></div>
  <div class="ov" id="ovRes"><h1 id="resTitle"></h1><div id="stars"></div><p id="resWord" style="font-size:34px"></p><p id="resTxt"></p><div id="newBest"></div><div class="row"><button id="btnRestart">New run</button><button id="btnRetry" class="sec">Retry same seed</button><button id="btnMenu" class="sec">Menu</button></div></div>
  <div class="ov" id="ovPause"><h1>PAUSED</h1><p>Take your time.</p><div class="row"><button id="btnResume">Resume</button><button id="btnQuit" class="sec">Quit run</button></div></div>
@@ -847,6 +870,7 @@ function loadSave(){
     if(j.ach&&typeof j.ach==='object')for(const k in j.ach)if(nn(j.ach[k]))d.ach[k]=nn(j.ach[k]);
     if(typeof j.trail==='string')d.trail=j.trail;
     if(typeof j.theme==='string')d.theme=j.theme;
+    if(j.mode==='classic'||j.mode==='endless'||j.mode==='daily')d.mode=j.mode;
     ok=true;}}catch(_){}}
   if(!ok){   // one-time migration of v4 'hb.best' / 'hb.stats' (old keys are left in place)
     d.best.classic=nn(lsGet('hb.best',0));const t=lsGet('hb.stats',null);
@@ -1161,7 +1185,7 @@ const inGrace=()=>G.wave===0&&G.waveT<GRACE_LEN;
 function startGame(mode){
   MODE=mode||'classic';seedRun();auUnlock();au('seed',SEED^0x5bd1e995);au('ui');
   Object.assign(G,{spawnLog:[],missLog:[],lastLoss:-99,state:'play',wave:0,T:0,lives:3,score:0,combo:0,lastKill:-9,focus:0,slowLeft:0,foes:[],parts:[],good:0,bad:0,miss:0,kills:0,bestCombo:0,shake:0,redFlash:0,stars:0,hs:0,mode:MODE,spared:0,focusUsed:0});
-  $('ovTitle').style.display='none';$('ovAch').style.display='none';$('ovSum').style.display='none';$('ovRes').style.display='none';$('ovPause').style.display='none';G.paused=false;
+  $('ovTitle').style.display='none';$('ovAch').style.display='none';$('ovCustom').style.display='none';$('ovHelp').style.display='none';$('ovSum').style.display='none';$('ovRes').style.display='none';$('ovPause').style.display='none';G.paused=false;
   auInt=0;auFocusReadyFired=false;au('music','play');au('setIntensity',0.15);
   if(MODE==='daily')unlock('daily');
   beginWave();
@@ -1312,12 +1336,37 @@ $('btnMenu').onclick=()=>{au('ui');showTitle();};
 $('btnMute').onclick=e=>{e.stopPropagation();toggleMute();};
 function typedSeed(){const v=$('seedIn').value.replace(/\D/g,'').slice(0,10);return v===''?null:(+v)>>>0;}
 $('seedIn').addEventListener('input',e=>{const v=e.target.value.replace(/\D/g,'').slice(0,10);if(v!==e.target.value)e.target.value=v;});
-$('btnStart').onclick=()=>{TYPED=typedSeed();startGame('classic');};
-$('btnEndless').onclick=()=>{TYPED=typedSeed();startGame('endless');};
-$('btnDaily').onclick=()=>{TYPED=null;startGame('daily');};   // Daily always uses the date seed
+/* title: the mode toggle picks; PLAY (#btnStart) starts the picked mode (remembered in SAVE.mode, default Classic).
+   #btnEndless / #btnDaily stay as hidden legacy buttons (scripted .click() still starts that mode). */
+const MODES={classic:'Classic',endless:'Endless',daily:'Daily'};
+const selMode=()=>MODES[SAVE.mode]?SAVE.mode:'classic';
+function playMode(m){SAVE.mode=m;saveSave();TYPED=m==='daily'?null:typedSeed();startGame(m);}   // Daily always uses the date seed
+$('btnStart').onclick=()=>playMode(selMode());
+$('btnEndless').onclick=()=>playMode('endless');
+$('btnDaily').onclick=()=>playMode('daily');
+for(const id of ['segClassic','segEndless','segDaily'])$(id).onclick=e=>{au('ui');SAVE.mode=e.currentTarget.dataset.mode;saveSave();modeUI();};
+function modeUI(){
+  const m=selMode(),sd=typedSeed();
+  for(const b of document.querySelectorAll('.seg button')){const on=b.dataset.mode===m;b.classList.toggle('sel',on);b.setAttribute('aria-checked',on?'true':'false');}
+  $('playSub').textContent=MODES[m]+(m!=='daily'&&sd!==null?' · seed '+sd:'');
+  const b=SAVE.best,d=SAVE.daily[todayStr()]|0;
+  $('modeInfo').textContent=m==='classic'?(b.classic?'Best '+b.classic:'3 waves. Clear them all for stars.'):m==='endless'?(b.endless?'Best '+b.endless+(SAVE.stats.bestWave?' · best wave '+SAVE.stats.bestWave:''):'Waves keep coming, faster each time.'):(d?"Today's best "+d:"Today's run: same foes for everyone, once a day.");
+}
+function openPanel(id){au('ui');$('ovTitle').style.display='none';$(id).style.display='flex';}   // QA defect 1: never stack a panel over the title
+function closePanel(id){au('ui');$(id).style.display='none';$('ovTitle').style.display='flex';modeUI();}
+$('btnCustom').onclick=()=>openPanel('ovCustom');
+$('btnCustBack').onclick=()=>closePanel('ovCustom');
+$('btnHelp').onclick=()=>openPanel('ovHelp');
+$('btnHelpBack').onclick=()=>closePanel('ovHelp');
+$('btnSeedClr').onclick=()=>{au('ui');$('seedIn').value='';};
+addEventListener('keydown',e=>{   // title keys: Enter = PLAY, Escape = Back from a title panel
+  if(G.state!=='title'||(e.target&&e.target.tagName==='INPUT'&&e.key!=='Escape'&&e.key!=='Enter'))return;
+  for(const [ov,bk] of [['ovCustom','btnCustBack'],['ovHelp','btnHelpBack'],['ovAch','btnAchBack']])if($(ov).style.display==='flex'){if(e.key==='Escape'||(e.key==='Enter'&&e.target.tagName==='INPUT'))$(bk).click();return;}
+  if(e.key==='Enter'&&$('ovTitle').style.display==='flex'&&!(e.target&&e.target.tagName==='BUTTON')){e.preventDefault();$('btnStart').click();}
+});
 $('btnRestart').onclick=()=>{TYPED=null;startGame(MODE);};
-$('btnAch').onclick=()=>{au('ui');buildAch();$('ovTitle').style.display='none';$('ovAch').style.display='flex';};
-$('btnAchBack').onclick=()=>{au('ui');$('ovAch').style.display='none';$('ovTitle').style.display='flex';};
+$('btnAch').onclick=()=>{buildAch();openPanel('ovAch');};
+$('btnAchBack').onclick=()=>closePanel('ovAch');
 $('btnNext').onclick=nextWave;
 
 /* ---------------- flow ---------------- */
@@ -1335,13 +1384,13 @@ function nextWave(){
 }
 function showTitle(){
   G.state='title';G.paused=false;G.foes=[];clearMsg();
-  for(const id of ['ovSum','ovRes','ovPause','ovAch'])$(id).style.display='none';
+  for(const id of ['ovSum','ovRes','ovPause','ovAch','ovCustom','ovHelp'])$(id).style.display='none';
   $('ovTitle').style.display='flex';au('music','title');refreshTitle();
 }
 function refreshTitle(){
   lifeLine();$('dailyLbl').textContent=todayStr();
   $('achCount').textContent=`${Object.keys(SAVE.ach).length}/${ACH.length}`;
-  buildPicker();buildMusic();buildThemes();
+  buildPicker();buildMusic();buildThemes();modeUI();
 }
 function trailCaption(t){
   const a=ACH.find(x=>x.id===t.ach);
