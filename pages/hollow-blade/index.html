@@ -176,6 +176,7 @@ var PENT = [0, 3, 5, 7, 10, 12, 15, 17, 19, 22, 24];   // minor pentatonic steps
 function build(c) {
   var g = { c: c, live: 0, mLive: 0, lastSl: -9, slN: 0, step: 0, nextT: 0, timer: null, state: 'off', inten: wantI, slow: false, tgt: {}, chg: -9, L: {}, tr: wantT < TR.length ? wantT : 0, pend: null, pendAt: 0, mMax: 0, fe: null, fv: null, req: null, xchg: -9, xv: 1, pf: null };
   g.out = c.createGain(); g.out.gain.value = muted ? 0 : 1;
+  g.ms = new Set(); g.gv = { cw: null, cmbT: -9, tier: 0, dA: 0, dK: 0, ws: null };   // Groove Core: live music sources (tape-stop), groove state
   var cp = c.createDynamicsCompressor();
   cp.threshold.value = -14; cp.knee.value = 3; cp.ratio.value = 20; cp.attack.value = 0.002; cp.release.value = 0.2;
   var trim = c.createGain(); trim.gain.value = 0.8;
@@ -211,9 +212,9 @@ function play(s, o) {
     f.Q.value = o.q || 0.7; s.connect(f); last = f; n.push(f);
   }
   last.connect(g); env(g.gain, t, o.a || 0.004, o.d, o.v, o.r); g.connect(o.to || G.sfx);
-  if (m) { if (++gg.mLive > gg.mMax) gg.mMax = gg.mLive; } else gg.live++;
+  if (m) { if (++gg.mLive > gg.mMax) gg.mMax = gg.mLive; s._d0 = o.d0 || 0; gg.ms.add(s); } else gg.live++;
   s.onended = function () {
-    if (m) gg.mLive--; else gg.live--;
+    if (m) { gg.mLive--; gg.ms.delete(s); } else gg.live--;
     try { s.disconnect(); n.forEach(function (x) { x.disconnect(); }); } catch (e) {}
     if (o.cb) o.cb(gg);
   };
@@ -229,13 +230,19 @@ function tone(o) {
 }
 function nz(o) {
   var s = G.c.createBufferSource(); s.buffer = G.nb; s.loop = true; o.t = o.t || now(); o.off = rnd() * 0.8;
+  if (o.det && s.detune) s.detune.value = o.det;
   play(s, o);
 }
 // fire a list of voice specs if the voice budget allows; o.n = noise, otherwise oscillator; o.dt = delay
 function fire(list, pri) {
   if (!ok(list.length, pri)) return false;
-  var t = now();
-  list.forEach(function (o) { o.t = t + (o.dt || 0); (o.n ? nz : tone)(o); });
+  var t = now(), q = !GROOVE ? 0 : TAG.qT != null ? Math.max(0, Math.min(QMAX, TAG.qT - t)) : qd(t), D = TRACE ? grid() : 0;   // Groove: o.tq voices wait for the grid (<= QMAX)
+  TAG.qOut = t + q;
+  list.forEach(function (o) {
+    var b = o.dt || 0; o.t = t + b + (o.tq ? q : 0);
+    if (TRACE && TRACE.length < 5000) TRACE.push({ ev: TAG.ev || '', al: TAG.al || null, t0: t, t: o.t, b: b, f: o.f || 0, tq: !!o.tq, nz: !!o.n, D: D, g0: G.nextT });
+    (o.n ? nz : tone)(o);
+  });
   return true;
 }
 function st(f, k) { return f * Math.pow(2, k / 12); }
@@ -371,12 +378,12 @@ function syncFile(T) {           // file plays when a file track is chosen and s
 }
 function mt(m) { return 440 * Math.pow(2, (m - 69) / 12); }
 function spec() { return G.state === 'title' ? TITLE : TR[G.tr]; }
-function sd() { return 60 / spec().bpm / 4 * (G.slow ? 1.25 : 1); }      // one 16th (slower in slow-mo)
+function sd() { return 60 / spec().bpm / 4 * (G.slow && !GROOVE ? 1.25 : 1); }      // one 16th (Groove: tempo never changes in slow-mo; legacy: slower)
 function act(k) { return G.tgt[k] > 0.001 || G.c.currentTime - G.chg < 0.7; }
 function pat(x, sec) { return typeof x === 'string' ? x : x[sec]; }
 function mv(L, o) {
   if (G.mLive >= MCAP) return;
-  o.m = 1; o.to = G.L[L]; if (G.slow) o.det = (o.det || 0) - 70;
+  o.m = 1; o.to = G.L[L]; o.d0 = o.det || 0; if (G.slow) o.det = o.d0 + (GROOVE ? -1200 : -70);   // Groove: tape-stop holds an octave down (same key)
   (o.n ? nz : tone)(o);
 }
 function sched(s, t) {
@@ -392,7 +399,11 @@ function sched(s, t) {
   c = S.b.charAt(q);
   if (act('bass') && c !== '.')
     mv('bass', { t: t, w: S.bw || 'sawtooth', f: mt(ch[0] + (c === 'o' ? 12 : c === '5' ? 7 : 0)), ft: 'lowpass', ff: S.bf, ff1: 180, q: 3, a: 0.006, d: D * S.bl, v: 0.16 });
-  if (act('drum')) {
+  var ht = GROOVE && G.slow;   // Groove focus: half-time feel (kick on 1, snare on 3, sparse arp, no lead) on an unchanged clock
+  if (ht && act('drum')) {
+    if (q === 0) mv('drum', { t: t, f: S.kf || 150, f1: 45, g: 0.12, a: 0.003, d: S.kd || 0.28, v: 0.3 });
+    if (q === 8) mv('drum', { t: t, n: 1, ft: 'bandpass', ff: S.sf || 1800, q: 0.8, a: 0.002, d: 0.14, v: 0.16 });
+  } else if (act('drum')) {
     var fill = (bar === 15 && q >= 12) || (bar === 7 && q >= 14);
     if (pat(S.k, sec).charAt(q) === 'x') mv('drum', { t: t, f: S.kf || 150, f1: 45, g: 0.12, a: 0.003, d: S.kd || 0.28, v: 0.3 });
     if (S.s.charAt(q) === 'x' || fill) mv('drum', { t: t, n: 1, ft: 'bandpass', ff: S.sf || 1800, q: 0.8, a: 0.002, d: 0.14, v: fill && S.s.charAt(q) !== 'x' ? 0.09 : 0.16 });
@@ -400,11 +411,11 @@ function sched(s, t) {
     if (c === 'x') mv('drum', { t: t, n: 1, ft: 'highpass', ff: 7500, a: 0.002, d: 0.045, v: 0.08 });
     if (c === 'o') mv('drum', { t: t, n: 1, ft: 'highpass', ff: 6500, a: 0.004, d: 0.22, v: 0.06 });
   }
-  if (act('arp') && !(q % S.ar)) {
+  if (act('arp') && !(q % (S.ar * (ht ? 2 : 1)))) {
     var ap = S.arp[sec], ix = +ap.charAt((q / S.ar | 0) % ap.length);
     mv('arp', { t: t, w: S.aw, f: mt((ix === 4 ? ch[1] + 12 : ch[ix]) + S.ao), ft: 'lowpass', ff: S.af, ff1: 800, a: 0.004, d: D * S.ar * 0.9, v: 0.05 });
   }
-  if (act('lead')) {
+  if (act('lead') && !ht) {
     var mi = S.mel[s & 255];
     if (mi) mv('lead', { t: t, w: S.lw, f: mt(tn(ch, mi) + 12), ft: S.lf ? 'lowpass' : 0, ff: S.lf, a: 0.02, d: D * S.ll, v: S.lv || 0.07 });
     if (q & 1) mv('lead', { t: t, n: 1, ft: 'highpass', ff: 9000, a: 0.002, d: 0.03, v: 0.04 });   // extra 16th hats
@@ -419,6 +430,7 @@ function pump(h) {
     if (!(g.fe && g.state !== 'title' && c.currentTime - g.xchg > 1.2)) sched(g.step, g.nextT);   // synth silent under a file track
     g.nextT += sd(); g.step++;
   }
+  if (GROOVE) gtick(c.currentTime);
   if (g.state === 'off' && c.currentTime - g.chg > 0.8 && g.timer) { clearInterval(g.timer); g.timer = null; }
 }
 function targets() {
@@ -426,9 +438,12 @@ function targets() {
   if (s === 'title') { T.pad = 1; T.lead = 0.6; }
   else if (s === 'summary') T.pad = 1;
   else if (s === 'result') { T.pad = 1; T.arp = 0.7; }
-  else if (s === 'play') { T.pad = 1 - 0.5 * sm(0.5, 1, x); T.bass = 1; T.drum = sm(0.3, 0.45, x); T.arp = sm(0.6, 0.75, x); T.lead = sm(0.88, 1, x); }
+  else if (s === 'play') { T.pad = 1 - 0.5 * sm(0.5, 1, x); T.bass = 1; T.drum = sm(0.3, 0.45, x); T.arp = sm(0.6, 0.75, x); T.lead = sm(0.88, 1, x); if (GROOVE) gT(T); }
   LAY.forEach(function (k) {
-    var p = G.L[k].gain; p.cancelScheduledValues(t); p.setValueAtTime(p.value, t); p.linearRampToValueAtTime(T[k], t + 0.5); G.tgt[k] = T[k];
+    var p = G.L[k].gain, u = GROOVE && s === 'play' ? dropEnd(k) : 0; p.cancelScheduledValues(t); p.setValueAtTime(p.value, t);
+    if (u > t) { u = Math.max(u, t + 0.06); p.linearRampToValueAtTime(0, t + 0.05); p.setValueAtTime(0, u); p.linearRampToValueAtTime(T[k], u + (k === 'arp' || k === 'lead' ? 0.4 : 0.03)); }   // Groove drop: out now, back on the bar line
+    else p.linearRampToValueAtTime(T[k], t + 0.5);
+    G.tgt[k] = T[k];
   });
   G.chg = t;
   if (G.fv) fileApply(0.5);
@@ -471,8 +486,168 @@ function setSlow(on) {
   G.slow = on;
   var t = G.c.currentTime, f = G.lp.frequency;
   f.cancelScheduledValues(t); f.setValueAtTime(f.value, t); f.exponentialRampToValueAtTime(on ? 600 : 18000, t + (on ? 0.35 : 0.5));
+  if (GROOVE) { tape(on, t); return; }
   if (G.fv) ramp(G.fv.s.playbackRate, on ? 0.8 : 1, 0.35);
 }
+
+/* ---------------- Groove Core (music-game package A, ideas 1-7) ----------------
+   1 hit notes from the track's pentatonic + current chord, climbing with combo (2-octave cap), 120 ms chord window;
+   2 transient now, pitched tail (o.tq) on the next 16th (32nd at 132+ BPM) only if <= 40 ms away;
+   3 combo tiers add drums/arp/lead, miss/wrong/bomb drop top layers until a bar line; 4 bomb scratch + low-pass drop;
+   5 bum notes (chord root +1 st, -40 c); 6 tape-stop in focus (clock unchanged); 7 bar-snapped riser/fill/cadence, chord-tuned clang.
+   Self-contained: HBAudio.groove = false (persisted in hb.groove) restores the legacy sounds. Audio randomness stays on rnd (own
+   mulberry32); never reads or writes game RNG and never blocks the game. */
+var GROOVE = ls('hb.groove') !== '0', QMAX = 0.040, CWIN = 0.12, TRACE = null, TAG = {};
+var PN = { prism: [0, 2, 4, 7, 9] }, MINP = [0, 3, 5, 7, 10];               // pentatonic per track: major for Prism, minor elsewhere
+var CAD = { prism: ['7M', '0M'], leviathan: ['1M', '0m'] }, CADM = ['10M', '0m'];   // V-I (major), bII-i (phrygian), bVII-i (minor)
+var FK = { id: 'file', key: 4, C: [chord(4, '0m')] };                       // file tracks carry no key yet (idea 12): legacy E minor
+function gS() { return G.fe && G.state !== 'title' ? FK : spec(); }
+function runs() { return G.state !== 'off' && !!(G.timer || offline); }
+function grid() { return G.fe || !runs() ? 0 : spec().bpm >= 132 ? sd() / 2 : sd(); }
+function qd(t) { var D = grid(); if (!D) return 0; var d = G.nextT + Math.ceil((t - G.nextT) / D - 1e-6) * D - t; return d <= QMAX ? Math.max(0, d) : 0; }
+function chNow(S, t) { if (S === FK || !runs()) return S.C[0]; return S.C[((G.step - Math.ceil((G.nextT - t) / sd() - 1e-6)) >> 4) & 7]; }
+function rootM(pc, lo) { return lo + ((pc - lo) % 12 + 12) % 12; }        // first MIDI note >= lo with pitch class pc
+function fq(m) { while (m > 120) m -= 12; return mt(m); }
+function allow(S, ch) {          // chord tones + the track's pentatonic notes that are not a semitone from a chord tone
+  var ct = ch.slice(1).map(function (m) { return m % 12; }), a = ct.slice();
+  (PN[S.id] || MINP).forEach(function (p) { p = (S.key + p) % 12; if (a.indexOf(p) < 0 && !ct.some(function (c) { var d = (c - p + 12) % 12; return d === 1 || d === 11; })) a.push(p); });
+  return { ct: ct, a: a };
+}
+function hn(combo, t) {          // -> hit note n (MIDI), next allowed note up, chord fifth below (combo 10+), allowed pitch classes
+  var S = gS(), ch = chNow(S, t), A2 = allow(S, ch), lo = rootM(S.key, 69), L = [], i, n, cw = G.gv.cw, c = Math.max(1, combo | 0);
+  for (i = lo; i <= lo + 24; i++) if (A2.a.indexOf(i % 12) >= 0 && (L.length || A2.ct.indexOf(i % 12) >= 0)) L.push(i);   // ladder starts on a chord tone
+  if (cw && t - cw.t < CWIN && cw.k < 3) {     // chord window: the 2nd/3rd quick kill rings the next chord tone up, at the same moment
+    for (n = cw.last + 1; n <= lo + 31 && A2.ct.indexOf(n % 12) < 0; n++);
+    if (n > lo + 31) for (n = cw.first - 1; A2.ct.indexOf(n % 12) < 0; n--);
+    cw.k++; cw.last = n; TAG.qT = cw.T;
+  } else {
+    n = c <= L.length ? L[c - 1] : L[L.length - 1 - (rnd() * 3 | 0)];   // 2-octave cap, then ornament around the top
+    G.gv.cw = { t: t, k: 1, first: n, last: n, T: null };
+  }
+  for (i = n + 1; A2.a.indexOf(i % 12) < 0; i++);
+  var fp = (ch[0] + 7) % 12, five = c >= 10 ? n - (((n - fp) % 12 + 12) % 12 || 12) : 0;
+  return { n: n, up: i, five: five, al: A2.a };
+}
+function gHit(type, combo) {
+  var t = G.c.currentTime, h = hn(combo, t), f = fq(h.n), L;
+  TAG.ev = 'hit'; TAG.al = h.al;
+  switch (type) {
+    case 'arm': L = [{ w: 'square', f: f / 2, ft: 'lowpass', ff: 3200, ff1: 700, d: 0.14, v: 0.07, tq: 1 }, { w: 'triangle', f: f, d: 0.24, v: 0.13, tq: 1 }, { n: 1, ft: 'highpass', ff: 4000, d: 0.06, v: 0.16 }]; break;
+    case 'big': L = [{ f: 140, f1: 45, d: 0.3, v: 0.42 }, { w: 'sawtooth', f: f / 2, ft: 'lowpass', ff: 2400, ff1: 400, d: 0.36, v: 0.09, tq: 1 }, { w: 'triangle', f: f, d: 0.4, v: 0.11, tq: 1 }, { n: 1, ft: 'lowpass', ff: 3000, ff1: 300, d: 0.25, v: 0.22 }]; break;
+    case 'split': L = [{ w: 'triangle', f: f, d: 0.15, v: 0.14, tq: 1 }, { w: 'triangle', f: fq(h.up), dt: 0.05, d: 0.18, v: 0.12, tq: 1 }, { n: 1, ft: 'bandpass', ff: 2500, q: 2, d: 0.05, v: 0.12 }]; break;
+    case 'small': L = [{ f: fq(h.n + 12), d: 0.1, v: 0.12, tq: 1 }, { w: 'triangle', f: fq(h.n + 24), d: 0.05, v: 0.04, tq: 1 }, { n: 1, ft: 'highpass', ff: 7000, d: 0.02, v: 0.05 }]; break;
+    default: L = [{ f: f, d: 0.26, v: 0.24, tq: 1 }, { w: 'triangle', f: f * 2, d: 0.12, v: 0.06, tq: 1 }, { n: 1, ft: 'highpass', ff: 6000, d: 0.03, v: 0.08 }];
+  }
+  if (h.five && (type === 'orb' || type === 'arm' || type === 'big')) L.push({ w: 'triangle', f: fq(h.five), d: 0.3, v: 0.05, tq: 1 });
+  var okd = fire(L), cw = G.gv.cw;
+  if (okd && cw.T == null) cw.T = TAG.qOut;
+  TAG = {};
+  G.gv.cmbT = t;
+  var tier = combo >= 10 ? 3 : combo >= 6 ? 2 : combo >= 3 ? 1 : 0;
+  if (tier !== G.gv.tier) { G.gv.tier = tier; if (G.state === 'play') targets(); }
+}
+function gT(T) { var k = G.gv.tier; if (k >= 1) T.drum = Math.max(T.drum, 1); if (k >= 2) T.arp = Math.max(T.arp, 1); if (k >= 3) T.lead = Math.max(T.lead, 1); }
+function dropEnd(k) { return k === 'arp' || k === 'lead' ? G.gv.dA : k === 'drum' || k === 'bass' ? G.gv.dK : 0; }
+function barAt(min) { var D = sd(), Tb = G.nextT + ((16 - (G.step & 15)) & 15) * D; while (Tb - G.c.currentTime < min) Tb += 16 * D; return Tb; }
+function dropLayers(bars, hard) {   // top layers (arp, lead) out until a bar line; hard (bomb) also drums + bass until the next bar line
+  if (!G || !GROOVE) return;
+  var t = G.c.currentTime, B = 16 * sd(), Tb = runs() && !G.fe ? barAt(hard ? 0.25 : 0.5 * B) : t + 1;
+  G.gv.dA = Math.max(G.gv.dA, Tb + Math.max(0, (bars || 1) - 1) * B);
+  if (hard) G.gv.dK = Math.max(G.gv.dK, Tb);
+  G.gv.tier = 0;
+  if (G.state === 'play') targets();
+  return Tb;
+}
+function gtick(t) {
+  var v = G.gv;
+  if (v.ws) wsLand();
+  if (v.tier && t - v.cmbT > 1.5) { v.tier = 0; if (G.state === 'play') targets(); }   // the game drops the combo after 1.2 s idle
+}
+function tape(on, t) {             // tape-stop: live music voices bend an octave down over 250 ms; tape-start bends back over 300 ms
+  G.ms.forEach(function (s) { var p = s.detune; if (!p) return; p.cancelScheduledValues(t); p.setValueAtTime(p.value, t); p.linearRampToValueAtTime(s._d0 + (on ? -1200 : 0), t + (on ? 0.25 : 0.3)); });
+  if (G.fv) { var p = G.fv.s.playbackRate; p.cancelScheduledValues(t); p.setValueAtTime(p.value, t);
+    if (on) { p.linearRampToValueAtTime(0.5, t + 0.25); p.linearRampToValueAtTime(0.8, t + 0.6); } else p.linearRampToValueAtTime(1, t + 0.3); }
+}
+function bum(lo) { var S = gS(); return rootM(chNow(S, G.c.currentTime)[0] % 12, lo) + 1; }   // a semitone above the chord root
+function gMiss() { var f = mt(bum(55)); TAG.ev = 'miss'; fire([{ w: 'triangle', f: f, f1: f * 0.94, det: -40, ft: 'lowpass', ff: 700, a: 0.01, d: 0.18, v: 0.12 }]); TAG = {}; dropLayers(1); }
+function gWrong() {
+  var f = mt(bum(36)); TAG.ev = 'wrong';
+  fire([{ w: 'triangle', f: 140, f1: 60, d: 0.16, v: 0.36 }, { w: 'square', f: f, det: -40, ft: 'lowpass', ff: 420, a: 0.01, d: 0.3, v: 0.09 }, { w: 'square', f: f, det: -15, ft: 'lowpass', ff: 420, a: 0.01, d: 0.3, v: 0.07 }]);
+  TAG = {}; dropLayers(1);
+}
+function gBomb() {
+  var t = G.c.currentTime, f = G.lp.frequency, back = G.slow ? 600 : 18000, Tb = runs() && !G.fe ? barAt(0.25) : t + 0.6;
+  TAG.ev = 'bomb';
+  if (fire([{ n: 1, ft: 'lowpass', ff: 4500, ff1: 140, a: 0.003, d: 1.1, v: 0.75 }, { f: 95, f1: 28, a: 0.004, d: 0.9, v: 0.75 },
+    { n: 1, ft: 'highpass', ff: 1500, a: 0.001, d: 0.12, v: 0.45 }, { w: 'square', f: 62, f1: 30, ft: 'lowpass', ff: 220, d: 0.5, v: 0.2 },
+    { n: 1, ft: 'bandpass', ff: 3000, ff1: 400, q: 6, a: 0.003, d: 0.09, v: 0.4 }, { n: 1, ft: 'bandpass', ff: 400, ff1: 2000, q: 6, dt: 0.09, a: 0.003, d: 0.09, v: 0.35 }], 1)) duck(0.2, 1.4);   // boom + record scratch
+  TAG = {};
+  Tb = Math.max(Tb, t + 0.2);
+  f.cancelScheduledValues(t); f.setValueAtTime(f.value, t); f.exponentialRampToValueAtTime(300, t + 0.18); f.setValueAtTime(300, Tb); f.exponentialRampToValueAtTime(back, Tb + 0.12);
+  if (G.fv) { var p = G.fv.s.playbackRate, r = G.slow ? 0.8 : 1; p.cancelScheduledValues(t); p.setValueAtTime(r, t); p.linearRampToValueAtTime(r * 0.85, t + 0.06); p.linearRampToValueAtTime(r, t + 0.12); }
+  dropLayers(1, true);
+}
+function gClang() {   // armour bell on the current chord root: partials root, fifth, octave, 12th, 2 octaves ("rings true")
+  var S = gS(), ch = chNow(S, G.c.currentTime), f = mt(rootM(ch[0] % 12, 64));
+  TAG.ev = 'clang'; TAG.al = allow(S, ch).a;
+  fire([1, 1.5, 2, 3, 4].map(function (p, i) { return { f: f * p, a: 0.002, d: [0.55, 0.4, 0.32, 0.22, 0.14][i], v: 0.1 - i * 0.012, tq: 1 }; })
+    .concat([{ n: 1, ft: 'highpass', ff: 3000, a: 0.001, d: 0.04, v: 0.2 }]));
+  TAG = {};
+}
+function tri(S, tok, lo) { var r = rootM((S.key + parseInt(tok, 10)) % 12, lo); return [r, r + (tok.slice(-1) === 'm' ? 3 : 4), r + 7]; }
+function gWaveStart(n) {       // thump now; the pitched riser starts on the next pump (after the game's setTrack) and lands on beat 1
+  TAG.ev = 'waveStart'; fire([{ f: 120, f1: 40, d: 0.35, v: 0.42 }], 1); TAG = {};
+  G.gv.ws = { n: Math.max(1, n | 0) };
+  if (!runs()) wsLand();
+}
+function wsLand() {
+  var w = G.gv.ws, t = G.c.currentTime, S, Tb; G.gv.ws = null;
+  if (G.req || G.fe || !runs()) { S = G.req || G.fe ? FK : spec(); Tb = t + 0.6; }
+  else { S = G.pend != null ? TR[G.pend] : spec(); Tb = G.pend != null ? G.pendAt + 0.02 : barAt(0.5); }
+  var x = Math.max(0.3, Tb - now()), cd = CAD[S.id] || CADM, ton = tri(S, cd[1], 57), r = rootM(S.key, 45), P = PN[S.id] || MINP;
+  TAG.ev = 'waveStart';
+  var L = [{ n: 1, ft: 'highpass', ff: 600, ff1: 6000, a: x * 0.92, d: x + 0.03, v: 0.12 },
+    { w: 'sawtooth', f: mt(r), f1: mt(r + 12), g: x, ft: 'lowpass', ff: 500, ff1: 3000, a: x * 0.9, d: x + 0.05, v: 0.05 },
+    { f: 120, f1: 40, dt: x, d: 0.35, v: 0.4 }, { w: 'triangle', f: mt(rootM(S.key, 81) + P[[0, 2, 3][(w.n - 1) % 3]]), dt: x, a: 0.003, d: 0.7, v: 0.06 }];
+  ton.forEach(function (m) { L.push({ w: 'sawtooth', f: mt(m + 12), ft: 'lowpass', ff: 2200, dt: x, d: 0.5, v: 0.05 }); });
+  fire(L, 1); TAG = {};
+}
+function gWaveClear() {        // sparkle now; 3-tom fill into the next half-bar; then pre-chord -> tonic cadence in the track's key
+  var S = gS(), t = G.c.currentTime, D = sd(), cd = CAD[S.id] || CADM, ch = chNow(S, t), Tb, r = rootM(S.key, 45), L;
+  if (runs() && !G.fe) { Tb = G.nextT + ((8 - (G.step & 7)) & 7) * D; while (Tb - t < 0.35) Tb += 8 * D; } else Tb = t + 0.35;
+  var x = Tb - now();
+  L = [{ w: 'triangle', f: mt(ch[1] + 24), d: 0.18, v: 0.07 }, { w: 'triangle', f: mt(ch[2] + 24), dt: 0.05, d: 0.18, v: 0.06 }];
+  [3, 2, 1].forEach(function (k, i) { var dt = x - k * D; if (dt > 0.02) L.push({ f: mt(r + [19, 12, 7][i]), f1: mt(r + [19, 12, 7][i]) * 0.6, dt: dt, a: 0.002, d: 0.16, v: 0.22 }); });
+  tri(S, cd[0], 57).forEach(function (m) { L.push({ w: 'sawtooth', f: mt(m + 12), ft: 'lowpass', ff: 2400, ff1: 900, dt: x, a: 0.01, d: 4 * D * 0.95, v: 0.05 }); });
+  tri(S, cd[1], 57).forEach(function (m) { L.push({ w: 'triangle', f: mt(m + 12), dt: x + 4 * D, a: 0.01, d: 0.9, v: 0.09 }); });
+  L.push({ f: mt(rootM(S.key, 81)), dt: x + 4 * D, a: 0.003, d: 1.0, v: 0.07 }, { f: 150, f1: 45, g: 0.12, dt: x, d: 0.28, v: 0.3 });
+  TAG.ev = 'waveClear'; fire(L, 1); TAG = {};
+}
+function gWin(stars) {
+  stars = Math.min(3, Math.max(0, stars | 0));
+  var S = gS(), cd = CAD[S.id] || CADM, r = rootM(S.key, 67), th = cd[1].slice(-1) === 'm' ? 3 : 4, L;
+  L = [0, th, 7, 12].map(function (s, i) { return { w: 'triangle', f: mt(r + s), dt: i * 0.09, d: 0.3, v: 0.12 }; });
+  tri(S, cd[1], 55).forEach(function (m) { L.push({ w: 'sawtooth', f: mt(m), ft: 'lowpass', ff: 1400, dt: 0.36, a: 0.08, r: 0.5, d: 1.5, v: 0.04 }); });
+  for (var i = 0; i < stars; i++) L.push({ f: mt(r + 24 + [0, th, 7][i]), dt: 0.55 + 0.28 * i, a: 0.003, d: 0.8, v: 0.09 });
+  TAG.ev = 'win'; fire(L, 1); TAG = {};
+}
+function gLose() {
+  var S = gS(), r = rootM(S.key, 67), th = (CAD[S.id] || CADM)[1].slice(-1) === 'm' ? 3 : 4, L;
+  L = [7, 5, th].map(function (s, i) { return { w: 'sawtooth', f: mt(r + s), ft: 'lowpass', ff: 1400, ff1: 500, dt: i * 0.32, d: 0.4, v: 0.08 }; });
+  L.push({ w: 'sawtooth', f: mt(r), f1: mt(r - 5), g: 1.1, ft: 'lowpass', ff: 1200, ff1: 250, dt: 0.96, a: 0.02, d: 1.3, v: 0.09 }, { f: mt(r - 24), f1: mt(r - 36), dt: 0.96, a: 0.05, d: 1.4, v: 0.2 });
+  TAG.ev = 'lose'; fire(L, 1); TAG = {};
+}
+function gFocusReady() {       // in-key chime: tonic, fifth, octave
+  var S = gS(), r = rootM(S.key, 81);
+  fire([{ f: mt(r), a: 0.003, d: 0.9, v: 0.09 }, { f: mt(r + 7), dt: 0.08, a: 0.003, d: 0.9, v: 0.07 }, { f: mt(r + 12), dt: 0.16, a: 0.003, d: 0.7, v: 0.05 }, { w: 'triangle', f: mt(r - 12), d: 0.6, v: 0.06 }]);
+}
+function gLifeLost() {         // falling 5 - 3 - 1 in key
+  var S = gS(), r = rootM(S.key, 67), th = (CAD[S.id] || CADM)[1].slice(-1) === 'm' ? 3 : 4;
+  fire([{ w: 'triangle', f: mt(r + 7), d: 0.2, v: 0.16 }, { w: 'triangle', f: mt(r + th), dt: 0.16, d: 0.2, v: 0.16 },
+    { w: 'triangle', f: mt(r), f1: mt(r) * 0.77, dt: 0.32, d: 0.65, v: 0.17 }, { f: mt(r - 12), f1: mt(r - 12) * 0.77, dt: 0.32, d: 0.65, v: 0.14 }], 1);
+}
+function layG() { var o = {}; LAY.forEach(function (k) { o[k] = +G.L[k].gain.value.toFixed(3); }); return o; }
+function detOff() { var m = 0; G.ms.forEach(function (s) { if (s.detune) m = Math.max(m, Math.abs(s.detune.value - s._d0)); }); return Math.round(m); }
 
 /* ---------------- public API ---------------- */
 var A = {
@@ -511,6 +686,7 @@ var A = {
   },
   hit: function (type, combo) {
     if (!G) return;
+    if (GROOVE) return gHit(type, combo);
     var k = Math.pow(2, PENT[Math.min(10, Math.max(0, (combo | 0) - 1))] / 12) * vary(), L;
     switch (type) {
       case 'arm': L = [{ w: 'square', f: 440 * k, ft: 'lowpass', ff: 3200, ff1: 700, d: 0.14, v: 0.07 }, { w: 'triangle', f: 880 * k, d: 0.24, v: 0.13 }, { n: 1, ft: 'highpass', ff: 4000, d: 0.06, v: 0.16 }]; break;
@@ -522,23 +698,28 @@ var A = {
     fire(L);
   },
   clang: function () {
+    if (GROOVE && G) return gClang();
     var f = 420 * (rnd() * 0.06 + 0.97);
     fire([1, 1.48, 2.03, 2.71, 3.9].map(function (p, i) { return { f: f * p, a: 0.002, d: [0.55, 0.4, 0.32, 0.22, 0.14][i], v: 0.1 - i * 0.012 }; })
       .concat([{ n: 1, ft: 'highpass', ff: 3000, a: 0.001, d: 0.04, v: 0.2 }]));
   },
   wrong: function () {
+    if (GROOVE && G) return gWrong();
     fire([{ w: 'triangle', f: 140, f1: 60, d: 0.16, v: 0.36 }, { w: 'square', f: 55, ft: 'lowpass', ff: 420, a: 0.01, d: 0.3, v: 0.09 }, { w: 'square', f: 58.5, ft: 'lowpass', ff: 420, a: 0.01, d: 0.3, v: 0.07 }]);
   },
   bomb: function () {
+    if (GROOVE && G) return gBomb();
     if (fire([{ n: 1, ft: 'lowpass', ff: 4500, ff1: 140, a: 0.003, d: 1.1, v: 0.75 }, { f: 95, f1: 28, a: 0.004, d: 0.9, v: 0.75 },
       { n: 1, ft: 'highpass', ff: 1500, a: 0.001, d: 0.12, v: 0.45 }, { w: 'square', f: 62, f1: 30, ft: 'lowpass', ff: 220, d: 0.5, v: 0.2 }], 1)) duck(0.2, 1.4);
   },
   lifeLost: function () {
+    if (GROOVE && G) return gLifeLost();
     fire([{ w: 'triangle', f: 587, d: 0.2, v: 0.16 }, { w: 'triangle', f: 494, dt: 0.16, d: 0.2, v: 0.16 },
       { w: 'triangle', f: 392, f1: 300, dt: 0.32, d: 0.65, v: 0.17 }, { f: 196, f1: 150, dt: 0.32, d: 0.65, v: 0.14 }], 1);
   },
-  miss: function () { fire([{ f: 260, f1: 170, ft: 'lowpass', ff: 900, a: 0.01, d: 0.15, v: 0.13 }]); },
+  miss: function () { if (GROOVE && G) return gMiss(); fire([{ f: 260, f1: 170, ft: 'lowpass', ff: 900, a: 0.01, d: 0.15, v: 0.13 }]); },
   focusReady: function () {
+    if (GROOVE && G) return gFocusReady();
     fire([{ f: 1319, a: 0.003, d: 0.9, v: 0.09 }, { f: 1976, dt: 0.08, a: 0.003, d: 0.9, v: 0.07 }, { f: 2637, dt: 0.16, a: 0.003, d: 0.7, v: 0.05 }, { w: 'triangle', f: 659, d: 0.6, v: 0.06 }]);
   },
   focusOn: function () {
@@ -550,15 +731,18 @@ var A = {
     setSlow(false);
   },
   waveStart: function (n) {
+    if (GROOVE && G) return gWaveStart(n);
     var r = st(220, (Math.min(9, Math.max(1, n | 0)) - 1) * 2);
     fire([0, 7, 12].map(function (s, i) { return { w: 'sawtooth', f: st(r, s), ft: 'lowpass', ff: 2200, dt: i * 0.1, d: i < 2 ? 0.25 : 0.6, v: 0.08 }; })
       .concat([{ w: 'triangle', f: st(r, 24), dt: 0.2, d: 0.6, v: 0.06 }, { f: 120, f1: 40, d: 0.35, v: 0.42 }]), 1);
   },
   waveClear: function () {
+    if (GROOVE && G) return gWaveClear();
     fire([0, 4, 7, 12].map(function (s, i) { return { w: 'triangle', f: st(440, s), dt: i * 0.07, d: 0.32, v: 0.12 }; })
       .concat([{ f: st(440, 19), dt: 0.28, a: 0.003, d: 0.9, v: 0.08 }]), 1);
   },
   win: function (stars) {
+    if (GROOVE && G) return gWin(stars);
     stars = Math.min(3, Math.max(0, stars | 0));
     var L = [0, 4, 7, 12].map(function (s, i) { return { w: 'triangle', f: st(392, s), dt: i * 0.09, d: 0.3, v: 0.12 }; });
     [0, 4, 7].forEach(function (s) { L.push({ w: 'sawtooth', f: st(196, s), ft: 'lowpass', ff: 1400, dt: 0.36, a: 0.08, r: 0.5, d: 1.5, v: 0.04 }); });
@@ -566,6 +750,7 @@ var A = {
     fire(L, 1);
   },
   lose: function () {
+    if (GROOVE && G) return gLose();
     var L = [392, 349, 311].map(function (f, i) { return { w: 'sawtooth', f: f, ft: 'lowpass', ff: 1400, ff1: 500, dt: i * 0.32, d: 0.4, v: 0.08 }; });
     L.push({ w: 'sawtooth', f: 262, f1: 196, g: 1.1, ft: 'lowpass', ff: 1200, ff1: 250, dt: 0.96, a: 0.02, d: 1.3, v: 0.09 }, { f: 98, f1: 49, dt: 0.96, a: 0.05, d: 1.4, v: 0.2 });
     fire(L, 1);
@@ -602,11 +787,15 @@ var A = {
     if (G.state === 'play' && (d > 0.02 || x === 0 || x === 1)) targets();
   },
   setSlow: setSlow,
+  dropLayers: function (bars) { dropLayers(bars, false); },   // Groove: top layers out until a bar line, then rebuild (miss/bomb call it already)
+  get groove() { return GROOVE; },                          // Groove Core on/off (A/B); persisted in hb.groove
+  set groove(v) { GROOVE = !!v; ss('hb.groove', GROOVE ? 1 : 0); },
   suspend: function () { if (G && !offline) try { G.c.suspend(); } catch (e) {} },
   resume: function () { if (G && !offline) try { G.c.resume(); } catch (e) {} },
 
   /* test helpers (not part of the game API) */
-  _stats: function () { return G ? { live: G.live, mLive: G.mLive, state: G.c.state, music: G.state, track: A.track, pend: G.pend, xf: +G.xf.gain.value.toFixed(3), file: G.fv ? +G.fv.g.gain.value.toFixed(3) : null, decMB: +(MEM / 1048576).toFixed(1), decPeakMB: +(MEMP / 1048576).toFixed(1), decoded: FL.filter(function (e) { return e.buf; }).map(function (e) { return e.id; }) } : null; },
+  _stats: function () { return G ? { live: G.live, mLive: G.mLive, state: G.c.state, music: G.state, track: A.track, pend: G.pend, xf: +G.xf.gain.value.toFixed(3), file: G.fv ? +G.fv.g.gain.value.toFixed(3) : null, decMB: +(MEM / 1048576).toFixed(1), decPeakMB: +(MEMP / 1048576).toFixed(1), decoded: FL.filter(function (e) { return e.buf; }).map(function (e) { return e.id; }), groove: GROOVE, lay: layG(), lp: Math.round(G.lp.frequency.value), slow: G.slow, det: detOff(), sd: sd(), tier: G.gv.tier, latMs: Math.round(((G.c.baseLatency || 0) + (G.c.outputLatency || 0)) * 1000), rate: G.fv ? +G.fv.s.playbackRate.value.toFixed(3) : null } : null; },
+  _trace: function (on) { TRACE = on ? [] : null; return TRACE; },   // Groove test: every fired voice {ev, al (allowed pitch classes), t0, t, b, f, tq, nz, D (grid), g0}
   _level: function () {
     if (!G) return 0;
     var a = new Float32Array(G.an.fftSize), m = 0; G.an.getFloatTimeDomainData(a);
@@ -623,16 +812,19 @@ var A = {
       try { f(); } finally { offline = false; G = keep; wantM = km; wantI = ki; wantT = kt; }
     }
     run(function () { fn(A); pump(0.15); after = A._stats(); });
-    for (t = 0.1; t < dur - 0.05; t += 0.1) (function (t) {
-      c.suspend(t).then(function () { run(function () { if (offAt && t >= offAt) music('off'); pump(0.15); }); c.resume(); });
-    })(Math.round(t * 10) / 10);
+    var Q = {}, qk = function (x) { return Math.round(x * 44100 / 128); };   // optional 4th arg ev: [[time s, fn(HBAudio, t)], ...] run at render quanta
+    for (t = 0.1; t < dur - 0.05; t += 0.1) { var k0 = qk(Math.round(t * 10) / 10); Q[k0] = Q[k0] || []; }
+    (arguments[3] || []).forEach(function (e) { var k = qk(e[0]); if (k > 0 && e[0] < dur - 0.01) (Q[k] = Q[k] || []).push(e[1]); });
+    Object.keys(Q).forEach(function (k) { var tt = k * 128 / 44100;
+      c.suspend(tt).then(function () { run(function () { Q[k].forEach(function (f) { f(A, c.currentTime); }); if (offAt && tt >= offAt) music('off'); pump(0.15); }); c.resume(); });
+    });
     return c.startRendering().then(function (b) {
       var pk = 0, s2 = 0, n = 0;
       for (var ch = 0; ch < b.numberOfChannels; ch++) {
         var d = b.getChannelData(ch);
         for (var i = 0; i < d.length; i++) { var v = Math.abs(d[i]); if (v > pk) pk = v; s2 += v * v; n++; }
       }
-      return new Promise(function (res) { setTimeout(function () { res({ peak: pk, rms: Math.sqrt(s2 / n), after: after, endTrack: (og.fe || TR[og.tr]).id, liveEnd: og.live, mMax: og.mMax, mLiveEnd: og.mLive }); }, 50); });
+      return new Promise(function (res) { setTimeout(function () { res({ peak: pk, rms: Math.sqrt(s2 / n), after: after, endTrack: (og.fe || TR[og.tr]).id, liveEnd: og.live, mMax: og.mMax, mLiveEnd: og.mLive, buf: b }); }, 50); });
     });
   }
 };

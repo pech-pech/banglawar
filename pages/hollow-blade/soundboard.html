@@ -1,0 +1,866 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Hollow Blade v6 Soundboard (Groove Core)</title>
+<style>
+:root{--bg:#05060d;--fg:#dff;--cy:#0cf;--am:#fa0;--vi:#a6f;--rd:#f36;--gr:#3f9}
+html,body{margin:0;background:var(--bg);color:var(--fg);font-family:system-ui,Segoe UI,Roboto,sans-serif}
+main{max-width:1000px;margin:0 auto;padding:16px}
+h1{margin:4px 0 2px;letter-spacing:4px;text-shadow:0 0 12px var(--cy)}
+h2{margin:22px 0 8px;font-size:15px;letter-spacing:2px;opacity:.75;text-transform:uppercase}
+p{margin:4px 0;opacity:.75;font-size:14px}
+.g{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+button{min-height:60px;font-size:17px;border-radius:12px;border:2px solid var(--c,var(--cy));background:#0a1424;color:var(--fg);cursor:pointer;box-shadow:0 0 10px color-mix(in srgb,var(--c,var(--cy)) 45%,transparent);padding:6px 10px}
+button:active{transform:scale(.97);background:#123}
+button.on{background:#0d3048}
+.row{display:flex;flex-wrap:wrap;gap:14px;align-items:center;margin:8px 0}
+label{display:flex;gap:8px;align-items:center;font-size:15px}
+input[type=range]{width:200px;accent-color:#0cf}
+#meter{height:10px;background:#0a1020;border:1px solid #234;border-radius:6px;overflow:hidden}
+#meterBar{height:100%;width:0;background:linear-gradient(90deg,#08f,#8ff,#f36)}
+#st{font-family:ui-monospace,monospace;font-size:13px;opacity:.7}
+</style></head><body><main>
+<h1>HOLLOW BLADE · SOUND</h1>
+<p>Every sound is synthesized live in the browser (no audio files). Tap any button — the first tap switches audio on.</p>
+<div id="meter"><div id="meterBar"></div></div><div id="st">audio: locked</div>
+
+<h2>Blade</h2><div class="g" id="gBlade"></div>
+<h2>Kills (combo pitch)</h2>
+<div class="row"><label>combo <input id="combo" type="range" min="1" max="12" value="1"><span id="comboV">1</span></label></div>
+<div class="g" id="gHit"></div>
+<h2>Hurt &amp; danger</h2><div class="g" id="gHurt"></div>
+<h2>Focus</h2><div class="g" id="gFocus"></div>
+<h2>Stingers &amp; UI</h2><div class="g" id="gSting"></div>
+<h2>Music</h2>
+<div class="g" id="gMusic"></div>
+<div class="row"><label>intensity <input id="inten" type="range" min="0" max="100" value="0"><span id="intenV">0.00</span></label>
+<span style="font-size:13px;opacity:.65">0 bass+pad · 0.4 drums · 0.7 arp · 1 lead + extra hats</span></div>
+<h2>Tracks</h2>
+<p>Pick a track (starts "play" music if nothing is playing). Changes crossfade on the next bar. "title" music uses its own calm theme.</p>
+<div id="tr" style="font-family:ui-monospace,monospace;font-size:14px;margin:6px 0">track: -</div>
+<div class="g" id="gTrack"></div>
+<h2>File tracks (.ogg / .mp3 loops)</h2>
+<p>Load one or more music files from your device; each becomes a track button. Decoding happens on load (after the first tap).</p>
+<div class="row"><label style="min-height:56px">load file(s) <input id="fileIn" type="file" accept=".ogg,.opus,.mp3,.m4a,.wav,audio/*" multiple style="font-size:16px;color:#dff"></label></div>
+<div id="fileSt" style="font-family:ui-monospace,monospace;font-size:13px;opacity:.75;margin:4px 0"></div>
+<div class="g" id="gFile"></div>
+<h2>Groove Core (music-game package A, ideas 1-7)</h2>
+<p><b>Not heard by ear yet.</b> Every slice is a note in the current track's key (pentatonic + current chord, climbing with the combo, 2-octave cap);
+2-3 kills within 120 ms ring as a chord; the swish/click plays at once and the pitched tail waits for the next 16th (32nd at 132+ BPM) only if that is 40 ms or less away.
+Combo 3/6/10 bring in drums/arp/lead; miss, wrong way and bomb take the top layers out until a bar line. Focus = tape-stop (an octave down, same tempo).
+Toggle Groove OFF to A/B against the old sounds (saved as hb.groove).</p>
+<div id="gst" style="font-family:ui-monospace,monospace;font-size:13px;opacity:.75;margin:4px 0">groove: -</div>
+<div class="g" id="gGroove"></div>
+<h2>Groove Core: rendered demos (OfflineAudioContext, mono WAV)</h2>
+<p>idea1 has an A/B pair (LEGACY = old fixed E-minor pitches over Overclock in F# minor, GROOVE = new).</p>
+<style>.demo{display:flex;gap:12px;align-items:center;margin:6px 0;font-size:15px}.demo span{min-width:330px}</style>
+<div class="demo"><span>idea1 in key GROOVE</span><audio controls preload="none" src="audio-demo/idea1-in-key-GROOVE.wav"></audio></div>
+<div class="demo"><span>idea1 in key LEGACY</span><audio controls preload="none" src="audio-demo/idea1-in-key-LEGACY.wav"></audio></div>
+<div class="demo"><span>idea2 transient now note on grid</span><audio controls preload="none" src="audio-demo/idea2-transient-now-note-on-grid.wav"></audio></div>
+<div class="demo"><span>idea3 layers build drop rebuild</span><audio controls preload="none" src="audio-demo/idea3-layers-build-drop-rebuild.wav"></audio></div>
+<div class="demo"><span>idea4 bomb scratch filter drop</span><audio controls preload="none" src="audio-demo/idea4-bomb-scratch-filter-drop.wav"></audio></div>
+<div class="demo"><span>idea5 bum notes miss wrong</span><audio controls preload="none" src="audio-demo/idea5-bum-notes-miss-wrong.wav"></audio></div>
+<div class="demo"><span>idea6 focus tape stop</span><audio controls preload="none" src="audio-demo/idea6-focus-tape-stop.wav"></audio></div>
+<div class="demo"><span>idea7 clang waveclear cadence wavestart riser</span><audio controls preload="none" src="audio-demo/idea7-clang-waveclear-cadence-wavestart-riser.wav"></audio></div>
+<h2>Mix</h2>
+<div class="row">
+<label>sfx <input id="sfx" type="range" min="0" max="100"></label>
+<label>music <input id="mus" type="range" min="0" max="100"></label>
+</div>
+<div class="g" id="gMix"></div>
+</main>
+<script>
+/* hb-audio.js - Hollow Blade procedural audio. Code-synthesized WebAudio only: no samples, no network.
+   API: window.HBAudio (see bottom). Every call is a silent no-op before unlock() or when WebAudio is missing.
+   Graph: [sfx bus] + [music layers -> duck -> slow-mo lowpass -> music bus] -> compressor/limiter -> trim -> master(mute) -> out.
+   All randomness comes from a seeded mulberry32 (HBAudio.seed). */
+(function (W) {
+'use strict';
+var AC = W.AudioContext || W.webkitAudioContext;
+function ls(k) { try { return W.localStorage.getItem(k); } catch (e) { return null; } }
+function ss(k, v) { try { W.localStorage.setItem(k, String(v)); } catch (e) {} }
+function num(k, d) { var v = parseFloat(ls(k)); return v >= 0 && v <= 1 ? v : d; }
+function cl(x) { x = +x; return x > 0 ? (x < 1 ? x : 1) : 0; }          // NaN -> 0
+function sm(a, b, x) { x = cl((x - a) / (b - a)); return x * x * (3 - 2 * x); }
+function mb(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; var t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+
+var rnd;
+function seed(n) { rnd = mb((n >>> 0) || 1); genMel(n >>> 0); }
+
+var muted = ls('hb.muted') === '1', sfxV = num('hb.sfx', 0.9), musV = num('hb.music', 0.5);
+var G = null, offline = false, wantM = 'off', wantI = 0;  // wantT/pref: see tracks
+var CAP = 24, MCAP = 40, MUS = 0.32, SFX = 1.8; // sfx source cap, music source cap, bus scales (music sits under sfx)
+var LAY = ['pad', 'bass', 'drum', 'arp', 'lead'], STATES = ['title', 'play', 'summary', 'result', 'off'];
+var PENT = [0, 3, 5, 7, 10, 12, 15, 17, 19, 22, 24];   // minor pentatonic steps for combo pitch
+
+function build(c) {
+  var g = { c: c, live: 0, mLive: 0, lastSl: -9, slN: 0, step: 0, nextT: 0, timer: null, state: 'off', inten: wantI, slow: false, tgt: {}, chg: -9, L: {}, tr: wantT < TR.length ? wantT : 0, pend: null, pendAt: 0, mMax: 0, fe: null, fv: null, req: null, xchg: -9, xv: 1, pf: null };
+  g.out = c.createGain(); g.out.gain.value = muted ? 0 : 1;
+  g.ms = new Set(); g.gv = { cw: null, cmbT: -9, tier: 0, dA: 0, dK: 0, ws: null };   // Groove Core: live music sources (tape-stop), groove state
+  var cp = c.createDynamicsCompressor();
+  cp.threshold.value = -14; cp.knee.value = 3; cp.ratio.value = 20; cp.attack.value = 0.002; cp.release.value = 0.2;
+  var trim = c.createGain(); trim.gain.value = 0.8;
+  g.sfx = c.createGain(); g.sfx.gain.value = sfxV * SFX;
+  g.mus = c.createGain(); g.mus.gain.value = musV * MUS;
+  g.duck = c.createGain(); g.xf = c.createGain();
+  g.lp = c.createBiquadFilter(); g.lp.type = 'lowpass'; g.lp.frequency.value = 18000; g.lp.Q.value = 0.7;
+  LAY.forEach(function (k) { var n = c.createGain(); n.gain.value = 0; n.connect(g.xf); g.L[k] = n; g.tgt[k] = 0; });
+  g.xf.connect(g.duck); g.duck.connect(g.lp); g.lp.connect(g.mus); g.mus.connect(cp); g.sfx.connect(cp);
+  cp.connect(trim); trim.connect(g.out); g.out.connect(c.destination);
+  g.an = c.createAnalyser(); g.an.fftSize = 1024; g.out.connect(g.an);
+  var len = c.sampleRate | 0, b = c.createBuffer(1, len, c.sampleRate), d = b.getChannelData(0), r = mb(7);
+  for (var i = 0; i < len; i++) d[i] = r() * 2 - 1;
+  g.nb = b;
+  return g;
+}
+
+function now() { return G.c.currentTime + 0.005; }
+function ok(n, pri) { return G && !muted && sfxV > 0 && (offline || G.c.state === 'running') && G.live + n <= CAP + (pri ? 8 : 0); }
+
+// envelope: linear attack, then exp decay (r falsy) or hold + linear release r
+function env(p, t, a, d, v, r) {
+  p.setValueAtTime(0, t); p.linearRampToValueAtTime(v, t + a);
+  if (r) { p.setValueAtTime(v, t + d - r); p.linearRampToValueAtTime(0, t + d); }
+  else { p.exponentialRampToValueAtTime(0.0001, t + d); p.linearRampToValueAtTime(0, t + d + 0.015); }
+}
+// o: t start, d dur, a attack, v level, r release, to dest, ft/ff/ff1/q filter, m music voice, cb on end
+function play(s, o) {
+  var c = G.c, t = o.t, g = c.createGain(), n = [g], last = s, f, gg = G, m = o.m;
+  if (o.ft) {
+    f = c.createBiquadFilter(); f.type = o.ft; f.frequency.setValueAtTime(o.ff, t);
+    if (o.ff1) f.frequency.exponentialRampToValueAtTime(o.ff1, t + o.d);
+    f.Q.value = o.q || 0.7; s.connect(f); last = f; n.push(f);
+  }
+  last.connect(g); env(g.gain, t, o.a || 0.004, o.d, o.v, o.r); g.connect(o.to || G.sfx);
+  if (m) { if (++gg.mLive > gg.mMax) gg.mMax = gg.mLive; s._d0 = o.d0 || 0; gg.ms.add(s); } else gg.live++;
+  s.onended = function () {
+    if (m) { gg.mLive--; gg.ms.delete(s); } else gg.live--;
+    try { s.disconnect(); n.forEach(function (x) { x.disconnect(); }); } catch (e) {}
+    if (o.cb) o.cb(gg);
+  };
+  if (o.off != null) s.start(t, o.off); else s.start(t);
+  s.stop(t + o.d + 0.04);
+}
+function tone(o) {
+  var s = G.c.createOscillator(); s.type = o.w || 'sine'; o.t = o.t || now();
+  s.frequency.setValueAtTime(o.f, o.t);
+  if (o.f1) s.frequency.exponentialRampToValueAtTime(o.f1, o.t + (o.g || o.d));
+  if (o.det) s.detune.value = o.det;
+  play(s, o);
+}
+function nz(o) {
+  var s = G.c.createBufferSource(); s.buffer = G.nb; s.loop = true; o.t = o.t || now(); o.off = rnd() * 0.8;
+  if (o.det && s.detune) s.detune.value = o.det;
+  play(s, o);
+}
+// fire a list of voice specs if the voice budget allows; o.n = noise, otherwise oscillator; o.dt = delay
+function fire(list, pri) {
+  if (!ok(list.length, pri)) return false;
+  var t = now(), q = !GROOVE ? 0 : TAG.qT != null ? Math.max(0, Math.min(QMAX, TAG.qT - t)) : qd(t), D = TRACE ? grid() : 0;   // Groove: o.tq voices wait for the grid (<= QMAX)
+  TAG.qOut = t + q;
+  list.forEach(function (o) {
+    var b = o.dt || 0; o.t = t + b + (o.tq ? q : 0);
+    if (TRACE && TRACE.length < 5000) TRACE.push({ ev: TAG.ev || '', al: TAG.al || null, t0: t, t: o.t, b: b, f: o.f || 0, tq: !!o.tq, nz: !!o.n, D: D, g0: G.nextT });
+    (o.n ? nz : tone)(o);
+  });
+  return true;
+}
+function st(f, k) { return f * Math.pow(2, k / 12); }
+function vary() { return 1 + (rnd() - 0.5) * 0.012; }
+function duck(lvl, back) {
+  var p = G.duck.gain, t = G.c.currentTime;
+  p.cancelScheduledValues(t); p.setValueAtTime(p.value, t); p.linearRampToValueAtTime(lvl, t + 0.03); p.linearRampToValueAtTime(1, t + back);
+}
+
+/* ---------------- music: data-driven tracks ----------------
+   ch: 8-bar chord loop, semitones from key + m/M (looped twice = 16 bars, section B varies).
+   Patterns are 16 steps (one bar of 16ths); [A, B] = section A/B variants.
+   k kick, s snare, h hat (x closed, o open), b bass (x root, o octave, 5 fifth),
+   arp digits 1-4 = chord tones (4 = root up an octave) at every ar-th step; lp lead step slots, lr chance, ll length (16ths). */
+var TR = [
+  { id: 'hollow', name: 'Hollow Drive', bpm: 118, key: 9, kn: 'A minor', ch: '0m 8M 3M 10M 0m 8M 10M 7m',
+    k: 'x...x...x...x...', s: '....x.......x...', h: ['..x...x...x...x.', '..x...x...x...xo'], b: 'x.x.x.o.x.x.x.o.', bf: 700, bl: 1.7,
+    arp: ['12321323', '12341432'], ar: 1, aw: 'square', ao: 12, af: 2200, lw: 'triangle', lp: [0, 3, 6, 8, 11, 14], lr: 0.75, ll: 3, pw: 'sawtooth', pf: 650 },
+  { id: 'abyss', name: 'Abyss Run', bpm: 132, key: 2, kn: 'D minor (harmonic)', ch: '0m 5m 8M 7M 0m 5m 1M 7M',
+    k: ['x...x...x...x..x', 'x...x...x..xx...'], s: '....x.......x...', h: ['..x...x...x...x.', '.xx..xx..xx..xxo'], b: 'xxoxxxoxxxoxxxo5', bf: 900, bl: 0.8,
+    arp: ['1323', '1424'], ar: 2, aw: 'sawtooth', ao: 0, af: 1400, lw: 'sawtooth', lf: 1800, lv: 0.05, lp: [0, 4, 7, 10, 12], lr: 0.7, ll: 4, pw: 'sawtooth', pf: 520 },
+  { id: 'leviathan', name: 'Leviathan', bpm: 100, key: 4, kn: 'E phrygian', ch: '0m 1M 0m 10M 0m 1M 3M 1M',
+    k: ['x.....x...x.....', 'x.....x...x...x.'], kf: 120, kd: 0.45, s: '........x.......', h: ['x...x...x...x...', 'x.x.x.x.x.x.x.xo'], b: 'x.......x.o.....', bf: 420, bl: 6, bw: 'square',
+    arp: ['1234', '3214'], ar: 4, aw: 'triangle', ao: 12, af: 3000, lw: 'square', lf: 1200, lv: 0.045, lp: [0, 8], lr: 0.8, ll: 8, pw: 'sawtooth', pf: 480 },
+  { id: 'prism', name: 'Prism Rise', bpm: 124, key: 0, kn: 'C major', ch: '0M 7M 9m 5M 0M 7M 5M 7M',
+    k: 'x...x...x...x...', s: '....x.......x...', sf: 2600, h: ['..x...x...x...x.', '..x.x.x...x.x.xo'], b: 'x..x..x.x..x..o.', bf: 1000, bl: 1.6,
+    arp: ['1234', '4321'], ar: 1, aw: 'triangle', ao: 12, af: 4000, lw: 'square', lf: 2600, lv: 0.04, lp: [0, 2, 4, 7, 10, 12, 14], lr: 0.6, ll: 2, pw: 'sawtooth', pf: 1100 },
+  { id: 'overclock', name: 'Overclock', bpm: 138, key: 6, kn: 'F# minor', ch: '0m 10M 8M 10M 0m 3M 8M 7M',
+    k: ['x...x...x...x...', 'x...x...x.x.x...'], s: '....x.......x...', h: ['x.xxx.xxx.xxx.xx', 'xxxxxxxxxxxxxxxo'], b: 'xoxoxoxoxoxoxoxo', bf: 1100, bl: 0.9,
+    arp: ['13243142', '12341234'], ar: 1, aw: 'square', ao: 12, af: 2600, lw: 'sawtooth', lf: 3000, lv: 0.045, lp: [0, 2, 4, 6, 8, 10, 12, 14], lr: 0.55, ll: 2, pw: 'sawtooth', pf: 800 }
+];
+// track-independent calm title theme: slow pad + sparse bells
+var TITLE = { id: 'title', bpm: 76, key: 2, ch: '0m 10M 8M 7m 0m 3M 10M 7M', calm: 1, k: '', s: '', h: '', b: '', arp: [''], ar: 1,
+  lw: 'sine', lv: 0.06, lp: [0, 6, 10], lr: 0.6, ll: 8, pw: 'sawtooth', pf: 900 };
+function chord(key, tok) {   // -> [bass, triad ascending], triad voiced into 54..65, bass into 40..51
+  var r = key + parseInt(tok, 10), iv = [0, tok.slice(-1) === 'm' ? 3 : 4, 7];
+  return [40 + ((r - 40) % 12 + 12) % 12].concat(iv.map(function (i) { return 54 + ((r + i - 54) % 12 + 12) % 12; }).sort(function (a, b) { return a - b; }));
+}
+TR.concat([TITLE]).forEach(function (S) { S.C = S.ch.split(' ').map(function (t) { return chord(S.key, t); }); });
+function genMel(n) {          // 16-bar lead per track: section A random walk on chord tones, section B = mutated A
+  TR.concat([TITLE]).forEach(function (S, ti) {
+    var r = mb((n ^ Math.imul(ti + 1, 0x9E3779B1)) >>> 0), v = 2, M = [], i;
+    for (i = 0; i < 128; i++) {
+      if (S.lp.indexOf(i & 15) >= 0 && r() < S.lr) { v = Math.min(6, Math.max(1, v + (r() * 3 | 0) - 1)); M.push(v); } else M.push(0);
+    }
+    for (i = 0; i < 128; i++) {
+      var a = M[i];
+      if (a && r() < 0.35) a = r() < 0.3 ? 0 : Math.min(6, Math.max(1, a + (r() < 0.5 ? 1 : -1)));
+      else if (!a && S.lp.indexOf(i & 15) >= 0 && r() < 0.2) a = 1 + (r() * 6 | 0);
+      M.push(a);
+    }
+    S.mel = M;
+  });
+}
+seed(0x4b1d);
+/* file tracks (pre-rendered loops): FL entries {id, name, tags, data, buf, norm, ms, p, res}; index = TR.length + i */
+var FL = [], ERR = [], dq = Promise.resolve(), FT = 0.055;   // FT: target RMS so files sit at synth-music loudness
+function tIdx(x) {
+  var n = TR.length + FL.length, i;
+  if (typeof x === 'number') return x >= 0 && x < n ? x | 0 : -1;
+  for (i = 0; i < n; i++) if (tAt(i).id === x) return i;
+  return -1;
+}
+function tAt(i) { return i < TR.length ? TR[i] : FL[i - TR.length]; }
+var pref = ls('hb.track') || 'auto';                 // may name a file track that registers later
+var wantT = tIdx(pref) < 0 ? 0 : tIdx(pref);
+function b64(s) { var b = atob(s.replace(/^data:[^,]*,/, '')), u = new Uint8Array(b.length); for (var i = 0; i < b.length; i++) u[i] = b.charCodeAt(i); return u.buffer; }
+var MEM = 0, MEMP = 0, wantPf = null;                // decoded bytes held now / peak
+function dbytes(e) { return e.buf ? e.buf.length * e.buf.numberOfChannels * 4 : 0; }
+function memo() { MEM = 0; FL.forEach(function (e) { MEM += dbytes(e); }); if (MEM > MEMP) MEMP = MEM; }
+function keepSet() {            // at most 2 decoded buffers: playing, then requested/current, then prefetched
+  var k = [];
+  if (G) [G.fv && G.fv.e, G.req || G.fe, G.pf].forEach(function (e) { if (e && k.indexOf(e) < 0 && k.length < 2) k.push(e); });
+  return k;
+}
+function trim() {               // drop AudioBuffers outside the keep set (re-decoded later from the kept bytes)
+  if (offline) return;
+  var k = keepSet();
+  FL.forEach(function (e) { if (e.buf && k.indexOf(e) < 0) e.buf = null; });
+  memo();
+  if (G.pf && !G.pf.buf && !G.pf.dec && !G.pf.err && k.indexOf(G.pf) >= 0) ensure(G.pf);   // deferred prefetch now fits
+}
+function ensure(e) {            // lazy decode from the stored encoded bytes, one at a time; resolves true/false
+  if (e.buf) return Promise.resolve(true);
+  if (e.err) return Promise.resolve(false);   // failed once: don't retry
+  if (e.dec) return e.dec;
+  var c = G.c;
+  e.dec = dq = dq.then(function () {
+    if (e.buf) return e.buf;
+    trim();                     // free first so peak stays at 2 buffers
+    return new Promise(function (ok, no) {
+      var t0 = W.performance ? performance.now() : 0, done = 0;
+      function y(b) { if (!done++) { e.ms = (W.performance ? performance.now() : 0) - t0; ok(b); } }
+      var r = c.decodeAudioData(e.bytes.slice(0), y, no);
+      if (r && r.then) r.then(y, no);
+    });
+  }).then(function (b) {
+    if (!e.norm) { var d = b.getChannelData(0), s2 = 0, n = 0; for (var i = 0; i < d.length; i += 16) { s2 += d[i] * d[i]; n++; } e.norm = Math.min(1, FT / (Math.sqrt(s2 / n) || 1)); }
+    e.buf = b; e.dur = b.duration; e.dec = null; trim(); return true;
+  }, function (er) { e.dec = null; e.err = String(er && er.message || er); ERR.push({ id: e.id, error: e.err }); return false; });
+  return e.dec;
+}
+function prefetch(x) {
+  var i = tIdx(x), e = i >= TR.length ? tAt(i) : null;
+  wantPf = e; if (!G || !e) return;
+  G.pf = e;
+  if (keepSet().indexOf(e) >= 0 && !e.err) ensure(e);
+}
+function ramp(p, v, T) { var t = G.c.currentTime; p.cancelScheduledValues(t); p.setValueAtTime(p.value, t); p.linearRampToValueAtTime(v, t + T); }
+function startFile(e) {
+  var c = G.c, s = c.createBufferSource(), f = c.createBiquadFilter(), g = c.createGain(), gg = G;
+  s.buffer = e.buf; s.loop = true; s.playbackRate.value = G.slow ? 0.8 : 1;
+  f.type = 'lowpass'; f.frequency.value = 1200; g.gain.value = 0;
+  s.connect(f); f.connect(g); g.connect(G.duck);
+  if (++gg.mLive > gg.mMax) gg.mMax = gg.mLive;
+  s.onended = function () { gg.mLive--; try { s.disconnect(); f.disconnect(); g.disconnect(); } catch (er) {} };
+  s.start(c.currentTime + 0.02);
+  return { s: s, f: f, g: g, e: e };
+}
+function stopFile(v, T) { ramp(v.g.gain, 0, T); v.s.stop(G.c.currentTime + T + 0.05); }
+function fileApply(T) {          // play: lowpass 1.2 kHz + 0.7 gain at intensity 0 -> open + 1.0 at 1; summary/result: 0.35 + lowpass
+  var v = G.fv, x = G.inten, play = G.state === 'play';
+  ramp(v.g.gain, (play ? 0.7 + 0.3 * x : 0.35) * v.e.norm, T);
+  ramp(v.f.frequency, play ? 1200 * Math.pow(15, x) : 900, T);
+}
+function syncFile(T) {           // file plays when a file track is chosen and state is play/summary/result; synth (xf) otherwise
+  var on = G.fe && G.state !== 'off' && G.state !== 'title';
+  if (G.fv && (!on || G.fv.e !== G.fe)) { stopFile(G.fv, T); G.fv = null; }
+  if (on && !G.fv) G.fv = startFile(G.fe);
+  if (G.fv) fileApply(G.fv.g.gain.value < 0.01 ? T : 0.5);
+  var xv = G.fe && G.state !== 'title' ? 0 : 1;
+  if (G.pend == null && G.xv !== xv) { ramp(G.xf.gain, xv, T); G.xv = xv; G.xchg = G.c.currentTime; }
+}
+function mt(m) { return 440 * Math.pow(2, (m - 69) / 12); }
+function spec() { return G.state === 'title' ? TITLE : TR[G.tr]; }
+function sd() { return 60 / spec().bpm / 4 * (G.slow && !GROOVE ? 1.25 : 1); }      // one 16th (Groove: tempo never changes in slow-mo; legacy: slower)
+function act(k) { return G.tgt[k] > 0.001 || G.c.currentTime - G.chg < 0.7; }
+function pat(x, sec) { return typeof x === 'string' ? x : x[sec]; }
+function mv(L, o) {
+  if (G.mLive >= MCAP) return;
+  o.m = 1; o.to = G.L[L]; o.d0 = o.det || 0; if (G.slow) o.det = o.d0 + (GROOVE ? -1200 : -70);   // Groove: tape-stop holds an octave down (same key)
+  (o.n ? nz : tone)(o);
+}
+function sched(s, t) {
+  var S = spec(), q = s & 15, bar = (s >> 4) & 15, sec = bar >> 3, ch = S.C[bar & 7], D = sd(), i, c;
+  if (act('pad') && q === 0)
+    for (i = 1; i < 4; i++) [-7, 7].forEach(function (dt) {
+      mv('pad', { t: t, w: S.pw, f: mt(ch[i]), det: dt, ft: 'lowpass', ff: S.pf + dt * 6, q: 0.8, a: 0.6, r: 0.5, d: D * 16 + 0.35, v: 0.03 });
+    });
+  if (S.calm) {   // title: pad + bells only
+    if (act('lead') && S.mel[s & 255]) mv('lead', { t: t, f: mt(tn(ch, S.mel[s & 255]) + 12), a: 0.01, d: D * S.ll, v: S.lv });
+    return;
+  }
+  c = S.b.charAt(q);
+  if (act('bass') && c !== '.')
+    mv('bass', { t: t, w: S.bw || 'sawtooth', f: mt(ch[0] + (c === 'o' ? 12 : c === '5' ? 7 : 0)), ft: 'lowpass', ff: S.bf, ff1: 180, q: 3, a: 0.006, d: D * S.bl, v: 0.16 });
+  var ht = GROOVE && G.slow;   // Groove focus: half-time feel (kick on 1, snare on 3, sparse arp, no lead) on an unchanged clock
+  if (ht && act('drum')) {
+    if (q === 0) mv('drum', { t: t, f: S.kf || 150, f1: 45, g: 0.12, a: 0.003, d: S.kd || 0.28, v: 0.3 });
+    if (q === 8) mv('drum', { t: t, n: 1, ft: 'bandpass', ff: S.sf || 1800, q: 0.8, a: 0.002, d: 0.14, v: 0.16 });
+  } else if (act('drum')) {
+    var fill = (bar === 15 && q >= 12) || (bar === 7 && q >= 14);
+    if (pat(S.k, sec).charAt(q) === 'x') mv('drum', { t: t, f: S.kf || 150, f1: 45, g: 0.12, a: 0.003, d: S.kd || 0.28, v: 0.3 });
+    if (S.s.charAt(q) === 'x' || fill) mv('drum', { t: t, n: 1, ft: 'bandpass', ff: S.sf || 1800, q: 0.8, a: 0.002, d: 0.14, v: fill && S.s.charAt(q) !== 'x' ? 0.09 : 0.16 });
+    c = pat(S.h, sec).charAt(q);
+    if (c === 'x') mv('drum', { t: t, n: 1, ft: 'highpass', ff: 7500, a: 0.002, d: 0.045, v: 0.08 });
+    if (c === 'o') mv('drum', { t: t, n: 1, ft: 'highpass', ff: 6500, a: 0.004, d: 0.22, v: 0.06 });
+  }
+  if (act('arp') && !(q % (S.ar * (ht ? 2 : 1)))) {
+    var ap = S.arp[sec], ix = +ap.charAt((q / S.ar | 0) % ap.length);
+    mv('arp', { t: t, w: S.aw, f: mt((ix === 4 ? ch[1] + 12 : ch[ix]) + S.ao), ft: 'lowpass', ff: S.af, ff1: 800, a: 0.004, d: D * S.ar * 0.9, v: 0.05 });
+  }
+  if (act('lead') && !ht) {
+    var mi = S.mel[s & 255];
+    if (mi) mv('lead', { t: t, w: S.lw, f: mt(tn(ch, mi) + 12), ft: S.lf ? 'lowpass' : 0, ff: S.lf, a: 0.02, d: D * S.ll, v: S.lv || 0.07 });
+    if (q & 1) mv('lead', { t: t, n: 1, ft: 'highpass', ff: 9000, a: 0.002, d: 0.03, v: 0.04 });   // extra 16th hats
+  }
+}
+function tn(ch, v) { return v > 3 ? ch[v - 3] + 12 : ch[v]; }
+function pump(h) {
+  var g = G, c = g.c;
+  if (g.nextT < c.currentTime) g.nextT = c.currentTime + 0.03;
+  while (g.nextT < c.currentTime + h) {
+    if (g.pend != null && !(g.step & 15) && g.nextT >= g.pendAt) { g.tr = g.pend; g.pend = null; g.step = 0; }
+    if (!(g.fe && g.state !== 'title' && c.currentTime - g.xchg > 1.2)) sched(g.step, g.nextT);   // synth silent under a file track
+    g.nextT += sd(); g.step++;
+  }
+  if (GROOVE) gtick(c.currentTime);
+  if (g.state === 'off' && c.currentTime - g.chg > 0.8 && g.timer) { clearInterval(g.timer); g.timer = null; }
+}
+function targets() {
+  var s = G.state, x = G.inten, T = { pad: 0, bass: 0, drum: 0, arp: 0, lead: 0 }, t = G.c.currentTime;
+  if (s === 'title') { T.pad = 1; T.lead = 0.6; }
+  else if (s === 'summary') T.pad = 1;
+  else if (s === 'result') { T.pad = 1; T.arp = 0.7; }
+  else if (s === 'play') { T.pad = 1 - 0.5 * sm(0.5, 1, x); T.bass = 1; T.drum = sm(0.3, 0.45, x); T.arp = sm(0.6, 0.75, x); T.lead = sm(0.88, 1, x); if (GROOVE) gT(T); }
+  LAY.forEach(function (k) {
+    var p = G.L[k].gain, u = GROOVE && s === 'play' ? dropEnd(k) : 0; p.cancelScheduledValues(t); p.setValueAtTime(p.value, t);
+    if (u > t) { u = Math.max(u, t + 0.06); p.linearRampToValueAtTime(0, t + 0.05); p.setValueAtTime(0, u); p.linearRampToValueAtTime(T[k], u + (k === 'arp' || k === 'lead' ? 0.4 : 0.03)); }   // Groove drop: out now, back on the bar line
+    else p.linearRampToValueAtTime(T[k], t + 0.5);
+    G.tgt[k] = T[k];
+  });
+  G.chg = t;
+  if (G.fv) fileApply(0.5);
+}
+function music(s) {
+  s = STATES.indexOf(s) < 0 ? 'off' : s; wantM = s;
+  if (!G || s === G.state) return;
+  if (G.state === 'off' && G.c.currentTime - G.chg > 0.8) { G.step = 0; G.nextT = G.c.currentTime + 0.06; }
+  else if (s === 'title' || G.state === 'title') G.step = 0;   // title theme has its own tempo/bars: restart at bar 0
+  G.state = s; targets(); syncFile(s === 'off' ? 0.6 : 1);
+  if (s !== 'off' && !G.timer && !offline) G.timer = setInterval(function () { if (G) pump(0.15); }, 25);
+}
+function setTrack(x) {
+  var i = tIdx(x); if (i < 0) return;
+  wantT = i;
+  if (!G) return;
+  if (i >= TR.length) {                          // file track: decode on first use, then ~1 s crossfade
+    var e = tAt(i); G.req = e; if (G.pf === e) G.pf = null;
+    var go = function (okd) {
+      if (G.req !== e) return;
+      G.req = null;
+      if (!okd) { wantT = 0; G.fe = null; setTrack(0); trim(); return; }   // decode failed: silent fallback to synth track 0
+      G.pend = null; G.fe = e; syncFile(1); trim();
+    };
+    if (e.buf) go(true); else ensure(e).then(go);
+    return;
+  }
+  G.req = null;
+  if (G.fe) { G.fe = null; G.pend = null; G.tr = i; G.step = 0; syncFile(1); trim(); return; }
+  if (i === (G.pend != null ? G.pend : G.tr)) return;
+  if (G.state === 'off' || G.state === 'title' || (!G.timer && !offline)) { G.tr = i; G.pend = null; return; }
+  var t = G.c.currentTime, D = sd(), Tb = G.nextT + ((16 - (G.step & 15)) & 15) * D, p = G.xf.gain;
+  if (Tb - t < 0.5) Tb += 16 * D;                  // switch on a bar line at least 0.5 s away
+  G.pend = i; G.pendAt = Tb - 0.02;
+  p.cancelScheduledValues(t); p.setValueAtTime(p.value, t); p.setValueAtTime(p.value, Math.max(t, Tb - 0.6));
+  p.linearRampToValueAtTime(0.2, Tb); p.linearRampToValueAtTime(1, Tb + 0.7);
+}
+function setSlow(on) {
+  on = !!on; if (!G || G.slow === on) return;
+  G.slow = on;
+  var t = G.c.currentTime, f = G.lp.frequency;
+  f.cancelScheduledValues(t); f.setValueAtTime(f.value, t); f.exponentialRampToValueAtTime(on ? 600 : 18000, t + (on ? 0.35 : 0.5));
+  if (GROOVE) { tape(on, t); return; }
+  if (G.fv) ramp(G.fv.s.playbackRate, on ? 0.8 : 1, 0.35);
+}
+
+/* ---------------- Groove Core (music-game package A, ideas 1-7) ----------------
+   1 hit notes from the track's pentatonic + current chord, climbing with combo (2-octave cap), 120 ms chord window;
+   2 transient now, pitched tail (o.tq) on the next 16th (32nd at 132+ BPM) only if <= 40 ms away;
+   3 combo tiers add drums/arp/lead, miss/wrong/bomb drop top layers until a bar line; 4 bomb scratch + low-pass drop;
+   5 bum notes (chord root +1 st, -40 c); 6 tape-stop in focus (clock unchanged); 7 bar-snapped riser/fill/cadence, chord-tuned clang.
+   Self-contained: HBAudio.groove = false (persisted in hb.groove) restores the legacy sounds. Audio randomness stays on rnd (own
+   mulberry32); never reads or writes game RNG and never blocks the game. */
+var GROOVE = ls('hb.groove') !== '0', QMAX = 0.040, CWIN = 0.12, TRACE = null, TAG = {};
+var PN = { prism: [0, 2, 4, 7, 9] }, MINP = [0, 3, 5, 7, 10];               // pentatonic per track: major for Prism, minor elsewhere
+var CAD = { prism: ['7M', '0M'], leviathan: ['1M', '0m'] }, CADM = ['10M', '0m'];   // V-I (major), bII-i (phrygian), bVII-i (minor)
+var FK = { id: 'file', key: 4, C: [chord(4, '0m')] };                       // file tracks carry no key yet (idea 12): legacy E minor
+function gS() { return G.fe && G.state !== 'title' ? FK : spec(); }
+function runs() { return G.state !== 'off' && !!(G.timer || offline); }
+function grid() { return G.fe || !runs() ? 0 : spec().bpm >= 132 ? sd() / 2 : sd(); }
+function qd(t) { var D = grid(); if (!D) return 0; var d = G.nextT + Math.ceil((t - G.nextT) / D - 1e-6) * D - t; return d <= QMAX ? Math.max(0, d) : 0; }
+function chNow(S, t) { if (S === FK || !runs()) return S.C[0]; return S.C[((G.step - Math.ceil((G.nextT - t) / sd() - 1e-6)) >> 4) & 7]; }
+function rootM(pc, lo) { return lo + ((pc - lo) % 12 + 12) % 12; }        // first MIDI note >= lo with pitch class pc
+function fq(m) { while (m > 120) m -= 12; return mt(m); }
+function allow(S, ch) {          // chord tones + the track's pentatonic notes that are not a semitone from a chord tone
+  var ct = ch.slice(1).map(function (m) { return m % 12; }), a = ct.slice();
+  (PN[S.id] || MINP).forEach(function (p) { p = (S.key + p) % 12; if (a.indexOf(p) < 0 && !ct.some(function (c) { var d = (c - p + 12) % 12; return d === 1 || d === 11; })) a.push(p); });
+  return { ct: ct, a: a };
+}
+function hn(combo, t) {          // -> hit note n (MIDI), next allowed note up, chord fifth below (combo 10+), allowed pitch classes
+  var S = gS(), ch = chNow(S, t), A2 = allow(S, ch), lo = rootM(S.key, 69), L = [], i, n, cw = G.gv.cw, c = Math.max(1, combo | 0);
+  for (i = lo; i <= lo + 24; i++) if (A2.a.indexOf(i % 12) >= 0 && (L.length || A2.ct.indexOf(i % 12) >= 0)) L.push(i);   // ladder starts on a chord tone
+  if (cw && t - cw.t < CWIN && cw.k < 3) {     // chord window: the 2nd/3rd quick kill rings the next chord tone up, at the same moment
+    for (n = cw.last + 1; n <= lo + 31 && A2.ct.indexOf(n % 12) < 0; n++);
+    if (n > lo + 31) for (n = cw.first - 1; A2.ct.indexOf(n % 12) < 0; n--);
+    cw.k++; cw.last = n; TAG.qT = cw.T;
+  } else {
+    n = c <= L.length ? L[c - 1] : L[L.length - 1 - (rnd() * 3 | 0)];   // 2-octave cap, then ornament around the top
+    G.gv.cw = { t: t, k: 1, first: n, last: n, T: null };
+  }
+  for (i = n + 1; A2.a.indexOf(i % 12) < 0; i++);
+  var fp = (ch[0] + 7) % 12, five = c >= 10 ? n - (((n - fp) % 12 + 12) % 12 || 12) : 0;
+  return { n: n, up: i, five: five, al: A2.a };
+}
+function gHit(type, combo) {
+  var t = G.c.currentTime, h = hn(combo, t), f = fq(h.n), L;
+  TAG.ev = 'hit'; TAG.al = h.al;
+  switch (type) {
+    case 'arm': L = [{ w: 'square', f: f / 2, ft: 'lowpass', ff: 3200, ff1: 700, d: 0.14, v: 0.07, tq: 1 }, { w: 'triangle', f: f, d: 0.24, v: 0.13, tq: 1 }, { n: 1, ft: 'highpass', ff: 4000, d: 0.06, v: 0.16 }]; break;
+    case 'big': L = [{ f: 140, f1: 45, d: 0.3, v: 0.42 }, { w: 'sawtooth', f: f / 2, ft: 'lowpass', ff: 2400, ff1: 400, d: 0.36, v: 0.09, tq: 1 }, { w: 'triangle', f: f, d: 0.4, v: 0.11, tq: 1 }, { n: 1, ft: 'lowpass', ff: 3000, ff1: 300, d: 0.25, v: 0.22 }]; break;
+    case 'split': L = [{ w: 'triangle', f: f, d: 0.15, v: 0.14, tq: 1 }, { w: 'triangle', f: fq(h.up), dt: 0.05, d: 0.18, v: 0.12, tq: 1 }, { n: 1, ft: 'bandpass', ff: 2500, q: 2, d: 0.05, v: 0.12 }]; break;
+    case 'small': L = [{ f: fq(h.n + 12), d: 0.1, v: 0.12, tq: 1 }, { w: 'triangle', f: fq(h.n + 24), d: 0.05, v: 0.04, tq: 1 }, { n: 1, ft: 'highpass', ff: 7000, d: 0.02, v: 0.05 }]; break;
+    default: L = [{ f: f, d: 0.26, v: 0.24, tq: 1 }, { w: 'triangle', f: f * 2, d: 0.12, v: 0.06, tq: 1 }, { n: 1, ft: 'highpass', ff: 6000, d: 0.03, v: 0.08 }];
+  }
+  if (h.five && (type === 'orb' || type === 'arm' || type === 'big')) L.push({ w: 'triangle', f: fq(h.five), d: 0.3, v: 0.05, tq: 1 });
+  var okd = fire(L), cw = G.gv.cw;
+  if (okd && cw.T == null) cw.T = TAG.qOut;
+  TAG = {};
+  G.gv.cmbT = t;
+  var tier = combo >= 10 ? 3 : combo >= 6 ? 2 : combo >= 3 ? 1 : 0;
+  if (tier !== G.gv.tier) { G.gv.tier = tier; if (G.state === 'play') targets(); }
+}
+function gT(T) { var k = G.gv.tier; if (k >= 1) T.drum = Math.max(T.drum, 1); if (k >= 2) T.arp = Math.max(T.arp, 1); if (k >= 3) T.lead = Math.max(T.lead, 1); }
+function dropEnd(k) { return k === 'arp' || k === 'lead' ? G.gv.dA : k === 'drum' || k === 'bass' ? G.gv.dK : 0; }
+function barAt(min) { var D = sd(), Tb = G.nextT + ((16 - (G.step & 15)) & 15) * D; while (Tb - G.c.currentTime < min) Tb += 16 * D; return Tb; }
+function dropLayers(bars, hard) {   // top layers (arp, lead) out until a bar line; hard (bomb) also drums + bass until the next bar line
+  if (!G || !GROOVE) return;
+  var t = G.c.currentTime, B = 16 * sd(), Tb = runs() && !G.fe ? barAt(hard ? 0.25 : 0.5 * B) : t + 1;
+  G.gv.dA = Math.max(G.gv.dA, Tb + Math.max(0, (bars || 1) - 1) * B);
+  if (hard) G.gv.dK = Math.max(G.gv.dK, Tb);
+  G.gv.tier = 0;
+  if (G.state === 'play') targets();
+  return Tb;
+}
+function gtick(t) {
+  var v = G.gv;
+  if (v.ws) wsLand();
+  if (v.tier && t - v.cmbT > 1.5) { v.tier = 0; if (G.state === 'play') targets(); }   // the game drops the combo after 1.2 s idle
+}
+function tape(on, t) {             // tape-stop: live music voices bend an octave down over 250 ms; tape-start bends back over 300 ms
+  G.ms.forEach(function (s) { var p = s.detune; if (!p) return; p.cancelScheduledValues(t); p.setValueAtTime(p.value, t); p.linearRampToValueAtTime(s._d0 + (on ? -1200 : 0), t + (on ? 0.25 : 0.3)); });
+  if (G.fv) { var p = G.fv.s.playbackRate; p.cancelScheduledValues(t); p.setValueAtTime(p.value, t);
+    if (on) { p.linearRampToValueAtTime(0.5, t + 0.25); p.linearRampToValueAtTime(0.8, t + 0.6); } else p.linearRampToValueAtTime(1, t + 0.3); }
+}
+function bum(lo) { var S = gS(); return rootM(chNow(S, G.c.currentTime)[0] % 12, lo) + 1; }   // a semitone above the chord root
+function gMiss() { var f = mt(bum(55)); TAG.ev = 'miss'; fire([{ w: 'triangle', f: f, f1: f * 0.94, det: -40, ft: 'lowpass', ff: 700, a: 0.01, d: 0.18, v: 0.12 }]); TAG = {}; dropLayers(1); }
+function gWrong() {
+  var f = mt(bum(36)); TAG.ev = 'wrong';
+  fire([{ w: 'triangle', f: 140, f1: 60, d: 0.16, v: 0.36 }, { w: 'square', f: f, det: -40, ft: 'lowpass', ff: 420, a: 0.01, d: 0.3, v: 0.09 }, { w: 'square', f: f, det: -15, ft: 'lowpass', ff: 420, a: 0.01, d: 0.3, v: 0.07 }]);
+  TAG = {}; dropLayers(1);
+}
+function gBomb() {
+  var t = G.c.currentTime, f = G.lp.frequency, back = G.slow ? 600 : 18000, Tb = runs() && !G.fe ? barAt(0.25) : t + 0.6;
+  TAG.ev = 'bomb';
+  if (fire([{ n: 1, ft: 'lowpass', ff: 4500, ff1: 140, a: 0.003, d: 1.1, v: 0.75 }, { f: 95, f1: 28, a: 0.004, d: 0.9, v: 0.75 },
+    { n: 1, ft: 'highpass', ff: 1500, a: 0.001, d: 0.12, v: 0.45 }, { w: 'square', f: 62, f1: 30, ft: 'lowpass', ff: 220, d: 0.5, v: 0.2 },
+    { n: 1, ft: 'bandpass', ff: 3000, ff1: 400, q: 6, a: 0.003, d: 0.09, v: 0.4 }, { n: 1, ft: 'bandpass', ff: 400, ff1: 2000, q: 6, dt: 0.09, a: 0.003, d: 0.09, v: 0.35 }], 1)) duck(0.2, 1.4);   // boom + record scratch
+  TAG = {};
+  Tb = Math.max(Tb, t + 0.2);
+  f.cancelScheduledValues(t); f.setValueAtTime(f.value, t); f.exponentialRampToValueAtTime(300, t + 0.18); f.setValueAtTime(300, Tb); f.exponentialRampToValueAtTime(back, Tb + 0.12);
+  if (G.fv) { var p = G.fv.s.playbackRate, r = G.slow ? 0.8 : 1; p.cancelScheduledValues(t); p.setValueAtTime(r, t); p.linearRampToValueAtTime(r * 0.85, t + 0.06); p.linearRampToValueAtTime(r, t + 0.12); }
+  dropLayers(1, true);
+}
+function gClang() {   // armour bell on the current chord root: partials root, fifth, octave, 12th, 2 octaves ("rings true")
+  var S = gS(), ch = chNow(S, G.c.currentTime), f = mt(rootM(ch[0] % 12, 64));
+  TAG.ev = 'clang'; TAG.al = allow(S, ch).a;
+  fire([1, 1.5, 2, 3, 4].map(function (p, i) { return { f: f * p, a: 0.002, d: [0.55, 0.4, 0.32, 0.22, 0.14][i], v: 0.1 - i * 0.012, tq: 1 }; })
+    .concat([{ n: 1, ft: 'highpass', ff: 3000, a: 0.001, d: 0.04, v: 0.2 }]));
+  TAG = {};
+}
+function tri(S, tok, lo) { var r = rootM((S.key + parseInt(tok, 10)) % 12, lo); return [r, r + (tok.slice(-1) === 'm' ? 3 : 4), r + 7]; }
+function gWaveStart(n) {       // thump now; the pitched riser starts on the next pump (after the game's setTrack) and lands on beat 1
+  TAG.ev = 'waveStart'; fire([{ f: 120, f1: 40, d: 0.35, v: 0.42 }], 1); TAG = {};
+  G.gv.ws = { n: Math.max(1, n | 0) };
+  if (!runs()) wsLand();
+}
+function wsLand() {
+  var w = G.gv.ws, t = G.c.currentTime, S, Tb; G.gv.ws = null;
+  if (G.req || G.fe || !runs()) { S = G.req || G.fe ? FK : spec(); Tb = t + 0.6; }
+  else { S = G.pend != null ? TR[G.pend] : spec(); Tb = G.pend != null ? G.pendAt + 0.02 : barAt(0.5); }
+  var x = Math.max(0.3, Tb - now()), cd = CAD[S.id] || CADM, ton = tri(S, cd[1], 57), r = rootM(S.key, 45), P = PN[S.id] || MINP;
+  TAG.ev = 'waveStart';
+  var L = [{ n: 1, ft: 'highpass', ff: 600, ff1: 6000, a: x * 0.92, d: x + 0.03, v: 0.12 },
+    { w: 'sawtooth', f: mt(r), f1: mt(r + 12), g: x, ft: 'lowpass', ff: 500, ff1: 3000, a: x * 0.9, d: x + 0.05, v: 0.05 },
+    { f: 120, f1: 40, dt: x, d: 0.35, v: 0.4 }, { w: 'triangle', f: mt(rootM(S.key, 81) + P[[0, 2, 3][(w.n - 1) % 3]]), dt: x, a: 0.003, d: 0.7, v: 0.06 }];
+  ton.forEach(function (m) { L.push({ w: 'sawtooth', f: mt(m + 12), ft: 'lowpass', ff: 2200, dt: x, d: 0.5, v: 0.05 }); });
+  fire(L, 1); TAG = {};
+}
+function gWaveClear() {        // sparkle now; 3-tom fill into the next half-bar; then pre-chord -> tonic cadence in the track's key
+  var S = gS(), t = G.c.currentTime, D = sd(), cd = CAD[S.id] || CADM, ch = chNow(S, t), Tb, r = rootM(S.key, 45), L;
+  if (runs() && !G.fe) { Tb = G.nextT + ((8 - (G.step & 7)) & 7) * D; while (Tb - t < 0.35) Tb += 8 * D; } else Tb = t + 0.35;
+  var x = Tb - now();
+  L = [{ w: 'triangle', f: mt(ch[1] + 24), d: 0.18, v: 0.07 }, { w: 'triangle', f: mt(ch[2] + 24), dt: 0.05, d: 0.18, v: 0.06 }];
+  [3, 2, 1].forEach(function (k, i) { var dt = x - k * D; if (dt > 0.02) L.push({ f: mt(r + [19, 12, 7][i]), f1: mt(r + [19, 12, 7][i]) * 0.6, dt: dt, a: 0.002, d: 0.16, v: 0.22 }); });
+  tri(S, cd[0], 57).forEach(function (m) { L.push({ w: 'sawtooth', f: mt(m + 12), ft: 'lowpass', ff: 2400, ff1: 900, dt: x, a: 0.01, d: 4 * D * 0.95, v: 0.05 }); });
+  tri(S, cd[1], 57).forEach(function (m) { L.push({ w: 'triangle', f: mt(m + 12), dt: x + 4 * D, a: 0.01, d: 0.9, v: 0.09 }); });
+  L.push({ f: mt(rootM(S.key, 81)), dt: x + 4 * D, a: 0.003, d: 1.0, v: 0.07 }, { f: 150, f1: 45, g: 0.12, dt: x, d: 0.28, v: 0.3 });
+  TAG.ev = 'waveClear'; fire(L, 1); TAG = {};
+}
+function gWin(stars) {
+  stars = Math.min(3, Math.max(0, stars | 0));
+  var S = gS(), cd = CAD[S.id] || CADM, r = rootM(S.key, 67), th = cd[1].slice(-1) === 'm' ? 3 : 4, L;
+  L = [0, th, 7, 12].map(function (s, i) { return { w: 'triangle', f: mt(r + s), dt: i * 0.09, d: 0.3, v: 0.12 }; });
+  tri(S, cd[1], 55).forEach(function (m) { L.push({ w: 'sawtooth', f: mt(m), ft: 'lowpass', ff: 1400, dt: 0.36, a: 0.08, r: 0.5, d: 1.5, v: 0.04 }); });
+  for (var i = 0; i < stars; i++) L.push({ f: mt(r + 24 + [0, th, 7][i]), dt: 0.55 + 0.28 * i, a: 0.003, d: 0.8, v: 0.09 });
+  TAG.ev = 'win'; fire(L, 1); TAG = {};
+}
+function gLose() {
+  var S = gS(), r = rootM(S.key, 67), th = (CAD[S.id] || CADM)[1].slice(-1) === 'm' ? 3 : 4, L;
+  L = [7, 5, th].map(function (s, i) { return { w: 'sawtooth', f: mt(r + s), ft: 'lowpass', ff: 1400, ff1: 500, dt: i * 0.32, d: 0.4, v: 0.08 }; });
+  L.push({ w: 'sawtooth', f: mt(r), f1: mt(r - 5), g: 1.1, ft: 'lowpass', ff: 1200, ff1: 250, dt: 0.96, a: 0.02, d: 1.3, v: 0.09 }, { f: mt(r - 24), f1: mt(r - 36), dt: 0.96, a: 0.05, d: 1.4, v: 0.2 });
+  TAG.ev = 'lose'; fire(L, 1); TAG = {};
+}
+function gFocusReady() {       // in-key chime: tonic, fifth, octave
+  var S = gS(), r = rootM(S.key, 81);
+  fire([{ f: mt(r), a: 0.003, d: 0.9, v: 0.09 }, { f: mt(r + 7), dt: 0.08, a: 0.003, d: 0.9, v: 0.07 }, { f: mt(r + 12), dt: 0.16, a: 0.003, d: 0.7, v: 0.05 }, { w: 'triangle', f: mt(r - 12), d: 0.6, v: 0.06 }]);
+}
+function gLifeLost() {         // falling 5 - 3 - 1 in key
+  var S = gS(), r = rootM(S.key, 67), th = (CAD[S.id] || CADM)[1].slice(-1) === 'm' ? 3 : 4;
+  fire([{ w: 'triangle', f: mt(r + 7), d: 0.2, v: 0.16 }, { w: 'triangle', f: mt(r + th), dt: 0.16, d: 0.2, v: 0.16 },
+    { w: 'triangle', f: mt(r), f1: mt(r) * 0.77, dt: 0.32, d: 0.65, v: 0.17 }, { f: mt(r - 12), f1: mt(r - 12) * 0.77, dt: 0.32, d: 0.65, v: 0.14 }], 1);
+}
+function layG() { var o = {}; LAY.forEach(function (k) { o[k] = +G.L[k].gain.value.toFixed(3); }); return o; }
+function detOff() { var m = 0; G.ms.forEach(function (s) { if (s.detune) m = Math.max(m, Math.abs(s.detune.value - s._d0)); }); return Math.round(m); }
+
+/* ---------------- public API ---------------- */
+var A = {
+  supported: !!AC,
+  unlock: function () {
+    if (!AC) return;
+    try {
+      if (!G) {
+        G = build(new AC());
+        var b = G.c.createBufferSource(); b.buffer = G.c.createBuffer(1, 1, 22050); b.connect(G.c.destination); b.start(0); // iOS unlock
+      }
+      if (G.c.state !== 'running') G.c.resume();
+      if (G.state !== wantM) music(wantM);
+      if (wantPf && !G.pf) prefetch(wantPf.id);
+      if (wantT >= TR.length && !G.fe && !G.req) setTrack(wantT);
+    } catch (e) {}
+  },
+  setMuted: function (b) {
+    muted = !!b; ss('hb.muted', muted ? 1 : 0);
+    if (G) G.out.gain.setTargetAtTime(muted ? 0 : 1, G.c.currentTime, 0.015);
+  },
+  get muted() { return muted; },
+  setSfxVol: function (v) { sfxV = cl(v); ss('hb.sfx', sfxV); if (G) G.sfx.gain.setTargetAtTime(sfxV * SFX, G.c.currentTime, 0.02); },
+  setMusicVol: function (v) { musV = cl(v); ss('hb.music', musV); if (G) G.mus.gain.setTargetAtTime(musV * MUS, G.c.currentTime, 0.02); },
+  seed: seed,
+
+  slash: function (sp, strong) {
+    if (!ok(strong ? 2 : 1)) return;
+    var t = G.c.currentTime;
+    if (t - G.lastSl < 0.07 || G.slN >= 2) return;
+    G.lastSl = t; G.slN++; sp = cl(sp);
+    var d = 0.17 - 0.06 * sp + (strong ? 0.04 : 0);
+    var L = [{ n: 1, ft: 'bandpass', ff: (500 + 900 * sp) * vary(), ff1: 2200 + 4200 * sp + (strong ? 1800 : 0), q: strong ? 3.5 : 1.3, a: 0.014, d: d, v: (0.22 + 0.22 * sp) * (strong ? 1.3 : 1), cb: function (g) { g.slN--; } }];
+    if (strong) L.push({ n: 1, ft: 'highpass', ff: 5000, dt: d * 0.45, a: 0.003, d: 0.06, v: 0.14 });
+    fire(L);
+  },
+  hit: function (type, combo) {
+    if (!G) return;
+    if (GROOVE) return gHit(type, combo);
+    var k = Math.pow(2, PENT[Math.min(10, Math.max(0, (combo | 0) - 1))] / 12) * vary(), L;
+    switch (type) {
+      case 'arm': L = [{ w: 'square', f: 440 * k, ft: 'lowpass', ff: 3200, ff1: 700, d: 0.14, v: 0.07 }, { w: 'triangle', f: 880 * k, d: 0.24, v: 0.13 }, { n: 1, ft: 'highpass', ff: 4000, d: 0.06, v: 0.16 }]; break;
+      case 'big': L = [{ f: 140, f1: 45, d: 0.3, v: 0.42 }, { w: 'sawtooth', f: 330 * k, ft: 'lowpass', ff: 2400, ff1: 400, d: 0.36, v: 0.09 }, { w: 'triangle', f: 660 * k, d: 0.4, v: 0.11 }, { n: 1, ft: 'lowpass', ff: 3000, ff1: 300, d: 0.25, v: 0.22 }]; break;
+      case 'split': L = [{ w: 'triangle', f: 660 * k, d: 0.15, v: 0.14 }, { w: 'triangle', f: 990 * k, dt: 0.05, d: 0.18, v: 0.12 }, { n: 1, ft: 'bandpass', ff: 2500, q: 2, d: 0.05, v: 0.12 }]; break;
+      case 'small': L = [{ f: 1320 * k, d: 0.1, v: 0.12 }, { w: 'triangle', f: 2640 * k, d: 0.05, v: 0.04 }]; break;
+      default: L = [{ f: 659 * k, d: 0.26, v: 0.24 }, { w: 'triangle', f: 1318 * k, d: 0.12, v: 0.06 }, { n: 1, ft: 'highpass', ff: 6000, d: 0.03, v: 0.08 }];
+    }
+    fire(L);
+  },
+  clang: function () {
+    if (GROOVE && G) return gClang();
+    var f = 420 * (rnd() * 0.06 + 0.97);
+    fire([1, 1.48, 2.03, 2.71, 3.9].map(function (p, i) { return { f: f * p, a: 0.002, d: [0.55, 0.4, 0.32, 0.22, 0.14][i], v: 0.1 - i * 0.012 }; })
+      .concat([{ n: 1, ft: 'highpass', ff: 3000, a: 0.001, d: 0.04, v: 0.2 }]));
+  },
+  wrong: function () {
+    if (GROOVE && G) return gWrong();
+    fire([{ w: 'triangle', f: 140, f1: 60, d: 0.16, v: 0.36 }, { w: 'square', f: 55, ft: 'lowpass', ff: 420, a: 0.01, d: 0.3, v: 0.09 }, { w: 'square', f: 58.5, ft: 'lowpass', ff: 420, a: 0.01, d: 0.3, v: 0.07 }]);
+  },
+  bomb: function () {
+    if (GROOVE && G) return gBomb();
+    if (fire([{ n: 1, ft: 'lowpass', ff: 4500, ff1: 140, a: 0.003, d: 1.1, v: 0.75 }, { f: 95, f1: 28, a: 0.004, d: 0.9, v: 0.75 },
+      { n: 1, ft: 'highpass', ff: 1500, a: 0.001, d: 0.12, v: 0.45 }, { w: 'square', f: 62, f1: 30, ft: 'lowpass', ff: 220, d: 0.5, v: 0.2 }], 1)) duck(0.2, 1.4);
+  },
+  lifeLost: function () {
+    if (GROOVE && G) return gLifeLost();
+    fire([{ w: 'triangle', f: 587, d: 0.2, v: 0.16 }, { w: 'triangle', f: 494, dt: 0.16, d: 0.2, v: 0.16 },
+      { w: 'triangle', f: 392, f1: 300, dt: 0.32, d: 0.65, v: 0.17 }, { f: 196, f1: 150, dt: 0.32, d: 0.65, v: 0.14 }], 1);
+  },
+  miss: function () { if (GROOVE && G) return gMiss(); fire([{ f: 260, f1: 170, ft: 'lowpass', ff: 900, a: 0.01, d: 0.15, v: 0.13 }]); },
+  focusReady: function () {
+    if (GROOVE && G) return gFocusReady();
+    fire([{ f: 1319, a: 0.003, d: 0.9, v: 0.09 }, { f: 1976, dt: 0.08, a: 0.003, d: 0.9, v: 0.07 }, { f: 2637, dt: 0.16, a: 0.003, d: 0.7, v: 0.05 }, { w: 'triangle', f: 659, d: 0.6, v: 0.06 }]);
+  },
+  focusOn: function () {
+    fire([{ n: 1, ft: 'bandpass', ff: 3000, ff1: 280, q: 2, a: 0.02, d: 0.55, v: 0.3 }, { f: 600, f1: 90, d: 0.6, v: 0.13 }, { f: 45, a: 0.05, d: 0.55, v: 0.2 }], 1);
+    setSlow(true);
+  },
+  focusOff: function () {
+    fire([{ n: 1, ft: 'bandpass', ff: 300, ff1: 3500, q: 2, a: 0.05, d: 0.4, v: 0.24 }, { f: 120, f1: 700, a: 0.05, d: 0.35, v: 0.09 }], 1);
+    setSlow(false);
+  },
+  waveStart: function (n) {
+    if (GROOVE && G) return gWaveStart(n);
+    var r = st(220, (Math.min(9, Math.max(1, n | 0)) - 1) * 2);
+    fire([0, 7, 12].map(function (s, i) { return { w: 'sawtooth', f: st(r, s), ft: 'lowpass', ff: 2200, dt: i * 0.1, d: i < 2 ? 0.25 : 0.6, v: 0.08 }; })
+      .concat([{ w: 'triangle', f: st(r, 24), dt: 0.2, d: 0.6, v: 0.06 }, { f: 120, f1: 40, d: 0.35, v: 0.42 }]), 1);
+  },
+  waveClear: function () {
+    if (GROOVE && G) return gWaveClear();
+    fire([0, 4, 7, 12].map(function (s, i) { return { w: 'triangle', f: st(440, s), dt: i * 0.07, d: 0.32, v: 0.12 }; })
+      .concat([{ f: st(440, 19), dt: 0.28, a: 0.003, d: 0.9, v: 0.08 }]), 1);
+  },
+  win: function (stars) {
+    if (GROOVE && G) return gWin(stars);
+    stars = Math.min(3, Math.max(0, stars | 0));
+    var L = [0, 4, 7, 12].map(function (s, i) { return { w: 'triangle', f: st(392, s), dt: i * 0.09, d: 0.3, v: 0.12 }; });
+    [0, 4, 7].forEach(function (s) { L.push({ w: 'sawtooth', f: st(196, s), ft: 'lowpass', ff: 1400, dt: 0.36, a: 0.08, r: 0.5, d: 1.5, v: 0.04 }); });
+    for (var i = 0; i < stars; i++) L.push({ f: st(1568, i * 4), dt: 0.55 + 0.28 * i, a: 0.003, d: 0.8, v: 0.09 });
+    fire(L, 1);
+  },
+  lose: function () {
+    if (GROOVE && G) return gLose();
+    var L = [392, 349, 311].map(function (f, i) { return { w: 'sawtooth', f: f, ft: 'lowpass', ff: 1400, ff1: 500, dt: i * 0.32, d: 0.4, v: 0.08 }; });
+    L.push({ w: 'sawtooth', f: 262, f1: 196, g: 1.1, ft: 'lowpass', ff: 1200, ff1: 250, dt: 0.96, a: 0.02, d: 1.3, v: 0.09 }, { f: 98, f1: 49, dt: 0.96, a: 0.05, d: 1.4, v: 0.2 });
+    fire(L, 1);
+  },
+  ui: function () { fire([{ f: 1500, f1: 1000, a: 0.002, d: 0.05, v: 0.12 }, { w: 'square', f: 3000, ft: 'lowpass', ff: 4000, a: 0.001, d: 0.015, v: 0.02 }]); },
+
+  music: music,
+  get tracks() {
+    return TR.map(function (S) { return { id: S.id, name: S.name, bpm: S.bpm, key: S.kn, kind: 'synth' }; })
+      .concat(FL.map(function (e) { return { id: e.id, name: e.name, kind: 'file', tags: e.tags.slice(), decoded: !!e.buf, failed: !!e.err, dur: e.buf ? e.buf.duration : e.dur || 0, decodeMs: e.ms || 0, encodedBytes: e.bytes.byteLength, decodedBytes: dbytes(e) }; }));
+  },
+  fileErrors: ERR,
+  // {id, name, data: ArrayBuffer | typed array | base64 (data: URL ok), tags}. Only stores the encoded bytes (copied);
+  // decoding happens on setTrack / prefetch. Resolves true when stored, false if rejected (bad/duplicate).
+  addFileTrack: function (o) {
+    o = o || {};
+    var d = o.data;
+    try { d = typeof d === 'string' ? b64(d) : ArrayBuffer.isView(d) ? d.buffer.slice(d.byteOffset, d.byteOffset + d.byteLength) : d && d.byteLength ? d.slice(0) : null; } catch (er) { d = null; }
+    if (!o.id || tIdx(o.id) >= 0 || !d || !d.byteLength) { ERR.push({ id: o.id, error: 'bad or duplicate track' }); return Promise.resolve(false); }
+    var e = { id: String(o.id), name: o.name || String(o.id), tags: (o.tags || []).slice(), bytes: d };
+    FL.push(e);
+    if (pref === e.id) setTrack(e.id);
+    return Promise.resolve(true);
+  },
+  prefetch: prefetch,                       // pre-decode the file track the game will likely need next (keeps max 2 decoded)
+  setTrack: setTrack,                       // id or index; synth: crossfade on the next bar line; file: decode if needed (current music keeps playing), then ~1 s crossfade
+  get track() { return G ? (G.req || G.fe || TR[G.pend != null ? G.pend : G.tr]).id : tAt(wantT).id; },   // current (or pending) track id
+  get trackPref() { return pref; },         // 'auto' (game picks per wave) or a track id; persisted in hb.track
+  set trackPref(v) { v = String(v); if (v !== 'auto' && tIdx(v) < 0) return; pref = v; ss('hb.track', v); if (v !== 'auto') setTrack(v); },
+  setIntensity: function (x) {
+    x = cl(x); var d = Math.abs(x - wantI); wantI = x;
+    if (!G) return;
+    G.inten = x;
+    if (G.state === 'play' && (d > 0.02 || x === 0 || x === 1)) targets();
+  },
+  setSlow: setSlow,
+  dropLayers: function (bars) { dropLayers(bars, false); },   // Groove: top layers out until a bar line, then rebuild (miss/bomb call it already)
+  get groove() { return GROOVE; },                          // Groove Core on/off (A/B); persisted in hb.groove
+  set groove(v) { GROOVE = !!v; ss('hb.groove', GROOVE ? 1 : 0); },
+  suspend: function () { if (G && !offline) try { G.c.suspend(); } catch (e) {} },
+  resume: function () { if (G && !offline) try { G.c.resume(); } catch (e) {} },
+
+  /* test helpers (not part of the game API) */
+  _stats: function () { return G ? { live: G.live, mLive: G.mLive, state: G.c.state, music: G.state, track: A.track, pend: G.pend, xf: +G.xf.gain.value.toFixed(3), file: G.fv ? +G.fv.g.gain.value.toFixed(3) : null, decMB: +(MEM / 1048576).toFixed(1), decPeakMB: +(MEMP / 1048576).toFixed(1), decoded: FL.filter(function (e) { return e.buf; }).map(function (e) { return e.id; }), groove: GROOVE, lay: layG(), lp: Math.round(G.lp.frequency.value), slow: G.slow, det: detOff(), sd: sd(), tier: G.gv.tier, latMs: Math.round(((G.c.baseLatency || 0) + (G.c.outputLatency || 0)) * 1000), rate: G.fv ? +G.fv.s.playbackRate.value.toFixed(3) : null } : null; },
+  _trace: function (on) { TRACE = on ? [] : null; return TRACE; },   // Groove test: every fired voice {ev, al (allowed pitch classes), t0, t, b, f, tq, nz, D (grid), g0}
+  _level: function () {
+    if (!G) return 0;
+    var a = new Float32Array(G.an.fftSize), m = 0; G.an.getFloatTimeDomainData(a);
+    for (var i = 0; i < a.length; i++) m = Math.max(m, Math.abs(a[i]));
+    return m;
+  },
+  _render: function (fn, dur, offAt) {   // render fn(HBAudio) offline, pumping music every 0.1 s like the live timer; optional music('off') at offAt s
+    var O = W.OfflineAudioContext || W.webkitOfflineAudioContext;
+    if (!O) return Promise.resolve(null);
+    dur = dur || 2;
+    var c = new O(2, Math.ceil(44100 * dur), 44100), og = build(c), after, t;
+    function run(f) {
+      var keep = G, km = wantM, ki = wantI, kt = wantT; G = og; offline = true;
+      try { f(); } finally { offline = false; G = keep; wantM = km; wantI = ki; wantT = kt; }
+    }
+    run(function () { fn(A); pump(0.15); after = A._stats(); });
+    var Q = {}, qk = function (x) { return Math.round(x * 44100 / 128); };   // optional 4th arg ev: [[time s, fn(HBAudio, t)], ...] run at render quanta
+    for (t = 0.1; t < dur - 0.05; t += 0.1) { var k0 = qk(Math.round(t * 10) / 10); Q[k0] = Q[k0] || []; }
+    (arguments[3] || []).forEach(function (e) { var k = qk(e[0]); if (k > 0 && e[0] < dur - 0.01) (Q[k] = Q[k] || []).push(e[1]); });
+    Object.keys(Q).forEach(function (k) { var tt = k * 128 / 44100;
+      c.suspend(tt).then(function () { run(function () { Q[k].forEach(function (f) { f(A, c.currentTime); }); if (offAt && tt >= offAt) music('off'); pump(0.15); }); c.resume(); });
+    });
+    return c.startRendering().then(function (b) {
+      var pk = 0, s2 = 0, n = 0;
+      for (var ch = 0; ch < b.numberOfChannels; ch++) {
+        var d = b.getChannelData(ch);
+        for (var i = 0; i < d.length; i++) { var v = Math.abs(d[i]); if (v > pk) pk = v; s2 += v * v; n++; }
+      }
+      return new Promise(function (res) { setTimeout(function () { res({ peak: pk, rms: Math.sqrt(s2 / n), after: after, endTrack: (og.fe || TR[og.tr]).id, liveEnd: og.live, mMax: og.mMax, mLiveEnd: og.mLive, buf: b }); }, 50); });
+    });
+  }
+};
+/* v6 drop 3: music bands for visuals. HBAudio.bands -> {bass, mid, high, level, beat}, each 0..1, smoothed (fast attack, slow release).
+   Zeros when there is no context, the context is not running, or muted (the analyser sits after the master mute gain). Read-only, no side effects on audio. */
+(function () {
+  var out = { bass: 0, mid: 0, high: 0, level: 0, beat: 0 }, buf = null, last = 0, lastBeat = -9, prevBass = 0;
+  function bands() {
+    var now = (W.performance ? W.performance.now() : Date.now()) / 1000;
+    if (now - last < 0.012) return out;                       // at most one analysis per ~frame
+    var dt = Math.min(0.1, Math.max(0.001, now - last)); last = now;
+    var tb = 0, tm = 0, th = 0, tl = 0;
+    try {
+      if (G && G.an && G.c && G.c.state === 'running' && !offline && !muted) {
+        var n = G.an.frequencyBinCount; if (!buf || buf.length !== n) buf = new Uint8Array(n);
+        G.an.getByteFrequencyData(buf);
+        var hz = G.c.sampleRate / G.an.fftSize, i, sB = 0, nB = 0, sM = 0, nM = 0, sH = 0, nH = 0;
+        for (i = 1; i < n; i++) { var f = i * hz, v = buf[i] / 255;
+          if (f < 250) { sB += v; nB++; } else if (f < 2000) { sM += v; nM++; } else if (f < 8000) { sH += v; nH++; } }
+        tb = nB ? sB / nB : 0; tm = nM ? sM / nM : 0; th = nH ? sH / nH : 0;
+        tb = Math.pow(Math.max(0, (tb - 0.25) / 0.75), 1.4); tm = Math.pow(Math.max(0, (tm - 0.2) / 0.8), 1.4); th = Math.pow(Math.max(0, (th - 0.15) / 0.85), 1.4);   // noise floor, then gentle curve
+        tl = Math.min(1, (tb * 0.5 + tm * 0.35 + th * 0.15) * 1.3);
+      }
+    } catch (e) {}
+    function sm(c, t) { return c + (t - c) * (1 - Math.exp(-dt * (t > c ? 28 : 6))); }
+    out.bass = sm(out.bass, tb); out.mid = sm(out.mid, tm); out.high = sm(out.high, th); out.level = sm(out.level, tl);
+    out.beat = 0;
+    if (out.bass - prevBass > 0.08 && out.bass > 0.25 && now - lastBeat >= 0.34) { out.beat = 1; lastBeat = now; }   // beat events are rate-limited to under 3 per second
+    prevBass = out.bass;
+    return out;
+  }
+  Object.defineProperty(A, 'bands', { get: bands, enumerable: false });
+})();
+W.HBAudio = A;
+})(window);
+
+</script>
+<script>
+(function(){
+var A=window.HBAudio,$=function(i){return document.getElementById(i)};
+function combo(){return +$('combo').value}
+function add(id,label,fn,col){var b=document.createElement('button');b.textContent=label;if(col)b.style.setProperty('--c',col);
+  b.addEventListener('click',function(){A.unlock();fn(b);});$(id).appendChild(b);return b;}
+var CY='#0cf',AM='#fa0',VI='#a6f',RD='#f36',GR='#3f9',WH='#cde';
+add('gBlade','slash slow',function(){A.slash(0.15,false)});
+add('gBlade','slash fast',function(){A.slash(0.9,false)});
+add('gBlade','slash STRONG',function(){A.slash(1,true)},VI);
+add('gBlade','frantic x12 (rate-limit test)',function(){for(var i=0;i<12;i++)setTimeout(function(){A.slash(.7,false)},i*20)});
+add('gHit','orb',function(){A.hit('orb',combo())},CY);
+add('gHit','armoured',function(){A.hit('arm',combo())},AM);
+add('gHit','big',function(){A.hit('big',combo())},VI);
+add('gHit','splitter',function(){A.hit('split',combo())},GR);
+add('gHit','small',function(){A.hit('small',combo())},GR);
+add('gHit','chain 1..12 (orb)',function(){for(var i=1;i<=12;i++)(function(i){setTimeout(function(){A.slash(.8,false);A.hit('orb',i)},i*140)})(i)},CY);
+add('gHit','frantic 40 hits (voice cap)',function(){for(var i=0;i<40;i++)(function(i){setTimeout(function(){A.hit(['orb','arm','split','small'][i%4],i%11+1)},i*15)})(i)});
+add('gHurt','clang (big, not dead)',function(){A.clang()},VI);
+add('gHurt','wrong way',function(){A.wrong()},AM);
+add('gHurt','BOMB',function(){A.bomb()},RD);
+add('gHurt','life lost',function(){A.lifeLost()},RD);
+add('gHurt','miss (warm-up)',function(){A.miss()},WH);
+add('gFocus','focus ready',function(){A.focusReady()},CY);
+add('gFocus','focus ON',function(){A.focusOn()},CY);
+add('gFocus','focus OFF',function(){A.focusOff()},CY);
+add('gFocus','focus 3 s demo',function(){A.focusOn();setTimeout(function(){A.focusOff()},3000)},CY);
+[1,2,3].forEach(function(n){add('gSting','wave '+n+' start',function(){A.waveStart(n)},AM)});
+add('gSting','wave clear',function(){A.waveClear()},GR);
+[0,1,2,3].forEach(function(s){add('gSting','win '+s+'★',function(){A.win(s)},AM)});
+add('gSting','lose',function(){A.lose()},RD);
+add('gSting','ui click',function(){A.ui()},WH);
+var mb={};
+['title','play','summary','result','off'].forEach(function(s){mb[s]=add('gMusic','music: '+s,function(){A.music(s);for(var k in mb)mb[k].classList.toggle('on',k===s)},s==='off'?RD:VI)});
+add('gMusic','slow-mo on',function(){A.setSlow(true)},CY);
+add('gMusic','slow-mo off',function(){A.setSlow(false)},CY);
+$('combo').oninput=function(){$('comboV').textContent=combo()};
+$('inten').oninput=function(){var x=$('inten').value/100;$('intenV').textContent=x.toFixed(2);A.setIntensity(x)};
+var tb={};function trk(id){A.setTrack(id);if(!A._stats()||A._stats().music==='off'){A.music('play');for(var k in mb)mb[k].classList.toggle('on',k==='play')}}
+A.tracks.forEach(function(t){if(t.kind==='file')return;tb[t.id]=add('gTrack',t.name+' · '+t.bpm+' BPM · '+t.key,function(){trk(t.id)},AM)});
+add('gTrack','next track ▶',function(){var T=A.tracks,i=T.findIndex(function(t){return t.id===A.track});trk(T[(i+1)%T.length].id)},GR);
+add('gTrack','preference: auto',function(){A.trackPref='auto'},WH);
+add('gTrack','preference: this track',function(){A.trackPref=A.track},WH);
+$('fileIn').onchange=function(){A.unlock();[].forEach.call(this.files,function(f){
+  var id=f.name.replace(/\.[^.]+$/,'').toLowerCase().replace(/[^a-z0-9]+/g,'-');
+  f.arrayBuffer().then(function(ab){$('fileSt').textContent='decoding '+f.name+' ...';
+   return A.addFileTrack({id:id,name:f.name,data:ab,tags:['file']}).then(function(ok){
+    if(!ok){$('fileSt').textContent='REJECTED '+f.name+' (duplicate or empty)';return;}
+    $('fileSt').textContent='stored '+f.name+' · '+Math.round(ab.byteLength/1024)+' KB encoded · decodes when played (max 2 decoded at once)';
+    if(!tb[id])tb[id]=add('gFile','▶ '+f.name,function(){trk(id)},GR);});});});this.value='';};
+add('gFile','prefetch next file',function(){var F=A.tracks.filter(function(t){return t.kind==='file'}),i=F.findIndex(function(t){return t.id===A.track});if(F.length)A.prefetch(F[(i+1)%F.length].id)},WH);
+var mute=add('gMix','',function(){A.setMuted(!A.muted);sync()},RD);
+add('gMix','suspend',function(){A.suspend()},WH);
+add('gMix','resume',function(){A.resume()},WH);
+function sync(){mute.textContent=A.muted?'unmute':'mute';mute.classList.toggle('on',A.muted)}
+function rv(k,d){try{var v=parseFloat(localStorage.getItem(k));return v>=0&&v<=1?v:d}catch(e){return d}}
+$('sfx').value=Math.round(rv('hb.sfx',.9)*100);$('mus').value=Math.round(rv('hb.music',.5)*100);
+$('sfx').oninput=function(){A.unlock();A.setSfxVol(this.value/100)};
+$('mus').oninput=function(){A.unlock();A.setMusicVol(this.value/100)};
+sync();
+(function loop(){var l=A._level();$('meterBar').style.width=Math.min(100,l*100)+'%';
+ for(var k in tb)tb[k].classList.toggle('on',k===A.track);var S=A._stats();$('tr').textContent='track: '+A.track+(S&&S.pend!=null?' (switching)':'')+' · preference: '+A.trackPref+' · music: '+(S?S.music:'locked')+(S&&S.decoded.length?' · decoded: '+S.decoded.join(', ')+' ('+S.decMB+' MB, peak '+S.decPeakMB+' MB)':'')+(A.fileErrors.length?' · file errors: '+A.fileErrors.length:'');
+ $('st').textContent='audio: '+(A.supported?'supported':'NOT supported')+' · peak '+l.toFixed(2);requestAnimationFrame(loop)})();
+
+var GG=null;function gon(x){var S=A._stats();if(!S||S.music!=='play'){A.music('play');for(var k in mb)mb[k].classList.toggle('on',k==='play');}if(x!=null)A.setIntensity(x);}
+function later(ms,f){setTimeout(f,ms)}
+GG=add('gGroove','',function(){A.groove=!A.groove;gsync()},VI);function gsync(){GG.textContent='Groove: '+(A.groove?'ON':'OFF')+' (tap to A/B)';GG.classList.toggle('on',A.groove)}gsync();
+add('gGroove','combo climb 1..14 (in key)',function(){gon(0.5);for(var i=1;i<=14;i++)(function(i){later(i*270,function(){A.slash(.8,false);A.hit('orb',i)})})(i)},CY);
+add('gGroove','chord: 3 kills in 80 ms',function(){gon(0.5);A.hit('orb',3);later(40,function(){A.hit('orb',4)});later(80,function(){A.hit('orb',5)})},CY);
+add('gGroove','random slices (note on grid)',function(){gon(0.5);var t=0;for(var i=1;i<=16;i++){t+=180+Math.random()*350;(function(i,t){later(t,function(){A.slash(.7,false);A.hit(['orb','arm','split','small'][i%4],i%9+1)})})(i,t)}},CY);
+add('gGroove','layers: combo to 12 at low intensity',function(){gon(0.15);for(var i=1;i<=12;i++)(function(i){later(i*350,function(){A.slash(.8,false);A.hit('orb',i)})})(i)},GR);
+add('gGroove','miss: drop + rebuild',function(){gon();A.miss()},WH);
+add('gGroove','wrong way: bum note',function(){gon();A.wrong()},AM);
+add('gGroove','BOMB: scratch + filter drop',function(){gon();A.bomb()},RD);
+add('gGroove','focus 3 s: tape-stop',function(){gon();A.focusOn();later(3000,function(){A.focusOff()})},CY);
+add('gGroove','clang (bell on chord root)',function(){gon();A.clang()},VI);
+add('gGroove','wave clear: fill + cadence',function(){gon();A.waveClear();A.music('summary');later(3500,function(){A.music('play')})},GR);
+add('gGroove','wave start: riser to next track',function(){gon();var T=A.tracks.filter(function(t){return t.kind==='synth'}),i=T.findIndex(function(t){return t.id===A.track});A.waveStart(2);A.setTrack(T[(i+1)%T.length].id)},AM);
+(function gl(){var S=A._stats();$('gst').textContent='groove: '+(A.groove?'on':'off')+(S?' · track '+S.track+' · combo tier '+S.tier+' · layers '+Object.keys(S.lay).map(function(k){return k+' '+S.lay[k].toFixed(1)}).join(' ')+' · low-pass '+S.lp+' Hz · tape '+S.det+' c · output latency '+S.latMs+' ms (base+output, this device)':' · audio locked (tap any button)');setTimeout(gl,250)})();
+})();
+</script>
+</body></html>
