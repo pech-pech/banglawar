@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Tidewall UI overhaul - A Full-bleed board (mock)</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;background:#05090d;overflow:hidden;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:#e8f1f4}
+#stage{position:absolute;left:0;top:0;width:1104px;height:884px;transform-origin:0 0;overflow:hidden;background:#0d1a22}
+.abs{position:absolute}
+/* board = y 0..700 */
+#board{left:0;top:0;width:1104px;height:700px;background:linear-gradient(180deg,#14303b,#10242d)}
+#sea{left:742px;top:0;width:362px;height:700px;
+ background:
+  radial-gradient(ellipse 140px 90px at 70% 18%,rgba(140,240,255,.22),transparent 70%),
+  radial-gradient(ellipse 160px 110px at 30% 62%,rgba(120,220,250,.18),transparent 70%),
+  linear-gradient(90deg,#1b6f8c,#145a78 45%,#0f4763)}
+#sea svg{width:100%;height:100%;opacity:.55}
+#foam{left:732px;top:0;width:14px;height:700px;background:linear-gradient(90deg,transparent,#bdf3ff 40%,#fff 55%,#7fe3ff 75%,transparent);filter:drop-shadow(0 0 8px #5fe0ff)}
+.lane{left:100px;width:616px;height:190px;border-radius:14px;background:rgba(30,60,74,.55);border:1px solid rgba(120,180,200,.14)}
+.slot{width:140px;height:150px;border-radius:12px;background:rgba(14,30,40,.75);border:1.5px solid rgba(120,170,190,.16);transition:.15s}
+.slot i{position:absolute;left:8px;top:5px;font:700 11px system-ui;font-style:normal;color:rgba(190,220,230,.38);letter-spacing:.05em}
+.slot.ok{border:2px dashed #f2c14e;background:rgba(242,193,78,.10)}
+.slot.hot{border:2.5px solid #ffe08a;background:rgba(255,224,138,.24);box-shadow:0 0 22px rgba(255,224,138,.5)}
+.wall{width:30px;height:176px;border-radius:8px;background:linear-gradient(90deg,#8f9aa1,#c9d1d6 50%,#8f9aa1);box-shadow:inset 0 0 0 2px rgba(255,255,255,.2),0 0 10px rgba(0,0,0,.4)}
+.wall:before,.wall:after{content:"";position:absolute;left:0;right:0;height:2px;background:rgba(60,70,78,.55)}
+.wall:before{top:58px}.wall:after{top:118px}
+.wallchip{width:46px;height:22px;border-radius:11px;background:rgba(10,20,28,.85);border:1px solid #9aa7ad;font:700 12px/20px system-ui;text-align:center;color:#d6dde1}
+.house{width:84px;height:100px}
+.unit{width:110px;height:120px}
+.hpbar{position:absolute;left:14px;bottom:2px;width:82px;height:9px;border-radius:5px;background:#10202a;border:1px solid rgba(0,0,0,.5);overflow:hidden}
+.hpbar b{display:block;height:100%;background:linear-gradient(#8be28b,#3fae4f)}
+.hpn{position:absolute;left:0;width:110px;bottom:-14px;text-align:center;font:700 12px system-ui;text-shadow:0 1px 2px #000}
+.intent{width:56px;height:56px;border-radius:28px;background:rgba(14,22,30,.9);border:2.5px solid #f2c14e;display:flex;align-items:center;justify-content:center;gap:1px;font:800 22px system-ui;color:#fff;box-shadow:0 2px 8px rgba(0,0,0,.5)}
+.intent svg{width:22px;height:22px}
+/* chips */
+.chip{position:absolute;background:rgba(9,17,24,.82);border:1.5px solid rgba(160,210,230,.25);border-radius:28px;backdrop-filter:blur(3px);box-shadow:0 3px 10px rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;color:#eaf6fa}
+.btn56{width:56px;height:56px;top:6px}
+.btn56 svg{width:28px;height:28px;fill:#eaf6fa}
+#hp{left:10px;top:6px;width:250px;height:56px;padding:0 14px 0 8px;justify-content:flex-start;gap:10px}
+#hp .bar{flex:1;height:16px;border-radius:8px;background:#0b161d;border:1px solid rgba(0,0,0,.6);overflow:hidden}
+#hp .bar b{display:block;width:100%;height:100%;background:linear-gradient(#8be28b,#3fae4f)}
+#hp span{font:700 15px system-ui}
+#tide{left:392px;top:6px;width:320px;height:56px;flex-direction:column;line-height:1.15;border-radius:20px}
+#tide b{font-size:19px}#tide small{font-size:12px;color:#a9c6d0}
+/* hand */
+#hand{left:0;top:700px;width:1104px;height:184px;pointer-events:none}
+.card{position:absolute;top:668px;width:184px;height:206px;border-radius:14px;background:#18262f;border:3px solid var(--c);box-shadow:0 -4px 14px rgba(0,0,0,.45),0 8px 18px rgba(0,0,0,.5);transform-origin:50% 120%;transition:transform .18s,top .18s;overflow:hidden}
+.card:hover,.card.lift{transform:translateY(-58px) scale(1.14) rotate(0)!important;z-index:20}
+.card .cost{position:absolute;left:6px;top:6px;width:34px;height:34px;border-radius:17px;background:#e7b942;color:#2a1d00;font:800 19px/34px system-ui;text-align:center;border:2px solid #fff3c4;z-index:2}
+.card .nm{position:absolute;left:44px;top:10px;font:800 17px system-ui;color:#fff}
+.card .art{position:absolute;left:0;right:0;top:44px;height:42px;background:#0e1a22}
+.card .art svg{width:100%;height:100%}
+.card .ty{position:absolute;left:0;right:0;top:86px;height:20px;background:var(--c);color:#1d1430;font:800 12px/20px system-ui;text-align:center;letter-spacing:.14em}
+.card .tx{position:absolute;left:10px;right:10px;top:112px;font:500 14px/1.25 system-ui;color:#dfeaee}
+.card.drag{position:absolute;transform:rotate(-6deg) scale(.82)!important;z-index:40;box-shadow:0 18px 32px rgba(0,0,0,.6);transition:none}
+#orb{left:20px;top:776px;width:92px;height:92px;border-radius:46px;background:radial-gradient(circle at 35% 30%,#ffe08a,#e2a92b 70%);border:4px solid #fff0b8;color:#3a2800;display:flex;flex-direction:column;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(0,0,0,.5)}
+#orb b{font:800 40px/1 system-ui}#orb small{font:700 12px system-ui}
+#pile{left:20px;top:716px;width:92px;height:48px;font:700 14px system-ui;gap:6px;border-radius:14px}
+#pile svg{width:20px;height:20px}
+#end{left:988px;top:744px;width:104px;height:104px;border-radius:52px;background:radial-gradient(circle at 35% 28%,#ffd36b,#e19a1c 75%);border:4px solid #fff0b8;color:#2d1c00;font:800 19px/1.05 system-ui;text-align:center;flex-direction:column;box-shadow:0 5px 0 #8a5a0c,0 8px 16px rgba(0,0,0,.5)}
+#end svg{width:26px;height:26px;fill:#2d1c00}
+#undo{left:870px;top:790px;width:108px;height:56px;font:700 16px system-ui;gap:6px;color:#9fb3bb}
+#undo svg{width:22px;height:22px;fill:#9fb3bb}
+#auto{left:870px;top:722px;width:108px;height:56px;background:rgba(42,138,120,.9);font:700 14px system-ui;gap:6px}
+#auto i{width:16px;height:16px;border-radius:8px;background:#b8ffe8}
+#wm{right:8px;bottom:4px;font:9px system-ui;color:rgba(200,220,228,.5)}
+/* tooltip */
+#tip{display:none;left:270px;top:110px;width:300px;padding:12px 14px;border-radius:14px;background:rgba(8,14,20,.96);border:2px solid #f2c14e;box-shadow:0 8px 24px rgba(0,0,0,.6);font:500 14px/1.35 system-ui;z-index:50}
+#tip b{font-size:16px;display:block;margin-bottom:4px;color:#ffe08a}
+#tip div{margin-top:4px;display:flex;gap:8px;align-items:center}
+#tip:after{content:"";position:absolute;left:-10px;top:36px;border:10px solid transparent;border-right-color:#f2c14e;border-left:0}
+body.tip #tip{display:block}
+body.tip #crab1{filter:drop-shadow(0 0 8px #ffe08a)}
+</style></head><body>
+<div id="stage">
+ <div id="board" class="abs"></div>
+ <div id="sea" class="abs"><svg viewBox="0 0 362 700" preserveAspectRatio="none"><defs><pattern id="w" width="90" height="70" patternUnits="userSpaceOnUse"><path d="M0 35c15-24 30-24 45 0s30 24 45 0" fill="none" stroke="#9fe9ff" stroke-width="2" opacity=".6"/><path d="M-10 62c15-20 30-20 45 0s30 20 45 0" fill="none" stroke="#c9f6ff" stroke-width="1.4" opacity=".45"/></pattern></defs><rect width="362" height="700" fill="url(#w)"/></svg></div>
+ <div id="foam" class="abs"></div>
+ <div id="lanes"></div>
+
+ <!-- HUD chips -->
+ <div class="chip" id="hp"><svg width="34" height="34" viewBox="0 0 34 34"><polygon points="17,2 32,15 2,15" fill="#b4492f"/><rect x="6" y="15" width="22" height="16" rx="2" fill="#6b4630"/><rect x="10" y="19" width="5" height="6" fill="#ffd36b"/><rect x="19" y="19" width="5" height="6" fill="#ffd36b"/></svg><div class="bar"><b></b></div><span>24/24</span></div>
+ <div class="chip" id="tide"><b>Tide 1 - First Surge</b><small>Turn 1 of 3 &middot; tide 1 of 4</small></div>
+ <div class="chip btn56" id="b-q" style="right:298px"><b style="font:800 26px system-ui">?</b></div>
+ <div class="chip btn56" style="right:234px"><svg viewBox="0 0 24 24"><rect x="5" y="4" width="5" height="16" rx="1.5"/><rect x="14" y="4" width="5" height="16" rx="1.5"/></svg></div>
+ <div class="chip btn56" style="right:170px"><svg viewBox="0 0 24 24"><path d="M3 9v6h4l5 4V5L7 9zM15 8a5 5 0 010 8M17.5 5a9 9 0 010 14" stroke="#eaf6fa" stroke-width="2" fill="#eaf6fa"/></svg></div>
+ <div class="chip btn56" style="right:106px;font:800 17px system-ui">1x</div>
+ <div class="chip btn56" style="right:42px"><svg viewBox="0 0 24 24"><path d="M12 5a7 7 0 107 7h-2.5a4.5 4.5 0 11-1.3-3.2L13 11h7V4l-2.4 2.4A9 9 0 0012 3z"/></svg></div>
+
+ <!-- bottom -->
+ <div class="chip" id="pile"><svg viewBox="0 0 20 20"><rect x="2" y="7" width="12" height="10" rx="2" fill="#6aa8bd"/><rect x="5" y="4" width="12" height="10" rx="2" fill="#9ad0e2" stroke="#10242d"/></svg>6 &middot; 0</div>
+ <div class="chip" id="orb"><b>2</b><small>energy</small></div>
+ <div id="cards"></div>
+ <div class="chip" id="auto"><i></i>Auto-end</div>
+ <div class="chip" id="undo"><svg viewBox="0 0 24 24"><path d="M12 5V2L6 7l6 5V9a6 6 0 11-6 6H4a8 8 0 108-10z"/></svg>Undo</div>
+ <div class="chip" id="end"><svg viewBox="0 0 24 24"><path d="M8 4l10 8-10 8z"/></svg>End<br>Turn</div>
+ <div class="abs" id="wm">WebGPU &middot; seed 510125286</div>
+ <div class="abs" id="tip"><b>Crab</b><div>HP 4/4</div><div>&#8592; Advances 2 slots this tide. At the back it hits the town.</div></div>
+ <div id="ghost"></div>
+</div>
+<script>
+const crab=`<svg viewBox="0 0 110 100" width="110" height="100"><g stroke="#c9532e" stroke-width="3" fill="none"><path d="M20 70l-12 6M24 78l-10 10M90 70l12 6M86 78l10 10"/></g><circle cx="12" cy="52" r="11" fill="#f26a3d"/><circle cx="98" cy="52" r="11" fill="#f26a3d"/><ellipse cx="55" cy="62" rx="36" ry="26" fill="#f58a55"/><ellipse cx="55" cy="68" rx="24" ry="14" fill="#ffc08a"/><path d="M46 38l-2-12M64 38l2-12" stroke="#c9532e" stroke-width="3"/><circle cx="43" cy="22" r="8" fill="#fff"/><circle cx="67" cy="22" r="8" fill="#fff"/><circle cx="44" cy="23" r="3.5" fill="#222"/><circle cx="68" cy="23" r="3.5" fill="#222"/></svg>`;
+const urchin=`<svg viewBox="0 0 110 100" width="110" height="100"><g stroke="#8c52d9" stroke-width="4" stroke-linecap="round">${[...Array(14)].map((_,i)=>{const a=i*Math.PI*2/14;return `<line x1="${55+Math.cos(a)*22}" y1="${55+Math.sin(a)*22}" x2="${55+Math.cos(a)*40}" y2="${55+Math.sin(a)*40}"/>`}).join('')}</g><circle cx="55" cy="55" r="26" fill="#a566ee"/><circle cx="55" cy="55" r="11" fill="#fff"/><circle cx="53" cy="55" r="5" fill="#222"/></svg>`;
+const house=`<svg viewBox="0 0 84 100" width="84" height="100"><polygon points="42,4 80,44 4,44" fill="#b4492f"/><rect x="12" y="44" width="60" height="48" rx="4" fill="#6b4630"/><rect x="22" y="56" width="14" height="16" rx="2" fill="#ffd36b"/><rect x="48" y="56" width="14" height="16" rx="2" fill="#ffd36b"/></svg>`;
+const arrow=`<svg viewBox="0 0 24 24"><path d="M20 12H6M12 5l-7 7 7 7" stroke="#f2c14e" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+function unit(x,y,svg,hp,max,n,id){return `<div class="abs unit" ${id?`id="${id}"`:''} style="left:${x}px;top:${y}px">${svg}<div class="hpbar"><b style="width:${hp/max*100}%"></b></div><div class="hpn">${hp}/${max}</div></div><div class="abs intent" style="left:${x+78}px;top:${y+4}px">${arrow}${n}</div>`}
+let h='';
+const enemies={0:[[1,crab,4,4,2,'crab1'],[5.3,urchin,3,3,1]],1:[[1,crab,4,4,2],[5.3,crab,4,4,2]],2:[[1,crab,4,4,2]]};
+for(let l=0;l<3;l++){
+ const top=64+l*198;
+ h+=`<div class="abs house" style="left:8px;top:${top+45}px">${house}</div>`;
+ h+=`<div class="abs lane" style="top:${top}px"></div>`;
+ for(let s=0;s<4;s++){h+=`<div class="abs slot" id="s${l}${3-s}" style="left:${108+s*152}px;top:${top+20}px"><i>SLOT ${4-s}</i></div>`}
+ h+=`<div class="abs wall" style="left:722px;top:${top+7}px"></div><div class="abs wallchip" style="left:714px;top:${top+84}px;display:none">3/3</div>`;
+ for(const [c,svg,hp,mx,n,id] of enemies[l]){const x=c===1?640-0:742+ (c-5.3)*0+36;h+=unit(c===1?580:(l===1?770:780),top+30,svg,hp,mx,n,id)}
+}
+document.getElementById('lanes').innerHTML=h;
+// wall hp pips (small, on wall)
+document.querySelectorAll('.wall').forEach(w=>{w.innerHTML='<div style="position:absolute;left:0;right:0;top:6px;text-align:center;font:800 11px system-ui;color:#2b363d">3/3</div>'});
+const cards=[
+ ['Snare Trap','TRAP','#c88aea','<path d="M40 30l12-22 12 22 12-22 12 22 12-22 12 22" fill="none" stroke="#c88aea" stroke-width="4"/>','Drop on a lane. Hits the first enemy that advances there for 4.',-5,10],
+ ['Lantern Gun','TOWER','#e7b942','<rect x="60" y="8" width="30" height="22" rx="6" fill="#ffd36b"/><rect x="88" y="14" width="26" height="9" rx="3" fill="#9aa7ad"/>','Tower. Fires 2 dmg at the first enemy in its lane. Any slot.',-1.7,0],
+ ['Harpoon','TOWER','#e7b942','<line x1="40" y1="30" x2="105" y2="14" stroke="#cfd8dc" stroke-width="4"/><path d="M105 6l16 8-16 8z" fill="#eceff1"/>','Tower. Fires 3 dmg at the first enemy in its lane. Slots 1-2 only.',1.7,0],
+ ['Bell','SUPPORT','#e7b942','<circle cx="75" cy="15" r="13" fill="#f2c14e"/><rect x="58" y="22" width="34" height="9" rx="4" fill="#f2c14e"/><circle cx="75" cy="33" r="3" fill="#8a6d1e"/>','Towers in the next lane up or down, same column, get +1 dmg.',5,10]];
+const q=new URLSearchParams(location.hash.slice(1));
+const mode=location.hash.slice(1);
+document.getElementById('cards').innerHTML=cards.map((c,i)=>`<div class="card ${mode==='drag'&&i===1?'drag':''}" id="c${i}" style="--c:${c[2]};left:${140+i*170}px;transform:rotate(${c[5]}deg) translateY(${c[6]}px);z-index:${i+1}"><div class="cost">1</div><div class="nm">${c[0]}</div><div class="art"><svg viewBox="0 0 150 40">${c[3]}</svg></div><div class="ty">${c[1]}</div><div class="tx">${c[4]}</div></div>`).join('');
+if(mode==='drag'){
+ const d=document.getElementById('c1');d.style.left="300px";d.style.top="440px";
+ for(let l=0;l<3;l++)for(let s=0;s<4;s++){const e=document.getElementById('s'+l+s);e.classList.add('ok')}
+ document.getElementById('s12').classList.add('hot');
+ const g=document.getElementById('s12');g.insertAdjacentHTML('beforeend','<svg viewBox="0 0 150 40" style="position:absolute;left:0;top:55px;width:140px;opacity:.55"><rect x="60" y="8" width="30" height="22" rx="6" fill="#ffd36b"/><rect x="88" y="14" width="26" height="9" rx="3" fill="#9aa7ad"/></svg>');
+ ['c0','c2','c3'].forEach(i=>document.getElementById(i).style.top='700px');
+}
+if(mode==='tip')document.body.classList.add('tip');
+function fit(){const s=Math.min(innerWidth/1104,innerHeight/884);const st=document.getElementById('stage');st.style.transform=`translate(${(innerWidth-1104*s)/2}px,${(innerHeight-884*s)/2}px) scale(${s})`}
+addEventListener('resize',fit);fit();
+</script></body></html>

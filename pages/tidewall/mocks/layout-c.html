@@ -1,0 +1,236 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Tidewall - Direction C: tilted diorama + card drawer</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:100%;height:100%;background:#040c14;overflow:hidden;font-family:"Trebuchet MS","Segoe UI",Roboto,Arial,sans-serif;color:#eaf6f5;-webkit-user-select:none;user-select:none}
+#stage{position:absolute;left:0;top:0;width:1104px;height:884px;overflow:hidden;transform-origin:0 0;background:#10303f}
+#world{position:absolute;inset:0;transition:transform .45s cubic-bezier(.2,.8,.2,1)}
+#world svg{position:absolute;inset:0}
+.open #world{transform:translateY(-96px)}
+button{font-family:inherit;color:inherit;border:0;cursor:pointer}
+/* HUD */
+#hud{position:absolute;left:0;top:0;width:1104px;height:64px;background:linear-gradient(#071a27d9,#0a2434a0);backdrop-filter:blur(6px);border-bottom:1px solid #ffffff22;display:flex;align-items:center;padding:0 10px;z-index:5}
+#town{display:flex;align-items:center;gap:6px;width:300px}
+#town .cot{position:relative;width:44px;height:48px}
+#town b{font-size:19px;margin-left:6px}
+#town small{display:block;font-size:11px;opacity:.75;font-weight:400}
+#tide{flex:1;text-align:center;line-height:1.15}
+#tide h1{font-size:21px;font-weight:700;letter-spacing:.3px}
+#tide div{font-size:13px;opacity:.85;margin-top:2px;display:flex;justify-content:center;align-items:center;gap:6px}
+.pip{width:11px;height:11px;border-radius:50%;background:#ffffff30;border:1.5px solid #ffffff80;display:inline-block}
+.pip.on{background:#f4c542;border-color:#ffe28a}
+#hbtns{display:flex;gap:8px;width:300px;justify-content:flex-end}
+.sq{width:56px;height:56px;border-radius:16px;background:#ffffff1c;border:1px solid #ffffff30;display:flex;align-items:center;justify-content:center;font-size:19px;font-weight:700}
+/* bottom-left cluster */
+#left{position:absolute;left:16px;bottom:16px;width:150px;display:flex;flex-direction:column;gap:10px;z-index:6}
+#left .undo{height:56px;border-radius:28px;background:#0b2230d9;border:1px solid #ffffff30;font-size:18px;font-weight:700;color:#9db4bc;display:flex;align-items:center;justify-content:center;gap:8px}
+#left .auto{height:56px;border-radius:28px;background:#2f8f7ee6;border:1px solid #8ff0d8;font-size:17px;font-weight:700;display:flex;align-items:center;justify-content:center}
+#renderer{position:absolute;left:12px;bottom:3px;font-size:10px;opacity:.6;z-index:7;letter-spacing:.3px}
+/* end turn */
+#end{position:absolute;left:928px;top:700px;width:144px;height:144px;z-index:8}
+#end .btn{position:absolute;left:16px;top:16px;width:112px;height:112px;border-radius:50%;background:radial-gradient(circle at 40% 30%,#ffd978,#e29a2a 70%,#b8701a);border:3px solid #fff0b8;box-shadow:0 6px 0 #8a520f,0 10px 22px #0008;display:flex;align-items:center;justify-content:center;text-align:center;font-weight:800;font-size:22px;line-height:1;color:#3a2108}
+#end .btn span{display:block;font-size:13px;font-weight:700;opacity:.8;margin-top:3px}
+#end svg{position:absolute;inset:0}
+#orb{position:absolute;left:-14px;top:-12px;width:58px;height:58px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff0a8,#f2b53a 60%,#b87a14);border:3px solid #fff3c4;box-shadow:0 0 16px #ffd45acc;text-align:center;color:#3a2108;font-weight:800;font-size:27px;line-height:34px;padding-top:4px}
+#orb i{display:block;font-style:normal;font-size:10px;line-height:10px;font-weight:700;margin-top:-1px}
+/* drawer */
+#drawer{position:absolute;left:186px;width:748px;top:884px;height:284px;z-index:7;transition:top .45s cubic-bezier(.2,.8,.2,1)}
+.open #drawer{top:600px}
+#panel{position:absolute;inset:0;border-radius:26px 26px 0 0;background:linear-gradient(#0b2433ee,#071822f5);backdrop-filter:blur(8px);border:1px solid #ffffff2c;border-bottom:0;box-shadow:0 -10px 30px #0009;opacity:0;transition:opacity .3s}
+.open #panel{opacity:1}
+#dhead{position:absolute;left:0;right:0;top:0;height:44px;display:flex;align-items:center;justify-content:space-between;padding:0 22px;font-size:14px}
+#dhead .h{position:absolute;left:50%;top:9px;width:64px;height:6px;margin-left:-32px;border-radius:3px;background:#ffffff66}
+#dhead span{opacity:.85;margin-top:12px}
+#cards{position:absolute;left:11px;top:50px;display:flex;gap:18px}
+.card{width:168px;height:226px;border-radius:14px;background:linear-gradient(#18313f,#0f2230);border:3px solid var(--c);position:relative;box-shadow:0 8px 14px #0007;overflow:hidden}
+.card.trap{--c:#a66fd6}.card.tower,.card.support{--c:#e6b04a}
+.card .cost{position:absolute;left:8px;top:8px;width:34px;height:34px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#ffe08a,#e0a12c);border:2px solid #fff0b8;color:#3a2108;font-weight:800;font-size:20px;text-align:center;line-height:30px;z-index:2}
+.card .nm{position:absolute;left:46px;top:12px;font-weight:700;font-size:17px}
+.card .ic{position:absolute;left:0;right:0;top:46px;height:56px;background:#0a1822;display:flex;align-items:center;justify-content:center}
+.card .ty{position:absolute;left:0;right:0;top:102px;height:22px;background:var(--c);color:#1c1428;font-size:12px;font-weight:800;letter-spacing:2px;text-align:center;line-height:22px}
+.card .tx{position:absolute;left:10px;right:10px;top:132px;font-size:14.5px;line-height:1.25;color:#e4eef0}
+/* tabs */
+#tabs{position:absolute;left:314px;top:808px;display:flex;gap:12px;z-index:6;transition:opacity .25s,transform .45s}
+.open #tabs{opacity:0;transform:translateY(90px);pointer-events:none}
+.tab{width:112px;height:100px;border-radius:16px 16px 0 0;background:linear-gradient(#1b3a4a,#10283a);border:3px solid var(--c);border-bottom:0;position:relative;box-shadow:0 -4px 14px #0008}
+.tab.trap{--c:#a66fd6}.tab.tower,.tab.support{--c:#e6b04a}
+.tab:nth-child(1){transform:rotate(-4deg) translateY(4px)}.tab:nth-child(2){transform:rotate(-1.5deg)}.tab:nth-child(3){transform:rotate(1.5deg)}.tab:nth-child(4){transform:rotate(4deg) translateY(4px)}
+.tab .cost{position:absolute;left:8px;top:6px;width:32px;height:32px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#ffe08a,#e0a12c);border:2px solid #fff0b8;color:#3a2108;font-weight:800;font-size:19px;text-align:center;line-height:28px}
+.tab .ic{position:absolute;left:0;right:0;top:34px;display:flex;justify-content:center}
+.tab.gone{opacity:.25}
+#pile{position:absolute;left:560px;top:778px;transform:translateX(-50%);font-size:12px;background:#071a27cc;border:1px solid #ffffff2a;border-radius:12px;padding:3px 12px;z-index:6;white-space:nowrap;transition:opacity .25s}
+.open #pile{opacity:0}
+/* drag + info */
+#ghost{position:absolute;left:520px;top:470px;transform:rotate(7deg) scale(.82);z-index:9;display:none}
+#ghost .card{box-shadow:0 18px 30px #000a,0 0 0 4px #ffffff33}
+#finger{position:absolute;display:none;width:60px;height:60px;border-radius:50%;background:#ffffff40;border:3px solid #ffffffaa;z-index:10}
+#info{position:absolute;left:760px;top:300px;width:300px;background:#071a27f2;border:2px solid #ffe28a;border-radius:16px;padding:12px 14px;font-size:14px;line-height:1.3;z-index:9;display:none;box-shadow:0 12px 26px #000a}
+#info h4{font-size:12px;letter-spacing:1.5px;color:#ffe28a;margin-bottom:6px}
+#info div{display:flex;gap:10px;align-items:center;margin:6px 0}
+#info svg{flex:none}
+#drag-hint{position:absolute;left:50%;top:72px;transform:translateX(-50%);background:#071a27d9;border:1px solid #8ff0d8;border-radius:20px;padding:6px 16px;font-size:14px;z-index:9;display:none}
+</style></head>
+<body>
+<div id="stage">
+ <div id="world"><svg id="svg" width="1104" height="884" viewBox="0 0 1104 884"></svg></div>
+
+ <div id="hud">
+  <div id="town"><span id="hearts" style="display:flex;gap:4px"></span><b>24/24<small>Town</small></b></div>
+  <div id="tide"><h1>Tide 1 - First Surge</h1><div><span class="pip on"></span><span class="pip"></span><span class="pip"></span><span>Turn 1 of 3 · tide 1 of 4</span></div></div>
+  <div id="hbtns">
+   <div class="sq" title="Pause"><svg width="24" height="24"><rect x="4" y="3" width="5" height="18" rx="2" fill="#fff"/><rect x="15" y="3" width="5" height="18" rx="2" fill="#fff"/></svg></div>
+   <div class="sq" title="Sound"><svg width="28" height="24" viewBox="0 0 28 24"><path d="M3 9h5l7-5v16l-7-5H3z" fill="#fff"/><path d="M19 8q4 4 0 8M22 5q7 7 0 14" stroke="#fff" stroke-width="2" fill="none" stroke-linecap="round"/></svg></div>
+   <div class="sq" title="Speed">1x</div>
+   <div class="sq" title="Restart"><svg width="26" height="26" viewBox="0 0 26 26"><path d="M20 13a7 7 0 1 1-2.5-5.4" stroke="#fff" stroke-width="2.6" fill="none" stroke-linecap="round"/><path d="M19.5 2v6h-6" stroke="#fff" stroke-width="2.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+  </div>
+ </div>
+
+ <div id="drag-hint">Harpoon: slots 1-2 only</div>
+ <div id="info"><h4>FIELD NOTES (HOLD)</h4>
+  <div><svg width="24" height="24"><circle cx="12" cy="12" r="11" fill="#f4c542"/><path d="M17 12H7m5-5-5 5 5 5" stroke="#3a2108" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>Advances (N = slots; at the back: hits town)</div>
+  <div><svg width="24" height="24"><path d="M4 20 20 4M14 4h6v6" stroke="#ff8a6a" stroke-width="3" fill="none" stroke-linecap="round"/></svg>Hits slot N for the number</div>
+  <div><svg width="24" height="24"><circle cx="12" cy="12" r="9" fill="none" stroke="#6ec6ff" stroke-width="4"/></svg>Shields itself</div>
+  <div><svg width="24" height="24"><rect x="4" y="5" width="16" height="14" rx="3" fill="#ffe28a"/></svg>Towers shoot first enemy in lane</div>
+  <div><svg width="24" height="24"><circle cx="12" cy="12" r="9" fill="#ffe84a"/></svg>Bell: +1 dmg, next lane, same column</div>
+  <div><svg width="24" height="24"><path d="M6 4h12v16H6z" fill="#9aa9b4"/></svg>Each tide the sea wears walls down (slot 1 most), never to nothing</div>
+ </div>
+ <div id="ghost"></div><div id="finger"></div>
+
+ <div id="left"><button class="undo"><svg width="22" height="22" viewBox="0 0 22 22"><path d="M8 5 3 10l5 5M3 10h10a6 6 0 0 1 0 12" stroke="#9db4bc" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round" transform="translate(0,-3)"/></svg>Undo</button><button class="auto">Auto-end: on</button></div>
+ <div id="renderer">WebGPU · seed 510125286</div>
+
+ <div id="pile">Draw 6 · Discard 0 · Deck 10</div>
+ <div id="tabs"></div>
+ <div id="drawer"><div id="panel"><div id="dhead"><div class="h"></div><span>Draw 6 · Discard 0 · Deck 10</span><span>drag a card to a slot</span></div><div id="cards"></div></div></div>
+
+ <div id="end">
+  <svg viewBox="0 0 144 144"><circle cx="72" cy="72" r="66" fill="#0a1d2acc" stroke="#ffffff22" stroke-width="2"/>
+   <circle cx="72" cy="72" r="64" fill="none" stroke="#ffd45a" stroke-width="9" stroke-linecap="round" stroke-dasharray="190 24" transform="rotate(-80 72 72)" style="filter:drop-shadow(0 0 6px #ffcf4a)"/>
+   <circle cx="72" cy="72" r="64" fill="none" stroke="#ffd45a" stroke-width="9" stroke-linecap="round" stroke-dasharray="0 214 190 0" transform="rotate(100 72 72)" opacity="0"/></svg>
+  <div class="btn"><div>End<br>Turn<span>auto-end on</span></div></div>
+  <div id="orb">2<i>energy</i></div>
+ </div>
+</div>
+
+<script>
+const W=1104,H=884;
+const s=v=>0.74+0.26*v, X=(u,v)=>552+(u-5.5)*104*s(v), Y=v=>84+700*(v*(0.82+0.18*v));
+const P=(u,v)=>[X(u,v),Y(v)];
+const poly=(pts,att)=>`<polygon points="${pts.map(p=>p[0].toFixed(1)+','+p[1].toFixed(1)).join(' ')}" ${att}/>`;
+const quad=(u0,u1,v0,v1,att,dy=0)=>poly([[X(u0,v0),Y(v0)+dy],[X(u1,v0),Y(v0)+dy],[X(u1,v1),Y(v1)+dy],[X(u0,v1),Y(v1)+dy]],att);
+const LANES=[0.22,0.52,0.82], LH=0.125;
+const SLOT_U={4:2.1,3:3.25,2:4.4,1:5.55}, WALL=[6.05,6.6], SEA0=6.6, SEA_X=7.65;
+const q=new URLSearchParams(location.search), state=q.get('state')||'collapsed';
+window.boardPolys=[];window.lanePolys=[];
+let o='';
+const defs=`<defs>
+<linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#14344a"/><stop offset="1" stop-color="#3e8b8d"/></linearGradient>
+<linearGradient id="grass" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1c4a47"/><stop offset="1" stop-color="#2d6d58"/></linearGradient>
+<linearGradient id="sea" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0f4a68"/><stop offset=".6" stop-color="#1b86a3"/><stop offset="1" stop-color="#36b6c4"/></linearGradient>
+<radialGradient id="glow"><stop offset="0" stop-color="#fff6c0" stop-opacity=".9"/><stop offset="1" stop-color="#fff6c0" stop-opacity="0"/></radialGradient>
+<filter id="blur2"><feGaussianBlur stdDeviation="2"/></filter>
+</defs>`;
+o+=defs;
+// backdrop
+o+=`<rect width="${W}" height="140" fill="url(#sky)"/>`;
+o+=`<path d="M0 118 Q120 70 260 110 T520 104 L520 140 L0 140Z" fill="#1d4f55"/><path d="M0 128 Q180 96 340 124 T600 120 L600 140 L0 140Z" fill="#235d5a"/>`;
+o+=`<g fill="#fff" opacity=".12"><ellipse cx="200" cy="40" rx="80" ry="12"/><ellipse cx="640" cy="62" rx="100" ry="13"/><ellipse cx="930" cy="36" rx="70" ry="10"/></g>`;
+// distant sea band + lighthouse (right)
+o+=`<rect x="640" y="96" width="464" height="50" fill="#21738e"/><rect x="640" y="96" width="464" height="3" fill="#8fe3ee" opacity=".6"/>`;
+o+=`<g transform="translate(980,56)"><path d="M-8 44 L-5 8 H5 L8 44Z" fill="#f1e9dc"/><rect x="-6" y="14" width="12" height="6" fill="#d9534f"/><rect x="-6" y="28" width="12" height="6" fill="#d9534f"/><rect x="-7" y="2" width="14" height="8" fill="#ffe28a"/><path d="M-9 2h18l-9-10z" fill="#a8452f"/></g>`;
+// ground (board)
+const gTop=-0.04, vB=1.32;
+const gpts=[[X(-3,gTop),Y(gTop)],[X(SEA0,gTop),Y(gTop)],[X(SEA0,vB),Y(vB)],[X(-3,vB),Y(vB)]];
+o+=poly(gpts,'fill="url(#grass)"');window.boardPolys.push(gpts);
+const spts=[[X(SEA0,gTop),Y(gTop)],[X(14,gTop),Y(gTop)],[X(14,vB),Y(vB)],[X(SEA0,vB),Y(vB)]];
+o+=poly(spts,'fill="url(#sea)"');window.boardPolys.push(spts);
+// sea waves
+for(let j=0;j<11;j++){const v=0.0+j*0.115;let d='';for(let k=0;k<=36;k++){const u=SEA0+0.25+k*0.21;const w=Math.sin(k*0.9+j*1.7)*0.012;const p=P(u,v+w);d+=(k?'L':'M')+p[0].toFixed(1)+' '+p[1].toFixed(1)}
+ o+=`<path d="${d}" stroke="#bff3f7" stroke-width="${1+v*2}" fill="none" opacity="${0.12+v*0.22}" stroke-linecap="round" stroke-dasharray="${10+v*30} ${14+v*26}"/>`}
+// foreground rocks + buoy in sea (depth)
+const rock=(u,v,k)=>{const [x,y]=P(u,v);return `<g transform="translate(${x},${y}) scale(${k*s(v)})"><ellipse cx="0" cy="4" rx="40" ry="10" fill="#0b3b52" opacity=".5"/><path d="M-34 2Q-30-26-6-28Q22-32 34 2Z" fill="#5a6b72"/><path d="M-20-12Q-6-26 14-22" stroke="#8fa2aa" stroke-width="4" fill="none"/></g>`};
+o+=rock(11.4,0.98,1.1)+rock(9.6,1.08,0.8);
+const [bx,by]=P(10.6,.28);o+=`<g transform="translate(${bx},${by}) scale(${s(.28)})"><ellipse cx="0" cy="4" rx="16" ry="5" fill="#0b3b52" opacity=".5"/><path d="M-12 0Q0-30 12 0Z" fill="#e8564a"/><rect x="-12" y="-12" width="24" height="5" fill="#fff"/><rect x="-1.5" y="-40" width="3" height="16" fill="#334"/></g>`;
+// lane tiles (ground)
+LANES.forEach((lv,i)=>{
+ const laneStrip=[[X(0.1,lv-LH),Y(lv-LH)],[X(11.5,lv-LH),Y(lv-LH)],[X(11.5,lv+LH),Y(lv+LH)],[X(0.1,lv+LH),Y(lv+LH)]];window.lanePolys.push(laneStrip);
+ o+=quad(1.45,5.95,lv-LH,lv+LH,'fill="#0c2e38" opacity=".38" rx="8"');
+ for(const k of [4,3,2,1]){const c=SLOT_U[k];const valid=(state==='drag'&&(k<=2));const dim=(state==='drag'&&!valid);
+  o+=quad(c-.5,c+.5,lv-LH+.012,lv+LH-.012,`fill="${valid?'#7df0b8':'#d8f3ee'}" fill-opacity="${valid?.34:dim?.06:.13}" stroke="${valid?'#b9ffd8':'#cfeee8'}" stroke-opacity="${valid?1:.4}" stroke-width="${valid?3:1.5}" ${valid?'class="pulse"':''}`);
+  if(valid){const [x,y]=P(c,lv);o+=`<g transform="translate(${x},${y})"><circle r="15" fill="#0a2a22" opacity=".7"/><path d="M-7 0h14M0-7v14" stroke="#b9ffd8" stroke-width="3.5" stroke-linecap="round"/></g>`}
+  else if(i===2){const [x,y]=P(c,lv-LH+.05);o+=`<text x="${x}" y="${y+8}" text-anchor="middle" font-size="12" font-weight="700" fill="#cfeee8" opacity=".6">SLOT ${k}</text>`}
+ }
+});
+// foam line along wall
+{const a=P(SEA0-.02,gTop),b=P(SEA0-.02,vB);o+=`<line x1="${a[0]}" y1="${a[1]}" x2="${b[0]}" y2="${b[1]}" stroke="#e9ffff" stroke-width="7" opacity=".55" filter="url(#blur2)"/>`;
+ const a2=P(SEA0+.04,gTop),b2=P(SEA0+.04,vB);o+=`<line x1="${a2[0]}" y1="${a2[1]}" x2="${b2[0]}" y2="${b2[1]}" stroke="#fff" stroke-width="2.5" stroke-dasharray="14 8" opacity=".8"/>`}
+// sprites
+const crab=(x,y,k)=>`<g transform="translate(${x},${y}) scale(${k})"><ellipse cx="0" cy="6" rx="46" ry="11" fill="#06202c" opacity=".45"/>
+ <g stroke="#c4492a" stroke-width="5" stroke-linecap="round"><path d="M-26-8l-18 12M-12-2l-10 14M14-2l10 14M28-8l18 12"/></g>
+ <ellipse cx="0" cy="-26" rx="42" ry="29" fill="#f47c4f"/><ellipse cx="2" cy="-18" rx="27" ry="14" fill="#ffb184"/>
+ <circle cx="-48" cy="-34" r="14" fill="#f06a3c"/><circle cx="-56" cy="-18" r="11" fill="#f06a3c"/><path d="M-48-34l-9 4" stroke="#b83c1e" stroke-width="3"/>
+ <path d="M44-30 54-34M42-22 54-18" stroke="#c4492a" stroke-width="5" stroke-linecap="round"/>
+ <g stroke="#c4492a" stroke-width="4"><path d="M-16-50v-8M10-50v-8"/></g><circle cx="-16" cy="-62" r="9" fill="#fff"/><circle cx="10" cy="-62" r="9" fill="#fff"/><circle cx="-18" cy="-62" r="3.6" fill="#223"/><circle cx="8" cy="-62" r="3.6" fill="#223"/>
+ <path d="M-12-20q10 8 20 0" stroke="#7a2a14" stroke-width="3" fill="none" stroke-linecap="round"/></g>`;
+const urchin=(x,y,k)=>{let sp='';for(let a=0;a<14;a++){const t=a/14*Math.PI*2;sp+=`<line x1="${Math.cos(t)*24}" y1="${-34+Math.sin(t)*24}" x2="${Math.cos(t)*42}" y2="${-34+Math.sin(t)*42}" stroke="#b57cf0" stroke-width="5" stroke-linecap="round"/>`}
+ return `<g transform="translate(${x},${y}) scale(${k})"><ellipse cx="0" cy="6" rx="38" ry="9" fill="#06202c" opacity=".45"/>${sp}<circle cx="0" cy="-34" r="27" fill="#8a4fd6"/><circle cx="-2" cy="-36" r="12" fill="#fff"/><circle cx="-3" cy="-36" r="5.5" fill="#22244a"/></g>`};
+const cottage=(x,y,k,hp)=>`<g transform="translate(${x},${y}) scale(${k})"><ellipse cx="0" cy="6" rx="44" ry="10" fill="#06202c" opacity=".5"/>
+ <rect x="-28" y="-46" width="56" height="48" rx="4" fill="#7a5340"/><rect x="-28" y="-14" width="56" height="16" fill="#5e3f31"/>
+ <rect x="12" y="-84" width="12" height="26" fill="#6b4a3a"/><rect x="10" y="-88" width="16" height="6" fill="#4d3328"/>
+ <polygon points="-40,-44 0,-86 40,-44" fill="#b4492f"/><polygon points="-40,-44 0,-86 0,-44" fill="#9a3b26"/>
+ <rect x="-18" y="-34" width="13" height="13" rx="2" fill="#ffd45a"/><rect x="5" y="-34" width="13" height="13" rx="2" fill="#ffd45a"/><rect x="-18" y="-34" width="13" height="13" rx="2" fill="url(#glow)" transform="scale(2.2) translate(-10,-8)" opacity=".25"/>
+ <rect x="-7" y="-18" width="14" height="20" rx="6" fill="#3a271f"/>
+ <g fill="#e6f2f2"><circle cx="20" cy="-98" r="5" opacity=".6"/><circle cx="26" cy="-110" r="7" opacity=".42"/><circle cx="36" cy="-124" r="9" opacity=".28"/></g></g>`;
+const hp=(x,y,cur,max,w=60)=>`<g transform="translate(${x},${y})"><rect x="${-w/2}" y="0" width="${w}" height="8" rx="4" fill="#0a1a22" stroke="#fff" stroke-opacity=".5"/><rect x="${-w/2+1}" y="1" width="${(w-2)*cur/max}" height="6" rx="3" fill="#7be07b"/><text x="0" y="23" text-anchor="middle" font-size="13" font-weight="800" fill="#fff" stroke="#06202c" stroke-width="3.5" paint-order="stroke">${cur}/${max}</text></g>`;
+const intent=(x,y,n)=>`<g transform="translate(${x},${y})"><circle r="18" fill="#f4c542" stroke="#3a2108" stroke-width="2.5"/><path d="M8 0H-8m7-7-7 7 7 7" stroke="#3a2108" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/><text x="24" y="9" font-size="24" font-weight="800" fill="#fff" stroke="#06202c" stroke-width="4" paint-order="stroke">${n}</text></g>`;
+// wall as stone breakwater (3D blocks), then sprites per lane far->near
+LANES.forEach((lv,i)=>{
+ const v0=lv-LH+.01,v1=lv+LH-.01,h=22*s(lv)+4,u0=WALL[0],u1=WALL[1];
+ const segs=[[v0,(v0+v1)/2],[(v0+v1)/2,v1]];
+ segs.forEach((sg,j)=>{
+  const top=quad(u0,u1,sg[0],sg[1],`fill="${j?'#b9c3c8':'#c9d2d6'}" stroke="#78858c" stroke-width="1.5"`,-h);
+  const fx0=X(u0,sg[1]),fx1=X(u1,sg[1]),fy=Y(sg[1]);
+  o+=poly([[fx0,fy-h],[fx1,fy-h],[fx1,fy],[fx0,fy]],`fill="#8d9aa2" stroke="#66737a" stroke-width="1.5"`)+top;
+  // right (sea-facing) side
+  o+=poly([[X(u1,sg[0]),Y(sg[0])-h],[X(u1,sg[1]),Y(sg[1])-h],[X(u1,sg[1]),Y(sg[1])],[X(u1,sg[0]),Y(sg[0])]],'fill="#6f7d85"');
+ });
+ // wall state pips (3 of 3 intact)
+ const [wx,wy]=P((u0+u1)/2,lv+LH-.01);
+ for(let n=0;n<3;n++)o+=`<rect x="${wx-17+n*12}" y="${Y(lv+LH-.01)-h/2-5}" width="9" height="9" rx="2" fill="#e8f0f2" stroke="#4a5a62" stroke-width="1.5"/>`;
+});
+// sprites in lane order
+const en=[{u:7.55,type:'u',hp:'3/3',n:1},{u:7.5,type:'c',n:2},{u:5.55,type:'c',n:2,ally:false}];
+LANES.forEach((lv,i)=>{
+ const [cx,cy]=P(0.9,lv+.03);o+=cottage(cx,cy,s(lv)*1.05);
+ // crabs on slot 1 (in front of wall, town side)
+ const [x1,y1]=P(SLOT_U[1],lv+.04);o+=crab(x1,y1,s(lv)*.95);o+=hp(x1,y1+8,4,4)+intent(x1+52,y1-76,2);
+ const [x2,y2]=P(7.55,lv+.04);
+ if(i===0){o+=urchin(x2,y2,s(lv)*1.0);o+=hp(x2,y2+8,3,3,54)+intent(x2+44,y2-70,1)}
+ if(i===1){o+=crab(x2,y2,s(lv)*.95);o+=hp(x2,y2+8,4,4)+intent(x2+52,y2-76,2)}
+});
+// ambient tufts
+for(let n=0;n<26;n++){const u=-1+((n*37)%75)/10,v=(n*0.173)%1.1;if(u>0.2&&u<6.2&&v>0.1)continue;const [x,y]=P(u,v);if(u>6)continue;o+=`<path d="M${x-4} ${y}q2-9 4-10q2 1 4 10" fill="#3f8a5f" opacity=".7" transform="scale(1)"/>`}
+document.getElementById('svg').innerHTML=o+`<style>.pulse{animation:p 1.2s infinite alternate}@keyframes p{to{stroke-opacity:.45}}</style>`;
+// town hearts
+document.getElementById('hearts').innerHTML=[0,1,2].map(()=>`<svg width="44" height="48" viewBox="-30 -64 60 70"><polygon points="-30,-26 0,-56 30,-26" fill="#b4492f"/><rect x="-22" y="-26" width="44" height="30" rx="3" fill="#7a5340"/><rect x="-14" y="-18" width="9" height="9" fill="#ffd45a"/><rect x="5" y="-18" width="9" height="9" fill="#ffd45a"/><path d="M0 4C-14-6-14-18-6-18 -2-18 0-14 0-14S2-18 6-18C14-18 14-6 0 4Z" transform="translate(0,-34) scale(.9)" fill="#ff5d73" stroke="#fff" stroke-width="2"/></svg>`).join('');
+// cards
+const C=[{t:'trap',n:'Snare Trap',ty:'TRAP',tx:'Drop on a lane. Hits the first enemy that advances there for 4.',ic:'<svg width="90" height="40" viewBox="0 0 90 40"><path d="M6 34 22 6l12 28 12-28 12 28 12-28 12 28" stroke="#b985ee" stroke-width="6" fill="none" stroke-linejoin="round"/></svg>',ic2:'<svg width="64" height="30" viewBox="0 0 90 40"><path d="M6 34 22 6l12 28 12-28 12 28 12-28 12 28" stroke="#b985ee" stroke-width="7" fill="none" stroke-linejoin="round"/></svg>'},
+{t:'tower',n:'Lantern Gun',ty:'TOWER',tx:'Tower. Fires 2 dmg at the first enemy in its lane. Any slot.',ic:'<svg width="90" height="40" viewBox="0 0 90 40"><rect x="14" y="10" width="32" height="20" rx="6" fill="#f2c96a"/><rect x="44" y="16" width="30" height="8" rx="3" fill="#9aa9b4"/></svg>',ic2:'<svg width="64" height="30" viewBox="0 0 90 40"><rect x="14" y="10" width="32" height="20" rx="6" fill="#f2c96a"/><rect x="44" y="16" width="30" height="8" rx="3" fill="#9aa9b4"/></svg>'},
+{t:'tower',n:'Harpoon',ty:'TOWER',tx:'Tower. Fires 3 dmg at the first enemy in its lane. Slots 1-2 only.',ic:'<svg width="90" height="40" viewBox="0 0 90 40"><path d="M10 28 70 14" stroke="#e8eef0" stroke-width="4" stroke-linecap="round"/><path d="M66 6 84 12 70 24Z" fill="#fff"/></svg>',ic2:'<svg width="64" height="30" viewBox="0 0 90 40"><path d="M10 28 70 14" stroke="#e8eef0" stroke-width="5" stroke-linecap="round"/><path d="M66 6 84 12 70 24Z" fill="#fff"/></svg>'},
+{t:'support',n:'Bell',ty:'SUPPORT',tx:'Towers in the next lane up or down, same column, get +1 dmg.',ic:'<svg width="90" height="40" viewBox="0 0 90 40"><path d="M30 30Q32 8 45 6Q58 8 60 30Z" fill="#f2c96a"/><rect x="26" y="29" width="38" height="5" rx="2" fill="#d9a53c"/><circle cx="45" cy="38" r="3" fill="#a77a1c"/></svg>',ic2:'<svg width="64" height="30" viewBox="0 0 90 40"><path d="M30 30Q32 8 45 6Q58 8 60 30Z" fill="#f2c96a"/><rect x="26" y="29" width="38" height="5" rx="2" fill="#d9a53c"/></svg>'}];
+const card=c=>`<div class="card ${c.t}"><div class="cost">1</div><div class="nm">${c.n}</div><div class="ic">${c.ic}</div><div class="ty">${c.ty}</div><div class="tx">${c.tx}</div></div>`;
+document.getElementById('cards').innerHTML=C.map(card).join('');
+document.getElementById('tabs').innerHTML=C.map((c,i)=>`<div class="tab ${c.t}${state==='drag'&&i===2?' gone':''}"><div class="cost">1</div><div class="ic">${c.ic2}</div></div>`).join('');
+const st=document.getElementById('stage');
+if(state==='open')st.classList.add('open');
+if(state==='drag'){document.getElementById('ghost').style.display='block';document.getElementById('ghost').innerHTML=card(C[2]);
+ const f=document.getElementById('finger');f.style.display='block';f.style.left='590px';f.style.top='560px';document.getElementById('drag-hint').style.display='block';}
+if(state==='info'){document.getElementById('info').style.display='block';const f=document.getElementById('finger');f.style.display='block';f.style.left='718px';f.style.top='388px';}
+document.getElementById('tabs').onclick=()=>st.classList.add('open');
+document.getElementById('pile').onclick=()=>st.classList.add('open');
+document.getElementById('dhead').onclick=()=>st.classList.remove('open');
+function fit(){const k=Math.min(innerWidth/W,innerHeight/H);st.style.transform=`translate(${(innerWidth-W*k)/2}px,${(innerHeight-H*k)/2}px) scale(${k})`}
+addEventListener('resize',fit);fit();
+</script></body></html>
