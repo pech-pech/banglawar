@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Tidewall UI overhaul - B: Side rail (mock)</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-user-select:none;user-select:none;touch-action:none}
+html,body{width:100%;height:100%;background:#05090d;overflow:hidden;font-family:system-ui,"Segoe UI",Roboto,sans-serif;color:#e6f1f4}
+#stage{position:absolute;left:0;top:0;width:1104px;height:884px;transform-origin:0 0;background:#0e1b25;overflow:hidden}
+#board{position:absolute;left:0;top:0;width:856px;height:884px;background:#0f2230}
+#rail{position:absolute;left:856px;top:0;width:248px;height:884px;background:#0b1620;border-left:2px solid #1f3c4c;padding:6px;display:flex;flex-direction:column;gap:6px}
+/* board */
+.hdr{position:absolute;top:0;left:0;width:688px;height:30px}
+.hdr span{position:absolute;top:8px;width:128px;text-align:center;font-size:13px;letter-spacing:.1em;color:#7fa0ae;font-weight:700}
+.lane{position:absolute;left:96px;width:548px;height:264px;border-radius:16px;background:#14303f;border:2px solid #1d4254}
+.cell{position:absolute;top:8px;width:128px;height:244px;border-radius:12px;background:#0f2431;border:2px solid #1e4152;transition:.12s}
+.cell.ok{border-color:#f2c14e;box-shadow:0 0 0 3px rgba(242,193,78,.35),inset 0 0 28px rgba(242,193,78,.18);background:#1a3342}
+.cell.hot{background:#2a4252;box-shadow:0 0 0 4px #f2c14e,0 0 30px rgba(242,193,78,.7),inset 0 0 36px rgba(242,193,78,.35)}
+.house{position:absolute;left:6px;width:84px;height:100px}
+.wall{position:absolute;left:644px;width:40px;height:264px;display:flex;flex-direction:column;gap:3px;padding:2px 0}
+.wall i{flex:1;border-radius:5px;background:linear-gradient(#aab4bc,#7f8a94);border:2px solid #5d6770}
+.wall b{position:absolute;left:-2px;top:104px;width:44px;text-align:center;font-size:13px;background:#1b2b35;border:2px solid #aab4bc;border-radius:10px;color:#fff;padding:1px 0}
+#sea{position:absolute;left:688px;top:0;width:168px;height:884px;background:
+ radial-gradient(ellipse 90px 60px at 30% 14%,rgba(160,230,255,.16),transparent 70%),
+ radial-gradient(ellipse 80px 50px at 70% 36%,rgba(160,230,255,.14),transparent 70%),
+ radial-gradient(ellipse 100px 60px at 40% 62%,rgba(160,230,255,.16),transparent 70%),
+ radial-gradient(ellipse 80px 60px at 75% 86%,rgba(160,230,255,.14),transparent 70%),
+ linear-gradient(90deg,#1e7fa0,#0f5977 60%,#0c4a66)}
+#sea svg{position:absolute;inset:0;opacity:.5}
+#foam{position:absolute;left:684px;top:0;width:8px;height:884px;background:linear-gradient(90deg,#fff,#aeeaff);box-shadow:0 0 16px 4px rgba(150,230,255,.9)}
+.en{position:absolute;width:140px;height:230px}
+.en .spr{position:absolute;left:10px;top:52px;width:120px;height:120px}
+.en .hp{position:absolute;left:24px;top:178px;width:92px;height:13px;border-radius:7px;background:#0a1a22;border:2px solid #0a1a22;overflow:hidden}
+.en .hp i{display:block;height:100%;background:linear-gradient(#8ff0a8,#35b36b)}
+.en .hpn{position:absolute;left:0;width:140px;top:194px;text-align:center;font-weight:800;font-size:14px;text-shadow:0 1px 2px #000}
+.badge{position:absolute;right:0;top:2px;width:56px;height:62px;text-align:center;font-weight:900;font-size:22px;text-shadow:0 2px 3px #000}
+.badge svg{display:block;margin:0 auto;width:42px;height:42px}
+.chip{position:absolute;left:12px;top:214px;width:116px;text-align:center;font-size:11px;font-weight:800;color:#06222e;background:#7fd3ee;border-radius:9px;padding:1px 0}
+#erode{position:absolute;left:96px;top:862px;font-size:12px;color:#a9d3e2;background:#14303f;border:1px solid #1d4254;border-radius:10px;padding:2px 10px;white-space:nowrap}
+/* rail */
+.row{display:flex;gap:4px}
+.ib{flex:none;width:56px;height:56px;border-radius:14px;background:#17313f;border:2px solid #2a4b5c;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:18px;color:#e6f1f4}
+.ib svg{width:28px;height:28px}
+#tide{padding:4px 4px 0}
+#tide h2{font-size:17px;line-height:1.15;font-weight:800}
+#tide small{display:block;font-size:12.5px;color:#9ab8c4;margin-top:1px}
+#town{margin-top:5px;display:flex;align-items:center;gap:6px;font-size:13px;font-weight:800}
+#town .bar{flex:1;height:20px;border-radius:10px;background:#0a1a22;border:2px solid #4b7686;overflow:hidden}
+#town .bar i{display:block;height:100%;width:100%;background:linear-gradient(#8ff0a8,#35b36b)}
+#en{display:flex;align-items:center;gap:8px;height:62px}
+#orb{width:62px;height:62px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#ffe08a,#e2a43a 70%);border:3px solid #fbd56e;color:#3a2606;text-align:center;font-weight:900;font-size:30px;line-height:34px;padding-top:6px;box-shadow:0 0 14px rgba(242,193,78,.5);flex:none}
+#orb small{display:block;font-size:11px;line-height:10px;font-weight:800}
+#deck{font-size:13px;line-height:1.35;color:#b9d0da}
+#deck b{color:#fff}
+#hand{display:flex;flex-direction:column;gap:6px}
+.tile{position:relative;height:76px;border-radius:14px;background:#15293a;border:2px solid #2a4658;border-left:8px solid var(--tc);display:grid;grid-template-columns:30px 54px 1fr;gap:6px;align-items:center;padding:4px 6px 4px 4px;overflow:hidden;transition:height .15s,opacity .15s}
+.tile .co{width:30px;height:30px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#ffe08a,#e2a43a);color:#3a2606;font-weight:900;font-size:18px;display:flex;align-items:center;justify-content:center;border:2px solid #fbd56e}
+.tile .ic{width:54px;height:40px;background:#0c1a25;border-radius:8px;display:flex;align-items:center;justify-content:center}
+.tile .ic svg{width:50px;height:26px}
+.tile .nm{font-size:15px;font-weight:800;line-height:1.1}
+.tile .ty{font-size:10px;font-weight:900;letter-spacing:.1em;color:var(--tc);text-transform:uppercase}
+.tile .ef{font-size:11.5px;line-height:1.2;color:#c3d6de;margin-top:1px}
+.tile .full{display:none;grid-column:1/-1;font-size:13px;line-height:1.3;color:#e6f1f4;padding:2px 2px 0}
+.tile.open{height:150px;align-items:start;grid-template-rows:auto 1fr}
+.tile.open .full{display:block}
+.tile.open .ef{display:none}
+.tile.drag{opacity:.35}
+.tile.dead{opacity:.28;filter:grayscale(.7)}
+#ghost{position:fixed;display:none;z-index:50;pointer-events:none}
+.tog{flex:1;height:56px;border-radius:14px;font-size:15px;font-weight:800;border:2px solid #2a4b5c;background:#17313f;color:#9ab8c4}
+.tog.on{background:#1f6b5b;border-color:#3fa08a;color:#e8fff7}
+.tog:disabled{opacity:.5}
+#end{flex:1;min-height:100px;border-radius:20px;border:0;background:linear-gradient(#f8c25a,#e29a2e);color:#2a1a05;font-size:30px;font-weight:900;box-shadow:0 6px 0 #a8681a,0 8px 14px rgba(0,0,0,.5);line-height:1.05}
+#end small{display:block;font-size:12px;font-weight:700;margin-top:4px;opacity:.75}
+#wm{font-size:10px;color:#6b8794;text-align:left;display:flex;justify-content:space-between}
+#tip{position:absolute;display:none;z-index:60;max-width:260px;background:#0b1620;border:2px solid #f2c14e;border-radius:12px;padding:8px 12px;font-size:14px;line-height:1.3;box-shadow:0 6px 20px rgba(0,0,0,.6)}
+</style></head>
+<body>
+<div id="stage">
+<svg width="0" height="0" style="position:absolute"><defs>
+ <symbol id="crab" viewBox="0 0 120 120"><g stroke="#8a3c1c" stroke-width="3">
+  <path d="M20 84l-12 10M30 92l-8 14M100 84l12 10M90 92l8 14" stroke="#e0603a" stroke-width="6" stroke-linecap="round"/>
+  <circle cx="20" cy="62" r="15" fill="#f0743f"/><circle cx="10" cy="76" r="11" fill="#f0743f"/>
+  <ellipse cx="62" cy="76" rx="44" ry="30" fill="#f58a52"/><ellipse cx="62" cy="82" rx="28" ry="15" fill="#fbb58a" stroke="none"/></g>
+  <path d="M48 52v-14M76 52v-14" stroke="#e0603a" stroke-width="5"/>
+  <circle cx="48" cy="34" r="9" fill="#fff"/><circle cx="76" cy="34" r="9" fill="#fff"/><circle cx="50" cy="36" r="4" fill="#222"/><circle cx="78" cy="36" r="4" fill="#222"/></symbol>
+ <symbol id="urch" viewBox="0 0 120 120"><g stroke="#b886ee" stroke-width="5" stroke-linecap="round">
+  <path d="M60 8v22M60 90v22M8 60h22M90 60h22M24 24l16 16M80 80l16 16M96 24L80 40M40 80L24 96"/></g>
+  <circle cx="60" cy="60" r="34" fill="#8f4bd6"/><circle cx="60" cy="60" r="34" fill="url(#ug)" opacity=".4"/><circle cx="60" cy="58" r="14" fill="#fff"/><circle cx="58" cy="58" r="7" fill="#1b1030"/></symbol>
+ <symbol id="house" viewBox="0 0 84 100"><path d="M4 44L42 6l38 38z" fill="#9a4630"/><path d="M4 44L42 6l38 38z" fill="none" stroke="#6e2c1c" stroke-width="3"/><rect x="12" y="44" width="60" height="50" rx="5" fill="#6c4a33"/><rect x="22" y="56" width="14" height="16" rx="3" fill="#f2c14e"/><rect x="48" y="56" width="14" height="16" rx="3" fill="#f2c14e"/></symbol>
+ <symbol id="i-arrow" viewBox="0 0 42 42"><circle cx="21" cy="21" r="19" fill="#2a2a1a" stroke="#f2c14e" stroke-width="3"/><path d="M30 21H12M20 12l-9 9 9 9" fill="none" stroke="#f2c14e" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+ <symbol id="i-sword" viewBox="0 0 42 42"><circle cx="21" cy="21" r="19" fill="#2e1a1a" stroke="#f08a74" stroke-width="3"/><path d="M12 30L30 12M24 12h6v6M12 30l-3 3" fill="none" stroke="#f08a74" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+ <symbol id="i-shield" viewBox="0 0 42 42"><circle cx="21" cy="21" r="19" fill="#13283a" stroke="#6ab6ee" stroke-width="3"/><path d="M21 9l10 4v8c0 7-5 11-10 13-5-2-10-6-10-13v-8z" fill="#4aa8e8"/></symbol>
+ <symbol id="a-harpoon" viewBox="36 0 90 40"><line x1="40" y1="30" x2="105" y2="14" stroke="#cfd8dc" stroke-width="5"/><path d="M105 6l16 8-16 8z" fill="#eceff1"/></symbol>
+ <symbol id="a-lantern" viewBox="36 0 90 40"><rect x="52" y="8" width="38" height="26" rx="7" fill="#ffd36b"/><rect x="88" y="14" width="30" height="11" rx="3" fill="#9aa7ad"/></symbol>
+ <symbol id="a-bell" viewBox="36 0 90 40"><circle cx="75" cy="15" r="13" fill="#f2c14e"/><rect x="58" y="22" width="34" height="9" rx="4" fill="#f2c14e"/><circle cx="75" cy="35" r="3" fill="#8a6d1e"/></symbol>
+ <symbol id="a-snare" viewBox="36 0 90 40"><path d="M40 32l12-24 12 24 12-24 12 24 12-24 12 24" fill="none" stroke="#c88aea" stroke-width="5"/></symbol>
+ <radialGradient id="ug"><stop offset="0" stop-color="#fff"/><stop offset="1" stop-color="#000"/></radialGradient>
+</defs></svg>
+
+<div id="board">
+ <div class="hdr" id="hdr"></div>
+ <div id="sea"><svg viewBox="0 0 168 884"><g fill="none" stroke="#bff0ff" stroke-width="2.5" stroke-linecap="round" id="waves"></g></svg></div>
+ <div id="foam"></div>
+ <div id="erode">The tide wears walls down (slot 1 most), never to nothing</div>
+</div>
+
+<div id="rail">
+ <div class="row" id="ctl" style="gap:3px">
+  <button class="ib" id="b-pause" aria-label="Pause"><svg viewBox="0 0 28 28"><rect x="6" y="5" width="6" height="18" rx="2" fill="#e6f1f4"/><rect x="16" y="5" width="6" height="18" rx="2" fill="#e6f1f4"/></svg></button>
+  <button class="ib" id="b-snd" aria-label="Sound"><svg viewBox="0 0 28 28"><path d="M4 11h5l7-6v18l-7-6H4z" fill="#e6f1f4"/><path d="M19 9c3 3 3 7 0 10M22 6c5 5 5 11 0 16" fill="none" stroke="#e6f1f4" stroke-width="2.4" stroke-linecap="round"/></svg></button>
+  <button class="ib" id="b-spd" aria-label="Speed">1x</button>
+  <button class="ib" id="b-rst" aria-label="Restart"><svg viewBox="0 0 28 28"><path d="M22 14a8 8 0 1 1-3-6.2M22 4v6h-6" fill="none" stroke="#e6f1f4" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+ </div>
+ <div id="tide"><h2>Tide 1 - First Surge</h2><small>Turn 1 of 3 &middot; tide 1 of 4</small>
+  <div id="town"><span>Town</span><div class="bar"><i></i></div><span>24/24</span></div></div>
+ <div id="en"><div id="orb"><span id="ev">2</span><small>energy</small></div>
+  <div id="deck">Draw <b>6</b> &middot; Discard <b>0</b><br>Deck <b>10</b> cards</div></div>
+ <div id="hand"></div>
+ <div class="row"><button class="tog" id="undo" disabled>Undo</button><button class="tog on" id="auto">Auto-end: on</button></div>
+ <button id="end">End Turn<small>2 energy left</small></button>
+ <div id="wm"><span>WebGPU &middot; seed 510125286</span><span>hold = info</span></div>
+</div>
+<div id="tip"></div>
+</div>
+<div id="ghost"></div>
+
+<script>
+const $=s=>document.querySelector(s);
+const stage=$('#stage');
+function fit(){const s=Math.min(innerWidth/1104,innerHeight/884);stage.style.transform=`translate(${(innerWidth-1104*s)/2}px,${(innerHeight-884*s)/2}px) scale(${s})`;window.SC=s;}
+addEventListener('resize',fit);fit();
+
+const CARDS=[
+ {id:'snare',n:'Snare Trap',t:'trap',c:1,ef:'4 dmg to next enemy in lane',tx:'Trap. Drop on a lane. Hits the first enemy that advances there for 4.',any:true},
+ {id:'lantern',n:'Lantern Gun',t:'tower',c:1,ef:'2 dmg, first in lane. Any slot',tx:'Tower. Fires 2 dmg at the first enemy in its lane. Any slot.',slots:[1,2,3,4]},
+ {id:'harpoon',n:'Harpoon',t:'tower',c:1,ef:'3 dmg, first in lane. Slots 1-2',tx:'Tower. Fires 3 dmg at the first enemy in its lane. Slots 1-2 only.',slots:[1,2]},
+ {id:'bell',n:'Bell',t:'bell',c:1,ef:'+1 dmg to towers in next lane',tx:'Towers in the next lane up or down, same column, get +1 dmg.',slots:[1,2,3,4]}];
+const TC={tower:'#e0a23a',trap:'#b86bd6',bell:'#f2c14e'};
+const TL={tower:'Tower',trap:'Trap',bell:'Support'};
+const LANEY=i=>32+i*276;
+const SLOTX=s=>100+(4-s)*136;   // slot 4 leftmost, slot 1 next to wall
+
+// board build
+const board=$('#board');
+$('#hdr').innerHTML=[4,3,2,1].map(s=>`<span style="left:${SLOTX(s)-0}px">SLOT ${s}</span>`).join('');
+for(let l=0;l<3;l++){
+ const y=LANEY(l);
+ const lane=document.createElement('div');lane.className='lane';lane.style.top=y+'px';lane.dataset.l=l;
+ for(let s=4;s>=1;s--){const c=document.createElement('div');c.className='cell';c.dataset.l=l;c.dataset.s=s;c.style.left=(SLOTX(s)-96-2)+'px';c.dataset.info=`Lane ${l+1}, slot ${s}. Empty.`;lane.appendChild(c);}
+ board.appendChild(lane);
+ board.insertAdjacentHTML('beforeend',`<svg class="house" style="top:${y+82}px" data-info="Town house. Enemies that reach the back of the lane hit the town."><use href="#house"/></svg>
+  <div class="wall" style="top:${y}px" data-info="Seawall. Blocks the lane and soaks damage. The tide wears it down each turn."><i></i><i></i><i></i><i></i><b>6/6</b></div>`);
+}
+// waves
+let w='';for(let i=0;i<22;i++){const x=(i*47)%150+8,y=(i*113)%860+10;w+=`<path d="M${x} ${y}q12-14 24 0t24 0"/>`}
+$('#waves').innerHTML=w;
+// enemies: [lane, cx, kind, hp,max, intent type,n, chip, desc]
+function enemy(l,cx,kind,hp,mx,it,n,chip){
+ const d=document.createElement('div');d.className='en';d.style.left=(cx-70)+'px';d.style.top=(LANEY(l)+16)+'px';
+ const name=kind==='crab'?'Shore crab':'Sea urchin';
+ const idesc=it==='arrow'?`Advances ${n} slot${n>1?'s':''}; at the back it hits the town.`:it==='sword'?`Hits slot ${n} for ${n}... (damage shown by number).`:'Shields itself.';
+ d.dataset.info=`${name}, ${hp}/${mx} HP. ${it==='arrow'?`Advances ${n} slot${n>1?'s':''} (at the back: hits town).`:it==='sword'?`Next move: hits slot ${n} for ${n}.`:'Shields itself.'}`;
+ d.innerHTML=`<svg class="spr"><use href="#${kind==='crab'?'crab':'urch'}"/></svg>
+ <div class="badge"><svg><use href="#i-${it}"/></svg>${n}</div>
+ <div class="hp"><i style="width:${hp/mx*100}%"></i></div><div class="hpn">${hp}/${mx}</div>${chip?`<div class="chip">${chip}</div>`:''}`;
+ board.appendChild(d);
+}
+const ex=SLOTX(1)+64-96+96; // slot1 centre in board coords
+const s1=SLOTX(1)+64, sea=770;
+enemy(0,s1,'crab',4,4,'arrow',2);enemy(1,s1,'crab',4,4,'arrow',2);enemy(2,s1,'crab',4,4,'arrow',2);
+enemy(0,sea,'urch',3,3,'arrow',1);enemy(1,sea,'crab',4,4,'sword',2,'Soaked');enemy(2,sea,'urch',3,3,'shield',0);
+
+// hand
+const hand=$('#hand');let energy=2;const log=[];
+function tiles(){hand.innerHTML='';CARDS.forEach((c,i)=>{
+ const t=document.createElement('div');t.className='tile';t.style.setProperty('--tc',TC[c.t]);t.dataset.i=i;
+ t.innerHTML=`<div class="co">${c.c}</div><div class="ic"><svg><use href="#a-${c.id}"/></svg></div><div><div class="ty">${TL[c.t]}</div><div class="nm">${c.n}</div><div class="ef">${c.ef}</div></div><div class="full">${c.tx}</div>`;
+ hand.appendChild(t);});}
+tiles();
+
+// interaction: tap = expand, drag left = play, hold = info
+let drag=null,holdT=null;
+const tip=$('#tip');
+function showTip(x,y,txt){tip.textContent=txt;tip.style.display='block';const r=stage.getBoundingClientRect();let lx=(x-r.left)/SC+14,ly=(y-r.top)/SC-10;lx=Math.min(lx,1104-280);ly=Math.max(8,Math.min(ly,884-80));tip.style.left=lx+'px';tip.style.top=ly+'px';}
+function hideTip(){tip.style.display='none'}
+function validCells(c){return [...document.querySelectorAll('.cell')].filter(e=>!e.dataset.full&&(c.any||c.slots.includes(+e.dataset.s)));}
+function startDrag(i,x,y){const c=CARDS[i];drag={i,c};hand.children[i].classList.add('drag');
+ const g=$('#ghost');g.style.display='block';g.innerHTML=`<div class="tile" style="--tc:${TC[c.t]};width:210px;height:70px;box-shadow:0 10px 24px rgba(0,0,0,.6);transform:rotate(-3deg) scale(${SC});transform-origin:0 0"><div class="co">${c.c}</div><div class="ic"><svg><use href="#a-${c.id}"/></svg></div><div><div class="ty">${TL[c.t]}</div><div class="nm">${c.n}</div></div></div>`;
+ validCells(c).forEach(e=>e.classList.add('ok'));moveDrag(x,y);}
+function moveDrag(x,y){const g=$('#ghost');g.style.left=(x-60*SC)+'px';g.style.top=(y-30*SC)+'px';
+ document.querySelectorAll('.cell').forEach(e=>e.classList.remove('hot'));const el=document.elementFromPoint(x,y);
+ const cell=el&&el.closest&&el.closest('.cell');drag.cell=null;if(cell&&cell.classList.contains('ok')){cell.classList.add('hot');drag.cell=cell;}}
+function endDrag(){const d=drag;drag=null;$('#ghost').style.display='none';
+ document.querySelectorAll('.cell').forEach(e=>e.classList.remove('ok','hot'));
+ hand.children[d.i].classList.remove('drag');
+ if(d.cell&&energy>=d.c.c){const cell=d.cell;cell.dataset.full=1;cell.innerHTML=`<svg viewBox="36 0 90 40" style="position:absolute;left:14px;top:90px;width:100px;height:50px"><use href="#a-${d.c.id}"/></svg><div style="position:absolute;bottom:8px;width:100%;text-align:center;font-size:13px;font-weight:800;color:#f2c14e">${d.c.n}</div>`;
+  energy-=d.c.c;$('#ev').textContent=energy;$('#end small').textContent=energy+' energy left';hand.children[d.i].classList.add('dead');hand.children[d.i].dataset.played=1;log.push({i:d.i,cell});$('#undo').disabled=false;$('#undo').style.color='#e6f1f4';}}
+$('#undo').onclick=()=>{const p=log.pop();if(!p)return;p.cell.innerHTML='';delete p.cell.dataset.full;energy+=1;$('#ev').textContent=energy;$('#end small').textContent=energy+' energy left';const t=hand.children[p.i];t.classList.remove('dead');delete t.dataset.played;if(!log.length)$('#undo').disabled=true;};
+$('#auto').onclick=e=>{const a=e.currentTarget;a.classList.toggle('on');a.textContent='Auto-end: '+(a.classList.contains('on')?'on':'off');};
+let sx,sy,moved,pt;
+stage.addEventListener('pointerdown',e=>{
+ sx=e.clientX;sy=e.clientY;moved=false;pt=e.target;
+ const tl=e.target.closest('.tile');
+ if(tl&&!tl.dataset.played){pt=tl;}
+ const info=e.target.closest('[data-info]');
+ clearTimeout(holdT);
+ if(info&&!tl)holdT=setTimeout(()=>{showTip(e.clientX,e.clientY,info.dataset.info);moved='held'},450);
+ stage.setPointerCapture&&0;
+});
+addEventListener('pointermove',e=>{
+ if(drag){moveDrag(e.clientX,e.clientY);return;}
+ if(pt&&pt.closest&&pt.closest('.tile')&&!moved){const dx=e.clientX-sx,dy=e.clientY-sy;
+  if(Math.hypot(dx,dy)>10){clearTimeout(holdT);moved=true;const i=+pt.closest('.tile').dataset.i;if(dx<0&&!hand.children[i].dataset.played)startDrag(i,e.clientX,e.clientY);}}
+ else if(Math.hypot(e.clientX-sx,e.clientY-sy)>10)clearTimeout(holdT);
+});
+addEventListener('pointerup',e=>{
+ clearTimeout(holdT);
+ if(drag){endDrag();pt=null;return;}
+ if(moved==='held'){hideTip();pt=null;return;}
+ const tl=pt&&pt.closest&&pt.closest('.tile');
+ if(tl&&!moved&&!tl.dataset.played){const o=tl.classList.contains('open');[...hand.children].forEach(x=>x.classList.remove('open'));if(!o)tl.classList.add('open');}
+ pt=null;
+});
+// stills helper: ?drag=1 shows a dragged tile over lane 2 slot 2; ?open=1 expands tile 2
+const q=new URLSearchParams(location.search);
+if(q.get('open'))hand.children[+q.get('open')-1].classList.add('open');
+if(q.get('drag')){requestAnimationFrame(()=>{const cell=document.querySelector('.cell[data-l="1"][data-s="2"]');const r=cell.getBoundingClientRect();
+ startDrag(+q.get('drag')-1,r.left+r.width*.55,r.top+r.height*.5);});}
+if(q.get('hold')){requestAnimationFrame(()=>{const e=document.querySelectorAll('.en')[3];const r=e.getBoundingClientRect();showTip(r.left+r.width*.3,r.top+r.height*.45,e.dataset.info);});}
+</script>
+</body></html>
