@@ -430,7 +430,10 @@ function stepEnemy(S, e, dt){
   if (e.flashT > 0) e.flashT = Math.max(0, e.flashT - dt);
   if (e.contactCd > 0) e.contactCd -= dt;
   if (e.st === 'spawn') { e.spawnT -= dt; if (e.spawnT <= 0) e.st = e.afterSpawn || 'move'; return; }
-  if (A && A.step) A.step(S, e, dt, api);
+  if (e.frozenT > 0) { // freeze (mods): bosses and freeze-immune enemies never freeze
+    if (e.boss || (e.immune && e.immune.freeze)) e.frozenT = 0; else e.frozenT = Math.max(0, e.frozenT - dt);
+  }
+  if (!(e.frozenT > 0) && A && A.step) A.step(S, e, dt, api);
   if (S.phase === 'results') return;
   if (!immovable(e) && !charging(e)) collideBody(S, e, e.r);
   // bodies are kept HERO_GAP apart (separate()), so touching = within the gap; a lunge/charge hits on overlap
@@ -439,8 +442,23 @@ function stepEnemy(S, e, dt){
     if (hurtHero(S, enemyDmg(S, b.contact), e.type, e.x, e.y)) e.contactCd = CONTACT_CD;
   }
 }
-function immovable(e){ var b = base(e); return !!(b.static || e.static || e.boss); }
+function immovable(e){ var b = base(e); return !!(b.static || e.static || e.boss || (e.immune && e.immune.knockback) || e.knockback === 0); }
 function charging(e){ return e.st === 'act' && ((e.lungeLeft || 0) > 0 || (e.dashLeft || 0) > 0); }
+function pairPass(S){
+  var a = S.enemies;
+  for (var i = 0; i < a.length; i++) for (var j = i + 1; j < a.length; j++) {
+    var p = a[i], q = a[j];
+    if (p.hidden || q.hidden) continue;
+    var dx = q.x - p.x, dy = q.y - p.y, d = Math.hypot(dx, dy), m = p.r + q.r + 0.04;
+    if (d >= m) continue;
+    if (d < 1e-6) { dx = (p.id < q.id ? 1e-6 : -1e-6); dy = 0; d = 1e-6; }
+    var pm = immovable(p) ? 0 : 1, qm = immovable(q) ? 0 : 1, sm = pm + qm;
+    if (!sm) continue;
+    var k = (m - d) / d;
+    p.x -= dx * k * pm / sm; p.y -= dy * k * pm / sm; q.x += dx * k * qm / sm; q.y += dy * k * qm / sm;
+    if (pm) collideBody(S, p, p.r); if (qm) collideBody(S, q, q.r);
+  }
+}
 function separate(S){
   var a = S.enemies, h = S.hero, it, i, j;
   for (it = 0; it < 3; it++) {
@@ -463,9 +481,26 @@ function separate(S){
       if (gd < 1e-6) { gx = 0; gy = (h.y > S.room.h / 2 ? -1e-6 : 1e-6); gd = 1e-6; } // pinned: push toward room centre
       var kk = (gap - gd) / gd;
       if (immovable(e)) { h.x -= gx * kk; h.y -= gy * kk; collideBody(S, h, HERO_WALL_R); } // static body acts as a post
-      else { e.x += gx * kk; e.y += gy * kk; }
+      else {
+        e.x += gx * kk; e.y += gy * kk; collideBody(S, e, e.r);
+        // enemy pinned by a wall or corner: the Operator gives way instead
+        var rx = e.x - h.x, ry = e.y - h.y, rd = Math.hypot(rx, ry);
+        if (rd < gap - 1e-3) {
+          if (rd < 1e-6) { rx = 0; ry = 1e-6; rd = 1e-6; }
+          var k2 = (gap - rd) / rd; h.x -= rx * k2; h.y -= ry * k2; collideBody(S, h, HERO_WALL_R);
+        }
+      }
     }
     for (i = 0; i < a.length; i++) if (!immovable(a[i])) collideBody(S, a[i], a[i].r);
+  }
+  // final pass: settle enemy pairs once more, then the Operator yields to anything still inside the gap
+  pairPass(S);
+  for (i = 0; i < a.length; i++) {
+    var f = a[i]; if (charging(f) || f.hidden) continue;
+    var fx = f.x - h.x, fy = f.y - h.y, fd = Math.hypot(fx, fy), fg = f.r + HERO_HURT_R + HERO_GAP;
+    if (fd >= fg - 1e-3) continue;
+    if (fd < 1e-6) { fx = 0; fy = 1e-6; fd = 1e-6; }
+    var k3 = (fg - fd) / fd; h.x -= fx * k3; h.y -= fy * k3; collideBody(S, h, HERO_WALL_R);
   }
 }
 
@@ -717,7 +752,6 @@ function syncBoss(S){
   var e = findEnemy(S, S.boss.id), B = S.boss;
   if (!e) { B.hp = 0; B.attack = null; B.tell01 = 0; return; }
   var ph = e.phase || 1;
-  if (ph !== B.phase && !S.events.some(function(o){ return o.k === 'bossphase'; })) ev(S, { k:'bossphase', x:e.x, y:e.y, id:e.id, phase:ph });
   B.hp = e.hp; B.maxHp = e.maxHp; B.phase = ph; B.attack = e.attack || null; B.tell01 = e.tell01 || 0; B.name = e.name || B.name;
 }
 

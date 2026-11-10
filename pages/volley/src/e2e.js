@@ -349,7 +349,7 @@ async function dragTest(page, cdp, sess, cv, view, w, h) {
   // During hold: no joystick element / graphic near the thumb.
   const dom = await page.evaluate(([x, y]) => {
     const all = [...document.querySelectorAll('body *')].filter(window.__vis);
-    const near = all.filter(e => { const r = e.getBoundingClientRect(); const big = r.width * r.height > innerWidth * innerHeight * 0.5; return !big && e.tagName !== 'CANVAS' && !e.querySelector('canvas') && ((x >= r.left && x <= r.right && ((y >= r.top && y <= r.bottom) || (y - 60 >= r.top && y - 60 <= r.bottom)))); });
+    const near = all.filter(e => { const r = e.getBoundingClientRect(); const gc = window.__gameCanvas(); const big = r.width * r.height > (gc ? gc.w * gc.h : innerWidth * innerHeight) * 0.5; return !big && e.tagName !== 'CANVAS' && !e.querySelector('canvas') && ((x >= r.left && x <= r.right && ((y >= r.top && y <= r.bottom) || (y - 60 >= r.top && y - 60 <= r.bottom)))); });
     const named = all.filter(e => /joy|stick|thumb|knob|nub|touchpad|dpad/i.test((e.id || '') + ' ' + (typeof e.className === 'string' ? e.className : '')));
     return { n: all.length, near: near.map(window.__desc), named: named.map(window.__desc) };
   }, [x, y]);
@@ -650,10 +650,11 @@ async function runFlow(page, sess, w, h, opt) {
         await hudRow(page, 'supply screen');
         targetsRow('supply screen', await page.evaluate(() => window.__targets()));
         const ri = d.kinds.indexOf('repair');
+        if (ri >= 0) await page.evaluate(() => { const h = window.__pv.S.hero; h.hp = Math.round(h.maxHp * 0.5); }); // test-only: make the repair measurable
         const b = await page.evaluate(() => window.__snap());
         const how = await supplyChoose(page, ri >= 0 ? ri : 0, true);
         const a = await page.evaluate(() => window.__snap());
-        ok(a.phase !== 'supply', 'tapping a supply choice applies it', `via ${how}: phase ${b.phase} -> ${a.phase}; hp ${b.hp} -> ${a.hp} / ${a.maxHp} (repair 40% = +${Math.round(0.4 * b.maxHp)} capped)`);
+        ok(a.phase !== 'supply' && (ri < 0 || Math.abs(a.hp - Math.min(b.maxHp, b.hp + 0.4 * b.maxHp)) <= 1), 'tapping supply repair restores 40% max HP', `via ${how}: phase ${b.phase} -> ${a.phase}; hp ${b.hp} -> ${a.hp} / ${a.maxHp} (want +${Math.round(0.4 * b.maxHp)}; hp set to 50% by the test first)`);
       } else await supplyChoose(page, 0, true);
     } else { idle++; await page.evaluate(() => window.__pv.step(30, { mx: 0, my: 0 })); steps += 30; }
     last = s;
@@ -693,6 +694,13 @@ async function runFlow(page, sess, w, h, opt) {
   const dets = [];
   for (const target of TARGETS) {
     if (!fs.existsSync(target.file)) { curTag = target.name; row('target file exists', 'SKIP', target.file + ' not found'); continue; }
+    if (target.name.startsWith('index')) {
+      curTag = target.name;
+      const built = fs.readFileSync(target.file, 'utf8');
+      const parts = [...fs.readFileSync(path.join(SRC, 'game.html'), 'utf8').matchAll(/src="(parts\/[^"]+)"/g)].map(m => m[1]);
+      const stale = parts.filter(pp => { const f = path.join(SRC, pp); return fs.existsSync(f) && fs.statSync(f).mtimeMs > fs.statSync(target.file).mtimeMs; });
+      ok(stale.length === 0 && built.includes('V.STAGES') === fs.readFileSync(path.join(SRC, 'game.html'), 'utf8').includes('stages.js'), 'built index.html is current with src parts', stale.length ? 'STALE build (supervisor runs build.py): newer parts ' + stale.join(', ') : 'all parts older than the build');
+    }
     for (const sess of SESSIONS) {
       if (process.env.E2E_SESS && `${sess.vp[0]}x${sess.vp[1]} ${sess.mode}` !== process.env.E2E_SESS) continue;
       try { const r = await session(browser, target, sess); if (r && r.det) dets.push({ tag: curTag, ...r.det }); }
@@ -716,7 +724,7 @@ async function runFlow(page, sess, w, h, opt) {
   const files = ['game.html', 'parts/main.js', 'parts/input.js', 'parts/ui.js', 'parts/sim.js', 'parts/render.js', 'parts/gpu.js', '../index.html'].map(f => `  ${f}: ${mt(path.join(SRC, f))}`);
   const cnt = s => rows.filter(r => r.status === s).length;
   const lines = [
-    `Project Volley P0 E2E results`,
+    `Project Volley P0+P1 E2E results`,
     `Date: ${new Date().toISOString()}  (suite src/e2e.js, ${((Date.now() - t0) / 1000).toFixed(0)} s)`,
     `Chromium headless, flags ${GPU_ARGS.join(' ')}; contexts hasTouch+isMobile, dpr 1; touch via CDP Input.dispatchTouchEvent; url ?seed=${SEED} (+&gpu=0)`,
     `Files under test (mtime):`, ...files,

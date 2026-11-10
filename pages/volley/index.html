@@ -20,10 +20,11 @@ html,body{margin:0;height:100%;background:#1b1a17;color:var(--sand);font:14px/1.
 #stageLbl{font-weight:700;font-size:13px;white-space:nowrap;color:var(--sand);background:var(--gun);border:1px solid #4a4d4f;border-radius:6px;padding:3px 6px}
 #stageLbl b{color:#fff}
 #lvl{font-weight:800;font-size:13px;color:#0d1b1d;background:var(--cyan);border-radius:6px;padding:3px 6px;white-space:nowrap}
-#xpWrap{flex:1;height:8px;border-radius:4px;background:#0c0d0e;border:1px solid #45494c;overflow:hidden;min-width:30px}
+#xpWrap{height:6px;margin:2px 6px 0;border-radius:3px;background:#0c0d0e;border:1px solid #45494c;overflow:hidden}
 #xpFill{height:100%;width:0;background:var(--cyan)}
-#gear{pointer-events:auto;width:56px;height:56px;margin:-6px -4px -6px 0;border:0;background:transparent;color:var(--sand);font-size:24px;line-height:56px;padding:0;cursor:pointer}
-#gear span{display:inline-block;width:36px;height:36px;line-height:34px;border-radius:8px;background:var(--gun);border:1px solid #55595c}
+.hb{pointer-events:auto;flex:none;width:56px;height:56px;margin:-6px -4px -6px 0;border:0;background:transparent;color:var(--sand);font-size:24px;line-height:56px;padding:0;cursor:pointer}
+#pauseBtn{font-size:13px;letter-spacing:-2px}
+.hb span{display:inline-block;width:36px;height:36px;line-height:34px;border-radius:8px;background:var(--gun);border:1px solid #55595c}
 #hpRow{position:relative;height:18px;margin:0 6px;border-radius:0 0 6px 6px;background:#0c0d0e;border:1px solid #45494c;border-top:0;overflow:hidden}
 #hpFill{height:100%;width:100%;background:var(--hp);transition:width .12s}
 #hpTxt{position:absolute;inset:0;text-align:center;font-size:12px;font-weight:800;line-height:18px;color:#0b1416}
@@ -42,11 +43,32 @@ body.ovon #hud, body.ovon #toast, body.ovon #rlbl{visibility:hidden}
 .ov p{margin:0;color:var(--sand);max-width:300px}
 .btn{min-height:56px;min-width:120px;padding:8px 18px;border-radius:10px;border:0;font:700 17px system-ui,sans-serif;background:var(--cyan);color:#0b1416;cursor:pointer}
 .btn.ghost{background:var(--gun2);color:var(--sand);border:1px solid #5a5e61}
-.card{width:100%;max-width:300px;min-height:84px;border-radius:12px;border:2px solid var(--cyan);background:var(--gun);color:var(--sand);padding:10px 12px;text-align:left;cursor:pointer;font:inherit}
-.card b{display:block;font-size:17px;color:#fff;margin-bottom:3px}
-.card span{font-size:14px;color:var(--sand)}
+.card{width:100%;min-height:64px;border-radius:10px;border:2px solid var(--cyan);background:var(--gun);color:var(--sand);padding:8px 10px;text-align:left;cursor:pointer;font:inherit;
+  display:flex;align-items:center;gap:10px}
+.card .gl{flex:none;width:44px;height:44px;border-radius:8px;background:#11262a;border:1px solid var(--cyanD);color:var(--cyan);font:700 22px/44px system-ui,sans-serif;text-align:center}
+.card .tx{flex:1;min-width:0}
+.card b{display:block;font-size:18px;color:#fff;margin-bottom:2px}
+.card span{display:block;font-size:15px;line-height:1.25;color:var(--sand)}
+.card.sup .gl{background:#2d2414;border-color:#7a5a20;color:var(--amber)}
 #deadStats{font-size:14px;color:var(--sand);line-height:1.5}
 #coverNote{position:absolute;display:none;font-size:13px;color:var(--sand);background:var(--gun);border:1px solid #4a4d4f;border-radius:8px;padding:8px 10px;z-index:40;max-width:260px}
+#bossBar{position:absolute;display:none;z-index:10;pointer-events:none;height:22px;border-radius:6px;background:#0c0d0e;border:1px solid #6a2a26;overflow:hidden}
+#bossFill{height:100%;width:100%;background:#d8473d}
+#bossTxt{position:absolute;inset:0;font-size:12px;font-weight:800;line-height:20px;color:#fff;padding:0 8px;display:flex;justify-content:space-between;text-shadow:0 0 3px #000,0 1px 2px #000}
+#bossTxt span{background:rgba(12,13,14,.75);padding:0 4px;border-radius:3px}
+#howto{position:absolute;left:50%;transform:translateX(-50%);width:max-content;max-width:86%;text-align:center;font-size:14px;font-weight:700;color:#1b1a17;background:rgba(233,220,191,.92);
+  border:1px solid #8a7a5a;border-radius:8px;padding:6px 10px;pointer-events:none;z-index:10;display:none}
+body.ovon #bossBar, body.ovon #howto, body.ovon #dmgLayer{visibility:hidden}
+#dmgLayer{position:absolute;inset:0;pointer-events:none;z-index:8;overflow:hidden}
+.dn{position:absolute;left:0;top:0;font:800 16px/1 system-ui,sans-serif;color:#ff9a2e;white-space:nowrap;opacity:0;
+  text-shadow:-1px -1px 0 #2a1200,1px -1px 0 #2a1200,-1px 1px 0 #2a1200,1px 1px 0 #2a1200,0 0 3px #000;will-change:transform,opacity}
+.card.sup{border-color:var(--amber)}
+.card small{display:block;font-size:12px;color:var(--amber);text-transform:uppercase;letter-spacing:1px;margin-bottom:1px}
+#resStats{font-size:14px;color:var(--sand);line-height:1.55;text-align:left;background:var(--gun);border:1px solid #4a4d4f;border-radius:10px;padding:8px 12px;max-width:300px;width:100%}
+#resStats .row{display:flex;justify-content:space-between;gap:10px}
+#resStats .row b{color:#fff;font-weight:700;text-align:right}
+#resTitle.win{color:var(--cyan)}
+@media (prefers-reduced-motion: reduce){ #flash{display:none} #toast,#hpFill{transition:none} }
 /* drawer */
 #drawer{position:absolute;top:0;right:0;bottom:0;width:100%;z-index:50;background:rgba(18,18,17,.97);display:none;flex-direction:column}
 #drawer.on{display:flex}
@@ -73,20 +95,26 @@ body.ovon #hud, body.ovon #toast, body.ovon #rlbl{visibility:hidden}
   <canvas id="cgpu"></canvas>
   <canvas id="c2d"></canvas>
   <div id="flash"></div>
+  <div id="dmgLayer"></div>
   <div id="hud">
     <div id="hudTop">
       <div id="stageLbl">Stage <b id="stNum">1</b> <span id="roomName"></span></div>
       <div id="lvl">Lv 1</div>
-      <div id="xpWrap"><div id="xpFill"></div></div>
-      <button id="gear" aria-label="Tuning"><span>&#9881;</span></button>
+      <div style="flex:1"></div>
+      <button id="pauseBtn" class="hb" aria-label="Pause"><span>&#10074;&#10074;</span></button>
+      <button id="gear" class="hb" aria-label="Tuning"><span>&#9881;</span></button>
     </div>
     <div id="hpRow"><div id="hpFill"></div><div id="hpTxt">600 / 600</div></div>
+    <div id="xpWrap"><div id="xpFill"></div></div>
   </div>
   <div id="toast"></div>
   <div id="rlbl">-</div>
-  <div class="ov" id="ovCards"><h2 id="cardTitle">Field upgrade</h2><p>Pick one</p><div id="cardList" style="display:flex;flex-direction:column;gap:10px;width:100%;align-items:center"></div></div>
-  <div class="ov" id="ovDead"><h2>Operator down</h2><div id="deadStats"></div><button class="btn" id="btnRestart">Restart</button><p style="font-size:12px">Tap anywhere to deploy again</p></div>
-  <div class="ov" id="ovPause"><h2>Paused</h2><p>Tap to resume</p><button class="btn" id="btnResume">Resume</button></div>
+  <div id="bossBar"><div id="bossFill"></div><div id="bossTxt"><span id="bossName">Boss</span><span id="bossHp"></span></div></div>
+  <div id="howto">Drag anywhere to move. Let go to aim and fire.</div>
+  <div class="ov" id="ovCards"><h2 id="cardTitle">Field upgrade</h2><p>Pick one</p><div id="cardList" style="display:flex;flex-direction:column;gap:10px;width:100%;align-items:stretch"></div></div>
+  <div class="ov" id="ovDead"><h2 id="resTitle">Operator down</h2><div id="resStats"></div><button class="btn" id="btnRestart">New run</button><p style="font-size:12px">Tap anywhere for a new run</p></div>
+  <div class="ov" id="ovSupply"><h2>Supply drop</h2><p>Take one</p><div id="supList" style="display:flex;flex-direction:column;gap:10px;width:100%;align-items:stretch"></div></div>
+  <div class="ov" id="ovPause"><h2>Paused</h2><button class="btn" id="btnResume" style="min-width:200px">Resume</button><button class="btn ghost" id="btnRestartRun" style="min-width:200px">Restart run</button><button class="btn ghost" id="btnTune" style="min-width:200px">Tuning</button><button class="btn ghost" id="btnSound" style="min-width:200px">Sound: on</button><p style="font-size:12px">Tap outside the buttons to resume</p></div>
   <div class="ov" id="ovBoot"><h2>Project Volley</h2><p id="bootMsg">Loading...</p></div>
   <div id="drawer">
     <div id="drHead"><h3>Tuning</h3>
@@ -113,7 +141,7 @@ V.TUNE_DEFAULTS = {
   MOVE_SPEED: 4.5, BRACE_DELAY: 0.15, FIRE_INTERVAL: 0.8, FIRE_FLOOR: 0.2,
   ROUND_SPEED: 14, ROUND_R: 0.12, INVULN: 0.6, PICKUP_R: 0.9,
   // run
-  CARDS_OFFERED: 2, TIME_SCALE: 1, PICK_DELAY: 1.0, SPAWN_T: 0.6,
+  CARDS_OFFERED: 3, ENDLESS: false, TIME_SCALE: 1, PICK_DELAY: 1.0, SPAWN_T: 0.6,
   // feel / input (shell side)
   HITSTOP_MS: 50, DEADZONE_ENTER: 14, DEADZONE_EXIT: 8, HAPTICS: true, SOUND: true
 };
@@ -200,20 +228,373 @@ V.ROOMS = {
 };
 V.ROOM_ORDER = ['R01', 'R02', 'R03'];
 
-// P0 card pool (D2 IDs and values). max = copies allowed per run.
-V.CARDS = [
-  { id:'SK-01', key:'front', max:1, name:'Twin Barrel',     desc:'+1 forward round. All rounds deal x0.75.' },
-  { id:'SK-02', key:'multi', max:3, name:'Double Volley',   desc:'Fire the volley again 0.12 s later. Damage x0.9, rate x0.85.' },
-  { id:'SK-09', key:'atk',   max:0, name:'Power Cell',      desc:'Attack +30%.' },
-  { id:'SK-11', key:'rate',  max:0, name:'Fire Control',    desc:'Attack speed +25%.' },
-  { id:'SK-03', key:'diag',  max:3, name:'Diagonal Rounds', desc:'+1 pair of rounds at an angle.' },
-  { id:'SK-06', key:'rico',  max:1, name:'Arc Ricochet',    desc:'Rounds jump to another machine, up to 3 times (x0.7 each).' }
-];
+// Cards: V.CARDS = V.MODS (parts/mods.js); sim.js holds the P0 6-card fallback.
 })();
 
 </script>
 <script>
 (function(){ var G = (typeof window !== 'undefined' ? window : globalThis); var V = G.V = G.V || {};
+// P1 chapter 1, stages 1-10 hand-authored (D3 2.1 rows 1-10 with DESIGN 9 overrides).
+// Grid legend as D3: '#' cover/wall, '.' floor, 'S' Operator spawn, 'D' door, 'e' spawn slot (floor),
+// '^' spikes (walkable, damage on touch), 'C' chest spot, 'B' boss spot, 'P' supply pad. All non-'#' are floor.
+// Spawns: tile centres, t = seconds after room start. No spawns in rows 11-14 (safe zone).
+V.ROOMS = V.ROOMS || {};
+
+V.ROOMS.SD = { name: 'Supply Drop', cover: 'block', grid: [
+  '####D####',
+  '.........',
+  '..#...#..',
+  '.........',
+  '..P...P..',
+  '.........',
+  '.........',
+  '.........',
+  '.........',
+  '.........',
+  '.........',
+  '.........',
+  '.........',
+  '.........',
+  '....S....'],
+  spawns: [] };
+
+// CA1 Cache: D3 spike lines widened to 2-tile gaps (DESIGN 9). Chest replaces crate K.
+V.ROOMS.CA1 = { name: 'Cache', cover: 'block', grid: [
+  '####D####',
+  '.........',
+  '....C....',
+  '^^^^..^^^',
+  '..e...e..',
+  '.........',
+  '^..^^^..^',
+  '.........',
+  '.........',
+  '^^^..^^^^',
+  '.........',
+  '.........',
+  '.........',
+  '.........',
+  '....S....'],
+  spawns: [ {type:'E-01', x:2.5, y:4.5}, {type:'E-01', x:6.5, y:4.5} ] };
+
+V.ROOMS.BA1 = { name: 'Boss Arena', cover: 'pillar', grid: [
+  '####D####',
+  '.........',
+  '.........',
+  '....B....',
+  '.........',
+  '.#.....#.',
+  '.........',
+  '.........',
+  '.........',
+  '.#.....#.',
+  '.........',
+  '.........',
+  '.........',
+  '.........',
+  '....S....'],
+  spawns: [ {type:'B-01', x:4.5, y:3.5} ] };
+
+function sp(type, x, y, t){ return { type:type, x:x, y:y, t:t || 0 }; }
+
+V.STAGES = { ch1: [
+  { stage:1, kind:'combat', room:'R01', note:'Intro E-01: one chaser first, two flank 1 s later',
+    spawns:[ sp('E-01',4.5,4.5,0), sp('E-01',1.5,2.5,1.0), sp('E-01',7.5,2.5,1.0) ] },
+  { stage:2, kind:'combat', room:'R02', note:'Build: 4 chasers in two pairs, pillars pre-exposure',
+    spawns:[ sp('E-01',1.5,2.5,0), sp('E-01',7.5,2.5,0), sp('E-01',1.5,8.5,2.0), sp('E-01',7.5,8.5,2.0) ] },
+  { stage:3, kind:'combat', room:'R01', note:'Intro E-02: one gun drone with one chaser, second gun drone at 3 s',
+    spawns:[ sp('E-02',4.5,3.5,0), sp('E-01',7.5,6.5,0), sp('E-02',1.5,2.5,3.0) ] },
+  { stage:4, kind:'combat', room:'R02', note:'Intro E-03 (eased to 3 enemies): turret alone below the pillars, company at 2.5 s',
+    spawns:[ sp('E-03',4.5,6.5,0), sp('E-02',1.5,2.5,2.5), sp('E-01',7.5,2.5,2.5) ] },
+  { stage:5, kind:'supply', room:'SD', note:'Supply Drop: pick a minor mod or repair 40%', spawns:[] },
+  { stage:6, kind:'combat', room:'R03', note:'Intro E-04 (template swapped to R03): mortar alone, visible from S; company at 2.5 s',
+    spawns:[ sp('E-04',1.5,3.5,0), sp('E-01',7.5,2.5,2.5), sp('E-02',7.5,6.5,2.5) ] },
+  { stage:7, kind:'combat', room:'R02', note:'Intro E-05: charger alone in the centre, chasers at 3 s',
+    spawns:[ sp('E-05',4.5,6.5,0), sp('E-01',1.5,2.5,3.0), sp('E-01',7.5,2.5,3.0) ] },
+  { stage:8, kind:'combat', room:'R02', note:'Spike (template swapped to known R02, N=5): turret+drones, chargers at 4 s and 6 s',
+    spawns:[ sp('E-03',4.5,6.5,0), sp('E-01',1.5,2.5,0), sp('E-02',7.5,2.5,0), sp('E-05',1.5,8.5,4.0), sp('E-05',7.5,8.5,6.0) ] },
+  { stage:9, kind:'cache', room:'CA1', note:'Cache: spikes taught with 2 chasers; chest after clear',
+    spawns:[ sp('E-01',2.5,4.5,0), sp('E-01',6.5,4.5,0) ] },
+  { stage:10, kind:'boss', room:'BA1', note:'Boss B-01 Volley Tower (M pick, overrides D3 B-03)',
+    spawns:[ sp('B-01',4.5,3.5,0) ] }
+] };
+})();
+
+</script>
+<script>
+(function(){ var G = (typeof window !== 'undefined' ? window : globalThis); var V = G.V = G.V || {};
+// Field mods (D2, ch1 pool) + Supply Drop minors. Hook interface: CONTRACT-P1.md "Mods registry".
+// Deterministic: randomness only via the rng passed in / api.rng(S).
+
+var D = {
+  FRONT_MUL: 0.75, MULTI_DMG: 0.90, MULTI_RATE: 0.85, GAP: 0.12,
+  DIAG: [35, 55, 75], FRONT_SPACING: 0.3,
+  RICO_N: 3, RICO_MUL: 0.70, RICO_RANGE: 4,
+  PIERCE_MUL: 0.67,
+  ATK: 0.30, ATK_MINOR: 0.15, RATE: 0.25, RATE_MINOR: 0.125,
+  CRIT: 0.10, CRIT_DMG: 0.40, CRIT_MINOR: 0.05, CRIT_DMG_MINOR: 0.20,
+  HP_UP: 0.20,
+  BURN_PCT: 0.18, BURN_DT: 0.25, BURN_TICKS: 7,
+  POISON_PCT: 0.35, POISON_DT: 1.0,
+  SALVAGE: 0.015, SALVAGE_ROOM_CAP: 0.20,
+  DODGE: 0.20, DODGE_CAP: 0.40,
+  CORE: ['SK-01', 'SK-02', 'SK-03', 'SK-04', 'SK-05', 'SK-09', 'SK-11', 'SK-13', 'SK-15']
+};
+var RAD = Math.PI / 180;
+
+function equipDmg(S){ return S.tune.HERO_ATK; }          // ATK_total at run start x weapon mult 1
+function baseMaxHp(S){ return S.tune.HERO_HP; }          // Hero_BaseMaxHP (DESIGN 3 row 8)
+function targetable(e){ return e.hp > 0 && e.st !== 'spawn' && !e.hidden; }
+function fl(x){ return Math.max(1, Math.floor(x + 1e-6)); }   // floor, safe for 0.7^n float error
+function fx(S, o){ if (S.fx) S.fx.push(o); return o; }
+// sim formula: dmg = HERO_ATK x (1+atkAdd) x atkMul x primaryMul x pattern mul; rate = (1+rateAdd) x rateMul
+
+function dmgEnemy(S, e, dmg, api, src){
+  dmg = Math.max(1, Math.floor(dmg));
+  if (api && api.damageEnemy) return api.damageEnemy(S, e, dmg, false, { dot:true, src:src });
+  // fallback when the sim has no api.damageEnemy: no XP/kill bookkeeping (reported to SIM)
+  e.hp -= dmg; e.flashT = Math.max(e.flashT || 0, 0.05);
+  if (e.hp <= 0) { e.hp = 0; return true; }
+  return false;
+}
+
+// ---- elements (D2 1c, 3d) ----
+function applyBurn(S, e){
+  if (e.hp <= 0) return;
+  if (!(e.burnN > 0)) e.burnCd = D.BURN_DT;              // keep the running tick clock on refresh
+  e.burnN = D.BURN_TICKS;
+  e.burnDmg = Math.floor(D.BURN_PCT * equipDmg(S));        // re-snapshot
+  e.burnT = (e.burnN - 1) * D.BURN_DT + e.burnCd;           // seconds left (renderer reads > 0)
+}
+function tickBurn(S, dt, api){
+  for (var i = 0; i < S.enemies.length; i++) {
+    var e = S.enemies[i];
+    if (!(e.burnN > 0) || e.hp <= 0) continue;
+    e.burnCd -= dt;
+    while (e.burnCd <= 1e-9 && e.burnN > 0 && e.hp > 0) {
+      e.burnN--; e.burnCd += D.BURN_DT;
+      dmgEnemy(S, e, e.burnDmg, api, 'burn');
+    }
+    e.burnT = e.burnN > 0 ? (e.burnN - 1) * D.BURN_DT + e.burnCd : 0;
+  }
+}
+function applyPoison(S, e){
+  if (e.hp <= 0) return;
+  var v = Math.floor(D.POISON_PCT * equipDmg(S));
+  if (!(e.poisonT > 0)) { e.poisonCd = D.POISON_DT; e.poisonDmg = v; }
+  else e.poisonDmg = Math.max(e.poisonDmg || 0, v);       // timer unchanged, value = higher
+  e.poisonT = 1e6;                                          // lasts until death / room end
+}
+function tickPoison(S, dt, api){
+  for (var i = 0; i < S.enemies.length; i++) {
+    var e = S.enemies[i];
+    if (!(e.poisonT > 0) || e.hp <= 0) continue;
+    e.poisonCd -= dt;
+    while (e.poisonCd <= 1e-9 && e.hp > 0) { e.poisonCd += D.POISON_DT; dmgEnemy(S, e, e.poisonDmg, api, 'poison'); }
+  }
+}
+
+// ---- travel (D2 3c) ----
+function ricoTarget(S, r){
+  var best = null, bd = D.RICO_RANGE;
+  for (var k = 0; k < S.enemies.length; k++) {
+    var o = S.enemies[k];
+    if (!targetable(o) || (r.hit && r.hit.indexOf(o.id) >= 0)) continue;
+    var d = Math.hypot(o.x - r.x, o.y - r.y);
+    if (d < bd) { bd = d; best = o; }                       // line of sight not required (D2 3c-1)
+  }
+  return best;
+}
+
+var M = [
+  // ---------- 1a round pattern ----------
+  { id:'SK-01', key:'front', name:'Twin barrel', desc:'+1 forward round. All rounds x0.75 damage.',
+    max:1, pool:['F', 'BB'], weight:100, hooks:{
+      stats:function(S, n, st){ st.primaryMul *= Math.pow(D.FRONT_MUL, n); },
+      pattern:function(S, n, list){
+        var nf = 1 + n, f = list[0];
+        if (f) f.off = -(nf - 1) / 2 * D.FRONT_SPACING;
+        for (var i = 1; i < nf; i++) list.push({ ang:0, off:(i - (nf - 1) / 2) * D.FRONT_SPACING, mul:1 });
+      } } },
+  { id:'SK-02', key:'multi', name:'Double volley', desc:'Fires the volley again 0.12 s later. Dmg x0.9, rate x0.85.',
+    max:3, pool:['F', 'BB'], weight:80, echoes:true, hooks:{
+      // the echo batches themselves are the sim's burstQ (n extra batches, D.GAP apart)
+      stats:function(S, n, st){
+        st.primaryMul *= Math.pow(D.MULTI_DMG, n);
+        st.rateMul *= Math.pow(D.MULTI_RATE, n);
+      } } },
+  { id:'SK-03', key:'diag', name:'Diagonal rounds', desc:'+1 pair of rounds at 35, then 55, then 75 degrees.',
+    max:3, pool:['F'], weight:80, hooks:{
+      pattern:function(S, n, list){
+        for (var i = 0; i < Math.min(3, n); i++) { var a = D.DIAG[i] * RAD; list.push({ ang:-a, off:0, mul:1 }, { ang:a, off:0, mul:1 }); }
+      } } },
+  { id:'SK-04', key:'side', name:'Flank rounds', desc:'+1 round left and right (90 degrees).',
+    max:3, pool:['F'], weight:70, hooks:{
+      pattern:function(S, n, list){
+        for (var i = 0; i < n; i++) { var dl = i * D.GAP; list.push({ ang:-Math.PI / 2, off:0, mul:1, delay:dl }, { ang:Math.PI / 2, off:0, mul:1, delay:dl }); }
+      } } },
+  { id:'SK-05', key:'rear', name:'Rear guard', desc:'+1 round fired straight back.',
+    max:3, pool:['F'], weight:60, hooks:{
+      pattern:function(S, n, list){ for (var i = 0; i < n; i++) list.push({ ang:Math.PI, off:0, mul:1, delay:i * D.GAP }); } } },
+  { id:'SK-06', key:'rico', name:'Ricochet rounds', desc:'Rounds jump to a 2nd machine, up to 3 times (x0.7 each).',
+    max:1, pool:['F'], weight:70, hooks:{
+      round:function(S, n, r){ r.rico = D.RICO_N; },
+      onHit:function(S, n, e, r, api){
+        if (r.keep || !(r.rico > 0)) return;
+        var o = ricoTarget(S, r);
+        if (!o) return;
+        var ang = Math.atan2(o.y - r.y, o.x - r.x), sp = Math.hypot(r.vx, r.vy);
+        fx(S, { k:'arc', x1:r.x, y1:r.y, x2:o.x, y2:o.y, x:r.x, y:r.y, src:'rico' });
+        r.vx = Math.cos(ang) * sp; r.vy = Math.sin(ang) * sp;
+        r.dmg = fl(r.dmg * D.RICO_MUL); r.rico--; r.bounces = (r.bounces || 0) + 1;
+        r.keep = true;                                      // pierce not spent (D2 3c-1)
+      } } },
+  { id:'SK-07', key:'pierce', name:'AP rounds', desc:'Rounds pass through machines (x0.67 per hit).',
+    max:1, pool:['F'], weight:70, hooks:{
+      round:function(S, n, r){ r.pierce = true; },
+      onHit:function(S, n, e, r, api){
+        if (r.keep || !r.pierce) return;
+        r.dmg = fl(r.dmg * D.PIERCE_MUL); r.pierced = (r.pierced || 0) + 1;
+        r.keep = true;
+      } } },
+
+  // ---------- 1b stat mods ----------
+  { id:'SK-09', key:'atk', name:'Power cell', desc:'Attack +30%.',
+    max:0, pool:['F', 'BB'], weight:100, hooks:{ stats:function(S, n, st){ st.atkAdd += D.ATK * n; } } },
+  { id:'SK-10', key:'atk2', name:'Spare cell', desc:'Attack +15%.',
+    max:4, pool:['SD'], weight:0, hooks:{ stats:function(S, n, st){ st.atkAdd += D.ATK_MINOR * n; } } },
+  { id:'SK-11', key:'rate', name:'Fire control', desc:'Attack speed +25%.',
+    max:0, pool:['F', 'BB'], weight:100, hooks:{ stats:function(S, n, st){ st.rateAdd += D.RATE * n; } } },
+  { id:'SK-12', key:'rate2', name:'Trigger tune', desc:'Attack speed +12.5%.',
+    max:4, pool:['SD'], weight:0, hooks:{ stats:function(S, n, st){ st.rateAdd += D.RATE_MINOR * n; } } },
+  { id:'SK-13', key:'crit', name:'Crit optics', desc:'Crit chance +10%, crit damage +40%.',
+    max:0, pool:['F', 'BB'], weight:100, hooks:{
+      stats:function(S, n, st){ st.critAdd += D.CRIT * n; st.critDmgAdd = (st.critDmgAdd || 0) + D.CRIT_DMG * n; } } },
+  { id:'SK-14', key:'crit2', name:'Scope tune', desc:'Crit chance +5%, crit damage +20%.',
+    max:4, pool:['SD'], weight:0, hooks:{
+      stats:function(S, n, st){ st.critAdd += D.CRIT_MINOR * n; st.critDmgAdd = (st.critDmgAdd || 0) + D.CRIT_DMG_MINOR * n; } } },
+  { id:'SK-15', key:'armor', name:'Armor plating', desc:'Max HP +20% (120) and heals 120.',
+    max:4, pool:['F', 'SD'], weight:90, hooks:{
+      stats:function(S, n, st){ st.hpMaxAdd += Math.round(D.HP_UP * baseMaxHp(S)) * n; },
+      onPick:function(S, n){
+        var h = S.hero, add = Math.round(D.HP_UP * baseMaxHp(S));
+        var cap = Math.max(h.maxHp, baseMaxHp(S) + add * n);
+        h.hp = Math.min(cap, h.hp + add);
+        fx(S, { k:'heal', x:h.x, y:h.y, v:add });
+      } } },
+
+  // ---------- 1c elements ----------
+  { id:'SK-16', key:'burn', name:'Incendiary rounds', desc:'Hits burn: 27 damage every 0.25 s for 2 s.',
+    max:1, pool:['F'], weight:70, hooks:{
+      round:function(S, n, r){ r.burn = true; },
+      onHit:function(S, n, e, r){ if (r.burn) applyBurn(S, e); },
+      tick:function(S, n, dt, api){ tickBurn(S, dt, api); } } },
+  { id:'SK-17', key:'poison', name:'Corrosive rounds', desc:'Hits corrode: 52 damage every 1 s until it dies.',
+    max:1, pool:['F'], weight:70, hooks:{
+      round:function(S, n, r){ r.poison = true; },
+      onHit:function(S, n, e, r){ if (r.poison) applyPoison(S, e); },
+      tick:function(S, n, dt, api){ tickPoison(S, dt, api); } } },
+
+  // ---------- 1e sustain / utility ----------
+  { id:'SK-27', key:'salvage', name:'Salvage repair', desc:'Each kill heals 9 HP (up to 120 per room).',
+    max:1, pool:['F'], weight:60, hooks:{
+      onKill:function(S, n, e){
+        var h = S.hero, ms = S.modState = S.modState || {};
+        var room = S.stage + ':' + S.roomId;
+        if (ms.salvRoom !== room) { ms.salvRoom = room; ms.salvHealed = 0; }
+        var cap = Math.floor(D.SALVAGE_ROOM_CAP * baseMaxHp(S));
+        var v = Math.min(Math.max(1, Math.floor(D.SALVAGE * baseMaxHp(S))), cap - ms.salvHealed, h.maxHp - h.hp);
+        if (v <= 0 || h.hp <= 0) return;
+        h.hp += v; ms.salvHealed += v;
+        fx(S, { k:'heal', x:h.x, y:h.y, v:v });
+      } } },
+  { id:'SK-33', key:'dodge', name:'Evasion firmware', desc:'20% chance to dodge a hit.',
+    max:2, pool:['F'], weight:60, hooks:{
+      stats:function(S, n, st){ st.dodge = Math.min(D.DODGE_CAP, (st.dodge || 0) + D.DODGE * n); } } }
+];
+// copy numbers that depend on tune into desc at load (HERO_ATK/HERO_HP defaults)
+(function(){
+  var T = V.TUNE_DEFAULTS || { HERO_ATK:150, HERO_HP:600 };
+  for (var i = 0; i < M.length; i++) {
+    var m = M[i];
+    if (m.id === 'SK-16') m.desc = 'Hits burn: ' + Math.floor(D.BURN_PCT * T.HERO_ATK) + ' damage every 0.25 s for 2 s.';
+    if (m.id === 'SK-17') m.desc = 'Hits corrode: ' + Math.floor(D.POISON_PCT * T.HERO_ATK) + ' damage every 1 s until it dies.';
+    if (m.id === 'SK-15') m.desc = 'Max HP +20% (' + Math.round(D.HP_UP * T.HERO_HP) + ') and heals the same.';
+    if (m.id === 'SK-27') m.desc = 'Each kill heals ' + Math.floor(D.SALVAGE * T.HERO_HP) + ' HP (max ' + Math.floor(D.SALVAGE_ROOM_CAP * T.HERO_HP) + ' per room).';
+    m.core = D.CORE.indexOf(m.id) >= 0;
+  }
+})();
+
+// ---- helpers the sim may use ----
+function count(S, m){ return (S.hero && S.hero.mods && S.hero.mods[m.key]) || 0; }
+function capped(S, m){ return !!m.max && count(S, m) >= m.max; }
+function inPool(m, pool){ return m.pool.indexOf(pool) >= 0; }
+// Offer k distinct mods from pool ('F' weighted, 'SD' uniform), never a capped one.
+// F offers follow D2 2a pity A: at least one core mod when any core is available.
+function offer(S, pool, k, rng, opts){
+  rng = rng || S.rng; pool = pool || 'F'; k = k || 3;
+  var cand = [], i, out = [];
+  for (i = 0; i < M.length; i++) if (inPool(M[i], pool) && !capped(S, M[i])) cand.push(i);
+  function w(ix){ return pool === 'F' ? (M[ix].weight || 0) : 1; }
+  function draw(list){
+    var tot = 0, j; for (j = 0; j < list.length; j++) tot += w(list[j]);
+    if (tot <= 0) return list.length ? 0 : -1;
+    var x = rng.next() * tot;
+    for (j = 0; j < list.length; j++) { x -= w(list[j]); if (x < 0) return j; }
+    return list.length - 1;
+  }
+  while (out.length < k && cand.length) { var j = draw(cand); out.push(cand[j]); cand.splice(j, 1); }
+  if (pool === 'F' && out.length && !(opts && opts.noPity)) {
+    var hasCore = false; for (i = 0; i < out.length; i++) if (M[out[i]].core) hasCore = true;
+    var cores = []; for (i = 0; i < cand.length; i++) if (M[cand[i]].core) cores.push(cand[i]);
+    if (!hasCore && cores.length) {
+      var lo = 0; for (i = 1; i < out.length; i++) if (w(out[i]) < w(out[lo])) lo = i;
+      out[lo] = cores[draw(cores)];
+    }
+  }
+  return out;
+}
+function newStats(){ return { atkAdd:0, atkMul:1, primaryMul:1, rateAdd:0, rateMul:1, critAdd:0, critDmgAdd:0, hpMaxAdd:0, dmgTakenMul:1, moveMul:1, dodge:0, volleys:1 }; }
+// Derived stats from all held mods (reference for the sim; same init the hooks expect).
+function stats(S){
+  var st = newStats();
+  for (var i = 0; i < M.length; i++) { var n = count(S, M[i]); if (n > 0 && M[i].hooks.stats) M[i].hooks.stats(S, n, st); }
+  return st;
+}
+function pattern(S){
+  var list = [{ ang:0, off:0, mul:1 }];
+  for (var i = 0; i < M.length; i++) { var n = count(S, M[i]); if (n > 0 && M[i].hooks.pattern) M[i].hooks.pattern(S, n, list); }
+  return list;
+}
+// Generic dispatcher: V.Mods.call(S, 'onHit', e, r, api) calls every held mod's hook with n prepended.
+function call(S, name, a, b, c){
+  for (var i = 0; i < M.length; i++) {
+    var h = M[i].hooks[name]; if (!h) continue;
+    var n = count(S, M[i]); if (n > 0) h(S, n, a, b, c);
+  }
+}
+
+V.MODS = M;
+V.CARDS = V.MODS;
+V.Mods = { D:D, offer:offer, stats:stats, newStats:newStats, pattern:pattern, call:call, count:count, capped:capped,
+  byId:function(id){ for (var i = 0; i < M.length; i++) if (M[i].id === id) return M[i]; return null; },
+  indexOf:function(id){ for (var i = 0; i < M.length; i++) if (M[i].id === id) return i; return -1; } };
+})();
+
+</script>
+<script>
+(function(){ var G = (typeof window !== 'undefined' ? window : globalThis); var V = G.V = G.V || {};
+// P1 SEAMS READY (2026-11-10): V.AI registry (E-01..E-03 in ai-p0.js), V.Sim.api, mod hooks
+// (stats/pattern/round/onHit/onKill/tick/onPick), weighted offer from V.MODS (P0 6-card fallback when
+// mods.js is absent), stage flow from V.STAGES.ch1 (spawn t), phases play|clear|pick|supply|results,
+// S.stageKind/shells/hazards/boss/chest/supply/result/fx.
+//
+// Mod stats hook: st = {atkAdd, atkMul, rateAdd, rateMul, critAdd, critDmgAdd, hpMaxAdd, dmgTakenMul, moveMul,
+//   dodge, volleys}. Additive bonuses go in atkAdd/rateAdd (summed), penalties multiply atkMul/rateMul.
+//   Round damage = HERO_ATK x (1+atkAdd) x atkMul x pattern mul; rate = (1+rateAdd) x rateMul.
+//   volleys = batches per attack (1 + Multi-volley copies), 0.12 s apart. dodge = chance, capped 0.4.
+// Round flags the sim handles: r.pierce (x0.67 per enemy), r.bounceWall (up to 2, x0.5), r.rico (3 jumps, x0.7, 4 tiles).
+// Events: fire hit crit kill hurt dodge lock unlock tell door room levelup pick death pickup land supply chest boss bossphase win.
 // Pure deterministic sim. Fixed step 1/60 s x TIME_SCALE. No DOM, no unseeded randomness, no wall clock.
 
 var STEP = 1 / 60;
@@ -225,37 +606,94 @@ var HERO_GAP = 0.1; // min gap between an enemy body and the Operator hurtbox
 var RETARGET_DT = 0.1, LOCK_HYST = 1.0, LOST_LINE_T = 0.25;
 var CONTACT_CD = 1.0, MAGNET_SPEED = 14;
 var REPAIR_PCT = 0.2, REPAIR_BASE = 0.03, REPAIR_PITY = 0.005, REPAIR_CAP = 0.08, REPAIR_LIFE = 15;
+var SUPPLY_REPAIR_PCT = 0.4;
 var MULTI_GAP = 0.12;
-var DIAG_ANG = [35, 55, 75];
 var RICO_MAX = 3, RICO_MULT = 0.7, RICO_RANGE = 4;
+var PIERCE_MULT = 0.67, WALLB_MAX = 2, WALLB_MULT = 0.5;
+var HAZARD_DMG = 60, HAZARD_CD = 1.0;
+var DODGE_CAP = 0.4;
+var CHAPTER_LEN = 10;
+V.AI = V.AI || {};
 
-// D1 4 base stats (ch1 stage 1)
-var EN = {
-  'E-01': { hp:300, contact:60, atk:60, speed:2.4, r:0.35, size:'small',  xp:4 },
-  'E-02': { hp:450, contact:40, atk:60, speed:1.0, r:0.40, size:'medium', xp:8 },
-  'E-03': { hp:600, contact:40, atk:45, speed:0,   r:0.50, size:'medium', xp:8 }
-};
-var E01 = { range:2.5, tell:0.5, lungeSpeed:6.0, lungeDist:3.0, cool:2.0 };
-var E02 = { tell:0.6, lockLast:0.2, cool:2.2, shotSpeed:6.0, range:10, prefer:4.5 };
-var E03 = { tell:0.7, cool:2.8, shotSpeed:5.0, spread:25 * Math.PI / 180, range:14 };
+// ---------- P0 fallback mods (used only while parts/mods.js is absent) ----------
+var FALLBACK_MODS = [
+  { id:'SK-01', key:'front', max:1, pool:['F'], weight:100, name:'Twin Barrel', desc:'+1 forward round. All rounds deal x0.75.',
+    hooks:{ stats:function(S, n, st){ st.atkMul *= Math.pow(0.75, n); },
+            pattern:function(S, n, list){ list[0].off = -0.15; list.push({ ang:0, off:0.15, mul:1 }); } } },
+  { id:'SK-02', key:'multi', max:3, pool:['F'], weight:80, name:'Double Volley', desc:'Fire the volley again 0.12 s later. Damage x0.9, rate x0.85.',
+    hooks:{ stats:function(S, n, st){ st.atkMul *= Math.pow(0.9, n); st.rateMul *= Math.pow(0.85, n); st.volleys += n; } } },
+  { id:'SK-09', key:'atk', max:0, pool:['F'], weight:100, name:'Power Cell', desc:'Attack +30%.',
+    hooks:{ stats:function(S, n, st){ st.atkAdd += 0.3 * n; } } },
+  { id:'SK-11', key:'rate', max:0, pool:['F'], weight:100, name:'Fire Control', desc:'Attack speed +25%.',
+    hooks:{ stats:function(S, n, st){ st.rateAdd += 0.25 * n; } } },
+  { id:'SK-03', key:'diag', max:3, pool:['F'], weight:80, name:'Diagonal Rounds', desc:'+1 pair of rounds at an angle.',
+    hooks:{ pattern:function(S, n, list){ var a = [35, 55, 75]; for (var i = 0; i < Math.min(3, n); i++) { list.push({ ang:-a[i] * Math.PI / 180, off:0, mul:1 }); list.push({ ang:a[i] * Math.PI / 180, off:0, mul:1 }); } } } },
+  { id:'SK-06', key:'rico', max:1, pool:['F'], weight:70, name:'Arc Ricochet', desc:'Rounds jump to another machine, up to 3 times (x0.7 each).',
+    hooks:{ round:function(S, n, r){ r.rico = true; } } }
+];
+function mods(){ return V.MODS || FALLBACK_MODS; }
+if (!V.MODS) V.CARDS = FALLBACK_MODS;
 
-function cardCount(S, key){ return S.hero.mods[key] || 0; }
-function hpScale(S){ var t = S.tune; return t.ENEMY_HP_GLOBAL * (1 + t.HP_SLOPE * (S.stage - 1)); }
+// ---------- fallback stage list (used only while parts/stages.js is absent) ----------
+function fallbackStages(){
+  var out = [], order = V.ROOM_ORDER || ['R01', 'R02', 'R03'];
+  for (var i = 1; i <= CHAPTER_LEN; i++) {
+    var room = order[(i - 1) % order.length], R = V.ROOMS[room], sp = [];
+    for (var j = 0; j < R.spawns.length; j++) sp.push({ type:R.spawns[j].type, x:R.spawns[j].x, y:R.spawns[j].y, t:0 });
+    var kind = 'combat';
+    if (i === 5) { kind = 'supply'; sp = []; }
+    else if (i === 9) { kind = 'cache'; sp = sp.filter(function(s){ return s.type === 'E-01'; }).slice(0, 2); }
+    else if (i === 10 && V.AI['B-01'] && V.ROOMS.BA1) { kind = 'boss'; room = 'BA1'; sp = [{ type:'B-01', x:4.5, y:3.5, t:0 }]; }
+    out.push({ stage:i, kind:kind, room:room, spawns:sp, note:'fallback' });
+  }
+  return out;
+}
+function stageList(){ return (V.STAGES && V.STAGES.ch1 && V.STAGES.ch1.length) ? V.STAGES.ch1 : fallbackStages(); }
+
+function count(S, key){ return S.hero.mods[key] || 0; }
+function scaleStage(S){ return S.stage + (S.lap - 1) * CHAPTER_LEN; }
+function hpScale(S){ var t = S.tune; return t.ENEMY_HP_GLOBAL * (1 + t.HP_SLOPE * (scaleStage(S) - 1)); }
 function enemyDmg(S, base){
   var t = S.tune;
-  return Math.max(1, Math.floor(base * t.ENEMY_DMG_MULT * (1 + t.DMG_SLOPE * (S.stage - 1))));
+  return Math.max(1, Math.floor(base * t.ENEMY_DMG_MULT * (1 + t.DMG_SLOPE * (scaleStage(S) - 1))));
 }
 function ev(S, o){ S.events.push(o); return o; }
+function base(e){ var A = V.AI[e.type]; return A ? A.base : { hp:100, contact:40, dmg:40, speed:0, r:0.4, size:'medium', xp:8 }; }
+
+// ---------- mod hooks ----------
+function eachMod(S, fn){
+  var M = mods(), h = S.hero.mods;
+  for (var i = 0; i < M.length; i++) { var n = h[M[i].key] || 0; if (n > 0 && M[i].hooks) fn(M[i], n); }
+}
+function callHook(S, name){
+  var a = Array.prototype.slice.call(arguments, 2);
+  eachMod(S, function(m, n){ var f = m.hooks[name]; if (f) f.apply(null, [S, n].concat(a)); });
+}
+function heroStats(S){
+  var st = { atkAdd:0, atkMul:1, primaryMul:1, rateAdd:0, rateMul:1, critAdd:0, critDmgAdd:0, hpMaxAdd:0, dmgTakenMul:1, moveMul:1, dodge:0, volleys:1 };
+  callHook(S, 'stats', st);
+  if (V.MODS) st.volleys = Math.max(st.volleys, 1 + count(S, 'multi')); // SK-02 echo batches (mods.js leaves them to the sim)
+  return st;
+}
+function refreshStats(S){
+  var h = S.hero, st = heroStats(S), t = S.tune;
+  S.st = st;
+  var newMax = Math.max(1, Math.round(t.HERO_HP + st.hpMaxAdd));
+  if (newMax !== h.maxHp) {
+    var d = newMax - h.maxHp; h.maxHp = newMax;
+    if (!V.MODS) h.hp += Math.max(0, d); // fallback: armor heals the gain; mods.js heals in onPick itself
+    h.hp = Math.max(1, Math.min(newMax, h.hp));
+  }
+  h.atk = roundDamage(S, 1);
+}
 
 // ---------- geometry ----------
 function circleRectPush(cx, cy, r, b){
-  // returns [px,py] push to move the circle out, or null
   var nx = cx < b.x ? b.x : (cx > b.x + b.w ? b.x + b.w : cx);
   var ny = cy < b.y ? b.y : (cy > b.y + b.h ? b.y + b.h : cy);
   var dx = cx - nx, dy = cy - ny, d2 = dx * dx + dy * dy;
   if (d2 >= r * r) return null;
   if (d2 > 1e-12) { var d = Math.sqrt(d2), k = (r - d) / d; return [dx * k, dy * k]; }
-  // centre inside: push along the smallest axis
   var l = cx - b.x + r, rr = b.x + b.w - cx + r, u = cy - b.y + r, dn = b.y + b.h - cy + r;
   var m = Math.min(l, rr, u, dn);
   if (m === l) return [-l, 0]; if (m === rr) return [rr, 0]; if (m === u) return [0, -u]; return [0, dn];
@@ -265,7 +703,6 @@ function circleRect(cx, cy, r, b){
   var ny = cy < b.y ? b.y : (cy > b.y + b.h ? b.y + b.h : cy);
   var dx = cx - nx, dy = cy - ny; return dx * dx + dy * dy < r * r;
 }
-// segment vs AABB expanded by pad (slab test)
 function segRect(x1, y1, x2, y2, b, pad){
   var minx = b.x - pad, maxx = b.x + b.w + pad, miny = b.y - pad, maxy = b.y + b.h + pad;
   var dx = x2 - x1, dy = y2 - y1, t0 = 0, t1 = 1, p, q, i, r;
@@ -284,13 +721,13 @@ function blockers(S){
 }
 function clearLine(S, x1, y1, x2, y2, pad){
   var a = blockers(S);
-  for (var i = 0; i < a.length; i++) if (segRect(x1, y1, x2, y2, a[i], pad)) return false;
+  for (var i = 0; i < a.length; i++) if (segRect(x1, y1, x2, y2, a[i], pad || 0)) return false;
   return true;
 }
 function hitsSolid(S, x, y, r){
   var a = blockers(S);
-  for (var i = 0; i < a.length; i++) if (circleRect(x, y, r, a[i])) return true;
-  return false;
+  for (var i = 0; i < a.length; i++) if (circleRect(x, y, r, a[i])) return a[i];
+  return null;
 }
 function outOfRoom(S, x, y, r){ return x < -r || x > S.room.w + r || y < -r || y > S.room.h + r; }
 function collideBody(S, o, r){
@@ -303,16 +740,15 @@ function collideBody(S, o, r){
 }
 
 // ---------- room build ----------
-function buildSolids(grid, coverKind){
+function buildRects(grid, ch, kindFn){
   var rows = grid.length, cols = grid[0].length, runs = [], y, x, s;
   for (y = 0; y < rows; y++) {
     x = 0;
     while (x < cols) {
-      if (grid[y][x] === '#') { s = x; while (x < cols && grid[y][x] === '#') x++; runs.push({ x:s, y:y, w:x - s, h:1, kind: y === 0 ? 'wall' : coverKind }); }
+      if (grid[y][x] === ch) { s = x; while (x < cols && grid[y][x] === ch) x++; runs.push({ x:s, y:y, w:x - s, h:1, kind:kindFn(y) }); }
       else x++;
     }
   }
-  // merge identical runs vertically
   var out = [];
   for (var i = 0; i < runs.length; i++) {
     var r = runs[i], merged = false;
@@ -330,98 +766,118 @@ function findChar(grid, ch){
 }
 
 function spawnEnemy(S, type, x, y){
-  var b = EN[type], hp = Math.max(1, Math.round(b.hp * hpScale(S)));
+  var A = V.AI[type];
+  if (!A) { ev(S, { k:'error', x:x, y:y, msg:'no AI for ' + type }); return null; }
+  var b = A.base, hp = Math.max(1, Math.round(b.hp * hpScale(S)));
   var e = { id: ++S._nextId, type:type, x:x, y:y, r:b.r, hp:hp, maxHp:hp, ang:Math.PI / 2, st:'spawn',
     tell01:0, aimAng:Math.PI / 2, flashT:0, size:b.size,
-    stT:S.tune.SPAWN_T, cd:0, contactCd:0, vx:0, vy:0, strafe: S.rng.next() < 0.5 ? -1 : 1, strafeT:S.rng.range(1.2, 2.4), lungeLeft:0 };
-  // first attack delay
-  if (type === 'E-02') e.cd = S.rng.range(0.6, 1.4);
-  if (type === 'E-03') e.cd = S.rng.range(0.8, 1.6);
+    spawnT:S.tune.SPAWN_T, stT:0, cd:0, contactCd:0, vx:0, vy:0, strafe:1, afterSpawn:'move' };
+  if (A.init) A.init(S, e, api);
   S.enemies.push(e);
+  if (e.boss) {
+    S.boss = { id:e.id, type:type, name:e.name || type, hp:e.hp, maxHp:e.maxHp, phase:e.phase || 1, attack:e.attack || null, tell01:0 };
+    ev(S, { k:'boss', x:e.x, y:e.y, id:e.id, type:type, name:S.boss.name });
+  }
   return e;
 }
 
-function loadRoom(S, roomId){
-  var R = V.ROOMS[roomId], grid = R.grid;
-  var d = findChar(grid, 'D'), sp = findChar(grid, 'S');
-  S.roomId = roomId;
-  S.room = { w:grid[0].length, h:grid.length, solids:buildSolids(grid, R.cover || 'pillar'),
-    door:{ x:d.x, y:d.y, w:1, h:1, open:false }, name:R.name };
-  S.enemies = []; S.rounds = []; S.shots = []; S.pickups = [];
+function loadStage(S, idx){
+  var list = stageList(), def = list[idx];
+  S.stageIdx = idx; S.stage = idx + 1; S.stageDef = def;
+  S.stageKind = def.kind || 'combat';
+  var R = V.ROOMS[def.room] || V.ROOMS.R01, grid = R.grid;
+  var d = findChar(grid, 'D') || { x:4, y:0 }, sp = findChar(grid, 'S') || { x:4, y:14 };
+  S.roomId = V.ROOMS[def.room] ? def.room : 'R01';
+  S.room = { w:grid[0].length, h:grid.length, name:R.name,
+    solids:buildRects(grid, '#', function(y){ return y === 0 ? 'wall' : (R.cover || 'pillar'); }),
+    door:{ x:d.x, y:d.y, w:1, h:1, open:false } };
+  S.hazards = buildRects(grid, '^', function(){ return 'spikes'; });
+  S.enemies = []; S.rounds = []; S.shots = []; S.shells = []; S.pickups = [];
+  S.boss = null; S.supply = null; S.chest = null; S.cards = null;
+  var c = findChar(grid, 'C');
+  if (S.stageKind === 'cache') S.chest = { x:(c ? c.x : 4) + 0.5, y:(c ? c.y : 4) + 0.5, open:false };
   var h = S.hero;
   h.x = sp.x + 0.5; h.y = sp.y + 0.5; h.ang = -Math.PI / 2;
-  h.lockId = null; h.lockClear = false; h.lostT = 0; h.retargetT = 0; h.burstQ = [];
-  S.phase = 'play'; S.roomT = 0; S.clearT = 0;
-  for (var i = 0; i < R.spawns.length; i++) spawnEnemy(S, R.spawns[i].type, R.spawns[i].x, R.spawns[i].y);
-  S.lap = Math.floor((S.stage - 1) / V.ROOM_ORDER.length) + 1;
-  ev(S, { k:'room', x:h.x, y:h.y, roomId:roomId, stage:S.stage });
+  h.lockId = null; h.lockClear = false; h.lostT = 0; h.retargetT = 0; h.burstQ = []; h.delayQ = [];
+  S.roomT = 0; S.clearT = 0; S.hazardCd = 0;
+  S.spawnQ = (def.spawns || []).map(function(s){ return { type:s.type, x:s.x, y:s.y, t:s.t || 0 }; });
+  S.spawnQ.sort(function(a, b){ return a.t - b.t; });
+  ev(S, { k:'room', x:h.x, y:h.y, roomId:S.roomId, stage:S.stage, kind:S.stageKind, lap:S.lap });
+  if (S.stageKind === 'supply') {
+    S.phase = 'supply';
+    var sd = offer(S, 'SD', 1);
+    if (!sd.length) sd = offer(S, 'F', 1);
+    S.supply = sd.length ? [{ kind:'mod', index:sd[0] }, { kind:'repair' }] : [{ kind:'repair' }];
+    ev(S, { k:'supply', x:h.x, y:h.y });
+  } else {
+    S.phase = 'play';
+    releaseSpawns(S);
+  }
+}
+function releaseSpawns(S){
+  while (S.spawnQ.length && S.spawnQ[0].t <= S.roomT + 1e-9) { var s = S.spawnQ.shift(); spawnEnemy(S, s.type, s.x, s.y); }
 }
 
 // ---------- create ----------
 function create(seed, tune){
   tune = tune || V.TUNE;
   seed = (seed >>> 0);
-  var S = { seed:seed, frame:0, t:0, tune:tune, phase:'play', stage:1, roomId:null, lap:1,
+  var S = { seed:seed, frame:0, t:0, tune:tune, phase:'play', stage:1, stageIdx:0, stageKind:'combat', roomId:null, lap:1,
     room:null,
     hero:{ x:4.5, y:14.5, r:HERO_HURT_R, hp:tune.HERO_HP, maxHp:tune.HERO_HP, atk:tune.HERO_ATK, ang:-Math.PI / 2,
       moving:false, braced:false, brace01:0, fireCd:0, invulnT:0, lockId:null, lockClear:false,
-      level:1, xp:0, xpNext:LEVEL_COST[2], mods:{}, braceT:0, lostT:0, retargetT:0, burstQ:[] },
-    enemies:[], rounds:[], shots:[], pickups:[], cards:null, events:[],
+      level:1, xp:0, xpNext:LEVEL_COST[2], mods:{}, braceT:0, lostT:0, retargetT:0, burstQ:[], delayQ:[] },
+    enemies:[], rounds:[], shots:[], shells:[], hazards:[], pickups:[], cards:null, events:[], fx:[],
+    boss:null, chest:null, supply:null, result:null, spawnQ:[],
     stats:{ kills:0, dmgTaken:0, hitsBy:{ 'E-01':0, 'E-02':0, 'E-03':0 }, roomTimes:[], bracedSteps:0, playSteps:0, shots:0, picks:[],
-      roomHp:[], killLog:[] },
-    rng:new V.Rng(seed), _nextId:0, pendingLevels:0, pity:0, roomT:0, clearT:0 };
-  S.hero.atk = roundDamage(S);
-  loadRoom(S, V.ROOM_ORDER[0]);
-  S.events.length = 0; // keep the room event for the first step
-  ev(S, { k:'room', x:S.hero.x, y:S.hero.y, roomId:S.roomId, stage:S.stage });
+      roomHp:[], killLog:[], bossTime:null },
+    rng:new V.Rng(seed), _nextId:0, pendingLevels:0, freePicks:0, pity:0, roomT:0, clearT:0, hazardCd:0, st:null };
+  refreshStats(S);
+  loadStage(S, 0);
   return S;
 }
 
 // ---------- hero weapon ----------
-function roundDamage(S){
-  var t = S.tune, h = S.hero;
-  var d = t.HERO_ATK * (1 + 0.3 * cardCount(S, 'atk')) * Math.pow(0.75, cardCount(S, 'front')) * Math.pow(0.9, cardCount(S, 'multi'));
-  return Math.max(1, Math.floor(d));
+function roundDamage(S, mul){
+  var st = S.st || heroStats(S);
+  return Math.max(1, Math.floor(S.tune.HERO_ATK * (1 + st.atkAdd) * st.atkMul * st.primaryMul * (mul == null ? 1 : mul)));
 }
 function fireInterval(S){
-  var t = S.tune;
-  var vps = (1 / t.FIRE_INTERVAL) * (1 + 0.25 * cardCount(S, 'rate')) * Math.pow(0.85, cardCount(S, 'multi'));
+  var t = S.tune, st = S.st || heroStats(S);
+  var vps = (1 / t.FIRE_INTERVAL) * Math.max(0.01, (1 + st.rateAdd) * st.rateMul);
   return Math.max(t.FIRE_FLOOR, 1 / vps);
 }
-function spawnRound(S, x, y, ang, base){
-  var t = S.tune, crit = S.rng.next() < Math.min(1, t.CRIT_CHANCE);
-  S.rounds.push({ x:x, y:y, vx:Math.cos(ang) * t.ROUND_SPEED, vy:Math.sin(ang) * t.ROUND_SPEED, r:t.ROUND_R,
-    dmg: crit ? Math.floor(base * t.CRIT_MULT) : base, crit:crit, bounces:0, hit:[] });
+function spawnRound(S, x, y, ang, dmg){
+  var t = S.tune, st = S.st, crit = S.rng.next() < Math.min(1, t.CRIT_CHANCE + st.critAdd);
+  var r = { x:x, y:y, vx:Math.cos(ang) * t.ROUND_SPEED, vy:Math.sin(ang) * t.ROUND_SPEED, r:t.ROUND_R,
+    dmg: crit ? Math.floor(dmg * (t.CRIT_MULT + st.critDmgAdd)) : dmg, crit:crit, bounces:0, wallBounces:0, hit:[] };
+  callHook(S, 'round', r);
+  S.rounds.push(r);
   S.stats.shots++;
+  return r;
 }
 function fireBatch(S){
-  var h = S.hero, base = roundDamage(S), a = h.ang, i, nf = 1 + cardCount(S, 'front');
+  var h = S.hero, a = h.ang, list = [{ ang:0, off:0, mul:1 }];
+  callHook(S, 'pattern', list);
   var px = -Math.sin(a), py = Math.cos(a);
   var mx = h.x + Math.cos(a) * 0.3, my = h.y + Math.sin(a) * 0.3;
-  for (i = 0; i < nf; i++) {
-    var off = nf === 1 ? 0 : (i - (nf - 1) / 2) * 0.3;
-    spawnRound(S, mx + px * off, my + py * off, a, base);
+  for (var i = 0; i < list.length; i++) {
+    var p = list[i], off = p.off || 0;
+    if (p.delay > 0) { h.delayQ.push({ t:p.delay, ang:p.ang || 0, off:off, mul:p.mul == null ? 1 : p.mul }); continue; }
+    spawnRound(S, mx + px * off, my + py * off, a + (p.ang || 0), roundDamage(S, p.mul == null ? 1 : p.mul));
   }
-  var nd = Math.min(3, cardCount(S, 'diag'));
-  for (i = 0; i < nd; i++) {
-    var da = DIAG_ANG[i] * Math.PI / 180;
-    spawnRound(S, mx, my, a - da, base); spawnRound(S, mx, my, a + da, base);
-  }
-  ev(S, { k:'fire', x:mx, y:my, ang:a, n:nf + nd * 2 });
+  ev(S, { k:'fire', x:mx, y:my, ang:a, n:list.length });
 }
 
 function findEnemy(S, id){ for (var i = 0; i < S.enemies.length; i++) if (S.enemies[i].id === id) return S.enemies[i]; return null; }
-function targetable(e){ return e.st !== 'spawn' && e.hp > 0; }
+function targetable(e){ return e.st !== 'spawn' && e.hp > 0 && !e.hidden; }
 
 function updateLock(S, dt){
   var h = S.hero, t = S.tune;
   var cur = h.lockId != null ? findEnemy(S, h.lockId) : null;
   if (cur && !targetable(cur)) cur = null;
   h.retargetT -= dt;
-  if (cur && h.retargetT > 0) {
-    // between evaluations keep the clear flag fresh only for the current target
-    return;
-  }
+  if (cur && h.retargetT > 0) return;
   h.retargetT = RETARGET_DT;
   var best = null, bestD = 1e9, near = null, nearD = 1e9, curD = 1e9, curClear = false;
   for (var i = 0; i < S.enemies.length; i++) {
@@ -435,10 +891,7 @@ function updateLock(S, dt){
   var next = cur;
   if (!cur) next = best || near;
   else if (curClear) { h.lostT = 0; if (best && best !== cur && bestD < curD - LOCK_HYST) next = best; }
-  else {
-    h.lostT += RETARGET_DT;
-    if (best && h.lostT > LOST_LINE_T) next = best;
-  }
+  else { h.lostT += RETARGET_DT; if (best && h.lostT > LOST_LINE_T) next = best; }
   if (next !== cur) h.lostT = 0;
   var newId = next ? next.id : null;
   if (newId !== h.lockId) {
@@ -457,12 +910,13 @@ function stepHero(S, inp, dt){
   if (h.fireCd > 0) h.fireCd = Math.max(0, h.fireCd - dt);
   if (len > 1e-6) {
     mx /= len; my /= len;
-    h.x += mx * t.MOVE_SPEED * dt; h.y += my * t.MOVE_SPEED * dt;
+    var sp = t.MOVE_SPEED * S.st.moveMul;
+    h.x += mx * sp * dt; h.y += my * sp * dt;
     collideBody(S, h, HERO_WALL_R);
     h.ang = Math.atan2(my, mx);
     if (!h.moving && h.lockId != null) ev(S, { k:'unlock', x:h.x, y:h.y, id:h.lockId });
     h.moving = true; h.braced = false; h.braceT = 0; h.brace01 = 0;
-    h.lockId = null; h.lockClear = false; h.lostT = 0; h.retargetT = 0; h.burstQ.length = 0;
+    h.lockId = null; h.lockClear = false; h.lostT = 0; h.retargetT = 0; h.burstQ.length = 0; h.delayQ.length = 0;
     return;
   }
   h.moving = false;
@@ -473,7 +927,14 @@ function stepHero(S, inp, dt){
   updateLock(S, dt);
   var tg = h.lockId != null ? findEnemy(S, h.lockId) : null;
   if (tg) h.ang = Math.atan2(tg.y - h.y, tg.x - h.x);
-  // queued extra batches (Double Volley)
+  for (var di = 0; di < h.delayQ.length; di++) {
+    var q = h.delayQ[di]; q.t -= dt;
+    if (q.t <= 0) {
+      var a0 = h.ang, qx = h.x + Math.cos(a0) * 0.3, qy = h.y + Math.sin(a0) * 0.3;
+      spawnRound(S, qx - Math.sin(a0) * q.off, qy + Math.cos(a0) * q.off, a0 + q.ang, roundDamage(S, q.mul));
+      h.delayQ.splice(di, 1); di--;
+    }
+  }
   for (var i = h.burstQ.length - 1; i >= 0; i--) {
     h.burstQ[i] -= dt;
     if (h.burstQ[i] <= 0) { h.burstQ.splice(i, 1); if (tg) fireBatch(S); }
@@ -481,181 +942,225 @@ function stepHero(S, inp, dt){
   if (h.braced && tg && h.lockClear && h.fireCd <= 0) {
     fireBatch(S);
     h.fireCd = fireInterval(S);
-    for (var m = 1; m <= cardCount(S, 'multi'); m++) h.burstQ.push(MULTI_GAP * m);
+    for (var m = 1; m < S.st.volleys; m++) h.burstQ.push(MULTI_GAP * m);
   }
 }
 
-function hurtHero(S, dmg, src, x, y){
+function endRun(S, win){
   var h = S.hero;
-  if (h.invulnT > 0 || S.phase === 'dead') return false;
+  S.result = { win:win, stage:S.stage, lap:S.lap, t:+S.t.toFixed(2), kills:S.stats.kills, level:h.level,
+    picks:S.stats.picks.slice(), dmgTaken:S.stats.dmgTaken };
+  S.phase = 'results'; S.cards = null; S.supply = null;
+  ev(S, { k: win ? 'win' : 'death', x:h.x, y:h.y, stage:S.stage });
+}
+// opts.hazard: skips dodge
+function hurtHero(S, dmg, src, x, y, opts){
+  var h = S.hero;
+  if (h.invulnT > 0 || S.phase === 'results') return false;
+  if (!(opts && opts.hazard)) {
+    var dc = Math.min(DODGE_CAP, S.st.dodge || 0);
+    if (dc > 0 && S.rng.next() < dc) { ev(S, { k:'dodge', x:h.x, y:h.y, src:src }); S.fx.push({ k:'dodge', x:h.x, y:h.y }); return false; }
+  }
+  dmg = Math.max(1, Math.floor(dmg * (S.st.dmgTakenMul == null ? 1 : S.st.dmgTakenMul)));
   h.hp -= dmg; S.stats.dmgTaken += dmg;
   S.stats.hitsBy[src] = (S.stats.hitsBy[src] || 0) + 1;
   h.invulnT = S.tune.INVULN;
   ev(S, { k:'hurt', x:h.x, y:h.y, dmg:dmg, src:src });
-  if (h.hp <= 0) { h.hp = 0; S.phase = 'dead'; S.cards = null; ev(S, { k:'death', x:h.x, y:h.y, stage:S.stage }); }
+  if (h.hp <= 0) { h.hp = 0; endRun(S, false); }
   return true;
 }
+function healHero(S, v){
+  var h = S.hero, before = h.hp; h.hp = Math.min(h.maxHp, h.hp + Math.max(0, Math.floor(v))); return h.hp - before;
+}
 
-// ---------- enemies ----------
+// ---------- enemy helpers (api) ----------
 function steerTo(S, e, tx, ty, speed, dt){
   var dx = tx - e.x, dy = ty - e.y, d = Math.hypot(dx, dy);
   if (d < 1e-6) return;
   dx /= d; dy /= d;
   if (!clearLine(S, e.x, e.y, tx, ty, e.r * 0.8)) { // slide round cover
-    var sx = -dy * e.strafe, sy = dx * e.strafe;
+    var sg = e.strafe || 1, sx = -dy * sg, sy = dx * sg;
     dx = dx * 0.35 + sx * 0.94; dy = dy * 0.35 + sy * 0.94;
   }
   e.x += dx * speed * dt; e.y += dy * speed * dt;
   e.ang = Math.atan2(dy, dx);
 }
-function enemyShoot(S, e, ang, speed, dmg){
-  var sp = speed * S.tune.ENEMY_SHOT_SPEED_MULT;
-  S.shots.push({ x:e.x + Math.cos(ang) * e.r, y:e.y + Math.sin(ang) * e.r, vx:Math.cos(ang) * sp, vy:Math.sin(ang) * sp,
-    r:SHOT_R, dmg:dmg, src:e.type });
+function enemyShoot(S, e, ang, speed, dmg, opts){
+  var sp = speed * S.tune.ENEMY_SHOT_SPEED_MULT, r = (opts && opts.r) || SHOT_R;
+  var s = { x:e.x + Math.cos(ang) * e.r, y:e.y + Math.sin(ang) * e.r, vx:Math.cos(ang) * sp, vy:Math.sin(ang) * sp,
+    r:r, dmg:dmg, src:e.type, bounces:(opts && opts.bounces) || 0, life:(opts && opts.life) || 12 };
+  S.shots.push(s);
+  return s;
 }
+function lob(S, e, tx, ty, T, r, dmg){
+  var s = { x:e.x, y:e.y, sx:e.x, sy:e.y, tx:tx, ty:ty, t:0, T:Math.max(0.05, T), r:r || 1.0, dmg:dmg, src:e.type };
+  S.shells.push(s);
+  return s;
+}
+function tellT(S, b){ return b * S.tune.TELL_MULT; }
+var api = {
+  ev:ev, rng:function(S){ return S.rng; }, enemyDmg:enemyDmg, steerTo:steerTo, enemyShoot:enemyShoot, lob:lob,
+  hurtHero:hurtHero, healHero:healHero, clearLine:clearLine, hitsSolid:hitsSolid, collideBody:collideBody,
+  hero:function(S){ return S.hero; },
+  dist:function(a, b){ return Math.hypot(b.x - a.x, b.y - a.y); },
+  angleTo:function(a, b){ return Math.atan2(b.y - a.y, b.x - a.x); },
+  tellT:tellT, spawnEnemy:spawnEnemy,
+  damageEnemy:function(S, e, dmg, crit, opts){ return damageEnemy(S, e, dmg, !!crit, null, opts); },
+  enemies:function(S){ return S.enemies; }, targetable:targetable, roundDamage:roundDamage, outOfRoom:outOfRoom,
+  fx:function(S, o){ S.fx.push(o); return o; }
+};
+
 function stepEnemy(S, e, dt){
-  var h = S.hero, t = S.tune, b = EN[e.type];
+  var h = S.hero, b = base(e), A = V.AI[e.type];
   if (e.flashT > 0) e.flashT = Math.max(0, e.flashT - dt);
   if (e.contactCd > 0) e.contactCd -= dt;
-  if (e.st === 'spawn') { e.stT -= dt; if (e.stT <= 0) { e.st = e.type === 'E-03' ? 'cool' : 'move'; } return; }
-  var dx = h.x - e.x, dy = h.y - e.y, dist = Math.hypot(dx, dy), toH = Math.atan2(dy, dx);
-  var tellT, los;
-  if (e.type === 'E-01') {
-    tellT = E01.tell * t.TELL_MULT;
-    if (e.st === 'move' || e.st === 'cool') {
-      steerTo(S, e, h.x, h.y, b.speed, dt);
-      if (e.st === 'cool') { e.cd -= dt; if (e.cd <= 0) e.st = 'move'; }
-      else if (dist <= E01.range && clearLine(S, e.x, e.y, h.x, h.y, e.r)) {
-        e.st = 'tell'; e.stT = tellT; e.tell01 = 0; e.aimAng = toH;
-        ev(S, { k:'tell', x:e.x, y:e.y, id:e.id, type:e.type });
-      }
-    } else if (e.st === 'tell') {
-      e.stT -= dt; e.tell01 = tellT > 0 ? 1 - Math.max(0, e.stT) / tellT : 1;
-      e.aimAng = toH; e.ang = toH;
-      if (e.stT <= 0) { e.st = 'act'; e.lungeLeft = E01.lungeDist; e.vx = Math.cos(toH); e.vy = Math.sin(toH); e.tell01 = 0; }
-    } else if (e.st === 'act') {
-      var step = Math.min(e.lungeLeft, E01.lungeSpeed * dt);
-      e.x += e.vx * step; e.y += e.vy * step; e.lungeLeft -= step;
-      var ox = e.x, oy = e.y;
-      collideBody(S, e, e.r);
-      if (e.lungeLeft <= 1e-6 || Math.abs(ox - e.x) + Math.abs(oy - e.y) > 1e-4) { e.st = 'cool'; e.cd = E01.cool; }
-    }
-  } else if (e.type === 'E-02') {
-    tellT = E02.tell * t.TELL_MULT;
-    if (e.st === 'move' || e.st === 'cool') {
-      // strafe around the Operator, hold a preferred range
-      e.strafeT -= dt; if (e.strafeT <= 0) { e.strafe = -e.strafe; e.strafeT = S.rng.range(1.2, 2.6); }
-      var ux = dx / (dist || 1), uy = dy / (dist || 1);
-      var radial = dist > E02.prefer + 0.8 ? 0.7 : (dist < E02.prefer - 0.8 ? -0.7 : 0);
-      var vx = ux * radial - uy * e.strafe, vy = uy * radial + ux * e.strafe, vl = Math.hypot(vx, vy) || 1;
-      var px = e.x, py = e.y;
-      // no line to the Operator for a while: walk round the cover to find one
-      if (!clearLine(S, e.x, e.y, h.x, h.y, SHOT_R)) e.noLosT = (e.noLosT || 0) + dt; else e.noLosT = 0;
-      if (e.noLosT > 0.8) { vx = ux * 0.45 - uy * e.strafe * 0.9; vy = uy * 0.45 + ux * e.strafe * 0.9; vl = Math.hypot(vx, vy) || 1; }
-      e.x += vx / vl * b.speed * dt; e.y += vy / vl * b.speed * dt;
-      collideBody(S, e, e.r);
-      if (Math.hypot(e.x - px, e.y - py) < 0.3 * b.speed * dt) e.strafe = -e.strafe; // stuck: turn round
-      e.ang = toH;
-      e.cd -= dt;
-      if (e.cd <= 0 && dist <= E02.range && clearLine(S, e.x, e.y, h.x, h.y, SHOT_R)) {
-        e.st = 'tell'; e.stT = tellT; e.tell01 = 0; e.aimAng = toH;
-        ev(S, { k:'tell', x:e.x, y:e.y, id:e.id, type:e.type });
-      } else if (e.cd <= 0) e.cd = 0;
-    } else if (e.st === 'tell') {
-      e.stT -= dt; e.tell01 = tellT > 0 ? 1 - Math.max(0, e.stT) / tellT : 1;
-      if (e.stT > E02.lockLast * t.TELL_MULT) e.aimAng = toH; // locks for the last 0.2 s
-      e.ang = e.aimAng;
-      if (e.stT <= 0) {
-        enemyShoot(S, e, e.aimAng, E02.shotSpeed, enemyDmg(S, b.atk));
-        e.st = 'cool'; e.cd = E02.cool; e.tell01 = 0;
-      }
-    }
-  } else if (e.type === 'E-03') {
-    tellT = E03.tell * t.TELL_MULT;
-    if (e.st === 'cool' || e.st === 'move') {
-      e.ang = toH; e.cd -= dt;
-      if (e.cd <= 0 && dist <= E03.range && clearLine(S, e.x, e.y, h.x, h.y, SHOT_R)) {
-        e.st = 'tell'; e.stT = tellT; e.tell01 = 0; e.aimAng = toH; // fan direction fixed at tell start
-        ev(S, { k:'tell', x:e.x, y:e.y, id:e.id, type:e.type });
-      } else if (e.cd <= 0) e.cd = 0;
-    } else if (e.st === 'tell') {
-      e.stT -= dt; e.tell01 = tellT > 0 ? 1 - Math.max(0, e.stT) / tellT : 1;
-      e.ang = e.aimAng;
-      if (e.stT <= 0) {
-        var dmg = enemyDmg(S, b.atk);
-        for (var k = -1; k <= 1; k++) enemyShoot(S, e, e.aimAng + k * E03.spread, E03.shotSpeed, dmg);
-        e.st = 'cool'; e.cd = E03.cool; e.tell01 = 0;
-      }
-    }
+  if (e.st === 'spawn') { e.spawnT -= dt; if (e.spawnT <= 0) e.st = e.afterSpawn || 'move'; return; }
+  if (e.frozenT > 0) { // freeze (mods): bosses and freeze-immune enemies never freeze
+    if (e.boss || (e.immune && e.immune.freeze)) e.frozenT = 0; else e.frozenT = Math.max(0, e.frozenT - dt);
   }
-  if (e.type !== 'E-03') collideBody(S, e, e.r);
-  // contact
-  // bodies are kept HERO_GAP apart (separate()), so touching = within the gap; a lunge hits on overlap
-  if (e.contactCd <= 0 && Math.hypot(h.x - e.x, h.y - e.y) < e.r + HERO_HURT_R + (e.st === 'act' ? 0 : HERO_GAP + 0.02)) {
+  if (!(e.frozenT > 0) && A && A.step) A.step(S, e, dt, api);
+  if (S.phase === 'results') return;
+  if (!immovable(e) && !charging(e)) collideBody(S, e, e.r);
+  // bodies are kept HERO_GAP apart (separate()), so touching = within the gap; a lunge/charge hits on overlap
+  if (!e.noContact && !e.hidden && b.contact > 0 && e.contactCd <= 0 &&
+      Math.hypot(h.x - e.x, h.y - e.y) < e.r + HERO_HURT_R + (charging(e) ? 0 : HERO_GAP + 0.02)) {
     if (hurtHero(S, enemyDmg(S, b.contact), e.type, e.x, e.y)) e.contactCd = CONTACT_CD;
   }
 }
+function immovable(e){ var b = base(e); return !!(b.static || e.static || e.boss || (e.immune && e.immune.knockback) || e.knockback === 0); }
+function charging(e){ return e.st === 'act' && ((e.lungeLeft || 0) > 0 || (e.dashLeft || 0) > 0); }
+function pairPass(S){
+  var a = S.enemies;
+  for (var i = 0; i < a.length; i++) for (var j = i + 1; j < a.length; j++) {
+    var p = a[i], q = a[j];
+    if (p.hidden || q.hidden) continue;
+    var dx = q.x - p.x, dy = q.y - p.y, d = Math.hypot(dx, dy), m = p.r + q.r + 0.04;
+    if (d >= m) continue;
+    if (d < 1e-6) { dx = (p.id < q.id ? 1e-6 : -1e-6); dy = 0; d = 1e-6; }
+    var pm = immovable(p) ? 0 : 1, qm = immovable(q) ? 0 : 1, sm = pm + qm;
+    if (!sm) continue;
+    var k = (m - d) / d;
+    p.x -= dx * k * pm / sm; p.y -= dy * k * pm / sm; q.x += dx * k * qm / sm; q.y += dy * k * qm / sm;
+    if (pm) collideBody(S, p, p.r); if (qm) collideBody(S, q, q.r);
+  }
+}
 function separate(S){
-  // enemies never stack on each other and never sit on the Operator (M, P0 fix)
   var a = S.enemies, h = S.hero, it, i, j;
   for (it = 0; it < 3; it++) {
     for (i = 0; i < a.length; i++) for (j = i + 1; j < a.length; j++) {
       var p = a[i], q = a[j];
+      if (p.hidden || q.hidden) continue;
       var dx = q.x - p.x, dy = q.y - p.y, d = Math.hypot(dx, dy), m = p.r + q.r + 0.04;
       if (d >= m) continue;
       if (d < 1e-6) { dx = (p.id < q.id ? 1e-6 : -1e-6); dy = 0; d = 1e-6; }
-      var pm = p.type === 'E-03' ? 0 : 1, qm = q.type === 'E-03' ? 0 : 1, sm = pm + qm;
+      var pm = immovable(p) ? 0 : 1, qm = immovable(q) ? 0 : 1, sm = pm + qm;
       if (!sm) continue;
       var k = (m - d) / d;
       p.x -= dx * k * pm / sm; p.y -= dy * k * pm / sm; q.x += dx * k * qm / sm; q.y += dy * k * qm / sm;
     }
     for (i = 0; i < a.length; i++) {
       var e = a[i];
-      if (e.st === 'act') continue; // a lunge may pass through to hit
+      if (charging(e) || e.hidden) continue; // a lunge/charge may pass through to hit
       var gx = e.x - h.x, gy = e.y - h.y, gd = Math.hypot(gx, gy), gap = e.r + HERO_HURT_R + HERO_GAP;
       if (gd >= gap) continue;
       if (gd < 1e-6) { gx = 0; gy = (h.y > S.room.h / 2 ? -1e-6 : 1e-6); gd = 1e-6; } // pinned: push toward room centre
       var kk = (gap - gd) / gd;
-      if (e.type === 'E-03') { h.x -= gx * kk; h.y -= gy * kk; collideBody(S, h, HERO_WALL_R); } // static turret acts as a post
-      else { e.x += gx * kk; e.y += gy * kk; }
+      if (immovable(e)) { h.x -= gx * kk; h.y -= gy * kk; collideBody(S, h, HERO_WALL_R); } // static body acts as a post
+      else {
+        e.x += gx * kk; e.y += gy * kk; collideBody(S, e, e.r);
+        // enemy pinned by a wall or corner: the Operator gives way instead
+        var rx = e.x - h.x, ry = e.y - h.y, rd = Math.hypot(rx, ry);
+        if (rd < gap - 1e-3) {
+          if (rd < 1e-6) { rx = 0; ry = 1e-6; rd = 1e-6; }
+          var k2 = (gap - rd) / rd; h.x -= rx * k2; h.y -= ry * k2; collideBody(S, h, HERO_WALL_R);
+        }
+      }
     }
-    for (i = 0; i < a.length; i++) if (a[i].type !== 'E-03') collideBody(S, a[i], a[i].r);
+    for (i = 0; i < a.length; i++) if (!immovable(a[i])) collideBody(S, a[i], a[i].r);
+  }
+  // final pass: settle enemy pairs once more, then the Operator yields to anything still inside the gap
+  pairPass(S);
+  for (i = 0; i < a.length; i++) {
+    var f = a[i]; if (charging(f) || f.hidden) continue;
+    var fx = f.x - h.x, fy = f.y - h.y, fd = Math.hypot(fx, fy), fg = f.r + HERO_HURT_R + HERO_GAP;
+    if (fd >= fg - 1e-3) continue;
+    if (fd < 1e-6) { fx = 0; fy = 1e-6; fd = 1e-6; }
+    var k3 = (fg - fd) / fd; h.x -= fx * k3; h.y -= fy * k3; collideBody(S, h, HERO_WALL_R);
   }
 }
 
 // ---------- damage to enemies ----------
 function killEnemy(S, e){
-  var b = EN[e.type];
+  var b = base(e);
   S.stats.kills++;
   S.stats.killLog.push({ type:e.type, stage:S.stage, t:+(S.roomT).toFixed(3) });
-  ev(S, { k:'kill', x:e.x, y:e.y, id:e.id, type:e.type });
-  S.pickups.push({ x:e.x, y:e.y, kind:'xp', v:b.xp, life:1e9 });
-  var p = Math.min(REPAIR_CAP, REPAIR_BASE + S.pity);
-  if (S.rng.next() < p) { S.pickups.push({ x:e.x + 0.2, y:e.y, kind:'repair', v:0, life:REPAIR_LIFE }); S.pity = 0; }
-  else S.pity += b.size === 'small' ? REPAIR_PITY * 0.5 : REPAIR_PITY;
+  ev(S, { k:'kill', x:e.x, y:e.y, id:e.id, type:e.type, boss:!!e.boss });
+  if (b.xp) S.pickups.push({ x:e.x, y:e.y, kind:'xp', v:b.xp, life:1e9 });
+  if (!e.boss) {
+    var p = Math.min(REPAIR_CAP, REPAIR_BASE + S.pity);
+    if (S.rng.next() < p) { S.pickups.push({ x:e.x + 0.2, y:e.y, kind:'repair', v:0, life:REPAIR_LIFE }); S.pity = 0; }
+    else S.pity += b.size === 'small' ? REPAIR_PITY * 0.5 : REPAIR_PITY;
+  } else S.stats.bossTime = +S.roomT.toFixed(2);
+  var A = V.AI[e.type]; if (A && A.onDeath) A.onDeath(S, e, api);
+  callHook(S, 'onKill', e, api);
 }
-function damageEnemy(S, e, dmg, crit){
-  e.hp -= dmg; e.flashT = 0.1;
-  ev(S, { k:'hit', x:e.x, y:e.y, id:e.id, dmg:dmg, crit:crit });
+function damageEnemy(S, e, dmg, crit, r, opts){
+  if (e.hp <= 0) return false;
+  var A = V.AI[e.type];
+  if (A && A.onDamage) { var d2 = A.onDamage(S, e, dmg, r, api); if (typeof d2 === 'number') dmg = d2; }
+  if (dmg <= 0) return false;
+  dmg = Math.max(1, Math.floor(dmg));
+  e.hp -= dmg;
+  if (opts && opts.dot) ev(S, { k:'dot', x:e.x, y:e.y, id:e.id, dmg:dmg });
+  else { e.flashT = 0.1; ev(S, { k:'hit', x:e.x, y:e.y, id:e.id, dmg:dmg, crit:crit }); }
   if (crit) ev(S, { k:'crit', x:e.x, y:e.y, id:e.id, dmg:dmg });
   if (e.hp <= 0) { e.hp = 0; killEnemy(S, e); return true; }
   return false;
 }
+function pruneEnemies(S){
+  var en = [];
+  for (var q = 0; q < S.enemies.length; q++) if (S.enemies[q].hp > 0) en.push(S.enemies[q]);
+  S.enemies = en;
+}
 
+function bounceOff(r, b){
+  // reflect on the axis of least penetration
+  var cx = Math.max(b.x, Math.min(r.x, b.x + b.w)), cy = Math.max(b.y, Math.min(r.y, b.y + b.h));
+  var dx = r.x - cx, dy = r.y - cy;
+  if (Math.abs(dx) > Math.abs(dy)) r.vx = -r.vx; else if (Math.abs(dy) > 0) r.vy = -r.vy; else { r.vx = -r.vx; r.vy = -r.vy; }
+  r.x -= r.vx * STEP; r.y -= r.vy * STEP;
+}
+function wallReflect(S, r){
+  var hit = false;
+  if (r.x < r.r) { r.x = r.r; r.vx = Math.abs(r.vx); hit = true; }
+  if (r.x > S.room.w - r.r) { r.x = S.room.w - r.r; r.vx = -Math.abs(r.vx); hit = true; }
+  if (r.y < r.r) { r.y = r.r; r.vy = Math.abs(r.vy); hit = true; }
+  if (r.y > S.room.h - r.r) { r.y = S.room.h - r.r; r.vy = -Math.abs(r.vy); hit = true; }
+  return hit;
+}
 function stepRounds(S, dt){
   var a = S.rounds, out = [];
   for (var i = 0; i < a.length; i++) {
     var r = a[i], alive = true;
     r.x += r.vx * dt; r.y += r.vy * dt;
-    if (outOfRoom(S, r.x, r.y, r.r) || hitsSolid(S, r.x, r.y, r.r)) continue;
+    var sol = hitsSolid(S, r.x, r.y, r.r), oob = outOfRoom(S, r.x, r.y, 0) && !(r.y < 1 && S.room.door.open && r.x > S.room.door.x && r.x < S.room.door.x + 1);
+    if (sol || oob) {
+      if (r.bounceWall && r.wallBounces < WALLB_MAX) {
+        if (sol) bounceOff(r, sol); else wallReflect(S, r);
+        r.wallBounces++; r.dmg = Math.max(1, Math.floor(r.dmg * WALLB_MULT));
+      } else continue;
+    }
     for (var j = 0; j < S.enemies.length; j++) {
       var e = S.enemies[j];
       if (!targetable(e) || r.hit.indexOf(e.id) >= 0) continue;
       if (Math.hypot(e.x - r.x, e.y - r.y) < e.r + r.r) {
-        damageEnemy(S, e, r.dmg, r.crit);
+        damageEnemy(S, e, r.dmg, r.crit, r);
         r.hit.push(e.id);
+        if (V.MODS) { r.keep = false; callHook(S, 'onHit', e, r, api); alive = !!r.keep; break; } // mods.js does pierce/ricochet
+        callHook(S, 'onHit', e, r, api);
         alive = false;
-        if (cardCount(S, 'rico') > 0 && r.bounces < RICO_MAX) {
+        if (r.pierce) { r.dmg = Math.max(1, Math.floor(r.dmg * PIERCE_MULT)); alive = true; continue; }
+        if (r.rico && r.bounces < RICO_MAX) {
           var best = null, bd = RICO_RANGE;
           for (var k = 0; k < S.enemies.length; k++) {
             var o = S.enemies[k];
@@ -676,21 +1181,49 @@ function stepRounds(S, dt){
     if (alive) out.push(r);
   }
   S.rounds = out;
-  // remove dead enemies
-  var en = [];
-  for (var q = 0; q < S.enemies.length; q++) if (S.enemies[q].hp > 0) en.push(S.enemies[q]);
-  S.enemies = en;
+  pruneEnemies(S);
 }
 function stepShots(S, dt){
   var a = S.shots, out = [], h = S.hero;
   for (var i = 0; i < a.length; i++) {
     var s = a[i];
     s.x += s.vx * dt; s.y += s.vy * dt;
-    if (outOfRoom(S, s.x, s.y, s.r) || hitsSolid(S, s.x, s.y, s.r)) continue; // cover stops enemy rounds (M)
-    if (S.phase !== 'dead' && Math.hypot(h.x - s.x, h.y - s.y) < s.r + HERO_HURT_R) { hurtHero(S, s.dmg, s.src, s.x, s.y); continue; }
+    if (s.life != null) { s.life -= dt; if (s.life <= 0) continue; }
+    if (hitsSolid(S, s.x, s.y, s.r)) continue; // cover stops enemy flat rounds (M)
+    if (outOfRoom(S, s.x, s.y, -s.r)) {
+      if (s.bounces > 0) { wallReflect(S, s); s.bounces--; } else if (outOfRoom(S, s.x, s.y, s.r)) continue;
+    }
+    if (S.phase !== 'results' && Math.hypot(h.x - s.x, h.y - s.y) < s.r + HERO_HURT_R) { hurtHero(S, s.dmg, s.src, s.x, s.y); continue; }
     out.push(s);
   }
   S.shots = out;
+}
+function stepShells(S, dt){
+  var a = S.shells, out = [], h = S.hero;
+  for (var i = 0; i < a.length; i++) {
+    var s = a[i];
+    s.t += dt;
+    var k = Math.min(1, s.t / s.T);
+    s.x = s.sx + (s.tx - s.sx) * k; s.y = s.sy + (s.ty - s.sy) * k;
+    if (s.t >= s.T) { // lands over cover
+      ev(S, { k:'land', x:s.tx, y:s.ty, r:s.r, src:s.src });
+      if (S.phase !== 'results' && Math.hypot(h.x - s.tx, h.y - s.ty) < s.r + HERO_HURT_R) hurtHero(S, s.dmg, s.src, s.tx, s.ty);
+      continue;
+    }
+    out.push(s);
+  }
+  S.shells = out;
+}
+function stepHazards(S, dt){
+  if (S.hazardCd > 0) S.hazardCd -= dt;
+  if (!S.hazards.length || S.hazardCd > 0) return;
+  var h = S.hero;
+  for (var i = 0; i < S.hazards.length; i++) {
+    if (circleRect(h.x, h.y, HERO_HURT_R, S.hazards[i])) {
+      if (hurtHero(S, enemyDmg(S, HAZARD_DMG), 'spikes', h.x, h.y, { hazard:true })) S.hazardCd = HAZARD_CD;
+      return;
+    }
+  }
 }
 
 // ---------- pickups / xp ----------
@@ -708,10 +1241,7 @@ function addXp(S, v){
 function collect(S, p){
   var h = S.hero;
   if (p.kind === 'xp') addXp(S, p.v);
-  else {
-    var heal = Math.floor(h.maxHp * REPAIR_PCT);
-    p.v = Math.min(heal, h.maxHp - h.hp); h.hp = Math.min(h.maxHp, h.hp + heal);
-  }
+  else p.v = healHero(S, h.maxHp * REPAIR_PCT);
   ev(S, { k:'pickup', x:p.x, y:p.y, kind:p.kind, v:p.v });
 }
 function stepPickups(S, dt){
@@ -729,63 +1259,127 @@ function stepPickups(S, dt){
 }
 
 // ---------- cards ----------
-function offerCards(S){
-  var avail = [], i;
-  for (i = 0; i < V.CARDS.length; i++) { var c = V.CARDS[i]; if (!c.max || cardCount(S, c.key) < c.max) avail.push(i); }
-  var n = Math.max(1, Math.min(Math.round(S.tune.CARDS_OFFERED) || 2, avail.length)), out = [];
-  for (i = 0; i < n; i++) { var j = S.rng.int(avail.length); out.push(avail[j]); avail.splice(j, 1); }
+function inPool(m, pool){ return !m.pool || m.pool.indexOf(pool) >= 0; }
+function offer(S, pool, n){
+  if (V.MODS && V.Mods && V.Mods.offer) return V.Mods.offer(S, pool, n, S.rng);
+  var M = mods(), avail = [], w = [], i, out = [];
+  for (i = 0; i < M.length; i++) {
+    var m = M[i];
+    if (!inPool(m, pool)) continue;
+    if (m.max && count(S, m.key) >= m.max) continue;
+    var wt = m.weight == null ? 1 : +m.weight; if (!(wt > 0)) continue;
+    avail.push(i); w.push(wt);
+  }
+  n = Math.min(n, avail.length);
+  for (var k = 0; k < n; k++) {
+    var tot = 0; for (i = 0; i < w.length; i++) tot += w[i];
+    var x = S.rng.next() * tot, j = 0;
+    while (j < w.length - 1 && x >= w[j]) { x -= w[j]; j++; }
+    out.push(avail[j]); avail.splice(j, 1); w.splice(j, 1);
+  }
   return out;
 }
+function applyMod(S, ci){
+  var c = mods()[ci];
+  S.hero.mods[c.key] = (S.hero.mods[c.key] || 0) + 1;
+  S.stats.picks.push(c.id);
+  if (c.hooks && c.hooks.onPick) c.hooks.onPick(S, S.hero.mods[c.key], api);
+  refreshStats(S);
+  ev(S, { k:'pick', x:S.hero.x, y:S.hero.y, id:c.id, key:c.key });
+  return c;
+}
+function deferEvents(S, n0){ S._post = (S._post || []).concat(S.events.splice(n0)); }
 function pick(S, index){
+  var n0 = S.events.length, r = pick0(S, index); deferEvents(S, n0); return r;
+}
+function pickSupply(S, index){
+  var n0 = S.events.length, r = pickSupply0(S, index); deferEvents(S, n0); return r;
+}
+function pick0(S, index){
+  if (S.phase === 'supply') return pickSupply0(S, index);
   if (S.phase !== 'pick' || !S.cards) return false;
   var ci = S.cards[index]; if (ci == null) return false;
-  var c = V.CARDS[ci];
-  S.hero.mods[c.key] = (S.hero.mods[c.key] || 0) + 1;
-  S.hero.atk = roundDamage(S);
-  S.stats.picks.push(c.id);
-  S.pendingLevels = Math.max(0, S.pendingLevels - 1);
+  applyMod(S, ci);
+  if (S.freePicks > 0) S.freePicks--; else S.pendingLevels = Math.max(0, S.pendingLevels - 1);
   S.cards = null; S.phase = 'clear';
-  ev(S, { k:'pick', x:S.hero.x, y:S.hero.y, id:c.id, key:c.key });
   return true;
 }
+function pickSupply0(S, index){
+  if (S.phase !== 'supply' || !S.supply) return false;
+  var c = S.supply[index]; if (!c) return false;
+  if (c.kind === 'mod') applyMod(S, c.index);
+  else { var v = healHero(S, S.hero.maxHp * SUPPLY_REPAIR_PCT); ev(S, { k:'pickup', x:S.hero.x, y:S.hero.y, kind:'repair', v:v }); }
+  S.supply = null;
+  openDoor(S);
+  return true;
+}
+function openDoor(S){
+  S.phase = 'clear'; S.clearT = 0; S.room.door.open = true;
+  ev(S, { k:'door', x:S.room.door.x + 0.5, y:S.room.door.y + 0.5, open:true });
+}
+function openChest(S){
+  var c = S.chest; if (!c || c.open) return;
+  c.open = true; S.freePicks++;
+  S.pickups.push({ x:c.x - 0.3, y:c.y + 0.4, kind:'repair', v:0, life:REPAIR_LIFE });
+  S.pickups.push({ x:c.x + 0.3, y:c.y + 0.4, kind:'repair', v:0, life:REPAIR_LIFE });
+  ev(S, { k:'chest', x:c.x, y:c.y });
+}
 
-function nextRoom(S){
-  // bank anything still flying
+function nextStage(S){
   for (var i = 0; i < S.pickups.length; i++) if (S.pickups[i].kind === 'xp') addXp(S, S.pickups[i].v);
-  S.stage++;
-  var idx = (V.ROOM_ORDER.indexOf(S.roomId) + 1) % V.ROOM_ORDER.length;
-  loadRoom(S, V.ROOM_ORDER[idx]);
+  var n = S.stageIdx + 1, list = stageList();
+  if (n >= list.length) { S.lap++; n = 0; }
+  loadStage(S, n);
+}
+
+function syncBoss(S){
+  if (!S.boss) return;
+  var e = findEnemy(S, S.boss.id), B = S.boss;
+  if (!e) { B.hp = 0; B.attack = null; B.tell01 = 0; return; }
+  var ph = e.phase || 1;
+  B.hp = e.hp; B.maxHp = e.maxHp; B.phase = ph; B.attack = e.attack || null; B.tell01 = e.tell01 || 0; B.name = e.name || B.name;
 }
 
 // ---------- step ----------
 function step(S, inp){
-  S.events.length = 0;
-  if (S.phase === 'pick' || S.phase === 'dead') return S;
+  S.events.length = 0; S.fx.length = 0;
+  if (S._post && S._post.length) { for (var pe = 0; pe < S._post.length; pe++) S.events.push(S._post[pe]); S._post.length = 0; }
+  if (S.phase === 'pick' || S.phase === 'supply' || S.phase === 'results') return S;
   var t = S.tune, dt = STEP * (t.TIME_SCALE > 0 ? t.TIME_SCALE : 1);
   S.frame++; S.t += dt; S.roomT += dt;
-  if (S.phase === 'play') S.stats.playSteps++;
+  if (!S.st) refreshStats(S);
+  if (S.phase === 'play') { S.stats.playSteps++; releaseSpawns(S); }
   stepHero(S, inp, dt);
   if (S.phase === 'play' && S.hero.braced) S.stats.bracedSteps++;
-  for (var i = 0; i < S.enemies.length && S.phase !== 'dead'; i++) stepEnemy(S, S.enemies[i], dt);
+  for (var i = 0; i < S.enemies.length && S.phase !== 'results'; i++) stepEnemy(S, S.enemies[i], dt);
+  pruneEnemies(S);
   separate(S);
   stepRounds(S, dt);
   stepShots(S, dt);
-  if (S.phase === 'dead') return S;
-  if (S.phase === 'play' && S.enemies.length === 0) {
-    S.phase = 'clear'; S.clearT = 0; S.room.door.open = true;
-    S.shots.length = 0;
-    S.stats.roomTimes.push({ stage:S.stage, roomId:S.roomId, s:+S.roomT.toFixed(2) });
+  stepShells(S, dt);
+  stepHazards(S, dt);
+  if (S.phase === 'play') callHook(S, 'tick', dt, api);
+  pruneEnemies(S);
+  syncBoss(S);
+  if (S.phase === 'results') return S;
+  if (S.phase === 'play' && S.enemies.length === 0 && S.spawnQ.length === 0) {
+    S.stats.roomTimes.push({ stage:S.stage, roomId:S.roomId, s:+S.roomT.toFixed(2), kind:S.stageKind });
     S.stats.roomHp.push({ stage:S.stage, roomId:S.roomId, hp:S.hero.hp });
+    S.shots.length = 0; S.shells.length = 0;
     if (S.hero.lockId != null) { ev(S, { k:'unlock', x:S.hero.x, y:S.hero.y, id:S.hero.lockId }); S.hero.lockId = null; S.hero.lockClear = false; }
-    ev(S, { k:'door', x:S.room.door.x + 0.5, y:S.room.door.y + 0.5, open:true });
+    if (S.stageKind === 'boss' && !t.ENDLESS) { S.phase = 'clear'; S.clearT = 0; S.bossWin = true; }
+    else openDoor(S);
   }
   stepPickups(S, dt);
   if (S.phase === 'clear') {
     S.clearT += dt;
     var h = S.hero, d = S.room.door;
+    if (S.bossWin) { if (S.clearT >= t.PICK_DELAY) endRun(S, true); return S; }
+    if (S.chest && !S.chest.open && (Math.hypot(h.x - S.chest.x, h.y - S.chest.y) < 0.9 || S.clearT >= t.PICK_DELAY)) openChest(S);
     var atDoor = circleRect(h.x, h.y, HERO_WALL_R + 0.02, d);
-    if (S.pendingLevels > 0 && (S.clearT >= t.PICK_DELAY || atDoor)) { S.phase = 'pick'; S.cards = offerCards(S); }
-    else if (atDoor) nextRoom(S);
+    var pending = S.pendingLevels + S.freePicks;
+    if (pending > 0 && (S.clearT >= t.PICK_DELAY || atDoor)) { S.phase = 'pick'; S.cards = offer(S, 'F', Math.max(1, Math.round(t.CARDS_OFFERED) || 3)); if (!S.cards.length) { S.cards = null; S.phase = 'clear'; S.pendingLevels = 0; S.freePicks = 0; } }
+    else if (atDoor) nextStage(S);
   }
   return S;
 }
@@ -796,15 +1390,392 @@ function restart(S){ return create(((S.seed + 1) >>> 0), S.tune); }
 function hash(S){
   var h = 2166136261 >>> 0;
   function mix(v){ var s = String(v); for (var i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619) >>> 0; } h ^= 124; h = Math.imul(h, 16777619) >>> 0; }
-  mix(S.frame); mix(S.phase); mix(S.stage); mix(S.rng.s);
+  mix(S.frame); mix(S.phase); mix(S.stage); mix(S.lap); mix(S.rng.s);
   var H = S.hero; mix(H.x.toFixed(5)); mix(H.y.toFixed(5)); mix(H.hp); mix(H.xp); mix(H.level); mix(H.lockId);
   for (var i = 0; i < S.enemies.length; i++) { var e = S.enemies[i]; mix(e.id); mix(e.x.toFixed(5)); mix(e.y.toFixed(5)); mix(e.hp); mix(e.st); }
-  mix(S.rounds.length); mix(S.shots.length); mix(S.pickups.length); mix(S.stats.kills);
+  mix(S.rounds.length); mix(S.shots.length); mix(S.shells.length); mix(S.pickups.length); mix(S.stats.kills);
   return ('00000000' + h.toString(16)).slice(-8);
 }
 
-V.Sim = { create:create, step:step, pick:pick, restart:restart, hash:hash,
-  STEP:STEP, LEVEL_COST:LEVEL_COST, ENEMIES:EN, roundDamage:roundDamage, fireInterval:fireInterval, clearLine:clearLine };
+V.Sim = { create:create, step:step, pick:pick, pickSupply:pickSupply, restart:restart, hash:hash, api:api,
+  offer:offer, stats:heroStats, stageList:stageList,
+  STEP:STEP, LEVEL_COST:LEVEL_COST, roundDamage:roundDamage, fireInterval:fireInterval, clearLine:clearLine,
+  FALLBACK_MODS:FALLBACK_MODS };
+// back-compat for bot/tests: base stats by type (live view of the registry)
+Object.defineProperty(V.Sim, 'ENEMIES', { get:function(){ var o = {}; for (var k in V.AI) o[k] = V.AI[k].base; return o; } });
+})();
+
+</script>
+<script>
+(function(){ var G = (typeof window !== 'undefined' ? window : globalThis); var V = G.V = G.V || {};
+// E-01..E-03 behaviour (D1 section 4). Registry entry: { base, init(S,e,api), step(S,e,dt,api) }.
+// The sim does spawn grace, hit flash, contact damage, death, XP and separation.
+V.AI = V.AI || {};
+var DEG = Math.PI / 180;
+
+V.AI['E-01'] = {
+  base: { hp:300, contact:60, dmg:60, speed:2.4, r:0.35, size:'small', xp:4, tell:0.5, cd:2.0, flyer:true },
+  range: 2.5, lungeSpeed: 6.0, lungeDist: 3.0,
+  init: function(S, e, api){ e.lungeLeft = 0; },
+  step: function(S, e, dt, api){
+    var A = V.AI['E-01'], b = A.base, h = api.hero(S), dist = api.dist(e, h), toH = api.angleTo(e, h);
+    if (e.st === 'move' || e.st === 'cool') {
+      // halt at the push-apart gap instead of sitting on the Operator
+      if (dist > e.r + h.r + 0.12) api.steerTo(S, e, h.x, h.y, b.speed, dt); else e.ang = toH;
+      if (e.st === 'cool') { e.cd -= dt; if (e.cd <= 0) e.st = 'move'; }
+      else if (dist <= A.range && api.clearLine(S, e.x, e.y, h.x, h.y, e.r)) {
+        e.st = 'tell'; e.stT = api.tellT(S, b.tell); e.tellT = e.stT; e.tell01 = 0; e.aimAng = toH;
+        api.ev(S, { k:'tell', x:e.x, y:e.y, id:e.id, type:e.type });
+      }
+    } else if (e.st === 'tell') {
+      e.stT -= dt; e.tell01 = e.tellT > 0 ? 1 - Math.max(0, e.stT) / e.tellT : 1;
+      e.aimAng = toH; e.ang = toH;
+      if (e.stT <= 0) { e.st = 'act'; e.lungeLeft = A.lungeDist; e.vx = Math.cos(toH); e.vy = Math.sin(toH); e.tell01 = 0; }
+    } else if (e.st === 'act') {
+      var st = Math.min(e.lungeLeft, A.lungeSpeed * dt);
+      e.x += e.vx * st; e.y += e.vy * st; e.lungeLeft -= st;
+      var ox = e.x, oy = e.y;
+      api.collideBody(S, e, e.r);
+      if (e.lungeLeft <= 1e-6 || Math.abs(ox - e.x) + Math.abs(oy - e.y) > 1e-4) { e.st = 'cool'; e.cd = b.cd; e.lungeLeft = 0; }
+    }
+  }
+};
+
+V.AI['E-02'] = {
+  base: { hp:450, contact:40, dmg:60, speed:1.0, r:0.40, size:'medium', xp:8, tell:0.6, cd:2.2 },
+  lockLast: 0.2, shotSpeed: 6.0, range: 10, prefer: 4.5,
+  init: function(S, e, api){
+    var R = api.rng(S);
+    e.strafe = R.next() < 0.5 ? -1 : 1; e.strafeT = R.range(1.2, 2.4); e.cd = R.range(0.6, 1.4); e.noLosT = 0;
+  },
+  step: function(S, e, dt, api){
+    var A = V.AI['E-02'], b = A.base, h = api.hero(S), dx = h.x - e.x, dy = h.y - e.y, dist = Math.hypot(dx, dy), toH = Math.atan2(dy, dx);
+    if (e.st === 'move' || e.st === 'cool') {
+      e.strafeT -= dt; if (e.strafeT <= 0) { e.strafe = -e.strafe; e.strafeT = api.rng(S).range(1.2, 2.6); }
+      var ux = dx / (dist || 1), uy = dy / (dist || 1);
+      var radial = dist > A.prefer + 0.8 ? 0.7 : (dist < A.prefer - 0.8 ? -0.7 : 0);
+      var vx = ux * radial - uy * e.strafe, vy = uy * radial + ux * e.strafe;
+      var los = api.clearLine(S, e.x, e.y, h.x, h.y, 0.15);
+      e.noLosT = los ? 0 : e.noLosT + dt;
+      if (e.noLosT > 0.8) { vx = ux * 0.45 - uy * e.strafe * 0.9; vy = uy * 0.45 + ux * e.strafe * 0.9; } // walk round cover
+      var vl = Math.hypot(vx, vy) || 1, px = e.x, py = e.y;
+      e.x += vx / vl * b.speed * dt; e.y += vy / vl * b.speed * dt;
+      api.collideBody(S, e, e.r);
+      if (Math.hypot(e.x - px, e.y - py) < 0.3 * b.speed * dt) e.strafe = -e.strafe; // stuck: turn round
+      e.ang = toH;
+      e.cd -= dt;
+      if (e.cd <= 0 && dist <= A.range && los) {
+        e.st = 'tell'; e.stT = api.tellT(S, b.tell); e.tellT = e.stT; e.tell01 = 0; e.aimAng = toH;
+        api.ev(S, { k:'tell', x:e.x, y:e.y, id:e.id, type:e.type });
+      } else if (e.cd <= 0) e.cd = 0;
+    } else if (e.st === 'tell') {
+      e.stT -= dt; e.tell01 = e.tellT > 0 ? 1 - Math.max(0, e.stT) / e.tellT : 1;
+      if (e.stT > api.tellT(S, A.lockLast)) e.aimAng = toH; // locks for the last 0.2 s
+      e.ang = e.aimAng;
+      if (e.stT <= 0) { api.enemyShoot(S, e, e.aimAng, A.shotSpeed, api.enemyDmg(S, b.dmg)); e.st = 'cool'; e.cd = b.cd; e.tell01 = 0; }
+    }
+  }
+};
+
+V.AI['E-03'] = {
+  base: { hp:600, contact:40, dmg:45, speed:0, r:0.50, size:'medium', xp:8, tell:0.7, cd:2.8, static:true },
+  shotSpeed: 5.0, spread: 25 * DEG, range: 14,
+  init: function(S, e, api){ e.cd = api.rng(S).range(0.8, 1.6); e.afterSpawn = 'cool'; },
+  step: function(S, e, dt, api){
+    var A = V.AI['E-03'], b = A.base, h = api.hero(S), dist = api.dist(e, h), toH = api.angleTo(e, h);
+    if (e.st === 'cool' || e.st === 'move') {
+      e.ang = toH; e.cd -= dt;
+      if (e.cd <= 0 && dist <= A.range && api.clearLine(S, e.x, e.y, h.x, h.y, 0.15)) {
+        e.st = 'tell'; e.stT = api.tellT(S, b.tell); e.tellT = e.stT; e.tell01 = 0; e.aimAng = toH; // fan fixed at tell start
+        api.ev(S, { k:'tell', x:e.x, y:e.y, id:e.id, type:e.type });
+      } else if (e.cd <= 0) e.cd = 0;
+    } else if (e.st === 'tell') {
+      e.stT -= dt; e.tell01 = e.tellT > 0 ? 1 - Math.max(0, e.stT) / e.tellT : 1;
+      e.ang = e.aimAng;
+      if (e.stT <= 0) {
+        var dmg = api.enemyDmg(S, b.dmg);
+        for (var k = -1; k <= 1; k++) api.enemyShoot(S, e, e.aimAng + k * A.spread, A.shotSpeed, dmg);
+        e.st = 'cool'; e.cd = b.cd; e.tell01 = 0;
+      }
+    }
+  }
+};
+})();
+
+</script>
+<script>
+(function(){ var G = (typeof window !== 'undefined' ? window : globalThis); var V = G.V = G.V || {};
+// E-04 Mortar walker, E-05 Charger bot (D1 section 4). Registry entry: { base, init(S,e,api), step(S,e,dt,api) }.
+// The sim does spawn grace, hit flash, contact damage, death, XP and separation. Only api.rng(S) for randomness.
+V.AI = V.AI || {};
+
+function clamp(v, a, b){ return v < a ? a : (v > b ? b : v); }
+
+// E-04: walks, holds range, lobs a shell at the Operator's position at fire time.
+// The landing ring (r 1.0) shows the whole flight (1.0 s); shells ignore cover (sim).
+V.AI['E-04'] = {
+  base: { hp:500, contact:40, dmg:70, speed:1.2, r:0.45, size:'medium', xp:8, tell:1.0, cd:3.0 },
+  range: 8.5,          // never starts an attack while the Operator is farther than this
+  prefer: 5.0,         // preferred distance while walking
+  windup: 0.35,        // short squat before the lob (st 'tell'); the ring itself is the 1.0 s telegraph
+  ringR: 1.0,
+  init: function(S, e, api){
+    var R = api.rng(S);
+    e.strafe = R.next() < 0.5 ? -1 : 1; e.strafeT = R.range(1.4, 2.6); e.cd = R.range(1.0, 2.0);
+  },
+  step: function(S, e, dt, api){
+    var A = V.AI['E-04'], b = A.base, h = api.hero(S), dx = h.x - e.x, dy = h.y - e.y, dist = Math.hypot(dx, dy), toH = Math.atan2(dy, dx);
+    if (e.st === 'move' || e.st === 'cool') {
+      e.strafeT -= dt; if (e.strafeT <= 0) { e.strafe = -e.strafe; e.strafeT = api.rng(S).range(1.4, 2.8); }
+      var ux = dx / (dist || 1), uy = dy / (dist || 1);
+      var radial = dist > A.prefer + 1 ? 0.8 : (dist < A.prefer - 1 ? -0.8 : 0);
+      var vx = ux * radial - uy * e.strafe * 0.7, vy = uy * radial + ux * e.strafe * 0.7;
+      var vl = Math.hypot(vx, vy) || 1, px = e.x, py = e.y;
+      e.x += vx / vl * b.speed * dt; e.y += vy / vl * b.speed * dt;
+      api.collideBody(S, e, e.r);
+      if (Math.hypot(e.x - px, e.y - py) < 0.3 * b.speed * dt) e.strafe = -e.strafe;
+      e.ang = toH; e.aimAng = toH;
+      e.cd -= dt;
+      if (e.cd <= 0 && dist <= A.range) {   // lobbed: no line of sight needed
+        e.st = 'tell'; e.stT = api.tellT(S, A.windup); e.tellT = e.stT; e.tell01 = 0; e.aimAng = toH;
+        api.ev(S, { k:'tell', x:e.x, y:e.y, id:e.id, type:e.type });
+      } else if (e.cd <= 0) e.cd = 0;
+    } else if (e.st === 'tell') {
+      e.stT -= dt; e.tell01 = e.tellT > 0 ? 1 - Math.max(0, e.stT) / e.tellT : 1;
+      e.aimAng = toH; e.ang = toH;
+      if (e.stT <= 0) {
+        // target = the Operator's position at fire time; the ring never moves
+        var tx = clamp(h.x, 0.3, S.room.w - 0.3), ty = clamp(h.y, 0.3, S.room.h - 0.3);
+        var mult = S.tune.ENEMY_SHOT_SPEED_MULT > 0 ? S.tune.ENEMY_SHOT_SPEED_MULT : 1;
+        var T = api.tellT(S, b.tell) / Math.min(1, mult); // flight = ground telegraph; slower fire = longer flight
+        api.lob(S, e, tx, ty, T, A.ringR, api.enemyDmg(S, b.dmg));
+        e.lastTx = tx; e.lastTy = ty;
+        e.st = 'act'; e.stT = 0.25; e.tell01 = 0;   // short recoil, stands still
+      }
+    } else if (e.st === 'act') {
+      e.stT -= dt; e.ang = toH;
+      if (e.stT <= 0) { e.st = 'cool'; e.cd = b.cd; }
+    }
+  }
+};
+
+// E-05: approaches; kneels 0.8 s facing the Operator with a red lane (locks the last 0.2 s),
+// dashes straight up to 8 units at 9.0; stops at walls/cover with a 1.0 s stun; cooldown 2.5 s.
+V.AI['E-05'] = {
+  base: { hp:650, contact:60, dmg:90, speed:1.6, r:0.50, size:'medium', xp:8, tell:0.8, cd:2.5 },
+  range: 7.0, lockLast: 0.2, dashSpeed: 9.0, dashDist: 8.0, stun: 1.0,
+  init: function(S, e, api){
+    e.cd = api.rng(S).range(0.8, 1.6); e.lane = this.dashDist; e.locked = false; e.stunT = 0;
+    e.dashLeft = 0; e.dashHit = false; e.strafe = api.rng(S).next() < 0.5 ? -1 : 1;
+  },
+  // lane length from (x,y) along ang until the body would touch cover/walls/room edge, capped at dashDist
+  laneLen: function(S, e, ang, api){
+    var c = Math.cos(ang), s = Math.sin(ang), d = 0, stp = 0.1, max = this.dashDist;
+    while (d < max) {
+      var n = Math.min(max, d + stp), x = e.x + c * n, y = e.y + s * n;
+      if (x < e.r || x > S.room.w - e.r || y < e.r || y > S.room.h - e.r || api.hitsSolid(S, x, y, e.r)) break;
+      d = n;
+    }
+    return d;
+  },
+  setLane: function(S, e, api){
+    e.lane = this.laneLen(S, e, e.aimAng, api);
+    e.laneX0 = e.x; e.laneY0 = e.y;
+    e.laneX = e.x + Math.cos(e.aimAng) * e.lane; e.laneY = e.y + Math.sin(e.aimAng) * e.lane;
+  },
+  step: function(S, e, dt, api){
+    var A = V.AI['E-05'], b = A.base, h = api.hero(S), dist = api.dist(e, h), toH = api.angleTo(e, h);
+    if (e.st === 'stun') {
+      e.stunT -= dt;
+      if (e.stunT <= 0) { e.stunT = 0; e.st = 'cool'; e.cd = b.cd; }
+      return;
+    }
+    if (e.st === 'move' || e.st === 'cool') {
+      e.locked = false;
+      if (dist > e.r + h.r + 0.15) api.steerTo(S, e, h.x, h.y, b.speed, dt); else e.ang = toH;
+      api.collideBody(S, e, e.r);
+      e.aimAng = toH;
+      e.cd -= dt;
+      if (e.cd <= 0 && dist <= A.range && api.clearLine(S, e.x, e.y, h.x, h.y, e.r * 0.6)) {
+        e.st = 'tell'; e.stT = api.tellT(S, b.tell); e.tellT = e.stT; e.tell01 = 0; e.aimAng = toH; e.ang = toH;
+        A.setLane(S, e, api);
+        api.ev(S, { k:'tell', x:e.x, y:e.y, id:e.id, type:e.type });
+      } else if (e.cd <= 0) e.cd = 0;
+    } else if (e.st === 'tell') {
+      e.stT -= dt; e.tell01 = e.tellT > 0 ? 1 - Math.max(0, e.stT) / e.tellT : 1;
+      if (e.stT > api.tellT(S, A.lockLast)) { e.aimAng = toH; e.locked = false; }  // tracks, then locks for the last 0.2 s
+      else if (!e.locked) { e.locked = true; e.lockT = S.t; api.ev(S, { k:'tell', x:e.x, y:e.y, id:e.id, type:e.type, lock:true }); }
+      e.ang = e.aimAng;
+      A.setLane(S, e, api);
+      if (e.stT <= 0) {
+        e.st = 'act'; e.tell01 = 0; e.dashLeft = A.dashDist; e.dashHit = false; e.dashT = S.t;
+        e.vx = Math.cos(e.aimAng); e.vy = Math.sin(e.aimAng);
+      }
+    } else if (e.st === 'act') {
+      var st = Math.min(e.dashLeft, A.dashSpeed * dt), wall = false;
+      var nx = e.x + e.vx * st, ny = e.y + e.vy * st;
+      if (nx < e.r || nx > S.room.w - e.r || ny < e.r || ny > S.room.h - e.r || api.hitsSolid(S, nx, ny, e.r)) {
+        // slide up to the wall in small steps, then stop
+        var k = 0;
+        while (k < 10) { var sx = e.x + e.vx * st * 0.1, sy = e.y + e.vy * st * 0.1;
+          if (sx < e.r || sx > S.room.w - e.r || sy < e.r || sy > S.room.h - e.r || api.hitsSolid(S, sx, sy, e.r)) break;
+          e.x = sx; e.y = sy; k++; }
+        wall = true;
+      } else { e.x = nx; e.y = ny; e.dashLeft -= st; }
+      if (!e.dashHit && Math.hypot(h.x - e.x, h.y - e.y) < e.r + h.r) {
+        e.dashHit = true; api.hurtHero(S, api.enemyDmg(S, b.dmg), e.type, e.x, e.y);
+      }
+      if (wall) {
+        e.st = 'stun'; e.stunT = A.stun; e.locked = false; e.dashLeft = 0;
+        api.ev(S, { k:'stun', x:e.x, y:e.y, id:e.id, type:e.type });
+      } else if (e.dashLeft <= 1e-6) { e.st = 'cool'; e.cd = b.cd; e.locked = false; }
+    }
+  }
+};
+})();
+
+</script>
+<script>
+(function(){ var G = (typeof window !== 'undefined' ? window : globalThis); var V = G.V = G.V || {};
+// B-01 Volley Tower (D1 section 6). Static multi-barrel tower; cycles A -> B -> C.
+// A line streams (1.0 s floor lines), B scatter barrage (0.6 s spin-up), C fan + bouncing line (0.8 s, first segment drawn).
+// Phase 2 below 50% HP: A 7 lines with the centre lane open, B 20 rounds, cooldown 1.8 s (2.5 s in phase 1).
+// Immune to instant kill and freeze, no knockback (flags on the enemy; mods and sim read them).
+V.AI = V.AI || {};
+var DEG = Math.PI / 180, SHOT_R = 0.15;
+
+function rayLen(S, api, x, y, ang, max){
+  // how far a flat round travels before cover / room edge stops it
+  var c = Math.cos(ang), s = Math.sin(ang), d = 0, stp = 0.1;
+  while (d < max) {
+    var n = d + stp, px = x + c * n, py = y + s * n;
+    if (px < SHOT_R || px > S.room.w - SHOT_R || py < SHOT_R || py > S.room.h - SHOT_R || api.hitsSolid(S, px, py, SHOT_R)) break;
+    d = n;
+  }
+  return d;
+}
+
+var B01 = V.AI['B-01'] = {
+  base: { hp:8000, contact:80, dmg:70, speed:0, r:1.0, size:'large', xp:0, tell:1.0, cd:2.5,
+    static:true, boss:true, immune:{ instakill:true, freeze:true, knockback:true } },
+  name: 'Volley Tower',
+  shotSpeed: 5.0, scatterDmg: 55, cd2: 1.8,
+  tellA: 1.0, tellB: 0.6, tellC: 0.8,
+  A: { lines1: 5, step1: 30 * DEG, perLine: 6, gap: 0.2,
+       lines2: [-24, 24, -36, 36, -48, 48], extra2: 60 },   // phase 2 degrees from straight down; 7th line alternates side
+  B: { n1: 14, n2: 20, dur: 1.5, arc: 220 * DEG },
+  C: { fan: 20 * DEG, lineN: 5, lineGap: 0.12, lineDelay: 0.3 },
+  order: ['A', 'B', 'C'],
+
+  init: function(S, e, api){
+    e.boss = true; e.static = true; e.immune = this.base.immune; e.knockback = 0;
+    e.name = this.name; e.phase = 1; e.atkIdx = 0; e.attack = null; e.cd = 1.5; e.afterSpawn = 'cool';
+    e.lines = []; e.segs = []; e.bouncePath = null; e.spin01 = 0; e.q = []; e.extraSide = 1;
+    S.boss = { id:e.id, type:'B-01', name:this.name, hp:e.hp, maxHp:e.maxHp, phase:1, attack:null, tell01:0 };
+  },
+
+  syncBoss: function(S, e){
+    if (!S.boss || S.boss.id !== e.id) S.boss = { id:e.id, type:'B-01', name:this.name, hp:e.hp, maxHp:e.maxHp, phase:e.phase, attack:null, tell01:0 };
+    var B = S.boss; B.hp = e.hp; B.maxHp = e.maxHp; B.phase = e.phase; B.attack = e.attack; B.tell01 = e.tell01;
+  },
+
+  down: function(S, e){ return Math.atan2(S.room.h - e.y, S.room.w / 2 - e.x); },
+
+  // ---- attack set-up at tell start (telegraph geometry is fixed for the whole tell) ----
+  planA: function(S, e, api){
+    var a = [], i, P = this.A, h = api.hero(S);
+    if (e.phase === 1) {
+      var c = api.angleTo(e, h);                 // fan centred on the Operator: step into a lane
+      for (i = 0; i < P.lines1; i++) a.push(c + (i - (P.lines1 - 1) / 2) * P.step1);
+    } else {
+      var d = this.down(S, e);
+      for (i = 0; i < P.lines2.length; i++) a.push(d + P.lines2[i] * DEG);
+      a.push(d + e.extraSide * P.extra2 * DEG); e.extraSide = -e.extraSide;
+    }
+    e.lines = [];
+    for (i = 0; i < a.length; i++) {
+      var x1 = e.x + Math.cos(a[i]) * e.r, y1 = e.y + Math.sin(a[i]) * e.r, L = rayLen(S, api, x1, y1, a[i], 30);
+      e.lines.push({ ang:a[i], x1:x1, y1:y1, x2:x1 + Math.cos(a[i]) * L, y2:y1 + Math.sin(a[i]) * L });
+    }
+  },
+  planC: function(S, e, api){
+    var h = api.hero(S);
+    e.aimAng = api.angleTo(e, h);
+    // bounce line: aim at the Operator's mirror image across a side wall, so the reflected leg crosses them
+    var side = api.rng(S).next() < 0.5 ? -1 : 1;
+    var wx = side < 0 ? SHOT_R : S.room.w - SHOT_R, mx = 2 * wx - h.x, my = h.y;
+    var ang = Math.atan2(my - e.y, mx - e.x);
+    var x0 = e.x + Math.cos(ang) * e.r, y0 = e.y + Math.sin(ang) * e.r;
+    var L1 = rayLen(S, api, x0, y0, ang, 30);
+    var bx = x0 + Math.cos(ang) * L1, by = y0 + Math.sin(ang) * L1;
+    var hitSide = bx <= SHOT_R + 0.11 || bx >= S.room.w - SHOT_R - 0.11;
+    var ang2 = hitSide ? Math.PI - ang : -ang;
+    var L2 = rayLen(S, api, bx, by, ang2, 30);
+    e.bounceAng = ang;
+    e.segs = [{ x1:x0, y1:y0, x2:bx, y2:by }];                       // drawn during the tell
+    e.bouncePath = [{ x:x0, y:y0 }, { x:bx, y:by }, { x:bx + Math.cos(ang2) * L2, y:by + Math.sin(ang2) * L2 }];
+  },
+
+  startAttack: function(S, e, api){
+    var k = this.order[e.atkIdx % 3]; e.atkIdx++;
+    e.attack = k; e.st = 'tell'; e.tell01 = 0; e.spin01 = 0;
+    e.lines = []; e.segs = []; e.bouncePath = null;
+    e.stT = api.tellT(S, k === 'A' ? this.tellA : (k === 'B' ? this.tellB : this.tellC)); e.tellT = e.stT;
+    if (k === 'A') this.planA(S, e, api);
+    if (k === 'C') this.planC(S, e, api);
+    api.ev(S, { k:'tell', x:e.x, y:e.y, id:e.id, type:e.type, attack:k, phase:e.phase });
+  },
+
+  // queue of timed shots for the act part: {t, ang, dmg, bounces}
+  fireAttack: function(S, e, api){
+    var q = e.q = [], i, j, R = api.rng(S), dA = api.enemyDmg(S, this.base.dmg);
+    if (e.attack === 'A') {
+      for (j = 0; j < this.A.perLine; j++) for (i = 0; i < e.lines.length; i++) q.push({ t:j * this.A.gap, ang:e.lines[i].ang, dmg:dA });
+    } else if (e.attack === 'B') {
+      var n = e.phase === 1 ? this.B.n1 : this.B.n2, dB = api.enemyDmg(S, this.scatterDmg);
+      var c = api.angleTo(e, api.hero(S)) + R.range(-50, 50) * DEG;  // random arc, never a full circle
+      for (i = 0; i < n; i++) q.push({ t:this.B.dur * i / (n - 1), ang:c + R.range(-0.5, 0.5) * this.B.arc, dmg:dB });
+    } else {
+      for (i = -1; i <= 1; i++) q.push({ t:0, ang:e.aimAng + i * this.C.fan, dmg:dA });
+      for (i = 0; i < this.C.lineN; i++) q.push({ t:this.C.lineDelay + i * this.C.lineGap, ang:e.bounceAng, dmg:dA, bounces:1 });
+    }
+    e.actT = 0;
+  },
+
+  step: function(S, e, dt, api){
+    var A = B01;
+    e.x = e.x0 != null ? e.x0 : (e.x0 = e.x); e.y = e.y0 != null ? e.y0 : (e.y0 = e.y);  // never moves
+    if (e.phase === 1 && e.hp <= e.maxHp * 0.5) {
+      e.phase = 2; api.ev(S, { k:'bossphase', x:e.x, y:e.y, id:e.id, phase:2 });
+    }
+    var h = api.hero(S);
+    if (e.st === 'move' || e.st === 'cool') {
+      e.ang = api.angleTo(e, h); e.tell01 = 0; e.spin01 = 0; e.attack = null;
+      e.cd -= dt;
+      if (e.cd <= 0) A.startAttack(S, e, api);
+    } else if (e.st === 'tell') {
+      e.stT -= dt; e.tell01 = e.tellT > 0 ? 1 - Math.max(0, e.stT) / e.tellT : 1;
+      if (e.attack === 'B') e.spin01 = e.tell01;
+      if (e.attack === 'C') e.ang = e.aimAng;
+      if (e.stT <= 0) { e.st = 'act'; e.tell01 = 1; A.fireAttack(S, e, api); }
+    } else if (e.st === 'act') {
+      e.actT += dt;
+      var keep = [];
+      for (var i = 0; i < e.q.length; i++) {
+        var s = e.q[i];
+        if (s.t <= e.actT + 1e-9) api.enemyShoot(S, e, s.ang, A.shotSpeed, s.dmg, s.bounces ? { bounces:s.bounces } : undefined);
+        else keep.push(s);
+      }
+      e.q = keep;
+      if (e.attack === 'B') e.spin01 = 1;
+      if (!e.q.length) {
+        e.st = 'cool'; e.cd = e.phase === 1 ? A.base.cd : A.cd2; e.tell01 = 0;
+        e.lines = []; e.segs = []; e.bouncePath = null; e.attack = null;
+      }
+    }
+    A.syncBoss(S, e);
+  }
+};
 })();
 
 </script>
@@ -833,7 +1804,14 @@ var PAL = {
   hpBack: C(30, 26, 22, 0.85), hpFill: C(255, 70, 60), hpPip: C(30, 26, 22),
   xp: C(150, 235, 90), xpRim: C(40, 80, 20), repair: C(245, 245, 235), repairCross: C(60, 170, 80),
   white: C(255, 255, 255), spark: C(255, 214, 120), sparkHot: C(255, 250, 220), debris: C(52, 54, 58),
-  hurt: C(255, 60, 60)
+  hurt: C(255, 60, 60),
+  spikePlate: C(96, 90, 80), spike: C(170, 166, 158), spikeTip: C(235, 232, 225),
+  shellBody: C(48, 50, 56), ringFill: C(255, 60, 40, 0.16), ringEdge: C(255, 50, 40, 0.9),
+  lane: C(255, 40, 40, 0.28), laneEdge: C(255, 40, 40, 0.9), stun: C(255, 222, 40),
+  boss2: C(96, 40, 36), boss2Vent: C(255, 110, 40), floorLine: C(255, 50, 40, 0.5),
+  chest: C(120, 84, 44), chestLid: C(150, 108, 58), chestTrim: C(230, 190, 70),
+  burn: C(255, 140, 30), poison: C(120, 230, 60), freeze: C(190, 240, 255), pierce: C(255, 255, 255),
+  heroHp: C(95, 208, 106), heroHpLow: C(255, 80, 60), heal: C(95, 208, 106), shield: C(64, 228, 255, 0.55)
 };
 var TAU = Math.PI * 2;
 
@@ -875,7 +1853,27 @@ function eatEvents(ev, S) {
       case 'pickup': spawnRing(x, y, 0.1, 0.5, 0.25, PAL.xp); break;
       case 'levelup': spawnRing(x, y, 0.3, 1.8, 0.5, PAL.cyan); spawnBurst(x, y, 10, 4, 0.5, PAL.cyan, 0.06); break;
       case 'death': spawnBurst(x, y, 24, 7, 0.8, PAL.hurt, 0.1); spawnRing(x, y, 0.3, 2.2, 0.6, PAL.hurt); break;
+      case 'land': spawnRing(x, y, 0.2, (e.r || 1) * 1.1, 0.35, PAL.glow); spawnBurst(x, y, 10, 5, 0.45, PAL.debris, 0.1, 3); spawnBurst(x, y, 6, 4, 0.3, PAL.spark, 0.07); break;
+      case 'dodge': spawnRing(x, y, 0.3, 0.8, 0.3, PAL.white); break;
+      case 'bossphase': spawnRing(x, y, 0.5, 3.0, 0.7, PAL.boss2Vent); spawnBurst(x, y, 20, 6, 0.6, PAL.boss2Vent, 0.09); break;
+      case 'chest': spawnRing(x, y, 0.2, 1.4, 0.5, PAL.chestTrim); spawnBurst(x, y, 14, 5, 0.5, PAL.cyan, 0.07); break;
+      case 'win': spawnRing(x, y, 0.5, 4.0, 1.0, PAL.cyan); break;
       case 'fire': spawnBurst(x, y, 2, 2, 0.1, PAL.roundCore, 0.05, 8); break;
+    }
+  }
+}
+
+function eatFx(fx) {
+  if (!fx) return;
+  for (var i = 0; i < fx.length; i++) {
+    var f = fx[i];
+    switch (f.k) {
+      case 'arc': if (P.list.length < MAXP) P.list.push({ k: 2, x: f.x1 != null ? f.x1 : f.x, y: f.y1 != null ? f.y1 : f.y, x2: f.x2 != null ? f.x2 : f.x, y2: f.y2 != null ? f.y2 : f.y, t: 0, life: 0.15, c: PAL.freeze }); break;
+      case 'strike': case 'blast': spawnRing(f.x, f.y, 0.1, f.r || 1.2, 0.3, PAL.burn); spawnBurst(f.x, f.y, 8, 5, 0.3, PAL.sparkHot, 0.07); break;
+      case 'heal': spawnRing(f.x, f.y, 0.2, 0.8, 0.35, PAL.heal); break;
+      case 'dodge': spawnRing(f.x, f.y, 0.3, 0.7, 0.25, PAL.white); break;
+      case 'orb': case 'shield': break; // persistent, drawn from S.fx each frame
+      default: if (f.x != null) spawnRing(f.x, f.y, 0.1, 0.5, 0.2, PAL.cyan);
     }
   }
 }
@@ -994,7 +1992,11 @@ function drawEnemy(S, e, s, t) {
   }
   if (flash) { body = PAL.white; lite = PAL.white; dark = PAL.white; eye = PAL.white; }
   var a = e.ang || 0, ca = Math.cos(a), sa = Math.sin(a);
-  if (e.type === 'E-01') {
+  var C2 = { body: body, lite: lite, dark: dark, eye: eye, core: flash ? PAL.white : PAL.sensorCore };
+  if (e.type === 'E-04') drawE04(e, x, y, rr, t, C2);
+  else if (e.type === 'E-05') drawE05(e, x, y, rr, t, C2);
+  else if (e.boss || e.type === 'B-01') drawB01(S, e, x, y, rr, t, C2);
+  else if (e.type === 'E-01') {
     // small round drone with rotor ring and four rotor pods
     for (var i = 0; i < 4; i++) {
       var ra = a + Math.PI / 4 + (i * Math.PI) / 2, px = x + Math.cos(ra) * rr * 0.92, py = y + Math.sin(ra) * rr * 0.92;
@@ -1015,7 +2017,7 @@ function drawEnemy(S, e, s, t) {
     rect(x, y, rr * 0.9, rr * 0.9, lite, a);
     circ(x, y, rr * 0.3, eye);
     circ(x, y, rr * 0.11, flash ? PAL.white : PAL.sensorCore);
-  } else {
+  } else if (e.type === 'E-03') {
     // E-03 hexagon turret, three barrels in a fan
     var ta = e.aimAng != null ? e.aimAng : a, glow = tell ? (e.tell01 || 0) : 0;
     for (var b = -1; b <= 1; b++) {
@@ -1032,7 +2034,8 @@ function drawEnemy(S, e, s, t) {
     circ(x, y, rr * 0.3, glow > 0 ? mix(eye, PAL.sparkHot, glow) : eye);
     circ(x, y, rr * 0.12, flash ? PAL.white : PAL.sensorCore);
   }
-  hpBar(x, y, rr * (e.type === 'E-01' ? 1.3 : 1.05), e.hp, e.maxHp);
+  drawStatus(e, x, y, rr, t);
+  if (!e.boss) hpBar(x, y, rr * (e.type === 'E-01' ? 1.3 : 1.05), e.hp, e.maxHp);
 }
 
 function drawEnemyTellGround(S, e, s) {
@@ -1110,6 +2113,7 @@ function drawPickup(pk, s, t) {
 function drawParticles(s) {
   for (var i = 0; i < P.list.length; i++) {
     var p = P.list[i], u = p.t / p.life, al = 1 - u;
+    if (p.k === 2) { line(X(p.x), Y(p.y), X(p.x2), Y(p.y2), 2, withA(p.c, al)); continue; }
     if (p.k === 1) {
       var r = (p.r0 + (p.r1 - p.r0) * u) * s;
       ring(X(p.x), Y(p.y), r, 2.5 * al + 0.5, withA(p.c, al));
@@ -1137,6 +2141,193 @@ function drawStress(n, t) {
   }
 }
 
+// ---------- P1 ----------
+function drawHazards(S, s, t) {
+  var hz = S.hazards || [];
+  for (var i = 0; i < hz.length; i++) {
+    var q = hz[i], cx = X(q.x + q.w / 2), cy = Y(q.y + q.h / 2);
+    rect(cx, cy, q.w * s - 2, q.h * s - 2, PAL.spikePlate);
+    var nx = Math.max(1, Math.round(q.w * 2)), ny = Math.max(1, Math.round(q.h * 2)), up = q.on == null || q.on;
+    for (var a = 0; a < nx; a++) for (var b = 0; b < ny; b++) {
+      var px = X(q.x + (a + 0.5) * q.w / nx), py = Y(q.y + (b + 0.5) * q.h / ny), r = s * 0.17;
+      if (up) { ngon(px + 1.5, py + 2, r, 3, -Math.PI / 2, PAL.shadow); ngon(px, py, r + 1, 3, -Math.PI / 2, PAL.ink); ngon(px, py, r, 3, -Math.PI / 2, PAL.spike); circ(px, py - r * 0.6, 1.2, PAL.spikeTip); }
+      else circ(px, py, 2, PAL.ink);
+    }
+  }
+}
+
+function shellGround(sh0) {
+  var u = sh0.T > 0 ? Math.max(0, Math.min(1, sh0.t / sh0.T)) : 1;
+  if (sh0.moving || sh0.sx != null) return { x: sh0.x, y: sh0.y, u: u };
+  var x0 = sh0.x0 != null ? sh0.x0 : sh0.x, y0 = sh0.y0 != null ? sh0.y0 : sh0.y;
+  return { x: x0 + (sh0.tx - x0) * u, y: y0 + (sh0.ty - y0) * u, u: u };
+}
+function drawShellRings(S, s, t) {
+  var L = S.shells || [];
+  for (var i = 0; i < L.length; i++) {
+    var q = L[i], u = shellGround(q).u, R = (q.r || 1.0) * s, x = X(q.tx), y = Y(q.ty);
+    circ(x, y, R, PAL.ringFill);
+    circ(x, y, R * u, withA(PAL.ringFill, 1.6));
+    ring(x, y, R - 1, 2 + (u > 0.75 ? 1.5 * Math.abs(Math.sin(t * 20)) : 0), PAL.ringEdge);
+    line(x - 5, y, x + 5, y, 1.5, PAL.ringEdge); line(x, y - 5, x, y + 5, 1.5, PAL.ringEdge);
+  }
+}
+function drawShells(S, s) {
+  var L = S.shells || [];
+  for (var i = 0; i < L.length; i++) {
+    var q = L[i], g = shellGround(q), hgt = Math.sin(Math.PI * g.u) * 2.2 * s, x = X(g.x), y = Y(g.y);
+    circ(x + sh.x * (1 + hgt / s), y + sh.y * (1 + hgt / s) * 0.5, 4, PAL.shadow);
+    circ(x, y - hgt, 6.5, PAL.ink); circ(x, y - hgt, 5, PAL.shellBody); circ(x - 1.5, y - hgt - 1.5, 1.8, PAL.sensor);
+  }
+}
+
+function drawLaneTell(S, e, s) {
+  if (e.type !== 'E-05' || e.st !== 'tell') return;
+  var a = e.aimAng != null ? e.aimAng : e.ang || 0, L = Math.min(e.lane || 8, rayLen(S, e.x, e.y, a, e.lane || 8));
+  var locked = e.locked || (e.tell01 || 0) >= 0.75, w = (e.r || 0.5) * 2 * s;
+  var x = X(e.x), y = Y(e.y), ex = X(e.x + Math.cos(a) * L), ey = Y(e.y + Math.sin(a) * L);
+  var mx = (x + ex) / 2, my = (y + ey) / 2, len = Math.hypot(ex - x, ey - y);
+  rect(mx, my, len, w, withA(PAL.lane, locked ? 1.5 : 0.8), a);
+  var px = -Math.sin(a) * w / 2, py = Math.cos(a) * w / 2;
+  line(x + px, y + py, ex + px, ey + py, locked ? 2 : 1, PAL.laneEdge); line(x - px, y - py, ex - px, ey - py, locked ? 2 : 1, PAL.laneEdge);
+  if (locked) rect(ex, ey, 4, w, PAL.laneEdge, a);
+}
+
+function bossAttack(S, e) { return S.boss && S.boss.id === e.id ? S.boss : (e.boss ? { attack: e.attack, tell01: e.tell01, phase: e.phase } : null); }
+function drawBossGround(S, e, s, t) {
+  if (!e.boss) return;
+  var B = bossAttack(S, e); if (!B || !B.attack || e.st === 'act') return;
+  var tt = B.tell01 != null ? B.tell01 : (e.tell01 || 0), a0 = e.aimAng != null ? e.aimAng : Math.PI / 2;
+  if (B.attack === 'A') {
+    var lines = e.lines, n = (B.phase === 2 ? 7 : 5);
+    if (!lines || !lines.length) { lines = []; for (var k = 0; k < n; k++) lines.push({ ang: a0 + (k / (n - 1) - 0.5) * (140 * Math.PI / 180) }); }
+    for (var j = 0; j < lines.length; j++) {
+      var q = lines[j], x1, y1, x2, y2;
+      if (q.x2 == null) { var Lr = rayLen(S, e.x, e.y, q.ang, 20); x1 = e.x; y1 = e.y; x2 = e.x + Math.cos(q.ang) * Lr; y2 = e.y + Math.sin(q.ang) * Lr; }
+      else { x1 = q.x1; y1 = q.y1; x2 = q.x2; y2 = q.y2; }
+      line(X(x1), Y(y1), X(x2), Y(y2), 0.3 * s * (0.4 + 0.6 * tt), withA(PAL.floorLine, 0.6 + 0.8 * tt));
+      line(X(x1), Y(y1), X(x2), Y(y2), 1.5, PAL.laneEdge);
+    }
+  } else if (B.attack === 'C') {
+    for (var b = -1; b <= 1; b++) {
+      var ba = a0 + b * (25 * Math.PI / 180), R = 4 * s;
+      line(X(e.x), Y(e.y), X(e.x) + Math.cos(ba) * R, Y(e.y) + Math.sin(ba) * R, 1.5, PAL.fanEdge);
+    }
+    var segs = e.segs;
+    if (!segs || !segs.length) { var Lc = rayLen(S, e.x, e.y, a0, 20); segs = [{ x1: e.x, y1: e.y, x2: e.x + Math.cos(a0) * Lc, y2: e.y + Math.sin(a0) * Lc }]; }
+    for (var m = 0; m < segs.length; m++) {
+      var g = segs[m];
+      line(X(g.x1), Y(g.y1), X(g.x2), Y(g.y2), 2.5 + 2 * tt, withA(PAL.aimLock, 0.5 + 0.5 * tt));
+      circ(X(g.x2), Y(g.y2), 3.5, PAL.aimLock);
+    }
+  }
+}
+
+function drawStatus(e, x, y, rr, t) {
+  if (e.frozenT > 0) { ring(x, y, rr * 1.05, 3, withA(PAL.freeze, 0.9)); circ(x, y, rr * 0.9, withA(PAL.freeze, 0.35)); }
+  var k = 0;
+  if (e.burnT > 0 || e.burn) { for (k = 0; k < 3; k++) { var u = (t * 2 + k / 3) % 1; circ(x + (k - 1) * rr * 0.45, y - rr * 0.3 - u * rr * 0.9, 3 * (1 - u) + 1, withA(PAL.burn, 1 - u)); } }
+  if (e.poisonT > 0 || e.poison) { for (k = 0; k < 2; k++) { var v = (t * 1.3 + k / 2) % 1; circ(x + (k ? 1 : -1) * rr * 0.55, y + rr * 0.2 - v * rr * 0.8, 2.5, withA(PAL.poison, 1 - v * 0.7)); } }
+}
+
+function drawE04(e, x, y, rr, t, C2) {
+  var a = e.ang || 0, walk = e.st === 'move' ? Math.sin(t * 9 + e.id) : 0;
+  for (var k = 0; k < 4; k++) {
+    var la = a + Math.PI / 4 + k * Math.PI / 2, sw = (k % 2 ? 1 : -1) * walk * 0.25;
+    var fx = x + Math.cos(la + sw) * rr * 1.05, fy = y + Math.sin(la + sw) * rr * 1.05;
+    line(x, y, fx, fy, 3.5, PAL.ink); line(x, y, fx, fy, 2, C2.dark); circ(fx, fy, 2.5, PAL.ink);
+  }
+  oRect(x, y, rr * 1.5, rr * 1.15, C2.body, a);
+  rect(x + Math.cos(a) * rr * 0.12, y + Math.sin(a) * rr * 0.12, rr * 0.95, rr * 0.75, C2.lite, a); // trapezoid top
+  var tell = e.st === 'tell', g = tell ? (e.tell01 || 0) : 0;
+  oCirc(x, y, rr * 0.38, C2.dark);
+  circ(x, y, rr * 0.26, g > 0 ? mix(PAL.ink, PAL.glow, g) : PAL.ink); // mortar tube mouth
+  if (g > 0) ring(x, y, rr * 0.38 + 3, 2, withA(PAL.glow, 0.5 + 0.5 * g));
+  circ(x + Math.cos(a) * rr * 0.62, y + Math.sin(a) * rr * 0.62, rr * 0.14, C2.eye);
+}
+
+function drawE05(e, x, y, rr, t, C2) {
+  var a = e.aimAng != null && (e.st === 'tell' || e.st === 'act') ? e.aimAng : e.ang || 0;
+  var kneel = e.st === 'tell', stun = e.st === 'stun' || e.stunT > 0, k = kneel ? 0.86 : 1;
+  if (stun) a += Math.sin(t * 14) * 0.12;
+  var ca = Math.cos(a), sa = Math.sin(a);
+  oNgon(x - ca * rr * 0.1, y - sa * rr * 0.1, rr * 1.0 * k, 3, a, stun ? mix(C2.body, PAL.metalLite, 0.4) : C2.body);
+  ngon(x - ca * rr * 0.15, y - sa * rr * 0.15, rr * 0.55 * k, 3, a, C2.lite);
+  oRect(x + ca * rr * 0.62 * k, y + sa * rr * 0.62 * k, rr * 0.3, rr * 1.35 * k, kneel ? mix(C2.dark, PAL.sensor, 0.35) : C2.dark, a); // ram plate
+  circ(x + ca * rr * 0.2, y + sa * rr * 0.2, rr * (kneel ? 0.24 : 0.18), stun ? PAL.metalLite : C2.eye);
+  if (stun) for (var i = 0; i < 3; i++) { var sa2 = t * 5 + i * TAU / 3; ngon(x + Math.cos(sa2) * rr * 0.9, y - rr * 0.9 + Math.sin(sa2) * rr * 0.3, 3.2, 4, t * 4, PAL.stun); }
+}
+
+function drawB01(S, e, x, y, rr, t, C2) {
+  var B = bossAttack(S, e) || {}, ph2 = (B.phase || e.phase) === 2, tell = !!B.attack && e.st !== 'act', tt = tell ? (B.tell01 != null ? B.tell01 : e.tell01 || 0) : 0;
+  var body = ph2 ? mix(C2.body, PAL.boss2, 0.75) : C2.body, a0 = e.aimAng != null ? e.aimAng : Math.PI / 2;
+  var spin = B.attack === 'B' && tell ? t * (2 + 22 * tt) : (e.ang || 0) * 0 + t * 0.4;
+  oNgon(x, y, rr * 1.08, 8, Math.PI / 8, PAL.metalDark); // base
+  var nb = 8;
+  for (var k = 0; k < nb; k++) {
+    var ba = spin + k * TAU / nb, cb = Math.cos(ba), sb = Math.sin(ba);
+    oRect(x + cb * rr * 0.98, y + sb * rr * 0.98, rr * 0.5, rr * 0.2, C2.dark, ba);
+    if (B.attack === 'B' && tell) circ(x + cb * rr * 1.25, y + sb * rr * 1.25, 2 + 3 * tt, mix(PAL.glow, PAL.sparkHot, tt));
+  }
+  oCirc(x, y, rr * 0.78, body);
+  ring(x, y, rr * 0.6, 2, ph2 ? PAL.boss2Vent : C2.lite);
+  if (ph2) for (var v = 0; v < 4; v++) { var va = v * Math.PI / 2 + Math.PI / 4; circ(x + Math.cos(va) * rr * 0.45, y + Math.sin(va) * rr * 0.45, 3 + Math.sin(t * 8 + v) * 1, PAL.boss2Vent); }
+  // main gun toward aim
+  oRect(x + Math.cos(a0) * rr * 0.55, y + Math.sin(a0) * rr * 0.55, rr * 0.7, rr * 0.3, C2.dark, a0);
+  circ(x, y, rr * (0.3 + 0.08 * tt), tell ? mix(C2.eye, PAL.sparkHot, tt) : C2.eye);
+  circ(x, y, rr * 0.12, C2.core);
+  if (tell && B.attack === 'A') ring(x, y, rr * 1.3, 2.5, withA(PAL.laneEdge, 0.4 + 0.6 * tt), -Math.PI / 2, -Math.PI / 2 + TAU * tt);
+}
+
+function drawChest(S, s, t) {
+  var c = S.chest; if (!c) return;
+  var x = X(c.x), y = Y(c.y), w = 0.9 * s, h = 0.6 * s;
+  rect(x + sh.x, y + sh.y, w, h, PAL.shadow);
+  oRect(x, y, w, h, PAL.chest);
+  rect(x, y, w, 2.5, PAL.chestTrim); rect(x - w * 0.3, y, 2.5, h, PAL.chestTrim); rect(x + w * 0.3, y, 2.5, h, PAL.chestTrim);
+  if (c.open) {
+    oRect(x, y - h * 0.75, w, h * 0.35, PAL.chestLid);
+    circ(x, y - 2, h * 0.3, withA(PAL.cyan, 0.5 + 0.3 * Math.sin(t * 6)));
+  } else {
+    rect(x, y - h * 0.32, w, h * 0.36, PAL.chestLid);
+    oRect(x, y, 6, 7, PAL.chestTrim);
+    ring(x, y, w * 0.75 + 2 * Math.sin(t * 4), 1.5, withA(PAL.chestTrim, 0.6));
+  }
+}
+
+function drawSupply(S, s, t) {
+  if (S.stageKind !== 'supply') return;
+  var p = S.supplyPos || { x: (S.room && S.room.w || 9) / 2, y: (S.room && S.room.h || 15) / 2 }, x = X(p.x), y = Y(p.y), w = 1.1 * s;
+  rect(x + sh.x * 1.3, y + sh.y * 1.3, w, w, PAL.shadow);
+  oRect(x, y, w, w, PAL.crate);
+  rect(x, y, w - 6, w - 6, PAL.crateLid);
+  line(x - w / 2 + 3, y - w / 2 + 3, x + w / 2 - 3, y + w / 2 - 3, 3, PAL.crateBand); line(x + w / 2 - 3, y - w / 2 + 3, x - w / 2 + 3, y + w / 2 - 3, 3, PAL.crateBand);
+  oRect(x, y, w * 0.42, w * 0.42, PAL.repair); rect(x, y, 4, w * 0.3, PAL.cyan); rect(x, y, w * 0.3, 4, PAL.cyan);
+  circ(x + w / 2 - 4, y - w / 2 + 4, 3, Math.sin(t * 6) > 0 ? PAL.cyan : PAL.metalDark);
+  ring(x, y, w * 0.85 + 4 * ((t * 0.8) % 1), 2, withA(PAL.cyan, 1 - ((t * 0.8) % 1)));
+}
+
+function drawFx(S, s, t) {
+  var fx = S.fx || [];
+  for (var i = 0; i < fx.length; i++) {
+    var f = fx[i];
+    if (f.k === 'orb') { var r = (f.r || 0.18) * s; circ(X(f.x), Y(f.y), r + 3, withA(PAL.cyan, 0.3)); oCirc(X(f.x), Y(f.y), r, PAL.round); circ(X(f.x), Y(f.y), r * 0.45, PAL.roundCore); }
+    else if (f.k === 'shield') { var r2 = (f.r || 0.25) * s; ring(X(f.x), Y(f.y), r2, 3, f.off ? withA(PAL.shield, 0.3) : PAL.shield); }
+  }
+}
+
+function drawHeroHp(S, s) {
+  var h = S.hero; if (!(h.maxHp > 0)) return;
+  var x = X(h.x), y = Y(h.y) - (h.r || 0.28) * s - 13, w = 28, f = Math.max(0, Math.min(1, h.hp / h.maxHp));
+  rect(x, y, w + 2, 5, PAL.hpBack);
+  rect(x - w / 2 + (w * f) / 2, y, w * f, 3, f < 0.3 ? PAL.heroHpLow : PAL.heroHp);
+}
+
+// particle clock = S.t (hit-stop and pause freeze sparks); stepped from both ingest and build
+function advance(S) {
+  var t = S.t || 0, dt = Math.max(0, Math.min(0.1, t - P.lastT)); P.lastT = t;
+  if (dt > 0) stepParticles(dt);
+}
 function resetIfNew(S) {
   var t = S.t || 0;
   if (P.seed !== S.seed || t < P.lastT) { P.list.length = 0; P.rnd = mkRng(((S.seed | 0) ^ 0x5eed) + 1); P.seed = S.seed; P.lastFrame = -1; P.lastT = t; }
@@ -1149,7 +2340,9 @@ V.Scene = {
     if (!S) return;
     P.ingested = true;
     resetIfNew(S);
+    advance(S);
     eatEvents(events, S);
+    eatFx(S.fx);
   },
   PAL: PAL,
   particles: P.list,
@@ -1158,8 +2351,8 @@ V.Scene = {
     var s = view.s, t = S.t || 0;
     // particle bookkeeping (own clock = S.t, so hit-stop and pause freeze sparks too)
     resetIfNew(S);
-    var dt = Math.max(0, Math.min(0.1, t - P.lastT)); P.lastT = t;
-    if (S.frame !== P.lastFrame) { P.lastFrame = S.frame; stepParticles(dt); if (!P.ingested) eatEvents(S.events, S); }
+    advance(S);
+    if (!P.ingested && S.frame !== P.lastFrame) { P.lastFrame = S.frame; eatEvents(S.events, S); eatFx(S.fx); }
     sh.x = Math.max(2, s * 0.14); sh.y = Math.max(3, s * 0.2);
 
     // ground: whole screen, continues below the room
@@ -1174,7 +2367,9 @@ V.Scene = {
     // room floor = same sand as the ground below (M 2026-11-10: one continuous yard, no panel)
 
     var E = S.enemies || [], sol = (R && R.solids) || [];
-    for (i = 0; i < E.length; i++) drawEnemyTellGround(S, E[i], s);
+    drawHazards(S, s, t);
+    for (i = 0; i < E.length; i++) { drawEnemyTellGround(S, E[i], s); drawLaneTell(S, E[i], s); drawBossGround(S, E[i], s, t); }
+    drawShellRings(S, s, t);
 
     // shadows (hard, low sun from the upper left)
     for (i = 0; i < sol.length; i++) drawSolidShadow(sol[i], s);
@@ -1184,24 +2379,35 @@ V.Scene = {
       var e = E[i], er = (e.r || 0.4) * s, fly = e.type === 'E-01' ? 1.6 : 1;
       if (e.type === 'E-02') rect(X(e.x) + sh.x * fly, Y(e.y) + sh.y * fly, er * 1.5, er * 1.5, PAL.shadow, e.ang || 0);
       else if (e.type === 'E-03') ngon(X(e.x) + sh.x, Y(e.y) + sh.y, er, 6, Math.PI / 6, PAL.shadow);
+      else if (e.boss || e.type === 'B-01') ngon(X(e.x) + sh.x * 1.6, Y(e.y) + sh.y * 1.6, er * 1.08, 8, Math.PI / 8, PAL.shadow);
+      else if (e.type === 'E-04') rect(X(e.x) + sh.x, Y(e.y) + sh.y, er * 1.5, er * 1.15, PAL.shadow, e.ang || 0);
+      else if (e.type === 'E-05') ngon(X(e.x) + sh.x, Y(e.y) + sh.y, er, 3, e.ang || 0, PAL.shadow);
       else circ(X(e.x) + sh.x * fly, Y(e.y) + sh.y * fly, er * 0.9, PAL.shadow);
     }
-    var H = S.hero;
-    if (H && S.phase !== 'dead') circ(X(H.x) + sh.x * 0.7, Y(H.y) + sh.y * 0.7, (H.r || 0.28) * s, PAL.shadow);
+    var H = S.hero, heroOn = H && S.phase !== 'dead' && !(S.phase === 'results' && S.result && !S.result.win);
+    if (heroOn) circ(X(H.x) + sh.x * 0.7, Y(H.y) + sh.y * 0.7, (H.r || 0.28) * s, PAL.shadow);
 
     for (i = 0; i < sol.length; i++) drawSolid(sol[i], s);
     drawDoor(S, s);
+    drawSupply(S, s, t);
+    drawChest(S, s, t);
     for (i = 0; i < pk.length; i++) drawPickup(pk[i], s, t);
     for (i = 0; i < E.length; i++) drawEnemyAim(S, E[i], s);
     for (i = 0; i < E.length; i++) drawEnemy(S, E[i], s, t);
-    if (H && S.phase !== 'dead') { drawBrace(S, s); drawHero(S, s, t); }
+    drawFx(S, s, t);
+    if (heroOn) { drawBrace(S, s); drawHero(S, s, t); drawHeroHp(S, s); }
 
     var rd = S.rounds || [];
     for (i = 0; i < rd.length; i++) {
       var q = rd[i], rr = Math.max(2.5, (q.r || 0.12) * s), sp = Math.sqrt(q.vx * q.vx + q.vy * q.vy) || 1;
       var tl = 0.45 / sp * 1;
-      line(X(q.x - q.vx * tl * 0.5), Y(q.y - q.vy * tl * 0.5), X(q.x), Y(q.y), rr * 1.4, PAL.roundTrail);
-      circ(X(q.x), Y(q.y), rr, PAL.round); circ(X(q.x), Y(q.y), rr * 0.5, PAL.roundCore);
+      var core = q.burn ? PAL.burn : q.poison ? PAL.poison : q.freeze ? PAL.freeze : PAL.roundCore;
+      var trail = q.burn ? withA(PAL.burn, 0.5) : q.poison ? withA(PAL.poison, 0.5) : PAL.roundTrail;
+      line(X(q.x - q.vx * tl * (q.pierce ? 1 : 0.5)), Y(q.y - q.vy * tl * (q.pierce ? 1 : 0.5)), X(q.x), Y(q.y), rr * 1.4, trail);
+      if (q.pierce) rect(X(q.x), Y(q.y), rr * 3.2, rr * 1.3, PAL.pierce, Math.atan2(q.vy, q.vx));
+      circ(X(q.x), Y(q.y), rr, PAL.round); circ(X(q.x), Y(q.y), rr * 0.55, core);
+      if (q.rico) ring(X(q.x), Y(q.y), rr + 2.5, 1.2, PAL.cyan);
+      if (q.bounceWall) ring(X(q.x), Y(q.y), rr + 1, 1, PAL.ink);
     }
     var sv = S.shots || [];
     for (i = 0; i < sv.length; i++) {
@@ -1210,6 +2416,7 @@ V.Scene = {
       circ(X(o.x), Y(o.y), r2 + 1, PAL.shotRim);
       circ(X(o.x), Y(o.y), r2, PAL.shot); circ(X(o.x), Y(o.y), r2 * 0.45, PAL.shotCore);
     }
+    drawShells(S, s);
     drawLock(S, s, t);
     drawParticles(s);
     if (V.Scene.stress > 0) drawStress(V.Scene.stress | 0, t);
@@ -1736,6 +2943,8 @@ V.Input = {
     var l = Math.sqrt(dx * dx + dy * dy) || 1;
     return { mx: dx / l, my: dy / l };
   },
+  note: function(k, x, y){ rec(k, x, y); },
+  get keyMove(){ return !!(keys.u || keys.d || keys.l || keys.r); },
   release: function(){ if (pid !== null) rec('rel', dx, dy); release(); keys = {}; },
   get down(){ return down; },
   get active(){ return active; },
@@ -1877,17 +3086,35 @@ V.Audio = {
 // DOM HUD, overlays (cards, death, pause), toasts and the tuning drawer.
 // Shell-only knobs are added here so the drawer and Copy settings cover them.
 if (V.TUNE_DEFAULTS) {
-  var SHELL = { EDGE_FLASH: true, HAPTIC_HURT_MS: 40, HAPTIC_KILL_MS: 12 };
+  var SHELL = { AUTO_WALK: true, AUTO_WALK_DELAY: 1.0, EDGE_FLASH: true, HAPTIC_HURT_MS: 40, HAPTIC_KILL_MS: 12 };
   for (var sk in SHELL) if (!(sk in V.TUNE_DEFAULTS)) { V.TUNE_DEFAULTS[sk] = SHELL[sk]; if (V.TUNE && !(sk in V.TUNE)) V.TUNE[sk] = SHELL[sk]; }
 }
-var BUILD = 'volley-p0-1';
+var BUILD = 'volley-p1-1';
+// Persist tuning (only values that differ from defaults) and sound-off. Every storage call is guarded.
+var STORE = 'volley.tune';
+function loadTune(){
+  try {
+    var raw = G.localStorage && localStorage.getItem(STORE); if (!raw) return;
+    var o = JSON.parse(raw);
+    for (var k in o) if (V.TUNE_DEFAULTS && k in V.TUNE_DEFAULTS && typeof o[k] === typeof V.TUNE_DEFAULTS[k]) V.TUNE[k] = o[k];
+  } catch (_) {}
+}
+function saveTune(){
+  try {
+    var o = {}, n = 0;
+    for (var k in V.TUNE_DEFAULTS) if (V.TUNE[k] !== V.TUNE_DEFAULTS[k]) { o[k] = V.TUNE[k]; n++; }
+    if (n) localStorage.setItem(STORE, JSON.stringify(o)); else localStorage.removeItem(STORE);
+  } catch (_) {}
+}
+if (V.TUNE_DEFAULTS && V.TUNE && !/[?&]fresh=1/.test(G.location ? location.search : '')) loadTune();
+V.reducedMotion = !!(G.matchMedia && G.matchMedia('(prefers-reduced-motion: reduce)').matches);
 var $ = function(id){ return document.getElementById(id); };
 
 var GROUPS = [
   ['Hero', ['HERO_HP', 'HERO_ATK', 'CRIT_CHANCE', 'CRIT_MULT', 'MOVE_SPEED', 'FIRE_INTERVAL', 'FIRE_FLOOR', 'ROUND_SPEED', 'ROUND_R', 'INVULN', 'PICKUP_R']],
   ['Enemies', ['ENEMY_HP_GLOBAL', 'HP_SLOPE', 'DMG_SLOPE', 'ENEMY_DMG_MULT', 'ENEMY_SHOT_SPEED_MULT', 'TELL_MULT', 'SPAWN_T']],
   ['Feel', ['TIME_SCALE', 'HITSTOP_MS', 'CARDS_OFFERED', 'PICK_DELAY', 'EDGE_FLASH', 'HAPTICS', 'HAPTIC_HURT_MS', 'HAPTIC_KILL_MS', 'SOUND']],
-  ['Input', ['BRACE_DELAY', 'DEADZONE_ENTER', 'DEADZONE_EXIT']]
+  ['Input', ['BRACE_DELAY', 'DEADZONE_ENTER', 'DEADZONE_EXIT', 'AUTO_WALK', 'AUTO_WALK_DELAY']]
 ];
 var RANGE = {
   HERO_HP: [100, 2000, 10], HERO_ATK: [20, 600, 5], CRIT_CHANCE: [0, 1, 0.01], CRIT_MULT: [1, 4, 0.05], MOVE_SPEED: [1, 10, 0.1],
@@ -1895,7 +3122,7 @@ var RANGE = {
   ENEMY_HP_GLOBAL: [0.1, 3, 0.01], HP_SLOPE: [0, 0.3, 0.002], DMG_SLOPE: [0, 0.3, 0.002], ENEMY_DMG_MULT: [0, 4, 0.05],
   ENEMY_SHOT_SPEED_MULT: [0.2, 3, 0.05], TELL_MULT: [0.2, 3, 0.05], TIME_SCALE: [0.1, 2, 0.05], HITSTOP_MS: [0, 200, 5],
   CARDS_OFFERED: [1, 3, 1], BRACE_DELAY: [0, 1, 0.01], DEADZONE_ENTER: [2, 60, 1], DEADZONE_EXIT: [0, 40, 1],
-  HAPTIC_HURT_MS: [0, 200, 5], HAPTIC_KILL_MS: [0, 100, 2]
+  HAPTIC_HURT_MS: [0, 200, 5], AUTO_WALK_DELAY: [0, 3, 0.1], HAPTIC_KILL_MS: [0, 100, 2]
 };
 function rangeFor(k, d){
   if (RANGE[k]) return RANGE[k];
@@ -1914,13 +3141,17 @@ UI.init = function(h){
   $('drClose').addEventListener('click', function(){ UI.openDrawer(false); });
   $('drReset').addEventListener('click', function(){
     for (var k in V.TUNE_DEFAULTS) V.TUNE[k] = V.TUNE_DEFAULTS[k];
-    buildDrawer(); msg('Defaults restored');
+    saveTune(); buildDrawer(); paintSound(); msg('Defaults restored');
   });
   $('drCopyS').addEventListener('click', function(){ copy(JSON.stringify(V.TUNE, null, 1), 'Settings copied'); });
   $('drCopyR').addEventListener('click', function(){ copy(UI.report(), 'Report copied'); });
+  $('btnSound').addEventListener('click', function(e){ e.stopPropagation(); V.TUNE.SOUND = V.TUNE.SOUND === false; saveTune(); paintSound(); });
+  paintSound();
   buildDrawer();
 };
 
+function paintSound(){ var b = $('btnSound'); if (b) b.textContent = 'Sound: ' + (V.TUNE.SOUND === false ? 'off' : 'on'); }
+UI.saveTune = saveTune;
 function msg(t){ $('drMsg').textContent = t; }
 function copy(text, ok){
   var done = function(){ msg(ok); };
@@ -1957,7 +3188,7 @@ function knob(k){
   if (typeof d === 'boolean') {
     var b = document.createElement('button'); b.className = 'btn ghost tg';
     var paint = function(){ b.textContent = V.TUNE[k] ? 'On' : 'Off'; val.textContent = V.TUNE[k] ? 'on' : 'off'; };
-    b.addEventListener('click', function(){ V.TUNE[k] = !V.TUNE[k]; paint(); });
+    b.addEventListener('click', function(){ V.TUNE[k] = !V.TUNE[k]; paint(); saveTune(); if (k === 'SOUND') paintSound(); });
     paint(); row.appendChild(b); return row;
   }
   var rg = isStress ? [0, 2000, 50] : rangeFor(k, d);
@@ -1970,6 +3201,7 @@ function knob(k){
     else V.TUNE[k] = x;
     val.textContent = fmt(x);
   });
+  inp.addEventListener('change', saveTune);
   row.appendChild(inp); return row;
 }
 
@@ -1982,7 +3214,7 @@ UI.openDrawer = function(on){
 UI.drawerOpen = function(){ return $('drawer').classList.contains('on'); };
 
 UI.syncOverlay = function(){
-  var any = ['ovCards', 'ovDead', 'ovPause', 'ovBoot'].some(function(id){ return $(id).classList.contains('on'); }) || UI.drawerOpen();
+  var any = ['ovCards', 'ovDead', 'ovSupply', 'ovPause', 'ovBoot'].some(function(id){ return $(id).classList.contains('on'); }) || UI.drawerOpen();
   document.body.classList.toggle('ovon', any);
 };
 function show(id, on){ $(id).classList.toggle('on', !!on); UI.syncOverlay(); }
@@ -1997,9 +3229,26 @@ UI.placeToast = function(view){
   var t = $('toast'); t.style.top = Math.round(view.oy + 15 * view.s + 12) + 'px';
 };
 
+// Crit numbers (M's pick: crits only). Pooled DOM, max 8 live.
+var dnPool = [], dnNext = 0;
+UI.crit = function(x, y, dmg, view){
+  var layer = $('dmgLayer'); if (!layer) return;
+  if (dnPool.length < 8) { var d0 = document.createElement('div'); d0.className = 'dn'; layer.appendChild(d0); dnPool.push({ el: d0, anim: null }); }
+  var it = dnPool[dnNext % dnPool.length]; dnNext++;
+  if (it.anim) { try { it.anim.cancel(); } catch (_) {} }
+  var el = it.el; el.textContent = dmg != null ? String(Math.round(dmg)) : 'CRIT';
+  var px = view.ox + x * view.s, py = view.oy + y * view.s - view.s * 0.45;
+  var base = 'translate(' + Math.round(px) + 'px,' + Math.round(py) + 'px) translate(-50%,-100%)';
+  var rise = V.reducedMotion ? 0 : -20;
+  var kf = [{ transform: base + ' translateY(0px)', opacity: 1 }, { transform: base + ' translateY(' + (rise * 0.5) + 'px)', opacity: 1, offset: 0.4 }, { transform: base + ' translateY(' + rise + 'px)', opacity: 0 }];
+  if (el.animate) { it.anim = el.animate(kf, { duration: 600, easing: 'ease-out', fill: 'forwards' }); }
+  else { el.style.transform = base; el.style.opacity = 1; setTimeout(function(){ el.style.opacity = 0; }, 600); }
+};
+UI.critLive = function(){ return dnPool.filter(function(i){ return i.anim && i.anim.playState === 'running'; }).length; };
+
 var flashT = 0;
 UI.hurtFlash = function(){
-  if (V.TUNE.EDGE_FLASH === false) return;
+  if (V.TUNE.EDGE_FLASH === false || V.reducedMotion) return;
   var f = $('flash'); f.classList.add('on'); clearTimeout(flashT);
   flashT = setTimeout(function(){ f.classList.remove('on'); }, 60);
 };
@@ -2021,37 +3270,90 @@ UI.hud = function(S, R, view){
     $('hpTxt').textContent = hp + ' / ' + mx;
   }
   UI.rendererLabel(R, view);
+  UI.boss(S, view);
+};
+var bossKey = '';
+UI.boss = function(S, view){
+  var b = S.boss, el = $('bossBar');
+  var on = !!(b && b.hp > 0 && S.phase !== 'results');
+  if (!on) { if (el.style.display !== 'none') el.style.display = 'none'; bossKey = ''; return; }
+  var k = [b.name, Math.ceil(b.hp), b.maxHp, b.phase, Math.round(view.ox), Math.round(view.oy), Math.round(view.s)].join('|');
+  if (k === bossKey) return; bossKey = k;
+  // Top of the room, inside the north wall row, so it never covers the HUD bars.
+  el.style.display = 'block';
+  el.style.left = Math.round(view.ox + view.s * 0.5) + 'px';
+  el.style.width = Math.round(view.s * 8) + 'px';
+  el.style.top = Math.round(view.oy + Math.max(0, (view.s - 22) / 2)) + 'px';
+  $('bossFill').style.width = Math.max(0, Math.min(100, b.hp / b.maxHp * 100)).toFixed(1) + '%';
+  $('bossName').textContent = (b.name || 'Boss') + (b.phase === 2 ? ' - phase 2' : '');
+  $('bossHp').textContent = Math.ceil(b.hp) + ' / ' + Math.round(b.maxHp);
+};
+UI.howto = function(on, view){
+  var el = $('howto');
+  if (on) { el.style.top = Math.round(view.oy + 15 * view.s + 14) + 'px'; if (el.style.display !== 'block') el.style.display = 'block'; }
+  else if (el.style.display !== 'none') el.style.display = 'none';
 };
 UI.rendererLabel = function(R, view){
   var t = (R ? R.name : 'none') + ' | ' + Math.round(view.w) + 'x' + Math.round(view.h) + ' | dpr ' + (Math.round((G.devicePixelRatio || 1) * 100) / 100);
   var el = $('rlbl'); if (el.textContent !== t) el.textContent = t;
 };
 
+// Text glyphs (U+FE0E keeps them out of emoji style).
+var GLYPH = { 'SK-01': '‖', 'SK-02': '≡', 'SK-03': '⋀', 'SK-04': '↔', 'SK-05': '↓', 'SK-06': '↯', 'SK-07': '⇢',
+  'SK-09': '↑', 'SK-10': '↑', 'SK-11': '»', 'SK-12': '»', 'SK-13': '✦', 'SK-14': '✦', 'SK-15': '✚',
+  'SK-16': '♨', 'SK-17': '☣', 'SK-27': '♥', 'SK-33': '◎', repair: '✚' };
+function row(cls, glyph, tag, name, desc, onTap){
+  var b = document.createElement('button'); b.className = cls;
+  var g = document.createElement('div'); g.className = 'gl'; g.textContent = glyph + '︎';
+  var tx = document.createElement('div'); tx.className = 'tx';
+  if (tag) { var t = document.createElement('small'); t.textContent = tag; tx.appendChild(t); }
+  var n = document.createElement('b'); n.textContent = name; var d = document.createElement('span'); d.textContent = desc || '';
+  tx.appendChild(n); tx.appendChild(d); b.appendChild(g); b.appendChild(tx);
+  b.addEventListener('click', onTap); return b;
+}
+function glyphFor(c){ return GLYPH[c.id] || (c.name || '?').charAt(0).toUpperCase(); }
 UI.cards = function(S, onPick){
   var list = $('cardList'); list.innerHTML = '';
-  $('cardTitle').textContent = 'Field upgrade - level ' + S.hero.level;
+  $('cardTitle').textContent = S.stageKind === 'cache' ? 'Cache: free field upgrade' : 'Field upgrade - level ' + S.hero.level;
   (S.cards || []).forEach(function(ci, i){
     var c = (V.CARDS && V.CARDS[ci]) || { name: 'Card ' + ci, desc: '' };
-    var b = document.createElement('button'); b.className = 'card'; b.dataset.i = i;
-    var n = document.createElement('b'); n.textContent = c.name; var d = document.createElement('span'); d.textContent = c.desc || '';
-    b.appendChild(n); b.appendChild(d);
-    b.addEventListener('click', function(){ onPick(i); });
+    var b = row('card', glyphFor(c), '', c.name, c.desc, function(){ onPick(i); }); b.dataset.i = i;
     list.appendChild(b);
   });
   show('ovCards', true);
 };
 
-UI.dead = function(S){
-  var st = S.stats || {}, rt = st.roomTimes || [];
-  var room = V.ROOMS && V.ROOMS[S.roomId];
-  var lines = [
-    'Reached stage ' + S.stage + (room ? ' (' + room.name + ')' : ''),
-    'Level ' + S.hero.level + ' | ' + (st.kills | 0) + ' machines down',
-    'Rooms cleared ' + rt.length + ' | Damage taken ' + Math.round(st.dmgTaken || 0)
-  ];
-  $('deadStats').innerHTML = lines.map(function(l){ return '<div>' + l.replace(/</g, '&lt;') + '</div>'; }).join('');
-  show('ovDead', true);
+UI.supply = function(S, onPick){
+  var list = $('supList'); list.innerHTML = '';
+  (S.supply || []).forEach(function(o, i){
+    var b;
+    if (o.kind === 'repair') b = row('card sup', GLYPH.repair, 'Repair', 'Field repair', 'Restore ' + Math.round((o.pct || 0.4) * 100) + '% of max HP now.', function(){ onPick(i); });
+    else { var c = (V.CARDS && V.CARDS[o.index]) || { name: 'Supply mod', desc: '' }; b = row('card sup', glyphFor(c), 'Supply mod', c.name, c.desc, function(){ onPick(i); }); }
+    b.dataset.i = i; list.appendChild(b);
+  });
+  UI.show('ovSupply', true);
 };
+
+function modNames(S){
+  var out = [], m = (S.hero && S.hero.mods) || {};
+  for (var k in m) if (m[k] > 0) {
+    var c = (V.CARDS || []).filter(function(x){ return x.key === k; })[0];
+    out.push((c ? c.name : k) + (m[k] > 1 ? ' x' + m[k] : ''));
+  }
+  return out;
+}
+function mmss(t){ t = Math.max(0, Math.round(t || 0)); return Math.floor(t / 60) + ':' + ('0' + (t % 60)).slice(-2); }
+UI.results = function(S){
+  var r = S.result || { win: false, stage: S.stage, t: S.t, kills: S.stats && S.stats.kills, level: S.hero.level, dmgTaken: S.stats && S.stats.dmgTaken };
+  var t = $('resTitle'); t.textContent = r.win ? 'Chapter 1 clear' : 'Operator down'; t.className = r.win ? 'win' : '';
+  var mods = modNames(S);
+  var rows = [['Result', r.win ? 'Win' : 'Lost'], ['Stage reached', (r.stage != null ? r.stage : S.stage) + ' / 10'], ['Time', mmss(r.t != null ? r.t : S.t)],
+    ['Kills', r.kills | 0], ['Level', r.level != null ? r.level : S.hero.level], ['Damage taken', Math.round(r.dmgTaken || 0)], ['Mods', mods.length ? mods.join(', ') : 'none']];
+  var box = $('resStats'); box.innerHTML = '';
+  rows.forEach(function(rw){ var d = document.createElement('div'); d.className = 'row'; var a = document.createElement('span'); a.textContent = rw[0]; var b = document.createElement('b'); b.textContent = String(rw[1]); d.appendChild(a); d.appendChild(b); box.appendChild(d); });
+  UI.show('ovDead', true);
+};
+UI.dead = UI.results;
 
 // Copy report: everything needed to compare a play session.
 UI.report = function(){
@@ -2062,7 +3364,7 @@ UI.report = function(){
     ua: navigator.userAgent,
     frameMs: m.frame, gapsOver50ms: m.gaps,
     bracedUptimePct: braced, hitsBy: st.hitsBy, roomTimes: st.roomTimes, kills: st.kills, deaths: m.deaths,
-    stage: S.stage, level: S.hero && S.hero.level, picks: st.picks, shots: st.shots, dmgTaken: st.dmgTaken,
+    stage: S.stage, stageReached: S.result ? S.result.stage : S.stage, result: S.result ? (S.result.win ? 'win' : 'lose') : (S.phase === 'dead' ? 'lose' : 'in progress'), mods: S.hero ? S.hero.mods : null, modNames: S.hero ? modNames(S) : null, level: S.hero && S.hero.level, picks: st.picks, shots: st.shots, dmgTaken: st.dmgTaken,
     input: V.Input ? { counts: V.Input.counts, log: V.Input.logText() } : null,
     audio: V.Audio ? { state: V.Audio.state, played: V.Audio.played, dropped: V.Audio.dropped } : null,
     settings: V.TUNE
@@ -2080,8 +3382,8 @@ var $ = function(id){ return document.getElementById(id); };
 var Q = new URLSearchParams(location.search);
 var STEP_MS = 1000 / 60, MAX_STEPS = 5;
 var S = null, R = null, list = [], view = { w: 344, h: 882, dpr: 1, ox: 0, oy: 66, s: 38 };
-var acc = 0, last = 0, hitstopUntil = 0, paused = false, frozen = Q.get('freeze') === '1';
-var shown = { pick: false, dead: false }, deadAt = 0, deaths = 0;
+var moved = false, acc = 0, last = 0, hitstopUntil = 0, paused = false, frozen = Q.get('freeze') === '1';
+var shown = { pick: false, dead: false, supply: false, endPhase: '' }, deadAt = 0, deaths = 0;
 var ft = [], FT_MAX = 1200, gaps = 0, frames = 0;
 
 function fail(t){ $('bootMsg').textContent = t; UI.show('ovBoot', true); console.warn('volley:', t); }
@@ -2118,13 +3420,19 @@ function handleEvents(ev, live){
     var e = ev[i];
     switch (e.k) {
       case 'fire': V.Audio.play('fire'); break;
-      case 'hit': case 'crit': V.Audio.play('hit'); stop = true; break;
+      case 'hit': V.Audio.play('hit'); stop = true; break;
+      case 'crit': UI.crit(e.x, e.y, e.dmg, view); stop = true; break;
       case 'kill': V.Audio.play('kill'); vib(V.TUNE.HAPTIC_KILL_MS); stop = true; break;
       case 'hurt': V.Audio.play('hurt'); UI.hurtFlash(); vib(V.TUNE.HAPTIC_HURT_MS); break;
-      case 'door': V.Audio.play('door'); UI.toast('Area clear. Head north through the door.', 2200); break;
-      case 'room': { var rm = V.ROOMS && V.ROOMS[S.roomId]; UI.toast('Stage ' + S.stage + (rm ? ': ' + rm.name : ''), 1500); break; }
+      case 'door': V.Audio.play('door'); awReset(); UI.toast('Stage ' + S.stage + ' clear', 1100); break;
+      case 'room': { awReset(); var rm = V.ROOMS && V.ROOMS[S.roomId]; UI.toast('Stage ' + S.stage + (rm ? ': ' + rm.name : ''), 1500); break; }
       case 'levelup': V.Audio.play('levelup'); UI.toast('Level up', 1200); break;
       case 'death': deaths++; break;
+      case 'supply': V.Audio.play('door'); break;
+      case 'chest': V.Audio.play('levelup'); UI.toast('Cache open', 1400); break;
+      case 'boss': UI.toast('Boss: ' + ((S.boss && S.boss.name) || 'incoming'), 1800); break;
+      case 'bossphase': V.Audio.play('hurt'); UI.toast('Boss phase 2', 1400); break;
+      case 'win': V.Audio.play('levelup'); break;
     }
   }
   if (stop && live && V.TUNE.HITSTOP_MS > 0) hitstopUntil = performance.now() + V.TUNE.HITSTOP_MS;
@@ -2132,27 +3440,42 @@ function handleEvents(ev, live){
 function simStep(inp, live){ V.Sim.step(S, inp); if (V.Scene && V.Scene.ingest) V.Scene.ingest(S.events, S); handleEvents(S.events, live); }
 
 // ---------- overlays ----------
+function isEnd(){ return S.phase === 'results' || S.phase === 'dead'; }
 function syncPhase(){
   if (S.phase === 'pick' && S.cards) {
     if (!shown.pick) { shown.pick = true; V.Input.release(); UI.cards(S, pick); }
   } else if (shown.pick) { shown.pick = false; UI.show('ovCards', false); }
-  if (S.phase === 'dead') {
-    if (!shown.dead) { shown.dead = true; deadAt = performance.now(); V.Input.release(); UI.dead(S); }
-  } else if (shown.dead) { shown.dead = false; UI.show('ovDead', false); }
+  if (S.phase === 'supply' && S.supply) {
+    if (!shown.supply) { shown.supply = true; V.Input.release(); UI.supply(S, pickSupply); }
+  } else if (shown.supply) { shown.supply = false; UI.show('ovSupply', false); }
+  // P1: death and boss kill both end in 'results'. A brief 'dead' phase (if the sim has one) shows the same screen.
+  if (isEnd()) {
+    if (!shown.dead || shown.endPhase !== S.phase) { shown.dead = true; shown.endPhase = S.phase; deadAt = shown.dead && deadAt ? deadAt : performance.now(); V.Input.release(); UI.results(S); }
+  } else if (shown.dead) { shown.dead = false; deadAt = 0; UI.show('ovDead', false); }
+}
+function pickSupply(i){
+  if (!S || S.phase !== 'supply') return;
+  var f = V.Sim.pickSupply || V.Sim.supply;
+  if (f) f(S, i); else V.Sim.pick(S, i);
+  if (V.Scene && V.Scene.ingest) V.Scene.ingest(S.events, S);
+  handleEvents(S.events, false);
+  shown.supply = false; UI.show('ovSupply', false);
+  syncPhase();
 }
 function pick(i){
   if (!S || S.phase !== 'pick') return;
   V.Sim.pick(S, i);
+  if (V.Scene && V.Scene.ingest) V.Scene.ingest(S.events, S);
   handleEvents(S.events, false);
   shown.pick = false; UI.show('ovCards', false);
   syncPhase();                                           // another pending level shows the next card screen
 }
 function restart(){
   S = V.Sim.restart(S); V.Audio.seed(S.seed);
-  acc = 0; hitstopUntil = 0; shown.dead = false; UI.show('ovDead', false); shown.pick = false; UI.show('ovCards', false);
+  acc = 0; hitstopUntil = 0; deadAt = 0; moved = false; awReset(); shown.dead = false; UI.show('ovDead', false); shown.pick = false; UI.show('ovCards', false); shown.supply = false; UI.show('ovSupply', false);
   syncPhase(); return S;
 }
-function tryRestart(){ if (S && S.phase === 'dead' && performance.now() - deadAt > 450) restart(); }
+function tryRestart(){ if (S && isEnd() && performance.now() - deadAt > 450) restart(); }
 
 function pause(){
   if (paused || !S) return;
@@ -2161,6 +3484,57 @@ function pause(){
 function resume(){
   if (!paused) return;
   paused = false; acc = 0; last = 0; hitstopUntil = 0; V.Audio.setPaused(false); UI.show('ovPause', false);
+}
+
+// ---------- auto-walk to the open door (M's pick 3) ----------
+var aw = { idle: 0, cancelled: false, on: false };
+function awReset(){ aw.idle = 0; aw.cancelled = false; aw.on = false; }
+function tileBlocked(S, tx, ty, spikes){
+  var a = S.room.solids, cx = tx + 0.5, cy = ty + 0.5;
+  for (var i = 0; i < a.length; i++) { var b = a[i]; if (cx > b.x - 0.3 && cx < b.x + b.w + 0.3 && cy > b.y - 0.3 && cy < b.y + b.h + 0.3) return true; }
+  if (spikes && S.hazards) for (var j = 0; j < S.hazards.length; j++) { var h = S.hazards[j]; if (cx > h.x && cx < h.x + h.w && cy > h.y && cy < h.y + h.h) return true; }
+  return false;
+}
+function doorPath(S, avoidSpikes){
+  var W = S.room.w || 9, H = S.room.h || 15, d = S.room.door, h = S.hero;
+  var gx = Math.floor(d.x + d.w / 2), gy = Math.floor(d.y + d.h / 2), sx = Math.min(W - 1, Math.max(0, Math.floor(h.x))), sy = Math.min(H - 1, Math.max(0, Math.floor(h.y)));
+  var prev = new Int16Array(W * H).fill(-1), q = [sy * W + sx]; prev[sy * W + sx] = sy * W + sx;
+  for (var qi = 0; qi < q.length; qi++) {
+    var c = q[qi], cx = c % W, cy = (c / W) | 0;
+    if (cx === gx && cy === gy) break;
+    var nb = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+    for (var k = 0; k < 4; k++) {
+      var nx = cx + nb[k][0], ny = cy + nb[k][1]; if (nx < 0 || ny < 0 || nx >= W || ny >= H) continue;
+      var ni = ny * W + nx; if (prev[ni] !== -1) continue;
+      if (!(nx === gx && ny === gy) && tileBlocked(S, nx, ny, avoidSpikes)) continue;
+      prev[ni] = c; q.push(ni);
+    }
+  }
+  var g = gy * W + gx; if (prev[g] === -1) return null;
+  var path = []; for (var p = g; p !== sy * W + sx; p = prev[p]) path.push(p); path.reverse();
+  return path.map(function(i){ return { x: (i % W) + 0.5, y: ((i / W) | 0) + 0.5 }; });
+}
+function doorDir(){
+  var h = S.hero, d = S.room.door, tx = d.x + d.w / 2, ty = d.y + d.h / 2;
+  if (!(V.Sim.clearLine && V.Sim.clearLine(S, h.x, h.y, tx, ty, 0.36))) {
+    var path = doorPath(S, true) || doorPath(S, false);
+    if (path && path.length) {
+      var t = path[0];
+      for (var i = path.length - 1; i >= 0; i--) if (V.Sim.clearLine(S, h.x, h.y, path[i].x, path[i].y, 0.36)) { t = path[i]; break; }
+      tx = t.x; ty = t.y;
+    }
+  }
+  var dx = tx - h.x, dy = ty - h.y, l = Math.sqrt(dx * dx + dy * dy) || 1;
+  return { mx: dx / l, my: dy / l };
+}
+function autoWalkInput(inp, dtS){
+  if (S.phase !== 'clear' || !V.TUNE.AUTO_WALK || aw.cancelled) { aw.idle = 0; return inp; }
+  if (V.Input.down || inp.mx || inp.my) { aw.idle = 0; return inp; }
+  aw.idle += dtS;
+  if (aw.idle < (V.TUNE.AUTO_WALK_DELAY || 0)) return inp;
+  var dir = doorDir(), h = S.hero;
+  if (!aw.on) { aw.on = true; V.Input.note('aw', h.x * 10, h.y * 10); }
+  return dir;
 }
 
 // ---------- loop ----------
@@ -2178,8 +3552,8 @@ function frame(ts){
       acc += Math.min(dt, 250);
       var n = 0;
       while (acc >= STEP_MS && n < MAX_STEPS) {
-        simStep(V.Input.read(), true); acc -= STEP_MS; n++;
-        if (hitstopUntil > ts || S.phase === 'pick' || S.phase === 'dead') { acc = 0; break; }
+        simStep(autoWalkInput(V.Input.read(), 1 / 60), true); acc -= STEP_MS; n++;
+        if (hitstopUntil > ts || (S.phase !== 'play' && S.phase !== 'clear')) { acc = 0; break; }
       }
       if (n >= MAX_STEPS) acc = 0;                       // never chase a long stall (L-LOL-2)
     }
@@ -2193,6 +3567,8 @@ function draw(){
   V.Scene.build(S, view, list);
   R.draw(list, view);
   UI.hud(S, R, view);
+  if (!moved && (V.Input.active || S.stage > 1)) moved = true;
+  UI.howto(!moved && S.phase === 'play', view);
 }
 
 function pct(a, p){ if (!a.length) return 0; var b = a.slice().sort(function(x, y){ return x - y; }); return Math.round(b[Math.min(b.length - 1, Math.floor(p * b.length))] * 10) / 10; }
@@ -2219,13 +3595,21 @@ function boot(){
   document.addEventListener('visibilitychange', function(){ if (document.hidden) pause(); });
   G.addEventListener('blur', pause);
   G.addEventListener('pagehide', pause);
-  $('ovPause').addEventListener('pointerdown', function(e){ e.preventDefault(); resume(); });
+  $('ovPause').addEventListener('pointerdown', function(e){ if (e.target.closest && e.target.closest('button')) return; e.preventDefault(); resume(); });
   $('btnResume').addEventListener('click', resume);
+  $('pauseBtn').addEventListener('click', function(){ pause(); });
+  $('btnRestartRun').addEventListener('click', function(e){ e.stopPropagation(); restart(); resume(); });
+  $('btnTune').addEventListener('click', function(e){ e.stopPropagation(); UI.openDrawer(true); });
+  // Any touch during the clear phase cancels auto-walk for this room.
+  stage.addEventListener('pointerdown', function(e){
+    if (S && S.phase === 'clear' && !aw.cancelled && !(e.target.closest && e.target.closest('button, .ov, #drawer'))) { aw.cancelled = true; V.Input.note(aw.on ? 'awx' : 'awc', 0, 0); }
+  }, true);
   $('ovDead').addEventListener('pointerdown', function(e){ if (e.target.id !== 'btnRestart') tryRestart(); });
   $('btnRestart').addEventListener('click', tryRestart);
   G.addEventListener('keydown', function(e){
     if (paused && (e.key === ' ' || e.key === 'Enter' || e.key === 'Escape')) { resume(); return; }
-    if (S && S.phase === 'dead' && (e.key === ' ' || e.key === 'Enter' || e.key === 'r')) tryRestart();
+    if (S && isEnd() && (e.key === ' ' || e.key === 'Enter' || e.key === 'r')) tryRestart();
+    if (S && S.phase === 'supply' && /^[1-2]$/.test(e.key) && S.supply && +e.key <= S.supply.length) pickSupply(+e.key - 1);
     if (S && S.phase === 'pick' && /^[1-3]$/.test(e.key) && S.cards && +e.key <= S.cards.length) pick(+e.key - 1);
   });
 
@@ -2245,13 +3629,16 @@ function boot(){
     get paused(){ return paused; },
     get view(){ return view; },
     get frozen(){ return frozen; },
+    get autoWalk(){ return { idle: aw.idle, cancelled: aw.cancelled, on: aw.on }; },
     get lastCopy(){ return UI.lastCopy; },
     step: function(n, inp){
       n = n || 1; inp = inp || { mx: 0, my: 0 };
-      for (var i = 0; i < n; i++) simStep(inp, false);
+      for (var i = 0; i < n; i++) simStep(typeof inp === 'function' ? inp(S) : inp, false);
       syncPhase(); if (R) draw(); return S;
     },
     pick: function(i){ pick(i); return S; },
+    doorDir: function(){ return S ? doorDir() : { mx: 0, my: 0 }; },  // same path the auto-walk uses
+    pickSupply: function(i){ pickSupply(i); return S; },
     restart: function(){ return restart(); },
     readback: function(){ return R && R.readback ? R.readback() : Promise.resolve(null); },
     freeze: function(on){ frozen = on !== false; acc = 0; return frozen; },  // stop real-time stepping (deterministic tests)

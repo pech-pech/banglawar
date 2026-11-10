@@ -27,7 +27,7 @@ V.AI['E-01'] = {
       e.x += e.vx * st; e.y += e.vy * st; e.lungeLeft -= st;
       var ox = e.x, oy = e.y;
       api.collideBody(S, e, e.r);
-      if (e.lungeLeft <= 1e-6 || Math.abs(ox - e.x) + Math.abs(oy - e.y) > 1e-4) { e.st = 'cool'; e.cd = b.cd; }
+      if (e.lungeLeft <= 1e-6 || Math.abs(ox - e.x) + Math.abs(oy - e.y) > 1e-4) { e.st = 'cool'; e.cd = b.cd; e.lungeLeft = 0; }
     }
   }
 };
