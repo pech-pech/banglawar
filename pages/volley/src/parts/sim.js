@@ -6,6 +6,7 @@ var HERO_WALL_R = 0.35, HERO_HURT_R = 0.28;
 var LEVEL_COST = [0, 0, 25, 35, 50, 65, 90, 125, 175, 245, 335, 465]; // index = level reached
 var LEVEL_CAP = 11;
 var SHOT_R = 0.15;
+var HERO_GAP = 0.1; // min gap between an enemy body and the Operator hurtbox
 var RETARGET_DT = 0.1, LOCK_HYST = 1.0, LOST_LINE_T = 0.25;
 var CONTACT_CD = 1.0, MAGNET_SPEED = 14;
 var REPAIR_PCT = 0.2, REPAIR_BASE = 0.03, REPAIR_PITY = 0.005, REPAIR_CAP = 0.08, REPAIR_LIFE = 15;
@@ -374,20 +375,36 @@ function stepEnemy(S, e, dt){
   }
   if (e.type !== 'E-03') collideBody(S, e, e.r);
   // contact
-  if (e.contactCd <= 0 && Math.hypot(h.x - e.x, h.y - e.y) < e.r + HERO_HURT_R) {
+  // bodies are kept HERO_GAP apart (separate()), so touching = within the gap; a lunge hits on overlap
+  if (e.contactCd <= 0 && Math.hypot(h.x - e.x, h.y - e.y) < e.r + HERO_HURT_R + (e.st === 'act' ? 0 : HERO_GAP + 0.02)) {
     if (hurtHero(S, enemyDmg(S, b.contact), e.type, e.x, e.y)) e.contactCd = CONTACT_CD;
   }
 }
 function separate(S){
-  var a = S.enemies;
-  for (var i = 0; i < a.length; i++) for (var j = i + 1; j < a.length; j++) {
-    var p = a[i], q = a[j]; if (p.st === 'spawn' || q.st === 'spawn') continue;
-    var dx = q.x - p.x, dy = q.y - p.y, d = Math.hypot(dx, dy), m = p.r + q.r;
-    if (d < m && d > 1e-6) {
-      var k = (m - d) * 0.25 / d;
-      var pm = p.type === 'E-03' ? 0 : 1, qm = q.type === 'E-03' ? 0 : 1, s = pm + qm || 1;
-      p.x -= dx * k * 2 * pm / s; p.y -= dy * k * 2 * pm / s; q.x += dx * k * 2 * qm / s; q.y += dy * k * 2 * qm / s;
+  // enemies never stack on each other and never sit on the Operator (M, P0 fix)
+  var a = S.enemies, h = S.hero, it, i, j;
+  for (it = 0; it < 3; it++) {
+    for (i = 0; i < a.length; i++) for (j = i + 1; j < a.length; j++) {
+      var p = a[i], q = a[j];
+      var dx = q.x - p.x, dy = q.y - p.y, d = Math.hypot(dx, dy), m = p.r + q.r + 0.04;
+      if (d >= m) continue;
+      if (d < 1e-6) { dx = (p.id < q.id ? 1e-6 : -1e-6); dy = 0; d = 1e-6; }
+      var pm = p.type === 'E-03' ? 0 : 1, qm = q.type === 'E-03' ? 0 : 1, sm = pm + qm;
+      if (!sm) continue;
+      var k = (m - d) / d;
+      p.x -= dx * k * pm / sm; p.y -= dy * k * pm / sm; q.x += dx * k * qm / sm; q.y += dy * k * qm / sm;
     }
+    for (i = 0; i < a.length; i++) {
+      var e = a[i];
+      if (e.st === 'act') continue; // a lunge may pass through to hit
+      var gx = e.x - h.x, gy = e.y - h.y, gd = Math.hypot(gx, gy), gap = e.r + HERO_HURT_R + HERO_GAP;
+      if (gd >= gap) continue;
+      if (gd < 1e-6) { gx = 0; gy = (h.y > S.room.h / 2 ? -1e-6 : 1e-6); gd = 1e-6; } // pinned: push toward room centre
+      var kk = (gap - gd) / gd;
+      if (e.type === 'E-03') { h.x -= gx * kk; h.y -= gy * kk; collideBody(S, h, HERO_WALL_R); } // static turret acts as a post
+      else { e.x += gx * kk; e.y += gy * kk; }
+    }
+    for (i = 0; i < a.length; i++) if (a[i].type !== 'E-03') collideBody(S, a[i], a[i].r);
   }
 }
 

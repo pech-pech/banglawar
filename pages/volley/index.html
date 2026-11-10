@@ -221,6 +221,7 @@ var HERO_WALL_R = 0.35, HERO_HURT_R = 0.28;
 var LEVEL_COST = [0, 0, 25, 35, 50, 65, 90, 125, 175, 245, 335, 465]; // index = level reached
 var LEVEL_CAP = 11;
 var SHOT_R = 0.15;
+var HERO_GAP = 0.1; // min gap between an enemy body and the Operator hurtbox
 var RETARGET_DT = 0.1, LOCK_HYST = 1.0, LOST_LINE_T = 0.25;
 var CONTACT_CD = 1.0, MAGNET_SPEED = 14;
 var REPAIR_PCT = 0.2, REPAIR_BASE = 0.03, REPAIR_PITY = 0.005, REPAIR_CAP = 0.08, REPAIR_LIFE = 15;
@@ -589,20 +590,36 @@ function stepEnemy(S, e, dt){
   }
   if (e.type !== 'E-03') collideBody(S, e, e.r);
   // contact
-  if (e.contactCd <= 0 && Math.hypot(h.x - e.x, h.y - e.y) < e.r + HERO_HURT_R) {
+  // bodies are kept HERO_GAP apart (separate()), so touching = within the gap; a lunge hits on overlap
+  if (e.contactCd <= 0 && Math.hypot(h.x - e.x, h.y - e.y) < e.r + HERO_HURT_R + (e.st === 'act' ? 0 : HERO_GAP + 0.02)) {
     if (hurtHero(S, enemyDmg(S, b.contact), e.type, e.x, e.y)) e.contactCd = CONTACT_CD;
   }
 }
 function separate(S){
-  var a = S.enemies;
-  for (var i = 0; i < a.length; i++) for (var j = i + 1; j < a.length; j++) {
-    var p = a[i], q = a[j]; if (p.st === 'spawn' || q.st === 'spawn') continue;
-    var dx = q.x - p.x, dy = q.y - p.y, d = Math.hypot(dx, dy), m = p.r + q.r;
-    if (d < m && d > 1e-6) {
-      var k = (m - d) * 0.25 / d;
-      var pm = p.type === 'E-03' ? 0 : 1, qm = q.type === 'E-03' ? 0 : 1, s = pm + qm || 1;
-      p.x -= dx * k * 2 * pm / s; p.y -= dy * k * 2 * pm / s; q.x += dx * k * 2 * qm / s; q.y += dy * k * 2 * qm / s;
+  // enemies never stack on each other and never sit on the Operator (M, P0 fix)
+  var a = S.enemies, h = S.hero, it, i, j;
+  for (it = 0; it < 3; it++) {
+    for (i = 0; i < a.length; i++) for (j = i + 1; j < a.length; j++) {
+      var p = a[i], q = a[j];
+      var dx = q.x - p.x, dy = q.y - p.y, d = Math.hypot(dx, dy), m = p.r + q.r + 0.04;
+      if (d >= m) continue;
+      if (d < 1e-6) { dx = (p.id < q.id ? 1e-6 : -1e-6); dy = 0; d = 1e-6; }
+      var pm = p.type === 'E-03' ? 0 : 1, qm = q.type === 'E-03' ? 0 : 1, sm = pm + qm;
+      if (!sm) continue;
+      var k = (m - d) / d;
+      p.x -= dx * k * pm / sm; p.y -= dy * k * pm / sm; q.x += dx * k * qm / sm; q.y += dy * k * qm / sm;
     }
+    for (i = 0; i < a.length; i++) {
+      var e = a[i];
+      if (e.st === 'act') continue; // a lunge may pass through to hit
+      var gx = e.x - h.x, gy = e.y - h.y, gd = Math.hypot(gx, gy), gap = e.r + HERO_HURT_R + HERO_GAP;
+      if (gd >= gap) continue;
+      if (gd < 1e-6) { gx = 0; gy = (h.y > S.room.h / 2 ? -1e-6 : 1e-6); gd = 1e-6; } // pinned: push toward room centre
+      var kk = (gap - gd) / gd;
+      if (e.type === 'E-03') { h.x -= gx * kk; h.y -= gy * kk; collideBody(S, h, HERO_WALL_R); } // static turret acts as a post
+      else { e.x += gx * kk; e.y += gy * kk; }
+    }
+    for (i = 0; i < a.length; i++) if (a[i].type !== 'E-03') collideBody(S, a[i], a[i].r);
   }
 }
 
@@ -1041,7 +1058,7 @@ function drawEnemyAim(S, e, s) {
 
 function drawHero(S, s, t) {
   var h = S.hero, x = X(h.x), y = Y(h.y), rr = (h.r || 0.28) * s;
-  if (h.invulnT > 0 && Math.floor(t * 12) % 2 === 1) return; // blink
+  var blink = h.invulnT > 0 && Math.floor(t * 12) % 2 === 1, n0 = out.length; // blink to 35%, never hidden (M 2026-11-10)
   var a = h.ang || 0, ca = Math.cos(a), sa = Math.sin(a), px = -sa, py = ca;
   // rifle
   oRect(x + ca * rr * 1.15 + px * rr * 0.35, y + sa * rr * 1.15 + py * rr * 0.35, rr * 1.5, rr * 0.32, PAL.metalDark, a);
@@ -1052,6 +1069,7 @@ function drawHero(S, s, t) {
   ring(x, y, rr * 0.82, 1.6, PAL.cyan);
   circ(x - ca * rr * 0.1, y - sa * rr * 0.1, rr * 0.5, PAL.heroDark);
   rect(x + ca * rr * 0.32, y + sa * rr * 0.32, rr * 0.22, rr * 0.75, PAL.cyan, a); // visor
+  if (blink) for (var i = n0; i < out.length; i++) { var c = out[i].c; out[i].c = [c[0], c[1], c[2], c[3] * 0.35]; }
 }
 
 function drawBrace(S, s) {
@@ -1153,10 +1171,7 @@ V.Scene = {
       else circ(d.x, d.y, d.r, d.light ? PAL.groundDot2 : PAL.groundDot);
     }
     var R = S.room, RW = (R && R.w) || 9, RH = (R && R.h) || 15;
-    rect(X(RW / 2), Y(RH / 2), RW * s, RH * s, PAL.floor);
-    // floor seams every 3 tiles, faint
-    for (var gx = 3; gx < RW; gx += 3) line(X(gx), Y(0), X(gx), Y(RH), 1, PAL.seam);
-    for (var gy = 3; gy < RH; gy += 3) line(X(0), Y(gy), X(RW), Y(gy), 1, PAL.seam);
+    // room floor = same sand as the ground below (M 2026-11-10: one continuous yard, no panel)
 
     var E = S.enemies || [], sol = (R && R.solids) || [];
     for (i = 0; i < E.length; i++) drawEnemyTellGround(S, E[i], s);

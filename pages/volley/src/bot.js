@@ -263,6 +263,24 @@ function chk(name, ok, info) { out((ok ? 'PASS ' : 'FAIL ') + name + (info ? ' (
   chk('tune read live from S.tune', Math.abs(S10.hero.x - x0 - 9 / 60) < 1e-9);
   // restart
   var S11 = V.Sim.restart(S10); chk('restart gives seed+1, same tune object', S11.seed === 3 && S11.tune === S10.tune && S11.stage === 1);
+  // separation: no enemy body on the Operator (outside lunges), no stacked enemies
+  var worstH = 0, worstP = 0, stepsChecked = 0;
+  ['naive', 'idle'].forEach(function (kind) {
+    for (var sd = 1; sd <= 30; sd++) {
+      var S = V.Sim.create(sd, freshTune()), B = { rng: new V.Rng(sd), hold: 0, cmd: { mx: 0, my: 0 } };
+      for (var n = 0; n < 3000 && S.phase !== 'dead'; n++) {
+        if (S.phase === 'pick') { V.Sim.pick(S, 0); continue; }
+        V.Sim.step(S, kind === 'naive' ? naiveInput(S, B) : idleInput(S, B)); stepsChecked++;
+        for (var a = 0; a < S.enemies.length; a++) {
+          var e = S.enemies[a];
+          if (e.st !== 'act') worstH = Math.max(worstH, e.r + 0.28 + 0.1 - Math.hypot(e.x - S.hero.x, e.y - S.hero.y));
+          for (var b2 = a + 1; b2 < S.enemies.length; b2++) { var f = S.enemies[b2]; worstP = Math.max(worstP, e.r + f.r - Math.hypot(e.x - f.x, e.y - f.y)); }
+        }
+      }
+    }
+  });
+  chk('enemies keep a 0.1 gap from the Operator outside lunges (worst intrusion into the gap <= 0.05)', worstH <= 0.05, 'worst ' + worstH.toFixed(3) + ' over ' + stepsChecked + ' steps');
+  chk('enemy bodies do not stack (worst pair overlap <= 0.05)', worstP <= 0.05, 'worst ' + worstP.toFixed(3));
   // no Math.random / Date in the sim parts
   var src = ['tune', 'rng', 'rooms', 'sim'].map(function (f) { return fs.readFileSync(path.join(__dirname, 'parts', f + '.js'), 'utf8'); }).join('\n');
   chk('no Math.random / Date in sim parts', !/Math\.random|Date\.now|new Date/.test(src));

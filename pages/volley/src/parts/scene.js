@@ -247,7 +247,7 @@ function drawEnemyAim(S, e, s) {
 
 function drawHero(S, s, t) {
   var h = S.hero, x = X(h.x), y = Y(h.y), rr = (h.r || 0.28) * s;
-  if (h.invulnT > 0 && Math.floor(t * 12) % 2 === 1) return; // blink
+  var blink = h.invulnT > 0 && Math.floor(t * 12) % 2 === 1, n0 = out.length; // blink to 35%, never hidden (M 2026-11-10)
   var a = h.ang || 0, ca = Math.cos(a), sa = Math.sin(a), px = -sa, py = ca;
   // rifle
   oRect(x + ca * rr * 1.15 + px * rr * 0.35, y + sa * rr * 1.15 + py * rr * 0.35, rr * 1.5, rr * 0.32, PAL.metalDark, a);
@@ -258,6 +258,7 @@ function drawHero(S, s, t) {
   ring(x, y, rr * 0.82, 1.6, PAL.cyan);
   circ(x - ca * rr * 0.1, y - sa * rr * 0.1, rr * 0.5, PAL.heroDark);
   rect(x + ca * rr * 0.32, y + sa * rr * 0.32, rr * 0.22, rr * 0.75, PAL.cyan, a); // visor
+  if (blink) for (var i = n0; i < out.length; i++) { var c = out[i].c; out[i].c = [c[0], c[1], c[2], c[3] * 0.35]; }
 }
 
 function drawBrace(S, s) {
@@ -359,10 +360,7 @@ V.Scene = {
       else circ(d.x, d.y, d.r, d.light ? PAL.groundDot2 : PAL.groundDot);
     }
     var R = S.room, RW = (R && R.w) || 9, RH = (R && R.h) || 15;
-    rect(X(RW / 2), Y(RH / 2), RW * s, RH * s, PAL.floor);
-    // floor seams every 3 tiles, faint
-    for (var gx = 3; gx < RW; gx += 3) line(X(gx), Y(0), X(gx), Y(RH), 1, PAL.seam);
-    for (var gy = 3; gy < RH; gy += 3) line(X(0), Y(gy), X(RW), Y(gy), 1, PAL.seam);
+    // room floor = same sand as the ground below (M 2026-11-10: one continuous yard, no panel)
 
     var E = S.enemies || [], sol = (R && R.solids) || [];
     for (i = 0; i < E.length; i++) drawEnemyTellGround(S, E[i], s);
