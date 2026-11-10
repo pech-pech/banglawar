@@ -289,17 +289,20 @@
 .pv-tab--center.is-selected::before{display:block;left:6%;right:6%}
 .pv-tab.is-selected .pv-pip{display:none}
 .pv-tab .pv-pip[hidden]{display:none}
-/* Deploy tab */
-.hm-card{height:300px;padding:0;border:var(--pv-ui-stroke-heavy) solid var(--pv-ui-ink);border-radius:var(--pv-ui-r-lg);box-shadow:var(--pv-ui-sh-1)}
-.hm-card .pv-chapter__art{background:var(--pv-ui-metal-900);inset:0 0 auto 0;height:216px}   /* key-art-card 328x216 anchored to the top edge; the rest of the card is solid dark (placement sheet) */
-.hm-card .pv-chapter__art img{width:328px;height:216px;object-fit:cover;display:block}
+/* Deploy tab. #pane-deploy is a size container: the art follows the card width (328:216, never stretched) and shrinks with the pane height,
+   so card + Best stage + DEPLOY + note always fit; if a very short pane still cannot fit, the pane scrolls and its 28 px bottom pad keeps DEPLOY clear of the raised tab. */
+#pane-deploy{container-type:size}
+#pane-deploy>*{--dep-h:clamp(64px,14cqh,88px);--art-h:max(96px,min(calc(100cqw*216/328),calc(100cqh - 191px - var(--dep-h))))}
+.hm-card{height:calc(var(--art-h) + 84px);padding:0;border:var(--pv-ui-stroke-heavy) solid var(--pv-ui-ink);border-radius:var(--pv-ui-r-lg);box-shadow:var(--pv-ui-sh-1);flex:none}
+.hm-card .pv-chapter__art{background:var(--pv-ui-metal-900);inset:0 0 auto 0;height:var(--art-h)}   /* key-art-card 328x216 anchored to the top edge; the rest of the card is solid dark (placement sheet) */
+.hm-card .pv-chapter__art img{width:100%;height:100%;object-fit:cover;object-position:50% 0;display:block}
 /* AP 1.3 scrim: transparent -> card colour over the lowest 96 px of the art (D1) */
 .hm-card{background:var(--pv-ui-metal-900)}
-.hm-card::after{inset:auto 0 auto 0;top:120px;height:96px;background:linear-gradient(transparent,var(--pv-ui-metal-900))}
-.hm-info{position:absolute!important;left:12px;right:12px;top:228px;display:flex;flex-direction:column;gap:4px;align-items:flex-start}
+.hm-card::after{inset:auto 0 auto 0;top:calc(var(--art-h) - min(96px,var(--art-h)));height:min(96px,var(--art-h));background:linear-gradient(transparent,var(--pv-ui-metal-900))}
+.hm-info{position:absolute!important;left:12px;right:12px;top:calc(var(--art-h) + 12px);display:flex;flex-direction:column;gap:4px;align-items:flex-start}
 .hm-best{margin-top:12px;height:56px;display:flex;align-items:center;justify-content:space-between;padding:0 14px}
 .hm-bestn{font-size:20px}
-.hm-deploy{display:flex;width:296px;min-height:88px;height:88px;margin:56px auto 0;font-size:26px}
-.hm-note{margin-top:16px;text-align:center}
+.hm-deploy{display:flex;width:min(100%,296px);min-height:var(--dep-h);height:var(--dep-h);margin:14px auto 0;font-size:26px}
+.hm-note{margin-top:10px;text-align:center}
 /* results portrait + Home button */
 #resPortrait{display:block;flex:none;width:72px;height:96px;border-radius:4px;border:2px solid #0f1215;box-shadow:0 0 0 1.5px #4a535d;object-fit:cover;object-position:top;background:#1b2026}

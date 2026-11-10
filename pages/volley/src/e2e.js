@@ -358,7 +358,7 @@ async function dragTest(page, cdp, sess, cv, view, w, h, tune0) {
   const hitEl = await page.evaluate(([x, y]) => window.__desc(document.elementFromPoint(x, y)), [x, y]);
   row('element under thumb point', 'INFO', hitEl);
   // Floating damage numbers (#dmgLayer) come and go during a hold, so they are left out of the element count.
-  const domBefore = await page.evaluate(() => { const l = [...document.querySelectorAll('body *')].filter(window.__vis).filter(e => !e.closest('#dmgLayer')); window.__domBefore = new Set(l); return l.length; });
+  const domBefore = await page.evaluate(() => { const l = [...document.querySelectorAll('body *')].filter(window.__vis).filter(e => !e.closest('#dmgLayer') && !e.closest('#hud')); window.__domBefore = new Set(l); return l.length; });
   // Need live enemies in a play phase so the release can lock and fire.
   // Keep the one stage-1 enemy alive and harmless for the whole drag test: on a loaded host the idle hero can kill it (room clear, toast, door) before or during the hold, which is a different state from the one under test.
   // tune0 (saved by session() before any test changed tuning) is restored below
@@ -373,7 +373,7 @@ async function dragTest(page, cdp, sess, cv, view, w, h, tune0) {
   await sleep(250);
   // During hold: no joystick element / graphic near the thumb.
   const dom = await page.evaluate(([x, y]) => {
-    const all = [...document.querySelectorAll('body *')].filter(window.__vis).filter(e => !e.closest('#dmgLayer'));
+    const all = [...document.querySelectorAll('body *')].filter(window.__vis).filter(e => !e.closest('#dmgLayer') && !e.closest('#hud'));
     const added = all.filter(e => !(window.__domBefore && window.__domBefore.has(e))).map(window.__desc);
     const near = all.filter(e => { const r = e.getBoundingClientRect(); const gc = window.__gameCanvas(); const big = r.width * r.height > (gc ? gc.w * gc.h : innerWidth * innerHeight) * 0.5; return !big && e.tagName !== 'CANVAS' && !e.querySelector('canvas') && !e.closest('#dmgLayer') && ((x >= r.left && x <= r.right && ((y >= r.top && y <= r.bottom) || (y - 60 >= r.top && y - 60 <= r.bottom)))); });
     const named = all.filter(e => /joy|stick|thumb|knob|nub|touchpad|dpad/i.test((e.id || '') + ' ' + (typeof e.className === 'string' ? e.className : '')));

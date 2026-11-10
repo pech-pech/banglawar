@@ -5,7 +5,7 @@ if (!T) { try { console.warn('tab-operator: V.TabsA missing (tab-armory.js must 
 var fmt = T.fmt, esc = T.esc, asset = T.asset, KEYS = T.KEYS, meta = T.meta;
 
 var CSS = [
-  '.to-top{display:flex;gap:12px;min-height:250px}',
+  '.to-top{display:flex;gap:12px;min-height:250px;flex:none}',
   '.to-por{flex:none;width:152px;height:250px;padding:0;overflow:hidden;background:#e8cf9a}',
   '.to-por img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:50% 30%;display:block}',
   '.to-por .ta-hint{position:absolute;left:0;right:0;top:8px;text-align:center;color:#3a2f18;letter-spacing:.12em}',
@@ -40,6 +40,7 @@ var CSS = [
 
 function tune(k, d){ var t = V.TUNE; return (t && typeof t[k] === 'number') ? t[k] : d; }
 function r1(n){ return (Math.round(n * 10) / 10).toString(); }
+function r2(n){ return (Math.round(n * 100) / 100).toFixed(2); }
 function pct(n){ return r1(n * 100) + '%'; }
 function dur(s){ s = Math.max(0, Math.round(+s || 0)); return Math.floor(s / 60) + ':' + (s % 60 < 10 ? '0' : '') + (s % 60); }
 var MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -73,11 +74,11 @@ function render(){
   var headU = asset(KEYS.head), runs = (st.runs || []).slice(-10).reverse(), all = st.runs || [], wins = 0, i;
   for (i = 0; i < all.length; i++) if (all[i] && all[i].win) wins++;
   var best = st.best || 0, bestMax = 10;
-  var hpB = t.hp - t.hp0, atkB = t.atk - t.atk0, ivB = t.iv0 - t.iv;
+  var hpB = t.hp - t.hp0, atkB = t.atk - t.atk0, rB = t.rate - 1 / t.iv0;
   function bonus(n, unit){ return n ? ' <em>+' + fmt(n) + (unit || '') + '</em>' : ''; }
   var rows = '<div class="row"><span>Max HP</span><i>' + fmt(t.hp0) + bonus(hpB) + '</i><b>' + fmt(t.hp) + '</b></div>' +
     '<div class="row"><span>ATK</span><i>' + fmt(t.atk0) + bonus(atkB) + '</i><b>' + fmt(t.atk) + '</b></div>' +
-    '<div class="row"><span>Fire interval</span><i>' + t.iv0.toFixed(2) + ' s' + (ivB > 0.004 ? ' <em>-' + ivB.toFixed(2) + '</em>' : '') + '</i><b>' + t.iv.toFixed(2) + ' s</b></div>' +
+    '<div class="row"><span>Rate</span><i>' + r2(1 / t.iv0) + ' /s' + (rB > 0.004 ? ' <em>+' + r2(rB) + '</em>' : '') + '</i><b>' + r2(t.rate) + ' /s</b></div>' +
     '<div class="row"><span>Crit % / dmg</span><i>' + pct(t.crit) + ' &middot; ' + pct(t.critM) + '</i><b>' + pct(t.crit) + ' / ' + pct(t.critM) + '</b></div>' +
     '<div class="row"><span>Move speed</span><i>' + r1(t.spd) + '</i><b>' + r1(t.spd) + '</b></div>';
   var log = '';
@@ -91,12 +92,10 @@ function render(){
   el.innerHTML = '<div class="ta-root">' +
         '<div class="ta-scroll">' +
       '<div class="to-top"><div class="pv-panel pv-rivets to-por">' + figure() + '</div>' +
-        '<div class="to-hl"><div class="to-nm">The Operator</div><span class="ta-hint">Total stats</span>' +
-          '<div class="to-r">' + ico(I_HP) + 'HP<b>' + fmt(t.hp) + '</b></div><div class="to-r">' + ico(I_ATK) + 'ATK<b>' + fmt(t.atk) + '</b></div>' +
-          '<div class="to-r">' + ico(I_RATE) + 'Rate<b>' + (Math.round(t.rate * 100) / 100) + ' /s</b></div></div></div>' +
+        '<div class="to-hl"><div class="to-nm">The Operator</div><span class="ta-hint">Run summary</span>' +
+          '<div class="to-r">' + 'Best stage<b>' + fmt(best) + ' / ' + bestMax + '</b></div><div class="to-r">Runs<b>' + fmt(all.length) + '</b></div>' +
+          '<div class="to-r">Wins<b>' + fmt(wins) + '</b></div></div></div>' +
       '<div class="pv-panel pv-rivets to-tbl"><div class="h ta-hint"><span>Stat</span><span>Base <span style="color:var(--pv-ui-cyan)">+Bonus</span></span><span>Total</span></div>' + rows + '</div>' +
-      '<div class="to-rec"><div class="c"><span class="ta-hint">Best stage</span><b>' + fmt(best) + '</b></div>' +
-        '<div class="c"><span class="ta-hint">Runs</span><b>' + fmt(all.length) + '</b></div><div class="c"><span class="ta-hint">Wins</span><b>' + fmt(wins) + '</b></div></div>' +
       '<div class="pv-section">' + (headU ? '<img src="' + headU + '" width="40" height="40" alt="" style="object-fit:contain;order:-1">' : '') + '<span class="pv-section__label">Run log</span><span class="pv-section__aside">last ' + Math.max(runs.length, 0) + ' of 10</span></div>' +
       '<div class="to-log">' + log + '</div>' +
     '</div></div>';

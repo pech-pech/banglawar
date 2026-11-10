@@ -48,7 +48,7 @@ function injectCss(id, css){
 var BASE_CSS = [
   '.ta-root{position:relative;height:100%;display:flex;flex-direction:column;min-width:0;overflow:hidden;color:var(--pv-ui-text);font:400 14px/1.35 var(--pv-ui-font)}',
   '.ta-root *,.ta-root *::before,.ta-root *::after{box-sizing:border-box}',
-  '.ta-scroll{flex:1;min-height:0;overflow-x:hidden;overflow-y:auto;padding:12px 16px 34px;display:flex;flex-direction:column;gap:12px;scrollbar-width:none;overscroll-behavior:contain}',
+  '.ta-scroll{flex:1;min-height:0;overflow-x:hidden;overflow-y:auto;padding:12px 16px calc(var(--tb-bottom,28px) + 10px);display:flex;flex-direction:column;gap:12px;scrollbar-width:none;overscroll-behavior:contain}',
   '.ta-scroll::-webkit-scrollbar{display:none}',
   '.ta-pill{margin-left:auto;height:34px;padding:0 10px 0 8px;gap:6px;color:#ffe27a;font-size:14px}',
   '.ta-coin{display:block;flex:none;object-fit:contain}',
@@ -78,15 +78,15 @@ var CSS = [
   '.ta-slot.pv-cell{width:auto;height:auto;font-size:26px}',
   'button.ta-slot{cursor:pointer;appearance:none}',
   '.ta-slot .pv-ico{font-size:26px}',
-  '.ta-slot img{position:absolute;left:50%;top:0;margin-left:-32px;width:64px;height:64px;object-fit:contain;display:block;pointer-events:none}',
-  '.ta-slot.r1{justify-content:flex-end;padding-bottom:6px}',
+  '.ta-slot img{position:static;flex:1 1 0;min-height:0;width:100%;max-width:100%;object-fit:cover;object-position:50% 50%;border-radius:3px;display:block;pointer-events:none;margin:0}',
+  '.ta-slot.r1{justify-content:flex-end;padding:6px 4px}',
   '.ta-rpip{position:absolute;left:5px;bottom:5px;display:flex;gap:2px}.ta-rpip i{width:5px;height:5px;background:var(--rc,var(--pv-ui-r1));border:1px solid var(--pv-ui-ink)}',
   '.ta-lk{width:11px;height:11px;font-size:11px!important;margin-right:3px;vertical-align:-1px;stroke:currentColor;fill:none;stroke-width:2}',
   '.ta-slot__n{font:800 11px/1 var(--pv-ui-font-stencil);letter-spacing:.06em;text-transform:uppercase;color:var(--pv-ui-text-2);white-space:nowrap}',
   '.ta-slot__p{display:flex;align-items:center;font:700 11px/1 var(--pv-ui-font-stencil);letter-spacing:.08em;color:var(--pv-ui-text-3);white-space:nowrap}',
   '.ta-slot.is-empty{opacity:.85}',
   '.ta-slot.is-empty .pv-ico{color:var(--pv-ui-metal-400)}',
-  '.ta-slot .pv-lvl{font-size:11px;right:-3px;bottom:auto;top:-3px}',
+  '.ta-slot .pv-lvl{font-size:11px;right:5px;bottom:auto;top:5px}',
   '.ta-card{display:flex;flex-direction:column;gap:12px;padding:12px}',
   '.ta-head{display:flex;gap:12px;align-items:center;width:100%;min-height:72px;padding:0;margin:0;text-align:left;color:inherit;font:inherit;background:none;border:0;cursor:pointer;appearance:none}',
   '.ta-head:active{filter:brightness(.85)}',
@@ -100,9 +100,9 @@ var CSS = [
   '.ta-stat .pv-stat__name{flex:1}',
   '.ta-cost{display:flex;align-items:center;gap:8px;min-height:44px;padding:0 10px;background:var(--pv-ui-metal-900);border-radius:6px;box-shadow:inset 0 0 0 1.5px var(--pv-ui-metal-600)}',
   '.ta-cost .pv-chip{margin-left:auto}',
-  '.ta-cost .pv-chip.is-short{color:var(--pv-ui-red)}',
+  '.ta-cost .pv-chip.is-short{color:var(--pv-ui-text-2)}',
   '.ta-note{font-size:12px;color:var(--pv-ui-text-2);text-align:center;min-height:16px}',
-  '.ta-note.is-warn{color:#ffb4ac}',
+  '.ta-note.is-warn{color:var(--pv-ui-text-3)}',
   '.ta-up{width:100%;font-size:17px;letter-spacing:.1em;white-space:nowrap;padding:0 8px}',
   '.ta-pulse{animation:taPulse .5s ease-out}',
   '@keyframes taPulse{0%{box-shadow:0 0 0 0 rgba(56,232,255,.7)}100%{box-shadow:0 0 0 14px rgba(56,232,255,0)}}',
@@ -147,7 +147,7 @@ function costRow(v){
 function upBtn(v, cls){
   var label = v.maxed ? 'Max level' : 'Upgrade to Lv ' + (v.lvl + 1);
   return '<button type="button" class="pv-btn pv-btn--primary pv-btn--block ta-up ' + (cls || '') + '" data-act="buy"' + (v.can ? '' : ' disabled') + '>' + label + '</button>' +
-    '<div class="ta-note' + (!v.maxed && !v.can ? ' is-warn' : '') + '">' + (v.maxed ? 'Rifle is at its top level.' : v.can ? '&nbsp;' : 'Need ' + fmt(v.short) + ' more credits. Earn them in a run.') + '</div>';
+    '<div class="ta-note' + (!v.maxed && !v.can ? ' is-warn' : '') + '">' + (v.maxed ? 'Rifle is at its top level.' : v.can ? '&nbsp;' : 'Need ' + fmt(v.short) + ' more credits') + '</div>';
 }
 
 function render(){

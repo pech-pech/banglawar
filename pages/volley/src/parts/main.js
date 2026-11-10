@@ -14,6 +14,11 @@ function fail(t){ $('bootMsg').textContent = t; UI.show('ovBoot', true); console
 var UI = V.UI;
 
 // ---------- layout ----------
+var BERM_PX = 30, sbProbe = null;   // BERM_PX: sandbag rows + their shadow below the room line (scene.js drawRoomEdge reaches ~y0+27)
+function safeBottom(){
+  if (!sbProbe) { sbProbe = document.createElement('div'); sbProbe.style.cssText = 'position:absolute;left:0;top:0;width:0;height:0;visibility:hidden;padding-bottom:env(safe-area-inset-bottom,0px)'; document.body.appendChild(sbProbe); }
+  return parseFloat(getComputedStyle(sbProbe).paddingBottom) || 0;
+}
 function layout(){
   var W = G.innerWidth, H = G.innerHeight, st = $('stage'), note = $('coverNote');
   var w = W, h = H, left = 0;
@@ -26,7 +31,9 @@ function layout(){
   } else note.style.display = 'none';
   st.style.left = left + 'px'; st.style.top = '0px'; st.style.width = w + 'px'; st.style.height = h + 'px';
   var hud = $('hud').offsetHeight || 62;
-  var oy = hud + 2, s = Math.min(w / 9, (h - oy) / 15);
+  // Contain fit: the whole room (9x15 tiles) PLUS the sandbag berm drawn just below its bottom edge (BERM_PX) and the bottom safe area
+  // must sit below the HUD, so the limiting dimension (width or height) sets the scale. Tall phones stay width-limited (unchanged).
+  var oy = hud + 2, s = Math.min(w / 9, (h - oy - BERM_PX - safeBottom()) / 15);
   view.w = w; view.h = h; view.dpr = G.devicePixelRatio || 1; view.s = s; view.ox = (w - 9 * s) / 2; view.oy = oy;
   if (R) R.resize(w, h, view.dpr);
   UI.placeToast(view);
