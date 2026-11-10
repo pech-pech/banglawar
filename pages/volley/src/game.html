@@ -15,7 +15,9 @@ html,body{margin:0;height:100%;background:#1b1a17;color:var(--sand);font:14px/1.
 #stage{position:absolute;left:0;top:0;overflow:hidden;touch-action:none;background:#c9b48a;flex:none}
 #stage canvas{position:absolute;left:0;top:0;width:100%;height:100%;display:block;touch-action:none}
 /* HUD */
-#hud{position:absolute;left:0;top:0;right:0;pointer-events:none;z-index:10}
+#hud{position:absolute;left:0;top:0;right:0;pointer-events:none;z-index:10;
+  padding:env(safe-area-inset-top,0px) env(safe-area-inset-right,0px) 0 env(safe-area-inset-left,0px);
+  background:linear-gradient(#1d1e1f,#1d1e1f) no-repeat top/100% env(safe-area-inset-top,0px)}
 #hudTop{display:flex;align-items:center;gap:6px;height:44px;padding:4px 4px 0 6px;background:linear-gradient(#1d1e1fee,#1d1e1fcc)}
 #stageLbl{font-weight:700;font-size:13px;white-space:nowrap;color:var(--sand);background:var(--gun);border:1px solid #4a4d4f;border-radius:6px;padding:3px 6px}
 #stageLbl b{color:#fff}
@@ -27,16 +29,22 @@ html,body{margin:0;height:100%;background:#1b1a17;color:var(--sand);font:14px/1.
 .hb span{display:inline-block;width:36px;height:36px;line-height:34px;border-radius:8px;background:var(--gun);border:1px solid #55595c}
 #hpRow{position:relative;height:18px;margin:0 6px;border-radius:0 0 6px 6px;background:#0c0d0e;border:1px solid #45494c;border-top:0;overflow:hidden}
 #hpFill{height:100%;width:100%;background:var(--hp);transition:width .12s}
-#hpTxt{position:absolute;inset:0;text-align:center;font-size:12px;font-weight:800;line-height:18px;color:#0b1416}
-#rlbl{position:absolute;left:6px;bottom:6px;font:11px/1.2 ui-monospace,Menlo,Consolas,monospace;color:#1b1a17;background:rgba(233,220,191,.85);padding:2px 5px;border-radius:4px;pointer-events:none;z-index:10}
-#toast{position:absolute;left:50%;transform:translateX(-50%);max-width:40%;text-align:center;font-weight:700;font-size:13px;color:var(--sand);background:var(--panel);
+/* Two copies of the HP text: dark where the bar is filled, light where it is empty (4.5:1 on both). */
+.hpT{position:absolute;inset:0;text-align:center;font-size:12px;font-weight:800;line-height:18px;transition:clip-path .12s}
+#hpTxt{color:#0b1416;clip-path:inset(0 0 0 0)}
+#hpTxtE{color:#f2ead8;clip-path:inset(0 0 0 100%)}
+#rlbl{position:absolute;left:6px;bottom:6px;font:11px/1.2 ui-monospace,Menlo,Consolas,monospace;color:#1b1a17;background:rgba(233,220,191,.85);padding:2px 5px;border-radius:4px;pointer-events:none;z-index:10;display:none}
+body.dbg #rlbl{display:block}
+.rinfo{font:11px/1.3 ui-monospace,Menlo,Consolas,monospace;color:var(--mut)}
+#toast{position:absolute;left:50%;transform:translateX(-50%);max-width:80%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:center;font-weight:700;font-size:13px;color:var(--sand);background:var(--panel);
   border:1px solid var(--cyanD);border-radius:8px;padding:6px 8px;pointer-events:none;z-index:11;opacity:0;transition:opacity .2s}
 #toast.on{opacity:1}
 #flash{position:absolute;inset:0;pointer-events:none;z-index:9;box-shadow:inset 0 0 40px 14px rgba(226,40,30,.85);opacity:0;transition:opacity .25s ease-out}
 #flash.on{opacity:1;transition:none}
 body.ovon #hud, body.ovon #toast, body.ovon #rlbl{visibility:hidden}
 /* overlays */
-.ov{position:absolute;inset:0;z-index:30;display:none;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:16px;
+.ov{position:absolute;inset:0;z-index:30;display:none;flex-direction:column;align-items:center;justify-content:center;gap:12px;
+  padding:max(16px,env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) max(16px,env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));
   background:rgba(20,19,16,.94);text-align:center}
 .ov.on{display:flex}
 .ov h2{margin:0;font-size:22px;color:#fff;letter-spacing:.5px}
@@ -52,10 +60,13 @@ body.ovon #hud, body.ovon #toast, body.ovon #rlbl{visibility:hidden}
 .card.sup .gl{background:#2d2414;border-color:#7a5a20;color:var(--amber)}
 #deadStats{font-size:14px;color:var(--sand);line-height:1.5}
 #coverNote{position:absolute;display:none;font-size:13px;color:var(--sand);background:var(--gun);border:1px solid #4a4d4f;border-radius:8px;padding:8px 10px;z-index:40;max-width:260px}
-#bossBar{position:absolute;display:none;z-index:10;pointer-events:none;height:22px;border-radius:6px;background:#0c0d0e;border:1px solid #6a2a26;overflow:hidden}
-#bossFill{height:100%;width:100%;background:#d8473d}
-#bossTxt{position:absolute;inset:0;font-size:12px;font-weight:800;line-height:20px;color:#fff;padding:0 8px;display:flex;justify-content:space-between;text-shadow:0 0 3px #000,0 1px 2px #000}
-#bossTxt span{background:rgba(12,13,14,.75);padding:0 4px;border-radius:3px}
+/* Boss bar (D1): label row above a plain full-width bar, so no text sits over the fill. */
+#bossBar{position:absolute;display:none;z-index:10;pointer-events:none;padding:2px 4px 4px;border-radius:6px;background:rgba(12,13,14,.88);border:1px solid #6a2a26}
+#bossTxt{display:flex;justify-content:space-between;gap:8px;font-size:12px;font-weight:800;line-height:15px;color:#fff;white-space:nowrap;padding:0 2px}
+#bossTxt span{overflow:hidden;text-overflow:ellipsis}
+#bossHp{flex:none;font-variant-numeric:tabular-nums}
+#bossTrack{height:9px;margin-top:1px;border-radius:3px;background:#2a1513;border:1px solid #6a2a26;overflow:hidden}
+#bossFill{height:100%;width:100%;background:#e0483d}
 #howto{position:absolute;left:50%;transform:translateX(-50%);width:max-content;max-width:86%;text-align:center;font-size:14px;font-weight:700;color:#1b1a17;background:rgba(233,220,191,.92);
   border:1px solid #8a7a5a;border-radius:8px;padding:6px 10px;pointer-events:none;z-index:10;display:none}
 body.ovon #bossBar, body.ovon #howto, body.ovon #dmgLayer{visibility:hidden}
@@ -68,9 +79,12 @@ body.ovon #bossBar, body.ovon #howto, body.ovon #dmgLayer{visibility:hidden}
 #resStats .row{display:flex;justify-content:space-between;gap:10px}
 #resStats .row b{color:#fff;font-weight:700;text-align:right}
 #resTitle.win{color:var(--cyan)}
+#ovDead:not(.armed) #btnRestart{opacity:.45}
+#ovDead:not(.armed) #resHint{visibility:hidden}
 @media (prefers-reduced-motion: reduce){ #flash{display:none} #toast,#hpFill{transition:none} }
 /* drawer */
-#drawer{position:absolute;top:0;right:0;bottom:0;width:100%;z-index:50;background:rgba(18,18,17,.97);display:none;flex-direction:column}
+#drawer{position:absolute;top:0;right:0;bottom:0;width:100%;z-index:50;background:rgba(18,18,17,.97);display:none;flex-direction:column;
+  padding:env(safe-area-inset-top,0px) env(safe-area-inset-right,0px) env(safe-area-inset-bottom,0px) env(safe-area-inset-left,0px)}
 #drawer.on{display:flex}
 #drHead{display:flex;align-items:center;gap:6px;padding:4px 6px;border-bottom:1px solid #3c3f42;flex-wrap:wrap}
 #drHead h3{margin:0 auto 0 4px;font-size:16px;color:#fff}
@@ -99,17 +113,17 @@ body.ovon #bossBar, body.ovon #howto, body.ovon #dmgLayer{visibility:hidden}
       <button id="pauseBtn" class="hb" aria-label="Pause"><span>&#10074;&#10074;</span></button>
       <button id="gear" class="hb" aria-label="Tuning"><span>&#9881;</span></button>
     </div>
-    <div id="hpRow"><div id="hpFill"></div><div id="hpTxt">600 / 600</div></div>
+    <div id="hpRow"><div id="hpFill"></div><div id="hpTxtE" class="hpT" aria-hidden="true">600 / 600</div><div id="hpTxt" class="hpT">600 / 600</div></div>
     <div id="xpWrap"><div id="xpFill"></div></div>
   </div>
   <div id="toast"></div>
   <div id="rlbl">-</div>
-  <div id="bossBar"><div id="bossFill"></div><div id="bossTxt"><span id="bossName">Boss</span><span id="bossHp"></span></div></div>
+  <div id="bossBar"><div id="bossTxt"><span id="bossName">Boss</span><span id="bossHp"></span></div><div id="bossTrack"><div id="bossFill"></div></div></div>
   <div id="howto">Drag anywhere to move. Let go to aim and fire.</div>
   <div class="ov" id="ovCards"><h2 id="cardTitle">Field upgrade</h2><p>Pick one</p><div id="cardList" style="display:flex;flex-direction:column;gap:10px;width:100%;align-items:stretch"></div></div>
-  <div class="ov" id="ovDead"><h2 id="resTitle">Operator down</h2><div id="resStats"></div><button class="btn" id="btnRestart">New run</button><p style="font-size:12px">Tap anywhere for a new run</p></div>
+  <div class="ov" id="ovDead"><h2 id="resTitle">Operator down</h2><div id="resStats"></div><button class="btn" id="btnRestart">New run</button><p id="resHint" style="font-size:12px">Tap anywhere for a new run</p></div>
   <div class="ov" id="ovSupply"><h2>Supply drop</h2><p>Take one</p><div id="supList" style="display:flex;flex-direction:column;gap:10px;width:100%;align-items:stretch"></div></div>
-  <div class="ov" id="ovPause"><h2>Paused</h2><button class="btn" id="btnResume" style="min-width:200px">Resume</button><button class="btn ghost" id="btnRestartRun" style="min-width:200px">Restart run</button><button class="btn ghost" id="btnTune" style="min-width:200px">Tuning</button><button class="btn ghost" id="btnSound" style="min-width:200px">Sound: on</button><p style="font-size:12px">Tap outside the buttons to resume</p></div>
+  <div class="ov" id="ovPause"><h2>Paused</h2><button class="btn" id="btnResume" style="min-width:200px">Resume</button><button class="btn ghost" id="btnRestartRun" style="min-width:200px">Restart run</button><button class="btn ghost" id="btnTune" style="min-width:200px">Tuning</button><button class="btn ghost" id="btnSound" style="min-width:200px">Sound: on</button><p class="rinfo" id="rlblPause">-</p><p style="font-size:12px">Tap outside the buttons to resume</p></div>
   <div class="ov" id="ovBoot"><h2>Project Volley</h2><p id="bootMsg">Loading...</p></div>
   <div id="drawer">
     <div id="drHead"><h3>Tuning</h3>
@@ -119,6 +133,7 @@ body.ovon #bossBar, body.ovon #howto, body.ovon #dmgLayer{visibility:hidden}
       <button class="btn" id="drCopyR" style="flex:1">Copy report</button>
     </div>
     <div id="drMsg"></div>
+    <div class="rinfo" id="rlblDrawer" style="padding:0 10px">-</div>
     <div id="drBody"></div>
   </div>
 </div>

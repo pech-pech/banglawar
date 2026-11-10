@@ -248,9 +248,14 @@ async function session(browser, target, sess) {
   ok(bootErr.length === 0, 'idle 5 s with no tap: 0 console errors', (bootErr.length ? bootErr.join(' | ') : 'none') + ` (kills ${idle0.kills}->${idle1.kills}, hp ${idle0.hp}->${idle1.hp})`);
   const seed0 = await page.evaluate(() => window.__pv.S.seed);
   ok(seed0 === SEED, '?seed is read', `S.seed=${seed0} (url seed ${SEED})`);
-  await page.evaluate(() => window.__pv.restart()); await sleep(300); // fresh run after the idle wait (enemies present for the drag test)
+  // Live input tests need a stable room: auto-walk (M's pick 3) would carry an idle hero through the door. Tested on its own below.
+  await page.evaluate(() => { window.__setTune({ AUTO_WALK: false }); window.__pv.restart(); }); await sleep(300); // fresh run after the idle wait (enemies present for the drag test)
 
   // Renderer + label (L-TD-2) + readback (L-TD-1).
+  // The WebGPU adapter/device request is async and slow on loaded software (SwiftShader) hosts: wait until the renderer resolves (never 'none') before judging it.
+  let rWait = 0;
+  if (sess.mode !== 'gpu0') for (; rWait < 30000; rWait += 500) { if ((await page.evaluate(() => window.__pv.renderer)) !== 'none') break; await sleep(500); }
+  if (rWait) row('renderer resolve wait', 'INFO', `${rWait} ms extra after the 2.5 s settle (slow GPU init on a loaded host)`);
   const rn = await page.evaluate(() => window.__pv.renderer);
   if (sess.mode === 'gpu0') ok(rn === 'Canvas 2D', '?gpu=0 forces Canvas 2D', `__pv.renderer=${rn}`);
   else {
@@ -263,9 +268,15 @@ async function session(browser, target, sess) {
       ok(rb && rb.nonBg > 0, 'WebGPU output seen via readback (L-TD-1)', rb && rb.nonBg > 0 ? `seen (nonBg ${rb.nonBg}, ${rb.w}x${rb.h})` : 'NOT seen ' + JSON.stringify(rb));
     }
   }
-  const lab = await page.evaluate(() => window.__findText(/\b(WebGPU|Canvas 2D)\b/));
+  let lab = await page.evaluate(() => window.__findText(/\b(WebGPU|Canvas 2D)\b/));
+  let labWhere = 'HUD';
+  if (!lab.length) { // P1 UI: HUD label only with ?debug=1; renderer line on the pause card / drawer
+    await page.evaluate(() => window.__pv.pause && window.__pv.pause());
+    for (let k = 0; k < 12 && !lab.length; k++) { await sleep(250); lab = await page.evaluate(() => window.__findText(/\b(WebGPU|Canvas 2D)\b/)); } labWhere = 'pause card (HUD label hidden unless ?debug=1)'; // polls: a loaded host can take a while to show the card
+    await page.evaluate(() => window.__pv.resume && window.__pv.resume()); await sleep(200);
+  }
   const labWord = lab.length ? (lab[0].txt.match(/\b(WebGPU|Canvas 2D)\b/) || [])[1] : null;
-  ok(lab.length > 0 && labWord === rn, 'renderer label text equals __pv.renderer', `label "${lab.length ? lab[0].txt : 'NOT FOUND'}" vs ${rn}`);
+  ok(lab.length > 0 && labWord === rn, 'renderer label text equals __pv.renderer', `label "${lab.length ? lab[0].txt : 'NOT FOUND'}" vs ${rn}; shown on ${labWhere}`);
   if (lab.length) {
     const t = lab.map(l => l.txt).join(' ');
     const cvv = await page.evaluate(() => window.__gameCanvas());
@@ -309,6 +320,7 @@ async function session(browser, target, sess) {
   await pauseTest(page, cdp, w, h);
   await gapTest(page);
   const det = await determinismTest(page);
+  await autoWalkTest(page, cdp, cv);
   await runFlow(page, sess, w, h, {});
   await runFlow(page, sess, w, h, { lose: true });
   finishErrors(errors, bootErr);
@@ -340,6 +352,11 @@ async function dragTest(page, cdp, sess, cv, view, w, h) {
   const hitEl = await page.evaluate(([x, y]) => window.__desc(document.elementFromPoint(x, y)), [x, y]);
   row('element under thumb point', 'INFO', hitEl);
   const domBefore = await page.evaluate(() => [...document.querySelectorAll('body *')].filter(window.__vis).length);
+  // Need live enemies in a play phase so the release can lock and fire.
+  // Keep the one stage-1 enemy alive and harmless for the whole drag test: on a loaded host the idle hero can kill it (room clear, toast, door) before or during the hold, which is a different state from the one under test.
+  await page.evaluate(() => { window.__setTune({ ENEMY_HP_GLOBAL: 40, ENEMY_DMG_MULT: 0 }); window.__pv.restart(); }); await sleep(300);
+  // Settle on a fresh play room with live enemies (a loaded host can stall the page long enough for the idle hero to clear the room, or for a door to carry it on).
+  for (let k = 0; k < 80; k++) { const q = await page.evaluate(() => ({ ph: window.__pv.S.phase, n: window.__pv.S.enemies.length, st: window.__pv.S.stage })); if (q.ph === 'play' && q.n > 0 && q.st === 1) break; if (k % 10 === 9 || (q.ph !== 'play' && k % 4 === 3)) await page.evaluate(() => window.__pv.restart()); await sleep(100); }
   const g0 = await page.evaluate(([x, y]) => window.__grab(x - 50, y - 110, 100, 140), [x, y]);
   const s0 = await page.evaluate(() => window.__snap());
   await page.evaluate(() => window.__startSampler());
@@ -363,10 +380,11 @@ async function dragTest(page, cdp, sess, cv, view, w, h) {
   const g2 = await page.evaluate(([x, y]) => window.__grab(x - 50, y - 110, 100, 140), [x, y]);
   const ptr = await page.evaluate(() => window.__ptr.slice(-4));
   const sAfter = await page.evaluate(() => window.__snap());
+  await page.evaluate(() => { window.__setTune({ ENEMY_HP_GLOBAL: 0.72, ENEMY_DMG_MULT: 1 }); window.__pv.restart(); }); // back to defaults for the later tests (fresh run)
 
   ok(ptr.some(p => p.t === 'pointerdown' && p.type === 'touch'), 'touch arrives as pointer events (pointerType touch)', JSON.stringify(ptr.map(p => p.t + ':' + p.type)));
   const dy = sHold.y - s0.y, dx = sHold.x - s0.x;
-  ok(dy < -0.5 && Math.abs(dx) < Math.abs(dy), 'touch drag below the room moves the hero (drag up = north)', `hero (${s0.x.toFixed(2)},${s0.y.toFixed(2)}) -> (${sHold.x.toFixed(2)},${sHold.y.toFixed(2)}) after ~0.7 s hold; moving=${sHold.moving}`);
+  ok(dy < -0.5 && Math.abs(dx) < Math.abs(dy), 'touch drag below the room moves the hero (drag up = north)', `stage ${s0.stage} ${s0.phase}, ${s0.enemies} enemies at touch-down; hero (${s0.x.toFixed(2)},${s0.y.toFixed(2)}) -> (${sHold.x.toFixed(2)},${sHold.y.toFixed(2)}) after ~0.7 s hold; moving=${sHold.moving}`);
   ok(dom.near.length === 0 && dom.named.length === 0 && dom.n <= domBefore, 'no joystick element at the thumb (DOM)', `visible els ${domBefore} -> ${dom.n}` + (dom.near.length ? '; near thumb: ' + dom.near.join(',') : '') + (dom.named.length ? '; named: ' + dom.named.join(',') : ''));
   if (g0 && g1 && g2) {
     const d01 = await page.evaluate(([a, b]) => window.__diff(a, b), [g0, g1]);
@@ -552,6 +570,33 @@ async function determinismTest(page) {
   return { seed: a.seed, pv: a.hash, sim: b[0] };
 }
 
+// ---------- auto-walk to the open door (shell, M's pick 3) ----------
+async function autoWalkTest(page, cdp, cv) {
+  const has = await page.evaluate(() => 'AUTO_WALK' in (window.V.TUNE_DEFAULTS || {}));
+  if (!has) { row('auto-walk to the open door', 'SKIP', 'no TUNE.AUTO_WALK knob'); return; }
+  // (a) idle in the clear phase -> the hero walks through the door by itself.
+  await page.evaluate(() => { window.__resetTune(); window.__setTune({ ENEMY_DMG_MULT: 0, FIRE_INTERVAL: 0.25 }); window.__pv.restart(); });
+  for (let k = 0; k < 20; k++) { await page.evaluate(() => window.__clearRoom(300)); if ((await page.evaluate(() => window.__pv.S.phase)) !== 'play') break; }
+  const c0 = await page.evaluate(() => window.__snap());
+  const t0 = Date.now(); let c1 = c0;
+  while (Date.now() - t0 < 9000) { await sleep(250); c1 = await page.evaluate(() => window.__snap()); if (c1.stage !== c0.stage) break; }
+  const delay = await page.evaluate(() => window.__pv.tune.AUTO_WALK_DELAY);
+  ok(c0.phase === 'clear' && c1.stage === c0.stage + 1, 'clear phase: idle hero auto-walks through the door', `stage ${c0.stage} (${c0.phase}) -> ${c1.stage} ${c1.roomId} after ${((Date.now() - t0) / 1000).toFixed(1)} s real (AUTO_WALK_DELAY ${delay} s)`);
+  // (b) a touch during the clear phase cancels auto-walk for that room.
+  for (let k = 0; k < 20; k++) { await page.evaluate(() => window.__clearRoom(300)); if ((await page.evaluate(() => window.__pv.S.phase)) !== 'play') break; }
+  for (let k = 0; k < 5; k++) { const ph = await page.evaluate(() => window.__pv.S.phase); if (ph !== 'pick') break; await page.evaluate(() => window.__pv.pick(0)); await sleep(150); }
+  const d0 = await page.evaluate(() => window.__snap());
+  if (d0.phase === 'clear') {
+    const x = cv.left + cv.w / 2, y = cv.top + cv.h - 45;
+    await T(cdp, 'touchStart', x, y); await sleep(60); await T(cdp, 'touchEnd');
+    await sleep(Math.max(3000, (delay || 1) * 1000 + 2500));
+    const d1 = await page.evaluate(() => window.__snap());
+    const aw = await page.evaluate(() => window.__pv.autoWalk || null);
+    ok(d1.stage === d0.stage && (d1.phase === 'clear' || d1.phase === 'pick') && Math.abs(d1.y - d0.y) < 0.5 && (!aw || aw.cancelled === true), 'a touch in the clear phase cancels auto-walk', `stage ${d0.stage} -> ${d1.stage}, phase ${d1.phase}; hero (${d0.x.toFixed(2)},${d0.y.toFixed(2)}) -> (${d1.x.toFixed(2)},${d1.y.toFixed(2)}); __pv.autoWalk ${JSON.stringify(aw)}`);
+  } else row('a touch in the clear phase cancels auto-walk', 'FAIL', `could not reach a clear phase (phase ${d0.phase} stage ${d0.stage})`);
+  await page.evaluate(() => window.__resetTune());
+}
+
 // ---------- P1 run flow (also runs the P0 loop) ----------
 // Drives a whole run with __pv.step: clear rooms, walk to chest/door, pick cards, take supply, fight the boss.
 async function domCards(page) {
@@ -673,7 +718,7 @@ async function runFlow(page, sess, w, h, opt) {
   if (r.phase !== 'results') { row(lose ? 'death -> results screen (lose)' : 'boss kill -> results screen (win)', 'FAIL', `phase ${r.phase} at stage ${r.stage} ${r.stageKind || ''} ${r.roomId}, hp ${r.hp}/${r.maxHp}, boss ${JSON.stringify(r.boss)} after ${steps} steps`); await page.evaluate(() => window.__resetTune()); return; }
   await page.evaluate(() => window.__resetTune());
   ok(r.result && r.result.win === !lose, lose ? 'death -> results screen (lose)' : 'boss kill -> results screen (win)', `S.result ${JSON.stringify(r.result)}`);
-  await sleep(550); await snapshot(page, lose ? 'results-lose' : 'results-win');
+  await sleep(1150); await snapshot(page, lose ? 'results-lose' : 'results-win');
   const txt = await page.evaluate(() => window.__textEls().map(e => e.textContent.trim()).join(' | ').slice(0, 600));
   const okTxt = lose ? /lost|down|defeat/i.test(txt) : /win|clear|victory/i.test(txt);
   const fields = ['stage', 'time', 'kills', 'level', 'mods', 'damage'].filter(f => !txt.toLowerCase().includes(f));

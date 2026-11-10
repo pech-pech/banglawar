@@ -2,10 +2,32 @@
 // E-01..E-03 behaviour (D1 section 4). Registry entry: { base, init(S,e,api), step(S,e,dt,api) }.
 // The sim does spawn grace, hit flash, contact damage, death, XP and separation.
 V.AI = V.AI || {};
+V.AIU = V.AIU || {};  // shared AI helpers (kept out of V.AI, which is the enemy registry)
 var DEG = Math.PI / 180;
 
+// Aim lead + zero-in (deterministic). track() follows the Operator's smoothed velocity and how long they have stood still.
+// leadAng aims at where a runner will be when the shot lands (zero lead on a still Operator).
+// zeroIn(): ranged enemies reload faster while the Operator stands still (standing still has to lose).
+V.AIU.track = function(S, e, h, dt){
+  var vx = dt > 0 && e.lhx != null ? (h.x - e.lhx) / dt : 0, vy = dt > 0 && e.lhy != null ? (h.y - e.lhy) / dt : 0;
+  e.lhx = h.x; e.lhy = h.y;
+  e.lvx = e.lvx == null ? vx : e.lvx + (vx - e.lvx) * 0.25; e.lvy = e.lvy == null ? vy : e.lvy + (vy - e.lvy) * 0.25;
+  e.stillT = Math.hypot(e.lvx, e.lvy) < 0.6 ? (e.stillT || 0) + dt : 0;
+};
+V.AIU.zeroIn = function(e){ return (e.stillT || 0) > V.AIU.STILL_AFTER ? V.AIU.STILL_RELOAD : 1; };
+V.AIU.STILL_AFTER = 1.0; V.AIU.STILL_RELOAD = 6;
+V.AIU.leadAng = function(S, e, h, dt, shotSpeed, frac){
+  V.AIU.track(S, e, h, dt);
+  return V.AIU.leadTo(S, e, h, shotSpeed, frac);
+};
+V.AIU.leadTo = function(S, e, h, shotSpeed, frac){
+  var sp = shotSpeed * (S.tune.ENEMY_SHOT_SPEED_MULT > 0 ? S.tune.ENEMY_SHOT_SPEED_MULT : 1);
+  var d = Math.hypot(h.x - e.x, h.y - e.y), T = d / sp;
+  return Math.atan2(h.y + e.lvy * T * frac - e.y, h.x + e.lvx * T * frac - e.x);
+};
+
 V.AI['E-01'] = {
-  base: { hp:300, contact:60, dmg:60, speed:2.4, r:0.35, size:'small', xp:4, tell:0.5, cd:2.0, flyer:true },
+  base: { hp:300, contact:35, dmg:35, speed:2.4, r:0.35, size:'small', xp:4, tell:0.5, cd:2.0, flyer:true },
   range: 2.5, lungeSpeed: 6.0, lungeDist: 3.0,
   init: function(S, e, api){ e.lungeLeft = 0; },
   step: function(S, e, dt, api){
@@ -33,14 +55,15 @@ V.AI['E-01'] = {
 };
 
 V.AI['E-02'] = {
-  base: { hp:450, contact:40, dmg:60, speed:1.0, r:0.40, size:'medium', xp:8, tell:0.6, cd:2.2 },
-  lockLast: 0.2, shotSpeed: 6.0, range: 10, prefer: 4.5,
+  base: { hp:450, contact:40, dmg:55, speed:1.0, r:0.40, size:'medium', xp:8, tell:0.6, cd:2.2 },
+  lockLast: 0.2, shotSpeed: 6.0, range: 10, prefer: 3.2, lead: 0.8,
   init: function(S, e, api){
     var R = api.rng(S);
     e.strafe = R.next() < 0.5 ? -1 : 1; e.strafeT = R.range(1.2, 2.4); e.cd = R.range(0.6, 1.4); e.noLosT = 0;
   },
   step: function(S, e, dt, api){
     var A = V.AI['E-02'], b = A.base, h = api.hero(S), dx = h.x - e.x, dy = h.y - e.y, dist = Math.hypot(dx, dy), toH = Math.atan2(dy, dx);
+    var leadA = V.AIU.leadAng(S, e, h, dt, A.shotSpeed, A.lead);
     if (e.st === 'move' || e.st === 'cool') {
       e.strafeT -= dt; if (e.strafeT <= 0) { e.strafe = -e.strafe; e.strafeT = api.rng(S).range(1.2, 2.6); }
       var ux = dx / (dist || 1), uy = dy / (dist || 1);
@@ -54,14 +77,14 @@ V.AI['E-02'] = {
       api.collideBody(S, e, e.r);
       if (Math.hypot(e.x - px, e.y - py) < 0.3 * b.speed * dt) e.strafe = -e.strafe; // stuck: turn round
       e.ang = toH;
-      e.cd -= dt;
+      e.cd -= dt * V.AIU.zeroIn(e);
       if (e.cd <= 0 && dist <= A.range && los) {
         e.st = 'tell'; e.stT = api.tellT(S, b.tell); e.tellT = e.stT; e.tell01 = 0; e.aimAng = toH;
         api.ev(S, { k:'tell', x:e.x, y:e.y, id:e.id, type:e.type });
       } else if (e.cd <= 0) e.cd = 0;
     } else if (e.st === 'tell') {
       e.stT -= dt; e.tell01 = e.tellT > 0 ? 1 - Math.max(0, e.stT) / e.tellT : 1;
-      if (e.stT > api.tellT(S, A.lockLast)) e.aimAng = toH; // locks for the last 0.2 s
+      if (e.stT > api.tellT(S, A.lockLast)) e.aimAng = leadA; // locks for the last 0.2 s
       e.ang = e.aimAng;
       if (e.stT <= 0) { api.enemyShoot(S, e, e.aimAng, A.shotSpeed, api.enemyDmg(S, b.dmg)); e.st = 'cool'; e.cd = b.cd; e.tell01 = 0; }
     }
@@ -70,14 +93,15 @@ V.AI['E-02'] = {
 
 V.AI['E-03'] = {
   base: { hp:600, contact:40, dmg:45, speed:0, r:0.50, size:'medium', xp:8, tell:0.7, cd:2.8, static:true },
-  shotSpeed: 5.0, spread: 25 * DEG, range: 14,
-  init: function(S, e, api){ e.cd = api.rng(S).range(0.8, 1.6); e.afterSpawn = 'cool'; },
+  shotSpeed: 7.0, spread: 13 * DEG, fanN: 2, range: 14, lead: 0.8,
+  init: function(S, e, api){ e.cd = api.rng(S).range(0.3, 0.9); e.afterSpawn = 'cool'; },
   step: function(S, e, dt, api){
     var A = V.AI['E-03'], b = A.base, h = api.hero(S), dist = api.dist(e, h), toH = api.angleTo(e, h);
+    var leadA = V.AIU.leadAng(S, e, h, dt, A.shotSpeed, A.lead);
     if (e.st === 'cool' || e.st === 'move') {
-      e.ang = toH; e.cd -= dt;
+      e.ang = toH; e.cd -= dt * V.AIU.zeroIn(e);
       if (e.cd <= 0 && dist <= A.range && api.clearLine(S, e.x, e.y, h.x, h.y, 0.15)) {
-        e.st = 'tell'; e.stT = api.tellT(S, b.tell); e.tellT = e.stT; e.tell01 = 0; e.aimAng = toH; // fan fixed at tell start
+        e.st = 'tell'; e.stT = api.tellT(S, b.tell); e.tellT = e.stT; e.tell01 = 0; e.aimAng = leadA; // fan fixed at tell start
         api.ev(S, { k:'tell', x:e.x, y:e.y, id:e.id, type:e.type });
       } else if (e.cd <= 0) e.cd = 0;
     } else if (e.st === 'tell') {
@@ -85,7 +109,7 @@ V.AI['E-03'] = {
       e.ang = e.aimAng;
       if (e.stT <= 0) {
         var dmg = api.enemyDmg(S, b.dmg);
-        for (var k = -1; k <= 1; k++) api.enemyShoot(S, e, e.aimAng + k * A.spread, A.shotSpeed, dmg);
+        for (var k = -A.fanN; k <= A.fanN; k++) api.enemyShoot(S, e, e.aimAng + k * A.spread, A.shotSpeed, dmg);
         e.st = 'cool'; e.cd = b.cd; e.tell01 = 0;
       }
     }

@@ -27,9 +27,15 @@ var PAL = {
   shellBody: C(48, 50, 56), ringFill: C(255, 60, 40, 0.16), ringEdge: C(255, 50, 40, 0.9),
   lane: C(255, 40, 40, 0.28), laneEdge: C(255, 40, 40, 0.9), stun: C(255, 222, 40),
   boss2: C(96, 40, 36), boss2Vent: C(255, 110, 40), floorLine: C(255, 50, 40, 0.5),
+  bossEdge: C(120, 14, 10), boss2Hot: C(255, 72, 30), boss2Rim: C(255, 96, 36, 0.85), bossSpin: C(255, 170, 70, 0.55),
   chest: C(120, 84, 44), chestLid: C(150, 108, 58), chestTrim: C(230, 190, 70),
   burn: C(255, 140, 30), poison: C(120, 230, 60), freeze: C(190, 240, 255), pierce: C(255, 255, 255),
-  heroHp: C(95, 208, 106), heroHpLow: C(255, 80, 60), heal: C(95, 208, 106), shield: C(64, 228, 255, 0.55)
+  heroHp: C(95, 208, 106), heroHpLow: C(255, 80, 60), heal: C(95, 208, 106), shield: C(64, 228, 255, 0.55),
+  // QA-P1 fixes (RENDER-UNITS): hp track, room edge, hazard plate, mortar shadow, stun, open chest
+  hpTrack: C(58, 50, 42), oob: C(70, 44, 18, 0.26), curb: C(176, 168, 150), curbTop: C(206, 199, 182),
+  bag: C(170, 146, 100), bagTop: C(196, 174, 128), bagSeam: C(128, 106, 70),
+  hazPlate: C(178, 158, 122), hazYellow: C(255, 200, 30), spikeRust: C(150, 70, 40),
+  shellShadow: C(60, 38, 16, 0.42), stunEye: C(110, 34, 30), chestIn: C(44, 28, 14), gold: C(255, 214, 70)
 };
 var TAU = Math.PI * 2;
 
@@ -208,9 +214,12 @@ function drawEnemy(S, e, s, t) {
     var m = 0.45 + 0.55 * pulse;
     body = mix(body, PAL.tellYellow, m); lite = mix(lite, PAL.tellYellow, m);
   }
+  // QA-P1 D12: the boss gets a soft, short hull tint instead of the full white flash (barrels, core and tells stay readable)
+  var hit = 0;
+  if (flash && (e.boss || e.type === 'B-01')) { hit = Math.max(0, (e.flashT - 0.04) / 0.06); flash = false; }
   if (flash) { body = PAL.white; lite = PAL.white; dark = PAL.white; eye = PAL.white; }
   var a = e.ang || 0, ca = Math.cos(a), sa = Math.sin(a);
-  var C2 = { body: body, lite: lite, dark: dark, eye: eye, core: flash ? PAL.white : PAL.sensorCore };
+  var C2 = { body: body, lite: lite, dark: dark, eye: eye, core: flash ? PAL.white : PAL.sensorCore, hit: hit };
   if (e.type === 'E-04') drawE04(e, x, y, rr, t, C2);
   else if (e.type === 'E-05') drawE05(e, x, y, rr, t, C2);
   else if (e.boss || e.type === 'B-01') drawB01(S, e, x, y, rr, t, C2);
@@ -279,6 +288,13 @@ function drawEnemyAim(S, e, s) {
 
 function drawHero(S, s, t) {
   var h = S.hero, x = X(h.x), y = Y(h.y), rr = (h.r || 0.28) * s;
+  // QA-P1 D2: when an enemy body overlaps the Operator, cut a sand patch with an ink rim under it, so the
+  // Operator (blinking at 35% too) never reads through the drones under it. Drawn before n0: not blinked.
+  var E = S.enemies || [], hr = h.r || 0.28;
+  for (var j = 0; j < E.length; j++) {
+    var e = E[j], er = (e.r || 0.4) * (e.type === 'E-01' ? 1.3 : 1.05);
+    if (Math.hypot(e.x - h.x, e.y - h.y) < er + hr + 0.08) { circ(x, y, rr + 5, withA(PAL.ink, 0.7)); circ(x, y, rr + 3.5, PAL.ground); break; }
+  }
   var blink = h.invulnT > 0 && Math.floor(t * 12) % 2 === 1, n0 = out.length; // blink to 35%, never hidden (M 2026-11-10)
   var a = h.ang || 0, ca = Math.cos(a), sa = Math.sin(a), px = -sa, py = ca;
   // rifle
@@ -364,10 +380,24 @@ function drawHazards(S, s, t) {
   var hz = S.hazards || [];
   for (var i = 0; i < hz.length; i++) {
     var q = hz[i], cx = X(q.x + q.w / 2), cy = Y(q.y + q.h / 2);
-    rect(cx, cy, q.w * s - 2, q.h * s - 2, PAL.spikePlate);
+    // QA-P1 D5: floor hazard, not cover: light plate flush with the sand, yellow/black hazard tape edge, rust-red studs
+    var pw = q.w * s - 2, ph = q.h * s - 2, tw = 4;
+    rect(cx, cy, pw, ph, PAL.ink);
+    rect(cx, cy, pw - 2, ph - 2, PAL.hazYellow);
+    rect(cx, cy, pw - 2 - 2 * tw, ph - 2 - 2 * tw, PAL.hazPlate);
+    var seg = 7, nh = Math.max(2, Math.round((pw - 2) / seg)), nv = Math.max(2, Math.round((ph - 2) / seg));
+    for (var u = 0; u < nh; u += 2) {
+      var sx = cx - (pw - 2) / 2 + ((pw - 2) * (u + 0.5)) / nh, sw = (pw - 2) / nh;
+      rect(sx, cy - (ph - 2) / 2 + tw / 2, sw, tw, PAL.ink); rect(sx, cy + (ph - 2) / 2 - tw / 2, sw, tw, PAL.ink);
+    }
+    for (var v = 1; v < nv - 1; v += 2) {
+      var sy = cy - (ph - 2) / 2 + ((ph - 2) * (v + 0.5)) / nv, svh = (ph - 2) / nv;
+      rect(cx - (pw - 2) / 2 + tw / 2, sy, tw, svh, PAL.ink); rect(cx + (pw - 2) / 2 - tw / 2, sy, tw, svh, PAL.ink);
+    }
     var nx = Math.max(1, Math.round(q.w * 2)), ny = Math.max(1, Math.round(q.h * 2)), up = q.on == null || q.on;
     for (var a = 0; a < nx; a++) for (var b = 0; b < ny; b++) {
-      var px = X(q.x + (a + 0.5) * q.w / nx), py = Y(q.y + (b + 0.5) * q.h / ny), r = s * 0.17;
+      var px = X(q.x + (a + 0.5) * q.w / nx), py = Y(q.y + (b + 0.5) * q.h / ny), r = s * 0.15;
+      circ(px, py + 1, r * 0.95, withA(PAL.spikeRust, up ? 0.75 : 0.45));
       if (up) { ngon(px + 1.5, py + 2, r, 3, -Math.PI / 2, PAL.shadow); ngon(px, py, r + 1, 3, -Math.PI / 2, PAL.ink); ngon(px, py, r, 3, -Math.PI / 2, PAL.spike); circ(px, py - r * 0.6, 1.2, PAL.spikeTip); }
       else circ(px, py, 2, PAL.ink);
     }
@@ -389,13 +419,20 @@ function drawShellRings(S, s, t) {
     ring(x, y, R - 1, 2 + (u > 0.75 ? 1.5 * Math.abs(Math.sin(t * 20)) : 0), PAL.ringEdge);
     line(x - 5, y, x + 5, y, 1.5, PAL.ringEdge); line(x, y - 5, x, y + 5, 1.5, PAL.ringEdge);
   }
+  // QA-P1 D6: big dark ground shadow right under the shell's ground point; shrinks and fades a little at the apex
+  for (var j = 0; j < L.length; j++) {
+    var g = shellGround(L[j]), h01 = Math.sin(Math.PI * g.u), gx = X(g.x) + 1.5, gy = Y(g.y) + 2, r0 = 8 - 2.5 * h01;
+    circ(gx, gy, r0 + 2.5, withA(PAL.shellShadow, 0.45 - 0.15 * h01));
+    circ(gx, gy, r0, withA(PAL.shellShadow, 1 - 0.3 * h01));
+  }
 }
 function drawShells(S, s) {
   var L = S.shells || [];
   for (var i = 0; i < L.length; i++) {
-    var q = L[i], g = shellGround(q), hgt = Math.sin(Math.PI * g.u) * 2.2 * s, x = X(g.x), y = Y(g.y);
-    circ(x + sh.x * (1 + hgt / s), y + sh.y * (1 + hgt / s) * 0.5, 4, PAL.shadow);
-    circ(x, y - hgt, 6.5, PAL.ink); circ(x, y - hgt, 5, PAL.shellBody); circ(x - 1.5, y - hgt - 1.5, 1.8, PAL.sensor);
+    // QA-P1 D6: the ball grows to 1.4x at the apex (ground shadow: drawShellShadows, ground layer)
+    var q = L[i], g = shellGround(q), h01 = Math.sin(Math.PI * g.u), hgt = h01 * 2.2 * s, x = X(g.x), y = Y(g.y), k = 1 + 0.4 * h01;
+    circ(x, y - hgt, 5 * k + 1.5, PAL.ink); circ(x, y - hgt, 5 * k, PAL.shellBody);
+    circ(x - 1.5 * k, y - hgt - 1.5 * k, 1.8 * k, PAL.metalLite); circ(x + 1.2 * k, y - hgt + 1.2 * k, 1.6 * k, PAL.sensor);
   }
 }
 
@@ -429,7 +466,11 @@ function drawBossGround(S, e, s, t) {
   } else if (B.attack === 'C') {
     for (var b = -1; b <= 1; b++) {
       var ba = a0 + b * (25 * Math.PI / 180), R = 4 * s;
-      line(X(e.x), Y(e.y), X(e.x) + Math.cos(ba) * R, Y(e.y) + Math.sin(ba) * R, 1.5, PAL.fanEdge);
+      // QA-P1 D4: same weight as attack A (wide floor band fading in with tell01) plus a 4 px core with a darker edge
+      var fx1 = X(e.x), fy1 = Y(e.y), fx2 = fx1 + Math.cos(ba) * R, fy2 = fy1 + Math.sin(ba) * R;
+      line(fx1, fy1, fx2, fy2, 0.3 * s * (0.4 + 0.6 * tt), withA(PAL.floorLine, 0.6 + 0.8 * tt));
+      line(fx1, fy1, fx2, fy2, 4, withA(PAL.bossEdge, 0.55 + 0.45 * tt));
+      line(fx1, fy1, fx2, fy2, 2, withA(PAL.laneEdge, 0.7 + 0.3 * tt));
     }
     var segs = e.segs;
     if (!segs || !segs.length) { var Lc = rayLen(S, e.x, e.y, a0, 20); segs = [{ x1: e.x, y1: e.y, x2: e.x + Math.cos(a0) * Lc, y2: e.y + Math.sin(a0) * Lc }]; }
@@ -467,46 +508,77 @@ function drawE04(e, x, y, rr, t, C2) {
 function drawE05(e, x, y, rr, t, C2) {
   var a = e.aimAng != null && (e.st === 'tell' || e.st === 'act') ? e.aimAng : e.ang || 0;
   var kneel = e.st === 'tell', stun = e.st === 'stun' || e.stunT > 0, k = kneel ? 0.86 : 1;
-  if (stun) a += Math.sin(t * 14) * 0.12;
+  if (stun) a += 0.35 + Math.sin(t * 14) * 0.12; // QA-P1 D9: slumped tilt + wobble
   var ca = Math.cos(a), sa = Math.sin(a);
   oNgon(x - ca * rr * 0.1, y - sa * rr * 0.1, rr * 1.0 * k, 3, a, stun ? mix(C2.body, PAL.metalLite, 0.4) : C2.body);
   ngon(x - ca * rr * 0.15, y - sa * rr * 0.15, rr * 0.55 * k, 3, a, C2.lite);
   oRect(x + ca * rr * 0.62 * k, y + sa * rr * 0.62 * k, rr * 0.3, rr * 1.35 * k, kneel ? mix(C2.dark, PAL.sensor, 0.35) : C2.dark, a); // ram plate
-  circ(x + ca * rr * 0.2, y + sa * rr * 0.2, rr * (kneel ? 0.24 : 0.18), stun ? PAL.metalLite : C2.eye);
-  if (stun) for (var i = 0; i < 3; i++) { var sa2 = t * 5 + i * TAU / 3; ngon(x + Math.cos(sa2) * rr * 0.9, y - rr * 0.9 + Math.sin(sa2) * rr * 0.3, 3.2, 4, t * 4, PAL.stun); }
+  circ(x + ca * rr * 0.2, y + sa * rr * 0.2, rr * (kneel ? 0.24 : 0.18), stun ? (C2.eye === PAL.white ? PAL.white : PAL.stunEye) : C2.eye);
+  if (stun) {
+    // QA-P1 D9: dimmed eye (above) + a big orbiting spark ring around the whole body
+    var R5 = rr * 1.4, sp = t * 4;
+    for (var j = 0; j < 3; j++) { var a0 = sp + j * TAU / 3; ring(x, y, R5, 4.5, PAL.ink, a0 - 0.05, a0 + 1.25); ring(x, y, R5, 2.5, PAL.stun, a0, a0 + 1.2); }
+    for (var i = 0; i < 4; i++) { var sa2 = -sp * 1.3 + i * TAU / 4; oNgon(x + Math.cos(sa2) * R5, y + Math.sin(sa2) * R5, 4.5, 4, t * 6, i % 2 ? PAL.sparkHot : PAL.stun); }
+  }
 }
 
 function drawB01(S, e, x, y, rr, t, C2) {
   var B = bossAttack(S, e) || {}, ph2 = (B.phase || e.phase) === 2, tell = !!B.attack && e.st !== 'act', tt = tell ? (B.tell01 != null ? B.tell01 : e.tell01 || 0) : 0;
   var body = ph2 ? mix(C2.body, PAL.boss2, 0.75) : C2.body, a0 = e.aimAng != null ? e.aimAng : Math.PI / 2;
-  var spin = B.attack === 'B' && tell ? t * (2 + 22 * tt) : (e.ang || 0) * 0 + t * 0.4;
-  oNgon(x, y, rr * 1.08, 8, Math.PI / 8, PAL.metalDark); // base
-  var nb = 8;
-  for (var k = 0; k < nb; k++) {
-    var ba = spin + k * TAU / nb, cb = Math.cos(ba), sb = Math.sin(ba);
-    oRect(x + cb * rr * 0.98, y + sb * rr * 0.98, rr * 0.5, rr * 0.2, C2.dark, ba);
-    if (B.attack === 'B' && tell) circ(x + cb * rr * 1.25, y + sb * rr * 1.25, 2 + 3 * tt, mix(PAL.glow, PAL.sparkHot, tt));
+  if (C2.hit > 0) body = mix(body, PAL.white, 0.35 * C2.hit); // D12: soft hull tint only
+  // D7: attack B spin-up. The angle comes from tell01 (1.5 turns, accelerating, no jumps), plus motion trails and a growing glow ring.
+  var spinB = B.attack === 'B' && tell, spin = t * 0.4 + (spinB ? TAU * 1.5 * tt * tt : 0);
+  var hot = ph2 ? 0.75 + 0.25 * Math.sin(t * 6) : 0, nb = 8, k, ba, cb, sb;
+  // D8: phase 2 hull rim glows orange-red
+  if (ph2) ngon(x, y, rr * 1.08 + OL + 4.5, 8, Math.PI / 8, withA(PAL.boss2Rim, hot));
+  oNgon(x, y, rr * 1.08, 8, Math.PI / 8, ph2 ? mix(PAL.metalDark, PAL.boss2, 0.45) : PAL.metalDark); // base
+  if (spinB) {
+    ring(x, y, rr * (1.12 + 0.4 * tt), 2 + 3 * tt, withA(PAL.glow, 0.35 + 0.6 * tt));
+    for (k = 0; k < nb; k++) { ba = spin + k * TAU / nb; ring(x, y, rr * 0.98, rr * 0.2, withA(PAL.bossSpin, 0.25 + 0.65 * tt), ba - 0.6 * tt, ba); }
+  }
+  for (k = 0; k < nb; k++) {
+    ba = spin + k * TAU / nb; cb = Math.cos(ba); sb = Math.sin(ba);
+    oRect(x + cb * rr * 0.98, y + sb * rr * 0.98, rr * 0.5, rr * 0.2, spinB ? mix(C2.dark, PAL.glow, 0.4 * tt) : C2.dark, ba);
+    if (ph2) rect(x + cb * rr * 1.17, y + sb * rr * 1.17, rr * 0.12, rr * 0.2, mix(PAL.boss2Hot, PAL.sparkHot, 0.35 * hot), ba); // D8: hot barrel tips
+    if (spinB) circ(x + cb * rr * 1.27, y + sb * rr * 1.27, 2.5 + 3.5 * tt, mix(PAL.glow, PAL.sparkHot, tt));
   }
   oCirc(x, y, rr * 0.78, body);
   ring(x, y, rr * 0.6, 2, ph2 ? PAL.boss2Vent : C2.lite);
   if (ph2) for (var v = 0; v < 4; v++) { var va = v * Math.PI / 2 + Math.PI / 4; circ(x + Math.cos(va) * rr * 0.45, y + Math.sin(va) * rr * 0.45, 3 + Math.sin(t * 8 + v) * 1, PAL.boss2Vent); }
   // main gun toward aim
   oRect(x + Math.cos(a0) * rr * 0.55, y + Math.sin(a0) * rr * 0.55, rr * 0.7, rr * 0.3, C2.dark, a0);
+  if (ph2) rect(x + Math.cos(a0) * rr * 0.86, y + Math.sin(a0) * rr * 0.86, rr * 0.1, rr * 0.3, mix(PAL.boss2Hot, PAL.sparkHot, 0.35 * hot), a0);
   circ(x, y, rr * (0.3 + 0.08 * tt), tell ? mix(C2.eye, PAL.sparkHot, tt) : C2.eye);
   circ(x, y, rr * 0.12, C2.core);
   if (tell && B.attack === 'A') ring(x, y, rr * 1.3, 2.5, withA(PAL.laneEdge, 0.4 + 0.6 * tt), -Math.PI / 2, -Math.PI / 2 + TAU * tt);
+  // D8: heat sparks rising off the phase-2 hull (deterministic from t, so both renderers draw the same)
+  if (ph2) for (var hs = 0; hs < 5; hs++) {
+    var hu = (t * 0.9 + hs / 5) % 1, hx = x + (hs - 2) * rr * 0.38 + Math.sin(t * 3 + hs * 1.7) * rr * 0.08;
+    circ(hx, y - rr * 0.7 - hu * rr * 1.1, 1.5 + 3 * (1 - hu), withA(mix(PAL.boss2Hot, PAL.sparkHot, 1 - hu), 1 - hu * 0.8));
+  }
 }
 
 function drawChest(S, s, t) {
   var c = S.chest; if (!c) return;
   var x = X(c.x), y = Y(c.y), w = 0.9 * s, h = 0.6 * s;
   rect(x + sh.x, y + sh.y, w, h, PAL.shadow);
-  oRect(x, y, w, h, PAL.chest);
-  rect(x, y, w, 2.5, PAL.chestTrim); rect(x - w * 0.3, y, 2.5, h, PAL.chestTrim); rect(x + w * 0.3, y, 2.5, h, PAL.chestTrim);
   if (c.open) {
-    oRect(x, y - h * 0.75, w, h * 0.35, PAL.chestLid);
-    circ(x, y - 2, h * 0.3, withA(PAL.cyan, 0.5 + 0.3 * Math.sin(t * 6)));
+    // QA-P1 D11: lid raised behind the box (inside face showing), dark mouth full of gold, pulsing gold glint
+    var lh = h * 0.8, ly = y - h / 2 - lh / 2 + 2, pu = 0.5 + 0.5 * Math.sin(t * 5);
+    rect(x + sh.x * 0.6, ly + sh.y * 0.4, w + 2, lh, PAL.shadow);
+    oRect(x, ly, w + 2, lh, PAL.chestLid);
+    rect(x, ly + 1.5, w - 4, lh - 6, mix(PAL.chest, PAL.chestIn, 0.45));
+    rect(x, ly - lh / 2 + 1.5, w + 2, 2.5, PAL.chestTrim); rect(x - w * 0.3, ly, 2.5, lh, PAL.chestTrim); rect(x + w * 0.3, ly, 2.5, lh, PAL.chestTrim);
+    oRect(x, y, w, h, PAL.chest);
+    rect(x - w * 0.3, y, 2.5, h, PAL.chestTrim); rect(x + w * 0.3, y, 2.5, h, PAL.chestTrim);
+    rect(x, y - h * 0.18, w - 5, h * 0.5, PAL.chestIn);
+    circ(x, y - h * 0.18, h * 0.42, withA(PAL.gold, 0.25 + 0.15 * pu));
+    for (var g = -2; g <= 2; g++) circ(x + g * w * 0.15, y - h * 0.12 - (2 - Math.abs(g)) * 1.5, 3.2, g % 2 ? PAL.chestTrim : PAL.gold);
+    var gx = x + w * 0.22, gy = y - h * 0.38, gl = 5 + 6 * pu;
+    rect(gx, gy, 1.8, gl, PAL.sparkHot); rect(gx, gy, gl, 1.8, PAL.sparkHot); circ(gx, gy, 2, PAL.white);
   } else {
+    oRect(x, y, w, h, PAL.chest);
+    rect(x, y, w, 2.5, PAL.chestTrim); rect(x - w * 0.3, y, 2.5, h, PAL.chestTrim); rect(x + w * 0.3, y, 2.5, h, PAL.chestTrim);
     rect(x, y - h * 0.32, w, h * 0.36, PAL.chestLid);
     oRect(x, y, 6, 7, PAL.chestTrim);
     ring(x, y, w * 0.75 + 2 * Math.sin(t * 4), 1.5, withA(PAL.chestTrim, 0.6));
@@ -536,9 +608,44 @@ function drawFx(S, s, t) {
 
 function drawHeroHp(S, s) {
   var h = S.hero; if (!(h.maxHp > 0)) return;
-  var x = X(h.x), y = Y(h.y) - (h.r || 0.28) * s - 13, w = 28, f = Math.max(0, Math.min(1, h.hp / h.maxHp));
-  rect(x, y, w + 2, 5, PAL.hpBack);
-  rect(x - w / 2 + (w * f) / 2, y, w * f, 3, f < 0.3 ? PAL.heroHpLow : PAL.heroHp);
+  // QA-P1 D13: 1 px ink outline + dark track, lifted clear of the rifle tip when aiming up
+  var x = X(h.x), y = Y(h.y) - (h.r || 0.28) * s * 1.95 - 7, w = 28, f = Math.max(0, Math.min(1, h.hp / h.maxHp));
+  rect(x, y, w + 2, 6, PAL.ink);
+  rect(x, y, w, 4, PAL.hpTrack);
+  if (f > 0) rect(x - w / 2 + (w * f) / 2, y, w * f, 4, f < 0.3 ? PAL.heroHpLow : PAL.heroHp);
+}
+
+// QA-P1 D3: visible room edge (visual only; sim bounds unchanged). Same sand everywhere; out of bounds is a shade of it.
+function drawOutOfBounds(S, s, RW, RH) {
+  var y0 = Y(RH), xl = X(0), xr = X(RW);
+  if (y0 < vw.h) rect(vw.w / 2, (y0 + vw.h) / 2, vw.w + 2, vw.h - y0, PAL.oob);
+  if (xl > 0.5) rect(xl / 2, (Y(0) + y0) / 2, xl, y0 - Y(0), PAL.oob);
+  if (xr < vw.w - 0.5) rect((xr + vw.w) / 2, (Y(0) + y0) / 2, vw.w - xr, y0 - Y(0), PAL.oob);
+}
+function drawRoomEdge(S, s, RW, RH) {
+  var y0 = Y(RH), yt = Y(0.5), xl = X(0), xr = X(RW), cw = 4;
+  // side curbs: thin concrete strip just inside each side wall line
+  for (var k = 0; k < 2; k++) {
+    var cx = k ? xr - cw / 2 : xl + cw / 2, hh = y0 - yt;
+    rect(cx + (k ? -1 : 1) * (cw / 2 + 0.5), yt + hh / 2, 1, hh, withA(PAL.ink, 0.55));
+    rect(cx, yt + hh / 2, cw, hh, PAL.curb);
+    rect(cx + (k ? 0.5 : -0.5), yt + hh / 2, 1.5, hh, PAL.curbTop);
+  }
+  // bottom berm: two staggered rows of sandbags just outside the room line, hard shadow below
+  var bw = Math.max(18, s * 0.6), bh = 9, n = Math.ceil((xr - xl) / bw) + 1, rb = bh / 2, core = bw - 2 * rb - 1.5;
+  rect((xl + xr) / 2, y0 + 20 + sh.y * 0.5, xr - xl, 6, PAL.shadow);
+  for (var row = 0; row < 2; row++) {
+    var by = y0 + 5.5 + row * 8, off = row ? bw / 2 : 0;
+    for (var i = -1; i < n; i++) {
+      var bx = xl + off + i * bw + bw / 2;
+      if (bx + bw / 2 < xl - 2 || bx - bw / 2 > xr + 2) continue;
+      // pillow-shaped bag: rect body + round ends, ink rim
+      rect(bx, by, core, bh + 2 * OL, PAL.ink); circ(bx - core / 2, by, rb + OL, PAL.ink); circ(bx + core / 2, by, rb + OL, PAL.ink);
+      rect(bx, by, core, bh, PAL.bag); circ(bx - core / 2, by, rb, PAL.bag); circ(bx + core / 2, by, rb, PAL.bag);
+      rect(bx - 1, by - 1.8, core, 2.5, PAL.bagTop);
+      rect(bx + core / 2 - 1, by, 1.2, bh - 3, PAL.bagSeam);
+    }
+  }
 }
 
 // particle clock = S.t (hit-stop and pause freeze sparks); stepped from both ingest and build
@@ -583,6 +690,7 @@ V.Scene = {
     }
     var R = S.room, RW = (R && R.w) || 9, RH = (R && R.h) || 15;
     // room floor = same sand as the ground below (M 2026-11-10: one continuous yard, no panel)
+    drawOutOfBounds(S, s, RW, RH); // QA-P1 D3: below/beside the room = same sand, shaded darker
 
     var E = S.enemies || [], sol = (R && R.solids) || [];
     drawHazards(S, s, t);
@@ -605,6 +713,7 @@ V.Scene = {
     var H = S.hero, heroOn = H && S.phase !== 'dead' && !(S.phase === 'results' && S.result && !S.result.win);
     if (heroOn) circ(X(H.x) + sh.x * 0.7, Y(H.y) + sh.y * 0.7, (H.r || 0.28) * s, PAL.shadow);
 
+    drawRoomEdge(S, s, RW, RH); // QA-P1 D3: sandbag berm + side curbs
     for (i = 0; i < sol.length; i++) drawSolid(sol[i], s);
     drawDoor(S, s);
     drawSupply(S, s, t);
@@ -613,6 +722,8 @@ V.Scene = {
     for (i = 0; i < E.length; i++) drawEnemyAim(S, E[i], s);
     for (i = 0; i < E.length; i++) drawEnemy(S, E[i], s, t);
     drawFx(S, s, t);
+    drawLock(S, s, t); // enemy marker: under the Operator (QA-P1 D2)
+    // QA-P1 D2: the Operator and its HP bar sit above every enemy layer (bodies, HP bars, lock ring)
     if (heroOn) { drawBrace(S, s); drawHero(S, s, t); drawHeroHp(S, s); }
 
     var rd = S.rounds || [];
@@ -635,7 +746,6 @@ V.Scene = {
       circ(X(o.x), Y(o.y), r2, PAL.shot); circ(X(o.x), Y(o.y), r2 * 0.45, PAL.shotCore);
     }
     drawShells(S, s);
-    drawLock(S, s, t);
     drawParticles(s);
     if (V.Scene.stress > 0) drawStress(V.Scene.stress | 0, t);
     return out;

@@ -43,7 +43,7 @@ function handleEvents(ev, live){
     switch (e.k) {
       case 'fire': V.Audio.play('fire'); break;
       case 'hit': V.Audio.play('hit'); stop = true; break;
-      case 'crit': UI.crit(e.x, e.y, e.dmg, view); stop = true; break;
+      case 'crit': UI.crit(e.x, e.y, e.dmg, view, S, e.id); stop = true; break;
       case 'kill': V.Audio.play('kill'); vib(V.TUNE.HAPTIC_KILL_MS); stop = true; break;
       case 'hurt': V.Audio.play('hurt'); UI.hurtFlash(); vib(V.TUNE.HAPTIC_HURT_MS); break;
       case 'door': V.Audio.play('door'); awReset(); UI.toast('Stage ' + S.stage + ' clear', 1100); break;
@@ -72,8 +72,10 @@ function syncPhase(){
   } else if (shown.supply) { shown.supply = false; UI.show('ovSupply', false); }
   // P1: death and boss kill both end in 'results'. A brief 'dead' phase (if the sim has one) shows the same screen.
   if (isEnd()) {
-    if (!shown.dead || shown.endPhase !== S.phase) { shown.dead = true; shown.endPhase = S.phase; deadAt = shown.dead && deadAt ? deadAt : performance.now(); V.Input.release(); UI.results(S); }
-  } else if (shown.dead) { shown.dead = false; deadAt = 0; UI.show('ovDead', false); }
+    if (!shown.dead || shown.endPhase !== S.phase) { shown.dead = true; shown.endPhase = S.phase; deadAt = deadAt || performance.now(); V.Input.release(); UI.results(S); }
+    var armed = performance.now() - deadAt >= RESULTS_GUARD_MS, ovd = $('ovDead');
+    if (ovd.classList.contains('armed') !== armed) ovd.classList.toggle('armed', armed);
+  } else if (shown.dead) { shown.dead = false; deadAt = 0; $('ovDead').classList.remove('armed'); UI.show('ovDead', false); }
 }
 function pickSupply(i){
   if (!S || S.phase !== 'supply') return;
@@ -97,7 +99,12 @@ function restart(){
   acc = 0; hitstopUntil = 0; deadAt = 0; moved = false; awReset(); shown.dead = false; UI.show('ovDead', false); shown.pick = false; UI.show('ovCards', false); shown.supply = false; UI.show('ovSupply', false);
   syncPhase(); return S;
 }
-function tryRestart(){ if (S && isEnd() && performance.now() - deadAt > 450) restart(); }
+// Results tap guard: the screen waits RESULTS_GUARD_MS, and only a press that BEGAN after that counts,
+// so a finger still on the glass from the fight (or a tap just after the kill) never skips the results.
+var RESULTS_GUARD_MS = 1000;
+function guardOk(pressT){ return !!(S && isEnd() && deadAt && pressT - deadAt >= RESULTS_GUARD_MS); }
+function tryRestart(pressT){ if (guardOk(pressT == null ? performance.now() : pressT)) restart(); }
+var resPressAt = 0;
 
 function pause(){
   if (paused || !S) return;
@@ -226,11 +233,12 @@ function boot(){
   stage.addEventListener('pointerdown', function(e){
     if (S && S.phase === 'clear' && !aw.cancelled && !(e.target.closest && e.target.closest('button, .ov, #drawer'))) { aw.cancelled = true; V.Input.note(aw.on ? 'awx' : 'awc', 0, 0); }
   }, true);
-  $('ovDead').addEventListener('pointerdown', function(e){ if (e.target.id !== 'btnRestart') tryRestart(); });
-  $('btnRestart').addEventListener('click', tryRestart);
+  $('ovDead').addEventListener('pointerdown', function(e){ resPressAt = performance.now(); if (e.target.id !== 'btnRestart') tryRestart(resPressAt); });
+  // A click counts only when its press began on this screen after the guard (keyboard clicks have detail 0).
+  $('btnRestart').addEventListener('click', function(e){ tryRestart(e.detail === 0 ? performance.now() : (resPressAt > deadAt ? resPressAt : 0)); });
   G.addEventListener('keydown', function(e){
     if (paused && (e.key === ' ' || e.key === 'Enter' || e.key === 'Escape')) { resume(); return; }
-    if (S && isEnd() && (e.key === ' ' || e.key === 'Enter' || e.key === 'r')) tryRestart();
+    if (S && isEnd() && !e.repeat && (e.key === ' ' || e.key === 'Enter' || e.key === 'r')) tryRestart();
     if (S && S.phase === 'supply' && /^[1-2]$/.test(e.key) && S.supply && +e.key <= S.supply.length) pickSupply(+e.key - 1);
     if (S && S.phase === 'pick' && /^[1-3]$/.test(e.key) && S.cards && +e.key <= S.cards.length) pick(+e.key - 1);
   });

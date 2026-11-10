@@ -15,7 +15,9 @@ html,body{margin:0;height:100%;background:#1b1a17;color:var(--sand);font:14px/1.
 #stage{position:absolute;left:0;top:0;overflow:hidden;touch-action:none;background:#c9b48a;flex:none}
 #stage canvas{position:absolute;left:0;top:0;width:100%;height:100%;display:block;touch-action:none}
 /* HUD */
-#hud{position:absolute;left:0;top:0;right:0;pointer-events:none;z-index:10}
+#hud{position:absolute;left:0;top:0;right:0;pointer-events:none;z-index:10;
+  padding:env(safe-area-inset-top,0px) env(safe-area-inset-right,0px) 0 env(safe-area-inset-left,0px);
+  background:linear-gradient(#1d1e1f,#1d1e1f) no-repeat top/100% env(safe-area-inset-top,0px)}
 #hudTop{display:flex;align-items:center;gap:6px;height:44px;padding:4px 4px 0 6px;background:linear-gradient(#1d1e1fee,#1d1e1fcc)}
 #stageLbl{font-weight:700;font-size:13px;white-space:nowrap;color:var(--sand);background:var(--gun);border:1px solid #4a4d4f;border-radius:6px;padding:3px 6px}
 #stageLbl b{color:#fff}
@@ -27,16 +29,22 @@ html,body{margin:0;height:100%;background:#1b1a17;color:var(--sand);font:14px/1.
 .hb span{display:inline-block;width:36px;height:36px;line-height:34px;border-radius:8px;background:var(--gun);border:1px solid #55595c}
 #hpRow{position:relative;height:18px;margin:0 6px;border-radius:0 0 6px 6px;background:#0c0d0e;border:1px solid #45494c;border-top:0;overflow:hidden}
 #hpFill{height:100%;width:100%;background:var(--hp);transition:width .12s}
-#hpTxt{position:absolute;inset:0;text-align:center;font-size:12px;font-weight:800;line-height:18px;color:#0b1416}
-#rlbl{position:absolute;left:6px;bottom:6px;font:11px/1.2 ui-monospace,Menlo,Consolas,monospace;color:#1b1a17;background:rgba(233,220,191,.85);padding:2px 5px;border-radius:4px;pointer-events:none;z-index:10}
-#toast{position:absolute;left:50%;transform:translateX(-50%);max-width:40%;text-align:center;font-weight:700;font-size:13px;color:var(--sand);background:var(--panel);
+/* Two copies of the HP text: dark where the bar is filled, light where it is empty (4.5:1 on both). */
+.hpT{position:absolute;inset:0;text-align:center;font-size:12px;font-weight:800;line-height:18px;transition:clip-path .12s}
+#hpTxt{color:#0b1416;clip-path:inset(0 0 0 0)}
+#hpTxtE{color:#f2ead8;clip-path:inset(0 0 0 100%)}
+#rlbl{position:absolute;left:6px;bottom:6px;font:11px/1.2 ui-monospace,Menlo,Consolas,monospace;color:#1b1a17;background:rgba(233,220,191,.85);padding:2px 5px;border-radius:4px;pointer-events:none;z-index:10;display:none}
+body.dbg #rlbl{display:block}
+.rinfo{font:11px/1.3 ui-monospace,Menlo,Consolas,monospace;color:var(--mut)}
+#toast{position:absolute;left:50%;transform:translateX(-50%);max-width:80%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:center;font-weight:700;font-size:13px;color:var(--sand);background:var(--panel);
   border:1px solid var(--cyanD);border-radius:8px;padding:6px 8px;pointer-events:none;z-index:11;opacity:0;transition:opacity .2s}
 #toast.on{opacity:1}
 #flash{position:absolute;inset:0;pointer-events:none;z-index:9;box-shadow:inset 0 0 40px 14px rgba(226,40,30,.85);opacity:0;transition:opacity .25s ease-out}
 #flash.on{opacity:1;transition:none}
 body.ovon #hud, body.ovon #toast, body.ovon #rlbl{visibility:hidden}
 /* overlays */
-.ov{position:absolute;inset:0;z-index:30;display:none;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:16px;
+.ov{position:absolute;inset:0;z-index:30;display:none;flex-direction:column;align-items:center;justify-content:center;gap:12px;
+  padding:max(16px,env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) max(16px,env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));
   background:rgba(20,19,16,.94);text-align:center}
 .ov.on{display:flex}
 .ov h2{margin:0;font-size:22px;color:#fff;letter-spacing:.5px}
@@ -52,10 +60,13 @@ body.ovon #hud, body.ovon #toast, body.ovon #rlbl{visibility:hidden}
 .card.sup .gl{background:#2d2414;border-color:#7a5a20;color:var(--amber)}
 #deadStats{font-size:14px;color:var(--sand);line-height:1.5}
 #coverNote{position:absolute;display:none;font-size:13px;color:var(--sand);background:var(--gun);border:1px solid #4a4d4f;border-radius:8px;padding:8px 10px;z-index:40;max-width:260px}
-#bossBar{position:absolute;display:none;z-index:10;pointer-events:none;height:22px;border-radius:6px;background:#0c0d0e;border:1px solid #6a2a26;overflow:hidden}
-#bossFill{height:100%;width:100%;background:#d8473d}
-#bossTxt{position:absolute;inset:0;font-size:12px;font-weight:800;line-height:20px;color:#fff;padding:0 8px;display:flex;justify-content:space-between;text-shadow:0 0 3px #000,0 1px 2px #000}
-#bossTxt span{background:rgba(12,13,14,.75);padding:0 4px;border-radius:3px}
+/* Boss bar (D1): label row above a plain full-width bar, so no text sits over the fill. */
+#bossBar{position:absolute;display:none;z-index:10;pointer-events:none;padding:2px 4px 4px;border-radius:6px;background:rgba(12,13,14,.88);border:1px solid #6a2a26}
+#bossTxt{display:flex;justify-content:space-between;gap:8px;font-size:12px;font-weight:800;line-height:15px;color:#fff;white-space:nowrap;padding:0 2px}
+#bossTxt span{overflow:hidden;text-overflow:ellipsis}
+#bossHp{flex:none;font-variant-numeric:tabular-nums}
+#bossTrack{height:9px;margin-top:1px;border-radius:3px;background:#2a1513;border:1px solid #6a2a26;overflow:hidden}
+#bossFill{height:100%;width:100%;background:#e0483d}
 #howto{position:absolute;left:50%;transform:translateX(-50%);width:max-content;max-width:86%;text-align:center;font-size:14px;font-weight:700;color:#1b1a17;background:rgba(233,220,191,.92);
   border:1px solid #8a7a5a;border-radius:8px;padding:6px 10px;pointer-events:none;z-index:10;display:none}
 body.ovon #bossBar, body.ovon #howto, body.ovon #dmgLayer{visibility:hidden}
@@ -68,9 +79,12 @@ body.ovon #bossBar, body.ovon #howto, body.ovon #dmgLayer{visibility:hidden}
 #resStats .row{display:flex;justify-content:space-between;gap:10px}
 #resStats .row b{color:#fff;font-weight:700;text-align:right}
 #resTitle.win{color:var(--cyan)}
+#ovDead:not(.armed) #btnRestart{opacity:.45}
+#ovDead:not(.armed) #resHint{visibility:hidden}
 @media (prefers-reduced-motion: reduce){ #flash{display:none} #toast,#hpFill{transition:none} }
 /* drawer */
-#drawer{position:absolute;top:0;right:0;bottom:0;width:100%;z-index:50;background:rgba(18,18,17,.97);display:none;flex-direction:column}
+#drawer{position:absolute;top:0;right:0;bottom:0;width:100%;z-index:50;background:rgba(18,18,17,.97);display:none;flex-direction:column;
+  padding:env(safe-area-inset-top,0px) env(safe-area-inset-right,0px) env(safe-area-inset-bottom,0px) env(safe-area-inset-left,0px)}
 #drawer.on{display:flex}
 #drHead{display:flex;align-items:center;gap:6px;padding:4px 6px;border-bottom:1px solid #3c3f42;flex-wrap:wrap}
 #drHead h3{margin:0 auto 0 4px;font-size:16px;color:#fff}
@@ -104,17 +118,17 @@ body.ovon #bossBar, body.ovon #howto, body.ovon #dmgLayer{visibility:hidden}
       <button id="pauseBtn" class="hb" aria-label="Pause"><span>&#10074;&#10074;</span></button>
       <button id="gear" class="hb" aria-label="Tuning"><span>&#9881;</span></button>
     </div>
-    <div id="hpRow"><div id="hpFill"></div><div id="hpTxt">600 / 600</div></div>
+    <div id="hpRow"><div id="hpFill"></div><div id="hpTxtE" class="hpT" aria-hidden="true">600 / 600</div><div id="hpTxt" class="hpT">600 / 600</div></div>
     <div id="xpWrap"><div id="xpFill"></div></div>
   </div>
   <div id="toast"></div>
   <div id="rlbl">-</div>
-  <div id="bossBar"><div id="bossFill"></div><div id="bossTxt"><span id="bossName">Boss</span><span id="bossHp"></span></div></div>
+  <div id="bossBar"><div id="bossTxt"><span id="bossName">Boss</span><span id="bossHp"></span></div><div id="bossTrack"><div id="bossFill"></div></div></div>
   <div id="howto">Drag anywhere to move. Let go to aim and fire.</div>
   <div class="ov" id="ovCards"><h2 id="cardTitle">Field upgrade</h2><p>Pick one</p><div id="cardList" style="display:flex;flex-direction:column;gap:10px;width:100%;align-items:stretch"></div></div>
-  <div class="ov" id="ovDead"><h2 id="resTitle">Operator down</h2><div id="resStats"></div><button class="btn" id="btnRestart">New run</button><p style="font-size:12px">Tap anywhere for a new run</p></div>
+  <div class="ov" id="ovDead"><h2 id="resTitle">Operator down</h2><div id="resStats"></div><button class="btn" id="btnRestart">New run</button><p id="resHint" style="font-size:12px">Tap anywhere for a new run</p></div>
   <div class="ov" id="ovSupply"><h2>Supply drop</h2><p>Take one</p><div id="supList" style="display:flex;flex-direction:column;gap:10px;width:100%;align-items:stretch"></div></div>
-  <div class="ov" id="ovPause"><h2>Paused</h2><button class="btn" id="btnResume" style="min-width:200px">Resume</button><button class="btn ghost" id="btnRestartRun" style="min-width:200px">Restart run</button><button class="btn ghost" id="btnTune" style="min-width:200px">Tuning</button><button class="btn ghost" id="btnSound" style="min-width:200px">Sound: on</button><p style="font-size:12px">Tap outside the buttons to resume</p></div>
+  <div class="ov" id="ovPause"><h2>Paused</h2><button class="btn" id="btnResume" style="min-width:200px">Resume</button><button class="btn ghost" id="btnRestartRun" style="min-width:200px">Restart run</button><button class="btn ghost" id="btnTune" style="min-width:200px">Tuning</button><button class="btn ghost" id="btnSound" style="min-width:200px">Sound: on</button><p class="rinfo" id="rlblPause">-</p><p style="font-size:12px">Tap outside the buttons to resume</p></div>
   <div class="ov" id="ovBoot"><h2>Project Volley</h2><p id="bootMsg">Loading...</p></div>
   <div id="drawer">
     <div id="drHead"><h3>Tuning</h3>
@@ -124,6 +138,7 @@ body.ovon #bossBar, body.ovon #howto, body.ovon #dmgLayer{visibility:hidden}
       <button class="btn" id="drCopyR" style="flex:1">Copy report</button>
     </div>
     <div id="drMsg"></div>
+    <div class="rinfo" id="rlblDrawer" style="padding:0 10px">-</div>
     <div id="drBody"></div>
   </div>
 </div>
@@ -134,8 +149,8 @@ body.ovon #bossBar, body.ovon #howto, body.ovon #dmgLayer{visibility:hidden}
 // Tuning knobs. V.TUNE is the live copy the drawer mutates; the sim reads S.tune every step.
 V.TUNE_DEFAULTS = {
   // enemies / scaling (DESIGN 11)
-  ENEMY_HP_GLOBAL: 0.72, HP_SLOPE: 0.036, DMG_SLOPE: 0.012,
-  ENEMY_DMG_MULT: 1, ENEMY_SHOT_SPEED_MULT: 1, TELL_MULT: 1,
+  ENEMY_HP_GLOBAL: 0.82, HP_SLOPE: 0.036, DMG_SLOPE: 0.08,
+  ENEMY_DMG_MULT: 1.1, ENEMY_SHOT_SPEED_MULT: 2, TELL_MULT: 0.85,
   // hero (D1 2)
   HERO_HP: 600, HERO_ATK: 150, CRIT_CHANCE: 0.05, CRIT_MULT: 2,
   MOVE_SPEED: 4.5, BRACE_DELAY: 0.15, FIRE_INTERVAL: 0.8, FIRE_FLOOR: 0.2,
@@ -308,11 +323,11 @@ V.STAGES = { ch1: [
     spawns:[ sp('E-03',4.5,6.5,0), sp('E-02',1.5,2.5,2.5), sp('E-01',7.5,2.5,2.5) ] },
   { stage:5, kind:'supply', room:'SD', note:'Supply Drop: pick a minor mod or repair 40%', spawns:[] },
   { stage:6, kind:'combat', room:'R03', note:'Intro E-04 (template swapped to R03): mortar alone, visible from S; company at 2.5 s',
-    spawns:[ sp('E-04',1.5,3.5,0), sp('E-01',7.5,2.5,2.5), sp('E-02',7.5,6.5,2.5) ] },
+    spawns:[ sp('E-04',1.5,3.5,0), sp('E-01',7.5,2.5,2.5), sp('E-02',7.5,6.5,2.5), sp('E-02',1.5,8.5,5.0) ] },
   { stage:7, kind:'combat', room:'R02', note:'Intro E-05: charger alone in the centre, chasers at 3 s',
-    spawns:[ sp('E-05',4.5,6.5,0), sp('E-01',1.5,2.5,3.0), sp('E-01',7.5,2.5,3.0) ] },
+    spawns:[ sp('E-05',4.5,6.5,0), sp('E-01',1.5,2.5,3.0), sp('E-01',7.5,2.5,3.0), sp('E-05',4.5,8.5,5.0) ] },
   { stage:8, kind:'combat', room:'R02', note:'Spike (template swapped to known R02, N=5): turret+drones, chargers at 4 s and 6 s',
-    spawns:[ sp('E-03',4.5,6.5,0), sp('E-01',1.5,2.5,0), sp('E-02',7.5,2.5,0), sp('E-05',1.5,8.5,4.0), sp('E-05',7.5,8.5,6.0) ] },
+    spawns:[ sp('E-03',4.5,6.5,0), sp('E-01',1.5,2.5,0), sp('E-02',7.5,2.5,0), sp('E-05',1.5,8.5,5.5) ] },
   { stage:9, kind:'cache', room:'CA1', note:'Cache: spikes taught with 2 chasers; chest after clear',
     spawns:[ sp('E-01',2.5,4.5,0), sp('E-01',6.5,4.5,0) ] },
   { stage:10, kind:'boss', room:'BA1', note:'Boss B-01 Volley Tower (M pick, overrides D3 B-03)',
@@ -1411,10 +1426,32 @@ Object.defineProperty(V.Sim, 'ENEMIES', { get:function(){ var o = {}; for (var k
 // E-01..E-03 behaviour (D1 section 4). Registry entry: { base, init(S,e,api), step(S,e,dt,api) }.
 // The sim does spawn grace, hit flash, contact damage, death, XP and separation.
 V.AI = V.AI || {};
+V.AIU = V.AIU || {};  // shared AI helpers (kept out of V.AI, which is the enemy registry)
 var DEG = Math.PI / 180;
 
+// Aim lead + zero-in (deterministic). track() follows the Operator's smoothed velocity and how long they have stood still.
+// leadAng aims at where a runner will be when the shot lands (zero lead on a still Operator).
+// zeroIn(): ranged enemies reload faster while the Operator stands still (standing still has to lose).
+V.AIU.track = function(S, e, h, dt){
+  var vx = dt > 0 && e.lhx != null ? (h.x - e.lhx) / dt : 0, vy = dt > 0 && e.lhy != null ? (h.y - e.lhy) / dt : 0;
+  e.lhx = h.x; e.lhy = h.y;
+  e.lvx = e.lvx == null ? vx : e.lvx + (vx - e.lvx) * 0.25; e.lvy = e.lvy == null ? vy : e.lvy + (vy - e.lvy) * 0.25;
+  e.stillT = Math.hypot(e.lvx, e.lvy) < 0.6 ? (e.stillT || 0) + dt : 0;
+};
+V.AIU.zeroIn = function(e){ return (e.stillT || 0) > V.AIU.STILL_AFTER ? V.AIU.STILL_RELOAD : 1; };
+V.AIU.STILL_AFTER = 1.0; V.AIU.STILL_RELOAD = 6;
+V.AIU.leadAng = function(S, e, h, dt, shotSpeed, frac){
+  V.AIU.track(S, e, h, dt);
+  return V.AIU.leadTo(S, e, h, shotSpeed, frac);
+};
+V.AIU.leadTo = function(S, e, h, shotSpeed, frac){
+  var sp = shotSpeed * (S.tune.ENEMY_SHOT_SPEED_MULT > 0 ? S.tune.ENEMY_SHOT_SPEED_MULT : 1);
+  var d = Math.hypot(h.x - e.x, h.y - e.y), T = d / sp;
+  return Math.atan2(h.y + e.lvy * T * frac - e.y, h.x + e.lvx * T * frac - e.x);
+};
+
 V.AI['E-01'] = {
-  base: { hp:300, contact:60, dmg:60, speed:2.4, r:0.35, size:'small', xp:4, tell:0.5, cd:2.0, flyer:true },
+  base: { hp:300, contact:35, dmg:35, speed:2.4, r:0.35, size:'small', xp:4, tell:0.5, cd:2.0, flyer:true },
   range: 2.5, lungeSpeed: 6.0, lungeDist: 3.0,
   init: function(S, e, api){ e.lungeLeft = 0; },
   step: function(S, e, dt, api){
@@ -1442,14 +1479,15 @@ V.AI['E-01'] = {
 };
 
 V.AI['E-02'] = {
-  base: { hp:450, contact:40, dmg:60, speed:1.0, r:0.40, size:'medium', xp:8, tell:0.6, cd:2.2 },
-  lockLast: 0.2, shotSpeed: 6.0, range: 10, prefer: 4.5,
+  base: { hp:450, contact:40, dmg:55, speed:1.0, r:0.40, size:'medium', xp:8, tell:0.6, cd:2.2 },
+  lockLast: 0.2, shotSpeed: 6.0, range: 10, prefer: 3.2, lead: 0.8,
   init: function(S, e, api){
     var R = api.rng(S);
     e.strafe = R.next() < 0.5 ? -1 : 1; e.strafeT = R.range(1.2, 2.4); e.cd = R.range(0.6, 1.4); e.noLosT = 0;
   },
   step: function(S, e, dt, api){
     var A = V.AI['E-02'], b = A.base, h = api.hero(S), dx = h.x - e.x, dy = h.y - e.y, dist = Math.hypot(dx, dy), toH = Math.atan2(dy, dx);
+    var leadA = V.AIU.leadAng(S, e, h, dt, A.shotSpeed, A.lead);
     if (e.st === 'move' || e.st === 'cool') {
       e.strafeT -= dt; if (e.strafeT <= 0) { e.strafe = -e.strafe; e.strafeT = api.rng(S).range(1.2, 2.6); }
       var ux = dx / (dist || 1), uy = dy / (dist || 1);
@@ -1463,14 +1501,14 @@ V.AI['E-02'] = {
       api.collideBody(S, e, e.r);
       if (Math.hypot(e.x - px, e.y - py) < 0.3 * b.speed * dt) e.strafe = -e.strafe; // stuck: turn round
       e.ang = toH;
-      e.cd -= dt;
+      e.cd -= dt * V.AIU.zeroIn(e);
       if (e.cd <= 0 && dist <= A.range && los) {
         e.st = 'tell'; e.stT = api.tellT(S, b.tell); e.tellT = e.stT; e.tell01 = 0; e.aimAng = toH;
         api.ev(S, { k:'tell', x:e.x, y:e.y, id:e.id, type:e.type });
       } else if (e.cd <= 0) e.cd = 0;
     } else if (e.st === 'tell') {
       e.stT -= dt; e.tell01 = e.tellT > 0 ? 1 - Math.max(0, e.stT) / e.tellT : 1;
-      if (e.stT > api.tellT(S, A.lockLast)) e.aimAng = toH; // locks for the last 0.2 s
+      if (e.stT > api.tellT(S, A.lockLast)) e.aimAng = leadA; // locks for the last 0.2 s
       e.ang = e.aimAng;
       if (e.stT <= 0) { api.enemyShoot(S, e, e.aimAng, A.shotSpeed, api.enemyDmg(S, b.dmg)); e.st = 'cool'; e.cd = b.cd; e.tell01 = 0; }
     }
@@ -1479,14 +1517,15 @@ V.AI['E-02'] = {
 
 V.AI['E-03'] = {
   base: { hp:600, contact:40, dmg:45, speed:0, r:0.50, size:'medium', xp:8, tell:0.7, cd:2.8, static:true },
-  shotSpeed: 5.0, spread: 25 * DEG, range: 14,
-  init: function(S, e, api){ e.cd = api.rng(S).range(0.8, 1.6); e.afterSpawn = 'cool'; },
+  shotSpeed: 7.0, spread: 13 * DEG, fanN: 2, range: 14, lead: 0.8,
+  init: function(S, e, api){ e.cd = api.rng(S).range(0.3, 0.9); e.afterSpawn = 'cool'; },
   step: function(S, e, dt, api){
     var A = V.AI['E-03'], b = A.base, h = api.hero(S), dist = api.dist(e, h), toH = api.angleTo(e, h);
+    var leadA = V.AIU.leadAng(S, e, h, dt, A.shotSpeed, A.lead);
     if (e.st === 'cool' || e.st === 'move') {
-      e.ang = toH; e.cd -= dt;
+      e.ang = toH; e.cd -= dt * V.AIU.zeroIn(e);
       if (e.cd <= 0 && dist <= A.range && api.clearLine(S, e.x, e.y, h.x, h.y, 0.15)) {
-        e.st = 'tell'; e.stT = api.tellT(S, b.tell); e.tellT = e.stT; e.tell01 = 0; e.aimAng = toH; // fan fixed at tell start
+        e.st = 'tell'; e.stT = api.tellT(S, b.tell); e.tellT = e.stT; e.tell01 = 0; e.aimAng = leadA; // fan fixed at tell start
         api.ev(S, { k:'tell', x:e.x, y:e.y, id:e.id, type:e.type });
       } else if (e.cd <= 0) e.cd = 0;
     } else if (e.st === 'tell') {
@@ -1494,7 +1533,7 @@ V.AI['E-03'] = {
       e.ang = e.aimAng;
       if (e.stT <= 0) {
         var dmg = api.enemyDmg(S, b.dmg);
-        for (var k = -1; k <= 1; k++) api.enemyShoot(S, e, e.aimAng + k * A.spread, A.shotSpeed, dmg);
+        for (var k = -A.fanN; k <= A.fanN; k++) api.enemyShoot(S, e, e.aimAng + k * A.spread, A.shotSpeed, dmg);
         e.st = 'cool'; e.cd = b.cd; e.tell01 = 0;
       }
     }
@@ -1514,7 +1553,7 @@ function clamp(v, a, b){ return v < a ? a : (v > b ? b : v); }
 // E-04: walks, holds range, lobs a shell at the Operator's position at fire time.
 // The landing ring (r 1.0) shows the whole flight (1.0 s); shells ignore cover (sim).
 V.AI['E-04'] = {
-  base: { hp:500, contact:40, dmg:70, speed:1.2, r:0.45, size:'medium', xp:8, tell:1.0, cd:3.0 },
+  base: { hp:500, contact:40, dmg:95, speed:1.2, r:0.45, size:'medium', xp:8, tell:1.0, cd:3.0 },
   range: 8.5,          // never starts an attack while the Operator is farther than this
   prefer: 5.0,         // preferred distance while walking
   windup: 0.35,        // short squat before the lob (st 'tell'); the ring itself is the 1.0 s telegraph
@@ -1525,6 +1564,7 @@ V.AI['E-04'] = {
   },
   step: function(S, e, dt, api){
     var A = V.AI['E-04'], b = A.base, h = api.hero(S), dx = h.x - e.x, dy = h.y - e.y, dist = Math.hypot(dx, dy), toH = Math.atan2(dy, dx);
+    V.AIU.track(S, e, h, dt);
     if (e.st === 'move' || e.st === 'cool') {
       e.strafeT -= dt; if (e.strafeT <= 0) { e.strafe = -e.strafe; e.strafeT = api.rng(S).range(1.4, 2.8); }
       var ux = dx / (dist || 1), uy = dy / (dist || 1);
@@ -1535,7 +1575,7 @@ V.AI['E-04'] = {
       api.collideBody(S, e, e.r);
       if (Math.hypot(e.x - px, e.y - py) < 0.3 * b.speed * dt) e.strafe = -e.strafe;
       e.ang = toH; e.aimAng = toH;
-      e.cd -= dt;
+      e.cd -= dt * V.AIU.zeroIn(e);
       if (e.cd <= 0 && dist <= A.range) {   // lobbed: no line of sight needed
         e.st = 'tell'; e.stT = api.tellT(S, A.windup); e.tellT = e.stT; e.tell01 = 0; e.aimAng = toH;
         api.ev(S, { k:'tell', x:e.x, y:e.y, id:e.id, type:e.type });
@@ -1562,7 +1602,7 @@ V.AI['E-04'] = {
 // E-05: approaches; kneels 0.8 s facing the Operator with a red lane (locks the last 0.2 s),
 // dashes straight up to 8 units at 9.0; stops at walls/cover with a 1.0 s stun; cooldown 2.5 s.
 V.AI['E-05'] = {
-  base: { hp:650, contact:60, dmg:90, speed:1.6, r:0.50, size:'medium', xp:8, tell:0.8, cd:2.5 },
+  base: { hp:650, contact:60, dmg:130, speed:1.6, r:0.50, size:'medium', xp:8, tell:0.8, cd:2.5 },
   range: 7.0, lockLast: 0.2, dashSpeed: 9.0, dashDist: 8.0, stun: 1.0,
   init: function(S, e, api){
     e.cd = api.rng(S).range(0.8, 1.6); e.lane = this.dashDist; e.locked = false; e.stunT = 0;
@@ -1585,6 +1625,7 @@ V.AI['E-05'] = {
   },
   step: function(S, e, dt, api){
     var A = V.AI['E-05'], b = A.base, h = api.hero(S), dist = api.dist(e, h), toH = api.angleTo(e, h);
+    V.AIU.track(S, e, h, dt);
     if (e.st === 'stun') {
       e.stunT -= dt;
       if (e.stunT <= 0) { e.stunT = 0; e.st = 'cool'; e.cd = b.cd; }
@@ -1595,7 +1636,7 @@ V.AI['E-05'] = {
       if (dist > e.r + h.r + 0.15) api.steerTo(S, e, h.x, h.y, b.speed, dt); else e.ang = toH;
       api.collideBody(S, e, e.r);
       e.aimAng = toH;
-      e.cd -= dt;
+      e.cd -= dt * V.AIU.zeroIn(e);
       if (e.cd <= 0 && dist <= A.range && api.clearLine(S, e.x, e.y, h.x, h.y, e.r * 0.6)) {
         e.st = 'tell'; e.stT = api.tellT(S, b.tell); e.tellT = e.stT; e.tell01 = 0; e.aimAng = toH; e.ang = toH;
         A.setLane(S, e, api);
@@ -1656,14 +1697,14 @@ function rayLen(S, api, x, y, ang, max){
 }
 
 var B01 = V.AI['B-01'] = {
-  base: { hp:8000, contact:80, dmg:70, speed:0, r:1.0, size:'large', xp:0, tell:1.0, cd:2.5,
+  base: { hp:11000, contact:80, dmg:95, speed:0, r:1.0, size:'large', xp:0, tell:1.0, cd:1.4,
     static:true, boss:true, immune:{ instakill:true, freeze:true, knockback:true } },
   name: 'Volley Tower',
-  shotSpeed: 5.0, scatterDmg: 55, cd2: 1.8,
+  shotSpeed: 7.8, scatterDmg: 85, cd2: 1.0,
   tellA: 1.0, tellB: 0.6, tellC: 0.8,
   A: { lines1: 5, step1: 30 * DEG, perLine: 6, gap: 0.2,
        lines2: [-24, 24, -36, 36, -48, 48], extra2: 60 },   // phase 2 degrees from straight down; 7th line alternates side
-  B: { n1: 14, n2: 20, dur: 1.5, arc: 220 * DEG },
+  B: { n1: 24, n2: 32, dur: 1.5, arc: 220 * DEG },
   C: { fan: 20 * DEG, lineN: 5, lineGap: 0.12, lineDelay: 0.3 },
   order: ['A', 'B', 'C'],
 
@@ -1700,7 +1741,7 @@ var B01 = V.AI['B-01'] = {
   },
   planC: function(S, e, api){
     var h = api.hero(S);
-    e.aimAng = api.angleTo(e, h);
+    e.aimAng = V.AIU.leadTo(S, e, h, this.shotSpeed, 0.8);
     // bounce line: aim at the Operator's mirror image across a side wall, so the reflected leg crosses them
     var side = api.rng(S).next() < 0.5 ? -1 : 1;
     var wx = side < 0 ? SHOT_R : S.room.w - SHOT_R, mx = 2 * wx - h.x, my = h.y;
@@ -1749,9 +1790,10 @@ var B01 = V.AI['B-01'] = {
       e.phase = 2; api.ev(S, { k:'bossphase', x:e.x, y:e.y, id:e.id, phase:2 });
     }
     var h = api.hero(S);
+    V.AIU.track(S, e, h, dt);
     if (e.st === 'move' || e.st === 'cool') {
       e.ang = api.angleTo(e, h); e.tell01 = 0; e.spin01 = 0; e.attack = null;
-      e.cd -= dt;
+      e.cd -= dt * V.AIU.zeroIn(e);
       if (e.cd <= 0) A.startAttack(S, e, api);
     } else if (e.st === 'tell') {
       e.stT -= dt; e.tell01 = e.tellT > 0 ? 1 - Math.max(0, e.stT) / e.tellT : 1;
@@ -1809,9 +1851,15 @@ var PAL = {
   shellBody: C(48, 50, 56), ringFill: C(255, 60, 40, 0.16), ringEdge: C(255, 50, 40, 0.9),
   lane: C(255, 40, 40, 0.28), laneEdge: C(255, 40, 40, 0.9), stun: C(255, 222, 40),
   boss2: C(96, 40, 36), boss2Vent: C(255, 110, 40), floorLine: C(255, 50, 40, 0.5),
+  bossEdge: C(120, 14, 10), boss2Hot: C(255, 72, 30), boss2Rim: C(255, 96, 36, 0.85), bossSpin: C(255, 170, 70, 0.55),
   chest: C(120, 84, 44), chestLid: C(150, 108, 58), chestTrim: C(230, 190, 70),
   burn: C(255, 140, 30), poison: C(120, 230, 60), freeze: C(190, 240, 255), pierce: C(255, 255, 255),
-  heroHp: C(95, 208, 106), heroHpLow: C(255, 80, 60), heal: C(95, 208, 106), shield: C(64, 228, 255, 0.55)
+  heroHp: C(95, 208, 106), heroHpLow: C(255, 80, 60), heal: C(95, 208, 106), shield: C(64, 228, 255, 0.55),
+  // QA-P1 fixes (RENDER-UNITS): hp track, room edge, hazard plate, mortar shadow, stun, open chest
+  hpTrack: C(58, 50, 42), oob: C(70, 44, 18, 0.26), curb: C(176, 168, 150), curbTop: C(206, 199, 182),
+  bag: C(170, 146, 100), bagTop: C(196, 174, 128), bagSeam: C(128, 106, 70),
+  hazPlate: C(178, 158, 122), hazYellow: C(255, 200, 30), spikeRust: C(150, 70, 40),
+  shellShadow: C(60, 38, 16, 0.42), stunEye: C(110, 34, 30), chestIn: C(44, 28, 14), gold: C(255, 214, 70)
 };
 var TAU = Math.PI * 2;
 
@@ -1990,9 +2038,12 @@ function drawEnemy(S, e, s, t) {
     var m = 0.45 + 0.55 * pulse;
     body = mix(body, PAL.tellYellow, m); lite = mix(lite, PAL.tellYellow, m);
   }
+  // QA-P1 D12: the boss gets a soft, short hull tint instead of the full white flash (barrels, core and tells stay readable)
+  var hit = 0;
+  if (flash && (e.boss || e.type === 'B-01')) { hit = Math.max(0, (e.flashT - 0.04) / 0.06); flash = false; }
   if (flash) { body = PAL.white; lite = PAL.white; dark = PAL.white; eye = PAL.white; }
   var a = e.ang || 0, ca = Math.cos(a), sa = Math.sin(a);
-  var C2 = { body: body, lite: lite, dark: dark, eye: eye, core: flash ? PAL.white : PAL.sensorCore };
+  var C2 = { body: body, lite: lite, dark: dark, eye: eye, core: flash ? PAL.white : PAL.sensorCore, hit: hit };
   if (e.type === 'E-04') drawE04(e, x, y, rr, t, C2);
   else if (e.type === 'E-05') drawE05(e, x, y, rr, t, C2);
   else if (e.boss || e.type === 'B-01') drawB01(S, e, x, y, rr, t, C2);
@@ -2061,6 +2112,13 @@ function drawEnemyAim(S, e, s) {
 
 function drawHero(S, s, t) {
   var h = S.hero, x = X(h.x), y = Y(h.y), rr = (h.r || 0.28) * s;
+  // QA-P1 D2: when an enemy body overlaps the Operator, cut a sand patch with an ink rim under it, so the
+  // Operator (blinking at 35% too) never reads through the drones under it. Drawn before n0: not blinked.
+  var E = S.enemies || [], hr = h.r || 0.28;
+  for (var j = 0; j < E.length; j++) {
+    var e = E[j], er = (e.r || 0.4) * (e.type === 'E-01' ? 1.3 : 1.05);
+    if (Math.hypot(e.x - h.x, e.y - h.y) < er + hr + 0.08) { circ(x, y, rr + 5, withA(PAL.ink, 0.7)); circ(x, y, rr + 3.5, PAL.ground); break; }
+  }
   var blink = h.invulnT > 0 && Math.floor(t * 12) % 2 === 1, n0 = out.length; // blink to 35%, never hidden (M 2026-11-10)
   var a = h.ang || 0, ca = Math.cos(a), sa = Math.sin(a), px = -sa, py = ca;
   // rifle
@@ -2146,10 +2204,24 @@ function drawHazards(S, s, t) {
   var hz = S.hazards || [];
   for (var i = 0; i < hz.length; i++) {
     var q = hz[i], cx = X(q.x + q.w / 2), cy = Y(q.y + q.h / 2);
-    rect(cx, cy, q.w * s - 2, q.h * s - 2, PAL.spikePlate);
+    // QA-P1 D5: floor hazard, not cover: light plate flush with the sand, yellow/black hazard tape edge, rust-red studs
+    var pw = q.w * s - 2, ph = q.h * s - 2, tw = 4;
+    rect(cx, cy, pw, ph, PAL.ink);
+    rect(cx, cy, pw - 2, ph - 2, PAL.hazYellow);
+    rect(cx, cy, pw - 2 - 2 * tw, ph - 2 - 2 * tw, PAL.hazPlate);
+    var seg = 7, nh = Math.max(2, Math.round((pw - 2) / seg)), nv = Math.max(2, Math.round((ph - 2) / seg));
+    for (var u = 0; u < nh; u += 2) {
+      var sx = cx - (pw - 2) / 2 + ((pw - 2) * (u + 0.5)) / nh, sw = (pw - 2) / nh;
+      rect(sx, cy - (ph - 2) / 2 + tw / 2, sw, tw, PAL.ink); rect(sx, cy + (ph - 2) / 2 - tw / 2, sw, tw, PAL.ink);
+    }
+    for (var v = 1; v < nv - 1; v += 2) {
+      var sy = cy - (ph - 2) / 2 + ((ph - 2) * (v + 0.5)) / nv, svh = (ph - 2) / nv;
+      rect(cx - (pw - 2) / 2 + tw / 2, sy, tw, svh, PAL.ink); rect(cx + (pw - 2) / 2 - tw / 2, sy, tw, svh, PAL.ink);
+    }
     var nx = Math.max(1, Math.round(q.w * 2)), ny = Math.max(1, Math.round(q.h * 2)), up = q.on == null || q.on;
     for (var a = 0; a < nx; a++) for (var b = 0; b < ny; b++) {
-      var px = X(q.x + (a + 0.5) * q.w / nx), py = Y(q.y + (b + 0.5) * q.h / ny), r = s * 0.17;
+      var px = X(q.x + (a + 0.5) * q.w / nx), py = Y(q.y + (b + 0.5) * q.h / ny), r = s * 0.15;
+      circ(px, py + 1, r * 0.95, withA(PAL.spikeRust, up ? 0.75 : 0.45));
       if (up) { ngon(px + 1.5, py + 2, r, 3, -Math.PI / 2, PAL.shadow); ngon(px, py, r + 1, 3, -Math.PI / 2, PAL.ink); ngon(px, py, r, 3, -Math.PI / 2, PAL.spike); circ(px, py - r * 0.6, 1.2, PAL.spikeTip); }
       else circ(px, py, 2, PAL.ink);
     }
@@ -2171,13 +2243,20 @@ function drawShellRings(S, s, t) {
     ring(x, y, R - 1, 2 + (u > 0.75 ? 1.5 * Math.abs(Math.sin(t * 20)) : 0), PAL.ringEdge);
     line(x - 5, y, x + 5, y, 1.5, PAL.ringEdge); line(x, y - 5, x, y + 5, 1.5, PAL.ringEdge);
   }
+  // QA-P1 D6: big dark ground shadow right under the shell's ground point; shrinks and fades a little at the apex
+  for (var j = 0; j < L.length; j++) {
+    var g = shellGround(L[j]), h01 = Math.sin(Math.PI * g.u), gx = X(g.x) + 1.5, gy = Y(g.y) + 2, r0 = 8 - 2.5 * h01;
+    circ(gx, gy, r0 + 2.5, withA(PAL.shellShadow, 0.45 - 0.15 * h01));
+    circ(gx, gy, r0, withA(PAL.shellShadow, 1 - 0.3 * h01));
+  }
 }
 function drawShells(S, s) {
   var L = S.shells || [];
   for (var i = 0; i < L.length; i++) {
-    var q = L[i], g = shellGround(q), hgt = Math.sin(Math.PI * g.u) * 2.2 * s, x = X(g.x), y = Y(g.y);
-    circ(x + sh.x * (1 + hgt / s), y + sh.y * (1 + hgt / s) * 0.5, 4, PAL.shadow);
-    circ(x, y - hgt, 6.5, PAL.ink); circ(x, y - hgt, 5, PAL.shellBody); circ(x - 1.5, y - hgt - 1.5, 1.8, PAL.sensor);
+    // QA-P1 D6: the ball grows to 1.4x at the apex (ground shadow: drawShellShadows, ground layer)
+    var q = L[i], g = shellGround(q), h01 = Math.sin(Math.PI * g.u), hgt = h01 * 2.2 * s, x = X(g.x), y = Y(g.y), k = 1 + 0.4 * h01;
+    circ(x, y - hgt, 5 * k + 1.5, PAL.ink); circ(x, y - hgt, 5 * k, PAL.shellBody);
+    circ(x - 1.5 * k, y - hgt - 1.5 * k, 1.8 * k, PAL.metalLite); circ(x + 1.2 * k, y - hgt + 1.2 * k, 1.6 * k, PAL.sensor);
   }
 }
 
@@ -2211,7 +2290,11 @@ function drawBossGround(S, e, s, t) {
   } else if (B.attack === 'C') {
     for (var b = -1; b <= 1; b++) {
       var ba = a0 + b * (25 * Math.PI / 180), R = 4 * s;
-      line(X(e.x), Y(e.y), X(e.x) + Math.cos(ba) * R, Y(e.y) + Math.sin(ba) * R, 1.5, PAL.fanEdge);
+      // QA-P1 D4: same weight as attack A (wide floor band fading in with tell01) plus a 4 px core with a darker edge
+      var fx1 = X(e.x), fy1 = Y(e.y), fx2 = fx1 + Math.cos(ba) * R, fy2 = fy1 + Math.sin(ba) * R;
+      line(fx1, fy1, fx2, fy2, 0.3 * s * (0.4 + 0.6 * tt), withA(PAL.floorLine, 0.6 + 0.8 * tt));
+      line(fx1, fy1, fx2, fy2, 4, withA(PAL.bossEdge, 0.55 + 0.45 * tt));
+      line(fx1, fy1, fx2, fy2, 2, withA(PAL.laneEdge, 0.7 + 0.3 * tt));
     }
     var segs = e.segs;
     if (!segs || !segs.length) { var Lc = rayLen(S, e.x, e.y, a0, 20); segs = [{ x1: e.x, y1: e.y, x2: e.x + Math.cos(a0) * Lc, y2: e.y + Math.sin(a0) * Lc }]; }
@@ -2249,46 +2332,77 @@ function drawE04(e, x, y, rr, t, C2) {
 function drawE05(e, x, y, rr, t, C2) {
   var a = e.aimAng != null && (e.st === 'tell' || e.st === 'act') ? e.aimAng : e.ang || 0;
   var kneel = e.st === 'tell', stun = e.st === 'stun' || e.stunT > 0, k = kneel ? 0.86 : 1;
-  if (stun) a += Math.sin(t * 14) * 0.12;
+  if (stun) a += 0.35 + Math.sin(t * 14) * 0.12; // QA-P1 D9: slumped tilt + wobble
   var ca = Math.cos(a), sa = Math.sin(a);
   oNgon(x - ca * rr * 0.1, y - sa * rr * 0.1, rr * 1.0 * k, 3, a, stun ? mix(C2.body, PAL.metalLite, 0.4) : C2.body);
   ngon(x - ca * rr * 0.15, y - sa * rr * 0.15, rr * 0.55 * k, 3, a, C2.lite);
   oRect(x + ca * rr * 0.62 * k, y + sa * rr * 0.62 * k, rr * 0.3, rr * 1.35 * k, kneel ? mix(C2.dark, PAL.sensor, 0.35) : C2.dark, a); // ram plate
-  circ(x + ca * rr * 0.2, y + sa * rr * 0.2, rr * (kneel ? 0.24 : 0.18), stun ? PAL.metalLite : C2.eye);
-  if (stun) for (var i = 0; i < 3; i++) { var sa2 = t * 5 + i * TAU / 3; ngon(x + Math.cos(sa2) * rr * 0.9, y - rr * 0.9 + Math.sin(sa2) * rr * 0.3, 3.2, 4, t * 4, PAL.stun); }
+  circ(x + ca * rr * 0.2, y + sa * rr * 0.2, rr * (kneel ? 0.24 : 0.18), stun ? (C2.eye === PAL.white ? PAL.white : PAL.stunEye) : C2.eye);
+  if (stun) {
+    // QA-P1 D9: dimmed eye (above) + a big orbiting spark ring around the whole body
+    var R5 = rr * 1.4, sp = t * 4;
+    for (var j = 0; j < 3; j++) { var a0 = sp + j * TAU / 3; ring(x, y, R5, 4.5, PAL.ink, a0 - 0.05, a0 + 1.25); ring(x, y, R5, 2.5, PAL.stun, a0, a0 + 1.2); }
+    for (var i = 0; i < 4; i++) { var sa2 = -sp * 1.3 + i * TAU / 4; oNgon(x + Math.cos(sa2) * R5, y + Math.sin(sa2) * R5, 4.5, 4, t * 6, i % 2 ? PAL.sparkHot : PAL.stun); }
+  }
 }
 
 function drawB01(S, e, x, y, rr, t, C2) {
   var B = bossAttack(S, e) || {}, ph2 = (B.phase || e.phase) === 2, tell = !!B.attack && e.st !== 'act', tt = tell ? (B.tell01 != null ? B.tell01 : e.tell01 || 0) : 0;
   var body = ph2 ? mix(C2.body, PAL.boss2, 0.75) : C2.body, a0 = e.aimAng != null ? e.aimAng : Math.PI / 2;
-  var spin = B.attack === 'B' && tell ? t * (2 + 22 * tt) : (e.ang || 0) * 0 + t * 0.4;
-  oNgon(x, y, rr * 1.08, 8, Math.PI / 8, PAL.metalDark); // base
-  var nb = 8;
-  for (var k = 0; k < nb; k++) {
-    var ba = spin + k * TAU / nb, cb = Math.cos(ba), sb = Math.sin(ba);
-    oRect(x + cb * rr * 0.98, y + sb * rr * 0.98, rr * 0.5, rr * 0.2, C2.dark, ba);
-    if (B.attack === 'B' && tell) circ(x + cb * rr * 1.25, y + sb * rr * 1.25, 2 + 3 * tt, mix(PAL.glow, PAL.sparkHot, tt));
+  if (C2.hit > 0) body = mix(body, PAL.white, 0.35 * C2.hit); // D12: soft hull tint only
+  // D7: attack B spin-up. The angle comes from tell01 (1.5 turns, accelerating, no jumps), plus motion trails and a growing glow ring.
+  var spinB = B.attack === 'B' && tell, spin = t * 0.4 + (spinB ? TAU * 1.5 * tt * tt : 0);
+  var hot = ph2 ? 0.75 + 0.25 * Math.sin(t * 6) : 0, nb = 8, k, ba, cb, sb;
+  // D8: phase 2 hull rim glows orange-red
+  if (ph2) ngon(x, y, rr * 1.08 + OL + 4.5, 8, Math.PI / 8, withA(PAL.boss2Rim, hot));
+  oNgon(x, y, rr * 1.08, 8, Math.PI / 8, ph2 ? mix(PAL.metalDark, PAL.boss2, 0.45) : PAL.metalDark); // base
+  if (spinB) {
+    ring(x, y, rr * (1.12 + 0.4 * tt), 2 + 3 * tt, withA(PAL.glow, 0.35 + 0.6 * tt));
+    for (k = 0; k < nb; k++) { ba = spin + k * TAU / nb; ring(x, y, rr * 0.98, rr * 0.2, withA(PAL.bossSpin, 0.25 + 0.65 * tt), ba - 0.6 * tt, ba); }
+  }
+  for (k = 0; k < nb; k++) {
+    ba = spin + k * TAU / nb; cb = Math.cos(ba); sb = Math.sin(ba);
+    oRect(x + cb * rr * 0.98, y + sb * rr * 0.98, rr * 0.5, rr * 0.2, spinB ? mix(C2.dark, PAL.glow, 0.4 * tt) : C2.dark, ba);
+    if (ph2) rect(x + cb * rr * 1.17, y + sb * rr * 1.17, rr * 0.12, rr * 0.2, mix(PAL.boss2Hot, PAL.sparkHot, 0.35 * hot), ba); // D8: hot barrel tips
+    if (spinB) circ(x + cb * rr * 1.27, y + sb * rr * 1.27, 2.5 + 3.5 * tt, mix(PAL.glow, PAL.sparkHot, tt));
   }
   oCirc(x, y, rr * 0.78, body);
   ring(x, y, rr * 0.6, 2, ph2 ? PAL.boss2Vent : C2.lite);
   if (ph2) for (var v = 0; v < 4; v++) { var va = v * Math.PI / 2 + Math.PI / 4; circ(x + Math.cos(va) * rr * 0.45, y + Math.sin(va) * rr * 0.45, 3 + Math.sin(t * 8 + v) * 1, PAL.boss2Vent); }
   // main gun toward aim
   oRect(x + Math.cos(a0) * rr * 0.55, y + Math.sin(a0) * rr * 0.55, rr * 0.7, rr * 0.3, C2.dark, a0);
+  if (ph2) rect(x + Math.cos(a0) * rr * 0.86, y + Math.sin(a0) * rr * 0.86, rr * 0.1, rr * 0.3, mix(PAL.boss2Hot, PAL.sparkHot, 0.35 * hot), a0);
   circ(x, y, rr * (0.3 + 0.08 * tt), tell ? mix(C2.eye, PAL.sparkHot, tt) : C2.eye);
   circ(x, y, rr * 0.12, C2.core);
   if (tell && B.attack === 'A') ring(x, y, rr * 1.3, 2.5, withA(PAL.laneEdge, 0.4 + 0.6 * tt), -Math.PI / 2, -Math.PI / 2 + TAU * tt);
+  // D8: heat sparks rising off the phase-2 hull (deterministic from t, so both renderers draw the same)
+  if (ph2) for (var hs = 0; hs < 5; hs++) {
+    var hu = (t * 0.9 + hs / 5) % 1, hx = x + (hs - 2) * rr * 0.38 + Math.sin(t * 3 + hs * 1.7) * rr * 0.08;
+    circ(hx, y - rr * 0.7 - hu * rr * 1.1, 1.5 + 3 * (1 - hu), withA(mix(PAL.boss2Hot, PAL.sparkHot, 1 - hu), 1 - hu * 0.8));
+  }
 }
 
 function drawChest(S, s, t) {
   var c = S.chest; if (!c) return;
   var x = X(c.x), y = Y(c.y), w = 0.9 * s, h = 0.6 * s;
   rect(x + sh.x, y + sh.y, w, h, PAL.shadow);
-  oRect(x, y, w, h, PAL.chest);
-  rect(x, y, w, 2.5, PAL.chestTrim); rect(x - w * 0.3, y, 2.5, h, PAL.chestTrim); rect(x + w * 0.3, y, 2.5, h, PAL.chestTrim);
   if (c.open) {
-    oRect(x, y - h * 0.75, w, h * 0.35, PAL.chestLid);
-    circ(x, y - 2, h * 0.3, withA(PAL.cyan, 0.5 + 0.3 * Math.sin(t * 6)));
+    // QA-P1 D11: lid raised behind the box (inside face showing), dark mouth full of gold, pulsing gold glint
+    var lh = h * 0.8, ly = y - h / 2 - lh / 2 + 2, pu = 0.5 + 0.5 * Math.sin(t * 5);
+    rect(x + sh.x * 0.6, ly + sh.y * 0.4, w + 2, lh, PAL.shadow);
+    oRect(x, ly, w + 2, lh, PAL.chestLid);
+    rect(x, ly + 1.5, w - 4, lh - 6, mix(PAL.chest, PAL.chestIn, 0.45));
+    rect(x, ly - lh / 2 + 1.5, w + 2, 2.5, PAL.chestTrim); rect(x - w * 0.3, ly, 2.5, lh, PAL.chestTrim); rect(x + w * 0.3, ly, 2.5, lh, PAL.chestTrim);
+    oRect(x, y, w, h, PAL.chest);
+    rect(x - w * 0.3, y, 2.5, h, PAL.chestTrim); rect(x + w * 0.3, y, 2.5, h, PAL.chestTrim);
+    rect(x, y - h * 0.18, w - 5, h * 0.5, PAL.chestIn);
+    circ(x, y - h * 0.18, h * 0.42, withA(PAL.gold, 0.25 + 0.15 * pu));
+    for (var g = -2; g <= 2; g++) circ(x + g * w * 0.15, y - h * 0.12 - (2 - Math.abs(g)) * 1.5, 3.2, g % 2 ? PAL.chestTrim : PAL.gold);
+    var gx = x + w * 0.22, gy = y - h * 0.38, gl = 5 + 6 * pu;
+    rect(gx, gy, 1.8, gl, PAL.sparkHot); rect(gx, gy, gl, 1.8, PAL.sparkHot); circ(gx, gy, 2, PAL.white);
   } else {
+    oRect(x, y, w, h, PAL.chest);
+    rect(x, y, w, 2.5, PAL.chestTrim); rect(x - w * 0.3, y, 2.5, h, PAL.chestTrim); rect(x + w * 0.3, y, 2.5, h, PAL.chestTrim);
     rect(x, y - h * 0.32, w, h * 0.36, PAL.chestLid);
     oRect(x, y, 6, 7, PAL.chestTrim);
     ring(x, y, w * 0.75 + 2 * Math.sin(t * 4), 1.5, withA(PAL.chestTrim, 0.6));
@@ -2318,9 +2432,44 @@ function drawFx(S, s, t) {
 
 function drawHeroHp(S, s) {
   var h = S.hero; if (!(h.maxHp > 0)) return;
-  var x = X(h.x), y = Y(h.y) - (h.r || 0.28) * s - 13, w = 28, f = Math.max(0, Math.min(1, h.hp / h.maxHp));
-  rect(x, y, w + 2, 5, PAL.hpBack);
-  rect(x - w / 2 + (w * f) / 2, y, w * f, 3, f < 0.3 ? PAL.heroHpLow : PAL.heroHp);
+  // QA-P1 D13: 1 px ink outline + dark track, lifted clear of the rifle tip when aiming up
+  var x = X(h.x), y = Y(h.y) - (h.r || 0.28) * s * 1.95 - 7, w = 28, f = Math.max(0, Math.min(1, h.hp / h.maxHp));
+  rect(x, y, w + 2, 6, PAL.ink);
+  rect(x, y, w, 4, PAL.hpTrack);
+  if (f > 0) rect(x - w / 2 + (w * f) / 2, y, w * f, 4, f < 0.3 ? PAL.heroHpLow : PAL.heroHp);
+}
+
+// QA-P1 D3: visible room edge (visual only; sim bounds unchanged). Same sand everywhere; out of bounds is a shade of it.
+function drawOutOfBounds(S, s, RW, RH) {
+  var y0 = Y(RH), xl = X(0), xr = X(RW);
+  if (y0 < vw.h) rect(vw.w / 2, (y0 + vw.h) / 2, vw.w + 2, vw.h - y0, PAL.oob);
+  if (xl > 0.5) rect(xl / 2, (Y(0) + y0) / 2, xl, y0 - Y(0), PAL.oob);
+  if (xr < vw.w - 0.5) rect((xr + vw.w) / 2, (Y(0) + y0) / 2, vw.w - xr, y0 - Y(0), PAL.oob);
+}
+function drawRoomEdge(S, s, RW, RH) {
+  var y0 = Y(RH), yt = Y(0.5), xl = X(0), xr = X(RW), cw = 4;
+  // side curbs: thin concrete strip just inside each side wall line
+  for (var k = 0; k < 2; k++) {
+    var cx = k ? xr - cw / 2 : xl + cw / 2, hh = y0 - yt;
+    rect(cx + (k ? -1 : 1) * (cw / 2 + 0.5), yt + hh / 2, 1, hh, withA(PAL.ink, 0.55));
+    rect(cx, yt + hh / 2, cw, hh, PAL.curb);
+    rect(cx + (k ? 0.5 : -0.5), yt + hh / 2, 1.5, hh, PAL.curbTop);
+  }
+  // bottom berm: two staggered rows of sandbags just outside the room line, hard shadow below
+  var bw = Math.max(18, s * 0.6), bh = 9, n = Math.ceil((xr - xl) / bw) + 1, rb = bh / 2, core = bw - 2 * rb - 1.5;
+  rect((xl + xr) / 2, y0 + 20 + sh.y * 0.5, xr - xl, 6, PAL.shadow);
+  for (var row = 0; row < 2; row++) {
+    var by = y0 + 5.5 + row * 8, off = row ? bw / 2 : 0;
+    for (var i = -1; i < n; i++) {
+      var bx = xl + off + i * bw + bw / 2;
+      if (bx + bw / 2 < xl - 2 || bx - bw / 2 > xr + 2) continue;
+      // pillow-shaped bag: rect body + round ends, ink rim
+      rect(bx, by, core, bh + 2 * OL, PAL.ink); circ(bx - core / 2, by, rb + OL, PAL.ink); circ(bx + core / 2, by, rb + OL, PAL.ink);
+      rect(bx, by, core, bh, PAL.bag); circ(bx - core / 2, by, rb, PAL.bag); circ(bx + core / 2, by, rb, PAL.bag);
+      rect(bx - 1, by - 1.8, core, 2.5, PAL.bagTop);
+      rect(bx + core / 2 - 1, by, 1.2, bh - 3, PAL.bagSeam);
+    }
+  }
 }
 
 // particle clock = S.t (hit-stop and pause freeze sparks); stepped from both ingest and build
@@ -2365,6 +2514,7 @@ V.Scene = {
     }
     var R = S.room, RW = (R && R.w) || 9, RH = (R && R.h) || 15;
     // room floor = same sand as the ground below (M 2026-11-10: one continuous yard, no panel)
+    drawOutOfBounds(S, s, RW, RH); // QA-P1 D3: below/beside the room = same sand, shaded darker
 
     var E = S.enemies || [], sol = (R && R.solids) || [];
     drawHazards(S, s, t);
@@ -2387,6 +2537,7 @@ V.Scene = {
     var H = S.hero, heroOn = H && S.phase !== 'dead' && !(S.phase === 'results' && S.result && !S.result.win);
     if (heroOn) circ(X(H.x) + sh.x * 0.7, Y(H.y) + sh.y * 0.7, (H.r || 0.28) * s, PAL.shadow);
 
+    drawRoomEdge(S, s, RW, RH); // QA-P1 D3: sandbag berm + side curbs
     for (i = 0; i < sol.length; i++) drawSolid(sol[i], s);
     drawDoor(S, s);
     drawSupply(S, s, t);
@@ -2395,6 +2546,8 @@ V.Scene = {
     for (i = 0; i < E.length; i++) drawEnemyAim(S, E[i], s);
     for (i = 0; i < E.length; i++) drawEnemy(S, E[i], s, t);
     drawFx(S, s, t);
+    drawLock(S, s, t); // enemy marker: under the Operator (QA-P1 D2)
+    // QA-P1 D2: the Operator and its HP bar sit above every enemy layer (bodies, HP bars, lock ring)
     if (heroOn) { drawBrace(S, s); drawHero(S, s, t); drawHeroHp(S, s); }
 
     var rd = S.rounds || [];
@@ -2417,7 +2570,6 @@ V.Scene = {
       circ(X(o.x), Y(o.y), r2, PAL.shot); circ(X(o.x), Y(o.y), r2 * 0.45, PAL.shotCore);
     }
     drawShells(S, s);
-    drawLock(S, s, t);
     drawParticles(s);
     if (V.Scene.stress > 0) drawStress(V.Scene.stress | 0, t);
     return out;
@@ -3089,7 +3241,7 @@ if (V.TUNE_DEFAULTS) {
   var SHELL = { AUTO_WALK: true, AUTO_WALK_DELAY: 1.0, EDGE_FLASH: true, HAPTIC_HURT_MS: 40, HAPTIC_KILL_MS: 12 };
   for (var sk in SHELL) if (!(sk in V.TUNE_DEFAULTS)) { V.TUNE_DEFAULTS[sk] = SHELL[sk]; if (V.TUNE && !(sk in V.TUNE)) V.TUNE[sk] = SHELL[sk]; }
 }
-var BUILD = 'volley-p1-1';
+var BUILD = 'volley-p1-3';
 // Persist tuning (only values that differ from defaults) and sound-off. Every storage call is guarded.
 var STORE = 'volley.tune';
 function loadTune(){
@@ -3226,19 +3378,28 @@ UI.toast = function(text, ms){
 };
 UI.placeToast = function(view){
   // Below the room, in the ground area: never over the HUD bars or the room edge (L-TD-5).
-  var t = $('toast'); t.style.top = Math.round(view.oy + 15 * view.s + 12) + 'px';
+  // D10: one line, in the band below the room, under the two-line how-to box (top +14, ~50 px tall), clear of the spawn.
+  var t = $('toast'); t.style.top = Math.round(view.oy + 15 * view.s + 76) + 'px';
 };
 
 // Crit numbers (M's pick: crits only). Pooled DOM, max 8 live.
 var dnPool = [], dnNext = 0;
-UI.crit = function(x, y, dmg, view){
+UI.crit = function(x, y, dmg, view, S, id){
   var layer = $('dmgLayer'); if (!layer) return;
   if (dnPool.length < 8) { var d0 = document.createElement('div'); d0.className = 'dn'; layer.appendChild(d0); dnPool.push({ el: d0, anim: null }); }
   var it = dnPool[dnNext % dnPool.length]; dnNext++;
   if (it.anim) { try { it.anim.cancel(); } catch (_) {} }
   var el = it.el; el.textContent = dmg != null ? String(Math.round(dmg)) : 'CRIT';
-  var px = view.ox + x * view.s, py = view.oy + y * view.s - view.s * 0.45;
-  var base = 'translate(' + Math.round(px) + 'px,' + Math.round(py) + 'px) translate(-50%,-100%)';
+  var px = view.ox + x * view.s, py = view.oy + y * view.s - view.s * 0.45, anchor = 'translate(-50%,-100%)';
+  // D12: crits on the boss float beside its hull (alternating sides), never over the core.
+  var B = S && S.boss, be = null;
+  if (B && id != null && id === B.id && S.enemies) for (var bi = 0; bi < S.enemies.length; bi++) if (S.enemies[bi].id === id) { be = S.enemies[bi]; break; }
+  if (be) {
+    var side = (dnNext & 1) ? 1 : -1, br = (be.r || 1) + 0.15;
+    px = view.ox + (be.x + side * br) * view.s; py = view.oy + be.y * view.s;
+    anchor = side > 0 ? 'translate(0,-50%)' : 'translate(-100%,-50%)';
+  }
+  var base = 'translate(' + Math.round(px) + 'px,' + Math.round(py) + 'px) ' + anchor;
   var rise = V.reducedMotion ? 0 : -20;
   var kf = [{ transform: base + ' translateY(0px)', opacity: 1 }, { transform: base + ' translateY(' + (rise * 0.5) + 'px)', opacity: 1, offset: 0.4 }, { transform: base + ' translateY(' + rise + 'px)', opacity: 0 }];
   if (el.animate) { it.anim = el.animate(kf, { duration: 600, easing: 'ease-out', fill: 'forwards' }); }
@@ -3267,7 +3428,11 @@ UI.hud = function(S, R, view){
     $('xpFill').style.width = (xpPct * 100).toFixed(1) + '%';
     $('hpFill').style.width = (hp / mx * 100).toFixed(1) + '%';
     $('hpFill').style.background = hp / mx < 0.3 ? '#f07a6e' : '#5fd06a';
-    $('hpTxt').textContent = hp + ' / ' + mx;
+    // Dark text is clipped to the filled part, light text to the empty part.
+    var cut = (100 - hp / mx * 100).toFixed(1) + '%', ht = hp + ' / ' + mx;
+    $('hpTxt').textContent = ht; $('hpTxtE').textContent = ht;
+    $('hpTxt').style.clipPath = 'inset(0 ' + cut + ' 0 0)';
+    $('hpTxtE').style.clipPath = 'inset(0 0 0 ' + (hp / mx * 100).toFixed(1) + '%)';
   }
   UI.rendererLabel(R, view);
   UI.boss(S, view);
@@ -3280,10 +3445,11 @@ UI.boss = function(S, view){
   var k = [b.name, Math.ceil(b.hp), b.maxHp, b.phase, Math.round(view.ox), Math.round(view.oy), Math.round(view.s)].join('|');
   if (k === bossKey) return; bossKey = k;
   // Top of the room, inside the north wall row, so it never covers the HUD bars.
+  // D1: name and numbers on a row above a plain full-width bar (block is about 34 px tall).
   el.style.display = 'block';
-  el.style.left = Math.round(view.ox + view.s * 0.5) + 'px';
-  el.style.width = Math.round(view.s * 8) + 'px';
-  el.style.top = Math.round(view.oy + Math.max(0, (view.s - 22) / 2)) + 'px';
+  el.style.left = Math.round(view.ox + view.s * 0.25) + 'px';
+  el.style.width = Math.round(view.s * 8.5) + 'px';
+  el.style.top = Math.round(view.oy + Math.max(0, (view.s - (el.offsetHeight || 34)) / 2)) + 'px';
   $('bossFill').style.width = Math.max(0, Math.min(100, b.hp / b.maxHp * 100)).toFixed(1) + '%';
   $('bossName').textContent = (b.name || 'Boss') + (b.phase === 2 ? ' - phase 2' : '');
   $('bossHp').textContent = Math.ceil(b.hp) + ' / ' + Math.round(b.maxHp);
@@ -3295,8 +3461,10 @@ UI.howto = function(on, view){
 };
 UI.rendererLabel = function(R, view){
   var t = (R ? R.name : 'none') + ' | ' + Math.round(view.w) + 'x' + Math.round(view.h) + ' | dpr ' + (Math.round((G.devicePixelRatio || 1) * 100) / 100);
-  var el = $('rlbl'); if (el.textContent !== t) el.textContent = t;
+  // D14: the corner label shows only with ?debug=1; the pause card and the tuning drawer always carry it.
+  ['rlbl', 'rlblPause', 'rlblDrawer'].forEach(function(id){ var el = $(id); if (el && el.textContent !== t) el.textContent = t; });
 };
+if (G.location && /[?&]debug=1/.test(location.search)) document.body.classList.add('dbg');
 
 // Text glyphs (U+FE0E keeps them out of emoji style).
 var GLYPH = { 'SK-01': '‖', 'SK-02': '≡', 'SK-03': '⋀', 'SK-04': '↔', 'SK-05': '↓', 'SK-06': '↯', 'SK-07': '⇢',
@@ -3421,7 +3589,7 @@ function handleEvents(ev, live){
     switch (e.k) {
       case 'fire': V.Audio.play('fire'); break;
       case 'hit': V.Audio.play('hit'); stop = true; break;
-      case 'crit': UI.crit(e.x, e.y, e.dmg, view); stop = true; break;
+      case 'crit': UI.crit(e.x, e.y, e.dmg, view, S, e.id); stop = true; break;
       case 'kill': V.Audio.play('kill'); vib(V.TUNE.HAPTIC_KILL_MS); stop = true; break;
       case 'hurt': V.Audio.play('hurt'); UI.hurtFlash(); vib(V.TUNE.HAPTIC_HURT_MS); break;
       case 'door': V.Audio.play('door'); awReset(); UI.toast('Stage ' + S.stage + ' clear', 1100); break;
@@ -3450,8 +3618,10 @@ function syncPhase(){
   } else if (shown.supply) { shown.supply = false; UI.show('ovSupply', false); }
   // P1: death and boss kill both end in 'results'. A brief 'dead' phase (if the sim has one) shows the same screen.
   if (isEnd()) {
-    if (!shown.dead || shown.endPhase !== S.phase) { shown.dead = true; shown.endPhase = S.phase; deadAt = shown.dead && deadAt ? deadAt : performance.now(); V.Input.release(); UI.results(S); }
-  } else if (shown.dead) { shown.dead = false; deadAt = 0; UI.show('ovDead', false); }
+    if (!shown.dead || shown.endPhase !== S.phase) { shown.dead = true; shown.endPhase = S.phase; deadAt = deadAt || performance.now(); V.Input.release(); UI.results(S); }
+    var armed = performance.now() - deadAt >= RESULTS_GUARD_MS, ovd = $('ovDead');
+    if (ovd.classList.contains('armed') !== armed) ovd.classList.toggle('armed', armed);
+  } else if (shown.dead) { shown.dead = false; deadAt = 0; $('ovDead').classList.remove('armed'); UI.show('ovDead', false); }
 }
 function pickSupply(i){
   if (!S || S.phase !== 'supply') return;
@@ -3475,7 +3645,12 @@ function restart(){
   acc = 0; hitstopUntil = 0; deadAt = 0; moved = false; awReset(); shown.dead = false; UI.show('ovDead', false); shown.pick = false; UI.show('ovCards', false); shown.supply = false; UI.show('ovSupply', false);
   syncPhase(); return S;
 }
-function tryRestart(){ if (S && isEnd() && performance.now() - deadAt > 450) restart(); }
+// Results tap guard: the screen waits RESULTS_GUARD_MS, and only a press that BEGAN after that counts,
+// so a finger still on the glass from the fight (or a tap just after the kill) never skips the results.
+var RESULTS_GUARD_MS = 1000;
+function guardOk(pressT){ return !!(S && isEnd() && deadAt && pressT - deadAt >= RESULTS_GUARD_MS); }
+function tryRestart(pressT){ if (guardOk(pressT == null ? performance.now() : pressT)) restart(); }
+var resPressAt = 0;
 
 function pause(){
   if (paused || !S) return;
@@ -3604,11 +3779,12 @@ function boot(){
   stage.addEventListener('pointerdown', function(e){
     if (S && S.phase === 'clear' && !aw.cancelled && !(e.target.closest && e.target.closest('button, .ov, #drawer'))) { aw.cancelled = true; V.Input.note(aw.on ? 'awx' : 'awc', 0, 0); }
   }, true);
-  $('ovDead').addEventListener('pointerdown', function(e){ if (e.target.id !== 'btnRestart') tryRestart(); });
-  $('btnRestart').addEventListener('click', tryRestart);
+  $('ovDead').addEventListener('pointerdown', function(e){ resPressAt = performance.now(); if (e.target.id !== 'btnRestart') tryRestart(resPressAt); });
+  // A click counts only when its press began on this screen after the guard (keyboard clicks have detail 0).
+  $('btnRestart').addEventListener('click', function(e){ tryRestart(e.detail === 0 ? performance.now() : (resPressAt > deadAt ? resPressAt : 0)); });
   G.addEventListener('keydown', function(e){
     if (paused && (e.key === ' ' || e.key === 'Enter' || e.key === 'Escape')) { resume(); return; }
-    if (S && isEnd() && (e.key === ' ' || e.key === 'Enter' || e.key === 'r')) tryRestart();
+    if (S && isEnd() && !e.repeat && (e.key === ' ' || e.key === 'Enter' || e.key === 'r')) tryRestart();
     if (S && S.phase === 'supply' && /^[1-2]$/.test(e.key) && S.supply && +e.key <= S.supply.length) pickSupply(+e.key - 1);
     if (S && S.phase === 'pick' && /^[1-3]$/.test(e.key) && S.cards && +e.key <= S.cards.length) pick(+e.key - 1);
   });

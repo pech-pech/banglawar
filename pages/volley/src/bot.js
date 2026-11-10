@@ -314,7 +314,7 @@ function toStage(seed, n, tune) { // jump to stage n by force-clearing rooms and
   var afterFlat = S5.hero.hp;
   for (i = 0; i < 20; i++) V.Sim.step(S5, { mx: 0, my: 0 });
   chk('pillar stops enemy flat shot and Operator round', S5.shots.length === 0 && afterFlat === hp0 && S5.enemies[0] && S5.enemies[0].hp === 1e6);
-  chk('lobbed shell lands over cover and hurts', S5.hero.hp === hp0 - V.Sim.api.enemyDmg(S5, 70) && S5.shells.length === 0, 'hp ' + hp0 + ' -> ' + S5.hero.hp);
+  chk('lobbed shell lands over cover and hurts', S5.hero.hp === hp0 - 70 && S5.shells.length === 0, 'hp ' + hp0 + ' -> ' + S5.hero.hp);
   // door
   var S6 = V.Sim.create(11, freshTune());
   S6.enemies.length = 0; S6.spawnQ.length = 0; V.Sim.step(S6, { mx: 0, my: 0 });
@@ -399,7 +399,7 @@ function toStage(seed, n, tune) { // jump to stage n by force-clearing rooms and
 out('');
 
 // 4) sweeps
-var summary = [];
+var summary = [], skilledWorst = null;
 ['idle', 'naive', 'human', 'skilled'].forEach(function (kind) {
   var runs = [];
   for (var s = 1; s <= SEEDS; s++) runs.push(runOne(s, kind, MAX_STEPS));
@@ -407,6 +407,10 @@ var summary = [];
   var braced = runs.map(function (r) { return r.S.stats.playSteps ? 100 * r.S.stats.bracedSteps / r.S.stats.playSteps : 0; });
   var hitsBy = {}, dmg = 0;
   runs.forEach(function (r) { for (var k in r.S.stats.hitsBy) hitsBy[k] = (hitsBy[k] || 0) + r.S.stats.hitsBy[k]; dmg += r.S.stats.dmgTaken; });
+  if (kind === 'skilled') { // fairness gate: a bot that reads the tells must never be hit 5+ times by one enemy type in one run
+    var worst = {}; runs.forEach(function (r) { for (var k in r.S.stats.hitsBy) worst[k] = Math.max(worst[k] || 0, r.S.stats.hitsBy[k]); });
+    skilledWorst = worst;
+  }
   out('== Bot: ' + kind + ' (' + SEEDS + ' seeds) ==');
   out('chapter clear (boss killed): ' + wins.length + '/' + SEEDS + ' (' + (100 * wins.length / SEEDS).toFixed(1) + '%); died ' + deaths.length + '; timed out ' + tos.length);
   out('death stage: ' + (deaths.length ? 'median ' + pct(deaths.map(function (r) { return r.stage; }), 0.5) + ', p10 ' + pct(deaths.map(function (r) { return r.stage; }), 0.1) + ', p90 ' + pct(deaths.map(function (r) { return r.stage; }), 0.9) : '-') +
@@ -439,6 +443,8 @@ var summary = [];
   summary.push(kind + ': clear ' + wins.length + '/' + SEEDS + ', died ' + deaths.length + (deaths.length ? ' (median stage ' + pct(deaths.map(function (r) { return r.stage; }), 0.5) + ')' : '') +
     ', boss time median ' + (bt.length ? pct(bt, 0.5).toFixed(1) + ' s' : '-') + ', braced ' + f1(mean(braced)) + '%');
 });
+(function(){ var bad = [], w = skilledWorst || {}; for (var k in w) if (w[k] >= 5) bad.push(k + ' ' + w[k]);
+  chk('fairness gate: skilled bot takes < 5 hits from any one enemy type in any single run', skilledWorst && !bad.length, 'worst per run ' + JSON.stringify(w)); })();
 out('== Summary ==');
 summary.forEach(out);
 out('Rule checks failed: ' + nFail);

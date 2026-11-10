@@ -13,9 +13,9 @@ var EXPECT = { // D3 2.1 rows 1-10 + DESIGN 9 (stage 4 eased, stage 6/8 swapped,
   3:{kind:'combat', room:'R01', n:{'E-01':1,'E-02':2}},
   4:{kind:'combat', room:'R02', n:{'E-01':1,'E-02':1,'E-03':1}},
   5:{kind:'supply', room:'SD',  n:{}},
-  6:{kind:'combat', room:'R03', n:{'E-01':1,'E-02':1,'E-04':1}},
-  7:{kind:'combat', room:'R02', n:{'E-01':2,'E-05':1}},
-  8:{kind:'combat', room:'R02', n:{'E-01':1,'E-02':1,'E-03':1,'E-05':2}},
+  6:{kind:'combat', room:'R03', n:{'E-01':1,'E-02':2,'E-04':1}},
+  7:{kind:'combat', room:'R02', n:{'E-01':2,'E-05':2}},
+  8:{kind:'combat', room:'R02', n:{'E-01':1,'E-02':1,'E-03':1,'E-05':1}},
   9:{kind:'cache',  room:'CA1', n:{'E-01':2}},
   10:{kind:'boss',  room:'BA1', n:{'B-01':1}}
 };

@@ -8,7 +8,7 @@ function clamp(v, a, b){ return v < a ? a : (v > b ? b : v); }
 // E-04: walks, holds range, lobs a shell at the Operator's position at fire time.
 // The landing ring (r 1.0) shows the whole flight (1.0 s); shells ignore cover (sim).
 V.AI['E-04'] = {
-  base: { hp:500, contact:40, dmg:70, speed:1.2, r:0.45, size:'medium', xp:8, tell:1.0, cd:3.0 },
+  base: { hp:500, contact:40, dmg:95, speed:1.2, r:0.45, size:'medium', xp:8, tell:1.0, cd:3.0 },
   range: 8.5,          // never starts an attack while the Operator is farther than this
   prefer: 5.0,         // preferred distance while walking
   windup: 0.35,        // short squat before the lob (st 'tell'); the ring itself is the 1.0 s telegraph
@@ -19,6 +19,7 @@ V.AI['E-04'] = {
   },
   step: function(S, e, dt, api){
     var A = V.AI['E-04'], b = A.base, h = api.hero(S), dx = h.x - e.x, dy = h.y - e.y, dist = Math.hypot(dx, dy), toH = Math.atan2(dy, dx);
+    V.AIU.track(S, e, h, dt);
     if (e.st === 'move' || e.st === 'cool') {
       e.strafeT -= dt; if (e.strafeT <= 0) { e.strafe = -e.strafe; e.strafeT = api.rng(S).range(1.4, 2.8); }
       var ux = dx / (dist || 1), uy = dy / (dist || 1);
@@ -29,7 +30,7 @@ V.AI['E-04'] = {
       api.collideBody(S, e, e.r);
       if (Math.hypot(e.x - px, e.y - py) < 0.3 * b.speed * dt) e.strafe = -e.strafe;
       e.ang = toH; e.aimAng = toH;
-      e.cd -= dt;
+      e.cd -= dt * V.AIU.zeroIn(e);
       if (e.cd <= 0 && dist <= A.range) {   // lobbed: no line of sight needed
         e.st = 'tell'; e.stT = api.tellT(S, A.windup); e.tellT = e.stT; e.tell01 = 0; e.aimAng = toH;
         api.ev(S, { k:'tell', x:e.x, y:e.y, id:e.id, type:e.type });
@@ -56,7 +57,7 @@ V.AI['E-04'] = {
 // E-05: approaches; kneels 0.8 s facing the Operator with a red lane (locks the last 0.2 s),
 // dashes straight up to 8 units at 9.0; stops at walls/cover with a 1.0 s stun; cooldown 2.5 s.
 V.AI['E-05'] = {
-  base: { hp:650, contact:60, dmg:90, speed:1.6, r:0.50, size:'medium', xp:8, tell:0.8, cd:2.5 },
+  base: { hp:650, contact:60, dmg:130, speed:1.6, r:0.50, size:'medium', xp:8, tell:0.8, cd:2.5 },
   range: 7.0, lockLast: 0.2, dashSpeed: 9.0, dashDist: 8.0, stun: 1.0,
   init: function(S, e, api){
     e.cd = api.rng(S).range(0.8, 1.6); e.lane = this.dashDist; e.locked = false; e.stunT = 0;
@@ -79,6 +80,7 @@ V.AI['E-05'] = {
   },
   step: function(S, e, dt, api){
     var A = V.AI['E-05'], b = A.base, h = api.hero(S), dist = api.dist(e, h), toH = api.angleTo(e, h);
+    V.AIU.track(S, e, h, dt);
     if (e.st === 'stun') {
       e.stunT -= dt;
       if (e.stunT <= 0) { e.stunT = 0; e.st = 'cool'; e.cd = b.cd; }
@@ -89,7 +91,7 @@ V.AI['E-05'] = {
       if (dist > e.r + h.r + 0.15) api.steerTo(S, e, h.x, h.y, b.speed, dt); else e.ang = toH;
       api.collideBody(S, e, e.r);
       e.aimAng = toH;
-      e.cd -= dt;
+      e.cd -= dt * V.AIU.zeroIn(e);
       if (e.cd <= 0 && dist <= A.range && api.clearLine(S, e.x, e.y, h.x, h.y, e.r * 0.6)) {
         e.st = 'tell'; e.stT = api.tellT(S, b.tell); e.tellT = e.stT; e.tell01 = 0; e.aimAng = toH; e.ang = toH;
         A.setLane(S, e, api);
