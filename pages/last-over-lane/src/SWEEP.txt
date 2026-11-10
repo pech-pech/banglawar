@@ -1,6 +1,13 @@
+# 2026-11-10 400 seeds, target 20 off 12, 3 wkts
 perfect 60ms  idle     sd0: win 0.0%  avg runs 0.0  (400 seeds)
 perfect 60ms  naive    sd90: win 24.5%  avg runs 13.6  (400 seeds)
 perfect 60ms  rote     sd55: win 74.5%  avg runs 19.3  (400 seeds)
 perfect 60ms  skilled  sd55: win 83.0%  avg runs 20.6  (400 seeds)
 perfect 60ms  skilled  sd40: win 95.5%  avg runs 21.3  (400 seeds)
 perfect 60ms  skilled  sd70: win 64.3%  avg runs 18.9  (400 seeds)
+perfect 40ms  idle     sd0: win 0.0%  avg runs 0.0  (400 seeds)
+perfect 40ms  naive    sd90: win 12.3%  avg runs 10.7  (400 seeds)
+perfect 40ms  rote     sd55: win 52.5%  avg runs 17.2  (400 seeds)
+perfect 40ms  skilled  sd55: win 71.0%  avg runs 19.8  (400 seeds)
+perfect 40ms  skilled  sd40: win 87.5%  avg runs 20.8  (400 seeds)
+perfect 40ms  skilled  sd70: win 50.8%  avg runs 17.7  (400 seeds)

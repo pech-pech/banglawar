@@ -13,8 +13,9 @@ html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font-family
 #score{font-size:clamp(18px,5.5vmin,30px)}
 #need{font-size:clamp(13px,3.6vmin,18px);color:var(--dim);font-weight:600}
 #wk{font-size:clamp(14px,4vmin,20px);text-align:right}
+#banner{position:absolute;left:50%;top:42%;transform:translate(-50%,-50%);padding:10px 18px;border-radius:12px;background:#ffd23f;color:#1a1400;font-weight:900;font-size:clamp(16px,4.6vmin,24px);opacity:0;transition:opacity .15s;pointer-events:none;white-space:nowrap}
 #tag{position:absolute;left:50%;bottom:10px;transform:translateX(-50%);width:max-content;max-width:92%;text-align:center;padding:8px 14px;border-radius:12px;background:#000a;font-weight:700;font-size:clamp(14px,4vmin,20px);opacity:0;transition:opacity .15s;pointer-events:none}
-#tell{position:absolute;left:50%;top:34%;transform:translateX(-50%);padding:6px 12px;border-radius:10px;background:#000b;font-weight:800;font-size:clamp(13px,3.8vmin,18px);opacity:0;pointer-events:none;white-space:nowrap}
+#tell{position:absolute;left:8px;top:30%;padding:6px 12px;border-radius:10px;background:#000b;font-weight:800;font-size:clamp(13px,3.8vmin,18px);opacity:0;pointer-events:none;white-space:nowrap}
 #intent{flex:0 0 10%;display:flex;gap:6px;padding:6px 8px}
 #intent button{flex:1;border:2px solid #3a5242;border-radius:12px;background:#132019;color:var(--ink);font-weight:800;font-size:clamp(13px,3.8vmin,18px);min-height:56px;padding:0 2px}
 #intent button.on{background:var(--acc);color:#1a1400;border-color:var(--acc)}
@@ -48,13 +49,13 @@ html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font-family
 <div id="stage">
   <div id="view"><canvas id="cv"></canvas>
     <div id="hud"><div><div id="score">0 / 20</div><div id="need">Need 20 off 12</div></div><div id="wk">Wkts 0/3<br><span id="ball" style="color:var(--dim);font-weight:600">Ball 1 of 12</span></div></div>
-    <div id="tell"></div><div id="tag"></div>
+    <div id="tell"></div><div id="banner"></div><div id="tag"></div>
   </div>
   <div id="intent">
-    <button data-i="block">Block<small>wide x1.4</small></button>
-    <button data-i="rotate" class="on">Rotate<small>x1.0</small></button>
-    <button data-i="drive">Drive<small>x0.85</small></button>
-    <button data-i="slog">Slog<small>tight x0.7</small></button>
+    <button data-i="block">Block<small></small></button>
+    <button data-i="rotate" class="on">Rotate<small></small></button>
+    <button data-i="drive">Drive<small></small></button>
+    <button data-i="slog">Slog<small></small></button>
   </div>
   <div id="pad">
     <div class="sec" data-s="leg">Leg<span class="fld"></span></div>
@@ -67,6 +68,7 @@ html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font-family
     <h1>Last Over Lane</h1>
     <p>Prototype 1: one 12-ball chase against the Cone Kid. Pick an intent, then tap a sector of the Shot Pad when the ball reaches the ring. Where you tap = direction. When you tap = timing.</p>
     <p>Swing balls bend away from the stumps, so you can leave them. A straight ball you miss hits the stumps.</p>
+    <p><b>Out rules:</b> an Edge into a fielder is caught. A Good Drive or Slog into a fielder is caught. An Edge into Loft is always caught. Perfect beats a fielder (max 2 runs on the ground). The field changes every 4 balls.</p>
     <div class="row"><button class="btn" id="bCal">Calibrate (8 taps)</button><button class="btn alt" id="bPlay">Play now</button></div>
     <div class="row"><button class="btn alt" id="bWin">Perfect window: 60 ms</button><button class="btn alt" id="bAssist">Assist: off</button></div>
     <p id="calInfo"></p>
@@ -191,9 +193,13 @@ if (typeof module !== 'undefined') module.exports = LOL;
   }
   addEventListener('resize', fit); fit();
 
+  function labels() {
+    const names = { block: 'Block', rotate: 'Rotate', drive: 'Drive', slog: 'Slog' };
+    document.querySelectorAll('#intent button').forEach(b => { const w = LOL.windows(b.dataset.i, perfectMs, assist); b.innerHTML = names[b.dataset.i] + '<small>Perfect \u00b1' + Math.round(w.perfect) + ' ms</small>'; });
+  }
   function setIntent(i) { intent = i; document.querySelectorAll('#intent button').forEach(b => b.classList.toggle('on', b.dataset.i === i)); }
   document.querySelectorAll('#intent button').forEach(b => b.addEventListener('pointerdown', e => {
-    e.preventDefault(); if (cur && cur.locked && !cur.done) return; setIntent(b.dataset.i);
+    e.preventDefault(); if (cur && cur.locked && !cur.done) { tag('Locked: intent is set 0.3 s before the ball arrives', '#ccc'); return; } setIntent(b.dataset.i);
   }));
   function showField(i) {
     const f = LOL.fieldFor(m, i);
@@ -218,7 +224,10 @@ if (typeof module !== 'undefined') module.exports = LOL;
     ['ovStart', 'ovEnd', 'ovCal'].forEach(id => $(id).classList.add('hide'));
     hud(); showField(0); nextBall(performance.now() + 700);
   }
+  let bannerT = 0;
+  function banner(txt) { const b = $('banner'); b.textContent = txt; b.style.opacity = 1; bannerT = performance.now() + 1300; }
   function nextBall(t0) {
+    if (m.i > 0 && m.i % LOL.MATCH.overLen === 0 && LOL.fieldFor(m, m.i) !== LOL.fieldFor(m, m.i - 1)) { banner('New field: ' + LOL.fieldFor(m).name); t0 += 1200; }
     const d = m.balls[m.i];
     cur = { d, tRun: t0, tRel: t0 + TELL + (d === 'slower' ? 100 : 0), tap: null, done: false, locked: false };
     cur.tArr = cur.tRel + FLIGHT + LOL.DELIVERIES[d].shift;
@@ -286,7 +295,18 @@ if (typeof module !== 'undefined') module.exports = LOL;
     }
   }
 
+  // Pause rule: a hidden tab or a long stall voids the live ball and bowls it again.
+  function rebowl(now, why) {
+    if (!m || m.done || !cur || cur.done) return;
+    nextBall(now + 900); tag(why + ' \u2192 ball bowled again', '#ccc');
+  }
+  document.addEventListener('visibilitychange', () => { if (document.hidden) { hiddenAt = performance.now(); } else if (hiddenAt) { hiddenAt = 0; rebowl(performance.now(), 'Paused'); } });
+  let hiddenAt = 0, lastFrame = 0;
   function frame(now) {
+    if (lastFrame && now - lastFrame > 100 && cur && !cur.done && m && now > cur.tRun) rebowl(now, 'Stall ' + Math.round(now - lastFrame) + ' ms');
+    lastFrame = now;
+    if (bannerT && now > bannerT) { $('banner').style.opacity = 0; bannerT = 0; }
+    if (document.hidden) { requestAnimationFrame(frame); return; }
     if (cur && m) {
       cur.locked = now > cur.tArr - 300;
       if (!cur.done && now > cur.tArr + 260) settle(); // no tap = leave
@@ -340,7 +360,13 @@ if (typeof module !== 'undefined') module.exports = LOL;
   });
   function finishCal() {
     const xs = cal.taps.filter(x => x != null && Math.abs(x) < 300); cal = null; cur = null;
-    if (xs.length >= 5) {
+    const mu = xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : 0, spread = xs.length ? Math.sqrt(xs.reduce((a, b) => a + (b - mu) ** 2, 0) / xs.length) : 999;
+    if (xs.length < 6 || spread > 80) {
+      $('ovCal').classList.add('hide'); $('ovStart').classList.remove('hide'); calInfo();
+      $('calInfo').textContent = 'Calibration not saved: ' + xs.length + ' good taps, spread \u00b1' + Math.round(spread) + ' ms (need 6+ taps within \u00b180 ms). Try again.';
+      return;
+    }
+    {
       const sorted = [...xs].sort((a, b) => a - b), med = sorted[Math.floor(sorted.length / 2)];
       const mean = xs.reduce((a, b) => a + b, 0) / xs.length, sd = Math.sqrt(xs.reduce((a, b) => a + (b - mean) ** 2, 0) / xs.length);
       calib = { mean: Math.round(med), sd: Math.round(sd), n: xs.length, at: Date.now() }; store.set('calib', calib);
@@ -349,7 +375,7 @@ if (typeof module !== 'undefined') module.exports = LOL;
   }
   function calInfo() {
     $('calInfo').textContent = calib ? 'Calibrated: your taps land ' + Math.abs(calib.mean) + ' ms ' + (calib.mean >= 0 ? 'late' : 'early') + ' (now corrected), spread ±' + calib.sd + ' ms over ' + calib.n + ' taps.' : 'Not calibrated yet.';
-    $('bWin').textContent = 'Perfect window: ' + perfectMs + ' ms'; $('bAssist').textContent = 'Assist: ' + (assist ? 'on (+20 ms)' : 'off');
+    $('bWin').textContent = 'Perfect window: ' + perfectMs + ' ms (Rotate)'; labels(); setIntent(intent); $('bAssist').textContent = 'Assist: ' + (assist ? 'on (+20 ms)' : 'off');
   }
   calInfo();
 
