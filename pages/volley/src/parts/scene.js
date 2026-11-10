@@ -36,7 +36,7 @@ function mkRng(seed) {
   };
 }
 
-var P = { list: [], rnd: mkRng(1), seed: null, lastFrame: -1, lastT: 0 }; // particles (world units)
+var P = { list: [], rnd: mkRng(1), seed: null, lastFrame: -1, lastT: 0, ingested: false }; // particles (world units)
 var MAXP = 400;
 
 function spawnBurst(x, y, n, spd, life, col, size, drag) {
@@ -49,8 +49,8 @@ function spawnRing(x, y, r0, r1, life, col) {
   if (P.list.length < MAXP) P.list.push({ x: x, y: y, t: 0, life: life, c: col, r0: r0, r1: r1, k: 1 });
 }
 
-function eatEvents(S) {
-  var ev = S.events || [];
+function eatEvents(ev, S) {
+  ev = ev || [];
   for (var i = 0; i < ev.length; i++) {
     var e = ev[i], x = e.x, y = e.y;
     if (x == null || y == null) { x = S.hero.x; y = S.hero.y; }
@@ -289,7 +289,7 @@ function drawPickup(pk, s, t) {
     oRect(x, y, 13, 11, PAL.repair);
     rect(x, y, 3, 7, PAL.repairCross); rect(x, y, 7, 3, PAL.repairCross);
   } else {
-    var r = pk.v >= 8 ? 5.5 : 4;
+    var r = pk.v >= 8 ? 6.5 : 5;
     oNgon(x, y, r, 4, t * 2 + pk.y, PAL.xp);
     circ(x - 1, y - 1, r * 0.3, PAL.white);
   }
@@ -325,17 +325,29 @@ function drawStress(n, t) {
   }
 }
 
+function resetIfNew(S) {
+  var t = S.t || 0;
+  if (P.seed !== S.seed || t < P.lastT) { P.list.length = 0; P.rnd = mkRng(((S.seed | 0) ^ 0x5eed) + 1); P.seed = S.seed; P.lastFrame = -1; P.lastT = t; }
+}
+
 V.Scene = {
   stress: 0,
+  // main.js calls this after EVERY sim step; once used, build() stops reading S.events itself (no doubles)
+  ingest: function (events, S) {
+    if (!S) return;
+    P.ingested = true;
+    resetIfNew(S);
+    eatEvents(events, S);
+  },
   PAL: PAL,
   particles: P.list,
   build: function (S, view, outArr) {
     out = outArr; vw = view; out.length = 0;
     var s = view.s, t = S.t || 0;
     // particle bookkeeping (own clock = S.t, so hit-stop and pause freeze sparks too)
-    if (P.seed !== S.seed || t < P.lastT) { P.list.length = 0; P.rnd = mkRng(((S.seed | 0) ^ 0x5eed) + 1); P.seed = S.seed; P.lastFrame = -1; P.lastT = t; }
+    resetIfNew(S);
     var dt = Math.max(0, Math.min(0.1, t - P.lastT)); P.lastT = t;
-    if (S.frame !== P.lastFrame) { P.lastFrame = S.frame; stepParticles(dt); eatEvents(S); }
+    if (S.frame !== P.lastFrame) { P.lastFrame = S.frame; stepParticles(dt); if (!P.ingested) eatEvents(S.events, S); }
     sh.x = Math.max(2, s * 0.14); sh.y = Math.max(3, s * 0.2);
 
     // ground: whole screen, continues below the room

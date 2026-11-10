@@ -31,7 +31,10 @@ function layout(){
 }
 
 // ---------- events from the sim ----------
-function vib(ms){ if (V.TUNE.HAPTICS && ms > 0 && navigator.vibrate) { try { navigator.vibrate(ms); } catch (_) {} } }
+function vib(ms){
+  var ua = navigator.userActivation;   // vibrate before any tap logs a console error in Chrome
+  if (V.TUNE.HAPTICS && ms > 0 && navigator.vibrate && (!ua || ua.hasBeenActive)) { try { navigator.vibrate(ms); } catch (_) {} }
+}
 function handleEvents(ev, live){
   if (!ev) return;
   var stop = false;
@@ -50,7 +53,7 @@ function handleEvents(ev, live){
   }
   if (stop && live && V.TUNE.HITSTOP_MS > 0) hitstopUntil = performance.now() + V.TUNE.HITSTOP_MS;
 }
-function simStep(inp, live){ V.Sim.step(S, inp); handleEvents(S.events, live); }
+function simStep(inp, live){ V.Sim.step(S, inp); if (V.Scene && V.Scene.ingest) V.Scene.ingest(S.events, S); handleEvents(S.events, live); }
 
 // ---------- overlays ----------
 function syncPhase(){

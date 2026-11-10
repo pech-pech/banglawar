@@ -34,12 +34,14 @@ V.Render = {
     opts = opts || {};
     var c2d = opts.c2d, cgpu = opts.cgpu;
     var r2d = V.Render2D.create(c2d);
+    // headless test mode: WebGPU renders offscreen (readback only) and Canvas 2D shows the frame; R.offscreen tells
+    var offscreen = !!opts.offscreen || (typeof location !== 'undefined' && /[?&]gpu=offscreen(&|$)/.test(location.search));
     var st = { gpu: null, name: 'Canvas 2D', w: 0, h: 0, dpr: 1, fns: [], lastT: 0, list: null, view: null,
       reinitPending: false, reinitUsed: false, reiniting: false, why: '', det: SlowDetector(opts.detector) };
     var R = {};
 
     function show() {
-      var g = st.name === 'WebGPU';
+      var g = st.name === 'WebGPU' && !offscreen;
       if (cgpu) cgpu.style.display = g ? '' : 'none';
       if (c2d) c2d.style.display = g ? 'none' : '';
     }
@@ -62,7 +64,7 @@ V.Render = {
     }
     function tryGpu() {
       if (opts.forceCanvas || !cgpu || typeof navigator === 'undefined' || !navigator.gpu || !V.GPU) return Promise.resolve(null);
-      return V.GPU.create(cgpu);
+      return V.GPU.create(cgpu, { offscreen: offscreen });
     }
 
     Object.defineProperty(R, 'name', { get: function () { return st.name; }, enumerable: true });
@@ -83,7 +85,7 @@ V.Render = {
       if (st.gpu) {
         var ok = false;
         try { ok = st.gpu.draw(list, view); } catch (e) { ok = false; }
-        if (ok) return;
+        if (ok) { if (offscreen) r2d.draw(list, view); return; }
         if (st.gpu) dropGpu('draw failed');
       }
       r2d.draw(list, view);
@@ -95,9 +97,10 @@ V.Render = {
         });
       }
     };
-    R.readback = function () {
+    R.offscreen = offscreen;
+    R.readback = function (o) {
       if (!st.gpu || !st.list) return Promise.resolve({ w: 0, h: 0, nonBg: 0, error: 'renderer is ' + st.name });
-      return st.gpu.readback(st.list, V.Scene && V.Scene.PAL ? V.Scene.PAL.ground : null);
+      return st.gpu.readback(st.list, V.Scene && V.Scene.PAL ? V.Scene.PAL.ground : null, !!(o && o.png));
     };
     R.onChange = function (fn) { if (typeof fn === 'function') st.fns.push(fn); };
     // shell may call this for a timing-safety event that happened while on the GPU (L-LOL-7 instant strike)

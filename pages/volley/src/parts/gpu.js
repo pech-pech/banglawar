@@ -89,9 +89,11 @@ V.GPU = {
   WGSL: WGSL,
   pack: pack,
   // -> Promise<backend|null>. Never throws.
-  create: function (canvas) {
+  // o.offscreen: render into a private texture instead of the canvas swapchain (headless test mode; see gpu-test.js)
+  create: function (canvas, o) {
+    o = o || {};
     var S = { dev: null, ad: null, gctx: null, fmt: 'bgra8unorm', pipe: null, ubuf: null, bind: null, ibuf: null, icap: 0,
-      arr: new Float32Array(FL * 1024), w: 0, h: 0, dpr: 1, lostFns: [], quiet: false, dead: false, warned: false, n: 0 };
+      arr: new Float32Array(FL * 1024), off: null, offW: 0, offH: 0, w: 0, h: 0, dpr: 1, lostFns: [], quiet: false, dead: false, warned: false, n: 0 };
     function warnOnce(m) { if (!S.warned) { S.warned = true; try { console.warn('[gpu] ' + m); } catch (e) {} } }
     function ensureBuf(n) {
       if (n <= S.icap && S.ibuf) return;
@@ -116,7 +118,8 @@ V.GPU = {
     function release() {
       S.quiet = true;
       try { if (S.gctx && S.gctx.unconfigure) S.gctx.unconfigure(); } catch (e) {}
-      try { if (S.ibuf) S.ibuf.destroy(); } catch (e) {}
+      try { if (S.ibuf) S.ibuf.destroy(); if (S.off) S.off.destroy(); } catch (e) {}
+      S.off = null; S.offW = S.offH = 0;
       try { if (S.dev) S.dev.destroy(); } catch (e) {}
       S.ibuf = null; S.icap = 0; S.dead = true;
     }
@@ -132,6 +135,11 @@ V.GPU = {
         if (canvas.width !== pw) canvas.width = pw;
         if (canvas.height !== ph) canvas.height = ph;
         S.dpr = pw / Math.max(1, w); // effective
+        if (o.offscreen && S.dev && !S.dead && (S.offW !== pw || S.offH !== ph)) {
+          if (S.off) S.off.destroy();
+          S.off = S.dev.createTexture({ size: [pw, ph], format: S.fmt, usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.COPY_SRC });
+          S.offW = pw; S.offH = ph;
+        }
       },
       // returns false if the device is gone (caller falls back the same frame)
       draw: function (list) {
@@ -139,7 +147,7 @@ V.GPU = {
         if (!(S.w > 0 && S.h > 0)) return true;
         upload(list);
         var enc = S.dev.createCommandEncoder();
-        encode(enc, S.gctx.getCurrentTexture().createView());
+        encode(enc, o.offscreen ? S.off.createView() : S.gctx.getCurrentTexture().createView());
         S.dev.queue.submit([enc.finish()]);
         return true;
       },
@@ -151,7 +159,7 @@ V.GPU = {
         S.lostFns.slice().forEach(function (fn) { try { fn(reason || 'unknown', 'fake'); } catch (e) {} });
       },
       _device: function () { return S.dev; },
-      readback: function (list, bg) {
+      readback: function (list, bg, wantPng) {
         if (S.dead) return Promise.resolve({ w: 0, h: 0, nonBg: 0, error: 'device gone' });
         try {
           upload(list);
@@ -175,8 +183,18 @@ V.GPU = {
                 if (Math.abs(r - br) > 10 || Math.abs(g - bgc) > 10 || Math.abs(b - bb) > 10) nonBg++;
               }
             }
+            var png = null;
+            if (wantPng && typeof document !== 'undefined') {
+              var cv = document.createElement('canvas'); cv.width = w; cv.height = h;
+              var cx = cv.getContext('2d'), im = cx.createImageData(w, h), q = im.data;
+              for (y = 0; y < h; y++) for (x = 0; x < w; x++) {
+                var si = y * bpr + x * 4, di = (y * w + x) * 4;
+                q[di] = bgra ? d[si + 2] : d[si]; q[di + 1] = d[si + 1]; q[di + 2] = bgra ? d[si] : d[si + 2]; q[di + 3] = 255;
+              }
+              cx.putImageData(im, 0, 0); png = cv.toDataURL('image/png');
+            }
             buf.unmap(); buf.destroy(); tex.destroy();
-            return { w: w, h: h, nonBg: nonBg, nonBlack: nonBlack, instances: S.n };
+            return { w: w, h: h, nonBg: nonBg, nonBlack: nonBlack, instances: S.n, png: png };
           });
         } catch (e) { return Promise.resolve({ w: 0, h: 0, nonBg: 0, error: String(e && e.message || e) }); }
       }
@@ -189,10 +207,14 @@ V.GPU = {
         return ad.requestDevice();
       }).then(function (dev) {
         S.dev = dev; G.__vGpuKeep = [S.ad, dev, navigator.gpu]; // keep the instance alive (GC loses the device otherwise)
-        var gctx = canvas.getContext('webgpu');
-        if (!gctx) throw new Error('no webgpu context');
-        S.gctx = gctx; S.fmt = navigator.gpu.getPreferredCanvasFormat();
-        gctx.configure({ device: dev, format: S.fmt, alphaMode: 'opaque' });
+        S.fmt = navigator.gpu.getPreferredCanvasFormat();
+        if (!o.offscreen) {
+          var gctx = canvas.getContext('webgpu');
+          if (!gctx) throw new Error('no webgpu context');
+          S.gctx = gctx;
+          gctx.configure({ device: dev, format: S.fmt, alphaMode: 'opaque' });
+        }
+        G.__vGpuKeep.push(S.gctx, canvas);
         dev.lost.then(function (info) {
           S.dead = true;
           if (S.quiet) return; // we released it ourselves

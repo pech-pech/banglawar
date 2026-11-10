@@ -1,6 +1,6 @@
 Project Volley P0 headless bot results
-Date: 2026-11-10 (script run 2026-11-10T11:54:58.223Z)
-Seeds: 10 per bot (seeds 1..10), cap 2 game minutes per run (idle 40, stand 2), fixed step 1/60, default TUNE.
+Date: 2026-11-10 (script run 2026-11-10T11:58:36.882Z)
+Seeds: 3 per bot (seeds 1..3), cap 1 game minutes per run (idle 40, stand 2), fixed step 1/60, default TUNE.
 Bots: stand = never moves at all (stays at spawn, never opens a door); idle = never moves in combat, walks to the door when clear, takes card 0;
       naive = random walk / random stops, random card; skilled = samples 16 moves + stand every 0.1 s against predicted shots, lunges and tells, kites chasers, prefers standing still.
 
@@ -31,128 +31,117 @@ PASS capped cards are not offered
 PASS 3 simultaneous shots hit once (invuln 0.6 s) (hp 540)
 PASS tune read live from S.tune
 PASS restart gives seed+1, same tune object
-FAIL no Math.random / Date in sim parts
+PASS no Math.random / Date in sim parts
 
-== Bot: stand (10 seeds) ==
-died: 0/10 (0.0%); timed out alive: 10
+== Bot: stand (3 seeds) ==
+died: 0/3 (0.0%); timed out alive: 3
 rooms cleared: mean 1.0, p10 1, median 1, p90 1, max 1  (loops of 3 rooms, median: 0.3)
 death stage: median -, p10 -, p90 -
-braced uptime (braced steps / play steps): mean 97.0%
+braced uptime (braced steps / play steps): mean 96.6%
 hits taken by source (all runs): E-01 0, E-02 0, E-03 0; mean damage taken per run 0.0
 mean level reached: 1.0, mean cards picked 0.0
-  E-01 kills: 30; first loop (stages 1-3): hits to kill mean 1.9 median 2, time alive (targetable to kill) median 2.77 s, p90 4.13 s
+  E-01 kills: 9; first loop (stages 1-3): hits to kill mean 1.7 median 2, time alive (targetable to kill) median 2.08 s, p90 3.45 s
   E-02 kills: 0; first loop (stages 1-3): hits to kill mean - median -, time alive (targetable to kill) median - s, p90 - s
   E-03 kills: 0; first loop (stages 1-3): hits to kill mean - median -, time alive (targetable to kill) median - s, p90 - s
   per stage: stage room | reached cleared died | HP at clear mean/p10 | clear time median s
-    1 R01 |   10   10    0 |  600.0 /  600 |   4.7
+    1 R01 |    3    3    0 |  600.0 /  600 |   4.0
 
-== Bot: idle (10 seeds) ==
-died: 10/10 (100.0%); timed out alive: 0
-rooms cleared: mean 39.3, p10 20, median 35, p90 53, max 86  (loops of 3 rooms, median: 11.7)
-death stage: median 36, p10 21, p90 54
-braced uptime (braced steps / play steps): mean 98.3%
-hits taken by source (all runs): E-01 0, E-02 86, E-03 125; mean damage taken per run 1359.5
-mean level reached: 7.7, mean cards picked 6.7
-  E-01 kills: 673; first loop (stages 1-3): hits to kill mean 1.9 median 2, time alive (targetable to kill) median 1.13 s, p90 4.13 s
-  E-02 kills: 393; first loop (stages 1-3): hits to kill mean 2.9 median 3, time alive (targetable to kill) median 7.48 s, p90 9.40 s
-  E-03 kills: 132; first loop (stages 1-3): hits to kill mean 3.8 median 4, time alive (targetable to kill) median 4.55 s, p90 4.55 s
+== Bot: idle (3 seeds) ==
+died: 3/3 (100.0%); timed out alive: 0
+rooms cleared: mean 35.0, p10 20, median 32, p90 53, max 53  (loops of 3 rooms, median: 10.7)
+death stage: median 33, p10 21, p90 54
+braced uptime (braced steps / play steps): mean 98.2%
+hits taken by source (all runs): E-01 0, E-02 19, E-03 36; mean damage taken per run 1112.0
+mean level reached: 7.3, mean cards picked 6.3
+  E-01 kills: 180; first loop (stages 1-3): hits to kill mean 1.8 median 2, time alive (targetable to kill) median 1.13 s, p90 3.45 s
+  E-02 kills: 105; first loop (stages 1-3): hits to kill mean 2.8 median 3, time alive (targetable to kill) median 7.30 s, p90 9.40 s
+  E-03 kills: 35; first loop (stages 1-3): hits to kill mean 4.0 median 4, time alive (targetable to kill) median 4.55 s, p90 4.55 s
   per stage: stage room | reached cleared died | HP at clear mean/p10 | clear time median s
-    1 R01 |   10   10    0 |  600.0 /  600 |   4.7
-    2 R02 |   10   10    0 |  546.0 /  540 |   8.5
-    3 R03 |   10   10    0 |  457.3 /  433 |   8.4
-    4 R01 |   10   10    0 |  461.9 /  433 |   4.0
-    5 R02 |   10   10    0 |  442.9 /  371 |  12.6
-    6 R03 |   10   10    0 |  410.9 /  324 |   6.8
-    7 R01 |   10   10    0 |  434.9 /  324 |   4.0
-    8 R02 |   10   10    0 |  406.6 /  321 |   8.6
-    9 R03 |   10   10    0 |  356.6 /  207 |   7.6
-   10 R01 |   10   10    0 |  378.2 /  275 |   4.0
-   11 R02 |   10   10    0 |  376.8 /  266 |  10.7
-   12 R03 |   10   10    0 |  356.1 /  149 |   7.0
-   13 R01 |   10   10    0 |  392.1 /  215 |   3.8
-   14 R02 |   10   10    0 |  394.6 /  215 |  10.9
-   15 R03 |   10   10    0 |  319.8 /  156 |   7.6
-   16 R01 |   10   10    0 |  355.8 /  196 |   4.0
-   17 R02 |   10   10    0 |  351.4 /  125 |   8.8
-   18 R03 |   10   10    0 |  311.2 /   88 |   7.7
-   19 R01 |   10   10    0 |  325.5 /   88 |   3.7
-   20 R02 |   10    9    1 |  371.6 /  293 |   7.8
-   21 R03 |    9    8    1 |  333.4 /  207 |   6.8
-   22 R01 |    8    8    0 |  333.4 /  207 |   3.8
-   23 R02 |    8    8    0 |  363.4 /  284 |   8.8
-   24 R03 |    8    8    0 |  299.8 /  215 |  10.2
-   25 R01 |    8    8    0 |  299.8 /  215 |   3.7
-   26 R02 |    8    8    0 |  305.0 /  137 |  12.5
-   27 R03 |    8    8    0 |  261.0 /  171 |   5.7
-   28 R01 |    8    8    0 |  276.0 /  171 |   3.7
-   29 R02 |    8    8    0 |  280.6 /  118 |  10.7
-   30 R03 |    8    6    2 |  278.7 /  123 |   9.1
-   31 R01 |    6    6    0 |  278.7 /  123 |   3.7
-   32 R02 |    6    6    0 |  305.0 /   41 |   7.2
-   33 R03 |    6    5    1 |  315.2 /    6 |   5.8
-   34 R01 |    5    5    0 |  315.2 /    6 |   3.7
-   35 R02 |    5    5    0 |  314.8 /    6 |  12.3
-   36 R03 |    5    4    1 |  332.0 /  165 |   7.0
-   37 R01 |    4    4    0 |  332.0 /  165 |   4.0
-   38 R02 |    4    4    0 |  297.5 /   79 |  14.6
-   39 R03 |    4    4    0 |  232.5 /   14 |   8.0
-   40 R01 |    4    4    0 |  262.5 /   14 |   3.7
-  (stages above 40 omitted from the table; max stage 87)
+    1 R01 |    3    3    0 |  600.0 /  600 |   4.0
+    2 R02 |    3    3    0 |  560.0 /  540 |  10.0
+    3 R03 |    3    3    0 |  473.3 /  433 |   7.9
+    4 R01 |    3    3    0 |  488.7 /  433 |   4.0
+    5 R02 |    3    3    0 |  508.0 /  371 |   6.1
+    6 R03 |    3    3    0 |  440.0 /  324 |   6.8
+    7 R01 |    3    3    0 |  440.0 /  324 |   4.0
+    8 R02 |    3    3    0 |  396.7 /  259 |   8.3
+    9 R03 |    3    3    0 |  326.0 /  145 |   7.6
+   10 R01 |    3    3    0 |  358.0 /  145 |   4.1
+   11 R02 |    3    3    0 |  375.7 /  145 |   8.6
+   12 R03 |    3    3    0 |  348.0 /   95 |   6.9
+   13 R01 |    3    3    0 |  388.0 /  215 |   4.0
+   14 R02 |    3    3    0 |  381.7 /  215 |  12.4
+   15 R03 |    3    3    0 |  306.3 /   93 |   7.2
+   16 R01 |    3    3    0 |  306.3 /   93 |   4.1
+   17 R02 |    3    3    0 |  259.0 /   22 |  10.4
+   18 R03 |    3    3    0 |  245.0 /   88 |   6.7
+   19 R01 |    3    3    0 |  245.0 /   88 |   4.1
+   20 R02 |    3    3    0 |  220.7 /   15 |   7.8
+   21 R03 |    3    2    1 |  231.5 /  164 |  10.0
+   22 R01 |    2    2    0 |  231.5 /  164 |   4.1
+   23 R02 |    2    2    0 |  291.5 /  284 |  11.7
+   24 R03 |    2    2    0 |  294.5 /  242 |  85.1
+   25 R01 |    2    2    0 |  294.5 /  242 |   3.2
+   26 R02 |    2    2    0 |  294.5 /  242 |  26.8
+   27 R03 |    2    2    0 |  235.5 /  183 |   5.7
+   28 R01 |    2    2    0 |  295.5 /  183 |   3.2
+   29 R02 |    2    2    0 |  295.5 /  183 |  10.7
+   30 R03 |    2    2    0 |  235.5 /  123 |   7.6
+   31 R01 |    2    2    0 |  235.5 /  123 |   4.0
+   32 R02 |    2    2    0 |  194.5 /   41 |   8.9
+   33 R03 |    2    1    1 |  286.0 /  286 |   5.1
+   34 R01 |    1    1    0 |  286.0 /  286 |   3.7
+   35 R02 |    1    1    0 |  286.0 /  286 |  10.2
+   36 R03 |    1    1    0 |  343.0 /  343 |   6.0
+   37 R01 |    1    1    0 |  343.0 /  343 |   3.7
+   38 R02 |    1    1    0 |  343.0 /  343 |   7.1
+   39 R03 |    1    1    0 |  278.0 /  278 |   6.9
+   40 R01 |    1    1    0 |  278.0 /  278 |   3.7
+  (stages above 40 omitted from the table; max stage 54)
 
-== Bot: naive (10 seeds) ==
-died: 1/10 (10.0%); timed out alive: 9
-rooms cleared: mean 8.7, p10 5, median 10, p90 11, max 11  (loops of 3 rooms, median: 3.3)
-death stage: median 4, p10 4, p90 4
-braced uptime (braced steps / play steps): mean 65.3%
-hits taken by source (all runs): E-01 39, E-02 33, E-03 12; mean damage taken per run 501.8
-mean level reached: 3.9, mean cards picked 2.9
-  E-01 kills: 161; first loop (stages 1-3): hits to kill mean 2.0 median 2, time alive (targetable to kill) median 1.45 s, p90 5.68 s
-  E-02 kills: 85; first loop (stages 1-3): hits to kill mean 2.9 median 3, time alive (targetable to kill) median 7.62 s, p90 19.25 s
-  E-03 kills: 26; first loop (stages 1-3): hits to kill mean 3.9 median 4, time alive (targetable to kill) median 6.40 s, p90 8.73 s
-  per stage: stage room | reached cleared died | HP at clear mean/p10 | clear time median s
-    1 R01 |   10   10    0 |  498.0 /  360 |   6.3
-    2 R02 |   10   10    0 |  438.0 /  300 |   9.5
-    3 R03 |   10   10    0 |  352.5 /  179 |  10.4
-    4 R01 |   10    9    1 |  384.2 /  314 |   4.6
-    5 R02 |    9    9    0 |  336.0 /  179 |   8.2
-    6 R03 |    9    8    0 |  331.4 /  205 |  10.8
-    7 R01 |    8    8    0 |  295.8 /   98 |   4.7
-    8 R02 |    8    8    0 |  332.6 /  116 |   9.4
-    9 R03 |    8    7    0 |  371.1 /  218 |   8.8
-   10 R01 |    7    6    0 |  357.8 /  167 |   5.1
-   11 R02 |    6    2    0 |  376.5 /  220 |  15.5
-   12 R03 |    2    0    0 |      - /    - |     -
-
-== Bot: skilled (10 seeds) ==
-died: 0/10 (0.0%); timed out alive: 10
-rooms cleared: mean 11.8, p10 11, median 12, p90 13, max 13  (loops of 3 rooms, median: 4.0)
+== Bot: naive (3 seeds) ==
+died: 0/3 (0.0%); timed out alive: 3
+rooms cleared: mean 5.3, p10 5, median 5, p90 6, max 6  (loops of 3 rooms, median: 1.7)
 death stage: median -, p10 -, p90 -
-braced uptime (braced steps / play steps): mean 89.2%
-hits taken by source (all runs): E-01 0, E-02 0, E-03 0; mean damage taken per run 0.0
-mean level reached: 4.9, mean cards picked 3.9
-  E-01 kills: 206; first loop (stages 1-3): hits to kill mean 2.0 median 2, time alive (targetable to kill) median 1.13 s, p90 4.13 s
-  E-02 kills: 116; first loop (stages 1-3): hits to kill mean 2.8 median 3, time alive (targetable to kill) median 6.15 s, p90 8.18 s
-  E-03 kills: 36; first loop (stages 1-3): hits to kill mean 3.9 median 4, time alive (targetable to kill) median 3.80 s, p90 3.88 s
+braced uptime (braced steps / play steps): mean 68.1%
+hits taken by source (all runs): E-01 6, E-02 10, E-03 1; mean damage taken per run 342.3
+mean level reached: 3.0, mean cards picked 2.0
+  E-01 kills: 30; first loop (stages 1-3): hits to kill mean 1.8 median 2, time alive (targetable to kill) median 1.22 s, p90 3.97 s
+  E-02 kills: 16; first loop (stages 1-3): hits to kill mean 2.8 median 3, time alive (targetable to kill) median 7.02 s, p90 8.87 s
+  E-03 kills: 5; first loop (stages 1-3): hits to kill mean 3.7 median 4, time alive (targetable to kill) median 6.68 s, p90 8.42 s
   per stage: stage room | reached cleared died | HP at clear mean/p10 | clear time median s
-    1 R01 |   10   10    0 |  600.0 /  600 |   4.7
-    2 R02 |   10   10    0 |  600.0 /  600 |   8.5
-    3 R03 |   10   10    0 |  600.0 /  600 |   6.6
-    4 R01 |   10   10    0 |  600.0 /  600 |   4.1
-    5 R02 |   10   10    0 |  600.0 /  600 |  10.3
-    6 R03 |   10   10    0 |  600.0 /  600 |   6.0
-    7 R01 |   10   10    0 |  600.0 /  600 |   4.1
-    8 R02 |   10   10    0 |  600.0 /  600 |  10.5
-    9 R03 |   10   10    0 |  600.0 /  600 |   5.2
-   10 R01 |   10   10    0 |  600.0 /  600 |   3.7
-   11 R02 |   10    9    0 |  600.0 /  600 |   7.3
-   12 R03 |    8    6    0 |  600.0 /  600 |   5.3
-   13 R01 |    3    3    0 |  600.0 /  600 |   2.9
-   14 R02 |    1    0    0 |      - /    - |     -
+    1 R01 |    3    3    0 |  600.0 /  600 |   4.6
+    2 R02 |    3    3    0 |  500.0 /  480 |   8.8
+    3 R03 |    3    3    0 |  423.7 /  373 |   9.2
+    4 R01 |    3    3    0 |  400.3 /  353 |   5.8
+    5 R02 |    3    3    0 |  359.0 /  307 |   7.5
+    6 R03 |    3    1    0 |  417.0 /  417 |   6.7
+    7 R01 |    1    0    0 |      - /    - |     -
+
+== Bot: skilled (3 seeds) ==
+died: 0/3 (0.0%); timed out alive: 3
+rooms cleared: mean 5.7, p10 5, median 5, p90 7, max 7  (loops of 3 rooms, median: 1.7)
+death stage: median -, p10 -, p90 -
+braced uptime (braced steps / play steps): mean 90.7%
+hits taken by source (all runs): E-01 0, E-02 0, E-03 0; mean damage taken per run 0.0
+mean level reached: 3.3, mean cards picked 2.3
+  E-01 kills: 32; first loop (stages 1-3): hits to kill mean 1.8 median 2, time alive (targetable to kill) median 1.13 s, p90 3.45 s
+  E-02 kills: 16; first loop (stages 1-3): hits to kill mean 2.7 median 3, time alive (targetable to kill) median 6.03 s, p90 7.10 s
+  E-03 kills: 4; first loop (stages 1-3): hits to kill mean 3.7 median 4, time alive (targetable to kill) median 3.80 s, p90 3.97 s
+  per stage: stage room | reached cleared died | HP at clear mean/p10 | clear time median s
+    1 R01 |    3    3    0 |  600.0 /  600 |   4.0
+    2 R02 |    3    3    0 |  600.0 /  600 |   7.7
+    3 R03 |    3    3    0 |  600.0 /  600 |   6.6
+    4 R01 |    3    3    0 |  600.0 /  600 |   4.1
+    5 R02 |    3    3    0 |  600.0 /  600 |  17.0
+    6 R03 |    2    1    0 |  600.0 /  600 |   4.9
+    7 R01 |    1    1    0 |  600.0 /  600 |   2.7
+    8 R02 |    1    0    0 |      - /    - |     -
 
 == Summary ==
-stand: died 0/10, median rooms cleared 1, braced 97.0%
-idle: died 10/10, median rooms cleared 35, braced 98.3%
-naive: died 1/10, median rooms cleared 10, braced 65.3%
-skilled: died 0/10, median rooms cleared 12, braced 89.2%
+stand: died 0/3, median rooms cleared 1, braced 96.6%
+idle: died 3/3, median rooms cleared 32, braced 98.2%
+naive: died 0/3, median rooms cleared 5, braced 68.1%
+skilled: died 0/3, median rooms cleared 5, braced 90.7%
 Idle must die: PASS (all idle runs die)
-Run time 4.6 s
+Run time 1.4 s

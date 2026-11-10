@@ -1,5 +1,5 @@
 (function(){ var G = (typeof window !== 'undefined' ? window : globalThis); var V = G.V = G.V || {};
-// Pure deterministic sim. Fixed step 1/60 s x TIME_SCALE. No DOM, no Math.random, no Date.
+// Pure deterministic sim. Fixed step 1/60 s x TIME_SCALE. No DOM, no unseeded randomness, no wall clock.
 
 var STEP = 1 / 60;
 var HERO_WALL_R = 0.35, HERO_HURT_R = 0.28;

@@ -54,6 +54,17 @@ const INIT = () => {
   const vs = Object.getOwnPropertyDescriptor(Document.prototype, 'visibilityState');
   Object.defineProperty(Document.prototype, 'hidden', { configurable: true, get() { return window.__fakeHidden === null ? hd.get.call(this) : window.__fakeHidden; } });
   Object.defineProperty(Document.prototype, 'visibilityState', { configurable: true, get() { return window.__fakeHidden === null ? vs.get.call(this) : (window.__fakeHidden ? 'hidden' : 'visible'); } });
+  // Trace the WebGPU backend lifecycle (logging only) so a fallback can be routed.
+  window.__gl = [];
+  const VV = window.V = window.V || {}; let gpuMod;
+  Object.defineProperty(VV, 'GPU', { configurable: true, enumerable: true, get() { return gpuMod; }, set(v) {
+    gpuMod = v; if (!v || typeof v.create !== 'function') return; const c = v.create;
+    v.create = function () { window.__gl.push('create'); return c.apply(this, arguments).then(r => {
+      window.__gl.push(r ? 'ok' : 'null');
+      if (r && r.onLost) { const ol = r.onLost; r.onLost = function (fn) { return ol.call(this, function (re, m) { window.__gl.push('lost ' + re + ' "' + m + '"'); return fn.apply(this, arguments); }); }; }
+      if (r && r.destroy) { const de = r.destroy; r.destroy = function () { window.__gl.push('destroy'); return de.apply(this, arguments); }; }
+      return r; }, e => { window.__gl.push('ERR ' + (e && e.message)); throw e; }); };
+  } });
   window.__ptr = [];
   for (const t of ['pointerdown', 'pointerup', 'pointercancel']) window.addEventListener(t, e => window.__ptr.push({ t, type: e.pointerType, now: performance.now(), frame: window.__pv && window.__pv.S ? window.__pv.S.frame : -1 }), true);
 };
@@ -209,16 +220,23 @@ async function session(browser, target, sess) {
   }
   await page.evaluate(HELPERS);
   await sleep(2500); // let the GPU renderer resolve
+  ok(errors.length === 0, 'boots with 0 console errors', errors.length ? errors.join(' | ') : 'none');
+  // Idle with no user gesture: auto-fire kills / hurts happen before any tap (vibrate/audio must stay quiet).
+  const idle0 = await page.evaluate(() => window.__snap());
+  await sleep(5000);
+  const idle1 = await page.evaluate(() => window.__snap());
   const bootErr = errors.slice();
-  ok(bootErr.length === 0, 'boots with 0 console errors', bootErr.length ? bootErr.join(' | ') : 'none');
+  ok(bootErr.length === 0, 'idle 5 s with no tap: 0 console errors', (bootErr.length ? bootErr.join(' | ') : 'none') + ` (kills ${idle0.kills}->${idle1.kills}, hp ${idle0.hp}->${idle1.hp})`);
   const seed0 = await page.evaluate(() => window.__pv.S.seed);
   ok(seed0 === SEED, '?seed is read', `S.seed=${seed0} (url seed ${SEED})`);
+  await page.evaluate(() => window.__pv.restart()); await sleep(300); // fresh run after the idle wait (enemies present for the drag test)
 
   // Renderer + label (L-TD-2) + readback (L-TD-1).
   const rn = await page.evaluate(() => window.__pv.renderer);
   if (sess.mode === 'gpu0') ok(rn === 'Canvas 2D', '?gpu=0 forces Canvas 2D', `__pv.renderer=${rn}`);
   else {
-    ok(rn === 'WebGPU', 'default picks WebGPU (swiftshader flags)', `__pv.renderer=${rn}`);
+    const gl = await page.evaluate(() => (window.__gl || []).join(' -> '));
+    ok(rn === 'WebGPU', 'default picks WebGPU (swiftshader flags)', `__pv.renderer=${rn}; V.GPU trace: ${gl || 'none'}`);
     if (rn === 'WebGPU') {
       const rb = await page.evaluate(() => Promise.resolve(window.__pv.readback()).then(r => r && { w: r.w, h: r.h, nonBg: r.nonBg }).catch(e => ({ err: String(e && e.message || e) })));
       ok(rb && rb.nonBg > 0, 'WebGPU output seen via readback (L-TD-1)', rb && rb.nonBg > 0 ? `seen (nonBg ${rb.nonBg}, ${rb.w}x${rb.h})` : 'NOT seen ' + JSON.stringify(rb));
@@ -229,7 +247,9 @@ async function session(browser, target, sess) {
   ok(lab.length > 0 && labWord === rn, 'renderer label text equals __pv.renderer', `label "${lab.length ? lab[0].txt : 'NOT FOUND'}" vs ${rn}`);
   if (lab.length) {
     const t = lab.map(l => l.txt).join(' ');
-    ok(t.includes(String(w)) && t.includes(String(h)), 'renderer label shows viewport WxH (+dpr)', `"${t.slice(0, 80)}"`);
+    const cvv = await page.evaluate(() => window.__gameCanvas());
+    const okWH = (t.includes(String(w)) && t.includes(String(h))) || (cvv && t.includes(Math.round(cvv.w) + 'x' + Math.round(cvv.h)));
+    ok(okWH && /dpr/i.test(t), 'renderer label shows viewport WxH (+dpr)', `"${t.slice(0, 80)}" (window ${w}x${h}, game column ${cvv ? Math.round(cvv.w) + 'x' + Math.round(cvv.h) : '?'})`);
   }
   const hudList = await page.evaluate(() => window.__captureHud());
   row('HUD text elements (baseline)', 'INFO', hudList.join('; '));
@@ -308,7 +328,7 @@ async function dragTest(page, cdp, sess, cv, view, w, h) {
   // During hold: no joystick element / graphic near the thumb.
   const dom = await page.evaluate(([x, y]) => {
     const all = [...document.querySelectorAll('body *')].filter(window.__vis);
-    const near = all.filter(e => { const r = e.getBoundingClientRect(); const big = r.width * r.height > innerWidth * innerHeight * 0.5; return !big && e.tagName !== 'CANVAS' && ((x >= r.left && x <= r.right && ((y >= r.top && y <= r.bottom) || (y - 60 >= r.top && y - 60 <= r.bottom)))); });
+    const near = all.filter(e => { const r = e.getBoundingClientRect(); const big = r.width * r.height > innerWidth * innerHeight * 0.5; return !big && e.tagName !== 'CANVAS' && !e.querySelector('canvas') && ((x >= r.left && x <= r.right && ((y >= r.top && y <= r.bottom) || (y - 60 >= r.top && y - 60 <= r.bottom)))); });
     const named = all.filter(e => /joy|stick|thumb|knob|nub|touchpad|dpad/i.test((e.id || '') + ' ' + (typeof e.className === 'string' ? e.className : '')));
     return { n: all.length, near: near.map(window.__desc), named: named.map(window.__desc) };
   }, [x, y]);
@@ -560,9 +580,9 @@ async function roomFlowTest(page, sess, w, h) {
 async function deathTest(page, w, h) {
   await page.evaluate(() => { window.__pv.restart(); window.__setTune({ ENEMY_DMG_MULT: 40 }); });
   let s = await page.evaluate(() => window.__snap()), steps = 0;
-  while (s.phase !== 'dead' && steps < 60 * 180) { await page.evaluate(() => { for (let i = 0; i < 300 && window.__pv.S.phase !== 'dead'; i++) { if (window.__pv.S.phase === 'pick') window.__pv.pick(0); window.__pv.step(1, { mx: 0, my: 0 }); } }); steps += 300; s = await page.evaluate(() => window.__snap()); }
+  while (s.phase !== 'dead' && steps < 60 * 180) { await page.evaluate(() => { for (let i = 0; i < 300 && window.__pv.S.phase !== 'dead'; i++) { const ph = window.__pv.S.phase; if (ph === 'pick') window.__pv.pick(0); else if (ph === 'clear') { i += window.__toDoor(30); } else window.__pv.step(1, { mx: 0, my: 0 }); } }); steps += 300; s = await page.evaluate(() => window.__snap()); }
   await page.evaluate(() => window.__resetTune());
-  if (s.phase !== 'dead') { row('death screen', 'FAIL', `idle hero with ENEMY_DMG_MULT 40 not dead after ${steps} steps: hp ${s.hp}, phase ${s.phase}`); return; }
+  if (s.phase !== 'dead') { row('death screen', 'FAIL', `idle hero (walking rooms) with ENEMY_DMG_MULT 40 not dead after ${steps} steps: hp ${s.hp}, phase ${s.phase}`); return; }
   await sleep(500); await snapshot(page, 'death');
   const txt = await page.evaluate(() => window.__findText(/restart|again|retry|redeploy|tap|down|kia|lost|fallen|defeat|game over/i));
   ok(txt.length > 0, 'death screen shown', txt.map(t => `"${t.txt}"`).slice(0, 4).join(' ') || 'no visible death/restart text');

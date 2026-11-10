@@ -83,6 +83,9 @@ async function clearRoom(page) {
 async function leaveRoom(page, onPick) {
   let i = await info(page);
   const startRoom = i.roomId, startStage = i.stage;
+  i = await until(page, (i) => i.phase === 'pick', 90);
+  if (i && onPick) await onPick(i);
+  i = await info(page);
   for (const q of i.pickups) { i = await walkTo(page, q.x, q.y, 240); if (i && i.phase === 'pick') break; }
   i = await info(page);
   if (i.phase === 'pick' && onPick) await onPick(i);
@@ -109,96 +112,63 @@ async function leaveRoom(page, onPick) {
 
   const tryDo = async (label, fn) => { try { await fn(); } catch (e) { note('FAIL ' + label + ': ' + e.message); } };
 
-  // 1 R01 start
-  await tryDo('r01', async () => {
-    await shot(page, '01-r01-boot');
-    await step(page, 45); await frames(page);
-    await shot(page, '02-r01-start');
-    const i = await info(page);
-    await crop(page, '02c-hero', i.hx, i.hy, 1.6);
-    if (i.enemies[0]) await crop(page, '02c-e01', i.enemies[0].x, i.enemies[0].y, 1.4);
-    await crop(page, '02c-door', 4.5, 0.8, 2.0);
-  });
-  // 2 E-01 tell
-  await tryDo('e01tell', async () => {
-    const i = await until(page, (i) => i.enemies.some((e) => e.type === 'E-01' && e.st === 'tell'), 900);
-    if (!i) return note('no E-01 tell seen');
-    await frames(page); await shot(page, '03-e01-tell');
-    const e = i.enemies.find((e) => e.type === 'E-01' && e.st === 'tell'); await crop(page, '03c-e01-tell', e.x, e.y, 1.4);
-  });
-  // 3 hero braced + lock ring
-  await tryDo('lock', async () => {
-    const i = await until(page, (i) => i.braced && i.lockId != null && i.lockId >= 0 && i.enemies.length, 600);
-    if (!i) return note('no braced+lock seen');
-    await frames(page); await shot(page, '04-hero-braced-lock');
-    await crop(page, '04c-hero-braced', i.hx, i.hy, 1.4);
-    const t = i.enemies.find((e) => e.id === i.lockId) || i.enemies[0]; await crop(page, '04c-lock-target', t.x, t.y, 1.4);
-  });
-  // 4 hit flash on enemy
-  await tryDo('hitflash', async () => {
-    const i = await until(page, (i) => i.enemies.some((e) => e.flashT > 0), 600);
-    if (!i) return note('no enemy flashT seen');
-    await shot(page, '05-enemy-hit-flash');
-    const e = i.enemies.find((e) => e.flashT > 0); await crop(page, '05c-enemy-hit-flash', e.x, e.y, 1.4);
-  });
-  // 5 hurt edge flash (let the hero take a hit, no heal)
-  await tryDo('hurt', async () => {
-    const i = await until(page, (i) => i.events.includes('hurt'), 900, { mx: 0, my: -0.2 }, false);
-    if (!i) return note('no hurt event seen');
-    await frames(page, 1); await shot(page, '06-hurt-edge-flash');
-    const fl = await page.evaluate(() => { const f = document.getElementById('flash'); return f ? f.className + ' op=' + getComputedStyle(f).opacity : 'none'; });
-    note('flash element after hurt: ' + fl);
-    await heal(page);
-  });
-  // 6 clear R01 -> door open
+  // opportunistic capture: each target shot once, checked every frame
+  const done = {};
+  const T = [
+    ['03-e01-tell', (i) => i.enemies.find((e) => e.type === 'E-01' && e.st === 'tell'), 1.4],
+    ['11-e02-aim-line', (i) => i.enemies.find((e) => e.type === 'E-02' && e.st === 'tell'), 2.6],
+    ['14-e03-fan-wedge', (i) => i.enemies.find((e) => e.type === 'E-03' && e.st === 'tell'), 3.2],
+    ['12-enemy-shots', (i) => (i.shots > 0 ? 'shot' : null), 1.2],
+    ['15-e03-volley', (i) => (i.shots >= 3 && i.enemies.some((e) => e.type === 'E-03') ? 'shot' : null), 2.5],
+    ['04-hero-braced-lock', (i) => (i.braced && i.lockId != null && i.lockClear ? i.enemies.find((e) => e.id === i.lockId) : null), 1.4],
+    ['04b-lock-blocked-amber', (i) => (i.braced && i.lockId != null && !i.lockClear ? i.enemies.find((e) => e.id === i.lockId) : null), 1.4],
+    ['05-enemy-hit-flash', (i) => i.enemies.find((e) => e.flashT > 0.05), 1.4],
+    ['06-hurt-edge-flash', (i) => (i.events.includes('hurt') ? 'hero' : null), 1.6],
+  ];
+  async function check(i) {
+    for (const [name, f, r] of T) {
+      if (done[name]) continue;
+      const hit = f(i); if (!hit) continue;
+      done[name] = true; await frames(page, 1); await shot(page, name);
+      if (hit === 'shot') { const s = await page.evaluate(() => window.__pv.S.shots[0]); if (s) await crop(page, name + 'c', s.x, s.y, r); }
+      else if (hit === 'hero') { await crop(page, name + 'c', i.hx, i.hy, r); const fl = await page.evaluate(() => { const f = document.getElementById('flash'); return f.className + ' op=' + getComputedStyle(f).opacity; }); note('flash el at hurt: ' + fl); }
+      else { await crop(page, name + 'c', hit.x, hit.y + (r > 2 ? r * 0.5 : 0), r); await crop(page, name + 'c-hero', i.hx, i.hy, 1.4); }
+    }
+  }
   let pickShot = false;
-  const onPick = async (i) => {
+  const onPick = async () => {
     await frames(page, 3);
     if (!pickShot) { await shot(page, '09-card-screen'); pickShot = true; }
     await page.evaluate(() => window.__pv.pick(0)); await frames(page, 3);
   };
-  await tryDo('r01clear', async () => {
-    let i = await clearRoom(page);
-    if (!i) return;
-    if (i.phase === 'pick') await onPick(i);
-    await step(page, 30); await frames(page);
-    await shot(page, '07-r01-door-open');
-    await crop(page, '07c-door-open', 4.5, 0.8, 2.0);
+  async function playRoom(tag) {
+    let i = await info(page);
+    await step(page, 45); await frames(page); await shot(page, tag + '-start');
+    i = await info(page);
+    await crop(page, tag + '-start-c-hero', i.hx, i.hy, 1.6);
+    for (const e of i.enemies) { await crop(page, tag + '-start-c-' + e.type + '-' + e.id, e.x, e.y, 1.3); }
+    // A: strafe (no fire) so machines tell and shoot
+    for (let k = 0; k < 420 && i.phase === 'play'; k++) {
+      const dir = Math.floor(k / 40) % 2 ? 1 : -1;
+      await step(page, 1, { mx: dir, my: 0 }); if (!done['06-hurt-edge-flash'] && k > 200) {} else await heal(page);
+      i = await info(page); await check(i);
+    }
+    await heal(page);
+    // B: stand braced and clear
+    for (let k = 0; k < 3600 && i.phase === 'play'; k++) { await step(page, 1); await heal(page); i = await info(page); await check(i); }
+    if (i.phase === 'play') { note(tag + ': room did not clear'); return false; }
+    if (i.phase === 'pick') await onPick();
+    await step(page, 30); await frames(page); await shot(page, tag + '-door-open'); await crop(page, tag + '-door-open-c', 4.5, 0.8, 2.0);
     i = await leaveRoom(page, onPick);
-    note('after leaving R01: ' + JSON.stringify({ roomId: i.roomId, stage: i.stage, phase: i.phase }));
-  });
-  // 7 R02 E-02 aim line
-  await tryDo('r02', async () => {
-    await step(page, 40); await frames(page); await shot(page, '10-r02-start');
-    const i = await until(page, (i) => i.enemies.some((e) => e.type === 'E-02' && e.st === 'tell'), 900);
-    if (!i) return note('no E-02 tell seen');
-    await frames(page, 1); await shot(page, '11-e02-aim-line');
-    const e = i.enemies.find((e) => e.type === 'E-02' && e.st === 'tell'); await crop(page, '11c-e02-aim', e.x, e.y + 1, 2.4);
-    const j = await until(page, (i) => i.shots > 0, 300);
-    if (j) { await frames(page, 1); await shot(page, '12-enemy-shots'); const s = await page.evaluate(() => window.__pv.S.shots[0]); await crop(page, '12c-enemy-shot', s.x, s.y, 1.2); }
-  });
-  await tryDo('r02clear', async () => {
-    let i = await clearRoom(page); if (!i) return;
-    if (i.phase === 'pick') await onPick(i);
-    i = await leaveRoom(page, onPick);
-    note('after leaving R02: ' + JSON.stringify({ roomId: i.roomId, stage: i.stage, phase: i.phase }));
-  });
-  // 8 R03 E-03 fan wedge
-  await tryDo('r03', async () => {
-    await step(page, 40); await frames(page); await shot(page, '13-r03-start');
-    const i = await until(page, (i) => i.enemies.some((e) => e.type === 'E-03' && e.st === 'tell'), 1200);
-    if (!i) return note('no E-03 tell seen');
-    await frames(page, 1); await shot(page, '14-e03-fan-wedge');
-    const e = i.enemies.find((e) => e.type === 'E-03'); await crop(page, '14c-e03-fan', e.x, e.y + 1.5, 3.0);
-    const j = await until(page, (i) => i.shots >= 3, 300);
-    if (j) { await frames(page, 1); await shot(page, '15-e03-volley'); }
-  });
-  await tryDo('r03clear', async () => {
-    let i = await clearRoom(page); if (!i) return;
-    if (i.phase === 'pick') await onPick(i);
-    i = await leaveRoom(page, onPick);
-    note('after leaving R03: ' + JSON.stringify({ roomId: i.roomId, stage: i.stage, phase: i.phase, level: i.level }));
-  });
+    note('after ' + tag + ': ' + JSON.stringify({ roomId: i.roomId, stage: i.stage, phase: i.phase, level: i.level }));
+    return true;
+  }
+  await tryDo('boot', async () => { await shot(page, '01-r01-boot'); });
+  await tryDo('R01', () => playRoom('02-r01'));
+  await tryDo('R02', () => playRoom('10-r02'));
+  await tryDo('R03', () => playRoom('13-r03'));
+  await tryDo('R01b', async () => { await step(page, 45); await frames(page); await shot(page, '13z-r01-lap2-start'); });
+  for (const [n] of T) if (!done[n]) note('NOT captured: ' + n);
   if (!pickShot) note('card screen never appeared in R01-R03 run');
   // 9 pause card
   await tryDo('pause', async () => {
@@ -206,19 +176,19 @@ async function leaveRoom(page, onPick) {
     await frames(page, 3); await shot(page, '16-pause-card');
     const vis = await page.evaluate(() => { const o = document.getElementById('ovPause'); return o && o.classList.contains('on'); });
     note('pause card on after blur: ' + vis);
-    if (vis) { await page.click('#btnResume').catch(() => {}); await frames(page, 3); }
+    await page.evaluate(() => window.__pv.resume()); await frames(page, 3);
   });
   // 10 tuning drawer
   await tryDo('drawer', async () => {
-    await page.click('#gear'); await frames(page, 3); await shot(page, '17-tuning-drawer');
+    await page.tap('#gear').catch(async (e) => { note('gear tap failed: ' + e.message.split('\n')[0]); await page.evaluate(() => window.__pv.drawer(true)); }); await frames(page, 3); await shot(page, '17-tuning-drawer');
     await page.evaluate(() => { const b = document.getElementById('drBody'); if (b) b.scrollTop = b.scrollHeight; }); await frames(page, 2);
     await shot(page, '17b-tuning-drawer-bottom');
-    await page.click('#drClose').catch(() => {}); await frames(page, 3);
+    await page.evaluate(() => window.__pv.drawer(false)); await frames(page, 3);
   });
   // 11 death screen
   await tryDo('death', async () => {
     await page.evaluate(() => { window.__pv.S.hero.hp = 1; });
-    const i = await until(page, (i) => i.phase === 'dead', 1800, { mx: 0, my: -0.3 }, false);
+    const i = await until(page, (i) => i.phase === 'dead', 1800, (i) => { const e = i.enemies[0]; return e ? toward(i, e.x, e.y) : { mx: 0, my: -1 }; }, false);
     if (!i) return note('no death reached');
     await frames(page, 5); await shot(page, '18-death-screen');
   });
@@ -247,7 +217,7 @@ async function leaveRoom(page, onPick) {
     p.on('pageerror', (e) => log.console.push('gpu pageerror: ' + e.message));
     await p.goto(URL0 + '?seed=7&freeze=1'); await p.waitForFunction(() => window.__pv && window.__pv.S, null, { timeout: 20000 });
     await p.evaluate(() => window.__pv.step(60, { mx: 0, my: 0 })); await frames(p, 10);
-    note('webgpu run renderer: ' + await p.evaluate(() => window.__pv.renderer));
+    note('webgpu run renderer: ' + await p.evaluate(() => window.__pv.renderer + ' why=' + window.__pv.rendererWhy + ' gpu=' + !!navigator.gpu));
     const rb = await p.evaluate(async () => { try { return await window.__pv.readback(); } catch (e) { return String(e); } });
     note('webgpu readback: ' + JSON.stringify(rb));
     await p.screenshot({ path: path.join(OUT, '21-webgpu.png') }); log.shots.push({ name: '21-webgpu' });

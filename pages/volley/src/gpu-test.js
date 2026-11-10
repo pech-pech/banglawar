@@ -18,9 +18,10 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 const TARGETS = {
   harness: { file: path.join(SRC, 'render-harness.html'), q: '?frames=45', ready: () => window.__h && window.__h.frames > 5,
-    renderer: () => window.__h.renderer, readback: () => window.__h.readback(), R: () => window.__h.R },
+    renderer: () => window.__h.renderer, why: () => window.__h.R.why, readback: () => window.__h.R.readback({ png: true }) },
   game: { file: path.join(SRC, 'game.html'), q: '?seed=11', ready: () => window.__pv && window.__pv.renderer && window.__pv.renderer !== 'none',
-    renderer: () => window.__pv.renderer, readback: () => window.__pv.readback() }
+    renderer: () => window.__pv.renderer, why: () => (window.__pv.R && window.__pv.R.why) || window.__pv.rendererWhy || '',
+    readback: () => (window.__pv.R ? window.__pv.R.readback({ png: true }) : window.__pv.readback()) }
 };
 
 async function run(tname, label, extraQ, { throttle = 0, gapSamples = 0, fallbackChecks = false } = {}) {
@@ -36,8 +37,10 @@ async function run(tname, label, extraQ, { throttle = 0, gapSamples = 0, fallbac
   await page.waitForFunction(T.ready, null, { timeout: 20000 });
   await sleep(1500);
   res.renderer = await page.evaluate(T.renderer);
+  res.why = await page.evaluate(T.why).catch(() => '');
   if (res.renderer === 'WebGPU') {
     const rb = await page.evaluate(T.readback).catch(e => ({ error: String(e.message || e) }));
+    if (rb && rb.png) { const f = path.join(OUT, `${tname}-${label}-readback.png`); fs.writeFileSync(f, Buffer.from(rb.png.split(',')[1], 'base64')); res.gpuShot = f; delete rb.png; }
     res.readback = rb;
     res.webgpuOutput = rb && rb.nonBg > 0 ? `seen (nonBg ${rb.nonBg} of ${rb.w}x${rb.h}, nonBlack ${rb.nonBlack}, instances ${rb.instances})` : `NOT seen (${rb ? (rb.error || 'nonBg ' + rb.nonBg) : 'null'})`;
   } else {
@@ -101,7 +104,7 @@ async function slowDropLive(tname) {
   const page = await (await browser.newContext({ viewport: VW, deviceScaleFactor: 1 })).newPage();
   page.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });
   page.on('pageerror', e => errors.push(e.message));
-  await page.goto('file://' + T.file + T.q);
+  await page.goto('file://' + T.file + T.q + '&gpu=offscreen');
   await page.waitForFunction(T.ready, null, { timeout: 20000 });
   await sleep(800);
   const r = await page.evaluate(async () => {
@@ -142,12 +145,16 @@ async function compare(a, b) {
   for (const t of targets) {
     if (!fs.existsSync(TARGETS[t].file)) { lines.push(`[${t}] SKIP: ${TARGETS[t].file} missing`); continue; }
     const runs = [];
-    for (const [label, q, opt] of [['webgpu', '', { fallbackChecks: t === 'harness' }], ['canvas2d', 'gpu=0', { throttle: 4, gapSamples: 300 }]]) {
+    // 'present': real swapchain. In this sandbox (Chromium headless + SwiftShader, 2026-11-10) presenting to a WebGPU canvas
+    // loses the device within one frame for ANY page (the last-over-lane reference fails the same way now), so the
+    // pass/fail WebGPU check runs with ?gpu=offscreen: same pipeline, renders to a texture, readback saved as PNG.
+    for (const [label, q, opt] of [['present', '', {}], ['webgpu', 'gpu=offscreen', { fallbackChecks: t === 'harness' }], ['canvas2d', 'gpu=0', { throttle: 4, gapSamples: 300 }]]) {
       try { runs.push(await run(t, label, q, opt)); } catch (e) { runs.push({ target: t, label, fatal: e.message.split('\n')[0] }); fail = true; }
     }
     for (const r of runs) {
       if (r.fatal) { lines.push(`[${t}/${r.label}] FATAL ${r.fatal}`); continue; }
-      lines.push(`[${t}/${r.label}] renderer=${r.renderer} consoleErrors=${r.errors.length} shot=${r.shot ? path.relative(SRC, r.shot) : 'none'}`);
+      lines.push(`[${t}/${r.label}] renderer=${r.renderer}${r.why ? ' (last switch: ' + r.why + ')' : ''} consoleErrors=${r.errors.length} shot=${r.shot ? path.relative(SRC, r.shot) : 'none'}${r.gpuShot ? ' gpuReadbackShot=' + path.relative(SRC, r.gpuShot) : ''}`);
+      if (r.label === 'present') { lines.push(`[${t}/present] swapchain WebGPU output: ${r.webgpuOutput} (informational: sandbox loses the device on present)`); r.errors.forEach(e => lines.push(`[${t}/present] ERROR ${e}`)); if (r.errors.length) fail = true; continue; }
       if (r.label === 'webgpu') { lines.push(`[${t}/${r.label}] WebGPU output: ${r.webgpuOutput}`); if (!/^seen/.test(r.webgpuOutput)) fail = true; }
       if (r.gaps) lines.push(`[${t}/${r.label}] Canvas 2D perf (CPU x${r.cpuThrottle}, ${r.gaps.n} frames): rAF gaps over 50 ms: ${r.gaps.over50} (p50 ${r.gaps.p50} p95 ${r.gaps.p95} max ${r.gaps.max})`);
       if (r.fallback) {
@@ -161,9 +168,9 @@ async function compare(a, b) {
       if (r.errors.length) fail = true;
     }
     const a = runs.find(r => r.label === 'webgpu'), b = runs.find(r => r.label === 'canvas2d');
-    if (a && b && a.shot && b.shot && a.renderer === 'WebGPU') {
-      const c = await compare(a.shot, b.shot);
-      lines.push(`[${t}] screenshot diff WebGPU vs Canvas 2D: mean abs ${c.meanAbs}/255, pixels differing > 40: ${c.pixelsOver40} of ${c.total} (${(100 * c.pixelsOver40 / c.total).toFixed(2)}%)${t === 'game' ? ' (live game, frames differ in time)' : ''}`);
+    if (a && b && a.gpuShot && b.shot && a.renderer === 'WebGPU') {
+      const c = await compare(a.gpuShot, b.shot);
+      lines.push(`[${t}] diff WebGPU readback vs Canvas 2D screenshot: mean abs ${c.meanAbs}/255, pixels differing > 40: ${c.pixelsOver40} of ${c.total} (${(100 * c.pixelsOver40 / c.total).toFixed(2)}%)${t === 'game' ? ' (live game, frames differ in time)' : ''}`);
     }
     if (t === 'harness') {
       try {
