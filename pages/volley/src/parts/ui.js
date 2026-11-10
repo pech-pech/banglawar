@@ -5,7 +5,7 @@ if (V.TUNE_DEFAULTS) {
   var SHELL = { AUTO_WALK: true, AUTO_WALK_DELAY: 1.0, EDGE_FLASH: true, HAPTIC_HURT_MS: 40, HAPTIC_KILL_MS: 12 };
   for (var sk in SHELL) if (!(sk in V.TUNE_DEFAULTS)) { V.TUNE_DEFAULTS[sk] = SHELL[sk]; if (V.TUNE && !(sk in V.TUNE)) V.TUNE[sk] = SHELL[sk]; }
 }
-var BUILD = 'volley-p1-6';
+var BUILD = 'volley-p1-7';
 // Persist tuning (only values that differ from defaults) and sound-off. Every storage call is guarded.
 var STORE = 'volley.tune';
 function loadTune(){
@@ -143,7 +143,7 @@ UI.toast = function(text, ms){
 UI.placeToast = function(view){
   // Below the room, in the ground area: never over the HUD bars or the room edge (L-TD-5).
   // D10: one line, in the band below the room, under the two-line how-to box (top +14, ~50 px tall), clear of the spawn.
-  var t = $('toast'); t.style.top = Math.round(view.oy + 15 * view.s + 76) + 'px';
+  var t = $('toast'); t.style.top = Math.round(Math.min(view.oy + 15 * view.s + 76, view.h - 56)) + 'px';   // clamp: short screens have no band below the room
 };
 
 // Crit numbers (M's pick: crits only). Pooled DOM, max 8 live.
@@ -255,12 +255,14 @@ UI.cards = function(S, onPick){
   show('ovCards', true);
 };
 
+// the sim defers its 'door' event to the next step (toast 'Stage N clear'); show the result just after it so it is not overwritten
+function supToast(t){ setTimeout(function(){ UI.toast(t, 1800); }, 80); }
 UI.supply = function(S, onPick){
   var list = $('supList'); list.innerHTML = '';
   (S.supply || []).forEach(function(o, i){
     var b;
-    if (o.kind === 'repair') b = row('card sup', GLYPH.repair, 'Repair', 'Field repair', 'Restore ' + Math.round((o.pct || 0.4) * 100) + '% of max HP now.', function(){ onPick(i); });
-    else { var c = (V.CARDS && V.CARDS[o.index]) || { name: 'Supply mod', desc: '' }; b = row('card sup', glyphFor(c), 'Supply mod', c.name, c.desc, function(){ onPick(i); }); }
+    if (o.kind === 'repair') b = row('card sup', GLYPH.repair, 'Repair', 'Field repair', 'Restore ' + Math.round((o.pct || 0.4) * 100) + '% of max HP now.', function(){ onPick(i); supToast('Repaired ' + Math.round((o.pct || 0.4) * 100) + '% HP'); });
+    else { var c = (V.CARDS && V.CARDS[o.index]) || { name: 'Supply mod', desc: '' }; b = row('card sup', glyphFor(c), 'Supply mod', c.name, c.desc, function(){ onPick(i); supToast('+ ' + c.name); }); }
     b.dataset.i = i; list.appendChild(b);
   });
   UI.show('ovSupply', true);
@@ -293,6 +295,13 @@ UI.results = function(S){
 };
 UI.dead = UI.results;
 
+function metaBlock(){
+  var m = V.Meta && V.Meta.state; if (!m) return null;
+  var runs = m.runs || [];
+  return { credits: m.credits, rifleLevel: m.rifle && m.rifle.lvl, cond: { hp: m.cond && m.cond.hp, atk: m.cond && m.cond.atk, rate: m.cond && m.cond.rate },
+    runCount: runs.length, bestStage: m.best,
+    lastRuns: runs.slice(-3).map(function(r){ return { stage: r.stage, win: r.win, credits: r.credits, dur: r.dur, kills: r.kills }; }) };
+}
 // Copy report: everything needed to compare a play session.
 UI.report = function(){
   var m = hooks.metrics ? hooks.metrics() : {}, S = m.S || {}, st = S.stats || {};
@@ -305,7 +314,9 @@ UI.report = function(){
     stage: S.stage, stageReached: S.result ? S.result.stage : S.stage, result: S.result ? (S.result.win ? 'win' : 'lose') : (S.phase === 'dead' ? 'lose' : 'in progress'), mods: S.hero ? S.hero.mods : null, modNames: S.hero ? modNames(S) : null, level: S.hero && S.hero.level, picks: st.picks, shots: st.shots, dmgTaken: st.dmgTaken,
     input: V.Input ? { counts: V.Input.counts, log: V.Input.logText() } : null,
     audio: V.Audio ? { state: V.Audio.state, played: V.Audio.played, dropped: V.Audio.dropped } : null,
-    settings: V.TUNE
+    settings: V.TUNE,
+    homeVisible: !!(V.Home && V.Home.visible && V.Home.visible()),
+    meta: metaBlock()
   };
   return 'Project Volley report\n' + JSON.stringify(r, null, 1);
 };

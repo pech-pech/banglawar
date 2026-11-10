@@ -590,6 +590,11 @@ function drawSupply(S, s, t) {
   var p = S.supplyPos || { x: (S.room && S.room.w || 9) / 2, y: (S.room && S.room.h || 15) / 2 }, x = X(p.x), y = Y(p.y), w = 1.1 * s;
   rect(x + sh.x * 1.3, y + sh.y * 1.3, w, w, PAL.shadow);
   oRect(x, y, w, w, PAL.crate);
+  if (!S.supply && S.phase !== 'supply') {   // choice made: crate stands open and empty (dark inside, lid knocked aside), no beacon
+    rect(x, y, w - 8, w - 8, PAL.crateBand); rect(x, y - w * 0.1, w - 12, w * 0.3, PAL.ink);
+    rect(x + w * 0.42, y + w * 0.5, w * 0.7, w * 0.22, PAL.crateLid, -0.35); rect(x + w * 0.42, y + w * 0.5 + w * 0.08, w * 0.7, 3, PAL.crateBand, -0.35);
+    return;
+  }
   rect(x, y, w - 6, w - 6, PAL.crateLid);
   line(x - w / 2 + 3, y - w / 2 + 3, x + w / 2 - 3, y + w / 2 - 3, 3, PAL.crateBand); line(x + w / 2 - 3, y - w / 2 + 3, x - w / 2 + 3, y + w / 2 - 3, 3, PAL.crateBand);
   oRect(x, y, w * 0.42, w * 0.42, PAL.repair); rect(x, y, 4, w * 0.3, PAL.cyan); rect(x, y, w * 0.3, 4, PAL.cyan);

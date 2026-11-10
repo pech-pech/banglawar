@@ -401,18 +401,21 @@ body.ovon #bossBar, body.ovon #howto, body.ovon #dmgLayer{visibility:hidden}
 .pv-tab--center.is-selected::before{display:block;left:6%;right:6%}
 .pv-tab.is-selected .pv-pip{display:none}
 .pv-tab .pv-pip[hidden]{display:none}
-/* Deploy tab */
-.hm-card{height:300px;padding:0;border:var(--pv-ui-stroke-heavy) solid var(--pv-ui-ink);border-radius:var(--pv-ui-r-lg);box-shadow:var(--pv-ui-sh-1)}
-.hm-card .pv-chapter__art{background:var(--pv-ui-metal-900);inset:0 0 auto 0;height:216px}   /* key-art-card 328x216 anchored to the top edge; the rest of the card is solid dark (placement sheet) */
-.hm-card .pv-chapter__art img{width:328px;height:216px;object-fit:cover;display:block}
+/* Deploy tab. #pane-deploy is a size container: the art follows the card width (328:216, never stretched) and shrinks with the pane height,
+   so card + Best stage + DEPLOY + note always fit; if a very short pane still cannot fit, the pane scrolls and its 28 px bottom pad keeps DEPLOY clear of the raised tab. */
+#pane-deploy{container-type:size}
+#pane-deploy>*{--dep-h:clamp(64px,14cqh,88px);--art-h:max(96px,min(calc(100cqw*216/328),calc(100cqh - 191px - var(--dep-h))))}
+.hm-card{height:calc(var(--art-h) + 84px);padding:0;border:var(--pv-ui-stroke-heavy) solid var(--pv-ui-ink);border-radius:var(--pv-ui-r-lg);box-shadow:var(--pv-ui-sh-1);flex:none}
+.hm-card .pv-chapter__art{background:var(--pv-ui-metal-900);inset:0 0 auto 0;height:var(--art-h)}   /* key-art-card 328x216 anchored to the top edge; the rest of the card is solid dark (placement sheet) */
+.hm-card .pv-chapter__art img{width:100%;height:100%;object-fit:cover;object-position:50% 0;display:block}
 /* AP 1.3 scrim: transparent -> card colour over the lowest 96 px of the art (D1) */
 .hm-card{background:var(--pv-ui-metal-900)}
-.hm-card::after{inset:auto 0 auto 0;top:120px;height:96px;background:linear-gradient(transparent,var(--pv-ui-metal-900))}
-.hm-info{position:absolute!important;left:12px;right:12px;top:228px;display:flex;flex-direction:column;gap:4px;align-items:flex-start}
+.hm-card::after{inset:auto 0 auto 0;top:calc(var(--art-h) - min(96px,var(--art-h)));height:min(96px,var(--art-h));background:linear-gradient(transparent,var(--pv-ui-metal-900))}
+.hm-info{position:absolute!important;left:12px;right:12px;top:calc(var(--art-h) + 12px);display:flex;flex-direction:column;gap:4px;align-items:flex-start}
 .hm-best{margin-top:12px;height:56px;display:flex;align-items:center;justify-content:space-between;padding:0 14px}
 .hm-bestn{font-size:20px}
-.hm-deploy{display:flex;width:296px;min-height:88px;height:88px;margin:56px auto 0;font-size:26px}
-.hm-note{margin-top:16px;text-align:center}
+.hm-deploy{display:flex;width:min(100%,296px);min-height:var(--dep-h);height:var(--dep-h);margin:14px auto 0;font-size:26px}
+.hm-note{margin-top:10px;text-align:center}
 /* results portrait + Home button */
 #resPortrait{display:block;flex:none;width:72px;height:96px;border-radius:4px;border:2px solid #0f1215;box-shadow:0 0 0 1.5px #4a535d;object-fit:cover;object-position:top;background:#1b2026}
 
@@ -446,7 +449,7 @@ body.ovon #bossBar, body.ovon #howto, body.ovon #dmgLayer{visibility:hidden}
   <div id="howto">Drag anywhere to move. Let go to aim and fire.</div>
   <div class="ov" id="ovCards"><h2 id="cardTitle">Field upgrade</h2><p>Pick one</p><div id="cardList" style="display:flex;flex-direction:column;gap:10px;width:100%;align-items:stretch"></div></div>
   <div class="ov" id="ovDead"><div id="resHead"><img id="resPortrait" alt="" width="72" height="96"><h2 id="resTitle">Operator down</h2></div><div id="resStats"></div><button class="btn" id="btnRestart">New run</button><button class="btn ghost" id="btnHome">Home</button></div>
-  <div class="ov" id="ovSupply"><h2>Supply drop</h2><p>Take one</p><div id="supList" style="display:flex;flex-direction:column;gap:10px;width:100%;align-items:stretch"></div></div>
+  <div class="ov" id="ovSupply"><h2>Supply drop</h2><p>Tap a card to choose one</p><div id="supList" style="display:flex;flex-direction:column;gap:10px;width:100%;align-items:stretch"></div></div>
   <div class="ov" id="ovPause"><h2>Paused</h2><button class="btn" id="btnResume" style="min-width:200px">Resume</button><button class="btn ghost" id="btnRestartRun" style="min-width:200px">Restart run</button><button class="btn ghost" id="btnTune" style="min-width:200px">Tuning</button><button class="btn ghost" id="btnSound" style="min-width:200px">Sound: on</button><p class="rinfo" id="rlblPause">-</p><p style="font-size:12px">Tap outside the buttons to resume</p></div>
   <svg width="0" height="0" style="position:absolute"><defs>
 <linearGradient id="cg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffe27a"/><stop offset="1" stop-color="#c28a0c"/></linearGradient>
@@ -2986,6 +2989,11 @@ function drawSupply(S, s, t) {
   var p = S.supplyPos || { x: (S.room && S.room.w || 9) / 2, y: (S.room && S.room.h || 15) / 2 }, x = X(p.x), y = Y(p.y), w = 1.1 * s;
   rect(x + sh.x * 1.3, y + sh.y * 1.3, w, w, PAL.shadow);
   oRect(x, y, w, w, PAL.crate);
+  if (!S.supply && S.phase !== 'supply') {   // choice made: crate stands open and empty (dark inside, lid knocked aside), no beacon
+    rect(x, y, w - 8, w - 8, PAL.crateBand); rect(x, y - w * 0.1, w - 12, w * 0.3, PAL.ink);
+    rect(x + w * 0.42, y + w * 0.5, w * 0.7, w * 0.22, PAL.crateLid, -0.35); rect(x + w * 0.42, y + w * 0.5 + w * 0.08, w * 0.7, 3, PAL.crateBand, -0.35);
+    return;
+  }
   rect(x, y, w - 6, w - 6, PAL.crateLid);
   line(x - w / 2 + 3, y - w / 2 + 3, x + w / 2 - 3, y + w / 2 - 3, 3, PAL.crateBand); line(x + w / 2 - 3, y - w / 2 + 3, x - w / 2 + 3, y + w / 2 - 3, 3, PAL.crateBand);
   oRect(x, y, w * 0.42, w * 0.42, PAL.repair); rect(x, y, 4, w * 0.3, PAL.cyan); rect(x, y, w * 0.3, 4, PAL.cyan);
@@ -3813,7 +3821,7 @@ if (V.TUNE_DEFAULTS) {
   var SHELL = { AUTO_WALK: true, AUTO_WALK_DELAY: 1.0, EDGE_FLASH: true, HAPTIC_HURT_MS: 40, HAPTIC_KILL_MS: 12 };
   for (var sk in SHELL) if (!(sk in V.TUNE_DEFAULTS)) { V.TUNE_DEFAULTS[sk] = SHELL[sk]; if (V.TUNE && !(sk in V.TUNE)) V.TUNE[sk] = SHELL[sk]; }
 }
-var BUILD = 'volley-p1-6';
+var BUILD = 'volley-p1-7';
 // Persist tuning (only values that differ from defaults) and sound-off. Every storage call is guarded.
 var STORE = 'volley.tune';
 function loadTune(){
@@ -3951,7 +3959,7 @@ UI.toast = function(text, ms){
 UI.placeToast = function(view){
   // Below the room, in the ground area: never over the HUD bars or the room edge (L-TD-5).
   // D10: one line, in the band below the room, under the two-line how-to box (top +14, ~50 px tall), clear of the spawn.
-  var t = $('toast'); t.style.top = Math.round(view.oy + 15 * view.s + 76) + 'px';
+  var t = $('toast'); t.style.top = Math.round(Math.min(view.oy + 15 * view.s + 76, view.h - 56)) + 'px';   // clamp: short screens have no band below the room
 };
 
 // Crit numbers (M's pick: crits only). Pooled DOM, max 8 live.
@@ -4063,12 +4071,14 @@ UI.cards = function(S, onPick){
   show('ovCards', true);
 };
 
+// the sim defers its 'door' event to the next step (toast 'Stage N clear'); show the result just after it so it is not overwritten
+function supToast(t){ setTimeout(function(){ UI.toast(t, 1800); }, 80); }
 UI.supply = function(S, onPick){
   var list = $('supList'); list.innerHTML = '';
   (S.supply || []).forEach(function(o, i){
     var b;
-    if (o.kind === 'repair') b = row('card sup', GLYPH.repair, 'Repair', 'Field repair', 'Restore ' + Math.round((o.pct || 0.4) * 100) + '% of max HP now.', function(){ onPick(i); });
-    else { var c = (V.CARDS && V.CARDS[o.index]) || { name: 'Supply mod', desc: '' }; b = row('card sup', glyphFor(c), 'Supply mod', c.name, c.desc, function(){ onPick(i); }); }
+    if (o.kind === 'repair') b = row('card sup', GLYPH.repair, 'Repair', 'Field repair', 'Restore ' + Math.round((o.pct || 0.4) * 100) + '% of max HP now.', function(){ onPick(i); supToast('Repaired ' + Math.round((o.pct || 0.4) * 100) + '% HP'); });
+    else { var c = (V.CARDS && V.CARDS[o.index]) || { name: 'Supply mod', desc: '' }; b = row('card sup', glyphFor(c), 'Supply mod', c.name, c.desc, function(){ onPick(i); supToast('+ ' + c.name); }); }
     b.dataset.i = i; list.appendChild(b);
   });
   UI.show('ovSupply', true);
@@ -4101,6 +4111,13 @@ UI.results = function(S){
 };
 UI.dead = UI.results;
 
+function metaBlock(){
+  var m = V.Meta && V.Meta.state; if (!m) return null;
+  var runs = m.runs || [];
+  return { credits: m.credits, rifleLevel: m.rifle && m.rifle.lvl, cond: { hp: m.cond && m.cond.hp, atk: m.cond && m.cond.atk, rate: m.cond && m.cond.rate },
+    runCount: runs.length, bestStage: m.best,
+    lastRuns: runs.slice(-3).map(function(r){ return { stage: r.stage, win: r.win, credits: r.credits, dur: r.dur, kills: r.kills }; }) };
+}
 // Copy report: everything needed to compare a play session.
 UI.report = function(){
   var m = hooks.metrics ? hooks.metrics() : {}, S = m.S || {}, st = S.stats || {};
@@ -4113,7 +4130,9 @@ UI.report = function(){
     stage: S.stage, stageReached: S.result ? S.result.stage : S.stage, result: S.result ? (S.result.win ? 'win' : 'lose') : (S.phase === 'dead' ? 'lose' : 'in progress'), mods: S.hero ? S.hero.mods : null, modNames: S.hero ? modNames(S) : null, level: S.hero && S.hero.level, picks: st.picks, shots: st.shots, dmgTaken: st.dmgTaken,
     input: V.Input ? { counts: V.Input.counts, log: V.Input.logText() } : null,
     audio: V.Audio ? { state: V.Audio.state, played: V.Audio.played, dropped: V.Audio.dropped } : null,
-    settings: V.TUNE
+    settings: V.TUNE,
+    homeVisible: !!(V.Home && V.Home.visible && V.Home.visible()),
+    meta: metaBlock()
   };
   return 'Project Volley report\n' + JSON.stringify(r, null, 1);
 };
@@ -4172,7 +4191,7 @@ function injectCss(id, css){
 var BASE_CSS = [
   '.ta-root{position:relative;height:100%;display:flex;flex-direction:column;min-width:0;overflow:hidden;color:var(--pv-ui-text);font:400 14px/1.35 var(--pv-ui-font)}',
   '.ta-root *,.ta-root *::before,.ta-root *::after{box-sizing:border-box}',
-  '.ta-scroll{flex:1;min-height:0;overflow-x:hidden;overflow-y:auto;padding:12px 16px 34px;display:flex;flex-direction:column;gap:12px;scrollbar-width:none;overscroll-behavior:contain}',
+  '.ta-scroll{flex:1;min-height:0;overflow-x:hidden;overflow-y:auto;padding:12px 16px calc(var(--tb-bottom,28px) + 10px);display:flex;flex-direction:column;gap:12px;scrollbar-width:none;overscroll-behavior:contain}',
   '.ta-scroll::-webkit-scrollbar{display:none}',
   '.ta-pill{margin-left:auto;height:34px;padding:0 10px 0 8px;gap:6px;color:#ffe27a;font-size:14px}',
   '.ta-coin{display:block;flex:none;object-fit:contain}',
@@ -4202,15 +4221,15 @@ var CSS = [
   '.ta-slot.pv-cell{width:auto;height:auto;font-size:26px}',
   'button.ta-slot{cursor:pointer;appearance:none}',
   '.ta-slot .pv-ico{font-size:26px}',
-  '.ta-slot img{position:absolute;left:50%;top:0;margin-left:-32px;width:64px;height:64px;object-fit:contain;display:block;pointer-events:none}',
-  '.ta-slot.r1{justify-content:flex-end;padding-bottom:6px}',
+  '.ta-slot img{position:static;flex:1 1 0;min-height:0;width:100%;max-width:100%;object-fit:cover;object-position:50% 50%;border-radius:3px;display:block;pointer-events:none;margin:0}',
+  '.ta-slot.r1{justify-content:flex-end;padding:6px 4px}',
   '.ta-rpip{position:absolute;left:5px;bottom:5px;display:flex;gap:2px}.ta-rpip i{width:5px;height:5px;background:var(--rc,var(--pv-ui-r1));border:1px solid var(--pv-ui-ink)}',
   '.ta-lk{width:11px;height:11px;font-size:11px!important;margin-right:3px;vertical-align:-1px;stroke:currentColor;fill:none;stroke-width:2}',
   '.ta-slot__n{font:800 11px/1 var(--pv-ui-font-stencil);letter-spacing:.06em;text-transform:uppercase;color:var(--pv-ui-text-2);white-space:nowrap}',
   '.ta-slot__p{display:flex;align-items:center;font:700 11px/1 var(--pv-ui-font-stencil);letter-spacing:.08em;color:var(--pv-ui-text-3);white-space:nowrap}',
   '.ta-slot.is-empty{opacity:.85}',
   '.ta-slot.is-empty .pv-ico{color:var(--pv-ui-metal-400)}',
-  '.ta-slot .pv-lvl{font-size:11px;right:-3px;bottom:auto;top:-3px}',
+  '.ta-slot .pv-lvl{font-size:11px;right:5px;bottom:auto;top:5px}',
   '.ta-card{display:flex;flex-direction:column;gap:12px;padding:12px}',
   '.ta-head{display:flex;gap:12px;align-items:center;width:100%;min-height:72px;padding:0;margin:0;text-align:left;color:inherit;font:inherit;background:none;border:0;cursor:pointer;appearance:none}',
   '.ta-head:active{filter:brightness(.85)}',
@@ -4224,9 +4243,9 @@ var CSS = [
   '.ta-stat .pv-stat__name{flex:1}',
   '.ta-cost{display:flex;align-items:center;gap:8px;min-height:44px;padding:0 10px;background:var(--pv-ui-metal-900);border-radius:6px;box-shadow:inset 0 0 0 1.5px var(--pv-ui-metal-600)}',
   '.ta-cost .pv-chip{margin-left:auto}',
-  '.ta-cost .pv-chip.is-short{color:var(--pv-ui-red)}',
+  '.ta-cost .pv-chip.is-short{color:var(--pv-ui-text-2)}',
   '.ta-note{font-size:12px;color:var(--pv-ui-text-2);text-align:center;min-height:16px}',
-  '.ta-note.is-warn{color:#ffb4ac}',
+  '.ta-note.is-warn{color:var(--pv-ui-text-3)}',
   '.ta-up{width:100%;font-size:17px;letter-spacing:.1em;white-space:nowrap;padding:0 8px}',
   '.ta-pulse{animation:taPulse .5s ease-out}',
   '@keyframes taPulse{0%{box-shadow:0 0 0 0 rgba(56,232,255,.7)}100%{box-shadow:0 0 0 14px rgba(56,232,255,0)}}',
@@ -4271,7 +4290,7 @@ function costRow(v){
 function upBtn(v, cls){
   var label = v.maxed ? 'Max level' : 'Upgrade to Lv ' + (v.lvl + 1);
   return '<button type="button" class="pv-btn pv-btn--primary pv-btn--block ta-up ' + (cls || '') + '" data-act="buy"' + (v.can ? '' : ' disabled') + '>' + label + '</button>' +
-    '<div class="ta-note' + (!v.maxed && !v.can ? ' is-warn' : '') + '">' + (v.maxed ? 'Rifle is at its top level.' : v.can ? '&nbsp;' : 'Need ' + fmt(v.short) + ' more credits. Earn them in a run.') + '</div>';
+    '<div class="ta-note' + (!v.maxed && !v.can ? ' is-warn' : '') + '">' + (v.maxed ? 'Rifle is at its top level.' : v.can ? '&nbsp;' : 'Need ' + fmt(v.short) + ' more credits') + '</div>';
 }
 
 function render(){
@@ -4356,7 +4375,7 @@ if (!T) { try { console.warn('tab-operator: V.TabsA missing (tab-armory.js must 
 var fmt = T.fmt, esc = T.esc, asset = T.asset, KEYS = T.KEYS, meta = T.meta;
 
 var CSS = [
-  '.to-top{display:flex;gap:12px;min-height:250px}',
+  '.to-top{display:flex;gap:12px;min-height:250px;flex:none}',
   '.to-por{flex:none;width:152px;height:250px;padding:0;overflow:hidden;background:#e8cf9a}',
   '.to-por img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:50% 30%;display:block}',
   '.to-por .ta-hint{position:absolute;left:0;right:0;top:8px;text-align:center;color:#3a2f18;letter-spacing:.12em}',
@@ -4391,6 +4410,7 @@ var CSS = [
 
 function tune(k, d){ var t = V.TUNE; return (t && typeof t[k] === 'number') ? t[k] : d; }
 function r1(n){ return (Math.round(n * 10) / 10).toString(); }
+function r2(n){ return (Math.round(n * 100) / 100).toFixed(2); }
 function pct(n){ return r1(n * 100) + '%'; }
 function dur(s){ s = Math.max(0, Math.round(+s || 0)); return Math.floor(s / 60) + ':' + (s % 60 < 10 ? '0' : '') + (s % 60); }
 var MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -4424,11 +4444,11 @@ function render(){
   var headU = asset(KEYS.head), runs = (st.runs || []).slice(-10).reverse(), all = st.runs || [], wins = 0, i;
   for (i = 0; i < all.length; i++) if (all[i] && all[i].win) wins++;
   var best = st.best || 0, bestMax = 10;
-  var hpB = t.hp - t.hp0, atkB = t.atk - t.atk0, ivB = t.iv0 - t.iv;
+  var hpB = t.hp - t.hp0, atkB = t.atk - t.atk0, rB = t.rate - 1 / t.iv0;
   function bonus(n, unit){ return n ? ' <em>+' + fmt(n) + (unit || '') + '</em>' : ''; }
   var rows = '<div class="row"><span>Max HP</span><i>' + fmt(t.hp0) + bonus(hpB) + '</i><b>' + fmt(t.hp) + '</b></div>' +
     '<div class="row"><span>ATK</span><i>' + fmt(t.atk0) + bonus(atkB) + '</i><b>' + fmt(t.atk) + '</b></div>' +
-    '<div class="row"><span>Fire interval</span><i>' + t.iv0.toFixed(2) + ' s' + (ivB > 0.004 ? ' <em>-' + ivB.toFixed(2) + '</em>' : '') + '</i><b>' + t.iv.toFixed(2) + ' s</b></div>' +
+    '<div class="row"><span>Rate</span><i>' + r2(1 / t.iv0) + ' /s' + (rB > 0.004 ? ' <em>+' + r2(rB) + '</em>' : '') + '</i><b>' + r2(t.rate) + ' /s</b></div>' +
     '<div class="row"><span>Crit % / dmg</span><i>' + pct(t.crit) + ' &middot; ' + pct(t.critM) + '</i><b>' + pct(t.crit) + ' / ' + pct(t.critM) + '</b></div>' +
     '<div class="row"><span>Move speed</span><i>' + r1(t.spd) + '</i><b>' + r1(t.spd) + '</b></div>';
   var log = '';
@@ -4442,12 +4462,10 @@ function render(){
   el.innerHTML = '<div class="ta-root">' +
         '<div class="ta-scroll">' +
       '<div class="to-top"><div class="pv-panel pv-rivets to-por">' + figure() + '</div>' +
-        '<div class="to-hl"><div class="to-nm">The Operator</div><span class="ta-hint">Total stats</span>' +
-          '<div class="to-r">' + ico(I_HP) + 'HP<b>' + fmt(t.hp) + '</b></div><div class="to-r">' + ico(I_ATK) + 'ATK<b>' + fmt(t.atk) + '</b></div>' +
-          '<div class="to-r">' + ico(I_RATE) + 'Rate<b>' + (Math.round(t.rate * 100) / 100) + ' /s</b></div></div></div>' +
+        '<div class="to-hl"><div class="to-nm">The Operator</div><span class="ta-hint">Run summary</span>' +
+          '<div class="to-r">' + 'Best stage<b>' + fmt(best) + ' / ' + bestMax + '</b></div><div class="to-r">Runs<b>' + fmt(all.length) + '</b></div>' +
+          '<div class="to-r">Wins<b>' + fmt(wins) + '</b></div></div></div>' +
       '<div class="pv-panel pv-rivets to-tbl"><div class="h ta-hint"><span>Stat</span><span>Base <span style="color:var(--pv-ui-cyan)">+Bonus</span></span><span>Total</span></div>' + rows + '</div>' +
-      '<div class="to-rec"><div class="c"><span class="ta-hint">Best stage</span><b>' + fmt(best) + '</b></div>' +
-        '<div class="c"><span class="ta-hint">Runs</span><b>' + fmt(all.length) + '</b></div><div class="c"><span class="ta-hint">Wins</span><b>' + fmt(wins) + '</b></div></div>' +
       '<div class="pv-section">' + (headU ? '<img src="' + headU + '" width="40" height="40" alt="" style="object-fit:contain;order:-1">' : '') + '<span class="pv-section__label">Run log</span><span class="pv-section__aside">last ' + Math.max(runs.length, 0) + ' of 10</span></div>' +
       '<div class="to-log">' + log + '</div>' +
     '</div></div>';
@@ -5077,6 +5095,11 @@ function fail(t){ $('bootMsg').textContent = t; UI.show('ovBoot', true); console
 var UI = V.UI;
 
 // ---------- layout ----------
+var BERM_PX = 30, sbProbe = null;   // BERM_PX: sandbag rows + their shadow below the room line (scene.js drawRoomEdge reaches ~y0+27)
+function safeBottom(){
+  if (!sbProbe) { sbProbe = document.createElement('div'); sbProbe.style.cssText = 'position:absolute;left:0;top:0;width:0;height:0;visibility:hidden;padding-bottom:env(safe-area-inset-bottom,0px)'; document.body.appendChild(sbProbe); }
+  return parseFloat(getComputedStyle(sbProbe).paddingBottom) || 0;
+}
 function layout(){
   var W = G.innerWidth, H = G.innerHeight, st = $('stage'), note = $('coverNote');
   var w = W, h = H, left = 0;
@@ -5089,7 +5112,9 @@ function layout(){
   } else note.style.display = 'none';
   st.style.left = left + 'px'; st.style.top = '0px'; st.style.width = w + 'px'; st.style.height = h + 'px';
   var hud = $('hud').offsetHeight || 62;
-  var oy = hud + 2, s = Math.min(w / 9, (h - oy) / 15);
+  // Contain fit: the whole room (9x15 tiles) PLUS the sandbag berm drawn just below its bottom edge (BERM_PX) and the bottom safe area
+  // must sit below the HUD, so the limiting dimension (width or height) sets the scale. Tall phones stay width-limited (unchanged).
+  var oy = hud + 2, s = Math.min(w / 9, (h - oy - BERM_PX - safeBottom()) / 15);
   view.w = w; view.h = h; view.dpr = G.devicePixelRatio || 1; view.s = s; view.ox = (w - 9 * s) / 2; view.oy = oy;
   if (R) R.resize(w, h, view.dpr);
   UI.placeToast(view);
