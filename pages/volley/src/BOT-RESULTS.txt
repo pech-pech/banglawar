@@ -1,147 +1,157 @@
-Project Volley P0 headless bot results
-Date: 2026-11-10 (script run 2026-11-10T11:58:36.882Z)
-Seeds: 3 per bot (seeds 1..3), cap 1 game minutes per run (idle 40, stand 2), fixed step 1/60, default TUNE.
-Bots: stand = never moves at all (stays at spawn, never opens a door); idle = never moves in combat, walks to the door when clear, takes card 0;
-      naive = random walk / random stops, random card; skilled = samples 16 moves + stand every 0.1 s against predicted shots, lunges and tells, kites chasers, prefers standing still.
+Project Volley P1 headless bot results (chapter 1, stages 1-10)
+Date: 2026-11-10 (script run 2026-11-10T12:28:45.841Z)
+Parts loaded: tune, rng, rooms, stages, mods, sim, ai-p0, ai-p1, boss
+Seeds: 200 per bot (seeds 1..200), cap 20 game minutes per run, fixed step 1/60, default TUNE (CARDS_OFFERED 3, ENDLESS false).
+Bots: idle = never moves in combat, walks to the door when clear, takes card 0 / supply choice 0;
+      naive = random walk with random stops, random cards; skilled = samples 16 moves + stand every 0.1 s against
+      predicted shots, lunges, charges, fans and shell rings, kites chasers, prefers standing still;
+      human = same planner but 0.25 s reaction delay, positions only (shot motion from late frames, no aim-line/fan/lane
+      reading, sees shell rings), re-plans every 0.15 s, stronger preference to stand still.
+Stage list: 1:combat/R01/E-01@0+E-01@1+E-01@1  2:combat/R02/E-01@0+E-01@0+E-01@2+E-01@2  3:combat/R01/E-02@0+E-01@0+E-02@3  4:combat/R02/E-03@0+E-02@2.5+E-01@2.5  5:supply/SD/  6:combat/R03/E-04@0+E-01@2.5+E-02@2.5  7:combat/R02/E-05@0+E-01@3+E-01@3  8:combat/R02/E-03@0+E-01@0+E-02@0+E-05@4+E-05@6  9:cache/CA1/E-01@0+E-01@0  10:boss/BA1/B-01@0
 
 == Shots to kill at stage 1, fresh hero (formula, no crit) vs D1 targets ==
-E-01: HP 216, ATK 150 -> 2 shots (D1 target 2: PASS)
-E-02: HP 324, ATK 150 -> 3 shots (D1 target 3: PASS)
-E-03: HP 432, ATK 150 -> 3 shots (no D1 target)
-stage 4: E-01 HP 239 = 2 shots; E-02 HP 359 = 3 shots; E-03 HP 479 = 4 shots; (fresh ATK, no cards)
-stage 10: E-01 HP 286 = 2 shots; E-02 HP 429 = 3 shots; E-03 HP 572 = 4 shots; (fresh ATK, no cards)
-stage 20: E-01 HP 364 = 3 shots; E-02 HP 546 = 4 shots; E-03 HP 727 = 5 shots; (fresh ATK, no cards)
+E-01: HP 216 -> 2 shots (D1 target 2: PASS)
+E-02: HP 324 -> 3 shots (D1 target 3: PASS)
+E-03: HP 432 -> 3 shots
+E-04: HP 360 -> 3 shots
+E-05: HP 468 -> 4 shots
+B-01: HP 5760 -> 39 shots
+stage 10 (scale x1.324): E-01 286 HP = 2; E-02 429 HP = 3; E-03 572 HP = 4; E-04 477 HP = 4; E-05 620 HP = 5; B-01 7626 HP = 51
 
 == Determinism (same seed twice, 3000 steps, hash after) ==
-skilled seed 7: abd35ad3@3000 / abd35ad3@3000 -> PASS
-skilled seed 1234: e2df305a@3000 / e2df305a@3000 -> PASS
-naive seed 7: ee32ceb1@3000 / ee32ceb1@3000 -> PASS
-naive seed 1234: 0458aba5@3000 / 0458aba5@3000 -> PASS
-different seeds 7 vs 8 differ: PASS (abd35ad3 vs 99d3bbc0)
+skilled seed 7: 4d10a693@3000 / 4d10a693@3000 -> PASS
+skilled seed 1234: 0975c73e@3000 / 0975c73e@3000 -> PASS
+naive seed 7: 39173bc2@3000 / 39173bc2@3000 -> PASS
+naive seed 1234: 512ee2d5@3000 / 512ee2d5@3000 -> PASS
+human seed 7: 2559ba05@3000 / 2559ba05@3000 -> PASS
+human seed 1234: 6f0b8add@3000 / 6f0b8add@3000 -> PASS
+different seeds 7 vs 8 differ: PASS (4d10a693 vs e44ed922)
 
 == Rule checks ==
-PASS brace delay: first shot 9 frames after stopping (0.15 s = 9 frames) (cooldown was ready)
+PASS brace delay: first shot 9 frames after stopping (0.15 s = 9 frames)
 PASS fire cooldown counts down while moving (0.800 -> 0.767)
 PASS stop/go tapping cannot beat the fire interval (min gap 0.800 s)
+PASS stage spawn times respected (stage 1: 1 at t=0, 2 more at t=1 s) (at 0.5 s 1)
 PASS pillar stops enemy flat shot and Operator round
-PASS lock line blocked by pillar
-PASS door opens on clear and walking north loads the next room
-PASS level-up pending -> pick screen at stage clear with CARDS_OFFERED distinct cards
-PASS capped cards are not offered
+PASS lobbed shell lands over cover and hurts (hp 600 -> 530)
+PASS door opens on clear and walking north loads the next stage
+PASS level-up -> card screen at stage clear with CARDS_OFFERED (3) distinct field cards
+PASS capped cards are never offered (50 offers)
 PASS 3 simultaneous shots hit once (invuln 0.6 s) (hp 540)
+PASS stage 5 = Supply Drop: phase supply with a mod + repair choice, no enemies
+PASS supply repair heals 40% max HP and opens the door
+PASS stage 9 = Cache: spikes, chest opens after clear -> free card screen + 2 repair packs (hazard rects 7)
+PASS cache repair packs collected (hp 540)
+PASS spikes hurt 60 (scaled) with a 1.0 s re-hit gap (3 hits in 2.08 s)
+PASS stage 10 = boss B-01 (S.boss + enemy boss:true); boss kill -> results win
+PASS death -> phase results, win false, death event
+PASS no enemy body overlaps the Operator hurtbox outside lunges/charges (target gap 0.1; worst intrusion into the gap < 0.1) (worst 0.097 over 176791 steps)
+PASS enemy bodies do not stack (worst pair overlap <= 0.05) (worst 0.000)
 PASS tune read live from S.tune
-PASS restart gives seed+1, same tune object
-PASS no Math.random / Date in sim parts
+PASS restart gives seed+1, same tune object, stage 1
+PASS no Math.random / Date in SIM-owned parts
+PASS no Math.random / Date in other sim-side parts (stages, mods, ai-p1, boss)
 
-== Bot: stand (3 seeds) ==
-died: 0/3 (0.0%); timed out alive: 3
-rooms cleared: mean 1.0, p10 1, median 1, p90 1, max 1  (loops of 3 rooms, median: 0.3)
-death stage: median -, p10 -, p90 -
-braced uptime (braced steps / play steps): mean 96.6%
-hits taken by source (all runs): E-01 0, E-02 0, E-03 0; mean damage taken per run 0.0
-mean level reached: 1.0, mean cards picked 0.0
-  E-01 kills: 9; first loop (stages 1-3): hits to kill mean 1.7 median 2, time alive (targetable to kill) median 2.08 s, p90 3.45 s
-  E-02 kills: 0; first loop (stages 1-3): hits to kill mean - median -, time alive (targetable to kill) median - s, p90 - s
-  E-03 kills: 0; first loop (stages 1-3): hits to kill mean - median -, time alive (targetable to kill) median - s, p90 - s
-  per stage: stage room | reached cleared died | HP at clear mean/p10 | clear time median s
-    1 R01 |    3    3    0 |  600.0 /  600 |   4.0
+== Bot: idle (200 seeds) ==
+chapter clear (boss killed): 170/200 (85.0%); died 30; timed out 0
+death stage: median 8, p10 8, p90 10; deaths by stage: 1:0 2:0 3:0 4:0 5:0 6:0 7:0 8:16 9:0 10:14
+boss kill time (room start to kill): median 21.1 s, p10 15.7, p90 29.3; run time to win median 109 s
+braced uptime: mean 98.5%; mean level at end 4.0, mean cards 3.8
+hits taken by source (all runs): B-01 719, E-01 339, E-02 556, E-03 284, E-04 93, E-05 263; mean damage taken per run 759.8
+  E-01 kills 2968: hits to kill median 2 (mean 2.0), time alive median 1.97 s, p90 4.17 s
+  E-02 kills 984: hits to kill median 3 (mean 2.7), time alive median 4.60 s, p90 11.62 s
+  E-03 kills 400: hits to kill median 4 (mean 3.6), time alive median 2.12 s, p90 2.92 s
+  E-04 kills 200: hits to kill median 3 (mean 2.9), time alive median 5.25 s, p90 8.03 s
+  E-05 kills 589: hits to kill median 4 (mean 3.9), time alive median 2.25 s, p90 3.10 s
+  B-01 kills 170: hits to kill median 43 (mean 43.4), time alive median 20.53 s, p90 28.65 s
+  stage kind/room   | reached cleared died | HP at clear mean / p10 | HP leaving mean | clear time median s
+   1 combat/R01     |  200  200    0 |  600.0 /  600 |  600.0 |   4.9
+   2 combat/R02     |  200  200    0 |  499.5 /  480 |  517.8 |   6.6
+   3 combat/R01     |  200  200    0 |  451.4 /  418 |  468.1 |   8.5
+   4 combat/R02     |  200  200    0 |  430.0 /  366 |  454.3 |   9.6
+   5 supply/SD      |  200  200    0 |      - /    - |  489.7 |     -
+   6 combat/R03     |  200  200    0 |  425.6 /  299 |  452.5 |   7.4
+   7 combat/R02     |  200  200    0 |  450.9 /  299 |  473.0 |   6.5
+   8 combat/R02     |  200  184   16 |  295.7 /   92 |  341.0 |  11.5
+   9 cache/CA1      |  184  184    0 |  343.8 /  112 |  586.7 |   2.9
+  10 boss/BA1       |  184  170   14 |  322.2 /  130 |      - |  21.1
 
-== Bot: idle (3 seeds) ==
-died: 3/3 (100.0%); timed out alive: 0
-rooms cleared: mean 35.0, p10 20, median 32, p90 53, max 53  (loops of 3 rooms, median: 10.7)
-death stage: median 33, p10 21, p90 54
-braced uptime (braced steps / play steps): mean 98.2%
-hits taken by source (all runs): E-01 0, E-02 19, E-03 36; mean damage taken per run 1112.0
-mean level reached: 7.3, mean cards picked 6.3
-  E-01 kills: 180; first loop (stages 1-3): hits to kill mean 1.8 median 2, time alive (targetable to kill) median 1.13 s, p90 3.45 s
-  E-02 kills: 105; first loop (stages 1-3): hits to kill mean 2.8 median 3, time alive (targetable to kill) median 7.30 s, p90 9.40 s
-  E-03 kills: 35; first loop (stages 1-3): hits to kill mean 4.0 median 4, time alive (targetable to kill) median 4.55 s, p90 4.55 s
-  per stage: stage room | reached cleared died | HP at clear mean/p10 | clear time median s
-    1 R01 |    3    3    0 |  600.0 /  600 |   4.0
-    2 R02 |    3    3    0 |  560.0 /  540 |  10.0
-    3 R03 |    3    3    0 |  473.3 /  433 |   7.9
-    4 R01 |    3    3    0 |  488.7 /  433 |   4.0
-    5 R02 |    3    3    0 |  508.0 /  371 |   6.1
-    6 R03 |    3    3    0 |  440.0 /  324 |   6.8
-    7 R01 |    3    3    0 |  440.0 /  324 |   4.0
-    8 R02 |    3    3    0 |  396.7 /  259 |   8.3
-    9 R03 |    3    3    0 |  326.0 /  145 |   7.6
-   10 R01 |    3    3    0 |  358.0 /  145 |   4.1
-   11 R02 |    3    3    0 |  375.7 /  145 |   8.6
-   12 R03 |    3    3    0 |  348.0 /   95 |   6.9
-   13 R01 |    3    3    0 |  388.0 /  215 |   4.0
-   14 R02 |    3    3    0 |  381.7 /  215 |  12.4
-   15 R03 |    3    3    0 |  306.3 /   93 |   7.2
-   16 R01 |    3    3    0 |  306.3 /   93 |   4.1
-   17 R02 |    3    3    0 |  259.0 /   22 |  10.4
-   18 R03 |    3    3    0 |  245.0 /   88 |   6.7
-   19 R01 |    3    3    0 |  245.0 /   88 |   4.1
-   20 R02 |    3    3    0 |  220.7 /   15 |   7.8
-   21 R03 |    3    2    1 |  231.5 /  164 |  10.0
-   22 R01 |    2    2    0 |  231.5 /  164 |   4.1
-   23 R02 |    2    2    0 |  291.5 /  284 |  11.7
-   24 R03 |    2    2    0 |  294.5 /  242 |  85.1
-   25 R01 |    2    2    0 |  294.5 /  242 |   3.2
-   26 R02 |    2    2    0 |  294.5 /  242 |  26.8
-   27 R03 |    2    2    0 |  235.5 /  183 |   5.7
-   28 R01 |    2    2    0 |  295.5 /  183 |   3.2
-   29 R02 |    2    2    0 |  295.5 /  183 |  10.7
-   30 R03 |    2    2    0 |  235.5 /  123 |   7.6
-   31 R01 |    2    2    0 |  235.5 /  123 |   4.0
-   32 R02 |    2    2    0 |  194.5 /   41 |   8.9
-   33 R03 |    2    1    1 |  286.0 /  286 |   5.1
-   34 R01 |    1    1    0 |  286.0 /  286 |   3.7
-   35 R02 |    1    1    0 |  286.0 /  286 |  10.2
-   36 R03 |    1    1    0 |  343.0 /  343 |   6.0
-   37 R01 |    1    1    0 |  343.0 /  343 |   3.7
-   38 R02 |    1    1    0 |  343.0 /  343 |   7.1
-   39 R03 |    1    1    0 |  278.0 /  278 |   6.9
-   40 R01 |    1    1    0 |  278.0 /  278 |   3.7
-  (stages above 40 omitted from the table; max stage 54)
+== Bot: naive (200 seeds) ==
+chapter clear (boss killed): 103/200 (51.5%); died 97; timed out 0
+death stage: median 8, p10 6, p90 10; deaths by stage: 1:0 2:2 3:1 4:5 5:0 6:4 7:3 8:54 9:2 10:26
+boss kill time (room start to kill): median 34.8 s, p10 21.5, p90 61.0; run time to win median 138 s
+braced uptime: mean 62.5%; mean level at end 3.7, mean cards 3.3
+hits taken by source (all runs): B-01 482, E-01 907, E-02 518, E-03 197, E-04 118, E-05 416, spikes 5; mean damage taken per run 878.7
+  E-01 kills 2792: hits to kill median 2 (mean 2.0), time alive median 2.95 s, p90 6.17 s
+  E-02 kills 909: hits to kill median 3 (mean 2.8), time alive median 5.45 s, p90 13.70 s
+  E-03 kills 362: hits to kill median 4 (mean 3.6), time alive median 2.95 s, p90 6.42 s
+  E-04 kills 189: hits to kill median 3 (mean 2.8), time alive median 5.32 s, p90 12.17 s
+  E-05 kills 487: hits to kill median 4 (mean 3.9), time alive median 3.13 s, p90 5.83 s
+  B-01 kills 103: hits to kill median 45 (mean 44.0), time alive median 34.22 s, p90 60.43 s
+  stage kind/room   | reached cleared died | HP at clear mean / p10 | HP leaving mean | clear time median s
+   1 combat/R01     |  200  200    0 |  564.9 /  480 |  567.6 |   5.7
+   2 combat/R02     |  200  198    2 |  378.5 /  180 |  401.5 |   8.3
+   3 combat/R01     |  198  197    1 |  346.0 /  178 |  360.1 |   8.7
+   4 combat/R02     |  197  192    5 |  318.7 /  120 |  347.4 |  11.3
+   5 supply/SD      |  192  192    0 |      - /    - |  463.6 |     -
+   6 combat/R03     |  192  188    4 |  395.0 /  174 |  414.4 |   8.9
+   7 combat/R02     |  188  185    3 |  379.2 /  121 |  396.2 |   7.4
+   8 combat/R02     |  185  131   54 |  242.4 /   54 |  281.7 |  13.9
+   9 cache/CA1      |  131  129    2 |  276.1 /   59 |  528.3 |   3.3
+  10 boss/BA1       |  129  103   26 |  329.3 /   86 |      - |  34.8
 
-== Bot: naive (3 seeds) ==
-died: 0/3 (0.0%); timed out alive: 3
-rooms cleared: mean 5.3, p10 5, median 5, p90 6, max 6  (loops of 3 rooms, median: 1.7)
-death stage: median -, p10 -, p90 -
-braced uptime (braced steps / play steps): mean 68.1%
-hits taken by source (all runs): E-01 6, E-02 10, E-03 1; mean damage taken per run 342.3
-mean level reached: 3.0, mean cards picked 2.0
-  E-01 kills: 30; first loop (stages 1-3): hits to kill mean 1.8 median 2, time alive (targetable to kill) median 1.22 s, p90 3.97 s
-  E-02 kills: 16; first loop (stages 1-3): hits to kill mean 2.8 median 3, time alive (targetable to kill) median 7.02 s, p90 8.87 s
-  E-03 kills: 5; first loop (stages 1-3): hits to kill mean 3.7 median 4, time alive (targetable to kill) median 6.68 s, p90 8.42 s
-  per stage: stage room | reached cleared died | HP at clear mean/p10 | clear time median s
-    1 R01 |    3    3    0 |  600.0 /  600 |   4.6
-    2 R02 |    3    3    0 |  500.0 /  480 |   8.8
-    3 R03 |    3    3    0 |  423.7 /  373 |   9.2
-    4 R01 |    3    3    0 |  400.3 /  353 |   5.8
-    5 R02 |    3    3    0 |  359.0 /  307 |   7.5
-    6 R03 |    3    1    0 |  417.0 /  417 |   6.7
-    7 R01 |    1    0    0 |      - /    - |     -
+== Bot: human (200 seeds) ==
+chapter clear (boss killed): 200/200 (100.0%); died 0; timed out 0
+death stage: -; deaths by stage: 1:0 2:0 3:0 4:0 5:0 6:0 7:0 8:0 9:0 10:0
+boss kill time (room start to kill): median 17.2 s, p10 12.7, p90 23.4; run time to win median 106 s
+braced uptime: mean 88.7%; mean level at end 4.0, mean cards 4.0
+hits taken by source (all runs): E-01 180, E-02 0, E-03 0, E-04 49, E-05 89; mean damage taken per run 115.3
+  E-01 kills 3000: hits to kill median 2 (mean 2.1), time alive median 1.92 s, p90 4.02 s
+  E-02 kills 1000: hits to kill median 3 (mean 2.9), time alive median 4.15 s, p90 10.42 s
+  E-03 kills 400: hits to kill median 4 (mean 3.9), time alive median 2.12 s, p90 2.92 s
+  E-04 kills 200: hits to kill median 3 (mean 3.1), time alive median 2.87 s, p90 5.15 s
+  E-05 kills 600: hits to kill median 4 (mean 4.2), time alive median 1.95 s, p90 2.80 s
+  B-01 kills 200: hits to kill median 45 (mean 46.2), time alive median 16.58 s, p90 22.83 s
+  stage kind/room   | reached cleared died | HP at clear mean / p10 | HP leaving mean | clear time median s
+   1 combat/R01     |  200  200    0 |  600.0 /  600 |  600.0 |   4.9
+   2 combat/R02     |  200  200    0 |  546.0 /  540 |  557.7 |   6.6
+   3 combat/R01     |  200  200    0 |  557.7 /  540 |  563.7 |   7.4
+   4 combat/R02     |  200  200    0 |  563.7 /  540 |  579.3 |   8.4
+   5 supply/SD      |  200  200    0 |      - /    - |  608.7 |     -
+   6 combat/R03     |  200  200    0 |  590.6 /  526 |  601.0 |   6.9
+   7 combat/R02     |  200  200    0 |  600.0 /  526 |  607.5 |   6.4
+   8 combat/R02     |  200  200    0 |  565.4 /  443 |  586.0 |  10.6
+   9 cache/CA1      |  200  200    0 |  586.0 /  443 |  658.1 |   2.3
+  10 boss/BA1       |  200  200    0 |  658.1 /  600 |      - |  17.2
 
-== Bot: skilled (3 seeds) ==
-died: 0/3 (0.0%); timed out alive: 3
-rooms cleared: mean 5.7, p10 5, median 5, p90 7, max 7  (loops of 3 rooms, median: 1.7)
-death stage: median -, p10 -, p90 -
-braced uptime (braced steps / play steps): mean 90.7%
-hits taken by source (all runs): E-01 0, E-02 0, E-03 0; mean damage taken per run 0.0
-mean level reached: 3.3, mean cards picked 2.3
-  E-01 kills: 32; first loop (stages 1-3): hits to kill mean 1.8 median 2, time alive (targetable to kill) median 1.13 s, p90 3.45 s
-  E-02 kills: 16; first loop (stages 1-3): hits to kill mean 2.7 median 3, time alive (targetable to kill) median 6.03 s, p90 7.10 s
-  E-03 kills: 4; first loop (stages 1-3): hits to kill mean 3.7 median 4, time alive (targetable to kill) median 3.80 s, p90 3.97 s
-  per stage: stage room | reached cleared died | HP at clear mean/p10 | clear time median s
-    1 R01 |    3    3    0 |  600.0 /  600 |   4.0
-    2 R02 |    3    3    0 |  600.0 /  600 |   7.7
-    3 R03 |    3    3    0 |  600.0 /  600 |   6.6
-    4 R01 |    3    3    0 |  600.0 /  600 |   4.1
-    5 R02 |    3    3    0 |  600.0 /  600 |  17.0
-    6 R03 |    2    1    0 |  600.0 /  600 |   4.9
-    7 R01 |    1    1    0 |  600.0 /  600 |   2.7
-    8 R02 |    1    0    0 |      - /    - |     -
+== Bot: skilled (200 seeds) ==
+chapter clear (boss killed): 200/200 (100.0%); died 0; timed out 0
+death stage: -; deaths by stage: 1:0 2:0 3:0 4:0 5:0 6:0 7:0 8:0 9:0 10:0
+boss kill time (room start to kill): median 16.4 s, p10 12.6, p90 23.4; run time to win median 111 s
+braced uptime: mean 81.3%; mean level at end 4.0, mean cards 4.0
+hits taken by source (all runs): E-01 188, E-02 0, E-03 0, E-04 6, E-05 25; mean damage taken per run 70.4
+  E-01 kills 3000: hits to kill median 2 (mean 2.1), time alive median 1.92 s, p90 9.40 s
+  E-02 kills 1000: hits to kill median 3 (mean 2.9), time alive median 4.02 s, p90 11.15 s
+  E-03 kills 400: hits to kill median 4 (mean 3.8), time alive median 2.12 s, p90 2.92 s
+  E-04 kills 200: hits to kill median 3 (mean 3.1), time alive median 2.18 s, p90 2.95 s
+  E-05 kills 600: hits to kill median 4 (mean 4.2), time alive median 2.18 s, p90 3.72 s
+  B-01 kills 200: hits to kill median 45 (mean 46.6), time alive median 15.77 s, p90 22.77 s
+  stage kind/room   | reached cleared died | HP at clear mean / p10 | HP leaving mean | clear time median s
+   1 combat/R01     |  200  200    0 |  600.0 /  600 |  600.0 |   4.9
+   2 combat/R02     |  200  200    0 |  545.4 /  540 |  557.1 |  12.7
+   3 combat/R01     |  200  200    0 |  557.1 /  540 |  562.8 |   7.2
+   4 combat/R02     |  200  200    0 |  562.8 /  540 |  575.7 |   8.4
+   5 supply/SD      |  200  200    0 |      - /    - |  609.3 |     -
+   6 combat/R03     |  200  200    0 |  607.1 /  540 |  615.9 |   6.5
+   7 combat/R02     |  200  200    0 |  615.9 /  540 |  621.3 |   6.4
+   8 combat/R02     |  200  200    0 |  610.4 /  540 |  628.1 |  11.5
+   9 cache/CA1      |  200  200    0 |  628.1 /  540 |  658.5 |   2.3
+  10 boss/BA1       |  200  200    0 |  658.5 /  600 |      - |  16.4
 
 == Summary ==
-stand: died 0/3, median rooms cleared 1, braced 96.6%
-idle: died 3/3, median rooms cleared 32, braced 98.2%
-naive: died 0/3, median rooms cleared 5, braced 68.1%
-skilled: died 0/3, median rooms cleared 5, braced 90.7%
-Idle must die: PASS (all idle runs die)
-Run time 1.4 s
+idle: clear 170/200, died 30 (median stage 8), boss time median 21.1 s, braced 98.5%
+naive: clear 103/200, died 97 (median stage 8), boss time median 34.8 s, braced 62.5%
+human: clear 200/200, died 0, boss time median 17.2 s, braced 88.7%
+skilled: clear 200/200, died 0, boss time median 16.4 s, braced 81.3%
+Rule checks failed: 0
+Run time 88.7 s

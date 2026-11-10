@@ -4,8 +4,8 @@ var $ = function(id){ return document.getElementById(id); };
 var Q = new URLSearchParams(location.search);
 var STEP_MS = 1000 / 60, MAX_STEPS = 5;
 var S = null, R = null, list = [], view = { w: 344, h: 882, dpr: 1, ox: 0, oy: 66, s: 38 };
-var acc = 0, last = 0, hitstopUntil = 0, paused = false, frozen = Q.get('freeze') === '1';
-var shown = { pick: false, dead: false }, deadAt = 0, deaths = 0;
+var moved = false, acc = 0, last = 0, hitstopUntil = 0, paused = false, frozen = Q.get('freeze') === '1';
+var shown = { pick: false, dead: false, supply: false, endPhase: '' }, deadAt = 0, deaths = 0;
 var ft = [], FT_MAX = 1200, gaps = 0, frames = 0;
 
 function fail(t){ $('bootMsg').textContent = t; UI.show('ovBoot', true); console.warn('volley:', t); }
@@ -42,13 +42,19 @@ function handleEvents(ev, live){
     var e = ev[i];
     switch (e.k) {
       case 'fire': V.Audio.play('fire'); break;
-      case 'hit': case 'crit': V.Audio.play('hit'); stop = true; break;
+      case 'hit': V.Audio.play('hit'); stop = true; break;
+      case 'crit': UI.crit(e.x, e.y, e.dmg, view); stop = true; break;
       case 'kill': V.Audio.play('kill'); vib(V.TUNE.HAPTIC_KILL_MS); stop = true; break;
       case 'hurt': V.Audio.play('hurt'); UI.hurtFlash(); vib(V.TUNE.HAPTIC_HURT_MS); break;
-      case 'door': V.Audio.play('door'); UI.toast('Area clear. Head north through the door.', 2200); break;
-      case 'room': { var rm = V.ROOMS && V.ROOMS[S.roomId]; UI.toast('Stage ' + S.stage + (rm ? ': ' + rm.name : ''), 1500); break; }
+      case 'door': V.Audio.play('door'); awReset(); UI.toast('Stage ' + S.stage + ' clear', 1100); break;
+      case 'room': { awReset(); var rm = V.ROOMS && V.ROOMS[S.roomId]; UI.toast('Stage ' + S.stage + (rm ? ': ' + rm.name : ''), 1500); break; }
       case 'levelup': V.Audio.play('levelup'); UI.toast('Level up', 1200); break;
       case 'death': deaths++; break;
+      case 'supply': V.Audio.play('door'); break;
+      case 'chest': V.Audio.play('levelup'); UI.toast('Cache open', 1400); break;
+      case 'boss': UI.toast('Boss: ' + ((S.boss && S.boss.name) || 'incoming'), 1800); break;
+      case 'bossphase': V.Audio.play('hurt'); UI.toast('Boss phase 2', 1400); break;
+      case 'win': V.Audio.play('levelup'); break;
     }
   }
   if (stop && live && V.TUNE.HITSTOP_MS > 0) hitstopUntil = performance.now() + V.TUNE.HITSTOP_MS;
@@ -56,27 +62,42 @@ function handleEvents(ev, live){
 function simStep(inp, live){ V.Sim.step(S, inp); if (V.Scene && V.Scene.ingest) V.Scene.ingest(S.events, S); handleEvents(S.events, live); }
 
 // ---------- overlays ----------
+function isEnd(){ return S.phase === 'results' || S.phase === 'dead'; }
 function syncPhase(){
   if (S.phase === 'pick' && S.cards) {
     if (!shown.pick) { shown.pick = true; V.Input.release(); UI.cards(S, pick); }
   } else if (shown.pick) { shown.pick = false; UI.show('ovCards', false); }
-  if (S.phase === 'dead') {
-    if (!shown.dead) { shown.dead = true; deadAt = performance.now(); V.Input.release(); UI.dead(S); }
-  } else if (shown.dead) { shown.dead = false; UI.show('ovDead', false); }
+  if (S.phase === 'supply' && S.supply) {
+    if (!shown.supply) { shown.supply = true; V.Input.release(); UI.supply(S, pickSupply); }
+  } else if (shown.supply) { shown.supply = false; UI.show('ovSupply', false); }
+  // P1: death and boss kill both end in 'results'. A brief 'dead' phase (if the sim has one) shows the same screen.
+  if (isEnd()) {
+    if (!shown.dead || shown.endPhase !== S.phase) { shown.dead = true; shown.endPhase = S.phase; deadAt = shown.dead && deadAt ? deadAt : performance.now(); V.Input.release(); UI.results(S); }
+  } else if (shown.dead) { shown.dead = false; deadAt = 0; UI.show('ovDead', false); }
+}
+function pickSupply(i){
+  if (!S || S.phase !== 'supply') return;
+  var f = V.Sim.pickSupply || V.Sim.supply;
+  if (f) f(S, i); else V.Sim.pick(S, i);
+  if (V.Scene && V.Scene.ingest) V.Scene.ingest(S.events, S);
+  handleEvents(S.events, false);
+  shown.supply = false; UI.show('ovSupply', false);
+  syncPhase();
 }
 function pick(i){
   if (!S || S.phase !== 'pick') return;
   V.Sim.pick(S, i);
+  if (V.Scene && V.Scene.ingest) V.Scene.ingest(S.events, S);
   handleEvents(S.events, false);
   shown.pick = false; UI.show('ovCards', false);
   syncPhase();                                           // another pending level shows the next card screen
 }
 function restart(){
   S = V.Sim.restart(S); V.Audio.seed(S.seed);
-  acc = 0; hitstopUntil = 0; shown.dead = false; UI.show('ovDead', false); shown.pick = false; UI.show('ovCards', false);
+  acc = 0; hitstopUntil = 0; deadAt = 0; moved = false; awReset(); shown.dead = false; UI.show('ovDead', false); shown.pick = false; UI.show('ovCards', false); shown.supply = false; UI.show('ovSupply', false);
   syncPhase(); return S;
 }
-function tryRestart(){ if (S && S.phase === 'dead' && performance.now() - deadAt > 450) restart(); }
+function tryRestart(){ if (S && isEnd() && performance.now() - deadAt > 450) restart(); }
 
 function pause(){
   if (paused || !S) return;
@@ -85,6 +106,57 @@ function pause(){
 function resume(){
   if (!paused) return;
   paused = false; acc = 0; last = 0; hitstopUntil = 0; V.Audio.setPaused(false); UI.show('ovPause', false);
+}
+
+// ---------- auto-walk to the open door (M's pick 3) ----------
+var aw = { idle: 0, cancelled: false, on: false };
+function awReset(){ aw.idle = 0; aw.cancelled = false; aw.on = false; }
+function tileBlocked(S, tx, ty, spikes){
+  var a = S.room.solids, cx = tx + 0.5, cy = ty + 0.5;
+  for (var i = 0; i < a.length; i++) { var b = a[i]; if (cx > b.x - 0.3 && cx < b.x + b.w + 0.3 && cy > b.y - 0.3 && cy < b.y + b.h + 0.3) return true; }
+  if (spikes && S.hazards) for (var j = 0; j < S.hazards.length; j++) { var h = S.hazards[j]; if (cx > h.x && cx < h.x + h.w && cy > h.y && cy < h.y + h.h) return true; }
+  return false;
+}
+function doorPath(S, avoidSpikes){
+  var W = S.room.w || 9, H = S.room.h || 15, d = S.room.door, h = S.hero;
+  var gx = Math.floor(d.x + d.w / 2), gy = Math.floor(d.y + d.h / 2), sx = Math.min(W - 1, Math.max(0, Math.floor(h.x))), sy = Math.min(H - 1, Math.max(0, Math.floor(h.y)));
+  var prev = new Int16Array(W * H).fill(-1), q = [sy * W + sx]; prev[sy * W + sx] = sy * W + sx;
+  for (var qi = 0; qi < q.length; qi++) {
+    var c = q[qi], cx = c % W, cy = (c / W) | 0;
+    if (cx === gx && cy === gy) break;
+    var nb = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+    for (var k = 0; k < 4; k++) {
+      var nx = cx + nb[k][0], ny = cy + nb[k][1]; if (nx < 0 || ny < 0 || nx >= W || ny >= H) continue;
+      var ni = ny * W + nx; if (prev[ni] !== -1) continue;
+      if (!(nx === gx && ny === gy) && tileBlocked(S, nx, ny, avoidSpikes)) continue;
+      prev[ni] = c; q.push(ni);
+    }
+  }
+  var g = gy * W + gx; if (prev[g] === -1) return null;
+  var path = []; for (var p = g; p !== sy * W + sx; p = prev[p]) path.push(p); path.reverse();
+  return path.map(function(i){ return { x: (i % W) + 0.5, y: ((i / W) | 0) + 0.5 }; });
+}
+function doorDir(){
+  var h = S.hero, d = S.room.door, tx = d.x + d.w / 2, ty = d.y + d.h / 2;
+  if (!(V.Sim.clearLine && V.Sim.clearLine(S, h.x, h.y, tx, ty, 0.36))) {
+    var path = doorPath(S, true) || doorPath(S, false);
+    if (path && path.length) {
+      var t = path[0];
+      for (var i = path.length - 1; i >= 0; i--) if (V.Sim.clearLine(S, h.x, h.y, path[i].x, path[i].y, 0.36)) { t = path[i]; break; }
+      tx = t.x; ty = t.y;
+    }
+  }
+  var dx = tx - h.x, dy = ty - h.y, l = Math.sqrt(dx * dx + dy * dy) || 1;
+  return { mx: dx / l, my: dy / l };
+}
+function autoWalkInput(inp, dtS){
+  if (S.phase !== 'clear' || !V.TUNE.AUTO_WALK || aw.cancelled) { aw.idle = 0; return inp; }
+  if (V.Input.down || inp.mx || inp.my) { aw.idle = 0; return inp; }
+  aw.idle += dtS;
+  if (aw.idle < (V.TUNE.AUTO_WALK_DELAY || 0)) return inp;
+  var dir = doorDir(), h = S.hero;
+  if (!aw.on) { aw.on = true; V.Input.note('aw', h.x * 10, h.y * 10); }
+  return dir;
 }
 
 // ---------- loop ----------
@@ -102,8 +174,8 @@ function frame(ts){
       acc += Math.min(dt, 250);
       var n = 0;
       while (acc >= STEP_MS && n < MAX_STEPS) {
-        simStep(V.Input.read(), true); acc -= STEP_MS; n++;
-        if (hitstopUntil > ts || S.phase === 'pick' || S.phase === 'dead') { acc = 0; break; }
+        simStep(autoWalkInput(V.Input.read(), 1 / 60), true); acc -= STEP_MS; n++;
+        if (hitstopUntil > ts || (S.phase !== 'play' && S.phase !== 'clear')) { acc = 0; break; }
       }
       if (n >= MAX_STEPS) acc = 0;                       // never chase a long stall (L-LOL-2)
     }
@@ -117,6 +189,8 @@ function draw(){
   V.Scene.build(S, view, list);
   R.draw(list, view);
   UI.hud(S, R, view);
+  if (!moved && (V.Input.active || S.stage > 1)) moved = true;
+  UI.howto(!moved && S.phase === 'play', view);
 }
 
 function pct(a, p){ if (!a.length) return 0; var b = a.slice().sort(function(x, y){ return x - y; }); return Math.round(b[Math.min(b.length - 1, Math.floor(p * b.length))] * 10) / 10; }
@@ -143,13 +217,21 @@ function boot(){
   document.addEventListener('visibilitychange', function(){ if (document.hidden) pause(); });
   G.addEventListener('blur', pause);
   G.addEventListener('pagehide', pause);
-  $('ovPause').addEventListener('pointerdown', function(e){ e.preventDefault(); resume(); });
+  $('ovPause').addEventListener('pointerdown', function(e){ if (e.target.closest && e.target.closest('button')) return; e.preventDefault(); resume(); });
   $('btnResume').addEventListener('click', resume);
+  $('pauseBtn').addEventListener('click', function(){ pause(); });
+  $('btnRestartRun').addEventListener('click', function(e){ e.stopPropagation(); restart(); resume(); });
+  $('btnTune').addEventListener('click', function(e){ e.stopPropagation(); UI.openDrawer(true); });
+  // Any touch during the clear phase cancels auto-walk for this room.
+  stage.addEventListener('pointerdown', function(e){
+    if (S && S.phase === 'clear' && !aw.cancelled && !(e.target.closest && e.target.closest('button, .ov, #drawer'))) { aw.cancelled = true; V.Input.note(aw.on ? 'awx' : 'awc', 0, 0); }
+  }, true);
   $('ovDead').addEventListener('pointerdown', function(e){ if (e.target.id !== 'btnRestart') tryRestart(); });
   $('btnRestart').addEventListener('click', tryRestart);
   G.addEventListener('keydown', function(e){
     if (paused && (e.key === ' ' || e.key === 'Enter' || e.key === 'Escape')) { resume(); return; }
-    if (S && S.phase === 'dead' && (e.key === ' ' || e.key === 'Enter' || e.key === 'r')) tryRestart();
+    if (S && isEnd() && (e.key === ' ' || e.key === 'Enter' || e.key === 'r')) tryRestart();
+    if (S && S.phase === 'supply' && /^[1-2]$/.test(e.key) && S.supply && +e.key <= S.supply.length) pickSupply(+e.key - 1);
     if (S && S.phase === 'pick' && /^[1-3]$/.test(e.key) && S.cards && +e.key <= S.cards.length) pick(+e.key - 1);
   });
 
@@ -169,13 +251,16 @@ function boot(){
     get paused(){ return paused; },
     get view(){ return view; },
     get frozen(){ return frozen; },
+    get autoWalk(){ return { idle: aw.idle, cancelled: aw.cancelled, on: aw.on }; },
     get lastCopy(){ return UI.lastCopy; },
     step: function(n, inp){
       n = n || 1; inp = inp || { mx: 0, my: 0 };
-      for (var i = 0; i < n; i++) simStep(inp, false);
+      for (var i = 0; i < n; i++) simStep(typeof inp === 'function' ? inp(S) : inp, false);
       syncPhase(); if (R) draw(); return S;
     },
     pick: function(i){ pick(i); return S; },
+    doorDir: function(){ return S ? doorDir() : { mx: 0, my: 0 }; },  // same path the auto-walk uses
+    pickSupply: function(i){ pickSupply(i); return S; },
     restart: function(){ return restart(); },
     readback: function(){ return R && R.readback ? R.readback() : Promise.resolve(null); },
     freeze: function(on){ frozen = on !== false; acc = 0; return frozen; },  // stop real-time stepping (deterministic tests)

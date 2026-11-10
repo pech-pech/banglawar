@@ -20,10 +20,11 @@ html,body{margin:0;height:100%;background:#1b1a17;color:var(--sand);font:14px/1.
 #stageLbl{font-weight:700;font-size:13px;white-space:nowrap;color:var(--sand);background:var(--gun);border:1px solid #4a4d4f;border-radius:6px;padding:3px 6px}
 #stageLbl b{color:#fff}
 #lvl{font-weight:800;font-size:13px;color:#0d1b1d;background:var(--cyan);border-radius:6px;padding:3px 6px;white-space:nowrap}
-#xpWrap{flex:1;height:8px;border-radius:4px;background:#0c0d0e;border:1px solid #45494c;overflow:hidden;min-width:30px}
+#xpWrap{height:6px;margin:2px 6px 0;border-radius:3px;background:#0c0d0e;border:1px solid #45494c;overflow:hidden}
 #xpFill{height:100%;width:0;background:var(--cyan)}
-#gear{pointer-events:auto;width:56px;height:56px;margin:-6px -4px -6px 0;border:0;background:transparent;color:var(--sand);font-size:24px;line-height:56px;padding:0;cursor:pointer}
-#gear span{display:inline-block;width:36px;height:36px;line-height:34px;border-radius:8px;background:var(--gun);border:1px solid #55595c}
+.hb{pointer-events:auto;flex:none;width:56px;height:56px;margin:-6px -4px -6px 0;border:0;background:transparent;color:var(--sand);font-size:24px;line-height:56px;padding:0;cursor:pointer}
+#pauseBtn{font-size:13px;letter-spacing:-2px}
+.hb span{display:inline-block;width:36px;height:36px;line-height:34px;border-radius:8px;background:var(--gun);border:1px solid #55595c}
 #hpRow{position:relative;height:18px;margin:0 6px;border-radius:0 0 6px 6px;background:#0c0d0e;border:1px solid #45494c;border-top:0;overflow:hidden}
 #hpFill{height:100%;width:100%;background:var(--hp);transition:width .12s}
 #hpTxt{position:absolute;inset:0;text-align:center;font-size:12px;font-weight:800;line-height:18px;color:#0b1416}
@@ -42,11 +43,32 @@ body.ovon #hud, body.ovon #toast, body.ovon #rlbl{visibility:hidden}
 .ov p{margin:0;color:var(--sand);max-width:300px}
 .btn{min-height:56px;min-width:120px;padding:8px 18px;border-radius:10px;border:0;font:700 17px system-ui,sans-serif;background:var(--cyan);color:#0b1416;cursor:pointer}
 .btn.ghost{background:var(--gun2);color:var(--sand);border:1px solid #5a5e61}
-.card{width:100%;max-width:300px;min-height:84px;border-radius:12px;border:2px solid var(--cyan);background:var(--gun);color:var(--sand);padding:10px 12px;text-align:left;cursor:pointer;font:inherit}
-.card b{display:block;font-size:17px;color:#fff;margin-bottom:3px}
-.card span{font-size:14px;color:var(--sand)}
+.card{width:100%;min-height:64px;border-radius:10px;border:2px solid var(--cyan);background:var(--gun);color:var(--sand);padding:8px 10px;text-align:left;cursor:pointer;font:inherit;
+  display:flex;align-items:center;gap:10px}
+.card .gl{flex:none;width:44px;height:44px;border-radius:8px;background:#11262a;border:1px solid var(--cyanD);color:var(--cyan);font:700 22px/44px system-ui,sans-serif;text-align:center}
+.card .tx{flex:1;min-width:0}
+.card b{display:block;font-size:18px;color:#fff;margin-bottom:2px}
+.card span{display:block;font-size:15px;line-height:1.25;color:var(--sand)}
+.card.sup .gl{background:#2d2414;border-color:#7a5a20;color:var(--amber)}
 #deadStats{font-size:14px;color:var(--sand);line-height:1.5}
 #coverNote{position:absolute;display:none;font-size:13px;color:var(--sand);background:var(--gun);border:1px solid #4a4d4f;border-radius:8px;padding:8px 10px;z-index:40;max-width:260px}
+#bossBar{position:absolute;display:none;z-index:10;pointer-events:none;height:22px;border-radius:6px;background:#0c0d0e;border:1px solid #6a2a26;overflow:hidden}
+#bossFill{height:100%;width:100%;background:#d8473d}
+#bossTxt{position:absolute;inset:0;font-size:12px;font-weight:800;line-height:20px;color:#fff;padding:0 8px;display:flex;justify-content:space-between;text-shadow:0 0 3px #000,0 1px 2px #000}
+#bossTxt span{background:rgba(12,13,14,.75);padding:0 4px;border-radius:3px}
+#howto{position:absolute;left:50%;transform:translateX(-50%);width:max-content;max-width:86%;text-align:center;font-size:14px;font-weight:700;color:#1b1a17;background:rgba(233,220,191,.92);
+  border:1px solid #8a7a5a;border-radius:8px;padding:6px 10px;pointer-events:none;z-index:10;display:none}
+body.ovon #bossBar, body.ovon #howto, body.ovon #dmgLayer{visibility:hidden}
+#dmgLayer{position:absolute;inset:0;pointer-events:none;z-index:8;overflow:hidden}
+.dn{position:absolute;left:0;top:0;font:800 16px/1 system-ui,sans-serif;color:#ff9a2e;white-space:nowrap;opacity:0;
+  text-shadow:-1px -1px 0 #2a1200,1px -1px 0 #2a1200,-1px 1px 0 #2a1200,1px 1px 0 #2a1200,0 0 3px #000;will-change:transform,opacity}
+.card.sup{border-color:var(--amber)}
+.card small{display:block;font-size:12px;color:var(--amber);text-transform:uppercase;letter-spacing:1px;margin-bottom:1px}
+#resStats{font-size:14px;color:var(--sand);line-height:1.55;text-align:left;background:var(--gun);border:1px solid #4a4d4f;border-radius:10px;padding:8px 12px;max-width:300px;width:100%}
+#resStats .row{display:flex;justify-content:space-between;gap:10px}
+#resStats .row b{color:#fff;font-weight:700;text-align:right}
+#resTitle.win{color:var(--cyan)}
+@media (prefers-reduced-motion: reduce){ #flash{display:none} #toast,#hpFill{transition:none} }
 /* drawer */
 #drawer{position:absolute;top:0;right:0;bottom:0;width:100%;z-index:50;background:rgba(18,18,17,.97);display:none;flex-direction:column}
 #drawer.on{display:flex}
@@ -68,20 +90,26 @@ body.ovon #hud, body.ovon #toast, body.ovon #rlbl{visibility:hidden}
   <canvas id="cgpu"></canvas>
   <canvas id="c2d"></canvas>
   <div id="flash"></div>
+  <div id="dmgLayer"></div>
   <div id="hud">
     <div id="hudTop">
       <div id="stageLbl">Stage <b id="stNum">1</b> <span id="roomName"></span></div>
       <div id="lvl">Lv 1</div>
-      <div id="xpWrap"><div id="xpFill"></div></div>
-      <button id="gear" aria-label="Tuning"><span>&#9881;</span></button>
+      <div style="flex:1"></div>
+      <button id="pauseBtn" class="hb" aria-label="Pause"><span>&#10074;&#10074;</span></button>
+      <button id="gear" class="hb" aria-label="Tuning"><span>&#9881;</span></button>
     </div>
     <div id="hpRow"><div id="hpFill"></div><div id="hpTxt">600 / 600</div></div>
+    <div id="xpWrap"><div id="xpFill"></div></div>
   </div>
   <div id="toast"></div>
   <div id="rlbl">-</div>
-  <div class="ov" id="ovCards"><h2 id="cardTitle">Field upgrade</h2><p>Pick one</p><div id="cardList" style="display:flex;flex-direction:column;gap:10px;width:100%;align-items:center"></div></div>
-  <div class="ov" id="ovDead"><h2>Operator down</h2><div id="deadStats"></div><button class="btn" id="btnRestart">Restart</button><p style="font-size:12px">Tap anywhere to deploy again</p></div>
-  <div class="ov" id="ovPause"><h2>Paused</h2><p>Tap to resume</p><button class="btn" id="btnResume">Resume</button></div>
+  <div id="bossBar"><div id="bossFill"></div><div id="bossTxt"><span id="bossName">Boss</span><span id="bossHp"></span></div></div>
+  <div id="howto">Drag anywhere to move. Let go to aim and fire.</div>
+  <div class="ov" id="ovCards"><h2 id="cardTitle">Field upgrade</h2><p>Pick one</p><div id="cardList" style="display:flex;flex-direction:column;gap:10px;width:100%;align-items:stretch"></div></div>
+  <div class="ov" id="ovDead"><h2 id="resTitle">Operator down</h2><div id="resStats"></div><button class="btn" id="btnRestart">New run</button><p style="font-size:12px">Tap anywhere for a new run</p></div>
+  <div class="ov" id="ovSupply"><h2>Supply drop</h2><p>Take one</p><div id="supList" style="display:flex;flex-direction:column;gap:10px;width:100%;align-items:stretch"></div></div>
+  <div class="ov" id="ovPause"><h2>Paused</h2><button class="btn" id="btnResume" style="min-width:200px">Resume</button><button class="btn ghost" id="btnRestartRun" style="min-width:200px">Restart run</button><button class="btn ghost" id="btnTune" style="min-width:200px">Tuning</button><button class="btn ghost" id="btnSound" style="min-width:200px">Sound: on</button><p style="font-size:12px">Tap outside the buttons to resume</p></div>
   <div class="ov" id="ovBoot"><h2>Project Volley</h2><p id="bootMsg">Loading...</p></div>
   <div id="drawer">
     <div id="drHead"><h3>Tuning</h3>
@@ -99,7 +127,12 @@ body.ovon #hud, body.ovon #toast, body.ovon #rlbl{visibility:hidden}
 <script src="parts/tune.js"></script>
 <script src="parts/rng.js"></script>
 <script src="parts/rooms.js"></script>
+<script src="parts/stages.js"></script>
+<script src="parts/mods.js"></script>
 <script src="parts/sim.js"></script>
+<script src="parts/ai-p0.js"></script>
+<script src="parts/ai-p1.js"></script>
+<script src="parts/boss.js"></script>
 <script src="parts/scene.js"></script>
 <script src="parts/render2d.js"></script>
 <script src="parts/gpu.js"></script>

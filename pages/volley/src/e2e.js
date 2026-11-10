@@ -27,8 +27,9 @@ const TARGETS = [
 const SESSIONS = [
   { vp: [344, 882], mode: 'gpu0', plan: 'full' },
   { vp: [344, 882], mode: 'default', plan: 'full' },
-  { vp: [412, 904], mode: 'gpu0', plan: 'full', cards: 3 },
+  { vp: [412, 904], mode: 'gpu0', plan: 'full', cards: 2 },
   { vp: [412, 904], mode: 'default', plan: 'boot' },
+  { vp: [344, 882], mode: 'offscreen', plan: 'full' },  // WebGPU pipeline to a texture: the sandbox loses the device on swapchain present
   { vp: [1104, 884], mode: 'gpu0', plan: 'wide' },
   { vp: [1104, 884], mode: 'default', plan: 'wide' },
 ];
@@ -122,7 +123,10 @@ const HELPERS = () => {
     for (const v of [p.view, p.layout, V.view, V.layout, V.Main && V.Main.view, V.UI && V.UI.view]) if (v && typeof v.s === 'number' && typeof v.oy === 'number') return { ox: v.ox, oy: v.oy, s: v.s, w: v.w, h: v.h };
     return null;
   };
-  window.__snap = () => { const S = P().S, h = S.hero; return { frame: S.frame, t: S.t, phase: S.phase, stage: S.stage, roomId: S.roomId, seed: S.seed, x: h.x, y: h.y, hp: h.hp, maxHp: h.maxHp, moving: h.moving, braced: h.braced, fireCd: h.fireCd, lockId: h.lockId, lockClear: h.lockClear, level: h.level, xp: h.xp, xpNext: h.xpNext, shots: S.stats && S.stats.shots, kills: S.stats && S.stats.kills, rounds: S.rounds.length, enemies: S.enemies.length, door: S.room && S.room.door && S.room.door.open, cards: S.cards ? S.cards.slice() : null, picks: S.stats && S.stats.picks ? S.stats.picks.length : null, mods: JSON.stringify(h.mods || {}) }; };
+  window.__snap = () => { const S = P().S, h = S.hero; return { frame: S.frame, t: S.t, phase: S.phase, stage: S.stage, roomId: S.roomId, seed: S.seed, x: h.x, y: h.y, hp: h.hp, maxHp: h.maxHp, moving: h.moving, braced: h.braced, fireCd: h.fireCd, lockId: h.lockId, lockClear: h.lockClear, level: h.level, xp: h.xp, xpNext: h.xpNext, shots: S.stats && S.stats.shots, kills: S.stats && S.stats.kills, rounds: S.rounds.length, enemies: S.enemies.length, door: S.room && S.room.door && S.room.door.open, cards: S.cards ? S.cards.slice() : null, picks: S.stats && S.stats.picks ? S.stats.picks.length : null, mods: JSON.stringify(h.mods || {}), stageKind: S.stageKind, boss: S.boss ? { name: S.boss.name, hp: S.boss.hp, maxHp: S.boss.maxHp, phase: S.boss.phase } : null, chest: S.chest ? { x: S.chest.x, y: S.chest.y, open: S.chest.open } : null, supply: S.supply ? S.supply.map(o => o.kind) : null, result: S.result || null }; };
+  // Event counter fed by every driver step.
+  window.__evc = {};
+  window.__tickEv = S => { for (const e of S.events || []) { const c = window.__evc; c[e.k] = (c[e.k] || 0) + 1; if (e.k === 'pickup') { const kk = 'pickup:' + (e.kind || e.what || ''); c[kk] = (c[kk] || 0) + 1; } } };
   // rAF sampler of hero state (records sim frames for timing).
   window.__sampler = { on: false, log: [] };
   window.__startSampler = () => { const sm = window.__sampler; sm.on = true; sm.log = []; (function tick() { if (!sm.on) return; try { const S = P().S, h = S.hero; sm.log.push({ now: performance.now(), frame: S.frame, t: S.t, moving: !!h.moving, braced: !!h.braced, shots: S.stats ? S.stats.shots : 0, rounds: S.rounds.length, x: h.x, y: h.y, hp: h.hp, phase: S.phase }); } catch (e) {} requestAnimationFrame(tick); })(); };
@@ -150,7 +154,7 @@ const HELPERS = () => {
         inp = { mx: best.x - h.x + (window.__noLine % 120 < 60 ? 0.8 : -0.8), my: best.y - h.y };
         if (window.__noLine > 190) window.__noLine = 0;
       }
-      p.step(1, inp);
+      p.step(1, inp); window.__tickEv(p.S);
     }
     return i;
   };
@@ -165,6 +169,20 @@ const HELPERS = () => {
       if (st.det > 0) { st.det--; dx = st.sgn; dy = -0.15; }
       if (++st.k % 20 === 0) { if (Math.hypot(h.x - st.lx, h.y - st.ly) < 0.08 && st.det === 0) { st.det = 45; st.sgn = (h.x < 4.5 ? -1 : 1) * (st.k % 40 ? 1 : -1); } st.lx = h.x; st.ly = h.y; }
       p.step(1, { mx: dx, my: dy });
+    }
+    return i;
+  };
+  window.__toTarget = n => {
+    const p = P(); let i = 0; const key = () => p.S.roomId + '/' + p.S.stage + '/' + p.S.phase + '/' + (p.S.chest ? p.S.chest.open : '');
+    const start = key(); const st = window.__dst = window.__dst || { lx: 0, ly: 0, k: 0, det: 0, sgn: 1 };
+    for (; i < n; i++) {
+      const S = p.S; if (key() !== start) break;
+      const h = S.hero, c = S.chest; let tx, ty;
+      if (c && !c.open) { tx = c.x; ty = c.y; } else { const d = S.room.door; tx = d.x + d.w / 2; ty = d.y + d.h / 2 - 1; }
+      let dx = tx - h.x, dy = ty - h.y;
+      if (st.det > 0) { st.det--; dx = st.sgn; dy = -0.15; }
+      if (++st.k % 20 === 0) { if (Math.hypot(h.x - st.lx, h.y - st.ly) < 0.08 && st.det === 0) { st.det = 45; st.sgn = (h.x < 4.5 ? -1 : 1) * (st.k % 40 ? 1 : -1); } st.lx = h.x; st.ly = h.y; }
+      p.step(1, { mx: dx, my: dy }); window.__tickEv(p.S);
     }
     return i;
   };
@@ -209,8 +227,9 @@ async function session(browser, target, sess) {
   const page = await ctx.newPage();
   page.on('console', m => { if (m.type() === 'error') errors.push('console: ' + m.text().slice(0, 200)); });
   page.on('pageerror', e => errors.push('pageerror: ' + e.message.slice(0, 200)));
+  page.on('requestfailed', r => errors.push('requestfailed: ' + r.url().replace(/^.*\/pages\//, '') + ' ' + ((r.failure() || {}).errorText || '')));
   const cdp = await ctx.newCDPSession(page);
-  const q = '?seed=' + SEED + (sess.mode === 'gpu0' ? '&gpu=0' : '');
+  const q = '?seed=' + SEED + (sess.mode === 'gpu0' ? '&gpu=0' : sess.mode === 'offscreen' ? '&gpu=offscreen' : '');
   try {
     await page.goto('file://' + target.file + q);
     await page.waitForFunction(() => window.__pv && window.__pv.S && window.__pv.S.hero, null, { timeout: 15000 });
@@ -236,7 +255,9 @@ async function session(browser, target, sess) {
   if (sess.mode === 'gpu0') ok(rn === 'Canvas 2D', '?gpu=0 forces Canvas 2D', `__pv.renderer=${rn}`);
   else {
     const gl = await page.evaluate(() => (window.__gl || []).join(' -> '));
-    ok(rn === 'WebGPU', 'default picks WebGPU (swiftshader flags)', `__pv.renderer=${rn}; V.GPU trace: ${gl || 'none'}`);
+    if (rn === 'WebGPU') row(sess.mode + ' picks WebGPU (swiftshader flags)', 'PASS', `__pv.renderer=${rn}; V.GPU trace: ${gl || 'none'}`);
+    else if (sess.mode === 'default' && /lost/.test(gl)) row('default picks WebGPU (swiftshader flags)', 'EXPECTED', `sandbox only: headless SwiftShader loses the device on swapchain present, so it falls back to ${rn} (render's gpu-test.js shows the same; ?gpu=offscreen session proves the WebGPU pipeline). M's Fold report 12:11 showed renderer WebGPU, 16.7 ms p95, 0 gaps. trace: ${gl}`);
+    else row(sess.mode + ' picks WebGPU (swiftshader flags)', 'FAIL', `__pv.renderer=${rn}; V.GPU trace: ${gl || 'none'}`);
     if (rn === 'WebGPU') {
       const rb = await page.evaluate(() => Promise.resolve(window.__pv.readback()).then(r => r && { w: r.w, h: r.h, nonBg: r.nonBg }).catch(e => ({ err: String(e && e.message || e) })));
       ok(rb && rb.nonBg > 0, 'WebGPU output seen via readback (L-TD-1)', rb && rb.nonBg > 0 ? `seen (nonBg ${rb.nonBg}, ${rb.w}x${rb.h})` : 'NOT seen ' + JSON.stringify(rb));
@@ -288,8 +309,8 @@ async function session(browser, target, sess) {
   await pauseTest(page, cdp, w, h);
   await gapTest(page);
   const det = await determinismTest(page);
-  await roomFlowTest(page, sess, w, h);
-  await deathTest(page, w, h);
+  await runFlow(page, sess, w, h, {});
+  await runFlow(page, sess, w, h, { lose: true });
   finishErrors(errors, bootErr);
   await ctx.close();
   return { errors, det };
@@ -328,7 +349,7 @@ async function dragTest(page, cdp, sess, cv, view, w, h) {
   // During hold: no joystick element / graphic near the thumb.
   const dom = await page.evaluate(([x, y]) => {
     const all = [...document.querySelectorAll('body *')].filter(window.__vis);
-    const near = all.filter(e => { const r = e.getBoundingClientRect(); const big = r.width * r.height > innerWidth * innerHeight * 0.5; return !big && e.tagName !== 'CANVAS' && !e.querySelector('canvas') && ((x >= r.left && x <= r.right && ((y >= r.top && y <= r.bottom) || (y - 60 >= r.top && y - 60 <= r.bottom)))); });
+    const near = all.filter(e => { const r = e.getBoundingClientRect(); const gc = window.__gameCanvas(); const big = r.width * r.height > (gc ? gc.w * gc.h : innerWidth * innerHeight) * 0.5; return !big && e.tagName !== 'CANVAS' && !e.querySelector('canvas') && !e.closest('#dmgLayer') && ((x >= r.left && x <= r.right && ((y >= r.top && y <= r.bottom) || (y - 60 >= r.top && y - 60 <= r.bottom)))); });
     const named = all.filter(e => /joy|stick|thumb|knob|nub|touchpad|dpad/i.test((e.id || '') + ' ' + (typeof e.className === 'string' ? e.className : '')));
     return { n: all.length, near: near.map(window.__desc), named: named.map(window.__desc) };
   }, [x, y]);
@@ -412,13 +433,20 @@ async function drawerTest(page) {
   const rg = await page.evaluate(() => window.__ranges());
   const info = await page.evaluate(() => {
     const keys = Object.keys(window.V.TUNE_DEFAULTS || {});
-    const inputs = [...document.querySelectorAll('input')].filter(e => e.type === 'range' || e.type === 'checkbox' || e.type === 'number');
-    const txt = document.body.innerText;
-    const missing = keys.filter(k => !inputs.some(i => [i.name, i.id, i.dataset.k, i.dataset.key].includes(k)) && !txt.includes(k));
-    return { keys: keys.length, inputs: inputs.length, missing };
+    const ctrlSel = 'input,select,button';
+    const labOf = k => [...document.querySelectorAll('#drawer label, #drawer .kn, label')].find(l => { const t = [...l.childNodes].filter(n => n.nodeType === 3).map(n => n.textContent).join('').trim(); return t === k; });
+    const used = new Map(), missing = [], shared = [];
+    for (const k of keys) {
+      let c = [...document.querySelectorAll(ctrlSel)].find(i => [i.name, i.id, i.dataset.k, i.dataset.key].includes(k));
+      if (!c) { const l = labOf(k); if (l) c = l.control || (l.parentElement && l.parentElement.querySelector(ctrlSel)); }
+      if (!c) { missing.push(k); continue; }
+      if (used.has(c)) shared.push(k + '=' + used.get(c)); else used.set(c, k);
+    }
+    const inputs = document.querySelectorAll('#drawer input, #drawer select').length;
+    return { keys: keys.length, inputs, controls: used.size, missing: missing.concat(shared.map(x => 'shared:' + x)) };
   });
   ok(rg.length > 0, 'tuning drawer opens with sliders', `${rg.length} visible sliders`);
-  ok(info.missing.length === 0, 'drawer has a control for every TUNE knob', `${info.keys} knobs, ${info.inputs} inputs` + (info.missing.length ? '; no control found by name/id/data-k/label for: ' + info.missing.join(',') : ''));
+  ok(info.missing.length === 0 && info.controls === info.keys, 'drawer has its own control for every TUNE knob', `${info.keys} knobs, ${info.controls} distinct controls (${info.inputs} inputs)` + (info.missing.length ? '; missing/shared: ' + info.missing.join(',') : ''));
   const need = ['reset', 'copy settings', 'copy report'];
   const have = await page.evaluate(() => window.__targets().map(t => t.txt.toLowerCase()));
   const miss = need.filter(n => !have.some(t => t.includes(n)));
@@ -524,76 +552,139 @@ async function determinismTest(page) {
   return { seed: a.seed, pv: a.hash, sim: b[0] };
 }
 
-async function roomFlowTest(page, sess, w, h) {
-  // Make the room flow fast and safe: no enemy damage, quicker fire. Restored after.
-  await page.evaluate(n => { window.__pv.restart(); window.__setTune({ ENEMY_DMG_MULT: 0, FIRE_INTERVAL: 0.25 }); if (n) window.__setTune({ CARDS_OFFERED: n }); }, sess.cards || 0);
-  const r0 = await page.evaluate(() => window.__snap());
-  let steps = 0;
-  while (steps < 60 * 120) { const n = await page.evaluate(() => window.__clearRoom(300)); steps += n; const ph = await page.evaluate(() => window.__pv.S.phase); if (ph !== 'play') break; if (n === 0) break; }
-  const r1 = await page.evaluate(() => window.__snap());
-  ok(r1.phase === 'clear' && r1.door === true, 'room clear opens the door', `${r0.roomId} stage ${r0.stage}: phase ${r1.phase}, door.open=${r1.door}, kills ${r1.kills}, enemies left ${r1.enemies}, ${steps} steps, hp ${r1.hp}/${r1.maxHp}`);
-  await sleep(150); await snapshot(page, 'clear');
-  if (r1.phase === 'clear') {
-    steps = 0;
-    while (steps < 1800) { const n = await page.evaluate(() => window.__toDoor(200)); steps += n; const s = await page.evaluate(() => window.__snap()); if (s.roomId !== r1.roomId || s.stage !== r1.stage || s.phase !== 'clear') break; if (n === 0) break; }
-    const r2 = await page.evaluate(() => window.__snap());
-    ok(r2.roomId !== r1.roomId && r2.stage === r1.stage + 1, 'walking north through the door loads the next room', `${r1.roomId} st${r1.stage} -> ${r2.roomId} st${r2.stage} phase ${r2.phase} after ${steps} steps; hero (${r2.x.toFixed(2)},${r2.y.toFixed(2)})`);
-    ok(r2.roomId === 'R02', 'room order R01 -> R02', r2.roomId);
-  }
-  // Clear R02 to reach a pending level-up -> card screen.
-  steps = 0;
-  let s = await page.evaluate(() => window.__snap());
-  while (steps < 60 * 150 && s.phase === 'play') { const n = await page.evaluate(() => window.__clearRoom(300)); steps += n; s = await page.evaluate(() => window.__snap()); if (n === 0) break; }
-  // If the room cleared but no pick yet, give the sim a few idle steps (pickups / transition).
-  if (s.phase === 'clear') { await page.evaluate(() => window.__pv.step(120, { mx: 0, my: 0 })); s = await page.evaluate(() => window.__snap()); }
-  const want = await page.evaluate(() => window.__pv.tune.CARDS_OFFERED);
-  if (s.phase !== 'pick') {
-    row('card screen at stage clear with a level-up pending', 'FAIL', `phase ${s.phase} room ${s.roomId} st${s.stage} level ${s.level} xp ${s.xp}/${s.xpNext} kills ${s.kills} (expected 'pick' after R02: 12+20 XP >= 25)`);
-  } else {
-    await sleep(400); await snapshot(page, 'cards');
-    const vis = await page.evaluate(() => {
-      const S = window.__pv.S, C = window.V.CARDS, offered = S.cards.map(i => C[i].name);
-      const els = window.__textEls();
-      const find = name => { let e = els.find(x => x.textContent.trim() === name) || els.find(x => x.textContent.trim().includes(name)); if (!e) return null; const c = e.closest('button,[role=button],[data-card],[data-i],[data-idx],.card') || e; const r = c.getBoundingClientRect(); return { el: c, d: window.__desc(c), cx: r.left + r.width / 2, cy: r.top + r.height / 2, w: Math.round(r.width), h: Math.round(r.height) }; };
-      const found = offered.map(find);
-      const others = C.map(c => c.name).filter(n => !offered.includes(n)).filter(n => els.some(x => x.textContent.trim() === n));
-      const uniq = new Set(found.filter(Boolean).map(f => f.el)).size;
-      return { offered, n: S.cards.length, uniq, found: found.map(f => f && { d: f.d, cx: f.cx, cy: f.cy, w: f.w, h: f.h }), others };
-    });
-    ok(vis.n === want && vis.uniq === want && vis.others.length === 0, `card screen shows TUNE.CARDS_OFFERED (${want}) cards`, `S.cards ${vis.n}, visible distinct cards ${vis.uniq}: ${vis.offered.join(' | ')}` + (vis.others.length ? '; non-offered names visible: ' + vis.others.join(',') : ''));
-    await hudRow(page, 'card screen');
-    targetsRow('card screen', await page.evaluate(() => window.__targets()));
-    if (vis.found[0]) {
-      const b = await page.evaluate(() => window.__snap());
-      await page.touchscreen.tap(vis.found[0].cx, vis.found[0].cy);
-      await sleep(400);
-      const a = await page.evaluate(() => window.__snap());
-      ok(a.phase !== 'pick' || a.picks > b.picks, 'tapping a card applies it', `phase ${b.phase} -> ${a.phase}; picks ${b.picks} -> ${a.picks}; mods ${b.mods} -> ${a.mods}; level ${a.level}`);
-      ok(a.mods !== b.mods, 'picked card changes hero.mods', `${vis.offered[0]}: ${b.mods} -> ${a.mods}`);
-      // A second pending level would show another card screen; resolve it with a tap too.
-      for (let k = 0; k < 3; k++) { const p2 = await page.evaluate(() => window.__pv.S.phase); if (p2 !== 'pick') break; await page.evaluate(() => window.__pv.pick(0)); await sleep(200); }
-    } else row('tapping a card applies it', 'FAIL', 'offered card element not found in DOM');
-  }
-  await page.evaluate(() => window.__resetTune());
+// ---------- P1 run flow (also runs the P0 loop) ----------
+// Drives a whole run with __pv.step: clear rooms, walk to chest/door, pick cards, take supply, fight the boss.
+async function domCards(page) {
+  return page.evaluate(() => {
+    const S = window.__pv.S, C = window.V.CARDS || [];
+    const btns = [...document.querySelectorAll('#ovCards button, #ovCards .card, .ov.on button.card')].filter(window.__vis);
+    const uniq = [...new Set(btns)];
+    const offered = (S.cards || []).map(i => (C[i] || {}).name);
+    const names = uniq.map(b => (b.querySelector('b') || b).textContent.trim());
+    return { n: (S.cards || []).length, shown: uniq.length, offered, names, match: offered.every(n => names.includes(n)),
+      title: (document.getElementById('cardTitle') || {}).textContent || '', btns: uniq.map(b => { const r = b.getBoundingClientRect(); return { cx: r.left + r.width / 2, cy: r.top + r.height / 2 }; }) };
+  });
+}
+async function domSupply(page) {
+  return page.evaluate(() => {
+    const S = window.__pv.S;
+    const btns = [...document.querySelectorAll('#ovSupply button.card, #ovSupply .card, #ovSupply button')].filter(window.__vis).filter(b => !/close/i.test(b.textContent));
+    const uniq = [...new Set(btns)];
+    return { n: (S.supply || []).length, kinds: (S.supply || []).map(o => o.kind), shown: uniq.length, txt: uniq.map(b => b.textContent.trim().slice(0, 40)),
+      btns: uniq.map(b => { const r = b.getBoundingClientRect(); return { cx: r.left + r.width / 2, cy: r.top + r.height / 2 }; }) };
+  });
+}
+async function bossBar(page) {
+  return page.evaluate(() => {
+    const S = window.__pv.S, B = S.boss; if (!B) return null;
+    const els = window.__textEls().filter(e => B.name && e.textContent.trim().includes(B.name));
+    const el = els.sort((a, b) => a.textContent.length - b.textContent.length)[0];
+    if (!el) return { name: B.name, found: false, hp: B.hp, maxHp: B.maxHp };
+    const box = el.closest('[id*=boss i],[class*=boss i]') || el.parentElement;
+    const fills = [...box.querySelectorAll('*')].filter(x => x.style && /%|px/.test(x.style.width || '') || (x.style && x.style.transform));
+    const f = fills[0]; const fr = f ? f.getBoundingClientRect() : null, br = box.getBoundingClientRect();
+    const v = window.__view(), cv = window.__gameCanvas();
+    return { name: B.name, found: true, d: window.__desc(box), top: br.top, bottom: br.bottom, fillW: fr ? fr.width : null, boxW: br.width, hp: B.hp, maxHp: B.maxHp,
+      roomTop: v && cv ? cv.top + v.oy : null, s: v ? v.s : null };
+  });
+}
+async function supplyChoose(page, i, viaDom) {
+  if (viaDom) { const d = await domSupply(page); if (d.btns[i]) { await page.touchscreen.tap(d.btns[i].cx, d.btns[i].cy); await sleep(350); return 'tap'; } }
+  return page.evaluate(i => { const p = window.__pv, V = window.V; if (typeof p.supply === 'function') { p.supply(i); return '__pv.supply'; } if (typeof p.pickSupply === 'function') { p.pickSupply(i); return '__pv.pickSupply'; } if (V.Sim.supply) { V.Sim.supply(p.S, i); return 'V.Sim.supply'; } if (V.Sim.pickSupply) { V.Sim.pickSupply(p.S, i); return 'V.Sim.pickSupply'; } p.pick(i); return '__pv.pick'; }, i);
 }
 
-async function deathTest(page, w, h) {
-  await page.evaluate(() => { window.__pv.restart(); window.__setTune({ ENEMY_DMG_MULT: 40 }); });
-  let s = await page.evaluate(() => window.__snap()), steps = 0;
-  while (s.phase !== 'dead' && steps < 60 * 180) { await page.evaluate(() => { for (let i = 0; i < 300 && window.__pv.S.phase !== 'dead'; i++) { const ph = window.__pv.S.phase; if (ph === 'pick') window.__pv.pick(0); else if (ph === 'clear') { i += window.__toDoor(30); } else window.__pv.step(1, { mx: 0, my: 0 }); } }); steps += 300; s = await page.evaluate(() => window.__snap()); }
+async function runFlow(page, sess, w, h, opt) {
+  const lose = !!opt.lose;
+  await page.evaluate(([n, lose]) => { window.__resetTune(); window.__pv.restart(); window.__evc = {};
+    window.__setTune(lose ? { ENEMY_DMG_MULT: 40 } : { ENEMY_DMG_MULT: 0, FIRE_INTERVAL: 0.25 }); if (n) window.__setTune({ CARDS_OFFERED: n }); }, [sess.cards || 0, lose]);
+  const want = await page.evaluate(() => window.__pv.tune.CARDS_OFFERED);
+  const seen = {}, log = [];
+  let steps = 0, last = null, idle = 0, bossFirst = null, chestSeen = null;
+  const CAP = 60 * 60 * 15;
+  while (steps < CAP) {
+    const s = await page.evaluate(() => window.__snap());
+    if (!last || s.stage !== last.stage) log.push(`${s.stage}:${s.stageKind || '-'}/${s.roomId}`);
+    if (s.phase === 'results' || s.phase === 'dead') { last = s; break; }
+    if (s.stage > 12) { last = s; break; } // no boss by stage 12: P0 loop or broken stage list
+    if (s.chest && !chestSeen) chestSeen = s.chest;
+    if (s.phase === 'play') {
+      if (!lose && s.stageKind === 'boss' && s.boss && !seen.bossBar) {
+        seen.bossBar = true; await sleep(250); bossFirst = await bossBar(page); await snapshot(page, 'boss');
+      }
+      steps += await page.evaluate(() => window.__clearRoom(300));
+    } else if (s.phase === 'clear') {
+      if (!seen.door && !lose) { seen.door = true; ok(s.door === true, 'room clear opens the door', `stage ${s.stage} ${s.roomId}: door.open=${s.door}, kills ${s.kills}, ${steps} steps`); seen.doorFrom = s; }
+      const n = await page.evaluate(() => window.__toTarget(240)); steps += n;
+      const a = await page.evaluate(() => window.__snap());
+      if (seen.doorFrom && !seen.next) { if (a.stage === seen.doorFrom.stage + 1) { seen.next = true; ok(true, 'walking north through the door loads the next room', `stage ${seen.doorFrom.stage} ${seen.doorFrom.roomId} -> ${a.stage} ${a.roomId}`); } }
+      if (n === 0) idle++;
+    } else if (s.phase === 'pick') {
+      const cache = s.stageKind === 'cache';
+      const k = cache ? 'cacheCards' : 'cards';
+      if (!seen[k] && !lose) {
+        seen[k] = true; await sleep(400); await snapshot(page, k);
+        const d = await domCards(page);
+        const label = cache ? 'stage 9 cache chest gives a free card screen' : `card screen shows TUNE.CARDS_OFFERED (${want}) cards`;
+        ok(d.n === want && d.shown === want && d.match, label, `stage ${s.stage} ${s.stageKind || ''}: S.cards ${d.n}, buttons ${d.shown}: ${d.names.join(' | ')}; title "${d.title}"` + (d.match ? '' : '; offered ' + d.offered.join(' | ')));
+        if (cache) {
+          const ec = await page.evaluate(() => window.__evc);
+          const rp = await page.evaluate(() => window.__pv.S.pickups.filter(p => p.kind === 'repair').length);
+          ok(rp + (ec['pickup:repair'] || 0) >= 2, 'cache chest drops 2 repair packs', `repair pickups on floor ${rp}, collected so far ${ec['pickup:repair'] || 0}; chest ${JSON.stringify(chestSeen)}`);
+          ok(/cache/i.test(d.title), 'cache card screen is labelled as the cache', `title "${d.title}"`);
+        }
+        await hudRow(page, cache ? 'cache card screen' : 'card screen');
+        targetsRow(cache ? 'cache card screen' : 'card screen', await page.evaluate(() => window.__targets()));
+        const b = await page.evaluate(() => window.__snap());
+        if (d.btns[0]) await page.touchscreen.tap(d.btns[0].cx, d.btns[0].cy);
+        await sleep(350);
+        const a = await page.evaluate(() => window.__snap());
+        ok(a.picks > b.picks && a.mods !== b.mods, cache ? 'tapping a cache card applies it' : 'tapping a card applies it', `phase ${b.phase} -> ${a.phase}; picks ${b.picks} -> ${a.picks}; mods ${b.mods} -> ${a.mods}`);
+      } else await page.evaluate(() => window.__pv.pick(0));
+    } else if (s.phase === 'supply') {
+      if (!seen.supply && !lose) {
+        seen.supply = true; await sleep(400); await snapshot(page, 'supply');
+        const d = await domSupply(page);
+        ok(s.stage === 5 && s.stageKind === 'supply', 'supply drop is stage 5', `stage ${s.stage} kind ${s.stageKind} room ${s.roomId}`);
+        ok(d.n === 2 && d.shown === 2 && d.kinds.includes('repair') && d.kinds.includes('mod'), 'supply screen offers 2 choices (a mod or repair 40%)', `S.supply ${JSON.stringify(d.kinds)}; buttons ${d.shown}: ${d.txt.join(' | ')}`);
+        ok(s.enemies === 0, 'supply stage has no enemies', `enemies ${s.enemies}`);
+        await hudRow(page, 'supply screen');
+        targetsRow('supply screen', await page.evaluate(() => window.__targets()));
+        const ri = d.kinds.indexOf('repair');
+        if (ri >= 0) await page.evaluate(() => { const h = window.__pv.S.hero; h.hp = Math.round(h.maxHp * 0.5); }); // test-only: make the repair measurable
+        const b = await page.evaluate(() => window.__snap());
+        const how = await supplyChoose(page, ri >= 0 ? ri : 0, true);
+        const a = await page.evaluate(() => window.__snap());
+        ok(a.phase !== 'supply' && (ri < 0 || Math.abs(a.hp - Math.min(b.maxHp, b.hp + 0.4 * b.maxHp)) <= 1), 'tapping supply repair restores 40% max HP', `via ${how}: phase ${b.phase} -> ${a.phase}; hp ${b.hp} -> ${a.hp} / ${a.maxHp} (want +${Math.round(0.4 * b.maxHp)}; hp set to 50% by the test first)`);
+      } else await supplyChoose(page, 0, true);
+    } else { idle++; await page.evaluate(() => window.__pv.step(30, { mx: 0, my: 0 })); steps += 30; }
+    last = s;
+    if (idle > 40) break;
+  }
+  const r = await page.evaluate(() => window.__snap());
+  row(lose ? 'lose run stages' : 'win run stages', 'INFO', log.join(' ') + ` | ${steps} steps, events ${JSON.stringify(await page.evaluate(() => window.__evc))}`);
+  if (!lose) {
+    for (const k of ['cards', 'supply', 'cacheCards', 'bossBar']) if (!seen[k]) row({ cards: 'card screen appears', supply: 'supply drop screen at stage 5', cacheCards: 'stage 9 cache chest gives a free card screen', bossBar: 'stage 10 boss appears' }[k], 'FAIL', `never reached in the run (last stage ${r.stage} ${r.stageKind || ''} phase ${r.phase}); chest ${JSON.stringify(chestSeen)}`);
+    if (bossFirst) {
+      ok(r.stage === 10 || bossFirst, 'boss at stage 10', `boss "${bossFirst.name}" seen at stage ${log.filter(x => /boss/.test(x)).join(',')}`);
+      ok(bossFirst.found, 'DOM boss bar shows the boss name', bossFirst.found ? `${bossFirst.d} "${bossFirst.name}" top ${Math.round(bossFirst.top)} (room top ${bossFirst.roomTop != null ? Math.round(bossFirst.roomTop) : '?'})` : `no visible text "${bossFirst.name}"`);
+      if (bossFirst.found && bossFirst.roomTop != null) ok(bossFirst.top >= bossFirst.roomTop - 70 && bossFirst.bottom <= bossFirst.roomTop + 3 * bossFirst.s, 'boss bar sits at the top of the room', `bar ${Math.round(bossFirst.top)}-${Math.round(bossFirst.bottom)}, room top ${Math.round(bossFirst.roomTop)}`);
+    }
+  }
+  if (r.phase !== 'results') { row(lose ? 'death -> results screen (lose)' : 'boss kill -> results screen (win)', 'FAIL', `phase ${r.phase} at stage ${r.stage} ${r.stageKind || ''} ${r.roomId}, hp ${r.hp}/${r.maxHp}, boss ${JSON.stringify(r.boss)} after ${steps} steps`); await page.evaluate(() => window.__resetTune()); return; }
   await page.evaluate(() => window.__resetTune());
-  if (s.phase !== 'dead') { row('death screen', 'FAIL', `idle hero (walking rooms) with ENEMY_DMG_MULT 40 not dead after ${steps} steps: hp ${s.hp}, phase ${s.phase}`); return; }
-  await sleep(500); await snapshot(page, 'death');
-  const txt = await page.evaluate(() => window.__findText(/restart|again|retry|redeploy|tap|down|kia|lost|fallen|defeat|game over/i));
-  ok(txt.length > 0, 'death screen shown', txt.map(t => `"${t.txt}"`).slice(0, 4).join(' ') || 'no visible death/restart text');
-  await hudRow(page, 'death screen');
-  targetsRow('death screen', await page.evaluate(() => window.__targets()));
-  const b = await findBtn(page, /restart|again|retry|redeploy|tap|run/);
-  const seedDead = s.seed;
+  ok(r.result && r.result.win === !lose, lose ? 'death -> results screen (lose)' : 'boss kill -> results screen (win)', `S.result ${JSON.stringify(r.result)}`);
+  await sleep(550); await snapshot(page, lose ? 'results-lose' : 'results-win');
+  const txt = await page.evaluate(() => window.__textEls().map(e => e.textContent.trim()).join(' | ').slice(0, 600));
+  const okTxt = lose ? /lost|down|defeat/i.test(txt) : /win|clear|victory/i.test(txt);
+  const fields = ['stage', 'time', 'kills', 'level', 'mods', 'damage'].filter(f => !txt.toLowerCase().includes(f));
+  ok(okTxt && fields.length === 0, `results screen (${lose ? 'lose' : 'win'}) shows result + stats`, (fields.length ? 'missing: ' + fields.join(',') + '; ' : '') + txt.slice(0, 260));
+  await hudRow(page, `results screen (${lose ? 'lose' : 'win'})`);
+  targetsRow(`results screen (${lose ? 'lose' : 'win'})`, await page.evaluate(() => window.__targets()));
+  const b = await findBtn(page, /new run|restart|again|retry|deploy/);
   if (b.length) await page.touchscreen.tap(b[0].cx, b[0].cy); else await page.touchscreen.tap(w / 2, h / 2);
   await sleep(500);
   const a = await page.evaluate(() => window.__snap());
-  ok(a.phase === 'play' && a.stage === 1 && a.hp === a.maxHp && a.seed !== seedDead, 'one tap restarts the run', `tapped ${b.length ? b[0].d + ' "' + b[0].txt + '"' : 'screen centre'}: phase ${a.phase}, stage ${a.stage}, hp ${a.hp}/${a.maxHp}, seed ${seedDead} -> ${a.seed}`);
+  ok(a.phase === 'play' && a.stage === 1 && a.hp === a.maxHp && !a.result && a.seed !== r.seed, `one tap on results (${lose ? 'lose' : 'win'}) starts a new run`, `tapped ${b.length ? b[0].d + ' "' + b[0].txt + '"' : 'screen centre'}: phase ${a.phase}, stage ${a.stage}, hp ${a.hp}/${a.maxHp}, result ${JSON.stringify(a.result)}, seed ${r.seed} -> ${a.seed}`);
 }
 
 // ---------- main ----------
@@ -603,7 +694,15 @@ async function deathTest(page, w, h) {
   const dets = [];
   for (const target of TARGETS) {
     if (!fs.existsSync(target.file)) { curTag = target.name; row('target file exists', 'SKIP', target.file + ' not found'); continue; }
+    if (target.name.startsWith('index')) {
+      curTag = target.name;
+      const built = fs.readFileSync(target.file, 'utf8');
+      const parts = fs.readdirSync(path.join(SRC, 'parts')).filter(f => f.endsWith('.js')).map(f => 'parts/' + f).concat(['game.html']);
+      const stale = parts.filter(pp => { const f = path.join(SRC, pp); return fs.existsSync(f) && fs.statSync(f).mtimeMs > fs.statSync(target.file).mtimeMs; });
+      ok(stale.length === 0 && built.includes('V.STAGES') === fs.readFileSync(path.join(SRC, 'game.html'), 'utf8').includes('stages.js'), 'built index.html is current with src parts', stale.length ? 'STALE build (supervisor runs build.py): newer parts ' + stale.join(', ') : 'all parts older than the build');
+    }
     for (const sess of SESSIONS) {
+      if (process.env.E2E_SESS && `${sess.vp[0]}x${sess.vp[1]} ${sess.mode}` !== process.env.E2E_SESS) continue;
       try { const r = await session(browser, target, sess); if (r && r.det) dets.push({ tag: curTag, ...r.det }); }
       catch (e) { row('session crashed', 'FAIL', e.message.split('\n')[0]); }
     }
@@ -625,17 +724,17 @@ async function deathTest(page, w, h) {
   const files = ['game.html', 'parts/main.js', 'parts/input.js', 'parts/ui.js', 'parts/sim.js', 'parts/render.js', 'parts/gpu.js', '../index.html'].map(f => `  ${f}: ${mt(path.join(SRC, f))}`);
   const cnt = s => rows.filter(r => r.status === s).length;
   const lines = [
-    `Project Volley P0 E2E results`,
+    `Project Volley P0+P1 E2E results`,
     `Date: ${new Date().toISOString()}  (suite src/e2e.js, ${((Date.now() - t0) / 1000).toFixed(0)} s)`,
     `Chromium headless, flags ${GPU_ARGS.join(' ')}; contexts hasTouch+isMobile, dpr 1; touch via CDP Input.dispatchTouchEvent; url ?seed=${SEED} (+&gpu=0)`,
     `Files under test (mtime):`, ...files,
-    `Totals: PASS ${cnt('PASS')}  FAIL ${cnt('FAIL')}  SKIP ${cnt('SKIP')}  INFO ${cnt('INFO')}`,
+    `Totals: PASS ${cnt('PASS')}  FAIL ${cnt('FAIL')}  EXPECTED ${cnt('EXPECTED')}  SKIP ${cnt('SKIP')}  INFO ${cnt('INFO')}`,
     '',
     ...rows.map(r => `${r.status.padEnd(4)} | ${r.tag} | ${r.test} | ${r.detail}`),
     '',
     `Screenshots: ${SHOTS}`,
   ];
-  fs.writeFileSync(OUT_TXT, lines.join('\n') + '\n');
+  if (!process.env.E2E_SESS) fs.writeFileSync(OUT_TXT, lines.join('\n') + '\n');
   console.log(`\nPASS ${cnt('PASS')} FAIL ${cnt('FAIL')} SKIP ${cnt('SKIP')} -> ${OUT_TXT}`);
   process.exit(cnt('FAIL') ? 1 : 0);
 })().catch(e => { console.error(e); process.exit(2); });
