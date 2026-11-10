@@ -109,4 +109,27 @@ ok('counter fresh', M.boughtCount('cond') === 0 && M.maxTotal('cond') === 30 && 
 M.buyRandom('cond'); ok('counter after', M.boughtCount('cond') === 1 && M.nextPrice('cond') === 325);
 var seenIds = {}; for (var q = 0; q < 29; q++) { var r = M.buyRandom('cond'); seenIds[r] = 1; }
 ok('30 random buys max all, then null', M.boughtCount('cond') === 30 && M.state.cond.hp === 10 && M.state.cond.atk === 10 && M.state.cond.rate === 10 && M.nextPrice('cond') === null && M.buyRandom('cond') === null);
+// PV-19: a save from a newer version (2, 3) is played read-only and never rewritten as v1; unknown fields stay on disk.
+[2, 3].forEach(function(ver){
+  var ms = mock(), orig = JSON.stringify({ v:ver, credits:5000, rifle:{ lvl:2 }, cond:{ hp:1, atk:0, rate:0 }, futureField:{ a:[1, 2] }, relics:['x'] });
+  ms.d['volley.save.v1'] = orig;
+  M.load({ storage:ms });
+  ok('v' + ver + ' save loads', M.state.credits === 5000 && M.readOnly === true && /newer/i.test(M.note), M.note);
+  ok('v' + ver + ' buy works in memory, save() writes nothing', M.buy('rifle') && M.save() === false && ms.d['volley.save.v1'] === orig, ms.d['volley.save.v1']);
+  ok('v' + ver + ' award does not touch the stored save', (M.award({ win:false, stage:2, credits:10 }), ms.d['volley.save.v1'] === orig));
+  M.load({ storage:ms });
+  ok('v' + ver + ' stored version and unknown fields intact after reload', (function(){ var j = JSON.parse(ms.d['volley.save.v1']); return j.v === ver && j.futureField.a[1] === 2 && j.relics[0] === 'x'; })());
+  M.reset(); ok('v' + ver + ' explicit reset replaces it', M.readOnly === false && JSON.parse(ms.d['volley.save.v1']).v === 1);
+});
+var m1 = mock(); m1.d['volley.save.v1'] = JSON.stringify({ v:1, credits:7 }); M.load({ storage:m1 });
+ok('v1 save stays writable', M.readOnly === false && (M.state.credits = 9, M.save() === true) && JSON.parse(m1.d['volley.save.v1']).credits === 9);
+// PV-20: storage blocked (property access throws): loading the file in a browser-like global must not throw.
+(function(){
+  var vm = require('vm'), fs = require('fs'), code = fs.readFileSync(path.join(__dirname, 'parts', 'meta.js'), 'utf8'), threw = null, ctx = { console: console };
+  ctx.window = ctx; Object.defineProperty(ctx, 'localStorage', { get: function(){ throw new Error('SecurityError: storage blocked'); } });
+  vm.createContext(ctx);
+  try { vm.runInContext(code, ctx); } catch (e) { threw = e; }
+  ok('meta.js loads with blocked localStorage (no throw)', threw === null, threw && threw.message);
+  ok('meta.js blocked storage: V.Meta usable, save() false', !threw && !!ctx.V && ctx.V.Meta.state.credits === 0 && ctx.V.Meta.save() === false);
+})();
 console.log(n + ' checks, ' + fails + ' failed'); process.exit(fails ? 1 : 0);

@@ -42,7 +42,7 @@ var CSS = '\
 .tb-hub .t{display:flex;align-items:center;gap:10px}.tb-hub .t b{font:800 14px/1 var(--pv-ui-font-stencil);letter-spacing:.1em;text-transform:uppercase}\
 .tb-hub .t .pv-ico{font-size:26px;color:var(--pv-ui-sand)}.tb-hub .n{margin-left:auto;font:800 16px/1 var(--pv-ui-font-stencil);color:var(--pv-ui-cyan)}\
 .tb-latest{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}\
-.tb-latest .tb-cx{min-height:0;padding:6px 6px 8px;align-items:stretch}.tb-latest .ms{height:56px}.tb-latest canvas{width:48px;height:48px}.tb-latest .nm{font-size:11px;text-align:center}\
+.tb-latest .tb-cx{min-height:0;padding:6px 6px 8px;align-items:stretch}.tb-latest .ms{height:56px}.tb-latest canvas{width:48px!important;height:48px!important}.tb-latest .nm{font-size:11px;text-align:center}\
 .tb-prog{display:flex;flex-direction:column;gap:5px}\
 .tb-prog .r{display:flex;justify-content:space-between;align-items:baseline}\
 .tb-prog .pv-bar{height:12px}\
@@ -51,12 +51,12 @@ var CSS = '\
 .tb-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}\
 .tb-cx{position:relative;display:flex;flex-direction:column;gap:6px;padding:6px 6px 8px;min-height:176px;background:linear-gradient(var(--pv-ui-metal-700),var(--pv-ui-metal-800));border:1.5px solid var(--pv-ui-ink);border-radius:6px;box-shadow:inset 0 1px 0 rgba(255,255,255,.10),inset 0 -2px 0 rgba(0,0,0,.35),0 2px 0 rgba(0,0,0,.55)}\
 .tb-cx .ms{position:relative;width:100%;height:84px;display:flex;align-items:center;justify-content:center;background:radial-gradient(circle at 50% 40%,#c9b98f,#8b7a55 90%);border-radius:4px;box-shadow:inset 0 0 0 1.5px var(--pv-ui-ink)}\
-.tb-cx canvas{width:72px;height:72px;display:block}\
+.tb-cx canvas{position:static!important;left:auto!important;top:auto!important;width:76px!important;height:76px!important;flex:none;display:block;aspect-ratio:1/1;max-width:none;max-height:none;margin:auto;touch-action:auto}\
 .tb-cx .id{position:absolute;top:4px;left:4px;font:800 11px/1 var(--pv-ui-font-stencil);letter-spacing:.1em;color:#2a2012;background:rgba(236,220,178,.85);padding:2px 4px;border-radius:2px}\
 .tb-cx .nm{font:800 12px/1.1 var(--pv-ui-font-stencil);text-transform:uppercase;letter-spacing:.06em;padding:0 2px}\
 .tb-cx .ro{font-size:11px;line-height:1.25;color:var(--pv-ui-text-2);padding:0 2px}\
 .tb-cx.boss{grid-column:1 / -1;min-height:0;flex-direction:row;align-items:center;gap:10px}\
-.tb-cx.boss .ms{width:110px;height:96px;flex:none}.tb-cx.boss canvas{width:88px;height:88px}\
+.tb-cx.boss .ms{width:110px;height:96px;flex:none}.tb-cx.boss canvas{width:88px!important;height:88px!important}\
 .tb-cx.boss .tx{display:flex;flex-direction:column;gap:6px;min-width:0}\
 .tb-cx.lk .ms{background:var(--pv-ui-ink);color:var(--pv-ui-metal-500);font-size:26px}\
 .tb-cx.lk .nm{color:var(--pv-ui-text-3);letter-spacing:.12em}\
@@ -102,12 +102,22 @@ function el(tag, cls, html){ var e = document.createElement(tag); if (cls) e.cla
 function fmt(n){ return Math.round(n).toLocaleString('en-US'); }
 function seen(id){ var c = M().state && M().state.codex; return !!(c && c.seen && c.seen[id]); }
 
+/* NB: game.html has '#stage canvas{position:absolute;width:100%;height:100%}' which also hits these; hence the !important above. */
 /* ---- icons: simple shapes from the in-game silhouettes, drawn on a canvas (no V.Scene dependency) ---- */
 var INK = '#0f1215', METAL = '#3a424a', DARK = '#242a31', RED = '#ff3b30';
-function drawIcon(cv, id){
-  var dpr = Math.min(2, G.devicePixelRatio || 1), S = 72;
-  cv.width = S * dpr; cv.height = S * dpr;
-  var c = cv.getContext('2d'); c.scale(dpr, dpr); c.translate(S/2 + 2, S/2 + 3);
+var icons = [];
+/* Register a thumbnail canvas; it is (re)painted at its CSS size x devicePixelRatio, 1:1, centred, with padding (L-PV-15). */
+function drawIcon(cv, id){ cv._id = id; icons.push(cv); paint(cv); }
+function paintAll(){ icons = icons.filter(function(cv){ return cv.isConnected; }); icons.forEach(paint); }
+function paint(cv){
+  var id = cv._id, cssW = cv.clientWidth, cssH = cv.clientHeight;
+  if (!cssW || !cssH) return;                       // hidden or not attached yet; the observer repaints later
+  var dpr = Math.min(3, G.devicePixelRatio || 1), side = Math.min(cssW, cssH);
+  var px = Math.max(1, Math.round(side * dpr)), key = px + ':' + dpr;
+  if (cv._k === key) return; cv._k = key;
+  cv.width = px; cv.height = px;
+  var c = cv.getContext('2d'); c.setTransform(1, 0, 0, 1, 0, 0); c.clearRect(0, 0, px, px);
+  c.scale(px / 84, px / 84); c.translate(42, 44);   // 84-unit design box: art spans about +-37, so nothing clips
   function shape(fn, fill){ c.beginPath(); fn(); c.fillStyle = fill; c.fill(); c.lineWidth = 2; c.strokeStyle = INK; c.stroke(); }
   function circ(x, y, r, fill){ shape(function(){ c.arc(x, y, r, 0, 7); }, fill); }
   function eye(x, y, r){ circ(x, y, r, RED); }
@@ -140,7 +150,7 @@ function drawIcon(cv, id){
 }
 
 var T = V.Tabs = V.Tabs || {};
-var busy = false, root, body, view = 'hub', sheet = null, mounted = false, subscribed = false;
+var busy = false, root, body, view = 'hub', sheet = null, mounted = false, subscribed = false, watching = false;
 
 function header(name, right){
   var h = el('div', 'tb-hd');
@@ -266,6 +276,7 @@ function render(){
   body.innerHTML = '';
   if (view === 'codex') renderCodex(); else if (view === 'settings') renderSettings(); else renderHub();
   body.scrollTop = keep;
+  paintAll();
 }
 
 T.intel = {
@@ -276,6 +287,12 @@ T.intel = {
     body = el('div', 'body'); root.appendChild(body);
     host.innerHTML = ''; host.appendChild(root);
     mounted = true;
+    if (!watching) {
+      watching = true;
+      if (G.ResizeObserver) new G.ResizeObserver(function(){ paintAll(); }).observe(body);
+      G.addEventListener('resize', paintAll);
+      if (G.matchMedia) (function dprWatch(){ var mq = G.matchMedia('(resolution: ' + (G.devicePixelRatio || 1) + 'dppx)'); var f = function(){ paintAll(); dprWatch(); }; if (mq.addEventListener) mq.addEventListener('change', f, { once:true }); })();
+    }
     if (!subscribed && M().onChange) { M().onChange(function(){ if (mounted && !sheet && !busy) render(); }); subscribed = true; }
     render();
   },

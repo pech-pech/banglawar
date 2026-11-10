@@ -253,6 +253,7 @@ async function session(browser, target, sess) {
   const seed0 = await page.evaluate(() => window.__pv.S.seed);
   ok(seed0 === SEED, '?seed is read', `S.seed=${seed0} (url seed ${SEED})`);
   // Live input tests need a stable room: auto-walk (M's pick 3) would carry an idle hero through the door. Tested on its own below.
+  const tune0 = await page.evaluate(() => ({ ENEMY_HP_GLOBAL: window.V.TUNE.ENEMY_HP_GLOBAL, ENEMY_DMG_MULT: window.V.TUNE.ENEMY_DMG_MULT, AUTO_WALK: window.V.TUNE.AUTO_WALK }));   // saved before any test changes tuning; the drag test restores these (never hard-coded defaults: the balance agent owns them)
   await page.evaluate(() => { window.__setTune({ AUTO_WALK: false }); window.__pv.restart(); }); await sleep(300); // fresh run after the idle wait (enemies present for the drag test)
 
   // Renderer + label (L-TD-2) + readback (L-TD-1).
@@ -276,11 +277,12 @@ async function session(browser, target, sess) {
   let labWhere = 'HUD';
   if (!lab.length) { // P1 UI: HUD label only with ?debug=1; renderer line on the pause card / drawer
     await page.evaluate(() => window.__pv.pause && window.__pv.pause());
-    for (let k = 0; k < 12 && !lab.length; k++) { await sleep(250); lab = await page.evaluate(() => window.__findText(/\b(WebGPU|Canvas 2D)\b/)); } labWhere = 'pause card (HUD label hidden unless ?debug=1)'; // polls: a loaded host can take a while to show the card
+    for (let k = 0; k < 24 && !lab.length; k++) { await sleep(250); lab = await page.evaluate(() => window.__findText(/\b(WebGPU|Canvas 2D)\b/)); } labWhere = 'pause card (HUD label hidden unless ?debug=1)'; // polls: a loaded host can take a while to show the card
     await page.evaluate(() => window.__pv.resume && window.__pv.resume()); await sleep(200);
   }
   const labWord = lab.length ? (lab[0].txt.match(/\b(WebGPU|Canvas 2D)\b/) || [])[1] : null;
-  ok(lab.length > 0 && labWord === rn, 'renderer label text equals __pv.renderer', `label "${lab.length ? lab[0].txt : 'NOT FOUND'}" vs ${rn}; shown on ${labWhere}`);
+  const labDiag = lab.length ? '' : ' | ' + JSON.stringify(await page.evaluate(() => { const o = document.getElementById('ovPause'); return { paused: window.__pv.paused, ovPause: o ? getComputedStyle(o).display : null, rlblPause: (document.getElementById('rlblPause') || {}).textContent, home: window.__pv.home, vis: document.visibilityState }; }));
+  ok(lab.length > 0 && labWord === rn, 'renderer label text equals __pv.renderer', `label "${lab.length ? lab[0].txt : 'NOT FOUND'}" vs ${rn}; shown on ${labWhere}${labDiag}`);
   if (lab.length) {
     const t = lab.map(l => l.txt).join(' ');
     const cvv = await page.evaluate(() => window.__gameCanvas());
@@ -302,7 +304,7 @@ async function session(browser, target, sess) {
       const asp = cv.w / cv.h, want = 344 / 882;
       ok(Math.abs(asp - want) < 0.03 && Math.abs(cv.left + cv.w / 2 - w / 2) < 4, 'wide: game in centred portrait column 344:882', `canvas ${Math.round(cv.w)}x${Math.round(cv.h)} aspect ${asp.toFixed(3)} (want ${want.toFixed(3)}), centre off ${Math.round(cv.left + cv.w / 2 - w / 2)} px`);
     }
-    await dragTest(page, cdp, sess, cv, view, w, h);
+    await dragTest(page, cdp, sess, cv, view, w, h, tune0);
     finishErrors(errors, bootErr);
     await ctx.close(); return { errors };
   }
@@ -318,7 +320,7 @@ async function session(browser, target, sess) {
   }
   if (sess.plan === 'boot') { finishErrors(errors, bootErr); await ctx.close(); return { errors }; }
 
-  await dragTest(page, cdp, sess, cv, view, w, h);
+  await dragTest(page, cdp, sess, cv, view, w, h, tune0);
   await hysteresisTest(page, cdp, cv);
   await drawerTest(page);
   await pauseTest(page, cdp, w, h);
@@ -344,7 +346,7 @@ function thumbPoint(cv, view, w, h) {
   return { x, y, roomBottom };
 }
 
-async function dragTest(page, cdp, sess, cv, view, w, h) {
+async function dragTest(page, cdp, sess, cv, view, w, h, tune0) {
   const { x, y, roomBottom } = thumbPoint(cv, view, w, h);
   if (roomBottom != null) ok(y > roomBottom, 'drag start point is below the room', `touch y=${Math.round(y)}, room bottom y=${Math.round(roomBottom)}`);
   else {
@@ -355,9 +357,11 @@ async function dragTest(page, cdp, sess, cv, view, w, h) {
   }
   const hitEl = await page.evaluate(([x, y]) => window.__desc(document.elementFromPoint(x, y)), [x, y]);
   row('element under thumb point', 'INFO', hitEl);
-  const domBefore = await page.evaluate(() => [...document.querySelectorAll('body *')].filter(window.__vis).length);
+  // Floating damage numbers (#dmgLayer) come and go during a hold, so they are left out of the element count.
+  const domBefore = await page.evaluate(() => { const l = [...document.querySelectorAll('body *')].filter(window.__vis).filter(e => !e.closest('#dmgLayer')); window.__domBefore = new Set(l); return l.length; });
   // Need live enemies in a play phase so the release can lock and fire.
   // Keep the one stage-1 enemy alive and harmless for the whole drag test: on a loaded host the idle hero can kill it (room clear, toast, door) before or during the hold, which is a different state from the one under test.
+  // tune0 (saved by session() before any test changed tuning) is restored below
   await page.evaluate(() => { window.__setTune({ ENEMY_HP_GLOBAL: 40, ENEMY_DMG_MULT: 0 }); window.__pv.restart(); }); await sleep(300);
   // Settle on a fresh play room with live enemies (a loaded host can stall the page long enough for the idle hero to clear the room, or for a door to carry it on).
   for (let k = 0; k < 80; k++) { const q = await page.evaluate(() => ({ ph: window.__pv.S.phase, n: window.__pv.S.enemies.length, st: window.__pv.S.stage })); if (q.ph === 'play' && q.n > 0 && q.st === 1) break; if (k % 10 === 9 || (q.ph !== 'play' && k % 4 === 3)) await page.evaluate(() => window.__pv.restart()); await sleep(100); }
@@ -369,10 +373,11 @@ async function dragTest(page, cdp, sess, cv, view, w, h) {
   await sleep(250);
   // During hold: no joystick element / graphic near the thumb.
   const dom = await page.evaluate(([x, y]) => {
-    const all = [...document.querySelectorAll('body *')].filter(window.__vis);
+    const all = [...document.querySelectorAll('body *')].filter(window.__vis).filter(e => !e.closest('#dmgLayer'));
+    const added = all.filter(e => !(window.__domBefore && window.__domBefore.has(e))).map(window.__desc);
     const near = all.filter(e => { const r = e.getBoundingClientRect(); const gc = window.__gameCanvas(); const big = r.width * r.height > (gc ? gc.w * gc.h : innerWidth * innerHeight) * 0.5; return !big && e.tagName !== 'CANVAS' && !e.querySelector('canvas') && !e.closest('#dmgLayer') && ((x >= r.left && x <= r.right && ((y >= r.top && y <= r.bottom) || (y - 60 >= r.top && y - 60 <= r.bottom)))); });
     const named = all.filter(e => /joy|stick|thumb|knob|nub|touchpad|dpad/i.test((e.id || '') + ' ' + (typeof e.className === 'string' ? e.className : '')));
-    return { n: all.length, near: near.map(window.__desc), named: named.map(window.__desc) };
+    return { n: all.length, near: near.map(window.__desc), named: named.map(window.__desc), added };
   }, [x, y]);
   const g1 = await page.evaluate(([x, y]) => window.__grab(x - 50, y - 110, 100, 140), [x, y]);
   await snapshot(page, 'drag-hold');
@@ -384,12 +389,12 @@ async function dragTest(page, cdp, sess, cv, view, w, h) {
   const g2 = await page.evaluate(([x, y]) => window.__grab(x - 50, y - 110, 100, 140), [x, y]);
   const ptr = await page.evaluate(() => window.__ptr.slice(-4));
   const sAfter = await page.evaluate(() => window.__snap());
-  await page.evaluate(() => { window.__setTune({ ENEMY_HP_GLOBAL: 0.72, ENEMY_DMG_MULT: 1 }); window.__pv.restart(); }); // back to defaults for the later tests (fresh run)
+  await page.evaluate(t => { window.__setTune(t); window.__pv.restart(); }, tune0); // back to defaults for the later tests (fresh run)
 
   ok(ptr.some(p => p.t === 'pointerdown' && p.type === 'touch'), 'touch arrives as pointer events (pointerType touch)', JSON.stringify(ptr.map(p => p.t + ':' + p.type)));
   const dy = sHold.y - s0.y, dx = sHold.x - s0.x;
   ok(dy < -0.5 && Math.abs(dx) < Math.abs(dy), 'touch drag below the room moves the hero (drag up = north)', `stage ${s0.stage} ${s0.phase}, ${s0.enemies} enemies at touch-down; hero (${s0.x.toFixed(2)},${s0.y.toFixed(2)}) -> (${sHold.x.toFixed(2)},${sHold.y.toFixed(2)}) after ~0.7 s hold; moving=${sHold.moving}`);
-  ok(dom.near.length === 0 && dom.named.length === 0 && dom.n <= domBefore, 'no joystick element at the thumb (DOM)', `visible els ${domBefore} -> ${dom.n}` + (dom.near.length ? '; near thumb: ' + dom.near.join(',') : '') + (dom.named.length ? '; named: ' + dom.named.join(',') : ''));
+  ok(dom.near.length === 0 && dom.named.length === 0 && dom.n <= domBefore, 'no joystick element at the thumb (DOM)', `visible els ${domBefore} -> ${dom.n}` + (dom.added.length ? '; added: ' + dom.added.join(',') : '') + (dom.near.length ? '; near thumb: ' + dom.near.join(',') : '') + (dom.named.length ? '; named: ' + dom.named.join(',') : ''));
   if (g0 && g1 && g2) {
     const d01 = await page.evaluate(([a, b]) => window.__diff(a, b), [g0, g1]);
     const d12 = await page.evaluate(([a, b]) => window.__diff(a, b), [g1, g2]);
@@ -724,18 +729,24 @@ async function runFlow(page, sess, w, h, opt) {
   if (r.phase !== 'results') { row(lose ? 'death -> results screen (lose)' : 'boss kill -> results screen (win)', 'FAIL', `phase ${r.phase} at stage ${r.stage} ${r.stageKind || ''} ${r.roomId}, hp ${r.hp}/${r.maxHp}, boss ${JSON.stringify(r.boss)} after ${steps} steps`); await page.evaluate(() => window.__resetTune()); return; }
   await page.evaluate(() => window.__resetTune());
   ok(r.result && r.result.win === !lose, lose ? 'death -> results screen (lose)' : 'boss kill -> results screen (win)', `S.result ${JSON.stringify(r.result)}`);
-  await sleep(1150); await snapshot(page, lose ? 'results-lose' : 'results-win');
+  // PV-18: the 1.0 s guard. A tap on New run inside the guard does nothing (results screen stays); there is no tap-anywhere restart.
+  await sleep(200);
+  const gb = await findBtn(page, /new run/);
+  if (gb.length) { await page.touchscreen.tap(gb[0].cx, gb[0].cy); await sleep(150); }
+  const ga = await page.evaluate(() => window.__snap());
+  ok(gb.length > 0 && ga.phase === 'results' && !!ga.result, `results (${lose ? 'lose' : 'win'}): tap on New run inside the 1.0 s guard does nothing`, `button ${gb.length ? gb[0].d : 'NOT FOUND'}; phase ${ga.phase}`);
+  await sleep(1000); await snapshot(page, lose ? 'results-lose' : 'results-win');
   const txt = await page.evaluate(() => window.__textEls().map(e => e.textContent.trim()).join(' | ').slice(0, 600));
   const okTxt = lose ? /lost|down|defeat/i.test(txt) : /win|clear|victory/i.test(txt);
   const fields = ['stage', 'time', 'kills', 'level', 'mods', 'damage'].filter(f => !txt.toLowerCase().includes(f));
   ok(okTxt && fields.length === 0, `results screen (${lose ? 'lose' : 'win'}) shows result + stats`, (fields.length ? 'missing: ' + fields.join(',') + '; ' : '') + txt.slice(0, 260));
   await hudRow(page, `results screen (${lose ? 'lose' : 'win'})`);
   targetsRow(`results screen (${lose ? 'lose' : 'win'})`, await page.evaluate(() => window.__targets()));
-  const b = await findBtn(page, /new run|restart|again|retry|deploy/);
-  if (b.length) await page.touchscreen.tap(b[0].cx, b[0].cy); else await page.touchscreen.tap(w / 2, h / 2);
+  const b = await findBtn(page, /new run/);
+  if (b.length) await page.touchscreen.tap(b[0].cx, b[0].cy);   // PV-18: only the New run button starts a run; never tap empty space
   await sleep(500);
   const a = await page.evaluate(() => window.__snap());
-  ok(a.phase === 'play' && a.stage === 1 && a.hp === a.maxHp && !a.result && a.seed !== r.seed, `one tap on results (${lose ? 'lose' : 'win'}) starts a new run`, `tapped ${b.length ? b[0].d + ' "' + b[0].txt + '"' : 'screen centre'}: phase ${a.phase}, stage ${a.stage}, hp ${a.hp}/${a.maxHp}, result ${JSON.stringify(a.result)}, seed ${r.seed} -> ${a.seed}`);
+  ok(b.length > 0 && a.phase === 'play' && a.stage === 1 && a.hp === a.maxHp && !a.result && a.seed !== r.seed, `New run button on results (${lose ? 'lose' : 'win'}) starts a new run after the guard`, `tapped ${b.length ? b[0].d + ' "' + b[0].txt + '"' : 'NO BUTTON FOUND'}: phase ${a.phase}, stage ${a.stage}, hp ${a.hp}/${a.maxHp}, result ${JSON.stringify(a.result)}, seed ${r.seed} -> ${a.seed}`);
 }
 
 // ---------- Home session: the real first-launch way (no ?home=0) ----------
@@ -839,22 +850,37 @@ async function homeSession(browser, target, sess) {
 // ---------- main ----------
 (async () => {
   const t0 = Date.now();
-  const browser = await chromium.launch({ headless: true, args: GPU_ARGS });
+  let browser = await chromium.launch({ headless: true, args: GPU_ARGS });
   const dets = [];
   for (const target of TARGETS) {
     if (!fs.existsSync(target.file)) { curTag = target.name; row('target file exists', 'SKIP', target.file + ' not found'); continue; }
     if (target.name.startsWith('index')) {
       curTag = target.name;
       const built = fs.readFileSync(target.file, 'utf8');
-      const parts = fs.readdirSync(path.join(SRC, 'parts')).filter(f => f.endsWith('.js')).map(f => 'parts/' + f).concat(['game.html']);
+      // PV-17: every input build.py inlines: game.html, home.css, every parts/*.js, every src/assets/* file (build.py embeds assets/*.webp), plus build.py itself.
+      const parts = fs.readdirSync(path.join(SRC, 'parts')).filter(f => f.endsWith('.js')).map(f => 'parts/' + f)
+        .concat(fs.readdirSync(path.join(SRC, 'assets')).filter(f => fs.statSync(path.join(SRC, 'assets', f)).isFile()).map(f => 'assets/' + f))
+        .concat(['game.html', 'home.css', 'build.py']);
       const stale = parts.filter(pp => { const f = path.join(SRC, pp); return fs.existsSync(f) && fs.statSync(f).mtimeMs > fs.statSync(target.file).mtimeMs; });
       ok(stale.length === 0 && built.includes('V.STAGES') === fs.readFileSync(path.join(SRC, 'game.html'), 'utf8').includes('stages.js'), 'built index.html is current with src parts', stale.length ? 'STALE build (supervisor runs build.py): newer parts ' + stale.join(', ') : 'all parts older than the build');
     }
     for (const sess of SESSIONS) {
-      if (process.env.E2E_SESS && `${sess.vp[0]}x${sess.vp[1]} ${sess.mode}` !== process.env.E2E_SESS) continue;
+      if (process.env.E2E_SESS && !process.env.E2E_SESS.split(',').includes(`${sess.vp[0]}x${sess.vp[1]} ${sess.mode}`)) continue;   // E2E_SESS may list several sessions, comma separated
       try {
         if (sess.plan === 'home' && !target.name.startsWith('index')) { curTag = `${target.name} ${sess.vp[0]}x${sess.vp[1]} ${sess.mode}`; row('Home flow (Home first, DEPLOY, results, Home, DEPLOY)', 'SKIP', 'src/game.html carries the build placeholders (/*{{home.css}}*/, /*{{assets}}*/): Home is unstyled there, so the real first-launch flow is tested on the built index.html only; src/game.html is covered with ?home=0'); continue; }
-        const r = sess.plan === 'home' ? await homeSession(browser, target, sess) : await session(browser, target, sess); if (r && r.det) dets.push({ tag: curTag, ...r.det }); }
+        // The SwiftShader GPU process can take the whole shared browser down after a WebGPU session on a busy host (seen on the pre-QA base tree too). Relaunch and rerun that session once; the INFO row records it and the crashed attempt's partial rows are dropped.
+        const runIt = () => sess.plan === 'home' ? homeSession(browser, target, sess) : session(browser, target, sess);
+        const mark = rows.length, tag0 = `${target.name} ${sess.vp[0]}x${sess.vp[1]} ${sess.mode}`;
+        let r;
+        try { if (!browser.isConnected()) throw new Error('browser closed before the session'); r = await runIt(); }
+        catch (e1) {
+          if (!/closed|disconnected|crash/i.test(e1.message)) throw e1;
+          rows.length = mark; curTag = tag0; row('browser died; relaunched, session rerun once', 'INFO', e1.message.split('\n')[0]);
+          try { await browser.close(); } catch (_) {}
+          browser = await chromium.launch({ headless: true, args: GPU_ARGS });
+          r = await runIt();
+        }
+        if (r && r.det) dets.push({ tag: curTag, ...r.det }); }
       catch (e) { row('session crashed', 'FAIL', e.message.split('\n')[0]); }
     }
   }
