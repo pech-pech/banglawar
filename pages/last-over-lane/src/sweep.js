@@ -15,7 +15,11 @@ const P={
    if(f.guard[o])return{intent:'rotate',sector:'leg'};
    return{intent:d==='slower'?'rotate':(o==='loft'||need/left>2.2?'drive':'drive'),sector:o};},
 };
-const N=400;const TARGET=LOL.MATCH.target;
+const N=400;
+if(process.argv[3]==='grid'){let best=null;const out=[];
+ for(const sec of LOL.SECTORS)for(const it of ['block','rotate','drive','slog']){let w=0;for(let sd=1;sd<=N;sd++){w+=play(sd,()=>({intent:it,sector:sec}),55,60).won;}
+  out.push([sec,it,100*w/N]);}
+ out.sort((a,b)=>b[2]-a[2]);console.log('rote grid (sd55, 60ms, '+N+' seeds), top 6:');out.slice(0,6).forEach(r=>console.log('  '+r[1]+' -> '+r[0]+': '+r[2].toFixed(1)+'%'));process.exit(0);}const TARGET=LOL.MATCH.target;
 for(const pm of [60,40])for(const [name,sd] of [['idle',0],['naive',90],['rote',55],['skilled',55],['skilled',40],['skilled',70]]){
  let w=0,runs=0;for(let s=1;s<=N;s++){const m=play(s,P[name],sd,pm);w+=m.won;runs+=m.runs;}
  console.log(`perfect ${pm}ms  ${name.padEnd(8)} sd${sd}: win ${(100*w/N).toFixed(1)}%  avg runs ${(runs/N).toFixed(1)}  (${N} seeds)`);}

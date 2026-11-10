@@ -1,6 +1,20 @@
+# 2026-11-10 v2 rules, 400 seeds, target 20 off 12, 3 wkts
 perfect 60ms  idle     sd0: win 0.0%  avg runs 0.0  (400 seeds)
-perfect 60ms  naive    sd90: win 24.5%  avg runs 13.6  (400 seeds)
+perfect 60ms  naive    sd90: win 16.3%  avg runs 12.4  (400 seeds)
 perfect 60ms  rote     sd55: win 74.5%  avg runs 19.3  (400 seeds)
-perfect 60ms  skilled  sd55: win 83.0%  avg runs 20.6  (400 seeds)
-perfect 60ms  skilled  sd40: win 95.5%  avg runs 21.3  (400 seeds)
-perfect 60ms  skilled  sd70: win 64.3%  avg runs 18.9  (400 seeds)
+perfect 60ms  skilled  sd55: win 82.8%  avg runs 20.6  (400 seeds)
+perfect 60ms  skilled  sd40: win 95.3%  avg runs 21.3  (400 seeds)
+perfect 60ms  skilled  sd70: win 63.8%  avg runs 18.9  (400 seeds)
+perfect 40ms  idle     sd0: win 0.0%  avg runs 0.0  (400 seeds)
+perfect 40ms  naive    sd90: win 7.3%  avg runs 9.8  (400 seeds)
+perfect 40ms  rote     sd55: win 52.5%  avg runs 17.2  (400 seeds)
+perfect 40ms  skilled  sd55: win 70.5%  avg runs 19.8  (400 seeds)
+perfect 40ms  skilled  sd40: win 87.3%  avg runs 20.9  (400 seeds)
+perfect 40ms  skilled  sd70: win 49.3%  avg runs 17.6  (400 seeds)
+rote grid (sd55, 60ms, 400 seeds), top 6:
+  drive -> loft: 86.5%
+  slog -> straight: 81.3%
+  slog -> loft: 77.0%
+  drive -> straight: 74.5%
+  rotate -> leg: 43.5%
+  rotate -> straight: 43.5%
