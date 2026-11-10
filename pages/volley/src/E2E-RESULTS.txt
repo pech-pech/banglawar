@@ -1,5 +1,5 @@
-Project Volley P0 E2E results
-Date: 2026-11-10T12:30:40.189Z  (suite src/e2e.js, 489 s)
+Project Volley P0+P1 E2E results
+Date: 2026-11-10T12:39:04.049Z  (suite src/e2e.js, 463 s)
 Chromium headless, flags --enable-unsafe-webgpu --use-webgpu-adapter=swiftshader --enable-features=Vulkan; contexts hasTouch+isMobile, dpr 1; touch via CDP Input.dispatchTouchEvent; url ?seed=777 (+&gpu=0)
 Files under test (mtime):
   game.html: 2026-11-10T12:21:09.834Z
@@ -9,8 +9,8 @@ Files under test (mtime):
   parts/sim.js: 2026-11-10T12:26:56.404Z
   parts/render.js: 2026-11-10T11:58:48.271Z
   parts/gpu.js: 2026-11-10T11:58:48.271Z
-  ../index.html: 2026-11-10T12:15:44.512Z
-Totals: PASS 537  FAIL 24  EXPECTED 6  SKIP 0  INFO 74
+  ../index.html: 2026-11-10T12:30:44.610Z
+Totals: PASS 642  FAIL 0  EXPECTED 6  SKIP 0  INFO 74
 
 PASS | src/game.html 344x882 gpu0 | boots with 0 console errors | none
 PASS | src/game.html 344x882 gpu0 | idle 5 s with no tap: 0 console errors | none (kills 1->3, hp 600->600)
@@ -26,12 +26,12 @@ PASS | src/game.html 344x882 gpu0 | room fits width under HUD | room 344x573 at 
 PASS | src/game.html 344x882 gpu0 | drag start point is below the room | touch y=837, room bottom y=645
 INFO | src/game.html 344x882 gpu0 | element under thumb point | canvas#c2d
 PASS | src/game.html 344x882 gpu0 | touch arrives as pointer events (pointerType touch) | ["pointerdown:touch","pointerup:touch"]
-PASS | src/game.html 344x882 gpu0 | touch drag below the room moves the hero (drag up = north) | hero (4.50,14.50) -> (4.50,9.70) after ~0.7 s hold; moving=true
+PASS | src/game.html 344x882 gpu0 | touch drag below the room moves the hero (drag up = north) | hero (4.50,14.50) -> (4.50,9.48) after ~0.7 s hold; moving=true
 PASS | src/game.html 344x882 gpu0 | no joystick element at the thumb (DOM) | visible els 19 -> 19
 PASS | src/game.html 344x882 gpu0 | no joystick graphic at the thumb (Canvas 2D pixels) | ground patch diff base->hold 0.0%, hold->after 0.0%, base->after 0.0%
 PASS | src/game.html 344x882 gpu0 | release = stop | stopped 0.017 s sim after release
-PASS | src/game.html 344x882 gpu0 | release braces within ~0.3 s | braced after 0.150 s sim (149 ms real)
-PASS | src/game.html 344x882 gpu0 | release fires within ~0.3 s | first shot 0.150 s sim after release (149 ms real); fireCd at hold 0.00
+PASS | src/game.html 344x882 gpu0 | release braces within ~0.3 s | braced after 0.150 s sim (147 ms real)
+PASS | src/game.html 344x882 gpu0 | release fires within ~0.3 s | first shot 0.150 s sim after release (147 ms real); fireCd at hold 0.00
 PASS | src/game.html 344x882 gpu0 | deadzone hysteresis (enter 14 px / exit 8 px from touch-down) | 10px:stop 20px:move 10px:move 5px:stop (want 10:stop 20:move 10:move 5:stop)
 PASS | src/game.html 344x882 gpu0 | touchcancel / pointercancel releases | moving while held=true, after cancel=false
 PASS | src/game.html 344x882 gpu0 | gear button for the tuning drawer present | button#gear.hb
@@ -40,21 +40,21 @@ PASS | src/game.html 344x882 gpu0 | drawer has its own control for every TUNE kn
 PASS | src/game.html 344x882 gpu0 | drawer buttons Reset / Copy settings / Copy report | all present
 PASS | src/game.html 344x882 gpu0 | touch targets >= 56 px (drawer open) | 4 targets; min 56 px
 INFO | src/game.html 344x882 gpu0 | drawer slider heights (info, L-TD-4) | min 36 px; 11/11 under 56
-INFO | src/game.html 344x882 gpu0 | Copy report (info) | report text 1791 chars via textarea; missing words: none
+INFO | src/game.html 344x882 gpu0 | Copy report (info) | report text 1792 chars via textarea; missing words: none
 PASS | src/game.html 344x882 gpu0 | drawer closes | 0 sliders still visible
-PASS | src/game.html 344x882 gpu0 | hidden tab pauses the sim | frame 506 -> 506 over 0.5 s hidden
+PASS | src/game.html 344x882 gpu0 | hidden tab pauses the sim | frame 481 -> 481 over 0.5 s hidden
 PASS | src/game.html 344x882 gpu0 | pause card shown | "Paused"
 PASS | src/game.html 344x882 gpu0 | HUD text not visible through pause card (L-TD-3) | 9 HUD text els: 9 hidden, 0 covered
 PASS | src/game.html 344x882 gpu0 | touch targets >= 56 px (pause card) | 4 targets; min 56 px
-PASS | src/game.html 344x882 gpu0 | stays paused after the tab returns (resume by tap, L-LOL-2) | frame 506 -> 506 after visible again
-PASS | src/game.html 344x882 gpu0 | no damage during the faked 1 s gap | hp 600 -> 600; frame 506 -> 506
-PASS | src/game.html 344x882 gpu0 | tap resumes | frame 506 -> 535 (tapped button#btnResume.btn)
-PASS | src/game.html 344x882 gpu0 | no catch-up burst after resume | max sim steps in one rAF after resume: 1; hp 600 -> 600
+PASS | src/game.html 344x882 gpu0 | stays paused after the tab returns (resume by tap, L-LOL-2) | frame 481 -> 481 after visible again
+PASS | src/game.html 344x882 gpu0 | no damage during the faked 1 s gap | hp 540 -> 540; frame 481 -> 481
+PASS | src/game.html 344x882 gpu0 | tap resumes | frame 481 -> 511 (tapped button#btnResume.btn)
+PASS | src/game.html 344x882 gpu0 | no catch-up burst after resume | max sim steps in one rAF after resume: 2; hp 540 -> 540
 PASS | src/game.html 344x882 gpu0 | faked 1 s rAF gap (visible): steps clamped <= 5 per frame | max steps in one rAF 5; hp change in that frame 0; phase clear
-INFO | src/game.html 344x882 gpu0 | hp across visible gap (info) | hp 600 -> 600
-PASS | src/game.html 344x882 gpu0 | same seed gives the same run (V.Sim, 600 steps twice) | seed 779: e3783153:205 vs e3783153:205
-INFO | src/game.html 344x882 gpu0 | __pv run hash after restart (compared across sessions) | seed 779 hash e3783153:205 frame 600 phase play
-PASS | src/game.html 344x882 gpu0 | room clear opens the door | stage 1 R01: door.open=true, kills 3, 206 steps
+INFO | src/game.html 344x882 gpu0 | hp across visible gap (info) | hp 540 -> 540
+PASS | src/game.html 344x882 gpu0 | same seed gives the same run (V.Sim, 600 steps twice) | seed 779: 60f8dadc:203 vs 60f8dadc:203
+INFO | src/game.html 344x882 gpu0 | __pv run hash after restart (compared across sessions) | seed 779 hash 60f8dadc:203 frame 600 phase play
+PASS | src/game.html 344x882 gpu0 | room clear opens the door | stage 1 R01: door.open=true, kills 3, 205 steps
 PASS | src/game.html 344x882 gpu0 | walking north through the door loads the next room | stage 1 R01 -> 2 R02
 PASS | src/game.html 344x882 gpu0 | card screen shows TUNE.CARDS_OFFERED (3) cards | stage 2 combat: S.cards 3, buttons 3: Corrosive rounds | Rear guard | Incendiary rounds; title "Field upgrade - level 2"
 PASS | src/game.html 344x882 gpu0 | HUD text not visible through card screen (L-TD-3) | 9 HUD text els: 9 hidden, 0 covered
@@ -65,19 +65,19 @@ PASS | src/game.html 344x882 gpu0 | supply screen offers 2 choices (a mod or rep
 PASS | src/game.html 344x882 gpu0 | supply stage has no enemies | enemies 0
 PASS | src/game.html 344x882 gpu0 | HUD text not visible through supply screen (L-TD-3) | 9 HUD text els: 9 hidden, 0 covered
 PASS | src/game.html 344x882 gpu0 | touch targets >= 56 px (supply screen) | 2 targets; min 81 px
-PASS | src/game.html 344x882 gpu0 | tapping a supply choice applies it | via tap: phase supply -> clear; hp 600 -> 600 / 600 (repair 40% = +240 capped)
+PASS | src/game.html 344x882 gpu0 | tapping supply repair restores 40% max HP | via tap: phase supply -> clear; hp 300 -> 540 / 600 (want +240; hp set to 50% by the test first)
 PASS | src/game.html 344x882 gpu0 | stage 9 cache chest gives a free card screen | stage 9 cache: S.cards 3, buttons 3: Armor plating | Fire control | Evasion firmware; title "Cache: free field upgrade"
-PASS | src/game.html 344x882 gpu0 | cache chest drops 2 repair packs | repair pickups on floor 2, collected so far 0; chest {"x":4.5,"y":2.5,"open":false}
+PASS | src/game.html 344x882 gpu0 | cache chest drops 2 repair packs | repair pickups on floor 2, collected so far 1; chest {"x":4.5,"y":2.5,"open":false}
 PASS | src/game.html 344x882 gpu0 | cache card screen is labelled as the cache | title "Cache: free field upgrade"
 PASS | src/game.html 344x882 gpu0 | HUD text not visible through cache card screen (L-TD-3) | 9 HUD text els: 9 hidden, 0 covered
 PASS | src/game.html 344x882 gpu0 | touch targets >= 56 px (cache card screen) | 3 targets; min 64 px
 PASS | src/game.html 344x882 gpu0 | tapping a cache card applies it | phase pick -> clear; picks 3 -> 4; mods {"poison":1,"atk":1,"salvage":1} -> {"poison":1,"atk":1,"salvage":1,"armor":1}
-INFO | src/game.html 344x882 gpu0 | win run stages | 1:combat/R01 2:combat/R02 3:combat/R01 4:combat/R02 5:supply/SD 6:combat/R03 7:combat/R02 8:combat/R02 9:cache/CA1 10:boss/BA1 | 5049 steps, events {"lock":31,"fire":143,"hit":95,"crit":7,"kill":26,"unlock":13,"door":8,"pickup":27,"pickup:xp":26,"room":9,"levelup":3,"tell":8,"supply":1,"dot":13,"chest":1,"hurt":4,"pickup:repair":1,"boss":1,"bossphase":1,"win":1}
+INFO | src/game.html 344x882 gpu0 | win run stages | 1:combat/R01 2:combat/R02 3:combat/R01 4:combat/R02 5:supply/SD 6:combat/R03 7:combat/R02 8:combat/R02 9:cache/CA1 10:boss/BA1 | 5051 steps, events {"lock":31,"fire":142,"hit":95,"crit":7,"kill":26,"unlock":13,"door":8,"pickup":28,"pickup:xp":26,"room":9,"levelup":3,"tell":8,"pick":2,"supply":1,"dot":13,"pickup:repair":2,"chest":1,"hurt":4,"boss":1,"bossphase":1,"win":1}
 PASS | src/game.html 344x882 gpu0 | boss at stage 10 | boss "Volley Tower" seen at stage 10:boss/BA1
 PASS | src/game.html 344x882 gpu0 | DOM boss bar shows the boss name | span#bossName "Volley Tower" top 81 (room top 72)
 PASS | src/game.html 344x882 gpu0 | boss bar sits at the top of the room | bar 81-101, room top 72
-PASS | src/game.html 344x882 gpu0 | boss kill -> results screen (win) | S.result {"win":true,"stage":10,"lap":1,"t":87.45,"kills":27,"level":4,"picks":["SK-17","SK-09","SK-27","SK-15"],"dmgTaken":4}
-PASS | src/game.html 344x882 gpu0 | results screen (win) shows result + stats | Chapter 1 clear | Result | Win | Stage reached | 10 / 10 | Time | 1:27 | Kills | 27 | Level | 4 | Damage taken | 4 | Mods | Corrosive rounds, Power cell, Salvage repair, Armor plating | New run | Tap anywhere for a new run
+PASS | src/game.html 344x882 gpu0 | boss kill -> results screen (win) | S.result {"win":true,"stage":10,"lap":1,"t":87.5,"kills":27,"level":4,"picks":["SK-17","SK-09","SK-27","SK-15"],"dmgTaken":4}
+PASS | src/game.html 344x882 gpu0 | results screen (win) shows result + stats | Chapter 1 clear | Result | Win | Stage reached | 10 / 10 | Time | 1:28 | Kills | 27 | Level | 4 | Damage taken | 4 | Mods | Corrosive rounds, Power cell, Salvage repair, Armor plating | New run | Tap anywhere for a new run
 PASS | src/game.html 344x882 gpu0 | HUD text not visible through results screen (win) (L-TD-3) | 9 HUD text els: 9 hidden, 0 covered
 PASS | src/game.html 344x882 gpu0 | touch targets >= 56 px (results screen (win)) | 1 targets; min 56 px
 PASS | src/game.html 344x882 gpu0 | one tap on results (win) starts a new run | tapped button#btnRestart.btn "New run": phase play, stage 1, hp 600/600, result null, seed 781 -> 782
@@ -91,7 +91,7 @@ PASS | src/game.html 344x882 gpu0 | 0 console errors during the whole session | 
 PASS | src/game.html 344x882 default | boots with 0 console errors | none
 PASS | src/game.html 344x882 default | idle 5 s with no tap: 0 console errors | none (kills 1->3, hp 600->600)
 PASS | src/game.html 344x882 default | ?seed is read | S.seed=777 (url seed 777)
-EXPECTED | src/game.html 344x882 default | default picks WebGPU (swiftshader flags) | sandbox only: headless SwiftShader loses the device on swapchain present, so it falls back to Canvas 2D (render's gpu-test.js shows the same; ?gpu=offscreen session proves the WebGPU pipeline). M's Fold report 12:11 showed renderer WebGPU, 16.7 ms p95, 0 gaps. trace: create -> ok -> lost destroyed "Device was destroyed."
+EXPECTED | src/game.html 344x882 default | default picks WebGPU (swiftshader flags) | sandbox only: headless SwiftShader loses the device on swapchain present, so it falls back to Canvas 2D (render's gpu-test.js shows the same; ?gpu=offscreen session proves the WebGPU pipeline). M's Fold report 12:11 showed renderer WebGPU, 16.7 ms p95, 0 gaps. trace: create -> ok -> lost unknown "A valid external Instance reference no longer exists." -> create -> ok -> lost destroyed "Device was d
 PASS | src/game.html 344x882 default | renderer label text equals __pv.renderer | label "Canvas 2D | 344x882 | dpr 1" vs Canvas 2D
 PASS | src/game.html 344x882 default | renderer label shows viewport WxH (+dpr) | "Canvas 2D | 344x882 | dpr 1" (window 344x882, game column 344x882)
 INFO | src/game.html 344x882 default | HUD text elements (baseline) | div#stageLbl "Stage 1 Open Yard"; b#stNum "1"; span#roomName "Open Yard"; div#lvl "Lv 1"; span "❚❚"; span "⚙"; div#hpTxt "600 / 600"; div#rlbl "Canvas 2D | 344x882 | dp"; div#howto "Drag anywhere to move. L"
@@ -102,10 +102,10 @@ PASS | src/game.html 344x882 default | room fits width under HUD | room 344x573 
 PASS | src/game.html 344x882 default | drag start point is below the room | touch y=837, room bottom y=645
 INFO | src/game.html 344x882 default | element under thumb point | canvas#c2d
 PASS | src/game.html 344x882 default | touch arrives as pointer events (pointerType touch) | ["pointerdown:touch","pointerup:touch"]
-PASS | src/game.html 344x882 default | touch drag below the room moves the hero (drag up = north) | hero (4.50,14.50) -> (4.50,9.25) after ~0.7 s hold; moving=true
+PASS | src/game.html 344x882 default | touch drag below the room moves the hero (drag up = north) | hero (4.50,14.50) -> (4.50,9.55) after ~0.7 s hold; moving=true
 PASS | src/game.html 344x882 default | no joystick element at the thumb (DOM) | visible els 19 -> 19
 PASS | src/game.html 344x882 default | no joystick graphic at the thumb (Canvas 2D pixels) | ground patch diff base->hold 0.0%, hold->after 0.0%, base->after 0.0%
-PASS | src/game.html 344x882 default | release = stop | stopped 0.033 s sim after release
+PASS | src/game.html 344x882 default | release = stop | stopped 0.017 s sim after release
 PASS | src/game.html 344x882 default | release braces within ~0.3 s | braced after 0.150 s sim (150 ms real)
 PASS | src/game.html 344x882 default | release fires within ~0.3 s | first shot 0.150 s sim after release (150 ms real); fireCd at hold 0.00
 PASS | src/game.html 344x882 default | deadzone hysteresis (enter 14 px / exit 8 px from touch-down) | 10px:stop 20px:move 10px:move 5px:stop (want 10:stop 20:move 10:move 5:stop)
@@ -116,21 +116,21 @@ PASS | src/game.html 344x882 default | drawer has its own control for every TUNE
 PASS | src/game.html 344x882 default | drawer buttons Reset / Copy settings / Copy report | all present
 PASS | src/game.html 344x882 default | touch targets >= 56 px (drawer open) | 4 targets; min 56 px
 INFO | src/game.html 344x882 default | drawer slider heights (info, L-TD-4) | min 36 px; 11/11 under 56
-INFO | src/game.html 344x882 default | Copy report (info) | report text 1809 chars via textarea; missing words: none
+INFO | src/game.html 344x882 default | Copy report (info) | report text 1808 chars via textarea; missing words: none
 PASS | src/game.html 344x882 default | drawer closes | 0 sliders still visible
-PASS | src/game.html 344x882 default | hidden tab pauses the sim | frame 516 -> 516 over 0.5 s hidden
+PASS | src/game.html 344x882 default | hidden tab pauses the sim | frame 470 -> 470 over 0.5 s hidden
 PASS | src/game.html 344x882 default | pause card shown | "Paused"
 PASS | src/game.html 344x882 default | HUD text not visible through pause card (L-TD-3) | 9 HUD text els: 9 hidden, 0 covered
 PASS | src/game.html 344x882 default | touch targets >= 56 px (pause card) | 4 targets; min 56 px
-PASS | src/game.html 344x882 default | stays paused after the tab returns (resume by tap, L-LOL-2) | frame 516 -> 516 after visible again
-PASS | src/game.html 344x882 default | no damage during the faked 1 s gap | hp 600 -> 600; frame 516 -> 516
-PASS | src/game.html 344x882 default | tap resumes | frame 516 -> 545 (tapped button#btnResume.btn)
+PASS | src/game.html 344x882 default | stays paused after the tab returns (resume by tap, L-LOL-2) | frame 470 -> 470 after visible again
+PASS | src/game.html 344x882 default | no damage during the faked 1 s gap | hp 600 -> 600; frame 470 -> 470
+PASS | src/game.html 344x882 default | tap resumes | frame 470 -> 499 (tapped button#btnResume.btn)
 PASS | src/game.html 344x882 default | no catch-up burst after resume | max sim steps in one rAF after resume: 2; hp 600 -> 600
 PASS | src/game.html 344x882 default | faked 1 s rAF gap (visible): steps clamped <= 5 per frame | max steps in one rAF 5; hp change in that frame 0; phase clear
 INFO | src/game.html 344x882 default | hp across visible gap (info) | hp 600 -> 600
-PASS | src/game.html 344x882 default | same seed gives the same run (V.Sim, 600 steps twice) | seed 779: e3783153:205 vs e3783153:205
-INFO | src/game.html 344x882 default | __pv run hash after restart (compared across sessions) | seed 779 hash e3783153:205 frame 600 phase play
-PASS | src/game.html 344x882 default | room clear opens the door | stage 1 R01: door.open=true, kills 3, 205 steps
+PASS | src/game.html 344x882 default | same seed gives the same run (V.Sim, 600 steps twice) | seed 779: 60f8dadc:203 vs 60f8dadc:203
+INFO | src/game.html 344x882 default | __pv run hash after restart (compared across sessions) | seed 779 hash 60f8dadc:203 frame 600 phase play
+PASS | src/game.html 344x882 default | room clear opens the door | stage 1 R01: door.open=true, kills 3, 206 steps
 PASS | src/game.html 344x882 default | walking north through the door loads the next room | stage 1 R01 -> 2 R02
 PASS | src/game.html 344x882 default | card screen shows TUNE.CARDS_OFFERED (3) cards | stage 2 combat: S.cards 3, buttons 3: Corrosive rounds | Rear guard | Incendiary rounds; title "Field upgrade - level 2"
 PASS | src/game.html 344x882 default | HUD text not visible through card screen (L-TD-3) | 9 HUD text els: 9 hidden, 0 covered
@@ -141,24 +141,24 @@ PASS | src/game.html 344x882 default | supply screen offers 2 choices (a mod or 
 PASS | src/game.html 344x882 default | supply stage has no enemies | enemies 0
 PASS | src/game.html 344x882 default | HUD text not visible through supply screen (L-TD-3) | 9 HUD text els: 9 hidden, 0 covered
 PASS | src/game.html 344x882 default | touch targets >= 56 px (supply screen) | 2 targets; min 81 px
-PASS | src/game.html 344x882 default | tapping a supply choice applies it | via tap: phase supply -> clear; hp 600 -> 600 / 600 (repair 40% = +240 capped)
+PASS | src/game.html 344x882 default | tapping supply repair restores 40% max HP | via tap: phase supply -> clear; hp 300 -> 540 / 600 (want +240; hp set to 50% by the test first)
 PASS | src/game.html 344x882 default | stage 9 cache chest gives a free card screen | stage 9 cache: S.cards 3, buttons 3: Armor plating | Fire control | Evasion firmware; title "Cache: free field upgrade"
-PASS | src/game.html 344x882 default | cache chest drops 2 repair packs | repair pickups on floor 2, collected so far 0; chest {"x":4.5,"y":2.5,"open":false}
+PASS | src/game.html 344x882 default | cache chest drops 2 repair packs | repair pickups on floor 2, collected so far 1; chest {"x":4.5,"y":2.5,"open":false}
 PASS | src/game.html 344x882 default | cache card screen is labelled as the cache | title "Cache: free field upgrade"
 PASS | src/game.html 344x882 default | HUD text not visible through cache card screen (L-TD-3) | 9 HUD text els: 9 hidden, 0 covered
 PASS | src/game.html 344x882 default | touch targets >= 56 px (cache card screen) | 3 targets; min 64 px
 PASS | src/game.html 344x882 default | tapping a cache card applies it | phase pick -> clear; picks 3 -> 4; mods {"poison":1,"atk":1,"salvage":1} -> {"poison":1,"atk":1,"salvage":1,"armor":1}
-INFO | src/game.html 344x882 default | win run stages | 1:combat/R01 2:combat/R02 3:combat/R01 4:combat/R02 5:supply/SD 6:combat/R03 7:combat/R02 8:combat/R02 9:cache/CA1 10:boss/BA1 | 5050 steps, events {"lock":31,"fire":143,"hit":95,"crit":7,"kill":26,"unlock":13,"door":8,"pickup":27,"pickup:xp":26,"room":9,"levelup":3,"tell":8,"pick":2,"supply":1,"dot":13,"chest":1,"hurt":4,"pickup:repair":1,"boss":1,"bossphase":1,"win":1}
+INFO | src/game.html 344x882 default | win run stages | 1:combat/R01 2:combat/R02 3:combat/R01 4:combat/R02 5:supply/SD 6:combat/R03 7:combat/R02 8:combat/R02 9:cache/CA1 10:boss/BA1 | 5051 steps, events {"lock":31,"fire":143,"hit":95,"crit":7,"kill":26,"unlock":13,"door":8,"pickup":28,"pickup:xp":26,"room":9,"levelup":3,"tell":8,"supply":1,"dot":13,"pickup:repair":2,"pick":1,"chest":1,"hurt":4,"boss":1,"bossphase":1,"win":1}
 PASS | src/game.html 344x882 default | boss at stage 10 | boss "Volley Tower" seen at stage 10:boss/BA1
 PASS | src/game.html 344x882 default | DOM boss bar shows the boss name | span#bossName "Volley Tower" top 81 (room top 72)
 PASS | src/game.html 344x882 default | boss bar sits at the top of the room | bar 81-101, room top 72
-PASS | src/game.html 344x882 default | boss kill -> results screen (win) | S.result {"win":true,"stage":10,"lap":1,"t":87.48,"kills":27,"level":4,"picks":["SK-17","SK-09","SK-27","SK-15"],"dmgTaken":4}
+PASS | src/game.html 344x882 default | boss kill -> results screen (win) | S.result {"win":true,"stage":10,"lap":1,"t":87.47,"kills":27,"level":4,"picks":["SK-17","SK-09","SK-27","SK-15"],"dmgTaken":4}
 PASS | src/game.html 344x882 default | results screen (win) shows result + stats | Chapter 1 clear | Result | Win | Stage reached | 10 / 10 | Time | 1:27 | Kills | 27 | Level | 4 | Damage taken | 4 | Mods | Corrosive rounds, Power cell, Salvage repair, Armor plating | New run | Tap anywhere for a new run
 PASS | src/game.html 344x882 default | HUD text not visible through results screen (win) (L-TD-3) | 9 HUD text els: 9 hidden, 0 covered
 PASS | src/game.html 344x882 default | touch targets >= 56 px (results screen (win)) | 1 targets; min 56 px
 PASS | src/game.html 344x882 default | one tap on results (win) starts a new run | tapped button#btnRestart.btn "New run": phase play, stage 1, hp 600/600, result null, seed 781 -> 782
-INFO | src/game.html 344x882 default | lose run stages | 1:combat/R01 2:combat/R02 | 768 steps, events {"lock":7,"fire":12,"hit":12,"kill":5,"unlock":1,"door":1,"pickup":3,"pickup:xp":3,"room":1,"tell":1,"hurt":1,"death":1}
-PASS | src/game.html 344x882 default | death -> results screen (lose) | S.result {"win":false,"stage":2,"lap":1,"t":13.08,"kills":5,"level":1,"picks":[],"dmgTaken":2428}
+INFO | src/game.html 344x882 default | lose run stages | 1:combat/R01 2:combat/R02 | 768 steps, events {"lock":7,"fire":12,"hit":12,"kill":5,"unlock":1,"door":1,"pickup":3,"pickup:xp":3,"room":1,"tell":1}
+PASS | src/game.html 344x882 default | death -> results screen (lose) | S.result {"win":false,"stage":2,"lap":1,"t":13.07,"kills":5,"level":1,"picks":[],"dmgTaken":2428}
 PASS | src/game.html 344x882 default | results screen (lose) shows result + stats | Operator down | Result | Lost | Stage reached | 2 / 10 | Time | 0:13 | Kills | 5 | Level | 1 | Damage taken | 2428 | Mods | none | New run | Tap anywhere for a new run
 PASS | src/game.html 344x882 default | HUD text not visible through results screen (lose) (L-TD-3) | 9 HUD text els: 9 hidden, 0 covered
 PASS | src/game.html 344x882 default | touch targets >= 56 px (results screen (lose)) | 1 targets; min 56 px
@@ -182,8 +182,8 @@ PASS | src/game.html 412x904 gpu0 | touch drag below the room moves the hero (dr
 PASS | src/game.html 412x904 gpu0 | no joystick element at the thumb (DOM) | visible els 19 -> 19
 PASS | src/game.html 412x904 gpu0 | no joystick graphic at the thumb (Canvas 2D pixels) | ground patch diff base->hold 1.2%, hold->after 0.0%, base->after 1.2%
 PASS | src/game.html 412x904 gpu0 | release = stop | stopped 0.017 s sim after release
-PASS | src/game.html 412x904 gpu0 | release braces within ~0.3 s | braced after 0.150 s sim (149 ms real)
-PASS | src/game.html 412x904 gpu0 | release fires within ~0.3 s | first shot 0.150 s sim after release (149 ms real); fireCd at hold 0.00
+PASS | src/game.html 412x904 gpu0 | release braces within ~0.3 s | braced after 0.167 s sim (167 ms real)
+PASS | src/game.html 412x904 gpu0 | release fires within ~0.3 s | first shot 0.167 s sim after release (167 ms real); fireCd at hold 0.00
 PASS | src/game.html 412x904 gpu0 | deadzone hysteresis (enter 14 px / exit 8 px from touch-down) | 10px:stop 20px:move 10px:move 5px:stop (want 10:stop 20:move 10:move 5:stop)
 PASS | src/game.html 412x904 gpu0 | touchcancel / pointercancel releases | moving while held=true, after cancel=false
 PASS | src/game.html 412x904 gpu0 | gear button for the tuning drawer present | button#gear.hb
@@ -194,18 +194,18 @@ PASS | src/game.html 412x904 gpu0 | touch targets >= 56 px (drawer open) | 4 tar
 INFO | src/game.html 412x904 gpu0 | drawer slider heights (info, L-TD-4) | min 36 px; 11/11 under 56
 INFO | src/game.html 412x904 gpu0 | Copy report (info) | report text 1792 chars via textarea; missing words: none
 PASS | src/game.html 412x904 gpu0 | drawer closes | 0 sliders still visible
-PASS | src/game.html 412x904 gpu0 | hidden tab pauses the sim | frame 499 -> 499 over 0.5 s hidden
+PASS | src/game.html 412x904 gpu0 | hidden tab pauses the sim | frame 475 -> 475 over 0.5 s hidden
 PASS | src/game.html 412x904 gpu0 | pause card shown | "Paused"
 PASS | src/game.html 412x904 gpu0 | HUD text not visible through pause card (L-TD-3) | 9 HUD text els: 9 hidden, 0 covered
 PASS | src/game.html 412x904 gpu0 | touch targets >= 56 px (pause card) | 4 targets; min 56 px
-PASS | src/game.html 412x904 gpu0 | stays paused after the tab returns (resume by tap, L-LOL-2) | frame 499 -> 499 after visible again
-PASS | src/game.html 412x904 gpu0 | no damage during the faked 1 s gap | hp 540 -> 540; frame 499 -> 499
-PASS | src/game.html 412x904 gpu0 | tap resumes | frame 499 -> 528 (tapped button#btnResume.btn)
-PASS | src/game.html 412x904 gpu0 | no catch-up burst after resume | max sim steps in one rAF after resume: 2; hp 540 -> 540
+PASS | src/game.html 412x904 gpu0 | stays paused after the tab returns (resume by tap, L-LOL-2) | frame 475 -> 475 after visible again
+PASS | src/game.html 412x904 gpu0 | no damage during the faked 1 s gap | hp 600 -> 600; frame 475 -> 475
+PASS | src/game.html 412x904 gpu0 | tap resumes | frame 475 -> 504 (tapped button#btnResume.btn)
+PASS | src/game.html 412x904 gpu0 | no catch-up burst after resume | max sim steps in one rAF after resume: 1; hp 600 -> 600
 PASS | src/game.html 412x904 gpu0 | faked 1 s rAF gap (visible): steps clamped <= 5 per frame | max steps in one rAF 5; hp change in that frame 0; phase clear
-INFO | src/game.html 412x904 gpu0 | hp across visible gap (info) | hp 540 -> 540
-PASS | src/game.html 412x904 gpu0 | same seed gives the same run (V.Sim, 600 steps twice) | seed 779: e3783153:205 vs e3783153:205
-INFO | src/game.html 412x904 gpu0 | __pv run hash after restart (compared across sessions) | seed 779 hash e3783153:205 frame 600 phase play
+INFO | src/game.html 412x904 gpu0 | hp across visible gap (info) | hp 600 -> 600
+PASS | src/game.html 412x904 gpu0 | same seed gives the same run (V.Sim, 600 steps twice) | seed 779: 60f8dadc:203 vs 60f8dadc:203
+INFO | src/game.html 412x904 gpu0 | __pv run hash after restart (compared across sessions) | seed 779 hash 60f8dadc:203 frame 600 phase play
 PASS | src/game.html 412x904 gpu0 | room clear opens the door | stage 1 R01: door.open=true, kills 3, 206 steps
 PASS | src/game.html 412x904 gpu0 | walking north through the door loads the next room | stage 1 R01 -> 2 R02
 PASS | src/game.html 412x904 gpu0 | card screen shows TUNE.CARDS_OFFERED (2) cards | stage 2 combat: S.cards 2, buttons 2: Corrosive rounds | Rear guard; title "Field upgrade - level 2"
@@ -217,24 +217,24 @@ PASS | src/game.html 412x904 gpu0 | supply screen offers 2 choices (a mod or rep
 PASS | src/game.html 412x904 gpu0 | supply stage has no enemies | enemies 0
 PASS | src/game.html 412x904 gpu0 | HUD text not visible through supply screen (L-TD-3) | 9 HUD text els: 9 hidden, 0 covered
 PASS | src/game.html 412x904 gpu0 | touch targets >= 56 px (supply screen) | 2 targets; min 81 px
-PASS | src/game.html 412x904 gpu0 | tapping a supply choice applies it | via tap: phase supply -> clear; hp 599 -> 600 / 600 (repair 40% = +240 capped)
+PASS | src/game.html 412x904 gpu0 | tapping supply repair restores 40% max HP | via tap: phase supply -> clear; hp 300 -> 540 / 600 (want +240; hp set to 50% by the test first)
 PASS | src/game.html 412x904 gpu0 | stage 9 cache chest gives a free card screen | stage 9 cache: S.cards 2, buttons 2: Twin barrel | Diagonal rounds; title "Cache: free field upgrade"
 PASS | src/game.html 412x904 gpu0 | cache chest drops 2 repair packs | repair pickups on floor 2, collected so far 0; chest {"x":4.5,"y":2.5,"open":false}
 PASS | src/game.html 412x904 gpu0 | cache card screen is labelled as the cache | title "Cache: free field upgrade"
 PASS | src/game.html 412x904 gpu0 | HUD text not visible through cache card screen (L-TD-3) | 9 HUD text els: 9 hidden, 0 covered
 PASS | src/game.html 412x904 gpu0 | touch targets >= 56 px (cache card screen) | 2 targets; min 83 px
 PASS | src/game.html 412x904 gpu0 | tapping a cache card applies it | phase pick -> clear; picks 3 -> 4; mods {"poison":1,"multi":1,"armor":1} -> {"poison":1,"multi":1,"armor":1,"front":1}
-INFO | src/game.html 412x904 gpu0 | win run stages | 1:combat/R01 2:combat/R02 3:combat/R01 4:combat/R02 5:supply/SD 6:combat/R03 7:combat/R02 8:combat/R02 9:cache/CA1 10:boss/BA1 | 4471 steps, events {"lock":27,"fire":174,"hit":139,"crit":8,"kill":27,"unlock":15,"door":8,"pickup":27,"pickup:xp":26,"room":9,"levelup":3,"tell":4,"hurt":4,"supply":1,"dot":6,"pick":1,"chest":1,"pickup:repair":1,"boss":1,"bossphase":1,"win":1}
+INFO | src/game.html 412x904 gpu0 | win run stages | 1:combat/R01 2:combat/R02 3:combat/R01 4:combat/R02 5:supply/SD 6:combat/R03 7:combat/R02 8:combat/R02 9:cache/CA1 10:boss/BA1 | 4465 steps, events {"lock":27,"fire":173,"hit":139,"crit":8,"kill":27,"unlock":15,"door":8,"pickup":28,"pickup:xp":26,"room":9,"levelup":3,"tell":4,"hurt":4,"pick":1,"supply":1,"dot":6,"chest":1,"pickup:repair":2,"boss":1,"bossphase":1,"win":1}
 PASS | src/game.html 412x904 gpu0 | boss at stage 10 | boss "Volley Tower" seen at stage 10:boss/BA1
 PASS | src/game.html 412x904 gpu0 | DOM boss bar shows the boss name | span#bossName "Volley Tower" top 85 (room top 72)
 PASS | src/game.html 412x904 gpu0 | boss bar sits at the top of the room | bar 85-105, room top 72
-PASS | src/game.html 412x904 gpu0 | boss kill -> results screen (win) | S.result {"win":true,"stage":10,"lap":1,"t":77.83,"kills":27,"level":4,"picks":["SK-17","SK-02","SK-15","SK-01"],"dmgTaken":4}
+PASS | src/game.html 412x904 gpu0 | boss kill -> results screen (win) | S.result {"win":true,"stage":10,"lap":1,"t":77.62,"kills":27,"level":4,"picks":["SK-17","SK-02","SK-15","SK-01"],"dmgTaken":4}
 PASS | src/game.html 412x904 gpu0 | results screen (win) shows result + stats | Chapter 1 clear | Result | Win | Stage reached | 10 / 10 | Time | 1:18 | Kills | 27 | Level | 4 | Damage taken | 4 | Mods | Corrosive rounds, Double volley, Armor plating, Twin barrel | New run | Tap anywhere for a new run
 PASS | src/game.html 412x904 gpu0 | HUD text not visible through results screen (win) (L-TD-3) | 9 HUD text els: 9 hidden, 0 covered
 PASS | src/game.html 412x904 gpu0 | touch targets >= 56 px (results screen (win)) | 1 targets; min 56 px
 PASS | src/game.html 412x904 gpu0 | one tap on results (win) starts a new run | tapped button#btnRestart.btn "New run": phase play, stage 1, hp 600/600, result null, seed 781 -> 782
-INFO | src/game.html 412x904 gpu0 | lose run stages | 1:combat/R01 2:combat/R02 | 767 steps, events {"lock":7,"fire":12,"hit":12,"kill":5,"unlock":1,"door":1,"pickup":3,"pickup:xp":3,"room":1,"tell":1}
-PASS | src/game.html 412x904 gpu0 | death -> results screen (lose) | S.result {"win":false,"stage":2,"lap":1,"t":13.08,"kills":5,"level":1,"picks":[],"dmgTaken":2428}
+INFO | src/game.html 412x904 gpu0 | lose run stages | 1:combat/R01 2:combat/R02 | 768 steps, events {"lock":7,"fire":12,"hit":12,"kill":5,"unlock":1,"door":1,"pickup":3,"pickup:xp":3,"room":1,"tell":1}
+PASS | src/game.html 412x904 gpu0 | death -> results screen (lose) | S.result {"win":false,"stage":2,"lap":1,"t":13.07,"kills":5,"level":1,"picks":[],"dmgTaken":2428}
 PASS | src/game.html 412x904 gpu0 | results screen (lose) shows result + stats | Operator down | Result | Lost | Stage reached | 2 / 10 | Time | 0:13 | Kills | 5 | Level | 1 | Damage taken | 2428 | Mods | none | New run | Tap anywhere for a new run
 PASS | src/game.html 412x904 gpu0 | HUD text not visible through results screen (lose) (L-TD-3) | 9 HUD text els: 9 hidden, 0 covered
 PASS | src/game.html 412x904 gpu0 | touch targets >= 56 px (results screen (lose)) | 1 targets; min 56 px
@@ -267,12 +267,12 @@ PASS | src/game.html 344x882 offscreen | room fits width under HUD | room 344x57
 PASS | src/game.html 344x882 offscreen | drag start point is below the room | touch y=837, room bottom y=645
 INFO | src/game.html 344x882 offscreen | element under thumb point | canvas#c2d
 PASS | src/game.html 344x882 offscreen | touch arrives as pointer events (pointerType touch) | ["pointerdown:touch","pointerup:touch"]
-PASS | src/game.html 344x882 offscreen | touch drag below the room moves the hero (drag up = north) | hero (4.50,14.50) -> (4.50,9.10) after ~0.7 s hold; moving=true
+PASS | src/game.html 344x882 offscreen | touch drag below the room moves the hero (drag up = north) | hero (4.50,14.50) -> (4.50,8.80) after ~0.7 s hold; moving=true
 PASS | src/game.html 344x882 offscreen | no joystick element at the thumb (DOM) | visible els 19 -> 19
 PASS | src/game.html 344x882 offscreen | no joystick graphic at the thumb (Canvas 2D pixels) | ground patch diff base->hold 0.0%, hold->after 0.0%, base->after 0.0%
 PASS | src/game.html 344x882 offscreen | release = stop | stopped 0.017 s sim after release
-PASS | src/game.html 344x882 offscreen | release braces within ~0.3 s | braced after 0.150 s sim (134 ms real)
-PASS | src/game.html 344x882 offscreen | release fires within ~0.3 s | first shot 0.150 s sim after release (134 ms real); fireCd at hold 0.00
+PASS | src/game.html 344x882 offscreen | release braces within ~0.3 s | braced after 0.150 s sim (150 ms real)
+PASS | src/game.html 344x882 offscreen | release fires within ~0.3 s | first shot 0.150 s sim after release (150 ms real); fireCd at hold 0.00
 PASS | src/game.html 344x882 offscreen | deadzone hysteresis (enter 14 px / exit 8 px from touch-down) | 10px:stop 20px:move 10px:move 5px:stop (want 10:stop 20:move 10:move 5:stop)
 PASS | src/game.html 344x882 offscreen | touchcancel / pointercancel releases | moving while held=true, after cancel=false
 PASS | src/game.html 344x882 offscreen | gear button for the tuning drawer present | button#gear.hb
@@ -281,21 +281,21 @@ PASS | src/game.html 344x882 offscreen | drawer has its own control for every TU
 PASS | src/game.html 344x882 offscreen | drawer buttons Reset / Copy settings / Copy report | all present
 PASS | src/game.html 344x882 offscreen | touch targets >= 56 px (drawer open) | 4 targets; min 56 px
 INFO | src/game.html 344x882 offscreen | drawer slider heights (info, L-TD-4) | min 36 px; 11/11 under 56
-INFO | src/game.html 344x882 offscreen | Copy report (info) | report text 1788 chars via textarea; missing words: none
+INFO | src/game.html 344x882 offscreen | Copy report (info) | report text 1789 chars via textarea; missing words: none
 PASS | src/game.html 344x882 offscreen | drawer closes | 0 sliders still visible
-PASS | src/game.html 344x882 offscreen | hidden tab pauses the sim | frame 533 -> 533 over 0.5 s hidden
+PASS | src/game.html 344x882 offscreen | hidden tab pauses the sim | frame 499 -> 499 over 0.5 s hidden
 PASS | src/game.html 344x882 offscreen | pause card shown | "Paused"
 PASS | src/game.html 344x882 offscreen | HUD text not visible through pause card (L-TD-3) | 9 HUD text els: 9 hidden, 0 covered
 PASS | src/game.html 344x882 offscreen | touch targets >= 56 px (pause card) | 4 targets; min 56 px
-PASS | src/game.html 344x882 offscreen | stays paused after the tab returns (resume by tap, L-LOL-2) | frame 533 -> 533 after visible again
-PASS | src/game.html 344x882 offscreen | no damage during the faked 1 s gap | hp 600 -> 600; frame 533 -> 533
-PASS | src/game.html 344x882 offscreen | tap resumes | frame 533 -> 562 (tapped button#btnResume.btn)
-PASS | src/game.html 344x882 offscreen | no catch-up burst after resume | max sim steps in one rAF after resume: 2; hp 600 -> 600
+PASS | src/game.html 344x882 offscreen | stays paused after the tab returns (resume by tap, L-LOL-2) | frame 499 -> 499 after visible again
+PASS | src/game.html 344x882 offscreen | no damage during the faked 1 s gap | hp 600 -> 600; frame 499 -> 499
+PASS | src/game.html 344x882 offscreen | tap resumes | frame 499 -> 528 (tapped button#btnResume.btn)
+PASS | src/game.html 344x882 offscreen | no catch-up burst after resume | max sim steps in one rAF after resume: 1; hp 600 -> 600
 PASS | src/game.html 344x882 offscreen | faked 1 s rAF gap (visible): steps clamped <= 5 per frame | max steps in one rAF 5; hp change in that frame 0; phase clear
 INFO | src/game.html 344x882 offscreen | hp across visible gap (info) | hp 600 -> 600
-PASS | src/game.html 344x882 offscreen | same seed gives the same run (V.Sim, 600 steps twice) | seed 779: e3783153:205 vs e3783153:205
-INFO | src/game.html 344x882 offscreen | __pv run hash after restart (compared across sessions) | seed 779 hash e3783153:205 frame 600 phase play
-PASS | src/game.html 344x882 offscreen | room clear opens the door | stage 1 R01: door.open=true, kills 3, 206 steps
+PASS | src/game.html 344x882 offscreen | same seed gives the same run (V.Sim, 600 steps twice) | seed 779: 60f8dadc:203 vs 60f8dadc:203
+INFO | src/game.html 344x882 offscreen | __pv run hash after restart (compared across sessions) | seed 779 hash 60f8dadc:203 frame 600 phase play
+PASS | src/game.html 344x882 offscreen | room clear opens the door | stage 1 R01: door.open=true, kills 3, 205 steps
 PASS | src/game.html 344x882 offscreen | walking north through the door loads the next room | stage 1 R01 -> 2 R02
 PASS | src/game.html 344x882 offscreen | card screen shows TUNE.CARDS_OFFERED (3) cards | stage 2 combat: S.cards 3, buttons 3: Corrosive rounds | Rear guard | Incendiary rounds; title "Field upgrade - level 2"
 PASS | src/game.html 344x882 offscreen | HUD text not visible through card screen (L-TD-3) | 9 HUD text els: 9 hidden, 0 covered
@@ -306,24 +306,24 @@ PASS | src/game.html 344x882 offscreen | supply screen offers 2 choices (a mod o
 PASS | src/game.html 344x882 offscreen | supply stage has no enemies | enemies 0
 PASS | src/game.html 344x882 offscreen | HUD text not visible through supply screen (L-TD-3) | 9 HUD text els: 9 hidden, 0 covered
 PASS | src/game.html 344x882 offscreen | touch targets >= 56 px (supply screen) | 2 targets; min 81 px
-PASS | src/game.html 344x882 offscreen | tapping a supply choice applies it | via tap: phase supply -> clear; hp 600 -> 600 / 600 (repair 40% = +240 capped)
+PASS | src/game.html 344x882 offscreen | tapping supply repair restores 40% max HP | via tap: phase supply -> clear; hp 300 -> 540 / 600 (want +240; hp set to 50% by the test first)
 PASS | src/game.html 344x882 offscreen | stage 9 cache chest gives a free card screen | stage 9 cache: S.cards 3, buttons 3: Armor plating | Fire control | Evasion firmware; title "Cache: free field upgrade"
-PASS | src/game.html 344x882 offscreen | cache chest drops 2 repair packs | repair pickups on floor 2, collected so far 0; chest {"x":4.5,"y":2.5,"open":false}
+PASS | src/game.html 344x882 offscreen | cache chest drops 2 repair packs | repair pickups on floor 2, collected so far 1; chest {"x":4.5,"y":2.5,"open":false}
 PASS | src/game.html 344x882 offscreen | cache card screen is labelled as the cache | title "Cache: free field upgrade"
 PASS | src/game.html 344x882 offscreen | HUD text not visible through cache card screen (L-TD-3) | 9 HUD text els: 9 hidden, 0 covered
 PASS | src/game.html 344x882 offscreen | touch targets >= 56 px (cache card screen) | 3 targets; min 64 px
 PASS | src/game.html 344x882 offscreen | tapping a cache card applies it | phase pick -> clear; picks 3 -> 4; mods {"poison":1,"atk":1,"salvage":1} -> {"poison":1,"atk":1,"salvage":1,"armor":1}
-INFO | src/game.html 344x882 offscreen | win run stages | 1:combat/R01 2:combat/R02 3:combat/R01 4:combat/R02 5:supply/SD 6:combat/R03 7:combat/R02 8:combat/R02 9:cache/CA1 10:boss/BA1 | 5044 steps, events {"lock":31,"fire":143,"hit":93,"crit":7,"kill":26,"unlock":13,"door":8,"pickup":27,"pickup:xp":26,"room":9,"levelup":3,"tell":8,"pick":1,"supply":1,"dot":13,"chest":1,"hurt":4,"pickup:repair":1,"boss":1,"bossphase":1,"win":1}
+INFO | src/game.html 344x882 offscreen | win run stages | 1:combat/R01 2:combat/R02 3:combat/R01 4:combat/R02 5:supply/SD 6:combat/R03 7:combat/R02 8:combat/R02 9:cache/CA1 10:boss/BA1 | 5046 steps, events {"lock":31,"fire":142,"hit":95,"crit":7,"kill":26,"unlock":13,"door":8,"pickup":28,"pickup:xp":26,"room":9,"levelup":3,"tell":8,"pick":2,"supply":1,"dot":13,"pickup:repair":2,"chest":1,"hurt":4,"boss":1,"bossphase":1,"win":1}
 PASS | src/game.html 344x882 offscreen | boss at stage 10 | boss "Volley Tower" seen at stage 10:boss/BA1
 PASS | src/game.html 344x882 offscreen | DOM boss bar shows the boss name | span#bossName "Volley Tower" top 81 (room top 72)
 PASS | src/game.html 344x882 offscreen | boss bar sits at the top of the room | bar 81-101, room top 72
-PASS | src/game.html 344x882 offscreen | boss kill -> results screen (win) | S.result {"win":true,"stage":10,"lap":1,"t":87.57,"kills":27,"level":4,"picks":["SK-17","SK-09","SK-27","SK-15"],"dmgTaken":4}
+PASS | src/game.html 344x882 offscreen | boss kill -> results screen (win) | S.result {"win":true,"stage":10,"lap":1,"t":87.58,"kills":27,"level":4,"picks":["SK-17","SK-09","SK-27","SK-15"],"dmgTaken":4}
 PASS | src/game.html 344x882 offscreen | results screen (win) shows result + stats | Chapter 1 clear | Result | Win | Stage reached | 10 / 10 | Time | 1:28 | Kills | 27 | Level | 4 | Damage taken | 4 | Mods | Corrosive rounds, Power cell, Salvage repair, Armor plating | New run | Tap anywhere for a new run
 PASS | src/game.html 344x882 offscreen | HUD text not visible through results screen (win) (L-TD-3) | 9 HUD text els: 9 hidden, 0 covered
 PASS | src/game.html 344x882 offscreen | touch targets >= 56 px (results screen (win)) | 1 targets; min 56 px
 PASS | src/game.html 344x882 offscreen | one tap on results (win) starts a new run | tapped button#btnRestart.btn "New run": phase play, stage 1, hp 600/600, result null, seed 781 -> 782
-INFO | src/game.html 344x882 offscreen | lose run stages | 1:combat/R01 2:combat/R02 | 767 steps, events {"lock":7,"fire":12,"hit":12,"kill":5,"unlock":1,"door":1,"pickup":3,"pickup:xp":3,"room":1,"tell":1}
-PASS | src/game.html 344x882 offscreen | death -> results screen (lose) | S.result {"win":false,"stage":2,"lap":1,"t":13.08,"kills":5,"level":1,"picks":[],"dmgTaken":2428}
+INFO | src/game.html 344x882 offscreen | lose run stages | 1:combat/R01 2:combat/R02 | 768 steps, events {"lock":7,"fire":12,"hit":12,"kill":5,"unlock":1,"door":1,"pickup":3,"pickup:xp":3,"room":1,"tell":1}
+PASS | src/game.html 344x882 offscreen | death -> results screen (lose) | S.result {"win":false,"stage":2,"lap":1,"t":13.1,"kills":5,"level":1,"picks":[],"dmgTaken":2428}
 PASS | src/game.html 344x882 offscreen | results screen (lose) shows result + stats | Operator down | Result | Lost | Stage reached | 2 / 10 | Time | 0:13 | Kills | 5 | Level | 1 | Damage taken | 2428 | Mods | none | New run | Tap anywhere for a new run
 PASS | src/game.html 344x882 offscreen | HUD text not visible through results screen (lose) (L-TD-3) | 9 HUD text els: 9 hidden, 0 covered
 PASS | src/game.html 344x882 offscreen | touch targets >= 56 px (results screen (lose)) | 1 targets; min 56 px
@@ -343,8 +343,8 @@ PASS | src/game.html 1104x884 gpu0 | wide: game in centred portrait column 344:8
 PASS | src/game.html 1104x884 gpu0 | drag start point is below the room | touch y=839, room bottom y=647
 INFO | src/game.html 1104x884 gpu0 | element under thumb point | canvas#c2d
 PASS | src/game.html 1104x884 gpu0 | touch arrives as pointer events (pointerType touch) | ["pointerdown:touch","pointerup:touch"]
-PASS | src/game.html 1104x884 gpu0 | touch drag below the room moves the hero (drag up = north) | hero (4.50,14.50) -> (4.50,9.18) after ~0.7 s hold; moving=true
-FAIL | src/game.html 1104x884 gpu0 | no joystick element at the thumb (DOM) | visible els 20 -> 19; near thumb: div#dmgLayer
+PASS | src/game.html 1104x884 gpu0 | touch drag below the room moves the hero (drag up = north) | hero (4.50,14.50) -> (4.50,9.03) after ~0.7 s hold; moving=true
+PASS | src/game.html 1104x884 gpu0 | no joystick element at the thumb (DOM) | visible els 20 -> 19
 PASS | src/game.html 1104x884 gpu0 | no joystick graphic at the thumb (Canvas 2D pixels) | ground patch diff base->hold 1.0%, hold->after 0.0%, base->after 1.0%
 PASS | src/game.html 1104x884 gpu0 | release = stop | stopped 0.017 s sim after release
 PASS | src/game.html 1104x884 gpu0 | release braces within ~0.3 s | braced after 0.150 s sim (151 ms real)
@@ -353,7 +353,7 @@ PASS | src/game.html 1104x884 gpu0 | 0 console errors during the whole session |
 PASS | src/game.html 1104x884 default | boots with 0 console errors | none
 PASS | src/game.html 1104x884 default | idle 5 s with no tap: 0 console errors | none (kills 1->3, hp 600->600)
 PASS | src/game.html 1104x884 default | ?seed is read | S.seed=777 (url seed 777)
-EXPECTED | src/game.html 1104x884 default | default picks WebGPU (swiftshader flags) | sandbox only: headless SwiftShader loses the device on swapchain present, so it falls back to Canvas 2D (render's gpu-test.js shows the same; ?gpu=offscreen session proves the WebGPU pipeline). M's Fold report 12:11 showed renderer WebGPU, 16.7 ms p95, 0 gaps. trace: create -> ok -> lost unknown "A valid external Instance reference no longer exists." -> create -> ok -> lost destroyed "Device was d
+EXPECTED | src/game.html 1104x884 default | default picks WebGPU (swiftshader flags) | sandbox only: headless SwiftShader loses the device on swapchain present, so it falls back to Canvas 2D (render's gpu-test.js shows the same; ?gpu=offscreen session proves the WebGPU pipeline). M's Fold report 12:11 showed renderer WebGPU, 16.7 ms p95, 0 gaps. trace: create -> ok -> lost destroyed "Device was destroyed."
 PASS | src/game.html 1104x884 default | renderer label text equals __pv.renderer | label "Canvas 2D | 345x884 | dpr 1" vs Canvas 2D
 PASS | src/game.html 1104x884 default | renderer label shows viewport WxH (+dpr) | "Canvas 2D | 345x884 | dpr 1" (window 1104x884, game column 345x884)
 INFO | src/game.html 1104x884 default | HUD text elements (baseline) | div#stageLbl "Stage 1 Open Yard"; b#stNum "1"; span#roomName "Open Yard"; div#lvl "Lv 1"; span "❚❚"; span "⚙"; div#hpTxt "600 / 600"; div#rlbl "Canvas 2D | 345x884 | dp"; div#howto "Drag anywhere to move. L"; div#coverNote "Cover screen build: made"
@@ -364,68 +364,89 @@ PASS | src/game.html 1104x884 default | wide: game in centred portrait column 34
 PASS | src/game.html 1104x884 default | drag start point is below the room | touch y=839, room bottom y=647
 INFO | src/game.html 1104x884 default | element under thumb point | canvas#c2d
 PASS | src/game.html 1104x884 default | touch arrives as pointer events (pointerType touch) | ["pointerdown:touch","pointerup:touch"]
-PASS | src/game.html 1104x884 default | touch drag below the room moves the hero (drag up = north) | hero (4.50,14.50) -> (4.50,9.48) after ~0.7 s hold; moving=true
-FAIL | src/game.html 1104x884 default | no joystick element at the thumb (DOM) | visible els 20 -> 20; near thumb: div#dmgLayer
+PASS | src/game.html 1104x884 default | touch drag below the room moves the hero (drag up = north) | hero (4.50,14.50) -> (4.50,9.63) after ~0.7 s hold; moving=true
+PASS | src/game.html 1104x884 default | no joystick element at the thumb (DOM) | visible els 20 -> 20
 PASS | src/game.html 1104x884 default | no joystick graphic at the thumb (Canvas 2D pixels) | ground patch diff base->hold 0.0%, hold->after 0.0%, base->after 0.0%
 PASS | src/game.html 1104x884 default | release = stop | stopped 0.017 s sim after release
-PASS | src/game.html 1104x884 default | release braces within ~0.3 s | braced after 0.150 s sim (150 ms real)
-PASS | src/game.html 1104x884 default | release fires within ~0.3 s | first shot 0.150 s sim after release (150 ms real); fireCd at hold 0.00
+PASS | src/game.html 1104x884 default | release braces within ~0.3 s | braced after 0.150 s sim (139 ms real)
+PASS | src/game.html 1104x884 default | release fires within ~0.3 s | first shot 0.150 s sim after release (139 ms real); fireCd at hold 0.00
 PASS | src/game.html 1104x884 default | 0 console errors during the whole session | none
+PASS | index.html (built) | built index.html is current with src parts | all parts older than the build
 PASS | index.html (built) 344x882 gpu0 | boots with 0 console errors | none
 PASS | index.html (built) 344x882 gpu0 | idle 5 s with no tap: 0 console errors | none (kills 1->3, hp 600->600)
 PASS | index.html (built) 344x882 gpu0 | ?seed is read | S.seed=777 (url seed 777)
 PASS | index.html (built) 344x882 gpu0 | ?gpu=0 forces Canvas 2D | __pv.renderer=Canvas 2D
 PASS | index.html (built) 344x882 gpu0 | renderer label text equals __pv.renderer | label "Canvas 2D | 344x882 | dpr 1" vs Canvas 2D
 PASS | index.html (built) 344x882 gpu0 | renderer label shows viewport WxH (+dpr) | "Canvas 2D | 344x882 | dpr 1" (window 344x882, game column 344x882)
-INFO | index.html (built) 344x882 gpu0 | HUD text elements (baseline) | div#stageLbl "Stage 1 Open Yard"; b#stNum "1"; span#roomName "Open Yard"; div#lvl "Lv 1"; span "⚙"; div#hpTxt "600 / 600"; div#rlbl "Canvas 2D | 344x882 | dp"
-PASS | index.html (built) 344x882 gpu0 | touch targets >= 56 px (HUD) | 1 targets; min 56 px
+INFO | index.html (built) 344x882 gpu0 | HUD text elements (baseline) | div#stageLbl "Stage 1 Open Yard"; b#stNum "1"; span#roomName "Open Yard"; div#lvl "Lv 1"; span "❚❚"; span "⚙"; div#hpTxt "600 / 600"; div#rlbl "Canvas 2D | 344x882 | dp"; div#howto "Drag anywhere to move. L"
+PASS | index.html (built) 344x882 gpu0 | touch targets >= 56 px (HUD) | 2 targets; min 56 px
 PASS | index.html (built) 344x882 gpu0 | one game canvas visible (unused one hidden) | visible: c2d rect 0,0 344x882
-PASS | index.html (built) 344x882 gpu0 | thumb-safe: hero start row 14 above bottom 15% | view s=38.22 oy=64.0; hero start y=618 vs limit 750
-PASS | index.html (built) 344x882 gpu0 | room fits width under HUD | room 344x573 at oy 64
-PASS | index.html (built) 344x882 gpu0 | drag start point is below the room | touch y=837, room bottom y=637
+PASS | index.html (built) 344x882 gpu0 | thumb-safe: hero start row 14 above bottom 15% | view s=38.22 oy=72.0; hero start y=626 vs limit 750
+PASS | index.html (built) 344x882 gpu0 | room fits width under HUD | room 344x573 at oy 72
+PASS | index.html (built) 344x882 gpu0 | drag start point is below the room | touch y=837, room bottom y=645
 INFO | index.html (built) 344x882 gpu0 | element under thumb point | canvas#c2d
 PASS | index.html (built) 344x882 gpu0 | touch arrives as pointer events (pointerType touch) | ["pointerdown:touch","pointerup:touch"]
-PASS | index.html (built) 344x882 gpu0 | touch drag below the room moves the hero (drag up = north) | hero (4.50,14.50) -> (4.50,9.40) after ~0.7 s hold; moving=true
-PASS | index.html (built) 344x882 gpu0 | no joystick element at the thumb (DOM) | visible els 15 -> 15
+PASS | index.html (built) 344x882 gpu0 | touch drag below the room moves the hero (drag up = north) | hero (4.50,14.50) -> (4.50,9.70) after ~0.7 s hold; moving=true
+PASS | index.html (built) 344x882 gpu0 | no joystick element at the thumb (DOM) | visible els 19 -> 19
 PASS | index.html (built) 344x882 gpu0 | no joystick graphic at the thumb (Canvas 2D pixels) | ground patch diff base->hold 0.0%, hold->after 0.0%, base->after 0.0%
 PASS | index.html (built) 344x882 gpu0 | release = stop | stopped 0.017 s sim after release
-PASS | index.html (built) 344x882 gpu0 | release braces within ~0.3 s | braced after 0.150 s sim (150 ms real)
-PASS | index.html (built) 344x882 gpu0 | release fires within ~0.3 s | first shot 0.150 s sim after release (150 ms real); fireCd at hold 0.00
+PASS | index.html (built) 344x882 gpu0 | release braces within ~0.3 s | braced after 0.150 s sim (149 ms real)
+PASS | index.html (built) 344x882 gpu0 | release fires within ~0.3 s | first shot 0.150 s sim after release (149 ms real); fireCd at hold 0.00
 PASS | index.html (built) 344x882 gpu0 | deadzone hysteresis (enter 14 px / exit 8 px from touch-down) | 10px:stop 20px:move 10px:move 5px:stop (want 10:stop 20:move 10:move 5:stop)
 PASS | index.html (built) 344x882 gpu0 | touchcancel / pointercancel releases | moving while held=true, after cancel=false
-PASS | index.html (built) 344x882 gpu0 | gear button for the tuning drawer present | button#gear
+PASS | index.html (built) 344x882 gpu0 | gear button for the tuning drawer present | button#gear.hb
 PASS | index.html (built) 344x882 gpu0 | tuning drawer opens with sliders | 11 visible sliders
-PASS | index.html (built) 344x882 gpu0 | drawer has its own control for every TUNE knob | 30 knobs, 30 distinct controls (28 inputs)
+PASS | index.html (built) 344x882 gpu0 | drawer has its own control for every TUNE knob | 33 knobs, 33 distinct controls (29 inputs)
 PASS | index.html (built) 344x882 gpu0 | drawer buttons Reset / Copy settings / Copy report | all present
 PASS | index.html (built) 344x882 gpu0 | touch targets >= 56 px (drawer open) | 4 targets; min 56 px
 INFO | index.html (built) 344x882 gpu0 | drawer slider heights (info, L-TD-4) | min 36 px; 11/11 under 56
-INFO | index.html (built) 344x882 gpu0 | Copy report (info) | report text 1601 chars via textarea; missing words: none
+INFO | index.html (built) 344x882 gpu0 | Copy report (info) | report text 1791 chars via textarea; missing words: none
 PASS | index.html (built) 344x882 gpu0 | drawer closes | 0 sliders still visible
-PASS | index.html (built) 344x882 gpu0 | hidden tab pauses the sim | frame 474 -> 474 over 0.5 s hidden
+PASS | index.html (built) 344x882 gpu0 | hidden tab pauses the sim | frame 470 -> 470 over 0.5 s hidden
 PASS | index.html (built) 344x882 gpu0 | pause card shown | "Paused"
-PASS | index.html (built) 344x882 gpu0 | HUD text not visible through pause card (L-TD-3) | 7 HUD text els: 7 hidden, 0 covered
-PASS | index.html (built) 344x882 gpu0 | touch targets >= 56 px (pause card) | 1 targets; min 56 px
-PASS | index.html (built) 344x882 gpu0 | stays paused after the tab returns (resume by tap, L-LOL-2) | frame 474 -> 474 after visible again
-PASS | index.html (built) 344x882 gpu0 | no damage during the faked 1 s gap | hp 420 -> 420; frame 474 -> 474
-PASS | index.html (built) 344x882 gpu0 | tap resumes | frame 474 -> 506 (tapped button#btnResume.btn)
-PASS | index.html (built) 344x882 gpu0 | no catch-up burst after resume | max sim steps in one rAF after resume: 2; hp 420 -> 420
+PASS | index.html (built) 344x882 gpu0 | HUD text not visible through pause card (L-TD-3) | 9 HUD text els: 9 hidden, 0 covered
+PASS | index.html (built) 344x882 gpu0 | touch targets >= 56 px (pause card) | 4 targets; min 56 px
+PASS | index.html (built) 344x882 gpu0 | stays paused after the tab returns (resume by tap, L-LOL-2) | frame 470 -> 470 after visible again
+PASS | index.html (built) 344x882 gpu0 | no damage during the faked 1 s gap | hp 600 -> 600; frame 470 -> 470
+PASS | index.html (built) 344x882 gpu0 | tap resumes | frame 470 -> 499 (tapped button#btnResume.btn)
+PASS | index.html (built) 344x882 gpu0 | no catch-up burst after resume | max sim steps in one rAF after resume: 2; hp 600 -> 600
 PASS | index.html (built) 344x882 gpu0 | faked 1 s rAF gap (visible): steps clamped <= 5 per frame | max steps in one rAF 5; hp change in that frame 0; phase clear
-INFO | index.html (built) 344x882 gpu0 | hp across visible gap (info) | hp 420 -> 420
-PASS | index.html (built) 344x882 gpu0 | same seed gives the same run (V.Sim, 600 steps twice) | seed 779: 1a38fe81:149 vs 1a38fe81:149
-INFO | index.html (built) 344x882 gpu0 | __pv run hash after restart (compared across sessions) | seed 779 hash 1a38fe81:149 frame 600 phase clear
-PASS | index.html (built) 344x882 gpu0 | room clear opens the door | stage 1 R01: door.open=true, kills 3, 174 steps
+INFO | index.html (built) 344x882 gpu0 | hp across visible gap (info) | hp 600 -> 600
+PASS | index.html (built) 344x882 gpu0 | same seed gives the same run (V.Sim, 600 steps twice) | seed 779: 60f8dadc:203 vs 60f8dadc:203
+INFO | index.html (built) 344x882 gpu0 | __pv run hash after restart (compared across sessions) | seed 779 hash 60f8dadc:203 frame 600 phase play
+PASS | index.html (built) 344x882 gpu0 | room clear opens the door | stage 1 R01: door.open=true, kills 3, 206 steps
 PASS | index.html (built) 344x882 gpu0 | walking north through the door loads the next room | stage 1 R01 -> 2 R02
-PASS | index.html (built) 344x882 gpu0 | card screen shows TUNE.CARDS_OFFERED (2) cards | stage 2 : S.cards 2, buttons 2: Diagonal Rounds | Fire Control; title "Field upgrade - level 2"
-PASS | index.html (built) 344x882 gpu0 | HUD text not visible through card screen (L-TD-3) | 7 HUD text els: 7 hidden, 0 covered
-PASS | index.html (built) 344x882 gpu0 | touch targets >= 56 px (card screen) | 2 targets; min 84 px
-PASS | index.html (built) 344x882 gpu0 | tapping a card applies it | phase pick -> clear; picks 0 -> 1; mods {} -> {"diag":1}
-INFO | index.html (built) 344x882 gpu0 | win run stages | 1:-/R01 2:-/R02 3:-/R03 4:-/R01 5:-/R02 6:-/R03 7:-/R01 8:-/R02 9:-/R03 10:-/R01 11:-/R02 12:-/R03 13:-/R01 | 6938 steps, events {"lock":47,"fire":125,"hit":97,"crit":6,"kill":35,"unlock":22,"door":11,"pickup":35,"pickup:xp":35,"room":12,"tell":7,"levelup":3,"hurt":2}
-FAIL | index.html (built) 344x882 gpu0 | supply drop screen at stage 5 | never reached in the run (last stage 13 phase play); chest null
-FAIL | index.html (built) 344x882 gpu0 | stage 9 cache chest gives a free card screen | never reached in the run (last stage 13 phase play); chest null
-FAIL | index.html (built) 344x882 gpu0 | stage 10 boss appears | never reached in the run (last stage 13 phase play); chest null
-FAIL | index.html (built) 344x882 gpu0 | boss kill -> results screen (win) | phase play at stage 13 R01, hp 598/600, boss null after 6938 steps
-INFO | index.html (built) 344x882 gpu0 | lose run stages | 1:-/R01 2:-/R02 | 908 steps, events {"lock":6,"fire":12,"hit":11,"kill":5,"tell":2,"unlock":1,"door":1,"pickup":2,"pickup:xp":2,"room":1,"hurt":1,"death":1}
-FAIL | index.html (built) 344x882 gpu0 | death -> results screen (lose) | phase dead at stage 2 R02, hp 0/600, boss null after 908 steps
+PASS | index.html (built) 344x882 gpu0 | card screen shows TUNE.CARDS_OFFERED (3) cards | stage 2 combat: S.cards 3, buttons 3: Corrosive rounds | Rear guard | Incendiary rounds; title "Field upgrade - level 2"
+PASS | index.html (built) 344x882 gpu0 | HUD text not visible through card screen (L-TD-3) | 9 HUD text els: 9 hidden, 0 covered
+PASS | index.html (built) 344x882 gpu0 | touch targets >= 56 px (card screen) | 3 targets; min 64 px
+PASS | index.html (built) 344x882 gpu0 | tapping a card applies it | phase pick -> clear; picks 0 -> 1; mods {} -> {"poison":1}
+PASS | index.html (built) 344x882 gpu0 | supply drop is stage 5 | stage 5 kind supply room SD
+PASS | index.html (built) 344x882 gpu0 | supply screen offers 2 choices (a mod or repair 40%) | S.supply ["mod","repair"]; buttons 2: »︎Supply modTrigger tuneAttack speed +12 | ✚︎RepairField repairRestore 40% of max H
+PASS | index.html (built) 344x882 gpu0 | supply stage has no enemies | enemies 0
+PASS | index.html (built) 344x882 gpu0 | HUD text not visible through supply screen (L-TD-3) | 9 HUD text els: 9 hidden, 0 covered
+PASS | index.html (built) 344x882 gpu0 | touch targets >= 56 px (supply screen) | 2 targets; min 81 px
+PASS | index.html (built) 344x882 gpu0 | tapping supply repair restores 40% max HP | via tap: phase supply -> clear; hp 300 -> 540 / 600 (want +240; hp set to 50% by the test first)
+PASS | index.html (built) 344x882 gpu0 | stage 9 cache chest gives a free card screen | stage 9 cache: S.cards 3, buttons 3: Armor plating | Fire control | Evasion firmware; title "Cache: free field upgrade"
+PASS | index.html (built) 344x882 gpu0 | cache chest drops 2 repair packs | repair pickups on floor 2, collected so far 1; chest {"x":4.5,"y":2.5,"open":false}
+PASS | index.html (built) 344x882 gpu0 | cache card screen is labelled as the cache | title "Cache: free field upgrade"
+PASS | index.html (built) 344x882 gpu0 | HUD text not visible through cache card screen (L-TD-3) | 9 HUD text els: 9 hidden, 0 covered
+PASS | index.html (built) 344x882 gpu0 | touch targets >= 56 px (cache card screen) | 3 targets; min 64 px
+PASS | index.html (built) 344x882 gpu0 | tapping a cache card applies it | phase pick -> clear; picks 3 -> 4; mods {"poison":1,"atk":1,"salvage":1} -> {"poison":1,"atk":1,"salvage":1,"armor":1}
+INFO | index.html (built) 344x882 gpu0 | win run stages | 1:combat/R01 2:combat/R02 3:combat/R01 4:combat/R02 5:supply/SD 6:combat/R03 7:combat/R02 8:combat/R02 9:cache/CA1 10:boss/BA1 | 5046 steps, events {"lock":31,"fire":143,"hit":95,"crit":7,"kill":26,"unlock":13,"door":8,"pickup":28,"pickup:xp":26,"room":9,"levelup":3,"tell":8,"pick":2,"supply":1,"dot":13,"pickup:repair":2,"chest":1,"hurt":4,"boss":1,"bossphase":1,"win":1}
+PASS | index.html (built) 344x882 gpu0 | boss at stage 10 | boss "Volley Tower" seen at stage 10:boss/BA1
+PASS | index.html (built) 344x882 gpu0 | DOM boss bar shows the boss name | span#bossName "Volley Tower" top 81 (room top 72)
+PASS | index.html (built) 344x882 gpu0 | boss bar sits at the top of the room | bar 81-101, room top 72
+PASS | index.html (built) 344x882 gpu0 | boss kill -> results screen (win) | S.result {"win":true,"stage":10,"lap":1,"t":87.52,"kills":27,"level":4,"picks":["SK-17","SK-09","SK-27","SK-15"],"dmgTaken":4}
+PASS | index.html (built) 344x882 gpu0 | results screen (win) shows result + stats | Chapter 1 clear | Result | Win | Stage reached | 10 / 10 | Time | 1:28 | Kills | 27 | Level | 4 | Damage taken | 4 | Mods | Corrosive rounds, Power cell, Salvage repair, Armor plating | New run | Tap anywhere for a new run
+PASS | index.html (built) 344x882 gpu0 | HUD text not visible through results screen (win) (L-TD-3) | 9 HUD text els: 9 hidden, 0 covered
+PASS | index.html (built) 344x882 gpu0 | touch targets >= 56 px (results screen (win)) | 1 targets; min 56 px
+PASS | index.html (built) 344x882 gpu0 | one tap on results (win) starts a new run | tapped button#btnRestart.btn "New run": phase play, stage 1, hp 600/600, result null, seed 781 -> 782
+INFO | index.html (built) 344x882 gpu0 | lose run stages | 1:combat/R01 2:combat/R02 | 768 steps, events {"lock":7,"fire":12,"hit":12,"kill":5,"unlock":1,"door":1,"pickup":3,"pickup:xp":3,"room":1,"tell":1}
+PASS | index.html (built) 344x882 gpu0 | death -> results screen (lose) | S.result {"win":false,"stage":2,"lap":1,"t":13.07,"kills":5,"level":1,"picks":[],"dmgTaken":2428}
+PASS | index.html (built) 344x882 gpu0 | results screen (lose) shows result + stats | Operator down | Result | Lost | Stage reached | 2 / 10 | Time | 0:13 | Kills | 5 | Level | 1 | Damage taken | 2428 | Mods | none | New run | Tap anywhere for a new run
+PASS | index.html (built) 344x882 gpu0 | HUD text not visible through results screen (lose) (L-TD-3) | 9 HUD text els: 9 hidden, 0 covered
+PASS | index.html (built) 344x882 gpu0 | touch targets >= 56 px (results screen (lose)) | 1 targets; min 56 px
+PASS | index.html (built) 344x882 gpu0 | one tap on results (lose) starts a new run | tapped button#btnRestart.btn "New run": phase play, stage 1, hp 600/600, result null, seed 783 -> 784
 PASS | index.html (built) 344x882 gpu0 | 0 console errors during the whole session | none
 PASS | index.html (built) 344x882 default | boots with 0 console errors | none
 PASS | index.html (built) 344x882 default | idle 5 s with no tap: 0 console errors | none (kills 1->3, hp 600->600)
@@ -433,55 +454,75 @@ PASS | index.html (built) 344x882 default | ?seed is read | S.seed=777 (url seed
 EXPECTED | index.html (built) 344x882 default | default picks WebGPU (swiftshader flags) | sandbox only: headless SwiftShader loses the device on swapchain present, so it falls back to Canvas 2D (render's gpu-test.js shows the same; ?gpu=offscreen session proves the WebGPU pipeline). M's Fold report 12:11 showed renderer WebGPU, 16.7 ms p95, 0 gaps. trace: create -> ok -> lost destroyed "Device was destroyed."
 PASS | index.html (built) 344x882 default | renderer label text equals __pv.renderer | label "Canvas 2D | 344x882 | dpr 1" vs Canvas 2D
 PASS | index.html (built) 344x882 default | renderer label shows viewport WxH (+dpr) | "Canvas 2D | 344x882 | dpr 1" (window 344x882, game column 344x882)
-INFO | index.html (built) 344x882 default | HUD text elements (baseline) | div#stageLbl "Stage 1 Open Yard"; b#stNum "1"; span#roomName "Open Yard"; div#lvl "Lv 1"; span "⚙"; div#hpTxt "600 / 600"; div#rlbl "Canvas 2D | 344x882 | dp"
-PASS | index.html (built) 344x882 default | touch targets >= 56 px (HUD) | 1 targets; min 56 px
+INFO | index.html (built) 344x882 default | HUD text elements (baseline) | div#stageLbl "Stage 1 Open Yard"; b#stNum "1"; span#roomName "Open Yard"; div#lvl "Lv 1"; span "❚❚"; span "⚙"; div#hpTxt "600 / 600"; div#rlbl "Canvas 2D | 344x882 | dp"; div#howto "Drag anywhere to move. L"
+PASS | index.html (built) 344x882 default | touch targets >= 56 px (HUD) | 2 targets; min 56 px
 PASS | index.html (built) 344x882 default | one game canvas visible (unused one hidden) | visible: c2d rect 0,0 344x882
-PASS | index.html (built) 344x882 default | thumb-safe: hero start row 14 above bottom 15% | view s=38.22 oy=64.0; hero start y=618 vs limit 750
-PASS | index.html (built) 344x882 default | room fits width under HUD | room 344x573 at oy 64
-PASS | index.html (built) 344x882 default | drag start point is below the room | touch y=837, room bottom y=637
+PASS | index.html (built) 344x882 default | thumb-safe: hero start row 14 above bottom 15% | view s=38.22 oy=72.0; hero start y=626 vs limit 750
+PASS | index.html (built) 344x882 default | room fits width under HUD | room 344x573 at oy 72
+PASS | index.html (built) 344x882 default | drag start point is below the room | touch y=837, room bottom y=645
 INFO | index.html (built) 344x882 default | element under thumb point | canvas#c2d
 PASS | index.html (built) 344x882 default | touch arrives as pointer events (pointerType touch) | ["pointerdown:touch","pointerup:touch"]
-PASS | index.html (built) 344x882 default | touch drag below the room moves the hero (drag up = north) | hero (4.50,14.50) -> (4.50,9.85) after ~0.7 s hold; moving=true
-PASS | index.html (built) 344x882 default | no joystick element at the thumb (DOM) | visible els 15 -> 15
+PASS | index.html (built) 344x882 default | touch drag below the room moves the hero (drag up = north) | hero (4.50,14.50) -> (4.50,9.63) after ~0.7 s hold; moving=true
+PASS | index.html (built) 344x882 default | no joystick element at the thumb (DOM) | visible els 19 -> 19
 PASS | index.html (built) 344x882 default | no joystick graphic at the thumb (Canvas 2D pixels) | ground patch diff base->hold 0.0%, hold->after 0.0%, base->after 0.0%
-PASS | index.html (built) 344x882 default | release = stop | stopped 0.017 s sim after release
-PASS | index.html (built) 344x882 default | release braces within ~0.3 s | braced after 0.150 s sim (150 ms real)
-PASS | index.html (built) 344x882 default | release fires within ~0.3 s | first shot 0.150 s sim after release (150 ms real); fireCd at hold 0.00
+PASS | index.html (built) 344x882 default | release = stop | stopped 0.033 s sim after release
+PASS | index.html (built) 344x882 default | release braces within ~0.3 s | braced after 0.150 s sim (166 ms real)
+PASS | index.html (built) 344x882 default | release fires within ~0.3 s | first shot 0.150 s sim after release (166 ms real); fireCd at hold 0.00
 PASS | index.html (built) 344x882 default | deadzone hysteresis (enter 14 px / exit 8 px from touch-down) | 10px:stop 20px:move 10px:move 5px:stop (want 10:stop 20:move 10:move 5:stop)
 PASS | index.html (built) 344x882 default | touchcancel / pointercancel releases | moving while held=true, after cancel=false
-PASS | index.html (built) 344x882 default | gear button for the tuning drawer present | button#gear
+PASS | index.html (built) 344x882 default | gear button for the tuning drawer present | button#gear.hb
 PASS | index.html (built) 344x882 default | tuning drawer opens with sliders | 11 visible sliders
-PASS | index.html (built) 344x882 default | drawer has its own control for every TUNE knob | 30 knobs, 30 distinct controls (28 inputs)
+PASS | index.html (built) 344x882 default | drawer has its own control for every TUNE knob | 33 knobs, 33 distinct controls (29 inputs)
 PASS | index.html (built) 344x882 default | drawer buttons Reset / Copy settings / Copy report | all present
 PASS | index.html (built) 344x882 default | touch targets >= 56 px (drawer open) | 4 targets; min 56 px
 INFO | index.html (built) 344x882 default | drawer slider heights (info, L-TD-4) | min 36 px; 11/11 under 56
-INFO | index.html (built) 344x882 default | Copy report (info) | report text 1619 chars via textarea; missing words: none
+INFO | index.html (built) 344x882 default | Copy report (info) | report text 1808 chars via textarea; missing words: none
 PASS | index.html (built) 344x882 default | drawer closes | 0 sliders still visible
-PASS | index.html (built) 344x882 default | hidden tab pauses the sim | frame 482 -> 482 over 0.5 s hidden
+PASS | index.html (built) 344x882 default | hidden tab pauses the sim | frame 483 -> 483 over 0.5 s hidden
 PASS | index.html (built) 344x882 default | pause card shown | "Paused"
-PASS | index.html (built) 344x882 default | HUD text not visible through pause card (L-TD-3) | 7 HUD text els: 7 hidden, 0 covered
-PASS | index.html (built) 344x882 default | touch targets >= 56 px (pause card) | 1 targets; min 56 px
-PASS | index.html (built) 344x882 default | stays paused after the tab returns (resume by tap, L-LOL-2) | frame 482 -> 482 after visible again
-PASS | index.html (built) 344x882 default | no damage during the faked 1 s gap | hp 420 -> 420; frame 482 -> 482
-PASS | index.html (built) 344x882 default | tap resumes | frame 482 -> 511 (tapped button#btnResume.btn)
-PASS | index.html (built) 344x882 default | no catch-up burst after resume | max sim steps in one rAF after resume: 2; hp 420 -> 420
+PASS | index.html (built) 344x882 default | HUD text not visible through pause card (L-TD-3) | 9 HUD text els: 9 hidden, 0 covered
+PASS | index.html (built) 344x882 default | touch targets >= 56 px (pause card) | 4 targets; min 56 px
+PASS | index.html (built) 344x882 default | stays paused after the tab returns (resume by tap, L-LOL-2) | frame 483 -> 483 after visible again
+PASS | index.html (built) 344x882 default | no damage during the faked 1 s gap | hp 600 -> 600; frame 482 -> 483
+PASS | index.html (built) 344x882 default | tap resumes | frame 483 -> 512 (tapped button#btnResume.btn)
+PASS | index.html (built) 344x882 default | no catch-up burst after resume | max sim steps in one rAF after resume: 1; hp 600 -> 600
 PASS | index.html (built) 344x882 default | faked 1 s rAF gap (visible): steps clamped <= 5 per frame | max steps in one rAF 5; hp change in that frame 0; phase clear
-INFO | index.html (built) 344x882 default | hp across visible gap (info) | hp 420 -> 420
-PASS | index.html (built) 344x882 default | same seed gives the same run (V.Sim, 600 steps twice) | seed 779: 1a38fe81:149 vs 1a38fe81:149
-INFO | index.html (built) 344x882 default | __pv run hash after restart (compared across sessions) | seed 779 hash 1a38fe81:149 frame 600 phase clear
-PASS | index.html (built) 344x882 default | room clear opens the door | stage 1 R01: door.open=true, kills 3, 175 steps
+INFO | index.html (built) 344x882 default | hp across visible gap (info) | hp 600 -> 600
+PASS | index.html (built) 344x882 default | same seed gives the same run (V.Sim, 600 steps twice) | seed 779: 60f8dadc:203 vs 60f8dadc:203
+INFO | index.html (built) 344x882 default | __pv run hash after restart (compared across sessions) | seed 779 hash 60f8dadc:203 frame 600 phase play
+PASS | index.html (built) 344x882 default | room clear opens the door | stage 1 R01: door.open=true, kills 3, 206 steps
 PASS | index.html (built) 344x882 default | walking north through the door loads the next room | stage 1 R01 -> 2 R02
-PASS | index.html (built) 344x882 default | card screen shows TUNE.CARDS_OFFERED (2) cards | stage 2 : S.cards 2, buttons 2: Diagonal Rounds | Fire Control; title "Field upgrade - level 2"
-PASS | index.html (built) 344x882 default | HUD text not visible through card screen (L-TD-3) | 7 HUD text els: 7 hidden, 0 covered
-PASS | index.html (built) 344x882 default | touch targets >= 56 px (card screen) | 2 targets; min 84 px
-PASS | index.html (built) 344x882 default | tapping a card applies it | phase pick -> clear; picks 0 -> 1; mods {} -> {"diag":1}
-INFO | index.html (built) 344x882 default | win run stages | 1:-/R01 2:-/R02 3:-/R03 4:-/R01 5:-/R02 6:-/R03 7:-/R01 8:-/R02 9:-/R03 10:-/R01 11:-/R02 12:-/R03 13:-/R01 | 6932 steps, events {"lock":47,"fire":133,"hit":100,"crit":7,"kill":35,"unlock":22,"door":11,"pickup":35,"pickup:xp":35,"room":12,"tell":8,"levelup":3,"hurt":2}
-FAIL | index.html (built) 344x882 default | supply drop screen at stage 5 | never reached in the run (last stage 13 phase play); chest null
-FAIL | index.html (built) 344x882 default | stage 9 cache chest gives a free card screen | never reached in the run (last stage 13 phase play); chest null
-FAIL | index.html (built) 344x882 default | stage 10 boss appears | never reached in the run (last stage 13 phase play); chest null
-FAIL | index.html (built) 344x882 default | boss kill -> results screen (win) | phase play at stage 13 R01, hp 598/600, boss null after 6932 steps
-INFO | index.html (built) 344x882 default | lose run stages | 1:-/R01 2:-/R02 | 906 steps, events {"lock":6,"fire":12,"hit":11,"kill":5,"tell":2,"unlock":1,"door":1,"pickup":2,"pickup:xp":2,"room":1,"hurt":1,"death":1}
-FAIL | index.html (built) 344x882 default | death -> results screen (lose) | phase dead at stage 2 R02, hp 0/600, boss null after 906 steps
+PASS | index.html (built) 344x882 default | card screen shows TUNE.CARDS_OFFERED (3) cards | stage 2 combat: S.cards 3, buttons 3: Corrosive rounds | Rear guard | Incendiary rounds; title "Field upgrade - level 2"
+PASS | index.html (built) 344x882 default | HUD text not visible through card screen (L-TD-3) | 9 HUD text els: 9 hidden, 0 covered
+PASS | index.html (built) 344x882 default | touch targets >= 56 px (card screen) | 3 targets; min 64 px
+PASS | index.html (built) 344x882 default | tapping a card applies it | phase pick -> clear; picks 0 -> 1; mods {} -> {"poison":1}
+PASS | index.html (built) 344x882 default | supply drop is stage 5 | stage 5 kind supply room SD
+PASS | index.html (built) 344x882 default | supply screen offers 2 choices (a mod or repair 40%) | S.supply ["mod","repair"]; buttons 2: »︎Supply modTrigger tuneAttack speed +12 | ✚︎RepairField repairRestore 40% of max H
+PASS | index.html (built) 344x882 default | supply stage has no enemies | enemies 0
+PASS | index.html (built) 344x882 default | HUD text not visible through supply screen (L-TD-3) | 9 HUD text els: 9 hidden, 0 covered
+PASS | index.html (built) 344x882 default | touch targets >= 56 px (supply screen) | 2 targets; min 81 px
+PASS | index.html (built) 344x882 default | tapping supply repair restores 40% max HP | via tap: phase supply -> clear; hp 300 -> 540 / 600 (want +240; hp set to 50% by the test first)
+PASS | index.html (built) 344x882 default | stage 9 cache chest gives a free card screen | stage 9 cache: S.cards 3, buttons 3: Armor plating | Fire control | Evasion firmware; title "Cache: free field upgrade"
+PASS | index.html (built) 344x882 default | cache chest drops 2 repair packs | repair pickups on floor 2, collected so far 1; chest {"x":4.5,"y":2.5,"open":false}
+PASS | index.html (built) 344x882 default | cache card screen is labelled as the cache | title "Cache: free field upgrade"
+PASS | index.html (built) 344x882 default | HUD text not visible through cache card screen (L-TD-3) | 9 HUD text els: 9 hidden, 0 covered
+PASS | index.html (built) 344x882 default | touch targets >= 56 px (cache card screen) | 3 targets; min 64 px
+PASS | index.html (built) 344x882 default | tapping a cache card applies it | phase pick -> clear; picks 3 -> 4; mods {"poison":1,"atk":1,"salvage":1} -> {"poison":1,"atk":1,"salvage":1,"armor":1}
+INFO | index.html (built) 344x882 default | win run stages | 1:combat/R01 2:combat/R02 3:combat/R01 4:combat/R02 5:supply/SD 6:combat/R03 7:combat/R02 8:combat/R02 9:cache/CA1 10:boss/BA1 | 5051 steps, events {"lock":31,"fire":141,"hit":95,"crit":7,"kill":26,"unlock":13,"door":8,"pickup":28,"pickup:xp":26,"room":9,"levelup":3,"tell":8,"supply":1,"dot":13,"pickup:repair":2,"chest":1,"hurt":4,"boss":1,"bossphase":1,"win":1}
+PASS | index.html (built) 344x882 default | boss at stage 10 | boss "Volley Tower" seen at stage 10:boss/BA1
+PASS | index.html (built) 344x882 default | DOM boss bar shows the boss name | span#bossName "Volley Tower" top 81 (room top 72)
+PASS | index.html (built) 344x882 default | boss bar sits at the top of the room | bar 81-101, room top 72
+PASS | index.html (built) 344x882 default | boss kill -> results screen (win) | S.result {"win":true,"stage":10,"lap":1,"t":87.5,"kills":27,"level":4,"picks":["SK-17","SK-09","SK-27","SK-15"],"dmgTaken":4}
+PASS | index.html (built) 344x882 default | results screen (win) shows result + stats | Chapter 1 clear | Result | Win | Stage reached | 10 / 10 | Time | 1:28 | Kills | 27 | Level | 4 | Damage taken | 4 | Mods | Corrosive rounds, Power cell, Salvage repair, Armor plating | New run | Tap anywhere for a new run
+PASS | index.html (built) 344x882 default | HUD text not visible through results screen (win) (L-TD-3) | 9 HUD text els: 9 hidden, 0 covered
+PASS | index.html (built) 344x882 default | touch targets >= 56 px (results screen (win)) | 1 targets; min 56 px
+PASS | index.html (built) 344x882 default | one tap on results (win) starts a new run | tapped button#btnRestart.btn "New run": phase play, stage 1, hp 600/600, result null, seed 781 -> 782
+INFO | index.html (built) 344x882 default | lose run stages | 1:combat/R01 2:combat/R02 | 769 steps, events {"lock":7,"fire":12,"hit":12,"kill":5,"unlock":1,"door":1,"pickup":3,"pickup:xp":3,"room":1,"tell":1,"hurt":1,"death":1}
+PASS | index.html (built) 344x882 default | death -> results screen (lose) | S.result {"win":false,"stage":2,"lap":1,"t":13.08,"kills":5,"level":1,"picks":[],"dmgTaken":2428}
+PASS | index.html (built) 344x882 default | results screen (lose) shows result + stats | Operator down | Result | Lost | Stage reached | 2 / 10 | Time | 0:13 | Kills | 5 | Level | 1 | Damage taken | 2428 | Mods | none | New run | Tap anywhere for a new run
+PASS | index.html (built) 344x882 default | HUD text not visible through results screen (lose) (L-TD-3) | 9 HUD text els: 9 hidden, 0 covered
+PASS | index.html (built) 344x882 default | touch targets >= 56 px (results screen (lose)) | 1 targets; min 56 px
+PASS | index.html (built) 344x882 default | one tap on results (lose) starts a new run | tapped button#btnRestart.btn "New run": phase play, stage 1, hp 600/600, result null, seed 783 -> 784
 PASS | index.html (built) 344x882 default | 0 console errors during the whole session | none
 PASS | index.html (built) 412x904 gpu0 | boots with 0 console errors | none
 PASS | index.html (built) 412x904 gpu0 | idle 5 s with no tap: 0 console errors | none (kills 1->3, hp 600->600)
@@ -489,124 +530,164 @@ PASS | index.html (built) 412x904 gpu0 | ?seed is read | S.seed=777 (url seed 77
 PASS | index.html (built) 412x904 gpu0 | ?gpu=0 forces Canvas 2D | __pv.renderer=Canvas 2D
 PASS | index.html (built) 412x904 gpu0 | renderer label text equals __pv.renderer | label "Canvas 2D | 412x904 | dpr 1" vs Canvas 2D
 PASS | index.html (built) 412x904 gpu0 | renderer label shows viewport WxH (+dpr) | "Canvas 2D | 412x904 | dpr 1" (window 412x904, game column 412x904)
-INFO | index.html (built) 412x904 gpu0 | HUD text elements (baseline) | div#stageLbl "Stage 1 Open Yard"; b#stNum "1"; span#roomName "Open Yard"; div#lvl "Lv 1"; span "⚙"; div#hpTxt "600 / 600"; div#rlbl "Canvas 2D | 412x904 | dp"
-PASS | index.html (built) 412x904 gpu0 | touch targets >= 56 px (HUD) | 1 targets; min 56 px
+INFO | index.html (built) 412x904 gpu0 | HUD text elements (baseline) | div#stageLbl "Stage 1 Open Yard"; b#stNum "1"; span#roomName "Open Yard"; div#lvl "Lv 1"; span "❚❚"; span "⚙"; div#hpTxt "600 / 600"; div#rlbl "Canvas 2D | 412x904 | dp"; div#howto "Drag anywhere to move. L"
+PASS | index.html (built) 412x904 gpu0 | touch targets >= 56 px (HUD) | 2 targets; min 56 px
 PASS | index.html (built) 412x904 gpu0 | one game canvas visible (unused one hidden) | visible: c2d rect 0,0 412x904
-PASS | index.html (built) 412x904 gpu0 | thumb-safe: hero start row 14 above bottom 15% | view s=45.78 oy=64.0; hero start y=728 vs limit 768
-PASS | index.html (built) 412x904 gpu0 | room fits width under HUD | room 412x687 at oy 64
-PASS | index.html (built) 412x904 gpu0 | drag start point is below the room | touch y=859, room bottom y=751
+PASS | index.html (built) 412x904 gpu0 | thumb-safe: hero start row 14 above bottom 15% | view s=45.78 oy=72.0; hero start y=736 vs limit 768
+PASS | index.html (built) 412x904 gpu0 | room fits width under HUD | room 412x687 at oy 72
+PASS | index.html (built) 412x904 gpu0 | drag start point is below the room | touch y=859, room bottom y=759
 INFO | index.html (built) 412x904 gpu0 | element under thumb point | canvas#c2d
 PASS | index.html (built) 412x904 gpu0 | touch arrives as pointer events (pointerType touch) | ["pointerdown:touch","pointerup:touch"]
-PASS | index.html (built) 412x904 gpu0 | touch drag below the room moves the hero (drag up = north) | hero (4.50,14.50) -> (4.50,9.40) after ~0.7 s hold; moving=true
-PASS | index.html (built) 412x904 gpu0 | no joystick element at the thumb (DOM) | visible els 15 -> 15
-PASS | index.html (built) 412x904 gpu0 | no joystick graphic at the thumb (Canvas 2D pixels) | ground patch diff base->hold 0.0%, hold->after 0.0%, base->after 0.0%
-PASS | index.html (built) 412x904 gpu0 | release = stop | stopped 0.017 s sim after release
-PASS | index.html (built) 412x904 gpu0 | release braces within ~0.3 s | braced after 0.150 s sim (150 ms real)
-PASS | index.html (built) 412x904 gpu0 | release fires within ~0.3 s | first shot 0.150 s sim after release (150 ms real); fireCd at hold 0.00
+PASS | index.html (built) 412x904 gpu0 | touch drag below the room moves the hero (drag up = north) | hero (4.50,14.50) -> (4.50,9.25) after ~0.7 s hold; moving=true
+PASS | index.html (built) 412x904 gpu0 | no joystick element at the thumb (DOM) | visible els 19 -> 19
+PASS | index.html (built) 412x904 gpu0 | no joystick graphic at the thumb (Canvas 2D pixels) | ground patch diff base->hold 1.2%, hold->after 0.0%, base->after 1.2%
+PASS | index.html (built) 412x904 gpu0 | release = stop | stopped 0.033 s sim after release
+PASS | index.html (built) 412x904 gpu0 | release braces within ~0.3 s | braced after 0.150 s sim (133 ms real)
+PASS | index.html (built) 412x904 gpu0 | release fires within ~0.3 s | first shot 0.150 s sim after release (133 ms real); fireCd at hold 0.00
 PASS | index.html (built) 412x904 gpu0 | deadzone hysteresis (enter 14 px / exit 8 px from touch-down) | 10px:stop 20px:move 10px:move 5px:stop (want 10:stop 20:move 10:move 5:stop)
 PASS | index.html (built) 412x904 gpu0 | touchcancel / pointercancel releases | moving while held=true, after cancel=false
-PASS | index.html (built) 412x904 gpu0 | gear button for the tuning drawer present | button#gear
+PASS | index.html (built) 412x904 gpu0 | gear button for the tuning drawer present | button#gear.hb
 PASS | index.html (built) 412x904 gpu0 | tuning drawer opens with sliders | 11 visible sliders
-PASS | index.html (built) 412x904 gpu0 | drawer has its own control for every TUNE knob | 30 knobs, 30 distinct controls (28 inputs)
+PASS | index.html (built) 412x904 gpu0 | drawer has its own control for every TUNE knob | 33 knobs, 33 distinct controls (29 inputs)
 PASS | index.html (built) 412x904 gpu0 | drawer buttons Reset / Copy settings / Copy report | all present
 PASS | index.html (built) 412x904 gpu0 | touch targets >= 56 px (drawer open) | 4 targets; min 56 px
 INFO | index.html (built) 412x904 gpu0 | drawer slider heights (info, L-TD-4) | min 36 px; 11/11 under 56
-INFO | index.html (built) 412x904 gpu0 | Copy report (info) | report text 1602 chars via textarea; missing words: none
+INFO | index.html (built) 412x904 gpu0 | Copy report (info) | report text 1791 chars via textarea; missing words: none
 PASS | index.html (built) 412x904 gpu0 | drawer closes | 0 sliders still visible
-PASS | index.html (built) 412x904 gpu0 | hidden tab pauses the sim | frame 473 -> 473 over 0.5 s hidden
+PASS | index.html (built) 412x904 gpu0 | hidden tab pauses the sim | frame 472 -> 472 over 0.5 s hidden
 PASS | index.html (built) 412x904 gpu0 | pause card shown | "Paused"
-PASS | index.html (built) 412x904 gpu0 | HUD text not visible through pause card (L-TD-3) | 7 HUD text els: 7 hidden, 0 covered
-PASS | index.html (built) 412x904 gpu0 | touch targets >= 56 px (pause card) | 1 targets; min 56 px
-PASS | index.html (built) 412x904 gpu0 | stays paused after the tab returns (resume by tap, L-LOL-2) | frame 473 -> 473 after visible again
-PASS | index.html (built) 412x904 gpu0 | no damage during the faked 1 s gap | hp 420 -> 420; frame 473 -> 473
-PASS | index.html (built) 412x904 gpu0 | tap resumes | frame 473 -> 503 (tapped button#btnResume.btn)
-PASS | index.html (built) 412x904 gpu0 | no catch-up burst after resume | max sim steps in one rAF after resume: 2; hp 420 -> 420
+PASS | index.html (built) 412x904 gpu0 | HUD text not visible through pause card (L-TD-3) | 9 HUD text els: 9 hidden, 0 covered
+PASS | index.html (built) 412x904 gpu0 | touch targets >= 56 px (pause card) | 4 targets; min 56 px
+PASS | index.html (built) 412x904 gpu0 | stays paused after the tab returns (resume by tap, L-LOL-2) | frame 472 -> 472 after visible again
+PASS | index.html (built) 412x904 gpu0 | no damage during the faked 1 s gap | hp 540 -> 540; frame 472 -> 472
+PASS | index.html (built) 412x904 gpu0 | tap resumes | frame 472 -> 501 (tapped button#btnResume.btn)
+PASS | index.html (built) 412x904 gpu0 | no catch-up burst after resume | max sim steps in one rAF after resume: 1; hp 540 -> 540
 PASS | index.html (built) 412x904 gpu0 | faked 1 s rAF gap (visible): steps clamped <= 5 per frame | max steps in one rAF 5; hp change in that frame 0; phase clear
-INFO | index.html (built) 412x904 gpu0 | hp across visible gap (info) | hp 420 -> 420
-PASS | index.html (built) 412x904 gpu0 | same seed gives the same run (V.Sim, 600 steps twice) | seed 779: 1a38fe81:149 vs 1a38fe81:149
-INFO | index.html (built) 412x904 gpu0 | __pv run hash after restart (compared across sessions) | seed 779 hash 1a38fe81:149 frame 600 phase clear
-PASS | index.html (built) 412x904 gpu0 | room clear opens the door | stage 1 R01: door.open=true, kills 3, 175 steps
+INFO | index.html (built) 412x904 gpu0 | hp across visible gap (info) | hp 540 -> 540
+PASS | index.html (built) 412x904 gpu0 | same seed gives the same run (V.Sim, 600 steps twice) | seed 779: 60f8dadc:203 vs 60f8dadc:203
+INFO | index.html (built) 412x904 gpu0 | __pv run hash after restart (compared across sessions) | seed 779 hash 60f8dadc:203 frame 600 phase play
+PASS | index.html (built) 412x904 gpu0 | room clear opens the door | stage 1 R01: door.open=true, kills 3, 206 steps
 PASS | index.html (built) 412x904 gpu0 | walking north through the door loads the next room | stage 1 R01 -> 2 R02
-PASS | index.html (built) 412x904 gpu0 | card screen shows TUNE.CARDS_OFFERED (2) cards | stage 2 : S.cards 2, buttons 2: Diagonal Rounds | Fire Control; title "Field upgrade - level 2"
-PASS | index.html (built) 412x904 gpu0 | HUD text not visible through card screen (L-TD-3) | 7 HUD text els: 7 hidden, 0 covered
-PASS | index.html (built) 412x904 gpu0 | touch targets >= 56 px (card screen) | 2 targets; min 84 px
-PASS | index.html (built) 412x904 gpu0 | tapping a card applies it | phase pick -> clear; picks 0 -> 1; mods {} -> {"diag":1}
-INFO | index.html (built) 412x904 gpu0 | win run stages | 1:-/R01 2:-/R02 3:-/R03 4:-/R01 5:-/R02 6:-/R03 7:-/R01 8:-/R02 9:-/R03 10:-/R01 11:-/R02 12:-/R03 13:-/R01 | 6930 steps, events {"lock":47,"fire":127,"hit":97,"crit":6,"kill":35,"unlock":22,"door":11,"pickup":35,"pickup:xp":35,"room":12,"tell":7,"levelup":3,"hurt":2}
-FAIL | index.html (built) 412x904 gpu0 | supply drop screen at stage 5 | never reached in the run (last stage 13 phase play); chest null
-FAIL | index.html (built) 412x904 gpu0 | stage 9 cache chest gives a free card screen | never reached in the run (last stage 13 phase play); chest null
-FAIL | index.html (built) 412x904 gpu0 | stage 10 boss appears | never reached in the run (last stage 13 phase play); chest null
-FAIL | index.html (built) 412x904 gpu0 | boss kill -> results screen (win) | phase play at stage 13 R01, hp 598/600, boss null after 6930 steps
-INFO | index.html (built) 412x904 gpu0 | lose run stages | 1:-/R01 2:-/R02 | 907 steps, events {"lock":6,"fire":12,"hit":11,"kill":5,"tell":2,"unlock":1,"door":1,"pickup":2,"pickup:xp":2,"room":1,"hurt":1,"death":1}
-FAIL | index.html (built) 412x904 gpu0 | death -> results screen (lose) | phase dead at stage 2 R02, hp 0/600, boss null after 907 steps
+PASS | index.html (built) 412x904 gpu0 | card screen shows TUNE.CARDS_OFFERED (2) cards | stage 2 combat: S.cards 2, buttons 2: Corrosive rounds | Rear guard; title "Field upgrade - level 2"
+PASS | index.html (built) 412x904 gpu0 | HUD text not visible through card screen (L-TD-3) | 9 HUD text els: 9 hidden, 0 covered
+PASS | index.html (built) 412x904 gpu0 | touch targets >= 56 px (card screen) | 2 targets; min 64 px
+PASS | index.html (built) 412x904 gpu0 | tapping a card applies it | phase pick -> clear; picks 0 -> 1; mods {} -> {"poison":1}
+PASS | index.html (built) 412x904 gpu0 | supply drop is stage 5 | stage 5 kind supply room SD
+PASS | index.html (built) 412x904 gpu0 | supply screen offers 2 choices (a mod or repair 40%) | S.supply ["mod","repair"]; buttons 2: ✦︎Supply modScope tuneCrit chance +5%, c | ✚︎RepairField repairRestore 40% of max H
+PASS | index.html (built) 412x904 gpu0 | supply stage has no enemies | enemies 0
+PASS | index.html (built) 412x904 gpu0 | HUD text not visible through supply screen (L-TD-3) | 9 HUD text els: 9 hidden, 0 covered
+PASS | index.html (built) 412x904 gpu0 | touch targets >= 56 px (supply screen) | 2 targets; min 81 px
+PASS | index.html (built) 412x904 gpu0 | tapping supply repair restores 40% max HP | via tap: phase supply -> clear; hp 300 -> 540 / 600 (want +240; hp set to 50% by the test first)
+PASS | index.html (built) 412x904 gpu0 | stage 9 cache chest gives a free card screen | stage 9 cache: S.cards 2, buttons 2: Twin barrel | Diagonal rounds; title "Cache: free field upgrade"
+PASS | index.html (built) 412x904 gpu0 | cache chest drops 2 repair packs | repair pickups on floor 2, collected so far 0; chest {"x":4.5,"y":2.5,"open":false}
+PASS | index.html (built) 412x904 gpu0 | cache card screen is labelled as the cache | title "Cache: free field upgrade"
+PASS | index.html (built) 412x904 gpu0 | HUD text not visible through cache card screen (L-TD-3) | 9 HUD text els: 9 hidden, 0 covered
+PASS | index.html (built) 412x904 gpu0 | touch targets >= 56 px (cache card screen) | 2 targets; min 83 px
+PASS | index.html (built) 412x904 gpu0 | tapping a cache card applies it | phase pick -> clear; picks 3 -> 4; mods {"poison":1,"multi":1,"armor":1} -> {"poison":1,"multi":1,"armor":1,"front":1}
+INFO | index.html (built) 412x904 gpu0 | win run stages | 1:combat/R01 2:combat/R02 3:combat/R01 4:combat/R02 5:supply/SD 6:combat/R03 7:combat/R02 8:combat/R02 9:cache/CA1 10:boss/BA1 | 4468 steps, events {"lock":27,"fire":174,"hit":139,"crit":8,"kill":27,"unlock":15,"door":8,"pickup":28,"pickup:xp":26,"room":9,"levelup":3,"tell":4,"hurt":4,"pick":1,"supply":1,"dot":6,"chest":1,"pickup:repair":2,"boss":1,"bossphase":1,"win":1}
+PASS | index.html (built) 412x904 gpu0 | boss at stage 10 | boss "Volley Tower" seen at stage 10:boss/BA1
+PASS | index.html (built) 412x904 gpu0 | DOM boss bar shows the boss name | span#bossName "Volley Tower" top 85 (room top 72)
+PASS | index.html (built) 412x904 gpu0 | boss bar sits at the top of the room | bar 85-105, room top 72
+PASS | index.html (built) 412x904 gpu0 | boss kill -> results screen (win) | S.result {"win":true,"stage":10,"lap":1,"t":77.62,"kills":27,"level":4,"picks":["SK-17","SK-02","SK-15","SK-01"],"dmgTaken":4}
+PASS | index.html (built) 412x904 gpu0 | results screen (win) shows result + stats | Chapter 1 clear | Result | Win | Stage reached | 10 / 10 | Time | 1:18 | Kills | 27 | Level | 4 | Damage taken | 4 | Mods | Corrosive rounds, Double volley, Armor plating, Twin barrel | New run | Tap anywhere for a new run
+PASS | index.html (built) 412x904 gpu0 | HUD text not visible through results screen (win) (L-TD-3) | 9 HUD text els: 9 hidden, 0 covered
+PASS | index.html (built) 412x904 gpu0 | touch targets >= 56 px (results screen (win)) | 1 targets; min 56 px
+PASS | index.html (built) 412x904 gpu0 | one tap on results (win) starts a new run | tapped button#btnRestart.btn "New run": phase play, stage 1, hp 600/600, result null, seed 781 -> 782
+INFO | index.html (built) 412x904 gpu0 | lose run stages | 1:combat/R01 2:combat/R02 | 768 steps, events {"lock":7,"fire":12,"hit":12,"kill":5,"unlock":1,"door":1,"pickup":3,"pickup:xp":3,"room":1,"tell":1}
+PASS | index.html (built) 412x904 gpu0 | death -> results screen (lose) | S.result {"win":false,"stage":2,"lap":1,"t":13.07,"kills":5,"level":1,"picks":[],"dmgTaken":2428}
+PASS | index.html (built) 412x904 gpu0 | results screen (lose) shows result + stats | Operator down | Result | Lost | Stage reached | 2 / 10 | Time | 0:13 | Kills | 5 | Level | 1 | Damage taken | 2428 | Mods | none | New run | Tap anywhere for a new run
+PASS | index.html (built) 412x904 gpu0 | HUD text not visible through results screen (lose) (L-TD-3) | 9 HUD text els: 9 hidden, 0 covered
+PASS | index.html (built) 412x904 gpu0 | touch targets >= 56 px (results screen (lose)) | 1 targets; min 56 px
+PASS | index.html (built) 412x904 gpu0 | one tap on results (lose) starts a new run | tapped button#btnRestart.btn "New run": phase play, stage 1, hp 600/600, result null, seed 783 -> 784
 PASS | index.html (built) 412x904 gpu0 | 0 console errors during the whole session | none
 PASS | index.html (built) 412x904 default | boots with 0 console errors | none
 PASS | index.html (built) 412x904 default | idle 5 s with no tap: 0 console errors | none (kills 1->3, hp 600->600)
 PASS | index.html (built) 412x904 default | ?seed is read | S.seed=777 (url seed 777)
-EXPECTED | index.html (built) 412x904 default | default picks WebGPU (swiftshader flags) | sandbox only: headless SwiftShader loses the device on swapchain present, so it falls back to Canvas 2D (render's gpu-test.js shows the same; ?gpu=offscreen session proves the WebGPU pipeline). M's Fold report 12:11 showed renderer WebGPU, 16.7 ms p95, 0 gaps. trace: create -> ok -> lost unknown "A valid external Instance reference no longer exists." -> create -> ok -> lost destroyed "Device was d
+EXPECTED | index.html (built) 412x904 default | default picks WebGPU (swiftshader flags) | sandbox only: headless SwiftShader loses the device on swapchain present, so it falls back to Canvas 2D (render's gpu-test.js shows the same; ?gpu=offscreen session proves the WebGPU pipeline). M's Fold report 12:11 showed renderer WebGPU, 16.7 ms p95, 0 gaps. trace: create -> ok -> lost destroyed "Device was destroyed."
 PASS | index.html (built) 412x904 default | renderer label text equals __pv.renderer | label "Canvas 2D | 412x904 | dpr 1" vs Canvas 2D
 PASS | index.html (built) 412x904 default | renderer label shows viewport WxH (+dpr) | "Canvas 2D | 412x904 | dpr 1" (window 412x904, game column 412x904)
-INFO | index.html (built) 412x904 default | HUD text elements (baseline) | div#stageLbl "Stage 1 Open Yard"; b#stNum "1"; span#roomName "Open Yard"; div#lvl "Lv 1"; span "⚙"; div#hpTxt "600 / 600"; div#rlbl "Canvas 2D | 412x904 | dp"
-PASS | index.html (built) 412x904 default | touch targets >= 56 px (HUD) | 1 targets; min 56 px
+INFO | index.html (built) 412x904 default | HUD text elements (baseline) | div#stageLbl "Stage 1 Open Yard"; b#stNum "1"; span#roomName "Open Yard"; div#lvl "Lv 1"; span "❚❚"; span "⚙"; div#hpTxt "600 / 600"; div#rlbl "Canvas 2D | 412x904 | dp"; div#howto "Drag anywhere to move. L"
+PASS | index.html (built) 412x904 default | touch targets >= 56 px (HUD) | 2 targets; min 56 px
 PASS | index.html (built) 412x904 default | one game canvas visible (unused one hidden) | visible: c2d rect 0,0 412x904
-PASS | index.html (built) 412x904 default | thumb-safe: hero start row 14 above bottom 15% | view s=45.78 oy=64.0; hero start y=728 vs limit 768
-PASS | index.html (built) 412x904 default | room fits width under HUD | room 412x687 at oy 64
+PASS | index.html (built) 412x904 default | thumb-safe: hero start row 14 above bottom 15% | view s=45.78 oy=72.0; hero start y=736 vs limit 768
+PASS | index.html (built) 412x904 default | room fits width under HUD | room 412x687 at oy 72
 PASS | index.html (built) 412x904 default | 0 console errors during the whole session | none
 PASS | index.html (built) 344x882 offscreen | boots with 0 console errors | none
 PASS | index.html (built) 344x882 offscreen | idle 5 s with no tap: 0 console errors | none (kills 1->3, hp 600->600)
 PASS | index.html (built) 344x882 offscreen | ?seed is read | S.seed=777 (url seed 777)
 PASS | index.html (built) 344x882 offscreen | offscreen picks WebGPU (swiftshader flags) | __pv.renderer=WebGPU; V.GPU trace: create -> ok
-PASS | index.html (built) 344x882 offscreen | WebGPU output seen via readback (L-TD-1) | seen (nonBg 22400, 344x882)
+PASS | index.html (built) 344x882 offscreen | WebGPU output seen via readback (L-TD-1) | seen (nonBg 20543, 344x882)
 PASS | index.html (built) 344x882 offscreen | renderer label text equals __pv.renderer | label "WebGPU | 344x882 | dpr 1" vs WebGPU
 PASS | index.html (built) 344x882 offscreen | renderer label shows viewport WxH (+dpr) | "WebGPU | 344x882 | dpr 1" (window 344x882, game column 344x882)
-INFO | index.html (built) 344x882 offscreen | HUD text elements (baseline) | div#stageLbl "Stage 1 Open Yard"; b#stNum "1"; span#roomName "Open Yard"; div#lvl "Lv 1"; span "⚙"; div#hpTxt "600 / 600"; div#rlbl "WebGPU | 344x882 | dpr 1"
-PASS | index.html (built) 344x882 offscreen | touch targets >= 56 px (HUD) | 1 targets; min 56 px
+INFO | index.html (built) 344x882 offscreen | HUD text elements (baseline) | div#stageLbl "Stage 1 Open Yard"; b#stNum "1"; span#roomName "Open Yard"; div#lvl "Lv 1"; span "❚❚"; span "⚙"; div#hpTxt "600 / 600"; div#rlbl "WebGPU | 344x882 | dpr 1"; div#howto "Drag anywhere to move. L"
+PASS | index.html (built) 344x882 offscreen | touch targets >= 56 px (HUD) | 2 targets; min 56 px
 PASS | index.html (built) 344x882 offscreen | one game canvas visible (unused one hidden) | visible: c2d rect 0,0 344x882
-PASS | index.html (built) 344x882 offscreen | thumb-safe: hero start row 14 above bottom 15% | view s=38.22 oy=64.0; hero start y=618 vs limit 750
-PASS | index.html (built) 344x882 offscreen | room fits width under HUD | room 344x573 at oy 64
-PASS | index.html (built) 344x882 offscreen | drag start point is below the room | touch y=837, room bottom y=637
+PASS | index.html (built) 344x882 offscreen | thumb-safe: hero start row 14 above bottom 15% | view s=38.22 oy=72.0; hero start y=626 vs limit 750
+PASS | index.html (built) 344x882 offscreen | room fits width under HUD | room 344x573 at oy 72
+PASS | index.html (built) 344x882 offscreen | drag start point is below the room | touch y=837, room bottom y=645
 INFO | index.html (built) 344x882 offscreen | element under thumb point | canvas#c2d
 PASS | index.html (built) 344x882 offscreen | touch arrives as pointer events (pointerType touch) | ["pointerdown:touch","pointerup:touch"]
-PASS | index.html (built) 344x882 offscreen | touch drag below the room moves the hero (drag up = north) | hero (4.50,14.50) -> (4.50,9.18) after ~0.7 s hold; moving=true
-PASS | index.html (built) 344x882 offscreen | no joystick element at the thumb (DOM) | visible els 15 -> 15
+PASS | index.html (built) 344x882 offscreen | touch drag below the room moves the hero (drag up = north) | hero (4.50,14.50) -> (4.50,9.10) after ~0.7 s hold; moving=true
+PASS | index.html (built) 344x882 offscreen | no joystick element at the thumb (DOM) | visible els 19 -> 19
 PASS | index.html (built) 344x882 offscreen | no joystick graphic at the thumb (Canvas 2D pixels) | ground patch diff base->hold 0.0%, hold->after 0.0%, base->after 0.0%
 PASS | index.html (built) 344x882 offscreen | release = stop | stopped 0.017 s sim after release
-PASS | index.html (built) 344x882 offscreen | release braces within ~0.3 s | braced after 0.150 s sim (149 ms real)
-PASS | index.html (built) 344x882 offscreen | release fires within ~0.3 s | first shot 0.150 s sim after release (149 ms real); fireCd at hold 0.00
+PASS | index.html (built) 344x882 offscreen | release braces within ~0.3 s | braced after 0.150 s sim (134 ms real)
+PASS | index.html (built) 344x882 offscreen | release fires within ~0.3 s | first shot 0.150 s sim after release (134 ms real); fireCd at hold 0.00
 PASS | index.html (built) 344x882 offscreen | deadzone hysteresis (enter 14 px / exit 8 px from touch-down) | 10px:stop 20px:move 10px:move 5px:stop (want 10:stop 20:move 10:move 5:stop)
 PASS | index.html (built) 344x882 offscreen | touchcancel / pointercancel releases | moving while held=true, after cancel=false
-PASS | index.html (built) 344x882 offscreen | gear button for the tuning drawer present | button#gear
+PASS | index.html (built) 344x882 offscreen | gear button for the tuning drawer present | button#gear.hb
 PASS | index.html (built) 344x882 offscreen | tuning drawer opens with sliders | 11 visible sliders
-PASS | index.html (built) 344x882 offscreen | drawer has its own control for every TUNE knob | 30 knobs, 30 distinct controls (28 inputs)
+PASS | index.html (built) 344x882 offscreen | drawer has its own control for every TUNE knob | 33 knobs, 33 distinct controls (29 inputs)
 PASS | index.html (built) 344x882 offscreen | drawer buttons Reset / Copy settings / Copy report | all present
 PASS | index.html (built) 344x882 offscreen | touch targets >= 56 px (drawer open) | 4 targets; min 56 px
 INFO | index.html (built) 344x882 offscreen | drawer slider heights (info, L-TD-4) | min 36 px; 11/11 under 56
-INFO | index.html (built) 344x882 offscreen | Copy report (info) | report text 1600 chars via textarea; missing words: none
+INFO | index.html (built) 344x882 offscreen | Copy report (info) | report text 1789 chars via textarea; missing words: none
 PASS | index.html (built) 344x882 offscreen | drawer closes | 0 sliders still visible
-PASS | index.html (built) 344x882 offscreen | hidden tab pauses the sim | frame 496 -> 496 over 0.5 s hidden
+PASS | index.html (built) 344x882 offscreen | hidden tab pauses the sim | frame 503 -> 503 over 0.5 s hidden
 PASS | index.html (built) 344x882 offscreen | pause card shown | "Paused"
-PASS | index.html (built) 344x882 offscreen | HUD text not visible through pause card (L-TD-3) | 7 HUD text els: 7 hidden, 0 covered
-PASS | index.html (built) 344x882 offscreen | touch targets >= 56 px (pause card) | 1 targets; min 56 px
-PASS | index.html (built) 344x882 offscreen | stays paused after the tab returns (resume by tap, L-LOL-2) | frame 496 -> 496 after visible again
-PASS | index.html (built) 344x882 offscreen | no damage during the faked 1 s gap | hp 360 -> 360; frame 495 -> 496
-PASS | index.html (built) 344x882 offscreen | tap resumes | frame 496 -> 525 (tapped button#btnResume.btn)
-PASS | index.html (built) 344x882 offscreen | no catch-up burst after resume | max sim steps in one rAF after resume: 2; hp 360 -> 360
+PASS | index.html (built) 344x882 offscreen | HUD text not visible through pause card (L-TD-3) | 9 HUD text els: 9 hidden, 0 covered
+PASS | index.html (built) 344x882 offscreen | touch targets >= 56 px (pause card) | 4 targets; min 56 px
+PASS | index.html (built) 344x882 offscreen | stays paused after the tab returns (resume by tap, L-LOL-2) | frame 503 -> 503 after visible again
+PASS | index.html (built) 344x882 offscreen | no damage during the faked 1 s gap | hp 600 -> 600; frame 503 -> 503
+PASS | index.html (built) 344x882 offscreen | tap resumes | frame 503 -> 533 (tapped button#btnResume.btn)
+PASS | index.html (built) 344x882 offscreen | no catch-up burst after resume | max sim steps in one rAF after resume: 2; hp 600 -> 600
 PASS | index.html (built) 344x882 offscreen | faked 1 s rAF gap (visible): steps clamped <= 5 per frame | max steps in one rAF 5; hp change in that frame 0; phase clear
-INFO | index.html (built) 344x882 offscreen | hp across visible gap (info) | hp 360 -> 360
-PASS | index.html (built) 344x882 offscreen | same seed gives the same run (V.Sim, 600 steps twice) | seed 779: 1a38fe81:149 vs 1a38fe81:149
-INFO | index.html (built) 344x882 offscreen | __pv run hash after restart (compared across sessions) | seed 779 hash 1a38fe81:149 frame 600 phase clear
-PASS | index.html (built) 344x882 offscreen | room clear opens the door | stage 1 R01: door.open=true, kills 3, 175 steps
+INFO | index.html (built) 344x882 offscreen | hp across visible gap (info) | hp 600 -> 600
+PASS | index.html (built) 344x882 offscreen | same seed gives the same run (V.Sim, 600 steps twice) | seed 779: 60f8dadc:203 vs 60f8dadc:203
+INFO | index.html (built) 344x882 offscreen | __pv run hash after restart (compared across sessions) | seed 779 hash 60f8dadc:203 frame 600 phase play
+PASS | index.html (built) 344x882 offscreen | room clear opens the door | stage 1 R01: door.open=true, kills 3, 205 steps
 PASS | index.html (built) 344x882 offscreen | walking north through the door loads the next room | stage 1 R01 -> 2 R02
-PASS | index.html (built) 344x882 offscreen | card screen shows TUNE.CARDS_OFFERED (2) cards | stage 2 : S.cards 2, buttons 2: Diagonal Rounds | Fire Control; title "Field upgrade - level 2"
-PASS | index.html (built) 344x882 offscreen | HUD text not visible through card screen (L-TD-3) | 7 HUD text els: 7 hidden, 0 covered
-PASS | index.html (built) 344x882 offscreen | touch targets >= 56 px (card screen) | 2 targets; min 84 px
-PASS | index.html (built) 344x882 offscreen | tapping a card applies it | phase pick -> clear; picks 0 -> 1; mods {} -> {"diag":1}
-INFO | index.html (built) 344x882 offscreen | win run stages | 1:-/R01 2:-/R02 3:-/R03 4:-/R01 5:-/R02 6:-/R03 7:-/R01 8:-/R02 9:-/R03 10:-/R01 11:-/R02 12:-/R03 13:-/R01 | 6924 steps, events {"lock":47,"fire":126,"hit":96,"crit":6,"kill":35,"unlock":22,"door":11,"pickup":35,"pickup:xp":35,"room":12,"tell":7,"levelup":3,"hurt":2}
-FAIL | index.html (built) 344x882 offscreen | supply drop screen at stage 5 | never reached in the run (last stage 13 phase play); chest null
-FAIL | index.html (built) 344x882 offscreen | stage 9 cache chest gives a free card screen | never reached in the run (last stage 13 phase play); chest null
-FAIL | index.html (built) 344x882 offscreen | stage 10 boss appears | never reached in the run (last stage 13 phase play); chest null
-FAIL | index.html (built) 344x882 offscreen | boss kill -> results screen (win) | phase play at stage 13 R01, hp 598/600, boss null after 6924 steps
-INFO | index.html (built) 344x882 offscreen | lose run stages | 1:-/R01 2:-/R02 | 907 steps, events {"lock":6,"fire":12,"hit":11,"kill":5,"tell":2,"unlock":1,"door":1,"pickup":2,"pickup:xp":2,"room":1,"hurt":1,"death":1}
-FAIL | index.html (built) 344x882 offscreen | death -> results screen (lose) | phase dead at stage 2 R02, hp 0/600, boss null after 907 steps
+PASS | index.html (built) 344x882 offscreen | card screen shows TUNE.CARDS_OFFERED (3) cards | stage 2 combat: S.cards 3, buttons 3: Corrosive rounds | Rear guard | Incendiary rounds; title "Field upgrade - level 2"
+PASS | index.html (built) 344x882 offscreen | HUD text not visible through card screen (L-TD-3) | 9 HUD text els: 9 hidden, 0 covered
+PASS | index.html (built) 344x882 offscreen | touch targets >= 56 px (card screen) | 3 targets; min 64 px
+PASS | index.html (built) 344x882 offscreen | tapping a card applies it | phase pick -> clear; picks 0 -> 1; mods {} -> {"poison":1}
+PASS | index.html (built) 344x882 offscreen | supply drop is stage 5 | stage 5 kind supply room SD
+PASS | index.html (built) 344x882 offscreen | supply screen offers 2 choices (a mod or repair 40%) | S.supply ["mod","repair"]; buttons 2: »︎Supply modTrigger tuneAttack speed +12 | ✚︎RepairField repairRestore 40% of max H
+PASS | index.html (built) 344x882 offscreen | supply stage has no enemies | enemies 0
+PASS | index.html (built) 344x882 offscreen | HUD text not visible through supply screen (L-TD-3) | 9 HUD text els: 9 hidden, 0 covered
+PASS | index.html (built) 344x882 offscreen | touch targets >= 56 px (supply screen) | 2 targets; min 81 px
+PASS | index.html (built) 344x882 offscreen | tapping supply repair restores 40% max HP | via tap: phase supply -> clear; hp 300 -> 540 / 600 (want +240; hp set to 50% by the test first)
+PASS | index.html (built) 344x882 offscreen | stage 9 cache chest gives a free card screen | stage 9 cache: S.cards 3, buttons 3: Armor plating | Fire control | Evasion firmware; title "Cache: free field upgrade"
+PASS | index.html (built) 344x882 offscreen | cache chest drops 2 repair packs | repair pickups on floor 2, collected so far 1; chest {"x":4.5,"y":2.5,"open":false}
+PASS | index.html (built) 344x882 offscreen | cache card screen is labelled as the cache | title "Cache: free field upgrade"
+PASS | index.html (built) 344x882 offscreen | HUD text not visible through cache card screen (L-TD-3) | 9 HUD text els: 9 hidden, 0 covered
+PASS | index.html (built) 344x882 offscreen | touch targets >= 56 px (cache card screen) | 3 targets; min 64 px
+PASS | index.html (built) 344x882 offscreen | tapping a cache card applies it | phase pick -> clear; picks 3 -> 4; mods {"poison":1,"atk":1,"salvage":1} -> {"poison":1,"atk":1,"salvage":1,"armor":1}
+INFO | index.html (built) 344x882 offscreen | win run stages | 1:combat/R01 2:combat/R02 3:combat/R01 4:combat/R02 5:supply/SD 6:combat/R03 7:combat/R02 8:combat/R02 9:cache/CA1 10:boss/BA1 | 5042 steps, events {"lock":31,"fire":143,"hit":94,"crit":7,"kill":26,"unlock":13,"door":8,"pickup":28,"pickup:xp":26,"room":9,"levelup":3,"tell":8,"pick":2,"supply":1,"dot":13,"pickup:repair":2,"chest":1,"hurt":4,"boss":1,"bossphase":1,"win":1}
+PASS | index.html (built) 344x882 offscreen | boss at stage 10 | boss "Volley Tower" seen at stage 10:boss/BA1
+PASS | index.html (built) 344x882 offscreen | DOM boss bar shows the boss name | span#bossName "Volley Tower" top 81 (room top 72)
+PASS | index.html (built) 344x882 offscreen | boss bar sits at the top of the room | bar 81-101, room top 72
+PASS | index.html (built) 344x882 offscreen | boss kill -> results screen (win) | S.result {"win":true,"stage":10,"lap":1,"t":87.52,"kills":27,"level":4,"picks":["SK-17","SK-09","SK-27","SK-15"],"dmgTaken":4}
+PASS | index.html (built) 344x882 offscreen | results screen (win) shows result + stats | Chapter 1 clear | Result | Win | Stage reached | 10 / 10 | Time | 1:28 | Kills | 27 | Level | 4 | Damage taken | 4 | Mods | Corrosive rounds, Power cell, Salvage repair, Armor plating | New run | Tap anywhere for a new run
+PASS | index.html (built) 344x882 offscreen | HUD text not visible through results screen (win) (L-TD-3) | 9 HUD text els: 9 hidden, 0 covered
+PASS | index.html (built) 344x882 offscreen | touch targets >= 56 px (results screen (win)) | 1 targets; min 56 px
+PASS | index.html (built) 344x882 offscreen | one tap on results (win) starts a new run | tapped button#btnRestart.btn "New run": phase play, stage 1, hp 600/600, result null, seed 781 -> 782
+INFO | index.html (built) 344x882 offscreen | lose run stages | 1:combat/R01 2:combat/R02 | 768 steps, events {"lock":7,"fire":12,"hit":12,"kill":5,"unlock":1,"door":1,"pickup":3,"pickup:xp":3,"room":1,"tell":1}
+PASS | index.html (built) 344x882 offscreen | death -> results screen (lose) | S.result {"win":false,"stage":2,"lap":1,"t":13.07,"kills":5,"level":1,"picks":[],"dmgTaken":2428}
+PASS | index.html (built) 344x882 offscreen | results screen (lose) shows result + stats | Operator down | Result | Lost | Stage reached | 2 / 10 | Time | 0:13 | Kills | 5 | Level | 1 | Damage taken | 2428 | Mods | none | New run | Tap anywhere for a new run
+PASS | index.html (built) 344x882 offscreen | HUD text not visible through results screen (lose) (L-TD-3) | 9 HUD text els: 9 hidden, 0 covered
+PASS | index.html (built) 344x882 offscreen | touch targets >= 56 px (results screen (lose)) | 1 targets; min 56 px
+PASS | index.html (built) 344x882 offscreen | one tap on results (lose) starts a new run | tapped button#btnRestart.btn "New run": phase play, stage 1, hp 600/600, result null, seed 783 -> 784
 PASS | index.html (built) 344x882 offscreen | 0 console errors during the whole session | none
 PASS | index.html (built) 1104x884 gpu0 | boots with 0 console errors | none
 PASS | index.html (built) 1104x884 gpu0 | idle 5 s with no tap: 0 console errors | none (kills 0->0, hp 600->600)
@@ -614,44 +695,44 @@ PASS | index.html (built) 1104x884 gpu0 | ?seed is read | S.seed=777 (url seed 7
 PASS | index.html (built) 1104x884 gpu0 | ?gpu=0 forces Canvas 2D | __pv.renderer=Canvas 2D
 PASS | index.html (built) 1104x884 gpu0 | renderer label text equals __pv.renderer | label "Canvas 2D | 345x884 | dpr 1" vs Canvas 2D
 PASS | index.html (built) 1104x884 gpu0 | renderer label shows viewport WxH (+dpr) | "Canvas 2D | 345x884 | dpr 1" (window 1104x884, game column 345x884)
-INFO | index.html (built) 1104x884 gpu0 | HUD text elements (baseline) | div#stageLbl "Stage 1 Open Yard"; b#stNum "1"; span#roomName "Open Yard"; div#lvl "Lv 1"; span "⚙"; div#hpTxt "600 / 600"; div#rlbl "Canvas 2D | 345x884 | dp"; div#coverNote "Cover screen build: made"
-PASS | index.html (built) 1104x884 gpu0 | touch targets >= 56 px (HUD) | 1 targets; min 56 px
+INFO | index.html (built) 1104x884 gpu0 | HUD text elements (baseline) | div#stageLbl "Stage 1 Open Yard"; b#stNum "1"; span#roomName "Open Yard"; div#lvl "Lv 1"; span "❚❚"; span "⚙"; div#hpTxt "600 / 600"; div#rlbl "Canvas 2D | 345x884 | dp"; div#howto "Drag anywhere to move. L"; div#coverNote "Cover screen build: made"
+PASS | index.html (built) 1104x884 gpu0 | touch targets >= 56 px (HUD) | 2 targets; min 56 px
 PASS | index.html (built) 1104x884 gpu0 | one game canvas visible (unused one hidden) | visible: c2d rect 380,0 345x884
 PASS | index.html (built) 1104x884 gpu0 | wide screen shows the cover-screen note | "Cover screen build: made for the folded phone. Runs in a por"
 PASS | index.html (built) 1104x884 gpu0 | wide: game in centred portrait column 344:882 | canvas 345x884 aspect 0.390 (want 0.390), centre off 1 px
-PASS | index.html (built) 1104x884 gpu0 | drag start point is below the room | touch y=839, room bottom y=639
+PASS | index.html (built) 1104x884 gpu0 | drag start point is below the room | touch y=839, room bottom y=647
 INFO | index.html (built) 1104x884 gpu0 | element under thumb point | canvas#c2d
 PASS | index.html (built) 1104x884 gpu0 | touch arrives as pointer events (pointerType touch) | ["pointerdown:touch","pointerup:touch"]
-PASS | index.html (built) 1104x884 gpu0 | touch drag below the room moves the hero (drag up = north) | hero (4.50,14.50) -> (4.50,8.73) after ~0.7 s hold; moving=true
-PASS | index.html (built) 1104x884 gpu0 | no joystick element at the thumb (DOM) | visible els 16 -> 16
+PASS | index.html (built) 1104x884 gpu0 | touch drag below the room moves the hero (drag up = north) | hero (4.50,14.50) -> (4.50,9.03) after ~0.7 s hold; moving=true
+PASS | index.html (built) 1104x884 gpu0 | no joystick element at the thumb (DOM) | visible els 20 -> 19
 PASS | index.html (built) 1104x884 gpu0 | no joystick graphic at the thumb (Canvas 2D pixels) | ground patch diff base->hold 1.0%, hold->after 0.0%, base->after 1.0%
 PASS | index.html (built) 1104x884 gpu0 | release = stop | stopped 0.017 s sim after release
-PASS | index.html (built) 1104x884 gpu0 | release braces within ~0.3 s | braced after 0.150 s sim (150 ms real)
-PASS | index.html (built) 1104x884 gpu0 | release fires within ~0.3 s | first shot 0.150 s sim after release (150 ms real); fireCd at hold 0.00
+PASS | index.html (built) 1104x884 gpu0 | release braces within ~0.3 s | braced after 0.150 s sim (151 ms real)
+PASS | index.html (built) 1104x884 gpu0 | release fires within ~0.3 s | first shot 0.150 s sim after release (151 ms real); fireCd at hold 0.00
 PASS | index.html (built) 1104x884 gpu0 | 0 console errors during the whole session | none
 PASS | index.html (built) 1104x884 default | boots with 0 console errors | none
 PASS | index.html (built) 1104x884 default | idle 5 s with no tap: 0 console errors | none (kills 1->3, hp 600->600)
 PASS | index.html (built) 1104x884 default | ?seed is read | S.seed=777 (url seed 777)
-EXPECTED | index.html (built) 1104x884 default | default picks WebGPU (swiftshader flags) | sandbox only: headless SwiftShader loses the device on swapchain present, so it falls back to Canvas 2D (render's gpu-test.js shows the same; ?gpu=offscreen session proves the WebGPU pipeline). M's Fold report 12:11 showed renderer WebGPU, 16.7 ms p95, 0 gaps. trace: create -> ok -> lost destroyed "Device was destroyed."
+EXPECTED | index.html (built) 1104x884 default | default picks WebGPU (swiftshader flags) | sandbox only: headless SwiftShader loses the device on swapchain present, so it falls back to Canvas 2D (render's gpu-test.js shows the same; ?gpu=offscreen session proves the WebGPU pipeline). M's Fold report 12:11 showed renderer WebGPU, 16.7 ms p95, 0 gaps. trace: create -> ok -> lost unknown "A valid external Instance reference no longer exists." -> create -> ok -> lost destroyed "Device was d
 PASS | index.html (built) 1104x884 default | renderer label text equals __pv.renderer | label "Canvas 2D | 345x884 | dpr 1" vs Canvas 2D
 PASS | index.html (built) 1104x884 default | renderer label shows viewport WxH (+dpr) | "Canvas 2D | 345x884 | dpr 1" (window 1104x884, game column 345x884)
-INFO | index.html (built) 1104x884 default | HUD text elements (baseline) | div#stageLbl "Stage 1 Open Yard"; b#stNum "1"; span#roomName "Open Yard"; div#lvl "Lv 1"; span "⚙"; div#hpTxt "600 / 600"; div#rlbl "Canvas 2D | 345x884 | dp"; div#coverNote "Cover screen build: made"
-PASS | index.html (built) 1104x884 default | touch targets >= 56 px (HUD) | 1 targets; min 56 px
+INFO | index.html (built) 1104x884 default | HUD text elements (baseline) | div#stageLbl "Stage 1 Open Yard"; b#stNum "1"; span#roomName "Open Yard"; div#lvl "Lv 1"; span "❚❚"; span "⚙"; div#hpTxt "600 / 600"; div#rlbl "Canvas 2D | 345x884 | dp"; div#howto "Drag anywhere to move. L"; div#coverNote "Cover screen build: made"
+PASS | index.html (built) 1104x884 default | touch targets >= 56 px (HUD) | 2 targets; min 56 px
 PASS | index.html (built) 1104x884 default | one game canvas visible (unused one hidden) | visible: c2d rect 380,0 345x884
 PASS | index.html (built) 1104x884 default | wide screen shows the cover-screen note | "Cover screen build: made for the folded phone. Runs in a por"
 PASS | index.html (built) 1104x884 default | wide: game in centred portrait column 344:882 | canvas 345x884 aspect 0.390 (want 0.390), centre off 1 px
-PASS | index.html (built) 1104x884 default | drag start point is below the room | touch y=839, room bottom y=639
+PASS | index.html (built) 1104x884 default | drag start point is below the room | touch y=839, room bottom y=647
 INFO | index.html (built) 1104x884 default | element under thumb point | canvas#c2d
 PASS | index.html (built) 1104x884 default | touch arrives as pointer events (pointerType touch) | ["pointerdown:touch","pointerup:touch"]
-PASS | index.html (built) 1104x884 default | touch drag below the room moves the hero (drag up = north) | hero (4.50,14.50) -> (4.50,8.88) after ~0.7 s hold; moving=true
-PASS | index.html (built) 1104x884 default | no joystick element at the thumb (DOM) | visible els 16 -> 16
+PASS | index.html (built) 1104x884 default | touch drag below the room moves the hero (drag up = north) | hero (4.50,14.50) -> (4.50,9.63) after ~0.7 s hold; moving=true
+PASS | index.html (built) 1104x884 default | no joystick element at the thumb (DOM) | visible els 20 -> 20
 PASS | index.html (built) 1104x884 default | no joystick graphic at the thumb (Canvas 2D pixels) | ground patch diff base->hold 0.0%, hold->after 0.0%, base->after 0.0%
 PASS | index.html (built) 1104x884 default | release = stop | stopped 0.017 s sim after release
-PASS | index.html (built) 1104x884 default | release braces within ~0.3 s | braced after 0.150 s sim (149 ms real)
-PASS | index.html (built) 1104x884 default | release fires within ~0.3 s | first shot 0.150 s sim after release (149 ms real); fireCd at hold 0.00
+PASS | index.html (built) 1104x884 default | release braces within ~0.3 s | braced after 0.150 s sim (150 ms real)
+PASS | index.html (built) 1104x884 default | release fires within ~0.3 s | first shot 0.150 s sim after release (150 ms real); fireCd at hold 0.00
 PASS | index.html (built) 1104x884 default | 0 console errors during the whole session | none
-FAIL | cross-session | same ?seed gives the same run across page loads (__pv.restart + 600 steps, seed 779) | src/game.html 344x882 gpu0: e3783153:205; src/game.html 344x882 default: e3783153:205; src/game.html 412x904 gpu0: e3783153:205; src/game.html 344x882 offscreen: e3783153:205; index.html (built) 344x882 gpu0: 1a38fe81:149; index.html (built) 344x882 default: 1a38fe81:149; index.html (built) 412x904 gpu0: 1a38fe81:149; index.html (built) 344x882 offscreen: 1a38fe81:149
-FAIL | cross-session | pure sim hash equal across page loads (seed 779) | e3783153:205 vs 1a38fe81:149
-PASS | cross-session | __pv run equals pure V.Sim run (seed 779) | e3783153:205/e3783153:205; e3783153:205/e3783153:205
+PASS | cross-session | same ?seed gives the same run across page loads (__pv.restart + 600 steps, seed 779) | src/game.html 344x882 gpu0: 60f8dadc:203; src/game.html 344x882 default: 60f8dadc:203; src/game.html 412x904 gpu0: 60f8dadc:203; src/game.html 344x882 offscreen: 60f8dadc:203; index.html (built) 344x882 gpu0: 60f8dadc:203; index.html (built) 344x882 default: 60f8dadc:203; index.html (built) 412x904 gpu0: 60f8dadc:203; index.html (built) 344x882 offscreen: 60f8dadc:203
+PASS | cross-session | pure sim hash equal across page loads (seed 779) | 60f8dadc:203
+PASS | cross-session | __pv run equals pure V.Sim run (seed 779) | 60f8dadc:203/60f8dadc:203; 60f8dadc:203/60f8dadc:203
 
 Screenshots: /tmp/claude-0/-home-user/5a341b30-1083-5daf-a1f7-388564b31c82/scratchpad/e2e-shots

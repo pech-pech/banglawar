@@ -349,7 +349,7 @@ async function dragTest(page, cdp, sess, cv, view, w, h) {
   // During hold: no joystick element / graphic near the thumb.
   const dom = await page.evaluate(([x, y]) => {
     const all = [...document.querySelectorAll('body *')].filter(window.__vis);
-    const near = all.filter(e => { const r = e.getBoundingClientRect(); const gc = window.__gameCanvas(); const big = r.width * r.height > (gc ? gc.w * gc.h : innerWidth * innerHeight) * 0.5; return !big && e.tagName !== 'CANVAS' && !e.querySelector('canvas') && ((x >= r.left && x <= r.right && ((y >= r.top && y <= r.bottom) || (y - 60 >= r.top && y - 60 <= r.bottom)))); });
+    const near = all.filter(e => { const r = e.getBoundingClientRect(); const gc = window.__gameCanvas(); const big = r.width * r.height > (gc ? gc.w * gc.h : innerWidth * innerHeight) * 0.5; return !big && e.tagName !== 'CANVAS' && !e.querySelector('canvas') && !e.closest('#dmgLayer') && ((x >= r.left && x <= r.right && ((y >= r.top && y <= r.bottom) || (y - 60 >= r.top && y - 60 <= r.bottom)))); });
     const named = all.filter(e => /joy|stick|thumb|knob|nub|touchpad|dpad/i.test((e.id || '') + ' ' + (typeof e.className === 'string' ? e.className : '')));
     return { n: all.length, near: near.map(window.__desc), named: named.map(window.__desc) };
   }, [x, y]);
@@ -697,7 +697,7 @@ async function runFlow(page, sess, w, h, opt) {
     if (target.name.startsWith('index')) {
       curTag = target.name;
       const built = fs.readFileSync(target.file, 'utf8');
-      const parts = [...fs.readFileSync(path.join(SRC, 'game.html'), 'utf8').matchAll(/src="(parts\/[^"]+)"/g)].map(m => m[1]);
+      const parts = fs.readdirSync(path.join(SRC, 'parts')).filter(f => f.endsWith('.js')).map(f => 'parts/' + f).concat(['game.html']);
       const stale = parts.filter(pp => { const f = path.join(SRC, pp); return fs.existsSync(f) && fs.statSync(f).mtimeMs > fs.statSync(target.file).mtimeMs; });
       ok(stale.length === 0 && built.includes('V.STAGES') === fs.readFileSync(path.join(SRC, 'game.html'), 'utf8').includes('stages.js'), 'built index.html is current with src parts', stale.length ? 'STALE build (supervisor runs build.py): newer parts ' + stale.join(', ') : 'all parts older than the build');
     }
