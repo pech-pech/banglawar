@@ -1,0 +1,371 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>Last Over Lane</title>
+<style>
+:root{--bg:#0d1410;--pad:#18261d;--ink:#eef3e8;--dim:#93a596;--acc:#ffd23f;--good:#7be37b;--bad:#ff6b5b;--edge:#ffb347}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,"Segoe UI",sans-serif;overflow:hidden;touch-action:none}
+#stage{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);display:flex;flex-direction:column;background:var(--bg);overflow:hidden}
+#view{position:relative;flex:0 0 50%}
+#view canvas{position:absolute;inset:0;width:100%;height:100%}
+#hud{position:absolute;left:0;right:0;top:0;display:flex;justify-content:space-between;align-items:flex-start;padding:10px 12px;font-weight:700;pointer-events:none;gap:8px}
+#score{font-size:clamp(18px,5.5vmin,30px)}
+#need{font-size:clamp(13px,3.6vmin,18px);color:var(--dim);font-weight:600}
+#wk{font-size:clamp(14px,4vmin,20px);text-align:right}
+#tag{position:absolute;left:50%;bottom:10px;transform:translateX(-50%);width:max-content;max-width:92%;text-align:center;padding:8px 14px;border-radius:12px;background:#000a;font-weight:700;font-size:clamp(14px,4vmin,20px);opacity:0;transition:opacity .15s;pointer-events:none}
+#tell{position:absolute;left:50%;top:34%;transform:translateX(-50%);padding:6px 12px;border-radius:10px;background:#000b;font-weight:800;font-size:clamp(13px,3.8vmin,18px);opacity:0;pointer-events:none;white-space:nowrap}
+#intent{flex:0 0 10%;display:flex;gap:6px;padding:6px 8px}
+#intent button{flex:1;border:2px solid #3a5242;border-radius:12px;background:#132019;color:var(--ink);font-weight:800;font-size:clamp(13px,3.8vmin,18px);min-height:56px;padding:0 2px}
+#intent button.on{background:var(--acc);color:#1a1400;border-color:var(--acc)}
+#intent button small{display:block;font-weight:600;font-size:.68em;opacity:.8}
+#pad{flex:0 0 40%;display:flex;gap:6px;padding:6px 8px 10px}
+#pad .sec{flex:1;position:relative;border-radius:16px;background:var(--pad);border:2px solid #2c4434;display:flex;flex-direction:column;align-items:center;justify-content:center;font-weight:800;font-size:clamp(14px,4.2vmin,22px);min-width:56px}
+#pad .sec.loft{background:#1d2333;border-color:#3b4a6b}
+#pad .sec .fld{margin-top:6px;font-size:.7em;font-weight:700;padding:3px 8px;border-radius:8px}
+#pad .sec .fld.g{background:#ff6b5b33;color:#ffb1a8}
+#pad .sec .fld.o{background:#7be37b22;color:#a9f0a9}
+#pad .sec.hit{outline:4px solid var(--acc)}
+.ov{position:absolute;inset:0;background:#0d1410f2;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:20px;text-align:center;z-index:5}
+.ov.hide{display:none}
+.ov h1{margin:0;font-size:clamp(26px,8vmin,44px)}
+.ov h2{margin:0;font-size:clamp(20px,6vmin,32px)}
+.ov p{margin:0;color:var(--dim);font-size:clamp(14px,3.8vmin,18px);max-width:34em;line-height:1.4}
+.ov .row{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
+.btn{min-height:56px;min-width:140px;padding:12px 22px;border-radius:14px;border:0;background:var(--acc);color:#1a1400;font-weight:800;font-size:clamp(16px,4.4vmin,22px)}
+.btn.alt{background:#24382b;color:var(--ink);border:2px solid #3a5242}
+.stats{font-variant-numeric:tabular-nums;font-size:clamp(13px,3.6vmin,17px);text-align:left;background:#0006;border-radius:12px;padding:10px 14px;line-height:1.5}
+#ovCal{background:transparent;justify-content:flex-start;pointer-events:none}
+#ovCal h2,#ovCal p{background:#000b;padding:6px 12px;border-radius:10px}
+#calpad{position:absolute;left:0;right:0;bottom:0;height:50%;pointer-events:auto;border-top:2px dashed #ffffff33;display:flex;align-items:center;justify-content:center;color:var(--dim);font-weight:700}
+</style><link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#0d1410">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+</head>
+<body>
+<div id="stage">
+  <div id="view"><canvas id="cv"></canvas>
+    <div id="hud"><div><div id="score">0 / 20</div><div id="need">Need 20 off 12</div></div><div id="wk">Wkts 0/3<br><span id="ball" style="color:var(--dim);font-weight:600">Ball 1 of 12</span></div></div>
+    <div id="tell"></div><div id="tag"></div>
+  </div>
+  <div id="intent">
+    <button data-i="block">Block<small>wide x1.4</small></button>
+    <button data-i="rotate" class="on">Rotate<small>x1.0</small></button>
+    <button data-i="drive">Drive<small>x0.85</small></button>
+    <button data-i="slog">Slog<small>tight x0.7</small></button>
+  </div>
+  <div id="pad">
+    <div class="sec" data-s="leg">Leg<span class="fld"></span></div>
+    <div class="sec" data-s="straight">Straight<span class="fld"></span></div>
+    <div class="sec" data-s="off">Off<span class="fld"></span></div>
+    <div class="sec loft" data-s="loft">Loft<span class="fld"></span></div>
+  </div>
+
+  <div class="ov" id="ovStart">
+    <h1>Last Over Lane</h1>
+    <p>Prototype 1: one 12-ball chase against the Cone Kid. Pick an intent, then tap a sector of the Shot Pad when the ball reaches the ring. Where you tap = direction. When you tap = timing.</p>
+    <p>Swing balls bend away from the stumps, so you can leave them. A straight ball you miss hits the stumps.</p>
+    <div class="row"><button class="btn" id="bCal">Calibrate (8 taps)</button><button class="btn alt" id="bPlay">Play now</button></div>
+    <div class="row"><button class="btn alt" id="bWin">Perfect window: 60 ms</button><button class="btn alt" id="bAssist">Assist: off</button></div>
+    <p id="calInfo"></p>
+  </div>
+
+  <div class="ov hide" id="ovCal">
+    <h2>Calibration</h2>
+    <p id="calMsg">Tap the bottom half as the ball lands on the ring. 8 balls.</p>
+    <div id="calpad">Tap here</div>
+  </div>
+
+  <div class="ov hide" id="ovEnd">
+    <h1 id="endTitle">Won!</h1>
+    <p id="endSub"></p>
+    <div class="stats" id="endStats"></div>
+    <div class="row"><button class="btn" id="bAgain">Play again</button><button class="btn alt" id="bCopy">Copy tap log</button><button class="btn alt" id="bRecal">Recalibrate</button></div>
+  </div>
+</div>
+
+<script>
+// CORE-START  (pure rules, shared with the headless bot sweep)
+const LOL = (() => {
+  const SECTORS = ['leg', 'straight', 'off', 'loft'];
+  const SCALE = { block: 1.4, rotate: 1.0, drive: 0.85, slog: 0.7 };
+  // runs per grade x intent (LOL-R2-skill.md section 4)
+  const RUNS = {
+    perfect: { block: 1, rotate: 2, drive: 4, slog: 6 },
+    good:    { block: 0, rotate: 1, drive: 2, slog: 4 },
+    edge:    { block: 0, rotate: 0, drive: 1, slog: 2 },
+    miss:    { block: 0, rotate: 0, drive: 0, slog: 0 },
+  };
+  // Cone Kid: 60 straight, 30 swing, 10 slower. shift = ms later than a straight ball.
+  const DELIVERIES = {
+    straight: { name: 'Straight', tell: 'Straight pace', shift: 0, onStumps: true },
+    swing:    { name: 'Swing', tell: 'SWING → bends to the wall', shift: 50, onStumps: false },
+    slower:   { name: 'Slower ball', tell: 'Hand flick: SLOWER BALL', shift: 120, onStumps: true },
+  };
+  const BOWLER = { name: 'Cone Kid', mix: [['straight', 60], ['swing', 30], ['slower', 10]] };
+  // Field per over (admin default). Guarded sectors hold a fielder.
+  const FIELDS = [
+    { name: 'Spread', guard: { leg: true, off: true } },
+    { name: 'Ring', guard: { leg: true, straight: true, off: true } },
+    { name: 'Leg trap', guard: { leg: true, loft: true } },
+    { name: 'Attack', guard: { straight: true, off: true } },
+  ];
+  const MATCH = { balls: 12, target: 20, wickets: 3, overLen: 4 };
+
+  function rng(seed) { let s = (seed >>> 0) || 1; return () => { s ^= s << 13; s >>>= 0; s ^= s >> 17; s ^= s << 5; s >>>= 0; return s / 4294967296; }; }
+  function pickDelivery(r) { let x = r() * 100; for (const [k, w] of BOWLER.mix) { if ((x -= w) < 0) return k; } return 'straight'; }
+  function windows(intent, perfectMs, assist) { const k = SCALE[intent]; return { perfect: (perfectMs + (assist ? 20 : 0)) * k, good: 100 * k, edge: 150 * k }; }
+  function grade(offsetMs, intent, perfectMs, assist) {
+    if (offsetMs == null) return 'leave';
+    const w = windows(intent, perfectMs, assist), a = Math.abs(offsetMs);
+    return a <= w.perfect ? 'perfect' : a <= w.good ? 'good' : a <= w.edge ? 'edge' : 'miss';
+  }
+  // offsetMs = tap time minus arrival (negative = early); null = no tap (leave).
+  function resolve({ delivery, intent, sector, offsetMs, field, perfectMs = 60, assist = false }) {
+    const d = DELIVERIES[delivery], g = grade(offsetMs, intent, perfectMs, assist);
+    const guarded = !!(field && field.guard[sector]);
+    const late = offsetMs == null ? '' : (offsetMs > 0 ? 'late by ' : 'early by ') + Math.round(Math.abs(offsetMs)) + ' ms';
+    if (g === 'leave' || g === 'miss') {
+      if (d.onStumps) return { grade: g, runs: 0, out: true, why: (g === 'leave' ? 'Left a ball on the stumps' : 'Missed, ' + late) + ' → BOWLED (' + d.name.toLowerCase() + ')' };
+      return { grade: g, runs: 0, out: false, why: g === 'leave' ? 'Left it, swung past the stumps' : 'Missed, ' + late + ', swung past' };
+    }
+    let runs = RUNS[g][intent];
+    if (sector === 'loft') {
+      if (g === 'edge') return { grade: g, runs: 0, out: true, why: 'Skied it, ' + late + ' → CAUGHT' };
+      if (g === 'perfect') runs = Math.min(6, runs + 2);
+    }
+    if (guarded) {
+      if (g === 'edge') return { grade: g, runs: 0, out: true, why: 'Edged to the fielder, ' + late + ' → CAUGHT' };
+      if (g === 'good' && (intent === 'slog' || intent === 'drive')) return { grade: g, runs: 0, out: true, why: (intent === 'slog' ? 'Slog' : 'Drive') + ' found the fielder, ' + late + ' → CAUGHT' };
+      if (g === 'good') runs = Math.min(runs, 1);
+      if (g === 'perfect' && sector !== 'loft') runs = Math.min(runs, 2); // deep fielder stops the boundary
+    }
+    return { grade: g, runs, out: false, why: (g === 'perfect' ? 'Perfect' : g === 'good' ? 'Good' : 'Edge') + (late ? ', ' + late : '') + (guarded && sector !== 'loft' && runs < RUNS[g][intent] ? ', fielder cuts it off' : '') };
+  }
+  function newMatch(seed) {
+    const r = rng(seed), balls = [];
+    for (let i = 0; i < MATCH.balls; i++) balls.push(pickDelivery(r));
+    const fields = [0]; while (fields.length < Math.ceil(MATCH.balls / MATCH.overLen)) { const k = 1 + (r() * (FIELDS.length - 1) | 0); if (k !== fields[fields.length - 1]) fields.push(k); }
+    return { seed, balls, fields, i: 0, runs: 0, wkts: 0, done: false, won: false, log: [] };
+  }
+  // Field changes every 4 balls (admin default); the first block is always Spread.
+  function fieldFor(m, i = m.i) { return FIELDS[m.fields[Math.floor(i / MATCH.overLen)] || 0]; }
+  function step(m, choice, opts) {
+    const delivery = m.balls[m.i], field = fieldFor(m);
+    const res = resolve({ delivery, field, ...choice, ...opts });
+    m.runs += res.runs; if (res.out) m.wkts++;
+    m.log.push({ ball: m.i + 1, delivery, ...choice, ...res, field: field.name });
+    m.i++;
+    if (m.runs >= MATCH.target) { m.done = true; m.won = true; }
+    else if (m.wkts >= MATCH.wickets || m.i >= MATCH.balls) { m.done = true; m.won = false; }
+    return res;
+  }
+  return { SECTORS, SCALE, RUNS, DELIVERIES, BOWLER, FIELDS, MATCH, rng, grade, windows, resolve, newMatch, fieldFor, step };
+})();
+if (typeof module !== 'undefined') module.exports = LOL;
+// CORE-END
+
+// ---------- UI ----------
+(() => {
+  const $ = id => document.getElementById(id);
+  const stage = $('stage'), cv = $('cv'), ctx = cv.getContext('2d');
+  const Q = new URLSearchParams(location.search);
+  let seed = +Q.get('seed') || (Date.now() % 1e9);
+  const store = { get(k, d) { try { const v = localStorage.getItem('lol.' + k); return v == null ? d : JSON.parse(v); } catch (_) { return d; } },
+                  set(k, v) { try { localStorage.setItem('lol.' + k, JSON.stringify(v)); } catch (_) {} } };
+  let perfectMs = store.get('perfectMs', 60), assist = store.get('assist', false), calib = store.get('calib', null);
+  let intent = 'rotate', m = null, cur = null, cal = null, allLog = store.get('log', []);
+  const FLIGHT = 760, TELL = 800, AFTER = 1100;
+
+  // Portrait stage, ratio kept (Fold cover first); wide screens get a centred column.
+  function fit() {
+    const vw = innerWidth, vh = innerHeight;
+    let w = vw, h = vh;
+    if (w / h > 0.8) w = Math.round(vh * 0.8);
+    if (w / h < 0.42) h = Math.round(w / 0.42);
+    stage.style.width = w + 'px'; stage.style.height = h + 'px';
+    const r = $('view').getBoundingClientRect(), dpr = Math.min(2, devicePixelRatio || 1);
+    cv.width = Math.round(r.width * dpr); cv.height = Math.round(r.height * dpr); ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+  addEventListener('resize', fit); fit();
+
+  function setIntent(i) { intent = i; document.querySelectorAll('#intent button').forEach(b => b.classList.toggle('on', b.dataset.i === i)); }
+  document.querySelectorAll('#intent button').forEach(b => b.addEventListener('pointerdown', e => {
+    e.preventDefault(); if (cur && cur.locked && !cur.done) return; setIntent(b.dataset.i);
+  }));
+  function showField(i) {
+    const f = LOL.fieldFor(m, i);
+    document.querySelectorAll('#pad .sec').forEach(s => {
+      const g = f.guard[s.dataset.s], el = s.querySelector('.fld');
+      el.className = 'fld ' + (g ? 'g' : 'o'); el.textContent = g ? 'fielder' : 'open';
+    });
+  }
+  function hud() {
+    const left = LOL.MATCH.balls - m.i, need = Math.max(0, LOL.MATCH.target - m.runs);
+    $('score').textContent = m.runs + ' / ' + LOL.MATCH.target;
+    $('need').textContent = m.done ? '' : 'Need ' + need + ' off ' + left;
+    $('wk').firstChild.textContent = 'Wkts ' + m.wkts + '/' + LOL.MATCH.wickets;
+    $('ball').textContent = m.done ? '' : 'Ball ' + (m.i + 1) + ' of ' + LOL.MATCH.balls + ' · ' + LOL.fieldFor(m).name;
+  }
+  let tagT = 0;
+  function tag(txt, col) { const t = $('tag'); t.textContent = txt; t.style.color = col || '#fff'; t.style.opacity = 1; tagT = performance.now() + 2200; }
+
+  // ---------- match flow (timers run on the frame clock) ----------
+  function startMatch() {
+    m = LOL.newMatch(seed); seed = (seed * 16807) % 2147483647 || 7;
+    ['ovStart', 'ovEnd', 'ovCal'].forEach(id => $(id).classList.add('hide'));
+    hud(); showField(0); nextBall(performance.now() + 700);
+  }
+  function nextBall(t0) {
+    const d = m.balls[m.i];
+    cur = { d, tRun: t0, tRel: t0 + TELL + (d === 'slower' ? 100 : 0), tap: null, done: false, locked: false };
+    cur.tArr = cur.tRel + FLIGHT + LOL.DELIVERIES[d].shift;
+    showField(m.i); hud();
+  }
+  function onTap(sector, ts) {
+    if (!m || m.done || !cur || cur.done || cur.tap) return;
+    if (ts < cur.tRel - 50) { tag('Wait for the release', '#ccc'); return; }
+    cur.tap = { sector, t: ts };
+    const el = document.querySelector('#pad .sec[data-s="' + sector + '"]'); el.classList.add('hit'); setTimeout(() => el.classList.remove('hit'), 160);
+    settle();
+  }
+  function settle() {
+    cur.done = true;
+    const raw = cur.tap ? cur.tap.t - cur.tArr : null;
+    const off = raw == null ? null : raw - (calib ? calib.mean : 0);
+    const res = LOL.step(m, { intent, sector: cur.tap ? cur.tap.sector : null, offsetMs: off }, { perfectMs, assist });
+    const last = m.log[m.log.length - 1]; last.rawMs = raw == null ? null : Math.round(raw); last.offMs = off == null ? null : Math.round(off);
+    allLog.push({ t: Date.now(), d: cur.d, intent, sector: last.sector, rawMs: last.rawMs, offMs: last.offMs, grade: res.grade, perfectMs, calib: calib ? calib.mean : 0 });
+    if (allLog.length > 500) allLog = allLog.slice(-500);
+    store.set('log', allLog);
+    const col = res.out ? 'var(--bad)' : res.grade === 'perfect' ? 'var(--acc)' : res.grade === 'good' ? 'var(--good)' : res.grade === 'edge' ? 'var(--edge)' : '#ddd';
+    const ms = off == null ? '' : ((off > 0 ? '+' : '') + Math.round(off) + ' ms · ');
+    tag(ms + (res.out ? 'OUT: ' : (res.runs ? res.runs + ' run' + (res.runs > 1 ? 's' : '') + ' · ' : 'Dot · ')) + res.why, col);
+    cur.hitRes = res; cur.tSettle = performance.now();
+    hud();
+  }
+
+  // ---------- drawing ----------
+  function draw(now) {
+    const W = cv.clientWidth, H = cv.clientHeight;
+    const topY = H * 0.2, batY = H * 0.8, cx = W / 2, topW = W * 0.16, botW = W * 0.5;
+    ctx.fillStyle = '#1e3a24'; ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = '#3a3a3a'; ctx.fillRect(0, topY - 10, W * 0.05, H); ctx.fillRect(W * 0.95, topY - 10, W * 0.05, H); // gully walls
+    ctx.fillStyle = '#c9b48a'; ctx.beginPath(); ctx.moveTo(cx - topW / 2, topY); ctx.lineTo(cx + topW / 2, topY); ctx.lineTo(cx + botW / 2, H); ctx.lineTo(cx - botW / 2, H); ctx.fill();
+    if (m && !m.done) {
+      const f = LOL.fieldFor(m), spots = { leg: [W * 0.14, H * 0.45], straight: [cx - W * 0.16, H * 0.14], off: [W * 0.86, H * 0.45], loft: [cx + W * 0.22, H * 0.1] };
+      for (const s of LOL.SECTORS) if (f.guard[s]) { ctx.fillStyle = '#ff6b5b'; ctx.beginPath(); ctx.arc(spots[s][0], spots[s][1], 9, 0, 7); ctx.fill(); }
+    }
+    let bowlerY = topY - 16;
+    if (cur && now < cur.tRel) { const k = Math.max(0, Math.min(1, (now - cur.tRun) / (cur.tRel - cur.tRun))); bowlerY = topY - 38 + 22 * k; }
+    ctx.fillStyle = '#f0a040'; ctx.beginPath(); ctx.arc(cx, bowlerY, 12, 0, 7); ctx.fill();
+    ctx.fillStyle = '#fff'; ctx.font = '600 12px system-ui'; ctx.textAlign = 'center'; ctx.fillText(cal ? 'Calibration' : 'Cone Kid', cx, bowlerY - 17);
+    ctx.fillStyle = '#e8e0c8';
+    for (let k = -1; k <= 1; k++) ctx.fillRect(cx + k * 7 - 1.5, batY + 6, 3, 26);
+    let pulse = 0;
+    if (cur && cur.hitRes && now - cur.tSettle < 300 && cur.hitRes.grade === 'perfect') pulse = 1 - (now - cur.tSettle) / 300;
+    ctx.strokeStyle = pulse ? '#ffd23f' : '#ffffffcc'; ctx.lineWidth = 3 + pulse * 6;
+    ctx.beginPath(); ctx.ellipse(cx, batY, 26 + pulse * 14, 10 + pulse * 5, 0, 0, 7); ctx.stroke();
+    if (!cur) { $('tell').style.opacity = 0; return; }
+    const d = LOL.DELIVERIES[cur.d];
+    const tellOn = !cal && now >= cur.tRun && now < cur.tArr + 100;
+    $('tell').style.opacity = tellOn ? 1 : 0; $('tell').textContent = d.tell;
+    const path = p => { const y = topY + (batY - topY) * p; let x = cx; if (cur.d === 'swing') x += Math.sin(p * Math.PI * 0.9) * W * 0.05 + p * p * W * 0.17; return [x, y]; };
+    if (tellOn && now < cur.tRel) { ctx.strokeStyle = '#ffffff66'; ctx.setLineDash([6, 8]); ctx.lineWidth = 2; ctx.beginPath(); for (let p = 0; p <= 1.001; p += 0.05) { const [x, y] = path(p); p ? ctx.lineTo(x, y) : ctx.moveTo(x, y); } ctx.stroke(); ctx.setLineDash([]); }
+    const hitAway = cur.hitRes && !cur.hitRes.out && ['perfect', 'good', 'edge'].includes(cur.hitRes.grade);
+    if (now >= cur.tRel && !(hitAway && now > cur.tSettle + 30)) {
+      const p = (now - cur.tRel) / (cur.tArr - cur.tRel);
+      if (p < 1.3) { const [x, y] = path(p); const r = 4 + 6 * Math.min(1, p); ctx.fillStyle = '#0005'; ctx.beginPath(); ctx.ellipse(x, y + 4 + 14 * (1 - Math.min(1, p)), r, r * 0.4, 0, 0, 7); ctx.fill(); ctx.fillStyle = '#d9342b'; ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fill(); }
+    }
+    if (hitAway && cur.tap) {
+      const k = Math.min(1, (now - cur.tSettle) / 700), tgt = { leg: [W * 0.06, H * 0.3], straight: [cx, H * 0.03], off: [W * 0.94, H * 0.3], loft: [cx + W * 0.1, -20] }[cur.tap.sector];
+      const x = cx + (tgt[0] - cx) * k, y = batY + (tgt[1] - batY) * k - (cur.tap.sector === 'loft' ? Math.sin(k * Math.PI) * 60 : 0);
+      ctx.fillStyle = '#d9342b'; ctx.beginPath(); ctx.arc(x, y, 7, 0, 7); ctx.fill();
+    }
+  }
+
+  function frame(now) {
+    if (cur && m) {
+      cur.locked = now > cur.tArr - 300;
+      if (!cur.done && now > cur.tArr + 260) settle(); // no tap = leave
+      if (cur.done && now > cur.tSettle + AFTER) { if (m.done) end(); else nextBall(now + 250); }
+    }
+    if (cal) calTick(now);
+    if (tagT && now > tagT) { $('tag').style.opacity = 0; tagT = 0; }
+    draw(now);
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+
+  function stats(list) {
+    const xs = list.filter(e => e.offMs != null).map(e => e.offMs);
+    if (!xs.length) return null;
+    const mean = xs.reduce((a, b) => a + b, 0) / xs.length, sd = Math.sqrt(xs.reduce((a, b) => a + (b - mean) ** 2, 0) / xs.length);
+    const abs = xs.map(Math.abs);
+    return { n: xs.length, mean: Math.round(mean), sd: Math.round(sd), in40: Math.round(100 * abs.filter(a => a <= 40).length / xs.length), in60: Math.round(100 * abs.filter(a => a <= 60).length / xs.length) };
+  }
+  function end() {
+    cur = null;
+    $('endTitle').textContent = m.won ? 'Chase won!' : 'Chase lost';
+    $('endSub').textContent = m.runs + ' runs, ' + m.wkts + ' wickets, ' + m.i + ' balls.' + (m.won ? '' : ' Target was ' + LOL.MATCH.target + '.');
+    const s = stats(m.log), sAll = stats(allLog), g = k => m.log.filter(e => e.grade === k).length;
+    $('endStats').innerHTML =
+      'This match: Perfect ' + g('perfect') + ' · Good ' + g('good') + ' · Edge ' + g('edge') + ' · Miss ' + g('miss') + ' · Leave ' + g('leave') + '<br>' +
+      (s ? 'Tap error this match: avg ' + s.mean + ' ms, spread ±' + s.sd + ' ms<br>Within 40 ms: ' + s.in40 + '% · within 60 ms: ' + s.in60 + '%<br>' : '') +
+      (sAll ? 'All taps so far (' + sAll.n + '): spread ±' + sAll.sd + ' ms · within 40: ' + sAll.in40 + '% · within 60: ' + sAll.in60 + '%<br>' : '') +
+      'Perfect window ' + perfectMs + ' ms' + (assist ? ' + Assist 20' : '') + (calib ? ' · calibration ' + calib.mean + ' ms' : ' · not calibrated');
+    $('ovEnd').classList.remove('hide');
+  }
+
+  // ---------- calibration: 8 straight balls, measures thumb offset and spread ----------
+  function calBall(t0) { cur = { d: 'straight', tRun: t0 - TELL, tRel: t0, tArr: t0 + FLIGHT, done: false, tap: null }; }
+  function startCal() {
+    ['ovStart', 'ovEnd'].forEach(id => $(id).classList.add('hide')); $('ovCal').classList.remove('hide');
+    m = null; cal = { taps: [], k: 0 }; calBall(performance.now() + 900);
+    $('calMsg').textContent = 'Tap the bottom half as the ball lands on the ring. 0 / 8';
+  }
+  function calTick(now) {
+    if (now > cur.tArr + 400) {
+      if (cur.tap == null) cal.taps.push(null);
+      if (++cal.k >= 8) return finishCal();
+      calBall(now + 500);
+    }
+  }
+  $('calpad').addEventListener('pointerdown', e => {
+    e.preventDefault(); if (!cal || cur.tap != null || e.timeStamp < cur.tRel) return;
+    cur.tap = e.timeStamp - cur.tArr; cal.taps.push(cur.tap);
+    $('calMsg').textContent = 'Tap as the ball lands on the ring. ' + cal.taps.filter(x => x != null).length + ' / 8  (' + (cur.tap > 0 ? '+' : '') + Math.round(cur.tap) + ' ms)';
+  });
+  function finishCal() {
+    const xs = cal.taps.filter(x => x != null && Math.abs(x) < 300); cal = null; cur = null;
+    if (xs.length >= 5) {
+      const sorted = [...xs].sort((a, b) => a - b), med = sorted[Math.floor(sorted.length / 2)];
+      const mean = xs.reduce((a, b) => a + b, 0) / xs.length, sd = Math.sqrt(xs.reduce((a, b) => a + (b - mean) ** 2, 0) / xs.length);
+      calib = { mean: Math.round(med), sd: Math.round(sd), n: xs.length, at: Date.now() }; store.set('calib', calib);
+    }
+    $('ovCal').classList.add('hide'); $('ovStart').classList.remove('hide'); calInfo();
+  }
+  function calInfo() {
+    $('calInfo').textContent = calib ? 'Calibrated: your taps land ' + Math.abs(calib.mean) + ' ms ' + (calib.mean >= 0 ? 'late' : 'early') + ' (now corrected), spread ±' + calib.sd + ' ms over ' + calib.n + ' taps.' : 'Not calibrated yet.';
+    $('bWin').textContent = 'Perfect window: ' + perfectMs + ' ms'; $('bAssist').textContent = 'Assist: ' + (assist ? 'on (+20 ms)' : 'off');
+  }
+  calInfo();
+
+  // ---------- input ----------
+  document.querySelectorAll('#pad .sec').forEach(s => s.addEventListener('pointerdown', e => { e.preventDefault(); onTap(s.dataset.s, e.timeStamp); }));
+  $('bPlay').onclick = startMatch; $('bAgain').onclick = startMatch;
+  $('bCal').onclick = startCal;
+  $('bRecal').onclick = () => { $('ovEnd').classList.add('hide'); startCal(); };
+  $('bWin').onclick = () => { perfectMs = perfectMs === 60 ? 40 : 60; store.set('perfectMs', perfectMs); calInfo(); };
+  $('bAssist').onclick = () => { assist = !assist; store.set('assist', assist); calInfo(); };
+  $('bCopy').onclick = () => {
+    const txt = JSON.stringify({ calib, perfectMs, assist, taps: allLog });
+    (navigator.clipboard ? navigator.clipboard.writeText(txt) : Promise.reject()).then(() => { $('bCopy').textContent = 'Copied'; }, () => { prompt('Copy this log', txt); });
+  };
+  window.__lol = { get match() { return m; }, get cur() { return cur; }, get calib() { return calib; }, get perfectMs() { return perfectMs; }, LOL };
+})();
+</script>
+<script>if('serviceWorker' in navigator&&isSecureContext)addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(e=>console.warn('sw',e)));try{screen.orientation&&screen.orientation.lock&&matchMedia('(display-mode: fullscreen)').matches&&screen.orientation.lock('portrait').catch(()=>{});}catch(_){}</script>
+</body></html>
