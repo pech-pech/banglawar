@@ -10,7 +10,7 @@ var PAL = {
   wall: C(196, 188, 170), wallTop: C(218, 211, 194), wallSeam: C(150, 142, 126),
   pillar: C(184, 176, 158), pillarTop: C(206, 199, 182),
   crate: C(92, 104, 62), crateLid: C(112, 126, 76), crateBand: C(64, 72, 44),
-  doorShut: C(70, 74, 80), doorOpen: C(40, 36, 30), doorLightShut: C(255, 60, 50), doorLightOpen: C(90, 240, 140),
+  doorShut: C(70, 74, 80), doorOpen: C(40, 36, 30), doorLightShut: C(255, 60, 50), doorLightOpen: C(90, 240, 140), chevron: C(223, 230, 236),
   metal: C(62, 66, 74), metalLite: C(92, 98, 108), metalDark: C(36, 39, 45),
   sensor: C(255, 48, 48), sensorCore: C(255, 200, 190),
   heroBody: C(118, 126, 84), heroDark: C(70, 76, 50), cyan: C(64, 228, 255), cyanSoft: C(64, 228, 255, 0.35),
@@ -50,7 +50,7 @@ function mkRng(seed) {
 }
 
 var P = { list: [], rnd: mkRng(1), seed: null, lastFrame: -1, lastT: 0, ingested: false }; // particles (world units)
-var MAXP = 400;
+var MAXP = 600; // VISUAL-DESIGN B10 (was 400); spawners already stop at the cap
 
 function spawnBurst(x, y, n, spd, life, col, size, drag) {
   for (var i = 0; i < n && P.list.length < MAXP; i++) {
@@ -72,7 +72,11 @@ function eatEvents(ev, S) {
       case 'crit': spawnBurst(x, y, 9, 6, 0.3, PAL.sparkHot, 0.08); spawnRing(x, y, 0.1, 0.6, 0.2, PAL.amber); break;
       case 'kill':
         spawnBurst(x, y, 12, 6, 0.4, PAL.spark, 0.08); spawnBurst(x, y, 6, 3, 0.6, PAL.debris, 0.1, 3);
-        spawnRing(x, y, 0.2, 1.0, 0.3, PAL.sparkHot); break;
+        spawnRing(x, y, 0.2, 1.0, 0.3, PAL.sparkHot);
+        if (e.size === 'large' || e.boss) spawnBurst(x, y, 10, 5, 0.6, PAL.debris, 0.12, 3); // kill class (B2)
+        if (e.last && !e.boss) spawnRing(x, y, 0.3, 1.8, 0.45, PAL.white); // last kill of the room (B2)
+        break;
+      case 'block': spawnBurst(x, y, 4, 3, 0.18, PAL.spark, 0.05); spawnRing(x, y, 0.05, 0.35, 0.15, PAL.spark); break; // cover stopped a round (B6)
       case 'hurt': spawnBurst(x, y, 8, 4, 0.3, PAL.hurt, 0.07); break;
       case 'pickup': spawnRing(x, y, 0.1, 0.5, 0.25, PAL.xp); break;
       case 'levelup': spawnRing(x, y, 0.3, 1.8, 0.5, PAL.cyan); spawnBurst(x, y, 10, 4, 0.5, PAL.cyan, 0.06); break;
@@ -178,14 +182,16 @@ function drawDoor(S, s) {
   var d = S.room.door; if (!d) return;
   var cx = X(d.x + d.w / 2), cy = Y(d.y + d.h / 2), w = d.w * s, h = d.h * s;
   if (d.open) {
+    // C16 / AN-401: lamps red -> dark (first 0.4 s of clear) -> green; chevrons white-steel. Render only: the sim door is already passable.
+    var lamp = S.phase === 'clear' && !S.bossWin && (S.clearT || 0) < 0.4 ? PAL.metalDark : PAL.doorLightOpen;
     rect(cx, cy, w, h, PAL.doorOpen);
     rect(cx, cy + h * 0.25, w - 4, h * 0.5, C(70, 60, 44));
     // chevrons pointing north
     for (var k = 0; k < 2; k++) {
       var yy = cy + h * 0.15 - k * 6;
-      line(cx - 6, yy + 4, cx, yy - 2, 2, PAL.doorLightOpen); line(cx, yy - 2, cx + 6, yy + 4, 2, PAL.doorLightOpen);
+      line(cx - 6, yy + 4, cx, yy - 2, 2, PAL.chevron); line(cx, yy - 2, cx + 6, yy + 4, 2, PAL.chevron);
     }
-    circ(cx - w / 2 + 4, cy, 2.5, PAL.doorLightOpen); circ(cx + w / 2 - 4, cy, 2.5, PAL.doorLightOpen);
+    circ(cx - w / 2 + 4, cy, 2.5, lamp); circ(cx + w / 2 - 4, cy, 2.5, lamp);
   } else {
     oRect(cx, cy, w, h, PAL.doorShut);
     var n = Math.max(2, Math.round(d.w * 3));

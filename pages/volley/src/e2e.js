@@ -299,7 +299,8 @@ async function session(browser, target, sess) {
 
   if (sess.plan === 'wide') {
     const note = await page.evaluate(() => window.__findText(/cover[\s-]*screen/i));
-    ok(note.length > 0, 'wide screen shows the cover-screen note', note.length ? `"${note[0].txt}"` : 'no visible text matching /cover screen/');
+    // F0 (pick: wide screens always scale the whole 344x882 frame with bars): the old cover-screen note is gone.
+    ok(note.length === 0, 'wide screen scales the frame with no cover-screen note', note.length ? `still shows "${note[0].txt}"` : 'no cover-screen note');
     if (cv) {
       const asp = cv.w / cv.h, want = 344 / 882;
       ok(Math.abs(asp - want) < 0.03 && Math.abs(cv.left + cv.w / 2 - w / 2) < 4, 'wide: game in centred portrait column 344:882', `canvas ${Math.round(cv.w)}x${Math.round(cv.h)} aspect ${asp.toFixed(3)} (want ${want.toFixed(3)}), centre off ${Math.round(cv.left + cv.w / 2 - w / 2)} px`);
@@ -761,7 +762,7 @@ async function homeSession(browser, target, sess) {
   const ctx = await browser.newContext({ viewport: { width: w, height: h }, deviceScaleFactor: 1, hasTouch: true, isMobile: true });
   await ctx.addInitScript(INIT);
   // A dirty save planted before any page script runs: ?fresh=1 must ignore it.
-  await ctx.addInitScript(() => { try { localStorage.setItem('volley.save.v1', JSON.stringify({ v: 1, credits: 98765, rifle: { lvl: 4 }, cond: { hp: 3, atk: 2, rate: 1 }, buys: 6, power: 0, runs: [], best: 7, codex: { seen: {} }, settings: {} })); } catch (e) {} });
+  await ctx.addInitScript(() => { try { localStorage.setItem('volley.save.v2', JSON.stringify({ v: 2, credits: 98765, rifle: { lvl: 4 }, cond: { hp: 3, atk: 2, rate: 1 }, buys: 6, power: 0, runs: [], best: 7, codex: { seen: {} }, settings: {} })); } catch (e) {} });
   const page = await ctx.newPage();
   page.on('console', m => { if (m.type() === 'error') errors.push('console: ' + m.text().slice(0, 200)); });
   page.on('pageerror', e => errors.push('pageerror: ' + e.message.slice(0, 200)));
@@ -810,7 +811,7 @@ async function homeSession(browser, target, sess) {
   const u1 = await page.evaluate(() => ({ c: V.Meta.state.credits, b: V.Meta.state.buys, s: V.Meta.state.cond.hp + V.Meta.state.cond.atk + V.Meta.state.cond.rate }));
   ok(uTap && u1.b === u0.b + 1 && u1.s === u0.s + 1 && u1.c < u0.c, 'Upgrades random buy changes V.Meta.state', `tapped=${uTap}; buys ${u0.b} -> ${u1.b}; stat points ${u0.s} -> ${u1.s}; credits ${u0.c} -> ${u1.c}`);
   ok((await chip()) === String(u1.c).replace(/\B(?=(\d{3})+(?!\d))/g, ','), 'Credits chip follows the random buy', `chip "${await chip()}" vs state ${u1.c}`);
-  const saved = await page.evaluate(() => { try { return JSON.parse(localStorage.getItem('volley.save.v1')).buys; } catch (e) { return null; } });
+  const saved = await page.evaluate(() => { try { return JSON.parse(localStorage.getItem(V.Meta.KEY)).buys; } catch (e) { return null; } });
   ok(saved === u1.b, 'buys are saved to localStorage', `saved buys ${saved} vs state ${u1.b}`);
 
   // --- DEPLOY -> play ---

@@ -137,8 +137,8 @@ function view(){
 function pips(lvl){ var s = ''; for (var i = 1; i <= RIFLE_MAX; i++) s += '<i class="' + (i <= lvl ? 'on' : '') + '"></i>'; return '<span class="ta-pips" aria-hidden="true">' + s + '</span>'; }
 function statRow(v){
   return '<div class="pv-panel pv-panel--inset ta-stat">' + ico('<path d="M12 3l7 8h-4v10H9V11H5z"/>') + '<span class="pv-stat__name">Rifle ATK</span>' +
-    '<span class="pv-stat__val">' + v.atk + '</span>' + (v.maxed ? '<span class="pv-badge pv-badge--olive">Max</span>' :
-    '<span class="pv-small">&rarr;</span><span class="pv-stat__val pv-cyan">' + v.next + '</span><span class="pv-stat__delta">+' + (v.next - v.atk) + '</span>') + '</div>';
+    '<span class="pv-stat__val">' + fmt(v.atk) + '</span>' + (v.maxed ? '<span class="pv-badge pv-badge--olive">Max</span>' :
+    '<span class="pv-small">&rarr;</span><span class="pv-stat__val pv-cyan">' + fmt(v.next) + '</span><span class="pv-stat__delta">+' + fmt(v.next - v.atk) + '</span>') + '</div>';
 }
 function costRow(v){
   if (v.maxed) return '<div class="ta-cost"><span class="ta-hint">Cost</span><span class="pv-small" style="margin-left:auto">Fully upgraded</span></div>';
@@ -203,8 +203,10 @@ function onClick(e){
   if (act === 'close') { if (t.classList.contains('ta-scrim') && e.target !== t) return; closeSheet(); }
   else if (act === 'operator') { if (V.Home && V.Home.go) V.Home.go('operator'); }
   else if (act === 'open') { sheetOpen = true; render(); var x = el.querySelector('.ta-x'); if (x) x.focus(); }
-  else if (act === 'buy') { var M = meta(); if (M.buy('rifle', 'rifle')) { if (V.Audio && V.Audio.click) try { V.Audio.click(); } catch (_) {} } render(); }
+  else if (act === 'buy') { var M = meta(); if (M.buy('rifle', 'rifle')) buySound(); render(); }
 }
+// audio.js has no click() yet (F0 audit): use it when it lands, else the existing 'levelup' cue (closest UI cue in audio.js).
+function buySound(){ var A = V.Audio; if (!A) return; try { if (typeof A.click === 'function') A.click(); else if (typeof A.play === 'function') A.play('levelup'); } catch (_) {} }
 function closeSheet(){ if (!sheetOpen) return; sheetOpen = false; render(); }
 
 V.Tabs = V.Tabs || {};

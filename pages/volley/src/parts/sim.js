@@ -9,7 +9,9 @@
 //   Round damage = HERO_ATK x (1+atkAdd) x atkMul x pattern mul; rate = (1+rateAdd) x rateMul.
 //   volleys = batches per attack (1 + Multi-volley copies), 0.12 s apart. dodge = chance, capped 0.4.
 // Round flags the sim handles: r.pierce (x0.67 per enemy), r.bounceWall (up to 2, x0.5), r.rico (3 jumps, x0.7, 4 tiles).
-// Events: fire hit crit kill hurt dodge lock unlock tell door room levelup pick death pickup land supply chest boss bossphase win.
+// Events: fire hit crit kill hurt dodge lock unlock tell door room levelup pick death pickup land supply chest boss bossphase win block.
+// Art/VFX fields (LIAISON 2026-11-10, additive, read-only, no rng): fire {vol, weapon}; hit {src, dir, hp, max};
+//   kill {size, last}; hurt {hp, max, down}; block {src} (enemy flat round stopped by cover); door {stage, kind}.
 // Pure deterministic sim. Fixed step 1/60 s x TIME_SCALE. No DOM, no unseeded randomness, no wall clock.
 
 var STEP = 1 / 60;
@@ -73,6 +75,10 @@ function enemyDmg(S, base){
   return Math.max(1, Math.floor(base * t.ENEMY_DMG_MULT * (1 + t.DMG_SLOPE * (scaleStage(S) - 1))));
 }
 function ev(S, o){ S.events.push(o); return o; }
+// F0 #7: machine and boss base rows live in parts/data-enemies.js (V.Data.enemies). Each behaviour's .base is bound to its
+// table row at every create (the AI parts load after this one, so binding at load is too early). Node loaders that skip the data part get it here.
+if (!(V.Data && V.Data.enemies) && typeof require === 'function' && typeof module !== 'undefined') { try { require('./data-enemies.js'); } catch (e) {} }
+function bindData(){ var T = V.Data && V.Data.enemies; if (!T) return; for (var k in T) if (V.AI[k] && V.AI[k].base !== T[k]) V.AI[k].base = T[k]; }
 function base(e){ var A = V.AI[e.type]; return A ? A.base : { hp:100, contact:40, dmg:40, speed:0, r:0.4, size:'medium', xp:8 }; }
 
 // ---------- mod hooks ----------
@@ -239,6 +245,7 @@ function releaseSpawns(S){
 // opts.metaStats: object = use these meta stats (bot test of a powered hero, no V.Meta needed); null/false = neutral even if V.Meta exists.
 // Without opts, stats come from V.Meta.stats() when V.Meta is loaded (the browser game); bot.js never loads meta.js so it stays neutral.
 function create(seed, tune, opts){
+  bindData();
   tune = tune || V.TUNE;
   seed = (seed >>> 0);
   var S = { seed:seed, frame:0, t:0, tune:tune, phase:'play', stage:1, stageIdx:0, stageKind:'combat', roomId:null, lap:1,
@@ -281,6 +288,7 @@ function spawnRound(S, x, y, ang, dmg){
   return r;
 }
 function fireBatch(S){
+  var vol = S.stats.shots || 0; // volley id = rounds fired before this batch (monotonic, deterministic)
   var h = S.hero, a = h.ang, list = [{ ang:0, off:0, mul:1 }];
   callHook(S, 'pattern', list);
   var px = -Math.sin(a), py = Math.cos(a);
@@ -290,7 +298,7 @@ function fireBatch(S){
     if (p.delay > 0) { h.delayQ.push({ t:p.delay, ang:p.ang || 0, off:off, mul:p.mul == null ? 1 : p.mul }); continue; }
     spawnRound(S, mx + px * off, my + py * off, a + (p.ang || 0), roundDamage(S, p.mul == null ? 1 : p.mul));
   }
-  ev(S, { k:'fire', x:mx, y:my, ang:a, n:list.length });
+  ev(S, { k:'fire', x:mx, y:my, ang:a, n:list.length, vol:vol, weapon:'rifle' });
 }
 
 function findEnemy(S, id){ for (var i = 0; i < S.enemies.length; i++) if (S.enemies[i].id === id) return S.enemies[i]; return null; }
@@ -393,7 +401,7 @@ function hurtHero(S, dmg, src, x, y, opts){
   h.hp -= dmg; S.stats.dmgTaken += dmg;
   S.stats.hitsBy[src] = (S.stats.hitsBy[src] || 0) + 1;
   h.invulnT = S.tune.INVULN;
-  ev(S, { k:'hurt', x:h.x, y:h.y, dmg:dmg, src:src });
+  ev(S, { k:'hurt', x:h.x, y:h.y, dmg:dmg, src:src, hp:Math.max(0, h.hp), max:h.maxHp, down:h.hp <= 0 });
   if (h.hp <= 0) { h.hp = 0; endRun(S, false); }
   return true;
 }
@@ -522,7 +530,8 @@ function killEnemy(S, e){
   var b = base(e);
   S.stats.kills++;
   S.stats.killLog.push({ type:e.type, stage:S.stage, t:+(S.roomT).toFixed(3) });
-  ev(S, { k:'kill', x:e.x, y:e.y, id:e.id, type:e.type, boss:!!e.boss });
+  var others = 0; for (var oi = 0; oi < S.enemies.length; oi++) if (S.enemies[oi] !== e && S.enemies[oi].hp > 0) others++;
+  ev(S, { k:'kill', x:e.x, y:e.y, id:e.id, type:e.type, boss:!!e.boss, size:b.size || 'small', last:others === 0 && !(S.spawnQ && S.spawnQ.length) });
   if (b.xp) S.pickups.push({ x:e.x, y:e.y, kind:'xp', v:b.xp, life:1e9 });
   if (!e.boss) {
     var p = Math.min(REPAIR_CAP, REPAIR_BASE + S.pity);
@@ -540,7 +549,8 @@ function damageEnemy(S, e, dmg, crit, r, opts){
   dmg = Math.max(1, Math.floor(dmg));
   e.hp -= dmg;
   if (opts && opts.dot) ev(S, { k:'dot', x:e.x, y:e.y, id:e.id, dmg:dmg });
-  else { e.flashT = 0.1; ev(S, { k:'hit', x:e.x, y:e.y, id:e.id, dmg:dmg, crit:crit }); }
+  else { e.flashT = 0.1; ev(S, { k:'hit', x:e.x, y:e.y, id:e.id, dmg:dmg, crit:crit,
+    src:r ? 'round' : ((opts && opts.src) || 'mod'), dir:r ? Math.atan2(r.vy, r.vx) : null, hp:Math.max(0, e.hp), max:e.maxHp }); }
   if (crit) ev(S, { k:'crit', x:e.x, y:e.y, id:e.id, dmg:dmg });
   if (e.hp <= 0) { e.hp = 0; killEnemy(S, e); return true; }
   return false;
@@ -617,7 +627,7 @@ function stepShots(S, dt){
     var s = a[i];
     s.x += s.vx * dt; s.y += s.vy * dt;
     if (s.life != null) { s.life -= dt; if (s.life <= 0) continue; }
-    if (hitsSolid(S, s.x, s.y, s.r)) continue; // cover stops enemy flat rounds (M)
+    if (hitsSolid(S, s.x, s.y, s.r)) { ev(S, { k:'block', x:s.x, y:s.y, src:s.src }); continue; } // cover stops enemy flat rounds (M)
     if (outOfRoom(S, s.x, s.y, -s.r)) {
       if (s.bounces > 0) { wallReflect(S, s); s.bounces--; } else if (outOfRoom(S, s.x, s.y, s.r)) continue;
     }
@@ -743,7 +753,7 @@ function pickSupply0(S, index){
 }
 function openDoor(S){
   S.phase = 'clear'; S.clearT = 0; S.room.door.open = true;
-  ev(S, { k:'door', x:S.room.door.x + 0.5, y:S.room.door.y + 0.5, open:true });
+  ev(S, { k:'door', x:S.room.door.x + 0.5, y:S.room.door.y + 0.5, open:true, stage:S.stage, kind:S.stageKind });
 }
 function openChest(S){
   var c = S.chest; if (!c || c.open) return;

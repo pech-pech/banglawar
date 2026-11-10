@@ -62,11 +62,12 @@ M.award({ win:false, stage:4, credits:50, kills:5, t:30, seen:['E-02'] });
 var snap = JSON.stringify(M.state);
 M.load({ storage:st2 });
 ok('roundtrip', JSON.stringify(M.state) === snap, [snap, JSON.stringify(M.state)]);
-ok('storage key', 'volley.save.v1' in st2.d);
+ok('storage key', 'volley.save.v2' in st2.d);   // F0 #8: key v1 -> v2 (settings moved out of the save)
 M.load({ storage:st2, fresh:true }); ok('fresh ignores save', M.state.credits === 0 && M.state.rifle.lvl === 1);
-st2.d['volley.save.v1'] = '{not json'; M.load({ storage:st2 }); ok('corrupt -> fresh', M.state.credits === 0);
-st2.d['volley.save.v1'] = JSON.stringify({ credits:-5, rifle:{ lvl:99 }, cond:{ hp:'x', atk:3 } }); M.load({ storage:st2 });
-ok('sanitize', M.state.credits === 0 && M.state.rifle.lvl === 10 && M.state.cond.hp === 0 && M.state.buys === 3);
+st2.d['volley.save.v2'] = '{not json'; M.load({ storage:st2 }); ok('corrupt -> fresh', M.state.credits === 0);
+st2.d['volley.save.v2'] = JSON.stringify({ v:2, credits:-5, rifle:{ lvl:99 }, cond:{ hp:'x', atk:3 } }); M.load({ storage:st2 });
+// F0 #8 (08 section 4): any validation failure is a full fresh start, no partial repair (was: clamp field by field)
+ok('invalid save -> fresh, no partial repair', M.state.credits === 0 && M.state.rifle.lvl === 1 && M.state.cond.atk === 0 && M.state.buys === 0 && M.resetSignal === 'invalid', M.state);
 var bad = { getItem:function(){ throw new Error('x'); }, setItem:function(){ throw new Error('x'); } };
 M.setStorage(bad); M.load({ storage:bad }); ok('throwing storage ok', M.state.credits === 0 && M.save() === false);
 M.setStorage(null); ok('no storage save false', M.save() === false);
@@ -109,20 +110,22 @@ ok('counter fresh', M.boughtCount('cond') === 0 && M.maxTotal('cond') === 30 && 
 M.buyRandom('cond'); ok('counter after', M.boughtCount('cond') === 1 && M.nextPrice('cond') === 325);
 var seenIds = {}; for (var q = 0; q < 29; q++) { var r = M.buyRandom('cond'); seenIds[r] = 1; }
 ok('30 random buys max all, then null', M.boughtCount('cond') === 30 && M.state.cond.hp === 10 && M.state.cond.atk === 10 && M.state.cond.rate === 10 && M.nextPrice('cond') === null && M.buyRandom('cond') === null);
-// PV-19: a save from a newer version (2, 3) is played read-only and never rewritten as v1; unknown fields stay on disk.
-[2, 3].forEach(function(ver){
+// PV-19: a save from a newer version (3, 4; was 2, 3 before F0 #8) is played read-only and never rewritten as v2; unknown fields stay on disk.
+[3, 4].forEach(function(ver){
   var ms = mock(), orig = JSON.stringify({ v:ver, credits:5000, rifle:{ lvl:2 }, cond:{ hp:1, atk:0, rate:0 }, futureField:{ a:[1, 2] }, relics:['x'] });
-  ms.d['volley.save.v1'] = orig;
+  ms.d['volley.save.v2'] = orig;
   M.load({ storage:ms });
   ok('v' + ver + ' save loads', M.state.credits === 5000 && M.readOnly === true && /newer/i.test(M.note), M.note);
-  ok('v' + ver + ' buy works in memory, save() writes nothing', M.buy('rifle') && M.save() === false && ms.d['volley.save.v1'] === orig, ms.d['volley.save.v1']);
-  ok('v' + ver + ' award does not touch the stored save', (M.award({ win:false, stage:2, credits:10 }), ms.d['volley.save.v1'] === orig));
+  ok('v' + ver + ' buy works in memory, save() writes nothing', M.buy('rifle') && M.save() === false && ms.d['volley.save.v2'] === orig, ms.d['volley.save.v2']);
+  ok('v' + ver + ' award does not touch the stored save', (M.award({ win:false, stage:2, credits:10 }), ms.d['volley.save.v2'] === orig));
   M.load({ storage:ms });
-  ok('v' + ver + ' stored version and unknown fields intact after reload', (function(){ var j = JSON.parse(ms.d['volley.save.v1']); return j.v === ver && j.futureField.a[1] === 2 && j.relics[0] === 'x'; })());
-  M.reset(); ok('v' + ver + ' explicit reset replaces it', M.readOnly === false && JSON.parse(ms.d['volley.save.v1']).v === 1);
+  ok('v' + ver + ' stored version and unknown fields intact after reload', (function(){ var j = JSON.parse(ms.d['volley.save.v2']); return j.v === ver && j.futureField.a[1] === 2 && j.relics[0] === 'x'; })());
+  M.reset(); ok('v' + ver + ' explicit reset replaces it', M.readOnly === false && JSON.parse(ms.d['volley.save.v2']).v === 2);
 });
-var m1 = mock(); m1.d['volley.save.v1'] = JSON.stringify({ v:1, credits:7 }); M.load({ storage:m1 });
-ok('v1 save stays writable', M.readOnly === false && (M.state.credits = 9, M.save() === true) && JSON.parse(m1.d['volley.save.v1']).credits === 9);
+// F0 #8: a current save must be complete to validate (was { v:1, credits:7 }), so the test writes a full v2 save
+var m1 = mock(), full = { v:2, credits:7, rifle:{ lvl:1 }, cond:{ hp:0, atk:0, rate:0 }, buys:0, power:0, runs:[], best:0, codex:{ seen:{} } };
+m1.d['volley.save.v2'] = JSON.stringify(full); M.load({ storage:m1 });
+ok('v2 save stays writable', M.readOnly === false && M.state.credits === 7 && (M.state.credits = 9, M.save() === true) && JSON.parse(m1.d['volley.save.v2']).credits === 9);
 // PV-20: storage blocked (property access throws): loading the file in a browser-like global must not throw.
 (function(){
   var vm = require('vm'), fs = require('fs'), code = fs.readFileSync(path.join(__dirname, 'parts', 'meta.js'), 'utf8'), threw = null, ctx = { console: console };

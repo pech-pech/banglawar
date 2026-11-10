@@ -10,14 +10,18 @@
   --cyan:#43d3e3; --cyanD:#0e5a63; --red:#e2463c; --hp:#5fd06a; --amber:#f0b54a; --mut:#b9b2a2;
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-html,body{margin:0;height:100%;background:#1b1a17;color:var(--sand);font:14px/1.3 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;overflow:hidden;
+html,body{margin:0;height:100%;background:var(--pv-ui-bg,#0b0e11);color:var(--sand);font:14px/1.3 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;overflow:hidden;
   user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;overscroll-behavior:none}
-#stage{position:absolute;left:0;top:0;overflow:hidden;touch-action:none;background:#c9b48a;flex:none}
+/* Scaled frame (pick 1): #stage is always 344 x 882 frame units; main.js layout() sets translate+scale. The bars are the body background
+   (flat --pv-ui-bg) with a 1 px --pv-ui-metal-500 line on the frame edge (1 screen px at any scale). Bars carry no art or text. */
+body{touch-action:none}
+#stage{position:absolute;left:0;top:0;width:344px;height:882px;transform-origin:0 0;overflow:hidden;touch-action:none;background:#c9b48a;flex:none;
+  box-shadow:0 0 0 calc(1px / var(--pv-scale,1)) var(--pv-ui-metal-500,#4a535d)}
 #stage canvas{position:absolute;left:0;top:0;width:100%;height:100%;display:block;touch-action:none}
 /* HUD */
 #hud{position:absolute;left:0;top:0;right:0;pointer-events:none;z-index:10;
-  padding:env(safe-area-inset-top,0px) env(safe-area-inset-right,0px) 0 env(safe-area-inset-left,0px);
-  background:linear-gradient(#1d1e1f,#1d1e1f) no-repeat top/100% env(safe-area-inset-top,0px)}
+  padding:0px 0px 0 0px;
+  background:linear-gradient(#1d1e1f,#1d1e1f) no-repeat top/100% 0px}
 #hudTop{display:flex;align-items:center;gap:6px;height:44px;padding:4px 4px 0 6px;background:linear-gradient(#1d1e1fee,#1d1e1fcc)}
 #stageLbl{font-weight:700;font-size:13px;white-space:nowrap;color:var(--sand);background:var(--gun);border:1px solid #4a4d4f;border-radius:6px;padding:3px 6px}
 #stageLbl b{color:#fff}
@@ -44,7 +48,7 @@ body.dbg #rlbl{display:block}
 body.ovon #hud, body.ovon #toast, body.ovon #rlbl{visibility:hidden}
 /* overlays */
 .ov{position:absolute;inset:0;z-index:30;display:none;flex-direction:column;align-items:center;justify-content:center;gap:12px;
-  padding:max(16px,env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) max(16px,env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));
+  padding:max(16px,0px) max(16px,0px) max(16px,0px) max(16px,0px);
   background:rgba(20,19,16,.94);text-align:center}
 .ov.on{display:flex}
 .ov h2{margin:0;font-size:22px;color:#fff;letter-spacing:.5px}
@@ -59,7 +63,6 @@ body.ovon #hud, body.ovon #toast, body.ovon #rlbl{visibility:hidden}
 .card span{display:block;font-size:15px;line-height:1.25;color:var(--sand)}
 .card.sup .gl{background:#2d2414;border-color:#7a5a20;color:var(--amber)}
 #deadStats{font-size:14px;color:var(--sand);line-height:1.5}
-#coverNote{position:absolute;display:none;font-size:13px;color:var(--sand);background:var(--gun);border:1px solid #4a4d4f;border-radius:8px;padding:8px 10px;z-index:40;max-width:260px}
 /* Boss bar (D1): label row above a plain full-width bar, so no text sits over the fill. */
 #bossBar{position:absolute;display:none;z-index:10;pointer-events:none;padding:2px 4px 4px;border-radius:6px;background:rgba(12,13,14,.88);border:1px solid #6a2a26}
 #bossTxt{display:flex;justify-content:space-between;gap:8px;font-size:12px;font-weight:800;line-height:15px;color:#fff;white-space:nowrap;padding:0 2px}
@@ -97,7 +100,7 @@ body.ovon #bossBar, body.ovon #howto, body.ovon #dmgLayer{visibility:hidden}
 #ovBoot{z-index:60}
 /* drawer */
 #drawer{position:absolute;top:0;right:0;bottom:0;width:100%;z-index:50;background:rgba(18,18,17,.97);display:none;flex-direction:column;
-  padding:env(safe-area-inset-top,0px) env(safe-area-inset-right,0px) env(safe-area-inset-bottom,0px) env(safe-area-inset-left,0px)}
+  padding:0px 0px 0px 0px}
 #drawer.on{display:flex}
 #drHead{display:flex;align-items:center;gap:6px;padding:4px 6px;border-bottom:1px solid #3c3f42;flex-wrap:wrap}
 #drHead h3{margin:0 auto 0 4px;font-size:16px;color:#fff}
@@ -272,7 +275,7 @@ body.ovon #bossBar, body.ovon #howto, body.ovon #dmgLayer{visibility:hidden}
   background:linear-gradient(var(--pv-ui-metal-800),var(--pv-ui-metal-900));border-top:var(--pv-ui-stroke-heavy) solid var(--pv-ui-ink);box-shadow:0 -4px 10px rgba(0,0,0,.5),inset 0 1px 0 rgba(255,255,255,.08)}
 .pv-tab{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;min-height:var(--pv-ui-touch);color:var(--pv-ui-text-2);cursor:pointer;background:none;border:0;padding:0}
 .pv-tab__icon{width:24px;height:24px}
-.pv-tab__label{font:800 10px/1 var(--pv-ui-font-stencil);text-transform:uppercase;letter-spacing:.12em}
+.pv-tab__label{font:800 11px/1 var(--pv-ui-font-stencil);text-transform:uppercase;letter-spacing:.12em}
 .pv-tab.is-selected{color:var(--pv-ui-cyan)}
 .pv-tab.is-selected::before{content:"";position:absolute;top:0;left:20%;right:20%;height:3px;background:var(--pv-ui-cyan);box-shadow:0 0 8px var(--pv-ui-cyan)}
 .pv-tab--center{color:var(--pv-ui-text)}
@@ -290,9 +293,9 @@ body.ovon #bossBar, body.ovon #howto, body.ovon #dmgLayer{visibility:hidden}
 .pv-cell{width:56px;height:56px;font-size:26px}
 .r1{--rc:var(--pv-ui-r1)}.r2{--rc:var(--pv-ui-r2)}.r3{--rc:var(--pv-ui-r3)}.r4{--rc:var(--pv-ui-r4)}.r5{--rc:var(--pv-ui-r5)}.r6{--rc:var(--pv-ui-r6)}
 .r5,.r6{box-shadow:inset 0 0 0 2px var(--rc),0 0 8px color-mix(in srgb,var(--rc) 55%,transparent),var(--pv-ui-sh-1)}
-.pv-slot__label{position:absolute;left:0;right:0;bottom:-15px;text-align:center;font:700 9px/1 var(--pv-ui-font-stencil);letter-spacing:.14em;text-transform:uppercase;color:var(--pv-ui-text-2)}
+.pv-slot__label{position:absolute;left:0;right:0;bottom:-15px;text-align:center;font:700 11px/1 var(--pv-ui-font-stencil);letter-spacing:.14em;text-transform:uppercase;color:var(--pv-ui-text-2)}
 .pv-lvl{position:absolute;right:-3px;bottom:-3px;min-width:22px;height:16px;padding:0 4px;display:flex;align-items:center;justify-content:center;
-  font:800 10px/1 var(--pv-ui-font-stencil);color:var(--pv-ui-text);background:var(--pv-ui-ink);border:1.5px solid var(--rc);border-radius:3px}
+  font:800 11px/1 var(--pv-ui-font-stencil);color:var(--pv-ui-text);background:var(--pv-ui-ink);border:1.5px solid var(--rc);border-radius:3px}
 .pv-slot.is-selected,.pv-cell.is-selected{outline:2px solid var(--pv-ui-cyan);outline-offset:2px}
 .pv-slot.is-empty,.pv-cell.is-empty{--rc:var(--pv-ui-metal-500);background:var(--pv-ui-metal-900);color:var(--pv-ui-metal-500);box-shadow:inset 0 0 0 1.5px var(--pv-ui-metal-600);border-style:dashed}
 .pv-slot:active,.pv-cell:active{filter:brightness(.85)}
@@ -311,7 +314,7 @@ body.ovon #bossBar, body.ovon #howto, body.ovon #dmgLayer{visibility:hidden}
 .pv-bar--olive .pv-bar__fill{background:linear-gradient(var(--pv-ui-olive-300),var(--pv-ui-olive-500))}
 .pv-bar--danger .pv-bar__fill{background:linear-gradient(#ff7a6e,var(--pv-ui-red) 50%,#b52219)}
 .pv-bar--sm{height:8px}
-.pv-bar__text{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font:800 10px/1 var(--pv-ui-font-stencil);letter-spacing:.08em;color:#fff;text-shadow:0 1px 0 #000,0 0 3px #000}
+.pv-bar__text{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font:800 11px/1 var(--pv-ui-font-stencil);letter-spacing:.08em;color:#fff;text-shadow:0 1px 0 #000,0 0 3px #000}
 
 /* chapter card */
 .pv-chapter{position:relative;display:flex;flex-direction:column;justify-content:flex-end;min-height:132px;padding:var(--pv-ui-s3);overflow:hidden;
@@ -344,7 +347,7 @@ body.ovon #bossBar, body.ovon #howto, body.ovon #dmgLayer{visibility:hidden}
 .pv-upgrade__name{font:800 var(--pv-ui-fs-lg)/1.1 var(--pv-ui-font-stencil);text-transform:uppercase;letter-spacing:.06em}
 .pv-upgrade__fx{font-size:var(--pv-ui-fs-sm);color:var(--pv-ui-text-2);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .pv-upgrade>div:not(.pv-upgrade__icon){flex:1;min-width:0}
-.pv-upgrade__tag{position:absolute;top:-1px;right:8px;padding:2px 6px;font:800 9px/1 var(--pv-ui-font-stencil);letter-spacing:.14em;text-transform:uppercase;color:var(--pv-ui-cyan-ink);background:var(--pv-ui-cyan);border-radius:0 0 3px 3px}
+.pv-upgrade__tag{position:absolute;top:-1px;right:8px;padding:2px 6px;font:800 11px/1 var(--pv-ui-font-stencil);letter-spacing:.14em;text-transform:uppercase;color:var(--pv-ui-cyan-ink);background:var(--pv-ui-cyan);border-radius:0 0 3px 3px}
 .pv-upgrade:active{transform:translateY(2px);filter:brightness(.88)}
 .pv-upgrade.is-selected{box-shadow:0 0 0 2px var(--pv-ui-cyan),var(--pv-ui-glow)}
 
@@ -365,16 +368,16 @@ body.ovon #bossBar, body.ovon #howto, body.ovon #dmgLayer{visibility:hidden}
 /* lock */
 .is-locked{position:relative;filter:grayscale(.85) brightness(.7);pointer-events:none}
 .pv-lock{position:absolute;inset:0;z-index:2;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;background:rgba(11,14,17,.55);border-radius:inherit;filter:none;color:var(--pv-ui-text)}
-.pv-lock__icon{font-size:22px}.pv-lock__text{font:800 10px/1.1 var(--pv-ui-font-stencil);letter-spacing:.12em;text-transform:uppercase;text-align:center;padding:0 6px}
+.pv-lock__icon{font-size:22px}.pv-lock__text{font:800 11px/1.1 var(--pv-ui-font-stencil);letter-spacing:.12em;text-transform:uppercase;text-align:center;padding:0 6px}
 
 /* badge + pip */
-.pv-badge{display:inline-flex;align-items:center;height:18px;padding:0 6px;font:800 10px/1 var(--pv-ui-font-stencil);letter-spacing:.12em;text-transform:uppercase;border-radius:2px;color:var(--pv-ui-text);background:var(--pv-ui-metal-600);border:1px solid var(--pv-ui-ink)}
+.pv-badge{display:inline-flex;align-items:center;height:18px;padding:0 6px;font:800 11px/1 var(--pv-ui-font-stencil);letter-spacing:.12em;text-transform:uppercase;border-radius:2px;color:var(--pv-ui-text);background:var(--pv-ui-metal-600);border:1px solid var(--pv-ui-ink)}
 .pv-badge--cyan{background:var(--pv-ui-cyan);color:var(--pv-ui-cyan-ink)}
 .pv-badge--olive{background:var(--pv-ui-olive-500);color:#f4f1e6}
 .pv-badge--warn{background:var(--pv-ui-amber);color:var(--pv-ui-amber-ink)}
 .pv-badge--danger{background:var(--pv-ui-red);color:#fff}
 .pv-pip{position:absolute;top:4px;right:4px;width:10px;height:10px;border-radius:50%;background:var(--pv-ui-cyan);box-shadow:0 0 0 2px var(--pv-ui-ink)}
-.pv-pip--num{width:auto;min-width:16px;height:16px;padding:0 4px;border-radius:8px;display:flex;align-items:center;justify-content:center;font:800 10px/1 var(--pv-ui-font-stencil);color:var(--pv-ui-cyan-ink)}
+.pv-pip--num{width:auto;min-width:16px;height:16px;padding:0 4px;border-radius:8px;display:flex;align-items:center;justify-content:center;font:800 11px/1 var(--pv-ui-font-stencil);color:var(--pv-ui-cyan-ink)}
 
 /* hazard strip: warnings only */
 .pv-hazard{height:8px;background:var(--pv-ui-hazard);border:1.5px solid var(--pv-ui-ink)}
@@ -383,7 +386,7 @@ body.ovon #bossBar, body.ovon #howto, body.ovon #dmgLayer{visibility:hidden}
 .pv-home{position:absolute;inset:0;z-index:35;display:none;width:auto;height:auto}
 .pv-home.on{display:flex}
 #ovBoot{z-index:60}
-.pv-home .pv-status{padding-top:env(safe-area-inset-top,0px);height:calc(var(--pv-ui-status-h) + env(safe-area-inset-top,0px))}
+.pv-home .pv-status{padding-top:0px;height:var(--pv-ui-status-h)}   /* safe areas sit outside the scaled frame (main.js layout) */
 .pv-status .pv-chip{padding:0 8px 0 6px;gap:5px}
 .pv-chip--credits{color:#ffe27a}
 .pv-coin{display:inline-block;flex:none;box-sizing:border-box;border-radius:50%;border:1.5px solid #0f1215;position:relative;background:linear-gradient(150deg,#ffe27a,#c28a0c)}
@@ -483,7 +486,6 @@ body.ovon #bossBar, body.ovon #howto, body.ovon #dmgLayer{visibility:hidden}
     <div id="drBody"></div>
   </div>
 </div>
-<div id="coverNote">Cover screen build: made for the folded phone. Runs in a portrait column here.</div>
 <textarea id="copyArea" aria-hidden="true"></textarea>
 <script>
 (function(){ var G = (typeof window !== 'undefined' ? window : globalThis); var V = G.V = G.V || {};
@@ -529,9 +531,14 @@ V.Rng = Rng;
 </script>
 <script>
 (function(){ var G = (typeof window !== 'undefined' ? window : globalThis); var V = G.V = G.V || {};
-// D3 section 3 grids. '#' row 0 = wall, other '#' = cover (kind per room). Spawns: 3 fixed 'e' slots (centres).
-V.ROOMS = {
-  R01: { name: 'Open Yard', cover: 'pillar', grid: [
+// V.Data.rooms / roomOrder / stages: chapter 1 room templates and stage rows (F0 #7, 08 section 1). Plain data only, no functions.
+// Moved verbatim from rooms.js (R01-R03, D3 section 3) and stages.js (SD, CA1, BA1 and stages 1-10: D3 2.1 rows 1-10 + DESIGN 9).
+// Grid legend: '#' cover/wall (row 0 = wall), '.' floor, 'S' spawn, 'D' door, 'e' spawn slot, '^' spikes, 'C' chest, 'B' boss, 'P' supply pad.
+// Room spawns: {type,x,y} tile centres. Stage spawns: {type,x,y,t}, t = seconds after room start. No spawns in rows 11-14.
+// Schema and cross-references: src/test-data.js.
+var D = V.Data = V.Data || {};
+D.rooms = {
+  R01: { name:'Open Yard', cover:'pillar', grid:[
     '####D####',
     '.........',
     '.e.....e.',
@@ -547,8 +554,8 @@ V.ROOMS = {
     '.........',
     '.........',
     '....S....'],
-    spawns: [ {type:'E-01', x:1.5, y:2.5}, {type:'E-01', x:7.5, y:2.5}, {type:'E-01', x:4.5, y:8.5} ] },
-  R02: { name: 'Twin Pillars', cover: 'pillar', grid: [
+    spawns:[{type:'E-01',x:1.5,y:2.5},{type:'E-01',x:7.5,y:2.5},{type:'E-01',x:4.5,y:8.5}] },
+  R02: { name:'Twin Pillars', cover:'pillar', grid:[
     '####D####',
     '.........',
     '.e.....e.',
@@ -564,8 +571,8 @@ V.ROOMS = {
     '.........',
     '.........',
     '....S....'],
-    spawns: [ {type:'E-02', x:1.5, y:2.5}, {type:'E-02', x:7.5, y:2.5}, {type:'E-01', x:4.5, y:6.5} ] },
-  R03: { name: 'Center Block', cover: 'block', grid: [
+    spawns:[{type:'E-02',x:1.5,y:2.5},{type:'E-02',x:7.5,y:2.5},{type:'E-01',x:4.5,y:6.5}] },
+  R03: { name:'Center Block', cover:'block', grid:[
     '####D####',
     '.........',
     '.e.....e.',
@@ -581,9 +588,110 @@ V.ROOMS = {
     '.........',
     '.........',
     '....S....'],
-    spawns: [ {type:'E-03', x:1.5, y:6.5}, {type:'E-02', x:7.5, y:2.5}, {type:'E-01', x:4.5, y:9.5} ] }
+    spawns:[{type:'E-03',x:1.5,y:6.5},{type:'E-02',x:7.5,y:2.5},{type:'E-01',x:4.5,y:9.5}] },
+  SD: { name:'Supply Drop', cover:'block', grid:[
+    '####D####',
+    '.........',
+    '..#...#..',
+    '.........',
+    '..P...P..',
+    '.........',
+    '.........',
+    '.........',
+    '.........',
+    '.........',
+    '.........',
+    '.........',
+    '.........',
+    '.........',
+    '....S....'],
+    spawns:[] },
+  CA1: { name:'Cache', cover:'block', grid:[
+    '####D####',
+    '.........',
+    '....C....',
+    '^^^^..^^^',
+    '..e...e..',
+    '.........',
+    '^..^^^..^',
+    '.........',
+    '.........',
+    '^^^..^^^^',
+    '.........',
+    '.........',
+    '.........',
+    '.........',
+    '....S....'],
+    spawns:[{type:'E-01',x:2.5,y:4.5},{type:'E-01',x:6.5,y:4.5}] },
+  BA1: { name:'Boss Arena', cover:'pillar', grid:[
+    '####D####',
+    '.........',
+    '.........',
+    '....B....',
+    '.........',
+    '.#.....#.',
+    '.........',
+    '.........',
+    '.........',
+    '.#.....#.',
+    '.........',
+    '.........',
+    '.........',
+    '.........',
+    '....S....'],
+    spawns:[{type:'B-01',x:4.5,y:3.5}] }
 };
-V.ROOM_ORDER = ['R01', 'R02', 'R03'];
+D.roomOrder = ['R01','R02','R03'];
+D.stages = { ch1: [
+  { stage:1, kind:'combat', room:'R01', note:'Intro E-01: one chaser first, two flank 1 s later',
+    spawns:[{type:'E-01',x:4.5,y:4.5,t:0},{type:'E-01',x:1.5,y:2.5,t:1},{type:'E-01',x:7.5,y:2.5,t:1}] },
+  { stage:2, kind:'combat', room:'R02', note:'Build: 4 chasers in two pairs, pillars pre-exposure',
+    spawns:[{type:'E-01',x:1.5,y:2.5,t:0},{type:'E-01',x:7.5,y:2.5,t:0},{type:'E-01',x:1.5,y:8.5,t:2},{type:'E-01',x:7.5,y:8.5,t:2}] },
+  { stage:3, kind:'combat', room:'R01', note:'Intro E-02: one gun drone with one chaser, second gun drone at 3 s',
+    spawns:[{type:'E-02',x:4.5,y:3.5,t:0},{type:'E-01',x:7.5,y:6.5,t:0},{type:'E-02',x:1.5,y:2.5,t:3}] },
+  { stage:4, kind:'combat', room:'R02', note:'Intro E-03 (eased to 3 enemies): turret alone below the pillars, company at 2.5 s',
+    spawns:[{type:'E-03',x:4.5,y:6.5,t:0},{type:'E-02',x:1.5,y:2.5,t:2.5},{type:'E-01',x:7.5,y:2.5,t:2.5}] },
+  { stage:5, kind:'supply', room:'SD', note:'Supply Drop: pick a minor mod or repair 40%',
+    spawns:[] },
+  { stage:6, kind:'combat', room:'R03', note:'Intro E-04 (template swapped to R03): mortar alone, visible from S; company at 2.5 s',
+    spawns:[{type:'E-04',x:1.5,y:3.5,t:0},{type:'E-01',x:7.5,y:2.5,t:2.5},{type:'E-02',x:7.5,y:6.5,t:2.5},{type:'E-02',x:1.5,y:8.5,t:5}] },
+  { stage:7, kind:'combat', room:'R02', note:'Intro E-05: charger alone in the centre, chasers at 3 s',
+    spawns:[{type:'E-05',x:4.5,y:6.5,t:0},{type:'E-01',x:1.5,y:2.5,t:3},{type:'E-01',x:7.5,y:2.5,t:3},{type:'E-05',x:4.5,y:8.5,t:5}] },
+  { stage:8, kind:'combat', room:'R02', note:'Spike (template swapped to known R02, N=5): turret+drones, chargers at 4 s and 6 s',
+    spawns:[{type:'E-03',x:4.5,y:6.5,t:0},{type:'E-01',x:1.5,y:2.5,t:0},{type:'E-02',x:7.5,y:2.5,t:0},{type:'E-05',x:1.5,y:8.5,t:5.5}] },
+  { stage:9, kind:'cache', room:'CA1', note:'Cache: spikes taught with 2 chasers; chest after clear',
+    spawns:[{type:'E-01',x:2.5,y:4.5,t:0},{type:'E-01',x:6.5,y:4.5,t:0}] },
+  { stage:10, kind:'boss', room:'BA1', note:'Boss B-01 Volley Tower (M pick, overrides D3 B-03)',
+    spawns:[{type:'B-01',x:4.5,y:3.5,t:0}] }
+] };
+})();
+
+</script>
+<script>
+(function(){ var G = (typeof window !== 'undefined' ? window : globalThis); var V = G.V = G.V || {};
+// V.Data.enemies: base rows for every machine and boss, keyed by design ID (F0 #7, 08 section 1). Plain data only.
+// Values copied verbatim from the base literals in ai-p0.js (E-01..E-03), ai-p1.js (E-04, E-05) and boss.js (B-01).
+// sim.js binds V.AI[id].base to these rows at load (the table wins); test-data.js fails if a behaviour literal drifts from its row.
+// Fields: hp, contact (touch dmg), dmg (attack dmg), speed (tiles/s), r (body radius, tiles), size, xp, tell (s), cd (s); flags flyer/static/boss/immune.
+var D = V.Data = V.Data || {};
+D.enemies = {
+  'E-01': {hp:300,contact:35,dmg:35,speed:2.4,r:0.35,size:'small',xp:4,tell:0.5,cd:2,flyer:true},
+  'E-02': {hp:450,contact:40,dmg:55,speed:1,r:0.4,size:'medium',xp:8,tell:0.6,cd:2.2},
+  'E-03': {hp:600,contact:40,dmg:45,speed:0,r:0.5,size:'medium',xp:8,tell:0.7,cd:2.8,static:true},
+  'E-04': {hp:500,contact:40,dmg:95,speed:1.2,r:0.45,size:'medium',xp:8,tell:1,cd:3},
+  'E-05': {hp:650,contact:60,dmg:130,speed:1.6,r:0.5,size:'medium',xp:8,tell:0.8,cd:2.5},
+  'B-01': {hp:11000,contact:80,dmg:95,speed:0,r:1,size:'large',xp:0,tell:1,cd:1.4,static:true,boss:true,immune:{instakill:true,freeze:true,knockback:true}}
+};
+})();
+
+</script>
+<script>
+(function(){ var G = (typeof window !== 'undefined' ? window : globalThis); var V = G.V = G.V || {};
+// Room templates now live in parts/data-stages.js (V.Data.rooms, F0 #7). This part keeps the old names the game reads.
+// Node tests and bot.js load parts by name without the data part, so pull it in there (no require in the browser build).
+if (!(V.Data && V.Data.rooms) && typeof require === 'function' && typeof module !== 'undefined') require('./data-stages.js');
+V.ROOMS = V.Data.rooms;
+V.ROOM_ORDER = V.Data.roomOrder;
 
 // Cards: V.CARDS = V.MODS (parts/mods.js); sim.js holds the P0 6-card fallback.
 })();
@@ -591,90 +699,12 @@ V.ROOM_ORDER = ['R01', 'R02', 'R03'];
 </script>
 <script>
 (function(){ var G = (typeof window !== 'undefined' ? window : globalThis); var V = G.V = G.V || {};
-// P1 chapter 1, stages 1-10 hand-authored (D3 2.1 rows 1-10 with DESIGN 9 overrides).
-// Grid legend as D3: '#' cover/wall, '.' floor, 'S' Operator spawn, 'D' door, 'e' spawn slot (floor),
-// '^' spikes (walkable, damage on touch), 'C' chest spot, 'B' boss spot, 'P' supply pad. All non-'#' are floor.
-// Spawns: tile centres, t = seconds after room start. No spawns in rows 11-14 (safe zone).
-V.ROOMS = V.ROOMS || {};
-
-V.ROOMS.SD = { name: 'Supply Drop', cover: 'block', grid: [
-  '####D####',
-  '.........',
-  '..#...#..',
-  '.........',
-  '..P...P..',
-  '.........',
-  '.........',
-  '.........',
-  '.........',
-  '.........',
-  '.........',
-  '.........',
-  '.........',
-  '.........',
-  '....S....'],
-  spawns: [] };
-
-// CA1 Cache: D3 spike lines widened to 2-tile gaps (DESIGN 9). Chest replaces crate K.
-V.ROOMS.CA1 = { name: 'Cache', cover: 'block', grid: [
-  '####D####',
-  '.........',
-  '....C....',
-  '^^^^..^^^',
-  '..e...e..',
-  '.........',
-  '^..^^^..^',
-  '.........',
-  '.........',
-  '^^^..^^^^',
-  '.........',
-  '.........',
-  '.........',
-  '.........',
-  '....S....'],
-  spawns: [ {type:'E-01', x:2.5, y:4.5}, {type:'E-01', x:6.5, y:4.5} ] };
-
-V.ROOMS.BA1 = { name: 'Boss Arena', cover: 'pillar', grid: [
-  '####D####',
-  '.........',
-  '.........',
-  '....B....',
-  '.........',
-  '.#.....#.',
-  '.........',
-  '.........',
-  '.........',
-  '.#.....#.',
-  '.........',
-  '.........',
-  '.........',
-  '.........',
-  '....S....'],
-  spawns: [ {type:'B-01', x:4.5, y:3.5} ] };
-
-function sp(type, x, y, t){ return { type:type, x:x, y:y, t:t || 0 }; }
-
-V.STAGES = { ch1: [
-  { stage:1, kind:'combat', room:'R01', note:'Intro E-01: one chaser first, two flank 1 s later',
-    spawns:[ sp('E-01',4.5,4.5,0), sp('E-01',1.5,2.5,1.0), sp('E-01',7.5,2.5,1.0) ] },
-  { stage:2, kind:'combat', room:'R02', note:'Build: 4 chasers in two pairs, pillars pre-exposure',
-    spawns:[ sp('E-01',1.5,2.5,0), sp('E-01',7.5,2.5,0), sp('E-01',1.5,8.5,2.0), sp('E-01',7.5,8.5,2.0) ] },
-  { stage:3, kind:'combat', room:'R01', note:'Intro E-02: one gun drone with one chaser, second gun drone at 3 s',
-    spawns:[ sp('E-02',4.5,3.5,0), sp('E-01',7.5,6.5,0), sp('E-02',1.5,2.5,3.0) ] },
-  { stage:4, kind:'combat', room:'R02', note:'Intro E-03 (eased to 3 enemies): turret alone below the pillars, company at 2.5 s',
-    spawns:[ sp('E-03',4.5,6.5,0), sp('E-02',1.5,2.5,2.5), sp('E-01',7.5,2.5,2.5) ] },
-  { stage:5, kind:'supply', room:'SD', note:'Supply Drop: pick a minor mod or repair 40%', spawns:[] },
-  { stage:6, kind:'combat', room:'R03', note:'Intro E-04 (template swapped to R03): mortar alone, visible from S; company at 2.5 s',
-    spawns:[ sp('E-04',1.5,3.5,0), sp('E-01',7.5,2.5,2.5), sp('E-02',7.5,6.5,2.5), sp('E-02',1.5,8.5,5.0) ] },
-  { stage:7, kind:'combat', room:'R02', note:'Intro E-05: charger alone in the centre, chasers at 3 s',
-    spawns:[ sp('E-05',4.5,6.5,0), sp('E-01',1.5,2.5,3.0), sp('E-01',7.5,2.5,3.0), sp('E-05',4.5,8.5,5.0) ] },
-  { stage:8, kind:'combat', room:'R02', note:'Spike (template swapped to known R02, N=5): turret+drones, chargers at 4 s and 6 s',
-    spawns:[ sp('E-03',4.5,6.5,0), sp('E-01',1.5,2.5,0), sp('E-02',7.5,2.5,0), sp('E-05',1.5,8.5,5.5) ] },
-  { stage:9, kind:'cache', room:'CA1', note:'Cache: spikes taught with 2 chasers; chest after clear',
-    spawns:[ sp('E-01',2.5,4.5,0), sp('E-01',6.5,4.5,0) ] },
-  { stage:10, kind:'boss', room:'BA1', note:'Boss B-01 Volley Tower (M pick, overrides D3 B-03)',
-    spawns:[ sp('B-01',4.5,3.5,0) ] }
-] };
+// P1 chapter 1, stages 1-10. The rows (and the SD, CA1, BA1 rooms) now live in parts/data-stages.js (V.Data.stages, F0 #7).
+// This part keeps the names the game reads: V.STAGES and the stage rooms on V.ROOMS.
+if (!(V.Data && V.Data.stages) && typeof require === 'function' && typeof module !== 'undefined') require('./data-stages.js');
+V.ROOMS = V.ROOMS || V.Data.rooms;
+for (var k in V.Data.rooms) if (!V.ROOMS[k]) V.ROOMS[k] = V.Data.rooms[k];
+V.STAGES = V.Data.stages;
 })();
 
 </script>
@@ -949,8 +979,19 @@ V.Mods = { D:D, offer:offer, stats:stats, newStats:newStats, pattern:pattern, ca
 //                                    schematics/keys (only set by sample(); the real slice never changes them).
 //   V.Meta.load(opts) -> state       opts.storage overrides localStorage; opts.fresh ignores the save. '?fresh=1' in the URL also ignores it.
 //   V.Meta.save() -> bool            false when there is no storage or it throws.
-//   V.Meta.readOnly / V.Meta.note    true after load() of a save whose v > 1: it is played but never written back (so a newer build's data is not clobbered); reset() clears it.
-//   V.Meta.reset()                   fresh state, saved, listeners notified (Settings "Reset save").
+//   SAVE RULES (F0 #8, 08 section 4). Key 'volley.save.v2' (V.Meta.KEY; v1 held settings, so the shape changed). Settings are NOT in the save.
+//     load(): own keys with a lower version are deleted; higher ones are never touched. The text is parsed, then fully validated
+//     (V.Meta.validate: types, ranges, known IDs, caps, no unknown fields). Any failure = fresh start, no partial repair.
+//   V.Meta.resetSignal               after load(): '' or 'old-version' | 'corrupt' | 'invalid'. When set, show V.Meta.RESET_LINE once
+//                                    ("Progress was reset by this update.", 05 3.1: title screen line + one Home toast). Next boot is quiet.
+//   V.Meta.storageOk / BLOCKED_LINE  false when storage is missing or throws: the game plays from memory; note = BLOCKED_LINE.
+//   V.Meta.readOnly / V.Meta.note    true after load() when a newer build's save exists (a volley.save.vN key with N > 2, or a payload
+//                                    v > 2 in our key, shown best-effort): played but never written back; reset() clears it.
+//   V.Meta.reset()                   THE one clean reset: fresh state, saved, listeners notified (Settings "Reset save"). Settings survive.
+//   V.Meta.settings() / setSetting(k, v)   key 'volley.settings.v1', one JSON object read field by field with defaults. meta.js owns
+//                                    .haptics (bool, applied to V.TUNE.HAPTICS); audio.js owns .audio (agent C). Every writer keeps fields it does not own.
+//   V.Meta.SAMPLES / SAMPLE_NAMES / loadSample(name, {save})   'fresh' | 'mid' | 'all' (08 rule 8): the debug menu (Intel > Settings,
+//                                    ?debug=1 only) and bots use the same three. loadSample saves unless {save:false}.
 //   V.Meta.setPower(v)  = same as setting .power; V.Meta.maxLevel(kind,id) (10 for every stat); V.Meta.buyRandom('cond') -> stat id or null.
 //   Rifle calls use kind 'rifle', id 'rifle' (id is ignored): cost('rifle','rifle'), canBuy, buy.
 //   V.Meta.rifleStat(lvl) -> rifle ATK at that level = 50 + 8*(lvl-1) (D4 Surplus rifle). The sim only uses the part above L1 (8 per level).
@@ -972,13 +1013,14 @@ V.Mods = { D:D, offer:offer, stats:stats, newStats:newStats, pattern:pattern, ca
 //                                    entry (oldest first, kept 20), best stage, codex (result.seen = ['E-01',...]); saves. The sim calls it itself
 //                                    in endRun when it was started with Meta, so the shell must NOT need to call it (calling twice is safe).
 //   V.Meta.roomCredits(kind) / V.Meta.BOSS_BONUS   used by sim.js.
-//   V.Meta.markSeen(type)            codex entry.
+//   V.Meta.markSeen(type)            codex entry (ignored for an ID that is not in V.Data.enemies, so the save stays valid).
 //   V.Meta.onChange(fn) -> unsubscribe fn.
-//   V.Meta.sample()                  loads the design thread's sample save (FIX-ROUND-1 section A) into state, in memory only (not saved).
+//   V.Meta.sample()                  = loadSample('mid', {save:false}): the design thread's sample save (FIX-ROUND-1 section A), memory only.
 //                                    Sets credits 12480, rifle Lv 8, cond 15 bought (hp 6, atk 5, rate 4), next price 2250, schematics 86, keys 1, best 23.
 (function(){ var G = (typeof window !== 'undefined' ? window : globalThis); var V = G.V = G.V || {};
 
-var KEY = 'volley.save.v1';
+// F0 #8 save rules (08 section 4): the key holds the version; a shape change raises VERSION and starts fresh (pick 12, no migration).
+var VERSION = 2, PREFIX = 'volley.save.v', KEY = PREFIX + VERSION, SETTINGS_KEY = 'volley.settings.v1';
 // ---------- tuning table (every number lives here) ----------
 var TUNING = {
   HERO_HP: 600, HERO_ATK: 150, BASE_INTERVAL: 0.8,          // mirror of tune.js (used only for totals())
@@ -998,64 +1040,165 @@ var TUNING = {
   CREDITS_PER_WEIGHT: 24,
   ROOM: { combat: 24, supply: 0, cache: 95, boss: 24 },
   BOSS_BONUS: 47,             // added on boss kill (boss room total 71)
-  RUN_LOG_KEEP: 20
+  RUN_LOG_KEEP: 20,
+  // save validation caps (guesses): credits, stage numbers, and the longest save text accepted (a full v2 save is about 2 KB)
+  CREDITS_MAX: 1e9, STAGE_MAX: 999, SAVE_TEXT_MAX: 65536
 };
 function r25(x){ return Math.round(x / 25) * 25; }
 
 function fresh(){
-  return { v:1, credits:0, rifle:{ lvl:1 }, cond:{ hp:0, atk:0, rate:0 }, buys:0, power:0, runs:[], best:0,
-    codex:{ seen:{} }, settings:{ sound:true, haptics:true } };
+  return { v:VERSION, credits:0, rifle:{ lvl:1 }, cond:{ hp:0, atk:0, rate:0 }, buys:0, power:0, runs:[], best:0, codex:{ seen:{} } };
 }
 var storage = null, listeners = [], M = {};
 try { storage = (typeof localStorage !== 'undefined') ? localStorage : (G.localStorage || null); } catch (e) { storage = null; }   // blocked storage can throw on the property access itself
 M.state = fresh();
 M.TUNING = TUNING;
 M.BOSS_BONUS = TUNING.BOSS_BONUS;
+M.KEY = KEY; M.SETTINGS_KEY = SETTINGS_KEY; M.VERSION = VERSION;
+M.RESET_LINE = 'Progress was reset by this update.';            // 05 3.1 wording (ruling R20); the title screen and Home toast show it
+M.BLOCKED_LINE = 'Storage is blocked: progress will not be kept.';
 M.lastBuy = null;
-M.readOnly = false; M.note = '';   // readOnly: the loaded save is from a newer version; save() does not write (see load)
+M.readOnly = false; M.note = '';   // readOnly: a newer build's save exists; save() does not write (see load)
+M.resetSignal = '';                // after load(): '' or why progress started fresh ('old-version', 'corrupt', 'invalid'); UI shows RESET_LINE once
+M.storageOk = true;                // false when storage is missing or throws: play from memory, show BLOCKED_LINE
 
+// ---------- validation (08 section 4: types, ranges, known IDs, caps; any failure = fresh start, no partial repair) ----------
+function isInt(v, lo, hi){ return typeof v === 'number' && isFinite(v) && Math.floor(v) === v && v >= lo && v <= hi; }
+function isNum(v, lo, hi){ return typeof v === 'number' && isFinite(v) && v >= lo && v <= hi; }
+function isObj(o){ return !!o && typeof o === 'object' && !Array.isArray(o); }
+function onlyKeys(o, allowed){ for (var k in o) if (allowed.indexOf(k) < 0) return false; return true; }
+function knownId(id){
+  var T = V.Data && V.Data.enemies;
+  return T ? Object.prototype.hasOwnProperty.call(T, id) : /^[EB]-\d\d$/.test(id);
+}
+var TOP = ['v', 'credits', 'rifle', 'cond', 'buys', 'power', 'runs', 'best', 'codex', 'schematics', 'keys'];
+// Returns a clean deep copy of a valid v2 save, or null. Never throws.
+function validate(raw){
+  try {
+    if (!isObj(raw) || raw.v !== VERSION || !onlyKeys(raw, TOP)) return null;
+    var T = TUNING;
+    if (!isInt(raw.credits, 0, T.CREDITS_MAX)) return null;
+    if (!isObj(raw.rifle) || !onlyKeys(raw.rifle, ['lvl']) || !isInt(raw.rifle.lvl, 1, T.RIFLE_MAX)) return null;
+    var c = raw.cond;
+    if (!isObj(c) || !onlyKeys(c, ['hp', 'atk', 'rate']) || !isInt(c.hp, 0, T.COND_MAX) || !isInt(c.atk, 0, T.COND_MAX) || !isInt(c.rate, 0, T.COND_MAX)) return null;
+    if (raw.buys !== c.hp + c.atk + c.rate) return null;                       // ladder index always equals levels bought
+    if (!isNum(raw.power, 0, 1)) return null;
+    if (!Array.isArray(raw.runs) || raw.runs.length > T.RUN_LOG_KEEP) return null;
+    var runs = [];
+    for (var i = 0; i < raw.runs.length; i++) {
+      var r = raw.runs[i];
+      if (!isObj(r) || !onlyKeys(r, ['t', 'stage', 'win', 'kills', 'credits', 'dur'])) return null;
+      if (!isNum(r.t, 0, 1e15) || !isInt(r.stage, 0, T.STAGE_MAX) || typeof r.win !== 'boolean' || !isInt(r.kills, 0, 1e6) || !isInt(r.credits, 0, T.CREDITS_MAX) || !isNum(r.dur, 0, 1e7)) return null;
+      runs.push({ t:r.t, stage:r.stage, win:r.win, kills:r.kills, credits:r.credits, dur:r.dur });
+    }
+    if (!isInt(raw.best, 0, T.STAGE_MAX)) return null;
+    if (!isObj(raw.codex) || !onlyKeys(raw.codex, ['seen']) || !isObj(raw.codex.seen)) return null;
+    var seen = {};
+    for (var k in raw.codex.seen) { if (!knownId(k) || raw.codex.seen[k] !== true) return null; seen[k] = true; }
+    var s = { v:VERSION, credits:raw.credits, rifle:{ lvl:raw.rifle.lvl }, cond:{ hp:c.hp, atk:c.atk, rate:c.rate }, buys:raw.buys,
+      power:raw.power, runs:runs, best:raw.best, codex:{ seen:seen } };
+    if ('schematics' in raw) { if (!isInt(raw.schematics, 0, T.CREDITS_MAX)) return null; s.schematics = raw.schematics; }
+    if ('keys' in raw) { if (!isInt(raw.keys, 0, 999)) return null; s.keys = raw.keys; }
+    return s;
+  } catch (e) { return null; }
+}
+M.validate = validate;
+// Best-effort read of a NEWER build's save (PV-19), shown read-only and never written: clamps instead of rejecting.
 function clampInt(v, lo, hi, d){ v = Math.floor(+v); if (!isFinite(v)) return d; return Math.max(lo, Math.min(hi, v)); }
-function sanitize(raw){
+function lenient(raw){
   var s = fresh();
-  if (!raw || typeof raw !== 'object') return s;
-  s.credits = clampInt(raw.credits, 0, 1e9, 0);
-  s.rifle.lvl = clampInt(raw.rifle && raw.rifle.lvl, 1, TUNING.RIFLE_MAX, 1);
-  var c = raw.cond || {};
-  s.cond.hp = clampInt(c.hp, 0, TUNING.COND_MAX, 0); s.cond.atk = clampInt(c.atk, 0, TUNING.COND_MAX, 0); s.cond.rate = clampInt(c.rate, 0, TUNING.COND_MAX, 0);
-  s.buys = s.cond.hp + s.cond.atk + s.cond.rate;   // ladder index always equals levels bought
-  var p = +raw.power; s.power = isFinite(p) ? Math.max(0, Math.min(1, p)) : 0;
-  if (Array.isArray(raw.runs)) s.runs = raw.runs.slice(-TUNING.RUN_LOG_KEEP).map(function(r){
-    return { t:+r.t || 0, stage:clampInt(r.stage, 0, 999, 0), win:!!r.win, kills:clampInt(r.kills, 0, 1e6, 0), credits:clampInt(r.credits, 0, 1e9, 0), dur:+r.dur || 0 }; });
-  s.best = clampInt(raw.best, 0, 999, 0);
-  if (raw.codex && raw.codex.seen && typeof raw.codex.seen === 'object') for (var k in raw.codex.seen) if (raw.codex.seen[k]) s.codex.seen[String(k)] = true;
-  if (raw.settings) { s.settings.sound = raw.settings.sound !== false; s.settings.haptics = raw.settings.haptics !== false; }
+  try {
+    s.credits = clampInt(raw.credits, 0, TUNING.CREDITS_MAX, 0);
+    s.rifle.lvl = clampInt(raw.rifle && raw.rifle.lvl, 1, TUNING.RIFLE_MAX, 1);
+    var c = isObj(raw.cond) ? raw.cond : {};
+    s.cond.hp = clampInt(c.hp, 0, TUNING.COND_MAX, 0); s.cond.atk = clampInt(c.atk, 0, TUNING.COND_MAX, 0); s.cond.rate = clampInt(c.rate, 0, TUNING.COND_MAX, 0);
+    s.buys = s.cond.hp + s.cond.atk + s.cond.rate;
+    s.best = clampInt(raw.best, 0, TUNING.STAGE_MAX, 0);
+  } catch (e) { return fresh(); }
   return s;
 }
 function notify(){ for (var i = 0; i < listeners.length; i++) { try { listeners[i](M.state); } catch (e) {} } }
+
+// ---------- storage helpers (every access guarded, L-PV-23) ----------
+function sget(st, k){ try { return st.getItem(k); } catch (e) { M.storageOk = false; return null; } }
+function sset(st, k, v){ try { st.setItem(k, v); return true; } catch (e) { return false; } }
+function sdel(st, k){ try { if (st.removeItem) st.removeItem(k); } catch (e) {} }
+// Our own save keys in storage: { ver: key }. Uses length/key() when the storage has them (a mock may not).
+function ownKeys(st){
+  var out = {};
+  try {
+    var n = +st.length;
+    if (isFinite(n) && typeof st.key === 'function') for (var i = 0; i < n; i++) { var k = st.key(i), m = /^volley\.save\.v(\d+)$/.exec(k || ''); if (m) out[+m[1]] = k; }
+    else if (st.d && typeof st.d === 'object') for (var k2 in st.d) { var m2 = /^volley\.save\.v(\d+)$/.exec(k2); if (m2) out[+m2[1]] = k2; }   // test mock
+  } catch (e) {}
+  for (var v = 1; v < VERSION; v++) if (!(v in out) && sget(st, PREFIX + v) != null) out[v] = PREFIX + v;   // older keys we know by name
+  return out;
+}
 
 M.setStorage = function(s){ storage = s || null; };
 M.load = function(opts){
   opts = opts || {};
   var skip = !!opts.fresh;
   try { if (!skip && typeof location !== 'undefined' && /[?&]fresh=1\b/.test(location.search || '')) skip = true; } catch (e) {}
-  var st = opts.storage || storage, raw = null;
   if (opts.storage) storage = opts.storage;
-  if (!skip && st) { try { var txt = st.getItem(KEY); if (txt) raw = JSON.parse(txt); } catch (e) { raw = null; } }
-  M.state = sanitize(raw);
-  // PV-19: a save written by a NEWER build (v > 1) is played read-only: never rewritten as v1, so unknown fields and the higher version stay on disk.
-  M.readOnly = !!(raw && typeof raw === 'object' && +raw.v > 1);
-  M.note = M.readOnly ? 'Save from a newer version: progress this session is not saved' : '';
+  var st = storage, txt = null, raw = null, newer = false, old = false;
+  M.readOnly = false; M.note = ''; M.resetSignal = ''; M.storageOk = !!st;
+  if (st) {
+    var keys = ownKeys(st);
+    for (var ver in keys) {
+      if (+ver < VERSION) { old = true; sdel(st, keys[ver]); }               // own lower-version keys: deleted on boot
+      else if (+ver > VERSION) newer = true;                                  // higher: never touched
+    }
+    if (!skip) txt = sget(st, KEY);
+  }
+  var s = null, reason = '';
+  if (txt != null && txt !== '') {
+    if (typeof txt !== 'string' || txt.length > TUNING.SAVE_TEXT_MAX) reason = 'invalid';
+    else { try { raw = JSON.parse(txt); } catch (e) { raw = null; reason = 'corrupt'; } }
+    if (!reason) {
+      if (isObj(raw) && typeof raw.v === 'number' && raw.v > VERSION) { newer = true; s = lenient(raw); }   // PV-19: newer build wrote our key
+      else { s = validate(raw); if (!s) reason = 'invalid'; }
+    }
+  } else if (old && !skip) reason = 'old-version';
+  M.state = s || fresh();
+  M.readOnly = newer;
+  M.resetSignal = reason;
+  M.note = newer ? 'Save from a newer version: progress this session is not saved' : (!M.storageOk ? M.BLOCKED_LINE : (reason ? M.RESET_LINE : ''));
+  if (reason && reason !== 'old-version' && st && !newer) sset(st, KEY, JSON.stringify(M.state));   // a bad save is replaced at once, so the line shows once
+  applySettings();
   notify();
   return M.state;
 };
 M.save = function(){   // always notifies onChange listeners, also when there is no storage
   var okk = false;
-  if (storage && !M.readOnly) { try { storage.setItem(KEY, JSON.stringify(M.state)); okk = true; } catch (e) { okk = false; } }
+  if (storage && !M.readOnly) okk = sset(storage, KEY, JSON.stringify(M.state));
   notify();
   return okk;
 };
-M.reset = function(){ M.readOnly = false; M.note = ''; M.state = fresh(); M.lastBuy = null; M.save(); };   // explicit user action: may replace a newer save
+// The one clean reset (Settings "Reset save" and the sample menu's "fresh"): fresh state, written, listeners told. Settings survive.
+M.reset = function(){ M.readOnly = false; M.note = ''; M.resetSignal = ''; M.state = fresh(); M.lastBuy = null; return M.save(); };
 M.onChange = function(fn){ listeners.push(fn); return function(){ var i = listeners.indexOf(fn); if (i >= 0) listeners.splice(i, 1); }; };
+
+// ---------- settings: own key, read field by field with defaults, survive a save wipe (08 section 4) ----------
+// One JSON object. audio.js owns the .audio sub-object (agreed with agent C); meta.js owns .haptics and keeps every other field it finds.
+var SETTINGS_DEFAULTS = { haptics:true };
+function readSettings(){
+  var o = null, txt = storage ? sget(storage, SETTINGS_KEY) : null;
+  if (typeof txt === 'string' && txt.length <= TUNING.SAVE_TEXT_MAX) { try { o = JSON.parse(txt); } catch (e) { o = null; } }
+  if (!isObj(o)) o = {};
+  for (var k in SETTINGS_DEFAULTS) if (typeof o[k] !== typeof SETTINGS_DEFAULTS[k]) o[k] = SETTINGS_DEFAULTS[k];
+  return o;
+}
+var memSettings = null;   // used when storage is missing or blocked
+M.settings = function(){ var o = storage ? readSettings() : (memSettings || (memSettings = readSettings())); return o; };
+M.setSetting = function(k, v){
+  if (!(k in SETTINGS_DEFAULTS) || typeof v !== typeof SETTINGS_DEFAULTS[k]) return false;
+  var o = M.settings(); o[k] = v; memSettings = o;
+  var okk = storage ? sset(storage, SETTINGS_KEY, JSON.stringify(o)) : false;
+  applySettings(o);
+  return okk;
+};
+function applySettings(o){ try { o = o || M.settings(); if (V.TUNE && 'HAPTICS' in V.TUNE) V.TUNE.HAPTICS = o.haptics; } catch (e) {} }
 
 // ---------- costs and buying ----------
 M.max = function(kind){ return kind === 'rifle' ? TUNING.RIFLE_MAX : TUNING.COND_MAX; };
@@ -1125,32 +1268,47 @@ Object.defineProperty(M, 'power', { get: function(){ return M.state.power || 0; 
 
 // ---------- income and run log ----------
 M.roomCredits = function(kind){ var v = TUNING.ROOM[kind]; return v == null ? TUNING.ROOM.combat : v; };
-M.markSeen = function(type){ if (type) { M.state.codex.seen[String(type)] = true; } };
+M.markSeen = function(type){ if (type && knownId(String(type))) { M.state.codex.seen[String(type)] = true; } };   // unknown IDs are ignored so the save stays valid
 M.award = function(result){
   var s = M.state;
   if (!result || result.awarded) return { credits: 0 };
   result.awarded = true;
-  var c = Math.max(0, Math.floor(+result.credits || 0));
-  s.credits += c;
+  var c = clampInt(result.credits, 0, TUNING.CREDITS_MAX, 0);
+  s.credits = Math.min(TUNING.CREDITS_MAX, s.credits + c);
   var seen = result.seen;
   if (Array.isArray(seen)) seen.forEach(M.markSeen); else if (seen && typeof seen === 'object') for (var k in seen) if (seen[k]) M.markSeen(k);
-  var stage = Math.max(0, Math.floor(+result.stage || 0));
+  var stage = clampInt(result.stage, 0, TUNING.STAGE_MAX, 0);
   if (stage > s.best) s.best = stage;
   var now = 0; try { now = Date.now(); } catch (e) {}   // UI timestamp only
-  s.runs.push({ t: now, stage: stage, win: !!result.win, kills: Math.floor(+result.kills || 0), credits: c, dur: +(+result.t || 0).toFixed(1) });
+  s.runs.push({ t: now, stage: stage, win: !!result.win, kills: clampInt(result.kills, 0, 1e6, 0), credits: c,
+    dur: Math.max(0, Math.min(1e7, +(+result.t || 0).toFixed(1))) });   // clamped so the entry always passes validate()
   if (s.runs.length > TUNING.RUN_LOG_KEEP) s.runs.splice(0, s.runs.length - TUNING.RUN_LOG_KEEP);
   M.save();
   return { credits: c };
 };
 
-// ---------- design sample (FIX-ROUND-1 section A), memory only ----------
-M.sample = function(){
-  var s = fresh();
-  s.credits = 12480; s.rifle.lvl = 8; s.cond = { hp:6, atk:5, rate:4 }; s.buys = 15; s.best = 23;
-  s.schematics = 86; s.keys = 1; s.codex.seen = { 'E-01':true, 'E-02':true, 'E-03':true, 'E-04':true, 'E-05':true };
-  M.state = s; notify();
-  return s;
+// ---------- sample saves (08 structure rule 8; F0 #12). Plain data; each passes validate(). Bots and the debug menu use the same three. ----------
+var ALL_IDS = ['E-01', 'E-02', 'E-03', 'E-04', 'E-05', 'B-01'];
+function seenOf(ids){ var o = {}; ids.forEach(function(k){ o[k] = true; }); return o; }
+M.SAMPLES = {
+  fresh: function(){ return fresh(); },
+  // mid-game: the design thread's sample (FIX-ROUND-1 section A): credits 12480, rifle Lv 8, cond 15 bought (6/5/4), next price 2250, best 23
+  mid: function(){ var s = fresh(); s.credits = 12480; s.rifle.lvl = 8; s.cond = { hp:6, atk:5, rate:4 }; s.buys = 15; s.best = 23;
+    s.schematics = 86; s.keys = 1; s.codex.seen = seenOf(ALL_IDS.slice(0, 5)); return s; },
+  // all unlocked: every level maxed, every contact filed, chapter cleared, credits to spare (amount is a guess)
+  all: function(){ var s = fresh(); s.credits = 99999; s.rifle.lvl = TUNING.RIFLE_MAX; s.cond = { hp:TUNING.COND_MAX, atk:TUNING.COND_MAX, rate:TUNING.COND_MAX };
+    s.buys = 3 * TUNING.COND_MAX; s.best = 10; s.codex.seen = seenOf(ALL_IDS); return s; }
 };
+M.SAMPLE_NAMES = ['fresh', 'mid', 'all'];
+// loadSample(name, {save:true}): replaces progress with a sample. save:false keeps it in memory only. Returns the state or null.
+M.loadSample = function(name, opts){
+  if (!Object.prototype.hasOwnProperty.call(M.SAMPLES, name)) return null;
+  if (name === 'fresh' && !(opts && opts.save === false)) { M.reset(); return M.state; }
+  M.state = M.SAMPLES[name](); M.lastBuy = null;
+  if (opts && opts.save === false) notify(); else { M.readOnly = false; M.note = ''; M.save(); }
+  return M.state;
+};
+M.sample = function(){ return M.loadSample('mid', { save:false }); };   // P1.5 name: the mid-game sample, memory only
 
 V.Meta = M;
 // auto-load once in a browser; Node tests call load() themselves with a mock. bot.js never loads this file.
@@ -1170,7 +1328,9 @@ try { if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') 
 //   Round damage = HERO_ATK x (1+atkAdd) x atkMul x pattern mul; rate = (1+rateAdd) x rateMul.
 //   volleys = batches per attack (1 + Multi-volley copies), 0.12 s apart. dodge = chance, capped 0.4.
 // Round flags the sim handles: r.pierce (x0.67 per enemy), r.bounceWall (up to 2, x0.5), r.rico (3 jumps, x0.7, 4 tiles).
-// Events: fire hit crit kill hurt dodge lock unlock tell door room levelup pick death pickup land supply chest boss bossphase win.
+// Events: fire hit crit kill hurt dodge lock unlock tell door room levelup pick death pickup land supply chest boss bossphase win block.
+// Art/VFX fields (LIAISON 2026-11-10, additive, read-only, no rng): fire {vol, weapon}; hit {src, dir, hp, max};
+//   kill {size, last}; hurt {hp, max, down}; block {src} (enemy flat round stopped by cover); door {stage, kind}.
 // Pure deterministic sim. Fixed step 1/60 s x TIME_SCALE. No DOM, no unseeded randomness, no wall clock.
 
 var STEP = 1 / 60;
@@ -1234,6 +1394,10 @@ function enemyDmg(S, base){
   return Math.max(1, Math.floor(base * t.ENEMY_DMG_MULT * (1 + t.DMG_SLOPE * (scaleStage(S) - 1))));
 }
 function ev(S, o){ S.events.push(o); return o; }
+// F0 #7: machine and boss base rows live in parts/data-enemies.js (V.Data.enemies). Each behaviour's .base is bound to its
+// table row at every create (the AI parts load after this one, so binding at load is too early). Node loaders that skip the data part get it here.
+if (!(V.Data && V.Data.enemies) && typeof require === 'function' && typeof module !== 'undefined') { try { require('./data-enemies.js'); } catch (e) {} }
+function bindData(){ var T = V.Data && V.Data.enemies; if (!T) return; for (var k in T) if (V.AI[k] && V.AI[k].base !== T[k]) V.AI[k].base = T[k]; }
 function base(e){ var A = V.AI[e.type]; return A ? A.base : { hp:100, contact:40, dmg:40, speed:0, r:0.4, size:'medium', xp:8 }; }
 
 // ---------- mod hooks ----------
@@ -1400,6 +1564,7 @@ function releaseSpawns(S){
 // opts.metaStats: object = use these meta stats (bot test of a powered hero, no V.Meta needed); null/false = neutral even if V.Meta exists.
 // Without opts, stats come from V.Meta.stats() when V.Meta is loaded (the browser game); bot.js never loads meta.js so it stays neutral.
 function create(seed, tune, opts){
+  bindData();
   tune = tune || V.TUNE;
   seed = (seed >>> 0);
   var S = { seed:seed, frame:0, t:0, tune:tune, phase:'play', stage:1, stageIdx:0, stageKind:'combat', roomId:null, lap:1,
@@ -1442,6 +1607,7 @@ function spawnRound(S, x, y, ang, dmg){
   return r;
 }
 function fireBatch(S){
+  var vol = S.stats.shots || 0; // volley id = rounds fired before this batch (monotonic, deterministic)
   var h = S.hero, a = h.ang, list = [{ ang:0, off:0, mul:1 }];
   callHook(S, 'pattern', list);
   var px = -Math.sin(a), py = Math.cos(a);
@@ -1451,7 +1617,7 @@ function fireBatch(S){
     if (p.delay > 0) { h.delayQ.push({ t:p.delay, ang:p.ang || 0, off:off, mul:p.mul == null ? 1 : p.mul }); continue; }
     spawnRound(S, mx + px * off, my + py * off, a + (p.ang || 0), roundDamage(S, p.mul == null ? 1 : p.mul));
   }
-  ev(S, { k:'fire', x:mx, y:my, ang:a, n:list.length });
+  ev(S, { k:'fire', x:mx, y:my, ang:a, n:list.length, vol:vol, weapon:'rifle' });
 }
 
 function findEnemy(S, id){ for (var i = 0; i < S.enemies.length; i++) if (S.enemies[i].id === id) return S.enemies[i]; return null; }
@@ -1554,7 +1720,7 @@ function hurtHero(S, dmg, src, x, y, opts){
   h.hp -= dmg; S.stats.dmgTaken += dmg;
   S.stats.hitsBy[src] = (S.stats.hitsBy[src] || 0) + 1;
   h.invulnT = S.tune.INVULN;
-  ev(S, { k:'hurt', x:h.x, y:h.y, dmg:dmg, src:src });
+  ev(S, { k:'hurt', x:h.x, y:h.y, dmg:dmg, src:src, hp:Math.max(0, h.hp), max:h.maxHp, down:h.hp <= 0 });
   if (h.hp <= 0) { h.hp = 0; endRun(S, false); }
   return true;
 }
@@ -1683,7 +1849,8 @@ function killEnemy(S, e){
   var b = base(e);
   S.stats.kills++;
   S.stats.killLog.push({ type:e.type, stage:S.stage, t:+(S.roomT).toFixed(3) });
-  ev(S, { k:'kill', x:e.x, y:e.y, id:e.id, type:e.type, boss:!!e.boss });
+  var others = 0; for (var oi = 0; oi < S.enemies.length; oi++) if (S.enemies[oi] !== e && S.enemies[oi].hp > 0) others++;
+  ev(S, { k:'kill', x:e.x, y:e.y, id:e.id, type:e.type, boss:!!e.boss, size:b.size || 'small', last:others === 0 && !(S.spawnQ && S.spawnQ.length) });
   if (b.xp) S.pickups.push({ x:e.x, y:e.y, kind:'xp', v:b.xp, life:1e9 });
   if (!e.boss) {
     var p = Math.min(REPAIR_CAP, REPAIR_BASE + S.pity);
@@ -1701,7 +1868,8 @@ function damageEnemy(S, e, dmg, crit, r, opts){
   dmg = Math.max(1, Math.floor(dmg));
   e.hp -= dmg;
   if (opts && opts.dot) ev(S, { k:'dot', x:e.x, y:e.y, id:e.id, dmg:dmg });
-  else { e.flashT = 0.1; ev(S, { k:'hit', x:e.x, y:e.y, id:e.id, dmg:dmg, crit:crit }); }
+  else { e.flashT = 0.1; ev(S, { k:'hit', x:e.x, y:e.y, id:e.id, dmg:dmg, crit:crit,
+    src:r ? 'round' : ((opts && opts.src) || 'mod'), dir:r ? Math.atan2(r.vy, r.vx) : null, hp:Math.max(0, e.hp), max:e.maxHp }); }
   if (crit) ev(S, { k:'crit', x:e.x, y:e.y, id:e.id, dmg:dmg });
   if (e.hp <= 0) { e.hp = 0; killEnemy(S, e); return true; }
   return false;
@@ -1778,7 +1946,7 @@ function stepShots(S, dt){
     var s = a[i];
     s.x += s.vx * dt; s.y += s.vy * dt;
     if (s.life != null) { s.life -= dt; if (s.life <= 0) continue; }
-    if (hitsSolid(S, s.x, s.y, s.r)) continue; // cover stops enemy flat rounds (M)
+    if (hitsSolid(S, s.x, s.y, s.r)) { ev(S, { k:'block', x:s.x, y:s.y, src:s.src }); continue; } // cover stops enemy flat rounds (M)
     if (outOfRoom(S, s.x, s.y, -s.r)) {
       if (s.bounces > 0) { wallReflect(S, s); s.bounces--; } else if (outOfRoom(S, s.x, s.y, s.r)) continue;
     }
@@ -1904,7 +2072,7 @@ function pickSupply0(S, index){
 }
 function openDoor(S){
   S.phase = 'clear'; S.clearT = 0; S.room.door.open = true;
-  ev(S, { k:'door', x:S.room.door.x + 0.5, y:S.room.door.y + 0.5, open:true });
+  ev(S, { k:'door', x:S.room.door.x + 0.5, y:S.room.door.y + 0.5, open:true, stage:S.stage, kind:S.stageKind });
 }
 function openChest(S){
   var c = S.chest; if (!c || c.open) return;
@@ -2409,7 +2577,7 @@ var PAL = {
   wall: C(196, 188, 170), wallTop: C(218, 211, 194), wallSeam: C(150, 142, 126),
   pillar: C(184, 176, 158), pillarTop: C(206, 199, 182),
   crate: C(92, 104, 62), crateLid: C(112, 126, 76), crateBand: C(64, 72, 44),
-  doorShut: C(70, 74, 80), doorOpen: C(40, 36, 30), doorLightShut: C(255, 60, 50), doorLightOpen: C(90, 240, 140),
+  doorShut: C(70, 74, 80), doorOpen: C(40, 36, 30), doorLightShut: C(255, 60, 50), doorLightOpen: C(90, 240, 140), chevron: C(223, 230, 236),
   metal: C(62, 66, 74), metalLite: C(92, 98, 108), metalDark: C(36, 39, 45),
   sensor: C(255, 48, 48), sensorCore: C(255, 200, 190),
   heroBody: C(118, 126, 84), heroDark: C(70, 76, 50), cyan: C(64, 228, 255), cyanSoft: C(64, 228, 255, 0.35),
@@ -2449,7 +2617,7 @@ function mkRng(seed) {
 }
 
 var P = { list: [], rnd: mkRng(1), seed: null, lastFrame: -1, lastT: 0, ingested: false }; // particles (world units)
-var MAXP = 400;
+var MAXP = 600; // VISUAL-DESIGN B10 (was 400); spawners already stop at the cap
 
 function spawnBurst(x, y, n, spd, life, col, size, drag) {
   for (var i = 0; i < n && P.list.length < MAXP; i++) {
@@ -2471,7 +2639,11 @@ function eatEvents(ev, S) {
       case 'crit': spawnBurst(x, y, 9, 6, 0.3, PAL.sparkHot, 0.08); spawnRing(x, y, 0.1, 0.6, 0.2, PAL.amber); break;
       case 'kill':
         spawnBurst(x, y, 12, 6, 0.4, PAL.spark, 0.08); spawnBurst(x, y, 6, 3, 0.6, PAL.debris, 0.1, 3);
-        spawnRing(x, y, 0.2, 1.0, 0.3, PAL.sparkHot); break;
+        spawnRing(x, y, 0.2, 1.0, 0.3, PAL.sparkHot);
+        if (e.size === 'large' || e.boss) spawnBurst(x, y, 10, 5, 0.6, PAL.debris, 0.12, 3); // kill class (B2)
+        if (e.last && !e.boss) spawnRing(x, y, 0.3, 1.8, 0.45, PAL.white); // last kill of the room (B2)
+        break;
+      case 'block': spawnBurst(x, y, 4, 3, 0.18, PAL.spark, 0.05); spawnRing(x, y, 0.05, 0.35, 0.15, PAL.spark); break; // cover stopped a round (B6)
       case 'hurt': spawnBurst(x, y, 8, 4, 0.3, PAL.hurt, 0.07); break;
       case 'pickup': spawnRing(x, y, 0.1, 0.5, 0.25, PAL.xp); break;
       case 'levelup': spawnRing(x, y, 0.3, 1.8, 0.5, PAL.cyan); spawnBurst(x, y, 10, 4, 0.5, PAL.cyan, 0.06); break;
@@ -2577,14 +2749,16 @@ function drawDoor(S, s) {
   var d = S.room.door; if (!d) return;
   var cx = X(d.x + d.w / 2), cy = Y(d.y + d.h / 2), w = d.w * s, h = d.h * s;
   if (d.open) {
+    // C16 / AN-401: lamps red -> dark (first 0.4 s of clear) -> green; chevrons white-steel. Render only: the sim door is already passable.
+    var lamp = S.phase === 'clear' && !S.bossWin && (S.clearT || 0) < 0.4 ? PAL.metalDark : PAL.doorLightOpen;
     rect(cx, cy, w, h, PAL.doorOpen);
     rect(cx, cy + h * 0.25, w - 4, h * 0.5, C(70, 60, 44));
     // chevrons pointing north
     for (var k = 0; k < 2; k++) {
       var yy = cy + h * 0.15 - k * 6;
-      line(cx - 6, yy + 4, cx, yy - 2, 2, PAL.doorLightOpen); line(cx, yy - 2, cx + 6, yy + 4, 2, PAL.doorLightOpen);
+      line(cx - 6, yy + 4, cx, yy - 2, 2, PAL.chevron); line(cx, yy - 2, cx + 6, yy + 4, 2, PAL.chevron);
     }
-    circ(cx - w / 2 + 4, cy, 2.5, PAL.doorLightOpen); circ(cx + w / 2 - 4, cy, 2.5, PAL.doorLightOpen);
+    circ(cx - w / 2 + 4, cy, 2.5, lamp); circ(cx + w / 2 - 4, cy, 2.5, lamp);
   } else {
     oRect(cx, cy, w, h, PAL.doorShut);
     var n = Math.max(2, Math.round(d.w * 3));
@@ -3608,7 +3782,7 @@ V.Render = {
 <script>
 (function(){ var G = (typeof window !== 'undefined' ? window : globalThis); var V = G.V = G.V || {};
 // One-thumb drag control: touch anywhere on the game screen, drag to move. No graphic at the thumb.
-// Direction = finger offset from the touch-down point. Hysteresis: start moving past ENTER px, stop inside EXIT px.
+// Direction = finger offset from the touch-down point. Hysteresis: start moving past ENTER px, stop inside EXIT px (frame px, F0).
 var el = null, tune = null;
 var pid = null, x0 = 0, y0 = 0, dx = 0, dy = 0, active = false, down = false;
 var keys = {};
@@ -3632,7 +3806,9 @@ function onDown(e){
 function onMove(e){
   if (e.pointerId !== pid) return;
   dx = e.clientX - x0; dy = e.clientY - y0;
-  var d = Math.sqrt(dx * dx + dy * dy);
+  // Dead zones are in frame px: the stage is CSS-scaled, so client px / V.Frame.scale = frame px (default 1).
+  var fs = (V.Frame && V.Frame.scale > 0) ? V.Frame.scale : 1;
+  var d = Math.sqrt(dx * dx + dy * dy) / fs;
   if (!active && d > T('DEADZONE_ENTER', 14)) { active = true; rec('go', dx, dy); }
   else if (active && d < T('DEADZONE_EXIT', 8)) { active = false; rec('st', dx, dy); }
   counts.moves++;
@@ -3691,12 +3867,64 @@ V.Input = {
 (function(){ var G = (typeof window !== 'undefined' ? window : globalThis); var V = G.V = G.V || {};
 // Four synth sounds (fire, hit, hurt, door/levelup). L-HB-1/L-HB-2: unlock on first pointerdown (capture) and keydown,
 // suspend while hidden or paused, voice cap with headroom for important sounds, own RNG stream (never the sim's).
-var ctx = null, master = null, noiseBuf = null, paused = false, voices = 0, played = 0, dropped = 0;
+// F0 #11 sound shell (spec 07 s2, s6, s9): voices -> sfx bus -> master (volume x mute) -> limiter. A music bus exists for the
+// later sequencer. Levels live in their own key 'volley.settings.v1' under `.audio` (meta.js owns `.haptics`; a save wipe keeps it).
+var ctx = null, master = null, sfxBus = null, musicBus = null, noiseBuf = null, paused = false, voices = 0, played = 0, dropped = 0;
 var CAP = 16, LOW_CAP = 10;                      // low-priority sounds (fire, hit) stop at 10, leaving 6 for hurt/door/levelup
 var PRIO = { fire: 0, hit: 0, kill: 1, hurt: 2, door: 2, levelup: 2 };
-var rs = 0x5eed1234;
+// ---- one seeded audio stream (spec 07 s2 "Random"): seeded from the run seed, never draws from the sim stream (L-TD-6) ----
+var rs = 0x5eed1234, seed0 = 0;
 function rnd(){ rs |= 0; rs = rs + 0x6D2B79F5 | 0; var t = Math.imul(rs ^ rs >>> 15, 1 | rs); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }
-function on(){ return !V.TUNE || V.TUNE.SOUND !== false; }
+
+// ---- settings ----
+var SKEY = 'volley.settings.v1';
+var LEVELS = { off: 0, low: 0.35, mid: 0.6, high: 0.85 };   // spec 07 s9 gain table
+var BASE = 0.55;                                            // today's master gain; 'mid' sfx + master 1 = today's mix (guess: keeps P1.7 loudness)
+var DEF = { v: 1, master: 1, sfx: 'mid', music: 'mid', muted: false };
+var set = clean(null);
+function clean(o){
+  var a = {}; o = (o && typeof o === 'object') ? o : {};
+  a.v = 1;
+  a.master = (typeof o.master === 'number' && o.master >= 0 && o.master <= 1) ? o.master : DEF.master;
+  a.sfx = (typeof o.sfx === 'string' && o.sfx in LEVELS) ? o.sfx : DEF.sfx;
+  a.music = (typeof o.music === 'string' && o.music in LEVELS) ? o.music : DEF.music;
+  a.muted = typeof o.muted === 'boolean' ? o.muted : DEF.muted;
+  return a;
+}
+function store(){ try { return G.localStorage || null; } catch (e) { return null; } }
+function readAll(){ var st = store(); if (!st) return null; try { var t = st.getItem(SKEY); if (!t) return null; var o = JSON.parse(t); return (o && typeof o === 'object' && !Array.isArray(o)) ? o : null; } catch (e) { return null; } }
+function loadSettings(){
+  var all = readAll();
+  if (all && all.audio) { set = clean(all.audio); return; }
+  set = clean(null);
+  // One-time carry-over: P1.7 kept sound-off as SOUND:false in 'volley.tune'.
+  try { var st = store(), t = st && st.getItem('volley.tune'), o = t && JSON.parse(t); if (o && o.SOUND === false) set.muted = true; } catch (e) {}
+}
+function saveSettings(){
+  var st = store(); if (!st) return false;
+  try { var all = readAll() || {}; all.audio = clean(set); st.setItem(SKEY, JSON.stringify(all)); return true; } catch (e) { return false; }   // read-modify-write: keeps meta.js's fields
+}
+function sfxGain(){ return LEVELS[set.sfx] / LEVELS.mid; }
+function musicGain(){ return LEVELS[set.music] / LEVELS.mid; }
+function masterGain(){ return set.muted ? 0 : BASE * set.master; }
+function applyGains(){
+  if (!ctx || !master) return;
+  var t = ctx.currentTime;
+  try { master.gain.setTargetAtTime(masterGain(), t, 0.015); sfxBus.gain.setTargetAtTime(sfxGain(), t, 0.015); musicBus.gain.setTargetAtTime(musicGain(), t, 0.015); }
+  catch (e) { master.gain.value = masterGain(); sfxBus.gain.value = sfxGain(); musicBus.gain.value = musicGain(); }
+}
+// Off stops scheduling (spec 07 s9), it is not only a gain of 0.
+function on(){ return !set.muted && set.sfx !== 'off' && set.master > 0; }
+loadSettings();
+// V.TUNE.SOUND (tune drawer, Intel tab, pause button) is a view of `muted`, so every old writer lands in the settings key.
+if (V.TUNE) {
+  try {
+    delete V.TUNE.SOUND;
+    Object.defineProperty(V.TUNE, 'SOUND', { enumerable: true, configurable: true,
+      get: function(){ return !set.muted; }, set: function(v){ setMuted(!v); } });
+  } catch (e) {}
+}
+function setMuted(m){ m = !!m; if (set.muted === m) return; set.muted = m; applyGains(); saveSettings(); }
 
 function make(){
   if (ctx) return ctx;
@@ -3708,7 +3936,9 @@ function make(){
 function build(c){
   var comp = c.createDynamicsCompressor();
   comp.threshold.value = -10; comp.knee.value = 6; comp.ratio.value = 8; comp.attack.value = 0.002; comp.release.value = 0.12;
-  master = c.createGain(); master.gain.value = 0.55;
+  master = c.createGain(); master.gain.value = masterGain();
+  sfxBus = c.createGain(); sfxBus.gain.value = sfxGain(); sfxBus.connect(master);
+  musicBus = c.createGain(); musicBus.gain.value = musicGain(); musicBus.connect(master);
   master.connect(comp); comp.connect(c.destination);
   var n = Math.floor(c.sampleRate * 0.25); noiseBuf = c.createBuffer(1, n, c.sampleRate);
   var d = noiseBuf.getChannelData(0); var save = rs; rs = 0x0badf00d;
@@ -3758,17 +3988,17 @@ var SND = {
 };
 
 function play(name, opt){
-  if (!on() || !ctx || !master) return false;
+  if (!on() || !ctx || !sfxBus) return false;
   var p = PRIO[name] || 0;
   if (voices >= CAP || (p === 0 && voices >= LOW_CAP)) { dropped++; return false; }
   // Scheduled even while suspended (L-HB-1): it sounds once resume() lands instead of being dropped.
   var t = ctx.currentTime + 0.005, n;
-  if (name === 'fire') n = SND.fire(ctx, t, master);
-  else if (name === 'hit') n = SND.hit(ctx, t, master, false);
-  else if (name === 'kill') n = SND.hit(ctx, t, master, true);
-  else if (name === 'hurt') n = SND.hurt(ctx, t, master);
-  else if (name === 'door') n = SND.door(ctx, t, master, false);
-  else if (name === 'levelup') n = SND.door(ctx, t, master, true);
+  if (name === 'fire') n = SND.fire(ctx, t, sfxBus);
+  else if (name === 'hit') n = SND.hit(ctx, t, sfxBus, false);
+  else if (name === 'kill') n = SND.hit(ctx, t, sfxBus, true);
+  else if (name === 'hurt') n = SND.hurt(ctx, t, sfxBus);
+  else if (name === 'door') n = SND.door(ctx, t, sfxBus, false);
+  else if (name === 'levelup') n = SND.door(ctx, t, sfxBus, true);
   if (!n) return false;
   voice(n); return true;
 }
@@ -3786,7 +4016,20 @@ if (G.addEventListener) {
 V.Audio = {
   play: play,
   unlock: unlock,
-  seed: function(s){ rs = ((s | 0) ^ 0x5eed1234) | 0; },
+  seed: function(s){ seed0 = s | 0; rs = (seed0 ^ 0x5eed1234) | 0; },
+  // The audio stream itself (pitch/timing jitter for future cues). Tests: V.Audio.seed(n); V.Audio.rand() is repeatable and never moves the sim RNG.
+  rand: function(){ return rnd(); },
+  get seedValue(){ return seed0; },
+  // Settings (spec 07 s9). Levels: 'off' | 'low' | 'mid' | 'high'. Master 0..1. Each setter saves at once.
+  LEVELS: LEVELS, SETTINGS_KEY: SKEY,
+  settings: function(){ return clean(set); },
+  setMuted: setMuted,
+  get muted(){ return set.muted; },
+  setMaster: function(v){ v = +v; if (!(v >= 0)) v = 0; if (v > 1) v = 1; set.master = v; applyGains(); saveSettings(); },
+  setLevel: function(bus, lv){ if (!(lv in LEVELS) || (bus !== 'sfx' && bus !== 'music')) return false; set[bus] = lv; applyGains(); saveSettings(); return true; },
+  reloadSettings: function(){ loadSettings(); applyGains(); return clean(set); },
+  get gains(){ return { master: masterGain(), sfx: sfxGain(), music: musicGain() }; },
+  get musicBus(){ return musicBus; },
   // Game pause: stay suspended until the game resumes.
   setPaused: function(p){
     paused = !!p; if (!ctx) return;
@@ -3795,13 +4038,13 @@ V.Audio = {
   // For tests (OfflineAudioContext burst render, L-HB-2 item 5).
   renderBurst: function(spec){
     var OAC = G.OfflineAudioContext; if (!OAC) return Promise.resolve(null);
-    var c = new OAC(1, 44100 * 1, 44100), sv = { ctx: ctx, master: master, noiseBuf: noiseBuf, voices: voices };
-    build(c); var m = master; var t = 0.01;
+    var c = new OAC(1, 44100 * 1, 44100), sv = { ctx: ctx, master: master, sfxBus: sfxBus, musicBus: musicBus, noiseBuf: noiseBuf, voices: voices };
+    build(c); var m = master; m.gain.value = BASE; var t = 0.01;   // mix-headroom test: independent of the player's volume/mute
     (spec || ['hurt', 'levelup', 'kill', 'kill', 'kill']).forEach(function(nm, i){
       if (nm === 'fire') SND.fire(c, t, m); else if (nm === 'hit') SND.hit(c, t, m, false); else if (nm === 'kill') SND.hit(c, t, m, true);
       else if (nm === 'hurt') SND.hurt(c, t, m); else SND.door(c, t, m, nm === 'levelup');
     });
-    master = sv.master; noiseBuf = sv.noiseBuf;
+    master = sv.master; sfxBus = sv.sfxBus; musicBus = sv.musicBus; noiseBuf = sv.noiseBuf;
     return c.startRendering().then(function(b){ var d = b.getChannelData(0), pk = 0; for (var i = 0; i < d.length; i++) pk = Math.max(pk, Math.abs(d[i])); return pk; });
   },
   get state(){ return ctx ? ctx.state : 'none'; },
@@ -3821,20 +4064,21 @@ if (V.TUNE_DEFAULTS) {
   var SHELL = { AUTO_WALK: true, AUTO_WALK_DELAY: 1.0, EDGE_FLASH: true, HAPTIC_HURT_MS: 40, HAPTIC_KILL_MS: 12 };
   for (var sk in SHELL) if (!(sk in V.TUNE_DEFAULTS)) { V.TUNE_DEFAULTS[sk] = SHELL[sk]; if (V.TUNE && !(sk in V.TUNE)) V.TUNE[sk] = SHELL[sk]; }
 }
-var BUILD = 'volley-p1-7';
-// Persist tuning (only values that differ from defaults) and sound-off. Every storage call is guarded.
+var BUILD = 'volley-f0-1';
+// Persist tuning (only values that differ from defaults). Every storage call is guarded. Sound on/off is NOT kept here any more:
+// V.TUNE.SOUND is a view of V.Audio's mute, saved in 'volley.settings.v1' (audio.js), so a tune reset or save wipe keeps it.
 var STORE = 'volley.tune';
 function loadTune(){
   try {
     var raw = G.localStorage && localStorage.getItem(STORE); if (!raw) return;
     var o = JSON.parse(raw);
-    for (var k in o) if (V.TUNE_DEFAULTS && k in V.TUNE_DEFAULTS && typeof o[k] === typeof V.TUNE_DEFAULTS[k]) V.TUNE[k] = o[k];
+    for (var k in o) if (k !== 'SOUND' && V.TUNE_DEFAULTS && k in V.TUNE_DEFAULTS && typeof o[k] === typeof V.TUNE_DEFAULTS[k]) V.TUNE[k] = o[k];
   } catch (_) {}
 }
 function saveTune(){
   try {
     var o = {}, n = 0;
-    for (var k in V.TUNE_DEFAULTS) if (V.TUNE[k] !== V.TUNE_DEFAULTS[k]) { o[k] = V.TUNE[k]; n++; }
+    for (var k in V.TUNE_DEFAULTS) if (k !== 'SOUND' && V.TUNE[k] !== V.TUNE_DEFAULTS[k]) { o[k] = V.TUNE[k]; n++; }
     if (n) localStorage.setItem(STORE, JSON.stringify(o)); else localStorage.removeItem(STORE);
   } catch (_) {}
 }
@@ -3877,12 +4121,12 @@ UI.init = function(h){
   });
   $('drCopyS').addEventListener('click', function(){ copy(JSON.stringify(V.TUNE, null, 1), 'Settings copied'); });
   $('drCopyR').addEventListener('click', function(){ copy(UI.report(), 'Report copied'); });
-  $('btnSound').addEventListener('click', function(e){ e.stopPropagation(); V.TUNE.SOUND = V.TUNE.SOUND === false; saveTune(); paintSound(); });
+  $('btnSound').addEventListener('click', function(e){ e.stopPropagation(); if (V.Audio && V.Audio.setMuted) V.Audio.setMuted(!V.Audio.muted); else V.TUNE.SOUND = V.TUNE.SOUND === false; paintSound(); });
   paintSound();
   buildDrawer();
 };
 
-function paintSound(){ var b = $('btnSound'); if (b) b.textContent = 'Sound: ' + (V.TUNE.SOUND === false ? 'off' : 'on'); }
+function paintSound(){ var b = $('btnSound'), off = V.Audio && 'muted' in V.Audio ? V.Audio.muted : V.TUNE.SOUND === false; if (b) b.textContent = 'Sound: ' + (off ? 'off' : 'on'); }
 UI.saveTune = saveTune;
 function msg(t){ $('drMsg').textContent = t; }
 function copy(text, ok){
@@ -4039,8 +4283,9 @@ UI.howto = function(on, view){
   if (on) { el.style.top = Math.round(view.oy + 15 * view.s + 14) + 'px'; if (el.style.display !== 'block') el.style.display = 'block'; }
   else if (el.style.display !== 'none') el.style.display = 'none';
 };
+function fmtN(n){ return (V.Home && V.Home.fmt) ? V.Home.fmt(n) : String(n); }
 UI.rendererLabel = function(R, view){
-  var t = (R ? R.name : 'none') + ' | ' + Math.round(view.w) + 'x' + Math.round(view.h) + ' | dpr ' + (Math.round((G.devicePixelRatio || 1) * 100) / 100);
+  var t = (R ? R.name : 'none') + ' | ' + Math.round(view.vw || view.w) + 'x' + Math.round(view.vh || view.h) + ' | x' + (view.scale || 1).toFixed(2) + ' | dpr ' + (Math.round((G.devicePixelRatio || 1) * 100) / 100);
   // D14: the corner label shows only with ?debug=1; the pause card and the tuning drawer always carry it.
   ['rlbl', 'rlblPause', 'rlblDrawer'].forEach(function(id){ var el = $(id); if (el && el.textContent !== t) el.textContent = t; });
 };
@@ -4098,14 +4343,14 @@ UI.results = function(S){
   var t = $('resTitle'); t.textContent = r.win ? 'Chapter 1 clear' : 'Operator down'; t.className = r.win ? 'win' : '';
   var mods = modNames(S);
   var rows = [['Result', r.win ? 'Win' : 'Lost'], ['Stage reached', (r.stage != null ? r.stage : S.stage) + ' / 10'], ['Time', mmss(r.t != null ? r.t : S.t)],
-    ['Kills', r.kills | 0], ['Level', r.level != null ? r.level : S.hero.level], ['Damage taken', Math.round(r.dmgTaken || 0)], ['Mods', mods.length ? mods.join(', ') : 'none']];
+    ['Kills', fmtN(r.kills | 0)], ['Level', r.level != null ? r.level : S.hero.level], ['Damage taken', fmtN(Math.round(r.dmgTaken || 0))], ['Mods', mods.length ? mods.join(', ') : 'none']];
   var box = $('resStats'); box.innerHTML = '';
   rows.forEach(function(rw){ var d = document.createElement('div'); d.className = 'row'; var a = document.createElement('span'); a.textContent = rw[0]; var b = document.createElement('b'); b.textContent = String(rw[1]); d.appendChild(a); d.appendChild(b); box.appendChild(d); });
   if (r.credits != null) {      // credits earned this run (S.result.credits, added by META), with the coin
     var cr = document.createElement('div'); cr.className = 'row'; var ca = document.createElement('span'); ca.textContent = 'Credits earned';
     var cb = document.createElement('b'); cb.style.color = '#ffe27a'; cb.style.display = 'inline-flex'; cb.style.alignItems = 'center';
     var ci = document.createElement('span'); ci.className = 'pv-coin'; ci.setAttribute('aria-hidden', 'true'); ci.style.cssText = 'width:20px;height:20px;margin-right:6px'; cb.appendChild(ci);   // code coin under 32 px
-    cb.appendChild(document.createTextNode('+' + (r.credits | 0))); cr.appendChild(ca); cr.appendChild(cb); box.insertBefore(cr, box.firstChild);
+    cb.appendChild(document.createTextNode('+' + fmtN(r.credits | 0))); cr.appendChild(ca); cr.appendChild(cb); box.insertBefore(cr, box.firstChild);
   }
   UI.show('ovDead', true);
 };
@@ -4129,7 +4374,7 @@ UI.report = function(){
     bracedUptimePct: braced, hitsBy: st.hitsBy, roomTimes: st.roomTimes, kills: st.kills, deaths: m.deaths,
     stage: S.stage, stageReached: S.result ? S.result.stage : S.stage, result: S.result ? (S.result.win ? 'win' : 'lose') : (S.phase === 'dead' ? 'lose' : 'in progress'), mods: S.hero ? S.hero.mods : null, modNames: S.hero ? modNames(S) : null, level: S.hero && S.hero.level, picks: st.picks, shots: st.shots, dmgTaken: st.dmgTaken,
     input: V.Input ? { counts: V.Input.counts, log: V.Input.logText() } : null,
-    audio: V.Audio ? { state: V.Audio.state, played: V.Audio.played, dropped: V.Audio.dropped } : null,
+    audio: V.Audio ? { state: V.Audio.state, played: V.Audio.played, dropped: V.Audio.dropped, settings: V.Audio.settings ? V.Audio.settings() : null } : null,
     settings: V.TUNE,
     homeVisible: !!(V.Home && V.Home.visible && V.Home.visible()),
     meta: metaBlock()
@@ -4280,8 +4525,8 @@ function view(){
 function pips(lvl){ var s = ''; for (var i = 1; i <= RIFLE_MAX; i++) s += '<i class="' + (i <= lvl ? 'on' : '') + '"></i>'; return '<span class="ta-pips" aria-hidden="true">' + s + '</span>'; }
 function statRow(v){
   return '<div class="pv-panel pv-panel--inset ta-stat">' + ico('<path d="M12 3l7 8h-4v10H9V11H5z"/>') + '<span class="pv-stat__name">Rifle ATK</span>' +
-    '<span class="pv-stat__val">' + v.atk + '</span>' + (v.maxed ? '<span class="pv-badge pv-badge--olive">Max</span>' :
-    '<span class="pv-small">&rarr;</span><span class="pv-stat__val pv-cyan">' + v.next + '</span><span class="pv-stat__delta">+' + (v.next - v.atk) + '</span>') + '</div>';
+    '<span class="pv-stat__val">' + fmt(v.atk) + '</span>' + (v.maxed ? '<span class="pv-badge pv-badge--olive">Max</span>' :
+    '<span class="pv-small">&rarr;</span><span class="pv-stat__val pv-cyan">' + fmt(v.next) + '</span><span class="pv-stat__delta">+' + fmt(v.next - v.atk) + '</span>') + '</div>';
 }
 function costRow(v){
   if (v.maxed) return '<div class="ta-cost"><span class="ta-hint">Cost</span><span class="pv-small" style="margin-left:auto">Fully upgraded</span></div>';
@@ -4346,8 +4591,10 @@ function onClick(e){
   if (act === 'close') { if (t.classList.contains('ta-scrim') && e.target !== t) return; closeSheet(); }
   else if (act === 'operator') { if (V.Home && V.Home.go) V.Home.go('operator'); }
   else if (act === 'open') { sheetOpen = true; render(); var x = el.querySelector('.ta-x'); if (x) x.focus(); }
-  else if (act === 'buy') { var M = meta(); if (M.buy('rifle', 'rifle')) { if (V.Audio && V.Audio.click) try { V.Audio.click(); } catch (_) {} } render(); }
+  else if (act === 'buy') { var M = meta(); if (M.buy('rifle', 'rifle')) buySound(); render(); }
 }
+// audio.js has no click() yet (F0 audit): use it when it lands, else the existing 'levelup' cue (closest UI cue in audio.js).
+function buySound(){ var A = V.Audio; if (!A) return; try { if (typeof A.click === 'function') A.click(); else if (typeof A.play === 'function') A.play('levelup'); } catch (_) {} }
 function closeSheet(){ if (!sheetOpen) return; sheetOpen = false; render(); }
 
 V.Tabs = V.Tabs || {};
@@ -4544,7 +4791,9 @@ var CSS = '\
 .tb-res .bx span{font:800 19px/1 var(--pv-ui-font-stencil);white-space:nowrap}\
 .tb-res .bx.af span{color:var(--pv-ui-cyan)}\
 .tb-res .ba>.pv-ico{color:var(--pv-ui-cyan);font-size:22px}\
-.tb-res .pv-btn{width:100%;min-height:56px}';
+.tb-res .pv-btn{width:100%;min-height:56px}\
+.tb-note{font-size:12px;color:var(--pv-ui-text-2);text-align:center;min-height:16px;margin:0}\
+.tb-note.is-warn{color:var(--pv-ui-text-3)}';
 
 function injectCss(){
   if (document.getElementById('tb-up-css')) return;
@@ -4621,6 +4870,9 @@ function render(){
   if (!can) { btn.className += ' is-disabled'; btn.disabled = true; }
   btn.addEventListener('click', buy);
   body.appendChild(btn);
+  // QA-HOME 12: same hint as the Armory (tab-armory.js upBtn / .ta-note): grey, never red.
+  var short = (!all && c && !can) ? Math.max(0, (c.credits | 0) - (st.credits | 0)) : 0;
+  body.appendChild(el('div', 'tb-note' + (short > 0 ? ' is-warn' : ''), short > 0 ? 'Need ' + fmt(short) + ' more credits' : '&nbsp;'));
 }
 
 function buy(){
@@ -4748,7 +5000,7 @@ button.tb-row{appearance:none;cursor:pointer}\
 .tb-pw{display:flex;flex-direction:column;gap:6px;padding:8px 12px 10px;background:linear-gradient(var(--pv-ui-metal-700),var(--pv-ui-metal-800));border:1.5px solid var(--pv-ui-ink);border-radius:6px}\
 .tb-pw .h{display:flex;align-items:center;gap:12px}\
 .tb-pw .l{flex:1;font-weight:700}.tb-pw .l small{display:block;font-weight:400;font-size:11px;color:var(--pv-ui-text-2)}\
-.tb-pw input[type=range]{width:100%;height:40px;margin:0;accent-color:var(--pv-ui-cyan);background:transparent}\
+.tb-pw input[type=range]{width:100%;height:56px;margin:0;accent-color:var(--pv-ui-cyan);background:transparent}\
 .tb-danger{color:var(--pv-ui-red)}.tb-danger .pv-ico{color:var(--pv-ui-red)}\
 .tb-scrim{position:absolute;inset:0;z-index:50;display:flex;align-items:flex-end;background:rgba(5,7,9,.78)}\
 .tb-sheet{width:100%;margin-bottom:var(--tb-bottom,98px);padding:16px;display:flex;flex-direction:column;gap:10px;background:linear-gradient(var(--pv-ui-metal-700),var(--pv-ui-metal-900));border:2.5px solid var(--pv-ui-ink);border-radius:10px 10px 0 0;box-shadow:0 0 0 1.5px var(--pv-ui-metal-500)}\
@@ -4882,15 +5134,27 @@ function renderCodex(){
   body.appendChild(g);
 }
 
+// F0 #8: settings live in their own key. Sound is audio.js's (V.Audio, muted flag); haptics is V.Meta.settings().haptics.
+function settingOn(key){
+  var m = M();
+  if (key === 'sound') return V.Audio && 'muted' in V.Audio ? !V.Audio.muted : !(V.TUNE && V.TUNE.SOUND === false);
+  if (m.settings) return !!m.settings()[key];
+  return !!(m.state.settings && m.state.settings[key]);
+}
+function setSettingOn(key, on){
+  var m = M();
+  if (key === 'sound') { if (V.Audio && V.Audio.setMuted) V.Audio.setMuted(!on); else if (V.TUNE) V.TUNE.SOUND = on; return; }
+  if (m.setSetting) { m.setSetting(key, on); return; }
+  var s = m.state.settings = m.state.settings || {}; s[key] = on;
+  if (key === 'haptics' && V.TUNE && 'HAPTICS' in V.TUNE) V.TUNE.HAPTICS = on;
+  if (m.save) m.save();
+}
 function toggleRow(icon, label, sub, key){
-  var m = M(), on = !!(m.state.settings && m.state.settings[key]);
+  var on = settingOn(key);
   var b = el('button', 'tb-row', ico(icon) + '<span class="l">' + label + (sub ? '<small>' + sub + '</small>' : '') + '</span><span class="tb-sw"></span>');
   b.type = 'button'; b.setAttribute('role', 'switch'); b.setAttribute('aria-checked', on); b.setAttribute('data-set', key);
   b.addEventListener('click', function(){
-    var s = m.state.settings = m.state.settings || {};
-    s[key] = !s[key];
-    if (V.TUNE) { if (key === 'sound' && 'SOUND' in V.TUNE) V.TUNE.SOUND = s[key]; if (key === 'haptics' && 'HAPTICS' in V.TUNE) V.TUNE.HAPTICS = s[key]; }
-    if (m.save) m.save();
+    setSettingOn(key, !settingOn(key));
     render();
   });
   return b;
@@ -4923,6 +5187,29 @@ function renderSettings(){
   rs.addEventListener('click', confirmReset);
   sys.appendChild(rs);
   body.appendChild(sys);
+  if (debugOn() && m.loadSample) renderSamples(m);
+}
+
+// ---- F0 #12: test-only sample-save menu (08 structure rule 8). Shown only with ?debug=1, never when the build sets V.RELEASE = true. ----
+function debugOn(){
+  if (V.RELEASE === true) return false;
+  try { return /[?&]debug=1(&|#|$)/.test(G.location.search || ''); } catch (e) { return false; }
+}
+var SAMPLE_ROWS = [
+  ['fresh', 'Fresh', 'Empty save, as on first launch'],
+  ['mid', 'Mid-game', '12,480 credits, rifle Lv 8, 15 Conditioning'],
+  ['all', 'All unlocked', 'Everything maxed, codex full']
+];
+function renderSamples(m){
+  body.appendChild(el('div', 'tb-sec', '<span>Test saves (debug)</span>'));
+  var g = el('div', 'tb-grid'); g.style.gridTemplateColumns = '1fr'; g.style.gap = '6px'; g.setAttribute('data-samples', '1');
+  SAMPLE_ROWS.forEach(function(r){
+    var b = el('button', 'tb-row', ico('codex') + '<span class="l">Load ' + r[1] + '<small>' + r[2] + '</small></span>');
+    b.type = 'button'; b.setAttribute('data-sample', r[0]);
+    b.addEventListener('click', function(){ busy = true; try { m.loadSample(r[0]); } finally { busy = false; } render(); });
+    g.appendChild(b);
+  });
+  body.appendChild(g);
 }
 
 function confirmReset(){
@@ -4934,7 +5221,7 @@ function confirmReset(){
   s.querySelector('[data-confirm]').addEventListener('click', function(){
     var m = M(); closeSheet();
     if (m.reset) m.reset();
-    else { try { localStorage.removeItem('volley.save.v1'); } catch (e) {} try { location.reload(); } catch (e2) {} }
+    else { try { localStorage.removeItem('volley.save.v2'); } catch (e) {} try { location.reload(); } catch (e2) {} }
   });
   root.appendChild(s); sheet = s;
 }
@@ -4992,6 +5279,8 @@ var Home = V.Home = { current: 'deploy' };
 var root, body, bar, panes = {}, mounted = {}, tabBtns = {}, vis = true, crN, crIcon;
 
 function fmt(n){ return String(Math.round(n || 0)).replace(/\B(?=(\d{3})+(?!\d))/g, ','); }
+var CH_LEN = 10;   // Chapter 1 stage count (P1 shows best / 10). QA-HOME 11: best is clamped to this.
+function chLen(){ var st = V.Data && V.Data.stages, c = st && st.ch1; return (Array.isArray(c) && c.length > 0) ? c.length : CH_LEN; }   // V.Data from agent B's data-stages.js
 function meta(){ return V.Meta && V.Meta.state; }
 
 // ---- Deploy tab (S-10, minimal): Chapter 1 card with the key art, big DEPLOY, "Run starts at Stage 1" ----
@@ -5011,7 +5300,8 @@ V.Tabs.deploy = {
   },
   show: function(){
     var m = meta(), n = this.el.querySelector('.hm-bestn');
-    n.innerHTML = (m && m.best ? m.best : 0) + '<span class="pv-muted"> / 10</span>';
+    var len = chLen(), best = Math.max(0, Math.min(len, (m && m.best) | 0));
+    n.innerHTML = fmt(best) + '<span class="pv-muted"> / ' + len + '</span>';
   },
   hide: function(){}
 };
@@ -5035,9 +5325,16 @@ function build(){
     bar.appendChild(b); tabBtns[id] = b;
   });
   root.appendChild(bar);
-  if (V.Meta && V.Meta.onChange) V.Meta.onChange(refreshCredits);
+  if (V.Meta && V.Meta.onChange) V.Meta.onChange(function(){ refreshCredits(); refreshPips(); });
 }
 function refreshCredits(){ var m = meta(); if (crN) crN.textContent = fmt(m ? m.credits : 0); }
+// QA-HOME 8: a dot on a tab when a buy there is affordable (FIX B3: one dot, never a number, never on the selected tab).
+// Armory = rifle upgrade (QA-HOME 8 recommended option); Upgrades = the next Conditioning buy (QA option 2).
+var PIPS = { armory: ['rifle', 'rifle'], upgrades: ['cond', 'rand'] };
+function refreshPips(){
+  var M = V.Meta; if (!M || typeof M.canBuy !== 'function') return;
+  for (var id in PIPS) { var on = false; try { on = !!M.canBuy(PIPS[id][0], PIPS[id][1]); } catch (e) {} Home.pip(id, on); }
+}
 
 Home.go = function(id){
   if (ORDER.indexOf(id) < 0) id = 'deploy';
@@ -5052,8 +5349,10 @@ Home.go = function(id){
   }
   var t2 = V.Tabs[id]; if (t2 && t2.show) { try { t2.show(); } catch (e) { console.warn('volley: tab ' + id + ' show failed', e); } }
   var pip = tabBtns[id].querySelector('.pv-pip'); if (pip) pip.hidden = true;   // pips never sit on the selected tab
-  $('hmTitle').textContent = TITLES[id]; refreshCredits();
+  $('hmTitle').textContent = TITLES[id]; refreshCredits(); refreshPips();
 };
+Home.refreshPips = refreshPips;
+Home.fmt = fmt;   // home-side number formatter (thousands separators); the sim never formats
 Home.pip = function(id, on){ var p = tabBtns[id] && tabBtns[id].querySelector('.pv-pip'); if (p) p.hidden = !on || id === Home.current; };
 Home.visible = function(){ return vis; };
 Home.show = function(tab){
@@ -5067,8 +5366,12 @@ Home.hide = function(){
   if (V.UI) V.UI.syncOverlay();
 };
 
+
 function init(){
   build();
+  // F0 save rules: tell the player once when progress was reset or cannot be kept.
+  setTimeout(function(){ var M = V.Meta, U = V.UI; if (!M || !U || !U.toast) return;
+    if (M.storageOk === false) U.toast(M.BLOCKED_LINE, 3200); else if (M.resetSignal) U.toast(M.RESET_LINE, 3200); }, 400);
   var p = $('resPortrait'); if (p) { if (A('portrait-kneesup') || A('portrait')) p.src = A('portrait-kneesup') || A('portrait'); else p.style.display = 'none'; }
   if (/[?&]home=0/.test(G.location.search)) { vis = false; root.classList.remove('on'); Home.current = 'deploy'; go0(); }
   else Home.show('deploy');
@@ -5095,30 +5398,41 @@ function fail(t){ $('bootMsg').textContent = t; UI.show('ovBoot', true); console
 var UI = V.UI;
 
 // ---------- layout ----------
-var BERM_PX = 30, sbProbe = null;   // BERM_PX: sandbag rows + their shadow below the room line (scene.js drawRoomEdge reaches ~y0+27)
-function safeBottom(){
-  if (!sbProbe) { sbProbe = document.createElement('div'); sbProbe.style.cssText = 'position:absolute;left:0;top:0;width:0;height:0;visibility:hidden;padding-bottom:env(safe-area-inset-bottom,0px)'; document.body.appendChild(sbProbe); }
-  return parseFloat(getComputedStyle(sbProbe).paddingBottom) || 0;
+// Scaled frame (pick 1, spec 05 s1 / 08 s2): the whole game (Home and run) is one 344 x 882 frame. scale = min(usable W / 344,
+// usable H / 882), usable = window minus safe-area insets (L-PV-13); centred; the spare sides are flat bars (body background).
+// Layout inside the frame never changes with the device. Canvas pixels = shown frame x devicePixelRatio, capped at 2 (render2d/gpu cap).
+var FRAME_W = 344, FRAME_H = 882, BERM_PX = 30, sbProbe = null;   // BERM_PX: sandbag rows + their shadow below the room line (scene.js drawRoomEdge reaches ~y0+27)
+var frame0 = { scale: 1, left: 0, top: 0, vw: 0, vh: 0 }, laidOut = false;
+var RESIZE_PAUSE = 0.02;   // guess: a scale change above 2% (fold, unfold, rotate) pauses a run (spec 05 s1); smaller ones (URL bar jitter) do not
+function safeInsets(){
+  if (!sbProbe) { sbProbe = document.createElement('div'); sbProbe.style.cssText = 'position:absolute;left:0;top:0;width:0;height:0;visibility:hidden;padding:env(safe-area-inset-top,0px) env(safe-area-inset-right,0px) env(safe-area-inset-bottom,0px) env(safe-area-inset-left,0px)'; document.body.appendChild(sbProbe); }
+  var cs = getComputedStyle(sbProbe);
+  return { t: parseFloat(cs.paddingTop) || 0, r: parseFloat(cs.paddingRight) || 0, b: parseFloat(cs.paddingBottom) || 0, l: parseFloat(cs.paddingLeft) || 0 };
 }
 function layout(){
-  var W = G.innerWidth, H = G.innerHeight, st = $('stage'), note = $('coverNote');
-  var w = W, h = H, left = 0;
-  if (W / H > 0.75) {                                  // wide or landscape: portrait column at the cover screen aspect
-    w = Math.round(H * 344 / 882); left = Math.round((W - w) / 2);
-    var gut = left - 16;
-    note.style.display = 'block';
-    if (gut >= 120) { note.style.left = '8px'; note.style.top = '8px'; note.style.maxWidth = Math.min(260, gut) + 'px'; }
-    else { note.style.left = '8px'; note.style.top = 'auto'; note.style.bottom = '8px'; note.style.maxWidth = Math.max(100, Math.min(260, W * 0.4)) + 'px'; }
-  } else note.style.display = 'none';
-  st.style.left = left + 'px'; st.style.top = '0px'; st.style.width = w + 'px'; st.style.height = h + 'px';
-  var hud = $('hud').offsetHeight || 62;
-  // Contain fit: the whole room (9x15 tiles) PLUS the sandbag berm drawn just below its bottom edge (BERM_PX) and the bottom safe area
-  // must sit below the HUD, so the limiting dimension (width or height) sets the scale. Tall phones stay width-limited (unchanged).
-  var oy = hud + 2, s = Math.min(w / 9, (h - oy - BERM_PX - safeBottom()) / 15);
-  view.w = w; view.h = h; view.dpr = G.devicePixelRatio || 1; view.s = s; view.ox = (w - 9 * s) / 2; view.oy = oy;
+  var W = G.innerWidth, H = G.innerHeight, st = $('stage'), ins = safeInsets();
+  var uw = Math.max(1, W - ins.l - ins.r), uh = Math.max(1, H - ins.t - ins.b);
+  var sc = Math.min(uw / FRAME_W, uh / FRAME_H);
+  var left = ins.l + (uw - FRAME_W * sc) / 2, top = ins.t + (uh - FRAME_H * sc) / 2;
+  var prev = frame0.scale;
+  frame0.scale = sc; frame0.left = left; frame0.top = top; frame0.vw = W; frame0.vh = H;
+  st.style.width = FRAME_W + 'px'; st.style.height = FRAME_H + 'px';
+  st.style.transform = 'translate(' + left + 'px,' + top + 'px) scale(' + sc + ')';
+  st.style.setProperty('--pv-scale', String(sc));
+  var w = FRAME_W, h = FRAME_H;
+  var hud = $('hud').offsetHeight || 62;   // offsetHeight is in frame units (transforms do not change it)
+  // Contain fit inside the frame: the room (9x15 tiles) plus the berm below it must sit under the HUD. Safe areas are outside the frame now.
+  var oy = hud + 2, s = Math.min(w / 9, (h - oy - BERM_PX) / 15);
+  view.w = w; view.h = h; view.dpr = (G.devicePixelRatio || 1) * sc; view.s = s; view.ox = (w - 9 * s) / 2; view.oy = oy;
+  view.scale = sc; view.left = left; view.top = top; view.vw = W; view.vh = H;
   if (R) R.resize(w, h, view.dpr);
   UI.placeToast(view);
+  if (laidOut && Math.abs(sc - prev) / prev > RESIZE_PAUSE && S && !home && !isEnd() && (S.phase === 'play' || S.phase === 'clear')) pause();
+  laidOut = true;
 }
+// Screen (client) px -> frame units. Input steering is relative, so only the scale matters for drags; taps on DOM are mapped by the browser.
+function toFrame(cx, cy){ return { x: (cx - frame0.left) / frame0.scale, y: (cy - frame0.top) / frame0.scale }; }
+V.Frame = { W: FRAME_W, H: FRAME_H, toFrame: toFrame, get scale(){ return frame0.scale; }, get left(){ return frame0.left; }, get top(){ return frame0.top; } };
 
 // ---------- events from the sim ----------
 function vib(ms){
@@ -5309,7 +5623,7 @@ function boot(){
   if (!V.Sim || !V.Scene || !V.Render || !V.TUNE) { fail('Missing parts: ' + ['Sim', 'Scene', 'Render', 'TUNE'].filter(function(k){ return !V[k]; }).join(', ')); return; }
   UI.init({ metrics: metrics, onDrawer: function(on){ if (on) V.Input.release(); acc = 0; last = 0; } });
   var stage = $('stage');
-  V.Input.attach(stage, V.TUNE);
+  V.Input.attach(document.body, V.TUNE);   // body, not #stage: in a run a touch that starts in a bar steers too (spec 05 s1)
   layout();
   G.addEventListener('resize', layout);
   if (G.visualViewport) G.visualViewport.addEventListener('resize', layout);
@@ -5356,6 +5670,8 @@ function boot(){
     get S(){ return S; },
     get paused(){ return paused; },
     get view(){ return view; },
+    get frame(){ return { scale: frame0.scale, left: frame0.left, top: frame0.top, w: FRAME_W * frame0.scale, h: FRAME_H * frame0.scale, vw: frame0.vw, vh: frame0.vh }; },
+    toFrame: toFrame,
     get frozen(){ return frozen; },
     get autoWalk(){ return { idle: aw.idle, cancelled: aw.cancelled, on: aw.on }; },
     get lastCopy(){ return UI.lastCopy; },
