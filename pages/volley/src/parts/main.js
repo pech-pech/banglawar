@@ -117,6 +117,7 @@ V.Run = {
 function pause(){
   if (paused || !S || home) return;
   paused = true; V.Input.release(); V.Audio.setPaused(true); UI.show('ovPause', true);
+  if (R) UI.rendererLabel(R, view);   // the card carries the renderer label at once, not only after the next hud() frame (slow host flake)
 }
 function resume(){
   if (!paused) return;
@@ -242,7 +243,7 @@ function boot(){
   stage.addEventListener('pointerdown', function(e){
     if (S && S.phase === 'clear' && !aw.cancelled && !(e.target.closest && e.target.closest('button, .ov, #drawer'))) { aw.cancelled = true; V.Input.note(aw.on ? 'awx' : 'awc', 0, 0); }
   }, true);
-  $('ovDead').addEventListener('pointerdown', function(e){ resPressAt = performance.now(); if (e.target.id !== 'btnRestart' && e.target.id !== 'btnHome') tryRestart(resPressAt); });
+  $('ovDead').addEventListener('pointerdown', function(e){ resPressAt = performance.now(); });
   // A click counts only when its press began on this screen after the guard (keyboard clicks have detail 0).
   $('btnRestart').addEventListener('click', function(e){ tryRestart(e.detail === 0 ? performance.now() : (resPressAt > deadAt ? resPressAt : 0)); });
   G.addEventListener('keydown', function(e){

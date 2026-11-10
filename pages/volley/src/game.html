@@ -87,10 +87,8 @@ body.ovon #bossBar, body.ovon #howto, body.ovon #dmgLayer{visibility:hidden}
   clip-path:polygon(0 0,calc(100% - 12px) 0,100% 12px,100% 100%,12px 100%,0 calc(100% - 12px));box-shadow:inset 0 0 0 2px var(--pv-ui-ink),inset 0 3px 0 rgba(255,255,255,.55),inset 0 -5px 0 rgba(0,60,70,.35)}
 #ovDead .btn.ghost{background:linear-gradient(var(--pv-ui-metal-700),var(--pv-ui-metal-900));border:2.5px solid var(--pv-ui-cyan-lo);color:var(--pv-ui-cyan)}
 #ovDead .btn:active{transform:translateY(3px);filter:brightness(.88)}
-#resHint{font:700 11px/1 var(--pv-ui-font-stencil);text-transform:uppercase;letter-spacing:.16em;color:var(--pv-ui-text-2)}
 #ovDead #resTitle.win{color:var(--pv-ui-cyan)}
 #ovDead:not(.armed) #btnRestart{opacity:.45}
-#ovDead:not(.armed) #resHint{visibility:hidden}
 @media (prefers-reduced-motion: reduce){ #flash{display:none} #toast,#hpFill{transition:none} }
 /* Results portrait (P-02): framed panel, sand backdrop kept */
 #resHead{display:flex;align-items:center;gap:12px;width:100%;max-width:312px}
@@ -137,7 +135,7 @@ body.ovon #bossBar, body.ovon #howto, body.ovon #dmgLayer{visibility:hidden}
   <div id="bossBar"><div id="bossTxt"><span id="bossName">Boss</span><span id="bossHp"></span></div><div id="bossTrack"><div id="bossFill"></div></div></div>
   <div id="howto">Drag anywhere to move. Let go to aim and fire.</div>
   <div class="ov" id="ovCards"><h2 id="cardTitle">Field upgrade</h2><p>Pick one</p><div id="cardList" style="display:flex;flex-direction:column;gap:10px;width:100%;align-items:stretch"></div></div>
-  <div class="ov" id="ovDead"><div id="resHead"><img id="resPortrait" alt="" width="72" height="96"><h2 id="resTitle">Operator down</h2></div><div id="resStats"></div><button class="btn" id="btnRestart">New run</button><button class="btn ghost" id="btnHome">Home</button><p id="resHint">Tap anywhere for a new run</p></div>
+  <div class="ov" id="ovDead"><div id="resHead"><img id="resPortrait" alt="" width="72" height="96"><h2 id="resTitle">Operator down</h2></div><div id="resStats"></div><button class="btn" id="btnRestart">New run</button><button class="btn ghost" id="btnHome">Home</button></div>
   <div class="ov" id="ovSupply"><h2>Supply drop</h2><p>Take one</p><div id="supList" style="display:flex;flex-direction:column;gap:10px;width:100%;align-items:stretch"></div></div>
   <div class="ov" id="ovPause"><h2>Paused</h2><button class="btn" id="btnResume" style="min-width:200px">Resume</button><button class="btn ghost" id="btnRestartRun" style="min-width:200px">Restart run</button><button class="btn ghost" id="btnTune" style="min-width:200px">Tuning</button><button class="btn ghost" id="btnSound" style="min-width:200px">Sound: on</button><p class="rinfo" id="rlblPause">-</p><p style="font-size:12px">Tap outside the buttons to resume</p></div>
   <svg width="0" height="0" style="position:absolute"><defs>

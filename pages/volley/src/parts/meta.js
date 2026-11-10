@@ -7,6 +7,7 @@
 //                                    schematics/keys (only set by sample(); the real slice never changes them).
 //   V.Meta.load(opts) -> state       opts.storage overrides localStorage; opts.fresh ignores the save. '?fresh=1' in the URL also ignores it.
 //   V.Meta.save() -> bool            false when there is no storage or it throws.
+//   V.Meta.readOnly / V.Meta.note    true after load() of a save whose v > 1: it is played but never written back (so a newer build's data is not clobbered); reset() clears it.
 //   V.Meta.reset()                   fresh state, saved, listeners notified (Settings "Reset save").
 //   V.Meta.setPower(v)  = same as setting .power; V.Meta.maxLevel(kind,id) (10 for every stat); V.Meta.buyRandom('cond') -> stat id or null.
 //   Rifle calls use kind 'rifle', id 'rifle' (id is ignored): cost('rifle','rifle'), canBuy, buy.
@@ -64,11 +65,12 @@ function fresh(){
     codex:{ seen:{} }, settings:{ sound:true, haptics:true } };
 }
 var storage = null, listeners = [], M = {};
-try { storage = (typeof localStorage !== 'undefined') ? localStorage : (G.localStorage || null); } catch (e) { storage = null; }
+try { storage = (typeof localStorage !== 'undefined') ? localStorage : (G.localStorage || null); } catch (e) { storage = null; }   // blocked storage can throw on the property access itself
 M.state = fresh();
 M.TUNING = TUNING;
 M.BOSS_BONUS = TUNING.BOSS_BONUS;
 M.lastBuy = null;
+M.readOnly = false; M.note = '';   // readOnly: the loaded save is from a newer version; save() does not write (see load)
 
 function clampInt(v, lo, hi, d){ v = Math.floor(+v); if (!isFinite(v)) return d; return Math.max(lo, Math.min(hi, v)); }
 function sanitize(raw){
@@ -98,16 +100,19 @@ M.load = function(opts){
   if (opts.storage) storage = opts.storage;
   if (!skip && st) { try { var txt = st.getItem(KEY); if (txt) raw = JSON.parse(txt); } catch (e) { raw = null; } }
   M.state = sanitize(raw);
+  // PV-19: a save written by a NEWER build (v > 1) is played read-only: never rewritten as v1, so unknown fields and the higher version stay on disk.
+  M.readOnly = !!(raw && typeof raw === 'object' && +raw.v > 1);
+  M.note = M.readOnly ? 'Save from a newer version: progress this session is not saved' : '';
   notify();
   return M.state;
 };
 M.save = function(){   // always notifies onChange listeners, also when there is no storage
   var okk = false;
-  if (storage) { try { storage.setItem(KEY, JSON.stringify(M.state)); okk = true; } catch (e) { okk = false; } }
+  if (storage && !M.readOnly) { try { storage.setItem(KEY, JSON.stringify(M.state)); okk = true; } catch (e) { okk = false; } }
   notify();
   return okk;
 };
-M.reset = function(){ M.state = fresh(); M.lastBuy = null; M.save(); };
+M.reset = function(){ M.readOnly = false; M.note = ''; M.state = fresh(); M.lastBuy = null; M.save(); };   // explicit user action: may replace a newer save
 M.onChange = function(fn){ listeners.push(fn); return function(){ var i = listeners.indexOf(fn); if (i >= 0) listeners.splice(i, 1); }; };
 
 // ---------- costs and buying ----------
@@ -207,5 +212,5 @@ M.sample = function(){
 
 V.Meta = M;
 // auto-load once in a browser; Node tests call load() themselves with a mock. bot.js never loads this file.
-if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') M.load();
+try { if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') M.load(); } catch (e) { /* storage blocked (PV-20): stay on the in-memory fresh state */ }
 })();

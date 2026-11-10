@@ -199,8 +199,8 @@ function chooseSupply(S, kind, B) {
 
 // ---------- run one ----------
 var INPUT = { idle: idleInput, naive: naiveInput, skilled: skilledInput, human: humanInput };
-function runOne(seed, kind, maxSteps, tune) {
-  var S = V.Sim.create(seed, tune || freshTune());
+function runOne(seed, kind, maxSteps, tune, metaStats) {
+  var S = metaStats ? V.Sim.create(seed, tune || freshTune(), { metaStats: metaStats }) : V.Sim.create(seed, tune || freshTune());
   var B = { rng: new V.Rng(seed * 7919 + 13), hold: 0, cmd: { mx: 0, my: 0 }, hist: [] };
   var input = INPUT[kind];
   var hits = {}, alive = {}, kills = [], steps = 0, picks = 0, stageHp = {};
@@ -448,5 +448,103 @@ var summary = [], skilledWorst = null;
 out('== Summary ==');
 summary.forEach(out);
 out('Rule checks failed: ' + nFail);
+// 5) economy career (added 2026-11-10, P-PV-I): human bot plays a career of runs, banks credits, greedy spend, stats feed the next run.
+// Runs LAST so the base sweeps above stay meta-neutral (meta.js is only loaded here; every career run passes metaStats explicitly).
+// Deterministic: career c (1..CAREERS), run r uses seed 1000*c + r. No Math.random / Date (V.Meta.buy picks the random stat from the save itself).
+(function economy() {
+  var CAREERS = Math.min(SEEDS, 50), SHOW = 30, CAP = +process.argv[3] || 400, LONG = Math.min(CAREERS, 10);   // SHOW = runs in the main tables; the first LONG careers play on up to CAP runs (until maxed) for the time-to-max rows
+  var mp = path.join(__dirname, 'parts', 'meta.js');
+  if (!fs.existsSync(mp)) { out('== Economy (human bot career) == skipped: parts/meta.js missing'); return; }
+  require(mp);
+  var M = V.Meta, T = M.TUNING;
+  function mock() { var d = {}; return { getItem: function (k) { return d[k] == null ? null : d[k]; }, setItem: function (k, v) { d[k] = String(v); }, removeItem: function (k) { delete d[k]; } }; }
+  function statsCopy() { var x = M.stats(), o = {}; for (var k in x) o[k] = x[k]; return o; }
+  function upgrades() { return (M.state.rifle.lvl - 1) + M.state.buys; }
+  function maxed() { return M.state.rifle.lvl >= T.RIFLE_MAX && M.state.cond.hp >= T.COND_MAX && M.state.cond.atk >= T.COND_MAX && M.state.cond.rate >= T.COND_MAX; }
+  function spendGreedy() { // cheapest of rifle / Conditioning first; if it cannot be afforded yet, save up (never skip to a dearer item)
+    var n = 0;
+    for (;;) {
+      var cr = M.cost('rifle', 'rifle'), cc = M.cost('cond', 'rand');
+      if (!cr && !cc) break;
+      var kind = (cr && (!cc || cr.credits <= cc.credits)) ? 'rifle' : 'cond', c = kind === 'rifle' ? cr : cc;
+      if (M.state.credits < c.credits) break;
+      if (!(kind === 'rifle' ? M.buy('rifle', 'rifle') : M.buy('cond', 'rand'))) break;
+      n++;
+    }
+    return n;
+  }
+  var recs = [], careers = [], timeouts = 0;
+  for (var c = 1; c <= CAREERS; c++) {
+    M.setStorage(mock()); M.load({ storage: mock(), fresh: true });
+    var cr = { long: c <= LONG, runs: [], upAt: {}, maxAt: null, rifle10At: null, cond10At: null, power: {} };
+    for (var r = 1; r <= (c <= LONG ? CAP : SHOW); r++) {
+      var tot = M.totals();
+      if (r <= SHOW || r % 10 === 0) cr.power[r] = { atk: tot.atk, hp: tot.maxHp, rate: tot.rate, ups: upgrades(), rifle: M.state.rifle.lvl };
+      var res = runOne(1000 * c + r, 'human', MAX_STEPS, null, statsCopy());
+      var cred = res.S.credits, st = res.stage;
+      if (res.timeout) timeouts++;
+      var rec = { c: c, r: r, win: res.win, stage: st, credits: cred, dead: res.dead };
+      if (r <= SHOW) recs.push(rec);
+      cr.runs.push(rec);
+      M.state.credits += cred;   // bank (the sim's own award() is not used: it stamps Date.now into the run log)
+      spendGreedy();
+      var u = upgrades();
+      [1, 5, 10].forEach(function (k) { if (u >= k && cr.upAt[k] == null) cr.upAt[k] = r; });
+      if (cr.rifle10At == null && M.state.rifle.lvl >= T.RIFLE_MAX) cr.rifle10At = r;
+      if (cr.cond10At == null && M.state.cond.hp >= T.COND_MAX && M.state.cond.atk >= T.COND_MAX && M.state.cond.rate >= T.COND_MAX) cr.cond10At = r;
+      if (maxed()) { cr.maxAt = r; if (r >= SHOW) break; }
+    }
+    careers.push(cr);
+  }
+  function q(a) { return a.length ? 'median ' + pct(a, 0.5) + ', p10 ' + pct(a, 0.1) + ', p90 ' + pct(a, 0.9) : '-'; }
+  function qa(a) { return a.length ? pct(a, 0.5) + ' / ' + pct(a, 0.1) + ' / ' + pct(a, 0.9) : '-'; }
+  out('');
+  out('== Economy: human bot career (' + CAREERS + ' careers, runs 1..' + SHOW + ' in the tables, seed = 1000*career + run) ==');
+  out('Policy: after each run bank its credits, then buy greedily: the cheaper of rifle / Conditioning (random stat) first; if it cannot be afforded, save up.');
+  out('Prices: rifle L(n)->L(n+1) = 250*n (n 1..9, total ' + (function () { var t = 0; for (var n = 1; n < T.RIFLE_MAX; n++) t += Math.round(T.RIFLE_REF_STEP * n * T.GEAR_MULT / 25) * 25; return t; })() + '); Conditioning ladder first 5 = ' +
+    [0, 1, 2, 3, 4].map(function (i) { return Math.round(T.COND_REF[i] * T.COND_MULT / 25) * 25; }).join('/') + ', 30 buys total ' + T.COND_REF.reduce(function (s, v) { return s + Math.round(v * T.COND_MULT / 25) * 25; }, 0) + '. Income: combat 24, cache 95, boss 24 + 47.');
+  out('Per upgrade: rifle +' + T.RIFLE_ATK_PER_LVL + ' ATK (x' + (1 + T.RIFLE_ATK_PER_LVL / T.HERO_ATK).toFixed(3) + ' at L2), Conditioning +' + T.COND_HP_PER_LVL + ' HP or +' + (100 * T.COND_ATK_PER_LVL) + '% ATK or +' + (100 * T.COND_RATE_PER_LVL) + '% fire rate. Timed-out runs (cap 20 min) in career: ' + timeouts + '.');
+  out('');
+  out('-- Credits per run (median / p10 / p90), career runs 1..' + SHOW + ' pooled, ' + recs.length + ' runs --');
+  out('all runs: ' + qa(recs.map(function (x) { return x.credits; })));
+  var W = recs.filter(function (x) { return x.win; }), L = recs.filter(function (x) { return !x.win; });
+  out('wins   (n ' + W.length + '): ' + qa(W.map(function (x) { return x.credits; })));
+  out('losses (n ' + L.length + '): ' + qa(L.map(function (x) { return x.credits; })));
+  for (var st = 1; st <= 10; st++) {
+    var D = L.filter(function (x) { return x.stage === st; });
+    if (D.length) out('  died at stage ' + pad(st, 2) + ' (n ' + pad(D.length, 4) + '): ' + qa(D.map(function (x) { return x.credits; })));
+  }
+  out('');
+  out('-- Runs until upgrade k (runs played incl. the run that earned it), per career: median / p10 / p90 [careers reaching it] --');
+  [1, 5, 10].forEach(function (k) {
+    var a = careers.filter(function (x) { return x.upAt[k] != null; }).map(function (x) { return x.upAt[k]; });
+    out('upgrade ' + pad(k, 2) + ': ' + qa(a) + ' [' + a.length + '/' + careers.length + ']');
+  });
+  out('');
+  out('-- Clear rate over the career, by run number (human bot, meta-powered) --');
+  out('runs     | clear % | mean death stage | credits median/p10/p90 | mean upgrades at start');
+  for (var b0 = 1; b0 <= SHOW; b0 += 5) {
+    var blk = recs.filter(function (x) { return x.r >= b0 && x.r < b0 + 5; }), bw = blk.filter(function (x) { return x.win; }), bd = blk.filter(function (x) { return x.dead; });
+    var ups = careers.map(function (x) { return x.power[b0] ? x.power[b0].ups : 0; });
+    out(pad(b0, 2) + '-' + pad(Math.min(SHOW, b0 + 4), 2) + '    | ' + pad((100 * bw.length / blk.length).toFixed(1), 6) + '  | ' + pad(f1(mean(bd.map(function (x) { return x.stage; }))), 6) + '           | ' + pad(qa(blk.map(function (x) { return x.credits; })), 16) + '       | ' + f1(mean(ups)));
+  }
+  out('');
+  out('-- Power growth (mean over careers, at the START of run n; base ATK ' + T.HERO_ATK + ', HP ' + T.HERO_HP + ', fire 1.00x) --');
+  out('run | upgrades | rifle lvl | ATK  (x base) | max HP | fire rate');
+  [1, 2, 3, 5, 8, 10, 15, 20, 25, 30].filter(function (n) { return n <= SHOW; }).forEach(function (n) {
+    var P = careers.map(function (x) { return x.power[n]; }).filter(Boolean);
+    out(pad(n, 3) + ' | ' + pad(f1(mean(P.map(function (x) { return x.ups; }))), 9) + ' | ' + pad(f1(mean(P.map(function (x) { return x.rifle; }))), 9) + ' | ' + pad(f1(mean(P.map(function (x) { return x.atk; }))), 5) + ' (x' + (mean(P.map(function (x) { return x.atk; })) / T.HERO_ATK).toFixed(2) + ') | ' + pad(f1(mean(P.map(function (x) { return x.hp; }))), 6) + ' | ' + mean(P.map(function (x) { return x.rate; })).toFixed(2) + 'x');
+  });
+  var fin = M.totals();
+  out('fully maxed (rifle 10, all stats 10): ATK ' + Math.floor(T.HERO_ATK * (1 + 9 * T.RIFLE_ATK_PER_LVL / T.HERO_ATK) * (1 + 10 * T.COND_ATK_PER_LVL)) + ' (x' + ((1 + 9 * T.RIFLE_ATK_PER_LVL / T.HERO_ATK) * (1 + 10 * T.COND_ATK_PER_LVL)).toFixed(2) + '), max HP ' + (T.HERO_HP + 10 * T.COND_HP_PER_LVL) + ', fire ' + (1 + 10 * T.COND_RATE_PER_LVL).toFixed(2) + 'x (HP of the last career run now: ' + fin.maxHp + ').');
+  out('');
+  out('-- Time to max (runs played; first ' + LONG + ' careers only, cap ' + CAP + ' runs per career) --');
+  [['rifle 10', 'rifle10At'], ['all Conditioning 10', 'cond10At'], ['everything maxed', 'maxAt']].forEach(function (p) {
+    var a = careers.filter(function (x) { return x[p[1]] != null; }).map(function (x) { return x[p[1]]; });
+    out(p[0] + ': ' + (a.length ? qa(a) + ' (median / p10 / p90)' : 'none') + ' [' + a.length + '/' + LONG + ' long careers reached it]');
+  });
+  var lateClear = []; careers.forEach(function (x) { x.runs.forEach(function (rr) { if (rr.r > SHOW) lateClear.push(rr.win ? 1 : 0); }); });
+  out('clear rate in runs ' + (SHOW + 1) + '+ (up to maxed): ' + (lateClear.length ? (100 * mean(lateClear)).toFixed(1) + '% over ' + lateClear.length + ' runs' : 'n/a'));
+})();
 out('Run time ' + ((Date.now() - t0) / 1000).toFixed(1) + ' s');
 fs.writeFileSync(path.join(__dirname, 'BOT-RESULTS.txt'), lines.join('\n') + '\n');

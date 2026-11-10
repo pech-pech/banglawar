@@ -1,5 +1,5 @@
 Project Volley P1 headless bot results (chapter 1, stages 1-10)
-Date: 2026-11-10 (script run 2026-11-10T14:08:06.193Z)
+Date: 2026-11-10 (script run 2026-11-10T14:55:21.939Z)
 Parts loaded: tune, rng, rooms, stages, mods, sim, ai-p0, ai-p1, boss
 Seeds: 200 per bot (seeds 1..200), cap 20 game minutes per run, fixed step 1/60, default TUNE (CARDS_OFFERED 3, ENDLESS false).
 Bots: idle = never moves in combat, walks to the door when clear, takes card 0 / supply choice 0;
@@ -153,4 +153,52 @@ naive: clear 0/200, died 200 (median stage 7), boss time median -, braced 63.0%
 human: clear 181/200, died 19 (median stage 7), boss time median 25.9 s, braced 87.8%
 skilled: clear 200/200, died 0, boss time median 26.6 s, braced 77.1%
 Rule checks failed: 0
-Run time 66.5 s
+
+== Economy: human bot career (50 careers, runs 1..30 in the tables, seed = 1000*career + run) ==
+Policy: after each run bank its credits, then buy greedily: the cheaper of rifle / Conditioning (random stat) first; if it cannot be afforded, save up.
+Prices: rifle L(n)->L(n+1) = 250*n (n 1..9, total 11250); Conditioning ladder first 5 = 250/325/375/450/500, 30 buys total 86850. Income: combat 24, cache 95, boss 24 + 47.
+Per upgrade: rifle +8 ATK (x1.053 at L2), Conditioning +40 HP or +3% ATK or +3% fire rate. Timed-out runs (cap 20 min) in career: 0.
+
+-- Credits per run (median / p10 / p90), career runs 1..30 pooled, 1500 runs --
+all runs: 334 / 334 / 334
+wins   (n 1479): 334 / 334 / 334
+losses (n 21): 120 / 96 / 144
+  died at stage  6 (n    3): 96 / 96 / 96
+  died at stage  7 (n   10): 120 / 120 / 120
+  died at stage  8 (n    7): 144 / 144 / 144
+  died at stage 10 (n    1): 263 / 263 / 263
+
+-- Runs until upgrade k (runs played incl. the run that earned it), per career: median / p10 / p90 [careers reaching it] --
+upgrade  1: 1 / 1 / 1 [50/50]
+upgrade  5: 5 / 5 / 6 [50/50]
+upgrade 10: 14 / 14 / 15 [50/50]
+
+-- Clear rate over the career, by run number (human bot, meta-powered) --
+runs     | clear % | mean death stage | credits median/p10/p90 | mean upgrades at start
+ 1- 5    |   94.0  |    7.3           |  334 / 334 / 334       | 0.0
+ 6-10    |   99.2  |    7.5           |  334 / 334 / 334       | 4.7
+11-15    |  100.0  |      -           |  334 / 334 / 334       | 7.7
+16-20    |   99.6  |    8.0           |  334 / 334 / 334       | 10.0
+21-25    |  100.0  |      -           |  334 / 334 / 334       | 12.0
+26-30    |   98.8  |    7.3           |  334 / 334 / 334       | 13.7
+
+-- Power growth (mean over careers, at the START of run n; base ATK 150, HP 600, fire 1.00x) --
+run | upgrades | rifle lvl | ATK  (x base) | max HP | fire rate
+  1 |       0.0 |       1.0 | 150.0 (x1.00) |  600.0 | 1.00x
+  2 |       0.9 |       1.9 | 156.3 (x1.04) |  600.0 | 1.00x
+  3 |       1.8 |       2.0 | 157.0 (x1.05) |  633.6 | 1.00x
+  5 |       3.7 |       2.0 | 165.7 (x1.10) |  640.0 | 1.00x
+  8 |       5.7 |       2.7 | 172.6 (x1.15) |  640.0 | 1.03x
+ 10 |       7.0 |       3.0 | 175.0 (x1.17) |  640.0 | 1.06x
+ 15 |       9.7 |       3.7 | 181.3 (x1.21) |  680.0 | 1.09x
+ 20 |      11.7 |       4.0 | 187.4 (x1.25) |  720.0 | 1.09x
+ 25 |      13.0 |       5.0 | 198.0 (x1.32) |  720.0 | 1.09x
+ 30 |      14.9 |       5.0 | 208.6 (x1.39) |  720.0 | 1.09x
+fully maxed (rifle 10, all stats 10): ATK 288 (x1.92), max HP 1000, fire 1.30x (HP of the last career run now: 720).
+
+-- Time to max (runs played; first 10 careers only, cap 400 runs per career) --
+rifle 10: 74 / 74 / 75 (median / p10 / p90) [10/10 long careers reached it]
+all Conditioning 10: 294 / 294 / 295 (median / p10 / p90) [10/10 long careers reached it]
+everything maxed: 294 / 294 / 295 (median / p10 / p90) [10/10 long careers reached it]
+clear rate in runs 31+ (up to maxed): 100.0% over 2642 runs
+Run time 415.9 s
