@@ -252,8 +252,13 @@
       var sp = geo.spots[s], g = !!guard[s], isCatcher = s === caughtSec;
       if (isCatcher) return;
       var top = g ? sp[1] - 52 : sp[1] - 46, c = chip(ctx, s, g, sp[0], top, { W: W, H: H });
-      var bad = function (cc) { return overlap(cc, fieldRect, 4) || placed.some(function (o) { return overlap(cc, o, 2); }) || cc.y < 4; };
-      if (bad(c) || top < 4) { c = chip(ctx, s, g, sp[0], g ? sp[1] + 8 : sp[1] + 8, { W: W, H: H }); }
+      if (s === 'straight') { top = topY - 30; c = chip(ctx, s, g, cx + 66, top, { W: W, H: H }); } // beside the bowler, clear of the tell plate
+      var tellRect = { x: 0, y: 0, w: cx - 14, h: topY - 4 }, bowlRect = { x: cx - 40, y: 0, w: 80, h: topY + 4 };
+      var bad = function (cc) { return overlap(cc, fieldRect, 4) || overlap(cc, tellRect, 2) || overlap(cc, bowlRect, 2) || placed.some(function (o) { return overlap(cc, o, 2); }) || cc.y < 4; };
+      if (bad(c) || top < 4) {
+        var cands2 = [[sp[0], sp[1] + 8], [sp[0] + 46, top], [sp[0] + 46, sp[1] + 8], [sp[0] - 46, sp[1] + 8]];
+        for (var k2 = 0; k2 < cands2.length; k2++) { c = chip(ctx, s, g, cands2[k2][0], cands2[k2][1], { W: W, H: H }); if (!bad(c)) break; }
+      }
       placed.push(c); chips.push(c);
     });
     chips.forEach(function (c) { drawChip(ctx, c); });
@@ -300,16 +305,6 @@
       ctx.fillStyle = GOLD; ctx.textAlign = 'center'; ctx.fillText(bn.text, W / 2, by2 + 30); ctx.restore();
     }
 
-    // corner readout
-    var st = G.stats;
-    if (st) {
-      var f1 = function (v) { return v == null || isNaN(v) ? '-' : (Math.round(v * 10) / 10).toFixed(1); };
-      var rd = 'Canvas 2D · frame p50 ' + f1(st.p50) + ' p95 ' + f1(st.p95) + ' max ' + (st.max == null ? '-' : Math.round(st.max)) +
-        ' · taps ' + (st.n ? (Math.round(st.tapMean) + '±' + Math.round(st.tapSd) + ' (' + st.n + ')') : '-');
-      font(ctx, 11, 500); if (ctx.measureText(rd).width > W - 20) rd = rd.replace('Canvas 2D \u00b7 ', '').replace('frame ', ''); var rw = Math.ceil(ctx.measureText(rd).width + 12);
-      ctx.fillStyle = 'rgba(0,0,0,.6)'; rr(ctx, 4, H - 22, rw, 18, 6); ctx.fill();
-      ctx.fillStyle = '#c2cfc3'; ctx.textAlign = 'left'; ctx.fillText(rd, 10, H - 9);
-    }
     ctx.restore();
   }
 
