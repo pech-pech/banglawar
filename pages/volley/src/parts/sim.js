@@ -1,4 +1,15 @@
 (function(){ var G = (typeof window !== 'undefined' ? window : globalThis); var V = G.V = G.V || {};
+// P1 SEAMS READY (2026-11-10): V.AI registry (E-01..E-03 in ai-p0.js), V.Sim.api, mod hooks
+// (stats/pattern/round/onHit/onKill/tick/onPick), weighted offer from V.MODS (P0 6-card fallback when
+// mods.js is absent), stage flow from V.STAGES.ch1 (spawn t), phases play|clear|pick|supply|results,
+// S.stageKind/shells/hazards/boss/chest/supply/result/fx.
+//
+// Mod stats hook: st = {atkAdd, atkMul, rateAdd, rateMul, critAdd, critDmgAdd, hpMaxAdd, dmgTakenMul, moveMul,
+//   dodge, volleys}. Additive bonuses go in atkAdd/rateAdd (summed), penalties multiply atkMul/rateMul.
+//   Round damage = HERO_ATK x (1+atkAdd) x atkMul x pattern mul; rate = (1+rateAdd) x rateMul.
+//   volleys = batches per attack (1 + Multi-volley copies), 0.12 s apart. dodge = chance, capped 0.4.
+// Round flags the sim handles: r.pierce (x0.67 per enemy), r.bounceWall (up to 2, x0.5), r.rico (3 jumps, x0.7, 4 tiles).
+// Events: fire hit crit kill hurt dodge lock unlock tell door room levelup pick death pickup land supply chest boss bossphase win.
 // Pure deterministic sim. Fixed step 1/60 s x TIME_SCALE. No DOM, no unseeded randomness, no wall clock.
 
 var STEP = 1 / 60;
@@ -10,37 +21,94 @@ var HERO_GAP = 0.1; // min gap between an enemy body and the Operator hurtbox
 var RETARGET_DT = 0.1, LOCK_HYST = 1.0, LOST_LINE_T = 0.25;
 var CONTACT_CD = 1.0, MAGNET_SPEED = 14;
 var REPAIR_PCT = 0.2, REPAIR_BASE = 0.03, REPAIR_PITY = 0.005, REPAIR_CAP = 0.08, REPAIR_LIFE = 15;
+var SUPPLY_REPAIR_PCT = 0.4;
 var MULTI_GAP = 0.12;
-var DIAG_ANG = [35, 55, 75];
 var RICO_MAX = 3, RICO_MULT = 0.7, RICO_RANGE = 4;
+var PIERCE_MULT = 0.67, WALLB_MAX = 2, WALLB_MULT = 0.5;
+var HAZARD_DMG = 60, HAZARD_CD = 1.0;
+var DODGE_CAP = 0.4;
+var CHAPTER_LEN = 10;
+V.AI = V.AI || {};
 
-// D1 4 base stats (ch1 stage 1)
-var EN = {
-  'E-01': { hp:300, contact:60, atk:60, speed:2.4, r:0.35, size:'small',  xp:4 },
-  'E-02': { hp:450, contact:40, atk:60, speed:1.0, r:0.40, size:'medium', xp:8 },
-  'E-03': { hp:600, contact:40, atk:45, speed:0,   r:0.50, size:'medium', xp:8 }
-};
-var E01 = { range:2.5, tell:0.5, lungeSpeed:6.0, lungeDist:3.0, cool:2.0 };
-var E02 = { tell:0.6, lockLast:0.2, cool:2.2, shotSpeed:6.0, range:10, prefer:4.5 };
-var E03 = { tell:0.7, cool:2.8, shotSpeed:5.0, spread:25 * Math.PI / 180, range:14 };
+// ---------- P0 fallback mods (used only while parts/mods.js is absent) ----------
+var FALLBACK_MODS = [
+  { id:'SK-01', key:'front', max:1, pool:['F'], weight:100, name:'Twin Barrel', desc:'+1 forward round. All rounds deal x0.75.',
+    hooks:{ stats:function(S, n, st){ st.atkMul *= Math.pow(0.75, n); },
+            pattern:function(S, n, list){ list[0].off = -0.15; list.push({ ang:0, off:0.15, mul:1 }); } } },
+  { id:'SK-02', key:'multi', max:3, pool:['F'], weight:80, name:'Double Volley', desc:'Fire the volley again 0.12 s later. Damage x0.9, rate x0.85.',
+    hooks:{ stats:function(S, n, st){ st.atkMul *= Math.pow(0.9, n); st.rateMul *= Math.pow(0.85, n); st.volleys += n; } } },
+  { id:'SK-09', key:'atk', max:0, pool:['F'], weight:100, name:'Power Cell', desc:'Attack +30%.',
+    hooks:{ stats:function(S, n, st){ st.atkAdd += 0.3 * n; } } },
+  { id:'SK-11', key:'rate', max:0, pool:['F'], weight:100, name:'Fire Control', desc:'Attack speed +25%.',
+    hooks:{ stats:function(S, n, st){ st.rateAdd += 0.25 * n; } } },
+  { id:'SK-03', key:'diag', max:3, pool:['F'], weight:80, name:'Diagonal Rounds', desc:'+1 pair of rounds at an angle.',
+    hooks:{ pattern:function(S, n, list){ var a = [35, 55, 75]; for (var i = 0; i < Math.min(3, n); i++) { list.push({ ang:-a[i] * Math.PI / 180, off:0, mul:1 }); list.push({ ang:a[i] * Math.PI / 180, off:0, mul:1 }); } } } },
+  { id:'SK-06', key:'rico', max:1, pool:['F'], weight:70, name:'Arc Ricochet', desc:'Rounds jump to another machine, up to 3 times (x0.7 each).',
+    hooks:{ round:function(S, n, r){ r.rico = true; } } }
+];
+function mods(){ return V.MODS || FALLBACK_MODS; }
+if (!V.MODS) V.CARDS = FALLBACK_MODS;
 
-function cardCount(S, key){ return S.hero.mods[key] || 0; }
-function hpScale(S){ var t = S.tune; return t.ENEMY_HP_GLOBAL * (1 + t.HP_SLOPE * (S.stage - 1)); }
+// ---------- fallback stage list (used only while parts/stages.js is absent) ----------
+function fallbackStages(){
+  var out = [], order = V.ROOM_ORDER || ['R01', 'R02', 'R03'];
+  for (var i = 1; i <= CHAPTER_LEN; i++) {
+    var room = order[(i - 1) % order.length], R = V.ROOMS[room], sp = [];
+    for (var j = 0; j < R.spawns.length; j++) sp.push({ type:R.spawns[j].type, x:R.spawns[j].x, y:R.spawns[j].y, t:0 });
+    var kind = 'combat';
+    if (i === 5) { kind = 'supply'; sp = []; }
+    else if (i === 9) { kind = 'cache'; sp = sp.filter(function(s){ return s.type === 'E-01'; }).slice(0, 2); }
+    else if (i === 10 && V.AI['B-01'] && V.ROOMS.BA1) { kind = 'boss'; room = 'BA1'; sp = [{ type:'B-01', x:4.5, y:3.5, t:0 }]; }
+    out.push({ stage:i, kind:kind, room:room, spawns:sp, note:'fallback' });
+  }
+  return out;
+}
+function stageList(){ return (V.STAGES && V.STAGES.ch1 && V.STAGES.ch1.length) ? V.STAGES.ch1 : fallbackStages(); }
+
+function count(S, key){ return S.hero.mods[key] || 0; }
+function scaleStage(S){ return S.stage + (S.lap - 1) * CHAPTER_LEN; }
+function hpScale(S){ var t = S.tune; return t.ENEMY_HP_GLOBAL * (1 + t.HP_SLOPE * (scaleStage(S) - 1)); }
 function enemyDmg(S, base){
   var t = S.tune;
-  return Math.max(1, Math.floor(base * t.ENEMY_DMG_MULT * (1 + t.DMG_SLOPE * (S.stage - 1))));
+  return Math.max(1, Math.floor(base * t.ENEMY_DMG_MULT * (1 + t.DMG_SLOPE * (scaleStage(S) - 1))));
 }
 function ev(S, o){ S.events.push(o); return o; }
+function base(e){ var A = V.AI[e.type]; return A ? A.base : { hp:100, contact:40, dmg:40, speed:0, r:0.4, size:'medium', xp:8 }; }
+
+// ---------- mod hooks ----------
+function eachMod(S, fn){
+  var M = mods(), h = S.hero.mods;
+  for (var i = 0; i < M.length; i++) { var n = h[M[i].key] || 0; if (n > 0 && M[i].hooks) fn(M[i], n); }
+}
+function callHook(S, name){
+  var a = Array.prototype.slice.call(arguments, 2);
+  eachMod(S, function(m, n){ var f = m.hooks[name]; if (f) f.apply(null, [S, n].concat(a)); });
+}
+function heroStats(S){
+  var st = { atkAdd:0, atkMul:1, primaryMul:1, rateAdd:0, rateMul:1, critAdd:0, critDmgAdd:0, hpMaxAdd:0, dmgTakenMul:1, moveMul:1, dodge:0, volleys:1 };
+  callHook(S, 'stats', st);
+  if (V.MODS) st.volleys = Math.max(st.volleys, 1 + count(S, 'multi')); // SK-02 echo batches (mods.js leaves them to the sim)
+  return st;
+}
+function refreshStats(S){
+  var h = S.hero, st = heroStats(S), t = S.tune;
+  S.st = st;
+  var newMax = Math.max(1, Math.round(t.HERO_HP + st.hpMaxAdd));
+  if (newMax !== h.maxHp) {
+    var d = newMax - h.maxHp; h.maxHp = newMax;
+    if (!V.MODS) h.hp += Math.max(0, d); // fallback: armor heals the gain; mods.js heals in onPick itself
+    h.hp = Math.max(1, Math.min(newMax, h.hp));
+  }
+  h.atk = roundDamage(S, 1);
+}
 
 // ---------- geometry ----------
 function circleRectPush(cx, cy, r, b){
-  // returns [px,py] push to move the circle out, or null
   var nx = cx < b.x ? b.x : (cx > b.x + b.w ? b.x + b.w : cx);
   var ny = cy < b.y ? b.y : (cy > b.y + b.h ? b.y + b.h : cy);
   var dx = cx - nx, dy = cy - ny, d2 = dx * dx + dy * dy;
   if (d2 >= r * r) return null;
   if (d2 > 1e-12) { var d = Math.sqrt(d2), k = (r - d) / d; return [dx * k, dy * k]; }
-  // centre inside: push along the smallest axis
   var l = cx - b.x + r, rr = b.x + b.w - cx + r, u = cy - b.y + r, dn = b.y + b.h - cy + r;
   var m = Math.min(l, rr, u, dn);
   if (m === l) return [-l, 0]; if (m === rr) return [rr, 0]; if (m === u) return [0, -u]; return [0, dn];
@@ -50,7 +118,6 @@ function circleRect(cx, cy, r, b){
   var ny = cy < b.y ? b.y : (cy > b.y + b.h ? b.y + b.h : cy);
   var dx = cx - nx, dy = cy - ny; return dx * dx + dy * dy < r * r;
 }
-// segment vs AABB expanded by pad (slab test)
 function segRect(x1, y1, x2, y2, b, pad){
   var minx = b.x - pad, maxx = b.x + b.w + pad, miny = b.y - pad, maxy = b.y + b.h + pad;
   var dx = x2 - x1, dy = y2 - y1, t0 = 0, t1 = 1, p, q, i, r;
@@ -69,13 +136,13 @@ function blockers(S){
 }
 function clearLine(S, x1, y1, x2, y2, pad){
   var a = blockers(S);
-  for (var i = 0; i < a.length; i++) if (segRect(x1, y1, x2, y2, a[i], pad)) return false;
+  for (var i = 0; i < a.length; i++) if (segRect(x1, y1, x2, y2, a[i], pad || 0)) return false;
   return true;
 }
 function hitsSolid(S, x, y, r){
   var a = blockers(S);
-  for (var i = 0; i < a.length; i++) if (circleRect(x, y, r, a[i])) return true;
-  return false;
+  for (var i = 0; i < a.length; i++) if (circleRect(x, y, r, a[i])) return a[i];
+  return null;
 }
 function outOfRoom(S, x, y, r){ return x < -r || x > S.room.w + r || y < -r || y > S.room.h + r; }
 function collideBody(S, o, r){
@@ -88,16 +155,15 @@ function collideBody(S, o, r){
 }
 
 // ---------- room build ----------
-function buildSolids(grid, coverKind){
+function buildRects(grid, ch, kindFn){
   var rows = grid.length, cols = grid[0].length, runs = [], y, x, s;
   for (y = 0; y < rows; y++) {
     x = 0;
     while (x < cols) {
-      if (grid[y][x] === '#') { s = x; while (x < cols && grid[y][x] === '#') x++; runs.push({ x:s, y:y, w:x - s, h:1, kind: y === 0 ? 'wall' : coverKind }); }
+      if (grid[y][x] === ch) { s = x; while (x < cols && grid[y][x] === ch) x++; runs.push({ x:s, y:y, w:x - s, h:1, kind:kindFn(y) }); }
       else x++;
     }
   }
-  // merge identical runs vertically
   var out = [];
   for (var i = 0; i < runs.length; i++) {
     var r = runs[i], merged = false;
@@ -115,98 +181,118 @@ function findChar(grid, ch){
 }
 
 function spawnEnemy(S, type, x, y){
-  var b = EN[type], hp = Math.max(1, Math.round(b.hp * hpScale(S)));
+  var A = V.AI[type];
+  if (!A) { ev(S, { k:'error', x:x, y:y, msg:'no AI for ' + type }); return null; }
+  var b = A.base, hp = Math.max(1, Math.round(b.hp * hpScale(S)));
   var e = { id: ++S._nextId, type:type, x:x, y:y, r:b.r, hp:hp, maxHp:hp, ang:Math.PI / 2, st:'spawn',
     tell01:0, aimAng:Math.PI / 2, flashT:0, size:b.size,
-    stT:S.tune.SPAWN_T, cd:0, contactCd:0, vx:0, vy:0, strafe: S.rng.next() < 0.5 ? -1 : 1, strafeT:S.rng.range(1.2, 2.4), lungeLeft:0 };
-  // first attack delay
-  if (type === 'E-02') e.cd = S.rng.range(0.6, 1.4);
-  if (type === 'E-03') e.cd = S.rng.range(0.8, 1.6);
+    spawnT:S.tune.SPAWN_T, stT:0, cd:0, contactCd:0, vx:0, vy:0, strafe:1, afterSpawn:'move' };
+  if (A.init) A.init(S, e, api);
   S.enemies.push(e);
+  if (e.boss) {
+    S.boss = { id:e.id, type:type, name:e.name || type, hp:e.hp, maxHp:e.maxHp, phase:e.phase || 1, attack:e.attack || null, tell01:0 };
+    ev(S, { k:'boss', x:e.x, y:e.y, id:e.id, type:type, name:S.boss.name });
+  }
   return e;
 }
 
-function loadRoom(S, roomId){
-  var R = V.ROOMS[roomId], grid = R.grid;
-  var d = findChar(grid, 'D'), sp = findChar(grid, 'S');
-  S.roomId = roomId;
-  S.room = { w:grid[0].length, h:grid.length, solids:buildSolids(grid, R.cover || 'pillar'),
-    door:{ x:d.x, y:d.y, w:1, h:1, open:false }, name:R.name };
-  S.enemies = []; S.rounds = []; S.shots = []; S.pickups = [];
+function loadStage(S, idx){
+  var list = stageList(), def = list[idx];
+  S.stageIdx = idx; S.stage = idx + 1; S.stageDef = def;
+  S.stageKind = def.kind || 'combat';
+  var R = V.ROOMS[def.room] || V.ROOMS.R01, grid = R.grid;
+  var d = findChar(grid, 'D') || { x:4, y:0 }, sp = findChar(grid, 'S') || { x:4, y:14 };
+  S.roomId = V.ROOMS[def.room] ? def.room : 'R01';
+  S.room = { w:grid[0].length, h:grid.length, name:R.name,
+    solids:buildRects(grid, '#', function(y){ return y === 0 ? 'wall' : (R.cover || 'pillar'); }),
+    door:{ x:d.x, y:d.y, w:1, h:1, open:false } };
+  S.hazards = buildRects(grid, '^', function(){ return 'spikes'; });
+  S.enemies = []; S.rounds = []; S.shots = []; S.shells = []; S.pickups = [];
+  S.boss = null; S.supply = null; S.chest = null; S.cards = null;
+  var c = findChar(grid, 'C');
+  if (S.stageKind === 'cache') S.chest = { x:(c ? c.x : 4) + 0.5, y:(c ? c.y : 4) + 0.5, open:false };
   var h = S.hero;
   h.x = sp.x + 0.5; h.y = sp.y + 0.5; h.ang = -Math.PI / 2;
-  h.lockId = null; h.lockClear = false; h.lostT = 0; h.retargetT = 0; h.burstQ = [];
-  S.phase = 'play'; S.roomT = 0; S.clearT = 0;
-  for (var i = 0; i < R.spawns.length; i++) spawnEnemy(S, R.spawns[i].type, R.spawns[i].x, R.spawns[i].y);
-  S.lap = Math.floor((S.stage - 1) / V.ROOM_ORDER.length) + 1;
-  ev(S, { k:'room', x:h.x, y:h.y, roomId:roomId, stage:S.stage });
+  h.lockId = null; h.lockClear = false; h.lostT = 0; h.retargetT = 0; h.burstQ = []; h.delayQ = [];
+  S.roomT = 0; S.clearT = 0; S.hazardCd = 0;
+  S.spawnQ = (def.spawns || []).map(function(s){ return { type:s.type, x:s.x, y:s.y, t:s.t || 0 }; });
+  S.spawnQ.sort(function(a, b){ return a.t - b.t; });
+  ev(S, { k:'room', x:h.x, y:h.y, roomId:S.roomId, stage:S.stage, kind:S.stageKind, lap:S.lap });
+  if (S.stageKind === 'supply') {
+    S.phase = 'supply';
+    var sd = offer(S, 'SD', 1);
+    if (!sd.length) sd = offer(S, 'F', 1);
+    S.supply = sd.length ? [{ kind:'mod', index:sd[0] }, { kind:'repair' }] : [{ kind:'repair' }];
+    ev(S, { k:'supply', x:h.x, y:h.y });
+  } else {
+    S.phase = 'play';
+    releaseSpawns(S);
+  }
+}
+function releaseSpawns(S){
+  while (S.spawnQ.length && S.spawnQ[0].t <= S.roomT + 1e-9) { var s = S.spawnQ.shift(); spawnEnemy(S, s.type, s.x, s.y); }
 }
 
 // ---------- create ----------
 function create(seed, tune){
   tune = tune || V.TUNE;
   seed = (seed >>> 0);
-  var S = { seed:seed, frame:0, t:0, tune:tune, phase:'play', stage:1, roomId:null, lap:1,
+  var S = { seed:seed, frame:0, t:0, tune:tune, phase:'play', stage:1, stageIdx:0, stageKind:'combat', roomId:null, lap:1,
     room:null,
     hero:{ x:4.5, y:14.5, r:HERO_HURT_R, hp:tune.HERO_HP, maxHp:tune.HERO_HP, atk:tune.HERO_ATK, ang:-Math.PI / 2,
       moving:false, braced:false, brace01:0, fireCd:0, invulnT:0, lockId:null, lockClear:false,
-      level:1, xp:0, xpNext:LEVEL_COST[2], mods:{}, braceT:0, lostT:0, retargetT:0, burstQ:[] },
-    enemies:[], rounds:[], shots:[], pickups:[], cards:null, events:[],
+      level:1, xp:0, xpNext:LEVEL_COST[2], mods:{}, braceT:0, lostT:0, retargetT:0, burstQ:[], delayQ:[] },
+    enemies:[], rounds:[], shots:[], shells:[], hazards:[], pickups:[], cards:null, events:[], fx:[],
+    boss:null, chest:null, supply:null, result:null, spawnQ:[],
     stats:{ kills:0, dmgTaken:0, hitsBy:{ 'E-01':0, 'E-02':0, 'E-03':0 }, roomTimes:[], bracedSteps:0, playSteps:0, shots:0, picks:[],
-      roomHp:[], killLog:[] },
-    rng:new V.Rng(seed), _nextId:0, pendingLevels:0, pity:0, roomT:0, clearT:0 };
-  S.hero.atk = roundDamage(S);
-  loadRoom(S, V.ROOM_ORDER[0]);
-  S.events.length = 0; // keep the room event for the first step
-  ev(S, { k:'room', x:S.hero.x, y:S.hero.y, roomId:S.roomId, stage:S.stage });
+      roomHp:[], killLog:[], bossTime:null },
+    rng:new V.Rng(seed), _nextId:0, pendingLevels:0, freePicks:0, pity:0, roomT:0, clearT:0, hazardCd:0, st:null };
+  refreshStats(S);
+  loadStage(S, 0);
   return S;
 }
 
 // ---------- hero weapon ----------
-function roundDamage(S){
-  var t = S.tune, h = S.hero;
-  var d = t.HERO_ATK * (1 + 0.3 * cardCount(S, 'atk')) * Math.pow(0.75, cardCount(S, 'front')) * Math.pow(0.9, cardCount(S, 'multi'));
-  return Math.max(1, Math.floor(d));
+function roundDamage(S, mul){
+  var st = S.st || heroStats(S);
+  return Math.max(1, Math.floor(S.tune.HERO_ATK * (1 + st.atkAdd) * st.atkMul * st.primaryMul * (mul == null ? 1 : mul)));
 }
 function fireInterval(S){
-  var t = S.tune;
-  var vps = (1 / t.FIRE_INTERVAL) * (1 + 0.25 * cardCount(S, 'rate')) * Math.pow(0.85, cardCount(S, 'multi'));
+  var t = S.tune, st = S.st || heroStats(S);
+  var vps = (1 / t.FIRE_INTERVAL) * Math.max(0.01, (1 + st.rateAdd) * st.rateMul);
   return Math.max(t.FIRE_FLOOR, 1 / vps);
 }
-function spawnRound(S, x, y, ang, base){
-  var t = S.tune, crit = S.rng.next() < Math.min(1, t.CRIT_CHANCE);
-  S.rounds.push({ x:x, y:y, vx:Math.cos(ang) * t.ROUND_SPEED, vy:Math.sin(ang) * t.ROUND_SPEED, r:t.ROUND_R,
-    dmg: crit ? Math.floor(base * t.CRIT_MULT) : base, crit:crit, bounces:0, hit:[] });
+function spawnRound(S, x, y, ang, dmg){
+  var t = S.tune, st = S.st, crit = S.rng.next() < Math.min(1, t.CRIT_CHANCE + st.critAdd);
+  var r = { x:x, y:y, vx:Math.cos(ang) * t.ROUND_SPEED, vy:Math.sin(ang) * t.ROUND_SPEED, r:t.ROUND_R,
+    dmg: crit ? Math.floor(dmg * (t.CRIT_MULT + st.critDmgAdd)) : dmg, crit:crit, bounces:0, wallBounces:0, hit:[] };
+  callHook(S, 'round', r);
+  S.rounds.push(r);
   S.stats.shots++;
+  return r;
 }
 function fireBatch(S){
-  var h = S.hero, base = roundDamage(S), a = h.ang, i, nf = 1 + cardCount(S, 'front');
+  var h = S.hero, a = h.ang, list = [{ ang:0, off:0, mul:1 }];
+  callHook(S, 'pattern', list);
   var px = -Math.sin(a), py = Math.cos(a);
   var mx = h.x + Math.cos(a) * 0.3, my = h.y + Math.sin(a) * 0.3;
-  for (i = 0; i < nf; i++) {
-    var off = nf === 1 ? 0 : (i - (nf - 1) / 2) * 0.3;
-    spawnRound(S, mx + px * off, my + py * off, a, base);
+  for (var i = 0; i < list.length; i++) {
+    var p = list[i], off = p.off || 0;
+    if (p.delay > 0) { h.delayQ.push({ t:p.delay, ang:p.ang || 0, off:off, mul:p.mul == null ? 1 : p.mul }); continue; }
+    spawnRound(S, mx + px * off, my + py * off, a + (p.ang || 0), roundDamage(S, p.mul == null ? 1 : p.mul));
   }
-  var nd = Math.min(3, cardCount(S, 'diag'));
-  for (i = 0; i < nd; i++) {
-    var da = DIAG_ANG[i] * Math.PI / 180;
-    spawnRound(S, mx, my, a - da, base); spawnRound(S, mx, my, a + da, base);
-  }
-  ev(S, { k:'fire', x:mx, y:my, ang:a, n:nf + nd * 2 });
+  ev(S, { k:'fire', x:mx, y:my, ang:a, n:list.length });
 }
 
 function findEnemy(S, id){ for (var i = 0; i < S.enemies.length; i++) if (S.enemies[i].id === id) return S.enemies[i]; return null; }
-function targetable(e){ return e.st !== 'spawn' && e.hp > 0; }
+function targetable(e){ return e.st !== 'spawn' && e.hp > 0 && !e.hidden; }
 
 function updateLock(S, dt){
   var h = S.hero, t = S.tune;
   var cur = h.lockId != null ? findEnemy(S, h.lockId) : null;
   if (cur && !targetable(cur)) cur = null;
   h.retargetT -= dt;
-  if (cur && h.retargetT > 0) {
-    // between evaluations keep the clear flag fresh only for the current target
-    return;
-  }
+  if (cur && h.retargetT > 0) return;
   h.retargetT = RETARGET_DT;
   var best = null, bestD = 1e9, near = null, nearD = 1e9, curD = 1e9, curClear = false;
   for (var i = 0; i < S.enemies.length; i++) {
@@ -220,10 +306,7 @@ function updateLock(S, dt){
   var next = cur;
   if (!cur) next = best || near;
   else if (curClear) { h.lostT = 0; if (best && best !== cur && bestD < curD - LOCK_HYST) next = best; }
-  else {
-    h.lostT += RETARGET_DT;
-    if (best && h.lostT > LOST_LINE_T) next = best;
-  }
+  else { h.lostT += RETARGET_DT; if (best && h.lostT > LOST_LINE_T) next = best; }
   if (next !== cur) h.lostT = 0;
   var newId = next ? next.id : null;
   if (newId !== h.lockId) {
@@ -242,12 +325,13 @@ function stepHero(S, inp, dt){
   if (h.fireCd > 0) h.fireCd = Math.max(0, h.fireCd - dt);
   if (len > 1e-6) {
     mx /= len; my /= len;
-    h.x += mx * t.MOVE_SPEED * dt; h.y += my * t.MOVE_SPEED * dt;
+    var sp = t.MOVE_SPEED * S.st.moveMul;
+    h.x += mx * sp * dt; h.y += my * sp * dt;
     collideBody(S, h, HERO_WALL_R);
     h.ang = Math.atan2(my, mx);
     if (!h.moving && h.lockId != null) ev(S, { k:'unlock', x:h.x, y:h.y, id:h.lockId });
     h.moving = true; h.braced = false; h.braceT = 0; h.brace01 = 0;
-    h.lockId = null; h.lockClear = false; h.lostT = 0; h.retargetT = 0; h.burstQ.length = 0;
+    h.lockId = null; h.lockClear = false; h.lostT = 0; h.retargetT = 0; h.burstQ.length = 0; h.delayQ.length = 0;
     return;
   }
   h.moving = false;
@@ -258,7 +342,14 @@ function stepHero(S, inp, dt){
   updateLock(S, dt);
   var tg = h.lockId != null ? findEnemy(S, h.lockId) : null;
   if (tg) h.ang = Math.atan2(tg.y - h.y, tg.x - h.x);
-  // queued extra batches (Double Volley)
+  for (var di = 0; di < h.delayQ.length; di++) {
+    var q = h.delayQ[di]; q.t -= dt;
+    if (q.t <= 0) {
+      var a0 = h.ang, qx = h.x + Math.cos(a0) * 0.3, qy = h.y + Math.sin(a0) * 0.3;
+      spawnRound(S, qx - Math.sin(a0) * q.off, qy + Math.cos(a0) * q.off, a0 + q.ang, roundDamage(S, q.mul));
+      h.delayQ.splice(di, 1); di--;
+    }
+  }
   for (var i = h.burstQ.length - 1; i >= 0; i--) {
     h.burstQ[i] -= dt;
     if (h.burstQ[i] <= 0) { h.burstQ.splice(i, 1); if (tg) fireBatch(S); }
@@ -266,181 +357,190 @@ function stepHero(S, inp, dt){
   if (h.braced && tg && h.lockClear && h.fireCd <= 0) {
     fireBatch(S);
     h.fireCd = fireInterval(S);
-    for (var m = 1; m <= cardCount(S, 'multi'); m++) h.burstQ.push(MULTI_GAP * m);
+    for (var m = 1; m < S.st.volleys; m++) h.burstQ.push(MULTI_GAP * m);
   }
 }
 
-function hurtHero(S, dmg, src, x, y){
+function endRun(S, win){
   var h = S.hero;
-  if (h.invulnT > 0 || S.phase === 'dead') return false;
+  S.result = { win:win, stage:S.stage, lap:S.lap, t:+S.t.toFixed(2), kills:S.stats.kills, level:h.level,
+    picks:S.stats.picks.slice(), dmgTaken:S.stats.dmgTaken };
+  S.phase = 'results'; S.cards = null; S.supply = null;
+  ev(S, { k: win ? 'win' : 'death', x:h.x, y:h.y, stage:S.stage });
+}
+// opts.hazard: skips dodge
+function hurtHero(S, dmg, src, x, y, opts){
+  var h = S.hero;
+  if (h.invulnT > 0 || S.phase === 'results') return false;
+  if (!(opts && opts.hazard)) {
+    var dc = Math.min(DODGE_CAP, S.st.dodge || 0);
+    if (dc > 0 && S.rng.next() < dc) { ev(S, { k:'dodge', x:h.x, y:h.y, src:src }); S.fx.push({ k:'dodge', x:h.x, y:h.y }); return false; }
+  }
+  dmg = Math.max(1, Math.floor(dmg * (S.st.dmgTakenMul == null ? 1 : S.st.dmgTakenMul)));
   h.hp -= dmg; S.stats.dmgTaken += dmg;
   S.stats.hitsBy[src] = (S.stats.hitsBy[src] || 0) + 1;
   h.invulnT = S.tune.INVULN;
   ev(S, { k:'hurt', x:h.x, y:h.y, dmg:dmg, src:src });
-  if (h.hp <= 0) { h.hp = 0; S.phase = 'dead'; S.cards = null; ev(S, { k:'death', x:h.x, y:h.y, stage:S.stage }); }
+  if (h.hp <= 0) { h.hp = 0; endRun(S, false); }
   return true;
 }
+function healHero(S, v){
+  var h = S.hero, before = h.hp; h.hp = Math.min(h.maxHp, h.hp + Math.max(0, Math.floor(v))); return h.hp - before;
+}
 
-// ---------- enemies ----------
+// ---------- enemy helpers (api) ----------
 function steerTo(S, e, tx, ty, speed, dt){
   var dx = tx - e.x, dy = ty - e.y, d = Math.hypot(dx, dy);
   if (d < 1e-6) return;
   dx /= d; dy /= d;
   if (!clearLine(S, e.x, e.y, tx, ty, e.r * 0.8)) { // slide round cover
-    var sx = -dy * e.strafe, sy = dx * e.strafe;
+    var sg = e.strafe || 1, sx = -dy * sg, sy = dx * sg;
     dx = dx * 0.35 + sx * 0.94; dy = dy * 0.35 + sy * 0.94;
   }
   e.x += dx * speed * dt; e.y += dy * speed * dt;
   e.ang = Math.atan2(dy, dx);
 }
-function enemyShoot(S, e, ang, speed, dmg){
-  var sp = speed * S.tune.ENEMY_SHOT_SPEED_MULT;
-  S.shots.push({ x:e.x + Math.cos(ang) * e.r, y:e.y + Math.sin(ang) * e.r, vx:Math.cos(ang) * sp, vy:Math.sin(ang) * sp,
-    r:SHOT_R, dmg:dmg, src:e.type });
+function enemyShoot(S, e, ang, speed, dmg, opts){
+  var sp = speed * S.tune.ENEMY_SHOT_SPEED_MULT, r = (opts && opts.r) || SHOT_R;
+  var s = { x:e.x + Math.cos(ang) * e.r, y:e.y + Math.sin(ang) * e.r, vx:Math.cos(ang) * sp, vy:Math.sin(ang) * sp,
+    r:r, dmg:dmg, src:e.type, bounces:(opts && opts.bounces) || 0, life:(opts && opts.life) || 12 };
+  S.shots.push(s);
+  return s;
 }
+function lob(S, e, tx, ty, T, r, dmg){
+  var s = { x:e.x, y:e.y, sx:e.x, sy:e.y, tx:tx, ty:ty, t:0, T:Math.max(0.05, T), r:r || 1.0, dmg:dmg, src:e.type };
+  S.shells.push(s);
+  return s;
+}
+function tellT(S, b){ return b * S.tune.TELL_MULT; }
+var api = {
+  ev:ev, rng:function(S){ return S.rng; }, enemyDmg:enemyDmg, steerTo:steerTo, enemyShoot:enemyShoot, lob:lob,
+  hurtHero:hurtHero, healHero:healHero, clearLine:clearLine, hitsSolid:hitsSolid, collideBody:collideBody,
+  hero:function(S){ return S.hero; },
+  dist:function(a, b){ return Math.hypot(b.x - a.x, b.y - a.y); },
+  angleTo:function(a, b){ return Math.atan2(b.y - a.y, b.x - a.x); },
+  tellT:tellT, spawnEnemy:spawnEnemy,
+  damageEnemy:function(S, e, dmg, crit, opts){ return damageEnemy(S, e, dmg, !!crit, null, opts); },
+  enemies:function(S){ return S.enemies; }, targetable:targetable, roundDamage:roundDamage, outOfRoom:outOfRoom,
+  fx:function(S, o){ S.fx.push(o); return o; }
+};
+
 function stepEnemy(S, e, dt){
-  var h = S.hero, t = S.tune, b = EN[e.type];
+  var h = S.hero, b = base(e), A = V.AI[e.type];
   if (e.flashT > 0) e.flashT = Math.max(0, e.flashT - dt);
   if (e.contactCd > 0) e.contactCd -= dt;
-  if (e.st === 'spawn') { e.stT -= dt; if (e.stT <= 0) { e.st = e.type === 'E-03' ? 'cool' : 'move'; } return; }
-  var dx = h.x - e.x, dy = h.y - e.y, dist = Math.hypot(dx, dy), toH = Math.atan2(dy, dx);
-  var tellT, los;
-  if (e.type === 'E-01') {
-    tellT = E01.tell * t.TELL_MULT;
-    if (e.st === 'move' || e.st === 'cool') {
-      steerTo(S, e, h.x, h.y, b.speed, dt);
-      if (e.st === 'cool') { e.cd -= dt; if (e.cd <= 0) e.st = 'move'; }
-      else if (dist <= E01.range && clearLine(S, e.x, e.y, h.x, h.y, e.r)) {
-        e.st = 'tell'; e.stT = tellT; e.tell01 = 0; e.aimAng = toH;
-        ev(S, { k:'tell', x:e.x, y:e.y, id:e.id, type:e.type });
-      }
-    } else if (e.st === 'tell') {
-      e.stT -= dt; e.tell01 = tellT > 0 ? 1 - Math.max(0, e.stT) / tellT : 1;
-      e.aimAng = toH; e.ang = toH;
-      if (e.stT <= 0) { e.st = 'act'; e.lungeLeft = E01.lungeDist; e.vx = Math.cos(toH); e.vy = Math.sin(toH); e.tell01 = 0; }
-    } else if (e.st === 'act') {
-      var step = Math.min(e.lungeLeft, E01.lungeSpeed * dt);
-      e.x += e.vx * step; e.y += e.vy * step; e.lungeLeft -= step;
-      var ox = e.x, oy = e.y;
-      collideBody(S, e, e.r);
-      if (e.lungeLeft <= 1e-6 || Math.abs(ox - e.x) + Math.abs(oy - e.y) > 1e-4) { e.st = 'cool'; e.cd = E01.cool; }
-    }
-  } else if (e.type === 'E-02') {
-    tellT = E02.tell * t.TELL_MULT;
-    if (e.st === 'move' || e.st === 'cool') {
-      // strafe around the Operator, hold a preferred range
-      e.strafeT -= dt; if (e.strafeT <= 0) { e.strafe = -e.strafe; e.strafeT = S.rng.range(1.2, 2.6); }
-      var ux = dx / (dist || 1), uy = dy / (dist || 1);
-      var radial = dist > E02.prefer + 0.8 ? 0.7 : (dist < E02.prefer - 0.8 ? -0.7 : 0);
-      var vx = ux * radial - uy * e.strafe, vy = uy * radial + ux * e.strafe, vl = Math.hypot(vx, vy) || 1;
-      var px = e.x, py = e.y;
-      // no line to the Operator for a while: walk round the cover to find one
-      if (!clearLine(S, e.x, e.y, h.x, h.y, SHOT_R)) e.noLosT = (e.noLosT || 0) + dt; else e.noLosT = 0;
-      if (e.noLosT > 0.8) { vx = ux * 0.45 - uy * e.strafe * 0.9; vy = uy * 0.45 + ux * e.strafe * 0.9; vl = Math.hypot(vx, vy) || 1; }
-      e.x += vx / vl * b.speed * dt; e.y += vy / vl * b.speed * dt;
-      collideBody(S, e, e.r);
-      if (Math.hypot(e.x - px, e.y - py) < 0.3 * b.speed * dt) e.strafe = -e.strafe; // stuck: turn round
-      e.ang = toH;
-      e.cd -= dt;
-      if (e.cd <= 0 && dist <= E02.range && clearLine(S, e.x, e.y, h.x, h.y, SHOT_R)) {
-        e.st = 'tell'; e.stT = tellT; e.tell01 = 0; e.aimAng = toH;
-        ev(S, { k:'tell', x:e.x, y:e.y, id:e.id, type:e.type });
-      } else if (e.cd <= 0) e.cd = 0;
-    } else if (e.st === 'tell') {
-      e.stT -= dt; e.tell01 = tellT > 0 ? 1 - Math.max(0, e.stT) / tellT : 1;
-      if (e.stT > E02.lockLast * t.TELL_MULT) e.aimAng = toH; // locks for the last 0.2 s
-      e.ang = e.aimAng;
-      if (e.stT <= 0) {
-        enemyShoot(S, e, e.aimAng, E02.shotSpeed, enemyDmg(S, b.atk));
-        e.st = 'cool'; e.cd = E02.cool; e.tell01 = 0;
-      }
-    }
-  } else if (e.type === 'E-03') {
-    tellT = E03.tell * t.TELL_MULT;
-    if (e.st === 'cool' || e.st === 'move') {
-      e.ang = toH; e.cd -= dt;
-      if (e.cd <= 0 && dist <= E03.range && clearLine(S, e.x, e.y, h.x, h.y, SHOT_R)) {
-        e.st = 'tell'; e.stT = tellT; e.tell01 = 0; e.aimAng = toH; // fan direction fixed at tell start
-        ev(S, { k:'tell', x:e.x, y:e.y, id:e.id, type:e.type });
-      } else if (e.cd <= 0) e.cd = 0;
-    } else if (e.st === 'tell') {
-      e.stT -= dt; e.tell01 = tellT > 0 ? 1 - Math.max(0, e.stT) / tellT : 1;
-      e.ang = e.aimAng;
-      if (e.stT <= 0) {
-        var dmg = enemyDmg(S, b.atk);
-        for (var k = -1; k <= 1; k++) enemyShoot(S, e, e.aimAng + k * E03.spread, E03.shotSpeed, dmg);
-        e.st = 'cool'; e.cd = E03.cool; e.tell01 = 0;
-      }
-    }
-  }
-  if (e.type !== 'E-03') collideBody(S, e, e.r);
-  // contact
-  // bodies are kept HERO_GAP apart (separate()), so touching = within the gap; a lunge hits on overlap
-  if (e.contactCd <= 0 && Math.hypot(h.x - e.x, h.y - e.y) < e.r + HERO_HURT_R + (e.st === 'act' ? 0 : HERO_GAP + 0.02)) {
+  if (e.st === 'spawn') { e.spawnT -= dt; if (e.spawnT <= 0) e.st = e.afterSpawn || 'move'; return; }
+  if (A && A.step) A.step(S, e, dt, api);
+  if (S.phase === 'results') return;
+  if (!immovable(e) && !charging(e)) collideBody(S, e, e.r);
+  // bodies are kept HERO_GAP apart (separate()), so touching = within the gap; a lunge/charge hits on overlap
+  if (!e.noContact && !e.hidden && b.contact > 0 && e.contactCd <= 0 &&
+      Math.hypot(h.x - e.x, h.y - e.y) < e.r + HERO_HURT_R + (charging(e) ? 0 : HERO_GAP + 0.02)) {
     if (hurtHero(S, enemyDmg(S, b.contact), e.type, e.x, e.y)) e.contactCd = CONTACT_CD;
   }
 }
+function immovable(e){ var b = base(e); return !!(b.static || e.static || e.boss); }
+function charging(e){ return e.st === 'act' && ((e.lungeLeft || 0) > 0 || (e.dashLeft || 0) > 0); }
 function separate(S){
-  // enemies never stack on each other and never sit on the Operator (M, P0 fix)
   var a = S.enemies, h = S.hero, it, i, j;
   for (it = 0; it < 3; it++) {
     for (i = 0; i < a.length; i++) for (j = i + 1; j < a.length; j++) {
       var p = a[i], q = a[j];
+      if (p.hidden || q.hidden) continue;
       var dx = q.x - p.x, dy = q.y - p.y, d = Math.hypot(dx, dy), m = p.r + q.r + 0.04;
       if (d >= m) continue;
       if (d < 1e-6) { dx = (p.id < q.id ? 1e-6 : -1e-6); dy = 0; d = 1e-6; }
-      var pm = p.type === 'E-03' ? 0 : 1, qm = q.type === 'E-03' ? 0 : 1, sm = pm + qm;
+      var pm = immovable(p) ? 0 : 1, qm = immovable(q) ? 0 : 1, sm = pm + qm;
       if (!sm) continue;
       var k = (m - d) / d;
       p.x -= dx * k * pm / sm; p.y -= dy * k * pm / sm; q.x += dx * k * qm / sm; q.y += dy * k * qm / sm;
     }
     for (i = 0; i < a.length; i++) {
       var e = a[i];
-      if (e.st === 'act') continue; // a lunge may pass through to hit
+      if (charging(e) || e.hidden) continue; // a lunge/charge may pass through to hit
       var gx = e.x - h.x, gy = e.y - h.y, gd = Math.hypot(gx, gy), gap = e.r + HERO_HURT_R + HERO_GAP;
       if (gd >= gap) continue;
       if (gd < 1e-6) { gx = 0; gy = (h.y > S.room.h / 2 ? -1e-6 : 1e-6); gd = 1e-6; } // pinned: push toward room centre
       var kk = (gap - gd) / gd;
-      if (e.type === 'E-03') { h.x -= gx * kk; h.y -= gy * kk; collideBody(S, h, HERO_WALL_R); } // static turret acts as a post
+      if (immovable(e)) { h.x -= gx * kk; h.y -= gy * kk; collideBody(S, h, HERO_WALL_R); } // static body acts as a post
       else { e.x += gx * kk; e.y += gy * kk; }
     }
-    for (i = 0; i < a.length; i++) if (a[i].type !== 'E-03') collideBody(S, a[i], a[i].r);
+    for (i = 0; i < a.length; i++) if (!immovable(a[i])) collideBody(S, a[i], a[i].r);
   }
 }
 
 // ---------- damage to enemies ----------
 function killEnemy(S, e){
-  var b = EN[e.type];
+  var b = base(e);
   S.stats.kills++;
   S.stats.killLog.push({ type:e.type, stage:S.stage, t:+(S.roomT).toFixed(3) });
-  ev(S, { k:'kill', x:e.x, y:e.y, id:e.id, type:e.type });
-  S.pickups.push({ x:e.x, y:e.y, kind:'xp', v:b.xp, life:1e9 });
-  var p = Math.min(REPAIR_CAP, REPAIR_BASE + S.pity);
-  if (S.rng.next() < p) { S.pickups.push({ x:e.x + 0.2, y:e.y, kind:'repair', v:0, life:REPAIR_LIFE }); S.pity = 0; }
-  else S.pity += b.size === 'small' ? REPAIR_PITY * 0.5 : REPAIR_PITY;
+  ev(S, { k:'kill', x:e.x, y:e.y, id:e.id, type:e.type, boss:!!e.boss });
+  if (b.xp) S.pickups.push({ x:e.x, y:e.y, kind:'xp', v:b.xp, life:1e9 });
+  if (!e.boss) {
+    var p = Math.min(REPAIR_CAP, REPAIR_BASE + S.pity);
+    if (S.rng.next() < p) { S.pickups.push({ x:e.x + 0.2, y:e.y, kind:'repair', v:0, life:REPAIR_LIFE }); S.pity = 0; }
+    else S.pity += b.size === 'small' ? REPAIR_PITY * 0.5 : REPAIR_PITY;
+  } else S.stats.bossTime = +S.roomT.toFixed(2);
+  var A = V.AI[e.type]; if (A && A.onDeath) A.onDeath(S, e, api);
+  callHook(S, 'onKill', e, api);
 }
-function damageEnemy(S, e, dmg, crit){
-  e.hp -= dmg; e.flashT = 0.1;
-  ev(S, { k:'hit', x:e.x, y:e.y, id:e.id, dmg:dmg, crit:crit });
+function damageEnemy(S, e, dmg, crit, r, opts){
+  if (e.hp <= 0) return false;
+  var A = V.AI[e.type];
+  if (A && A.onDamage) { var d2 = A.onDamage(S, e, dmg, r, api); if (typeof d2 === 'number') dmg = d2; }
+  if (dmg <= 0) return false;
+  dmg = Math.max(1, Math.floor(dmg));
+  e.hp -= dmg;
+  if (opts && opts.dot) ev(S, { k:'dot', x:e.x, y:e.y, id:e.id, dmg:dmg });
+  else { e.flashT = 0.1; ev(S, { k:'hit', x:e.x, y:e.y, id:e.id, dmg:dmg, crit:crit }); }
   if (crit) ev(S, { k:'crit', x:e.x, y:e.y, id:e.id, dmg:dmg });
   if (e.hp <= 0) { e.hp = 0; killEnemy(S, e); return true; }
   return false;
 }
+function pruneEnemies(S){
+  var en = [];
+  for (var q = 0; q < S.enemies.length; q++) if (S.enemies[q].hp > 0) en.push(S.enemies[q]);
+  S.enemies = en;
+}
 
+function bounceOff(r, b){
+  // reflect on the axis of least penetration
+  var cx = Math.max(b.x, Math.min(r.x, b.x + b.w)), cy = Math.max(b.y, Math.min(r.y, b.y + b.h));
+  var dx = r.x - cx, dy = r.y - cy;
+  if (Math.abs(dx) > Math.abs(dy)) r.vx = -r.vx; else if (Math.abs(dy) > 0) r.vy = -r.vy; else { r.vx = -r.vx; r.vy = -r.vy; }
+  r.x -= r.vx * STEP; r.y -= r.vy * STEP;
+}
+function wallReflect(S, r){
+  var hit = false;
+  if (r.x < r.r) { r.x = r.r; r.vx = Math.abs(r.vx); hit = true; }
+  if (r.x > S.room.w - r.r) { r.x = S.room.w - r.r; r.vx = -Math.abs(r.vx); hit = true; }
+  if (r.y < r.r) { r.y = r.r; r.vy = Math.abs(r.vy); hit = true; }
+  if (r.y > S.room.h - r.r) { r.y = S.room.h - r.r; r.vy = -Math.abs(r.vy); hit = true; }
+  return hit;
+}
 function stepRounds(S, dt){
   var a = S.rounds, out = [];
   for (var i = 0; i < a.length; i++) {
     var r = a[i], alive = true;
     r.x += r.vx * dt; r.y += r.vy * dt;
-    if (outOfRoom(S, r.x, r.y, r.r) || hitsSolid(S, r.x, r.y, r.r)) continue;
+    var sol = hitsSolid(S, r.x, r.y, r.r), oob = outOfRoom(S, r.x, r.y, 0) && !(r.y < 1 && S.room.door.open && r.x > S.room.door.x && r.x < S.room.door.x + 1);
+    if (sol || oob) {
+      if (r.bounceWall && r.wallBounces < WALLB_MAX) {
+        if (sol) bounceOff(r, sol); else wallReflect(S, r);
+        r.wallBounces++; r.dmg = Math.max(1, Math.floor(r.dmg * WALLB_MULT));
+      } else continue;
+    }
     for (var j = 0; j < S.enemies.length; j++) {
       var e = S.enemies[j];
       if (!targetable(e) || r.hit.indexOf(e.id) >= 0) continue;
       if (Math.hypot(e.x - r.x, e.y - r.y) < e.r + r.r) {
-        damageEnemy(S, e, r.dmg, r.crit);
+        damageEnemy(S, e, r.dmg, r.crit, r);
         r.hit.push(e.id);
+        if (V.MODS) { r.keep = false; callHook(S, 'onHit', e, r, api); alive = !!r.keep; break; } // mods.js does pierce/ricochet
+        callHook(S, 'onHit', e, r, api);
         alive = false;
-        if (cardCount(S, 'rico') > 0 && r.bounces < RICO_MAX) {
+        if (r.pierce) { r.dmg = Math.max(1, Math.floor(r.dmg * PIERCE_MULT)); alive = true; continue; }
+        if (r.rico && r.bounces < RICO_MAX) {
           var best = null, bd = RICO_RANGE;
           for (var k = 0; k < S.enemies.length; k++) {
             var o = S.enemies[k];
@@ -461,21 +561,49 @@ function stepRounds(S, dt){
     if (alive) out.push(r);
   }
   S.rounds = out;
-  // remove dead enemies
-  var en = [];
-  for (var q = 0; q < S.enemies.length; q++) if (S.enemies[q].hp > 0) en.push(S.enemies[q]);
-  S.enemies = en;
+  pruneEnemies(S);
 }
 function stepShots(S, dt){
   var a = S.shots, out = [], h = S.hero;
   for (var i = 0; i < a.length; i++) {
     var s = a[i];
     s.x += s.vx * dt; s.y += s.vy * dt;
-    if (outOfRoom(S, s.x, s.y, s.r) || hitsSolid(S, s.x, s.y, s.r)) continue; // cover stops enemy rounds (M)
-    if (S.phase !== 'dead' && Math.hypot(h.x - s.x, h.y - s.y) < s.r + HERO_HURT_R) { hurtHero(S, s.dmg, s.src, s.x, s.y); continue; }
+    if (s.life != null) { s.life -= dt; if (s.life <= 0) continue; }
+    if (hitsSolid(S, s.x, s.y, s.r)) continue; // cover stops enemy flat rounds (M)
+    if (outOfRoom(S, s.x, s.y, -s.r)) {
+      if (s.bounces > 0) { wallReflect(S, s); s.bounces--; } else if (outOfRoom(S, s.x, s.y, s.r)) continue;
+    }
+    if (S.phase !== 'results' && Math.hypot(h.x - s.x, h.y - s.y) < s.r + HERO_HURT_R) { hurtHero(S, s.dmg, s.src, s.x, s.y); continue; }
     out.push(s);
   }
   S.shots = out;
+}
+function stepShells(S, dt){
+  var a = S.shells, out = [], h = S.hero;
+  for (var i = 0; i < a.length; i++) {
+    var s = a[i];
+    s.t += dt;
+    var k = Math.min(1, s.t / s.T);
+    s.x = s.sx + (s.tx - s.sx) * k; s.y = s.sy + (s.ty - s.sy) * k;
+    if (s.t >= s.T) { // lands over cover
+      ev(S, { k:'land', x:s.tx, y:s.ty, r:s.r, src:s.src });
+      if (S.phase !== 'results' && Math.hypot(h.x - s.tx, h.y - s.ty) < s.r + HERO_HURT_R) hurtHero(S, s.dmg, s.src, s.tx, s.ty);
+      continue;
+    }
+    out.push(s);
+  }
+  S.shells = out;
+}
+function stepHazards(S, dt){
+  if (S.hazardCd > 0) S.hazardCd -= dt;
+  if (!S.hazards.length || S.hazardCd > 0) return;
+  var h = S.hero;
+  for (var i = 0; i < S.hazards.length; i++) {
+    if (circleRect(h.x, h.y, HERO_HURT_R, S.hazards[i])) {
+      if (hurtHero(S, enemyDmg(S, HAZARD_DMG), 'spikes', h.x, h.y, { hazard:true })) S.hazardCd = HAZARD_CD;
+      return;
+    }
+  }
 }
 
 // ---------- pickups / xp ----------
@@ -493,10 +621,7 @@ function addXp(S, v){
 function collect(S, p){
   var h = S.hero;
   if (p.kind === 'xp') addXp(S, p.v);
-  else {
-    var heal = Math.floor(h.maxHp * REPAIR_PCT);
-    p.v = Math.min(heal, h.maxHp - h.hp); h.hp = Math.min(h.maxHp, h.hp + heal);
-  }
+  else p.v = healHero(S, h.maxHp * REPAIR_PCT);
   ev(S, { k:'pickup', x:p.x, y:p.y, kind:p.kind, v:p.v });
 }
 function stepPickups(S, dt){
@@ -514,63 +639,128 @@ function stepPickups(S, dt){
 }
 
 // ---------- cards ----------
-function offerCards(S){
-  var avail = [], i;
-  for (i = 0; i < V.CARDS.length; i++) { var c = V.CARDS[i]; if (!c.max || cardCount(S, c.key) < c.max) avail.push(i); }
-  var n = Math.max(1, Math.min(Math.round(S.tune.CARDS_OFFERED) || 2, avail.length)), out = [];
-  for (i = 0; i < n; i++) { var j = S.rng.int(avail.length); out.push(avail[j]); avail.splice(j, 1); }
+function inPool(m, pool){ return !m.pool || m.pool.indexOf(pool) >= 0; }
+function offer(S, pool, n){
+  if (V.MODS && V.Mods && V.Mods.offer) return V.Mods.offer(S, pool, n, S.rng);
+  var M = mods(), avail = [], w = [], i, out = [];
+  for (i = 0; i < M.length; i++) {
+    var m = M[i];
+    if (!inPool(m, pool)) continue;
+    if (m.max && count(S, m.key) >= m.max) continue;
+    var wt = m.weight == null ? 1 : +m.weight; if (!(wt > 0)) continue;
+    avail.push(i); w.push(wt);
+  }
+  n = Math.min(n, avail.length);
+  for (var k = 0; k < n; k++) {
+    var tot = 0; for (i = 0; i < w.length; i++) tot += w[i];
+    var x = S.rng.next() * tot, j = 0;
+    while (j < w.length - 1 && x >= w[j]) { x -= w[j]; j++; }
+    out.push(avail[j]); avail.splice(j, 1); w.splice(j, 1);
+  }
   return out;
 }
+function applyMod(S, ci){
+  var c = mods()[ci];
+  S.hero.mods[c.key] = (S.hero.mods[c.key] || 0) + 1;
+  S.stats.picks.push(c.id);
+  if (c.hooks && c.hooks.onPick) c.hooks.onPick(S, S.hero.mods[c.key], api);
+  refreshStats(S);
+  ev(S, { k:'pick', x:S.hero.x, y:S.hero.y, id:c.id, key:c.key });
+  return c;
+}
+function deferEvents(S, n0){ S._post = (S._post || []).concat(S.events.splice(n0)); }
 function pick(S, index){
+  var n0 = S.events.length, r = pick0(S, index); deferEvents(S, n0); return r;
+}
+function pickSupply(S, index){
+  var n0 = S.events.length, r = pickSupply0(S, index); deferEvents(S, n0); return r;
+}
+function pick0(S, index){
+  if (S.phase === 'supply') return pickSupply0(S, index);
   if (S.phase !== 'pick' || !S.cards) return false;
   var ci = S.cards[index]; if (ci == null) return false;
-  var c = V.CARDS[ci];
-  S.hero.mods[c.key] = (S.hero.mods[c.key] || 0) + 1;
-  S.hero.atk = roundDamage(S);
-  S.stats.picks.push(c.id);
-  S.pendingLevels = Math.max(0, S.pendingLevels - 1);
+  applyMod(S, ci);
+  if (S.freePicks > 0) S.freePicks--; else S.pendingLevels = Math.max(0, S.pendingLevels - 1);
   S.cards = null; S.phase = 'clear';
-  ev(S, { k:'pick', x:S.hero.x, y:S.hero.y, id:c.id, key:c.key });
   return true;
 }
+function pickSupply0(S, index){
+  if (S.phase !== 'supply' || !S.supply) return false;
+  var c = S.supply[index]; if (!c) return false;
+  if (c.kind === 'mod') applyMod(S, c.index);
+  else { var v = healHero(S, S.hero.maxHp * SUPPLY_REPAIR_PCT); ev(S, { k:'pickup', x:S.hero.x, y:S.hero.y, kind:'repair', v:v }); }
+  S.supply = null;
+  openDoor(S);
+  return true;
+}
+function openDoor(S){
+  S.phase = 'clear'; S.clearT = 0; S.room.door.open = true;
+  ev(S, { k:'door', x:S.room.door.x + 0.5, y:S.room.door.y + 0.5, open:true });
+}
+function openChest(S){
+  var c = S.chest; if (!c || c.open) return;
+  c.open = true; S.freePicks++;
+  S.pickups.push({ x:c.x - 0.3, y:c.y + 0.4, kind:'repair', v:0, life:REPAIR_LIFE });
+  S.pickups.push({ x:c.x + 0.3, y:c.y + 0.4, kind:'repair', v:0, life:REPAIR_LIFE });
+  ev(S, { k:'chest', x:c.x, y:c.y });
+}
 
-function nextRoom(S){
-  // bank anything still flying
+function nextStage(S){
   for (var i = 0; i < S.pickups.length; i++) if (S.pickups[i].kind === 'xp') addXp(S, S.pickups[i].v);
-  S.stage++;
-  var idx = (V.ROOM_ORDER.indexOf(S.roomId) + 1) % V.ROOM_ORDER.length;
-  loadRoom(S, V.ROOM_ORDER[idx]);
+  var n = S.stageIdx + 1, list = stageList();
+  if (n >= list.length) { S.lap++; n = 0; }
+  loadStage(S, n);
+}
+
+function syncBoss(S){
+  if (!S.boss) return;
+  var e = findEnemy(S, S.boss.id), B = S.boss;
+  if (!e) { B.hp = 0; B.attack = null; B.tell01 = 0; return; }
+  var ph = e.phase || 1;
+  if (ph !== B.phase && !S.events.some(function(o){ return o.k === 'bossphase'; })) ev(S, { k:'bossphase', x:e.x, y:e.y, id:e.id, phase:ph });
+  B.hp = e.hp; B.maxHp = e.maxHp; B.phase = ph; B.attack = e.attack || null; B.tell01 = e.tell01 || 0; B.name = e.name || B.name;
 }
 
 // ---------- step ----------
 function step(S, inp){
-  S.events.length = 0;
-  if (S.phase === 'pick' || S.phase === 'dead') return S;
+  S.events.length = 0; S.fx.length = 0;
+  if (S._post && S._post.length) { for (var pe = 0; pe < S._post.length; pe++) S.events.push(S._post[pe]); S._post.length = 0; }
+  if (S.phase === 'pick' || S.phase === 'supply' || S.phase === 'results') return S;
   var t = S.tune, dt = STEP * (t.TIME_SCALE > 0 ? t.TIME_SCALE : 1);
   S.frame++; S.t += dt; S.roomT += dt;
-  if (S.phase === 'play') S.stats.playSteps++;
+  if (!S.st) refreshStats(S);
+  if (S.phase === 'play') { S.stats.playSteps++; releaseSpawns(S); }
   stepHero(S, inp, dt);
   if (S.phase === 'play' && S.hero.braced) S.stats.bracedSteps++;
-  for (var i = 0; i < S.enemies.length && S.phase !== 'dead'; i++) stepEnemy(S, S.enemies[i], dt);
+  for (var i = 0; i < S.enemies.length && S.phase !== 'results'; i++) stepEnemy(S, S.enemies[i], dt);
+  pruneEnemies(S);
   separate(S);
   stepRounds(S, dt);
   stepShots(S, dt);
-  if (S.phase === 'dead') return S;
-  if (S.phase === 'play' && S.enemies.length === 0) {
-    S.phase = 'clear'; S.clearT = 0; S.room.door.open = true;
-    S.shots.length = 0;
-    S.stats.roomTimes.push({ stage:S.stage, roomId:S.roomId, s:+S.roomT.toFixed(2) });
+  stepShells(S, dt);
+  stepHazards(S, dt);
+  if (S.phase === 'play') callHook(S, 'tick', dt, api);
+  pruneEnemies(S);
+  syncBoss(S);
+  if (S.phase === 'results') return S;
+  if (S.phase === 'play' && S.enemies.length === 0 && S.spawnQ.length === 0) {
+    S.stats.roomTimes.push({ stage:S.stage, roomId:S.roomId, s:+S.roomT.toFixed(2), kind:S.stageKind });
     S.stats.roomHp.push({ stage:S.stage, roomId:S.roomId, hp:S.hero.hp });
+    S.shots.length = 0; S.shells.length = 0;
     if (S.hero.lockId != null) { ev(S, { k:'unlock', x:S.hero.x, y:S.hero.y, id:S.hero.lockId }); S.hero.lockId = null; S.hero.lockClear = false; }
-    ev(S, { k:'door', x:S.room.door.x + 0.5, y:S.room.door.y + 0.5, open:true });
+    if (S.stageKind === 'boss' && !t.ENDLESS) { S.phase = 'clear'; S.clearT = 0; S.bossWin = true; }
+    else openDoor(S);
   }
   stepPickups(S, dt);
   if (S.phase === 'clear') {
     S.clearT += dt;
     var h = S.hero, d = S.room.door;
+    if (S.bossWin) { if (S.clearT >= t.PICK_DELAY) endRun(S, true); return S; }
+    if (S.chest && !S.chest.open && (Math.hypot(h.x - S.chest.x, h.y - S.chest.y) < 0.9 || S.clearT >= t.PICK_DELAY)) openChest(S);
     var atDoor = circleRect(h.x, h.y, HERO_WALL_R + 0.02, d);
-    if (S.pendingLevels > 0 && (S.clearT >= t.PICK_DELAY || atDoor)) { S.phase = 'pick'; S.cards = offerCards(S); }
-    else if (atDoor) nextRoom(S);
+    var pending = S.pendingLevels + S.freePicks;
+    if (pending > 0 && (S.clearT >= t.PICK_DELAY || atDoor)) { S.phase = 'pick'; S.cards = offer(S, 'F', Math.max(1, Math.round(t.CARDS_OFFERED) || 3)); if (!S.cards.length) { S.cards = null; S.phase = 'clear'; S.pendingLevels = 0; S.freePicks = 0; } }
+    else if (atDoor) nextStage(S);
   }
   return S;
 }
@@ -581,13 +771,17 @@ function restart(S){ return create(((S.seed + 1) >>> 0), S.tune); }
 function hash(S){
   var h = 2166136261 >>> 0;
   function mix(v){ var s = String(v); for (var i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619) >>> 0; } h ^= 124; h = Math.imul(h, 16777619) >>> 0; }
-  mix(S.frame); mix(S.phase); mix(S.stage); mix(S.rng.s);
+  mix(S.frame); mix(S.phase); mix(S.stage); mix(S.lap); mix(S.rng.s);
   var H = S.hero; mix(H.x.toFixed(5)); mix(H.y.toFixed(5)); mix(H.hp); mix(H.xp); mix(H.level); mix(H.lockId);
   for (var i = 0; i < S.enemies.length; i++) { var e = S.enemies[i]; mix(e.id); mix(e.x.toFixed(5)); mix(e.y.toFixed(5)); mix(e.hp); mix(e.st); }
-  mix(S.rounds.length); mix(S.shots.length); mix(S.pickups.length); mix(S.stats.kills);
+  mix(S.rounds.length); mix(S.shots.length); mix(S.shells.length); mix(S.pickups.length); mix(S.stats.kills);
   return ('00000000' + h.toString(16)).slice(-8);
 }
 
-V.Sim = { create:create, step:step, pick:pick, restart:restart, hash:hash,
-  STEP:STEP, LEVEL_COST:LEVEL_COST, ENEMIES:EN, roundDamage:roundDamage, fireInterval:fireInterval, clearLine:clearLine };
+V.Sim = { create:create, step:step, pick:pick, pickSupply:pickSupply, restart:restart, hash:hash, api:api,
+  offer:offer, stats:heroStats, stageList:stageList,
+  STEP:STEP, LEVEL_COST:LEVEL_COST, roundDamage:roundDamage, fireInterval:fireInterval, clearLine:clearLine,
+  FALLBACK_MODS:FALLBACK_MODS };
+// back-compat for bot/tests: base stats by type (live view of the registry)
+Object.defineProperty(V.Sim, 'ENEMIES', { get:function(){ var o = {}; for (var k in V.AI) o[k] = V.AI[k].base; return o; } });
 })();

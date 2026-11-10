@@ -13,6 +13,15 @@ canvas{position:absolute;left:0;top:0;display:block}
 <body>
 <canvas id="cgpu"></canvas><canvas id="c2d"></canvas>
 <div id="lbl">...</div>
+<script src="parts/tune.js"></script>
+<script src="parts/rng.js"></script>
+<script src="parts/rooms.js"></script>
+<script src="parts/stages.js"></script>
+<script src="parts/mods.js"></script>
+<script src="parts/sim.js"></script>
+<script src="parts/ai-p0.js"></script>
+<script src="parts/ai-p1.js"></script>
+<script src="parts/boss.js"></script>
 <script src="parts/scene.js"></script>
 <script src="parts/render2d.js"></script>
 <script src="parts/gpu.js"></script>
@@ -46,6 +55,63 @@ canvas{position:absolute;left:0;top:0;display:block}
     cards: null, events: [], stats: {}
   };
   if (Q.get('dead') === '1') S.phase = 'dead';
+  // P1 scenes: ?scene=p1 (E-04/E-05, shells, spikes, chest, mod rounds/fx), ?scene=boss[&phase=2][&atk=A|B|C], ?scene=supply
+  var SC = Q.get('scene') || '';
+  S.shells = []; S.hazards = []; S.fx = []; S.chest = null; S.boss = null; S.stageKind = 'combat';
+  if (SC === 'p1') {
+    S.stageKind = 'cache';
+    S.room.solids = [{ x: 0, y: 0, w: 4, h: 1, kind: 'wall' }, { x: 5, y: 0, w: 4, h: 1, kind: 'wall' }, { x: 6, y: 5, w: 1, h: 2, kind: 'block' }];
+    S.hazards = [{ x: 0, y: 7, w: 3, h: 1, kind: 'spikes' }, { x: 5, y: 7, w: 2, h: 1, kind: 'spikes' }];
+    S.chest = { x: 4.5, y: 3.5, open: Q.get('open') === '1' };
+    S.enemies = [
+      { id: 1, type: 'E-04', x: 2.0, y: 3.0, r: 0.45, hp: 500, maxHp: 500, ang: 1.0, st: 'tell', tell01: 0.6, aimAng: 1.0, flashT: 0, size: 'medium', burnT: 1 },
+      { id: 2, type: 'E-04', x: 7.5, y: 2.5, r: 0.45, hp: 300, maxHp: 500, ang: 2.3, st: 'move', tell01: 0, aimAng: 2.3, flashT: 0, size: 'medium', poisonT: 3 },
+      { id: 3, type: 'E-05', x: 7.2, y: 9.0, r: 0.5, hp: 650, maxHp: 650, ang: 2.4, st: 'tell', tell01: 0.8, aimAng: 2.45, flashT: 0, size: 'medium', lane: 8 },
+      { id: 4, type: 'E-05', x: 1.6, y: 10.2, r: 0.5, hp: 400, maxHp: 650, ang: 0.3, st: 'stun', stunT: 0.6, tell01: 0, aimAng: 0.3, flashT: 0, size: 'medium', frozenT: 1 }
+    ];
+    S.hero.lockId = 2;
+    S.shells = [{ x: 2.0, y: 3.0, tx: 4.2, ty: 11.6, t: 0.5, T: 1.0, r: 1.0, dmg: 70, src: 1 }];
+    S.rounds = [{ x: 5.0, y: 9.5, vx: 5, vy: -12, r: 0.12, burn: true }, { x: 5.8, y: 7.0, vx: 5, vy: -12, r: 0.12, pierce: true }, { x: 3.6, y: 10.0, vx: -5, vy: -12, r: 0.12, poison: true, rico: true }];
+    S.shots = [{ x: 5.0, y: 6.0, vx: -2, vy: 5, r: 0.12 }];
+    S.pickups = [{ x: 3.0, y: 13.2, kind: 'xp', v: 4 }, { x: 6.2, y: 13.4, kind: 'repair', v: 0 }];
+  } else if (SC === 'boss') {
+    S.stageKind = 'boss';
+    S.room.solids = [{ x: 0, y: 0, w: 9, h: 1, kind: 'wall' }, { x: 1, y: 9, w: 1, h: 1, kind: 'pillar' }, { x: 7, y: 9, w: 1, h: 1, kind: 'pillar' }];
+    S.room.door = { x: 4, y: 0, w: 1, h: 1, open: false };
+    var ph = Q.get('phase') === '2' ? 2 : 1;
+    S.boss = { id: 9, type: 'B-01', name: 'Volley Tower', hp: ph === 2 ? 3000 : 7000, maxHp: 8000, phase: ph, attack: Q.get('atk') || 'A', tell01: 0.6 };
+    S.enemies = [{ id: 9, type: 'B-01', boss: true, x: 4.5, y: 3.5, r: 1.0, hp: S.boss.hp, maxHp: 8000, ang: Math.PI / 2, st: 'tell', tell01: 0.6, aimAng: 1.75, flashT: 0, size: 'large', phase: ph }];
+    S.hero.lockId = 9;
+    S.fx = [{ k: 'orb', x: 4.5 + 1.6, y: 12.5 }, { k: 'orb', x: 4.5 - 1.6, y: 12.5 }];
+    S.shots = [{ x: 3.0, y: 7.0, vx: -1, vy: 5, r: 0.12 }, { x: 6.0, y: 6.5, vx: 1, vy: 5, r: 0.12 }];
+    S.pickups = [];
+  } else if (SC === 'supply') {
+    S.room.solids = S.room.solids.slice(0, 2); S.stageKind = 'supply'; S.phase = 'supply'; S.enemies = []; S.shots = []; S.rounds = []; S.pickups = []; S.hero.lockId = null;
+    S.room.door.open = false;
+  }
+  // ?sim=N: real sim (super-tough Operator, auto-play) fast-forwarded to stage N, then live; &hold=1 keeps the Operator still
+  var SIM = Q.has('sim') && V.Sim ? parseInt(Q.get('sim'), 10) || 1 : 0;
+  if (SIM) {
+    var tune = Object.assign({}, V.TUNE_DEFAULTS || V.TUNE, { HERO_HP: 1e7, HERO_ATK: parseInt(Q.get('atk2') || '600', 10) });
+    S = V.Sim.create(parseInt(Q.get('seed') || '5', 10), tune);
+  }
+  function autoInp() {
+    var h = S.hero;
+    if (S.phase === 'pick') { V.Sim.pick(S, 0); return { mx: 0, my: 0 }; }
+    if (S.phase === 'supply') { V.Sim.pickSupply(S, 0); return { mx: 0, my: 0 }; }
+    if (S.phase === 'clear' && S.room.door) {
+      if (S.chest && !S.chest.open) return { mx: S.chest.x - h.x, my: S.chest.y - h.y };
+      var dx = S.room.door.x + 0.5, dy = S.room.door.y + 1.2;
+      if (h.y > dy + 0.3 && !V.Sim.clearLine(S, h.x, h.y, dx, dy, 0.4)) {
+        var side = h.x < 4.5 ? 0.6 : 8.4;
+        if (Math.abs(h.x - side) > 0.15 && h.y > 2.5) return { mx: side - h.x, my: 0 };
+        return { mx: 0, my: -1 };
+      }
+      return { mx: S.room.door.x + 0.5 - h.x, my: S.room.door.y - 0.5 - h.y };
+    }
+    return { mx: 0, my: 0 };
+  }
+  if (SIM) { for (var ff = 0; ff < 60 * 900 && S.stage < SIM && S.phase !== 'results'; ff++) { V.Sim.step(S, autoInp()); if (V.Scene.ingest) V.Scene.ingest(S.events, S); } }
   var base = JSON.parse(JSON.stringify({ r: S.rounds, s: S.shots }));
   var list = [], view = { w: 344, h: 882, dpr: 1, ox: 0, oy: 66, s: 38 }, R = null, frames = 0;
   function layout() {
@@ -53,10 +119,15 @@ canvas{position:absolute;left:0;top:0;display:block}
     view.w = w; view.h = h; view.dpr = devicePixelRatio || 1; view.s = s; view.ox = (w - 9 * s) / 2; view.oy = hud;
     if (R) R.resize(w, h, view.dpr);
   }
+  var simN = 0;
   function step() {
+    if (SIM) { if (simN++ >= STOP) return; V.Sim.step(S, Q.get('hold') === '1' && S.phase === 'play' ? { mx: 0, my: 0 } : autoInp()); V.Scene.ingest(S.events, S); return; }
     if (S.frame >= STOP) return;
     S.frame++; S.t += 1 / 60; S.events.length = 0;
     var k = S.frame % 90;
+    S.shells.forEach(function (q) { q.t = (S.frame % 60) / 60 * q.T; });
+    if (S.boss) { S.boss.tell01 = (S.frame % 60) / 60; if (!Q.get('atk')) S.boss.attack = 'ABC'[Math.floor(S.frame / 60) % 3]; }
+    S.fx.forEach(function (f, i) { if (f.k === 'orb') { var a = S.t * Math.PI + i * Math.PI; f.x = S.hero.x + Math.cos(a) * 1.6; f.y = S.hero.y + Math.sin(a) * 1.6; } });
     S.enemies.forEach(function (e) { if (e.st === 'tell') e.tell01 = (S.frame % 40) / 40; if (e.flashT > 0 || k === 30) e.flashT = k < 36 && k >= 30 ? 0.1 : 0; });
     S.hero.brace01 = Math.min(1, (S.frame % 60) / 30); S.hero.braced = S.hero.brace01 >= 1;
     S.rounds.forEach(function (r, i) { var b = base.r[i], u = (S.frame % 30) / 60; r.x = b.x + b.vx * u; r.y = b.y + b.vy * u; });

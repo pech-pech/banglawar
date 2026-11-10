@@ -67,6 +67,8 @@ V.Input = {
     var l = Math.sqrt(dx * dx + dy * dy) || 1;
     return { mx: dx / l, my: dy / l };
   },
+  note: function(k, x, y){ rec(k, x, y); },
+  get keyMove(){ return !!(keys.u || keys.d || keys.l || keys.r); },
   release: function(){ if (pid !== null) rec('rel', dx, dy); release(); keys = {}; },
   get down(){ return down; },
   get active(){ return active; },
