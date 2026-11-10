@@ -977,7 +977,7 @@ if (typeof module !== 'undefined') module.exports = LOL;
     '  let cy = u.batY + 36.0;',
     '  let lr = length((p - vec2<f32>(u.cx, cy)) / vec2<f32>(W * 0.75, H * 0.42));',
     '  let pool = 1.0 - smoothstep(0.0, 1.0, lr);',
-    '  col = col * (1.0 + 0.11 * pool);',
+    '  col = col * (1.0 + 0.22 * pool);',
     '',
     '  // ---- lane ----',
     '  let t = clamp((y - u.topY) / (H - u.topY), 0.0, 1.0);',
@@ -1000,7 +1000,8 @@ if (typeof module !== 'undefined') module.exports = LOL;
     '  let wn = vnoise(vec2<f32>(x * 0.35 + 7.0, y * 0.35));',
     '  let wearTop = (1.0 - smoothstep(u.topY, u.topY + 40.0, y)) * (0.45 + 0.55 * wn);',
     '  let wearBat = exp(-pow((y - (u.batY + 22.0)) / 30.0, 2.0)) * exp(-pow(dx / (hw * 0.55), 2.0)) * (0.4 + 0.6 * wn);',
-    '  lane = lane * (1.0 - 0.13 * clamp(wearTop + wearBat, 0.0, 1.0));',
+    '  let wearK = clamp(wearTop + wearBat, 0.0, 1.0);',
+    '  lane = mix(lane, lane * vec3<f32>(0.687, 0.589, 0.464), 0.10 * wearK);',  // ~4% darker, warm brown (toward #8a6a40), not grey
     '  // soft darker edges (2-3 px)',
     '  let edge = 1.0 - smoothstep(0.0, 3.0, -dLane);',
     '  lane = lane * (1.0 - 0.10 * edge);',
@@ -1039,7 +1040,7 @@ if (typeof module !== 'undefined') module.exports = LOL;
     '',
     '  // ---- top-corner vignette, slow shimmer ----',
     '  let ax = clamp(abs(x - W * 0.5) / (W * 0.5), 0.0, 1.0);',
-    '  let vig = 0.18 * ax * ax * (1.0 - smoothstep(0.0, H * 0.42, y));',
+    '  let vig = 0.18 * ax * (1.0 - smoothstep(0.0, H * 0.5, y));',
     '  col = col * (1.0 - vig);',
     '  let sh = (1.0 - u.reduced) * 0.015 * sin(u.time * 0.0006 + x * 0.01 + y * 0.004);',
     '  col = col * (1.0 + sh);',
@@ -1230,7 +1231,7 @@ if (typeof module !== 'undefined') module.exports = LOL;
   var WGSL = [
     'struct U {',
     '  a : vec4f,',            // W, H, dpr, now
-    '  b : vec4f,',            // t0, originX, originY, kind (0 spark, 1 dust)
+    '  b : vec4f,',            // t0, originX, originY, kind (0 spark, 1 dust, 2 dark rim)
     '  c : vec4f,',            // r, g, b, durMs
     '  d : vec4f,',            // count, speedScale, sizeScale, peakAlpha
     '  items : array<vec4f, 12>,', // ball mode: x, y, radius, alpha
@@ -1268,16 +1269,18 @@ if (typeof module !== 'undefined') module.exports = LOL;
     '  let ang = h01(ii, 1u) * 6.2831853;',
     '  let spd = mix(0.35, 1.0, h01(ii, 2u)) * u.d.y;',
     '  let sz = mix(2.0, 3.0, h01(ii, 3u));',
-    '  let tau = select(0.28, 0.45, u.b.w > 0.5);',
+    '  let isDust = u.b.w > 0.5 && u.b.w < 1.5;',
+    '  let isRim = u.b.w > 1.5;',
+    '  let tau = select(0.28, 0.45, isDust);',
     '  let dist = spd * tau * (1.0 - exp(-t / tau));',
     '  let ctr = u.b.yz + vec2f(cos(ang), sin(ang)) * dist;',
     '  var half = sz * 1.5 * u.d.z;',
     '  var a = u.d.w * pow(1.0 - life, 1.5);',
-    '  if (u.b.w > 0.5) {',
+    '  if (isDust) {',
     '    half = mix(7.0, 16.0, h01(ii, 4u)) * (0.6 + 0.8 * life) * u.d.z;',
     '    a = u.d.w * (1.0 - life) * (1.0 - life);',
     '  } else {',
-    '    half = half * (1.0 - 0.5 * life);',
+    '    half = half * (1.0 - 0.5 * life) + select(0.0, 1.0, isRim);',
     '  }',
     '  var o : VO;',
     '  o.pos = toClip(ctr + cn * half);',
@@ -1306,12 +1309,15 @@ if (typeof module !== 'undefined') module.exports = LOL;
   var dead = false;
   var ballF = new Float32Array(64);
   var burstF = new Float32Array(64);
+  var rimF = new Float32Array(64);
 
   // colours (sRGB 0..1)
-  var GOLD = [1.0, 0.824, 0.247];     // #ffd23f
+  var GOLD = [1.0, 0.824, 0.247];     // #ffd23f (unused by Perfect now)
   var WHITE = [0.933, 0.953, 0.910];  // #eef3e8
+  var PGOLD = [1.0, 0.722, 0.0];     // #ffb800 deeper gold (Perfect, non-additive so it holds on the tan lane)
+  var RIM = [0.231, 0.184, 0.078];    // #3b2f14 dark rim
   var DUST = [0.541, 0.353, 0.227];   // #8a5a3a
-  var WARM = [1.0, 0.86, 0.45];       // ball halo / trail warm tint
+  var WARM = [1.0, 0.824, 0.478];       // #ffd27a ball halo / trail warm tint
 
   function fail(e) {
     if (!dead) { dead = true; try { console.warn('gpufx disabled:', e && e.message ? e.message : e); } catch (_) {} }
@@ -1335,12 +1341,15 @@ if (typeof module !== 'undefined') module.exports = LOL;
       var uf = GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST;
       var bb = dev.createBuffer({ size: 256, usage: uf });
       var ub = dev.createBuffer({ size: 256, usage: uf });
+      var rbuf = dev.createBuffer({ size: 256, usage: uf });
       S = {
         dev: dev,
         ball: mk('vsBall', ADD),
         spark: mk('vsBurst', ADD),
         dust: mk('vsBurst', OVER),
-        bb: bb, ub: ub,
+        fill: mk('vsBurst', OVER),
+        bb: bb, ub: ub, rb: rbuf,
+        rbg: dev.createBindGroup({ layout: bgl, entries: [{ binding: 0, resource: { buffer: rbuf } }] }),
         bbg: dev.createBindGroup({ layout: bgl, entries: [{ binding: 0, resource: { buffer: bb } }] }),
         ubg: dev.createBindGroup({ layout: bgl, entries: [{ binding: 0, resource: { buffer: ub } }] })
       };
@@ -1372,15 +1381,15 @@ if (typeof module !== 'undefined') module.exports = LOL;
         f[8] = WARM[0]; f[9] = WARM[1]; f[10] = WARM[2]; f[11] = 1;
         q = G.path(p, W, H);
         var n = 1;
-        f[16] = q[0]; f[17] = q[1]; f[18] = 16; f[19] = 0.35;   // items[0] glow
+        f[16] = q[0]; f[17] = q[1]; f[18] = 16; f[19] = 0.45;   // items[0] glow
         if (!G.reduced) {
           for (i = 1; i <= 10; i++) {
-            var pk = p - i * 0.018;
+            var pk = p - i * 0.012;
             var o = 16 + i * 4;
             if (pk < 0) { f[o + 3] = 0; continue; }
             q = G.path(pk, W, H);
             f[o] = q[0]; f[o + 1] = q[1];
-            f[o + 2] = 5 - 3 * (i - 1) / 9;
+            f[o + 2] = 3 - 1.5 * (i - 1) / 9;
             f[o + 3] = 0.25 * (11 - i) / 10;
           }
           n = 11;
@@ -1397,9 +1406,9 @@ if (typeof module !== 'undefined') module.exports = LOL;
       var res = cur.res;
       if (cur.tSettle == null) return;
       var el = now - cur.tSettle;
-      var col, dur, cnt, spd, sz, pa, dust = 0;
+      var col, dur, cnt, spd, sz, pa, dust = 0, pf = 0;
       if (res.out) { col = DUST; dur = 500; cnt = 24; spd = 240; sz = 1; pa = 0.55; dust = 1; }
-      else if (res.grade === 'perfect') { col = GOLD; dur = 600; cnt = 160; spd = 420; sz = 1; pa = 0.95; }
+      else if (res.grade === 'perfect') { col = PGOLD; dur = 450; cnt = 80; spd = 420; sz = 1.4; pa = 1.0; pf = 1; }
       else if (res.grade === 'good') { col = WHITE; dur = 400; cnt = 40; spd = 300; sz = 1; pa = 0.85; }
       else if (res.grade === 'edge') { col = WHITE; dur = 300; cnt = 12; spd = 200; sz = 0.9; pa = 0.7; }
       else return;
@@ -1410,6 +1419,19 @@ if (typeof module !== 'undefined') module.exports = LOL;
       b[4] = cur.tSettle; b[5] = q[0]; b[6] = q[1]; b[7] = dust;
       b[8] = col[0]; b[9] = col[1]; b[10] = col[2]; b[11] = dur;
       b[12] = cnt; b[13] = spd; b[14] = sz; b[15] = pa;
+      if (pf) {                                   // two-tone: dark rim pass, then gold fill, both normal-over
+        var r = rimF;
+        r.set(b);
+        r[7] = 2; r[8] = RIM[0]; r[9] = RIM[1]; r[10] = RIM[2]; r[15] = 0.6;
+        S.dev.queue.writeBuffer(S.rb, 0, r.buffer, 0, 256);
+        S.dev.queue.writeBuffer(S.ub, 0, b.buffer, 0, 256);
+        pass.setPipeline(S.fill);
+        pass.setBindGroup(0, S.rbg);
+        pass.draw(6, cnt);
+        pass.setBindGroup(0, S.ubg);
+        pass.draw(6, cnt);
+        return;
+      }
       S.dev.queue.writeBuffer(S.ub, 0, b.buffer, 0, 256);
       pass.setPipeline(dust ? S.dust : S.spark);
       pass.setBindGroup(0, S.ubg);
@@ -1464,8 +1486,8 @@ if (typeof module !== 'undefined') module.exports = LOL;
     if (w / h < 0.42) h = Math.round(w / 0.42);
     stage.style.width = w + 'px'; stage.style.height = h + 'px';
     dpr = Math.min(3, devicePixelRatio || 1);
-    for (const c of [gv, cv, pc]) { const r = c.getBoundingClientRect(); c.width = Math.round(r.width * dpr); c.height = Math.round(r.height * dpr); }
-    if (P.gpu && P.gpu.ready) P.gpu.resize(gv.width, gv.height, dpr);
+    for (const c of [gv, cv, pc]) { const r = c.getBoundingClientRect(), k = c === gv ? Math.min(2, dpr) : dpr; c.width = Math.round(r.width * k); c.height = Math.round(r.height * k); }
+    if (P.gpu && P.gpu.ready) P.gpu.resize(gv.width, gv.height, Math.min(2, dpr));
   }
   addEventListener('resize', fit);
 
@@ -1529,6 +1551,7 @@ if (typeof module !== 'undefined') module.exports = LOL;
     c.stopUntil = now + (G.reduced ? 0 : (STOP[res.grade] || 0) + (res.out ? 100 : 0));
     P.ui.result(G);
   }
+  let gpuStalls = 0;
   function rebowl(now) { if (G.m && !G.m.done && G.cur && !G.cur.done) nextBall(now + 900); }
   let hiddenAt = 0;
   document.addEventListener('visibilitychange', () => { if (document.hidden) hiddenAt = 1; else if (hiddenAt) { hiddenAt = 0; rebowl(performance.now()); } });
@@ -1555,16 +1578,17 @@ if (typeof module !== 'undefined') module.exports = LOL;
   // ---------- WebGPU painter (M's pick 2026-11-10): backdrop + glow under the 2D layer; Canvas 2D stays the fallback ----------
   G.gpuOn = false;
   function renderer() { return G.gpuOn && P.gpu && P.gpu.ready ? 'WebGPU' : (G.gpuNote ? 'Canvas 2D (' + G.gpuNote + ')' : 'Canvas 2D'); }
-  // Safety net: if the GPU can't hold ~30 fps in its first 2 s, drop to Canvas 2D (a slow frame would stall the ball).
+  // Safety net (whole session): drop to Canvas 2D if the median of the last 60 frame gaps passes 40 ms (under ~25 fps,
+  // so a 30 fps power-saver cap is fine) or after 2 stall re-bowls while the GPU is on.
   // ?gpu=force keeps it on anyway (headless tests use a software GPU).
   let gpuWatch = null; const GPU_FORCE = Q.get('gpu') === 'force';
   function watchGpu(gap) {
-    if (!gpuWatch || GPU_FORCE) return;
-    if (++gpuWatch.n <= 10) return;
-    if (gap > 34) gpuWatch.slow++;
-    if (gpuWatch.slow > 12) { gpuWatch = null; gpuOff('slow frames'); G.gpuNote = 'GPU slow'; return; }
-    if (gpuWatch.n > 130) gpuWatch = null;
+    if (!gpuWatch || GPU_FORCE || document.hidden) return;
+    const w = gpuWatch; w.n++; if (w.n <= 10) return;
+    w.g.push(gap); if (w.g.length > 60) w.g.shift();
+    if (w.g.length === 60 && w.n % 15 === 0) { const s2 = [...w.g].sort((a, b) => a - b); if (s2[30] > 40) slowGpu(); }
   }
+  function slowGpu() { if (GPU_FORCE || !G.gpuOn) return; gpuWatch = null; G.gpuNote = 'GPU slow'; gpuOff('slow frames'); }
   function gpuOff(why) { G.gpuOn = false; gv.style.display = 'none'; if (why) console.warn('WebGPU off:', why); }
   function startGpu() {
     gv.style.display = 'none';
@@ -1573,7 +1597,7 @@ if (typeof module !== 'undefined') module.exports = LOL;
     P.gpu.onLost(gpuOff);
     P.gpu.init(gv, G).then(ok => {
       if (!ok) return;
-      gv.style.display = ''; P.gpu.resize(gv.width, gv.height, dpr); G.gpuOn = true; gpuWatch = { n: 0, slow: 0 };
+      gv.style.display = ''; P.gpu.resize(gv.width, gv.height, Math.min(2, dpr)); G.gpuOn = true; gpuWatch = { n: 0, g: [] };
     }).catch(e => gpuOff(e && e.message));
   }
 
@@ -1582,7 +1606,7 @@ if (typeof module !== 'undefined') module.exports = LOL;
   function frame(now) {
     G.now = now;
     if (last) { const g = now - last; gaps.push(g); if (gaps.length > 300) gaps.shift(); if (G.gpuOn) watchGpu(g);
-      if (g > (GPU_FORCE ? 3000 : 100) && G.cur && !G.cur.done && G.m && now > G.cur.tRun && !document.hidden) rebowl(now); }
+      if (g > (GPU_FORCE ? 3000 : 100) && G.cur && !G.cur.done && G.m && now > G.cur.tRun && !document.hidden) { if (G.gpuOn && ++gpuStalls >= 2) slowGpu(); rebowl(now); } }
     last = now;
     if (gaps.length && (gaps.length % 30 === 0 || !G.stats.p50)) { const s = [...gaps].sort((a, b) => a - b);
       G.stats.p50 = +s[Math.floor(s.length * 0.5)].toFixed(1); G.stats.p95 = +s[Math.floor(s.length * 0.95)].toFixed(1); G.stats.max = +s[s.length - 1].toFixed(1); }

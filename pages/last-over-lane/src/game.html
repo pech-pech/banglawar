@@ -153,8 +153,8 @@ if (typeof module !== 'undefined') module.exports = LOL;
     if (w / h < 0.42) h = Math.round(w / 0.42);
     stage.style.width = w + 'px'; stage.style.height = h + 'px';
     dpr = Math.min(3, devicePixelRatio || 1);
-    for (const c of [gv, cv, pc]) { const r = c.getBoundingClientRect(); c.width = Math.round(r.width * dpr); c.height = Math.round(r.height * dpr); }
-    if (P.gpu && P.gpu.ready) P.gpu.resize(gv.width, gv.height, dpr);
+    for (const c of [gv, cv, pc]) { const r = c.getBoundingClientRect(), k = c === gv ? Math.min(2, dpr) : dpr; c.width = Math.round(r.width * k); c.height = Math.round(r.height * k); }
+    if (P.gpu && P.gpu.ready) P.gpu.resize(gv.width, gv.height, Math.min(2, dpr));
   }
   addEventListener('resize', fit);
 
@@ -218,6 +218,7 @@ if (typeof module !== 'undefined') module.exports = LOL;
     c.stopUntil = now + (G.reduced ? 0 : (STOP[res.grade] || 0) + (res.out ? 100 : 0));
     P.ui.result(G);
   }
+  let gpuStalls = 0;
   function rebowl(now) { if (G.m && !G.m.done && G.cur && !G.cur.done) nextBall(now + 900); }
   let hiddenAt = 0;
   document.addEventListener('visibilitychange', () => { if (document.hidden) hiddenAt = 1; else if (hiddenAt) { hiddenAt = 0; rebowl(performance.now()); } });
@@ -244,16 +245,17 @@ if (typeof module !== 'undefined') module.exports = LOL;
   // ---------- WebGPU painter (M's pick 2026-11-10): backdrop + glow under the 2D layer; Canvas 2D stays the fallback ----------
   G.gpuOn = false;
   function renderer() { return G.gpuOn && P.gpu && P.gpu.ready ? 'WebGPU' : (G.gpuNote ? 'Canvas 2D (' + G.gpuNote + ')' : 'Canvas 2D'); }
-  // Safety net: if the GPU can't hold ~30 fps in its first 2 s, drop to Canvas 2D (a slow frame would stall the ball).
+  // Safety net (whole session): drop to Canvas 2D if the median of the last 60 frame gaps passes 40 ms (under ~25 fps,
+  // so a 30 fps power-saver cap is fine) or after 2 stall re-bowls while the GPU is on.
   // ?gpu=force keeps it on anyway (headless tests use a software GPU).
   let gpuWatch = null; const GPU_FORCE = Q.get('gpu') === 'force';
   function watchGpu(gap) {
-    if (!gpuWatch || GPU_FORCE) return;
-    if (++gpuWatch.n <= 10) return;
-    if (gap > 34) gpuWatch.slow++;
-    if (gpuWatch.slow > 12) { gpuWatch = null; gpuOff('slow frames'); G.gpuNote = 'GPU slow'; return; }
-    if (gpuWatch.n > 130) gpuWatch = null;
+    if (!gpuWatch || GPU_FORCE || document.hidden) return;
+    const w = gpuWatch; w.n++; if (w.n <= 10) return;
+    w.g.push(gap); if (w.g.length > 60) w.g.shift();
+    if (w.g.length === 60 && w.n % 15 === 0) { const s2 = [...w.g].sort((a, b) => a - b); if (s2[30] > 40) slowGpu(); }
   }
+  function slowGpu() { if (GPU_FORCE || !G.gpuOn) return; gpuWatch = null; G.gpuNote = 'GPU slow'; gpuOff('slow frames'); }
   function gpuOff(why) { G.gpuOn = false; gv.style.display = 'none'; if (why) console.warn('WebGPU off:', why); }
   function startGpu() {
     gv.style.display = 'none';
@@ -262,7 +264,7 @@ if (typeof module !== 'undefined') module.exports = LOL;
     P.gpu.onLost(gpuOff);
     P.gpu.init(gv, G).then(ok => {
       if (!ok) return;
-      gv.style.display = ''; P.gpu.resize(gv.width, gv.height, dpr); G.gpuOn = true; gpuWatch = { n: 0, slow: 0 };
+      gv.style.display = ''; P.gpu.resize(gv.width, gv.height, Math.min(2, dpr)); G.gpuOn = true; gpuWatch = { n: 0, g: [] };
     }).catch(e => gpuOff(e && e.message));
   }
 
@@ -271,7 +273,7 @@ if (typeof module !== 'undefined') module.exports = LOL;
   function frame(now) {
     G.now = now;
     if (last) { const g = now - last; gaps.push(g); if (gaps.length > 300) gaps.shift(); if (G.gpuOn) watchGpu(g);
-      if (g > (GPU_FORCE ? 3000 : 100) && G.cur && !G.cur.done && G.m && now > G.cur.tRun && !document.hidden) rebowl(now); }
+      if (g > (GPU_FORCE ? 3000 : 100) && G.cur && !G.cur.done && G.m && now > G.cur.tRun && !document.hidden) { if (G.gpuOn && ++gpuStalls >= 2) slowGpu(); rebowl(now); } }
     last = now;
     if (gaps.length && (gaps.length % 30 === 0 || !G.stats.p50)) { const s = [...gaps].sort((a, b) => a - b);
       G.stats.p50 = +s[Math.floor(s.length * 0.5)].toFixed(1); G.stats.p95 = +s[Math.floor(s.length * 0.95)].toFixed(1); G.stats.max = +s[s.length - 1].toFixed(1); }
