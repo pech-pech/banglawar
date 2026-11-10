@@ -1,0 +1,6 @@
+perfect 60ms  idle     sd0: win 0.0%  avg runs 0.0  (400 seeds)
+perfect 60ms  naive    sd90: win 24.5%  avg runs 13.6  (400 seeds)
+perfect 60ms  rote     sd55: win 74.5%  avg runs 19.3  (400 seeds)
+perfect 60ms  skilled  sd55: win 83.0%  avg runs 20.6  (400 seeds)
+perfect 60ms  skilled  sd40: win 95.5%  avg runs 21.3  (400 seeds)
+perfect 60ms  skilled  sd70: win 64.3%  avg runs 18.9  (400 seeds)
