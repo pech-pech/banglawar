@@ -69,7 +69,7 @@ html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font-family
     <p>Prototype 1: one 12-ball chase against the Cone Kid. Pick an intent, then tap a sector of the Shot Pad when the ball reaches the ring. Where you tap = direction. When you tap = timing.</p>
     <p>Swing balls bend away from the stumps, so you can leave them. A straight ball you miss hits the stumps.</p>
     <p><b>Out rules:</b> an Edge into a fielder is caught. A Good Drive or Slog into a fielder is caught. An Edge into Loft is always caught. Perfect beats a fielder (max 2 runs on the ground). The field changes every 4 balls.</p>
-    <div class="row"><button class="btn" id="bCal">Calibrate (8 taps)</button><button class="btn alt" id="bPlay">Play now</button></div>
+    <div class="row"><button class="btn alt" id="bCal" style="display:none">Calibrate</button><button class="btn" id="bPlay">Play</button></div>
     <div class="row"><button class="btn alt" id="bWin">Perfect window: 60 ms</button><button class="btn alt" id="bAssist">Assist: off</button></div>
     <p id="calInfo"></p>
   </div>
@@ -84,7 +84,7 @@ html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font-family
     <h1 id="endTitle">Won!</h1>
     <p id="endSub"></p>
     <div class="stats" id="endStats"></div>
-    <div class="row"><button class="btn" id="bAgain">Play again</button><button class="btn alt" id="bCopy">Copy tap log</button><button class="btn alt" id="bRecal">Recalibrate</button></div>
+    <div class="row"><button class="btn" id="bAgain">Play again</button><button class="btn alt" id="bCopy">Copy tap log</button><button class="btn alt" id="bRecal" style="display:none">Recalibrate</button></div>
   </div>
 </div>
 
@@ -243,10 +243,10 @@ if (typeof module !== 'undefined') module.exports = LOL;
   function settle() {
     cur.done = true;
     const raw = cur.tap ? cur.tap.t - cur.tArr : null;
-    const off = raw == null ? null : raw - (calib ? calib.mean : 0);
+    const corr = liveCorr(), off = raw == null ? null : raw - corr;
     const res = LOL.step(m, { intent, sector: cur.tap ? cur.tap.sector : null, offsetMs: off }, { perfectMs, assist });
     const last = m.log[m.log.length - 1]; last.rawMs = raw == null ? null : Math.round(raw); last.offMs = off == null ? null : Math.round(off);
-    allLog.push({ t: Date.now(), d: cur.d, intent, sector: last.sector, rawMs: last.rawMs, offMs: last.offMs, grade: res.grade, perfectMs, calib: calib ? calib.mean : 0 });
+    allLog.push({ t: Date.now(), d: cur.d, intent, sector: last.sector, rawMs: last.rawMs, offMs: last.offMs, grade: res.grade, perfectMs, corr });
     if (allLog.length > 500) allLog = allLog.slice(-500);
     store.set('log', allLog);
     const col = res.out ? 'var(--bad)' : res.grade === 'perfect' ? 'var(--acc)' : res.grade === 'good' ? 'var(--good)' : res.grade === 'edge' ? 'var(--edge)' : '#ddd';
@@ -335,7 +335,7 @@ if (typeof module !== 'undefined') module.exports = LOL;
       'This match: Perfect ' + g('perfect') + ' · Good ' + g('good') + ' · Edge ' + g('edge') + ' · Miss ' + g('miss') + ' · Leave ' + g('leave') + '<br>' +
       (s ? 'Tap error this match: avg ' + s.mean + ' ms, spread ±' + s.sd + ' ms<br>Within 40 ms: ' + s.in40 + '% · within 60 ms: ' + s.in60 + '%<br>' : '') +
       (sAll ? 'All taps so far (' + sAll.n + '): spread ±' + sAll.sd + ' ms · within 40: ' + sAll.in40 + '% · within 60: ' + sAll.in60 + '%<br>' : '') +
-      'Perfect window ' + perfectMs + ' ms' + (assist ? ' + Assist 20' : '') + (calib ? ' · calibration ' + calib.mean + ' ms' : ' · not calibrated');
+      'Perfect window ' + perfectMs + ' ms' + (assist ? ' + Assist 20' : '') + ' · timing correction ' + liveCorr() + ' ms (learned from your last 10 balls)';
     $('ovEnd').classList.remove('hide');
   }
 
@@ -373,8 +373,13 @@ if (typeof module !== 'undefined') module.exports = LOL;
     }
     $('ovCal').classList.add('hide'); $('ovStart').classList.remove('hide'); calInfo();
   }
+  // Timing correction learned from real play: median raw offset of the last 10 hit balls (needs 3+).
+  function liveCorr() {
+    const xs = allLog.filter(e => e.rawMs != null && Math.abs(e.rawMs) < 250).slice(-10).map(e => e.rawMs).sort((a, b) => a - b);
+    return xs.length < 3 ? 0 : Math.round(xs[Math.floor(xs.length / 2)]);
+  }
   function calInfo() {
-    $('calInfo').textContent = calib ? 'Calibrated: your taps land ' + Math.abs(calib.mean) + ' ms ' + (calib.mean >= 0 ? 'late' : 'early') + ' (now corrected), spread ±' + calib.sd + ' ms over ' + calib.n + ' taps.' : 'Not calibrated yet.';
+    { const c = liveCorr(); $('calInfo').textContent = 'Timing correction learns from your last 10 balls: ' + (c ? Math.abs(c) + ' ms ' + (c > 0 ? 'late' : 'early') + ' right now.' : 'none yet (needs 3 balls).'); }
     $('bWin').textContent = 'Perfect window: ' + perfectMs + ' ms (Rotate)'; labels(); setIntent(intent); $('bAssist').textContent = 'Assist: ' + (assist ? 'on (+20 ms)' : 'off');
   }
   calInfo();
@@ -387,10 +392,10 @@ if (typeof module !== 'undefined') module.exports = LOL;
   $('bWin').onclick = () => { perfectMs = perfectMs === 60 ? 40 : 60; store.set('perfectMs', perfectMs); calInfo(); };
   $('bAssist').onclick = () => { assist = !assist; store.set('assist', assist); calInfo(); };
   $('bCopy').onclick = () => {
-    const txt = JSON.stringify({ calib, perfectMs, assist, taps: allLog });
+    const txt = JSON.stringify({ corr: liveCorr(), perfectMs, assist, taps: allLog });
     (navigator.clipboard ? navigator.clipboard.writeText(txt) : Promise.reject()).then(() => { $('bCopy').textContent = 'Copied'; }, () => { prompt('Copy this log', txt); });
   };
-  window.__lol = { get match() { return m; }, get cur() { return cur; }, get calib() { return calib; }, get perfectMs() { return perfectMs; }, LOL };
+  window.__lol = { get match() { return m; }, get cur() { return cur; }, get corr() { return liveCorr(); }, get perfectMs() { return perfectMs; }, LOL };
 })();
 </script>
 <script>if('serviceWorker' in navigator&&isSecureContext)addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(e=>console.warn('sw',e)));try{screen.orientation&&screen.orientation.lock&&matchMedia('(display-mode: fullscreen)').matches&&screen.orientation.lock('portrait').catch(()=>{});}catch(_){}</script>
