@@ -18,7 +18,7 @@ html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font-family
 <body>
 <div id="stage">
   <div id="hud"></div>
-  <div id="view"><canvas id="cv"></canvas></div>
+  <div id="view"><canvas id="gv"></canvas><canvas id="cv"></canvas></div>
   <div id="res"></div>
   <div id="intent"></div>
   <div id="pad"><canvas id="pc"></canvas></div>
@@ -110,6 +110,8 @@ if (typeof module !== 'undefined') module.exports = LOL;
 <script src="parts/ui.js"></script>
 <script src="parts/field.js"></script>
 <script src="parts/pad.js"></script>
+<script src="parts/gpu.js"></script>
+<script src="parts/gpufx.js"></script>
 <script>
 // ---------- shell: state, timing, loop (integrator) ----------
 (() => {
@@ -142,7 +144,7 @@ if (typeof module !== 'undefined') module.exports = LOL;
   };
 
   // ---------- layout: portrait stage, ratio kept, sharp canvases ----------
-  const stage = $('stage'), cv = $('cv'), pc = $('pc'), cx = cv.getContext('2d'), px = pc.getContext('2d');
+  const stage = $('stage'), gv = $('gv'), cv = $('cv'), pc = $('pc'), cx = cv.getContext('2d'), px = pc.getContext('2d');
   let dpr = 1;
   function fit() {
     const vw = innerWidth, vh = innerHeight;
@@ -151,7 +153,8 @@ if (typeof module !== 'undefined') module.exports = LOL;
     if (w / h < 0.42) h = Math.round(w / 0.42);
     stage.style.width = w + 'px'; stage.style.height = h + 'px';
     dpr = Math.min(3, devicePixelRatio || 1);
-    for (const c of [cv, pc]) { const r = c.getBoundingClientRect(); c.width = Math.round(r.width * dpr); c.height = Math.round(r.height * dpr); }
+    for (const c of [gv, cv, pc]) { const r = c.getBoundingClientRect(); c.width = Math.round(r.width * dpr); c.height = Math.round(r.height * dpr); }
+    if (P.gpu && P.gpu.ready) P.gpu.resize(gv.width, gv.height, dpr);
   }
   addEventListener('resize', fit);
 
@@ -229,21 +232,46 @@ if (typeof module !== 'undefined') module.exports = LOL;
   // Pacing + tap readout, a thin strip at the very bottom of the pad (kept off the field).
   function drawReadout(ctx, W, H) {
     const st = G.stats, f1 = v => (v == null || isNaN(v)) ? '-' : (+v).toFixed(1);
-    let t = 'Canvas 2D \u00b7 frame p50 ' + f1(st.p50) + ' p95 ' + f1(st.p95) + ' max ' + (st.max ? Math.round(st.max) : '-') +
+    let t = renderer() + ' \u00b7 frame p50 ' + f1(st.p50) + ' p95 ' + f1(st.p95) + ' max ' + (st.max ? Math.round(st.max) : '-') +
       ' \u00b7 taps ' + (st.n ? Math.round(st.tapMean) + '\u00b1' + Math.round(st.tapSd) + ' (' + st.n + ')' : '-');
     ctx.font = '500 11px system-ui,sans-serif';
-    if (ctx.measureText(t).width > W - 16) t = t.replace('Canvas 2D \u00b7 ', '').replace('frame ', '');
+    if (ctx.measureText(t).width > W - 16) t = t.replace(renderer() + ' \u00b7 ', renderer() === 'WebGPU' ? 'GPU \u00b7 ' : '').replace('frame ', '');
     const w = Math.ceil(ctx.measureText(t).width + 12);
     ctx.fillStyle = 'rgba(0,0,0,.72)'; ctx.beginPath(); ctx.roundRect ? ctx.roundRect((W - w) / 2, H - 17, w, 15, 5) : ctx.rect((W - w) / 2, H - 17, w, 15); ctx.fill();
     ctx.fillStyle = '#c2cfc3'; ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic'; ctx.fillText(t, W / 2, H - 6);
+  }
+
+  // ---------- WebGPU painter (M's pick 2026-11-10): backdrop + glow under the 2D layer; Canvas 2D stays the fallback ----------
+  G.gpuOn = false;
+  function renderer() { return G.gpuOn && P.gpu && P.gpu.ready ? 'WebGPU' : (G.gpuNote ? 'Canvas 2D (' + G.gpuNote + ')' : 'Canvas 2D'); }
+  // Safety net: if the GPU can't hold ~30 fps in its first 2 s, drop to Canvas 2D (a slow frame would stall the ball).
+  // ?gpu=force keeps it on anyway (headless tests use a software GPU).
+  let gpuWatch = null; const GPU_FORCE = Q.get('gpu') === 'force';
+  function watchGpu(gap) {
+    if (!gpuWatch || GPU_FORCE) return;
+    if (++gpuWatch.n <= 10) return;
+    if (gap > 34) gpuWatch.slow++;
+    if (gpuWatch.slow > 12) { gpuWatch = null; gpuOff('slow frames'); G.gpuNote = 'GPU slow'; return; }
+    if (gpuWatch.n > 130) gpuWatch = null;
+  }
+  function gpuOff(why) { G.gpuOn = false; gv.style.display = 'none'; if (why) console.warn('WebGPU off:', why); }
+  function startGpu() {
+    gv.style.display = 'none';
+    if (!P.gpu || Q.get('gpu') === '0' || !navigator.gpu) return;
+    if (P._gpuLayers) { P._gpuLayers.forEach(l => P.gpu.layers.push(l)); P._gpuLayers = null; }
+    P.gpu.onLost(gpuOff);
+    P.gpu.init(gv, G).then(ok => {
+      if (!ok) return;
+      gv.style.display = ''; P.gpu.resize(gv.width, gv.height, dpr); G.gpuOn = true; gpuWatch = { n: 0, slow: 0 };
+    }).catch(e => gpuOff(e && e.message));
   }
 
   // ---------- frame loop ----------
   const gaps = []; let last = 0;
   function frame(now) {
     G.now = now;
-    if (last) { const g = now - last; gaps.push(g); if (gaps.length > 300) gaps.shift();
-      if (g > 100 && G.cur && !G.cur.done && G.m && now > G.cur.tRun && !document.hidden) rebowl(now); }
+    if (last) { const g = now - last; gaps.push(g); if (gaps.length > 300) gaps.shift(); if (G.gpuOn) watchGpu(g);
+      if (g > (GPU_FORCE ? 3000 : 100) && G.cur && !G.cur.done && G.m && now > G.cur.tRun && !document.hidden) rebowl(now); }
     last = now;
     if (gaps.length && (gaps.length % 30 === 0 || !G.stats.p50)) { const s = [...gaps].sort((a, b) => a - b);
       G.stats.p50 = +s[Math.floor(s.length * 0.5)].toFixed(1); G.stats.p95 = +s[Math.floor(s.length * 0.95)].toFixed(1); G.stats.max = +s[s.length - 1].toFixed(1); }
@@ -254,6 +282,7 @@ if (typeof module !== 'undefined') module.exports = LOL;
       if (!c.done && now > c.tArr + 260) settle(now); // no tap = leave
       if (c.done && now > c.tSettle + (c.res.out ? OUTHOLD : HOLD)) { if (m.done) finish(); else nextBall(now + 200); }
     }
+    if (G.gpuOn) P.gpu.draw(G);
     for (const [cnv, ctx, part] of [[cv, cx, P.field], [pc, px, P.pad]]) {
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, cnv.clientWidth, cnv.clientHeight);
       try { part.draw(ctx, G); } catch (e) { if (!part._err) { part._err = 1; console.error(e); } }
@@ -274,7 +303,7 @@ if (typeof module !== 'undefined') module.exports = LOL;
     toggleWindow() { G.perfectMs = G.perfectMs === 60 ? 40 : 60; store.set('perfectMs', G.perfectMs); P.ui.start(G); },
     toggleAssist() { G.assist = !G.assist; store.set('assist', G.assist); P.ui.start(G); },
     copyLog() {
-      const txt = JSON.stringify({ v: 2, corr: liveCorr(), perfectMs: G.perfectMs, assist: G.assist, frame: { p50: G.stats.p50, p95: G.stats.p95, max: G.stats.max }, taps: log });
+      const txt = JSON.stringify({ v: 3, renderer: renderer(), corr: liveCorr(), perfectMs: G.perfectMs, assist: G.assist, frame: { p50: G.stats.p50, p95: G.stats.p95, max: G.stats.max }, taps: log });
       return (navigator.clipboard ? navigator.clipboard.writeText(txt) : Promise.reject()).catch(() => { prompt('Copy this log', txt); });
     },
   };
@@ -282,7 +311,8 @@ if (typeof module !== 'undefined') module.exports = LOL;
   fit();
   P.ui.start(G);
   requestAnimationFrame(frame);
-  window.__lol = { G, get match() { return G.m; }, get cur() { return G.cur; }, get corr() { return liveCorr(); }, onTap, LOL };
+  startGpu();
+  window.__lol = { G, get renderer() { return renderer(); }, gpuReadback: () => (G.gpuOn ? P.gpu.readback() : Promise.resolve(null)), get match() { return G.m; }, get cur() { return G.cur; }, get corr() { return liveCorr(); }, onTap, LOL };
 })();
 </script>
 </body></html>

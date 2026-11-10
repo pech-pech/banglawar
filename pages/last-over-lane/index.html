@@ -23,7 +23,7 @@ html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font-family
 <body>
 <div id="stage">
   <div id="hud"></div>
-  <div id="view"><canvas id="cv"></canvas></div>
+  <div id="view"><canvas id="gv"></canvas><canvas id="cv"></canvas></div>
   <div id="res"></div>
   <div id="intent"></div>
   <div id="pad"><canvas id="pc"></canvas></div>
@@ -547,7 +547,9 @@ if (typeof module !== 'undefined') module.exports = LOL;
 
     ctx.save();
     ctx.textBaseline = 'alphabetic'; ctx.setLineDash([]); ctx.globalAlpha = 1; ctx.lineCap = 'butt';
-    // background + mowing stripes
+    // background + mowing stripes (skipped when the WebGPU layer underneath paints the backdrop)
+    var stumpTop = batY + 6, stumpBot = batY + 32;
+    if (!G.gpuOn) {
     ctx.fillStyle = '#1e3a24'; ctx.fillRect(0, 0, W, H);
     ctx.fillStyle = 'rgba(255,255,255,.025)';
     for (var sy = 0; sy < H; sy += H / 4.9) { if (((sy / (H / 4.9)) | 0) % 2 === 1) ctx.fillRect(0, sy, W, H / 4.9); }
@@ -557,8 +559,8 @@ if (typeof module !== 'undefined') module.exports = LOL;
     ctx.fillStyle = '#c9b48a'; ctx.beginPath();
     ctx.moveTo(cx - geo.laneTopW / 2, topY); ctx.lineTo(cx + geo.laneTopW / 2, topY); ctx.lineTo(cx + geo.laneBotW / 2, H); ctx.lineTo(cx - geo.laneBotW / 2, H); ctx.fill();
     // popping crease
-    var stumpTop = batY + 6, stumpBot = batY + 32;
     ctx.strokeStyle = 'rgba(255,255,255,.55)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(cx - 70, stumpBot + 4); ctx.lineTo(cx + 70, stumpBot + 4); ctx.stroke();
+    }
 
     // ball timing
     var hasCur = !!(cur && cur.tRel != null), span = hasCur ? (cur.tArr - cur.tRel) : 1;
@@ -931,6 +933,497 @@ if (typeof module !== 'undefined') module.exports = LOL;
 
 </script>
 <script>
+(function () {
+  window.LOLParts = window.LOLParts || {};
+
+  var WGSL = [
+    'struct U { W: f32, H: f32, dpr: f32, time: f32, reduced: f32, topY: f32, batY: f32, cx: f32, laneTopW: f32, laneBotW: f32, p0: f32, p1: f32 };',
+    '@group(0) @binding(0) var<uniform> u: U;',
+    '',
+    'struct VO { @builtin(position) pos: vec4<f32> };',
+    '@vertex fn vs(@builtin(vertex_index) i: u32) -> VO {',
+    '  var q = array<vec2<f32>, 3>(vec2<f32>(-1.0, -1.0), vec2<f32>(3.0, -1.0), vec2<f32>(-1.0, 3.0));',
+    '  var o: VO; o.pos = vec4<f32>(q[i], 0.0, 1.0); return o;',
+    '}',
+    '',
+    'fn hash(p: vec2<f32>) -> f32 {',
+    '  var q = fract(p * vec2<f32>(0.1031, 0.1030));',
+    '  q = q + dot(q, q.yx + 33.33);',
+    '  return fract((q.x + q.y) * q.x);',
+    '}',
+    'fn vnoise(p: vec2<f32>) -> f32 {',
+    '  let i = floor(p); let f = fract(p);',
+    '  let s = f * f * (3.0 - 2.0 * f);',
+    '  let a = hash(i); let b = hash(i + vec2<f32>(1.0, 0.0));',
+    '  let c = hash(i + vec2<f32>(0.0, 1.0)); let d = hash(i + vec2<f32>(1.0, 1.0));',
+    '  return mix(mix(a, b, s.x), mix(c, d, s.x), s.y);',
+    '}',
+    '',
+    '@fragment fn fs(@builtin(position) fc: vec4<f32>) -> @location(0) vec4<f32> {',
+    '  let px = 1.0 / u.dpr;',
+    '  let p = fc.xy / u.dpr;',
+    '  let W = u.W; let H = u.H; let x = p.x; let y = p.y;',
+    '  let wallW = W * 0.05;',
+    '  let wallTop = u.topY - 10.0;',
+    '',
+    '  // ---- grass: base + mowing bands + blade noise ----',
+    '  var col = vec3<f32>(30.0, 58.0, 36.0) / 255.0;',
+    '  let bandH = H / 4.9;',
+    '  let band = floor(y / bandH);',
+    '  if (band - 2.0 * floor(band * 0.5) > 0.5) { col = mix(col, vec3<f32>(1.0), 0.025); }',
+    '  let gn = vnoise(vec2<f32>(x * 0.9, y * 0.22)) * 0.6 + vnoise(vec2<f32>(x * 2.7 + 11.0, y * 0.7)) * 0.4;',
+    '  col = col * (1.0 + (gn - 0.5) * 0.10);',
+    '  // floodlight pool at the crease',
+    '  let cy = u.batY + 36.0;',
+    '  let lr = length((p - vec2<f32>(u.cx, cy)) / vec2<f32>(W * 0.75, H * 0.42));',
+    '  let pool = 1.0 - smoothstep(0.0, 1.0, lr);',
+    '  col = col * (1.0 + 0.11 * pool);',
+    '',
+    '  // ---- lane ----',
+    '  let t = clamp((y - u.topY) / (H - u.topY), 0.0, 1.0);',
+    '  let halfW = mix(u.laneTopW, u.laneBotW, t) * 0.5;',
+    '  let dx = x - u.cx;',
+    '  let dSide = abs(dx) - halfW;',
+    '  let dTop = u.topY - y;',
+    '  let dLane = max(dSide, dTop);',
+    '  let laneCov = 1.0 - smoothstep(-0.5 * px, 0.5 * px, dLane);',
+    '  // soft AO of the lane on the grass just outside it',
+    '  let aoLane = (1.0 - smoothstep(0.0, 5.0, max(dLane, 0.0))) * (1.0 - laneCov) * 0.14;',
+    '  col = col * (1.0 - aoLane);',
+    '  var lane = vec3<f32>(201.0, 180.0, 138.0) / 255.0;',
+    '  let ln = vnoise(vec2<f32>(x * 1.7, y * 1.1)) * 0.5 + vnoise(vec2<f32>(x * 5.3 + 3.0, y * 3.1)) * 0.5;',
+    '  lane = lane * (1.0 + (ln - 0.5) * 0.09);',
+    '  // lighter centre strip',
+    '  let hw = max(halfW, 1.0);',
+    '  lane = lane * (1.0 + 0.035 * exp(-pow(dx / (hw * 0.3), 2.0)));',
+    '  // wear: bowler end and around the crease',
+    '  let wn = vnoise(vec2<f32>(x * 0.35 + 7.0, y * 0.35));',
+    '  let wearTop = (1.0 - smoothstep(u.topY, u.topY + 40.0, y)) * (0.45 + 0.55 * wn);',
+    '  let wearBat = exp(-pow((y - (u.batY + 22.0)) / 30.0, 2.0)) * exp(-pow(dx / (hw * 0.55), 2.0)) * (0.4 + 0.6 * wn);',
+    '  lane = lane * (1.0 - 0.13 * clamp(wearTop + wearBat, 0.0, 1.0));',
+    '  // soft darker edges (2-3 px)',
+    '  let edge = 1.0 - smoothstep(0.0, 3.0, -dLane);',
+    '  lane = lane * (1.0 - 0.10 * edge);',
+    '  lane = lane * (1.0 + 0.09 * pool * 0.5);',
+    '  col = mix(col, lane, laneCov);',
+    '',
+    '  // ---- gully walls ----',
+    '  let inWallY = step(wallTop, y);',
+    '  let distToInner = select(x - (W - wallW), wallW - x, x < W * 0.5);',
+    '  // AO on grass / lane next to the walls',
+    '  let outside = max(-distToInner, 0.0);',
+    '  let aoWall = exp(-outside / 5.0) * 0.20 * step(distToInner, 0.0) * inWallY;',
+    '  col = col * (1.0 - aoWall);',
+    '  if (distToInner >= -0.0 && inWallY > 0.5) {',
+    '    var wc = vec3<f32>(58.0) / 255.0;',
+    '    let vg = 1.0 + 0.07 * (1.0 - clamp((y - wallTop) / (H - wallTop), 0.0, 1.0)) - 0.04;',
+    '    wc = wc * vg;',
+    '    let wnn = vnoise(vec2<f32>(x * 0.8, y * 0.5));',
+    '    wc = wc * (1.0 + (wnn - 0.5) * 0.06);',
+    '    // bevel: lighter inner edge (2 px), darker outer edge (2 px)',
+    '    let lightE = 1.0 - smoothstep(1.5, 2.5, distToInner);',
+    '    let outerD = select(W - x, x, x < W * 0.5);',
+    '    let darkE = 1.0 - smoothstep(1.5, 2.5, outerD);',
+    '    wc = wc * (1.0 + 0.28 * lightE - 0.30 * darkE);',
+    '    // top cap of the wall',
+    '    let capE = 1.0 - smoothstep(1.0, 2.0, y - wallTop);',
+    '    wc = wc * (1.0 + 0.18 * capE);',
+    '    col = wc;',
+    '  }',
+    '',
+    '  // ---- popping crease (anti-aliased) ----',
+    '  let cdy = (1.0 - abs(y - cy)) / px + 0.5;',
+    '  let cdx = (70.0 - abs(dx)) / px + 0.5;',
+    '  let cov = clamp(cdy, 0.0, 1.0) * clamp(cdx, 0.0, 1.0) * 0.55;',
+    '  col = mix(col, vec3<f32>(1.0), cov);',
+    '',
+    '  // ---- top-corner vignette, slow shimmer ----',
+    '  let ax = clamp(abs(x - W * 0.5) / (W * 0.5), 0.0, 1.0);',
+    '  let vig = 0.18 * ax * ax * (1.0 - smoothstep(0.0, H * 0.42, y));',
+    '  col = col * (1.0 - vig);',
+    '  let sh = (1.0 - u.reduced) * 0.015 * sin(u.time * 0.0006 + x * 0.01 + y * 0.004);',
+    '  col = col * (1.0 + sh);',
+    '  return vec4<f32>(clamp(col, vec3<f32>(0.0), vec3<f32>(1.0)), 1.0);',
+    '}'
+  ].join('\n');
+
+  var CLEAR = { r: 30 / 255, g: 58 / 255, b: 36 / 255, a: 1 };
+  var S = {
+    ready: false, name: 'Canvas 2D', canvas: null, G: null, dev: null, gctx: null, fmt: 'bgra8unorm',
+    pipe: null, ubuf: null, bind: null, uarr: new Float32Array(12), lost: [], warned: false,
+    ctx: { dev: null, fmt: 'bgra8unorm', W: 0, H: 0, dpr: 1, time: 0 }, layers: []
+  };
+
+  function logOnce(m) { if (!S.warned) { S.warned = true; try { console.error('[gpu] ' + m); } catch (e) {} } }
+
+  function size() {
+    var c = S.canvas, W = c.clientWidth, H = c.clientHeight;
+    var dpr = W > 0 ? c.width / W : 1;
+    return { W: W, H: H, dpr: dpr };
+  }
+
+  function writeUniforms(G, sz) {
+    var g = G.geom(sz.W, sz.H), a = S.uarr;
+    a[0] = sz.W; a[1] = sz.H; a[2] = sz.dpr; a[3] = G.now || 0; a[4] = G.reduced ? 1 : 0;
+    a[5] = g.topY; a[6] = g.batY; a[7] = g.cx; a[8] = g.laneTopW; a[9] = g.laneBotW; a[10] = 0; a[11] = 0;
+    S.dev.queue.writeBuffer(S.ubuf, 0, a);
+    var c = S.ctx; c.W = sz.W; c.H = sz.H; c.dpr = sz.dpr; c.time = G.now || 0;
+  }
+
+  function setupLayers() {
+    var arr = api.layers, ps = [];
+    arr.forEach(function (l) {
+      if (l._lolState) return;
+      l._lolState = 'pending';
+      var done = function () { l._lolState = 'ok'; };
+      var drop = function (e) {
+        l._lolState = 'bad'; logOnce('layer ' + (l.name || '?') + ' dropped: ' + (e && e.message || e));
+        var i = arr.indexOf(l); if (i >= 0) arr.splice(i, 1);
+      };
+      try {
+        var r = l.setup && l.setup(S.ctx);
+        if (r && typeof r.then === 'function') ps.push(r.then(done, drop)); else done();
+      } catch (e) { drop(e); }
+    });
+    return Promise.all(ps);
+  }
+
+  function encodeFrame(pass, G) {
+    pass.setPipeline(S.pipe); pass.setBindGroup(0, S.bind); pass.draw(3);
+    var arr = api.layers.slice();
+    for (var i = 0; i < arr.length; i++) {
+      var l = arr[i];
+      if (l._lolState !== 'ok') continue;
+      try { l.encode(pass, S.ctx, G); }
+      catch (e) {
+        l._lolState = 'bad'; logOnce('layer ' + (l.name || '?') + ' encode failed: ' + (e && e.message || e));
+        var k = api.layers.indexOf(l); if (k >= 0) api.layers.splice(k, 1);
+      }
+    }
+  }
+
+  function fail() {
+    S.ready = false; S.name = 'Canvas 2D';
+  }
+
+  var api = {
+    layers: [],
+    init: function (canvas, G) {
+      try {
+        if (!navigator.gpu) return Promise.resolve(false);
+        if (/[?&]gpu=0(&|$)/.test(location.search)) return Promise.resolve(false);
+        S.canvas = canvas; S.G = G;
+        return navigator.gpu.requestAdapter().then(function (ad) {
+          if (!ad) throw new Error('no adapter');
+          return ad.requestDevice().then(function (dev) {
+            S.dev = dev; window.__lolGpuKeep = [ad, dev, navigator.gpu];
+            var gctx = canvas.getContext('webgpu');
+            if (!gctx) throw new Error('no webgpu context');
+            S.gctx = gctx;
+            S.fmt = navigator.gpu.getPreferredCanvasFormat();
+            gctx.configure({ device: dev, format: S.fmt, alphaMode: 'opaque', usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.COPY_SRC });
+            dev.lost.then(function (info) {
+              var was = S.ready; fail();
+              var reason = (info && (info.reason || info.message)) || 'lost';
+              S.lost.slice().forEach(function (fn) { try { fn(reason); } catch (e) {} });
+              if (!was) return;
+            });
+            dev.addEventListener('uncapturederror', function (e) { logOnce('uncaptured: ' + (e.error && e.error.message)); });
+            var mod = dev.createShaderModule({ code: WGSL });
+            return mod.getCompilationInfo().then(function (ci) {
+              var er = ci.messages.filter(function (m) { return m.type === 'error'; });
+              if (er.length) throw new Error('WGSL: ' + er.map(function (m) { return m.lineNum + ':' + m.message; }).join(' | '));
+              S.ubuf = dev.createBuffer({ size: 48, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST });
+              var bgl = dev.createBindGroupLayout({ entries: [{ binding: 0, visibility: GPUShaderStage.FRAGMENT, buffer: { type: 'uniform' } }] });
+              S.bind = dev.createBindGroup({ layout: bgl, entries: [{ binding: 0, resource: { buffer: S.ubuf } }] });
+              S.pipe = dev.createRenderPipeline({
+                layout: dev.createPipelineLayout({ bindGroupLayouts: [bgl] }),
+                vertex: { module: mod, entryPoint: 'vs' },
+                fragment: { module: mod, entryPoint: 'fs', targets: [{ format: S.fmt }] },
+                primitive: { topology: 'triangle-list' }
+              });
+              var sz = size();
+              S.ctx.dev = dev; S.ctx.fmt = S.fmt; S.ctx.W = sz.W; S.ctx.H = sz.H; S.ctx.dpr = sz.dpr; S.ctx.time = G.now || 0;
+              return setupLayers();
+            });
+          });
+        }).then(function () {
+          S.ready = true; S.name = 'WebGPU'; return true;
+        }).catch(function (e) {
+          logOnce('init failed: ' + (e && e.message || e)); fail(); return false;
+        });
+      } catch (e) { fail(); return Promise.resolve(false); }
+    },
+
+    resize: function (pxW, pxH, dpr) {
+      // canvas.width/height are set by the shell; the swapchain follows the canvas size. Nothing else to rebuild.
+    },
+
+    draw: function (G) {
+      if (!S.ready) return;
+      try {
+        S.G = G;
+        var sz = size(); if (!(sz.W > 0 && sz.H > 0)) return;
+        writeUniforms(G, sz);
+        if (api.layers.some(function (l) { return !l._lolState; })) setupLayers();
+        var enc = S.dev.createCommandEncoder();
+        var pass = enc.beginRenderPass({ colorAttachments: [{ view: S.gctx.getCurrentTexture().createView(), clearValue: CLEAR, loadOp: 'clear', storeOp: 'store' }] });
+        encodeFrame(pass, G);
+        pass.end();
+        S.dev.queue.submit([enc.finish()]);
+      } catch (e) { logOnce('draw failed: ' + (e && e.message || e)); }
+    },
+
+    onLost: function (fn) { if (typeof fn === 'function') S.lost.push(fn); },
+
+    readback: function () {
+      try {
+        if (!S.ready) return Promise.resolve({ w: 0, h: 0, nonBg: 0, samples: [], error: 'not ready' });
+        var G = S.G, dev = S.dev, sz = size();
+        var w = S.canvas.width, h = S.canvas.height;
+        writeUniforms(G, sz);
+        var tex = dev.createTexture({ size: [w, h], format: S.fmt, usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.COPY_SRC });
+        var bpr = Math.ceil(w * 4 / 256) * 256;
+        var buf = dev.createBuffer({ size: bpr * h, usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ });
+        var enc = dev.createCommandEncoder();
+        var pass = enc.beginRenderPass({ colorAttachments: [{ view: tex.createView(), clearValue: CLEAR, loadOp: 'clear', storeOp: 'store' }] });
+        encodeFrame(pass, G);
+        pass.end();
+        enc.copyTextureToBuffer({ texture: tex }, { buffer: buf, bytesPerRow: bpr }, [w, h]);
+        dev.queue.submit([enc.finish()]);
+        var bgra = /^bgra/.test(S.fmt);
+        return dev.queue.onSubmittedWorkDone().then(function () { return buf.mapAsync(GPUMapMode.READ); }).then(function () {
+          var d = new Uint8Array(buf.getMappedRange()), n = 0, x, y, o;
+          for (y = 0; y < h; y++) {
+            o = y * bpr;
+            for (x = 0; x < w; x++, o += 4) {
+              var r = bgra ? d[o + 2] : d[o], b = bgra ? d[o] : d[o + 2];
+              if (Math.abs(r - 30) > 8 || Math.abs(d[o + 1] - 58) > 8 || Math.abs(b - 36) > 8) n++;
+            }
+          }
+          var g = G.geom(sz.W, sz.H), dpr = sz.dpr;
+          var pts = [[g.cx, sz.H * 0.5], [sz.W * 0.15, sz.H * 0.5], [sz.W * 0.025, sz.H * 0.6], [g.cx, g.batY + 36], [g.cx, sz.H * 0.03]];
+          var samples = pts.map(function (q) {
+            var sx = Math.min(w - 1, Math.max(0, Math.round(q[0] * dpr))), sy = Math.min(h - 1, Math.max(0, Math.round(q[1] * dpr)));
+            var k = sy * bpr + sx * 4;
+            return bgra ? [d[k + 2], d[k + 1], d[k], d[k + 3]] : [d[k], d[k + 1], d[k + 2], d[k + 3]];
+          });
+          buf.unmap(); buf.destroy(); tex.destroy();
+          return { w: w, h: h, nonBg: n, samples: samples };
+        }).catch(function (e) { return { w: w, h: h, nonBg: 0, samples: [], error: String(e && e.message || e) }; });
+      } catch (e) { return Promise.resolve({ w: 0, h: 0, nonBg: 0, samples: [], error: String(e && e.message || e) }); }
+    }
+  };
+
+  Object.defineProperty(api, 'name', { get: function () { return S.name; }, enumerable: true });
+  Object.defineProperty(api, 'ready', { get: function () { return S.ready; }, enumerable: true });
+  window.LOLParts.gpu = api;
+})();
+
+</script>
+<script>
+/* gpufx.js - Last Over Lane WebGPU effects layer: ball glow, ball trail, hit bursts.
+   Loaded AFTER gpu.js. Stateless: everything is derived from G + G.now each frame. */
+(function () {
+  var L = window.LOLParts = window.LOLParts || {};
+
+  var WGSL = [
+    'struct U {',
+    '  a : vec4f,',            // W, H, dpr, now
+    '  b : vec4f,',            // t0, originX, originY, kind (0 spark, 1 dust)
+    '  c : vec4f,',            // r, g, b, durMs
+    '  d : vec4f,',            // count, speedScale, sizeScale, peakAlpha
+    '  items : array<vec4f, 12>,', // ball mode: x, y, radius, alpha
+    '};',
+    '@group(0) @binding(0) var<uniform> u : U;',
+    'struct VO { @builtin(position) pos : vec4f, @location(0) uv : vec2f, @location(1) col : vec4f };',
+    'fn hash(n : u32) -> u32 {',
+    '  var x = n * 747796405u + 2891336453u;',
+    '  x = ((x >> ((x >> 28u) + 4u)) ^ x) * 277803737u;',
+    '  return (x >> 22u) ^ x;',
+    '}',
+    'fn h01(n : u32, salt : u32) -> f32 { return f32(hash(n * 7919u + salt * 104729u) & 65535u) / 65535.0; }',
+    'fn corner(vi : u32) -> vec2f {',
+    '  var c = array<vec2f, 6>(vec2f(-1.0,-1.0), vec2f(1.0,-1.0), vec2f(-1.0,1.0), vec2f(-1.0,1.0), vec2f(1.0,-1.0), vec2f(1.0,1.0));',
+    '  return c[vi];',
+    '}',
+    'fn toClip(px : vec2f) -> vec4f {',
+    '  let w = u.a.xy;',
+    '  let q = px / w * 2.0 - vec2f(1.0, 1.0);',
+    '  return vec4f(q.x, -q.y, 0.0, 1.0);',
+    '}',
+    '@vertex fn vsBall(@builtin(vertex_index) vi : u32, @builtin(instance_index) ii : u32) -> VO {',
+    '  let it = u.items[ii];',
+    '  let cn = corner(vi);',
+    '  var o : VO;',
+    '  o.pos = toClip(it.xy + cn * it.z);',
+    '  o.uv = cn;',
+    '  o.col = vec4f(u.c.rgb, it.w);',
+    '  return o;',
+    '}',
+    '@vertex fn vsBurst(@builtin(vertex_index) vi : u32, @builtin(instance_index) ii : u32) -> VO {',
+    '  let cn = corner(vi);',
+    '  let t = max(0.0, (u.a.w - u.b.x) / 1000.0);',
+    '  let life = clamp((u.a.w - u.b.x) / u.c.w, 0.0, 1.0);',
+    '  let ang = h01(ii, 1u) * 6.2831853;',
+    '  let spd = mix(0.35, 1.0, h01(ii, 2u)) * u.d.y;',
+    '  let sz = mix(2.0, 3.0, h01(ii, 3u));',
+    '  let tau = select(0.28, 0.45, u.b.w > 0.5);',
+    '  let dist = spd * tau * (1.0 - exp(-t / tau));',
+    '  let ctr = u.b.yz + vec2f(cos(ang), sin(ang)) * dist;',
+    '  var half = sz * 1.5 * u.d.z;',
+    '  var a = u.d.w * pow(1.0 - life, 1.5);',
+    '  if (u.b.w > 0.5) {',
+    '    half = mix(7.0, 16.0, h01(ii, 4u)) * (0.6 + 0.8 * life) * u.d.z;',
+    '    a = u.d.w * (1.0 - life) * (1.0 - life);',
+    '  } else {',
+    '    half = half * (1.0 - 0.5 * life);',
+    '  }',
+    '  var o : VO;',
+    '  o.pos = toClip(ctr + cn * half);',
+    '  o.uv = cn;',
+    '  o.col = vec4f(u.c.rgb, a);',
+    '  return o;',
+    '}',
+    '@fragment fn fs(v : VO) -> @location(0) vec4f {',
+    '  let d = length(v.uv);',
+    '  let f = smoothstep(1.0, 0.0, d);',
+    '  let a = f * f * (3.0 - 2.0 * f) * v.col.a;',
+    '  return vec4f(v.col.rgb * a, a);',   // premultiplied
+    '}'
+  ].join('\n');
+
+  var ADD = {
+    color: { srcFactor: 'one', dstFactor: 'one', operation: 'add' },
+    alpha: { srcFactor: 'one', dstFactor: 'one', operation: 'add' }
+  };
+  var OVER = {
+    color: { srcFactor: 'one', dstFactor: 'one-minus-src-alpha', operation: 'add' },
+    alpha: { srcFactor: 'one', dstFactor: 'one-minus-src-alpha', operation: 'add' }
+  };
+
+  var S = null;       // setup state
+  var dead = false;
+  var ballF = new Float32Array(64);
+  var burstF = new Float32Array(64);
+
+  // colours (sRGB 0..1)
+  var GOLD = [1.0, 0.824, 0.247];     // #ffd23f
+  var WHITE = [0.933, 0.953, 0.910];  // #eef3e8
+  var DUST = [0.541, 0.353, 0.227];   // #8a5a3a
+  var WARM = [1.0, 0.86, 0.45];       // ball halo / trail warm tint
+
+  function fail(e) {
+    if (!dead) { dead = true; try { console.warn('gpufx disabled:', e && e.message ? e.message : e); } catch (_) {} }
+  }
+
+  function setup(ctx) {
+    try {
+      var dev = ctx.dev;
+      var mod = dev.createShaderModule({ code: WGSL });
+      var bgl = dev.createBindGroupLayout({ entries: [{
+        binding: 0, visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT, buffer: { type: 'uniform' } }] });
+      var pl = dev.createPipelineLayout({ bindGroupLayouts: [bgl] });
+      function mk(entry, blend) {
+        return dev.createRenderPipeline({
+          layout: pl,
+          vertex: { module: mod, entryPoint: entry },
+          fragment: { module: mod, entryPoint: 'fs', targets: [{ format: ctx.fmt, blend: blend }] },
+          primitive: { topology: 'triangle-list' }
+        });
+      }
+      var uf = GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST;
+      var bb = dev.createBuffer({ size: 256, usage: uf });
+      var ub = dev.createBuffer({ size: 256, usage: uf });
+      S = {
+        dev: dev,
+        ball: mk('vsBall', ADD),
+        spark: mk('vsBurst', ADD),
+        dust: mk('vsBurst', OVER),
+        bb: bb, ub: ub,
+        bbg: dev.createBindGroup({ layout: bgl, entries: [{ binding: 0, resource: { buffer: bb } }] }),
+        ubg: dev.createBindGroup({ layout: bgl, entries: [{ binding: 0, resource: { buffer: ub } }] })
+      };
+    } catch (e) { fail(e); }
+  }
+
+  function setHead(f, ctx, now) { f[0] = ctx.W; f[1] = ctx.H; f[2] = ctx.dpr; f[3] = now; }
+
+  function encode(pass, ctx, G) {
+    if (dead || !S) return;
+    try {
+      var cur = G && G.cur;
+      if (!cur || cur.tRel == null || cur.tArr == null) return;
+      var now = G.now, W = ctx.W, H = ctx.H, q, i;
+
+      if (!cur.res) {
+        if (now < cur.tRel) return;
+        var tn = now;
+        if (cur.stopUntil && now < cur.stopUntil) {          // hit-stop: hold the ball where it was
+          var th = cur.tSettle != null ? cur.tSettle : cur.tArr;
+          if (th < tn) tn = th;
+        }
+        var span = cur.tArr - cur.tRel;
+        if (!(span > 0)) return;
+        var p = (tn - cur.tRel) / span;
+        if (p < 0 || p > 1.3) return;
+        var f = ballF;
+        setHead(f, ctx, now);
+        f[8] = WARM[0]; f[9] = WARM[1]; f[10] = WARM[2]; f[11] = 1;
+        q = G.path(p, W, H);
+        var n = 1;
+        f[16] = q[0]; f[17] = q[1]; f[18] = 16; f[19] = 0.35;   // items[0] glow
+        if (!G.reduced) {
+          for (i = 1; i <= 10; i++) {
+            var pk = p - i * 0.018;
+            var o = 16 + i * 4;
+            if (pk < 0) { f[o + 3] = 0; continue; }
+            q = G.path(pk, W, H);
+            f[o] = q[0]; f[o + 1] = q[1];
+            f[o + 2] = 5 - 3 * (i - 1) / 9;
+            f[o + 3] = 0.25 * (11 - i) / 10;
+          }
+          n = 11;
+        }
+        S.dev.queue.writeBuffer(S.bb, 0, f.buffer, 0, 256);
+        pass.setPipeline(S.ball);
+        pass.setBindGroup(0, S.bbg);
+        pass.draw(6, n);
+        return;
+      }
+
+      // burst
+      if (G.reduced) return;
+      var res = cur.res;
+      if (cur.tSettle == null) return;
+      var el = now - cur.tSettle;
+      var col, dur, cnt, spd, sz, pa, dust = 0;
+      if (res.out) { col = DUST; dur = 500; cnt = 24; spd = 240; sz = 1; pa = 0.55; dust = 1; }
+      else if (res.grade === 'perfect') { col = GOLD; dur = 600; cnt = 160; spd = 420; sz = 1; pa = 0.95; }
+      else if (res.grade === 'good') { col = WHITE; dur = 400; cnt = 40; spd = 300; sz = 1; pa = 0.85; }
+      else if (res.grade === 'edge') { col = WHITE; dur = 300; cnt = 12; spd = 200; sz = 0.9; pa = 0.7; }
+      else return;
+      if (el < 0 || el > dur) return;
+      q = G.path(1, W, H);
+      var b = burstF;
+      setHead(b, ctx, now);
+      b[4] = cur.tSettle; b[5] = q[0]; b[6] = q[1]; b[7] = dust;
+      b[8] = col[0]; b[9] = col[1]; b[10] = col[2]; b[11] = dur;
+      b[12] = cnt; b[13] = spd; b[14] = sz; b[15] = pa;
+      S.dev.queue.writeBuffer(S.ub, 0, b.buffer, 0, 256);
+      pass.setPipeline(dust ? S.dust : S.spark);
+      pass.setBindGroup(0, S.ubg);
+      pass.draw(6, cnt);
+    } catch (e) { fail(e); }
+  }
+
+  var layer = { name: 'fx', setup: setup, encode: encode };
+  if (L.gpu && L.gpu.layers) L.gpu.layers.push(layer);
+  else { L._gpuLayers = (L._gpuLayers || []); L._gpuLayers.push(layer); }
+})();
+
+</script>
+<script>
 // ---------- shell: state, timing, loop (integrator) ----------
 (() => {
   const $ = id => document.getElementById(id);
@@ -962,7 +1455,7 @@ if (typeof module !== 'undefined') module.exports = LOL;
   };
 
   // ---------- layout: portrait stage, ratio kept, sharp canvases ----------
-  const stage = $('stage'), cv = $('cv'), pc = $('pc'), cx = cv.getContext('2d'), px = pc.getContext('2d');
+  const stage = $('stage'), gv = $('gv'), cv = $('cv'), pc = $('pc'), cx = cv.getContext('2d'), px = pc.getContext('2d');
   let dpr = 1;
   function fit() {
     const vw = innerWidth, vh = innerHeight;
@@ -971,7 +1464,8 @@ if (typeof module !== 'undefined') module.exports = LOL;
     if (w / h < 0.42) h = Math.round(w / 0.42);
     stage.style.width = w + 'px'; stage.style.height = h + 'px';
     dpr = Math.min(3, devicePixelRatio || 1);
-    for (const c of [cv, pc]) { const r = c.getBoundingClientRect(); c.width = Math.round(r.width * dpr); c.height = Math.round(r.height * dpr); }
+    for (const c of [gv, cv, pc]) { const r = c.getBoundingClientRect(); c.width = Math.round(r.width * dpr); c.height = Math.round(r.height * dpr); }
+    if (P.gpu && P.gpu.ready) P.gpu.resize(gv.width, gv.height, dpr);
   }
   addEventListener('resize', fit);
 
@@ -1049,21 +1543,46 @@ if (typeof module !== 'undefined') module.exports = LOL;
   // Pacing + tap readout, a thin strip at the very bottom of the pad (kept off the field).
   function drawReadout(ctx, W, H) {
     const st = G.stats, f1 = v => (v == null || isNaN(v)) ? '-' : (+v).toFixed(1);
-    let t = 'Canvas 2D \u00b7 frame p50 ' + f1(st.p50) + ' p95 ' + f1(st.p95) + ' max ' + (st.max ? Math.round(st.max) : '-') +
+    let t = renderer() + ' \u00b7 frame p50 ' + f1(st.p50) + ' p95 ' + f1(st.p95) + ' max ' + (st.max ? Math.round(st.max) : '-') +
       ' \u00b7 taps ' + (st.n ? Math.round(st.tapMean) + '\u00b1' + Math.round(st.tapSd) + ' (' + st.n + ')' : '-');
     ctx.font = '500 11px system-ui,sans-serif';
-    if (ctx.measureText(t).width > W - 16) t = t.replace('Canvas 2D \u00b7 ', '').replace('frame ', '');
+    if (ctx.measureText(t).width > W - 16) t = t.replace(renderer() + ' \u00b7 ', renderer() === 'WebGPU' ? 'GPU \u00b7 ' : '').replace('frame ', '');
     const w = Math.ceil(ctx.measureText(t).width + 12);
     ctx.fillStyle = 'rgba(0,0,0,.72)'; ctx.beginPath(); ctx.roundRect ? ctx.roundRect((W - w) / 2, H - 17, w, 15, 5) : ctx.rect((W - w) / 2, H - 17, w, 15); ctx.fill();
     ctx.fillStyle = '#c2cfc3'; ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic'; ctx.fillText(t, W / 2, H - 6);
+  }
+
+  // ---------- WebGPU painter (M's pick 2026-11-10): backdrop + glow under the 2D layer; Canvas 2D stays the fallback ----------
+  G.gpuOn = false;
+  function renderer() { return G.gpuOn && P.gpu && P.gpu.ready ? 'WebGPU' : (G.gpuNote ? 'Canvas 2D (' + G.gpuNote + ')' : 'Canvas 2D'); }
+  // Safety net: if the GPU can't hold ~30 fps in its first 2 s, drop to Canvas 2D (a slow frame would stall the ball).
+  // ?gpu=force keeps it on anyway (headless tests use a software GPU).
+  let gpuWatch = null; const GPU_FORCE = Q.get('gpu') === 'force';
+  function watchGpu(gap) {
+    if (!gpuWatch || GPU_FORCE) return;
+    if (++gpuWatch.n <= 10) return;
+    if (gap > 34) gpuWatch.slow++;
+    if (gpuWatch.slow > 12) { gpuWatch = null; gpuOff('slow frames'); G.gpuNote = 'GPU slow'; return; }
+    if (gpuWatch.n > 130) gpuWatch = null;
+  }
+  function gpuOff(why) { G.gpuOn = false; gv.style.display = 'none'; if (why) console.warn('WebGPU off:', why); }
+  function startGpu() {
+    gv.style.display = 'none';
+    if (!P.gpu || Q.get('gpu') === '0' || !navigator.gpu) return;
+    if (P._gpuLayers) { P._gpuLayers.forEach(l => P.gpu.layers.push(l)); P._gpuLayers = null; }
+    P.gpu.onLost(gpuOff);
+    P.gpu.init(gv, G).then(ok => {
+      if (!ok) return;
+      gv.style.display = ''; P.gpu.resize(gv.width, gv.height, dpr); G.gpuOn = true; gpuWatch = { n: 0, slow: 0 };
+    }).catch(e => gpuOff(e && e.message));
   }
 
   // ---------- frame loop ----------
   const gaps = []; let last = 0;
   function frame(now) {
     G.now = now;
-    if (last) { const g = now - last; gaps.push(g); if (gaps.length > 300) gaps.shift();
-      if (g > 100 && G.cur && !G.cur.done && G.m && now > G.cur.tRun && !document.hidden) rebowl(now); }
+    if (last) { const g = now - last; gaps.push(g); if (gaps.length > 300) gaps.shift(); if (G.gpuOn) watchGpu(g);
+      if (g > (GPU_FORCE ? 3000 : 100) && G.cur && !G.cur.done && G.m && now > G.cur.tRun && !document.hidden) rebowl(now); }
     last = now;
     if (gaps.length && (gaps.length % 30 === 0 || !G.stats.p50)) { const s = [...gaps].sort((a, b) => a - b);
       G.stats.p50 = +s[Math.floor(s.length * 0.5)].toFixed(1); G.stats.p95 = +s[Math.floor(s.length * 0.95)].toFixed(1); G.stats.max = +s[s.length - 1].toFixed(1); }
@@ -1074,6 +1593,7 @@ if (typeof module !== 'undefined') module.exports = LOL;
       if (!c.done && now > c.tArr + 260) settle(now); // no tap = leave
       if (c.done && now > c.tSettle + (c.res.out ? OUTHOLD : HOLD)) { if (m.done) finish(); else nextBall(now + 200); }
     }
+    if (G.gpuOn) P.gpu.draw(G);
     for (const [cnv, ctx, part] of [[cv, cx, P.field], [pc, px, P.pad]]) {
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, cnv.clientWidth, cnv.clientHeight);
       try { part.draw(ctx, G); } catch (e) { if (!part._err) { part._err = 1; console.error(e); } }
@@ -1094,7 +1614,7 @@ if (typeof module !== 'undefined') module.exports = LOL;
     toggleWindow() { G.perfectMs = G.perfectMs === 60 ? 40 : 60; store.set('perfectMs', G.perfectMs); P.ui.start(G); },
     toggleAssist() { G.assist = !G.assist; store.set('assist', G.assist); P.ui.start(G); },
     copyLog() {
-      const txt = JSON.stringify({ v: 2, corr: liveCorr(), perfectMs: G.perfectMs, assist: G.assist, frame: { p50: G.stats.p50, p95: G.stats.p95, max: G.stats.max }, taps: log });
+      const txt = JSON.stringify({ v: 3, renderer: renderer(), corr: liveCorr(), perfectMs: G.perfectMs, assist: G.assist, frame: { p50: G.stats.p50, p95: G.stats.p95, max: G.stats.max }, taps: log });
       return (navigator.clipboard ? navigator.clipboard.writeText(txt) : Promise.reject()).catch(() => { prompt('Copy this log', txt); });
     },
   };
@@ -1102,7 +1622,8 @@ if (typeof module !== 'undefined') module.exports = LOL;
   fit();
   P.ui.start(G);
   requestAnimationFrame(frame);
-  window.__lol = { G, get match() { return G.m; }, get cur() { return G.cur; }, get corr() { return liveCorr(); }, onTap, LOL };
+  startGpu();
+  window.__lol = { G, get renderer() { return renderer(); }, gpuReadback: () => (G.gpuOn ? P.gpu.readback() : Promise.resolve(null)), get match() { return G.m; }, get cur() { return G.cur; }, get corr() { return liveCorr(); }, onTap, LOL };
 })();
 </script>
 <script>if('serviceWorker' in navigator&&isSecureContext)addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(e=>console.warn('sw',e)));try{screen.orientation&&screen.orientation.lock&&matchMedia('(display-mode: fullscreen)').matches&&screen.orientation.lock('portrait').catch(()=>{});}catch(_){}</script>

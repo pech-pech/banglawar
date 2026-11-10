@@ -96,7 +96,9 @@
 
     ctx.save();
     ctx.textBaseline = 'alphabetic'; ctx.setLineDash([]); ctx.globalAlpha = 1; ctx.lineCap = 'butt';
-    // background + mowing stripes
+    // background + mowing stripes (skipped when the WebGPU layer underneath paints the backdrop)
+    var stumpTop = batY + 6, stumpBot = batY + 32;
+    if (!G.gpuOn) {
     ctx.fillStyle = '#1e3a24'; ctx.fillRect(0, 0, W, H);
     ctx.fillStyle = 'rgba(255,255,255,.025)';
     for (var sy = 0; sy < H; sy += H / 4.9) { if (((sy / (H / 4.9)) | 0) % 2 === 1) ctx.fillRect(0, sy, W, H / 4.9); }
@@ -106,8 +108,8 @@
     ctx.fillStyle = '#c9b48a'; ctx.beginPath();
     ctx.moveTo(cx - geo.laneTopW / 2, topY); ctx.lineTo(cx + geo.laneTopW / 2, topY); ctx.lineTo(cx + geo.laneBotW / 2, H); ctx.lineTo(cx - geo.laneBotW / 2, H); ctx.fill();
     // popping crease
-    var stumpTop = batY + 6, stumpBot = batY + 32;
     ctx.strokeStyle = 'rgba(255,255,255,.55)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(cx - 70, stumpBot + 4); ctx.lineTo(cx + 70, stumpBot + 4); ctx.stroke();
+    }
 
     // ball timing
     var hasCur = !!(cur && cur.tRel != null), span = hasCur ? (cur.tArr - cur.tRel) : 1;
