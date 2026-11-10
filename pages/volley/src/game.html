@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>Project Volley</title>
+<style>
+:root{
+  --sand:#e9dcbf; --sand2:#cdbb94; --ink:#14130f; --gun:#26292b; --gun2:#33373a; --panel:rgba(22,23,24,.92);
+  --cyan:#43d3e3; --cyanD:#0e5a63; --red:#e2463c; --hp:#5fd06a; --amber:#f0b54a; --mut:#b9b2a2;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;background:#1b1a17;color:var(--sand);font:14px/1.3 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;overflow:hidden;
+  user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;overscroll-behavior:none}
+#stage{position:absolute;left:0;top:0;overflow:hidden;touch-action:none;background:#c9b48a;flex:none}
+#stage canvas{position:absolute;left:0;top:0;width:100%;height:100%;display:block;touch-action:none}
+/* HUD */
+#hud{position:absolute;left:0;top:0;right:0;pointer-events:none;z-index:10}
+#hudTop{display:flex;align-items:center;gap:6px;height:44px;padding:4px 4px 0 6px;background:linear-gradient(#1d1e1fee,#1d1e1fcc)}
+#stageLbl{font-weight:700;font-size:13px;white-space:nowrap;color:var(--sand);background:var(--gun);border:1px solid #4a4d4f;border-radius:6px;padding:3px 6px}
+#stageLbl b{color:#fff}
+#lvl{font-weight:800;font-size:13px;color:#0d1b1d;background:var(--cyan);border-radius:6px;padding:3px 6px;white-space:nowrap}
+#xpWrap{flex:1;height:8px;border-radius:4px;background:#0c0d0e;border:1px solid #45494c;overflow:hidden;min-width:30px}
+#xpFill{height:100%;width:0;background:var(--cyan)}
+#gear{pointer-events:auto;width:56px;height:56px;margin:-6px -4px -6px 0;border:0;background:transparent;color:var(--sand);font-size:24px;line-height:56px;padding:0;cursor:pointer}
+#gear span{display:inline-block;width:36px;height:36px;line-height:34px;border-radius:8px;background:var(--gun);border:1px solid #55595c}
+#hpRow{position:relative;height:18px;margin:0 6px;border-radius:0 0 6px 6px;background:#0c0d0e;border:1px solid #45494c;border-top:0;overflow:hidden}
+#hpFill{height:100%;width:100%;background:var(--hp);transition:width .12s}
+#hpTxt{position:absolute;inset:0;text-align:center;font-size:12px;font-weight:800;line-height:18px;color:#0b1416}
+#rlbl{position:absolute;left:6px;bottom:6px;font:11px/1.2 ui-monospace,Menlo,Consolas,monospace;color:#1b1a17;background:rgba(233,220,191,.85);padding:2px 5px;border-radius:4px;pointer-events:none;z-index:10}
+#toast{position:absolute;left:50%;transform:translateX(-50%);max-width:40%;text-align:center;font-weight:700;font-size:13px;color:var(--sand);background:var(--panel);
+  border:1px solid var(--cyanD);border-radius:8px;padding:6px 8px;pointer-events:none;z-index:11;opacity:0;transition:opacity .2s}
+#toast.on{opacity:1}
+#flash{position:absolute;inset:0;pointer-events:none;z-index:9;box-shadow:inset 0 0 40px 14px rgba(226,40,30,.85);opacity:0;transition:opacity .25s ease-out}
+#flash.on{opacity:1;transition:none}
+body.ovon #hud, body.ovon #toast, body.ovon #rlbl{visibility:hidden}
+/* overlays */
+.ov{position:absolute;inset:0;z-index:30;display:none;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:16px;
+  background:rgba(20,19,16,.94);text-align:center}
+.ov.on{display:flex}
+.ov h2{margin:0;font-size:22px;color:#fff;letter-spacing:.5px}
+.ov p{margin:0;color:var(--sand);max-width:300px}
+.btn{min-height:56px;min-width:120px;padding:8px 18px;border-radius:10px;border:0;font:700 17px system-ui,sans-serif;background:var(--cyan);color:#0b1416;cursor:pointer}
+.btn.ghost{background:var(--gun2);color:var(--sand);border:1px solid #5a5e61}
+.card{width:100%;max-width:300px;min-height:84px;border-radius:12px;border:2px solid var(--cyan);background:var(--gun);color:var(--sand);padding:10px 12px;text-align:left;cursor:pointer;font:inherit}
+.card b{display:block;font-size:17px;color:#fff;margin-bottom:3px}
+.card span{font-size:14px;color:var(--sand)}
+#deadStats{font-size:14px;color:var(--sand);line-height:1.5}
+#coverNote{position:absolute;display:none;font-size:13px;color:var(--sand);background:var(--gun);border:1px solid #4a4d4f;border-radius:8px;padding:8px 10px;z-index:40;max-width:260px}
+/* drawer */
+#drawer{position:absolute;top:0;right:0;bottom:0;width:100%;z-index:50;background:rgba(18,18,17,.97);display:none;flex-direction:column}
+#drawer.on{display:flex}
+#drHead{display:flex;align-items:center;gap:6px;padding:4px 6px;border-bottom:1px solid #3c3f42;flex-wrap:wrap}
+#drHead h3{margin:0 auto 0 4px;font-size:16px;color:#fff}
+#drBody{flex:1;overflow-y:auto;padding:4px 10px 20px;touch-action:pan-y}
+#drBody h4{margin:12px 0 2px;font-size:13px;color:var(--cyan);text-transform:uppercase;letter-spacing:1px}
+.kn{padding:4px 0;border-bottom:1px solid #2b2d2f}
+.kn label{display:flex;justify-content:space-between;font-size:12px;color:var(--sand)}
+.kn label i{font-style:normal;color:#fff;font-family:ui-monospace,Menlo,monospace}
+.kn input[type=range]{width:100%;height:36px;margin:0;accent-color:var(--cyan)}
+.kn .tg{min-height:56px;width:100%;margin-top:2px}
+#drMsg{font-size:12px;color:var(--amber);min-height:16px;padding:0 10px}
+#copyArea{position:absolute;left:-9999px;top:0;width:10px;height:10px}
+</style>
+</head>
+<body>
+<div id="stage">
+  <canvas id="cgpu"></canvas>
+  <canvas id="c2d"></canvas>
+  <div id="flash"></div>
+  <div id="hud">
+    <div id="hudTop">
+      <div id="stageLbl">Stage <b id="stNum">1</b> <span id="roomName"></span></div>
+      <div id="lvl">Lv 1</div>
+      <div id="xpWrap"><div id="xpFill"></div></div>
+      <button id="gear" aria-label="Tuning"><span>&#9881;</span></button>
+    </div>
+    <div id="hpRow"><div id="hpFill"></div><div id="hpTxt">600 / 600</div></div>
+  </div>
+  <div id="toast"></div>
+  <div id="rlbl">-</div>
+  <div class="ov" id="ovCards"><h2 id="cardTitle">Field upgrade</h2><p>Pick one</p><div id="cardList" style="display:flex;flex-direction:column;gap:10px;width:100%;align-items:center"></div></div>
+  <div class="ov" id="ovDead"><h2>Operator down</h2><div id="deadStats"></div><button class="btn" id="btnRestart">Restart</button><p style="font-size:12px">Tap anywhere to deploy again</p></div>
+  <div class="ov" id="ovPause"><h2>Paused</h2><p>Tap to resume</p><button class="btn" id="btnResume">Resume</button></div>
+  <div class="ov" id="ovBoot"><h2>Project Volley</h2><p id="bootMsg">Loading...</p></div>
+  <div id="drawer">
+    <div id="drHead"><h3>Tuning</h3>
+      <button class="btn ghost" id="drReset">Reset</button>
+      <button class="btn ghost" id="drClose">Close</button>
+      <button class="btn ghost" id="drCopyS" style="flex:1">Copy settings</button>
+      <button class="btn" id="drCopyR" style="flex:1">Copy report</button>
+    </div>
+    <div id="drMsg"></div>
+    <div id="drBody"></div>
+  </div>
+</div>
+<div id="coverNote">Cover screen build: made for the folded phone. Runs in a portrait column here.</div>
+<textarea id="copyArea" aria-hidden="true"></textarea>
+<script src="parts/tune.js"></script>
+<script src="parts/rng.js"></script>
+<script src="parts/rooms.js"></script>
+<script src="parts/sim.js"></script>
+<script src="parts/scene.js"></script>
+<script src="parts/render2d.js"></script>
+<script src="parts/gpu.js"></script>
+<script src="parts/render.js"></script>
+<script src="parts/input.js"></script>
+<script src="parts/audio.js"></script>
+<script src="parts/ui.js"></script>
+<script src="parts/main.js"></script>
+</body>
+</html>

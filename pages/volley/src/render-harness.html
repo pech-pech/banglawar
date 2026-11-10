@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Volley render harness</title>
+<style>
+html,body{margin:0;height:100%;background:#1b1a17;overflow:hidden}
+canvas{position:absolute;left:0;top:0;display:block}
+#lbl{position:absolute;left:6px;bottom:6px;font:11px monospace;background:rgba(233,220,191,.85);padding:2px 5px;border-radius:4px;z-index:5}
+</style>
+</head>
+<body>
+<canvas id="cgpu"></canvas><canvas id="c2d"></canvas>
+<div id="lbl">...</div>
+<script src="parts/scene.js"></script>
+<script src="parts/render2d.js"></script>
+<script src="parts/gpu.js"></script>
+<script src="parts/render.js"></script>
+<script>
+// Fake S with a few of every entity. ?gpu=0 forces Canvas 2D, ?frames=N stops the clock after N frames (deterministic shots),
+// ?amber=1 shows the lock without a clear line, ?stress=N adds dummy shapes, ?dead=1 hides the hero.
+(function(){
+  var Q = new URLSearchParams(location.search);
+  var STOP = Q.has('frames') ? parseInt(Q.get('frames'), 10) : 1e9;
+  V.Scene.stress = parseInt(Q.get('stress') || '0', 10) | 0;
+  var S = {
+    seed: 7, frame: 0, t: 0, phase: 'play', stage: 3, roomId: 'R03', lap: 0,
+    room: { w: 9, h: 15, solids: [
+      { x: 0, y: 0, w: 4, h: 1, kind: 'wall' }, { x: 5, y: 0, w: 4, h: 1, kind: 'wall' },
+      { x: 2, y: 4, w: 2, h: 2, kind: 'pillar' }, { x: 3, y: 8, w: 3, h: 1, kind: 'block' }, { x: 6, y: 8, w: 1, h: 2, kind: 'block' }
+    ], door: { x: 4, y: 0, w: 1, h: 1, open: Q.get('open') === '1' } },
+    hero: { x: 4.5, y: 12.5, r: 0.28, hp: 420, maxHp: 600, atk: 150, ang: -1.2, moving: false, braced: false, brace01: 0.6,
+      fireCd: 0, invulnT: 0, lockId: 3, lockClear: Q.get('amber') !== '1', level: 3, xp: 10, xpNext: 50, mods: {} },
+    enemies: [
+      { id: 1, type: 'E-01', x: 1.6, y: 10.6, r: 0.35, hp: 300, maxHp: 300, ang: 0.6, st: 'tell', tell01: 0.6, aimAng: 0.6, flashT: 0, size: 'small' },
+      { id: 2, type: 'E-01', x: 7.6, y: 11.6, r: 0.35, hp: 140, maxHp: 300, ang: 2.6, st: 'move', tell01: 0, aimAng: 2.6, flashT: 0, size: 'small' },
+      { id: 3, type: 'E-02', x: 6.5, y: 3.0, r: 0.40, hp: 300, maxHp: 450, ang: 2.0, st: 'tell', tell01: 0.5, aimAng: 2.03, flashT: 0, size: 'medium' },
+      { id: 4, type: 'E-02', x: 1.5, y: 2.5, r: 0.40, hp: 450, maxHp: 450, ang: 1.2, st: 'cool', tell01: 0, aimAng: 1.2, flashT: 0.08, size: 'medium' },
+      { id: 5, type: 'E-03', x: 7.5, y: 6.2, r: 0.50, hp: 600, maxHp: 600, ang: 2.2, st: 'tell', tell01: 0.55, aimAng: 2.25, flashT: 0, size: 'medium' }
+    ],
+    rounds: [ { x: 4.9, y: 10.6, vx: 4, vy: -13, r: 0.12 }, { x: 5.6, y: 7.4, vx: 4, vy: -13, r: 0.12 }, { x: 3.4, y: 11.2, vx: -6, vy: -12, r: 0.12 } ],
+    shots: [ { x: 5.6, y: 5.0, vx: -2, vy: 5, r: 0.12 }, { x: 2.2, y: 3.8, vx: 1, vy: 5, r: 0.12 }, { x: 6.9, y: 7.2, vx: -3, vy: 4, r: 0.12 },
+             { x: 6.2, y: 7.6, vx: -4, vy: 3, r: 0.12 }, { x: 2.8, y: 13.6, vx: 1, vy: 5, r: 0.12 } ],
+    pickups: [ { x: 3.0, y: 13.2, kind: 'xp', v: 4 }, { x: 6.0, y: 13.4, kind: 'xp', v: 8 }, { x: 1.2, y: 7.0, kind: 'repair', v: 0 } ],
+    cards: null, events: [], stats: {}
+  };
+  if (Q.get('dead') === '1') S.phase = 'dead';
+  var base = JSON.parse(JSON.stringify({ r: S.rounds, s: S.shots }));
+  var list = [], view = { w: 344, h: 882, dpr: 1, ox: 0, oy: 66, s: 38 }, R = null, frames = 0;
+  function layout() {
+    var w = innerWidth, h = innerHeight, hud = 66, s = Math.min(w / 9, (h - hud) / 15);
+    view.w = w; view.h = h; view.dpr = devicePixelRatio || 1; view.s = s; view.ox = (w - 9 * s) / 2; view.oy = hud;
+    if (R) R.resize(w, h, view.dpr);
+  }
+  function step() {
+    if (S.frame >= STOP) return;
+    S.frame++; S.t += 1 / 60; S.events.length = 0;
+    var k = S.frame % 90;
+    S.enemies.forEach(function (e) { if (e.st === 'tell') e.tell01 = (S.frame % 40) / 40; if (e.flashT > 0 || k === 30) e.flashT = k < 36 && k >= 30 ? 0.1 : 0; });
+    S.hero.brace01 = Math.min(1, (S.frame % 60) / 30); S.hero.braced = S.hero.brace01 >= 1;
+    S.rounds.forEach(function (r, i) { var b = base.r[i], u = (S.frame % 30) / 60; r.x = b.x + b.vx * u; r.y = b.y + b.vy * u; });
+    S.shots.forEach(function (r, i) { var b = base.s[i], u = (S.frame % 60) / 60; r.x = b.x + b.vx * u * 0.3; r.y = b.y + b.vy * u * 0.3; });
+    if (k === 2) S.events.push({ k: 'hit', x: 6.5, y: 3.0 });
+    if (k === 10) S.events.push({ k: 'kill', x: 4.5, y: 6.8 });
+    if (k === 20) S.events.push({ k: 'crit', x: 7.5, y: 6.2 });
+    if (k === 40) S.events.push({ k: 'levelup', x: S.hero.x, y: S.hero.y });
+    if (k === 60) S.events.push({ k: 'hurt', x: S.hero.x, y: S.hero.y });
+  }
+  function frame() {
+    step();
+    V.Scene.build(S, view, list);
+    R.draw(list, view);
+    frames++;
+    document.getElementById('lbl').textContent = R.name + ' ' + view.w + 'x' + view.h + ' dpr ' + view.dpr + ' prims ' + list.length;
+    requestAnimationFrame(frame);
+  }
+  V.Render.create({ c2d: document.getElementById('c2d'), cgpu: document.getElementById('cgpu'), forceCanvas: Q.get('gpu') === '0' }).then(function (r) {
+    R = r; layout(); addEventListener('resize', layout);
+    R.onChange(function (n, why) { console.log('[harness] renderer -> ' + n + ' (' + why + ')'); });
+    window.__h = { R: R, S: S, list: list, view: view, get renderer() { return R.name; }, get frames() { return frames; },
+      readback: function () { return R.readback(); } };
+    requestAnimationFrame(frame);
+  }).catch(function (e) { console.error('harness: ' + (e && e.message || e)); });
+})();
+</script>
+</body>
+</html>
