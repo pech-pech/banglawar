@@ -18,14 +18,14 @@ function rayLen(S, api, x, y, ang, max){
 }
 
 var B01 = V.AI['B-01'] = {
-  base: { hp:8000, contact:80, dmg:70, speed:0, r:1.0, size:'large', xp:0, tell:1.0, cd:2.5,
+  base: { hp:11000, contact:80, dmg:95, speed:0, r:1.0, size:'large', xp:0, tell:1.0, cd:1.4,
     static:true, boss:true, immune:{ instakill:true, freeze:true, knockback:true } },
   name: 'Volley Tower',
-  shotSpeed: 5.0, scatterDmg: 55, cd2: 1.8,
+  shotSpeed: 7.8, scatterDmg: 85, cd2: 1.0,
   tellA: 1.0, tellB: 0.6, tellC: 0.8,
   A: { lines1: 5, step1: 30 * DEG, perLine: 6, gap: 0.2,
        lines2: [-24, 24, -36, 36, -48, 48], extra2: 60 },   // phase 2 degrees from straight down; 7th line alternates side
-  B: { n1: 14, n2: 20, dur: 1.5, arc: 220 * DEG },
+  B: { n1: 24, n2: 32, dur: 1.5, arc: 220 * DEG },
   C: { fan: 20 * DEG, lineN: 5, lineGap: 0.12, lineDelay: 0.3 },
   order: ['A', 'B', 'C'],
 
@@ -62,7 +62,7 @@ var B01 = V.AI['B-01'] = {
   },
   planC: function(S, e, api){
     var h = api.hero(S);
-    e.aimAng = api.angleTo(e, h);
+    e.aimAng = V.AIU.leadTo(S, e, h, this.shotSpeed, 0.8);
     // bounce line: aim at the Operator's mirror image across a side wall, so the reflected leg crosses them
     var side = api.rng(S).next() < 0.5 ? -1 : 1;
     var wx = side < 0 ? SHOT_R : S.room.w - SHOT_R, mx = 2 * wx - h.x, my = h.y;
@@ -111,9 +111,10 @@ var B01 = V.AI['B-01'] = {
       e.phase = 2; api.ev(S, { k:'bossphase', x:e.x, y:e.y, id:e.id, phase:2 });
     }
     var h = api.hero(S);
+    V.AIU.track(S, e, h, dt);
     if (e.st === 'move' || e.st === 'cool') {
       e.ang = api.angleTo(e, h); e.tell01 = 0; e.spin01 = 0; e.attack = null;
-      e.cd -= dt;
+      e.cd -= dt * V.AIU.zeroIn(e);
       if (e.cd <= 0) A.startAttack(S, e, api);
     } else if (e.st === 'tell') {
       e.stT -= dt; e.tell01 = e.tellT > 0 ? 1 - Math.max(0, e.stT) / e.tellT : 1;

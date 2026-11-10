@@ -5,7 +5,7 @@ if (V.TUNE_DEFAULTS) {
   var SHELL = { AUTO_WALK: true, AUTO_WALK_DELAY: 1.0, EDGE_FLASH: true, HAPTIC_HURT_MS: 40, HAPTIC_KILL_MS: 12 };
   for (var sk in SHELL) if (!(sk in V.TUNE_DEFAULTS)) { V.TUNE_DEFAULTS[sk] = SHELL[sk]; if (V.TUNE && !(sk in V.TUNE)) V.TUNE[sk] = SHELL[sk]; }
 }
-var BUILD = 'volley-p1-1';
+var BUILD = 'volley-p1-5';
 // Persist tuning (only values that differ from defaults) and sound-off. Every storage call is guarded.
 var STORE = 'volley.tune';
 function loadTune(){
@@ -130,7 +130,7 @@ UI.openDrawer = function(on){
 UI.drawerOpen = function(){ return $('drawer').classList.contains('on'); };
 
 UI.syncOverlay = function(){
-  var any = ['ovCards', 'ovDead', 'ovSupply', 'ovPause', 'ovBoot'].some(function(id){ return $(id).classList.contains('on'); }) || UI.drawerOpen();
+  var any = ['ovCards', 'ovDead', 'ovSupply', 'ovPause', 'ovBoot'].some(function(id){ return $(id).classList.contains('on'); }) || UI.drawerOpen() || !!(V.Home && V.Home.visible());
   document.body.classList.toggle('ovon', any);
 };
 function show(id, on){ $(id).classList.toggle('on', !!on); UI.syncOverlay(); }
@@ -142,19 +142,28 @@ UI.toast = function(text, ms){
 };
 UI.placeToast = function(view){
   // Below the room, in the ground area: never over the HUD bars or the room edge (L-TD-5).
-  var t = $('toast'); t.style.top = Math.round(view.oy + 15 * view.s + 12) + 'px';
+  // D10: one line, in the band below the room, under the two-line how-to box (top +14, ~50 px tall), clear of the spawn.
+  var t = $('toast'); t.style.top = Math.round(view.oy + 15 * view.s + 76) + 'px';
 };
 
 // Crit numbers (M's pick: crits only). Pooled DOM, max 8 live.
 var dnPool = [], dnNext = 0;
-UI.crit = function(x, y, dmg, view){
+UI.crit = function(x, y, dmg, view, S, id){
   var layer = $('dmgLayer'); if (!layer) return;
   if (dnPool.length < 8) { var d0 = document.createElement('div'); d0.className = 'dn'; layer.appendChild(d0); dnPool.push({ el: d0, anim: null }); }
   var it = dnPool[dnNext % dnPool.length]; dnNext++;
   if (it.anim) { try { it.anim.cancel(); } catch (_) {} }
   var el = it.el; el.textContent = dmg != null ? String(Math.round(dmg)) : 'CRIT';
-  var px = view.ox + x * view.s, py = view.oy + y * view.s - view.s * 0.45;
-  var base = 'translate(' + Math.round(px) + 'px,' + Math.round(py) + 'px) translate(-50%,-100%)';
+  var px = view.ox + x * view.s, py = view.oy + y * view.s - view.s * 0.45, anchor = 'translate(-50%,-100%)';
+  // D12: crits on the boss float beside its hull (alternating sides), never over the core.
+  var B = S && S.boss, be = null;
+  if (B && id != null && id === B.id && S.enemies) for (var bi = 0; bi < S.enemies.length; bi++) if (S.enemies[bi].id === id) { be = S.enemies[bi]; break; }
+  if (be) {
+    var side = (dnNext & 1) ? 1 : -1, br = (be.r || 1) + 0.15;
+    px = view.ox + (be.x + side * br) * view.s; py = view.oy + be.y * view.s;
+    anchor = side > 0 ? 'translate(0,-50%)' : 'translate(-100%,-50%)';
+  }
+  var base = 'translate(' + Math.round(px) + 'px,' + Math.round(py) + 'px) ' + anchor;
   var rise = V.reducedMotion ? 0 : -20;
   var kf = [{ transform: base + ' translateY(0px)', opacity: 1 }, { transform: base + ' translateY(' + (rise * 0.5) + 'px)', opacity: 1, offset: 0.4 }, { transform: base + ' translateY(' + rise + 'px)', opacity: 0 }];
   if (el.animate) { it.anim = el.animate(kf, { duration: 600, easing: 'ease-out', fill: 'forwards' }); }
@@ -183,7 +192,11 @@ UI.hud = function(S, R, view){
     $('xpFill').style.width = (xpPct * 100).toFixed(1) + '%';
     $('hpFill').style.width = (hp / mx * 100).toFixed(1) + '%';
     $('hpFill').style.background = hp / mx < 0.3 ? '#f07a6e' : '#5fd06a';
-    $('hpTxt').textContent = hp + ' / ' + mx;
+    // Dark text is clipped to the filled part, light text to the empty part.
+    var cut = (100 - hp / mx * 100).toFixed(1) + '%', ht = hp + ' / ' + mx;
+    $('hpTxt').textContent = ht; $('hpTxtE').textContent = ht;
+    $('hpTxt').style.clipPath = 'inset(0 ' + cut + ' 0 0)';
+    $('hpTxtE').style.clipPath = 'inset(0 0 0 ' + (hp / mx * 100).toFixed(1) + '%)';
   }
   UI.rendererLabel(R, view);
   UI.boss(S, view);
@@ -196,10 +209,11 @@ UI.boss = function(S, view){
   var k = [b.name, Math.ceil(b.hp), b.maxHp, b.phase, Math.round(view.ox), Math.round(view.oy), Math.round(view.s)].join('|');
   if (k === bossKey) return; bossKey = k;
   // Top of the room, inside the north wall row, so it never covers the HUD bars.
+  // D1: name and numbers on a row above a plain full-width bar (block is about 34 px tall).
   el.style.display = 'block';
-  el.style.left = Math.round(view.ox + view.s * 0.5) + 'px';
-  el.style.width = Math.round(view.s * 8) + 'px';
-  el.style.top = Math.round(view.oy + Math.max(0, (view.s - 22) / 2)) + 'px';
+  el.style.left = Math.round(view.ox + view.s * 0.25) + 'px';
+  el.style.width = Math.round(view.s * 8.5) + 'px';
+  el.style.top = Math.round(view.oy + Math.max(0, (view.s - (el.offsetHeight || 34)) / 2)) + 'px';
   $('bossFill').style.width = Math.max(0, Math.min(100, b.hp / b.maxHp * 100)).toFixed(1) + '%';
   $('bossName').textContent = (b.name || 'Boss') + (b.phase === 2 ? ' - phase 2' : '');
   $('bossHp').textContent = Math.ceil(b.hp) + ' / ' + Math.round(b.maxHp);
@@ -211,8 +225,10 @@ UI.howto = function(on, view){
 };
 UI.rendererLabel = function(R, view){
   var t = (R ? R.name : 'none') + ' | ' + Math.round(view.w) + 'x' + Math.round(view.h) + ' | dpr ' + (Math.round((G.devicePixelRatio || 1) * 100) / 100);
-  var el = $('rlbl'); if (el.textContent !== t) el.textContent = t;
+  // D14: the corner label shows only with ?debug=1; the pause card and the tuning drawer always carry it.
+  ['rlbl', 'rlblPause', 'rlblDrawer'].forEach(function(id){ var el = $(id); if (el && el.textContent !== t) el.textContent = t; });
 };
+if (G.location && /[?&]debug=1/.test(location.search)) document.body.classList.add('dbg');
 
 // Text glyphs (U+FE0E keeps them out of emoji style).
 var GLYPH = { 'SK-01': '‖', 'SK-02': '≡', 'SK-03': '⋀', 'SK-04': '↔', 'SK-05': '↓', 'SK-06': '↯', 'SK-07': '⇢',
@@ -267,6 +283,12 @@ UI.results = function(S){
     ['Kills', r.kills | 0], ['Level', r.level != null ? r.level : S.hero.level], ['Damage taken', Math.round(r.dmgTaken || 0)], ['Mods', mods.length ? mods.join(', ') : 'none']];
   var box = $('resStats'); box.innerHTML = '';
   rows.forEach(function(rw){ var d = document.createElement('div'); d.className = 'row'; var a = document.createElement('span'); a.textContent = rw[0]; var b = document.createElement('b'); b.textContent = String(rw[1]); d.appendChild(a); d.appendChild(b); box.appendChild(d); });
+  if (r.credits != null) {      // credits earned this run (S.result.credits, added by META), with the coin
+    var cr = document.createElement('div'); cr.className = 'row'; var ca = document.createElement('span'); ca.textContent = 'Credits earned';
+    var cb = document.createElement('b'); cb.style.color = '#ffe27a'; cb.style.display = 'inline-flex'; cb.style.alignItems = 'center';
+    var ci = document.createElement('span'); ci.className = 'pv-coin'; ci.setAttribute('aria-hidden', 'true'); ci.style.cssText = 'width:20px;height:20px;margin-right:6px'; cb.appendChild(ci);   // code coin under 32 px
+    cb.appendChild(document.createTextNode('+' + (r.credits | 0))); cr.appendChild(ca); cr.appendChild(cb); box.insertBefore(cr, box.firstChild);
+  }
   UI.show('ovDead', true);
 };
 UI.dead = UI.results;

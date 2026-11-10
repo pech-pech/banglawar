@@ -6,6 +6,8 @@ var STEP_MS = 1000 / 60, MAX_STEPS = 5;
 var S = null, R = null, list = [], view = { w: 344, h: 882, dpr: 1, ox: 0, oy: 66, s: 38 };
 var moved = false, acc = 0, last = 0, hitstopUntil = 0, paused = false, frozen = Q.get('freeze') === '1';
 var shown = { pick: false, dead: false, supply: false, endPhase: '' }, deadAt = 0, deaths = 0;
+// Deploy home (S-10, minimal) is the first screen; ?home=0 skips it (tests and bots). The sim waits behind it.
+var home = Q.get('home') !== '0';   // V.Home (home.js) owns the screens; V.Run below is its handle on the run
 var ft = [], FT_MAX = 1200, gaps = 0, frames = 0;
 
 function fail(t){ $('bootMsg').textContent = t; UI.show('ovBoot', true); console.warn('volley:', t); }
@@ -43,7 +45,7 @@ function handleEvents(ev, live){
     switch (e.k) {
       case 'fire': V.Audio.play('fire'); break;
       case 'hit': V.Audio.play('hit'); stop = true; break;
-      case 'crit': UI.crit(e.x, e.y, e.dmg, view); stop = true; break;
+      case 'crit': UI.crit(e.x, e.y, e.dmg, view, S, e.id); stop = true; break;
       case 'kill': V.Audio.play('kill'); vib(V.TUNE.HAPTIC_KILL_MS); stop = true; break;
       case 'hurt': V.Audio.play('hurt'); UI.hurtFlash(); vib(V.TUNE.HAPTIC_HURT_MS); break;
       case 'door': V.Audio.play('door'); awReset(); UI.toast('Stage ' + S.stage + ' clear', 1100); break;
@@ -72,8 +74,10 @@ function syncPhase(){
   } else if (shown.supply) { shown.supply = false; UI.show('ovSupply', false); }
   // P1: death and boss kill both end in 'results'. A brief 'dead' phase (if the sim has one) shows the same screen.
   if (isEnd()) {
-    if (!shown.dead || shown.endPhase !== S.phase) { shown.dead = true; shown.endPhase = S.phase; deadAt = shown.dead && deadAt ? deadAt : performance.now(); V.Input.release(); UI.results(S); }
-  } else if (shown.dead) { shown.dead = false; deadAt = 0; UI.show('ovDead', false); }
+    if (!shown.dead || shown.endPhase !== S.phase) { shown.dead = true; shown.endPhase = S.phase; deadAt = deadAt || performance.now(); V.Input.release(); UI.results(S); }
+    var armed = performance.now() - deadAt >= RESULTS_GUARD_MS, ovd = $('ovDead');
+    if (ovd.classList.contains('armed') !== armed) ovd.classList.toggle('armed', armed);
+  } else if (shown.dead) { shown.dead = false; deadAt = 0; $('ovDead').classList.remove('armed'); UI.show('ovDead', false); }
 }
 function pickSupply(i){
   if (!S || S.phase !== 'supply') return;
@@ -97,10 +101,21 @@ function restart(){
   acc = 0; hitstopUntil = 0; deadAt = 0; moved = false; awReset(); shown.dead = false; UI.show('ovDead', false); shown.pick = false; UI.show('ovCards', false); shown.supply = false; UI.show('ovSupply', false);
   syncPhase(); return S;
 }
-function tryRestart(){ if (S && isEnd() && performance.now() - deadAt > 450) restart(); }
+// Results tap guard: the screen waits RESULTS_GUARD_MS, and only a press that BEGAN after that counts,
+// so a finger still on the glass from the fight (or a tap just after the kill) never skips the results.
+var RESULTS_GUARD_MS = 1000;
+function guardOk(pressT){ return !!(S && isEnd() && deadAt && pressT - deadAt >= RESULTS_GUARD_MS); }
+function tryRestart(pressT){ if (guardOk(pressT == null ? performance.now() : pressT)) restart(); }
+var resPressAt = 0;
 
+// Handoff with home.js: setHome freezes the sim behind the home screens; start() begins a run at stage 1 (fresh unless S is untouched).
+V.Run = {
+  setHome: function(on){ home = !!on; if (on) V.Input.release(); acc = 0; last = 0; },
+  start: function(){ if (!S) return; if (isEnd() || S.t > 0) restart(); home = false; V.Input.release(); acc = 0; last = 0; moved = false; },
+  get home(){ return home; }
+};
 function pause(){
-  if (paused || !S) return;
+  if (paused || !S || home) return;
   paused = true; V.Input.release(); V.Audio.setPaused(true); UI.show('ovPause', true);
 }
 function resume(){
@@ -164,7 +179,7 @@ function frame(ts){
   requestAnimationFrame(frame);
   var dt = last ? ts - last : STEP_MS; last = ts;
   if (!S || !R) return;
-  var running = !paused && !frozen && !UI.drawerOpen() && (S.phase === 'play' || S.phase === 'clear');
+  var running = !home && !paused && !frozen && !UI.drawerOpen() && (S.phase === 'play' || S.phase === 'clear');
   if (!paused && !document.hidden) {
     frames++; ft.push(dt); if (ft.length > FT_MAX) ft.shift(); if (dt > 50 && frames > 3) gaps++;
   }
@@ -218,6 +233,7 @@ function boot(){
   G.addEventListener('blur', pause);
   G.addEventListener('pagehide', pause);
   $('ovPause').addEventListener('pointerdown', function(e){ if (e.target.closest && e.target.closest('button')) return; e.preventDefault(); resume(); });
+  $('btnHome').addEventListener('click', function(e){ if (guardOk(e.detail === 0 ? performance.now() : (resPressAt > deadAt ? resPressAt : 0)) && V.Home) V.Home.show(); });
   $('btnResume').addEventListener('click', resume);
   $('pauseBtn').addEventListener('click', function(){ pause(); });
   $('btnRestartRun').addEventListener('click', function(e){ e.stopPropagation(); restart(); resume(); });
@@ -226,11 +242,12 @@ function boot(){
   stage.addEventListener('pointerdown', function(e){
     if (S && S.phase === 'clear' && !aw.cancelled && !(e.target.closest && e.target.closest('button, .ov, #drawer'))) { aw.cancelled = true; V.Input.note(aw.on ? 'awx' : 'awc', 0, 0); }
   }, true);
-  $('ovDead').addEventListener('pointerdown', function(e){ if (e.target.id !== 'btnRestart') tryRestart(); });
-  $('btnRestart').addEventListener('click', tryRestart);
+  $('ovDead').addEventListener('pointerdown', function(e){ resPressAt = performance.now(); if (e.target.id !== 'btnRestart' && e.target.id !== 'btnHome') tryRestart(resPressAt); });
+  // A click counts only when its press began on this screen after the guard (keyboard clicks have detail 0).
+  $('btnRestart').addEventListener('click', function(e){ tryRestart(e.detail === 0 ? performance.now() : (resPressAt > deadAt ? resPressAt : 0)); });
   G.addEventListener('keydown', function(e){
     if (paused && (e.key === ' ' || e.key === 'Enter' || e.key === 'Escape')) { resume(); return; }
-    if (S && isEnd() && (e.key === ' ' || e.key === 'Enter' || e.key === 'r')) tryRestart();
+    if (S && isEnd() && !e.repeat && (e.key === ' ' || e.key === 'Enter' || e.key === 'r')) tryRestart();
     if (S && S.phase === 'supply' && /^[1-2]$/.test(e.key) && S.supply && +e.key <= S.supply.length) pickSupply(+e.key - 1);
     if (S && S.phase === 'pick' && /^[1-3]$/.test(e.key) && S.cards && +e.key <= S.cards.length) pick(+e.key - 1);
   });
@@ -262,6 +279,7 @@ function boot(){
     doorDir: function(){ return S ? doorDir() : { mx: 0, my: 0 }; },  // same path the auto-walk uses
     pickSupply: function(i){ pickSupply(i); return S; },
     restart: function(){ return restart(); },
+    get home(){ return home; },
     readback: function(){ return R && R.readback ? R.readback() : Promise.resolve(null); },
     freeze: function(on){ frozen = on !== false; acc = 0; return frozen; },  // stop real-time stepping (deterministic tests)
     pause: pause, resume: resume,

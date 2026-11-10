@@ -86,6 +86,7 @@ function callHook(S, name){
 }
 function heroStats(S){
   var st = { atkAdd:0, atkMul:1, primaryMul:1, rateAdd:0, rateMul:1, critAdd:0, critDmgAdd:0, hpMaxAdd:0, dmgTakenMul:1, moveMul:1, dodge:0, volleys:1 };
+  if (S.meta) { st.hpMaxAdd += S.meta.hpAdd || 0; st.atkMul *= S.meta.atkMul == null ? 1 : S.meta.atkMul; st.rateMul *= S.meta.rateMul == null ? 1 : S.meta.rateMul; st.moveMul *= S.meta.moveMul == null ? 1 : S.meta.moveMul; st.dmgTakenMul *= S.meta.dmgTakenMul == null ? 1 : S.meta.dmgTakenMul; } // META: run-start stats
   callHook(S, 'stats', st);
   if (V.MODS) st.volleys = Math.max(st.volleys, 1 + count(S, 'multi')); // SK-02 echo batches (mods.js leaves them to the sim)
   return st;
@@ -189,6 +190,7 @@ function spawnEnemy(S, type, x, y){
     spawnT:S.tune.SPAWN_T, stT:0, cd:0, contactCd:0, vx:0, vy:0, strafe:1, afterSpawn:'move' };
   if (A.init) A.init(S, e, api);
   S.enemies.push(e);
+  if (S.stats.seen) S.stats.seen[type] = true;
   if (e.boss) {
     S.boss = { id:e.id, type:type, name:e.name || type, hp:e.hp, maxHp:e.maxHp, phase:e.phase || 1, attack:e.attack || null, tell01:0 };
     ev(S, { k:'boss', x:e.x, y:e.y, id:e.id, type:type, name:S.boss.name });
@@ -234,7 +236,9 @@ function releaseSpawns(S){
 }
 
 // ---------- create ----------
-function create(seed, tune){
+// opts.metaStats: object = use these meta stats (bot test of a powered hero, no V.Meta needed); null/false = neutral even if V.Meta exists.
+// Without opts, stats come from V.Meta.stats() when V.Meta is loaded (the browser game); bot.js never loads meta.js so it stays neutral.
+function create(seed, tune, opts){
   tune = tune || V.TUNE;
   seed = (seed >>> 0);
   var S = { seed:seed, frame:0, t:0, tune:tune, phase:'play', stage:1, stageIdx:0, stageKind:'combat', roomId:null, lap:1,
@@ -247,7 +251,12 @@ function create(seed, tune){
     stats:{ kills:0, dmgTaken:0, hitsBy:{ 'E-01':0, 'E-02':0, 'E-03':0 }, roomTimes:[], bracedSteps:0, playSteps:0, shots:0, picks:[],
       roomHp:[], killLog:[], bossTime:null },
     rng:new V.Rng(seed), _nextId:0, pendingLevels:0, freePicks:0, pity:0, roomT:0, clearT:0, hazardCd:0, st:null };
+  S.metaOpts = opts || null; S.useMeta = false; S.meta = null;
+  if (opts && opts.metaStats) S.meta = opts.metaStats;
+  else if (!(opts && opts.metaStats === null) && V.Meta && V.Meta.stats) { S.meta = V.Meta.stats(); S.useMeta = true; }
+  S.credits = 0; S.stats.seen = {};
   refreshStats(S);
+  if (S.meta) S.hero.hp = S.hero.maxHp; // start at full HP with the Conditioning bonus
   loadStage(S, 0);
   return S;
 }
@@ -361,10 +370,14 @@ function stepHero(S, inp, dt){
   }
 }
 
+// META credits (mirrors V.Meta.TUNING; sim must not depend on V.Meta). D4 3.1 weights x 24.
+var ROOM_CREDITS = { combat:24, supply:0, cache:95, boss:24 }, BOSS_BONUS = 47;
+function roomCredit(kind){ var v = ROOM_CREDITS[kind]; return v == null ? ROOM_CREDITS.combat : v; }
 function endRun(S, win){
   var h = S.hero;
   S.result = { win:win, stage:S.stage, lap:S.lap, t:+S.t.toFixed(2), kills:S.stats.kills, level:h.level,
-    picks:S.stats.picks.slice(), dmgTaken:S.stats.dmgTaken };
+    picks:S.stats.picks.slice(), dmgTaken:S.stats.dmgTaken, credits:S.credits, seen:Object.keys(S.stats.seen || {}) };
+  if (S.useMeta && V.Meta && V.Meta.award) { V.Meta.award(S.result); S.result.bank = V.Meta.state.credits; } // META: bank once
   S.phase = 'results'; S.cards = null; S.supply = null;
   ev(S, { k: win ? 'win' : 'death', x:h.x, y:h.y, stage:S.stage });
 }
@@ -780,6 +793,7 @@ function step(S, inp){
   if (S.phase === 'play' && S.enemies.length === 0 && S.spawnQ.length === 0) {
     S.stats.roomTimes.push({ stage:S.stage, roomId:S.roomId, s:+S.roomT.toFixed(2), kind:S.stageKind });
     S.stats.roomHp.push({ stage:S.stage, roomId:S.roomId, hp:S.hero.hp });
+    S.credits += roomCredit(S.stageKind) + (S.stageKind === 'boss' ? BOSS_BONUS : 0); // META: credits per room cleared
     S.shots.length = 0; S.shells.length = 0;
     if (S.hero.lockId != null) { ev(S, { k:'unlock', x:S.hero.x, y:S.hero.y, id:S.hero.lockId }); S.hero.lockId = null; S.hero.lockClear = false; }
     if (S.stageKind === 'boss' && !t.ENDLESS) { S.phase = 'clear'; S.clearT = 0; S.bossWin = true; }
@@ -799,7 +813,7 @@ function step(S, inp){
   return S;
 }
 
-function restart(S){ return create(((S.seed + 1) >>> 0), S.tune); }
+function restart(S){ return create(((S.seed + 1) >>> 0), S.tune, S.metaOpts); }
 
 // FNV-1a over the main state, for determinism checks
 function hash(S){

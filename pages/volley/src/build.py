@@ -10,12 +10,32 @@ OUT = os.path.dirname(HERE)
 def inline(src):
     s = open(src, encoding='utf-8').read()
     def rep(mo):
-        js = open(os.path.join(HERE, mo.group(1)), encoding='utf-8').read()
+        fp = os.path.join(HERE, mo.group(1))
+        if not os.path.exists(fp):          # home parts written by other agents may not exist yet
+            print('WARN missing part', mo.group(1)); return '<script>/* missing ' + mo.group(1) + ' */</script>'
+        js = open(fp, encoding='utf-8').read()
         assert '</script' not in js.lower(), mo.group(1)
         return '<script>\n' + js + '\n</script>'
     s = re.sub(r'<script\s+src="(parts/[\w-]+\.js)"\s*></script>', rep, s)
     assert 'src="parts/' not in s, 'unresolved parts script tag'
     return s
+
+def assets(s):
+    """Single offline file: every webp in src/assets/ is embedded as a data URI in V.ASSETS (key = file name),
+    and src/home.css is inlined. No asset files ship next to index.html, so sw.js needs no change for them."""
+    import base64, glob
+    m = {}
+    for f in sorted(glob.glob(os.path.join(HERE, 'assets', '*.webp'))):
+        m[os.path.basename(f)[:-5]] = 'data:image/webp;base64,' + base64.b64encode(open(f, 'rb').read()).decode()
+    import json
+    al = []
+    for alias, k in (('P-02', 'portrait'), ('P-05', 'rifle'), ('P-08', 'coin'), ('R-10', 'operator'), ('R-01', 'keyart'), ('R-07', 'shield-cell'), ('key-art-card', 'keyart')):
+        if k in m: al.append("V.ASSETS['%s']=V.ASSETS['%s'];" % (alias, k))   # design-thread ids, no duplicated data
+    js = 'window.V=window.V||{};V.ASSETS=' + json.dumps(m) + ';' + ''.join(al)
+    assert '/*{{assets}}*/' in s and '/*{{home.css}}*/' in s
+    s = s.replace('/*{{assets}}*/', js)
+    css = open(os.path.join(HERE, 'home.css'), encoding='utf-8').read()
+    return s.replace('/*{{home.css}}*/', css)
 
 def pwa(s):
     head = ('<link rel="manifest" href="manifest.webmanifest">\n'
@@ -64,7 +84,7 @@ def png(path, n, pad):
     open(path, 'wb').write(data)
 
 if __name__ == '__main__':
-    s = pwa(inline(os.path.join(HERE, 'game.html')))
+    s = pwa(assets(inline(os.path.join(HERE, 'game.html'))))
     out = os.path.join(OUT, 'index.html')
     open(out, 'w', encoding='utf-8').write(s)
     print('wrote', out, round(len(s.encode()) / 1e3, 1), 'KB')
