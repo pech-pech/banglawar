@@ -1,0 +1,36 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=344"><title>TABS-A preview</title>
+<link rel="stylesheet" href="home.css">
+<style>html,body{margin:0;background:#0b0e11}#host{position:absolute;left:0;top:48px;width:344px;height:770px;overflow:hidden}
+.pvbar{opacity:1}</style></head><body><div class="pv-screen">
+<header class="pv-status" id="sb" style="position:absolute;left:0;right:0;top:0"><span class="pv-status__title" id="sbt"></span><span class="pv-chip pv-chip--credits"><img src="assets/coin.webp" width="18" height="18" alt=""><span id="sbc"></span></span></header><!-- preview-only copy of the shell status bar -->
+<div id="host"></div>
+<!-- preview-only static tab bar so shots compare with the mockups; the real bar is home.js -->
+<nav class="pv-tabbar"><button class="pv-tab" id="tb-armory"><svg class="pv-ico pv-tab__icon" viewBox="0 0 24 24"><path d="M2 14h14l2-3h4v3h-3v2H9l-1 4H5l1-4H2z"/></svg><span class="pv-tab__label">Armory</span></button>
+<button class="pv-tab" id="tb-operator"><svg class="pv-ico pv-tab__icon" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-5 4-8 8-8s8 3 8 8z"/></svg><span class="pv-tab__label">Operator</span></button>
+<button class="pv-tab pv-tab--center"><svg class="pv-ico pv-tab__icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="2"/><path d="M12 1v5M12 18v5M1 12h5M18 12h5"/></svg><span class="pv-tab__label">Deploy</span></button>
+<button class="pv-tab"><svg class="pv-ico pv-tab__icon" viewBox="0 0 24 24"><path d="M12 3l7 8h-4v10H9V11H5z"/></svg><span class="pv-tab__label">Upgrades</span></button>
+<button class="pv-tab"><svg class="pv-ico pv-tab__icon" viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="18" rx="1"/><circle cx="11" cy="11" r="4"/><path d="M14 14l4 4"/></svg><span class="pv-tab__label">Intel</span></button></nav></div>
+<script src="parts/tune.js"></script><script src="parts/meta.js"></script>
+<script>
+(function(){
+var q = new URLSearchParams(location.search), tab = q.get('tab') || 'armory', stateName = q.get('state') || 'fresh';
+var V = window.V = window.V || {};
+if (q.get('assets') !== '0') V.ASSETS = { 'P-05': 'assets/rifle.webp', 'P-02': 'assets/portrait.webp', 'P-08': 'assets/coin.webp', 'R-10': 'assets/operator.webp' };
+// Real parts/meta.js, in memory only (storage off). rich = V.Meta.sample() (design sample save), plus run log.
+var now = Date.UTC(2026, 10, 10, 14, 5);
+function runs(n){ var a = []; for (var i = 0; i < n; i++) a.push({ t: now - (n - i) * 3600e3 * 5, stage: 3 + (i * 7) % 8, win: i % 5 === 4, kills: 12 + i * 5, credits: 80 + i * 35, dur: 95 + i * 31 }); return a; }
+V.Meta.setStorage(null); V.Meta.load({ fresh: true });
+if (stateName === 'rich') { V.Meta.sample(); V.Meta.state.runs = runs(12); }
+else if (stateName === 'maxed') { var S = V.Meta.state; S.credits = 99999; S.rifle.lvl = 10; S.cond.hp = S.cond.atk = S.cond.rate = 10; S.best = 10; S.runs = runs(10); S.runs[9].win = true; }
+else V.Meta.state.credits = 60;
+window.__meta = V.Meta;
+}());
+</script>
+<script src="parts/tab-armory.js"></script><script src="parts/tab-operator.js"></script>
+<script>
+var T = V.Tabs[new URLSearchParams(location.search).get('tab') || 'armory'];
+document.getElementById('sbt').textContent=T.title;document.getElementById('sbc').textContent=V.Meta.state.credits.toLocaleString('en-US');V.Meta.onChange(function(){document.getElementById('sbc').textContent=V.Meta.state.credits.toLocaleString('en-US')});
+T.mount(document.getElementById('host')); T.show();
+document.getElementById('tb-' + T.id).classList.add('is-selected');
+if (new URLSearchParams(location.search).get('sheet') === '1') document.querySelector('[data-act=open]').click();
+</script></body></html>

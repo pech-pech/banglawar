@@ -75,13 +75,28 @@ body.ovon #bossBar, body.ovon #howto, body.ovon #dmgLayer{visibility:hidden}
   text-shadow:-1px -1px 0 #2a1200,1px -1px 0 #2a1200,-1px 1px 0 #2a1200,1px 1px 0 #2a1200,0 0 3px #000;will-change:transform,opacity}
 .card.sup{border-color:var(--amber)}
 .card small{display:block;font-size:12px;color:var(--amber);text-transform:uppercase;letter-spacing:1px;margin-bottom:1px}
-#resStats{font-size:14px;color:var(--sand);line-height:1.55;text-align:left;background:var(--gun);border:1px solid #4a4d4f;border-radius:10px;padding:8px 12px;max-width:300px;width:100%}
-#resStats .row{display:flex;justify-content:space-between;gap:10px}
-#resStats .row b{color:#fff;font-weight:700;text-align:right}
-#resTitle.win{color:var(--cyan)}
+#resStats{font:400 14px/1.2 var(--pv-ui-font);color:var(--pv-ui-text);text-align:left;background:linear-gradient(var(--pv-ui-metal-700),var(--pv-ui-metal-800));border:1.5px solid var(--pv-ui-ink);border-radius:6px;box-shadow:inset 0 1px 0 rgba(255,255,255,.10),inset 0 -2px 0 rgba(0,0,0,.35),0 2px 0 rgba(0,0,0,.55);padding:4px 12px;max-width:312px;width:100%}
+#resStats .row{display:flex;justify-content:space-between;align-items:center;gap:10px;min-height:32px;border-bottom:1px dashed var(--pv-ui-metal-600)}
+#resStats .row:last-child{border-bottom:0}
+#resStats .row span{font:700 12px/1.1 var(--pv-ui-font-stencil);text-transform:uppercase;letter-spacing:.12em;color:var(--pv-ui-text-2)}
+#resStats .row b{font:800 16px/1.1 var(--pv-ui-font-stencil);font-variant-numeric:tabular-nums;letter-spacing:.02em;color:var(--pv-ui-text);text-align:right;min-width:0}
+#ovDead h2{font:800 22px/1.1 var(--pv-ui-font-stencil);text-transform:uppercase;letter-spacing:.08em;color:var(--pv-ui-sand)}
+#ovDead .btn{width:100%;max-width:312px;min-height:56px;display:flex;align-items:center;justify-content:center;font:800 14px/1 var(--pv-ui-font-stencil);text-transform:uppercase;letter-spacing:.14em;border-radius:6px;
+  color:var(--pv-ui-text);background:linear-gradient(var(--pv-ui-metal-600),var(--pv-ui-metal-800));border:2.5px solid var(--pv-ui-ink);box-shadow:inset 0 1px 0 rgba(255,255,255,.10),inset 0 -2px 0 rgba(0,0,0,.35),0 3px 0 var(--pv-ui-ink)}
+#ovDead .btn#btnRestart{min-height:64px;font-size:22px;letter-spacing:.2em;color:var(--pv-ui-cyan-ink);border:0;border-radius:0;background:linear-gradient(var(--pv-ui-cyan-hi),var(--pv-ui-cyan) 45%,#18bfd6);
+  clip-path:polygon(0 0,calc(100% - 12px) 0,100% 12px,100% 100%,12px 100%,0 calc(100% - 12px));box-shadow:inset 0 0 0 2px var(--pv-ui-ink),inset 0 3px 0 rgba(255,255,255,.55),inset 0 -5px 0 rgba(0,60,70,.35)}
+#ovDead .btn.ghost{background:linear-gradient(var(--pv-ui-metal-700),var(--pv-ui-metal-900));border:2.5px solid var(--pv-ui-cyan-lo);color:var(--pv-ui-cyan)}
+#ovDead .btn:active{transform:translateY(3px);filter:brightness(.88)}
+#resHint{font:700 11px/1 var(--pv-ui-font-stencil);text-transform:uppercase;letter-spacing:.16em;color:var(--pv-ui-text-2)}
+#ovDead #resTitle.win{color:var(--pv-ui-cyan)}
 #ovDead:not(.armed) #btnRestart{opacity:.45}
 #ovDead:not(.armed) #resHint{visibility:hidden}
 @media (prefers-reduced-motion: reduce){ #flash{display:none} #toast,#hpFill{transition:none} }
+/* Results portrait (P-02): framed panel, sand backdrop kept */
+#resHead{display:flex;align-items:center;gap:12px;width:100%;max-width:312px}
+#resHead h2{flex:1;text-align:left}
+#resPortrait{display:block;flex:none;width:72px;height:96px;border-radius:4px;border-radius:6px;border:2px solid #0f1215;box-shadow:0 0 0 1.5px #4a535d;object-fit:cover;object-position:top;background:#1b2026}
+#ovBoot{z-index:60}
 /* drawer */
 #drawer{position:absolute;top:0;right:0;bottom:0;width:100%;z-index:50;background:rgba(18,18,17,.97);display:none;flex-direction:column;
   padding:env(safe-area-inset-top,0px) env(safe-area-inset-right,0px) env(safe-area-inset-bottom,0px) env(safe-area-inset-left,0px)}
@@ -97,6 +112,7 @@ body.ovon #bossBar, body.ovon #howto, body.ovon #dmgLayer{visibility:hidden}
 .kn .tg{min-height:56px;width:100%;margin-top:2px}
 #drMsg{font-size:12px;color:var(--amber);min-height:16px;padding:0 10px}
 #copyArea{position:absolute;left:-9999px;top:0;width:10px;height:10px}
+/*{{home.css}}*/
 </style>
 </head>
 <body>
@@ -121,9 +137,28 @@ body.ovon #bossBar, body.ovon #howto, body.ovon #dmgLayer{visibility:hidden}
   <div id="bossBar"><div id="bossTxt"><span id="bossName">Boss</span><span id="bossHp"></span></div><div id="bossTrack"><div id="bossFill"></div></div></div>
   <div id="howto">Drag anywhere to move. Let go to aim and fire.</div>
   <div class="ov" id="ovCards"><h2 id="cardTitle">Field upgrade</h2><p>Pick one</p><div id="cardList" style="display:flex;flex-direction:column;gap:10px;width:100%;align-items:stretch"></div></div>
-  <div class="ov" id="ovDead"><h2 id="resTitle">Operator down</h2><div id="resStats"></div><button class="btn" id="btnRestart">New run</button><p id="resHint" style="font-size:12px">Tap anywhere for a new run</p></div>
+  <div class="ov" id="ovDead"><div id="resHead"><img id="resPortrait" alt="" width="72" height="96"><h2 id="resTitle">Operator down</h2></div><div id="resStats"></div><button class="btn" id="btnRestart">New run</button><button class="btn ghost" id="btnHome">Home</button><p id="resHint">Tap anywhere for a new run</p></div>
   <div class="ov" id="ovSupply"><h2>Supply drop</h2><p>Take one</p><div id="supList" style="display:flex;flex-direction:column;gap:10px;width:100%;align-items:stretch"></div></div>
   <div class="ov" id="ovPause"><h2>Paused</h2><button class="btn" id="btnResume" style="min-width:200px">Resume</button><button class="btn ghost" id="btnRestartRun" style="min-width:200px">Restart run</button><button class="btn ghost" id="btnTune" style="min-width:200px">Tuning</button><button class="btn ghost" id="btnSound" style="min-width:200px">Sound: on</button><p class="rinfo" id="rlblPause">-</p><p style="font-size:12px">Tap outside the buttons to resume</p></div>
+  <svg width="0" height="0" style="position:absolute"><defs>
+<linearGradient id="cg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffe27a"/><stop offset="1" stop-color="#c28a0c"/></linearGradient>
+<symbol id="cr" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v10M9 9.5h4.5a1.5 1.5 0 010 3H9.5a1.5 1.5 0 000 3H15"/></symbol>
+<symbol id="sc" viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="18" rx="1"/><path d="M8 8h8M8 12h8M8 16h4"/></symbol>
+<symbol id="rf" viewBox="0 0 24 24"><path d="M2 14h14l2-3h4v3h-3v2H9l-1 4H5l1-4H2z"/></symbol>
+<symbol id="ex" viewBox="0 0 24 24"><path d="M6 4l6 2 6-2 3 4-3 3v9H6v-9L3 8z"/></symbol>
+<symbol id="md" viewBox="0 0 24 24"><rect x="5" y="5" width="14" height="14" rx="2"/><path d="M9 9h6v6H9zM2 9h3M2 15h3M19 9h3M19 15h3"/></symbol>
+<symbol id="dr" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 9V4M12 20v-5M9 12H4M20 12h-5M6 6l3 3M18 18l-3-3M18 6l-3 3M6 18l3-3"/></symbol>
+<symbol id="op" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-5 4-8 8-8s8 3 8 8z"/></symbol>
+<symbol id="dp" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="2"/><path d="M12 1v5M12 18v5M1 12h5M18 12h5"/></symbol>
+<symbol id="up" viewBox="0 0 24 24"><path d="M12 3l7 8h-4v10H9V11H5z"/></symbol>
+<symbol id="in" viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="18" rx="1"/><circle cx="11" cy="11" r="4"/><path d="M14 14l4 4"/></symbol>
+<symbol id="lk" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="1"/><path d="M8 11V8a4 4 0 018 0v3"/></symbol>
+<symbol id="bl" viewBox="0 0 24 24"><path d="M3 12h8M13 6l8 6-8 6z"/></symbol>
+<symbol id="ky" viewBox="0 0 24 24"><circle cx="7.5" cy="12" r="4"/><path d="M11.5 12H21M18 12v3.5M21 12v2.5"/></symbol>
+<symbol id="chl" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></symbol>
+<symbol id="chr" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></symbol>
+</defs></svg>
+  <div id="home" class="pv-screen pv-home on"></div>
   <div class="ov" id="ovBoot"><h2>Project Volley</h2><p id="bootMsg">Loading...</p></div>
   <div id="drawer">
     <div id="drHead"><h3>Tuning</h3>
@@ -140,10 +175,12 @@ body.ovon #bossBar, body.ovon #howto, body.ovon #dmgLayer{visibility:hidden}
 <div id="coverNote">Cover screen build: made for the folded phone. Runs in a portrait column here.</div>
 <textarea id="copyArea" aria-hidden="true"></textarea>
 <script src="parts/tune.js"></script>
+<script>/*{{assets}}*/</script>
 <script src="parts/rng.js"></script>
 <script src="parts/rooms.js"></script>
 <script src="parts/stages.js"></script>
 <script src="parts/mods.js"></script>
+<script src="parts/meta.js"></script>
 <script src="parts/sim.js"></script>
 <script src="parts/ai-p0.js"></script>
 <script src="parts/ai-p1.js"></script>
@@ -155,6 +192,11 @@ body.ovon #bossBar, body.ovon #howto, body.ovon #dmgLayer{visibility:hidden}
 <script src="parts/input.js"></script>
 <script src="parts/audio.js"></script>
 <script src="parts/ui.js"></script>
+<script src="parts/tab-armory.js"></script>
+<script src="parts/tab-operator.js"></script>
+<script src="parts/tab-upgrades.js"></script>
+<script src="parts/tab-intel.js"></script>
+<script src="parts/home.js"></script>
 <script src="parts/main.js"></script>
 </body>
 </html>

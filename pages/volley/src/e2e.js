@@ -32,6 +32,7 @@ const SESSIONS = [
   { vp: [344, 882], mode: 'offscreen', plan: 'full' },  // WebGPU pipeline to a texture: the sandbox loses the device on swapchain present
   { vp: [1104, 884], mode: 'gpu0', plan: 'wide' },
   { vp: [1104, 884], mode: 'default', plan: 'wide' },
+  { vp: [344, 882], mode: 'home', plan: 'home' },        // Home first, DEPLOY, play, results, Home, DEPLOY again; Home tabs and meta buys (Canvas 2D)
 ];
 
 const rows = [];
@@ -229,7 +230,8 @@ async function session(browser, target, sess) {
   page.on('pageerror', e => errors.push('pageerror: ' + e.message.slice(0, 200)));
   page.on('requestfailed', r => errors.push('requestfailed: ' + r.url().replace(/^.*\/pages\//, '') + ' ' + ((r.failure() || {}).errorText || '')));
   const cdp = await ctx.newCDPSession(page);
-  const q = '?seed=' + SEED + (sess.mode === 'gpu0' ? '&gpu=0' : sess.mode === 'offscreen' ? '&gpu=offscreen' : '');
+  // P1 home: the game opens on Home/Deploy with the sim waiting behind it; the game-flow sessions skip it with ?home=0 (the 'home' session below does it the real way).
+  const q = '?seed=' + SEED + '&home=0' + (sess.mode === 'gpu0' ? '&gpu=0' : sess.mode === 'offscreen' ? '&gpu=offscreen' : '');
   try {
     await page.goto('file://' + target.file + q);
     await page.waitForFunction(() => window.__pv && window.__pv.S && window.__pv.S.hero, null, { timeout: 15000 });
@@ -238,6 +240,8 @@ async function session(browser, target, sess) {
     await ctx.close(); return { errors };
   }
   await page.evaluate(HELPERS);
+  // src/game.html carries the build placeholders (home.css is only inlined by build.py), so with ?home=0 the unstyled #home markup (tab bar, status bar) would still be laid out over the game. Hide it as home.css does, so the game-flow checks measure the game only.
+  if (!target.name.startsWith('index')) await page.addStyleTag({ content: '#home:not(.on){display:none!important}' });
   await sleep(2500); // let the GPU renderer resolve
   ok(errors.length === 0, 'boots with 0 console errors', errors.length ? errors.join(' | ') : 'none');
   // Idle with no user gesture: auto-fire kills / hurts happen before any tap (vibrate/audio must stay quiet).
@@ -560,12 +564,14 @@ async function determinismTest(page) {
     return { seed, hash: window.__hash(p.S), frame: p.S.frame, phase: p.S.phase };
   });
   // (b) pure sim twice in-page with the same seed and tune.
+  // The pure run uses the page's live tune (earlier tests in a session change knobs), so it compares the same rules.
+  const tdiff = await page.evaluate(() => Object.keys(window.V.TUNE_DEFAULTS).filter(k => JSON.stringify(window.V.TUNE[k]) !== JSON.stringify(window.V.TUNE_DEFAULTS[k])));
   const b = await page.evaluate(seed => {
-    const run = () => { const S0 = window.V.Sim.create(seed, JSON.parse(JSON.stringify(window.V.TUNE_DEFAULTS))); let S = S0; for (let k = 0; k < 600; k++) { const d = window.__scriptInp(k); window.V.Sim.step(S, { mx: d[0], my: d[1] }); } return window.__hash(S); };
+    const run = () => { const S0 = window.V.Sim.create(seed, JSON.parse(JSON.stringify(window.V.TUNE))); let S = S0; for (let k = 0; k < 600; k++) { const d = window.__scriptInp(k); window.V.Sim.step(S, { mx: d[0], my: d[1] }); } return window.__hash(S); };
     return [run(), run()];
   }, a.seed);
   ok(b[0] === b[1], 'same seed gives the same run (V.Sim, 600 steps twice)', `seed ${a.seed}: ${b[0]} vs ${b[1]}`);
-  row('__pv run hash after restart (compared across sessions)', 'INFO', `seed ${a.seed} hash ${a.hash} frame ${a.frame} phase ${a.phase}`);
+  row('__pv run hash after restart (compared across sessions)', 'INFO', `seed ${a.seed} hash ${a.hash} frame ${a.frame} phase ${a.phase}; knobs off default: ${tdiff.join(',') || 'none'}`);
   await page.evaluate(() => window.__pv.restart());
   return { seed: a.seed, pv: a.hash, sim: b[0] };
 }
@@ -732,6 +738,104 @@ async function runFlow(page, sess, w, h, opt) {
   ok(a.phase === 'play' && a.stage === 1 && a.hp === a.maxHp && !a.result && a.seed !== r.seed, `one tap on results (${lose ? 'lose' : 'win'}) starts a new run`, `tapped ${b.length ? b[0].d + ' "' + b[0].txt + '"' : 'screen centre'}: phase ${a.phase}, stage ${a.stage}, hp ${a.hp}/${a.maxHp}, result ${JSON.stringify(a.result)}, seed ${r.seed} -> ${a.seed}`);
 }
 
+// ---------- Home session: the real first-launch way (no ?home=0) ----------
+async function tapEl(page, sel) {
+  const c = await page.evaluate(sel => { const e = document.querySelector(sel); if (!e || !window.__vis(e)) return null; const r = e.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; }, sel);
+  if (!c) return false; await page.touchscreen.tap(c.x, c.y); return true;
+}
+async function homeSession(browser, target, sess) {
+  const [w, h] = sess.vp;
+  curTag = `${target.name} ${w}x${h} ${sess.mode}`;
+  const errors = [];
+  const ctx = await browser.newContext({ viewport: { width: w, height: h }, deviceScaleFactor: 1, hasTouch: true, isMobile: true });
+  await ctx.addInitScript(INIT);
+  // A dirty save planted before any page script runs: ?fresh=1 must ignore it.
+  await ctx.addInitScript(() => { try { localStorage.setItem('volley.save.v1', JSON.stringify({ v: 1, credits: 98765, rifle: { lvl: 4 }, cond: { hp: 3, atk: 2, rate: 1 }, buys: 6, power: 0, runs: [], best: 7, codex: { seen: {} }, settings: {} })); } catch (e) {} });
+  const page = await ctx.newPage();
+  page.on('console', m => { if (m.type() === 'error') errors.push('console: ' + m.text().slice(0, 200)); });
+  page.on('pageerror', e => errors.push('pageerror: ' + e.message.slice(0, 200)));
+  page.on('requestfailed', r => errors.push('requestfailed: ' + r.url().replace(/^.*\/pages\//, '') + ' ' + ((r.failure() || {}).errorText || '')));
+  const url = 'file://' + target.file + '?seed=' + SEED + '&gpu=0&fresh=1';   // no home=0
+  try {
+    await page.goto(url);
+    await page.waitForFunction(() => window.__pv && window.__pv.S && window.__pv.S.hero && window.V && window.V.Meta && window.V.Home, null, { timeout: 20000 });
+  } catch (e) { ok(false, 'boot (Home, no ?home=0)', e.message.split('\n')[0] + (errors.length ? ' | ' + errors.join(' | ') : '')); await ctx.close(); return { errors }; }
+  await page.evaluate(HELPERS); await sleep(800);
+  const snap = () => page.evaluate(() => window.__snap());
+  const homeOn = () => page.evaluate(() => { const e = document.getElementById('home'); return !!e && window.__vis(e) && V.Home.visible(); });
+
+  // --- first launch ---
+  const f0 = (await snap()).frame; await sleep(700); const f1 = (await snap()).frame;
+  ok(await homeOn() && (await page.evaluate(() => window.__pv.home)), 'first launch opens on Home (Deploy tab)', `home visible, current tab ${await page.evaluate(() => V.Home.current)}`);
+  ok(f0 === f1, 'sim waits behind Home (no steps before DEPLOY)', `frame ${f0} -> ${f1} over 0.7 s`);
+  const m0 = await page.evaluate(() => JSON.parse(JSON.stringify(V.Meta.state)));
+  ok(m0.credits === 0 && m0.rifle.lvl === 1 && m0.buys === 0 && m0.best === 0 && m0.runs.length === 0 && m0.cond.hp + m0.cond.atk + m0.cond.rate === 0, '?fresh=1 gives a clean save (planted 98765-credit save ignored)', `credits ${m0.credits}, rifle Lv ${m0.rifle.lvl}, buys ${m0.buys}, best ${m0.best}, runs ${m0.runs.length}`);
+  await snapshot(page, 'home-deploy');
+  const hudHidden = await page.evaluate(() => { const e = document.getElementById('hud'); return !e || !window.__vis(e) || getComputedStyle(e).visibility === 'hidden' || document.getElementById('home').getBoundingClientRect().height > 0; });
+  row('Home covers the game HUD', 'INFO', String(hudHidden));
+
+  // --- all 5 tabs open ---
+  for (const id of ['armory', 'operator', 'upgrades', 'intel', 'deploy']) {
+    const tapped = await tapEl(page, `.pv-tab[data-tab="${id}"]`); await sleep(350);
+    const st = await page.evaluate(id => { const p = document.getElementById('pane-' + id); return { cur: V.Home.current, vis: !!p && window.__vis(p), len: p ? p.textContent.trim().length : 0, title: document.getElementById('hmTitle').textContent, sel: !!document.querySelector('.pv-tab[data-tab="' + id + '"].is-selected'), others: [...document.querySelectorAll('.hm-pane')].filter(e => e.id !== 'pane-' + id && window.__vis(e)).length }; }, id);
+    ok(tapped && st.cur === id && st.vis && st.len > 0 && st.sel && st.others === 0, `Home tab opens: ${id}`, `tapped=${tapped} current=${st.cur} pane visible=${st.vis} (${st.len} chars) title "${st.title}" others visible ${st.others}`);
+    if (id !== 'deploy') await snapshot(page, 'home-' + id);
+  }
+
+  // --- credits chip + meta buys (credits granted in memory so the buys are affordable) ---
+  await page.evaluate(() => { V.Meta.state.credits = 5000; V.Meta.save(); });
+  await sleep(150);
+  const chip = async () => page.evaluate(() => document.getElementById('hmCrN').textContent.trim());
+  ok((await chip()) === '5,000', 'Credits chip updates when credits change', `chip "${await chip()}" after V.Meta credits 0 -> 5000`);
+  await tapEl(page, '.pv-tab[data-tab="armory"]'); await sleep(350);
+  const a0 = await page.evaluate(() => ({ c: V.Meta.state.credits, l: V.Meta.state.rifle.lvl }));
+  const aTap = await tapEl(page, '#pane-armory .ta-main[data-act="buy"]') || await tapEl(page, '#pane-armory [data-act="buy"]'); await sleep(350);
+  const a1 = await page.evaluate(() => ({ c: V.Meta.state.credits, l: V.Meta.state.rifle.lvl }));
+  ok(aTap && a1.l === a0.l + 1 && a1.c < a0.c, 'Armory rifle buy changes V.Meta.state', `tapped=${aTap}; rifle Lv ${a0.l} -> ${a1.l}; credits ${a0.c} -> ${a1.c}`);
+  ok((await chip()) === String(a1.c).replace(/\B(?=(\d{3})+(?!\d))/g, ','), 'Credits chip follows the rifle buy', `chip "${await chip()}" vs state ${a1.c}`);
+  await tapEl(page, '.pv-tab[data-tab="upgrades"]'); await sleep(350);
+  const u0 = await page.evaluate(() => ({ c: V.Meta.state.credits, b: V.Meta.state.buys, s: V.Meta.state.cond.hp + V.Meta.state.cond.atk + V.Meta.state.cond.rate }));
+  const uTap = await tapEl(page, '#pane-upgrades [data-buy="cond"]'); await sleep(350);
+  const u1 = await page.evaluate(() => ({ c: V.Meta.state.credits, b: V.Meta.state.buys, s: V.Meta.state.cond.hp + V.Meta.state.cond.atk + V.Meta.state.cond.rate }));
+  ok(uTap && u1.b === u0.b + 1 && u1.s === u0.s + 1 && u1.c < u0.c, 'Upgrades random buy changes V.Meta.state', `tapped=${uTap}; buys ${u0.b} -> ${u1.b}; stat points ${u0.s} -> ${u1.s}; credits ${u0.c} -> ${u1.c}`);
+  ok((await chip()) === String(u1.c).replace(/\B(?=(\d{3})+(?!\d))/g, ','), 'Credits chip follows the random buy', `chip "${await chip()}" vs state ${u1.c}`);
+  const saved = await page.evaluate(() => { try { return JSON.parse(localStorage.getItem('volley.save.v1')).buys; } catch (e) { return null; } });
+  ok(saved === u1.b, 'buys are saved to localStorage', `saved buys ${saved} vs state ${u1.b}`);
+
+  // --- DEPLOY -> play ---
+  await tapEl(page, '.pv-tab[data-tab="deploy"]'); await sleep(300);
+  await page.evaluate(() => { window.__setTune({ ENEMY_DMG_MULT: 0 }); });
+  const dTap = await tapEl(page, '#btnDeploy'); await sleep(900);
+  const d1 = await snap();
+  ok(dTap && !(await homeOn()) && !(await page.evaluate(() => window.__pv.home)) && d1.phase === 'play' && d1.stage === 1, 'tap DEPLOY hides Home and starts the run', `tapped=${dTap}; phase ${d1.phase} stage ${d1.stage} frame ${d1.frame}`);
+  await sleep(500); const d2 = await snap();
+  ok(d2.frame > d1.frame, 'sim runs after DEPLOY', `frame ${d1.frame} -> ${d2.frame}`);
+
+  // --- reach results (hero killed), then Home, then Deploy again ---
+  // The sim ends the run inside its damage path: a 1 hp hero, enemies that survive (high HP) and hit hard, stepped idle until the first hit lands.
+  await page.evaluate(() => { window.__setTune({ HERO_ATK: 0, ENEMY_DMG_MULT: 1000 }); window.__pv.S.enemies.forEach(e => { e.hp = 1e6; if (e.maxHp) e.maxHp = 1e6; }); window.__pv.S.hero.hp = 1; window.__pv.S.hero.invulnT = 0; });
+  let rs = null;
+  for (let k = 0; k < 120; k++) { await page.evaluate(() => window.__pv.step(30, { mx: 0, my: 0 })); rs = await snap(); if (rs.phase === 'results') break; }
+  ok(rs && rs.phase === 'results', 'run ends on the results screen', `phase ${rs && rs.phase} stage ${rs && rs.stage}`);
+  if (rs && rs.phase === 'results') {
+    await sleep(1250);   // 1.0 s results tap guard
+    await snapshot(page, 'home-results');
+    const hTap = await tapEl(page, '#btnHome'); await sleep(500);
+    ok(hTap && await homeOn() && (await page.evaluate(() => V.Home.current)) === 'deploy', 'results: Home button returns to Home (Deploy tab)', `tapped=${hTap}; home visible=${await homeOn()}; tab ${await page.evaluate(() => V.Home.current)}`);
+    const fa = (await snap()).frame; await sleep(500); const fb = (await snap()).frame;
+    ok(fa === fb, 'sim waits behind Home after results', `frame ${fa} -> ${fb}`);
+    const best = await page.evaluate(() => ({ runs: V.Meta.state.runs.length, best: V.Meta.state.best, credits: V.Meta.state.credits }));
+    row('meta after the run', 'INFO', JSON.stringify(best));
+    await page.evaluate(() => window.__resetTune()); 
+    const d2Tap = await tapEl(page, '#btnDeploy'); await sleep(900);
+    const e1 = await snap();
+    ok(d2Tap && !(await homeOn()) && e1.phase === 'play' && e1.stage === 1 && e1.hp === e1.maxHp && e1.seed !== rs.seed, 'DEPLOY again starts a fresh run', `tapped=${d2Tap}; phase ${e1.phase} stage ${e1.stage} hp ${e1.hp}/${e1.maxHp}; seed ${rs.seed} -> ${e1.seed}`);
+  }
+  ok(errors.length === 0, '0 console errors during the whole Home session', errors.length ? errors.slice(0, 5).join(' | ') : 'none');
+  await ctx.close();
+  return { errors };
+}
+
 // ---------- main ----------
 (async () => {
   const t0 = Date.now();
@@ -748,7 +852,9 @@ async function runFlow(page, sess, w, h, opt) {
     }
     for (const sess of SESSIONS) {
       if (process.env.E2E_SESS && `${sess.vp[0]}x${sess.vp[1]} ${sess.mode}` !== process.env.E2E_SESS) continue;
-      try { const r = await session(browser, target, sess); if (r && r.det) dets.push({ tag: curTag, ...r.det }); }
+      try {
+        if (sess.plan === 'home' && !target.name.startsWith('index')) { curTag = `${target.name} ${sess.vp[0]}x${sess.vp[1]} ${sess.mode}`; row('Home flow (Home first, DEPLOY, results, Home, DEPLOY)', 'SKIP', 'src/game.html carries the build placeholders (/*{{home.css}}*/, /*{{assets}}*/): Home is unstyled there, so the real first-launch flow is tested on the built index.html only; src/game.html is covered with ?home=0'); continue; }
+        const r = sess.plan === 'home' ? await homeSession(browser, target, sess) : await session(browser, target, sess); if (r && r.det) dets.push({ tag: curTag, ...r.det }); }
       catch (e) { row('session crashed', 'FAIL', e.message.split('\n')[0]); }
     }
   }

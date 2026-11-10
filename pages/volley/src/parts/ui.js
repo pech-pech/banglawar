@@ -5,7 +5,7 @@ if (V.TUNE_DEFAULTS) {
   var SHELL = { AUTO_WALK: true, AUTO_WALK_DELAY: 1.0, EDGE_FLASH: true, HAPTIC_HURT_MS: 40, HAPTIC_KILL_MS: 12 };
   for (var sk in SHELL) if (!(sk in V.TUNE_DEFAULTS)) { V.TUNE_DEFAULTS[sk] = SHELL[sk]; if (V.TUNE && !(sk in V.TUNE)) V.TUNE[sk] = SHELL[sk]; }
 }
-var BUILD = 'volley-p1-3';
+var BUILD = 'volley-p1-5';
 // Persist tuning (only values that differ from defaults) and sound-off. Every storage call is guarded.
 var STORE = 'volley.tune';
 function loadTune(){
@@ -130,7 +130,7 @@ UI.openDrawer = function(on){
 UI.drawerOpen = function(){ return $('drawer').classList.contains('on'); };
 
 UI.syncOverlay = function(){
-  var any = ['ovCards', 'ovDead', 'ovSupply', 'ovPause', 'ovBoot'].some(function(id){ return $(id).classList.contains('on'); }) || UI.drawerOpen();
+  var any = ['ovCards', 'ovDead', 'ovSupply', 'ovPause', 'ovBoot'].some(function(id){ return $(id).classList.contains('on'); }) || UI.drawerOpen() || !!(V.Home && V.Home.visible());
   document.body.classList.toggle('ovon', any);
 };
 function show(id, on){ $(id).classList.toggle('on', !!on); UI.syncOverlay(); }
@@ -283,6 +283,12 @@ UI.results = function(S){
     ['Kills', r.kills | 0], ['Level', r.level != null ? r.level : S.hero.level], ['Damage taken', Math.round(r.dmgTaken || 0)], ['Mods', mods.length ? mods.join(', ') : 'none']];
   var box = $('resStats'); box.innerHTML = '';
   rows.forEach(function(rw){ var d = document.createElement('div'); d.className = 'row'; var a = document.createElement('span'); a.textContent = rw[0]; var b = document.createElement('b'); b.textContent = String(rw[1]); d.appendChild(a); d.appendChild(b); box.appendChild(d); });
+  if (r.credits != null) {      // credits earned this run (S.result.credits, added by META), with the coin
+    var cr = document.createElement('div'); cr.className = 'row'; var ca = document.createElement('span'); ca.textContent = 'Credits earned';
+    var cb = document.createElement('b'); cb.style.color = '#ffe27a'; cb.style.display = 'inline-flex'; cb.style.alignItems = 'center';
+    var ci = document.createElement('span'); ci.className = 'pv-coin'; ci.setAttribute('aria-hidden', 'true'); ci.style.cssText = 'width:20px;height:20px;margin-right:6px'; cb.appendChild(ci);   // code coin under 32 px
+    cb.appendChild(document.createTextNode('+' + (r.credits | 0))); cr.appendChild(ca); cr.appendChild(cb); box.insertBefore(cr, box.firstChild);
+  }
   UI.show('ovDead', true);
 };
 UI.dead = UI.results;

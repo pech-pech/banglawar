@@ -1,5 +1,5 @@
 Project Volley P1 headless bot results (chapter 1, stages 1-10)
-Date: 2026-11-10 (script run 2026-11-10T13:45:54.961Z)
+Date: 2026-11-10 (script run 2026-11-10T14:08:06.193Z)
 Parts loaded: tune, rng, rooms, stages, mods, sim, ai-p0, ai-p1, boss
 Seeds: 200 per bot (seeds 1..200), cap 20 game minutes per run, fixed step 1/60, default TUNE (CARDS_OFFERED 3, ENDLESS false).
 Bots: idle = never moves in combat, walks to the door when clear, takes card 0 / supply choice 0;
@@ -153,4 +153,4 @@ naive: clear 0/200, died 200 (median stage 7), boss time median -, braced 63.0%
 human: clear 181/200, died 19 (median stage 7), boss time median 25.9 s, braced 87.8%
 skilled: clear 200/200, died 0, boss time median 26.6 s, braced 77.1%
 Rule checks failed: 0
-Run time 64.2 s
+Run time 66.5 s

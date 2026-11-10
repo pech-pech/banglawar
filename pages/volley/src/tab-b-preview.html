@@ -1,0 +1,28 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=344,initial-scale=1">
+<title>TABS-B preview</title>
+<script>document.write('<link rel="stylesheet" href="'+(location.search.indexOf('kit=1')>=0?'shots/ui-kit-preview.css':'home.css')+'" onerror="this.href=\'shots/ui-kit-preview.css\'">')</script>
+<style>html,body{margin:0;background:#0b0e11}#host{position:relative;width:344px;height:882px;overflow:hidden;background:#0b0e11;color:#e4dfd2;--tb-bottom:98px}
+#host{display:flex;flex-direction:column}#sbar{height:48px;flex:none;background:#1b2026;border-bottom:2.5px solid #0f1215;color:#d6bf8e;font:800 14px/48px monospace;letter-spacing:.14em;padding-left:12px;text-transform:uppercase}#tab{flex:1;min-height:0}#bar{position:absolute;left:0;right:0;bottom:0;height:64px;background:#14181c;border-top:2px solid #0f1215;z-index:5;pointer-events:none}</style></head>
+<body><div id="host"><div id="sbar">Status bar (shell)</div><div id="tab"></div></div><div id="bar" style="display:none"></div>
+<script>
+/* real parts/meta.js, in-memory storage. fresh = empty, rich = sample save (FIX-ROUND-1 A: 12,480 credits, 15 / 30), maxed = all stats 10. */
+var q = new URLSearchParams(location.search), tab = q.get('tab') || 'upgrades', st = q.get('state') || 'rich';
+window.V = window.V || {};
+window.__pv = { renderer:'Canvas 2D' };
+</script>
+<script src="parts/meta.js"></script>
+<script>
+V.TUNE = {SOUND:true, HAPTICS:true};
+V.Meta.setStorage(null);
+if (st === 'rich') { V.Meta.sample(); V.Meta.state.codex.seen = {'E-01':1,'E-02':1,'E-03':1,'E-04':1,'E-05':1}; }
+if (st === 'maxed') { var s = V.Meta.state; s.credits = 99999; s.cond = {hp:10,atk:10,rate:10}; s.buys = 30; s.codex.seen = {'E-01':1,'E-02':1,'E-03':1,'E-04':1,'E-05':1,'B-01':1}; }
+if (st === 'fresh') { V.Meta.state.credits = 0; }
+if (st === 'poor') { V.Meta.sample(); V.Meta.state.credits = 120; }
+var _reset = V.Meta.reset; V.Meta.reset = function(){ window.__resetCalled = true; };
+</script>
+<script src="parts/tab-upgrades.js"></script><script src="parts/tab-intel.js"></script>
+<script>
+var T = V.Tabs[tab]; document.getElementById('sbar').textContent=(tab==='intel'?'Intel':'Upgrades')+'   '+V.Meta.state.credits;T.mount(document.getElementById('tab')); T.show();
+if (q.get('bar') === '1') document.getElementById('bar').style.display = '';
+if (q.get('view') && tab === 'intel') { document.querySelector('[data-view="'+q.get('view')+'"]').click(); }
+</script></body></html>

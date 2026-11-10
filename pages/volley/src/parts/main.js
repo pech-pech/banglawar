@@ -6,6 +6,8 @@ var STEP_MS = 1000 / 60, MAX_STEPS = 5;
 var S = null, R = null, list = [], view = { w: 344, h: 882, dpr: 1, ox: 0, oy: 66, s: 38 };
 var moved = false, acc = 0, last = 0, hitstopUntil = 0, paused = false, frozen = Q.get('freeze') === '1';
 var shown = { pick: false, dead: false, supply: false, endPhase: '' }, deadAt = 0, deaths = 0;
+// Deploy home (S-10, minimal) is the first screen; ?home=0 skips it (tests and bots). The sim waits behind it.
+var home = Q.get('home') !== '0';   // V.Home (home.js) owns the screens; V.Run below is its handle on the run
 var ft = [], FT_MAX = 1200, gaps = 0, frames = 0;
 
 function fail(t){ $('bootMsg').textContent = t; UI.show('ovBoot', true); console.warn('volley:', t); }
@@ -106,8 +108,14 @@ function guardOk(pressT){ return !!(S && isEnd() && deadAt && pressT - deadAt >=
 function tryRestart(pressT){ if (guardOk(pressT == null ? performance.now() : pressT)) restart(); }
 var resPressAt = 0;
 
+// Handoff with home.js: setHome freezes the sim behind the home screens; start() begins a run at stage 1 (fresh unless S is untouched).
+V.Run = {
+  setHome: function(on){ home = !!on; if (on) V.Input.release(); acc = 0; last = 0; },
+  start: function(){ if (!S) return; if (isEnd() || S.t > 0) restart(); home = false; V.Input.release(); acc = 0; last = 0; moved = false; },
+  get home(){ return home; }
+};
 function pause(){
-  if (paused || !S) return;
+  if (paused || !S || home) return;
   paused = true; V.Input.release(); V.Audio.setPaused(true); UI.show('ovPause', true);
 }
 function resume(){
@@ -171,7 +179,7 @@ function frame(ts){
   requestAnimationFrame(frame);
   var dt = last ? ts - last : STEP_MS; last = ts;
   if (!S || !R) return;
-  var running = !paused && !frozen && !UI.drawerOpen() && (S.phase === 'play' || S.phase === 'clear');
+  var running = !home && !paused && !frozen && !UI.drawerOpen() && (S.phase === 'play' || S.phase === 'clear');
   if (!paused && !document.hidden) {
     frames++; ft.push(dt); if (ft.length > FT_MAX) ft.shift(); if (dt > 50 && frames > 3) gaps++;
   }
@@ -225,6 +233,7 @@ function boot(){
   G.addEventListener('blur', pause);
   G.addEventListener('pagehide', pause);
   $('ovPause').addEventListener('pointerdown', function(e){ if (e.target.closest && e.target.closest('button')) return; e.preventDefault(); resume(); });
+  $('btnHome').addEventListener('click', function(e){ if (guardOk(e.detail === 0 ? performance.now() : (resPressAt > deadAt ? resPressAt : 0)) && V.Home) V.Home.show(); });
   $('btnResume').addEventListener('click', resume);
   $('pauseBtn').addEventListener('click', function(){ pause(); });
   $('btnRestartRun').addEventListener('click', function(e){ e.stopPropagation(); restart(); resume(); });
@@ -233,7 +242,7 @@ function boot(){
   stage.addEventListener('pointerdown', function(e){
     if (S && S.phase === 'clear' && !aw.cancelled && !(e.target.closest && e.target.closest('button, .ov, #drawer'))) { aw.cancelled = true; V.Input.note(aw.on ? 'awx' : 'awc', 0, 0); }
   }, true);
-  $('ovDead').addEventListener('pointerdown', function(e){ resPressAt = performance.now(); if (e.target.id !== 'btnRestart') tryRestart(resPressAt); });
+  $('ovDead').addEventListener('pointerdown', function(e){ resPressAt = performance.now(); if (e.target.id !== 'btnRestart' && e.target.id !== 'btnHome') tryRestart(resPressAt); });
   // A click counts only when its press began on this screen after the guard (keyboard clicks have detail 0).
   $('btnRestart').addEventListener('click', function(e){ tryRestart(e.detail === 0 ? performance.now() : (resPressAt > deadAt ? resPressAt : 0)); });
   G.addEventListener('keydown', function(e){
@@ -270,6 +279,7 @@ function boot(){
     doorDir: function(){ return S ? doorDir() : { mx: 0, my: 0 }; },  // same path the auto-walk uses
     pickSupply: function(i){ pickSupply(i); return S; },
     restart: function(){ return restart(); },
+    get home(){ return home; },
     readback: function(){ return R && R.readback ? R.readback() : Promise.resolve(null); },
     freeze: function(on){ frozen = on !== false; acc = 0; return frozen; },  // stop real-time stepping (deterministic tests)
     pause: pause, resume: resume,
