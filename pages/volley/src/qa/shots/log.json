@@ -1,0 +1,1154 @@
+{
+ "date": "2026-11-10T11:56:37.729Z",
+ "shots": [
+  {
+   "name": "01-r01-boot",
+   "file": "/home/user/banglawar/pages/volley/src/qa/shots/01-r01-boot.png",
+   "info": {
+    "phase": "play",
+    "stage": 1,
+    "roomId": "R01",
+    "frame": 0,
+    "hp": 600,
+    "braced": false,
+    "lockId": null,
+    "enemies": [
+     {
+      "id": 1,
+      "type": "E-01",
+      "st": "spawn",
+      "x": 1.5,
+      "y": 2.5,
+      "flashT": 0,
+      "hp": 216
+     },
+     {
+      "id": 2,
+      "type": "E-01",
+      "st": "spawn",
+      "x": 7.5,
+      "y": 2.5,
+      "flashT": 0,
+      "hp": 216
+     },
+     {
+      "id": 3,
+      "type": "E-01",
+      "st": "spawn",
+      "x": 4.5,
+      "y": 8.5,
+      "flashT": 0,
+      "hp": 216
+     }
+    ],
+    "shots": 0
+   }
+  },
+  {
+   "name": "02-r01-start",
+   "file": "/home/user/banglawar/pages/volley/src/qa/shots/02-r01-start.png",
+   "info": {
+    "phase": "play",
+    "stage": 1,
+    "roomId": "R01",
+    "frame": 45,
+    "hp": 600,
+    "braced": true,
+    "lockId": 3,
+    "enemies": [
+     {
+      "id": 1,
+      "type": "E-01",
+      "st": "move",
+      "x": 1.58731282501308,
+      "y": 2.8492513000523196,
+      "flashT": 0,
+      "hp": 216
+     },
+     {
+      "id": 2,
+      "type": "E-01",
+      "st": "move",
+      "x": 7.41268717498692,
+      "y": 2.8492513000523196,
+      "flashT": 0,
+      "hp": 216
+     },
+     {
+      "id": 3,
+      "type": "E-01",
+      "st": "move",
+      "x": 4.5,
+      "y": 8.859999999999992,
+      "flashT": 0,
+      "hp": 216
+     }
+    ],
+    "shots": 0
+   }
+  },
+  {
+   "name": "02-r01-start-c-hero",
+   "crop": true,
+   "wx": 4.5,
+   "wy": 14.5,
+   "view": {
+    "ox": 0,
+    "oy": 64,
+    "s": 38.22222222222222,
+    "src": "live"
+   }
+  },
+  {
+   "name": "02-r01-start-c-E-01-1",
+   "crop": true,
+   "wx": 1.58731282501308,
+   "wy": 2.8492513000523196,
+   "view": {
+    "ox": 0,
+    "oy": 64,
+    "s": 38.22222222222222,
+    "src": "live"
+   }
+  },
+  {
+   "name": "02-r01-start-c-E-01-2",
+   "crop": true,
+   "wx": 7.41268717498692,
+   "wy": 2.8492513000523196,
+   "view": {
+    "ox": 0,
+    "oy": 64,
+    "s": 38.22222222222222,
+    "src": "live"
+   }
+  },
+  {
+   "name": "02-r01-start-c-E-01-3",
+   "crop": true,
+   "wx": 4.5,
+   "wy": 8.859999999999992,
+   "view": {
+    "ox": 0,
+    "oy": 64,
+    "s": 38.22222222222222,
+    "src": "live"
+   }
+  },
+  {
+   "name": "05-enemy-hit-flash",
+   "file": "/home/user/banglawar/pages/volley/src/qa/shots/05-enemy-hit-flash.png",
+   "info": {
+    "phase": "play",
+    "stage": 1,
+    "roomId": "R01",
+    "frame": 56,
+    "hp": 600,
+    "braced": false,
+    "lockId": null,
+    "enemies": [
+     {
+      "id": 1,
+      "type": "E-01",
+      "st": "move",
+      "x": 1.678073050609046,
+      "y": 3.2797002285278922,
+      "flashT": 0,
+      "hp": 216
+     },
+     {
+      "id": 2,
+      "type": "E-01",
+      "st": "move",
+      "x": 7.2905705785184445,
+      "y": 3.2718819642790584,
+      "flashT": 0,
+      "hp": 216
+     },
+     {
+      "id": 3,
+      "type": "E-01",
+      "st": "move",
+      "x": 4.464252273253945,
+      "y": 9.298129233902007,
+      "flashT": 0.1,
+      "hp": 66
+     }
+    ],
+    "shots": 0
+   }
+  },
+  {
+   "name": "05-enemy-hit-flashc",
+   "crop": true,
+   "wx": 4.464252273253945,
+   "wy": 9.298129233902007,
+   "view": {
+    "ox": 0,
+    "oy": 64,
+    "s": 38.22222222222222,
+    "src": "live"
+   }
+  },
+  {
+   "name": "05-enemy-hit-flashc-hero",
+   "crop": true,
+   "wx": 3.674999999999998,
+   "wy": 14.5,
+   "view": {
+    "ox": 0,
+    "oy": 64,
+    "s": 38.22222222222222,
+    "src": "live"
+   }
+  },
+  {
+   "name": "03-e01-tell",
+   "file": "/home/user/banglawar/pages/volley/src/qa/shots/03-e01-tell.png",
+   "info": {
+    "phase": "play",
+    "stage": 1,
+    "roomId": "R01",
+    "frame": 130,
+    "hp": 600,
+    "braced": false,
+    "lockId": null,
+    "enemies": [
+     {
+      "id": 1,
+      "type": "E-01",
+      "st": "move",
+      "x": 2.02732963455349,
+      "y": 6.206809626229018,
+      "flashT": 0,
+      "hp": 216
+     },
+     {
+      "id": 2,
+      "type": "E-01",
+      "st": "move",
+      "x": 6.247611863040803,
+      "y": 6.031907873692997,
+      "flashT": 0,
+      "hp": 216
+     },
+     {
+      "id": 3,
+      "type": "E-01",
+      "st": "tell",
+      "x": 3.812864151723165,
+      "y": 12.099226200470962,
+      "flashT": 0,
+      "hp": 66
+     }
+    ],
+    "shots": 0
+   }
+  },
+  {
+   "name": "03-e01-tellc",
+   "crop": true,
+   "wx": 3.812864151723165,
+   "wy": 12.099226200470962,
+   "view": {
+    "ox": 0,
+    "oy": 64,
+    "s": 38.22222222222222,
+    "src": "live"
+   }
+  },
+  {
+   "name": "03-e01-tellc-hero",
+   "crop": true,
+   "wx": 4.124999999999999,
+   "wy": 14.5,
+   "view": {
+    "ox": 0,
+    "oy": 64,
+    "s": 38.22222222222222,
+    "src": "live"
+   }
+  },
+  {
+   "name": "06-hurt-edge-flash",
+   "file": "/home/user/banglawar/pages/volley/src/qa/shots/06-hurt-edge-flash.png",
+   "info": {
+    "phase": "play",
+    "stage": 1,
+    "roomId": "R01",
+    "frame": 218,
+    "hp": 600,
+    "braced": false,
+    "lockId": null,
+    "enemies": [
+     {
+      "id": 1,
+      "type": "E-01",
+      "st": "move",
+      "x": 2.515609055764586,
+      "y": 9.661605441573032,
+      "flashT": 0,
+      "hp": 216
+     },
+     {
+      "id": 2,
+      "type": "E-01",
+      "st": "move",
+      "x": 5.076275076974872,
+      "y": 9.32690348251931,
+      "flashT": 0,
+      "hp": 216
+     },
+     {
+      "id": 3,
+      "type": "E-01",
+      "st": "cool",
+      "x": 2.963949933514914,
+      "y": 14.452956136153482,
+      "flashT": 0,
+      "hp": 66
+     }
+    ],
+    "shots": 0
+   }
+  },
+  {
+   "name": "06-hurt-edge-flashc",
+   "crop": true,
+   "wx": 3.5249999999999977,
+   "wy": 14.5,
+   "view": {
+    "ox": 0,
+    "oy": 64,
+    "s": 38.22222222222222,
+    "src": "live"
+   }
+  },
+  {
+   "name": "04-hero-braced-lock",
+   "file": "/home/user/banglawar/pages/volley/src/qa/shots/04-hero-braced-lock.png",
+   "info": {
+    "phase": "play",
+    "stage": 1,
+    "roomId": "R01",
+    "frame": 474,
+    "hp": 600,
+    "braced": true,
+    "lockId": 1,
+    "enemies": [
+     {
+      "id": 1,
+      "type": "E-01",
+      "st": "tell",
+      "x": 2.542781481492963,
+      "y": 14.518656600970946,
+      "flashT": 0.1,
+      "hp": 66
+     },
+     {
+      "id": 2,
+      "type": "E-01",
+      "st": "move",
+      "x": 3.8319038099981735,
+      "y": 14.504359466305043,
+      "flashT": 0,
+      "hp": 216
+     },
+     {
+      "id": 3,
+      "type": "E-01",
+      "st": "cool",
+      "x": 3.164948621737887,
+      "y": 14.48901277073274,
+      "flashT": 0,
+      "hp": 66
+     }
+    ],
+    "shots": 0
+   }
+  },
+  {
+   "name": "04-hero-braced-lockc",
+   "crop": true,
+   "wx": 2.542781481492963,
+   "wy": 14.518656600970946,
+   "view": {
+    "ox": 0,
+    "oy": 64,
+    "s": 38.22222222222222,
+    "src": "live"
+   }
+  },
+  {
+   "name": "04-hero-braced-lockc-hero",
+   "crop": true,
+   "wx": 2.9999999999999964,
+   "wy": 14.5,
+   "view": {
+    "ox": 0,
+    "oy": 64,
+    "s": 38.22222222222222,
+    "src": "live"
+   }
+  },
+  {
+   "name": "02-r01-door-open",
+   "file": "/home/user/banglawar/pages/volley/src/qa/shots/02-r01-door-open.png",
+   "info": {
+    "phase": "clear",
+    "stage": 1,
+    "roomId": "R01",
+    "frame": 753,
+    "hp": 600,
+    "braced": true,
+    "lockId": null,
+    "enemies": [],
+    "shots": 0
+   }
+  },
+  {
+   "name": "02-r01-door-open-c",
+   "crop": true,
+   "wx": 4.5,
+   "wy": 0.8,
+   "view": {
+    "ox": 0,
+    "oy": 64,
+    "s": 38.22222222222222,
+    "src": "live"
+   }
+  },
+  {
+   "name": "10-r02-start",
+   "file": "/home/user/banglawar/pages/volley/src/qa/shots/10-r02-start.png",
+   "info": {
+    "phase": "play",
+    "stage": 2,
+    "roomId": "R02",
+    "frame": 1065,
+    "hp": 600,
+    "braced": true,
+    "lockId": 6,
+    "enemies": [
+     {
+      "id": 4,
+      "type": "E-02",
+      "st": "move",
+      "x": 1.6398390839898724,
+      "y": 2.5542664402658333,
+      "flashT": 0,
+      "hp": 336
+     },
+     {
+      "id": 5,
+      "type": "E-02",
+      "st": "move",
+      "x": 7.5978502786894975,
+      "y": 2.6136887809356755,
+      "flashT": 0,
+      "hp": 336
+     },
+     {
+      "id": 6,
+      "type": "E-01",
+      "st": "move",
+      "x": 4.5,
+      "y": 6.86,
+      "flashT": 0,
+      "hp": 224
+     }
+    ],
+    "shots": 0
+   }
+  },
+  {
+   "name": "10-r02-start-c-hero",
+   "crop": true,
+   "wx": 4.5,
+   "wy": 14.5,
+   "view": {
+    "ox": 0,
+    "oy": 64,
+    "s": 38.22222222222222,
+    "src": "live"
+   }
+  },
+  {
+   "name": "10-r02-start-c-E-02-4",
+   "crop": true,
+   "wx": 1.6398390839898724,
+   "wy": 2.5542664402658333,
+   "view": {
+    "ox": 0,
+    "oy": 64,
+    "s": 38.22222222222222,
+    "src": "live"
+   }
+  },
+  {
+   "name": "10-r02-start-c-E-02-5",
+   "crop": true,
+   "wx": 7.5978502786894975,
+   "wy": 2.6136887809356755,
+   "view": {
+    "ox": 0,
+    "oy": 64,
+    "s": 38.22222222222222,
+    "src": "live"
+   }
+  },
+  {
+   "name": "10-r02-start-c-E-01-6",
+   "crop": true,
+   "wx": 4.5,
+   "wy": 6.86,
+   "view": {
+    "ox": 0,
+    "oy": 64,
+    "s": 38.22222222222222,
+    "src": "live"
+   }
+  },
+  {
+   "name": "11-e02-aim-line",
+   "file": "/home/user/banglawar/pages/volley/src/qa/shots/11-e02-aim-line.png",
+   "info": {
+    "phase": "play",
+    "stage": 2,
+    "roomId": "R02",
+    "frame": 1320,
+    "hp": 600,
+    "braced": false,
+    "lockId": null,
+    "enemies": [
+     {
+      "id": 4,
+      "type": "E-02",
+      "st": "tell",
+      "x": 0.5345053187510108,
+      "y": 4.936053822735132,
+      "flashT": 0,
+      "hp": 336
+     },
+     {
+      "id": 5,
+      "type": "E-02",
+      "st": "move",
+      "x": 7.5013279409008735,
+      "y": 5.174619252481113,
+      "flashT": 0,
+      "hp": 336
+     },
+     {
+      "id": 6,
+      "type": "E-01",
+      "st": "cool",
+      "x": 3.6799087160548605,
+      "y": 14.499999925711439,
+      "flashT": 0,
+      "hp": 74
+     }
+    ],
+    "shots": 0
+   }
+  },
+  {
+   "name": "11-e02-aim-linec",
+   "crop": true,
+   "wx": 0.5345053187510108,
+   "wy": 6.236053822735132,
+   "view": {
+    "ox": 0,
+    "oy": 64,
+    "s": 38.22222222222222,
+    "src": "live"
+   }
+  },
+  {
+   "name": "11-e02-aim-linec-hero",
+   "crop": true,
+   "wx": 3.3749999999999973,
+   "wy": 14.5,
+   "view": {
+    "ox": 0,
+    "oy": 64,
+    "s": 38.22222222222222,
+    "src": "live"
+   }
+  },
+  {
+   "name": "12-enemy-shots",
+   "file": "/home/user/banglawar/pages/volley/src/qa/shots/12-enemy-shots.png",
+   "info": {
+    "phase": "play",
+    "stage": 2,
+    "roomId": "R02",
+    "frame": 1356,
+    "hp": 600,
+    "braced": false,
+    "lockId": null,
+    "enemies": [
+     {
+      "id": 4,
+      "type": "E-02",
+      "st": "cool",
+      "x": 0.5345053187510108,
+      "y": 4.936053822735132,
+      "flashT": 0,
+      "hp": 336
+     },
+     {
+      "id": 5,
+      "type": "E-02",
+      "st": "move",
+      "x": 7.749079437478062,
+      "y": 5.720135237489777,
+      "flashT": 0,
+      "hp": 336
+     },
+     {
+      "id": 6,
+      "type": "E-01",
+      "st": "cool",
+      "x": 2.319908716054862,
+      "y": 14.499999999625386,
+      "flashT": 0,
+      "hp": 74
+     }
+    ],
+    "shots": 1
+   }
+  },
+  {
+   "name": "12-enemy-shotsc",
+   "crop": true,
+   "wx": 0.5924303486060596,
+   "wy": 5.432687179363834,
+   "view": {
+    "ox": 0,
+    "oy": 64,
+    "s": 38.22222222222222,
+    "src": "live"
+   }
+  },
+  {
+   "name": "10-r02-door-open",
+   "file": "/home/user/banglawar/pages/volley/src/qa/shots/10-r02-door-open.png",
+   "info": {
+    "phase": "clear",
+    "stage": 2,
+    "roomId": "R02",
+    "frame": 1837,
+    "hp": 600,
+    "braced": true,
+    "lockId": null,
+    "enemies": [],
+    "shots": 0
+   }
+  },
+  {
+   "name": "10-r02-door-open-c",
+   "crop": true,
+   "wx": 4.5,
+   "wy": 0.8,
+   "view": {
+    "ox": 0,
+    "oy": 64,
+    "s": 38.22222222222222,
+    "src": "live"
+   }
+  },
+  {
+   "name": "09-card-screen",
+   "file": "/home/user/banglawar/pages/volley/src/qa/shots/09-card-screen.png",
+   "info": {
+    "phase": "pick",
+    "stage": 2,
+    "roomId": "R02",
+    "frame": 1866,
+    "hp": 600,
+    "braced": true,
+    "lockId": null,
+    "enemies": [],
+    "shots": 0
+   }
+  },
+  {
+   "name": "13-r03-start",
+   "file": "/home/user/banglawar/pages/volley/src/qa/shots/13-r03-start.png",
+   "info": {
+    "phase": "play",
+    "stage": 3,
+    "roomId": "R03",
+    "frame": 2089,
+    "hp": 600,
+    "braced": true,
+    "lockId": 9,
+    "enemies": [
+     {
+      "id": 7,
+      "type": "E-03",
+      "st": "cool",
+      "x": 1.5,
+      "y": 6.5,
+      "flashT": 0,
+      "hp": 463
+     },
+     {
+      "id": 8,
+      "type": "E-02",
+      "st": "move",
+      "x": 7.360160916010127,
+      "y": 2.5542664402658333,
+      "flashT": 0,
+      "hp": 347
+     },
+     {
+      "id": 9,
+      "type": "E-01",
+      "st": "move",
+      "x": 4.5,
+      "y": 9.859999999999992,
+      "flashT": 0,
+      "hp": 232
+     }
+    ],
+    "shots": 0
+   }
+  },
+  {
+   "name": "13-r03-start-c-hero",
+   "crop": true,
+   "wx": 4.5,
+   "wy": 14.5,
+   "view": {
+    "ox": 0,
+    "oy": 64,
+    "s": 38.22222222222222,
+    "src": "live"
+   }
+  },
+  {
+   "name": "13-r03-start-c-E-03-7",
+   "crop": true,
+   "wx": 1.5,
+   "wy": 6.5,
+   "view": {
+    "ox": 0,
+    "oy": 64,
+    "s": 38.22222222222222,
+    "src": "live"
+   }
+  },
+  {
+   "name": "13-r03-start-c-E-02-8",
+   "crop": true,
+   "wx": 7.360160916010127,
+   "wy": 2.5542664402658333,
+   "view": {
+    "ox": 0,
+    "oy": 64,
+    "s": 38.22222222222222,
+    "src": "live"
+   }
+  },
+  {
+   "name": "13-r03-start-c-E-01-9",
+   "crop": true,
+   "wx": 4.5,
+   "wy": 9.859999999999992,
+   "view": {
+    "ox": 0,
+    "oy": 64,
+    "s": 38.22222222222222,
+    "src": "live"
+   }
+  },
+  {
+   "name": "14-e03-fan-wedge",
+   "file": "/home/user/banglawar/pages/volley/src/qa/shots/14-e03-fan-wedge.png",
+   "info": {
+    "phase": "play",
+    "stage": 3,
+    "roomId": "R03",
+    "frame": 2142,
+    "hp": 600,
+    "braced": false,
+    "lockId": null,
+    "enemies": [
+     {
+      "id": 7,
+      "type": "E-03",
+      "st": "tell",
+      "x": 1.5,
+      "y": 6.5,
+      "flashT": 0,
+      "hp": 463
+     },
+     {
+      "id": 8,
+      "type": "E-02",
+      "st": "move",
+      "x": 6.503902298443974,
+      "y": 2.752598817351744,
+      "flashT": 0,
+      "hp": 347
+     },
+     {
+      "id": 9,
+      "type": "E-01",
+      "st": "move",
+      "x": 3.701238186727082,
+      "y": 11.781772373731314,
+      "flashT": 0,
+      "hp": 82
+     }
+    ],
+    "shots": 0
+   }
+  },
+  {
+   "name": "14-e03-fan-wedgec",
+   "crop": true,
+   "wx": 1.5,
+   "wy": 8.1,
+   "view": {
+    "ox": 0,
+    "oy": 64,
+    "s": 38.22222222222222,
+    "src": "live"
+   }
+  },
+  {
+   "name": "14-e03-fan-wedgec-hero",
+   "crop": true,
+   "wx": 2.474999999999995,
+   "wy": 14.5,
+   "view": {
+    "ox": 0,
+    "oy": 64,
+    "s": 38.22222222222222,
+    "src": "live"
+   }
+  },
+  {
+   "name": "15-e03-volley",
+   "file": "/home/user/banglawar/pages/volley/src/qa/shots/15-e03-volley.png",
+   "info": {
+    "phase": "play",
+    "stage": 3,
+    "roomId": "R03",
+    "frame": 2184,
+    "hp": 600,
+    "braced": false,
+    "lockId": null,
+    "enemies": [
+     {
+      "id": 7,
+      "type": "E-03",
+      "st": "cool",
+      "x": 1.5,
+      "y": 6.5,
+      "flashT": 0,
+      "hp": 463
+     },
+     {
+      "id": 8,
+      "type": "E-02",
+      "st": "move",
+      "x": 6.118802718233553,
+      "y": 2.984301384797929,
+      "flashT": 0,
+      "hp": 347
+     },
+     {
+      "id": 9,
+      "type": "E-01",
+      "st": "act",
+      "x": 3.5901213511910646,
+      "y": 12.325084033431883,
+      "flashT": 0,
+      "hp": 82
+     }
+    ],
+    "shots": 3
+   }
+  },
+  {
+   "name": "15-e03-volleyc",
+   "crop": true,
+   "wx": 1.8086761258954738,
+   "wy": 6.994971541686933,
+   "view": {
+    "ox": 0,
+    "oy": 64,
+    "s": 38.22222222222222,
+    "src": "live"
+   }
+  },
+  {
+   "name": "13-r03-door-open",
+   "file": "/home/user/banglawar/pages/volley/src/qa/shots/13-r03-door-open.png",
+   "info": {
+    "phase": "clear",
+    "stage": 3,
+    "roomId": "R03",
+    "frame": 2910,
+    "hp": 600,
+    "braced": true,
+    "lockId": null,
+    "enemies": [],
+    "shots": 0
+   }
+  },
+  {
+   "name": "13-r03-door-open-c",
+   "crop": true,
+   "wx": 4.5,
+   "wy": 0.8,
+   "view": {
+    "ox": 0,
+    "oy": 64,
+    "s": 38.22222222222222,
+    "src": "live"
+   }
+  },
+  {
+   "name": "13z-r01-lap2-start",
+   "file": "/home/user/banglawar/pages/volley/src/qa/shots/13z-r01-lap2-start.png",
+   "info": {
+    "phase": "play",
+    "stage": 4,
+    "roomId": "R01",
+    "frame": 3242,
+    "hp": 600,
+    "braced": true,
+    "lockId": 12,
+    "enemies": [
+     {
+      "id": 10,
+      "type": "E-01",
+      "st": "move",
+      "x": 1.58731282501308,
+      "y": 2.8492513000523196,
+      "flashT": 0,
+      "hp": 239
+     },
+     {
+      "id": 11,
+      "type": "E-01",
+      "st": "move",
+      "x": 7.41268717498692,
+      "y": 2.8492513000523196,
+      "flashT": 0,
+      "hp": 239
+     },
+     {
+      "id": 12,
+      "type": "E-01",
+      "st": "move",
+      "x": 4.5,
+      "y": 8.859999999999992,
+      "flashT": 0,
+      "hp": 239
+     }
+    ],
+    "shots": 0
+   }
+  },
+  {
+   "name": "16-pause-card",
+   "file": "/home/user/banglawar/pages/volley/src/qa/shots/16-pause-card.png",
+   "info": {
+    "phase": "play",
+    "stage": 4,
+    "roomId": "R01",
+    "frame": 3242,
+    "hp": 600,
+    "braced": true,
+    "lockId": 12,
+    "enemies": [
+     {
+      "id": 10,
+      "type": "E-01",
+      "st": "move",
+      "x": 1.58731282501308,
+      "y": 2.8492513000523196,
+      "flashT": 0,
+      "hp": 239
+     },
+     {
+      "id": 11,
+      "type": "E-01",
+      "st": "move",
+      "x": 7.41268717498692,
+      "y": 2.8492513000523196,
+      "flashT": 0,
+      "hp": 239
+     },
+     {
+      "id": 12,
+      "type": "E-01",
+      "st": "move",
+      "x": 4.5,
+      "y": 8.859999999999992,
+      "flashT": 0,
+      "hp": 239
+     }
+    ],
+    "shots": 0
+   }
+  },
+  {
+   "name": "17-tuning-drawer",
+   "file": "/home/user/banglawar/pages/volley/src/qa/shots/17-tuning-drawer.png",
+   "info": {
+    "phase": "play",
+    "stage": 4,
+    "roomId": "R01",
+    "frame": 3242,
+    "hp": 600,
+    "braced": true,
+    "lockId": 12,
+    "enemies": [
+     {
+      "id": 10,
+      "type": "E-01",
+      "st": "move",
+      "x": 1.58731282501308,
+      "y": 2.8492513000523196,
+      "flashT": 0,
+      "hp": 239
+     },
+     {
+      "id": 11,
+      "type": "E-01",
+      "st": "move",
+      "x": 7.41268717498692,
+      "y": 2.8492513000523196,
+      "flashT": 0,
+      "hp": 239
+     },
+     {
+      "id": 12,
+      "type": "E-01",
+      "st": "move",
+      "x": 4.5,
+      "y": 8.859999999999992,
+      "flashT": 0,
+      "hp": 239
+     }
+    ],
+    "shots": 0
+   }
+  },
+  {
+   "name": "17b-tuning-drawer-bottom",
+   "file": "/home/user/banglawar/pages/volley/src/qa/shots/17b-tuning-drawer-bottom.png",
+   "info": {
+    "phase": "play",
+    "stage": 4,
+    "roomId": "R01",
+    "frame": 3242,
+    "hp": 600,
+    "braced": true,
+    "lockId": 12,
+    "enemies": [
+     {
+      "id": 10,
+      "type": "E-01",
+      "st": "move",
+      "x": 1.58731282501308,
+      "y": 2.8492513000523196,
+      "flashT": 0,
+      "hp": 239
+     },
+     {
+      "id": 11,
+      "type": "E-01",
+      "st": "move",
+      "x": 7.41268717498692,
+      "y": 2.8492513000523196,
+      "flashT": 0,
+      "hp": 239
+     },
+     {
+      "id": 12,
+      "type": "E-01",
+      "st": "move",
+      "x": 4.5,
+      "y": 8.859999999999992,
+      "flashT": 0,
+      "hp": 239
+     }
+    ],
+    "shots": 0
+   }
+  },
+  {
+   "name": "18-death-screen",
+   "file": "/home/user/banglawar/pages/volley/src/qa/shots/18-death-screen.png",
+   "info": {
+    "phase": "dead",
+    "stage": 4,
+    "roomId": "R01",
+    "frame": 3349,
+    "hp": 0,
+    "braced": false,
+    "lockId": null,
+    "enemies": [
+     {
+      "id": 10,
+      "type": "E-01",
+      "st": "tell",
+      "x": 2.402232525135159,
+      "y": 6.108930100540636,
+      "flashT": 0,
+      "hp": 239
+     },
+     {
+      "id": 11,
+      "type": "E-01",
+      "st": "move",
+      "x": 5.155384088867149,
+      "y": 6.210721254694252,
+      "flashT": 0,
+      "hp": 239
+     },
+     {
+      "id": 12,
+      "type": "E-01",
+      "st": "cool",
+      "x": 1.6807697069574536,
+      "y": 9.77902459724587,
+      "flashT": 0,
+      "hp": 89
+     }
+    ],
+    "shots": 0
+   }
+  },
+  {
+   "name": "19-wide-1104x884"
+  },
+  {
+   "name": "20-412x904"
+  },
+  {
+   "name": "21-webgpu"
+  }
+ ],
+ "notes": [
+  "__pv keys: renderer,rendererWhy,R,S,paused,view,frozen,lastCopy,step,pick,restart,readback,freeze,pause,resume,drawer,report,metrics,hash,tune,input,audio,build",
+  "view: {\"ox\":0,\"oy\":64,\"s\":38.22222222222222,\"src\":\"live\"}",
+  "flash el at hurt:  op=0.599104",
+  "after 02-r01: {\"roomId\":\"R02\",\"stage\":2,\"phase\":\"play\",\"level\":1}",
+  "after 10-r02: {\"roomId\":\"R03\",\"stage\":3,\"phase\":\"play\",\"level\":2}",
+  "after 13-r03: {\"roomId\":\"R01\",\"stage\":4,\"phase\":\"play\",\"level\":2}",
+  "NOT captured: 04b-lock-blocked-amber",
+  "pause card on after blur: true",
+  "webgpu run renderer: Canvas 2D why=lost:destroyed gpu=true",
+  "webgpu readback: {\"w\":0,\"h\":0,\"nonBg\":0,\"error\":\"renderer is Canvas 2D\"}"
+ ],
+ "console": []
+}

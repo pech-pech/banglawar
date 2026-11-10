@@ -1,0 +1,2260 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>Project Volley</title>
+<style>
+:root{
+  --sand:#e9dcbf; --sand2:#cdbb94; --ink:#14130f; --gun:#26292b; --gun2:#33373a; --panel:rgba(22,23,24,.92);
+  --cyan:#43d3e3; --cyanD:#0e5a63; --red:#e2463c; --hp:#5fd06a; --amber:#f0b54a; --mut:#b9b2a2;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;background:#1b1a17;color:var(--sand);font:14px/1.3 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;overflow:hidden;
+  user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;overscroll-behavior:none}
+#stage{position:absolute;left:0;top:0;overflow:hidden;touch-action:none;background:#c9b48a;flex:none}
+#stage canvas{position:absolute;left:0;top:0;width:100%;height:100%;display:block;touch-action:none}
+/* HUD */
+#hud{position:absolute;left:0;top:0;right:0;pointer-events:none;z-index:10}
+#hudTop{display:flex;align-items:center;gap:6px;height:44px;padding:4px 4px 0 6px;background:linear-gradient(#1d1e1fee,#1d1e1fcc)}
+#stageLbl{font-weight:700;font-size:13px;white-space:nowrap;color:var(--sand);background:var(--gun);border:1px solid #4a4d4f;border-radius:6px;padding:3px 6px}
+#stageLbl b{color:#fff}
+#lvl{font-weight:800;font-size:13px;color:#0d1b1d;background:var(--cyan);border-radius:6px;padding:3px 6px;white-space:nowrap}
+#xpWrap{flex:1;height:8px;border-radius:4px;background:#0c0d0e;border:1px solid #45494c;overflow:hidden;min-width:30px}
+#xpFill{height:100%;width:0;background:var(--cyan)}
+#gear{pointer-events:auto;width:56px;height:56px;margin:-6px -4px -6px 0;border:0;background:transparent;color:var(--sand);font-size:24px;line-height:56px;padding:0;cursor:pointer}
+#gear span{display:inline-block;width:36px;height:36px;line-height:34px;border-radius:8px;background:var(--gun);border:1px solid #55595c}
+#hpRow{position:relative;height:18px;margin:0 6px;border-radius:0 0 6px 6px;background:#0c0d0e;border:1px solid #45494c;border-top:0;overflow:hidden}
+#hpFill{height:100%;width:100%;background:var(--hp);transition:width .12s}
+#hpTxt{position:absolute;inset:0;text-align:center;font-size:12px;font-weight:800;line-height:18px;color:#0b1416}
+#rlbl{position:absolute;left:6px;bottom:6px;font:11px/1.2 ui-monospace,Menlo,Consolas,monospace;color:#1b1a17;background:rgba(233,220,191,.85);padding:2px 5px;border-radius:4px;pointer-events:none;z-index:10}
+#toast{position:absolute;left:50%;transform:translateX(-50%);max-width:40%;text-align:center;font-weight:700;font-size:13px;color:var(--sand);background:var(--panel);
+  border:1px solid var(--cyanD);border-radius:8px;padding:6px 8px;pointer-events:none;z-index:11;opacity:0;transition:opacity .2s}
+#toast.on{opacity:1}
+#flash{position:absolute;inset:0;pointer-events:none;z-index:9;box-shadow:inset 0 0 40px 14px rgba(226,40,30,.85);opacity:0;transition:opacity .25s ease-out}
+#flash.on{opacity:1;transition:none}
+body.ovon #hud, body.ovon #toast, body.ovon #rlbl{visibility:hidden}
+/* overlays */
+.ov{position:absolute;inset:0;z-index:30;display:none;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:16px;
+  background:rgba(20,19,16,.94);text-align:center}
+.ov.on{display:flex}
+.ov h2{margin:0;font-size:22px;color:#fff;letter-spacing:.5px}
+.ov p{margin:0;color:var(--sand);max-width:300px}
+.btn{min-height:56px;min-width:120px;padding:8px 18px;border-radius:10px;border:0;font:700 17px system-ui,sans-serif;background:var(--cyan);color:#0b1416;cursor:pointer}
+.btn.ghost{background:var(--gun2);color:var(--sand);border:1px solid #5a5e61}
+.card{width:100%;max-width:300px;min-height:84px;border-radius:12px;border:2px solid var(--cyan);background:var(--gun);color:var(--sand);padding:10px 12px;text-align:left;cursor:pointer;font:inherit}
+.card b{display:block;font-size:17px;color:#fff;margin-bottom:3px}
+.card span{font-size:14px;color:var(--sand)}
+#deadStats{font-size:14px;color:var(--sand);line-height:1.5}
+#coverNote{position:absolute;display:none;font-size:13px;color:var(--sand);background:var(--gun);border:1px solid #4a4d4f;border-radius:8px;padding:8px 10px;z-index:40;max-width:260px}
+/* drawer */
+#drawer{position:absolute;top:0;right:0;bottom:0;width:100%;z-index:50;background:rgba(18,18,17,.97);display:none;flex-direction:column}
+#drawer.on{display:flex}
+#drHead{display:flex;align-items:center;gap:6px;padding:4px 6px;border-bottom:1px solid #3c3f42;flex-wrap:wrap}
+#drHead h3{margin:0 auto 0 4px;font-size:16px;color:#fff}
+#drBody{flex:1;overflow-y:auto;padding:4px 10px 20px;touch-action:pan-y}
+#drBody h4{margin:12px 0 2px;font-size:13px;color:var(--cyan);text-transform:uppercase;letter-spacing:1px}
+.kn{padding:4px 0;border-bottom:1px solid #2b2d2f}
+.kn label{display:flex;justify-content:space-between;font-size:12px;color:var(--sand)}
+.kn label i{font-style:normal;color:#fff;font-family:ui-monospace,Menlo,monospace}
+.kn input[type=range]{width:100%;height:36px;margin:0;accent-color:var(--cyan)}
+.kn .tg{min-height:56px;width:100%;margin-top:2px}
+#drMsg{font-size:12px;color:var(--amber);min-height:16px;padding:0 10px}
+#copyArea{position:absolute;left:-9999px;top:0;width:10px;height:10px}
+</style>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#1b1a17">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+</head>
+<body>
+<div id="stage">
+  <canvas id="cgpu"></canvas>
+  <canvas id="c2d"></canvas>
+  <div id="flash"></div>
+  <div id="hud">
+    <div id="hudTop">
+      <div id="stageLbl">Stage <b id="stNum">1</b> <span id="roomName"></span></div>
+      <div id="lvl">Lv 1</div>
+      <div id="xpWrap"><div id="xpFill"></div></div>
+      <button id="gear" aria-label="Tuning"><span>&#9881;</span></button>
+    </div>
+    <div id="hpRow"><div id="hpFill"></div><div id="hpTxt">600 / 600</div></div>
+  </div>
+  <div id="toast"></div>
+  <div id="rlbl">-</div>
+  <div class="ov" id="ovCards"><h2 id="cardTitle">Field upgrade</h2><p>Pick one</p><div id="cardList" style="display:flex;flex-direction:column;gap:10px;width:100%;align-items:center"></div></div>
+  <div class="ov" id="ovDead"><h2>Operator down</h2><div id="deadStats"></div><button class="btn" id="btnRestart">Restart</button><p style="font-size:12px">Tap anywhere to deploy again</p></div>
+  <div class="ov" id="ovPause"><h2>Paused</h2><p>Tap to resume</p><button class="btn" id="btnResume">Resume</button></div>
+  <div class="ov" id="ovBoot"><h2>Project Volley</h2><p id="bootMsg">Loading...</p></div>
+  <div id="drawer">
+    <div id="drHead"><h3>Tuning</h3>
+      <button class="btn ghost" id="drReset">Reset</button>
+      <button class="btn ghost" id="drClose">Close</button>
+      <button class="btn ghost" id="drCopyS" style="flex:1">Copy settings</button>
+      <button class="btn" id="drCopyR" style="flex:1">Copy report</button>
+    </div>
+    <div id="drMsg"></div>
+    <div id="drBody"></div>
+  </div>
+</div>
+<div id="coverNote">Cover screen build: made for the folded phone. Runs in a portrait column here.</div>
+<textarea id="copyArea" aria-hidden="true"></textarea>
+<script>
+(function(){ var G = (typeof window !== 'undefined' ? window : globalThis); var V = G.V = G.V || {};
+// Tuning knobs. V.TUNE is the live copy the drawer mutates; the sim reads S.tune every step.
+V.TUNE_DEFAULTS = {
+  // enemies / scaling (DESIGN 11)
+  ENEMY_HP_GLOBAL: 0.72, HP_SLOPE: 0.036, DMG_SLOPE: 0.012,
+  ENEMY_DMG_MULT: 1, ENEMY_SHOT_SPEED_MULT: 1, TELL_MULT: 1,
+  // hero (D1 2)
+  HERO_HP: 600, HERO_ATK: 150, CRIT_CHANCE: 0.05, CRIT_MULT: 2,
+  MOVE_SPEED: 4.5, BRACE_DELAY: 0.15, FIRE_INTERVAL: 0.8, FIRE_FLOOR: 0.2,
+  ROUND_SPEED: 14, ROUND_R: 0.12, INVULN: 0.6, PICKUP_R: 0.9,
+  // run
+  CARDS_OFFERED: 2, TIME_SCALE: 1, PICK_DELAY: 1.0, SPAWN_T: 0.6,
+  // feel / input (shell side)
+  HITSTOP_MS: 50, DEADZONE_ENTER: 14, DEADZONE_EXIT: 8, HAPTICS: true, SOUND: true
+};
+V.TUNE = {};
+for (var k in V.TUNE_DEFAULTS) V.TUNE[k] = V.TUNE_DEFAULTS[k];
+})();
+
+</script>
+<script>
+(function(){ var G = (typeof window !== 'undefined' ? window : globalThis); var V = G.V = G.V || {};
+// mulberry32; state in .s so it can be hashed/inspected.
+function Rng(seed){
+  if (!(this instanceof Rng)) return new Rng(seed);
+  this.s = (seed >>> 0) ^ 0x9E3779B9;
+  if (this.s === 0) this.s = 1;
+}
+Rng.prototype.next = function(){
+  var t = (this.s = (this.s + 0x6D2B79F5) >>> 0);
+  t = Math.imul(t ^ (t >>> 15), t | 1);
+  t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+  return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+};
+Rng.prototype.int = function(n){ return Math.floor(this.next() * n); };
+Rng.prototype.range = function(a, b){ return a + (b - a) * this.next(); };
+V.Rng = Rng;
+})();
+
+</script>
+<script>
+(function(){ var G = (typeof window !== 'undefined' ? window : globalThis); var V = G.V = G.V || {};
+// D3 section 3 grids. '#' row 0 = wall, other '#' = cover (kind per room). Spawns: 3 fixed 'e' slots (centres).
+V.ROOMS = {
+  R01: { name: 'Open Yard', cover: 'pillar', grid: [
+    '####D####',
+    '.........',
+    '.e.....e.',
+    '.........',
+    '....e....',
+    '.........',
+    '.e.....e.',
+    '.........',
+    '....e....',
+    '.........',
+    '.........',
+    '.........',
+    '.........',
+    '.........',
+    '....S....'],
+    spawns: [ {type:'E-01', x:1.5, y:2.5}, {type:'E-01', x:7.5, y:2.5}, {type:'E-01', x:4.5, y:8.5} ] },
+  R02: { name: 'Twin Pillars', cover: 'pillar', grid: [
+    '####D####',
+    '.........',
+    '.e.....e.',
+    '.........',
+    '..##.##..',
+    '..##.##..',
+    '....e....',
+    '.........',
+    '.e.....e.',
+    '.........',
+    '.........',
+    '.........',
+    '.........',
+    '.........',
+    '....S....'],
+    spawns: [ {type:'E-02', x:1.5, y:2.5}, {type:'E-02', x:7.5, y:2.5}, {type:'E-01', x:4.5, y:6.5} ] },
+  R03: { name: 'Center Block', cover: 'block', grid: [
+    '####D####',
+    '.........',
+    '.e.....e.',
+    '.........',
+    '.........',
+    '...###...',
+    '.e.###.e.',
+    '...###...',
+    '.........',
+    '....e....',
+    '.........',
+    '.........',
+    '.........',
+    '.........',
+    '....S....'],
+    spawns: [ {type:'E-03', x:1.5, y:6.5}, {type:'E-02', x:7.5, y:2.5}, {type:'E-01', x:4.5, y:9.5} ] }
+};
+V.ROOM_ORDER = ['R01', 'R02', 'R03'];
+
+// P0 card pool (D2 IDs and values). max = copies allowed per run.
+V.CARDS = [
+  { id:'SK-01', key:'front', max:1, name:'Twin Barrel',     desc:'+1 forward round. All rounds deal x0.75.' },
+  { id:'SK-02', key:'multi', max:3, name:'Double Volley',   desc:'Fire the volley again 0.12 s later. Damage x0.9, rate x0.85.' },
+  { id:'SK-09', key:'atk',   max:0, name:'Power Cell',      desc:'Attack +30%.' },
+  { id:'SK-11', key:'rate',  max:0, name:'Fire Control',    desc:'Attack speed +25%.' },
+  { id:'SK-03', key:'diag',  max:3, name:'Diagonal Rounds', desc:'+1 pair of rounds at an angle.' },
+  { id:'SK-06', key:'rico',  max:1, name:'Arc Ricochet',    desc:'Rounds jump to another machine, up to 3 times (x0.7 each).' }
+];
+})();
+
+</script>
+<script>
+(function(){ var G = (typeof window !== 'undefined' ? window : globalThis); var V = G.V = G.V || {};
+// Pure deterministic sim. Fixed step 1/60 s x TIME_SCALE. No DOM, no unseeded randomness, no wall clock.
+
+var STEP = 1 / 60;
+var HERO_WALL_R = 0.35, HERO_HURT_R = 0.28;
+var LEVEL_COST = [0, 0, 25, 35, 50, 65, 90, 125, 175, 245, 335, 465]; // index = level reached
+var LEVEL_CAP = 11;
+var SHOT_R = 0.15;
+var RETARGET_DT = 0.1, LOCK_HYST = 1.0, LOST_LINE_T = 0.25;
+var CONTACT_CD = 1.0, MAGNET_SPEED = 14;
+var REPAIR_PCT = 0.2, REPAIR_BASE = 0.03, REPAIR_PITY = 0.005, REPAIR_CAP = 0.08, REPAIR_LIFE = 15;
+var MULTI_GAP = 0.12;
+var DIAG_ANG = [35, 55, 75];
+var RICO_MAX = 3, RICO_MULT = 0.7, RICO_RANGE = 4;
+
+// D1 4 base stats (ch1 stage 1)
+var EN = {
+  'E-01': { hp:300, contact:60, atk:60, speed:2.4, r:0.35, size:'small',  xp:4 },
+  'E-02': { hp:450, contact:40, atk:60, speed:1.0, r:0.40, size:'medium', xp:8 },
+  'E-03': { hp:600, contact:40, atk:45, speed:0,   r:0.50, size:'medium', xp:8 }
+};
+var E01 = { range:2.5, tell:0.5, lungeSpeed:6.0, lungeDist:3.0, cool:2.0 };
+var E02 = { tell:0.6, lockLast:0.2, cool:2.2, shotSpeed:6.0, range:10, prefer:4.5 };
+var E03 = { tell:0.7, cool:2.8, shotSpeed:5.0, spread:25 * Math.PI / 180, range:14 };
+
+function cardCount(S, key){ return S.hero.mods[key] || 0; }
+function hpScale(S){ var t = S.tune; return t.ENEMY_HP_GLOBAL * (1 + t.HP_SLOPE * (S.stage - 1)); }
+function enemyDmg(S, base){
+  var t = S.tune;
+  return Math.max(1, Math.floor(base * t.ENEMY_DMG_MULT * (1 + t.DMG_SLOPE * (S.stage - 1))));
+}
+function ev(S, o){ S.events.push(o); return o; }
+
+// ---------- geometry ----------
+function circleRectPush(cx, cy, r, b){
+  // returns [px,py] push to move the circle out, or null
+  var nx = cx < b.x ? b.x : (cx > b.x + b.w ? b.x + b.w : cx);
+  var ny = cy < b.y ? b.y : (cy > b.y + b.h ? b.y + b.h : cy);
+  var dx = cx - nx, dy = cy - ny, d2 = dx * dx + dy * dy;
+  if (d2 >= r * r) return null;
+  if (d2 > 1e-12) { var d = Math.sqrt(d2), k = (r - d) / d; return [dx * k, dy * k]; }
+  // centre inside: push along the smallest axis
+  var l = cx - b.x + r, rr = b.x + b.w - cx + r, u = cy - b.y + r, dn = b.y + b.h - cy + r;
+  var m = Math.min(l, rr, u, dn);
+  if (m === l) return [-l, 0]; if (m === rr) return [rr, 0]; if (m === u) return [0, -u]; return [0, dn];
+}
+function circleRect(cx, cy, r, b){
+  var nx = cx < b.x ? b.x : (cx > b.x + b.w ? b.x + b.w : cx);
+  var ny = cy < b.y ? b.y : (cy > b.y + b.h ? b.y + b.h : cy);
+  var dx = cx - nx, dy = cy - ny; return dx * dx + dy * dy < r * r;
+}
+// segment vs AABB expanded by pad (slab test)
+function segRect(x1, y1, x2, y2, b, pad){
+  var minx = b.x - pad, maxx = b.x + b.w + pad, miny = b.y - pad, maxy = b.y + b.h + pad;
+  var dx = x2 - x1, dy = y2 - y1, t0 = 0, t1 = 1, p, q, i, r;
+  var P = [-dx, dx, -dy, dy], Q = [x1 - minx, maxx - x1, y1 - miny, maxy - y1];
+  for (i = 0; i < 4; i++) {
+    p = P[i]; q = Q[i];
+    if (Math.abs(p) < 1e-12) { if (q < 0) return false; }
+    else { r = q / p; if (p < 0) { if (r > t1) return false; if (r > t0) t0 = r; } else { if (r < t0) return false; if (r < t1) t1 = r; } }
+  }
+  return true;
+}
+function blockers(S){
+  var a = S.room.solids;
+  if (!S.room.door.open) return a.concat([S.room.door]);
+  return a;
+}
+function clearLine(S, x1, y1, x2, y2, pad){
+  var a = blockers(S);
+  for (var i = 0; i < a.length; i++) if (segRect(x1, y1, x2, y2, a[i], pad)) return false;
+  return true;
+}
+function hitsSolid(S, x, y, r){
+  var a = blockers(S);
+  for (var i = 0; i < a.length; i++) if (circleRect(x, y, r, a[i])) return true;
+  return false;
+}
+function outOfRoom(S, x, y, r){ return x < -r || x > S.room.w + r || y < -r || y > S.room.h + r; }
+function collideBody(S, o, r){
+  var a = blockers(S), i, p;
+  for (var it = 0; it < 2; it++) {
+    for (i = 0; i < a.length; i++) { p = circleRectPush(o.x, o.y, r, a[i]); if (p) { o.x += p[0]; o.y += p[1]; } }
+  }
+  if (o.x < r) o.x = r; if (o.x > S.room.w - r) o.x = S.room.w - r;
+  if (o.y < r) o.y = r; if (o.y > S.room.h - r) o.y = S.room.h - r;
+}
+
+// ---------- room build ----------
+function buildSolids(grid, coverKind){
+  var rows = grid.length, cols = grid[0].length, runs = [], y, x, s;
+  for (y = 0; y < rows; y++) {
+    x = 0;
+    while (x < cols) {
+      if (grid[y][x] === '#') { s = x; while (x < cols && grid[y][x] === '#') x++; runs.push({ x:s, y:y, w:x - s, h:1, kind: y === 0 ? 'wall' : coverKind }); }
+      else x++;
+    }
+  }
+  // merge identical runs vertically
+  var out = [];
+  for (var i = 0; i < runs.length; i++) {
+    var r = runs[i], merged = false;
+    for (var j = 0; j < out.length; j++) {
+      var o = out[j];
+      if (o.x === r.x && o.w === r.w && o.kind === r.kind && o.y + o.h === r.y) { o.h++; merged = true; break; }
+    }
+    if (!merged) out.push({ x:r.x, y:r.y, w:r.w, h:r.h, kind:r.kind });
+  }
+  return out;
+}
+function findChar(grid, ch){
+  for (var y = 0; y < grid.length; y++) { var x = grid[y].indexOf(ch); if (x >= 0) return { x:x, y:y }; }
+  return null;
+}
+
+function spawnEnemy(S, type, x, y){
+  var b = EN[type], hp = Math.max(1, Math.round(b.hp * hpScale(S)));
+  var e = { id: ++S._nextId, type:type, x:x, y:y, r:b.r, hp:hp, maxHp:hp, ang:Math.PI / 2, st:'spawn',
+    tell01:0, aimAng:Math.PI / 2, flashT:0, size:b.size,
+    stT:S.tune.SPAWN_T, cd:0, contactCd:0, vx:0, vy:0, strafe: S.rng.next() < 0.5 ? -1 : 1, strafeT:S.rng.range(1.2, 2.4), lungeLeft:0 };
+  // first attack delay
+  if (type === 'E-02') e.cd = S.rng.range(0.6, 1.4);
+  if (type === 'E-03') e.cd = S.rng.range(0.8, 1.6);
+  S.enemies.push(e);
+  return e;
+}
+
+function loadRoom(S, roomId){
+  var R = V.ROOMS[roomId], grid = R.grid;
+  var d = findChar(grid, 'D'), sp = findChar(grid, 'S');
+  S.roomId = roomId;
+  S.room = { w:grid[0].length, h:grid.length, solids:buildSolids(grid, R.cover || 'pillar'),
+    door:{ x:d.x, y:d.y, w:1, h:1, open:false }, name:R.name };
+  S.enemies = []; S.rounds = []; S.shots = []; S.pickups = [];
+  var h = S.hero;
+  h.x = sp.x + 0.5; h.y = sp.y + 0.5; h.ang = -Math.PI / 2;
+  h.lockId = null; h.lockClear = false; h.lostT = 0; h.retargetT = 0; h.burstQ = [];
+  S.phase = 'play'; S.roomT = 0; S.clearT = 0;
+  for (var i = 0; i < R.spawns.length; i++) spawnEnemy(S, R.spawns[i].type, R.spawns[i].x, R.spawns[i].y);
+  S.lap = Math.floor((S.stage - 1) / V.ROOM_ORDER.length) + 1;
+  ev(S, { k:'room', x:h.x, y:h.y, roomId:roomId, stage:S.stage });
+}
+
+// ---------- create ----------
+function create(seed, tune){
+  tune = tune || V.TUNE;
+  seed = (seed >>> 0);
+  var S = { seed:seed, frame:0, t:0, tune:tune, phase:'play', stage:1, roomId:null, lap:1,
+    room:null,
+    hero:{ x:4.5, y:14.5, r:HERO_HURT_R, hp:tune.HERO_HP, maxHp:tune.HERO_HP, atk:tune.HERO_ATK, ang:-Math.PI / 2,
+      moving:false, braced:false, brace01:0, fireCd:0, invulnT:0, lockId:null, lockClear:false,
+      level:1, xp:0, xpNext:LEVEL_COST[2], mods:{}, braceT:0, lostT:0, retargetT:0, burstQ:[] },
+    enemies:[], rounds:[], shots:[], pickups:[], cards:null, events:[],
+    stats:{ kills:0, dmgTaken:0, hitsBy:{ 'E-01':0, 'E-02':0, 'E-03':0 }, roomTimes:[], bracedSteps:0, playSteps:0, shots:0, picks:[],
+      roomHp:[], killLog:[] },
+    rng:new V.Rng(seed), _nextId:0, pendingLevels:0, pity:0, roomT:0, clearT:0 };
+  S.hero.atk = roundDamage(S);
+  loadRoom(S, V.ROOM_ORDER[0]);
+  S.events.length = 0; // keep the room event for the first step
+  ev(S, { k:'room', x:S.hero.x, y:S.hero.y, roomId:S.roomId, stage:S.stage });
+  return S;
+}
+
+// ---------- hero weapon ----------
+function roundDamage(S){
+  var t = S.tune, h = S.hero;
+  var d = t.HERO_ATK * (1 + 0.3 * cardCount(S, 'atk')) * Math.pow(0.75, cardCount(S, 'front')) * Math.pow(0.9, cardCount(S, 'multi'));
+  return Math.max(1, Math.floor(d));
+}
+function fireInterval(S){
+  var t = S.tune;
+  var vps = (1 / t.FIRE_INTERVAL) * (1 + 0.25 * cardCount(S, 'rate')) * Math.pow(0.85, cardCount(S, 'multi'));
+  return Math.max(t.FIRE_FLOOR, 1 / vps);
+}
+function spawnRound(S, x, y, ang, base){
+  var t = S.tune, crit = S.rng.next() < Math.min(1, t.CRIT_CHANCE);
+  S.rounds.push({ x:x, y:y, vx:Math.cos(ang) * t.ROUND_SPEED, vy:Math.sin(ang) * t.ROUND_SPEED, r:t.ROUND_R,
+    dmg: crit ? Math.floor(base * t.CRIT_MULT) : base, crit:crit, bounces:0, hit:[] });
+  S.stats.shots++;
+}
+function fireBatch(S){
+  var h = S.hero, base = roundDamage(S), a = h.ang, i, nf = 1 + cardCount(S, 'front');
+  var px = -Math.sin(a), py = Math.cos(a);
+  var mx = h.x + Math.cos(a) * 0.3, my = h.y + Math.sin(a) * 0.3;
+  for (i = 0; i < nf; i++) {
+    var off = nf === 1 ? 0 : (i - (nf - 1) / 2) * 0.3;
+    spawnRound(S, mx + px * off, my + py * off, a, base);
+  }
+  var nd = Math.min(3, cardCount(S, 'diag'));
+  for (i = 0; i < nd; i++) {
+    var da = DIAG_ANG[i] * Math.PI / 180;
+    spawnRound(S, mx, my, a - da, base); spawnRound(S, mx, my, a + da, base);
+  }
+  ev(S, { k:'fire', x:mx, y:my, ang:a, n:nf + nd * 2 });
+}
+
+function findEnemy(S, id){ for (var i = 0; i < S.enemies.length; i++) if (S.enemies[i].id === id) return S.enemies[i]; return null; }
+function targetable(e){ return e.st !== 'spawn' && e.hp > 0; }
+
+function updateLock(S, dt){
+  var h = S.hero, t = S.tune;
+  var cur = h.lockId != null ? findEnemy(S, h.lockId) : null;
+  if (cur && !targetable(cur)) cur = null;
+  h.retargetT -= dt;
+  if (cur && h.retargetT > 0) {
+    // between evaluations keep the clear flag fresh only for the current target
+    return;
+  }
+  h.retargetT = RETARGET_DT;
+  var best = null, bestD = 1e9, near = null, nearD = 1e9, curD = 1e9, curClear = false;
+  for (var i = 0; i < S.enemies.length; i++) {
+    var e = S.enemies[i]; if (!targetable(e)) continue;
+    var d = Math.hypot(e.x - h.x, e.y - h.y);
+    var c = clearLine(S, h.x, h.y, e.x, e.y, t.ROUND_R);
+    if (d < nearD) { nearD = d; near = e; }
+    if (c && d < bestD) { bestD = d; best = e; }
+    if (cur && e === cur) { curD = d; curClear = c; }
+  }
+  var next = cur;
+  if (!cur) next = best || near;
+  else if (curClear) { h.lostT = 0; if (best && best !== cur && bestD < curD - LOCK_HYST) next = best; }
+  else {
+    h.lostT += RETARGET_DT;
+    if (best && h.lostT > LOST_LINE_T) next = best;
+  }
+  if (next !== cur) h.lostT = 0;
+  var newId = next ? next.id : null;
+  if (newId !== h.lockId) {
+    if (newId != null) ev(S, { k:'lock', x:next.x, y:next.y, id:newId });
+    else if (h.lockId != null) ev(S, { k:'unlock', x:h.x, y:h.y, id:h.lockId });
+  }
+  h.lockId = newId;
+  h.lockClear = next ? (next === cur ? curClear : next === best) : false;
+}
+
+// ---------- hero ----------
+function stepHero(S, inp, dt){
+  var h = S.hero, t = S.tune;
+  var mx = inp && +inp.mx || 0, my = inp && +inp.my || 0, len = Math.hypot(mx, my);
+  if (h.invulnT > 0) h.invulnT = Math.max(0, h.invulnT - dt);
+  if (h.fireCd > 0) h.fireCd = Math.max(0, h.fireCd - dt);
+  if (len > 1e-6) {
+    mx /= len; my /= len;
+    h.x += mx * t.MOVE_SPEED * dt; h.y += my * t.MOVE_SPEED * dt;
+    collideBody(S, h, HERO_WALL_R);
+    h.ang = Math.atan2(my, mx);
+    if (!h.moving && h.lockId != null) ev(S, { k:'unlock', x:h.x, y:h.y, id:h.lockId });
+    h.moving = true; h.braced = false; h.braceT = 0; h.brace01 = 0;
+    h.lockId = null; h.lockClear = false; h.lostT = 0; h.retargetT = 0; h.burstQ.length = 0;
+    return;
+  }
+  h.moving = false;
+  h.braceT += dt;
+  h.brace01 = t.BRACE_DELAY > 0 ? Math.min(1, h.braceT / t.BRACE_DELAY) : 1;
+  h.braced = h.braceT >= t.BRACE_DELAY - 1e-9;
+  if (S.phase !== 'play') { if (h.lockId != null) { h.lockId = null; h.lockClear = false; } return; }
+  updateLock(S, dt);
+  var tg = h.lockId != null ? findEnemy(S, h.lockId) : null;
+  if (tg) h.ang = Math.atan2(tg.y - h.y, tg.x - h.x);
+  // queued extra batches (Double Volley)
+  for (var i = h.burstQ.length - 1; i >= 0; i--) {
+    h.burstQ[i] -= dt;
+    if (h.burstQ[i] <= 0) { h.burstQ.splice(i, 1); if (tg) fireBatch(S); }
+  }
+  if (h.braced && tg && h.lockClear && h.fireCd <= 0) {
+    fireBatch(S);
+    h.fireCd = fireInterval(S);
+    for (var m = 1; m <= cardCount(S, 'multi'); m++) h.burstQ.push(MULTI_GAP * m);
+  }
+}
+
+function hurtHero(S, dmg, src, x, y){
+  var h = S.hero;
+  if (h.invulnT > 0 || S.phase === 'dead') return false;
+  h.hp -= dmg; S.stats.dmgTaken += dmg;
+  S.stats.hitsBy[src] = (S.stats.hitsBy[src] || 0) + 1;
+  h.invulnT = S.tune.INVULN;
+  ev(S, { k:'hurt', x:h.x, y:h.y, dmg:dmg, src:src });
+  if (h.hp <= 0) { h.hp = 0; S.phase = 'dead'; S.cards = null; ev(S, { k:'death', x:h.x, y:h.y, stage:S.stage }); }
+  return true;
+}
+
+// ---------- enemies ----------
+function steerTo(S, e, tx, ty, speed, dt){
+  var dx = tx - e.x, dy = ty - e.y, d = Math.hypot(dx, dy);
+  if (d < 1e-6) return;
+  dx /= d; dy /= d;
+  if (!clearLine(S, e.x, e.y, tx, ty, e.r * 0.8)) { // slide round cover
+    var sx = -dy * e.strafe, sy = dx * e.strafe;
+    dx = dx * 0.35 + sx * 0.94; dy = dy * 0.35 + sy * 0.94;
+  }
+  e.x += dx * speed * dt; e.y += dy * speed * dt;
+  e.ang = Math.atan2(dy, dx);
+}
+function enemyShoot(S, e, ang, speed, dmg){
+  var sp = speed * S.tune.ENEMY_SHOT_SPEED_MULT;
+  S.shots.push({ x:e.x + Math.cos(ang) * e.r, y:e.y + Math.sin(ang) * e.r, vx:Math.cos(ang) * sp, vy:Math.sin(ang) * sp,
+    r:SHOT_R, dmg:dmg, src:e.type });
+}
+function stepEnemy(S, e, dt){
+  var h = S.hero, t = S.tune, b = EN[e.type];
+  if (e.flashT > 0) e.flashT = Math.max(0, e.flashT - dt);
+  if (e.contactCd > 0) e.contactCd -= dt;
+  if (e.st === 'spawn') { e.stT -= dt; if (e.stT <= 0) { e.st = e.type === 'E-03' ? 'cool' : 'move'; } return; }
+  var dx = h.x - e.x, dy = h.y - e.y, dist = Math.hypot(dx, dy), toH = Math.atan2(dy, dx);
+  var tellT, los;
+  if (e.type === 'E-01') {
+    tellT = E01.tell * t.TELL_MULT;
+    if (e.st === 'move' || e.st === 'cool') {
+      steerTo(S, e, h.x, h.y, b.speed, dt);
+      if (e.st === 'cool') { e.cd -= dt; if (e.cd <= 0) e.st = 'move'; }
+      else if (dist <= E01.range && clearLine(S, e.x, e.y, h.x, h.y, e.r)) {
+        e.st = 'tell'; e.stT = tellT; e.tell01 = 0; e.aimAng = toH;
+        ev(S, { k:'tell', x:e.x, y:e.y, id:e.id, type:e.type });
+      }
+    } else if (e.st === 'tell') {
+      e.stT -= dt; e.tell01 = tellT > 0 ? 1 - Math.max(0, e.stT) / tellT : 1;
+      e.aimAng = toH; e.ang = toH;
+      if (e.stT <= 0) { e.st = 'act'; e.lungeLeft = E01.lungeDist; e.vx = Math.cos(toH); e.vy = Math.sin(toH); e.tell01 = 0; }
+    } else if (e.st === 'act') {
+      var step = Math.min(e.lungeLeft, E01.lungeSpeed * dt);
+      e.x += e.vx * step; e.y += e.vy * step; e.lungeLeft -= step;
+      var ox = e.x, oy = e.y;
+      collideBody(S, e, e.r);
+      if (e.lungeLeft <= 1e-6 || Math.abs(ox - e.x) + Math.abs(oy - e.y) > 1e-4) { e.st = 'cool'; e.cd = E01.cool; }
+    }
+  } else if (e.type === 'E-02') {
+    tellT = E02.tell * t.TELL_MULT;
+    if (e.st === 'move' || e.st === 'cool') {
+      // strafe around the Operator, hold a preferred range
+      e.strafeT -= dt; if (e.strafeT <= 0) { e.strafe = -e.strafe; e.strafeT = S.rng.range(1.2, 2.6); }
+      var ux = dx / (dist || 1), uy = dy / (dist || 1);
+      var radial = dist > E02.prefer + 0.8 ? 0.7 : (dist < E02.prefer - 0.8 ? -0.7 : 0);
+      var vx = ux * radial - uy * e.strafe, vy = uy * radial + ux * e.strafe, vl = Math.hypot(vx, vy) || 1;
+      var px = e.x, py = e.y;
+      // no line to the Operator for a while: walk round the cover to find one
+      if (!clearLine(S, e.x, e.y, h.x, h.y, SHOT_R)) e.noLosT = (e.noLosT || 0) + dt; else e.noLosT = 0;
+      if (e.noLosT > 0.8) { vx = ux * 0.45 - uy * e.strafe * 0.9; vy = uy * 0.45 + ux * e.strafe * 0.9; vl = Math.hypot(vx, vy) || 1; }
+      e.x += vx / vl * b.speed * dt; e.y += vy / vl * b.speed * dt;
+      collideBody(S, e, e.r);
+      if (Math.hypot(e.x - px, e.y - py) < 0.3 * b.speed * dt) e.strafe = -e.strafe; // stuck: turn round
+      e.ang = toH;
+      e.cd -= dt;
+      if (e.cd <= 0 && dist <= E02.range && clearLine(S, e.x, e.y, h.x, h.y, SHOT_R)) {
+        e.st = 'tell'; e.stT = tellT; e.tell01 = 0; e.aimAng = toH;
+        ev(S, { k:'tell', x:e.x, y:e.y, id:e.id, type:e.type });
+      } else if (e.cd <= 0) e.cd = 0;
+    } else if (e.st === 'tell') {
+      e.stT -= dt; e.tell01 = tellT > 0 ? 1 - Math.max(0, e.stT) / tellT : 1;
+      if (e.stT > E02.lockLast * t.TELL_MULT) e.aimAng = toH; // locks for the last 0.2 s
+      e.ang = e.aimAng;
+      if (e.stT <= 0) {
+        enemyShoot(S, e, e.aimAng, E02.shotSpeed, enemyDmg(S, b.atk));
+        e.st = 'cool'; e.cd = E02.cool; e.tell01 = 0;
+      }
+    }
+  } else if (e.type === 'E-03') {
+    tellT = E03.tell * t.TELL_MULT;
+    if (e.st === 'cool' || e.st === 'move') {
+      e.ang = toH; e.cd -= dt;
+      if (e.cd <= 0 && dist <= E03.range && clearLine(S, e.x, e.y, h.x, h.y, SHOT_R)) {
+        e.st = 'tell'; e.stT = tellT; e.tell01 = 0; e.aimAng = toH; // fan direction fixed at tell start
+        ev(S, { k:'tell', x:e.x, y:e.y, id:e.id, type:e.type });
+      } else if (e.cd <= 0) e.cd = 0;
+    } else if (e.st === 'tell') {
+      e.stT -= dt; e.tell01 = tellT > 0 ? 1 - Math.max(0, e.stT) / tellT : 1;
+      e.ang = e.aimAng;
+      if (e.stT <= 0) {
+        var dmg = enemyDmg(S, b.atk);
+        for (var k = -1; k <= 1; k++) enemyShoot(S, e, e.aimAng + k * E03.spread, E03.shotSpeed, dmg);
+        e.st = 'cool'; e.cd = E03.cool; e.tell01 = 0;
+      }
+    }
+  }
+  if (e.type !== 'E-03') collideBody(S, e, e.r);
+  // contact
+  if (e.contactCd <= 0 && Math.hypot(h.x - e.x, h.y - e.y) < e.r + HERO_HURT_R) {
+    if (hurtHero(S, enemyDmg(S, b.contact), e.type, e.x, e.y)) e.contactCd = CONTACT_CD;
+  }
+}
+function separate(S){
+  var a = S.enemies;
+  for (var i = 0; i < a.length; i++) for (var j = i + 1; j < a.length; j++) {
+    var p = a[i], q = a[j]; if (p.st === 'spawn' || q.st === 'spawn') continue;
+    var dx = q.x - p.x, dy = q.y - p.y, d = Math.hypot(dx, dy), m = p.r + q.r;
+    if (d < m && d > 1e-6) {
+      var k = (m - d) * 0.25 / d;
+      var pm = p.type === 'E-03' ? 0 : 1, qm = q.type === 'E-03' ? 0 : 1, s = pm + qm || 1;
+      p.x -= dx * k * 2 * pm / s; p.y -= dy * k * 2 * pm / s; q.x += dx * k * 2 * qm / s; q.y += dy * k * 2 * qm / s;
+    }
+  }
+}
+
+// ---------- damage to enemies ----------
+function killEnemy(S, e){
+  var b = EN[e.type];
+  S.stats.kills++;
+  S.stats.killLog.push({ type:e.type, stage:S.stage, t:+(S.roomT).toFixed(3) });
+  ev(S, { k:'kill', x:e.x, y:e.y, id:e.id, type:e.type });
+  S.pickups.push({ x:e.x, y:e.y, kind:'xp', v:b.xp, life:1e9 });
+  var p = Math.min(REPAIR_CAP, REPAIR_BASE + S.pity);
+  if (S.rng.next() < p) { S.pickups.push({ x:e.x + 0.2, y:e.y, kind:'repair', v:0, life:REPAIR_LIFE }); S.pity = 0; }
+  else S.pity += b.size === 'small' ? REPAIR_PITY * 0.5 : REPAIR_PITY;
+}
+function damageEnemy(S, e, dmg, crit){
+  e.hp -= dmg; e.flashT = 0.1;
+  ev(S, { k:'hit', x:e.x, y:e.y, id:e.id, dmg:dmg, crit:crit });
+  if (crit) ev(S, { k:'crit', x:e.x, y:e.y, id:e.id, dmg:dmg });
+  if (e.hp <= 0) { e.hp = 0; killEnemy(S, e); return true; }
+  return false;
+}
+
+function stepRounds(S, dt){
+  var a = S.rounds, out = [];
+  for (var i = 0; i < a.length; i++) {
+    var r = a[i], alive = true;
+    r.x += r.vx * dt; r.y += r.vy * dt;
+    if (outOfRoom(S, r.x, r.y, r.r) || hitsSolid(S, r.x, r.y, r.r)) continue;
+    for (var j = 0; j < S.enemies.length; j++) {
+      var e = S.enemies[j];
+      if (!targetable(e) || r.hit.indexOf(e.id) >= 0) continue;
+      if (Math.hypot(e.x - r.x, e.y - r.y) < e.r + r.r) {
+        damageEnemy(S, e, r.dmg, r.crit);
+        r.hit.push(e.id);
+        alive = false;
+        if (cardCount(S, 'rico') > 0 && r.bounces < RICO_MAX) {
+          var best = null, bd = RICO_RANGE;
+          for (var k = 0; k < S.enemies.length; k++) {
+            var o = S.enemies[k];
+            if (!targetable(o) || r.hit.indexOf(o.id) >= 0) continue;
+            var d = Math.hypot(o.x - r.x, o.y - r.y);
+            if (d < bd && clearLine(S, r.x, r.y, o.x, o.y, r.r)) { bd = d; best = o; }
+          }
+          if (best) {
+            var ang = Math.atan2(best.y - r.y, best.x - r.x), sp = Math.hypot(r.vx, r.vy);
+            r.vx = Math.cos(ang) * sp; r.vy = Math.sin(ang) * sp;
+            r.dmg = Math.max(1, Math.floor(r.dmg * RICO_MULT)); r.bounces++;
+            alive = true;
+          }
+        }
+        break;
+      }
+    }
+    if (alive) out.push(r);
+  }
+  S.rounds = out;
+  // remove dead enemies
+  var en = [];
+  for (var q = 0; q < S.enemies.length; q++) if (S.enemies[q].hp > 0) en.push(S.enemies[q]);
+  S.enemies = en;
+}
+function stepShots(S, dt){
+  var a = S.shots, out = [], h = S.hero;
+  for (var i = 0; i < a.length; i++) {
+    var s = a[i];
+    s.x += s.vx * dt; s.y += s.vy * dt;
+    if (outOfRoom(S, s.x, s.y, s.r) || hitsSolid(S, s.x, s.y, s.r)) continue; // cover stops enemy rounds (M)
+    if (S.phase !== 'dead' && Math.hypot(h.x - s.x, h.y - s.y) < s.r + HERO_HURT_R) { hurtHero(S, s.dmg, s.src, s.x, s.y); continue; }
+    out.push(s);
+  }
+  S.shots = out;
+}
+
+// ---------- pickups / xp ----------
+function addXp(S, v){
+  var h = S.hero;
+  if (h.level >= LEVEL_CAP) return;
+  h.xp += v;
+  while (h.level < LEVEL_CAP && h.xp >= h.xpNext) {
+    h.xp -= h.xpNext; h.level++; S.pendingLevels++;
+    ev(S, { k:'levelup', x:h.x, y:h.y, level:h.level });
+    h.xpNext = h.level < LEVEL_CAP ? LEVEL_COST[h.level + 1] : LEVEL_COST[LEVEL_CAP];
+  }
+  if (h.level >= LEVEL_CAP) h.xp = 0;
+}
+function collect(S, p){
+  var h = S.hero;
+  if (p.kind === 'xp') addXp(S, p.v);
+  else {
+    var heal = Math.floor(h.maxHp * REPAIR_PCT);
+    p.v = Math.min(heal, h.maxHp - h.hp); h.hp = Math.min(h.maxHp, h.hp + heal);
+  }
+  ev(S, { k:'pickup', x:p.x, y:p.y, kind:p.kind, v:p.v });
+}
+function stepPickups(S, dt){
+  var h = S.hero, out = [], magnet = S.phase !== 'play';
+  for (var i = 0; i < S.pickups.length; i++) {
+    var p = S.pickups[i];
+    var full = p.kind === 'repair' && h.hp >= h.maxHp;
+    if (p.kind === 'repair') { p.life -= dt; if (p.life <= 0) continue; }
+    var dx = h.x - p.x, dy = h.y - p.y, d = Math.hypot(dx, dy);
+    if (magnet && !full && d > 1e-6) { var st = Math.min(d, MAGNET_SPEED * dt); p.x += dx / d * st; p.y += dy / d * st; d -= st; }
+    if (!full && d < S.tune.PICKUP_R) { collect(S, p); continue; }
+    out.push(p);
+  }
+  S.pickups = out;
+}
+
+// ---------- cards ----------
+function offerCards(S){
+  var avail = [], i;
+  for (i = 0; i < V.CARDS.length; i++) { var c = V.CARDS[i]; if (!c.max || cardCount(S, c.key) < c.max) avail.push(i); }
+  var n = Math.max(1, Math.min(Math.round(S.tune.CARDS_OFFERED) || 2, avail.length)), out = [];
+  for (i = 0; i < n; i++) { var j = S.rng.int(avail.length); out.push(avail[j]); avail.splice(j, 1); }
+  return out;
+}
+function pick(S, index){
+  if (S.phase !== 'pick' || !S.cards) return false;
+  var ci = S.cards[index]; if (ci == null) return false;
+  var c = V.CARDS[ci];
+  S.hero.mods[c.key] = (S.hero.mods[c.key] || 0) + 1;
+  S.hero.atk = roundDamage(S);
+  S.stats.picks.push(c.id);
+  S.pendingLevels = Math.max(0, S.pendingLevels - 1);
+  S.cards = null; S.phase = 'clear';
+  ev(S, { k:'pick', x:S.hero.x, y:S.hero.y, id:c.id, key:c.key });
+  return true;
+}
+
+function nextRoom(S){
+  // bank anything still flying
+  for (var i = 0; i < S.pickups.length; i++) if (S.pickups[i].kind === 'xp') addXp(S, S.pickups[i].v);
+  S.stage++;
+  var idx = (V.ROOM_ORDER.indexOf(S.roomId) + 1) % V.ROOM_ORDER.length;
+  loadRoom(S, V.ROOM_ORDER[idx]);
+}
+
+// ---------- step ----------
+function step(S, inp){
+  S.events.length = 0;
+  if (S.phase === 'pick' || S.phase === 'dead') return S;
+  var t = S.tune, dt = STEP * (t.TIME_SCALE > 0 ? t.TIME_SCALE : 1);
+  S.frame++; S.t += dt; S.roomT += dt;
+  if (S.phase === 'play') S.stats.playSteps++;
+  stepHero(S, inp, dt);
+  if (S.phase === 'play' && S.hero.braced) S.stats.bracedSteps++;
+  for (var i = 0; i < S.enemies.length && S.phase !== 'dead'; i++) stepEnemy(S, S.enemies[i], dt);
+  separate(S);
+  stepRounds(S, dt);
+  stepShots(S, dt);
+  if (S.phase === 'dead') return S;
+  if (S.phase === 'play' && S.enemies.length === 0) {
+    S.phase = 'clear'; S.clearT = 0; S.room.door.open = true;
+    S.shots.length = 0;
+    S.stats.roomTimes.push({ stage:S.stage, roomId:S.roomId, s:+S.roomT.toFixed(2) });
+    S.stats.roomHp.push({ stage:S.stage, roomId:S.roomId, hp:S.hero.hp });
+    if (S.hero.lockId != null) { ev(S, { k:'unlock', x:S.hero.x, y:S.hero.y, id:S.hero.lockId }); S.hero.lockId = null; S.hero.lockClear = false; }
+    ev(S, { k:'door', x:S.room.door.x + 0.5, y:S.room.door.y + 0.5, open:true });
+  }
+  stepPickups(S, dt);
+  if (S.phase === 'clear') {
+    S.clearT += dt;
+    var h = S.hero, d = S.room.door;
+    var atDoor = circleRect(h.x, h.y, HERO_WALL_R + 0.02, d);
+    if (S.pendingLevels > 0 && (S.clearT >= t.PICK_DELAY || atDoor)) { S.phase = 'pick'; S.cards = offerCards(S); }
+    else if (atDoor) nextRoom(S);
+  }
+  return S;
+}
+
+function restart(S){ return create(((S.seed + 1) >>> 0), S.tune); }
+
+// FNV-1a over the main state, for determinism checks
+function hash(S){
+  var h = 2166136261 >>> 0;
+  function mix(v){ var s = String(v); for (var i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619) >>> 0; } h ^= 124; h = Math.imul(h, 16777619) >>> 0; }
+  mix(S.frame); mix(S.phase); mix(S.stage); mix(S.rng.s);
+  var H = S.hero; mix(H.x.toFixed(5)); mix(H.y.toFixed(5)); mix(H.hp); mix(H.xp); mix(H.level); mix(H.lockId);
+  for (var i = 0; i < S.enemies.length; i++) { var e = S.enemies[i]; mix(e.id); mix(e.x.toFixed(5)); mix(e.y.toFixed(5)); mix(e.hp); mix(e.st); }
+  mix(S.rounds.length); mix(S.shots.length); mix(S.pickups.length); mix(S.stats.kills);
+  return ('00000000' + h.toString(16)).slice(-8);
+}
+
+V.Sim = { create:create, step:step, pick:pick, restart:restart, hash:hash,
+  STEP:STEP, LEVEL_COST:LEVEL_COST, ENEMIES:EN, roundDamage:roundDamage, fireInterval:fireInterval, clearLine:clearLine };
+})();
+
+</script>
+<script>
+(function(){ var G = (typeof window !== 'undefined' ? window : globalThis); var V = G.V = G.V || {};
+// Scene: state S + view -> flat draw list (CSS px). Look G2: sand ground, thin dark outlines, hard low-sun shadow.
+
+function C(r, g, b, a) { return [r / 255, g / 255, b / 255, a == null ? 1 : a]; }
+var PAL = {
+  ground: C(214, 190, 146), groundDot: C(186, 160, 116), groundDot2: C(228, 208, 168),
+  floor: C(226, 209, 172), seam: C(196, 176, 138, 0.55),
+  shadow: C(92, 64, 30, 0.30),
+  ink: C(34, 30, 26), inkSoft: C(34, 30, 26, 0.85),
+  wall: C(196, 188, 170), wallTop: C(218, 211, 194), wallSeam: C(150, 142, 126),
+  pillar: C(184, 176, 158), pillarTop: C(206, 199, 182),
+  crate: C(92, 104, 62), crateLid: C(112, 126, 76), crateBand: C(64, 72, 44),
+  doorShut: C(70, 74, 80), doorOpen: C(40, 36, 30), doorLightShut: C(255, 60, 50), doorLightOpen: C(90, 240, 140),
+  metal: C(62, 66, 74), metalLite: C(92, 98, 108), metalDark: C(36, 39, 45),
+  sensor: C(255, 48, 48), sensorCore: C(255, 200, 190),
+  heroBody: C(118, 126, 84), heroDark: C(70, 76, 50), cyan: C(64, 228, 255), cyanSoft: C(64, 228, 255, 0.35),
+  amber: C(255, 176, 32),
+  round: C(110, 238, 255), roundCore: C(235, 255, 255), roundTrail: C(64, 228, 255, 0.45),
+  shot: C(255, 46, 140), shotCore: C(255, 220, 240), shotRim: C(110, 10, 50),
+  tellYellow: C(255, 222, 40), aim: C(255, 40, 40, 0.75), aimLock: C(255, 60, 60, 1),
+  glow: C(255, 120, 40), fan: C(255, 60, 40, 0.22), fanEdge: C(255, 50, 40, 0.75),
+  hpBack: C(30, 26, 22, 0.85), hpFill: C(255, 70, 60), hpPip: C(30, 26, 22),
+  xp: C(150, 235, 90), xpRim: C(40, 80, 20), repair: C(245, 245, 235), repairCross: C(60, 170, 80),
+  white: C(255, 255, 255), spark: C(255, 214, 120), sparkHot: C(255, 250, 220), debris: C(52, 54, 58),
+  hurt: C(255, 60, 60)
+};
+var TAU = Math.PI * 2;
+
+// own seeded RNG (mulberry32), never touches the sim's Rng
+function mkRng(seed) {
+  var a = (seed >>> 0) || 1;
+  return function () {
+    a = (a + 0x6D2B79F5) >>> 0; var t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+var P = { list: [], rnd: mkRng(1), seed: null, lastFrame: -1, lastT: 0, ingested: false }; // particles (world units)
+var MAXP = 400;
+
+function spawnBurst(x, y, n, spd, life, col, size, drag) {
+  for (var i = 0; i < n && P.list.length < MAXP; i++) {
+    var a = P.rnd() * TAU, v = spd * (0.4 + P.rnd() * 0.8);
+    P.list.push({ x: x, y: y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, t: 0, life: life * (0.6 + P.rnd() * 0.6), c: col, sz: size, drag: drag || 4, k: 0 });
+  }
+}
+function spawnRing(x, y, r0, r1, life, col) {
+  if (P.list.length < MAXP) P.list.push({ x: x, y: y, t: 0, life: life, c: col, r0: r0, r1: r1, k: 1 });
+}
+
+function eatEvents(ev, S) {
+  ev = ev || [];
+  for (var i = 0; i < ev.length; i++) {
+    var e = ev[i], x = e.x, y = e.y;
+    if (x == null || y == null) { x = S.hero.x; y = S.hero.y; }
+    switch (e.k) {
+      case 'hit': spawnBurst(x, y, 5, 4, 0.22, PAL.spark, 0.06); break;
+      case 'crit': spawnBurst(x, y, 9, 6, 0.3, PAL.sparkHot, 0.08); spawnRing(x, y, 0.1, 0.6, 0.2, PAL.amber); break;
+      case 'kill':
+        spawnBurst(x, y, 12, 6, 0.4, PAL.spark, 0.08); spawnBurst(x, y, 6, 3, 0.6, PAL.debris, 0.1, 3);
+        spawnRing(x, y, 0.2, 1.0, 0.3, PAL.sparkHot); break;
+      case 'hurt': spawnBurst(x, y, 8, 4, 0.3, PAL.hurt, 0.07); break;
+      case 'pickup': spawnRing(x, y, 0.1, 0.5, 0.25, PAL.xp); break;
+      case 'levelup': spawnRing(x, y, 0.3, 1.8, 0.5, PAL.cyan); spawnBurst(x, y, 10, 4, 0.5, PAL.cyan, 0.06); break;
+      case 'death': spawnBurst(x, y, 24, 7, 0.8, PAL.hurt, 0.1); spawnRing(x, y, 0.3, 2.2, 0.6, PAL.hurt); break;
+      case 'fire': spawnBurst(x, y, 2, 2, 0.1, PAL.roundCore, 0.05, 8); break;
+    }
+  }
+}
+
+function stepParticles(dt) {
+  var L = P.list, j = 0;
+  for (var i = 0; i < L.length; i++) {
+    var p = L[i]; p.t += dt;
+    if (p.t >= p.life) continue;
+    if (p.k === 0) { var f = Math.max(0, 1 - p.drag * dt); p.vx *= f; p.vy *= f; p.x += p.vx * dt; p.y += p.vy * dt; }
+    L[j++] = p;
+  }
+  L.length = j;
+}
+
+// --- primitive helpers (all take world coords via the view) ---
+var out, vw, sh = { x: 0, y: 0 };
+function X(x) { return vw.ox + x * vw.s; }
+function Y(y) { return vw.oy + y * vw.s; }
+function circ(x, y, r, c) { out.push({ p: 'circle', x: x, y: y, r: r, c: c }); }
+function ring(x, y, r, lw, c, a0, a1) { var o = { p: 'ring', x: x, y: y, r: r, lw: lw, c: c }; if (a0 != null) { o.a0 = a0; o.a1 = a1; } out.push(o); }
+function rect(x, y, w, h, c, rot) { out.push({ p: 'rect', x: x, y: y, w: w, h: h, rot: rot || 0, c: c }); }
+function line(x1, y1, x2, y2, lw, c) { out.push({ p: 'line', x1: x1, y1: y1, x2: x2, y2: y2, lw: lw, c: c }); }
+function ngon(x, y, r, n, rot, c) { out.push({ p: 'ngon', x: x, y: y, r: r, n: n, rot: rot || 0, c: c }); }
+function withA(c, a) { return [c[0], c[1], c[2], c[3] * a]; }
+function mix(a, b, t) { return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t, a[3] + (b[3] - a[3]) * t]; }
+// outlined shapes: dark shape 1 px larger, then the fill
+var OL = 1.25;
+function oCirc(x, y, r, c) { circ(x, y, r + OL, PAL.ink); circ(x, y, r, c); }
+function oRect(x, y, w, h, c, rot) { rect(x, y, w + 2 * OL, h + 2 * OL, PAL.ink, rot); rect(x, y, w, h, c, rot); }
+function oNgon(x, y, r, n, rot, c) { ngon(x, y, r + OL / Math.cos(Math.PI / n), n, rot, PAL.ink); ngon(x, y, r, n, rot, c); }
+
+// raycast in world units against solids and room bounds (for the aim line)
+function rayLen(S, x, y, ang, max) {
+  var dx = Math.cos(ang), dy = Math.sin(ang), sol = S.room.solids || [], W = S.room.w || 9, H = S.room.h || 15;
+  for (var d = 0.3; d < max; d += 0.08) {
+    var px = x + dx * d, py = y + dy * d;
+    if (px < 0 || py < 0 || px > W || py > H) return d;
+    for (var i = 0; i < sol.length; i++) { var q = sol[i]; if (px >= q.x && px <= q.x + q.w && py >= q.y && py <= q.y + q.h) return d; }
+  }
+  return max;
+}
+
+var deco = null, decoKey = '';
+function groundDeco(S) {
+  var key = (S.seed | 0) + ':' + vw.w + 'x' + vw.h + ':' + vw.s.toFixed(2);
+  if (key === decoKey) return deco;
+  decoKey = key; deco = [];
+  var r = mkRng((S.seed | 0) * 7919 + 13), n = Math.round(vw.w * vw.h / 1400);
+  for (var i = 0; i < n; i++) deco.push({ x: r() * vw.w, y: r() * vw.h, r: 0.8 + r() * 1.8, light: r() < 0.35, streak: r() < 0.12, a: r() * Math.PI });
+  return deco;
+}
+
+function drawSolidShadow(q, s) {
+  rect(X(q.x + q.w / 2) + sh.x, Y(q.y + q.h / 2) + sh.y, q.w * s, q.h * s, PAL.shadow);
+}
+function drawSolid(q, s) {
+  var cx = X(q.x + q.w / 2), cy = Y(q.y + q.h / 2), w = q.w * s, h = q.h * s;
+  if (q.kind === 'block') {
+    oRect(cx, cy, w - 2, h - 2, PAL.crate);
+    rect(cx, cy, w - 7, h - 7, PAL.crateLid);
+    // crate bands
+    var nx = Math.max(1, Math.round(q.w)), ny = Math.max(1, Math.round(q.h));
+    for (var i = 1; i < nx; i++) rect(X(q.x + i), cy, 2, h - 2, PAL.crateBand);
+    for (var j = 1; j < ny; j++) rect(cx, Y(q.y + j), w - 2, 2, PAL.crateBand);
+    rect(cx + w * 0.28, cy + h * 0.32, Math.min(10, w * 0.2), 3, PAL.wallTop);
+  } else if (q.kind === 'pillar') {
+    oRect(cx, cy, w - 2, h - 2, PAL.pillar);
+    rect(cx - 1, cy - 1, w - 8, h - 8, PAL.pillarTop);
+    line(cx - w * 0.3, cy, cx + w * 0.3, cy, 1, PAL.wallSeam);
+  } else {
+    oRect(cx, cy, w, h, PAL.wall);
+    rect(cx - 1, cy - 1, w - 4, h - 4, PAL.wallTop);
+  }
+}
+
+function drawDoor(S, s) {
+  var d = S.room.door; if (!d) return;
+  var cx = X(d.x + d.w / 2), cy = Y(d.y + d.h / 2), w = d.w * s, h = d.h * s;
+  if (d.open) {
+    rect(cx, cy, w, h, PAL.doorOpen);
+    rect(cx, cy + h * 0.25, w - 4, h * 0.5, C(70, 60, 44));
+    // chevrons pointing north
+    for (var k = 0; k < 2; k++) {
+      var yy = cy + h * 0.15 - k * 6;
+      line(cx - 6, yy + 4, cx, yy - 2, 2, PAL.doorLightOpen); line(cx, yy - 2, cx + 6, yy + 4, 2, PAL.doorLightOpen);
+    }
+    circ(cx - w / 2 + 4, cy, 2.5, PAL.doorLightOpen); circ(cx + w / 2 - 4, cy, 2.5, PAL.doorLightOpen);
+  } else {
+    oRect(cx, cy, w, h, PAL.doorShut);
+    var n = Math.max(2, Math.round(d.w * 3));
+    for (var i = 1; i < n; i++) rect(cx - w / 2 + (w * i) / n, cy, 1.5, h - 4, PAL.metalDark);
+    rect(cx, cy, w, 2, PAL.metalDark);
+    circ(cx - w * 0.3, cy, 2.5, PAL.doorLightShut); circ(cx + w * 0.3, cy, 2.5, PAL.doorLightShut);
+  }
+}
+
+function hpBar(x, y, rr, hp, max) {
+  if (!(max > 0) || hp >= max) return;
+  var w = Math.max(18, rr * 2.2), h = 4, by = y - rr - 7, f = Math.max(0, Math.min(1, hp / max));
+  rect(x, by, w + 2, h + 2, PAL.hpBack);
+  rect(x - w / 2 + (w * f) / 2, by, w * f, h, PAL.hpFill);
+  var pips = Math.min(8, Math.max(2, Math.round(max / 150)));
+  for (var i = 1; i < pips; i++) rect(x - w / 2 + (w * i) / pips, by, 1, h, PAL.hpPip);
+}
+
+function drawEnemy(S, e, s, t) {
+  var x = X(e.x), y = Y(e.y), rr = (e.r || 0.4) * s, flash = e.flashT > 0, tell = e.st === 'tell';
+  var body = PAL.metal, lite = PAL.metalLite, dark = PAL.metalDark, eye = PAL.sensor;
+  if (e.st === 'spawn') { var k = Math.min(1, e.tell01 || 0.5); body = withA(body, 0.5); lite = withA(lite, 0.5); }
+  if (e.type === 'E-01' && tell) {
+    // yellow flash: whole body pulses toward yellow, faster as the lunge nears
+    var tt = e.tell01 || 0, pulse = 0.5 + 0.5 * Math.sin(t * (18 + 30 * tt));
+    var m = 0.45 + 0.55 * pulse;
+    body = mix(body, PAL.tellYellow, m); lite = mix(lite, PAL.tellYellow, m);
+  }
+  if (flash) { body = PAL.white; lite = PAL.white; dark = PAL.white; eye = PAL.white; }
+  var a = e.ang || 0, ca = Math.cos(a), sa = Math.sin(a);
+  if (e.type === 'E-01') {
+    // small round drone with rotor ring and four rotor pods
+    for (var i = 0; i < 4; i++) {
+      var ra = a + Math.PI / 4 + (i * Math.PI) / 2, px = x + Math.cos(ra) * rr * 0.92, py = y + Math.sin(ra) * rr * 0.92;
+      line(x, y, px, py, 3, flash ? PAL.white : PAL.ink);
+      oCirc(px, py, rr * 0.36, dark);
+      ring(px, py, rr * 0.28, 1.2, flash ? PAL.white : lite);
+    }
+    oCirc(x, y, rr * 0.55, body);
+    circ(x + ca * rr * 0.15, y + sa * rr * 0.15, rr * 0.22, eye);
+    circ(x + ca * rr * 0.18, y + sa * rr * 0.18, rr * 0.08, flash ? PAL.white : PAL.sensorCore);
+    if (tell) ring(x, y, rr * (1.25 + 0.25 * (e.tell01 || 0)), 2.5, PAL.tellYellow);
+  } else if (e.type === 'E-02') {
+    // square gun drone, one barrel along aimAng while aiming
+    var ga = (tell || e.st === 'act') && e.aimAng != null ? e.aimAng : a, cg = Math.cos(ga), sg = Math.sin(ga);
+    var bl = rr * 1.25;
+    oRect(x + cg * bl * 0.55, y + sg * bl * 0.55, bl, rr * 0.3, dark, ga);
+    oRect(x, y, rr * 1.5, rr * 1.5, body, a);
+    rect(x, y, rr * 0.9, rr * 0.9, lite, a);
+    circ(x, y, rr * 0.3, eye);
+    circ(x, y, rr * 0.11, flash ? PAL.white : PAL.sensorCore);
+  } else {
+    // E-03 hexagon turret, three barrels in a fan
+    var ta = e.aimAng != null ? e.aimAng : a, glow = tell ? (e.tell01 || 0) : 0;
+    for (var b = -1; b <= 1; b++) {
+      var ba = ta + b * (25 * Math.PI / 180), cb = Math.cos(ba), sb = Math.sin(ba);
+      oRect(x + cb * rr * 0.95, y + sb * rr * 0.95, rr * 0.9, rr * 0.26, dark, ba);
+      if (glow > 0) {
+        var gx = x + cb * rr * 1.42, gy = y + sb * rr * 1.42;
+        circ(gx, gy, 3 + 6 * glow, withA(PAL.glow, 0.35 + 0.3 * glow));
+        circ(gx, gy, 2 + 3 * glow, mix(PAL.glow, PAL.sparkHot, glow));
+      }
+    }
+    oNgon(x, y, rr, 6, Math.PI / 6, body);
+    ngon(x, y, rr * 0.62, 6, Math.PI / 6, lite);
+    circ(x, y, rr * 0.3, glow > 0 ? mix(eye, PAL.sparkHot, glow) : eye);
+    circ(x, y, rr * 0.12, flash ? PAL.white : PAL.sensorCore);
+  }
+  hpBar(x, y, rr * (e.type === 'E-01' ? 1.3 : 1.05), e.hp, e.maxHp);
+}
+
+function drawEnemyTellGround(S, e, s) {
+  if (e.type !== 'E-03' || e.st !== 'tell') return;
+  var x = X(e.x), y = Y(e.y), R = 5.0 * s, ta = e.aimAng != null ? e.aimAng : e.ang || 0, t = e.tell01 || 0;
+  var half = 25 * Math.PI / 180 + 0.12;
+  // wedge = thick arc; fill grows outward with the tell
+  ring(x, y, R / 2, R, withA(PAL.fan, 0.6 + 0.6 * t), ta - half, ta + half);
+  ring(x, y, (R * t) / 2, R * t, withA(PAL.fan, 0.9), ta - half, ta + half);
+  for (var b = -1; b <= 1; b++) {
+    var ba = ta + b * (25 * Math.PI / 180);
+    line(x, y, x + Math.cos(ba) * R, y + Math.sin(ba) * R, 1.5, PAL.fanEdge);
+  }
+}
+
+function drawEnemyAim(S, e, s) {
+  if (e.type !== 'E-02' || e.st !== 'tell' || e.aimAng == null) return;
+  var t = e.tell01 || 0, locked = t > 0.66, L = rayLen(S, e.x, e.y, e.aimAng, 20);
+  var x = X(e.x), y = Y(e.y), ex = X(e.x + Math.cos(e.aimAng) * L), ey = Y(e.y + Math.sin(e.aimAng) * L);
+  line(x, y, ex, ey, locked ? 2.2 : 1.2, locked ? PAL.aimLock : PAL.aim);
+  if (locked) circ(ex, ey, 2.5, PAL.aimLock);
+}
+
+function drawHero(S, s, t) {
+  var h = S.hero, x = X(h.x), y = Y(h.y), rr = (h.r || 0.28) * s;
+  if (h.invulnT > 0 && Math.floor(t * 12) % 2 === 1) return; // blink
+  var a = h.ang || 0, ca = Math.cos(a), sa = Math.sin(a), px = -sa, py = ca;
+  // rifle
+  oRect(x + ca * rr * 1.15 + px * rr * 0.35, y + sa * rr * 1.15 + py * rr * 0.35, rr * 1.5, rr * 0.32, PAL.metalDark, a);
+  circ(x + ca * rr * 1.85 + px * rr * 0.35, y + sa * rr * 1.85 + py * rr * 0.35, rr * 0.13, PAL.cyan);
+  // pack, body, helmet
+  oRect(x - ca * rr * 0.55, y - sa * rr * 0.55, rr * 0.7, rr * 1.4, PAL.heroDark, a);
+  oCirc(x, y, rr, PAL.heroBody);
+  ring(x, y, rr * 0.82, 1.6, PAL.cyan);
+  circ(x - ca * rr * 0.1, y - sa * rr * 0.1, rr * 0.5, PAL.heroDark);
+  rect(x + ca * rr * 0.32, y + sa * rr * 0.32, rr * 0.22, rr * 0.75, PAL.cyan, a); // visor
+}
+
+function drawBrace(S, s) {
+  var h = S.hero, x = X(h.x), y = Y(h.y), R = (h.r || 0.28) * s + 7;
+  if (h.moving || S.phase === 'dead') return;
+  var b = h.braced ? 1 : Math.max(0, Math.min(1, h.brace01 || 0));
+  if (b <= 0) return;
+  ring(x, y, R, 1, PAL.cyanSoft);
+  if (b >= 1) { ring(x, y, R, 2, PAL.cyan); return; }
+  ring(x, y, R, 2.5, PAL.cyan, -Math.PI / 2, -Math.PI / 2 + TAU * b);
+}
+
+function drawLock(S, s, t) {
+  var h = S.hero; if (h.lockId == null) return;
+  var e = null; for (var i = 0; i < S.enemies.length; i++) if (S.enemies[i].id === h.lockId) { e = S.enemies[i]; break; }
+  if (!e) return;
+  var x = X(e.x), y = Y(e.y), R = (e.r || 0.4) * s * (e.type === 'E-01' ? 1.35 : 1.25) + 5, c = h.lockClear ? PAL.cyan : PAL.amber;
+  var rot = t * 1.5, seg = 0.55;
+  for (var k = 0; k < 4; k++) {
+    var m = rot + (k * Math.PI) / 2;
+    ring(x, y, R + 1, 4.5, PAL.ink, m - seg / 2 - 0.06, m + seg / 2 + 0.06);
+    ring(x, y, R + 1, 2.5, c, m - seg / 2, m + seg / 2);
+  }
+}
+
+function drawPickup(pk, s, t) {
+  var x = X(pk.x), y = Y(pk.y) + Math.sin(t * 4 + pk.x * 3) * 1.5;
+  if (pk.kind === 'repair') {
+    oRect(x, y, 13, 11, PAL.repair);
+    rect(x, y, 3, 7, PAL.repairCross); rect(x, y, 7, 3, PAL.repairCross);
+  } else {
+    var r = pk.v >= 8 ? 6.5 : 5;
+    oNgon(x, y, r, 4, t * 2 + pk.y, PAL.xp);
+    circ(x - 1, y - 1, r * 0.3, PAL.white);
+  }
+}
+
+function drawParticles(s) {
+  for (var i = 0; i < P.list.length; i++) {
+    var p = P.list[i], u = p.t / p.life, al = 1 - u;
+    if (p.k === 1) {
+      var r = (p.r0 + (p.r1 - p.r0) * u) * s;
+      ring(X(p.x), Y(p.y), r, 2.5 * al + 0.5, withA(p.c, al));
+    } else {
+      var sp = Math.sqrt(p.vx * p.vx + p.vy * p.vy), sz = Math.max(1.2, p.sz * s * (1 - u * 0.5));
+      if (sp > 1.5) {
+        var k = Math.min(0.05, 0.6 / sp);
+        line(X(p.x - p.vx * k), Y(p.y - p.vy * k), X(p.x), Y(p.y), sz, withA(p.c, al));
+      } else circ(X(p.x), Y(p.y), sz * 0.6, withA(p.c, al));
+    }
+  }
+}
+
+function drawStress(n, t) {
+  var W = vw.w, H = vw.h, cols = [PAL.cyan, PAL.shot, PAL.xp, PAL.amber, PAL.metal];
+  for (var i = 0; i < n; i++) {
+    var fx = ((i * 0.6180339887) % 1), fy = ((i * 0.7548776662) % 1), ph = i * 1.37;
+    var x = (fx * W + Math.sin(t * 0.9 + ph) * 30 + W) % W, y = (fy * H + t * (20 + (i % 7) * 9)) % H;
+    var c = withA(cols[i % 5], 0.8), k = i % 5, r = 3 + (i % 4);
+    if (k === 0) circ(x, y, r, c);
+    else if (k === 1) ring(x, y, r + 2, 1.5, c, t + ph, t + ph + 3.5);
+    else if (k === 2) rect(x, y, r * 2, r, c, t + ph);
+    else if (k === 3) line(x - r, y, x + r, y + r, 1.5, c);
+    else ngon(x, y, r + 1, 3 + (i % 4), t + ph, c);
+  }
+}
+
+function resetIfNew(S) {
+  var t = S.t || 0;
+  if (P.seed !== S.seed || t < P.lastT) { P.list.length = 0; P.rnd = mkRng(((S.seed | 0) ^ 0x5eed) + 1); P.seed = S.seed; P.lastFrame = -1; P.lastT = t; }
+}
+
+V.Scene = {
+  stress: 0,
+  // main.js calls this after EVERY sim step; once used, build() stops reading S.events itself (no doubles)
+  ingest: function (events, S) {
+    if (!S) return;
+    P.ingested = true;
+    resetIfNew(S);
+    eatEvents(events, S);
+  },
+  PAL: PAL,
+  particles: P.list,
+  build: function (S, view, outArr) {
+    out = outArr; vw = view; out.length = 0;
+    var s = view.s, t = S.t || 0;
+    // particle bookkeeping (own clock = S.t, so hit-stop and pause freeze sparks too)
+    resetIfNew(S);
+    var dt = Math.max(0, Math.min(0.1, t - P.lastT)); P.lastT = t;
+    if (S.frame !== P.lastFrame) { P.lastFrame = S.frame; stepParticles(dt); if (!P.ingested) eatEvents(S.events, S); }
+    sh.x = Math.max(2, s * 0.14); sh.y = Math.max(3, s * 0.2);
+
+    // ground: whole screen, continues below the room
+    rect(view.w / 2, view.h / 2, view.w + 2, view.h + 2, PAL.ground);
+    var dc = groundDeco(S);
+    for (var i = 0; i < dc.length; i++) {
+      var d = dc[i];
+      if (d.streak) line(d.x - 6 * Math.cos(d.a), d.y - 2, d.x + 6 * Math.cos(d.a), d.y + 2, 1, PAL.groundDot);
+      else circ(d.x, d.y, d.r, d.light ? PAL.groundDot2 : PAL.groundDot);
+    }
+    var R = S.room, RW = (R && R.w) || 9, RH = (R && R.h) || 15;
+    rect(X(RW / 2), Y(RH / 2), RW * s, RH * s, PAL.floor);
+    // floor seams every 3 tiles, faint
+    for (var gx = 3; gx < RW; gx += 3) line(X(gx), Y(0), X(gx), Y(RH), 1, PAL.seam);
+    for (var gy = 3; gy < RH; gy += 3) line(X(0), Y(gy), X(RW), Y(gy), 1, PAL.seam);
+
+    var E = S.enemies || [], sol = (R && R.solids) || [];
+    for (i = 0; i < E.length; i++) drawEnemyTellGround(S, E[i], s);
+
+    // shadows (hard, low sun from the upper left)
+    for (i = 0; i < sol.length; i++) drawSolidShadow(sol[i], s);
+    var pk = S.pickups || [];
+    for (i = 0; i < pk.length; i++) circ(X(pk[i].x) + sh.x * 0.4, Y(pk[i].y) + sh.y * 0.4, 4, PAL.shadow);
+    for (i = 0; i < E.length; i++) {
+      var e = E[i], er = (e.r || 0.4) * s, fly = e.type === 'E-01' ? 1.6 : 1;
+      if (e.type === 'E-02') rect(X(e.x) + sh.x * fly, Y(e.y) + sh.y * fly, er * 1.5, er * 1.5, PAL.shadow, e.ang || 0);
+      else if (e.type === 'E-03') ngon(X(e.x) + sh.x, Y(e.y) + sh.y, er, 6, Math.PI / 6, PAL.shadow);
+      else circ(X(e.x) + sh.x * fly, Y(e.y) + sh.y * fly, er * 0.9, PAL.shadow);
+    }
+    var H = S.hero;
+    if (H && S.phase !== 'dead') circ(X(H.x) + sh.x * 0.7, Y(H.y) + sh.y * 0.7, (H.r || 0.28) * s, PAL.shadow);
+
+    for (i = 0; i < sol.length; i++) drawSolid(sol[i], s);
+    drawDoor(S, s);
+    for (i = 0; i < pk.length; i++) drawPickup(pk[i], s, t);
+    for (i = 0; i < E.length; i++) drawEnemyAim(S, E[i], s);
+    for (i = 0; i < E.length; i++) drawEnemy(S, E[i], s, t);
+    if (H && S.phase !== 'dead') { drawBrace(S, s); drawHero(S, s, t); }
+
+    var rd = S.rounds || [];
+    for (i = 0; i < rd.length; i++) {
+      var q = rd[i], rr = Math.max(2.5, (q.r || 0.12) * s), sp = Math.sqrt(q.vx * q.vx + q.vy * q.vy) || 1;
+      var tl = 0.45 / sp * 1;
+      line(X(q.x - q.vx * tl * 0.5), Y(q.y - q.vy * tl * 0.5), X(q.x), Y(q.y), rr * 1.4, PAL.roundTrail);
+      circ(X(q.x), Y(q.y), rr, PAL.round); circ(X(q.x), Y(q.y), rr * 0.5, PAL.roundCore);
+    }
+    var sv = S.shots || [];
+    for (i = 0; i < sv.length; i++) {
+      var o = sv[i], r2 = Math.max(4, (o.r || 0.12) * 2 * s);
+      circ(X(o.x), Y(o.y), r2 + 2.5, withA(PAL.shot, 0.28));
+      circ(X(o.x), Y(o.y), r2 + 1, PAL.shotRim);
+      circ(X(o.x), Y(o.y), r2, PAL.shot); circ(X(o.x), Y(o.y), r2 * 0.45, PAL.shotCore);
+    }
+    drawLock(S, s, t);
+    drawParticles(s);
+    if (V.Scene.stress > 0) drawStress(V.Scene.stress | 0, t);
+    return out;
+  }
+};
+})();
+
+</script>
+<script>
+(function(){ var G = (typeof window !== 'undefined' ? window : globalThis); var V = G.V = G.V || {};
+// Canvas 2D backend for the scene draw list. No shadowBlur, no per-frame filters (L-TD-9).
+
+var cache = new Map();
+function css(c) {
+  var r = (c[0] * 255) | 0, g = (c[1] * 255) | 0, b = (c[2] * 255) | 0, a = c[3] == null ? 1 : c[3];
+  var ai = Math.round(a * 255), key = ((r << 16) | (g << 8) | b) * 256 + ai, s = cache.get(key);
+  if (!s) { s = 'rgba(' + r + ',' + g + ',' + b + ',' + (ai / 255).toFixed(3) + ')'; if (cache.size < 4096) cache.set(key, s); }
+  return s;
+}
+
+V.Render2D = {
+  create: function (canvas) {
+    var ctx = canvas.getContext('2d', { alpha: false });
+    var st = { w: 0, h: 0, dpr: 1 };
+    function resize(w, h, dpr) {
+      st.w = w; st.h = h; st.dpr = Math.min(dpr || 1, 2);
+      var pw = Math.max(1, Math.round(w * st.dpr)), ph = Math.max(1, Math.round(h * st.dpr));
+      if (canvas.width !== pw) canvas.width = pw;
+      if (canvas.height !== ph) canvas.height = ph;
+    }
+    function draw(list) {
+      var c = ctx, k = st.dpr;
+      c.setTransform(k, 0, 0, k, 0, 0);
+      c.fillStyle = '#000'; c.fillRect(0, 0, st.w, st.h);
+      c.lineCap = 'butt';
+      for (var i = 0; i < list.length; i++) {
+        var p = list[i];
+        switch (p.p) {
+          case 'circle':
+            c.fillStyle = css(p.c); c.beginPath(); c.arc(p.x, p.y, Math.max(0, p.r), 0, 6.283185307); c.fill(); break;
+          case 'ring':
+            c.strokeStyle = css(p.c); c.lineWidth = p.lw; c.beginPath();
+            if (p.a0 != null) c.arc(p.x, p.y, Math.max(0, p.r), p.a0, p.a1); else c.arc(p.x, p.y, Math.max(0, p.r), 0, 6.283185307);
+            c.stroke(); break;
+          case 'rect':
+            c.fillStyle = css(p.c);
+            if (p.rot) {
+              var cs = Math.cos(p.rot), sn = Math.sin(p.rot);
+              c.setTransform(k * cs, k * sn, -k * sn, k * cs, k * p.x, k * p.y);
+              c.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
+              c.setTransform(k, 0, 0, k, 0, 0);
+            } else c.fillRect(p.x - p.w / 2, p.y - p.h / 2, p.w, p.h);
+            break;
+          case 'line':
+            c.strokeStyle = css(p.c); c.lineWidth = p.lw; c.beginPath(); c.moveTo(p.x1, p.y1); c.lineTo(p.x2, p.y2); c.stroke(); break;
+          case 'ngon':
+            c.fillStyle = css(p.c); c.beginPath();
+            for (var j = 0; j < p.n; j++) {
+              var a = p.rot + (j * 6.283185307) / p.n, x = p.x + Math.cos(a) * p.r, y = p.y + Math.sin(a) * p.r;
+              if (j) c.lineTo(x, y); else c.moveTo(x, y);
+            }
+            c.closePath(); c.fill(); break;
+        }
+      }
+    }
+    return { name: 'Canvas 2D', canvas: canvas, resize: resize, draw: draw, destroy: function () {} };
+  }
+};
+})();
+
+</script>
+<script>
+(function(){ var G = (typeof window !== 'undefined' ? window : globalThis); var V = G.V = G.V || {};
+// WebGPU backend: one instanced quad pipeline, SDF per primitive type, premultiplied alpha, AA edges.
+// Instance = 16 floats: cx,cy,hx,hy | qrot,type,p0,p1 | p2,p3,0,0 | r,g,b,a  (CSS px; quad local frame rotated by qrot)
+
+var WGSL = [
+  'struct U { W: f32, H: f32, dpr: f32, pad: f32 };',
+  '@group(0) @binding(0) var<uniform> u: U;',
+  'struct VO { @builtin(position) pos: vec4<f32>, @location(0) l: vec2<f32>, @location(1) @interpolate(flat) tp: vec4<f32>, @location(2) @interpolate(flat) p2: vec2<f32>, @location(3) @interpolate(flat) col: vec4<f32> };',
+  '@vertex fn vs(@builtin(vertex_index) vi: u32, @location(0) a: vec4<f32>, @location(1) b: vec4<f32>, @location(2) d: vec4<f32>, @location(3) c: vec4<f32>) -> VO {',
+  '  var k = array<vec2<f32>, 6>(vec2<f32>(-1.0,-1.0), vec2<f32>(1.0,-1.0), vec2<f32>(-1.0,1.0), vec2<f32>(-1.0,1.0), vec2<f32>(1.0,-1.0), vec2<f32>(1.0,1.0));',
+  '  let pad = 1.0 + 1.0 / u.dpr;',
+  '  let l = k[vi] * (a.zw + vec2<f32>(pad, pad));',
+  '  let cs = cos(b.x); let sn = sin(b.x);',
+  '  let w = a.xy + vec2<f32>(l.x * cs - l.y * sn, l.x * sn + l.y * cs);',
+  '  var o: VO;',
+  '  o.pos = vec4<f32>(w.x / u.W * 2.0 - 1.0, 1.0 - w.y / u.H * 2.0, 0.0, 1.0);',
+  '  o.l = l; o.tp = b; o.p2 = d.xy; o.col = c;',
+  '  return o;',
+  '}',
+  'const PI: f32 = 3.14159265;',
+  '@fragment fn fs(i: VO) -> @location(0) vec4<f32> {',
+  '  let l = i.l; let t = i.tp.y; let p0 = i.tp.z; let p1 = i.tp.w;',
+  '  var d: f32 = 0.0;',
+  '  if (t < 0.5) {',
+  '    d = length(l) - p0;',
+  '  } else if (t < 1.5) {',
+  '    d = abs(length(l) - p0) - p1 * 0.5;',
+  '    let ha = i.p2.x;',
+  '    if (ha < PI - 0.0001) {',
+  '      let q = vec2<f32>(l.x, abs(l.y));',
+  '      let c = vec2<f32>(cos(ha), sin(ha));',
+  '      let m = length(q - c * max(dot(q, c), 0.0));',
+  '      let s = select(-1.0, 1.0, c.x * q.y - c.y * q.x > 0.0);',
+  '      d = max(d, m * s);',
+  '    }',
+  '  } else if (t < 2.5) {',
+  '    let q = abs(l) - vec2<f32>(p0, p1);',
+  '    d = length(max(q, vec2<f32>(0.0))) + min(max(q.x, q.y), 0.0);',
+  '  } else {',
+  '    let an = PI / max(p1, 3.0);',
+  '    let ang = atan2(l.y, l.x);',
+  '    let bn = ang - 2.0 * an * floor(ang / (2.0 * an)) - an;',
+  '    var q = length(l) * vec2<f32>(cos(bn), abs(sin(bn)));',
+  '    q = q - p0 * vec2<f32>(cos(an), sin(an));',
+  '    q.y = q.y + clamp(-q.y, 0.0, p0 * sin(an));',
+  '    d = length(q) * select(-1.0, 1.0, q.x > 0.0);',
+  '  }',
+  '  let cov = clamp(0.5 - d * u.dpr, 0.0, 1.0);',
+  '  let al = i.col.a * cov;',
+  '  if (al <= 0.0) { discard; }',
+  '  return vec4<f32>(i.col.rgb * al, al);',
+  '}'
+].join('\n');
+
+var FL = 16;
+
+function pack(list, arr) {
+  var n = 0, o = 0, k, p, c;
+  for (k = 0; k < list.length; k++) {
+    p = list[k]; c = p.c; o = n * FL;
+    var cx, cy, hx, hy, qr = 0, ty, a = 0, b = 0, e = 0;
+    switch (p.p) {
+      case 'circle': cx = p.x; cy = p.y; hx = hy = Math.max(0, p.r); ty = 0; a = hx; break;
+      case 'ring':
+        cx = p.x; cy = p.y; hx = hy = Math.max(0, p.r) + p.lw * 0.5; ty = 1; a = Math.max(0, p.r); b = p.lw; e = Math.PI;
+        if (p.a0 != null) {
+          var sp = p.a1 - p.a0;
+          if (sp < 6.2831) { if (sp <= 0) continue; qr = (p.a0 + p.a1) * 0.5; e = sp * 0.5; }
+        }
+        break;
+      case 'rect': cx = p.x; cy = p.y; hx = p.w * 0.5; hy = p.h * 0.5; qr = p.rot || 0; ty = 2; a = hx; b = hy; break;
+      case 'line':
+        var dx = p.x2 - p.x1, dy = p.y2 - p.y1, L = Math.sqrt(dx * dx + dy * dy);
+        cx = (p.x1 + p.x2) * 0.5; cy = (p.y1 + p.y2) * 0.5; hx = L * 0.5; hy = p.lw * 0.5; qr = Math.atan2(dy, dx); ty = 2; a = hx; b = hy; break;
+      case 'ngon': cx = p.x; cy = p.y; hx = hy = p.r; qr = p.rot || 0; ty = 3; a = p.r; b = p.n; break;
+      default: continue;
+    }
+    if ((o + FL) > arr.length) return -1; // caller grows
+    arr[o] = cx; arr[o + 1] = cy; arr[o + 2] = hx; arr[o + 3] = hy;
+    arr[o + 4] = qr; arr[o + 5] = ty; arr[o + 6] = a; arr[o + 7] = b;
+    arr[o + 8] = e; arr[o + 9] = 0; arr[o + 10] = 0; arr[o + 11] = 0;
+    arr[o + 12] = c[0]; arr[o + 13] = c[1]; arr[o + 14] = c[2]; arr[o + 15] = c[3] == null ? 1 : c[3];
+    n++;
+  }
+  return n;
+}
+
+V.GPU = {
+  WGSL: WGSL,
+  pack: pack,
+  // -> Promise<backend|null>. Never throws.
+  // o.offscreen: render into a private texture instead of the canvas swapchain (headless test mode; see gpu-test.js)
+  create: function (canvas, o) {
+    o = o || {};
+    var S = { dev: null, ad: null, gctx: null, fmt: 'bgra8unorm', pipe: null, ubuf: null, bind: null, ibuf: null, icap: 0,
+      arr: new Float32Array(FL * 1024), off: null, offW: 0, offH: 0, w: 0, h: 0, dpr: 1, lostFns: [], quiet: false, dead: false, warned: false, n: 0 };
+    function warnOnce(m) { if (!S.warned) { S.warned = true; try { console.warn('[gpu] ' + m); } catch (e) {} } }
+    function ensureBuf(n) {
+      if (n <= S.icap && S.ibuf) return;
+      var cap = Math.max(1024, S.icap); while (cap < n) cap *= 2;
+      if (S.ibuf) S.ibuf.destroy();
+      S.ibuf = S.dev.createBuffer({ size: cap * FL * 4, usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST });
+      S.icap = cap;
+    }
+    function upload(list) {
+      var n = pack(list, S.arr);
+      while (n < 0) { S.arr = new Float32Array(S.arr.length * 2); n = pack(list, S.arr); }
+      ensureBuf(Math.max(1, n));
+      if (n) S.dev.queue.writeBuffer(S.ibuf, 0, S.arr.buffer, 0, n * FL * 4);
+      S.dev.queue.writeBuffer(S.ubuf, 0, new Float32Array([S.w, S.h, S.dpr, 0]));
+      S.n = n;
+    }
+    function encode(enc, view) {
+      var pass = enc.beginRenderPass({ colorAttachments: [{ view: view, clearValue: { r: 0, g: 0, b: 0, a: 1 }, loadOp: 'clear', storeOp: 'store' }] });
+      if (S.n) { pass.setPipeline(S.pipe); pass.setBindGroup(0, S.bind); pass.setVertexBuffer(0, S.ibuf); pass.draw(6, S.n); }
+      pass.end();
+    }
+    function release() {
+      S.quiet = true;
+      try { if (S.gctx && S.gctx.unconfigure) S.gctx.unconfigure(); } catch (e) {}
+      try { if (S.ibuf) S.ibuf.destroy(); if (S.off) S.off.destroy(); } catch (e) {}
+      S.off = null; S.offW = S.offH = 0;
+      try { if (S.dev) S.dev.destroy(); } catch (e) {}
+      S.ibuf = null; S.icap = 0; S.dead = true;
+    }
+
+    var api = {
+      name: 'WebGPU',
+      canvas: canvas,
+      get alive() { return !S.dead; },
+      get count() { return S.n; },
+      resize: function (w, h, dpr) {
+        S.w = w; S.h = h; S.dpr = Math.min(dpr || 1, 2);
+        var pw = Math.max(1, Math.round(w * S.dpr)), ph = Math.max(1, Math.round(h * S.dpr));
+        if (canvas.width !== pw) canvas.width = pw;
+        if (canvas.height !== ph) canvas.height = ph;
+        S.dpr = pw / Math.max(1, w); // effective
+        if (o.offscreen && S.dev && !S.dead && (S.offW !== pw || S.offH !== ph)) {
+          if (S.off) S.off.destroy();
+          S.off = S.dev.createTexture({ size: [pw, ph], format: S.fmt, usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.COPY_SRC });
+          S.offW = pw; S.offH = ph;
+        }
+      },
+      // returns false if the device is gone (caller falls back the same frame)
+      draw: function (list) {
+        if (S.dead) return false;
+        if (!(S.w > 0 && S.h > 0)) return true;
+        upload(list);
+        var enc = S.dev.createCommandEncoder();
+        encode(enc, o.offscreen ? S.off.createView() : S.gctx.getCurrentTexture().createView());
+        S.dev.queue.submit([enc.finish()]);
+        return true;
+      },
+      onLost: function (fn) { S.lostFns.push(fn); },
+      destroy: release,
+      // test hook: behave exactly as if dev.lost resolved with this reason (device is released quietly first)
+      _fakeLoss: function (reason) {
+        release();
+        S.lostFns.slice().forEach(function (fn) { try { fn(reason || 'unknown', 'fake'); } catch (e) {} });
+      },
+      _device: function () { return S.dev; },
+      readback: function (list, bg, wantPng) {
+        if (S.dead) return Promise.resolve({ w: 0, h: 0, nonBg: 0, error: 'device gone' });
+        try {
+          upload(list);
+          var w = canvas.width, h = canvas.height, dev = S.dev;
+          var tex = dev.createTexture({ size: [w, h], format: S.fmt, usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.COPY_SRC });
+          var bpr = Math.ceil(w * 4 / 256) * 256;
+          var buf = dev.createBuffer({ size: bpr * h, usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ });
+          var enc = dev.createCommandEncoder();
+          encode(enc, tex.createView());
+          enc.copyTextureToBuffer({ texture: tex }, { buffer: buf, bytesPerRow: bpr }, [w, h]);
+          dev.queue.submit([enc.finish()]);
+          var bgra = /^bgra/.test(S.fmt), B = bg || [0, 0, 0];
+          var br = Math.round(B[0] * 255), bgc = Math.round(B[1] * 255), bb = Math.round(B[2] * 255);
+          return buf.mapAsync(GPUMapMode.READ).then(function () {
+            var d = new Uint8Array(buf.getMappedRange()), nonBg = 0, nonBlack = 0, x, y, o;
+            for (y = 0; y < h; y++) {
+              o = y * bpr;
+              for (x = 0; x < w; x++, o += 4) {
+                var r = bgra ? d[o + 2] : d[o], g = d[o + 1], b = bgra ? d[o] : d[o + 2];
+                if (r + g + b > 24) nonBlack++;
+                if (Math.abs(r - br) > 10 || Math.abs(g - bgc) > 10 || Math.abs(b - bb) > 10) nonBg++;
+              }
+            }
+            var png = null;
+            if (wantPng && typeof document !== 'undefined') {
+              var cv = document.createElement('canvas'); cv.width = w; cv.height = h;
+              var cx = cv.getContext('2d'), im = cx.createImageData(w, h), q = im.data;
+              for (y = 0; y < h; y++) for (x = 0; x < w; x++) {
+                var si = y * bpr + x * 4, di = (y * w + x) * 4;
+                q[di] = bgra ? d[si + 2] : d[si]; q[di + 1] = d[si + 1]; q[di + 2] = bgra ? d[si] : d[si + 2]; q[di + 3] = 255;
+              }
+              cx.putImageData(im, 0, 0); png = cv.toDataURL('image/png');
+            }
+            buf.unmap(); buf.destroy(); tex.destroy();
+            return { w: w, h: h, nonBg: nonBg, nonBlack: nonBlack, instances: S.n, png: png };
+          });
+        } catch (e) { return Promise.resolve({ w: 0, h: 0, nonBg: 0, error: String(e && e.message || e) }); }
+      }
+    };
+    try {
+      if (typeof navigator === 'undefined' || !navigator.gpu) return Promise.resolve(null);
+      return navigator.gpu.requestAdapter().then(function (ad) {
+        if (!ad) throw new Error('no adapter');
+        S.ad = ad;
+        return ad.requestDevice();
+      }).then(function (dev) {
+        S.dev = dev; G.__vGpuKeep = [S.ad, dev, navigator.gpu]; // keep the instance alive (GC loses the device otherwise)
+        S.fmt = navigator.gpu.getPreferredCanvasFormat();
+        if (!o.offscreen) {
+          var gctx = canvas.getContext('webgpu');
+          if (!gctx) throw new Error('no webgpu context');
+          S.gctx = gctx;
+          gctx.configure({ device: dev, format: S.fmt, alphaMode: 'opaque' });
+        }
+        G.__vGpuKeep.push(S.gctx, canvas);
+        dev.lost.then(function (info) {
+          S.dead = true;
+          if (S.quiet) return; // we released it ourselves
+          var reason = (info && info.reason) || 'unknown';
+          S.lostFns.slice().forEach(function (fn) { try { fn(reason, info && info.message); } catch (e) {} });
+        });
+        dev.addEventListener('uncapturederror', function (e) { warnOnce('uncaptured: ' + (e.error && e.error.message)); });
+        var mod = dev.createShaderModule({ code: WGSL });
+        return mod.getCompilationInfo().then(function (ci) {
+          var er = ci.messages.filter(function (m) { return m.type === 'error'; });
+          if (er.length) throw new Error('WGSL: ' + er.map(function (m) { return m.lineNum + ':' + m.message; }).join(' | '));
+          S.ubuf = dev.createBuffer({ size: 16, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST });
+          var bgl = dev.createBindGroupLayout({ entries: [{ binding: 0, visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT, buffer: { type: 'uniform' } }] });
+          S.bind = dev.createBindGroup({ layout: bgl, entries: [{ binding: 0, resource: { buffer: S.ubuf } }] });
+          var attrs = [0, 1, 2, 3].map(function (i) { return { shaderLocation: i, offset: i * 16, format: 'float32x4' }; });
+          dev.pushErrorScope('validation');
+          S.pipe = dev.createRenderPipeline({
+            layout: dev.createPipelineLayout({ bindGroupLayouts: [bgl] }),
+            vertex: { module: mod, entryPoint: 'vs', buffers: [{ arrayStride: FL * 4, stepMode: 'instance', attributes: attrs }] },
+            fragment: { module: mod, entryPoint: 'fs', targets: [{ format: S.fmt, blend: {
+              color: { srcFactor: 'one', dstFactor: 'one-minus-src-alpha', operation: 'add' },
+              alpha: { srcFactor: 'one', dstFactor: 'one-minus-src-alpha', operation: 'add' } } }] },
+            primitive: { topology: 'triangle-list' }
+          });
+          return dev.popErrorScope().then(function (err) { if (err) throw new Error('pipeline: ' + err.message); });
+        });
+      }).then(function () {
+        return api;
+      }).catch(function (e) {
+        warnOnce('init failed: ' + (e && e.message || e));
+        release();
+        return null;
+      });
+    } catch (e) { return Promise.resolve(null); }
+
+  }
+};
+})();
+
+</script>
+<script>
+(function(){ var G = (typeof window !== 'undefined' ? window : globalThis); var V = G.V = G.V || {};
+// Renderer chooser: WebGPU unless forced off / unavailable / failing; Canvas 2D otherwise.
+// L-LOL-7 slow-frame fallback (judged against measured cadence, whole session), L-LOL-8 device release + one re-init.
+
+// Slow-frame detector. feed(gapMs) -> true when the GPU should be dropped.
+// slow gap = gap > max(34, 1.6 x cadence); cadence = median of the last LONG gaps (adapts to a 30 Hz cap,
+// but too slowly to absorb a sustained slowdown); drop when >= half of the last SHORT gaps are slow.
+function SlowDetector(o) {
+  o = o || {};
+  var SHORT = o.short || 120, LONG = o.long || 600, IGNORE = o.ignore || 250;
+  var short = [], long = [], slowN = 0, strikes = 0, cad = 0, sinceMed = 0;
+  function median(a) { var s = a.slice().sort(function (x, y) { return x - y; }); return s[s.length >> 1]; }
+  var d = {
+    get cadence() { return cad; }, get slowInWindow() { return slowN; }, get strikes() { return strikes; },
+    threshold: function () { return Math.max(34, 1.6 * (cad || 16.7)); },
+    feed: function (g) {
+      if (!(g > 0) || g > IGNORE) return false; // hidden tab, stall, single hitch: not a cadence sample
+      long.push(g); if (long.length > LONG) long.shift();
+      if (++sinceMed >= 30 || !cad) { sinceMed = 0; if (long.length >= 30) cad = median(long); }
+      var slow = cad > 0 && g > d.threshold();
+      short.push(slow); if (slow) slowN++;
+      if (short.length > SHORT) { if (short.shift()) slowN--; }
+      return (short.length >= SHORT && slowN * 2 >= SHORT) || strikes >= 3;
+    },
+    strike: function () { strikes++; return strikes >= 3; },
+    reset: function () { short.length = 0; long.length = 0; slowN = 0; strikes = 0; cad = 0; sinceMed = 0; }
+  };
+  return d;
+}
+
+V.Render = {
+  SlowDetector: SlowDetector,
+  create: function (opts) {
+    opts = opts || {};
+    var c2d = opts.c2d, cgpu = opts.cgpu;
+    var r2d = V.Render2D.create(c2d);
+    // headless test mode: WebGPU renders offscreen (readback only) and Canvas 2D shows the frame; R.offscreen tells
+    var offscreen = !!opts.offscreen || (typeof location !== 'undefined' && /[?&]gpu=offscreen(&|$)/.test(location.search));
+    var st = { gpu: null, name: 'Canvas 2D', w: 0, h: 0, dpr: 1, fns: [], lastT: 0, list: null, view: null,
+      reinitPending: false, reinitUsed: false, reiniting: false, why: '', det: SlowDetector(opts.detector) };
+    var R = {};
+
+    function show() {
+      var g = st.name === 'WebGPU' && !offscreen;
+      if (cgpu) cgpu.style.display = g ? '' : 'none';
+      if (c2d) c2d.style.display = g ? 'none' : '';
+    }
+    function emit(why) { st.why = why; show(); st.fns.slice().forEach(function (fn) { try { fn(st.name, why); } catch (e) {} }); }
+    function useGpu(b) {
+      st.gpu = b; st.name = 'WebGPU'; st.det.reset(); st.lastT = 0;
+      b.resize(st.w, st.h, st.dpr);
+      b.onLost(function (reason) {
+        if (st.gpu !== b) return;
+        st.gpu = null; st.name = 'Canvas 2D';
+        if (reason !== 'destroyed' && !st.reinitUsed) st.reinitPending = true;
+        if (st.list && st.view) { try { r2d.draw(st.list, st.view); } catch (e) {} }
+        emit('lost:' + reason);
+      });
+    }
+    function dropGpu(why) {
+      var b = st.gpu; st.gpu = null; st.name = 'Canvas 2D';
+      if (b) b.destroy(); // L-LOL-8: release the device on any non-loss fallback (quiet)
+      emit(why);
+    }
+    function tryGpu() {
+      if (opts.forceCanvas || !cgpu || typeof navigator === 'undefined' || !navigator.gpu || !V.GPU) return Promise.resolve(null);
+      return V.GPU.create(cgpu, { offscreen: offscreen });
+    }
+
+    Object.defineProperty(R, 'name', { get: function () { return st.name; }, enumerable: true });
+    Object.defineProperty(R, 'why', { get: function () { return st.why; } });
+    R.resize = function (w, h, dpr) {
+      st.w = w; st.h = h; st.dpr = dpr || 1;
+      r2d.resize(w, h, st.dpr);
+      if (st.gpu) st.gpu.resize(w, h, st.dpr);
+      [c2d, cgpu].forEach(function (c) { if (c) { c.style.width = w + 'px'; c.style.height = h + 'px'; } });
+    };
+    R.draw = function (list, view) {
+      st.list = list; st.view = view;
+      var now = (typeof performance !== 'undefined' ? performance.now() : Date.now());
+      if (st.gpu) {
+        var gap = st.lastT ? now - st.lastT : 0; st.lastT = now;
+        if (gap && st.det.feed(gap)) dropGpu('slow');
+      }
+      if (st.gpu) {
+        var ok = false;
+        try { ok = st.gpu.draw(list, view); } catch (e) { ok = false; }
+        if (ok) { if (offscreen) r2d.draw(list, view); return; }
+        if (st.gpu) dropGpu('draw failed');
+      }
+      r2d.draw(list, view);
+      if (st.reinitPending && !st.reiniting && (typeof document === 'undefined' || document.visibilityState !== 'hidden')) {
+        st.reinitPending = false; st.reinitUsed = true; st.reiniting = true;
+        tryGpu().then(function (b) {
+          st.reiniting = false;
+          if (b) { useGpu(b); emit('reinit'); }
+        });
+      }
+    };
+    R.offscreen = offscreen;
+    R.readback = function (o) {
+      if (!st.gpu || !st.list) return Promise.resolve({ w: 0, h: 0, nonBg: 0, error: 'renderer is ' + st.name });
+      return st.gpu.readback(st.list, V.Scene && V.Scene.PAL ? V.Scene.PAL.ground : null, !!(o && o.png));
+    };
+    R.onChange = function (fn) { if (typeof fn === 'function') st.fns.push(fn); };
+    // shell may call this for a timing-safety event that happened while on the GPU (L-LOL-7 instant strike)
+    R.strike = function () { if (st.gpu && st.det.strike()) dropGpu('slow'); };
+    R.test = {
+      detector: st.det,
+      fakeLoss: function (reason) { if (st.gpu) st.gpu._fakeLoss(reason); },
+      destroyDevice: function () { if (st.gpu) st.gpu._device().destroy(); },
+      feedGaps: function (arr) { for (var i = 0; i < arr.length; i++) if (st.gpu && st.det.feed(arr[i])) { dropGpu('slow'); break; } return st.name; },
+      get reinitUsed() { return st.reinitUsed; }
+    };
+
+    return tryGpu().then(function (b) {
+      if (b) useGpu(b);
+      show();
+      return R;
+    }, function () { show(); return R; });
+  }
+};
+})();
+
+</script>
+<script>
+(function(){ var G = (typeof window !== 'undefined' ? window : globalThis); var V = G.V = G.V || {};
+// One-thumb drag control: touch anywhere on the game screen, drag to move. No graphic at the thumb.
+// Direction = finger offset from the touch-down point. Hysteresis: start moving past ENTER px, stop inside EXIT px.
+var el = null, tune = null;
+var pid = null, x0 = 0, y0 = 0, dx = 0, dy = 0, active = false, down = false;
+var keys = {};
+var log = [], LOG_MAX = 200, t0 = (G.performance ? performance.now() : 0);
+var counts = { downs: 0, ups: 0, cancels: 0, moves: 0 };
+
+function now(){ return Math.round((G.performance ? performance.now() : 0) - t0); }
+function rec(k, x, y){ log.push([now(), k, Math.round(x || 0), Math.round(y || 0)]); if (log.length > LOG_MAX) log.shift(); }
+function T(k, d){ return tune && typeof tune[k] === 'number' ? tune[k] : d; }
+
+function ignoreTarget(t){ return t && t.closest && t.closest('button, .ov, #drawer, input, textarea'); }
+
+function onDown(e){
+  if (pid !== null) return;                 // one pointer only
+  if (ignoreTarget(e.target)) return;
+  pid = e.pointerId; down = true; x0 = e.clientX; y0 = e.clientY; dx = dy = 0; active = false;
+  try { el.setPointerCapture(pid); } catch (_) {}
+  counts.downs++; rec('d', x0, y0);
+  if (e.cancelable) e.preventDefault();
+}
+function onMove(e){
+  if (e.pointerId !== pid) return;
+  dx = e.clientX - x0; dy = e.clientY - y0;
+  var d = Math.sqrt(dx * dx + dy * dy);
+  if (!active && d > T('DEADZONE_ENTER', 14)) { active = true; rec('go', dx, dy); }
+  else if (active && d < T('DEADZONE_EXIT', 8)) { active = false; rec('st', dx, dy); }
+  counts.moves++;
+}
+function onUp(e){
+  if (e.pointerId !== pid) return;
+  rec(e.type === 'pointercancel' ? 'c' : 'u', dx, dy);
+  if (e.type === 'pointercancel') counts.cancels++; else counts.ups++;
+  release();
+}
+function release(){
+  if (pid !== null) { try { el.releasePointerCapture(pid); } catch (_) {} }
+  pid = null; down = false; active = false; dx = dy = 0;
+}
+function onKey(e){
+  var k = e.key; var on = e.type === 'keydown';
+  var m = { w: 'u', W: 'u', ArrowUp: 'u', s: 'd', S: 'd', ArrowDown: 'd', a: 'l', A: 'l', ArrowLeft: 'l', d: 'r', D: 'r', ArrowRight: 'r' }[k];
+  if (!m) return;
+  keys[m] = on;
+  if (e.target && e.target.tagName === 'INPUT') return;
+  e.preventDefault();
+}
+
+V.Input = {
+  attach: function(target, tuneRef){
+    el = target; tune = tuneRef || V.TUNE;
+    el.addEventListener('pointerdown', onDown, { passive: false });
+    el.addEventListener('pointermove', onMove);
+    el.addEventListener('pointerup', onUp);
+    el.addEventListener('pointercancel', onUp);
+    el.addEventListener('lostpointercapture', function(e){ if (e.pointerId === pid) { rec('lost', dx, dy); release(); } });
+    G.addEventListener('blur', function(){ release(); keys = {}; });
+    G.addEventListener('keydown', onKey); G.addEventListener('keyup', onKey);
+  },
+  // World-space direction (screen and world share axes, y grows down). Length 0 = no move.
+  read: function(){
+    var kx = (keys.r ? 1 : 0) - (keys.l ? 1 : 0), ky = (keys.d ? 1 : 0) - (keys.u ? 1 : 0);
+    if (kx || ky) { var kl = Math.sqrt(kx * kx + ky * ky); return { mx: kx / kl, my: ky / kl }; }
+    if (!active) return { mx: 0, my: 0 };
+    var l = Math.sqrt(dx * dx + dy * dy) || 1;
+    return { mx: dx / l, my: dy / l };
+  },
+  release: function(){ if (pid !== null) rec('rel', dx, dy); release(); keys = {}; },
+  get down(){ return down; },
+  get active(){ return active; },
+  get counts(){ return counts; },
+  log: function(){ return log.slice(); },
+  logText: function(){ return log.map(function(r){ return r.join(','); }).join(' '); }
+};
+})();
+
+</script>
+<script>
+(function(){ var G = (typeof window !== 'undefined' ? window : globalThis); var V = G.V = G.V || {};
+// Four synth sounds (fire, hit, hurt, door/levelup). L-HB-1/L-HB-2: unlock on first pointerdown (capture) and keydown,
+// suspend while hidden or paused, voice cap with headroom for important sounds, own RNG stream (never the sim's).
+var ctx = null, master = null, noiseBuf = null, paused = false, voices = 0, played = 0, dropped = 0;
+var CAP = 16, LOW_CAP = 10;                      // low-priority sounds (fire, hit) stop at 10, leaving 6 for hurt/door/levelup
+var PRIO = { fire: 0, hit: 0, kill: 1, hurt: 2, door: 2, levelup: 2 };
+var rs = 0x5eed1234;
+function rnd(){ rs |= 0; rs = rs + 0x6D2B79F5 | 0; var t = Math.imul(rs ^ rs >>> 15, 1 | rs); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }
+function on(){ return !V.TUNE || V.TUNE.SOUND !== false; }
+
+function make(){
+  if (ctx) return ctx;
+  var AC = G.AudioContext || G.webkitAudioContext; if (!AC) return null;
+  try { ctx = new AC(); } catch (e) { return null; }
+  build(ctx);
+  return ctx;
+}
+function build(c){
+  var comp = c.createDynamicsCompressor();
+  comp.threshold.value = -10; comp.knee.value = 6; comp.ratio.value = 8; comp.attack.value = 0.002; comp.release.value = 0.12;
+  master = c.createGain(); master.gain.value = 0.55;
+  master.connect(comp); comp.connect(c.destination);
+  var n = Math.floor(c.sampleRate * 0.25); noiseBuf = c.createBuffer(1, n, c.sampleRate);
+  var d = noiseBuf.getChannelData(0); var save = rs; rs = 0x0badf00d;
+  for (var i = 0; i < n; i++) d[i] = rnd() * 2 - 1;
+  rs = save;
+}
+function unlock(){
+  var c = make(); if (!c) return;
+  if (c.state === 'suspended' && !paused && !(G.document && document.hidden)) c.resume().catch(function(){});
+}
+function voice(node, end){ voices++; played++; node.onended = function(){ voices = Math.max(0, voices - 1); }; }
+
+function env(c, g, t, a, peak, dur){ g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(peak, t + a); g.gain.exponentialRampToValueAtTime(0.0001, t + dur); }
+
+var SND = {
+  fire: function(c, t, o){
+    var os = c.createOscillator(), g = c.createGain(), f = 880 + rnd() * 120;
+    os.type = 'square'; os.frequency.setValueAtTime(f, t); os.frequency.exponentialRampToValueAtTime(f * 0.45, t + 0.07);
+    env(c, g, t, 0.003, 0.09, 0.08); os.connect(g); g.connect(o); os.start(t); os.stop(t + 0.09); return os;
+  },
+  hit: function(c, t, o, big){
+    var s = c.createBufferSource(), f = c.createBiquadFilter(), g = c.createGain();
+    s.buffer = noiseBuf; s.playbackRate.value = 0.8 + rnd() * 0.4;
+    f.type = 'lowpass'; f.frequency.value = big ? 1400 : 2200;
+    env(c, g, t, 0.002, big ? 0.45 : 0.28, big ? 0.22 : 0.1); s.connect(f); f.connect(g); g.connect(o);
+    s.start(t, rnd() * 0.1, 0.25); s.stop(t + (big ? 0.24 : 0.12));
+    var th = c.createOscillator(), tg = c.createGain(); th.type = 'sine';
+    th.frequency.setValueAtTime(big ? 120 : 170, t); th.frequency.exponentialRampToValueAtTime(50, t + 0.12);
+    env(c, tg, t, 0.002, big ? 0.5 : 0.25, 0.14); th.connect(tg); tg.connect(o); th.start(t); th.stop(t + 0.15);
+    return s;
+  },
+  hurt: function(c, t, o){
+    var os = c.createOscillator(), f = c.createBiquadFilter(), g = c.createGain();
+    os.type = 'sawtooth'; os.frequency.setValueAtTime(240, t); os.frequency.exponentialRampToValueAtTime(70, t + 0.25);
+    f.type = 'lowpass'; f.frequency.value = 1200;
+    env(c, g, t, 0.004, 0.5, 0.28); os.connect(f); f.connect(g); g.connect(o); os.start(t); os.stop(t + 0.3); return os;
+  },
+  door: function(c, t, o, lv){
+    var notes = lv ? [523, 659, 784, 1047] : [392, 523, 659], last = null;
+    for (var i = 0; i < notes.length; i++) {
+      var os = c.createOscillator(), g = c.createGain(), ti = t + i * 0.075;
+      os.type = 'triangle'; os.frequency.value = notes[i];
+      env(c, g, ti, 0.005, 0.3, 0.22); os.connect(g); g.connect(o); os.start(ti); os.stop(ti + 0.24); last = os;
+    }
+    return last;
+  }
+};
+
+function play(name, opt){
+  if (!on() || !ctx || !master) return false;
+  var p = PRIO[name] || 0;
+  if (voices >= CAP || (p === 0 && voices >= LOW_CAP)) { dropped++; return false; }
+  // Scheduled even while suspended (L-HB-1): it sounds once resume() lands instead of being dropped.
+  var t = ctx.currentTime + 0.005, n;
+  if (name === 'fire') n = SND.fire(ctx, t, master);
+  else if (name === 'hit') n = SND.hit(ctx, t, master, false);
+  else if (name === 'kill') n = SND.hit(ctx, t, master, true);
+  else if (name === 'hurt') n = SND.hurt(ctx, t, master);
+  else if (name === 'door') n = SND.door(ctx, t, master, false);
+  else if (name === 'levelup') n = SND.door(ctx, t, master, true);
+  if (!n) return false;
+  voice(n); return true;
+}
+
+if (G.addEventListener) {
+  G.addEventListener('pointerdown', unlock, true);
+  G.addEventListener('keydown', unlock, true);
+  if (G.document) document.addEventListener('visibilitychange', function(){
+    if (!ctx) return;
+    if (document.hidden) ctx.suspend().catch(function(){});
+    else if (!paused) ctx.resume().catch(function(){});
+  });
+}
+
+V.Audio = {
+  play: play,
+  unlock: unlock,
+  seed: function(s){ rs = ((s | 0) ^ 0x5eed1234) | 0; },
+  // Game pause: stay suspended until the game resumes.
+  setPaused: function(p){
+    paused = !!p; if (!ctx) return;
+    if (paused) ctx.suspend().catch(function(){}); else if (!(G.document && document.hidden)) ctx.resume().catch(function(){});
+  },
+  // For tests (OfflineAudioContext burst render, L-HB-2 item 5).
+  renderBurst: function(spec){
+    var OAC = G.OfflineAudioContext; if (!OAC) return Promise.resolve(null);
+    var c = new OAC(1, 44100 * 1, 44100), sv = { ctx: ctx, master: master, noiseBuf: noiseBuf, voices: voices };
+    build(c); var m = master; var t = 0.01;
+    (spec || ['hurt', 'levelup', 'kill', 'kill', 'kill']).forEach(function(nm, i){
+      if (nm === 'fire') SND.fire(c, t, m); else if (nm === 'hit') SND.hit(c, t, m, false); else if (nm === 'kill') SND.hit(c, t, m, true);
+      else if (nm === 'hurt') SND.hurt(c, t, m); else SND.door(c, t, m, nm === 'levelup');
+    });
+    master = sv.master; noiseBuf = sv.noiseBuf;
+    return c.startRendering().then(function(b){ var d = b.getChannelData(0), pk = 0; for (var i = 0; i < d.length; i++) pk = Math.max(pk, Math.abs(d[i])); return pk; });
+  },
+  get state(){ return ctx ? ctx.state : 'none'; },
+  get voices(){ return voices; },
+  get played(){ return played; },
+  get dropped(){ return dropped; },
+  CAP: CAP
+};
+})();
+
+</script>
+<script>
+(function(){ var G = (typeof window !== 'undefined' ? window : globalThis); var V = G.V = G.V || {};
+// DOM HUD, overlays (cards, death, pause), toasts and the tuning drawer.
+// Shell-only knobs are added here so the drawer and Copy settings cover them.
+if (V.TUNE_DEFAULTS) {
+  var SHELL = { EDGE_FLASH: true, HAPTIC_HURT_MS: 40, HAPTIC_KILL_MS: 12 };
+  for (var sk in SHELL) if (!(sk in V.TUNE_DEFAULTS)) { V.TUNE_DEFAULTS[sk] = SHELL[sk]; if (V.TUNE && !(sk in V.TUNE)) V.TUNE[sk] = SHELL[sk]; }
+}
+var BUILD = 'volley-p0-1';
+var $ = function(id){ return document.getElementById(id); };
+
+var GROUPS = [
+  ['Hero', ['HERO_HP', 'HERO_ATK', 'CRIT_CHANCE', 'CRIT_MULT', 'MOVE_SPEED', 'FIRE_INTERVAL', 'FIRE_FLOOR', 'ROUND_SPEED', 'ROUND_R', 'INVULN', 'PICKUP_R']],
+  ['Enemies', ['ENEMY_HP_GLOBAL', 'HP_SLOPE', 'DMG_SLOPE', 'ENEMY_DMG_MULT', 'ENEMY_SHOT_SPEED_MULT', 'TELL_MULT', 'SPAWN_T']],
+  ['Feel', ['TIME_SCALE', 'HITSTOP_MS', 'CARDS_OFFERED', 'PICK_DELAY', 'EDGE_FLASH', 'HAPTICS', 'HAPTIC_HURT_MS', 'HAPTIC_KILL_MS', 'SOUND']],
+  ['Input', ['BRACE_DELAY', 'DEADZONE_ENTER', 'DEADZONE_EXIT']]
+];
+var RANGE = {
+  HERO_HP: [100, 2000, 10], HERO_ATK: [20, 600, 5], CRIT_CHANCE: [0, 1, 0.01], CRIT_MULT: [1, 4, 0.05], MOVE_SPEED: [1, 10, 0.1],
+  FIRE_INTERVAL: [0.1, 2, 0.01], FIRE_FLOOR: [0.05, 1, 0.01], ROUND_SPEED: [3, 30, 0.5], ROUND_R: [0.04, 0.4, 0.01], INVULN: [0, 2, 0.05],
+  ENEMY_HP_GLOBAL: [0.1, 3, 0.01], HP_SLOPE: [0, 0.3, 0.002], DMG_SLOPE: [0, 0.3, 0.002], ENEMY_DMG_MULT: [0, 4, 0.05],
+  ENEMY_SHOT_SPEED_MULT: [0.2, 3, 0.05], TELL_MULT: [0.2, 3, 0.05], TIME_SCALE: [0.1, 2, 0.05], HITSTOP_MS: [0, 200, 5],
+  CARDS_OFFERED: [1, 3, 1], BRACE_DELAY: [0, 1, 0.01], DEADZONE_ENTER: [2, 60, 1], DEADZONE_EXIT: [0, 40, 1],
+  HAPTIC_HURT_MS: [0, 200, 5], HAPTIC_KILL_MS: [0, 100, 2]
+};
+function rangeFor(k, d){
+  if (RANGE[k]) return RANGE[k];
+  if (d <= 1) return [0, 2, 0.01];
+  if (d <= 20) return [0, Math.ceil(d * 3), 0.1];
+  return [0, Math.ceil(d * 3), 1];
+}
+function fmt(v){ return typeof v === 'number' ? (Math.abs(v) >= 100 || v === Math.round(v) ? String(Math.round(v * 1000) / 1000) : v.toFixed(3).replace(/0+$/, '').replace(/\.$/, '')) : String(v); }
+
+var toastT = 0, lastHud = '', hooks = {};
+var UI = V.UI = {};
+
+UI.init = function(h){
+  hooks = h || {};
+  $('gear').addEventListener('click', function(){ UI.openDrawer(true); });
+  $('drClose').addEventListener('click', function(){ UI.openDrawer(false); });
+  $('drReset').addEventListener('click', function(){
+    for (var k in V.TUNE_DEFAULTS) V.TUNE[k] = V.TUNE_DEFAULTS[k];
+    buildDrawer(); msg('Defaults restored');
+  });
+  $('drCopyS').addEventListener('click', function(){ copy(JSON.stringify(V.TUNE, null, 1), 'Settings copied'); });
+  $('drCopyR').addEventListener('click', function(){ copy(UI.report(), 'Report copied'); });
+  buildDrawer();
+};
+
+function msg(t){ $('drMsg').textContent = t; }
+function copy(text, ok){
+  var done = function(){ msg(ok); };
+  var fallback = function(){
+    var ta = $('copyArea'); ta.value = text; ta.style.left = '0'; ta.focus(); ta.select();
+    var r = false; try { r = document.execCommand('copy'); } catch (_) {}
+    ta.style.left = '-9999px'; UI.lastCopy = text;
+    msg(r ? ok : 'Copy blocked: text is in window.__pv.lastCopy');
+  };
+  UI.lastCopy = text;
+  try { if (navigator.clipboard && G.isSecureContext) { navigator.clipboard.writeText(text).then(done, fallback); return; } } catch (_) {}
+  fallback();
+}
+
+function buildDrawer(){
+  var body = $('drBody'); body.innerHTML = '';
+  var seen = {}, groups = GROUPS.map(function(g){ return [g[0], g[1].filter(function(k){ return k in V.TUNE_DEFAULTS; })]; });
+  groups.forEach(function(g){ g[1].forEach(function(k){ seen[k] = 1; }); });
+  var other = Object.keys(V.TUNE_DEFAULTS || {}).filter(function(k){ return !seen[k]; });
+  if (other.length) groups.push(['Other', other]);
+  groups.push(['Renderer', ['__stress']]);
+  groups.forEach(function(g){
+    if (!g[1].length) return;
+    var h = document.createElement('h4'); h.textContent = g[0]; body.appendChild(h);
+    g[1].forEach(function(k){ body.appendChild(knob(k)); });
+  });
+}
+function knob(k){
+  var row = document.createElement('div'); row.className = 'kn';
+  var isStress = k === '__stress';
+  var d = isStress ? 0 : V.TUNE_DEFAULTS[k], v = isStress ? ((V.Scene && V.Scene.stress) | 0) : V.TUNE[k];
+  var lab = document.createElement('label'), val = document.createElement('i');
+  lab.textContent = isStress ? 'STRESS_SHAPES' : k; lab.appendChild(val); row.appendChild(lab);
+  if (typeof d === 'boolean') {
+    var b = document.createElement('button'); b.className = 'btn ghost tg';
+    var paint = function(){ b.textContent = V.TUNE[k] ? 'On' : 'Off'; val.textContent = V.TUNE[k] ? 'on' : 'off'; };
+    b.addEventListener('click', function(){ V.TUNE[k] = !V.TUNE[k]; paint(); });
+    paint(); row.appendChild(b); return row;
+  }
+  var rg = isStress ? [0, 2000, 50] : rangeFor(k, d);
+  var inp = document.createElement('input'); inp.type = 'range';
+  inp.min = rg[0]; inp.max = Math.max(rg[1], v); inp.step = rg[2]; inp.value = v;
+  val.textContent = fmt(v);
+  inp.addEventListener('input', function(){
+    var x = parseFloat(inp.value);
+    if (isStress) { if (V.Scene) V.Scene.stress = x | 0; }
+    else V.TUNE[k] = x;
+    val.textContent = fmt(x);
+  });
+  row.appendChild(inp); return row;
+}
+
+UI.openDrawer = function(on){
+  $('drawer').classList.toggle('on', !!on);
+  if (on) { buildDrawer(); msg(''); }
+  UI.syncOverlay();
+  if (hooks.onDrawer) hooks.onDrawer(!!on);
+};
+UI.drawerOpen = function(){ return $('drawer').classList.contains('on'); };
+
+UI.syncOverlay = function(){
+  var any = ['ovCards', 'ovDead', 'ovPause', 'ovBoot'].some(function(id){ return $(id).classList.contains('on'); }) || UI.drawerOpen();
+  document.body.classList.toggle('ovon', any);
+};
+function show(id, on){ $(id).classList.toggle('on', !!on); UI.syncOverlay(); }
+UI.show = show;
+
+UI.toast = function(text, ms){
+  var t = $('toast'); t.textContent = text; t.classList.add('on');
+  clearTimeout(toastT); toastT = setTimeout(function(){ t.classList.remove('on'); }, ms || 1600);
+};
+UI.placeToast = function(view){
+  // Below the room, in the ground area: never over the HUD bars or the room edge (L-TD-5).
+  var t = $('toast'); t.style.top = Math.round(view.oy + 15 * view.s + 12) + 'px';
+};
+
+var flashT = 0;
+UI.hurtFlash = function(){
+  if (V.TUNE.EDGE_FLASH === false) return;
+  var f = $('flash'); f.classList.add('on'); clearTimeout(flashT);
+  flashT = setTimeout(function(){ f.classList.remove('on'); }, 60);
+};
+
+UI.hud = function(S, R, view){
+  if (!S) return;
+  var h = S.hero, room = V.ROOMS && V.ROOMS[S.roomId];
+  var hp = Math.max(0, Math.ceil(h.hp)), mx = Math.max(1, Math.round(h.maxHp));
+  var xpPct = h.xpNext ? Math.max(0, Math.min(1, h.xp / h.xpNext)) : 1;
+  var key = [S.stage, S.roomId, hp, mx, h.level, Math.round(xpPct * 200)].join('|');
+  if (key !== lastHud) {
+    lastHud = key;
+    $('stNum').textContent = S.stage;
+    $('roomName').textContent = room ? room.name : (S.roomId || '');
+    $('lvl').textContent = 'Lv ' + h.level;
+    $('xpFill').style.width = (xpPct * 100).toFixed(1) + '%';
+    $('hpFill').style.width = (hp / mx * 100).toFixed(1) + '%';
+    $('hpFill').style.background = hp / mx < 0.3 ? '#f07a6e' : '#5fd06a';
+    $('hpTxt').textContent = hp + ' / ' + mx;
+  }
+  UI.rendererLabel(R, view);
+};
+UI.rendererLabel = function(R, view){
+  var t = (R ? R.name : 'none') + ' | ' + Math.round(view.w) + 'x' + Math.round(view.h) + ' | dpr ' + (Math.round((G.devicePixelRatio || 1) * 100) / 100);
+  var el = $('rlbl'); if (el.textContent !== t) el.textContent = t;
+};
+
+UI.cards = function(S, onPick){
+  var list = $('cardList'); list.innerHTML = '';
+  $('cardTitle').textContent = 'Field upgrade - level ' + S.hero.level;
+  (S.cards || []).forEach(function(ci, i){
+    var c = (V.CARDS && V.CARDS[ci]) || { name: 'Card ' + ci, desc: '' };
+    var b = document.createElement('button'); b.className = 'card'; b.dataset.i = i;
+    var n = document.createElement('b'); n.textContent = c.name; var d = document.createElement('span'); d.textContent = c.desc || '';
+    b.appendChild(n); b.appendChild(d);
+    b.addEventListener('click', function(){ onPick(i); });
+    list.appendChild(b);
+  });
+  show('ovCards', true);
+};
+
+UI.dead = function(S){
+  var st = S.stats || {}, rt = st.roomTimes || [];
+  var room = V.ROOMS && V.ROOMS[S.roomId];
+  var lines = [
+    'Reached stage ' + S.stage + (room ? ' (' + room.name + ')' : ''),
+    'Level ' + S.hero.level + ' | ' + (st.kills | 0) + ' machines down',
+    'Rooms cleared ' + rt.length + ' | Damage taken ' + Math.round(st.dmgTaken || 0)
+  ];
+  $('deadStats').innerHTML = lines.map(function(l){ return '<div>' + l.replace(/</g, '&lt;') + '</div>'; }).join('');
+  show('ovDead', true);
+};
+
+// Copy report: everything needed to compare a play session.
+UI.report = function(){
+  var m = hooks.metrics ? hooks.metrics() : {}, S = m.S || {}, st = S.stats || {};
+  var braced = st.playSteps ? Math.round(100 * (st.bracedSteps || 0) / st.playSteps) : 0;
+  var r = {
+    build: BUILD, date: new Date().toISOString(), seed: S.seed, renderer: m.renderer, viewport: m.viewport, dpr: G.devicePixelRatio || 1,
+    ua: navigator.userAgent,
+    frameMs: m.frame, gapsOver50ms: m.gaps,
+    bracedUptimePct: braced, hitsBy: st.hitsBy, roomTimes: st.roomTimes, kills: st.kills, deaths: m.deaths,
+    stage: S.stage, level: S.hero && S.hero.level, picks: st.picks, shots: st.shots, dmgTaken: st.dmgTaken,
+    input: V.Input ? { counts: V.Input.counts, log: V.Input.logText() } : null,
+    audio: V.Audio ? { state: V.Audio.state, played: V.Audio.played, dropped: V.Audio.dropped } : null,
+    settings: V.TUNE
+  };
+  return 'Project Volley report\n' + JSON.stringify(r, null, 1);
+};
+UI.BUILD = BUILD;
+})();
+
+</script>
+<script>
+(function(){ var G = (typeof window !== 'undefined' ? window : globalThis); var V = G.V = G.V || {};
+// Boot, layout, fixed 60 Hz loop, hit-stop, pause, overlays and the window.__pv test hook.
+var $ = function(id){ return document.getElementById(id); };
+var Q = new URLSearchParams(location.search);
+var STEP_MS = 1000 / 60, MAX_STEPS = 5;
+var S = null, R = null, list = [], view = { w: 344, h: 882, dpr: 1, ox: 0, oy: 66, s: 38 };
+var acc = 0, last = 0, hitstopUntil = 0, paused = false, frozen = Q.get('freeze') === '1';
+var shown = { pick: false, dead: false }, deadAt = 0, deaths = 0;
+var ft = [], FT_MAX = 1200, gaps = 0, frames = 0;
+
+function fail(t){ $('bootMsg').textContent = t; UI.show('ovBoot', true); console.warn('volley:', t); }
+var UI = V.UI;
+
+// ---------- layout ----------
+function layout(){
+  var W = G.innerWidth, H = G.innerHeight, st = $('stage'), note = $('coverNote');
+  var w = W, h = H, left = 0;
+  if (W / H > 0.75) {                                  // wide or landscape: portrait column at the cover screen aspect
+    w = Math.round(H * 344 / 882); left = Math.round((W - w) / 2);
+    var gut = left - 16;
+    note.style.display = 'block';
+    if (gut >= 120) { note.style.left = '8px'; note.style.top = '8px'; note.style.maxWidth = Math.min(260, gut) + 'px'; }
+    else { note.style.left = '8px'; note.style.top = 'auto'; note.style.bottom = '8px'; note.style.maxWidth = Math.max(100, Math.min(260, W * 0.4)) + 'px'; }
+  } else note.style.display = 'none';
+  st.style.left = left + 'px'; st.style.top = '0px'; st.style.width = w + 'px'; st.style.height = h + 'px';
+  var hud = $('hud').offsetHeight || 62;
+  var oy = hud + 2, s = Math.min(w / 9, (h - oy) / 15);
+  view.w = w; view.h = h; view.dpr = G.devicePixelRatio || 1; view.s = s; view.ox = (w - 9 * s) / 2; view.oy = oy;
+  if (R) R.resize(w, h, view.dpr);
+  UI.placeToast(view);
+}
+
+// ---------- events from the sim ----------
+function vib(ms){
+  var ua = navigator.userActivation;   // vibrate before any tap logs a console error in Chrome
+  if (V.TUNE.HAPTICS && ms > 0 && navigator.vibrate && (!ua || ua.hasBeenActive)) { try { navigator.vibrate(ms); } catch (_) {} }
+}
+function handleEvents(ev, live){
+  if (!ev) return;
+  var stop = false;
+  for (var i = 0; i < ev.length; i++) {
+    var e = ev[i];
+    switch (e.k) {
+      case 'fire': V.Audio.play('fire'); break;
+      case 'hit': case 'crit': V.Audio.play('hit'); stop = true; break;
+      case 'kill': V.Audio.play('kill'); vib(V.TUNE.HAPTIC_KILL_MS); stop = true; break;
+      case 'hurt': V.Audio.play('hurt'); UI.hurtFlash(); vib(V.TUNE.HAPTIC_HURT_MS); break;
+      case 'door': V.Audio.play('door'); UI.toast('Area clear. Head north through the door.', 2200); break;
+      case 'room': { var rm = V.ROOMS && V.ROOMS[S.roomId]; UI.toast('Stage ' + S.stage + (rm ? ': ' + rm.name : ''), 1500); break; }
+      case 'levelup': V.Audio.play('levelup'); UI.toast('Level up', 1200); break;
+      case 'death': deaths++; break;
+    }
+  }
+  if (stop && live && V.TUNE.HITSTOP_MS > 0) hitstopUntil = performance.now() + V.TUNE.HITSTOP_MS;
+}
+function simStep(inp, live){ V.Sim.step(S, inp); if (V.Scene && V.Scene.ingest) V.Scene.ingest(S.events, S); handleEvents(S.events, live); }
+
+// ---------- overlays ----------
+function syncPhase(){
+  if (S.phase === 'pick' && S.cards) {
+    if (!shown.pick) { shown.pick = true; V.Input.release(); UI.cards(S, pick); }
+  } else if (shown.pick) { shown.pick = false; UI.show('ovCards', false); }
+  if (S.phase === 'dead') {
+    if (!shown.dead) { shown.dead = true; deadAt = performance.now(); V.Input.release(); UI.dead(S); }
+  } else if (shown.dead) { shown.dead = false; UI.show('ovDead', false); }
+}
+function pick(i){
+  if (!S || S.phase !== 'pick') return;
+  V.Sim.pick(S, i);
+  handleEvents(S.events, false);
+  shown.pick = false; UI.show('ovCards', false);
+  syncPhase();                                           // another pending level shows the next card screen
+}
+function restart(){
+  S = V.Sim.restart(S); V.Audio.seed(S.seed);
+  acc = 0; hitstopUntil = 0; shown.dead = false; UI.show('ovDead', false); shown.pick = false; UI.show('ovCards', false);
+  syncPhase(); return S;
+}
+function tryRestart(){ if (S && S.phase === 'dead' && performance.now() - deadAt > 450) restart(); }
+
+function pause(){
+  if (paused || !S) return;
+  paused = true; V.Input.release(); V.Audio.setPaused(true); UI.show('ovPause', true);
+}
+function resume(){
+  if (!paused) return;
+  paused = false; acc = 0; last = 0; hitstopUntil = 0; V.Audio.setPaused(false); UI.show('ovPause', false);
+}
+
+// ---------- loop ----------
+function frame(ts){
+  requestAnimationFrame(frame);
+  var dt = last ? ts - last : STEP_MS; last = ts;
+  if (!S || !R) return;
+  var running = !paused && !frozen && !UI.drawerOpen() && (S.phase === 'play' || S.phase === 'clear');
+  if (!paused && !document.hidden) {
+    frames++; ft.push(dt); if (ft.length > FT_MAX) ft.shift(); if (dt > 50 && frames > 3) gaps++;
+  }
+  if (running) {
+    if (ts < hitstopUntil) acc = 0;
+    else {
+      acc += Math.min(dt, 250);
+      var n = 0;
+      while (acc >= STEP_MS && n < MAX_STEPS) {
+        simStep(V.Input.read(), true); acc -= STEP_MS; n++;
+        if (hitstopUntil > ts || S.phase === 'pick' || S.phase === 'dead') { acc = 0; break; }
+      }
+      if (n >= MAX_STEPS) acc = 0;                       // never chase a long stall (L-LOL-2)
+    }
+  } else if (!paused && !frozen && !UI.drawerOpen()) {
+    // pick/dead: the sim may still animate; nothing to step here
+  }
+  syncPhase();
+  draw();
+}
+function draw(){
+  V.Scene.build(S, view, list);
+  R.draw(list, view);
+  UI.hud(S, R, view);
+}
+
+function pct(a, p){ if (!a.length) return 0; var b = a.slice().sort(function(x, y){ return x - y; }); return Math.round(b[Math.min(b.length - 1, Math.floor(p * b.length))] * 10) / 10; }
+function metrics(){
+  return { S: S, renderer: R ? R.name + (R.why ? ' (' + R.why + ')' : '') : 'none', viewport: Math.round(view.w) + 'x' + Math.round(view.h),
+    frame: { p50: pct(ft, 0.5), p95: pct(ft, 0.95), max: Math.round(Math.max.apply(null, ft.concat([0])) * 10) / 10, n: ft.length },
+    gaps: gaps, deaths: deaths };
+}
+
+// ---------- boot ----------
+function boot(){
+  if (!V.Sim || !V.Scene || !V.Render || !V.TUNE) { fail('Missing parts: ' + ['Sim', 'Scene', 'Render', 'TUNE'].filter(function(k){ return !V[k]; }).join(', ')); return; }
+  UI.init({ metrics: metrics, onDrawer: function(on){ if (on) V.Input.release(); acc = 0; last = 0; } });
+  var stage = $('stage');
+  V.Input.attach(stage, V.TUNE);
+  layout();
+  G.addEventListener('resize', layout);
+  if (G.visualViewport) G.visualViewport.addEventListener('resize', layout);
+
+  var seed = Q.has('seed') ? (parseInt(Q.get('seed'), 10) | 0) : (Date.now() % 1000000);
+  var stress = parseInt(Q.get('stress') || '0', 10) | 0; if (stress > 0) V.Scene.stress = stress;
+  S = V.Sim.create(seed, V.TUNE); V.Audio.seed(seed);
+
+  document.addEventListener('visibilitychange', function(){ if (document.hidden) pause(); });
+  G.addEventListener('blur', pause);
+  G.addEventListener('pagehide', pause);
+  $('ovPause').addEventListener('pointerdown', function(e){ e.preventDefault(); resume(); });
+  $('btnResume').addEventListener('click', resume);
+  $('ovDead').addEventListener('pointerdown', function(e){ if (e.target.id !== 'btnRestart') tryRestart(); });
+  $('btnRestart').addEventListener('click', tryRestart);
+  G.addEventListener('keydown', function(e){
+    if (paused && (e.key === ' ' || e.key === 'Enter' || e.key === 'Escape')) { resume(); return; }
+    if (S && S.phase === 'dead' && (e.key === ' ' || e.key === 'Enter' || e.key === 'r')) tryRestart();
+    if (S && S.phase === 'pick' && /^[1-3]$/.test(e.key) && S.cards && +e.key <= S.cards.length) pick(+e.key - 1);
+  });
+
+  V.Render.create({ c2d: $('c2d'), cgpu: $('cgpu'), forceCanvas: Q.get('gpu') === '0' }).then(function(r){
+    R = r; layout();
+    if (R.onChange) R.onChange(function(){ layout(); UI.rendererLabel(R, view); });
+    UI.show('ovBoot', false);
+    syncPhase();
+    requestAnimationFrame(frame);
+  }).catch(function(e){ console.error(e); fail('Renderer failed: ' + (e && e.message)); });
+
+  G.__pv = {
+    get renderer(){ return R ? R.name : 'none'; },
+    get rendererWhy(){ return R ? R.why : ''; },
+    get R(){ return R; },
+    get S(){ return S; },
+    get paused(){ return paused; },
+    get view(){ return view; },
+    get frozen(){ return frozen; },
+    get lastCopy(){ return UI.lastCopy; },
+    step: function(n, inp){
+      n = n || 1; inp = inp || { mx: 0, my: 0 };
+      for (var i = 0; i < n; i++) simStep(inp, false);
+      syncPhase(); if (R) draw(); return S;
+    },
+    pick: function(i){ pick(i); return S; },
+    restart: function(){ return restart(); },
+    readback: function(){ return R && R.readback ? R.readback() : Promise.resolve(null); },
+    freeze: function(on){ frozen = on !== false; acc = 0; return frozen; },  // stop real-time stepping (deterministic tests)
+    pause: pause, resume: resume,
+    drawer: function(on){ UI.openDrawer(on); },
+    report: function(){ return UI.report(); },
+    metrics: metrics,
+    hash: function(){ return V.Sim.hash ? V.Sim.hash(S) : null; },
+    tune: V.TUNE,
+    input: V.Input,
+    audio: V.Audio,
+    build: UI.BUILD
+  };
+}
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot); else boot();
+})();
+
+</script>
+<script>if('serviceWorker' in navigator&&isSecureContext)addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(e=>console.warn('sw',e)));try{screen.orientation&&screen.orientation.lock&&matchMedia('(display-mode: fullscreen)').matches&&screen.orientation.lock('portrait').catch(()=>{});}catch(_){}</script>
+</body>
+</html>
