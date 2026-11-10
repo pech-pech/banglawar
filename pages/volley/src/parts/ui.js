@@ -5,10 +5,16 @@ if (V.TUNE_DEFAULTS) {
   var SHELL = { AUTO_WALK: true, AUTO_WALK_DELAY: 1.0, EDGE_FLASH: true, HAPTIC_HURT_MS: 40, HAPTIC_KILL_MS: 12 };
   for (var sk in SHELL) if (!(sk in V.TUNE_DEFAULTS)) { V.TUNE_DEFAULTS[sk] = SHELL[sk]; if (V.TUNE && !(sk in V.TUNE)) V.TUNE[sk] = SHELL[sk]; }
 }
-var BUILD = 'volley-f0-1';
+var BUILD = 'volley-f0-2';
 // Persist tuning (only values that differ from defaults). Every storage call is guarded. Sound on/off is NOT kept here any more:
 // V.TUNE.SOUND is a view of V.Audio's mute, saved in 'volley.settings.v1' (audio.js), so a tune reset or save wipe keeps it.
-var STORE = 'volley.tune';
+// f0-2: sliders were being nudged by accident while scrolling the drawer (M's Fold reports showed FIRE_INTERVAL at the
+// slider minimum and many other values moved). New key = one clean reset to defaults; sliders are locked until unlocked.
+var STORE = 'volley.tune.v2';
+try { if (G.localStorage) localStorage.removeItem('volley.tune'); } catch (_) {}
+var slidersUnlocked = /[?&]debug=1/.test(G.location ? location.search : '');
+function lockSliders(){ var l = document.querySelectorAll('#drBody input[type=range]'); for (var i = 0; i < l.length; i++) l[i].disabled = !slidersUnlocked;
+  var b = document.getElementById('drUnlock'); if (b) b.textContent = slidersUnlocked ? 'Lock sliders' : 'Unlock sliders'; }
 function loadTune(){
   try {
     var raw = G.localStorage && localStorage.getItem(STORE); if (!raw) return;
@@ -16,6 +22,7 @@ function loadTune(){
     for (var k in o) if (k !== 'SOUND' && V.TUNE_DEFAULTS && k in V.TUNE_DEFAULTS && typeof o[k] === typeof V.TUNE_DEFAULTS[k]) V.TUNE[k] = o[k];
   } catch (_) {}
 }
+function tuneDiff(){ var o = {}; try { for (var k in V.TUNE_DEFAULTS) if (k !== 'SOUND' && V.TUNE[k] !== V.TUNE_DEFAULTS[k]) o[k] = V.TUNE[k]; } catch (_) {} return o; }
 function saveTune(){
   try {
     var o = {}, n = 0;
@@ -119,10 +126,14 @@ function knob(k){
     val.textContent = fmt(x);
   });
   inp.addEventListener('change', saveTune);
+  inp.disabled = !slidersUnlocked;
   row.appendChild(inp); return row;
 }
 
+function bindUnlock(){ var b = document.getElementById('drUnlock'); if (!b || b.__bound) return; b.__bound = true;
+  b.addEventListener('click', function(){ slidersUnlocked = !slidersUnlocked; lockSliders(); }); lockSliders(); }
 UI.openDrawer = function(on){
+  bindUnlock(); lockSliders();
   $('drawer').classList.toggle('on', !!on);
   if (on) { buildDrawer(); msg(''); }
   UI.syncOverlay();
@@ -309,7 +320,7 @@ UI.report = function(){
   var m = hooks.metrics ? hooks.metrics() : {}, S = m.S || {}, st = S.stats || {};
   var braced = st.playSteps ? Math.round(100 * (st.bracedSteps || 0) / st.playSteps) : 0;
   var r = {
-    build: BUILD, date: new Date().toISOString(), seed: S.seed, renderer: m.renderer, viewport: m.viewport, dpr: G.devicePixelRatio || 1,
+    build: BUILD, date: new Date().toISOString(), tuneChanged: tuneDiff(), window: (G.innerWidth | 0) + 'x' + (G.innerHeight | 0), seed: S.seed, renderer: m.renderer, viewport: m.viewport, dpr: G.devicePixelRatio || 1,
     ua: navigator.userAgent,
     frameMs: m.frame, gapsOver50ms: m.gaps,
     bracedUptimePct: braced, hitsBy: st.hitsBy, roomTimes: st.roomTimes, kills: st.kills, deaths: m.deaths,
