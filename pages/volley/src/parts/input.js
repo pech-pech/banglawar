@@ -1,6 +1,6 @@
 (function(){ var G = (typeof window !== 'undefined' ? window : globalThis); var V = G.V = G.V || {};
 // One-thumb drag control: touch anywhere on the game screen, drag to move. No graphic at the thumb.
-// Direction = finger offset from the touch-down point. Hysteresis: start moving past ENTER px, stop inside EXIT px.
+// Direction = finger offset from the touch-down point. Hysteresis: start moving past ENTER px, stop inside EXIT px (frame px, F0).
 var el = null, tune = null;
 var pid = null, x0 = 0, y0 = 0, dx = 0, dy = 0, active = false, down = false;
 var keys = {};
@@ -24,7 +24,9 @@ function onDown(e){
 function onMove(e){
   if (e.pointerId !== pid) return;
   dx = e.clientX - x0; dy = e.clientY - y0;
-  var d = Math.sqrt(dx * dx + dy * dy);
+  // Dead zones are in frame px: the stage is CSS-scaled, so client px / V.Frame.scale = frame px (default 1).
+  var fs = (V.Frame && V.Frame.scale > 0) ? V.Frame.scale : 1;
+  var d = Math.sqrt(dx * dx + dy * dy) / fs;
   if (!active && d > T('DEADZONE_ENTER', 14)) { active = true; rec('go', dx, dy); }
   else if (active && d < T('DEADZONE_EXIT', 8)) { active = false; rec('st', dx, dy); }
   counts.moves++;

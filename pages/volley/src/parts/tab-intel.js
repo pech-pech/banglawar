@@ -78,7 +78,7 @@ button.tb-row{appearance:none;cursor:pointer}\
 .tb-pw{display:flex;flex-direction:column;gap:6px;padding:8px 12px 10px;background:linear-gradient(var(--pv-ui-metal-700),var(--pv-ui-metal-800));border:1.5px solid var(--pv-ui-ink);border-radius:6px}\
 .tb-pw .h{display:flex;align-items:center;gap:12px}\
 .tb-pw .l{flex:1;font-weight:700}.tb-pw .l small{display:block;font-weight:400;font-size:11px;color:var(--pv-ui-text-2)}\
-.tb-pw input[type=range]{width:100%;height:40px;margin:0;accent-color:var(--pv-ui-cyan);background:transparent}\
+.tb-pw input[type=range]{width:100%;height:56px;margin:0;accent-color:var(--pv-ui-cyan);background:transparent}\
 .tb-danger{color:var(--pv-ui-red)}.tb-danger .pv-ico{color:var(--pv-ui-red)}\
 .tb-scrim{position:absolute;inset:0;z-index:50;display:flex;align-items:flex-end;background:rgba(5,7,9,.78)}\
 .tb-sheet{width:100%;margin-bottom:var(--tb-bottom,98px);padding:16px;display:flex;flex-direction:column;gap:10px;background:linear-gradient(var(--pv-ui-metal-700),var(--pv-ui-metal-900));border:2.5px solid var(--pv-ui-ink);border-radius:10px 10px 0 0;box-shadow:0 0 0 1.5px var(--pv-ui-metal-500)}\
@@ -212,15 +212,27 @@ function renderCodex(){
   body.appendChild(g);
 }
 
+// F0 #8: settings live in their own key. Sound is audio.js's (V.Audio, muted flag); haptics is V.Meta.settings().haptics.
+function settingOn(key){
+  var m = M();
+  if (key === 'sound') return V.Audio && 'muted' in V.Audio ? !V.Audio.muted : !(V.TUNE && V.TUNE.SOUND === false);
+  if (m.settings) return !!m.settings()[key];
+  return !!(m.state.settings && m.state.settings[key]);
+}
+function setSettingOn(key, on){
+  var m = M();
+  if (key === 'sound') { if (V.Audio && V.Audio.setMuted) V.Audio.setMuted(!on); else if (V.TUNE) V.TUNE.SOUND = on; return; }
+  if (m.setSetting) { m.setSetting(key, on); return; }
+  var s = m.state.settings = m.state.settings || {}; s[key] = on;
+  if (key === 'haptics' && V.TUNE && 'HAPTICS' in V.TUNE) V.TUNE.HAPTICS = on;
+  if (m.save) m.save();
+}
 function toggleRow(icon, label, sub, key){
-  var m = M(), on = !!(m.state.settings && m.state.settings[key]);
+  var on = settingOn(key);
   var b = el('button', 'tb-row', ico(icon) + '<span class="l">' + label + (sub ? '<small>' + sub + '</small>' : '') + '</span><span class="tb-sw"></span>');
   b.type = 'button'; b.setAttribute('role', 'switch'); b.setAttribute('aria-checked', on); b.setAttribute('data-set', key);
   b.addEventListener('click', function(){
-    var s = m.state.settings = m.state.settings || {};
-    s[key] = !s[key];
-    if (V.TUNE) { if (key === 'sound' && 'SOUND' in V.TUNE) V.TUNE.SOUND = s[key]; if (key === 'haptics' && 'HAPTICS' in V.TUNE) V.TUNE.HAPTICS = s[key]; }
-    if (m.save) m.save();
+    setSettingOn(key, !settingOn(key));
     render();
   });
   return b;
@@ -253,6 +265,29 @@ function renderSettings(){
   rs.addEventListener('click', confirmReset);
   sys.appendChild(rs);
   body.appendChild(sys);
+  if (debugOn() && m.loadSample) renderSamples(m);
+}
+
+// ---- F0 #12: test-only sample-save menu (08 structure rule 8). Shown only with ?debug=1, never when the build sets V.RELEASE = true. ----
+function debugOn(){
+  if (V.RELEASE === true) return false;
+  try { return /[?&]debug=1(&|#|$)/.test(G.location.search || ''); } catch (e) { return false; }
+}
+var SAMPLE_ROWS = [
+  ['fresh', 'Fresh', 'Empty save, as on first launch'],
+  ['mid', 'Mid-game', '12,480 credits, rifle Lv 8, 15 Conditioning'],
+  ['all', 'All unlocked', 'Everything maxed, codex full']
+];
+function renderSamples(m){
+  body.appendChild(el('div', 'tb-sec', '<span>Test saves (debug)</span>'));
+  var g = el('div', 'tb-grid'); g.style.gridTemplateColumns = '1fr'; g.style.gap = '6px'; g.setAttribute('data-samples', '1');
+  SAMPLE_ROWS.forEach(function(r){
+    var b = el('button', 'tb-row', ico('codex') + '<span class="l">Load ' + r[1] + '<small>' + r[2] + '</small></span>');
+    b.type = 'button'; b.setAttribute('data-sample', r[0]);
+    b.addEventListener('click', function(){ busy = true; try { m.loadSample(r[0]); } finally { busy = false; } render(); });
+    g.appendChild(b);
+  });
+  body.appendChild(g);
 }
 
 function confirmReset(){
@@ -264,7 +299,7 @@ function confirmReset(){
   s.querySelector('[data-confirm]').addEventListener('click', function(){
     var m = M(); closeSheet();
     if (m.reset) m.reset();
-    else { try { localStorage.removeItem('volley.save.v1'); } catch (e) {} try { location.reload(); } catch (e2) {} }
+    else { try { localStorage.removeItem('volley.save.v2'); } catch (e) {} try { location.reload(); } catch (e2) {} }
   });
   root.appendChild(s); sheet = s;
 }

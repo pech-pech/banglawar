@@ -14,30 +14,41 @@ function fail(t){ $('bootMsg').textContent = t; UI.show('ovBoot', true); console
 var UI = V.UI;
 
 // ---------- layout ----------
-var BERM_PX = 30, sbProbe = null;   // BERM_PX: sandbag rows + their shadow below the room line (scene.js drawRoomEdge reaches ~y0+27)
-function safeBottom(){
-  if (!sbProbe) { sbProbe = document.createElement('div'); sbProbe.style.cssText = 'position:absolute;left:0;top:0;width:0;height:0;visibility:hidden;padding-bottom:env(safe-area-inset-bottom,0px)'; document.body.appendChild(sbProbe); }
-  return parseFloat(getComputedStyle(sbProbe).paddingBottom) || 0;
+// Scaled frame (pick 1, spec 05 s1 / 08 s2): the whole game (Home and run) is one 344 x 882 frame. scale = min(usable W / 344,
+// usable H / 882), usable = window minus safe-area insets (L-PV-13); centred; the spare sides are flat bars (body background).
+// Layout inside the frame never changes with the device. Canvas pixels = shown frame x devicePixelRatio, capped at 2 (render2d/gpu cap).
+var FRAME_W = 344, FRAME_H = 882, BERM_PX = 30, sbProbe = null;   // BERM_PX: sandbag rows + their shadow below the room line (scene.js drawRoomEdge reaches ~y0+27)
+var frame0 = { scale: 1, left: 0, top: 0, vw: 0, vh: 0 }, laidOut = false;
+var RESIZE_PAUSE = 0.02;   // guess: a scale change above 2% (fold, unfold, rotate) pauses a run (spec 05 s1); smaller ones (URL bar jitter) do not
+function safeInsets(){
+  if (!sbProbe) { sbProbe = document.createElement('div'); sbProbe.style.cssText = 'position:absolute;left:0;top:0;width:0;height:0;visibility:hidden;padding:env(safe-area-inset-top,0px) env(safe-area-inset-right,0px) env(safe-area-inset-bottom,0px) env(safe-area-inset-left,0px)'; document.body.appendChild(sbProbe); }
+  var cs = getComputedStyle(sbProbe);
+  return { t: parseFloat(cs.paddingTop) || 0, r: parseFloat(cs.paddingRight) || 0, b: parseFloat(cs.paddingBottom) || 0, l: parseFloat(cs.paddingLeft) || 0 };
 }
 function layout(){
-  var W = G.innerWidth, H = G.innerHeight, st = $('stage'), note = $('coverNote');
-  var w = W, h = H, left = 0;
-  if (W / H > 0.75) {                                  // wide or landscape: portrait column at the cover screen aspect
-    w = Math.round(H * 344 / 882); left = Math.round((W - w) / 2);
-    var gut = left - 16;
-    note.style.display = 'block';
-    if (gut >= 120) { note.style.left = '8px'; note.style.top = '8px'; note.style.maxWidth = Math.min(260, gut) + 'px'; }
-    else { note.style.left = '8px'; note.style.top = 'auto'; note.style.bottom = '8px'; note.style.maxWidth = Math.max(100, Math.min(260, W * 0.4)) + 'px'; }
-  } else note.style.display = 'none';
-  st.style.left = left + 'px'; st.style.top = '0px'; st.style.width = w + 'px'; st.style.height = h + 'px';
-  var hud = $('hud').offsetHeight || 62;
-  // Contain fit: the whole room (9x15 tiles) PLUS the sandbag berm drawn just below its bottom edge (BERM_PX) and the bottom safe area
-  // must sit below the HUD, so the limiting dimension (width or height) sets the scale. Tall phones stay width-limited (unchanged).
-  var oy = hud + 2, s = Math.min(w / 9, (h - oy - BERM_PX - safeBottom()) / 15);
-  view.w = w; view.h = h; view.dpr = G.devicePixelRatio || 1; view.s = s; view.ox = (w - 9 * s) / 2; view.oy = oy;
+  var W = G.innerWidth, H = G.innerHeight, st = $('stage'), ins = safeInsets();
+  var uw = Math.max(1, W - ins.l - ins.r), uh = Math.max(1, H - ins.t - ins.b);
+  var sc = Math.min(uw / FRAME_W, uh / FRAME_H);
+  var left = ins.l + (uw - FRAME_W * sc) / 2, top = ins.t + (uh - FRAME_H * sc) / 2;
+  var prev = frame0.scale;
+  frame0.scale = sc; frame0.left = left; frame0.top = top; frame0.vw = W; frame0.vh = H;
+  st.style.width = FRAME_W + 'px'; st.style.height = FRAME_H + 'px';
+  st.style.transform = 'translate(' + left + 'px,' + top + 'px) scale(' + sc + ')';
+  st.style.setProperty('--pv-scale', String(sc));
+  var w = FRAME_W, h = FRAME_H;
+  var hud = $('hud').offsetHeight || 62;   // offsetHeight is in frame units (transforms do not change it)
+  // Contain fit inside the frame: the room (9x15 tiles) plus the berm below it must sit under the HUD. Safe areas are outside the frame now.
+  var oy = hud + 2, s = Math.min(w / 9, (h - oy - BERM_PX) / 15);
+  view.w = w; view.h = h; view.dpr = (G.devicePixelRatio || 1) * sc; view.s = s; view.ox = (w - 9 * s) / 2; view.oy = oy;
+  view.scale = sc; view.left = left; view.top = top; view.vw = W; view.vh = H;
   if (R) R.resize(w, h, view.dpr);
   UI.placeToast(view);
+  if (laidOut && Math.abs(sc - prev) / prev > RESIZE_PAUSE && S && !home && !isEnd() && (S.phase === 'play' || S.phase === 'clear')) pause();
+  laidOut = true;
 }
+// Screen (client) px -> frame units. Input steering is relative, so only the scale matters for drags; taps on DOM are mapped by the browser.
+function toFrame(cx, cy){ return { x: (cx - frame0.left) / frame0.scale, y: (cy - frame0.top) / frame0.scale }; }
+V.Frame = { W: FRAME_W, H: FRAME_H, toFrame: toFrame, get scale(){ return frame0.scale; }, get left(){ return frame0.left; }, get top(){ return frame0.top; } };
 
 // ---------- events from the sim ----------
 function vib(ms){
@@ -228,7 +239,7 @@ function boot(){
   if (!V.Sim || !V.Scene || !V.Render || !V.TUNE) { fail('Missing parts: ' + ['Sim', 'Scene', 'Render', 'TUNE'].filter(function(k){ return !V[k]; }).join(', ')); return; }
   UI.init({ metrics: metrics, onDrawer: function(on){ if (on) V.Input.release(); acc = 0; last = 0; } });
   var stage = $('stage');
-  V.Input.attach(stage, V.TUNE);
+  V.Input.attach(document.body, V.TUNE);   // body, not #stage: in a run a touch that starts in a bar steers too (spec 05 s1)
   layout();
   G.addEventListener('resize', layout);
   if (G.visualViewport) G.visualViewport.addEventListener('resize', layout);
@@ -275,6 +286,8 @@ function boot(){
     get S(){ return S; },
     get paused(){ return paused; },
     get view(){ return view; },
+    get frame(){ return { scale: frame0.scale, left: frame0.left, top: frame0.top, w: FRAME_W * frame0.scale, h: FRAME_H * frame0.scale, vw: frame0.vw, vh: frame0.vh }; },
+    toFrame: toFrame,
     get frozen(){ return frozen; },
     get autoWalk(){ return { idle: aw.idle, cancelled: aw.cancelled, on: aw.on }; },
     get lastCopy(){ return UI.lastCopy; },

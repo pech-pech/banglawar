@@ -10,14 +10,18 @@
   --cyan:#43d3e3; --cyanD:#0e5a63; --red:#e2463c; --hp:#5fd06a; --amber:#f0b54a; --mut:#b9b2a2;
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-html,body{margin:0;height:100%;background:#1b1a17;color:var(--sand);font:14px/1.3 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;overflow:hidden;
+html,body{margin:0;height:100%;background:var(--pv-ui-bg,#0b0e11);color:var(--sand);font:14px/1.3 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;overflow:hidden;
   user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;overscroll-behavior:none}
-#stage{position:absolute;left:0;top:0;overflow:hidden;touch-action:none;background:#c9b48a;flex:none}
+/* Scaled frame (pick 1): #stage is always 344 x 882 frame units; main.js layout() sets translate+scale. The bars are the body background
+   (flat --pv-ui-bg) with a 1 px --pv-ui-metal-500 line on the frame edge (1 screen px at any scale). Bars carry no art or text. */
+body{touch-action:none}
+#stage{position:absolute;left:0;top:0;width:344px;height:882px;transform-origin:0 0;overflow:hidden;touch-action:none;background:#c9b48a;flex:none;
+  box-shadow:0 0 0 calc(1px / var(--pv-scale,1)) var(--pv-ui-metal-500,#4a535d)}
 #stage canvas{position:absolute;left:0;top:0;width:100%;height:100%;display:block;touch-action:none}
 /* HUD */
 #hud{position:absolute;left:0;top:0;right:0;pointer-events:none;z-index:10;
-  padding:env(safe-area-inset-top,0px) env(safe-area-inset-right,0px) 0 env(safe-area-inset-left,0px);
-  background:linear-gradient(#1d1e1f,#1d1e1f) no-repeat top/100% env(safe-area-inset-top,0px)}
+  padding:0px 0px 0 0px;
+  background:linear-gradient(#1d1e1f,#1d1e1f) no-repeat top/100% 0px}
 #hudTop{display:flex;align-items:center;gap:6px;height:44px;padding:4px 4px 0 6px;background:linear-gradient(#1d1e1fee,#1d1e1fcc)}
 #stageLbl{font-weight:700;font-size:13px;white-space:nowrap;color:var(--sand);background:var(--gun);border:1px solid #4a4d4f;border-radius:6px;padding:3px 6px}
 #stageLbl b{color:#fff}
@@ -44,7 +48,7 @@ body.dbg #rlbl{display:block}
 body.ovon #hud, body.ovon #toast, body.ovon #rlbl{visibility:hidden}
 /* overlays */
 .ov{position:absolute;inset:0;z-index:30;display:none;flex-direction:column;align-items:center;justify-content:center;gap:12px;
-  padding:max(16px,env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) max(16px,env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));
+  padding:max(16px,0px) max(16px,0px) max(16px,0px) max(16px,0px);
   background:rgba(20,19,16,.94);text-align:center}
 .ov.on{display:flex}
 .ov h2{margin:0;font-size:22px;color:#fff;letter-spacing:.5px}
@@ -59,7 +63,6 @@ body.ovon #hud, body.ovon #toast, body.ovon #rlbl{visibility:hidden}
 .card span{display:block;font-size:15px;line-height:1.25;color:var(--sand)}
 .card.sup .gl{background:#2d2414;border-color:#7a5a20;color:var(--amber)}
 #deadStats{font-size:14px;color:var(--sand);line-height:1.5}
-#coverNote{position:absolute;display:none;font-size:13px;color:var(--sand);background:var(--gun);border:1px solid #4a4d4f;border-radius:8px;padding:8px 10px;z-index:40;max-width:260px}
 /* Boss bar (D1): label row above a plain full-width bar, so no text sits over the fill. */
 #bossBar{position:absolute;display:none;z-index:10;pointer-events:none;padding:2px 4px 4px;border-radius:6px;background:rgba(12,13,14,.88);border:1px solid #6a2a26}
 #bossTxt{display:flex;justify-content:space-between;gap:8px;font-size:12px;font-weight:800;line-height:15px;color:#fff;white-space:nowrap;padding:0 2px}
@@ -97,7 +100,7 @@ body.ovon #bossBar, body.ovon #howto, body.ovon #dmgLayer{visibility:hidden}
 #ovBoot{z-index:60}
 /* drawer */
 #drawer{position:absolute;top:0;right:0;bottom:0;width:100%;z-index:50;background:rgba(18,18,17,.97);display:none;flex-direction:column;
-  padding:env(safe-area-inset-top,0px) env(safe-area-inset-right,0px) env(safe-area-inset-bottom,0px) env(safe-area-inset-left,0px)}
+  padding:0px 0px 0px 0px}
 #drawer.on{display:flex}
 #drHead{display:flex;align-items:center;gap:6px;padding:4px 6px;border-bottom:1px solid #3c3f42;flex-wrap:wrap}
 #drHead h3{margin:0 auto 0 4px;font-size:16px;color:#fff}
@@ -170,11 +173,12 @@ body.ovon #bossBar, body.ovon #howto, body.ovon #dmgLayer{visibility:hidden}
     <div id="drBody"></div>
   </div>
 </div>
-<div id="coverNote">Cover screen build: made for the folded phone. Runs in a portrait column here.</div>
 <textarea id="copyArea" aria-hidden="true"></textarea>
 <script src="parts/tune.js"></script>
 <script>/*{{assets}}*/</script>
 <script src="parts/rng.js"></script>
+<script src="parts/data-stages.js"></script>
+<script src="parts/data-enemies.js"></script>
 <script src="parts/rooms.js"></script>
 <script src="parts/stages.js"></script>
 <script src="parts/mods.js"></script>

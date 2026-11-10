@@ -5,20 +5,21 @@ if (V.TUNE_DEFAULTS) {
   var SHELL = { AUTO_WALK: true, AUTO_WALK_DELAY: 1.0, EDGE_FLASH: true, HAPTIC_HURT_MS: 40, HAPTIC_KILL_MS: 12 };
   for (var sk in SHELL) if (!(sk in V.TUNE_DEFAULTS)) { V.TUNE_DEFAULTS[sk] = SHELL[sk]; if (V.TUNE && !(sk in V.TUNE)) V.TUNE[sk] = SHELL[sk]; }
 }
-var BUILD = 'volley-p1-7';
-// Persist tuning (only values that differ from defaults) and sound-off. Every storage call is guarded.
+var BUILD = 'volley-f0-1';
+// Persist tuning (only values that differ from defaults). Every storage call is guarded. Sound on/off is NOT kept here any more:
+// V.TUNE.SOUND is a view of V.Audio's mute, saved in 'volley.settings.v1' (audio.js), so a tune reset or save wipe keeps it.
 var STORE = 'volley.tune';
 function loadTune(){
   try {
     var raw = G.localStorage && localStorage.getItem(STORE); if (!raw) return;
     var o = JSON.parse(raw);
-    for (var k in o) if (V.TUNE_DEFAULTS && k in V.TUNE_DEFAULTS && typeof o[k] === typeof V.TUNE_DEFAULTS[k]) V.TUNE[k] = o[k];
+    for (var k in o) if (k !== 'SOUND' && V.TUNE_DEFAULTS && k in V.TUNE_DEFAULTS && typeof o[k] === typeof V.TUNE_DEFAULTS[k]) V.TUNE[k] = o[k];
   } catch (_) {}
 }
 function saveTune(){
   try {
     var o = {}, n = 0;
-    for (var k in V.TUNE_DEFAULTS) if (V.TUNE[k] !== V.TUNE_DEFAULTS[k]) { o[k] = V.TUNE[k]; n++; }
+    for (var k in V.TUNE_DEFAULTS) if (k !== 'SOUND' && V.TUNE[k] !== V.TUNE_DEFAULTS[k]) { o[k] = V.TUNE[k]; n++; }
     if (n) localStorage.setItem(STORE, JSON.stringify(o)); else localStorage.removeItem(STORE);
   } catch (_) {}
 }
@@ -61,12 +62,12 @@ UI.init = function(h){
   });
   $('drCopyS').addEventListener('click', function(){ copy(JSON.stringify(V.TUNE, null, 1), 'Settings copied'); });
   $('drCopyR').addEventListener('click', function(){ copy(UI.report(), 'Report copied'); });
-  $('btnSound').addEventListener('click', function(e){ e.stopPropagation(); V.TUNE.SOUND = V.TUNE.SOUND === false; saveTune(); paintSound(); });
+  $('btnSound').addEventListener('click', function(e){ e.stopPropagation(); if (V.Audio && V.Audio.setMuted) V.Audio.setMuted(!V.Audio.muted); else V.TUNE.SOUND = V.TUNE.SOUND === false; paintSound(); });
   paintSound();
   buildDrawer();
 };
 
-function paintSound(){ var b = $('btnSound'); if (b) b.textContent = 'Sound: ' + (V.TUNE.SOUND === false ? 'off' : 'on'); }
+function paintSound(){ var b = $('btnSound'), off = V.Audio && 'muted' in V.Audio ? V.Audio.muted : V.TUNE.SOUND === false; if (b) b.textContent = 'Sound: ' + (off ? 'off' : 'on'); }
 UI.saveTune = saveTune;
 function msg(t){ $('drMsg').textContent = t; }
 function copy(text, ok){
@@ -223,8 +224,9 @@ UI.howto = function(on, view){
   if (on) { el.style.top = Math.round(view.oy + 15 * view.s + 14) + 'px'; if (el.style.display !== 'block') el.style.display = 'block'; }
   else if (el.style.display !== 'none') el.style.display = 'none';
 };
+function fmtN(n){ return (V.Home && V.Home.fmt) ? V.Home.fmt(n) : String(n); }
 UI.rendererLabel = function(R, view){
-  var t = (R ? R.name : 'none') + ' | ' + Math.round(view.w) + 'x' + Math.round(view.h) + ' | dpr ' + (Math.round((G.devicePixelRatio || 1) * 100) / 100);
+  var t = (R ? R.name : 'none') + ' | ' + Math.round(view.vw || view.w) + 'x' + Math.round(view.vh || view.h) + ' | x' + (view.scale || 1).toFixed(2) + ' | dpr ' + (Math.round((G.devicePixelRatio || 1) * 100) / 100);
   // D14: the corner label shows only with ?debug=1; the pause card and the tuning drawer always carry it.
   ['rlbl', 'rlblPause', 'rlblDrawer'].forEach(function(id){ var el = $(id); if (el && el.textContent !== t) el.textContent = t; });
 };
@@ -282,14 +284,14 @@ UI.results = function(S){
   var t = $('resTitle'); t.textContent = r.win ? 'Chapter 1 clear' : 'Operator down'; t.className = r.win ? 'win' : '';
   var mods = modNames(S);
   var rows = [['Result', r.win ? 'Win' : 'Lost'], ['Stage reached', (r.stage != null ? r.stage : S.stage) + ' / 10'], ['Time', mmss(r.t != null ? r.t : S.t)],
-    ['Kills', r.kills | 0], ['Level', r.level != null ? r.level : S.hero.level], ['Damage taken', Math.round(r.dmgTaken || 0)], ['Mods', mods.length ? mods.join(', ') : 'none']];
+    ['Kills', fmtN(r.kills | 0)], ['Level', r.level != null ? r.level : S.hero.level], ['Damage taken', fmtN(Math.round(r.dmgTaken || 0))], ['Mods', mods.length ? mods.join(', ') : 'none']];
   var box = $('resStats'); box.innerHTML = '';
   rows.forEach(function(rw){ var d = document.createElement('div'); d.className = 'row'; var a = document.createElement('span'); a.textContent = rw[0]; var b = document.createElement('b'); b.textContent = String(rw[1]); d.appendChild(a); d.appendChild(b); box.appendChild(d); });
   if (r.credits != null) {      // credits earned this run (S.result.credits, added by META), with the coin
     var cr = document.createElement('div'); cr.className = 'row'; var ca = document.createElement('span'); ca.textContent = 'Credits earned';
     var cb = document.createElement('b'); cb.style.color = '#ffe27a'; cb.style.display = 'inline-flex'; cb.style.alignItems = 'center';
     var ci = document.createElement('span'); ci.className = 'pv-coin'; ci.setAttribute('aria-hidden', 'true'); ci.style.cssText = 'width:20px;height:20px;margin-right:6px'; cb.appendChild(ci);   // code coin under 32 px
-    cb.appendChild(document.createTextNode('+' + (r.credits | 0))); cr.appendChild(ca); cr.appendChild(cb); box.insertBefore(cr, box.firstChild);
+    cb.appendChild(document.createTextNode('+' + fmtN(r.credits | 0))); cr.appendChild(ca); cr.appendChild(cb); box.insertBefore(cr, box.firstChild);
   }
   UI.show('ovDead', true);
 };
@@ -313,7 +315,7 @@ UI.report = function(){
     bracedUptimePct: braced, hitsBy: st.hitsBy, roomTimes: st.roomTimes, kills: st.kills, deaths: m.deaths,
     stage: S.stage, stageReached: S.result ? S.result.stage : S.stage, result: S.result ? (S.result.win ? 'win' : 'lose') : (S.phase === 'dead' ? 'lose' : 'in progress'), mods: S.hero ? S.hero.mods : null, modNames: S.hero ? modNames(S) : null, level: S.hero && S.hero.level, picks: st.picks, shots: st.shots, dmgTaken: st.dmgTaken,
     input: V.Input ? { counts: V.Input.counts, log: V.Input.logText() } : null,
-    audio: V.Audio ? { state: V.Audio.state, played: V.Audio.played, dropped: V.Audio.dropped } : null,
+    audio: V.Audio ? { state: V.Audio.state, played: V.Audio.played, dropped: V.Audio.dropped, settings: V.Audio.settings ? V.Audio.settings() : null } : null,
     settings: V.TUNE,
     homeVisible: !!(V.Home && V.Home.visible && V.Home.visible()),
     meta: metaBlock()

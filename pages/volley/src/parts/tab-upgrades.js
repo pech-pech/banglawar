@@ -55,7 +55,9 @@ var CSS = '\
 .tb-res .bx span{font:800 19px/1 var(--pv-ui-font-stencil);white-space:nowrap}\
 .tb-res .bx.af span{color:var(--pv-ui-cyan)}\
 .tb-res .ba>.pv-ico{color:var(--pv-ui-cyan);font-size:22px}\
-.tb-res .pv-btn{width:100%;min-height:56px}';
+.tb-res .pv-btn{width:100%;min-height:56px}\
+.tb-note{font-size:12px;color:var(--pv-ui-text-2);text-align:center;min-height:16px;margin:0}\
+.tb-note.is-warn{color:var(--pv-ui-text-3)}';
 
 function injectCss(){
   if (document.getElementById('tb-up-css')) return;
@@ -132,6 +134,9 @@ function render(){
   if (!can) { btn.className += ' is-disabled'; btn.disabled = true; }
   btn.addEventListener('click', buy);
   body.appendChild(btn);
+  // QA-HOME 12: same hint as the Armory (tab-armory.js upBtn / .ta-note): grey, never red.
+  var short = (!all && c && !can) ? Math.max(0, (c.credits | 0) - (st.credits | 0)) : 0;
+  body.appendChild(el('div', 'tb-note' + (short > 0 ? ' is-warn' : ''), short > 0 ? 'Need ' + fmt(short) + ' more credits' : '&nbsp;'));
 }
 
 function buy(){

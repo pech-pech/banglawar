@@ -17,6 +17,8 @@ var Home = V.Home = { current: 'deploy' };
 var root, body, bar, panes = {}, mounted = {}, tabBtns = {}, vis = true, crN, crIcon;
 
 function fmt(n){ return String(Math.round(n || 0)).replace(/\B(?=(\d{3})+(?!\d))/g, ','); }
+var CH_LEN = 10;   // Chapter 1 stage count (P1 shows best / 10). QA-HOME 11: best is clamped to this.
+function chLen(){ var st = V.Data && V.Data.stages, c = st && st.ch1; return (Array.isArray(c) && c.length > 0) ? c.length : CH_LEN; }   // V.Data from agent B's data-stages.js
 function meta(){ return V.Meta && V.Meta.state; }
 
 // ---- Deploy tab (S-10, minimal): Chapter 1 card with the key art, big DEPLOY, "Run starts at Stage 1" ----
@@ -36,7 +38,8 @@ V.Tabs.deploy = {
   },
   show: function(){
     var m = meta(), n = this.el.querySelector('.hm-bestn');
-    n.innerHTML = (m && m.best ? m.best : 0) + '<span class="pv-muted"> / 10</span>';
+    var len = chLen(), best = Math.max(0, Math.min(len, (m && m.best) | 0));
+    n.innerHTML = fmt(best) + '<span class="pv-muted"> / ' + len + '</span>';
   },
   hide: function(){}
 };
@@ -60,9 +63,16 @@ function build(){
     bar.appendChild(b); tabBtns[id] = b;
   });
   root.appendChild(bar);
-  if (V.Meta && V.Meta.onChange) V.Meta.onChange(refreshCredits);
+  if (V.Meta && V.Meta.onChange) V.Meta.onChange(function(){ refreshCredits(); refreshPips(); });
 }
 function refreshCredits(){ var m = meta(); if (crN) crN.textContent = fmt(m ? m.credits : 0); }
+// QA-HOME 8: a dot on a tab when a buy there is affordable (FIX B3: one dot, never a number, never on the selected tab).
+// Armory = rifle upgrade (QA-HOME 8 recommended option); Upgrades = the next Conditioning buy (QA option 2).
+var PIPS = { armory: ['rifle', 'rifle'], upgrades: ['cond', 'rand'] };
+function refreshPips(){
+  var M = V.Meta; if (!M || typeof M.canBuy !== 'function') return;
+  for (var id in PIPS) { var on = false; try { on = !!M.canBuy(PIPS[id][0], PIPS[id][1]); } catch (e) {} Home.pip(id, on); }
+}
 
 Home.go = function(id){
   if (ORDER.indexOf(id) < 0) id = 'deploy';
@@ -77,8 +87,10 @@ Home.go = function(id){
   }
   var t2 = V.Tabs[id]; if (t2 && t2.show) { try { t2.show(); } catch (e) { console.warn('volley: tab ' + id + ' show failed', e); } }
   var pip = tabBtns[id].querySelector('.pv-pip'); if (pip) pip.hidden = true;   // pips never sit on the selected tab
-  $('hmTitle').textContent = TITLES[id]; refreshCredits();
+  $('hmTitle').textContent = TITLES[id]; refreshCredits(); refreshPips();
 };
+Home.refreshPips = refreshPips;
+Home.fmt = fmt;   // home-side number formatter (thousands separators); the sim never formats
 Home.pip = function(id, on){ var p = tabBtns[id] && tabBtns[id].querySelector('.pv-pip'); if (p) p.hidden = !on || id === Home.current; };
 Home.visible = function(){ return vis; };
 Home.show = function(tab){
@@ -92,8 +104,12 @@ Home.hide = function(){
   if (V.UI) V.UI.syncOverlay();
 };
 
+
 function init(){
   build();
+  // F0 save rules: tell the player once when progress was reset or cannot be kept.
+  setTimeout(function(){ var M = V.Meta, U = V.UI; if (!M || !U || !U.toast) return;
+    if (M.storageOk === false) U.toast(M.BLOCKED_LINE, 3200); else if (M.resetSignal) U.toast(M.RESET_LINE, 3200); }, 400);
   var p = $('resPortrait'); if (p) { if (A('portrait-kneesup') || A('portrait')) p.src = A('portrait-kneesup') || A('portrait'); else p.style.display = 'none'; }
   if (/[?&]home=0/.test(G.location.search)) { vis = false; root.classList.remove('on'); Home.current = 'deploy'; go0(); }
   else Home.show('deploy');
