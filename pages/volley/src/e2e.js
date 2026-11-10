@@ -29,6 +29,7 @@ const SESSIONS = [
   { vp: [344, 882], mode: 'default', plan: 'full' },
   { vp: [412, 904], mode: 'gpu0', plan: 'full', cards: 3 },
   { vp: [412, 904], mode: 'default', plan: 'boot' },
+  { vp: [344, 882], mode: 'offscreen', plan: 'full' },  // WebGPU pipeline to a texture: the sandbox loses the device on swapchain present
   { vp: [1104, 884], mode: 'gpu0', plan: 'wide' },
   { vp: [1104, 884], mode: 'default', plan: 'wide' },
 ];
@@ -210,7 +211,7 @@ async function session(browser, target, sess) {
   page.on('console', m => { if (m.type() === 'error') errors.push('console: ' + m.text().slice(0, 200)); });
   page.on('pageerror', e => errors.push('pageerror: ' + e.message.slice(0, 200)));
   const cdp = await ctx.newCDPSession(page);
-  const q = '?seed=' + SEED + (sess.mode === 'gpu0' ? '&gpu=0' : '');
+  const q = '?seed=' + SEED + (sess.mode === 'gpu0' ? '&gpu=0' : sess.mode === 'offscreen' ? '&gpu=offscreen' : '');
   try {
     await page.goto('file://' + target.file + q);
     await page.waitForFunction(() => window.__pv && window.__pv.S && window.__pv.S.hero, null, { timeout: 15000 });
@@ -236,7 +237,9 @@ async function session(browser, target, sess) {
   if (sess.mode === 'gpu0') ok(rn === 'Canvas 2D', '?gpu=0 forces Canvas 2D', `__pv.renderer=${rn}`);
   else {
     const gl = await page.evaluate(() => (window.__gl || []).join(' -> '));
-    ok(rn === 'WebGPU', 'default picks WebGPU (swiftshader flags)', `__pv.renderer=${rn}; V.GPU trace: ${gl || 'none'}`);
+    if (rn === 'WebGPU') row(sess.mode + ' picks WebGPU (swiftshader flags)', 'PASS', `__pv.renderer=${rn}; V.GPU trace: ${gl || 'none'}`);
+    else if (sess.mode === 'default' && /lost/.test(gl)) row('default picks WebGPU (swiftshader flags)', 'INFO', `KNOWN SANDBOX: device lost on swapchain present, fell back to ${rn} (render's gpu-test.js reports the same); trace: ${gl}`);
+    else row(sess.mode + ' picks WebGPU (swiftshader flags)', 'FAIL', `__pv.renderer=${rn}; V.GPU trace: ${gl || 'none'}`);
     if (rn === 'WebGPU') {
       const rb = await page.evaluate(() => Promise.resolve(window.__pv.readback()).then(r => r && { w: r.w, h: r.h, nonBg: r.nonBg }).catch(e => ({ err: String(e && e.message || e) })));
       ok(rb && rb.nonBg > 0, 'WebGPU output seen via readback (L-TD-1)', rb && rb.nonBg > 0 ? `seen (nonBg ${rb.nonBg}, ${rb.w}x${rb.h})` : 'NOT seen ' + JSON.stringify(rb));

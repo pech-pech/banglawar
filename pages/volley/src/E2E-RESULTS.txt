@@ -1,5 +1,5 @@
 Project Volley P0 E2E results
-Date: 2026-11-10T12:00:32.658Z  (suite src/e2e.js, 217 s)
+Date: 2026-11-10T12:04:17.673Z  (suite src/e2e.js, 215 s)
 Chromium headless, flags --enable-unsafe-webgpu --use-webgpu-adapter=swiftshader --enable-features=Vulkan; contexts hasTouch+isMobile, dpr 1; touch via CDP Input.dispatchTouchEvent; url ?seed=777 (+&gpu=0)
 Files under test (mtime):
   game.html: 2026-11-10T11:54:58.219Z
@@ -9,7 +9,7 @@ Files under test (mtime):
   parts/sim.js: 2026-11-10T11:58:36.847Z
   parts/render.js: 2026-11-10T11:58:48.271Z
   parts/gpu.js: 2026-11-10T11:58:48.271Z
-  ../index.html: 2026-11-10T12:00:24.114Z
+  ../index.html: 2026-11-10T12:02:44.045Z
 Totals: PASS 389  FAIL 6  SKIP 0  INFO 46
 
 PASS | src/game.html 344x882 gpu0 | boots with 0 console errors | none
@@ -26,12 +26,12 @@ PASS | src/game.html 344x882 gpu0 | room fits width under HUD | room 344x573 at 
 PASS | src/game.html 344x882 gpu0 | drag start point is below the room | touch y=837, room bottom y=637
 INFO | src/game.html 344x882 gpu0 | element under thumb point | canvas#c2d
 PASS | src/game.html 344x882 gpu0 | touch arrives as pointer events (pointerType touch) | ["pointerdown:touch","pointerup:touch"]
-PASS | src/game.html 344x882 gpu0 | touch drag below the room moves the hero (drag up = north) | hero (4.50,14.50) -> (4.50,8.58) after ~0.7 s hold; moving=true
+PASS | src/game.html 344x882 gpu0 | touch drag below the room moves the hero (drag up = north) | hero (4.50,14.50) -> (4.50,9.25) after ~0.7 s hold; moving=true
 PASS | src/game.html 344x882 gpu0 | no joystick element at the thumb (DOM) | visible els 15 -> 15
 PASS | src/game.html 344x882 gpu0 | no joystick graphic at the thumb (Canvas 2D pixels) | ground patch diff base->hold 0.0%, hold->after 0.0%, base->after 0.0%
 PASS | src/game.html 344x882 gpu0 | release = stop | stopped 0.017 s sim after release
-PASS | src/game.html 344x882 gpu0 | release braces within ~0.3 s | braced after 0.150 s sim (148 ms real)
-PASS | src/game.html 344x882 gpu0 | release fires within ~0.3 s | first shot 0.150 s sim after release (148 ms real); fireCd at hold 0.00
+PASS | src/game.html 344x882 gpu0 | release braces within ~0.3 s | braced after 0.150 s sim (150 ms real)
+PASS | src/game.html 344x882 gpu0 | release fires within ~0.3 s | first shot 0.150 s sim after release (150 ms real); fireCd at hold 0.00
 PASS | src/game.html 344x882 gpu0 | deadzone hysteresis (enter 14 px / exit 8 px from touch-down) | 10px:stop 20px:move 10px:move 5px:stop (want 10:stop 20:move 10:move 5:stop)
 PASS | src/game.html 344x882 gpu0 | touchcancel / pointercancel releases | moving while held=true, after cancel=false
 PASS | src/game.html 344x882 gpu0 | gear button for the tuning drawer present | button#gear
@@ -42,16 +42,16 @@ PASS | src/game.html 344x882 gpu0 | touch targets >= 56 px (drawer open) | 4 tar
 INFO | src/game.html 344x882 gpu0 | drawer slider heights (info, L-TD-4) | min 36 px; 11/11 under 56
 INFO | src/game.html 344x882 gpu0 | Copy report (info) | report text 1602 chars via textarea; missing words: none
 PASS | src/game.html 344x882 gpu0 | drawer closes | 0 sliders still visible
-PASS | src/game.html 344x882 gpu0 | hidden tab pauses the sim | frame 492 -> 492 over 0.5 s hidden
+PASS | src/game.html 344x882 gpu0 | hidden tab pauses the sim | frame 482 -> 482 over 0.5 s hidden
 PASS | src/game.html 344x882 gpu0 | pause card shown | "Paused"
 PASS | src/game.html 344x882 gpu0 | HUD text not visible through pause card (L-TD-3) | 7 HUD text els: 7 hidden, 0 covered
 PASS | src/game.html 344x882 gpu0 | touch targets >= 56 px (pause card) | 1 targets; min 56 px
-PASS | src/game.html 344x882 gpu0 | stays paused after the tab returns (resume by tap, L-LOL-2) | frame 492 -> 492 after visible again
-PASS | src/game.html 344x882 gpu0 | no damage during the faked 1 s gap | hp 240 -> 240; frame 492 -> 492
-PASS | src/game.html 344x882 gpu0 | tap resumes | frame 492 -> 522 (tapped button#btnResume.btn)
-PASS | src/game.html 344x882 gpu0 | no catch-up burst after resume | max sim steps in one rAF after resume: 2; hp 240 -> 240
+PASS | src/game.html 344x882 gpu0 | stays paused after the tab returns (resume by tap, L-LOL-2) | frame 482 -> 482 after visible again
+PASS | src/game.html 344x882 gpu0 | no damage during the faked 1 s gap | hp 300 -> 300; frame 482 -> 482
+PASS | src/game.html 344x882 gpu0 | tap resumes | frame 482 -> 512 (tapped button#btnResume.btn)
+PASS | src/game.html 344x882 gpu0 | no catch-up burst after resume | max sim steps in one rAF after resume: 2; hp 300 -> 300
 PASS | src/game.html 344x882 gpu0 | faked 1 s rAF gap (visible): steps clamped <= 5 per frame | max steps in one rAF 5; hp change in that frame 0; phase clear
-INFO | src/game.html 344x882 gpu0 | hp across visible gap (info) | hp 240 -> 240
+INFO | src/game.html 344x882 gpu0 | hp across visible gap (info) | hp 300 -> 300
 PASS | src/game.html 344x882 gpu0 | same seed gives the same run (V.Sim, 600 steps twice) | seed 779: 659ca356:150 vs 659ca356:150
 INFO | src/game.html 344x882 gpu0 | __pv run hash after restart (compared across sessions) | seed 779 hash 659ca356:150 frame 600 phase clear
 PASS | src/game.html 344x882 gpu0 | room clear opens the door | R01 stage 1: phase clear, door.open=true, kills 3, enemies left 0, 175 steps, hp 600/600
@@ -81,12 +81,12 @@ PASS | src/game.html 344x882 default | room fits width under HUD | room 344x573 
 PASS | src/game.html 344x882 default | drag start point is below the room | touch y=837, room bottom y=637
 INFO | src/game.html 344x882 default | element under thumb point | canvas#c2d
 PASS | src/game.html 344x882 default | touch arrives as pointer events (pointerType touch) | ["pointerdown:touch","pointerup:touch"]
-PASS | src/game.html 344x882 default | touch drag below the room moves the hero (drag up = north) | hero (4.50,14.50) -> (4.50,9.78) after ~0.7 s hold; moving=true
+PASS | src/game.html 344x882 default | touch drag below the room moves the hero (drag up = north) | hero (4.50,14.50) -> (4.50,9.40) after ~0.7 s hold; moving=true
 PASS | src/game.html 344x882 default | no joystick element at the thumb (DOM) | visible els 15 -> 15
 PASS | src/game.html 344x882 default | no joystick graphic at the thumb (Canvas 2D pixels) | ground patch diff base->hold 0.0%, hold->after 0.0%, base->after 0.0%
 PASS | src/game.html 344x882 default | release = stop | stopped 0.017 s sim after release
-PASS | src/game.html 344x882 default | release braces within ~0.3 s | braced after 0.150 s sim (149 ms real)
-PASS | src/game.html 344x882 default | release fires within ~0.3 s | first shot 0.150 s sim after release (149 ms real); fireCd at hold 0.00
+PASS | src/game.html 344x882 default | release braces within ~0.3 s | braced after 0.150 s sim (151 ms real)
+PASS | src/game.html 344x882 default | release fires within ~0.3 s | first shot 0.150 s sim after release (151 ms real); fireCd at hold 0.00
 PASS | src/game.html 344x882 default | deadzone hysteresis (enter 14 px / exit 8 px from touch-down) | 10px:stop 20px:move 10px:move 5px:stop (want 10:stop 20:move 10:move 5:stop)
 PASS | src/game.html 344x882 default | touchcancel / pointercancel releases | moving while held=true, after cancel=false
 PASS | src/game.html 344x882 default | gear button for the tuning drawer present | button#gear
@@ -97,19 +97,19 @@ PASS | src/game.html 344x882 default | touch targets >= 56 px (drawer open) | 4 
 INFO | src/game.html 344x882 default | drawer slider heights (info, L-TD-4) | min 36 px; 11/11 under 56
 INFO | src/game.html 344x882 default | Copy report (info) | report text 1619 chars via textarea; missing words: none
 PASS | src/game.html 344x882 default | drawer closes | 0 sliders still visible
-PASS | src/game.html 344x882 default | hidden tab pauses the sim | frame 480 -> 480 over 0.5 s hidden
+PASS | src/game.html 344x882 default | hidden tab pauses the sim | frame 475 -> 475 over 0.5 s hidden
 PASS | src/game.html 344x882 default | pause card shown | "Paused"
 PASS | src/game.html 344x882 default | HUD text not visible through pause card (L-TD-3) | 7 HUD text els: 7 hidden, 0 covered
 PASS | src/game.html 344x882 default | touch targets >= 56 px (pause card) | 1 targets; min 56 px
-PASS | src/game.html 344x882 default | stays paused after the tab returns (resume by tap, L-LOL-2) | frame 480 -> 480 after visible again
-PASS | src/game.html 344x882 default | no damage during the faked 1 s gap | hp 360 -> 360; frame 480 -> 480
-PASS | src/game.html 344x882 default | tap resumes | frame 480 -> 509 (tapped button#btnResume.btn)
-PASS | src/game.html 344x882 default | no catch-up burst after resume | max sim steps in one rAF after resume: 2; hp 360 -> 360
+PASS | src/game.html 344x882 default | stays paused after the tab returns (resume by tap, L-LOL-2) | frame 475 -> 475 after visible again
+PASS | src/game.html 344x882 default | no damage during the faked 1 s gap | hp 300 -> 300; frame 475 -> 475
+PASS | src/game.html 344x882 default | tap resumes | frame 475 -> 505 (tapped button#btnResume.btn)
+PASS | src/game.html 344x882 default | no catch-up burst after resume | max sim steps in one rAF after resume: 1; hp 300 -> 300
 PASS | src/game.html 344x882 default | faked 1 s rAF gap (visible): steps clamped <= 5 per frame | max steps in one rAF 5; hp change in that frame 0; phase clear
-INFO | src/game.html 344x882 default | hp across visible gap (info) | hp 360 -> 360
+INFO | src/game.html 344x882 default | hp across visible gap (info) | hp 300 -> 300
 PASS | src/game.html 344x882 default | same seed gives the same run (V.Sim, 600 steps twice) | seed 779: 659ca356:150 vs 659ca356:150
 INFO | src/game.html 344x882 default | __pv run hash after restart (compared across sessions) | seed 779 hash 659ca356:150 frame 600 phase clear
-PASS | src/game.html 344x882 default | room clear opens the door | R01 stage 1: phase clear, door.open=true, kills 3, enemies left 0, 175 steps, hp 600/600
+PASS | src/game.html 344x882 default | room clear opens the door | R01 stage 1: phase clear, door.open=true, kills 3, enemies left 0, 174 steps, hp 600/600
 PASS | src/game.html 344x882 default | walking north through the door loads the next room | R01 st1 -> R02 st2 phase play after 176 steps; hero (4.50,14.50)
 PASS | src/game.html 344x882 default | room order R01 -> R02 | R02
 PASS | src/game.html 344x882 default | card screen shows TUNE.CARDS_OFFERED (2) cards | S.cards 2, visible distinct cards 2: Diagonal Rounds | Fire Control
@@ -136,12 +136,12 @@ PASS | src/game.html 412x904 gpu0 | room fits width under HUD | room 412x687 at 
 PASS | src/game.html 412x904 gpu0 | drag start point is below the room | touch y=859, room bottom y=751
 INFO | src/game.html 412x904 gpu0 | element under thumb point | canvas#c2d
 PASS | src/game.html 412x904 gpu0 | touch arrives as pointer events (pointerType touch) | ["pointerdown:touch","pointerup:touch"]
-PASS | src/game.html 412x904 gpu0 | touch drag below the room moves the hero (drag up = north) | hero (4.50,14.50) -> (4.50,9.10) after ~0.7 s hold; moving=true
+PASS | src/game.html 412x904 gpu0 | touch drag below the room moves the hero (drag up = north) | hero (4.50,14.50) -> (4.50,9.63) after ~0.7 s hold; moving=true
 PASS | src/game.html 412x904 gpu0 | no joystick element at the thumb (DOM) | visible els 15 -> 15
 PASS | src/game.html 412x904 gpu0 | no joystick graphic at the thumb (Canvas 2D pixels) | ground patch diff base->hold 0.0%, hold->after 0.0%, base->after 0.0%
-PASS | src/game.html 412x904 gpu0 | release = stop | stopped 0.017 s sim after release
-PASS | src/game.html 412x904 gpu0 | release braces within ~0.3 s | braced after 0.150 s sim (134 ms real)
-PASS | src/game.html 412x904 gpu0 | release fires within ~0.3 s | first shot 0.150 s sim after release (134 ms real); fireCd at hold 0.00
+PASS | src/game.html 412x904 gpu0 | release = stop | stopped 0.033 s sim after release
+PASS | src/game.html 412x904 gpu0 | release braces within ~0.3 s | braced after 0.150 s sim (166 ms real)
+PASS | src/game.html 412x904 gpu0 | release fires within ~0.3 s | first shot 0.150 s sim after release (166 ms real); fireCd at hold 0.00
 PASS | src/game.html 412x904 gpu0 | deadzone hysteresis (enter 14 px / exit 8 px from touch-down) | 10px:stop 20px:move 10px:move 5px:stop (want 10:stop 20:move 10:move 5:stop)
 PASS | src/game.html 412x904 gpu0 | touchcancel / pointercancel releases | moving while held=true, after cancel=false
 PASS | src/game.html 412x904 gpu0 | gear button for the tuning drawer present | button#gear
@@ -152,13 +152,13 @@ PASS | src/game.html 412x904 gpu0 | touch targets >= 56 px (drawer open) | 4 tar
 INFO | src/game.html 412x904 gpu0 | drawer slider heights (info, L-TD-4) | min 36 px; 11/11 under 56
 INFO | src/game.html 412x904 gpu0 | Copy report (info) | report text 1602 chars via textarea; missing words: none
 PASS | src/game.html 412x904 gpu0 | drawer closes | 0 sliders still visible
-PASS | src/game.html 412x904 gpu0 | hidden tab pauses the sim | frame 495 -> 495 over 0.5 s hidden
+PASS | src/game.html 412x904 gpu0 | hidden tab pauses the sim | frame 474 -> 474 over 0.5 s hidden
 PASS | src/game.html 412x904 gpu0 | pause card shown | "Paused"
 PASS | src/game.html 412x904 gpu0 | HUD text not visible through pause card (L-TD-3) | 7 HUD text els: 7 hidden, 0 covered
 PASS | src/game.html 412x904 gpu0 | touch targets >= 56 px (pause card) | 1 targets; min 56 px
-PASS | src/game.html 412x904 gpu0 | stays paused after the tab returns (resume by tap, L-LOL-2) | frame 495 -> 495 after visible again
-PASS | src/game.html 412x904 gpu0 | no damage during the faked 1 s gap | hp 300 -> 300; frame 494 -> 495
-PASS | src/game.html 412x904 gpu0 | tap resumes | frame 495 -> 525 (tapped button#btnResume.btn)
+PASS | src/game.html 412x904 gpu0 | stays paused after the tab returns (resume by tap, L-LOL-2) | frame 474 -> 474 after visible again
+PASS | src/game.html 412x904 gpu0 | no damage during the faked 1 s gap | hp 300 -> 300; frame 474 -> 474
+PASS | src/game.html 412x904 gpu0 | tap resumes | frame 474 -> 504 (tapped button#btnResume.btn)
 PASS | src/game.html 412x904 gpu0 | no catch-up burst after resume | max sim steps in one rAF after resume: 2; hp 300 -> 300
 PASS | src/game.html 412x904 gpu0 | faked 1 s rAF gap (visible): steps clamped <= 5 per frame | max steps in one rAF 5; hp change in that frame 0; phase clear
 INFO | src/game.html 412x904 gpu0 | hp across visible gap (info) | hp 300 -> 300
@@ -203,12 +203,12 @@ PASS | src/game.html 1104x884 gpu0 | wide: game in centred portrait column 344:8
 PASS | src/game.html 1104x884 gpu0 | drag start point is below the room | touch y=839, room bottom y=639
 INFO | src/game.html 1104x884 gpu0 | element under thumb point | canvas#c2d
 PASS | src/game.html 1104x884 gpu0 | touch arrives as pointer events (pointerType touch) | ["pointerdown:touch","pointerup:touch"]
-PASS | src/game.html 1104x884 gpu0 | touch drag below the room moves the hero (drag up = north) | hero (4.50,14.50) -> (4.50,9.10) after ~0.7 s hold; moving=true
+PASS | src/game.html 1104x884 gpu0 | touch drag below the room moves the hero (drag up = north) | hero (4.50,14.50) -> (4.50,9.25) after ~0.7 s hold; moving=true
 PASS | src/game.html 1104x884 gpu0 | no joystick element at the thumb (DOM) | visible els 16 -> 16
 PASS | src/game.html 1104x884 gpu0 | no joystick graphic at the thumb (Canvas 2D pixels) | ground patch diff base->hold 0.0%, hold->after 0.0%, base->after 0.0%
 PASS | src/game.html 1104x884 gpu0 | release = stop | stopped 0.017 s sim after release
-PASS | src/game.html 1104x884 gpu0 | release braces within ~0.3 s | braced after 0.167 s sim (167 ms real)
-PASS | src/game.html 1104x884 gpu0 | release fires within ~0.3 s | first shot 0.167 s sim after release (167 ms real); fireCd at hold 0.00
+PASS | src/game.html 1104x884 gpu0 | release braces within ~0.3 s | braced after 0.150 s sim (134 ms real)
+PASS | src/game.html 1104x884 gpu0 | release fires within ~0.3 s | first shot 0.150 s sim after release (134 ms real); fireCd at hold 0.00
 PASS | src/game.html 1104x884 gpu0 | 0 console errors during the whole session | none
 PASS | src/game.html 1104x884 default | boots with 0 console errors | none
 PASS | src/game.html 1104x884 default | idle 5 s with no tap: 0 console errors | none (kills 1->3, hp 600->600)
@@ -224,12 +224,12 @@ PASS | src/game.html 1104x884 default | wide: game in centred portrait column 34
 PASS | src/game.html 1104x884 default | drag start point is below the room | touch y=839, room bottom y=639
 INFO | src/game.html 1104x884 default | element under thumb point | canvas#c2d
 PASS | src/game.html 1104x884 default | touch arrives as pointer events (pointerType touch) | ["pointerdown:touch","pointerup:touch"]
-PASS | src/game.html 1104x884 default | touch drag below the room moves the hero (drag up = north) | hero (4.50,14.50) -> (4.50,9.33) after ~0.7 s hold; moving=true
+PASS | src/game.html 1104x884 default | touch drag below the room moves the hero (drag up = north) | hero (4.50,14.50) -> (4.50,9.85) after ~0.7 s hold; moving=true
 PASS | src/game.html 1104x884 default | no joystick element at the thumb (DOM) | visible els 16 -> 16
 PASS | src/game.html 1104x884 default | no joystick graphic at the thumb (Canvas 2D pixels) | ground patch diff base->hold 0.0%, hold->after 0.0%, base->after 0.0%
 PASS | src/game.html 1104x884 default | release = stop | stopped 0.017 s sim after release
-PASS | src/game.html 1104x884 default | release braces within ~0.3 s | braced after 0.150 s sim (150 ms real)
-PASS | src/game.html 1104x884 default | release fires within ~0.3 s | first shot 0.150 s sim after release (150 ms real); fireCd at hold 0.00
+PASS | src/game.html 1104x884 default | release braces within ~0.3 s | braced after 0.150 s sim (149 ms real)
+PASS | src/game.html 1104x884 default | release fires within ~0.3 s | first shot 0.150 s sim after release (149 ms real); fireCd at hold 0.00
 PASS | src/game.html 1104x884 default | 0 console errors during the whole session | none
 PASS | index.html (built) 344x882 gpu0 | boots with 0 console errors | none
 PASS | index.html (built) 344x882 gpu0 | idle 5 s with no tap: 0 console errors | none (kills 1->3, hp 600->600)
@@ -245,12 +245,12 @@ PASS | index.html (built) 344x882 gpu0 | room fits width under HUD | room 344x57
 PASS | index.html (built) 344x882 gpu0 | drag start point is below the room | touch y=837, room bottom y=637
 INFO | index.html (built) 344x882 gpu0 | element under thumb point | canvas#c2d
 PASS | index.html (built) 344x882 gpu0 | touch arrives as pointer events (pointerType touch) | ["pointerdown:touch","pointerup:touch"]
-PASS | index.html (built) 344x882 gpu0 | touch drag below the room moves the hero (drag up = north) | hero (4.50,14.50) -> (4.50,9.33) after ~0.7 s hold; moving=true
+PASS | index.html (built) 344x882 gpu0 | touch drag below the room moves the hero (drag up = north) | hero (4.50,14.50) -> (4.50,9.70) after ~0.7 s hold; moving=true
 PASS | index.html (built) 344x882 gpu0 | no joystick element at the thumb (DOM) | visible els 15 -> 15
 PASS | index.html (built) 344x882 gpu0 | no joystick graphic at the thumb (Canvas 2D pixels) | ground patch diff base->hold 0.0%, hold->after 0.0%, base->after 0.0%
 PASS | index.html (built) 344x882 gpu0 | release = stop | stopped 0.017 s sim after release
-PASS | index.html (built) 344x882 gpu0 | release braces within ~0.3 s | braced after 0.150 s sim (150 ms real)
-PASS | index.html (built) 344x882 gpu0 | release fires within ~0.3 s | first shot 0.150 s sim after release (150 ms real); fireCd at hold 0.00
+PASS | index.html (built) 344x882 gpu0 | release braces within ~0.3 s | braced after 0.150 s sim (167 ms real)
+PASS | index.html (built) 344x882 gpu0 | release fires within ~0.3 s | first shot 0.150 s sim after release (167 ms real); fireCd at hold 0.00
 PASS | index.html (built) 344x882 gpu0 | deadzone hysteresis (enter 14 px / exit 8 px from touch-down) | 10px:stop 20px:move 10px:move 5px:stop (want 10:stop 20:move 10:move 5:stop)
 PASS | index.html (built) 344x882 gpu0 | touchcancel / pointercancel releases | moving while held=true, after cancel=false
 PASS | index.html (built) 344x882 gpu0 | gear button for the tuning drawer present | button#gear
@@ -261,19 +261,19 @@ PASS | index.html (built) 344x882 gpu0 | touch targets >= 56 px (drawer open) | 
 INFO | index.html (built) 344x882 gpu0 | drawer slider heights (info, L-TD-4) | min 36 px; 11/11 under 56
 INFO | index.html (built) 344x882 gpu0 | Copy report (info) | report text 1601 chars via textarea; missing words: none
 PASS | index.html (built) 344x882 gpu0 | drawer closes | 0 sliders still visible
-PASS | index.html (built) 344x882 gpu0 | hidden tab pauses the sim | frame 479 -> 479 over 0.5 s hidden
+PASS | index.html (built) 344x882 gpu0 | hidden tab pauses the sim | frame 503 -> 503 over 0.5 s hidden
 PASS | index.html (built) 344x882 gpu0 | pause card shown | "Paused"
 PASS | index.html (built) 344x882 gpu0 | HUD text not visible through pause card (L-TD-3) | 7 HUD text els: 7 hidden, 0 covered
 PASS | index.html (built) 344x882 gpu0 | touch targets >= 56 px (pause card) | 1 targets; min 56 px
-PASS | index.html (built) 344x882 gpu0 | stays paused after the tab returns (resume by tap, L-LOL-2) | frame 479 -> 479 after visible again
-PASS | index.html (built) 344x882 gpu0 | no damage during the faked 1 s gap | hp 300 -> 300; frame 478 -> 479
-PASS | index.html (built) 344x882 gpu0 | tap resumes | frame 479 -> 509 (tapped button#btnResume.btn)
+PASS | index.html (built) 344x882 gpu0 | stays paused after the tab returns (resume by tap, L-LOL-2) | frame 503 -> 503 after visible again
+PASS | index.html (built) 344x882 gpu0 | no damage during the faked 1 s gap | hp 300 -> 300; frame 503 -> 503
+PASS | index.html (built) 344x882 gpu0 | tap resumes | frame 503 -> 533 (tapped button#btnResume.btn)
 PASS | index.html (built) 344x882 gpu0 | no catch-up burst after resume | max sim steps in one rAF after resume: 2; hp 300 -> 300
 PASS | index.html (built) 344x882 gpu0 | faked 1 s rAF gap (visible): steps clamped <= 5 per frame | max steps in one rAF 5; hp change in that frame 0; phase clear
 INFO | index.html (built) 344x882 gpu0 | hp across visible gap (info) | hp 300 -> 300
 PASS | index.html (built) 344x882 gpu0 | same seed gives the same run (V.Sim, 600 steps twice) | seed 779: 659ca356:150 vs 659ca356:150
 INFO | index.html (built) 344x882 gpu0 | __pv run hash after restart (compared across sessions) | seed 779 hash 659ca356:150 frame 600 phase clear
-PASS | index.html (built) 344x882 gpu0 | room clear opens the door | R01 stage 1: phase clear, door.open=true, kills 3, enemies left 0, 174 steps, hp 600/600
+PASS | index.html (built) 344x882 gpu0 | room clear opens the door | R01 stage 1: phase clear, door.open=true, kills 3, enemies left 0, 175 steps, hp 600/600
 PASS | index.html (built) 344x882 gpu0 | walking north through the door loads the next room | R01 st1 -> R02 st2 phase play after 176 steps; hero (4.50,14.50)
 PASS | index.html (built) 344x882 gpu0 | room order R01 -> R02 | R02
 PASS | index.html (built) 344x882 gpu0 | card screen shows TUNE.CARDS_OFFERED (2) cards | S.cards 2, visible distinct cards 2: Diagonal Rounds | Fire Control
@@ -289,7 +289,7 @@ PASS | index.html (built) 344x882 gpu0 | 0 console errors during the whole sessi
 PASS | index.html (built) 344x882 default | boots with 0 console errors | none
 PASS | index.html (built) 344x882 default | idle 5 s with no tap: 0 console errors | none (kills 1->3, hp 600->600)
 PASS | index.html (built) 344x882 default | ?seed is read | S.seed=777 (url seed 777)
-FAIL | index.html (built) 344x882 default | default picks WebGPU (swiftshader flags) | __pv.renderer=Canvas 2D; V.GPU trace: create -> ok -> lost unknown "A valid external Instance reference no longer exists." -> create -> ok -> lost destroyed "Device was destroyed."
+FAIL | index.html (built) 344x882 default | default picks WebGPU (swiftshader flags) | __pv.renderer=Canvas 2D; V.GPU trace: create -> ok -> lost destroyed "Device was destroyed."
 PASS | index.html (built) 344x882 default | renderer label text equals __pv.renderer | label "Canvas 2D | 344x882 | dpr 1" vs Canvas 2D
 PASS | index.html (built) 344x882 default | renderer label shows viewport WxH (+dpr) | "Canvas 2D | 344x882 | dpr 1" (window 344x882, game column 344x882)
 INFO | index.html (built) 344x882 default | HUD text elements (baseline) | div#stageLbl "Stage 1 Open Yard"; b#stNum "1"; span#roomName "Open Yard"; div#lvl "Lv 1"; span "⚙"; div#hpTxt "600 / 600"; div#rlbl "Canvas 2D | 344x882 | dp"
@@ -300,12 +300,12 @@ PASS | index.html (built) 344x882 default | room fits width under HUD | room 344
 PASS | index.html (built) 344x882 default | drag start point is below the room | touch y=837, room bottom y=637
 INFO | index.html (built) 344x882 default | element under thumb point | canvas#c2d
 PASS | index.html (built) 344x882 default | touch arrives as pointer events (pointerType touch) | ["pointerdown:touch","pointerup:touch"]
-PASS | index.html (built) 344x882 default | touch drag below the room moves the hero (drag up = north) | hero (4.50,14.50) -> (4.50,9.70) after ~0.7 s hold; moving=true
+PASS | index.html (built) 344x882 default | touch drag below the room moves the hero (drag up = north) | hero (4.50,14.50) -> (4.50,10.08) after ~0.7 s hold; moving=true
 PASS | index.html (built) 344x882 default | no joystick element at the thumb (DOM) | visible els 15 -> 15
 PASS | index.html (built) 344x882 default | no joystick graphic at the thumb (Canvas 2D pixels) | ground patch diff base->hold 0.0%, hold->after 0.0%, base->after 0.0%
 PASS | index.html (built) 344x882 default | release = stop | stopped 0.017 s sim after release
-PASS | index.html (built) 344x882 default | release braces within ~0.3 s | braced after 0.150 s sim (131 ms real)
-PASS | index.html (built) 344x882 default | release fires within ~0.3 s | first shot 0.150 s sim after release (131 ms real); fireCd at hold 0.00
+PASS | index.html (built) 344x882 default | release braces within ~0.3 s | braced after 0.150 s sim (147 ms real)
+PASS | index.html (built) 344x882 default | release fires within ~0.3 s | first shot 0.150 s sim after release (147 ms real); fireCd at hold 0.00
 PASS | index.html (built) 344x882 default | deadzone hysteresis (enter 14 px / exit 8 px from touch-down) | 10px:stop 20px:move 10px:move 5px:stop (want 10:stop 20:move 10:move 5:stop)
 PASS | index.html (built) 344x882 default | touchcancel / pointercancel releases | moving while held=true, after cancel=false
 PASS | index.html (built) 344x882 default | gear button for the tuning drawer present | button#gear
@@ -316,16 +316,16 @@ PASS | index.html (built) 344x882 default | touch targets >= 56 px (drawer open)
 INFO | index.html (built) 344x882 default | drawer slider heights (info, L-TD-4) | min 36 px; 11/11 under 56
 INFO | index.html (built) 344x882 default | Copy report (info) | report text 1619 chars via textarea; missing words: none
 PASS | index.html (built) 344x882 default | drawer closes | 0 sliders still visible
-PASS | index.html (built) 344x882 default | hidden tab pauses the sim | frame 482 -> 482 over 0.5 s hidden
+PASS | index.html (built) 344x882 default | hidden tab pauses the sim | frame 456 -> 456 over 0.5 s hidden
 PASS | index.html (built) 344x882 default | pause card shown | "Paused"
 PASS | index.html (built) 344x882 default | HUD text not visible through pause card (L-TD-3) | 7 HUD text els: 7 hidden, 0 covered
 PASS | index.html (built) 344x882 default | touch targets >= 56 px (pause card) | 1 targets; min 56 px
-PASS | index.html (built) 344x882 default | stays paused after the tab returns (resume by tap, L-LOL-2) | frame 482 -> 482 after visible again
-PASS | index.html (built) 344x882 default | no damage during the faked 1 s gap | hp 300 -> 300; frame 482 -> 482
-PASS | index.html (built) 344x882 default | tap resumes | frame 482 -> 511 (tapped button#btnResume.btn)
-PASS | index.html (built) 344x882 default | no catch-up burst after resume | max sim steps in one rAF after resume: 2; hp 300 -> 300
+PASS | index.html (built) 344x882 default | stays paused after the tab returns (resume by tap, L-LOL-2) | frame 456 -> 456 after visible again
+PASS | index.html (built) 344x882 default | no damage during the faked 1 s gap | hp 420 -> 420; frame 456 -> 456
+PASS | index.html (built) 344x882 default | tap resumes | frame 456 -> 486 (tapped button#btnResume.btn)
+PASS | index.html (built) 344x882 default | no catch-up burst after resume | max sim steps in one rAF after resume: 2; hp 420 -> 420
 PASS | index.html (built) 344x882 default | faked 1 s rAF gap (visible): steps clamped <= 5 per frame | max steps in one rAF 5; hp change in that frame 0; phase clear
-INFO | index.html (built) 344x882 default | hp across visible gap (info) | hp 300 -> 300
+INFO | index.html (built) 344x882 default | hp across visible gap (info) | hp 420 -> 420
 PASS | index.html (built) 344x882 default | same seed gives the same run (V.Sim, 600 steps twice) | seed 779: 659ca356:150 vs 659ca356:150
 INFO | index.html (built) 344x882 default | __pv run hash after restart (compared across sessions) | seed 779 hash 659ca356:150 frame 600 phase clear
 PASS | index.html (built) 344x882 default | room clear opens the door | R01 stage 1: phase clear, door.open=true, kills 3, enemies left 0, 175 steps, hp 600/600
@@ -355,7 +355,7 @@ PASS | index.html (built) 412x904 gpu0 | room fits width under HUD | room 412x68
 PASS | index.html (built) 412x904 gpu0 | drag start point is below the room | touch y=859, room bottom y=751
 INFO | index.html (built) 412x904 gpu0 | element under thumb point | canvas#c2d
 PASS | index.html (built) 412x904 gpu0 | touch arrives as pointer events (pointerType touch) | ["pointerdown:touch","pointerup:touch"]
-PASS | index.html (built) 412x904 gpu0 | touch drag below the room moves the hero (drag up = north) | hero (4.50,14.50) -> (4.50,8.95) after ~0.7 s hold; moving=true
+PASS | index.html (built) 412x904 gpu0 | touch drag below the room moves the hero (drag up = north) | hero (4.50,14.50) -> (4.50,9.55) after ~0.7 s hold; moving=true
 PASS | index.html (built) 412x904 gpu0 | no joystick element at the thumb (DOM) | visible els 15 -> 15
 PASS | index.html (built) 412x904 gpu0 | no joystick graphic at the thumb (Canvas 2D pixels) | ground patch diff base->hold 0.0%, hold->after 0.0%, base->after 0.0%
 PASS | index.html (built) 412x904 gpu0 | release = stop | stopped 0.017 s sim after release
@@ -369,15 +369,15 @@ PASS | index.html (built) 412x904 gpu0 | drawer has a control for every TUNE kno
 PASS | index.html (built) 412x904 gpu0 | drawer buttons Reset / Copy settings / Copy report | all present
 PASS | index.html (built) 412x904 gpu0 | touch targets >= 56 px (drawer open) | 4 targets; min 56 px
 INFO | index.html (built) 412x904 gpu0 | drawer slider heights (info, L-TD-4) | min 36 px; 11/11 under 56
-INFO | index.html (built) 412x904 gpu0 | Copy report (info) | report text 1602 chars via textarea; missing words: none
+INFO | index.html (built) 412x904 gpu0 | Copy report (info) | report text 1601 chars via textarea; missing words: none
 PASS | index.html (built) 412x904 gpu0 | drawer closes | 0 sliders still visible
-PASS | index.html (built) 412x904 gpu0 | hidden tab pauses the sim | frame 493 -> 493 over 0.5 s hidden
+PASS | index.html (built) 412x904 gpu0 | hidden tab pauses the sim | frame 479 -> 479 over 0.5 s hidden
 PASS | index.html (built) 412x904 gpu0 | pause card shown | "Paused"
 PASS | index.html (built) 412x904 gpu0 | HUD text not visible through pause card (L-TD-3) | 7 HUD text els: 7 hidden, 0 covered
 PASS | index.html (built) 412x904 gpu0 | touch targets >= 56 px (pause card) | 1 targets; min 56 px
-PASS | index.html (built) 412x904 gpu0 | stays paused after the tab returns (resume by tap, L-LOL-2) | frame 493 -> 493 after visible again
-PASS | index.html (built) 412x904 gpu0 | no damage during the faked 1 s gap | hp 300 -> 300; frame 493 -> 493
-PASS | index.html (built) 412x904 gpu0 | tap resumes | frame 493 -> 523 (tapped button#btnResume.btn)
+PASS | index.html (built) 412x904 gpu0 | stays paused after the tab returns (resume by tap, L-LOL-2) | frame 479 -> 479 after visible again
+PASS | index.html (built) 412x904 gpu0 | no damage during the faked 1 s gap | hp 300 -> 300; frame 479 -> 479
+PASS | index.html (built) 412x904 gpu0 | tap resumes | frame 479 -> 509 (tapped button#btnResume.btn)
 PASS | index.html (built) 412x904 gpu0 | no catch-up burst after resume | max sim steps in one rAF after resume: 2; hp 300 -> 300
 PASS | index.html (built) 412x904 gpu0 | faked 1 s rAF gap (visible): steps clamped <= 5 per frame | max steps in one rAF 5; hp change in that frame 0; phase clear
 INFO | index.html (built) 412x904 gpu0 | hp across visible gap (info) | hp 300 -> 300
@@ -422,7 +422,7 @@ PASS | index.html (built) 1104x884 gpu0 | wide: game in centred portrait column 
 PASS | index.html (built) 1104x884 gpu0 | drag start point is below the room | touch y=839, room bottom y=639
 INFO | index.html (built) 1104x884 gpu0 | element under thumb point | canvas#c2d
 PASS | index.html (built) 1104x884 gpu0 | touch arrives as pointer events (pointerType touch) | ["pointerdown:touch","pointerup:touch"]
-PASS | index.html (built) 1104x884 gpu0 | touch drag below the room moves the hero (drag up = north) | hero (4.50,14.50) -> (4.50,8.95) after ~0.7 s hold; moving=true
+PASS | index.html (built) 1104x884 gpu0 | touch drag below the room moves the hero (drag up = north) | hero (4.50,14.50) -> (4.50,9.25) after ~0.7 s hold; moving=true
 PASS | index.html (built) 1104x884 gpu0 | no joystick element at the thumb (DOM) | visible els 16 -> 16
 PASS | index.html (built) 1104x884 gpu0 | no joystick graphic at the thumb (Canvas 2D pixels) | ground patch diff base->hold 0.0%, hold->after 0.0%, base->after 0.0%
 PASS | index.html (built) 1104x884 gpu0 | release = stop | stopped 0.017 s sim after release
@@ -446,7 +446,7 @@ PASS | index.html (built) 1104x884 default | touch arrives as pointer events (po
 PASS | index.html (built) 1104x884 default | touch drag below the room moves the hero (drag up = north) | hero (4.50,14.50) -> (4.50,9.40) after ~0.7 s hold; moving=true
 PASS | index.html (built) 1104x884 default | no joystick element at the thumb (DOM) | visible els 16 -> 16
 PASS | index.html (built) 1104x884 default | no joystick graphic at the thumb (Canvas 2D pixels) | ground patch diff base->hold 0.0%, hold->after 0.0%, base->after 0.0%
-PASS | index.html (built) 1104x884 default | release = stop | stopped 0.033 s sim after release
+PASS | index.html (built) 1104x884 default | release = stop | stopped 0.017 s sim after release
 PASS | index.html (built) 1104x884 default | release braces within ~0.3 s | braced after 0.150 s sim (150 ms real)
 PASS | index.html (built) 1104x884 default | release fires within ~0.3 s | first shot 0.150 s sim after release (150 ms real); fireCd at hold 0.00
 PASS | index.html (built) 1104x884 default | 0 console errors during the whole session | none
