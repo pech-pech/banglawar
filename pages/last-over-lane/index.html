@@ -147,13 +147,13 @@ if (typeof module !== 'undefined') module.exports = LOL;
     '#res .lab{display:flex;justify-content:space-between;width:320px;margin-top:2px;font-size:12px;font-weight:700;line-height:14px;color:var(--dim);letter-spacing:.04em}',
     /* intent */
     '#intent{height:84px;flex:none;display:flex;gap:8px;padding:4px 8px;background:var(--bg)}',
-    '#intent .b{position:relative;flex:1;min-width:0;height:76px;border-radius:12px;border:2px solid var(--line);background:var(--pad);color:var(--ink);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;padding:0;margin:0;cursor:pointer;transition:opacity 100ms ease-out}',
+    '#intent .b{position:relative;flex:1;min-width:0;height:76px;border-radius:12px;border:2px solid var(--line);background:var(--pad);color:var(--ink);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;padding:8px 0 0;margin:0;cursor:pointer;transition:opacity 100ms ease-out}',
     '#intent .b .n{font-size:18px;font-weight:800;line-height:22px}',
     '#intent .b .w{font-size:14px;font-weight:700;line-height:18px;font-variant-numeric:tabular-nums}',
     '#intent .b .r{font-size:12px;font-weight:600;line-height:16px;color:var(--dim)}',
     '#intent .b.sel{background:var(--acc);border-color:var(--acc);color:#1a1400}',
     '#intent .b.sel .r{color:#1a1400}',
-    '#intent .b svg{position:absolute;top:4px;right:4px;width:16px;height:16px;display:none}',
+    '#intent .b svg{position:absolute;top:3px;right:3px;width:12px;height:12px;display:none}',
     '#intent.lk .b{opacity:.45}#intent.lk .b.sel{opacity:1}#intent.lk .b.sel svg{display:block}',
     '#intent.rj .b{border-color:var(--bad)}',
     '#intent.rj.mv{animation:lolShake 120ms linear 1}',
@@ -703,8 +703,13 @@ if (typeof module !== 'undefined') module.exports = LOL;
       var sp = geo.spots[s], g = !!guard[s], isCatcher = s === caughtSec;
       if (isCatcher) return;
       var top = g ? sp[1] - 52 : sp[1] - 46, c = chip(ctx, s, g, sp[0], top, { W: W, H: H });
-      var bad = function (cc) { return overlap(cc, fieldRect, 4) || placed.some(function (o) { return overlap(cc, o, 2); }) || cc.y < 4; };
-      if (bad(c) || top < 4) { c = chip(ctx, s, g, sp[0], g ? sp[1] + 8 : sp[1] + 8, { W: W, H: H }); }
+      if (s === 'straight') { top = topY - 30; c = chip(ctx, s, g, cx + 66, top, { W: W, H: H }); } // beside the bowler, clear of the tell plate
+      var tellRect = { x: 0, y: 0, w: cx - 14, h: topY - 4 }, bowlRect = { x: cx - 40, y: 0, w: 80, h: topY + 4 };
+      var bad = function (cc) { return overlap(cc, fieldRect, 4) || overlap(cc, tellRect, 2) || overlap(cc, bowlRect, 2) || placed.some(function (o) { return overlap(cc, o, 2); }) || cc.y < 4; };
+      if (bad(c) || top < 4) {
+        var cands2 = [[sp[0], sp[1] + 8], [sp[0] + 46, top], [sp[0] + 46, sp[1] + 8], [sp[0] - 46, sp[1] + 8]];
+        for (var k2 = 0; k2 < cands2.length; k2++) { c = chip(ctx, s, g, cands2[k2][0], cands2[k2][1], { W: W, H: H }); if (!bad(c)) break; }
+      }
       placed.push(c); chips.push(c);
     });
     chips.forEach(function (c) { drawChip(ctx, c); });
@@ -751,16 +756,6 @@ if (typeof module !== 'undefined') module.exports = LOL;
       ctx.fillStyle = GOLD; ctx.textAlign = 'center'; ctx.fillText(bn.text, W / 2, by2 + 30); ctx.restore();
     }
 
-    // corner readout
-    var st = G.stats;
-    if (st) {
-      var f1 = function (v) { return v == null || isNaN(v) ? '-' : (Math.round(v * 10) / 10).toFixed(1); };
-      var rd = 'Canvas 2D · frame p50 ' + f1(st.p50) + ' p95 ' + f1(st.p95) + ' max ' + (st.max == null ? '-' : Math.round(st.max)) +
-        ' · taps ' + (st.n ? (Math.round(st.tapMean) + '±' + Math.round(st.tapSd) + ' (' + st.n + ')') : '-');
-      font(ctx, 11, 500); if (ctx.measureText(rd).width > W - 20) rd = rd.replace('Canvas 2D \u00b7 ', '').replace('frame ', ''); var rw = Math.ceil(ctx.measureText(rd).width + 12);
-      ctx.fillStyle = 'rgba(0,0,0,.6)'; rr(ctx, 4, H - 22, rw, 18, 6); ctx.fill();
-      ctx.fillStyle = '#c2cfc3'; ctx.textAlign = 'left'; ctx.fillText(rd, 10, H - 9);
-    }
     ctx.restore();
   }
 
@@ -957,7 +952,7 @@ if (typeof module !== 'undefined') module.exports = LOL;
   G.geom = (W, H) => {
     const topY = H * 0.2, batY = H * 0.86;
     return { topY, batY, cx: W / 2, laneTopW: W * 0.16, laneBotW: W * 0.5,
-      spots: { leg: [W * 0.14, H * 0.52], straight: [W * 0.28, H * 0.30], off: [W * 0.86, H * 0.52], loft: [W * 0.80, H * 0.2] } };
+      spots: { leg: [W * 0.14, H * 0.52], straight: [W * 0.64, H * 0.07], off: [W * 0.86, H * 0.52], loft: [W * 0.84, H * 0.27] } };
   };
   G.path = (p, W, H) => {
     const g = G.geom(W, H), y = g.topY + (g.batY - g.topY) * p;
@@ -1051,6 +1046,18 @@ if (typeof module !== 'undefined') module.exports = LOL;
     P.ui.end(G, { won: m.won, runs: m.runs, wkts: m.wkts, balls: m.i, target: LOL.MATCH.target, strip: m.log, mean: s.mean, sd: s.sd, inWin, n: s.n });
   }
 
+  // Pacing + tap readout, a thin strip at the very bottom of the pad (kept off the field).
+  function drawReadout(ctx, W, H) {
+    const st = G.stats, f1 = v => (v == null || isNaN(v)) ? '-' : (+v).toFixed(1);
+    let t = 'Canvas 2D \u00b7 frame p50 ' + f1(st.p50) + ' p95 ' + f1(st.p95) + ' max ' + (st.max ? Math.round(st.max) : '-') +
+      ' \u00b7 taps ' + (st.n ? Math.round(st.tapMean) + '\u00b1' + Math.round(st.tapSd) + ' (' + st.n + ')' : '-');
+    ctx.font = '500 11px system-ui,sans-serif';
+    if (ctx.measureText(t).width > W - 16) t = t.replace('Canvas 2D \u00b7 ', '').replace('frame ', '');
+    const w = Math.ceil(ctx.measureText(t).width + 12);
+    ctx.fillStyle = 'rgba(0,0,0,.72)'; ctx.beginPath(); ctx.roundRect ? ctx.roundRect((W - w) / 2, H - 17, w, 15, 5) : ctx.rect((W - w) / 2, H - 17, w, 15); ctx.fill();
+    ctx.fillStyle = '#c2cfc3'; ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic'; ctx.fillText(t, W / 2, H - 6);
+  }
+
   // ---------- frame loop ----------
   const gaps = []; let last = 0;
   function frame(now) {
@@ -1071,6 +1078,7 @@ if (typeof module !== 'undefined') module.exports = LOL;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, cnv.clientWidth, cnv.clientHeight);
       try { part.draw(ctx, G); } catch (e) { if (!part._err) { part._err = 1; console.error(e); } }
     }
+    drawReadout(px, pc.clientWidth, pc.clientHeight);
     P.ui.update(G);
     requestAnimationFrame(frame);
   }

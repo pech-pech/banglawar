@@ -132,7 +132,7 @@ if (typeof module !== 'undefined') module.exports = LOL;
   G.geom = (W, H) => {
     const topY = H * 0.2, batY = H * 0.86;
     return { topY, batY, cx: W / 2, laneTopW: W * 0.16, laneBotW: W * 0.5,
-      spots: { leg: [W * 0.14, H * 0.52], straight: [W * 0.28, H * 0.30], off: [W * 0.86, H * 0.52], loft: [W * 0.80, H * 0.2] } };
+      spots: { leg: [W * 0.14, H * 0.52], straight: [W * 0.64, H * 0.07], off: [W * 0.86, H * 0.52], loft: [W * 0.84, H * 0.27] } };
   };
   G.path = (p, W, H) => {
     const g = G.geom(W, H), y = g.topY + (g.batY - g.topY) * p;
@@ -226,6 +226,18 @@ if (typeof module !== 'undefined') module.exports = LOL;
     P.ui.end(G, { won: m.won, runs: m.runs, wkts: m.wkts, balls: m.i, target: LOL.MATCH.target, strip: m.log, mean: s.mean, sd: s.sd, inWin, n: s.n });
   }
 
+  // Pacing + tap readout, a thin strip at the very bottom of the pad (kept off the field).
+  function drawReadout(ctx, W, H) {
+    const st = G.stats, f1 = v => (v == null || isNaN(v)) ? '-' : (+v).toFixed(1);
+    let t = 'Canvas 2D \u00b7 frame p50 ' + f1(st.p50) + ' p95 ' + f1(st.p95) + ' max ' + (st.max ? Math.round(st.max) : '-') +
+      ' \u00b7 taps ' + (st.n ? Math.round(st.tapMean) + '\u00b1' + Math.round(st.tapSd) + ' (' + st.n + ')' : '-');
+    ctx.font = '500 11px system-ui,sans-serif';
+    if (ctx.measureText(t).width > W - 16) t = t.replace('Canvas 2D \u00b7 ', '').replace('frame ', '');
+    const w = Math.ceil(ctx.measureText(t).width + 12);
+    ctx.fillStyle = 'rgba(0,0,0,.72)'; ctx.beginPath(); ctx.roundRect ? ctx.roundRect((W - w) / 2, H - 17, w, 15, 5) : ctx.rect((W - w) / 2, H - 17, w, 15); ctx.fill();
+    ctx.fillStyle = '#c2cfc3'; ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic'; ctx.fillText(t, W / 2, H - 6);
+  }
+
   // ---------- frame loop ----------
   const gaps = []; let last = 0;
   function frame(now) {
@@ -246,6 +258,7 @@ if (typeof module !== 'undefined') module.exports = LOL;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, cnv.clientWidth, cnv.clientHeight);
       try { part.draw(ctx, G); } catch (e) { if (!part._err) { part._err = 1; console.error(e); } }
     }
+    drawReadout(px, pc.clientWidth, pc.clientHeight);
     P.ui.update(G);
     requestAnimationFrame(frame);
   }
