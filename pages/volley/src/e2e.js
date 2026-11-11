@@ -656,8 +656,9 @@ async function v20Session(browser, target) {
   await page.evaluate(() => window.__resetTune());
   await sleep(1500);
   const txt = await page.evaluate(() => [...document.querySelectorAll('.ov.on, #ovDead, #ovWin, #results')].map(e => e.textContent).join(' | ').replace(/\s+/g, ' ').slice(0, 600));
-  ok(/\b20\s*\/\s*20\b|\/\s*20\b/.test(txt) && !/\/\s*10\b/.test(txt), names[2], `results text: ${txt.slice(0, 240)}`);
-  finishErrors(errors, null);
+  // textContent runs labels into numbers ("reached20 / 20Time"), so match digits by lookaround, not \b
+  ok(/\/\s*20(?!\d)/.test(txt) && !/\/\s*10(?!\d)/.test(txt), names[2], `results text: ${txt.slice(0, 240)}`);
+  finishErrors(errors, []);
   await ctx.close();
 }
 
@@ -746,9 +747,9 @@ async function runFlow(page, sess, w, h, opt) {
         const b = await page.evaluate(() => window.__snap());
         if (d.btns[0]) await page.touchscreen.tap(d.btns[0].cx, d.btns[0].cy);
         await sleep(450);
-        // F1 (G): a row tap freezes on that row plus "Touch to continue"; the pick applies on a second, fresh tap at least 350 ms later
-        const cc = await page.evaluate(() => { const c = document.getElementById('cardCont'); if (!c || !window.__vis(c)) return null; const r = c.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; });
-        if (cc) { await page.touchscreen.tap(cc.x, cc.y); await sleep(400); }
+        // M 2026-11-11: one tap applies the pick (no "Touch to continue" confirm)
+        const cc = await page.evaluate(() => !!document.getElementById('cardCont'));
+        ok(!cc, cache ? 'one tap picks the cache card (no confirm screen)' : 'one tap picks the card (no confirm screen)', `confirm overlay present ${cc}`);
         const a = await page.evaluate(() => window.__snap());
         ok(a.picks > b.picks && a.mods !== b.mods, cache ? 'tapping a cache card applies it' : 'tapping a card applies it', `phase ${b.phase} -> ${a.phase}; picks ${b.picks} -> ${a.picks}; mods ${b.mods} -> ${a.mods}`);
       } else await page.evaluate(() => window.__pv.pick(0));

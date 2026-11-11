@@ -5,7 +5,7 @@ if (V.TUNE_DEFAULTS) {
   var SHELL = { AUTO_WALK: true, AUTO_WALK_DELAY: 1.0, AUTO_WALK_MULT: 2, EDGE_FLASH: true, HAPTIC_HURT_MS: 40, HAPTIC_KILL_MS: 12 };
   for (var sk in SHELL) if (!(sk in V.TUNE_DEFAULTS)) { V.TUNE_DEFAULTS[sk] = SHELL[sk]; if (V.TUNE && !(sk in V.TUNE)) V.TUNE[sk] = SHELL[sk]; }
 }
-var BUILD = 'volley-v2-0';
+var BUILD = 'volley-v2-1';
 // Persist tuning (only values that differ from defaults). Every storage call is guarded. Sound on/off is NOT kept here any more:
 // V.TUNE.SOUND is a view of V.Audio's mute, saved in 'volley.settings.v1' (audio.js), so a tune reset or save wipe keeps it.
 // f0-2: sliders were being nudged by accident while scrolling the drawer (M's Fold reports showed FIRE_INTERVAL at the
@@ -292,8 +292,8 @@ function row(cls, glyph, tag, name, desc, onTap){
 function glyphFor(c){ return GLYPH[c.id] || (c.name || '?').charAt(0).toUpperCase(); }
 // ---- Level-up offer (picks 19-21; 05 3.11) ----
 // Guard: no row accepts input until every finger is up and 350 ms have passed, and only a press that BEGAN after that counts.
-// After a tap the chosen row stays up with "Touch to continue"; the pick is applied (and the sim unfrozen) on the next press.
-// So a steering thumb that is still down, or a double tap, cannot pick. A click with no pointer press (keyboard, test) counts as a press now.
+// One accepted tap applies the pick and unfreezes the sim (M, 2026-11-11: no confirm tap).
+// So a steering thumb that is still down cannot pick. A click with no pointer press (keyboard, test) counts as a press now.
 var PICK_GUARD_MS = 350, cardCtx = null, ptr = { ids: {}, n: 0, press: 0, lift: 0, get down(){ return this.n; } };   // pointers by pointerId: a lost pointerup cannot leave a stuck count
 function pnow(){ return (G.performance && performance.now) ? performance.now() : Date.now(); }
 (function trackPointers(){
@@ -386,14 +386,10 @@ function accepted(e){
   var t = (e && e.detail === 0) ? pnow() : ptr.press;      // the press that began this click
   return ptr.down === 0 && pnow() >= cx.armAt && t >= cx.armAt;
 }
+// M 2026-11-11: one tap picks; no "Touch to continue" confirm step. The 350 ms arm guard still stops a steering thumb from picking.
 function cardTap(i, e){
   var cx = cardCtx; if (!cx || cx.chosen >= 0 || !accepted(e)) return;
-  cx.chosen = i; cx.armAt = pnow() + PICK_GUARD_MS;
-  var list = $('cardList'), rows = list.children;
-  for (var k = rows.length - 1; k >= 0; k--) if (k !== i) list.removeChild(rows[k]);       // the chosen row stays, the others go
-  var rr = $('cardRr'); if (rr) rr.style.display = 'none';
-  var cont = document.createElement('div'); cont.id = 'cardCont'; cont.innerHTML = '<span>Touch to continue</span>'; cont.addEventListener('click', function(ev){ contTap(ev); });
-  $('ovCards').appendChild(cont);
+  cx.chosen = i; var f = cx.onPick; closeCards(); f(i);
 }
 function contTap(e){
   var cx = cardCtx; if (!cx || cx.chosen < 0 || !accepted(e)) return;
