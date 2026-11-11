@@ -14,6 +14,8 @@ PARTS.forEach(function (f) {
 });
 // R42 column classes: parts/widen.js (sim.js also pulls it in under Node). Kept out of `loaded` so the default output stays as it was.
 (function () { var p = path.join(__dirname, 'parts', 'widen.js'); if (!globalThis.V.Widen && fs.existsSync(p)) require(p); })();
+// step 7 (K3): the new machines and bosses (stages 11-50). Kept out of `loaded` too; stages 1-10 never spawn them, so the 10-stage baselines do not move.
+['boss-kit', 'boss-b03', 'boss-b02', 'boss-b04', 'ai-e06', 'ai-e07', 'ai-e08'].forEach(function (f) { var p = path.join(__dirname, 'parts', f + '.js'); if (fs.existsSync(p)) require(p); });
 var V = globalThis.V;
 
 var ARGV = process.argv.slice(2).filter(function (a) { return a.slice(0, 2) !== '--'; });

@@ -144,6 +144,16 @@ cue('warn_E-05', 'S-105', 't', 2, 120, 3, 0.8, 1, function(c, o, t, v, p){ retur
 cue('dash', 'S-105b', 't', 2, 100, 2, 0.26, 1, function(c, o, t){ return noise(c, o, t, { d: 0.24, v: 0.32, bp: 700, f1: 2400, q: 1.6, a: 0.02 }); });
 cue('clang', 'S-105c', 'c', 2, 100, 2, 0.3, 1, function(c, o, t){ tone(c, o, t, { w: 'square', f: 1250, d: 0.22, v: 0.08, lp: 3500 }); return tone(c, o, t, { w: 'square', f: 1873, d: 0.18, v: 0.06, lp: 3500 }); });
 cue('warble', 'S-105d', 'c', 2, 300, 2, 1.05, 1, function(c, o, t){ return wob(c, o, t, 420, 1.0, 0.1, 5, 18); });   // free-shot window: soft, low, outside the threat band
+// Step 7 machines (E-06 to E-08; 03 machines table cues). Same levels as E-01..E-05 warns; all guesses until heard.
+cue('warn_E-06', 'S-106', 't', 2, 120, 3, 0.6, 1, function(c, o, t, v, p){ var g = t + Math.max(0, p.d - 0.3);   // seam crack: thin chirp over the tell, two dry snaps when the seam glows (last 0.3 s)
+  noise(c, o, g, { d: 0.03, v: 0.16, hp: 2400 }); noise(c, o, g + 0.14, { d: 0.03, v: 0.12, hp: 3000 });
+  return tone(c, o, t, { w: 'square', f: 1700, f1: 2300, d: p.d, v: 0.04, lp: 3600, a: 0.02 }); }, true);
+cue('split_E-06', 'S-106b', 't', 2, 80, 2, 0.16, 1, function(c, o, t){ noise(c, o, t, { d: 0.05, v: 0.2, hp: 1800 }); return tone(c, o, t, { w: 'square', f: 900, f1: 1800, d: 0.12, v: 0.05, lp: 3200 }); });   // halves pop apart
+cue('warn_E-07', 'S-107', 't', 2, 120, 3, 1.0, 1, function(c, o, t, v, p){ noise(c, o, t, { d: p.d, v: 0.14, lp: 180, f1: 520, a: 0.15 });   // mound rumble: low noise that opens up
+  return tone(c, o, t, { w: 'sine', f: 55, f1: 85, d: p.d, v: 0.16, a: 0.12 }); }, true);
+cue('pop_E-07', 'S-107b', 't', 2, 80, 2, 0.12, 1, function(c, o, t){ noise(c, o, t, { d: 0.06, v: 0.22, lp: 1200 }); return tone(c, o, t, { w: 'sine', f: 240, f1: 110, d: 0.1, v: 0.3 }); });   // ring pop as it surfaces
+cue('warn_E-08', 'S-108', 't', 2, 120, 3, 1.2, 1, function(c, o, t, v, p){ return tone(c, o, t, { w: 'triangle', f: 330, f1: 990, d: p.d, v: 0.07, lp: 2400, a: 0.08 }); }, true);   // rising hum
+cue('ping_E-08', 'S-108b', 't', 3, 0, 4, 0.14, 1, function(c, o, t){ tone(c, o, t, { w: 'sine', f: 2640, d: 0.12, v: 0.14, a: 0.002 }); return tone(c, o, t, { w: 'sine', f: 3960, d: 0.05, v: 0.05, a: 0.002 }); });   // lock ping: line goes solid (stands in for the shared lock tick)
 cue('lock', 'S-120', 't', 3, 0, 4, 0.06, 1, function(c, o, t){ tone(c, o, t, { w: 'square', f: 2400, d: 0.012, v: 0.3, a: 0.001 }); return tone(c, o, t + 0.03, { w: 'square', f: 2400, d: 0.012, v: 0.3, a: 0.001 }); });
 cue('enemy_fire', 'S-130', 't', 1, 50, 4, 0.08, 1, function(c, o, t){ return tone(c, o, t, { w: 'square', f: 1600, f1: 900, d: 0.06, v: 0.09, lp: 3500 }); });
 cue('blast', 'S-132', 't', 2, 60, 3, 0.34, 1, function(c, o, t){ noise(c, o, t, { d: 0.3, v: 0.5, lp: 1500, f1: 300 }); return tone(c, o, t, { w: 'sine', f: 120, f1: 40, d: 0.3, v: 0.6 }); });
@@ -161,6 +171,17 @@ cue('boss_intro', 'S-200', 'u', 3, 0, 1, 2.6, 1, function(c, o, t){
 cue('warn_B-01A', 'S-211A', 't', 2, 120, 3, 0.9, 1, function(c, o, t, v, p){ var s = p.d / 5; return notes(c, o, t, [1200, 1340, 1500, 1680, 1880], s, { w: 'square', d: s * 0.7, v: 0.06, lp: 3400 }); }, true);
 cue('warn_B-01B', 'S-211B', 't', 2, 120, 3, 0.6, 1, function(c, o, t, v, p){ noise(c, o, t, { d: p.d, v: 0.08, bp: 1300, f1: 2800, q: 3, a: 0.05 }); return tone(c, o, t, { w: 'sawtooth', f: 1300, f1: 2800, d: p.d, v: 0.05, lp: 3600, a: 0.05 }); }, true);
 cue('warn_B-01C', 'S-211C', 't', 2, 120, 3, 0.8, 1, function(c, o, t, v, p){ var s = p.d / 3; return notes(c, o, t, [1300, 1550, 1840], s, { w: 'square', d: s * 0.85, v: 0.06, lp: 3200 }); }, true);
+// Step 7 bosses (03 section 4 "cues by letter"). Live like B-01: each warn lasts the tell the sim shows.
+function hits(c, o, t, d, gaps, p){ var x = 0, last = null, i = 0; while (x < d - 0.02 && i < 48) { noise(c, o, t + x, { d: 0.03, v: p.nv, lp: p.lp }); last = tone(c, o, t + x, { w: 'sine', f: p.f, f1: p.f * 0.6, d: 0.05, v: p.v }); x += gaps(x / d); i++; } return last; }
+cue('warn_B-03A', 'S-213A', 't', 2, 120, 3, 0.8, 1, function(c, o, t, v, p){ return hits(c, o, t, p.d, function(){ return 0.075; }, { f: 150, v: 0.16, nv: 0.08, lp: 900 }); }, true);   // drum-roll, even
+cue('warn_B-03B', 'S-213B', 't', 2, 120, 3, 1.0, 1, function(c, o, t, v, p){ return hits(c, o, t, p.d, function(k){ return 0.13 - 0.09 * k; }, { f: 180, v: 0.17, nv: 0.09, lp: 1100 }); }, true);   // drum-fast: speeds up to the roll
+cue('warn_B-02A', 'S-212A', 't', 2, 120, 3, 1.0, 1, function(c, o, t, v, p){ noise(c, o, t, { d: p.d, v: 0.07, bp: 300, f1: 1400, q: 1.4, a: 0.1 });   // rising air, then the landing thud
+  var e = t + Math.max(0, p.d - 0.04); noise(c, o, e, { d: 0.08, v: 0.2, lp: 700 }); return tone(c, o, e, { w: 'sine', f: 130, f1: 45, d: 0.14, v: 0.42 }); }, true);
+cue('warn_B-02B', 'S-212B', 't', 2, 120, 3, 0.6, 1, function(c, o, t, v, p){ noise(c, o, t, { d: p.d, v: 0.07, bp: 900, f1: 3200, q: 2.5, a: 0.05 });   // port-flare: ports heat up
+  return tone(c, o, t, { w: 'square', f: 900, f1: 1900, d: p.d, v: 0.04, lp: 3200, a: 0.05 }); }, true);
+cue('warn_B-04A', 'S-214A', 't', 2, 120, 3, 1.0, 1, function(c, o, t, v, p){ noise(c, o, t, { d: p.d, v: 0.09, bp: 420, f1: 900, q: 4, a: 0.08 });   // spin-grind
+  return tone(c, o, t, { w: 'sawtooth', f: 80, f1: 160, d: p.d, v: 0.08, lp: 900, a: 0.08 }); }, true);
+cue('warn_B-04B', 'S-214B', 't', 2, 120, 3, 0.8, 1, function(c, o, t, v, p){ return hits(c, o, t, p.d, function(){ return p.d / 3; }, { f: 110, v: 0.3, nv: 0.14, lp: 600 }); }, true);   // rock-thump: three heavy thumps
 cue('boss_phase', 'S-230', 't', 3, 0, 1, 0.8, 1, function(c, o, t){   // [spec] at most 800 ms; never the hurt sound (L-PV-10)
   noise(c, o, t, { d: 0.2, v: 0.4, hp: 1800 }); tone(c, o, t, { w: 'square', f: 700, d: 0.16, v: 0.1, lp: 3000 }); tone(c, o, t, { w: 'square', f: 1043, d: 0.14, v: 0.08, lp: 3000 });
   return notes(c, o, t + 0.25, [1500, 1100, 1500, 1100], 0.13, { w: 'square', d: 0.11, v: 0.07, lp: 3200 }); });
@@ -370,12 +391,13 @@ function cueFor(e, S){
     case 'lock': o('brace'); break;
     case 'block': o('block'); break;
     case 'land': o('blast', { x: e.x, y: e.y }); break;
+    case 'split': o('split_E-06', { delay: 0.03 }); break;   // E-06 kill splits (M6): crack after the kill cue
     case 'stun': o('clang'); o('warble', { delay: 0.12 }); break;
     case 'tell': {
-      if (e.lock) { o('lock'); break; }
+      if (e.lock) { o(C['ping_' + e.type] ? 'ping_' + e.type : 'lock'); break; }   // E-08: its own lock ping in place of the shared tick
       var en = enemyById(S, e.id), d = en && en.tellT > 0 ? en.tellT : null;
-      var nm = 'warn_' + e.type + (e.attack ? e.attack : '');
-      if (!C[nm]) nm = 'warn_' + e.type;
+      var at0 = e.attack === 'H' ? 'A' : (e.attack || ''), base = String(e.type).replace(/(V|h)$/, '');   // B-03V and E-06h fall back to their base type's cues
+      var nm = ['warn_' + e.type + at0, 'warn_' + e.type, 'warn_' + base + at0, 'warn_' + base].filter(function(n){ return C[n]; })[0] || 'warn_' + e.type;
       o(nm, { d: d || (C[nm] && C[nm].d) || 0.6, x: e.x, y: e.y, warn: true });
       break;
     }
@@ -435,7 +457,7 @@ function event(e, S){
     var c = list[i];
     if (c.opts.warn && !warnOk(c, S)) continue;
     play(c.name, c.opts);
-    if (c.name === 'lock') lockDuck();
+    if (c.name === 'lock' || c.name.indexOf('ping_') === 0) lockDuck();
   }
 }
 // crowding (07 s3): same tell type within 120 ms merges (cue gap); at most 3 warn voices, the one nearest the hero wins
@@ -478,6 +500,7 @@ function step(S){
     if (e.st !== 'tell') {   // tell ended: the attack
       if (p.type === 'E-01') play('snap_E-01');
       else if (p.type === 'E-05') play('dash');
+      else if (p.type === 'E-07') play('pop_E-07');
       delete pend[id]; continue;
     }
     if (!p.ticked && e.stT <= LOCK_LEAD) { p.ticked = true; if (play('lock')) lockDuck(); }

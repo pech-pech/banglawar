@@ -2,7 +2,10 @@
 // Static room checks for the bake (GEN-SPEC 4.1, 4.2), run on the REAL widen output at 9, 11, 13 and 15 columns.
 // Pure functions over V.Widen; no rng, no clock. Returns fail codes like 'C3@13'.
 var H = 15, WIDTHS = [9, 11, 13, 15], STEP = [[1, 0], [-1, 0], [0, 1], [0, -1]];
-var FLAT = { 'E-03': 1 };   // flat shooter = the static turret (the built R01 stage 3 holds an E-02 with no cover, so E-02 is not "flat" here)
+var FLAT = { 'E-03': 1, 'E-08': 1 };   // flat shooter = the static turrets E-03 and E-08 sniper (the built R01 stage 3 holds an E-02 with no cover, so E-02 is not "flat" here)
+var SNIPER = { 'E-08': 1 }, SNIPER_CORNER = 5.0;   // C5 sniper rule (step 7): no clear sniper line to a bottom 3x3 corner tile closer than 5 tiles
+var SPLIT = { 'E-06': 1 };   // step 7: the splitter needs room to split, all 4 side tiles and 3 of 4 diagonal tiles open floor (no cover, spikes or room edge)
+var HERO_R = 0.35, MOVE = 4.5, TELL_MULT = 0.85;   // hero body, walk speed (tiles/s), tune.js TELL_MULT
 
 var BOSSVIS_MIN = 70;   // percent, [G]
 function k0(W) { return (W - 9) / 2; }
@@ -111,7 +114,23 @@ function mk(V) {
         var rifle = floorT.some(function (f) { return f[1] >= 6 && f[1] <= 11 && clearLine(g, W, f[0], f[1], s.x, s.y); });
         if (!rifle) F('C4', W, tag + ' no rifle line from rows 6-10');
       });
-      // C5: bottom 3x3 corners hold no cover or spikes (rows 12-14); no turret line to a corner tile is a sniper rule, no sniper in the pool
+      // C5 sniper (E-08): no clear line to a bottom-corner tile within 5 tiles
+      SP.forEach(function (s) {
+        if (!SNIPER[s.type]) return;
+        for (var cy = 12; cy < H; cy++) for (var ci = 0; ci < 3; ci++) [ci, W - 1 - ci].forEach(function (cx) {
+          if (Math.hypot(cx + 0.5 - s.x, cy + 0.5 - s.y) < SNIPER_CORNER && g[cy][cx] !== '#' && clearLine(g, W, cx + 0.5, cy + 0.5, s.x, s.y)) F('C5', W, s.type + '@' + Math.floor(s.x) + ',' + Math.floor(s.y) + ' sniper line to corner ' + cx + ',' + cy);
+        });
+      });
+      // SPLIT (E-06): room to split, halves pop toward open floor
+      SP.forEach(function (s) {
+        if (!SPLIT[s.type]) return;
+        var tx = Math.floor(s.x), ty = Math.floor(s.y), o4 = 0, o8 = 0;
+        function op(x, y) { return x >= 0 && x < W && y >= 1 && y <= 13 && g[y][x] !== '#' && g[y][x] !== '^'; }
+        [[1, 0], [-1, 0], [0, 1], [0, -1]].forEach(function (d) { if (op(tx + d[0], ty + d[1])) o4++; });
+        [[1, 1], [-1, 1], [1, -1], [-1, -1]].forEach(function (d) { if (op(tx + d[0], ty + d[1])) o8++; });
+        if (o4 < 4 || o8 < 3) F('SPLIT', W, s.type + '@' + tx + ',' + ty + ' no room to split (' + o4 + ' of 4 sides, ' + o8 + ' of 4 diagonals open)');
+      });
+      // C5: bottom 3x3 corners hold no cover or spikes (rows 12-14)
       for (y = 12; y < H; y++) for (x = 0; x < 3; x++) {
         [x, W - 1 - x].forEach(function (cx) { if (g[y][cx] === '#' || g[y][cx] === '^') F('C5', W, 'cover or spikes in corner ' + cx + ',' + y); });
       }
@@ -148,12 +167,81 @@ function mk(V) {
     return { fails: fails, info: runInfo };
   }
 
+  // Step 7 mobile-boss arena rules [G thresholds]. Floor = rows 1-14, no cover, no spikes.
+  //  B-02 (hops, landing ring r 1.8, tell 1.0): LAND share of floor tiles in rows 2-12 that are a cover-free landing centre (no cover cell within 1.8 + 0.5) >= 50; HOPSAFE: no floor tile out of reach of every landing ring;
+  //        RINGOUT: from every floor tile the hero can walk out of a ring centred on it (to 1.8 + hero r) within the effective tell (1.0 x 0.85 s x 4.5 tiles/s).
+  //  B-03 / B-03V (rolls toward the hero, lane-ribbon tell 0.8): LANE share of floor tiles in rows 4-14 the boss body can roll to from its start in a straight
+  //        line (swept body clear of cover) >= 50 (cover may shadow at most half the floor from a roll); SIDESTEP: from every floor tile a tile out of the lane (body r + hero r + 0.15 off the line) is walkable within the tell.
+  //  B-04 (walks, body r): WALK share of floor tiles in rows 1-12 the body can reach (body-sized window flood from the start) >= 85.
+  function mobileChecks(g, W, type, R, bx, by, F) {
+    var out = {}, x, y, fl = [], cov = [];
+    for (y = 0; y < H; y++) for (x = 0; x < W; x++) { if (g[y][x] === '#') cov.push([x, y]); else if (y >= 1 && g[y][x] !== '^') fl.push([x, y]); }
+    function nearCover(px, py, r) { return cov.some(function (c) { var qx = Math.max(c[0], Math.min(px, c[0] + 1)), qy = Math.max(c[1], Math.min(py, c[1] + 1)); return Math.hypot(px - qx, py - qy) < r; }); }
+    function walkOut(sx, sy, ok, budget) {   // 8-way BFS over floor tiles (diagonal costs 1.414); true when a tile with ok(x,y) is reached within budget tiles
+      var best = {}, q = [[sx, sy, 0]]; best[sx + ',' + sy] = 0;
+      while (q.length) {
+        q.sort(function (a, b) { return a[2] - b[2]; }); var c = q.shift();
+        if (ok(c[0] + 0.5, c[1] + 0.5)) return true;
+        for (var dx = -1; dx <= 1; dx++) for (var dy = -1; dy <= 1; dy++) {
+          if (!dx && !dy) continue; var nx = c[0] + dx, ny = c[1] + dy;
+          if (nx < 0 || ny < 1 || nx >= W || ny >= H || g[ny][nx] === '#' || g[ny][nx] === '^') continue;
+          if (dx && dy && (g[c[1]][nx] === '#' || g[ny][c[0]] === '#')) continue;
+          var d = c[2] + (dx && dy ? 1.414 : 1); if (d > budget || (best[nx + ',' + ny] !== undefined && best[nx + ',' + ny] <= d)) continue;
+          best[nx + ',' + ny] = d; q.push([nx, ny, d]);
+        }
+      }
+      return false;
+    }
+    if (type === 'B-02') {
+      var RR = 1.8, tellW = 1.0 * TELL_MULT * MOVE, lt = 0, lo = 0, badOut = 0;
+      fl.forEach(function (f) { if (f[1] >= 2 && f[1] <= 12) { lt++; if (!nearCover(f[0] + 0.5, f[1] + 0.5, RR + 0.5)) lo++; } });
+      fl.forEach(function (f) { var cx = f[0] + 0.5, cy = f[1] + 0.5; if (!walkOut(f[0], f[1], function (px, py) { return Math.hypot(px - cx, py - cy) >= RR + HERO_R; }, tellW)) badOut++; });
+      // HOPSAFE (B2 review): a floor tile no landing ring can reach = a hop-safe pocket. B-02 lands its body (r + 0.05 clear of cover and walls,
+      // boss-b02.js) anywhere on open floor; a tile is reachable when some valid body centre (0.25 grid) lies within ring r 1.8 of the tile centre.
+      var cen = [], px, py, pocket = [];
+      for (py = 1 + R; py <= H - R; py += 0.25) for (px = R; px <= W - R; px += 0.25) {
+        var okc = !nearCover(px, py, R + 0.05);
+        if (okc) for (var sy = Math.floor(py - R - 0.05); sy <= Math.floor(py + R + 0.05) && okc; sy++) for (var sx = Math.floor(px - R - 0.05); sx <= Math.floor(px + R + 0.05); sx++) if (sy >= 0 && sy < H && sx >= 0 && sx < W && g[sy][sx] === '^' && Math.hypot(px - Math.max(sx, Math.min(px, sx + 1)), py - Math.max(sy, Math.min(py, sy + 1))) < R + 0.05) { okc = false; break; }
+        if (okc) cen.push([px, py]);
+      }
+      fl.forEach(function (f) { var cx = f[0] + 0.5, cy = f[1] + 0.5; if (!cen.some(function (c) { return Math.hypot(c[0] - cx, c[1] - cy) <= RR; })) pocket.push(f[0] + ',' + f[1]); });
+      out.hopSafe = pocket.length;
+      if (pocket.length) F('HOPSAFE', W, 'B-02 hop-safe pocket at ' + pocket.join(' '));
+      out.land = Math.round(lo * 100 / lt); out.ringOutFail = badOut;
+      if (out.land < 50) F('LAND', W, 'B-02 landing floor ' + out.land + ' percent of rows 2-12 (need 50)');   // was 60; HOPSAFE is the exact pocket rule
+      if (badOut) F('RINGOUT', W, badOut + ' floor tiles cannot leave a landing ring in the tell');
+    } else if (type === 'B-03' || type === 'B-03V') {
+      var tellR = 0.8 * TELL_MULT * MOVE, off = R + HERO_R + 0.15, lt3 = 0, lc = 0, badSide = 0;
+      fl.forEach(function (f) {
+        if (f[1] < 4) return; lt3++;
+        var tx = f[0] + 0.5, ty = f[1] + 0.5, len = Math.hypot(tx - bx, ty - by), ok = true;
+        for (var t = 0; t <= len && ok; t += 0.1) { var px = bx + (tx - bx) * t / len, py = by + (ty - by) * t / len; if (nearCover(px, py, R - 0.05)) ok = false; }
+        if (ok) lc++;
+        var ux = (tx - bx) / (len || 1), uy = (ty - by) / (len || 1);
+        if (!walkOut(f[0], f[1], function (px, py) { return Math.abs((px - bx) * uy - (py - by) * ux) >= off; }, tellR)) badSide++;
+      });
+      out.lane = Math.round(lc * 100 / lt3); out.sideFail = badSide;
+      if (out.lane < 50) F('LANE', W, type + ' roll lanes reach ' + out.lane + ' percent of rows 4-14 (need 50)');
+      if (badSide) F('SIDESTEP', W, badSide + ' floor tiles cannot step out of a roll lane in the tell');
+    } else if (type === 'B-04') {
+      var seen = {}, q = [[Math.floor(bx), Math.floor(by)]], n = 0, tot4 = 0;
+      function bodyOk(cx, cy) { return cx - R >= 0 && cx + R <= W && cy - R >= 1 && cy + R <= H && !nearCover(cx, cy, R); }
+      seen[q[0][0] + ',' + q[0][1]] = 1;
+      while (q.length) { var c = q.shift(); [[1, 0], [-1, 0], [0, 1], [0, -1]].forEach(function (d) { var nx = c[0] + d[0], ny = c[1] + d[1], k = nx + ',' + ny; if (!seen[k] && nx >= 0 && nx < W && ny >= 1 && ny < H && bodyOk(nx + 0.5, ny + 0.5)) { seen[k] = 1; q.push([nx, ny]); } }); }
+      fl.forEach(function (f) { if (f[1] > 12) return; tot4++; var hit = false; for (var dx = -1; dx <= 1 && !hit; dx++) for (var dy = -1; dy <= 1 && !hit; dy++) if (seen[(f[0] + dx) + ',' + (f[1] + dy)] && Math.hypot(dx, dy) <= R + 0.5) hit = true; if (hit) n++; });
+      out.walk = Math.round(n * 100 / tot4);
+      if (out.walk < 85) F('WALK', W, 'B-04 body reaches ' + out.walk + ' percent of rows 1-12 (need 85)');
+    }
+    return out;
+  }
+
   // boss arena (data only): same shape as BA1, new cover. Static rules; the corner-shooter bot check is run separately (R49).
-  function checkBoss(def, spawns) {
-    var fails = [], F = function (c, w, d) { fails.push(c + '@' + w + (d ? ' ' + d : '')); }, g0 = def.grid, x, y;
+  function checkBoss(def, spawns, bossType, bossR) {
+    bossType = bossType || 'B-01'; bossR = bossR || 1;
+    var fails = [], info = {}, F = function (c, w, d) { fails.push(c + '@' + w + (d ? ' ' + d : '')); }, g0 = def.grid, x, y;
     var b = null; for (y = 0; y < H; y++) { x = g0[y].indexOf('B'); if (x >= 0) b = { x: x, y: y }; }
     if (!b) { F('BOSS', 9, 'no B'); return { fails: fails }; }
-    if (spawns.length !== 1 || spawns[0].type !== 'B-01' || Math.floor(spawns[0].x) !== b.x || Math.floor(spawns[0].y) !== b.y) F('BOSS', 9, 'spawn not on B');
+    if (spawns.length !== 1 || spawns[0].type !== bossType || Math.floor(spawns[0].x) !== b.x || Math.floor(spawns[0].y) !== b.y) F('BOSS', 9, 'spawn not on B');
     for (y = 0; y < H; y++) for (x = 0; x < 9; x++) {
       if (g0[y][x] === '#' && y > 0 && (y > 10 || y < 1)) F('BOSS', 9, 'cover outside rows 1-10');
       if (g0[y][x] === '#' && y > 0 && Math.abs(x - b.x) <= 1 && Math.abs(y - b.y) <= 1) F('BOSS', 9, 'cover in the 1-tile ring round B');
@@ -175,9 +263,11 @@ function mk(V) {
       if (vis * 100 / tot < BOSSVIS_MIN) F('BOSSVIS', W, 'boss seen from ' + Math.round(vis * 100 / tot) + ' percent of safe floor (need ' + BOSSVIS_MIN + ')');
       if (vc * 100 / vct < BOSSVIS_MIN) F('BOSSVIS', W, 'boss seen from ' + Math.round(vc * 100 / vct) + ' percent of rows 11-14 (need ' + BOSSVIS_MIN + ')');
       if (!clearLine(g, W, (W) / 2, 14.5, bx, by)) F('BOSSVIS', W, 'no clear line from the start tile');
+      var mob = mobileChecks(g, W, bossType, bossR, bx, by, F);
+      info[W] = { vis: Math.round(vis * 100 / tot), visBottom: Math.round(vc * 100 / vct) }; for (var mk in mob) info[W][mk] = mob[mk];
     });
-    return { fails: fails };
+    return { fails: fails, info: info };
   }
   return { checkCombat: checkCombat, checkBoss: checkBoss, clearLine: clearLine, flood: flood, route2: route2, stats: stats };
 }
-module.exports = { mk: mk, WIDTHS: WIDTHS };
+module.exports = { mk: mk, WIDTHS: WIDTHS, FLAT: FLAT, SNIPER: SNIPER, SPLIT: SPLIT };
