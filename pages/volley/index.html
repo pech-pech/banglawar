@@ -12,8 +12,8 @@
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;height:100%;background:var(--pv-ui-bg,#0b0e11);color:var(--sand);font:14px/1.3 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;overflow:hidden;
   user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;overscroll-behavior:none}
-/* Scaled frame (pick 1): #stage is always 344 x 882 frame units; main.js layout() sets translate+scale. The bars are the body background
-   (flat --pv-ui-bg) with a 1 px --pv-ui-metal-500 line on the frame edge (1 screen px at any scale). Bars carry no art or text. */
+/* Full-screen frame (pick 43): #stage is 882 frame units tall and 344-800 wide (main.js layout() sets width, --pv-frame-w,
+   translate+scale). It fills the screen; only when the width clamp bites can a thin band of body background (flat --pv-ui-bg) show. */
 body{touch-action:none}
 #stage{position:absolute;left:0;top:0;width:344px;height:882px;transform-origin:0 0;overflow:hidden;touch-action:none;background:#c9b48a;flex:none;
   box-shadow:0 0 0 calc(1px / var(--pv-scale,1)) var(--pv-ui-metal-500,#4a535d)}
@@ -61,6 +61,8 @@ body.ovon #hud, body.ovon #toast, body.ovon #rlbl{visibility:hidden}
 .card .tx{flex:1;min-width:0}
 .card b{display:block;font-size:18px;color:#fff;margin-bottom:2px}
 .card span{display:block;font-size:15px;line-height:1.25;color:var(--sand)}
+/* Wide frame: card lists keep a readable width, centred by .ov (align-items:center) */
+#cardList,#supList{max-width:400px}
 .card.sup .gl{background:#2d2414;border-color:#7a5a20;color:var(--amber)}
 #deadStats{font-size:14px;color:var(--sand);line-height:1.5}
 /* Boss bar (D1): label row above a plain full-width bar, so no text sits over the fill. */
@@ -104,7 +106,7 @@ body.ovon #bossBar, body.ovon #howto, body.ovon #dmgLayer{visibility:hidden}
 #drawer.on{display:flex}
 #drHead{display:flex;align-items:center;gap:6px;padding:4px 6px;border-bottom:1px solid #3c3f42;flex-wrap:wrap}
 #drHead h3{margin:0 auto 0 4px;font-size:16px;color:#fff}
-#drBody{flex:1;overflow-y:auto;padding:4px 10px 20px;touch-action:pan-y}
+#drBody{flex:1;overflow-y:auto;padding:4px max(10px,calc((100% - 520px) / 2)) 20px;touch-action:pan-y}   /* wide frame: knobs in a centred 520 px column */
 #drBody h4{margin:12px 0 2px;font-size:13px;color:var(--cyan);text-transform:uppercase;letter-spacing:1px}
 .kn{padding:4px 0;border-bottom:1px solid #2b2d2f}
 .kn label{display:flex;justify-content:space-between;font-size:12px;color:var(--sand)}
@@ -115,7 +117,7 @@ body.ovon #bossBar, body.ovon #howto, body.ovon #dmgLayer{visibility:hidden}
 #drMsg{font-size:12px;color:var(--amber);min-height:16px;padding:0 10px}
 #copyArea{position:absolute;left:-9999px;top:0;width:10px;height:10px}
 /* ==========================================================================
-   Project Volley UI kit  (ui-kit.css)   344 x 882 portrait, no dependencies
+   Project Volley UI kit  (ui-kit.css)   portrait frame 882 tall, 344-800 wide (--pv-frame-w), no dependencies
    Look: military field hardware. Gunmetal + olive panels, sand/off-white text,
    cyan = hero accent + primary action, red = enemies/danger only,
    amber hazard stripes = warnings only. Thin ink outlines, stencil labels.
@@ -194,13 +196,13 @@ body.ovon #bossBar, body.ovon #howto, body.ovon #dmgLayer{visibility:hidden}
   --pv-ui-glow:0 0 10px rgba(56,232,255,.45);
   --pv-ui-bevel:inset 0 1px 0 rgba(255,255,255,.10), inset 0 -2px 0 rgba(0,0,0,.35);
   /* sizes */
-  --pv-ui-touch:44px; --pv-ui-w:344px; --pv-ui-h:882px; --pv-ui-tabbar-h:64px; --pv-ui-status-h:48px;
+  --pv-ui-touch:44px; --pv-ui-w:var(--pv-frame-w,344px); --pv-ui-col:520px; --pv-ui-h:882px; --pv-ui-tabbar-h:64px; --pv-ui-status-h:48px;
   --pv-ui-hazard:repeating-linear-gradient(-45deg,var(--pv-ui-amber) 0 8px,var(--pv-ui-amber-ink) 8px 16px);
   --pv-ui-rivet:radial-gradient(circle at 35% 35%,#7b848d 0 1px,#3a4149 2px,#14181c 3px,transparent 3.5px);
 }
 
 *,*::before,*::after{box-sizing:border-box}
-.pv-screen{position:relative;width:344px;height:882px;overflow:hidden;background:
+.pv-screen{position:relative;width:var(--pv-frame-w,344px);--pv-ui-w:var(--pv-frame-w,344px);height:882px;overflow:hidden;background:
   radial-gradient(120% 60% at 50% 0,#1b2026 0,transparent 70%),
   repeating-linear-gradient(0deg,rgba(255,255,255,.012) 0 2px,transparent 2px 4px),var(--pv-ui-bg);
   color:var(--pv-ui-text);font:400 var(--pv-ui-fs-md)/1.35 var(--pv-ui-font);
@@ -408,7 +410,9 @@ body.ovon #bossBar, body.ovon #howto, body.ovon #dmgLayer{visibility:hidden}
 /* Deploy tab. #pane-deploy is a size container: the art follows the card width (328:216, never stretched) and shrinks with the pane height,
    so card + Best stage + DEPLOY + note always fit; if a very short pane still cannot fit, the pane scrolls and its 28 px bottom pad keeps DEPLOY clear of the raised tab. */
 #pane-deploy{container-type:size}
-#pane-deploy>*{--dep-h:clamp(64px,14cqh,88px);--art-h:max(96px,min(calc(100cqw*216/328),calc(100cqh - 191px - var(--dep-h))))}
+/* Wide frame (full screen, no side bars): the Deploy column is at most --pv-ui-col wide and centred; the art follows the column width. */
+#pane-deploy>*{--col-w:min(100cqw,var(--pv-ui-col));--dep-h:clamp(64px,14cqh,88px);--art-h:max(96px,min(calc(var(--col-w)*216/328),calc(100cqh - 191px - var(--dep-h))))}
+#pane-deploy>:not(.hm-deploy){width:100%;max-width:var(--pv-ui-col);margin-left:auto;margin-right:auto}
 .hm-card{height:calc(var(--art-h) + 84px);padding:0;border:var(--pv-ui-stroke-heavy) solid var(--pv-ui-ink);border-radius:var(--pv-ui-r-lg);box-shadow:var(--pv-ui-sh-1);flex:none}
 .hm-card .pv-chapter__art{background:var(--pv-ui-metal-900);inset:0 0 auto 0;height:var(--art-h)}   /* key-art-card 328x216 anchored to the top edge; the rest of the card is solid dark (placement sheet) */
 .hm-card .pv-chapter__art img{width:100%;height:100%;object-fit:cover;object-position:50% 0;display:block}
@@ -422,6 +426,21 @@ body.ovon #bossBar, body.ovon #howto, body.ovon #dmgLayer{visibility:hidden}
 .hm-note{margin-top:10px;text-align:center}
 /* results portrait + Home button */
 #resPortrait{display:block;flex:none;width:72px;height:96px;border-radius:4px;border:2px solid #0f1215;box-shadow:0 0 0 1.5px #4a535d;object-fit:cover;object-position:top;background:#1b2026}
+
+/* ===== Wide frame (M: "full screen, no bars on the sides") =====
+   #stage is 882 tall and 344-800 wide (--pv-frame-w). The status bar, tab bar, scrims and sheet backgrounds span edge to edge;
+   reading content sits in a centred column of at most --pv-ui-col (520 px). --pv-gut = side padding that centres that column.
+   Selectors start with #hmBody so they win over the tab CSS each tab injects into <head> at mount. */
+#hmBody{--pv-gut:max(0px,calc((100% - var(--pv-ui-col)) / 2))}
+#hmBody .ta-scroll{padding-left:max(16px,calc((100% - var(--pv-ui-col)) / 2));padding-right:max(16px,calc((100% - var(--pv-ui-col)) / 2))}
+#hmBody .tb-up .body{padding-left:max(12px,calc((100% - var(--pv-ui-col)) / 2));padding-right:max(12px,calc((100% - var(--pv-ui-col)) / 2))}
+#hmBody .tb-in .body{padding-left:max(12px,calc((100% - var(--pv-ui-col)) / 2));padding-right:max(12px,calc((100% - var(--pv-ui-col)) / 2))}
+/* bottom sheets: full-width sheet, content in the column; the close button stays at the column's right edge */
+#hmBody .ta-sheet{padding-left:max(16px,calc((100% - var(--pv-ui-col)) / 2));padding-right:max(16px,calc((100% - var(--pv-ui-col)) / 2))}
+#hmBody .ta-sheet .ta-x{right:max(8px,calc((100% - var(--pv-ui-col)) / 2 - 8px))}
+#hmBody .tb-sheet{padding-left:max(16px,calc((100% - var(--pv-ui-col)) / 2));padding-right:max(16px,calc((100% - var(--pv-ui-col)) / 2))}
+#hmBody .tb-res .card{max-width:400px}
+#hmBody .hm-soon{max-width:var(--pv-ui-col);margin-left:auto;margin-right:auto}
 
 </style>
 <link rel="manifest" href="manifest.webmanifest">
@@ -4066,7 +4085,7 @@ if (V.TUNE_DEFAULTS) {
   var SHELL = { AUTO_WALK: true, AUTO_WALK_DELAY: 1.0, EDGE_FLASH: true, HAPTIC_HURT_MS: 40, HAPTIC_KILL_MS: 12 };
   for (var sk in SHELL) if (!(sk in V.TUNE_DEFAULTS)) { V.TUNE_DEFAULTS[sk] = SHELL[sk]; if (V.TUNE && !(sk in V.TUNE)) V.TUNE[sk] = SHELL[sk]; }
 }
-var BUILD = 'volley-f0-2';
+var BUILD = 'volley-f0-3';
 // Persist tuning (only values that differ from defaults). Every storage call is guarded. Sound on/off is NOT kept here any more:
 // V.TUNE.SOUND is a view of V.Audio's mute, saved in 'volley.settings.v1' (audio.js), so a tune reset or save wipe keeps it.
 // f0-2: sliders were being nudged by accident while scrolling the drawer (M's Fold reports showed FIRE_INTERVAL at the
@@ -4293,7 +4312,11 @@ UI.boss = function(S, view){
 };
 UI.howto = function(on, view){
   var el = $('howto');
-  if (on) { el.style.top = Math.round(view.oy + 15 * view.s + 14) + 'px'; if (el.style.display !== 'block') el.style.display = 'block'; }
+  if (on) {
+    if (el.style.display !== 'block') el.style.display = 'block';
+    var below = view.oy + 15 * view.s + 14, hh = el.offsetHeight || 34;   // squat screens (full-screen frame, pick 43) have no band below the room:
+    el.style.top = Math.round(below + hh <= view.h - 4 ? below : view.oy + 1.6 * view.s) + 'px';   // then sit under the door, away from the hero's start
+  }
   else if (el.style.display !== 'none') el.style.display = 'none';
 };
 function fmtN(n){ return (V.Home && V.Home.fmt) ? V.Home.fmt(n) : String(n); }
@@ -5411,10 +5434,11 @@ function fail(t){ $('bootMsg').textContent = t; UI.show('ovBoot', true); console
 var UI = V.UI;
 
 // ---------- layout ----------
-// Scaled frame (pick 1, spec 05 s1 / 08 s2): the whole game (Home and run) is one 344 x 882 frame. scale = min(usable W / 344,
-// usable H / 882), usable = window minus safe-area insets (L-PV-13); centred; the spare sides are flat bars (body background).
-// Layout inside the frame never changes with the device. Canvas pixels = shown frame x devicePixelRatio, capped at 2 (render2d/gpu cap).
-var FRAME_W = 344, FRAME_H = 882, BERM_PX = 30, sbProbe = null;   // BERM_PX: sandbag rows + their shadow below the room line (scene.js drawRoomEdge reaches ~y0+27)
+// Full-screen frame (pick 43, M 2026-11-11: "It should be full screen. No bars on the sides."; replaces pick 1's side bars).
+// The frame is always 882 units tall; its width follows the screen shape: W = clamp(round(usable W / usable H x 882), 344, FRAME_W_MAX).
+// usable = window minus safe-area insets (L-PV-13). scale = usable H / 882, or usable W / W when the clamp bites (very tall or very wide
+// screens): only then can a thin band remain, filled by the body background. Canvas pixels = shown frame x devicePixelRatio, capped at 2 (render2d/gpu cap).
+var FRAME_W = 344, FRAME_W_MIN = 344, FRAME_W_MAX = 800, FRAME_H = 882, BERM_PX = 30, sbProbe = null;   // BERM_PX: sandbag rows + their shadow below the room line (scene.js drawRoomEdge reaches ~y0+27)
 var frame0 = { scale: 1, left: 0, top: 0, vw: 0, vh: 0 }, laidOut = false;
 var RESIZE_PAUSE = 0.02;   // guess: a scale change above 2% (fold, unfold, rotate) pauses a run (spec 05 s1); smaller ones (URL bar jitter) do not
 function safeInsets(){
@@ -5425,13 +5449,14 @@ function safeInsets(){
 function layout(){
   var W = G.innerWidth, H = G.innerHeight, st = $('stage'), ins = safeInsets();
   var uw = Math.max(1, W - ins.l - ins.r), uh = Math.max(1, H - ins.t - ins.b);
+  FRAME_W = Math.max(FRAME_W_MIN, Math.min(FRAME_W_MAX, Math.round(uw / uh * FRAME_H)));
   var sc = Math.min(uw / FRAME_W, uh / FRAME_H);
   var left = ins.l + (uw - FRAME_W * sc) / 2, top = ins.t + (uh - FRAME_H * sc) / 2;
   var prev = frame0.scale;
   frame0.scale = sc; frame0.left = left; frame0.top = top; frame0.vw = W; frame0.vh = H;
   st.style.width = FRAME_W + 'px'; st.style.height = FRAME_H + 'px';
   st.style.transform = 'translate(' + left + 'px,' + top + 'px) scale(' + sc + ')';
-  st.style.setProperty('--pv-scale', String(sc));
+  st.style.setProperty('--pv-scale', String(sc)); st.style.setProperty('--pv-frame-w', FRAME_W + 'px');
   var w = FRAME_W, h = FRAME_H;
   var hud = $('hud').offsetHeight || 62;   // offsetHeight is in frame units (transforms do not change it)
   // Contain fit inside the frame: the room (9x15 tiles) plus the berm below it must sit under the HUD. Safe areas are outside the frame now.
@@ -5445,7 +5470,7 @@ function layout(){
 }
 // Screen (client) px -> frame units. Input steering is relative, so only the scale matters for drags; taps on DOM are mapped by the browser.
 function toFrame(cx, cy){ return { x: (cx - frame0.left) / frame0.scale, y: (cy - frame0.top) / frame0.scale }; }
-V.Frame = { W: FRAME_W, H: FRAME_H, toFrame: toFrame, get scale(){ return frame0.scale; }, get left(){ return frame0.left; }, get top(){ return frame0.top; } };
+V.Frame = { get W(){ return FRAME_W; }, H: FRAME_H, toFrame: toFrame, get scale(){ return frame0.scale; }, get left(){ return frame0.left; }, get top(){ return frame0.top; } };
 
 // ---------- events from the sim ----------
 function vib(ms){

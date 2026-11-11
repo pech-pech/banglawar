@@ -1,5 +1,5 @@
 /* ==========================================================================
-   Project Volley UI kit  (ui-kit.css)   344 x 882 portrait, no dependencies
+   Project Volley UI kit  (ui-kit.css)   portrait frame 882 tall, 344-800 wide (--pv-frame-w), no dependencies
    Look: military field hardware. Gunmetal + olive panels, sand/off-white text,
    cyan = hero accent + primary action, red = enemies/danger only,
    amber hazard stripes = warnings only. Thin ink outlines, stencil labels.
@@ -78,13 +78,13 @@
   --pv-ui-glow:0 0 10px rgba(56,232,255,.45);
   --pv-ui-bevel:inset 0 1px 0 rgba(255,255,255,.10), inset 0 -2px 0 rgba(0,0,0,.35);
   /* sizes */
-  --pv-ui-touch:44px; --pv-ui-w:344px; --pv-ui-h:882px; --pv-ui-tabbar-h:64px; --pv-ui-status-h:48px;
+  --pv-ui-touch:44px; --pv-ui-w:var(--pv-frame-w,344px); --pv-ui-col:520px; --pv-ui-h:882px; --pv-ui-tabbar-h:64px; --pv-ui-status-h:48px;
   --pv-ui-hazard:repeating-linear-gradient(-45deg,var(--pv-ui-amber) 0 8px,var(--pv-ui-amber-ink) 8px 16px);
   --pv-ui-rivet:radial-gradient(circle at 35% 35%,#7b848d 0 1px,#3a4149 2px,#14181c 3px,transparent 3.5px);
 }
 
 *,*::before,*::after{box-sizing:border-box}
-.pv-screen{position:relative;width:344px;height:882px;overflow:hidden;background:
+.pv-screen{position:relative;width:var(--pv-frame-w,344px);--pv-ui-w:var(--pv-frame-w,344px);height:882px;overflow:hidden;background:
   radial-gradient(120% 60% at 50% 0,#1b2026 0,transparent 70%),
   repeating-linear-gradient(0deg,rgba(255,255,255,.012) 0 2px,transparent 2px 4px),var(--pv-ui-bg);
   color:var(--pv-ui-text);font:400 var(--pv-ui-fs-md)/1.35 var(--pv-ui-font);
@@ -292,7 +292,9 @@
 /* Deploy tab. #pane-deploy is a size container: the art follows the card width (328:216, never stretched) and shrinks with the pane height,
    so card + Best stage + DEPLOY + note always fit; if a very short pane still cannot fit, the pane scrolls and its 28 px bottom pad keeps DEPLOY clear of the raised tab. */
 #pane-deploy{container-type:size}
-#pane-deploy>*{--dep-h:clamp(64px,14cqh,88px);--art-h:max(96px,min(calc(100cqw*216/328),calc(100cqh - 191px - var(--dep-h))))}
+/* Wide frame (full screen, no side bars): the Deploy column is at most --pv-ui-col wide and centred; the art follows the column width. */
+#pane-deploy>*{--col-w:min(100cqw,var(--pv-ui-col));--dep-h:clamp(64px,14cqh,88px);--art-h:max(96px,min(calc(var(--col-w)*216/328),calc(100cqh - 191px - var(--dep-h))))}
+#pane-deploy>:not(.hm-deploy){width:100%;max-width:var(--pv-ui-col);margin-left:auto;margin-right:auto}
 .hm-card{height:calc(var(--art-h) + 84px);padding:0;border:var(--pv-ui-stroke-heavy) solid var(--pv-ui-ink);border-radius:var(--pv-ui-r-lg);box-shadow:var(--pv-ui-sh-1);flex:none}
 .hm-card .pv-chapter__art{background:var(--pv-ui-metal-900);inset:0 0 auto 0;height:var(--art-h)}   /* key-art-card 328x216 anchored to the top edge; the rest of the card is solid dark (placement sheet) */
 .hm-card .pv-chapter__art img{width:100%;height:100%;object-fit:cover;object-position:50% 0;display:block}
@@ -306,3 +308,18 @@
 .hm-note{margin-top:10px;text-align:center}
 /* results portrait + Home button */
 #resPortrait{display:block;flex:none;width:72px;height:96px;border-radius:4px;border:2px solid #0f1215;box-shadow:0 0 0 1.5px #4a535d;object-fit:cover;object-position:top;background:#1b2026}
+
+/* ===== Wide frame (M: "full screen, no bars on the sides") =====
+   #stage is 882 tall and 344-800 wide (--pv-frame-w). The status bar, tab bar, scrims and sheet backgrounds span edge to edge;
+   reading content sits in a centred column of at most --pv-ui-col (520 px). --pv-gut = side padding that centres that column.
+   Selectors start with #hmBody so they win over the tab CSS each tab injects into <head> at mount. */
+#hmBody{--pv-gut:max(0px,calc((100% - var(--pv-ui-col)) / 2))}
+#hmBody .ta-scroll{padding-left:max(16px,calc((100% - var(--pv-ui-col)) / 2));padding-right:max(16px,calc((100% - var(--pv-ui-col)) / 2))}
+#hmBody .tb-up .body{padding-left:max(12px,calc((100% - var(--pv-ui-col)) / 2));padding-right:max(12px,calc((100% - var(--pv-ui-col)) / 2))}
+#hmBody .tb-in .body{padding-left:max(12px,calc((100% - var(--pv-ui-col)) / 2));padding-right:max(12px,calc((100% - var(--pv-ui-col)) / 2))}
+/* bottom sheets: full-width sheet, content in the column; the close button stays at the column's right edge */
+#hmBody .ta-sheet{padding-left:max(16px,calc((100% - var(--pv-ui-col)) / 2));padding-right:max(16px,calc((100% - var(--pv-ui-col)) / 2))}
+#hmBody .ta-sheet .ta-x{right:max(8px,calc((100% - var(--pv-ui-col)) / 2 - 8px))}
+#hmBody .tb-sheet{padding-left:max(16px,calc((100% - var(--pv-ui-col)) / 2));padding-right:max(16px,calc((100% - var(--pv-ui-col)) / 2))}
+#hmBody .tb-res .card{max-width:400px}
+#hmBody .hm-soon{max-width:var(--pv-ui-col);margin-left:auto;margin-right:auto}

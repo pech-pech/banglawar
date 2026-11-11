@@ -14,10 +14,11 @@ function fail(t){ $('bootMsg').textContent = t; UI.show('ovBoot', true); console
 var UI = V.UI;
 
 // ---------- layout ----------
-// Scaled frame (pick 1, spec 05 s1 / 08 s2): the whole game (Home and run) is one 344 x 882 frame. scale = min(usable W / 344,
-// usable H / 882), usable = window minus safe-area insets (L-PV-13); centred; the spare sides are flat bars (body background).
-// Layout inside the frame never changes with the device. Canvas pixels = shown frame x devicePixelRatio, capped at 2 (render2d/gpu cap).
-var FRAME_W = 344, FRAME_H = 882, BERM_PX = 30, sbProbe = null;   // BERM_PX: sandbag rows + their shadow below the room line (scene.js drawRoomEdge reaches ~y0+27)
+// Full-screen frame (pick 43, M 2026-11-11: "It should be full screen. No bars on the sides."; replaces pick 1's side bars).
+// The frame is always 882 units tall; its width follows the screen shape: W = clamp(round(usable W / usable H x 882), 344, FRAME_W_MAX).
+// usable = window minus safe-area insets (L-PV-13). scale = usable H / 882, or usable W / W when the clamp bites (very tall or very wide
+// screens): only then can a thin band remain, filled by the body background. Canvas pixels = shown frame x devicePixelRatio, capped at 2 (render2d/gpu cap).
+var FRAME_W = 344, FRAME_W_MIN = 344, FRAME_W_MAX = 800, FRAME_H = 882, BERM_PX = 30, sbProbe = null;   // BERM_PX: sandbag rows + their shadow below the room line (scene.js drawRoomEdge reaches ~y0+27)
 var frame0 = { scale: 1, left: 0, top: 0, vw: 0, vh: 0 }, laidOut = false;
 var RESIZE_PAUSE = 0.02;   // guess: a scale change above 2% (fold, unfold, rotate) pauses a run (spec 05 s1); smaller ones (URL bar jitter) do not
 function safeInsets(){
@@ -28,13 +29,14 @@ function safeInsets(){
 function layout(){
   var W = G.innerWidth, H = G.innerHeight, st = $('stage'), ins = safeInsets();
   var uw = Math.max(1, W - ins.l - ins.r), uh = Math.max(1, H - ins.t - ins.b);
+  FRAME_W = Math.max(FRAME_W_MIN, Math.min(FRAME_W_MAX, Math.round(uw / uh * FRAME_H)));
   var sc = Math.min(uw / FRAME_W, uh / FRAME_H);
   var left = ins.l + (uw - FRAME_W * sc) / 2, top = ins.t + (uh - FRAME_H * sc) / 2;
   var prev = frame0.scale;
   frame0.scale = sc; frame0.left = left; frame0.top = top; frame0.vw = W; frame0.vh = H;
   st.style.width = FRAME_W + 'px'; st.style.height = FRAME_H + 'px';
   st.style.transform = 'translate(' + left + 'px,' + top + 'px) scale(' + sc + ')';
-  st.style.setProperty('--pv-scale', String(sc));
+  st.style.setProperty('--pv-scale', String(sc)); st.style.setProperty('--pv-frame-w', FRAME_W + 'px');
   var w = FRAME_W, h = FRAME_H;
   var hud = $('hud').offsetHeight || 62;   // offsetHeight is in frame units (transforms do not change it)
   // Contain fit inside the frame: the room (9x15 tiles) plus the berm below it must sit under the HUD. Safe areas are outside the frame now.
@@ -48,7 +50,7 @@ function layout(){
 }
 // Screen (client) px -> frame units. Input steering is relative, so only the scale matters for drags; taps on DOM are mapped by the browser.
 function toFrame(cx, cy){ return { x: (cx - frame0.left) / frame0.scale, y: (cy - frame0.top) / frame0.scale }; }
-V.Frame = { W: FRAME_W, H: FRAME_H, toFrame: toFrame, get scale(){ return frame0.scale; }, get left(){ return frame0.left; }, get top(){ return frame0.top; } };
+V.Frame = { get W(){ return FRAME_W; }, H: FRAME_H, toFrame: toFrame, get scale(){ return frame0.scale; }, get left(){ return frame0.left; }, get top(){ return frame0.top; } };
 
 // ---------- events from the sim ----------
 function vib(ms){
