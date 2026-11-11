@@ -35,6 +35,7 @@ var PAL = {
   hpTrack: C(58, 50, 42), oob: C(70, 44, 18, 0.26), curb: C(176, 168, 150), curbTop: C(206, 199, 182),
   bag: C(170, 146, 100), bagTop: C(196, 174, 128), bagSeam: C(128, 106, 70),
   hazPlate: C(178, 158, 122), hazYellow: C(255, 200, 30), spikeRust: C(150, 70, 40),
+  outside: C(0, 0, 0, 0.35), // R42 Q2-A: ground beyond the clamped room at 65% brightness (guess, FULLSCREEN-LAYOUT 1)
   shellShadow: C(60, 38, 16, 0.42), stunEye: C(110, 34, 30), chestIn: C(44, 28, 14), gold: C(255, 214, 70)
 };
 var TAU = Math.PI * 2;
@@ -136,7 +137,7 @@ function oNgon(x, y, r, n, rot, c) { ngon(x, y, r + OL / Math.cos(Math.PI / n), 
 
 // raycast in world units against solids and room bounds (for the aim line)
 function rayLen(S, x, y, ang, max) {
-  var dx = Math.cos(ang), dy = Math.sin(ang), sol = S.room.solids || [], W = S.room.w || 9, H = S.room.h || 15;
+  var dx = Math.cos(ang), dy = Math.sin(ang), sol = S.room.solids || [], W = S.room.w || S.cols || 9, H = S.room.h || 15;
   for (var d = 0.3; d < max; d += 0.08) {
     var px = x + dx * d, py = y + dy * d;
     if (px < 0 || py < 0 || px > W || py > H) return d;
@@ -155,8 +156,10 @@ function groundDeco(S) {
   return deco;
 }
 
-function drawSolidShadow(q, s) {
-  rect(X(q.x + q.w / 2) + sh.x, Y(q.y + q.h / 2) + sh.y, q.w * s, q.h * s, PAL.shadow);
+function drawSolidShadow(q, s, RW, RH) {
+  // QA-VISUAL D4: the hard shadow is clipped to the room rect, so the top wall's shadow never spills onto the side strip or the dark ground
+  var x0 = Math.max(X(q.x) + sh.x, X(0)), x1 = Math.min(X(q.x + q.w) + sh.x, X(RW)), y0 = Math.max(Y(q.y) + sh.y, Y(0)), y1 = Math.min(Y(q.y + q.h) + sh.y, Y(RH));
+  if (x1 > x0 && y1 > y0) rect((x0 + x1) / 2, (y0 + y1) / 2, x1 - x0, y1 - y0, PAL.shadow);
 }
 function drawSolid(q, s) {
   var cx = X(q.x + q.w / 2), cy = Y(q.y + q.h / 2), w = q.w * s, h = q.h * s;
@@ -593,7 +596,7 @@ function drawChest(S, s, t) {
 
 function drawSupply(S, s, t) {
   if (S.stageKind !== 'supply') return;
-  var p = S.supplyPos || { x: (S.room && S.room.w || 9) / 2, y: (S.room && S.room.h || 15) / 2 }, x = X(p.x), y = Y(p.y), w = 1.1 * s;
+  var p = S.supplyPos || { x: (S.room && S.room.w || S.cols || 9) / 2, y: (S.room && S.room.h || 15) / 2 }, x = X(p.x), y = Y(p.y), w = 1.1 * s;
   rect(x + sh.x * 1.3, y + sh.y * 1.3, w, w, PAL.shadow);
   oRect(x, y, w, w, PAL.crate);
   if (!S.supply && S.phase !== 'supply') {   // choice made: crate stands open and empty (dark inside, lid knocked aside), no beacon
@@ -627,11 +630,48 @@ function drawHeroHp(S, s) {
 }
 
 // QA-P1 D3: visible room edge (visual only; sim bounds unchanged). Same sand everywhere; out of bounds is a shade of it.
+// Stepped rooms (R42, FULLSCREEN-LAYOUT 1): spare width of one tile or less in total is the room's own side wall, half each side;
+// beyond the 15-column clamp the ground outside the room is the same sand at 65% brightness (Q2-A), with no lights and no text.
 function drawOutOfBounds(S, s, RW, RH) {
   var y0 = Y(RH), xl = X(0), xr = X(RW);
-  if (y0 < vw.h) rect(vw.w / 2, (y0 + vw.h) / 2, vw.w + 2, vw.h - y0, PAL.oob);
-  if (xl > 0.5) rect(xl / 2, (Y(0) + y0) / 2, xl, y0 - Y(0), PAL.oob);
-  if (xr < vw.w - 0.5) rect((xr + vw.w) / 2, (Y(0) + y0) / 2, vw.w - xr, y0 - Y(0), PAL.oob);
+  if (y0 < vw.h) rect((xl + xr) / 2, (y0 + vw.h) / 2, xr - xl, vw.h - y0, PAL.oob); // ground apron under the room
+  if (!(xl > 0.5 || xr < vw.w - 0.5)) return;
+  var spare = xl + (vw.w - xr), yt = Y(0);
+  if (spare <= s + 0.5) {   // thin side wall (at most one tile in total)
+    var ys = Y(topWallH(S, RW)); // seam (side-wall rail) starts under the top wall; drawWallCorners joins the two
+    if (xl > 0.5) { rect(xl / 2, (yt + y0) / 2, xl, y0 - yt, PAL.wall); rect(xl - 1, (ys + y0) / 2, 2, y0 - ys, PAL.wallSeam); }
+    if (xr < vw.w - 0.5) { rect((xr + vw.w) / 2, (yt + y0) / 2, vw.w - xr, y0 - yt, PAL.wall); rect(xr + 1, (ys + y0) / 2, 2, y0 - ys, PAL.wallSeam); }
+    if (y0 < vw.h) { if (xl > 0.5) rect(xl / 2, (y0 + vw.h) / 2, xl, vw.h - y0, PAL.oob); if (xr < vw.w - 0.5) rect((xr + vw.w) / 2, (y0 + vw.h) / 2, vw.w - xr, vw.h - y0, PAL.oob); }
+    return;
+  }
+  // beyond the clamp: darkened ground (black at 0.35 over the sand and its decals = 65% brightness), full height; perimeter line on the room edge
+  if (xl > 0.5) rect(xl / 2, vw.h / 2, xl + 1, vw.h + 2, PAL.outside);
+  if (xr < vw.w - 0.5) rect((xr + vw.w) / 2, vw.h / 2, vw.w - xr + 1, vw.h + 2, PAL.outside);
+  rect(xl - 1.5, (yt + y0) / 2, 3, y0 - yt, PAL.ink); rect(xr + 1.5, (yt + y0) / 2, 3, y0 - yt, PAL.ink);
+}
+// height (tiles) of the top wall: the solids on row 0 touching a side of the room (1 in every template; 0 if a room has none)
+function topWallH(S, RW) {
+  var sol = (S.room && S.room.solids) || [], h = 0;
+  for (var i = 0; i < sol.length; i++) { var q = sol[i]; if (q.y <= 0.01 && (q.x <= 0.01 || q.x + q.w >= RW - 0.01)) h = Math.max(h, q.h); }
+  return h;
+}
+// QA-VISUAL D4 (option A): with a thin side strip (spare width of one tile or less), the strip is the side wall's continuation of the top wall:
+// the top wall's face (wall rim + light top) runs on to the screen edge, its bottom ink line runs across the strip, and the strip's rail starts
+// under it, so neither top corner shows a seam. Drawn after the solids so it covers the top wall's own end outline.
+function drawWallCorners(S, s, RW, RH) {
+  var xl = X(0), xr = X(RW), spare = xl + (vw.w - xr);
+  if (!(xl > 0.5 || xr < vw.w - 0.5) || spare > s + 0.5) return;
+  var h = topWallH(S, RW); if (!(h > 0)) return;
+  var yt = Y(0), yb = Y(h), ph = yb - yt;
+  for (var k = 0; k < 2; k++) {
+    var a = k ? xr - OL - 0.5 : 0, b = k ? vw.w : xl + OL + 0.5; // covers the top wall's end outline (OL wide) on that side
+    if (k ? !(xr < vw.w - 0.5) : !(xl > 0.5)) continue;
+    var ia = k ? xr : 0, ib = k ? vw.w : xl;                                       // ink band (bottom rim) stops at the room edge, under the face
+    rect((ia + ib) / 2, (yt + yb) / 2, ib - ia, ph + 2 * OL, PAL.ink);             // so no half-covered ink pixel is left at the join
+    rect((a + b) / 2, (yt + yb) / 2 - OL / 2, b - a, ph + OL, PAL.wall);           // wall face, flush with the top edge
+    var la = k ? xr - 5 : 0, lb = k ? vw.w : xl + 4;                              // light top, overlapping the top wall's inner rect (no AA seam)
+    rect((la + lb) / 2, (yt + 1 + yb - 3) / 2, lb - la, ph - 4, PAL.wallTop);
+  }
 }
 function drawRoomEdge(S, s, RW, RH) {
   var y0 = Y(RH), yt = Y(0.5), xl = X(0), xr = X(RW), cw = 4;
@@ -642,11 +682,12 @@ function drawRoomEdge(S, s, RW, RH) {
     rect(cx, yt + hh / 2, cw, hh, PAL.curb);
     rect(cx + (k ? 0.5 : -0.5), yt + hh / 2, 1.5, hh, PAL.curbTop);
   }
-  // bottom berm: two staggered rows of sandbags just outside the room line, hard shadow below
-  var bw = Math.max(18, s * 0.6), bh = 9, n = Math.ceil((xr - xl) / bw) + 1, rb = bh / 2, core = bw - 2 * rb - 1.5;
-  rect((xl + xr) / 2, y0 + 20 + sh.y * 0.5, xr - xl, 6, PAL.shadow);
+  // bottom berm: two staggered rows of sandbags inside the bottom strip of row 14 (QA-VISUAL D1 option A: same look at every size, whole
+  // even with no apron). The front row's lower rim sits on the room line; with an apron, the hard shadow falls on the ground below it.
+  var bw = Math.max(18, s * 0.6), bh = 9, n = Math.ceil((xr - xl) / bw) + 1, rb = bh / 2, core = bw - 2 * rb - 1.5, b0 = y0 - 19;
+  if (y0 < vw.h) rect((xl + xr) / 2, y0 + 1 + sh.y * 0.5, xr - xl, 6, PAL.shadow);
   for (var row = 0; row < 2; row++) {
-    var by = y0 + 5.5 + row * 8, off = row ? bw / 2 : 0;
+    var by = b0 + 5.5 + row * 8, off = row ? bw / 2 : 0;
     for (var i = -1; i < n; i++) {
       var bx = xl + off + i * bw + bw / 2;
       if (bx + bw / 2 < xl - 2 || bx - bw / 2 > xr + 2) continue;
@@ -699,7 +740,7 @@ V.Scene = {
       if (d.streak) line(d.x - 6 * Math.cos(d.a), d.y - 2, d.x + 6 * Math.cos(d.a), d.y + 2, 1, PAL.groundDot);
       else circ(d.x, d.y, d.r, d.light ? PAL.groundDot2 : PAL.groundDot);
     }
-    var R = S.room, RW = (R && R.w) || 9, RH = (R && R.h) || 15;
+    var R = S.room, RW = (R && R.w) || S.cols || 9, RH = (R && R.h) || 15;
     // room floor = same sand as the ground below (M 2026-11-10: one continuous yard, no panel)
     drawOutOfBounds(S, s, RW, RH); // QA-P1 D3: below/beside the room = same sand, shaded darker
 
@@ -709,7 +750,7 @@ V.Scene = {
     drawShellRings(S, s, t);
 
     // shadows (hard, low sun from the upper left)
-    for (i = 0; i < sol.length; i++) drawSolidShadow(sol[i], s);
+    for (i = 0; i < sol.length; i++) drawSolidShadow(sol[i], s, RW, RH);
     var pk = S.pickups || [];
     for (i = 0; i < pk.length; i++) circ(X(pk[i].x) + sh.x * 0.4, Y(pk[i].y) + sh.y * 0.4, 4, PAL.shadow);
     for (i = 0; i < E.length; i++) {
@@ -726,6 +767,7 @@ V.Scene = {
 
     drawRoomEdge(S, s, RW, RH); // QA-P1 D3: sandbag berm + side curbs
     for (i = 0; i < sol.length; i++) drawSolid(sol[i], s);
+    drawWallCorners(S, s, RW, RH); // QA-VISUAL D4: thin side strip joined to the top wall
     drawDoor(S, s);
     drawSupply(S, s, t);
     drawChest(S, s, t);

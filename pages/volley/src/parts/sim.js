@@ -60,7 +60,7 @@ function fallbackStages(){
     var kind = 'combat';
     if (i === 5) { kind = 'supply'; sp = []; }
     else if (i === 9) { kind = 'cache'; sp = sp.filter(function(s){ return s.type === 'E-01'; }).slice(0, 2); }
-    else if (i === 10 && V.AI['B-01'] && V.ROOMS.BA1) { kind = 'boss'; room = 'BA1'; sp = [{ type:'B-01', x:4.5, y:3.5, t:0 }]; }
+    else if (i === 10 && V.AI['B-01'] && V.ROOMS.BA1) { kind = 'boss'; room = 'BA1'; sp = [{ type:'B-01', x:4.5, y:3.5, t:0 }]; } // template coords (9 columns); loadStage widens
     out.push({ stage:i, kind:kind, room:room, spawns:sp, note:'fallback' });
   }
   return out;
@@ -79,6 +79,8 @@ function ev(S, o){ S.events.push(o); return o; }
 // table row at every create (the AI parts load after this one, so binding at load is too early). Node loaders that skip the data part get it here.
 if (!(V.Data && V.Data.enemies) && typeof require === 'function' && typeof module !== 'undefined') { try { require('./data-enemies.js'); } catch (e) {} }
 function bindData(){ var T = V.Data && V.Data.enemies; if (!T) return; for (var k in T) if (V.AI[k] && V.AI[k].base !== T[k]) V.AI[k].base = T[k]; }
+// Stepped rooms (pick 43 / R42): parts/widen.js builds the C-column room. Node loaders that skip it get it here.
+if (!V.Widen && typeof require === 'function' && typeof module !== 'undefined') { try { require('./widen.js'); } catch (e) {} }
 function base(e){ var A = V.AI[e.type]; return A ? A.base : { hp:100, contact:40, dmg:40, speed:0, r:0.4, size:'medium', xp:8 }; }
 
 // ---------- mod hooks ----------
@@ -204,26 +206,36 @@ function spawnEnemy(S, type, x, y){
   return e;
 }
 
+// Column class for the next room (R42: C is read at each room entry only). opts.colsFn() wins over opts.cols; default 9.
+function roomCols(S){
+  var o = S.metaOpts, c = 9;
+  if (o && typeof o.colsFn === 'function') { try { c = o.colsFn(); } catch (e) { c = 9; } }
+  else if (o && o.cols != null) c = o.cols;
+  return V.Widen ? V.Widen.cols(c) : 9;
+}
 function loadStage(S, idx){
   var list = stageList(), def = list[idx];
   S.stageIdx = idx; S.stage = idx + 1; S.stageDef = def;
   S.stageKind = def.kind || 'combat';
-  var R = V.ROOMS[def.room] || V.ROOMS.R01, grid = R.grid;
-  var d = findChar(grid, 'D') || { x:4, y:0 }, sp = findChar(grid, 'S') || { x:4, y:14 };
+  var R = V.ROOMS[def.room] || V.ROOMS.R01, C = roomCols(S);
+  var WR = V.Widen ? V.Widen.room(R, C) : { grid:R.grid, w:R.grid[0].length, k:0 }, grid = WR.grid;
+  S.cols = grid[0].length;
+  var mid = Math.floor(S.cols / 2), d = findChar(grid, 'D') || { x:mid, y:0 }, sp = findChar(grid, 'S') || { x:mid, y:grid.length - 1 };
   S.roomId = V.ROOMS[def.room] ? def.room : 'R01';
-  S.room = { w:grid[0].length, h:grid.length, name:R.name,
+  S.room = { w:grid[0].length, h:grid.length, name:R.name, cols:S.cols, k:WR.k || 0, grid:grid, fill:WR.fill || [],
     solids:buildRects(grid, '#', function(y){ return y === 0 ? 'wall' : (R.cover || 'pillar'); }),
     door:{ x:d.x, y:d.y, w:1, h:1, open:false } };
   S.hazards = buildRects(grid, '^', function(){ return 'spikes'; });
   S.enemies = []; S.rounds = []; S.shots = []; S.shells = []; S.pickups = [];
   S.boss = null; S.supply = null; S.chest = null; S.cards = null;
   var c = findChar(grid, 'C');
-  if (S.stageKind === 'cache') S.chest = { x:(c ? c.x : 4) + 0.5, y:(c ? c.y : 4) + 0.5, open:false };
+  if (S.stageKind === 'cache') S.chest = { x:(c ? c.x : mid) + 0.5, y:(c ? c.y : 4) + 0.5, open:false };
   var h = S.hero;
   h.x = sp.x + 0.5; h.y = sp.y + 0.5; h.ang = -Math.PI / 2;
   h.lockId = null; h.lockClear = false; h.lostT = 0; h.retargetT = 0; h.burstQ = []; h.delayQ = [];
   S.roomT = 0; S.clearT = 0; S.hazardCd = 0;
-  S.spawnQ = (def.spawns || []).map(function(s){ return { type:s.type, x:s.x, y:s.y, t:s.t || 0 }; });
+  var spl = V.Widen && S.cols !== 9 ? V.Widen.spawns(def.spawns || [], S.cols, R) : (def.spawns || []); // template coords -> C columns
+  S.spawnQ = spl.map(function(s){ return { type:s.type, x:s.x, y:s.y, t:s.t || 0 }; });
   S.spawnQ.sort(function(a, b){ return a.t - b.t; });
   ev(S, { k:'room', x:h.x, y:h.y, roomId:S.roomId, stage:S.stage, kind:S.stageKind, lap:S.lap });
   if (S.stageKind === 'supply') {
@@ -250,6 +262,7 @@ function create(seed, tune, opts){
   seed = (seed >>> 0);
   var S = { seed:seed, frame:0, t:0, tune:tune, phase:'play', stage:1, stageIdx:0, stageKind:'combat', roomId:null, lap:1,
     room:null,
+    // hero x/y are placeholders: loadStage puts the Operator on the room's start tile (centre column of row 14)
     hero:{ x:4.5, y:14.5, r:HERO_HURT_R, hp:tune.HERO_HP, maxHp:tune.HERO_HP, atk:tune.HERO_ATK, ang:-Math.PI / 2,
       moving:false, braced:false, brace01:0, fireCd:0, invulnT:0, lockId:null, lockClear:false,
       level:1, xp:0, xpNext:LEVEL_COST[2], mods:{}, braceT:0, lostT:0, retargetT:0, burstQ:[], delayQ:[] },
@@ -342,7 +355,7 @@ function stepHero(S, inp, dt){
   if (h.fireCd > 0) h.fireCd = Math.max(0, h.fireCd - dt);
   if (len > 1e-6) {
     mx /= len; my /= len;
-    var sp = t.MOVE_SPEED * S.st.moveMul;
+    var sp = t.MOVE_SPEED * S.st.moveMul * (S.phase === 'clear' && inp.walk > 1 ? inp.walk : 1);   // pick 45: auto-walk to the door runs faster (inp.walk, set by main.js only)
     h.x += mx * sp * dt; h.y += my * sp * dt;
     collideBody(S, h, HERO_WALL_R);
     h.ang = Math.atan2(my, mx);
@@ -526,6 +539,20 @@ function separate(S){
 }
 
 // ---------- damage to enemies ----------
+// R45 (b): from 11 columns up, a repair drop that would land in a bottom 3 x 3 corner moves to the centre of the nearest
+// floor cell outside both corners (first found wins a tie; no rng). At 9 columns the drop is untouched.
+var CORNER = 3;
+function inCorner(S, cx, cy){ var w = S.room.w, h = S.room.h; return cy >= h - CORNER && (cx < CORNER || cx >= w - CORNER); }
+function dropSpot(S, x, y){
+  if (!(S.room.w >= 11) || !inCorner(S, Math.floor(x), Math.floor(y))) return { x:x, y:y };
+  var g = S.room.grid, best = null, bd = 1e9;
+  for (var cy = 1; cy < S.room.h; cy++) for (var cx = 0; cx < S.room.w; cx++) {
+    if (inCorner(S, cx, cy) || (g && g[cy][cx] === '#')) continue;
+    var d = Math.hypot(cx + 0.5 - x, cy + 0.5 - y);
+    if (d < bd - 1e-9) { bd = d; best = { x:cx + 0.5, y:cy + 0.5 }; }
+  }
+  return best || { x:x, y:y };
+}
 function killEnemy(S, e){
   var b = base(e);
   S.stats.kills++;
@@ -535,7 +562,7 @@ function killEnemy(S, e){
   if (b.xp) S.pickups.push({ x:e.x, y:e.y, kind:'xp', v:b.xp, life:1e9 });
   if (!e.boss) {
     var p = Math.min(REPAIR_CAP, REPAIR_BASE + S.pity);
-    if (S.rng.next() < p) { S.pickups.push({ x:e.x + 0.2, y:e.y, kind:'repair', v:0, life:REPAIR_LIFE }); S.pity = 0; }
+    if (S.rng.next() < p) { var rp = dropSpot(S, e.x + 0.2, e.y); S.pickups.push({ x:rp.x, y:rp.y, kind:'repair', v:0, life:REPAIR_LIFE }); S.pity = 0; }
     else S.pity += b.size === 'small' ? REPAIR_PITY * 0.5 : REPAIR_PITY;
   } else S.stats.bossTime = +S.roomT.toFixed(2);
   var A = V.AI[e.type]; if (A && A.onDeath) A.onDeath(S, e, api);
@@ -836,7 +863,7 @@ function hash(S){
   return ('00000000' + h.toString(16)).slice(-8);
 }
 
-V.Sim = { create:create, step:step, pick:pick, pickSupply:pickSupply, restart:restart, hash:hash, api:api,
+V.Sim = { dropSpot:dropSpot, create:create, step:step, pick:pick, pickSupply:pickSupply, restart:restart, hash:hash, api:api,
   offer:offer, stats:heroStats, stageList:stageList,
   STEP:STEP, LEVEL_COST:LEVEL_COST, roundDamage:roundDamage, fireInterval:fireInterval, clearLine:clearLine,
   FALLBACK_MODS:FALLBACK_MODS };

@@ -126,6 +126,24 @@ ok('30 random buys max all, then null', M.boughtCount('cond') === 30 && M.state.
 var m1 = mock(), full = { v:2, credits:7, rifle:{ lvl:1 }, cond:{ hp:0, atk:0, rate:0 }, buys:0, power:0, runs:[], best:0, codex:{ seen:{} } };
 m1.d['volley.save.v2'] = JSON.stringify(full); M.load({ storage:m1 });
 ok('v2 save stays writable', M.readOnly === false && M.state.credits === 7 && (M.state.credits = 9, M.save() === true) && JSON.parse(m1.d['volley.save.v2']).credits === 9);
+// F1 report fields (owner C): an old 6-field v2 save still loads; new fields round trip; purchases and resets are logged
+(function(){
+  var ms = mock(), old = { v:2, credits:400, rifle:{ lvl:1 }, cond:{ hp:0, atk:0, rate:0 }, buys:0, power:0, runs:[{ t:1, stage:3, win:false, kills:4, credits:48, dur:30 }], best:3, codex:{ seen:{} } };
+  ms.d['volley.save.v2'] = JSON.stringify(old); M.load({ storage:ms });
+  ok('F1: old v2 save without report fields loads as is', M.resetSignal === '' && M.state.credits === 400 && JSON.stringify(M.state) === JSON.stringify(old), M.state);
+  V.Report = { runFields:function(r){ return { runNo:5, runBuild:'volley-f1-0', startedAt:1000, endReason:r.win ? 'clear' : 'death', hpMax:640, lowestHp:r.win ? 212 : 0, tuneChanged:{}, picks:['SK-02:1'], cols:13 }; } };
+  M.award({ win:true, stage:10, credits:334, kills:28, t:118.04 });
+  var e = M.state.runs[1];
+  ok('F1: award stores runNo, runBuild, startedAt, endReason, hpMax, lowestHp, tuneChanged, picks, cols', e.runNo === 5 && e.runBuild === 'volley-f1-0' && e.startedAt === 1000 && e.endReason === 'clear' && e.hpMax === 640 && e.lowestHp === 212 && e.cols === 13 && e.picks[0] === 'SK-02:1' && e.credits === 334 && e.dur === 118, e);
+  var snap = JSON.stringify(M.state); M.load({ storage:ms });
+  ok('F1: rich entry round trips', JSON.stringify(M.state) === snap);
+  ok('F1: nextRunNo', M.nextRunNo() === 1 && M.state.runSeq === 1);
+  M.buy('rifle'); ok('F1: purchase logged', M.state.purchases.length === 1 && M.state.purchases[0].run === 1 && M.state.purchases[0].before === 734 && M.state.purchases[0].after === 484, M.state.purchases);
+  ms.d['volley.save.v2'] = '{oops'; M.load({ storage:ms });
+  ok('F1: corrupt save -> resets[] holds the reason', M.state.resets.length === 1 && M.state.resets[0].reason === 'corrupt' && JSON.parse(ms.d['volley.save.v2']).resets[0].reason === 'corrupt');
+  M.load({ storage:ms }); ok('F1: next boot keeps the reset record, no new signal', M.resetSignal === '' && M.state.resets.length === 1);
+  delete V.Report;
+})();
 // PV-20: storage blocked (property access throws): loading the file in a browser-like global must not throw.
 (function(){
   var vm = require('vm'), fs = require('fs'), code = fs.readFileSync(path.join(__dirname, 'parts', 'meta.js'), 'utf8'), threw = null, ctx = { console: console };

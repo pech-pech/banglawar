@@ -4,7 +4,8 @@
 var el = null, tune = null;
 var pid = null, x0 = 0, y0 = 0, dx = 0, dy = 0, active = false, down = false;
 var keys = {};
-var log = [], LOG_MAX = 200, t0 = (G.performance ? performance.now() : 0);
+var log = [], LOG_MAX = 600,   // f1-0: room for a whole run's input in the report's last-run block (was 200)
+    t0 = (G.performance ? performance.now() : 0);
 var counts = { downs: 0, ups: 0, cancels: 0, moves: 0 };
 
 function now(){ return Math.round((G.performance ? performance.now() : 0) - t0); }

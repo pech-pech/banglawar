@@ -2,10 +2,10 @@
 // DOM HUD, overlays (cards, death, pause), toasts and the tuning drawer.
 // Shell-only knobs are added here so the drawer and Copy settings cover them.
 if (V.TUNE_DEFAULTS) {
-  var SHELL = { AUTO_WALK: true, AUTO_WALK_DELAY: 1.0, EDGE_FLASH: true, HAPTIC_HURT_MS: 40, HAPTIC_KILL_MS: 12 };
+  var SHELL = { AUTO_WALK: true, AUTO_WALK_DELAY: 1.0, AUTO_WALK_MULT: 2, EDGE_FLASH: true, HAPTIC_HURT_MS: 40, HAPTIC_KILL_MS: 12 };
   for (var sk in SHELL) if (!(sk in V.TUNE_DEFAULTS)) { V.TUNE_DEFAULTS[sk] = SHELL[sk]; if (V.TUNE && !(sk in V.TUNE)) V.TUNE[sk] = SHELL[sk]; }
 }
-var BUILD = 'volley-f0-3';
+var BUILD = 'volley-f1-0';
 // Persist tuning (only values that differ from defaults). Every storage call is guarded. Sound on/off is NOT kept here any more:
 // V.TUNE.SOUND is a view of V.Audio's mute, saved in 'volley.settings.v1' (audio.js), so a tune reset or save wipe keeps it.
 // f0-2: sliders were being nudged by accident while scrolling the drawer (M's Fold reports showed FIRE_INTERVAL at the
@@ -38,7 +38,7 @@ var GROUPS = [
   ['Hero', ['HERO_HP', 'HERO_ATK', 'CRIT_CHANCE', 'CRIT_MULT', 'MOVE_SPEED', 'FIRE_INTERVAL', 'FIRE_FLOOR', 'ROUND_SPEED', 'ROUND_R', 'INVULN', 'PICKUP_R']],
   ['Enemies', ['ENEMY_HP_GLOBAL', 'HP_SLOPE', 'DMG_SLOPE', 'ENEMY_DMG_MULT', 'ENEMY_SHOT_SPEED_MULT', 'TELL_MULT', 'SPAWN_T']],
   ['Feel', ['TIME_SCALE', 'HITSTOP_MS', 'CARDS_OFFERED', 'PICK_DELAY', 'EDGE_FLASH', 'HAPTICS', 'HAPTIC_HURT_MS', 'HAPTIC_KILL_MS', 'SOUND']],
-  ['Input', ['BRACE_DELAY', 'DEADZONE_ENTER', 'DEADZONE_EXIT', 'AUTO_WALK', 'AUTO_WALK_DELAY']]
+  ['Input', ['BRACE_DELAY', 'DEADZONE_ENTER', 'DEADZONE_EXIT', 'AUTO_WALK', 'AUTO_WALK_DELAY', 'AUTO_WALK_MULT']]
 ];
 var RANGE = {
   HERO_HP: [100, 2000, 10], HERO_ATK: [20, 600, 5], CRIT_CHANCE: [0, 1, 0.01], CRIT_MULT: [1, 4, 0.05], MOVE_SPEED: [1, 10, 0.1],
@@ -46,7 +46,7 @@ var RANGE = {
   ENEMY_HP_GLOBAL: [0.1, 3, 0.01], HP_SLOPE: [0, 0.3, 0.002], DMG_SLOPE: [0, 0.3, 0.002], ENEMY_DMG_MULT: [0, 4, 0.05],
   ENEMY_SHOT_SPEED_MULT: [0.2, 3, 0.05], TELL_MULT: [0.2, 3, 0.05], TIME_SCALE: [0.1, 2, 0.05], HITSTOP_MS: [0, 200, 5],
   CARDS_OFFERED: [1, 3, 1], BRACE_DELAY: [0, 1, 0.01], DEADZONE_ENTER: [2, 60, 1], DEADZONE_EXIT: [0, 40, 1],
-  HAPTIC_HURT_MS: [0, 200, 5], AUTO_WALK_DELAY: [0, 3, 0.1], HAPTIC_KILL_MS: [0, 100, 2]
+  HAPTIC_HURT_MS: [0, 200, 5], AUTO_WALK_DELAY: [0, 3, 0.1], AUTO_WALK_MULT: [1, 4, 0.1], HAPTIC_KILL_MS: [0, 100, 2]
 };
 function rangeFor(k, d){
   if (RANGE[k]) return RANGE[k];
@@ -152,10 +152,18 @@ UI.toast = function(text, ms){
   var t = $('toast'); t.textContent = text; t.classList.add('on');
   clearTimeout(toastT); toastT = setTimeout(function(){ t.classList.remove('on'); }, ms || 1600);
 };
+// Positions below are real CSS px (R42: no scaled frame). view.oy + 15 * view.s is the room's bottom edge; view.apron is the ground below it.
+function roomBottom(view){ return view.oy + 15 * view.s; }
+function apronOf(view){ return view.apron != null ? view.apron : Math.max(0, view.h - roomBottom(view)); }
+var HOWTO_GAP = 8, TOAST_H = 32;   // guesses: gap under the room edge; one-line toast height (13 px text + padding)
 UI.placeToast = function(view){
-  // Below the room, in the ground area: never over the HUD bars or the room edge (L-TD-5).
-  // D10: one line, in the band below the room, under the two-line how-to box (top +14, ~50 px tall), clear of the spawn.
-  var t = $('toast'); t.style.top = Math.round(Math.min(view.oy + 15 * view.s + 76, view.h - 56)) + 'px';   // clamp: short screens have no band below the room
+  // In the ground apron when it has room: never over the HUD band or the room edge (L-TD-5). The apron's top part is the how-to hint's
+  // place, so the toast goes under it when both fit; on squat screens (no apron) it sits just under the door row, inside the room.
+  var t = $('toast'), top = roomBottom(view), ap = apronOf(view), y;
+  if (ap >= 120) y = top + 70;                                   // how-to (up to ~54 px) + gaps above it
+  else if (ap >= TOAST_H + 2 * HOWTO_GAP) y = top + (ap - TOAST_H) / 2;
+  else y = view.oy + view.s * 1.15;
+  t.style.top = Math.round(y) + 'px';
 };
 
 // Crit numbers (M's pick: crits only). Pooled DOM, max 8 live.
@@ -200,15 +208,15 @@ UI.hud = function(S, R, view){
     lastHud = key;
     $('stNum').textContent = S.stage;
     $('roomName').textContent = room ? room.name : (S.roomId || '');
+    // No cut-off text (s6): when the chip cannot hold the room name (narrow screens), show only the stage; the name is toasted at room entry.
+    var rn = $('roomName'), sl = $('stageLbl'); rn.style.display = ''; if (sl.scrollWidth > sl.clientWidth + 1) rn.style.display = 'none';
     $('lvl').textContent = 'Lv ' + h.level;
     $('xpFill').style.width = (xpPct * 100).toFixed(1) + '%';
     $('hpFill').style.width = (hp / mx * 100).toFixed(1) + '%';
     $('hpFill').style.background = hp / mx < 0.3 ? '#f07a6e' : '#5fd06a';
-    // Dark text is clipped to the filled part, light text to the empty part.
-    var cut = (100 - hp / mx * 100).toFixed(1) + '%', ht = hp + ' / ' + mx;
+    // The number sits beside the bar (L-PV-7); #hpTxtE is kept hidden for older tests.
+    var ht = hp + ' / ' + mx;
     $('hpTxt').textContent = ht; $('hpTxtE').textContent = ht;
-    $('hpTxt').style.clipPath = 'inset(0 ' + cut + ' 0 0)';
-    $('hpTxtE').style.clipPath = 'inset(0 0 0 ' + (hp / mx * 100).toFixed(1) + '%)';
   }
   UI.rendererLabel(R, view);
   UI.boss(S, view);
@@ -218,13 +226,15 @@ UI.boss = function(S, view){
   var b = S.boss, el = $('bossBar');
   var on = !!(b && b.hp > 0 && S.phase !== 'results');
   if (!on) { if (el.style.display !== 'none') el.style.display = 'none'; bossKey = ''; return; }
-  var k = [b.name, Math.ceil(b.hp), b.maxHp, b.phase, Math.round(view.ox), Math.round(view.oy), Math.round(view.s)].join('|');
+  var k = [b.name, Math.ceil(b.hp), b.maxHp, b.phase, Math.round(view.ox), Math.round(view.oy), Math.round(view.s * 10), view.C].join('|');
   if (k === bossKey) return; bossKey = k;
   // Top of the room, inside the north wall row, so it never covers the HUD bars.
   // D1: name and numbers on a row above a plain full-width bar (block is about 34 px tall).
   el.style.display = 'block';
-  el.style.left = Math.round(view.ox + view.s * 0.25) + 'px';
-  el.style.width = Math.round(view.s * 8.5) + 'px';
+  // Centred on the room, at most 560 wide (wide screens, s4), never wider than the room less half a tile.
+  var rw = (view.C || 9) * view.s, bw = Math.min(560, rw - view.s * 0.5);
+  el.style.left = Math.round(view.ox + (rw - bw) / 2) + 'px';
+  el.style.width = Math.round(bw) + 'px';
   el.style.top = Math.round(view.oy + Math.max(0, (view.s - (el.offsetHeight || 34)) / 2)) + 'px';
   $('bossFill').style.width = Math.max(0, Math.min(100, b.hp / b.maxHp * 100)).toFixed(1) + '%';
   $('bossName').textContent = (b.name || 'Boss') + (b.phase === 2 ? ' - phase 2' : '');
@@ -234,14 +244,23 @@ UI.howto = function(on, view){
   var el = $('howto');
   if (on) {
     if (el.style.display !== 'block') el.style.display = 'block';
-    var below = view.oy + 15 * view.s + 14, hh = el.offsetHeight || 34;   // squat screens (full-screen frame, pick 43) have no band below the room:
-    el.style.top = Math.round(below + hh <= view.h - 4 ? below : view.oy + 1.6 * view.s) + 'px';   // then sit under the door, away from the hero's start
+    // On the ground apron when it fits. Otherwise (QA-VISUAL D3 option A) over rows 12-13, which hold no spawns or tells, centred a bit
+    // above their middle (row 12.6, a guess) and kept clear of the hero's start tile (row 14 centre) and its HP bar (about 0.55 tile + 7 px above it).
+    var hh = el.offsetHeight || 34, below = roomBottom(view) + HOWTO_GAP, fits = apronOf(view) >= hh + 2 * HOWTO_GAP, y;
+    if (fits) y = below;
+    else {
+      var s = view.s, yTop = view.oy + 12 * s, yMax = view.oy + 14.5 * s - 0.28 * s * 1.95 - 10 - 4 - hh;  // hint bottom >= 4 px over the HP bar
+      y = Math.max(yTop, Math.min(view.oy + 12.6 * s - hh / 2, yMax));
+    }
+    y = Math.round(y);
+    if (el.style.top !== y + 'px') el.style.top = y + 'px';
   }
   else if (el.style.display !== 'none') el.style.display = 'none';
 };
 function fmtN(n){ return (V.Home && V.Home.fmt) ? V.Home.fmt(n) : String(n); }
 UI.rendererLabel = function(R, view){
-  var t = (R ? R.name : 'none') + ' | ' + Math.round(view.vw || view.w) + 'x' + Math.round(view.vh || view.h) + ' | x' + (view.scale || 1).toFixed(2) + ' | dpr ' + (Math.round((G.devicePixelRatio || 1) * 100) / 100);
+  // R42 label: viewport | column class | tile px | device pixel ratio, e.g. "Canvas 2D | 344x882 | c9 | 38.2 px | dpr 2.63"
+  var t = (R ? R.name : 'none') + ' | ' + Math.round(view.vw || view.w) + 'x' + Math.round(view.vh || view.h) + ' | c' + (view.C || 9) + ' | ' + (view.s || 0).toFixed(1) + ' px | dpr ' + (Math.round((G.devicePixelRatio || 1) * 100) / 100);
   // D14: the corner label shows only with ?debug=1; the pause card and the tuning drawer always carry it.
   ['rlbl', 'rlblPause', 'rlblDrawer'].forEach(function(id){ var el = $(id); if (el && el.textContent !== t) el.textContent = t; });
 };
@@ -311,6 +330,8 @@ UI.results = function(S){
   UI.show('ovDead', true);
 };
 UI.dead = UI.results;
+// Pause card: the run's mods (the list scrolls inside the panel).
+UI.pauseInfo = function(S){ var el = $('pauseMods'); if (!el || !S || !S.hero) return; var m = modNames(S); el.textContent = m.length ? 'Mods: ' + m.join(', ') : ''; };
 
 function metaBlock(){
   var m = V.Meta && V.Meta.state; if (!m) return null;

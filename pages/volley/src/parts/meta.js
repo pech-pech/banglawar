@@ -43,6 +43,13 @@
 //   V.Meta.roomCredits(kind) / V.Meta.BOSS_BONUS   used by sim.js.
 //   V.Meta.markSeen(type)            codex entry (ignored for an ID that is not in V.Data.enemies, so the save stays valid).
 //   V.Meta.onChange(fn) -> unsubscribe fn.
+//   F1 report fields (owner C, TEST-REPORT-SPEC s7; all OPTIONAL so every older v2 save still loads, key stays v2):
+//     runs[i] may also hold runNo, runBuild, startedAt (epoch ms), endReason ('clear'|'death'|'abandon'), hpMax, lowestHp,
+//       tuneChanged ({KNOB: number|bool}, max 40 keys), picks (['SK-01:2', ...], max 40), cols (9-15). award() asks
+//       V.Report.runFields(result) for them when report.js is loaded; without it the entry is the old 6-field shape.
+//     top level may also hold runSeq (last run number handed out; V.Meta.nextRunNo() increments it, quiet write),
+//       purchases ([{t, run, item, lvl, price, before, after}], last 20; buy() appends and calls V.Report.purchase(item, price)),
+//       resets ([{t, reason}], last 5; reason 'corrupt'|'invalid'|'old-version' from load(), 'user' from reset()).
 //   V.Meta.sample()                  = loadSample('mid', {save:false}): the design thread's sample save (FIX-ROUND-1 section A), memory only.
 //                                    Sets credits 12480, rifle Lv 8, cond 15 bought (hp 6, atk 5, rate 4), next price 2250, schematics 86, keys 1, best 23.
 (function(){ var G = (typeof window !== 'undefined' ? window : globalThis); var V = G.V = G.V || {};
@@ -68,7 +75,7 @@ var TUNING = {
   CREDITS_PER_WEIGHT: 24,
   ROOM: { combat: 24, supply: 0, cache: 95, boss: 24 },
   BOSS_BONUS: 47,             // added on boss kill (boss room total 71)
-  RUN_LOG_KEEP: 20,
+  RUN_LOG_KEEP: 20, PURCHASE_KEEP: 20, RESETS_KEEP: 5, RUN_TUNE_KEYS: 40, RUN_PICKS: 40,   // F1 report caps (guesses: 20 runs of about 400 B = 8 KB, well under SAVE_TEXT_MAX)
   // save validation caps (guesses): credits, stage numbers, and the longest save text accepted (a full v2 save is about 2 KB)
   CREDITS_MAX: 1e9, STAGE_MAX: 999, SAVE_TEXT_MAX: 65536
 };
@@ -99,7 +106,43 @@ function knownId(id){
   var T = V.Data && V.Data.enemies;
   return T ? Object.prototype.hasOwnProperty.call(T, id) : /^[EB]-\d\d$/.test(id);
 }
-var TOP = ['v', 'credits', 'rifle', 'cond', 'buys', 'power', 'runs', 'best', 'codex', 'schematics', 'keys'];
+var TOP = ['v', 'credits', 'rifle', 'cond', 'buys', 'power', 'runs', 'best', 'codex', 'schematics', 'keys', 'runSeq', 'purchases', 'resets'];
+var RUN_BASE = ['t', 'stage', 'win', 'kills', 'credits', 'dur'];
+var RUN_EXTRA = ['runNo', 'runBuild', 'startedAt', 'endReason', 'hpMax', 'lowestHp', 'tuneChanged', 'picks', 'cols'];
+var END_REASONS = ['clear', 'death', 'abandon'], RESET_REASONS = ['corrupt', 'invalid', 'old-version', 'user'];
+function isStr(v, max){ return typeof v === 'string' && v.length <= max; }
+// One optional F1 run field: returns the clean value, or undefined when it is not valid (validate() then rejects the save;
+// cleanExtra() just drops it, so award() can never write an entry that fails validation).
+function runExtra(k, v){
+  var T = TUNING;
+  switch (k) {
+    case 'runNo': return isInt(v, 1, 1e9) ? v : undefined;
+    case 'runBuild': return isStr(v, 40) ? v : undefined;
+    case 'startedAt': return isNum(v, 0, 1e15) ? v : undefined;
+    case 'endReason': return END_REASONS.indexOf(v) >= 0 ? v : undefined;
+    case 'hpMax': return isInt(v, 0, 1e6) ? v : undefined;
+    case 'lowestHp': return isInt(v, 0, 1e6) ? v : undefined;
+    case 'cols': return isInt(v, 1, 99) ? v : undefined;
+    case 'tuneChanged': {
+      if (!isObj(v)) return undefined;
+      var o = {}, n = 0;
+      for (var q in v) { var x = v[q]; if (++n > T.RUN_TUNE_KEYS || !/^[A-Z][A-Z0-9_]{0,39}$/.test(q) || !((typeof x === 'number' && isFinite(x)) || typeof x === 'boolean')) return undefined; o[q] = x; }
+      return o;
+    }
+    case 'picks': {
+      if (!Array.isArray(v) || v.length > T.RUN_PICKS) return undefined;
+      for (var i = 0; i < v.length; i++) if (!isStr(v[i], 24)) return undefined;
+      return v.slice();
+    }
+  }
+  return undefined;
+}
+function cleanExtra(x){ var o = {}; if (!isObj(x)) return o; RUN_EXTRA.forEach(function(k){ if (k in x) { var c = runExtra(k, x[k]); if (c !== undefined) o[k] = c; } }); return o; }
+function validPurchase(p){
+  return isObj(p) && onlyKeys(p, ['t', 'run', 'item', 'lvl', 'price', 'before', 'after']) && isNum(p.t, 0, 1e15) && isInt(p.run, 0, 1e9) && isStr(p.item, 24) &&
+    isInt(p.lvl, 0, 99) && isInt(p.price, 0, TUNING.CREDITS_MAX) && isInt(p.before, 0, TUNING.CREDITS_MAX) && isInt(p.after, 0, TUNING.CREDITS_MAX);
+}
+function validReset(r){ return isObj(r) && onlyKeys(r, ['t', 'reason']) && isNum(r.t, 0, 1e15) && RESET_REASONS.indexOf(r.reason) >= 0; }
 // Returns a clean deep copy of a valid v2 save, or null. Never throws.
 function validate(raw){
   try {
@@ -115,9 +158,11 @@ function validate(raw){
     var runs = [];
     for (var i = 0; i < raw.runs.length; i++) {
       var r = raw.runs[i];
-      if (!isObj(r) || !onlyKeys(r, ['t', 'stage', 'win', 'kills', 'credits', 'dur'])) return null;
+      if (!isObj(r) || !onlyKeys(r, RUN_BASE.concat(RUN_EXTRA))) return null;
       if (!isNum(r.t, 0, 1e15) || !isInt(r.stage, 0, T.STAGE_MAX) || typeof r.win !== 'boolean' || !isInt(r.kills, 0, 1e6) || !isInt(r.credits, 0, T.CREDITS_MAX) || !isNum(r.dur, 0, 1e7)) return null;
-      runs.push({ t:r.t, stage:r.stage, win:r.win, kills:r.kills, credits:r.credits, dur:r.dur });
+      var ent = { t:r.t, stage:r.stage, win:r.win, kills:r.kills, credits:r.credits, dur:r.dur };
+      for (var e = 0; e < RUN_EXTRA.length; e++) { var ek = RUN_EXTRA[e]; if (ek in r) { var ev = runExtra(ek, r[ek]); if (ev === undefined) return null; ent[ek] = ev; } }
+      runs.push(ent);
     }
     if (!isInt(raw.best, 0, T.STAGE_MAX)) return null;
     if (!isObj(raw.codex) || !onlyKeys(raw.codex, ['seen']) || !isObj(raw.codex.seen)) return null;
@@ -127,6 +172,17 @@ function validate(raw){
       power:raw.power, runs:runs, best:raw.best, codex:{ seen:seen } };
     if ('schematics' in raw) { if (!isInt(raw.schematics, 0, T.CREDITS_MAX)) return null; s.schematics = raw.schematics; }
     if ('keys' in raw) { if (!isInt(raw.keys, 0, 999)) return null; s.keys = raw.keys; }
+    if ('runSeq' in raw) { if (!isInt(raw.runSeq, 0, 1e9)) return null; s.runSeq = raw.runSeq; }
+    if ('purchases' in raw) {
+      if (!Array.isArray(raw.purchases) || raw.purchases.length > T.PURCHASE_KEEP) return null;
+      s.purchases = [];
+      for (var pi = 0; pi < raw.purchases.length; pi++) { var p = raw.purchases[pi]; if (!validPurchase(p)) return null; s.purchases.push({ t:p.t, run:p.run, item:p.item, lvl:p.lvl, price:p.price, before:p.before, after:p.after }); }
+    }
+    if ('resets' in raw) {
+      if (!Array.isArray(raw.resets) || raw.resets.length > T.RESETS_KEEP) return null;
+      s.resets = [];
+      for (var ri2 = 0; ri2 < raw.resets.length; ri2++) { var rr = raw.resets[ri2]; if (!validReset(rr)) return null; s.resets.push({ t:rr.t, reason:rr.reason }); }
+    }
     return s;
   } catch (e) { return null; }
 }
@@ -189,6 +245,7 @@ M.load = function(opts){
     }
   } else if (old && !skip) reason = 'old-version';
   M.state = s || fresh();
+  if (reason && !newer) addReset(M.state, reason);   // F1 save health: the fresh save remembers why it is fresh
   M.readOnly = newer;
   M.resetSignal = reason;
   M.note = newer ? 'Save from a newer version: progress this session is not saved' : (!M.storageOk ? M.BLOCKED_LINE : (reason ? M.RESET_LINE : ''));
@@ -204,7 +261,20 @@ M.save = function(){   // always notifies onChange listeners, also when there is
   return okk;
 };
 // The one clean reset (Settings "Reset save" and the sample menu's "fresh"): fresh state, written, listeners told. Settings survive.
-M.reset = function(){ M.readOnly = false; M.note = ''; M.resetSignal = ''; M.state = fresh(); M.lastBuy = null; return M.save(); };
+M.reset = function(){
+  var prev = (M.state && Array.isArray(M.state.resets)) ? M.state.resets : [];
+  M.readOnly = false; M.note = ''; M.resetSignal = ''; M.state = fresh(); M.lastBuy = null;
+  M.state.resets = prev.slice(); addReset(M.state, 'user');
+  return M.save();
+};
+function nowMs(){ try { return Date.now(); } catch (e) { return 0; } }   // report timestamps only, never in stats or costs
+function addReset(s, reason){ if (RESET_REASONS.indexOf(reason) < 0) return; s.resets = (s.resets || []).concat([{ t: nowMs(), reason: reason }]); if (s.resets.length > TUNING.RESETS_KEEP) s.resets.splice(0, s.resets.length - TUNING.RESETS_KEEP); }
+// F1 report: the next run number (kept in the save as runSeq). Written without notifying listeners (nothing on screen shows it).
+M.nextRunNo = function(){
+  var s = M.state; s.runSeq = Math.min(1e9, (s.runSeq | 0) + 1);
+  if (storage && !M.readOnly) sset(storage, KEY, JSON.stringify(s));
+  return s.runSeq;
+};
 M.onChange = function(fn){ listeners.push(fn); return function(){ var i = listeners.indexOf(fn); if (i >= 0) listeners.splice(i, 1); }; };
 
 // ---------- settings: own key, read field by field with defaults, survive a save wipe (08 section 4) ----------
@@ -248,9 +318,9 @@ M.cost = function(kind, id){
 M.canBuy = function(kind, id){ var c = M.cost(kind, id); return !!c && M.state.credits >= c.credits; };
 M.buy = function(kind, id){
   if (!M.canBuy(kind, id)) return false;
-  var s = M.state, c = M.cost(kind, id);
+  var s = M.state, c = M.cost(kind, id), before = s.credits, item, lvl;
   s.credits -= c.credits;
-  if (kind === 'rifle') s.rifle.lvl++;
+  if (kind === 'rifle') { s.rifle.lvl++; item = 'Rifle'; lvl = s.rifle.lvl; }
   else {
     var pick = id;
     if (id === 'rand') {
@@ -260,8 +330,13 @@ M.buy = function(kind, id){
       pick = open[h % open.length];
     }
     s.cond[pick]++; s.buys++; M.lastBuy = pick;
+    item = 'Cond ' + pick; lvl = s.cond[pick];
   }
+  // F1 purchase log (TEST-REPORT-SPEC s3): run = the last run number handed out, so the buy shows "before run run+1"
+  s.purchases = (s.purchases || []).concat([{ t: nowMs(), run: Math.min(1e9, s.runSeq | 0), item: item, lvl: lvl, price: c.credits, before: before, after: s.credits }]);
+  if (s.purchases.length > TUNING.PURCHASE_KEEP) s.purchases.splice(0, s.purchases.length - TUNING.PURCHASE_KEEP);
   M.save();
+  try { if (V.Report && V.Report.purchase) V.Report.purchase(item + ' L' + lvl, c.credits); } catch (e) {}
   return true;
 };
 // Random Conditioning (D4: each buy upgrades a random unlocked stat). Returns the stat id bought, or null (cannot afford / all maxed).
@@ -308,8 +383,11 @@ M.award = function(result){
   var stage = clampInt(result.stage, 0, TUNING.STAGE_MAX, 0);
   if (stage > s.best) s.best = stage;
   var now = 0; try { now = Date.now(); } catch (e) {}   // UI timestamp only
-  s.runs.push({ t: now, stage: stage, win: !!result.win, kills: clampInt(result.kills, 0, 1e6, 0), credits: c,
-    dur: Math.max(0, Math.min(1e7, +(+result.t || 0).toFixed(1))) });   // clamped so the entry always passes validate()
+  var entry = { t: now, stage: stage, win: !!result.win, kills: clampInt(result.kills, 0, 1e6, 0), credits: c,
+    dur: Math.max(0, Math.min(1e7, +(+result.t || 0).toFixed(1))) };   // clamped so the entry always passes validate()
+  var extra = null; try { if (V.Report && V.Report.runFields) extra = V.Report.runFields(result); } catch (e) { extra = null; }
+  var ex = cleanExtra(extra); for (var ek in ex) entry[ek] = ex[ek];   // F1 report fields; invalid ones are dropped, never saved
+  s.runs.push(entry);
   if (s.runs.length > TUNING.RUN_LOG_KEEP) s.runs.splice(0, s.runs.length - TUNING.RUN_LOG_KEEP);
   M.save();
   return { credits: c };

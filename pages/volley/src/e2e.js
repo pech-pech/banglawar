@@ -302,8 +302,8 @@ async function session(browser, target, sess) {
     // F0 (pick: wide screens always scale the whole 344x882 frame with bars): the old cover-screen note is gone.
     ok(note.length === 0, 'wide screen scales the frame with no cover-screen note', note.length ? `still shows "${note[0].txt}"` : 'no cover-screen note');
     if (cv) {
-      const asp = cv.w / cv.h, want = Math.max(344, Math.min(800, Math.round(w / h * 882))) / 882;   // pick 43: full screen, width clamped 344-800
-      ok(Math.abs(asp - want) < 0.03 && Math.abs(cv.left + cv.w / 2 - w / 2) < 4, 'wide: full-screen frame (width clamp 344-800), centred', `canvas ${Math.round(cv.w)}x${Math.round(cv.h)} aspect ${asp.toFixed(3)} (want ${want.toFixed(3)}), centre off ${Math.round(cv.left + cv.w / 2 - w / 2)} px`);
+      // R42 (f1-0): no scaled frame; the canvas CSS box is the whole viewport
+      ok(Math.abs(cv.w - w) <= 1 && Math.abs(cv.h - h) <= 1 && Math.abs(cv.left) <= 1, 'wide: canvas fills the viewport (R42)', `canvas ${Math.round(cv.w)}x${Math.round(cv.h)} at ${Math.round(cv.left)} vs viewport ${w}x${h}`);
     }
     await dragTest(page, cdp, sess, cv, view, w, h, tune0);
     finishErrors(errors, bootErr);
@@ -595,18 +595,19 @@ async function autoWalkTest(page, cdp, cv) {
   while (Date.now() - t0 < 9000) { await sleep(250); c1 = await page.evaluate(() => window.__snap()); if (c1.stage !== c0.stage) break; }
   const delay = await page.evaluate(() => window.__pv.tune.AUTO_WALK_DELAY);
   ok(c0.phase === 'clear' && c1.stage === c0.stage + 1, 'clear phase: idle hero auto-walks through the door', `stage ${c0.stage} (${c0.phase}) -> ${c1.stage} ${c1.roomId} after ${((Date.now() - t0) / 1000).toFixed(1)} s real (AUTO_WALK_DELAY ${delay} s)`);
-  // (b) a touch during the clear phase cancels auto-walk for that room.
+  // (b) pick 45: a touch during the clear phase PAUSES auto-walk (no cancel): while held the hero stays put; after the lift it resumes.
   for (let k = 0; k < 20; k++) { await page.evaluate(() => window.__clearRoom(300)); if ((await page.evaluate(() => window.__pv.S.phase)) !== 'play') break; }
   for (let k = 0; k < 5; k++) { const ph = await page.evaluate(() => window.__pv.S.phase); if (ph !== 'pick') break; await page.evaluate(() => window.__pv.pick(0)); await sleep(150); }
   const d0 = await page.evaluate(() => window.__snap());
   if (d0.phase === 'clear') {
     const x = cv.left + cv.w / 2, y = cv.top + cv.h - 45;
-    await T(cdp, 'touchStart', x, y); await sleep(60); await T(cdp, 'touchEnd');
-    await sleep(Math.max(3000, (delay || 1) * 1000 + 2500));
-    const d1 = await page.evaluate(() => window.__snap());
-    const aw = await page.evaluate(() => window.__pv.autoWalk || null);
-    ok(d1.stage === d0.stage && (d1.phase === 'clear' || d1.phase === 'pick') && Math.abs(d1.y - d0.y) < 0.5 && (!aw || aw.cancelled === true), 'a touch in the clear phase cancels auto-walk', `stage ${d0.stage} -> ${d1.stage}, phase ${d1.phase}; hero (${d0.x.toFixed(2)},${d0.y.toFixed(2)}) -> (${d1.x.toFixed(2)},${d1.y.toFixed(2)}); __pv.autoWalk ${JSON.stringify(aw)}`);
-  } else row('a touch in the clear phase cancels auto-walk', 'FAIL', `could not reach a clear phase (phase ${d0.phase} stage ${d0.stage})`);
+    await T(cdp, 'touchStart', x, y); await sleep(Math.max(2000, (delay || 1) * 1000 + 1000));
+    const dh = await page.evaluate(() => window.__snap());
+    await T(cdp, 'touchEnd');
+    const t1 = Date.now(); let d1 = dh;
+    while (Date.now() - t1 < 9000) { await sleep(250); d1 = await page.evaluate(() => window.__snap()); if (d1.stage !== d0.stage) break; if (d1.phase === 'pick') await page.evaluate(() => window.__pv.pick(0)); }
+    ok(dh.stage === d0.stage && Math.abs(dh.y - d0.y) < 0.5 && d1.stage === d0.stage + 1, 'a touch in the clear phase pauses auto-walk; it resumes after the lift (pick 45)', `held: stage ${dh.stage}, hero y ${d0.y.toFixed(2)} -> ${dh.y.toFixed(2)}; after lift: stage ${d1.stage} phase ${d1.phase} in ${((Date.now() - t1) / 1000).toFixed(1)} s`);
+  } else row('a touch in the clear phase pauses auto-walk (pick 45)', 'FAIL', `could not reach a clear phase (phase ${d0.phase} stage ${d0.stage})`);
   await page.evaluate(() => window.__resetTune());
 }
 

@@ -12,31 +12,30 @@
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;height:100%;background:var(--pv-ui-bg,#0b0e11);color:var(--sand);font:14px/1.3 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;overflow:hidden;
   user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;overscroll-behavior:none}
-/* Full-screen frame (pick 43): #stage is 882 frame units tall and 344-800 wide (main.js layout() sets width, --pv-frame-w,
-   translate+scale). It fills the screen; only when the width clamp bites can a thin band of body background (flat --pv-ui-bg) show. */
+/* Full-screen layout (pick 43, R42): no scaled frame. #stage is the whole viewport in real CSS px (main.js layout() sets its size).
+   Width classes on body: w-narrow (<600) / w-wide (>=600), plus h-short (<720). Safe-area insets (L-PV-13) pad the HUD, overlays and Home. */
 body{touch-action:none}
-#stage{position:absolute;left:0;top:0;width:344px;height:882px;transform-origin:0 0;overflow:hidden;touch-action:none;background:#c9b48a;flex:none;
-  box-shadow:0 0 0 calc(1px / var(--pv-scale,1)) var(--pv-ui-metal-500,#4a535d)}
+#stage{position:fixed;left:0;top:0;width:100vw;height:100vh;overflow:hidden;touch-action:none;background:#c9b48a}
 #stage canvas{position:absolute;left:0;top:0;width:100%;height:100%;display:block;touch-action:none}
-/* HUD */
-#hud{position:absolute;left:0;top:0;right:0;pointer-events:none;z-index:10;
-  padding:0px 0px 0 0px;
-  background:linear-gradient(#1d1e1f,#1d1e1f) no-repeat top/100% 0px}
-#hudTop{display:flex;align-items:center;gap:6px;height:44px;padding:4px 4px 0 6px;background:linear-gradient(#1d1e1fee,#1d1e1fcc)}
-#stageLbl{font-weight:700;font-size:13px;white-space:nowrap;color:var(--sand);background:var(--gun);border:1px solid #4a4d4f;border-radius:6px;padding:3px 6px}
+/* HUD band = 64 px under the top inset: bar 48 (stage chip, level, XP bar, pause, tuning) + HP strip 16, both full width (FULLSCREEN-LAYOUT s4, L-PV-7). */
+#hud{position:absolute;left:0;top:0;right:0;pointer-events:none;z-index:10;padding:env(safe-area-inset-top,0px) env(safe-area-inset-right,0px) 0 env(safe-area-inset-left,0px);background:#1d1e1f}
+#hudTop{display:flex;align-items:center;gap:8px;height:48px;padding:0 0 0 8px;background:linear-gradient(#24262a,#1d1e1f)}
+#stageLbl{flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;font-weight:700;font-size:13px;white-space:nowrap;color:var(--sand);background:var(--gun);border:1px solid #4a4d4f;border-radius:6px;padding:4px 7px}
 #stageLbl b{color:#fff}
-#lvl{font-weight:800;font-size:13px;color:#0d1b1d;background:var(--cyan);border-radius:6px;padding:3px 6px;white-space:nowrap}
-#xpWrap{height:6px;margin:2px 6px 0;border-radius:3px;background:#0c0d0e;border:1px solid #45494c;overflow:hidden}
+#lvl{flex:none;font-weight:800;font-size:13px;color:#0d1b1d;background:var(--cyan);border-radius:6px;padding:4px 7px;white-space:nowrap}
+#xpWrap{flex:1 1 40px;min-width:64px;max-width:360px;height:8px;border-radius:4px;background:#0c0d0e;border:1px solid #45494c;overflow:hidden}   /* XP bar stretches; at most 360 wide (guess, spec s4) */
+.w-wide #xpWrap{margin-right:auto}
 #xpFill{height:100%;width:0;background:var(--cyan)}
-.hb{pointer-events:auto;flex:none;width:56px;height:56px;margin:-6px -4px -6px 0;border:0;background:transparent;color:var(--sand);font-size:24px;line-height:56px;padding:0;cursor:pointer}
+/* 44 px plate centred in the 48 bar; 56 x 56 hit area from the top edge, overhanging the HP strip by 8 px (never above the viewport) */
+.hb{pointer-events:auto;flex:none;position:relative;align-self:flex-start;width:56px;height:56px;margin:0 0 -8px;border:0;background:transparent;color:var(--sand);font-size:22px;padding:2px 0 0;cursor:pointer;display:flex;align-items:flex-start;justify-content:center}
 #pauseBtn{font-size:13px;letter-spacing:-2px}
-.hb span{display:inline-block;width:36px;height:36px;line-height:34px;border-radius:8px;background:var(--gun);border:1px solid #55595c}
-#hpRow{position:relative;height:18px;margin:0 6px;border-radius:0 0 6px 6px;background:#0c0d0e;border:1px solid #45494c;border-top:0;overflow:hidden}
+.hb span{display:flex;align-items:center;justify-content:center;width:44px;height:44px;border-radius:8px;background:var(--gun);border:1px solid #55595c}
+#hpRow{position:relative;display:flex;align-items:center;gap:8px;height:16px;padding:0 8px;background:#151617}
+#hpBar{position:relative;flex:1;height:10px;border-radius:3px;background:#0c0d0e;border:1px solid #45494c;overflow:hidden}
 #hpFill{height:100%;width:100%;background:var(--hp);transition:width .12s}
-/* Two copies of the HP text: dark where the bar is filled, light where it is empty (4.5:1 on both). */
-.hpT{position:absolute;inset:0;text-align:center;font-size:12px;font-weight:800;line-height:18px;transition:clip-path .12s}
-#hpTxt{color:#0b1416;clip-path:inset(0 0 0 0)}
-#hpTxtE{color:#f2ead8;clip-path:inset(0 0 0 100%)}
+/* HP number beside the bar (L-PV-7), not over the fill */
+.hpT{flex:none;font-size:12px;font-weight:800;line-height:16px;color:#f2ead8;font-variant-numeric:tabular-nums;white-space:nowrap}
+#hpTxtE{display:none}
 #rlbl{position:absolute;left:6px;bottom:6px;font:11px/1.2 ui-monospace,Menlo,Consolas,monospace;color:#1b1a17;background:rgba(233,220,191,.85);padding:2px 5px;border-radius:4px;pointer-events:none;z-index:10;display:none}
 body.dbg #rlbl{display:block}
 .rinfo{font:11px/1.3 ui-monospace,Menlo,Consolas,monospace;color:var(--mut)}
@@ -48,21 +47,28 @@ body.dbg #rlbl{display:block}
 body.ovon #hud, body.ovon #toast, body.ovon #rlbl{visibility:hidden}
 /* overlays */
 .ov{position:absolute;inset:0;z-index:30;display:none;flex-direction:column;align-items:center;justify-content:center;gap:12px;
-  padding:max(16px,0px) max(16px,0px) max(16px,0px) max(16px,0px);
+  padding:max(16px,env(safe-area-inset-top,0px)) max(8px,env(safe-area-inset-right,0px)) max(16px,env(safe-area-inset-bottom,0px)) max(8px,env(safe-area-inset-left,0px));
   background:rgba(20,19,16,.94);text-align:center}
 .ov.on{display:flex}
 .ov h2{margin:0;font-size:22px;color:#fff;letter-spacing:.5px}
-.ov p{margin:0;color:var(--sand);max-width:300px}
+.ov p{margin:0;color:var(--sand);max-width:400px}
 .btn{min-height:56px;min-width:120px;padding:8px 18px;border-radius:10px;border:0;font:700 17px system-ui,sans-serif;background:var(--cyan);color:#0b1416;cursor:pointer}
 .btn.ghost{background:var(--gun2);color:var(--sand);border:1px solid #5a5e61}
-.card{width:100%;min-height:64px;border-radius:10px;border:2px solid var(--cyan);background:var(--gun);color:var(--sand);padding:8px 10px;text-align:left;cursor:pointer;font:inherit;
+.card{width:100%;min-height:96px;border-radius:10px;border:2px solid var(--cyan);background:var(--gun);color:var(--sand);padding:8px 10px;text-align:left;cursor:pointer;font:inherit;
   display:flex;align-items:center;gap:10px}
 .card .gl{flex:none;width:44px;height:44px;border-radius:8px;background:#11262a;border:1px solid var(--cyanD);color:var(--cyan);font:700 22px/44px system-ui,sans-serif;text-align:center}
 .card .tx{flex:1;min-width:0}
 .card b{display:block;font-size:18px;color:#fff;margin-bottom:2px}
 .card span{display:block;font-size:15px;line-height:1.25;color:var(--sand)}
-/* Wide frame: card lists keep a readable width, centred by .ov (align-items:center) */
-#cardList,#supList{max-width:400px}
+/* Level-up and supply rows: full width less 16 px (the .ov side padding) on narrow screens, at most 560 wide, 96 high, stacked (FULLSCREEN-LAYOUT s4) */
+#cardList,#supList{max-width:560px}
+.h-short #cardList,.h-short #supList{gap:8px!important}
+/* Pause: centred panel at most 400 wide; the mods list scrolls inside; build label at the foot */
+#ovPause .pz{display:flex;flex-direction:column;align-items:stretch;gap:10px;width:100%;max-width:400px;max-height:100%;min-height:0}
+#ovPause .pz .btn{width:100%;min-width:0}
+#pauseMods{flex:0 1 auto;min-height:0;overflow-y:auto;max-height:30vh;font-size:12px;line-height:1.4;color:var(--mut);text-align:center}
+.h-short #ovPause .pz{gap:8px}
+.h-short #ovPause .pz .btn.ghost{min-height:48px}   /* secondary targets may be 48 on short screens (G1) */
 .card.sup .gl{background:#2d2414;border-color:#7a5a20;color:var(--amber)}
 #deadStats{font-size:14px;color:var(--sand);line-height:1.5}
 /* Boss bar (D1): label row above a plain full-width bar, so no text sits over the fill. */
@@ -80,13 +86,15 @@ body.ovon #bossBar, body.ovon #howto, body.ovon #dmgLayer{visibility:hidden}
   text-shadow:-1px -1px 0 #2a1200,1px -1px 0 #2a1200,-1px 1px 0 #2a1200,1px 1px 0 #2a1200,0 0 3px #000;will-change:transform,opacity}
 .card.sup{border-color:var(--amber)}
 .card small{display:block;font-size:12px;color:var(--amber);text-transform:uppercase;letter-spacing:1px;margin-bottom:1px}
-#resStats{font:400 14px/1.2 var(--pv-ui-font);color:var(--pv-ui-text);text-align:left;background:linear-gradient(var(--pv-ui-metal-700),var(--pv-ui-metal-800));border:1.5px solid var(--pv-ui-ink);border-radius:6px;box-shadow:inset 0 1px 0 rgba(255,255,255,.10),inset 0 -2px 0 rgba(0,0,0,.35),0 2px 0 rgba(0,0,0,.55);padding:4px 12px;max-width:312px;width:100%}
+#resStats{flex:0 1 auto;min-height:0;overflow-y:auto;font:400 14px/1.2 var(--pv-ui-font);color:var(--pv-ui-text);text-align:left;background:linear-gradient(var(--pv-ui-metal-700),var(--pv-ui-metal-800));border:1.5px solid var(--pv-ui-ink);border-radius:6px;box-shadow:inset 0 1px 0 rgba(255,255,255,.10),inset 0 -2px 0 rgba(0,0,0,.35),0 2px 0 rgba(0,0,0,.55);padding:4px 12px;max-width:480px;width:100%}
 #resStats .row{display:flex;justify-content:space-between;align-items:center;gap:10px;min-height:32px;border-bottom:1px dashed var(--pv-ui-metal-600)}
 #resStats .row:last-child{border-bottom:0}
 #resStats .row span{font:700 12px/1.1 var(--pv-ui-font-stencil);text-transform:uppercase;letter-spacing:.12em;color:var(--pv-ui-text-2)}
 #resStats .row b{font:800 16px/1.1 var(--pv-ui-font-stencil);font-variant-numeric:tabular-nums;letter-spacing:.02em;color:var(--pv-ui-text);text-align:right;min-width:0}
 #ovDead h2{font:800 22px/1.1 var(--pv-ui-font-stencil);text-transform:uppercase;letter-spacing:.08em;color:var(--pv-ui-sand)}
-#ovDead .btn{width:100%;max-width:312px;min-height:56px;display:flex;align-items:center;justify-content:center;font:800 14px/1 var(--pv-ui-font-stencil);text-transform:uppercase;letter-spacing:.14em;border-radius:6px;
+#ovDead{justify-content:flex-start}
+#ovDead::before{content:"";flex:1 1 0;max-height:12vh}
+#ovDead .btn{flex:none;width:100%;max-width:480px;min-height:64px;display:flex;align-items:center;justify-content:center;font:800 14px/1 var(--pv-ui-font-stencil);text-transform:uppercase;letter-spacing:.14em;border-radius:6px;
   color:var(--pv-ui-text);background:linear-gradient(var(--pv-ui-metal-600),var(--pv-ui-metal-800));border:2.5px solid var(--pv-ui-ink);box-shadow:inset 0 1px 0 rgba(255,255,255,.10),inset 0 -2px 0 rgba(0,0,0,.35),0 3px 0 var(--pv-ui-ink)}
 #ovDead .btn#btnRestart{min-height:64px;font-size:22px;letter-spacing:.2em;color:var(--pv-ui-cyan-ink);border:0;border-radius:0;background:linear-gradient(var(--pv-ui-cyan-hi),var(--pv-ui-cyan) 45%,#18bfd6);
   clip-path:polygon(0 0,calc(100% - 12px) 0,100% 12px,100% 100%,12px 100%,0 calc(100% - 12px));box-shadow:inset 0 0 0 2px var(--pv-ui-ink),inset 0 3px 0 rgba(255,255,255,.55),inset 0 -5px 0 rgba(0,60,70,.35)}
@@ -96,24 +104,32 @@ body.ovon #bossBar, body.ovon #howto, body.ovon #dmgLayer{visibility:hidden}
 #ovDead:not(.armed) #btnRestart{opacity:.45}
 @media (prefers-reduced-motion: reduce){ #flash{display:none} #toast,#hpFill{transition:none} }
 /* Results portrait (P-02): framed panel, sand backdrop kept */
-#resHead{display:flex;align-items:center;gap:12px;width:100%;max-width:312px}
+#resHead{flex:none;display:flex;align-items:center;gap:12px;width:100%;max-width:480px}
 #resHead h2{flex:1;text-align:left}
 #resPortrait{display:block;flex:none;width:72px;height:96px;border-radius:4px;border-radius:6px;border:2px solid #0f1215;box-shadow:0 0 0 1.5px #4a535d;object-fit:cover;object-position:top;background:#1b2026}
+/* QA-VISUAL D2 (option A): short screens tighten the results card so every stats row, MODS included, shows without scrolling (475x590/638) */
+.h-short #ovDead{gap:8px}
+.h-short #ovDead::before{max-height:4vh}
+.h-short #resPortrait{width:54px;height:72px}
+.h-short #resStats{padding:2px 12px}
+.h-short #resStats .row{min-height:25px;padding:1px 0}
+.h-short #resStats .row b{font-size:15px;line-height:1.05}
 #ovBoot{z-index:60}
 /* drawer */
 #drawer{position:absolute;top:0;right:0;bottom:0;width:100%;z-index:50;background:rgba(18,18,17,.97);display:none;flex-direction:column;
-  padding:0px 0px 0px 0px}
+  padding:env(safe-area-inset-top,0px) env(safe-area-inset-right,0px) 0 env(safe-area-inset-left,0px)}
 #drawer.on{display:flex}
 #drHead{display:flex;align-items:center;gap:6px;padding:4px 6px;border-bottom:1px solid #3c3f42;flex-wrap:wrap}
 #drHead h3{margin:0 auto 0 4px;font-size:16px;color:#fff}
-#drBody{flex:1;overflow-y:auto;padding:4px max(10px,calc((100% - 520px) / 2)) 20px;touch-action:pan-y}   /* wide frame: knobs in a centred 520 px column */
+#drBody{flex:1;overflow-y:auto;padding:4px max(10px,calc((100% - 560px) / 2)) max(20px,env(safe-area-inset-bottom,0px));touch-action:pan-y}   /* knobs in a centred column at most 560 (Settings rule, s4) */
 #drBody h4{margin:12px 0 2px;font-size:13px;color:var(--cyan);text-transform:uppercase;letter-spacing:1px}
 .kn{padding:4px 0;border-bottom:1px solid #2b2d2f}
 .kn label{display:flex;justify-content:space-between;font-size:12px;color:var(--sand)}
 .kn label i{font-style:normal;color:#fff;font-family:ui-monospace,Menlo,monospace}
-.kn input[type=range]{width:100%;height:36px;margin:0;accent-color:var(--cyan)}
+.kn input[type=range]{width:100%;height:44px;margin:0;accent-color:var(--cyan)}
 .kn input[type=range]:disabled{opacity:.45}
 .kn .tg{min-height:56px;width:100%;margin-top:2px}
+#drHead{justify-content:center}
 #drMsg{font-size:12px;color:var(--amber);min-height:16px;padding:0 10px}
 #copyArea{position:absolute;left:-9999px;top:0;width:10px;height:10px}
 /*{{home.css}}*/
@@ -129,12 +145,11 @@ body.ovon #bossBar, body.ovon #howto, body.ovon #dmgLayer{visibility:hidden}
     <div id="hudTop">
       <div id="stageLbl">Stage <b id="stNum">1</b> <span id="roomName"></span></div>
       <div id="lvl">Lv 1</div>
-      <div style="flex:1"></div>
+      <div id="xpWrap"><div id="xpFill"></div></div>
       <button id="pauseBtn" class="hb" aria-label="Pause"><span>&#10074;&#10074;</span></button>
       <button id="gear" class="hb" aria-label="Tuning"><span>&#9881;</span></button>
     </div>
-    <div id="hpRow"><div id="hpFill"></div><div id="hpTxtE" class="hpT" aria-hidden="true">600 / 600</div><div id="hpTxt" class="hpT">600 / 600</div></div>
-    <div id="xpWrap"><div id="xpFill"></div></div>
+    <div id="hpRow"><div id="hpBar"><div id="hpFill"></div></div><div id="hpTxtE" class="hpT" aria-hidden="true">600 / 600</div><div id="hpTxt" class="hpT">600 / 600</div></div>
   </div>
   <div id="toast"></div>
   <div id="rlbl">-</div>
@@ -143,7 +158,7 @@ body.ovon #bossBar, body.ovon #howto, body.ovon #dmgLayer{visibility:hidden}
   <div class="ov" id="ovCards"><h2 id="cardTitle">Field upgrade</h2><p>Pick one</p><div id="cardList" style="display:flex;flex-direction:column;gap:10px;width:100%;align-items:stretch"></div></div>
   <div class="ov" id="ovDead"><div id="resHead"><img id="resPortrait" alt="" width="72" height="96"><h2 id="resTitle">Operator down</h2></div><div id="resStats"></div><button class="btn" id="btnRestart">New run</button><button class="btn ghost" id="btnHome">Home</button></div>
   <div class="ov" id="ovSupply"><h2>Supply drop</h2><p>Tap a card to choose one</p><div id="supList" style="display:flex;flex-direction:column;gap:10px;width:100%;align-items:stretch"></div></div>
-  <div class="ov" id="ovPause"><h2>Paused</h2><button class="btn" id="btnResume" style="min-width:200px">Resume</button><button class="btn ghost" id="btnRestartRun" style="min-width:200px">Restart run</button><button class="btn ghost" id="btnTune" style="min-width:200px">Tuning</button><button class="btn ghost" id="btnSound" style="min-width:200px">Sound: on</button><p class="rinfo" id="rlblPause">-</p><p style="font-size:12px">Tap outside the buttons to resume</p></div>
+  <div class="ov" id="ovPause"><div class="pz"><h2>Paused</h2><button class="btn" id="btnResume">Resume</button><button class="btn ghost" id="btnRestartRun">Restart run</button><button class="btn ghost" id="btnTune">Tuning</button><button class="btn ghost" id="btnSound">Sound: on</button><div id="pauseMods"></div><p style="font-size:12px">Tap outside the buttons to resume</p><p class="rinfo" id="rlblPause">-</p></div></div>
   <svg width="0" height="0" style="position:absolute"><defs>
 <linearGradient id="cg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffe27a"/><stop offset="1" stop-color="#c28a0c"/></linearGradient>
 <symbol id="cr" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v10M9 9.5h4.5a1.5 1.5 0 010 3H9.5a1.5 1.5 0 000 3H15"/></symbol>
@@ -185,6 +200,7 @@ body.ovon #bossBar, body.ovon #howto, body.ovon #dmgLayer{visibility:hidden}
 <script src="parts/data-enemies.js"></script>
 <script src="parts/rooms.js"></script>
 <script src="parts/stages.js"></script>
+<script src="parts/widen.js"></script>
 <script src="parts/mods.js"></script>
 <script src="parts/meta.js"></script>
 <script src="parts/sim.js"></script>
@@ -198,6 +214,7 @@ body.ovon #bossBar, body.ovon #howto, body.ovon #dmgLayer{visibility:hidden}
 <script src="parts/input.js"></script>
 <script src="parts/audio.js"></script>
 <script src="parts/ui.js"></script>
+<script src="parts/report.js"></script>
 <script src="parts/tab-armory.js"></script>
 <script src="parts/tab-operator.js"></script>
 <script src="parts/tab-upgrades.js"></script>

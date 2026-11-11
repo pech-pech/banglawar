@@ -3,7 +3,7 @@
 var $ = function(id){ return document.getElementById(id); };
 var Q = new URLSearchParams(location.search);
 var STEP_MS = 1000 / 60, MAX_STEPS = 5;
-var S = null, R = null, list = [], view = { w: 344, h: 882, dpr: 1, ox: 0, oy: 66, s: 38 };
+var S = null, R = null, list = [], view = { w: 344, h: 882, dpr: 1, ox: 0, oy: 64, s: 38.2, scale: 1, C: 9 };
 var moved = false, acc = 0, last = 0, hitstopUntil = 0, paused = false, frozen = Q.get('freeze') === '1';
 var shown = { pick: false, dead: false, supply: false, endPhase: '' }, deadAt = 0, deaths = 0;
 // Deploy home (S-10, minimal) is the first screen; ?home=0 skips it (tests and bots). The sim waits behind it.
@@ -13,44 +13,74 @@ var ft = [], FT_MAX = 1200, gaps = 0, frames = 0;
 function fail(t){ $('bootMsg').textContent = t; UI.show('ovBoot', true); console.warn('volley:', t); }
 var UI = V.UI;
 
-// ---------- layout ----------
-// Full-screen frame (pick 43, M 2026-11-11: "It should be full screen. No bars on the sides."; replaces pick 1's side bars).
-// The frame is always 882 units tall; its width follows the screen shape: W = clamp(round(usable W / usable H x 882), 344, FRAME_W_MAX).
-// usable = window minus safe-area insets (L-PV-13). scale = usable H / 882, or usable W / W when the clamp bites (very tall or very wide
-// screens): only then can a thin band remain, filled by the body background. Canvas pixels = shown frame x devicePixelRatio, capped at 2 (render2d/gpu cap).
-var FRAME_W = 344, FRAME_W_MIN = 344, FRAME_W_MAX = 800, FRAME_H = 882, BERM_PX = 30, sbProbe = null;   // BERM_PX: sandbag rows + their shadow below the room line (scene.js drawRoomEdge reaches ~y0+27)
-var frame0 = { scale: 1, left: 0, top: 0, vw: 0, vh: 0 }, laidOut = false;
-var RESIZE_PAUSE = 0.02;   // guess: a scale change above 2% (fold, unfold, rotate) pauses a run (spec 05 s1); smaller ones (URL bar jitter) do not
+// ---------- layout (R42 stepped room, pick 43; FULLSCREEN-LAYOUT section 1) ----------
+// No scaled frame: #stage is the whole viewport in CSS px at scale 1. The room is 15 rows tall and C = 9, 11, 13 or 15 columns wide:
+//   playH = H - 64 - insetTop - insetBottom, Wu = W - insetL - insetR (L-PV-13), t0 = min(playH / 15, 64),
+//   C = clamp(nextOdd(ceil(Wu / t0 - 1)), 9, 15), tile = min(t0, Wu / C).
+// The room is centred horizontally and starts under the 64 px HUD band; spare height below it is the ground apron.
+// C is read by the sim at room entry only (opts.colsFn). A resize inside a room pauses, keeps S.cols and refits the tile.
+var HUD_H = 64, TILE_MAX = 64, ROWS = 15, C_MIN = 9, C_MAX = 15, W_WIDE = 600, H_SHORT = 720, sbProbe = null;
+var RESIZE_PAUSE = 0.02;   // guess (kept from f0-3): a change above 2% of width, height or tile (fold, unfold, rotate, toolbar) pauses a run; URL-bar jitter under 2% does not
+var vp = { W: 0, H: 0, ins: { t: 0, r: 0, b: 0, l: 0 } }, laidOut = false, fitNow = null;
 function safeInsets(){
   if (!sbProbe) { sbProbe = document.createElement('div'); sbProbe.style.cssText = 'position:absolute;left:0;top:0;width:0;height:0;visibility:hidden;padding:env(safe-area-inset-top,0px) env(safe-area-inset-right,0px) env(safe-area-inset-bottom,0px) env(safe-area-inset-left,0px)'; document.body.appendChild(sbProbe); }
   var cs = getComputedStyle(sbProbe);
   return { t: parseFloat(cs.paddingTop) || 0, r: parseFloat(cs.paddingRight) || 0, b: parseFloat(cs.paddingBottom) || 0, l: parseFloat(cs.paddingLeft) || 0 };
 }
-function layout(){
-  var W = G.innerWidth, H = G.innerHeight, st = $('stage'), ins = safeInsets();
-  var uw = Math.max(1, W - ins.l - ins.r), uh = Math.max(1, H - ins.t - ins.b);
-  FRAME_W = Math.max(FRAME_W_MIN, Math.min(FRAME_W_MAX, Math.round(uw / uh * FRAME_H)));
-  var sc = Math.min(uw / FRAME_W, uh / FRAME_H);
-  var left = ins.l + (uw - FRAME_W * sc) / 2, top = ins.t + (uh - FRAME_H * sc) / 2;
-  var prev = frame0.scale;
-  frame0.scale = sc; frame0.left = left; frame0.top = top; frame0.vw = W; frame0.vh = H;
-  st.style.width = FRAME_W + 'px'; st.style.height = FRAME_H + 'px';
-  st.style.transform = 'translate(' + left + 'px,' + top + 'px) scale(' + sc + ')';
-  st.style.setProperty('--pv-scale', String(sc)); st.style.setProperty('--pv-frame-w', FRAME_W + 'px');
-  var w = FRAME_W, h = FRAME_H;
-  var hud = $('hud').offsetHeight || 62;   // offsetHeight is in frame units (transforms do not change it)
-  // Contain fit inside the frame: the room (9x15 tiles) plus the berm below it must sit under the HUD. Safe areas are outside the frame now.
-  var oy = hud + 2, s = Math.min(w / 9, (h - oy - BERM_PX) / 15);
-  view.w = w; view.h = h; view.dpr = (G.devicePixelRatio || 1) * sc; view.s = s; view.ox = (w - 9 * s) / 2; view.oy = oy;
-  view.scale = sc; view.left = left; view.top = top; view.vw = W; view.vh = H;
-  if (R) R.resize(w, h, view.dpr);
+function nextOdd(x){ var n = Math.ceil(x - 1e-9); return (n % 2 === 1 || n % 2 === -1) ? n : n + 1; }   // smallest odd whole number >= x (1e-9: float noise)
+function normIns(ins){ ins = ins || {}; return { t: +ins.t || 0, r: +ins.r || 0, b: +ins.b || 0, l: +ins.l || 0 }; }
+// Pure: the whole R42 fit for a viewport. C forces the column count (a room already entered); omitted = the count for this viewport.
+function fitFor(W, H, insets, C){
+  var ins = normIns(insets);
+  var Wu = Math.max(1, W - ins.l - ins.r), playH = Math.max(1, H - HUD_H - ins.t - ins.b);
+  var t0 = Math.min(playH / ROWS, TILE_MAX);
+  var Cv = Math.max(C_MIN, Math.min(C_MAX, nextOdd(Wu / t0 - 1)));
+  var c = C || Cv, tile = Math.min(t0, Wu / c), roomW = c * tile, roomH = ROWS * tile;
+  var ox = ins.l + (Wu - roomW) / 2, oy = ins.t + HUD_H;
+  return { W: W, H: H, Wu: Wu, playH: playH, insets: ins, t0: t0, C: c, Cview: Cv, tile: tile, ox: ox, oy: oy, roomW: roomW, roomH: roomH,
+    apron: Math.max(0, H - ins.b - oy - roomH), sideWall: (Wu - roomW) / 2, clamped: Wu / t0 > C_MAX + 1,
+    widthClass: W < W_WIDE ? 'w-narrow' : 'w-wide', short: H < H_SHORT };
+}
+function colsFor(W, H, insets){ return fitFor(W, H, insets).Cview; }
+function roomCols(){ return (S && (S.cols || (S.room && S.room.w))) || 0; }
+// Shared read-only view of the current layout (contract: V.Layout, owner B). cols() = the column count a room entered now would get.
+V.Layout = {
+  colsFor: colsFor, fitFor: fitFor, HUD_H: HUD_H, TILE_MAX: TILE_MAX,
+  cols: function(){ return colsFor(vp.W || G.innerWidth, vp.H || G.innerHeight, vp.ins); },
+  get W(){ return fitNow ? fitNow.W : 0; }, get H(){ return fitNow ? fitNow.H : 0; }, get Wu(){ return fitNow ? fitNow.Wu : 0; },
+  get playH(){ return fitNow ? fitNow.playH : 0; }, get insets(){ return fitNow ? fitNow.insets : normIns(); }, get t0(){ return fitNow ? fitNow.t0 : 0; },
+  get C(){ return fitNow ? fitNow.C : 0; }, get tile(){ return fitNow ? fitNow.tile : 0; }, get ox(){ return fitNow ? fitNow.ox : 0; }, get oy(){ return fitNow ? fitNow.oy : 0; },
+  get roomW(){ return fitNow ? fitNow.roomW : 0; }, get roomH(){ return fitNow ? fitNow.roomH : 0; }, get apron(){ return fitNow ? fitNow.apron : 0; },
+  get widthClass(){ return fitNow ? fitNow.widthClass : 'w-narrow'; }, get short(){ return fitNow ? fitNow.short : false; }, get clamped(){ return fitNow ? fitNow.clamped : false; }
+};
+// Recompute the room fit from the cached viewport and the room's column count (cheap; also runs when a new room changes C).
+function refit(){
+  var f = fitFor(vp.W, vp.H, vp.ins, roomCols() || undefined);
+  fitNow = f;
+  view.w = f.W; view.h = f.H; view.vw = f.W; view.vh = f.H; view.s = f.tile; view.ox = f.ox; view.oy = f.oy; view.C = f.C;
+  view.apron = f.apron; view.roomW = f.roomW; view.roomH = f.roomH; view.insets = f.insets; view.scale = 1; view.left = 0; view.top = 0;
+  var st = $('stage'); if (st) { st.style.setProperty('--pv-tile', f.tile.toFixed(2) + 'px'); st.style.setProperty('--pv-room-top', f.oy + 'px'); st.style.setProperty('--pv-room-bottom', (f.oy + f.roomH).toFixed(1) + 'px'); }
   UI.placeToast(view);
-  if (laidOut && Math.abs(sc - prev) / prev > RESIZE_PAUSE && S && !home && !isEnd() && (S.phase === 'play' || S.phase === 'clear')) pause();
+  return f;
+}
+function layout(){
+  var W = G.innerWidth, H = G.innerHeight, st = $('stage'), b = document.body;
+  var prev = laidOut ? { W: vp.W, H: vp.H, s: view.s } : null;
+  vp.W = W; vp.H = H; vp.ins = safeInsets();
+  st.style.width = W + 'px'; st.style.height = H + 'px'; st.style.transform = '';
+  st.style.setProperty('--pv-frame-w', W + 'px'); st.style.setProperty('--pv-scale', '1');   // compat: menus CSS reads --pv-frame-w
+  var f = refit();
+  b.classList.toggle('w-narrow', f.widthClass === 'w-narrow'); b.classList.toggle('w-wide', f.widthClass === 'w-wide'); b.classList.toggle('h-short', f.short);
+  view.dpr = Math.min(2, G.devicePixelRatio || 1);   // canvas backing = CSS size x dpr, capped at 2 (L-PV-15; renderers cap too)
+  if (R) R.resize(W, H, view.dpr);
+  if (R) UI.rendererLabel(R, view);
+  var rel = function(a, c){ return a > 0 ? Math.abs(c - a) / a : 0; };
+  if (prev && Math.max(rel(prev.W, W), rel(prev.H, H), rel(prev.s, view.s)) > RESIZE_PAUSE && S && !home && !isEnd() && (S.phase === 'play' || S.phase === 'clear')) pause();
   laidOut = true;
 }
-// Screen (client) px -> frame units. Input steering is relative, so only the scale matters for drags; taps on DOM are mapped by the browser.
-function toFrame(cx, cy){ return { x: (cx - frame0.left) / frame0.scale, y: (cy - frame0.top) / frame0.scale }; }
-V.Frame = { get W(){ return FRAME_W; }, H: FRAME_H, toFrame: toFrame, get scale(){ return frame0.scale; }, get left(){ return frame0.left; }, get top(){ return frame0.top; } };
+// Compat shim (input.js, tests): no scaled frame any more, so scale is 1 and a client point is a stage point (the stage sits at 0,0).
+function toFrame(cx, cy){ return { x: cx - (view.left || 0), y: cy - (view.top || 0) }; }
+V.Frame = { get W(){ return vp.W; }, get H(){ return vp.H; }, toFrame: toFrame, scale: 1, left: 0, top: 0 };
 
 // ---------- events from the sim ----------
 function vib(ms){
@@ -94,7 +124,7 @@ function syncPhase(){
   } else if (shown.supply) { shown.supply = false; UI.show('ovSupply', false); }
   // P1: death and boss kill both end in 'results'. A brief 'dead' phase (if the sim has one) shows the same screen.
   if (isEnd()) {
-    if (!shown.dead || shown.endPhase !== S.phase) { shown.dead = true; shown.endPhase = S.phase; deadAt = deadAt || performance.now(); V.Input.release(); UI.results(S); }
+    if (!shown.dead || shown.endPhase !== S.phase) { shown.dead = true; shown.endPhase = S.phase; deadAt = deadAt || performance.now(); V.Input.release(); if (V.Report) V.Report.runEnd(S, S.result); UI.results(S); }
     var armed = performance.now() - deadAt >= RESULTS_GUARD_MS, ovd = $('ovDead');
     if (ovd.classList.contains('armed') !== armed) ovd.classList.toggle('armed', armed);
   } else if (shown.dead) { shown.dead = false; deadAt = 0; $('ovDead').classList.remove('armed'); UI.show('ovDead', false); }
@@ -117,7 +147,7 @@ function pick(i){
   syncPhase();                                           // another pending level shows the next card screen
 }
 function restart(){
-  S = V.Sim.restart(S); V.Audio.seed(S.seed);
+  S = V.Sim.restart(S); V.Audio.seed(S.seed); refit(); if (V.Report) V.Report.runStart(S);
   acc = 0; hitstopUntil = 0; deadAt = 0; moved = false; awReset(); shown.dead = false; UI.show('ovDead', false); shown.pick = false; UI.show('ovCards', false); shown.supply = false; UI.show('ovSupply', false);
   syncPhase(); return S;
 }
@@ -129,14 +159,20 @@ function tryRestart(pressT){ if (guardOk(pressT == null ? performance.now() : pr
 var resPressAt = 0;
 
 // Handoff with home.js: setHome freezes the sim behind the home screens; start() begins a run at stage 1 (fresh unless S is untouched).
+// The sim reads the column count at each room entry (contract: opts.colsFn, owner A); ?cols=N forces a class for tests (guess: debug only).
+var colsQ = parseInt(Q.get('cols') || '0', 10), simOpts = { colsFn: function(){ return (colsQ >= 9 && colsQ <= 15 && colsQ % 2) ? colsQ : V.Layout.cols(); } };
 V.Run = {
   setHome: function(on){ home = !!on; if (on) V.Input.release(); acc = 0; last = 0; },
-  start: function(){ if (!S) return; if (isEnd() || S.t > 0) restart(); home = false; V.Input.release(); acc = 0; last = 0; moved = false; },
+  start: function(){ if (!S) return;
+    if (isEnd() || S.t > 0) restart();
+    if (V.Report) V.Report.runStart(S);
+    else if (roomCols() && roomCols() !== simOpts.colsFn()) { S = V.Sim.create(S.seed, S.tune, simOpts); syncPhase(); }   // the screen changed shape on Home: the untouched first room is rebuilt at the new column count, same seed
+    home = false; V.Input.release(); acc = 0; last = 0; moved = false; refit(); },
   get home(){ return home; }
 };
 function pause(){
   if (paused || !S || home) return;
-  paused = true; V.Input.release(); V.Audio.setPaused(true); UI.show('ovPause', true);
+  paused = true; V.Input.release(); V.Audio.setPaused(true); if (UI.pauseInfo) UI.pauseInfo(S); UI.show('ovPause', true);
   if (R) UI.rendererLabel(R, view);   // the card carries the renderer label at once, not only after the next hud() frame (slow host flake)
 }
 function resume(){
@@ -192,6 +228,7 @@ function autoWalkInput(inp, dtS){
   if (aw.idle < (V.TUNE.AUTO_WALK_DELAY || 0)) return inp;
   var dir = doorDir(), h = S.hero;
   if (!aw.on) { aw.on = true; V.Input.note('aw', h.x * 10, h.y * 10); }
+  dir.walk = V.TUNE.AUTO_WALK_MULT || 2;   // pick 45 (M): auto-walk at least 2x faster
   return dir;
 }
 
@@ -200,6 +237,7 @@ function frame(ts){
   requestAnimationFrame(frame);
   var dt = last ? ts - last : STEP_MS; last = ts;
   if (!S || !R) return;
+  if (V.Report && !document.hidden) V.Report.tick(S, dt, (!home && !paused && !frozen && !UI.drawerOpen() && (S.phase === 'play' || S.phase === 'clear')) ? 'play' : 'menu');
   var running = !home && !paused && !frozen && !UI.drawerOpen() && (S.phase === 'play' || S.phase === 'clear');
   if (!paused && !document.hidden) {
     frames++; ft.push(dt); if (ft.length > FT_MAX) ft.shift(); if (dt > 50 && frames > 3) gaps++;
@@ -222,6 +260,7 @@ function frame(ts){
   draw();
 }
 function draw(){
+  if (roomCols() && roomCols() !== view.C) refit();   // a new room was entered with another column count: refit the tile (C changes only here)
   V.Scene.build(S, view, list);
   R.draw(list, view);
   UI.hud(S, R, view);
@@ -248,7 +287,7 @@ function boot(){
 
   var seed = Q.has('seed') ? (parseInt(Q.get('seed'), 10) | 0) : (Date.now() % 1000000);
   var stress = parseInt(Q.get('stress') || '0', 10) | 0; if (stress > 0) V.Scene.stress = stress;
-  S = V.Sim.create(seed, V.TUNE); V.Audio.seed(seed);
+  S = V.Sim.create(seed, V.TUNE, simOpts); V.Audio.seed(seed);
 
   document.addEventListener('visibilitychange', function(){ if (document.hidden) pause(); });
   G.addEventListener('blur', pause);
@@ -259,9 +298,10 @@ function boot(){
   $('pauseBtn').addEventListener('click', function(){ pause(); });
   $('btnRestartRun').addEventListener('click', function(e){ e.stopPropagation(); restart(); resume(); });
   $('btnTune').addEventListener('click', function(e){ e.stopPropagation(); UI.openDrawer(true); });
-  // Any touch during the clear phase cancels auto-walk for this room.
+  // Pick 45 (M): a touch during the clear phase PAUSES auto-walk (it no longer cancels it). While the finger is down the player steers;
+  // after the lift, auto-walk resumes once AUTO_WALK_DELAY has passed with no input (autoWalkInput resets aw.idle on any input).
   stage.addEventListener('pointerdown', function(e){
-    if (S && S.phase === 'clear' && !aw.cancelled && !(e.target.closest && e.target.closest('button, .ov, #drawer'))) { aw.cancelled = true; V.Input.note(aw.on ? 'awx' : 'awc', 0, 0); }
+    if (S && S.phase === 'clear' && aw.on && !(e.target.closest && e.target.closest('button, .ov, #drawer'))) { aw.on = false; V.Input.note('awp', 0, 0); }
   }, true);
   $('ovDead').addEventListener('pointerdown', function(e){ resPressAt = performance.now(); });
   // A click counts only when its press began on this screen after the guard (keyboard clicks have detail 0).
@@ -288,7 +328,9 @@ function boot(){
     get S(){ return S; },
     get paused(){ return paused; },
     get view(){ return view; },
-    get frame(){ return { scale: frame0.scale, left: frame0.left, top: frame0.top, w: FRAME_W * frame0.scale, h: FRAME_H * frame0.scale, vw: frame0.vw, vh: frame0.vh }; },
+    get frame(){ return { scale: 1, left: 0, top: 0, w: vp.W, h: vp.H, vw: vp.W, vh: vp.H }; },   // compat: the stage is the viewport
+    get layout(){ return Object.assign({ colsNext: V.Layout.cols() }, fitNow); },
+    relayout: layout,
     toFrame: toFrame,
     get frozen(){ return frozen; },
     get autoWalk(){ return { idle: aw.idle, cancelled: aw.cancelled, on: aw.on }; },
