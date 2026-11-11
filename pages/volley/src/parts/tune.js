@@ -2,8 +2,8 @@
 // Tuning knobs. V.TUNE is the live copy the drawer mutates; the sim reads S.tune every step.
 V.TUNE_DEFAULTS = {
   // enemies / scaling (DESIGN 11)
-  ENEMY_HP_GLOBAL: 0.82, HP_SLOPE: 0.036, DMG_SLOPE: 0.08,
-  ENEMY_DMG_MULT: 1.1, ENEMY_SHOT_SPEED_MULT: 2, TELL_MULT: 0.85,
+  ENEMY_HP_GLOBAL: 0.82, HP_SLOPE: 0.036, DMG_SLOPE: 0.0118,
+  ENEMY_DMG_MULT: 1.5, ENEMY_SHOT_SPEED_MULT: 2, TELL_MULT: 0.85,
   // hero (D1 2)
   HERO_HP: 600, HERO_ATK: 150, CRIT_CHANCE: 0.05, CRIT_MULT: 2,
   MOVE_SPEED: 4.5, BRACE_DELAY: 0.15, FIRE_INTERVAL: 0.8, FIRE_FLOOR: 0.2,

@@ -110,7 +110,7 @@ V.Tabs.operator = {
     var M = meta(); if (typeof M.onChange === 'function') M.onChange(function(){ render(); });
     render();
   },
-  show: function(){ shown = true; render(); },
+  show: function(){ shown = true; render(); var sc = el && el.querySelector('.ta-scroll'); if (sc && T.stagger) T.stagger('operator', [].slice.call(sc.children).concat([].slice.call(sc.querySelectorAll('.to-run')))); },
   hide: function(){ shown = false; }
 };
 })();

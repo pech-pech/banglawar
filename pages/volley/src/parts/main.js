@@ -75,7 +75,7 @@ function layout(){
   if (R) R.resize(W, H, view.dpr);
   if (R) UI.rendererLabel(R, view);
   var rel = function(a, c){ return a > 0 ? Math.abs(c - a) / a : 0; };
-  if (prev && Math.max(rel(prev.W, W), rel(prev.H, H), rel(prev.s, view.s)) > RESIZE_PAUSE && S && !home && !isEnd() && (S.phase === 'play' || S.phase === 'clear')) pause();
+  if (prev && Math.max(rel(prev.W, W), rel(prev.H, H), rel(prev.s, view.s)) > RESIZE_PAUSE && S && !home && !isEnd() && (S.phase === 'play' || S.phase === 'clear' || S.phase === 'collect')) pause();
   laidOut = true;
 }
 // Compat shim (input.js, tests): no scaled frame any more, so scale is 1 and a client point is a stage point (the stage sits at 0,0).
@@ -92,26 +92,28 @@ function handleEvents(ev, live){
   var stop = false;
   for (var i = 0; i < ev.length; i++) {
     var e = ev[i];
+    if (V.Audio.event) V.Audio.event(e, S);
+    if (V.Prompts) V.Prompts.event(e, S);
     switch (e.k) {
-      case 'fire': V.Audio.play('fire'); break;
-      case 'hit': V.Audio.play('hit'); stop = true; break;
+      case 'fire': break;
+      case 'hit': stop = true; break;
       case 'crit': UI.crit(e.x, e.y, e.dmg, view, S, e.id); stop = true; break;
-      case 'kill': V.Audio.play('kill'); vib(V.TUNE.HAPTIC_KILL_MS); stop = true; break;
-      case 'hurt': V.Audio.play('hurt'); UI.hurtFlash(); vib(V.TUNE.HAPTIC_HURT_MS); break;
-      case 'door': V.Audio.play('door'); awReset(); UI.toast('Stage ' + S.stage + ' clear', 1100); break;
+      case 'kill': vib(V.TUNE.HAPTIC_KILL_MS); stop = true; break;
+      case 'hurt': UI.hurtFlash(); vib(V.TUNE.HAPTIC_HURT_MS); break;
+      case 'door': awReset(); UI.toast('Stage ' + S.stage + ' clear', 1100); break;
       case 'room': { awReset(); var rm = V.ROOMS && V.ROOMS[S.roomId]; UI.toast('Stage ' + S.stage + (rm ? ': ' + rm.name : ''), 1500); break; }
-      case 'levelup': V.Audio.play('levelup'); UI.toast('Level up', 1200); break;
+      case 'levelup': UI.toast('Level up', 1200); break;
       case 'death': deaths++; break;
-      case 'supply': V.Audio.play('door'); break;
-      case 'chest': V.Audio.play('levelup'); UI.toast('Cache open', 1400); break;
+      case 'supply': break;
+      case 'chest': UI.toast('Cache open', 1400); break;
       case 'boss': UI.toast('Boss: ' + ((S.boss && S.boss.name) || 'incoming'), 1800); break;
-      case 'bossphase': V.Audio.play('hurt'); UI.toast('Boss phase 2', 1400); break;
-      case 'win': V.Audio.play('levelup'); break;
+      case 'bossphase': UI.toast('Boss phase 2', 1400); break;
+      case 'win': break;
     }
   }
   if (stop && live && V.TUNE.HITSTOP_MS > 0) hitstopUntil = performance.now() + V.TUNE.HITSTOP_MS;
 }
-function simStep(inp, live){ V.Sim.step(S, inp); if (V.Scene && V.Scene.ingest) V.Scene.ingest(S.events, S); handleEvents(S.events, live); }
+function simStep(inp, live){ V.Sim.step(S, inp); if (V.Scene && V.Scene.ingest) V.Scene.ingest(S.events, S); handleEvents(S.events, live); if (V.Audio.step) V.Audio.step(S); }
 
 // ---------- overlays ----------
 function isEnd(){ return S.phase === 'results' || S.phase === 'dead'; }
@@ -120,8 +122,8 @@ function syncPhase(){
     if (!shown.pick) { shown.pick = true; V.Input.release(); UI.cards(S, pick); }
   } else if (shown.pick) { shown.pick = false; UI.show('ovCards', false); }
   if (S.phase === 'supply' && S.supply) {
-    if (!shown.supply) { shown.supply = true; V.Input.release(); UI.supply(S, pickSupply); }
-  } else if (shown.supply) { shown.supply = false; UI.show('ovSupply', false); }
+    if (!shown.supply) { shown.supply = true; V.Input.release(); if (S.mini && V.CatchUI) V.CatchUI.open(S, pickSupply); else UI.supply(S, pickSupply); }
+  } else if (shown.supply) { shown.supply = false; if (V.CatchUI) V.CatchUI.close(); UI.show('ovSupply', false); }
   // P1: death and boss kill both end in 'results'. A brief 'dead' phase (if the sim has one) shows the same screen.
   if (isEnd()) {
     if (!shown.dead || shown.endPhase !== S.phase) { shown.dead = true; shown.endPhase = S.phase; deadAt = deadAt || performance.now(); V.Input.release(); if (V.Report) V.Report.runEnd(S, S.result); UI.results(S); }
@@ -135,7 +137,7 @@ function pickSupply(i){
   if (f) f(S, i); else V.Sim.pick(S, i);
   if (V.Scene && V.Scene.ingest) V.Scene.ingest(S.events, S);
   handleEvents(S.events, false);
-  shown.supply = false; UI.show('ovSupply', false);
+  shown.supply = false; if (V.CatchUI) V.CatchUI.close(); UI.show('ovSupply', false);
   syncPhase();
 }
 function pick(i){
@@ -148,7 +150,7 @@ function pick(i){
 }
 function restart(){
   S = V.Sim.restart(S); V.Audio.seed(S.seed); refit(); if (V.Report) V.Report.runStart(S);
-  acc = 0; hitstopUntil = 0; deadAt = 0; moved = false; awReset(); shown.dead = false; UI.show('ovDead', false); shown.pick = false; UI.show('ovCards', false); shown.supply = false; UI.show('ovSupply', false);
+  acc = 0; hitstopUntil = 0; deadAt = 0; moved = false; awReset(); shown.dead = false; UI.show('ovDead', false); shown.pick = false; UI.show('ovCards', false); shown.supply = false; if (V.CatchUI) V.CatchUI.close(); UI.show('ovSupply', false);
   syncPhase(); return S;
 }
 // Results tap guard: the screen waits RESULTS_GUARD_MS, and only a press that BEGAN after that counts,
@@ -161,6 +163,7 @@ var resPressAt = 0;
 // Handoff with home.js: setHome freezes the sim behind the home screens; start() begins a run at stage 1 (fresh unless S is untouched).
 // The sim reads the column count at each room entry (contract: opts.colsFn, owner A); ?cols=N forces a class for tests (guess: debug only).
 var colsQ = parseInt(Q.get('cols') || '0', 10), simOpts = { colsFn: function(){ return (colsQ >= 9 && colsQ <= 15 && colsQ % 2) ? colsQ : V.Layout.cols(); } };
+if (/[?&]debug=1(&|#|$)/.test(location.search) && Q.get('room') === 'stress') simOpts.room = 'stress';   // S: 11-machine test room
 V.Run = {
   setHome: function(on){ home = !!on; if (on) V.Input.release(); acc = 0; last = 0; },
   start: function(){ if (!S) return;
@@ -179,6 +182,7 @@ function resume(){
   if (!paused) return;
   paused = false; acc = 0; last = 0; hitstopUntil = 0; V.Audio.setPaused(false); UI.show('ovPause', false);
 }
+var swallowPauseClick = false;   // a tap on the pause card must not fall through as a click on the pause button (B1)
 
 // ---------- auto-walk to the open door (M's pick 3) ----------
 var aw = { idle: 0, cancelled: false, on: false };
@@ -237,13 +241,17 @@ function frame(ts){
   requestAnimationFrame(frame);
   var dt = last ? ts - last : STEP_MS; last = ts;
   if (!S || !R) return;
-  if (V.Report && !document.hidden) V.Report.tick(S, dt, (!home && !paused && !frozen && !UI.drawerOpen() && (S.phase === 'play' || S.phase === 'clear')) ? 'play' : 'menu');
-  var running = !home && !paused && !frozen && !UI.drawerOpen() && (S.phase === 'play' || S.phase === 'clear');
+  if (V.Report && !document.hidden) V.Report.tick(S, dt, (!home && !paused && !frozen && !UI.drawerOpen() && (S.phase === 'play' || S.phase === 'clear' || S.phase === 'collect')) ? 'play' : 'menu');
+  var collect = S.phase === 'collect';
+  var running = !home && !paused && !frozen && !UI.drawerOpen() && (S.phase === 'play' || S.phase === 'clear' || collect);
   if (!paused && !document.hidden) {
     frames++; ft.push(dt); if (ft.length > FT_MAX) ft.shift(); if (dt > 50 && frames > 3) gaps++;
   }
   if (running) {
-    if (ts < hitstopUntil) acc = 0;
+    if (collect && V.Catch) {                            // R53: all real elapsed time becomes fixed steps, no frame cap
+      var fd = V.Catch.feed(acc, dt); acc = fd.acc;
+      for (var k = 0; k < fd.n && S.phase === 'collect'; k++) simStep(V.Input.read(), true);
+    } else if (ts < hitstopUntil) acc = 0;
     else {
       acc += Math.min(dt, 250);
       var n = 0;
@@ -259,13 +267,27 @@ function frame(ts){
   syncPhase();
   draw();
 }
+// Catch room (K): V.CatchScene paints with a real 2D context, so it gets its own overlay canvas (works under WebGPU and Canvas 2D alike).
+var catchCtx = null, catchOn = false;
+function drawCatch(){
+  var cv = $('cCatch'); if (!cv) return;
+  var on = !!(S.mini && S.stageKind === 'collect' && V.CatchScene);   // S.mini is not cleared when the next stage loads (K bug), so also test the stage kind
+  if (!on) { if (catchOn) { cv.style.display = 'none'; catchOn = false; } return; }
+  var d = view.dpr || 1, pw = Math.max(1, Math.round(view.w * d)), ph = Math.max(1, Math.round(view.h * d));
+  if (cv.width !== pw) cv.width = pw; if (cv.height !== ph) cv.height = ph;
+  if (!catchOn) { cv.style.display = 'block'; catchOn = true; }
+  if (!catchCtx) catchCtx = cv.getContext('2d');
+  catchCtx.setTransform(d, 0, 0, d, 0, 0);
+  V.CatchScene.draw(catchCtx, S, view);
+}
 function draw(){
   if (roomCols() && roomCols() !== view.C) refit();   // a new room was entered with another column count: refit the tile (C changes only here)
   V.Scene.build(S, view, list);
   R.draw(list, view);
+  drawCatch();
   UI.hud(S, R, view);
   if (!moved && (V.Input.active || S.stage > 1)) moved = true;
-  UI.howto(!moved && S.phase === 'play', view);
+  if (V.Prompts) { UI.howto(false, view); V.Prompts.frame(S, view, { touching: !!V.Input.active, home: home, paused: paused }); } else UI.howto(!moved && S.phase === 'play', view);
 }
 
 function pct(a, p){ if (!a.length) return 0; var b = a.slice().sort(function(x, y){ return x - y; }); return Math.round(b[Math.min(b.length - 1, Math.floor(p * b.length))] * 10) / 10; }
@@ -292,10 +314,10 @@ function boot(){
   document.addEventListener('visibilitychange', function(){ if (document.hidden) pause(); });
   G.addEventListener('blur', pause);
   G.addEventListener('pagehide', pause);
-  $('ovPause').addEventListener('pointerdown', function(e){ if (e.target.closest && e.target.closest('button')) return; e.preventDefault(); resume(); });
+  $('ovPause').addEventListener('pointerdown', function(e){ if (e.target.closest && e.target.closest('button')) return; e.preventDefault(); resume(); swallowPauseClick = true; setTimeout(function(){ swallowPauseClick = false; }, 400); });
   $('btnHome').addEventListener('click', function(e){ if (guardOk(e.detail === 0 ? performance.now() : (resPressAt > deadAt ? resPressAt : 0)) && V.Home) V.Home.show(); });
   $('btnResume').addEventListener('click', resume);
-  $('pauseBtn').addEventListener('click', function(){ pause(); });
+  $('pauseBtn').addEventListener('click', function(){ if (swallowPauseClick) { swallowPauseClick = false; return; } pause(); });
   $('btnRestartRun').addEventListener('click', function(e){ e.stopPropagation(); restart(); resume(); });
   $('btnTune').addEventListener('click', function(e){ e.stopPropagation(); UI.openDrawer(true); });
   // Pick 45 (M): a touch during the clear phase PAUSES auto-walk (it no longer cancels it). While the finger is down the player steers;
@@ -309,7 +331,7 @@ function boot(){
   G.addEventListener('keydown', function(e){
     if (paused && (e.key === ' ' || e.key === 'Enter' || e.key === 'Escape')) { resume(); return; }
     if (S && isEnd() && !e.repeat && (e.key === ' ' || e.key === 'Enter' || e.key === 'r')) tryRestart();
-    if (S && S.phase === 'supply' && /^[1-2]$/.test(e.key) && S.supply && +e.key <= S.supply.length) pickSupply(+e.key - 1);
+    if (S && S.phase === 'supply' && !(S.mini && S.stageKind === 'collect') && /^[1-2]$/.test(e.key) && S.supply && +e.key <= S.supply.length) pickSupply(+e.key - 1);
     if (S && S.phase === 'pick' && /^[1-3]$/.test(e.key) && S.cards && +e.key <= S.cards.length) pick(+e.key - 1);
   });
 
@@ -319,6 +341,7 @@ function boot(){
     UI.show('ovBoot', false);
     syncPhase();
     requestAnimationFrame(frame);
+    if (V.Title) V.Title.show();
   }).catch(function(e){ console.error(e); fail('Renderer failed: ' + (e && e.message)); });
 
   G.__pv = {

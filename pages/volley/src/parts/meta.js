@@ -20,19 +20,28 @@
 //                                    .haptics (bool, applied to V.TUNE.HAPTICS); audio.js owns .audio (agent C). Every writer keeps fields it does not own.
 //   V.Meta.SAMPLES / SAMPLE_NAMES / loadSample(name, {save})   'fresh' | 'mid' | 'all' (08 rule 8): the debug menu (Intel > Settings,
 //                                    ?debug=1 only) and bots use the same three. loadSample saves unless {save:false}.
-//   V.Meta.setPower(v)  = same as setting .power; V.Meta.maxLevel(kind,id) (10 for every stat); V.Meta.buyRandom('cond') -> stat id or null.
+//   V.Meta.setPower(v)  = same as setting .power; V.Meta.maxLevel(kind,id) (rifle 10, hp 10, atk 20, rate 20: shape V + option b, pick 48);
+//                                    V.Meta.buyRandom('cond') -> stat id or null.
+//   F1 SHOP (pick 48, shape V + option b; owner P). Conditioning buy = 1 level for hp, 2 levels for atk and rate (TUNING.COND_BUY_LEVELS; a buy
+//     that would pass the cap grants what is left). Rifle buys stay single. At most TUNING.VISIT_MAX (2) purchases per home visit:
+//     V.Meta.visitBuys (get, saved as optional top-level 'visitBuys'), V.Meta.visitLeft(), V.Meta.resetVisit() (the sim/run start must call it;
+//     nextRunNo() calls it too), V.Meta.whyNot(kind,id) -> '' | 'max' | 'visit' | 'credits' (canBuy() is whyNot() === '').
+//     buy(kind,id) returns FALSE when refused, else {ok:true, kind, item, stat, levels, lvl, price, before, after, visit, vn, left}
+//     (an object is truthy, so old if (M.buy(...)) callers still work; new callers read .ok/.levels/.price).
+//     purchases[] entries gain optional levels (granted), visit (home visit number = runSeq + 1) and vn (1st or 2nd buy of the visit).
+//     HP: per-level table TUNING.HP_STEPS (guess, sized for Ch2 later); stats().hpAdd = sum of the first L steps (fractional L blends).
 //   Rifle calls use kind 'rifle', id 'rifle' (id is ignored): cost('rifle','rifle'), canBuy, buy.
 //   V.Meta.rifleStat(lvl) -> rifle ATK at that level = 50 + 8*(lvl-1) (D4 Surplus rifle). The sim only uses the part above L1 (8 per level).
 //   stats(): hpAdd is added to max HP, atkMul multiplies ATK, rateMul > 1 = faster fire (interval = base / rateMul).
 //   runs[] is OLDEST FIRST (append), t = epoch ms, kept last 20: show the last 10 by reading from the end.
 //   best = highest stage reached (Chapter 1 has 10 stages in P1: show best / 10).
-//   V.Meta.boughtCount('cond') (0-30), maxTotal('cond') (30), nextPrice('cond') -> credits or null. UI: use buyRandom('cond') (random roll, one rising ladder).
+//   V.Meta.boughtCount('cond') (0-30 buys, NOT levels), maxTotal('cond') (30 buys), nextPrice('cond') -> credits or null. UI: use buyRandom('cond') (random roll, one rising ladder).
 //   save() and every mutation fire onChange once.
 //   V.Meta.setStorage(obj|null)      swap storage (tests use a mock).
 //   V.Meta.cost('rifle')             {credits} for next rifle level, or null at level 10. id optional.
 //   V.Meta.cost('cond', 'hp'|'atk'|'rate'|'rand')   {credits} or null at max. 'rand' = a random unlocked, not-maxed stat, same price.
 //   V.Meta.canBuy(kind,id) / buy(kind,id)  buy returns true/false, saves, notifies. 'rand' stores V.Meta.lastBuy = 'hp'|'atk'|'rate'.
-//   V.Meta.level(kind,id) / V.Meta.max(kind)   current level and max level (rifle 10, each cond stat 10).
+//   V.Meta.level(kind,id) / V.Meta.max(kind)   current level; max(kind) = rifle 10 levels, cond 10 BUYS per stat (levels: maxLevel(kind,id)).
 //   V.Meta.TUNING                    every number in one table (prices, per-level values, room credits).
 //   V.Meta.stats() -> {hpAdd, atkMul, rateMul, moveMul, dmgTakenMul, power}   neutral {0,1,1,1,1} on a fresh state.
 //   V.Meta.totals() -> {maxHp, atk, rate, interval, power, rifleAtk}   what the Operator tab shows (HERO_HP 600, HERO_ATK 150, 0.8 s base).
@@ -40,7 +49,9 @@
 //   V.Meta.award(result) -> {credits}  result.credits from the sim; idempotent per result object (result.awarded). Adds credits, run log
 //                                    entry (oldest first, kept 20), best stage, codex (result.seen = ['E-01',...]); saves. The sim calls it itself
 //                                    in endRun when it was started with Meta, so the shell must NOT need to call it (calling twice is safe).
-//   V.Meta.roomCredits(kind) / V.Meta.BOSS_BONUS   used by sim.js.
+//   V.Meta.roomCredits(kind, ch) / V.Meta.BOSS_BONUS   pay table (model scale, F1): fight 13, cache 54, boss 40, supply pad = catch room (K). ch = chapter pay factor
+//                                    (TUNING.CHAPTER_PAY; Ch1 1.0, Ch2 and Ch3 are guesses). V.Meta.clearPay(ch) = guaranteed pay of a cleared 10-stage slice.
+//                                    sim.js keeps a mirror of the table (it must not load V.Meta): keep both in step (test-meta checks the numbers).
 //   V.Meta.markSeen(type)            codex entry (ignored for an ID that is not in V.Data.enemies, so the save stays valid).
 //   V.Meta.onChange(fn) -> unsubscribe fn.
 //   F1 report fields (owner C, TEST-REPORT-SPEC s7; all OPTIONAL so every older v2 save still loads, key stays v2):
@@ -55,26 +66,43 @@
 (function(){ var G = (typeof window !== 'undefined' ? window : globalThis); var V = G.V = G.V || {};
 
 // F0 #8 save rules (08 section 4): the key holds the version; a shape change raises VERSION and starts fresh (pick 12, no migration).
+var DEPLOY_KEY = 'volley.deploy.v1';   // G's Deploy roll save (home.js owns the value); Reset save clears it too
 var VERSION = 2, PREFIX = 'volley.save.v', KEY = PREFIX + VERSION, SETTINGS_KEY = 'volley.settings.v1';
 // ---------- tuning table (every number lives here) ----------
 var TUNING = {
   HERO_HP: 600, HERO_ATK: 150, BASE_INTERVAL: 0.8,          // mirror of tune.js (used only for totals())
-  RIFLE_MAX: 10, COND_MAX: 10,
+  RIFLE_MAX: 10, COND_MAX: 10,   // COND_MAX = BUYS per Conditioning stat (30 buys, one ladder); levels per stat: COND_CAPS
   // Rifle upgrade price for level n -> n+1: 200 x n (D4 2.7 reference, "Ref Credits") x 1.25 (N2 gear multiplier), rounded to 25.
   RIFLE_REF_STEP: 200, GEAR_MULT: 1.25,
   // Conditioning ladder, reference price of purchase N (D4 1.4, N = 1..30) x 1.25 (N2), rounded to 25. One ladder for all three stats.
   COND_REF: [200,250,300,350,400,450,500,600,700,800,900,1000,1200,1400,1600,1800,2000,2200,2400,2600,2800,3000,3500,4000,4500,5000,5500,6000,6500,7000],
   COND_MULT: 1.25,
+  // Shape V + option (b), pick 48 (M, 2026-11-11). Levels granted per buy and level caps: atk and rate 10 buys x 2 = 20 levels, hp 10 x 1 = 10.
+  // The ladder is unchanged (30 rungs, total with rifle 98,100: ECON-CH1 option b), so the extra levels cost no extra Credits.
+  COND_BUY_LEVELS: { hp:1, atk:2, rate:2 },
+  COND_CAPS: { hp:10, atk:20, rate:20 },
+  VISIT_MAX: 2,               // purchases per home visit (rifle and Conditioning together); reset when a run starts
   // Per-level values (chosen here; D4 talent tables are for the 11-talent full game).
   RIFLE_ATK_PER_LVL: 8,       // flat ATK per level above L1 (D4 2.2 Surplus rifle +8/level); L1 is the neutral baseline
-  COND_HP_PER_LVL: 40,        // max HP flat
+  COND_HP_PER_LVL: 46,        // = HP_STEPS[0] (first level); kept for old readers. The real per-level values are HP_STEPS.
+  // HP raise [G, P 2026-11-11]: ECON-CH23 says Chapter 2 needs HP index about 3.2 at DPS 2.50 for ~87%. Under option (b) DPS is 3.79 at max, and the model
+  // (scratchpad P/grid.js, 600 seeds) gives Ch2 80% at HP index 2.4, 94% at 2.8, 98% at 3.2 for DPS 3.79, so ~90% needs about 2.67 = 1,600 HP.
+  // Meta alone therefore carries +1,000 HP (was +400): 10 levels, rising steps 46, 58, ... 154 (first buy stays about +7.7%, last +10.6%). Gear may add more later.
+  // To make the meta carry the full 3.2 instead: set steps summing to 1,320 (for example start 60, step 17.5) - data only, no code change.
+  HP_STEPS: [46, 58, 70, 82, 94, 106, 118, 130, 142, 154],
   COND_ATK_PER_LVL: 0.03,     // ATK multiplier fraction
   COND_RATE_PER_LVL: 0.03,    // fire-rate multiplier fraction
   // Credits per cleared room (D4 3.1 weights: fight 1, Supply 0, Cache 4, boss 3; 23.8 credits per weight rounded to 24; a 10-stage
   // run is a fifth of the 50-stage chapter, so a full win pays about 334 of the 1,667 chapter mid).
-  CREDITS_PER_WEIGHT: 24,
-  ROOM: { combat: 24, supply: 0, cache: 95, boss: 24 },
-  BOSS_BONUS: 47,             // added on boss kill (boss room total 71)
+  // F1 pay table (pick 48 design default): the model's 1,141 per 50-stage clear (sim/model.js CFG.econ, 02 T2): fight room 13, cache 54, boss 40,
+  // supply pad 25 in the model. The built 24 / 95 / 24 + 47 table paid 1,670 per 50 stages (334 per 10-stage slice); 13 / 54 / 40 pays 185 per slice.
+  CREDITS_PER_WEIGHT: 13,
+  ROOM: { combat: 13, supply: 0, cache: 54, boss: 40 },
+  BOSS_BONUS: 0,              // folded into ROOM.boss (40 total)
+  SUPPLY_PAD: 25,             // model value per Supply Drop; the catch room (K, SPEC R50) pays its own Credits pad, Chapter 1 20 / 24 / 28 by chapter: K reads this or SPEC
+  // Chapter pay factor (data, applied to every room value). Ch1 1.0. Ch2 and Ch3 are GUESSES: the ratios of design T2's mid clear pay 1,000 / 1,100 / 1,500 (ECON-CH23 s2).
+  CHAPTER_PAY: { 1: 1.0, 2: 1.1, 3: 1.5 },
+  FEEL: { fight:['Too easy', 'About right', 'Too hard', 'Unfair in places'], up:['Clearly stronger', 'A little', 'No difference'], kill:['Popped too fast', 'About right', 'Felt like a sponge'] },   // TEST-REPORT-SPEC s4 words
   RUN_LOG_KEEP: 20, PURCHASE_KEEP: 20, RESETS_KEEP: 5, RUN_TUNE_KEYS: 40, RUN_PICKS: 40,   // F1 report caps (guesses: 20 runs of about 400 B = 8 KB, well under SAVE_TEXT_MAX)
   // save validation caps (guesses): credits, stage numbers, and the longest save text accepted (a full v2 save is about 2 KB)
   CREDITS_MAX: 1e9, STAGE_MAX: 999, SAVE_TEXT_MAX: 65536
@@ -89,7 +117,7 @@ try { storage = (typeof localStorage !== 'undefined') ? localStorage : (G.localS
 M.state = fresh();
 M.TUNING = TUNING;
 M.BOSS_BONUS = TUNING.BOSS_BONUS;
-M.KEY = KEY; M.SETTINGS_KEY = SETTINGS_KEY; M.VERSION = VERSION;
+M.DEPLOY_KEY = DEPLOY_KEY; M.KEY = KEY; M.SETTINGS_KEY = SETTINGS_KEY; M.VERSION = VERSION;
 M.RESET_LINE = 'Progress was reset by this update.';            // 05 3.1 wording (ruling R20); the title screen and Home toast show it
 M.BLOCKED_LINE = 'Storage is blocked: progress will not be kept.';
 M.lastBuy = null;
@@ -106,9 +134,9 @@ function knownId(id){
   var T = V.Data && V.Data.enemies;
   return T ? Object.prototype.hasOwnProperty.call(T, id) : /^[EB]-\d\d$/.test(id);
 }
-var TOP = ['v', 'credits', 'rifle', 'cond', 'buys', 'power', 'runs', 'best', 'codex', 'schematics', 'keys', 'runSeq', 'purchases', 'resets'];
+var TOP = ['v', 'credits', 'rifle', 'cond', 'buys', 'power', 'runs', 'best', 'codex', 'schematics', 'keys', 'runSeq', 'purchases', 'resets', 'visitBuys', 'sd'];
 var RUN_BASE = ['t', 'stage', 'win', 'kills', 'credits', 'dur'];
-var RUN_EXTRA = ['runNo', 'runBuild', 'startedAt', 'endReason', 'hpMax', 'lowestHp', 'tuneChanged', 'picks', 'cols'];
+var RUN_EXTRA = ['runNo', 'runBuild', 'startedAt', 'endReason', 'hpMax', 'lowestHp', 'tuneChanged', 'picks', 'cols', 'feel', 'touchContinue'];
 var END_REASONS = ['clear', 'death', 'abandon'], RESET_REASONS = ['corrupt', 'invalid', 'old-version', 'user'];
 function isStr(v, max){ return typeof v === 'string' && v.length <= max; }
 // One optional F1 run field: returns the clean value, or undefined when it is not valid (validate() then rejects the save;
@@ -122,7 +150,14 @@ function runExtra(k, v){
     case 'endReason': return END_REASONS.indexOf(v) >= 0 ? v : undefined;
     case 'hpMax': return isInt(v, 0, 1e6) ? v : undefined;
     case 'lowestHp': return isInt(v, 0, 1e6) ? v : undefined;
+    case 'touchContinue': return isInt(v, 0, 9999) ? v : undefined;   // extra "Touch to continue" taps in the run (G, level-up pick)
     case 'cols': return isInt(v, 1, 99) ? v : undefined;
+    case 'feel': {   // feel strip answers (TEST-REPORT-SPEC s4): { fight, up, kill } each one of the owner's card words or 'skip'
+      if (!isObj(v)) return undefined;
+      var f = {};
+      for (var fk in v) { var words = T.FEEL[fk]; if (!words || !(v[fk] === 'skip' || words.indexOf(v[fk]) >= 0)) return undefined; f[fk] = v[fk]; }
+      return f;
+    }
     case 'tuneChanged': {
       if (!isObj(v)) return undefined;
       var o = {}, n = 0;
@@ -139,8 +174,9 @@ function runExtra(k, v){
 }
 function cleanExtra(x){ var o = {}; if (!isObj(x)) return o; RUN_EXTRA.forEach(function(k){ if (k in x) { var c = runExtra(k, x[k]); if (c !== undefined) o[k] = c; } }); return o; }
 function validPurchase(p){
-  return isObj(p) && onlyKeys(p, ['t', 'run', 'item', 'lvl', 'price', 'before', 'after']) && isNum(p.t, 0, 1e15) && isInt(p.run, 0, 1e9) && isStr(p.item, 24) &&
-    isInt(p.lvl, 0, 99) && isInt(p.price, 0, TUNING.CREDITS_MAX) && isInt(p.before, 0, TUNING.CREDITS_MAX) && isInt(p.after, 0, TUNING.CREDITS_MAX);
+  return isObj(p) && onlyKeys(p, ['t', 'run', 'item', 'lvl', 'price', 'before', 'after', 'levels', 'visit', 'vn']) && isNum(p.t, 0, 1e15) && isInt(p.run, 0, 1e9) && isStr(p.item, 24) &&
+    isInt(p.lvl, 0, 99) && isInt(p.price, 0, TUNING.CREDITS_MAX) && isInt(p.before, 0, TUNING.CREDITS_MAX) && isInt(p.after, 0, TUNING.CREDITS_MAX) &&
+    (!('levels' in p) || isInt(p.levels, 0, 99)) && (!('visit' in p) || isInt(p.visit, 0, 1e9 + 1)) && (!('vn' in p) || isInt(p.vn, 1, 99));   // F1 shape V: optional, so older v2 saves load
 }
 function validReset(r){ return isObj(r) && onlyKeys(r, ['t', 'reason']) && isNum(r.t, 0, 1e15) && RESET_REASONS.indexOf(r.reason) >= 0; }
 // Returns a clean deep copy of a valid v2 save, or null. Never throws.
@@ -151,8 +187,10 @@ function validate(raw){
     if (!isInt(raw.credits, 0, T.CREDITS_MAX)) return null;
     if (!isObj(raw.rifle) || !onlyKeys(raw.rifle, ['lvl']) || !isInt(raw.rifle.lvl, 1, T.RIFLE_MAX)) return null;
     var c = raw.cond;
-    if (!isObj(c) || !onlyKeys(c, ['hp', 'atk', 'rate']) || !isInt(c.hp, 0, T.COND_MAX) || !isInt(c.atk, 0, T.COND_MAX) || !isInt(c.rate, 0, T.COND_MAX)) return null;
-    if (raw.buys !== c.hp + c.atk + c.rate) return null;                       // ladder index always equals levels bought
+    if (!isObj(c) || !onlyKeys(c, ['hp', 'atk', 'rate']) || !isInt(c.hp, 0, T.COND_CAPS.hp) || !isInt(c.atk, 0, T.COND_CAPS.atk) || !isInt(c.rate, 0, T.COND_CAPS.rate)) return null;
+    // ladder index = purchases made. Shape V: an atk or rate buy is 2 levels, an older single-level save has 1, so buys lies between
+    // hp + ceil(atk/2) + ceil(rate/2) and hp + atk + rate (an old save, all singles, sits on the upper edge and still loads).
+    if (!isInt(raw.buys, c.hp + Math.ceil(c.atk / 2) + Math.ceil(c.rate / 2), c.hp + c.atk + c.rate)) return null;
     if (!isNum(raw.power, 0, 1)) return null;
     if (!Array.isArray(raw.runs) || raw.runs.length > T.RUN_LOG_KEEP) return null;
     var runs = [];
@@ -176,12 +214,24 @@ function validate(raw){
     if ('purchases' in raw) {
       if (!Array.isArray(raw.purchases) || raw.purchases.length > T.PURCHASE_KEEP) return null;
       s.purchases = [];
-      for (var pi = 0; pi < raw.purchases.length; pi++) { var p = raw.purchases[pi]; if (!validPurchase(p)) return null; s.purchases.push({ t:p.t, run:p.run, item:p.item, lvl:p.lvl, price:p.price, before:p.before, after:p.after }); }
+      for (var pi = 0; pi < raw.purchases.length; pi++) { var p = raw.purchases[pi]; if (!validPurchase(p)) return null; var pe = { t:p.t, run:p.run, item:p.item, lvl:p.lvl, price:p.price, before:p.before, after:p.after }; if ('levels' in p) pe.levels = p.levels; if ('visit' in p) pe.visit = p.visit; if ('vn' in p) pe.vn = p.vn; s.purchases.push(pe); }
     }
     if ('resets' in raw) {
       if (!Array.isArray(raw.resets) || raw.resets.length > T.RESETS_KEEP) return null;
       s.resets = [];
       for (var ri2 = 0; ri2 < raw.resets.length; ri2++) { var rr = raw.resets[ri2]; if (!validReset(rr)) return null; s.resets.push({ t:rr.t, reason:rr.reason }); }
+    }
+    if ('visitBuys' in raw) { if (!isInt(raw.visitBuys, 0, 99)) return null; s.visitBuys = raw.visitBuys; }
+    if ('sd' in raw) {   // Supply Drop catch room (owner K, SPEC R50): plays so far and the pending payout sheet
+      var q = raw.sd, pe = null;
+      if (!isObj(q) || !onlyKeys(q, ['plays', 'pending']) || !isInt(q.plays, 0, 9999)) return null;
+      if (q.pending != null) {
+        var pp = q.pending;
+        if (!isObj(pp) || !onlyKeys(pp, ['chapter', 'stage', 'tier', 'defaults']) || !isInt(pp.chapter, 1, 9) || !isInt(pp.stage, 0, T.STAGE_MAX) || !isInt(pp.tier, 0, 3) || !Array.isArray(pp.defaults) || pp.defaults.length > 3) return null;
+        for (var di = 0; di < pp.defaults.length; di++) if (['repair', 'credits', 'schematics'].indexOf(pp.defaults[di]) < 0) return null;
+        pe = { chapter:pp.chapter, stage:pp.stage, tier:pp.tier, defaults:pp.defaults.slice() };
+      }
+      s.sd = { plays:q.plays, pending:pe };
     }
     return s;
   } catch (e) { return null; }
@@ -195,8 +245,8 @@ function lenient(raw){
     s.credits = clampInt(raw.credits, 0, TUNING.CREDITS_MAX, 0);
     s.rifle.lvl = clampInt(raw.rifle && raw.rifle.lvl, 1, TUNING.RIFLE_MAX, 1);
     var c = isObj(raw.cond) ? raw.cond : {};
-    s.cond.hp = clampInt(c.hp, 0, TUNING.COND_MAX, 0); s.cond.atk = clampInt(c.atk, 0, TUNING.COND_MAX, 0); s.cond.rate = clampInt(c.rate, 0, TUNING.COND_MAX, 0);
-    s.buys = s.cond.hp + s.cond.atk + s.cond.rate;
+    s.cond.hp = clampInt(c.hp, 0, TUNING.COND_CAPS.hp, 0); s.cond.atk = clampInt(c.atk, 0, TUNING.COND_CAPS.atk, 0); s.cond.rate = clampInt(c.rate, 0, TUNING.COND_CAPS.rate, 0);
+    s.buys = s.cond.hp + Math.ceil(s.cond.atk / 2) + Math.ceil(s.cond.rate / 2);
     s.best = clampInt(raw.best, 0, TUNING.STAGE_MAX, 0);
   } catch (e) { return fresh(); }
   return s;
@@ -265,6 +315,8 @@ M.reset = function(){
   var prev = (M.state && Array.isArray(M.state.resets)) ? M.state.resets : [];
   M.readOnly = false; M.note = ''; M.resetSignal = ''; M.state = fresh(); M.lastBuy = null;
   M.state.resets = prev.slice(); addReset(M.state, 'user');
+  try { if (V.Home && V.Home.deploy && V.Home.deploy.forget) V.Home.deploy.forget(); } catch (_) {}   // G: drop the in-memory roll too, or home.js would write it back
+  if (storage) sdel(storage, DEPLOY_KEY);   // the Deploy roll belongs to the save: a reset starts it fresh too (guarded: blocked storage cannot throw)
   return M.save();
 };
 function nowMs(){ try { return Date.now(); } catch (e) { return 0; } }   // report timestamps only, never in stats or costs
@@ -272,14 +324,25 @@ function addReset(s, reason){ if (RESET_REASONS.indexOf(reason) < 0) return; s.r
 // F1 report: the next run number (kept in the save as runSeq). Written without notifying listeners (nothing on screen shows it).
 M.nextRunNo = function(){
   var s = M.state; s.runSeq = Math.min(1e9, (s.runSeq | 0) + 1);
+  if (s.visitBuys) s.visitBuys = 0;   // a run is starting: the home visit is over, the next visit has a fresh buy allowance
   if (storage && !M.readOnly) sset(storage, KEY, JSON.stringify(s));
   return s.runSeq;
 };
+// Home-visit allowance (shape V): resetVisit() is called when a run starts (nextRunNo does it; sim create / bots may call it directly). Quiet write.
+M.resetVisit = function(){
+  var s = M.state; if (!s.visitBuys) return 0;
+  s.visitBuys = 0; if (storage && !M.readOnly) sset(storage, KEY, JSON.stringify(s));
+  return 0;
+};
+M.sdState = function(){ var q = M.state.sd; return { plays:q ? q.plays : 0, pending:q ? q.pending : null }; };
+M.sdOpen = function(p){ var s = M.state, q = s.sd || (s.sd = { plays:0, pending:null }); q.pending = { chapter:p.chapter | 0, stage:p.stage | 0, tier:p.tier | 0, defaults:(p.defaults || []).slice(0, 3) }; M.save(); };
+M.sdTake = function(g){ var s = M.state, q = s.sd || (s.sd = { plays:0, pending:null }); q.plays = Math.min(9999, q.plays + 1); q.pending = null; if (g && g.schematics > 0) s.schematics = Math.min(TUNING.CREDITS_MAX, (s.schematics | 0) + (g.schematics | 0)); M.save(); };
 M.onChange = function(fn){ listeners.push(fn); return function(){ var i = listeners.indexOf(fn); if (i >= 0) listeners.splice(i, 1); }; };
 
 // ---------- settings: own key, read field by field with defaults, survive a save wipe (08 section 4) ----------
 // One JSON object. audio.js owns the .audio sub-object (agreed with agent C); meta.js owns .haptics and keeps every other field it finds.
-var SETTINGS_DEFAULTS = { haptics:true };
+var SETTINGS_DEFAULTS = { haptics:true, feel:true, sdSkip:false, leftHanded:false };   // leftHanded: mirrors the fight touch layout (05 s3.9 row 4); catch-scene.js and prompts.js already read settings().leftHanded
+// feel = the results-screen feel questions (TEST-REPORT-SPEC s4; Intel > Settings row "Feel questions: on or off")
 function readSettings(){
   var o = null, txt = storage ? sget(storage, SETTINGS_KEY) : null;
   if (typeof txt === 'string' && txt.length <= TUNING.SAVE_TEXT_MAX) { try { o = JSON.parse(txt); } catch (e) { o = null; } }
@@ -299,26 +362,36 @@ M.setSetting = function(k, v){
 function applySettings(o){ try { o = o || M.settings(); if (V.TUNE && 'HAPTICS' in V.TUNE) V.TUNE.HAPTICS = o.haptics; } catch (e) {} }
 
 // ---------- costs and buying ----------
-M.max = function(kind){ return kind === 'rifle' ? TUNING.RIFLE_MAX : TUNING.COND_MAX; };
+M.max = function(kind){ return kind === 'rifle' ? TUNING.RIFLE_MAX : TUNING.COND_MAX; };   // rifle: levels; cond: BUYS per stat (levels: maxLevel)
 M.rifleStat = function(lvl){ return 50 + TUNING.RIFLE_ATK_PER_LVL * (Math.max(1, Math.floor(+lvl || 1)) - 1); };
-M.maxLevel = function(kind, id){ return M.max(kind); };   // all caps are 10 (TABS-B assumed hp 25, atk 25, rate 10; see TUNING)
+M.maxLevel = function(kind, id){ return kind === 'rifle' ? TUNING.RIFLE_MAX : (TUNING.COND_CAPS[id] || TUNING.COND_MAX); };   // hp 10, atk 20, rate 20 levels
 M.level = function(kind, id){ return kind === 'rifle' ? M.state.rifle.lvl : (M.state.cond[id] || 0); };
 function ladder(n){ var i = Math.min(n, TUNING.COND_REF.length - 1); return r25(TUNING.COND_REF[i] * TUNING.COND_MULT); }  // n = purchases so far (0-based)
-function condOpen(){ return ['hp', 'atk', 'rate'].filter(function(k){ return M.state.cond[k] < TUNING.COND_MAX; }); }
+function condOpen(){ return ['hp', 'atk', 'rate'].filter(function(k){ return M.state.cond[k] < TUNING.COND_CAPS[k]; }); }
 M.cost = function(kind, id){
   var s = M.state;
   if (kind === 'rifle') return s.rifle.lvl >= TUNING.RIFLE_MAX ? null : { credits: r25(TUNING.RIFLE_REF_STEP * s.rifle.lvl * TUNING.GEAR_MULT) };
   if (kind === 'cond') {
     if (id === 'rand') { if (!condOpen().length) return null; }
-    else if (!(id in s.cond) || s.cond[id] >= TUNING.COND_MAX) return null;
+    else if (!(id in s.cond) || s.cond[id] >= TUNING.COND_CAPS[id]) return null;
     return { credits: ladder(s.buys) };
   }
   return null;
 };
-M.canBuy = function(kind, id){ var c = M.cost(kind, id); return !!c && M.state.credits >= c.credits; };
+// Home-visit allowance (pick 48 shape V: at most VISIT_MAX purchases per home visit, reset when a run starts).
+Object.defineProperty(M, 'visitBuys', { get: function(){ return M.state.visitBuys | 0; } });
+M.visitLeft = function(){ return Math.max(0, TUNING.VISIT_MAX - (M.state.visitBuys | 0)); };
+// Why a buy is refused: '' (it can be bought), 'max' (nothing left to buy), 'visit' (allowance used), 'credits' (too poor). Checked in this order.
+M.whyNot = function(kind, id){
+  var c = M.cost(kind, id);
+  if (!c) return 'max';
+  if (M.visitLeft() <= 0) return 'visit';
+  return M.state.credits >= c.credits ? '' : 'credits';
+};
+M.canBuy = function(kind, id){ return M.whyNot(kind, id) === ''; };
 M.buy = function(kind, id){
   if (!M.canBuy(kind, id)) return false;
-  var s = M.state, c = M.cost(kind, id), before = s.credits, item, lvl;
+  var s = M.state, c = M.cost(kind, id), before = s.credits, item, lvl, levels = 1, stat = null;
   s.credits -= c.credits;
   if (kind === 'rifle') { s.rifle.lvl++; item = 'Rifle'; lvl = s.rifle.lvl; }
   else {
@@ -329,17 +402,20 @@ M.buy = function(kind, id){
       var h = (s.buys * 2654435761 + s.credits * 40503 + s.runs.length * 9973 + 12345) >>> 0;
       pick = open[h % open.length];
     }
-    s.cond[pick]++; s.buys++; M.lastBuy = pick;
+    levels = Math.min(TUNING.COND_BUY_LEVELS[pick] || 1, TUNING.COND_CAPS[pick] - s.cond[pick]);   // 2 for atk and rate, 1 for hp, never past the cap
+    s.cond[pick] += levels; s.buys++; M.lastBuy = pick; stat = pick;
     item = 'Cond ' + pick; lvl = s.cond[pick];
   }
-  // F1 purchase log (TEST-REPORT-SPEC s3): run = the last run number handed out, so the buy shows "before run run+1"
-  s.purchases = (s.purchases || []).concat([{ t: nowMs(), run: Math.min(1e9, s.runSeq | 0), item: item, lvl: lvl, price: c.credits, before: before, after: s.credits }]);
+  var vn = (s.visitBuys | 0) + 1, visit = Math.min(1e9 + 1, (s.runSeq | 0) + 1);
+  // F1 purchase log (TEST-REPORT-SPEC s3): run = the last run number handed out, so the buy shows "before run run+1"; levels = granted; visit = home visit number; vn = nth buy in it
+  s.purchases = (s.purchases || []).concat([{ t: nowMs(), run: Math.min(1e9, s.runSeq | 0), item: item, lvl: lvl, price: c.credits, before: before, after: s.credits, levels: levels, visit: visit, vn: vn }]);
   if (s.purchases.length > TUNING.PURCHASE_KEEP) s.purchases.splice(0, s.purchases.length - TUNING.PURCHASE_KEEP);
+  s.visitBuys = vn;
   M.save();
-  try { if (V.Report && V.Report.purchase) V.Report.purchase(item + ' L' + lvl, c.credits); } catch (e) {}
-  return true;
+  try { if (V.Report && V.Report.purchase) V.Report.purchase(item + ' L' + lvl, c.credits, { levels: levels, visit: visit, vn: vn }); } catch (e) {}
+  return { ok: true, kind: kind, item: item, stat: stat, levels: levels, lvl: lvl, price: c.credits, before: before, after: s.credits, visit: visit, vn: vn, left: M.visitLeft() };
 };
-// Random Conditioning (D4: each buy upgrades a random unlocked stat). Returns the stat id bought, or null (cannot afford / all maxed).
+// Random Conditioning (D4: each buy upgrades a random unlocked stat). Returns the stat id bought, or null (cannot afford / all maxed / visit used).
 // Counter helpers for "N / M bought" and the next price (random roll uses one ladder across all buys).
 M.boughtCount = function(kind){ return kind === 'cond' ? M.state.buys : M.state.rifle.lvl - 1; };
 M.maxTotal = function(kind){ return kind === 'cond' ? 3 * TUNING.COND_MAX : TUNING.RIFLE_MAX - 1; };
@@ -350,13 +426,17 @@ M.buyRandom = function(kind){ return (kind === 'cond' && M.buy('cond', 'rand')) 
 function effLevels(){
   var s = M.state, p = Math.max(0, Math.min(1, +M.state.power || 0));
   function e(v, mx){ return v + p * (mx - v); }
-  return { rifle: e(s.rifle.lvl, TUNING.RIFLE_MAX), hp: e(s.cond.hp, TUNING.COND_MAX), atk: e(s.cond.atk, TUNING.COND_MAX), rate: e(s.cond.rate, TUNING.COND_MAX) };
+  var C = TUNING.COND_CAPS;
+  return { rifle: e(s.rifle.lvl, TUNING.RIFLE_MAX), hp: e(s.cond.hp, C.hp), atk: e(s.cond.atk, C.atk), rate: e(s.cond.rate, C.rate) };
 }
+// Max HP added by the first L HP levels (L may be fractional when debug power blends): the sum of TUNING.HP_STEPS.
+function hpAddAt(L){ var S = TUNING.HP_STEPS, t = 0; for (var i = 0; i < S.length; i++) t += S[i] * Math.max(0, Math.min(1, L - i)); return t; }
+M.hpAddAt = hpAddAt;
 M.stats = function(){
   var L = effLevels(), T = TUNING;
   var rifleAtk = T.RIFLE_ATK_PER_LVL * (L.rifle - 1);
   var atkMul = (1 + rifleAtk / T.HERO_ATK) * (1 + T.COND_ATK_PER_LVL * L.atk);
-  return { hpAdd: T.COND_HP_PER_LVL * L.hp, atkMul: atkMul, rateMul: 1 + T.COND_RATE_PER_LVL * L.rate,
+  return { hpAdd: hpAddAt(L.hp), atkMul: atkMul, rateMul: 1 + T.COND_RATE_PER_LVL * L.rate,
     moveMul: 1, dmgTakenMul: 1, power: M.state.power || 0 };
 };
 M.totals = function(){
@@ -370,7 +450,22 @@ Object.defineProperty(M, 'power', { get: function(){ return M.state.power || 0; 
   set: function(v){ M.setPower(v); } });
 
 // ---------- income and run log ----------
-M.roomCredits = function(kind){ var v = TUNING.ROOM[kind]; return v == null ? TUNING.ROOM.combat : v; };
+M.chapterPay = function(ch){ var f = TUNING.CHAPTER_PAY[ch == null ? 1 : ch]; return f == null ? 1 : f; };
+M.roomCredits = function(kind, ch){ var v = TUNING.ROOM[kind]; if (v == null) v = TUNING.ROOM.combat; return Math.round(v * M.chapterPay(ch)); };
+// Guaranteed pay of a cleared 10-stage slice: 7 fight rooms + cache + boss (the Supply Drop room pays its own pad, SUPPLY_PAD / K's payout). Ch1: 7 x 13 + 54 + 40 = 185.
+M.clearPay = function(ch){ return 7 * M.roomCredits('combat', ch) + M.roomCredits('cache', ch) + M.roomCredits('boss', ch) + Math.round(TUNING.BOSS_BONUS * M.chapterPay(ch)); };
+// Feel strip answers (TEST-REPORT-SPEC s4): patch the saved run entry. fields: { fight, up, kill } with the owner's card words or 'skip'. Quiet write.
+M.setFeel = function(runNo, fields){
+  var runs = M.state.runs, e = null;
+  for (var i = runs.length - 1; i >= 0; i--) if (runs[i].runNo === runNo) { e = runs[i]; break; }
+  if (!e) return false;
+  var f = {}, k; if (e.feel) for (k in e.feel) f[k] = e.feel[k];
+  for (k in fields) f[k] = fields[k];
+  var c = runExtra('feel', f); if (c === undefined) return false;
+  e.feel = c;
+  if (storage && !M.readOnly) sset(storage, KEY, JSON.stringify(M.state));
+  return true;
+};
 M.markSeen = function(type){ if (type && knownId(String(type))) { M.state.codex.seen[String(type)] = true; } };   // unknown IDs are ignored so the save stays valid
 M.award = function(result){
   var s = M.state;
@@ -398,11 +493,12 @@ var ALL_IDS = ['E-01', 'E-02', 'E-03', 'E-04', 'E-05', 'B-01'];
 function seenOf(ids){ var o = {}; ids.forEach(function(k){ o[k] = true; }); return o; }
 M.SAMPLES = {
   fresh: function(){ return fresh(); },
-  // mid-game: the design thread's sample (FIX-ROUND-1 section A): credits 12480, rifle Lv 8, cond 15 bought (6/5/4), next price 2250, best 23
-  mid: function(){ var s = fresh(); s.credits = 12480; s.rifle.lvl = 8; s.cond = { hp:6, atk:5, rate:4 }; s.buys = 15; s.best = 23;
+  // mid-game: the design thread's sample (FIX-ROUND-1 section A): credits 12480, rifle Lv 8, cond 15 bought, next price 2250, best 23.
+  // Shape V: 5 hp buys (5 levels), 5 atk buys (10 levels), 5 rate buys (10 levels).
+  mid: function(){ var s = fresh(); s.credits = 12480; s.rifle.lvl = 8; s.cond = { hp:5, atk:10, rate:10 }; s.buys = 15; s.best = 23;
     s.schematics = 86; s.keys = 1; s.codex.seen = seenOf(ALL_IDS.slice(0, 5)); return s; },
   // all unlocked: every level maxed, every contact filed, chapter cleared, credits to spare (amount is a guess)
-  all: function(){ var s = fresh(); s.credits = 99999; s.rifle.lvl = TUNING.RIFLE_MAX; s.cond = { hp:TUNING.COND_MAX, atk:TUNING.COND_MAX, rate:TUNING.COND_MAX };
+  all: function(){ var s = fresh(); s.credits = 99999; s.rifle.lvl = TUNING.RIFLE_MAX; s.cond = { hp:TUNING.COND_CAPS.hp, atk:TUNING.COND_CAPS.atk, rate:TUNING.COND_CAPS.rate };
     s.buys = 3 * TUNING.COND_MAX; s.best = 10; s.codex.seen = seenOf(ALL_IDS); return s; }
 };
 M.SAMPLE_NAMES = ['fresh', 'mid', 'all'];

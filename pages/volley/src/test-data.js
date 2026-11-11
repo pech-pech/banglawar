@@ -5,6 +5,7 @@ var P = function(f){ return path.join(__dirname, 'parts', f + '.js'); };
 // data parts first, then the parts that read them, in game load order (game.html)
 ['data-stages', 'data-enemies', 'tune', 'rng', 'rooms', 'stages', 'mods', 'sim', 'ai-p0', 'ai-p1', 'boss'].forEach(function(f){ require(P(f)); });
 var V = globalThis.V, D = V.Data, fails = 0, n = 0;
+var HASH600 = '0a3f24e4';
 function ok(name, c, got){ n++; if (!c) { fails++; console.log('FAIL', name, got === undefined ? '' : JSON.stringify(got)); } }
 function isNum(v){ return typeof v === 'number' && isFinite(v); }
 function keys(o){ return Object.keys(o).sort().join(); }
@@ -26,7 +27,7 @@ ok('V.Data is plain data (no functions, NaN, Infinity or class objects)', plain(
 ok('V.Data survives a JSON round trip', JSON.stringify(JSON.parse(JSON.stringify(D))) === JSON.stringify(D));
 
 // ---- enemies ----
-var ENEMY_FIELDS = { hp:1, contact:1, dmg:1, speed:1, r:1, size:1, xp:1, tell:1, cd:1 };
+var ENEMY_FIELDS = { hp:1, contact:1, dmg:1, speed:1, r:1, size:1, xp:1, tell:1, cd:1, ai:1 };
 var FLAGS = { flyer:1, static:1, boss:1, immune:1 };
 var SIZES = { small:1, medium:1, large:1 };
 var E = D.enemies, ids = Object.keys(E);
@@ -83,7 +84,7 @@ rids.forEach(function(id){
 // ---- stages ----
 var KINDS = { combat:1, supply:1, cache:1, boss:1 };
 var ch = D.stages.ch1;
-ok('stages has only ch1 (P1)', keys(D.stages) === 'ch1');
+ok('stages has ch1 and the debug stress room', keys(D.stages) === 'ch1,stress', keys(D.stages));
 ok('ch1 has 10 rows numbered 1..10', Array.isArray(ch) && ch.length === 10 && ch.every(function(s, i){ return s.stage === i + 1; }), ch && ch.length);
 ch.forEach(function(s){
   var id = 'stage ' + s.stage, g = R[s.room] && R[s.room].grid;
@@ -112,5 +113,54 @@ ok('one boss row, and it is the last stage', bossRows.length === 1 && ch[ch.leng
 ok('V.ROOMS is V.Data.rooms', V.ROOMS === D.rooms);
 ok('V.ROOM_ORDER is V.Data.roomOrder', V.ROOM_ORDER === D.roomOrder);
 ok('V.STAGES is V.Data.stages', V.STAGES === D.stages);
+
+// ---- F1 (S): R29 slope, R31 effective tells, no literals left in the AI parts, stress room ----
+var T0 = V.TUNE_DEFAULTS, fs = require('fs');
+ok('R29 DMG_SLOPE is 0.0118 per stage (not the built 0.08)', T0.DMG_SLOPE === 0.0118, T0.DMG_SLOPE);
+ok('R31 TELL_MULT stays 0.85', T0.TELL_MULT === 0.85, T0.TELL_MULT);
+function eff(base){ return +(base * T0.TELL_MULT).toFixed(3); }
+function near(a, b){ return Math.abs(a - b) <= 0.005; }
+// effective seconds the player sees (section 03): base x TELL_MULT must land on these (+-0.005)
+var EFF = { 'E-01':0.8, 'E-02':0.6, 'E-03':0.7, 'E-04':1.0, 'E-05':0.8 };
+for (var id in EFF) ok(id + ' effective tell ' + EFF[id] + ' s (base ' + E[id].tell + ' x ' + T0.TELL_MULT + ')', near(eff(E[id].tell), EFF[id]), eff(E[id].tell));
+ok('E-01 base tell is 0.941 (R31)', E['E-01'].tell === 0.941);
+var BE = E['B-01'].ai;
+ok('B-01 effective tells A 1.0 / B 0.6 / C 0.8', near(eff(BE.tellA), 1.0) && near(eff(BE.tellB), 0.6) && near(eff(BE.tellC), 0.8), [eff(BE.tellA), eff(BE.tellB), eff(BE.tellC)]);
+ok('B-01 row tell equals its A tell', E['B-01'].tell === BE.tellA);
+ok('E-02 and E-05 lock the last 0.2 s effective', near(eff(E['E-02'].ai.lockLast), 0.2) && near(eff(E['E-05'].ai.lockLast), 0.2));
+// every row.ai number reaches the behaviour: the behaviour carries the same value (angles: row degrees x pi/180)
+var DEGR = Math.PI / 180;
+function chkAi(id, A, row, path){
+  for (var k in row) {
+    var v = row[k], at = id + ' ai.' + path + k;
+    if (v && typeof v === 'object' && !Array.isArray(v)) { ok(at + ' is on the behaviour', A && A[k] && typeof A[k] === 'object', k); chkAi(id, A && A[k], v, path + k + '.'); continue; }
+    var bk = /Deg$/.test(k) && !Array.isArray(v) ? k.replace(/Deg$/, '') : (k === 'lines2Deg' ? 'lines2' : k);
+    var want = (/Deg$/.test(k) && !Array.isArray(v) && k !== 'extra2Deg') ? v * DEGR : v;   // boss.js keeps lines2 and extra2 in degrees (converted at use)
+    ok(at + ' equals the behaviour value (no drift)', A && JSON.stringify(A[bk]) === JSON.stringify(want), [A && A[bk], want]);
+  }
+}
+ids.forEach(function(id){ if (E[id].ai) chkAi(id, V.AI[id], E[id].ai, ''); });
+// no base literal in the AI parts: each must read V.Data.enemies, never carry a { hp: ... } object
+['ai-p0', 'ai-p1', 'boss'].forEach(function(f){
+  var src = fs.readFileSync(P(f), 'utf8');
+  ok(f + '.js has no base row literal (base: { ... })', !/base\s*:\s*\{/.test(src));
+  ok(f + '.js has no hp:/contact:/tell: literal fields', !/\b(hp|contact|xp)\s*:\s*\d/.test(src));
+  ok(f + '.js has no behaviour-number literal (range, shotSpeed, tellA, ... : 1.2)', !/\\b(range|lungeSpeed|lungeDist|lockLast|shotSpeed|prefer|lead|fanN|spread|windup|ringR|dashSpeed|dashDist|stun|scatterDmg|cd2|tellA|tellB|tellC|lines1|perLine|lineN)\\s*:\\s*-?\\d/.test(src));
+  ok(f + '.js reads V.Data.enemies', /V\.Data\.enemies/.test(src));
+});
+// damage curve: stage 10 hit = base x ENEMY_DMG_MULT x (1 + 0.0118 x 9)
+// stress room: opts.room 'stress' -> 11 machines alive together, hero takes no damage, plain runs unaffected
+var Ss = V.Sim.create(5, V.TUNE, { room:'stress', cols:9 });
+for (var i = 0; i < 120; i++) V.Sim.step(Ss, { mx:0, my:0 });
+ok('stress room has 11 machines alive at 2 s', Ss.enemies.filter(function(e){ return e.hp > 0; }).length === 11, Ss.enemies.length);
+for (var j = 0; j < 1800; j++) V.Sim.step(Ss, { mx:0, my:0 });
+ok('stress room still 11 alive after 30 s of rifle fire', Ss.enemies.filter(function(e){ return e.hp > 0; }).length === 11, Ss.enemies.length);
+ok('stress room Operator unhurt and run not ended', Ss.hero.hp === Ss.hero.maxHp && !Ss.result, [Ss.hero.hp, !!Ss.result]);
+ok('stress room: every machine type present', ['E-01','E-02','E-03','E-04','E-05'].every(function(t){ return Ss.enemies.some(function(e){ return e.type === t; }); }));
+var Sp = V.Sim.create(5, V.TUNE, { cols:9 });
+ok('a plain run is not the stress room', !Sp.stress && Sp.enemies.length < 11);
+// the 9-column sim hash after the fixed step count (human-free: standing still) is the F1 baseline; a change here is on purpose only (R29/R31)
+for (var q = 0; q < 600; q++) V.Sim.step(Sp, { mx:0, my:0 });
+ok('9-column standing-still hash at 600 steps (seed 5) is the F1 value', V.Sim.hash(Sp) === HASH600, V.Sim.hash(Sp));
 
 console.log(n + ' checks, ' + fails + ' failed'); process.exit(fails ? 1 : 0);

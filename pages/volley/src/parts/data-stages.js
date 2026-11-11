@@ -131,5 +131,15 @@ D.stages = { ch1: [
     spawns:[{type:'E-01',x:2.5,y:4.5,t:0},{type:'E-01',x:6.5,y:4.5,t:0}] },
   { stage:10, kind:'boss', room:'BA1', note:'Boss B-01 Volley Tower (M pick, overrides D3 B-03)',
     spawns:[{type:'B-01',x:4.5,y:3.5,t:0}] }
+],
+// F1 (S): test room for ?debug=1&room=stress (opts.room 'stress'). 11 machines at t=0 in R01: the Chapter 1 peak, the effect scaler's worst case. Not part of any run.
+// Template coords (9 columns); loadStage widens. Mix is a GUESS: 3 E-01, 3 E-02, 2 E-03, 1 E-04, 2 E-05 (every attack type on screen).
+stress: [
+  { stage:1, kind:'combat', room:'R01', note:'Stress: 11 machines alive at once (debug only)',
+    spawns:[{type:'E-01',x:1.5,y:2.5,t:0},{type:'E-01',x:4.5,y:2.5,t:0},{type:'E-01',x:7.5,y:2.5,t:0},
+      {type:'E-02',x:0.5,y:4.5,t:0},{type:'E-02',x:4.5,y:4.5,t:0},{type:'E-02',x:8.5,y:4.5,t:0},
+      {type:'E-03',x:2.5,y:6.5,t:0},{type:'E-03',x:6.5,y:6.5,t:0},
+      {type:'E-04',x:4.5,y:7.5,t:0},
+      {type:'E-05',x:1.5,y:8.5,t:0},{type:'E-05',x:7.5,y:8.5,t:0}] }
 ] };
 })();

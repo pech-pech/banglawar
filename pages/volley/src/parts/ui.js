@@ -5,7 +5,7 @@ if (V.TUNE_DEFAULTS) {
   var SHELL = { AUTO_WALK: true, AUTO_WALK_DELAY: 1.0, AUTO_WALK_MULT: 2, EDGE_FLASH: true, HAPTIC_HURT_MS: 40, HAPTIC_KILL_MS: 12 };
   for (var sk in SHELL) if (!(sk in V.TUNE_DEFAULTS)) { V.TUNE_DEFAULTS[sk] = SHELL[sk]; if (V.TUNE && !(sk in V.TUNE)) V.TUNE[sk] = SHELL[sk]; }
 }
-var BUILD = 'volley-f1-0';
+var BUILD = 'volley-f1-1';
 // Persist tuning (only values that differ from defaults). Every storage call is guarded. Sound on/off is NOT kept here any more:
 // V.TUNE.SOUND is a view of V.Audio's mute, saved in 'volley.settings.v1' (audio.js), so a tune reset or save wipe keeps it.
 // f0-2: sliders were being nudged by accident while scrolling the drawer (M's Fold reports showed FIRE_INTERVAL at the
@@ -202,16 +202,19 @@ UI.hud = function(S, R, view){
   if (!S) return;
   var h = S.hero, room = V.ROOMS && V.ROOMS[S.roomId];
   var hp = Math.max(0, Math.ceil(h.hp)), mx = Math.max(1, Math.round(h.maxHp));
-  var xpPct = h.xpNext ? Math.max(0, Math.min(1, h.xp / h.xpNext)) : 1;
-  var key = [S.stage, S.roomId, hp, mx, h.level, Math.round(xpPct * 200)].join('|');
+  var xpPct = h.xpNext ? Math.max(0, Math.min(1, h.xp / h.xpNext)) : 1, rr = (S.rerolls | 0);
+  var key = [S.stage, S.roomId, hp, mx, h.level, Math.round(xpPct * 200), rr, (S.mini && S.stageKind === 'collect') ? 1 : 0].join('|');
   if (key !== lastHud) {
     lastHud = key;
     $('stNum').textContent = S.stage;
     $('roomName').textContent = room ? room.name : (S.roomId || '');
     // No cut-off text (s6): when the chip cannot hold the room name (narrow screens), show only the stage; the name is toasted at room entry.
-    var rn = $('roomName'), sl = $('stageLbl'); rn.style.display = ''; if (sl.scrollWidth > sl.clientWidth + 1) rn.style.display = 'none';
     $('lvl').textContent = 'Lv ' + h.level;
+    var chip = $('rrChip'); if (!chip) { chip = document.createElement('div'); chip.id = 'rrChip'; chip.setAttribute('aria-label', 'Rerolls banked'); $('lvl').parentNode.insertBefore(chip, $('lvl').nextSibling); }
+    chip.textContent = 'RR ' + rr; chip.style.display = rr > 0 ? 'block' : 'none';
+    var rn = $('roomName'), ht = $('hudTop'); rn.style.display = ''; if (ht && ht.scrollWidth > ht.clientWidth + 1) rn.style.display = 'none';   // D3: the row is full, so the name goes (the stage chip never shrinks)
     $('xpFill').style.width = (xpPct * 100).toFixed(1) + '%';
+    var xw = $('xpWrap'); if (xw) xw.style.visibility = (S.mini && S.stageKind === 'collect') ? 'hidden' : '';   // catch room: no XP bar (K)
     $('hpFill').style.width = (hp / mx * 100).toFixed(1) + '%';
     $('hpFill').style.background = hp / mx < 0.3 ? '#f07a6e' : '#5fd06a';
     // The number sits beside the bar (L-PV-7); #hpTxtE is kept hidden for older tests.
@@ -260,7 +263,7 @@ UI.howto = function(on, view){
 function fmtN(n){ return (V.Home && V.Home.fmt) ? V.Home.fmt(n) : String(n); }
 UI.rendererLabel = function(R, view){
   // R42 label: viewport | column class | tile px | device pixel ratio, e.g. "Canvas 2D | 344x882 | c9 | 38.2 px | dpr 2.63"
-  var t = (R ? R.name : 'none') + ' | ' + Math.round(view.vw || view.w) + 'x' + Math.round(view.vh || view.h) + ' | c' + (view.C || 9) + ' | ' + (view.s || 0).toFixed(1) + ' px | dpr ' + (Math.round((G.devicePixelRatio || 1) * 100) / 100);
+  var t = (R ? (R.label || R.name) : 'none') + ' | ' + Math.round(view.vw || view.w) + 'x' + Math.round(view.vh || view.h) + ' | c' + (view.C || 9) + ' | ' + (view.s || 0).toFixed(1) + ' px | dpr ' + (Math.round((G.devicePixelRatio || 1) * 100) / 100);
   // D14: the corner label shows only with ?debug=1; the pause card and the tuning drawer always carry it.
   ['rlbl', 'rlblPause', 'rlblDrawer'].forEach(function(id){ var el = $(id); if (el && el.textContent !== t) el.textContent = t; });
 };
@@ -280,16 +283,140 @@ function row(cls, glyph, tag, name, desc, onTap){
   b.addEventListener('click', onTap); return b;
 }
 function glyphFor(c){ return GLYPH[c.id] || (c.name || '?').charAt(0).toUpperCase(); }
-UI.cards = function(S, onPick){
-  var list = $('cardList'); list.innerHTML = '';
-  $('cardTitle').textContent = S.stageKind === 'cache' ? 'Cache: free field upgrade' : 'Field upgrade - level ' + S.hero.level;
+// ---- Level-up offer (picks 19-21; 05 3.11) ----
+// Guard: no row accepts input until every finger is up and 350 ms have passed, and only a press that BEGAN after that counts.
+// After a tap the chosen row stays up with "Touch to continue"; the pick is applied (and the sim unfrozen) on the next press.
+// So a steering thumb that is still down, or a double tap, cannot pick. A click with no pointer press (keyboard, test) counts as a press now.
+var PICK_GUARD_MS = 350, cardCtx = null, ptr = { ids: {}, n: 0, press: 0, lift: 0, get down(){ return this.n; } };   // pointers by pointerId: a lost pointerup cannot leave a stuck count
+function pnow(){ return (G.performance && performance.now) ? performance.now() : Date.now(); }
+(function trackPointers(){
+  if (!G.addEventListener || ptr.on) return; ptr.on = true;
+  function recount(){ var n = 0; for (var k in ptr.ids) n++; ptr.n = n; }
+  function lifted(){ ptr.lift = pnow(); recount(); if (cardCtx && ptr.n === 0 && cardCtx.armAt === Infinity) cardCtx.armAt = ptr.lift + PICK_GUARD_MS; }   // the thumb that was down at open: arms 350 ms after it lifts
+  G.addEventListener('pointerdown', function(e){ ptr.ids[e && e.pointerId != null ? e.pointerId : 'm'] = 1; recount(); ptr.press = pnow(); }, true);
+  var up = function(e){ delete ptr.ids[e && e.pointerId != null ? e.pointerId : 'm']; lifted(); };
+  G.addEventListener('pointerup', up, true); G.addEventListener('pointercancel', up, true);
+  var clear = function(){ ptr.ids = {}; lifted(); };           // focus or visibility lost: every finger counts as lifted
+  G.addEventListener('blur', clear);
+  if (typeof document !== 'undefined' && document.addEventListener) document.addEventListener('visibilitychange', clear);
+})();
+var LVL_CSS = '' +
+  '#xpWrap{height:10px}#xpFill{background:#8f7bff}' +
+  '.pips{display:inline-flex;gap:4px;margin:3px 0 1px}.pips i{width:12px;height:12px;border-radius:50%;border:2px solid var(--cyan);box-sizing:border-box;display:block}.pips i.on{background:var(--cyan)}' +
+  '.card small.nw{color:#0d1b1d;background:var(--cyan);display:inline-block;padding:0 6px;border-radius:4px;font-weight:800}' +
+  '.card.rp{border-color:#5fd06a}.card.rp .gl{color:#5fd06a;border-color:#2f7a37}' +
+  '#ovCards.wait .card,#ovCards.wait #cardRr{opacity:.55}' +
+  '#cardRr{min-height:56px;width:200px;min-width:200px;flex:none}#cardRr.is-dim{opacity:.6}' +
+  '#cardRrNote{font-size:12px;min-height:16px}' +
+  '.card.flip{animation:cardFlip .26s ease-out}@keyframes cardFlip{from{transform:rotateX(70deg);opacity:.2}to{transform:none;opacity:1}}' +
+  '#cardCont{position:absolute;inset:0;z-index:5;display:flex;align-items:flex-end;justify-content:center;padding-bottom:12%;font:700 18px system-ui,sans-serif;color:#fff;background:rgba(0,0,0,.08)}' +
+  '#cardCont span{background:rgba(13,27,29,.9);border:2px solid var(--cyan);border-radius:10px;padding:14px 22px;min-height:56px;box-sizing:border-box}' +
+  '#rrChip{flex:none;font-weight:800;font-size:13px;color:#0d1b1d;background:#ffd25a;border-radius:6px;padding:4px 6px;white-space:nowrap;display:none}' +
+  // D3: the stage chip never shrinks (it was cut to "St..." beside the RR chip at 344); the XP bar gives the room back, the room name drops first.
+  '#stageLbl{flex:none;overflow:visible;text-overflow:clip}#xpWrap{flex:1 1 40px;min-width:48px}' +
+  // D14: stencil headings (titles only; body text stays sans), same recipe as #ovDead h2.
+  '.ov h2,body #cuSheet h2,body #cuSheet .cu-t b{font-family:var(--pv-ui-font-stencil);font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:var(--pv-ui-sand,#e8d9a8)}' +
+  '.ov h2{font-size:22px;line-height:1.1}body #cuSheet h2{font-size:18px}' +
+  // D17 (CSS net until P's snippet lands): a maxed tile shows no "+N levels per buy"; with every stat maxed the visit line goes.
+  '.tl.mx .per{display:none}#tb-visit:not(:has(~ .tb-grid3 > .tl:not(.mx))){display:none}' +
+  // D5: the level-up dim is light (about .55) so enemies and the Operator stay readable; text keeps an ink shadow; the stack sits at the top, under the HUD.
+  '#ovCards{background:rgba(20,19,16,.55);justify-content:flex-end;gap:8px;padding-bottom:var(--lv-pb,16px)}' +
+  // N3-follow: Reroll sits top right under the HUD and the stack sits just above the Operator, so the enemy row stays visible.
+  '#ovCards #cardRr{position:absolute;top:calc(max(0px,env(safe-area-inset-top,0px)) + 72px);right:8px;width:120px;min-width:120px;min-height:56px;z-index:2}' +
+  '#ovCards #cardRrNote{position:absolute;top:calc(max(0px,env(safe-area-inset-top,0px)) + 72px);left:8px;width:calc(100% - 144px);text-align:left;min-height:0}' +
+  '#ovCards h2,#ovCards p,#cardRrNote{text-shadow:0 1px 3px #000,0 0 6px #000}' +
+  '#ovCards h2{margin-top:0}' +
+  '@media (prefers-reduced-motion:reduce){.card.flip{animation:none}}';
+(function injectCss(){ if (typeof document === 'undefined' || !document.head || !document.getElementById || document.getElementById('pvLvlCss')) return; var st = document.createElement('style'); st.id = 'pvLvlCss'; st.textContent = LVL_CSS; document.head.appendChild(st); })();
+function pipsEl(n){ var w = document.createElement('div'); w.className = 'pips'; w.setAttribute('role', 'img'); w.setAttribute('aria-label', 'Level ' + n + ' of 3');
+  for (var i = 1; i <= 3; i++) { var d = document.createElement('i'); if (i <= n) d.className = 'on'; w.appendChild(d); } return w; }
+function cardRow(S, ci, i, onTap){
+  var c = (V.CARDS && V.CARDS[ci]) || { name: 'Card ' + ci, desc: '' }, M = V.Mods;
+  var rp = !!(M && M.isRepair && M.isRepair(ci)), lv = rp || !M ? 1 : M.levelAfter(S, ci);
+  var tag = rp ? 'Repair' : (lv <= 1 ? 'NEW' : 'Lv ' + (lv - 1) + ' to ' + lv);
+  var b = row('card' + (rp ? ' rp' : ''), glyphFor(c), tag, c.name, lv > 1 && c.up ? c.up : c.desc, onTap);
+  if (!rp) { var sm = b.querySelector('small'); if (lv <= 1 && sm) sm.className = 'nw'; b.querySelector('.tx').insertBefore(pipsEl(lv), b.querySelector('b').nextSibling); b.setAttribute('aria-label', c.name + ', ' + tag + ', level ' + lv + ' of 3'); }
+  b.dataset.i = i; return b;
+}
+function rerollFn(S){ return (V.Sim && V.Sim.reroll) || (V.Mods && V.Mods.reroll); }
+// Level-up stack placement: bottom-aligned just above the Operator, but never above the HUD bottom + 8 px (QA: the title crossed the top at 344x882 and 475x590).
+// When there is no room it starts under the HUD and covers the hero instead. Needs the overlay to be displayed to measure.
+function fitStack(){
+  try {
+    var ov = $('ovCards'), S = cardCtx && cardCtx.S; if (!ov || !S) return;
+    var pv = G.__pv, vw = pv && pv.view, hh = S.hero, H = G.innerHeight || 0, hud = $('hud');
+    var pb = (vw && hh && H) ? Math.max(16, Math.round(H - (vw.oy + hh.y * vw.s) + 34)) : 16;
+    var hudB = hud ? Math.ceil(hud.getBoundingClientRect().bottom) : 64, minTop = hudB + 8;
+    var h = 0, n = 0; ['cardTitle', 'cardList'].forEach(function(id){ var e = $(id); if (e) { h += e.offsetHeight; n++; } });
+    var pp = ov.querySelector('p'); if (pp) { h += pp.offsetHeight; n++; }
+    h += (n - 1) * 8;
+    var tight = H && h > 0 && (H - pb - h) < minTop;
+    ov.style.setProperty('--lv-pb', pb + 'px');
+    ov.style.justifyContent = tight ? 'flex-start' : '';
+    ov.style.paddingTop = tight ? minTop + 'px' : '';
+    ov.classList.toggle('lv-tight', !!tight);
+  } catch (_) {}
+}
+function cardsRender(flip){
+  var cx = cardCtx; if (!cx) return; var S = cx.S, list = $('cardList'); list.innerHTML = '';
+  var pend = (S.pendingLevels | 0) + (S.freePicks | 0), lvl = S.hero.level - Math.max(0, (S.pendingLevels | 0) - 1);
+  var ov = $('ovCards'), p = ov.querySelector('p');
+  if ((S.pendingLevels | 0) > 0) { $('cardTitle').textContent = 'Level ' + lvl; if (p) p.textContent = pend > 1 ? 'Level-up 1 of ' + pend + ': pick 1 of ' + (S.cards || []).length : 'Pick 1 of ' + (S.cards || []).length; }
+  else { $('cardTitle').textContent = S.stageKind === 'cache' ? 'Cache: free field upgrade' : 'Head start: free upgrade'; if (p) p.textContent = pend > 1 ? 'Pick 1 of ' + (S.cards || []).length + ' (' + pend + ' picks)' : 'Pick 1 of ' + (S.cards || []).length; }
   (S.cards || []).forEach(function(ci, i){
-    var c = (V.CARDS && V.CARDS[ci]) || { name: 'Card ' + ci, desc: '' };
-    var b = row('card', glyphFor(c), '', c.name, c.desc, function(){ onPick(i); }); b.dataset.i = i;
-    list.appendChild(b);
+    var b = cardRow(S, ci, i, function(e){ cardTap(i, e); }); if (flip) { b.classList.add('flip'); b.style.animationDelay = (i * 50) + 'ms'; } list.appendChild(b);
   });
-  show('ovCards', true);
+  var rr = $('cardRr'); if (!rr) { rr = document.createElement('button'); rr.id = 'cardRr'; rr.className = 'btn ghost'; rr.type = 'button'; ov.appendChild(rr);
+    rr.addEventListener('click', function(e){ rerollTap(e); }); var nt = document.createElement('div'); nt.id = 'cardRrNote'; ov.appendChild(nt); }
+  fitStack();
+  var n = V.Mods ? V.Mods.rerolls(S) : 0;
+  rr.textContent = 'Reroll (' + n + ')'; rr.style.display = ''; rr.classList.toggle('is-dim', !(V.Mods && V.Mods.canReroll(S)));
+  rr.setAttribute('aria-label', 'Reroll, ' + n + ' banked');
+  $('cardRrNote').textContent = '';
+}
+function accepted(e){
+  var cx = cardCtx; if (!cx) return false;
+  var t = (e && e.detail === 0) ? pnow() : ptr.press;      // the press that began this click
+  return ptr.down === 0 && pnow() >= cx.armAt && t >= cx.armAt;
+}
+function cardTap(i, e){
+  var cx = cardCtx; if (!cx || cx.chosen >= 0 || !accepted(e)) return;
+  cx.chosen = i; cx.armAt = pnow() + PICK_GUARD_MS;
+  var list = $('cardList'), rows = list.children;
+  for (var k = rows.length - 1; k >= 0; k--) if (k !== i) list.removeChild(rows[k]);       // the chosen row stays, the others go
+  var rr = $('cardRr'); if (rr) rr.style.display = 'none';
+  var cont = document.createElement('div'); cont.id = 'cardCont'; cont.innerHTML = '<span>Touch to continue</span>'; cont.addEventListener('click', function(ev){ contTap(ev); });
+  $('ovCards').appendChild(cont);
+}
+function contTap(e){
+  var cx = cardCtx; if (!cx || cx.chosen < 0 || !accepted(e)) return;
+  try { if (V.Report && V.Report.note) V.Report.note('touchContinue'); } catch (_) {}
+  var i = cx.chosen, f = cx.onPick; closeCards(); f(i);
+}
+function rerollTap(e){
+  var cx = cardCtx; if (!cx || cx.chosen >= 0 || !accepted(e)) return;
+  var S = cx.S, M = V.Mods, n = M ? M.rerolls(S) : 0, note = $('cardRrNote');
+  if (!n) { note.textContent = 'Beat a boss to earn a reroll.'; UI.toast('Beat a boss to earn a reroll.', 1400); return; }
+  if (!M.canReroll(S)) { note.textContent = 'No other upgrade to roll.'; return; }
+  var f = rerollFn(S); if (f(S)) { if (V.Audio && V.Audio.play) { try { V.Audio.play('reroll'); } catch (_) {} } cardsRender(!V.reducedMotion); }
+}
+function closeCards(){
+  cardCtx = null; clearInterval(UI._cardWait);
+  var c = $('cardCont'); if (c && c.parentNode) c.parentNode.removeChild(c);
+  var ov = $('ovCards'); ov.classList.remove('wait'); show('ovCards', false);
+}
+UI.cards = function(S, onPick){
+  cardCtx = { S: S, onPick: onPick, chosen: -1, armAt: pnow() + PICK_GUARD_MS };
+  if (ptr.down > 0) cardCtx.armAt = Infinity;                // a finger is down: arms 350 ms after the last one lifts
+  cardsRender(false);
+  var ov = $('ovCards'), old = $('cardCont'); if (old && old.parentNode) old.parentNode.removeChild(old);
+  show('ovCards', true); fitStack();
+  clearInterval(UI._cardWait);
+  var tick = function(){ var w = !cardCtx || pnow() < cardCtx.armAt || ptr.down > 0; ov.classList.toggle('wait', w); if (!w) clearInterval(UI._cardWait); };
+  ov.classList.add('wait'); UI._cardWait = setInterval(tick, 60);
 };
+UI.cardsOpen = function(){ return !!cardCtx; };
+UI.cardsArmed = function(){ return !!cardCtx && ptr.down === 0 && pnow() >= cardCtx.armAt; };
 
 // the sim defers its 'door' event to the next step (toast 'Stage N clear'); show the result just after it so it is not overwritten
 function supToast(t){ setTimeout(function(){ UI.toast(t, 1800); }, 80); }
@@ -308,7 +435,8 @@ function modNames(S){
   var out = [], m = (S.hero && S.hero.mods) || {};
   for (var k in m) if (m[k] > 0) {
     var c = (V.CARDS || []).filter(function(x){ return x.key === k; })[0];
-    out.push((c ? c.name : k) + (m[k] > 1 ? ' x' + m[k] : ''));
+    if (k === 'repair') continue;                      // Emergency repair is a one-off heal, not a held upgrade
+    out.push((c ? c.name : k) + (m[k] > 1 ? ' Lv ' + m[k] : ''));
   }
   return out;
 }
@@ -319,6 +447,8 @@ UI.results = function(S){
   var mods = modNames(S);
   var rows = [['Result', r.win ? 'Win' : 'Lost'], ['Stage reached', (r.stage != null ? r.stage : S.stage) + ' / 10'], ['Time', mmss(r.t != null ? r.t : S.t)],
     ['Kills', fmtN(r.kills | 0)], ['Level', r.level != null ? r.level : S.hero.level], ['Damage taken', fmtN(Math.round(r.dmgTaken || 0))], ['Mods', mods.length ? mods.join(', ') : 'none']];
+  var bo = deployInfo(S); if (bo) rows.push(['Deploy boost', bo.name + ' (' + bo.tierName + '): ' + bo.text]);
+  if (S.rerolls > 0) rows.push(['Rerolls banked', S.rerolls]);
   var box = $('resStats'); box.innerHTML = '';
   rows.forEach(function(rw){ var d = document.createElement('div'); d.className = 'row'; var a = document.createElement('span'); a.textContent = rw[0]; var b = document.createElement('b'); b.textContent = String(rw[1]); d.appendChild(a); d.appendChild(b); box.appendChild(d); });
   if (r.credits != null) {      // credits earned this run (S.result.credits, added by META), with the coin
@@ -331,7 +461,12 @@ UI.results = function(S){
 };
 UI.dead = UI.results;
 // Pause card: the run's mods (the list scrolls inside the panel).
-UI.pauseInfo = function(S){ var el = $('pauseMods'); if (!el || !S || !S.hero) return; var m = modNames(S); el.textContent = m.length ? 'Mods: ' + m.join(', ') : ''; };
+function deployInfo(S){ try { return S && S.deploy && V.Mods && V.Mods.Deploy ? V.Mods.Deploy.info(S.deploy) : null; } catch (_) { return null; } }
+UI.pauseInfo = function(S){ var el = $('pauseMods'); if (!el || !S || !S.hero) return; var m = modNames(S), bo = deployInfo(S), t = [];
+  if (bo) t.push('Boost: ' + bo.name + ' ' + '\u25CF\u25CF\u25CF'.slice(0, bo.pips) + ' (' + bo.text + ')');
+  if (m.length) t.push('Mods: ' + m.join(', '));
+  if (S.rerolls > 0) t.push('Rerolls banked: ' + S.rerolls);
+  el.textContent = t.join(' | '); };
 
 function metaBlock(){
   var m = V.Meta && V.Meta.state; if (!m) return null;

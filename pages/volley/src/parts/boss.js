@@ -5,6 +5,9 @@
 // Immune to instant kill and freeze, no knockback (flags on the enemy; mods and sim read them).
 V.AI = V.AI || {};
 var DEG = Math.PI / 180, SHOT_R = 0.15;
+// F1: no enemy literals here; base row and behaviour numbers come from V.Data.enemies['B-01'] (data-enemies.js).
+var DE = (V.Data && V.Data.enemies) || (typeof require === 'function' ? (require('./data-enemies.js'), V.Data.enemies) : null);
+var BT = DE['B-01'].ai;
 
 function rayLen(S, api, x, y, ang, max){
   // how far a flat round travels before cover / room edge stops it
@@ -18,15 +21,14 @@ function rayLen(S, api, x, y, ang, max){
 }
 
 var B01 = V.AI['B-01'] = {
-  base: { hp:11000, contact:80, dmg:95, speed:0, r:1.0, size:'large', xp:0, tell:1.0, cd:1.4,
-    static:true, boss:true, immune:{ instakill:true, freeze:true, knockback:true } },
+  base: DE['B-01'],
   name: 'Volley Tower',
-  shotSpeed: 7.8, scatterDmg: 85, cd2: 1.0,
-  tellA: 1.0, tellB: 0.6, tellC: 0.8,
-  A: { lines1: 5, step1: 30 * DEG, perLine: 6, gap: 0.2,
-       lines2: [-24, 24, -36, 36, -48, 48], extra2: 60 },   // phase 2 degrees from straight down; 7th line alternates side
-  B: { n1: 24, n2: 32, dur: 1.5, arc: 220 * DEG },
-  C: { fan: 20 * DEG, lineN: 5, lineGap: 0.12, lineDelay: 0.3 },
+  shotSpeed: BT.shotSpeed, scatterDmg: BT.scatterDmg, cd2: BT.cd2,
+  tellA: BT.tellA, tellB: BT.tellB, tellC: BT.tellC,
+  A: { lines1: BT.A.lines1, step1: BT.A.step1Deg * DEG, perLine: BT.A.perLine, gap: BT.A.gap,
+       lines2: BT.A.lines2Deg, extra2: BT.A.extra2Deg },   // phase 2 degrees from straight down; 7th line alternates side
+  B: { n1: BT.B.n1, n2: BT.B.n2, dur: BT.B.dur, arc: BT.B.arcDeg * DEG },
+  C: { fan: BT.C.fanDeg * DEG, lineN: BT.C.lineN, lineGap: BT.C.lineGap, lineDelay: BT.C.lineDelay },
   order: ['A', 'B', 'C'],
 
   init: function(S, e, api){

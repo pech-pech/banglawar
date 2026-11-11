@@ -106,7 +106,7 @@ async function size(browser, W, H, dpr) {
   const page = await ctx.newPage();
   const errs = []; page.on('pageerror', e => errs.push(String(e)));
   await page.addInitScript(PROBE);
-  await page.goto('file://' + PAGE + '?seed=7&gpu=0&fresh=1');
+  await page.goto('file://' + PAGE + '?seed=7&gpu=0&fresh=1&title=0');
   await page.waitForFunction(() => window.__pv && window.__pv.R, null, { timeout: 15000 });
   await sleep(400);
   fs.mkdirSync(SHOTS, { recursive: true });
@@ -147,7 +147,9 @@ async function size(browser, W, H, dpr) {
     ok(hit.hit && (W < 600 || hit.sheet.w <= 480), `${tag} sheet open: raised Deploy tile still hittable${W >= 600 ? ', sheet <= 480 wide' : ''}`, JSON.stringify(hit));
     await page.evaluate(() => { const s = document.querySelector('.ta-scrim'); if (s) s.click(); }); await sleep(150);
   } else info(tag + ' armory sheet', 'no .ta-head to open');
-  await page.evaluate(() => window.V.Home.go('deploy')); await sleep(200);
+  await page.evaluate(() => window.V.Home.go('deploy'));
+    await page.evaluate(() => { window.V.Home.deploy.state().boost = { id: 'D2', tier: 0 }; window.V.Home.deploy.paint(); });
+    await sleep(2200);   // Deploy roll guard: reveal 1.5 s + 350 ms (05 3.10)
 
   // ---- DEPLOY tap ----
   const dep = await page.evaluate(() => { const r = document.getElementById('btnDeploy').getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2, w: r.width, h: r.height }; });
@@ -213,7 +215,7 @@ async function resize(browser) {
   const tag = 'resize 475x694 -> 704x783';
   const ctx = await browser.newContext({ viewport: { width: 475, height: 694 }, deviceScaleFactor: 2.625, hasTouch: true });
   const page = await ctx.newPage(); const errs = []; page.on('pageerror', e => errs.push(String(e)));
-  await page.goto('file://' + PAGE + '?seed=7&gpu=0&fresh=1&home=0');
+  await page.goto('file://' + PAGE + '?seed=7&gpu=0&fresh=1&home=0&title=0');
   await page.waitForFunction(() => window.__pv && window.__pv.R, null, { timeout: 15000 });
   await sleep(400);
   const a = await page.evaluate(() => ({ cols: window.__pv.S.cols, C: window.__pv.view.C, stage: window.__pv.S.stage, paused: window.__pv.paused }));

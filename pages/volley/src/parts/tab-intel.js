@@ -9,6 +9,8 @@ var ICONS = {
   lock:'<rect x="5" y="11" width="14" height="10" rx="1"/><path d="M8 11V8a4 4 0 018 0v3"/>',
   sound:'<path d="M4 9v6h4l5 4V5L8 9z"/><path d="M16 9a4 4 0 010 6M18.5 6.5a8 8 0 010 11"/>',
   haptic:'<rect x="8" y="3" width="8" height="18" rx="2"/><path d="M4 8v8M20 8v8"/>',
+  ask:'<path d="M4 5h16v11H11l-4 4v-4H4z"/><path d="M10 9.2a2 2 0 114 .3c0 1.3-2 1.5-2 2.9M12 14.4v.1"/>',
+  hand:'<path d="M9 11V5a1.5 1.5 0 013 0v5M12 9.5V4a1.5 1.5 0 013 0v6M15 10V6a1.5 1.5 0 013 0v8c0 4-2.5 7-6.5 7-3 0-4.5-1.5-6-4l-2-3.5a1.5 1.5 0 012.5-1.5L9 14"/>',
   gpu:'<rect x="4" y="6" width="16" height="12" rx="1"/><path d="M8 10h8M8 14h5"/>',
   power:'<path d="M13 2L5 13h6l-1 9 8-11h-6z"/>',
   trash:'<path d="M5 7h14M9 7V4h6v3M7 7l1 13h8l1-13M10 11v6M14 11v6"/>'
@@ -42,7 +44,7 @@ var CSS = '\
 .tb-hub .t{display:flex;align-items:center;gap:10px}.tb-hub .t b{font:800 14px/1 var(--pv-ui-font-stencil);letter-spacing:.1em;text-transform:uppercase}\
 .tb-hub .t .pv-ico{font-size:26px;color:var(--pv-ui-sand)}.tb-hub .n{margin-left:auto;font:800 16px/1 var(--pv-ui-font-stencil);color:var(--pv-ui-cyan)}\
 .tb-latest{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}\
-.tb-latest .tb-cx{min-height:0;padding:6px 6px 8px;align-items:stretch}.tb-latest .ms{height:56px}.tb-latest canvas{width:48px!important;height:48px!important}.tb-latest .nm{font-size:11px;text-align:center}\
+.tb-latest .tb-cx{min-height:0;padding:6px 6px 8px;align-items:stretch}.tb-latest .ms{height:56px}.tb-latest canvas{width:48px!important;height:48px!important}.tb-latest .nm{font-size:12px;text-align:center}\
 .tb-prog{display:flex;flex-direction:column;gap:5px}\
 .tb-prog .r{display:flex;justify-content:space-between;align-items:baseline}\
 .tb-prog .pv-bar{height:12px}\
@@ -52,9 +54,9 @@ var CSS = '\
 .tb-cx{position:relative;display:flex;flex-direction:column;gap:6px;padding:6px 6px 8px;min-height:176px;background:linear-gradient(var(--pv-ui-metal-700),var(--pv-ui-metal-800));border:1.5px solid var(--pv-ui-ink);border-radius:6px;box-shadow:inset 0 1px 0 rgba(255,255,255,.10),inset 0 -2px 0 rgba(0,0,0,.35),0 2px 0 rgba(0,0,0,.55)}\
 .tb-cx .ms{position:relative;width:100%;height:84px;display:flex;align-items:center;justify-content:center;background:radial-gradient(circle at 50% 40%,#c9b98f,#8b7a55 90%);border-radius:4px;box-shadow:inset 0 0 0 1.5px var(--pv-ui-ink)}\
 .tb-cx canvas{position:static!important;left:auto!important;top:auto!important;width:76px!important;height:76px!important;flex:none;display:block;aspect-ratio:1/1;max-width:none;max-height:none;margin:auto;touch-action:auto}\
-.tb-cx .id{position:absolute;top:4px;left:4px;font:800 11px/1 var(--pv-ui-font-stencil);letter-spacing:.1em;color:#2a2012;background:rgba(236,220,178,.85);padding:2px 4px;border-radius:2px}\
+.tb-cx .id{position:absolute;top:4px;left:4px;font:800 12px/1 var(--pv-ui-font-stencil);letter-spacing:.1em;color:#2a2012;background:rgba(236,220,178,.85);padding:2px 4px;border-radius:2px}\
 .tb-cx .nm{font:800 12px/1.1 var(--pv-ui-font-stencil);text-transform:uppercase;letter-spacing:.06em;padding:0 2px}\
-.tb-cx .ro{font-size:11px;line-height:1.25;color:var(--pv-ui-text-2);padding:0 2px}\
+.tb-cx .ro{font-size:12px;line-height:1.25;color:var(--pv-ui-text-2);padding:0 2px}\
 .tb-cx.boss{grid-column:1 / -1;min-height:0;flex-direction:row;align-items:center;gap:10px}\
 .tb-cx.boss .ms{width:110px;height:96px;flex:none}.tb-cx.boss canvas{width:88px!important;height:88px!important}\
 .tb-cx.boss .tx{display:flex;flex-direction:column;gap:6px;min-width:0}\
@@ -68,7 +70,7 @@ var CSS = '\
 .tb-row{display:flex;align-items:center;gap:12px;min-height:56px;width:100%;padding:6px 12px;text-align:left;font:inherit;color:inherit;background:linear-gradient(var(--pv-ui-metal-700),var(--pv-ui-metal-800));border:1.5px solid var(--pv-ui-ink);border-radius:6px;box-shadow:inset 0 1px 0 rgba(255,255,255,.10),inset 0 -2px 0 rgba(0,0,0,.35)}\
 .tb-row .pv-ico{font-size:22px;color:var(--pv-ui-sand)}\
 .tb-row .l{flex:1;min-width:0;font-weight:700;font-size:14px}\
-.tb-row .l small{display:block;font-weight:400;font-size:11px;color:var(--pv-ui-text-2)}\
+.tb-row .l small{display:block;font-weight:400;font-size:12px;color:var(--pv-ui-text-2)}\
 .tb-row .v{font:800 12px/1.2 var(--pv-ui-font-stencil);color:var(--pv-ui-text-2);letter-spacing:.06em;text-align:right}\
 button.tb-row{appearance:none;cursor:pointer}\
 .tb-sw{width:52px;height:30px;border-radius:4px;background:var(--pv-ui-ink);border:1.5px solid var(--pv-ui-metal-500);position:relative;flex:none}\
@@ -77,7 +79,7 @@ button.tb-row{appearance:none;cursor:pointer}\
 [aria-checked=true] .tb-sw::after{left:24px;background:var(--pv-ui-cyan);box-shadow:0 0 8px var(--pv-ui-cyan)}\
 .tb-pw{display:flex;flex-direction:column;gap:6px;padding:8px 12px 10px;background:linear-gradient(var(--pv-ui-metal-700),var(--pv-ui-metal-800));border:1.5px solid var(--pv-ui-ink);border-radius:6px}\
 .tb-pw .h{display:flex;align-items:center;gap:12px}\
-.tb-pw .l{flex:1;font-weight:700}.tb-pw .l small{display:block;font-weight:400;font-size:11px;color:var(--pv-ui-text-2)}\
+.tb-pw .l{flex:1;font-weight:700}.tb-pw .l small{display:block;font-weight:400;font-size:12px;color:var(--pv-ui-text-2)}\
 .tb-pw input[type=range]{width:100%;height:56px;margin:0;accent-color:var(--pv-ui-cyan);background:transparent}\
 .tb-danger{color:var(--pv-ui-red)}.tb-danger .pv-ico{color:var(--pv-ui-red)}\
 .tb-scrim{position:absolute;inset:0;z-index:50;display:flex;align-items:flex-end;background:rgba(5,7,9,.78)}\
@@ -85,7 +87,14 @@ button.tb-row{appearance:none;cursor:pointer}\
 .tb-sheet h3{margin:0;font:800 17px/1.2 var(--pv-ui-font-stencil);letter-spacing:.1em;text-transform:uppercase;color:var(--pv-ui-sand)}\
 .tb-sheet p{margin:0;font-size:13px;color:var(--pv-ui-text-2)}\
 .tb-sheet .acts{display:grid;grid-template-columns:1fr 1fr;gap:8px}\
-.tb-sheet .pv-btn{min-height:56px}';
+.tb-sheet .pv-btn{min-height:56px}\
+.tb-lv{display:flex;flex-direction:column;gap:6px;padding:8px 12px 10px;background:linear-gradient(var(--pv-ui-metal-700),var(--pv-ui-metal-800));border:1.5px solid var(--pv-ui-ink);border-radius:6px;box-shadow:inset 0 1px 0 rgba(255,255,255,.10),inset 0 -2px 0 rgba(0,0,0,.35)}\
+.tb-lv .h{display:flex;align-items:center;gap:12px;min-height:28px}.tb-lv .h .pv-ico{font-size:22px;color:var(--pv-ui-sand)}\
+.tb-lv .l{flex:1;font-weight:700;font-size:14px}.tb-lv .l small{display:block;font-weight:400;font-size:12px;color:var(--pv-ui-text-2)}\
+.tb-lv .v{font:800 12px/1.2 var(--pv-ui-font-stencil);color:var(--pv-ui-text-2)}\
+.tb-seg4{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;height:56px;padding:0;background:var(--pv-ui-ink);border-radius:6px}\
+.tb-seg4 button{appearance:none;border:1.5px solid var(--pv-ui-metal-600);background:var(--pv-ui-metal-900);border-radius:4px;color:var(--pv-ui-text-2);font:800 13px/1 var(--pv-ui-font-stencil);letter-spacing:.12em;text-transform:uppercase;cursor:pointer;min-height:56px}\
+.tb-seg4 button.on{background:linear-gradient(var(--pv-ui-cyan-hi),var(--pv-ui-cyan));color:var(--pv-ui-cyan-ink);border-color:var(--pv-ui-ink)}';
 
 function injectCss(){
   if (document.getElementById('tb-in-css')) return;
@@ -150,7 +159,7 @@ function paint(cv){
 }
 
 var T = V.Tabs = V.Tabs || {};
-var busy = false, root, body, view = 'hub', sheet = null, mounted = false, subscribed = false, watching = false;
+var lastView = null, busy = false, root, body, view = 'hub', sheet = null, mounted = false, subscribed = false, watching = false;
 
 function header(name, right){
   var h = el('div', 'tb-hd');
@@ -219,8 +228,20 @@ function settingOn(key){
   if (m.settings) return !!m.settings()[key];
   return !!(m.state.settings && m.state.settings[key]);
 }
+// Left-handed (05 s3.9 row 4): setting key `leftHanded` (the key catch-scene.js and prompts.js already read). body.lh mirrors the fight HUD bar
+// (stage chip, level and XP to the right, pause and tuning buttons to the left). Ghost finger and the "Drag to move" ghost read the key themselves;
+// input.js is a relative drag from wherever the thumb lands, so it needs no mirroring.
+function applyLH(){
+  try {
+    if (typeof document === 'undefined' || !document.body) return;
+    if (!document.getElementById('tb-lh-css')) { var st = document.createElement('style'); st.id = 'tb-lh-css'; st.textContent = 'body.lh #hudTop{flex-direction:row-reverse;padding:0 0 0 0}body.lh #hudTop>:last-child{margin-right:0}body.lh #stageLbl{margin-left:8px}body.lh #xpWrap{margin-right:0}body.lh .w-wide #xpWrap{margin-left:auto}'; document.head.appendChild(st); }
+    var m = M(); document.body.classList.toggle('lh', !!(m.settings && m.settings().leftHanded));
+  } catch (e) {}
+}
+if (typeof document !== 'undefined') { document.addEventListener('DOMContentLoaded', function(){ setTimeout(applyLH, 0); }); setTimeout(applyLH, 0); }
 function setSettingOn(key, on){
   var m = M();
+  if (key === 'leftHanded') { if (m.setSetting) m.setSetting(key, on); applyLH(); return; }
   if (key === 'sound') { if (V.Audio && V.Audio.setMuted) V.Audio.setMuted(!on); else if (V.TUNE) V.TUNE.SOUND = on; return; }
   if (m.setSetting) { m.setSetting(key, on); return; }
   var s = m.state.settings = m.state.settings || {}; s[key] = on;
@@ -238,13 +259,33 @@ function toggleRow(icon, label, sub, key){
   return b;
 }
 
+// Sound and Music rows (07 s9, 05 R21): four direct-select steps Off / Low / Mid / High; a tap sets that level and plays the
+// changed bus at its new level (S-511). The pause button's mute stays a separate master switch (audio.js `muted`).
+var STEPS = [['off', 'Off'], ['low', 'Low'], ['mid', 'Mid'], ['high', 'High']];
+function levelRow(icon, label, busName){
+  var A = V.Audio, ok = !!(A && A.setLevel && A.available !== false), cur = ok && A.settings ? A.settings()[busName] : 'mid', muted = ok && A.muted;
+  var r = el('div', 'tb-lv', '<div class="h">' + ico(icon) + '<span class="l">' + label + (muted ? '<small>Muted from the pause screen</small>' : '') + '</span>' +
+    (ok ? '' : '<span class="v">Not available</span>') + '</div>');
+  if (!ok) return r;
+  var seg = el('div', 'tb-seg4'); seg.setAttribute('role', 'radiogroup'); seg.setAttribute('aria-label', label);
+  STEPS.forEach(function(st){
+    var b = el('button', st[0] === cur ? 'on' : '', st[1]); b.type = 'button'; b.setAttribute('role', 'radio'); b.setAttribute('aria-checked', st[0] === cur);
+    b.setAttribute('data-level', busName + ':' + st[0]);
+    b.addEventListener('click', function(){ A.setLevel(busName, st[0]); render(); });
+    seg.appendChild(b);
+  });
+  r.appendChild(seg); return r;
+}
 function renderSettings(){
   var m = M();
   body.appendChild(header('Settings'));
   body.appendChild(el('div', 'tb-sec', '<span>Audio &amp; feel</span>'));
   var st = el('div', 'tb-grid'); st.style.gridTemplateColumns = '1fr'; st.style.gap = '6px';
-  st.appendChild(toggleRow('sound', 'Sound', '', 'sound'));
+  st.appendChild(levelRow('sound', 'Sound', 'sfx'));
+  st.appendChild(levelRow('sound', 'Music', 'music'));
   st.appendChild(toggleRow('haptic', 'Haptics', '', 'haptics'));
+  st.appendChild(toggleRow('hand', 'Left-handed', '', 'leftHanded'));   // 05 s3.9 row 4; mirrors the fight touch layout (V.Meta.settings().leftHanded)
+  st.appendChild(toggleRow('ask', 'Feel questions', '', 'feel'));   // P snippet 4: setting `feel`, default on (meta.js)
   body.appendChild(st);
   body.appendChild(el('div', 'tb-sec', '<span>System</span>'));
   var sys = el('div', 'tb-grid'); sys.style.gridTemplateColumns = '1fr'; sys.style.gap = '6px';
@@ -263,6 +304,15 @@ function renderSettings(){
   var rs = el('button', 'tb-row tb-danger', ico('trash') + '<span class="l">Reset save</span>');
   rs.type = 'button'; rs.setAttribute('data-reset', '1');
   rs.addEventListener('click', confirmReset);
+  // K's snippet (catch room, SPEC.md / R54): "Supply Drop game: Play / Skip" from the 4th play, above Reset save. Switch on = Skip.
+  var sdp = 0; try { sdp = m.sdState ? (m.sdState().plays | 0) : ((m.state && m.state.sd && m.state.sd.plays) | 0); } catch (e) {}
+  if (sdp >= 3) {
+    var sk = el('button', 'tb-row', ico('sliders') + '<span class="l">Supply Drop game<small>' + (settingOn('sdSkip') ? 'Skip: the drop pays out at once' : 'Play the catch game') + '</small></span><span class="v">' + (settingOn('sdSkip') ? 'Skip' : 'Play') + '</span><span class="tb-sw"></span>');
+    sk.type = 'button'; sk.setAttribute('role', 'switch'); sk.setAttribute('aria-checked', !!settingOn('sdSkip')); sk.setAttribute('data-set', 'sdSkip');
+    sk.setAttribute('aria-label', 'Supply Drop game: Play or Skip');
+    sk.addEventListener('click', function(){ setSettingOn('sdSkip', !settingOn('sdSkip')); render(); });
+    sys.appendChild(sk);
+  }
   sys.appendChild(rs);
   body.appendChild(sys);
   if (debugOn() && m.loadSample) renderSamples(m);
@@ -311,6 +361,10 @@ function render(){
   body.innerHTML = '';
   if (view === 'codex') renderCodex(); else if (view === 'settings') renderSettings(); else renderHub();
   body.scrollTop = keep;
+  if (view !== lastView) {   // AN-604 on entering a view (hub, codex, settings), not on every refresh
+    lastView = view; var ns = [].slice.call(body.children), g = body.querySelector('.tb-grid'); if (view === 'codex' && g) ns = ns.slice(0, 1).concat([].slice.call(g.children));
+    if (V.TabsA && V.TabsA.stagger) V.TabsA.stagger('intel-' + view, ns);
+  }
   paintAll();
 }
 
@@ -331,7 +385,7 @@ T.intel = {
     if (!subscribed && M().onChange) { M().onChange(function(){ if (mounted && !sheet && !busy) render(); }); subscribed = true; }
     render();
   },
-  show: function(){ view = 'hub'; render(); },
+  show: function(){ view = 'hub'; lastView = null; render(); },
   hide: function(){ closeSheet(); }
 };
 })();

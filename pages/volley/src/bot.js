@@ -319,6 +319,214 @@ function bossBotCheck(nSeeds, inputFn, secs) {
 function cornerBossCheck(nSeeds) { return bossBotCheck(nSeeds, cornerInput, CB_SECS); }
 function cornerShooterCheck(nSeeds, secs) { return bossBotCheck(nSeeds, cornerShooterInput, secs || 90); }
 
+// ================= K: Supply Drop catch-room bots (agent K; NEW functions only; parts/catch.js is loaded on demand) =================
+// catchRoom(seed, cols, hpFrac) -> a sim standing in the catch room (stage 5, phase 'collect').
+// catchBotInput(S, B, kind) kinds: 'lazy' | 'human' | 'perfect' (SPEC 9: about 20 / 55 / 95 percent caught).  playCatch(S, kind, seed) runs the room to the sheet.
+// catchRows(nSeeds, outPath) = the four-width sweep (9 / 11 / 13 / 15 columns); sdChoice(nSeeds, outPath) = SD-CHOICE (three pad policies, 25/50/25 lazy/human/perfect mix).
+// Neither writes BOT-RESULTS.txt. CLI: node bot.js catch [seeds] [outPath]  (handled in the tiny dispatcher at the end of this file).
+function ensureCatch() { if (!V.Catch) require(path.join(__dirname, 'parts', 'catch.js')); return V.Catch; }
+function catchRoom(seed, cols, hpFrac, tune) {
+  ensureCatch();
+  var S = V.Sim.create(seed, tune || freshTune(), { cols: cols }), g = 0;
+  while (S.stage < 5 && g++ < 20000) {
+    if (S.phase === 'pick') { V.Sim.pick(S, 0); continue; }
+    if (S.phase === 'supply') { V.Sim.pickSupply(S, 0); continue; }
+    if (S.phase === 'play') { S.enemies.length = 0; S.spawnQ.length = 0; }
+    V.Sim.step(S, { mx: 0, my: 0 });
+    if (S.phase === 'clear') { S.hero.x = S.room.door.x + 0.5; S.hero.y = 1.3; V.Sim.step(S, { mx: 0, my: -1 }); }
+  }
+  if (hpFrac != null) S.hero.hp = Math.max(1, Math.round(S.hero.maxHp * hpFrac));
+  return S;
+}
+function cClamp(v, a, b) { return v < a ? a : (v > b ? b : v); }
+function cToward(S, tx, ty) { var h = S.hero, dx = tx - h.x, dy = ty - h.y; return (Math.hypot(dx, dy) < 0.06) ? { mx: 0, my: 0 } : { mx: dx, my: dy }; }
+function cSpeed(S) { var m = S.mini; return S.tune.MOVE_SPEED * (m.t < m.slowUntil ? 0.5 : 1); }
+// lazy centre bot: stands on the centre column and slides sideways only for a crate that is already within LZ.range tiles (0 = never moves, the plain "idle centre" bot).
+// Lane 4 is pinned to the centre column at every width (R51), so with range 0 the lazy row is identical across widths by construction.
+function lazyCatch(S, B) {
+  var m = S.mini, h = S.hero, K = V.Catch.C, t = m.t, best = null, bd = 1e9;
+  if (m.phase !== 'play' || LZ.range <= 0) return cToward(S, m.cols / 2, K.HY_MAX);
+  m.crates.forEach(function (c) { if (c.st !== 'air' || t - c.t0 < LZ.react) return; var d = Math.abs(c.x - h.x); if (d <= LZ.range && d < bd) { bd = d; best = c; } });
+  if (!best) return cToward(S, m.cols / 2, K.HY_MAX);
+  return cToward(S, best.x, K.HY_MAX);
+}
+// human-like: a casual player who keeps the Operator low (thumb band) and slides sideways. It sees a crate HU.react s after it spawns, re-picks every
+// HU.hold s the crate that lands soonest among those it can still reach on the row-10 line (HU.misj x the true time needed), with HU.noise s of
+// jitter in the choice, and slides at full speed except for HU.idleP of the steps (thumb lag). It does not climb for crates and half-notices duds.
+function humanCatch(S, B) {
+  var m = S.mini, h = S.hero, K = V.Catch.C, t = m.t, sp = cSpeed(S);
+  if (m.phase !== 'play') return cToward(S, m.cols / 2, K.HY_MAX);
+  B.hold -= 1 / 60;
+  if (B.hold <= 0 || !B.tc || B.tc.st !== 'air') {
+    B.hold = HU.holdLo + B.rng.next() * (HU.holdHi - HU.holdLo);
+    var best = null, bk = 1e9;
+    m.crates.forEach(function (c) {
+      if (c.st !== 'air' || t - c.t0 < HU.react) return;
+      var left = c.t0 + c.fall - t, need = Math.max(0, Math.abs(c.x - h.x) - 0.7) / sp;
+      if (need * HU.misj > left) return;
+      var key = left + (B.rng.next() - 0.5) * HU.noise;
+      if (key < bk) { bk = key; best = c; }
+    });
+    B.tc = best;
+  }
+  if (HU.idleP > 0 && B.rng.next() < HU.idleP) return { mx: 0, my: 0 };
+  if (!B.tc) return cToward(S, m.cols / 2, K.HY_MAX);
+  var tx = B.tc.x;
+  if (B.noticeDud == null) B.noticeDud = B.rng.next() < 0.5;
+  if (B.noticeDud) m.duds.forEach(function (u) {
+    if (u.st !== 'air' || u.y < 8) return;
+    var d = Math.abs(h.x - u.x); if (d < 1.2 && Math.sign(tx - h.x) === Math.sign(u.x - h.x)) tx = h.x;   // does not walk into a dud that is about to land on its path
+  });
+  return cToward(S, tx, K.HY_MAX);
+}
+// perfect-path: knows the whole script. Plans catches in time order (greedy earliest-catch, two orderings, keeps the better), every leg checked against the duds.
+function planPerfect(S) { return planFor(S.mini.script, S.mini.cols, S.hero.x, S.hero.y, S.tune.MOVE_SPEED); }
+function planFor(sc, cols, hx, hy, sp) {
+  var C = V.Catch, K = C.C;
+  var cr = sc.crates.map(function (c) { return { c: c, x: C.laneX(c.lane, cols), o: c.t0 + c.fall * K.MARGIN_OPEN, l: c.t0 + c.fall }; });
+  var du = sc.duds.map(function (d) { return { d: d, x: C.laneX(d.lane, cols) }; });
+  function legOk(p0, p1, t0, t1) {
+    for (var i = 0; i <= 6; i++) {
+      var f = i / 6, t = t0 + (t1 - t0) * f, x = p0.x + (p1.x - p0.x) * f, y = p0.y + (p1.y - p0.y) * f;
+      for (var j = 0; j < du.length; j++) { var u = du[j]; if (t >= u.d.t0 - 0.05 && t <= u.d.t0 + u.d.fall + 0.05 && Math.hypot(x - u.x, y - C.crateY(u.d, t)) < K.DUD_R + 0.45) return false; }
+    }
+    return true;
+  }
+  function earliest(c, from) {
+    for (var tau = Math.max(c.o, from.t); tau <= c.l + 1e-9; tau += 0.02) {
+      var cy = C.crateY(c.c, tau), ty = cClamp(cy, K.HY_MIN, K.HY_MAX);
+      if (Math.abs(ty - cy) > 0.55) continue;
+      var tgt = { x: c.x, y: ty }, d = Math.hypot(tgt.x - from.x, tgt.y - from.y);
+      if (d / sp <= tau - from.t + 1e-9 && legOk(from, tgt, from.t, tau)) return { t: tau, x: tgt.x, y: tgt.y };
+    }
+    return null;
+  }
+  // beam search over catch sequences in deadline order: each crate is caught at its earliest feasible time or skipped; keep the best 40 states
+  var order = cr.slice().sort(function (a, b) { return a.l - b.l || a.c.id - b.c.id; });
+  var beam = [{ from: { x: hx, y: hy, t: 0 }, n: 0, plan: [] }];
+  order.forEach(function (c) {
+    var nb = [];
+    beam.forEach(function (st) {
+      nb.push(st);
+      var e = earliest(c, st.from);
+      if (e) nb.push({ from: e, n: st.n + 1, plan: st.plan.concat([e]) });
+    });
+    nb.sort(function (a, b) { return b.n - a.n || a.from.t - b.from.t; });
+    beam = nb.slice(0, 40);
+  });
+  var best = beam[0].plan.slice().sort(function (a, b) { return a.t - b.t; });
+  return best;
+}
+function perfectCatch(S, B) {
+  var m = S.mini, K = V.Catch.C;
+  if (m.phase !== 'play') {
+    if (m.phase === 'countin') { var pl = B.plan || (B.plan = planPerfect(S)); if (pl.length) return cToward(S, pl[0].x, pl[0].y); }
+    return cToward(S, m.cols / 2, K.HY_MAX);
+  }
+  if (!B.plan) B.plan = planPerfect(S);
+  var p = B.plan, i = 0; while (i < p.length && p[i].t < m.t - 0.03) i++;
+  if (i >= p.length) return { mx: 0, my: 0 };
+  return cToward(S, p[i].x, p[i].y);
+}
+function catchBotInput(S, B, kind) { return kind === 'lazy' ? lazyCatch(S, B) : (kind === 'perfect' ? perfectCatch(S, B) : humanCatch(S, B)); }
+// Runs the room from where catchRoom left it until the sheet opens (phase 'supply') or the run ends. Returns the room numbers.
+function playCatch(S, kind, seed) {
+  var B = { rng: new V.Rng((seed || S.seed) * 31 + 5), hold: 0, plan: null, tc: null }, n = 0;
+  while (S.phase === 'collect' && n++ < 3000) V.Sim.step(S, catchBotInput(S, B, kind));
+  var m = S.mini;
+  return { net: m.net, caught: m.caught, dudHits: m.dudHits, tier: m.tier, steps: n, early: !!m.early };
+}
+// bot knobs (K, guesses tuned so the 9-column rows land near SPEC's 20 / 55 percent): lazy reacts after LZ.react s to crates within LZ.range tiles; human after HU.react s, re-picks every HU.hold s, gives up on crates it judges more than HU.misj x too far
+var LZ = { react: 0.6, range: 0 }, HU = { react: 0.6, holdLo: 0.3, holdHi: 0.6, misj: 1.0, noise: 0.5, idleP: 0.88 };
+var CATCH_WIDTHS = [9, 11, 13, 15], CATCH_KINDS = ['lazy', 'human', 'perfect'], TIERN = ['Basic', 'Good', 'Great', 'Perfect'];
+var CATCH_KNOBS = { LZ: LZ, HU: HU };
+function catchRows(nSeeds, outPath) {
+  nSeeds = nSeeds || 200; ensureCatch();
+  var L = [], res = {}, t0 = Date.now();
+  function o(s) { L.push(s); if (!outPath) console.log(s); }
+  o('Supply Drop catch room: four-width bot rows (R51, SPEC 9). ' + nSeeds + ' seeds (1..' + nSeeds + ') per row, stage 5, fixed step 1/60, 20 crates, GAP_FACTOR ' + JSON.stringify(V.Catch.GAP_FACTOR));
+  o('Targets (SPEC 9, guesses): lazy about 20 percent caught, human-like about 55, perfect-path about 95; pass = tier shares agree across widths within 10 points.');
+  CATCH_KINDS.forEach(function (kind) {
+    o('== ' + kind + ' ==');
+    o('cols | mean net/20 | mean caught | mean duds hit | Basic % | Good % | Great % | Perfect % | early-perfect %');
+    res[kind] = {};
+    CATCH_WIDTHS.forEach(function (C) {
+      var nets = [], cau = [], dh = [], tc = [0, 0, 0, 0], early = 0;
+      for (var sd = 1; sd <= nSeeds; sd++) { var S = catchRoom(sd, C), r = playCatch(S, kind, sd); nets.push(r.net); cau.push(r.caught); dh.push(r.dudHits); tc[r.tier]++; if (r.early) early++; }
+      var sh = tc.map(function (v) { return 100 * v / nSeeds; });
+      res[kind][C] = { net: mean(nets), shares: sh };
+      o(pad(C, 4) + ' | ' + pad((mean(nets) * 5).toFixed(1) + '%', 11) + ' | ' + pad(f1(mean(cau)), 11) + ' | ' + pad(mean(dh).toFixed(2), 13) + ' | ' + sh.map(function (v) { return pad(v.toFixed(1), 7); }).join(' | ') + ' | ' + pad((100 * early / nSeeds).toFixed(1), 8));
+    });
+    var worst = 0, worstNet = 0;
+    for (var ti = 0; ti < 4; ti++) { var vs = CATCH_WIDTHS.map(function (C) { return res[kind][C].shares[ti]; }); worst = Math.max(worst, Math.max.apply(null, vs) - Math.min.apply(null, vs)); }
+    var nv = CATCH_WIDTHS.map(function (C) { return res[kind][C].net * 5; }); worstNet = Math.max.apply(null, nv) - Math.min.apply(null, nv);
+    o('widest tier-share spread across widths: ' + worst.toFixed(1) + ' points (band 10): ' + (worst <= 10 ? 'PASS' : 'FAIL') + '; caught-share spread ' + worstNet.toFixed(1) + ' points');
+    res[kind].spread = worst;
+  });
+  o('Run time ' + ((Date.now() - t0) / 1000).toFixed(1) + ' s');
+  if (outPath) fs.writeFileSync(outPath, L.join('\n') + '\n');
+  return { rows: res, lines: L };
+}
+// SD-CHOICE: one full slice run (stages 1-10) per seed with the human fight bot, one catch profile (seed % 4: 0 lazy, 1-2 human, 3 perfect = 25/50/25),
+// and a pad policy at the sheet. policy: 'repair-first' (the preselected defaults), 'never-repair', 'random' (one random pad at Basic, two at Good).
+function sdPolicyPick(S, policy, B) {
+  var m = S.mini, ids = ['repair', 'credits', 'schematics'], live = m.pads.filter(function (p) { return p.live; }).map(function (p) { return p.id; });
+  if (m.pay.all) return null;                       // Great and Perfect: every live pad is taken, the player cannot opt out
+  if (policy === 'repair-first') return null;       // defaults
+  if (policy === 'never-repair') return live.filter(function (i) { return i !== 'repair'; }).slice(0, m.pay.picks);
+  var pool = live.slice(), out = [];                // random
+  while (out.length < m.pay.picks && pool.length) out.push(pool.splice(B.rng.int(pool.length), 1)[0]);
+  return out;
+}
+function runSdChoice(seed, policy, cols, tune) {
+  ensureCatch();
+  var o = { cols: cols || 9 }, S = V.Sim.create(seed, tune || freshTune(), o);
+  var B = { rng: new V.Rng(seed * 7919 + 13), hold: 0, cmd: { mx: 0, my: 0 }, hist: [], side: seed % 2 ? -1 : 1 }, CB = { rng: new V.Rng(seed * 31 + 5), hold: 0, plan: null, tc: null };
+  var prof = [null, 'lazy', 'human', 'human', 'perfect'][1 + (seed % 4)];   // seed%4: 0 lazy, 1 human, 2 human, 3 perfect
+  prof = ['lazy', 'human', 'human', 'perfect'][seed % 4];
+  var steps = 0, info = null, creditsAtTake = 0;
+  while (steps < MAX_STEPS) {
+    if (S.phase === 'results') break;
+    if (S.phase === 'pick') { V.Sim.pick(S, chooseCard(S, 'human', B)); continue; }
+    if (S.phase === 'supply') {
+      var h = S.hero, miss = (h.maxHp - h.hp) / h.maxHp, tier = S.mini.tier, sel = sdPolicyPick(S, policy, B), c0 = S.credits, hp0 = h.hp;
+      V.Sim.pickSupply(S, sel);
+      info = { miss: miss, tier: tier, credits: S.credits - c0, schem: S.schematics | 0, heal: S.hero.hp - hp0, roomS: (S.t - S.mini.startT) + 2.4 };   // + 2.4 s of sheet time = about 14 s (R54, guess)
+      continue;
+    }
+    var inp = S.phase === 'collect' ? catchBotInput(S, CB, prof) : INPUT.human(S, B);
+    if (S.phase === 'clear') inp = { mx: inp.mx, my: inp.my, walk: 2 };
+    V.Sim.step(S, inp); steps++;
+  }
+  var R = S.result;
+  return { seed: seed, prof: prof, win: !!(R && R.win), dead: !!(R && !R.win), stage: S.stage, info: info, credits: S.credits, schem: S.schematics | 0 };
+}
+function sdChoice(nSeeds, outPath, cols) {
+  nSeeds = nSeeds || 200; ensureCatch();
+  var L = [], t0 = Date.now(), POL = ['repair-first', 'never-repair', 'random'], CAP = 1139;
+  function o(s) { L.push(s); if (!outPath) console.log(s); }
+  o('SD-CHOICE (SPEC 9): ' + nSeeds + ' seeds, slice stages 1-10 (one Supply Drop at stage 5), human fight bot, catch profile seed%4 = lazy / human / human / perfect (25/50/25), ' + (cols || 9) + ' columns, walk 2x.');
+  o('Room time column = sim seconds from room entry to Take + 2.4 s sheet time (about 14 s, R54). The slice has ONE drop, so the 50-stage figures are arithmetic: x5 drops against the 1,139 clear (guess).');
+  o('policy        | clear % | credits/drop | Credits swing vs repair-first (x5 drops / 1,139) | schem/run | missing HP on arrival | arrivals <5% missing | HP healed/drop | room s');
+  var base = null;
+  POL.forEach(function (pol) {
+    var rs = []; for (var sd = 1; sd <= nSeeds; sd++) rs.push(runSdChoice(sd, pol, cols));
+    var inf = rs.map(function (r) { return r.info; }).filter(Boolean);
+    var clear = 100 * rs.filter(function (r) { return r.win; }).length / nSeeds;
+    var cr = mean(inf.map(function (i) { return i.credits; })), sc = mean(rs.map(function (r) { return r.schem; })), ms = mean(inf.map(function (i) { return 100 * i.miss; }));
+    var lowShare = 100 * inf.filter(function (i) { return i.miss < 0.05; }).length / Math.max(1, inf.length), heal = mean(inf.map(function (i) { return i.heal; })), rt = mean(inf.map(function (i) { return i.roomS; }));
+    if (!base) base = cr;
+    var swing = (cr - base) * 5 / CAP * 100;
+    o(pol + new Array(Math.max(1, 14 - pol.length)).join(' ') + '| ' + pad(clear.toFixed(1), 7) + ' | ' + pad(cr.toFixed(1), 12) + ' | ' + pad((swing >= 0 ? '+' : '') + swing.toFixed(1) + '%', 48) + ' | ' + pad(sc.toFixed(2), 9) + ' | ' + pad(ms.toFixed(1) + '%', 21) + ' | ' + pad(lowShare.toFixed(1) + '%', 20) + ' | ' + pad(heal.toFixed(1), 14) + ' | ' + rt.toFixed(1));
+    var byProf = {}; rs.forEach(function (r) { (byProf[r.prof] = byProf[r.prof] || []).push(r.win ? 1 : 0); });
+    o('   clear by catch profile: ' + Object.keys(byProf).sort().map(function (k) { return k + ' ' + (100 * mean(byProf[k])).toFixed(1) + '% (n ' + byProf[k].length + ')'; }).join(', '));
+  });
+  o('Never-repair is the exposure, not a pass test (Great and Perfect still take Repair: every live pad is taken at those tiers). Random: one random pad at Basic, two at Good.');
+  o('Run time ' + ((Date.now() - t0) / 1000).toFixed(1) + ' s');
+  if (outPath) fs.writeFileSync(outPath, L.join('\n') + '\n');
+  return L;
+}
+// =============================================================================================================================
 function main() {
 var t0 = Date.now();
 out('Project Volley P1 headless bot results (chapter 1, stages 1-10)');
@@ -564,7 +772,7 @@ out('Rule checks failed: ' + nFail);
   function mock() { var d = {}; return { getItem: function (k) { return d[k] == null ? null : d[k]; }, setItem: function (k, v) { d[k] = String(v); }, removeItem: function (k) { delete d[k]; } }; }
   function statsCopy() { var x = M.stats(), o = {}; for (var k in x) o[k] = x[k]; return o; }
   function upgrades() { return (M.state.rifle.lvl - 1) + M.state.buys; }
-  function maxed() { return M.state.rifle.lvl >= T.RIFLE_MAX && M.state.cond.hp >= T.COND_MAX && M.state.cond.atk >= T.COND_MAX && M.state.cond.rate >= T.COND_MAX; }
+  function maxed() { return M.state.rifle.lvl >= T.RIFLE_MAX && M.state.cond.hp >= T.COND_CAPS.hp && M.state.cond.atk >= T.COND_CAPS.atk && M.state.cond.rate >= T.COND_CAPS.rate; }
   function spendGreedy() { // cheapest of rifle / Conditioning first; if it cannot be afforded yet, save up (never skip to a dearer item)
     var n = 0;
     for (;;) {
@@ -591,11 +799,11 @@ out('Rule checks failed: ' + nFail);
       if (r <= SHOW) recs.push(rec);
       cr.runs.push(rec);
       M.state.credits += cred;   // bank (the sim's own award() is not used: it stamps Date.now into the run log)
-      spendGreedy();
+      M.resetVisit(); spendGreedy();
       var u = upgrades();
       [1, 5, 10].forEach(function (k) { if (u >= k && cr.upAt[k] == null) cr.upAt[k] = r; });
       if (cr.rifle10At == null && M.state.rifle.lvl >= T.RIFLE_MAX) cr.rifle10At = r;
-      if (cr.cond10At == null && M.state.cond.hp >= T.COND_MAX && M.state.cond.atk >= T.COND_MAX && M.state.cond.rate >= T.COND_MAX) cr.cond10At = r;
+      if (cr.cond10At == null && M.state.cond.hp >= T.COND_CAPS.hp && M.state.cond.atk >= T.COND_CAPS.atk && M.state.cond.rate >= T.COND_CAPS.rate) cr.cond10At = r;
       if (maxed()) { cr.maxAt = r; if (r >= SHOW) break; }
     }
     careers.push(cr);
@@ -640,7 +848,7 @@ out('Rule checks failed: ' + nFail);
     out(pad(n, 3) + ' | ' + pad(f1(mean(P.map(function (x) { return x.ups; }))), 9) + ' | ' + pad(f1(mean(P.map(function (x) { return x.rifle; }))), 9) + ' | ' + pad(f1(mean(P.map(function (x) { return x.atk; }))), 5) + ' (x' + (mean(P.map(function (x) { return x.atk; })) / T.HERO_ATK).toFixed(2) + ') | ' + pad(f1(mean(P.map(function (x) { return x.hp; }))), 6) + ' | ' + mean(P.map(function (x) { return x.rate; })).toFixed(2) + 'x');
   });
   var fin = M.totals();
-  out('fully maxed (rifle 10, all stats 10): ATK ' + Math.floor(T.HERO_ATK * (1 + 9 * T.RIFLE_ATK_PER_LVL / T.HERO_ATK) * (1 + 10 * T.COND_ATK_PER_LVL)) + ' (x' + ((1 + 9 * T.RIFLE_ATK_PER_LVL / T.HERO_ATK) * (1 + 10 * T.COND_ATK_PER_LVL)).toFixed(2) + '), max HP ' + (T.HERO_HP + 10 * T.COND_HP_PER_LVL) + ', fire ' + (1 + 10 * T.COND_RATE_PER_LVL).toFixed(2) + 'x (HP of the last career run now: ' + fin.maxHp + ').');
+  out('fully maxed (rifle 10, all stats 10): ATK ' + Math.floor(T.HERO_ATK * (1 + 9 * T.RIFLE_ATK_PER_LVL / T.HERO_ATK) * (1 + T.COND_CAPS.atk * T.COND_ATK_PER_LVL)) + ' (x' + ((1 + 9 * T.RIFLE_ATK_PER_LVL / T.HERO_ATK) * (1 + T.COND_CAPS.atk * T.COND_ATK_PER_LVL)).toFixed(2) + '), max HP ' + (T.HERO_HP + M.hpAddAt(10)) + ', fire ' + (1 + T.COND_CAPS.rate * T.COND_RATE_PER_LVL).toFixed(2) + 'x (HP of the last career run now: ' + fin.maxHp + ').');
   out('');
   out('-- Time to max (runs played; first ' + LONG + ' careers only, cap ' + CAP + ' runs per career) --');
   [['rifle 10', 'rifle10At'], ['all Conditioning 10', 'cond10At'], ['everything maxed', 'maxAt']].forEach(function (p) {
@@ -653,5 +861,9 @@ out('Rule checks failed: ' + nFail);
 out('Run time ' + ((Date.now() - t0) / 1000).toFixed(1) + ' s');
 fs.writeFileSync(COLS != null ? path.join(__dirname, 'sim', 'out', 'bot-C' + COLS + '.txt') : path.join(__dirname, 'BOT-RESULTS.txt'), lines.join('\n') + '\n');
 }
-if (require.main === module) main();
+if (require.main === module) {   // K: `node bot.js catch [seeds] [outPath]` runs only the catch-room rows and SD-CHOICE (never BOT-RESULTS.txt)
+  if (process.argv[2] === 'catch') { var ns = +process.argv[3] || 200, op = process.argv[4] || null; catchRows(ns, op); sdChoice(Math.min(ns, 200), op ? op.replace(/\.txt$/, '') + '-sdchoice.txt' : null); }
+  else main();
+}
 module.exports = { V: V, runOne: runOne, setCols: setCols, setWalk: setWalk, cornerBossCheck: cornerBossCheck, cornerShooterCheck: cornerShooterCheck, bossBotCheck: bossBotCheck, cornerShooterInput: cornerShooterInput, pct: pct, mean: mean, MAX_STEPS: MAX_STEPS, INPUT: INPUT };
+Object.assign(module.exports, { catchRoom: catchRoom, CATCH_KNOBS: CATCH_KNOBS, catchBotInput: catchBotInput, playCatch: playCatch, planFor: planFor, catchRows: catchRows, sdChoice: sdChoice, runSdChoice: runSdChoice });   // K

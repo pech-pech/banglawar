@@ -1,13 +1,16 @@
 (function(){ var G = (typeof window !== 'undefined' ? window : globalThis); var V = G.V = G.V || {};
 if (typeof document === 'undefined') return;
 /* Upgrades tab: three Conditioning stats (hp, atk, rate), buy button, "Training complete" result sheet.
-   Reads/writes only through V.Meta. Classes: pv-* from home.css, tb-up-* are local (injected below). */
+   Reads/writes only through V.Meta. Classes: pv-* from home.css, tb-up-* are local (injected below).
+   F1 shop (pick 48, shape V + option b): an Attack or Speed buy grants 2 levels (Lv x / 20), a Max HP buy 1 (Lv x / 10); at most 2 buys per home
+   visit ("Buys left this visit: N", V.Meta.visitLeft(); the allowance comes back when a run starts). Buy button and Continue are 68 and 56 px high;
+   the body scrolls, so 344x882, 475x638 and 704x783 all reach every control. No timer, no countdown, nothing nags: at 0 the button says so quietly. */
 
 var NS = 'http://www.w3.org/2000/svg';
 var STATS = [
-  { id:'hp',   name:'Reinforced Frame', what:'Max HP',       cap:10, icon:'frame' },
-  { id:'atk',  name:'Power Cell',       what:'Attack',       cap:10, icon:'cell' },
-  { id:'rate', name:'Servo Tuning',     what:'Attack speed', cap:10, icon:'servo' }
+  { id:'hp',   name:'Reinforced Frame', what:'Max HP',       cap:10, per:1, icon:'frame' },
+  { id:'atk',  name:'Power Cell',       what:'Attack',       cap:20, per:2, icon:'cell' },
+  { id:'rate', name:'Servo Tuning',     what:'Attack speed', cap:20, per:2, icon:'servo' }
 ];
 var ICONS = {
   frame:'<path d="M12 3l8 3v6c0 5-4 8-8 9-4-1-8-4-8-9V6z"/><path d="M12 8v7M8.5 11.5h7"/>',
@@ -33,9 +36,9 @@ var CSS = '\
 .tl.mx .pv-bar__fill{background:linear-gradient(#f3d27a,var(--pv-ui-r5))}\
 .tb-ti{width:36px;height:36px;flex:none;display:flex;align-items:center;justify-content:center;font-size:24px;background:var(--pv-ui-ink);border-radius:4px;color:var(--pv-ui-cyan);box-shadow:inset 0 0 0 1.5px var(--pv-ui-metal-500);overflow:hidden}\
 .tb-ti img{width:30px;height:30px;object-fit:contain}\
-.tl .tn{font:800 11px/1.05 var(--pv-ui-font-stencil);text-transform:uppercase;letter-spacing:.05em;min-height:23px}\
-.tl .tv{font:800 11px/1 var(--pv-ui-font-stencil);color:var(--pv-ui-sand)}\
-.tl .fx{font:800 11px/1 var(--pv-ui-font-stencil);color:var(--pv-ui-text-2)}\
+.tl .tn{font:800 12px/1.05 var(--pv-ui-font-stencil);text-transform:uppercase;letter-spacing:.05em;min-height:23px}\
+.tl .tv{font:800 12px/1 var(--pv-ui-font-stencil);color:var(--pv-ui-sand)}\
+.tl .fx{font:800 12px/1 var(--pv-ui-font-stencil);color:var(--pv-ui-text-2)}\
 .tl .pv-bar{width:100%;height:10px;margin-top:auto}\
 .tb-pn{padding:10px 12px;display:flex;align-items:center;gap:12px}.tb-pn .tx{flex:1;min-width:0}.tb-cog{flex:none;width:40px;height:40px}.tb-buy .tb-coin{width:18px;height:18px}.tb-pn .r{display:flex;align-items:center}.tb-pn .cr{margin-left:auto;font:800 20px/1 var(--pv-ui-font-stencil);color:var(--pv-ui-sand);display:inline-flex;align-items:center;gap:6px}\
 .tb-pn .sm{font-size:12px;color:var(--pv-ui-text-2);margin-top:6px}\
@@ -47,15 +50,20 @@ var CSS = '\
 .tb-res .card{width:100%;padding:16px 16px 16px;display:flex;flex-direction:column;align-items:center;gap:10px;background:linear-gradient(var(--pv-ui-metal-700),var(--pv-ui-metal-900));border:2.5px solid var(--pv-ui-ink);border-radius:10px;box-shadow:0 0 0 1.5px var(--pv-ui-cyan-lo),0 0 28px rgba(56,232,255,.35),0 4px 10px rgba(0,0,0,.6)}\
 .tb-res .big{width:104px;height:104px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;background:radial-gradient(circle at 50% 35%,#0e4b57,var(--pv-ui-metal-900) 80%);border:2.5px solid var(--pv-ui-ink);border-radius:8px;box-shadow:inset 0 0 0 2px var(--pv-ui-cyan),0 0 22px rgba(56,232,255,.65),0 0 48px rgba(56,232,255,.25);color:var(--pv-ui-cyan)}\
 .tb-res .big .pv-ico{font-size:46px}.tb-res .big img{width:56px;height:56px;object-fit:contain}\
-.tb-res .big b{text-align:center;padding:0 6px;font:800 11px/1 var(--pv-ui-font-stencil);letter-spacing:.14em;color:var(--pv-ui-text);text-transform:uppercase}\
+.tb-res .big b{text-align:center;padding:0 6px;font:800 12px/1 var(--pv-ui-font-stencil);letter-spacing:.14em;color:var(--pv-ui-text);text-transform:uppercase}\
 .tb-res .plus{font:800 28px/1 var(--pv-ui-font-stencil);letter-spacing:.14em;color:var(--pv-ui-cyan);text-shadow:0 0 12px rgba(56,232,255,.6)}\
 .tb-res .ba{display:flex;align-items:center;gap:10px;width:100%;justify-content:center}\
 .tb-res .bx{flex:1;text-align:center;padding:8px 4px;background:var(--pv-ui-ink);border-radius:4px;border:1px solid var(--pv-ui-metal-600)}\
-.tb-res .bx small{display:block;font:700 11px/1 var(--pv-ui-font-stencil);letter-spacing:.12em;color:var(--pv-ui-text-3);text-transform:uppercase;margin-bottom:5px;white-space:nowrap}\
+.tb-res .bx small{display:block;font:700 12px/1 var(--pv-ui-font-stencil);letter-spacing:.12em;color:var(--pv-ui-text-3);text-transform:uppercase;margin-bottom:5px;white-space:nowrap}\
 .tb-res .bx span{font:800 19px/1 var(--pv-ui-font-stencil);white-space:nowrap}\
 .tb-res .bx.af span{color:var(--pv-ui-cyan)}\
 .tb-res .ba>.pv-ico{color:var(--pv-ui-cyan);font-size:22px}\
 .tb-res .pv-btn{width:100%;min-height:56px}\
+.tb-visit{display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:48px;padding:8px 12px;background:linear-gradient(var(--pv-ui-metal-700),var(--pv-ui-metal-800));border:1.5px solid var(--pv-ui-ink);border-radius:6px;box-shadow:inset 0 1px 0 rgba(255,255,255,.10),0 2px 0 rgba(0,0,0,.55)}\
+.tb-visit .vl{font:800 14px/1.2 var(--pv-ui-font-stencil);letter-spacing:.06em;text-transform:uppercase;color:var(--pv-ui-text)}.tb-visit .vl b{font-size:20px;color:var(--pv-ui-cyan);margin-left:4px}\
+.tb-visit.none .vl b{color:var(--pv-ui-text-3)}\
+.tb-visit .pips{display:inline-flex;gap:8px;flex:none}.tb-visit .pip{width:18px;height:18px;border-radius:50%;border:2px solid var(--pv-ui-cyan);box-sizing:border-box}.tb-visit .pip.on{background:var(--pv-ui-cyan);box-shadow:0 0 6px rgba(56,232,255,.6)}\
+.tl .per{font:700 12px/1 var(--pv-ui-font-stencil);letter-spacing:.06em;color:var(--pv-ui-text-3);text-transform:uppercase}\
 .tb-note{font-size:12px;color:var(--pv-ui-text-2);text-align:center;min-height:16px;margin:0}\
 .tb-note.is-warn{color:var(--pv-ui-text-3)}';
 
@@ -85,6 +93,9 @@ function effectOf(id, st){
 function el(tag, cls, html){ var e = document.createElement(tag); if (cls) e.className = cls; if (html != null) e.innerHTML = html; return e; }
 function level(id){ var c = M().state && M().state.cond; return (c && c[id]) | 0; }
 function capOf(s){ var m = M(); return (m.maxLevel && m.maxLevel('cond', s.id)) || s.cap; }
+function buysLeft(){ var m = M(); return m.visitLeft ? m.visitLeft() : 2; }
+function whyNot(){ var m = M(); return m.whyNot ? m.whyNot('cond', 'rand') : (m.canBuy && m.canBuy('cond', 'rand') ? '' : 'credits'); }
+function pipsHtml(n, max){ var h = ''; for (var i = 0; i < max; i++) h += '<span class="pip' + (i < n ? ' on' : '') + '"></span>'; return h; }
 function iconBox(s, withAsset){
   return ico(s.icon);
 }
@@ -92,7 +103,8 @@ function iconBox(s, withAsset){
 var T = V.Tabs = V.Tabs || {};
 var root = null, body = null, mounted = false, unsub = false, sheet = null;
 
-function cap(){ var t = 0; STATS.forEach(function(s){ t += capOf(s); }); return t; }
+function capBuys(){ var m = M(); return m.maxTotal ? m.maxTotal('cond') : 30; }
+function boughtBuys(){ var m = M(); return m.boughtCount ? m.boughtCount('cond') : 0; }
 function nextCost(){
   var m = M(), c = null;
   if (m.nextPrice) { var p = m.nextPrice('cond'); return p == null ? null : { credits: p }; }
@@ -103,19 +115,21 @@ function render(){
   if (!root) return;
   var m = M(), st = m.state || {};
   var stats = m.stats ? m.stats() : {};
-  var total = 0;
   body.innerHTML = '';
-  STATS.forEach(function(s){ total += level(s.id); });
   var rule = el('p', 'rule');
-  rule.innerHTML = 'Trains one random stat.<span class="n">' + total + ' / ' + cap() + ' bought</span>';
+  rule.innerHTML = 'Trains one random stat. Attack and speed give 2 levels.<span class="n">' + boughtBuys() + ' / ' + capBuys() + ' bought</span>';
   body.appendChild(rule);
+  var left = buysLeft(), vmax = (m.TUNING && m.TUNING.VISIT_MAX) || 2;
+  var vis = el('div', 'tb-visit' + (left <= 0 ? ' none' : '')); vis.id = 'tb-visit'; vis.setAttribute('role', 'status');
+  vis.innerHTML = '<span class="vl">Buys left this visit:<b id="tb-left">' + left + '</b></span><span class="pips" aria-hidden="true">' + pipsHtml(left, vmax) + '</span>';
+  body.appendChild(vis);
   var g = el('div', 'tb-grid3');
   STATS.forEach(function(s){
     var lv = level(s.id), cp = capOf(s), max = lv >= cp;
     var t = el('div', 'tl' + (max ? ' mx' : ''));
     t.id = 'tb-' + s.id;
     t.innerHTML = '<div class="tb-ti">' + iconBox(s, true) + '</div><div class="tn">' + s.name + '</div>' +
-      '<div class="tv">' + (max ? 'MAX' : 'Lv ' + lv + ' / ' + cp) + '</div><div class="fx">' + effectOf(s.id, stats) + '</div>' +
+      '<div class="tv">' + (max ? 'MAX' : 'Lv ' + lv + ' / ' + cp) + '</div><div class="fx">' + effectOf(s.id, stats) + '</div><div class="per">+' + s.per + ' level' + (s.per > 1 ? 's' : '') + ' per buy</div>' +
       '<div class="pv-bar"><div class="pv-bar__fill" style="--v:' + Math.min(100, Math.round(lv / cp * 100)) + '%"></div></div>';
     g.appendChild(t);
   });
@@ -126,17 +140,18 @@ function render(){
     '<div class="sm">' + (all ? 'Every stat is at its cap.' : 'Upgrades one random stat that is not maxed.') + '</div></div>';
   body.appendChild(pn);
   body.appendChild(el('div', 'tb-spacer'));
-  var can = !all && c && m.canBuy && m.canBuy('cond', 'rand');
+  var why = all ? 'max' : whyNot(), can = !all && c && why === '';
   var btn = el('button', 'pv-btn tb-buy ' + (can ? 'pv-btn--primary' : ''));
   btn.type = 'button'; btn.setAttribute('data-buy', 'cond');
   if (all) btn.innerHTML = '<span class="lbl">Maxed</span>';
+  else if (why === 'visit') btn.innerHTML = '<span class="lbl">No buys left</span><span class="cost">' + COIN + fmt(c ? c.credits : 0) + '</span>';
   else btn.innerHTML = '<span class="lbl">Upgrade</span><span class="cost">' + COIN + fmt(c ? c.credits : 0) + '</span>';
   if (!can) { btn.className += ' is-disabled'; btn.disabled = true; }
   btn.addEventListener('click', buy);
   body.appendChild(btn);
   // QA-HOME 12: same hint as the Armory (tab-armory.js upBtn / .ta-note): grey, never red.
-  var short = (!all && c && !can) ? Math.max(0, (c.credits | 0) - (st.credits | 0)) : 0;
-  body.appendChild(el('div', 'tb-note' + (short > 0 ? ' is-warn' : ''), short > 0 ? 'Need ' + fmt(short) + ' more credits' : '&nbsp;'));
+  var short = (!all && c && why === 'credits') ? Math.max(0, (c.credits | 0) - (st.credits | 0)) : 0;
+  body.appendChild(el('div', 'tb-note' + (short > 0 || why === 'visit' ? ' is-warn' : ''), why === 'visit' ? 'Your buys for this visit are used. They come back after your next run.' : (short > 0 ? 'Need ' + fmt(short) + ' more credits' : '&nbsp;')));
 }
 
 function buy(){
@@ -144,21 +159,23 @@ function buy(){
   if (!(m.canBuy && m.canBuy('cond', 'rand'))) return;
   var before = m.stats ? m.stats() : {}, lv = {};
   STATS.forEach(function(s){ lv[s.id] = level(s.id); });
-  var id = m.buyRandom ? m.buyRandom('cond') : false;
+  var r = m.buy ? m.buy('cond', 'rand') : (m.buyRandom ? m.buyRandom('cond') : false);
+  var id = r && r.stat ? r.stat : (r === true ? m.lastBuy : (typeof r === 'string' ? r : null));
   if (!id) return;
   var s = STATS.filter(function(x){ return x.id === id; })[0];
   if (!s) return;
-  showSheet(s, before, m.stats ? m.stats() : {}, lv[id], level(id));
+  showSheet(s, before, m.stats ? m.stats() : {}, lv[id], level(id), Math.max(1, level(id) - lv[id]));
 }
 
-function showSheet(s, before, after, lb, la){
+function showSheet(s, before, after, lb, la, granted){
   closeSheet();
   var r = el('div', 'tb-res'); r.setAttribute('role', 'dialog'); r.setAttribute('aria-label', 'Training complete');
   r.innerHTML = '<div class="card"><div class="pv-stencil pv-muted">Training complete</div>' +
     '<div class="big">' + iconBox(s, false) + '<b>' + s.name + '</b></div>' +
-    '<div class="plus">+1 LEVEL</div>' +
+    '<div class="plus">+' + granted + ' LEVEL' + (granted > 1 ? 'S' : '') + '</div>' +
     '<div class="ba"><div class="bx"><small>Before &middot; Lv ' + lb + '</small><span>' + effectOf(s.id, before) + '</span></div>' + ico('arrow') +
     '<div class="bx af"><small>After &middot; Lv ' + la + '</small><span>' + effectOf(s.id, after) + '</span></div></div>' +
+    '<div class="pv-stencil pv-muted" id="tb-sheet-left">Buys left this visit: ' + buysLeft() + '</div>' +
     '<button type="button" class="pv-btn pv-btn--primary" data-continue>Continue</button></div>';
   r.querySelector('[data-continue]').addEventListener('click', closeSheet);
   root.appendChild(r); sheet = r;

@@ -65,6 +65,11 @@ function fallbackStages(){
   }
   return out;
 }
+// F1 (S): ?debug=1&room=stress test room for the effect scaler (agent V): opts.room === 'stress' loads V.Data.stages.stress (one room,
+// 11 machines alive at once, the Chapter 1 peak). In that room machines have STRESS_HP x HP so they stay alive under fire and the Operator takes no damage.
+var STRESS_HP = 1000;   // GUESS: large enough that no build kills a machine within a test session
+function isStress(S){ return !!(S && S.metaOpts && S.metaOpts.room === 'stress' && V.Data && V.Data.stages && V.Data.stages.stress); }
+function listOf(S){ return isStress(S) ? V.Data.stages.stress : stageList(); }
 function stageList(){ return (V.STAGES && V.STAGES.ch1 && V.STAGES.ch1.length) ? V.STAGES.ch1 : fallbackStages(); }
 
 function count(S, key){ return S.hero.mods[key] || 0; }
@@ -96,6 +101,7 @@ function heroStats(S){
   var st = { atkAdd:0, atkMul:1, primaryMul:1, rateAdd:0, rateMul:1, critAdd:0, critDmgAdd:0, hpMaxAdd:0, dmgTakenMul:1, moveMul:1, dodge:0, volleys:1 };
   if (S.meta) { st.hpMaxAdd += S.meta.hpAdd || 0; st.atkMul *= S.meta.atkMul == null ? 1 : S.meta.atkMul; st.rateMul *= S.meta.rateMul == null ? 1 : S.meta.rateMul; st.moveMul *= S.meta.moveMul == null ? 1 : S.meta.moveMul; st.dmgTakenMul *= S.meta.dmgTakenMul == null ? 1 : S.meta.dmgTakenMul; } // META: run-start stats
   callHook(S, 'stats', st);
+  if (S.deploy && V.Mods && V.Mods.Deploy) V.Mods.Deploy.applyStats(S, st);   // G: Deploy boost stats
   if (V.MODS) st.volleys = Math.max(st.volleys, 1 + count(S, 'multi')); // SK-02 echo batches (mods.js leaves them to the sim)
   return st;
 }
@@ -192,7 +198,7 @@ function findChar(grid, ch){
 function spawnEnemy(S, type, x, y){
   var A = V.AI[type];
   if (!A) { ev(S, { k:'error', x:x, y:y, msg:'no AI for ' + type }); return null; }
-  var b = A.base, hp = Math.max(1, Math.round(b.hp * hpScale(S)));
+  var b = A.base, hp = Math.max(1, Math.round(b.hp * hpScale(S) * (S.stress ? STRESS_HP : 1)));
   var e = { id: ++S._nextId, type:type, x:x, y:y, r:b.r, hp:hp, maxHp:hp, ang:Math.PI / 2, st:'spawn',
     tell01:0, aimAng:Math.PI / 2, flashT:0, size:b.size,
     spawnT:S.tune.SPAWN_T, stT:0, cd:0, contactCd:0, vx:0, vy:0, strafe:1, afterSpawn:'move' };
@@ -214,9 +220,10 @@ function roomCols(S){
   return V.Widen ? V.Widen.cols(c) : 9;
 }
 function loadStage(S, idx){
-  var list = stageList(), def = list[idx];
+  var list = listOf(S), def = list[idx];
+  S.stress = isStress(S);
   S.stageIdx = idx; S.stage = idx + 1; S.stageDef = def;
-  S.stageKind = def.kind || 'combat';
+  S.stageKind = (def.kind === 'supply' && V.Catch) ? 'collect' : (def.kind || 'combat');   // K: the catch room (parts/catch.js) replaces the supply room; without catch.js the old supply room stays
   var R = V.ROOMS[def.room] || V.ROOMS.R01, C = roomCols(S);
   var WR = V.Widen ? V.Widen.room(R, C) : { grid:R.grid, w:R.grid[0].length, k:0 }, grid = WR.grid;
   S.cols = grid[0].length;
@@ -227,7 +234,7 @@ function loadStage(S, idx){
     door:{ x:d.x, y:d.y, w:1, h:1, open:false } };
   S.hazards = buildRects(grid, '^', function(){ return 'spikes'; });
   S.enemies = []; S.rounds = []; S.shots = []; S.shells = []; S.pickups = [];
-  S.boss = null; S.supply = null; S.chest = null; S.cards = null;
+  S.boss = null; S.supply = null; S.chest = null; S.cards = null; S.mini = null;   // review fix 1: the catch room state must not outlive stage 5
   var c = findChar(grid, 'C');
   if (S.stageKind === 'cache') S.chest = { x:(c ? c.x : mid) + 0.5, y:(c ? c.y : 4) + 0.5, open:false };
   var h = S.hero;
@@ -238,7 +245,11 @@ function loadStage(S, idx){
   S.spawnQ = spl.map(function(s){ return { type:s.type, x:s.x, y:s.y, t:s.t || 0 }; });
   S.spawnQ.sort(function(a, b){ return a.t - b.t; });
   ev(S, { k:'room', x:h.x, y:h.y, roomId:S.roomId, stage:S.stage, kind:S.stageKind, lap:S.lap });
-  if (S.stageKind === 'supply') {
+  if (S.stageKind === 'collect') {   // K: Supply Drop catch room (SPEC, R50-R54). All logic in parts/catch.js; S.mini holds the state; S.rng is not touched (fight stages stay bit-identical)
+    S.room.solids = S.room.solids.filter(function(b){ return b.kind === 'wall'; });
+    V.Catch.start(S, new V.Rng(((S.seed >>> 0) ^ Math.imul(scaleStage(S) + 1, 2654435761)) >>> 0));
+    if (S.mini.taken) { S.supply = null; openDoor(S); }   // Settings "Skip" from the 4th play: default pad granted at once
+  } else if (S.stageKind === 'supply') {
     S.phase = 'supply';
     var sd = offer(S, 'SD', 1);
     if (!sd.length) sd = offer(S, 'F', 1);
@@ -392,10 +403,11 @@ function stepHero(S, inp, dt){
 }
 
 // META credits (mirrors V.Meta.TUNING; sim must not depend on V.Meta). D4 3.1 weights x 24.
-var ROOM_CREDITS = { combat:24, supply:0, cache:95, boss:24 }, BOSS_BONUS = 47;
+var ROOM_CREDITS = { combat:13, supply:0, cache:54, boss:40 }, BOSS_BONUS = 0;   // F1 pay table = V.Meta.TUNING.ROOM (model scale, pick 48); keep in step
 function roomCredit(kind){ var v = ROOM_CREDITS[kind]; return v == null ? ROOM_CREDITS.combat : v; }
 function endRun(S, win){
   var h = S.hero;
+  if (S.deploy && V.Mods && V.Mods.Deploy) S.credits = Math.round(S.credits * V.Mods.Deploy.creditMul(S));   // G: Deploy Credits boost
   S.result = { win:win, stage:S.stage, lap:S.lap, t:+S.t.toFixed(2), kills:S.stats.kills, level:h.level,
     picks:S.stats.picks.slice(), dmgTaken:S.stats.dmgTaken, credits:S.credits, seen:Object.keys(S.stats.seen || {}) };
   if (S.useMeta && V.Meta && V.Meta.award) { V.Meta.award(S.result); S.result.bank = V.Meta.state.credits; } // META: bank once
@@ -405,12 +417,13 @@ function endRun(S, win){
 // opts.hazard: skips dodge
 function hurtHero(S, dmg, src, x, y, opts){
   var h = S.hero;
-  if (h.invulnT > 0 || S.phase === 'results') return false;
+  if (h.invulnT > 0 || S.phase === 'results' || S.stress) return false;
   if (!(opts && opts.hazard)) {
     var dc = Math.min(DODGE_CAP, S.st.dodge || 0);
     if (dc > 0 && S.rng.next() < dc) { ev(S, { k:'dodge', x:h.x, y:h.y, src:src }); S.fx.push({ k:'dodge', x:h.x, y:h.y }); return false; }
   }
   dmg = Math.max(1, Math.floor(dmg * (S.st.dmgTakenMul == null ? 1 : S.st.dmgTakenMul)));
+  if (V.Mods && V.Mods.Deploy && S.deployShield > 0) dmg = V.Mods.Deploy.absorb(S, dmg);   // G: D8 opening shield
   h.hp -= dmg; S.stats.dmgTaken += dmg;
   S.stats.hitsBy[src] = (S.stats.hitsBy[src] || 0) + 1;
   h.invulnT = S.tune.INVULN;
@@ -754,6 +767,13 @@ function applyMod(S, ci){
   return c;
 }
 function deferEvents(S, n0){ S._post = (S._post || []).concat(S.events.splice(n0)); }
+function openPick(S){
+  var n = Math.max(1, Math.round(S.tune.CARDS_OFFERED) || 3);
+  S.cards = offer(S, 'F', n);
+  if (!S.cards.length) { S.cards = null; S.pendingLevels = 0; S.freePicks = 0; return false; }
+  S._pickFrom = S.phase; S.phase = 'pick'; return true;
+}
+function reroll(S){ var n0 = S.events.length, r = V.Mods && V.Mods.reroll ? V.Mods.reroll(S) : false; deferEvents(S, n0); return r; }
 function pick(S, index){
   var n0 = S.events.length, r = pick0(S, index); deferEvents(S, n0); return r;
 }
@@ -765,12 +785,14 @@ function pick0(S, index){
   if (S.phase !== 'pick' || !S.cards) return false;
   var ci = S.cards[index]; if (ci == null) return false;
   applyMod(S, ci);
-  if (S.freePicks > 0) S.freePicks--; else S.pendingLevels = Math.max(0, S.pendingLevels - 1);
-  S.cards = null; S.phase = 'clear';
+  if (S.freePicks > 0) { if (V.Mods && V.Mods.Deploy && V.Mods.Deploy.pickBonus(S) && !V.Mods.capped(S, V.MODS[ci])) applyMod(S, ci); S.freePicks--; }   // G: opening pick of a rare or elite roll enters at level 2
+  else S.pendingLevels = Math.max(0, S.pendingLevels - 1);
+  S.cards = null; S.phase = S._pickFrom || 'clear'; S._pickFrom = null;
   return true;
 }
 function pickSupply0(S, index){
   if (S.phase !== 'supply' || !S.supply) return false;
+  if (S.mini && S.mini.phase === 'sheet') { V.Catch.take(S, index); S.supply = null; openDoor(S); return true; }   // K: index = array of pad ids (Take), or anything else = the saved defaults
   var c = S.supply[index]; if (!c) return false;
   if (c.kind === 'mod') applyMod(S, c.index);
   else { var v = healHero(S, S.hero.maxHp * SUPPLY_REPAIR_PCT); ev(S, { k:'pickup', x:S.hero.x, y:S.hero.y, kind:'repair', v:v }); }
@@ -792,7 +814,7 @@ function openChest(S){
 
 function nextStage(S){
   for (var i = 0; i < S.pickups.length; i++) if (S.pickups[i].kind === 'xp') addXp(S, S.pickups[i].v);
-  var n = S.stageIdx + 1, list = stageList();
+  var n = S.stageIdx + 1, list = listOf(S);
   if (n >= list.length) { S.lap++; n = 0; }
   loadStage(S, n);
 }
@@ -805,14 +827,28 @@ function syncBoss(S){
   B.hp = e.hp; B.maxHp = e.maxHp; B.phase = ph; B.attack = e.attack || null; B.tell01 = e.tell01 || 0; B.name = e.name || B.name;
 }
 
+// K: one fixed step of the catch room. The clock is S.mini.t, advanced here by sim steps only (R53); no hero weapon, no enemies.
+function stepCollect(S, inp){
+  var dt = STEP * (S.tune.TIME_SCALE > 0 ? S.tune.TIME_SCALE : 1);
+  S.frame++; S.t += dt; S.roomT += dt;
+  if (!S.st) refreshStats(S);
+  if (S.mini) V.Catch.step(S, inp, dt);
+  return S;
+}
+// K: the Skip chip (4th play on). Grants the default pad at once and opens the door.
+function skipCollect(S){
+  if (!S || S.phase !== 'collect' || !S.mini || !V.Catch.skip(S)) return false;
+  S.supply = null; openDoor(S); return true;
+}
 // ---------- step ----------
 function step(S, inp){
   S.events.length = 0; S.fx.length = 0;
   if (S._post && S._post.length) { for (var pe = 0; pe < S._post.length; pe++) S.events.push(S._post[pe]); S._post.length = 0; }
+  if (S.phase === 'collect') return stepCollect(S, inp);   // K: catch room (fixed step sim time, R53)
   if (S.phase === 'pick' || S.phase === 'supply' || S.phase === 'results') return S;
   var t = S.tune, dt = STEP * (t.TIME_SCALE > 0 ? t.TIME_SCALE : 1);
   S.frame++; S.t += dt; S.roomT += dt;
-  if (!S.st) refreshStats(S);
+  if (!S.st) { refreshStats(S); if (V.Mods && V.Mods.Deploy) V.Mods.Deploy.runStart(S); }   // G: Deploy shield + opening picks, once
   if (S.phase === 'play') { S.stats.playSteps++; releaseSpawns(S); }
   stepHero(S, inp, dt);
   if (S.phase === 'play' && S.hero.braced) S.stats.bracedSteps++;
@@ -833,10 +869,12 @@ function step(S, inp){
     S.credits += roomCredit(S.stageKind) + (S.stageKind === 'boss' ? BOSS_BONUS : 0); // META: credits per room cleared
     S.shots.length = 0; S.shells.length = 0;
     if (S.hero.lockId != null) { ev(S, { k:'unlock', x:S.hero.x, y:S.hero.y, id:S.hero.lockId }); S.hero.lockId = null; S.hero.lockClear = false; }
-    if (S.stageKind === 'boss' && !t.ENDLESS) { S.phase = 'clear'; S.clearT = 0; S.bossWin = true; }
+    if (S.stageKind === 'boss' && !t.ENDLESS) { S.phase = 'clear'; S.clearT = 0; S.bossWin = true; if (V.Mods) V.Mods.bankReroll(S); }   // G: pick 21
     else openDoor(S);
   }
   stepPickups(S, dt);
+  // G: pick 19, the level-up pause opens mid-stage the moment the bar fills (also in the clear walk, before the door). S: the sim has no boss-intro state (the boss attacks from its first cd), so no intro guard.
+  if ((S.phase === 'play' || (S.phase === 'clear' && !S.bossWin)) && (S.pendingLevels + S.freePicks) > 0 && S.hero.hp > 0) openPick(S);
   if (S.phase === 'clear') {
     S.clearT += dt;
     var h = S.hero, d = S.room.door;
@@ -844,7 +882,7 @@ function step(S, inp){
     if (S.chest && !S.chest.open && (Math.hypot(h.x - S.chest.x, h.y - S.chest.y) < 0.9 || S.clearT >= t.PICK_DELAY)) openChest(S);
     var atDoor = circleRect(h.x, h.y, HERO_WALL_R + 0.02, d);
     var pending = S.pendingLevels + S.freePicks;
-    if (pending > 0 && (S.clearT >= t.PICK_DELAY || atDoor)) { S.phase = 'pick'; S.cards = offer(S, 'F', Math.max(1, Math.round(t.CARDS_OFFERED) || 3)); if (!S.cards.length) { S.cards = null; S.phase = 'clear'; S.pendingLevels = 0; S.freePicks = 0; } }
+    if (pending > 0 && (S.clearT >= t.PICK_DELAY || atDoor)) openPick(S);
     else if (atDoor) nextStage(S);
   }
   return S;
@@ -863,10 +901,11 @@ function hash(S){
   return ('00000000' + h.toString(16)).slice(-8);
 }
 
-V.Sim = { dropSpot:dropSpot, create:create, step:step, pick:pick, pickSupply:pickSupply, restart:restart, hash:hash, api:api,
+V.Sim = { reroll:reroll, dropSpot:dropSpot, create:create, step:step, pick:pick, pickSupply:pickSupply, restart:restart, hash:hash, api:api,
   offer:offer, stats:heroStats, stageList:stageList,
   STEP:STEP, LEVEL_COST:LEVEL_COST, roundDamage:roundDamage, fireInterval:fireInterval, clearLine:clearLine,
   FALLBACK_MODS:FALLBACK_MODS };
+V.Sim.skipCollect = skipCollect;   // K: catch room Skip chip
 // back-compat for bot/tests: base stats by type (live view of the registry)
 Object.defineProperty(V.Sim, 'ENEMIES', { get:function(){ var o = {}; for (var k in V.AI) o[k] = V.AI[k].base; return o; } });
 })();
