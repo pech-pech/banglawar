@@ -250,4 +250,15 @@ ok('reset calls V.Home.deploy.forget when it exists, and survives one that throw
   } finally { V.STAGES.ch1 = real; V.SimOpts.chlen = 10; }
   ok('J real list restored, 10-stage pay still 185', M.clearPay() === 185 && V.chapterLen(1) === 10);
 })();
+// LEN50: a 50-row Chapter 1 (kinds: supply 5/15/25/35/45, cache 9/19/29/39/49, boss 10/20/30/40/50): chapter length, pay, Home/Operator best clamp source
+(function(){
+  var real = V.STAGES.ch1, kinds = {};
+  try {
+    var L = []; for (var i = 1; i <= 50; i++) L.push({ stage:i, kind: i % 10 === 0 ? 'boss' : (i % 10 === 9 ? 'cache' : (i % 10 === 5 ? 'supply' : 'combat')), room:'R01', spawns:[] });
+    V.STAGES.ch1 = L; V.SimOpts.chlen = 0;
+    ok('LEN50 chapterLen 50', V.chapterLen(1) === 50, V.chapterLen(1));
+    ok('LEN50 clearPay = 35 x 13 + 5 x 54 + 5 x 40 = 925 (pads add 5 x 20 = 1025)', M.clearPay() === 35 * 13 + 5 * 54 + 5 * 40 && M.clearPay() === 925, M.clearPay());
+    V.SimOpts.chlen = 20; ok('LEN50 chlen 20 cap on the 50 list: 20 stages', V.chapterLen(1) === 20 && M.clearPay() === 14 * 13 + 2 * 54 + 2 * 40);
+  } finally { V.STAGES.ch1 = real; V.SimOpts.chlen = 10; }
+})();
 console.log(n + ' checks, ' + fails + ' failed'); process.exit(fails ? 1 : 0);

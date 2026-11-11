@@ -56,6 +56,8 @@ function listFor(S){
 function chLenOf(S){ var l = listFor(S); return l && l.length ? l.length : SLICE_LEN; }
 // Credits banked by clearing stages 1..n-1 (a death at stage n), from the pay table by stage kind; stage 5-style supply rooms pay 0. Matches byStage 1..10.
 function paidBefore(n, list){ var t = 0; for (var i = 0; i < n - 1 && i < list.length; i++) t += PAY[list[i].kind] || 0; return t; }
+// Supply Drop rooms cleared before stage n (stages 1..n-1): each one can add one Credits pad. At 50 stages there are up to five (stages 5, 15, 25, 35, 45).
+function padsBefore(n, list){ var c = 0; for (var i = 0; i < n - 1 && i < list.length; i++) if (list[i].kind === 'supply') c++; return c; }
 function mark(v, lo, hi){ if (v == null || lo == null) return 'no band'; return v < lo ? 'below' : (v > hi ? 'above' : 'ok'); }
 
 // ---------- small helpers ----------
@@ -314,10 +316,10 @@ function bandCompare(r){
   if (r.result === 'win') {
     var wl = isLong && list ? paidBefore(list.length + 1, list) : B.creditsWin.lo;   // long run: the pay table over the whole list (+ pad), not the 10-stage band
     o.runSeconds = isLong ? '10-stage slice band' : mark(r.runSeconds, B.winSeconds.lo, B.winSeconds.hi) + star;
-    o.creditsEarned = isLong ? mark(r.creditsEarned, wl, wl + B.creditsWin.pad) + star : mark(r.creditsEarned, B.creditsWin.lo, B.creditsWin.hi) + star;
+    o.creditsEarned = isLong ? mark(r.creditsEarned, wl, wl + B.creditsWin.pad * padsBefore(list.length + 1, list)) + star : mark(r.creditsEarned, B.creditsWin.lo, B.creditsWin.hi) + star;
     o.kills = 'ref ' + B.killsWin.ref;
   } else if (r.result === 'loss') {
-    var cd = isLong && list ? paidBefore(r.stageReached, list) : B.creditsDeath.byStage[r.stageReached], cdHi = cd == null ? null : cd + (r.stageReached >= B.creditsDeath.padFrom ? B.creditsWin.pad : 0);
+    var cd = isLong && list ? paidBefore(r.stageReached, list) : B.creditsDeath.byStage[r.stageReached], cdHi = cd == null ? null : cd + (isLong && list ? B.creditsWin.pad * padsBefore(r.stageReached, list) : (r.stageReached >= B.creditsDeath.padFrom ? B.creditsWin.pad : 0));
     o.runSeconds = 'no band'; o.creditsEarned = cd == null ? 'no band' : mark(r.creditsEarned, cd, cdHi) + star; o.kills = 'no band';
   } else { o.runSeconds = 'no band'; o.creditsEarned = 'no band'; o.kills = 'no band'; }
   return o;   // picks (ref 3.84), lowestHp and dmgTaken have no band: see the bands table

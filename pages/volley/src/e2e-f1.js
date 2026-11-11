@@ -211,16 +211,15 @@ async function levelupGroup(browser, file, size) {
     const small = ui.tg.filter(t => Math.min(t.w, t.h) < 55.5);
     await g.page.evaluate(() => window.__captureHud && 0);
     ok(small.length === 0 && ui.btns.every(b => b.h >= 55.5), names[4], small.length ? 'SMALL: ' + small.map(t => `${t.d} ${t.w}x${t.h}`).join(', ') : `${ui.tg.length} targets, min ${Math.min(...ui.tg.map(t => Math.min(t.w, t.h)))} px`);
-    // tap a row: it stays up with "Touch to continue"; a second fresh tap 350+ ms later applies it (G-REPORT)
+    // tap a row: one tap applies it, no "Touch to continue" confirm (M 2026-11-11)
     const lv0 = await g.page.evaluate(() => window.__pv.S.hero.level), hp0 = ui.hp;
     if (ui.btns[0]) await tapAt(g, ui.btns[0].cx, ui.btns[0].cy); await sleep(450);
     const mid = await g.page.evaluate(() => { const c = document.getElementById('cardCont'); const r = c && c.getBoundingClientRect(); return { cont: !!c && window.__vis(c), phase: window.__pv.S.phase, rows: window.__f1.cardBtns().length, x: r ? r.left + r.width / 2 : 0, y: r ? r.top + r.height / 2 : 0, h: r ? r.height : 0 }; });
-    if (mid.cont) await tapAt(g, mid.x, mid.y); else if (mid.phase === 'pick') await g.page.evaluate(() => window.__pv.pick(0));
-    await sleep(500);
+    await sleep(50);
     const af = await g.page.evaluate(() => { const S = window.__pv.S; return { phase: S.phase, frame: S.frame, lvl: S.hero.level, hp: S.hero.hp, mods: JSON.stringify(S.hero.mods) }; });
     await sleep(400);
     const af2 = await g.page.evaluate(() => window.__pv.S.frame);
-    ok(mid.cont && mid.phase === 'pick' && af.phase === 'play' && af2 > af.frame && af.mods !== '{}', names[5], `after the first tap: Touch to continue ${mid.cont} (phase ${mid.phase}); after the second: phase ${af.phase}; frame ${af.frame} -> ${af2}; level ${lv0} -> ${af.lvl}; mods ${af.mods}`);
+    ok(!mid.cont && mid.phase !== 'pick' && af.phase === 'play' && af2 > af.frame && af.mods !== '{}', names[5], `after one tap: confirm overlay ${mid.cont}, phase ${mid.phase} then ${af.phase}; frame ${af.frame} -> ${af2}; level ${lv0} -> ${af.lvl}; mods ${af.mods}`);
     ok(af.hp >= hp0, names[6], `hp ${hp0} -> ${af.hp}`);
     // early-tap guard: a tap inside 350 ms of the offer opening must not choose a row. Fresh offer, tap at once.
     await g.page.evaluate(() => window.__pv.pick(0)); await g.page.evaluate(() => { const S = window.__pv; if (S.S.phase === 'pick') S.pick(0); });
