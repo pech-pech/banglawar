@@ -1,5 +1,5 @@
 // Offline cache for Project Volley. Bump VERSION on every release so phones pick up the new build.
-const VERSION = 'volley-v2-3';
+const VERSION = 'volley-v2-4';
 const FILES = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png', './icon-maskable-512.png'];
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(VERSION).then(c => c.addAll(FILES)).then(() => self.skipWaiting()));

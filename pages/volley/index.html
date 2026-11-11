@@ -3106,7 +3106,7 @@ var SUPPLY_REPAIR_PCT = 0.4;
 var MULTI_GAP = 0.12;
 var RICO_MAX = 3, RICO_MULT = 0.7, RICO_RANGE = 4;
 var PIERCE_MULT = 0.67, WALLB_MAX = 2, WALLB_MULT = 0.5;
-var HAZARD_DMG = 60, HAZARD_CD = 1.0;
+var HAZARD_DMG = 60, HAZARD_CD = 1.0, BOSS_HEAL_FRAC = 0.3;   // v2-4 (R67): heal after a boss kill from stage 20 on
 var DODGE_CAP = 0.4;
 var FALLBACK_LEN = 10;   // length of the built-in fallback list only; the real chapter length is the stage list's length (GEN-SPEC E1)
 // V.SimOpts.chlen: test cap. A positive number caps every chapter at that many stages (so ?chlen=10 keeps the 10/10 win flow once the list grows).
@@ -3333,6 +3333,7 @@ function loadStage(S, idx){
   S.stageKind = (def.kind === 'supply' && V.Catch) ? 'collect' : (def.kind || 'combat');   // K: the catch room (parts/catch.js) replaces the supply room; without catch.js the old supply room stays
   var R = V.ROOMS[def.room] || V.ROOMS.R01, C = roomCols(S);
   var WR = V.Widen ? V.Widen.room(R, C) : { grid:R.grid, w:R.grid[0].length, k:0 }, grid = WR.grid;
+  if (S.stageKind === 'cache' && S.stage > 10) grid = grid.map(function(r){ return typeof r === 'string' ? r.replace(/\^/g, '.') : r.map(function(c){ return c === '^' ? '.' : c; }); });   // v2-4 (R68): baked Caches are reward rooms, no spikes (stage 9 as built)
   S.cols = grid[0].length;
   var mid = Math.floor(S.cols / 2), d = findChar(grid, 'D') || { x:mid, y:0 }, sp = findChar(grid, 'S') || { x:mid, y:grid.length - 1 };
   S.roomId = V.ROOMS[def.room] ? def.room : 'R01';
@@ -3999,7 +4000,13 @@ function step(S, inp){
     S.shots.length = 0; S.shells.length = 0;
     if (S.hero.lockId != null) { ev(S, { k:'unlock', x:S.hero.x, y:S.hero.y, id:S.hero.lockId }); S.hero.lockId = null; S.hero.lockClear = false; }
     if (S.stageIdx === listOf(S).length - 1 && !t.ENDLESS) { S.phase = 'clear'; S.clearT = 0; S.bossWin = true; if (V.Mods) V.Mods.bankReroll(S); }   // G: pick 21
-    else openDoor(S);
+    else {
+      if (S.stageKind === 'boss' && S.stage >= 20 && S.hero.hp > 0) {   // v2-4 (R67): a boss kill from stage 20 on repairs 30% of max HP (stage 10 as built: slice hash)
+        var hh = S.hero, add = Math.round(hh.maxHp * BOSS_HEAL_FRAC); hh.hp = Math.min(hh.maxHp, hh.hp + add);
+        ev(S, { k:'heal', x:hh.x, y:hh.y, n:add });
+      }
+      openDoor(S);
+    }
   }
   stepPickups(S, dt);
   // G: pick 19, the level-up pause opens mid-stage the moment the bar fills (also in the clear walk, before the door). S: the sim has no boss-intro state (the boss attacks from its first cd), so no intro guard.
@@ -7558,7 +7565,7 @@ if (V.TUNE_DEFAULTS) {
   var SHELL = { AUTO_WALK: true, AUTO_WALK_DELAY: 1.0, AUTO_WALK_MULT: 2, EDGE_FLASH: true, HAPTIC_HURT_MS: 40, HAPTIC_KILL_MS: 12 };
   for (var sk in SHELL) if (!(sk in V.TUNE_DEFAULTS)) { V.TUNE_DEFAULTS[sk] = SHELL[sk]; if (V.TUNE && !(sk in V.TUNE)) V.TUNE[sk] = SHELL[sk]; }
 }
-var BUILD = 'volley-v2-3';
+var BUILD = 'volley-v2-4';
 // Persist tuning (only values that differ from defaults). Every storage call is guarded. Sound on/off is NOT kept here any more:
 // V.TUNE.SOUND is a view of V.Audio's mute, saved in 'volley.settings.v1' (audio.js), so a tune reset or save wipe keeps it.
 // f0-2: sliders were being nudged by accident while scrolling the drawer (M's Fold reports showed FIRE_INTERVAL at the
