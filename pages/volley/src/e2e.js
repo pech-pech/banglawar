@@ -302,8 +302,8 @@ async function session(browser, target, sess) {
     // F0 (pick: wide screens always scale the whole 344x882 frame with bars): the old cover-screen note is gone.
     ok(note.length === 0, 'wide screen scales the frame with no cover-screen note', note.length ? `still shows "${note[0].txt}"` : 'no cover-screen note');
     if (cv) {
-      const asp = cv.w / cv.h, want = 344 / 882;
-      ok(Math.abs(asp - want) < 0.03 && Math.abs(cv.left + cv.w / 2 - w / 2) < 4, 'wide: game in centred portrait column 344:882', `canvas ${Math.round(cv.w)}x${Math.round(cv.h)} aspect ${asp.toFixed(3)} (want ${want.toFixed(3)}), centre off ${Math.round(cv.left + cv.w / 2 - w / 2)} px`);
+      const asp = cv.w / cv.h, want = Math.max(344, Math.min(800, Math.round(w / h * 882))) / 882;   // pick 43: full screen, width clamped 344-800
+      ok(Math.abs(asp - want) < 0.03 && Math.abs(cv.left + cv.w / 2 - w / 2) < 4, 'wide: full-screen frame (width clamp 344-800), centred', `canvas ${Math.round(cv.w)}x${Math.round(cv.h)} aspect ${asp.toFixed(3)} (want ${want.toFixed(3)}), centre off ${Math.round(cv.left + cv.w / 2 - w / 2)} px`);
     }
     await dragTest(page, cdp, sess, cv, view, w, h, tune0);
     finishErrors(errors, bootErr);
@@ -349,7 +349,8 @@ function thumbPoint(cv, view, w, h) {
 
 async function dragTest(page, cdp, sess, cv, view, w, h, tune0) {
   const { x, y, roomBottom } = thumbPoint(cv, view, w, h);
-  if (roomBottom != null) ok(y > roomBottom, 'drag start point is below the room', `touch y=${Math.round(y)}, room bottom y=${Math.round(roomBottom)}`);
+  // pick 43: squat screens (full-screen frame) have no band below the room; the drag then starts on the room's bottom row (drag works anywhere)
+  if (roomBottom != null) ok(y > roomBottom || cv.top + cv.h - roomBottom < 60, 'drag start point is below the room, or the room reaches the bottom', `touch y=${Math.round(y)}, room bottom y=${Math.round(roomBottom)}`);
   else {
     const est = await page.evaluate(() => { const hb = (window.__hudBase || []).map(e => e.getBoundingClientRect()).filter(r => r.top < innerHeight * 0.25); return hb.length ? Math.max(...hb.map(r => r.bottom)) : 0; });
     const cw = cv ? cv.w : w, ch = cv ? cv.h : h, top = cv ? cv.top : 0, hud = Math.max(0, est - top);

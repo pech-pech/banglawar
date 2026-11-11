@@ -12,8 +12,8 @@
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;height:100%;background:var(--pv-ui-bg,#0b0e11);color:var(--sand);font:14px/1.3 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;overflow:hidden;
   user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;overscroll-behavior:none}
-/* Scaled frame (pick 1): #stage is always 344 x 882 frame units; main.js layout() sets translate+scale. The bars are the body background
-   (flat --pv-ui-bg) with a 1 px --pv-ui-metal-500 line on the frame edge (1 screen px at any scale). Bars carry no art or text. */
+/* Full-screen frame (pick 43): #stage is 882 frame units tall and 344-800 wide (main.js layout() sets width, --pv-frame-w,
+   translate+scale). It fills the screen; only when the width clamp bites can a thin band of body background (flat --pv-ui-bg) show. */
 body{touch-action:none}
 #stage{position:absolute;left:0;top:0;width:344px;height:882px;transform-origin:0 0;overflow:hidden;touch-action:none;background:#c9b48a;flex:none;
   box-shadow:0 0 0 calc(1px / var(--pv-scale,1)) var(--pv-ui-metal-500,#4a535d)}
@@ -61,6 +61,8 @@ body.ovon #hud, body.ovon #toast, body.ovon #rlbl{visibility:hidden}
 .card .tx{flex:1;min-width:0}
 .card b{display:block;font-size:18px;color:#fff;margin-bottom:2px}
 .card span{display:block;font-size:15px;line-height:1.25;color:var(--sand)}
+/* Wide frame: card lists keep a readable width, centred by .ov (align-items:center) */
+#cardList,#supList{max-width:400px}
 .card.sup .gl{background:#2d2414;border-color:#7a5a20;color:var(--amber)}
 #deadStats{font-size:14px;color:var(--sand);line-height:1.5}
 /* Boss bar (D1): label row above a plain full-width bar, so no text sits over the fill. */
@@ -104,7 +106,7 @@ body.ovon #bossBar, body.ovon #howto, body.ovon #dmgLayer{visibility:hidden}
 #drawer.on{display:flex}
 #drHead{display:flex;align-items:center;gap:6px;padding:4px 6px;border-bottom:1px solid #3c3f42;flex-wrap:wrap}
 #drHead h3{margin:0 auto 0 4px;font-size:16px;color:#fff}
-#drBody{flex:1;overflow-y:auto;padding:4px 10px 20px;touch-action:pan-y}
+#drBody{flex:1;overflow-y:auto;padding:4px max(10px,calc((100% - 520px) / 2)) 20px;touch-action:pan-y}   /* wide frame: knobs in a centred 520 px column */
 #drBody h4{margin:12px 0 2px;font-size:13px;color:var(--cyan);text-transform:uppercase;letter-spacing:1px}
 .kn{padding:4px 0;border-bottom:1px solid #2b2d2f}
 .kn label{display:flex;justify-content:space-between;font-size:12px;color:var(--sand)}

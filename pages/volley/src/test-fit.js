@@ -1,7 +1,7 @@
-// Fit suite for the scaled frame (pick 1; spec 05 s1, spec 08 s2 item 5).
+// Fit suite for the full-screen frame (pick 43 replaces pick 1: "It should be full screen. No bars on the sides.").
 // Usage: node src/test-fit.js [path/to/index.html] [shotsDir]
 //   default page: ../index.html next to src/. default shots: src/shots/fit/
-// Per size: frame keeps 344:882 within 1%, is centred and fully on screen, nothing is drawn in the bars,
+// Per size: frame is 882 tall and W = clamp(round(W/H x 882), 344, 800) wide, fills the screen (no bars) unless the clamp bites, nothing is drawn outside it,
 // DEPLOY / HUD / bottom berm are inside the frame and the viewport, a tap on DEPLOY lands, a screen point maps
 // to the right frame point (elementFromPoint + __pv.toFrame), a drag that starts in a bar steers the hero,
 // and the canvas never exceeds 688 x 1764 px.
@@ -11,8 +11,9 @@ const { chromium } = require('playwright');
 const PAGE = path.resolve(process.argv[2] || path.join(__dirname, '..', 'index.html'));
 const SHOTS = path.resolve(process.argv[3] || path.join(__dirname, 'shots', 'fit'));
 // dpr: 2.625 is M's Fold reading; dpr 1 for the desktop-style test viewports (guess, matches e2e.js).
-const SIZES = [[344, 882, 2.625], [475, 638, 2.625], [1104, 884, 1], [750, 832, 1]];
-const FW = 344, FH = 882, BERM = 30;
+const SIZES = [[344, 882, 2.625], [475, 638, 2.625], [704, 783, 2.625], [1104, 884, 1], [750, 832, 1]];   // 704x783: M's Fold inner screen in the browser
+const FH = 882, BERM = 30, FW_MIN = 344, FW_MAX = 800;
+const frameW = (W, H) => Math.max(FW_MIN, Math.min(FW_MAX, Math.round(W / H * FH)));
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 let pass = 0, fail = 0; const rows = [];
 function ok(c, name, info){ (c ? pass++ : fail++); const r = (c ? 'PASS ' : 'FAIL ') + name + (info ? '  [' + info + ']' : ''); rows.push(r); console.log(r); }
@@ -33,10 +34,11 @@ async function size(browser, W, H, dpr) {
     return { st: { l: st.left, t: st.top, r: st.right, b: st.bottom, w: st.width, h: st.height }, dep: rect(dep), fr: window.__pv.frame, view: Object.assign({}, window.__pv.view),
       canvas: { w: c.width, h: c.height }, home: window.__pv.home, bg: getComputedStyle(document.body).backgroundColor };
   });
-  const st = g.st, ratio = st.w / st.h, want = FW / FH;
-  ok(Math.abs(ratio / want - 1) <= 0.01, tag + ' frame keeps 344:882 within 1%', `${st.w.toFixed(1)}x${st.h.toFixed(1)} ratio ${ratio.toFixed(4)} vs ${want.toFixed(4)}`);
+  const FW = frameW(W, H), st = g.st, ratio = st.w / st.h, want = FW / FH, clamped = FW !== Math.round(W / H * FH);
+  ok(Math.abs(ratio / want - 1) <= 0.01, tag + ' frame shape is ' + FW + ':882 within 1%', `${st.w.toFixed(1)}x${st.h.toFixed(1)} ratio ${ratio.toFixed(4)} vs ${want.toFixed(4)}`);
   const s = Math.min(W / FW, H / FH);
-  ok(Math.abs(g.fr.scale - s) < 1e-3, tag + ' scale = min(W/344, H/882)', `scale ${g.fr.scale.toFixed(4)} want ${s.toFixed(4)}`);
+  ok(Math.abs(g.fr.scale - s) < 1e-3, tag + ' scale = min(W/FW, H/882)', `scale ${g.fr.scale.toFixed(4)} want ${s.toFixed(4)}`);
+  if (!clamped) ok(st.l <= 1 && W - st.r <= 1 && st.t <= 1 && H - st.b <= 1, tag + ' full screen: no bars', `L ${st.l.toFixed(1)} R ${(W - st.r).toFixed(1)} T ${st.t.toFixed(1)} B ${(H - st.b).toFixed(1)}`);
   ok(Math.abs(st.l - (W - st.r)) <= 1 && Math.abs(st.t - (H - st.b)) <= 1, tag + ' frame centred', `bars L ${st.l.toFixed(1)} R ${(W - st.r).toFixed(1)} T ${st.t.toFixed(1)} B ${(H - st.b).toFixed(1)}`);
   ok(st.l >= -0.5 && st.t >= -0.5 && st.r <= W + 0.5 && st.b <= H + 0.5, tag + ' frame fully on screen', JSON.stringify(st));
   ok(g.bg === 'rgb(11, 14, 17)', tag + ' bars are flat --pv-ui-bg', g.bg);
@@ -60,7 +62,7 @@ async function size(browser, W, H, dpr) {
     }, shot.toString('base64'));
     ok(uniq === 0, tag + ' left bar pixels are all #0b0e11', `${uniq} off-colour px`);
   }
-  ok(g.canvas.w <= 688 && g.canvas.h <= 1764, tag + ' canvas pixels capped at 688x1764', `${g.canvas.w}x${g.canvas.h}`);
+  ok(g.canvas.w <= FW * 2 + 1 && g.canvas.h <= 1764, tag + ' canvas pixels capped at 2x frame', `${g.canvas.w}x${g.canvas.h}`);
   const inFrame = (r) => r && r.l >= st.l - 0.5 && r.r <= st.r + 0.5 && r.t >= st.t - 0.5 && r.b <= st.b + 0.5 && r.l >= 0 && r.t >= 0 && r.r <= W + 0.5 && r.b <= H + 0.5;
   ok(inFrame(g.dep) && g.dep.h >= 20, tag + ' DEPLOY button inside frame and viewport', JSON.stringify(g.dep && { l: g.dep.l | 0, t: g.dep.t | 0, w: g.dep.w | 0, h: g.dep.h | 0 }));
   fs.mkdirSync(SHOTS, { recursive: true });
@@ -103,7 +105,8 @@ async function size(browser, W, H, dpr) {
     await page.setViewportSize({ width: H > W ? Math.round(W * 1.6) : Math.round(W * 0.6), height: Math.round(H * 0.7) });
     await sleep(300);
     const p = await page.evaluate(() => ({ paused: window.__pv.paused, ratio: (() => { const r = document.getElementById('stage').getBoundingClientRect(); return r.width / r.height; })() }));
-    ok(p.paused && Math.abs(p.ratio / want - 1) <= 0.01, tag + ' resize keeps 344:882 and pauses the run', JSON.stringify(p));
+    const nw = H > W ? Math.round(W * 1.6) : Math.round(W * 0.6), nh = Math.round(H * 0.7), w2 = frameW(nw, nh) / FH;
+    ok(p.paused && Math.abs(p.ratio / w2 - 1) <= 0.01, tag + ' resize reshapes the frame and pauses the run', JSON.stringify(p) + ' want ' + w2.toFixed(4));
   }
   ok(errs.length === 0, tag + ' no page errors', errs.join(' | ').slice(0, 200));
   await ctx.close();

@@ -5,7 +5,7 @@ if (V.TUNE_DEFAULTS) {
   var SHELL = { AUTO_WALK: true, AUTO_WALK_DELAY: 1.0, EDGE_FLASH: true, HAPTIC_HURT_MS: 40, HAPTIC_KILL_MS: 12 };
   for (var sk in SHELL) if (!(sk in V.TUNE_DEFAULTS)) { V.TUNE_DEFAULTS[sk] = SHELL[sk]; if (V.TUNE && !(sk in V.TUNE)) V.TUNE[sk] = SHELL[sk]; }
 }
-var BUILD = 'volley-f0-2';
+var BUILD = 'volley-f0-3';
 // Persist tuning (only values that differ from defaults). Every storage call is guarded. Sound on/off is NOT kept here any more:
 // V.TUNE.SOUND is a view of V.Audio's mute, saved in 'volley.settings.v1' (audio.js), so a tune reset or save wipe keeps it.
 // f0-2: sliders were being nudged by accident while scrolling the drawer (M's Fold reports showed FIRE_INTERVAL at the
@@ -232,7 +232,11 @@ UI.boss = function(S, view){
 };
 UI.howto = function(on, view){
   var el = $('howto');
-  if (on) { el.style.top = Math.round(view.oy + 15 * view.s + 14) + 'px'; if (el.style.display !== 'block') el.style.display = 'block'; }
+  if (on) {
+    if (el.style.display !== 'block') el.style.display = 'block';
+    var below = view.oy + 15 * view.s + 14, hh = el.offsetHeight || 34;   // squat screens (full-screen frame, pick 43) have no band below the room:
+    el.style.top = Math.round(below + hh <= view.h - 4 ? below : view.oy + 1.6 * view.s) + 'px';   // then sit under the door, away from the hero's start
+  }
   else if (el.style.display !== 'none') el.style.display = 'none';
 };
 function fmtN(n){ return (V.Home && V.Home.fmt) ? V.Home.fmt(n) : String(n); }
