@@ -92,10 +92,11 @@ var BEAT_W = { R: 3, B: 4.5, P: 5.5, Sp: 6.5, CA: 2.5 };
 var BUILT_1_9 = [['E-01', 'E-01', 'E-01'], ['E-01', 'E-01', 'E-01', 'E-01'], ['E-02', 'E-01', 'E-02'], ['E-03', 'E-02', 'E-01'], [],
   ['E-04', 'E-01', 'E-02', 'E-02'], ['E-05', 'E-01', 'E-01', 'E-05'], ['E-03', 'E-01', 'E-02', 'E-05'], ['E-01', 'E-01']];
 var BOSSES = { 10: 'B-01', 20: 'B-03', 30: 'B-02', 40: 'B-03v', 50: 'B-04' };
-function buildPlan(ch, total) {
+function buildPlan(ch, total, eliteStages, blockW) {
   // chapter 1 (and 2 by the same shape): stages 1-9 as built (ch1), the rest share `total` by beat weight; seeded per stage
   var plan = [], R = rng(9001 + ch), restW = 0, s, beat, i, first = ch === 1 ? 10 : 1;
-  for (s = first; s <= 50; s++) { beat = BEATS[(s - 1) % 10]; if (BEAT_W[beat]) restW += BEAT_W[beat]; }
+  function bw(s) { return blockW ? blockW[Math.floor((s - 1) / 10)] : 1; }
+  for (s = first; s <= 50; s++) { beat = BEATS[(s - 1) % 10]; if (BEAT_W[beat]) restW += BEAT_W[beat] * bw(s); }
   var rest = total - (ch === 1 ? 27 : 0), carry = 0;
   for (s = 1; s <= 50; s++) {
     beat = BEATS[(s - 1) % 10];
@@ -103,12 +104,13 @@ function buildPlan(ch, total) {
     if (st.kind === 'boss') st.boss = BOSSES[s];
     if (ch === 1 && s <= 9) st.en = BUILT_1_9[s - 1].map(function (t) { return { t: t, el: false }; });
     else if (BEAT_W[beat]) {
-      var want = rest * BEAT_W[beat] / restW + carry;
+      var want = rest * BEAT_W[beat] * bw(s) / restW + carry;
       var n = Math.round(want); carry = want - n;
       var pool = Object.keys(EN).filter(function (t) { return EN[t].debut <= s; });
       for (i = 0; i < n; i++) { var w = R(); var t = w < 0.25 ? 'E-01' : pool[Math.floor(R() * pool.length)]; st.en.push({ t: t, el: false }); }
       // elites (03): ch1 stages 20-49 combat rooms, 1 room in 3, max 1 (2 from 40); not after a boss, not in an intro stage
-      if (ch === 1 && s >= 20 && st.kind === 'combat' && s % 10 !== 1 && s !== 21 && s !== 16) {
+      if (eliteStages) { if (eliteStages.indexOf(s) >= 0) { var ce = st.en.filter(function (e) { return ELITE_OK[e.t]; }); if (ce.length) ce[Math.floor(R() * ce.length)].el = true; } }
+      else if (ch === 1 && s >= 20 && st.kind === 'combat' && s % 10 !== 1 && s !== 21 && s !== 16) {
         var maxE = s >= 40 ? 2 : 1;
         for (var k = 0; k < maxE; k++) if (R() < 1 / 3) { var c = st.en.filter(function (e) { return ELITE_OK[e.t] && !e.el; }); if (c.length) c[Math.floor(R() * c.length)].el = true; }
       }
@@ -129,16 +131,16 @@ function chapter(ch, opt) {
   c.dmgBase = { 1: 1, 2: 78 / 60, 3: 150 / 60 }[ch];
   c.dmgSlope = opt.builtDmg ? CFG.dmgSlopeBuilt : { 1: CFG.dmgSlopeN1, 2: (204 / 78 - 1) / 49, 3: (327 / 150 - 1) / 19 }[ch];
   if (ch === 3) c.stages = 20;
-  c.plan = ch === 3 ? plan3() : buildPlan(ch, c.enemies);
+  c.plan = ch === 3 ? plan3(opt.enemies) : buildPlan(ch, c.enemies, opt.eliteStages, opt.blockW);
   return c;
 }
-function plan3() { // 04: 20 stages, 8 wave arenas (about 19 enemies), 4 bosses (5/10/15/20), 8 Supply Drops
+function plan3(total) { // 04: 20 stages, 8 wave arenas (about 19 enemies), 4 bosses (5/10/15/20), 8 Supply Drops
   var R = rng(9333), plan = [], waves = [1, 3, 6, 8, 11, 13, 16, 18], sd = [2, 4, 7, 9, 12, 14, 17, 19];
   var pool = ['E-01', 'E-02', 'E-03', 'E-04', 'E-05', 'E-06', 'E-07', 'E-08', 'E-09'];
   for (var s = 1; s <= 20; s++) {
     var st = { s: s, en: [], kind: s % 5 === 0 ? 'boss' : sd.indexOf(s) >= 0 ? 'supply' : 'combat', wave: true };
     if (st.kind === 'boss') st.boss = { 5: 'B-02', 10: 'B-03v', 15: 'B-03v', 20: 'B-04' }[s];
-    if (st.kind === 'combat') { var n = s === 16 || s === 18 ? 21 : 18.5; for (var i = 0; i < Math.round(n + (R() - 0.5)); i++) st.en.push({ t: R() < 0.3 ? 'E-01' : pool[Math.floor(R() * pool.length)], el: false }); }
+    if (st.kind === 'combat') { var n = (s === 16 || s === 18 ? 21 : 18.5) * (total ? total / 153 : 1); for (var i = 0; i < Math.round(n + (R() - 0.5)); i++) st.en.push({ t: R() < 0.3 ? 'E-01' : pool[Math.floor(R() * pool.length)], el: false }); }
     plan.push(st);
   }
   return plan;
