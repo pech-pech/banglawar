@@ -49,7 +49,8 @@ check('SK-15', 'onPick heals 120, cap new max 720', S.hero.hp === 420 && S2.hero
 st = Mods.stats(mkS({ dodge:1 })); var dd = st.dodge;
 st = Mods.stats(mkS({ dodge:2 })); var dd2 = st.dodge;
 st = Mods.stats(mkS({ dodge:5 }));
-check('SK-33', 'dodge 0.2 / 0.4, capped 0.4', near(dd, 0.2) && near(dd2, 0.4) && near(st.dodge, 0.4), dd + ' ' + dd2 + ' ' + st.dodge);
+var dd3 = Mods.stats(mkS({ dodge:3 })).dodge;
+check('SK-33', 'dodge 0.20 / 0.30 / 0.40 by level, capped 0.4 (L2 is a guess)', near(dd, 0.2) && near(dd2, 0.3) && near(dd3, 0.4) && near(st.dodge, 0.4), dd + ' ' + dd2 + ' ' + dd3 + ' ' + st.dodge);
 
 // ---- pattern ----
 var L = Mods.pattern(mkS({}));
@@ -143,21 +144,21 @@ check('SK-27', 'never above max HP', S.hero.hp === 600, S.hero.hp);
 var rng = new V.Rng(7), bad = 0, dup = 0, noCore = 0, wrongPool = 0, n = 0, freq = {}, capShown = 0;
 for (var t = 0; t < 4000; t++) {
   var mods = {};
-  V.MODS.forEach(function(m){ var c = rng.int(5); if (m.max && c > m.max) c = m.max; mods[m.key] = c; });
+  V.MODS.forEach(function(m){ var c = rng.int(5); if (m.max && c > m.max) c = m.max; if (c > 3) c = 3; mods[m.key] = c; });
   S = mkS(mods, t);
   var off = Mods.offer(S, 'F', 3, rng);
   n++;
   if (off.length !== 3) bad++;
-  if (new Set(off).size !== off.length) dup++;
-  if (!off.some(function(i){ return V.MODS[i].core; })) noCore++;
-  off.forEach(function(i){ var m = V.MODS[i]; if (m.pool.indexOf('F') < 0) wrongPool++; if (Mods.capped(S, m)) capShown++; });
+  if (new Set(off.filter(function(i){ return !Mods.isRepair(i); })).size !== off.filter(function(i){ return !Mods.isRepair(i); }).length) dup++;
+  if (Mods.legalCount(S, 'F') > 0 && !off.some(function(i){ return V.MODS[i].core; }) && Mods.legalCount(S, 'F') >= 3 && V.MODS.some(function(m, ix){ return m.core && !Mods.capped(S, m); })) noCore++;
+  off.forEach(function(i){ var m = V.MODS[i]; if (m.pool.indexOf('F') < 0 && !Mods.isRepair(i)) wrongPool++; if (Mods.capped(S, m)) capShown++; });
 }
 check('offer', '4000 random states: 3 distinct F cards', bad === 0 && dup === 0 && wrongPool === 0, 'bad ' + bad + ' dup ' + dup + ' pool ' + wrongPool);
 check('offer', 'never a capped mod', capShown === 0, capShown + ' capped shown');
 check('offer', 'pity A: always >= 1 core', noCore === 0, noCore + ' without core');
 S = mkS({ front:1 }); var seen01 = 0;
 for (t = 0; t < 2000; t++) Mods.offer(S, 'F', 3, rng).forEach(function(i){ if (V.MODS[i].id === 'SK-01') seen01++; });
-check('offer', 'SK-01 never after 1 copy', seen01 === 0, seen01);
+check('offer', 'SK-01 still offered after 1 copy (stacking, pick 20)', seen01 > 100, seen01);
 S = mkS({});
 for (t = 0; t < 20000; t++) Mods.offer(S, 'F', 1, rng, { noPity:true }).forEach(function(i){ freq[V.MODS[i].id] = (freq[V.MODS[i].id] || 0) + 1; });
 var wTot = V.MODS.reduce(function(a, m){ return a + (m.pool.indexOf('F') >= 0 ? m.weight : 0); }, 0);
@@ -171,7 +172,110 @@ var o1 = Mods.offer(mkS({}, 3), 'F', 3, new V.Rng(42)).join(), o2 = Mods.offer(m
 check('offer', 'deterministic for same rng seed', o1 === o2, o1);
 S = mkS({}); V.MODS.forEach(function(m){ S.hero.mods[m.key] = m.max || 9; });
 off = Mods.offer(S, 'F', 3, rng);
-check('offer', 'only uncapped left (09/11/13) still 3 cards', off.length === 3 && off.every(function(i){ return !V.MODS[i].max; }), off.map(function(i){ return V.MODS[i].id; }).join(','));
+check('offer', 'all F mods at level 3: 3 Emergency repair cards, never a blank', off.length === 3 && off.every(Mods.isRepair), off.map(function(i){ return V.MODS[i].id; }).join(','));
+
+// ---- stacking (pick 20) ----
+var FM = V.MODS.filter(function(m){ return m.pool.indexOf('F') >= 0; });
+check('stack', 'every F upgrade caps at level 3', FM.length === 15 && FM.every(function(m){ return m.max === 3; }), FM.map(function(m){ return m.id + ':' + m.max; }).join(' '));
+check('stack', 'every F upgrade has a short level-up line (<= 34 chars)', FM.concat([M('SK-RP')]).every(function(m){ return m.up && m.up.length <= 34; }), Math.max.apply(null, FM.map(function(m){ return m.up.length; })) + ' max');
+S = mkS({ atk:2 });
+check('stack', 'capped() flips at level 3 only', !Mods.capped(S, M('SK-09')) && Mods.capped(mkS({ atk:3 }), M('SK-09')), 'L2 ' + Mods.capped(S, M('SK-09')));
+check('stack', 'levelAfter: new = 1, repeat = held + 1', Mods.levelAfter(mkS({}), Mods.indexOf('SK-09')) === 1 && Mods.levelAfter(S, Mods.indexOf('SK-09')) === 3, Mods.levelAfter(S, Mods.indexOf('SK-09')));
+var seenL3 = 0; S = mkS({ atk:3, rate:3, crit:3 });
+for (t = 0; t < 1000; t++) Mods.offer(S, 'F', 3, rng).forEach(function(i){ if (['SK-09', 'SK-11', 'SK-13'].indexOf(V.MODS[i].id) >= 0) seenL3++; });
+check('stack', 'a level 3 upgrade is never offered again (1000 offers)', seenL3 === 0, seenL3);
+st = Mods.stats(mkS({ atk:3, rate:3, crit:3, armor:3 }));
+check('stack', 'L3 values: atk +0.9, rate +0.75, crit +0.3, hp +360', near(st.atkAdd, 0.9) && near(st.rateAdd, 0.75) && near(st.critAdd, 0.3) && st.hpMaxAdd === 360, [st.atkAdd, st.rateAdd, st.critAdd, st.hpMaxAdd].join(' '));
+r = { x:0, y:0, vx:0, vy:-14, dmg:300, hit:[1], keep:false };
+[1, 2, 3].forEach(function(n){ var rr = { x:0, y:0 }; M('SK-06').hooks.round(mkS({}), n, rr); r['rico' + n] = rr.rico; });
+check('stack', 'SK-06 jumps 3 / 4 / 5 by level (L2, L3 guesses)', r.rico1 === 3 && r.rico2 === 4 && r.rico3 === 5, r.rico1 + ' ' + r.rico2 + ' ' + r.rico3);
+var pd = [1, 2, 3].map(function(n){ var rr = { x:0, y:0, vx:0, vy:-14, dmg:1000, hit:[1], keep:false, pierce:true }; M('SK-07').hooks.onHit(mkS({}), n, en(9, 0, 0), rr, fakeApi([])); return rr.dmg; });
+check('stack', 'SK-07 pierce keeps 67 / 75 / 82 percent by level', pd.join() === '670,750,820', pd.join());
+var bd = [1, 2, 3].map(function(n){ var e = en(7, 1, 1); M('SK-16').hooks.onHit(mkS({}), n, e, { burn:n }, fakeApi([])); return e.burnDmg; });
+check('stack', 'SK-16 burn 27 / 40 / 54 by level (+50% each)', bd.join() === '27,40,54', bd.join());
+var pz = [1, 2, 3].map(function(n){ var e = en(7, 1, 1); M('SK-17').hooks.onHit(mkS({}), n, e, { poison:n }, fakeApi([])); return e.poisonDmg; });
+check('stack', 'SK-17 poison 52 / 78 / 105 by level', pz.join() === '52,78,105', pz.join());
+var sv = [1, 2, 3].map(function(n){ var SS2 = mkS({ salvage:n }); SS2.hero.hp = 100; M('SK-27').hooks.onKill(SS2, n, en(1, 0, 0)); return SS2.hero.hp - 100; });
+check('stack', 'SK-27 heals 9 / 18 / 27 per kill', sv.join() === '9,18,27', sv.join());
+// pick through the same path the sim uses (hero.mods count + onPick), to level 3
+S = mkS({}); for (t = 0; t < 3; t++) { S.hero.mods.armor = (S.hero.mods.armor || 0) + 1; M('SK-15').hooks.onPick(S, S.hero.mods.armor); }
+check('stack', 'SK-15 picked 3 times: held 3, capped, offer drops it', S.hero.mods.armor === 3 && Mods.capped(S, M('SK-15')), S.hero.mods.armor);
+
+// ---- Emergency repair (03 Dry pool) ----
+S = mkS({}); S.hero.hp = 300; M('SK-RP').hooks.onPick(S, 1);
+check('repair', 'heals 25% of max HP (150), never above max', S.hero.hp === 450, S.hero.hp);
+S = mkS({}); S.hero.hp = 590; M('SK-RP').hooks.onPick(S, 1);
+check('repair', 'capped at max HP', S.hero.hp === 600, S.hero.hp);
+S = mkS({ front:3, multi:3, diag:3, side:3, rear:3, rico:3, pierce:3, atk:3, rate:3, crit:3, armor:3, burn:3, poison:3, salvage:0, dodge:3 });
+off = Mods.offer(S, 'F', 3, rng);
+check('repair', 'one legal card left (salvage): 1 real + 2 Emergency repair', off.length === 3 && off.filter(Mods.isRepair).length === 2 && V.MODS[off[0]].id === 'SK-27', off.map(function(i){ return V.MODS[i].id; }).join(','));
+check('repair', 'repair is not in the F or SD pool', V.MODS.filter(function(m){ return m.id === 'SK-RP' && (m.pool.indexOf('F') >= 0 || m.pool.indexOf('SD') >= 0); }).length === 0, 'pool EM');
+
+// ---- reroll bank (pick 21) ----
+S = mkS({}); S.phase = 'pick'; S.cards = Mods.offer(S, 'F', 3, S.rng); S.stats = {};
+check('reroll', 'empty at run start; canReroll false with none banked', Mods.rerolls(S) === 0 && !Mods.canReroll(S) && !Mods.reroll(S), Mods.rerolls(S));
+var cards0 = S.cards.slice();
+check('reroll', 'a reroll with none banked leaves the cards alone', S.cards.join() === cards0.join(), S.cards.join());
+Mods.bankReroll(S); Mods.bankReroll(S);
+check('reroll', 'boss kill banks one each: 2 banked', Mods.rerolls(S) === 2, Mods.rerolls(S));
+var okR = Mods.reroll(S);
+check('reroll', 'spend: 1 left, 3 cards, none repeated, none duplicated', okR && Mods.rerolls(S) === 1 && S.cards.length === 3 && S.cards.every(function(c){ return cards0.indexOf(c) < 0; }) && new Set(S.cards).size === 3, cards0.join() + ' -> ' + S.cards.join());
+check('reroll', 'stats.rerollsUsed counts spends', S.stats.rerollsUsed === 1, S.stats.rerollsUsed);
+S.phase = 'play';
+check('reroll', 'cannot reroll outside a pick', !Mods.canReroll(S) && !Mods.reroll(S) && Mods.rerolls(S) === 1, 'phase play');
+var ra = mkS({}, 77), rb = mkS({}, 77); [ra, rb].forEach(function(x){ x.phase = 'pick'; x.stats = {}; x.cards = Mods.offer(x, 'F', 3, x.rng); x.rerolls = 2; Mods.reroll(x); Mods.reroll(x); });
+check('reroll', 'deterministic by seed: two rerolls match', ra.cards.join() === rb.cards.join() && ra.rerolls === 0, ra.cards.join() + ' / ' + rb.cards.join());
+S = mkS({ front:3, multi:3, diag:3, side:3, rear:3, rico:3, pierce:3, atk:3, rate:3, crit:3, armor:3, burn:3, poison:3, salvage:3 }); S.phase = 'pick'; S.rerolls = 1; S.stats = {};
+S.cards = Mods.offer(S, 'F', 3, S.rng);
+check('reroll', 'nothing legal left to roll: button off, bank kept (03 Dry pool)', !Mods.canReroll(S) && !Mods.reroll(S) && S.rerolls === 1, 'cards ' + S.cards.join());
+S = mkS({}); S.phase = 'pick'; S.rerolls = 1; S.stats = {}; S.cards = Mods.offer(S, 'F', 3, S.rng); Mods.reroll(S);
+check('reroll', 'reroll queues a reroll event with the count left', S.events.some(function(e){ return e.k === 'reroll' && e.left === 0; }), JSON.stringify(S.events));
+// no repeats across 500 random states
+var rep500 = 0;
+for (t = 0; t < 500; t++) { S = mkS({ atk:rng.int(4), crit:rng.int(4), front:rng.int(4) }, t); S.phase = 'pick'; S.rerolls = 1; S.stats = {}; S.cards = Mods.offer(S, 'F', 3, S.rng); var old = S.cards.filter(function(c){ return !Mods.isRepair(c); }); if (Mods.reroll(S)) S.cards.forEach(function(c){ if (!Mods.isRepair(c) && old.indexOf(c) >= 0) rep500++; }); }
+check('reroll', '500 random offers: a reroll never repeats a shown card', rep500 === 0, rep500);
+
+// ---- Deploy roll (picks 25-27) ----
+var DP = Mods.Deploy;
+check('deploy', '12 boosts in the table, 3 tiers; open ones are D2-D9 (slice)', DP.BOOSTS.length === 12 && DP.TIER.length === 3 && DP.open().map(function(b){ return b.id; }).join() === 'D2,D3,D4,D5,D6,D7,D8,D9', DP.open().length + ' open');
+var s1 = DP.make(12345), s2 = DP.make(12345), s3 = DP.make(12346);
+check('deploy', 'same seed = same roll; seed changes the roll', JSON.stringify(s1.boost) === JSON.stringify(s2.boost) && JSON.stringify(DP.roll(12345, 0)) === JSON.stringify(s1.boost), JSON.stringify(s1.boost) + ' / ' + JSON.stringify(s3.boost));
+var cnt = {}, tiers = [0, 0, 0], N = 30000;
+for (t = 0; t < N; t++) { var bo = DP.roll(t * 2654435761 % 4294967296, 0); cnt[bo.id] = (cnt[bo.id] || 0) + 1; tiers[bo.tier]++; }
+var wrongB = Object.keys(cnt).filter(function(k){ return !DP.BOOSTS.filter(function(b){ return b.id === k; })[0].open; }).length, minB = Math.min.apply(null, Object.keys(cnt).map(function(k){ return cnt[k]; })), maxB = Math.max.apply(null, Object.keys(cnt).map(function(k){ return cnt[k]; }));
+check('deploy', '30000 seeds: only open boosts, each about 1/8 (within 10%)', wrongB === 0 && Object.keys(cnt).length === 8 && minB / (N / 8) > 0.9 && maxB / (N / 8) < 1.1, 'min ' + minB + ' max ' + maxB);
+check('deploy', 'tiers about 60 / 30 / 10 percent (within 2 points)', Math.abs(tiers[0] / N - 0.6) < 0.02 && Math.abs(tiers[1] / N - 0.3) < 0.02 && Math.abs(tiers[2] / N - 0.1) < 0.02, tiers.map(function(x){ return (x / N * 100).toFixed(1); }).join(' / '));
+var sr = DP.make(999), first = JSON.stringify(sr.boost), second = DP.reroll(sr), again = DP.reroll(sr);
+check('deploy', 'one reroll per run: replaces the roll once, then refuses', second && again === null && sr.used && JSON.stringify(sr.boost) === JSON.stringify(DP.roll(999, 1)), first + ' -> ' + JSON.stringify(sr.boost));
+var dr = DP.make(999); DP.reroll(dr);
+check('deploy', 'reroll deterministic by seed (same two results every time)', JSON.stringify(dr.boost) === JSON.stringify(sr.boost), JSON.stringify(dr.boost));
+check('deploy', 'reroll cost 20 / 25 / 30 by chapter, Hard x1.5, Roll Discount halves', DP.rerollCost(1) === 20 && DP.rerollCost(2) === 25 && DP.rerollCost(3) === 30 && DP.rerollCost(1, { hard:true }) === 30 && DP.rerollCost(1, { discount:true }) === 10, [DP.rerollCost(1), DP.rerollCost(2), DP.rerollCost(3), DP.rerollCost(1, { hard:true }), DP.rerollCost(1, { discount:true })].join());
+check('deploy', 'every outcome is a boost: no effect is negative', DP.open().every(function(b){ return [0, 1, 2].every(function(ti){ var e = DP.effects({ id:b.id, tier:ti }); return Object.keys(e).every(function(k){ return e[k] >= 0; }); }); }), 'all >= 0');
+check('deploy', 'tier values rise: D2 +5/+10/+17, D4 6/12/21, D5 -4/-8/-14, D9 10/20/35', [0, 1, 2].map(function(ti){ return DP.effects({ id:'D2', tier:ti }).atk; }).join() === '0.05,0.1,0.17' && DP.effects({ id:'D4', tier:2 }).hp === 0.21 && DP.effects({ id:'D5', tier:1 }).dmgCut === 0.08 && DP.effects({ id:'D9', tier:0 }).credits === 0.1, 'ok');
+check('deploy', 'D7 opening pick: 1 / 1 (level 2) / 2 (level 2)', JSON.stringify([0, 1, 2].map(function(ti){ var e = DP.effects({ id:'D7', tier:ti }); return [e.picks, e.pickLv2]; })) === '[[1,0],[1,1],[2,2]]', 'ok');
+check('deploy', 'card text names the exact effect', DP.text({ id:'D9', tier:2 }) === 'Credits +35% this run' && DP.info({ id:'D7', tier:0 }).text.indexOf('Head start') === 0 && DP.info({ id:'D2', tier:2 }).pips === 3, DP.text({ id:'D9', tier:2 }));
+// stats application
+S = mkS({}); S.deploy = { id:'D2', tier:1 }; st = DP.applyStats(S, Mods.newStats());
+var S5 = mkS({}); S5.deploy = { id:'D5', tier:2 }; var st5 = DP.applyStats(S5, Mods.newStats());
+var S6 = mkS({}); S6.deploy = { id:'D6', tier:1 }; var st6 = DP.applyStats(S6, Mods.newStats());
+var S4b = mkS({}); S4b.deploy = { id:'D4', tier:1 }; var st4 = DP.applyStats(S4b, Mods.newStats());
+check('deploy', 'applyStats: atk x1.10, dmg taken x0.86, crit +0.08, hp +72', near(st.atkMul, 1.1) && near(st5.dmgTakenMul, 0.86) && near(st6.critAdd, 0.08) && st4.hpMaxAdd === 72, [st.atkMul, st5.dmgTakenMul, st6.critAdd, st4.hpMaxAdd].join(' '));
+var sc = mkS({}); sc.deploy = { id:'D5', tier:2 }; var stc = Mods.newStats(); stc.dmgTakenMul = 0.55; DP.applyStats(sc, stc);
+check('deploy', 'damage taken stays at or above the 50 percent cap', near(stc.dmgTakenMul, 0.5), stc.dmgTakenMul);
+S = mkS({}); S.deploy = { id:'D8', tier:1 }; DP.runStart(S); var left = DP.absorb(S, 50), left2 = DP.absorb(S, 100), left3 = DP.absorb(S, 40);
+check('deploy', 'D8 shield 20% of 600 = 120: absorbs 50, then 70 of 100, then nothing', S.deployShield === 0 && left === 0 && left2 === 30 && left3 === 40, [left, left2, left3].join());
+S = mkS({}); S.deploy = { id:'D7', tier:2 }; DP.runStart(S); DP.runStart(S);
+check('deploy', 'D7 elite: 2 opening picks, runStart is once only, both enter at level 2', S.freePicks === 2 && DP.pickBonus(S) && DP.pickBonus(S) && !DP.pickBonus(S), S.freePicks);
+check('deploy', 'creditMul: no boost 1.0, D9 elite 1.35', DP.creditMul(mkS({})) === 1 && near(DP.creditMul({ deploy:{ id:'D9', tier:2 } }), 1.35), DP.creditMul({ deploy:{ id:'D9', tier:2 } }));
+var enc = DP.encode(DP.make(4242)), dec = DP.decode(enc), usedS = DP.make(4242); DP.reroll(usedS);
+var dec2 = DP.decode(DP.encode(usedS));
+check('deploy', 'save round trip keeps seed, boost and reroll state (no free new roll)', dec && JSON.stringify(dec.boost) === JSON.stringify(DP.roll(4242, 0)) && dec2.used && JSON.stringify(dec2.boost) === JSON.stringify(usedS.boost), enc);
+check('deploy', 'bad save text is rejected, never thrown', ['', 'x', '{}', '{"v":1,"seed":-1,"used":false}', '{"v":1,"seed":1.5,"used":false}', '{"v":2,"seed":1,"used":false}', '{"v":1,"seed":1,"used":"no"}'].every(function(x){ return DP.decode(x) === null; }), 'all null');
+var q = DP.make(5); q.started = true;
+check('deploy', 'quit before stage 3 keeps the roll; stage 3+ spends it', DP.afterRun(q, 2) === q && q.started === false && DP.afterRun(Object.assign(DP.make(5), { started:true }), 3) === null, 'ok');
+
+S = mkS({}); S.deploy = { id:'D4', tier:1 }; S.hero.hp = 600; S.hero.maxHp = 672; DP.runStart(S);
+check('deploy', 'runStart heals to full (D4 max HP boost starts at max)', S.hero.hp === 672, S.hero.hp);
 
 // ---- optional integration with the sim, if its hooks are there ----
 try {

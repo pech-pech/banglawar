@@ -21,10 +21,12 @@ function base(){
   for (var i = 0, k = ri(0, 20); i < k; i++) {
     var r = { t:1.7e12 + i, stage:ri(0, 10), win:rnd() < 0.3, kills:ri(0, 40), credits:ri(0, 400), dur:+(rnd() * 300).toFixed(1) };
     if (rnd() < 0.6) { r.runNo = i + 1; r.runBuild = 'volley-f1-0'; r.startedAt = 1.7e12 + i; r.endReason = pick(['clear', 'death']); r.hpMax = 600; r.lowestHp = ri(0, 600);
-      r.tuneChanged = rnd() < 0.5 ? {} : { FIRE_INTERVAL:0.1 }; r.picks = ['SK-01:1']; r.cols = pick([9, 11, 13, 15]); }   // F1 optional fields
+      r.tuneChanged = rnd() < 0.5 ? {} : { FIRE_INTERVAL:0.1 }; r.picks = ['SK-01:1']; r.cols = pick([9, 11, 13, 15]);   // F1 optional fields
+      if (rnd() < 0.5) r.feel = { fight:pick(['Too easy', 'About right', 'Too hard', 'Unfair in places', 'skip']), up:pick(['Clearly stronger', 'A little', 'No difference', 'skip']), kill:pick(['Popped too fast', 'About right', 'Felt like a sponge', 'skip']) }; }   // feel strip answers
     s.runs.push(r);
   }
-  if (rnd() < 0.6) { s.runSeq = ri(0, 50); s.purchases = [{ t:1.7e12, run:ri(0, 5), item:'Rifle', lvl:2, price:250, before:300, after:50 }]; s.resets = [{ t:1.7e12, reason:'user' }]; }
+  if (rnd() < 0.6) { s.runSeq = ri(0, 50); s.purchases = [{ t:1.7e12, run:ri(0, 5), item:'Rifle', lvl:2, price:250, before:300, after:50 }, { t:1.7e12, run:ri(0, 5), item:'Cond atk', lvl:4, price:325, before:300, after:0, levels:2, visit:ri(1, 6), vn:ri(1, 2) }]; s.resets = [{ t:1.7e12, reason:'user' }];
+    s.visitBuys = ri(0, 2); if (rnd() < 0.5) s.sd = { plays:ri(0, 40), pending:rnd() < 0.5 ? null : { chapter:ri(1, 3), stage:ri(0, 10), tier:ri(0, 3), defaults:['repair', 'credits'] } }; }   // shape V optional fields
   return s;
 }
 var JUNK = [null, undefined, NaN, Infinity, -Infinity, -1, 1e300, -1e300, 0.5, 1e9 + 1, '', 'x', '12', true, false, [], {}, [1, 2], { a:1 },
@@ -144,8 +146,9 @@ un();
     s.runs = [{ t:1.7e12, stage:10, win:true, kills:28, credits:334, dur:117.2 },   // old 6-field entry stays valid
       { t:1.7e12 + 5, stage:4, win:false, kills:9, credits:72, dur:50.5, runNo:7, runBuild:'volley-f1-0', startedAt:1.7e12, endReason:'death', hpMax:640, lowestHp:0,
         tuneChanged:{ FIRE_INTERVAL:0.1, AUTO_WALK:false }, picks:['SK-01:1', 'SK-01:2'], cols:15 }];
-    s.purchases = [{ t:1.7e12, run:6, item:'Rifle', lvl:2, price:250, before:300, after:50 }];
-    s.resets = [{ t:1.7e12, reason:'corrupt' }, { t:1.7e12 + 1, reason:'user' }];
+    s.purchases = [{ t:1.7e12, run:6, item:'Rifle', lvl:2, price:250, before:300, after:50 }, { t:1.7e12 + 2, run:6, item:'Cond atk', lvl:12, price:325, before:50, after:0, levels:2, visit:7, vn:2 }];
+    s.runs[1].feel = { fight:'Too hard', up:'skip', kill:'Felt like a sponge' }; 
+    s.resets = [{ t:1.7e12, reason:'corrupt' }, { t:1.7e12 + 1, reason:'user' }]; s.visitBuys = 2; s.sd = { plays:4, pending:{ chapter:1, stage:5, tier:2, defaults:['repair', 'credits'] } };
     return s;
   }
   ok('F1 rich v2 save validates', valid(richSave()));
@@ -157,7 +160,16 @@ un();
     function(s){ s.runs[1].picks = 'SK-01'; }, function(s){ s.runs[1].picks = [1]; }, function(s){ s.runs[1].picks = new Array(41).fill('a'); }, function(s){ s.runs[1].lowestHp = -1; },
     function(s){ s.runs[1].zz = 1; }, function(s){ s.runSeq = -1; }, function(s){ s.runSeq = 'x'; }, function(s){ s.purchases = {}; }, function(s){ s.purchases[0].price = -5; },
     function(s){ s.purchases[0].extra = 1; }, function(s){ s.purchases = new Array(21).fill(s.purchases[0]); }, function(s){ s.resets[0].reason = 'boom'; },
-    function(s){ s.resets = new Array(6).fill(s.resets[0]); }, function(s){ delete s.purchases[0].t; }, function(s){ s.runs[1].cols = 0; }];
+    function(s){ s.resets = new Array(6).fill(s.resets[0]); }, function(s){ delete s.purchases[0].t; }, function(s){ s.runs[1].cols = 0; },
+    // shape V fields (pick 48): feel words, visit allowance, levels granted, visit number, ladder count
+    function(s){ s.runs[1].feel = { fight:'Meh' }; }, function(s){ s.runs[1].feel = { zz:'skip' }; }, function(s){ s.runs[1].feel = 'Too hard'; }, function(s){ s.runs[1].feel = { fight:'About right', up:'About right' }; },
+    function(s){ s.visitBuys = 100; }, function(s){ s.visitBuys = 1.5; }, function(s){ s.purchases[0].levels = -1; }, function(s){ s.purchases[0].levels = 'x'; }, function(s){ s.purchases[0].visit = -2; },
+    function(s){ s.purchases[0].vn = 0; }, function(s){ s.cond.atk = 21; }, function(s){ s.cond.hp = 11; }, function(s){ s.buys = 31 + 40; }, function(s){ s.buys = 0; },
+    // Supply Drop field sd (K)
+    function(s){ s.sd = []; }, function(s){ s.sd = { plays:-1, pending:null }; }, function(s){ s.sd = { plays:10000, pending:null }; }, function(s){ s.sd = { plays:1, x:1 }; },
+    function(s){ s.sd = { plays:1, pending:{ chapter:0, stage:1, tier:1, defaults:[] } }; }, function(s){ s.sd = { plays:1, pending:{ chapter:1, stage:1, tier:4, defaults:[] } }; },
+    function(s){ s.sd = { plays:1, pending:{ chapter:1, stage:1, tier:1, defaults:['gold'] } }; }, function(s){ s.sd = { plays:1, pending:{ chapter:1, stage:1, tier:1, defaults:['repair', 'credits', 'schematics', 'repair'] } }; },
+    function(s){ s.sd = { plays:1, pending:{ chapter:1, stage:1, tier:1, defaults:[], z:1 } }; }, function(s){ s.sd = { plays:1, pending:'x' }; }];
   BAD.forEach(function(f, i){ var s = richSave(); f(s); var st2 = mock(); st2.d[KEY] = JSON.stringify(s); var e = null;
     try { M.load({ storage:st2 }); } catch (x) { e = x; }
     ok('F1 bad field ' + i + ' -> fresh start with the reason logged', !e && M.resetSignal === 'invalid' && M.state.credits === 0 && M.state.resets.length === 1 && M.state.resets[0].reason === 'invalid' && valid(M.state)); });
@@ -175,11 +187,27 @@ un();
   var p = M.state.purchases[0];
   ok('F1 buy logs run, item, level, price, before, after', p.run === 2 && p.item === 'Rifle' && p.lvl === 2 && p.price === 250 && p.before === 1000 && p.after === 750, p);
   ok('F1 buy calls V.Report.purchase', V.Report.last && V.Report.last[0] === 'Rifle L2' && V.Report.last[1] === 250);
-  M.state.credits = 1e6; for (var i = 0; i < 30; i++) M.buyRandom('cond');
+  M.state.credits = 1e6; for (var i = 0; i < 30; i++) { M.resetVisit(); M.buyRandom('cond'); }   // one buy per visit: the visit cap would stop a loop
   ok('F1 purchase log capped at 20, still valid', M.state.purchases.length === 20 && valid(M.state));
   for (var j = 0; j < 8; j++) M.reset();
   ok('F1 resets capped at 5', M.state.resets.length === 5 && valid(M.state));
   delete V.Report;
 })();
 
+// ---------- volley.deploy.v1 (G's Deploy roll save): Reset save clears it; corrupt, old and blocked values never break the v2 save ----------
+(function(){
+  var DK = M.DEPLOY_KEY;
+  ok('deploy key name', DK === 'volley.deploy.v1');
+  var JUNKS = ['{bad', '', 'null', '[]', '"x"', '{"v":0}', '{"seed":"a","used":{}}', 'x'.repeat(70000), '{"__proto__":{"a":1}}', '{"v":9,"seed":1}'];
+  JUNKS.forEach(function(t){ var st = mock(); st.d[DK] = t; var e = null;
+    try { M.load({ storage:st }); M.state.credits = 500; M.buy('rifle'); M.save(); M.load({ storage:st }); } catch (x) { e = x; }
+    ok('junk deploy value (' + t.slice(0, 12) + ') does not touch or crash the v2 save', !e && valid(M.state) && M.resetSignal === '' && st.d[DK] === t, e && e.message); });
+  var rs = mock(); rs.d[DK] = '{"seed":5,"used":true}'; rs.d['other.game'] = 'keep'; M.load({ storage:rs, fresh:true }); M.state.credits = 50; M.save();
+  ok('save keeps the deploy key while it is only saved', DK in rs.d);
+  ok('Reset save clears volley.deploy.v1 and leaves other keys', M.reset() === true && !(DK in rs.d) && rs.d['other.game'] === 'keep' && M.resetSignal === '');
+  var lk = mock(); lk.d[DK] = 'old'; M.load({ storage:lk, fresh:true }); M.loadSample('fresh'); ok('sample "fresh" (= reset) clears it too', !(DK in lk.d));
+  var blocked = { getItem:function(){ throw new Error('b'); }, setItem:function(){ throw new Error('b'); }, removeItem:function(){ throw new Error('b'); } }, t4 = null;
+  try { M.load({ storage:blocked }); M.reset(); M.load({ storage:blocked }); } catch (x) { t4 = x; }
+  ok('blocked storage: load and reset with a deploy key never throw', !t4 && valid(M.state));
+})();
 console.log(n + ' checks, ' + fails + ' failed'); process.exit(fails ? 1 : 0);

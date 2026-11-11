@@ -3,16 +3,18 @@
 // The sim does spawn grace, hit flash, contact damage, death, XP and separation. Only api.rng(S) for randomness.
 V.AI = V.AI || {};
 
+// F1: no enemy literals here; base rows and behaviour numbers come from V.Data.enemies (data-enemies.js).
+var DE = (V.Data && V.Data.enemies) || (typeof require === 'function' ? (require('./data-enemies.js'), V.Data.enemies) : null);
 function clamp(v, a, b){ return v < a ? a : (v > b ? b : v); }
 
 // E-04: walks, holds range, lobs a shell at the Operator's position at fire time.
 // The landing ring (r 1.0) shows the whole flight (1.0 s); shells ignore cover (sim).
 V.AI['E-04'] = {
-  base: { hp:500, contact:40, dmg:95, speed:1.2, r:0.45, size:'medium', xp:8, tell:1.0, cd:3.0 },
-  range: 8.5,          // never starts an attack while the Operator is farther than this
-  prefer: 5.0,         // preferred distance while walking
-  windup: 0.35,        // short squat before the lob (st 'tell'); the ring itself is the 1.0 s telegraph
-  ringR: 1.0,
+  base: DE['E-04'],
+  range: DE['E-04'].ai.range,          // never starts an attack while the Operator is farther than this
+  prefer: DE['E-04'].ai.prefer,         // preferred distance while walking
+  windup: DE['E-04'].ai.windup,        // short squat before the lob (st 'tell'); the ring itself is the telegraph (tell 1.0 s effective)
+  ringR: DE['E-04'].ai.ringR,
   init: function(S, e, api){
     var R = api.rng(S);
     e.strafe = R.next() < 0.5 ? -1 : 1; e.strafeT = R.range(1.4, 2.6); e.cd = R.range(1.0, 2.0);
@@ -57,8 +59,8 @@ V.AI['E-04'] = {
 // E-05: approaches; kneels 0.8 s facing the Operator with a red lane (locks the last 0.2 s),
 // dashes straight up to 8 units at 9.0; stops at walls/cover with a 1.0 s stun; cooldown 2.5 s.
 V.AI['E-05'] = {
-  base: { hp:650, contact:60, dmg:130, speed:1.6, r:0.50, size:'medium', xp:8, tell:0.8, cd:2.5 },
-  range: 7.0, lockLast: 0.2, dashSpeed: 9.0, dashDist: 8.0, stun: 1.0,
+  base: DE['E-05'],
+  range: DE['E-05'].ai.range, lockLast: DE['E-05'].ai.lockLast, dashSpeed: DE['E-05'].ai.dashSpeed, dashDist: DE['E-05'].ai.dashDist, stun: DE['E-05'].ai.stun,
   init: function(S, e, api){
     e.cd = api.rng(S).range(0.8, 1.6); e.lane = this.dashDist; e.locked = false; e.stunT = 0;
     e.dashLeft = 0; e.dashHit = false; e.strafe = api.rng(S).next() < 0.5 ? -1 : 1;

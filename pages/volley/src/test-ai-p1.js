@@ -122,8 +122,8 @@ function runE04(seed, mover){
   ok(tag + 'target = Operator position at fire time', targetOk);
   var fixed = r.lobs.every(function(l){ return l.s.tx === l.tx && l.s.ty === l.ty; });
   ok(tag + 'landing ring never moves', fixed);
-  var flight = r.lands.length > 0 && r.lands.every(function(L){ var lo = r.lobs.filter(function(l){ return l.s === L.s; })[0]; return lo && Math.abs(L.t - lo.t0 - lo.T) <= STEP * 1.5 && Math.abs(lo.T - 1.0 * (V.TUNE_DEFAULTS.TELL_MULT || 1)) < 1e-9; });
-  ok(tag + 'lands after 1.0 s x TELL_MULT flight (0.85 s)', flight, r.lands.length + ' landed');
+  var flight = r.lands.length > 0 && r.lands.every(function(L){ var lo = r.lobs.filter(function(l){ return l.s === L.s; })[0]; return lo && Math.abs(L.t - lo.t0 - lo.T) <= STEP * 1.5 && Math.abs(lo.T - 1.0) < 0.005; });
+  ok(tag + 'lands after 1.0 s EFFECTIVE flight (R31: base 1.176 x TELL_MULT 0.85)', flight, r.lands.length + ' landed');
   ok(tag + 'ring radius 1.0', r.lobs.every(function(l){ return l.s.r === 1.0; }));
   if (!mv) ok(tag + 'shell hits a still Operator behind cover (ignores cover)', r.S._hits.some(function(h){ return h.src === 'E-04'; }), r.S._hits.length + ' hits');
   if (!mv) ok(tag + 'line to Operator really is blocked by cover', !api.clearLine(r.S, 4.5, 3.5, 4.5, 12.5, 0.15));
@@ -152,13 +152,13 @@ function runE05(seed, mover, heroXY, solids){
 [false, true].forEach(function(mv){
   var r = runE05(5, mv), tag = 'E-05 ' + (mv ? 'moving' : 'still') + ': ';
   ok(tag + 'dashes at least twice', r.dashes.length >= 2, r.dashes.length + ' dashes');
-  var lk = r.dashes.every(function(d){ return d.lock != null && Math.abs((d.dash - d.lock) - 0.2 * (V.TUNE_DEFAULTS.TELL_MULT || 1)) <= STEP * 1.5 && Math.abs((d.dash - d.tell) - 0.8 * (V.TUNE_DEFAULTS.TELL_MULT || 1)) <= STEP * 1.5; });
-  ok(tag + 'tell 0.8 s x TELL_MULT (0.68), lane locks 0.17 s before dash', lk, r.dashes.map(function(d){ return (d.dash - d.tell).toFixed(3) + '/' + (d.dash - (d.lock || 0)).toFixed(3); }).join(' '));
+  var lk = r.dashes.every(function(d){ return d.lock != null && Math.abs((d.dash - d.lock) - 0.2) <= STEP * 1.5 + 0.005 && Math.abs((d.dash - d.tell) - 0.8) <= STEP * 1.5 + 0.005; });
+  ok(tag + 'effective tell 0.8 s (R31), lane locks 0.2 s before dash', lk, r.dashes.map(function(d){ return (d.dash - d.tell).toFixed(3) + '/' + (d.dash - (d.lock || 0)).toFixed(3); }).join(' '));
   ok(tag + 'locked lane does not turn', r.laneOk && r.dashes.every(function(d){ return Math.abs(d.dashAng - d.ang) < 1e-9; }));
   ok(tag + 'dash <= 8 units', r.dashes.every(function(d){ return d.endX == null || Math.hypot(d.endX - d.x0, d.endY - d.y0) <= 8.01; }));
   ok(tag + 'no NaN', r.nan === 0);
   ok(tag + 'deterministic', runE05(5, mv).hash === r.hash, r.hash);
-  if (!mv) ok(tag + 'dash hits a still Operator for 143 (130 x 1.1)', r.S._hits.some(function(h){ return h.src === 'E-05' && h.dmg === 143; }), r.S._hits.map(function(h){ return h.dmg; }).join(','));
+  if (!mv) ok(tag + 'dash hits a still Operator for 130 x ENEMY_DMG_MULT x stage-1 slope', r.S._hits.some(function(h){ return h.src === 'E-05' && h.dmg === Math.floor(130 * V.TUNE_DEFAULTS.ENEMY_DMG_MULT); }), r.S._hits.map(function(h){ return h.dmg; }).join(','));
 });
 // wall stop + stun: Operator against the south wall, charger 6 units north; dash runs into the wall
 (function(){
@@ -196,7 +196,7 @@ function laneWidths(lines, cx, cy, d){
   return w;
 }
 [false, true].forEach(function(mv){
-  var r = runBoss(3, mv, 1800, 1300), tag = 'B-01 ' + (mv ? 'moving' : 'still') + ': ';
+  var r = runBoss(3, mv, 2600, 1300), tag = 'B-01 ' + (mv ? 'moving' : 'still') + ': ';
   ok(tag + 'boss flags (boss, static, immune instakill/freeze)', r.e.boss === true && r.e.static === true && r.e.immune.instakill && r.e.immune.freeze);
   ok(tag + 'S.boss name/phase/attack', r.S.boss && r.S.boss.name === 'Volley Tower' && r.S.boss.type === 'B-01' && 'phase' in r.S.boss && 'attack' in r.S.boss && 'tell01' in r.S.boss);
   ok(tag + 'HP 11000 x ENEMY_HP_GLOBAL x stage scale', r.e.maxHp === Math.round(11000 * V.TUNE_DEFAULTS.ENEMY_HP_GLOBAL * (1 + 0.036 * 9)) || (!REAL && r.e.maxHp === Math.round(11000 * V.TUNE_DEFAULTS.ENEMY_HP_GLOBAL)), 'maxHp ' + r.e.maxHp);
@@ -214,7 +214,7 @@ function laneWidths(lines, cx, cy, d){
   ok(tag + 'C first segment + bounce path drawn', r.tellsC.length > 0 && r.tellsC.every(function(c){ return c.segs.length === 1 && c.path && c.path.length === 3; }));
   ok(tag + 'tower never moves', Math.abs(r.e.x - 4.5) < 1e-9 && Math.abs(r.e.y - 3.5) < 1e-9);
   ok(tag + 'no NaN', r.nan === 0);
-  ok(tag + 'deterministic', runBoss(3, mv, 1800, 1300).hash === r.hash, r.hash);
+  ok(tag + 'deterministic', runBoss(3, mv, 2600, 1300).hash === r.hash, r.hash);
 });
 // B-01 shot counts: A 5x6, B 24 (phase 1) and 7x6, 32 (phase 2)
 (function(){

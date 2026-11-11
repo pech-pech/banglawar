@@ -36,13 +36,13 @@ body{touch-action:none}
 /* HP number beside the bar (L-PV-7), not over the fill */
 .hpT{flex:none;font-size:12px;font-weight:800;line-height:16px;color:#f2ead8;font-variant-numeric:tabular-nums;white-space:nowrap}
 #hpTxtE{display:none}
-#rlbl{position:absolute;left:6px;bottom:6px;font:11px/1.2 ui-monospace,Menlo,Consolas,monospace;color:#1b1a17;background:rgba(233,220,191,.85);padding:2px 5px;border-radius:4px;pointer-events:none;z-index:10;display:none}
+#rlbl{position:absolute;left:6px;bottom:6px;font:12px/1.2 ui-monospace,Menlo,Consolas,monospace;color:#1b1a17;background:rgba(233,220,191,.85);padding:2px 5px;border-radius:4px;pointer-events:none;z-index:10;display:none}
 body.dbg #rlbl{display:block}
-.rinfo{font:11px/1.3 ui-monospace,Menlo,Consolas,monospace;color:var(--mut)}
+.rinfo{font:12px/1.3 ui-monospace,Menlo,Consolas,monospace;color:var(--mut)}
 #toast{position:absolute;left:50%;transform:translateX(-50%);max-width:80%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:center;font-weight:700;font-size:13px;color:var(--sand);background:var(--panel);
   border:1px solid var(--cyanD);border-radius:8px;padding:6px 8px;pointer-events:none;z-index:11;opacity:0;transition:opacity .2s}
 #toast.on{opacity:1}
-#flash{position:absolute;inset:0;pointer-events:none;z-index:9;box-shadow:inset 0 0 40px 14px rgba(226,40,30,.85);opacity:0;transition:opacity .25s ease-out}
+#flash{position:absolute;inset:0;pointer-events:none;z-index:9;box-shadow:inset 0 0 40px 14px rgba(226,40,30,.45);opacity:0;transition:opacity .25s ease-out}
 #flash.on{opacity:1;transition:none}
 body.ovon #hud, body.ovon #toast, body.ovon #rlbl{visibility:hidden}
 /* overlays */
@@ -139,6 +139,7 @@ body.ovon #bossBar, body.ovon #howto, body.ovon #dmgLayer{visibility:hidden}
 <div id="stage">
   <canvas id="cgpu"></canvas>
   <canvas id="c2d"></canvas>
+  <canvas id="cCatch" style="display:none;pointer-events:none"></canvas>   <!-- catch room: V.CatchScene draws here (main.js), above the game canvas, under the HUD -->
   <div id="flash"></div>
   <div id="dmgLayer"></div>
   <div id="hud">
@@ -158,7 +159,7 @@ body.ovon #bossBar, body.ovon #howto, body.ovon #dmgLayer{visibility:hidden}
   <div class="ov" id="ovCards"><h2 id="cardTitle">Field upgrade</h2><p>Pick one</p><div id="cardList" style="display:flex;flex-direction:column;gap:10px;width:100%;align-items:stretch"></div></div>
   <div class="ov" id="ovDead"><div id="resHead"><img id="resPortrait" alt="" width="72" height="96"><h2 id="resTitle">Operator down</h2></div><div id="resStats"></div><button class="btn" id="btnRestart">New run</button><button class="btn ghost" id="btnHome">Home</button></div>
   <div class="ov" id="ovSupply"><h2>Supply drop</h2><p>Tap a card to choose one</p><div id="supList" style="display:flex;flex-direction:column;gap:10px;width:100%;align-items:stretch"></div></div>
-  <div class="ov" id="ovPause"><div class="pz"><h2>Paused</h2><button class="btn" id="btnResume">Resume</button><button class="btn ghost" id="btnRestartRun">Restart run</button><button class="btn ghost" id="btnTune">Tuning</button><button class="btn ghost" id="btnSound">Sound: on</button><div id="pauseMods"></div><p style="font-size:12px">Tap outside the buttons to resume</p><p class="rinfo" id="rlblPause">-</p></div></div>
+  <div class="ov" id="ovPause"><div class="pz"><h2>Paused</h2><button class="btn" id="btnResume">Resume</button><button class="btn ghost" id="btnRestartRun">Restart run</button><button class="btn ghost" id="btnTune">Tuning</button><button class="btn ghost" id="btnSound">Sound: on</button><div id="pauseMods"></div><p style="font-size:12px">Touch to continue</p><p class="rinfo" id="rlblPause">-</p></div></div>
   <svg width="0" height="0" style="position:absolute"><defs>
 <linearGradient id="cg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffe27a"/><stop offset="1" stop-color="#c28a0c"/></linearGradient>
 <symbol id="cr" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v10M9 9.5h4.5a1.5 1.5 0 010 3H9.5a1.5 1.5 0 000 3H15"/></symbol>
@@ -194,6 +195,7 @@ body.ovon #bossBar, body.ovon #howto, body.ovon #dmgLayer{visibility:hidden}
 </div>
 <textarea id="copyArea" aria-hidden="true"></textarea>
 <script src="parts/tune.js"></script>
+<script src="parts/title.js"></script>
 <script>/*{{assets}}*/</script>
 <script src="parts/rng.js"></script>
 <script src="parts/data-stages.js"></script>
@@ -201,6 +203,7 @@ body.ovon #bossBar, body.ovon #howto, body.ovon #dmgLayer{visibility:hidden}
 <script src="parts/rooms.js"></script>
 <script src="parts/stages.js"></script>
 <script src="parts/widen.js"></script>
+<script src="parts/catch.js"></script>
 <script src="parts/mods.js"></script>
 <script src="parts/meta.js"></script>
 <script src="parts/sim.js"></script>
@@ -213,7 +216,10 @@ body.ovon #bossBar, body.ovon #howto, body.ovon #dmgLayer{visibility:hidden}
 <script src="parts/render.js"></script>
 <script src="parts/input.js"></script>
 <script src="parts/audio.js"></script>
+<script src="parts/prompts.js"></script>
+<script src="parts/catch-scene.js"></script>
 <script src="parts/ui.js"></script>
+<script src="parts/catch-ui.js"></script>
 <script src="parts/report.js"></script>
 <script src="parts/tab-armory.js"></script>
 <script src="parts/tab-operator.js"></script>

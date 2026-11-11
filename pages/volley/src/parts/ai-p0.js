@@ -4,6 +4,8 @@
 V.AI = V.AI || {};
 V.AIU = V.AIU || {};  // shared AI helpers (kept out of V.AI, which is the enemy registry)
 var DEG = Math.PI / 180;
+// F1: no enemy literals here; base rows and behaviour numbers come from V.Data.enemies (data-enemies.js).
+var DE = (V.Data && V.Data.enemies) || (typeof require === 'function' ? (require('./data-enemies.js'), V.Data.enemies) : null);
 
 // Aim lead + zero-in (deterministic). track() follows the Operator's smoothed velocity and how long they have stood still.
 // leadAng aims at where a runner will be when the shot lands (zero lead on a still Operator).
@@ -27,8 +29,8 @@ V.AIU.leadTo = function(S, e, h, shotSpeed, frac){
 };
 
 V.AI['E-01'] = {
-  base: { hp:300, contact:35, dmg:35, speed:2.4, r:0.35, size:'small', xp:4, tell:0.5, cd:2.0, flyer:true },
-  range: 2.5, lungeSpeed: 6.0, lungeDist: 3.0,
+  base: DE['E-01'],
+  range: DE['E-01'].ai.range, lungeSpeed: DE['E-01'].ai.lungeSpeed, lungeDist: DE['E-01'].ai.lungeDist,
   init: function(S, e, api){ e.lungeLeft = 0; },
   step: function(S, e, dt, api){
     var A = V.AI['E-01'], b = A.base, h = api.hero(S), dist = api.dist(e, h), toH = api.angleTo(e, h);
@@ -55,8 +57,8 @@ V.AI['E-01'] = {
 };
 
 V.AI['E-02'] = {
-  base: { hp:450, contact:40, dmg:55, speed:1.0, r:0.40, size:'medium', xp:8, tell:0.6, cd:2.2 },
-  lockLast: 0.2, shotSpeed: 6.0, range: 10, prefer: 3.2, lead: 0.8,
+  base: DE['E-02'],
+  lockLast: DE['E-02'].ai.lockLast, shotSpeed: DE['E-02'].ai.shotSpeed, range: DE['E-02'].ai.range, prefer: DE['E-02'].ai.prefer, lead: DE['E-02'].ai.lead,
   init: function(S, e, api){
     var R = api.rng(S);
     e.strafe = R.next() < 0.5 ? -1 : 1; e.strafeT = R.range(1.2, 2.4); e.cd = R.range(0.6, 1.4); e.noLosT = 0;
@@ -92,8 +94,8 @@ V.AI['E-02'] = {
 };
 
 V.AI['E-03'] = {
-  base: { hp:600, contact:40, dmg:45, speed:0, r:0.50, size:'medium', xp:8, tell:0.7, cd:2.8, static:true },
-  shotSpeed: 7.0, spread: 13 * DEG, fanN: 2, range: 14, lead: 0.8,
+  base: DE['E-03'],
+  shotSpeed: DE['E-03'].ai.shotSpeed, spread: DE['E-03'].ai.spreadDeg * DEG, fanN: DE['E-03'].ai.fanN, range: DE['E-03'].ai.range, lead: DE['E-03'].ai.lead,
   init: function(S, e, api){ e.cd = api.rng(S).range(0.3, 0.9); e.afterSpawn = 'cool'; },
   step: function(S, e, dt, api){
     var A = V.AI['E-03'], b = A.base, h = api.hero(S), dist = api.dist(e, h), toH = api.angleTo(e, h);

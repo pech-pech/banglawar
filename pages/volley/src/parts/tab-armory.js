@@ -52,10 +52,18 @@ var BASE_CSS = [
   '.ta-scroll::-webkit-scrollbar{display:none}',
   '.ta-pill{margin-left:auto;height:34px;padding:0 10px 0 8px;gap:6px;color:#ffe27a;font-size:14px}',
   '.ta-coin{display:block;flex:none;object-fit:contain}',
-  '.ta-hint{font:700 11px/1 var(--pv-ui-font-stencil);letter-spacing:.16em;text-transform:uppercase;color:var(--pv-ui-text-2)}',
+  '.ta-hint{font:700 12px/1 var(--pv-ui-font-stencil);letter-spacing:.16em;text-transform:uppercase;color:var(--pv-ui-text-2)}',
   '.ta-root .pv-btn{min-height:56px}'
 ].join('\n');
-V.TabsA = { meta: meta, fmt: fmt, esc: esc, asset: asset, KEYS: KEYS, coin: coin, cog: cog, rifle: rifle, pill: pill, injectCss: injectCss, BASE_CSS: BASE_CSS, STUB: STUB };
+// AN-604 list stagger: items enter from +14 px, 40 ms apart, 220 ms each; at most 8 staggered (the rest come with the last);
+// re-entering the same tab within 3 s skips it. Class .pv-in lives in home.css.
+var lastIn = {};
+function stagger(key, nodes){
+  if (V.reducedMotion || !nodes) return;
+  var t = Date.now(); if (lastIn[key] && t - lastIn[key] < 3000) { lastIn[key] = t; return; } lastIn[key] = t;
+  for (var i = 0; i < nodes.length; i++) { var n = nodes[i]; n.classList.remove('pv-in'); n.style.animationDelay = Math.min(i, 7) * 40 + 'ms'; void n.offsetWidth; n.classList.add('pv-in'); }
+}
+V.TabsA = { stagger: stagger, meta: meta, fmt: fmt, esc: esc, asset: asset, KEYS: KEYS, coin: coin, cog: cog, rifle: rifle, pill: pill, injectCss: injectCss, BASE_CSS: BASE_CSS, STUB: STUB };
 
 // ---- Armory ----------------------------------------------------------------------------------
 var ICON_RIFLE = '<path d="M2 14h14l2-3h4v3h-3v2H9l-1 4H5l1-4H2z"/>';
@@ -81,12 +89,12 @@ var CSS = [
   '.ta-slot img{position:static;flex:1 1 0;min-height:0;width:100%;max-width:100%;object-fit:cover;object-position:50% 50%;border-radius:3px;display:block;pointer-events:none;margin:0}',
   '.ta-slot.r1{justify-content:flex-end;padding:6px 4px}',
   '.ta-rpip{position:absolute;left:5px;bottom:5px;display:flex;gap:2px}.ta-rpip i{width:5px;height:5px;background:var(--rc,var(--pv-ui-r1));border:1px solid var(--pv-ui-ink)}',
-  '.ta-lk{width:11px;height:11px;font-size:11px!important;margin-right:3px;vertical-align:-1px;stroke:currentColor;fill:none;stroke-width:2}',
-  '.ta-slot__n{font:800 11px/1 var(--pv-ui-font-stencil);letter-spacing:.06em;text-transform:uppercase;color:var(--pv-ui-text-2);white-space:nowrap}',
-  '.ta-slot__p{display:flex;align-items:center;font:700 11px/1 var(--pv-ui-font-stencil);letter-spacing:.08em;color:var(--pv-ui-text-3);white-space:nowrap}',
+  '.ta-lk{width:12px;height:12px;font-size:12px!important;margin-right:3px;vertical-align:-1px;stroke:currentColor;fill:none;stroke-width:2}',
+  '.ta-slot__n{font:800 12px/1 var(--pv-ui-font-stencil);letter-spacing:0;text-transform:uppercase;color:var(--pv-ui-text-2);white-space:nowrap}',
+  '.ta-slot__p{display:flex;align-items:center;font:700 12px/1 var(--pv-ui-font-stencil);letter-spacing:.08em;color:var(--pv-ui-text-3);white-space:nowrap}',
   '.ta-slot.is-empty{opacity:.85}',
   '.ta-slot.is-empty .pv-ico{color:var(--pv-ui-metal-400)}',
-  '.ta-slot .pv-lvl{font-size:11px;right:5px;bottom:auto;top:5px}',
+  '.ta-slot .pv-lvl{font-size:12px;right:5px;bottom:auto;top:5px}',
   '.ta-card{display:flex;flex-direction:column;gap:12px;padding:12px}',
   '.ta-head{display:flex;gap:12px;align-items:center;width:100%;min-height:72px;padding:0;margin:0;text-align:left;color:inherit;font:inherit;background:none;border:0;cursor:pointer;appearance:none}',
   '.ta-head:active{filter:brightness(.85)}',
@@ -102,7 +110,9 @@ var CSS = [
   '.ta-cost .pv-chip{margin-left:auto}',
   '.ta-cost .pv-chip.is-short{color:var(--pv-ui-text-2)}',
   '.ta-note{font-size:12px;color:var(--pv-ui-text-2);text-align:center;min-height:16px}',
-  '.ta-note.is-warn{color:var(--pv-ui-text-3)}',
+  '.ta-note.is-warn{color:var(--pv-ui-text-2)}',
+  '.ta-left{font:700 12px/1 var(--pv-ui-font-stencil);letter-spacing:.1em;text-transform:uppercase;color:var(--pv-ui-text-2);text-align:center}',
+  '.ta-left b{color:var(--pv-ui-text);font-size:14px}',
   '.ta-up{width:100%;font-size:17px;letter-spacing:.1em;white-space:nowrap;padding:0 8px}',
   '.ta-pulse{animation:taPulse .5s ease-out}',
   '@keyframes taPulse{0%{box-shadow:0 0 0 0 rgba(56,232,255,.7)}100%{box-shadow:0 0 0 14px rgba(56,232,255,0)}}',
@@ -111,7 +121,7 @@ var CSS = [
   '.ta-sheet .ta-x{position:absolute;top:8px;right:8px;width:56px;height:56px;padding:0;min-height:56px}',
   '.ta-sheet .ta-hd{display:flex;gap:12px;align-items:center;min-height:80px;padding-right:56px}',
   '.ta-perk{display:flex;align-items:center;gap:10px;min-height:42px;padding:0 10px;background:var(--pv-ui-ink);border-radius:6px;box-shadow:inset 0 0 0 1.5px var(--pv-ui-metal-600);color:var(--pv-ui-text-3)}',
-  '.ta-perk b{font:800 11px/1 var(--pv-ui-font-stencil);letter-spacing:.08em;text-transform:uppercase;color:var(--pv-ui-sand);width:52px;flex:none}',
+  '.ta-perk b{font:800 12px/1 var(--pv-ui-font-stencil);letter-spacing:.08em;text-transform:uppercase;color:var(--pv-ui-sand);width:52px;flex:none}',
   '.ta-perk span{flex:1;font-size:12px;line-height:1.2}',
   '@media (prefers-reduced-motion:reduce){.ta-pulse{animation:none}}'
 ].join('\n');
@@ -131,7 +141,8 @@ function view(){
   var M = meta(), st = M.state || STUB.state, lvl = Math.max(1, Math.min(RIFLE_MAX, (st.rifle && st.rifle.lvl) || 1));
   var c = rifleCost(), maxed = lvl >= RIFLE_MAX || !c, credits = st.credits || 0;
   var price = c ? c.credits : 0, can = !maxed && (typeof M.canBuy === 'function' ? !!M.canBuy('rifle', 'rifle') : credits >= price);
-  return { lvl: lvl, maxed: maxed, price: price, can: can, credits: credits, short: Math.max(0, price - credits),
+  var left = typeof M.visitLeft === 'function' ? M.visitLeft() : 2, why = typeof M.whyNot === 'function' ? M.whyNot('rifle', 'rifle') : '';
+  return { lvl: lvl, maxed: maxed, price: price, can: can, credits: credits, short: Math.max(0, price - credits), left: left, why: why,
     atk: rifleAtk(lvl), next: maxed ? rifleAtk(lvl) : rifleAtk(lvl + 1) };
 }
 function pips(lvl){ var s = ''; for (var i = 1; i <= RIFLE_MAX; i++) s += '<i class="' + (i <= lvl ? 'on' : '') + '"></i>'; return '<span class="ta-pips" aria-hidden="true">' + s + '</span>'; }
@@ -144,10 +155,13 @@ function costRow(v){
   if (v.maxed) return '<div class="ta-cost"><span class="ta-hint">Cost</span><span class="pv-small" style="margin-left:auto">Fully upgraded</span></div>';
   return '<div class="ta-cost"><span class="ta-hint">Next upgrade</span><span class="pv-chip pv-chip--credits' + (v.can ? '' : ' is-short') + '">' + coin(18) + fmt(v.price) + '</span></div>';
 }
+// P snippet 4 (pick 48): at most 2 buys per home visit. V.Meta.visitLeft() / whyNot() -> '' | 'max' | 'visit' | 'credits'.
 function upBtn(v, cls){
   var label = v.maxed ? 'Max level' : 'Upgrade to Lv ' + (v.lvl + 1);
-  return '<button type="button" class="pv-btn pv-btn--primary pv-btn--block ta-up ' + (cls || '') + '" data-act="buy"' + (v.can ? '' : ' disabled') + '>' + label + '</button>' +
-    '<div class="ta-note' + (!v.maxed && !v.can ? ' is-warn' : '') + '">' + (v.maxed ? 'Rifle is at its top level.' : v.can ? '&nbsp;' : 'Need ' + fmt(v.short) + ' more credits') + '</div>';
+  var note = v.maxed ? 'Rifle is at its top level.' : v.can ? '&nbsp;' : v.why === 'visit' ? 'Your buys for this visit are used. They come back after your next run.' : 'Need ' + fmt(v.short) + ' more credits';
+  return (v.maxed ? '' : '<div class="ta-left">Buys left this visit: <b>' + v.left + '</b></div>') +
+    '<button type="button" class="pv-btn pv-btn--primary pv-btn--block ta-up ' + (cls || '') + '" data-act="buy"' + (v.can ? '' : ' disabled') + '>' + label + '</button>' +
+    '<div class="ta-note' + (!v.maxed && !v.can ? ' is-warn' : '') + '">' + note + '</div>';
 }
 
 function render(){
@@ -205,8 +219,7 @@ function onClick(e){
   else if (act === 'open') { sheetOpen = true; render(); var x = el.querySelector('.ta-x'); if (x) x.focus(); }
   else if (act === 'buy') { var M = meta(); if (M.buy('rifle', 'rifle')) buySound(); render(); }
 }
-// audio.js has no click() yet (F0 audit): use it when it lands, else the existing 'levelup' cue (closest UI cue in audio.js).
-function buySound(){ var A = V.Audio; if (!A) return; try { if (typeof A.click === 'function') A.click(); else if (typeof A.play === 'function') A.play('levelup'); } catch (_) {} }
+function buySound(){ var A = V.Audio; if (A && typeof A.play === 'function') { try { A.play('buy'); } catch (_) {} } }   // S-504 buy cue (audio.js F1)
 function closeSheet(){ if (!sheetOpen) return; sheetOpen = false; render(); }
 
 V.Tabs = V.Tabs || {};
@@ -220,7 +233,7 @@ V.Tabs.armory = {
     var M = meta(); if (typeof M.onChange === 'function') unsub = M.onChange(function(){ if (shown) render(); else if (el) render(); });
     render();
   },
-  show: function(){ shown = true; render(); },
+  show: function(){ shown = true; render(); var sc = el && el.querySelector('.ta-scroll'); if (sc) stagger('armory', sc.children); },
   hide: function(){ shown = false; sheetOpen = false; }
 };
 })();

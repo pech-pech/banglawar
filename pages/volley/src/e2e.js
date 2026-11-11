@@ -204,6 +204,9 @@ async function moveTo(cdp, x0, y0, x1, y1, steps = 6, ms = 100) {
 }
 async function tap(cdp, x, y) { await T(cdp, 'touchStart', x, y); await sleep(40); await T(cdp, 'touchEnd'); }
 
+// F1 (agent T): shared pieces for src/e2e-f1.js, which require()s this file. Main only runs when this file is the entry point.
+module.exports = { INIT, HELPERS, T, moveTo, tap, sleep, GPU_ARGS, SEED, SHOTS, row, setTag: t => { curTag = t; }, getTag: () => curTag, rows };
+
 async function snapshot(page, name) {
   const p = path.join(SHOTS, `${curTag.replace(/[^\w.-]+/g, '_')}-${name}.png`);
   try { await page.screenshot({ path: p, timeout: 8000 }); } catch (e) { /* best effort */ }
@@ -227,11 +230,11 @@ async function session(browser, target, sess) {
   await ctx.addInitScript(INIT);
   const page = await ctx.newPage();
   page.on('console', m => { if (m.type() === 'error') errors.push('console: ' + m.text().slice(0, 200)); });
-  page.on('pageerror', e => errors.push('pageerror: ' + e.message.slice(0, 200)));
+  page.on('pageerror', e => errors.push('pageerror: ' + e.message.slice(0, 160) + ' @ ' + String(e.stack || '').split('\n').slice(1, 3).map(x => x.trim().replace(/^at /, '').replace(/file:\/\/\S*\//, '')).join(' < ')));
   page.on('requestfailed', r => errors.push('requestfailed: ' + r.url().replace(/^.*\/pages\//, '') + ' ' + ((r.failure() || {}).errorText || '')));
   const cdp = await ctx.newCDPSession(page);
   // P1 home: the game opens on Home/Deploy with the sim waiting behind it; the game-flow sessions skip it with ?home=0 (the 'home' session below does it the real way).
-  const q = '?seed=' + SEED + '&home=0' + (sess.mode === 'gpu0' ? '&gpu=0' : sess.mode === 'offscreen' ? '&gpu=offscreen' : '');
+  const q = '?seed=' + SEED + '&home=0&title=0' + (sess.mode === 'gpu0' ? '&gpu=0' : sess.mode === 'offscreen' ? '&gpu=offscreen' : '');
   try {
     await page.goto('file://' + target.file + q);
     await page.waitForFunction(() => window.__pv && window.__pv.S && window.__pv.S.hero, null, { timeout: 15000 });
@@ -616,7 +619,7 @@ async function autoWalkTest(page, cdp, cv) {
 async function domCards(page) {
   return page.evaluate(() => {
     const S = window.__pv.S, C = window.V.CARDS || [];
-    const btns = [...document.querySelectorAll('#ovCards button, #ovCards .card, .ov.on button.card')].filter(window.__vis);
+    const btns = [...document.querySelectorAll('#ovCards button, #ovCards .card, .ov.on button.card')].filter(window.__vis).filter(b => !/^\s*reroll/i.test(b.textContent));   // F1 (G): the Reroll control is not a card
     const uniq = [...new Set(btns)];
     const offered = (S.cards || []).map(i => (C[i] || {}).name);
     const names = uniq.map(b => (b.querySelector('b') || b).textContent.trim());
@@ -695,13 +698,30 @@ async function runFlow(page, sess, w, h, opt) {
         targetsRow(cache ? 'cache card screen' : 'card screen', await page.evaluate(() => window.__targets()));
         const b = await page.evaluate(() => window.__snap());
         if (d.btns[0]) await page.touchscreen.tap(d.btns[0].cx, d.btns[0].cy);
-        await sleep(350);
+        await sleep(450);
+        // F1 (G): a row tap freezes on that row plus "Touch to continue"; the pick applies on a second, fresh tap at least 350 ms later
+        const cc = await page.evaluate(() => { const c = document.getElementById('cardCont'); if (!c || !window.__vis(c)) return null; const r = c.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; });
+        if (cc) { await page.touchscreen.tap(cc.x, cc.y); await sleep(400); }
         const a = await page.evaluate(() => window.__snap());
         ok(a.picks > b.picks && a.mods !== b.mods, cache ? 'tapping a cache card applies it' : 'tapping a card applies it', `phase ${b.phase} -> ${a.phase}; picks ${b.picks} -> ${a.picks}; mods ${b.mods} -> ${a.mods}`);
       } else await page.evaluate(() => window.__pv.pick(0));
     } else if (s.phase === 'supply') {
+      const collect = await page.evaluate(() => !!(window.__pv.S.mini));
       if (!seen.supply && !lose) {
         seen.supply = true; await sleep(400); await snapshot(page, 'supply');
+        if (collect) {
+          // F1 (K): the Supply Drop is a catch room; the sheet offers three pads (Repair, Credits, Schematics). The catch checks live in src/e2e-f1.js.
+          const d = await page.evaluate(() => ({ kinds: (window.__pv.S.supply || []).map(o => o.kind), n: window.__pv.S.enemies.length }));
+          ok(s.stage === 5 && s.stageKind === 'collect', 'supply drop is stage 5 (catch room)', `stage ${s.stage} kind ${s.stageKind} room ${s.roomId}`);
+          ok(d.kinds.length === 3 && ['repair', 'credits', 'schematics'].every(k => d.kinds.includes(k)), 'catch sheet offers 3 pads (Repair, Credits, Schematics)', `S.supply ${JSON.stringify(d.kinds)}`);
+          ok(d.n === 0, 'catch room has no enemies', `enemies ${d.n}`);
+          const b = await page.evaluate(() => window.__snap());
+          await page.evaluate(() => window.__pv.pickSupply(['repair']));
+          const stale = await page.evaluate(() => { const e = document.getElementById('cuSheet'); return !!e; }); await sleep(300); const stale2 = await page.evaluate(() => !!document.getElementById('cuSheet'));
+          ok(!stale2, 'catch payout sheet is closed once the pad is taken (no stale scrim over the next screens)', `#cuSheet still in the DOM ${stale2}: a stale full-view sheet swallows later taps and throws in CatchUI.tap (model reads S.mini = null)`);
+          const a = await page.evaluate(() => window.__snap());
+          ok(a.phase !== 'supply' && a.hp > b.hp && a.hp <= b.maxHp, 'taking the Repair pad heals (K: heals only what is missing, up to 40% max HP)', `phase ${b.phase} -> ${a.phase}; hp ${b.hp} -> ${a.hp} / ${a.maxHp}`);
+        } else {
         const d = await domSupply(page);
         ok(s.stage === 5 && s.stageKind === 'supply', 'supply drop is stage 5', `stage ${s.stage} kind ${s.stageKind} room ${s.roomId}`);
         ok(d.n === 2 && d.shown === 2 && d.kinds.includes('repair') && d.kinds.includes('mod'), 'supply screen offers 2 choices (a mod or repair 40%)', `S.supply ${JSON.stringify(d.kinds)}; buttons ${d.shown}: ${d.txt.join(' | ')}`);
@@ -714,7 +734,9 @@ async function runFlow(page, sess, w, h, opt) {
         const how = await supplyChoose(page, ri >= 0 ? ri : 0, true);
         const a = await page.evaluate(() => window.__snap());
         ok(a.phase !== 'supply' && (ri < 0 || Math.abs(a.hp - Math.min(b.maxHp, b.hp + 0.4 * b.maxHp)) <= 1), 'tapping supply repair restores 40% max HP', `via ${how}: phase ${b.phase} -> ${a.phase}; hp ${b.hp} -> ${a.hp} / ${a.maxHp} (want +${Math.round(0.4 * b.maxHp)}; hp set to 50% by the test first)`);
-      } else await supplyChoose(page, 0, true);
+        }
+      } else if (collect) await page.evaluate(() => window.__pv.pickSupply(['credits'])); else await supplyChoose(page, 0, true);
+    } else if (s.phase === 'collect' && !seen.hp50 && !lose) { seen.hp50 = true; await page.evaluate(() => { const h = window.__pv.S.hero; h.hp = Math.round(h.maxHp * 0.5); }); idle++; await page.evaluate(() => window.__pv.step(30, { mx: 0, my: 0 })); steps += 30;   // F1 (K): the sheet measures missing HP when it opens
     } else { idle++; await page.evaluate(() => window.__pv.step(30, { mx: 0, my: 0 })); steps += 30; }
     last = s;
     if (idle > 40) break;
@@ -769,7 +791,7 @@ async function homeSession(browser, target, sess) {
   page.on('console', m => { if (m.type() === 'error') errors.push('console: ' + m.text().slice(0, 200)); });
   page.on('pageerror', e => errors.push('pageerror: ' + e.message.slice(0, 200)));
   page.on('requestfailed', r => errors.push('requestfailed: ' + r.url().replace(/^.*\/pages\//, '') + ' ' + ((r.failure() || {}).errorText || '')));
-  const url = 'file://' + target.file + '?seed=' + SEED + '&gpu=0&fresh=1';   // no home=0
+  const url = 'file://' + target.file + '?seed=' + SEED + '&gpu=0&fresh=1&title=0';   // no home=0 (F1 A: title=0 skips the title screen)
   try {
     await page.goto(url);
     await page.waitForFunction(() => window.__pv && window.__pv.S && window.__pv.S.hero && window.V && window.V.Meta && window.V.Home, null, { timeout: 20000 });
@@ -811,14 +833,15 @@ async function homeSession(browser, target, sess) {
   const u0 = await page.evaluate(() => ({ c: V.Meta.state.credits, b: V.Meta.state.buys, s: V.Meta.state.cond.hp + V.Meta.state.cond.atk + V.Meta.state.cond.rate }));
   const uTap = await tapEl(page, '#pane-upgrades [data-buy="cond"]'); await sleep(350);
   const u1 = await page.evaluate(() => ({ c: V.Meta.state.credits, b: V.Meta.state.buys, s: V.Meta.state.cond.hp + V.Meta.state.cond.atk + V.Meta.state.cond.rate }));
-  ok(uTap && u1.b === u0.b + 1 && u1.s === u0.s + 1 && u1.c < u0.c, 'Upgrades random buy changes V.Meta.state', `tapped=${uTap}; buys ${u0.b} -> ${u1.b}; stat points ${u0.s} -> ${u1.s}; credits ${u0.c} -> ${u1.c}`);
+  ok(uTap && u1.b === u0.b + 1 && u1.s >= u0.s + 1 && u1.s <= u0.s + 2 && u1.c < u0.c, 'Upgrades random buy changes V.Meta.state (F1: atk or rate buys grant 2 levels)', `tapped=${uTap}; buys ${u0.b} -> ${u1.b}; stat points ${u0.s} -> ${u1.s}; credits ${u0.c} -> ${u1.c}`);
   ok((await chip()) === String(u1.c).replace(/\B(?=(\d{3})+(?!\d))/g, ','), 'Credits chip follows the random buy', `chip "${await chip()}" vs state ${u1.c}`);
   const saved = await page.evaluate(() => { try { return JSON.parse(localStorage.getItem(V.Meta.KEY)).buys; } catch (e) { return null; } });
   ok(saved === u1.b, 'buys are saved to localStorage', `saved buys ${saved} vs state ${u1.b}`);
 
   // --- DEPLOY -> play ---
   await tapEl(page, '.pv-tab[data-tab="deploy"]'); await sleep(300);
-  await page.evaluate(() => { window.__setTune({ ENEMY_DMG_MULT: 0 }); });
+  await page.evaluate(() => { window.__setTune({ ENEMY_DMG_MULT: 0 }); try { const st = window.V.Home.deploy.state(); st.boost = { id: 'D2', tier: 0 }; st.rolling = false; window.V.Home.deploy.paint(); } catch (e) {} });   // D7 'Opening pick' starts in the level-up pause by design, so pin a plain roll
+  await sleep(400);   // past the 350 ms Deploy guard
   const dTap = await tapEl(page, '#btnDeploy'); await sleep(900);
   const d1 = await snap();
   ok(dTap && !(await homeOn()) && !(await page.evaluate(() => window.__pv.home)) && d1.phase === 'play' && d1.stage === 1, 'tap DEPLOY hides Home and starts the run', `tapped=${dTap}; phase ${d1.phase} stage ${d1.stage} frame ${d1.frame}`);
@@ -851,7 +874,7 @@ async function homeSession(browser, target, sess) {
 }
 
 // ---------- main ----------
-(async () => {
+if (require.main === module) (async () => {
   const t0 = Date.now();
   let browser = await chromium.launch({ headless: true, args: GPU_ARGS });
   const dets = [];
@@ -888,6 +911,11 @@ async function homeSession(browser, target, sess) {
     }
   }
   await browser.close();
+  // F1 feature checks (agent T): every group skips cleanly with "[SKIP] feature not present" until its code lands. --no-f1 leaves them out.
+  if (!process.env.E2E_SESS && !argv.includes('--no-f1')) {
+    try { const b2 = await chromium.launch({ headless: true, args: GPU_ARGS }); await require('./e2e-f1.js').run({ browser: b2 }); await b2.close(); }
+    catch (e) { curTag = 'f1'; row('F1 feature checks crashed', 'FAIL', e.message.split('\n')[0]); }
+  }
   curTag = 'cross-session';
   if (dets.length > 1) {
     const bySeed = {};

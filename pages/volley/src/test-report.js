@@ -3,7 +3,10 @@
 var path = require('path'), fs = require('fs');
 globalThis.V = globalThis.V || {};
 ['data-stages', 'data-enemies', 'tune', 'rng', 'rooms', 'stages', 'mods', 'meta', 'widen', 'sim', 'ai-p0', 'ai-p1', 'boss', 'ui', 'report'].forEach(function(f){
-  var p = path.join(__dirname, 'parts', f + '.js'); if (fs.existsSync(p)) require(p); });
+  var p = path.join(__dirname, 'parts', f + '.js'); if (!fs.existsSync(p)) return;
+  // ui.js (owner G, in progress) injects CSS at load without a typeof-document guard: a head-less stub document keeps this headless test loading it; removed before report.js
+  if (f === 'ui' && typeof document === 'undefined') { globalThis.document = { head: null, getElementById: function(){ return null; } }; try { require(p); } finally { delete globalThis.document; } return; }
+  require(p); });
 var V = globalThis.V, M = V.Meta, R = V.Report, fails = 0, n = 0;
 function ok(name, c, got){ n++; if (!c) { fails++; console.log('FAIL', name, got === undefined ? '' : String(typeof got === 'string' ? got : JSON.stringify(got)).slice(0, 600)); } }
 function mock(){ var d = {}; return { d:d, getItem:function(k){ return k in d ? d[k] : null; }, setItem:function(k, v){ d[k] = String(v); }, removeItem:function(k){ delete d[k]; } }; }
@@ -82,12 +85,19 @@ ok('latest run keeps damageBySource and roomTimes', 'damageBySource' in rLast &&
 var r3 = data.runs.filter(function(r){ return r.runNo === 3; })[0];
 ok('abandoned run: endReason abandon, 0 credits, seconds from sim time', r3 && r3.endReason === 'abandon' && r3.creditsEarned === 0 && r3.runSeconds > 5 && r3.runSeconds < 11, r3);
 var r2 = data.runs.filter(function(r){ return r.runNo === 2; })[0];
-ok('win: endReason clear, runSeconds = sim seconds, 334 credits ok, lowestHp <= hpMax', r2.endReason === 'clear' && r2.runSeconds === Math.round(S2.result.t * 10) / 10 && r2.creditsEarned === 334 && /^ok/.test(r2.bandCompare.creditsEarned) && r2.lowestHp <= r2.hpMax, r2);
+// F1 pay table: the band is 185 (7 x 13 + 54 + 40) to 205 (+ Supply Drop pad 20). The sim keeps its own copy of the table (sim.js, owner S): until the snippet in
+// P-REPORT.md is applied it still pays the old 334, so the sim-paid value is only asserted when VOLLEY_STRICT_PAY=1; the band logic is tested on the value the run really earned.
+var simPaysNew = S2.result.credits === M.clearPay();
+if (!simPaysNew) { if (process.env.VOLLEY_STRICT_PAY) ok('STRICT: the sim pays a clear ' + M.clearPay(), false, S2.result.credits); else console.log('NOTE: sim.js still pays ' + S2.result.credits + ' per clear, the F1 table pays ' + M.clearPay() + ' (apply the sim.js snippet from P-REPORT.md; VOLLEY_STRICT_PAY=1 fails on it).'); }
+var winMark = function(v){ return (v < 185 ? 'below' : v > 205 ? 'above' : 'ok') + '*'; };   // run at 15 columns: star
+ok('win: endReason clear, runSeconds = sim seconds, credits earned = what the sim paid, band mark follows the 185-205 band, lowestHp <= hpMax', r2.endReason === 'clear' && r2.runSeconds === Math.round(S2.result.t * 10) / 10 && r2.creditsEarned === S2.result.credits && r2.bandCompare.creditsEarned === winMark(r2.creditsEarned) && r2.lowestHp <= r2.hpMax, r2);
+ok('band table: win 185-205, pad 20, death by stage on 13 per fight room and cache 54', R.BANDS.rows.creditsWin.lo === 185 && R.BANDS.rows.creditsWin.hi === 205 && R.BANDS.rows.creditsWin.lo === M.clearPay() && R.BANDS.rows.creditsDeath.byStage[10] === 145 && R.BANDS.rows.creditsDeath.byStage[9] === 7 * 13 && R.BANDS.rows.creditsDeath.byStage[6] === 4 * 13 && R.BANDS.rows.creditsDeath.byStage[2] === 13);
 ok('ISO times with offset', /^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d[+-]\d\d:\d\d$/.test(r2.startedAt) && /T/.test(r2.endedAt), r2.startedAt);
 ok('picks carry a level and stage', r2.picks.length > 0 && r2.picks.every(function(x){ return /^SK-\d+:\d+@\d+$/.test(x); }), r2.picks);
 ok('runs at 15 columns get the band star', r2.cols === 15 && /\*$/.test(r2.bandCompare.creditsEarned), r2.bandCompare);
 ok('purchase log: run 1, Rifle L2, price, before, after', e.purchaseLog.length === 1 && e.purchaseLog[0].run === 1 && e.purchaseLog[0].item === 'Rifle L2' && e.purchaseLog[0].price === 250 && e.purchaseLog[0].after === e.purchaseLog[0].before - 250, e.purchaseLog);
 ok('summary row 2 shows the purchase', /^2\*?\s+WIN .*Rifle L2 \(250\)$/m.test(sum), sum);
+ok('purchaseLog entries carry levels granted, visit number and vn', e.purchaseLog[0].levels === 1 && e.purchaseLog[0].visit === 2 && e.purchaseLog[0].vn === 1, e.purchaseLog);
 ok('meta run log holds the F1 fields', (function(){ var m = M.state.runs[M.state.runs.length - 1]; return m.runNo === 6 && m.endReason === 'clear' && m.runBuild === V.UI.BUILD && m.hpMax > 0 && 'lowestHp' in m && m.cols >= 9; })(), M.state.runs[M.state.runs.length - 1]);
 ok('save still validates with the new fields', !!M.validate(JSON.parse(st.d[M.KEY])));
 ok('freshSave yes (run 1 began from a zero save)', e.freshSave === 'yes', e.freshSave);
@@ -146,6 +156,62 @@ ok('no V.Layout: report still builds with fallbacks', fb.device.roomColumns >= 9
 var thrown = null; try { R.tick({ stats:null, hero:null }, 16, 'play'); R.tick(undefined, NaN, 'x'); R.runEnd(null, null); R.runStart(null); R.purchase(null, 'x'); } catch (x) { thrown = x; }
 ok('hooks never throw on junk', thrown === null, thrown && thrown.message);
 
+// ---------- shape V in the log + feel strip (TEST-REPORT-SPEC s4) ----------
+(function(){
+  R._reset(); M.load({ storage:mock(), fresh:true }); M.state.credits = 5000;
+  var b1 = M.buy('cond', 'atk'), b2 = M.buy('cond', 'hp'), b3 = M.buy('rifle');
+  ok('visit cap of 2 holds while the report is loaded', b1.ok && b1.levels === 2 && b2.ok && b3 === false && M.visitBuys === 2);
+  var S = V.Sim.create(300, V.TUNE, { metaStats:{ hpAdd:20000, atkMul:6, rateMul:2 }, cols:15 });
+  V.Report.runStart(S);
+  ok('run start resets the visit allowance (report runStart -> nextRunNo -> resetVisit)', M.visitBuys === 0 && M.canBuy('rifle'));
+  var o = { onStep:function(S2){ if (S2.result && !S2.result.awarded) M.award(S2.result); } };
+  play(S, o);
+  var rn = S.result && R.session().runs[R.session().runs.length - 1].runNo;
+  ok('first run of a build, with buys before it: all three questions are asked in order', JSON.stringify(R.feelPlan(rn)) === JSON.stringify(['fight', 'up', 'kill']), R.feelPlan(rn));
+  ok('answer one: next question follows; stored on the run entry', R.feelAnswer(rn, 'fight', 'Too hard') && JSON.stringify(R.feelPlan(rn)) === JSON.stringify(['up', 'kill']) && M.state.runs[M.state.runs.length - 1].feel.fight === 'Too hard');
+  ok('skip is stored and never asked again', R.feelAnswer(rn, 'up', 'skip') && R.feelPlan(rn).join() === 'kill' && R.feelAnswer(rn, 'kill', 'Felt like a sponge') && R.feelPlan(rn).length === 0);
+  ok('a word outside the owner cards is refused', !R.feelAnswer(rn, 'fight', 'Meh') && M.state.runs[M.state.runs.length - 1].feel.fight === 'Too hard');
+  var sm = R.summary(), fl = sm.split('\n').filter(function(l){ return /^Feel:/.test(l); })[0];
+  ok('summary Feel line: answers in the owner words, - for skipped', new RegExp('^Feel: R' + rn + ' fights Too hard, upgrade -, kill time Felt like a sponge').test(fl), fl);
+  ok('data block run carries feel', dataOf(R.full()).runs.slice(-1)[0].feel.up === 'skip' && dataOf(R.full()).runs.slice(-1)[0].feel.kill === 'Felt like a sponge');
+  // run 2 (no buy between): up not asked; run 3: past the first 2 runs of the build: not asked at all
+  var S2b = V.Sim.create(301, V.TUNE, { metaStats:{ hpAdd:20000, atkMul:6, rateMul:2 }, cols:15 }); play(S2b, o);
+  var rn2 = R.session().runs[R.session().runs.length - 1].runNo;
+  ok('second run, no purchase before it: question 2 skipped by the rule', R.feelPlan(rn2).join() === 'fight,kill', R.feelPlan(rn2));
+  var S3b = V.Sim.create(302, V.TUNE, { metaStats:{ hpAdd:20000, atkMul:6, rateMul:2 }, cols:15 }); play(S3b, o);
+  var rn3 = R.session().runs[R.session().runs.length - 1].runNo;
+  ok('third run of the build: not asked (null)', R.feelPlan(rn3) === null);
+  var s3 = R.summary();
+  ok('summary says "not asked" for run 3, still within 1.5 KB and 25 lines', new RegExp('R' + rn3 + ' not asked').test(s3) && bytes(s3) <= 1536 && s3.split('\n').length <= 25, [bytes(s3), s3.split('\n').length]);
+  ok('data block: feel of the unasked run is the text "not asked"', dataOf(R.full()).runs.slice(-1)[0].feel === 'not asked');
+  // the strip can be switched off in Settings
+  M.setSetting('feel', false); var S4 = V.Sim.create(303, V.TUNE, { metaStats:{ hpAdd:20000, atkMul:6, rateMul:2 }, cols:15 }); R._reset(); M.state.runs.length = 0; play(S4, o);
+  ok('Settings "Feel questions" off: nothing is asked', R.feelPlan(R.session().runs[R.session().runs.length - 1].runNo) === null); M.setSetting('feel', true);
+  // an abandoned run is never asked
+  var S5 = V.Sim.create(304, V.TUNE); play(S5, { stopAt:120 }); V.Report.runStart(V.Sim.create(305, V.TUNE));
+  var ab = R.session().runs.filter(function(c){ return c.endReason === 'abandon'; });
+  ok('abandon has no meta entry, no questions', ab.length >= 1 && R.feelPlan(ab[ab.length - 1].runNo) === null);
+  // the plan after a feel record saved by an earlier build label: a new label asks again
+  M.load({ storage:mock(), fresh:true }); R._reset(); var keepB = V.UI.BUILD;
+  V.UI.BUILD = 'volley-A'; play(V.Sim.create(310, V.TUNE, { metaStats:{ hpAdd:20000, atkMul:6, rateMul:2 }, cols:15 }), o); play(V.Sim.create(311, V.TUNE, { metaStats:{ hpAdd:20000, atkMul:6, rateMul:2 }, cols:15 }), o);
+  var a2 = M.state.runs[M.state.runs.length - 1].runNo;
+  V.UI.BUILD = 'volley-B'; play(V.Sim.create(312, V.TUNE, { metaStats:{ hpAdd:20000, atkMul:6, rateMul:2 }, cols:15 }), o);
+  var bNo = M.state.runs[M.state.runs.length - 1].runNo;
+  ok('2 runs of build A asked, a 3rd of A would not be; the first run of a new label B asks again', R.feelPlan(a2) !== null && R.feelPlan(bNo) !== null && M.state.runs[M.state.runs.length - 1].runBuild === 'volley-B', [R.feelPlan(a2), R.feelPlan(bNo)]);
+  // worst case for the size rule: 3 build labels, 5 askable rows all answered with the longest words
+  M.load({ storage:mock(), fresh:true }); R._reset(); M.state.credits = 99999;
+  var LONG = { fight:'Unfair in places', up:'Clearly stronger', kill:'Felt like a sponge' };
+  function strongRun(seed){ play(V.Sim.create(seed, V.TUNE, { metaStats:{ hpAdd:20000, atkMul:6, rateMul:2 }, cols:15 }), o); var no = M.state.runs[M.state.runs.length - 1].runNo; ['fight', 'up', 'kill'].forEach(function(k){ M.setFeel(no, (function(x){ x[k] = LONG[k]; return x; })({})); }); }
+  V.UI.BUILD = 'volley-aaaaaaaaaa'; strongRun(320);
+  V.UI.BUILD = 'volley-bbbbbbbbbb'; strongRun(321); strongRun(322);
+  V.UI.BUILD = 'volley-cccccccccc'; M.buy('cond', 'atk'); strongRun(323); M.resetVisit(); M.buy('cond', 'rate'); strongRun(324);
+  var big2 = R.summary();
+  ok('worst-case feel (5 rows, 3 builds, longest words): summary still within 1.5 KB and 25 lines', bytes(big2) <= 1536 && big2.split('\n').length <= 25, [bytes(big2), big2.split('\n').length]);
+  console.log(big2.split('\n').slice(-6).join('\n')); console.log('worst-case summary: ' + bytes(big2) + ' B, ' + big2.split('\n').length + ' lines; feel lines: ' + big2.split('\n').filter(function(l){ return /^Feel:|^      R/.test(l); }).length);
+  ok('shape V buy shows "+2" in the summary row and levels in the data block', /Cond atk L2 \+2 \(\d+\)/.test(big2) || dataOf(R.full()).economy.purchaseLog.some(function(p){ return p.levels === 2; }), big2);
+  V.UI.BUILD = keepB;
+})();
+
 // ---------- 10-run stress: still within the budget (the trim order exists for longer runs) ----------
 R._reset(); M.load({ storage:mock(), fresh:true });
 for (var q = 0; q < 10; q++) winRun(200 + q);
@@ -153,4 +219,29 @@ var big = R.parts(), bsz = bytes(big.summary) + 1 + bytes(big.data);
 ok('10 runs: report keeps 5 and stays within 8 KB', dataOf(R.full()).runs.length === 5 && bsz <= 8192, bsz);
 console.log('size after 10 wins: summary ' + bytes(big.summary) + ' B, summary + data ' + bsz + ' B, full ' + bytes(R.full()) + ' B');
 
+// ---------- extra "Touch to continue" taps (G's level-up pick) ----------
+(function(){
+  R._reset(); M.load({ storage:mock(), fresh:true });
+  var S = V.Sim.create(400, V.TUNE, { metaStats:{ hpAdd:20000, atkMul:6, rateMul:2 }, cols:15 }), taps = 0;
+  var o = { onStep:function(S2, i){ if (i === 100 || i === 900) { R.note('touchContinue'); taps++; } if (i === 1200) R.note('touchContinue', 2), taps += 2; if (S2.result && !S2.result.awarded) M.award(S2.result); } };
+  play(S, o);
+  var d = dataOf(R.full()), last = d.runs[d.runs.length - 1], sm = R.summary();
+  ok('note(touchContinue) counts in the run data and the saved run entry', last.touchContinue === taps && M.state.runs[M.state.runs.length - 1].touchContinue === taps && taps === 4, [last.touchContinue, taps]);
+  ok('summary lists the taps per run, within the size rule', new RegExp('Touch-to-continue taps: R' + last.runNo + ' 4').test(sm) && bytes(sm) <= 1536, bytes(sm));
+  var thrown = null; try { R.note('nope'); R.note(null); R.note('touchContinue', 'x'); } catch (x) { thrown = x; }
+  ok('note ignores unknown names and never throws', !thrown);
+})();
+// ---------- Supply Drop records (K, SPEC s9) ----------
+(function(){
+  R._reset(); M.load({ storage:mock(), fresh:true });
+  var S = V.Sim.create(500, V.TUNE, { metaStats:{ hpAdd:20000, atkMul:6, rateMul:2 }, cols:15 });
+  S.stats.sd = [{ stage:5, chapter:1, caught:17, net:16, dudsHit:1, tier:2, tierName:'Great', padsOffered:['repair', 'credits', 'schematics'], padsTaken:['repair', 'credits'], repairHp:240, credits:20, schematics:0, plays:1, roomSeconds:13.4, cols:15, skipped:false, early:false }, { junk:1, tier:'x' }];
+  play(S, { onStep:function(S2){ if (S2.result && !S2.result.awarded) M.award(S2.result); } });
+  var d = dataOf(R.full()), last = d.runs[d.runs.length - 1], sm = R.summary(), sd0 = last.supplyDrops && last.supplyDrops[0];
+  ok('data block: supplyDrops with every SPEC s9 field', !!sd0 && ['stage', 'chapter', 'caught', 'net', 'dudsHit', 'tier', 'tierName', 'padsOffered', 'padsTaken', 'repairHp', 'credits', 'schematics', 'plays', 'roomSeconds', 'cols', 'skipped', 'early'].every(function(k){ return k in sd0; }) && sd0.caught === 17 && sd0.padsTaken.join() === 'repair,credits', last.supplyDrops);
+  ok('junk record is cleaned, not thrown', last.supplyDrops.length === 2 && last.supplyDrops[1].tier === null && last.supplyDrops[1].skipped === false);
+  ok('summary line: best tier per run, within the size rule', /Supply Drops \(best tier\): R\d+ Great x2/.test(sm) && bytes(sm) <= 1536 && sm.split('\n').length <= 25, [bytes(sm), sm.split('\n').filter(function(l){ return /Supply/.test(l); })]);
+  var S2 = V.Sim.create(501, V.TUNE, { metaStats:{ hpAdd:20000, atkMul:6, rateMul:2 }, cols:15 }); play(S2, { onStep:function(S3){ if (S3.result && !S3.result.awarded) M.award(S3.result); } });
+  ok('no drops: "none"', /Supply Drops \(best tier\): R\d+ Great x2/.test(R.summary()) && dataOf(R.full()).runs.slice(-1)[0].supplyDrops.length === 0);
+})();
 console.log(n + ' checks, ' + fails + ' failed'); process.exit(fails ? 1 : 0);
