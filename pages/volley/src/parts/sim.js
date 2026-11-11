@@ -218,13 +218,18 @@ function findChar(grid, ch){
   return null;
 }
 
-function spawnEnemy(S, type, x, y){
+// R64 elite machine: only E-02..E-05 (an elite flag on E-01, bosses or anything else is ignored). HP x1.5, XP x2; damage, speed, tells, cooldowns unchanged.
+// Credit drop chance x2 is carried as e.creditMul (the sim has no per-kill Credit drop yet; see ELITE-REPORT). Look: scene.js drawElite. No rng is drawn.
+var ELITE_TYPES = { 'E-02':1, 'E-03':1, 'E-04':1, 'E-05':1 }, ELITE_HP = 1.5, ELITE_XP = 2, ELITE_CREDIT = 2;
+function spawnEnemy(S, type, x, y, elite){
   var A = V.AI[type];
   if (!A) { ev(S, { k:'error', x:x, y:y, msg:'no AI for ' + type }); return null; }
-  var b = A.base, hp = Math.max(1, Math.round(b.hp * hpScale(S) * (S.stress ? STRESS_HP : 1)));
+  elite = elite === true && ELITE_TYPES[type] === 1;
+  var b = A.base, hp = Math.max(1, Math.round(b.hp * hpScale(S) * (S.stress ? STRESS_HP : 1) * (elite ? ELITE_HP : 1)));
   var e = { id: ++S._nextId, type:type, x:x, y:y, r:b.r, hp:hp, maxHp:hp, ang:Math.PI / 2, st:'spawn',
     tell01:0, aimAng:Math.PI / 2, flashT:0, size:b.size,
     spawnT:S.tune.SPAWN_T, stT:0, cd:0, contactCd:0, vx:0, vy:0, strafe:1, afterSpawn:'move' };
+  if (elite) { e.elite = true; e.creditMul = ELITE_CREDIT; }
   if (A.init) A.init(S, e, api);
   S.enemies.push(e);
   if (S.stats.seen) S.stats.seen[type] = true;
@@ -265,7 +270,7 @@ function loadStage(S, idx){
   h.lockId = null; h.lockClear = false; h.lostT = 0; h.retargetT = 0; h.burstQ = []; h.delayQ = [];
   S.roomT = 0; S.clearT = 0; S.hazardCd = 0;
   var spl = V.Widen && S.cols !== 9 ? V.Widen.spawns(def.spawns || [], S.cols, R) : (def.spawns || []); // template coords -> C columns
-  S.spawnQ = spl.map(function(s, i){ return { type:s.type, x:s.x, y:s.y, t:s.t || 0, wave:(s.wave > 1) ? (s.wave | 0) : 1, i:i }; });
+  S.spawnQ = spl.map(function(s, i){ return { type:s.type, x:s.x, y:s.y, t:s.t || 0, wave:(s.wave > 1) ? (s.wave | 0) : 1, elite:s.elite === true, i:i }; });
   S.spawnQ.sort(function(a, b){ return (a.wave - b.wave) || (a.t - b.t) || (a.i - b.i); });   // wave 1 first, as built (stable for equal t)
   S.waveOpenT = {};
   ev(S, { k:'room', x:h.x, y:h.y, roomId:S.roomId, stage:S.stage, kind:S.stageKind, lap:S.lap });
@@ -303,7 +308,7 @@ function releaseSpawns(S){
       if (aliveOfWave(S, function(x){ return x === w; }) >= WAVE_CAP) return;
     }
     q.shift();
-    var n0 = S.enemies.length; spawnEnemy(S, s.type, s.x, s.y);
+    var n0 = S.enemies.length; spawnEnemy(S, s.type, s.x, s.y, s.elite);
     if (S.enemies.length > n0) S.enemies[S.enemies.length - 1].wave = w;
   }
 }
@@ -615,8 +620,9 @@ function killEnemy(S, e){
   S.stats.kills++;
   S.stats.killLog.push({ type:e.type, stage:S.stage, t:+(S.roomT).toFixed(3) });
   var others = 0; for (var oi = 0; oi < S.enemies.length; oi++) if (S.enemies[oi] !== e && S.enemies[oi].hp > 0) others++;
-  ev(S, { k:'kill', x:e.x, y:e.y, id:e.id, type:e.type, boss:!!e.boss, size:b.size || 'small', last:others === 0 && !(S.spawnQ && S.spawnQ.length) });
-  if (b.xp) S.pickups.push({ x:e.x, y:e.y, kind:'xp', v:b.xp, life:1e9 });
+  ev(S, { k:'kill', x:e.x, y:e.y, id:e.id, type:e.type, boss:!!e.boss, elite:!!e.elite, size:b.size || 'small', last:others === 0 && !(S.spawnQ && S.spawnQ.length) });
+  if (b.xp) S.pickups.push({ x:e.x, y:e.y, kind:'xp', v:b.xp * (e.elite ? ELITE_XP : 1), life:1e9 });
+  if (e.elite) S.stats.eliteKills = (S.stats.eliteKills || 0) + 1;
   if (!e.boss) {
     var p = Math.min(REPAIR_CAP, REPAIR_BASE + S.pity);
     if (S.rng.next() < p) { var rp = dropSpot(S, e.x + 0.2, e.y); S.pickups.push({ x:rp.x, y:rp.y, kind:'repair', v:0, life:REPAIR_LIFE }); S.pity = 0; }

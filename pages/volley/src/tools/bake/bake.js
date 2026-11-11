@@ -33,8 +33,10 @@ var POOL = ['E-01', 'E-02', 'E-03', 'E-04', 'E-05'];                           /
 var CAP = { 'E-02': 4, 'E-03': 2, 'E-04': 2, 'E-05': 2 };                      // CURVE type caps (E-03 cap 2 is mine, no sniper in the pool)
 var ORDER = ['E-03', 'E-04', 'E-02', 'E-01', 'E-05'];                          // anchors first, chargers last
 // CURVE section 3, Ch1 rows 11-50: role, n (band n-1..n+1), ME target (x10), hazard level BAKED, elite slots, curveHaz = hazard level CURVE asks for.
-// Hazard policy (GEN-SPEC 3.2: spikes only in spike templates, one spike template so far, T05; C9 forbids a spike room after a spike room and more than 10 uses):
-// only the Spk beat rooms (18, 28, 38, 48) are baked with spikes; the Bld/Prs rooms CURVE marks H1/H2 are baked H0 and the meta records curveHaz.
+// Hazard policy (GEN-SPEC 3.2: spikes only in spike templates T05, T10 (Spk only) and T11 (Bld/Prs); C9 forbids a spike room after a spike room and more than 10 uses):
+// R63: the Spk beat rooms (18, 28, 38, 48) are baked with spikes, plus the Bld/Prs rooms in HAZ_BP. CURVE marks H1/H2 in 12 Bld/Prs rooms (22-24, 27, 32-34, 37, 42-44, 47) but
+// C9 allows no spike room after a spike room, and 27, 37, 47 sit right before a Spk room (28, 38, 48), so the first and third room of each 22-24, 32-34, 42-44 run take spikes
+// and 23, 33, 43, 27, 37, 47 stay H0. The meta records curveHaz and bakedHaz.
 var PLAN = {
   11: { kind: 'combat', role: 'Rec', n: 5, me10: 50, haz: 0, intro: 'E-06 (not in code: baked with E-01 to E-05)' },
   12: { kind: 'combat', role: 'Bld', n: 5, me10: 50, haz: 0 },
@@ -54,6 +56,8 @@ var PLAN = {
   var role = ['Rec', 'Bld', 'Bld', 'Prs', '', 'Rec', 'Bld', 'Spk'][(r[0] - 1) % 10];
   PLAN[r[0]] = { kind: 'combat', role: role, n: r[1], me10: r[2], haz: role === 'Spk' ? 1 : 0, curveHaz: r[3], elites: r[4], intro: r[5] };
 });
+var HAZ_BP = { 22: 1, 24: 1, 32: 1, 42: 1, 44: 1 };
+Object.keys(HAZ_BP).forEach(function (s) { PLAN[s].haz = 1; });
 [25, 35, 45].forEach(function (s) { PLAN[s] = { kind: 'supply' }; });
 [29, 39, 49].forEach(function (s) { PLAN[s] = { kind: 'cache' }; });
 PLAN[30] = { kind: 'boss', arena: 'BA3' }; PLAN[40] = { kind: 'boss', arena: 'BA4' }; PLAN[50] = { kind: 'boss', arena: 'BA5' };

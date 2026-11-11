@@ -102,7 +102,9 @@ ch.forEach(function(s){
   else ok(id + ' non-boss row spawns no boss', s.spawns.every(function(p){ return !(E[p.type] && E[p.type].boss); }));
   s.spawns.forEach(function(p, i){
     var at = id + ' spawn ' + i;
-    ok(at + ' fields', keys(p) === 't,type,x,y' || keys(p) === 't,type,wave,x,y', keys(p));   // wave is optional (GEN-SPEC 3.3)
+    var pk = Object.keys(p).filter(function(k){ return k !== 'elite'; }).sort().join();
+    ok(at + ' fields', pk === 't,type,x,y' || pk === 't,type,wave,x,y', keys(p));   // wave is optional (GEN-SPEC 3.3); elite is optional (R64)
+    if ('elite' in p) ok(at + ' elite is a boolean, only on E-02..E-05', typeof p.elite === 'boolean' && (!p.elite || /^E-0[2-5]$/.test(p.type)), [p.type, p.elite]);
     ok(at + ' known type', p.type in E, p.type);
     ok(at + ' t 0-30 s', isNum(p.t) && p.t >= 0 && p.t <= 30, p.t);
     ok(at + ' on floor', g && isNum(p.x) && isNum(p.y) && tile(g, p.x, p.y) !== null && tile(g, p.x, p.y) !== '#', p);
@@ -289,12 +291,14 @@ ok('9-column standing-still hash at 600 steps (seed 5) is the F1 value', V.Sim.h
   } finally { V.STAGES.ch1 = real; }
 })();
 
-// ---- the real 20-stage chapter end to end (no chlen): rows 11-20 from data-stages-gen.js ----
+// ---- the real chapter end to end (no chlen), any length N from data-stages-gen.js ----
 (function(){
   var saved = V.SimOpts.chlen; V.SimOpts.chlen = 0;
   var L = V.Sim.stageList();
-  ok('real ch1 list has 20 rows (data-stages-gen.js loaded)', L.length === 20, L.length);
+  var N = L.length;
+  ok('real ch1 list has at least 20 rows (data-stages-gen.js loaded), a multiple of 10', N >= 20 && N % 10 === 0, N);
   ok('real stage 20 is B-01 in the new arena (room c1s20v0, "Boss Arena II" = BA2 layout)', L[19].kind === 'boss' && L[19].spawns.length === 1 && L[19].spawns[0].type === 'B-01' && V.ROOMS[L[19].room].name === 'Boss Arena II' && L[19].room !== 'BA1', [L[19].room]);
+  ok('every 10th stage is a boss room with one B-01; last stage is the chapter boss', L.every(function(d, i){ return (i + 1) % 10 !== 0 || (d.kind === 'boss' && d.spawns.length === 1 && d.spawns[0].type === 'B-01'); }) && L[N - 1].kind === 'boss', N);
   ok('real stages 14 and 18 carry wave-2 spawns', [14, 18].every(function(n){ return L[n - 1].spawns.some(function(p){ return p.wave === 2; }); }));
   var S = V.Sim.create(11, V.TUNE, { cols:9 }), seq = [], lk = '', spawned = {}, startId = 0, f, wavesSeen = {};
   for (f = 0; f < 60 * 60 * 60 && S.phase !== 'results'; f++) {
@@ -311,11 +315,11 @@ ok('9-column standing-still hash at 600 steps (seed 5) is the F1 value', V.Sim.h
     V.Sim.step(S, inp);
     var k = S.stage + '.' + S.lap; if (k !== lk) { seq.push(k); lk = k; }
   }
-  var want = []; for (var w = 1; w <= 20; w++) want.push(w + '.1');
-  ok('real 20 stages: 1..20 in order, stage 11 follows 10, no lap', seq.join() === want.join(), seq.join());
-  ok('real 20 stages: win after stage 20, lap 1', S.phase === 'results' && S.result.win === true && S.result.stage === 20 && S.result.lap === 1, S.result && [S.result.win, S.result.stage, S.result.lap]);
-  ok('real 20 stages: stage 20 was B-01 (S.boss seen)', S.stageDef && S.stageDef.spawns[0].type === 'B-01' && S.roomId === L[19].room, S.roomId);
-  ok('real 20 stages: wave-2 machines spawned in stages 14 and 18, and every spawn of every stage was released', wavesSeen[14] && wavesSeen[18] && L.every(function(def){ return def.kind === 'supply' || def.kind === 'boss' || spawned[def.stage] === def.spawns.length; }), [wavesSeen, L.map(function(d){ return spawned[d.stage] + '/' + d.spawns.length; }).join(' ')]);
+  var want = []; for (var w = 1; w <= N; w++) want.push(w + '.1');
+  ok('real chapter: 1..N in order, stage 11 follows 10, no lap', seq.join() === want.join(), seq.join());
+  ok('real chapter: win after stage N, lap 1', S.phase === 'results' && S.result.win === true && S.result.stage === N && S.result.lap === 1, S.result && [S.result.win, S.result.stage, S.result.lap]);
+  ok('real chapter: stage N was B-01 (S.boss seen)', S.stageDef && S.stageDef.spawns[0].type === 'B-01' && S.roomId === L[N - 1].room, S.roomId);
+  ok('real chapter: wave-2 machines spawned in stages 14 and 18, and every spawn of every stage was released', wavesSeen[14] && wavesSeen[18] && L.every(function(def){ return def.kind === 'supply' || def.kind === 'boss' || spawned[def.stage] === def.spawns.length; }), [wavesSeen, L.map(function(d){ return spawned[d.stage] + '/' + d.spawns.length; }).join(' ')]);
   V.SimOpts.chlen = saved;
 })();
 

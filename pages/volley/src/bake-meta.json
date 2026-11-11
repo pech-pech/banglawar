@@ -1,7 +1,7 @@
 {
  "genVersion": 1,
  "chapter": 1,
- "hash": "8a98f9dff8aa4451f363258c7ce4998313d8615b3232b07bb099ed0a09ad672b",
+ "hash": "56eddd835e1bc9fae4505b4fe114fc3296b4abb74e3fefc1b5d88c1cf099165e",
  "rooms": [
   {
    "chapter": 1,
@@ -411,7 +411,7 @@
    "chapter": 1,
    "stage": 22,
    "genVersion": 1,
-   "templateId": "T07",
+   "templateId": "T11",
    "room": "c1s22v0",
    "shift": 0,
    "swap": 2,
@@ -427,91 +427,46 @@
     "9": {
      "run": 9,
      "cover": 6.7,
-     "haz": 0
+     "haz": 2.2
     },
     "11": {
      "run": 11,
-     "cover": 7.3,
-     "haz": 0
+     "cover": 5.5,
+     "haz": 1.8
     },
     "13": {
      "run": 13,
      "cover": 7.7,
-     "haz": 0
+     "haz": 1.5
     },
     "15": {
      "run": 15,
-     "cover": 8,
-     "haz": 0
+     "cover": 6.7,
+     "haz": 1.3
     }
    },
    "meTarget": 7.5,
    "curveHaz": 1,
-   "bakedHaz": 0,
+   "bakedHaz": 1,
    "elites": 1,
-   "hash": "433753217e5aa95d6368740fbd7cb72e4bb67f26c8c295d65e4b8f37965b7c06"
+   "hash": "9b68a076f83d060be6958f1b5fdf7507d83d7559edc9b6028b89e657b44b4846"
   },
   {
    "chapter": 1,
    "stage": 23,
    "genVersion": 1,
-   "templateId": "T09",
+   "templateId": "T07",
    "room": "c1s23v0",
    "shift": 0,
-   "swap": 2,
-   "salt": 1,
-   "machines": {
-    "E-01": 2,
-    "E-02": 4,
-    "E-05": 2
-   },
-   "ME": 8,
-   "role": "Bld",
-   "widths": {
-    "9": {
-     "run": 9,
-     "cover": 10,
-     "haz": 0
-    },
-    "11": {
-     "run": 11,
-     "cover": 8.2,
-     "haz": 0
-    },
-    "13": {
-     "run": 13,
-     "cover": 10,
-     "haz": 0
-    },
-    "15": {
-     "run": 15,
-     "cover": 8.7,
-     "haz": 0
-    }
-   },
-   "meTarget": 8,
-   "curveHaz": 1,
-   "bakedHaz": 0,
-   "elites": 0,
-   "hash": "8036d988c71a17e616ff911803464f2c3fd666d54e45245ea13f72517fee1990"
-  },
-  {
-   "chapter": 1,
-   "stage": 24,
-   "genVersion": 1,
-   "templateId": "T07",
-   "room": "c1s24v0",
-   "shift": 0,
-   "swap": 0,
+   "swap": 1,
    "salt": 0,
    "machines": {
-    "E-01": 2,
-    "E-02": 4,
-    "E-03": 2,
-    "E-05": 1
+    "E-01": 3,
+    "E-02": 3,
+    "E-05": 2
    },
-   "ME": 8.7,
-   "role": "Prs",
+   "ME": 7.7,
+   "role": "Bld",
    "widths": {
     "9": {
      "run": 9,
@@ -534,11 +489,56 @@
      "haz": 0
     }
    },
-   "meTarget": 9,
+   "meTarget": 8,
    "curveHaz": 1,
    "bakedHaz": 0,
    "elites": 0,
-   "hash": "9f29acfa5559aa1e2a3481b8ab24969e9682b2be1a27cdc94cdc62071a2e5078"
+   "hash": "2348f41e3b5cda04897bd266e3ef0c54104ed7420bb76c1f0c8409a605650139"
+  },
+  {
+   "chapter": 1,
+   "stage": 24,
+   "genVersion": 1,
+   "templateId": "T05",
+   "room": "c1s24v0",
+   "shift": 0,
+   "swap": 0,
+   "salt": 2,
+   "machines": {
+    "E-01": 3,
+    "E-02": 3,
+    "E-04": 2,
+    "E-05": 1
+   },
+   "ME": 9,
+   "role": "Prs",
+   "widths": {
+    "9": {
+     "run": 9,
+     "cover": 4.4,
+     "haz": 6.7
+    },
+    "11": {
+     "run": 11,
+     "cover": 3.6,
+     "haz": 7.3
+    },
+    "13": {
+     "run": 13,
+     "cover": 3.1,
+     "haz": 7.7
+    },
+    "15": {
+     "run": 15,
+     "cover": 2.7,
+     "haz": 8
+    }
+   },
+   "meTarget": 9,
+   "curveHaz": 1,
+   "bakedHaz": 1,
+   "elites": 0,
+   "hash": "25dadea519ed7b8a28bc33a6465ddd1a6de4f01716923d1e00d2e800c3746389"
   },
   {
    "chapter": 1,
@@ -557,9 +557,9 @@
    "chapter": 1,
    "stage": 26,
    "genVersion": 1,
-   "templateId": "T03",
+   "templateId": "T08",
    "room": "c1s26v0",
-   "shift": 0,
+   "shift": 1,
    "swap": 2,
    "salt": 0,
    "machines": {
@@ -572,22 +572,22 @@
    "widths": {
     "9": {
      "run": 9,
-     "cover": 10,
+     "cover": 6.7,
      "haz": 0
     },
     "11": {
      "run": 11,
-     "cover": 8.2,
+     "cover": 5.5,
      "haz": 0
     },
     "13": {
      "run": 13,
-     "cover": 10,
+     "cover": 7.7,
      "haz": 0
     },
     "15": {
      "run": 15,
-     "cover": 8.7,
+     "cover": 6.7,
      "haz": 0
     }
    },
@@ -595,7 +595,7 @@
    "curveHaz": 0,
    "bakedHaz": 0,
    "elites": 0,
-   "hash": "3b6c6b088191d51c7a983ced9a7d3facc2d9f6dd45413161330fe9c53da6d348"
+   "hash": "70525e96b97fb431c27bdd967b40fa89e97bf98711f7126f9d93cf61240387e0"
   },
   {
    "chapter": 1,
@@ -721,17 +721,18 @@
    "chapter": 1,
    "stage": 31,
    "genVersion": 1,
-   "templateId": "T08",
+   "templateId": "T06",
    "room": "c1s31v0",
    "shift": 0,
    "swap": 0,
    "salt": 0,
    "machines": {
-    "E-01": 2,
+    "E-01": 1,
     "E-02": 3,
+    "E-04": 1,
     "E-05": 1
    },
-   "ME": 5.7,
+   "ME": 6.3,
    "role": "Rec",
    "widths": {
     "9": {
@@ -759,21 +760,20 @@
    "curveHaz": 0,
    "bakedHaz": 0,
    "elites": 0,
-   "hash": "1fce422940c22237ec49f4054817c44cec42dbbc7ff06fd15dbc81b5b62ed948"
+   "hash": "e12ecf426e1e754b982792785931455bfafc0fac7c9e592709c81118f10106d7"
   },
   {
    "chapter": 1,
    "stage": 32,
    "genVersion": 1,
-   "templateId": "T06",
+   "templateId": "T11",
    "room": "c1s32v0",
    "shift": 0,
    "swap": 1,
    "salt": 0,
    "machines": {
     "E-01": 3,
-    "E-02": 1,
-    "E-03": 2,
+    "E-02": 3,
     "E-04": 2,
     "E-05": 1
    },
@@ -782,30 +782,30 @@
    "widths": {
     "9": {
      "run": 9,
-     "cover": 8.9,
-     "haz": 0
+     "cover": 6.7,
+     "haz": 2.2
     },
     "11": {
      "run": 11,
-     "cover": 7.3,
-     "haz": 0
+     "cover": 5.5,
+     "haz": 1.8
     },
     "13": {
      "run": 13,
-     "cover": 9.2,
-     "haz": 0
+     "cover": 7.7,
+     "haz": 1.5
     },
     "15": {
      "run": 15,
-     "cover": 8,
-     "haz": 0
+     "cover": 6.7,
+     "haz": 1.3
     }
    },
    "meTarget": 9,
    "curveHaz": 1,
-   "bakedHaz": 0,
+   "bakedHaz": 1,
    "elites": 0,
-   "hash": "16c2cb0be4eaaabaa5913ef9e840de78cb4bdead8f6196cb783e7983a8bf47a8"
+   "hash": "cd0b8e0c53179326aa575859bc18a934eaf3b8db2d1531a0134b83eb6c573050"
   },
   {
    "chapter": 1,
@@ -916,64 +916,18 @@
    "chapter": 1,
    "stage": 36,
    "genVersion": 1,
-   "templateId": "T08",
+   "templateId": "T09",
    "room": "c1s36v0",
-   "shift": 1,
+   "shift": 0,
    "swap": 1,
    "salt": 0,
    "machines": {
-    "E-01": 1,
+    "E-01": 2,
     "E-02": 4,
-    "E-04": 1,
-    "E-05": 1
+    "E-04": 1
    },
-   "ME": 7.3,
+   "ME": 6.7,
    "role": "Rec",
-   "widths": {
-    "9": {
-     "run": 9,
-     "cover": 6.7,
-     "haz": 0
-    },
-    "11": {
-     "run": 11,
-     "cover": 5.5,
-     "haz": 0
-    },
-    "13": {
-     "run": 13,
-     "cover": 7.7,
-     "haz": 0
-    },
-    "15": {
-     "run": 15,
-     "cover": 6.7,
-     "haz": 0
-    }
-   },
-   "meTarget": 7,
-   "curveHaz": 0,
-   "bakedHaz": 0,
-   "elites": 0,
-   "hash": "6a3ddf856604e029e0a0f2e08577d592d294c88bd51b01b225b9c9960819b95e"
-  },
-  {
-   "chapter": 1,
-   "stage": 37,
-   "genVersion": 1,
-   "templateId": "T09",
-   "room": "c1s37v0",
-   "shift": 0,
-   "swap": 0,
-   "salt": 1,
-   "machines": {
-    "E-01": 1,
-    "E-02": 3,
-    "E-03": 2,
-    "E-05": 2
-   },
-   "ME": 8.95,
-   "role": "Bld",
    "widths": {
     "9": {
      "run": 9,
@@ -996,11 +950,56 @@
      "haz": 0
     }
    },
+   "meTarget": 7,
+   "curveHaz": 0,
+   "bakedHaz": 0,
+   "elites": 0,
+   "hash": "1d59387f58cb0655791c94a26ea803ea69d05f5adf93ccdd912c742fe476d563"
+  },
+  {
+   "chapter": 1,
+   "stage": 37,
+   "genVersion": 1,
+   "templateId": "T07",
+   "room": "c1s37v0",
+   "shift": 0,
+   "swap": 2,
+   "salt": 2,
+   "machines": {
+    "E-01": 2,
+    "E-03": 2,
+    "E-04": 2,
+    "E-05": 2
+   },
+   "ME": 9.25,
+   "role": "Bld",
+   "widths": {
+    "9": {
+     "run": 9,
+     "cover": 6.7,
+     "haz": 0
+    },
+    "11": {
+     "run": 11,
+     "cover": 7.3,
+     "haz": 0
+    },
+    "13": {
+     "run": 13,
+     "cover": 7.7,
+     "haz": 0
+    },
+    "15": {
+     "run": 15,
+     "cover": 8,
+     "haz": 0
+    }
+   },
    "meTarget": 8.5,
    "curveHaz": 1,
    "bakedHaz": 0,
    "elites": 1,
-   "hash": "dfa1d0c7bf6c7716cb20be01c58475b5946f6515e9d710513a3ca8abb18c3ac2"
+   "hash": "412b17713d0486ea649b9e1ccc2e38152afcb5874dd543da6b5749a116077e7e"
   },
   {
    "chapter": 1,
@@ -1082,37 +1081,39 @@
    "chapter": 1,
    "stage": 41,
    "genVersion": 1,
-   "templateId": "T04",
+   "templateId": "T09",
    "room": "c1s41v0",
-   "shift": 1,
-   "swap": 0,
-   "salt": 4,
+   "shift": 0,
+   "swap": 1,
+   "salt": 0,
    "machines": {
-    "E-01": 2,
-    "E-02": 4,
+    "E-01": 1,
+    "E-02": 2,
+    "E-03": 2,
+    "E-04": 1,
     "E-05": 1
    },
-   "ME": 6.7,
+   "ME": 7.3,
    "role": "Rec",
    "widths": {
     "9": {
      "run": 9,
-     "cover": 11.1,
+     "cover": 10,
      "haz": 0
     },
     "11": {
      "run": 11,
-     "cover": 9.1,
+     "cover": 8.2,
      "haz": 0
     },
     "13": {
      "run": 13,
-     "cover": 10.8,
+     "cover": 10,
      "haz": 0
     },
     "15": {
      "run": 15,
-     "cover": 9.3,
+     "cover": 8.7,
      "haz": 0
     }
    },
@@ -1120,53 +1121,52 @@
    "curveHaz": 0,
    "bakedHaz": 0,
    "elites": 0,
-   "hash": "cad678bd97e4681028a874192b6fca3ea855c5ee89bf348bf63b9f2dc077fd9b"
+   "hash": "5e0690851935bff99261d8f7a46638bafe414883df64927f4c59863e8cd57a66"
   },
   {
    "chapter": 1,
    "stage": 42,
    "genVersion": 1,
-   "templateId": "T07",
+   "templateId": "T11",
    "room": "c1s42v0",
    "shift": 0,
-   "swap": 1,
-   "salt": 0,
+   "swap": 2,
+   "salt": 10,
    "machines": {
-    "E-01": 3,
-    "E-02": 1,
-    "E-03": 2,
+    "E-01": 1,
+    "E-02": 4,
     "E-04": 2,
     "E-05": 2
    },
-   "ME": 10.3,
+   "ME": 9.9,
    "role": "Bld",
    "widths": {
     "9": {
      "run": 9,
      "cover": 6.7,
-     "haz": 0
+     "haz": 2.2
     },
     "11": {
      "run": 11,
-     "cover": 7.3,
-     "haz": 0
+     "cover": 5.5,
+     "haz": 1.8
     },
     "13": {
      "run": 13,
      "cover": 7.7,
-     "haz": 0
+     "haz": 1.5
     },
     "15": {
      "run": 15,
-     "cover": 8,
-     "haz": 0
+     "cover": 6.7,
+     "haz": 1.3
     }
    },
    "meTarget": 10,
    "curveHaz": 1,
-   "bakedHaz": 0,
+   "bakedHaz": 1,
    "elites": 0,
-   "hash": "5a3e8b5700cc83021ccf27202c237aae98f0dac9b2c251b7d5744906c450aa95"
+   "hash": "bfcfda8555b969a608e71514dfa0eaf65ffc7d972e40e270e7b3327b71b780ea"
   },
   {
    "chapter": 1,
@@ -1218,19 +1218,124 @@
    "chapter": 1,
    "stage": 44,
    "genVersion": 1,
-   "templateId": "T07",
+   "templateId": "T05",
    "room": "c1s44v0",
    "shift": 0,
-   "swap": 2,
-   "salt": 0,
+   "swap": 0,
+   "salt": 13,
    "machines": {
-    "E-01": 5,
+    "E-01": 1,
+    "E-02": 3,
     "E-03": 2,
     "E-04": 2,
     "E-05": 2
    },
-   "ME": 10.7,
+   "ME": 10.9,
    "role": "Prs",
+   "widths": {
+    "9": {
+     "run": 9,
+     "cover": 4.4,
+     "haz": 6.7
+    },
+    "11": {
+     "run": 11,
+     "cover": 3.6,
+     "haz": 7.3
+    },
+    "13": {
+     "run": 13,
+     "cover": 3.1,
+     "haz": 7.7
+    },
+    "15": {
+     "run": 15,
+     "cover": 2.7,
+     "haz": 8
+    }
+   },
+   "meTarget": 11,
+   "curveHaz": 2,
+   "bakedHaz": 1,
+   "elites": 0,
+   "hash": "f53805874d0659e019ee0d7dcbdd232640508222d4aa6354af9607e345cb36ae"
+  },
+  {
+   "chapter": 1,
+   "stage": 45,
+   "genVersion": 1,
+   "templateId": "SD",
+   "room": "SD",
+   "shift": 0,
+   "swap": 0,
+   "salt": 0,
+   "machines": {},
+   "ME": 0,
+   "hash": "f5db6aadb2fccdd4c9d49cee5f7a6fd1b94d553a2adc590f97d87de805f614d4"
+  },
+  {
+   "chapter": 1,
+   "stage": 46,
+   "genVersion": 1,
+   "templateId": "T08",
+   "room": "c1s46v0",
+   "shift": 1,
+   "swap": 1,
+   "salt": 0,
+   "machines": {
+    "E-01": 2,
+    "E-02": 4,
+    "E-04": 1,
+    "E-05": 1
+   },
+   "ME": 8,
+   "role": "Rec",
+   "widths": {
+    "9": {
+     "run": 9,
+     "cover": 6.7,
+     "haz": 0
+    },
+    "11": {
+     "run": 11,
+     "cover": 5.5,
+     "haz": 0
+    },
+    "13": {
+     "run": 13,
+     "cover": 7.7,
+     "haz": 0
+    },
+    "15": {
+     "run": 15,
+     "cover": 6.7,
+     "haz": 0
+    }
+   },
+   "meTarget": 8,
+   "curveHaz": 0,
+   "bakedHaz": 0,
+   "elites": 0,
+   "hash": "48bd60ccdca64768f9d84daf1c6e66bd817699278ec9206e5dea1d4cc6dbb4c6"
+  },
+  {
+   "chapter": 1,
+   "stage": 47,
+   "genVersion": 1,
+   "templateId": "T07",
+   "room": "c1s47v0",
+   "shift": 0,
+   "swap": 1,
+   "salt": 0,
+   "machines": {
+    "E-01": 3,
+    "E-02": 3,
+    "E-03": 1,
+    "E-04": 1,
+    "E-05": 2
+   },
+   "ME": 10,
+   "role": "Bld",
    "widths": {
     "9": {
      "run": 9,
@@ -1253,115 +1358,11 @@
      "haz": 0
     }
    },
-   "meTarget": 11,
-   "curveHaz": 2,
-   "bakedHaz": 0,
-   "elites": 0,
-   "hash": "eb3a4d047127c2d492c6b81e6465a4c542fa5885043b42147666bce4781a6b89"
-  },
-  {
-   "chapter": 1,
-   "stage": 45,
-   "genVersion": 1,
-   "templateId": "SD",
-   "room": "SD",
-   "shift": 0,
-   "swap": 0,
-   "salt": 0,
-   "machines": {},
-   "ME": 0,
-   "hash": "f5db6aadb2fccdd4c9d49cee5f7a6fd1b94d553a2adc590f97d87de805f614d4"
-  },
-  {
-   "chapter": 1,
-   "stage": 46,
-   "genVersion": 1,
-   "templateId": "T08",
-   "room": "c1s46v0",
-   "shift": 0,
-   "swap": 2,
-   "salt": 1,
-   "machines": {
-    "E-01": 2,
-    "E-02": 4,
-    "E-03": 1,
-    "E-04": 1
-   },
-   "ME": 7.7,
-   "role": "Rec",
-   "widths": {
-    "9": {
-     "run": 9,
-     "cover": 8.9,
-     "haz": 0
-    },
-    "11": {
-     "run": 11,
-     "cover": 7.3,
-     "haz": 0
-    },
-    "13": {
-     "run": 13,
-     "cover": 9.2,
-     "haz": 0
-    },
-    "15": {
-     "run": 15,
-     "cover": 8,
-     "haz": 0
-    }
-   },
-   "meTarget": 8,
-   "curveHaz": 0,
-   "bakedHaz": 0,
-   "elites": 0,
-   "hash": "56cd66f9cfbef2164eb0a6cf540be6b004b4d31713cfa06469fc0ab1f2884ef6"
-  },
-  {
-   "chapter": 1,
-   "stage": 47,
-   "genVersion": 1,
-   "templateId": "T06",
-   "room": "c1s47v0",
-   "shift": 0,
-   "swap": 1,
-   "salt": 0,
-   "machines": {
-    "E-01": 3,
-    "E-02": 3,
-    "E-03": 1,
-    "E-04": 1,
-    "E-05": 2
-   },
-   "ME": 10,
-   "role": "Bld",
-   "widths": {
-    "9": {
-     "run": 9,
-     "cover": 8.9,
-     "haz": 0
-    },
-    "11": {
-     "run": 11,
-     "cover": 7.3,
-     "haz": 0
-    },
-    "13": {
-     "run": 13,
-     "cover": 9.2,
-     "haz": 0
-    },
-    "15": {
-     "run": 15,
-     "cover": 8,
-     "haz": 0
-    }
-   },
    "meTarget": 10,
    "curveHaz": 1,
    "bakedHaz": 0,
    "elites": 0,
-   "hash": "f8c2f7ef33c6bf38e016cb9e6c0a9a170f9f3300056a84148e5df89840bea447"
+   "hash": "15fa9d8fbe660f8c72cb4561497a4c40aad546af1f0fc59e1969e0814d0f513b"
   },
   {
    "chapter": 1,

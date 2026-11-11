@@ -102,9 +102,9 @@ function spawnDecal(x, y, r, kind) {
   while (D.length >= T.decal) D.shift();
   D.push({ x: x, y: y, r: r, t: 0, life: kind === 'boss' ? 14 : 7, kind: kind, a: P.rnd() * TAU });
 }
-function spawnGhost(a, boss) {
+function spawnGhost(a, boss, elite) {
   if (!a) return;
-  P.list.push({ k: 3, x: a.x, y: a.y, t: 0, life: boss ? 1.5 : (a.size === 'large' ? 0.7 : 0.5), type: a.type, r: a.r, ang: a.ang || 0, size: a.size, boss: boss, spin: (P.rnd() - 0.5) * 2.4, pops: boss ? [0.08, 0.22, 0.36, 0.5, 0.64, 0.8].slice() : null });
+  P.list.push({ k: 3, x: a.x, y: a.y, t: 0, life: boss ? 1.5 : (a.size === 'large' ? 0.7 : 0.5), type: a.type, r: a.r, ang: a.ang || 0, size: a.size, boss: boss, elite: !!elite, spin: (P.rnd() - 0.5) * 2.4, pops: boss ? [0.08, 0.22, 0.36, 0.5, 0.64, 0.8].slice() : null });
 }
 function shake(px, key, nobypass) {
   if (reduced) return;
@@ -132,8 +132,8 @@ function eatEvents(ev, S) {
       case 'crit': spawnBurst(x, y, 9, 6, 0.3, PAL.sparkHot, 0.08, 4, 'B'); spawnRing(x, y, 0.1, 0.6, 0.2, PAL.amber); spawnGlint(x, y, PAL.sparkHot, 0.3, 0.3); break;
       case 'kill': {
         var ka = AN.m.get(e.id), big = e.size === 'large' || e.boss, med = e.size === 'medium';
-        if (ka) spawnGhost(ka, !!e.boss);
-        else spawnGhost({ x: x, y: y, type: e.type, r: big ? 0.9 : med ? 0.42 : 0.35, ang: 0, size: e.size }, !!e.boss);
+        if (ka) spawnGhost(ka, !!e.boss, e.elite);
+        else spawnGhost({ x: x, y: y, type: e.type, r: big ? 0.9 : med ? 0.42 : 0.35, ang: 0, size: e.size }, !!e.boss, e.elite);
         spawnBurst(x, y, e.boss ? 18 : 12, 6, 0.4, PAL.spark, 0.08, 4, 'B'); spawnBurst(x, y, 6, 3, 0.6, PAL.debris, 0.1, 3, 'C');
         spawnRing(x, y, 0.2, med ? 1.2 : 1.0, 0.3, PAL.sparkHot);
         spawnSmoke(x, y, big ? 5 : med ? 3 : 2);
@@ -364,6 +364,8 @@ var RIMR = { 'E-01': 0.5, 'E-02': 0.62, 'E-03': 0.8, 'E-04': 0.66, 'E-05': 0.62,
 function drawEnemy(S, e, s, t) {
   var an = e.dead == null ? AN.m.get(e.id) : null, isBoss = e.boss || e.type === 'B-01';
   var x = X(e.x), y = Y(e.y), rr = (e.r || 0.4) * s, flash = e.flashT > 0, tell = e.st === 'tell', n0 = out.length;
+  var elite = e.elite === true && !isBoss && /^E-0[2-5]$/.test(e.type);   // R64: +10% size, white-steel rim, one extra fin/antenna, two sensor lights; no stripes, gold or glow
+  if (elite) rr *= 1.1;
   OL = isBoss ? 2.4 : (e.type === 'E-01' ? 1.3 : 1.6);
   if (an) {
     // pose: idle hover (flyer) or servo hum, lean into the move, kick back on the shot, jitter away from the hit. Machines never squash.
@@ -438,6 +440,7 @@ function drawEnemy(S, e, s, t) {
     circ(x, y, rr * 0.3, gl3 > 0 ? mix(eye, PAL.sparkHot, gl3) : eye);
     circ(x, y, rr * 0.12, flash ? PAL.white : PAL.sensorCore);
   }
+  if (elite && dk < 0.3) drawEliteTrim(e, x, y, rr, a, flash, eye);
   // lit look: pale catch-light on the sun side of the hull (upper left), sensor gl3, muzzle flash on the shot
   if (T.rim && dk < 0.3) ring(x, y, rr * (RIMR[e.type] || 0.7), 1.3, PAL.rim, Math.PI * 1.04, Math.PI * 1.46);
   if (dk < 0.3 && e.st !== 'spawn') glow(x, y, rr * (tell ? 0.7 : 0.5), PAL.sensor, tell ? 0.26 : 0.14, 2);
@@ -455,7 +458,7 @@ function drawGhosts(S, s, t) {
   var L = P.list;
   for (var i = 0; i < L.length; i++) {
     var p = L[i]; if (p.k !== 3) continue;
-    var u = p.t / p.life, g = { id: -1, type: p.type, x: p.x, y: p.y, r: p.r * (1 - 0.12 * u), ang: p.ang + p.spin * u, st: 'dead', dead: Math.max(0.001, reduced ? Math.min(1, u * 1.4) : u), boss: p.boss, size: p.size, flashT: 0, hp: 0, maxHp: 0, tell01: 0 };
+    var u = p.t / p.life, g = { id: -1, type: p.type, x: p.x, y: p.y, r: p.r * (1 - 0.12 * u), ang: p.ang + p.spin * u, st: 'dead', dead: Math.max(0.001, reduced ? Math.min(1, u * 1.4) : u), boss: p.boss, elite: p.elite, size: p.size, flashT: 0, hp: 0, maxHp: 0, tell01: 0 };
     drawEnemy(S, g, s, t);
   }
 }
@@ -766,6 +769,20 @@ function drawStatus(e, x, y, rr, t) {
   if (e.poisonT > 0 || e.poison) { for (k = 0; k < 2; k++) { var v = (t * 1.3 + k / 2) % 1; circ(x + (k ? 1 : -1) * rr * 0.55, y + rr * 0.2 - v * rr * 0.8, 2.5, withA(PAL.poison, 1 - v * 0.7)); } }
 }
 
+// R64 elite trim, drawn over the normal body: white-steel rim (1.2 px), one extra fin or antenna, two small sensor lights. No stripes, gold, red outline or glow.
+var STEEL = mix(PAL.white, PAL.metalLite, 0.25);
+var ELITE_RIMR = { 'E-02': 0.86, 'E-03': 0.92, 'E-04': 0.9, 'E-05': 0.9 };
+function drawEliteTrim(e, x, y, rr, a, flash, eye) {
+  var st = flash ? PAL.white : STEEL, ca = Math.cos(a), sa = Math.sin(a), nx = -sa, ny = ca;
+  ring(x, y, rr * ELITE_RIMR[e.type], 1.2, st);
+  // extra fin (E-02, E-04) or antenna (E-03, E-05), on the back side of the facing, thin 2 px steel with a small tip
+  var bx = x - ca * rr * 0.8, by = y - sa * rr * 0.8;
+  if (e.type === 'E-02' || e.type === 'E-04') { line(bx, by, bx - ca * rr * 0.55 + nx * rr * 0.1, by - sa * rr * 0.55 + ny * rr * 0.1, 2.4, st); }
+  else { var tx = x + nx * rr * 0.55 - ca * rr * 0.55, ty = y + ny * rr * 0.55 - sa * rr * 0.55; line(x + nx * rr * 0.35, y + ny * rr * 0.35, tx, ty, 1.6, st); circ(tx, ty, rr * 0.08, st); }
+  // two sensor lights, either side of the centre sensor
+  circ(x + nx * rr * 0.42 + ca * rr * 0.1, y + ny * rr * 0.42 + sa * rr * 0.1, rr * 0.07, eye);
+  circ(x - nx * rr * 0.42 + ca * rr * 0.1, y - ny * rr * 0.42 + sa * rr * 0.1, rr * 0.07, eye);
+}
 function drawE04(e, x, y, rr, t, C2) {
   var a = e.ang || 0, walk = e.st === 'move' ? Math.sin(t * 9 + e.id) : 0;
   for (var k = 0; k < 4; k++) {
