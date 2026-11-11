@@ -80,12 +80,19 @@ async function fallbackSuite() {
   d = D(); feed(d, 16.7, 100); const h1 = d.feed(300); const h2 = feed(d, 16.7, 600); out.hitch300ms = (h1 || h2) ? 'DROPPED (bad)' : 'stays';
   d = D(); const pre = feed(d, 16.7, 18000); const at = feed(d, 60, 2000); out.slow60AtMin5 = pre ? 'DROPPED early (bad)' : at ? `drops after ${at} slow frames (${(at * 0.06).toFixed(1)} s)` : 'NOT dropped (bad)';
   d = D(); feed(d, 16.7, 300); const s30 = feed(d, 33.33, 3000); out.switchTo30Hz = s30 ? 'DROPPED (bad)' : 'stays';
+  // pick 15 effect scaler: steady 60 stays at 0; sustained 30 fps walks down one step per cooldown to 5; up only at a stage load, one step, only with headroom
+  const E = V.Render.EffectScaler; let sc = E(); for (let i = 0; i < 3000; i++) sc.feed(16.7); out.scalerSteady60 = sc.step === 0 ? 'stays' : 'MOVED (bad)';
+  sc = E(); for (let i = 0; i < 700; i++) sc.feed(40); out.scalerDown = sc.step === 5 && sc.log.length === 5 ? 'down to 5 in 5 moves' : 'WRONG (bad) step ' + sc.step;
+  sc = E(); for (let i = 0; i < 50; i++) sc.feed(40); const s1 = sc.step; for (let i = 0; i < 300; i++) sc.feed(16.7); out.scalerNoMidFightUp = sc.step === s1 ? 'holds mid-fight' : 'MOVED UP mid-fight (bad)';
+  const before = sc.step; sc.load('t1'); out.scalerUpAtLoad = sc.step === before - 1 ? 'one step up at stage load' : 'WRONG (bad) ' + before + '->' + sc.step;
+  sc = E(); for (let i = 0; i < 100; i++) sc.feed(40); const s2 = sc.step; for (let i = 0; i < 100; i++) sc.feed(30); sc.load('t2'); out.scalerHoldWhenSlow = sc.step >= s2 ? 'holds when still slow' : 'MOVED UP while slow (bad)';
+  out.scalerLog = typeof window.__pv === 'undefined' ? 'n/a (harness)' : 'ok';
   // L-LOL-8 live: fake non-destroyed loss -> Canvas 2D on the same call, then ONE re-init back to WebGPU
   const changes = []; R.onChange((n, why) => changes.push(n + ':' + why));
   R.test.fakeLoss('unknown');
   out.afterFakeLoss = R.name;
   out.c2dVisible = getComputedStyle(document.getElementById('c2d')).display !== 'none';
-  for (let i = 0; i < 40 && R.name !== 'WebGPU'; i++) await wait(100);
+  for (let i = 0; i < 150 && R.name !== 'WebGPU'; i++) await wait(100); // re-init can take several seconds in this sandbox (the old 4 s wait failed on the unmodified file)
   out.afterReinit = R.name;
   // dev.destroy() -> 'destroyed' loss: stays on Canvas 2D, no second re-init
   R.test.destroyDevice();
@@ -161,6 +168,7 @@ async function compare(a, b) {
         const f = r.fallback;
         lines.push(`[${t}/fallback] L-LOL-7 detector: steady30=${f.steady30} jitter60=${f.jitter60} hitch300ms=${f.hitch300ms} switchTo30Hz=${f.switchTo30Hz} slow60AtMin5=${f.slow60AtMin5}`);
         lines.push(`[${t}/fallback] L-LOL-8: fakeLoss -> ${f.afterFakeLoss} (2D canvas visible ${f.c2dVisible}) -> reinit ${f.afterReinit}; dev.destroy() -> ${f.afterDestroy}, later ${f.afterDestroyLater}; changes ${f.changes.join(', ')}`);
+        lines.push(`[${t}/scaler] steady60=${f.scalerSteady60} sustained-slow=${f.scalerDown} mid-fight=${f.scalerNoMidFightUp} stage-load=${f.scalerUpAtLoad} still-slow=${f.scalerHoldWhenSlow}`);
         if (/bad/.test(JSON.stringify(f)) || f.afterFakeLoss !== 'Canvas 2D' || !f.c2dVisible || f.afterReinit !== 'WebGPU' || f.afterDestroyLater !== 'Canvas 2D') fail = true;
       }
       r.errors.forEach(e => lines.push(`[${t}/${r.label}] ERROR ${e}`));

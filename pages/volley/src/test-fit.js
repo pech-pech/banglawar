@@ -201,7 +201,7 @@ async function size(browser, W, H, dpr) {
   const cards = await page.evaluate(() => [...document.querySelectorAll('#cardList .card')].map(c => { const r = c.getBoundingClientRect(); return { w: Math.round(r.width), h: Math.round(r.height) }; }));
   ok(cards.length === 3 && cards.every(c => c.w <= 560 && c.w >= Math.min(560, W - 16) - 1 && c.h >= 96), `${tag} level-up: 3 stacked rows, full width less 16 (at most 560), 96 high`, JSON.stringify(cards));
   await page.evaluate(() => window.__pv.pick(0)); await sleep(100);
-  await page.evaluate(() => { const S = window.__pv.S; S.phase = 'results'; S.result = { win: false, stage: 3, t: 200, kills: 30, level: 4, dmgTaken: 900, credits: 120 }; window.__pv.step(1); }); await sleep(300);
+  await page.evaluate(() => { const S = window.__pv.S; S.phase = 'results'; S.result = { win: false, stage: 3, t: 200, kills: 30, level: 4, dmgTaken: 900, credits: 120 }; window.__pv.step(1); }); await sleep(1300);   // 0.9 s death beat (QA-LOOK L4) before the card shows
   await shot('results');
   await screenChecks(page, tag, 'results', W, H);
   const res = await page.evaluate(() => { const r = document.getElementById('resStats').getBoundingClientRect(), b = document.getElementById('btnRestart').getBoundingClientRect(); return { w: Math.round(r.width), bh: Math.round(b.height), bb: Math.round(b.bottom) }; });

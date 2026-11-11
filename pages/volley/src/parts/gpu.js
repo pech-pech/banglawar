@@ -1,11 +1,13 @@
 (function(){ var G = (typeof window !== 'undefined' ? window : globalThis); var V = G.V = G.V || {};
 // WebGPU backend: one instanced quad pipeline, SDF per primitive type, premultiplied alpha, AA edges.
-// Instance = 16 floats: cx,cy,hx,hy | qrot,type,p0,p1 | p2,p3,0,0 | r,g,b,a  (CSS px; quad local frame rotated by qrot)
+// Instance = 16 floats: cx,cy,hx,hy | qrot,type,p0,p1 | p2,p3,p4,p5 | r,g,b,a  (CSS px; quad local frame rotated by qrot)
+// type 0 circle, 1 ring, 2 rect, 3 ngon, 4 linear gradient rect (colour -> c2 along local +y), 5 radial gradient disc (colour at centre -> c2 at r).
+// Add 8 to the type for additive light (premultiplied output with alpha 0). Gradients carry c2 in p2..p5.
 
 var WGSL = [
   'struct U { W: f32, H: f32, dpr: f32, pad: f32 };',
   '@group(0) @binding(0) var<uniform> u: U;',
-  'struct VO { @builtin(position) pos: vec4<f32>, @location(0) l: vec2<f32>, @location(1) @interpolate(flat) tp: vec4<f32>, @location(2) @interpolate(flat) p2: vec2<f32>, @location(3) @interpolate(flat) col: vec4<f32> };',
+  'struct VO { @builtin(position) pos: vec4<f32>, @location(0) l: vec2<f32>, @location(1) @interpolate(flat) tp: vec4<f32>, @location(2) @interpolate(flat) p2: vec4<f32>, @location(3) @interpolate(flat) col: vec4<f32> };',
   '@vertex fn vs(@builtin(vertex_index) vi: u32, @location(0) a: vec4<f32>, @location(1) b: vec4<f32>, @location(2) d: vec4<f32>, @location(3) c: vec4<f32>) -> VO {',
   '  var k = array<vec2<f32>, 6>(vec2<f32>(-1.0,-1.0), vec2<f32>(1.0,-1.0), vec2<f32>(-1.0,1.0), vec2<f32>(-1.0,1.0), vec2<f32>(1.0,-1.0), vec2<f32>(1.0,1.0));',
   '  let pad = 1.0 + 1.0 / u.dpr;',
@@ -14,13 +16,14 @@ var WGSL = [
   '  let w = a.xy + vec2<f32>(l.x * cs - l.y * sn, l.x * sn + l.y * cs);',
   '  var o: VO;',
   '  o.pos = vec4<f32>(w.x / u.W * 2.0 - 1.0, 1.0 - w.y / u.H * 2.0, 0.0, 1.0);',
-  '  o.l = l; o.tp = b; o.p2 = d.xy; o.col = c;',
+  '  o.l = l; o.tp = b; o.p2 = d; o.col = c;',
   '  return o;',
   '}',
   'const PI: f32 = 3.14159265;',
   '@fragment fn fs(i: VO) -> @location(0) vec4<f32> {',
-  '  let l = i.l; let t = i.tp.y; let p0 = i.tp.z; let p1 = i.tp.w;',
+  '  let l = i.l; let ad = i.tp.y > 7.5; let t = select(i.tp.y, i.tp.y - 8.0, ad); let p0 = i.tp.z; let p1 = i.tp.w;',
   '  var d: f32 = 0.0;',
+  '  var col = i.col;',
   '  if (t < 0.5) {',
   '    d = length(l) - p0;',
   '  } else if (t < 1.5) {',
@@ -36,7 +39,7 @@ var WGSL = [
   '  } else if (t < 2.5) {',
   '    let q = abs(l) - vec2<f32>(p0, p1);',
   '    d = length(max(q, vec2<f32>(0.0))) + min(max(q.x, q.y), 0.0);',
-  '  } else {',
+  '  } else if (t < 3.5) {',
   '    let an = PI / max(p1, 3.0);',
   '    let ang = atan2(l.y, l.x);',
   '    let bn = ang - 2.0 * an * floor(ang / (2.0 * an)) - an;',
@@ -44,11 +47,18 @@ var WGSL = [
   '    q = q - p0 * vec2<f32>(cos(an), sin(an));',
   '    q.y = q.y + clamp(-q.y, 0.0, p0 * sin(an));',
   '    d = length(q) * select(-1.0, 1.0, q.x > 0.0);',
+  '  } else if (t < 4.5) {',
+  '    let q = abs(l) - vec2<f32>(p0, p1);',
+  '    d = length(max(q, vec2<f32>(0.0))) + min(max(q.x, q.y), 0.0);',
+  '    col = mix(i.col, i.p2, clamp((l.y + p1) / max(2.0 * p1, 0.0001), 0.0, 1.0));',
+  '  } else {',
+  '    d = length(l) - p0;',
+  '    col = mix(i.col, i.p2, clamp(length(l) / max(p0, 0.0001), 0.0, 1.0));',
   '  }',
   '  let cov = clamp(0.5 - d * u.dpr, 0.0, 1.0);',
-  '  let al = i.col.a * cov;',
+  '  let al = col.a * cov;',
   '  if (al <= 0.0) { discard; }',
-  '  return vec4<f32>(i.col.rgb * al, al);',
+  '  return vec4<f32>(col.rgb * al, select(al, 0.0, ad));',
   '}'
 ].join('\n');
 
@@ -73,12 +83,16 @@ function pack(list, arr) {
         var dx = p.x2 - p.x1, dy = p.y2 - p.y1, L = Math.sqrt(dx * dx + dy * dy);
         cx = (p.x1 + p.x2) * 0.5; cy = (p.y1 + p.y2) * 0.5; hx = L * 0.5; hy = p.lw * 0.5; qr = Math.atan2(dy, dx); ty = 2; a = hx; b = hy; break;
       case 'ngon': cx = p.x; cy = p.y; hx = hy = p.r; qr = p.rot || 0; ty = 3; a = p.r; b = p.n; break;
+      case 'grad': cx = p.x; cy = p.y; hx = p.w * 0.5; hy = p.h * 0.5; qr = p.rot || 0; ty = 4; a = hx; b = hy; break;
+      case 'rgrad': cx = p.x; cy = p.y; hx = hy = Math.max(0, p.r); ty = 5; a = hx; break;
       default: continue;
     }
     if ((o + FL) > arr.length) return -1; // caller grows
     arr[o] = cx; arr[o + 1] = cy; arr[o + 2] = hx; arr[o + 3] = hy;
     arr[o + 4] = qr; arr[o + 5] = ty; arr[o + 6] = a; arr[o + 7] = b;
-    arr[o + 8] = e; arr[o + 9] = 0; arr[o + 10] = 0; arr[o + 11] = 0;
+    if (ty >= 4) { var c2 = p.c2 || c; arr[o + 8] = c2[0]; arr[o + 9] = c2[1]; arr[o + 10] = c2[2]; arr[o + 11] = c2[3] == null ? 1 : c2[3]; }
+    else { arr[o + 8] = e; arr[o + 9] = 0; arr[o + 10] = 0; arr[o + 11] = 0; }
+    if (p.add) arr[o + 5] = ty + 8;
     arr[o + 12] = c[0]; arr[o + 13] = c[1]; arr[o + 14] = c[2]; arr[o + 15] = c[3] == null ? 1 : c[3];
     n++;
   }
@@ -150,6 +164,15 @@ V.GPU = {
         encode(enc, o.offscreen ? S.off.createView() : S.gctx.getCurrentTexture().createView());
         S.dev.queue.submit([enc.finish()]);
         return true;
+      },
+      // test hook: resolves when the last submitted frame has finished on the device (a 1-pixel copy and map; offscreen mode only)
+      fence: function () {
+        if (S.dead || !S.off) return Promise.resolve(false);
+        if (!S.fbuf) S.fbuf = S.dev.createBuffer({ size: 256, usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ });
+        var enc = S.dev.createCommandEncoder();
+        enc.copyTextureToBuffer({ texture: S.off }, { buffer: S.fbuf, bytesPerRow: 256 }, [1, 1]);
+        S.dev.queue.submit([enc.finish()]);
+        return S.fbuf.mapAsync(GPUMapMode.READ).then(function () { S.fbuf.unmap(); return true; });
       },
       onLost: function (fn) { S.lostFns.push(fn); },
       destroy: release,
