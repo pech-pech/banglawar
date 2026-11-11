@@ -411,7 +411,9 @@ async function promptsGroup(browser, file, size) {
     await calm(g);
     for (let i = 0; i < 30; i++) { if ((await g.page.evaluate(() => V.Prompts.current)) === 'P-1') break; await sleep(150); }
     const line = () => g.page.evaluate(() => { const e = document.getElementById('pvPrompt'); if (!e) return null; const r = e.getBoundingClientRect(), cs = getComputedStyle(e), hud = document.getElementById('hud'); return { txt: e.textContent, on: e.classList.contains('on') && window.__vis(e), fs: parseFloat(cs.fontSize), l: r.left, r: r.right, t: r.top, b: r.bottom, pe: cs.pointerEvents, hudB: hud ? hud.getBoundingClientRect().bottom : 0, cur: V.Prompts.current }; });
-    const a = await line(); await shot(g, 'prompts', 'p1');
+    // the line turns on in the next drawn frame after current is set, so give a slow frame up to 1.5 s
+    let a = await line(); for (let i = 0; i < 10 && a && !a.on; i++) { await sleep(150); a = await line(); }
+    await shot(g, 'prompts', 'p1');
     ok(!!a && a.on && /drag/i.test(a.txt) && a.cur === 'P-1', names[0], a ? `"${a.txt}" on=${a.on} current ${a.cur}` : 'no #pvPrompt');
     ok(!!a && a.fs >= 12 && a.l >= -1 && a.r <= g.w + 1 && a.t >= a.hudB - 1 && a.pe === 'none', names[1], a ? `${a.fs}px; x ${Math.round(a.l)}..${Math.round(a.r)} of ${g.w}; top ${Math.round(a.t)} vs HUD bottom ${Math.round(a.hudB)}; pointer-events ${a.pe}` : 'none');
     const v = await g.page.evaluate(() => window.__gameCanvas());

@@ -15,6 +15,8 @@ fs.mkdirSync(SHOTS, { recursive: true });
 const GPU_ARGS = ['--enable-unsafe-webgpu', '--use-webgpu-adapter=swiftshader', '--enable-features=Vulkan'];
 const SEED = 777;
 const sleep = ms => new Promise(r => setTimeout(r, ms));
+// QA-LOOK L4: a death holds the results card for a 0.9 s beat, so wait for the card itself before timing the 1.0 s guard
+const waitResults = page => page.waitForFunction(() => { const e = document.getElementById('ovDead'); return !!e && window.__vis(e); }, null, { timeout: 4000 }).catch(() => {});
 const argv = process.argv.slice(2);
 const ONLY = (argv.find(a => a.startsWith('--only=')) || '').slice(7);
 
@@ -755,7 +757,7 @@ async function runFlow(page, sess, w, h, opt) {
   await page.evaluate(() => window.__resetTune());
   ok(r.result && r.result.win === !lose, lose ? 'death -> results screen (lose)' : 'boss kill -> results screen (win)', `S.result ${JSON.stringify(r.result)}`);
   // PV-18: the 1.0 s guard. A tap on New run inside the guard does nothing (results screen stays); there is no tap-anywhere restart.
-  await sleep(200);
+  await waitResults(page); await sleep(200);
   const gb = await findBtn(page, /new run/);
   if (gb.length) { await page.touchscreen.tap(gb[0].cx, gb[0].cy); await sleep(150); }
   const ga = await page.evaluate(() => window.__snap());
@@ -855,7 +857,7 @@ async function homeSession(browser, target, sess) {
   for (let k = 0; k < 120; k++) { await page.evaluate(() => window.__pv.step(30, { mx: 0, my: 0 })); rs = await snap(); if (rs.phase === 'results') break; }
   ok(rs && rs.phase === 'results', 'run ends on the results screen', `phase ${rs && rs.phase} stage ${rs && rs.stage}`);
   if (rs && rs.phase === 'results') {
-    await sleep(1250);   // 1.0 s results tap guard
+    await waitResults(page); await sleep(1250);   // 1.0 s results tap guard
     await snapshot(page, 'home-results');
     const hTap = await tapEl(page, '#btnHome'); await sleep(500);
     ok(hTap && await homeOn() && (await page.evaluate(() => V.Home.current)) === 'deploy', 'results: Home button returns to Home (Deploy tab)', `tapped=${hTap}; home visible=${await homeOn()}; tab ${await page.evaluate(() => V.Home.current)}`);

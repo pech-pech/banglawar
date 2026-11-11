@@ -3,26 +3,28 @@
 
 function C(r, g, b, a) { return [r / 255, g / 255, b / 255, a == null ? 1 : a]; }
 var PAL = {
-  ground: C(214, 190, 146), groundDot: C(186, 160, 116), groundDot2: C(228, 208, 168),
-  floor: C(226, 209, 172), seam: C(196, 176, 138, 0.55),
+  ground: C(214, 191, 142), groundDot: C(186, 160, 116), groundDot2: C(236, 220, 178),   // --pv-sand-lo / hi
+  floor: C(236, 220, 178), seam: C(196, 176, 138, 0.55),
   shadow: C(92, 64, 30, 0.30),
-  ink: C(34, 30, 26), inkSoft: C(34, 30, 26, 0.85),
+  ink: C(15, 18, 21), inkSoft: C(20, 24, 28, 0.85),   // --pv-ink / -ink-soft
   wall: C(196, 188, 170), wallTop: C(218, 211, 194), wallSeam: C(150, 142, 126),
   pillar: C(184, 176, 158), pillarTop: C(206, 199, 182),
   crate: C(92, 104, 62), crateLid: C(112, 126, 76), crateBand: C(64, 72, 44),
   doorShut: C(70, 74, 80), doorOpen: C(40, 36, 30), doorLightShut: C(255, 60, 50), doorLightOpen: C(90, 240, 140), chevron: C(223, 230, 236),
   metal: C(62, 66, 74), metalLite: C(92, 98, 108), metalDark: C(36, 39, 45),
-  sensor: C(255, 48, 48), sensorCore: C(255, 200, 190),
-  heroBody: C(118, 126, 84), heroDark: C(70, 76, 50), cyan: C(64, 228, 255), cyanSoft: C(64, 228, 255, 0.35),
+  sensor: C(255, 42, 31), sensorCore: C(255, 208, 192),   // --pv-sensor / -sensor-core
+  heroBody: C(124, 140, 82), heroDark: C(61, 74, 40), cyan: C(56, 232, 255), cyanSoft: C(56, 232, 255, 0.35),
+  heroSleeve: C(90, 103, 58), heroPad: C(182, 154, 104), helmHi: C(196, 168, 116), helmLo: C(122, 98, 56), heroPack: C(140, 117, 80), visor: C(76, 240, 255),
+  gunHi: C(74, 83, 93), gunLo: C(27, 32, 38), rim: C(255, 248, 225, 0.55), sunWarm: C(255, 236, 190), vig: C(40, 32, 24),
   amber: C(255, 176, 32),
-  round: C(110, 238, 255), roundCore: C(235, 255, 255), roundTrail: C(64, 228, 255, 0.45),
-  shot: C(255, 46, 140), shotCore: C(255, 220, 240), shotRim: C(110, 10, 50),
+  roundRim: C(2, 26, 31, 0.92), roundTrail2: C(60, 235, 255, 0.95), round: C(154, 248, 255), roundCore: C(255, 255, 255), roundTrail: C(60, 235, 255, 0.45),   // --pv-round / -round-core / -round-trail
+  shot: C(255, 42, 120), shotCore: C(255, 208, 228), shotRim: C(42, 3, 20),   // --pv-eshot / -eshot-core / -eshot-rim
   tellYellow: C(255, 222, 40), aim: C(255, 40, 40, 0.75), aimLock: C(255, 60, 60, 1),
   glow: C(255, 120, 40), fan: C(255, 60, 40, 0.22), fanEdge: C(255, 50, 40, 0.75),
   hpBack: C(30, 26, 22, 0.85), hpFill: C(255, 70, 60), hpPip: C(30, 26, 22),
-  xp: C(150, 235, 90), xpRim: C(40, 80, 20), repair: C(245, 245, 235), repairCross: C(60, 170, 80),
+  xp: C(143, 123, 255), xpRim: C(48, 38, 110), repair: C(228, 223, 210), repairCross: C(31, 184, 104), repairHi: C(124, 255, 176),   // --pv-xp violet (XP role), --pv-repair-hi/lo
   white: C(255, 255, 255), spark: C(255, 214, 120), sparkHot: C(255, 250, 220), debris: C(52, 54, 58),
-  hurt: C(255, 60, 60),
+  hurt: C(255, 60, 60), rotor: C(150, 200, 215), smoke: C(96, 88, 76, 0.34), dust: C(214, 196, 160, 0.4),
   spikePlate: C(96, 90, 80), spike: C(170, 166, 158), spikeTip: C(235, 232, 225),
   shellBody: C(48, 50, 56), ringFill: C(255, 60, 40, 0.16), ringEdge: C(255, 50, 40, 0.9),
   lane: C(255, 40, 40, 0.28), laneEdge: C(255, 40, 40, 0.9), stun: C(255, 222, 40),
@@ -34,11 +36,28 @@ var PAL = {
   // QA-P1 fixes (RENDER-UNITS): hp track, room edge, hazard plate, mortar shadow, stun, open chest
   hpTrack: C(58, 50, 42), oob: C(70, 44, 18, 0.26), curb: C(176, 168, 150), curbTop: C(206, 199, 182),
   bag: C(170, 146, 100), bagTop: C(196, 174, 128), bagSeam: C(128, 106, 70),
-  hazPlate: C(178, 158, 122), hazYellow: C(255, 200, 30), spikeRust: C(150, 70, 40),
+  hazPlate: C(178, 158, 122), hazYellow: C(244, 194, 26), spikeRust: C(150, 70, 40),
   outside: C(0, 0, 0, 0.35), // R42 Q2-A: ground beyond the clamped room at 65% brightness (guess, FULLSCREEN-LAYOUT 1)
-  shellShadow: C(60, 38, 16, 0.42), stunEye: C(110, 34, 30), chestIn: C(44, 28, 14), gold: C(255, 214, 70)
+  shellShadow: C(60, 38, 16, 0.42), scorch: C(28, 22, 16), stunEye: C(110, 34, 30), chestIn: C(44, 28, 14), gold: C(255, 226, 122)
 };
 var TAU = Math.PI * 2;
+function G_now() { return (typeof performance !== 'undefined' ? performance.now() : Date.now()) / 1000; }
+var reduced = false; try { reduced = !!(G.matchMedia && G.matchMedia('(prefers-reduced-motion: reduce)').matches); } catch (e) {}
+
+// ---------- effect steps under load (pick 15, 06-art-motion-vfx section 5) ----------
+// Step 0 = full look. Each step adds to the one before. Render (render.js) decides when to move; this table decides what moves.
+// Never dropped: render resolution, ink weights, hard shadows, sun wash, vignette, tells, rounds, hero hurt feedback, 60 Hz animation poses.
+function tierFor(n) {
+  var t = { step: n, pcap: 600, glow: 40, gain: 1, bloom: true, shimmer: true, dust: true, cMul: 1, decal: 60, trail: 60, sparkMul: 1, sparkMin: 0, ring2: true, simpleShadow: false, rim: true, shadowSmall: true };
+  if (n >= 1) { t.shimmer = false; t.dust = false; }
+  if (n >= 2) { t.cMul = 0.5; t.decal = 24; t.trail = 30; }
+  if (n >= 3) { t.bloom = false; t.glow = 24; t.gain = 0.7; }
+  if (n >= 4) { t.sparkMul = 0.7; t.sparkMin = 2; t.pcap = 220; t.ring2 = false; }
+  if (n >= 5) { t.simpleShadow = true; t.rim = false; t.shadowSmall = false; }
+  return t;
+}
+var TIERS = [0, 1, 2, 3, 4, 5].map(tierFor), T = TIERS[0], canvasMode = false;
+var STAT = { prims: 0, particles: 0, glows: 0, decals: 0, ghosts: 0, peakParticles: 0, peakPrims: 0, peakGlows: 0, builds: 0 };
 
 // own seeded RNG (mulberry32), never touches the sim's Rng
 function mkRng(seed) {
@@ -50,17 +69,48 @@ function mkRng(seed) {
   };
 }
 
-var P = { list: [], rnd: mkRng(1), seed: null, lastFrame: -1, lastT: 0, ingested: false }; // particles (world units)
-var MAXP = 600; // VISUAL-DESIGN B10 (was 400); spawners already stop at the cap
+var P = { list: [], decals: [], rnd: mkRng(1), seed: null, lastFrame: -1, lastT: 0, ingested: false, roomKey: '', roomSeq: 0 }; // particles (world units)
+var AN = { m: new Map(), pk: new WeakSet(), h: { x: 0, y: 0, vx: 0, vy: 0, stride: 0, kick: 0, flash: 0, hurt: 0, init: false, death: -1, dx: 0, dy: 0, dang: 0 } };
+var FX = { shake: 0, shT: 0, lastShake: {}, flash: 0, bossIntro: -1, wall: 0, wdt: 0, hitMs: [], lastHitStop: 0 };
+function MAXP() { return canvasMode ? Math.min(220, T.pcap) : T.pcap; }
 
-function spawnBurst(x, y, n, spd, life, col, size, drag) {
-  for (var i = 0; i < n && P.list.length < MAXP; i++) {
-    var a = P.rnd() * TAU, v = spd * (0.4 + P.rnd() * 0.8);
+function adj(n, mul, min) { var r = n * mul, f = Math.floor(r); if (P.rnd() < r - f) f++; return Math.max(min || 0, f); }
+// classes (06 section 5): A never drops (gameplay feedback), B sparks, C litter (smoke, debris, casings), D ambient (drawn in build, not here)
+function spawnBurst(x, y, n, spd, life, col, size, drag, cl, ang, cone) {
+  if (cl === 'C') n = adj(n, T.cMul, 0); else if (cl === 'B') n = Math.max(Math.min(n, T.sparkMin), adj(n, T.sparkMul, 0));
+  for (var i = 0; i < n && P.list.length < MAXP(); i++) {
+    var a = ang != null ? ang + (P.rnd() - 0.5) * (cone || 1.2) : P.rnd() * TAU, v = spd * (0.4 + P.rnd() * 0.8);
     P.list.push({ x: x, y: y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, t: 0, life: life * (0.6 + P.rnd() * 0.6), c: col, sz: size, drag: drag || 4, k: 0 });
   }
 }
 function spawnRing(x, y, r0, r1, life, col) {
-  if (P.list.length < MAXP) P.list.push({ x: x, y: y, t: 0, life: life, c: col, r0: r0, r1: r1, k: 1 });
+  if (P.list.length < MAXP()) P.list.push({ x: x, y: y, t: 0, life: life, c: col, r0: r0, r1: r1, k: 1 });
+}
+function spawnSmoke(x, y, n, col) { // class C: soft grey puff that grows and drifts
+  n = adj(n, T.cMul, 0);
+  for (var i = 0; i < n && P.list.length < MAXP(); i++) P.list.push({ x: x + (P.rnd() - 0.5) * 0.15, y: y + (P.rnd() - 0.5) * 0.15, vx: (P.rnd() - 0.5) * 0.5 - 0.15, vy: -0.25 - P.rnd() * 0.3, t: 0, life: 0.5 + P.rnd() * 0.3, c: col || PAL.smoke, r0: 0.07, r1: 0.22 + P.rnd() * 0.1, k: 7 });
+}
+function spawnCasing(x, y, ang) { // class C: ejected brass, spins, slides and fades
+  if (adj(1, T.cMul, 0) < 1 || P.list.length >= MAXP()) return;
+  var a = ang + Math.PI / 2 + (P.rnd() - 0.5) * 0.8, v = 2.2 + P.rnd() * 1.4;
+  P.list.push({ x: x, y: y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, t: 0, life: 0.5, c: PAL.gold, rot: P.rnd() * TAU, spin: (P.rnd() - 0.5) * 30, k: 5 });
+}
+function spawnGlint(x, y, col, life, size) { if (P.list.length < MAXP()) P.list.push({ x: x, y: y, t: 0, life: life || 0.35, c: col, sz: size || 0.22, k: 6 }); }
+function spawnPlus(x, y, col) { if (P.list.length < MAXP()) P.list.push({ x: x, y: y, vx: 0, vy: -1.2, t: 0, life: 0.6, c: col, k: 8 }); }
+function spawnDecal(x, y, r, kind) {
+  var D = P.decals; if (T.decal <= 0) return;
+  while (D.length >= T.decal) D.shift();
+  D.push({ x: x, y: y, r: r, t: 0, life: kind === 'boss' ? 14 : 7, kind: kind, a: P.rnd() * TAU });
+}
+function spawnGhost(a, boss) {
+  if (!a) return;
+  P.list.push({ k: 3, x: a.x, y: a.y, t: 0, life: boss ? 1.5 : (a.size === 'large' ? 0.7 : 0.5), type: a.type, r: a.r, ang: a.ang || 0, size: a.size, boss: boss, spin: (P.rnd() - 0.5) * 2.4, pops: boss ? [0.08, 0.22, 0.36, 0.5, 0.64, 0.8].slice() : null });
+}
+function shake(px, key, nobypass) {
+  if (reduced) return;
+  var w = FX.wall; key = key || 'x';
+  if (FX.lastShake[key] != null && w - FX.lastShake[key] < 0.15) return; // refractory 150 ms per source
+  FX.lastShake[key] = w; FX.shake = Math.max(FX.shake, px);
 }
 
 function eatEvents(ev, S) {
@@ -69,25 +119,63 @@ function eatEvents(ev, S) {
     var e = ev[i], x = e.x, y = e.y;
     if (x == null || y == null) { x = S.hero.x; y = S.hero.y; }
     switch (e.k) {
-      case 'hit': spawnBurst(x, y, 5, 4, 0.22, PAL.spark, 0.06); break;
-      case 'crit': spawnBurst(x, y, 9, 6, 0.3, PAL.sparkHot, 0.08); spawnRing(x, y, 0.1, 0.6, 0.2, PAL.amber); break;
-      case 'kill':
-        spawnBurst(x, y, 12, 6, 0.4, PAL.spark, 0.08); spawnBurst(x, y, 6, 3, 0.6, PAL.debris, 0.1, 3);
-        spawnRing(x, y, 0.2, 1.0, 0.3, PAL.sparkHot);
-        if (e.size === 'large' || e.boss) spawnBurst(x, y, 10, 5, 0.6, PAL.debris, 0.12, 3); // kill class (B2)
-        if (e.last && !e.boss) spawnRing(x, y, 0.3, 1.8, 0.45, PAL.white); // last kill of the room (B2)
+      case 'hit': {
+        var an = AN.m.get(e.id), boss = an && an.boss, r0 = an ? an.r : 0.3, dir = e.dir;
+        if (an) { an.hurt = 1; if (dir != null) { an.hx = Math.cos(dir); an.hy = Math.sin(dir); } else { an.hx = 0; an.hy = 0; } }
+        // impact on the side the round came from; sparks fly back along the round's path
+        var ix = dir != null ? x - Math.cos(dir) * r0 * 0.8 : x, iy = dir != null ? y - Math.sin(dir) * r0 * 0.8 : y;
+        spawnBurst(ix, iy, boss ? 8 : 5, boss ? 5 : 4, boss ? 0.28 : 0.22, PAL.spark, boss ? 0.07 : 0.06, 4, 'B', dir != null ? dir + Math.PI : null, 1.6);
+        spawnRing(ix, iy, 0.04, boss ? 0.34 : 0.22, boss ? 0.16 : 0.12, PAL.sparkHot);
+        if (boss) { spawnBurst(ix, iy, 3, 2.5, 0.5, PAL.debris, 0.09, 3, 'C'); shake(0.9, 'bosshit'); }
         break;
-      case 'block': spawnBurst(x, y, 4, 3, 0.18, PAL.spark, 0.05); spawnRing(x, y, 0.05, 0.35, 0.15, PAL.spark); break; // cover stopped a round (B6)
-      case 'hurt': spawnBurst(x, y, 8, 4, 0.3, PAL.hurt, 0.07); break;
-      case 'pickup': spawnRing(x, y, 0.1, 0.5, 0.25, PAL.xp); break;
-      case 'levelup': spawnRing(x, y, 0.3, 1.8, 0.5, PAL.cyan); spawnBurst(x, y, 10, 4, 0.5, PAL.cyan, 0.06); break;
-      case 'death': spawnBurst(x, y, 24, 7, 0.8, PAL.hurt, 0.1); spawnRing(x, y, 0.3, 2.2, 0.6, PAL.hurt); break;
-      case 'land': spawnRing(x, y, 0.2, (e.r || 1) * 1.1, 0.35, PAL.glow); spawnBurst(x, y, 10, 5, 0.45, PAL.debris, 0.1, 3); spawnBurst(x, y, 6, 4, 0.3, PAL.spark, 0.07); break;
+      }
+      case 'crit': spawnBurst(x, y, 9, 6, 0.3, PAL.sparkHot, 0.08, 4, 'B'); spawnRing(x, y, 0.1, 0.6, 0.2, PAL.amber); spawnGlint(x, y, PAL.sparkHot, 0.3, 0.3); break;
+      case 'kill': {
+        var ka = AN.m.get(e.id), big = e.size === 'large' || e.boss, med = e.size === 'medium';
+        if (ka) spawnGhost(ka, !!e.boss);
+        else spawnGhost({ x: x, y: y, type: e.type, r: big ? 0.9 : med ? 0.42 : 0.35, ang: 0, size: e.size }, !!e.boss);
+        spawnBurst(x, y, e.boss ? 18 : 12, 6, 0.4, PAL.spark, 0.08, 4, 'B'); spawnBurst(x, y, 6, 3, 0.6, PAL.debris, 0.1, 3, 'C');
+        spawnRing(x, y, 0.2, med ? 1.2 : 1.0, 0.3, PAL.sparkHot);
+        spawnSmoke(x, y, big ? 5 : med ? 3 : 2);
+        spawnDecal(x, y, big ? (e.boss ? 1.5 : 0.8) : med ? 0.5 : 0.36, e.boss ? 'boss' : 'scorch');
+        if (big) { spawnBurst(x, y, 10, 5, 0.6, PAL.debris, 0.12, 3, 'C'); if (T.ring2) spawnRing(x, y, 0.3, 1.6, 0.4, PAL.amber); }
+        if (e.last && !e.boss) spawnRing(x, y, 0.3, 1.8, 0.45, PAL.white); // last kill of the room (B2)
+        if (e.boss) { spawnRing(x, y, 0.5, 4.5, 1.0, PAL.sparkHot); FX.flash = reduced ? 0 : 0.35; shake(5, 'bossdeath'); }
+        break;
+      }
+      case 'block': spawnBurst(x, y, 4, 3, 0.18, PAL.spark, 0.05, 4, 'B'); spawnRing(x, y, 0.05, 0.35, 0.15, PAL.spark); break; // cover stopped a round (B6)
+      case 'hurt': {
+        var H = AN.h; H.hurt = 1; H.flash = 0;
+        // L6: the burst goes out on the side the hit came from (nearest enemy, round or shell), about 0.5 tile out, never on the Operator's centre
+        var hx2 = S.hero ? S.hero.x : x, hy2 = S.hero ? S.hero.y : y, bd = 1e9, ba2 = -Math.PI / 2, srcL = [].concat(S.shots || [], S.enemies || [], S.shells || []);
+        for (var si = 0; si < srcL.length; si++) { var dd = Math.hypot(srcL[si].x - hx2, srcL[si].y - hy2); if (dd < bd && dd > 0.01) { bd = dd; ba2 = Math.atan2(srcL[si].y - hy2, srcL[si].x - hx2); } }
+        var bx2 = hx2 + Math.cos(ba2) * 0.5, by2 = hy2 + Math.sin(ba2) * 0.5;
+        spawnBurst(bx2, by2, 8, 4, 0.3, PAL.hurt, 0.07, 4, 'A', ba2 + Math.PI, 1.6); spawnRing(bx2, by2, 0.05, 0.45, 0.25, PAL.hurt);
+        var frac = S.hero && S.hero.maxHp ? Math.min(1, (e.dmg || 0) / S.hero.maxHp * 5) : 0.5;
+        shake(1.5 + 1.0 * frac, 'hurt'); // spec 3.0..5.0 px, halved (M's picks)
+        break;
+      }
+      case 'pickup':
+        if (e.kind === 'repair') { spawnRing(x, y, 0.1, 0.7, 0.35, PAL.repairHi); spawnBurst(x, y, 6, 2.5, 0.5, PAL.repairHi, 0.06, 3, 'B'); spawnPlus(x, y - 0.2, PAL.repairHi); }
+        else { spawnRing(x, y, 0.1, 0.5, 0.25, PAL.xp); spawnBurst(x, y, 6, 3.5, 0.3, PAL.xp, 0.055, 5, 'B'); spawnGlint(x, y, PAL.white, 0.25, 0.2); }
+        break;
+      case 'levelup': spawnRing(x, y, 0.3, 1.8, 0.4, PAL.xp); spawnRing(x, y, 0.1, 1.0, 0.3, PAL.white); spawnBurst(x, y, 12, 4.5, 0.4, PAL.xp, 0.07, 4, 'A'); break; // violet (XP role), under 400 ms
+      case 'death': { var Hd = AN.h; Hd.death = FX.wall; Hd.dx = x; Hd.dy = y; Hd.dang = (S.hero && S.hero.ang) || 0;
+        spawnBurst(x, y, 24, 7, 0.8, PAL.hurt, 0.1, 4, 'A'); spawnRing(x, y, 0.3, 2.2, 0.6, PAL.hurt); spawnBurst(x, y, 8, 3, 0.7, PAL.debris, 0.1, 3, 'C'); shake(3, 'death'); break; }
+      case 'land': spawnRing(x, y, 0.2, (e.r || 1) * 1.1, 0.35, PAL.glow); spawnBurst(x, y, 10, 5, 0.45, PAL.debris, 0.1, 3, 'C'); spawnBurst(x, y, 6, 4, 0.3, PAL.spark, 0.07, 4, 'B'); spawnDecal(x, y, 0.4, 'scorch'); P.list.length < MAXP() && P.list.push({ k: 9, x: x, y: y, t: 0, life: 0.18, c: PAL.glow, r1: (e.r || 1) * 1.5 }); break;
       case 'dodge': spawnRing(x, y, 0.3, 0.8, 0.3, PAL.white); break;
-      case 'bossphase': spawnRing(x, y, 0.5, 3.0, 0.7, PAL.boss2Vent); spawnBurst(x, y, 20, 6, 0.6, PAL.boss2Vent, 0.09); break;
-      case 'chest': spawnRing(x, y, 0.2, 1.4, 0.5, PAL.chestTrim); spawnBurst(x, y, 14, 5, 0.5, PAL.cyan, 0.07); break;
+      case 'bossphase': spawnRing(x, y, 0.5, 3.0, 0.7, PAL.boss2Vent); spawnBurst(x, y, 20, 6, 0.6, PAL.boss2Vent, 0.09, 4, 'B'); spawnSmoke(x, y, 4); shake(2, 'bossphase'); break;
+      case 'boss': FX.bossIntro = FX.wall; spawnRing(x, y, 0.4, 3.2, 0.9, PAL.sensor); break;
+      case 'chest': spawnRing(x, y, 0.2, 1.4, 0.5, PAL.chestTrim); spawnBurst(x, y, 14, 5, 0.5, PAL.cyan, 0.07, 4, 'B'); spawnGlint(x, y, PAL.sparkHot, 0.5, 0.4); break;
       case 'win': spawnRing(x, y, 0.5, 4.0, 1.0, PAL.cyan); break;
-      case 'fire': spawnBurst(x, y, 2, 2, 0.1, PAL.roundCore, 0.05, 8); break;
+      case 'fire': {
+        var Hf = AN.h; Hf.kick = 1; Hf.flash = 1;
+        var fa = e.ang != null ? e.ang : (S.hero.ang || 0);
+        spawnBurst(x, y, 2, 2, 0.1, PAL.roundCore, 0.05, 8, 'B', fa, 0.6);
+        spawnCasing(S.hero.x, S.hero.y, fa);
+        if (P.rnd() < 0.5) spawnSmoke(x + Math.cos(fa) * 0.3, y + Math.sin(fa) * 0.3, 1);
+        break;
+      }
     }
   }
 }
@@ -97,9 +185,9 @@ function eatFx(fx) {
   for (var i = 0; i < fx.length; i++) {
     var f = fx[i];
     switch (f.k) {
-      case 'arc': if (P.list.length < MAXP) P.list.push({ k: 2, x: f.x1 != null ? f.x1 : f.x, y: f.y1 != null ? f.y1 : f.y, x2: f.x2 != null ? f.x2 : f.x, y2: f.y2 != null ? f.y2 : f.y, t: 0, life: 0.15, c: PAL.freeze }); break;
-      case 'strike': case 'blast': spawnRing(f.x, f.y, 0.1, f.r || 1.2, 0.3, PAL.burn); spawnBurst(f.x, f.y, 8, 5, 0.3, PAL.sparkHot, 0.07); break;
-      case 'heal': spawnRing(f.x, f.y, 0.2, 0.8, 0.35, PAL.heal); break;
+      case 'arc': if (P.list.length < MAXP()) P.list.push({ k: 2, x: f.x1 != null ? f.x1 : f.x, y: f.y1 != null ? f.y1 : f.y, x2: f.x2 != null ? f.x2 : f.x, y2: f.y2 != null ? f.y2 : f.y, t: 0, life: 0.15, c: PAL.freeze }); break;
+      case 'strike': case 'blast': spawnRing(f.x, f.y, 0.1, f.r || 1.2, 0.3, PAL.burn); spawnBurst(f.x, f.y, 8, 5, 0.3, PAL.sparkHot, 0.07, 4, 'B'); break;
+      case 'heal': spawnRing(f.x, f.y, 0.2, 0.8, 0.35, PAL.heal); spawnPlus(f.x, f.y - 0.2, PAL.repairHi); break;
       case 'dodge': spawnRing(f.x, f.y, 0.3, 0.7, 0.25, PAL.white); break;
       case 'orb': case 'shield': break; // persistent, drawn from S.fx each frame
       default: if (f.x != null) spawnRing(f.x, f.y, 0.1, 0.5, 0.2, PAL.cyan);
@@ -108,29 +196,88 @@ function eatFx(fx) {
 }
 
 function stepParticles(dt) {
-  var L = P.list, j = 0;
-  for (var i = 0; i < L.length; i++) {
-    var p = L[i]; p.t += dt;
+  var L = P.list, j = 0, D = P.decals, i, p;
+  for (i = 0; i < L.length; i++) {
+    p = L[i]; p.t += dt;
     if (p.t >= p.life) continue;
     if (p.k === 0) { var f = Math.max(0, 1 - p.drag * dt); p.vx *= f; p.vy *= f; p.x += p.vx * dt; p.y += p.vy * dt; }
+    else if (p.k === 5) { var f5 = Math.max(0, 1 - 5 * dt); p.vx *= f5; p.vy *= f5; p.x += p.vx * dt; p.y += p.vy * dt; p.rot += p.spin * dt; }
+    else if (p.k === 7 || p.k === 8) { p.vx *= Math.max(0, 1 - 2 * dt); p.x += p.vx * dt; p.y += p.vy * dt; }
+    else if (p.k === 3 && p.pops) { // boss death: staged pops across the hull
+      var u = p.t / p.life;
+      while (p.pops.length && u >= p.pops[0]) {
+        p.pops.shift();
+        var ox = (P.rnd() - 0.5) * p.r * 1.5, oy = (P.rnd() - 0.5) * p.r * 1.5;
+        spawnRing(p.x + ox, p.y + oy, 0.15, 0.9, 0.3, PAL.sparkHot); spawnBurst(p.x + ox, p.y + oy, 8, 5, 0.4, PAL.boss2Hot, 0.09, 4, 'B'); spawnBurst(p.x + ox, p.y + oy, 4, 3, 0.6, PAL.debris, 0.11, 3, 'C');
+        spawnSmoke(p.x + ox, p.y + oy, 2);
+      }
+    }
     L[j++] = p;
   }
-  L.length = j;
+  L.length = j; j = 0;
+  for (i = 0; i < D.length; i++) { D[i].t += dt; if (D[i].t < D[i].life) D[j++] = D[i]; }
+  D.length = j;
+}
+
+// per-entity pose state (idle, move lean, fire kick, hurt jitter), updated from the sim clock S.t so hit-stop and pause freeze it
+function animStep(S, dt) {
+  var E = S.enemies || [], i, k = Math.min(1, dt * 14);
+  for (i = 0; i < E.length; i++) {
+    var e = E[i], a = AN.m.get(e.id);
+    if (!a) { a = { x: e.x, y: e.y, vx: 0, vy: 0, st: e.st, kick: 0, hurt: 0, hx: 0, hy: 0, age: 0, dustT: 0 }; AN.m.set(e.id, a); }
+    a.vx += ((e.x - a.x) / dt - a.vx) * k; a.vy += ((e.y - a.y) / dt - a.vy) * k; a.x = e.x; a.y = e.y;
+    if (e.st === 'act' && a.st !== 'act') a.kick = 1;
+    a.st = e.st; a.kick = Math.max(0, a.kick - dt * 7); a.hurt = Math.max(0, a.hurt - dt * 9); a.age += dt;
+    a.r = e.r; a.ang = e.ang; a.type = e.type; a.boss = !!e.boss || e.type === 'B-01'; a.size = e.size;
+    // chargers throw dust while running (class C)
+    if (e.type === 'E-05' && e.st === 'move' && Math.hypot(a.vx, a.vy) > 2.5) { a.dustT -= dt; if (a.dustT <= 0) { a.dustT = 0.12; spawnSmoke(e.x - Math.cos(e.ang || 0) * 0.3, e.y - Math.sin(e.ang || 0) * 0.3, 1, PAL.dust); } }
+  }
+  var h = S.hero, H = AN.h;
+  if (h) {
+    if (!H.init) { H.x = h.x; H.y = h.y; H.init = true; }
+    H.vx += ((h.x - H.x) / dt - H.vx) * k; H.vy += ((h.y - H.y) / dt - H.vy) * k; H.x = h.x; H.y = h.y;
+    var sp = Math.hypot(H.vx, H.vy);
+    if (h.moving) { H.stride += sp * dt * 2.1; if (sp > 1) { H.dustT = (H.dustT || 0) - dt; if (H.dustT <= 0) { H.dustT = 0.16; spawnSmoke(h.x - H.vx / sp * 0.15, h.y + 0.12, 1, PAL.dust); } } }
+    H.kick = Math.max(0, H.kick - dt * 8); H.flash = Math.max(0, H.flash - dt * 14); H.hurt = Math.max(0, H.hurt - dt * 7);
+  }
+}
+function sweepAnim(S) {
+  if (!AN.m.size) return;
+  var live = {}, E = S.enemies || [], i;
+  for (i = 0; i < E.length; i++) live[E[i].id] = 1;
+  AN.m.forEach(function (a, id) { if (!live[id]) AN.m.delete(id); });
 }
 
 // --- primitive helpers (all take world coords via the view) ---
-var out, vw, sh = { x: 0, y: 0 };
-function X(x) { return vw.ox + x * vw.s; }
-function Y(y) { return vw.oy + y * vw.s; }
+var out, vw, sh = { x: 0, y: 0 }, shx = 0, shy = 0, GL = [], glN = 0;
+function X(x) { return vw.ox + x * vw.s + shx; }   // shx/shy: one-channel screen shake, play field only, never rotates
+function Y(y) { return vw.oy + y * vw.s + shy; }
 function circ(x, y, r, c) { out.push({ p: 'circle', x: x, y: y, r: r, c: c }); }
 function ring(x, y, r, lw, c, a0, a1) { var o = { p: 'ring', x: x, y: y, r: r, lw: lw, c: c }; if (a0 != null) { o.a0 = a0; o.a1 = a1; } out.push(o); }
 function rect(x, y, w, h, c, rot) { out.push({ p: 'rect', x: x, y: y, w: w, h: h, rot: rot || 0, c: c }); }
 function line(x1, y1, x2, y2, lw, c) { out.push({ p: 'line', x1: x1, y1: y1, x2: x2, y2: y2, lw: lw, c: c }); }
 function ngon(x, y, r, n, rot, c) { out.push({ p: 'ngon', x: x, y: y, r: r, n: n, rot: rot || 0, c: c }); }
+function grad(x, y, w, h, c, c2, rot) { out.push({ p: 'grad', x: x, y: y, w: w, h: h, rot: rot || 0, c: c, c2: c2 }); }
+function rgrad(x, y, r, c, c2, add) { var o = { p: 'rgrad', x: x, y: y, r: r, c: c, c2: c2 }; if (add) o.add = true; out.push(o); }
+// glow sprite (cached-sprite look: one radial gradient). Collected, then flushed by priority up to the tier cap (40 / 24 / 12).
+// prio 3 = gameplay light (rounds, muzzle), 2 = sensors and tells, 1 = pickups and ambience. Colour fades to its own alpha 0, never to grey.
+function glow(x, y, r, c, a, prio, add) { GL.push({ x: x, y: y, r: r, c: c, a: a, pr: prio || 1, add: !!add }); }
+function flushGlows() {
+  var cap = canvasMode ? Math.min(12, T.glow) : T.glow, n = GL.length;
+  if (n > cap) GL.sort(function (p, q) { return q.pr - p.pr; });
+  var m = Math.min(n, cap), i, g;
+  for (i = 0; i < m; i++) {
+    g = GL[i];
+    if (T.bloom && g.pr >= 3) rgrad(g.x, g.y, g.r * 2.6, [g.c[0], g.c[1], g.c[2], g.a * 0.22], [g.c[0], g.c[1], g.c[2], 0], g.add);   // bloom stand-in: wide soft halo (step 0..2 only)
+    rgrad(g.x, g.y, g.r, [g.c[0], g.c[1], g.c[2], Math.min(1, g.a * T.gain)], [g.c[0], g.c[1], g.c[2], 0], g.add);
+  }
+  STAT.glows = m; if (m > STAT.peakGlows) STAT.peakGlows = m;
+  GL.length = 0;
+}
 function withA(c, a) { return [c[0], c[1], c[2], c[3] * a]; }
 function mix(a, b, t) { return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t, a[3] + (b[3] - a[3]) * t]; }
 // outlined shapes: dark shape 1 px larger, then the fill
-var OL = 1.25;
+var OL = 1.25;   // structure edge; units set 1.6 (small 1.3), bosses 2.4 while they draw (token weights at 344 wide)
 function oCirc(x, y, r, c) { circ(x, y, r + OL, PAL.ink); circ(x, y, r, c); }
 function oRect(x, y, w, h, c, rot) { rect(x, y, w + 2 * OL, h + 2 * OL, PAL.ink, rot); rect(x, y, w, h, c, rot); }
 function oNgon(x, y, r, n, rot, c) { ngon(x, y, r + OL / Math.cos(Math.PI / n), n, rot, PAL.ink); ngon(x, y, r, n, rot, c); }
@@ -213,8 +360,20 @@ function hpBar(x, y, rr, hp, max) {
   for (var i = 1; i < pips; i++) rect(x - w / 2 + (w * i) / pips, by, 1, h, PAL.hpPip);
 }
 
+var RIMR = { 'E-01': 0.5, 'E-02': 0.62, 'E-03': 0.8, 'E-04': 0.66, 'E-05': 0.62, 'B-01': 0.92 };
 function drawEnemy(S, e, s, t) {
-  var x = X(e.x), y = Y(e.y), rr = (e.r || 0.4) * s, flash = e.flashT > 0, tell = e.st === 'tell';
+  var an = e.dead == null ? AN.m.get(e.id) : null, isBoss = e.boss || e.type === 'B-01';
+  var x = X(e.x), y = Y(e.y), rr = (e.r || 0.4) * s, flash = e.flashT > 0, tell = e.st === 'tell', n0 = out.length;
+  OL = isBoss ? 2.4 : (e.type === 'E-01' ? 1.3 : 1.6);
+  if (an) {
+    // pose: idle hover (flyer) or servo hum, lean into the move, kick back on the shot, jitter away from the hit. Machines never squash.
+    var fly = e.type === 'E-01', aim = e.aimAng != null ? e.aimAng : (e.ang || 0);
+    y += Math.sin(t * (fly ? 3.2 : 2.0) + e.id * 1.7) * (fly ? 1.8 : 0.45);
+    var lx = Math.max(-2.2, Math.min(2.2, an.vx * 0.55)), ly = Math.max(-2.2, Math.min(2.2, an.vy * 0.55));
+    x += lx; y += ly;
+    if (an.kick > 0) { var kk = an.kick * rr * (isBoss ? 0.07 : 0.16); x -= Math.cos(aim) * kk; y -= Math.sin(aim) * kk; }
+    if (an.hurt > 0) { var hk = an.hurt * (isBoss ? 1.0 : 1.8); x += an.hx * hk; y += an.hy * hk; }
+  }
   var body = PAL.metal, lite = PAL.metalLite, dark = PAL.metalDark, eye = PAL.sensor;
   if (e.st === 'spawn') { var k = Math.min(1, e.tell01 || 0.5); body = withA(body, 0.5); lite = withA(lite, 0.5); }
   if (e.type === 'E-01' && tell) {
@@ -227,18 +386,27 @@ function drawEnemy(S, e, s, t) {
   var hit = 0;
   if (flash && (e.boss || e.type === 'B-01')) { hit = Math.max(0, (e.flashT - 0.04) / 0.06); flash = false; }
   if (flash) { body = PAL.white; lite = PAL.white; dark = PAL.white; eye = PAL.white; }
+  var dk = e.dead || 0;
+  if (dk > 0) { // death: scorch the hull, sensor dies, then it fades (AN-203)
+    var sc = Math.min(1, dk * 1.6) * 0.75;
+    body = mix(body, PAL.ink, sc); lite = mix(lite, PAL.metalDark, sc); dark = mix(dark, PAL.ink, sc * 0.6);
+    eye = dk > 0.3 ? PAL.metalDark : eye;
+    if (dk < 0.12 && !isBoss) { body = PAL.white; lite = PAL.white; }   // L5: the boss never fills white; it gets a warm rim below
+  }
   var a = e.ang || 0, ca = Math.cos(a), sa = Math.sin(a);
-  var C2 = { body: body, lite: lite, dark: dark, eye: eye, core: flash ? PAL.white : PAL.sensorCore, hit: hit };
+  var C2 = { body: body, lite: lite, dark: dark, eye: eye, core: flash ? PAL.white : (dk > 0.3 ? PAL.metalDark : PAL.sensorCore), hit: hit, an: an, t: t };
   if (e.type === 'E-04') drawE04(e, x, y, rr, t, C2);
   else if (e.type === 'E-05') drawE05(e, x, y, rr, t, C2);
   else if (e.boss || e.type === 'B-01') drawB01(S, e, x, y, rr, t, C2);
   else if (e.type === 'E-01') {
     // small round drone with rotor ring and four rotor pods
+    var spinR = dk > 0 ? 0 : t * (tell ? 24 : (e.st === 'move' ? 15 : 10));
     for (var i = 0; i < 4; i++) {
       var ra = a + Math.PI / 4 + (i * Math.PI) / 2, px = x + Math.cos(ra) * rr * 0.92, py = y + Math.sin(ra) * rr * 0.92;
       line(x, y, px, py, 3, flash ? PAL.white : PAL.ink);
       oCirc(px, py, rr * 0.36, dark);
       ring(px, py, rr * 0.28, 1.2, flash ? PAL.white : lite);
+      if (dk === 0) { var bq = spinR + i * 1.9; ring(px, py, rr * 0.3, 1.6, withA(PAL.rotor, 0.55), bq, bq + 2.2); } // spinning blur arc on each rotor pod
     }
     oCirc(x, y, rr * 0.55, body);
     circ(x + ca * rr * 0.15, y + sa * rr * 0.15, rr * 0.22, eye);
@@ -246,8 +414,8 @@ function drawEnemy(S, e, s, t) {
     if (tell) ring(x, y, rr * (1.25 + 0.25 * (e.tell01 || 0)), 2.5, PAL.tellYellow);
   } else if (e.type === 'E-02') {
     // square gun drone, one barrel along aimAng while aiming
-    var ga = (tell || e.st === 'act') && e.aimAng != null ? e.aimAng : a, cg = Math.cos(ga), sg = Math.sin(ga);
-    var bl = rr * 1.25;
+    var ga = (tell || e.st === 'act') && e.aimAng != null ? e.aimAng : a + (dk > 0 ? 0 : Math.sin(t * 1.6 + e.id) * 0.1), cg = Math.cos(ga), sg = Math.sin(ga);
+    var bl = rr * (1.25 - (an ? an.kick * 0.18 : 0));
     oRect(x + cg * bl * 0.55, y + sg * bl * 0.55, bl, rr * 0.3, dark, ga);
     oRect(x, y, rr * 1.5, rr * 1.5, body, a);
     rect(x, y, rr * 0.9, rr * 0.9, lite, a);
@@ -255,23 +423,41 @@ function drawEnemy(S, e, s, t) {
     circ(x, y, rr * 0.11, flash ? PAL.white : PAL.sensorCore);
   } else if (e.type === 'E-03') {
     // E-03 hexagon turret, three barrels in a fan
-    var ta = e.aimAng != null ? e.aimAng : a, glow = tell ? (e.tell01 || 0) : 0;
+    var ta = (e.aimAng != null ? e.aimAng : a) + (!tell && dk === 0 ? Math.sin(t * 1.1 + e.id) * 0.12 : 0), gl3 = tell ? (e.tell01 || 0) : 0;
     for (var b = -1; b <= 1; b++) {
       var ba = ta + b * (25 * Math.PI / 180), cb = Math.cos(ba), sb = Math.sin(ba);
       oRect(x + cb * rr * 0.95, y + sb * rr * 0.95, rr * 0.9, rr * 0.26, dark, ba);
-      if (glow > 0) {
+      if (gl3 > 0) {
         var gx = x + cb * rr * 1.42, gy = y + sb * rr * 1.42;
-        circ(gx, gy, 3 + 6 * glow, withA(PAL.glow, 0.35 + 0.3 * glow));
-        circ(gx, gy, 2 + 3 * glow, mix(PAL.glow, PAL.sparkHot, glow));
+        circ(gx, gy, 3 + 6 * gl3, withA(PAL.glow, 0.35 + 0.3 * gl3));
+        circ(gx, gy, 2 + 3 * gl3, mix(PAL.glow, PAL.sparkHot, gl3));
       }
     }
     oNgon(x, y, rr, 6, Math.PI / 6, body);
     ngon(x, y, rr * 0.62, 6, Math.PI / 6, lite);
-    circ(x, y, rr * 0.3, glow > 0 ? mix(eye, PAL.sparkHot, glow) : eye);
+    circ(x, y, rr * 0.3, gl3 > 0 ? mix(eye, PAL.sparkHot, gl3) : eye);
     circ(x, y, rr * 0.12, flash ? PAL.white : PAL.sensorCore);
   }
+  // lit look: pale catch-light on the sun side of the hull (upper left), sensor gl3, muzzle flash on the shot
+  if (T.rim && dk < 0.3) ring(x, y, rr * (RIMR[e.type] || 0.7), 1.3, PAL.rim, Math.PI * 1.04, Math.PI * 1.46);
+  if (dk < 0.3 && e.st !== 'spawn') glow(x, y, rr * (tell ? 0.7 : 0.5), PAL.sensor, tell ? 0.26 : 0.14, 2);
+  if (an && an.kick > 0.45) {
+    var ma = e.aimAng != null ? e.aimAng : (e.ang || 0), mr = rr * (isBoss ? 1.5 : 1.4);
+    glow(x + Math.cos(ma) * mr, y + Math.sin(ma) * mr, rr * (isBoss ? 0.9 : 0.7), PAL.shotCore, 0.8 * an.kick, 3, true);
+  }
   drawStatus(e, x, y, rr, t);
-  if (!e.boss) hpBar(x, y, rr * (e.type === 'E-01' ? 1.3 : 1.05), e.hp, e.maxHp);
+  if (!isBoss && dk === 0) hpBar(x, y, rr * (e.type === 'E-01' ? 1.3 : 1.05), e.hp, e.maxHp);
+  if (isBoss && dk > 0 && dk < 0.6) ring(x, y, rr * 1.1, 3, withA(PAL.boss2Rim, 1 - dk / 0.6));
+  if (dk > 0.55) { var fa = Math.max(0, 1 - (dk - 0.55) / 0.45); for (var qi = n0; qi < out.length; qi++) { var qc = out[qi].c; out[qi].c = [qc[0], qc[1], qc[2], qc[3] * fa]; } }   // fade out
+  OL = 1.25;
+}
+function drawGhosts(S, s, t) {
+  var L = P.list;
+  for (var i = 0; i < L.length; i++) {
+    var p = L[i]; if (p.k !== 3) continue;
+    var u = p.t / p.life, g = { id: -1, type: p.type, x: p.x, y: p.y, r: p.r * (1 - 0.12 * u), ang: p.ang + p.spin * u, st: 'dead', dead: Math.max(0.001, reduced ? Math.min(1, u * 1.4) : u), boss: p.boss, size: p.size, flashT: 0, hp: 0, maxHp: 0, tell01: 0 };
+    drawEnemy(S, g, s, t);
+  }
 }
 
 function drawEnemyTellGround(S, e, s) {
@@ -295,27 +481,58 @@ function drawEnemyAim(S, e, s) {
   if (locked) circ(ex, ey, 2.5, PAL.aimLock);
 }
 
-function drawHero(S, s, t) {
-  var h = S.hero, x = X(h.x), y = Y(h.y), rr = (h.r || 0.28) * s;
+function drawHero(S, s, t, ghost) {
+  var h = S.hero, H = AN.h, x = X(h.x), y = Y(h.y), rr = (h.r || 0.28) * s, a = h.ang || 0, wob = 0, dying = ghost != null;
+  if (dying) { x = X(H.dx); y = Y(H.dy); a = H.dang + ghost * 2.6; }
   // QA-P1 D2: when an enemy body overlaps the Operator, cut a sand patch with an ink rim under it, so the
   // Operator (blinking at 35% too) never reads through the drones under it. Drawn before n0: not blinked.
   var E = S.enemies || [], hr = h.r || 0.28;
-  for (var j = 0; j < E.length; j++) {
+  if (!dying) for (var j = 0; j < E.length; j++) {
     var e = E[j], er = (e.r || 0.4) * (e.type === 'E-01' ? 1.3 : 1.05);
     if (Math.hypot(e.x - h.x, e.y - h.y) < er + hr + 0.08) { circ(x, y, rr + 5, withA(PAL.ink, 0.7)); circ(x, y, rr + 3.5, PAL.ground); break; }
   }
-  var blink = h.invulnT > 0 && Math.floor(t * 12) % 2 === 1, n0 = out.length; // blink to 35%, never hidden (M 2026-11-10)
-  var a = h.ang || 0, ca = Math.cos(a), sa = Math.sin(a), px = -sa, py = ca;
-  // rifle
-  oRect(x + ca * rr * 1.15 + px * rr * 0.35, y + sa * rr * 1.15 + py * rr * 0.35, rr * 1.5, rr * 0.32, PAL.metalDark, a);
-  circ(x + ca * rr * 1.85 + px * rr * 0.35, y + sa * rr * 1.85 + py * rr * 0.35, rr * 0.13, PAL.cyan);
-  // pack, body, helmet
-  oRect(x - ca * rr * 0.55, y - sa * rr * 0.55, rr * 0.7, rr * 1.4, PAL.heroDark, a);
-  oCirc(x, y, rr, PAL.heroBody);
-  ring(x, y, rr * 0.82, 1.6, PAL.cyan);
-  circ(x - ca * rr * 0.1, y - sa * rr * 0.1, rr * 0.5, PAL.heroDark);
-  rect(x + ca * rr * 0.32, y + sa * rr * 0.32, rr * 0.22, rr * 0.75, PAL.cyan, a); // visor
-  if (blink) for (var i = n0; i < out.length; i++) { var c = out[i].c; out[i].c = [c[0], c[1], c[2], c[3] * 0.35]; }
+  // pose: breathing at rest, stride bob and lean while walking, rifle kick on the shot, red tint when hurt
+  var moving = !dying && h.moving, br = Math.sin(t * 2.4) * (moving ? 0 : 1);
+  var sb = moving ? Math.abs(Math.sin(H.stride * 3.2)) : 0, sw = moving ? Math.sin(H.stride * 3.2) : 0;
+  y += -sb * 1.3 + br * 0.35;
+  if (moving) { var sp = Math.hypot(H.vx, H.vy) || 1; x += H.vx / sp * 0.9; y += H.vy / sp * 0.9; }
+  var kick = dying ? 0 : H.kick, K = kick * rr * 0.3, sc = dying ? Math.max(0.05, 1 - ghost * 0.8) : 1 + br * 0.012;
+  var R = rr * sc, ca = Math.cos(a), sa = Math.sin(a), px = -sa, py = ca;
+  // L2: VFX-302 curve, 2.5 Hz sine timed from the hit: starts at 100%, dips to 35% once, back to 100% at 0.4 s, second dip faded out so it ends at 100%
+  var inv = (S.tune && S.tune.INVULN) || 0.6, tau = inv - h.invulnT, blink = !dying && h.invulnT > 0, n0 = out.length, blinkA = 1;
+  if (blink) { var dip = 0.5 - 0.5 * Math.cos(TAU * 2.5 * tau), env = tau < 0.4 ? 1 : Math.max(0, (inv - tau) / Math.max(0.01, inv - 0.4)); blinkA = 1 - 0.65 * dip * env; }
+  OL = 1.6;
+  var tintHurt = dying ? Math.min(1, ghost * 2) : H.hurt;
+  function tint(c) { return tintHurt > 0 ? mix(c, PAL.hurt, 0.3 * Math.min(1, tintHurt)) : c; }   // L6: partial tint, the dome keeps its two-step shading and the slit
+  // rifle (long, straight): kicks back along its own axis on the shot
+  var gx = x + ca * (rr * 1.15 - K) + px * R * 0.35, gy = y + sa * (rr * 1.15 - K) + py * R * 0.35;
+  oRect(gx, gy, R * 1.5, R * 0.32, tint(PAL.gunLo), a); rect(gx - ca * R * 0.05, gy - sa * R * 0.05, R * 1.35, R * 0.12, PAL.gunHi, a);
+  circ(x + ca * (rr * 1.85 - K) + px * R * 0.35, y + sa * (rr * 1.85 - K) + py * R * 0.35, R * 0.13, PAL.cyan);
+  // pack behind the shoulders, capsule torso (shoulder pads either side), swinging with the stride
+  oRect(x - ca * R * 0.62, y - sa * R * 0.62, R * 0.7, R * 1.3, tint(mix(PAL.heroPack, PAL.ink, 0.3)), a);
+  var tx = x + px * sw * R * 0.06, ty = y + py * sw * R * 0.06;
+  oRect(tx, ty, R * 0.95, R * 1.5, tint(PAL.heroSleeve), a);
+  oCirc(tx + px * R * 0.78, ty + py * R * 0.78, R * 0.44, tint(PAL.heroDark)); circ(tx + px * R * 0.78, ty + py * R * 0.78, R * 0.18, tint(PAL.heroPad));
+  oCirc(tx - px * R * 0.78, ty - py * R * 0.78, R * 0.44, tint(PAL.heroDark)); circ(tx - px * R * 0.78, ty - py * R * 0.78, R * 0.18, tint(PAL.heroPad));
+  oCirc(tx, ty, R * 0.9, tint(PAL.heroBody));
+  ring(tx, ty, R * 0.9, 1.6, PAL.cyan);   // --pv-hero-ring
+  // canonical helmet (P-02): smooth tan dome, one tall cyan slit in a narrow dark socket, round ear disc, thin antenna stub
+  var hx = tx - ca * R * 0.08, hy = ty - sa * R * 0.08;
+  oCirc(hx, hy, R * 0.56, tint(PAL.helmLo)); circ(hx - R * 0.06, hy - R * 0.07, R * 0.45, tint(PAL.helmHi));
+  var vx = hx + ca * R * 0.34, vy = hy + sa * R * 0.34;
+  rect(vx, vy, R * 0.28, R * 0.6, PAL.ink, a); rect(vx + ca * R * 0.02, vy + sa * R * 0.02, R * 0.14, R * 0.5, PAL.visor, a);
+  circ(hx + px * R * 0.5, hy + py * R * 0.5, R * 0.14, tint(PAL.helmLo));   // ear disc
+  var aw = Math.sin(t * 3 + sw * 2) * (moving ? 0.5 : 0.15), axx = hx - ca * R * 0.4 - px * R * 0.35, ayy = hy - sa * R * 0.4 - py * R * 0.35;
+  line(axx, ayy, axx - ca * R * 0.55 + px * aw * R * 0.4, ayy - sa * R * 0.55 + py * aw * R * 0.4, 1.2, PAL.ink);
+  if (T.rim && !dying) ring(hx, hy, R * 0.42, 1.2, PAL.rim, Math.PI * 1.02, Math.PI * 1.5);
+  if (blink && blinkA < 1) for (var i = n0; i < out.length; i++) { var c = out[i].c; out[i].c = [c[0], c[1], c[2], c[3] * blinkA]; }
+  if (dying && ghost > 0.5) { var fa = Math.max(0, 1 - (ghost - 0.5) / 0.5); for (var q = n0; q < out.length; q++) { var qc = out[q].c; out[q].c = [qc[0], qc[1], qc[2], qc[3] * fa]; } }
+  OL = 1.25;
+  if (!dying) {
+    glow(vx, vy, R * 0.55, PAL.visor, 0.35, 2);
+    if (H.flash > 0.2) glow(x + ca * (rr * 2.0 - K), y + sa * (rr * 2.0 - K) + 0, R * 0.9, PAL.sparkHot, 0.9 * H.flash, 3, true);   // muzzle flash (VFX-001), 6 at once at most, class A
+    if (H.flash > 0.45) { var mx = x + ca * (rr * 2.1), my = y + sa * (rr * 2.1); rect(mx, my, R * (0.5 + 1.0 * H.flash), R * 0.14, PAL.sparkHot, a); rect(mx, my, R * (0.5 + 1.0 * H.flash), R * 0.14, PAL.sparkHot, a + Math.PI / 2 * 0); }
+  }
 }
 
 function drawBrace(S, s) {
@@ -342,24 +559,43 @@ function drawLock(S, s, t) {
 }
 
 function drawPickup(pk, s, t) {
-  var x = X(pk.x), y = Y(pk.y) + Math.sin(t * 4 + pk.x * 3) * 1.5;
+  var x = X(pk.x), y = Y(pk.y) + Math.sin(t * 4 + pk.x * 3) * 1.5, ph = (t * 0.8 + pk.x * 0.37 + pk.y * 0.21) % 1;
+  OL = 1.25;
   if (pk.kind === 'repair') {
     oRect(x, y, 13, 11, PAL.repair);
     rect(x, y, 3, 7, PAL.repairCross); rect(x, y, 7, 3, PAL.repairCross);
+    glow(x, y, 11, PAL.repairHi, 0.4, 1);
   } else {
     var r = pk.v >= 8 ? 6.5 : 5;
     oNgon(x, y, r, 4, t * 2 + pk.y, PAL.xp);
     circ(x - 1, y - 1, r * 0.3, PAL.white);
+    glow(x, y, r * 2.2, PAL.xp, 0.38, 1);
   }
+  if (ph < 0.18) { var gl = Math.sin(ph / 0.18 * Math.PI) * 5.5; rect(x + 3, y - 3, 1.4, gl, PAL.white); rect(x + 3, y - 3, gl, 1.4, PAL.white); }   // glint, once a second
 }
 
-function drawParticles(s) {
+function drawParticles(s, S) {
   for (var i = 0; i < P.list.length; i++) {
     var p = P.list[i], u = p.t / p.life, al = 1 - u;
+    if (p.k === 3) continue; // ghosts draw with the machines
     if (p.k === 2) { line(X(p.x), Y(p.y), X(p.x2), Y(p.y2), 2, withA(p.c, al)); continue; }
     if (p.k === 1) {
       var r = (p.r0 + (p.r1 - p.r0) * u) * s;
+      ring(X(p.x), Y(p.y), r + 1.2 * al, 4 * al + 1.2, withA(PAL.ink, 0.35 * al));   // dark under-stroke so a bright ring reads on sand (V3)
       ring(X(p.x), Y(p.y), r, 2.5 * al + 0.5, withA(p.c, al));
+    } else if (p.k === 5) {
+      rect(X(p.x), Y(p.y), 3.2, 1.8, withA(p.c, al), p.rot); rect(X(p.x), Y(p.y) + 1, 3.2, 1, withA(PAL.ink, 0.3 * al), p.rot);
+    } else if (p.k === 6) {
+      var gs = p.sz * s * (0.4 + 0.6 * Math.sin(Math.min(1, u * 1.2) * Math.PI)), gx = X(p.x), gy = Y(p.y);
+      line(gx - gs, gy, gx + gs, gy, 1.6, withA(p.c, al)); line(gx, gy - gs, gx, gy + gs, 1.6, withA(p.c, al));
+    } else if (p.k === 7) {
+      circ(X(p.x), Y(p.y), (p.r0 + (p.r1 - p.r0) * u) * s, withA(p.c, p.c[3] * al));
+    } else if (p.k === 8) {
+      var px8 = X(p.x), py8 = Y(p.y), a8 = Math.min(1, al * 1.6);
+      rect(px8, py8, 3, 9, withA(PAL.ink, 0.5 * a8)); rect(px8, py8, 9, 3, withA(PAL.ink, 0.5 * a8));
+      rect(px8, py8, 2, 8, withA(p.c, a8)); rect(px8, py8, 8, 2, withA(p.c, a8));
+    } else if (p.k === 9) {
+      glow(X(p.x), Y(p.y), (0.3 + 0.7 * u) * p.r1 * s, p.c, 0.6 * al, 3, true);
     } else {
       var sp = Math.sqrt(p.vx * p.vx + p.vy * p.vy), sz = Math.max(1.2, p.sz * s * (1 - u * 0.5));
       if (sp > 1.5) {
@@ -368,6 +604,38 @@ function drawParticles(s) {
       } else circ(X(p.x), Y(p.y), sz * 0.6, withA(p.c, al));
     }
   }
+}
+function drawDecals(s) {
+  var D = P.decals;
+  for (var i = 0; i < D.length; i++) {
+    var d = D[i], u = d.t / d.life, al = u < 0.7 ? 1 : (1 - u) / 0.3, x = X(d.x), y = Y(d.y), r = d.r * s;
+    circ(x, y, r, withA(PAL.scorch, 0.42 * al));
+    circ(x + r * 0.15, y + r * 0.1, r * 0.55, withA(PAL.scorch, 0.35 * al));
+    if (d.kind === 'boss') for (var k = 0; k < 5; k++) { var aa = d.a + k * 1.26; line(x + Math.cos(aa) * r * 0.5, y + Math.sin(aa) * r * 0.5, x + Math.cos(aa) * r * 1.15, y + Math.sin(aa) * r * 1.15, 1.2, withA(PAL.scorch, 0.4 * al)); }
+  }
+}
+// class D ambience (step 0 only): dust motes drifting down-right with the sun, heat-shimmer streaks over the hot ground. Pure functions of S.t.
+function drawAmbient(S, s, t, RW, RH) {
+  if (reduced) return;
+  var x0 = X(0), y0 = Y(0), W = RW * s, H = RH * s, i;
+  if (T.dust) for (i = 0; i < 12; i++) {
+    var u = (t * (0.05 + (i % 4) * 0.012) + i * 0.173) % 1, v = (t * 0.03 + i * 0.311 + Math.sin(t * 0.4 + i) * 0.02) % 1;
+    circ(x0 + u * W, y0 + v * H, 1 + (i % 3) * 0.35, [1, 0.96, 0.82, 0.32 + 0.2 * Math.sin(t * 1.3 + i)]);
+  }
+  if (T.shimmer) for (i = 0; i < 6; i++) {
+    var yy = y0 + ((i * 0.37 + t * 0.018) % 1) * H * 0.7 + 14, xx = x0 + ((i * 0.61) % 1) * W, wv = Math.sin(t * 1.7 + i * 2.1) * 6;
+    line(xx + wv, yy, xx + wv + 46 + 14 * (i % 3), yy + Math.sin(t * 2.3 + i) * 1.2, 1.2, [1, 0.97, 0.88, 0.1]);
+  }
+}
+// grade over the whole screen: edge vignette (--pv-vignette), pulses to about 15% on the boss intro (AN-301)
+function drawVignette(S) {
+  var w = vw.w, h = vw.h, bw = Math.min(w, h) * 0.34, a = 0.24, bi = FX.wall - FX.bossIntro;
+  if (FX.bossIntro >= 0 && bi >= 0 && bi < 1.5 && !reduced) a += 0.1 * Math.sin(Math.min(1, bi / 0.6) * Math.PI / 2) * (1 - Math.max(0, (bi - 0.9) / 0.6));
+  var c1 = [PAL.vig[0], PAL.vig[1], PAL.vig[2], a], c0 = [PAL.vig[0], PAL.vig[1], PAL.vig[2], 0];
+  grad(w / 2, bw / 2, w, bw, c1, c0, 0);               // top
+  grad(w / 2, h - bw / 2, w, bw, c0, c1, 0);           // bottom
+  grad(bw / 2, h / 2, h, bw, c1, c0, -Math.PI / 2);    // left (local +y points right)
+  grad(w - bw / 2, h / 2, h, bw, c0, c1, -Math.PI / 2); // right
 }
 
 function drawStress(n, t) {
@@ -559,6 +827,10 @@ function drawB01(S, e, x, y, rr, t, C2) {
   if (ph2) rect(x + Math.cos(a0) * rr * 0.86, y + Math.sin(a0) * rr * 0.86, rr * 0.1, rr * 0.3, mix(PAL.boss2Hot, PAL.sparkHot, 0.35 * hot), a0);
   circ(x, y, rr * (0.3 + 0.08 * tt), tell ? mix(C2.eye, PAL.sparkHot, tt) : C2.eye);
   circ(x, y, rr * 0.12, C2.core);
+  var swell = 0, bi = FX.wall - FX.bossIntro;
+  if (FX.bossIntro >= 0 && bi >= 0 && bi < 1.6) swell = Math.sin(Math.min(1, bi / 1.2) * Math.PI) * 0.45;   // AN-301: sensor swells while the banner shows (the Operator keeps control)
+  if (!C2.dead) glow(x, y, rr * (0.5 + 0.15 * tt + swell * 0.5), PAL.sensor, 0.16 + 0.14 * tt + swell * 0.3, 2);
+  if (ph2) for (var gv = 0; gv < 4; gv++) { var gva = gv * Math.PI / 2 + Math.PI / 4; glow(x + Math.cos(gva) * rr * 0.45, y + Math.sin(gva) * rr * 0.45, rr * 0.3, PAL.boss2Vent, 0.4 * hot, 2); }
   if (tell && B.attack === 'A') ring(x, y, rr * 1.3, 2.5, withA(PAL.laneEdge, 0.4 + 0.6 * tt), -Math.PI / 2, -Math.PI / 2 + TAU * tt);
   // D8: heat sparks rising off the phase-2 hull (deterministic from t, so both renderers draw the same)
   if (ph2) for (var hs = 0; hs < 5; hs++) {
@@ -700,61 +972,122 @@ function drawRoomEdge(S, s, RW, RH) {
   }
 }
 
-// particle clock = S.t (hit-stop and pause freeze sparks); stepped from both ingest and build
+// particle clock = S.t (hit-stop and pause freeze sparks); stepped from both ingest and build. The shake, the screen flash and the Operator's
+// death use a wall clock instead: they must keep moving while hit-stop and the results screen hold the sim still.
+function tickWall() {
+  var w = G_now(); FX.wdt = FX.wall ? Math.min(0.1, Math.max(0, w - FX.wall)) : 0; FX.wall = w;
+  if (FX.shake > 0) FX.shake = FX.shake < 0.05 ? 0 : FX.shake * Math.exp(-FX.wdt * 11);
+  if (FX.flash > 0) FX.flash = Math.max(0, FX.flash - FX.wdt * 2.4);
+}
 function advance(S) {
   var t = S.t || 0, dt = Math.max(0, Math.min(0.1, t - P.lastT)); P.lastT = t;
-  if (dt > 0) stepParticles(dt);
+  if (dt > 0) { stepParticles(dt); animStep(S, dt); }
 }
 function resetIfNew(S) {
   var t = S.t || 0;
-  if (P.seed !== S.seed || t < P.lastT) { P.list.length = 0; P.rnd = mkRng(((S.seed | 0) ^ 0x5eed) + 1); P.seed = S.seed; P.lastFrame = -1; P.lastT = t; }
+  if (P.seed !== S.seed || t < P.lastT) {
+    P.list.length = 0; P.decals.length = 0; AN.m.clear(); P.rnd = mkRng(((S.seed | 0) ^ 0x5eed) + 1); P.seed = S.seed; P.lastFrame = -1; P.lastT = t;
+    AN.h.init = false; AN.h.death = -1; AN.h.kick = AN.h.flash = AN.h.hurt = 0; FX.shake = 0; FX.flash = 0; FX.bossIntro = -1; FX.lastShake = {}; FX.hitMs.length = 0;
+  }
+}
+function noteRoom(S) {
+  var k = (S.stage | 0) + ':' + (S.roomId || '') + ':' + (S.lap | 0);
+  if (k !== P.roomKey) { P.roomKey = k; P.roomSeq++; V.Scene.roomSeq = P.roomSeq; }
+}
+// hero death: the Operator collapses (spin, shrink, fade) over 0.9 s of wall time after the run ends
+function heroDeathU() { var H = AN.h; if (H.death < 0) return -1; var u = (FX.wall - H.death) / (reduced ? 0.4 : 0.9); return u >= 1 ? -1 : Math.max(0, u); }
+
+// Hit-stop (M's picks, VISUAL-DESIGN 11): only on boss hits, hero damage and the boss's final blast; none on ordinary hits, crits or kills.
+// Returns the freeze in ms for one sim event (0 = none). main.js calls this for every event; limits from VISUAL-DESIGN 4.7:
+// 200 ms between stops (hero hurt always allowed), 250 ms in any 1 s, max 160 ms. Durations are guesses, about half the spec's 70-90 ms.
+function hitStopMs(e, S, nowMs) {
+  if (reduced || !e) return 0;
+  var ms = 0, hurt = e.k === 'hurt';
+  if (hurt) ms = 45;
+  else if (e.k === 'hit') { var a = AN.m.get(e.id); if (a && a.boss) ms = 30; }
+  else if (e.k === 'kill' && e.boss) ms = 110;
+  if (!ms) return 0;
+  var now = nowMs != null ? nowMs : G_now() * 1000, L = FX.hitMs, i, used = 0;
+  while (L.length && now - L[0].t > 1000) L.shift();
+  for (i = 0; i < L.length; i++) used += L[i].ms;
+  if (!hurt && e.k !== 'kill') { if (now - FX.lastHitStop < 200) return 0; if (used + ms > 250) return 0; }
+  FX.lastHitStop = now; L.push({ t: now, ms: ms });
+  return ms;
 }
 
 V.Scene = {
   stress: 0,
+  roomSeq: 0,
+  reduced: reduced,
   // main.js calls this after EVERY sim step; once used, build() stops reading S.events itself (no doubles)
   ingest: function (events, S) {
     if (!S) return;
-    P.ingested = true;
-    resetIfNew(S);
+    P.ingested = true; tickWall();
+    resetIfNew(S); noteRoom(S);
     advance(S);
     eatEvents(events, S);
     eatFx(S.fx);
+    sweepAnim(S);
   },
+  hitStopMs: hitStopMs,
   PAL: PAL,
   particles: P.list,
+  // Effect scaler hooks (render.js): setStep(0..5, isCanvas). Canvas 2D has no bloom blur and 12 glow sprites, so render.js floors it at step 4.
+  setStep: function (n, isCanvas) { n = Math.max(0, Math.min(5, n | 0)); T = TIERS[n]; canvasMode = !!isCanvas; V.Scene.step = n; },
+  step: 0,
+  stats: STAT,
+  tiers: TIERS,
+  // Drawing helpers for other parts (draw-list helper object; the catch room draws on its own overlay canvas, so it does not use it). All coordinates are CSS px.
+  ctx: { rect: function (x, y, w, h, c, rot) { rect(x, y, w, h, c, rot); }, circ: function (x, y, r, c) { circ(x, y, r, c); }, ring: function (x, y, r, lw, c, a0, a1) { ring(x, y, r, lw, c, a0, a1); },
+    line: function (x1, y1, x2, y2, lw, c) { line(x1, y1, x2, y2, lw, c); }, ngon: function (x, y, r, n, rot, c) { ngon(x, y, r, n, rot, c); },
+    grad: function (x, y, w, h, c, c2, rot) { grad(x, y, w, h, c, c2, rot); }, rgrad: function (x, y, r, c, c2, add) { rgrad(x, y, r, c, c2, add); },
+    glow: function (x, y, r, c, a, prio, add) { glow(x, y, r, c, a, prio, add); },
+    oCirc: function (x, y, r, c) { oCirc(x, y, r, c); }, oRect: function (x, y, w, h, c, rot) { oRect(x, y, w, h, c, rot); }, oNgon: function (x, y, r, n, rot, c) { oNgon(x, y, r, n, rot, c); },
+    X: function (x) { return X(x); }, Y: function (y) { return Y(y); }, withA: withA, mix: mix, PAL: PAL, mkRng: mkRng,
+    get list() { return out; }, get view() { return vw; }, get step() { return T.step; }, get reduced() { return reduced; },
+    // world-unit effect spawners (they obey the tier caps): spark burst, ring, smoke puff
+    burst: function (x, y, n, spd, life, col, size) { spawnBurst(x, y, n, spd, life, col, size, 4, 'B'); }, spawnRing: function (x, y, r0, r1, life, col) { spawnRing(x, y, r0, r1, life, col); }, smoke: function (x, y, n) { spawnSmoke(x, y, n); } },
   build: function (S, view, outArr) {
-    out = outArr; vw = view; out.length = 0;
+    out = outArr; vw = view; out.length = 0; GL.length = 0;
     var s = view.s, t = S.t || 0;
+    tickWall(); V.Scene.lastStage = S.stage;
     // particle bookkeeping (own clock = S.t, so hit-stop and pause freeze sparks too)
-    resetIfNew(S);
+    resetIfNew(S); noteRoom(S);
     advance(S);
     if (!P.ingested && S.frame !== P.lastFrame) { P.lastFrame = S.frame; eatEvents(S.events, S); eatFx(S.fx); }
+    sweepAnim(S);
     sh.x = Math.max(2, s * 0.14); sh.y = Math.max(3, s * 0.2);
+    // screen shake: one channel, play field only, 150 ms refractory per source; held to 1.5 px while a lethal tell is locked (spec 3 px, halved)
+    var amp = FX.shake, E0 = S.enemies || [];
+    if (amp > 0) { for (var li = 0; li < E0.length; li++) if (E0[li].st === 'tell' && (E0[li].tell01 || 0) > 0.66 && E0[li].locked !== false) { amp = Math.min(amp, 1.5); break; } }
+    shx = amp > 0 ? Math.sin(FX.wall * 131.7) * amp : 0; shy = amp > 0 ? Math.cos(FX.wall * 97.3) * amp : 0;
 
-    // ground: whole screen, continues below the room
-    rect(view.w / 2, view.h / 2, view.w + 2, view.h + 2, PAL.ground);
+    // ground: whole screen (oversized so the shake never shows an edge), continues below the room
+    rect(view.w / 2, view.h / 2, view.w + 24, view.h + 24, PAL.ground);
     var dc = groundDeco(S);
     for (var i = 0; i < dc.length; i++) {
       var d = dc[i];
       if (d.streak) line(d.x - 6 * Math.cos(d.a), d.y - 2, d.x + 6 * Math.cos(d.a), d.y + 2, 1, PAL.groundDot);
       else circ(d.x, d.y, d.r, d.light ? PAL.groundDot2 : PAL.groundDot);
     }
+    if (S.stageKind === 'collect' && S.mini) { drawVignette(S); STAT.prims = out.length; return out; }   // the catch room draws on its own overlay canvas (main.js cCatch); only the ground shows under it
     var R = S.room, RW = (R && R.w) || S.cols || 9, RH = (R && R.h) || 15;
     // room floor = same sand as the ground below (M 2026-11-10: one continuous yard, no panel)
     drawOutOfBounds(S, s, RW, RH); // QA-P1 D3: below/beside the room = same sand, shaded darker
 
     var E = S.enemies || [], sol = (R && R.solids) || [];
     drawHazards(S, s, t);
+    drawDecals(s);
     for (i = 0; i < E.length; i++) { drawEnemyTellGround(S, E[i], s); drawLaneTell(S, E[i], s); drawBossGround(S, E[i], s, t); }
     drawShellRings(S, s, t);
 
-    // shadows (hard, low sun from the upper left)
+    // shadows (hard, low sun from the upper left). Step 5: unit shadows are plain hull circles, pickups and small props stop casting.
     for (i = 0; i < sol.length; i++) drawSolidShadow(sol[i], s, RW, RH);
     var pk = S.pickups || [];
-    for (i = 0; i < pk.length; i++) circ(X(pk[i].x) + sh.x * 0.4, Y(pk[i].y) + sh.y * 0.4, 4, PAL.shadow);
+    if (T.shadowSmall) for (i = 0; i < pk.length; i++) circ(X(pk[i].x) + sh.x * 0.4, Y(pk[i].y) + sh.y * 0.4, 4, PAL.shadow);
     for (i = 0; i < E.length; i++) {
       var e = E[i], er = (e.r || 0.4) * s, fly = e.type === 'E-01' ? 1.6 : 1;
+      if (T.simpleShadow) { circ(X(e.x) + sh.x * (e.boss ? 1.6 : fly), Y(e.y) + sh.y * (e.boss ? 1.6 : fly), er * (e.boss ? 1.05 : 0.9), PAL.shadow); continue; }
       if (e.type === 'E-02') rect(X(e.x) + sh.x * fly, Y(e.y) + sh.y * fly, er * 1.5, er * 1.5, PAL.shadow, e.ang || 0);
       else if (e.type === 'E-03') ngon(X(e.x) + sh.x, Y(e.y) + sh.y, er, 6, Math.PI / 6, PAL.shadow);
       else if (e.boss || e.type === 'B-01') ngon(X(e.x) + sh.x * 1.6, Y(e.y) + sh.y * 1.6, er * 1.08, 8, Math.PI / 8, PAL.shadow);
@@ -762,34 +1095,45 @@ V.Scene = {
       else if (e.type === 'E-05') ngon(X(e.x) + sh.x, Y(e.y) + sh.y, er, 3, e.ang || 0, PAL.shadow);
       else circ(X(e.x) + sh.x * fly, Y(e.y) + sh.y * fly, er * 0.9, PAL.shadow);
     }
-    var H = S.hero, heroOn = H && S.phase !== 'dead' && !(S.phase === 'results' && S.result && !S.result.win);
+    var H = S.hero, dU = heroDeathU(), heroOn = H && S.phase !== 'dead' && !(S.phase === 'results' && S.result && !S.result.win);
     if (heroOn) circ(X(H.x) + sh.x * 0.7, Y(H.y) + sh.y * 0.7, (H.r || 0.28) * s, PAL.shadow);
+    else if (H && dU >= 0 && dU < 0.7) circ(X(AN.h.dx) + sh.x * 0.7, Y(AN.h.dy) + sh.y * 0.7, (H.r || 0.28) * s * (1 - dU), PAL.shadow);
 
     drawRoomEdge(S, s, RW, RH); // QA-P1 D3: sandbag berm + side curbs
     for (i = 0; i < sol.length; i++) drawSolid(sol[i], s);
     drawWallCorners(S, s, RW, RH); // QA-VISUAL D4: thin side strip joined to the top wall
     drawDoor(S, s);
+    // sun grade: one warm wash from the upper left fading to a cool-brown corner lower right, over ground and structure, under every unit and tell.
+    var dg = Math.hypot(view.w, view.h);
+    grad(view.w / 2, view.h / 2, dg, dg, [1, 0.93, 0.745, 0.16], [0.27, 0.19, 0.08, 0.16], -Math.PI / 4);
+    drawAmbient(S, s, t, RW, RH);
     drawSupply(S, s, t);
     drawChest(S, s, t);
     for (i = 0; i < pk.length; i++) drawPickup(pk[i], s, t);
     for (i = 0; i < E.length; i++) drawEnemyAim(S, E[i], s);
     for (i = 0; i < E.length; i++) drawEnemy(S, E[i], s, t);
+    drawGhosts(S, s, t);
     drawFx(S, s, t);
     drawLock(S, s, t); // enemy marker: under the Operator (QA-P1 D2)
     // QA-P1 D2: the Operator and its HP bar sit above every enemy layer (bodies, HP bars, lock ring)
     if (heroOn) { drawBrace(S, s); drawHero(S, s, t); drawHeroHp(S, s); }
+    else if (H && dU >= 0) drawHero(S, s, t, dU);
 
     var rd = S.rounds || [];
     for (i = 0; i < rd.length; i++) {
       var q = rd[i], rr = Math.max(2.5, (q.r || 0.12) * s), sp = Math.sqrt(q.vx * q.vx + q.vy * q.vy) || 1;
-      var tl = 0.45 / sp * 1;
+      var tl = 0.6 / sp;   // trail about 0.6 tile
       var core = q.burn ? PAL.burn : q.poison ? PAL.poison : q.freeze ? PAL.freeze : PAL.roundCore;
       var trail = q.burn ? withA(PAL.burn, 0.5) : q.poison ? withA(PAL.poison, 0.5) : PAL.roundTrail;
-      line(X(q.x - q.vx * tl * (q.pierce ? 1 : 0.5)), Y(q.y - q.vy * tl * (q.pierce ? 1 : 0.5)), X(q.x), Y(q.y), rr * 1.4, trail);
-      if (q.pierce) rect(X(q.x), Y(q.y), rr * 3.2, rr * 1.3, PAL.pierce, Math.atan2(q.vy, q.vx));
-      circ(X(q.x), Y(q.y), rr, PAL.round); circ(X(q.x), Y(q.y), rr * 0.55, core);
+      // L1: capsule streak with a dark --pv-round-rim under it and a rim ring on the head, so it reads on sand, in greyscale, and among the pink
+      var tx0 = X(q.x - q.vx * tl * (q.pierce ? 1.2 : 1)), ty0 = Y(q.y - q.vy * tl * (q.pierce ? 1.2 : 1)), hx0 = X(q.x), hy0 = Y(q.y);
+      line(tx0, ty0, hx0, hy0, rr * 1.5 + 3, PAL.roundRim); circ(tx0, ty0, rr * 0.75 + 1.5, PAL.roundRim);
+      line(tx0, ty0, hx0, hy0, rr * 1.5, q.burn || q.poison ? trail : PAL.roundTrail2); circ(tx0, ty0, rr * 0.75, q.burn || q.poison ? trail : PAL.roundTrail2);
+      if (q.pierce) rect(hx0, hy0, rr * 3.2, rr * 1.3, PAL.pierce, Math.atan2(q.vy, q.vx));
+      circ(hx0, hy0, rr + 1.5, PAL.roundRim); circ(hx0, hy0, rr, PAL.round); circ(hx0, hy0, rr * 0.55, core);
       if (q.rico) ring(X(q.x), Y(q.y), rr + 2.5, 1.2, PAL.cyan);
       if (q.bounceWall) ring(X(q.x), Y(q.y), rr + 1, 1, PAL.ink);
+      glow(X(q.x), Y(q.y), rr * 3, q.burn ? PAL.burn : q.poison ? PAL.poison : PAL.cyan, 0.4, 3);
     }
     var sv = S.shots || [];
     for (i = 0; i < sv.length; i++) {
@@ -797,10 +1141,17 @@ V.Scene = {
       circ(X(o.x), Y(o.y), r2 + 2.5, withA(PAL.shot, 0.28));
       circ(X(o.x), Y(o.y), r2 + 1, PAL.shotRim);
       circ(X(o.x), Y(o.y), r2, PAL.shot); circ(X(o.x), Y(o.y), r2 * 0.45, PAL.shotCore);
+      if (i < 20 || !canvasMode) glow(X(o.x), Y(o.y), r2 * 2.6, PAL.shot, 0.38, 3);   // enemy rounds with a halo: first 20 only past that (step 3 rule)
     }
     drawShells(S, s);
-    drawParticles(s);
+    drawParticles(s, S);
+    flushGlows();
     if (V.Scene.stress > 0) drawStress(V.Scene.stress | 0, t);
+    drawVignette(S);
+    if (FX.flash > 0) rect(view.w / 2, view.h / 2, view.w + 2, view.h + 2, [1, 0.97, 0.88, FX.flash]);   // boss death flash: once, 0.15 s
+    // counters for the report and the scaler log
+    STAT.prims = out.length; STAT.particles = P.list.length; STAT.decals = P.decals.length; STAT.builds++;
+    if (STAT.prims > STAT.peakPrims) STAT.peakPrims = STAT.prims; if (STAT.particles > STAT.peakParticles) STAT.peakParticles = STAT.particles;
     return out;
   }
 };

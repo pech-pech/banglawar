@@ -24,8 +24,10 @@ V.Render2D = {
       c.setTransform(k, 0, 0, k, 0, 0);
       c.fillStyle = '#000'; c.fillRect(0, 0, st.w, st.h);
       c.lineCap = 'butt';
+      var add = false;
       for (var i = 0; i < list.length; i++) {
         var p = list[i];
+        if (p.add !== add) { add = !!p.add; c.globalCompositeOperation = add ? 'lighter' : 'source-over'; }
         switch (p.p) {
           case 'circle':
             c.fillStyle = css(p.c); c.beginPath(); c.arc(p.x, p.y, Math.max(0, p.r), 0, 6.283185307); c.fill(); break;
@@ -44,6 +46,23 @@ V.Render2D = {
             break;
           case 'line':
             c.strokeStyle = css(p.c); c.lineWidth = p.lw; c.beginPath(); c.moveTo(p.x1, p.y1); c.lineTo(p.x2, p.y2); c.stroke(); break;
+          case 'grad': {
+            // linear gradient along the rect's local +y, same maths as the WebGPU type 4
+            var cs2 = Math.cos(p.rot || 0), sn2 = Math.sin(p.rot || 0);
+            c.setTransform(k * cs2, k * sn2, -k * sn2, k * cs2, k * p.x, k * p.y);
+            var gr = c.createLinearGradient(0, -p.h / 2, 0, p.h / 2);
+            gr.addColorStop(0, css(p.c)); gr.addColorStop(1, css(p.c2 || p.c));
+            c.fillStyle = gr; c.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
+            c.setTransform(k, 0, 0, k, 0, 0);
+            break;
+          }
+          case 'rgrad': {
+            if (!(p.r > 0)) break;
+            var rg = c.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.r);
+            rg.addColorStop(0, css(p.c)); rg.addColorStop(1, css(p.c2 || p.c));
+            c.fillStyle = rg; c.beginPath(); c.arc(p.x, p.y, p.r, 0, 6.283185307); c.fill();
+            break;
+          }
           case 'ngon':
             c.fillStyle = css(p.c); c.beginPath();
             for (var j = 0; j < p.n; j++) {
@@ -53,6 +72,7 @@ V.Render2D = {
             c.closePath(); c.fill(); break;
         }
       }
+      if (add) c.globalCompositeOperation = 'source-over';
     }
     return { name: 'Canvas 2D', canvas: canvas, resize: resize, draw: draw, destroy: function () {} };
   }

@@ -5,7 +5,7 @@ var Q = new URLSearchParams(location.search);
 var STEP_MS = 1000 / 60, MAX_STEPS = 5;
 var S = null, R = null, list = [], view = { w: 344, h: 882, dpr: 1, ox: 0, oy: 64, s: 38.2, scale: 1, C: 9 };
 var moved = false, acc = 0, last = 0, hitstopUntil = 0, paused = false, frozen = Q.get('freeze') === '1';
-var shown = { pick: false, dead: false, supply: false, endPhase: '' }, deadAt = 0, deaths = 0;
+var shown = { pick: false, dead: false, supply: false, endPhase: '' }, deadAt = 0, deaths = 0, endSeenAt = 0, DEATH_BEAT_MS = 900;   // beat length is a guess (V's collapse is 0.9 s)
 // Deploy home (S-10, minimal) is the first screen; ?home=0 skips it (tests and bots). The sim waits behind it.
 var home = Q.get('home') !== '0';   // V.Home (home.js) owns the screens; V.Run below is its handle on the run
 var ft = [], FT_MAX = 1200, gaps = 0, frames = 0;
@@ -96,9 +96,9 @@ function handleEvents(ev, live){
     if (V.Prompts) V.Prompts.event(e, S);
     switch (e.k) {
       case 'fire': break;
-      case 'hit': stop = true; break;
-      case 'crit': UI.crit(e.x, e.y, e.dmg, view, S, e.id); stop = true; break;
-      case 'kill': vib(V.TUNE.HAPTIC_KILL_MS); stop = true; break;
+      case 'hit': break;
+      case 'crit': UI.crit(e.x, e.y, e.dmg, view, S, e.id); break;
+      case 'kill': vib(V.TUNE.HAPTIC_KILL_MS); break;
       case 'hurt': UI.hurtFlash(); vib(V.TUNE.HAPTIC_HURT_MS); break;
       case 'door': awReset(); UI.toast('Stage ' + S.stage + ' clear', 1100); break;
       case 'room': { awReset(); var rm = V.ROOMS && V.ROOMS[S.roomId]; UI.toast('Stage ' + S.stage + (rm ? ': ' + rm.name : ''), 1500); break; }
@@ -111,7 +111,11 @@ function handleEvents(ev, live){
       case 'win': break;
     }
   }
-  if (stop && live && V.TUNE.HITSTOP_MS > 0) hitstopUntil = performance.now() + V.TUNE.HITSTOP_MS;
+  // Hit-stop only on hero hurt, boss hit and boss kill (M's pick); V.Scene owns the ms. Older scenes fall back to the tune value.
+  var hs = 0;
+  if (V.Scene && V.Scene.hitStopMs) { for (var hi = 0; hi < ev.length; hi++) hs = Math.max(hs, V.Scene.hitStopMs(ev[hi], S) || 0); }
+  else if (stop && V.TUNE.HITSTOP_MS > 0) hs = V.TUNE.HITSTOP_MS;
+  if (hs > 0 && live) hitstopUntil = performance.now() + hs;
 }
 function simStep(inp, live){ V.Sim.step(S, inp); if (V.Scene && V.Scene.ingest) V.Scene.ingest(S.events, S); handleEvents(S.events, live); if (V.Audio.step) V.Audio.step(S); }
 
@@ -126,10 +130,13 @@ function syncPhase(){
   } else if (shown.supply) { shown.supply = false; if (V.CatchUI) V.CatchUI.close(); UI.show('ovSupply', false); }
   // P1: death and boss kill both end in 'results'. A brief 'dead' phase (if the sim has one) shows the same screen.
   if (isEnd()) {
+    // QA-LOOK L4: on a death, hold the results card for the 0.9 s collapse so it can be seen
+    if (!endSeenAt) endSeenAt = performance.now();
+    if (!shown.dead && S.result && S.result.win === false && performance.now() - endSeenAt < DEATH_BEAT_MS) return;
     if (!shown.dead || shown.endPhase !== S.phase) { shown.dead = true; shown.endPhase = S.phase; deadAt = deadAt || performance.now(); V.Input.release(); if (V.Report) V.Report.runEnd(S, S.result); UI.results(S); }
     var armed = performance.now() - deadAt >= RESULTS_GUARD_MS, ovd = $('ovDead');
     if (ovd.classList.contains('armed') !== armed) ovd.classList.toggle('armed', armed);
-  } else if (shown.dead) { shown.dead = false; deadAt = 0; $('ovDead').classList.remove('armed'); UI.show('ovDead', false); }
+  } else if (endSeenAt || shown.dead) { endSeenAt = 0; shown.dead = false; deadAt = 0; $('ovDead').classList.remove('armed'); UI.show('ovDead', false); }
 }
 function pickSupply(i){
   if (!S || S.phase !== 'supply') return;
@@ -150,7 +157,7 @@ function pick(i){
 }
 function restart(){
   S = V.Sim.restart(S); V.Audio.seed(S.seed); refit(); if (V.Report) V.Report.runStart(S);
-  acc = 0; hitstopUntil = 0; deadAt = 0; moved = false; awReset(); shown.dead = false; UI.show('ovDead', false); shown.pick = false; UI.show('ovCards', false); shown.supply = false; if (V.CatchUI) V.CatchUI.close(); UI.show('ovSupply', false);
+  acc = 0; hitstopUntil = 0; deadAt = 0; endSeenAt = 0; moved = false; awReset(); shown.dead = false; UI.show('ovDead', false); shown.pick = false; UI.show('ovCards', false); shown.supply = false; if (V.CatchUI) V.CatchUI.close(); UI.show('ovSupply', false);
   syncPhase(); return S;
 }
 // Results tap guard: the screen waits RESULTS_GUARD_MS, and only a press that BEGAN after that counts,
