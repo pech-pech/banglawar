@@ -12,31 +12,30 @@
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;height:100%;background:var(--pv-ui-bg,#0b0e11);color:var(--sand);font:14px/1.3 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;overflow:hidden;
   user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;overscroll-behavior:none}
-/* Full-screen frame (pick 43): #stage is 882 frame units tall and 344-800 wide (main.js layout() sets width, --pv-frame-w,
-   translate+scale). It fills the screen; only when the width clamp bites can a thin band of body background (flat --pv-ui-bg) show. */
+/* Full-screen layout (pick 43, R42): no scaled frame. #stage is the whole viewport in real CSS px (main.js layout() sets its size).
+   Width classes on body: w-narrow (<600) / w-wide (>=600), plus h-short (<720). Safe-area insets (L-PV-13) pad the HUD, overlays and Home. */
 body{touch-action:none}
-#stage{position:absolute;left:0;top:0;width:344px;height:882px;transform-origin:0 0;overflow:hidden;touch-action:none;background:#c9b48a;flex:none;
-  box-shadow:0 0 0 calc(1px / var(--pv-scale,1)) var(--pv-ui-metal-500,#4a535d)}
+#stage{position:fixed;left:0;top:0;width:100vw;height:100vh;overflow:hidden;touch-action:none;background:#c9b48a}
 #stage canvas{position:absolute;left:0;top:0;width:100%;height:100%;display:block;touch-action:none}
-/* HUD */
-#hud{position:absolute;left:0;top:0;right:0;pointer-events:none;z-index:10;
-  padding:0px 0px 0 0px;
-  background:linear-gradient(#1d1e1f,#1d1e1f) no-repeat top/100% 0px}
-#hudTop{display:flex;align-items:center;gap:6px;height:44px;padding:4px 4px 0 6px;background:linear-gradient(#1d1e1fee,#1d1e1fcc)}
-#stageLbl{font-weight:700;font-size:13px;white-space:nowrap;color:var(--sand);background:var(--gun);border:1px solid #4a4d4f;border-radius:6px;padding:3px 6px}
+/* HUD band = 64 px under the top inset: bar 48 (stage chip, level, XP bar, pause, tuning) + HP strip 16, both full width (FULLSCREEN-LAYOUT s4, L-PV-7). */
+#hud{position:absolute;left:0;top:0;right:0;pointer-events:none;z-index:10;padding:env(safe-area-inset-top,0px) env(safe-area-inset-right,0px) 0 env(safe-area-inset-left,0px);background:#1d1e1f}
+#hudTop{display:flex;align-items:center;gap:8px;height:48px;padding:0 0 0 8px;background:linear-gradient(#24262a,#1d1e1f)}
+#stageLbl{flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;font-weight:700;font-size:13px;white-space:nowrap;color:var(--sand);background:var(--gun);border:1px solid #4a4d4f;border-radius:6px;padding:4px 7px}
 #stageLbl b{color:#fff}
-#lvl{font-weight:800;font-size:13px;color:#0d1b1d;background:var(--cyan);border-radius:6px;padding:3px 6px;white-space:nowrap}
-#xpWrap{height:6px;margin:2px 6px 0;border-radius:3px;background:#0c0d0e;border:1px solid #45494c;overflow:hidden}
+#lvl{flex:none;font-weight:800;font-size:13px;color:#0d1b1d;background:var(--cyan);border-radius:6px;padding:4px 7px;white-space:nowrap}
+#xpWrap{flex:1 1 40px;min-width:64px;max-width:360px;height:8px;border-radius:4px;background:#0c0d0e;border:1px solid #45494c;overflow:hidden}   /* XP bar stretches; at most 360 wide (guess, spec s4) */
+.w-wide #xpWrap{margin-right:auto}
 #xpFill{height:100%;width:0;background:var(--cyan)}
-.hb{pointer-events:auto;flex:none;width:56px;height:56px;margin:-6px -4px -6px 0;border:0;background:transparent;color:var(--sand);font-size:24px;line-height:56px;padding:0;cursor:pointer}
+/* 44 px plate centred in the 48 bar; 56 x 56 hit area from the top edge, overhanging the HP strip by 8 px (never above the viewport) */
+.hb{pointer-events:auto;flex:none;position:relative;align-self:flex-start;width:56px;height:56px;margin:0 0 -8px;border:0;background:transparent;color:var(--sand);font-size:22px;padding:2px 0 0;cursor:pointer;display:flex;align-items:flex-start;justify-content:center}
 #pauseBtn{font-size:13px;letter-spacing:-2px}
-.hb span{display:inline-block;width:36px;height:36px;line-height:34px;border-radius:8px;background:var(--gun);border:1px solid #55595c}
-#hpRow{position:relative;height:18px;margin:0 6px;border-radius:0 0 6px 6px;background:#0c0d0e;border:1px solid #45494c;border-top:0;overflow:hidden}
+.hb span{display:flex;align-items:center;justify-content:center;width:44px;height:44px;border-radius:8px;background:var(--gun);border:1px solid #55595c}
+#hpRow{position:relative;display:flex;align-items:center;gap:8px;height:16px;padding:0 8px;background:#151617}
+#hpBar{position:relative;flex:1;height:10px;border-radius:3px;background:#0c0d0e;border:1px solid #45494c;overflow:hidden}
 #hpFill{height:100%;width:100%;background:var(--hp);transition:width .12s}
-/* Two copies of the HP text: dark where the bar is filled, light where it is empty (4.5:1 on both). */
-.hpT{position:absolute;inset:0;text-align:center;font-size:12px;font-weight:800;line-height:18px;transition:clip-path .12s}
-#hpTxt{color:#0b1416;clip-path:inset(0 0 0 0)}
-#hpTxtE{color:#f2ead8;clip-path:inset(0 0 0 100%)}
+/* HP number beside the bar (L-PV-7), not over the fill */
+.hpT{flex:none;font-size:12px;font-weight:800;line-height:16px;color:#f2ead8;font-variant-numeric:tabular-nums;white-space:nowrap}
+#hpTxtE{display:none}
 #rlbl{position:absolute;left:6px;bottom:6px;font:11px/1.2 ui-monospace,Menlo,Consolas,monospace;color:#1b1a17;background:rgba(233,220,191,.85);padding:2px 5px;border-radius:4px;pointer-events:none;z-index:10;display:none}
 body.dbg #rlbl{display:block}
 .rinfo{font:11px/1.3 ui-monospace,Menlo,Consolas,monospace;color:var(--mut)}
@@ -48,21 +47,28 @@ body.dbg #rlbl{display:block}
 body.ovon #hud, body.ovon #toast, body.ovon #rlbl{visibility:hidden}
 /* overlays */
 .ov{position:absolute;inset:0;z-index:30;display:none;flex-direction:column;align-items:center;justify-content:center;gap:12px;
-  padding:max(16px,0px) max(16px,0px) max(16px,0px) max(16px,0px);
+  padding:max(16px,env(safe-area-inset-top,0px)) max(8px,env(safe-area-inset-right,0px)) max(16px,env(safe-area-inset-bottom,0px)) max(8px,env(safe-area-inset-left,0px));
   background:rgba(20,19,16,.94);text-align:center}
 .ov.on{display:flex}
 .ov h2{margin:0;font-size:22px;color:#fff;letter-spacing:.5px}
-.ov p{margin:0;color:var(--sand);max-width:300px}
+.ov p{margin:0;color:var(--sand);max-width:400px}
 .btn{min-height:56px;min-width:120px;padding:8px 18px;border-radius:10px;border:0;font:700 17px system-ui,sans-serif;background:var(--cyan);color:#0b1416;cursor:pointer}
 .btn.ghost{background:var(--gun2);color:var(--sand);border:1px solid #5a5e61}
-.card{width:100%;min-height:64px;border-radius:10px;border:2px solid var(--cyan);background:var(--gun);color:var(--sand);padding:8px 10px;text-align:left;cursor:pointer;font:inherit;
+.card{width:100%;min-height:96px;border-radius:10px;border:2px solid var(--cyan);background:var(--gun);color:var(--sand);padding:8px 10px;text-align:left;cursor:pointer;font:inherit;
   display:flex;align-items:center;gap:10px}
 .card .gl{flex:none;width:44px;height:44px;border-radius:8px;background:#11262a;border:1px solid var(--cyanD);color:var(--cyan);font:700 22px/44px system-ui,sans-serif;text-align:center}
 .card .tx{flex:1;min-width:0}
 .card b{display:block;font-size:18px;color:#fff;margin-bottom:2px}
 .card span{display:block;font-size:15px;line-height:1.25;color:var(--sand)}
-/* Wide frame: card lists keep a readable width, centred by .ov (align-items:center) */
-#cardList,#supList{max-width:400px}
+/* Level-up and supply rows: full width less 16 px (the .ov side padding) on narrow screens, at most 560 wide, 96 high, stacked (FULLSCREEN-LAYOUT s4) */
+#cardList,#supList{max-width:560px}
+.h-short #cardList,.h-short #supList{gap:8px!important}
+/* Pause: centred panel at most 400 wide; the mods list scrolls inside; build label at the foot */
+#ovPause .pz{display:flex;flex-direction:column;align-items:stretch;gap:10px;width:100%;max-width:400px;max-height:100%;min-height:0}
+#ovPause .pz .btn{width:100%;min-width:0}
+#pauseMods{flex:0 1 auto;min-height:0;overflow-y:auto;max-height:30vh;font-size:12px;line-height:1.4;color:var(--mut);text-align:center}
+.h-short #ovPause .pz{gap:8px}
+.h-short #ovPause .pz .btn.ghost{min-height:48px}   /* secondary targets may be 48 on short screens (G1) */
 .card.sup .gl{background:#2d2414;border-color:#7a5a20;color:var(--amber)}
 #deadStats{font-size:14px;color:var(--sand);line-height:1.5}
 /* Boss bar (D1): label row above a plain full-width bar, so no text sits over the fill. */
@@ -80,13 +86,15 @@ body.ovon #bossBar, body.ovon #howto, body.ovon #dmgLayer{visibility:hidden}
   text-shadow:-1px -1px 0 #2a1200,1px -1px 0 #2a1200,-1px 1px 0 #2a1200,1px 1px 0 #2a1200,0 0 3px #000;will-change:transform,opacity}
 .card.sup{border-color:var(--amber)}
 .card small{display:block;font-size:12px;color:var(--amber);text-transform:uppercase;letter-spacing:1px;margin-bottom:1px}
-#resStats{font:400 14px/1.2 var(--pv-ui-font);color:var(--pv-ui-text);text-align:left;background:linear-gradient(var(--pv-ui-metal-700),var(--pv-ui-metal-800));border:1.5px solid var(--pv-ui-ink);border-radius:6px;box-shadow:inset 0 1px 0 rgba(255,255,255,.10),inset 0 -2px 0 rgba(0,0,0,.35),0 2px 0 rgba(0,0,0,.55);padding:4px 12px;max-width:312px;width:100%}
+#resStats{flex:0 1 auto;min-height:0;overflow-y:auto;font:400 14px/1.2 var(--pv-ui-font);color:var(--pv-ui-text);text-align:left;background:linear-gradient(var(--pv-ui-metal-700),var(--pv-ui-metal-800));border:1.5px solid var(--pv-ui-ink);border-radius:6px;box-shadow:inset 0 1px 0 rgba(255,255,255,.10),inset 0 -2px 0 rgba(0,0,0,.35),0 2px 0 rgba(0,0,0,.55);padding:4px 12px;max-width:480px;width:100%}
 #resStats .row{display:flex;justify-content:space-between;align-items:center;gap:10px;min-height:32px;border-bottom:1px dashed var(--pv-ui-metal-600)}
 #resStats .row:last-child{border-bottom:0}
 #resStats .row span{font:700 12px/1.1 var(--pv-ui-font-stencil);text-transform:uppercase;letter-spacing:.12em;color:var(--pv-ui-text-2)}
 #resStats .row b{font:800 16px/1.1 var(--pv-ui-font-stencil);font-variant-numeric:tabular-nums;letter-spacing:.02em;color:var(--pv-ui-text);text-align:right;min-width:0}
 #ovDead h2{font:800 22px/1.1 var(--pv-ui-font-stencil);text-transform:uppercase;letter-spacing:.08em;color:var(--pv-ui-sand)}
-#ovDead .btn{width:100%;max-width:312px;min-height:56px;display:flex;align-items:center;justify-content:center;font:800 14px/1 var(--pv-ui-font-stencil);text-transform:uppercase;letter-spacing:.14em;border-radius:6px;
+#ovDead{justify-content:flex-start}
+#ovDead::before{content:"";flex:1 1 0;max-height:12vh}
+#ovDead .btn{flex:none;width:100%;max-width:480px;min-height:64px;display:flex;align-items:center;justify-content:center;font:800 14px/1 var(--pv-ui-font-stencil);text-transform:uppercase;letter-spacing:.14em;border-radius:6px;
   color:var(--pv-ui-text);background:linear-gradient(var(--pv-ui-metal-600),var(--pv-ui-metal-800));border:2.5px solid var(--pv-ui-ink);box-shadow:inset 0 1px 0 rgba(255,255,255,.10),inset 0 -2px 0 rgba(0,0,0,.35),0 3px 0 var(--pv-ui-ink)}
 #ovDead .btn#btnRestart{min-height:64px;font-size:22px;letter-spacing:.2em;color:var(--pv-ui-cyan-ink);border:0;border-radius:0;background:linear-gradient(var(--pv-ui-cyan-hi),var(--pv-ui-cyan) 45%,#18bfd6);
   clip-path:polygon(0 0,calc(100% - 12px) 0,100% 12px,100% 100%,12px 100%,0 calc(100% - 12px));box-shadow:inset 0 0 0 2px var(--pv-ui-ink),inset 0 3px 0 rgba(255,255,255,.55),inset 0 -5px 0 rgba(0,60,70,.35)}
@@ -96,28 +104,36 @@ body.ovon #bossBar, body.ovon #howto, body.ovon #dmgLayer{visibility:hidden}
 #ovDead:not(.armed) #btnRestart{opacity:.45}
 @media (prefers-reduced-motion: reduce){ #flash{display:none} #toast,#hpFill{transition:none} }
 /* Results portrait (P-02): framed panel, sand backdrop kept */
-#resHead{display:flex;align-items:center;gap:12px;width:100%;max-width:312px}
+#resHead{flex:none;display:flex;align-items:center;gap:12px;width:100%;max-width:480px}
 #resHead h2{flex:1;text-align:left}
 #resPortrait{display:block;flex:none;width:72px;height:96px;border-radius:4px;border-radius:6px;border:2px solid #0f1215;box-shadow:0 0 0 1.5px #4a535d;object-fit:cover;object-position:top;background:#1b2026}
+/* QA-VISUAL D2 (option A): short screens tighten the results card so every stats row, MODS included, shows without scrolling (475x590/638) */
+.h-short #ovDead{gap:8px}
+.h-short #ovDead::before{max-height:4vh}
+.h-short #resPortrait{width:54px;height:72px}
+.h-short #resStats{padding:2px 12px}
+.h-short #resStats .row{min-height:25px;padding:1px 0}
+.h-short #resStats .row b{font-size:15px;line-height:1.05}
 #ovBoot{z-index:60}
 /* drawer */
 #drawer{position:absolute;top:0;right:0;bottom:0;width:100%;z-index:50;background:rgba(18,18,17,.97);display:none;flex-direction:column;
-  padding:0px 0px 0px 0px}
+  padding:env(safe-area-inset-top,0px) env(safe-area-inset-right,0px) 0 env(safe-area-inset-left,0px)}
 #drawer.on{display:flex}
 #drHead{display:flex;align-items:center;gap:6px;padding:4px 6px;border-bottom:1px solid #3c3f42;flex-wrap:wrap}
 #drHead h3{margin:0 auto 0 4px;font-size:16px;color:#fff}
-#drBody{flex:1;overflow-y:auto;padding:4px max(10px,calc((100% - 520px) / 2)) 20px;touch-action:pan-y}   /* wide frame: knobs in a centred 520 px column */
+#drBody{flex:1;overflow-y:auto;padding:4px max(10px,calc((100% - 560px) / 2)) max(20px,env(safe-area-inset-bottom,0px));touch-action:pan-y}   /* knobs in a centred column at most 560 (Settings rule, s4) */
 #drBody h4{margin:12px 0 2px;font-size:13px;color:var(--cyan);text-transform:uppercase;letter-spacing:1px}
 .kn{padding:4px 0;border-bottom:1px solid #2b2d2f}
 .kn label{display:flex;justify-content:space-between;font-size:12px;color:var(--sand)}
 .kn label i{font-style:normal;color:#fff;font-family:ui-monospace,Menlo,monospace}
-.kn input[type=range]{width:100%;height:36px;margin:0;accent-color:var(--cyan)}
+.kn input[type=range]{width:100%;height:44px;margin:0;accent-color:var(--cyan)}
 .kn input[type=range]:disabled{opacity:.45}
 .kn .tg{min-height:56px;width:100%;margin-top:2px}
+#drHead{justify-content:center}
 #drMsg{font-size:12px;color:var(--amber);min-height:16px;padding:0 10px}
 #copyArea{position:absolute;left:-9999px;top:0;width:10px;height:10px}
 /* ==========================================================================
-   Project Volley UI kit  (ui-kit.css)   portrait frame 882 tall, 344-800 wide (--pv-frame-w), no dependencies
+   Project Volley UI kit  (ui-kit.css)   full viewport in real CSS px (R42: no scaled frame; body classes w-narrow / w-wide / h-short), no dependencies
    Look: military field hardware. Gunmetal + olive panels, sand/off-white text,
    cyan = hero accent + primary action, red = enemies/danger only,
    amber hazard stripes = warnings only. Thin ink outlines, stencil labels.
@@ -196,13 +212,14 @@ body.ovon #bossBar, body.ovon #howto, body.ovon #dmgLayer{visibility:hidden}
   --pv-ui-glow:0 0 10px rgba(56,232,255,.45);
   --pv-ui-bevel:inset 0 1px 0 rgba(255,255,255,.10), inset 0 -2px 0 rgba(0,0,0,.35);
   /* sizes */
-  --pv-ui-touch:44px; --pv-ui-w:var(--pv-frame-w,344px); --pv-ui-col:520px; --pv-ui-h:882px; --pv-ui-tabbar-h:64px; --pv-ui-status-h:48px;
+  --pv-ui-touch:56px; --pv-ui-w:var(--pv-frame-w,100vw); --pv-ui-col:520px; --pv-ui-h:100vh;   /* touch: 56 default (G1), 48 on short screens, never under 44 */
+  --pv-sat:env(safe-area-inset-top,0px); --pv-sab:env(safe-area-inset-bottom,0px); --pv-sal:env(safe-area-inset-left,0px); --pv-sar:env(safe-area-inset-right,0px); --pv-ui-tabbar-h:64px; --pv-ui-status-h:48px;
   --pv-ui-hazard:repeating-linear-gradient(-45deg,var(--pv-ui-amber) 0 8px,var(--pv-ui-amber-ink) 8px 16px);
   --pv-ui-rivet:radial-gradient(circle at 35% 35%,#7b848d 0 1px,#3a4149 2px,#14181c 3px,transparent 3.5px);
 }
 
 *,*::before,*::after{box-sizing:border-box}
-.pv-screen{position:relative;width:var(--pv-frame-w,344px);--pv-ui-w:var(--pv-frame-w,344px);height:882px;overflow:hidden;background:
+.pv-screen{position:relative;width:100%;height:100%;overflow:hidden;background:
   radial-gradient(120% 60% at 50% 0,#1b2026 0,transparent 70%),
   repeating-linear-gradient(0deg,rgba(255,255,255,.012) 0 2px,transparent 2px 4px),var(--pv-ui-bg);
   color:var(--pv-ui-text);font:400 var(--pv-ui-fs-md)/1.35 var(--pv-ui-font);
@@ -389,15 +406,18 @@ body.ovon #bossBar, body.ovon #howto, body.ovon #dmgLayer{visibility:hidden}
 .pv-home{position:absolute;inset:0;z-index:35;display:none;width:auto;height:auto}
 .pv-home.on{display:flex}
 #ovBoot{z-index:60}
-.pv-home .pv-status{padding-top:0px;height:var(--pv-ui-status-h)}   /* safe areas sit outside the scaled frame (main.js layout) */
+body.h-short{--pv-ui-touch:48px}
+/* Safe areas (L-PV-13): bar fills run under the insets, content stays inside them. */
+.pv-home .pv-status{padding-top:var(--pv-sat);padding-left:calc(var(--pv-ui-s3) + var(--pv-sal));padding-right:calc(var(--pv-ui-s3) + var(--pv-sar));height:calc(var(--pv-ui-status-h) + var(--pv-sat))}
+.pv-home .pv-tabbar{height:calc(var(--pv-ui-tabbar-h) + var(--pv-sab));padding-bottom:var(--pv-sab)}
 .pv-status .pv-chip{padding:0 8px 0 6px;gap:5px}
 .pv-chip--credits{color:#ffe27a}
 .pv-coin{display:inline-block;flex:none;box-sizing:border-box;border-radius:50%;border:1.5px solid #0f1215;position:relative;background:linear-gradient(150deg,#ffe27a,#c28a0c)}
 .pv-coin::after{content:"";position:absolute;inset:18%;border-radius:50%;border:1px solid rgba(110,64,0,.7);box-sizing:border-box}
 .pv-chip__icon.pv-coin{width:16px;height:16px}
-#hmBody{position:relative;flex:1;min-height:0;margin-bottom:var(--pv-ui-tabbar-h)}
+#hmBody{position:relative;flex:1;min-height:0;margin:0 var(--pv-sar) calc(var(--pv-ui-tabbar-h) + var(--pv-sab)) var(--pv-sal)}
 .hm-pane{position:absolute;inset:0;overflow-y:auto;scrollbar-width:none;padding:0;--tb-bottom:28px}
-#pane-deploy{padding:12px 8px 28px}   /* 28 = 18 raised button + 10 clear (FIX-ROUND-1 B4) */
+#pane-deploy{padding:12px 6px 28px}   /* narrow: full width less 12 px (6 a side, guess); 28 = 18 raised button + 10 clear (FIX-ROUND-1 B4) */
 .hm-pane::-webkit-scrollbar{display:none}
 .hm-pane[hidden]{display:none}
 .hm-soon{display:flex;align-items:center;justify-content:center;min-height:120px;text-align:center}
@@ -407,40 +427,73 @@ body.ovon #bossBar, body.ovon #howto, body.ovon #dmgLayer{visibility:hidden}
 .pv-tab--center.is-selected::before{display:block;left:6%;right:6%}
 .pv-tab.is-selected .pv-pip{display:none}
 .pv-tab .pv-pip[hidden]{display:none}
-/* Deploy tab. #pane-deploy is a size container: the art follows the card width (328:216, never stretched) and shrinks with the pane height,
-   so card + Best stage + DEPLOY + note always fit; if a very short pane still cannot fit, the pane scrolls and its 28 px bottom pad keeps DEPLOY clear of the raised tab. */
+/* Deploy tab (FULLSCREEN-LAYOUT s4). #pane-deploy is a size container and a flex column.
+   Narrow: one column at most --pv-ui-col wide; the chapter art takes the spare height (at least 120) but never more than 0.94 x its width,
+   so the cover crop keeps at least the middle 70% of the 328:216 art (QA-056); any height left over sits between the card and the
+   bottom block, so DEPLOY (88 high) stays fixed above the tab bar. Short: the art shrinks first. Images keep their aspect (object-fit:cover). */
 #pane-deploy{container-type:size}
-/* Wide frame (full screen, no side bars): the Deploy column is at most --pv-ui-col wide and centred; the art follows the column width. */
-#pane-deploy>*{--col-w:min(100cqw,var(--pv-ui-col));--dep-h:clamp(64px,14cqh,88px);--art-h:max(96px,min(calc(var(--col-w)*216/328),calc(100cqh - 191px - var(--dep-h))))}
+#pane-deploy:not([hidden]){display:flex;flex-direction:column}
+#pane-deploy>*{--col-w:min(100cqw,var(--pv-ui-col));--dep-h:88px;--art-h:max(120px,min(calc(var(--col-w) * .94),calc(100cqh - 191px - var(--dep-h))))}
 #pane-deploy>:not(.hm-deploy){width:100%;max-width:var(--pv-ui-col);margin-left:auto;margin-right:auto}
-.hm-card{height:calc(var(--art-h) + 84px);padding:0;border:var(--pv-ui-stroke-heavy) solid var(--pv-ui-ink);border-radius:var(--pv-ui-r-lg);box-shadow:var(--pv-ui-sh-1);flex:none}
-.hm-card .pv-chapter__art{background:var(--pv-ui-metal-900);inset:0 0 auto 0;height:var(--art-h)}   /* key-art-card 328x216 anchored to the top edge; the rest of the card is solid dark (placement sheet) */
+.hm-card{height:calc(var(--art-h) + 84px);padding:0;border:var(--pv-ui-stroke-heavy) solid var(--pv-ui-ink);border-radius:var(--pv-ui-r-lg);box-shadow:var(--pv-ui-sh-1);flex:none;margin-bottom:auto!important}
+.hm-card .pv-chapter__art{background:var(--pv-ui-metal-900);inset:0 0 auto 0;height:var(--art-h)}
 .hm-card .pv-chapter__art img{width:100%;height:100%;object-fit:cover;object-position:50% 0;display:block}
-/* AP 1.3 scrim: transparent -> card colour over the lowest 96 px of the art (D1) */
+/* QA-VISUAL D5 (option A): the key art has a baked blue band on its top edge (16 of 432 px) and a cream sliver on its left (12 of 656 px).
+   A uniform 4% scale anchored bottom-right crops about 3.8% off the top and left of the shown box and nothing else; no stretch. */
+.hm-card .pv-chapter__art{overflow:hidden}
+.hm-card .pv-chapter__art img{transform:scale(1.04);transform-origin:100% 100%}
 .hm-card{background:var(--pv-ui-metal-900)}
 .hm-card::after{inset:auto 0 auto 0;top:calc(var(--art-h) - min(96px,var(--art-h)));height:min(96px,var(--art-h));background:linear-gradient(transparent,var(--pv-ui-metal-900))}
 .hm-info{position:absolute!important;left:12px;right:12px;top:calc(var(--art-h) + 12px);display:flex;flex-direction:column;gap:4px;align-items:flex-start}
-.hm-best{margin-top:12px;height:56px;display:flex;align-items:center;justify-content:space-between;padding:0 14px}
+.hm-best{flex:none;margin-top:12px;height:56px;display:flex;align-items:center;justify-content:space-between;padding:0 14px}
 .hm-bestn{font-size:20px}
-.hm-deploy{display:flex;width:min(100%,296px);min-height:var(--dep-h);height:var(--dep-h);margin:14px auto 0;font-size:26px}
-.hm-note{margin-top:10px;text-align:center}
+.hm-deploy{flex:none;display:flex;width:min(100%,296px);min-height:var(--dep-h);height:var(--dep-h);margin:14px auto 0;font-size:26px}
+.hm-note{flex:none;margin-top:10px;text-align:center}
+/* Wide: two columns in a centred block at most 880 wide: chapter card left; progress, DEPLOY and the note right. Art crops to cover, centred. */
+.w-wide #pane-deploy:not([hidden]){display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);grid-template-rows:1fr auto auto auto 1fr;column-gap:24px;
+  padding:16px max(16px,calc((100% - 880px) / 2)) 28px}
+.w-wide #pane-deploy>*{--col-w:calc((100cqw - 24px) / 2);--art-h:max(120px,min(calc(var(--col-w) * .94),calc(100cqh - 84px)))}
+.w-wide #pane-deploy>.hm-card{grid-column:1;grid-row:1 / 6;align-self:center;max-width:none;margin:0!important}
+.w-wide #pane-deploy>.hm-best{grid-column:2;grid-row:2;max-width:none;margin:0}
+.w-wide #pane-deploy>.hm-deploy{grid-column:2;grid-row:3;width:100%;margin:14px 0 0}
+.w-wide #pane-deploy>.hm-note{grid-column:2;grid-row:4;max-width:none}
+.w-wide .hm-card .pv-chapter__art img{object-position:50% 50%}
 /* results portrait + Home button */
 #resPortrait{display:block;flex:none;width:72px;height:96px;border-radius:4px;border:2px solid #0f1215;box-shadow:0 0 0 1.5px #4a535d;object-fit:cover;object-position:top;background:#1b2026}
 
-/* ===== Wide frame (M: "full screen, no bars on the sides") =====
-   #stage is 882 tall and 344-800 wide (--pv-frame-w). The status bar, tab bar, scrims and sheet backgrounds span edge to edge;
-   reading content sits in a centred column of at most --pv-ui-col (520 px). --pv-gut = side padding that centres that column.
+/* ===== Width classes (R42, FULLSCREEN-LAYOUT s4) =====
+   Bars, scrims and sheet fills span the full width; reading content sits in a centred column of at most --pv-ui-col (520 px).
    Selectors start with #hmBody so they win over the tab CSS each tab injects into <head> at mount. */
 #hmBody{--pv-gut:max(0px,calc((100% - var(--pv-ui-col)) / 2))}
 #hmBody .ta-scroll{padding-left:max(16px,calc((100% - var(--pv-ui-col)) / 2));padding-right:max(16px,calc((100% - var(--pv-ui-col)) / 2))}
 #hmBody .tb-up .body{padding-left:max(12px,calc((100% - var(--pv-ui-col)) / 2));padding-right:max(12px,calc((100% - var(--pv-ui-col)) / 2))}
 #hmBody .tb-in .body{padding-left:max(12px,calc((100% - var(--pv-ui-col)) / 2));padding-right:max(12px,calc((100% - var(--pv-ui-col)) / 2))}
-/* bottom sheets: full-width sheet, content in the column; the close button stays at the column's right edge */
+/* bottom sheets, narrow: full width, ending above the tab bar (the scrim lives in #hmBody); content in the column */
 #hmBody .ta-sheet{padding-left:max(16px,calc((100% - var(--pv-ui-col)) / 2));padding-right:max(16px,calc((100% - var(--pv-ui-col)) / 2))}
 #hmBody .ta-sheet .ta-x{right:max(8px,calc((100% - var(--pv-ui-col)) / 2 - 8px))}
 #hmBody .tb-sheet{padding-left:max(16px,calc((100% - var(--pv-ui-col)) / 2));padding-right:max(16px,calc((100% - var(--pv-ui-col)) / 2))}
 #hmBody .tb-res .card{max-width:400px}
 #hmBody .hm-soon{max-width:var(--pv-ui-col);margin-left:auto;margin-right:auto}
+/* wide: the five tabs sit in a centred group at most 600 wide; the bar fill spans the width */
+.w-wide .pv-tabbar{padding-left:max(0px,calc((100% - 600px) / 2));padding-right:max(0px,calc((100% - 600px) / 2))}
+.w-wide .pv-home .pv-status{padding-left:max(16px,calc((100% - 880px) / 2));padding-right:max(16px,calc((100% - 880px) / 2))}
+/* wide: bottom sheets at most 480 wide, centred, bottom-anchored */
+.w-wide #hmBody .ta-sheet,.w-wide #hmBody .tb-sheet{width:100%;max-width:480px;margin-left:auto;margin-right:auto;padding-left:16px;padding-right:16px;border-radius:10px 10px 0 0}
+.w-wide #hmBody .ta-sheet .ta-x{right:8px}
+.w-wide #hmBody .tb-res .card{max-width:480px}
+/* wide: two-column tabs in a centred block at most 880 wide (s4). Intel stays one column in the 520 column (not split yet). */
+.w-wide #hmBody #pane-armory .ta-scroll,.w-wide #hmBody #pane-operator .ta-scroll{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);grid-auto-rows:min-content;align-content:start;column-gap:24px;row-gap:12px;
+  padding-left:max(16px,calc((100% - 880px) / 2));padding-right:max(16px,calc((100% - 880px) / 2))}
+.w-wide #hmBody #pane-armory .ta-rack{grid-column:1;grid-row:1 / span 3}
+.w-wide #hmBody #pane-armory .ta-scroll>:not(.ta-rack){grid-column:2}
+.w-wide #hmBody #pane-operator .to-top{grid-column:1;grid-row:1 / span 4}
+.w-wide #hmBody #pane-operator .ta-scroll>:not(.to-top){grid-column:2}
+.w-wide #hmBody .tb-up .body{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);grid-template-rows:auto auto auto auto 1fr;align-content:start;column-gap:24px;row-gap:8px;
+  padding-left:max(12px,calc((100% - 880px) / 2));padding-right:max(12px,calc((100% - 880px) / 2))}
+.w-wide #hmBody .tb-up .body>*{grid-column:2}
+.w-wide #hmBody .tb-up .body>.rule{grid-column:1;grid-row:1}
+.w-wide #hmBody .tb-up .body>.tb-grid3{grid-column:1;grid-row:2 / span 4;align-self:start}
+.w-wide #hmBody .tb-up .body>.tb-spacer{display:none}
 
 </style>
 <link rel="manifest" href="manifest.webmanifest">
@@ -459,12 +512,11 @@ body.ovon #bossBar, body.ovon #howto, body.ovon #dmgLayer{visibility:hidden}
     <div id="hudTop">
       <div id="stageLbl">Stage <b id="stNum">1</b> <span id="roomName"></span></div>
       <div id="lvl">Lv 1</div>
-      <div style="flex:1"></div>
+      <div id="xpWrap"><div id="xpFill"></div></div>
       <button id="pauseBtn" class="hb" aria-label="Pause"><span>&#10074;&#10074;</span></button>
       <button id="gear" class="hb" aria-label="Tuning"><span>&#9881;</span></button>
     </div>
-    <div id="hpRow"><div id="hpFill"></div><div id="hpTxtE" class="hpT" aria-hidden="true">600 / 600</div><div id="hpTxt" class="hpT">600 / 600</div></div>
-    <div id="xpWrap"><div id="xpFill"></div></div>
+    <div id="hpRow"><div id="hpBar"><div id="hpFill"></div></div><div id="hpTxtE" class="hpT" aria-hidden="true">600 / 600</div><div id="hpTxt" class="hpT">600 / 600</div></div>
   </div>
   <div id="toast"></div>
   <div id="rlbl">-</div>
@@ -473,7 +525,7 @@ body.ovon #bossBar, body.ovon #howto, body.ovon #dmgLayer{visibility:hidden}
   <div class="ov" id="ovCards"><h2 id="cardTitle">Field upgrade</h2><p>Pick one</p><div id="cardList" style="display:flex;flex-direction:column;gap:10px;width:100%;align-items:stretch"></div></div>
   <div class="ov" id="ovDead"><div id="resHead"><img id="resPortrait" alt="" width="72" height="96"><h2 id="resTitle">Operator down</h2></div><div id="resStats"></div><button class="btn" id="btnRestart">New run</button><button class="btn ghost" id="btnHome">Home</button></div>
   <div class="ov" id="ovSupply"><h2>Supply drop</h2><p>Tap a card to choose one</p><div id="supList" style="display:flex;flex-direction:column;gap:10px;width:100%;align-items:stretch"></div></div>
-  <div class="ov" id="ovPause"><h2>Paused</h2><button class="btn" id="btnResume" style="min-width:200px">Resume</button><button class="btn ghost" id="btnRestartRun" style="min-width:200px">Restart run</button><button class="btn ghost" id="btnTune" style="min-width:200px">Tuning</button><button class="btn ghost" id="btnSound" style="min-width:200px">Sound: on</button><p class="rinfo" id="rlblPause">-</p><p style="font-size:12px">Tap outside the buttons to resume</p></div>
+  <div class="ov" id="ovPause"><div class="pz"><h2>Paused</h2><button class="btn" id="btnResume">Resume</button><button class="btn ghost" id="btnRestartRun">Restart run</button><button class="btn ghost" id="btnTune">Tuning</button><button class="btn ghost" id="btnSound">Sound: on</button><div id="pauseMods"></div><p style="font-size:12px">Tap outside the buttons to resume</p><p class="rinfo" id="rlblPause">-</p></div></div>
   <svg width="0" height="0" style="position:absolute"><defs>
 <linearGradient id="cg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffe27a"/><stop offset="1" stop-color="#c28a0c"/></linearGradient>
 <symbol id="cr" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v10M9 9.5h4.5a1.5 1.5 0 010 3H9.5a1.5 1.5 0 000 3H15"/></symbol>
@@ -726,6 +778,125 @@ if (!(V.Data && V.Data.stages) && typeof require === 'function' && typeof module
 V.ROOMS = V.ROOMS || V.Data.rooms;
 for (var k in V.Data.rooms) if (!V.ROOMS[k]) V.ROOMS[k] = V.Data.rooms[k];
 V.STAGES = V.Data.stages;
+})();
+
+</script>
+<script>
+(function(){ var G = (typeof window !== 'undefined' ? window : globalThis); var V = G.V = G.V || {};
+// V.Widen: stepped rooms (pick 43 / R42, FULLSCREEN-LAYOUT section 2). Builds a C-column room (C = 9, 11, 13, 15) from a
+// 9-column template by rule; nothing is hand-authored per width. Pure functions, no rng, no DOM. Works in Node and the browser.
+//   V.Widen.room(roomDef, C) -> { grid, spawns, w, h, k, boss, fill, name, cover }
+//   V.Widen.spawns(list, C, roomDef) -> stage spawn list in C-column tile coords (same fields, x moved)
+//   V.Widen.cols(v) -> v snapped to a column class (odd, 9..15); anything else -> 9
+// Rules (k = (C - 9) / 2 columns added on each side):
+//   core: every template cell shifts right by k (door, start tile and mirror line stay on the centre column);
+//   side-attached cells: a '#', '^' or '~' cell in template column 0 (8) is repeated through the added left (right) columns.
+//     This covers both "side-attached solids stay on the wall" and "wall-to-wall runs extend, gaps keep width and place";
+//   row 0 (wall row) is wall across the added columns;
+//   spawn slots in template columns 1 and 7 move outward by floor(k / 2) (grid 'e' marks and spawn x alike);
+//   fill cover from 13 columns: one 1 x 2 post per added band, rows 5-6, mirrored, 2+ open tiles from the core cover
+//     (only rooms that have interior cover and enemies; none for R01 Open Yard, CA1, SD (R45 a) or boss arenas);
+//   boss arenas (grid has 'B'): every piece centre-anchored (shift k), no fill, no slot spread;
+//   pads 'P', crate 'C': centre-anchored (shift k). Nothing is placed in the bottom 3 x 3 corners by these rules.
+var TW = 9, TH = 15;
+var SIDE = { '#':1, '^':1, '~':1 };
+var FILL_ROWS = [5, 6];            // spec: rows 5 and 6
+var FILL_GAP = 2;                  // spec: 2 open tiles between the post and the core cover
+
+function cols(v){ v = Math.round(+v); if (!(v >= 9)) return 9; if (v > 15) v = 15; if (v % 2 === 0) v++; return v > 15 ? 15 : v; }
+function isBoss(def){
+  if (!def || !def.grid) return false;
+  for (var y = 0; y < def.grid.length; y++) if (def.grid[y].indexOf('B') >= 0) return true;
+  return false;
+}
+// outward shift of a template column for spawn slots: columns 1 and 7 only (template coords)
+function slotShift(tx, k, boss){
+  if (boss || k <= 0) return 0;
+  var s = Math.floor(k / 2);
+  if (tx === 1) return -s;
+  if (tx === TW - 2) return s;
+  return 0;
+}
+function hasCover(grid){
+  for (var y = 1; y < grid.length; y++) if (grid[y].indexOf('#') >= 0) return true;
+  return false;
+}
+// leftmost core cover column (template coords) in the fill rows, else in any floor row
+function leftCover(grid){
+  var best = 99, y, x;
+  for (var i = 0; i < FILL_ROWS.length; i++) { y = FILL_ROWS[i]; x = grid[y].indexOf('#'); if (x >= 0 && x < best) best = x; }
+  if (best < 99) return best;
+  for (y = 1; y < grid.length; y++) { x = grid[y].indexOf('#'); if (x >= 0 && x < best) best = x; }
+  return best;
+}
+
+// a room with no spawn slots and no spawns has no enemies (SD supply room): no fill cover there (R45 a)
+function hasEnemies(def){
+  if (def.spawns && def.spawns.length) return true;
+  for (var y = 1; y < def.grid.length; y++) if (def.grid[y].indexOf('e') >= 0) return true;
+  return false;
+}
+function widenGrid(def, C){
+  var g = def.grid, k = (C - TW) / 2, boss = isBoss(def), out = [], y, x;
+  for (y = 0; y < g.length; y++) {
+    var row = g[y], a = new Array(C);
+    for (x = 0; x < TW; x++) a[x + k] = row[x];
+    var lc = y === 0 ? '#' : (SIDE[row[0]] && !boss ? row[0] : '.');
+    var rc = y === 0 ? '#' : (SIDE[row[TW - 1]] && !boss ? row[TW - 1] : '.');
+    for (x = 0; x < k; x++) { a[x] = lc; a[C - 1 - x] = rc; }
+    out.push(a);
+  }
+  // spawn slot marks in template columns 1 and 7 move outward
+  if (!boss && Math.floor(k / 2) > 0) {
+    for (y = 1; y < g.length; y++) {
+      [1, TW - 2].forEach(function(tx){
+        if (g[y][tx] !== 'e') return;
+        var nx = tx + k + slotShift(tx, k, boss);
+        if (out[y][nx] === '.') { out[y][tx + k] = '.'; out[y][nx] = 'e'; }
+      });
+    }
+  }
+  // fill cover from 13 columns
+  var fill = [];
+  if (!boss && C >= 13 && hasCover(g) && hasEnemies(def)) { // R45 (a): no fill in rooms without enemies (SD)
+    var lcx = leftCover(g) + k, px = Math.min(lcx - FILL_GAP - 1, k - 1);
+    if (px >= 0) {
+      var ok = true;
+      for (var i = 0; i < FILL_ROWS.length; i++) { y = FILL_ROWS[i]; if (out[y][px] !== '.' || out[y][C - 1 - px] !== '.') ok = false; }
+      if (ok) {
+        for (i = 0; i < FILL_ROWS.length; i++) { y = FILL_ROWS[i]; out[y][px] = '#'; out[y][C - 1 - px] = '#'; }
+        fill.push({ x:px, y:FILL_ROWS[0], w:1, h:FILL_ROWS.length }, { x:C - 1 - px, y:FILL_ROWS[0], w:1, h:FILL_ROWS.length });
+      }
+    }
+  }
+  return { grid:out.map(function(a){ return a.join(''); }), fill:fill, boss:boss, k:k };
+}
+
+function widenSpawns(list, C, def){
+  C = cols(C);
+  var k = (C - TW) / 2, boss = def === true || isBoss(def), out = [];
+  for (var i = 0; i < (list || []).length; i++) {
+    var s = list[i], o = {};
+    for (var key in s) o[key] = s[key];
+    if (k > 0) o.x = s.x + k + slotShift(Math.floor(s.x), k, boss);
+    out.push(o);
+  }
+  return out;
+}
+
+function room(def, C){
+  C = cols(C);
+  if (!def || !def.grid || def.grid.length !== TH || def.grid[0].length !== TW) {
+    // not a 9-column template: hand it back unchanged
+    return { grid:def ? def.grid : null, spawns:widenSpawns(def && def.spawns, 9, def), w:def && def.grid ? def.grid[0].length : TW,
+      h:def && def.grid ? def.grid.length : TH, k:0, boss:isBoss(def), fill:[], name:def && def.name, cover:def && def.cover };
+  }
+  var r = widenGrid(def, C);
+  return { grid:r.grid, spawns:widenSpawns(def.spawns, C, def), w:C, h:TH, k:r.k, boss:r.boss, fill:r.fill, name:def.name, cover:def.cover };
+}
+
+V.Widen = { hasEnemies:hasEnemies, room:room, spawns:widenSpawns, cols:cols, isBoss:isBoss, slotShift:slotShift, TEMPLATE_W:TW, TEMPLATE_H:TH };
+if (typeof module !== 'undefined' && module.exports) module.exports = V.Widen;
 })();
 
 </script>
@@ -1036,6 +1207,13 @@ V.Mods = { D:D, offer:offer, stats:stats, newStats:newStats, pattern:pattern, ca
 //   V.Meta.roomCredits(kind) / V.Meta.BOSS_BONUS   used by sim.js.
 //   V.Meta.markSeen(type)            codex entry (ignored for an ID that is not in V.Data.enemies, so the save stays valid).
 //   V.Meta.onChange(fn) -> unsubscribe fn.
+//   F1 report fields (owner C, TEST-REPORT-SPEC s7; all OPTIONAL so every older v2 save still loads, key stays v2):
+//     runs[i] may also hold runNo, runBuild, startedAt (epoch ms), endReason ('clear'|'death'|'abandon'), hpMax, lowestHp,
+//       tuneChanged ({KNOB: number|bool}, max 40 keys), picks (['SK-01:2', ...], max 40), cols (9-15). award() asks
+//       V.Report.runFields(result) for them when report.js is loaded; without it the entry is the old 6-field shape.
+//     top level may also hold runSeq (last run number handed out; V.Meta.nextRunNo() increments it, quiet write),
+//       purchases ([{t, run, item, lvl, price, before, after}], last 20; buy() appends and calls V.Report.purchase(item, price)),
+//       resets ([{t, reason}], last 5; reason 'corrupt'|'invalid'|'old-version' from load(), 'user' from reset()).
 //   V.Meta.sample()                  = loadSample('mid', {save:false}): the design thread's sample save (FIX-ROUND-1 section A), memory only.
 //                                    Sets credits 12480, rifle Lv 8, cond 15 bought (hp 6, atk 5, rate 4), next price 2250, schematics 86, keys 1, best 23.
 (function(){ var G = (typeof window !== 'undefined' ? window : globalThis); var V = G.V = G.V || {};
@@ -1061,7 +1239,7 @@ var TUNING = {
   CREDITS_PER_WEIGHT: 24,
   ROOM: { combat: 24, supply: 0, cache: 95, boss: 24 },
   BOSS_BONUS: 47,             // added on boss kill (boss room total 71)
-  RUN_LOG_KEEP: 20,
+  RUN_LOG_KEEP: 20, PURCHASE_KEEP: 20, RESETS_KEEP: 5, RUN_TUNE_KEYS: 40, RUN_PICKS: 40,   // F1 report caps (guesses: 20 runs of about 400 B = 8 KB, well under SAVE_TEXT_MAX)
   // save validation caps (guesses): credits, stage numbers, and the longest save text accepted (a full v2 save is about 2 KB)
   CREDITS_MAX: 1e9, STAGE_MAX: 999, SAVE_TEXT_MAX: 65536
 };
@@ -1092,7 +1270,43 @@ function knownId(id){
   var T = V.Data && V.Data.enemies;
   return T ? Object.prototype.hasOwnProperty.call(T, id) : /^[EB]-\d\d$/.test(id);
 }
-var TOP = ['v', 'credits', 'rifle', 'cond', 'buys', 'power', 'runs', 'best', 'codex', 'schematics', 'keys'];
+var TOP = ['v', 'credits', 'rifle', 'cond', 'buys', 'power', 'runs', 'best', 'codex', 'schematics', 'keys', 'runSeq', 'purchases', 'resets'];
+var RUN_BASE = ['t', 'stage', 'win', 'kills', 'credits', 'dur'];
+var RUN_EXTRA = ['runNo', 'runBuild', 'startedAt', 'endReason', 'hpMax', 'lowestHp', 'tuneChanged', 'picks', 'cols'];
+var END_REASONS = ['clear', 'death', 'abandon'], RESET_REASONS = ['corrupt', 'invalid', 'old-version', 'user'];
+function isStr(v, max){ return typeof v === 'string' && v.length <= max; }
+// One optional F1 run field: returns the clean value, or undefined when it is not valid (validate() then rejects the save;
+// cleanExtra() just drops it, so award() can never write an entry that fails validation).
+function runExtra(k, v){
+  var T = TUNING;
+  switch (k) {
+    case 'runNo': return isInt(v, 1, 1e9) ? v : undefined;
+    case 'runBuild': return isStr(v, 40) ? v : undefined;
+    case 'startedAt': return isNum(v, 0, 1e15) ? v : undefined;
+    case 'endReason': return END_REASONS.indexOf(v) >= 0 ? v : undefined;
+    case 'hpMax': return isInt(v, 0, 1e6) ? v : undefined;
+    case 'lowestHp': return isInt(v, 0, 1e6) ? v : undefined;
+    case 'cols': return isInt(v, 1, 99) ? v : undefined;
+    case 'tuneChanged': {
+      if (!isObj(v)) return undefined;
+      var o = {}, n = 0;
+      for (var q in v) { var x = v[q]; if (++n > T.RUN_TUNE_KEYS || !/^[A-Z][A-Z0-9_]{0,39}$/.test(q) || !((typeof x === 'number' && isFinite(x)) || typeof x === 'boolean')) return undefined; o[q] = x; }
+      return o;
+    }
+    case 'picks': {
+      if (!Array.isArray(v) || v.length > T.RUN_PICKS) return undefined;
+      for (var i = 0; i < v.length; i++) if (!isStr(v[i], 24)) return undefined;
+      return v.slice();
+    }
+  }
+  return undefined;
+}
+function cleanExtra(x){ var o = {}; if (!isObj(x)) return o; RUN_EXTRA.forEach(function(k){ if (k in x) { var c = runExtra(k, x[k]); if (c !== undefined) o[k] = c; } }); return o; }
+function validPurchase(p){
+  return isObj(p) && onlyKeys(p, ['t', 'run', 'item', 'lvl', 'price', 'before', 'after']) && isNum(p.t, 0, 1e15) && isInt(p.run, 0, 1e9) && isStr(p.item, 24) &&
+    isInt(p.lvl, 0, 99) && isInt(p.price, 0, TUNING.CREDITS_MAX) && isInt(p.before, 0, TUNING.CREDITS_MAX) && isInt(p.after, 0, TUNING.CREDITS_MAX);
+}
+function validReset(r){ return isObj(r) && onlyKeys(r, ['t', 'reason']) && isNum(r.t, 0, 1e15) && RESET_REASONS.indexOf(r.reason) >= 0; }
 // Returns a clean deep copy of a valid v2 save, or null. Never throws.
 function validate(raw){
   try {
@@ -1108,9 +1322,11 @@ function validate(raw){
     var runs = [];
     for (var i = 0; i < raw.runs.length; i++) {
       var r = raw.runs[i];
-      if (!isObj(r) || !onlyKeys(r, ['t', 'stage', 'win', 'kills', 'credits', 'dur'])) return null;
+      if (!isObj(r) || !onlyKeys(r, RUN_BASE.concat(RUN_EXTRA))) return null;
       if (!isNum(r.t, 0, 1e15) || !isInt(r.stage, 0, T.STAGE_MAX) || typeof r.win !== 'boolean' || !isInt(r.kills, 0, 1e6) || !isInt(r.credits, 0, T.CREDITS_MAX) || !isNum(r.dur, 0, 1e7)) return null;
-      runs.push({ t:r.t, stage:r.stage, win:r.win, kills:r.kills, credits:r.credits, dur:r.dur });
+      var ent = { t:r.t, stage:r.stage, win:r.win, kills:r.kills, credits:r.credits, dur:r.dur };
+      for (var e = 0; e < RUN_EXTRA.length; e++) { var ek = RUN_EXTRA[e]; if (ek in r) { var ev = runExtra(ek, r[ek]); if (ev === undefined) return null; ent[ek] = ev; } }
+      runs.push(ent);
     }
     if (!isInt(raw.best, 0, T.STAGE_MAX)) return null;
     if (!isObj(raw.codex) || !onlyKeys(raw.codex, ['seen']) || !isObj(raw.codex.seen)) return null;
@@ -1120,6 +1336,17 @@ function validate(raw){
       power:raw.power, runs:runs, best:raw.best, codex:{ seen:seen } };
     if ('schematics' in raw) { if (!isInt(raw.schematics, 0, T.CREDITS_MAX)) return null; s.schematics = raw.schematics; }
     if ('keys' in raw) { if (!isInt(raw.keys, 0, 999)) return null; s.keys = raw.keys; }
+    if ('runSeq' in raw) { if (!isInt(raw.runSeq, 0, 1e9)) return null; s.runSeq = raw.runSeq; }
+    if ('purchases' in raw) {
+      if (!Array.isArray(raw.purchases) || raw.purchases.length > T.PURCHASE_KEEP) return null;
+      s.purchases = [];
+      for (var pi = 0; pi < raw.purchases.length; pi++) { var p = raw.purchases[pi]; if (!validPurchase(p)) return null; s.purchases.push({ t:p.t, run:p.run, item:p.item, lvl:p.lvl, price:p.price, before:p.before, after:p.after }); }
+    }
+    if ('resets' in raw) {
+      if (!Array.isArray(raw.resets) || raw.resets.length > T.RESETS_KEEP) return null;
+      s.resets = [];
+      for (var ri2 = 0; ri2 < raw.resets.length; ri2++) { var rr = raw.resets[ri2]; if (!validReset(rr)) return null; s.resets.push({ t:rr.t, reason:rr.reason }); }
+    }
     return s;
   } catch (e) { return null; }
 }
@@ -1182,6 +1409,7 @@ M.load = function(opts){
     }
   } else if (old && !skip) reason = 'old-version';
   M.state = s || fresh();
+  if (reason && !newer) addReset(M.state, reason);   // F1 save health: the fresh save remembers why it is fresh
   M.readOnly = newer;
   M.resetSignal = reason;
   M.note = newer ? 'Save from a newer version: progress this session is not saved' : (!M.storageOk ? M.BLOCKED_LINE : (reason ? M.RESET_LINE : ''));
@@ -1197,7 +1425,20 @@ M.save = function(){   // always notifies onChange listeners, also when there is
   return okk;
 };
 // The one clean reset (Settings "Reset save" and the sample menu's "fresh"): fresh state, written, listeners told. Settings survive.
-M.reset = function(){ M.readOnly = false; M.note = ''; M.resetSignal = ''; M.state = fresh(); M.lastBuy = null; return M.save(); };
+M.reset = function(){
+  var prev = (M.state && Array.isArray(M.state.resets)) ? M.state.resets : [];
+  M.readOnly = false; M.note = ''; M.resetSignal = ''; M.state = fresh(); M.lastBuy = null;
+  M.state.resets = prev.slice(); addReset(M.state, 'user');
+  return M.save();
+};
+function nowMs(){ try { return Date.now(); } catch (e) { return 0; } }   // report timestamps only, never in stats or costs
+function addReset(s, reason){ if (RESET_REASONS.indexOf(reason) < 0) return; s.resets = (s.resets || []).concat([{ t: nowMs(), reason: reason }]); if (s.resets.length > TUNING.RESETS_KEEP) s.resets.splice(0, s.resets.length - TUNING.RESETS_KEEP); }
+// F1 report: the next run number (kept in the save as runSeq). Written without notifying listeners (nothing on screen shows it).
+M.nextRunNo = function(){
+  var s = M.state; s.runSeq = Math.min(1e9, (s.runSeq | 0) + 1);
+  if (storage && !M.readOnly) sset(storage, KEY, JSON.stringify(s));
+  return s.runSeq;
+};
 M.onChange = function(fn){ listeners.push(fn); return function(){ var i = listeners.indexOf(fn); if (i >= 0) listeners.splice(i, 1); }; };
 
 // ---------- settings: own key, read field by field with defaults, survive a save wipe (08 section 4) ----------
@@ -1241,9 +1482,9 @@ M.cost = function(kind, id){
 M.canBuy = function(kind, id){ var c = M.cost(kind, id); return !!c && M.state.credits >= c.credits; };
 M.buy = function(kind, id){
   if (!M.canBuy(kind, id)) return false;
-  var s = M.state, c = M.cost(kind, id);
+  var s = M.state, c = M.cost(kind, id), before = s.credits, item, lvl;
   s.credits -= c.credits;
-  if (kind === 'rifle') s.rifle.lvl++;
+  if (kind === 'rifle') { s.rifle.lvl++; item = 'Rifle'; lvl = s.rifle.lvl; }
   else {
     var pick = id;
     if (id === 'rand') {
@@ -1253,8 +1494,13 @@ M.buy = function(kind, id){
       pick = open[h % open.length];
     }
     s.cond[pick]++; s.buys++; M.lastBuy = pick;
+    item = 'Cond ' + pick; lvl = s.cond[pick];
   }
+  // F1 purchase log (TEST-REPORT-SPEC s3): run = the last run number handed out, so the buy shows "before run run+1"
+  s.purchases = (s.purchases || []).concat([{ t: nowMs(), run: Math.min(1e9, s.runSeq | 0), item: item, lvl: lvl, price: c.credits, before: before, after: s.credits }]);
+  if (s.purchases.length > TUNING.PURCHASE_KEEP) s.purchases.splice(0, s.purchases.length - TUNING.PURCHASE_KEEP);
   M.save();
+  try { if (V.Report && V.Report.purchase) V.Report.purchase(item + ' L' + lvl, c.credits); } catch (e) {}
   return true;
 };
 // Random Conditioning (D4: each buy upgrades a random unlocked stat). Returns the stat id bought, or null (cannot afford / all maxed).
@@ -1301,8 +1547,11 @@ M.award = function(result){
   var stage = clampInt(result.stage, 0, TUNING.STAGE_MAX, 0);
   if (stage > s.best) s.best = stage;
   var now = 0; try { now = Date.now(); } catch (e) {}   // UI timestamp only
-  s.runs.push({ t: now, stage: stage, win: !!result.win, kills: clampInt(result.kills, 0, 1e6, 0), credits: c,
-    dur: Math.max(0, Math.min(1e7, +(+result.t || 0).toFixed(1))) });   // clamped so the entry always passes validate()
+  var entry = { t: now, stage: stage, win: !!result.win, kills: clampInt(result.kills, 0, 1e6, 0), credits: c,
+    dur: Math.max(0, Math.min(1e7, +(+result.t || 0).toFixed(1))) };   // clamped so the entry always passes validate()
+  var extra = null; try { if (V.Report && V.Report.runFields) extra = V.Report.runFields(result); } catch (e) { extra = null; }
+  var ex = cleanExtra(extra); for (var ek in ex) entry[ek] = ex[ek];   // F1 report fields; invalid ones are dropped, never saved
+  s.runs.push(entry);
   if (s.runs.length > TUNING.RUN_LOG_KEEP) s.runs.splice(0, s.runs.length - TUNING.RUN_LOG_KEEP);
   M.save();
   return { credits: c };
@@ -1400,7 +1649,7 @@ function fallbackStages(){
     var kind = 'combat';
     if (i === 5) { kind = 'supply'; sp = []; }
     else if (i === 9) { kind = 'cache'; sp = sp.filter(function(s){ return s.type === 'E-01'; }).slice(0, 2); }
-    else if (i === 10 && V.AI['B-01'] && V.ROOMS.BA1) { kind = 'boss'; room = 'BA1'; sp = [{ type:'B-01', x:4.5, y:3.5, t:0 }]; }
+    else if (i === 10 && V.AI['B-01'] && V.ROOMS.BA1) { kind = 'boss'; room = 'BA1'; sp = [{ type:'B-01', x:4.5, y:3.5, t:0 }]; } // template coords (9 columns); loadStage widens
     out.push({ stage:i, kind:kind, room:room, spawns:sp, note:'fallback' });
   }
   return out;
@@ -1419,6 +1668,8 @@ function ev(S, o){ S.events.push(o); return o; }
 // table row at every create (the AI parts load after this one, so binding at load is too early). Node loaders that skip the data part get it here.
 if (!(V.Data && V.Data.enemies) && typeof require === 'function' && typeof module !== 'undefined') { try { require('./data-enemies.js'); } catch (e) {} }
 function bindData(){ var T = V.Data && V.Data.enemies; if (!T) return; for (var k in T) if (V.AI[k] && V.AI[k].base !== T[k]) V.AI[k].base = T[k]; }
+// Stepped rooms (pick 43 / R42): parts/widen.js builds the C-column room. Node loaders that skip it get it here.
+if (!V.Widen && typeof require === 'function' && typeof module !== 'undefined') { try { require('./widen.js'); } catch (e) {} }
 function base(e){ var A = V.AI[e.type]; return A ? A.base : { hp:100, contact:40, dmg:40, speed:0, r:0.4, size:'medium', xp:8 }; }
 
 // ---------- mod hooks ----------
@@ -1544,26 +1795,36 @@ function spawnEnemy(S, type, x, y){
   return e;
 }
 
+// Column class for the next room (R42: C is read at each room entry only). opts.colsFn() wins over opts.cols; default 9.
+function roomCols(S){
+  var o = S.metaOpts, c = 9;
+  if (o && typeof o.colsFn === 'function') { try { c = o.colsFn(); } catch (e) { c = 9; } }
+  else if (o && o.cols != null) c = o.cols;
+  return V.Widen ? V.Widen.cols(c) : 9;
+}
 function loadStage(S, idx){
   var list = stageList(), def = list[idx];
   S.stageIdx = idx; S.stage = idx + 1; S.stageDef = def;
   S.stageKind = def.kind || 'combat';
-  var R = V.ROOMS[def.room] || V.ROOMS.R01, grid = R.grid;
-  var d = findChar(grid, 'D') || { x:4, y:0 }, sp = findChar(grid, 'S') || { x:4, y:14 };
+  var R = V.ROOMS[def.room] || V.ROOMS.R01, C = roomCols(S);
+  var WR = V.Widen ? V.Widen.room(R, C) : { grid:R.grid, w:R.grid[0].length, k:0 }, grid = WR.grid;
+  S.cols = grid[0].length;
+  var mid = Math.floor(S.cols / 2), d = findChar(grid, 'D') || { x:mid, y:0 }, sp = findChar(grid, 'S') || { x:mid, y:grid.length - 1 };
   S.roomId = V.ROOMS[def.room] ? def.room : 'R01';
-  S.room = { w:grid[0].length, h:grid.length, name:R.name,
+  S.room = { w:grid[0].length, h:grid.length, name:R.name, cols:S.cols, k:WR.k || 0, grid:grid, fill:WR.fill || [],
     solids:buildRects(grid, '#', function(y){ return y === 0 ? 'wall' : (R.cover || 'pillar'); }),
     door:{ x:d.x, y:d.y, w:1, h:1, open:false } };
   S.hazards = buildRects(grid, '^', function(){ return 'spikes'; });
   S.enemies = []; S.rounds = []; S.shots = []; S.shells = []; S.pickups = [];
   S.boss = null; S.supply = null; S.chest = null; S.cards = null;
   var c = findChar(grid, 'C');
-  if (S.stageKind === 'cache') S.chest = { x:(c ? c.x : 4) + 0.5, y:(c ? c.y : 4) + 0.5, open:false };
+  if (S.stageKind === 'cache') S.chest = { x:(c ? c.x : mid) + 0.5, y:(c ? c.y : 4) + 0.5, open:false };
   var h = S.hero;
   h.x = sp.x + 0.5; h.y = sp.y + 0.5; h.ang = -Math.PI / 2;
   h.lockId = null; h.lockClear = false; h.lostT = 0; h.retargetT = 0; h.burstQ = []; h.delayQ = [];
   S.roomT = 0; S.clearT = 0; S.hazardCd = 0;
-  S.spawnQ = (def.spawns || []).map(function(s){ return { type:s.type, x:s.x, y:s.y, t:s.t || 0 }; });
+  var spl = V.Widen && S.cols !== 9 ? V.Widen.spawns(def.spawns || [], S.cols, R) : (def.spawns || []); // template coords -> C columns
+  S.spawnQ = spl.map(function(s){ return { type:s.type, x:s.x, y:s.y, t:s.t || 0 }; });
   S.spawnQ.sort(function(a, b){ return a.t - b.t; });
   ev(S, { k:'room', x:h.x, y:h.y, roomId:S.roomId, stage:S.stage, kind:S.stageKind, lap:S.lap });
   if (S.stageKind === 'supply') {
@@ -1590,6 +1851,7 @@ function create(seed, tune, opts){
   seed = (seed >>> 0);
   var S = { seed:seed, frame:0, t:0, tune:tune, phase:'play', stage:1, stageIdx:0, stageKind:'combat', roomId:null, lap:1,
     room:null,
+    // hero x/y are placeholders: loadStage puts the Operator on the room's start tile (centre column of row 14)
     hero:{ x:4.5, y:14.5, r:HERO_HURT_R, hp:tune.HERO_HP, maxHp:tune.HERO_HP, atk:tune.HERO_ATK, ang:-Math.PI / 2,
       moving:false, braced:false, brace01:0, fireCd:0, invulnT:0, lockId:null, lockClear:false,
       level:1, xp:0, xpNext:LEVEL_COST[2], mods:{}, braceT:0, lostT:0, retargetT:0, burstQ:[], delayQ:[] },
@@ -1682,7 +1944,7 @@ function stepHero(S, inp, dt){
   if (h.fireCd > 0) h.fireCd = Math.max(0, h.fireCd - dt);
   if (len > 1e-6) {
     mx /= len; my /= len;
-    var sp = t.MOVE_SPEED * S.st.moveMul;
+    var sp = t.MOVE_SPEED * S.st.moveMul * (S.phase === 'clear' && inp.walk > 1 ? inp.walk : 1);   // pick 45: auto-walk to the door runs faster (inp.walk, set by main.js only)
     h.x += mx * sp * dt; h.y += my * sp * dt;
     collideBody(S, h, HERO_WALL_R);
     h.ang = Math.atan2(my, mx);
@@ -1866,6 +2128,20 @@ function separate(S){
 }
 
 // ---------- damage to enemies ----------
+// R45 (b): from 11 columns up, a repair drop that would land in a bottom 3 x 3 corner moves to the centre of the nearest
+// floor cell outside both corners (first found wins a tie; no rng). At 9 columns the drop is untouched.
+var CORNER = 3;
+function inCorner(S, cx, cy){ var w = S.room.w, h = S.room.h; return cy >= h - CORNER && (cx < CORNER || cx >= w - CORNER); }
+function dropSpot(S, x, y){
+  if (!(S.room.w >= 11) || !inCorner(S, Math.floor(x), Math.floor(y))) return { x:x, y:y };
+  var g = S.room.grid, best = null, bd = 1e9;
+  for (var cy = 1; cy < S.room.h; cy++) for (var cx = 0; cx < S.room.w; cx++) {
+    if (inCorner(S, cx, cy) || (g && g[cy][cx] === '#')) continue;
+    var d = Math.hypot(cx + 0.5 - x, cy + 0.5 - y);
+    if (d < bd - 1e-9) { bd = d; best = { x:cx + 0.5, y:cy + 0.5 }; }
+  }
+  return best || { x:x, y:y };
+}
 function killEnemy(S, e){
   var b = base(e);
   S.stats.kills++;
@@ -1875,7 +2151,7 @@ function killEnemy(S, e){
   if (b.xp) S.pickups.push({ x:e.x, y:e.y, kind:'xp', v:b.xp, life:1e9 });
   if (!e.boss) {
     var p = Math.min(REPAIR_CAP, REPAIR_BASE + S.pity);
-    if (S.rng.next() < p) { S.pickups.push({ x:e.x + 0.2, y:e.y, kind:'repair', v:0, life:REPAIR_LIFE }); S.pity = 0; }
+    if (S.rng.next() < p) { var rp = dropSpot(S, e.x + 0.2, e.y); S.pickups.push({ x:rp.x, y:rp.y, kind:'repair', v:0, life:REPAIR_LIFE }); S.pity = 0; }
     else S.pity += b.size === 'small' ? REPAIR_PITY * 0.5 : REPAIR_PITY;
   } else S.stats.bossTime = +S.roomT.toFixed(2);
   var A = V.AI[e.type]; if (A && A.onDeath) A.onDeath(S, e, api);
@@ -2176,7 +2452,7 @@ function hash(S){
   return ('00000000' + h.toString(16)).slice(-8);
 }
 
-V.Sim = { create:create, step:step, pick:pick, pickSupply:pickSupply, restart:restart, hash:hash, api:api,
+V.Sim = { dropSpot:dropSpot, create:create, step:step, pick:pick, pickSupply:pickSupply, restart:restart, hash:hash, api:api,
   offer:offer, stats:heroStats, stageList:stageList,
   STEP:STEP, LEVEL_COST:LEVEL_COST, roundDamage:roundDamage, fireInterval:fireInterval, clearLine:clearLine,
   FALLBACK_MODS:FALLBACK_MODS };
@@ -2623,6 +2899,7 @@ var PAL = {
   hpTrack: C(58, 50, 42), oob: C(70, 44, 18, 0.26), curb: C(176, 168, 150), curbTop: C(206, 199, 182),
   bag: C(170, 146, 100), bagTop: C(196, 174, 128), bagSeam: C(128, 106, 70),
   hazPlate: C(178, 158, 122), hazYellow: C(255, 200, 30), spikeRust: C(150, 70, 40),
+  outside: C(0, 0, 0, 0.35), // R42 Q2-A: ground beyond the clamped room at 65% brightness (guess, FULLSCREEN-LAYOUT 1)
   shellShadow: C(60, 38, 16, 0.42), stunEye: C(110, 34, 30), chestIn: C(44, 28, 14), gold: C(255, 214, 70)
 };
 var TAU = Math.PI * 2;
@@ -2724,7 +3001,7 @@ function oNgon(x, y, r, n, rot, c) { ngon(x, y, r + OL / Math.cos(Math.PI / n), 
 
 // raycast in world units against solids and room bounds (for the aim line)
 function rayLen(S, x, y, ang, max) {
-  var dx = Math.cos(ang), dy = Math.sin(ang), sol = S.room.solids || [], W = S.room.w || 9, H = S.room.h || 15;
+  var dx = Math.cos(ang), dy = Math.sin(ang), sol = S.room.solids || [], W = S.room.w || S.cols || 9, H = S.room.h || 15;
   for (var d = 0.3; d < max; d += 0.08) {
     var px = x + dx * d, py = y + dy * d;
     if (px < 0 || py < 0 || px > W || py > H) return d;
@@ -2743,8 +3020,10 @@ function groundDeco(S) {
   return deco;
 }
 
-function drawSolidShadow(q, s) {
-  rect(X(q.x + q.w / 2) + sh.x, Y(q.y + q.h / 2) + sh.y, q.w * s, q.h * s, PAL.shadow);
+function drawSolidShadow(q, s, RW, RH) {
+  // QA-VISUAL D4: the hard shadow is clipped to the room rect, so the top wall's shadow never spills onto the side strip or the dark ground
+  var x0 = Math.max(X(q.x) + sh.x, X(0)), x1 = Math.min(X(q.x + q.w) + sh.x, X(RW)), y0 = Math.max(Y(q.y) + sh.y, Y(0)), y1 = Math.min(Y(q.y + q.h) + sh.y, Y(RH));
+  if (x1 > x0 && y1 > y0) rect((x0 + x1) / 2, (y0 + y1) / 2, x1 - x0, y1 - y0, PAL.shadow);
 }
 function drawSolid(q, s) {
   var cx = X(q.x + q.w / 2), cy = Y(q.y + q.h / 2), w = q.w * s, h = q.h * s;
@@ -3181,7 +3460,7 @@ function drawChest(S, s, t) {
 
 function drawSupply(S, s, t) {
   if (S.stageKind !== 'supply') return;
-  var p = S.supplyPos || { x: (S.room && S.room.w || 9) / 2, y: (S.room && S.room.h || 15) / 2 }, x = X(p.x), y = Y(p.y), w = 1.1 * s;
+  var p = S.supplyPos || { x: (S.room && S.room.w || S.cols || 9) / 2, y: (S.room && S.room.h || 15) / 2 }, x = X(p.x), y = Y(p.y), w = 1.1 * s;
   rect(x + sh.x * 1.3, y + sh.y * 1.3, w, w, PAL.shadow);
   oRect(x, y, w, w, PAL.crate);
   if (!S.supply && S.phase !== 'supply') {   // choice made: crate stands open and empty (dark inside, lid knocked aside), no beacon
@@ -3215,11 +3494,48 @@ function drawHeroHp(S, s) {
 }
 
 // QA-P1 D3: visible room edge (visual only; sim bounds unchanged). Same sand everywhere; out of bounds is a shade of it.
+// Stepped rooms (R42, FULLSCREEN-LAYOUT 1): spare width of one tile or less in total is the room's own side wall, half each side;
+// beyond the 15-column clamp the ground outside the room is the same sand at 65% brightness (Q2-A), with no lights and no text.
 function drawOutOfBounds(S, s, RW, RH) {
   var y0 = Y(RH), xl = X(0), xr = X(RW);
-  if (y0 < vw.h) rect(vw.w / 2, (y0 + vw.h) / 2, vw.w + 2, vw.h - y0, PAL.oob);
-  if (xl > 0.5) rect(xl / 2, (Y(0) + y0) / 2, xl, y0 - Y(0), PAL.oob);
-  if (xr < vw.w - 0.5) rect((xr + vw.w) / 2, (Y(0) + y0) / 2, vw.w - xr, y0 - Y(0), PAL.oob);
+  if (y0 < vw.h) rect((xl + xr) / 2, (y0 + vw.h) / 2, xr - xl, vw.h - y0, PAL.oob); // ground apron under the room
+  if (!(xl > 0.5 || xr < vw.w - 0.5)) return;
+  var spare = xl + (vw.w - xr), yt = Y(0);
+  if (spare <= s + 0.5) {   // thin side wall (at most one tile in total)
+    var ys = Y(topWallH(S, RW)); // seam (side-wall rail) starts under the top wall; drawWallCorners joins the two
+    if (xl > 0.5) { rect(xl / 2, (yt + y0) / 2, xl, y0 - yt, PAL.wall); rect(xl - 1, (ys + y0) / 2, 2, y0 - ys, PAL.wallSeam); }
+    if (xr < vw.w - 0.5) { rect((xr + vw.w) / 2, (yt + y0) / 2, vw.w - xr, y0 - yt, PAL.wall); rect(xr + 1, (ys + y0) / 2, 2, y0 - ys, PAL.wallSeam); }
+    if (y0 < vw.h) { if (xl > 0.5) rect(xl / 2, (y0 + vw.h) / 2, xl, vw.h - y0, PAL.oob); if (xr < vw.w - 0.5) rect((xr + vw.w) / 2, (y0 + vw.h) / 2, vw.w - xr, vw.h - y0, PAL.oob); }
+    return;
+  }
+  // beyond the clamp: darkened ground (black at 0.35 over the sand and its decals = 65% brightness), full height; perimeter line on the room edge
+  if (xl > 0.5) rect(xl / 2, vw.h / 2, xl + 1, vw.h + 2, PAL.outside);
+  if (xr < vw.w - 0.5) rect((xr + vw.w) / 2, vw.h / 2, vw.w - xr + 1, vw.h + 2, PAL.outside);
+  rect(xl - 1.5, (yt + y0) / 2, 3, y0 - yt, PAL.ink); rect(xr + 1.5, (yt + y0) / 2, 3, y0 - yt, PAL.ink);
+}
+// height (tiles) of the top wall: the solids on row 0 touching a side of the room (1 in every template; 0 if a room has none)
+function topWallH(S, RW) {
+  var sol = (S.room && S.room.solids) || [], h = 0;
+  for (var i = 0; i < sol.length; i++) { var q = sol[i]; if (q.y <= 0.01 && (q.x <= 0.01 || q.x + q.w >= RW - 0.01)) h = Math.max(h, q.h); }
+  return h;
+}
+// QA-VISUAL D4 (option A): with a thin side strip (spare width of one tile or less), the strip is the side wall's continuation of the top wall:
+// the top wall's face (wall rim + light top) runs on to the screen edge, its bottom ink line runs across the strip, and the strip's rail starts
+// under it, so neither top corner shows a seam. Drawn after the solids so it covers the top wall's own end outline.
+function drawWallCorners(S, s, RW, RH) {
+  var xl = X(0), xr = X(RW), spare = xl + (vw.w - xr);
+  if (!(xl > 0.5 || xr < vw.w - 0.5) || spare > s + 0.5) return;
+  var h = topWallH(S, RW); if (!(h > 0)) return;
+  var yt = Y(0), yb = Y(h), ph = yb - yt;
+  for (var k = 0; k < 2; k++) {
+    var a = k ? xr - OL - 0.5 : 0, b = k ? vw.w : xl + OL + 0.5; // covers the top wall's end outline (OL wide) on that side
+    if (k ? !(xr < vw.w - 0.5) : !(xl > 0.5)) continue;
+    var ia = k ? xr : 0, ib = k ? vw.w : xl;                                       // ink band (bottom rim) stops at the room edge, under the face
+    rect((ia + ib) / 2, (yt + yb) / 2, ib - ia, ph + 2 * OL, PAL.ink);             // so no half-covered ink pixel is left at the join
+    rect((a + b) / 2, (yt + yb) / 2 - OL / 2, b - a, ph + OL, PAL.wall);           // wall face, flush with the top edge
+    var la = k ? xr - 5 : 0, lb = k ? vw.w : xl + 4;                              // light top, overlapping the top wall's inner rect (no AA seam)
+    rect((la + lb) / 2, (yt + 1 + yb - 3) / 2, lb - la, ph - 4, PAL.wallTop);
+  }
 }
 function drawRoomEdge(S, s, RW, RH) {
   var y0 = Y(RH), yt = Y(0.5), xl = X(0), xr = X(RW), cw = 4;
@@ -3230,11 +3546,12 @@ function drawRoomEdge(S, s, RW, RH) {
     rect(cx, yt + hh / 2, cw, hh, PAL.curb);
     rect(cx + (k ? 0.5 : -0.5), yt + hh / 2, 1.5, hh, PAL.curbTop);
   }
-  // bottom berm: two staggered rows of sandbags just outside the room line, hard shadow below
-  var bw = Math.max(18, s * 0.6), bh = 9, n = Math.ceil((xr - xl) / bw) + 1, rb = bh / 2, core = bw - 2 * rb - 1.5;
-  rect((xl + xr) / 2, y0 + 20 + sh.y * 0.5, xr - xl, 6, PAL.shadow);
+  // bottom berm: two staggered rows of sandbags inside the bottom strip of row 14 (QA-VISUAL D1 option A: same look at every size, whole
+  // even with no apron). The front row's lower rim sits on the room line; with an apron, the hard shadow falls on the ground below it.
+  var bw = Math.max(18, s * 0.6), bh = 9, n = Math.ceil((xr - xl) / bw) + 1, rb = bh / 2, core = bw - 2 * rb - 1.5, b0 = y0 - 19;
+  if (y0 < vw.h) rect((xl + xr) / 2, y0 + 1 + sh.y * 0.5, xr - xl, 6, PAL.shadow);
   for (var row = 0; row < 2; row++) {
-    var by = y0 + 5.5 + row * 8, off = row ? bw / 2 : 0;
+    var by = b0 + 5.5 + row * 8, off = row ? bw / 2 : 0;
     for (var i = -1; i < n; i++) {
       var bx = xl + off + i * bw + bw / 2;
       if (bx + bw / 2 < xl - 2 || bx - bw / 2 > xr + 2) continue;
@@ -3287,7 +3604,7 @@ V.Scene = {
       if (d.streak) line(d.x - 6 * Math.cos(d.a), d.y - 2, d.x + 6 * Math.cos(d.a), d.y + 2, 1, PAL.groundDot);
       else circ(d.x, d.y, d.r, d.light ? PAL.groundDot2 : PAL.groundDot);
     }
-    var R = S.room, RW = (R && R.w) || 9, RH = (R && R.h) || 15;
+    var R = S.room, RW = (R && R.w) || S.cols || 9, RH = (R && R.h) || 15;
     // room floor = same sand as the ground below (M 2026-11-10: one continuous yard, no panel)
     drawOutOfBounds(S, s, RW, RH); // QA-P1 D3: below/beside the room = same sand, shaded darker
 
@@ -3297,7 +3614,7 @@ V.Scene = {
     drawShellRings(S, s, t);
 
     // shadows (hard, low sun from the upper left)
-    for (i = 0; i < sol.length; i++) drawSolidShadow(sol[i], s);
+    for (i = 0; i < sol.length; i++) drawSolidShadow(sol[i], s, RW, RH);
     var pk = S.pickups || [];
     for (i = 0; i < pk.length; i++) circ(X(pk[i].x) + sh.x * 0.4, Y(pk[i].y) + sh.y * 0.4, 4, PAL.shadow);
     for (i = 0; i < E.length; i++) {
@@ -3314,6 +3631,7 @@ V.Scene = {
 
     drawRoomEdge(S, s, RW, RH); // QA-P1 D3: sandbag berm + side curbs
     for (i = 0; i < sol.length; i++) drawSolid(sol[i], s);
+    drawWallCorners(S, s, RW, RH); // QA-VISUAL D4: thin side strip joined to the top wall
     drawDoor(S, s);
     drawSupply(S, s, t);
     drawChest(S, s, t);
@@ -3807,7 +4125,8 @@ V.Render = {
 var el = null, tune = null;
 var pid = null, x0 = 0, y0 = 0, dx = 0, dy = 0, active = false, down = false;
 var keys = {};
-var log = [], LOG_MAX = 200, t0 = (G.performance ? performance.now() : 0);
+var log = [], LOG_MAX = 600,   // f1-0: room for a whole run's input in the report's last-run block (was 200)
+    t0 = (G.performance ? performance.now() : 0);
 var counts = { downs: 0, ups: 0, cancels: 0, moves: 0 };
 
 function now(){ return Math.round((G.performance ? performance.now() : 0) - t0); }
@@ -4082,10 +4401,10 @@ V.Audio = {
 // DOM HUD, overlays (cards, death, pause), toasts and the tuning drawer.
 // Shell-only knobs are added here so the drawer and Copy settings cover them.
 if (V.TUNE_DEFAULTS) {
-  var SHELL = { AUTO_WALK: true, AUTO_WALK_DELAY: 1.0, EDGE_FLASH: true, HAPTIC_HURT_MS: 40, HAPTIC_KILL_MS: 12 };
+  var SHELL = { AUTO_WALK: true, AUTO_WALK_DELAY: 1.0, AUTO_WALK_MULT: 2, EDGE_FLASH: true, HAPTIC_HURT_MS: 40, HAPTIC_KILL_MS: 12 };
   for (var sk in SHELL) if (!(sk in V.TUNE_DEFAULTS)) { V.TUNE_DEFAULTS[sk] = SHELL[sk]; if (V.TUNE && !(sk in V.TUNE)) V.TUNE[sk] = SHELL[sk]; }
 }
-var BUILD = 'volley-f0-3';
+var BUILD = 'volley-f1-0';
 // Persist tuning (only values that differ from defaults). Every storage call is guarded. Sound on/off is NOT kept here any more:
 // V.TUNE.SOUND is a view of V.Audio's mute, saved in 'volley.settings.v1' (audio.js), so a tune reset or save wipe keeps it.
 // f0-2: sliders were being nudged by accident while scrolling the drawer (M's Fold reports showed FIRE_INTERVAL at the
@@ -4118,7 +4437,7 @@ var GROUPS = [
   ['Hero', ['HERO_HP', 'HERO_ATK', 'CRIT_CHANCE', 'CRIT_MULT', 'MOVE_SPEED', 'FIRE_INTERVAL', 'FIRE_FLOOR', 'ROUND_SPEED', 'ROUND_R', 'INVULN', 'PICKUP_R']],
   ['Enemies', ['ENEMY_HP_GLOBAL', 'HP_SLOPE', 'DMG_SLOPE', 'ENEMY_DMG_MULT', 'ENEMY_SHOT_SPEED_MULT', 'TELL_MULT', 'SPAWN_T']],
   ['Feel', ['TIME_SCALE', 'HITSTOP_MS', 'CARDS_OFFERED', 'PICK_DELAY', 'EDGE_FLASH', 'HAPTICS', 'HAPTIC_HURT_MS', 'HAPTIC_KILL_MS', 'SOUND']],
-  ['Input', ['BRACE_DELAY', 'DEADZONE_ENTER', 'DEADZONE_EXIT', 'AUTO_WALK', 'AUTO_WALK_DELAY']]
+  ['Input', ['BRACE_DELAY', 'DEADZONE_ENTER', 'DEADZONE_EXIT', 'AUTO_WALK', 'AUTO_WALK_DELAY', 'AUTO_WALK_MULT']]
 ];
 var RANGE = {
   HERO_HP: [100, 2000, 10], HERO_ATK: [20, 600, 5], CRIT_CHANCE: [0, 1, 0.01], CRIT_MULT: [1, 4, 0.05], MOVE_SPEED: [1, 10, 0.1],
@@ -4126,7 +4445,7 @@ var RANGE = {
   ENEMY_HP_GLOBAL: [0.1, 3, 0.01], HP_SLOPE: [0, 0.3, 0.002], DMG_SLOPE: [0, 0.3, 0.002], ENEMY_DMG_MULT: [0, 4, 0.05],
   ENEMY_SHOT_SPEED_MULT: [0.2, 3, 0.05], TELL_MULT: [0.2, 3, 0.05], TIME_SCALE: [0.1, 2, 0.05], HITSTOP_MS: [0, 200, 5],
   CARDS_OFFERED: [1, 3, 1], BRACE_DELAY: [0, 1, 0.01], DEADZONE_ENTER: [2, 60, 1], DEADZONE_EXIT: [0, 40, 1],
-  HAPTIC_HURT_MS: [0, 200, 5], AUTO_WALK_DELAY: [0, 3, 0.1], HAPTIC_KILL_MS: [0, 100, 2]
+  HAPTIC_HURT_MS: [0, 200, 5], AUTO_WALK_DELAY: [0, 3, 0.1], AUTO_WALK_MULT: [1, 4, 0.1], HAPTIC_KILL_MS: [0, 100, 2]
 };
 function rangeFor(k, d){
   if (RANGE[k]) return RANGE[k];
@@ -4232,10 +4551,18 @@ UI.toast = function(text, ms){
   var t = $('toast'); t.textContent = text; t.classList.add('on');
   clearTimeout(toastT); toastT = setTimeout(function(){ t.classList.remove('on'); }, ms || 1600);
 };
+// Positions below are real CSS px (R42: no scaled frame). view.oy + 15 * view.s is the room's bottom edge; view.apron is the ground below it.
+function roomBottom(view){ return view.oy + 15 * view.s; }
+function apronOf(view){ return view.apron != null ? view.apron : Math.max(0, view.h - roomBottom(view)); }
+var HOWTO_GAP = 8, TOAST_H = 32;   // guesses: gap under the room edge; one-line toast height (13 px text + padding)
 UI.placeToast = function(view){
-  // Below the room, in the ground area: never over the HUD bars or the room edge (L-TD-5).
-  // D10: one line, in the band below the room, under the two-line how-to box (top +14, ~50 px tall), clear of the spawn.
-  var t = $('toast'); t.style.top = Math.round(Math.min(view.oy + 15 * view.s + 76, view.h - 56)) + 'px';   // clamp: short screens have no band below the room
+  // In the ground apron when it has room: never over the HUD band or the room edge (L-TD-5). The apron's top part is the how-to hint's
+  // place, so the toast goes under it when both fit; on squat screens (no apron) it sits just under the door row, inside the room.
+  var t = $('toast'), top = roomBottom(view), ap = apronOf(view), y;
+  if (ap >= 120) y = top + 70;                                   // how-to (up to ~54 px) + gaps above it
+  else if (ap >= TOAST_H + 2 * HOWTO_GAP) y = top + (ap - TOAST_H) / 2;
+  else y = view.oy + view.s * 1.15;
+  t.style.top = Math.round(y) + 'px';
 };
 
 // Crit numbers (M's pick: crits only). Pooled DOM, max 8 live.
@@ -4280,15 +4607,15 @@ UI.hud = function(S, R, view){
     lastHud = key;
     $('stNum').textContent = S.stage;
     $('roomName').textContent = room ? room.name : (S.roomId || '');
+    // No cut-off text (s6): when the chip cannot hold the room name (narrow screens), show only the stage; the name is toasted at room entry.
+    var rn = $('roomName'), sl = $('stageLbl'); rn.style.display = ''; if (sl.scrollWidth > sl.clientWidth + 1) rn.style.display = 'none';
     $('lvl').textContent = 'Lv ' + h.level;
     $('xpFill').style.width = (xpPct * 100).toFixed(1) + '%';
     $('hpFill').style.width = (hp / mx * 100).toFixed(1) + '%';
     $('hpFill').style.background = hp / mx < 0.3 ? '#f07a6e' : '#5fd06a';
-    // Dark text is clipped to the filled part, light text to the empty part.
-    var cut = (100 - hp / mx * 100).toFixed(1) + '%', ht = hp + ' / ' + mx;
+    // The number sits beside the bar (L-PV-7); #hpTxtE is kept hidden for older tests.
+    var ht = hp + ' / ' + mx;
     $('hpTxt').textContent = ht; $('hpTxtE').textContent = ht;
-    $('hpTxt').style.clipPath = 'inset(0 ' + cut + ' 0 0)';
-    $('hpTxtE').style.clipPath = 'inset(0 0 0 ' + (hp / mx * 100).toFixed(1) + '%)';
   }
   UI.rendererLabel(R, view);
   UI.boss(S, view);
@@ -4298,13 +4625,15 @@ UI.boss = function(S, view){
   var b = S.boss, el = $('bossBar');
   var on = !!(b && b.hp > 0 && S.phase !== 'results');
   if (!on) { if (el.style.display !== 'none') el.style.display = 'none'; bossKey = ''; return; }
-  var k = [b.name, Math.ceil(b.hp), b.maxHp, b.phase, Math.round(view.ox), Math.round(view.oy), Math.round(view.s)].join('|');
+  var k = [b.name, Math.ceil(b.hp), b.maxHp, b.phase, Math.round(view.ox), Math.round(view.oy), Math.round(view.s * 10), view.C].join('|');
   if (k === bossKey) return; bossKey = k;
   // Top of the room, inside the north wall row, so it never covers the HUD bars.
   // D1: name and numbers on a row above a plain full-width bar (block is about 34 px tall).
   el.style.display = 'block';
-  el.style.left = Math.round(view.ox + view.s * 0.25) + 'px';
-  el.style.width = Math.round(view.s * 8.5) + 'px';
+  // Centred on the room, at most 560 wide (wide screens, s4), never wider than the room less half a tile.
+  var rw = (view.C || 9) * view.s, bw = Math.min(560, rw - view.s * 0.5);
+  el.style.left = Math.round(view.ox + (rw - bw) / 2) + 'px';
+  el.style.width = Math.round(bw) + 'px';
   el.style.top = Math.round(view.oy + Math.max(0, (view.s - (el.offsetHeight || 34)) / 2)) + 'px';
   $('bossFill').style.width = Math.max(0, Math.min(100, b.hp / b.maxHp * 100)).toFixed(1) + '%';
   $('bossName').textContent = (b.name || 'Boss') + (b.phase === 2 ? ' - phase 2' : '');
@@ -4314,14 +4643,23 @@ UI.howto = function(on, view){
   var el = $('howto');
   if (on) {
     if (el.style.display !== 'block') el.style.display = 'block';
-    var below = view.oy + 15 * view.s + 14, hh = el.offsetHeight || 34;   // squat screens (full-screen frame, pick 43) have no band below the room:
-    el.style.top = Math.round(below + hh <= view.h - 4 ? below : view.oy + 1.6 * view.s) + 'px';   // then sit under the door, away from the hero's start
+    // On the ground apron when it fits. Otherwise (QA-VISUAL D3 option A) over rows 12-13, which hold no spawns or tells, centred a bit
+    // above their middle (row 12.6, a guess) and kept clear of the hero's start tile (row 14 centre) and its HP bar (about 0.55 tile + 7 px above it).
+    var hh = el.offsetHeight || 34, below = roomBottom(view) + HOWTO_GAP, fits = apronOf(view) >= hh + 2 * HOWTO_GAP, y;
+    if (fits) y = below;
+    else {
+      var s = view.s, yTop = view.oy + 12 * s, yMax = view.oy + 14.5 * s - 0.28 * s * 1.95 - 10 - 4 - hh;  // hint bottom >= 4 px over the HP bar
+      y = Math.max(yTop, Math.min(view.oy + 12.6 * s - hh / 2, yMax));
+    }
+    y = Math.round(y);
+    if (el.style.top !== y + 'px') el.style.top = y + 'px';
   }
   else if (el.style.display !== 'none') el.style.display = 'none';
 };
 function fmtN(n){ return (V.Home && V.Home.fmt) ? V.Home.fmt(n) : String(n); }
 UI.rendererLabel = function(R, view){
-  var t = (R ? R.name : 'none') + ' | ' + Math.round(view.vw || view.w) + 'x' + Math.round(view.vh || view.h) + ' | x' + (view.scale || 1).toFixed(2) + ' | dpr ' + (Math.round((G.devicePixelRatio || 1) * 100) / 100);
+  // R42 label: viewport | column class | tile px | device pixel ratio, e.g. "Canvas 2D | 344x882 | c9 | 38.2 px | dpr 2.63"
+  var t = (R ? R.name : 'none') + ' | ' + Math.round(view.vw || view.w) + 'x' + Math.round(view.vh || view.h) + ' | c' + (view.C || 9) + ' | ' + (view.s || 0).toFixed(1) + ' px | dpr ' + (Math.round((G.devicePixelRatio || 1) * 100) / 100);
   // D14: the corner label shows only with ?debug=1; the pause card and the tuning drawer always carry it.
   ['rlbl', 'rlblPause', 'rlblDrawer'].forEach(function(id){ var el = $(id); if (el && el.textContent !== t) el.textContent = t; });
 };
@@ -4391,6 +4729,8 @@ UI.results = function(S){
   UI.show('ovDead', true);
 };
 UI.dead = UI.results;
+// Pause card: the run's mods (the list scrolls inside the panel).
+UI.pauseInfo = function(S){ var el = $('pauseMods'); if (!el || !S || !S.hero) return; var m = modNames(S); el.textContent = m.length ? 'Mods: ' + m.join(', ') : ''; };
 
 function metaBlock(){
   var m = V.Meta && V.Meta.state; if (!m) return null;
@@ -4418,6 +4758,538 @@ UI.report = function(){
   return 'Project Volley report\n' + JSON.stringify(r, null, 1);
 };
 UI.BUILD = BUILD;
+})();
+
+</script>
+<script>
+(function(){ var G = (typeof window !== 'undefined' ? window : globalThis); var V = G.V = G.V || {};
+// V.Report: F1 test report (TEST-REPORT-SPEC section 7 must-haves). Owner C. Load after ui.js (before the tabs, home and main).
+// Hooks (CONTRACT "Report hooks"; every call is wrapped in try/catch so the report can never break a frame, L-PV-23):
+//   V.Report.tick(S, dtMs, mode)   mode 'play' | 'menu'; main.js calls it every visible frame. Splits frame times, tags gaps
+//                                  over 50 ms with the stage, samples lowest HP, picks (with level) and damage by source per stage.
+//                                  Safety net: it also opens a run on the first play frame of a fresh S and closes one when S.result
+//                                  appears, so a missed runStart/runEnd call costs nothing. Both calls are idempotent.
+//   V.Report.runStart(S)           opens a run record (an open record on another S is closed first as 'abandon').
+//   V.Report.runEnd(S, result)     closes it: 'clear' (win), 'death' (loss) or 'abandon' (no result).
+//   V.Report.runFields(result)     meta.js award() asks for the per-run fields it stores in the save (runNo, runBuild, ...).
+//   V.Report.purchase(item, price) meta.js buy() calls it after a successful buy.
+//   V.Report.summary() / full() / data()   the texts; V.UI.reportSummary() and V.UI.report() return the same.
+//   V.Report.markReported()        what "Copy full report" does after copying: the next session starts now.
+// Overrides V.UI.report (full: summary + JSON data block + last run's input log) and adds V.UI.reportSummary.
+// DOM (browser only, injected here so no other owner's file changes): "Copy summary" next to the drawer's "Copy report";
+// Copy summary / Copy full report on the results screen and at the end of the Intel tab; an 11 px stamp line
+// (build | local time | run N) on the results screen and above the Home tab bar. No share sheet, no feel strip (owner defaults).
+// Privacy: nothing leaves the device; no name, account or device ID.
+
+// ---------- bands (bands.json in spec section 6; kept here as data until the build thread ships the file) ----------
+// Slice = chapter 1, 10 stages, measured at 9 columns. Two-sided rows (L-MM-7): lo..hi. A run at other columns gets a '*' mark.
+var BANDS = {
+  version: 'slice-v1',
+  seeds: 200,
+  cols: 9,
+  source: 'TEST-REPORT-SPEC s6 [F]: bot p10/median/p90, 200 seeds, slice; credits ECONOMY-BASELINE.md',
+  rows: {
+    winSeconds:   { lo: 108, hi: 130, med: 117, src: 'bot p10-p90, 200 seeds [F]' },
+    clearPct:     { lo: 90.5, hi: 90.5, src: 'bot, 200 seeds [F]; printed beside the session wins, never marked under n=10 [G]' },
+    creditsWin:   { lo: 334, hi: 334, src: 'ECONOMY-BASELINE: 7 combat x 24 + cache 95 + boss 24 + 47 [F]' },
+    // Credits on a death by stage reached: 24 per cleared combat room, cache 95 [F rule]; 3/6/7/8 are the [F] values, the rest [A] from the rule.
+    creditsDeath: { byStage: { 1: 0, 2: 24, 3: 48, 4: 72, 5: 96, 6: 96, 7: 120, 8: 144, 9: 168, 10: 263 }, src: 'stages 3,6,7,8 [F]; others [A] from 24/combat room + cache 95' },
+    killsWin:     { ref: 28, src: 'bot, slice [F] (single value: printed as ref, no mark)' },
+    picksRun:     { ref: 3.85, src: 'bot, slice [F] (single value: printed as ref, no mark)' },
+    peakMachines: { ref: 4, design: 11, src: 'bot [F] (not measured in F1-0)' },
+    dmgTaken:     null,   // no band yet (spec s6, recheck request 5)
+    lowestHp:     null
+  }
+};
+function mark(v, lo, hi){ if (v == null || lo == null) return 'no band'; return v < lo ? 'below' : (v > hi ? 'above' : 'ok'); }
+
+// ---------- small helpers ----------
+var EXCLUDE_TUNE = { SOUND: 1, HAPTICS: 1 };   // device settings mirrored into V.TUNE (audio.js, meta.js settings), not balance knobs
+var RUNS_KEEP = 5, SESSION_RUNS_MAX = 30, GAPS_MAX = 10, PICKS_MAX = 40, RING = 3600, SIZE_TARGET = 8192, SUMMARY_MAX = 1536;   // RING: about 1 min of frames per mode [G]
+function now(){ try { return Date.now(); } catch (e) { return 0; } }
+function pad(n){ return (n < 10 ? '0' : '') + n; }
+function ymd(d){ return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); }
+function hms(d){ return pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds()); }
+function hm(ms){ return ms ? hms(new Date(ms)).slice(0, 5) : '-'; }
+function localStamp(ms){ var d = new Date(ms); return ymd(d) + ' ' + hms(d); }
+function isoLocal(ms){   // ISO 8601 local time with the offset, e.g. 2026-11-12T14:32:07+01:00
+  if (!ms) return null;
+  var d = new Date(ms), o = -d.getTimezoneOffset(), s = o >= 0 ? '+' : '-'; o = Math.abs(o);
+  return ymd(d) + 'T' + hms(d) + s + pad(Math.floor(o / 60)) + ':' + pad(o % 60);
+}
+function r1(x){ return Math.round(x * 10) / 10; }
+function build(){ return (V.UI && V.UI.BUILD) || 'unknown'; }
+function tuneDiff(){
+  var o = {};
+  try { var D = V.TUNE_DEFAULTS, T = V.TUNE; for (var k in D) if (!EXCLUDE_TUNE[k] && T[k] !== D[k]) o[k] = T[k]; } catch (e) {}
+  try { if (V.Scene && V.Scene.stress) o.STRESS_SHAPES = V.Scene.stress | 0; } catch (e) {}
+  return o;
+}
+function merge(a, b){ for (var k in b) a[k] = b[k]; return a; }
+function metaState(){ return V.Meta && V.Meta.state; }
+function credits(){ var m = metaState(); return m ? m.credits : null; }
+function power(){ try { return V.Meta ? (+V.Meta.state.power || 0) : 0; } catch (e) { return 0; } }
+function freshSave(){ var m = metaState(); return !!m && m.credits === 0 && m.rifle.lvl === 1 && m.buys === 0 && (!m.runs || !m.runs.length); }
+function inputLast(){ try { var l = V.Input && V.Input.log ? V.Input.log() : []; return l.length ? l[l.length - 1][0] : -1; } catch (e) { return -1; } }
+
+// ---------- frame stats: a ring per mode (play / menu) ----------
+function ring(){ return { a: new Float64Array(RING), n: 0, i: 0, max: 0, count: 0 }; }
+function push(r, v){ r.a[r.i] = v; r.i = (r.i + 1) % RING; if (r.n < RING) r.n++; if (v > r.max) r.max = v; r.count++; }
+function pct(r, p){ if (!r.n) return 0; var b = Array.prototype.slice.call(r.a, 0, r.n).sort(function(x, y){ return x - y; }); return r1(b[Math.min(b.length - 1, Math.floor(p * b.length))]); }
+
+// ---------- session state ----------
+var sess, cur = null, lastS = null, memRunNo = 0;
+function newSession(t){
+  var keep = sess ? sess : null;
+  sess = { start: t, loadAt: keep ? keep.loadAt : t, reportedUpTo: keep ? keep.reportedUpTo : 0, runs: keep ? keep.runs : [], purchases: keep ? keep.purchases : [],
+    firstFresh: keep ? keep.firstFresh : null, play: ring(), menu: ring(), gaps: [], gapsPlay: 0, gapsMenu: 0, lastMode: '', errors: keep ? keep.errors : 0, ticks: 0 };
+}
+newSession(now());
+var R = V.Report = { BANDS: BANDS };
+function err(e){ sess.errors++; if (sess.errors < 4) { try { console.warn('volley report:', e); } catch (_) {} } }
+
+function nextRunNo(){
+  try { if (V.Meta && V.Meta.nextRunNo) return V.Meta.nextRunNo(); } catch (e) {}
+  var m = metaState(), last = 0;
+  if (m && m.runs) m.runs.forEach(function(r){ if (r.runNo > last) last = r.runNo; });
+  memRunNo = Math.max(memRunNo, last) + 1; return memRunNo;
+}
+function layoutNow(){
+  var L = V.Layout, o = { cols: 9, tile: null, fill: null, clamped: false, viewport: null, src: 'none' };
+  try {
+    if (L && L.W) {
+      o.src = 'V.Layout'; o.viewport = Math.round(L.W) + 'x' + Math.round(L.H);
+      o.cols = L.C || (typeof L.cols === 'function' ? L.cols() : L.cols) || 9;   // C = the room on screen now; cols() = the next room entry
+      o.tile = L.tile != null ? r1(L.tile) : null;
+      var rw = L.roomW != null ? L.roomW : (o.tile ? o.cols * L.tile : null), wu = L.Wu || L.W;
+      o.fill = rw != null && wu ? Math.round(100 * Math.min(1, rw / wu)) : null;
+      o.clamped = 'clamped' in L ? !!L.clamped : !!(L.t0 && wu && wu / L.t0 > 16);
+    } else if (G.__pv && G.__pv.frame) {   // f0-3 fallback: scaled 882-unit frame, 9 columns
+      var f = G.__pv.frame, v = G.__pv.view || {};
+      o.src = 'frame'; o.viewport = Math.round(f.vw) + 'x' + Math.round(f.vh);
+      o.tile = v.s ? r1(v.s * (f.scale || 1)) : null;
+      o.fill = f.vw ? Math.round(100 * Math.min(1, f.w / f.vw)) : null;
+    } else if (G.innerWidth) { o.src = 'window'; o.viewport = (G.innerWidth | 0) + 'x' + (G.innerHeight | 0); }
+  } catch (e) { err(e); }
+  return o;
+}
+function hpOf(S){ var h = S && S.hero; return h ? Math.max(0, Math.round(h.hp)) : null; }
+
+// ---------- run records ----------
+function openRun(S){
+  var t = now(), lay = layoutNow();
+  cur = { S: S, runNo: nextRunNo(), runBuild: build(), startMs: t, endMs: 0, endReason: '', result: 'in progress', stageReached: S.stage || 1,
+    runSeconds: 0, hpMax: S.hero ? S.hero.maxHp : null, lowestHp: hpOf(S), dmgTaken: 0, kills: 0, level: 1,
+    creditsEarned: 0, creditsBefore: credits(), creditsAfter: null, tuneChanged: tuneDiff(), power: power(), fresh: freshSave(),
+    cols: S.cols || (S.room && S.room.w) || lay.cols || 9, tilePx: lay.tile, seed: S.seed,
+    picks: [], picksSeen: 0, dmgBy: {}, dmg0: 0, hits0: {}, roomTimes: [], lastT: S.t || 0, inT0: inputLast(), inT1: null };
+  sess.runs.push(cur);
+  if (sess.firstFresh == null) sess.firstFresh = cur.fresh;
+  if (sess.runs.length > SESSION_RUNS_MAX) sess.runs.splice(0, sess.runs.length - SESSION_RUNS_MAX);
+  return cur;
+}
+function sample(S){   // per frame while a run is open; cheap diffs only
+  var c = cur, st = S.stats || {}, h = S.hero;
+  if (h) { var hp = Math.max(0, Math.round(h.hp)); if (c.lowestHp == null || hp < c.lowestHp) c.lowestHp = hp; if (h.maxHp > (c.hpMax || 0)) c.hpMax = h.maxHp; c.level = h.level || c.level; }
+  if (S.stage > c.stageReached) c.stageReached = S.stage;
+  var cols = S.cols || (S.room && S.room.w); if (cols) c.cols = cols;
+  c.lastT = S.t || c.lastT;
+  var pk = st.picks;
+  if (pk && pk.length > c.picksSeen) {
+    for (var i = c.picksSeen; i < pk.length && c.picks.length < PICKS_MAX; i++) {
+      var id = pk[i], lv = 0; for (var j = 0; j <= i; j++) if (pk[j] === id) lv++;
+      c.picks.push({ id: id, lv: lv, heroLv: h ? h.level : null, stage: S.stage });
+    }
+    c.picksSeen = pk.length;
+  }
+  var d = st.dmgTaken || 0;
+  if (d > c.dmg0) {   // damage by source per stage: the hitsBy counter that moved this frame gets the damage ('mixed' if several did)
+    var by = st.hitsBy || {}, moved = [];
+    for (var k in by) if ((by[k] || 0) > (c.hits0[k] || 0)) moved.push(k);
+    var src = moved.length === 1 ? moved[0] : (moved.length ? 'mixed' : 'other');
+    var key = String(S.stage), row = c.dmgBy[key] || (c.dmgBy[key] = {});
+    row[src] = (row[src] || 0) + (d - c.dmg0);
+    c.dmg0 = d; for (var k2 in by) c.hits0[k2] = by[k2];
+  }
+}
+function closeRun(S, result, reason){
+  var c = cur; if (!c) return null;
+  if (S && S === c.S) sample(S);
+  var st = (S && S.stats) || {};
+  c.endMs = now();
+  c.endReason = reason || (result ? (result.win ? 'clear' : 'death') : 'abandon');
+  c.result = result ? (result.win ? 'win' : 'loss') : 'abandon';
+  if (result) {
+    c.stageReached = result.stage != null ? result.stage : c.stageReached;
+    c.runSeconds = r1(+result.t || (S && S.t) || 0);
+    c.kills = result.kills | 0; c.dmgTaken = Math.round(result.dmgTaken || 0); c.level = result.level || c.level;
+    c.creditsEarned = result.credits | 0;
+    if (c.endReason === 'death') c.lowestHp = 0;
+  } else {
+    c.runSeconds = r1(c.lastT || 0); c.kills = st.kills | 0; c.dmgTaken = Math.round(st.dmgTaken || 0); c.creditsEarned = 0;
+  }
+  merge(c.tuneChanged, tuneDiff());
+  if (power() > c.power) c.power = power();
+  c.creditsAfter = credits();
+  c.roomTimes = (st.roomTimes || []).map(function(r){ return [r.stage, r.s]; });
+  c.braced = st.playSteps ? Math.round(100 * (st.bracedSteps || 0) / st.playSteps) : null;
+  c.inT1 = inputLast();
+  c.S = null;   // never keep the sim alive
+  cur = null;
+  return c;
+}
+
+R.runStart = function(S){
+  try {
+    if (!S) return;
+    if (cur && cur.S === S && !S.result && (S.t || 0) + 0.5 >= cur.lastT) return;   // same run (deploy calls this after restart too)
+    if (cur) closeRun(cur.S, null, 'abandon');
+    openRun(S); lastS = S;
+  } catch (e) { err(e); }
+};
+R.runEnd = function(S, result){
+  try {
+    if (!cur) return;
+    if (S && cur.S !== S) return;   // a stale call for an older run
+    closeRun(S || cur.S, result || (S && S.result) || null);
+    paintStamps();
+  } catch (e) { err(e); }
+};
+// meta.js award() stores these with the run log entry. Called inside the sim's endRun, before runEnd(): read the open run.
+R.runFields = function(result){
+  try {
+    var c = cur; if (!c) return null;
+    if (c.S && c.S.stats) sample(c.S);
+    var t = merge({}, c.tuneChanged); merge(t, tuneDiff());
+    return { runNo: c.runNo, runBuild: c.runBuild, startedAt: c.startMs, endReason: result ? (result.win ? 'clear' : 'death') : 'abandon',
+      hpMax: c.hpMax, lowestHp: result && !result.win ? 0 : c.lowestHp, tuneChanged: t, picks: c.picks.map(function(p){ return p.id + ':' + p.lv; }), cols: c.cols };
+  } catch (e) { err(e); return null; }
+};
+R.purchase = function(item, price){
+  try {
+    var after = credits();
+    sess.purchases.push({ t: now(), run: lastRunNo(), item: String(item), price: price | 0, before: after != null ? after + (price | 0) : null, after: after });
+    if (sess.purchases.length > 40) sess.purchases.shift();
+  } catch (e) { err(e); }
+};
+function lastRunNo(){ var m = metaState(); if (m && m.runSeq) return m.runSeq; var l = sess.runs[sess.runs.length - 1]; return l ? l.runNo : 0; }
+
+R.tick = function(S, dtMs, mode){
+  try {
+    mode = mode === 'play' ? 'play' : 'menu';
+    sess.ticks++;
+    if (mode !== sess.lastMode) sess.lastMode = mode;            // first frame after a switch carries the switch itself: not counted
+    else if (dtMs > 0 && dtMs < 6e4) {
+      push(mode === 'play' ? sess.play : sess.menu, dtMs);
+      if (dtMs > 50) {
+        if (mode === 'play') { sess.gapsPlay++; if (sess.gaps.length < GAPS_MAX) sess.gaps.push({ ms: Math.round(dtMs), stage: S ? S.stage : null, run: cur ? cur.runNo : null }); }
+        else sess.gapsMenu++;
+      }
+    }
+    if (!S) return;
+    lastS = S;
+    // safety net for missed hooks: a fresh S playing opens a run; a result closes it
+    if (cur && cur.S !== S && !S.result && mode === 'play') { closeRun(cur.S, null, 'abandon'); }
+    if (!cur && mode === 'play' && !S.result && (S.phase === 'play' || S.phase === 'clear')) {
+      var l = sess.runs[sess.runs.length - 1];
+      if (!l || l.S !== S) openRun(S);
+    }
+    if (cur && cur.S === S) {
+      if (S.result) { closeRun(S, S.result); paintStamps(); return; }
+      if (mode === 'play') sample(S);
+      if (sess.ticks % 60 === 0) merge(cur.tuneChanged, tuneDiff());
+    }
+  } catch (e) { err(e); }
+};
+
+// ---------- save health ----------
+function saveHealth(){
+  var M = V.Meta, o = { saveVersion: null, saveKey: null, saveValidation: 'no meta', resets: [], storageBlocked: null, readOnly: false, freshSave: null };
+  if (!M) return o;
+  o.saveVersion = M.VERSION; o.saveKey = M.KEY; o.storageBlocked = M.storageOk === false; o.readOnly = !!M.readOnly;
+  o.saveValidation = o.storageBlocked ? 'storage blocked' : (M.readOnly ? 'newer save: read-only' : (M.resetSignal ? 'reset at load: ' + M.resetSignal : 'ok'));
+  var rs = (M.state && M.state.resets) || [];
+  o.resets = rs.map(function(r){ return { at: isoLocal(r.t), reason: r.reason }; });
+  return o;
+}
+
+// ---------- the report model ----------
+function runView(c, earlier){
+  var p = c.picks || [];
+  var isNew = !earlier && c.runNo > sess.reportedUpTo;
+  return { runNo: c.runNo, runBuild: c.runBuild, mark: earlier ? 'earlier' : (isNew ? 'new' : 'reported'), isNew: isNew, earlier: !!earlier, startedAt: isoLocal(c.startMs), endedAt: isoLocal(c.endMs),
+    startMs: c.startMs, endMs: c.endMs, endReason: c.endReason || '', result: c.result, stageReached: c.stageReached, runSeconds: c.runSeconds, hpMax: c.hpMax, lowestHp: c.lowestHp,
+    dmgTaken: c.dmgTaken, kills: c.kills, level: c.level, creditsEarned: c.creditsEarned, creditsBefore: c.creditsBefore, creditsAfter: c.creditsAfter,
+    tuneChanged: c.tuneChanged || {}, power: c.power || 0, freshSave: c.fresh, cols: c.cols, tilePx: c.tilePx, seed: c.seed,
+    bracedUptimePct: c.braced != null ? c.braced : null, picks: p.map(function(x){ return x.id + ':' + x.lv + (x.stage ? '@' + x.stage : ''); }), damageBySource: c.dmgBy || null, roomTimes: c.roomTimes || null };
+}
+function fromMeta(r){   // a run saved by an earlier page load (meta run log with the F1 fields)
+  return { runNo: r.runNo, runBuild: r.runBuild || '?', startMs: r.startedAt || 0, endMs: r.t, endReason: r.endReason || (r.win ? 'clear' : 'death'),
+    result: r.win ? 'win' : 'loss', stageReached: r.stage, runSeconds: r.dur, hpMax: r.hpMax != null ? r.hpMax : null, lowestHp: r.lowestHp != null ? r.lowestHp : null,
+    dmgTaken: null, kills: r.kills, level: null, creditsEarned: r.credits, creditsBefore: null, creditsAfter: null, tuneChanged: r.tuneChanged || {}, power: 0,
+    fresh: null, cols: r.cols || 9, tilePx: null, seed: null, picks: (r.picks || []).map(function(s){ var a = String(s).split(':'); return { id: a[0], lv: +a[1] || 1 }; }), dmgBy: null, roomTimes: null };
+}
+function bandCompare(r){
+  var B = BANDS.rows, star = r.cols && r.cols !== BANDS.cols ? '*' : '', o = {};
+  if (r.result === 'win') {
+    o.runSeconds = mark(r.runSeconds, B.winSeconds.lo, B.winSeconds.hi) + star;
+    o.creditsEarned = mark(r.creditsEarned, B.creditsWin.lo, B.creditsWin.hi) + star;
+    o.kills = 'ref ' + B.killsWin.ref;
+  } else if (r.result === 'loss') {
+    var cd = B.creditsDeath.byStage[r.stageReached];
+    o.runSeconds = 'no band'; o.creditsEarned = cd == null ? 'no band' : mark(r.creditsEarned, cd, cd) + star; o.kills = 'no band';
+  } else { o.runSeconds = 'no band'; o.creditsEarned = 'no band'; o.kills = 'no band'; }
+  return o;   // picks (ref 3.85), lowestHp and dmgTaken have no band: see the bands table
+}
+function model(){
+  var t = now(), M = V.Meta, lay = layoutNow();
+  // rows: the last 5 runs (owner default, spec card 3); runs saved by earlier page loads fill in when this load has fewer.
+  // Only runs new since the last full copy (or build load) count in the verdict; the others are context.
+  var done = sess.runs.filter(function(c){ return c !== cur; });
+  var mine = {}; done.forEach(function(c){ mine[c.runNo] = 1; });
+  var first = done.length ? done[0].runNo : (cur ? cur.runNo : Infinity), olds = [];
+  var m = metaState();
+  if (m && m.runs) m.runs.forEach(function(r){ if (r.runNo && !mine[r.runNo] && r.runNo < first) olds.push(fromMeta(r)); });
+  var rows = olds.map(function(c){ return runView(c, true); }).concat(done.map(function(c){ return runView(c, false); }));
+  var cut = Math.max(0, rows.length - RUNS_KEEP), cutNos = rows.slice(0, cut).map(function(r){ return r.runNo; });
+  rows = rows.slice(cut);
+  rows.forEach(function(r){ r.bandCompare = bandCompare(r); });
+  var counted = rows.filter(function(r){ return r.isNew; });   // the verdict covers the session: runs since build load or the last full copy
+  // verdict (spec section 1 clean rule + debug power, which also changes balance)
+  var reasons = [], warns = [], tune = {}, builds = {};
+  counted.forEach(function(r){ merge(tune, r.tuneChanged); builds[r.runBuild] = 1; });
+  if (cur) { merge(tune, cur.tuneChanged); merge(tune, tuneDiff()); }
+  var tk = Object.keys(tune), bl = Object.keys(builds), sh = saveHealth(), pw = Math.max(power(), counted.reduce(function(a, r){ return Math.max(a, r.power || 0); }, 0));
+  if (tk.length) reasons.push('tuning changed: ' + tk.map(function(k){ return k + ' ' + tune[k]; }).join(', '));
+  if (bl.length > 1) reasons.push(bl.length + ' builds');
+  if (pw > 0) reasons.push('debug power ' + pw);
+  if (sh.saveValidation !== 'ok') reasons.push('save ' + sh.saveValidation);
+  if (cur) reasons.push('run in progress');
+  if (!counted.length) reasons.push('no finished runs');
+  var gapsN = sess.gapsPlay;
+  if (gapsN) warns.push('frame gaps: ' + gapsN + ' over 50 ms');
+  var fillOk = lay.fill == null || lay.fill >= 100;
+  if (!fillOk) warns.push('viewport: room fills ' + lay.fill + '% of width' + (lay.clamped ? ' (beyond 15-column clamp)' : ''));
+  var resetsHere = (sh.resets || []).length && M && M.resetSignal;
+  var clean = !reasons.length;
+  var dm = 'browser';
+  try { if (G.matchMedia) { if (G.matchMedia('(display-mode: fullscreen)').matches) dm = 'fullscreen'; else if (G.matchMedia('(display-mode: standalone)').matches) dm = 'standalone'; else if (G.matchMedia('(display-mode: minimal-ui)').matches) dm = 'minimal-ui'; } } catch (e) {}
+  var ori = 'unknown';
+  try { ori = G.innerWidth ? (G.innerWidth > G.innerHeight ? 'landscape' : 'portrait') : ((G.screen && G.screen.orientation && G.screen.orientation.type) ? G.screen.orientation.type.split('-')[0] : 'unknown'); } catch (e) {}   // the window's shape (what the layout uses)
+  var met = null; try { met = G.__pv && G.__pv.metrics ? G.__pv.metrics() : null; } catch (e) {}
+  var wins = counted.filter(function(r){ return r.result === 'win'; }).length, fin = counted.filter(function(r){ return r.result !== 'abandon'; }).length;
+  return {
+    t: t, rows: rows, cutNos: cutNos, counted: counted, clean: clean, reasons: reasons, warns: warns, tune: tune, builds: bl, power: pw, save: sh, lay: lay, gapsN: gapsN,
+    resetsHere: !!resetsHere, wins: wins, fin: fin,
+    session: { reportAt: isoLocal(t), reportAtUtc: new Date(t).toISOString(), sessionStart: isoLocal(sess.start), buildLoadedAt: isoLocal(sess.loadAt),
+      runsInReport: rows.map(function(r){ return r.runNo; }), runsCut: cutNos, newSinceLastCopy: rows.filter(function(r){ return r.isNew; }).map(function(r){ return r.runNo; }),
+      midRun: cur ? { yes: true, runNo: cur.runNo, stage: lastS && lastS.stage } : { yes: false }, clean: clean ? 'yes' : 'no', reasons: reasons, warnings: warns, reportErrors: sess.errors },
+    device: { window: (G.innerWidth | 0) + 'x' + (G.innerHeight | 0), viewport: lay.viewport, dpr: G.devicePixelRatio || 1, displayMode: dm, orientation: ori,
+      roomColumns: (cur && cur.cols) || (counted.length ? counted[counted.length - 1].cols : lay.cols), tilePx: lay.tile, frameFillPct: lay.fill, layoutSource: lay.src,
+      renderer: met ? met.renderer : 'unknown', ua: (G.navigator && navigator.userAgent) || '' },
+    buildInfo: { build: build(), buildsInSession: bl, tuneChanged: tune, bandsVersion: BANDS.version, settings: V.TUNE || null },
+    economy: { credits: credits(), rifleLevel: m && m.rifle ? m.rifle.lvl : null, cond: m ? m.cond : null, runCount: m && m.runs ? m.runs.length : null, best: m ? m.best : null,
+      power: power(), freshSave: (function(){ var f = sess.firstFresh != null ? sess.firstFresh : freshSave(); return f ? 'yes' : 'no'; })(),   // run 1 of this page load began from a zero save
+      purchaseLog: purchaseLog(rows) },
+    perf: { frameMs: { play: { p50: pct(sess.play, 0.5), p95: pct(sess.play, 0.95), max: r1(sess.play.max), n: sess.play.count },
+      menu: { p50: pct(sess.menu, 0.5), p95: pct(sess.menu, 0.95), max: r1(sess.menu.max), n: sess.menu.count } },
+      gapsOver50ms: gapsN, gapsMenu: sess.gapsMenu, gaps: sess.gaps.slice() },
+    audio: V.Audio ? { state: V.Audio.state, muted: !!V.Audio.muted, played: V.Audio.played, dropped: V.Audio.dropped } : null
+  };
+}
+function purchaseLog(rows){
+  var m = metaState(), from = rows.length ? rows[0].runNo - 1 : 0, src = (m && m.purchases) ? m.purchases : sess.purchases;
+  return src.filter(function(p){ return p.run >= from; }).map(function(p){ return { run: p.run, at: isoLocal(p.t), item: p.item + (p.lvl ? ' L' + p.lvl : ''), price: p.price, before: p.before, after: p.after }; });
+}
+
+// ---------- texts ----------
+function rpad(s, n){ s = String(s); while (s.length < n - 1) s += ' '; return s + ' '; }   // always at least one space
+function line1(md){
+  var lay = md.lay, n = md.counted.length, w = md.warns.length;
+  return 'VOLLEY REPORT ' + build() + ' | CLEAN: ' + (md.clean ? 'YES' : 'NO') + ' (' + (md.clean ? '' : md.reasons.join('; ') + '; ') + n + ' run' + (n === 1 ? '' : 's') + ', ' + w + ' warning' + (w === 1 ? '' : 's') + ')' +
+    ' | ' + localStamp(md.t) + ' | ' + (lay.viewport || '?') + ' c' + md.device.roomColumns + ' tile ' + (lay.tile != null ? lay.tile : '?') + ' | ' + md.device.renderer;
+}
+function summaryText(md){
+  var L = [], s = md.session, d = md.device, B = BANDS.rows, eco = md.economy;
+  L.push(line1(md));
+  L.push('Taken ' + localStamp(md.t) + ' local (' + s.reportAtUtc.slice(11, 19) + 'Z) | session since ' + hms(new Date(sess.start)) + ' | window ' + d.window + ' dpr ' + r1(d.dpr) + ' ' + d.displayMode + ' ' + d.orientation + ' | room fills ' + (d.frameFillPct != null ? d.frameFillPct + '%' : '?') + ' of width');
+  L.push('Credits now ' + (eco.credits != null ? eco.credits : '?') + ' at ' + hms(new Date(md.t)) + ' | fresh save: ' + eco.freshSave + ' | save v' + md.save.saveVersion + ' ' + md.save.saveValidation + ' | bands: ' + BANDS.version + ' (bot, ' + BANDS.seeds + ' seeds, c' + BANDS.cols + '; * = other columns)');
+  L.push('');
+  L.push('Run  Result  Stage  Time (bot ' + B.winSeconds.lo + '-' + B.winSeconds.hi + ' s)  Low HP     Credits (bot)    Bought before run');
+  var pl = eco.purchaseLog;
+  md.rows.forEach(function(r){
+    var bc = r.bandCompare, bought = pl.filter(function(p){ return p.run === r.runNo - 1; }).map(function(p){ return p.item + ' (' + p.price + ')'; }).join(', ') || 'none';
+    var cb = r.result === 'win' ? B.creditsWin.lo : B.creditsDeath.byStage[r.stageReached];
+    L.push(rpad(r.runNo + (r.isNew ? '*' : (r.earlier ? 'e' : '')), 5) + rpad(r.result === 'abandon' ? 'ABAND' : r.result.toUpperCase(), 8) + rpad(r.stageReached + '/10', 7) +
+      rpad(Math.round(r.runSeconds || 0) + ' s (' + bc.runSeconds + ')', 22) + rpad((r.lowestHp != null ? r.lowestHp : '?') + '/' + (r.hpMax != null ? r.hpMax : '?'), 11) +
+      rpad(r.creditsEarned + ' (' + (cb != null && r.result !== 'abandon' ? cb + ' ' : '') + bc.creditsEarned + ')', 17) + bought);
+  });
+  if (cur) L.push(rpad(cur.runNo, 5) + 'IN PROGRESS stage ' + ((lastS && lastS.stage) || cur.stageReached) + ' (not counted)');
+  if (!md.rows.length && !cur) L.push('(no runs yet)');
+  L.push('Marks: * = new this session (in the verdict), e = earlier page load, unmarked = already reported. Clear ' + md.wins + '/' + md.fin + (md.fin < 10 ? ' (n = ' + md.fin + ', too few)' : '') + ' vs bot ' + B.clearPct.lo + '%');
+  var fp = md.perf.frameMs.play, fm = md.perf.frameMs.menu, gt = md.perf.gaps.map(function(g){ return g.stage; }).join(', ');
+  L.push('Frame, play only: p50 ' + fp.p50 + ' ms, p95 ' + fp.p95 + ' ms, max ' + fp.max + ' ms (' + fp.n + ' frames); ' + md.gapsN + ' gaps over 50 ms' + (gt ? ' (stage ' + gt + ')' : '') + ' | menu p50 ' + fm.p50 + ', p95 ' + fm.p95);
+  var tk = Object.keys(md.tune);
+  L.push('Flags: tuning ' + (tk.length ? 'NO (' + tk.join(', ') + ')' : 'OK') + ' | builds ' + (md.builds.length > 1 ? 'NO (' + md.builds.join(', ') + ')' : 'OK (' + md.builds.length + ')') +
+    ' | save ' + (md.save.saveValidation === 'ok' ? 'OK' : 'NO (' + md.save.saveValidation + ')') + ' | not mid-run ' + (cur ? 'WARN (run ' + cur.runNo + ')' : 'OK') + ' | debug power ' + (md.power > 0 ? 'NO (' + md.power + ')' : 'OK'));
+  var rs = md.save.resets, lastReset = rs.length ? rs[rs.length - 1] : null;
+  L.push('       frame gaps ' + (md.gapsN ? 'WARN (' + md.gapsN + ' over 50 ms)' : 'OK') + ' | viewport ' + (md.lay.fill == null || md.lay.fill >= 100 ? 'OK' : 'WARN') + ' (room fills ' + (md.lay.fill != null ? md.lay.fill + '%' : '?') + ' of width)' +
+    ' | save anomaly ' + (md.resetsHere ? 'WARN (' + (lastReset ? lastReset.reason + ' ' + lastReset.at : '') + ')' : 'OK') + (sess.errors ? ' | report errors ' + sess.errors : ''));
+  L.push('Feel: not asked (feel strip is a later F1 build)');
+  L.push('Run stamps: ' + (md.rows.map(function(r){ return 'R' + r.runNo + ' ' + hm(r.startMs) + '-' + hm(r.endMs || 0); }).join(' | ') || 'none'));
+  return L.join('\n');
+}
+// JSON with one top-level key per line and one run per line: valid JSON, still readable in a chat paste.
+function blockJson(o){
+  var keys = Object.keys(o), out = [];
+  keys.forEach(function(k){
+    var v = o[k], s;
+    if (Array.isArray(v) && v.length && typeof v[0] === 'object') s = '[\n' + v.map(function(x){ return JSON.stringify(x); }).join(',\n') + '\n]';
+    else s = JSON.stringify(v);
+    out.push(JSON.stringify(k) + ':' + s);
+  });
+  return '{\n' + out.join(',\n') + '\n}';
+}
+function dataBlock(md, summaryLen){
+  var runs = md.rows.map(function(r){ var x = merge({}, r); delete x.startMs; delete x.endMs; delete x.isNew; delete x.earlier; return x; });
+  var trimmed = [];
+  var blk = { session: md.session, device: md.device, build: md.buildInfo, save: md.save, economy: md.economy, perf: md.perf, audio: md.audio,
+    bands: compactBands(), trimmed: trimmed,
+    legend: 'picks id:level@stage; roomTimes [stage, s]; damageBySource {stage: {source: damage}}; times ISO local; mark new = in the verdict', runs: runs };
+  if (cur) blk.runInProgress = { runNo: cur.runNo, stage: lastS && lastS.stage, runSeconds: r1(cur.lastT || 0), lowestHp: cur.lowestHp, hpMax: cur.hpMax, tuneChanged: cur.tuneChanged };
+  function size(){ return summaryLen + 1 + utf8len(blockJson(blk)); }
+  // spec section 3 drop order
+  if (size() > SIZE_TARGET) { runs.forEach(function(r, i){ if (i < runs.length - 1) { delete r.damageBySource; delete r.roomTimes; } }); trimmed.push('damageBySource and roomTimes of older runs'); }
+  if (size() > SIZE_TARGET) { blk.build = merge({}, blk.build); delete blk.build.settings; trimmed.push('settings (tuneChanged stays)'); }
+  if (size() > SIZE_TARGET) { blk.bands = { version: BANDS.version }; trimmed.push('band table (version stays)'); }
+  while (size() > SIZE_TARGET && runs.length > 3) { trimmed.push('run ' + runs[0].runNo); runs.shift(); }
+  return blockJson(blk);
+}
+function compactBands(){
+  var B = BANDS.rows;
+  return { version: BANDS.version, seeds: BANDS.seeds, cols: BANDS.cols, source: BANDS.source, winSeconds: [B.winSeconds.lo, B.winSeconds.hi, B.winSeconds.med], clearPct: B.clearPct.lo,
+    creditsWin: B.creditsWin.lo, creditsDeathByStage: B.creditsDeath.byStage, creditsDeathNote: B.creditsDeath.src, killsWinRef: B.killsWin.ref, picksRunRef: B.picksRun.ref,
+    peakMachines: [B.peakMachines.ref, B.peakMachines.design], noBand: ['dmgTaken', 'lowestHp'] };
+}
+function utf8len(s){ var n = 0; for (var i = 0; i < s.length; i++) { var c = s.charCodeAt(i); n += c < 0x80 ? 1 : (c < 0x800 ? 2 : (c >= 0xd800 && c < 0xdc00 ? (i++, 4) : 3)); } return n; }
+R.utf8len = utf8len;
+function inputLog(md){
+  var I = V.Input; if (!I || !I.log) return '=== INPUT LOG: none (no input module) ===';
+  var last = md.rows.length ? md.rows[md.rows.length - 1] : null, run = cur || (last && !last.earlier ? sess.runs.filter(function(c){ return c.runNo === last.runNo; })[0] : null);
+  var all = I.log(), t0 = run ? run.inT0 : -1, t1 = run && run.inT1 != null ? run.inT1 : Infinity;
+  var ev = all.filter(function(e){ return e[0] > t0 && e[0] <= t1; });
+  var head = '=== INPUT LOG (last run only' + (run ? ', run ' + run.runNo : '') + ', ' + ev.length + ' events; the input module keeps the last 200; fields ms,kind,x,y) ===';
+  return head + '\n' + (ev.map(function(e){ return e.join(','); }).join(' ') || '(empty)') + '\ncounts ' + JSON.stringify(I.counts || {}) + '\n=== END INPUT LOG ===';
+}
+R.model = model;
+R.summary = function(){ try { return summaryText(model()); } catch (e) { err(e); return 'VOLLEY REPORT ' + build() + ' | CLEAN: NO (report error: ' + (e && e.message) + ')'; } };
+R.parts = function(){
+  var md = model(), sm = summaryText(md), sl = utf8len(sm), db = dataBlock(md, sl);
+  var head = sm + '\nFull data block follows (' + r1((sl + utf8len(db)) / 1024) + ' KB with the summary, last ' + md.rows.length + ' runs, no input logs).';
+  return { summary: sm, data: db, input: inputLog(md), headed: head, model: md };
+};
+R.full = function(){
+  try { var p = R.parts(); return p.headed + '\n=== DATA BLOCK (JSON) ===\n' + p.data + '\n=== END DATA BLOCK ===\n' + p.input; }
+  catch (e) { err(e); return 'VOLLEY REPORT ' + build() + ' | CLEAN: NO (report error: ' + (e && e.message) + ')'; }
+};
+R.data = function(){ return R.parts().data; };
+R.markReported = function(){
+  var t = now(), done = sess.runs.filter(function(c){ return c !== cur; }), last = done.length ? done[done.length - 1].runNo : sess.reportedUpTo;
+  sess.reportedUpTo = Math.max(sess.reportedUpTo, last);
+  newSession(t);
+  paintStamps();
+};
+R.session = function(){ return sess; };
+R.current = function(){ return cur; };
+R._reset = function(){ cur = null; lastS = null; memRunNo = 0; sess = null; newSession(now()); };   // tests only
+
+if (V.UI) {
+  V.UI.report = function(){ return R.full(); };
+  V.UI.reportSummary = function(){ return R.summary(); };
+}
+
+// ---------- DOM: copy buttons and the screenshot stamp (browser only) ----------
+var D = typeof document !== 'undefined' ? document : null;
+function $(id){ return D && D.getElementById(id); }
+function copyText(text, okMsg){
+  var done = function(ok){ var m = ok ? okMsg : 'Copy blocked: text is in window.__pv.lastCopy'; try { if (V.UI && V.UI.toast) V.UI.toast(m, 1600); } catch (e) {} var dm = $('drMsg'); if (dm) dm.textContent = m; };
+  if (V.UI) V.UI.lastCopy = text;
+  var fallback = function(){
+    var ta = $('copyArea'), r = false;
+    if (ta) { ta.value = text; ta.style.left = '0'; ta.focus(); ta.select(); try { r = D.execCommand('copy'); } catch (e) {} ta.style.left = '-9999px'; }
+    done(r);
+  };
+  try { if (G.navigator && navigator.clipboard && G.isSecureContext) { navigator.clipboard.writeText(text).then(function(){ done(true); }, fallback); return; } } catch (e) {}
+  fallback();
+}
+function copySummary(){ copyText(R.summary(), 'Summary copied'); }
+function copyFull(){ copyText(R.full(), 'Full report copied'); R.markReported(); }
+R.copySummary = copySummary; R.copyFull = copyFull;
+var CSS = '.rp-btns{display:flex;gap:8px;width:100%;max-width:312px}' +
+  '#ovDead .rp-btns .btn{flex:1;min-height:56px;font-size:12px;letter-spacing:.06em;border-width:1.5px}' +
+  '.rp-stamp{font:500 11px/14px ui-monospace,Menlo,Consolas,monospace;color:rgba(232,226,210,.78);letter-spacing:0;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;pointer-events:none;user-select:none;margin:0}' +
+  // above the tab bar AND the raised centre Deploy icon (home.css: top -18px); #hmBody gives up the same 34 px so nothing is covered
+  '#rpStampHome{position:absolute;left:0;right:0;bottom:calc(var(--pv-ui-tabbar-h,64px) + 18px);height:16px;line-height:16px;z-index:2}' +
+  '#home #hmBody{margin-bottom:calc(var(--pv-ui-tabbar-h,64px) + 34px)}' +
+  '.rp-intel{display:flex;flex-direction:column;gap:6px;padding:6px 0 2px}' +
+  '.rp-intel .rp-h{font:700 12px/1.2 var(--pv-ui-font-stencil,inherit);text-transform:uppercase;letter-spacing:.12em;color:var(--pv-ui-text-2,#aaa)}' +
+  '.rp-intel .rp-btns{max-width:none}.rp-intel .rp-btns button{flex:1;min-height:44px}';
+function stampText(){ var d = new Date(now()), n = lastShownRunNo(); return build() + ' | ' + hms(d) + ' | ' + (n ? 'run ' + n : 'no run yet'); }
+function lastShownRunNo(){ if (cur) return cur.runNo; var l = sess.runs[sess.runs.length - 1]; if (l) return l.runNo; var m = metaState(); return m && m.runSeq ? m.runSeq : 0; }
+function paintStamps(){
+  if (!D) return;
+  try { homeStamp(); var t = stampText(), ids = ['rpStampRes', 'rpStampHome']; for (var i = 0; i < ids.length; i++) { var e = $(ids[i]); if (e && e.textContent !== t) e.textContent = t; } } catch (e) { err(e); }
+}
+R.stampText = stampText;
+// Home footer stamp: its own 16 px strip above the tab bar (#hmBody gives up the same 16 px, so nothing is covered).
+// home.js rebuilds #home at init, so the strip is (re)attached here, from paintStamps (every second).
+function homeStamp(){ var h = $('home'); if (h && !$('rpStampHome')) { var e = D.createElement('p'); e.className = 'rp-stamp'; e.id = 'rpStampHome'; h.appendChild(e); } }
+function btnRow(cls){
+  var row = D.createElement('div'); row.className = 'rp-btns';
+  var a = D.createElement('button'); a.type = 'button'; a.className = cls; a.textContent = 'Copy summary'; a.setAttribute('data-rp', 'summary');
+  var b = D.createElement('button'); b.type = 'button'; b.className = cls; b.textContent = 'Copy full report'; b.setAttribute('data-rp', 'full');
+  a.addEventListener('click', function(e){ e.stopPropagation(); copySummary(); });
+  b.addEventListener('click', function(e){ e.stopPropagation(); copyFull(); });
+  row.appendChild(a); row.appendChild(b); return row;
+}
+function intelRow(){
+  var w = D.createElement('div'); w.className = 'rp-intel'; w.id = 'rpIntel';
+  var h = D.createElement('div'); h.className = 'rp-h'; h.textContent = 'Test report';
+  w.appendChild(h); w.appendChild(btnRow('pv-btn pv-btn--ghost')); return w;   // the stamp for Intel is the Home footer line
+}
+function attachIntel(){   // the Intel tab rebuilds its .body on every render: keep our row as its last child
+  var pane = $('pane-intel'); if (!pane || pane._rp) return !!pane;
+  pane._rp = true;
+  var fix = function(){ var b = pane.querySelector('.tb-in .body') || pane.querySelector('.body'); if (!b) return; var r = $('rpIntel'); if (!r || r.parentNode !== b || b.lastChild !== r) { b.appendChild(r || intelRow()); paintStamps(); } };
+  if (G.MutationObserver) new G.MutationObserver(function(){ fix(); }).observe(pane, { childList: true, subtree: true });
+  fix(); return true;
+}
+function domInit(){
+  try {
+    if (!D || !D.body || $('rp-css')) return;
+    var st = D.createElement('style'); st.id = 'rp-css'; st.textContent = CSS; D.head.appendChild(st);
+    // drawer: "Copy summary" beside "Copy report" (ui.js's own handler copies V.UI.report(), which is now the full report)
+    var cr = $('drCopyR');
+    if (cr) {
+      var cs = D.createElement('button'); cs.className = 'btn ghost'; cs.id = 'drCopySum'; cs.style.flex = '1'; cs.textContent = 'Copy summary';
+      cs.addEventListener('click', copySummary); cr.parentNode.insertBefore(cs, cr);
+      cr.addEventListener('click', function(){ setTimeout(R.markReported, 0); });   // after ui.js has built and copied the text
+    }
+    // results screen: copy row + stamp after the Home button
+    var ov = $('ovDead');
+    if (ov) {
+      var row = btnRow('btn ghost'); row.id = 'rpResBtns'; ov.appendChild(row);
+      var sp = D.createElement('p'); sp.className = 'rp-stamp'; sp.id = 'rpStampRes'; ov.appendChild(sp);
+    }
+    // Home footer stamp: its own 16 px strip above the tab bar (#hmBody gives up the same 16 px, so nothing is covered)
+    var home = $('home');
+    if (home && G.MutationObserver) new G.MutationObserver(function(){ if (!$('rpStampHome')) paintStamps(); }).observe(home, { childList: true });
+    if (!attachIntel() && G.MutationObserver && home) { var mo = new G.MutationObserver(function(){ if (attachIntel()) mo.disconnect(); }); mo.observe(home, { childList: true, subtree: true }); }
+    paintStamps();
+    setInterval(paintStamps, 1000);
+  } catch (e) { err(e); }
+}
+if (D) { if (D.readyState === 'loading') D.addEventListener('DOMContentLoaded', domInit); else domInit(); }
 })();
 
 </script>
@@ -5423,7 +6295,7 @@ if (document.readyState === 'loading') document.addEventListener('DOMContentLoad
 var $ = function(id){ return document.getElementById(id); };
 var Q = new URLSearchParams(location.search);
 var STEP_MS = 1000 / 60, MAX_STEPS = 5;
-var S = null, R = null, list = [], view = { w: 344, h: 882, dpr: 1, ox: 0, oy: 66, s: 38 };
+var S = null, R = null, list = [], view = { w: 344, h: 882, dpr: 1, ox: 0, oy: 64, s: 38.2, scale: 1, C: 9 };
 var moved = false, acc = 0, last = 0, hitstopUntil = 0, paused = false, frozen = Q.get('freeze') === '1';
 var shown = { pick: false, dead: false, supply: false, endPhase: '' }, deadAt = 0, deaths = 0;
 // Deploy home (S-10, minimal) is the first screen; ?home=0 skips it (tests and bots). The sim waits behind it.
@@ -5433,44 +6305,74 @@ var ft = [], FT_MAX = 1200, gaps = 0, frames = 0;
 function fail(t){ $('bootMsg').textContent = t; UI.show('ovBoot', true); console.warn('volley:', t); }
 var UI = V.UI;
 
-// ---------- layout ----------
-// Full-screen frame (pick 43, M 2026-11-11: "It should be full screen. No bars on the sides."; replaces pick 1's side bars).
-// The frame is always 882 units tall; its width follows the screen shape: W = clamp(round(usable W / usable H x 882), 344, FRAME_W_MAX).
-// usable = window minus safe-area insets (L-PV-13). scale = usable H / 882, or usable W / W when the clamp bites (very tall or very wide
-// screens): only then can a thin band remain, filled by the body background. Canvas pixels = shown frame x devicePixelRatio, capped at 2 (render2d/gpu cap).
-var FRAME_W = 344, FRAME_W_MIN = 344, FRAME_W_MAX = 800, FRAME_H = 882, BERM_PX = 30, sbProbe = null;   // BERM_PX: sandbag rows + their shadow below the room line (scene.js drawRoomEdge reaches ~y0+27)
-var frame0 = { scale: 1, left: 0, top: 0, vw: 0, vh: 0 }, laidOut = false;
-var RESIZE_PAUSE = 0.02;   // guess: a scale change above 2% (fold, unfold, rotate) pauses a run (spec 05 s1); smaller ones (URL bar jitter) do not
+// ---------- layout (R42 stepped room, pick 43; FULLSCREEN-LAYOUT section 1) ----------
+// No scaled frame: #stage is the whole viewport in CSS px at scale 1. The room is 15 rows tall and C = 9, 11, 13 or 15 columns wide:
+//   playH = H - 64 - insetTop - insetBottom, Wu = W - insetL - insetR (L-PV-13), t0 = min(playH / 15, 64),
+//   C = clamp(nextOdd(ceil(Wu / t0 - 1)), 9, 15), tile = min(t0, Wu / C).
+// The room is centred horizontally and starts under the 64 px HUD band; spare height below it is the ground apron.
+// C is read by the sim at room entry only (opts.colsFn). A resize inside a room pauses, keeps S.cols and refits the tile.
+var HUD_H = 64, TILE_MAX = 64, ROWS = 15, C_MIN = 9, C_MAX = 15, W_WIDE = 600, H_SHORT = 720, sbProbe = null;
+var RESIZE_PAUSE = 0.02;   // guess (kept from f0-3): a change above 2% of width, height or tile (fold, unfold, rotate, toolbar) pauses a run; URL-bar jitter under 2% does not
+var vp = { W: 0, H: 0, ins: { t: 0, r: 0, b: 0, l: 0 } }, laidOut = false, fitNow = null;
 function safeInsets(){
   if (!sbProbe) { sbProbe = document.createElement('div'); sbProbe.style.cssText = 'position:absolute;left:0;top:0;width:0;height:0;visibility:hidden;padding:env(safe-area-inset-top,0px) env(safe-area-inset-right,0px) env(safe-area-inset-bottom,0px) env(safe-area-inset-left,0px)'; document.body.appendChild(sbProbe); }
   var cs = getComputedStyle(sbProbe);
   return { t: parseFloat(cs.paddingTop) || 0, r: parseFloat(cs.paddingRight) || 0, b: parseFloat(cs.paddingBottom) || 0, l: parseFloat(cs.paddingLeft) || 0 };
 }
-function layout(){
-  var W = G.innerWidth, H = G.innerHeight, st = $('stage'), ins = safeInsets();
-  var uw = Math.max(1, W - ins.l - ins.r), uh = Math.max(1, H - ins.t - ins.b);
-  FRAME_W = Math.max(FRAME_W_MIN, Math.min(FRAME_W_MAX, Math.round(uw / uh * FRAME_H)));
-  var sc = Math.min(uw / FRAME_W, uh / FRAME_H);
-  var left = ins.l + (uw - FRAME_W * sc) / 2, top = ins.t + (uh - FRAME_H * sc) / 2;
-  var prev = frame0.scale;
-  frame0.scale = sc; frame0.left = left; frame0.top = top; frame0.vw = W; frame0.vh = H;
-  st.style.width = FRAME_W + 'px'; st.style.height = FRAME_H + 'px';
-  st.style.transform = 'translate(' + left + 'px,' + top + 'px) scale(' + sc + ')';
-  st.style.setProperty('--pv-scale', String(sc)); st.style.setProperty('--pv-frame-w', FRAME_W + 'px');
-  var w = FRAME_W, h = FRAME_H;
-  var hud = $('hud').offsetHeight || 62;   // offsetHeight is in frame units (transforms do not change it)
-  // Contain fit inside the frame: the room (9x15 tiles) plus the berm below it must sit under the HUD. Safe areas are outside the frame now.
-  var oy = hud + 2, s = Math.min(w / 9, (h - oy - BERM_PX) / 15);
-  view.w = w; view.h = h; view.dpr = (G.devicePixelRatio || 1) * sc; view.s = s; view.ox = (w - 9 * s) / 2; view.oy = oy;
-  view.scale = sc; view.left = left; view.top = top; view.vw = W; view.vh = H;
-  if (R) R.resize(w, h, view.dpr);
+function nextOdd(x){ var n = Math.ceil(x - 1e-9); return (n % 2 === 1 || n % 2 === -1) ? n : n + 1; }   // smallest odd whole number >= x (1e-9: float noise)
+function normIns(ins){ ins = ins || {}; return { t: +ins.t || 0, r: +ins.r || 0, b: +ins.b || 0, l: +ins.l || 0 }; }
+// Pure: the whole R42 fit for a viewport. C forces the column count (a room already entered); omitted = the count for this viewport.
+function fitFor(W, H, insets, C){
+  var ins = normIns(insets);
+  var Wu = Math.max(1, W - ins.l - ins.r), playH = Math.max(1, H - HUD_H - ins.t - ins.b);
+  var t0 = Math.min(playH / ROWS, TILE_MAX);
+  var Cv = Math.max(C_MIN, Math.min(C_MAX, nextOdd(Wu / t0 - 1)));
+  var c = C || Cv, tile = Math.min(t0, Wu / c), roomW = c * tile, roomH = ROWS * tile;
+  var ox = ins.l + (Wu - roomW) / 2, oy = ins.t + HUD_H;
+  return { W: W, H: H, Wu: Wu, playH: playH, insets: ins, t0: t0, C: c, Cview: Cv, tile: tile, ox: ox, oy: oy, roomW: roomW, roomH: roomH,
+    apron: Math.max(0, H - ins.b - oy - roomH), sideWall: (Wu - roomW) / 2, clamped: Wu / t0 > C_MAX + 1,
+    widthClass: W < W_WIDE ? 'w-narrow' : 'w-wide', short: H < H_SHORT };
+}
+function colsFor(W, H, insets){ return fitFor(W, H, insets).Cview; }
+function roomCols(){ return (S && (S.cols || (S.room && S.room.w))) || 0; }
+// Shared read-only view of the current layout (contract: V.Layout, owner B). cols() = the column count a room entered now would get.
+V.Layout = {
+  colsFor: colsFor, fitFor: fitFor, HUD_H: HUD_H, TILE_MAX: TILE_MAX,
+  cols: function(){ return colsFor(vp.W || G.innerWidth, vp.H || G.innerHeight, vp.ins); },
+  get W(){ return fitNow ? fitNow.W : 0; }, get H(){ return fitNow ? fitNow.H : 0; }, get Wu(){ return fitNow ? fitNow.Wu : 0; },
+  get playH(){ return fitNow ? fitNow.playH : 0; }, get insets(){ return fitNow ? fitNow.insets : normIns(); }, get t0(){ return fitNow ? fitNow.t0 : 0; },
+  get C(){ return fitNow ? fitNow.C : 0; }, get tile(){ return fitNow ? fitNow.tile : 0; }, get ox(){ return fitNow ? fitNow.ox : 0; }, get oy(){ return fitNow ? fitNow.oy : 0; },
+  get roomW(){ return fitNow ? fitNow.roomW : 0; }, get roomH(){ return fitNow ? fitNow.roomH : 0; }, get apron(){ return fitNow ? fitNow.apron : 0; },
+  get widthClass(){ return fitNow ? fitNow.widthClass : 'w-narrow'; }, get short(){ return fitNow ? fitNow.short : false; }, get clamped(){ return fitNow ? fitNow.clamped : false; }
+};
+// Recompute the room fit from the cached viewport and the room's column count (cheap; also runs when a new room changes C).
+function refit(){
+  var f = fitFor(vp.W, vp.H, vp.ins, roomCols() || undefined);
+  fitNow = f;
+  view.w = f.W; view.h = f.H; view.vw = f.W; view.vh = f.H; view.s = f.tile; view.ox = f.ox; view.oy = f.oy; view.C = f.C;
+  view.apron = f.apron; view.roomW = f.roomW; view.roomH = f.roomH; view.insets = f.insets; view.scale = 1; view.left = 0; view.top = 0;
+  var st = $('stage'); if (st) { st.style.setProperty('--pv-tile', f.tile.toFixed(2) + 'px'); st.style.setProperty('--pv-room-top', f.oy + 'px'); st.style.setProperty('--pv-room-bottom', (f.oy + f.roomH).toFixed(1) + 'px'); }
   UI.placeToast(view);
-  if (laidOut && Math.abs(sc - prev) / prev > RESIZE_PAUSE && S && !home && !isEnd() && (S.phase === 'play' || S.phase === 'clear')) pause();
+  return f;
+}
+function layout(){
+  var W = G.innerWidth, H = G.innerHeight, st = $('stage'), b = document.body;
+  var prev = laidOut ? { W: vp.W, H: vp.H, s: view.s } : null;
+  vp.W = W; vp.H = H; vp.ins = safeInsets();
+  st.style.width = W + 'px'; st.style.height = H + 'px'; st.style.transform = '';
+  st.style.setProperty('--pv-frame-w', W + 'px'); st.style.setProperty('--pv-scale', '1');   // compat: menus CSS reads --pv-frame-w
+  var f = refit();
+  b.classList.toggle('w-narrow', f.widthClass === 'w-narrow'); b.classList.toggle('w-wide', f.widthClass === 'w-wide'); b.classList.toggle('h-short', f.short);
+  view.dpr = Math.min(2, G.devicePixelRatio || 1);   // canvas backing = CSS size x dpr, capped at 2 (L-PV-15; renderers cap too)
+  if (R) R.resize(W, H, view.dpr);
+  if (R) UI.rendererLabel(R, view);
+  var rel = function(a, c){ return a > 0 ? Math.abs(c - a) / a : 0; };
+  if (prev && Math.max(rel(prev.W, W), rel(prev.H, H), rel(prev.s, view.s)) > RESIZE_PAUSE && S && !home && !isEnd() && (S.phase === 'play' || S.phase === 'clear')) pause();
   laidOut = true;
 }
-// Screen (client) px -> frame units. Input steering is relative, so only the scale matters for drags; taps on DOM are mapped by the browser.
-function toFrame(cx, cy){ return { x: (cx - frame0.left) / frame0.scale, y: (cy - frame0.top) / frame0.scale }; }
-V.Frame = { get W(){ return FRAME_W; }, H: FRAME_H, toFrame: toFrame, get scale(){ return frame0.scale; }, get left(){ return frame0.left; }, get top(){ return frame0.top; } };
+// Compat shim (input.js, tests): no scaled frame any more, so scale is 1 and a client point is a stage point (the stage sits at 0,0).
+function toFrame(cx, cy){ return { x: cx - (view.left || 0), y: cy - (view.top || 0) }; }
+V.Frame = { get W(){ return vp.W; }, get H(){ return vp.H; }, toFrame: toFrame, scale: 1, left: 0, top: 0 };
 
 // ---------- events from the sim ----------
 function vib(ms){
@@ -5514,7 +6416,7 @@ function syncPhase(){
   } else if (shown.supply) { shown.supply = false; UI.show('ovSupply', false); }
   // P1: death and boss kill both end in 'results'. A brief 'dead' phase (if the sim has one) shows the same screen.
   if (isEnd()) {
-    if (!shown.dead || shown.endPhase !== S.phase) { shown.dead = true; shown.endPhase = S.phase; deadAt = deadAt || performance.now(); V.Input.release(); UI.results(S); }
+    if (!shown.dead || shown.endPhase !== S.phase) { shown.dead = true; shown.endPhase = S.phase; deadAt = deadAt || performance.now(); V.Input.release(); if (V.Report) V.Report.runEnd(S, S.result); UI.results(S); }
     var armed = performance.now() - deadAt >= RESULTS_GUARD_MS, ovd = $('ovDead');
     if (ovd.classList.contains('armed') !== armed) ovd.classList.toggle('armed', armed);
   } else if (shown.dead) { shown.dead = false; deadAt = 0; $('ovDead').classList.remove('armed'); UI.show('ovDead', false); }
@@ -5537,7 +6439,7 @@ function pick(i){
   syncPhase();                                           // another pending level shows the next card screen
 }
 function restart(){
-  S = V.Sim.restart(S); V.Audio.seed(S.seed);
+  S = V.Sim.restart(S); V.Audio.seed(S.seed); refit(); if (V.Report) V.Report.runStart(S);
   acc = 0; hitstopUntil = 0; deadAt = 0; moved = false; awReset(); shown.dead = false; UI.show('ovDead', false); shown.pick = false; UI.show('ovCards', false); shown.supply = false; UI.show('ovSupply', false);
   syncPhase(); return S;
 }
@@ -5549,14 +6451,20 @@ function tryRestart(pressT){ if (guardOk(pressT == null ? performance.now() : pr
 var resPressAt = 0;
 
 // Handoff with home.js: setHome freezes the sim behind the home screens; start() begins a run at stage 1 (fresh unless S is untouched).
+// The sim reads the column count at each room entry (contract: opts.colsFn, owner A); ?cols=N forces a class for tests (guess: debug only).
+var colsQ = parseInt(Q.get('cols') || '0', 10), simOpts = { colsFn: function(){ return (colsQ >= 9 && colsQ <= 15 && colsQ % 2) ? colsQ : V.Layout.cols(); } };
 V.Run = {
   setHome: function(on){ home = !!on; if (on) V.Input.release(); acc = 0; last = 0; },
-  start: function(){ if (!S) return; if (isEnd() || S.t > 0) restart(); home = false; V.Input.release(); acc = 0; last = 0; moved = false; },
+  start: function(){ if (!S) return;
+    if (isEnd() || S.t > 0) restart();
+    if (V.Report) V.Report.runStart(S);
+    else if (roomCols() && roomCols() !== simOpts.colsFn()) { S = V.Sim.create(S.seed, S.tune, simOpts); syncPhase(); }   // the screen changed shape on Home: the untouched first room is rebuilt at the new column count, same seed
+    home = false; V.Input.release(); acc = 0; last = 0; moved = false; refit(); },
   get home(){ return home; }
 };
 function pause(){
   if (paused || !S || home) return;
-  paused = true; V.Input.release(); V.Audio.setPaused(true); UI.show('ovPause', true);
+  paused = true; V.Input.release(); V.Audio.setPaused(true); if (UI.pauseInfo) UI.pauseInfo(S); UI.show('ovPause', true);
   if (R) UI.rendererLabel(R, view);   // the card carries the renderer label at once, not only after the next hud() frame (slow host flake)
 }
 function resume(){
@@ -5612,6 +6520,7 @@ function autoWalkInput(inp, dtS){
   if (aw.idle < (V.TUNE.AUTO_WALK_DELAY || 0)) return inp;
   var dir = doorDir(), h = S.hero;
   if (!aw.on) { aw.on = true; V.Input.note('aw', h.x * 10, h.y * 10); }
+  dir.walk = V.TUNE.AUTO_WALK_MULT || 2;   // pick 45 (M): auto-walk at least 2x faster
   return dir;
 }
 
@@ -5620,6 +6529,7 @@ function frame(ts){
   requestAnimationFrame(frame);
   var dt = last ? ts - last : STEP_MS; last = ts;
   if (!S || !R) return;
+  if (V.Report && !document.hidden) V.Report.tick(S, dt, (!home && !paused && !frozen && !UI.drawerOpen() && (S.phase === 'play' || S.phase === 'clear')) ? 'play' : 'menu');
   var running = !home && !paused && !frozen && !UI.drawerOpen() && (S.phase === 'play' || S.phase === 'clear');
   if (!paused && !document.hidden) {
     frames++; ft.push(dt); if (ft.length > FT_MAX) ft.shift(); if (dt > 50 && frames > 3) gaps++;
@@ -5642,6 +6552,7 @@ function frame(ts){
   draw();
 }
 function draw(){
+  if (roomCols() && roomCols() !== view.C) refit();   // a new room was entered with another column count: refit the tile (C changes only here)
   V.Scene.build(S, view, list);
   R.draw(list, view);
   UI.hud(S, R, view);
@@ -5668,7 +6579,7 @@ function boot(){
 
   var seed = Q.has('seed') ? (parseInt(Q.get('seed'), 10) | 0) : (Date.now() % 1000000);
   var stress = parseInt(Q.get('stress') || '0', 10) | 0; if (stress > 0) V.Scene.stress = stress;
-  S = V.Sim.create(seed, V.TUNE); V.Audio.seed(seed);
+  S = V.Sim.create(seed, V.TUNE, simOpts); V.Audio.seed(seed);
 
   document.addEventListener('visibilitychange', function(){ if (document.hidden) pause(); });
   G.addEventListener('blur', pause);
@@ -5679,9 +6590,10 @@ function boot(){
   $('pauseBtn').addEventListener('click', function(){ pause(); });
   $('btnRestartRun').addEventListener('click', function(e){ e.stopPropagation(); restart(); resume(); });
   $('btnTune').addEventListener('click', function(e){ e.stopPropagation(); UI.openDrawer(true); });
-  // Any touch during the clear phase cancels auto-walk for this room.
+  // Pick 45 (M): a touch during the clear phase PAUSES auto-walk (it no longer cancels it). While the finger is down the player steers;
+  // after the lift, auto-walk resumes once AUTO_WALK_DELAY has passed with no input (autoWalkInput resets aw.idle on any input).
   stage.addEventListener('pointerdown', function(e){
-    if (S && S.phase === 'clear' && !aw.cancelled && !(e.target.closest && e.target.closest('button, .ov, #drawer'))) { aw.cancelled = true; V.Input.note(aw.on ? 'awx' : 'awc', 0, 0); }
+    if (S && S.phase === 'clear' && aw.on && !(e.target.closest && e.target.closest('button, .ov, #drawer'))) { aw.on = false; V.Input.note('awp', 0, 0); }
   }, true);
   $('ovDead').addEventListener('pointerdown', function(e){ resPressAt = performance.now(); });
   // A click counts only when its press began on this screen after the guard (keyboard clicks have detail 0).
@@ -5708,7 +6620,9 @@ function boot(){
     get S(){ return S; },
     get paused(){ return paused; },
     get view(){ return view; },
-    get frame(){ return { scale: frame0.scale, left: frame0.left, top: frame0.top, w: FRAME_W * frame0.scale, h: FRAME_H * frame0.scale, vw: frame0.vw, vh: frame0.vh }; },
+    get frame(){ return { scale: 1, left: 0, top: 0, w: vp.W, h: vp.H, vw: vp.W, vh: vp.H }; },   // compat: the stage is the viewport
+    get layout(){ return Object.assign({ colsNext: V.Layout.cols() }, fitNow); },
+    relayout: layout,
     toFrame: toFrame,
     get frozen(){ return frozen; },
     get autoWalk(){ return { idle: aw.idle, cancelled: aw.cancelled, on: aw.on }; },

@@ -18,7 +18,13 @@ function ri(a, b){ return a + Math.floor(rnd() * (b - a + 1)); }
 function pick(a){ return a[Math.floor(rnd() * a.length)]; }
 function base(){
   var s = M.SAMPLES[pick(M.SAMPLE_NAMES)]();
-  for (var i = 0, k = ri(0, 20); i < k; i++) s.runs.push({ t:1.7e12 + i, stage:ri(0, 10), win:rnd() < 0.3, kills:ri(0, 40), credits:ri(0, 400), dur:+(rnd() * 300).toFixed(1) });
+  for (var i = 0, k = ri(0, 20); i < k; i++) {
+    var r = { t:1.7e12 + i, stage:ri(0, 10), win:rnd() < 0.3, kills:ri(0, 40), credits:ri(0, 400), dur:+(rnd() * 300).toFixed(1) };
+    if (rnd() < 0.6) { r.runNo = i + 1; r.runBuild = 'volley-f1-0'; r.startedAt = 1.7e12 + i; r.endReason = pick(['clear', 'death']); r.hpMax = 600; r.lowestHp = ri(0, 600);
+      r.tuneChanged = rnd() < 0.5 ? {} : { FIRE_INTERVAL:0.1 }; r.picks = ['SK-01:1']; r.cols = pick([9, 11, 13, 15]); }   // F1 optional fields
+    s.runs.push(r);
+  }
+  if (rnd() < 0.6) { s.runSeq = ri(0, 50); s.purchases = [{ t:1.7e12, run:ri(0, 5), item:'Rifle', lvl:2, price:250, before:300, after:50 }]; s.resets = [{ t:1.7e12, reason:'user' }]; }
   return s;
 }
 var JUNK = [null, undefined, NaN, Infinity, -Infinity, -1, 1e300, -1e300, 0.5, 1e9 + 1, '', 'x', '12', true, false, [], {}, [1, 2], { a:1 },
@@ -125,7 +131,55 @@ ok('progress wipe leaves settings', (function(){ var w = mock(); w.d[SKEY] = '{"
 
 // ---------- reset is one call ----------
 var r1 = mock(); M.load({ storage:r1, fresh:true }); M.loadSample('all'); var ev = 0, un = M.onChange(function(){ ev++; });
-ok('M.reset(): one call, fresh, written, one notify', M.reset() === true && ev === 1 && JSON.stringify(JSON.parse(r1.d[KEY])) === JSON.stringify(M.SAMPLES.fresh()));
+// F1: a reset now remembers itself in resets[] (report save health); everything else is the fresh save
+ok('M.reset(): one call, fresh, written, one notify', M.reset() === true && ev === 1 && (function(){ var w = JSON.parse(r1.d[KEY]), rs = w.resets; delete w.resets;
+  return JSON.stringify(w) === JSON.stringify(M.SAMPLES.fresh()) && rs.length === 1 && rs[0].reason === 'user'; })());
 un();
+
+
+// ---------- F1 report fields (owner C): optional in v2, validated strictly, never written invalid ----------
+(function(){
+  function richSave(){
+    var s = M.SAMPLES.mid(); s.runSeq = 7;
+    s.runs = [{ t:1.7e12, stage:10, win:true, kills:28, credits:334, dur:117.2 },   // old 6-field entry stays valid
+      { t:1.7e12 + 5, stage:4, win:false, kills:9, credits:72, dur:50.5, runNo:7, runBuild:'volley-f1-0', startedAt:1.7e12, endReason:'death', hpMax:640, lowestHp:0,
+        tuneChanged:{ FIRE_INTERVAL:0.1, AUTO_WALK:false }, picks:['SK-01:1', 'SK-01:2'], cols:15 }];
+    s.purchases = [{ t:1.7e12, run:6, item:'Rifle', lvl:2, price:250, before:300, after:50 }];
+    s.resets = [{ t:1.7e12, reason:'corrupt' }, { t:1.7e12 + 1, reason:'user' }];
+    return s;
+  }
+  ok('F1 rich v2 save validates', valid(richSave()));
+  var st = mock(); st.d[KEY] = JSON.stringify(richSave()); M.load({ storage:st });
+  ok('F1 rich v2 save round trips unchanged', M.resetSignal === '' && JSON.stringify(M.state) === JSON.stringify(richSave()), M.resetSignal);
+  var BAD = [
+    function(s){ s.runs[1].endReason = 'quit'; }, function(s){ s.runs[1].runNo = 0; }, function(s){ s.runs[1].runNo = 1.5; }, function(s){ s.runs[1].runBuild = 'x'.repeat(41); },
+    function(s){ s.runs[1].tuneChanged = { fire:1 }; }, function(s){ s.runs[1].tuneChanged = { A:'x' }; }, function(s){ s.runs[1].tuneChanged = [1]; }, function(s){ s.runs[1].tuneChanged = { A:NaN }; },
+    function(s){ s.runs[1].picks = 'SK-01'; }, function(s){ s.runs[1].picks = [1]; }, function(s){ s.runs[1].picks = new Array(41).fill('a'); }, function(s){ s.runs[1].lowestHp = -1; },
+    function(s){ s.runs[1].zz = 1; }, function(s){ s.runSeq = -1; }, function(s){ s.runSeq = 'x'; }, function(s){ s.purchases = {}; }, function(s){ s.purchases[0].price = -5; },
+    function(s){ s.purchases[0].extra = 1; }, function(s){ s.purchases = new Array(21).fill(s.purchases[0]); }, function(s){ s.resets[0].reason = 'boom'; },
+    function(s){ s.resets = new Array(6).fill(s.resets[0]); }, function(s){ delete s.purchases[0].t; }, function(s){ s.runs[1].cols = 0; }];
+  BAD.forEach(function(f, i){ var s = richSave(); f(s); var st2 = mock(); st2.d[KEY] = JSON.stringify(s); var e = null;
+    try { M.load({ storage:st2 }); } catch (x) { e = x; }
+    ok('F1 bad field ' + i + ' -> fresh start with the reason logged', !e && M.resetSignal === 'invalid' && M.state.credits === 0 && M.state.resets.length === 1 && M.state.resets[0].reason === 'invalid' && valid(M.state)); });
+  var ws = mock(); M.load({ storage:ws, fresh:true });
+  V.Report = { runFields:function(){ return { runNo:3, runBuild:'b', endReason:'nope', tuneChanged:{ bad:1 }, picks:'x', lowestHp:12, hpMax:600, cols:11, junk:5 }; }, purchase:function(i, p){ this.last = [i, p]; } };
+  M.award({ win:false, stage:3, credits:48, kills:4, t:20 });
+  var e0 = M.state.runs[0];
+  ok('F1 award keeps only valid extra fields', e0.runNo === 3 && e0.runBuild === 'b' && e0.lowestHp === 12 && e0.cols === 11 && !('endReason' in e0) && !('tuneChanged' in e0) && !('picks' in e0) && !('junk' in e0), e0);
+  ok('F1 written save validates', !!M.validate(JSON.parse(ws.d[KEY])));
+  V.Report.runFields = function(){ throw new Error('x'); };
+  var t3 = null; try { M.award({ win:true, stage:10, credits:334, kills:28, t:117 }); } catch (x) { t3 = x; }
+  ok('F1 award survives a throwing report hook', !t3 && M.state.runs.length === 2 && !('runNo' in M.state.runs[1]));
+  M.state.credits = 1000; ok('F1 nextRunNo counts and persists', M.nextRunNo() === 1 && M.nextRunNo() === 2 && JSON.parse(ws.d[KEY]).runSeq === 2);
+  M.buy('rifle');
+  var p = M.state.purchases[0];
+  ok('F1 buy logs run, item, level, price, before, after', p.run === 2 && p.item === 'Rifle' && p.lvl === 2 && p.price === 250 && p.before === 1000 && p.after === 750, p);
+  ok('F1 buy calls V.Report.purchase', V.Report.last && V.Report.last[0] === 'Rifle L2' && V.Report.last[1] === 250);
+  M.state.credits = 1e6; for (var i = 0; i < 30; i++) M.buyRandom('cond');
+  ok('F1 purchase log capped at 20, still valid', M.state.purchases.length === 20 && valid(M.state));
+  for (var j = 0; j < 8; j++) M.reset();
+  ok('F1 resets capped at 5', M.state.resets.length === 5 && valid(M.state));
+  delete V.Report;
+})();
 
 console.log(n + ' checks, ' + fails + ' failed'); process.exit(fails ? 1 : 0);

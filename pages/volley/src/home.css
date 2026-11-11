@@ -1,5 +1,5 @@
 /* ==========================================================================
-   Project Volley UI kit  (ui-kit.css)   portrait frame 882 tall, 344-800 wide (--pv-frame-w), no dependencies
+   Project Volley UI kit  (ui-kit.css)   full viewport in real CSS px (R42: no scaled frame; body classes w-narrow / w-wide / h-short), no dependencies
    Look: military field hardware. Gunmetal + olive panels, sand/off-white text,
    cyan = hero accent + primary action, red = enemies/danger only,
    amber hazard stripes = warnings only. Thin ink outlines, stencil labels.
@@ -78,13 +78,14 @@
   --pv-ui-glow:0 0 10px rgba(56,232,255,.45);
   --pv-ui-bevel:inset 0 1px 0 rgba(255,255,255,.10), inset 0 -2px 0 rgba(0,0,0,.35);
   /* sizes */
-  --pv-ui-touch:44px; --pv-ui-w:var(--pv-frame-w,344px); --pv-ui-col:520px; --pv-ui-h:882px; --pv-ui-tabbar-h:64px; --pv-ui-status-h:48px;
+  --pv-ui-touch:56px; --pv-ui-w:var(--pv-frame-w,100vw); --pv-ui-col:520px; --pv-ui-h:100vh;   /* touch: 56 default (G1), 48 on short screens, never under 44 */
+  --pv-sat:env(safe-area-inset-top,0px); --pv-sab:env(safe-area-inset-bottom,0px); --pv-sal:env(safe-area-inset-left,0px); --pv-sar:env(safe-area-inset-right,0px); --pv-ui-tabbar-h:64px; --pv-ui-status-h:48px;
   --pv-ui-hazard:repeating-linear-gradient(-45deg,var(--pv-ui-amber) 0 8px,var(--pv-ui-amber-ink) 8px 16px);
   --pv-ui-rivet:radial-gradient(circle at 35% 35%,#7b848d 0 1px,#3a4149 2px,#14181c 3px,transparent 3.5px);
 }
 
 *,*::before,*::after{box-sizing:border-box}
-.pv-screen{position:relative;width:var(--pv-frame-w,344px);--pv-ui-w:var(--pv-frame-w,344px);height:882px;overflow:hidden;background:
+.pv-screen{position:relative;width:100%;height:100%;overflow:hidden;background:
   radial-gradient(120% 60% at 50% 0,#1b2026 0,transparent 70%),
   repeating-linear-gradient(0deg,rgba(255,255,255,.012) 0 2px,transparent 2px 4px),var(--pv-ui-bg);
   color:var(--pv-ui-text);font:400 var(--pv-ui-fs-md)/1.35 var(--pv-ui-font);
@@ -271,15 +272,18 @@
 .pv-home{position:absolute;inset:0;z-index:35;display:none;width:auto;height:auto}
 .pv-home.on{display:flex}
 #ovBoot{z-index:60}
-.pv-home .pv-status{padding-top:0px;height:var(--pv-ui-status-h)}   /* safe areas sit outside the scaled frame (main.js layout) */
+body.h-short{--pv-ui-touch:48px}
+/* Safe areas (L-PV-13): bar fills run under the insets, content stays inside them. */
+.pv-home .pv-status{padding-top:var(--pv-sat);padding-left:calc(var(--pv-ui-s3) + var(--pv-sal));padding-right:calc(var(--pv-ui-s3) + var(--pv-sar));height:calc(var(--pv-ui-status-h) + var(--pv-sat))}
+.pv-home .pv-tabbar{height:calc(var(--pv-ui-tabbar-h) + var(--pv-sab));padding-bottom:var(--pv-sab)}
 .pv-status .pv-chip{padding:0 8px 0 6px;gap:5px}
 .pv-chip--credits{color:#ffe27a}
 .pv-coin{display:inline-block;flex:none;box-sizing:border-box;border-radius:50%;border:1.5px solid #0f1215;position:relative;background:linear-gradient(150deg,#ffe27a,#c28a0c)}
 .pv-coin::after{content:"";position:absolute;inset:18%;border-radius:50%;border:1px solid rgba(110,64,0,.7);box-sizing:border-box}
 .pv-chip__icon.pv-coin{width:16px;height:16px}
-#hmBody{position:relative;flex:1;min-height:0;margin-bottom:var(--pv-ui-tabbar-h)}
+#hmBody{position:relative;flex:1;min-height:0;margin:0 var(--pv-sar) calc(var(--pv-ui-tabbar-h) + var(--pv-sab)) var(--pv-sal)}
 .hm-pane{position:absolute;inset:0;overflow-y:auto;scrollbar-width:none;padding:0;--tb-bottom:28px}
-#pane-deploy{padding:12px 8px 28px}   /* 28 = 18 raised button + 10 clear (FIX-ROUND-1 B4) */
+#pane-deploy{padding:12px 6px 28px}   /* narrow: full width less 12 px (6 a side, guess); 28 = 18 raised button + 10 clear (FIX-ROUND-1 B4) */
 .hm-pane::-webkit-scrollbar{display:none}
 .hm-pane[hidden]{display:none}
 .hm-soon{display:flex;align-items:center;justify-content:center;min-height:120px;text-align:center}
@@ -289,37 +293,70 @@
 .pv-tab--center.is-selected::before{display:block;left:6%;right:6%}
 .pv-tab.is-selected .pv-pip{display:none}
 .pv-tab .pv-pip[hidden]{display:none}
-/* Deploy tab. #pane-deploy is a size container: the art follows the card width (328:216, never stretched) and shrinks with the pane height,
-   so card + Best stage + DEPLOY + note always fit; if a very short pane still cannot fit, the pane scrolls and its 28 px bottom pad keeps DEPLOY clear of the raised tab. */
+/* Deploy tab (FULLSCREEN-LAYOUT s4). #pane-deploy is a size container and a flex column.
+   Narrow: one column at most --pv-ui-col wide; the chapter art takes the spare height (at least 120) but never more than 0.94 x its width,
+   so the cover crop keeps at least the middle 70% of the 328:216 art (QA-056); any height left over sits between the card and the
+   bottom block, so DEPLOY (88 high) stays fixed above the tab bar. Short: the art shrinks first. Images keep their aspect (object-fit:cover). */
 #pane-deploy{container-type:size}
-/* Wide frame (full screen, no side bars): the Deploy column is at most --pv-ui-col wide and centred; the art follows the column width. */
-#pane-deploy>*{--col-w:min(100cqw,var(--pv-ui-col));--dep-h:clamp(64px,14cqh,88px);--art-h:max(96px,min(calc(var(--col-w)*216/328),calc(100cqh - 191px - var(--dep-h))))}
+#pane-deploy:not([hidden]){display:flex;flex-direction:column}
+#pane-deploy>*{--col-w:min(100cqw,var(--pv-ui-col));--dep-h:88px;--art-h:max(120px,min(calc(var(--col-w) * .94),calc(100cqh - 191px - var(--dep-h))))}
 #pane-deploy>:not(.hm-deploy){width:100%;max-width:var(--pv-ui-col);margin-left:auto;margin-right:auto}
-.hm-card{height:calc(var(--art-h) + 84px);padding:0;border:var(--pv-ui-stroke-heavy) solid var(--pv-ui-ink);border-radius:var(--pv-ui-r-lg);box-shadow:var(--pv-ui-sh-1);flex:none}
-.hm-card .pv-chapter__art{background:var(--pv-ui-metal-900);inset:0 0 auto 0;height:var(--art-h)}   /* key-art-card 328x216 anchored to the top edge; the rest of the card is solid dark (placement sheet) */
+.hm-card{height:calc(var(--art-h) + 84px);padding:0;border:var(--pv-ui-stroke-heavy) solid var(--pv-ui-ink);border-radius:var(--pv-ui-r-lg);box-shadow:var(--pv-ui-sh-1);flex:none;margin-bottom:auto!important}
+.hm-card .pv-chapter__art{background:var(--pv-ui-metal-900);inset:0 0 auto 0;height:var(--art-h)}
 .hm-card .pv-chapter__art img{width:100%;height:100%;object-fit:cover;object-position:50% 0;display:block}
-/* AP 1.3 scrim: transparent -> card colour over the lowest 96 px of the art (D1) */
+/* QA-VISUAL D5 (option A): the key art has a baked blue band on its top edge (16 of 432 px) and a cream sliver on its left (12 of 656 px).
+   A uniform 4% scale anchored bottom-right crops about 3.8% off the top and left of the shown box and nothing else; no stretch. */
+.hm-card .pv-chapter__art{overflow:hidden}
+.hm-card .pv-chapter__art img{transform:scale(1.04);transform-origin:100% 100%}
 .hm-card{background:var(--pv-ui-metal-900)}
 .hm-card::after{inset:auto 0 auto 0;top:calc(var(--art-h) - min(96px,var(--art-h)));height:min(96px,var(--art-h));background:linear-gradient(transparent,var(--pv-ui-metal-900))}
 .hm-info{position:absolute!important;left:12px;right:12px;top:calc(var(--art-h) + 12px);display:flex;flex-direction:column;gap:4px;align-items:flex-start}
-.hm-best{margin-top:12px;height:56px;display:flex;align-items:center;justify-content:space-between;padding:0 14px}
+.hm-best{flex:none;margin-top:12px;height:56px;display:flex;align-items:center;justify-content:space-between;padding:0 14px}
 .hm-bestn{font-size:20px}
-.hm-deploy{display:flex;width:min(100%,296px);min-height:var(--dep-h);height:var(--dep-h);margin:14px auto 0;font-size:26px}
-.hm-note{margin-top:10px;text-align:center}
+.hm-deploy{flex:none;display:flex;width:min(100%,296px);min-height:var(--dep-h);height:var(--dep-h);margin:14px auto 0;font-size:26px}
+.hm-note{flex:none;margin-top:10px;text-align:center}
+/* Wide: two columns in a centred block at most 880 wide: chapter card left; progress, DEPLOY and the note right. Art crops to cover, centred. */
+.w-wide #pane-deploy:not([hidden]){display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);grid-template-rows:1fr auto auto auto 1fr;column-gap:24px;
+  padding:16px max(16px,calc((100% - 880px) / 2)) 28px}
+.w-wide #pane-deploy>*{--col-w:calc((100cqw - 24px) / 2);--art-h:max(120px,min(calc(var(--col-w) * .94),calc(100cqh - 84px)))}
+.w-wide #pane-deploy>.hm-card{grid-column:1;grid-row:1 / 6;align-self:center;max-width:none;margin:0!important}
+.w-wide #pane-deploy>.hm-best{grid-column:2;grid-row:2;max-width:none;margin:0}
+.w-wide #pane-deploy>.hm-deploy{grid-column:2;grid-row:3;width:100%;margin:14px 0 0}
+.w-wide #pane-deploy>.hm-note{grid-column:2;grid-row:4;max-width:none}
+.w-wide .hm-card .pv-chapter__art img{object-position:50% 50%}
 /* results portrait + Home button */
 #resPortrait{display:block;flex:none;width:72px;height:96px;border-radius:4px;border:2px solid #0f1215;box-shadow:0 0 0 1.5px #4a535d;object-fit:cover;object-position:top;background:#1b2026}
 
-/* ===== Wide frame (M: "full screen, no bars on the sides") =====
-   #stage is 882 tall and 344-800 wide (--pv-frame-w). The status bar, tab bar, scrims and sheet backgrounds span edge to edge;
-   reading content sits in a centred column of at most --pv-ui-col (520 px). --pv-gut = side padding that centres that column.
+/* ===== Width classes (R42, FULLSCREEN-LAYOUT s4) =====
+   Bars, scrims and sheet fills span the full width; reading content sits in a centred column of at most --pv-ui-col (520 px).
    Selectors start with #hmBody so they win over the tab CSS each tab injects into <head> at mount. */
 #hmBody{--pv-gut:max(0px,calc((100% - var(--pv-ui-col)) / 2))}
 #hmBody .ta-scroll{padding-left:max(16px,calc((100% - var(--pv-ui-col)) / 2));padding-right:max(16px,calc((100% - var(--pv-ui-col)) / 2))}
 #hmBody .tb-up .body{padding-left:max(12px,calc((100% - var(--pv-ui-col)) / 2));padding-right:max(12px,calc((100% - var(--pv-ui-col)) / 2))}
 #hmBody .tb-in .body{padding-left:max(12px,calc((100% - var(--pv-ui-col)) / 2));padding-right:max(12px,calc((100% - var(--pv-ui-col)) / 2))}
-/* bottom sheets: full-width sheet, content in the column; the close button stays at the column's right edge */
+/* bottom sheets, narrow: full width, ending above the tab bar (the scrim lives in #hmBody); content in the column */
 #hmBody .ta-sheet{padding-left:max(16px,calc((100% - var(--pv-ui-col)) / 2));padding-right:max(16px,calc((100% - var(--pv-ui-col)) / 2))}
 #hmBody .ta-sheet .ta-x{right:max(8px,calc((100% - var(--pv-ui-col)) / 2 - 8px))}
 #hmBody .tb-sheet{padding-left:max(16px,calc((100% - var(--pv-ui-col)) / 2));padding-right:max(16px,calc((100% - var(--pv-ui-col)) / 2))}
 #hmBody .tb-res .card{max-width:400px}
 #hmBody .hm-soon{max-width:var(--pv-ui-col);margin-left:auto;margin-right:auto}
+/* wide: the five tabs sit in a centred group at most 600 wide; the bar fill spans the width */
+.w-wide .pv-tabbar{padding-left:max(0px,calc((100% - 600px) / 2));padding-right:max(0px,calc((100% - 600px) / 2))}
+.w-wide .pv-home .pv-status{padding-left:max(16px,calc((100% - 880px) / 2));padding-right:max(16px,calc((100% - 880px) / 2))}
+/* wide: bottom sheets at most 480 wide, centred, bottom-anchored */
+.w-wide #hmBody .ta-sheet,.w-wide #hmBody .tb-sheet{width:100%;max-width:480px;margin-left:auto;margin-right:auto;padding-left:16px;padding-right:16px;border-radius:10px 10px 0 0}
+.w-wide #hmBody .ta-sheet .ta-x{right:8px}
+.w-wide #hmBody .tb-res .card{max-width:480px}
+/* wide: two-column tabs in a centred block at most 880 wide (s4). Intel stays one column in the 520 column (not split yet). */
+.w-wide #hmBody #pane-armory .ta-scroll,.w-wide #hmBody #pane-operator .ta-scroll{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);grid-auto-rows:min-content;align-content:start;column-gap:24px;row-gap:12px;
+  padding-left:max(16px,calc((100% - 880px) / 2));padding-right:max(16px,calc((100% - 880px) / 2))}
+.w-wide #hmBody #pane-armory .ta-rack{grid-column:1;grid-row:1 / span 3}
+.w-wide #hmBody #pane-armory .ta-scroll>:not(.ta-rack){grid-column:2}
+.w-wide #hmBody #pane-operator .to-top{grid-column:1;grid-row:1 / span 4}
+.w-wide #hmBody #pane-operator .ta-scroll>:not(.to-top){grid-column:2}
+.w-wide #hmBody .tb-up .body{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);grid-template-rows:auto auto auto auto 1fr;align-content:start;column-gap:24px;row-gap:8px;
+  padding-left:max(12px,calc((100% - 880px) / 2));padding-right:max(12px,calc((100% - 880px) / 2))}
+.w-wide #hmBody .tb-up .body>*{grid-column:2}
+.w-wide #hmBody .tb-up .body>.rule{grid-column:1;grid-row:1}
+.w-wide #hmBody .tb-up .body>.tb-grid3{grid-column:1;grid-row:2 / span 4;align-self:start}
+.w-wide #hmBody .tb-up .body>.tb-spacer{display:none}

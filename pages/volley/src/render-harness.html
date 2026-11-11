@@ -19,6 +19,7 @@ canvas{position:absolute;left:0;top:0;display:block}
 <script src="parts/data-enemies.js"></script>
 <script src="parts/rooms.js"></script>
 <script src="parts/stages.js"></script>
+<script src="parts/widen.js"></script>
 <script src="parts/mods.js"></script>
 <script src="parts/sim.js"></script>
 <script src="parts/ai-p0.js"></script>
@@ -95,7 +96,9 @@ canvas{position:absolute;left:0;top:0;display:block}
   var SIM = Q.has('sim') && V.Sim ? parseInt(Q.get('sim'), 10) || 1 : 0;
   if (SIM) {
     var tune = Object.assign({}, V.TUNE_DEFAULTS || V.TUNE, { HERO_HP: 1e7, HERO_ATK: parseInt(Q.get('atk2') || '600', 10) });
-    S = V.Sim.create(parseInt(Q.get('seed') || '5', 10), tune);
+    // R42 column class for this window (same rule as V.Layout.colsFor in main.js; ?cols=N forces one)
+    var hcols = function(){ var W = innerWidth, t0 = Math.min((innerHeight - 64) / 15, 64), n = Math.ceil(W / t0 - 1 - 1e-9); if (n % 2 === 0) n++; var q = parseInt(Q.get('cols') || '0', 10); return q >= 9 && q <= 15 && q % 2 ? q : Math.max(9, Math.min(15, n)); };
+    S = V.Sim.create(parseInt(Q.get('seed') || '5', 10), tune, { colsFn: hcols });
   }
   function autoInp() {
     var h = S.hero;
@@ -115,10 +118,11 @@ canvas{position:absolute;left:0;top:0;display:block}
   }
   if (SIM) { for (var ff = 0; ff < 60 * 900 && S.stage < SIM && S.phase !== 'results'; ff++) { V.Sim.step(S, autoInp()); if (V.Scene.ingest) V.Scene.ingest(S.events, S); } }
   var base = JSON.parse(JSON.stringify({ r: S.rounds, s: S.shots }));
-  var list = [], view = { w: 344, h: 882, dpr: 1, ox: 0, oy: 66, s: 38 }, R = null, frames = 0;
+  var list = [], view = { w: 344, h: 882, dpr: 1, ox: 0, oy: 64, s: 38.2 }, R = null, frames = 0;
   function layout() {
-    var w = innerWidth, h = innerHeight, hud = 66, s = Math.min(w / 9, (h - hud) / 15);
-    view.w = w; view.h = h; view.dpr = devicePixelRatio || 1; view.s = s; view.ox = (w - 9 * s) / 2; view.oy = hud;
+    // R42 fit (same rule as main.js V.Layout): HUD band 64, tile = min(playH / 15, 64, W / C), C = the room's real column count.
+    var w = innerWidth, h = innerHeight, hud = 64, C = (S.room && S.room.w) || S.cols || 9, s = Math.min((h - hud) / 15, 64, w / C);
+    view.w = w; view.h = h; view.dpr = Math.min(2, devicePixelRatio || 1); view.s = s; view.ox = (w - C * s) / 2; view.oy = hud; view.C = C; view.scale = 1;
     if (R) R.resize(w, h, view.dpr);
   }
   var simN = 0;

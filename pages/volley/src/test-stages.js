@@ -2,11 +2,12 @@
 var path = require('path');
 require(path.join(__dirname, 'parts/rooms.js'));
 require(path.join(__dirname, 'parts/stages.js'));
+require(path.join(__dirname, 'parts/widen.js')); // R42 stepped rooms: every stage is checked at 9, 11, 13 and 15 columns
 var V = globalThis.V;
 var fails = 0, passes = 0;
 function ok(c, msg){ if (c) passes++; else { fails++; console.log('FAIL ' + msg); } }
 
-var W = 9, H = 15;
+var W = 9, H = 15; // W = column class under test (set per class below); templates stay 9 wide
 var EXPECT = { // D3 2.1 rows 1-10 + DESIGN 9 (stage 4 eased, stage 6/8 swapped, stage 8 N=5), B-01 at 10
   1:{kind:'combat', room:'R01', n:{'E-01':3}},
   2:{kind:'combat', room:'R02', n:{'E-01':4}},
@@ -57,21 +58,22 @@ function clearLine(g, x1, y1, x2, y2){
 var st = V.STAGES && V.STAGES.ch1;
 ok(Array.isArray(st) && st.length === 10, 'ch1 has 10 stages');
 var seenType = {}, report = [], maps = [];
+[9, 11, 13, 15].forEach(function(CC){ W = CC; var ref = CC === 9, mid = (W - 1) / 2;
 st.forEach(function(s, i){
-  var tag = 'stage ' + s.stage + ': ';
+  var tag = 'stage ' + s.stage + (ref ? '' : ' @' + W) + ': ';
   var E = EXPECT[s.stage];
   ok(s.stage === i + 1, tag + 'stage number in order');
   ok(E && s.kind === E.kind, tag + 'kind ' + s.kind + ' expected ' + (E && E.kind));
   ok(E && s.room === E.room, tag + 'room ' + s.room + ' expected ' + (E && E.room));
   var R = V.ROOMS[s.room]; ok(!!R, tag + 'room exists');
   if (!R) return;
-  var g = R.grid;
-  ok(g.length === H && g.every(function(r){ return r.length === W; }), tag + 'grid is 15x9');
-  ok(/^#+D#+$/.test(g[0]) && g[0].indexOf('D') === 4, tag + 'door top centre');
-  var S = find(g, 'S'); ok(S && S.y === 14 && S.x === 4, tag + 'S at row 14 col 4');
+  var g = V.Widen.room(R, W).grid, SP = V.Widen.spawns(s.spawns, W, R); // widened room and spawns (identity at 9)
+  ok(g.length === H && g.every(function(r){ return r.length === W; }), tag + 'grid is 15x' + W);
+  ok(/^#+D#+$/.test(g[0]) && g[0].indexOf('D') === mid, tag + 'door top centre');
+  var S = find(g, 'S'); ok(S && S.y === 14 && S.x === mid, tag + 'S at row 14 col ' + mid);
   var reach = flood(g, false), safe = flood(g, true);
-  ok(reach['4,1'], tag + 'door tile reachable');
-  ok(safe['4,1'], tag + 'door reachable without touching spikes');
+  ok(reach[mid + ',1'], tag + 'door tile reachable');
+  ok(safe[mid + ',1'], tag + 'door reachable without touching spikes');
   ['C','B','P'].forEach(function(ch){
     for (var y = 0; y < H; y++) for (var x = 0; x < W; x++) if (g[y][x] === ch) ok(safe[x + ',' + y], tag + ch + ' at ' + x + ',' + y + ' reachable off spikes');
   });
@@ -90,7 +92,7 @@ st.forEach(function(s, i){
      JSON.stringify(Object.keys(E.n).sort().map(function(k){ return k + E.n[k]; })), tag + 'enemy counts ' + JSON.stringify(n) + ' expected ' + JSON.stringify(E.n));
   var floorTiles = [];
   for (var y = 1; y < H; y++) for (var x = 0; x < W; x++) if (!blocksWalk(g, x, y)) floorTiles.push([x + 0.5, y + 0.5]);
-  s.spawns.forEach(function(e){
+  SP.forEach(function(e){
     var et = tag + e.type + '@' + e.x + ',' + e.y;
     var tx = Math.floor(e.x), ty = Math.floor(e.y);
     ok(e.x - tx === 0.5 && e.y - ty === 0.5, et + ' on tile centre');
@@ -98,17 +100,17 @@ st.forEach(function(s, i){
     ok(reach[tx + ',' + ty], et + ' reachable from spawn row');
     ok(ty >= 1 && ty <= 10, et + ' in rows 1-10');
     ok(typeof e.t === 'number' && e.t >= 0 && e.t <= 10, et + ' t in 0..10');
-    var dS = Math.hypot(e.x - 4.5, e.y - 14.5);
+    var dS = Math.hypot(e.x - W / 2, e.y - 14.5);
     ok(dS >= 5, et + ' at least 5 from S (' + dS.toFixed(1) + ')');
     if (e.type === 'B-01') { var b = find(g, 'B'); ok(b && tx === b.x && ty === b.y, et + ' on B'); ok(!solid(g, tx, ty - 1) && !solid(g, tx - 1, ty) && !solid(g, tx + 1, ty) && !solid(g, tx, ty + 1), et + ' 1-tile clear ring for r~1'); }
     if (e.type === 'E-03') {
       ok(dS > 2.5, et + ' > 2.5 from S');
-      ok(clearLine(g, 4.5, 14.5, e.x, e.y), et + ' clear line from S');
+      ok(clearLine(g, W / 2, 14.5, e.x, e.y), et + ' clear line from S');
       var vis = floorTiles.filter(function(f){ return clearLine(g, f[0], f[1], e.x, e.y); }).length / floorTiles.length;
       ok(vis >= 0.6, et + ' clear line from ' + (vis * 100).toFixed(0) + '% of floor (need 60%)');
-      report.push(et + ' visible from ' + (vis * 100).toFixed(0) + '% of floor, clear from S: ' + clearLine(g, 4.5, 14.5, e.x, e.y));
+      report.push(et + ' visible from ' + (vis * 100).toFixed(0) + '% of floor, clear from S: ' + clearLine(g, W / 2, 14.5, e.x, e.y));
     }
-    if (!seenType[e.type]) seenType[e.type] = s.stage;
+    if (ref && !seenType[e.type]) seenType[e.type] = s.stage;
   });
   // first appearance readable: new type is the only thing at the earliest time, or with weak company (E-01 only)
   Object.keys(n).forEach(function(type){
@@ -118,12 +120,14 @@ st.forEach(function(s, i){
     var company = s.spawns.filter(function(e){ return e.type !== type && e.t <= t0; });
     ok(company.every(function(e){ return e.type === 'E-01'; }) && company.length <= 1, tag + 'first ' + type + ' readable (company at t<=' + t0 + ': ' + company.map(function(e){ return e.type; }).join(',') + ')');
   });
-  // ascii
+  // ascii (reference class only)
+  if (!ref) return;
   var m = g.map(function(r){ return r.split(''); }), code = { 'E-01':'1','E-02':'2','E-03':'3','E-04':'4','E-05':'5','B-01':'@' };
   s.spawns.forEach(function(e){ m[Math.floor(e.y)][Math.floor(e.x)] = code[e.type] || '?'; });
   maps.push({ head: ('S' + s.stage + ' ' + s.room + ' ' + s.kind).slice(0, 13), rows: m.map(function(r){ return r.join(''); }),
     times: s.spawns.map(function(e){ return (code[e.type]) + '@' + e.t; }).join(' ') });
 });
+}); // column classes
 Object.keys(FIRST).forEach(function(t){ ok(seenType[t] === FIRST[t], 'first appearance of ' + t + ' at stage ' + FIRST[t] + ' (got ' + seenType[t] + ')'); });
 
 console.log('Stage maps (1..5 = E-01..E-05, @ = B-01, ^ spikes, C chest, B boss spot, P pad, # cover):');

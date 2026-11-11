@@ -1,4 +1,7 @@
-// Headless bot sweep for Project Volley P1 (chapter 1, stages 1-10). Usage: node bot.js [seeds=200]
+// Headless bot sweep for Project Volley P1 (chapter 1, stages 1-10). Usage: node bot.js [seeds=200] [careerCap=400] [--cols=9|11|13|15]
+// --walk=2 sends inp.walk = 2 during the clear phase (pick 45 door auto-walk). --cols=N (or env VOLLEY_COLS=N) passes opts.cols to every V.Sim.create in the base sweeps (R42 column classes), adds the
+// corner bot and a per-stage class table, and writes BOT-RESULTS-C<N>.txt instead of BOT-RESULTS.txt. Without it the output is unchanged.
+// require('./bot.js') does not run the sweep: it exports runOne and the bots (src/sim/classes.js uses them).
 // Loads the sim parts into globalThis.V in game load order and writes BOT-RESULTS.txt next to this file.
 'use strict';
 var path = require('path'), fs = require('fs');
@@ -9,15 +12,23 @@ PARTS.forEach(function (f) {
   var p = path.join(__dirname, 'parts', f + '.js');
   if (fs.existsSync(p)) { require(p); loaded.push(f); }
 });
+// R42 column classes: parts/widen.js (sim.js also pulls it in under Node). Kept out of `loaded` so the default output stays as it was.
+(function () { var p = path.join(__dirname, 'parts', 'widen.js'); if (!globalThis.V.Widen && fs.existsSync(p)) require(p); })();
 var V = globalThis.V;
 
-var SEEDS = +process.argv[2] || 200;
+var ARGV = process.argv.slice(2).filter(function (a) { return a.slice(0, 2) !== '--'; });
+var FLAGS = {}; process.argv.slice(2).forEach(function (a) { var m = /^--([^=]+)(?:=(.*))?$/.exec(a); if (m) FLAGS[m[1]] = m[2] == null ? true : m[2]; });
+var COLS = FLAGS.cols != null ? +FLAGS.cols : (process.env.VOLLEY_COLS ? +process.env.VOLLEY_COLS : null);   // null = old behaviour (no opts passed)
+function setCols(c) { COLS = c == null ? null : +c; }
+var WALK = FLAGS.walk != null ? +FLAGS.walk : null;   // pick 45: inp.walk during the clear phase (main.js sends 2); null = not sent
+function setWalk(w) { WALK = w == null ? null : +w; }
+var SEEDS = +ARGV[0] || 200;
 var MAX_STEPS = 20 * 3600;   // 20 game minutes cap per run (a run is 10 stages)
 var HERO_WALL_R = 0.35, HURT = 0.28;
 var DEG = Math.PI / 180;
 
 function freshTune() { var t = {}; for (var k in V.TUNE_DEFAULTS) t[k] = V.TUNE_DEFAULTS[k]; return t; }
-function grid(S) { return V.ROOMS[S.roomId].grid; }
+function grid(S) { return (S.room && S.room.grid) || V.ROOMS[S.roomId].grid; }
 
 // ---------- navigation (BFS on the tile grid; avoids spikes when it can) ----------
 function bfsDir(S, gx, gy, avoidSpikes) {
@@ -96,7 +107,7 @@ function dangerOf(S, th, px, py, dx, dy, moveT) {
     for (tau = 0; tau <= 0.9; tau += 0.05) {
       var lt = tau - p[5]; if (lt < 0) continue; if (lt > p[6]) break;
       var sx = p[0] + p[2] * lt, sy = p[1] + p[3] * lt;
-      if (p[7] && lt > 0 && solidAt(S, sx, sy, 0.01) && !(sx < 0 || sx > 9 || sy < 0 || sy > 15)) break;
+      if (p[7] && lt > 0 && solidAt(S, sx, sy, 0.01) && !(sx < 0 || sx > S.room.w || sy < 0 || sy > S.room.h)) break;
       var m = Math.min(tau, moveT), hx = px + dx * sp * m, hy = py + dy * sp * m;
       var rr = p[4] + HURT + 0.22;
       if ((sx - hx) * (sx - hx) + (sy - hy) * (sy - hy) < rr * rr) { d += 10 * (1.2 - tau); break; }
@@ -130,7 +141,7 @@ function planMove(S, th, enemies, opts) {
     }
     if (!anyLine) c += 1.5;
     if (i >= 0) c += opts.stillBias;
-    var wall = Math.min(ex, 9 - ex, ey - 1, 15 - ey);
+    var wall = Math.min(ex, S.room.w - ex, ey - 1, S.room.h - ey);
     if (wall < 0.9) c += (0.9 - wall) * 0.8;
     if (c < bestC) { bestC = c; best = { mx: dx, my: dy }; }
   }
@@ -179,6 +190,14 @@ function naiveInput(S, B) {
   return B.cmd;
 }
 function idleInput(S) { return S.phase === 'clear' ? doorDir(S) : { mx: 0, my: 0 }; }
+// corner: in combat walks to a bottom corner (left on odd seeds, right on even) and camps there; walks to the door when clear.
+function cornerInput(S, B) {
+  if (S.phase === 'clear') return doorDir(S);
+  var h = S.hero, W = S.room.w, H = S.room.h, gx = B.side < 0 ? 0 : W - 1, gy = H - 1;
+  var tx = B.side < 0 ? 0.4 : W - 0.4, ty = H - 0.4;
+  if (Math.floor(h.x) === gx && Math.floor(h.y) === gy) { var dx = tx - h.x, dy = ty - h.y; return Math.abs(dx) + Math.abs(dy) < 0.03 ? { mx: 0, my: 0 } : { mx: dx, my: dy }; }
+  return bfsDir(S, gx, gy, true) || bfsDir(S, gx, gy, false) || { mx: tx - h.x, my: ty - h.y };
+}
 
 var PREF = ['rate', 'atk', 'multi', 'front', 'rico', 'pierce', 'diag', 'armor', 'crit', 'dodge', 'burn', 'poison', 'side', 'salvage', 'rear', 'rate2', 'atk2', 'crit2'];
 function chooseCard(S, kind, B) {
@@ -193,35 +212,42 @@ function chooseCard(S, kind, B) {
 function chooseSupply(S, kind, B) {
   var ri = -1; S.supply.forEach(function (c, i) { if (c.kind === 'repair') ri = i; });
   if (kind === 'naive') return B.rng.int(S.supply.length);
-  if (kind === 'idle') return 0;
+  if (kind === 'idle' || kind === 'corner') return 0;
   return (ri >= 0 && S.hero.hp < 0.6 * S.hero.maxHp) ? ri : (ri === 0 ? 1 % S.supply.length : 0);
 }
 
 // ---------- run one ----------
-var INPUT = { idle: idleInput, naive: naiveInput, skilled: skilledInput, human: humanInput };
+var INPUT = { idle: idleInput, naive: naiveInput, skilled: skilledInput, human: humanInput, corner: cornerInput };
+function simOpts(metaStats) { var o = null; if (metaStats) o = { metaStats: metaStats }; if (COLS != null) { o = o || {}; o.cols = COLS; } return o; }
 function runOne(seed, kind, maxSteps, tune, metaStats) {
-  var S = metaStats ? V.Sim.create(seed, tune || freshTune(), { metaStats: metaStats }) : V.Sim.create(seed, tune || freshTune());
-  var B = { rng: new V.Rng(seed * 7919 + 13), hold: 0, cmd: { mx: 0, my: 0 }, hist: [] };
+  var o = simOpts(metaStats);
+  var S = o ? V.Sim.create(seed, tune || freshTune(), o) : V.Sim.create(seed, tune || freshTune());
+  var B = { rng: new V.Rng(seed * 7919 + 13), hold: 0, cmd: { mx: 0, my: 0 }, hist: [], side: seed % 2 ? -1 : 1 };
   var input = INPUT[kind];
-  var hits = {}, alive = {}, kills = [], steps = 0, picks = 0, stageHp = {};
+  var hits = {}, alive = {}, kills = [], steps = 0, picks = 0, stageHp = {}, bossDmg = 0, colsSeen = {};
   while (steps < maxSteps) {
     if (S.phase === 'results') break;
     if (S.phase === 'pick') { V.Sim.pick(S, chooseCard(S, kind, B)); picks++; continue; }
     if (S.phase === 'supply') { V.Sim.pickSupply(S, chooseSupply(S, kind, B)); continue; }
     var st0 = S.stage;
-    V.Sim.step(S, input(S, B));
+    var inp = input(S, B);
+    if (WALK != null && S.phase === 'clear') inp = { mx: inp.mx, my: inp.my, walk: WALK };
+    V.Sim.step(S, inp);
     steps++;
     for (var i = 0; i < S.enemies.length; i++) { var e = S.enemies[i]; if (e.st !== 'spawn' && alive[e.id] == null) alive[e.id] = S.t; }
     for (var j = 0; j < S.events.length; j++) {
       var ev = S.events[j];
       if (ev.k === 'hit') hits[ev.id] = (hits[ev.id] || 0) + 1;
       else if (ev.k === 'kill') kills.push({ type: ev.type, stage: S.stage, hits: hits[ev.id] || 0, life: S.t - (alive[ev.id] != null ? alive[ev.id] : S.t) });
+      else if (ev.k === 'hurt' && S.stageKind === 'boss') bossDmg += ev.dmg || 0;
     }
+    colsSeen[S.room.w] = 1;
     if (S.stage !== st0) stageHp[st0] = S.hero.hp; // HP on leaving the stage (after pickups)
   }
   var R = S.result;
   return { seed: seed, kind: kind, S: S, steps: steps, win: !!(R && R.win), dead: !!(R && !R.win), timeout: !R,
-    stage: S.stage, cleared: S.stats.roomTimes.length, kills: kills, picks: picks, stageHp: stageHp };
+    stage: S.stage, cleared: S.stats.roomTimes.length, kills: kills, picks: picks, stageHp: stageHp, bossDmg: bossDmg,
+    cols: Object.keys(colsSeen).map(Number) };
 }
 
 // ---------- report helpers ----------
@@ -232,6 +258,68 @@ function pad(s, n) { s = String(s); while (s.length < n) s = ' ' + s; return s; 
 var lines = [];
 function out(s) { console.log(s); lines.push(s); }
 
+// corner bot on the boss alone: jump to stage 10 (force-clear, walk through the door), camp the corner until the run ends or CB_SECS (60 s, guess).
+function toStageC(seed, n) {
+  var o = simOpts(null), S = o ? V.Sim.create(seed, freshTune(), o) : V.Sim.create(seed, freshTune()), g = 0;
+  while (S.stage < n && g++ < 20000) {
+    if (S.phase === 'pick') { V.Sim.pick(S, 0); continue; }
+    if (S.phase === 'supply') { V.Sim.pickSupply(S, 1); continue; }
+    if (S.phase === 'play') { S.enemies.length = 0; S.spawnQ.length = 0; }
+    V.Sim.step(S, { mx: 0, my: 0 });
+    if (S.phase === 'clear') { S.hero.x = S.room.door.x + 0.5; S.hero.y = 1.3; V.Sim.step(S, { mx: 0, my: -1 }); }
+  }
+  return S;
+}
+var CB_SECS = 60; // guess: long enough for the corner bot to kill the boss or be killed on most seeds
+// corner-shooter (R47): camps in the bottom 3x3 corner like the corner bot, but every 0.5 s picks the tile in that corner block
+// (closest to the very corner first) that has a clear line to B-01 and stands on it, so the rifle auto-fires (same as the human bot,
+// which fires by standing still). With no clear tile it keeps the very corner.
+function cornerShooterInput(S, B) {
+  if (S.phase === 'clear') return doorDir(S);
+  var h = S.hero, W = S.room.w, H = S.room.h, boss = null, i;
+  for (i = 0; i < S.enemies.length; i++) if (S.enemies[i].boss) { boss = S.enemies[i]; break; }
+  if (!B.tgt || (B.replan = (B.replan || 0) - 1) <= 0) {
+    B.replan = 30; var best = null, bd = 1e9, cx = B.side < 0 ? 0 : W - 1;
+    for (var gy = H - 3; gy < H; gy++) for (var gx = 0; gx < 3; gx++) {
+      var tx = B.side < 0 ? gx : W - 1 - gx, c = grid(S)[gy][tx];
+      if (c === '#' || c === '^') continue;
+      var px = tx + 0.5, py = gy + 0.5, d = Math.abs(tx - cx) + (H - 1 - gy);
+      if (boss && boss.st !== 'spawn' && !V.Sim.clearLine(S, px, py, boss.x, boss.y, S.tune.ROUND_R)) d += 100;
+      if (d < bd) { bd = d; best = { x: px, y: py }; }
+    }
+    if (!B.tgt || !best || Math.hypot(best.x - B.tgt.x, best.y - B.tgt.y) > 0.01) B.tgt = best || { x: B.side < 0 ? 0.5 : W - 0.5, y: H - 0.5 };
+  }
+  var dx = B.tgt.x - h.x, dy = B.tgt.y - h.y;
+  return Math.abs(dx) + Math.abs(dy) < 0.06 ? { mx: 0, my: 0 } : { mx: dx, my: dy };
+}
+function bossBotCheck(nSeeds, inputFn, secs) {
+  var res = [];
+  for (var sd = 1; sd <= nSeeds; sd++) {
+    var S = toStageC(sd, 10), B = { side: sd % 2 ? -1 : 1 }, dmg = 0, hurts = 0, fires = 0, bossHits = 0, i, bid = null, killT = null;
+    if (S.stageKind !== 'boss') { res.push({ seed: sd, boss: false, dmg: 0 }); continue; }
+    for (i = 0; i < secs * 60 && S.phase !== 'results'; i++) {
+      if (S.phase === 'pick') { V.Sim.pick(S, 0); continue; }
+      if (S.phase === 'clear') break;
+      V.Sim.step(S, inputFn(S, B));
+      if (bid == null) for (var q = 0; q < S.enemies.length; q++) if (S.enemies[q].boss) bid = S.enemies[q].id;
+      for (var j = 0; j < S.events.length; j++) {
+        var e = S.events[j];
+        if (e.k === 'hurt') { dmg += e.dmg || 0; hurts++; }
+        else if (e.k === 'fire') fires++;
+        else if (e.k === 'hit' && e.id === bid) bossHits++;
+        else if (e.k === 'kill' && e.id === bid && killT == null) killT = S.roomT;
+      }
+    }
+    var won = killT != null || !!(S.result && S.result.win);
+    res.push({ seed: sd, boss: true, dmg: dmg, hurts: hurts, fires: fires, bossHits: bossHits, dead: S.phase === 'results' && !won, won: won, killT: killT,
+      t: +S.roomT.toFixed(2), x: S.hero.x, y: S.hero.y, w: S.room.w });
+  }
+  return res;
+}
+function cornerBossCheck(nSeeds) { return bossBotCheck(nSeeds, cornerInput, CB_SECS); }
+function cornerShooterCheck(nSeeds, secs) { return bossBotCheck(nSeeds, cornerShooterInput, secs || 90); }
+
+function main() {
 var t0 = Date.now();
 out('Project Volley P1 headless bot results (chapter 1, stages 1-10)');
 out('Date: 2026-11-10 (script run ' + new Date().toISOString() + ')');
@@ -242,6 +330,10 @@ out('      naive = random walk with random stops, random cards; skilled = sample
 out('      predicted shots, lunges, charges, fans and shell rings, kites chasers, prefers standing still;');
 out('      human = same planner but 0.25 s reaction delay, positions only (shot motion from late frames, no aim-line/fan/lane');
 out('      reading, sees shell rings), re-plans every 0.15 s, stronger preference to stand still.');
+if (COLS != null) {
+  out('Column class: --cols=' + COLS + ' (opts.cols on every base-sweep V.Sim.create; parts/widen.js ' + (V.Widen ? 'loaded' : 'MISSING: sim stays at 9') + ')');
+  out('      corner = walks to a bottom corner (left on odd seeds, right on even) and camps; door when clear; card 0 / supply 0.');
+}
 out('Stage list: ' + V.Sim.stageList().map(function (s) { return s.stage + ':' + s.kind + '/' + s.room + '/' + s.spawns.map(function (x) { return x.type + '@' + x.t; }).join('+'); }).join('  '));
 out('');
 
@@ -400,7 +492,7 @@ out('');
 
 // 4) sweeps
 var summary = [], skilledWorst = null;
-['idle', 'naive', 'human', 'skilled'].forEach(function (kind) {
+(COLS != null ? ['idle', 'corner', 'naive', 'human', 'skilled'] : ['idle', 'naive', 'human', 'skilled']).forEach(function (kind) {
   var runs = [];
   for (var s = 1; s <= SEEDS; s++) runs.push(runOne(s, kind, MAX_STEPS));
   var wins = runs.filter(function (r) { return r.win; }), deaths = runs.filter(function (r) { return r.dead; }), tos = runs.filter(function (r) { return r.timeout; });
@@ -425,6 +517,7 @@ var summary = [], skilledWorst = null;
     runs.forEach(function (r) { r.kills.forEach(function (k) { if (k.type === ty) { ka.push(k.hits); la.push(k.life); } }); });
     if (ka.length) out('  ' + ty + ' kills ' + ka.length + ': hits to kill median ' + pct(ka, 0.5) + ' (mean ' + f1(mean(ka)) + '), time alive median ' + pct(la, 0.5).toFixed(2) + ' s, p90 ' + pct(la, 0.9).toFixed(2) + ' s');
   });
+  var psLine = [];
   out('  stage kind/room   | reached cleared died | HP at clear mean / p10 | HP leaving mean | clear time median s');
   V.Sim.stageList().forEach(function (sd) {
     var st = sd.stage;
@@ -438,13 +531,24 @@ var summary = [], skilledWorst = null;
       if (r.stageHp[st] != null) hl.push(r.stageHp[st]);
     });
     out('  ' + pad(st, 2) + ' ' + (sd.kind + '/' + sd.room + '          ').slice(0, 14) + ' | ' + pad(reached, 4) + ' ' + pad(cl, 4) + ' ' + pad(died, 4) + ' | ' + pad(f1(mean(hp)), 6) + ' / ' + pad(hp.length ? pct(hp, 0.1) : '-', 4) + ' | ' + pad(f1(mean(hl)), 6) + ' | ' + pad(tm.length ? pct(tm, 0.5).toFixed(1) : '-', 5));
+    if (COLS != null) psLine.push(st + ':' + (reached ? (100 * cl / reached).toFixed(1) : '-') + '%/' + (tm.length ? pct(tm, 0.5).toFixed(1) : '-') + 's');
   });
+  if (COLS != null) {
+    out('  per stage (cleared / reached, median clear s): ' + psLine.join(' '));
+    var cs = {}; runs.forEach(function (r) { r.cols.forEach(function (c) { cs[c] = 1; }); });
+    out('  room widths seen: ' + Object.keys(cs).join(', ') + (kind === 'corner' ? '; boss damage taken (runs that reached it): ' + runs.filter(function (r) { return r.stage === 10; }).map(function (r) { return r.bossDmg; }).join(',') : ''));
+  }
   out('');
   summary.push(kind + ': clear ' + wins.length + '/' + SEEDS + ', died ' + deaths.length + (deaths.length ? ' (median stage ' + pct(deaths.map(function (r) { return r.stage; }), 0.5) + ')' : '') +
     ', boss time median ' + (bt.length ? pct(bt, 0.5).toFixed(1) + ' s' : '-') + ', braced ' + f1(mean(braced)) + '%');
 });
 (function(){ var bad = [], w = skilledWorst || {}; for (var k in w) if (w[k] >= 5) bad.push(k + ' ' + w[k]);
   chk('fairness gate: skilled bot takes < 5 hits from any one enemy type in any single run', skilledWorst && !bad.length, 'worst per run ' + JSON.stringify(w)); })();
+if (COLS != null) {
+  var cb = cornerBossCheck(Math.min(SEEDS, 50)), cbB = cb.filter(function (r) { return r.boss; }), cbH = cbB.filter(function (r) { return r.dmg > 0; });
+  chk('corner bot camping on the boss (stage 10 reached by force-clear, 60 s or run end) takes damage on every seed', cbB.length > 0 && cbH.length === cbB.length,
+    cbH.length + '/' + cbB.length + ' seeds hit, damage median ' + (cbB.length ? pct(cbB.map(function (r) { return r.dmg; }), 0.5) : '-') + ', died ' + cbB.filter(function (r) { return r.dead; }).length);
+}
 out('== Summary ==');
 summary.forEach(out);
 out('Rule checks failed: ' + nFail);
@@ -452,7 +556,7 @@ out('Rule checks failed: ' + nFail);
 // Runs LAST so the base sweeps above stay meta-neutral (meta.js is only loaded here; every career run passes metaStats explicitly).
 // Deterministic: career c (1..CAREERS), run r uses seed 1000*c + r. No Math.random / Date (V.Meta.buy picks the random stat from the save itself).
 (function economy() {
-  var CAREERS = Math.min(SEEDS, 50), SHOW = 30, CAP = +process.argv[3] || 400, LONG = Math.min(CAREERS, 10);   // SHOW = runs in the main tables; the first LONG careers play on up to CAP runs (until maxed) for the time-to-max rows
+  var CAREERS = Math.min(SEEDS, 50), SHOW = 30, CAP = +ARGV[1] || 400, LONG = Math.min(CAREERS, 10);   // SHOW = runs in the main tables; the first LONG careers play on up to CAP runs (until maxed) for the time-to-max rows
   var mp = path.join(__dirname, 'parts', 'meta.js');
   if (!fs.existsSync(mp)) { out('== Economy (human bot career) == skipped: parts/meta.js missing'); return; }
   require(mp);
@@ -547,4 +651,7 @@ out('Rule checks failed: ' + nFail);
   out('clear rate in runs ' + (SHOW + 1) + '+ (up to maxed): ' + (lateClear.length ? (100 * mean(lateClear)).toFixed(1) + '% over ' + lateClear.length + ' runs' : 'n/a'));
 })();
 out('Run time ' + ((Date.now() - t0) / 1000).toFixed(1) + ' s');
-fs.writeFileSync(path.join(__dirname, 'BOT-RESULTS.txt'), lines.join('\n') + '\n');
+fs.writeFileSync(COLS != null ? path.join(__dirname, 'sim', 'out', 'bot-C' + COLS + '.txt') : path.join(__dirname, 'BOT-RESULTS.txt'), lines.join('\n') + '\n');
+}
+if (require.main === module) main();
+module.exports = { V: V, runOne: runOne, setCols: setCols, setWalk: setWalk, cornerBossCheck: cornerBossCheck, cornerShooterCheck: cornerShooterCheck, bossBotCheck: bossBotCheck, cornerShooterInput: cornerShooterInput, pct: pct, mean: mean, MAX_STEPS: MAX_STEPS, INPUT: INPUT };
