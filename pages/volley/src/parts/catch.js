@@ -57,7 +57,7 @@ function rampStep(S){
   var st = S.stage || 5, ch = S.chapter || 1;
   var inCh = ((st - 1) % 50);                              // stage inside the chapter
   var idx = Math.max(0, Math.floor((inCh - 4) / 10));      // 0 for stage 5, 4 for stage 45
-  if (S.lap > 1 && !S.chapter) idx = Math.min(4, Math.floor((((S.stage - 1) + (S.lap - 1) * 10) - 4) / 10));   // the 10-stage slice loops: later laps ramp like later drops
+  if (S.lap > 1 && !S.chapter) idx = Math.min(4, Math.floor((((S.stage - 1) + (S.lap - 1) * (V.chapterLen ? V.chapterLen(S.chNo) : 10)) - 4) / 10));   // the chapter's stage list loops: later laps ramp like later drops
   if (ch >= 2) idx = Math.min(3, idx + 1);                 // Chapter 2 and 3 start at step 2 (SPEC 4)
   return Math.min(5, idx + 1);
 }

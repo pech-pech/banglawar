@@ -70,7 +70,7 @@ V.AI['E-05'] = {
     var c = Math.cos(ang), s = Math.sin(ang), d = 0, stp = 0.1, max = this.dashDist;
     while (d < max) {
       var n = Math.min(max, d + stp), x = e.x + c * n, y = e.y + s * n;
-      if (x < e.r || x > S.room.w - e.r || y < e.r || y > S.room.h - e.r || api.hitsSolid(S, x, y, e.r)) break;
+      if (x < e.r || x > S.room.w - e.r || y < e.r || y > S.room.h - e.r || api.hitsSolidBody(S, x, y, e.r)) break;
       d = n;
     }
     return d;
@@ -112,11 +112,11 @@ V.AI['E-05'] = {
     } else if (e.st === 'act') {
       var st = Math.min(e.dashLeft, A.dashSpeed * dt), wall = false;
       var nx = e.x + e.vx * st, ny = e.y + e.vy * st;
-      if (nx < e.r || nx > S.room.w - e.r || ny < e.r || ny > S.room.h - e.r || api.hitsSolid(S, nx, ny, e.r)) {
+      if (nx < e.r || nx > S.room.w - e.r || ny < e.r || ny > S.room.h - e.r || api.hitsSolidBody(S, nx, ny, e.r)) {
         // slide up to the wall in small steps, then stop
         var k = 0;
         while (k < 10) { var sx = e.x + e.vx * st * 0.1, sy = e.y + e.vy * st * 0.1;
-          if (sx < e.r || sx > S.room.w - e.r || sy < e.r || sy > S.room.h - e.r || api.hitsSolid(S, sx, sy, e.r)) break;
+          if (sx < e.r || sx > S.room.w - e.r || sy < e.r || sy > S.room.h - e.r || api.hitsSolidBody(S, sx, sy, e.r)) break;
           e.x = sx; e.y = sy; k++; }
         wall = true;
       } else { e.x = nx; e.y = ny; e.dashLeft -= st; }

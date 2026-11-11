@@ -56,7 +56,9 @@ function clearLine(g, x1, y1, x2, y2){
 }
 
 var st = V.STAGES && V.STAGES.ch1;
-ok(Array.isArray(st) && st.length === 10, 'ch1 has 10 stages');
+ok(Array.isArray(st) && st.length >= 10, 'ch1 has at least 10 stages (rows past 10 are baked, checked by test-gen-net.js)');
+ok(Array.isArray(st) && st.length >= 10 && st[st.length - 1].kind === 'boss', 'ch1 last row is a boss');
+st = st.slice(0, 10); // rows 1-10 are frozen built data: matched below. Rows 11+ are validated by src/test-gen-net.js
 var seenType = {}, report = [], maps = [];
 [9, 11, 13, 15].forEach(function(CC){ W = CC; var ref = CC === 9, mid = (W - 1) / 2;
 st.forEach(function(s, i){

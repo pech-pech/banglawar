@@ -8,6 +8,7 @@ globalThis.V = globalThis.V || {};
   if (f === 'ui' && typeof document === 'undefined') { globalThis.document = { head: null, getElementById: function(){ return null; } }; try { require(p); } finally { delete globalThis.document; } return; }
   require(p); });
 var V = globalThis.V, M = V.Meta, R = V.Report, fails = 0, n = 0;
+V.SimOpts = V.SimOpts || { chlen:0 }; V.SimOpts.chlen = 10;   // the win-run fixtures below assume the 10-stage slice (stages 11-20 may be baked in)
 function ok(name, c, got){ n++; if (!c) { fails++; console.log('FAIL', name, got === undefined ? '' : String(typeof got === 'string' ? got : JSON.stringify(got)).slice(0, 600)); } }
 function mock(){ var d = {}; return { d:d, getItem:function(k){ return k in d ? d[k] : null; }, setItem:function(k, v){ d[k] = String(v); }, removeItem:function(k){ delete d[k]; } }; }
 function bytes(s){ return Buffer.byteLength(s, 'utf8'); }
@@ -82,6 +83,12 @@ var RUNF = ['runNo', 'runBuild', 'startedAt', 'endedAt', 'endReason', 'result', 
 data.runs.forEach(function(r){ RUNF.forEach(function(k){ ok('run ' + r.runNo + ' .' + k, k in r, Object.keys(r)); }); });
 var rLast = data.runs[data.runs.length - 1];
 ok('latest run keeps damageBySource and roomTimes', 'damageBySource' in rLast && Array.isArray(rLast.roomTimes) && rLast.roomTimes.length >= 9, rLast.roomTimes);
+// GEN-SPEC 4.4: room id per run (last stage) and per room time; bake hash in the build block ('none' until bake.hash exists)
+ok('run has roomId of its last stage (win: BA1 boss arena)', typeof rLast.roomId === 'string' && /^[A-Za-z0-9]+$/.test(rLast.roomId) && rLast.roomId === (V.STAGES.ch1[rLast.stageReached - 1] || {}).room, [rLast.roomId, rLast.stageReached]);
+ok('each room time is [stage, s, roomId] and matches the stage row', rLast.roomTimes.every(function(t){ return t.length === 3 && t[2] === V.STAGES.ch1[t[0] - 1].room; }), rLast.roomTimes);
+ok('build.bakeHash is a string (hash or none)', typeof data.build.bakeHash === 'string' && data.build.bakeHash.length > 0, data.build.bakeHash);
+var bh = null; try { bh = fs.readFileSync(path.join(__dirname, 'bake.hash'), 'utf8').trim(); } catch (e) {}
+ok('build.bakeHash equals src/bake.hash, or none when absent', data.build.bakeHash === (bh || 'none'), [data.build.bakeHash, bh]);
 var r3 = data.runs.filter(function(r){ return r.runNo === 3; })[0];
 ok('abandoned run: endReason abandon, 0 credits, seconds from sim time', r3 && r3.endReason === 'abandon' && r3.creditsEarned === 0 && r3.runSeconds > 5 && r3.runSeconds < 11, r3);
 var r2 = data.runs.filter(function(r){ return r.runNo === 2; })[0];
@@ -243,5 +250,22 @@ console.log('size after 10 wins: summary ' + bytes(big.summary) + ' B, summary +
   ok('summary line: best tier per run, within the size rule', /Supply Drops \(best tier\): R\d+ Great x2/.test(sm) && bytes(sm) <= 1536 && sm.split('\n').length <= 25, [bytes(sm), sm.split('\n').filter(function(l){ return /Supply/.test(l); })]);
   var S2 = V.Sim.create(501, V.TUNE, { metaStats:{ hpAdd:20000, atkMul:6, rateMul:2 }, cols:15 }); play(S2, { onStep:function(S3){ if (S3.result && !S3.result.awarded) M.award(S3.result); } });
   ok('no drops: "none"', /Supply Drops \(best tier\): R\d+ Great x2/.test(R.summary()) && dataOf(R.full()).runs.slice(-1)[0].supplyDrops.length === 0);
+})();
+// chapter length in the report (A-REPORT): "/N" follows the chapter list and V.SimOpts.chlen; pay table extends by kind; long runs are not judged against the 10-stage band
+(function(){
+  var L = V.STAGES.ch1, built = L.slice(), saveChlen = V.SimOpts && V.SimOpts.chlen;
+  V.SimOpts = V.SimOpts || { chlen:0 };
+  try {
+    for (var i = 0; i < 10; i++) { var o = JSON.parse(JSON.stringify(built[i])); o.stage = 11 + i; L.push(o); }   // stages 11-20 = copies of 1-10 (kinds repeat)
+    V.SimOpts.chlen = 0;
+    var Sx = deathRun(901);
+    var rx = dataOf(V.UI.report()).runs.slice(-1)[0], smx = V.UI.reportSummary();
+    ok('20-stage list: run row carries chLen 20', rx.chLen === 20, rx);
+    ok('20-stage list: results show "/20"', new RegExp('\\n' + rx.runNo + '\\*?\\s+LOSS\\s+\\d+/20').test(smx), smx);
+    ok('20-stage list: time band is labelled, not judged', rx.bandCompare.runSeconds === 'no band' || rx.bandCompare.runSeconds === '10-stage slice band', rx.bandCompare);
+    V.SimOpts.chlen = 10;
+    var Sy = deathRun(902), ry = dataOf(V.UI.report()).runs.slice(-1)[0];
+    ok('chlen 10 on a 20-row list: "/10" and no chLen field', ry.chLen === undefined && /\n\d+\*?\s+LOSS\s+\d+\/10/.test(V.UI.reportSummary()), ry);
+  } finally { while (L.length > built.length) L.pop(); V.SimOpts.chlen = saveChlen || 0; }
 })();
 console.log(n + ' checks, ' + fails + ' failed'); process.exit(fails ? 1 : 0);

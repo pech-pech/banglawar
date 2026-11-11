@@ -452,8 +452,22 @@ Object.defineProperty(M, 'power', { get: function(){ return M.state.power || 0; 
 // ---------- income and run log ----------
 M.chapterPay = function(ch){ var f = TUNING.CHAPTER_PAY[ch == null ? 1 : ch]; return f == null ? 1 : f; };
 M.roomCredits = function(kind, ch){ var v = TUNING.ROOM[kind]; if (v == null) v = TUNING.ROOM.combat; return Math.round(v * M.chapterPay(ch)); };
-// Guaranteed pay of a cleared 10-stage slice: 7 fight rooms + cache + boss (the Supply Drop room pays its own pad, SUPPLY_PAD / K's payout). Ch1: 7 x 13 + 54 + 40 = 185.
-M.clearPay = function(ch){ return 7 * M.roomCredits('combat', ch) + M.roomCredits('cache', ch) + M.roomCredits('boss', ch) + Math.round(TUNING.BOSS_BONUS * M.chapterPay(ch)); };
+// THE chapter-length helper (one place): length of chapter chNo's stage list, honouring the chlen test cap (?chlen=N / V.SimOpts.chlen).
+// Uses V.Sim.stageList when sim.js is loaded (it owns the cap), else reads V.STAGES / V.Data.stages and applies the cap itself. Fallback 10. Call lazily (load order).
+V.chapterLen = function(chNo){
+  var n = 0, T = V.STAGES || (V.Data && V.Data.stages), cap = V.SimOpts && V.SimOpts.chlen;
+  if (V.Sim && V.Sim.stageList) { var l = V.Sim.stageList(chNo || 1); n = l && l.length; }
+  else { var c = T && ((T['ch' + (chNo || 1)] && T['ch' + (chNo || 1)].length) ? T['ch' + (chNo || 1)] : T.ch1); n = Array.isArray(c) ? c.length : 0; if (cap > 0 && n > cap) n = cap; }
+  return n > 0 ? n : 10;
+};
+// Guaranteed pay of a cleared chapter: the rooms in the stage list, each by kind (combat 13, cache 54, boss 40, supply 0: the Supply Drop room pays its own pad, SUPPLY_PAD / K's payout).
+// Ch1 at 10 stages: 7 x 13 + 54 + 40 = 185. At 20 (14 combat, 2 supply, 2 cache, 2 boss): 14 x 13 + 2 x 54 + 2 x 40 = 370. Pad adds 20 per supply room (205 / 410).
+M.clearPay = function(ch){
+  var T = V.STAGES || (V.Data && V.Data.stages), key = 'ch' + (ch == null ? 1 : ch), L = T && ((T[key] && T[key].length) ? T[key] : T.ch1), n = V.chapterLen(ch == null ? 1 : ch), sum = 0, i;
+  if (!Array.isArray(L)) L = null;
+  for (i = 0; i < n; i++) { var k = L && L[i] ? L[i].kind : (i === n - 1 ? 'boss' : 'combat'); sum += k === 'supply' ? 0 : M.roomCredits(k, ch); }
+  return sum + Math.round(TUNING.BOSS_BONUS * M.chapterPay(ch));
+};
 // Feel strip answers (TEST-REPORT-SPEC s4): patch the saved run entry. fields: { fight, up, kill } with the owner's card words or 'skip'. Quiet write.
 M.setFeel = function(runNo, fields){
   var runs = M.state.runs, e = null;

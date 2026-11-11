@@ -89,7 +89,7 @@ async function open(browser, file, size, q, opt = {}) {
   page.on('console', m => { if (m.type() === 'error') errors.push('console: ' + m.text().slice(0, 200)); });
   page.on('pageerror', e => errors.push('pageerror: ' + e.message.slice(0, 200)));
   const cdp = await ctx.newCDPSession(page);
-  await page.goto('file://' + file + '?seed=' + SEED + '&gpu=0' + (opt.title || /(^|&)title=/.test(q || '') ? '' : '&title=0') + (q ? '&' + q : ''));   // F1 (A): title=0 unless the check is about the title
+  await page.goto('file://' + file + '?seed=' + SEED + '&gpu=0' + (opt.title || /(^|&)title=/.test(q || '') ? '' : '&title=0') + (/(^|&)chlen=/.test(q || '') ? '' : '&chlen=10') + (q ? '&' + q : ''));   // F1 (A): title=0 unless the check is about the title
   await page.waitForFunction(() => window.__pv && window.__pv.S && window.__pv.S.hero && window.V && window.V.Meta && window.V.Home, null, { timeout: 20000 });
   await page.evaluate(HELPERS); await page.evaluate(F1H);
   if (/game\.html$/.test(file)) await page.addStyleTag({ content: '#home:not(.on){display:none!important}' });

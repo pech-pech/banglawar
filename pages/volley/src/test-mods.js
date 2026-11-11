@@ -280,6 +280,7 @@ check('deploy', 'runStart heals to full (D4 max HP boost starts at max)', S.hero
 // ---- optional integration with the sim, if its hooks are there ----
 try {
   ['rooms', 'stages', 'sim', 'ai-p0', 'ai-p1', 'boss'].forEach(function(f){ try { require(path.join(__dirname, 'parts', f + '.js')); } catch (e) { if (f === 'sim') throw e; } });
+  V.SimOpts = V.SimOpts || {}; V.SimOpts.chlen = 10;   // J: 10-stage chapter for the sim flows
   if (V.Sim && V.Sim.api) {
     var SS = V.Sim.create(5, V.TUNE);
     var ok = true, err = '';

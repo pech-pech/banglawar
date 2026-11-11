@@ -111,7 +111,7 @@ async function openSession(browser, w, h, extraQuery) {
   page.on('pageerror', e => errors.push('pageerror: ' + e.message.slice(0, 200)));
   page.on('requestfailed', r => errors.push('requestfailed: ' + r.url().slice(-60)));
   const cdp = await ctx.newCDPSession(page);
-  await page.goto('file://' + BUILD + '?seed=' + SEED + '&home=0&title=0&gpu=0&debug=1' + (extraQuery || ''));
+  await page.goto('file://' + BUILD + '?seed=' + SEED + '&home=0&title=0&gpu=0&debug=1&chlen=10' + (extraQuery || ''));
   await page.waitForFunction(() => window.__pv && window.__pv.S && window.__pv.S.hero, null, { timeout: 15000 });
   await page.evaluate(HELPERS);
   await page.addStyleTag({ content: '#home:not(.on){display:none!important}' });

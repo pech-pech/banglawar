@@ -32,6 +32,8 @@ def assets(s):
     for alias, k in (('P-02', 'portrait'), ('P-05', 'rifle'), ('P-08', 'coin'), ('R-10', 'operator'), ('R-01', 'keyart'), ('R-07', 'shield-cell'), ('key-art-card', 'keyart')):
         if k in m: al.append("V.ASSETS['%s']=V.ASSETS['%s'];" % (alias, k))   # design-thread ids, no duplicated data
     js = 'window.V=window.V||{};V.ASSETS=' + json.dumps(m) + ';' + ''.join(al)
+    bh = os.path.join(HERE, 'bake.hash')   # GEN-SPEC 4.4: the baked-stage hash shows in the Copy report
+    if os.path.exists(bh): js += 'V.BAKE_HASH=' + json.dumps(open(bh, encoding='utf-8').read().strip()) + ';'
     assert '/*{{assets}}*/' in s and '/*{{home.css}}*/' in s
     s = s.replace('/*{{assets}}*/', js)
     css = open(os.path.join(HERE, 'home.css'), encoding='utf-8').read()

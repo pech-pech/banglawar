@@ -29,7 +29,11 @@ var RICO_MAX = 3, RICO_MULT = 0.7, RICO_RANGE = 4;
 var PIERCE_MULT = 0.67, WALLB_MAX = 2, WALLB_MULT = 0.5;
 var HAZARD_DMG = 60, HAZARD_CD = 1.0;
 var DODGE_CAP = 0.4;
-var CHAPTER_LEN = 10;
+var FALLBACK_LEN = 10;   // length of the built-in fallback list only; the real chapter length is the stage list's length (GEN-SPEC E1)
+// V.SimOpts.chlen: test cap. A positive number caps every chapter at that many stages (so ?chlen=10 keeps the 10/10 win flow once the list grows).
+// Node tests set V.SimOpts.chlen directly; the browser reads ?chlen=N once at load. A per-run opts.chlen (Sim.create) wins over it.
+V.SimOpts = V.SimOpts || { chlen:0 };
+(function(){ try { if (typeof location !== 'undefined' && location.search) { var m = /[?&]chlen=(\d+)(&|#|$)/.exec(location.search); if (m) V.SimOpts.chlen = parseInt(m[1], 10) || 0; } } catch (e) {} })();
 V.AI = V.AI || {};
 
 // ---------- P0 fallback mods (used only while parts/mods.js is absent) ----------
@@ -54,7 +58,7 @@ if (!V.MODS) V.CARDS = FALLBACK_MODS;
 // ---------- fallback stage list (used only while parts/stages.js is absent) ----------
 function fallbackStages(){
   var out = [], order = V.ROOM_ORDER || ['R01', 'R02', 'R03'];
-  for (var i = 1; i <= CHAPTER_LEN; i++) {
+  for (var i = 1; i <= FALLBACK_LEN; i++) {
     var room = order[(i - 1) % order.length], R = V.ROOMS[room], sp = [];
     for (var j = 0; j < R.spawns.length; j++) sp.push({ type:R.spawns[j].type, x:R.spawns[j].x, y:R.spawns[j].y, t:0 });
     var kind = 'combat';
@@ -69,11 +73,23 @@ function fallbackStages(){
 // 11 machines alive at once, the Chapter 1 peak). In that room machines have STRESS_HP x HP so they stay alive under fire and the Operator takes no damage.
 var STRESS_HP = 1000;   // GUESS: large enough that no build kills a machine within a test session
 function isStress(S){ return !!(S && S.metaOpts && S.metaOpts.room === 'stress' && V.Data && V.Data.stages && V.Data.stages.stress); }
-function listOf(S){ return isStress(S) ? V.Data.stages.stress : stageList(); }
-function stageList(){ return (V.STAGES && V.STAGES.ch1 && V.STAGES.ch1.length) ? V.STAGES.ch1 : fallbackStages(); }
+function listOf(S){ return isStress(S) ? V.Data.stages.stress : stageList(S && S.chNo, S); }
+// The chapter's stage list: V.STAGES['ch' + chapter], ch1 when that chapter has no list. Capped by the chlen test option (opts.chlen on the run, else V.SimOpts.chlen).
+// The capped slice is memoised per source list and cap so a step never allocates.
+var capMemo = { src:null, n:0, out:null };
+function chapterCap(S){ var c = S && S.metaOpts && S.metaOpts.chlen; if (!(c > 0)) c = V.SimOpts && V.SimOpts.chlen; return c > 0 ? (c | 0) : 0; }
+function stageList(chapter, S){
+  var T = V.STAGES, key = 'ch' + (chapter || 1), src = T && ((T[key] && T[key].length) ? T[key] : (T.ch1 && T.ch1.length ? T.ch1 : null));
+  if (!src) return fallbackStages();
+  var cap = chapterCap(S);
+  if (!(cap > 0) || cap >= src.length) return src;
+  if (capMemo.src !== src || capMemo.n !== cap) capMemo = { src:src, n:cap, out:src.slice(0, cap) };
+  return capMemo.out;
+}
+function chapterLen(S){ return listOf(S).length; }
 
 function count(S, key){ return S.hero.mods[key] || 0; }
-function scaleStage(S){ return S.stage + (S.lap - 1) * CHAPTER_LEN; }
+function scaleStage(S){ return S.stage + (S.lap - 1) * chapterLen(S); }
 function hpScale(S){ var t = S.tune; return t.ENEMY_HP_GLOBAL * (1 + t.HP_SLOPE * (scaleStage(S) - 1)); }
 function enemyDmg(S, base){
   var t = S.tune;
@@ -160,8 +176,15 @@ function hitsSolid(S, x, y, r){
   return null;
 }
 function outOfRoom(S, x, y, r){ return x < -r || x > S.room.w + r || y < -r || y > S.room.h + r; }
+// D5 (QA-STAGES): spike tiles are blocked for machine movement (they stay a hero-only hazard: the hero is never pushed off them, rounds and shots ignore them).
+function machineBlockers(S){ return S.hazards && S.hazards.length ? blockers(S).concat(S.hazards) : blockers(S); }
+function hitsSolidBody(S, x, y, r){
+  var a = machineBlockers(S);
+  for (var i = 0; i < a.length; i++) if (circleRect(x, y, r, a[i])) return a[i];
+  return null;
+}
 function collideBody(S, o, r){
-  var a = blockers(S), i, p;
+  var a = o === S.hero ? blockers(S) : machineBlockers(S), i, p;
   for (var it = 0; it < 2; it++) {
     for (i = 0; i < a.length; i++) { p = circleRectPush(o.x, o.y, r, a[i]); if (p) { o.x += p[0]; o.y += p[1]; } }
   }
@@ -242,8 +265,9 @@ function loadStage(S, idx){
   h.lockId = null; h.lockClear = false; h.lostT = 0; h.retargetT = 0; h.burstQ = []; h.delayQ = [];
   S.roomT = 0; S.clearT = 0; S.hazardCd = 0;
   var spl = V.Widen && S.cols !== 9 ? V.Widen.spawns(def.spawns || [], S.cols, R) : (def.spawns || []); // template coords -> C columns
-  S.spawnQ = spl.map(function(s){ return { type:s.type, x:s.x, y:s.y, t:s.t || 0 }; });
-  S.spawnQ.sort(function(a, b){ return a.t - b.t; });
+  S.spawnQ = spl.map(function(s, i){ return { type:s.type, x:s.x, y:s.y, t:s.t || 0, wave:(s.wave > 1) ? (s.wave | 0) : 1, i:i }; });
+  S.spawnQ.sort(function(a, b){ return (a.wave - b.wave) || (a.t - b.t) || (a.i - b.i); });   // wave 1 first, as built (stable for equal t)
+  S.waveOpenT = {};
   ev(S, { k:'room', x:h.x, y:h.y, roomId:S.roomId, stage:S.stage, kind:S.stageKind, lap:S.lap });
   if (S.stageKind === 'collect') {   // K: Supply Drop catch room (SPEC, R50-R54). All logic in parts/catch.js; S.mini holds the state; S.rng is not touched (fight stages stay bit-identical)
     S.room.solids = S.room.solids.filter(function(b){ return b.kind === 'wall'; });
@@ -260,8 +284,28 @@ function loadStage(S, idx){
     releaseSpawns(S);
   }
 }
+// Waves (GEN-SPEC 3.4 / 7). Wave 1 (field absent) runs by t from room start, as built. Wave N > 1 opens once every earlier wave has fully spawned and at most
+// WAVE_EARLY of the earlier-wave machines are alive; its spawn t then counts from that moment. At most WAVE_CAP machines of one wave are alive at once.
+// The room is not clear until spawnQ is empty and no machine is alive, so the door and auto-walk wait for every wave.
+var WAVE_EARLY = 2, WAVE_CAP = 6;
+function aliveOfWave(S, pred){ var n = 0; for (var i = 0; i < S.enemies.length; i++) if (S.enemies[i].hp > 0 && pred(S.enemies[i].wave || 1)) n++; return n; }
 function releaseSpawns(S){
-  while (S.spawnQ.length && S.spawnQ[0].t <= S.roomT + 1e-9) { var s = S.spawnQ.shift(); spawnEnemy(S, s.type, s.x, s.y); }
+  var q = S.spawnQ;
+  while (q.length) {
+    var s = q[0], w = s.wave || 1, at;
+    if (w === 1) { if (s.t > S.roomT + 1e-9) return; at = 0; }
+    else {
+      if (S.waveOpenT[w] == null) {
+        if (aliveOfWave(S, function(x){ return x < w; }) > WAVE_EARLY) return;
+        S.waveOpenT[w] = S.roomT;
+      }
+      if (s.t > S.roomT - S.waveOpenT[w] + 1e-9) return;
+      if (aliveOfWave(S, function(x){ return x === w; }) >= WAVE_CAP) return;
+    }
+    q.shift();
+    var n0 = S.enemies.length; spawnEnemy(S, s.type, s.x, s.y);
+    if (S.enemies.length > n0) S.enemies[S.enemies.length - 1].wave = w;
+  }
 }
 
 // ---------- create ----------
@@ -271,7 +315,7 @@ function create(seed, tune, opts){
   bindData();
   tune = tune || V.TUNE;
   seed = (seed >>> 0);
-  var S = { seed:seed, frame:0, t:0, tune:tune, phase:'play', stage:1, stageIdx:0, stageKind:'combat', roomId:null, lap:1,
+  var S = { seed:seed, frame:0, t:0, tune:tune, phase:'play', stage:1, stageIdx:0, stageKind:'combat', roomId:null, lap:1, waveOpenT:{}, chNo:(opts && opts.chapter > 0) ? (opts.chapter | 0) : 1,
     room:null,
     // hero x/y are placeholders: loadStage puts the Operator on the room's start tile (centre column of row 14)
     hero:{ x:4.5, y:14.5, r:HERO_HURT_R, hp:tune.HERO_HP, maxHp:tune.HERO_HP, atk:tune.HERO_ATK, ang:-Math.PI / 2,
@@ -462,7 +506,7 @@ function lob(S, e, tx, ty, T, r, dmg){
 function tellT(S, b){ return b * S.tune.TELL_MULT; }
 var api = {
   ev:ev, rng:function(S){ return S.rng; }, enemyDmg:enemyDmg, steerTo:steerTo, enemyShoot:enemyShoot, lob:lob,
-  hurtHero:hurtHero, healHero:healHero, clearLine:clearLine, hitsSolid:hitsSolid, collideBody:collideBody,
+  hurtHero:hurtHero, healHero:healHero, clearLine:clearLine, hitsSolid:hitsSolid, hitsSolidBody:hitsSolidBody, collideBody:collideBody,
   hero:function(S){ return S.hero; },
   dist:function(a, b){ return Math.hypot(b.x - a.x, b.y - a.y); },
   angleTo:function(a, b){ return Math.atan2(b.y - a.y, b.x - a.x); },
@@ -869,7 +913,7 @@ function step(S, inp){
     S.credits += roomCredit(S.stageKind) + (S.stageKind === 'boss' ? BOSS_BONUS : 0); // META: credits per room cleared
     S.shots.length = 0; S.shells.length = 0;
     if (S.hero.lockId != null) { ev(S, { k:'unlock', x:S.hero.x, y:S.hero.y, id:S.hero.lockId }); S.hero.lockId = null; S.hero.lockClear = false; }
-    if (S.stageKind === 'boss' && !t.ENDLESS) { S.phase = 'clear'; S.clearT = 0; S.bossWin = true; if (V.Mods) V.Mods.bankReroll(S); }   // G: pick 21
+    if (S.stageIdx === listOf(S).length - 1 && !t.ENDLESS) { S.phase = 'clear'; S.clearT = 0; S.bossWin = true; if (V.Mods) V.Mods.bankReroll(S); }   // G: pick 21
     else openDoor(S);
   }
   stepPickups(S, dt);
