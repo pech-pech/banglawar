@@ -7,6 +7,7 @@ globalThis.V = globalThis.V || {};
   require(path.join(__dirname, 'parts', f + '.js'));
 });
 var V = globalThis.V, W = V.Widen;
+V.SimOpts.chlen = 10;   // v2 (K): the chapter is as long as its stage list (20 with C's rows); this file's stage sweeps and smoke runs test the built 10-stage slice
 var fails = 0, passes = 0;
 function ok(c, msg) { if (c) passes++; else { fails++; if (fails <= 60) console.log('FAIL ' + msg); } }
 

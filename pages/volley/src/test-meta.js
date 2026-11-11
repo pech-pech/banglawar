@@ -3,6 +3,8 @@ var path = require('path');
 ['tune', 'rng', 'rooms', 'stages', 'mods', 'meta', 'sim', 'ai-p0', 'ai-p1', 'boss'].forEach(function(f){
   try { require(path.join(__dirname, 'parts', f + '.js')); } catch (e) { if (['stages','mods','ai-p1','boss'].indexOf(f) < 0) throw e; } });
 var V = globalThis.V, M = V.Meta, T = M.TUNING, fails = 0, n = 0;
+V.SimOpts.chlen = 10;   // the 10/10 flows below assume a 10-stage chapter (ch1 may hold 20 rows); the J rows at the end lift it
+
 function ok(name, c, got){ n++; if (!c) { fails++; console.log('FAIL', name, got === undefined ? '' : JSON.stringify(got)); } }
 function mock(){ var d = {}; return { d:d, getItem:function(k){ return k in d ? d[k] : null; }, setItem:function(k, v){ d[k] = String(v); }, removeItem:function(k){ delete d[k]; } }; }
 function near(a, b){ return Math.abs(a - b) < 1e-9; }
@@ -233,4 +235,19 @@ ok('reset clears the Deploy roll key', (function(){ var s = mock(); s.d['volley.
   ok('sdSkip setting default off, boolean only', M.settings().sdSkip === false && M.setSetting('sdSkip', 'x') === false);
 })();
 ok('reset calls V.Home.deploy.forget when it exists, and survives one that throws', (function(){ var c = 0; V.Home = { deploy:{ forget:function(){ c++; } } }; M.load({ storage:mock(), fresh:true }); M.reset(); var a = c === 1; V.Home = { deploy:{ forget:function(){ throw new Error('x'); } } }; var e = null; try { M.reset(); } catch (x) { e = x; } delete V.Home; return a && !e; })());
+// J: chapter length helper and per-room clearPay (stub 20-row list, restored afterwards)
+(function(){
+  var real = V.STAGES.ch1, kinds = ['combat','combat','combat','combat','supply','combat','combat','combat','cache','boss','combat','combat','combat','combat','supply','combat','combat','combat','cache','boss'];
+  var stub = kinds.map(function(k, i){ return { stage:i + 1, kind:k, room:'R01' }; });
+  V.STAGES.ch1 = stub;
+  try {
+    V.SimOpts.chlen = 10; ok('J chapterLen honours chlen=10 on a 20-row list', V.chapterLen(1) === 10 && V.chapterLen() === 10, V.chapterLen(1));
+    ok('J clearPay at chlen 10 on the 20-row list is 185 (rows 1-10)', M.clearPay() === 185, M.clearPay());
+    V.SimOpts.chlen = 0; ok('J chapterLen without cap = list length 20', V.chapterLen(1) === 20, V.chapterLen(1));
+    ok('J chapterLen unknown chapter falls back to ch1', V.chapterLen(3) === 20);
+    ok('J 20-stage clearPay counts rooms: 14 x 13 + 2 x 54 + 2 x 40 = 370', M.clearPay() === 370 && M.clearPay(1) === 370, M.clearPay());
+    ok('J clearPay scales by chapter pay factor (ch2 1.1)', M.clearPay(2) === 14 * M.roomCredits('combat', 2) + 2 * M.roomCredits('cache', 2) + 2 * M.roomCredits('boss', 2), M.clearPay(2));
+  } finally { V.STAGES.ch1 = real; V.SimOpts.chlen = 10; }
+  ok('J real list restored, 10-stage pay still 185', M.clearPay() === 185 && V.chapterLen(1) === 10);
+})();
 console.log(n + ' checks, ' + fails + ' failed'); process.exit(fails ? 1 : 0);

@@ -992,7 +992,7 @@ function resetIfNew(S) {
 }
 function noteRoom(S) {
   var k = (S.stage | 0) + ':' + (S.roomId || '') + ':' + (S.lap | 0);
-  if (k !== P.roomKey) { P.roomKey = k; P.roomSeq++; V.Scene.roomSeq = P.roomSeq; }
+  if (k !== P.roomKey) { P.roomKey = k; P.decals.length = 0; P.roomSeq++; V.Scene.roomSeq = P.roomSeq; }
 }
 // hero death: the Operator collapses (spin, shrink, fade) over 0.9 s of wall time after the run ends
 function heroDeathU() { var H = AN.h; if (H.death < 0) return -1; var u = (FX.wall - H.death) / (reduced ? 0.4 : 0.9); return u >= 1 ? -1 : Math.max(0, u); }

@@ -236,7 +236,7 @@ async function session(browser, target, sess) {
   page.on('requestfailed', r => errors.push('requestfailed: ' + r.url().replace(/^.*\/pages\//, '') + ' ' + ((r.failure() || {}).errorText || '')));
   const cdp = await ctx.newCDPSession(page);
   // P1 home: the game opens on Home/Deploy with the sim waiting behind it; the game-flow sessions skip it with ?home=0 (the 'home' session below does it the real way).
-  const q = '?seed=' + SEED + '&home=0&title=0' + (sess.mode === 'gpu0' ? '&gpu=0' : sess.mode === 'offscreen' ? '&gpu=offscreen' : '');
+  const q = '?seed=' + SEED + '&home=0&title=0&chlen=10' + (sess.mode === 'gpu0' ? '&gpu=0' : sess.mode === 'offscreen' ? '&gpu=offscreen' : '');
   try {
     await page.goto('file://' + target.file + q);
     await page.waitForFunction(() => window.__pv && window.__pv.S && window.__pv.S.hero, null, { timeout: 15000 });
@@ -616,6 +616,51 @@ async function autoWalkTest(page, cdp, cv) {
   await page.evaluate(() => window.__resetTune());
 }
 
+// ---------- v2: the 20-stage chapter (no ?chlen) ----------
+// Built index.html only. Needs agent C's baked rows 11-20 (parts/data-stages-gen.js) in the build; without them every row is SKIP with the reason.
+async function v20Session(browser, target) {
+  curTag = `${target.name} 20-stage (no chlen)`;
+  const errors = [];
+  const ctx = await browser.newContext({ viewport: { width: 412, height: 915 }, deviceScaleFactor: 1, hasTouch: true, isMobile: true });
+  await ctx.addInitScript(INIT);
+  const page = await ctx.newPage();
+  page.on('pageerror', e => errors.push('pageerror: ' + e.message.slice(0, 160)));
+  try {
+    await page.goto('file://' + target.file + '?seed=' + SEED + '&gpu=0&home=0&title=0&fresh=1');   // deliberately no chlen
+    await page.waitForFunction(() => window.__pv && window.__pv.S && window.__pv.S.hero && window.V && window.V.STAGES, null, { timeout: 15000 });
+  } catch (e) { ok(false, 'boot (20-stage page)', e.message.split('\n')[0]); await ctx.close(); return; }
+  await page.evaluate(HELPERS);   // __setTune and the other test helpers, as the other sessions load them
+  const len = await page.evaluate(() => (window.V.STAGES.ch1 || []).length);
+  const names = ['stage 11 follows the stage-10 boss (no win at 10, run continues)', 'run reaches stage 20 and wins there (one win, lap 1)', 'results screen shows "/ 20" (agent J ui.js)'];
+  if (len < 20) { for (const n of names) row(n, 'SKIP', `built index.html has ${len} stage rows (agent C rows 11-20 / data-stages-gen.js not in the build yet); integrator: rebuild, rerun`); await ctx.close(); return; }
+  // Jump stage by stage: empty the room, step, walk onto the door; take every card and supply (test-only force-clear, as src/bot.js toStage does).
+  const r = await page.evaluate(() => {
+    const p = window.__pv, V = window.V; window.__setTune({ ENEMY_DMG_MULT: 0 }); p.restart();
+    const S = () => p.S, seq = [], res = { seq, at10: null, at11: null, won20: null };
+    let g = 0;
+    while (g++ < 60000 && S().phase !== 'results') {
+      const s = S();
+      if (s.phase === 'pick') { p.pick(0); continue; }
+      if (s.phase === 'supply') { p.pickSupply(0); continue; }
+      if (seq[seq.length - 1] !== s.stage) { seq.push(s.stage); if (s.stage === 11) res.at11 = { phase: s.phase, lap: s.lap, kind: s.stageKind }; }
+      if (s.phase === 'play') { s.enemies.length = 0; if (s.spawnQ) s.spawnQ.length = 0; }
+      if (s.phase === 'clear' && s.room && s.room.door) { const d = s.room.door; s.hero.x = d.x + 0.5; s.hero.y = d.y + 0.5; }
+      if (s.phase === 'clear' && s.stage === 10 && !res.at10) res.at10 = { phase: s.phase, bossWin: !!s.bossWin };
+      p.step(1, { mx: 0, my: 0 });
+    }
+    const s = S(); res.won20 = { phase: s.phase, result: s.result || null }; return res;
+  });
+  ok(r.at10 && r.at10.bossWin === false && r.at11 && r.at11.lap === 1, names[0], `stage 10 clear state ${JSON.stringify(r.at10)}; stage 11 first seen ${JSON.stringify(r.at11)}; stages seen ${r.seq.join(',')}`);
+  const res = r.won20.result;
+  ok(r.won20.phase === 'results' && res && res.win === true && res.stage === 20 && res.lap === 1 && r.seq.join(',') === Array.from({ length: 20 }, (_, i) => i + 1).join(','), names[1], `phase ${r.won20.phase}; result ${JSON.stringify(res && { win: res.win, stage: res.stage, lap: res.lap, t: res.t })}`);
+  await page.evaluate(() => window.__resetTune());
+  await sleep(1500);
+  const txt = await page.evaluate(() => [...document.querySelectorAll('.ov.on, #ovDead, #ovWin, #results')].map(e => e.textContent).join(' | ').replace(/\s+/g, ' ').slice(0, 600));
+  ok(/\b20\s*\/\s*20\b|\/\s*20\b/.test(txt) && !/\/\s*10\b/.test(txt), names[2], `results text: ${txt.slice(0, 240)}`);
+  finishErrors(errors, null);
+  await ctx.close();
+}
+
 // ---------- P1 run flow (also runs the P0 loop) ----------
 // Drives a whole run with __pv.step: clear rooms, walk to chest/door, pick cards, take supply, fight the boss.
 async function domCards(page) {
@@ -793,7 +838,7 @@ async function homeSession(browser, target, sess) {
   page.on('console', m => { if (m.type() === 'error') errors.push('console: ' + m.text().slice(0, 200)); });
   page.on('pageerror', e => errors.push('pageerror: ' + e.message.slice(0, 200)));
   page.on('requestfailed', r => errors.push('requestfailed: ' + r.url().replace(/^.*\/pages\//, '') + ' ' + ((r.failure() || {}).errorText || '')));
-  const url = 'file://' + target.file + '?seed=' + SEED + '&gpu=0&fresh=1&title=0';   // no home=0 (F1 A: title=0 skips the title screen)
+  const url = 'file://' + target.file + '?seed=' + SEED + '&gpu=0&fresh=1&title=0&chlen=10';   // no home=0 (F1 A: title=0 skips the title screen)
   try {
     await page.goto(url);
     await page.waitForFunction(() => window.__pv && window.__pv.S && window.__pv.S.hero && window.V && window.V.Meta && window.V.Home, null, { timeout: 20000 });
@@ -917,6 +962,11 @@ if (require.main === module) (async () => {
   if (!process.env.E2E_SESS && !argv.includes('--no-f1')) {
     try { const b2 = await chromium.launch({ headless: true, args: GPU_ARGS }); await require('./e2e-f1.js').run({ browser: b2 }); await b2.close(); }
     catch (e) { curTag = 'f1'; row('F1 feature checks crashed', 'FAIL', e.message.split('\n')[0]); }
+  }
+  // v2 (K): the 20-stage chapter rows run on the built index.html only (SKIP while the build lacks C's rows 11-20).
+  if (!process.env.E2E_SESS && !argv.includes('--quick') && (!ONLY || ONLY === 'index')) {
+    try { const b3 = await chromium.launch({ headless: true, args: GPU_ARGS }); const tg = TARGETS.find(t => t.name.startsWith('index')); if (tg) await v20Session(b3, tg); await b3.close(); }
+    catch (e) { curTag = 'v20'; row('20-stage rows crashed', 'FAIL', e.message.split('\n')[0]); }
   }
   curTag = 'cross-session';
   if (dets.length > 1) {

@@ -73,7 +73,7 @@ function render(){
   var M = meta(), st = M.state || T.STUB.state, t = totals();
   var headU = asset(KEYS.head), runs = (st.runs || []).slice(-10).reverse(), all = st.runs || [], wins = 0, i;
   for (i = 0; i < all.length; i++) if (all[i] && all[i].win) wins++;
-  var best = st.best || 0, bestMax = 10;
+  var best = st.best || 0, bestMax = (V.chapterLen ? V.chapterLen(1) : 10);
   var hpB = t.hp - t.hp0, atkB = t.atk - t.atk0, rB = t.rate - 1 / t.iv0;
   function bonus(n, unit){ return n ? ' <em>+' + fmt(n) + (unit || '') + '</em>' : ''; }
   var rows = '<div class="row"><span>Max HP</span><i>' + fmt(t.hp0) + bonus(hpB) + '</i><b>' + fmt(t.hp) + '</b></div>' +

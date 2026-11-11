@@ -1,0 +1,335 @@
+{
+ "genVersion": 1,
+ "chapter": 1,
+ "hash": "337e5ba2e4762f164ab7c86d30c2c63a489ea34618b42409dae356771d864819",
+ "rooms": [
+  {
+   "chapter": 1,
+   "stage": 11,
+   "genVersion": 1,
+   "templateId": "T03",
+   "room": "c1s11v0",
+   "shift": 0,
+   "swap": 1,
+   "salt": 0,
+   "machines": {
+    "E-01": 2,
+    "E-02": 2,
+    "E-04": 1
+   },
+   "ME": 4.7,
+   "role": "Rec",
+   "widths": {
+    "9": {
+     "run": 9,
+     "cover": 10,
+     "haz": 0
+    },
+    "11": {
+     "run": 11,
+     "cover": 8.2,
+     "haz": 0
+    },
+    "13": {
+     "run": 13,
+     "cover": 10,
+     "haz": 0
+    },
+    "15": {
+     "run": 15,
+     "cover": 8.7,
+     "haz": 0
+    }
+   },
+   "hash": "38ceaf62cacf9f4d5493b2575ae8d16df11f076893e8cdb3071832b408050894"
+  },
+  {
+   "chapter": 1,
+   "stage": 12,
+   "genVersion": 1,
+   "templateId": "T02",
+   "room": "c1s12v0",
+   "shift": -1,
+   "swap": 1,
+   "salt": 0,
+   "machines": {
+    "E-01": 1,
+    "E-02": 2,
+    "E-04": 2
+   },
+   "ME": 5.3,
+   "role": "Bld",
+   "widths": {
+    "9": {
+     "run": 9,
+     "cover": 8.9,
+     "haz": 0
+    },
+    "11": {
+     "run": 11,
+     "cover": 7.3,
+     "haz": 0
+    },
+    "13": {
+     "run": 13,
+     "cover": 9.2,
+     "haz": 0
+    },
+    "15": {
+     "run": 15,
+     "cover": 8,
+     "haz": 0
+    }
+   },
+   "hash": "956f9e269226e5d85cc8b553126e9331b1f26c2114308bf252641b69c3e124cc"
+  },
+  {
+   "chapter": 1,
+   "stage": 13,
+   "genVersion": 1,
+   "templateId": "T04",
+   "room": "c1s13v0",
+   "shift": 1,
+   "swap": 2,
+   "salt": 0,
+   "machines": {
+    "E-01": 1,
+    "E-02": 4,
+    "E-05": 1
+   },
+   "ME": 6,
+   "role": "Bld",
+   "widths": {
+    "9": {
+     "run": 9,
+     "cover": 11.1,
+     "haz": 0
+    },
+    "11": {
+     "run": 11,
+     "cover": 9.1,
+     "haz": 0
+    },
+    "13": {
+     "run": 13,
+     "cover": 10.8,
+     "haz": 0
+    },
+    "15": {
+     "run": 15,
+     "cover": 9.3,
+     "haz": 0
+    }
+   },
+   "hash": "7cf3a5491fe406544f2614aaad5da76892e234b87cb65a7d1b3212d42bba8e3e"
+  },
+  {
+   "chapter": 1,
+   "stage": 14,
+   "genVersion": 1,
+   "templateId": "T02",
+   "room": "c1s14v0",
+   "shift": 0,
+   "swap": 2,
+   "salt": 1,
+   "machines": {
+    "E-01": 1,
+    "E-02": 4,
+    "E-03": 1,
+    "E-05": 1
+   },
+   "ME": 7,
+   "role": "Prs",
+   "widths": {
+    "9": {
+     "run": 9,
+     "cover": 8.9,
+     "haz": 0
+    },
+    "11": {
+     "run": 11,
+     "cover": 7.3,
+     "haz": 0
+    },
+    "13": {
+     "run": 13,
+     "cover": 9.2,
+     "haz": 0
+    },
+    "15": {
+     "run": 15,
+     "cover": 8,
+     "haz": 0
+    }
+   },
+   "hash": "de7efee1e16c1a1fd0aec42cf71ecc09ab41599457086183bf3cf078cf21a045"
+  },
+  {
+   "chapter": 1,
+   "stage": 15,
+   "genVersion": 1,
+   "templateId": "SD",
+   "room": "SD",
+   "shift": 0,
+   "swap": 0,
+   "salt": 0,
+   "machines": {},
+   "ME": 0,
+   "hash": "e3eca4007b8382fa58c42faca51d4612609c0c44046fadea54970a367226b962"
+  },
+  {
+   "chapter": 1,
+   "stage": 16,
+   "genVersion": 1,
+   "templateId": "T04",
+   "room": "c1s16v0",
+   "shift": 0,
+   "swap": 2,
+   "salt": 0,
+   "machines": {
+    "E-01": 2,
+    "E-02": 2,
+    "E-04": 1
+   },
+   "ME": 4.7,
+   "role": "Rec",
+   "widths": {
+    "9": {
+     "run": 9,
+     "cover": 13.3,
+     "haz": 0
+    },
+    "11": {
+     "run": 11,
+     "cover": 10.9,
+     "haz": 0
+    },
+    "13": {
+     "run": 13,
+     "cover": 12.3,
+     "haz": 0
+    },
+    "15": {
+     "run": 15,
+     "cover": 10.7,
+     "haz": 0
+    }
+   },
+   "hash": "8f74d50e01916e1bf061bfd30d337fc74e9cbb331a61826b8e098d7b6dc68544"
+  },
+  {
+   "chapter": 1,
+   "stage": 17,
+   "genVersion": 1,
+   "templateId": "T03",
+   "room": "c1s17v0",
+   "shift": 0,
+   "swap": 2,
+   "salt": 0,
+   "machines": {
+    "E-01": 1,
+    "E-02": 2,
+    "E-03": 1,
+    "E-04": 1,
+    "E-05": 1
+   },
+   "ME": 6.3,
+   "role": "Bld",
+   "widths": {
+    "9": {
+     "run": 9,
+     "cover": 10,
+     "haz": 0
+    },
+    "11": {
+     "run": 11,
+     "cover": 8.2,
+     "haz": 0
+    },
+    "13": {
+     "run": 13,
+     "cover": 10,
+     "haz": 0
+    },
+    "15": {
+     "run": 15,
+     "cover": 8.7,
+     "haz": 0
+    }
+   },
+   "hash": "b7d4baf9179e168a59c74353dc46d6e6682a815a875c5624e103279dd9eecb7c"
+  },
+  {
+   "chapter": 1,
+   "stage": 18,
+   "genVersion": 1,
+   "templateId": "T05",
+   "room": "c1s18v0",
+   "shift": 0,
+   "swap": 0,
+   "salt": 5,
+   "machines": {
+    "E-01": 2,
+    "E-02": 2,
+    "E-03": 1,
+    "E-04": 1,
+    "E-05": 2
+   },
+   "ME": 8.3,
+   "role": "Spk",
+   "widths": {
+    "9": {
+     "run": 9,
+     "cover": 4.4,
+     "haz": 6.7
+    },
+    "11": {
+     "run": 11,
+     "cover": 3.6,
+     "haz": 7.3
+    },
+    "13": {
+     "run": 13,
+     "cover": 3.1,
+     "haz": 7.7
+    },
+    "15": {
+     "run": 15,
+     "cover": 2.7,
+     "haz": 8
+    }
+   },
+   "hash": "18aeca5e1158813e0f12b404b8a67b9dd39bd4cfc2379f4048d70e8a2eb301af"
+  },
+  {
+   "chapter": 1,
+   "stage": 19,
+   "genVersion": 1,
+   "templateId": "CA1",
+   "room": "CA1",
+   "shift": 0,
+   "swap": 0,
+   "salt": 0,
+   "machines": {
+    "E-01": 2
+   },
+   "ME": 1.4,
+   "hash": "a038dc7363bb6e1d06b06b693772c6a0d6b063b33c4ccc03adddbd41e6972c06"
+  },
+  {
+   "chapter": 1,
+   "stage": 20,
+   "genVersion": 1,
+   "templateId": "BA2",
+   "room": "c1s20v0",
+   "shift": 0,
+   "swap": 0,
+   "salt": 0,
+   "machines": {
+    "B-01": 1
+   },
+   "ME": 0,
+   "hash": "0e4e0304784d3ca54ec63738eef07a1a08e95b03c2fa83f7a17eec343431a506"
+  }
+ ]
+}

@@ -3,6 +3,7 @@
 'use strict';
 var path = require('path'), fs = require('fs'), vm = require('vm');
 var bot = require('./bot.js'), V = bot.V;
+V.SimOpts = V.SimOpts || {}; V.SimOpts.chlen = 10;   // J: the flows here assume a 10-stage chapter
 require(path.join(__dirname, 'parts', 'catch.js'));
 require(path.join(__dirname, 'parts', 'catch-ui.js'));
 require(path.join(__dirname, 'parts', 'catch-scene.js'));

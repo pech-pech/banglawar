@@ -18,7 +18,7 @@ var root, body, bar, panes = {}, mounted = {}, tabBtns = {}, vis = true, crN, cr
 
 function fmt(n){ return String(Math.round(n || 0)).replace(/\B(?=(\d{3})+(?!\d))/g, ','); }
 var CH_LEN = 10;   // Chapter 1 stage count (P1 shows best / 10). QA-HOME 11: best is clamped to this.
-function chLen(){ var st = V.Data && V.Data.stages, c = st && st.ch1; return (Array.isArray(c) && c.length > 0) ? c.length : CH_LEN; }   // V.Data from agent B's data-stages.js
+function chLen(){ if (V.chapterLen) return V.chapterLen(1); var st = V.Data && V.Data.stages, c = st && st.ch1; return (Array.isArray(c) && c.length > 0) ? c.length : CH_LEN; }   // V.chapterLen (meta.js) honours ?chlen   // V.Data from agent B's data-stages.js
 function meta(){ return V.Meta && V.Meta.state; }
 
 // ---- Deploy roll (picks 25-27; 02 T16, 05 3.10) ----
@@ -166,7 +166,7 @@ V.Tabs.deploy = {
     el.innerHTML =
       '<div class="pv-chapter hm-card"><div class="pv-chapter__art"><img alt="" decoding="async"></div>' +
       '<div class="hm-info"><span class="pv-badge pv-badge--cyan">Ch 1</span><div class="pv-chapter__title">Outer Perimeter</div>' +
-      '<div class="pv-small pv-num">10 stages</div></div></div>' +
+      '<div class="pv-small pv-num hm-len">10 stages</div></div></div>' +
       '<div class="pv-panel pv-panel--inset hm-best"><span class="pv-stencil pv-muted">Best stage</span><span class="pv-num hm-bestn">-</span></div>' +
       '<div class="pv-panel pv-panel--inset hm-roll" aria-live="polite"><div class="hr-top"><span class="pv-stencil pv-muted">Deploy roll</span><span class="hr-pips"></span></div>' +
       '<div class="hr-row"><span class="hr-gl" aria-hidden="true"></span><div class="hr-tx"><span class="hr-kind"></span><b class="hr-name"></b><span class="hr-eff"></span></div>' +
@@ -185,6 +185,7 @@ V.Tabs.deploy = {
     var m = meta(), n = this.el.querySelector('.hm-bestn');
     var len = chLen(), best = Math.max(0, Math.min(len, (m && m.best) | 0));
     n.innerHTML = fmt(best) + '<span class="pv-muted"> / ' + len + '</span>';
+    var hl = this.el.querySelector('.hm-len'); if (hl) hl.textContent = len + ' stages';
     dep.el = this.el; dep.fresh = false; dep.confirmT = 0;
     if (!DP()) { var bx = this.el.querySelector('.hm-roll'); if (bx) bx.style.display = 'none'; return; }
     depLoad(); dep.armAt = nowMs() + GUARD_MS;

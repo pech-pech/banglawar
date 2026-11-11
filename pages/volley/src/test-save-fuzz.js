@@ -4,6 +4,7 @@
 var path = require('path');
 ['data-stages', 'data-enemies', 'tune', 'rng', 'rooms', 'stages', 'mods', 'meta', 'sim', 'ai-p0', 'ai-p1', 'boss'].forEach(function(f){ require(path.join(__dirname, 'parts', f + '.js')); });
 var V = globalThis.V, M = V.Meta, KEY = M.KEY, SKEY = M.SETTINGS_KEY, fails = 0, n = 0;
+V.SimOpts = V.SimOpts || {}; V.SimOpts.chlen = 10;   // J: the flows here assume a 10-stage chapter
 function ok(name, c, got){ n++; if (!c) { fails++; if (fails < 40) console.log('FAIL', name, got === undefined ? '' : String(JSON.stringify(got)).slice(0, 300)); } }
 function mock(){ var d = {}; return { d:d, getItem:function(k){ return k in d ? d[k] : null; }, setItem:function(k, v){ d[k] = String(v); }, removeItem:function(k){ delete d[k]; } }; }
 function valid(s){ return !!M.validate(JSON.parse(JSON.stringify(s))); }

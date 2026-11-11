@@ -5,7 +5,7 @@ if (V.TUNE_DEFAULTS) {
   var SHELL = { AUTO_WALK: true, AUTO_WALK_DELAY: 1.0, AUTO_WALK_MULT: 2, EDGE_FLASH: true, HAPTIC_HURT_MS: 40, HAPTIC_KILL_MS: 12 };
   for (var sk in SHELL) if (!(sk in V.TUNE_DEFAULTS)) { V.TUNE_DEFAULTS[sk] = SHELL[sk]; if (V.TUNE && !(sk in V.TUNE)) V.TUNE[sk] = SHELL[sk]; }
 }
-var BUILD = 'volley-f1-2';
+var BUILD = 'volley-v2-0';
 // Persist tuning (only values that differ from defaults). Every storage call is guarded. Sound on/off is NOT kept here any more:
 // V.TUNE.SOUND is a view of V.Audio's mute, saved in 'volley.settings.v1' (audio.js), so a tune reset or save wipe keeps it.
 // f0-2: sliders were being nudged by accident while scrolling the drawer (M's Fold reports showed FIRE_INTERVAL at the
@@ -156,13 +156,19 @@ UI.toast = function(text, ms){
 function roomBottom(view){ return view.oy + 15 * view.s; }
 function apronOf(view){ return view.apron != null ? view.apron : Math.max(0, view.h - roomBottom(view)); }
 var HOWTO_GAP = 8, TOAST_H = 32;   // guesses: gap under the room edge; one-line toast height (13 px text + padding)
+var toastView = null;
 UI.placeToast = function(view){
+  toastView = view;
   // In the ground apron when it has room: never over the HUD band or the room edge (L-TD-5). The apron's top part is the how-to hint's
   // place, so the toast goes under it when both fit; on squat screens (no apron) it sits just under the door row, inside the room.
   var t = $('toast'), top = roomBottom(view), ap = apronOf(view), y;
   if (ap >= 120) y = top + 70;                                   // how-to (up to ~54 px) + gaps above it
   else if (ap >= TOAST_H + 2 * HOWTO_GAP) y = top + (ap - TOAST_H) / 2;
-  else y = window.innerHeight - TOAST_H - HOWTO_GAP;              // QA-LOOK L7: squat screens use the bottom band, never the top rows where the boss stands
+  else {                                                          // D8: squat screens (no apron): just under the HUD bar, top of the room (the bottom band hid under the sandbags / covered the hero)
+    var hr = $('hpRow'), hb = hr ? hr.getBoundingClientRect().bottom : 0;
+    y = Math.max(hb, view.oy) + HOWTO_GAP;
+    var bb = $('bossBar'); if (bb && bb.style.display !== 'none') y = Math.max(y, bb.getBoundingClientRect().bottom + HOWTO_GAP);   // boss rooms: just under the boss bar (read from the element)
+  }
   t.style.top = Math.round(y) + 'px';
 };
 
@@ -203,10 +209,10 @@ UI.hud = function(S, R, view){
   var h = S.hero, room = V.ROOMS && V.ROOMS[S.roomId];
   var hp = Math.max(0, Math.ceil(h.hp)), mx = Math.max(1, Math.round(h.maxHp));
   var xpPct = h.xpNext ? Math.max(0, Math.min(1, h.xp / h.xpNext)) : 1, rr = (S.rerolls | 0);
-  var key = [S.stage, S.roomId, hp, mx, h.level, Math.round(xpPct * 200), rr, (S.mini && S.stageKind === 'collect') ? 1 : 0].join('|');
+  var key = [S.stage, S.chNo, V.chapterLen(S.chNo), S.roomId, hp, mx, h.level, Math.round(xpPct * 200), rr, (S.mini && S.stageKind === 'collect') ? 1 : 0].join('|');
   if (key !== lastHud) {
     lastHud = key;
-    $('stNum').textContent = S.stage;
+    $('stNum').textContent = S.stage + '/' + V.chapterLen(S.chNo);
     $('roomName').textContent = room ? room.name : (S.roomId || '');
     // No cut-off text (s6): when the chip cannot hold the room name (narrow screens), show only the stage; the name is toasted at room entry.
     $('lvl').textContent = 'Lv ' + h.level;
@@ -228,7 +234,7 @@ var bossKey = '';
 UI.boss = function(S, view){
   var b = S.boss, el = $('bossBar');
   var on = !!(b && b.hp > 0 && S.phase !== 'results');
-  if (!on) { if (el.style.display !== 'none') el.style.display = 'none'; bossKey = ''; return; }
+  if (!on) { if (el.style.display !== 'none') { el.style.display = 'none'; if (toastView) UI.placeToast(toastView); } bossKey = ''; return; }
   var k = [b.name, Math.ceil(b.hp), b.maxHp, b.phase, Math.round(view.ox), Math.round(view.oy), Math.round(view.s * 10), view.C].join('|');
   if (k === bossKey) return; bossKey = k;
   // Top of the room, inside the north wall row, so it never covers the HUD bars.
@@ -242,6 +248,7 @@ UI.boss = function(S, view){
   $('bossFill').style.width = Math.max(0, Math.min(100, b.hp / b.maxHp * 100)).toFixed(1) + '%';
   $('bossName').textContent = (b.name || 'Boss') + (b.phase === 2 ? ' - phase 2' : '');
   $('bossHp').textContent = Math.ceil(b.hp) + ' / ' + Math.round(b.maxHp);
+  if (toastView) UI.placeToast(toastView);   // the bar just moved or appeared: keep the toast clear of it
 };
 UI.howto = function(on, view){
   var el = $('howto');
@@ -445,7 +452,7 @@ UI.results = function(S){
   var r = S.result || { win: false, stage: S.stage, t: S.t, kills: S.stats && S.stats.kills, level: S.hero.level, dmgTaken: S.stats && S.stats.dmgTaken };
   var t = $('resTitle'); t.textContent = r.win ? 'Chapter 1 clear' : 'Operator down'; t.className = r.win ? 'win' : '';
   var mods = modNames(S);
-  var rows = [['Result', r.win ? 'Win' : 'Lost'], ['Stage reached', (r.stage != null ? r.stage : S.stage) + ' / 10'], ['Time', mmss(r.t != null ? r.t : S.t)],
+  var rows = [['Result', r.win ? 'Win' : 'Lost'], ['Stage reached', (r.stage != null ? r.stage : S.stage) + ' / ' + V.chapterLen(S.chNo)], ['Time', mmss(r.t != null ? r.t : S.t)],
     ['Kills', fmtN(r.kills | 0)], ['Level', r.level != null ? r.level : S.hero.level], ['Damage taken', fmtN(Math.round(r.dmgTaken || 0))], ['Mods', mods.length ? mods.join(', ') : 'none']];
   var bo = deployInfo(S); if (bo) rows.push(['Deploy boost', bo.name + ' (' + bo.tierName + '): ' + bo.text]);
   if (S.rerolls > 0) rows.push(['Rerolls banked', S.rerolls]);

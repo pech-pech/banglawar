@@ -6,7 +6,7 @@
 'use strict';
 var path = require('path'), fs = require('fs');
 globalThis.V = globalThis.V || {};
-var PARTS = ['tune', 'rng', 'rooms', 'stages', 'mods', 'sim', 'ai-p0', 'ai-p1', 'boss'];
+var PARTS = ['tune', 'rng', 'rooms', 'stages', 'data-stages-gen', 'mods', 'sim', 'ai-p0', 'ai-p1', 'boss'];
 var loaded = [];
 PARTS.forEach(function (f) {
   var p = path.join(__dirname, 'parts', f + '.js');
@@ -18,12 +18,15 @@ var V = globalThis.V;
 
 var ARGV = process.argv.slice(2).filter(function (a) { return a.slice(0, 2) !== '--'; });
 var FLAGS = {}; process.argv.slice(2).forEach(function (a) { var m = /^--([^=]+)(?:=(.*))?$/.exec(a); if (m) FLAGS[m[1]] = m[2] == null ? true : m[2]; });
+// v2 (K): the chapter is now as long as its stage list (20 with agent C's baked rows). The built 10-stage baselines keep V.SimOpts.chlen = 10; `--chlen=N` overrides (0 = the full list, used by `node bot.js bands`).
+var BOT_CHLEN = FLAGS.chlen != null ? +FLAGS.chlen : (process.argv[2] === 'bands' ? 0 : 10);
+if (V.SimOpts) V.SimOpts.chlen = BOT_CHLEN;
 var COLS = FLAGS.cols != null ? +FLAGS.cols : (process.env.VOLLEY_COLS ? +process.env.VOLLEY_COLS : null);   // null = old behaviour (no opts passed)
 function setCols(c) { COLS = c == null ? null : +c; }
 var WALK = FLAGS.walk != null ? +FLAGS.walk : null;   // pick 45: inp.walk during the clear phase (main.js sends 2); null = not sent
 function setWalk(w) { WALK = w == null ? null : +w; }
 var SEEDS = +ARGV[0] || 200;
-var MAX_STEPS = 20 * 3600;   // 20 game minutes cap per run (a run is 10 stages)
+var MAX_STEPS = 20 * 3600 * (BOT_CHLEN === 0 ? 2 : 1);   // 20 game minutes cap per run (a run is 10 stages; 40 minutes when the whole list runs)
 var HERO_WALL_R = 0.35, HURT = 0.28;
 var DEG = Math.PI / 180;
 
@@ -163,6 +166,24 @@ function humanSnapshot(S) {
     enemies: S.enemies.map(function (e) { return { x: e.x, y: e.y, r: e.r, type: e.type, st: e.st }; })
   };
 }
+// v2 (K): stuck-behind-cover breaker. The greedy planner has no long-range goal, so in an arena where the cover hides every enemy (stage 20's BA2 posts and bar) it can sit out of line for the whole run.
+// After LOS_PATIENCE replans (about 6 s) with no clear line to any live enemy, walk (BFS over floor tiles) to the nearest tile that has one. Rooms where the bot always keeps a line never reach it.
+var LOS_PATIENCE = (BOT_CHLEN === 0 || FLAGS.seek) ? 40 : 1e9;   // on for the full-list run (`bands`) or --seek; off for the 10-stage baselines so BOT-RESULTS numbers do not move (27 of 400 human/skilled runs differ when on, all by being stuck out of line)
+function seekLosDir(S) {
+  var h = S.hero, g = grid(S), W = S.room.w, H = S.room.h, t = S.tune, tgt = S.enemies.filter(function (e) { return e.st !== 'spawn' && !e.hidden; });
+  if (!tgt.length) return null;
+  var sx = Math.max(0, Math.min(W - 1, Math.floor(h.x))), sy = Math.max(0, Math.min(H - 1, Math.floor(h.y))), seen = {}, q = [[sx, sy]]; seen[sx + ',' + sy] = 1;
+  while (q.length) {
+    var c = q.shift();
+    for (var i = 0; i < tgt.length; i++) if (V.Sim.clearLine(S, c[0] + 0.5, c[1] + 0.5, tgt[i].x, tgt[i].y, t.ROUND_R)) return (c[0] === sx && c[1] === sy) ? null : bfsDir(S, c[0], c[1], true) || bfsDir(S, c[0], c[1], false);
+    [[0, 1], [0, -1], [1, 0], [-1, 0]].forEach(function (o) {
+      var nx = c[0] + o[0], ny = c[1] + o[1], key = nx + ',' + ny;
+      if (nx < 0 || ny < 1 || nx >= W || ny >= H || seen[key] || g[ny][nx] === '#' || g[ny][nx] === '^') return;
+      seen[key] = 1; q.push([nx, ny]);
+    });
+  }
+  return null;
+}
 function humanInput(S, B) {
   B.hist.push(humanSnapshot(S)); if (B.hist.length > 20) B.hist.shift();
   if (S.phase === 'clear') return clearInput(S);
@@ -180,6 +201,10 @@ function humanInput(S, B) {
   for (i = 0; i < late.shells.length; i++) Z.push([late.shells[i][0], late.shells[i][1], late.shells[i][2], late.shells[i][3] - 0.25]);
   B.cmd = planMove(S, { P: P, Z: Z }, late.enemies, { stillBias: 0.9 });
   B.hold = 9;
+  var seeLine = false, hh = S.hero;
+  for (i = 0; i < S.enemies.length && !seeLine; i++) if (S.enemies[i].st !== 'spawn' && V.Sim.clearLine(S, hh.x, hh.y, S.enemies[i].x, S.enemies[i].y, S.tune.ROUND_R)) seeLine = true;
+  B.noLos = seeLine || !S.enemies.length ? 0 : (B.noLos || 0) + 1;
+  if (B.noLos > LOS_PATIENCE) { var sd = seekLosDir(S); if (sd) { B.cmd = sd; B.hold = 4; } }
   return B.cmd;
 }
 function naiveInput(S, B) {
@@ -861,9 +886,34 @@ out('Rule checks failed: ' + nFail);
 out('Run time ' + ((Date.now() - t0) / 1000).toFixed(1) + ' s');
 fs.writeFileSync(COLS != null ? path.join(__dirname, 'sim', 'out', 'bot-C' + COLS + '.txt') : path.join(__dirname, 'BOT-RESULTS.txt'), lines.join('\n') + '\n');
 }
+
+// v2 (K): `node bot.js bands [seeds=200] [outPath]` = full-list run (no chlen cap) with the human bot at 9 columns; clear %, win-seconds and credits bands. Report data, not a gate.
+function bandsRun(nSeeds, outPath) {
+  var len = V.Sim.stageList().length;
+  var runs = [], s;
+  for (s = 1; s <= nSeeds; s++) runs.push(runOne(s, 'human', MAX_STEPS, null, null));
+  var wins = runs.filter(function (r) { return r.win; }), deaths = runs.filter(function (r) { return r.dead; }), tos = runs.filter(function (r) { return r.timeout; });
+  function band(a, d) { return a.length ? 'p10 ' + pct(a, 0.1).toFixed(d) + ' / median ' + pct(a, 0.5).toFixed(d) + ' / p90 ' + pct(a, 0.9).toFixed(d) : '-'; }
+  var L = [];
+  L.push('# K-BANDS: human bot over the full ' + len + '-stage list, ' + nSeeds + ' seeds, ' + (COLS || 9) + ' columns (report data, not a gate)');
+  L.push('Run ' + new Date().toISOString() + '; `node src/bot.js bands ' + nSeeds + '` with --cols=' + (COLS || 9) + '; chlen cap off (V.SimOpts.chlen = ' + V.SimOpts.chlen + '); stage list length ' + len + '.');
+  L.push('');
+  L.push('- clear: ' + wins.length + '/' + nSeeds + ' (' + (100 * wins.length / nSeeds).toFixed(1) + '%); died ' + deaths.length + '; timed out ' + tos.length);
+  L.push('- win seconds: ' + band(wins.map(function (r) { return r.S.result.t; }), 1));
+  L.push('- credits (wins): ' + band(wins.map(function (r) { return r.S.result.credits; }), 0));
+  L.push('- credits (deaths): ' + band(deaths.map(function (r) { return r.S.result.credits; }), 0));
+  L.push('- credits (all runs): ' + band(runs.filter(function (r) { return r.S.result; }).map(function (r) { return r.S.result.credits; }), 0));
+  L.push('- death stage: ' + band(deaths.map(function (r) { return r.stage; }), 0));
+  var by = []; for (var st = 1; st <= len; st++) by.push(st + ':' + deaths.filter(function (r) { return r.stage === st; }).length);
+  L.push('- deaths by stage: ' + by.join(' '));
+  if (len < 20) L.push('- NOTE: stage list has only ' + len + ' rows; agent C rows 11-20 are not loaded, so this is NOT a 20-stage band.');
+  console.log(L.join('\n'));
+  if (outPath) fs.writeFileSync(outPath, L.join('\n') + '\n');
+}
 if (require.main === module) {   // K: `node bot.js catch [seeds] [outPath]` runs only the catch-room rows and SD-CHOICE (never BOT-RESULTS.txt)
-  if (process.argv[2] === 'catch') { var ns = +process.argv[3] || 200, op = process.argv[4] || null; catchRows(ns, op); sdChoice(Math.min(ns, 200), op ? op.replace(/\.txt$/, '') + '-sdchoice.txt' : null); }
+  if (process.argv[2] === 'bands') bandsRun(+process.argv[3] || 200, process.argv[4] || null);
+  else if (process.argv[2] === 'catch') { var ns = +process.argv[3] || 200, op = process.argv[4] || null; catchRows(ns, op); sdChoice(Math.min(ns, 200), op ? op.replace(/\.txt$/, '') + '-sdchoice.txt' : null); }
   else main();
 }
 module.exports = { V: V, runOne: runOne, setCols: setCols, setWalk: setWalk, cornerBossCheck: cornerBossCheck, cornerShooterCheck: cornerShooterCheck, bossBotCheck: bossBotCheck, cornerShooterInput: cornerShooterInput, pct: pct, mean: mean, MAX_STEPS: MAX_STEPS, INPUT: INPUT };
-Object.assign(module.exports, { catchRoom: catchRoom, CATCH_KNOBS: CATCH_KNOBS, catchBotInput: catchBotInput, playCatch: playCatch, planFor: planFor, catchRows: catchRows, sdChoice: sdChoice, runSdChoice: runSdChoice });   // K
+Object.assign(module.exports, { catchRoom: catchRoom, CATCH_KNOBS: CATCH_KNOBS, catchBotInput: catchBotInput, playCatch: playCatch, planFor: planFor, catchRows: catchRows, sdChoice: sdChoice, runSdChoice: runSdChoice, bandsRun: bandsRun });   // K

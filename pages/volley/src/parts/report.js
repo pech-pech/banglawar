@@ -44,6 +44,18 @@ var BANDS = {
     lowestHp:     null
   }
 };
+// Chapter length and pay by stage kind (A-REPORT): the run's own stage list (V.Sim.stageList, which respects V.SimOpts.chlen), never a literal 10.
+var SLICE_LEN = 10, PAY = { combat: 13, cache: 54, boss: 40 };
+function listFor(S){
+  try {
+    if (V.Sim && V.Sim.stageList) return V.Sim.stageList((S && S.chNo) || 1, S);
+    var l = V.STAGES && V.STAGES['ch' + ((S && S.chNo) || 1)], c = V.SimOpts && V.SimOpts.chlen;
+    return l && c > 0 ? l.slice(0, c) : l;
+  } catch (e) { return null; }
+}
+function chLenOf(S){ var l = listFor(S); return l && l.length ? l.length : SLICE_LEN; }
+// Credits banked by clearing stages 1..n-1 (a death at stage n), from the pay table by stage kind; stage 5-style supply rooms pay 0. Matches byStage 1..10.
+function paidBefore(n, list){ var t = 0; for (var i = 0; i < n - 1 && i < list.length; i++) t += PAY[list[i].kind] || 0; return t; }
 function mark(v, lo, hi){ if (v == null || lo == null) return 'no band'; return v < lo ? 'below' : (v > hi ? 'above' : 'ok'); }
 
 // ---------- small helpers ----------
@@ -62,6 +74,13 @@ function isoLocal(ms){   // ISO 8601 local time with the offset, e.g. 2026-11-12
 }
 function r1(x){ return Math.round(x * 10) / 10; }
 function build(){ return (V.UI && V.UI.BUILD) || 'unknown'; }
+// Bake hash (GEN-SPEC 4.4): V.BAKE_HASH / V.Data.bakeHash when the build injects it, else (Node) src/bake.hash, else 'none'.
+function bakeHash(){
+  var h = V.BAKE_HASH || (V.Data && V.Data.bakeHash);
+  if (!h && typeof require === 'function' && typeof module !== 'undefined') { try { h = require('fs').readFileSync(require('path').join(__dirname, '..', 'bake.hash'), 'utf8').trim(); } catch (e) {} }
+  return h ? String(h) : 'none';
+}
+function roomOfStage(n){ try { var row = V.STAGES && V.STAGES.ch1 && V.STAGES.ch1[n - 1]; return row && row.room ? String(row.room) : null; } catch (e) { return null; } }
 function tuneDiff(){
   var o = {};
   try { var D = V.TUNE_DEFAULTS, T = V.TUNE; for (var k in D) if (!EXCLUDE_TUNE[k] && T[k] !== D[k]) o[k] = T[k]; } catch (e) {}
@@ -125,7 +144,7 @@ function openRun(S){
     runSeconds: 0, hpMax: S.hero ? S.hero.maxHp : null, lowestHp: hpOf(S), dmgTaken: 0, kills: 0, level: 1,
     creditsEarned: 0, creditsBefore: credits(), creditsAfter: null, tuneChanged: tuneDiff(), power: power(), fresh: freshSave(),
     cols: S.cols || (S.room && S.room.w) || lay.cols || 9, tilePx: lay.tile, seed: S.seed,
-    picks: [], picksSeen: 0, tc: 0, dmgBy: {}, dmg0: 0, hits0: {}, roomTimes: [], lastT: S.t || 0, inT0: inputLast(), inT1: null };
+    roomId: S.roomId || null, chLen: chLenOf(S), chNo: S.chNo || 1, picks: [], picksSeen: 0, tc: 0, dmgBy: {}, dmg0: 0, hits0: {}, roomTimes: [], lastT: S.t || 0, inT0: inputLast(), inT1: null };
   sess.runs.push(cur);
   try { feelHide(); } catch (e) {}
   if (sess.firstFresh == null) sess.firstFresh = cur.fresh;
@@ -136,6 +155,7 @@ function sample(S){   // per frame while a run is open; cheap diffs only
   var c = cur, st = S.stats || {}, h = S.hero;
   if (h) { var hp = Math.max(0, Math.round(h.hp)); if (c.lowestHp == null || hp < c.lowestHp) c.lowestHp = hp; if (h.maxHp > (c.hpMax || 0)) c.hpMax = h.maxHp; c.level = h.level || c.level; }
   if (S.stage > c.stageReached) c.stageReached = S.stage;
+  if (S.roomId) c.roomId = S.roomId;
   var cols = S.cols || (S.room && S.room.w); if (cols) c.cols = cols;
   c.lastT = S.t || c.lastT;
   var pk = st.picks;
@@ -183,7 +203,8 @@ function closeRun(S, result, reason){
   merge(c.tuneChanged, tuneDiff());
   if (power() > c.power) c.power = power();
   c.creditsAfter = credits();
-  c.roomTimes = (st.roomTimes || []).map(function(r){ return [r.stage, r.s]; });
+  c.roomTimes = (st.roomTimes || []).map(function(r){ return [r.stage, r.s, r.roomId || roomOfStage(r.stage)]; });
+  if (!c.roomId) c.roomId = roomOfStage(c.stageReached);
   c.sd = (st.sd || []).slice(0, 12).map(sdRec);   // Supply Drop records, one per Take (K, SPEC s9)
   c.braced = st.playSteps ? Math.round(100 * (st.bracedSteps || 0) / st.playSteps) : null;
   c.inT1 = inputLast();
@@ -272,11 +293,14 @@ function saveHealth(){
 function runView(c, earlier){
   var p = c.picks || [];
   var isNew = !earlier && c.runNo > sess.reportedUpTo;
-  return { runNo: c.runNo, runBuild: c.runBuild, mark: earlier ? 'earlier' : (isNew ? 'new' : 'reported'), isNew: isNew, earlier: !!earlier, startedAt: isoLocal(c.startMs), endedAt: isoLocal(c.endMs),
-    startMs: c.startMs, endMs: c.endMs, endReason: c.endReason || '', result: c.result, stageReached: c.stageReached, runSeconds: c.runSeconds, hpMax: c.hpMax, lowestHp: c.lowestHp,
+  var row = { runNo: c.runNo, runBuild: c.runBuild, mark: earlier ? 'earlier' : (isNew ? 'new' : 'reported'), isNew: isNew, earlier: !!earlier, startedAt: isoLocal(c.startMs), endedAt: isoLocal(c.endMs),
+    startMs: c.startMs, endMs: c.endMs, endReason: c.endReason || '', result: c.result, stageReached: c.stageReached, roomId: c.roomId || roomOfStage(c.stageReached), runSeconds: c.runSeconds, hpMax: c.hpMax, lowestHp: c.lowestHp,
     dmgTaken: c.dmgTaken, kills: c.kills, level: c.level, creditsEarned: c.creditsEarned, creditsBefore: c.creditsBefore, creditsAfter: c.creditsAfter,
     tuneChanged: c.tuneChanged || {}, power: c.power || 0, freshSave: c.fresh, cols: c.cols, tilePx: c.tilePx, seed: c.seed,
     bracedUptimePct: c.braced != null ? c.braced : null, supplyDrops: c.sd || null, touchContinue: c.tc != null ? c.tc : null, feel: feelData(c.runNo), picks: p.map(function(x){ return x.id + ':' + x.lv + (x.stage ? '@' + x.stage : ''); }), damageBySource: c.dmgBy || null, roomTimes: c.roomTimes || null };
+  if ((c.chLen || SLICE_LEN) !== SLICE_LEN) row.chLen = c.chLen;   // only when not the 10-stage slice (keeps the data block small)
+  if (c.chNo > 1) row.chNo = c.chNo;
+  return row;
 }
 function fromMeta(r){   // a run saved by an earlier page load (meta run log with the F1 fields)
   return { runNo: r.runNo, runBuild: r.runBuild || '?', startMs: r.startedAt || 0, endMs: r.t, endReason: r.endReason || (r.win ? 'clear' : 'death'),
@@ -286,12 +310,14 @@ function fromMeta(r){   // a run saved by an earlier page load (meta run log wit
 }
 function bandCompare(r){
   var B = BANDS.rows, star = r.cols && r.cols !== BANDS.cols ? '*' : '', o = {};
+  var isLong = (r.chLen || SLICE_LEN) > SLICE_LEN, list = isLong ? listFor({ chNo: r.chNo }) : null;
   if (r.result === 'win') {
-    o.runSeconds = mark(r.runSeconds, B.winSeconds.lo, B.winSeconds.hi) + star;
-    o.creditsEarned = mark(r.creditsEarned, B.creditsWin.lo, B.creditsWin.hi) + star;
+    var wl = isLong && list ? paidBefore(list.length + 1, list) : B.creditsWin.lo;   // long run: the pay table over the whole list (+ pad), not the 10-stage band
+    o.runSeconds = isLong ? '10-stage slice band' : mark(r.runSeconds, B.winSeconds.lo, B.winSeconds.hi) + star;
+    o.creditsEarned = isLong ? mark(r.creditsEarned, wl, wl + B.creditsWin.pad) + star : mark(r.creditsEarned, B.creditsWin.lo, B.creditsWin.hi) + star;
     o.kills = 'ref ' + B.killsWin.ref;
   } else if (r.result === 'loss') {
-    var cd = B.creditsDeath.byStage[r.stageReached], cdHi = cd == null ? null : cd + (r.stageReached >= B.creditsDeath.padFrom ? B.creditsWin.pad : 0);
+    var cd = isLong && list ? paidBefore(r.stageReached, list) : B.creditsDeath.byStage[r.stageReached], cdHi = cd == null ? null : cd + (r.stageReached >= B.creditsDeath.padFrom ? B.creditsWin.pad : 0);
     o.runSeconds = 'no band'; o.creditsEarned = cd == null ? 'no band' : mark(r.creditsEarned, cd, cdHi) + star; o.kills = 'no band';
   } else { o.runSeconds = 'no band'; o.creditsEarned = 'no band'; o.kills = 'no band'; }
   return o;   // picks (ref 3.84), lowestHp and dmgTaken have no band: see the bands table
@@ -342,7 +368,7 @@ function model(){
     device: { window: (G.innerWidth | 0) + 'x' + (G.innerHeight | 0), viewport: lay.viewport, dpr: G.devicePixelRatio || 1, displayMode: dm, orientation: ori,
       roomColumns: (cur && cur.cols) || (counted.length ? counted[counted.length - 1].cols : lay.cols), tilePx: lay.tile, frameFillPct: lay.fill, layoutSource: lay.src,
       renderer: met ? met.renderer : 'unknown', ua: (G.navigator && navigator.userAgent) || '' },
-    buildInfo: { build: build(), buildsInSession: bl, tuneChanged: tune, bandsVersion: BANDS.version, settings: V.TUNE || null },
+    buildInfo: { build: build(), bakeHash: bakeHash(), buildsInSession: bl, tuneChanged: tune, bandsVersion: BANDS.version, settings: V.TUNE || null },
     economy: { credits: credits(), rifleLevel: m && m.rifle ? m.rifle.lvl : null, cond: m ? m.cond : null, runCount: m && m.runs ? m.runs.length : null, best: m ? m.best : null,
       power: power(), freshSave: (function(){ var f = sess.firstFresh != null ? sess.firstFresh : freshSave(); return f ? 'yes' : 'no'; })(),   // run 1 of this page load began from a zero save
       purchaseLog: purchaseLog(rows) },
@@ -415,14 +441,15 @@ function summaryText(md){
   var pl = eco.purchaseLog;
   md.rows.forEach(function(r){
     var bc = r.bandCompare, bought = pl.filter(function(p){ return p.run === r.runNo - 1; }).map(function(p){ return p.item + (p.levels > 1 ? ' +' + p.levels : '') + ' (' + p.price + ')'; }).join(', ') || 'none';
-    var cb = r.result === 'win' ? B.creditsWin.lo : B.creditsDeath.byStage[r.stageReached];   // lower edge printed; the pad makes the real band reach up to +pad
-    L.push(rpad(r.runNo + (r.isNew ? '*' : (r.earlier ? 'e' : '')), 5) + rpad(r.result === 'abandon' ? 'ABAND' : r.result.toUpperCase(), 8) + rpad(r.stageReached + '/10', 7) +
+    var lst = (r.chLen || SLICE_LEN) > SLICE_LEN ? listFor({ chNo: r.chNo }) : null;
+    var cb = r.result === 'win' ? (lst ? paidBefore(lst.length + 1, lst) : B.creditsWin.lo) : (lst ? paidBefore(r.stageReached, lst) : B.creditsDeath.byStage[r.stageReached]);   // lower edge printed; the pad makes the real band reach up to +pad
+    L.push(rpad(r.runNo + (r.isNew ? '*' : (r.earlier ? 'e' : '')), 5) + rpad(r.result === 'abandon' ? 'ABAND' : r.result.toUpperCase(), 8) + rpad(r.stageReached + '/' + (r.chLen || SLICE_LEN), 7) +
       rpad(Math.round(r.runSeconds || 0) + ' s (' + bc.runSeconds + ')', 22) + rpad((r.lowestHp != null ? r.lowestHp : '?') + '/' + (r.hpMax != null ? r.hpMax : '?'), 11) +
       rpad(r.creditsEarned + ' (' + (cb != null && r.result !== 'abandon' ? cb + ' ' : '') + bc.creditsEarned + ')', 17) + bought);
   });
   if (cur) L.push(rpad(cur.runNo, 5) + 'IN PROGRESS stage ' + ((lastS && lastS.stage) || cur.stageReached) + ' (not counted)');
   if (!md.rows.length && !cur) L.push('(no runs yet)');
-  L.push('Marks: * = new this session (in the verdict), e = earlier page load, unmarked = already reported. Clear ' + md.wins + '/' + md.fin + (md.fin < 10 ? ' (n = ' + md.fin + ', too few)' : '') + ' vs bot ' + B.clearPct.lo + '%');
+  L.push('Marks: * = new this session (in the verdict), e = earlier page load, unmarked = already reported. Clear ' + md.wins + '/' + md.fin + (md.fin < 10 ? ' (n = ' + md.fin + ', too few)' : '') + ' vs bot ' + B.clearPct.lo + '%' + (md.rows.some(function(r){ return (r.chLen || SLICE_LEN) > SLICE_LEN; }) ? ' (10-stage slice band; runs over 10 stages are not judged against it)' : ''));
   var fp = md.perf.frameMs.play, fm = md.perf.frameMs.menu, gt = md.perf.gaps.map(function(g){ return g.stage; }).join(', ');
   L.push('Frame, play only: p50 ' + fp.p50 + ' ms, p95 ' + fp.p95 + ' ms, max ' + fp.max + ' ms (' + fp.n + ' frames); ' + md.gapsN + ' gaps over 50 ms' + (gt ? ' (stage ' + gt + ')' : '') + ' | menu p50 ' + fm.p50 + ', p95 ' + fm.p95);
   var tcs = md.rows.filter(function(r){ return r.touchContinue > 0; }).map(function(r){ return 'R' + r.runNo + ' ' + r.touchContinue; }).join(', ');
@@ -462,7 +489,7 @@ function dataBlock(md, summaryLen){
   var trimmed = [];
   var blk = { session: md.session, device: md.device, build: md.buildInfo, save: md.save, economy: md.economy, perf: md.perf, audio: md.audio,
     bands: compactBands(), trimmed: trimmed,
-    legend: 'picks id:level@stage; roomTimes [stage, s]; damageBySource {stage: {source: damage}}; times ISO local; mark new = in the verdict', runs: runs };
+    legend: 'picks id:level@stage; roomTimes [stage, s, roomId]; roomId = room of the last stage reached; build.bakeHash; damageBySource {stage: {source: damage}}; times ISO local; mark new = in the verdict', runs: runs };
   if (cur) blk.runInProgress = { runNo: cur.runNo, stage: lastS && lastS.stage, runSeconds: r1(cur.lastT || 0), lowestHp: cur.lowestHp, hpMax: cur.hpMax, tuneChanged: cur.tuneChanged };
   function size(){ return summaryLen + 1 + utf8len(blockJson(blk)); }
   // spec section 3 drop order

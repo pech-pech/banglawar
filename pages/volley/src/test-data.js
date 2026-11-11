@@ -3,9 +3,10 @@
 var path = require('path');
 var P = function(f){ return path.join(__dirname, 'parts', f + '.js'); };
 // data parts first, then the parts that read them, in game load order (game.html)
-['data-stages', 'data-enemies', 'tune', 'rng', 'rooms', 'stages', 'mods', 'sim', 'ai-p0', 'ai-p1', 'boss'].forEach(function(f){ require(P(f)); });
+['data-stages', 'data-stages-gen', 'data-enemies', 'tune', 'rng', 'rooms', 'stages', 'mods', 'sim', 'ai-p0', 'ai-p1', 'boss'].forEach(function(f){ require(P(f)); });
 var V = globalThis.V, D = V.Data, fails = 0, n = 0;
 var HASH600 = '0a3f24e4';
+var ROWS10 = 'e99cd57c';   // djb2-xor of JSON.stringify(V.Data.stages.ch1.slice(0, 10)) as built (stages 1-10 frozen)
 function ok(name, c, got){ n++; if (!c) { fails++; console.log('FAIL', name, got === undefined ? '' : JSON.stringify(got)); } }
 function isNum(v){ return typeof v === 'number' && isFinite(v); }
 function keys(o){ return Object.keys(o).sort().join(); }
@@ -61,7 +62,8 @@ ok('V.Sim.ENEMIES reports the table', JSON.stringify(V.Sim.ENEMIES) === JSON.str
 // ---- rooms ----
 var W = 9, H = 15, LEGEND = '#.SDe^CBP', COVERS = { pillar:1, block:1 };
 var R = D.rooms, rids = Object.keys(R);
-ok('rooms R01-R03 + SD, CA1, BA1', keys(R) === 'BA1,CA1,R01,R02,R03,SD', keys(R));
+// the six built rooms, plus baked rooms c1sNNv0 (GEN-SPEC 3.3, parts/data-stages-gen.js) once they land
+ok('rooms R01-R03 + SD, CA1, BA1 (+ baked c1sNNv0 rooms)', keys(R).split(',').filter(function(k){ return !/^c1s\d+v\d+$/.test(k); }).join() === 'BA1,CA1,R01,R02,R03,SD', keys(R));
 ok('roomOrder lists template rooms that exist', Array.isArray(D.roomOrder) && D.roomOrder.length > 0 && D.roomOrder.every(function(id){ return id in R; }), D.roomOrder);
 function tile(g, x, y){ x = Math.floor(x); y = Math.floor(y); return (y >= 0 && y < H && x >= 0 && x < W) ? g[y][x] : null; }
 rids.forEach(function(id){
@@ -85,7 +87,8 @@ rids.forEach(function(id){
 var KINDS = { combat:1, supply:1, cache:1, boss:1 };
 var ch = D.stages.ch1;
 ok('stages has ch1 and the debug stress room', keys(D.stages) === 'ch1,stress', keys(D.stages));
-ok('ch1 has 10 rows numbered 1..10', Array.isArray(ch) && ch.length === 10 && ch.every(function(s, i){ return s.stage === i + 1; }), ch && ch.length);
+ok('ch1 has at least the 10 built rows, numbered 1..N', Array.isArray(ch) && ch.length >= 10 && ch.every(function(s, i){ return s.stage === i + 1; }), ch && ch.length);
+ok('rows 1-10 are frozen (pick 55): JSON checksum of the built rows', (function(){ var h = 5381, j = JSON.stringify(ch.slice(0, 10)); for (var i = 0; i < j.length; i++) h = ((h * 33) ^ j.charCodeAt(i)) >>> 0; return h.toString(16); })() === ROWS10, 'rows 1-10 changed');
 ch.forEach(function(s){
   var id = 'stage ' + s.stage, g = R[s.room] && R[s.room].grid;
   ok(id + ' fields', keys(s) === 'kind,note,room,spawns,stage', keys(s));
@@ -99,7 +102,7 @@ ch.forEach(function(s){
   else ok(id + ' non-boss row spawns no boss', s.spawns.every(function(p){ return !(E[p.type] && E[p.type].boss); }));
   s.spawns.forEach(function(p, i){
     var at = id + ' spawn ' + i;
-    ok(at + ' fields', keys(p) === 't,type,x,y', keys(p));
+    ok(at + ' fields', keys(p) === 't,type,x,y' || keys(p) === 't,type,wave,x,y', keys(p));   // wave is optional (GEN-SPEC 3.3)
     ok(at + ' known type', p.type in E, p.type);
     ok(at + ' t 0-30 s', isNum(p.t) && p.t >= 0 && p.t <= 30, p.t);
     ok(at + ' on floor', g && isNum(p.x) && isNum(p.y) && tile(g, p.x, p.y) !== null && tile(g, p.x, p.y) !== '#', p);
@@ -107,7 +110,7 @@ ch.forEach(function(s){
   });
 });
 var bossRows = ch.filter(function(s){ return s.kind === 'boss'; });
-ok('one boss row, and it is the last stage', bossRows.length === 1 && ch[ch.length - 1].kind === 'boss');
+ok('the last stage is a boss row; stage 10 is the built boss B-01', ch[ch.length - 1].kind === 'boss' && ch[9].kind === 'boss' && ch[9].spawns[0].type === 'B-01' && bossRows.length >= 1);
 
 // ---- the old names still point at the tables ----
 ok('V.ROOMS is V.Data.rooms', V.ROOMS === D.rooms);
@@ -162,5 +165,158 @@ ok('a plain run is not the stress room', !Sp.stress && Sp.enemies.length < 11);
 // the 9-column sim hash after the fixed step count (human-free: standing still) is the F1 baseline; a change here is on purpose only (R29/R31)
 for (var q = 0; q < 600; q++) V.Sim.step(Sp, { mx:0, my:0 });
 ok('9-column standing-still hash at 600 steps (seed 5) is the F1 value', V.Sim.hash(Sp) === HASH600, V.Sim.hash(Sp));
+
+
+// ---- E1 (GEN-SPEC 6): chapter length follows the stage list; win after the last stage; ?chlen test cap ----
+// A stub 20-stage list stands in for the baked rows 11-20 (agent C owns the real ones): rows 1-10 are the built ones, 11-19 combat in R01-R03, 20 the boss arena.
+(function(){
+  var real = V.STAGES.ch1, saved = V.SimOpts.chlen;
+  function stub(len){
+    var a = real.slice(0, 10).map(function(r){ return r; });
+    for (var i = 11; i <= len; i++) {
+      var last = i === len, room = last ? 'BA1' : ['R01', 'R02', 'R03'][i % 3];
+      a.push({ stage:i, kind:last ? 'boss' : 'combat', room:room, note:'stub',
+        spawns:last ? [{ type:'B-01', x:4.5, y:3.5, t:0 }] : R[room].spawns.map(function(p){ return { type:p.type, x:p.x, y:p.y, t:0 }; }) });
+    }
+    return a;
+  }
+  // god-mode driver: clears each room at once, takes pick 0, walks to the door. Returns the stage sequence and the final state.
+  function drive(S, maxSteps){
+    var seq = [S.stage + '.' + S.lap], lastKey = seq[0], laps = 0;
+    for (var f = 0; f < maxSteps && S.phase !== 'results'; f++) {
+      var inp = { mx:0, my:0 };
+      if (S.phase === 'pick') { V.Sim.pick(S, 0); continue; }
+      if (S.phase === 'supply') { V.Sim.pickSupply(S, 0); continue; }
+      if (S.phase === 'play') { S.enemies.length = 0; S.spawnQ.length = 0; }
+      if (S.phase === 'clear' && !S.bossWin) { var d = S.room.door; S.hero.x = d.x + 0.5; if (S.hero.y > d.y + 1.6) S.hero.y = d.y + 1.6; inp = { mx:0, my:-1 }; }
+      S.hero.hp = S.hero.maxHp;
+      V.Sim.step(S, inp);
+      var key = S.stage + '.' + S.lap; if (key !== lastKey) { seq.push(key); lastKey = key; }
+    }
+    return seq;
+  }
+  try {
+    V.SimOpts.chlen = 0;
+    V.STAGES.ch1 = stub(20);
+    var Sa = V.Sim.create(7, V.TUNE, { cols:9 });
+    ok('E1 chapter length follows the list: 20-stage list gives 20', V.Sim.stageList().length === 20, V.Sim.stageList().length);
+    var seq = drive(Sa, 60 * 60 * 40);
+    var want = []; for (var w = 1; w <= 20; w++) want.push(w + '.1');
+    ok('E1 with 20 stages, stage 11 follows stage 10 (no lap); run runs 1..20 in order', seq.join() === want.join(), seq.join());
+    ok('E1 20 stages: the stage-10 boss is not the win', seq.indexOf('11.1') > 0);
+    ok('E1 20 stages: win comes after stage 20, on lap 1', Sa.phase === 'results' && Sa.result && Sa.result.win === true && Sa.result.stage === 20 && Sa.result.lap === 1, Sa.result && [Sa.result.win, Sa.result.stage, Sa.result.lap]);
+    // the lap: only after the last stage, and only in ENDLESS (a win otherwise); the lap offset is the list length
+    var T2 = Object.assign({}, V.TUNE, { ENDLESS:true });
+    var Sc = V.Sim.create(7, T2, { cols:9 });
+    var seqE = []; for (var f2 = 0, lk = ''; f2 < 60 * 60 * 60 && Sc.lap < 2; f2++) {
+      var inp2 = { mx:0, my:0 };
+      if (Sc.phase === 'pick') { V.Sim.pick(Sc, 0); continue; } if (Sc.phase === 'supply') { V.Sim.pickSupply(Sc, 0); continue; }
+      if (Sc.phase === 'play') { Sc.enemies.length = 0; Sc.spawnQ.length = 0; }
+      if (Sc.phase === 'clear') { var d2 = Sc.room.door; Sc.hero.x = d2.x + 0.5; if (Sc.hero.y > d2.y + 1.6) Sc.hero.y = d2.y + 1.6; inp2 = { mx:0, my:-1 }; }
+      Sc.hero.hp = Sc.hero.maxHp; V.Sim.step(Sc, inp2);
+      var k2 = Sc.stage + '.' + Sc.lap; if (k2 !== lk) { seqE.push(k2); lk = k2; }
+    }
+    ok('E1 ENDLESS: laps only after stage 20 (20.1 then 1.2), not after 10', seqE.indexOf('11.1') > 0 && seqE[seqE.length - 2] === '20.1' && seqE[seqE.length - 1] === '1.2', seqE.slice(-3).join());
+    // lap 2 stage 1 scales as stage 21: enemy HP ratio to a fresh stage 1 is (1 + slope x 20) (the lap offset is the list length, 20)
+    var S1 = V.Sim.create(7, V.TUNE, { cols:9 }); for (var z = 0; z < 120; z++) V.Sim.step(S1, { mx:0, my:0 });
+    for (var z2 = 0; z2 < 120; z2++) V.Sim.step(Sc, { mx:0, my:0 });
+    var h1 = S1.enemies[0] && S1.enemies[0].maxHp, h2 = Sc.enemies[0] && Sc.enemies[0].maxHp;
+    ok('E1 lap 2 stage 1 scales as stage 21 (HP x ' + (1 + V.TUNE.HP_SLOPE * 20).toFixed(3) + ')', h1 > 0 && Sc.stage === 1 && Sc.lap === 2 && Math.abs(h2 / h1 - (1 + V.TUNE.HP_SLOPE * 20)) < 0.03, [h1, h2]);
+    // ?chlen=10 restores the 10-stage win on the same 20-row list
+    V.SimOpts.chlen = 10;
+    ok('E1 chlen=10 caps the 20-row list to 10', V.Sim.stageList().length === 10 && V.Sim.stageList()[9].kind === 'boss', V.Sim.stageList().length);
+    var Se = V.Sim.create(7, V.TUNE, { cols:9 });
+    var seq10 = drive(Se, 60 * 60 * 20);
+    ok('E1 chlen=10: win at stage 10 of 10, lap 1', Se.phase === 'results' && Se.result.win === true && Se.result.stage === 10 && Se.result.lap === 1 && seq10[seq10.length - 1] === '10.1', seq10.join());
+    // per-run opts.chlen wins over V.SimOpts
+    V.SimOpts.chlen = 0;
+    var Sf = V.Sim.create(7, V.TUNE, { cols:9, chlen:10 });
+    ok('E1 per-run opts.chlen caps without the global hook', V.Sim.stageList().length === 20 && (function(){ var q = drive(Sf, 60 * 60 * 20); return Sf.result && Sf.result.win && Sf.result.stage === 10; })());
+    // chapter key: V.STAGES['ch2'] is read when a run is created for chapter 2; a chapter without a list falls back to ch1
+    V.STAGES.ch2 = stub(12).slice(0, 11).concat([{ stage:12, kind:'boss', room:'BA1', note:'stub', spawns:[{ type:'B-01', x:4.5, y:3.5, t:0 }] }]);
+    var Sg = V.Sim.create(7, V.TUNE, { cols:9, chapter:2 });
+    var seq2 = drive(Sg, 60 * 60 * 20);
+    ok('E1 chapter 2 reads V.STAGES.ch2 (12 stages, win after 12)', Sg.result && Sg.result.win && Sg.result.stage === 12 && seq2.length === 12, seq2.join());
+    var Sh = V.Sim.create(7, V.TUNE, { cols:9, chapter:3 }); V.SimOpts.chlen = 10;
+    ok('E1 chapter 3 with no list falls back to ch1 (here capped to 10 by chlen)', Sh.chNo === 3 && V.Sim.stageList(3).length === 10 && V.Sim.stageList(3, Sh) === V.Sim.stageList(1, Sh), V.Sim.stageList(3).length);
+    V.SimOpts.chlen = 0;
+  } finally { V.STAGES.ch1 = real; delete V.STAGES.ch2; V.SimOpts.chlen = saved; }
+  ok('E1 stub cleaned up: the real list is back', V.Sim.stageList() === real || V.Sim.stageList().length === real.length);
+})();
+
+
+// ---- waves (GEN-SPEC 3.4 / 7): wave field absent = 1; wave 2 opens at alive <= 2 of wave 1, its t counts from the opening; at most 6 alive of one wave; no clear until all waves are done ----
+(function(){
+  var real = V.STAGES.ch1;
+  function wroom(w1, w2n, w2t){
+    var sp = [];
+    for (var i = 0; i < w1; i++) sp.push({ type:'E-01', x:1.5 + (i % 7), y:2.5, t:0 });
+    for (var j = 0; j < w2n; j++) sp.push({ type:'E-01', x:1.5 + (j % 7), y:4.5, t:w2t, wave:2 });
+    return [{ stage:1, kind:'combat', room:'R01', note:'wave test', spawns:sp }].concat(real.slice(1));
+  }
+  function hold(S){ S.enemies.forEach(function(e){ e.hp = e.maxHp = 1e9; }); S.hero.hp = S.hero.maxHp; }   // keep machines alive under rifle fire; the test removes them by hand
+  function run(S, steps){ for (var i = 0; i < steps; i++) { hold(S); V.Sim.step(S, { mx:0, my:0 }); } }
+  function alive(S, w){ return S.enemies.filter(function(e){ return e.hp > 0 && (e.wave || 1) === w; }).length; }
+  try {
+    V.STAGES.ch1 = wroom(4, 3, 1);
+    var S = V.Sim.create(3, V.TUNE, { cols:9 });
+    run(S, 60 * 4);   // 4 s, nobody killed
+    ok('wave 2 does not spawn while 4 wave-1 machines are alive (even past its own t)', alive(S, 1) === 4 && alive(S, 2) === 0 && S.spawnQ.length === 3, [alive(S, 1), alive(S, 2), S.spawnQ.length]);
+    S.enemies.splice(0, 1); run(S, 60 * 2);
+    ok('wave 2 does not spawn at 3 alive', alive(S, 2) === 0 && S.spawnQ.length === 3, [alive(S, 1), alive(S, 2)]);
+    S.enemies.splice(0, 1); run(S, 20);   // 2 alive: wave opens now; its t = 1 s counts from the opening
+    ok('wave 2 opens at 2 alive but waits its own t (1 s from the opening)', alive(S, 1) === 2 && alive(S, 2) === 0, [alive(S, 1), alive(S, 2)]);
+    run(S, 60);
+    ok('wave 2 spawns once <= 2 are alive and its t (from the opening) has passed', alive(S, 2) === 3 && S.spawnQ.length === 0, [alive(S, 2), S.spawnQ.length]);
+    ok('room is not clear while machines of any wave live', S.phase === 'play');
+    var D2 = V.STAGES.ch1; V.STAGES.ch1 = wroom(2, 3, 0.5);
+    var S2 = V.Sim.create(3, V.TUNE, { cols:9 });
+    run(S2, 60 * 3);
+    ok('2 wave-1 machines alive: wave 2 opens (early trigger at alive <= 2) and spawns after its t', alive(S2, 2) === 3 && alive(S2, 1) === 2, [alive(S2, 1), alive(S2, 2)]);
+    // clear only after every wave has spawned and died: kill wave 1 and the queue is not empty -> still play (queue empty here, so check the early-clear case)
+    V.STAGES.ch1 = wroom(2, 2, 3);
+    var S3 = V.Sim.create(3, V.TUNE, { cols:9 });
+    run(S3, 60 * 2); S3.enemies.length = 0; V.Sim.step(S3, { mx:0, my:0 });
+    ok('room does not clear early: wave 1 dead, wave 2 still queued -> phase stays play', S3.phase === 'play' && S3.spawnQ.length === 2 && S3.stageIdx === 0, [S3.phase, S3.spawnQ.length]);
+    run(S3, 60 * 4); S3.enemies.length = 0; V.Sim.step(S3, { mx:0, my:0 }); V.Sim.step(S3, { mx:0, my:0 });
+    ok('after wave 2 has spawned and died the room clears (door opens)', S3.phase === 'clear' && S3.spawnQ.length === 0, S3.phase);
+    // cap: 9 wave-2 spawns at t 0 -> never more than 6 alive of the wave; the rest follow as they die
+    V.STAGES.ch1 = wroom(0, 9, 0);
+    var S4 = V.Sim.create(3, V.TUNE, { cols:9 }); run(S4, 90);
+    ok('wave cap: 9 wave-2 spawns at once -> 6 alive, 3 queued', alive(S4, 2) === 6 && S4.spawnQ.length === 3, [alive(S4, 2), S4.spawnQ.length]);
+    S4.enemies.splice(0, 2); run(S4, 5);
+    ok('wave cap: two die -> two more spawn, still <= 6', alive(S4, 2) === 6 && S4.spawnQ.length === 1, [alive(S4, 2), S4.spawnQ.length]);
+  } finally { V.STAGES.ch1 = real; }
+})();
+
+// ---- the real 20-stage chapter end to end (no chlen): rows 11-20 from data-stages-gen.js ----
+(function(){
+  var saved = V.SimOpts.chlen; V.SimOpts.chlen = 0;
+  var L = V.Sim.stageList();
+  ok('real ch1 list has 20 rows (data-stages-gen.js loaded)', L.length === 20, L.length);
+  ok('real stage 20 is B-01 in the new arena (room c1s20v0, "Boss Arena II" = BA2 layout)', L[19].kind === 'boss' && L[19].spawns.length === 1 && L[19].spawns[0].type === 'B-01' && V.ROOMS[L[19].room].name === 'Boss Arena II' && L[19].room !== 'BA1', [L[19].room]);
+  ok('real stages 14 and 18 carry wave-2 spawns', [14, 18].every(function(n){ return L[n - 1].spawns.some(function(p){ return p.wave === 2; }); }));
+  var S = V.Sim.create(11, V.TUNE, { cols:9 }), seq = [], lk = '', spawned = {}, startId = 0, f, wavesSeen = {};
+  for (f = 0; f < 60 * 60 * 60 && S.phase !== 'results'; f++) {
+    var inp = { mx:0, my:0 };
+    if (S.phase === 'pick') { V.Sim.pick(S, 0); continue; }
+    if (S.phase === 'supply') { V.Sim.pickSupply(S, 0); continue; }
+    if (S.phase === 'collect') { V.Sim.skipCollect && V.Sim.skipCollect(S); }
+    if (S.phase === 'play') {   // kill everything that has spawned, but leave the queue: waves must play out by themselves
+      S.enemies.forEach(function(e){ spawned[S.stage] = (spawned[S.stage] || 0) + (e._cnt ? 0 : 1); e._cnt = 1; if (e.wave === 2) wavesSeen[S.stage] = true; });
+      S.enemies.length = 0;
+    }
+    if (S.phase === 'clear' && !S.bossWin) { var d = S.room.door; S.hero.x = d.x + 0.5; if (S.hero.y > d.y + 1.6) S.hero.y = d.y + 1.6; inp = { mx:0, my:-1 }; }
+    S.hero.hp = S.hero.maxHp;
+    V.Sim.step(S, inp);
+    var k = S.stage + '.' + S.lap; if (k !== lk) { seq.push(k); lk = k; }
+  }
+  var want = []; for (var w = 1; w <= 20; w++) want.push(w + '.1');
+  ok('real 20 stages: 1..20 in order, stage 11 follows 10, no lap', seq.join() === want.join(), seq.join());
+  ok('real 20 stages: win after stage 20, lap 1', S.phase === 'results' && S.result.win === true && S.result.stage === 20 && S.result.lap === 1, S.result && [S.result.win, S.result.stage, S.result.lap]);
+  ok('real 20 stages: stage 20 was B-01 (S.boss seen)', S.stageDef && S.stageDef.spawns[0].type === 'B-01' && S.roomId === L[19].room, S.roomId);
+  ok('real 20 stages: wave-2 machines spawned in stages 14 and 18, and every spawn of every stage was released', wavesSeen[14] && wavesSeen[18] && L.every(function(def){ return def.kind === 'supply' || def.kind === 'boss' || spawned[def.stage] === def.spawns.length; }), [wavesSeen, L.map(function(d){ return spawned[d.stage] + '/' + d.spawns.length; }).join(' ')]);
+  V.SimOpts.chlen = saved;
+})();
 
 console.log(n + ' checks, ' + fails + ' failed'); process.exit(fails ? 1 : 0);
