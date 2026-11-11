@@ -1,197 +1,24 @@
 {
  "genVersion": 1,
  "chapter": 1,
- "hash": "337e5ba2e4762f164ab7c86d30c2c63a489ea34618b42409dae356771d864819",
+ "hash": "8a98f9dff8aa4451f363258c7ce4998313d8615b3232b07bb099ed0a09ad672b",
  "rooms": [
   {
    "chapter": 1,
    "stage": 11,
    "genVersion": 1,
-   "templateId": "T03",
+   "templateId": "T04",
    "room": "c1s11v0",
    "shift": 0,
    "swap": 1,
    "salt": 0,
    "machines": {
     "E-01": 2,
-    "E-02": 2,
-    "E-04": 1
-   },
-   "ME": 4.7,
-   "role": "Rec",
-   "widths": {
-    "9": {
-     "run": 9,
-     "cover": 10,
-     "haz": 0
-    },
-    "11": {
-     "run": 11,
-     "cover": 8.2,
-     "haz": 0
-    },
-    "13": {
-     "run": 13,
-     "cover": 10,
-     "haz": 0
-    },
-    "15": {
-     "run": 15,
-     "cover": 8.7,
-     "haz": 0
-    }
-   },
-   "hash": "38ceaf62cacf9f4d5493b2575ae8d16df11f076893e8cdb3071832b408050894"
-  },
-  {
-   "chapter": 1,
-   "stage": 12,
-   "genVersion": 1,
-   "templateId": "T02",
-   "room": "c1s12v0",
-   "shift": -1,
-   "swap": 1,
-   "salt": 0,
-   "machines": {
-    "E-01": 1,
-    "E-02": 2,
-    "E-04": 2
-   },
-   "ME": 5.3,
-   "role": "Bld",
-   "widths": {
-    "9": {
-     "run": 9,
-     "cover": 8.9,
-     "haz": 0
-    },
-    "11": {
-     "run": 11,
-     "cover": 7.3,
-     "haz": 0
-    },
-    "13": {
-     "run": 13,
-     "cover": 9.2,
-     "haz": 0
-    },
-    "15": {
-     "run": 15,
-     "cover": 8,
-     "haz": 0
-    }
-   },
-   "hash": "956f9e269226e5d85cc8b553126e9331b1f26c2114308bf252641b69c3e124cc"
-  },
-  {
-   "chapter": 1,
-   "stage": 13,
-   "genVersion": 1,
-   "templateId": "T04",
-   "room": "c1s13v0",
-   "shift": 1,
-   "swap": 2,
-   "salt": 0,
-   "machines": {
-    "E-01": 1,
-    "E-02": 4,
+    "E-02": 1,
+    "E-04": 1,
     "E-05": 1
    },
-   "ME": 6,
-   "role": "Bld",
-   "widths": {
-    "9": {
-     "run": 9,
-     "cover": 11.1,
-     "haz": 0
-    },
-    "11": {
-     "run": 11,
-     "cover": 9.1,
-     "haz": 0
-    },
-    "13": {
-     "run": 13,
-     "cover": 10.8,
-     "haz": 0
-    },
-    "15": {
-     "run": 15,
-     "cover": 9.3,
-     "haz": 0
-    }
-   },
-   "hash": "7cf3a5491fe406544f2614aaad5da76892e234b87cb65a7d1b3212d42bba8e3e"
-  },
-  {
-   "chapter": 1,
-   "stage": 14,
-   "genVersion": 1,
-   "templateId": "T02",
-   "room": "c1s14v0",
-   "shift": 0,
-   "swap": 2,
-   "salt": 1,
-   "machines": {
-    "E-01": 1,
-    "E-02": 4,
-    "E-03": 1,
-    "E-05": 1
-   },
-   "ME": 7,
-   "role": "Prs",
-   "widths": {
-    "9": {
-     "run": 9,
-     "cover": 8.9,
-     "haz": 0
-    },
-    "11": {
-     "run": 11,
-     "cover": 7.3,
-     "haz": 0
-    },
-    "13": {
-     "run": 13,
-     "cover": 9.2,
-     "haz": 0
-    },
-    "15": {
-     "run": 15,
-     "cover": 8,
-     "haz": 0
-    }
-   },
-   "hash": "de7efee1e16c1a1fd0aec42cf71ecc09ab41599457086183bf3cf078cf21a045"
-  },
-  {
-   "chapter": 1,
-   "stage": 15,
-   "genVersion": 1,
-   "templateId": "SD",
-   "room": "SD",
-   "shift": 0,
-   "swap": 0,
-   "salt": 0,
-   "machines": {},
-   "ME": 0,
-   "hash": "e3eca4007b8382fa58c42faca51d4612609c0c44046fadea54970a367226b962"
-  },
-  {
-   "chapter": 1,
-   "stage": 16,
-   "genVersion": 1,
-   "templateId": "T04",
-   "room": "c1s16v0",
-   "shift": 0,
-   "swap": 2,
-   "salt": 0,
-   "machines": {
-    "E-01": 2,
-    "E-02": 2,
-    "E-04": 1
-   },
-   "ME": 4.7,
+   "ME": 5,
    "role": "Rec",
    "widths": {
     "9": {
@@ -215,26 +42,119 @@
      "haz": 0
     }
    },
-   "hash": "8f74d50e01916e1bf061bfd30d337fc74e9cbb331a61826b8e098d7b6dc68544"
+   "meTarget": 5,
+   "curveHaz": 0,
+   "bakedHaz": 0,
+   "elites": 0,
+   "substitution": "E-06 (not in code: baked with E-01 to E-05)",
+   "hash": "92861f8d37038aa426ff5479c220acd31e42f7c9d2bb60805317079b0ba44534"
   },
   {
    "chapter": 1,
-   "stage": 17,
+   "stage": 12,
    "genVersion": 1,
-   "templateId": "T03",
-   "room": "c1s17v0",
+   "templateId": "T06",
+   "room": "c1s12v0",
    "shift": 0,
+   "swap": 1,
+   "salt": 0,
+   "machines": {
+    "E-01": 2,
+    "E-02": 1,
+    "E-04": 1,
+    "E-05": 1
+   },
+   "ME": 5,
+   "role": "Bld",
+   "widths": {
+    "9": {
+     "run": 9,
+     "cover": 8.9,
+     "haz": 0
+    },
+    "11": {
+     "run": 11,
+     "cover": 7.3,
+     "haz": 0
+    },
+    "13": {
+     "run": 13,
+     "cover": 9.2,
+     "haz": 0
+    },
+    "15": {
+     "run": 15,
+     "cover": 8,
+     "haz": 0
+    }
+   },
+   "meTarget": 5,
+   "curveHaz": 0,
+   "bakedHaz": 0,
+   "elites": 0,
+   "hash": "4dd978cdb8e4b4d70adde2c885c88b3c2d4af707c2e7c94eec58d71b42fef3c5"
+  },
+  {
+   "chapter": 1,
+   "stage": 13,
+   "genVersion": 1,
+   "templateId": "T08",
+   "room": "c1s13v0",
+   "shift": 1,
    "swap": 2,
    "salt": 0,
    "machines": {
     "E-01": 1,
-    "E-02": 2,
-    "E-03": 1,
-    "E-04": 1,
+    "E-02": 4,
     "E-05": 1
    },
-   "ME": 6.3,
+   "ME": 6,
    "role": "Bld",
+   "widths": {
+    "9": {
+     "run": 9,
+     "cover": 6.7,
+     "haz": 0
+    },
+    "11": {
+     "run": 11,
+     "cover": 5.5,
+     "haz": 0
+    },
+    "13": {
+     "run": 13,
+     "cover": 7.7,
+     "haz": 0
+    },
+    "15": {
+     "run": 15,
+     "cover": 6.7,
+     "haz": 0
+    }
+   },
+   "meTarget": 6,
+   "curveHaz": 0,
+   "bakedHaz": 0,
+   "elites": 0,
+   "substitution": "E-08 (not in code: baked with E-01 to E-05)",
+   "hash": "6c6aa6111a7fb577fe99ba53ca29710da96acdf76bcef926ce2226b28bc45df4"
+  },
+  {
+   "chapter": 1,
+   "stage": 14,
+   "genVersion": 1,
+   "templateId": "T03",
+   "room": "c1s14v0",
+   "shift": 0,
+   "swap": 2,
+   "salt": 0,
+   "machines": {
+    "E-01": 2,
+    "E-02": 3,
+    "E-05": 2
+   },
+   "ME": 7,
+   "role": "Prs",
    "widths": {
     "9": {
      "run": 9,
@@ -257,49 +177,160 @@
      "haz": 0
     }
    },
-   "hash": "b7d4baf9179e168a59c74353dc46d6e6682a815a875c5624e103279dd9eecb7c"
+   "meTarget": 7,
+   "curveHaz": 0,
+   "bakedHaz": 0,
+   "elites": 0,
+   "hash": "6cde29451a9b2b1f45f9ba20fce49dc0c5aa56e16b3d10150c146435d33d81e4"
+  },
+  {
+   "chapter": 1,
+   "stage": 15,
+   "genVersion": 1,
+   "templateId": "SD",
+   "room": "SD",
+   "shift": 0,
+   "swap": 0,
+   "salt": 0,
+   "machines": {},
+   "ME": 0,
+   "hash": "e3eca4007b8382fa58c42faca51d4612609c0c44046fadea54970a367226b962"
+  },
+  {
+   "chapter": 1,
+   "stage": 16,
+   "genVersion": 1,
+   "templateId": "T09",
+   "room": "c1s16v0",
+   "shift": 0,
+   "swap": 2,
+   "salt": 0,
+   "machines": {
+    "E-01": 2,
+    "E-02": 2,
+    "E-04": 1
+   },
+   "ME": 4.7,
+   "role": "Rec",
+   "widths": {
+    "9": {
+     "run": 9,
+     "cover": 10,
+     "haz": 0
+    },
+    "11": {
+     "run": 11,
+     "cover": 8.2,
+     "haz": 0
+    },
+    "13": {
+     "run": 13,
+     "cover": 10,
+     "haz": 0
+    },
+    "15": {
+     "run": 15,
+     "cover": 8.7,
+     "haz": 0
+    }
+   },
+   "meTarget": 5,
+   "curveHaz": 0,
+   "bakedHaz": 0,
+   "elites": 0,
+   "substitution": "E-07 (not in code: baked with E-01 to E-05)",
+   "hash": "e1b10d81fd64e03f1d1499a5c0aefa9d6fc6c8cc139dac8b405e18a8b904e290"
+  },
+  {
+   "chapter": 1,
+   "stage": 17,
+   "genVersion": 1,
+   "templateId": "T02",
+   "room": "c1s17v0",
+   "shift": 0,
+   "swap": 2,
+   "salt": 0,
+   "machines": {
+    "E-01": 1,
+    "E-02": 2,
+    "E-03": 1,
+    "E-04": 1,
+    "E-05": 1
+   },
+   "ME": 6.3,
+   "role": "Bld",
+   "widths": {
+    "9": {
+     "run": 9,
+     "cover": 8.9,
+     "haz": 0
+    },
+    "11": {
+     "run": 11,
+     "cover": 7.3,
+     "haz": 0
+    },
+    "13": {
+     "run": 13,
+     "cover": 9.2,
+     "haz": 0
+    },
+    "15": {
+     "run": 15,
+     "cover": 8,
+     "haz": 0
+    }
+   },
+   "meTarget": 6,
+   "curveHaz": 0,
+   "bakedHaz": 0,
+   "elites": 0,
+   "hash": "4d458b2918fe0e7201c43b479c1a57c6602ef401236bfb1aac24db770712380e"
   },
   {
    "chapter": 1,
    "stage": 18,
    "genVersion": 1,
-   "templateId": "T05",
+   "templateId": "T10",
    "room": "c1s18v0",
-   "shift": 0,
-   "swap": 0,
-   "salt": 5,
+   "shift": -1,
+   "swap": 2,
+   "salt": 4,
    "machines": {
     "E-01": 2,
-    "E-02": 2,
+    "E-02": 3,
     "E-03": 1,
-    "E-04": 1,
-    "E-05": 2
+    "E-04": 2
    },
-   "ME": 8.3,
+   "ME": 8,
    "role": "Spk",
    "widths": {
     "9": {
      "run": 9,
-     "cover": 4.4,
-     "haz": 6.7
+     "cover": 8.9,
+     "haz": 4.4
     },
     "11": {
      "run": 11,
-     "cover": 3.6,
+     "cover": 7.3,
      "haz": 7.3
     },
     "13": {
      "run": 13,
-     "cover": 3.1,
-     "haz": 7.7
+     "cover": 6.2,
+     "haz": 9.2
     },
     "15": {
      "run": 15,
-     "cover": 2.7,
-     "haz": 8
+     "cover": 5.3,
+     "haz": 10.7
     }
    },
-   "hash": "18aeca5e1158813e0f12b404b8a67b9dd39bd4cfc2379f4048d70e8a2eb301af"
+   "meTarget": 8,
+   "curveHaz": 1,
+   "bakedHaz": 1,
+   "elites": 0,
+   "hash": "78af7fad574b95e8929cb1245a3b32a9b03d7ec3656149cf498585bfe2d806e6"
   },
   {
    "chapter": 1,
@@ -330,6 +361,1083 @@
    },
    "ME": 0,
    "hash": "0e4e0304784d3ca54ec63738eef07a1a08e95b03c2fa83f7a17eec343431a506"
+  },
+  {
+   "chapter": 1,
+   "stage": 21,
+   "genVersion": 1,
+   "templateId": "T04",
+   "room": "c1s21v0",
+   "shift": 0,
+   "swap": 0,
+   "salt": 0,
+   "machines": {
+    "E-01": 2,
+    "E-02": 2,
+    "E-05": 1
+   },
+   "ME": 4.7,
+   "role": "Rec",
+   "widths": {
+    "9": {
+     "run": 9,
+     "cover": 13.3,
+     "haz": 0
+    },
+    "11": {
+     "run": 11,
+     "cover": 10.9,
+     "haz": 0
+    },
+    "13": {
+     "run": 13,
+     "cover": 12.3,
+     "haz": 0
+    },
+    "15": {
+     "run": 15,
+     "cover": 10.7,
+     "haz": 0
+    }
+   },
+   "meTarget": 5,
+   "curveHaz": 0,
+   "bakedHaz": 0,
+   "elites": 0,
+   "substitution": "E-09 (not in code: baked with E-01 to E-05)",
+   "hash": "28707ea86a0400b2b0157e1d67727a445ec9e55a238e2959f851053ca4ae4ca3"
+  },
+  {
+   "chapter": 1,
+   "stage": 22,
+   "genVersion": 1,
+   "templateId": "T07",
+   "room": "c1s22v0",
+   "shift": 0,
+   "swap": 2,
+   "salt": 0,
+   "machines": {
+    "E-01": 3,
+    "E-04": 2,
+    "E-05": 2
+   },
+   "ME": 7.95,
+   "role": "Bld",
+   "widths": {
+    "9": {
+     "run": 9,
+     "cover": 6.7,
+     "haz": 0
+    },
+    "11": {
+     "run": 11,
+     "cover": 7.3,
+     "haz": 0
+    },
+    "13": {
+     "run": 13,
+     "cover": 7.7,
+     "haz": 0
+    },
+    "15": {
+     "run": 15,
+     "cover": 8,
+     "haz": 0
+    }
+   },
+   "meTarget": 7.5,
+   "curveHaz": 1,
+   "bakedHaz": 0,
+   "elites": 1,
+   "hash": "433753217e5aa95d6368740fbd7cb72e4bb67f26c8c295d65e4b8f37965b7c06"
+  },
+  {
+   "chapter": 1,
+   "stage": 23,
+   "genVersion": 1,
+   "templateId": "T09",
+   "room": "c1s23v0",
+   "shift": 0,
+   "swap": 2,
+   "salt": 1,
+   "machines": {
+    "E-01": 2,
+    "E-02": 4,
+    "E-05": 2
+   },
+   "ME": 8,
+   "role": "Bld",
+   "widths": {
+    "9": {
+     "run": 9,
+     "cover": 10,
+     "haz": 0
+    },
+    "11": {
+     "run": 11,
+     "cover": 8.2,
+     "haz": 0
+    },
+    "13": {
+     "run": 13,
+     "cover": 10,
+     "haz": 0
+    },
+    "15": {
+     "run": 15,
+     "cover": 8.7,
+     "haz": 0
+    }
+   },
+   "meTarget": 8,
+   "curveHaz": 1,
+   "bakedHaz": 0,
+   "elites": 0,
+   "hash": "8036d988c71a17e616ff911803464f2c3fd666d54e45245ea13f72517fee1990"
+  },
+  {
+   "chapter": 1,
+   "stage": 24,
+   "genVersion": 1,
+   "templateId": "T07",
+   "room": "c1s24v0",
+   "shift": 0,
+   "swap": 0,
+   "salt": 0,
+   "machines": {
+    "E-01": 2,
+    "E-02": 4,
+    "E-03": 2,
+    "E-05": 1
+   },
+   "ME": 8.7,
+   "role": "Prs",
+   "widths": {
+    "9": {
+     "run": 9,
+     "cover": 6.7,
+     "haz": 0
+    },
+    "11": {
+     "run": 11,
+     "cover": 7.3,
+     "haz": 0
+    },
+    "13": {
+     "run": 13,
+     "cover": 7.7,
+     "haz": 0
+    },
+    "15": {
+     "run": 15,
+     "cover": 8,
+     "haz": 0
+    }
+   },
+   "meTarget": 9,
+   "curveHaz": 1,
+   "bakedHaz": 0,
+   "elites": 0,
+   "hash": "9f29acfa5559aa1e2a3481b8ab24969e9682b2be1a27cdc94cdc62071a2e5078"
+  },
+  {
+   "chapter": 1,
+   "stage": 25,
+   "genVersion": 1,
+   "templateId": "SD",
+   "room": "SD",
+   "shift": 0,
+   "swap": 0,
+   "salt": 0,
+   "machines": {},
+   "ME": 0,
+   "hash": "65ded085ec53c5ea4dd3ca91c30da6bdd4bf789ab3426a889bea85442ca8cdc6"
+  },
+  {
+   "chapter": 1,
+   "stage": 26,
+   "genVersion": 1,
+   "templateId": "T03",
+   "room": "c1s26v0",
+   "shift": 0,
+   "swap": 2,
+   "salt": 0,
+   "machines": {
+    "E-01": 2,
+    "E-02": 3,
+    "E-04": 1
+   },
+   "ME": 5.7,
+   "role": "Rec",
+   "widths": {
+    "9": {
+     "run": 9,
+     "cover": 10,
+     "haz": 0
+    },
+    "11": {
+     "run": 11,
+     "cover": 8.2,
+     "haz": 0
+    },
+    "13": {
+     "run": 13,
+     "cover": 10,
+     "haz": 0
+    },
+    "15": {
+     "run": 15,
+     "cover": 8.7,
+     "haz": 0
+    }
+   },
+   "meTarget": 6,
+   "curveHaz": 0,
+   "bakedHaz": 0,
+   "elites": 0,
+   "hash": "3b6c6b088191d51c7a983ced9a7d3facc2d9f6dd45413161330fe9c53da6d348"
+  },
+  {
+   "chapter": 1,
+   "stage": 27,
+   "genVersion": 1,
+   "templateId": "T02",
+   "room": "c1s27v0",
+   "shift": 0,
+   "swap": 0,
+   "salt": 0,
+   "machines": {
+    "E-01": 1,
+    "E-02": 2,
+    "E-03": 2,
+    "E-04": 2
+   },
+   "ME": 7.8,
+   "role": "Bld",
+   "widths": {
+    "9": {
+     "run": 9,
+     "cover": 8.9,
+     "haz": 0
+    },
+    "11": {
+     "run": 11,
+     "cover": 7.3,
+     "haz": 0
+    },
+    "13": {
+     "run": 13,
+     "cover": 9.2,
+     "haz": 0
+    },
+    "15": {
+     "run": 15,
+     "cover": 8,
+     "haz": 0
+    }
+   },
+   "meTarget": 7.5,
+   "curveHaz": 1,
+   "bakedHaz": 0,
+   "elites": 1,
+   "hash": "b286e3c52040f1a3704ebbe0017b46680a3019ad3a26a5d2f0f027340da4ae70"
+  },
+  {
+   "chapter": 1,
+   "stage": 28,
+   "genVersion": 1,
+   "templateId": "T05",
+   "room": "c1s28v0",
+   "shift": 0,
+   "swap": 2,
+   "salt": 0,
+   "machines": {
+    "E-01": 2,
+    "E-02": 4,
+    "E-03": 2,
+    "E-04": 2
+   },
+   "ME": 10,
+   "role": "Spk",
+   "widths": {
+    "9": {
+     "run": 9,
+     "cover": 4.4,
+     "haz": 6.7
+    },
+    "11": {
+     "run": 11,
+     "cover": 3.6,
+     "haz": 7.3
+    },
+    "13": {
+     "run": 13,
+     "cover": 3.1,
+     "haz": 7.7
+    },
+    "15": {
+     "run": 15,
+     "cover": 2.7,
+     "haz": 8
+    }
+   },
+   "meTarget": 10,
+   "curveHaz": 2,
+   "bakedHaz": 1,
+   "elites": 0,
+   "hash": "043282d533182b2c2ad48ea2b1373a578de8c8dbd3e424374131f02648f6973d"
+  },
+  {
+   "chapter": 1,
+   "stage": 29,
+   "genVersion": 1,
+   "templateId": "CA1",
+   "room": "CA1",
+   "shift": 0,
+   "swap": 0,
+   "salt": 0,
+   "machines": {
+    "E-01": 2
+   },
+   "ME": 1.4,
+   "hash": "ef9b0f014dfec9161ecbb3b9958e5961b7b8502ac703e4d64444c25f2fc3a102"
+  },
+  {
+   "chapter": 1,
+   "stage": 30,
+   "genVersion": 1,
+   "templateId": "BA3",
+   "room": "c1s30v0",
+   "shift": 0,
+   "swap": 0,
+   "salt": 0,
+   "machines": {
+    "B-01": 1
+   },
+   "ME": 0,
+   "hash": "c0ff966859633858efa7271da3938489c560455393f20cb8bedfa68451428824"
+  },
+  {
+   "chapter": 1,
+   "stage": 31,
+   "genVersion": 1,
+   "templateId": "T08",
+   "room": "c1s31v0",
+   "shift": 0,
+   "swap": 0,
+   "salt": 0,
+   "machines": {
+    "E-01": 2,
+    "E-02": 3,
+    "E-05": 1
+   },
+   "ME": 5.7,
+   "role": "Rec",
+   "widths": {
+    "9": {
+     "run": 9,
+     "cover": 8.9,
+     "haz": 0
+    },
+    "11": {
+     "run": 11,
+     "cover": 7.3,
+     "haz": 0
+    },
+    "13": {
+     "run": 13,
+     "cover": 9.2,
+     "haz": 0
+    },
+    "15": {
+     "run": 15,
+     "cover": 8,
+     "haz": 0
+    }
+   },
+   "meTarget": 6,
+   "curveHaz": 0,
+   "bakedHaz": 0,
+   "elites": 0,
+   "hash": "1fce422940c22237ec49f4054817c44cec42dbbc7ff06fd15dbc81b5b62ed948"
+  },
+  {
+   "chapter": 1,
+   "stage": 32,
+   "genVersion": 1,
+   "templateId": "T06",
+   "room": "c1s32v0",
+   "shift": 0,
+   "swap": 1,
+   "salt": 0,
+   "machines": {
+    "E-01": 3,
+    "E-02": 1,
+    "E-03": 2,
+    "E-04": 2,
+    "E-05": 1
+   },
+   "ME": 9,
+   "role": "Bld",
+   "widths": {
+    "9": {
+     "run": 9,
+     "cover": 8.9,
+     "haz": 0
+    },
+    "11": {
+     "run": 11,
+     "cover": 7.3,
+     "haz": 0
+    },
+    "13": {
+     "run": 13,
+     "cover": 9.2,
+     "haz": 0
+    },
+    "15": {
+     "run": 15,
+     "cover": 8,
+     "haz": 0
+    }
+   },
+   "meTarget": 9,
+   "curveHaz": 1,
+   "bakedHaz": 0,
+   "elites": 0,
+   "hash": "16c2cb0be4eaaabaa5913ef9e840de78cb4bdead8f6196cb783e7983a8bf47a8"
+  },
+  {
+   "chapter": 1,
+   "stage": 33,
+   "genVersion": 1,
+   "templateId": "T07",
+   "room": "c1s33v0",
+   "shift": 0,
+   "swap": 2,
+   "salt": 0,
+   "machines": {
+    "E-01": 2,
+    "E-02": 2,
+    "E-03": 2,
+    "E-04": 2,
+    "E-05": 2
+   },
+   "ME": 11.1,
+   "role": "Bld",
+   "widths": {
+    "9": {
+     "run": 9,
+     "cover": 6.7,
+     "haz": 0
+    },
+    "11": {
+     "run": 11,
+     "cover": 7.3,
+     "haz": 0
+    },
+    "13": {
+     "run": 13,
+     "cover": 7.7,
+     "haz": 0
+    },
+    "15": {
+     "run": 15,
+     "cover": 8,
+     "haz": 0
+    }
+   },
+   "meTarget": 10.5,
+   "curveHaz": 1,
+   "bakedHaz": 0,
+   "elites": 1,
+   "hash": "3873d57de9d349c7b36643211a8b97d466d242c5f1ce2c182a4d4acac8600dc1"
+  },
+  {
+   "chapter": 1,
+   "stage": 34,
+   "genVersion": 1,
+   "templateId": "T06",
+   "room": "c1s34v0",
+   "shift": 0,
+   "swap": 1,
+   "salt": 0,
+   "machines": {
+    "E-01": 4,
+    "E-02": 3,
+    "E-03": 1,
+    "E-04": 1,
+    "E-05": 2
+   },
+   "ME": 10.7,
+   "role": "Prs",
+   "widths": {
+    "9": {
+     "run": 9,
+     "cover": 8.9,
+     "haz": 0
+    },
+    "11": {
+     "run": 11,
+     "cover": 7.3,
+     "haz": 0
+    },
+    "13": {
+     "run": 13,
+     "cover": 9.2,
+     "haz": 0
+    },
+    "15": {
+     "run": 15,
+     "cover": 8,
+     "haz": 0
+    }
+   },
+   "meTarget": 11,
+   "curveHaz": 2,
+   "bakedHaz": 0,
+   "elites": 0,
+   "hash": "7316f7708d663cde8f7aa9bb1fce058f441ad87f6bfcf751238c5dc1fe02b6fb"
+  },
+  {
+   "chapter": 1,
+   "stage": 35,
+   "genVersion": 1,
+   "templateId": "SD",
+   "room": "SD",
+   "shift": 0,
+   "swap": 0,
+   "salt": 0,
+   "machines": {},
+   "ME": 0,
+   "hash": "72ebf0d30c05edd8209c84248bab7957ce6464a8842a792719563d62d0d26ebc"
+  },
+  {
+   "chapter": 1,
+   "stage": 36,
+   "genVersion": 1,
+   "templateId": "T08",
+   "room": "c1s36v0",
+   "shift": 1,
+   "swap": 1,
+   "salt": 0,
+   "machines": {
+    "E-01": 1,
+    "E-02": 4,
+    "E-04": 1,
+    "E-05": 1
+   },
+   "ME": 7.3,
+   "role": "Rec",
+   "widths": {
+    "9": {
+     "run": 9,
+     "cover": 6.7,
+     "haz": 0
+    },
+    "11": {
+     "run": 11,
+     "cover": 5.5,
+     "haz": 0
+    },
+    "13": {
+     "run": 13,
+     "cover": 7.7,
+     "haz": 0
+    },
+    "15": {
+     "run": 15,
+     "cover": 6.7,
+     "haz": 0
+    }
+   },
+   "meTarget": 7,
+   "curveHaz": 0,
+   "bakedHaz": 0,
+   "elites": 0,
+   "hash": "6a3ddf856604e029e0a0f2e08577d592d294c88bd51b01b225b9c9960819b95e"
+  },
+  {
+   "chapter": 1,
+   "stage": 37,
+   "genVersion": 1,
+   "templateId": "T09",
+   "room": "c1s37v0",
+   "shift": 0,
+   "swap": 0,
+   "salt": 1,
+   "machines": {
+    "E-01": 1,
+    "E-02": 3,
+    "E-03": 2,
+    "E-05": 2
+   },
+   "ME": 8.95,
+   "role": "Bld",
+   "widths": {
+    "9": {
+     "run": 9,
+     "cover": 10,
+     "haz": 0
+    },
+    "11": {
+     "run": 11,
+     "cover": 8.2,
+     "haz": 0
+    },
+    "13": {
+     "run": 13,
+     "cover": 10,
+     "haz": 0
+    },
+    "15": {
+     "run": 15,
+     "cover": 8.7,
+     "haz": 0
+    }
+   },
+   "meTarget": 8.5,
+   "curveHaz": 1,
+   "bakedHaz": 0,
+   "elites": 1,
+   "hash": "dfa1d0c7bf6c7716cb20be01c58475b5946f6515e9d710513a3ca8abb18c3ac2"
+  },
+  {
+   "chapter": 1,
+   "stage": 38,
+   "genVersion": 1,
+   "templateId": "T05",
+   "room": "c1s38v0",
+   "shift": 0,
+   "swap": 0,
+   "salt": 10,
+   "machines": {
+    "E-01": 1,
+    "E-02": 3,
+    "E-03": 2,
+    "E-04": 2,
+    "E-05": 2
+   },
+   "ME": 10.9,
+   "role": "Spk",
+   "widths": {
+    "9": {
+     "run": 9,
+     "cover": 4.4,
+     "haz": 6.7
+    },
+    "11": {
+     "run": 11,
+     "cover": 3.6,
+     "haz": 7.3
+    },
+    "13": {
+     "run": 13,
+     "cover": 3.1,
+     "haz": 7.7
+    },
+    "15": {
+     "run": 15,
+     "cover": 2.7,
+     "haz": 8
+    }
+   },
+   "meTarget": 11,
+   "curveHaz": 2,
+   "bakedHaz": 1,
+   "elites": 0,
+   "hash": "846461aec4635ce4264288896f5fb9b17d4df698c7cefc79b709fec2471fdb73"
+  },
+  {
+   "chapter": 1,
+   "stage": 39,
+   "genVersion": 1,
+   "templateId": "CA1",
+   "room": "CA1",
+   "shift": 0,
+   "swap": 0,
+   "salt": 0,
+   "machines": {
+    "E-01": 2
+   },
+   "ME": 1.4,
+   "hash": "ad214bed864c40729648d07f9e89232d3f5b2c40686154dea8b7668c0cf1d798"
+  },
+  {
+   "chapter": 1,
+   "stage": 40,
+   "genVersion": 1,
+   "templateId": "BA4",
+   "room": "c1s40v0",
+   "shift": 0,
+   "swap": 0,
+   "salt": 0,
+   "machines": {
+    "B-01": 1
+   },
+   "ME": 0,
+   "hash": "b023816bbcd54bbc54916f07181bd2befc5cbda2c8d1f59f0374a5c3174ab3b5"
+  },
+  {
+   "chapter": 1,
+   "stage": 41,
+   "genVersion": 1,
+   "templateId": "T04",
+   "room": "c1s41v0",
+   "shift": 1,
+   "swap": 0,
+   "salt": 4,
+   "machines": {
+    "E-01": 2,
+    "E-02": 4,
+    "E-05": 1
+   },
+   "ME": 6.7,
+   "role": "Rec",
+   "widths": {
+    "9": {
+     "run": 9,
+     "cover": 11.1,
+     "haz": 0
+    },
+    "11": {
+     "run": 11,
+     "cover": 9.1,
+     "haz": 0
+    },
+    "13": {
+     "run": 13,
+     "cover": 10.8,
+     "haz": 0
+    },
+    "15": {
+     "run": 15,
+     "cover": 9.3,
+     "haz": 0
+    }
+   },
+   "meTarget": 7,
+   "curveHaz": 0,
+   "bakedHaz": 0,
+   "elites": 0,
+   "hash": "cad678bd97e4681028a874192b6fca3ea855c5ee89bf348bf63b9f2dc077fd9b"
+  },
+  {
+   "chapter": 1,
+   "stage": 42,
+   "genVersion": 1,
+   "templateId": "T07",
+   "room": "c1s42v0",
+   "shift": 0,
+   "swap": 1,
+   "salt": 0,
+   "machines": {
+    "E-01": 3,
+    "E-02": 1,
+    "E-03": 2,
+    "E-04": 2,
+    "E-05": 2
+   },
+   "ME": 10.3,
+   "role": "Bld",
+   "widths": {
+    "9": {
+     "run": 9,
+     "cover": 6.7,
+     "haz": 0
+    },
+    "11": {
+     "run": 11,
+     "cover": 7.3,
+     "haz": 0
+    },
+    "13": {
+     "run": 13,
+     "cover": 7.7,
+     "haz": 0
+    },
+    "15": {
+     "run": 15,
+     "cover": 8,
+     "haz": 0
+    }
+   },
+   "meTarget": 10,
+   "curveHaz": 1,
+   "bakedHaz": 0,
+   "elites": 0,
+   "hash": "5a3e8b5700cc83021ccf27202c237aae98f0dac9b2c251b7d5744906c450aa95"
+  },
+  {
+   "chapter": 1,
+   "stage": 43,
+   "genVersion": 1,
+   "templateId": "T06",
+   "room": "c1s43v0",
+   "shift": 0,
+   "swap": 0,
+   "salt": 0,
+   "machines": {
+    "E-01": 1,
+    "E-02": 3,
+    "E-03": 2,
+    "E-04": 2,
+    "E-05": 2
+   },
+   "ME": 12.05,
+   "role": "Bld",
+   "widths": {
+    "9": {
+     "run": 9,
+     "cover": 8.9,
+     "haz": 0
+    },
+    "11": {
+     "run": 11,
+     "cover": 7.3,
+     "haz": 0
+    },
+    "13": {
+     "run": 13,
+     "cover": 9.2,
+     "haz": 0
+    },
+    "15": {
+     "run": 15,
+     "cover": 8,
+     "haz": 0
+    }
+   },
+   "meTarget": 11,
+   "curveHaz": 1,
+   "bakedHaz": 0,
+   "elites": 2,
+   "hash": "766439695a9c71ead77d4e31268fe9a22ae74f37f3c57cd7df1f206c9645d344"
+  },
+  {
+   "chapter": 1,
+   "stage": 44,
+   "genVersion": 1,
+   "templateId": "T07",
+   "room": "c1s44v0",
+   "shift": 0,
+   "swap": 2,
+   "salt": 0,
+   "machines": {
+    "E-01": 5,
+    "E-03": 2,
+    "E-04": 2,
+    "E-05": 2
+   },
+   "ME": 10.7,
+   "role": "Prs",
+   "widths": {
+    "9": {
+     "run": 9,
+     "cover": 6.7,
+     "haz": 0
+    },
+    "11": {
+     "run": 11,
+     "cover": 7.3,
+     "haz": 0
+    },
+    "13": {
+     "run": 13,
+     "cover": 7.7,
+     "haz": 0
+    },
+    "15": {
+     "run": 15,
+     "cover": 8,
+     "haz": 0
+    }
+   },
+   "meTarget": 11,
+   "curveHaz": 2,
+   "bakedHaz": 0,
+   "elites": 0,
+   "hash": "eb3a4d047127c2d492c6b81e6465a4c542fa5885043b42147666bce4781a6b89"
+  },
+  {
+   "chapter": 1,
+   "stage": 45,
+   "genVersion": 1,
+   "templateId": "SD",
+   "room": "SD",
+   "shift": 0,
+   "swap": 0,
+   "salt": 0,
+   "machines": {},
+   "ME": 0,
+   "hash": "f5db6aadb2fccdd4c9d49cee5f7a6fd1b94d553a2adc590f97d87de805f614d4"
+  },
+  {
+   "chapter": 1,
+   "stage": 46,
+   "genVersion": 1,
+   "templateId": "T08",
+   "room": "c1s46v0",
+   "shift": 0,
+   "swap": 2,
+   "salt": 1,
+   "machines": {
+    "E-01": 2,
+    "E-02": 4,
+    "E-03": 1,
+    "E-04": 1
+   },
+   "ME": 7.7,
+   "role": "Rec",
+   "widths": {
+    "9": {
+     "run": 9,
+     "cover": 8.9,
+     "haz": 0
+    },
+    "11": {
+     "run": 11,
+     "cover": 7.3,
+     "haz": 0
+    },
+    "13": {
+     "run": 13,
+     "cover": 9.2,
+     "haz": 0
+    },
+    "15": {
+     "run": 15,
+     "cover": 8,
+     "haz": 0
+    }
+   },
+   "meTarget": 8,
+   "curveHaz": 0,
+   "bakedHaz": 0,
+   "elites": 0,
+   "hash": "56cd66f9cfbef2164eb0a6cf540be6b004b4d31713cfa06469fc0ab1f2884ef6"
+  },
+  {
+   "chapter": 1,
+   "stage": 47,
+   "genVersion": 1,
+   "templateId": "T06",
+   "room": "c1s47v0",
+   "shift": 0,
+   "swap": 1,
+   "salt": 0,
+   "machines": {
+    "E-01": 3,
+    "E-02": 3,
+    "E-03": 1,
+    "E-04": 1,
+    "E-05": 2
+   },
+   "ME": 10,
+   "role": "Bld",
+   "widths": {
+    "9": {
+     "run": 9,
+     "cover": 8.9,
+     "haz": 0
+    },
+    "11": {
+     "run": 11,
+     "cover": 7.3,
+     "haz": 0
+    },
+    "13": {
+     "run": 13,
+     "cover": 9.2,
+     "haz": 0
+    },
+    "15": {
+     "run": 15,
+     "cover": 8,
+     "haz": 0
+    }
+   },
+   "meTarget": 10,
+   "curveHaz": 1,
+   "bakedHaz": 0,
+   "elites": 0,
+   "hash": "f8c2f7ef33c6bf38e016cb9e6c0a9a170f9f3300056a84148e5df89840bea447"
+  },
+  {
+   "chapter": 1,
+   "stage": 48,
+   "genVersion": 1,
+   "templateId": "T05",
+   "room": "c1s48v0",
+   "shift": 0,
+   "swap": 0,
+   "salt": 10,
+   "machines": {
+    "E-01": 1,
+    "E-02": 3,
+    "E-03": 2,
+    "E-04": 2,
+    "E-05": 2
+   },
+   "ME": 12.2,
+   "role": "Spk",
+   "widths": {
+    "9": {
+     "run": 9,
+     "cover": 4.4,
+     "haz": 6.7
+    },
+    "11": {
+     "run": 11,
+     "cover": 3.6,
+     "haz": 7.3
+    },
+    "13": {
+     "run": 13,
+     "cover": 3.1,
+     "haz": 7.7
+    },
+    "15": {
+     "run": 15,
+     "cover": 2.7,
+     "haz": 8
+    }
+   },
+   "meTarget": 12,
+   "curveHaz": 1,
+   "bakedHaz": 1,
+   "elites": 2,
+   "hash": "f8e9747af8b154dee58c498af651fa0994a069105b2d81401854cc519330b21d"
+  },
+  {
+   "chapter": 1,
+   "stage": 49,
+   "genVersion": 1,
+   "templateId": "CA1",
+   "room": "CA1",
+   "shift": 0,
+   "swap": 0,
+   "salt": 0,
+   "machines": {
+    "E-01": 2
+   },
+   "ME": 1.4,
+   "hash": "b95f0a7435fc454d7839f8793fd13f7a0082540e049536d76a4094bdd05ff654"
+  },
+  {
+   "chapter": 1,
+   "stage": 50,
+   "genVersion": 1,
+   "templateId": "BA5",
+   "room": "c1s50v0",
+   "shift": 0,
+   "swap": 0,
+   "salt": 0,
+   "machines": {
+    "B-01": 1
+   },
+   "ME": 0,
+   "hash": "9e4b8f14681ac5a759ac0ce1d671cb5a01571fda8f58f521e5a85c4290fef343"
   }
  ]
 }
