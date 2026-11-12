@@ -24,7 +24,7 @@ function result(r) {
     '<span class="tr-rr__names"><span class="tr-rr__t' + (aw ? ' is-win' : '') + '"><span>' + esc(r.a) + '</span></span>' +
     '<span class="tr-rr__v">' + (aw ? 'beat' : bw ? 'lost to' : 'tied') + '</span>' +
     '<span class="tr-rr__t' + (bw ? ' is-win' : '') + '"><span>' + esc(r.b) + '</span></span></span>' +
-    '<span class="tr-rr__scores"><b class="tr-rr__s">' + esc(r.ra) + '/' + esc(r.wa) + '</b><span class="tr-rr__v">to</span><b class="tr-rr__s">' + esc(r.rb) + '/' + esc(r.wb) + '</b>' + (aw || bw ? '<span class="tr-rr__win">' + deco('done', 20) + '<span>' + esc(aw ? r.a : r.b) + '</span></span>' : '') + '</span></li>';
+    '<span class="tr-rr__scores"><b class="tr-rr__s">' + esc(r.ra) + '/' + esc(r.wa) + '</b><span class="tr-rr__v">to</span><b class="tr-rr__s">' + esc(r.rb) + '/' + esc(r.wb) + '</b>' + (aw || bw ? '<span class="tr-rr__win">' + deco('medal', 20) + '<span>' + esc(aw ? r.a : r.b) + '</span></span>' : '') + '</span></li>';
 }
 
 export function render(el, vm, dispatch) {

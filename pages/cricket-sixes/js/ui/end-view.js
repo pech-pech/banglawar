@@ -1,7 +1,8 @@
 /* end-view: season over. render(el, vm, dispatch). Reads endVM only. Clicks are handled by app.js (data-act). */
-import { esc, btn, ctaBar, tpChip, ico } from './dom.js';
+import { esc, btn, ctaBar, tpChip, icoDeco } from './dom.js';
 import { tableHtml, finalsHtml, nameOf, ordinal } from './table-sheet.js';
 import { helpBtn } from './hub-view.js';
+import { chipHtml } from './book-sheet.js';
 
 const CTA = { NewSeason: 'Start next season', RunEnd: 'See your run' };
 
@@ -14,17 +15,17 @@ function resultHtml(r, last) {
   const up = !!r.promoted && !last;
   const word = last ? 'Final season' : up ? 'Promoted' : 'Stayed in the league';
   const line = last ? 'Final season. Finished ' + ordinal(Number(r.place) || 0) + '.' : r.line;
-  return '<div class="c-card c-card--hl rn-result ' + (up ? 'is-up' : 'is-stay') + '" role="status">' + (last ? ico('medal', 32) : up ? ico('upgrade', 32) : STAY) +
+  return '<div class="c-card c-card--hl rn-result ' + (up ? 'is-up' : 'is-stay') + '" role="status">' + (last ? icoDeco('medal', 32) : up ? icoDeco('upgrade', 32) : STAY) +
     '<div class="rn-result__body"><span class="rn-tag">' + esc(word) + '</span><p class="rn-line">' + esc(line) + '</p></div></div>';
 }
 
 function chapterHtml(c, last) {
   if (!c) return '';
   const f = c.feat;
-  return '<div class="c-card rn-chapter">' + ico('pennant', 32) +
+  return '<div class="c-card rn-chapter">' + icoDeco('pennant', 32) +
     '<div class="rn-chapter__body"><span class="rn-tag">Chapter done</span><b class="rn-name">' + esc(c.name) + '</b>' +
-    (c.reward ? '<span class="rn-reward">' + ico('tp', 16) + 'Reward: ' + esc(String(c.reward).replace(/^TP\s*(\d+)/, '$1 TP')) + '</span>' : '') +
-    (f ? '<span class="rn-feat' + (f.done ? ' is-done' : '') + '">' + ico(f.done ? 'done' : 'info', 16) + esc((f.done ? 'Feat done: ' : last ? 'Feat missed: ' : 'Feat still open: ') + f.text) + '</span>' : '') +
+    (c.reward ? '<span class="rn-reward">' + icoDeco('tp', 16) + 'Reward: ' + esc(String(c.reward).replace(/^TP\s*(\d+)/, '$1 TP')) + '</span>' : '') +
+    (f ? '<span class="rn-feat' + (f.done ? ' is-done' : '') + '">' + icoDeco(f.done ? 'done' : 'info', 16) + esc((f.done ? 'Feat done: ' : last ? 'Feat missed: ' : 'Feat still open: ') + f.text) + '</span>' : '') +
     '</div></div>';
 }
 
@@ -34,7 +35,17 @@ function withGoUp(html, top) {
   const i0 = html.indexOf('<tbody>');
   for (let i = html.indexOf('</tr>', i0); i >= 0 && n < top; i = html.indexOf('</tr>', i + 5)) { n++; at = i + 5; }
   if (at < 0 || n < top) return html;
-  return html.slice(0, at) + '<tr class="rn-go"><td colspan="6">' + ico('upgrade', 16) + ' Above this line go up</td></tr>' + html.slice(at);
+  return html.slice(0, at) + '<tr class="rn-go"><td colspan="6">' + icoDeco('upgrade', 16) + ' Above this line go up</td></tr>' + html.slice(at);
+}
+
+/* Coach's notebook (P4): from season 2 one pairing is found free at season end. Own look (book icon, dashed edge), the grade as the Book's chip, a button to the Book. */
+function notebookHtml(n) {
+  if (!n) return '';
+  const chip = chipHtml({ found: true, rank: n.rank, grade: n.grade, combo: n.combo ? n.combo.name : null, phase: ['Early', 'Middle', 'Late'][n.ph] }, n.bat + ' v ' + n.bowl, true);
+  return '<section class="bk-nb" aria-label="Coach\'s notebook">' + icoDeco('book', 32) + '<span class="bk-nb__t">Coach\'s notebook</span>' +
+    '<span class="bk-nb__row">' + esc(n.name) + chip + '</span>' +
+    '<p class="bk-nb__sub">Found for free. Grade is the batter\'s view.' + (n.combo ? ' Combo: ' + esc(n.combo.name) + '.' : '') + '</p>' +
+    '<button type="button" class="c-btn" data-act="sheet:book">' + icoDeco('book', 24) + 'See Pairing Book</button></section>';
 }
 
 export function render(el, vm, dispatch) {
@@ -48,10 +59,11 @@ export function render(el, vm, dispatch) {
     '<div class="screen ss ss-end">' +
     '<div class="c-strip strip"><span>Season over</span>' + helpBtn('season') + '</div>' +
     resultHtml(vm.result, vm.lastSeason) + chapterHtml(vm.chapter, vm.lastSeason) +
-    '<div class="c-card c-card--hl ss-hero" role="status">' + ico(iWon ? 'league' : 'medal', 32) +
+    '<div class="c-card c-card--hl ss-hero" role="status">' + icoDeco(iWon ? 'league' : 'medal', 32) +
     '<h1 class="ss-head' + (iWon ? ' is-champ' : '') + '">' + esc(head) + '</h1>' +
     '<p class="ss-place">You finished <b>' + esc(place ? ordinal(place) : '-') + '</b> of ' + esc(rows.length || 10) + '</p>' +
     '<div class="ss-won-row">' + tpChip(vm.tpWon) + '<span>training points won this season</span></div></div>' +
+    notebookHtml(vm.notebook) +
     (vm.finals ? '<div class="c-card ss-fin"><h3>Finals</h3>' + finalsHtml(vm.finals) + '</div>' : '') +
     '<div class="ss-final-table">' + (vm.lastSeason ? tableHtml(rows, { cut: false }) : withGoUp(tableHtml(rows, { cut: false }), Number(vm.promoteTop) || 2)) + '</div>' +
     ctaBar(btn(CTA[vm.cta] || CTA.NewSeason, CTA[vm.cta] ? vm.cta : 'NewSeason', { kind: 'cta' })) +

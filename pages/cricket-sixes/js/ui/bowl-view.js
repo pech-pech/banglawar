@@ -25,7 +25,7 @@ const UNK = 'Not known yet';
 const MORE = 'Drill this player to see more matchups';
 const BADGE = { W: 'W', 6: '6', 4: '4', 2: '2', 1: '1', 0: '0' };
 // vm preview label -> rating box. Shape + word, never colour alone.
-const RATE = { Great: ['r-good', '▲', 'Good'], Even: ['r-ok', '●', 'OK'], Bad: ['r-poor', '▼', 'Poor'] };
+const RATE = { Great: ['r-good', '▲', 'Strong'], Even: ['r-ok', '●', 'Even'], Bad: ['r-poor', '▼', 'Weak'] };
 const FIELD = { A: 'Attack', P: 'Protect' };
 const REASON = { 'bowled last': "Bowled last over. Can't bowl now", '2 overs': 'Used both overs', 'must save overs': "Others must bowl first. Can't bowl now" };
 
@@ -84,7 +84,7 @@ function lastLine(vm) {
   const wk = balls.filter((r) => r.o === 'W').length;
   const chips = balls.map((r) => {
     const k = String(r.o);
-    return `<span class="ball${k === 'W' ? ' w' : k === '6' ? ' six' : ''}" role="img" aria-label="${esc(SAY(r.o))}">${esc(BADGE[k] != null ? BADGE[k] : k)}</span>`;
+    return `<span class="ball${k === 'W' ? ' w' : k === '6' ? ' six' : k === '4' ? ' four' : ''}" role="img" aria-label="${esc(SAY(r.o))}">${esc(BADGE[k] != null ? BADGE[k] : k)}</span>`;
   }).join('');
   return `<div class="last bv-last"><span class="bv-last-txt"><span class="bv-last-k">Last over:</span> ${chips}` +
     `<span class="bv-sum">= ${runs} run${runs === 1 ? '' : 's'}, ${wk} wicket${wk === 1 ? '' : 's'}</span></span>` +
@@ -98,7 +98,7 @@ function whyHtml(vm) {
   return head + (L.balls || []).slice(0, 6).map((r) => {
     const bat = (vm.batNames && vm.batNames[r.batter]) || 'The batter';
     const k = String(r.o);
-    return `<div class="bv-why-row"><span class="ball${k === 'W' ? ' w' : k === '6' ? ' six' : ''}" role="img" aria-hidden="true">${esc(BADGE[k] != null ? BADGE[k] : k)}</span>` +
+    return `<div class="bv-why-row"><span class="ball${k === 'W' ? ' w' : k === '6' ? ' six' : k === '4' ? ' four' : ''}" role="img" aria-hidden="true">${esc(BADGE[k] != null ? BADGE[k] : k)}</span>` +
       `<span>Ball ${esc(String(r.n).split('.').pop())}: <b>${esc(SAY(r.o))}</b>. ${esc(nb(whyLine(r, bat, bn)))}</span></div>`;
   }).join('');
 }
@@ -126,6 +126,7 @@ export function render(el, vm, dispatch) {
     `<span class="mid"><b>Over ${esc(vm.over)} of 10</b><span>${esc(PHASE[vm.phase] || vm.phaseName)}</span></span>` +
     `<button type="button" class="q" data-gloss aria-label="Cricket words explained">?</button></header>` +
     `${vm.firstStrip ? stripHtml(esc) : ''}<section class="colL bv-colL">` +
+    `<p class="sb-cap">For your bowler</p>` +
     `<div class="sb bv-sb" role="radiogroup" aria-label="Bowlers">${head(vm)}${(vm.bowlers || []).map((b) => row(b, vm, notes)).join('')}</div>${anyHidden ? `<p class="bv-more" data-more>${MORE}</p>` : ''}</section>` +
     `<section class="colR bv-colR"><div class="seg bv-seg" role="radiogroup" aria-label="Field">${seg('A', 'fieldAttack')}${seg('P', 'fieldProtect')}</div>` +
     chip + lastLine(vm) +
@@ -139,6 +140,25 @@ export function render(el, vm, dispatch) {
     const a = selRow.getBoundingClientRect(), b = lst.getBoundingClientRect();
     if (a.bottom > b.bottom) lst.scrollTop += a.bottom - b.bottom + 4; else if (a.top < b.top) lst.scrollTop -= b.top - a.top + 4;
   }
+  // the sticky header must never cut a tile: scroll-padding + snap for the finger, and one nudge here so a tile is whole or fully hidden
+  const hdr = lst && lst.querySelector('.bv-head');
+  const clearHeader = () => {
+    if (!hdr || !hdr.isConnected) return;
+    lst.style.setProperty('--bv-hh', (hdr.offsetHeight + 4) + 'px');
+    if (lst.scrollTop <= 0) return;
+    const hb = hdr.getBoundingClientRect().bottom;
+    const cut = [...lst.querySelectorAll('.sb-row')].find((r) => { const q = r.getBoundingClientRect(); return q.top < hb - 0.5 && q.bottom > hb + 0.5; });
+    if (cut) { // show it whole when the pre-filled row stays in view, else tuck it fully under the header
+      const q = cut.getBoundingClientRect(), up = hb - q.top + 4, lb = lst.getBoundingClientRect().bottom;
+      const sel = lst.querySelector('.sb-row.is-selected'), sb = sel && sel.getBoundingClientRect();
+      if (!sb || sb.bottom + up <= lb) lst.scrollTop -= up; else {
+        const dn = q.bottom - hb + 1, room = lst.scrollHeight - lst.clientHeight - lst.scrollTop;
+        if (dn > room) lst.style.paddingBottom = (4 + Math.ceil(dn - room)) + 'px'; // end-of-list room so the last tile can still clear the header
+        lst.scrollTop += dn;
+      }
+    }
+  };
+  clearHeader(); if (typeof requestAnimationFrame === 'function') requestAnimationFrame(clearHeader);
   // QA r2 D8: dock the first-match card just above the Field bar, so the batters and the bowler named on the CTA stay visible
   const fs = el.querySelector('.fs-strip'), segEl = el.querySelector('.bv-seg');
   if (fs && segEl) { const top = segEl.getBoundingClientRect().top; if (top > 0) fs.style.bottom = Math.max(0, Math.round(window.innerHeight - top + 6)) + 'px'; }

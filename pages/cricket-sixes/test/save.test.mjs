@@ -6,21 +6,21 @@ import { createSave, KEY, BAK } from '../js/platform/save.js';
 import { createStore } from '../js/store/store.js';
 
 const step0 = () => { const st = createStore(null); st.dispatch('NewMatch', { seed: 'sv-1' }); return st.get(); };
-const fakeNewGame = (seed) => ({ v: 2, stage: 'coach', seed: String(seed), salt: '', season: { n: 1, seed: String(seed), round: 1 }, coaches: [], coachPicked: false });
+const fakeNewGame = (seed) => ({ v: 3, stage: 'coach', seed: String(seed), salt: '', season: { n: 1, seed: String(seed), round: 1 }, coaches: [], coachPicked: false });
 const memStorage = (init = {}) => {
   const m = new Map(Object.entries(init));
   return { getItem: (k) => (m.has(k) ? m.get(k) : null), setItem: (k, v) => { m.set(k, String(v)); }, removeItem: (k) => { m.delete(k); }, _m: m };
 };
 const throwing = () => ({ getItem() { throw new Error('denied'); }, setItem() { throw new Error('denied'); }, removeItem() { throw new Error('denied'); } });
 
-test('keys are cs.save.1 and cs.save.1.bak, VERSION is 2', () => {
-  assert.equal(KEY, 'cs.save.1'); assert.equal(BAK, 'cs.save.1.bak'); assert.equal(VERSION, 2);
+test('keys are cs.save.1 and cs.save.1.bak, VERSION is 3', () => {
+  assert.equal(KEY, 'cs.save.1'); assert.equal(BAK, 'cs.save.1.bak'); assert.equal(VERSION, 3);
 });
 
 test('round trip: wrap then unwrap deep-equals the state', () => {
   const s = { ...fakeNewGame('a'), extra: { x: [1, 2, { y: 'z' }] } };
   const r = unwrap(JSON.stringify(wrap(s)));
-  assert.equal(r.ok, true); assert.equal(r.from, 2);
+  assert.equal(r.ok, true); assert.equal(r.from, VERSION);
   assert.deepEqual(r.state, s);
 });
 

@@ -4,19 +4,27 @@
 // tie-break on spd+bsk), against the batters likely at the crease in that phase, then picks the best legal plan:
 // each of the six bowls 1-2 overs, never twice in a row. Exact search (DP), ties go to the lowest bowler number.
 import { matchup, phaseOf } from './match.js';
+import { cellIndex, pairPoints } from './pairing.js';
+
+/** Pairing hint weight (sheet 11 port line 5: -2 * PAIR for found cells). One visible grid step (g = 1) is 5 rating points, so the term is -BOOK_W * points / 5 in g units. */
+export const BOOK_W = 2;
 
 const OVERS = 10;
 const BATTERS_AT_CREASE = [2, 3, 4]; // top-of-order batters met in Early / Middle / Late (openers first, then the rest come in)
 
-/** @param {any[]} six my six bowlers (in plan order) @param {any[]} batters their six batters in batting order @returns {number[]} 10 bowler indexes */
-export function defaultOvers(six, batters) {
+/** @param {any[]} six my six bowlers (in plan order) @param {any[]} batters their six batters in batting order @param {{found:number[]}} [book] Pairing Book: found cells add their hidden points to the score; unfound cells add nothing @returns {number[]} 10 bowler indexes */
+export function defaultOvers(six, batters, book) {
   const n = six.length;
   const score = Array.from({ length: OVERS }, (_, o) => {
     const ph = phaseOf(o + 1);
     const seen = batters.slice(0, BATTERS_AT_CREASE[ph] || 2);
     return six.map((p) => {
       let g = 0;
-      for (const b of seen) { const m = matchup('bowl', b, p, ph); g += m.g + (m.inPhase ? 1 : 0); }
+      for (const b of seen) {
+        const m = matchup('bowl', b, p, ph);
+        g += m.g + (m.inPhase ? 1 : 0);
+        if (book && book.found[cellIndex(b.bat, p.bowl, ph)]) g += (-BOOK_W * pairPoints(b.bat, p.bowl, ph)) / 5;
+      }
       return Math.round((g / Math.max(seen.length, 1)) * 1000) + (p.spd + p.bsk) / 1000;
     });
   });

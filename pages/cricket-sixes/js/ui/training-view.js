@@ -6,7 +6,7 @@
    vm.plan (P7): { mode, canRepeat, n, cost, tpLeft, free, byPlayer:{id:{drillId,rating,fresh}}, bulk:{n,total,great,reveals,xp}|null, autoBench, tips }.
    Taps: a row -> `sheet:player {id}`; the coach row -> `sheet:coaches {}`; End week -> command EndWeek.
    `open(name, arg)` is optional; app.js maps it to the sheet modules. */
-import { esc, ico, btn, ctaBar } from './dom.js';
+import { esc, icoDeco, btn, ctaBar } from './dom.js';
 import { bindActs } from './dom.js';
 import { openSheet } from './sheet.js';
 import { DRILLS } from '../data/training.js';
@@ -20,7 +20,7 @@ export const roleIcon = (r) => ROLE_ICON[String(r || '').toLowerCase()] || 'role
 export const typeIcon = (t) => TYPE_ICON[String(t || '').toLowerCase()] || 'typeMedium';
 const cap = (s) => { s = String(s || ''); return s.charAt(0).toUpperCase() + s.slice(1).toLowerCase(); };
 /** A decorative icon (the words beside it carry the meaning). */
-export const deco = (name, size) => ico(name, size || 20).replace('<img', '<img aria-hidden="true"');
+export const deco = (name, size) => icoDeco(name, size || 20);
 /** Icon + word, kept together. */
 export const iw = (name, word) => '<span class="tr-iw">' + deco(name, 20) + '<span>' + esc(word) + '</span></span>';
 /** TP chip: tp icon, number, word (dom.tpChip draws a coin, and coins are cut from milestone 0). */

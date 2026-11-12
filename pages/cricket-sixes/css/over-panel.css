@@ -1,5 +1,5 @@
 /* over-panel: modal ball-by-ball over. Kit colours only. */
-.op-scrim { position: fixed; inset: 0; z-index: 50; display: flex; align-items: center; justify-content: center; padding: 8px; background: rgba(28, 42, 34, .72); }
+.op-scrim { position: fixed; inset: 0; z-index: 70; display: flex; align-items: center; justify-content: center; padding: 8px; background: rgba(28, 42, 34, .72); }
 .op-card { width: 100%; max-width: 420px; height: 560px; max-height: 100%; overflow: hidden; display: flex; flex-direction: column; gap: 8px; padding: 12px; }
 .op-head { display: flex; align-items: center; justify-content: space-between; min-height: 56px; margin: -4px -4px 0 0; }
 .op-close { flex: none; width: 56px; height: 56px; min-width: 56px; min-height: 56px; }

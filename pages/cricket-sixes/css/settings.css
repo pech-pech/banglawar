@@ -16,3 +16,14 @@
 .rp-opts { display: grid; grid-template-columns: 1fr 1fr; gap: var(--c-sp-1); }
 .rp-chip { min-height: 56px; width: 100%; padding: 0 var(--c-sp-1); }
 .rp-skip { opacity: .8; }
+/* Theme row (Settings sheet): label + a two-option segmented control, 56 px tall */
+.st-theme { display: flex; flex-direction: column; gap: var(--c-sp-1); }
+.st-theme__lbl { font-size: var(--c-fs-s); line-height: var(--c-lh-s); font-weight: 700; }
+.st-theme__seg .c-seg__opt { white-space: normal; text-align: center; line-height: 18px; }
+/* hub header: title text shrinks and wraps so the gear and the ? (56 px each) stay inside 344 px */
+.strip:has(.st-gear) > span:first-child { flex: 1 1 0; min-width: 0; overflow: hidden; white-space: normal; }
+.strip:has(.st-gear) > .ss-strip { min-width: 0; }
+.strip:has(.st-gear) .st-gear { margin-left: 0; }
+/* scoreboard.css gives every .strip margin 0 -8px (for the chase page padding); on screens with the gear that pushed the ? 8 px past the edge */
+@media (max-width: 599px) { .screen > .strip:has(.st-gear) { margin-left: 0; margin-right: 0; } }
+.strip:has(.st-gear) { height: auto; padding-top: 4px; padding-bottom: 4px; }

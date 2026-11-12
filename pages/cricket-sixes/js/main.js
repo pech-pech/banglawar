@@ -2,6 +2,7 @@ import { createStore } from './store/store.js';
 import { mount } from './ui/app.js';
 import { createSave } from './platform/save.js';
 import { openSaveSheet } from './ui/save-sheet.js';
+import { applyTheme, themeOf } from './ui/theme.js';
 
 const rand = () => Array.from(crypto.getRandomValues(new Uint8Array(8)), (b) => b.toString(16).padStart(2, '0')).join('');
 const q = new URLSearchParams(location.search).get('seed');
@@ -20,6 +21,10 @@ if (!loaded.state) {
 }
 // 2. Reseed: ?seed fixes the rolls (empty salt); otherwise every load re-rolls them.
 store.dispatch('Reseed', { salt: q ? '' : rand() });
+
+// 2b. Look: applied before the first render, and live whenever SetTheme changes it.
+applyTheme(themeOf(store.get()));
+store.subscribe((s) => applyTheme(themeOf(s)));
 
 // 3. Autosave after each accepted command (the store only notifies when a command changed the state).
 let saved = save.save(store.get());

@@ -4,7 +4,7 @@
 //   {players:[{id,name,bat,bowl,ability,grade,pips,peak,max,order|null}], count, valid, reason}
 // Optional VM fields used when present: title, sub (context line), and per player role ('Opener'|'Middle'|'Lower') and type ('Fast'|'Medium'|'Spin').
 // The tick-offs are view state (never saved); "Confirm my six" dispatches SetSix {ids} once, in batting order.
-import { esc, ico } from './dom.js';
+import { esc, icoDeco } from './dom.js';
 import { openGlossary } from './glossary-sheet.js';
 
 const SIX = 6;
@@ -34,12 +34,12 @@ function row(p, pos, maxBat, maxBowl) {
   const hidden = !p.grade || p.grade === '?';
   const role = ROLE_WORD[p.role] || '';
   const type = p.type || '';
-  const subHtml = (role ? esc(role) : '') + (role && type ? ' · ' : '') + (type ? `${ico(TYPE_ICON[type], 14)}${esc(type)}` : '');
+  const subHtml = (role ? esc(role) : '') + (role && type ? ' · ' : '') + (type ? `${icoDeco(TYPE_ICON[type], 14)}${esc(type)}` : '');
   const label = `${p.name}${role ? ', ' + role : ''}${type ? ', ' + type + ' bowler' : ''}, batting ${p.bat}, bowling ${p.bowl}, ` +
     (hidden ? 'potential grade ' + DRILLS + `, ${p.pips | 0} of 1 drill` : 'potential grade ' + p.grade) +
     (p.bat === maxBat ? ', best batter' : '') + (p.bowl === maxBowl ? ', best bowler' : '') + (p.peak ? ', at peak' : '') + (on ? `. Picked, bats number ${pos + 1}. Tap to take out.` : '. On the bench. Tap to pick.');
   return `<button type="button" class="sq-row${on ? ' is-selected' : ' sq-row--bench'}" role="checkbox" aria-checked="${on}" data-id="${esc(p.id)}" aria-label="${esc(label)}">` +
-    `<div class="pbox sq-pbox">${ico(ROLE_ICON[p.role] || 'roleMiddle', 26)}` +
+    `<div class="pbox sq-pbox">${icoDeco(ROLE_ICON[p.role] || 'roleMiddle', 26)}` +
     `<span class="nm name sq-nm">${on ? `<b class="sq-ord" aria-hidden="true">${pos + 1}</b>` : '<span class="sq-bench">Bench</span>'}${esc(p.name)}</span>` +
     `<span class="sub sq-sub">${subHtml}</span>${hidden ? pips(p.pips) : ''}</div>` +
     `<div class="sq-nbox${p.bat === maxBat ? ' hi' : ''}"><b>${esc(p.bat)}</b>${p.bat === maxBat ? '<small class="sq-best">Best</small>' : ''}</div>` +

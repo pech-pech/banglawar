@@ -31,9 +31,9 @@ const ROLE_WORD = { Opener: 'Opener', Middle: 'Middle order', Lower: 'Lower orde
 const PHASE_WORDS = ['Early overs (1-3)', 'Middle overs (4-7)', 'Last overs (8-10)'];
 // Map the matchup label to plain words, a shape and a colour class. Colour is never the only signal.
 const RATING = {
-  Great: { cls: 'r-good', s: '▲', w: 'Good' },
-  Even: { cls: 'r-ok', s: '●', w: 'OK' },
-  Bad: { cls: 'r-poor', s: '▼', w: 'Poor' },
+  Great: { cls: 'r-good', s: '▲', w: 'Strong' },
+  Even: { cls: 'r-ok', s: '●', w: 'Even' },
+  Bad: { cls: 'r-poor', s: '▼', w: 'Weak' },
 };
 
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) =>
@@ -96,7 +96,7 @@ function batterName(vm, i) {
 }
 
 function ballChip(rec) {
-  const cls = rec.o === 'W' ? 'ball w' : rec.o === 6 ? 'ball six' : 'ball';
+  const cls = rec.o === 'W' ? 'ball w' : rec.o === 6 ? 'ball six' : rec.o === 4 ? 'ball four' : 'ball';
   const txt = rec.o === 'W' ? 'W' : rec.o;
   return '<span class="' + cls + '" aria-label="' + esc(outWord(rec.o)) + '">' + esc(txt) + '</span>';
 }
@@ -135,7 +135,7 @@ export function render(el, vm, dispatch) {
   const need = vm.need > 0
     ? 'Need ' + vm.need + ' from ' + vm.ballsLeft + ' ball' + (vm.ballsLeft === 1 ? '' : 's')
     : 'Target reached';
-  const phase = PHASE_WORDS[vm.phase] || vm.phaseName || '';
+  const phase = String(PHASE_WORDS[vm.phase] || vm.phaseName || '').replace(/ /g, '\u00a0'); // N9: the phase never splits mid-phrase
   const cols = likelyBowlers(vm);
   const notes = newNotes();
   const known = cols.filter((c) => c.name);
@@ -159,6 +159,7 @@ export function render(el, vm, dispatch) {
     '<span class="mid"><b>' + esc(need) + '</b><span>Target ' + esc(vm.target) + ' · Over ' + esc(vm.over) + ' of 10 · ' + esc(phase) + '</span></span>' +
     '<button type="button" class="q" aria-label="Cricket words explained">?</button></header>' +
     '<section class="colL">' +
+    '<p class="sb-cap">For your batter</p>' +
     '<div class="sb chase" role="table" aria-label="Your batters against their likely bowlers">' + head +
     crease.map((b) => batterRow(b, cols, notes)).join('') + '</div>' +
     '<div class="boxnote">' + (ex ? esc(ex.r + ' (' + ex.b + ') = ' + ex.r + (ex.r === 1 ? ' run' : ' runs') + ' from ' + ex.b + (ex.b === 1 ? ' ball.' : ' balls.')) : '') +
