@@ -112,7 +112,7 @@ export function mount(el, store) {
     const summaryLines = [];
     if (balls.length < 6) summaryLines.push(!first && s.result === 'won' ? 'Target reached: you win!' : first ? '5th wicket: their innings is over.' : '5th wicket: your innings is over.');
     rep.panelOpen();
-    playOverPanel({ title: 'Over ' + s.last.over, balls, score: { runs: inn.runs, wk: inn.wk }, nextLabel, summaryLines,
+    playOverPanel({ title: 'Over ' + s.last.over, balls, score: { runs: inn.runs, wk: inn.wk }, nextLabel, summaryLines, batKit: first ? 'B' : 'A',
       onDone() { rep.panelDone(balls.length); holding = false; render(); } });
   }
   return dispatch;

@@ -1,6 +1,7 @@
 // Ball-by-ball over panel. Modal; autoplays one ball per 400 ms; calls onDone when Next is pressed.
 // balls: raw over balls ({n, o, ...}) optionally with batName, bowlName, bowlType for the why line.
 import { whyLine, outcomeLabel } from './why.js';
+import { attachBeats } from './beats.js';
 
 export const BALL_MS = 400;
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -27,14 +28,14 @@ const kind = (o) => (o === 'W' ? 'w' : o === 6 ? 's' : o === 4 ? 'f' : 'n');
  * @param {{title:string, balls:any[], score:{runs:number,wk:number}, nextLabel?:string, onDone:()=>void}} o
  * (summaryLines: optional extra plain lines shown under the total line.)
  */
-export function playOverPanel({ title, balls, score, summaryLines = [], nextLabel = 'Next over', onDone }) {
+export function playOverPanel({ title, balls, score, summaryLines = [], nextLabel = 'Next over', batKit, onDone }) {
   const list = (balls || []).slice(0, 6);
   const root = document.createElement('div');
   root.className = 'op-scrim';
   const slots = Array.from({ length: 6 }, (_, i) => `<li class="op-slot${i >= list.length ? ' is-unused' : ''}" data-i="${i}"><span class="op-circle" aria-hidden="true"></span><span class="op-word" aria-hidden="true"></span></li>`).join('');
-  root.innerHTML = `<section class="c-card op-card" role="dialog" aria-modal="true" aria-labelledby="op-title">` +
+  root.innerHTML = `<section class="c-card op-card has-beats" role="dialog" aria-modal="true" aria-labelledby="op-title">` +
     `<header class="op-head"><h2 id="op-title" class="op-title">${esc(title)}</h2>` +
-    `<button type="button" class="c-icon-btn op-close" aria-label="Close and skip to the end of the over"><span class="c-ico c-ico--x"></span></button></header><ol class="op-circles" aria-label="Balls this over">${slots}</ol>` +
+    `<button type="button" class="c-icon-btn op-close" aria-label="Close and skip to the end of the over"><span class="c-ico c-ico--x"></span></button></header><div class="bt-slot"></div><ol class="op-circles" aria-label="Balls this over">${slots}</ol>` +
     `<hr class="op-divider"><div class="op-bottom"><h3 class="op-sub">Results this over</h3><ul class="op-lines" aria-live="polite"></ul></div>` +
     `<div class="op-foot"></div></section>`;
   document.body.appendChild(root);
@@ -42,9 +43,10 @@ export function playOverPanel({ title, balls, score, summaryLines = [], nextLabe
   const lines = root.querySelector('.op-lines');
   const foot = root.querySelector('.op-foot');
   const timers = [];
+  const beats = attachBeats(root.querySelector('.bt-slot'), { kit: batKit }); // P10 beats: pictures only, js/ui/beats.js
   let done = false, finished = false, landed = 0;
 
-  function land(i) {
+  function land(i, live) {
     if (i < landed) return; landed = i + 1;
     const b = list[i], k = kind(b.o), slot = slotEls[i];
     const c = slot.querySelector('.op-circle');
@@ -56,6 +58,7 @@ export function playOverPanel({ title, balls, score, summaryLines = [], nextLabe
     li.className = 'op-line k-' + k;
     li.innerHTML = `<b>Ball ${i + 1}: ${esc(outcomeLabel(b.o).replace(/^./, (x) => x.toUpperCase()))}.</b> ${esc(why)}`;
     lines.appendChild(li);
+    if (live) beats.ball(b.o);
   }
   function finish() {
     if (finished) return; finished = true;
@@ -72,13 +75,13 @@ export function playOverPanel({ title, balls, score, summaryLines = [], nextLabe
   }
   function onKey(e) { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); exit(); } }
   document.addEventListener('keydown', onKey, true);
-  function exit() { if (done) return; skip(); done = true; document.removeEventListener('keydown', onKey, true); root.remove(); onDone && onDone(); }
+  function exit() { if (done) return; skip(); beats.stop(); done = true; document.removeEventListener('keydown', onKey, true); root.remove(); onDone && onDone(); }
   /** Land every remaining ball at once so no result is lost. */
   function skip() { timers.forEach(clearTimeout); for (let i = landed; i < list.length; i++) land(i); finish(); }
   root.querySelector('.op-close').addEventListener('click', exit);
   root.querySelector('.op-close').focus();
   const t0 = performance.now();
-  list.forEach((_, i) => timers.push(setTimeout(() => land(i), Math.max(0, t0 + (i + 1) * BALL_MS - performance.now()))));
+  list.forEach((_, i) => timers.push(setTimeout(() => land(i, true), Math.max(0, t0 + (i + 1) * BALL_MS - performance.now()))));
   timers.push(setTimeout(finish, Math.max(0, t0 + (list.length + 1) * BALL_MS - performance.now() - 300)));
   return { close: exit };
 }
