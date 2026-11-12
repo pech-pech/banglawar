@@ -166,8 +166,8 @@ export function render(el, vm, dispatch) {
     '</section>' +
     '<section class="colR">' +
     (ih ? '' : '<h2 class="title ask">How should your batters play?</h2>') + // with a chip, the chip heads the choice (saves a row on the small screen)
-    (ih ? '<button type="button" class="bv-chip" id="chip" data-intenthint data-chip="' + ih.pick + '" aria-pressed="' + (intent === ih.pick) + '">' + tipIcon() +
-      '<span class="bv-chip-t"><b>Tip: try ' + INTENT_NAME[ih.pick] + '</b><span>' + esc(ih.why) + '</span></span></button>' : '') +
+    (ih ? '<button type="button" class="bv-chip' + (intent === ih.pick ? ' is-on' : '') + '" id="chip" data-intenthint data-chip="' + ih.pick + '" aria-pressed="' + (intent === ih.pick) + '">' + tipIcon() +
+      '<span class="bv-chip-t"><b>Tip: ' + (intent === ih.pick ? INTENT_NAME[ih.pick] + ' is on' : 'try ' + INTENT_NAME[ih.pick]) + '</b><span>' + esc(ih.why) + '</span></span></button>' : '') +
     '<div class="seg intent" role="radiogroup" aria-label="Batting style">' + seg + '</div>' +
     '<p class="hint" id="intent-desc">' + esc(INTENTS.find((o) => o.k === intent).d) + '</p>' +
     lastLine(vm) +

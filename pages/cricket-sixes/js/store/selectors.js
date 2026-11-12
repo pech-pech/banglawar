@@ -56,7 +56,10 @@ export function bowlVM(s) {
   const centre = centreOf(s);
   const pick = mean('bp') + mean('bs') < 2 * centre ? 'A' : 'P';
   const worth = pick === 'A' || mean('bp') - centre >= 8;
-  const fieldHint = showHint && worth ? { pick, why: 'Weak bat? Attack. Big hitter? Protect.' } : null;
+  const names = pair.map((b) => b.name).join(' and ');
+  // The reason names the pair and uses the same rule that picked the chip, so it can never contradict it.
+  const why = pick === 'A' ? `${names}: weak bats on average, try Attack` : `${names}: big hitters, keep Protect`;
+  const fieldHint = showHint && worth ? { pick, why } : null;
   return {
     over: inn.over, phase: ph, phaseName: PHASE_NAMES[ph], score: scoreOf(inn),
     crease: crease(inn, bats), bowlers, call, batNames: bats.map((p) => p.name), bowlNames: me.map((p) => p.name), fieldHint,
