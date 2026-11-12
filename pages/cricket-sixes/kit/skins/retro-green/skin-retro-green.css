@@ -7,6 +7,9 @@
 @font-face { font-family: "Jersey 10"; font-weight: 400; font-style: normal; font-display: swap; src: url("fonts/jersey-10-400.woff2") format("woff2"); }
 @font-face { font-family: "Jersey 15"; font-weight: 400; font-style: normal; font-display: swap; src: url("fonts/jersey-15-400.woff2") format("woff2"); }
 @font-face { font-family: "Pixelify Sans"; font-weight: 400; font-style: normal; font-display: swap; src: url("fonts/pixelify-sans-700.woff2") format("woff2"); } /* QA-e-b L3: names only (capital I has serifs); the 700 file is mapped to weight 400 so it matches the heavy Jersey stroke without synthesis; OFL-1.1, fonts/OFL-pixelify-sans.txt. No digits in names, so its weak 5/8/9 do not matter */
+/* Capital I fix (QA 2): Jersey's I is a bare stem, the same as l ("Ives" read "lves"). These two faces map ONLY U+0049 to the serifed I of the bundled Pixelify Sans file (unmodified, OFL-1.1, so no rename), scaled so its cap height matches Jersey (Jersey 10 cap = .54 em, Jersey 15 = .56 em, Pixelify = .64 em). They sit first in --font-head / --font-body; every other character falls through to Jersey. The file only downloads on a page that shows a capital I. */
+@font-face { font-family: "RG Cap I 10"; font-weight: 400; font-style: normal; font-display: swap; src: url("fonts/pixelify-sans-700.woff2") format("woff2"); unicode-range: U+0049; size-adjust: 84.4%; }
+@font-face { font-family: "RG Cap I 15"; font-weight: 400; font-style: normal; font-display: swap; src: url("fonts/pixelify-sans-700.woff2") format("woff2"); unicode-range: U+0049; size-adjust: 87.5%; }
 body.skin-retro-green, .skin-retro-green {
   --c-frame-panel:               url("skins/retro-green/frame-panel.png");
   --c-frame-btn:                 url("skins/retro-green/frame-btn.png");
@@ -17,8 +20,8 @@ body.skin-retro-green, .skin-retro-green {
   --c-frame-sheet:               url("skins/retro-green/frame-sheet.png");
   --c-frame-tag:                 url("skins/retro-green/frame-tag.png");        /* FLAT (QA 3): plain chips, grade tags, gain chips are not tappable */
   /* font tokens. Jersey runs small for its em, so the s/m/l scale is 14/18/24 (not 14/16/20). */
-  --font-head: "Jersey 10", "Nunito", system-ui, sans-serif;
-  --font-body: "Jersey 15", "Nunito", system-ui, sans-serif;
+  --font-head: "RG Cap I 10", "Jersey 10", "Nunito", system-ui, sans-serif;
+  --font-body: "RG Cap I 15", "Jersey 15", "Nunito", system-ui, sans-serif;
   --font: var(--font-body); --c-font: var(--font-body); /* :root resolves --c-font before body sets --font, so set it here too */
   --c-fs-s: 14px; --c-lh-s: 18px;
   --c-fs-m: 18px; --c-lh-m: 22px;
@@ -50,8 +53,9 @@ body.skin-retro-green, .skin-retro-green {
 .skin-retro-green .c-sheet__grab { background: var(--sk-grab-fill); border-color: #1C2A22; }
 
 /* ===== QA 2026-11-12 e-b (applied as directed) ===== */
-/* L3: names in Pixelify Sans so capital I is not read as l ("Ives"). Names only: player and coach row titles, coach chips on Coach pick (not drill chips: Pixelify is wider and "Pace Bowling" spilled), sheet titles. Body text keeps Jersey (so "Ives" in running text still reads lves). */
-.skin-retro-green :is(.c-row__title > span:first-child, .cp-name > .c-chip__name, .c-sheet__title) { font-family: "Pixelify Sans", var(--font-body); }
+/* L3 (revised 2026-11-12, QA h-m0 H1): names back on the Jersey stacks. Pixelify was only there for capital I; the RG Cap I faces now fix I in every Jersey text, and Pixelify's B read as G ("Grackwell") and C as O. Row titles and coach chips: --font-body (RG Cap I 15, Jersey 15); sheet titles: --font-head (RG Cap I 10, Jersey 10), as before L3. Same classes, same sizes. The "Pixelify Sans" face above stays for first-session/fs.css .name. */
+.skin-retro-green :is(.c-row__title > span:first-child, .cp-name > .c-chip__name) { font-family: var(--font-body); }
+.skin-retro-green .c-sheet__title { font-family: var(--font-head); }
 /* L2: primary button in a 2-up row: 20 px so "Next: Tanaka" clears the frame */
 .skin-retro-green .c-grid-2 > .c-btn--primary { font-size: 20px; line-height: 24px; letter-spacing: 0; }
 /* L5: resource numbers and grade letters at Jersey 10, m size */
