@@ -1,0 +1,50 @@
+/* Chase screen (innings 2), layout B "scoreboard". Builds on css/scoreboard.css; overrides scoped to .chase-b. */
+#app:has(> .chase-b) { padding: 0; display: block; min-height: 0; }
+.chase-b { --cta-bar: 88px; display: grid; gap: 5px; padding: 0 8px calc(var(--cta-bar) + 4px); background: var(--cream); }
+.chase-b .strip { justify-content: flex-start; min-height: 58px; height: 58px; flex-wrap: nowrap; overflow: visible; padding-top: 0; padding-bottom: 0; }
+.chase-b .strip > .score { flex: none; overflow: visible; }
+.chase-b .strip .mid b { font-size: 22px; line-height: 24px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.chase-b .strip .mid span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 13px; }
+.chase-b .q { height: 56px; min-height: 56px; align-self: flex-start; }
+.chase-b .title { margin: 0; }
+.chase-b .title.ask { font-size: 20px; line-height: 22px; }
+.chase-b .sb { gap: 6px; }
+.chase-b .sb-row { cursor: default; }
+.chase-b .sb-row.is-strike .pbox { border-image: none; border: 3px solid var(--outline); padding: 0 5px; background: var(--gold);
+  box-shadow: inset 0 0 0 3px var(--pitch2), inset 0 0 0 5px var(--gold), inset 0 0 0 7px var(--pitch1); }
+.chase-b .sb-row.is-strike .gr, .chase-b .sb-row.is-strike .best { background: var(--cream); }
+.chase-b .pbox .sub { white-space: normal; }
+.chase-b .rbox .w { text-align: center; }
+.chase-b .r-unk { background: var(--stone1); border-style: dashed; box-shadow: none; }
+.chase-b .r-unk .w { font: 14px/15px var(--font-body); }
+.chase-b .hint { margin: 0; font-size: 14px; line-height: 16px; border-left: 4px solid var(--accent); padding-left: 6px; }
+.chase-b .last-b { display: flex; align-items: center; gap: 6px; min-height: 56px; font-size: 15px; line-height: 18px; border-top: 2px solid var(--outline); padding-top: 4px; }
+.chase-b .last-b .lt { flex: 1 1 auto; min-width: 0; }
+.chase-b .last-b .lt b { font-family: var(--font-head); font-weight: 400; }
+.chase-b .last-b .balls { display: flex; gap: 3px; margin-top: 2px; flex-wrap: wrap; }
+.chase-b .why-b { flex: none; min-width: 72px; min-height: 56px; padding: 0 10px; }
+.chase-b .ctabar { z-index: 50; }
+.chase-b .ctabar .c-btn { display: flex; align-items: center; justify-content: center; }
+.why-row { display: flex; align-items: flex-start; gap: 8px; }
+.why-row .ball { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border: 2px solid var(--outline); background: var(--white); font: 16px/1 var(--font-head); }
+.why-row .ball.w { background: var(--danger); color: var(--white); }
+.why-row .ball.six { background: var(--grass1); }
+@media (max-width: 599px) {
+  .chase-b .colL, .chase-b .colR { display: contents; }
+  .chase-b .sb-row, .chase-b .sb-head { --rc: 70px; }
+  .chase-b .pbox, .chase-b .rbox { min-height: 100px; }
+  .chase-b .sb { gap: 10px; }
+}
+@media (min-width: 600px) {
+  .chase-b { grid-template-columns: minmax(0, 1fr) 260px; column-gap: 16px; padding: 0 12px calc(var(--cta-bar) + 4px); align-content: start; }
+  .chase-b .strip { grid-column: 1 / -1; margin: 0 -12px; }
+  .chase-b .colL { grid-column: 1; display: grid; gap: 6px; align-content: start; }
+  .chase-b .colR { grid-column: 2; display: grid; gap: 8px; align-content: start; padding-top: 4px; }
+  .chase-b .sb-row, .chase-b .sb-head { --rc: 96px; }
+  .chase-b .seg { grid-auto-flow: row; }
+  .chase-b .ctabar { padding: 12px max(12px, calc(50% - 200px)); }
+}
+/* QA-344 #1: the selected tick is a corner badge, so it takes no width from the label. */
+.chase-b .opt { position: relative; }
+.chase-b .opt.is-selected::before { position: absolute; top: 3px; right: 3px; margin: 0; }
+.chase-b .opt .two small { white-space: nowrap; }

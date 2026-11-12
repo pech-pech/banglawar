@@ -1,0 +1,62 @@
+/* Bowl screen (layout B, scoreboard). Builds on css/scoreboard.css; only bowl-scoped overrides here (.bv-*). */
+/* app.css .strip rules also match .strip: undo the ones that fight the scoreboard strip. */
+.bv-strip { flex-wrap: nowrap; min-height: 56px; overflow: visible; padding-right: 0; }
+.bv-strip > .score { flex: none; overflow: visible; }
+.bv-strip .mid { white-space: nowrap; overflow: hidden; }
+.bv-strip .q { min-height: 56px; align-self: stretch; }
+#app .bv-colL .gr { min-width: 34px; }
+#app .bv-colL .pbox .ico { width: 24px; height: 24px; }
+.bv-colL .bv-ph { display: inline-block; width: 24px; height: 24px; grid-row: 1 / 3; }
+.bv-title { margin: 2px 0 0; }
+.bv-bat { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bv-bat b { font-family: "Pixelify Sans", var(--font-body); font-size: 15px; }
+.bv-head .bv-vs { display: block; font: inherit; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bv-legend i { display: inline-block; min-width: 10px; text-align: center; }
+/* unknown rating: no colour, dotted border, "?" + word */
+.rbox.r-unk { background: var(--cream); border-style: dashed; box-shadow: none; }
+.rbox.r-unk .s { font: 20px/20px var(--font-head); }
+.rbox.r-unk .w { font: 14px/16px var(--font-body); }
+.bv-gq { background: var(--stone1); }
+.sb-row.is-selected .bv-gq { background: var(--cream); }
+/* selected row: tick sits before the name (scoreboard.css .nm::before); keep the rating boxes outlined too */
+.sb-row:focus-visible { outline: 3px solid var(--outline); outline-offset: 2px; }
+.sb-row.is-off .offnote { min-height: 56px; }
+/* field buttons */
+.bv-seg .opt { min-height: 56px; }
+.bv-seg .opt .icon { flex: none; width: 24px; height: 24px; }
+/* last over: one compact line + Why? */
+.bv-last { flex-wrap: nowrap; min-height: 56px; gap: 6px; }
+.bv-last-txt { flex: 1 1 auto; min-width: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 3px; }
+.bv-last-k { margin-right: 2px; }
+.bv-sum { white-space: nowrap; }
+.bv-why { flex: none; min-width: 72px; min-height: 56px; height: 56px; padding: 0 10px; font: 18px/1 var(--font-head); }
+/* Why sheet rows */
+.bv-why-row { display: flex; align-items: flex-start; gap: 8px; }
+.bv-why-row .ball { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border: 2px solid var(--outline); background: var(--white); font: 16px/1 var(--font-head); }
+.bv-why-row .ball.w { background: var(--danger); color: var(--white); }
+.bv-why-row .ball.six { background: var(--grass1); }
+.bv-cta { z-index: 50; }
+.bv-cta .c-btn { display: flex; align-items: center; justify-content: center; }
+.bv-last-txt { align-self: center; }
+@media (max-width: 599px) {
+  .bv-hints p { white-space: normal; }
+}
+@media (min-width: 600px) {
+  .bv-last { flex-wrap: wrap; }
+}
+/* QA-344 #2: tick sits above the type icon, not in the name line */
+.bv-colL .sb-row.is-selected .nm::before { content: none; display: none; }
+.bv-icw { grid-row: 1 / 3; grid-column: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; width: 26px; }
+#app .bv-icw .ico, .bv-icw .bv-ph { grid-row: auto; }
+.bv-tick { display: block; width: 14px; height: 11px; background: var(--outline); -webkit-mask: var(--c-ico-check) center/100% 100% no-repeat; mask: var(--c-ico-check) center/100% 100% no-repeat; }
+/* QA-344 #5: one font (Pixelify Sans) for every name, same size as the text around it */
+.bv-colL .name, .bv-cta .name, .bv-why-row ~ * .name, .sheet-fixed .name { font-family: "Pixelify Sans", system-ui, sans-serif; font-weight: 400; }
+.bv-bat b.name { font-size: 15px; }
+.bv-head .bv-vs { font: 16px/19px "Pixelify Sans", system-ui, sans-serif; }
+.bv-cta .c-btn .name { font-size: inherit; line-height: inherit; }
+/* star badge sits on the Grade box corner (still inside the player's box), so the type line keeps its width */
+#app .bv-colL .gr { position: relative; }
+.bv-colL .gr .bv-best { position: absolute; top: -9px; left: -12px; font-size: 11px; line-height: 12px; padding: 0 1px; }
+.bv-bat { font-size: 14px; letter-spacing: -.1px; }
+.bv-bat b.name { font-size: 14px; }
+.rbox.r-unk .w { font: 13px/14px var(--font-body); text-align: center; padding: 0 2px; }
