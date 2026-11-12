@@ -117,7 +117,7 @@ async function journey(browser, tag) {
   const settle = (ms = 250) => page.waitForTimeout(ms);
   async function closeSheets() { for (let i = 0; i < 4 && (await page.$('.c-sheet')); i++) { await page.keyboard.press('Escape'); await settle(150); } }
   async function clickCta() {
-    const b = await page.$('.m0-ctabar button:not([disabled]), .ctabar button:not([disabled]), .c-btn--cta:not([disabled])');
+    const b = await page.$('.c-btn--cta:not([disabled])') || await page.$('.m0-ctabar button:not([disabled]), .ctabar button:not([disabled])');
     if (!b) return false; await b.click(); await settle(); return true;
   }
 
@@ -147,6 +147,23 @@ async function journey(browser, tag) {
       if (!hubSeen++) { // standings sheet, then the save sheet (view-only; Escape closes over-panel style modals)
         const t = await page.$('[data-act="sheet:table"]'); if (t) { await t.click(); await settle(500); await audit('standings-sheet'); await shot('standings'); await closeSheets(); } else bad('hub: no "Table" button');
         const sv = await page.$('[data-act="sheet:save"]'); if (sv) { await sv.click(); await settle(500); await audit('save-sheet'); await shot('save-sheet'); await closeSheets(); } else bad('hub: no Save button');
+      }
+      if (st === 'hub' && hubSeen === 1) { // P6: the team sheet opens from the Six and Overs chips; a swap and an overs edit persist
+        const six0 = await page.evaluate(() => window.__store.get().clubs[0].six.join());
+        const chip = await page.$('.hb-edit'); if (!chip) bad('hub: no Six chip');
+        else {
+          await chip.click(); await settle(400); await audit('team-sheet-six'); await shot('team-six');
+          const on = await page.$('.ts-row:not(.ts-row--bench)');
+          if (on) { await on.click(); await settle(100); const off = await page.$('.ts-row--bench'); if (off) { await shot('team-pick'); await off.click(); await settle(200); await shot('team-swapped'); } }
+          const ot = await page.$('[data-tab="overs"]'); if (ot) { await ot.click(); await settle(300); await audit('team-sheet-overs'); await shot('team-overs'); }
+          const swapped = await page.evaluate(() => window.__store.get().clubs[0].six.join());
+          if (swapped === six0) bad('hub: a swap in the team sheet did not change the six');
+          const done = await page.$('[data-done]:not([disabled])'); if (done) await done.click(); else bad('team sheet: Done is off after a swap');
+          await settle(200);
+          if (await page.$('.c-sheet')) bad('team sheet: Done did not close it');
+          if ((await stage()) !== 'hub') bad('team sheet changed the stage');
+        }
+        await audit('hub-after-edit'); await shot('hub-after-edit');
       }
       if (!(await clickCta())) bad(`${st}: no enabled CTA`);
     } else if (st === 'squad') {

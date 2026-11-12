@@ -13,9 +13,9 @@ import { attachReport } from '../report/hooks.js';
    (other parts' views), so a view that has not landed yet shows "Loading" instead of breaking boot. */
 const STAGES = {
   coach: ['coachpick-view', 'coachPickVM'],
-  hub: [hub, 'hubVM'],
-  semi: [hub, 'hubVM'],   // semi and final: the hub shows the knockout fixture (hubVM.phaseWord)
-  final: [hub, 'hubVM'],
+  hub: [hub, 'clubVM'],
+  semi: [hub, 'clubVM'],   // semi and final: the hub shows the knockout fixture (hubVM.phaseWord)
+  final: [hub, 'clubVM'],
   squad: ['squad-view', 'squadVM'],
   plan: ['plan-view', 'planVM'],
   bowl: [bowl, 'bowlVM'],
@@ -38,6 +38,7 @@ const SHEETS = {
   coaches: { file: 'coaches-sheet', vm: ['coachesVM', () => []] },
   save: { file: 'save-sheet', vm: null },
   glossary: { file: 'glossary-sheet', fn: 'openGlossary', vm: null },
+  team: { file: 'six-sheet', fn: 'openTeam', vm: ['teamVM', () => []] },
 };
 const mods = {}, loading = {};
 
@@ -59,7 +60,7 @@ export function mount(el, store) {
       if (typeof fn !== 'function') throw new Error('No open function in ' + def.file);
       const s = store.get();
       const vm = def.vm ? sel[def.vm[0]](s, ...def.vm[1](arg)) : arg;
-      fn(vm, (cmd, payload) => dispatch(cmd, payload), openByName, arg); // sheets: open(vm, dispatch, open, arg)
+      fn(vm, (cmd, payload) => dispatch(cmd, payload), openByName, arg, () => (def.vm ? sel[def.vm[0]](store.get(), ...def.vm[1](arg)) : arg)); // sheets: open(vm, dispatch, open, arg, refresh)
     }).catch((err) => console.error(err));
   }
   bindActs(el, (cmd, payload) => dispatch(cmd, payload), openByName); // one click handler for every view

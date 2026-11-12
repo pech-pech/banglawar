@@ -327,6 +327,10 @@ export function applyCommand(s, cmd, payload = {}) {
     case 'OpenSquad': return ['hub', 'semi', 'final', 'plan'].includes(s.stage) && s.season ? { ...s, stage: 'squad' } : s;
     case 'SetSix': return setSix(s, payload);
     case 'SetPlan': return setPlan(s, payload);
+    case 'TeamSix': return teamSix(s, payload);
+    case 'TeamPlan': return teamPlan(s, payload);
+    case 'TeamSuggest': return teamSuggest(s);
+    case 'StartMatch': return startMatch(s);
     case 'EditPlan': return editPlan(s, payload);
     case 'FinishMatch': return finishMatch(s);
     case 'Drill': return s.stage === 'train' ? doDrill(s, payload || {}, makeRng(`${s.season.seed}|drill|${s.training.week}|${payload && payload.playerId}|${s.salt}`)) : s;
@@ -341,4 +345,42 @@ export function applyCommand(s, cmd, payload = {}) {
     case 'StartChase': return startChase(s);
     default: return s;
   }
+}
+
+// ---- b-p6: team sheet on the hub and one Start match (stage stays on the hub; the old squad and plan stages still work)
+const HUB_STAGES = ['hub', 'semi', 'final'];
+const onHub = (s) => !!(s && s.season && s.fixture && HUB_STAGES.includes(s.stage));
+/** The six as saved; a club that never picked one gets the AI pick, kept from now on. */
+function withSix(s) {
+  if (s.clubs[0].six.length === SEASON.sixSize) return s;
+  const n = clone(s);
+  n.clubs[0].six = aiPickSix(n.clubs[0]);
+  return n;
+}
+/** The plan the hub shows and Start uses: the player's own when it is for this match, else the suggested one for the current six. */
+export function livePlan(s) {
+  const t = withSix(s), key = planKey(t);
+  if (t.plan.edited && t.plan.key === key) return t.plan;
+  return { overs: suggestedOvers(t), fields: ['A', 'A', 'A'], edited: false, key };
+}
+/** Run an old stage-bound command from the hub, then put the stage back. `plan` replaces the stored plan first (the live one). Unchanged -> the same state. */
+function viaStage(s, stage, fn, plan) {
+  const staged = { ...withSix(s), stage, ...(plan ? { plan } : {}) };
+  const n = fn(staged);
+  return n === staged ? s : { ...n, stage: s.stage };
+}
+function teamSix(s, p) { return onHub(s) ? viaStage(s, 'squad', (x) => setSix(x, p)) : s; }
+function teamPlan(s, p) { return onHub(s) ? viaStage(s, 'plan', (x) => editPlan(x, p), livePlan(s)) : s; }
+function teamSuggest(s) {
+  if (!onHub(s)) return s;
+  const t = withSix(s), n = clone(t);
+  n.plan = { overs: suggestedOvers(t), fields: ['A', 'A', 'A'], edited: false, key: planKey(t) };
+  return n;
+}
+/** One Start match: the saved six and plan (suggested if none) go straight to the match. A broken plan does nothing. */
+function startMatch(s) {
+  if (!onHub(s)) return s;
+  const t = withSix(s), plan = livePlan(t);
+  if (planProblem(plan.overs)) return s;
+  return seasonMatch({ ...t, stage: 'plan', plan });
 }

@@ -8,7 +8,7 @@ import { aiPickSix } from '../core/clubs.js';
 import { tableOrder, placeOf, ME, tpAward, koWinner } from '../core/season.js';
 import { drillOdds, coachLevel, canDrill, drillRoom, drillDef } from '../core/training.js';
 import { nodeStatus, treeBoost, treeOf, NODE_COUNT } from '../core/skills.js';
-import { planProblem } from './commands.js';
+import { planProblem, livePlan } from './commands.js';
 import { RUN } from '../data/run.js';
 import { seasonResult, chapterNames, runScore, carryOf } from '../core/run.js';
 
@@ -359,5 +359,47 @@ export function weekVM(s) {
     nodes: W.nodes.map((n) => ({ name: name(n.playerId), node: n.node })),
     coachUps: W.coachUps.map((c) => ({ name: (s.coaches.find((x) => x.id === c.coachId) || {}).name, focus: c.focus, level: c.to })),
     roundResults: results.map((r) => ({ a: clubName(s, r.a), b: clubName(s, r.b), ra: r.ra, wa: r.wa, rb: r.rb, wb: r.wb, me: r.a === ME || r.b === ME })),
+  };
+}
+
+// ---- b-p6: club hub and team sheet
+const ordinal = (n) => n + (n % 100 >= 11 && n % 100 <= 13 ? 'th' : ['th', 'st', 'nd', 'rd'][n % 10 > 3 ? 0 : n % 10]);
+
+/** The team sheet: the squad (six in batting order, bench after) and the bowling plan the hub would use right now. */
+export function teamVM(s) {
+  const lp = livePlan(s), t = { ...s, plan: lp };
+  const sq = squadVM(t), pl = planVM(t);
+  const mineC = mine(s);
+  return { opp: s.fixture ? clubName(s, s.fixture.opp) : '', players: sq.players, count: sq.count, plan: { ...pl, edited: lp.edited }, six: sixIds(s), squadSize: mineC.squad.length };
+}
+
+/** The hub as a club screen: everything hubVM has, plus the six, the promotion checklist, the next unlock and one Start match. */
+export function clubVM(s) {
+  const base = hubVM(s), se = s.season, fx = s.fixture;
+  const lp = livePlan(s), t = { ...s, plan: lp };
+  const pv = planVM(t);
+  const six = sixIds(s).map((id) => player(s, id));
+  const place = placeOf(se.table, ME);
+  const left = Math.max(0, SEASON.leagueMatches - (se.phase === 'league' ? se.round - 1 : SEASON.leagueMatches));
+  const top = RUN.promoteTop, last = (se.league || 1) >= 5;
+  const rows = [
+    { key: 'rank', title: 'Top ' + top + ' at the final', sub: left ? left + ' week' + (left > 1 ? 's' : '') + ' left' : 'Last week', state: 'todo', tag: ordinal(place) + ' now' },
+    { key: 'stadium', title: 'Stadium ' + ((se.league || 1) + 1), sub: 'Not built yet', state: 'later', tag: 'Later' },
+    { key: 'fans', title: 'Fans', sub: 'Comes with the stadium', state: 'later', tag: 'Later' },
+  ];
+  const hidden = six.filter((p) => !gradeOf(p)).sort((a, b) => (b.drillsHere | 0) - (a.drillsHere | 0))[0];
+  const unlock = hidden ? { name: hidden.name, left: Math.max(1, DRILLS.revealAfter - (hidden.drillsHere | 0)) } : null;
+  const oppPlace = fx ? placeOf(se.table, fx.opp) : 0;
+  const ko = fx && fx.kind !== 'league';
+  const word = pv.valid ? (lp.edited ? 'Saved' : 'Suggested') : 'Fix it';
+  return {
+    ...base, club: { name: mine(s).name, week: base.round, league: se.league || 1, weeksLeft: left }, lastLeague: last,
+    six: six.map((p) => ({ id: p.id, name: p.name, grade: gradeOf(p) || '?', pips: pipsOf(p) })),
+    promo: { title: 'Go up to League ' + ((se.league || 1) + 1), total: rows.length, done: rows.filter((r) => r.state === 'ok').length, rows },
+    unlock, plan: { word, ok: pv.valid, reason: pv.reason },
+    cta: fx
+      ? { label: 'Start match', act: 'StartMatch', disabled: !pv.valid, reason: pv.valid ? '' : 'Fix the overs first. ' + pv.reason,
+        sub: 'v ' + base.next.oppName + ' · ' + (ko ? base.next.kindWord : 'Home') + (oppPlace ? ' · ' + ordinal(oppPlace) : '') }
+      : { label: 'Pick your six', act: 'OpenSquad' },
   };
 }
