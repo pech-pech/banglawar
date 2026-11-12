@@ -1,83 +1,142 @@
 // @ts-check
-// Innings 1 Call screen: M bowls. render(el, vm, dispatch). Reads only bowlVM; DOM via innerHTML with escaped text.
+// Innings 1 Call screen: M bowls. Layout "B, scoreboard". render(el, vm, dispatch). Reads only bowlVM; DOM via innerHTML with escaped text.
+// Styles: css/scoreboard.css (shared) + css/bowl.css (bowl-only overrides, scoped to .bv-*).
 import { whyLine, outcomeLabel } from './why.js';
+import { openSheet } from './sheet.js';
+import { openGlossary } from './glossary-sheet.js';
 
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-const ic = (name, size) => {
+const ic = (name, size, cls) => {
   const S = /** @type {any} */ (window).SPR;
-  if (!S || !S.iconNames || S.iconNames.indexOf(name) < 0) return '<span class="bv-ph" aria-hidden="true"></span>';
-  return S.iconImg(name, size || 24).outerHTML.replace('class="icon"', 'class="icon" aria-hidden="true"').replace(/ alt="[^"]*"/, ' alt=""');
+  if (!S || !S.iconNames || S.iconNames.indexOf(name) < 0) return `<span class="bv-ph${cls ? ' ' + cls : ''}" aria-hidden="true"></span>`;
+  let h = S.iconImg(name, size || 24).outerHTML.replace('class="icon"', `class="icon${cls ? ' ' + cls : ''}" aria-hidden="true"`).replace(/ alt="[^"]*"/, ' alt=""');
+  if (h.indexOf(' alt=') < 0) h = h.replace('<img', '<img alt=""');
+  return h;
 };
 const TYPE = { Fast: 'typeFast', Medium: 'typeMedium', Spin: 'typeSpin' };
-const ROLE = { Opener: 'roleOpener', Middle: 'roleMiddle', Lower: 'roleLower' };
-const GCLS = { Great: ' c-tag--go', Even: '', Bad: ' c-tag--warn' };
+const ROLE = { Opener: 'Opener', Middle: 'Middle order', Lower: 'Lower order' };
+const NBH = '\u2011'; // non-breaking hyphen, so "(1-3)" never splits
+const nb = (t) => String(t).replace(/(\d)-(\d)/g, '$1' + NBH + '$2');
+const PHASE = ['Early overs (1-3)', 'Middle overs (4-7)', 'Last overs (8-10)'].map(nb);
+const SAY = (o) => (String(o) === '0' ? 'No run' : outcomeLabel(o));
+const UNK = 'Not known yet';
+const DRILLS = 'Grade shows after 5 practice drills';
 const BADGE = { W: 'W', 6: '6', 4: '4', 2: '2', 1: '1', 0: '·' };
+// vm preview label -> rating box. Shape + word, never colour alone.
+const RATE = { Great: ['r-good', '▲', 'Good'], Even: ['r-ok', '●', 'OK'], Bad: ['r-poor', '▼', 'Poor'] };
+const FIELD = { A: 'Attacking field', P: 'Defensive field' };
+const REASON = { 'bowled last': "Bowled last over. Can't bowl now", '2 overs': 'Used both overs', 'must save overs': "Others must bowl first. Can't bowl now" };
 
-function crease(vm) {
-  return (vm.crease || []).map((b) =>
-    `<div class="c-row bv-seat" aria-label="${esc(b.name)}${b.onStrike ? ', on strike' : ''}">` +
-    ic(ROLE[b.bat] || 'roleMiddle') + `<span class="c-row__body"><b class="c-row__title name">${esc(b.name)}</b></span>` +
-    (b.onStrike ? '<span class="c-tag" aria-label="On strike">Strike</span>' : '') +
-    `<span class="c-row__end">${esc(b.r)} (${esc(b.b)})</span></div>`).join('');
+function batterLine(vm) {
+  const c = vm.crease || [];
+  return `<div class="bat bv-bat">Batting: ` + c.map((b) =>
+    `<b class="name">${esc(b.name)}</b> ${esc(b.r)} (${esc(b.b)} ball${b.b === 1 ? '' : 's'})` +
+    (b.onStrike ? ' <span class="strike">on strike</span>' : '')).join(' · ') + `</div>`;
 }
 
-function lastBlock(vm) {
-  const L = vm.last; if (!L) return '';
-  const bw = typeof L.bowler === 'number' ? (vm.bowlers || []).find((x) => x.i === L.bowler) : null;
-  const bowlerName = (bw && bw.name) || (L.bowler && L.bowler.name) || L.bowlerName || 'The bowler';
-  const fld = L.field === 'P' ? 'Protect' : 'Attack';
-  const rows = (L.balls || []).slice(0, 6).map((r) => {
-    const bn = r.batterName || (vm.batNames && vm.batNames[r.batter]) || (L.batters && L.batters[r.batter]) || (r.batter && r.batter.name) || 'The batter';
-    return `<div class="c-row ball-row"><b class="c-row__val" aria-label="${esc(outcomeLabel(r.o))}">${esc(BADGE[String(r.o)] != null ? BADGE[String(r.o)] : r.o)}</b>` +
-      `<span class="c-row__body"><span class="c-row__sub why">${esc(r.n)}. ${esc(whyLine(r, bn, bowlerName))}</span></span></div>`;
-  }).join('');
-  return `<section class="c-card" aria-label="Over ${esc(L.over)}"><div class="c-strip"><span>Over ${esc(L.over)}</span>` +
-    `<span class="c-strip__right">${ic(TYPE[bw && bw.bowl] || 'overs', 20)} <span class="name">${esc(bowlerName)}</span>, ${fld} field</span></div>${rows}</section>`;
+function head(vm) {
+  const c = (vm.crease || []).slice(0, 2);
+  return `<div class="sb-head bv-head" aria-hidden="true"><div>Bowler</div>` +
+    c.map((b) => `<div><span class="name bv-vs">${esc(b.name)}</span><small>${esc(ROLE[b.bat] || b.bat)}</small></div>`).join('') + `</div>` +
+    `<div class="legend bv-legend"><span><i>▲</i> Good</span><span><i>●</i> OK</span><span><i>▼</i> Poor</span><span><i>★</i> best overs now</span><span><i>?</i> ${UNK}: higher grade shows more</span></div>`;
 }
 
-function reason(b, vm) {
-  if (b.overs >= 2) return '2 overs';
-  if (vm.last && vm.last.bowler === b.i) return 'bowled last';
-  return 'resting';
+function rbox(b, bat) {
+  const p = (b.previews || []).find((x) => x.name === bat.name);
+  if (!p) return `<div class="rbox r-unk bv-unk"><span class="s" aria-hidden="true">?</span><span class="w">${UNK}</span></div>`;
+  const r = RATE[p.label] || RATE.Even;
+  return `<div class="rbox ${r[0]}"><span class="s" aria-hidden="true">${r[1]}</span><span class="w">${r[2]}</span></div>`;
 }
 
-function chip(b, vm) {
+function ariaRates(b, crease) {
+  return crease.map((bat) => {
+    const p = (b.previews || []).find((x) => x.name === bat.name);
+    return `against ${bat.name}: ${p ? (RATE[p.label] || RATE.Even)[2] : UNK.toLowerCase() + ', a higher grade shows more'}`;
+  }).join(', ');
+}
+
+function row(b, vm) {
+  const crease = (vm.crease || []).slice(0, 2);
   const sel = vm.call && vm.call.bowler === b.i, ok = b.eligible;
   const g = b.grade || '?';
-  const prev = (b.previews || []).map((p) =>
-    `<span class="c-tag${GCLS[p.label] || ''}">${esc(p.label)}${p.inPhase ? ' ★' : ''} <span class="name">${esc(p.name)}</span></span>`).join('');
-  return `<div class="c-chip${sel ? ' is-selected' : ''}${ok ? '' : ' is-disabled'}">` +
-    `<button class="c-chip__pick" data-bowler="${b.i}" aria-pressed="${sel ? 'true' : 'false'}"${ok ? '' : ' disabled'}` +
-    ` aria-label="${esc(b.name)}, ${esc(b.bowl)}, ${esc(b.overs)} overs bowled, grade ${esc(g)}${ok ? '' : ', ' + reason(b, vm)}">` +
-    `<span class="bv-r1">${ic(TYPE[b.bowl] || 'typeMedium')}<b class="c-chip__name name">${esc(b.name)}</b>` +
-    `<span class="muted" style="margin:0 6px">${esc(b.overs)}/2 ov</span><span class="c-tag"${g === '?' ? ' title="Grade shows after 5 drills"' : ''}>${esc(g)}</span></span>` +
-    (g === '?' ? '<span class="c-row__sub">Grade shows after 5 drills</span>' : '') +
-    (ok ? (prev ? `<span class="bv-prev">${prev}</span>` : '') : `<span class="c-row__sub">${esc(reason(b, vm))}</span>`) + '</button></div>';
+  const best = (b.previews || []).some((p) => p.inPhase);
+  const star = best ? '<span class="best bv-best" aria-hidden="true">★</span>' : '';
+  const pbox = `<div class="pbox"><span class="bv-icw">${sel && ok ? '<span class="bv-tick" aria-hidden="true"></span>' : ''}${ic(TYPE[b.bowl] || 'typeMedium', 24, 'ico')}</span><span class="nm name">${esc(b.name)}</span>` +
+    `<span class="sub">${esc(b.bowl)}, ${esc(b.overs)}/2 overs</span>` +
+    `<span class="gr${g === '?' ? ' bv-gq' : ''}"${g === '?' ? ' title="${DRILLS}"' : ''}>${star}Grade<b>${esc(g)}</b></span></div>`;
+  const label = `${b.name}, ${b.bowl} bowler, ${b.overs} of 2 overs used, grade ${g === '?' ? 'not known yet. ' + DRILLS : g}` +
+    (best ? ', in his best overs now' : '');
+  if (!ok) {
+    const why = REASON[b.reason] || "Can't bowl now";
+    return `<div class="sb-row is-off" role="radio" aria-disabled="true" aria-checked="false" aria-label="${esc(label)}. ${esc(why)}">${pbox}<div class="offnote">${esc(why)}</div></div>`;
+  }
+  return `<button type="button" class="sb-row${sel ? ' is-selected' : ''}" role="radio" data-bowler="${b.i}" aria-checked="${sel ? 'true' : 'false'}"` +
+    ` aria-label="${esc(label)}. ${esc(ariaRates(b, crease))}">${pbox}${crease.map((bat) => rbox(b, bat)).join('')}</button>`;
+}
+
+function bowlerName(vm, i) {
+  const bw = typeof i === 'number' ? (vm.bowlers || []).find((x) => x.i === i) : null;
+  return (bw && bw.name) || (vm.bowlNames && vm.bowlNames[i]) || 'The bowler';
+}
+
+function lastLine(vm) {
+  const L = vm.last;
+  if (!L || !(L.balls || []).length) return `<div class="last bv-last"><span class="bv-last-txt">First over. No balls bowled yet.</span></div>`;
+  const balls = L.balls.slice(0, 6);
+  const runs = balls.reduce((a, r) => a + (r.o === 'W' ? 0 : Number(r.o) || 0), 0);
+  const wk = balls.filter((r) => r.o === 'W').length;
+  const chips = balls.map((r) => {
+    const k = String(r.o);
+    return `<span class="ball${k === 'W' ? ' w' : k === '6' ? ' six' : ''}" role="img" aria-label="${esc(SAY(r.o))}">${esc(BADGE[k] != null ? BADGE[k] : k)}</span>`;
+  }).join('');
+  return `<div class="last bv-last"><span class="bv-last-txt"><span class="bv-last-k">Last over:</span> ${chips}` +
+    `<span class="bv-sum">= ${runs} run${runs === 1 ? '' : 's'}, ${wk} wicket${wk === 1 ? '' : 's'}</span></span>` +
+    `<button type="button" class="c-btn bv-why" data-why aria-label="Why did the last over go that way?">Why?</button></div>`;
+}
+
+function whyHtml(vm) {
+  const L = vm.last; if (!L) return '';
+  const bn = bowlerName(vm, L.bowler);
+  const head = `<p><b class="name">${esc(bn)}</b> bowled over ${esc(L.over)} with ${L.field === 'P' ? 'a defensive' : 'an attacking'} field.</p>`;
+  return head + (L.balls || []).slice(0, 6).map((r) => {
+    const bat = (vm.batNames && vm.batNames[r.batter]) || 'The batter';
+    const k = String(r.o);
+    return `<div class="bv-why-row"><span class="ball${k === 'W' ? ' w' : k === '6' ? ' six' : ''}" role="img" aria-hidden="true">${esc(BADGE[k] != null ? BADGE[k] : k)}</span>` +
+      `<span>Ball ${esc(String(r.n).split('.').pop())}: <b>${esc(SAY(r.o))}</b>. ${esc(nb(whyLine(r, bat, bn)))}</span></div>`;
+  }).join('');
 }
 
 /** @param {HTMLElement} el @param {any} vm @param {(cmd:string, payload:any)=>void} dispatch */
 export function render(el, vm, dispatch) {
   const sc = vm.score || {}, fld = vm.call && vm.call.field;
-  el.__bvDispatch = dispatch; el.__bvVM = vm;
-  const seg = (k, lbl, icon) => `<button class="c-seg__opt${fld === k ? ' is-selected' : ''}" data-field="${k}" aria-pressed="${fld === k ? 'true' : 'false'}">${ic(icon)} ${lbl}</button>`;
+  const E = /** @type {any} */ (el);
+  E.__bvDispatch = dispatch; E.__bvVM = vm;
+  const selB = (vm.bowlers || []).find((b) => vm.call && b.i === vm.call.bowler && b.eligible);
+  const seg = (k, icon) => `<button type="button" class="opt${fld === k ? ' is-selected' : ''}" role="radio" data-field="${k}" aria-checked="${fld === k ? 'true' : 'false'}">${ic(icon, 24)}${FIELD[k]}</button>`;
+  const anyHidden = (vm.bowlers || []).some((b) => (b.grade || '?') === '?');
   el.innerHTML =
-    `<div class="screen bv"><div class="c-strip" role="status"><span><b>${esc(sc.runs)}/${esc(sc.wk)}</b></span>` +
-    `<span class="c-strip__right">Ov ${esc(sc.overs)} · ${esc(vm.phaseName)}</span></div>` +
-    `<div class="two-col"><div class="bv-left">` +
-    `<section class="c-card" aria-label="Call"><h2>Over ${esc(vm.over)}: pick a bowler</h2>` +
-    (vm.bowlers || []).map((b) => chip(b, vm)).join('') +
-    `<h2>Field</h2><div class="c-seg" role="group" aria-label="Field">${seg('A', 'Attack', 'fieldAttack')}${seg('P', 'Protect', 'fieldProtect')}</div></section></div>` +
-    `<div class="bv-right"><section class="c-card" aria-label="At the crease"><h2>At the crease</h2>${crease(vm)}</section>` +
-    lastBlock(vm) + `</div></div>` +
-    `<div class="cta"><button class="c-btn c-btn--primary c-btn--cta c-btn--block" data-bowl${vm.canBowl === false ? ' disabled' : ''}>Bowl over ${esc(vm.over)}</button></div></div>`;
-  if (!el.__bvBound) {
-    el.__bvBound = true;
+    `<header class="strip c-dark bv-strip" role="status">` +
+    `<span class="score" aria-label="${esc(sc.runs)} runs for ${esc(sc.wk)} wickets">${esc(sc.runs)}/${esc(sc.wk)}</span>` +
+    `<span class="mid"><b>Over ${esc(vm.over)} of 10</b><span>${esc(PHASE[vm.phase] || vm.phaseName)}</span></span>` +
+    `<button type="button" class="q" data-gloss aria-label="Cricket words explained">?</button></header>` +
+    `<section class="colL bv-colL"><h1 class="title bv-title">Pick a bowler</h1>${batterLine(vm)}` +
+    `<div class="sb bv-sb" role="radiogroup" aria-label="Bowlers">${head(vm)}${(vm.bowlers || []).map((b) => row(b, vm)).join('')}</div></section>` +
+    `<section class="colR bv-colR"><div class="seg bv-seg" role="radiogroup" aria-label="Field">${seg('A', 'fieldAttack')}${seg('P', 'fieldProtect')}</div>` +
+    lastLine(vm) +
+    `<div class="hints bv-hints"><p><b>Attacking</b>: more wickets, more runs. <b>Defensive</b>: fewer runs.</p>` +
+    `<p><b>Grade</b> D low to S best.${anyHidden ? ' <b>Grade ?</b>: shows after 5 practice drills.' : ''}</p></div></section>` +
+    `<div class="ctabar bv-cta"><button type="button" class="c-btn c-btn--primary c-btn--cta" data-bowl${vm.canBowl === false ? ' disabled' : ''}>` +
+    `<span>Bowl over ${esc(vm.over)}${selB ? ':&nbsp;<span class="name">' + esc(selB.name) + '</span>' : ''}</span></button></div>`;
+  if (!E.__bvBound) {
+    E.__bvBound = true;
     el.addEventListener('click', (e) => {
       const t = /** @type {HTMLElement} */ (e.target).closest('button'); if (!t || t.disabled || !el.contains(t)) return;
-      const d = el.__bvDispatch, v = el.__bvVM; if (!d || !v) return;
+      const d = E.__bvDispatch, v = E.__bvVM; if (!d || !v || !t.closest('.bv-strip, .bv-colL, .bv-colR, .bv-cta')) return;
       if (t.hasAttribute('data-bowler')) d('MakeCall', { bowler: Number(t.getAttribute('data-bowler')), field: v.call && v.call.field });
       else if (t.hasAttribute('data-field')) d('MakeCall', { bowler: v.call && v.call.bowler, field: t.getAttribute('data-field') });
       else if (t.hasAttribute('data-bowl')) d('BowlOver', {});
+      else if (t.hasAttribute('data-why')) openSheet('Why did the last over go that way?', whyHtml(v));
+      else if (t.hasAttribute('data-gloss')) openGlossary();
     });
   }
 }

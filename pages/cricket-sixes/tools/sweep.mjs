@@ -6,7 +6,7 @@ import { mkdirSync, writeFileSync, readFileSync } from 'node:fs';
 
 const N = Number(process.env.SWEEP_N || 400);
 const OUT_DIR = '/mnt/project-files/games-design/cricket-sixes/build/addexp/sweep/';
-const OUT = OUT_DIR + 'SWEEP-2026-11-12.md';
+const OUT = OUT_DIR + 'SWEEP-2026-11-12-v2.md';
 const el = (vm) => vm.bowlers.filter((b) => b.eligible);
 const bestSB = (s, vm) => el(vm).reduce((a, b) => {
   const f = (x) => s.me.players[x.i].spd + s.me.players[x.i].bsk;

@@ -7,8 +7,8 @@ const WORD = { W: 'Wicket', 6: 'Six', 4: 'Four', 2: '2 runs', 1: '1 run', 0: 'do
 /** Word for an outcome (W, 6, 4, 2, 1, 0). Safe for aria-labels. Dot is shown as the "·" glyph, labelled "dot". */
 export function outcomeLabel(o) { return WORD[String(o)] || String(o); }
 
-const KIND = { Fast: 'pace', Medium: 'medium pace', Spin: 'spin' };
-const PHASE = ['the early overs (1-3)', 'the middle overs (4-7)', 'the death overs (8-10)'];
+const KIND = { Fast: 'fast bowling', Medium: 'medium bowling', Spin: 'spin' };
+const PHASE = ['the early overs (1‑3)', 'the middle overs (4‑7)', 'the last overs (8‑10)'];
 
 /** Small deterministic hash of the ball number string (e.g. "8.3"). */
 function hashN(n) { let h = 7; const s = String(n == null ? '' : n); for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0; return h; }
@@ -28,8 +28,8 @@ function pick(rec, bat, bowl) {
   const badM = step < 0 && gridHit, greatM = step > 0 && gridHit;
   const against = kind ? ' against ' + kind : ' against ' + bowl;
   const best = (who) => PHASE[rec.ph] ? [`${who} is at his best in ${PHASE[rec.ph]}.`, `${who} loves ${PHASE[rec.ph]}.`, `${PHASE[rec.ph].replace(/^the /, '').replace(/^./, (c) => c.toUpperCase())} suit ${who}.`] : [`${who} is in his best overs.`, `${who} is at his best right now.`];
-  const bad = [`Bad matchup for ${bat}${against}.`, `${bat} struggles${against}.`, `Tough matchup: ${bat}${against}.`];
-  const great = [`Great matchup for ${bat}${against}.`, `${bat} has the edge${against}.`, `${bat} is comfortable${against}.`];
+  const bad = [`Bad pairing for ${bat}${against}.`, `${bat} struggles${against}.`, `Tough pairing: ${bat}${against}.`];
+  const great = [`Good pairing for ${bat}${against}.`, `${bat} has the edge${against}.`, `${bat} is comfortable${against}.`];
   const R = (cat, ...t) => ({ cat, t });
   const luck = R('luck', 'Just how the ball fell.', 'A bit of luck either way.');
   const pick1 = (inB, fiB, inT, fiT) => (inB >= fiB && inB > 0 ? R('intent', ...inT) : fiB > 0 ? R('field', ...fiT) : null);
@@ -56,7 +56,7 @@ function pick(rec, bat, bowl) {
   }
   if (o === 2) {
     // 2-run chance is flat in the model, so only grid, phase and rating can honestly be cited; field/intent are flavour.
-    if (greatM) return R('matchup', `Great matchup for ${bat}${against}: they ran two.`, `${bat} has the edge${against} and took two.`, `${bat} read ${kind ? kind : bowl} and ran hard for two.`);
+    if (greatM) return R('matchup', `Good pairing for ${bat}${against}: they ran two.`, `${bat} has the edge${against} and took two.`, `${bat} read ${kind ? kind : bowl} and ran hard for two.`);
     if (pr.batHome) return R('phase', `${bat} is in his best overs and ran two.`, `${bat} timed it well and took two.`, `Good running from ${bat} for two.`);
     if (e.bs - e.bsk >= MIN_GAP) return R('gap', `${bat} placed it well off ${bowl} and ran two.`, `${bat} found the gap and came back for two.`, `${bat} ran hard for two.`);
     if (f === 'P') return R('field', 'The field was back, so they ran two.', 'With the field deep, there was time for two.', 'Deep field: an easy second run.');
@@ -64,7 +64,7 @@ function pick(rec, bat, bowl) {
     return luck;
   }
   if (o === 1) {
-    if (greatM) return R('matchup', `Great matchup for ${bat}${against}.`, `${bat} is comfortable${against}.`, `${bat} has the edge${against}.`);
+    if (greatM) return R('matchup', `Good pairing for ${bat}${against}.`, `${bat} is comfortable${against}.`, `${bat} has the edge${against}.`);
     if (pr.batHome) return R('phase', ...best(bat));
     if (i === 'D') return R('intent', `${bat} was playing safe.`, `Safe play got ${bat} a single.`, `${bat} kept it simple.`);
     if (e.bs - e.bsk >= MIN_GAP) return R('gap', `${bat} read ${bowl} well.`, `${bat} picked the gap off ${bowl}.`, `${bat} played ${bowl} smartly.`);
