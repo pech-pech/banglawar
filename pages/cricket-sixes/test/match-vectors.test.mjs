@@ -6,16 +6,17 @@ import { ballProbs, outcomeFromX } from '../js/core/match.js';
 const V = JSON.parse(readFileSync(new URL('./ball-vectors.json', import.meta.url), 'utf8')).vectors;
 const near = (a, b, msg) => assert.ok(Math.abs(a - b) <= 1e-9, `${msg}: got ${a}, want ${b}`);
 
-test('500 ball vectors present, each with wk_lost and over', () => {
+test('500 ball vectors present, each with wk_lost, over and centre', () => {
   assert.equal(V.length, 500);
-  assert.ok(V.every((v) => Number.isInteger(v.wk_lost) && Number.isInteger(v.over)));
+  assert.ok(V.every((v) => Number.isInteger(v.wk_lost) && Number.isInteger(v.over) && [30, 38, 46, 54, 62].includes(v.centre)));
+  assert.equal(new Set(V.map((v) => v.centre)).size, 5);
 });
 
 test('ballProbs + outcomeFromX match every frozen vector', () => {
   for (const v of V) {
     const b = { bat: v.bat.type, bp: v.bat.bp, bs: v.bat.bs };
     const w = { bowl: v.bowl.type, spd: v.bowl.spd, bsk: v.bowl.bsk };
-    const r = ballProbs(b, w, v.phase, v.intent, v.field, undefined, v.over, v.wk_lost);
+    const r = ballProbs(b, w, v.phase, v.intent, v.field, undefined, v.over, v.wk_lost, v.centre);
     for (const k of ['wicket', 'six', 'four', 'two', 'single']) near(r.p[k], v.p[k], `#${v.id} p.${k}`);
     near(r.singleRaw, v.p_single_raw, `#${v.id} singleRaw`);
     near(r.dot, v.p_dot, `#${v.id} dot`);
@@ -26,6 +27,12 @@ test('ballProbs + outcomeFromX match every frozen vector', () => {
 test('over/lost may also come before fx (alternate argument order) and give the same numbers', () => {
   for (const v of V.slice(0, 50)) {
     const b = { bat: v.bat.type, bp: v.bat.bp, bs: v.bat.bs }, w = { bowl: v.bowl.type, spd: v.bowl.spd, bsk: v.bowl.bsk };
-    assert.deepEqual(ballProbs(b, w, v.phase, v.intent, v.field, v.over, v.wk_lost), ballProbs(b, w, v.phase, v.intent, v.field, undefined, v.over, v.wk_lost));
+    assert.deepEqual(ballProbs(b, w, v.phase, v.intent, v.field, v.over, v.wk_lost, undefined, v.centre), ballProbs(b, w, v.phase, v.intent, v.field, undefined, v.over, v.wk_lost, v.centre));
   }
+});
+
+test('centre matters: the same ball differs between centre 30 and 62, and no centre equals centre 50', () => {
+  const b = { bat: 'Middle', bp: 53, bs: 64 }, w = { bowl: 'Medium', spd: 49, bsk: 41 };
+  assert.notDeepEqual(ballProbs(b, w, 0, 'R', 'P', undefined, 3, 0, 30).p, ballProbs(b, w, 0, 'R', 'P', undefined, 3, 0, 62).p);
+  assert.deepEqual(ballProbs(b, w, 0, 'R', 'P', undefined, 3, 0), ballProbs(b, w, 0, 'R', 'P', undefined, 3, 0, 50));
 });

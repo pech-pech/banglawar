@@ -3,7 +3,7 @@
 import { SEASON } from '../data/season.js';
 import { FLAGS } from '../data/flags.js';
 import { makeRng } from './rng.js';
-import { newInnings, playOver } from './match.js';
+import { newInnings, playOver, centreOf } from './match.js';
 import { pickBowler, pickIntent, pickField, rivalCall } from './ai.js';
 import { aiPickSix } from './clubs.js';
 
@@ -109,16 +109,16 @@ function sixOf(/** @type {any} */ club) {
 export function simMatch(state, a, b, kind, round) {
   const ca = state.clubs.find((/** @type {any} */ c) => c.id === a), cb = state.clubs.find((/** @type {any} */ c) => c.id === b);
   const rng = makeRng(`${state.season.seed}|ai|${kind}|${round}|${a}|${b}|${state.salt || ''}`);
-  const A = sixOf(ca), B = sixOf(cb);
+  const A = sixOf(ca), B = sixOf(cb), centre = centreOf(state); // the league's rival strength, same for both sides
   const innings = (/** @type {any[]} */ bat, /** @type {any[]} */ bowl, /** @type {number|null} */ target) => {
     const inn = newInnings(bat, bowl, target);
     while (!inn.done) {
       const goodBowl = rivalCall(rng, FLAGS.rivalGoodShare), goodBat = rivalCall(rng, FLAGS.rivalGoodShare);
       const batters = [bat[inn.crease[0]], bat[inn.crease[1]]];
       const bi = pickBowler(bowl, inn, batters, rng, goodBowl);
-      const field = pickField(inn, batters, rng, goodBowl);
+      const field = pickField(inn, batters, rng, goodBowl, centre);
       const intent = pickIntent(inn, target != null, rng, goodBat);
-      playOver(rng, inn, bat, bowl, bi, intent, field);
+      playOver(rng, inn, bat, bowl, bi, intent, field, undefined, centre);
     }
     return inn;
   };

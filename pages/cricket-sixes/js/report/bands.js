@@ -1,4 +1,4 @@
-// Bands for the report, from build/report/bands.json (bot sweep, 2,000 matches per policy, seeds sweep-0..1999; see BANDS.md).
+// Bands for the report, from build/report/bands.json (bot sweep, 2,000 matches per policy, seeds sweep-0..1999; see BANDS.md). Re-run 2026-11-12 after FIELD_CENTRE: these are step-0 matches (centre 50), so the numbers are unchanged; season (centre 30) is measured by tools/season-sweep.mjs.
 // [sim] = measured with bots. [guess] = our estimate. Only the bands BANDS.md says to show are kept here.
 export const BANDS = {
   win: { idle: 44, rote: 50, skilled: 53 },                                  // [sim] win %, footer only

@@ -1,7 +1,7 @@
 // @ts-check
 // Pure commands: (state, payload) -> new state. rng is derived per command from state, never stored.
 import { makeRng } from '../core/rng.js';
-import { eligibleBowlers, newInnings, playOver, phaseOf } from '../core/match.js';
+import { eligibleBowlers, newInnings, playOver, phaseOf, centreOf } from '../core/match.js';
 import { pickBowler, pickIntent, pickField, rivalCall } from '../core/ai.js';
 import { makeStartState } from '../data/m0-fixture.js';
 import { FLAGS } from '../data/flags.js';
@@ -70,7 +70,7 @@ function bowlOver(s, p) {
     const good = rivalCall(rng, FLAGS.rivalGoodShare);
     const intent = pickIntent(inn, false, rng, good);
     const over = inn.over;
-    const balls = playOver(rng, inn, n.rival.players, n.me.players, call.bowler, intent, call.field, fxOf(n));
+    const balls = playOver(rng, inn, n.rival.players, n.me.players, call.bowler, intent, call.field, fxOf(n), centreOf(n));
     n.last = { balls, over, bowler: call.bowler, intent, field: call.field };
     if (inn.done) { n.stage = 'break'; n.call = null; n.inn1Summary = summarise(n); } else n.call = defaultCall(n);
     return n;
@@ -82,9 +82,9 @@ function bowlOver(s, p) {
     const good = rivalCall(rng, FLAGS.rivalGoodShare);
     const batters = [n.me.players[inn.crease[0]], n.me.players[inn.crease[1]]];
     const bowler = pickBowler(n.rival.players, inn, batters, rng, good);
-    const field = pickField(inn, batters, rng, good);
+    const field = pickField(inn, batters, rng, good, centreOf(n));
     const over = inn.over;
-    const balls = playOver(rng, inn, n.me.players, n.rival.players, bowler, intent, field, fxOf(n));
+    const balls = playOver(rng, inn, n.me.players, n.rival.players, bowler, intent, field, fxOf(n), centreOf(n));
     n.last = { balls, over, bowler, intent, field };
     if (inn.done) {
       n.stage = 'done';

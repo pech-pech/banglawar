@@ -2,15 +2,20 @@
 // Port of 2026-11-12/sim/match_sim.py ball() plus innings rules. Pure and seeded.
 import { T, MATCH, BAT_HOME, BOWL_HOME, CLAMPS } from '../data/match.js';
 import { FLAGS } from '../data/flags.js';
+import { SEASON } from '../data/season.js';
 const clamp = (x, lo, hi) => Math.max(lo, Math.min(hi, x));
 export const phaseOf = (over) => over <= 3 ? 0 : over <= 7 ? 1 : 2;
 export const PHASE_NAMES = ['Early', 'Middle', 'Late'];
 
-/** Field terms for one ball (combo_sim.ball). zh/zw use the batter's RAW bp/bs. lost = wickets lost 0-4, over = 1-10. */
-export function fieldTerms(b, field, over, lost) {
-  const G = T.G5, zh = clamp((b.bp - 50) / 8, -2, 2);
+/** FIELD_CENTRE for a match state: the league's rival strength in a season match (L1 30), 50 for a step-0 match. Set once per match, same for both sides. */
+export const centreOf = (s) => (s && s.season ? SEASON.league.ratingMean : T.FIELD_CENTRE);
+const zOf = (b, centre) => [clamp((b.bp - centre) / 8, -2, 2), clamp((centre - b.bs) / 8, -2, 2)];
+
+/** Field terms for one ball (combo_sim.ball). zh/zw use the batter's RAW bp/bs read against `centre` (FIELD_CENTRE, default 50). lost = wickets lost 0-4, over = 1-10. */
+export function fieldTerms(b, field, over, lost, centre = T.FIELD_CENTRE) {
+  const G = T.G5, [zh, zw] = zOf(b, centre);
   if (field === 'A') {
-    const zw = clamp((50 - b.bs) / 8, -2, 2), mb = Math.max(0, 1 + G.KB * zh);
+    const mb = Math.max(0, 1 + G.KB * zh);
     return { w: G.W_A * Math.max(0, 1 + G.KW * zw + G.WK * lost), four: T.S4_FIELD.A * mb, six: T.S6_FIELD.A * mb };
   }
   if (field === 'P') {
@@ -19,20 +24,23 @@ export function fieldTerms(b, field, over, lost) {
   }
   return { w: 0, four: 0, six: 0 };
 }
-/** Rival's field call and the on-screen hint share this: Attack if KW*zw + WK*lost - KB*zh - LATE*(over>=8) > P_C, else Protect. */
-export function hybridField(b, over, lost) {
-  const G = T.G5, zh = clamp((b.bp - 50) / 8, -2, 2), zw = clamp((50 - b.bs) / 8, -2, 2);
+/** Rival's field call and the on-screen hint share this: Attack if KW*zw + WK*lost - KB*zh - LATE*(over>=8) > P_C, else Protect. zh/zw read against `centre`. */
+export function hybridField(b, over, lost, centre = T.FIELD_CENTRE) {
+  const G = T.G5, [zh, zw] = zOf(b, centre);
   return G.KW * zw + G.WK * lost - G.KB * zh - G.LATE * (over >= 8 ? 1 : 0) > G.P_C ? 'A' : 'P';
 }
 
 /**
  * Effective ratings and probabilities for one ball, with the parts used for the why line.
- * Signature: (b, w, ph, intent, field, fx?, over?, lost?). `fx` keeps its place (core-training hook). over = 1-10 (default: first
- * over of phase ph), lost = wickets lost by the batting side 0-4 (default 0). Also accepted: (b, w, ph, intent, field, over, lost, fx?).
+ * Signature: (b, w, ph, intent, field, fx?, over?, lost?, centre?). `fx` keeps its place (core-training hook). over = 1-10 (default: first
+ * over of phase ph), lost = wickets lost by the batting side 0-4 (default 0), centre = FIELD_CENTRE (default 50, the league's rival strength in a season).
+ * Also accepted: (b, w, ph, intent, field, over, lost, fx?, centre?).
  */
 export function ballProbs(b, w, ph, intent, field, ...args) {
   let fx, over, lost;
-  if (typeof args[0] === 'number') [over, lost, fx] = args; else [fx, over, lost] = args;
+  let centre;
+  if (typeof args[0] === 'number') [over, lost, fx, centre] = args; else [fx, over, lost, centre] = args;
+  centre ??= T.FIELD_CENTRE;
   over ??= [1, 4, 8][ph]; lost = Math.min(lost ?? 0, 4);
   const step = MATCH[`${b.bat}|${w.bowl}`];
   let m = T.MATCHUP * step;
@@ -53,7 +61,7 @@ export function ballProbs(b, w, ph, intent, field, ...args) {
   if (batHome) { bp += T.PHASE_BONUS; bs += T.PHASE_BONUS; }
   if (bowlHome) { if (w.bowl === 'Fast') spd += T.PHASE_BONUS; else bsk += T.PHASE_BONUS; }
   const C = CLAMPS;
-  const ft = fieldTerms(b, field, over, lost);
+  const ft = fieldTerms(b, field, over, lost, centre);
   const xa = intent === 'A' ? T.PH_WA[ph] : 0; // Attack only, by phase index
   const wicket = clamp(T.W_BASE + T.W_K * (spd - bs) + T.W_INT[intent] + xa + ft.w + dW, C.wicket[0], C.wicket[1]);
   const six = clamp(T.S6_BASE + T.PW_K * (bp - bsk) + T.S6_INT[intent] + ft.six + d6, C.six[0], C.six[1]);
@@ -93,7 +101,7 @@ export function newInnings(bat, bowl, target) {
   return { runs: 0, wk: 0, balls: 0, over: 1, crease: [0, 1], strike: 0, next: 2, last: null, target, done: false, pads: FLAGS.luckyPad ? T.PAD_USES : 0, overs: [] };
 }
 /** Bowl one over. Returns the six (or fewer) balls with their parts for why lines. */
-export function playOver(rng, inn, bat, bowl, bi, intent, field, fx) {
+export function playOver(rng, inn, bat, bowl, bi, intent, field, fx, centre = T.FIELD_CENTRE) {
   const ph = phaseOf(inn.over); const w = bowl[bi]; const balls = [];
   let ballFx = fx;
   if (fx && fx.of(w)?.bowl?.burst) {
@@ -104,7 +112,7 @@ export function playOver(rng, inn, bat, bowl, bi, intent, field, fx) {
   w.overs += 1; inn.last = bi;
   for (let k = 0; k < 6 && !inn.done; k++) {
     const si = inn.crease[inn.strike]; const b = bat[si];
-    const pr = ballProbs(b, w, ph, intent, field, ballFx, inn.over, inn.wk);
+    const pr = ballProbs(b, w, ph, intent, field, ballFx, inn.over, inn.wk, centre);
     let o = outcomeFromX(pr.p, pr.singleRaw, rng.random());
     inn.balls += 1; b.inn.b += 1;
     const rec = { n: `${inn.over}.${k + 1}`, o, batter: si, bowler: bi, pr, intent, field, ph };
