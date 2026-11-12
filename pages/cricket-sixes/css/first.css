@@ -26,7 +26,8 @@
 @media (max-width: 599px) {
   #app:has(> .bv-strip), #app:has(> .bv-strip) > main { display: flex; flex-direction: column; height: 100dvh; min-height: 0; overflow: hidden; gap: 5px; padding-bottom: calc(var(--cta-bar, 88px) + 4px); }
   #app:has(> .bv-strip) > *, #app:has(> .bv-strip) .bv-colL > *, #app:has(> .bv-strip) .bv-colR > * { flex: none; }
-  #app:has(> .bv-strip) .bv-colL > .bv-sb { flex: 1 1 0; min-height: 150px; overflow-y: auto; overscroll-behavior: contain; align-content: start; grid-auto-rows: max-content; padding: 4px 4px 4px 0; -webkit-overflow-scrolling: touch; }
+  #app:has(> .bv-strip) .bv-colL > .bv-sb { flex: 1 1 0; min-height: 150px; overflow-y: auto; overscroll-behavior: contain; align-content: start; grid-auto-rows: max-content; padding: 4px 4px 4px 0; -webkit-overflow-scrolling: touch; scroll-snap-type: y proximity; scroll-padding-top: var(--bv-hh, 84px); }
+  #app:has(> .bv-strip) .bv-sb > .sb-row { scroll-snap-align: start; }
   #app:has(> .bv-strip) .bv-sb > .bv-head { position: sticky; top: -4px; z-index: 2; background: var(--cream); padding-top: 4px; }
 }
 /* QA r1: the first-match card floats over the list (the list keeps its height); star beside the type; letter boxed on chase; Tip is a corner badge */

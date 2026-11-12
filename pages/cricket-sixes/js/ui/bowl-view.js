@@ -139,6 +139,25 @@ export function render(el, vm, dispatch) {
     const a = selRow.getBoundingClientRect(), b = lst.getBoundingClientRect();
     if (a.bottom > b.bottom) lst.scrollTop += a.bottom - b.bottom + 4; else if (a.top < b.top) lst.scrollTop -= b.top - a.top + 4;
   }
+  // the sticky header must never cut a tile: scroll-padding + snap for the finger, and one nudge here so a tile is whole or fully hidden
+  const hdr = lst && lst.querySelector('.bv-head');
+  const clearHeader = () => {
+    if (!hdr || !hdr.isConnected) return;
+    lst.style.setProperty('--bv-hh', (hdr.offsetHeight + 4) + 'px');
+    if (lst.scrollTop <= 0) return;
+    const hb = hdr.getBoundingClientRect().bottom;
+    const cut = [...lst.querySelectorAll('.sb-row')].find((r) => { const q = r.getBoundingClientRect(); return q.top < hb - 0.5 && q.bottom > hb + 0.5; });
+    if (cut) { // show it whole when the pre-filled row stays in view, else tuck it fully under the header
+      const q = cut.getBoundingClientRect(), up = hb - q.top + 4, lb = lst.getBoundingClientRect().bottom;
+      const sel = lst.querySelector('.sb-row.is-selected'), sb = sel && sel.getBoundingClientRect();
+      if (!sb || sb.bottom + up <= lb) lst.scrollTop -= up; else {
+        const dn = q.bottom - hb + 1, room = lst.scrollHeight - lst.clientHeight - lst.scrollTop;
+        if (dn > room) lst.style.paddingBottom = (4 + Math.ceil(dn - room)) + 'px'; // end-of-list room so the last tile can still clear the header
+        lst.scrollTop += dn;
+      }
+    }
+  };
+  clearHeader(); if (typeof requestAnimationFrame === 'function') requestAnimationFrame(clearHeader);
   // QA r2 D8: dock the first-match card just above the Field bar, so the batters and the bowler named on the CTA stay visible
   const fs = el.querySelector('.fs-strip'), segEl = el.querySelector('.bv-seg');
   if (fs && segEl) { const top = segEl.getBoundingClientRect().top; if (top > 0) fs.style.bottom = Math.max(0, Math.round(window.innerHeight - top + 6)) + 'px'; }
