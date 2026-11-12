@@ -1,0 +1,59 @@
+/* Retro 16-bit skin, palette 2 "Cricket green and chalk" (NOT switched on). Opt in: load components.css, then this file, and put BOTH classes on <body>:
+     <body class="skin-art skin-retro-green">      (skin-art = the hook in components.css, skin-retro-green = tiles + fonts + label colours)
+   Tiles: 24x24 px, 3x3 cells of 8 px, slice 8 fill, drawn x2 by components.css. Variation: chalk corner rivets.
+   No edits to components.css. url() in a custom property resolves against components.css (kit/), so frame paths are written from kit/;
+   @font-face url() resolves against THIS file, so font paths are relative to skins/retro-green/. A page elsewhere must override the frame vars with absolute URLs.
+   Fonts: Jersey 10 (headers, buttons), Jersey 15 (body, stats, captions). OFL-1.1 (fonts/OFL.txt), one weight (400) each, so no bold: weight forced to 400, font-synthesis none. */
+@font-face { font-family: "Jersey 10"; font-weight: 400; font-style: normal; font-display: swap; src: url("fonts/jersey-10-400.woff2") format("woff2"); }
+@font-face { font-family: "Jersey 15"; font-weight: 400; font-style: normal; font-display: swap; src: url("fonts/jersey-15-400.woff2") format("woff2"); }
+@font-face { font-family: "Pixelify Sans"; font-weight: 400; font-style: normal; font-display: swap; src: url("fonts/pixelify-sans-700.woff2") format("woff2"); } /* QA-e-b L3: names only (capital I has serifs); the 700 file is mapped to weight 400 so it matches the heavy Jersey stroke without synthesis; OFL-1.1, fonts/OFL-pixelify-sans.txt. No digits in names, so its weak 5/8/9 do not matter */
+body.skin-retro-green, .skin-retro-green {
+  --c-frame-panel:               url("skins/retro-green/frame-panel.png");
+  --c-frame-btn:                 url("skins/retro-green/frame-btn.png");
+  --c-frame-btn-pressed:         url("skins/retro-green/frame-btn-pressed.png");
+  --c-frame-btn-primary:         url("skins/retro-green/frame-btn-primary.png");
+  --c-frame-btn-primary-pressed: url("skins/retro-green/frame-btn-primary-pressed.png");
+  --c-frame-chip:                url("skins/retro-green/frame-chip.png");
+  --c-frame-sheet:               url("skins/retro-green/frame-sheet.png");
+  --c-frame-tag:                 url("skins/retro-green/frame-tag.png");        /* FLAT (QA 3): plain chips, grade tags, gain chips are not tappable */
+  /* font tokens. Jersey runs small for its em, so the s/m/l scale is 14/18/24 (not 14/16/20). */
+  --font-head: "Jersey 10", "Nunito", system-ui, sans-serif;
+  --font-body: "Jersey 15", "Nunito", system-ui, sans-serif;
+  --font: var(--font-body); --c-font: var(--font-body); /* :root resolves --c-font before body sets --font, so set it here too */
+  --c-fs-s: 14px; --c-lh-s: 18px;
+  --c-fs-m: 18px; --c-lh-m: 22px;
+  --c-fs-l: 24px; --c-lh-l: 28px;
+  /* label colours on the painted frames (contrast measured in README) */
+  --sk-grab-fill: #629753; --sk-text: #1C2A22; --sk-ptext: #F3EBD3; --sk-prim-text: #FFFFFF; --sk-primp-text: #EEF0E4;
+  font-weight: 400;
+  font-synthesis: none; /* QA 1: never fake a bold (it filled the open top of the 6 and made it read as 8) */
+  /* pixel-grid sizes. Jersey 10 pixel = em/18.67 (cap height 10 px), Jersey 15 pixel = em/27 (cap height 15 px), measured from the glyph edges.
+     Jersey 10 at 28 px = 1.5 CSS px per font pixel = 3 device px at dpr 2 (crisp); Jersey 15 at 13.5 px = 1 device px per font pixel at dpr 2. Other dpr: not verified. */
+  --sk-fs-head-native: 28px; --sk-lh-head-native: 32px;
+}
+.skin-retro-green, .skin-retro-green :is(b, strong, h1, h2, h3, h4, th, .c-t-l, .c-btn, .c-tag, .c-chip__name, .c-chip__info, .c-icon-btn, .c-seg__opt, .c-res, .c-res b, .c-tab, .c-nametag, .c-stat, .c-stat__val, .c-strip, .c-strip__right, .c-sheet__title) { font-weight: 400; }
+/* QA 1 option B: the header strip carries the numbers ("Week 6", "3 of 8"): Jersey 10 on its pixel grid, weight 400 */
+.skin-retro-green .c-strip { font-family: var(--font-head); font-size: var(--sk-fs-head-native); line-height: var(--sk-lh-head-native); letter-spacing: 0; }
+.skin-retro-green .c-strip__right { font-size: var(--sk-fs-head-native); }
+/* headers and buttons: Jersey 10 at 24 px */
+.skin-retro-green :is(h1, h2, h3, h4, .c-t-l, .c-sheet__title, .c-btn, .c-icon-btn, .c-seg__opt, .c-link) { font-family: var(--font-head); }
+.skin-retro-green .c-btn { font-size: var(--c-fs-l); line-height: var(--c-lh-l); letter-spacing: .02em; }
+/* pressed fills are dark green: light label */
+.skin-retro-green :is(.c-btn:not(.c-btn--quiet):not(.c-btn--primary):not(.c-btn--gold):not(.c-btn--danger), .c-icon-btn, .c-tab):is(:active, .is-pressed) { color: var(--sk-ptext); }
+.skin-retro-green .c-btn--primary { color: var(--sk-prim-text); }
+.skin-retro-green .c-btn--primary:is(:active, .is-pressed) { color: var(--sk-primp-text); }
+/* QA 3: bevel only where it can be tapped. Drill (.c-tag--go) keeps the raised frame; every other .c-tag uses the flat one. */
+.skin-retro-green .c-tag--go { border-image-source: url("frame-tag-raised.png"); /* url() in a rule resolves against THIS file */ }
+/* QA 6: selected HUD tile: one frame, gold. components.css adds a gold outline inside the green frame (double frame); drop it, gold tile instead. */
+.skin-retro-green .c-res.is-lit { border-image-source: url("frame-chip-lit.png"); outline: 0; }
+/* QA 7: the grab handle was kit stone/navy; paint it in the skin colours so it reads as part of the frame, not a strip on top of it */
+.skin-retro-green .c-sheet__grab { background: var(--sk-grab-fill); border-color: #1C2A22; }
+
+/* ===== QA 2026-11-12 e-b (applied as directed) ===== */
+/* L3: names in Pixelify Sans so capital I is not read as l ("Ives"). Names only: player and coach row titles, coach chips on Coach pick (not drill chips: Pixelify is wider and "Pace Bowling" spilled), sheet titles. Body text keeps Jersey (so "Ives" in running text still reads lves). */
+.skin-retro-green :is(.c-row__title > span:first-child, .cp-name > .c-chip__name, .c-sheet__title) { font-family: "Pixelify Sans", var(--font-body); }
+/* L2: primary button in a 2-up row: 20 px so "Next: Tanaka" clears the frame */
+.skin-retro-green .c-grid-2 > .c-btn--primary { font-size: 20px; line-height: 24px; letter-spacing: 0; }
+/* L5: resource numbers and grade letters at Jersey 10, m size */
+.skin-retro-green .c-res b { font-family: var(--font-head); font-size: var(--c-fs-m); line-height: var(--c-lh-m); }
+.skin-retro-green .c-row__title > .c-tag:not(.c-tag--done):not(.tr-away) { font-family: var(--font-head); font-size: var(--c-fs-m); line-height: 20px; }

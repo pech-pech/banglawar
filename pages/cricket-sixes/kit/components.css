@@ -1,0 +1,351 @@
+/* components.css: reusable pixel-style UI set, prefix c-. Load AFTER kit/palette.js (it publishes the colour variables).
+   Colours come only from the palette variables (var(--cream), var(--accent) ...). No hexes, no gradients, no blur.
+   Rule of the set: ONLY pressable things carry the hard drop edge (and a lit top line). Boxes are flat frames. */
+:root {
+  /* shape */
+  --c-radius: 2px;            /* never more than 2 px */
+  --c-border: 2px;            /* every outline */
+  --c-shadow-drop: 3px;       /* hard drop edge of pressables; pressed moves down by this and loses it */
+  --c-shadow-drop-lg: 4px;    /* big call-to-action */
+  --c-tap-min: 56px;          /* smallest tappable box, both ways */
+  --c-btn-h: 56px; --c-cta-h: 64px;
+  /* type scale: three sizes only */
+  --c-fs-s: 14px; --c-lh-s: 18px;
+  --c-fs-m: 16px; --c-lh-m: 22px;
+  --c-fs-l: 20px; --c-lh-l: 26px;
+  --c-font: var(--font, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif);
+  /* spacing scale */
+  --c-sp-1: 4px; --c-sp-2: 8px; --c-sp-3: 12px; --c-sp-4: 16px; --c-sp-5: 24px;
+  /* focus ring colour; on dark strips add class c-dark to flip it to white */
+  --c-focus: var(--kitA2);
+  /* art skin geometry (see .skin-art at the end) */
+  --c-skin-bw: 6px;           /* layout border while a painted frame is on */
+  --c-skin-edge: 16px;        /* 8 px slice x2 */
+
+  /* pixel icons: one unit = 2 CSS px, used as masks so they take the text colour */
+  --c-ico-check: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 6 5' shape-rendering='crispEdges'%3E%3Cpath d='M4 0h2v1h-2zM3 1h2v1h-2zM0 2h1v1h-1zM2 2h2v1h-2zM1 3h3v1h-3zM2 4h1v1h-1z'/%3E%3C/svg%3E");
+  --c-ico-x: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 7 7' shape-rendering='crispEdges'%3E%3Cpath d='M0 0h2v1h-2zM5 0h2v1h-2zM1 1h2v1h-2zM4 1h2v1h-2zM2 2h3v1h-3zM3 3h1v1h-1zM2 4h3v1h-3zM1 5h2v1h-2zM4 5h2v1h-2zM0 6h2v1h-2zM5 6h2v1h-2z'/%3E%3C/svg%3E");
+  --c-ico-chev: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 4 7' shape-rendering='crispEdges'%3E%3Cpath d='M0 0h1v1h-1zM0 1h2v1h-2zM1 2h2v1h-2zM2 3h2v1h-2zM1 4h2v1h-2zM0 5h2v1h-2zM0 6h1v1h-1z'/%3E%3C/svg%3E");
+  --c-ico-lock: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 7 8' shape-rendering='crispEdges'%3E%3Cpath d='M2 0h3v1h-3zM1 1h1v1h-1zM5 1h1v1h-1zM1 2h1v1h-1zM5 2h1v1h-1zM0 3h7v1h-7zM0 4h7v1h-7zM0 5h3v1h-3zM4 5h3v1h-3zM0 6h7v1h-7zM0 7h7v1h-7z'/%3E%3C/svg%3E");
+  --c-ico-play: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 4 7' shape-rendering='crispEdges'%3E%3Cpath d='M0 0h1v1h-1zM0 1h2v1h-2zM0 2h3v1h-3zM0 3h4v1h-4zM0 4h3v1h-3zM0 5h2v1h-2zM0 6h1v1h-1z'/%3E%3C/svg%3E");
+  --c-ico-spark: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 7 7' shape-rendering='crispEdges'%3E%3Cpath d='M3 0h1v1h-1zM3 1h1v1h-1zM2 2h3v1h-3zM0 3h7v1h-7zM2 4h3v1h-3zM3 5h1v1h-1zM3 6h1v1h-1z'/%3E%3C/svg%3E");
+  --c-ico-plus: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 7 7' shape-rendering='crispEdges'%3E%3Cpath d='M3 0h1v1h-1zM3 1h1v1h-1zM3 2h1v1h-1zM0 3h7v1h-7zM3 4h1v1h-1zM3 5h1v1h-1zM3 6h1v1h-1z'/%3E%3C/svg%3E");
+  --c-ico-bang: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 6 7' shape-rendering='crispEdges'%3E%3Cpath d='M2 0h2v1h-2zM2 1h2v1h-2zM2 2h2v1h-2zM2 3h2v1h-2zM2 4h2v1h-2zM2 6h2v1h-2z'/%3E%3C/svg%3E");
+  --c-ico-coin: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8' shape-rendering='crispEdges'%3E%3Cpath d='M2 0h4v1h-4zM1 1h6v1h-6zM0 2h3v1h-3zM5 2h3v1h-3zM0 3h2v1h-2zM3 3h2v1h-2zM6 3h2v1h-2zM0 4h2v1h-2zM3 4h2v1h-2zM6 4h2v1h-2zM0 5h3v1h-3zM5 5h3v1h-3zM1 6h6v1h-6zM2 7h4v1h-4z'/%3E%3C/svg%3E");
+  --c-ico-cone: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8' shape-rendering='crispEdges'%3E%3Cpath d='M3 0h2v1h-2zM3 1h2v1h-2zM2 2h4v1h-4zM2 3h4v1h-4zM1 4h6v1h-6zM1 5h6v1h-6zM0 6h8v1h-8zM0 7h8v1h-8z'/%3E%3C/svg%3E");
+  --c-ico-medal: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8' shape-rendering='crispEdges'%3E%3Cpath d='M0 0h1v1h-1zM7 0h1v1h-1zM1 1h1v1h-1zM6 1h1v1h-1zM2 2h1v1h-1zM5 2h1v1h-1zM2 3h4v1h-4zM1 4h6v1h-6zM1 5h6v1h-6zM1 6h6v1h-6zM2 7h4v1h-4z'/%3E%3C/svg%3E");
+  --c-ico-flag: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8' shape-rendering='crispEdges'%3E%3Cpath d='M0 0h7v1h-7zM0 1h7v1h-7zM0 2h5v1h-5zM0 3h5v1h-5zM0 4h1v1h-1zM0 5h1v1h-1zM0 6h1v1h-1zM0 7h1v1h-1z'/%3E%3C/svg%3E");
+}
+
+/* ---------- base ---------- */
+[class^="c-"], [class*=" c-"], [class^="c-"]::before, [class*=" c-"]::before, [class^="c-"]::after, [class*=" c-"]::after { box-sizing: border-box; }
+.c-root { font: 400 var(--c-fs-m)/var(--c-lh-m) var(--c-font); color: var(--outline); background: var(--cream); }
+.c-dark { --c-focus: var(--white); }
+.c-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.c-stack { display: grid; gap: var(--c-sp-3); }
+.c-cluster { display: flex; flex-wrap: wrap; align-items: center; gap: var(--c-sp-2); }
+.c-grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--c-sp-2); }
+.c-t-s { font-size: var(--c-fs-s); line-height: var(--c-lh-s); }
+.c-t-m { font-size: var(--c-fs-m); line-height: var(--c-lh-m); }
+.c-t-l { font-size: var(--c-fs-l); line-height: var(--c-lh-l); font-weight: 700; }
+.c-num { font-variant-numeric: tabular-nums; font-weight: 700; }
+
+/* pixel icon: <span class="c-ico c-ico--check"></span>. Colour = text colour unless a colour class is added. */
+.c-ico { display: inline-block; flex: none; width: 14px; height: 14px; background: currentColor; vertical-align: middle;
+  -webkit-mask: var(--c-ico-x) center / 100% 100% no-repeat; mask: var(--c-ico-x) center / 100% 100% no-repeat; }
+.c-ico--check { width: 12px; height: 10px; -webkit-mask-image: var(--c-ico-check); mask-image: var(--c-ico-check); }
+.c-ico--x { width: 14px; height: 14px; -webkit-mask-image: var(--c-ico-x); mask-image: var(--c-ico-x); }
+.c-ico--chev { width: 8px; height: 14px; -webkit-mask-image: var(--c-ico-chev); mask-image: var(--c-ico-chev); }
+.c-ico--lock { width: 14px; height: 16px; -webkit-mask-image: var(--c-ico-lock); mask-image: var(--c-ico-lock); }
+.c-ico--play { width: 8px; height: 14px; -webkit-mask-image: var(--c-ico-play); mask-image: var(--c-ico-play); }
+.c-ico--spark { width: 14px; height: 14px; -webkit-mask-image: var(--c-ico-spark); mask-image: var(--c-ico-spark); }
+.c-ico--plus { width: 14px; height: 14px; -webkit-mask-image: var(--c-ico-plus); mask-image: var(--c-ico-plus); }
+.c-ico--bang { width: 12px; height: 14px; -webkit-mask-image: var(--c-ico-bang); mask-image: var(--c-ico-bang); }
+.c-ico--coin, .c-ico--cone, .c-ico--medal, .c-ico--flag { width: 16px; height: 16px; }
+.c-ico--coin { -webkit-mask-image: var(--c-ico-coin); mask-image: var(--c-ico-coin); background: var(--gold); }
+.c-ico--cone { -webkit-mask-image: var(--c-ico-cone); mask-image: var(--c-ico-cone); background: var(--grass1); }
+.c-ico--medal { -webkit-mask-image: var(--c-ico-medal); mask-image: var(--c-ico-medal); background: var(--gold); }
+.c-ico--flag { -webkit-mask-image: var(--c-ico-flag); mask-image: var(--c-ico-flag); background: var(--sky1); }
+
+/* ---------- focus ring (all pressables): dashed so it is not colour-only ---------- */
+:is(.c-btn, .c-icon-btn, .c-seg__opt, .c-tab, .c-row--tap, .c-empty, .c-chip__info, .c-res--btn, .c-link):is(:focus-visible, .is-focus),
+.c-chip:has(.c-chip__pick:focus-visible), .c-chip.is-focus { outline: 3px dashed var(--c-focus); outline-offset: 3px; }
+:is(.c-seg__opt, .c-row--tap, .c-chip__info):is(:focus-visible, .is-focus) { outline-offset: -5px; }
+
+/* ================= BUTTONS =================
+   .c-btn = secondary (cream). Modifiers: --primary --gold --danger --quiet --sm --cta --block.
+   States: default | :active or .is-pressed | .is-selected or [aria-pressed=true] | :disabled or .is-disabled | :focus-visible */
+.c-btn { --_bg: var(--cream); --_fg: var(--outline); --_hi: var(--white); --_bgp: var(--wall1); --_selbg: var(--gold); --_selfg: var(--outline); --_ring: var(--outline); --_edge: var(--c-shadow-drop);
+  position: relative; display: inline-flex; align-items: center; justify-content: center; gap: var(--c-sp-2);
+  min-height: var(--c-btn-h); min-width: var(--c-tap-min); padding: 0 var(--c-sp-4);
+  font: 700 var(--c-fs-m)/var(--c-lh-m) var(--c-font); text-align: center; text-decoration: none; white-space: nowrap;
+  color: var(--_fg); background: var(--_bg); border: var(--c-border) solid var(--outline); border-radius: var(--c-radius);
+  box-shadow: inset 0 2px 0 var(--_hi), 0 var(--_edge) 0 var(--outline);
+  cursor: pointer; touch-action: manipulation; user-select: none; -webkit-tap-highlight-color: transparent; }
+.c-btn--primary { --_bg: var(--accent); --_fg: var(--white); --_hi: var(--grass3); --_bgp: var(--grass3); --_selbg: var(--accent); --_selfg: var(--white); --_ring: var(--white); }
+.c-btn--gold { --_bg: var(--gold); --_fg: var(--outline); --_bgp: var(--pitch2); --_selbg: var(--gold); }
+.c-btn--danger { --_bg: var(--danger); --_fg: var(--white); --_hi: var(--roof1); --_bgp: var(--kitB2); --_selbg: var(--danger); --_selfg: var(--white); --_ring: var(--white); }
+.c-btn--sm { padding: 0 var(--c-sp-3); min-width: 84px; min-height: var(--c-tap-min); }
+.c-btn--cta { --_edge: var(--c-shadow-drop-lg); min-height: var(--c-cta-h); padding: 0 var(--c-sp-5); font-size: var(--c-fs-l); line-height: var(--c-lh-l); letter-spacing: .03em; }
+.c-btn--block { display: flex; width: 100%; }
+.c-btn.is-selected, .c-btn[aria-pressed="true"] { background: var(--_selbg); color: var(--_selfg); box-shadow: inset 0 0 0 2px var(--_ring), 0 var(--_edge) 0 var(--outline); }
+.c-btn.is-selected::before, .c-btn[aria-pressed="true"]::before { content: ""; flex: none; width: 12px; height: 10px; background: currentColor;
+  -webkit-mask: var(--c-ico-check) center / 100% 100% no-repeat; mask: var(--c-ico-check) center / 100% 100% no-repeat; }
+.c-btn:active, .c-btn.is-pressed { transform: translateY(var(--_edge)); background: var(--_bgp); color: var(--_fg); box-shadow: none; }
+.c-btn:disabled, .c-btn[aria-disabled="true"], .c-btn.is-disabled { background: var(--stone1); color: var(--outline); border-style: dashed; box-shadow: none; transform: none; cursor: not-allowed; }
+.c-btn:disabled::before, .c-btn.is-disabled::before { display: none; }
+
+/* quiet / text button: no frame, underline = "tap me", min 56 tall */
+.c-btn--quiet, .c-link { --_bg: transparent; --_bgp: var(--wall1); background: transparent; border-color: transparent; box-shadow: none; padding: 0 var(--c-sp-2);
+  text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 4px; }
+.c-btn--quiet.is-selected, .c-btn--quiet[aria-pressed="true"] { background: transparent; box-shadow: inset 0 -4px 0 var(--gold); }
+.c-btn--quiet:active, .c-btn--quiet.is-pressed { transform: none; background: var(--wall1); box-shadow: none; text-decoration-thickness: 4px; }
+.c-btn--quiet:disabled, .c-btn--quiet.is-disabled { background: transparent; border-color: transparent; text-decoration-style: dashed; }
+.c-link { display: inline-flex; align-items: center; min-height: var(--c-tap-min); min-width: var(--c-tap-min); font: 700 var(--c-fs-m) var(--c-font); color: var(--outline); cursor: pointer; border: 0; }
+
+/* icon button: 56 x 56, same raised frame as .c-btn */
+.c-icon-btn { --_edge: var(--c-shadow-drop);
+  position: relative; display: inline-flex; align-items: center; justify-content: center; flex: none; width: var(--c-tap-min); height: var(--c-tap-min); padding: 0;
+  font: 700 var(--c-fs-l)/1 var(--c-font); color: var(--outline); background: var(--cream); border: var(--c-border) solid var(--outline); border-radius: var(--c-radius);
+  box-shadow: inset 0 2px 0 var(--white), 0 var(--_edge) 0 var(--outline); cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+.c-icon-btn.is-selected, .c-icon-btn[aria-pressed="true"] { background: var(--gold); box-shadow: inset 0 0 0 2px var(--outline), 0 var(--_edge) 0 var(--outline); }
+.c-icon-btn:active, .c-icon-btn.is-pressed { transform: translateY(var(--_edge)); background: var(--wall1); box-shadow: none; }
+.c-icon-btn:disabled, .c-icon-btn.is-disabled { background: var(--stone1); border-style: dashed; box-shadow: none; transform: none; cursor: not-allowed; }
+
+/* ================= SEGMENTED TOGGLE (2 to 3 options) =================
+   <div class="c-seg" role="group"><button class="c-seg__opt is-selected" aria-pressed="true">Attack</button>...</div> */
+.c-seg { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; min-height: var(--c-btn-h); background: var(--cream);
+  border: var(--c-border) solid var(--outline); border-radius: var(--c-radius); box-shadow: 0 var(--c-shadow-drop) 0 var(--outline); }
+.c-seg__opt { position: relative; display: flex; align-items: center; justify-content: center; gap: var(--c-sp-2); min-height: var(--c-tap-min); padding: 0 var(--c-sp-2); margin: 0;
+  font: 700 var(--c-fs-m)/var(--c-lh-m) var(--c-font); color: var(--outline); background: var(--cream); border: 0; border-radius: 0; box-shadow: inset 0 2px 0 var(--white); cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+.c-seg__opt + .c-seg__opt { border-left: var(--c-border) solid var(--outline); }
+.c-seg__opt.is-selected, .c-seg__opt[aria-pressed="true"] { background: var(--gold); box-shadow: inset 0 4px 0 var(--pitch2); }
+.c-seg__opt.is-selected::before, .c-seg__opt[aria-pressed="true"]::before { content: ""; flex: none; width: 12px; height: 10px; background: currentColor;
+  -webkit-mask: var(--c-ico-check) center / 100% 100% no-repeat; mask: var(--c-ico-check) center / 100% 100% no-repeat; }
+.c-seg__opt:active, .c-seg__opt.is-pressed { background: var(--wall1); box-shadow: inset 0 4px 0 var(--wall2); }
+.c-seg__opt:disabled, .c-seg__opt.is-disabled { background: var(--stone1); box-shadow: none; cursor: not-allowed; border-left-style: dashed; }
+.c-seg__opt:disabled::before, .c-seg__opt.is-disabled::before { display: none; }
+
+/* ================= TAG (status pill). Never pressable: no drop edge, no lit line. =================
+   Each variant has a pixel icon, so state is never colour-only. */
+.c-tag { display: inline-flex; align-items: center; gap: 6px; flex: none; max-width: 100%; padding: 0 6px; min-height: 22px;
+  font: 700 var(--c-fs-s)/var(--c-lh-s) var(--c-font); letter-spacing: .02em; white-space: nowrap; color: var(--outline); background: var(--white);
+  border: var(--c-border) solid var(--outline); border-radius: var(--c-radius); }
+.c-tag::before { content: ""; flex: none; width: 0; height: 12px; background: currentColor; -webkit-mask: var(--_ico) center / 100% 100% no-repeat; mask: var(--_ico) center / 100% 100% no-repeat; }
+.c-tag--go { --_ico: var(--c-ico-play); background: var(--accent); color: var(--white); }
+.c-tag--go::before { width: 7px; }
+.c-tag--done { --_ico: var(--c-ico-check); background: var(--wall1); }
+.c-tag--done::before { width: 12px; height: 10px; }
+.c-tag--locked { --_ico: var(--c-ico-lock); background: var(--stone1); border-style: dashed; }
+.c-tag--locked::before { width: 10px; height: 12px; }
+.c-tag--new { --_ico: var(--c-ico-spark); background: var(--gold); }
+.c-tag--new::before { width: 12px; }
+.c-tag--warn { --_ico: var(--c-ico-bang); background: var(--danger); color: var(--white); }
+.c-tag--warn::before { width: 8px; }
+
+/* ================= CHOICE CHIP / CARD (name + tag + info corner) =================
+   <div class="c-chip"><button class="c-chip__pick"><b class="c-chip__name">Marlow F</b><span class="c-tag">Even</span></button>
+   <button class="c-chip__info" aria-label="Details">i</button></div>
+   Pick area and info corner are two separate targets. A disabled chip keeps a working info corner. */
+.c-chip { position: relative; display: flex; min-height: 60px; color: var(--outline); background: var(--cream);
+  border: var(--c-border) solid var(--outline); border-radius: var(--c-radius); box-shadow: inset 0 2px 0 var(--white), 0 var(--c-shadow-drop) 0 var(--outline); }
+.c-chip__pick { flex: 1; min-width: 0; min-height: var(--c-tap-min); display: flex; flex-direction: column; align-items: flex-start; justify-content: center; gap: 2px; padding: 4px 6px 4px 8px; margin: 0;
+  font: inherit; color: inherit; text-align: left; background: none; border: 0; border-radius: 0; cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+.c-chip__name { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 700 var(--c-fs-m)/var(--c-lh-m) var(--c-font); }
+.c-chip__info { flex: none; width: var(--c-tap-min); min-height: var(--c-tap-min); padding: 0; margin: 0; font: 700 var(--c-fs-m)/1 var(--c-font); font-style: italic; color: inherit;
+  background: var(--wall1); border: 0; border-left: var(--c-border) solid var(--outline); border-radius: 0; cursor: pointer; touch-action: manipulation; }
+.c-chip__info:active { background: var(--wall2); }
+.c-chip.is-selected, .c-chip[aria-pressed="true"] { background: var(--gold); box-shadow: inset 0 0 0 2px var(--outline), 0 var(--c-shadow-drop) 0 var(--outline); }
+.c-chip.is-selected .c-chip__info { background: var(--pitch1); }
+.c-chip.is-selected .c-chip__name::before { content: ""; display: inline-block; width: 12px; height: 10px; margin-right: 6px; background: currentColor;
+  -webkit-mask: var(--c-ico-check) center / 100% 100% no-repeat; mask: var(--c-ico-check) center / 100% 100% no-repeat; }
+.c-chip:has(.c-chip__pick:active), .c-chip.is-pressed { transform: translateY(var(--c-shadow-drop)); background: var(--wall1); box-shadow: none; }
+.c-chip.is-selected:has(.c-chip__pick:active) { background: var(--pitch2); }
+.c-chip.is-disabled { background: var(--stone1); border-style: dashed; box-shadow: none; transform: none; }
+.c-chip.is-disabled .c-chip__pick { cursor: not-allowed; }
+.c-chip.is-disabled .c-chip__info { background: var(--stone1); border-left-style: dashed; }
+
+/* ================= RESOURCE CHIP (top bar) =================
+   <div class="c-resbar c-dark"><div class="c-res"><span class="c-ico c-ico--coin"></span><b>2,240</b></div>... */
+.c-resbar { display: flex; gap: var(--c-sp-1); padding: 6px var(--c-sp-1); background: var(--kitA2); border-bottom: var(--c-border) solid var(--outline); --c-focus: var(--white); }
+.c-res { flex: 1 1 0; min-width: 0; position: relative; display: flex; align-items: center; gap: 4px; min-height: var(--c-tap-min); padding: 0 4px; margin: 0;
+  font: 700 var(--c-fs-s)/var(--c-lh-s) var(--c-font); font-variant-numeric: tabular-nums; color: var(--white); background: var(--outline); border: var(--c-border) solid var(--stone2); border-radius: var(--c-radius); }
+.c-res b { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.c-res__req { position: absolute; left: 6px; right: 6px; bottom: 3px; height: 4px; background: var(--stone2); }
+.c-res__req::before { content: ""; display: block; height: 100%; width: var(--v, 50%); background: var(--gold); }
+.c-res.is-lit { border-color: var(--gold); box-shadow: inset 0 0 0 2px var(--gold); }
+.c-res.is-low::before { content: ""; order: 9; flex: none; width: 8px; height: 14px; margin-left: auto; background: var(--danger);
+  -webkit-mask: var(--c-ico-bang) center / 100% 100% no-repeat; mask: var(--c-ico-bang) center / 100% 100% no-repeat; }
+.c-res.is-disabled { border-style: dashed; color: var(--stone1); }
+.c-res--btn { font-family: var(--c-font); text-align: left; cursor: pointer; box-shadow: 0 var(--c-shadow-drop) 0 var(--outline); touch-action: manipulation; }
+.c-res--btn:active, .c-res--btn.is-pressed { transform: translateY(var(--c-shadow-drop)); box-shadow: none; background: var(--kitA2); }
+.c-tag:not([class*="c-tag--"])::before { display: none; }
+
+/* ================= LIST ROW =================
+   <li class="c-row"><span class="c-row__por"></span><span class="c-row__body"><b class="c-row__title">Marlow</b><span class="c-row__sub">Opener, Fast</span></span><b class="c-row__val">B</b><span class="c-row__end"><button class="c-btn c-btn--sm">Done +1</button></span></li>
+   Plain row = flat, not pressable. Tappable row (c-row--tap, a button): chevron + pressed fill. Selected = gold + solid bar on the left edge. */
+.c-list { margin: 0; padding: 0; list-style: none; }
+.c-row { position: relative; display: flex; align-items: center; gap: var(--c-sp-3); min-height: 60px; width: 100%; padding: 6px var(--c-sp-3); margin: 0;
+  font: 400 var(--c-fs-m)/var(--c-lh-m) var(--c-font); color: var(--outline); text-align: left; background: var(--cream); border: 0; border-bottom: var(--c-border) solid var(--wall1); border-radius: 0; }
+.c-row__por { flex: none; display: block; width: 40px; height: 40px; overflow: hidden; background: var(--grass2); border: var(--c-border) solid var(--outline); border-radius: var(--c-radius); image-rendering: pixelated; }
+.c-row__por > canvas, .c-row__por > img { display: block; width: 100%; height: 100%; image-rendering: pixelated; }
+.c-row__body { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.c-row__title { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.c-row__sub { font-size: var(--c-fs-s); line-height: var(--c-lh-s); color: var(--kitA2); }
+.c-row__val { flex: none; min-width: 24px; text-align: center; font: 700 var(--c-fs-l)/var(--c-lh-l) var(--c-font); font-variant-numeric: tabular-nums; }
+.c-row__end { flex: none; display: flex; align-items: center; gap: var(--c-sp-1); }
+.c-row--tap { cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+.c-row--tap::after { content: ""; flex: none; width: 8px; height: 14px; background: currentColor; -webkit-mask: var(--c-ico-chev) center / 100% 100% no-repeat; mask: var(--c-ico-chev) center / 100% 100% no-repeat; }
+.c-row--tap:active, .c-row--tap.is-pressed { background: var(--wall1); }
+.c-row.is-selected { background: var(--gold); box-shadow: inset 6px 0 0 var(--outline); padding-left: 18px; }
+.c-row.is-selected.c-row--tap:active { background: var(--pitch2); }
+.c-row.is-disabled, .c-row[aria-disabled="true"] { background: var(--stone1); cursor: not-allowed; border-bottom-style: dashed; border-bottom-color: var(--stone2); }
+.c-row.is-disabled::after { display: none; }
+
+/* ================= EMPTY SLOT ROW (tappable, "add something here") =================
+   Dashed frame + plus icon + a word. Its edge is the soft wall2 one, so it reads as "open", not as a primary action. */
+.c-empty { position: relative; display: flex; align-items: center; gap: var(--c-sp-3); width: 100%; min-height: 60px; padding: 6px var(--c-sp-3); margin: 0;
+  font: 700 var(--c-fs-m)/var(--c-lh-m) var(--c-font); text-align: left; color: var(--outline); background: transparent; border: var(--c-border) dashed var(--outline); border-radius: var(--c-radius);
+  box-shadow: 0 var(--c-shadow-drop) 0 var(--wall2); cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+.c-empty__por { flex: none; display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; border: var(--c-border) dashed var(--outline); border-radius: var(--c-radius); }
+.c-empty__sub { display: block; font-weight: 400; font-size: var(--c-fs-s); line-height: var(--c-lh-s); }
+.c-empty.is-selected { background: var(--gold); border-style: solid; }
+.c-empty:active, .c-empty.is-pressed { background: var(--wall1); box-shadow: none; transform: translateY(var(--c-shadow-drop)); }
+.c-empty:disabled, .c-empty.is-disabled { background: var(--stone1); border-style: dotted; box-shadow: none; transform: none; cursor: not-allowed; }
+
+/* ================= CARD / BOX (never pressable: no drop edge, no lit line) =================
+   Variants: plain, --inset (sunk, for stats and notes), --hl (highlighted: double frame). For a tappable card use c-chip. */
+.c-card { position: relative; padding: var(--c-sp-3); color: var(--outline); background: var(--cream); border: var(--c-border) solid var(--outline); border-radius: var(--c-radius); box-shadow: inset 0 0 0 2px var(--wall1); }
+.c-card--inset { background: var(--wall1); border-color: var(--wall2); box-shadow: inset 0 3px 0 var(--wall2); }
+.c-card--hl { box-shadow: inset 0 0 0 3px var(--gold); padding: 15px; }
+.c-card.is-disabled { background: var(--stone1); border-style: dashed; box-shadow: none; }
+.c-card > .c-strip:first-child { margin: -12px -12px 12px; }
+.c-card--hl > .c-strip:first-child { margin: -15px -15px 12px; }
+
+/* ================= SECTION HEADER STRIP ================= */
+.c-strip { display: flex; align-items: center; justify-content: space-between; gap: var(--c-sp-2); min-height: 36px; padding: 4px var(--c-sp-3);
+  font: 700 var(--c-fs-m)/var(--c-lh-m) var(--c-font); letter-spacing: .02em; color: var(--white); background: var(--kitA2); border-bottom: var(--c-border) solid var(--outline); }
+.c-strip__right { font-weight: 400; font-size: var(--c-fs-s); letter-spacing: 0; }
+.c-strip--light { color: var(--outline); background: var(--wall1); border-top: var(--c-border) solid var(--outline); }
+
+/* ================= BOTTOM SHEET =================
+   <div class="c-scrim"></div><section class="c-sheet c-sheet--dock"><span class="c-sheet__grab"></span><header class="c-sheet__head"><h3 class="c-sheet__title">..</h3><button class="c-icon-btn">..</button></header><div class="c-sheet__body">..</div><footer class="c-sheet__foot">..</footer></section>
+   The grab bar is a swipe handle, not a tap target; closing is the X button. */
+.c-sheet { position: relative; padding: 0 var(--c-sp-4) var(--c-sp-4); color: var(--outline); background: var(--cream); border: var(--c-border) solid var(--outline); border-bottom: 0; border-radius: var(--c-radius) var(--c-radius) 0 0; box-shadow: inset 0 0 0 2px var(--wall1); }
+.c-sheet--dock { position: absolute; left: 0; right: 0; bottom: 0; z-index: 6; }
+.c-scrim { position: absolute; inset: 0; z-index: 5; background: var(--outline); opacity: .55; }
+.c-stage { position: relative; overflow: hidden; }
+.c-sheet__grab { display: block; width: 44px; height: 8px; margin: var(--c-sp-2) auto 0; background: var(--stone1); border: var(--c-border) solid var(--outline); }
+.c-sheet__head { display: flex; align-items: center; justify-content: space-between; gap: var(--c-sp-3); min-height: 56px; }
+.c-sheet__title { margin: 0; font: 700 var(--c-fs-l)/var(--c-lh-l) var(--c-font); }
+.c-sheet__body { display: grid; gap: var(--c-sp-2); }
+.c-sheet__foot { display: grid; gap: var(--c-sp-2); margin-top: var(--c-sp-4); }
+
+/* ================= TOAST (dark, flat, short-lived; positioned by the screen) ================= */
+.c-toast { display: flex; align-items: center; gap: var(--c-sp-2); min-height: var(--c-tap-min); padding: 10px var(--c-sp-3); font: 700 var(--c-fs-m)/var(--c-lh-m) var(--c-font); color: var(--white);
+  background: var(--outline); border: var(--c-border) solid var(--stone2); border-radius: var(--c-radius); }
+.c-toast--good { background: var(--accent); border-color: var(--outline); }
+.c-toast--warn { background: var(--danger); border-color: var(--outline); }
+.c-toast .c-btn--quiet { margin-left: auto; color: var(--white); --c-focus: var(--white); }
+
+/* ================= NOTICE (staff message) and NOTICE BADGE (count) ================= */
+.c-notice { display: flex; gap: var(--c-sp-3); align-items: flex-start; padding: var(--c-sp-3); color: var(--outline); background: var(--cream); border: var(--c-border) solid var(--outline); border-radius: var(--c-radius); box-shadow: inset 0 0 0 2px var(--wall1); }
+.c-notice__who { flex: none; width: 48px; height: 48px; background: var(--grass2); border: var(--c-border) solid var(--outline); border-radius: var(--c-radius); }
+.c-notice__name { display: block; font-weight: 700; }
+.c-badge { display: inline-flex; align-items: center; justify-content: center; min-width: 22px; height: 22px; padding: 0 4px; font: 700 var(--c-fs-s)/1 var(--c-font); font-variant-numeric: tabular-nums; color: var(--white); background: var(--danger); border: var(--c-border) solid var(--outline); border-radius: var(--c-radius); }
+.c-badge--gold { color: var(--outline); background: var(--gold); }
+.c-badge--dot { min-width: 14px; width: 14px; height: 14px; padding: 0; }
+.c-badged { position: relative; display: inline-flex; }
+.c-badged > .c-badge { position: absolute; top: -9px; right: -8px; z-index: 2; }
+
+/* ================= STAT BAR with marker =================
+   <div class="c-stat c-stat--mid"><span class="c-stat__label">SPD</span><span class="c-stat__track"><i class="c-stat__fill" style="--v:48%"></i><i class="c-stat__mark" style="--m:60%"></i></span><b class="c-stat__val">48</b></div>
+   Fill colour by value: --low (danger) --mid (gold) --high (accent). The number is always shown. */
+.c-stat { --_fill: var(--accent); display: grid; grid-template-columns: var(--c-stat-label, 52px) 1fr 36px; align-items: center; gap: var(--c-sp-3); min-height: 32px; font: 700 var(--c-fs-m)/var(--c-lh-m) var(--c-font); color: var(--outline); }
+.c-stat--low { --_fill: var(--danger); } .c-stat--mid { --_fill: var(--gold); } .c-stat--high { --_fill: var(--accent); }
+.c-stat__label { font-size: var(--c-fs-s); }
+.c-stat__track { position: relative; display: block; height: 16px; background: var(--stone1); border: var(--c-border) solid var(--outline); }
+.c-stat__fill { display: block; height: 100%; width: var(--v, 50%); background: var(--_fill); border-right: var(--c-border) solid var(--outline); }
+.c-stat__gain { position: absolute; top: 0; bottom: 0; left: var(--v, 50%); width: var(--g, 10%); background: var(--white); border-right: var(--c-border) solid var(--outline); animation: c-blink 1s steps(1) infinite; }
+.c-stat__mark { position: absolute; top: -5px; bottom: -5px; left: var(--m, 50%); width: 6px; margin-left: -3px; background: var(--white); border: var(--c-border) solid var(--outline); }
+.c-stat__val { text-align: right; font-variant-numeric: tabular-nums; }
+@keyframes c-blink { 50% { opacity: .35; } }
+@media (prefers-reduced-motion: reduce) { .c-stat__gain { animation: none; } .c-btn, .c-chip, .c-icon-btn, .c-tab, .c-empty, .c-res--btn { transition: none; } }
+
+/* ================= BOTTOM TAB BAR =================
+   <nav class="c-tabbar c-dark"><button class="c-tab is-selected" aria-current="page"><span class="c-ico c-ico--play"></span>Play</button>...
+   Tabs are raised keys; the current one is sunk, accent and carries a gold top line. */
+.c-tabbar { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: var(--c-sp-1); padding: var(--c-sp-2) var(--c-sp-1) var(--c-sp-3); background: var(--kitA2); border-top: var(--c-border) solid var(--outline); --c-focus: var(--white); }
+.c-tab { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; min-width: var(--c-tap-min); min-height: 56px; padding: 2px; margin: 0;
+  font: 700 var(--c-fs-s)/var(--c-lh-s) var(--c-font); color: var(--outline); background: var(--cream); border: var(--c-border) solid var(--outline); border-radius: var(--c-radius);
+  box-shadow: inset 0 2px 0 var(--white), 0 var(--c-shadow-drop) 0 var(--outline); cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+.c-tab.is-selected, .c-tab[aria-current="page"] { color: var(--white); background: var(--accent); transform: translateY(var(--c-shadow-drop)); box-shadow: inset 0 4px 0 var(--gold); }
+.c-tab:active, .c-tab.is-pressed { transform: translateY(var(--c-shadow-drop)); background: var(--wall1); color: var(--outline); box-shadow: none; }
+.c-tab:disabled, .c-tab.is-disabled { background: var(--stone1); color: var(--outline); border-style: dashed; box-shadow: none; transform: none; cursor: not-allowed; }
+.c-tab .c-badge { position: absolute; top: -9px; right: -4px; }
+
+/* ================= NAME TAG with level pips (facility labels; label only, the building is the button) ================= */
+.c-nametag { display: inline-flex; align-items: center; gap: var(--c-sp-2); min-height: 28px; padding: 0 var(--c-sp-2); font: 700 var(--c-fs-s)/var(--c-lh-s) var(--c-font); white-space: nowrap; color: var(--outline); background: var(--cream); border: var(--c-border) solid var(--outline); border-radius: var(--c-radius); }
+.c-nametag.is-selected { background: var(--gold); box-shadow: inset 0 0 0 2px var(--outline); }
+.c-nametag.is-disabled { background: var(--stone1); border-style: dashed; }
+.c-pips { display: inline-flex; gap: 3px; }
+.c-pips > i { display: block; width: 10px; height: 10px; background: var(--cream); border: var(--c-border) solid var(--outline); }
+.c-pips > i.on { background: var(--gold); }
+.c-nametag.is-selected .c-pips > i:not(.on) { background: var(--cream); }
+.c-nametag.is-selected .c-pips > i.on { background: var(--outline); }
+
+/* ======================================================================
+   SKIN HOOK: painted 9-slice frames.  <body class="skin-art"> swaps the code-drawn frame for border-image.
+   Contract (shared with the art set): one PNG per slot, 24x24 px source tile = 3x3 grid of 8 px cells, slice 8 px, drawn at x2
+   (so each edge is 16 CSS px, image-rendering: pixelated). Muted palette only. Dark outline = 1 source px = the same 2 CSS px as the code frame.
+   INK RULE for the art: outline + drop edge must sit in the outer 3 source px (6 CSS px = --c-skin-bw) of each edge cell; the other
+   5 px of the edge cell is plain fill. Code overlays (selected plate, disabled wash, colour washes) are inset by that 6 px and never hide ink.
+   Slots:  --c-frame-panel  --c-frame-btn  --c-frame-btn-pressed  --c-frame-btn-primary  --c-frame-chip  --c-frame-sheet  --c-frame-tag
+   Optional (proposal, falls back to --c-frame-btn-primary): --c-frame-btn-primary-pressed
+
+   Example wiring (one PNG per slot; paste in your own stylesheet or set from JS with absolute URLs):
+   body.skin-art {
+     --c-frame-panel:        url("art/frame-panel.png");
+     --c-frame-btn:          url("art/frame-btn.png");
+     --c-frame-btn-pressed:  url("art/frame-btn-pressed.png");
+     --c-frame-btn-primary:  url("art/frame-btn-primary.png");
+     --c-frame-chip:         url("art/frame-chip.png");
+     --c-frame-sheet:        url("art/frame-sheet.png");
+     --c-frame-tag:          url("art/frame-tag.png");
+   }
+   ====================================================================== */
+.skin-art :is(.c-card, .c-notice, .c-toast, .c-btn:not(.c-btn--quiet), .c-icon-btn, .c-seg, .c-tab, .c-chip, .c-res, .c-sheet, .c-tag, .c-nametag) {
+  border-style: solid; border-color: transparent; border-width: var(--c-skin-bw); border-radius: 0; box-shadow: none; background: transparent;
+  border-image-slice: 8 fill; border-image-width: var(--c-skin-edge); border-image-repeat: stretch; image-rendering: pixelated; isolation: isolate; }
+.skin-art :is(.c-card, .c-notice, .c-toast) { border-image-source: var(--c-frame-panel); }
+.skin-art :is(.c-btn:not(.c-btn--quiet), .c-icon-btn, .c-seg, .c-tab) { border-image-source: var(--c-frame-btn); }
+.skin-art .c-btn:is(.c-btn--primary, .c-btn--gold, .c-btn--danger) { border-image-source: var(--c-frame-btn-primary); }
+.skin-art :is(.c-chip, .c-res) { border-image-source: var(--c-frame-chip); }
+.skin-art .c-sheet { border-image-source: var(--c-frame-sheet); }
+.skin-art :is(.c-tag, .c-nametag) { border-image-source: var(--c-frame-tag); position: relative; min-height: 32px; padding: 0 10px; }
+.skin-art :is(.c-btn:not(.c-btn--quiet), .c-icon-btn, .c-tab):is(:active, .is-pressed) { border-image-source: var(--c-frame-btn-pressed); background: transparent; }
+.skin-art .c-btn:is(.c-btn--primary, .c-btn--gold, .c-btn--danger):is(:active, .is-pressed) { border-image-source: var(--c-frame-btn-primary-pressed, var(--c-frame-btn-primary)); }
+.skin-art .c-chip:is(.is-pressed, :has(.c-chip__pick:active)) { background: transparent; }
+.skin-art .c-btn--cta { border-width: var(--c-skin-bw); }
+
+/* code washes inside the painted frame (colour states the tiles do not carry). Each host sets --_wash; ::after paints it inside the 6 px border. */
+.skin-art :is(.c-btn:not(.c-btn--quiet), .c-icon-btn, .c-chip, .c-tab, .c-card, .c-res, .c-toast, .c-tag, .c-nametag):is(.is-selected, .is-disabled, :disabled, [aria-pressed="true"], [aria-current="page"], .c-btn--gold, .c-btn--danger, .c-card--inset, .c-card--hl, .c-res, .c-toast, .c-tag--go, .c-tag--done, .c-tag--locked, .c-tag--new, .c-tag--warn)::after {
+  content: ""; position: absolute; inset: 0; z-index: -1; background: var(--_wash, var(--gold)); pointer-events: none; }
+.skin-art :is(.c-btn--primary.is-selected, .c-tab.is-selected, .c-tab[aria-current="page"], .c-tag--go, .c-toast--good) { --_wash: var(--accent); }
+.skin-art :is(.c-btn--danger, .c-tag--warn, .c-toast--warn) { --_wash: var(--danger); }
+.skin-art :is(.c-card--inset, .c-tag--done) { --_wash: var(--wall1); }
+.skin-art .c-card--hl { --_wash: var(--cream); }
+.skin-art :is(.c-res, .c-toast) { --_wash: var(--outline); }
+.skin-art .c-toast--good { --_wash: var(--accent); }
+.skin-art .c-btn--gold:is(:active, .is-pressed) { --_wash: var(--pitch2); }
+.skin-art .c-btn--danger:is(:active, .is-pressed) { --_wash: var(--kitB2); }
+.skin-art :is(.c-btn, .c-icon-btn, .c-chip, .c-tab, .c-card, .c-res, .c-tag):is(.is-disabled, :disabled), .skin-art .c-tag--locked { --_wash: var(--stone1); }
+.skin-art :is(.c-chip, .c-btn):not(.is-selected):not(.c-btn--gold):not(.c-btn--danger):not(.is-disabled):not(:disabled) { --_wash: transparent; }
+.skin-art :is(.c-chip, .c-btn).is-selected:not(.c-btn--primary) { --_wash: var(--gold); }
+.skin-art .c-res.is-lit { outline: 2px solid var(--gold); outline-offset: -10px; }
+.skin-art .c-card--hl { outline: 3px solid var(--gold); outline-offset: -10px; }
+.skin-art .c-seg__opt { background: transparent; box-shadow: none; }
+.skin-art .c-seg__opt.is-selected, .skin-art .c-seg__opt[aria-pressed="true"] { background: var(--gold); box-shadow: inset 0 4px 0 var(--pitch2); }
+.skin-art .c-seg__opt:is(:active, .is-pressed) { background: var(--wall1); }
+.skin-art .c-seg__opt:is(:disabled, .is-disabled) { background: var(--stone1); }
+.skin-art .c-chip__pick { background: transparent; }
