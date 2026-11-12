@@ -2,7 +2,9 @@
 // and test/determinism-m0.test.mjs. Policies: idle, careless, rote grid (field x intent), skilled, noisy-skilled.
 // Every bot decision draws from makeRng(`${seed}|policy`), never from the game's own streams.
 import { applyCommand } from '../js/store/commands.js';
-import { bowlVM, chaseVM } from '../js/store/selectors.js';
+import { bowlVM, chaseVM, endVM } from '../js/store/selectors.js';
+import { RUN } from '../js/data/run.js';
+import { runScore } from '../js/core/run.js';
 import { makeRng } from '../js/core/rng.js';
 import { skilledBowler, skilledField, skilledIntent } from '../js/core/skilled.js';
 import { capSum } from '../js/core/ability.js';
@@ -190,3 +192,28 @@ export function checkSeason(s, errors) {
   const played = (s.season.results || []).filter((x) => x.a === ME || x.b === ME).length;
   return { place, pts: me ? me.pts : 0, wins: me ? me.w : 0, top4: place >= 1 && place <= 4, champion: s.season.champion === ME, myMatches: played };
 }
+
+/**
+ * Play a whole run (RUN.seasons seasons) through applyCommand only: season, end screen, NewSeason, ... RunEnd.
+ * Each season's bot draws come from `${seed}|r<n>`. Returns {state, seasons[{n, league, place, promoted}], reachedL5, bestLeague, score, errors[]}.
+ * @param {string} seed @param {Policy} pol
+ */
+export function playRun(seed, pol) {
+  const errors = [], seasons = [];
+  let s = null;
+  for (let n = 1; n <= 40; n++) {
+    const r = playSeason(`${seed}|r${n}`, pol, s ? { from: s } : {});
+    errors.push(...r.errors);
+    s = r.state;
+    if (r.errors.length || !s || s.stage !== 'end') break;
+    const e = endResult(s);
+    seasons.push({ n: s.season.n, league: s.season.league, place: e.place, promoted: e.promoted });
+    const next = applyCommand(s, s.season.n >= (s.run ? RUN.seasons : 0) ? 'RunEnd' : 'NewSeason', {});
+    if (next === s) { errors.push(`end screen did not move at season ${s.season.n}`); break; }
+    s = next;
+    if (s.stage === 'runend') break;
+  }
+  const run = s && s.run;
+  return { state: s, seasons, reachedL5: !!run && run.best >= 5, bestLeague: run ? run.best : 0, score: s && s.stage === 'runend' ? runScore(s).score : null, errors };
+}
+const endResult = (s) => { const v = endVM(s); return { place: v.result.place, promoted: v.result.promoted }; };

@@ -20,7 +20,8 @@ const nb = (t) => String(t).replace(/(\d)-(\d)/g, '$1' + NBH + '$2');
 const PHASE = ['Early overs (1-3)', 'Middle overs (4-7)', 'Last overs (8-10)'].map(nb);
 const SAY = (o) => (String(o) === '0' ? 'No run' : outcomeLabel(o));
 const UNK = 'Not known yet';
-const DRILLS = 'Grade shows after 5 practice drills';
+const DRILLS = 'Grade shows after 1 practice drill';
+const MORE = 'Drill this player to see more matchups';
 const BADGE = { W: 'W', 6: '6', 4: '4', 2: '2', 1: '1', 0: '0' };
 // vm preview label -> rating box. Shape + word, never colour alone.
 const RATE = { Great: ['r-good', '▲', 'Good'], Even: ['r-ok', '●', 'OK'], Bad: ['r-poor', '▼', 'Poor'] };
@@ -76,7 +77,7 @@ function bowlerName(vm, i) {
 
 function lastLine(vm) {
   const L = vm.last;
-  if (!L || !(L.balls || []).length) return `<div class="last bv-last"><span class="bv-last-txt">First over. No balls bowled yet.</span></div>`;
+  if (!L || !(L.balls || []).length) return `<div class="last bv-last bv-last--none"><span class="bv-last-txt">First over. No balls bowled yet.</span></div>`;
   const balls = L.balls.slice(0, 6);
   const runs = balls.reduce((a, r) => a + (r.o === 'W' ? 0 : Number(r.o) || 0), 0);
   const wk = balls.filter((r) => r.o === 'W').length;
@@ -107,7 +108,11 @@ export function render(el, vm, dispatch) {
   const E = /** @type {any} */ (el);
   E.__bvDispatch = dispatch; E.__bvVM = vm;
   const selB = (vm.bowlers || []).find((b) => vm.call && b.i === vm.call.bowler && b.eligible);
-  const seg = (k, icon) => `<button type="button" class="opt${fld === k ? ' is-selected' : ''}" role="radio" data-field="${k}" aria-checked="${fld === k ? 'true' : 'false'}">${ic(icon, 24)}${FIELD[k]}</button>`;
+  const hint = vm.fieldHint || null;
+  const seg = (k, icon) => `<button type="button" class="opt${fld === k ? ' is-selected' : ''}" role="radio" data-field="${k}" aria-checked="${fld === k ? 'true' : 'false'}"` +
+    `${hint && hint.pick === k ? ' aria-label="' + FIELD[k] + ', tip: suggested for the batter on strike"' : ''}>${ic(icon, 24)}${FIELD[k]}` +
+    `${hint && hint.pick === k ? '<span class="bv-tip" data-tip>' + ic('info', 16) + 'Tip</span>' : ''}</button>`;
+  const anyHidden = (vm.bowlers || []).some((b) => b.grade === '?' && b.eligible);
   const anyBest = (vm.bowlers || []).some((b) => (b.previews || []).some((p) => p.inPhase));
   el.innerHTML =
     `<header class="strip c-dark bv-strip" role="status">` +
@@ -115,10 +120,10 @@ export function render(el, vm, dispatch) {
     `<span class="mid"><b>Over ${esc(vm.over)} of 10</b><span>${esc(PHASE[vm.phase] || vm.phaseName)}</span></span>` +
     `<button type="button" class="q" data-gloss aria-label="Cricket words explained">?</button></header>` +
     `<section class="colL bv-colL">` +
-    `<div class="sb bv-sb" role="radiogroup" aria-label="Bowlers">${head(vm)}${(vm.bowlers || []).map((b) => row(b, vm)).join('')}</div></section>` +
+    `<div class="sb bv-sb" role="radiogroup" aria-label="Bowlers">${head(vm)}${(vm.bowlers || []).map((b) => row(b, vm)).join('')}</div>${anyHidden ? `<p class="bv-more" data-more>${MORE}</p>` : ''}</section>` +
     `<section class="colR bv-colR"><div class="seg bv-seg" role="radiogroup" aria-label="Field">${seg('A', 'fieldAttack')}${seg('P', 'fieldProtect')}</div>` +
     lastLine(vm) +
-    `<div class="hints bv-hints"><p><b>Attack</b>: more wickets, more runs. <b>Protect</b>: fewer runs.</p>` +
+    `<div class="hints bv-hints">${hint ? `<p data-fieldhint><b>${esc(hint.why)}</b></p>` : `<p><b>Attack</b>: more wickets, more runs. <b>Protect</b>: fewer runs.</p>`}` +
     `<p><b>Grade</b> D low to S best.${anyBest ? ' <b class="bv-starkey" aria-hidden="true">★</b> = best overs now.' : ''}</p></div></section>` +
     `<div class="ctabar bv-cta"><button type="button" class="c-btn c-btn--primary c-btn--cta" data-bowl${vm.canBowl === false ? ' disabled' : ''}>` +
     `<span>Bowl over ${esc(vm.over)}${selB ? ':&nbsp;<span class="name">' + esc(selB.name) + '</span>' : ''}</span></button></div>`;

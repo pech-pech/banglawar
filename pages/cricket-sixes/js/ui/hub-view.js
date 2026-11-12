@@ -24,9 +24,13 @@ export function render(el, vm, dispatch) {
   const cta = typeof vm.cta === 'string' ? { label: vm.cta } : (vm.cta || {});
   const label = cta.label || 'Pick your six';
   const rows = vm.table5 || [];
+  const run = vm.run || null;
+  const head = run ? 'Season ' + run.season + ' of ' + run.of + ' · League ' + run.league : 'League ' + (season.league || 1);
+  const sub = run && run.nextChapter ? 'Next chapter: ' + run.nextChapter.name + ' (Season ' + run.nextChapter.season + ')'
+    : run ? (vm.phaseWord || 'League') : 'Season ' + (season.n || 1) + ' · ' + (vm.phaseWord || 'League');
   el.innerHTML =
     '<div class="screen ss ss-hub">' +
-    '<div class="c-strip strip"><span class="ss-strip"><b>League ' + esc(season.league || 1) + '</b><small>Season ' + esc(season.n || 1) + ' · ' + esc(vm.phaseWord || 'League') + '</small></span>' + helpBtn('league-table') + '</div>' +
+    '<div class="c-strip strip"><span class="ss-strip"><b class="rn-head">' + esc(head) + '</b><small>' + esc(sub) + '</small></span>' + helpBtn('league-table') + '</div>' +
     '<section class="ss-fx" aria-label="Next match">' +
     '<div class="ss-wk">Week<b>' + esc(vm.round) + '</b></div>' +
     '<div class="ss-vs"><b class="name">Next: ' + esc(next.oppName) + '</b><span>' + esc(next.kindWord) + '</span><span class="ss-str">' + str[0] + ' ' + str[1] + '</span></div>' +

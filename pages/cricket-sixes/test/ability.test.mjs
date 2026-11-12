@@ -34,13 +34,13 @@ test('gradeOf band edges', { skip }, () => {
   for (const [P, want] of edges) assert.equal(g(P), want, `P=${P}`);
 });
 
-test('gradeOf hidden (null) until 5 drills here', { skip }, () => {
-  for (const d of [0, 1, 4]) assert.equal(A.gradeOf(mk({ potential: 150, drillsHere: d })), null);
-  assert.equal(A.gradeOf(mk({ potential: 150, drillsHere: 5 })), 'S');
+test('gradeOf hidden (null) until 1 drill here', { skip }, () => {
+  assert.equal(A.gradeOf(mk({ potential: 150, drillsHere: 0 })), null);
+  for (const d of [1, 2, 5]) assert.equal(A.gradeOf(mk({ potential: 150, drillsHere: d })), 'S');
 });
 
 test('previewCount: hidden 1, D1 C2 B3 A4 S6', { skip }, () => {
-  assert.equal(A.previewCount(mk({ potential: 150, drillsHere: 2 })), 1);
+  assert.equal(A.previewCount(mk({ potential: 150, drillsHere: 0 })), 1);
   const want = { 90: 1, 105: 2, 118: 3, 130: 4, 150: 6 };
   for (const [P, n] of Object.entries(want)) assert.equal(A.previewCount(mk({ potential: +P })), n, `P=${P}`);
 });

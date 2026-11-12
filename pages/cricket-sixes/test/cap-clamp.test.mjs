@@ -7,26 +7,26 @@ import { game, player, me, fixed } from './_tr-fixture.mjs';
 const hi = (o = {}) => player({ bp: 70, bs: 70, spd: 70, bsk: 70, ...o });   // shown ability ~ 133
 
 test('NO clamp while the grade is hidden: shown ability goes above potential, and isMax is false', () => {
-  for (const d of [0, 1, 4]) {
+  for (const d of [0]) {
     const p = hi({ potential: 100, drillsHere: d });
     assert.ok(shownAbility(p) > 100, `d=${d} ${shownAbility(p)}`);
     assert.ok(shownBat(p) > 100 && shownBowl(p) > 100);
     assert.equal(isMax(p), false);
   }
 });
-test('from the 5th drill the clamp applies at once and max shows', () => {
+test('from the 1st drill the clamp applies at once and max shows', () => {
   const p = hi({ potential: 100, drillsHere: 5 });
   assert.equal(shownAbility(p), 100); assert.equal(shownBat(p), 100); assert.equal(shownBowl(p), 100);
   assert.equal(isMax(p), true);
   assert.equal(isMax(hi({ potential: 150, drillsHere: 5 })), false);
 });
-test('the 5th drill flips the shown value from unclamped to clamped', () => {
+test('the 1st drill flips the shown value from unclamped to clamped', () => {
   // Lower/Fast, sum 170 under the cap sum 176, shown 104 above potential 100 while hidden
-  const p = player({ bat: 'Lower', bowl: 'Fast', bp: 57, bs: 28, spd: 57, bsk: 28, potential: 100, drillsHere: 4 });
+  const p = player({ bat: 'Lower', bowl: 'Fast', bp: 57, bs: 28, spd: 57, bsk: 28, potential: 100, drillsHere: 0 });
   assert.equal(shownAbility(p), 104);
   let s = game({ players: [p] });
   s = doDrill(s, { playerId: 'p1', drillId: 'bs' }, fixed(0.1));
-  assert.equal(me(s).drillsHere, 5);
+  assert.equal(me(s).drillsHere, 1);
   assert.equal(shownAbility(me(s)), 100); assert.equal(isMax(me(s)), true);
 });
 test('atPeak: sum of ratings equals the cap sum (2A)', () => {

@@ -10,6 +10,11 @@ const outWord = (o) => OUT_WORD[String(o)] || outcomeLabel(o);
 const plain = (t) => String(t).replace(/medium pace/g, 'medium bowling').replace(/\bpace\b/g, 'fast bowling')
   .replace(/(\d)-(\d)/g, '$1‑$2');
 
+const tipIcon = () => { // its own marker (info icon plus the word), never the best-overs star
+  const S = /** @type {any} */ (window).SPR;
+  if (!S || !S.iconNames || S.iconNames.indexOf('info') < 0) return '';
+  return S.iconImg('info', 16).outerHTML.replace('class="icon"', 'class="icon" aria-hidden="true"').replace(/ alt="[^"]*"/, ' alt=""');
+};
 let intent = 'R'; // UI state only, never saved
 
 const INTENTS = [
@@ -51,7 +56,7 @@ function likelyBowlers(vm) {
 
 function gradeBox(g) {
   const hidden = !g || g === '?';
-  const aria = hidden ? 'Grade not known yet. Grade shows after 5 practice drills' : 'Grade ' + g;
+  const aria = hidden ? 'Grade not known yet. Grade shows after 1 practice drill' : 'Grade ' + g;
   return '<span class="gr m0-gr-' + (hidden ? 'q' : esc(g)) + '" aria-label="' + esc(aria) + '">Grade<b>' + (hidden ? '?' : esc(g)) + '</b></span>';
 }
 
@@ -134,10 +139,13 @@ export function render(el, vm, dispatch) {
   const crease = vm.crease || [];
   const ex = crease.find((b) => b.onStrike) || crease[0];
   const hidden = crease.some((b) => !b.grade || b.grade === '?');
+  const ih = vm.intentHint || null;
+  const tip = (k) => !!ih && ih.pick === k;
   const seg = INTENTS.map((o) => {
     const sel = o.k === intent;
     return '<button type="button" class="opt' + (sel ? ' is-selected' : '') + '" data-intent="' + o.k +
-      '" role="radio" aria-checked="' + sel + '"><span class="two">' + o.n + '<small>' + o.s + '</small></span></button>';
+      '" role="radio" aria-checked="' + sel + '"' + (tip(o.k) ? ' aria-label="' + o.n + ', tip: suggested for this over"' : '') + '><span class="two">' + o.n + '<small>' + o.s + '</small>' +
+      (tip(o.k) ? '<span class="bv-tip" data-tip>' + tipIcon() + 'Tip</span>' : '') + '</span></button>';
   }).join('');
 
   el.innerHTML =
@@ -153,7 +161,7 @@ export function render(el, vm, dispatch) {
     (crease.some((b) => (b.previews || []).some((p) => p.inPhase)) ? ' <span aria-hidden="true">★</span> = in best overs now.' : '') + '</div>' +
     '</section>' +
     '<section class="colR">' +
-    '<h2 class="title ask">How should your batters play?</h2>' +
+    '<h2 class="title ask"' + (ih ? ' data-intenthint' : '') + '>' + esc(ih ? ih.why : 'How should your batters play?') + '</h2>' +
     '<div class="seg intent" role="radiogroup" aria-label="Batting Intent">' + seg + '</div>' +
     '<p class="hint" id="intent-desc">' + esc(INTENTS.find((o) => o.k === intent).d) + '</p>' +
     lastLine(vm) +

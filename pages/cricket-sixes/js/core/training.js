@@ -3,6 +3,7 @@
 // every function takes the state (and an rng that doDrill draws ONE number from) and returns a new state.
 // An invalid command returns the SAME state object. No Math.random, Date or DOM.
 import { DRILLS, ODDS, COACHES } from '../data/training.js';
+import { BRIDGE_DRILL_MULT } from '../data/leagues.js';
 import { capSum, bandOf, isHidden } from './ability.js';
 
 export const DRILL_IDS = DRILLS.list.map((d) => d.id);
@@ -81,9 +82,12 @@ export function canDrill(state, playerId, drillId) {
   if (state.training.drilled?.[playerId]) return { ok: false, reason: 'week' };
   const room = drillRoom(p, drillId);
   if (room.locked) return { ok: false, reason: WHY_REASON[room.why], room };
-  if (state.training.tp < TP_PER_DRILL) return { ok: false, reason: 'tp', room };
+  if (!bridgeOn(state) && state.training.tp < TP_PER_DRILL) return { ok: false, reason: 'tp', room };
   return { ok: true, reason: '', room };
 }
+
+/** Bridge lever on from run season 2. */
+const bridgeOn = (s) => !!(s.season && s.season.n >= 2);
 
 const ensureWeekStart = (n) => {
   n.training.weekStart ||= {};
@@ -100,29 +104,41 @@ export function doDrill(state, { playerId, drillId } = {}, rng) {
   const chk = canDrill(state, playerId, drillId); if (!chk.ok) return state;
   const n = structuredClone(state); ensureWeekStart(n);
   const p = findPlayer(n, playerId), d = drillDef(drillId);
+  const bridge = bridgeOn(n);
+  // Bridge (remove when economy lands): from run season 2 one tap runs floor(m) + (rng < frac(m)) drills; extra rng is drawn only then.
+  const reps = bridge ? Math.floor(BRIDGE_DRILL_MULT) + (rng.random() < BRIDGE_DRILL_MULT - Math.floor(BRIDGE_DRILL_MULT) ? 1 : 0) : 1;
   const level = coachLevel(n.coaches, d.focus), nets = n.nets || 1;
-  const roll = rollDrill(rng, nets, level);
-  const gain = Math.min(roll.gain, chk.room.room), before = p[d.rating];
-  p[d.rating] = before + gain;
-  const wasHidden = isHidden(p);
-  p.drillsHere += 1;
-  n.training.tp -= TP_PER_DRILL; n.training.drilled = { ...n.training.drilled, [playerId]: true };
-  n.training.drillCount = (n.training.drillCount || 0) + 1;
-  const rec = { playerId, drillId, rating: d.rating, outcome: roll.outcome, rolled: roll.gain, gain, cut: gain < roll.gain,
-    why: gain < roll.gain ? chk.room.why : null, before, after: p[d.rating], odds: roll.odds, nets, coachLevel: level, tp: TP_PER_DRILL,
-    revealed: false, grade: null, coach: null };
-  const c = bestCoach(n.coaches, d.focus);
-  if (c) {
-    const mine = n.coaches.find((x) => x.id === c.id), from = mine.lv[d.focus];
-    mine.xp[d.focus] = (mine.xp[d.focus] || 0) + gain; mine.lv[d.focus] = Math.max(from, levelOfXp(mine.xp[d.focus]));
-    rec.coach = { id: mine.id, focus: d.focus, xp: gain, from, to: mine.lv[d.focus] };
-    if (mine.lv[d.focus] > from) logEntry(n, { type: 'CoachLevelUp', coachId: mine.id, focus: d.focus, from, to: mine.lv[d.focus] });
+  const rec = { playerId, drillId, rating: d.rating, outcome: 'Okay', rolled: 0, gain: 0, cut: false, why: null, before: p[d.rating], after: p[d.rating],
+    odds: null, nets, coachLevel: level, tp: bridge ? 0 : TP_PER_DRILL, reps, revealed: false, grade: null, coach: null };
+  const rank = { Okay: 0, Good: 1, Great: 2 };
+  for (let i = 0; i < reps; i++) {
+    const room = i === 0 ? chk.room : drillRoom(p, drillId);
+    if (room.locked) break;
+    const roll = rollDrill(rng, nets, coachLevel(n.coaches, d.focus));
+    const gain = Math.min(roll.gain, room.room), before = p[d.rating];
+    p[d.rating] = before + gain;
+    const wasHidden = isHidden(p);
+    p.drillsHere += 1;
+    n.training.drillCount = (n.training.drillCount || 0) + 1;
+    rec.rolled += roll.gain; rec.gain += gain; rec.after = p[d.rating]; rec.odds = rec.odds || roll.odds;
+    if (rec.drills == null || (rank[roll.outcome] ?? 0) > (rank[rec.outcome] ?? 0)) rec.outcome = roll.outcome;
+    rec.drills = (rec.drills || 0) + 1;
+    if (gain < roll.gain) { rec.cut = true; rec.why = room.why; }
+    const c = bestCoach(n.coaches, d.focus);
+    if (c) {
+      const mine = n.coaches.find((x) => x.id === c.id), from = mine.lv[d.focus];
+      mine.xp[d.focus] = (mine.xp[d.focus] || 0) + gain; mine.lv[d.focus] = Math.max(from, levelOfXp(mine.xp[d.focus]));
+      rec.coach = { id: mine.id, focus: d.focus, xp: (rec.coach ? rec.coach.xp : 0) + gain, from: rec.coach ? rec.coach.from : from, to: mine.lv[d.focus] };
+      if (mine.lv[d.focus] > from) logEntry(n, { type: 'CoachLevelUp', coachId: mine.id, focus: d.focus, from, to: mine.lv[d.focus] });
+    }
+    logEntry(n, { type: 'Drill', playerId, drillId, outcome: roll.outcome, gain });
+    if (wasHidden && !isHidden(p)) {
+      rec.revealed = true; rec.grade = bandOf(p.potential);
+      logEntry(n, { type: 'GradeRevealed', playerId, grade: rec.grade });
+    }
   }
-  logEntry(n, { type: 'Drill', playerId, drillId, outcome: roll.outcome, gain });
-  if (wasHidden && !isHidden(p)) {
-    rec.revealed = true; rec.grade = bandOf(p.potential);
-    logEntry(n, { type: 'GradeRevealed', playerId, grade: rec.grade });
-  }
+  if (!bridge) n.training.tp -= TP_PER_DRILL;
+  n.training.drilled = { ...n.training.drilled, [playerId]: true };
   n.training.last = rec;
   return n;
 }

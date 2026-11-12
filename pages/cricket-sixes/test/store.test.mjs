@@ -8,7 +8,7 @@ import { newGame } from './_season-bot.mjs';
 
 test('NewGame: top-level v, salt, stage, season, 10 clubs of 10, 3 coach candidates', () => {
   const s = newGame('g1').get();
-  assert.equal(s.v, 1); assert.equal(s.salt, ''); assert.equal(typeof s.stage, 'string'); assert.equal(s.stage, 'coach');
+  assert.equal(s.v, 2); assert.equal(s.salt, ''); assert.equal(typeof s.stage, 'string'); assert.equal(s.stage, 'coach');
   assert.equal(s.clubs.length, 10); assert.ok(s.clubs.every((c) => c.squad.length === 10));
   assert.equal(s.clubs[0].id, 'c0'); assert.equal(s.clubs[0].name, 'Fernhill');
   assert.equal(s.season.fixtures.length, 9); assert.equal(s.season.round, 1); assert.equal(s.season.phase, 'league');
@@ -26,7 +26,7 @@ test('save-migrate: a bare step-0 state migrates through deps.newGame to a v1 se
   const t = createStore(null); t.dispatch('NewMatch', { seed: 'old' });
   const deps = { newGame: (seed) => { const x = createStore(null); x.dispatch('NewGame', { seed: String(seed) }); return x.get(); } };
   const r = unwrap(JSON.stringify(t.get()), deps);
-  assert.ok(r.ok); assert.equal(r.state.v, 1); assert.ok(r.state.season); assert.equal(r.state.stage, 'coach');
+  assert.ok(r.ok); assert.equal(r.state.v, 2); assert.ok(r.state.season); assert.ok(r.state.run); assert.equal(r.state.stage, 'coach');
   const again = unwrap(JSON.stringify(wrap(newGame('x').get())), deps);
   assert.ok(again.ok);
 });

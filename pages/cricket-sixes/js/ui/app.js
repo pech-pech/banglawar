@@ -25,6 +25,7 @@ const STAGES = {
   train: ['training-view', 'trainingVM'],
   week: ['week-view', 'weekVM'],
   end: [end, 'endVM'],
+  runend: ['runend-view', 'runEndVM'],
 };
 
 /* Sheets opened by data-act="sheet:<name>" (view state only, never saved). vm: [selector, how to turn the data-arg into args]. */

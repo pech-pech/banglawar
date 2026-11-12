@@ -11,14 +11,14 @@ const SIX = 6;
 const ROLE_ICON = { Opener: 'roleOpener', Middle: 'roleMiddle', Lower: 'roleLower' };
 const ROLE_WORD = { Opener: 'Opener', Middle: 'Middle', Lower: 'Lower order' };
 const TYPE_ICON = { Fast: 'typeFast', Medium: 'typeMedium', Spin: 'typeSpin' };
-const DRILLS = 'Grade shows after 5 drills';
+const DRILLS = 'Grade shows after 1 drill';
 
 /** @param {number} n */
 function pips(n) {
-  const k = Math.max(0, Math.min(5, n | 0));
+  const k = Math.max(0, Math.min(1, n | 0));
   let h = '';
-  for (let i = 0; i < 5; i++) h += `<u class="sq-pp${i < k ? ' on' : ''}"></u>`;
-  return `<span class="sq-pips" role="img" aria-label="${k} of 5 drills done, then the grade shows">${h}<span class="sq-pipn" aria-hidden="true">${k}/5 drills</span></span>`;
+  for (let i = 0; i < 1; i++) h += `<u class="sq-pp${i < k ? ' on' : ''}"></u>`;
+  return `<span class="sq-pips" role="img" aria-label="${k} of 1 drill done, then the grade shows">${h}<span class="sq-pipn" aria-hidden="true">${k}/1 drill</span></span>`;
 }
 
 /** Plain reason for the confirm button. @param {number} n */
@@ -36,7 +36,7 @@ function row(p, pos, maxBat, maxBowl) {
   const type = p.type || '';
   const subHtml = (role ? esc(role) : '') + (role && type ? ' · ' : '') + (type ? `${ico(TYPE_ICON[type], 14)}${esc(type)}` : '');
   const label = `${p.name}${role ? ', ' + role : ''}${type ? ', ' + type + ' bowler' : ''}, batting ${p.bat}, bowling ${p.bowl}, ` +
-    (hidden ? 'grade not known yet. ' + DRILLS + `, ${p.pips | 0} of 5 drills` : 'grade ' + p.grade) +
+    (hidden ? 'grade not known yet. ' + DRILLS + `, ${p.pips | 0} of 1 drill` : 'grade ' + p.grade) +
     (p.bat === maxBat ? ', best batter' : '') + (p.bowl === maxBowl ? ', best bowler' : '') + (p.peak ? ', at peak' : '') + (on ? `. Picked, bats number ${pos + 1}. Tap to take out.` : '. On the bench. Tap to pick.');
   return `<button type="button" class="sq-row${on ? ' is-selected' : ' sq-row--bench'}" role="checkbox" aria-checked="${on}" data-id="${esc(p.id)}" aria-label="${esc(label)}">` +
     `<div class="pbox sq-pbox">${ico(ROLE_ICON[p.role] || 'roleMiddle', 26)}` +

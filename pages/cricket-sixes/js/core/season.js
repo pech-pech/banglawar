@@ -2,6 +2,7 @@
 // Season scheduler, league table, top-4 bracket, AI-v-AI simulation. Pure and seeded: no Math.random, no clock, no DOM, no storage.
 import { SEASON } from '../data/season.js';
 import { FLAGS } from '../data/flags.js';
+import { leagueOf } from '../data/leagues.js';
 import { makeRng } from './rng.js';
 import { newInnings, playOver, centreOf } from './match.js';
 import { pickBowler, pickIntent, pickField, rivalCall } from './ai.js';
@@ -85,10 +86,10 @@ export function koWinner(res, seedA, seedB) {
   return seedA <= seedB ? res.a : res.b;
 }
 
-/** TP for one match. @param {'league'|'semi'|'final'} kind @param {'won'|'tied'|'lost'} result */
-export function tpAward(kind, result) {
+/** TP for one match. @param {'league'|'semi'|'final'} kind @param {'won'|'tied'|'lost'} result @param {number} [league] 1-5 */
+export function tpAward(kind, result, league = 1) {
   const T = SEASON.tp;
-  const m = T.leagueMultiplier;
+  const m = T.leagueMultiplier * leagueOf(league).tpMultiplier;
   if (kind === 'league') return (T.perMatch + (result === 'won' ? T.perWin : 0)) * m;
   if (kind === 'semi') return result === 'lost' ? T.semiLoser : 0; // the winner is paid for the final
   return result === 'won' ? T.champion : T.runnerUp;

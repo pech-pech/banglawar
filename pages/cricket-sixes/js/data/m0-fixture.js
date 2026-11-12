@@ -12,7 +12,7 @@ const FIXTURE = {
   ratingMean: 50, ratingSd: 8,
   // M's potentials in batting order: grades D, C, B, A, S, then B (the hidden one).
   mePotential: [92, 105, 118, 131, 150, 116],
-  meDrills: [5, 5, 5, 5, 5, 2],
+  meDrills: [5, 5, 5, 5, 5, 0],
   rivalBonus: 20,
   room: 12, // CONTRACT s11: cap sum >= rating sum + room
 };

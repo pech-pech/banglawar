@@ -1,6 +1,6 @@
 // @ts-check
 // View models. Pure; views read only these.
-import { phaseOf, PHASE_NAMES, matchup, eligibleBowlers } from '../core/match.js';
+import { phaseOf, PHASE_NAMES, matchup, eligibleBowlers, centreOf } from '../core/match.js';
 import { gradeOf, previewCount, shownAbility, shownBat, shownBowl, atPeak, isMax, batPart, bowlPart } from '../core/ability.js';
 import { SEASON } from '../data/season.js';
 import { DRILLS, COACHES, SKILLS } from '../data/training.js';
@@ -9,6 +9,8 @@ import { tableOrder, placeOf, ME, tpAward, koWinner } from '../core/season.js';
 import { drillOdds, coachLevel, canDrill, drillRoom, drillDef } from '../core/training.js';
 import { nodeStatus, treeBoost, treeOf, NODE_COUNT } from '../core/skills.js';
 import { planProblem } from './commands.js';
+import { RUN } from '../data/run.js';
+import { seasonResult, chapterNames, runScore, carryOf } from '../core/run.js';
 
 const ovStr = (balls) => `${Math.floor(balls / 6)}.${balls % 6}`;
 const scoreOf = (inn) => ({ runs: inn.runs, wk: inn.wk, balls: inn.balls, overs: ovStr(inn.balls) });
@@ -45,9 +47,16 @@ export function bowlVM(s) {
     return { i, name: p.name, bowl: p.bowl, overs: p.overs, eligible, reason, grade: gradeChip(p), previews, ability: shownAbility(p) };
   });
   const call = s.call || { bowler: el.length ? el[0] : -1, field: 'A' };
+  // P5 field hint: League 1 only. TODO: or the club bought a Coach (no coach-buying code yet).
+  // P5b: the PAIR at the crease. Attack if (bp1+bp2)/2 + (bs1+bs2)/2 < 2*centre, else Protect.
+  const pair = inn.crease.map((i) => bats[i]).filter(Boolean);
+  const showHint = !!(s.season && (s.season.league || 1) === 1) && pair.length > 0;
+  const mean = (k) => pair.reduce((a, b) => a + b[k], 0) / (pair.length || 1);
+  const pick = mean('bp') + mean('bs') < 2 * centreOf(s) ? 'A' : 'P';
+  const fieldHint = showHint ? { pick, why: 'Weak bat? Attack. Big hitter? Protect.' } : null;
   return {
     over: inn.over, phase: ph, phaseName: PHASE_NAMES[ph], score: scoreOf(inn),
-    crease: crease(inn, bats), bowlers, call, batNames: bats.map((p) => p.name), bowlNames: me.map((p) => p.name),
+    crease: crease(inn, bats), bowlers, call, batNames: bats.map((p) => p.name), bowlNames: me.map((p) => p.name), fieldHint,
     canBowl: s.stage === 'bowl' && el.includes(call.bowler), last: s.last,
   };
 }
@@ -72,6 +81,9 @@ export function chaseVM(s) {
       }),
     })),
     aiBowler: lb ? { name: lb.name, bowl: lb.bowl } : null,
+    // P5b intent hint: League 1 only. TODO: or the club bought a Coach (no coach-buying code yet).
+    intentHint: s.season && (s.season.league || 1) === 1
+      ? { pick: inn.over >= 8 ? 'A' : 'R', why: 'Last 3 overs: Attack. Before that: Rotate.' } : null,
     last,
   };
 }
@@ -112,7 +124,7 @@ export function resultVM(s) {
 // ---------------------------------------------------------------- season and training (CONTRACT m0 section 5)
 const RATING_KEY = { bp: 'batPower', bs: 'batSkill', spd: 'bowlSpeed', bsk: 'bowlSkill' };
 const RATINGS = ['bp', 'bs', 'spd', 'bsk'];
-const pipsOf = (p) => Math.min(5, p.drillsHere | 0);
+const pipsOf = (p) => Math.min(DRILLS.revealAfter, p.drillsHere | 0);
 const mine = (s) => s.clubs[0];
 const club = (s, id) => s.clubs.find((c) => c.id === id);
 const clubName = (s, id) => (id ? club(s, id).name : null);
@@ -142,6 +154,7 @@ export function hubVM(s) {
   return {
     season: { n: se.n, league: se.league }, round: se.phase === 'league' ? se.round : se.phase === 'semi' ? SEASON.leagueMatches + 1 : SEASON.leagueMatches + 2,
     phaseWord: PHASE_WORD[se.phase], next, table5: rows.slice(from, from + 5), tp: s.training.tp, cta: 'Pick your six',
+    run: s.run ? { season: se.n, of: RUN.seasons, league: se.league || 1, ...chapterNames(s.run) } : undefined,
   };
 }
 
@@ -155,8 +168,33 @@ function finalsVM(s) {
 export function tableVM(s) { return { rows: tableRows(s), finals: finalsVM(s) }; }
 
 export function endVM(s) {
-  const se = s.season;
-  return { rows: tableRows(s), finals: finalsVM(s), champion: clubName(s, se.champion), myPlace: placeOf(se.table, ME), tpWon: se.tpWon, promotion: 'Top 2 go up once the stadium is built.' };
+  const se = s.season, run = s.run;
+  const last = run && run.last && run.last.n === se.n ? run.last : null;
+  const res = last || seasonResult(s); // an old save can sit at 'end' before the season is closed
+  const lastSeason = se.n >= RUN.seasons;
+  return {
+    rows: tableRows(s), finals: finalsVM(s), champion: clubName(s, se.champion), myPlace: placeOf(se.table, ME), tpWon: se.tpWon,
+    result: { place: res.place, promoted: res.promoted, toLeague: res.toLeague, stayed: res.stayed, line: res.line },
+    chapter: last ? last.chapter : null, claimed: last ? last.claimed : [],
+    lastSeason, promoteTop: RUN.promoteTop, cta: lastSeason ? 'RunEnd' : 'NewSeason',
+  };
+}
+
+/** Hall of Fame: score, rows, what carries. Reads the run record; the score is recomputed from state each time. */
+export function runEndVM(s) {
+  const run = s.run, sc = runScore(s), carry = carryOf(s);
+  const legendAbility = carry.legend ? shownAbility(carry.legend) : 0;
+  return {
+    score: sc.score, max: RUN.score.max, rows: sc.rows.map((r) => ({ ...r, note: r.pending ? 'Comes with the stadium' : '' })),
+    seasons: run.history.length, bestLeague: run.best, titles: run.titles,
+    chapters: RUN.chapters.map((c) => ({ name: c.name, done: !!(run.chapters[c.season] && run.chapters[c.season].featDone), reached: !!run.chapters[c.season] })),
+    carry: [
+      { key: 'legend', label: 'Legend', detail: carry.legend ? `${carry.legend.name} at ${RUN.carry.legendPct}% (ability ${legendAbility})` : 'No player to carry', available: !!carry.legend },
+      { key: 'coach', label: 'Coach', detail: carry.coach ? `${carry.coach.name} at level ${RUN.carry.coachLevel}` : 'No coach to carry', available: !!carry.coach },
+      { key: 'stadium', label: 'Stadium', detail: 'Comes with the stadium', available: false },
+    ],
+    cta: 'NewRun',
+  };
 }
 
 // ---- coach pick

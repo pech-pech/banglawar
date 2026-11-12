@@ -16,7 +16,7 @@ export function batPart(p) { const w = W.batting[p.bat]; return w.BP * p.bp + w.
 /** Weighted bowling rating (1..99). @param {AbilityPlayer} p */
 export function bowlPart(p) { const w = W.bowling[p.bowl]; return w.SPD * p.spd + w.BSK * p.bsk; }
 
-/** True while the grade is hidden (fewer than 5 drills at this club). @param {{drillsHere:number}} p */
+/** True while the grade is hidden (fewer than DRILLS.revealAfter drills at this club). @param {{drillsHere:number}} p */
 export function isHidden(p) { return p.drillsHere < DRILLS.revealAfter; }
 /** Clamp at potential only once the grade is revealed (LOOK 1A: unclamped and no max while hidden). */
 const limit = (/** @type {number} */ v, /** @type {{potential:number, drillsHere:number}} */ p) => (isHidden(p) ? v : Math.min(v, p.potential));
@@ -41,7 +41,7 @@ export function bandOf(P) {
   return /** @type {'D'|'C'|'B'|'A'|'S'} */ (g);
 }
 
-/** Grade letter, or null while hidden (fewer than 5 drills here). @param {{potential:number, drillsHere:number}} p */
+/** Grade letter, or null while hidden (fewer than DRILLS.revealAfter drills here). @param {{potential:number, drillsHere:number}} p */
 export function gradeOf(p) { return isHidden(p) ? null : bandOf(p.potential); }
 
 /** How many matchup chips to show before a Call. @param {{potential:number, drillsHere:number}} p */

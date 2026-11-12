@@ -1,6 +1,6 @@
 // @ts-check
 // Save envelope, checksum and version migration. Pure: no storage, no clock, no rng. Never mutates its input.
-export const VERSION = 1;
+export const VERSION = 2;
 
 /** fnv1a 32-bit of a string, as 8 hex digits. @param {string} str */
 export function fnv1a(str) {
@@ -27,6 +27,13 @@ const STEPS = {
     const ng = deps && typeof deps.newGame === 'function' ? deps.newGame(data.seed != null ? data.seed : '0') : null;
     if (isObj(ng) && ng.stage) return { ...ng, v: 1, salt: '' };
     return { ...data, v: 1, salt: '' }; // no new-game hook: keep the step-0 match as it was
+  },
+  // v1 -> v2: add the run record. Season number, league and game seed are read from the season; counters start at 0 (history was not kept).
+  1: (data) => {
+    const se = isObj(data.season) ? data.season : {};
+    const n = Number.isInteger(se.n) ? se.n : 1, league = Number.isInteger(se.league) ? se.league : 1;
+    const root = String(se.seed != null ? se.seed : data.seed != null ? data.seed : '0').replace(/\|s\d+$/, '');
+    return { ...data, v: 2, run: { no: 1, root, n, league, best: league, titles: 0, finals: 0, wins: 0, bestAbility: 0, history: [], chapters: {}, last: null, ended: false } };
   },
 };
 
