@@ -28,6 +28,7 @@ function base(){
   }
   if (rnd() < 0.6) { s.runSeq = ri(0, 50); s.purchases = [{ t:1.7e12, run:ri(0, 5), item:'Rifle', lvl:2, price:250, before:300, after:50 }, { t:1.7e12, run:ri(0, 5), item:'Cond atk', lvl:4, price:325, before:300, after:0, levels:2, visit:ri(1, 6), vn:ri(1, 2) }]; s.resets = [{ t:1.7e12, reason:'user' }];
     s.visitBuys = ri(0, 2); if (rnd() < 0.5) s.sd = { plays:ri(0, 40), pending:rnd() < 0.5 ? null : { chapter:ri(1, 3), stage:ri(0, 10), tier:ri(0, 3), defaults:['repair', 'credits'] } }; }   // shape V optional fields
+  if (rnd() < 0.5) { s.gear = { exo:ri(0, 5), modA:ri(0, 5), modB:ri(0, 5), droneA:ri(0, 5), droneB:ri(0, 5), perk2:ri(0, 5) }; s.rolls = ri(0, 500); if (rnd() < 0.5) s.catUsed = ri(0, 30); }   // step 8 optional fields
   return s;
 }
 var JUNK = [null, undefined, NaN, Infinity, -Infinity, -1, 1e300, -1e300, 0.5, 1e9 + 1, '', 'x', '12', true, false, [], {}, [1, 2], { a:1 },
@@ -210,5 +211,30 @@ un();
   var blocked = { getItem:function(){ throw new Error('b'); }, setItem:function(){ throw new Error('b'); }, removeItem:function(){ throw new Error('b'); } }, t4 = null;
   try { M.load({ storage:blocked }); M.reset(); M.load({ storage:blocked }); } catch (x) { t4 = x; }
   ok('blocked storage: load and reset with a deploy key never throw', !t4 && valid(M.state));
+})();
+
+// ---------- step 8: optional gear / rolls / catUsed ----------
+(function(){
+  function roundTrip(extra){ var s = M.SAMPLES.mid(); for (var k in extra) s[k] = extra[k]; return M.validate(JSON.parse(JSON.stringify(s))); }
+  ok('S8 save without the new fields validates and gains none', (function(){ var v = roundTrip({}); return v && !('gear' in v) && !('rolls' in v) && !('catUsed' in v); })());
+  ok('S8 save with gear, rolls, catUsed validates and keeps them', (function(){ var v = roundTrip({ gear:{ exo:5, modA:0, modB:1, droneA:2, droneB:3, perk2:4 }, rolls:1e6, catUsed:1e4 }); return v && v.gear.exo === 5 && v.gear.perk2 === 4 && v.rolls === 1e6 && v.catUsed === 1e4; })());
+  ok('S8 partial gear object fills missing slots with 0', (function(){ var v = roundTrip({ gear:{ exo:2 } }); return v && v.gear.exo === 2 && v.gear.perk2 === 0 && Object.keys(v.gear).length === 6; })());
+  var BAD = [{ gear:{ exo:6 } }, { gear:{ exo:-1 } }, { gear:{ exo:1.5 } }, { gear:{ exo:'1' } }, { gear:{ exo:null } }, { gear:{ zzz:1 } }, { gear:[] }, { gear:null }, { gear:5 }, { gear:{ exo:NaN } },
+    { rolls:-1 }, { rolls:1e6 + 1 }, { rolls:1.5 }, { rolls:'3' }, { rolls:null }, { catUsed:-1 }, { catUsed:10001 }, { catUsed:0.5 }, { catUsed:'x' }, { catUsed:Infinity }];
+  BAD.forEach(function(b){ ok('S8 invalid ' + JSON.stringify(b) + ' is rejected', roundTrip(b) === null); });
+  BAD.forEach(function(b){ var st = mock(), s = M.SAMPLES.mid(); for (var k in b) s[k] = b[k]; st.d[KEY] = JSON.stringify(s); var e = null;
+    try { M.load({ storage:st }); } catch (x) { e = x; }
+    ok('S8 load of ' + JSON.stringify(b) + ' = clean fresh start, no throw, no gear leak', !e && M.resetSignal === 'invalid' && valid(M.state) && !('gear' in M.state) && M.state.credits === 0, e && e.message); });
+  ok('S8 unknown extra top-level field still rejected', roundTrip({ gearr:{} }) === null);
+  // full life cycle on a mock: buy slot, roll, reload, kill mid-write
+  var st = mock(); M.load({ storage:st, fresh:true }); M.state.credits = 20000; M.state.schematics = 250;
+  M.buySlot('perk2'); var rcat = M.roll('gear', 'perk2', 'prem', { catalyst:true }), used = rcat.catalyst ? 1 : 0; M.roll('rifle', 'rifle', 'std');
+  var snap = JSON.parse(st.d[KEY]); M.load({ storage:st });
+  ok('S8 save after slot, gear roll, Catalyst, rifle roll reloads with no reset', M.resetSignal === '' && M.state.rolls === 2 && (M.state.catUsed | 0) === used && M.state.gear.perk2 >= 2 && snap.gear.perk2 === M.state.gear.perk2 && M.state.schematics === 250 - 100 * used);
+  var half = mock(); half.d[KEY] = st.d[KEY].slice(0, st.d[KEY].length - 7); M.load({ storage:half });
+  ok('S8 save cut mid-write (with gear) resets cleanly', M.resetSignal === 'corrupt' && valid(M.state));
+  ok('S8 a newer-build save is still read-only and ignores gear', (function(){ var s2 = mock(); s2.d[KEY] = JSON.stringify({ v:3, credits:50, gear:{ exo:9 } }); M.load({ storage:s2 }); return M.readOnly && !('gear' in M.state) && M.gearLevel('exo') === 0; })());
+  // mock-driven samples keep neutral stats
+  ok('S8 the three samples carry no gear keys and keep neutral gear stats', M.SAMPLE_NAMES.every(function(nm){ return !('gear' in M.SAMPLES[nm]()) && !('critAdd' in (M.loadSample(nm, { save:false }), M.stats())); }));
 })();
 console.log(n + ' checks, ' + fails + ' failed'); process.exit(fails ? 1 : 0);

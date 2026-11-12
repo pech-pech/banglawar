@@ -87,6 +87,7 @@ function vib(ms){
   var ua = navigator.userActivation;   // vibrate before any tap logs a console error in Chrome
   if (V.TUNE.HAPTICS && ms > 0 && navigator.vibrate && (!ua || ua.hasBeenActive)) { try { navigator.vibrate(ms); } catch (_) {} }
 }
+V.haptic = vib;   // step 8: upgrade sheet calls V.haptic(20/40/60); same gate (V.TUNE.HAPTICS + user activation)
 function handleEvents(ev, live){
   if (!ev) return;
   var stop = false;

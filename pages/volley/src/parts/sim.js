@@ -9,7 +9,7 @@
 //   Round damage = HERO_ATK x (1+atkAdd) x atkMul x pattern mul; rate = (1+rateAdd) x rateMul.
 //   volleys = batches per attack (1 + Multi-volley copies), 0.12 s apart. dodge = chance, capped 0.4.
 // Round flags the sim handles: r.pierce (x0.67 per enemy), r.bounceWall (up to 2, x0.5), r.rico (3 jumps, x0.7, 4 tiles).
-// Events: fire hit crit kill hurt dodge lock unlock tell door room levelup pick death pickup land supply chest boss bossphase win block.
+// Events (gear adds drone, guard): fire hit crit kill hurt dodge lock unlock tell door room levelup pick death pickup land supply chest boss bossphase win block.
 // Art/VFX fields (LIAISON 2026-11-10, additive, read-only, no rng): fire {vol, weapon}; hit {src, dir, hp, max};
 //   kill {size, last}; hurt {hp, max, down}; block {src} (enemy flat round stopped by cover); door {stage, kind}.
 // Pure deterministic sim. Fixed step 1/60 s x TIME_SCALE. No DOM, no unseeded randomness, no wall clock.
@@ -115,7 +115,7 @@ function callHook(S, name){
 }
 function heroStats(S){
   var st = { atkAdd:0, atkMul:1, primaryMul:1, rateAdd:0, rateMul:1, critAdd:0, critDmgAdd:0, hpMaxAdd:0, dmgTakenMul:1, moveMul:1, dodge:0, volleys:1 };
-  if (S.meta) { st.hpMaxAdd += S.meta.hpAdd || 0; st.atkMul *= S.meta.atkMul == null ? 1 : S.meta.atkMul; st.rateMul *= S.meta.rateMul == null ? 1 : S.meta.rateMul; st.moveMul *= S.meta.moveMul == null ? 1 : S.meta.moveMul; st.dmgTakenMul *= S.meta.dmgTakenMul == null ? 1 : S.meta.dmgTakenMul; } // META: run-start stats
+  if (S.meta) { st.hpMaxAdd += S.meta.hpAdd || 0; st.atkMul *= S.meta.atkMul == null ? 1 : S.meta.atkMul; st.rateMul *= S.meta.rateMul == null ? 1 : S.meta.rateMul; st.moveMul *= S.meta.moveMul == null ? 1 : S.meta.moveMul; st.dmgTakenMul *= S.meta.dmgTakenMul == null ? 1 : S.meta.dmgTakenMul; if (S.meta.critAdd > 0) st.critAdd += S.meta.critAdd; if (S.meta.critDmgAdd > 0) st.critDmgAdd += S.meta.critDmgAdd; } // META: run-start stats
   callHook(S, 'stats', st);
   if (S.deploy && V.Mods && V.Mods.Deploy) V.Mods.Deploy.applyStats(S, st);   // G: Deploy boost stats
   if (V.MODS) st.volleys = Math.max(st.volleys, 1 + count(S, 'multi')); // SK-02 echo batches (mods.js leaves them to the sim)
@@ -341,6 +341,9 @@ function create(seed, tune, opts){
   S.metaOpts = opts || null; S.useMeta = false; S.meta = null;
   if (opts && opts.metaStats) S.meta = opts.metaStats;
   else if (!(opts && opts.metaStats === null) && V.Meta && V.Meta.stats) { S.meta = V.Meta.stats(); S.useMeta = true; }
+  // GEAR (step 8): optional meta keys. Absent keys add no fields, no rng draws, no steps.
+  if (S.meta && S.meta.droneFrac > 0) S.drone = { x:0, y:0, frac:S.meta.droneFrac, kick:0 };
+  if (S.meta && S.meta.guardEvery > 0) S.guard = { every:S.meta.guardEvery, t:0, blocks:0 };   // starts charged
   S.credits = 0; S.stats.seen = {};
   refreshStats(S);
   if (S.meta) S.hero.hp = S.hero.maxHp; // start at full HP with the Conditioning bonus
@@ -378,9 +381,29 @@ function fireBatch(S){
     if (p.delay > 0) { h.delayQ.push({ t:p.delay, ang:p.ang || 0, off:off, mul:p.mul == null ? 1 : p.mul }); continue; }
     spawnRound(S, mx + px * off, my + py * off, a + (p.ang || 0), roundDamage(S, p.mul == null ? 1 : p.mul));
   }
+  if (S.drone) droneFire(S);
   ev(S, { k:'fire', x:mx, y:my, ang:a, n:list.length, vol:vol, weapon:'rifle' });
 }
 
+// GEAR: Wing Drone hovers at the left shoulder and fires one plain round per hero volley at the locked target (no crit roll, no rng).
+var DRONE_SIDE = 0.55, DRONE_BACK = 0.1, GUARD_EVENT = 'guard';
+function droneSpot(S){
+  var h = S.hero, a = h.ang || 0;
+  return { x:h.x - Math.sin(a) * DRONE_SIDE - Math.cos(a) * DRONE_BACK, y:h.y + Math.cos(a) * DRONE_SIDE - Math.sin(a) * DRONE_BACK };
+}
+function droneFire(S){
+  var d = S.drone, h = S.hero, tg = h.lockId != null ? findEnemy(S, h.lockId) : null;
+  if (!tg) return;
+  var ang = Math.atan2(tg.y - d.y, tg.x - d.x), t = S.tune;
+  var dmg = Math.max(1, Math.floor(roundDamage(S, 1) * d.frac));
+  S.rounds.push({ x:d.x, y:d.y, vx:Math.cos(ang) * t.ROUND_SPEED, vy:Math.sin(ang) * t.ROUND_SPEED, r:t.ROUND_R * 0.8, dmg:dmg, crit:false, bounces:0, wallBounces:0, hit:[], drone:true });
+  d.kick = 1;
+  ev(S, { k:'drone', x:d.x, y:d.y, ang:ang });   // own event: 'fire' would kick the rifle, drop a casing and play the rifle cue
+}
+function gearTick(S, dt){
+  if (S.drone) { var p = droneSpot(S); S.drone.x = p.x; S.drone.y = p.y; if (S.drone.kick > 0) S.drone.kick = Math.max(0, S.drone.kick - dt * 6); }
+  if (S.guard && S.guard.t > 0) S.guard.t = Math.max(0, S.guard.t - dt);
+}
 function findEnemy(S, id){ for (var i = 0; i < S.enemies.length; i++) if (S.enemies[i].id === id) return S.enemies[i]; return null; }
 // S7 hook (E-07 burrower): e.under = true makes a machine untargetable (lock, rounds, ricochet, mods), contact-free, out of body
 // separation, and immune to every damage path. The sim mirrors it into e.hidden (which mods.js and the separation passes already read).
@@ -686,7 +709,7 @@ function wallReflect(S, r){
   return hit;
 }
 function stepRounds(S, dt){
-  var a = S.rounds, out = [];
+  var a = S.rounds, out = [], gpf = S.meta && S.meta.pierceFrac > 0 ? Math.min(1, S.meta.pierceFrac) : 0;
   for (var i = 0; i < a.length; i++) {
     var r = a[i], alive = true;
     r.x += r.vx * dt; r.y += r.vy * dt;
@@ -725,6 +748,7 @@ function stepRounds(S, dt){
         break;
       }
     }
+    if (!alive && gpf > 0 && !r.drone && !r.gpUsed) { alive = true; r.gpUsed = true; r.dmg = Math.max(1, Math.floor(r.dmg * gpf)); }   // GEAR: Piercing Rounds, one machine
     if (alive) out.push(r);
   }
   S.rounds = out;
@@ -739,6 +763,9 @@ function stepShots(S, dt){
     if (hitsSolid(S, s.x, s.y, s.r)) { ev(S, { k:'block', x:s.x, y:s.y, src:s.src }); continue; } // cover stops enemy flat rounds (M)
     if (outOfRoom(S, s.x, s.y, -s.r)) {
       if (s.bounces > 0) { wallReflect(S, s); s.bounces--; } else if (outOfRoom(S, s.x, s.y, s.r)) continue;
+    }
+    if (S.phase !== 'results' && S.guard && S.guard.t <= 0 && h.invulnT <= 0 && Math.hypot(h.x - s.x, h.y - s.y) < s.r + HERO_HURT_R) {   // GEAR: Guard Drone eats one enemy round
+      S.guard.t = S.guard.every; S.guard.blocks++; ev(S, { k:GUARD_EVENT, x:s.x, y:s.y, src:s.src }); continue;
     }
     if (S.phase !== 'results' && Math.hypot(h.x - s.x, h.y - s.y) < s.r + HERO_HURT_R) { hurtHero(S, s.dmg, s.src, s.x, s.y); continue; }
     out.push(s);
@@ -935,6 +962,7 @@ function step(S, inp){
   if (!S.st) { refreshStats(S); if (V.Mods && V.Mods.Deploy) V.Mods.Deploy.runStart(S); }   // G: Deploy shield + opening picks, once
   if (S.phase === 'play') { S.stats.playSteps++; releaseSpawns(S); }
   stepHero(S, inp, dt);
+  if (S.drone || S.guard) gearTick(S, dt);
   if (S.phase === 'play' && S.hero.braced) S.stats.bracedSteps++;
   for (var i = 0; i < S.enemies.length && S.phase !== 'results'; i++) stepEnemy(S, S.enemies[i], dt);
   pruneEnemies(S);

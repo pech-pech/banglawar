@@ -219,7 +219,32 @@ cue('toast', 'S-503', 'u', 1, 300, 1, 0.08, 1, function(c, o, t){ return tone(c,
 cue('count', 'S-502', 'u', 1, 50, 2, 0.03, 1, function(c, o, t){ return tone(c, o, t, { w: 'sine', f: 1320, d: 0.02, v: 0.08 }); });
 cue('buy', 'S-504a', 'u', 2, 120, 1, 0.3, 1, function(c, o, t){ tone(c, o, t, { w: 'sine', f: 880, d: 0.03, v: 0.2 }); return notes(c, o, t + 0.05, M([69, 74, 78]), 0.06, { w: 'triangle', d: 0.12, v: 0.2 }); });
 cue('equip', 'S-504b', 'u', 1, 100, 1, 0.08, 1, function(c, o, t){ noise(c, o, t, { d: 0.02, v: 0.2, hp: 2500 }); return tone(c, o, t, { w: 'sine', f: 240, f1: 160, d: 0.05, v: 0.3 }); });
-cue('unlock', 'S-509', 'u', 2, 0, 1, 0.3, 1, function(c, o, t){ tone(c, o, t, { w: 'square', f: 600, d: 0.03, v: 0.1, lp: 1500 }); return notes(c, o, t + 0.07, M([69, 76]), 0.08, { w: 'triangle', d: 0.14, v: 0.22 }); });
+// Step 8 home upgrades (SPEC-UX s6). UI bus, all [spec] <= 600 ms, epic <= 900 ms. Common grade reuses 'levelup' (alias of level_up, S-019).
+// Pitches stay in the D chapter key; levels sit with the other menu cues. Guesses until heard. The returned node is the one that ends last.
+cue('unlock', 'S-509', 'u', 2, 0, 1, 0.45, 1, function(c, o, t){   // padlock: key click, shackle pop, then a short rise (padlock break is 400 ms)
+  noise(c, o, t, { d: 0.015, v: 0.22, hp: 2600 }); tone(c, o, t, { w: 'square', f: 1200, d: 0.012, v: 0.08, lp: 3000, a: 0.001 });
+  noise(c, o, t + 0.05, { d: 0.025, v: 0.18, bp: 1400, q: 1.5 }); tone(c, o, t + 0.05, { w: 'sine', f: 520, f1: 380, d: 0.05, v: 0.2 });
+  tone(c, o, t + 0.08, { w: 'sine', f: 400, f1: 1000, d: 0.18, v: 0.08, a: 0.02 });
+  return notes(c, o, t + 0.12, M([69, 76, 81]), 0.07, { w: 'triangle', d: 0.16, v: 0.2 }); });
+cue('tick', 'S-520', 'u', 1, 40, 2, 0.05, 1, function(c, o, t){   // sheet open, tier chip, item row
+  noise(c, o, t, { d: 0.01, v: 0.07, hp: 4200 }); return tone(c, o, t, { w: 'triangle', f: 1050, d: 0.03, v: 0.13 }); });
+cue('latch', 'S-521', 'u', 1, 80, 1, 0.12, 1, function(c, o, t){   // Catalyst switch: two-part mechanical catch
+  noise(c, o, t, { d: 0.015, v: 0.18, bp: 1800, q: 1.2 }); tone(c, o, t, { w: 'square', f: 340, f1: 260, d: 0.04, v: 0.1, lp: 1400 });
+  noise(c, o, t + 0.05, { d: 0.015, v: 0.13, hp: 2600 }); return tone(c, o, t + 0.05, { w: 'triangle', f: mf(81), d: 0.06, v: 0.12 }); });
+cue('spend', 'S-522', 'u', 2, 150, 1, 0.26, 1, function(c, o, t){   // confirm: coin clink (two bright partial pairs, slightly inharmonic)
+  noise(c, o, t, { d: 0.01, v: 0.1, hp: 5000 });
+  tone(c, o, t, { w: 'sine', f: 1568, d: 0.12, v: 0.17, a: 0.001 }); tone(c, o, t, { w: 'sine', f: 3951, d: 0.08, v: 0.05, a: 0.001 });
+  tone(c, o, t + 0.06, { w: 'sine', f: 5274, d: 0.1, v: 0.04, a: 0.001 }); return tone(c, o, t + 0.06, { w: 'sine', f: 2093, d: 0.18, v: 0.15, a: 0.001 }); });
+cue('rare', 'S-523', 'u', 2, 0, 1, 0.36, 1, function(c, o, t){   // Rare reveal: 2-note rise, octave sparkle on the top note
+  tone(c, o, t + 0.11, { w: 'sine', f: mf(93), d: 0.18, v: 0.05 }); return notes(c, o, t, M([74, 81]), 0.11, { w: 'triangle', d: 0.22, v: 0.26 }); });
+cue('epic', 'S-524', 'u', 2, 0, 1, 0.75, 1, function(c, o, t){   // Epic reveal: 3-note rise, held top, shimmer run + air
+  notes(c, o, t, M([69, 74, 81]), 0.11, { w: 'triangle', d: 0.24, v: 0.24 });
+  tone(c, o, t + 0.22, { w: 'triangle', f: mf(86), d: 0.4, v: 0.1, a: 0.02 });
+  var sh = [93, 98, 100, 105, 110, 105]; for (var i = 0; i < sh.length; i++) tone(c, o, t + 0.3 + i * 0.05, { w: 'sine', f: mf(sh[i]), d: 0.08, v: 0.05 });
+  return noise(c, o, t + 0.3, { d: 0.4, v: 0.03, hp: 6000, a: 0.1 }); });
+cue('deny', 'S-525', 'u', 1, 150, 1, 0.2, 1, function(c, o, t){   // rejected tap: soft low two-step down, no buzz (child-friendly)
+  tone(c, o, t, { w: 'triangle', f: 300, f1: 260, d: 0.07, v: 0.22, lp: 1200 });
+  return tone(c, o, t + 0.09, { w: 'triangle', f: 230, f1: 200, d: 0.09, v: 0.22, lp: 1200 }); });
 cue('deploy', 'S-507', 'u', 2, 300, 1, 0.48, 1, function(c, o, t){ tone(c, o, t, { w: 'sine', f: 120, f1: 60, d: 0.2, v: 0.4 }); return noise(c, o, t, { d: 0.46, v: 0.2, bp: 300, f1: 2400, q: 1, a: 0.12 }); });
 cue('roll_sweep', 'S-508a', 'u', 2, 200, 1, 1.0, 1, function(c, o, t, v, p){ return tone(c, o, t, { w: 'triangle', f: 300, f1: 900, d: p.d || 1.0, v: 0.08, lp: 1400, a: 0.05 }); }, true);
 cue('roll_common', 'S-508b', 'u', 2, 0, 1, 0.22, 1, function(c, o, t){ return tone(c, o, t, { w: 'triangle', f: mf(74), d: 0.2, v: 0.24 }); });
@@ -294,7 +319,7 @@ function whenRunning(fn){
 
 // ---- baking (07 s2): UI and hero cues first, the rest one per idle slice ----
 var baked = {}, bakeQ = null, bakeN = 0, bakeMs = 0;
-var BAKE_FIRST = ['button', 'tab', 'title_tap', 'fire', 'hit', 'hurt_round', 'kill_s', 'lock', 'xp', 'level_up', 'door_open'];
+var BAKE_FIRST = ['button', 'tab', 'tick', 'spend', 'title_tap', 'fire', 'hit', 'hurt_round', 'kill_s', 'lock', 'xp', 'level_up', 'door_open'];
 function bakeAll(){
   var OAC = G.OfflineAudioContext || G.webkitOfflineAudioContext; if (!OAC || !ctx) return;
   var names = BAKE_FIRST.slice(); for (var k in C) if (names.indexOf(k) < 0) names.push(k);
@@ -408,6 +433,7 @@ function cueFor(e, S){
       else if (e.kind === 'credits' || e.kind === 'coin') o('coin');
       break;
     case 'levelup': o('level_up'); break;
+    case 'guard': o('block'); break;   // step 8 Guard Drone blocked a bullet (GE)
     case 'pick': o(e.level === 3 ? 'pick_lv3' : (e.level === 2 ? 'pick_lv2' : 'pick_confirm')); if (e.setDone) o('set_done', { delay: 0.2 }); break;
     case 'room': o('stage_whoosh'); if (e.kind !== 'boss' && e.kind !== 'collect' && e.kind !== 'supply') o('spawn', { delay: 0.2 }); break;
     case 'door': o('door_open'); o('room_clear', { v: clearForm++ % 4, delay: 0.1 }); break;
