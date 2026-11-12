@@ -129,19 +129,19 @@ export const GLOSSARY = [
 
   // ---- Club
   { id: 'coins', term: 'Coins', group: C, short: 'Money for running the club.',
-    long: 'You start with 1,300. Matches pay gate money, a win bonus and shop income. Coins pay wages, facilities, stadium builds and scout trips.' },
+    long: 'Comes later, with the stadium. For now, Training Points are the only thing you earn and spend.' },
   { id: 'training-points', term: 'Training Points', group: C, short: 'Points spent on drills to improve players.',
-    long: 'Each drill costs 15 TP. You earn 60 a match, 30 more for a win, plus your gym bonus. One drill on a new player shows their potential grade.' },
+    long: 'Each drill costs 15 TP. You earn 60 a match, 30 more for a win. From season 2, drills are free. One drill on a new player shows their potential grade.' },
   { id: 'medals', term: 'Medals', group: C, short: 'Awards for reaching the finals.',
-    long: 'Semi-final loser 1, runner-up 2, champion 4. Spend them in the medal shop.' },
+    long: 'Comes later. Chapter goals already note the medals you win; there is nothing to spend them on yet.' },
   { id: 'fans', term: 'Fans', group: C, short: 'People who follow your club.',
-    long: 'A win adds 40, a loss 10, and stands add more; finals add extra. Fans never fall and are never spent. Each stadium level needs a set number of fans before you can build it.' },
+    long: 'Comes later, with the stadium.' },
   { id: 'leagues', term: 'Leagues 1-5', group: C, short: 'Five levels of opposition. League 5 is toughest.',
-    long: 'Rival strength is 30, 38, 46, 54, 62. Higher leagues pay more Coins and Fans. To go up, finish top 2 and have the next stadium level built.' },
+    long: 'Rival strength is 30, 38, 46, 54, 62. To go up, finish in the top 2. The stadium needed to go up comes later.' },
   { id: 'scout-trips', term: 'Scout trips', group: C, short: 'Pay Coins to find new player candidates.',
-    long: 'Local 400 Coins, 3 candidates, 1 match away. Regional 1,200, 4, 2 matches. National 3,000, 5, 3 matches, with a 1% superstar roll. Needs scout level 1, 2 or 3.' },
+    long: 'Comes later, with Coins.' },
   { id: 'stadium', term: 'Stadium', group: C, short: 'Your club\'s home ground, in five levels.',
-    long: 'Levels 2 to 5 cost 390, 700, 1,050 and 1,540 Coins, need 310, 1,140, 2,400 and 4,080 fans, and take 1, 2, 2 and 3 matches to build. League N needs stadium level N.' },
+    long: 'Comes later. The ground on the club screen shows what you will build.' },
 
   // ---- Season
   { id: 'season', term: 'Season', group: S, short: 'Nine league matches, then the finals for the top four.',
