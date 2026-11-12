@@ -350,6 +350,11 @@
   ICONS.wicket = ['....gggg....', '............', 'ooo.....ooo.', 'oto.....oto.', 'oto...g.oto.', 'oto...t.oto.', 'oto.....oto.', 'oto.o.o.oto.', 'oto.oto.oto.', 'oto.oto.oto.', 'oto.oto.oto.', 'ooo.ooo.ooo.'];
   ICONS.runs = ['.......oooo.', '......orrrro', '......orwrro', '......orrrro', '.....ottooo.', '....ottto...', '...ottto....', '..ottto.....', '.ogtto......', 'ogggo.......', 'oggo........', '.oo.........'];
   ICONS.overs = ['.....oo.....', '...oowwoo...', '..owwwwwwo..', '.orrwrrwrro.', '.orrwrrwrro.', 'owwwwwwwwwwo', 'owwwwwwwwwwo', '.orrwrrwrro.', '.orrwrrwrro.', '..owwwwwwo..', '...oowwoo...', '.....oo.....'];
+  /* pennant = gold tour pennant on a wood stick (tours, hall); added QA f-sinks 2026-11-12 */
+  ICONS.pennant = ['.oo.........', '.otoo.......', '.otggoo.....', '.otgwggoo...', '.otgwgggGoo.', '.otggggGGGGo', '.otgggGGoo..', '.otgGGoo....', '.otoo.......', '.oto........', '.oto........', '.ooo........'];
+  /* rematch = circular arrow, accent ring on outline (same seed rematch button); added QA f-first-session 2026-11-12 */
+  ICONS.rematch = ['......oo....', '...oooaoo...', '..oaaaaaao..', '.oaooooaoo..', 'oaoo..oo....', 'oao.......o.', 'oao......oao', 'oao......oao', 'oaoo....ooao', '.oaooooooao.', '..oaaaaaao..', '...oooooo...'];
+  ICONS.settings = ['....o..o....', '...onoono...', '.oonnnnnnoo.', '.onnnoonnmo.', '..onoooomo..', 'oonno..omnoo', 'onnno..ommmo', '..onoooomo..', '.onmmoommmo.', '.oommmmmmoo.', '...ommoomo..', '....o..o....'];
   var iconCache = {};
   function icon(name) {
     if (iconCache[name]) return iconCache[name];

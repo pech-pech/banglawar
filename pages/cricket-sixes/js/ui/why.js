@@ -75,7 +75,7 @@ function pick(rec, bat, bowl) {
   if (badM) return R('matchup', ...bad);
   if (pr.bowlHome) return R('phase', ...best(bowl));
   if (i === 'D') return R('intent', `${bat} was just defending.`, `${bat} played it safe.`, `Defending kept the score still.`);
-  if (i === 'A') return R('intent', `${bat} went for too much and found no gap.`, `Attack mode: ${bat} swung and missed out.`, `${bat} tried to hit out and got nothing.`);
+  if (i === 'A') return R('intent', `${bat} went for too much and found no gap.`, `Attack mode: ${bat} swung and missed. No run.`, `${bat} tried to hit out and got nothing.`);
   if (f === 'P') return R('field', 'The field was back on the rope.', 'Field back: no easy runs.', 'The deep field stopped the runs.');
   if (e.bsk - e.bs >= MIN_GAP) return R('gap', `${bowl} was too tight for ${bat}.`, `${bowl} bowled tight to ${bat}.`, `${bat} could not get ${bowl} away.`);
   return R('gap', `${bowl} bowled a good ball to ${bat}.`, `${bat} found no gap against ${bowl}.`, `${bowl} gave ${bat} nothing to hit.`);

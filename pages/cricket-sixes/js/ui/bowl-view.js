@@ -21,24 +21,19 @@ const PHASE = ['Early overs (1-3)', 'Middle overs (4-7)', 'Last overs (8-10)'].m
 const SAY = (o) => (String(o) === '0' ? 'No run' : outcomeLabel(o));
 const UNK = 'Not known yet';
 const DRILLS = 'Grade shows after 5 practice drills';
-const BADGE = { W: 'W', 6: '6', 4: '4', 2: '2', 1: '1', 0: '·' };
+const BADGE = { W: 'W', 6: '6', 4: '4', 2: '2', 1: '1', 0: '0' };
 // vm preview label -> rating box. Shape + word, never colour alone.
 const RATE = { Great: ['r-good', '▲', 'Good'], Even: ['r-ok', '●', 'OK'], Bad: ['r-poor', '▼', 'Poor'] };
 const FIELD = { A: 'Attacking field', P: 'Defensive field' };
 const REASON = { 'bowled last': "Bowled last over. Can't bowl now", '2 overs': 'Used both overs', 'must save overs': "Others must bowl first. Can't bowl now" };
 
-function batterLine(vm) {
-  const c = vm.crease || [];
-  return `<div class="bat bv-bat">Batting: ` + c.map((b) =>
-    `<b class="name">${esc(b.name)}</b> ${esc(b.r)} (${esc(b.b)} ball${b.b === 1 ? '' : 's'})` +
-    (b.onStrike ? ' <span class="strike">on strike</span>' : '')).join(' · ') + `</div>`;
-}
-
 function head(vm) {
   const c = (vm.crease || []).slice(0, 2);
-  return `<div class="sb-head bv-head" aria-hidden="true"><div>Bowler</div>` +
-    c.map((b) => `<div><span class="name bv-vs">${esc(b.name)}</span><small>${esc(ROLE[b.bat] || b.bat)}</small></div>`).join('') + `</div>` +
-    `<div class="legend bv-legend"><span><i>▲</i> Good</span><span><i>●</i> OK</span><span><i>▼</i> Poor</span><span><i>★</i> best overs now</span><span><i>?</i> ${UNK}: higher grade shows more</span></div>`;
+  return `<div class="sb-head bv-head" role="presentation"><div class="bv-hb0">Bowler</div>` +
+    c.map((b) => `<div class="bv-bx${b.onStrike ? ' is-strike' : ''}"><span class="name bv-vs${String(b.name).length > 6 ? ' bv-long' : ''}">${esc(b.name)}</span>` +
+      `<small>${esc(ROLE[b.bat] || b.bat)}</small>` +
+      `<span class="bv-runs">${esc(b.r)} (${esc(b.b)})</span>` +
+      (b.onStrike ? '<span class="strike bv-st">on strike</span>' : '') + `</div>`).join('') + `</div>`;
 }
 
 function rbox(b, bat) {
@@ -63,7 +58,7 @@ function row(b, vm) {
   const star = best ? '<span class="best bv-best" aria-hidden="true">★</span>' : '';
   const pbox = `<div class="pbox"><span class="bv-icw">${sel && ok ? '<span class="bv-tick" aria-hidden="true"></span>' : ''}${ic(TYPE[b.bowl] || 'typeMedium', 24, 'ico')}</span><span class="nm name">${esc(b.name)}</span>` +
     `<span class="sub">${esc(b.bowl)}, ${esc(b.overs)}/2 overs</span>` +
-    `<span class="gr${g === '?' ? ' bv-gq' : ''}"${g === '?' ? ' title="${DRILLS}"' : ''}>${star}Grade<b>${esc(g)}</b></span></div>`;
+    `<span class="gr${g === '?' ? ' bv-gq' : ''}"${g === '?' ? ' title="${DRILLS}"' : ''}>Grade${star}<b>${esc(g)}</b></span></div>`;
   const label = `${b.name}, ${b.bowl} bowler, ${b.overs} of 2 overs used, grade ${g === '?' ? 'not known yet. ' + DRILLS : g}` +
     (best ? ', in his best overs now' : '');
   if (!ok) {
@@ -119,7 +114,7 @@ export function render(el, vm, dispatch) {
     `<span class="score" aria-label="${esc(sc.runs)} runs for ${esc(sc.wk)} wickets">${esc(sc.runs)}/${esc(sc.wk)}</span>` +
     `<span class="mid"><b>Over ${esc(vm.over)} of 10</b><span>${esc(PHASE[vm.phase] || vm.phaseName)}</span></span>` +
     `<button type="button" class="q" data-gloss aria-label="Cricket words explained">?</button></header>` +
-    `<section class="colL bv-colL"><h1 class="title bv-title">Pick a bowler</h1>${batterLine(vm)}` +
+    `<section class="colL bv-colL">` +
     `<div class="sb bv-sb" role="radiogroup" aria-label="Bowlers">${head(vm)}${(vm.bowlers || []).map((b) => row(b, vm)).join('')}</div></section>` +
     `<section class="colR bv-colR"><div class="seg bv-seg" role="radiogroup" aria-label="Field">${seg('A', 'fieldAttack')}${seg('P', 'fieldProtect')}</div>` +
     lastLine(vm) +

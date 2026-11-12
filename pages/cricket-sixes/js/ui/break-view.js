@@ -26,22 +26,23 @@ function helpButton(el) {
 export function render(el, vm, dispatch) {
   var top = vm.top || {}, bat = top.bat || [], bowl = top.bowl || [];
   var batRows = bat.map(function (p) {
-    return '<li class="c-row row row-compact"><span class="c-row__body"><b class="c-row__title name">' + esc(p.name) + '</b></span>' +
-      '<span class="c-row__end">' + ico('runs') + '<b>' + esc(plural(num(p, ['r', 'runs']), 'run')) + '</b><span class="c-row__sub">(' + esc(plural(num(p, ['b', 'balls']), 'ball')) + ')</span></span></li>';
+    return '<li class="c-row brk-row">' + ico('runs', 24) + '<b class="brk-name">' + esc(p.name) + '</b>' +
+      '<span class="brk-stat"><b>' + esc(num(p, ['r', 'runs'])) + '</b> <span class="brk-sub">(' + esc(num(p, ['b', 'balls'])) + ')</span></span></li>';
   }).join('');
   var bowlRows = bowl.map(function (p) {
-    return '<li class="c-row row row-compact">' + ico(typeIcon(p.bowl || p.type)) +
-      '<span class="c-row__body"><b class="c-row__title name">' + esc(p.name) + '</b></span>' +
-      '<span class="c-row__end">' + esc(plural(num(p, ['w', 'wk', 'wickets']), 'wicket')) + ' for ' + esc(plural(num(p, ['r', 'runs']), 'run')) + '</span></li>';
+    return '<li class="c-row brk-row">' + ico(typeIcon(p.bowl || p.type), 24) + '<b class="brk-name">' + esc(p.name) + '</b>' +
+      '<span class="brk-stat"><b>' + esc(num(p, ['w', 'wk', 'wickets'])) + '</b> for <b>' + esc(num(p, ['r', 'runs'])) + '</b></span></li>';
   }).join('');
   var need = Number(vm.target);
   el.innerHTML =
-    '<div class="screen">' +
+    '<div class="screen brk">' +
     '<div class="c-strip strip"><span>Innings break</span><button type="button" class="c-icon-btn help-btn" data-act="help" aria-label="Cricket words (glossary)">?</button></div>' +
-    '<div class="c-card c-card--hl tight"><h2>They scored ' + esc(vm.runs) + ' for ' + esc(plural(vm.wk, 'wicket')) + ' in ' + esc(ovWords(vm.overs)) + '</h2>' +
-    '<div class="big-need">You need ' + esc(need) + ' to win</div></div>' +
-    '<div class="c-card tight"><h3>Top batters</h3><ul class="c-list list-flat">' + (batRows || '<li class="c-row__sub">No batters</li>') + '</ul></div>' +
-    '<div class="c-card tight"><h3>Top bowlers</h3><ul class="c-list list-flat">' + (bowlRows || '<li class="c-row__sub">No bowlers</li>') + '</ul></div>' +
+    '<div class="c-card c-card--hl brk-hero"><div class="brk-label">They scored</div>' +
+    '<div class="brk-score">' + esc(vm.runs) + ' for ' + esc(vm.wk) + '</div>' +
+    '<div class="brk-in">in ' + esc(ovWords(vm.overs)) + '</div>' +
+    '<div class="brk-need">' + esc(need) + ' to win from 60 balls</div></div>' +
+    '<div class="c-card brk-card"><div class="brk-head"><h3>Top batters</h3><span>Runs (balls)</span></div><ul class="c-list list-flat">' + (batRows || '<li class="brk-sub">No batters</li>') + '</ul></div>' +
+    '<div class="c-card brk-card"><div class="brk-head"><h3>Top bowlers</h3><span>Wickets for runs</span></div><ul class="c-list list-flat">' + (bowlRows || '<li class="brk-sub">No bowlers</li>') + '</ul></div>' +
     '<div class="cta"><button type="button" class="c-btn c-btn--primary c-btn--cta c-btn--block" data-act="start">Start chase</button></div>' +
     '</div>';
   el.querySelector('[data-act="start"]').addEventListener('click', function () { dispatch('StartChase', {}); });

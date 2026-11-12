@@ -34,7 +34,7 @@ main { padding: 0 8px calc(var(--cta-bar) + 4px); display: grid; gap: 6px; --cta
 .pbox::before { top: -8px; left: -8px; }
 .pbox::after { top: -8px; right: -8px; }
 .pbox .ico { grid-row: 1 / 3; width: 24px; height: 24px; image-rendering: pixelated; }
-.pbox .nm { font: 17px/19px "Pixelify Sans", var(--font-body); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pbox .nm { font: 17px/19px var(--font-body); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .pbox .sub { grid-column: 2; font-size: 14px; line-height: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .pbox .gr { grid-row: 1 / 3; grid-column: 3; text-align: center; font-size: 12px; line-height: 12px; padding: 2px 4px; border: 2px solid var(--outline); background: var(--cream); min-width: 34px; }
 .pbox .gr b { display: block; font: 22px/20px var(--font-head); font-weight: 400; }

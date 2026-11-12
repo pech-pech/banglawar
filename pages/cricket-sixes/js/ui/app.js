@@ -4,6 +4,7 @@ import * as brk from './break-view.js';
 import * as chase from './chase-view.js';
 import * as result from './result-view.js';
 import { playOverPanel } from './over-panel.js';
+import { attachReport } from '../report/hooks.js';
 
 const STAGES = {
   bowl: [bowl, 'bowlVM'],
@@ -14,6 +15,7 @@ const STAGES = {
 
 export function mount(el, store) {
   let lastStage = null;
+  const rep = attachReport(el, store); // playtest report: observes only, never throws
   let holding = false; // the over panel is open: do not draw the next screen yet
   function render() {
     if (holding) return;
@@ -33,6 +35,7 @@ export function mount(el, store) {
       p.textContent = 'Render error (stage ' + (s && s.stage) + '): ' + (err && err.stack || err);
       el.appendChild(p);
     }
+    rep.rendered(s);
     if (s.stage !== lastStage) { lastStage = s.stage; window.scrollTo(0, 0); }
   }
   store.subscribe(render);
@@ -41,11 +44,12 @@ export function mount(el, store) {
   /** BowlOver: apply it, then show the panel; the next screen draws only when Next is pressed. */
   function dispatch(cmd, payload) {
     if (holding) return;
-    if (cmd !== 'BowlOver') { store.dispatch(cmd, payload); return; }
+    if (cmd !== 'BowlOver') { const b = store.get(); store.dispatch(cmd, payload); rep.dispatched(cmd, payload, b, store.get()); return; }
     const before = store.get();
     holding = true;
     store.dispatch(cmd, payload);
     const s = store.get();
+    rep.dispatched(cmd, payload, before, s);
     if (s === before || !s.last || !s.last.balls || !s.last.balls.length) { holding = false; render(); return; }
     const first = before.stage === 'bowl';
     const inn = first ? s.inn1 : s.inn2;
@@ -55,8 +59,9 @@ export function mount(el, store) {
     const nextLabel = s.stage === 'done' ? 'See result' : s.stage === 'break' ? 'Innings break' : first ? 'Next bowler' : 'Next over';
     const summaryLines = [];
     if (balls.length < 6) summaryLines.push(!first && s.result === 'won' ? 'Target reached: you win!' : first ? '5th wicket: their innings is over.' : '5th wicket: your innings is over.');
+    rep.panelOpen();
     playOverPanel({ title: 'Over ' + s.last.over, balls, score: { runs: inn.runs, wk: inn.wk }, nextLabel, summaryLines,
-      onDone() { holding = false; render(); } });
+      onDone() { rep.panelDone(balls.length); holding = false; render(); } });
   }
   return dispatch;
 }

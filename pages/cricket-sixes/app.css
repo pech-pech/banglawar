@@ -11,8 +11,8 @@ button, .c-btn, .seg button, .seg label, [role="button"] { min-height: 56px; }
 .seg > *, .c-seg__opt { min-height: 56px; }
 img { max-width: 100%; image-rendering: pixelated; }
 
-/* names: Pixelify Sans. Inside Jersey 15 body text a name gets a fallback font (capital I reads as l in Jersey 15). */
-.name { font-family: "Pixelify Sans", system-ui, sans-serif; font-weight: 400; }
+/* names: body font (Jersey 15 with the RG Cap I fix from the skin). */
+.name { font-family: var(--font-body); font-weight: 400; }
 .name-fb { font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif; font-weight: 700; }
 
 .screen { --bar-h: 76px; display: flex; flex-direction: column; gap: var(--c-sp-2); min-height: 100vh; min-height: 100dvh; padding: 0 0 calc(var(--bar-h) + env(safe-area-inset-bottom)); }

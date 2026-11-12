@@ -2,6 +2,7 @@
 import { applyCommand } from '../js/store/commands.js';
 import { bowlVM, chaseVM } from '../js/store/selectors.js';
 import { makeRng } from '../js/core/rng.js';
+import { skilledBowler, skilledField, skilledIntent as skilledIntentVM } from '../js/core/skilled.js';
 import { mkdirSync, writeFileSync, readFileSync } from 'node:fs';
 
 const N = Number(process.env.SWEEP_N || 400);
@@ -16,25 +17,7 @@ const bestSB = (s, vm) => el(vm).reduce((a, b) => {
 const rotes = [];
 for (const f of ['A', 'P']) for (const i of ['D', 'R', 'A']) rotes.push([`rote ${f}/${i}`, { field: () => f, intent: () => i, bowler: bestSB }]);
 
-const skilledBowler = (s, vm) => {
-  let best = null, bs = -Infinity;
-  for (const b of el(vm)) {
-    const p = s.me.players[b.i];
-    const sc = b.previews.reduce((a, c) => a + c.g + (c.inPhase ? 1 : 0), 0) + (p.spd + p.bsk) / 1000;
-    if (sc > bs) { bs = sc; best = b.i; }
-  }
-  return best;
-};
-const skilledField = (s) => {
-  const inn = s.inn1, st = s.rival.players[inn.crease[inn.strike]];
-  return st.bp + st.bs < 95 ? 'A' : 'P';
-};
-const skilledIntent = (s) => {
-  const vm = chaseVM(s), inn = s.inn2;
-  const rr = vm.need / Math.max(vm.ballsLeft, 1);
-  if (rr > 1.65 || (inn.over >= 8 && inn.wk <= 2)) return 'A';
-  return inn.wk >= 4 && rr < 1.2 ? 'D' : 'R';
-};
+const skilledIntent = (s) => skilledIntentVM(s, chaseVM(s));
 const skilled = { bowler: skilledBowler, field: skilledField, intent: skilledIntent };
 const idle = { bowler: (s, vm) => el(vm)[0].i, field: () => 'A', intent: () => 'R' };
 const naive = { rnd: true,

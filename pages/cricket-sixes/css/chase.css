@@ -32,7 +32,7 @@
 @media (max-width: 599px) {
   .chase-b .colL, .chase-b .colR { display: contents; }
   .chase-b .sb-row, .chase-b .sb-head { --rc: 70px; }
-  .chase-b .pbox, .chase-b .rbox { min-height: 100px; }
+  .chase-b .pbox, .chase-b .rbox { min-height: 172px; }
   .chase-b .sb { gap: 10px; }
 }
 @media (min-width: 600px) {
@@ -48,3 +48,4 @@
 .chase-b .opt { position: relative; }
 .chase-b .opt.is-selected::before { position: absolute; top: 3px; right: 3px; margin: 0; }
 .chase-b .opt .two small { white-space: nowrap; }
+.chase-b .opt { padding-left: 6px; padding-right: 6px; }
