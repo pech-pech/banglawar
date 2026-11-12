@@ -1,5 +1,5 @@
 /* hub-view: the season home. render(el, vm, dispatch). Reads hubVM only. Clicks are handled by app.js (data-act). */
-import { esc, btn, tpChip, ico, tagChip } from './dom.js';
+import { esc, btn, tpChip, ico, icoDeco } from './dom.js';
 import { drawClub, drawHead } from './club-canvas.js';
 import { openSheet } from './sheet.js';
 
@@ -22,13 +22,12 @@ function toolBtn(label, act, icon, aria, extra) {
   return '<button type="button" class="c-btn hb-tool' + (extra || '') + '" data-act="' + act + '" aria-label="' + esc(aria) + '">' + ico(icon, 24) + '<span class="hb-tl">' + esc(label) + '</span></button>';
 }
 
-/* Next rival with a style tag: name, tag chip and a one-line hint, in plain words. Shown only when the rival has a tag. */
+/* Next rival: ONE 56 px chip row, "Next: Club · Tag". A tagged rival opens a small sheet with the hint; an untagged rival shows no chip (layout stays as before). */
 function rivalHtml(next) {
   const t = next && next.tag;
   if (!t) return '';
-  const kit = t.kit ? '<span class="rv-kit" aria-hidden="true"><i style="background:' + esc(t.kit[0]) + '"></i><i style="background:' + esc(t.kit[1]) + '"></i></span>' : '';
-  return '<section class="c-card hb-rival" aria-label="Next rival: ' + esc(next.oppName) + '"><div class="hb-rtop">' + kit + '<b class="name">' + esc(next.oppName) + '</b>' + tagChip(t) + '</div>' +
-    '<p class="hb-hint"><b>Hint:</b> ' + esc(t.hint) + '</p></section>';
+  return '<button type="button" class="c-btn hb-rival" data-act="sheet:rival" aria-label="Next: ' + esc(next.oppName) + ', ' + esc(t.chip) + '. Tap for the hint.">' + icoDeco('scout', 24) +
+    '<span class="hb-rtx name">Next: ' + esc(next.oppName) + ' · ' + esc(t.chip) + '</span></button>';
 }
 
 function sixHtml(six) {
@@ -59,7 +58,7 @@ export function render(el, vm, dispatch) {
     : run ? (vm.phaseWord || 'League') : 'Season ' + (season.n || 1) + ' · ' + (vm.phaseWord || 'League');
   const full = !!(vm.six && vm.promo && vm.plan);
   el.innerHTML =
-    '<div class="screen ss ss-hub hb-hub">' +
+    '<div class="screen ss ss-hub hb-hub' + (full && vm.next && vm.next.tag ? ' hb-hub--rv' : '') + '">' +
     '<div class="c-strip strip"><span class="ss-strip"><b class="rn-head">' + esc(head) + '</b><small>' + esc(sub) + '</small></span>' + helpBtn('league-table') + '</div>' +
     '<div class="hb-tools">' + toolBtn('Table', 'sheet:table', 'league', 'League table') + toolBtn('Book', 'sheet:book', 'book', 'Pairing Book') + toolBtn('Save', 'sheet:save', 'save', 'Save', ' ss-save') +
     '<span class="c-chip chip m0-tp hb-tool hb-tp" aria-label="' + esc(vm.tp) + ' training points">' + ico('tp', 24) + '<span class="hb-tl"><b>' + esc(vm.tp) + '</b> TP</span></span></div>' +

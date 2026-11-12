@@ -121,8 +121,21 @@
 .ts-cols, .ts-row { grid-template-columns: 28px minmax(0, 1fr) 56px 56px; }
 .ts-cols span:nth-child(n+3) { text-align: center; }
 
-/* P9: next rival card (name, kit swatch, tag chip, one-line hint) */
-.hb-rival { padding: var(--c-sp-2) var(--c-sp-3); }
-.hb-rtop { display: flex; align-items: center; gap: var(--c-sp-2); min-height: 28px; }
-.hb-rtop .name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--c-fs-m); line-height: var(--c-lh-m); }
-.hb-hint { margin: 2px 0 0; font-size: 14px; line-height: 18px; }
+/* P9: next rival chip row (one 56 px tap) and the tight hub spacing that keeps "Our six" above the CTA bar */
+.hb-rival { display: flex; align-items: center; justify-content: flex-start; gap: var(--c-sp-2); min-height: 56px; padding: 2px var(--c-sp-3); text-align: left; }
+.hb-rival img { flex: none; image-rendering: pixelated; }
+.hb-rival .hb-rtx { flex: 1 1 auto; min-width: 0; white-space: normal; overflow-wrap: anywhere; font-size: 16px; line-height: 20px; }
+.hb-hub--rv { gap: 4px; }
+.hb-hub--rv .hb-check { min-height: 34px; }
+.hb-hub--rv .hb-promo { padding-top: 4px; padding-bottom: 4px; }
+.rv-sheet { display: grid; gap: var(--c-sp-2); padding: var(--c-sp-2) 0; }
+.rv-hint { margin: 0; font-size: 16px; line-height: 22px; }
+.ts-rival { display: grid; gap: 2px; margin-bottom: var(--c-sp-2); }
+.ts-rival p { margin: 0; font-size: 14px; line-height: 18px; }
+.hb-hub--rv .hb-check { min-height: 32px; padding: 0; }
+.hb-hub--rv .hb-check .c-tag { min-height: 0; padding-top: 0; padding-bottom: 0; }
+.hb-hub--rv .hb-promo > .c-strip:first-child { min-height: 30px; margin-bottom: 2px; }
+.hb-hub--rv .hb-check { line-height: 18px; }
+.hb-hub--rv .hb-sixhead { line-height: 16px; }
+/* the top strip is 8 px too wide (scoreboard.css gives .strip margin 0 -8px): the "?" lost its right edge */
+.hb-hub > .strip { margin-left: 0; margin-right: 0; }

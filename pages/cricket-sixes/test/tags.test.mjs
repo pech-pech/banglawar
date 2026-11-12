@@ -24,7 +24,7 @@ test('tag table is the tuning table (bat_heavy +6/+3/-4/-4)', () => {
 
 test('applyTag adds the offsets to every player, clamped to 1-99', () => {
   const c = applyTag(mkClub(50), 1, 1); // League 1 slot 1 = Pebble Lane Pups, bat_heavy
-  assert.equal(c.name, 'Pebble Lane Pups'); assert.equal(c.tag, 'bat_heavy'); assert.deepEqual(c.kit, ['#E8B923', '#2A5C8A']);
+  assert.equal(c.name, 'Pebble Lane Pups'); assert.equal(c.tag, 'bat_heavy'); assert.deepEqual(c.kit, ['#8FD14F', '#2A5C8A']);
   for (const p of c.squad) assert.deepEqual(R.map((k) => p[k]), [56, 53, 46, 46]);
   assert.equal(c.six.length, 6);
   const hi = applyTag(mkClub(97), 1, 1); for (const p of hi.squad) assert.deepEqual(R.map((k) => p[k]), [99, 99, 93, 93]);
@@ -91,4 +91,14 @@ test('migration uses the save\'s own league', () => {
   for (const id of ['c1', 'c2', 'c3']) { const c = g.clubs.find((x) => x.id === id); delete c.tag; delete c.kit; }
   const m = migrate(g, 3);
   assert.deepEqual(m.state.clubs.slice(1, 4).map((c) => c.name), TAGGED_RIVALS[4].map((r) => r.name));
+});
+
+test('rivalVM and teamVM carry the next rival tag (hub chip sheet, team sheet head); untagged is null', () => {
+  const s = newGame('t6').get();
+  const opp = s.clubs.find((c) => c.id === s.fixture.opp);
+  assert.deepEqual(sel.rivalVM(s), { name: opp.name, tag: tagInfo(opp) });
+  assert.deepEqual(sel.teamVM(s).oppTag, tagInfo(opp));
+  const plain = structuredClone(s); const c9 = plain.clubs.find((c) => c.id === 'c9'); plain.fixture.opp = 'c9';
+  assert.equal(sel.rivalVM(plain).tag, null); assert.equal(sel.teamVM(plain).oppTag, null);
+  assert.equal(c9.tag, undefined);
 });

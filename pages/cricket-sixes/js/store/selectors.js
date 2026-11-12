@@ -380,12 +380,18 @@ export function weekVM(s) {
 // ---- b-p6: club hub and team sheet
 const ordinal = (n) => n + (n % 100 >= 11 && n % 100 <= 13 ? 'th' : ['th', 'st', 'nd', 'rd'][n % 10 > 3 ? 0 : n % 10]);
 
+/** The next rival's name and style tag (null tag when untagged): for the hub chip sheet. */
+export function rivalVM(s) {
+  const opp = s.fixture ? club(s, s.fixture.opp) : null;
+  return { name: opp ? opp.name : '', tag: opp ? tagInfo(opp) : null };
+}
+
 /** The team sheet: the squad (six in batting order, bench after) and the bowling plan the hub would use right now. */
 export function teamVM(s) {
   const lp = livePlan(s), t = { ...s, plan: lp };
   const sq = squadVM(t), pl = planVM(t);
   const mineC = mine(s);
-  return { opp: s.fixture ? clubName(s, s.fixture.opp) : '', players: sq.players, count: sq.count, plan: { ...pl, edited: lp.edited }, six: sixIds(s), squadSize: mineC.squad.length };
+  return { opp: s.fixture ? clubName(s, s.fixture.opp) : '', oppTag: s.fixture ? tagInfo(club(s, s.fixture.opp)) : null, players: sq.players, count: sq.count, plan: { ...pl, edited: lp.edited }, six: sixIds(s), squadSize: mineC.squad.length };
 }
 
 /** The hub as a club screen: everything hubVM has, plus the six, the promotion checklist, the next unlock and one Start match. */

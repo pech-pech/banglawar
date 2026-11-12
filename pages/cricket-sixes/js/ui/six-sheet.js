@@ -2,7 +2,7 @@
 // Team sheet: one sheet, two tabs. Six = pick who plays and in what order; Overs = who bowls each over (pre-filled from matchups).
 // open(vm, dispatch, open, arg, refresh): vm = teamVM; arg = { tab: 'six' | 'overs' }; refresh() returns a fresh teamVM after a dispatch.
 // Every change is saved at once (TeamSix, TeamPlan, TeamSuggest), so X and Done both keep it. Done is off while the plan breaks a rule.
-import { esc, ico } from './dom.js';
+import { esc, ico, tagChip } from './dom.js';
 import { openSheet } from './sheet.js';
 import { check } from './plan-view.js';
 
@@ -78,7 +78,7 @@ export function openTeam(vm, dispatch, _open, arg, refresh) {
 
   function paint(focus) {
     const bad = !problem().valid;
-    root.innerHTML = '<div class="c-seg ts-tabs" role="group" aria-label="Team sheet">' +
+    root.innerHTML = (V.oppTag ? '<div class="ts-rival">' + tagChip(V.oppTag) + '<p>' + esc(V.oppTag.hint) + '</p></div>' : '') + '<div class="c-seg ts-tabs" role="group" aria-label="Team sheet">' +
       '<button type="button" class="c-seg__opt' + (tab === 'six' ? ' is-selected' : '') + '" data-tab="six" aria-pressed="' + (tab === 'six') + '">' + ico('team', 24) + 'Six</button>' +
       '<button type="button" class="c-seg__opt' + (tab === 'overs' ? ' is-selected' : '') + '" data-tab="overs" aria-pressed="' + (tab === 'overs') + '">' + ico('overs', 24) + 'Overs' + (bad ? '<i class="ts-bang" aria-hidden="true">!</i>' : '') + '</button></div>' +
       (tab === 'six' ? sixPane() : oversPane()) +

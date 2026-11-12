@@ -80,7 +80,12 @@ export function bindActs(root, dispatch, open) {
   });
 }
 
+/** Decorative icon: same picture as ico(), hidden from assistive tech (the words next to it carry the meaning). */
+export function icoDeco(name, size) {
+  return ico(name, size).replace('<img', '<img alt="" aria-hidden="true"');
+}
+
 /** Rival style tag chip: scout icon plus the tag in words (never colour alone). tag = { chip, hint } from tagInfo(), or null. */
 export function tagChip(tag) {
-  return tag ? '<span class="c-chip rv-tag" aria-label="Rival style: ' + esc(tag.chip) + '">' + ico('scout', 16) + '<b>' + esc(tag.chip) + '</b></span>' : '';
+  return tag ? '<span class="rv-tag">' + icoDeco('scout', 16) + '<b>' + esc(tag.chip) + '</b></span>' : '';
 }
