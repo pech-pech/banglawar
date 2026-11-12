@@ -6,7 +6,7 @@
    vm.plan (P7): { mode, canRepeat, n, cost, tpLeft, free, byPlayer:{id:{drillId,rating,fresh}}, bulk:{n,total,great,reveals,xp}|null, autoBench, tips }.
    Taps: a row -> `sheet:player {id}`; the coach row -> `sheet:coaches {}`; End week -> command EndWeek.
    `open(name, arg)` is optional; app.js maps it to the sheet modules. */
-import { esc, ico, btn, ctaBar, gradeChip, abilityCell } from './dom.js';
+import { esc, ico, btn, ctaBar } from './dom.js';
 import { bindActs } from './dom.js';
 import { openSheet } from './sheet.js';
 import { DRILLS } from '../data/training.js';
@@ -28,39 +28,61 @@ export const tp = (n) => '<span class="c-chip chip m0-tp tr-tp" aria-label="' + 
 /** 2A: the Peak tag, icon + word. */
 export const peak = () => '<span class="c-tag m0-peak tr-peak" aria-label="At peak">' + deco('peak', 20) + '<span>Peak</span></span>';
 
+const RK = ['batPower', 'batSkill', 'bowlSpeed', 'bowlSkill'];
 const DRILL_NAME = Object.fromEntries(DRILLS.list.map((d) => [d.id, d.name]));
+/** Under the name: grade box, then one status (planned drill / Auto / peak / drilled +n). Icons carry the meaning; the row label has the words. */
 function status(r, plan, auto) {
   const s = String(r.status || '');
   if (s === 'drill') {
-    const pb = plan && '<span class="tr-planbox' + (plan.fresh ? ' is-new' : '') + '" role="img" aria-label="Plan: ' + esc(DRILL_NAME[plan.drillId]) + (plan.fresh ? ', new this week' : '') + '">' + deco(RATING_ICON[plan.rating], 20) + '</span>';
-    return (pb || '') + (auto ? '<span class="tr-st tr-auto">' + deco('train', 20) + '<span>Auto</span></span>' : '<span class="tr-st tr-st--todo">Not drilled</span>');
+    if (plan) return '<span class="tr-planbox' + (plan.fresh ? ' is-new' : '') + '" role="img" aria-label="Plan: ' + esc(DRILL_NAME[plan.drillId]) + (plan.fresh ? ', new this week' : '') + '">' + deco(RATING_ICON[plan.rating], 20) + '</span>';
+    return auto ? '<span class="tr-st tr-auto" role="img" aria-label="Auto drill at End week">' + deco('train', 20) + '</span>' : '';
   }
-  if (s === 'peak') return peak();
-  if (s === 'done') return '<span class="c-tag c-tag--done tr-st">Done</span>';
-  if (s.charAt(0) === '+') return '<span class="c-tag tr-st">' + (r.gainRating ? deco(RATING_ICON[r.gainRating] || 'train', 20) : '') + '<span>' + esc(s) + '</span></span>';
-  return '<span class="c-tag tr-st">' + esc(s) + '</span>';
+  if (s === 'peak') return '<span class="tr-st tr-peak" role="img" aria-label="At peak">' + deco('peak', 20) + '</span>';
+  if (s === 'done') return '<span class="tr-st tr-won" role="img" aria-label="Drilled this week">' + deco('done', 20) + '</span>';
+  if (s.charAt(0) === '+') return '<span class="tr-st tr-won" role="img" aria-label="Drilled this week, up ' + esc(s.slice(1)) + '">' + deco('done', 20) + '<b>' + esc(s) + '</b></span>';
+  return '';
+}
+
+/** Rating box: the 20-200 Ability. A "max" word under it when he is capped at potential. */
+function abilBox(r) {
+  return '<span class="tr-ovr' + (r.max ? ' is-max' : '') + '" role="img" aria-label="Ability ' + esc(r.ability) + (r.max ? ', max' : '') + '"><b>' + esc(r.ability) + '</b>' + (r.max ? '<small>max</small>' : '') + '</span>';
+}
+
+/** The 4-segment block: icon on top, a divider line, the raw 1-99 rating below. Gold = drilled this week, dashed = the planned drill. */
+function ratesBlock(r, plan) {
+  const R = r.rates || {}, up = String(r.status || '').charAt(0) === '+' ? r.gainRating : null;
+  return '<span class="tr-rates">' + RK.map((k) => {
+    const cls = k === up ? ' is-up' : plan && plan.rating === k ? ' is-plan' + (plan.fresh ? ' is-new' : '') : '';
+    return '<span class="tr-rate' + cls + '"><span class="tr-ri">' + deco(RATING_ICON[k], 24) + '</span><span class="tr-rv">' + esc(R[k] == null ? '' : R[k]) + '</span></span>';
+  }).join('') + '</span>';
+}
+
+/** Potential grade box: the letter, or "?" until it shows (1 drill). */
+function gradeBox(r, hidden) {
+  return '<span class="tr-gr' + (hidden ? ' is-hidden' : '') + '" role="img" aria-label="' + (hidden ? 'Potential grade hidden, shows after 1 drill' : 'Potential grade ' + esc(r.grade)) + '">' + (hidden ? '?' : esc(r.grade)) + '</span>';
 }
 
 function rowHtml(r, P, first) {
   const plan = P && P.byPlayer && P.byPlayer[r.id], auto = !!(P && P.autoBench && r.bench);
   const peakNow = r.status === 'peak';
   const hidden = r.grade == null || r.grade === '' || r.grade === '?';
-  const label = r.name + (r.bench ? ', bench' : '') + ', ' + cap(r.role) + ', ' + cap(r.type) + ', ability ' + r.ability + (r.max ? ', capped at potential' : '') +
-    (hidden ? ', potential grade hidden, ' + (r.pips || 0) + ' of 1 drill' : ', potential grade ' + r.grade) +
-    ', ' + (r.status === 'drill' ? 'not drilled yet' : r.status === 'peak' ? 'at peak, drills cannot raise him' : r.status === 'done' ? 'done this week' : 'drilled ' + r.status);
+  const R = r.rates || {};
+  const label = r.name + (r.bench ? ', bench' : '') + ', Ability ' + r.ability + (r.max ? ', capped at potential' : '') + '. ' +
+    RK.map((k) => RATING_WORD[k] + ' ' + R[k]).join(', ') + '. ' +
+    (hidden ? 'Potential grade hidden, ' + (r.pips || 0) + ' of 1 drill' : 'Potential grade ' + r.grade) +
+    ', ' + (r.status === 'drill' ? 'not drilled yet' : r.status === 'peak' ? 'at peak, drills cannot raise him' : r.status === 'done' ? 'done this week' : 'drilled ' + r.status) +
+    (plan && r.status === 'drill' ? ', plan: ' + DRILL_NAME[plan.drillId] : '');
   return '<li class="c-row m0-row c-row--tap tr-row' + (r.bench ? ' m0-row--bench' : '') + (peakNow ? ' tr-row--peak' : '') + '" role="button" tabindex="0"' + (first ? ' data-ft="row"' : '') +
     ' data-act="sheet:player" data-arg="' + esc(JSON.stringify({ id: r.id })) + '" aria-label="' + esc(label) + '">' +
-    '<span class="c-row__body"><span class="tr-name-line"><span class="c-row__title name tr-name">' + esc(r.name) + '</span>' + (r.bench ? '<span class="c-tag tr-bench">Bench</span>' : '') + '</span>' +
-    '<span class="c-row__sub tr-sub">' + deco(roleIcon(r.role), 20) + deco(typeIcon(r.type), 20) + status(r, plan, auto) + '</span>' +
-    (peakNow ? '<span class="c-row__sub tr-peaksub">At peak: drills can’t raise him</span>' : '') +
-    (r.max && !hidden ? '<span class="c-row__sub tr-capsub">Capped at potential ' + esc(r.ability) + '</span>' : '') + '</span>' +
-    '<span class="c-row__end tr-end">' + abilityCell(r.ability, !!r.max) + gradeChip(r.grade, r.pips) + '</span></li>';
+    abilBox(r) +
+    '<span class="tr-who"><span class="c-row__title name tr-name">' + esc(r.name) + '</span>' +
+    '<span class="tr-sub">' + (r.bench ? '<span class="tr-bench" role="img" aria-label="Bench">' + deco('team', 20) + '</span>' : '') + gradeBox(r, hidden) + status(r, plan, auto) + '</span></span>' +
+    ratesBlock(r, plan) + '</li>';
 }
 
 
 /* ---- P7+P11: plan card, bulk summary, bench switch, "?" sheet, first-time tips. Every visible string is 6 words or fewer. ---- */
 const PER = DRILLS.costTp;
-const RK = ['batPower', 'batSkill', 'bowlSpeed', 'bowlSkill'];
 /** TP chip: icon + number, the cost on a button. */
 export const chip = (n) => '<span class="tr-chip" aria-label="' + esc(n) + ' Training Points">' + deco('tp', 24) + '<span>' + esc(n) + '</span></span>';
 
