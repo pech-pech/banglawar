@@ -25,4 +25,8 @@ D.enemies = {
       B:{n1:24,n2:32,dur:1.5,arcDeg:220},
       C:{fanDeg:20,lineN:5,lineGap:0.12,lineDelay:0.3}}}
 };
+// S7 (SIM, volley-v2-5): the step-7 rows (E-06, E-06h, E-07, E-08, B-03, B-03V, B-02, B-04) live in their AI parts ("if absent",
+// CONTRACT-STEP7), and the owner's row wins. test-data.js (K3) checks them there. SIM's first-pass staged table was removed:
+// its numbers differed from the owners' rows (B-04 hp 12,293 would scale twice through boss init). Boss HP note: sim spawn
+// HP = row hp x 0.82 x (1 + 0.036 (s - 1)); the boss parts apply the section 4 0.72 / 0.82 ratio in init.
 })();

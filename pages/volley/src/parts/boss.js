@@ -4,21 +4,12 @@
 // Phase 2 below 50% HP: A 7 lines with the centre lane open, B 20 rounds, cooldown 1.8 s (2.5 s in phase 1).
 // Immune to instant kill and freeze, no knockback (flags on the enemy; mods and sim read them).
 V.AI = V.AI || {};
-var DEG = Math.PI / 180, SHOT_R = 0.15;
-// F1: no enemy literals here; base row and behaviour numbers come from V.Data.enemies['B-01'] (data-enemies.js).
+// Step 7: runs on V.BossKit (boss-kit.js, loaded first): rotation, tell state, queue and rayLen come from the kit.
 var DE = (V.Data && V.Data.enemies) || (typeof require === 'function' ? (require('./data-enemies.js'), V.Data.enemies) : null);
+var K = V.BossKit || (typeof require === 'function' ? (require('./boss-kit.js'), V.BossKit) : null);
+var DEG = K.DEG, SHOT_R = K.SHOT_R, rayLen = K.rayLen;
+// F1: no enemy literals here; base row and behaviour numbers come from V.Data.enemies['B-01'] (data-enemies.js).
 var BT = DE['B-01'].ai;
-
-function rayLen(S, api, x, y, ang, max){
-  // how far a flat round travels before cover / room edge stops it
-  var c = Math.cos(ang), s = Math.sin(ang), d = 0, stp = 0.1;
-  while (d < max) {
-    var n = d + stp, px = x + c * n, py = y + s * n;
-    if (px < SHOT_R || px > S.room.w - SHOT_R || py < SHOT_R || py > S.room.h - SHOT_R || api.hitsSolid(S, px, py, SHOT_R)) break;
-    d = n;
-  }
-  return d;
-}
 
 var B01 = V.AI['B-01'] = {
   base: DE['B-01'],
@@ -32,16 +23,11 @@ var B01 = V.AI['B-01'] = {
   order: ['A', 'B', 'C'],
 
   init: function(S, e, api){
-    e.boss = true; e.static = true; e.immune = this.base.immune; e.knockback = 0;
-    e.name = this.name; e.phase = 1; e.atkIdx = 0; e.attack = null; e.cd = 1.5; e.afterSpawn = 'cool';
-    e.lines = []; e.segs = []; e.bouncePath = null; e.spin01 = 0; e.q = []; e.extraSide = 1;
-    S.boss = { id:e.id, type:'B-01', name:this.name, hp:e.hp, maxHp:e.maxHp, phase:1, attack:null, tell01:0 };
+    K.init(S, e, api, this.def);
+    e.static = true; e.lines = []; e.segs = []; e.bouncePath = null; e.spin01 = 0; e.extraSide = 1;
   },
 
-  syncBoss: function(S, e){
-    if (!S.boss || S.boss.id !== e.id) S.boss = { id:e.id, type:'B-01', name:this.name, hp:e.hp, maxHp:e.maxHp, phase:e.phase, attack:null, tell01:0 };
-    var B = S.boss; B.hp = e.hp; B.maxHp = e.maxHp; B.phase = e.phase; B.attack = e.attack; B.tell01 = e.tell01;
-  },
+  syncBoss: function(S, e){ K.syncBoss(S, e, this.def); },
 
   down: function(S, e){ return Math.atan2(S.room.h - e.y, S.room.w / 2 - e.x); },
 
@@ -80,65 +66,45 @@ var B01 = V.AI['B-01'] = {
     e.bouncePath = [{ x:x0, y:y0 }, { x:bx, y:by }, { x:bx + Math.cos(ang2) * L2, y:by + Math.sin(ang2) * L2 }];
   },
 
-  startAttack: function(S, e, api){
-    var k = this.order[e.atkIdx % 3]; e.atkIdx++;
-    e.attack = k; e.st = 'tell'; e.tell01 = 0; e.spin01 = 0;
-    e.lines = []; e.segs = []; e.bouncePath = null;
-    e.stT = api.tellT(S, k === 'A' ? this.tellA : (k === 'B' ? this.tellB : this.tellC)); e.tellT = e.stT;
-    if (k === 'A') this.planA(S, e, api);
-    if (k === 'C') this.planC(S, e, api);
-    api.ev(S, { k:'tell', x:e.x, y:e.y, id:e.id, type:e.type, attack:k, phase:e.phase });
-  },
+  startAttack: function(S, e, api){ return K.nextAttack(S, e, api, this.def); },
 
   // queue of timed shots for the act part: {t, ang, dmg, bounces}
   fireAttack: function(S, e, api){
-    var q = e.q = [], i, j, R = api.rng(S), dA = api.enemyDmg(S, this.base.dmg);
+    var q = [], i, j, R = api.rng(S), dA = api.enemyDmg(S, this.base.dmg);
     if (e.attack === 'A') {
-      for (j = 0; j < this.A.perLine; j++) for (i = 0; i < e.lines.length; i++) q.push({ t:j * this.A.gap, ang:e.lines[i].ang, dmg:dA });
+      for (j = 0; j < this.A.perLine; j++) for (i = 0; i < e.lines.length; i++) q.push({ t:j * this.A.gap, ang:e.lines[i].ang, dmg:dA, raw:true });
     } else if (e.attack === 'B') {
       var n = e.phase === 1 ? this.B.n1 : this.B.n2, dB = api.enemyDmg(S, this.scatterDmg);
       var c = api.angleTo(e, api.hero(S)) + R.range(-50, 50) * DEG;  // random arc, never a full circle
-      for (i = 0; i < n; i++) q.push({ t:this.B.dur * i / (n - 1), ang:c + R.range(-0.5, 0.5) * this.B.arc, dmg:dB });
+      for (i = 0; i < n; i++) q.push({ t:this.B.dur * i / (n - 1), ang:c + R.range(-0.5, 0.5) * this.B.arc, dmg:dB, raw:true });
     } else {
-      for (i = -1; i <= 1; i++) q.push({ t:0, ang:e.aimAng + i * this.C.fan, dmg:dA });
-      for (i = 0; i < this.C.lineN; i++) q.push({ t:this.C.lineDelay + i * this.C.lineGap, ang:e.bounceAng, dmg:dA, bounces:1 });
+      for (i = -1; i <= 1; i++) q.push({ t:0, ang:e.aimAng + i * this.C.fan, dmg:dA, raw:true });
+      for (i = 0; i < this.C.lineN; i++) q.push({ t:this.C.lineDelay + i * this.C.lineGap, ang:e.bounceAng, dmg:dA, bounces:1, raw:true });
     }
-    e.actT = 0;
+    return q;
   },
 
   step: function(S, e, dt, api){
-    var A = B01;
     e.x = e.x0 != null ? e.x0 : (e.x0 = e.x); e.y = e.y0 != null ? e.y0 : (e.y0 = e.y);  // never moves
-    if (e.phase === 1 && e.hp <= e.maxHp * 0.5) {
-      e.phase = 2; api.ev(S, { k:'bossphase', x:e.x, y:e.y, id:e.id, phase:2 });
-    }
-    var h = api.hero(S);
-    V.AIU.track(S, e, h, dt);
-    if (e.st === 'move' || e.st === 'cool') {
-      e.ang = api.angleTo(e, h); e.tell01 = 0; e.spin01 = 0; e.attack = null;
-      e.cd -= dt * V.AIU.zeroIn(e);
-      if (e.cd <= 0) A.startAttack(S, e, api);
-    } else if (e.st === 'tell') {
-      e.stT -= dt; e.tell01 = e.tellT > 0 ? 1 - Math.max(0, e.stT) / e.tellT : 1;
-      if (e.attack === 'B') e.spin01 = e.tell01;
-      if (e.attack === 'C') e.ang = e.aimAng;
-      if (e.stT <= 0) { e.st = 'act'; e.tell01 = 1; A.fireAttack(S, e, api); }
-    } else if (e.st === 'act') {
-      e.actT += dt;
-      var keep = [];
-      for (var i = 0; i < e.q.length; i++) {
-        var s = e.q[i];
-        if (s.t <= e.actT + 1e-9) api.enemyShoot(S, e, s.ang, A.shotSpeed, s.dmg, s.bounces ? { bounces:s.bounces } : undefined);
-        else keep.push(s);
-      }
-      e.q = keep;
-      if (e.attack === 'B') e.spin01 = 1;
-      if (!e.q.length) {
-        e.st = 'cool'; e.cd = e.phase === 1 ? A.base.cd : A.cd2; e.tell01 = 0;
-        e.lines = []; e.segs = []; e.bouncePath = null; e.attack = null;
-      }
-    }
-    A.syncBoss(S, e);
+    K.step(S, e, dt, api, B01.def);
+  }
+};
+
+function clearGeom(e){ e.lines = []; e.segs = []; e.bouncePath = null; }
+// kit data for B-01: same order, tells, cooldowns and hooks as the pre-kit boss.js (HASH600 / test counts held).
+// free 0: B-01 keeps its built cooldowns (1.4 s / 1.8 s base, zero-in while the Operator stands still) exactly.
+B01.def = {
+  type: 'B-01', name: B01.name, order: B01.order, phaseAt: 0.5, firstCd: 1.5,
+  cd: B01.base.cd, cd2: B01.cd2, free: 0, shotSpeed: B01.shotSpeed,
+  begin: function(S, e){ e.spin01 = 0; clearGeom(e); },
+  end: function(S, e){ clearGeom(e); },
+  cool: function(S, e){ e.spin01 = 0; },
+  attacks: {
+    A: { tell: B01.tellA, plan: function(S, e, api){ B01.planA(S, e, api); }, fire: function(S, e, api){ return B01.fireAttack(S, e, api); } },
+    B: { tell: B01.tellB, during: function(S, e){ e.spin01 = e.tell01; }, fire: function(S, e, api){ return B01.fireAttack(S, e, api); },
+         act: function(S, e){ e.spin01 = 1; } },
+    C: { tell: B01.tellC, plan: function(S, e, api){ B01.planC(S, e, api); }, during: function(S, e){ e.ang = e.aimAng; },
+         fire: function(S, e, api){ return B01.fireAttack(S, e, api); } }
   }
 };
 })();

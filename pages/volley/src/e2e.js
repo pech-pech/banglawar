@@ -619,7 +619,7 @@ async function autoWalkTest(page, cdp, cv) {
 // ---------- v2: the 20-stage chapter (no ?chlen) ----------
 // Built index.html only. Needs agent C's baked rows 11-20 (parts/data-stages-gen.js) in the build; without them every row is SKIP with the reason.
 async function v20Session(browser, target) {
-  curTag = `${target.name} 20-stage (no chlen)`;
+  curTag = `${target.name} full chapter (no chlen)`;
   const errors = [];
   const ctx = await browser.newContext({ viewport: { width: 412, height: 915 }, deviceScaleFactor: 1, hasTouch: true, isMobile: true });
   await ctx.addInitScript(INIT);
@@ -631,7 +631,7 @@ async function v20Session(browser, target) {
   } catch (e) { ok(false, 'boot (20-stage page)', e.message.split('\n')[0]); await ctx.close(); return; }
   await page.evaluate(HELPERS);   // __setTune and the other test helpers, as the other sessions load them
   const len = await page.evaluate(() => (window.V.STAGES.ch1 || []).length);
-  const names = ['stage 11 follows the stage-10 boss (no win at 10, run continues)', 'run reaches stage 20 and wins there (one win, lap 1)', 'results screen shows "/ 20" (agent J ui.js)'];
+  const names = ['stage 11 follows the stage-10 boss (no win at 10, run continues)', 'run reaches the last stage and wins there (one win, lap 1)', 'results screen shows "/ N" for the chapter length (agent J ui.js)'];
   if (len < 20) { for (const n of names) row(n, 'SKIP', `built index.html has ${len} stage rows (agent C rows 11-20 / data-stages-gen.js not in the build yet); integrator: rebuild, rerun`); await ctx.close(); return; }
   // Jump stage by stage: empty the room, step, walk onto the door; take every card and supply (test-only force-clear, as src/bot.js toStage does).
   const r = await page.evaluate(() => {
@@ -652,12 +652,12 @@ async function v20Session(browser, target) {
   });
   ok(r.at10 && r.at10.bossWin === false && r.at11 && r.at11.lap === 1, names[0], `stage 10 clear state ${JSON.stringify(r.at10)}; stage 11 first seen ${JSON.stringify(r.at11)}; stages seen ${r.seq.join(',')}`);
   const res = r.won20.result;
-  ok(r.won20.phase === 'results' && res && res.win === true && res.stage === 20 && res.lap === 1 && r.seq.join(',') === Array.from({ length: 20 }, (_, i) => i + 1).join(','), names[1], `phase ${r.won20.phase}; result ${JSON.stringify(res && { win: res.win, stage: res.stage, lap: res.lap, t: res.t })}`);
+  ok(r.won20.phase === 'results' && res && res.win === true && res.stage === len && res.lap === 1 && r.seq.join(',') === Array.from({ length: len }, (_, i) => i + 1).join(','), names[1], `phase ${r.won20.phase}; result ${JSON.stringify(res && { win: res.win, stage: res.stage, lap: res.lap, t: res.t })}`);
   await page.evaluate(() => window.__resetTune());
   await sleep(1500);
   const txt = await page.evaluate(() => [...document.querySelectorAll('.ov.on, #ovDead, #ovWin, #results')].map(e => e.textContent).join(' | ').replace(/\s+/g, ' ').slice(0, 600));
   // textContent runs labels into numbers ("reached20 / 20Time"), so match digits by lookaround, not \b
-  ok(/\/\s*20(?!\d)/.test(txt) && !/\/\s*10(?!\d)/.test(txt), names[2], `results text: ${txt.slice(0, 240)}`);
+  ok(new RegExp('\\/\\s*' + len + '(?!\\d)').test(txt) && !/\/\s*10(?!\d)/.test(txt), names[2], `results text: ${txt.slice(0, 240)}`);
   finishErrors(errors, []);
   await ctx.close();
 }

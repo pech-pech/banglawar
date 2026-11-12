@@ -8,6 +8,8 @@ var path = require('path'), fs = require('fs');
 globalThis.V = globalThis.V || {};
 var GEN = path.join(__dirname, 'parts', 'data-stages-gen.js'), HAVE_GEN = fs.existsSync(GEN);
 ['data-stages'].concat(HAVE_GEN ? ['data-stages-gen'] : [], ['data-enemies', 'rooms', 'stages', 'widen']).forEach(function (f) { require(path.join(__dirname, 'parts', f + '.js')); });
+// step 7 (K3, C3 patch): the new machine and boss parts define their own rows (V.Data.enemies[...]); load the ones present so the net knows E-06..E-08 and B-02..B-04
+['ai-p0', 'ai-p1', 'boss-kit', 'boss', 'ai-e06', 'ai-e07', 'ai-e08', 'boss-b02', 'boss-b03', 'boss-b04'].forEach(function (f) { var p = path.join(__dirname, 'parts', f + '.js'); if (fs.existsSync(p)) require(p); });
 var V = globalThis.V, W = V.Widen, ENEMIES = V.Data.enemies;
 var WIDTHS = [9, 11, 13, 15], TH = 15;
 
@@ -22,9 +24,9 @@ var T = {
   heavyHazard: 0.15,                   // X2
   eliteHazardMax: 0.15, sameTemplateMax: 10
 };
-var INTRO = { 'E-01': 1, 'E-02': 3, 'E-03': 4, 'E-04': 6, 'E-05': 7 };       // first stage (test-stages.js FIRST)
-var TYPE_CAP = { 'E-02': 4, 'E-04': 2, 'E-05': 2 };                          // CURVE caps for the built pool
-var SNIPER_IDS = [];                                                         // none in the pilot pool: "1 sniper per 6" applies once E-06+ exist
+var INTRO = { 'E-01': 1, 'E-02': 3, 'E-03': 4, 'E-04': 6, 'E-05': 7, 'E-06': 11, 'E-06h': 11, 'E-08': 13, 'E-07': 16 };       // first stage (test-stages.js FIRST)
+var TYPE_CAP = { 'E-02': 4, 'E-04': 2, 'E-05': 2, 'E-08': 1 };                          // CURVE caps for the built pool
+var SNIPER_IDS = ['E-08'];                                                         // none in the pilot pool: "1 sniper per 6" applies once E-06+ exist
 var LONG_STATIC = function (id) { var e = ENEMIES[id]; return !!(e && e.static && !e.boss && e.ai && e.ai.range >= 14); };   // E-03 turret
 var FLAT = function (id) { var e = ENEMIES[id]; return !!(e && !e.boss && e.ai && e.ai.shotSpeed && !e.ai.ringR); };         // E-02, E-03 (straight shots)
 var ELITE_STAGES = { 22: 1, 27: 1, 33: 1, 37: 1, 43: 2, 48: 2 };            // Ch1, R40

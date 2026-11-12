@@ -220,7 +220,8 @@ function findChar(grid, ch){
 
 // R64 elite machine: only E-02..E-05 (an elite flag on E-01, bosses or anything else is ignored). HP x1.5, XP x2; damage, speed, tells, cooldowns unchanged.
 // Credit drop chance x2 is carried as e.creditMul (the sim has no per-kill Credit drop yet; see ELITE-REPORT). Look: scene.js drawElite. No rng is drawn.
-var ELITE_TYPES = { 'E-02':1, 'E-03':1, 'E-04':1, 'E-05':1 }, ELITE_HP = 1.5, ELITE_XP = 2, ELITE_CREDIT = 2;
+// S7: E-07 and E-08 join (03 elites table); never E-01, E-06 / E-06h or bosses.
+var ELITE_TYPES = { 'E-02':1, 'E-03':1, 'E-04':1, 'E-05':1, 'E-07':1, 'E-08':1 }, ELITE_HP = 1.5, ELITE_XP = 2, ELITE_CREDIT = 2;
 function spawnEnemy(S, type, x, y, elite){
   var A = V.AI[type];
   if (!A) { ev(S, { k:'error', x:x, y:y, msg:'no AI for ' + type }); return null; }
@@ -230,11 +231,16 @@ function spawnEnemy(S, type, x, y, elite){
     tell01:0, aimAng:Math.PI / 2, flashT:0, size:b.size,
     spawnT:S.tune.SPAWN_T, stT:0, cd:0, contactCd:0, vx:0, vy:0, strafe:1, afterSpawn:'move' };
   if (elite) { e.elite = true; e.creditMul = ELITE_CREDIT; }
+  var prevBoss = S.boss;
   if (A.init) A.init(S, e, api);
+  if ('under' in e) e.hidden = !!e.under;   // S7 hook: see stepEnemy
   S.enemies.push(e);
   if (S.stats.seen) S.stats.seen[type] = true;
   if (e.boss) {
+    // S7 multi-body boss: a body whose e.bossGroup matches the live bar's group joins that bar (no new bar, no second 'boss' intro event).
+    if (e.bossGroup != null && prevBoss && prevBoss.group === e.bossGroup) { S.boss = prevBoss; syncBoss(S); return e; }
     S.boss = { id:e.id, type:type, name:e.name || type, hp:e.hp, maxHp:e.maxHp, phase:e.phase || 1, attack:e.attack || null, tell01:0 };
+    if (e.bossGroup != null) { S.boss.group = e.bossGroup; S.boss.groupMax = e.groupMaxHp || e.maxHp; S.boss.groupFixed = e.groupMaxHp > 0; S.boss.maxHp = S.boss.groupMax; }
     ev(S, { k:'boss', x:e.x, y:e.y, id:e.id, type:type, name:S.boss.name });
   }
   return e;
@@ -376,7 +382,9 @@ function fireBatch(S){
 }
 
 function findEnemy(S, id){ for (var i = 0; i < S.enemies.length; i++) if (S.enemies[i].id === id) return S.enemies[i]; return null; }
-function targetable(e){ return e.st !== 'spawn' && e.hp > 0 && !e.hidden; }
+// S7 hook (E-07 burrower): e.under = true makes a machine untargetable (lock, rounds, ricochet, mods), contact-free, out of body
+// separation, and immune to every damage path. The sim mirrors it into e.hidden (which mods.js and the separation passes already read).
+function targetable(e){ return e.st !== 'spawn' && e.hp > 0 && !e.hidden && !e.under; }
 
 function updateLock(S, dt){
   var h = S.hero, t = S.tune;
@@ -531,10 +539,11 @@ function stepEnemy(S, e, dt){
     if (e.boss || (e.immune && e.immune.freeze)) e.frozenT = 0; else e.frozenT = Math.max(0, e.frozenT - dt);
   }
   if (!(e.frozenT > 0) && A && A.step) A.step(S, e, dt, api);
+  if ('under' in e) e.hidden = !!e.under;   // S7 hook: only bodies that ever set e.under (none in stages 1-10)
   if (S.phase === 'results') return;
   if (!immovable(e) && !charging(e)) collideBody(S, e, e.r);
   // bodies are kept HERO_GAP apart (separate()), so touching = within the gap; a lunge/charge hits on overlap
-  if (!e.noContact && !e.hidden && b.contact > 0 && e.contactCd <= 0 &&
+  if (!e.noContact && !e.hidden && !e.under && b.contact > 0 && e.contactCd <= 0 &&
       Math.hypot(h.x - e.x, h.y - e.y) < e.r + HERO_HURT_R + (charging(e) ? 0 : HERO_GAP + 0.02)) {
     if (hurtHero(S, enemyDmg(S, b.contact), e.type, e.x, e.y)) e.contactCd = CONTACT_CD;
   }
@@ -545,7 +554,7 @@ function pairPass(S){
   var a = S.enemies;
   for (var i = 0; i < a.length; i++) for (var j = i + 1; j < a.length; j++) {
     var p = a[i], q = a[j];
-    if (p.hidden || q.hidden) continue;
+    if (p.hidden || q.hidden || p.air || q.air) continue;   // S7: an airborne body (B-02 hop, e.air) neither pushes nor is pushed
     var dx = q.x - p.x, dy = q.y - p.y, d = Math.hypot(dx, dy), m = p.r + q.r + 0.04;
     if (d >= m) continue;
     if (d < 1e-6) { dx = (p.id < q.id ? 1e-6 : -1e-6); dy = 0; d = 1e-6; }
@@ -561,7 +570,7 @@ function separate(S){
   for (it = 0; it < 3; it++) {
     for (i = 0; i < a.length; i++) for (j = i + 1; j < a.length; j++) {
       var p = a[i], q = a[j];
-      if (p.hidden || q.hidden) continue;
+      if (p.hidden || q.hidden || p.air || q.air) continue;   // S7: an airborne body (B-02 hop, e.air) neither pushes nor is pushed
       var dx = q.x - p.x, dy = q.y - p.y, d = Math.hypot(dx, dy), m = p.r + q.r + 0.04;
       if (d >= m) continue;
       if (d < 1e-6) { dx = (p.id < q.id ? 1e-6 : -1e-6); dy = 0; d = 1e-6; }
@@ -572,7 +581,7 @@ function separate(S){
     }
     for (i = 0; i < a.length; i++) {
       var e = a[i];
-      if (charging(e) || e.hidden) continue; // a lunge/charge may pass through to hit
+      if (charging(e) || e.hidden || e.air) continue; // a lunge/charge may pass through to hit
       var gx = e.x - h.x, gy = e.y - h.y, gd = Math.hypot(gx, gy), gap = e.r + HERO_HURT_R + HERO_GAP;
       if (gd >= gap) continue;
       if (gd < 1e-6) { gx = 0; gy = (h.y > S.room.h / 2 ? -1e-6 : 1e-6); gd = 1e-6; } // pinned: push toward room centre
@@ -593,7 +602,7 @@ function separate(S){
   // final pass: settle enemy pairs once more, then the Operator yields to anything still inside the gap
   pairPass(S);
   for (i = 0; i < a.length; i++) {
-    var f = a[i]; if (charging(f) || f.hidden) continue;
+    var f = a[i]; if (charging(f) || f.hidden || f.air) continue;
     var fx = f.x - h.x, fy = f.y - h.y, fd = Math.hypot(fx, fy), fg = f.r + HERO_HURT_R + HERO_GAP;
     if (fd >= fg - 1e-3) continue;
     if (fd < 1e-6) { fx = 0; fy = 1e-6; fd = 1e-6; }
@@ -621,7 +630,7 @@ function killEnemy(S, e){
   S.stats.kills++;
   S.stats.killLog.push({ type:e.type, stage:S.stage, t:+(S.roomT).toFixed(3) });
   var others = 0; for (var oi = 0; oi < S.enemies.length; oi++) if (S.enemies[oi] !== e && S.enemies[oi].hp > 0) others++;
-  ev(S, { k:'kill', x:e.x, y:e.y, id:e.id, type:e.type, boss:!!e.boss, elite:!!e.elite, size:b.size || 'small', last:others === 0 && !(S.spawnQ && S.spawnQ.length) });
+  var kev = ev(S, { k:'kill', x:e.x, y:e.y, id:e.id, type:e.type, boss:!!e.boss, elite:!!e.elite, size:b.size || 'small', last:others === 0 && !(S.spawnQ && S.spawnQ.length) });
   if (b.xp) S.pickups.push({ x:e.x, y:e.y, kind:'xp', v:b.xp * (e.elite ? ELITE_XP : 1), life:1e9 });
   if (e.elite) S.stats.eliteKills = (S.stats.eliteKills || 0) + 1;
   if (!e.boss) {
@@ -629,11 +638,20 @@ function killEnemy(S, e){
     if (S.rng.next() < p) { var rp = dropSpot(S, e.x + 0.2, e.y); S.pickups.push({ x:rp.x, y:rp.y, kind:'repair', v:0, life:REPAIR_LIFE }); S.pity = 0; }
     else S.pity += b.size === 'small' ? REPAIR_PITY * 0.5 : REPAIR_PITY;
   } else S.stats.bossTime = +S.roomT.toFixed(2);
-  var A = V.AI[e.type]; if (A && A.onDeath) A.onDeath(S, e, api);
+  var A = V.AI[e.type], n0 = S.enemies.length;
+  if (A && A.onDeath) A.onDeath(S, e, api);
+  // S7 hooks. Mid-room spawns from onDeath (E-06 halves, boss splits) are pushed to S.enemies by spawnEnemy, so the room clears only
+  // when they are dead too; the kill event must then not say last. A boss body whose group still has a live body is not the boss
+  // death (scene big blast, audio music stop key off kill.boss): kill.boss = false, kill.bossBody = true.
+  if (S.enemies.length > n0) kev.last = false;
+  if (e.boss && e.bossGroup != null) {
+    var live = 0; for (var gi = 0; gi < S.enemies.length; gi++) { var g = S.enemies[gi]; if (g !== e && g.hp > 0 && g.bossGroup === e.bossGroup) live++; }
+    kev.bossBody = true; if (live > 0) { kev.boss = false; kev.last = false; }
+  }
   callHook(S, 'onKill', e, api);
 }
 function damageEnemy(S, e, dmg, crit, r, opts){
-  if (e.hp <= 0) return false;
+  if (e.hp <= 0 || e.under) return false;   // S7 hook: nothing hurts a burrowed machine
   var A = V.AI[e.type];
   if (A && A.onDamage) { var d2 = A.onDamage(S, e, dmg, r, api); if (typeof d2 === 'number') dmg = d2; }
   if (dmg <= 0) return false;
@@ -872,12 +890,27 @@ function nextStage(S){
 
 function syncBoss(S){
   if (!S.boss) return;
+  if (S.boss.group != null) return syncGroup(S, S.boss);
   var e = findEnemy(S, S.boss.id), B = S.boss;
   if (!e) { B.hp = 0; B.attack = null; B.tell01 = 0; return; }
   var ph = e.phase || 1;
   B.hp = e.hp; B.maxHp = e.maxHp; B.phase = ph; B.attack = e.attack || null; B.tell01 = e.tell01 || 0; B.name = e.name || B.name;
 }
 
+// S7 multi-body boss bar (B-03 splits): every live body with e.bossGroup === S.boss.group adds its hp; maxHp is the group's
+// starting HP: the first body's e.groupMaxHp (fixed), else its maxHp, raised whenever the live bodies sum higher. Phase, attack and tell come
+// from the tracked body S.boss.id; when it dies the bar follows the first live body of the group. The room clears when all are dead.
+function syncGroup(S, B){
+  var hp = 0, cur = null, first = null;
+  for (var i = 0; i < S.enemies.length; i++) {
+    var g = S.enemies[i]; if (g.hp <= 0 || g.bossGroup !== B.group) continue;
+    hp += g.hp; if (!first) first = g; if (g.id === B.id) cur = g;
+  }
+  cur = cur || first;
+  if (!cur) { B.hp = 0; B.attack = null; B.tell01 = 0; return; }
+  B.id = cur.id; B.hp = hp; if (!B.groupFixed) B.groupMax = Math.max(B.groupMax || 0, hp); B.maxHp = B.groupMax;
+  B.phase = cur.phase || 1; B.attack = cur.attack || null; B.tell01 = cur.tell01 || 0; B.name = cur.name || B.name;
+}
 // K: one fixed step of the catch room. The clock is S.mini.t, advanced here by sim steps only (R53); no hero weapon, no enemies.
 function stepCollect(S, inp){
   var dt = STEP * (S.tune.TIME_SCALE > 0 ? S.tune.TIME_SCALE : 1);

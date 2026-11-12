@@ -30,6 +30,8 @@ function check(id, what, ok, got){ rows.push([id, what, ok ? 'PASS' : 'FAIL', go
   // ---- cue table and event coverage lint (07 s10) ----
   var C = A.CUES, names = Object.keys(C);
   check('A1', 'every cue has a recipe, an id, a bus and a length', names.every(function(n){ var c = C[n]; return typeof c.fn === 'function' && /^S-\d/.test(c.id) && 'ctu'.indexOf(c.bus) >= 0 && c.d > 0; }), names.length + ' cues');
+  var ids = {}, dup = names.filter(function(n){ var d = ids[C[n].id]; ids[C[n].id] = 1; return d; });
+  check('A1', 'every cue id is unique', dup.length === 0, dup.join(',') || 'ok');
   check('A1', 'about 46+ slice cues (07 s10: F1 delivers about 46)', names.length >= 46, names.length);
   var SIM = ['fire', 'hit', 'crit', 'kill', 'hurt', 'dodge', 'lock', 'unlock', 'tell', 'door', 'room', 'levelup', 'pick', 'death', 'pickup', 'land', 'supply', 'chest', 'boss', 'bossphase', 'win', 'block', 'stun', 'dot', 'reroll'];
   var SD = ['sd:start', 'sd:catch', 'sd:dud', 'sd:miss', 'sd:tier', 'sd:end', 'sd:payout'];
@@ -40,7 +42,13 @@ function check(id, what, ok, got){ rows.push([id, what, ok ? 'PASS' : 'FAIL', go
   var badName = []; SIM.concat(SD).forEach(function(k){ A.cueFor(Object.assign({ k: k }, ev[k] || {}), null).forEach(function(c){ if (!C[c.name]) badName.push(k + '->' + c.name); }); });
   ['E-01', 'E-02', 'E-03', 'E-04', 'E-05'].forEach(function(t){ A.cueFor({ k: 'tell', type: t }, null).forEach(function(c){ if (!C[c.name]) badName.push('tell ' + t); }); });
   ['A', 'B', 'C'].forEach(function(a){ var c = A.cueFor({ k: 'tell', type: 'B-01', attack: a }, null)[0]; if (!C[c.name] || c.name !== 'warn_B-01' + a) badName.push('B-01 ' + a); });
-  check('A2', 'every mapped cue exists (incl. each slice tell and each B-01 attack)', badName.length === 0, badName.join(',') || 'ok');
+  // step 7 (AU): new machine tells, boss attack letters (B-03V falls back to B-03), E-08 lock ping
+  ['E-06', 'E-07', 'E-08'].forEach(function(t){ var c = A.cueFor({ k: 'tell', type: t }, null)[0]; if (!C[c.name] || c.name !== 'warn_' + t) badName.push('tell ' + t); });
+  if (A.cueFor({ k: 'tell', type: 'E-06h' }, null)[0].name !== 'warn_E-06') badName.push('tell E-06h');
+  [['B-03', 'B-03'], ['B-03V', 'B-03'], ['B-02', 'B-02'], ['B-04', 'B-04']].forEach(function(p){ ['A', 'B'].forEach(function(a){ var c = A.cueFor({ k: 'tell', type: p[0], attack: a }, null)[0]; if (!C[c.name] || c.name !== 'warn_' + p[1] + a) badName.push(p[0] + ' ' + a); }); });
+  if (A.cueFor({ k: 'tell', type: 'E-08', lock: true }, null)[0].name !== 'ping_E-08') badName.push('E-08 lock');
+  if (!C['pop_E-07']) badName.push('pop_E-07');
+  check('A2', 'every mapped cue exists (incl. each slice tell and each B-01 attack; step 7 E-06..E-08, B-02/B-03/B-03V/B-04 A+B, E-08 ping)', badName.length === 0, badName.join(',') || 'ok');
   var hurtUse = []; SIM.concat(SD).forEach(function(k){ if (k === 'hurt') return; A.cueFor(Object.assign({ k: k }, ev[k] || {}), null).forEach(function(c){ if (/^hurt_/.test(c.name)) hurtUse.push(k); }); });
   check('A3', 'L-PV-10: no event but hero hurt uses a hurt cue (boss phase has its own)', hurtUse.length === 0 && A.cueFor({ k: 'bossphase' })[0].name === 'boss_phase', hurtUse.join(',') || 'ok');
   check('A3', 'hurt variants: hazard, blast, contact, round', A.cueFor({ k: 'hurt', src: 'spikes' })[0].name === 'hurt_hazard' && A.cueFor({ k: 'hurt', src: 'E-04' })[0].name === 'hurt_blast' &&
