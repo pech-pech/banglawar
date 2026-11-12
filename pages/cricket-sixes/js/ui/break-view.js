@@ -10,29 +10,24 @@ function typeIcon(t) {
 export function render(el, vm, dispatch) {
   var top = vm.top || {}, bat = top.bat || [], bowl = top.bowl || [];
   var batRows = bat.map(function (p) {
-    return '<div class="row" style="min-height:56px;display:flex;align-items:center;gap:8px;min-width:0">' +
-      '<b class="name" style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(p.name) + '</b>' +
-      '<span style="display:inline-flex;align-items:center;gap:4px;white-space:nowrap">' + ico('runs') + esc(num(p, ['r', 'runs'])) + '<span class="muted">(' + esc(num(p, ['b', 'balls'])) + ')</span></span></div>';
+    return '<li class="c-row row"><span class="c-row__body"><b class="c-row__title name">' + esc(p.name) + '</b></span>' +
+      '<span class="c-row__end">' + ico('runs') + '<b>' + esc(num(p, ['r', 'runs'])) + '</b><span class="c-row__sub">(' + esc(num(p, ['b', 'balls'])) + ')</span></span></li>';
   }).join('');
   var bowlRows = bowl.map(function (p) {
-    return '<div class="row" style="min-height:56px;display:flex;align-items:center;gap:8px;min-width:0">' +
-      ico(typeIcon(p.bowl || p.type)) +
-      '<b class="name" style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(p.name) + '</b>' +
-      '<span style="display:inline-flex;align-items:center;gap:4px;white-space:nowrap">' + ico('wicket') + esc(num(p, ['w', 'wk', 'wickets'])) + '-' + esc(num(p, ['r', 'runs'])) + '</span></div>';
+    return '<li class="c-row row">' + ico(typeIcon(p.bowl || p.type)) +
+      '<span class="c-row__body"><b class="c-row__title name">' + esc(p.name) + '</b></span>' +
+      '<span class="c-row__end">' + ico('wicket') + '<b>' + esc(num(p, ['w', 'wk', 'wickets'])) + '-' + esc(num(p, ['r', 'runs'])) + '</b></span></li>';
   }).join('');
   el.innerHTML =
-    '<div class="screen" style="display:flex;flex-direction:column;min-height:100%;max-width:100%;overflow-x:hidden">' +
-    '<div class="strip">Innings break</div>' +
-    '<div style="flex:1;min-width:0;padding:12px;display:flex;flex-direction:column;gap:12px">' +
-    '<div class="card"><div class="muted">Rival innings</div>' +
-    '<div style="font-size:32px;line-height:36px;font-weight:700">' + esc(vm.runs) + '/' + esc(vm.wk) + '</div>' +
-    '<div class="muted" style="display:flex;align-items:center;gap:6px">' + ico('overs') + esc(vm.overs) + ' overs</div></div>' +
-    '<div class="card"><div style="font-size:24px;font-weight:700">Target ' + esc(vm.target) + '</div></div>' +
-    '<div class="two-col" style="min-width:0">' +
-    '<div class="card" style="min-width:0"><div class="strip">Top batters</div>' + (batRows || '<div class="muted">No batters</div>') + '</div>' +
-    '<div class="card" style="min-width:0"><div class="strip">Top bowlers</div>' + (bowlRows || '<div class="muted">No bowlers</div>') + '</div>' +
-    '</div></div>' +
-    '<div style="position:sticky;bottom:0;padding:12px"><button type="button" class="cta" data-act="start" style="width:100%;min-height:56px">Start chase</button></div>' +
+    '<div class="screen">' +
+    '<div class="c-strip strip"><span>Innings break</span><span class="c-strip__right"><span class="c-tag">Rival innings done</span></span></div>' +
+    '<div class="c-card"><h2>Rival innings</h2>' +
+    '<h1>' + esc(vm.runs) + '/' + esc(vm.wk) + '</h1>' +
+    '<div class="c-row__sub" style="display:flex;align-items:center;gap:6px">' + ico('overs') + esc(vm.overs) + ' overs</div></div>' +
+    '<div class="c-card c-card--hl"><h2>Target ' + esc(vm.target) + '</h2><div class="c-row__sub">Beat it to win</div></div>' +
+    '<div class="c-card"><div class="c-strip strip">Top batters</div><ul class="c-list" style="list-style:none;margin:0;padding:0">' + (batRows || '<li class="c-row__sub">No batters</li>') + '</ul></div>' +
+    '<div class="c-card"><div class="c-strip strip">Top bowlers</div><ul class="c-list" style="list-style:none;margin:0;padding:0">' + (bowlRows || '<li class="c-row__sub">No bowlers</li>') + '</ul></div>' +
+    '<div class="cta"><button type="button" class="c-btn c-btn--primary c-btn--cta c-btn--block" data-act="start">Start chase</button></div>' +
     '</div>';
   el.querySelector('[data-act="start"]').addEventListener('click', function () { dispatch('StartChase', {}); });
 }
