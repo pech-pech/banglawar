@@ -247,12 +247,15 @@ function coachLine(s) {
 const drillGain = (s, id) => { const e = (s.training.weekLog || []).find((x) => x.type === 'Drill' && x.playerId === id); return e || null; };
 const rowOrder = (s) => { const six = sixIds(s); return [...six.map((id) => player(s, id)), ...mine(s).squad.filter((p) => !six.includes(p.id))]; };
 
+/** The four raw 1-99 ratings of a row, in the order the row draws them (Batting Power, Batting Skill, Bowling Speed, Bowling Skill). */
+export const ratesOf = (p) => ({ batPower: p.bp, batSkill: p.bs, bowlSpeed: p.spd, bowlSkill: p.bsk });
+
 export function trainingVM(s) {
   const six = sixIds(s);
   const rows = rowOrder(s).map((p) => {
     const g = drillGain(s, p.id);
     const status = g ? (g.gain > 0 ? '+' + g.gain : 'done') : atPeak(p) ? 'peak' : 'drill';
-    const row = { id: p.id, name: p.name, bench: !six.includes(p.id), role: p.bat, type: p.bowl, ability: shownAbility(p), max: isMax(p), grade: gradeOf(p) || '?', pips: pipsOf(p), status };
+    const row = { id: p.id, name: p.name, bench: !six.includes(p.id), role: p.bat, type: p.bowl, ability: shownAbility(p), max: isMax(p), grade: gradeOf(p) || '?', pips: pipsOf(p), status, rates: ratesOf(p) };
     if (g && g.gain > 0) row.gainRating = RATING_KEY[drillDef(g.drillId).rating];
     return row;
   });
