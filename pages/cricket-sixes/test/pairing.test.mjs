@@ -209,10 +209,12 @@ test('views: chips and found card show words, n/18, and no points', () => {
   assert.match(q, /\?/); assert.match(q, /4\/18/); assert.match(q, /not found, 4 of 18 balls/);
   const g = chipHtml({ found: true, rank: 5, grade: 'Good', combo: 'Cracker', phase: 'Early' }, 'Opener v Spin');
   assert.match(g, /Good/); assert.match(g, /combo Cracker/); assert.doesNotMatch(g, /\+\d|-\d/);
-  const html = bookHtml(vm, 'book'); assert.match(html, /Found 0 of 27/); assert.match(html, /Combos 0 of 8/); assert.match(html, /Early/); assert.match(html, /Ov 8-10/);
-  const combos = bookHtml(vm, 'combos'); assert.match(combos, /Phases/); assert.match(combos, /Not found yet/); assert.match(combos, /Rescue Act/);
+  const html = bookHtml(vm, 'book'); assert.match(html, /Found 0 of 27/); assert.match(html, /Combos 0 of 8/); assert.match(html, /Early/); assert.match(html, /Overs 8-10/); assert.match(html, /Fast.*Medium.*Spin/); assert.match(html, /batter's view/); assert.match(html, /Pick your bowler over by over to use what you've found\./);
+  const combos = bookHtml(vm, 'combos'); assert.match(combos, /Phases/); assert.match(combos, /Not found yet/); assert.match(combos, /Rescue Act/); assert.match(combos, /Last overs/);
+  const cb = clone(newGame('pb-8').get()); cb.book.found[cellIndex('Middle', 'Fast', 0)] = 1;
+  assert.match(bookHtml(sel.bookVM(cb), 'combos'), /Middle v Fast, early/);
   const card = foundHtml(sel.foundVM({ last: { found: [cellIndex('Opener', 'Spin', 0)] } })[0]);
-  assert.match(card, /Pairing found/); assert.match(card, /Opener v Spin, early/); assert.match(card, /Good/); assert.match(card, /Combo: Cracker/); assert.match(card, /Saved in your Pairing Book/);
+  assert.match(card, /Pairing found/); assert.match(card, /Opener v Spin, early/); assert.match(card, /Good/); assert.match(card, /Combo: Cracker/); assert.match(card, /Saved in your Book/); assert.match(card, /batter's view/);
   assert.doesNotMatch(card, /\+\d|points/);
 });
 
@@ -258,4 +260,23 @@ test('migration step keeps its own 27 equal to the Book size', () => {
 
 test('NewGame has an empty Book', () => {
   const s = newGame('pb-11').get(); assert.deepEqual(s.book, newBook());
+});
+
+test('found card: 1, 2 and 3 finds give one card with one title, one row per find, one saved line', () => {
+  const f = (...cells) => sel.foundVM({ last: { found: cells } });
+  const one = foundHtml(f(0)), two = foundHtml(f(0, 6)), three = foundHtml(f(0, 6, 20));
+  for (const h of [one, two, three]) { assert.equal((h.match(/bk-found"/g) || []).length, 1); assert.equal((h.match(/Saved in your Book/g) || []).length, 1); }
+  assert.match(one, /Pairing found/); assert.doesNotMatch(one, /Pairings found/);
+  assert.match(two, /Pairings found/); assert.match(three, /Pairings found/);
+  assert.equal((one.match(/class="bk-fr"/g) || []).length, 1); assert.equal((two.match(/class="bk-fr"/g) || []).length, 2); assert.equal((three.match(/class="bk-fr"/g) || []).length, 3);
+  assert.match(two, /Combo: Cracker/);
+});
+
+test('ball why lines say matchup, never pairing or Tough', async () => {
+  const { whyLine } = await import('../js/ui/why.js');
+  const base = { eff: { bp: 50, bs: 50, spd: 50, bsk: 50 }, batHome: false, bowlHome: false };
+  const out = [];
+  for (const step of [-1, 1]) for (const o of ['W', 0, 1, 2, 4, 6]) for (let n = 1; n <= 12; n++) out.push(whyLine({ n: `3.${n}`, o, intent: 'R', field: 'P', ph: 0, bowlType: 'Fast', pr: { ...base, step, p: { wicket: 0.2 } } }, 'Ravi', 'Okoro'));
+  assert.ok(out.some((l) => /matchup/i.test(l)));
+  assert.ok(out.every((l) => !/pairing|tough/i.test(l)), out.filter((l) => /pairing|tough/i.test(l)).join('|'));
 });

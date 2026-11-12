@@ -357,6 +357,9 @@
   ICONS.pennant = ['.oo.........', '.otoo.......', '.otggoo.....', '.otgwggoo...', '.otgwgggGoo.', '.otggggGGGGo', '.otgggGGoo..', '.otgGGoo....', '.otoo.......', '.oto........', '.oto........', '.ooo........'];
   /* rematch = circular arrow, accent ring on outline (same seed rematch button); added QA f-first-session 2026-11-12 */
   ICONS.rematch = ['......oo....', '...oooaoo...', '..oaaaaaao..', '.oaooooaoo..', 'oaoo..oo....', 'oao.......o.', 'oao......oao', 'oao......oao', 'oaoo....ooao', '.oaooooooao.', '..oaaaaaao..', '...oooooo...'];
+  /* book = closed blue book with white page edge (Pairing Book); save = floppy disc (Save) */
+  ICONS.book = ['............', '.oooooooooo.', 'obbbbbbbbbbo', 'obwwwwwwwwbo', 'obbbbbbbbbbo', 'obwwwwwbbbbo', 'obbbbbbbbbbo', 'obbbbbbbbbbo', 'obbbbbbbbbbo', 'owwwwwwwwwwo', '.oooooooooo.', '............'];
+  ICONS.save = ['............', 'oooooooooo..', 'obbwwwwbboo.', 'obbwwwwbbbbo', 'obbwwwwbbbbo', 'obbbbbbbbbbo', 'obwwwwwwwwbo', 'obwwwwwwwwbo', 'obwwwwwwwwbo', 'obwwwwwwwwbo', 'oooooooooooo', '............'];
   ICONS.settings = ['....o..o....', '...onoono...', '.oonnnnnnoo.', '.onnnoonnmo.', '..onoooomo..', 'oonno..omnoo', 'onnno..ommmo', '..onoooomo..', '.onmmoommmo.', '.oommmmmmoo.', '...ommoomo..', '....o..o....'];
   var iconCache = {};
   function icon(name) {

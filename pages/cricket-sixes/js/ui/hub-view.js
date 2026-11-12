@@ -17,6 +17,11 @@ function promoHtml(pr, unlock) {
     (unlock ? '<div class="hb-next">' + ico('train', 24) + '<span><b class="lb">Next unlock</b>' + esc(unlock.name) + ': ' + unlock.left + ' drill' + (unlock.left > 1 ? 's' : '') + ' to reveal grade</span></div>' : '') + '</section>';
 }
 
+/* One hub tool: 24 px icon with a visible 14 px label under it. */
+function toolBtn(label, act, icon, aria, extra) {
+  return '<button type="button" class="c-btn hb-tool' + (extra || '') + '" data-act="' + act + '" aria-label="' + esc(aria) + '">' + ico(icon, 24) + '<span class="hb-tl">' + esc(label) + '</span></button>';
+}
+
 function sixHtml(six) {
   return '<div class="hb-sixhead">Our six · batting order</div><div class="hb-six" role="group" aria-label="Our six, batting order">' + six.map((p, i) => {
     const hid = p.grade === '?';
@@ -47,8 +52,8 @@ export function render(el, vm, dispatch) {
   el.innerHTML =
     '<div class="screen ss ss-hub hb-hub">' +
     '<div class="c-strip strip"><span class="ss-strip"><b class="rn-head">' + esc(head) + '</b><small>' + esc(sub) + '</small></span>' + helpBtn('league-table') + '</div>' +
-    '<div class="hb-tools">' + btn('Table', 'sheet:table') + '<button type="button" class="c-btn hb-book" data-act="sheet:book" aria-label="Pairing Book">' + ico('info', 20) + 'Book</button>' +
-    '<button type="button" class="c-btn ss-save hb-savebtn" data-act="sheet:save" aria-label="Save">' + ico('settings', 24) + '</button>' + tpChip(vm.tp) + '</div>' +
+    '<div class="hb-tools">' + toolBtn('Table', 'sheet:table', 'league', 'League table') + toolBtn('Book', 'sheet:book', 'book', 'Pairing Book') + toolBtn('Save', 'sheet:save', 'save', 'Save', ' ss-save') +
+    '<span class="c-chip chip m0-tp hb-tool hb-tp" aria-label="' + esc(vm.tp) + ' training points">' + ico('tp', 24) + '<span class="hb-tl"><b>' + esc(vm.tp) + '</b> TP</span></span></div>' +
     (full ? '<div class="hb-scene" aria-label="Your club ground"></div>' + promoHtml(vm.promo, vm.unlock) + sixHtml(vm.six) : '') +
     (full ? footHtml(vm, cta) : '<div class="m0-ctabar cta hb-foot">' + btn(cta.label || 'Pick your six', cta.act || 'OpenSquad', { kind: 'cta', disabled: cta.disabled, reason: cta.reason }) + '</div>') +
     '</div>';

@@ -31,15 +31,17 @@ const kind = (o) => (o === 'W' ? 'w' : o === 6 ? 's' : o === 4 ? 'f' : 'n');
  * found: pairings found this over (selectors.foundVM): a "Pairing found" card with the grade word (never a number) and an Open Book button; onBook() runs after the panel closes.
  */
 const ROLE = { Opener: 'roleOpener', Middle: 'roleMiddle', Lower: 'roleLower' }, TYPE = { Fast: 'typeFast', Medium: 'typeMedium', Spin: 'typeSpin' };
-/** One "Pairing found" card. Pure. */
-export function foundHtml(f) {
-  const chip = chipHtml({ found: true, rank: f.rank, grade: f.grade, combo: f.combo ? f.combo.name : null, phase: ['Early', 'Middle', 'Late'][f.ph] }, f.bat + ' v ' + f.bowl);
-  return '<div class="bk-found" role="status"><div class="bk-f1">' + ico('medal', 24) + 'Pairing found</div>' +
-    '<div class="bk-f2"><span class="bk-ib">' + ico(ROLE[f.bat], 24) + '</span>' + esc(f.name) + '<span class="bk-ib">' + ico(TYPE[f.bowl], 24) + '</span></div>' +
-    '<div class="bk-f3">' + chip + (f.combo ? '<span class="c-tag">' + ico('medal', 20) + 'Combo: ' + esc(f.combo.name) + '</span>' : '') + '</div>' +
-    '<p class="bk-fsub">Saved in your Pairing Book.</p></div>';
+/** One "Pairing found" card listing every cell found this over (one title, one row per find, one saved line). Pure. Takes one find or a list. */
+export function foundHtml(list) {
+  const fs = Array.isArray(list) ? list : [list];
+  const rows = fs.map((f) => {
+    const chip = chipHtml({ found: true, rank: f.rank, grade: f.grade, combo: f.combo ? f.combo.name : null, phase: ['Early', 'Middle', 'Late'][f.ph] }, f.bat + ' v ' + f.bowl, true);
+    return '<div class="bk-fr"><span class="bk-fn">' + ico(ROLE[f.bat], 20) + '<span>' + esc(f.name) + '</span></span>' + chip +
+      (f.combo ? '<span class="bk-fc">' + ico('medal', 16) + 'Combo: ' + esc(f.combo.name) + '</span>' : '') + '</div>';
+  }).join('');
+  return '<div class="bk-found" role="status"><div class="bk-f1">' + ico('book', 24) + (fs.length > 1 ? 'Pairings found' : 'Pairing found') + '</div>' + rows +
+    '<p class="bk-fsub">Saved in your Book. Grade is the batter\'s view.</p></div>';
 }
-
 export function playOverPanel({ title, balls, score, summaryLines = [], nextLabel = 'Next over', found = [], onBook, onDone }) {
   const list = (balls || []).slice(0, 6);
   const root = document.createElement('div');
@@ -81,7 +83,7 @@ export function playOverPanel({ title, balls, score, summaryLines = [], nextLabe
     lines.appendChild(li);
     for (const t of summaryLines) { const x = document.createElement('li'); x.className = 'op-line'; x.textContent = t; lines.appendChild(x); }
     if (hasFound) foot.classList.add('has-found');
-    foot.innerHTML = (hasFound ? found.map(foundHtml).join('') + `<button type="button" class="c-btn c-btn--block op-book">${ico('info', 24)}Open Book</button>` : '') +
+    foot.innerHTML = (hasFound ? foundHtml(found) + `<button type="button" class="c-btn c-btn--block op-book">${ico('book', 24)}Open Book</button>` : '') +
       `<button type="button" class="c-btn c-btn--primary c-btn--cta c-btn--block op-next">${esc(nextLabel)}</button>`;
     foot.querySelector('.op-next').addEventListener('click', exit);
     const bk = foot.querySelector('.op-book');
