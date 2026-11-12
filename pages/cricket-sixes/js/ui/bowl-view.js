@@ -129,6 +129,9 @@ export function render(el, vm, dispatch) {
     `<p><b>${POT}</b>: D low to S best.${anyBest ? ' <b class="bv-starkey" aria-hidden="true">★</b> = best overs now.' : ''}</p></div></section>` +
     `<div class="ctabar bv-cta"><button type="button" class="c-btn c-btn--primary c-btn--cta" data-bowl${vm.canBowl === false ? ' disabled' : ''}>` +
     `<span>Bowl over ${esc(vm.over)}${selB ? ':&nbsp;<span class="name">' + esc(selB.name) + '</span>' : ''}</span></button></div>`;
+  // QA r2 D8: dock the first-match card just above the Field bar, so the batters and the bowler named on the CTA stay visible
+  const fs = el.querySelector('.fs-strip'), segEl = el.querySelector('.bv-seg');
+  if (fs && segEl) { const top = segEl.getBoundingClientRect().top; if (top > 0) fs.style.bottom = Math.max(0, Math.round(window.innerHeight - top + 6)) + 'px'; }
   if (!E.__bvBound) {
     E.__bvBound = true;
     el.addEventListener('click', (e) => {

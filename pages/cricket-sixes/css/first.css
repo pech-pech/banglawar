@@ -1,5 +1,5 @@
 /* p7-first: first-match strip, Potential grade notes, ability lines. Layout only; colours come from the skin variables. */
-.fs-strip { position: fixed; z-index: 60; top: 64px; left: 8px; right: 8px; display: grid; gap: 4px; padding: 6px 8px; border: 3px solid var(--outline); background: var(--cream); box-shadow: 0 6px 0 rgba(0,0,0,.25); }
+.fs-strip { position: fixed; z-index: 60; top: auto; bottom: calc(var(--cta-bar, 88px) + 8px); left: 8px; right: 8px; display: grid; gap: 4px; padding: 6px 8px; border: 3px solid var(--outline); background: var(--cream); box-shadow: 0 6px 0 rgba(0,0,0,.25); }
 .fs-strip__head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .fs-strip__t { font: 20px/22px var(--font-head); font-weight: 400; }
 .fs-strip__skip { min-width: 72px; min-height: 56px; padding: 0 12px; font: 18px/1 var(--font-head); }
@@ -35,3 +35,7 @@
 .bv-seg .opt .bv-tip, .intent .opt .bv-tip { position: absolute; top: -13px; right: 6px; margin: 0; padding: 0 3px; z-index: 1; }
 .tr-pick .tr-top { justify-content: space-between; }
 .tr-back { min-width: 72px; min-height: 56px; padding: 0 12px; font: 18px/1 var(--font-head); }
+/* QA r2 D4: every fixed-bar screen (a .screen as the direct child of main) owns its bottom bar, so main adds no 92 px padding */
+#app:has(> .screen) { padding-bottom: 0; }
+/* QA r2 D16: on the Field bar the Tip badge sits in the button row after the label, so it covers neither the label nor the row above */
+.bv-seg .opt .bv-tip { position: static; flex: none; margin-left: 2px; }

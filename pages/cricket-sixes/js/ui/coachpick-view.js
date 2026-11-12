@@ -25,7 +25,7 @@ function card(c, on) {
     '<button type="button" class="tr-cand__pick" data-pick="' + esc(c.id) + '" aria-pressed="' + (on ? 'true' : 'false') + '" aria-label="' + esc(label) + '">' +
     '<span class="tr-cand__ico">' + deco(FOCUS_ICON[c.focus] || 'train', 36) + '</span>' +
     '<span class="tr-cand__txt"><span class="tr-cand__l1"><b class="name tr-cand__name">' + esc(c.name) + '</b><span class="c-tag">Level 3</span></span>' +
-    '<span class="tr-cand__l3">' + deco('upgrade', 20) + '<span>Better drills:</span></span>' +
+    '<span class="tr-cand__l3">' + deco('coach', 20) + '<span>Better drills:</span></span>' +
     '<span class="tr-cand__l2"><b>' + esc(termOf(c)) + '</b></span></span></button>' +
     '<button type="button" class="tr-cand__info" data-info="' + esc(c.id) + '" aria-label="Details for coach ' + esc(c.name) + '">' + deco('info', 24) + '</button></li>';
 }

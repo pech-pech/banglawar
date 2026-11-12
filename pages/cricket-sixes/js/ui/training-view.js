@@ -73,7 +73,7 @@ function planCard(vm) {
   const word = none ? (vm.done >= vm.total || vm.plan.bulk ? 'All drilled' : 'No TP left') : 'Drill all ' + P.n;
   const goAct = none ? '' : rep ? ' data-act="RepeatWeek"' : ' data-act="DrillAll" data-arg=\'{"plan":"suggested"}\'';
   const aria = none ? word : 'Drill all ' + P.n + ' players, ' + (rep ? "last week's drills" : 'suggested drills') + ', costs ' + P.cost + ' Training Points';
-  const note = !P.canRepeat ? 'No last week yet' : P.free ? 'Free this season' : P.tpLeft + ' TP left after';
+  const note = !P.canRepeat ? 'No last week yet' : P.free ? 'Free this season' : (P.tpLeft - (P.autoBench ? benchSpend(vm) : 0)) + ' TP left after week';
   return '<div class="c-card c-card--inset tr-plan" id="tr-plan"><div class="c-seg" role="group" aria-label="Plan for Drill all">' + seg + '</div>' +
     '<button type="button" class="c-btn c-btn--primary c-btn--block tr-go" data-ft="all"' + goAct + (none ? ' disabled aria-disabled="true"' : '') + ' aria-label="' + esc(aria) + '">' +
     '<span class="tr-goL">' + deco('team', 24) + '<span>' + esc(word) + '</span></span>' + (none ? '' : P.free ? '<span class="tr-chip">' + deco('tp', 24) + '<span>0</span></span>' : chip(P.cost)) + '</button>' +
@@ -101,6 +101,12 @@ let tipStep = 1;
 /** Tips scroll their target into view; put the screen back at the top when they end. */
 const toTop = () => { window.scrollTo(0, 0); [document.documentElement, document.body].forEach((e) => { if (e) e.scrollTop = 0; }); document.querySelectorAll('.screen').forEach((e) => { e.scrollTop = 0; }); };
 /** Auto-train bench cost at End week: one chip, free from season 2. */
+/** QA r2 N3: TP the bench takes at End week (after this plan), so the plan line shows the real balance. */
+function benchSpend(vm) {
+  const P = vm.plan; if (P.free) return 0;
+  const left = Math.max(0, P.tpLeft);
+  return Math.min((vm.rows || []).filter((r) => r.bench && r.status === 'drill').length, Math.floor(left / PER)) * PER;
+}
 function benchCost(vm) {
   const P = vm.plan, n = Math.min((vm.rows || []).filter((r) => r.bench && r.status === 'drill').length, Math.floor(vm.tp / PER));
   return P.free ? '<span class="tr-chip">' + deco('tp', 24) + '<span>0</span></span>' : n ? chip(n * PER) : '';
@@ -172,7 +178,7 @@ export function openHelp() {
     '<div class="tr-hh">Buttons</div>' +
     line(deco('team', 24), 'Drill all: the Six, one tap') + line(deco('rematch', 24), 'Repeat: same as last week') +
     line(deco('upgrade', 24), 'Suggested: lowest rating first') + line(deco('train', 24), 'Auto: bench drills at End week') +
-    line(deco('batPower', 24), 'Ability: four ratings blended') +
+    line(deco('medal', 24), 'Ability: four ratings blended') +
     '<div class="tr-hh">Icons</div>' +
     RK.map((k) => line(deco(RATING_ICON[k], 24), RATING_WORD[k])).join('') +
     [['opener', 'Opener'], ['middle', 'Middle'], ['lower', 'Lower']].map((r) => line(deco(roleIcon(r[0]), 24), r[1] + ' bat')).join('') +
