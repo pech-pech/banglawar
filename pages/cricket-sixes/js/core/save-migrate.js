@@ -1,6 +1,7 @@
 // @ts-check
 // Save envelope, checksum and version migration. Pure: no storage, no clock, no rng. Never mutates its input.
-export const VERSION = 3;
+import { applyTag } from './tags.js';
+export const VERSION = 4;
 
 /** fnv1a 32-bit of a string, as 8 hex digits. @param {string} str */
 export function fnv1a(str) {
@@ -37,6 +38,12 @@ const STEPS = {
   },
   // v2 -> v3: add the Pairing Book (P4). 27 cells, none seen yet (balls faced before this version were not counted). 27 = CELLS in core/pairing.js (a test keeps them equal).
   2: (data) => ({ ...data, v: 3, book: { balls: Array(27).fill(0), found: Array(27).fill(0) } }),
+  // v3 -> v4: rival style tags (P9). AI clubs c1..c3 get the league's named, tagged rivals and the tag offsets (once; a tagged club is skipped).
+  3: (data) => {
+    const league = (isObj(data.season) && Number.isInteger(data.season.league) ? data.season.league : isObj(data.run) && Number.isInteger(data.run.league) ? data.run.league : 1);
+    const clubs = Array.isArray(data.clubs) ? data.clubs.map((c) => (isObj(c) && /^c[1-3]$/.test(c.id) && Array.isArray(c.squad) ? applyTag(c, league, Number(c.id.slice(1))) : c)) : data.clubs;
+    return { ...data, v: 4, clubs };
+  },
 };
 
 /**

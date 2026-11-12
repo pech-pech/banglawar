@@ -166,7 +166,7 @@ function newGame(payload) {
   const clubs = makeClubs(makeRng(`${seed}|clubs`), SEASON);
   const season = newSeasonData(seed, 1, clubs);
   return {
-    v: 3, salt: '', seed, stage: 'hub', ...blankMatch(), run: newRun(seed), book: newBook(),
+    v: 4, salt: '', seed, stage: 'hub', ...blankMatch(), run: newRun(seed), book: newBook(),
     season, clubs, plan: { overs: DEFAULT_OVERS.slice(), fields: NEUTRAL_FIELDS(), edited: false, key: '' },
     coaches: makeCandidates(makeRng(`${seed}|coaches`)), coachPicked: false, nets: 1,
     training: { tp: 450, week: 1, drilled: {}, nodeBought: {}, last: null, weekLog: [], weekStart: {}, drillCount: 0 },

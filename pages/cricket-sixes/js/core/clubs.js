@@ -2,6 +2,7 @@
 // AI club generator (League 1, squads of 10) and the AI six pick. Pure and seeded: all randomness comes from the passed rng.
 import { rollPotential, capSum, batPart, bowlPart } from './ability.js';
 import { CLUB_NAMES, SURNAMES, ME_CLUB } from '../data/names.js';
+import { applyTag } from './tags.js';
 
 const clamp = (/** @type {number} */ v, /** @type {number} */ lo, /** @type {number} */ hi) => Math.min(hi, Math.max(lo, v));
 const ROLE_RANK = { Opener: 0, Middle: 1, Lower: 2 };
@@ -32,7 +33,7 @@ export function makeClubs(rng, D) {
   const clubNames = rng.shuffle(CLUB_NAMES.slice());
   const offsets = rng.shuffle(D.clubOffsets.slice());
   let nextName = 0;
-  return Array.from({ length: D.teams }, (_, ci) => {
+  const made = Array.from({ length: D.teams }, (_, ci) => {
     const id = `c${ci}`;
     const mine = ci === 0;
     const mean = D.league.ratingMean + (mine ? 0 : offsets[ci - 1]);
@@ -54,6 +55,9 @@ export function makeClubs(rng, D) {
     }
     return club;
   });
+  // P9: AI clubs c1..c3 are the league's three tagged rivals. Done after all rng draws, so nothing else in the draw order moves.
+  for (let ci = 1; ci <= 3 && ci < made.length; ci++) applyTag(made[ci], D.league.number, ci);
+  return made;
 }
 
 /**

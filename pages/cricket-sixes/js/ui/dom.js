@@ -83,3 +83,8 @@ export function bindActs(root, dispatch, open) {
     if ((e.key === 'Enter' || e.key === ' ') && e.target.getAttribute && e.target.getAttribute('role') === 'button') { e.preventDefault(); fire(e); }
   });
 }
+
+/** Rival style tag chip: scout icon plus the tag in words (never colour alone). tag = { chip, hint } from tagInfo(), or null. */
+export function tagChip(tag) {
+  return tag ? '<span class="rv-tag">' + icoDeco('scout', 16) + '<b>' + esc(tag.chip) + '</b></span>' : '';
+}

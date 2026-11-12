@@ -89,3 +89,12 @@ table.ss-table:not(.ss-table--ties) th:last-child, table.ss-table:not(.ss-table-
 table.ss-table:not(.ss-table--ties) th:last-child, table.ss-table:not(.ss-table--ties) td:last-child { width: 56px; overflow: visible; text-overflow: clip; }
 /* QA r2 N6: "Table" button with side padding */
 .ss-row2 > [data-act="sheet:table"] { padding: 0 20px; }
+
+/* P9: rival style tag chip: a flat label (icon + words), not a button. 14 px text. */
+.rv-tag { display: inline-flex; align-items: center; gap: 4px; flex: none; padding: 0; min-height: 18px; background: none; border: 0; box-shadow: none; font: 14px/18px var(--font-body); white-space: nowrap; }
+.rv-tag b { font-weight: 400; }
+.rv-tag img { flex: none; image-rendering: pixelated; }
+.ss-rv { display: inline-block; vertical-align: middle; margin-left: 2px; }
+.ss-club--tag .name { display: inline; font-size: 14px; line-height: 16px; }
+.ss-club--tag .ss-rv { display: block; margin: 0; }
+.ss-table td.ss-club--tag { white-space: normal; overflow: visible; padding-top: 2px; padding-bottom: 2px; }
