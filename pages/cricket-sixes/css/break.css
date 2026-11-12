@@ -10,7 +10,7 @@
 .skin-art .brk .brk-card { outline-width: 2px; outline-offset: -6px; }
 .brk-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; min-height: 28px; padding: 0 2px 2px; border-bottom: 2px solid var(--outline); }
 .brk-head h3 { margin: 0; font-size: 18px; line-height: 24px; }
-.brk-head span { font-size: 13px; line-height: 18px; opacity: .8; }
+.brk-head span { font-size: 14px; line-height: 18px; opacity: .8; }
 .brk-row { display: flex; align-items: center; flex-wrap: nowrap; gap: 8px; min-height: 56px; padding: 0 2px; border-bottom: 1px solid var(--wall1); }
 .brk-row:last-child { border-bottom: 0; }
 .brk-name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 18px; }

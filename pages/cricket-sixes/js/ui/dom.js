@@ -1,0 +1,81 @@
+// Shared view helpers (contract section 6; frozen). Each returns trusted markup; pass user text through esc().
+export function esc(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+    return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+  });
+}
+
+export function ico(name, size) {
+  const w = typeof window !== 'undefined' ? window : null;
+  const i = w && w.SPR && w.SPR.iconImg ? w.SPR.iconImg(name, size || 24) : null;
+  return i ? i.outerHTML : '';
+}
+
+function argAttr(arg) { return arg === undefined ? '' : ' data-arg="' + esc(JSON.stringify(arg)) + '"'; }
+
+export function btn(label, act, o) {
+  o = o || {};
+  const kind = o.kind || 'plain';
+  const cls = 'c-btn' + (kind === 'cta' ? ' c-btn--primary c-btn--cta c-btn--block' : kind === 'primary' ? ' c-btn--primary' : '');
+  const dis = o.disabled ? ' disabled aria-disabled="true"' : '';
+  const reason = o.disabled && o.reason ? '<span class="m0-warn" role="note">' + esc(o.reason) + '</span>' : '';
+  const b = '<button type="button" class="' + cls + '" data-act="' + esc(act) + '"' + argAttr(o.arg) + dis + '>' + esc(label) + '</button>';
+  return reason ? '<span class="m0-btnwrap">' + reason + b + '</span>' : b;
+}
+
+export function ctaBar(main, second) {
+  return '<div class="m0-ctabar cta">' + (second ? '<div class="m0-ctabar__2">' + second + '</div>' : '') + main + '</div>';
+}
+
+export function row(o) {
+  o = o || {};
+  const tap = o.act ? ' c-row--tap" role="button" tabindex="0" data-act="' + esc(o.act) + '"' + argAttr(o.arg) : '"';
+  return '<li class="c-row m0-row' + tap + '>' +
+    '<span class="c-row__body"><span class="c-row__title name">' + esc(o.title) + '</span>' +
+    (o.sub ? '<span class="c-row__sub">' + esc(o.sub) + '</span>' : '') + '</span>' +
+    (o.right ? '<span class="c-row__end">' + o.right + '</span>' : '') + '</li>';
+}
+
+export function gradeChip(grade, pips) {
+  const n = Math.max(0, Math.min(5, Number(pips) || 0));
+  if (grade == null || grade === '' || grade === '?') {
+    let dots = '';
+    for (let k = 0; k < 5; k++) dots += '<i class="m0-pip' + (k < n ? ' is-on' : '') + '"></i>';
+    return '<span class="m0-grade m0-grade--hidden" role="img" aria-label="Grade shows after 5 drills. ' + n + ' of 5 drills done">' +
+      '<span class="c-tag m0-qtag">?</span><span class="m0-pips" aria-hidden="true">' + dots + '</span>' +
+      '<span class="m0-pipn">' + n + '/5</span></span>';
+  }
+  return '<span class="m0-grade" role="img" aria-label="Grade ' + esc(grade) + '"><span class="c-chip c-chip-grade chip-grade">' + esc(grade) + '</span></span>';
+}
+
+export function peakTag() {
+  return '<span class="c-tag c-tag--go m0-peak" aria-label="At peak">' + ico('peak', 16) + 'Peak</span>';
+}
+
+export function abilityCell(n, max) {
+  if (max) {
+    return '<span class="m0-abil m0-max" aria-label="' + esc(n) + ', max. Capped at potential ' + esc(n) + '">' +
+      '<b>' + esc(n) + '</b><span class="c-tag m0-maxtag">max</span><span class="m0-cap">Capped at potential ' + esc(n) + '</span></span>';
+  }
+  return '<span class="m0-abil"><b>' + esc(n) + '</b></span>';
+}
+
+export function tpChip(n) {
+  return '<span class="c-chip chip m0-tp" aria-label="' + esc(n) + ' training points">' + ico('tp', 16) + '<b>' + esc(n) + '</b> TP</span>';
+}
+
+export function bindActs(root, dispatch, open) {
+  function fire(e) {
+    const t = e.target.closest && e.target.closest('[data-act]');
+    if (!t || !root.contains(t) || t.disabled || t.getAttribute('aria-disabled') === 'true') return;
+    const act = t.getAttribute('data-act');
+    let arg;
+    const raw = t.getAttribute('data-arg');
+    if (raw != null) { try { arg = JSON.parse(raw); } catch (_) { arg = undefined; } }
+    if (act.indexOf('sheet:') === 0) { if (open) open(act.slice(6), arg); } else dispatch(act, arg === undefined ? {} : arg);
+  }
+  root.addEventListener('click', fire);
+  root.addEventListener('keydown', function (e) {
+    if ((e.key === 'Enter' || e.key === ' ') && e.target.getAttribute && e.target.getAttribute('role') === 'button') { e.preventDefault(); fire(e); }
+  });
+}

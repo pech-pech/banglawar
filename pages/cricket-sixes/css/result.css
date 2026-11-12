@@ -11,3 +11,12 @@
 .res-score { font-family: var(--font-head); font-size: 52px; line-height: 56px; font-weight: 400; }
 .res-in { font-size: 16px; line-height: 20px; }
 .res { padding-bottom: calc(var(--bar-h) + 8px); }
+
+.res-tp { margin: 0; display: flex; align-items: center; justify-content: center; gap: 6px; font-size: 18px; line-height: 22px; }
+.res-tp span { font-size: 14px; }
+.res-kind { margin: 0; font-size: 18px; line-height: 22px; }
+/* D11: kind + TP lines added, so tighten the hero and scores to keep the feedback card and CTA on screen */
+.res .res-hero { padding: 8px 12px; gap: 4px; }
+.res-score { font-size: 44px; line-height: 48px; }
+.res-row { padding: 2px 0; }
+.res .res-card { padding: 6px 12px; }

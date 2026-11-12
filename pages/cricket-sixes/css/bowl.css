@@ -50,8 +50,8 @@
 .bv-cta .c-btn .name { font-size: inherit; line-height: inherit; }
 /* star badge sits on the Grade box corner (still inside the player's box), so the type line keeps its width */
 #app .bv-colL .gr { position: relative; }
-.bv-colL .gr .bv-best { position: absolute; bottom: 1px; left: 2px; font-size: 10px; line-height: 10px; padding: 0; background: none; border: 0; }
-.rbox.r-unk .w { font: 13px/14px var(--font-body); text-align: center; padding: 0 2px; }
+.bv-colL .gr .bv-best { position: absolute; bottom: 1px; left: 2px; font-size: 14px; line-height: 14px; padding: 0; background: none; border: 0; }
+.rbox.r-unk .w { font: 14px/15px var(--font-body); text-align: center; padding: 0 2px; }
 /* column-header batter boxes: name, role, runs (balls), on-strike marker */
 .bv-sb { --rc: 70px; }
 /* space saved above goes to the bowler rows: taller, and the type line may wrap instead of clipping */
@@ -64,8 +64,12 @@
 .bv-head .bv-bx { align-self: stretch; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; min-width: 0; padding: 3px 2px; border: 2px solid var(--outline); background: var(--cream); text-align: center; }
 .bv-head .bv-bx.is-strike { background: var(--gold); border-width: 3px; padding: 2px 1px; }
 .bv-head .bv-vs { display: block; max-width: 100%; font: 14px/16px var(--font-body); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.bv-head .bv-bx small { font: 12px/14px var(--font-body); white-space: nowrap; }
+.bv-head .bv-bx small { font: 14px/15px var(--font-body); white-space: nowrap; }
 .bv-head .bv-runs { font: 15px/17px var(--font-head); white-space: nowrap; }
-.bv-head .bv-st { font-size: 12px; line-height: 14px; padding: 0 3px; white-space: nowrap; }
-.bv-head .bv-vs.bv-long { font-size: 12px; line-height: 16px; letter-spacing: -.2px; }
+.bv-head .bv-st { font-size: 14px; line-height: 15px; padding: 0 3px; white-space: nowrap; }
+.bv-head .bv-vs.bv-long { font-size: 14px; line-height: 16px; letter-spacing: -.3px; }
 #app .bv-colL .gr { min-width: 40px; }
+
+/* D9: star key line. The star itself stays a shape plus the words in the key. */
+.bv-starkey { font: 14px/16px system-ui, sans-serif; }
+#app .bv-colL .gr { font-size: 14px; line-height: 14px; }

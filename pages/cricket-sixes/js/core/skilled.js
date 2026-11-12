@@ -1,5 +1,6 @@
 // @ts-check
 // The "skilled" call rules, shared by tools/sweep.mjs and the playtest report (fit with the skilled bot). Pure.
+import { hybridField } from './match.js';
 // Moved here verbatim from tools/sweep.mjs so the game and the sim cannot drift apart.
 
 /** Best bowler: preview grades + in-phase bonus, tie-break on spd+bsk. s = bowl-stage state, vm = bowlVM(s). */
@@ -13,10 +14,10 @@ export function skilledBowler(s, vm) {
   return best;
 }
 
-/** Attacking field against a weak striker (bp+bs < 95), else defensive. s = bowl-stage state. */
+/** G5 hybrid field: Attack shaky batters and when wickets are down, Protect big hitters (most of all in the last 3 overs). Same rule as the rival. s = bowl-stage state. */
 export function skilledField(s) {
   const inn = s.inn1, st = s.rival.players[inn.crease[inn.strike]];
-  return st.bp + st.bs < 95 ? 'A' : 'P';
+  return hybridField(st, inn.over, inn.wk);
 }
 
 /** Chase intent from the asking rate. s = chase-stage state, vm = chaseVM(s). */

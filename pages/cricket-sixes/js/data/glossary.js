@@ -1,8 +1,8 @@
 // Cricket glossary: pure data. Mirrored in games-design/cricket-sixes/GLOSSARY.md.
 // Each entry: { id (kebab), term, short (<= 12 words), long (1-3 sentences), group }.
-export const GLOSSARY_GROUPS = ['Cricket basics', 'This game\'s format', 'Players', 'Match calls', 'Club'];
+export const GLOSSARY_GROUPS = ['Cricket basics', 'This game\'s format', 'Players', 'Match calls', 'Club', 'Season'];
 
-const B = 'Cricket basics', F = 'This game\'s format', P = 'Players', M = 'Match calls', C = 'Club';
+const B = 'Cricket basics', F = 'This game\'s format', P = 'Players', M = 'Match calls', C = 'Club', S = 'Season';
 
 export const GLOSSARY = [
   // ---- Cricket basics
@@ -97,10 +97,10 @@ export const GLOSSARY = [
   { id: 'the-call', term: 'The Call', group: M, short: 'Your decisions for the next over.',
     long: 'When bowling you pick the bowler and the field. When batting you pick the intent. Then press go.' },
   { id: 'field', term: 'Field', group: M, short: 'Where your fielders stand: Attacking or Defensive.',
-    long: 'Attacking takes more wickets but allows more boundaries. Defensive cuts boundaries but takes fewer wickets.' },
-  { id: 'field-attacking', term: 'Attacking field', group: M, short: 'More wickets, more boundaries.',
+    long: 'Attacking takes more wickets but allows more boundaries. Defensive cuts boundaries but takes fewer wickets. Attack shaky batters and when wickets are down; Protect big hitters, most of all in the last 3 overs.' },
+  { id: 'field-attacking', term: 'Attack field', group: M, short: 'More wickets, more boundaries.',
     long: 'Fielders stand close to catch edges, leaving gaps. Good when you need wickets.' },
-  { id: 'field-defensive', term: 'Defensive field', group: M, short: 'Fewer boundaries, fewer wickets.',
+  { id: 'field-defensive', term: 'Protect field', group: M, short: 'Fewer boundaries, fewer wickets.',
     long: 'Fielders guard the boundary. Good when protecting a lead.' },
   { id: 'intent', term: 'Intent', group: M, short: 'How your batters play: Defend, Rotate or Attack.',
     long: 'It changes the balance of safe runs, big hits and wickets for the whole over.' },
@@ -109,7 +109,7 @@ export const GLOSSARY = [
   { id: 'intent-rotate', term: 'Rotate', group: M, short: 'Take singles and keep the score moving.',
     long: 'A middle choice: steady runs, normal risk.' },
   { id: 'intent-attack', term: 'Attack', group: M, short: 'Go for big hits. More runs, more risk.',
-    long: 'More fours and sixes but more wickets. Use it when the chase is behind schedule.' },
+    long: 'More fours and sixes but more wickets. Use it when the chase is behind schedule. Early overs: Attack is risky. Last 3 overs: Attack is cheap.' },
   { id: 'matchup', term: 'Matchup', group: M, short: 'How one player fares against another: strong, even or weak.',
     long: 'Read "vs Brook: strong" as "this player does well against Brook". A strong matchup gives a small boost; a weak one a small penalty. On the pick screens: ▲ Good, ● OK, ▼ Poor, ★ best overs now, ? not known yet (a higher grade shows more).' },
   { id: 'matchup-grid', term: 'Matchup grid', group: M, short: 'Which batter roles beat which bowler types, and which lose.',
@@ -142,4 +142,30 @@ export const GLOSSARY = [
     long: 'Local 400 Coins, 3 candidates, 1 match away. Regional 1,200, 4, 2 matches. National 3,000, 5, 3 matches, with a 1% superstar roll. Needs scout level 1, 2 or 3.' },
   { id: 'stadium', term: 'Stadium', group: C, short: 'Your club\'s home ground, in five levels.',
     long: 'Levels 2 to 5 cost 390, 700, 1,050 and 1,540 Coins, need 310, 1,140, 2,400 and 4,080 fans, and take 1, 2, 2 and 3 matches to build. League N needs stadium level N.' },
+
+  // ---- Season
+  { id: 'season', term: 'Season', group: S, short: 'Nine league matches, then the finals for the top four.',
+    long: 'You play every other club once. After match 9 the top four play semi-finals, then a final. When it ends you can start a new season with the same squad.' },
+  { id: 'week', term: 'Week', group: S, short: 'One round of the season: you play, then train.',
+    long: 'Each week you play one match, then spend Training Points. The other clubs play each other at the same time.' },
+  { id: 'league-table', term: 'League table', group: S, short: 'All ten clubs ranked by points.',
+    long: 'Columns: P played, W won, L lost, T tied, Pts points, RD run difference. Your club is marked "You".' },
+  { id: 'league-points', term: 'Points', group: S, short: '2 for a win, 1 for a tie, 0 for a loss.',
+    long: 'Points decide the table. If two clubs have the same points, run difference decides.' },
+  { id: 'run-difference', term: 'Run difference (RD)', group: S, short: 'Runs you scored minus runs you gave away.',
+    long: 'It is the first tie-break when points are level. After that, more wins ranks higher. A plus number is good.' },
+  { id: 'top-four', term: 'Top 4', group: S, short: 'The four best clubs after nine matches.',
+    long: 'They go through to the semi-finals. Miss out and the finals are played without you, and you can watch the result.' },
+  { id: 'semi-final', term: 'Semi-final', group: S, short: '1st plays 4th and 2nd plays 3rd. Win to reach the final.',
+    long: 'One match each, no second chance. A tie goes to the club that finished higher in the table.' },
+  { id: 'final', term: 'Final', group: S, short: 'The last match. The winner is the champion.',
+    long: 'The two semi-final winners play. A tie goes to the club that finished higher in the table.' },
+  { id: 'champion', term: 'Champion', group: S, short: 'The club that wins the final.',
+    long: 'Finals pay extra Training Points: 75 for a semi-final loser, 200 for the runner-up, 400 for the champion.' },
+  { id: 'home-match', term: 'Home', group: S, short: 'Your match is always shown as the home game.',
+    long: 'Home makes no difference to the maths here. It just tells you which club is yours.' },
+  { id: 'opp-strength', term: 'Weaker, Even, Stronger', group: S, short: 'How the next club compares with yours.',
+    long: 'It compares the best six of each club. Weaker is a good draw for you; Stronger is a hard one.' },
+  { id: 'bench', term: 'Bench', group: S, short: 'Squad players who are not in your six this match.',
+    long: 'You have 10 players and pick six for each match. Bench players still train, and they can bowl or bat once you pick them.' },
 ];

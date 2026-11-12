@@ -150,7 +150,8 @@ export function render(el, vm, dispatch) {
     '<div class="sb chase" role="table" aria-label="Your batters against their likely bowlers">' + head +
     crease.map((b) => batterRow(b, cols)).join('') + '</div>' +
     '<div class="boxnote">' + (ex ? esc(ex.r + ' (' + ex.b + ') = ' + ex.r + (ex.r === 1 ? ' run' : ' runs') + ' from ' + ex.b + (ex.b === 1 ? ' ball.' : ' balls.')) : '') +
-    (hidden ? ' Grade ? = shows after 5 practice drills.' : '') + '</div>' +
+    (hidden ? ' Grade ? = shows after 5 practice drills.' : '') +
+    (crease.some((b) => (b.previews || []).some((p) => p.inPhase)) ? ' <span aria-hidden="true">★</span> = in best overs now.' : '') + '</div>' +
     '</section>' +
     '<section class="colR">' +
     '<h2 class="title ask">How should your batters play?</h2>' +

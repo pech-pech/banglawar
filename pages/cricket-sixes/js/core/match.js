@@ -6,23 +6,63 @@ const clamp = (x, lo, hi) => Math.max(lo, Math.min(hi, x));
 export const phaseOf = (over) => over <= 3 ? 0 : over <= 7 ? 1 : 2;
 export const PHASE_NAMES = ['Early', 'Middle', 'Late'];
 
-/** Effective ratings and probabilities for one ball, with the parts used for the why line. */
-export function ballProbs(b, w, ph, intent, field) {
+/** Field terms for one ball (combo_sim.ball). zh/zw use the batter's RAW bp/bs. lost = wickets lost 0-4, over = 1-10. */
+export function fieldTerms(b, field, over, lost) {
+  const G = T.G5, zh = clamp((b.bp - 50) / 8, -2, 2);
+  if (field === 'A') {
+    const zw = clamp((50 - b.bs) / 8, -2, 2), mb = Math.max(0, 1 + G.KB * zh);
+    return { w: G.W_A * Math.max(0, 1 + G.KW * zw + G.WK * lost), four: T.S4_FIELD.A * mb, six: T.S6_FIELD.A * mb };
+  }
+  if (field === 'P') {
+    const mb = Math.max(0, 1 + G.KB * zh + G.LATE * (over >= 8 ? 1 : 0));
+    return { w: T.W_FIELD.P, four: T.S4_FIELD.P * mb, six: T.S6_FIELD.P * mb };
+  }
+  return { w: 0, four: 0, six: 0 };
+}
+/** Rival's field call and the on-screen hint share this: Attack if KW*zw + WK*lost - KB*zh - LATE*(over>=8) > P_C, else Protect. */
+export function hybridField(b, over, lost) {
+  const G = T.G5, zh = clamp((b.bp - 50) / 8, -2, 2), zw = clamp((50 - b.bs) / 8, -2, 2);
+  return G.KW * zw + G.WK * lost - G.KB * zh - G.LATE * (over >= 8 ? 1 : 0) > G.P_C ? 'A' : 'P';
+}
+
+/**
+ * Effective ratings and probabilities for one ball, with the parts used for the why line.
+ * Signature: (b, w, ph, intent, field, fx?, over?, lost?). `fx` keeps its place (core-training hook). over = 1-10 (default: first
+ * over of phase ph), lost = wickets lost by the batting side 0-4 (default 0). Also accepted: (b, w, ph, intent, field, over, lost, fx?).
+ */
+export function ballProbs(b, w, ph, intent, field, ...args) {
+  let fx, over, lost;
+  if (typeof args[0] === 'number') [over, lost, fx] = args; else [fx, over, lost] = args;
+  over ??= [1, 4, 8][ph]; lost = Math.min(lost ?? 0, 4);
   const step = MATCH[`${b.bat}|${w.bowl}`];
-  const m = T.MATCHUP * step;
+  let m = T.MATCHUP * step;
+  let dW = 0, d6 = 0, d4 = 0, d1 = 0;
+  if (fx) {
+    // Skill-tree hook (training). Absent fx leaves every number below exactly as before.
+    const bf = fx.of(b)?.bat, wf = fx.of(w)?.bowl;
+    if (m < 0 && bf?.bad) m = Math.min(0, m + bf.bad);
+    else if (m > 0 && wf?.great) m = Math.max(0, m - wf.great);
+    const add = (e) => { if (e.k === 'wicket') dW += e.v; else if (e.k === 'six') d6 += e.v; else if (e.k === 'four') d4 += e.v; else d1 += e.v; };
+    const ok = (e, opp) => (e.ph == null || e.ph === ph) && (e.vs == null || e.vs === opp) && (e.intent == null || e.intent === intent) && (e.field == null || e.field === field);
+    for (const e of bf?.eff || []) if (ok(e, w.bowl)) add(e);
+    for (const e of wf?.eff || []) if (ok(e, b.bat)) add(e);
+    if (fx.burst && wf?.burst) dW += wf.burst;
+  }
   let bp = b.bp + m, bs = b.bs + m, spd = w.spd - m, bsk = w.bsk - m;
   const batHome = BAT_HOME[b.bat] === ph, bowlHome = BOWL_HOME[w.bowl] === ph;
   if (batHome) { bp += T.PHASE_BONUS; bs += T.PHASE_BONUS; }
   if (bowlHome) { if (w.bowl === 'Fast') spd += T.PHASE_BONUS; else bsk += T.PHASE_BONUS; }
   const C = CLAMPS;
-  const wicket = clamp(T.W_BASE + T.W_K * (spd - bs) + T.W_INT[intent] + T.W_FIELD[field], C.wicket[0], C.wicket[1]);
-  const six = clamp(T.S6_BASE + T.PW_K * (bp - bsk) + T.S6_INT[intent] + T.S6_FIELD[field], C.six[0], C.six[1]);
-  const four = clamp(T.S4_BASE + T.PW_K * (bp - bsk) + T.S4_INT[intent] + T.S4_FIELD[field], C.four[0], C.four[1]);
-  const singleRaw = clamp(T.P1_BASE + T.P1_K * (bs - bsk) + T.P1_INT[intent], C.single[0], C.single[1]);
+  const ft = fieldTerms(b, field, over, lost);
+  const xa = intent === 'A' ? T.PH_WA[ph] : 0; // Attack only, by phase index
+  const wicket = clamp(T.W_BASE + T.W_K * (spd - bs) + T.W_INT[intent] + xa + ft.w + dW, C.wicket[0], C.wicket[1]);
+  const six = clamp(T.S6_BASE + T.PW_K * (bp - bsk) + T.S6_INT[intent] + ft.six + d6, C.six[0], C.six[1]);
+  const four = clamp(T.S4_BASE + T.PW_K * (bp - bsk) + T.S4_INT[intent] + ft.four + d4, C.four[0], C.four[1]);
+  const singleRaw = clamp(T.P1_BASE + T.P1_K * (bs - bsk) + T.P1_INT[intent] + d1, C.single[0], C.single[1]);
   const two = T.P2_BASE;
   const rest = Math.max(0, 1 - wicket - six - four - two);
   const single = Math.min(singleRaw, rest);
-  return { p: { wicket, six, four, two, single }, dot: rest - single, singleRaw, eff: { bp, bs, spd, bsk }, step, batHome, bowlHome };
+  return { p: { wicket, six, four, two, single }, dot: rest - single, singleRaw, eff: { bp, bs, spd, bsk }, ft, step, batHome, bowlHome };
 }
 /** Same roll order as match_sim.ball: wicket, 6, 4, 2, single, else dot. */
 export function outcomeFromX(p, singleRaw, x) {
@@ -53,12 +93,18 @@ export function newInnings(bat, bowl, target) {
   return { runs: 0, wk: 0, balls: 0, over: 1, crease: [0, 1], strike: 0, next: 2, last: null, target, done: false, pads: FLAGS.luckyPad ? T.PAD_USES : 0, overs: [] };
 }
 /** Bowl one over. Returns the six (or fewer) balls with their parts for why lines. */
-export function playOver(rng, inn, bat, bowl, bi, intent, field) {
+export function playOver(rng, inn, bat, bowl, bi, intent, field, fx) {
   const ph = phaseOf(inn.over); const w = bowl[bi]; const balls = [];
+  let ballFx = fx;
+  if (fx && fx.of(w)?.bowl?.burst) {
+    // Burst rule (tuning burst_rule_text): once per innings, his first over in his home phase, or from over 8 if still unused. No button.
+    const used = inn.burstOver ?? 0;
+    if (used === inn.over || (used === 0 && (BOWL_HOME[w.bowl] === ph || inn.over >= 8))) { inn.burstOver = inn.over; ballFx = { of: fx.of, burst: true }; }
+  }
   w.overs += 1; inn.last = bi;
   for (let k = 0; k < 6 && !inn.done; k++) {
     const si = inn.crease[inn.strike]; const b = bat[si];
-    const pr = ballProbs(b, w, ph, intent, field);
+    const pr = ballProbs(b, w, ph, intent, field, ballFx, inn.over, inn.wk);
     let o = outcomeFromX(pr.p, pr.singleRaw, rng.random());
     inn.balls += 1; b.inn.b += 1;
     const rec = { n: `${inn.over}.${k + 1}`, o, batter: si, bowler: bi, pr, intent, field, ph };

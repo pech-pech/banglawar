@@ -1,10 +1,10 @@
 /* Chase screen (innings 2), layout B "scoreboard". Builds on css/scoreboard.css; overrides scoped to .chase-b. */
 #app:has(> .chase-b) { padding: 0; display: block; min-height: 0; }
 .chase-b { --cta-bar: 88px; display: grid; gap: 5px; padding: 0 8px calc(var(--cta-bar) + 4px); background: var(--cream); }
-.chase-b .strip { justify-content: flex-start; min-height: 58px; height: 58px; flex-wrap: nowrap; overflow: visible; padding-top: 0; padding-bottom: 0; }
+.chase-b .strip { justify-content: flex-start; min-height: 58px; height: auto; flex-wrap: nowrap; overflow: visible; padding-top: 0; padding-bottom: 0; }
 .chase-b .strip > .score { flex: none; overflow: visible; }
 .chase-b .strip .mid b { font-size: 22px; line-height: 24px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.chase-b .strip .mid span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 13px; }
+.chase-b .strip .mid span { white-space: normal; font-size: 14px; line-height: 15px; }
 .chase-b .q { height: 56px; min-height: 56px; align-self: flex-start; }
 .chase-b .title { margin: 0; }
 .chase-b .title.ask { font-size: 20px; line-height: 22px; }
