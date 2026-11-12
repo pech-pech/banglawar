@@ -33,7 +33,8 @@
   .chase-b .colL, .chase-b .colR { display: contents; }
   .chase-b .sb-row, .chase-b .sb-head { --rc: 70px; }
   .chase-b .pbox, .chase-b .rbox { min-height: 172px; }
-  .chase-b .sb { gap: 10px; }
+  .chase-b .sb { gap: 8px; }
+  .chase-b { gap: 3px; }
 }
 @media (min-width: 600px) {
   .chase-b { grid-template-columns: minmax(0, 1fr) 260px; column-gap: 16px; padding: 0 12px calc(var(--cta-bar) + 4px); align-content: start; }
