@@ -2,13 +2,13 @@
 // Port of 2026-11-12/sim/match_sim.py ball() plus innings rules. Pure and seeded.
 import { T, MATCH, BAT_HOME, BOWL_HOME, CLAMPS } from '../data/match.js';
 import { FLAGS } from '../data/flags.js';
-import { SEASON } from '../data/season.js';
+import { leagueOf } from '../data/leagues.js';
 const clamp = (x, lo, hi) => Math.max(lo, Math.min(hi, x));
 export const phaseOf = (over) => over <= 3 ? 0 : over <= 7 ? 1 : 2;
 export const PHASE_NAMES = ['Early', 'Middle', 'Late'];
 
-/** FIELD_CENTRE for a match state: the league's rival strength in a season match (L1 30), 50 for a step-0 match. Set once per match, same for both sides. */
-export const centreOf = (s) => (s && s.season ? SEASON.league.ratingMean : T.FIELD_CENTRE);
+/** FIELD_CENTRE for a match state: the season's league rival strength (L1 30 ... L5 62), 50 for a step-0 match. Set once per match, same for both sides. */
+export const centreOf = (s) => (s && s.season ? leagueOf(s.season.league || 1).ratingMean : T.FIELD_CENTRE);
 const zOf = (b, centre) => [clamp((b.bp - centre) / 8, -2, 2), clamp((centre - b.bs) / 8, -2, 2)];
 
 /** Field terms for one ball (combo_sim.ball). zh/zw use the batter's RAW bp/bs read against `centre` (FIELD_CENTRE, default 50). lost = wickets lost 0-4, over = 1-10. */

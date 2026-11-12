@@ -40,7 +40,7 @@ let shotsOk = true;
 try { mkdirSync(SHOTS, { recursive: true }); } catch (e) { shotsOk = false; console.log(`screenshots not saved (${e.message})`); }
 
 // ---- in-page audit: scroll, CTA, tap targets, text size ----
-function auditInPage() {
+function auditInPage(strict) {
   const vw = innerWidth, vh = innerHeight;
   const vis = (e) => { const r = e.getBoundingClientRect(), cs = getComputedStyle(e); return r.width > 0 && r.height > 0 && cs.visibility !== 'hidden' && cs.display !== 'none' && !e.closest('[aria-hidden="true"]'); };
   const label = (e) => (e.getAttribute('aria-label') || e.innerText || e.className || e.tagName).toString().trim().replace(/\s+/g, ' ').slice(0, 40);
@@ -68,7 +68,7 @@ function auditInPage() {
   if (bar) {
     const top = bar.getBoundingClientRect().top;
     // a scroll area (squad list, training list; body counts, it has overflow-x hidden) lets text pass under the bar by design
-    const scrolls = (e) => { for (let p = e; p && p !== document.documentElement; p = p.parentElement) { const o = getComputedStyle(p).overflowY; if ((o === 'auto' || o === 'scroll') && p.scrollHeight > p.clientHeight + 1) return true; } return false; };
+    const scrolls = (e) => { for (let p = e; p && p !== document.documentElement && !(strict && p === document.body); p = p.parentElement) { const o = getComputedStyle(p).overflowY; if ((o === 'auto' || o === 'scroll') && p.scrollHeight > p.clientHeight + 1) return true; } return false; };
     const w2 = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
     for (let n = w2.nextNode(); n; n = w2.nextNode()) {
       const t = n.nodeValue.trim(), e = n.parentElement;
@@ -79,6 +79,7 @@ function auditInPage() {
     }
     out.underCta = [...new Set(out.underCta)].slice(0, 6);
   }
+  if (strict && document.body.scrollHeight > vh + 1) out.underCta.push('body scrolls ' + (document.body.scrollHeight - vh) + ' px');
   out.small = [...new Set(out.small)].slice(0, 8); out.tiny = [...new Set(out.tiny)].slice(0, 8);
   return out;
 }
@@ -100,9 +101,10 @@ async function journey(browser, tag) {
     return JSON.stringify({ stage: s.stage, week: s.training && s.training.week, tp: s.training && s.training.tp, drilled: s.training && s.training.drilled,
       six: me && me.six, table: s.season && s.season.table, round: s.season && s.season.round, coach: s.coachPicked }); });
   const audited = new Set();
-  async function audit(key) {
+  // strict = bowl and chase: nothing may sit under the CTA bar and the body may not scroll, at scroll 0 (P2 R2 QA, D1)
+  async function audit(key, strict = false) {
     if (audited.has(key)) return; audited.add(key);
-    const a = await page.evaluate(auditInPage);
+    const a = await page.evaluate(auditInPage, strict);
     if (a.hScroll) bad(`${key}: horizontal scroll`);
     if (a.cta && a.cta.none) notes.push(`${key}: no CTA bar on this screen`);
     else if (a.cta && !a.cta.visible) bad(`${key}: main CTA "${a.cta.text}" is not fully visible without scrolling`);
@@ -126,7 +128,15 @@ async function journey(browser, tag) {
   let steps = 0, hubSeen = 0, weekDone = false, reloaded = false, matchPlayed = false;
   while (steps++ < (FULL ? 600 : 120)) {
     const st = await stage();
-    await audit(st + (st === 'hub' && hubSeen ? '#' + hubSeen : ''));
+    const strict = st === 'bowl' || st === 'chase';
+    const overNo = strict ? await page.evaluate(() => { const g = window.__store.get(); return (st2(g)).over; function st2(x) { return g.stage === 'chase' ? x.inn2 : x.inn1; } }) : 0;
+    await audit(st + (st === 'hub' && hubSeen ? '#' + hubSeen : '') + (strict ? '@over' + overNo : ''), strict);
+    if (strict && overNo <= 3) { // worst case: the same screen with hidden grades (grade ?), every extra line and button showing
+      const hid = await page.evaluate(() => { const g = window.__store.get(); const was = { d: g.me.players.map((p) => p.drillsHere), salt: g.salt }; g.me.players.forEach((p, i) => { if (i % 2 === 0) p.drillsHere = 0; }); window.__store.dispatch('Reseed', { salt: 'e2e-hid' }); return was; });
+      await settle(200); await audit(st + '-hidden@over' + overNo, true);
+      await page.evaluate((was) => { const g = window.__store.get(); g.me.players.forEach((p, i) => { p.drillsHere = was.d[i]; }); window.__store.dispatch('Reseed', { salt: was.salt }); }, hid);
+      await settle(200);
+    }
     await shot(String(steps).padStart(2, '0') + '-' + st);
     if (st === 'end') { await shot('end'); break; }
     if (st === 'coach') {
@@ -187,9 +197,66 @@ async function journey(browser, tag) {
   return { problems, notes, final, shots };
 }
 
+
+// ---- P2: season end (promoted / stayed) and Hall of Fame, drawn from stub view-models (view contract; no core needed) ----
+const stubRows = (me) => Array.from({ length: 10 }, (_, i) => ({ pos: i + 1, name: i === me ? 'Kestrel Park Kings' : 'Club ' + (i + 1), me: i === me, p: 9, w: 9 - i, l: i, pts: (9 - i) * 2, rd: 10 - i, tp: 0 }));
+const STUB_ROWS = stubRows(1);
+const STUB_END = { rows: STUB_ROWS, finals: null, champion: 'Club 1', myPlace: 2, tpWon: 120, chapter: null, lastSeason: false, cta: 'NewSeason',
+  result: { place: 2, promoted: true, toLeague: 2, stayed: false, line: 'Promoted to League 2.' } };
+const STUB_RUNEND = { score: 1800, max: 9999, seasons: 12, bestLeague: 4, titles: 3,
+  rows: [{ key: 'titles', label: 'League titles', value: 3, points: 600, maxPoints: 1500, pending: false },
+    { key: 'league', label: 'Best league', value: 4, points: 800, maxPoints: 2000, pending: false },
+    { key: 'best_player', label: 'Best player', value: 87, points: 400, maxPoints: 1000, pending: false },
+    { key: 'fans', label: 'Fans', value: '', points: 0, maxPoints: 2000, pending: true },
+    { key: 'club_build', label: 'Club buildings', value: '', points: 0, maxPoints: 1500, pending: true }],
+  chapters: [{ name: 'Name a Stand', done: true, reached: true }, { name: 'Kickoff Crest', done: false, reached: true }, { name: 'Open the Academy', done: false, reached: false }],
+  carry: [{ key: 'legend', label: 'Your legend', detail: 'Ravi, at 60% of his best', available: true }, { key: 'coach', label: 'One coach at level 2', detail: 'Pick one at the start', available: true }, { key: 'stadium', label: 'Stadium', detail: 'Comes with the stadium', available: false }], cta: 'NewRun' };
+
+async function p2Screens(browser) {
+  const problems = [], notes = [];
+  const ctx = await browser.newContext({ viewport: VIEW, deviceScaleFactor: 1 });
+  const page = await ctx.newPage();
+  page.on('pageerror', (e) => problems.push(`[p2] pageerror: ${e.message}`));
+  await page.goto(`${ORIGIN}/cricket-sixes/?seed=${SEED}`); await page.waitForTimeout(600);
+  const hasSel = await page.evaluate(async () => !!(await import('/cricket-sixes/js/store/selectors.js')).runEndVM);
+  notes.push(hasSel ? 'p2: sel.runEndVM exists (screens below still use stub view-models)' : 'p2: sel.runEndVM not there yet; screens use stub view-models');
+  const cases = [
+    ['end-promoted', 'end-view', STUB_END],
+    ['end-stayed', 'end-view', { ...STUB_END, rows: stubRows(4), myPlace: 5, result: { place: 5, promoted: false, toLeague: 1, stayed: true, line: 'Finished 5th. Top 2 go up.' } }],
+    ['end-chapter-last', 'end-view', { ...STUB_END, lastSeason: true, cta: 'RunEnd', chapter: { name: 'Name a Stand', reward: 'TP 100', feat: { text: 'Win 6 matches in a row', done: false } } }],
+    ['runend', 'runend-view', STUB_RUNEND],
+    ['hub', 'hub-view', { season: { n: 1, league: 1 }, run: { season: 1, of: 12, league: 1, chapter: null, nextChapter: { season: 3, name: 'Kickoff Crest' } }, phaseWord: 'League', round: 1, tp: 40,
+      next: { oppName: 'Club 4', kindWord: 'League match', oppStrength: 'Even' }, table5: STUB_ROWS.slice(0, 5), cta: { label: 'Pick your six' } }],
+  ];
+  for (const [name, mod, vm] of cases) {
+    await page.evaluate(async ([m, v]) => { const mm = await import('/cricket-sixes/js/ui/' + m + '.js'); mm.render(document.getElementById('app'), v, () => {}); }, [mod, vm]);
+    await page.waitForTimeout(250);
+    const a = await page.evaluate(auditInPage);
+    const bad = (m) => problems.push(`[p2] ${name}: ${m}`);
+    if (a.hScroll) bad('horizontal scroll');
+    if (!a.cta || !a.cta.visible) bad('main CTA not fully visible');
+    if (a.underCta.length) bad('text under the CTA bar: ' + a.underCta.join('; '));
+    if (a.small.length) bad('tap targets under 56 px: ' + a.small.join('; '));
+    if (a.tiny.length) bad('text under 14 px: ' + a.tiny.join('; '));
+    const text = await page.evaluate(() => document.getElementById('app').innerText);
+    if (/Top 2 go up once the stadium/.test(text)) bad('dead-end line still shown');
+    if (name === 'end-promoted' && !/promoted/i.test(text)) bad('no "Promoted" words');
+    if (name === 'end-stayed' && !/stayed/i.test(text)) bad('no "Stayed" words');
+    if (name === 'end-chapter-last' && !/see your run/i.test(text)) bad('CTA is not "See your run"');
+    if (name === 'runend' && (text.match(/coming in a later update/gi) || []).length < 2) bad('pending rows do not say "Coming in a later update"');
+    if (shotsOk) { const dir = process.env.E2E_P2_SHOTS || SHOTS; try { mkdirSync(dir, { recursive: true }); await page.screenshot({ path: `${dir}p2-${name}.png` }); } catch (e) { notes.push('p2 screenshot failed: ' + e.message); } }
+  }
+  await ctx.close();
+  return { problems, notes };
+}
+
 const browser = await chromium.launch();
 let code = 0;
 try {
+  const p2 = await p2Screens(browser);
+  p2.notes.forEach((n) => console.log('note: ' + n));
+  if (p2.problems.length) { console.log(`FAIL (P2 screens): ${p2.problems.length} problem(s)`); p2.problems.forEach((p) => console.log(' - ' + p)); code = 1; }
+  else console.log('PASS (P2 end + Hall of Fame screens at 344x780)');
   const a = await journey(browser, 'run1');
   if (a.skip) { console.log(`SKIP e2e: ${a.skip}`); }
   else {

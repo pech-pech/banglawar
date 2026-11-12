@@ -12,6 +12,8 @@ import { makeSchedule, makeTable, applyResult, placeOf, inTopFour, finalsDraw, f
 import { pickCoach, doDrill, endWeek, levelOfXp } from '../core/training.js';
 import { unlockNode, makeFx } from '../core/skills.js';
 import { defaultOvers } from '../core/plan.js';
+import { newRun, closeSeason, remakeRivals, carryOf, applyCarry } from '../core/run.js';
+import { RUN } from '../data/run.js';
 
 const ovStr = (balls) => `${Math.floor(balls / 6)}.${balls % 6}`;
 
@@ -129,10 +131,10 @@ function leagueFixture(season, round) {
   return { round, kind: 'league', opp: pair.a === ME ? pair.b : pair.a };
 }
 
-function newSeasonData(seed, n, clubs) {
+function newSeasonData(seed, n, clubs, league = 1) {
   const ids = clubs.map((c) => c.id);
   const season = {
-    n, league: SEASON.league.number, seed: n === 1 ? seed : `${seed}|s${n}`, round: 1, phase: 'league',
+    n, league, seed: n === 1 ? seed : `${seed}|s${n}`, round: 1, phase: 'league',
     fixtures: makeSchedule(ids, makeRng(`${seed}|sched|${n}`)), results: [], table: makeTable(ids), finals: null, champion: null, tpWon: 0, last: null,
   };
   return season;
@@ -145,7 +147,7 @@ function newGame(payload) {
   const clubs = makeClubs(makeRng(`${seed}|clubs`), SEASON);
   const season = newSeasonData(seed, 1, clubs);
   return {
-    v: 1, salt: '', seed, stage: 'coach', ...blankMatch(),
+    v: 2, salt: '', seed, stage: 'coach', ...blankMatch(), run: newRun(seed),
     season, clubs, plan: { overs: DEFAULT_OVERS.slice(), fields: ['A', 'A', 'A'], edited: false, key: '' },
     coaches: makeCandidates(makeRng(`${seed}|coaches`)), coachPicked: false, nets: 1,
     training: { tp: 450, week: 1, drilled: {}, nodeBought: {}, last: null, weekLog: [], weekStart: {}, drillCount: 0 },
@@ -233,7 +235,7 @@ function finishMatch(s) {
   if (fx.kind === 'league') res.winner = res.ra > res.rb ? ME : res.ra < res.rb ? fx.opp : null;
   else { res.winner = koWinner(res, placeOf(se.table, ME), placeOf(se.table, fx.opp)); outcome = res.winner === ME ? 'won' : 'lost'; }
   se.results.push(res);
-  const tp = tpAward(fx.kind, outcome);
+  const tp = tpAward(fx.kind, outcome, se.league);
   n.training.tp += tp; se.tpWon += tp;
   se.last = { kind: fx.kind, round: fx.round };
   n.fixture = null;
@@ -270,20 +272,40 @@ function finishMatch(s) {
 function nextWeek(s) {
   if (s.stage !== 'week') return s;
   const n = clone(s), se = n.season;
-  if (se.phase === 'over') { n.stage = 'end'; return n; }
+  if (se.phase === 'over') { const c = closeSeason(n); c.stage = 'end'; return c; }
   if (se.phase === 'league') { se.round += 1; n.fixture = leagueFixture(se, se.round); n.stage = 'hub'; return n; }
   n.stage = se.phase; // 'semi' or 'final': fixture was set by FinishMatch
   return n;
 }
 
 function newSeason(s) {
-  if (s.stage !== 'end' || !s.season) return s;
-  const n = clone(s);
-  n.clubs = growClubs(n.clubs, SEASON.aiGrowth);
-  n.season = newSeasonData(baseSeed(s), s.season.n + 1, n.clubs);
+  if (s.stage !== 'end' || !s.season || !s.run || s.season.n >= RUN.seasons) return s;
+  const n = clone(closeSeason(s)); // old saves reach 'end' without a closed season
+  const league = n.run.last.toLeague, nn = n.season.n + 1;
+  n.clubs = n.run.last.promoted ? remakeRivals(n.clubs, n.run.root, league, nn) : growClubs(n.clubs, SEASON.aiGrowth);
+  n.season = newSeasonData(baseSeed(s), nn, n.clubs, league);
+  n.run.n = nn; n.run.league = league;
   Object.assign(n, blankMatch());
   n.stage = 'hub';
   n.fixture = leagueFixture(n.season, 1);
+  return n;
+}
+
+function runEnd(s) {
+  if (s.stage !== 'end' || !s.season || !s.run || s.season.n < RUN.seasons) return s;
+  const n = clone(closeSeason(s));
+  n.run.ended = true; n.stage = 'runend';
+  return n;
+}
+
+/** New run: season 1, League 1, a fresh club; only the legend and one level-2 coach carry. */
+function newRunFrom(s, p) {
+  if (s.stage !== 'runend' || !s.run) return s;
+  const no = s.run.no + 1;
+  const fresh = newGame({ seed: `${s.run.root}|R${no}` });
+  const n = applyCarry(fresh, carryOf(s, p && p.coachId));
+  n.run = newRun(`${s.run.root}|R${no}`, no);
+  n.salt = s.salt;
   return n;
 }
 /** The game seed is the first season's seed; later seasons append |s<n>. */
@@ -312,6 +334,8 @@ export function applyCommand(s, cmd, payload = {}) {
     case 'EndWeek': return s.stage === 'train' ? { ...endWeek(s), stage: 'week' } : s;
     case 'NextWeek': return nextWeek(s);
     case 'NewSeason': return newSeason(s);
+    case 'RunEnd': return runEnd(s);
+    case 'NewRun': return newRunFrom(s, payload);
     case 'MakeCall': return makeCall(s, payload);
     case 'BowlOver': return bowlOver(s, payload);
     case 'StartChase': return startChase(s);

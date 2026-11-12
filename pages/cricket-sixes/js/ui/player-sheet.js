@@ -54,7 +54,7 @@ export function playerHtml(vm) {
     '<span class="tr-abil__cell"><small>Potential <span class="tr-of">/200</span></small>' + (hidden || vm.potential == null ? '<b class="tr-q">?</b>' : '<b>' + esc(vm.potential) + '</b>') + '</span></div>');
   lines.push('<p class="tr-note">' + deco('info', 20) + '<span>Ability and Potential use a 20 to 200 scale that blends the four ratings (each rating is 1 to 99).</span></p>');
   if (vm.peak) lines.push('<div class="tr-banner">' + peak() + '<span>Drills can’t raise this player now. Skill nodes still work.</span></div>');
-  if (hidden) lines.push('<p class="tr-note">' + deco('info', 20) + '<span>Grade shows after 5 drills (' + esc(vm.pips || 0) + ' done).</span></p>');
+  if (hidden) lines.push('<p class="tr-note">' + deco('info', 20) + '<span>Grade shows after 1 drill (' + esc(vm.pips || 0) + ' done).</span></p>');
   lines.push('<div class="tr-stats">' + (vm.ratings || []).map(stat).join('') + '</div>');
   if (vm.limitLine) lines.push('<p class="tr-note">' + deco('info', 20) + '<span>' + esc(vm.limitLine) + '</span></p>');
   if (vm.capLine) lines.push('<p class="tr-note">' + deco('info', 20) + '<span>' + esc(vm.capLine) + '</span></p>');

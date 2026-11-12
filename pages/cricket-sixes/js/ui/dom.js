@@ -37,13 +37,13 @@ export function row(o) {
 }
 
 export function gradeChip(grade, pips) {
-  const n = Math.max(0, Math.min(5, Number(pips) || 0));
+  const n = Math.max(0, Math.min(1, Number(pips) || 0));
   if (grade == null || grade === '' || grade === '?') {
     let dots = '';
-    for (let k = 0; k < 5; k++) dots += '<i class="m0-pip' + (k < n ? ' is-on' : '') + '"></i>';
-    return '<span class="m0-grade m0-grade--hidden" role="img" aria-label="Grade shows after 5 drills. ' + n + ' of 5 drills done">' +
+    for (let k = 0; k < 1; k++) dots += '<i class="m0-pip' + (k < n ? ' is-on' : '') + '"></i>';
+    return '<span class="m0-grade m0-grade--hidden" role="img" aria-label="Grade shows after 1 drill. ' + n + ' of 1 drill done">' +
       '<span class="m0-flat m0-flat--q">?</span><span class="m0-pips" aria-hidden="true">' + dots + '</span>' +
-      '<span class="m0-pipn">' + n + '/5</span></span>';
+      '<span class="m0-pipn">' + n + '/1</span></span>';
   }
   return '<span class="m0-grade" role="img" aria-label="Grade ' + esc(grade) + '"><span class="m0-flat m0-flat--g m0-gr-' + esc(String(grade).toUpperCase()) + '">' + esc(grade) + '</span></span>';
 }

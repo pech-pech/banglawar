@@ -37,7 +37,7 @@ function rowHtml(r) {
   const peakNow = r.status === 'peak';
   const hidden = r.grade == null || r.grade === '' || r.grade === '?';
   const label = r.name + (r.bench ? ', bench' : '') + ', ' + cap(r.role) + ', ' + cap(r.type) + ', ability ' + r.ability + (r.max ? ', capped at potential' : '') +
-    (hidden ? ', grade hidden, ' + (r.pips || 0) + ' of 5 drills' : ', grade ' + r.grade) +
+    (hidden ? ', grade hidden, ' + (r.pips || 0) + ' of 1 drill' : ', grade ' + r.grade) +
     ', ' + (r.status === 'drill' ? 'not drilled yet' : r.status === 'peak' ? 'at peak, drills cannot raise him' : r.status === 'done' ? 'done this week' : 'drilled ' + r.status);
   return '<li class="c-row m0-row c-row--tap tr-row' + (r.bench ? ' m0-row--bench' : '') + (peakNow ? ' tr-row--peak' : '') + '" role="button" tabindex="0"' +
     ' data-act="sheet:player" data-arg="' + esc(JSON.stringify({ id: r.id })) + '" aria-label="' + esc(label) + '">' +

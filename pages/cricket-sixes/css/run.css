@@ -1,0 +1,32 @@
+/* ui-run: season end result, chapter card, Hall of Fame, hub header. Prefix rn-. Kit variables only. */
+.rn-head { font-size: 19px !important; line-height: 22px !important; }
+.rn-tag { display: block; font: 14px/16px var(--font-head); font-weight: 400; text-transform: uppercase; letter-spacing: .04em; }
+.rn-result, .rn-chapter, .rn-hero { display: grid; grid-template-columns: auto minmax(0, 1fr); column-gap: 10px; align-items: center; padding: 8px 10px; }
+.rn-result.is-up { box-shadow: inset 0 0 0 3px var(--grass1); }
+.rn-line { margin: 0; font: 20px/24px var(--font-body); }
+.rn-name { display: block; font: 20px/22px var(--font-head); font-weight: 400; }
+.rn-reward, .rn-feat { display: flex; align-items: center; gap: 6px; font-size: 14px; line-height: 18px; }
+.rn-feat.is-done { font-weight: 700; }
+.rn-big { font: 44px/48px var(--font-head); font-weight: 400; }
+.rn-hero small, .rn-sub { font-size: 14px; line-height: 18px; }
+.rn-sub { margin: 0; }
+.ss-runend { --bar-h: 76px; }
+.rn-rows, .rn-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.rn-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 56px; padding: 4px 10px; background: var(--cream); border: 2px solid var(--outline); }
+.rn-row__lab, .rn-row__pts { display: flex; flex-direction: column; min-width: 0; }
+.rn-row__pts { text-align: right; flex: none; }
+.rn-row b { font: 18px/20px var(--font-head); font-weight: 400; }
+.rn-row small, .rn-li small { display: flex; align-items: center; gap: 4px; font-size: 14px; line-height: 16px; }
+.rn-row.is-pending { background: var(--stone1); border-style: dashed; opacity: .85; }
+.rn-li { display: flex; align-items: center; gap: 8px; min-height: 56px; padding: 4px 10px; background: var(--cream); border: 2px solid var(--outline); font: 16px/20px var(--font-body); }
+.rn-li span { display: flex; flex-direction: column; min-width: 0; }
+.rn-li.is-pending { background: var(--stone1); border-style: dashed; }
+
+/* end table: P column dropped (every row is the same) so the club name and the You badge fit */
+.ss-end .ss-table th:nth-child(3), .ss-end .ss-table td:nth-child(3) { display: none; }
+.ss-end .ss-table td.ss-club { width: auto; }
+.ss-end .ss-table tr.rn-go td { display: table-cell; width: auto; height: 24px; padding: 2px 4px; text-align: left; font: 14px/16px var(--font-body); font-weight: 700; border-top: 3px dashed var(--outline); }
+.ss-end .ss-table tr.rn-go img { vertical-align: middle; margin-right: 4px; }
+
+.rn-stay { color: var(--outline); flex: none; }
+.rn-li.is-reached { border-style: solid; }

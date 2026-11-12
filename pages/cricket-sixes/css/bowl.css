@@ -20,9 +20,14 @@
 /* field buttons */
 .bv-seg .opt { min-height: 56px; }
 .bv-seg .opt .icon { flex: none; width: 24px; height: 24px; }
+/* P5: field hint line and "Tip" tag (word plus star, never colour only); hidden-grade matchup note */
+.bv-tip { display: inline-flex; align-items: center; gap: 2px; margin-left: 4px; padding: 0 4px; font: 14px/18px var(--font-body); border: 2px solid var(--outline); background: var(--gold); white-space: nowrap; }
+.bv-tip .icon, .bv-tip .bv-ph { width: 16px; height: 16px; flex: none; }
+.bv-more { margin: 0; padding: 2px 4px 0; font: 14px/16px var(--font-body); }
 /* last over: one compact line + Why? */
 .bv-last { flex-wrap: nowrap; min-height: 56px; gap: 6px; }
 .bv-last-txt { flex: 1 1 auto; min-width: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 3px; }
+.bv-last--none { min-height: 24px; }
 .bv-last-k { margin-right: 2px; }
 .bv-sum { white-space: nowrap; }
 .bv-why { flex: none; min-width: 72px; min-height: 56px; height: 56px; padding: 0 10px; font: 18px/1 var(--font-head); }
@@ -53,13 +58,13 @@
 .bv-colL .gr .bv-best { position: absolute; bottom: 1px; left: 2px; font-size: 14px; line-height: 14px; padding: 0; background: none; border: 0; }
 .rbox.r-unk .w { font: 14px/15px var(--font-body); text-align: center; padding: 0 2px; }
 /* column-header batter boxes: name, role, runs (balls), on-strike marker */
-.bv-sb { --rc: 70px; }
+.bv-sb { --rc: 70px; gap: 4px; }
 /* space saved above goes to the bowler rows: taller, and the type line may wrap instead of clipping */
 #app .bv-colL .pbox, #app .bv-colL .rbox { min-height: 62px; }
 #app .bv-colL .pbox .nm { font-size: 16px; }
 #app .bv-colL .pbox .sub { white-space: normal; overflow: visible; text-overflow: clip; }
 .bv-colL .sb-row.is-off .offnote { min-height: 62px; }
-.bv-head { align-items: stretch; margin-top: 4px; }
+.bv-head { align-items: stretch; margin-top: 0; }
 .bv-head .bv-hb0 { align-self: end; }
 .bv-head .bv-bx { align-self: stretch; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; min-width: 0; padding: 3px 2px; border: 2px solid var(--outline); background: var(--cream); text-align: center; }
 .bv-head .bv-bx.is-strike { background: var(--gold); border-width: 3px; padding: 2px 1px; }
@@ -76,3 +81,6 @@
 
 /* QA r2 N3: selected row text keeps clear of the inner gold frame (frame is inset 7px) */
 #app .bv-colL .sb-row.is-selected .pbox { padding: 5px 9px; }
+/* R2 fit: the screen must not scroll or tuck text under the Bowl bar at 344x780, even with hidden grades and a last-over row */
+main:has(> .bv-strip) { gap: 2px; }
+.bv-more { padding-top: 0; }

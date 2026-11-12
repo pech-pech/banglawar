@@ -4,11 +4,11 @@ import { gradeOf, previewCount, bandOf } from '../js/core/ability.js';
 import { doDrill, endWeek } from '../js/core/training.js';
 import { game, player, me, fixed } from './_tr-fixture.mjs';
 
-test('drillsHere 0..4 hide the grade, 5 shows it', () => {
-  for (let d = 0; d < 5; d++) assert.equal(gradeOf(player({ potential: 150, drillsHere: d })), null);
-  assert.equal(gradeOf(player({ potential: 150, drillsHere: 5 })), 'S');
+test('drillsHere 0 hides the grade, 1 shows it', () => {
+  assert.equal(gradeOf(player({ potential: 150, drillsHere: 0 })), null);
+  assert.equal(gradeOf(player({ potential: 150, drillsHere: 1 })), 'S');
 });
-test('reveal happens on the 5th drill, not the 6th, and not before', () => {
+test('reveal happens on the 1st drill, not the 2nd', () => {
   let s = game({ players: [player({ potential: 130 })], tp: 450 });
   const seen = [];
   for (let wk = 1; wk <= 6; wk++) {
@@ -16,11 +16,11 @@ test('reveal happens on the 5th drill, not the 6th, and not before', () => {
     seen.push([me(s).drillsHere, s.training.last.revealed, gradeOf(me(s))]);
     s = endWeek(s);
   }
-  assert.deepEqual(seen.map((x) => x[1]), [false, false, false, false, true, false]);
-  assert.deepEqual(seen.map((x) => x[2]), [null, null, null, null, 'A', 'A']);
+  assert.deepEqual(seen.map((x) => x[1]), [true, false, false, false, false, false]);
+  assert.deepEqual(seen.map((x) => x[2]), ['A', 'A', 'A', 'A', 'A', 'A']);
 });
 test('GradeRevealed is logged with the grade and shows in the week summary', () => {
-  let s = game({ players: [player({ drillsHere: 4, potential: 105 })] });
+  let s = game({ players: [player({ drillsHere: 0, potential: 105 })] });
   s = doDrill(s, { playerId: 'p1', drillId: 'bp' }, fixed(0.1));
   const ev = s.training.weekLog.find((e) => e.type === 'GradeRevealed');
   assert.deepEqual({ ...ev }, { type: 'GradeRevealed', playerId: 'p1', grade: 'C' });
@@ -33,7 +33,7 @@ test('a locked drill is not a drill: drillsHere stays', () => {
   assert.equal(me(s).drillsHere, 4);
 });
 test('previews: 1 while hidden, then D1 C2 B3 A4 S6; band edges', () => {
-  assert.equal(previewCount(player({ potential: 185, drillsHere: 4 })), 1);
+  assert.equal(previewCount(player({ potential: 185, drillsHere: 0 })), 1);
   const want = { 99: 1, 100: 2, 111: 2, 112: 3, 123: 3, 124: 4, 139: 4, 140: 6, 185: 6 };
   for (const [P, n] of Object.entries(want)) assert.equal(previewCount(player({ potential: +P, drillsHere: 5 })), n, `P=${P}`);
   const edges = [[99, 'D'], [100, 'C'], [111, 'C'], [112, 'B'], [123, 'B'], [124, 'A'], [139, 'A'], [140, 'S'], [185, 'S']];
@@ -41,4 +41,12 @@ test('previews: 1 while hidden, then D1 C2 B3 A4 S6; band edges', () => {
 });
 test('drills at another club do not count: a new club starts at drillsHere 0 (field is per club)', () => {
   assert.equal(gradeOf(player({ potential: 150, drillsHere: 0 })), null);
+});
+test('P5: the grade reveals after 1 drill, with the reveal flag on the first drill', () => {
+  let s = game({ players: [player({ potential: 130 })], tp: 450 });
+  assert.equal(gradeOf(me(s)), null);
+  s = doDrill(s, { playerId: 'p1', drillId: 'bp' }, fixed(0.1));
+  assert.equal(me(s).drillsHere, 1);
+  assert.equal(s.training.last.revealed, true);
+  assert.equal(gradeOf(me(s)), 'A');
 });

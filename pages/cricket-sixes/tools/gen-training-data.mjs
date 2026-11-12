@@ -7,6 +7,9 @@ const grp = (o) => ({ status: o.status, source: o.source });
 const DRILLS = { ...grp(T.drills), list: T.drills.list.map((d, i) => ({ id: d.rating, name: d.name, rating: d.rating, focus: d.coach_focus, idx: i })),
   costTp: T.drills.cost_tp, outcomes: T.drills.outcomes, gains: T.drills.gains, perPlayerPerWeek: T.drills.per_player_per_week,
   balance: T.drills.balance_rule_max_above_own_lowest, hardCap: T.drills.rating_hard_cap, revealAfter: T.grades.reveal.after_drills_at_club };
+// P5 (parts/12-call-dominance.md): grade reveals after 1 drill. P5_OVERRIDES wins over tuning.json until NUMBERS folds P5 into tuning.json.
+const P5_OVERRIDES = { revealAfter: 1 }; // until NUMBERS folds P5 into tuning.json
+Object.assign(DRILLS, P5_OVERRIDES);
 const ODDS = { ...grp(T.drill_odds), netsTerm: T.drill_odds.nets_term, coachTerm: T.drill_odds.coach_term,
   table: T.drill_odds.table.map(({ nets, coach_focus, okay, good, great }) => ({ nets, coach: coach_focus, okay, good, great })) };
 const PH = (o) => (o[0] === 1 ? 0 : o[0] === 4 ? 1 : 2);   // overs [a,b] -> phase 0 early 1-3, 1 mid 4-7, 2 late 8-10
