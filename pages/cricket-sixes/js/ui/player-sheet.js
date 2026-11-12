@@ -49,12 +49,10 @@ export function playerHtml(vm) {
   lines.push('<div class="tr-who">' + (vm.age != null ? '<span>Age ' + esc(vm.age) + '</span>' : '') +
     '<span class="tr-iw">' + deco(roleIcon(vm.role), 20) + '<span>' + esc(cap(vm.role)) + '</span></span>' +
     '<span class="tr-iw">' + deco(typeIcon(vm.type), 20) + '<span>' + esc(cap(vm.type)) + '</span></span>' +
-    (vm.previews != null ? '<span>Sees ' + esc(vm.previews) + (Number(vm.previews) === 1 ? ' matchup' : ' matchups') + '</span>' : '') +
     (vm.bench ? '<span class="c-tag tr-bench">Bench</span>' : '') + '</div>');
   lines.push('<div class="tr-abil"><span class="tr-abil__cell"><small>Ability <span class="tr-of">/200</span></small>' + abilityCell(a.overall, !!vm.max) + '</span>' +
     '<span class="tr-abil__cell"><small>Potential grade</small>' + gradeChip(vm.grade, vm.pips) + (hidden ? '' : '<small class="tr-grow">how high he can grow</small>') + '</span>' +
     '<span class="tr-abil__cell"><small>Potential <span class="tr-of">/200</span></small>' + (hidden || vm.potential == null ? '<b class="tr-q">?</b>' : '<b>' + esc(vm.potential) + '</b>') + '</span></div>');
-  lines.push('<p class="tr-note">' + deco('info', 20) + '<span>Ability and Potential use a 20 to 200 scale that blends the four ratings (each rating is 1 to 99).</span></p>');
   if (vm.peak) lines.push('<div class="tr-banner">' + peak() + '<span>Drills can’t raise this player now. Skill nodes still work.</span></div>');
   if (hidden) lines.push('<p class="tr-note">' + deco('info', 20) + '<span>? = not known yet. Shows after 1 practice drill (' + esc(vm.pips || 0) + ' of 1 done).</span></p>');
   lines.push('<div class="tr-stats">' + (vm.ratings || []).map(stat).join('') + '</div>');

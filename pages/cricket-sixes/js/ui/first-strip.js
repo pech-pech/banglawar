@@ -3,13 +3,13 @@
 export const STRIP_LINES = [
   'You bowl first. Pick who bowls each over.',
   'Then you bat. Get more runs than they did.',
-  'Win or lose, your players earn practice points.',
+  'Win or lose, your players earn training points (TP).',
 ];
 
 /** @param {(s:string)=>string} esc */
 export function stripHtml(esc) {
-  return '<section class="fs-strip" aria-label="Your first match">' +
+  return '<section class="fs-strip" role="dialog" aria-label="Your first match">' +
     '<div class="fs-strip__head"><b class="fs-strip__t">Your first match</b>' +
-    '<button type="button" class="c-btn fs-strip__skip" data-strip-skip aria-label="Skip the first match tips">Skip</button></div>' +
+    '<button type="button" class="c-btn fs-strip__skip" data-strip-skip aria-label="Got it, close the first match tips">Got it</button></div>' +
     '<ol class="fs-strip__list">' + STRIP_LINES.map((l, i) => '<li><b class="fs-strip__n" aria-hidden="true">' + (i + 1) + '</b><span>' + esc(l) + '</span></li>').join('') + '</ol></section>';
 }

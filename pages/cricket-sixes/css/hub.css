@@ -78,7 +78,6 @@
 .ts-n { display: flex; align-items: center; justify-content: center; min-height: 44px; border: 2px solid var(--outline); background: var(--white); }
 .ts-n b { font: 20px/20px var(--font-head); font-weight: 400; }
 .ts-g.is-q { background: var(--stone1); border-style: dashed; }
-.ts-out { position: absolute; right: 4px; top: -2px; transform: translateY(-50%); }
 .ts-foot { position: sticky; bottom: 0; display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: var(--c-sp-2); padding: 8px 0 4px; background: var(--cream); margin-top: 4px; }
 .ts-foot .c-btn { min-height: 56px; }
 .ts-foot .c-btn:disabled { background: var(--stone1); opacity: .75; border-style: dashed; box-shadow: none; }
@@ -106,3 +105,16 @@
 .c-sheet.ts-sheet { padding-left: 10px; padding-right: 10px; }
 .ts-band { grid-template-columns: 62px minmax(0, 1fr); }
 .ts-field { padding: 0; }
+
+/* QA r1: scoreboard.css gives every <main> 92 px bottom padding; the hub is a fixed-bar screen of its own, so none (D4) */
+#app:has(> .hb-hub) { padding: 0; }
+/* D21: an open to-do is plain text, not a boxed tag that looks like a button */
+.hb-state { font-size: var(--c-fs-s); line-height: 18px; white-space: nowrap; text-align: right; }
+/* D11: "Out" sits after the name on its own dark chip */
+.ts-out { flex: none; display: inline-flex; align-items: center; gap: 3px; padding: 0 5px; min-height: 20px; background: var(--outline); color: var(--cream); font: 14px/18px var(--font-head); }
+.ts-out img { filter: none; }
+/* two-line column heads (Potential grade) get their own room instead of running into row 1 */
+.ts-cols { align-items: end; min-height: 34px; }
+.ts-cols span:nth-child(n+3) { line-height: 15px; font-size: 14px; }
+.ts-cols, .ts-row { grid-template-columns: 28px minmax(0, 1fr) 56px 56px; }
+.ts-cols span:nth-child(n+3) { text-align: center; }

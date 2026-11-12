@@ -59,9 +59,9 @@ function row(b, vm, st) {
   const best = (b.previews || []).some((p) => p.inPhase);
   const star = best ? '<span class="best bv-best" aria-hidden="true">★</span>' : '';
   const pbox = `<div class="pbox"><span class="bv-icw">${sel && ok ? '<span class="bv-tick" aria-hidden="true"></span>' : ''}${ic(TYPE[b.bowl] || 'typeMedium', 24, 'ico')}</span><span class="bv-tx"><span class="nm name">${esc(b.name)}</span>` +
-    `<span class="sub">${esc(b.bowl)}</span><span class="sub bv-ab">Bowling ${esc(b.bowlAb)}</span><span class="sub bv-ov">${esc(b.overs)} of 2 overs</span></span>` +
-    `<span class="gr${g === '?' ? ' bv-gq' : ''}"><span class="bv-gl" aria-hidden="true">${star}</span><b>${esc(g)}</b></span>${noteFor(g, st, esc)}</div>`;
-  const label = `${b.name}, ${b.bowl} bowler, bowling ${b.bowlAb}, ${b.overs} of 2 overs used, ${gradeAria(g)}` +
+    `<span class="sub">${star}${esc(b.bowl)}</span><span class="sub bv-ab">Ability ${esc(b.ability)}</span><span class="sub bv-ov">${esc(b.overs)} of 2 overs</span></span>` +
+    `<span class="gr${g === '?' ? ' bv-gq' : ''}"><b>${esc(g)}</b></span>${noteFor(g, st, esc)}</div>`;
+  const label = `${b.name}, ${b.bowl} bowler, ability ${b.ability}, ${b.overs} of 2 overs used, ${gradeAria(g)}` +
     (best ? ', in his best overs now' : '');
   if (!ok) {
     const why = REASON[b.reason] || "Can't bowl now";
@@ -121,7 +121,7 @@ export function render(el, vm, dispatch) {
     `<span class="score" aria-label="${esc(sc.runs)} runs for ${esc(sc.wk)} wickets">${esc(sc.runs)}/${esc(sc.wk)}</span>` +
     `<span class="mid"><b>Over ${esc(vm.over)} of 10</b><span>${esc(PHASE[vm.phase] || vm.phaseName)}</span></span>` +
     `<button type="button" class="q" data-gloss aria-label="Cricket words explained">?</button></header>` +
-    `<section class="colL bv-colL">${vm.firstStrip ? stripHtml(esc) : ''}` +
+    `${vm.firstStrip ? stripHtml(esc) : ''}<section class="colL bv-colL">` +
     `<div class="sb bv-sb" role="radiogroup" aria-label="Bowlers">${head(vm)}${(vm.bowlers || []).map((b) => row(b, vm, notes)).join('')}</div>${anyHidden ? `<p class="bv-more" data-more>${MORE}</p>` : ''}</section>` +
     `<section class="colR bv-colR"><div class="seg bv-seg" role="radiogroup" aria-label="Field">${seg('A', 'fieldAttack')}${seg('P', 'fieldProtect')}</div>` +
     lastLine(vm) +
@@ -133,7 +133,7 @@ export function render(el, vm, dispatch) {
     E.__bvBound = true;
     el.addEventListener('click', (e) => {
       const t = /** @type {HTMLElement} */ (e.target).closest('button'); if (!t || t.disabled || !el.contains(t)) return;
-      const d = E.__bvDispatch, v = E.__bvVM; if (!d || !v || !t.closest('.bv-strip, .bv-colL, .bv-colR, .bv-cta')) return;
+      const d = E.__bvDispatch, v = E.__bvVM; if (!d || !v || !t.closest('.bv-strip, .fs-strip, .bv-colL, .bv-colR, .bv-cta')) return;
       if (t.hasAttribute('data-bowler')) d('MakeCall', { bowler: Number(t.getAttribute('data-bowler')), field: v.call && v.call.field });
       else if (t.hasAttribute('data-field')) d('MakeCall', { bowler: v.call && v.call.bowler, field: t.getAttribute('data-field') });
       else if (t.hasAttribute('data-bowl')) d('BowlOver', {});

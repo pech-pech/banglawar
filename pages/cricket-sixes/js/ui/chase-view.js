@@ -79,7 +79,7 @@ function batterRow(b, cols, st) {
     '<div class="pbox">' + ic(ROLE_ICON[b.bat], 24) +
     '<span class="bv-tx"><span class="nm name">' + esc(b.name) + '</span>' +
     '<span class="sub">' + (best ? '<span class="best" aria-label="In best overs now">★</span> ' : '') + esc(role) + '</span>' +
-    '<span class="sub ch-ab">Batting ' + esc(b.batAb) + '</span>' +
+    '<span class="sub ch-ab">Ability ' + esc(b.ability) + '</span>' +
     '<span class="sub" aria-label="' + esc(b.r + ' runs from ' + b.b + ' balls') + '">' + esc(b.r) + (b.r === 1 ? ' run' : ' runs') + ' (' + esc(b.b) + ')</span>' +
     (b.onStrike ? '<span class="sub strike">On strike</span>' : '') + '</span>' +
     gradeBox(b.grade) + noteFor(b.grade, st, esc) + '</div>' + cells + '</div>';

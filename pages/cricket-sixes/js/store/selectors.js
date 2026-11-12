@@ -44,7 +44,7 @@ export function bowlVM(s) {
       const m = matchup('bowl', bats[bi], p, ph);
       return { name: bats[bi].name, bat: bats[bi].bat, label: m.label, g: m.g, inPhase: m.inPhase };
     });
-    return { i, name: p.name, bowl: p.bowl, overs: p.overs, eligible, reason, grade: gradeChip(p), previews, ability: shownAbility(p), bowlAb: shownBowl(p) };
+    return { i, name: p.name, bowl: p.bowl, overs: p.overs, eligible, reason, grade: gradeChip(p), previews, ability: shownAbility(p) };
   });
   const call = s.call || { bowler: el.length ? el[0] : -1, field: 'A' };
   // P5 field hint: League 1 only. TODO: or the club bought a Coach (no coach-buying code yet).
@@ -74,7 +74,8 @@ export function chaseVM(s) {
     need: Math.max(0, target - inn.runs), ballsLeft: Math.max(0, (11 - inn.over) * 6),
     score: scoreOf(inn), batNames: me.map((p) => p.name), bowlNames: ai.map((p) => p.name),
     crease: crease(inn, me, (p) => ({
-      grade: gradeChip(p), batAb: shownBat(p),
+      grade: gradeChip(p), ability: shownAbility(p), // one scale: the 20-200 overall ability, same helper as the team sheet, training and player sheet
+
       previews: aiOrder.slice(0, previewCount(p)).map((bi) => {
         const m = matchup('bat', p, ai[bi], ph);
         return { name: ai[bi].name, bowl: ai[bi].bowl, label: m.label, g: m.g, inPhase: m.inPhase };
@@ -384,7 +385,7 @@ export function clubVM(s) {
   const left = Math.max(0, SEASON.leagueMatches - (se.phase === 'league' ? se.round - 1 : SEASON.leagueMatches));
   const top = RUN.promoteTop, last = (se.league || 1) >= 5;
   const rows = [
-    { key: 'rank', title: 'Top ' + top + ' at the final', sub: left ? left + ' week' + (left > 1 ? 's' : '') + ' left' : 'Last week', state: 'todo', tag: ordinal(place) + ' now' },
+    { key: 'rank', title: 'Top ' + top + ' at the final', sub: left ? left + ' week' + (left > 1 ? 's' : '') + ' left' : 'Last week', state: 'todo', tag: se.results.some((r) => r.a === ME || r.b === ME) ? ordinal(place) + ' now' : 'Not started' },
     { key: 'stadium', title: 'Stadium ' + ((se.league || 1) + 1), sub: 'Not built yet', state: 'later', tag: 'Later' },
     { key: 'fans', title: 'Fans', sub: 'Comes with the stadium', state: 'later', tag: 'Later' },
   ];

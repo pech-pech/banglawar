@@ -13,7 +13,7 @@ const TICK = { ok: 'c-tag--done', later: 'c-tag--locked', todo: '' };
 function promoHtml(pr, unlock) {
   return '<section class="c-card hb-promo" aria-label="Promotion checklist"><h3 class="c-strip c-strip--light"><span>' + esc(pr.title) + '</span><span class="c-strip__right">' + pr.done + ' of ' + pr.total + ' done</span></h3>' +
     pr.rows.map((r) => '<div class="hb-check">' + ico(r.key === 'rank' ? 'league' : r.key === 'stadium' ? 'home' : 'fan', 24) +
-      '<span>' + esc(r.title) + '<span class="sub">' + esc(r.sub) + '</span></span><span class="c-tag ' + (TICK[r.state] || '') + '">' + esc(r.tag) + '</span></div>').join('') +
+      '<span>' + esc(r.title) + '<span class="sub">' + esc(r.sub) + '</span></span>' + (r.state === 'todo' ? '<span class="hb-state">' + esc(r.tag) + '</span>' : '<span class="c-tag ' + (TICK[r.state] || '') + '">' + esc(r.tag) + '</span>') + '</div>').join('') +
     (unlock ? '<div class="hb-next">' + ico('train', 24) + '<span><b class="lb">Next unlock</b>' + esc(unlock.name) + ': ' + unlock.left + ' drill' + (unlock.left > 1 ? 's' : '') + ' to reveal grade</span></div>' : '') + '</section>';
 }
 

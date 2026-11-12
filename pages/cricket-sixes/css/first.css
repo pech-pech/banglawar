@@ -1,5 +1,5 @@
 /* p7-first: first-match strip, Potential grade notes, ability lines. Layout only; colours come from the skin variables. */
-.fs-strip { display: grid; gap: 4px; padding: 6px 8px; border: 3px solid var(--outline); background: var(--cream); margin-bottom: 6px; }
+.fs-strip { position: fixed; z-index: 60; top: 64px; left: 8px; right: 8px; display: grid; gap: 4px; padding: 6px 8px; border: 3px solid var(--outline); background: var(--cream); box-shadow: 0 6px 0 rgba(0,0,0,.25); }
 .fs-strip__head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .fs-strip__t { font: 20px/22px var(--font-head); font-weight: 400; }
 .fs-strip__skip { min-width: 72px; min-height: 56px; padding: 0 12px; font: 18px/1 var(--font-head); }
@@ -29,3 +29,9 @@
   #app:has(> .bv-strip) .bv-colL > .bv-sb { flex: 1 1 0; min-height: 150px; overflow-y: auto; overscroll-behavior: contain; align-content: start; grid-auto-rows: max-content; padding: 4px 4px 4px 0; -webkit-overflow-scrolling: touch; }
   #app:has(> .bv-strip) .bv-sb > .bv-head { position: sticky; top: -4px; z-index: 2; background: var(--cream); padding-top: 4px; }
 }
+/* QA r1: the first-match card floats over the list (the list keeps its height); star beside the type; letter boxed on chase; Tip is a corner badge */
+.chase-b .pbox .gr, .chase-b .sb-row.is-strike .gr { border: 2px solid var(--outline); background: var(--cream); padding: 2px 4px; }
+.bv-seg .opt, .intent .opt { position: relative; }
+.bv-seg .opt .bv-tip, .intent .opt .bv-tip { position: absolute; top: -13px; right: 6px; margin: 0; padding: 0 3px; z-index: 1; }
+.tr-pick .tr-top { justify-content: space-between; }
+.tr-back { min-width: 72px; min-height: 56px; padding: 0 12px; font: 18px/1 var(--font-head); }

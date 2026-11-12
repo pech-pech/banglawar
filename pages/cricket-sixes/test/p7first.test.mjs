@@ -57,9 +57,9 @@ test('first-match strip: only match 1, over 1, until Skip; Skip is kept once', (
 test('ability numbers on the Call and Chase rows', () => {
   const st = newGame('p7e'); let g = 0;
   while (st.get().stage !== 'bowl' && g++ < 20) step(st);
-  const b = sel.bowlVM(st.get()); assert.ok(b.bowlers.every((x) => Number.isInteger(x.bowlAb) && x.bowlAb >= 20));
+  const b = sel.bowlVM(st.get()); assert.ok(b.bowlers.every((x) => Number.isInteger(x.ability) && x.ability >= 20));
   while (st.get().stage !== 'chase' && g++ < 200) step(st);
-  const c = sel.chaseVM(st.get()); assert.ok(c.crease.every((x) => Number.isInteger(x.batAb) && x.batAb >= 20));
+  const c = sel.chaseVM(st.get()); assert.ok(c.crease.every((x) => Number.isInteger(x.ability) && x.ability >= 20));
 });
 
 test('copy: Potential grade in the glossary, Rotate is Steady (label only, key R stays)', () => {

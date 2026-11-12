@@ -239,3 +239,14 @@
 .tr-bench-strip > .tr-iw { flex: none; }
 .tr-bench-strip .tr-toggle { font-size: 14px; line-height: 18px; white-space: normal; text-align: left; }
 .tr-bench-strip > .tr-iw { font-size: 16px; }
+
+/* ---- QA r1 fixes ---- */
+.tr-top > span:first-child { flex: 1 1 auto; min-width: 0; }
+.tr-top .tr-tpw { flex: none; }
+.tr-top .tr-tp { flex: none; min-width: max-content; }
+.tr-top .tr-tp > b, .tr-top .tr-tp > span { flex: none; overflow: visible; }
+.tr-plan .c-seg__opt { white-space: nowrap; }
+.tr-benchnote .tr-chip { margin-left: auto; min-height: 28px; }
+.tr-gradebox .m0-flat--g { border: var(--c-border) solid var(--outline); padding: 0 var(--c-sp-2); }
+.tr-rr__scores { flex-wrap: wrap; }
+.tr-rr__win { display: inline-flex; align-items: center; gap: var(--c-sp-1); margin-left: auto; font-weight: 700; }
