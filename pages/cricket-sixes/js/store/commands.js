@@ -9,7 +9,7 @@ import { SEASON } from '../data/season.js';
 import { SKILLS, COACHES } from '../data/training.js';
 import { makeClubs, growClubs, aiPickSix } from '../core/clubs.js';
 import { makeSchedule, makeTable, applyResult, placeOf, inTopFour, finalsDraw, finalFrom, koWinner, tpAward, simRound, simMatch, simFinals, ME } from '../core/season.js';
-import { pickCoach, doDrill, endWeek, levelOfXp } from '../core/training.js';
+import { pickCoach, doDrill, endWeek, levelOfXp, drillAll, repeatWeek, setAutoBench, autoBenchDrills, setDrillPlan, seeTips } from '../core/training.js';
 import { unlockNode, makeFx } from '../core/skills.js';
 import { defaultOvers } from '../core/plan.js';
 import { newRun, closeSeason, remakeRivals, carryOf, applyCarry } from '../core/run.js';
@@ -330,8 +330,13 @@ export function applyCommand(s, cmd, payload = {}) {
     case 'EditPlan': return editPlan(s, payload);
     case 'FinishMatch': return finishMatch(s);
     case 'Drill': return s.stage === 'train' ? doDrill(s, payload || {}, makeRng(`${s.season.seed}|drill|${s.training.week}|${payload && payload.playerId}|${s.salt}`)) : s;
+    case 'DrillAll': return s.stage === 'train' ? drillAll(s, payload && payload.plan, drillRngFor(s)) : s;
+    case 'RepeatWeek': return s.stage === 'train' ? repeatWeek(s, drillRngFor(s)) : s;
+    case 'AutoBench': return s.stage === 'train' ? setAutoBench(s, payload && payload.on) : s;
+    case 'SetDrillPlan': return s.stage === 'train' ? setDrillPlan(s, payload && payload.plan) : s;
+    case 'TipsSeen': return s.stage === 'train' ? seeTips(s) : s;
     case 'UnlockNode': return s.stage === 'train' ? unlockNode(s, payload || {}) : s;
-    case 'EndWeek': return s.stage === 'train' ? { ...endWeek(s), stage: 'week' } : s;
+    case 'EndWeek': return s.stage === 'train' ? { ...endWeek(autoBenchDrills(s, drillRngFor(s))), stage: 'week' } : s;
     case 'NextWeek': return nextWeek(s);
     case 'NewSeason': return newSeason(s);
     case 'RunEnd': return runEnd(s);
@@ -342,3 +347,6 @@ export function applyCommand(s, cmd, payload = {}) {
     default: return s;
   }
 }
+
+// ---- p7train: bulk drills use the same rng the single Drill command uses, so a bulk run rolls like tapping by hand
+const drillRngFor = (s) => (id) => makeRng(`${s.season.seed}|drill|${s.training.week}|${id}|${s.salt}`);

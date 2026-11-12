@@ -36,6 +36,7 @@ const SHEETS = {
   tree: { file: 'tree-sheet', vm: ['treeVM', (a) => [idOf(a), a && a.side]] },
   result: { file: 'player-sheet', fn: 'openResult', vm: ['drillResultVM', (a) => [idOf(a)]] },
   coaches: { file: 'coaches-sheet', vm: ['coachesVM', () => []] },
+  traininghelp: { file: 'training-view', fn: 'openHelp', vm: null },
   save: { file: 'save-sheet', vm: null },
   glossary: { file: 'glossary-sheet', fn: 'openGlossary', vm: null },
 };

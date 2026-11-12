@@ -167,6 +167,7 @@ async function journey(browser, tag) {
     } else if (st === 'done') {
       if (!(await clickCta())) { bad('done: no CTA'); break; }
     } else if (st === 'train') {
+      const tip = await page.$('.tr-tip [data-tip="skip"]'); if (tip) { await audit('train-tips'); await shot('train-tips'); await tip.click(); await settle(300); } // first-time tips (P11): seen once, Skip ends them
       const rows = await page.$$('[data-act="sheet:player"]');
       if (rows.length < 10) bad(`train: ${rows.length} player rows, want all 10 (bench trains too)`);
       let drilled = 0;

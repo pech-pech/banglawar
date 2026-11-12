@@ -6,7 +6,7 @@ import { SEASON } from '../data/season.js';
 import { DRILLS, COACHES, SKILLS } from '../data/training.js';
 import { aiPickSix } from '../core/clubs.js';
 import { tableOrder, placeOf, ME, tpAward, koWinner } from '../core/season.js';
-import { drillOdds, coachLevel, canDrill, drillRoom, drillDef } from '../core/training.js';
+import { drillOdds, coachLevel, canDrill, drillRoom, drillDef, planMode, planDrill, bulkPlan, hasLastPlan, sixOf } from '../core/training.js';
 import { nodeStatus, treeBoost, treeOf, NODE_COUNT } from '../core/skills.js';
 import { planProblem } from './commands.js';
 import { RUN } from '../data/run.js';
@@ -255,7 +255,7 @@ export function trainingVM(s) {
     if (g && g.gain > 0) row.gainRating = RATING_KEY[drillDef(g.drillId).rating];
     return row;
   });
-  return { tp: s.training.tp, week: s.training.week, done: Object.keys(s.training.drilled || {}).length, total: rows.length, coachLine: coachLine(s), drillCost: DRILLS.costTp, rows };
+  return { tp: s.training.tp, week: s.training.week, done: Object.keys(s.training.drilled || {}).length, total: rows.length, coachLine: coachLine(s), drillCost: DRILLS.costTp, rows, ...trainPlanVM(s) };
 }
 
 const REASON = { week: 'Already drilled this week', tp: 'Not enough TP', peak: 'At his peak', balance: 'Too far above his lowest rating', max: 'Already at 99', unknown: 'Not available' };
@@ -267,7 +267,8 @@ export function playerVM(s, id) {
   const drills = DRILLS.list.map((d) => {
     const lv = coachLevel(s.coaches, d.focus), o = drillOdds(nets, lv), chk = canDrill(s, id, d.id), room = drillRoom(p, d.id);
     return { id: d.id, name: d.name, rating: RATING_KEY[d.rating], goodPlus: Math.round(o.good + o.great), coachLine: lv ? `Coach level ${lv}` : 'No coach here',
-      room: !chk.ok ? null : room.upTo ? `Only +${room.upTo} fits` : null, locked: !chk.ok, reason: chk.ok ? null : REASON[chk.reason] };
+      room: !chk.ok ? null : room.upTo ? `Only +${room.upTo} fits` : null, locked: !chk.ok, reason: chk.ok ? null : REASON[chk.reason],
+      now: p[d.rating], plus: Math.max(0, Math.min(DRILLS.gains[2], room.room)), why: chk.reason || null };
   });
   const open = [];
   for (const side of ['bat', 'bowl']) for (let n = 1; n <= NODE_COUNT; n++) { const st = nodeStatus(s, id, side, n); if (st.status === 'available') { open.push(st.cost); break; } }
@@ -360,4 +361,23 @@ export function weekVM(s) {
     coachUps: W.coachUps.map((c) => ({ name: (s.coaches.find((x) => x.id === c.coachId) || {}).name, focus: c.focus, level: c.to })),
     roundResults: results.map((r) => ({ a: clubName(s, r.a), b: clubName(s, r.b), ra: r.ra, wa: r.wa, rb: r.rb, wb: r.wb, me: r.a === ME || r.b === ME })),
   };
+}
+
+// ---- p7train: the plan card, bulk summary, bench switch and first-time tips on the training screen
+export function trainPlanVM(s) {
+  const T = s.training, mode = planMode(s), ids = sixOf(s);
+  const run = bulkPlan(s, mode, ids), bridge = !!(s.season && s.season.n >= 2);
+  const byPlayer = {};
+  for (const id of ids) { if (T.drilled && T.drilled[id]) continue; const pl = planDrill(s, player(s, id), mode); if (pl) byPlayer[id] = { drillId: pl.drillId, rating: RATING_KEY[drillDef(pl.drillId).rating], fresh: pl.fresh }; }
+  const cost = bridge ? 0 : run.length * DRILLS.costTp;
+  const b = T.bulk;
+  let bulk = null;
+  if (b && b.items.length) {
+    const xp = {};
+    for (const it of b.items) { if (!it.gain) continue; const d = drillDef(it.drillId), c = it.coach ? s.coaches.find((x) => x.id === it.coach) : null; if (!c) continue; ((xp[c.name] ||= {})[d.focus] = (xp[c.name][d.focus] || 0) + it.gain); }
+    bulk = { n: b.items.length, total: b.items.reduce((a, x) => a + x.gain, 0), great: b.items.filter((x) => x.outcome === 'Great').length,
+      reveals: b.items.filter((x) => x.revealed).map((x) => ({ name: player(s, x.playerId).name, grade: x.grade })),
+      xp: Object.keys(xp).map((c) => ({ coach: c, text: Object.keys(xp[c]).map((f) => `${f} +${xp[c][f]}`).join(', ') })) };
+  }
+  return { plan: { mode, canRepeat: hasLastPlan(s), n: run.length, cost, tpLeft: s.training.tp - cost, free: bridge, byPlayer, bulk, autoBench: !!T.autoBench, tips: !T.tipsSeen && !(T.drillCount > 0) } };
 }

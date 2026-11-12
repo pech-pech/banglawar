@@ -4,6 +4,8 @@
 // An invalid command returns the SAME state object. No Math.random, Date or DOM.
 import { DRILLS, ODDS, COACHES } from '../data/training.js';
 import { BRIDGE_DRILL_MULT } from '../data/leagues.js';
+import { SKILLS } from '../data/training.js';
+import { aiPickSix } from './clubs.js';
 import { capSum, bandOf, isHidden } from './ability.js';
 
 export const DRILL_IDS = DRILLS.list.map((d) => d.id);
@@ -156,7 +158,102 @@ export function endWeek(state) {
     reveals: log.filter((e) => e.type === 'GradeRevealed').map((e) => ({ playerId: e.playerId, grade: e.grade })),
     nodes: log.filter((e) => e.type === 'NodeUnlocked').map((e) => ({ playerId: e.playerId, side: e.side, node: e.node })),
     coachUps: log.filter((e) => e.type === 'CoachLevelUp').map((e) => ({ coachId: e.coachId, focus: e.focus, from: e.from, to: e.to })) };
+  const drillsLogged = log.filter((e) => e.type === 'Drill'); // Repeat last week reads this; a skipped week keeps the older plan
+  if (drillsLogged.length) n.training.lastPlan = Object.fromEntries(drillsLogged.map((e) => [e.playerId, e.drillId]));
+  n.training.bulk = null;
   n.training.week += 1; n.training.drilled = {}; n.training.nodeBought = {}; n.training.last = null; n.training.weekLog = [];
   n.training.weekStart = Object.fromEntries(squadOf(n).map((p) => [p.id, RATINGS.map((k) => p[k])]));
   return n;
+}
+
+// ---- bulk drills (P7+P11): Drill all (the Six), Repeat last week, Auto-train bench. Each drill is one doDrill, so a bulk run
+// rolls exactly like tapping by hand in the same order. rngFor(playerId) gives the same rng the Drill command uses.
+const FOCUS_OF = (p) => [SKILLS.trees[p.bat] && SKILLS.trees[p.bat].focus, SKILLS.trees[p.bowl] && SKILLS.trees[p.bowl].focus];
+
+/** The Six in list order (saved six, else the AI pick like the selectors). @param {any} s */
+export function sixOf(s) {
+  const c = (s.clubs || []).find((x) => x.id === 'c0');
+  if (!c) return [];
+  return c.six && c.six.length === 6 ? c.six.slice() : aiPickSix(c).slice(0, 6);
+}
+/** Bench in squad order. */
+export const benchOf = (s) => { const six = sixOf(s); return squadOf(s).filter((p) => !six.includes(p.id)).map((p) => p.id); };
+
+/** Suggested drill: his lowest rating that still has room; tie goes to his tree focus, then drill order. null when nothing has room. */
+export function suggestedDrill(p) {
+  const foci = FOCUS_OF(p); let best = null;
+  for (const d of DRILLS.list) {
+    if (drillRoom(p, d.id).room <= 0) continue;
+    if (!best || p[d.rating] < p[best.rating] || (p[d.rating] === p[best.rating] && foci.includes(d.focus) && !foci.includes(best.focus))) best = d;
+  }
+  return best ? best.id : null;
+}
+/** The drill a bulk run gives him: { drillId, fresh } or null. Repeat uses last week's drill when he has one with room; otherwise Suggested (fresh = true). */
+export function planDrill(s, p, mode) {
+  if (!p) return null;
+  const last = s.training.lastPlan && s.training.lastPlan[p.id];
+  if (mode === 'repeat' && last && drillDef(last) && drillRoom(p, last).room > 0) return { drillId: last, fresh: false };
+  const d = suggestedDrill(p);
+  return d ? { drillId: d, fresh: mode === 'repeat' } : null;
+}
+export const hasLastPlan = (s) => !!(s.training.lastPlan && Object.keys(s.training.lastPlan).length);
+/** The plan setting: saved choice, else Repeat when there is a last week. */
+export const planMode = (s) => s.training.plan === 'suggested' || s.training.plan === 'repeat' ? (s.training.plan === 'repeat' && !hasLastPlan(s) ? 'suggested' : s.training.plan) : (hasLastPlan(s) ? 'repeat' : 'suggested');
+
+/** Who a run would drill, in order, capped by TP (no cap from season 2: the bridge drills cost nothing). */
+export function bulkPlan(s, mode, ids) {
+  const out = []; let tp = s.training.tp;
+  for (const id of ids) {
+    if (s.training.drilled && s.training.drilled[id]) continue;
+    const p = findPlayer(s, id), pl = planDrill(s, p, mode);
+    if (!pl || drillRoom(p, pl.drillId).room <= 0) continue;
+    if (!bridgeOn(s)) { if (tp < TP_PER_DRILL) break; tp -= TP_PER_DRILL; }
+    out.push({ playerId: id, ...pl });
+  }
+  return out;
+}
+
+function runBulk(state, mode, ids, rngFor) {
+  let n = state; const items = [];
+  for (const step of bulkPlan(state, mode, ids)) {
+    const next = doDrill(n, { playerId: step.playerId, drillId: step.drillId }, rngFor(step.playerId));
+    if (next === n) continue;
+    n = next; const r = n.training.last;
+    items.push({ playerId: step.playerId, drillId: step.drillId, fresh: step.fresh, outcome: r.outcome, gain: r.gain, revealed: !!r.revealed, grade: r.grade, coach: r.coach ? r.coach.id : null });
+  }
+  return { n, items };
+}
+
+/** Drill all: the Six, who have not drilled, one drill each (mode 'repeat' | 'suggested'). Same state back when nobody can drill. */
+export function drillAll(state, mode, rngFor) {
+  const m = mode === 'repeat' || mode === 'suggested' ? mode : planMode(state);
+  const { n, items } = runBulk(state, m, sixOf(state), rngFor);
+  if (!items.length) return state;
+  n.training.plan = m;
+  const prev = state.training.bulk;
+  n.training.bulk = { plan: m, items: (prev ? prev.items : []).concat(items) };
+  return n;
+}
+/** Repeat last week: needs a last week. */
+export const repeatWeek = (state, rngFor) => (hasLastPlan(state) ? drillAll(state, 'repeat', rngFor) : state);
+
+/** Auto-train bench setting (default off, kept across weeks). on: true/false, or omit to flip. */
+export function setAutoBench(state, on) {
+  const v = typeof on === 'boolean' ? on : !state.training.autoBench;
+  if (!!state.training.autoBench === v) return state;
+  const n = structuredClone(state); n.training.autoBench = v; return n;
+}
+/** At End week with Auto-train bench on: each bench player not yet drilled gets his Suggested drill while TP lasts. */
+export function autoBenchDrills(state, rngFor) {
+  if (!state.training.autoBench) return state;
+  return runBulk(state, 'suggested', benchOf(state), rngFor).n;
+}
+/** The Repeat / Suggested switch (saved per game). */
+export function setDrillPlan(state, mode) {
+  if ((mode !== 'repeat' && mode !== 'suggested') || state.training.plan === mode) return state;
+  const n = structuredClone(state); n.training.plan = mode; return n;
+}
+export function seeTips(state) {
+  if (state.training.tipsSeen) return state;
+  const n = structuredClone(state); n.training.tipsSeen = true; return n;
 }
