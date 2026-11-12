@@ -13,7 +13,7 @@ test('whole season: ends at stage end within 11 matches, table sums, TP never ne
   assert.equal(s.stage, 'end'); assert.equal(s.season.phase, 'over'); assert.ok(s.season.champion);
   for (const k of ['hub', 'squad', 'plan', 'bowl', 'break', 'chase', 'done', 'train', 'week', 'end']) assert.ok(stages.has(k), k);
   const t = s.season.table;
-  assert.equal(t.reduce((a, r) => a + r.p, 0), 90); assert.equal(t.reduce((a, r) => a + r.pts, 0), 90 + t.reduce((a, r) => a + r.t, 0));
+  assert.equal(t.reduce((a, r) => a + r.p, 0), 90); assert.equal(t.reduce((a, r) => a + r.pts, 0), 90); // 2 points a match: win 2+0, tie 1+1
   assert.equal(s.season.results.filter((r) => r.kind === 'league').length, 45);
   assert.ok(minTp >= 0);
   const ownMatches = s.season.results.filter((r) => r.a === 'c0' || r.b === 'c0').length;

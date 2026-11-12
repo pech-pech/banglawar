@@ -64,7 +64,7 @@ function initial(vm) {
     const o = (vm.overs || [])[k]; const b = o ? o.bowler : null;
     return typeof b === 'number' ? b : null;
   });
-  const fields = (vm.fields && vm.fields.length === 3 ? vm.fields : ['A', 'A', 'A']).slice();
+  const fields = (vm.fields && vm.fields.length === 3 ? vm.fields : ['P', 'P', 'P']).slice();
   return { overs, fields, sel: overs.indexOf(null), nudge: false }; // a full (pre-filled) plan starts with no over selected, so a first tap can't change it
 }
 
@@ -86,7 +86,7 @@ export function render(el, vm, dispatch) {
       `<span class="pl-n">${k + 1}${w ? '<i class="pl-bang" aria-hidden="true">!</i>' : ''}</span>${face}</button>`;
   };
   const band = (ph, pi) => {
-    const f = FIELD[st.fields[pi]] || FIELD.A;
+    const f = FIELD[st.fields[pi]] || FIELD.P;
     const slots = []; for (let o = ph.from; o <= ph.to; o++) slots.push(slot(o - 1));
     return `<div class="pl-band"><button type="button" class="pl-field" data-field="${pi}" aria-label="${ph.name} overs ${ph.range}: ${f.word} field. Tap to switch.">` +
       `<b>${ph.name}</b><span>${ico(f.icon, 16)}${f.word}</span></button>` +

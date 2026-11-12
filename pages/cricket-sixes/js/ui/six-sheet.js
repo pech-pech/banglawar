@@ -62,7 +62,7 @@ export function openTeam(vm, dispatch, _open, arg, refresh) {
         '<span class="ts-sn">' + (k + 1) + (w ? '<i class="ts-bang" aria-hidden="true">!</i>' : '') + '</span><span class="name ts-sb">' + (b == null ? 'Pick' : esc(nameOf(b))) + '</span></button>';
     };
     const band = (ph, pi) => {
-      const f = FIELD[fields[pi]] || FIELD.A, slots = [];
+      const f = FIELD[fields[pi]] || FIELD.P, slots = [];
       for (let k = ph.from; k <= ph.to; k++) slots.push(slot(k - 1));
       return '<div class="ts-band"><button type="button" class="ts-field" data-field="' + pi + '" aria-label="' + ph.name + ' overs ' + ph.range + ': ' + f.word + ' field. Tap to switch.">' +
         '<b>' + ph.name + '</b><span>' + ico(f.icon, 16) + f.word + '</span></button><div class="ts-slots ts-slots--' + slots.length + '">' + slots.join('') + '</div></div>';

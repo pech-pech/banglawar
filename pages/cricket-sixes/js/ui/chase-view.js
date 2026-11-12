@@ -16,13 +16,15 @@ const tipIcon = () => { // its own marker (info icon plus the word), never the b
   if (!S || !S.iconNames || S.iconNames.indexOf('info') < 0) return '';
   return S.iconImg('info', 16).outerHTML.replace('class="icon"', 'class="icon" aria-hidden="true"').replace(/ alt="[^"]*"/, ' alt=""');
 };
-let intent = 'R'; // UI state only, never saved
+let intent = 'R'; // UI state only, never saved. Reset to Steady (R) at the start of every over (12b: neutral default, never the last call)
+let intentKey = '';
 
 const INTENTS = [
   { k: 'D', n: 'Defend', s: 'safe', d: 'Defend: play safe. Fewer wickets, fewer big hits.' },
   { k: 'R', n: 'Steady', s: 'small safe runs', d: 'Steady: small safe runs, keep the score moving.' },
   { k: 'A', n: 'Attack', s: 'big hits, risky', d: 'Attack: go for big hits. More runs, more risk.' },
 ];
+const INTENT_NAME = { D: 'Defend', R: 'Steady', A: 'Attack' };
 const TYPE_ICON = { Fast: 'typeFast', Medium: 'typeMedium', Spin: 'typeSpin' };
 const ROLE_ICON = { Opener: 'roleOpener', Middle: 'roleMiddle', Lower: 'roleLower' };
 const ROLE_WORD = { Opener: 'Opener', Middle: 'Middle order', Lower: 'Lower order' };
@@ -127,6 +129,8 @@ function whyHtml(vm) {
 const ctaText = (over) => 'Bat over ' + over + ': ' + INTENTS.find((o) => o.k === intent).n;
 
 export function render(el, vm, dispatch) {
+  const key = vm.target + '|' + vm.over;
+  if (key !== intentKey) { intentKey = key; intent = 'R'; }
   const sc = vm.score || {};
   const need = vm.need > 0
     ? 'Need ' + vm.need + ' from ' + vm.ballsLeft + ' ball' + (vm.ballsLeft === 1 ? '' : 's')
@@ -142,12 +146,10 @@ export function render(el, vm, dispatch) {
   const ex = crease.find((b) => b.onStrike) || crease[0];
   const hidden = crease.some((b) => !b.grade || b.grade === '?');
   const ih = vm.intentHint || null;
-  const tip = (k) => !!ih && ih.pick === k;
   const seg = INTENTS.map((o) => {
     const sel = o.k === intent;
     return '<button type="button" class="opt' + (sel ? ' is-selected' : '') + '" data-intent="' + o.k +
-      '" role="radio" aria-checked="' + sel + '"' + (tip(o.k) ? ' aria-label="' + o.n + ', tip: suggested for this over"' : '') + '><span class="two">' + o.n + '<small>' + o.s + '</small>' +
-      (tip(o.k) ? '<span class="bv-tip" data-tip>' + tipIcon() + 'Tip</span>' : '') + '</span></button>';
+      '" role="radio" aria-checked="' + sel + '"><span class="two">' + o.n + '<small>' + o.s + '</small></span></button>';
   }).join('');
 
   el.innerHTML =
@@ -163,7 +165,9 @@ export function render(el, vm, dispatch) {
     (crease.some((b) => (b.previews || []).some((p) => p.inPhase)) ? ' <span aria-hidden="true">★</span> = in best overs now.' : '') + '</div>' +
     '</section>' +
     '<section class="colR">' +
-    '<h2 class="title ask"' + (ih ? ' data-intenthint' : '') + '>' + esc(ih ? ih.why : 'How should your batters play?') + '</h2>' +
+    (ih ? '' : '<h2 class="title ask">How should your batters play?</h2>') + // with a chip, the chip heads the choice (saves a row on the small screen)
+    (ih ? '<button type="button" class="bv-chip" id="chip" data-intenthint data-chip="' + ih.pick + '" aria-pressed="' + (intent === ih.pick) + '">' + tipIcon() +
+      '<span class="bv-chip-t"><b>Tip: try ' + INTENT_NAME[ih.pick] + '</b><span>' + esc(ih.why) + '</span></span></button>' : '') +
     '<div class="seg intent" role="radiogroup" aria-label="Batting style">' + seg + '</div>' +
     '<p class="hint" id="intent-desc">' + esc(INTENTS.find((o) => o.k === intent).d) + '</p>' +
     lastLine(vm) +
@@ -172,18 +176,21 @@ export function render(el, vm, dispatch) {
     '</div>';
 
   const segEl = el.querySelector('.seg.intent');
-  segEl.addEventListener('click', (e) => {
-    const b = e.target.closest('[data-intent]');
-    if (!b) return;
-    intent = b.getAttribute('data-intent');
+  const pick = (k) => {
+    intent = k;
     segEl.querySelectorAll('[data-intent]').forEach((x) => {
       const on = x.getAttribute('data-intent') === intent;
       x.classList.toggle('is-selected', on);
       x.setAttribute('aria-checked', String(on));
     });
+    const chipEl = el.querySelector('#chip');
+    if (chipEl) { const on = intent === chipEl.getAttribute('data-chip'); chipEl.classList.toggle('is-on', on); chipEl.setAttribute('aria-pressed', String(on)); chipEl.querySelector('b').textContent = 'Tip: ' + (on ? INTENT_NAME[intent] + ' is on' : 'try ' + INTENT_NAME[chipEl.getAttribute('data-chip')]); }
     el.querySelector('#intent-desc').textContent = INTENTS.find((o) => o.k === intent).d;
     el.querySelector('#play').textContent = ctaText(vm.over);
-  });
+  };
+  segEl.addEventListener('click', (e) => { const b = e.target.closest('[data-intent]'); if (b) pick(b.getAttribute('data-intent')); });
+  const chipEl = el.querySelector('#chip');
+  if (chipEl) chipEl.addEventListener('click', () => pick(chipEl.getAttribute('data-chip')));
   el.querySelector('.q').addEventListener('click', () => openGlossary());
   const why = el.querySelector('#why');
   if (why) why.addEventListener('click', () => openSheet('Why? Last over', whyHtml(vm)));
