@@ -193,6 +193,7 @@ export function planVM(s) {
     overs: overs.map((b, i) => ({ over: i + 1, phase: PHASE_NAMES[phaseOf(i + 1)], bowler: b, warn: null })),
     bowlers: six.map((p, i) => ({ i, name: p.name, bowl: p.bowl, ability: shownAbility(p), set: overs.filter((x) => x === i).length })),
     fields: s.plan.fields.slice(), valid: !prob, reason: prob || '',
+    hint: s.season && s.fixture ? (s.plan.edited ? 'Your plan. Tap any over to change.' : 'Suggested by matchups. Tap any over to change.') : undefined,
   };
 }
 

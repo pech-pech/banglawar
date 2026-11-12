@@ -61,9 +61,9 @@ const careless = {
   bowl: (s, r) => ({ bowler: r.pick(el(bowlVM(s))).i, field: r.pick(['A', 'P']) }),
   intent: (s, r) => r.pick(['D', 'R', 'A']), train: 'random',
 };
-/** Fixed field x intent, best six by rating sum, strongest bowlers on the long spells, plays whatever the plan says. */
+/** Fixed field x intent, best six by rating sum, accepts the pre-filled bowling plan (only the field is its own), plays whatever the plan says. */
 const rote = (f, i) => /** @type {Policy} */ ({
-  name: `rote ${f}/${i}`, six: bestSixIds, plan: (s, r, ids) => strongPlan(s, ids, [f, f, f]),
+  name: `rote ${f}/${i}`, six: bestSixIds, plan: (s) => ({ overs: s.plan.overs.slice(), fields: [f, f, f] }), // the game's pre-filled matchup plan, fields as the policy says
   bowl: (s) => (s.call ? { bowler: s.call.bowler, field: f } : null), intent: () => i, train: 'none',
 });
 /** @type {Policy} */

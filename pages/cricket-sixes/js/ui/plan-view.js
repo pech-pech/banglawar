@@ -52,13 +52,20 @@ export function check(overs, bowlers) {
 }
 
 /** vm.overs[].bowler may be an index or null. @param {any} vm */
+/** Hint with its action part in bold, e.g. "Suggested by matchups. <b>Tap any over to change.</b>" */
+function helpHtml(hint) {
+  const h = hint || 'Tap an over, then tap who bowls it. Tap a phase to switch its field.';
+  const i = h.indexOf('Tap ');
+  return i > 0 ? esc(h.slice(0, i)) + '<b>' + esc(h.slice(i)) + '</b>' : esc(h);
+}
+
 function initial(vm) {
   const overs = Array.from({ length: OVERS }, (_, k) => {
     const o = (vm.overs || [])[k]; const b = o ? o.bowler : null;
     return typeof b === 'number' ? b : null;
   });
   const fields = (vm.fields && vm.fields.length === 3 ? vm.fields : ['A', 'A', 'A']).slice();
-  return { overs, fields, sel: Math.max(0, overs.indexOf(null)) };
+  return { overs, fields, sel: overs.indexOf(null), nudge: false }; // a full (pre-filled) plan starts with no over selected, so a first tap can't change it
 }
 
 /** @param {HTMLElement} el @param {any} vm @param {(cmd:string, payload:any)=>void} dispatch */
@@ -96,7 +103,7 @@ export function render(el, vm, dispatch) {
     `<div class="pl-root">` +
     `<header class="strip c-dark pl-strip"><span class="mid"><b>Bowling plan</b><span>${esc(sub)}</span></span>` +
     `<button type="button" class="q" data-gloss aria-label="Cricket words explained">?</button></header>` +
-    `<p class="pl-help">Tap an over, then tap who bowls it. Tap a phase to switch its field.</p>` +
+    `<p class="pl-help${st.nudge ? ' is-nudge' : ''}" role="status">${st.nudge ? '<b>Tap an over first.</b> Then tap who bowls it.' : helpHtml(vm.hint)}</p>` +
     `<div class="pl-grid">${PHASES.map(band).join('')}</div>` +
     `<div class="pl-bowlers" role="group" aria-label="Your six bowlers">${bowlers.map(chip).join('')}</div>` +
     (problems.length ? `<ul class="pl-warns list-flat" role="alert" aria-label="Problems with the plan">${problems.map((t) => `<li><i class="pl-bang" aria-hidden="true">!</i><span>${esc(t)}</span></li>`).join('')}</ul>` : '') +
@@ -115,16 +122,18 @@ export function render(el, vm, dispatch) {
         if (!t.disabled && check(S.overs, V.bowlers || []).valid) { D('SetPlan', { overs: S.overs.slice(), fields: S.fields.slice() }); D('NewMatch', {}); }
         return;
       }
-      if (t.hasAttribute('data-slot')) { S.sel = Number(t.getAttribute('data-slot')); focus = `[data-slot="${S.sel}"]`; }
+      if (t.hasAttribute('data-slot')) { S.nudge = false; S.sel = Number(t.getAttribute('data-slot')); focus = `[data-slot="${S.sel}"]`; }
       else if (t.hasAttribute('data-field')) { const pi = Number(t.getAttribute('data-field')); S.fields[pi] = S.fields[pi] === 'P' ? 'A' : 'P'; focus = `[data-field="${pi}"]`; }
       else if (t.hasAttribute('data-bowler')) {
         const b = Number(t.getAttribute('data-bowler'));
+        if (S.sel < 0) { S.nudge = true; render(el, E.__plVM || V, D); return; } // nothing selected yet: ask for an over, change nothing
         S.overs[S.sel] = S.overs[S.sel] === b ? null : b;
         const next = S.overs.findIndex((x, k) => x == null && k > S.sel); // jump to the next open over, if any
         if (S.overs[S.sel] != null && next > -1) S.sel = next;
         focus = `[data-bowler="${b}"]`;
       }
-      render(el, V, D);
+      if (!t.hasAttribute('data-slot')) D('EditPlan', { overs: S.overs.slice(), fields: S.fields.slice() }); // the store keeps the player's edits so a re-open never overwrites them
+      render(el, E.__plVM || V, D);
       if (focus) { const f = el.querySelector(focus); if (f) /** @type {HTMLElement} */ (f).focus(); }
     });
   }
