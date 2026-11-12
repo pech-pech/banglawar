@@ -1,6 +1,6 @@
 /* table-sheet: the full league table (tableVM) in a bottom sheet, plus the shared table markup. Reads tableVM only. */
 import { openSheet } from './sheet.js';
-import { esc } from './dom.js';
+import { esc, tagChip } from './dom.js';
 
 export const nameOf = (x) => (x && typeof x === 'object' ? x.name : x);
 const rdText = (n) => { n = Number(n) || 0; return (n > 0 ? '+' : n < 0 ? '−' : '') + Math.abs(n); };
@@ -15,7 +15,7 @@ export function tableHtml(rows, opts) {
   const body = (rows || []).map((r, i) => {
     const cut = opts.cut && i === 4 ? '<tr class="ss-cut"><td colspan="' + cols + '"><b class="ss-cutlbl">Top 4</b> play the semi-finals</td></tr>' : '';
     return cut + '<tr class="ss-tr' + (r.me ? ' m0-sel' : '') + (i < 4 && opts.cut ? ' ss-top' : '') + '"' + (r.me ? ' aria-label="Your club"' : '') + '>' +
-      '<td>' + esc(r.pos) + '</td><td class="ss-club"><span class="name">' + esc(r.name) + '</span>' + (r.me ? '<b class="ss-you">You</b>' : '') + '</td>' +
+      '<td>' + esc(r.pos) + '</td><td class="ss-club' + (r.tag ? ' ss-club--tag' : '') + '"><span class="name">' + esc(r.name) + '</span>' + (r.me ? '<b class="ss-you">You</b>' : '') + (r.tag ? '<span class="ss-rv">' + tagChip(r.tag) + '</span>' : '') + '</td>' +
       '<td>' + esc(r.p) + '</td><td>' + esc(r.w) + '</td><td>' + esc(r.l) + '</td>' + (opts.ties ? '<td>' + esc(r.t) + '</td>' : '') +
       '<td class="ss-pts">' + esc(r.pts) + '</td><td>' + rdText(r.rd) + '</td></tr>';
   }).join('');

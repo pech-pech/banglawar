@@ -38,8 +38,8 @@ test('the theme survives a later command (Reseed)', () => {
   t.dispatch('Reseed', { salt: 'y' }); assert.equal(t.get().theme, 'scorebook');
 });
 
-test('save: theme round-trips, no extra version bump (P4 is 3), an old save without it loads as green', () => {
-  assert.equal(VERSION, 3);
+test('save: theme round-trips, no extra version bump (P9 is 4), an old save without it loads as green', () => {
+  assert.equal(VERSION, 4);
   const s = { ...game().get(), theme: 'scorebook' };
   const r = unwrap(JSON.stringify(wrap(s))); assert.equal(r.ok, true); assert.equal(r.state.theme, 'scorebook');
   const store = memStorage(), sv = createSave(store);

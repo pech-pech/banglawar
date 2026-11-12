@@ -40,6 +40,7 @@ const SHEETS = {
   save: { file: 'save-sheet', vm: null },
   glossary: { file: 'glossary-sheet', fn: 'openGlossary', vm: null },
   team: { file: 'six-sheet', fn: 'openTeam', vm: ['teamVM', () => []] },
+  rival: { file: 'rival-sheet', vm: ['rivalVM', () => []] },
   book: { file: 'book-sheet', fn: 'openBook', vm: ['bookVM', () => []] },
 };
 const mods = {}, loading = {};

@@ -22,6 +22,14 @@ function toolBtn(label, act, icon, aria, extra) {
   return '<button type="button" class="c-btn hb-tool' + (extra || '') + '" data-act="' + act + '" aria-label="' + esc(aria) + '">' + icoDeco(icon, 24) + '<span class="hb-tl">' + esc(label) + '</span></button>';
 }
 
+/* Next rival: ONE 56 px chip row, "Next: Club · Tag". A tagged rival opens a small sheet with the hint; an untagged rival shows no chip (layout stays as before). */
+function rivalHtml(next) {
+  const t = next && next.tag;
+  if (!t) return '';
+  return '<button type="button" class="c-btn hb-rival" data-act="sheet:rival" aria-label="Next: ' + esc(next.oppName) + ', ' + esc(t.chip) + '. Tap for the hint.">' + icoDeco('scout', 24) +
+    '<span class="hb-rtx name">Next: ' + esc(next.oppName) + ' · ' + esc(t.chip) + '</span></button>';
+}
+
 function sixHtml(six) {
   return '<div class="hb-sixhead">Our six · batting order</div><div class="hb-six" role="group" aria-label="Our six, batting order">' + six.map((p, i) => {
     const hid = p.grade === '?';
@@ -50,11 +58,11 @@ export function render(el, vm, dispatch) {
     : run ? (vm.phaseWord || 'League') : 'Season ' + (season.n || 1) + ' · ' + (vm.phaseWord || 'League');
   const full = !!(vm.six && vm.promo && vm.plan);
   el.innerHTML =
-    '<div class="screen ss ss-hub hb-hub">' +
+    '<div class="screen ss ss-hub hb-hub' + (full && vm.next && vm.next.tag ? ' hb-hub--rv' : '') + '">' +
     '<div class="c-strip strip"><span class="ss-strip"><b class="rn-head">' + esc(head) + '</b><small>' + esc(sub) + '</small></span>' + helpBtn('league-table') + '</div>' +
     '<div class="hb-tools">' + toolBtn('Table', 'sheet:table', 'league', 'League table') + toolBtn('Book', 'sheet:book', 'book', 'Pairing Book') + toolBtn('Save', 'sheet:save', 'save', 'Save', ' ss-save') +
     '<span class="hb-tp">' + icoDeco('tp', 24) + '<span class="hb-tl"><b>' + esc(vm.tp) + '</b> <span aria-hidden="true">TP</span><span class="ss-sr"> training points</span></span></span></div>' +
-    (full ? '<div class="hb-scene" aria-label="Your club ground"></div>' + promoHtml(vm.promo, vm.unlock) + sixHtml(vm.six) : '') +
+    (full ? '<div class="hb-scene" aria-label="Your club ground"></div>' + rivalHtml(vm.next) + promoHtml(vm.promo, vm.unlock) + sixHtml(vm.six) : '') +
     (full ? footHtml(vm, cta) : '<div class="m0-ctabar cta hb-foot">' + btn(cta.label || 'Pick your six', cta.act || 'OpenSquad', { kind: 'cta', disabled: cta.disabled, reason: cta.reason }) + '</div>') +
     '</div>';
   const host = el.querySelector('.hb-scene');
