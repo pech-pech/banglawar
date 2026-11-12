@@ -3,7 +3,7 @@
 // Optional on rec: bowlType ('Fast'|'Medium'|'Spin') to say "against spin" and to skip in-phase for wickets by non-Fast bowlers.
 import { T } from '../data/match.js';
 
-const WORD = { W: 'Wicket', 6: 'Six', 4: 'Four', 2: '2 runs', 1: '1 run', 0: 'dot' };
+const WORD = { W: 'Wicket', 6: 'Six', 4: 'Four', 2: '2 runs', 1: '1 run', 0: 'No run' };
 /** Word for an outcome (W, 6, 4, 2, 1, 0). Safe for aria-labels. Dot is shown as the "·" glyph, labelled "dot". */
 export function outcomeLabel(o) { return WORD[String(o)] || String(o); }
 
@@ -104,6 +104,6 @@ export function selfCheck() {
   t('wicket matchup', /Ravi/.test(b) && /spin/.test(b) && !/^(Out|\d)/.test(b));
   t('dot fallback', whyLine({ n: '1.1', o: 0, intent: 'R', field: 'N', pr: base }, 'A', 'B').length > 5);
   t('no jargon', !/phase/.test(whyLine({ n: '9.2', o: 6, intent: 'R', field: 'N', ph: 2, pr: { ...base, batHome: true } }, 'A', 'B')));
-  t('label', outcomeLabel('W') === 'Wicket' && outcomeLabel(6) === 'Six' && outcomeLabel(0) === 'dot');
+  t('label', outcomeLabel('W') === 'Wicket' && outcomeLabel(6) === 'Six' && outcomeLabel(0) === 'No run');
   return bad;
 }
