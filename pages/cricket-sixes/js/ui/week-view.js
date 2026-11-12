@@ -31,7 +31,7 @@ export function render(el, vm, dispatch) {
   const gains = vm.gains || [], reveals = vm.reveals || [], nodes = vm.nodes || [], ups = vm.coachUps || [];
   const total = gains.reduce((a, g) => a + (g.n || 0), 0), drilled = gains.filter((g) => g.n).length;
   const notes = [];
-  if (reveals.length) notes.push(['spark', 'Grades revealed: ' + reveals.map((r) => r.name + ' is ' + r.grade).join(', ')]);
+  if (reveals.length) notes.push(['spark', 'Potential grades found: ' + reveals.map((r) => r.name + ' is ' + r.grade).join(', ')]);
   if (nodes.length) notes.push(['upgrade', 'Skill nodes: ' + nodes.map((n) => n.name + ' got ' + n.node).join(', ')]);
   if (ups.length) notes.push(['coach', 'Coach levels: ' + ups.map((u) => u.name + ' ' + u.focus + ' ' + u.level).join(', ')]);
   el.innerHTML =

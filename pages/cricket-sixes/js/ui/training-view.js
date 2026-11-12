@@ -10,6 +10,7 @@ import { esc, ico, btn, ctaBar, gradeChip, abilityCell } from './dom.js';
 import { bindActs } from './dom.js';
 import { openSheet } from './sheet.js';
 import { DRILLS } from '../data/training.js';
+import { coachNoticeHtml } from './coach-notice.js';
 
 export const ROLE_ICON = { opener: 'roleOpener', middle: 'roleMiddle', lower: 'roleLower' };
 export const TYPE_ICON = { fast: 'typeFast', medium: 'typeMedium', spin: 'typeSpin' };
@@ -45,7 +46,7 @@ function rowHtml(r, P, first) {
   const peakNow = r.status === 'peak';
   const hidden = r.grade == null || r.grade === '' || r.grade === '?';
   const label = r.name + (r.bench ? ', bench' : '') + ', ' + cap(r.role) + ', ' + cap(r.type) + ', ability ' + r.ability + (r.max ? ', capped at potential' : '') +
-    (hidden ? ', grade hidden, ' + (r.pips || 0) + ' of 1 drill' : ', grade ' + r.grade) +
+    (hidden ? ', potential grade hidden, ' + (r.pips || 0) + ' of 1 drill' : ', potential grade ' + r.grade) +
     ', ' + (r.status === 'drill' ? 'not drilled yet' : r.status === 'peak' ? 'at peak, drills cannot raise him' : r.status === 'done' ? 'done this week' : 'drilled ' + r.status);
   return '<li class="c-row m0-row c-row--tap tr-row' + (r.bench ? ' m0-row--bench' : '') + (peakNow ? ' tr-row--peak' : '') + '" role="button" tabindex="0"' + (first ? ' data-ft="row"' : '') +
     ' data-act="sheet:player" data-arg="' + esc(JSON.stringify({ id: r.id })) + '" aria-label="' + esc(label) + '">' +
@@ -136,6 +137,7 @@ export function render(el, vm, dispatch, open) {
     '<div class="screen tr-screen">' +
     '<div class="c-strip strip tr-top"><span>' + deco('train', 24) + ' Training · Week ' + esc(vm.week) + '</span><span class="c-strip__right tr-tpw">' + tp(vm.tp) +
     '<button type="button" class="c-icon-btn tr-help" data-act="sheet:traininghelp" aria-label="Help: what the icons mean" aria-haspopup="dialog">' + deco('why', 24) + '</button></span></div>' +
+    coachNoticeHtml(vm.coachNotice) +
     '<div class="tr-count" role="status">' + deco('done', 20) + '<span>' + esc(vm.done) + ' of ' + esc(vm.total) + ' drilled</span></div>' +
     (P.bulk ? summaryCard(vm) : '') + (P.bulk && P.n === 0 ? '' : planCard(vm)) +
     '<ul class="c-list m0-list tr-list" aria-label="Your squad">' +

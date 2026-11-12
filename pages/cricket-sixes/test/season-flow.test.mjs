@@ -11,7 +11,7 @@ test('whole season: ends at stage end within 11 matches, table sums, TP never ne
   while (g++ < 5000) { stages.add(store.get().stage); minTp = Math.min(minTp, store.get().training.tp); if (!step(store)) break; }
   const s = store.get();
   assert.equal(s.stage, 'end'); assert.equal(s.season.phase, 'over'); assert.ok(s.season.champion);
-  for (const k of ['coach', 'hub', 'squad', 'plan', 'bowl', 'break', 'chase', 'done', 'train', 'week', 'end']) assert.ok(stages.has(k), k);
+  for (const k of ['hub', 'squad', 'plan', 'bowl', 'break', 'chase', 'done', 'train', 'week', 'end']) assert.ok(stages.has(k), k);
   const t = s.season.table;
   assert.equal(t.reduce((a, r) => a + r.p, 0), 90); assert.equal(t.reduce((a, r) => a + r.pts, 0), 90 + t.reduce((a, r) => a + r.t, 0));
   assert.equal(s.season.results.filter((r) => r.kind === 'league').length, 45);

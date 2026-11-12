@@ -52,11 +52,11 @@ export function playerHtml(vm) {
     (vm.previews != null ? '<span>Sees ' + esc(vm.previews) + (Number(vm.previews) === 1 ? ' matchup' : ' matchups') + '</span>' : '') +
     (vm.bench ? '<span class="c-tag tr-bench">Bench</span>' : '') + '</div>');
   lines.push('<div class="tr-abil"><span class="tr-abil__cell"><small>Ability <span class="tr-of">/200</span></small>' + abilityCell(a.overall, !!vm.max) + '</span>' +
-    '<span class="tr-abil__cell"><small>Grade</small>' + gradeChip(vm.grade, vm.pips) + '</span>' +
+    '<span class="tr-abil__cell"><small>Potential grade</small>' + gradeChip(vm.grade, vm.pips) + (hidden ? '' : '<small class="tr-grow">how high he can grow</small>') + '</span>' +
     '<span class="tr-abil__cell"><small>Potential <span class="tr-of">/200</span></small>' + (hidden || vm.potential == null ? '<b class="tr-q">?</b>' : '<b>' + esc(vm.potential) + '</b>') + '</span></div>');
   lines.push('<p class="tr-note">' + deco('info', 20) + '<span>Ability and Potential use a 20 to 200 scale that blends the four ratings (each rating is 1 to 99).</span></p>');
   if (vm.peak) lines.push('<div class="tr-banner">' + peak() + '<span>Drills can’t raise this player now. Skill nodes still work.</span></div>');
-  if (hidden) lines.push('<p class="tr-note">' + deco('info', 20) + '<span>Grade shows after 1 drill (' + esc(vm.pips || 0) + ' done).</span></p>');
+  if (hidden) lines.push('<p class="tr-note">' + deco('info', 20) + '<span>? = not known yet. Shows after 1 practice drill (' + esc(vm.pips || 0) + ' of 1 done).</span></p>');
   lines.push('<div class="tr-stats">' + (vm.ratings || []).map(stat).join('') + '</div>');
   if (vm.capLine) lines.push('<p class="tr-note">' + deco('info', 20) + '<span>' + esc(vm.capLine) + '</span></p>');
   lines.push('<div class="tr-h"><b>Pick a drill</b></div>');
@@ -95,7 +95,7 @@ export function resultHtml(vm) {
     '<div class="tr-res__big" role="status"><span class="tr-bigico">' + icon + '</span><b class="tr-bignum" aria-label="plus ' + esc(gain) + '">+<span class="tr-bignum__n">' + esc(gain) + '</span></b>' +
     '<span class="c-tag tr-qual' + (vm.word === 'Great' ? ' c-tag--done' : '') + '">' + (vm.word === 'Great' ? deco('burst', 20) : '') + '<span>' + esc(word) + '</span></span></div>' +
     wasBar + nowBar +
-    (vm.revealed ? '<p class="tr-reveal-line" role="status">' + deco('medal', 24) + '<span>Grade found: ' + esc(vm.grade) + '</span></p>' : '') +
+    (vm.revealed ? '<p class="tr-reveal-line" role="status">' + deco('medal', 24) + '<span>Potential grade found: ' + esc(vm.grade) + '</span></p>' : '') +
     (vm.cut ? '<p class="tr-note">' + deco('info', 20) + '<span>Balance limit trimmed the gain</span></p>' : '') +
     '<p class="tr-note">' + deco('coach', 20) + '<span>' + esc(vm.coachLine) + (vm.coachXp ? ' · ' + esc(vm.coachXp) : '') + '</span></p>' +
     '<p class="tr-left">' + iw('tp', vm.tp + ' TP left') + iw('done', vm.left + ' to drill') + '</p>' +

@@ -44,7 +44,7 @@ export function bowlVM(s) {
       const m = matchup('bowl', bats[bi], p, ph);
       return { name: bats[bi].name, bat: bats[bi].bat, label: m.label, g: m.g, inPhase: m.inPhase };
     });
-    return { i, name: p.name, bowl: p.bowl, overs: p.overs, eligible, reason, grade: gradeChip(p), previews, ability: shownAbility(p) };
+    return { i, name: p.name, bowl: p.bowl, overs: p.overs, eligible, reason, grade: gradeChip(p), previews, ability: shownAbility(p), bowlAb: shownBowl(p) };
   });
   const call = s.call || { bowler: el.length ? el[0] : -1, field: 'A' };
   // P5 field hint: League 1 only. TODO: or the club bought a Coach (no coach-buying code yet).
@@ -57,7 +57,7 @@ export function bowlVM(s) {
   return {
     over: inn.over, phase: ph, phaseName: PHASE_NAMES[ph], score: scoreOf(inn),
     crease: crease(inn, bats), bowlers, call, batNames: bats.map((p) => p.name), bowlNames: me.map((p) => p.name), fieldHint,
-    canBowl: s.stage === 'bowl' && el.includes(call.bowler), last: s.last,
+    canBowl: s.stage === 'bowl' && el.includes(call.bowler), last: s.last, firstStrip: firstStripOn(s),
   };
 }
 
@@ -74,7 +74,7 @@ export function chaseVM(s) {
     need: Math.max(0, target - inn.runs), ballsLeft: Math.max(0, (11 - inn.over) * 6),
     score: scoreOf(inn), batNames: me.map((p) => p.name), bowlNames: ai.map((p) => p.name),
     crease: crease(inn, me, (p) => ({
-      grade: gradeChip(p),
+      grade: gradeChip(p), batAb: shownBat(p),
       previews: aiOrder.slice(0, previewCount(p)).map((bi) => {
         const m = matchup('bat', p, ai[bi], ph);
         return { name: ai[bi].name, bowl: ai[bi].bowl, label: m.label, g: m.g, inPhase: m.inPhase };
@@ -83,7 +83,7 @@ export function chaseVM(s) {
     aiBowler: lb ? { name: lb.name, bowl: lb.bowl } : null,
     // P5b intent hint: League 1 only. TODO: or the club bought a Coach (no coach-buying code yet).
     intentHint: s.season && (s.season.league || 1) === 1
-      ? { pick: inn.over >= 8 ? 'A' : 'R', why: 'Last 3 overs: Attack. Before that: Rotate.' } : null,
+      ? { pick: inn.over >= 8 ? 'A' : 'R', why: 'Last 3 overs: Attack. Before that: Steady.' } : null,
     last,
   };
 }
@@ -204,9 +204,9 @@ export function coachPickVM(s) {
     const focus = Object.keys(c.lv).find((f) => c.lv[f] > 0) || 'Power';
     const d = DRILLS.list.find((x) => COACHES.focuses.find((f) => f.focus === focus).rating === x.id);
     const good = (lv) => { const o = drillOdds(s.nets || 1, lv); return Math.round(o.good + o.great); };
-    return { id: c.id, name: c.name, focus, drill: d.name, odds3: good(3), odds2: good(2), trees: TREES_OF_FOCUS[focus] };
+    return { id: c.id, name: c.name, focus, drill: d.name, phrase: drillPhrase(d.id), odds3: good(3), odds2: good(2), trees: TREES_OF_FOCUS[focus] };
   });
-  return { cands, picked: s.coachPicked ? (s.coaches.find((c) => !c.candidate) || {}).id || null : null };
+  return { cands, picked: s.coachPicked ? (s.coaches.find((c) => !c.candidate) || {}).id || null : (s.coachCur || null) };
 }
 
 // ---- squad and plan
@@ -255,7 +255,7 @@ export function trainingVM(s) {
     if (g && g.gain > 0) row.gainRating = RATING_KEY[drillDef(g.drillId).rating];
     return row;
   });
-  return { tp: s.training.tp, week: s.training.week, done: Object.keys(s.training.drilled || {}).length, total: rows.length, coachLine: coachLine(s), drillCost: DRILLS.costTp, rows, ...trainPlanVM(s) };
+  return { tp: s.training.tp, week: s.training.week, done: Object.keys(s.training.drilled || {}).length, total: rows.length, coachLine: coachLine(s), coachNotice: coachNoticeOf(s), drillCost: DRILLS.costTp, rows, ...trainPlanVM(s) };
 }
 
 const REASON = { week: 'Already drilled this week', tp: 'Not enough TP', peak: 'At his peak', balance: 'Too far above his lowest rating', max: 'Already at 99', unknown: 'Not available' };
@@ -422,4 +422,23 @@ export function trainPlanVM(s) {
       xp: Object.keys(xp).map((c) => ({ coach: c, text: Object.keys(xp[c]).map((f) => `${f} +${xp[c][f]}`).join(', ') })) };
   }
   return { plan: { mode, canRepeat: hasLastPlan(s), n: run.length, cost, tpLeft: s.training.tp - cost, free: bridge, byPlayer, bulk, autoBench: !!T.autoBench, tips: !T.tipsSeen && !(T.drillCount > 0) } };
+}
+
+// ---- p7first
+/** Plain phrase for a drill's rating (proposed wording, not checked by NUMBERS). */
+const DRILL_PHRASE = { bp: 'big hitting practice', bs: 'batting practice', spd: 'fast bowling practice', bsk: 'bowling accuracy practice' };
+export const drillPhrase = (ratingId) => DRILL_PHRASE[ratingId] || 'practice';
+
+/** First-match strip (3 lines + Skip): League 1 season 1 match 1, first over, until skipped. */
+export function firstStripOn(s) {
+  return !!(s.season && s.season.n === 1 && s.season.round === 1 && s.stage === 'bowl' && s.inn1 && s.inn1.over === 1 && !(s.seen && s.seen.firstStrip));
+}
+
+/** Notice at the top of training week 1: who the coach is and what he is best at, with Change. null once a drill is done. */
+export function coachNoticeOf(s) {
+  const c = (s.coaches || []).find((x) => !x.candidate);
+  if (!s.coachPool || !c || !s.coachPicked || ((s.training && s.training.drillCount) || 0) > 0) return null;
+  const focus = Object.keys(c.lv).find((f) => c.lv[f] > 0) || 'Power';
+  const d = DRILLS.list.find((x) => x.focus === focus);
+  return { name: c.name, focus, line: `${c.name} is your coach. He is best at ${drillPhrase(d && d.id)}.`, canChange: true };
 }

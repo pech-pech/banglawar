@@ -5,6 +5,7 @@ import { BUILD, FLAG_DEFAULTS } from './build.js';
 import { FLAGS } from '../data/flags.js';
 import { gearButton, openSettings, stampOf } from './settings.js';
 import { drawFeel } from './feel.js';
+import { saveOf } from './z.js';
 
 const GEAR_STAGES = { break: 1, done: 1 }; // never on bowl or chase: a tap mid-over cannot open it by mistake
 const BALL_MS = 400; // over-panel autoplay speed (js/ui/over-panel.js)
@@ -15,7 +16,7 @@ export function attachReport(el, store) {
     let storage = null; try { storage = window.localStorage; storage.getItem('x'); } catch (e) { storage = null; }
     const vp = () => 'screen ' + window.innerWidth + 'x' + window.innerHeight + ' at ' + (window.devicePixelRatio || 1) + 'x pixels, ' + (window.innerHeight >= window.innerWidth ? 'upright' : 'sideways');
     const log = createLog({ storage, now: () => Date.now(), build: BUILD, env: vp });
-    const env = () => ({ build: BUILD, now: Date.now(), vp: vp(), errors: log.data().errors.n, lastError: log.data().errors.last.slice(-1)[0] || '', flags: { ...FLAGS } });
+    const env = () => ({ build: BUILD, now: Date.now(), vp: vp(), errors: log.data().errors.n, lastError: log.data().errors.last.slice(-1)[0] || '', flags: { ...FLAGS }, save: saveOf(store.get()) });
     let shownKey = '', stage = null, stageT = Date.now(), shownT = Date.now(), panelT = 0, lastGloss = '', resultT = 0;
     const flush = () => { try { if (stage) log.screen(stage, Date.now() - stageT); stageT = Date.now(); } catch (e) { /* ignore */ } };
     const rep = {

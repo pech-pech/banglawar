@@ -46,7 +46,7 @@ export function openTeam(vm, dispatch, _open, arg, refresh) {
     const six = sixOrder(), ben = bench();
     const outName = st.out ? (V.players.find((p) => p.id === st.out) || {}).name : '';
     return '<p class="ts-strip">' + (st.toast ? '<b>' + esc(st.toast) + '</b>' : st.out ? '<b>' + esc(outName) + ' goes out.</b> Tap who comes in below.' : st.nudge ? '<b>Tap who goes out first.</b>' : 'Playing. <b>Tap to swap</b>') + '</p>' +
-      '<div class="ts-cols" aria-hidden="true"><span>Player</span><span>Bat</span><span>Bowl</span><span>Grade</span></div>' +
+      '<div class="ts-cols" aria-hidden="true"><span>Player</span><span>Bat</span><span>Bowl</span><span>Potential grade</span></div>' +
       '<div class="ts-list" role="group" aria-label="Playing six">' + six.map((p) => playerRow(p, true)).join('') + '</div>' +
       '<p class="ts-strip">Bench: ' + ben.length + ' not playing</p>' +
       '<div class="ts-list" role="group" aria-label="Bench">' + ben.map((p) => playerRow(p, false)).join('') + '</div>';

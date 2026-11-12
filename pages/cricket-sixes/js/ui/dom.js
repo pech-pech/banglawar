@@ -41,11 +41,11 @@ export function gradeChip(grade, pips) {
   if (grade == null || grade === '' || grade === '?') {
     let dots = '';
     for (let k = 0; k < 1; k++) dots += '<i class="m0-pip' + (k < n ? ' is-on' : '') + '"></i>';
-    return '<span class="m0-grade m0-grade--hidden" role="img" aria-label="Grade shows after 1 drill. ' + n + ' of 1 drill done">' +
+    return '<span class="m0-grade m0-grade--hidden" role="img" aria-label="Potential grade not known yet. Shows after 1 practice drill. ' + n + ' of 1 done">' +
       '<span class="m0-flat m0-flat--q">?</span><span class="m0-pips" aria-hidden="true">' + dots + '</span>' +
       '<span class="m0-pipn">' + n + '/1</span></span>';
   }
-  return '<span class="m0-grade" role="img" aria-label="Grade ' + esc(grade) + '"><span class="m0-flat m0-flat--g m0-gr-' + esc(String(grade).toUpperCase()) + '">' + esc(grade) + '</span></span>';
+  return '<span class="m0-grade" role="img" aria-label="Potential grade ' + esc(grade) + ', how high he can grow"><span class="m0-flat m0-flat--g m0-gr-' + esc(String(grade).toUpperCase()) + '">' + esc(grade) + '</span></span>';
 }
 
 export function peakTag() {

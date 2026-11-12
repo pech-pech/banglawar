@@ -36,6 +36,7 @@ export function createLog(o = {}) {
     event: safe((type, a) => { d.events.push([Math.round(now() / 1000), type, a == null ? 0 : a]); if (d.events.length > CAPS.events) d.events.splice(0, d.events.length - CAPS.events); }),
     open,
     matchStart: safe((s) => {
+      const se = d.sessions[d.sessions.length - 1]; if (se && se.first == null) se.first = Math.max(0, now() - se.t0); // Z1: ms from opening the game to the first Start match
       const prev = open(); if (prev) { prev.ab = 1; prev.t1 = now(); }
       d.matches.push({ id: ++d.seq, sid, build, seed: s.seed, vp: env(), t0: now(), t1: 0, res: null, ab: 0, stage: s.stage, ov: [], scr: {}, why: 0, gl: {}, sk: 0, th: [], feel: {}, rt: null, err: 0 });
       if (d.matches.length > CAP.matches) d.matches.splice(0, d.matches.length - CAP.matches);
@@ -56,7 +57,7 @@ export function createLog(o = {}) {
       const m = d.matches[d.matches.length - 1]; const ov = m && m.ov[m.ov.length - 1]; if (!ov) return;
       ov.pw = skipped ? null : Math.max(0, Math.round(waitMs)); ov.sk = skipped ? 1 : 0; if (skipped) { m.sk++; api.event('skip', ov.o); }
     }),
-    stage: safe((stage) => { const m = d.matches[d.matches.length - 1]; if (m) m.stage = stage; }),
+    stage: safe((stage) => { const se = d.sessions[d.sessions.length - 1]; if (se) se.end = stage; const m = d.matches[d.matches.length - 1]; if (m) m.stage = stage; }), // Z2: se.end = the screen the session was on last
     screen: safe((stage, ms) => { const m = d.matches[d.matches.length - 1]; if (m && ms > 0) m.scr[stage] = (m.scr[stage] || 0) + Math.round(Math.min(ms, 600000)); }),
     why: safe(() => { const m = d.matches[d.matches.length - 1]; if (m) m.why++; api.event('why', m ? m.stage : 0); }),
     gloss: safe((term) => { const m = d.matches[d.matches.length - 1]; const t = String(term || 'full list').slice(0, 24); if (m) m.gl[t] = (m.gl[t] || 0) + 1; api.event('gloss', t); }),

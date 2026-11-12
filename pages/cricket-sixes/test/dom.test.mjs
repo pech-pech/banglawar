@@ -9,12 +9,12 @@ test('esc escapes markup and null', () => {
 });
 test('gradeChip hidden grade shows ? and n/1', () => {
   const h = gradeChip(null, 0);
-  assert.match(h, /\?/); assert.match(h, /0\/1/); assert.match(h, /Grade shows after 1 drill/);
+  assert.match(h, /\?/); assert.match(h, /0\/1/); assert.match(h, /Shows after 1 practice drill/);
   assert.equal((h.match(/m0-pip is-on/g) || []).length, 0);
 });
 test('gradeChip known grade', () => {
   const h = gradeChip('A', 5);
-  assert.match(h, /aria-label="Grade A"/);
+  assert.match(h, /aria-label="Potential grade A, how high he can grow"/);
 });
 test('btn escapes and encodes arg', () => {
   assert.match(btn('<x>', 'pick', { arg: { id: 1 } }), /data-arg="\{&quot;id&quot;:1\}"[^>]*>&lt;x&gt;/);
