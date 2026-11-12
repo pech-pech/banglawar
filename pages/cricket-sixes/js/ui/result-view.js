@@ -27,7 +27,7 @@ export function render(el, vm, dispatch) {
     '<h1 class="res-line">' + esc(vm.line || head) + '</h1>' + kind + tp + '</div>' +
     '<div class="c-card res-card"><h3>Scores</h3><ul class="c-list list-flat">' + score(vm.oppName || 'Rival', vm.inn1) + score('You', vm.inn2) + '</ul></div>' +
     cta + '</div>';
-  if (vm.result === 'won' && vm.inn2) winBeat(el, { scoreEl: '.res-row:last-child .res-score', final: vm.inn2.runs, fmt: (n) => n + ' for ' + vm.inn2.wk }); // P10 win beat: picture + score count, no result change
+  if (vm.result === 'won' && vm.inn2) winBeat(el); // P10 win beat: picture only, the score shows at once, no result change
 }
 
 function newSeed() {

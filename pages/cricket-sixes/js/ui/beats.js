@@ -33,11 +33,11 @@ const rep = (n, ms) => Array.from({ length: n }, () => ms);
 export const BEATS = {
   upgrade: { steps: rep(6, 100), rm: 600, cues: { 0: 'sfx_upgrade_pop', 1: 'sfx_spark' } },
   crowd: { steps: [...rep(8, 80), 300, 300], rm: 600, cues: { 0: 'sfx_crowd_swell' } },
-  win: { steps: rep(12, 100), rm: 1200, cues: { 0: 'sfx_win_fanfare', 1: 'sfx_count_tick', 2: 'sfx_count_tick', 3: 'sfx_count_tick', 4: 'sfx_count_tick', 5: 'sfx_count_tick', 6: 'sfx_count_tick' } },
-  promo: { steps: rep(12, 100), rm: 1200, cues: { 0: 'sfx_win_fanfare', 8: 'sfx_trophy_stamp' } },
-  wicket: { steps: [...rep(6, 100), 200, 200], rm: 800, cues: { 0: 'sfx_wicket_clatter', 1: 'sfx_crowd_gasp' } },
-  six: { steps: [...rep(10, 70), ...rep(6, 140)], rm: 900, cues: { 0: 'sfx_bat_crack', 10: 'sfx_six_roar' } },
-  four: { steps: [...rep(6, 70), ...rep(4, 200)], rm: 800, cues: { 0: 'sfx_bat_crack', 6: 'sfx_four_rope' } },
+  win: { steps: rep(12, 100), rm: 1200, cues: { 0: 'sfx_win_fanfare' } },
+  promo: { steps: rep(3, 100), rm: 300, cues: { 0: 'sfx_win_fanfare', 2: 'sfx_trophy_stamp' } },   // trophy stamp inside the Promoted card
+  wicket: { steps: rep(5, 80), rm: 400, cues: { 0: 'sfx_wicket_clatter', 1: 'sfx_crowd_gasp' } },
+  six: { steps: rep(5, 80), rm: 400, cues: { 0: 'sfx_bat_crack', 4: 'sfx_six_roar' } },
+  four: { steps: rep(5, 80), rm: 400, cues: { 0: 'sfx_bat_crack', 3: 'sfx_four_rope' } },
 };
 export const beatMs = (name) => BEATS[name].steps.reduce((a, b) => a + b, 0);
 
@@ -74,6 +74,7 @@ export function createRunner(deps) {
 }
 
 /* ---------- scene geometry (pure): a 150x100 stand-and-oval picture, drawn at scale 2 = 300x200 ---------- */
+const STAMP = 20;
 export const W = 150, H = 100, SC = 2;
 const BAND_TOP = 4, BAND_BOT = 28, LOW_H = 20, LOW_TOP = H - LOW_H;
 export function geo() {
@@ -102,33 +103,33 @@ export function ropePoints(a0, a1, step) {
   return out;
 }
 const lerp = (a, b, t) => Math.round(a + (b - a) * t);
-/** Six: ball arc (10 held frames) from the bat to the near stand. k 0..9; null once landed. */
+/** Six: ball arc in 5 held frames (400 ms, one ball slot) from the bat to the near stand. k 0..4; null once landed. */
 export function sixPoint(k) {
-  if (k < 0 || k > 9) return null;
-  const t = (k + 1) / 10, sx = G.bat.x + 4, sy = G.bat.y - 8, ex = 104, ey = G.lowTop + 8;
+  if (k < 0 || k > 4) return null;
+  const t = (k + 1) / 5, sx = G.bat.x + 4, sy = G.bat.y - 8, ex = 104, ey = G.lowTop + 8;
   const gy = sy + (ey - sy) * t;
   return { x: lerp(sx, ex, t), y: Math.round(gy - 30 * Math.sin(Math.PI * t) - 6 * (1 - t)), ground: Math.round(gy), onGrass: gy < G.lowTop - 2 };
 }
 export const SIX_REST = { x: 104, y: G.lowTop + 8 };
-const HOP = [0, 2, 0, 1, 0, 0];
+const HOP = [0, 2, 0, 1, 0];
 const UP_DY = [-3, -5, -2, 0, -1, 0], SPARK_R = [0, 18, 24, 28, 31, 33], SPARK_S = [0, 2, 2, 2, 1, 1];
 export function fourPoint(k) {
   const ex = Math.round(G.cx + (G.A - 1) * Math.cos(G.ang)) - 2, ey = Math.round(G.cy + (G.B - 1) * Math.sin(G.ang));
-  const sx = G.bat.x + 6, sy = G.bat.y - 2, t = k >= 5 ? 1 : (k + 1) / 6;
-  return { x: lerp(sx, ex, t), y: lerp(sy, ey, t), hop: k >= 5 ? 0 : HOP[k], atRope: k >= 5 };
+  const sx = G.bat.x + 6, sy = G.bat.y - 2, t = k >= 4 ? 1 : (k + 1) / 5;
+  return { x: lerp(sx, ex, t), y: lerp(sy, ey, t), hop: k >= 4 ? 0 : HOP[k], atRope: k >= 4 };
 }
 /** Wicket: [lean per stump, bail positions relative to the stumps] per frame. */
 const WK = [[[0, 0, 0], null], [[-1, 0, 2], [[-3, -13], [2, -14]]], [[-2, 1, 3], [[-6, -17], [5, -18]]], [[-3, 1, 4], [[-8, -15], [8, -16]]], [[-3, 1, 4], [[-1, 6], [6, 4]]]];
-export const wicketFrame = (k, rm) => WK[rm || k >= 4 ? 4 : k];
-/** The chip: appears once and stays (no on/off). null = hidden. */
-export function chipFor(name, k, rm) {
-  if (name === 'wicket') return rm || k >= 1 ? { text: 'Wicket', kind: 'warn' } : null;
-  if (name === 'six') return rm || k >= 10 ? { text: 'Six +6', kind: 'new' } : null;
-  if (name === 'four') return rm || k >= 5 ? { text: 'Four +4', kind: 'plain' } : null;
+export const wicketFrame = (k, rm) => WK[rm || k >= 4 ? 4 : k];   // 5 held frames, 80 ms each
+/** The chip and the number show on frame 0 (the instant the ball lands) and stay until the next ball. */
+export function chipFor(name) {
+  if (name === 'wicket') return { text: 'Wicket', kind: 'warn' };
+  if (name === 'six') return { text: 'Six +6', kind: 'new' };
+  if (name === 'four') return { text: 'Four +4', kind: 'plain' };
   return null;
 }
-/** Rope colour for a four: gold from frame 6 to the end of the beat, once (a single change, not a flash). */
-export const ropeGold = (k, rm) => rm || (k >= 6 && k < 10);
+/** Rope colour for a four: turns gold once from frame 3 and stays (a single change, not a flash). */
+export const ropeGold = (k, rm) => rm || k >= 3;
 /** Confetti: 24 squares, deterministic. Frame k 0..11. Returns [{x, y, c, edge}] on screen only. */
 const CONF = (() => {
   const r = rng(77), cols = ['gold', 'kitA1', 'kitB1', 'white', 'accent', 'danger', 'water'], a = [];
@@ -141,30 +142,30 @@ export function confettiAt(k) {
   return out;
 }
 export const confettiCount = () => CONF.length;
-/** Win score count: 6 ticks over the first 600 ms; returns the number to show. */
-export const countAt = (final, k, rm) => (rm || k >= 5 ? final : Math.round(final * (k + 1) / 6));
-export const TROPHY_SCALE = [0, 0, 0, 0, 0, 0, 4, 3, 2];
-export const trophyScale = (k, rm) => (rm || k >= 8 ? 2 : TROPHY_SCALE[k]);
+/** Trophy stamp in the Promoted card: drops in over 3 frames (y offsets in art px), dust on the last. */
+export const STAMP_DY = [-6, -3, 0];
+export const stampDy = (k, rm) => (rm || k >= 3 ? 0 : STAMP_DY[k]);
 
 /* ---------- drawing (browser only) ---------- */
 const kitGlobals = () => (typeof window !== 'undefined' && window.SPR && window.ISO && window.PAL ? window : null);
 
-/* 4x5 popup glyphs: the kit's 3x5 "4" reads as "y", so the beats draw their own, bigger and distinct. */
-const GLYPH = {
-  '4': '0010011010101111' + '0010', '6': '0110100011101001' + '0110', '2': '1110000111101000' + '1111', U: '1001100110011001' + '0110', P: '1110100111101000' + '1000',
+/* 5x7 popup glyphs, drawn by the beats (the kit's 3x5 "4" reads as "y", its 6 as S/G). Rows of 5, 7 rows. */
+export const GLYPH = {
+  '4': '...1...11..1.1.1..1.11111...1....1.', '6': '.111.1....1....1111.1...11...1.111.',
+  '2': '.111.1...1....1...1...1...1...11111', U: '1...11...11...11...11...11...1.111.', P: '1111.1...11...11111.1....1....1....',
 };
 export function bigText(ctx, x, y, str, colour, cell) {
   const w = window, c = cell || 2, out = w.PAL.outline;
-  const total = str.length * 5 * c - c;
+  const total = str.length * 6 * c - c;
   let gx = Math.round(x - total / 2);
   for (const ch of str) {
     const g = GLYPH[ch]; if (g) {
-      for (let pass = 0; pass < 2; pass++) for (let i = 0; i < 20; i++) if (g[i] === '1') {
-        const px = gx + (i % 4) * c, py = y + Math.floor(i / 4) * c;
+      for (let pass = 0; pass < 2; pass++) for (let i = 0; i < 35; i++) if (g[i] === '1') {
+        const px = gx + (i % 5) * c, py = y + Math.floor(i / 5) * c;
         if (pass === 0) { ctx.fillStyle = out; ctx.fillRect(px - 1, py - 1, c + 2, c + 2); } else { ctx.fillStyle = colour; ctx.fillRect(px, py, c, c); }
       }
     }
-    gx += 5 * c;
+    gx += 6 * c;
   }
 }
 
@@ -255,31 +256,32 @@ const DRAW = {
       if (!rm && k < 3) SPR.ball(ctx, x + 3 + k * 4, y - 4 + k, { shadowY: y + 1 });
       if (!rm && (k === 1 || k === 2)) { ISO.px(ctx, x - 6, y - 1, 2, 1, P.stone1); ISO.px(ctx, x + 5, y - 2, 2, 1, P.stone1); }
     } });
-    st.setChip(chipFor('wicket', k, rm));
+    st.setChip(chipFor('wicket'));
   },
   six(st, k, rm) {
-    const { SPR, ISO, PAL: P } = kitGlobals(), ctx = st.ctx, land = rm || k >= 10, live = !rm && land && k < 16;
-    sceneFrame(ctx, { kit: st.kit, bob: live ? k % 2 : undefined, t: live ? k * 150 : undefined, over() {
-      if (rm) {
+    const { SPR, ISO, PAL: P } = kitGlobals(), ctx = st.ctx, landed = rm || k >= 4;
+    // the crowd stands up once when the ball lands (bob 0 = a fixed set of seats 1 px up) and holds; arms stay as drawn
+    sceneFrame(ctx, { kit: st.kit, bob: landed ? 0 : undefined, t: landed ? 0 : undefined, over() {
+      if (rm || k >= 5) {
         [0.2, 0.4, 0.6, 0.8].forEach((t) => { const q = sixPointAt(t); ISO.px(ctx, q.x - 1, q.y - 1, 4, 4, P.outline); ISO.px(ctx, q.x, q.y, 2, 2, P.white); });
         SPR.ball(ctx, SIX_REST.x, SIX_REST.y);
-      } else if (k < 10) {
+      } else {
         const q = sixPoint(k);
         [1, 2].forEach((b) => { const o = sixPoint(k - b); if (o) ISO.px(ctx, o.x, o.y, 1, 1, P.white); });
         SPR.ball(ctx, q.x, q.y, q.onGrass ? { shadowY: q.ground } : {});
       }
-      if (land && (rm || k < 16)) bigText(ctx, G.bat.x, G.bat.y - 36 - (rm ? 0 : Math.min(8, (k - 10) * 2)), '6', P.gold, 2);
+      bigText(ctx, G.bat.x, G.bat.y - 44, '6', P.gold, 2);   // the number is there from frame 0
     } });
-    st.setChip(chipFor('six', k, rm));
+    st.setChip(chipFor('six'));
   },
   four(st, k, rm) {
-    const { SPR, ISO, PAL: P } = kitGlobals(), ctx = st.ctx, p = fourPoint(rm ? 9 : k);
+    const { SPR, ISO, PAL: P } = kitGlobals(), ctx = st.ctx, p = fourPoint(rm ? 4 : k);
     sceneFrame(ctx, { kit: st.kit, over() {
       if (ropeGold(k, rm)) ropePoints(G.ang - 0.5, G.ang + 0.5, 0.004).forEach((q) => { ISO.px(ctx, q[0], q[1], 1, 2, P.gold); });
       SPR.ball(ctx, p.x, p.y - (rm ? 0 : p.hop), { shadowY: p.y + 1 });
-      if (p.atRope && (rm || k < 10)) bigText(ctx, p.x, p.y - 18 - (rm ? 0 : Math.min(8, (k - 5) * 2)), '4', P.gold, 2);
+      bigText(ctx, p.x, p.y - 26, '4', P.gold, 2);
     } });
-    st.setChip(chipFor('four', k, rm));
+    st.setChip(chipFor('four'));
   },
   upgrade(st, k, rm, opts) {
     const { SPR, ISO, PAL: P } = kitGlobals(), ctx = st.ctx, dy = rm || k >= 6 ? 0 : UP_DY[k];
@@ -295,8 +297,8 @@ const DRAW = {
     }
     if (rm || k < 6) bigText(ctx, W / 2, 10 - (rm ? 0 : 0), 'UP', P.gold, 2);
   },
-  win(st, k, rm, opts) { winFrame(st, k, rm, false, opts); },
-  promo(st, k, rm, opts) { winFrame(st, k, rm, true, opts); },
+  win(st, k, rm, opts) { winFrame(st, k, rm, opts); },
+  promo(st, k, rm) { stampFrame(st, k, rm); },
   crowd(st, k, rm, opts) {
     const a = crowdFill(opts && opts.from), b = crowdFill(opts && opts.to);
     const d = rm || k >= 8 ? b : a + (b - a) * (k + 1) / 8;
@@ -304,22 +306,21 @@ const DRAW = {
   },
 };
 function sixPointAt(t) { const sx = G.bat.x + 4, sy = G.bat.y - 8, ex = 104, ey = G.lowTop + 8, gy = sy + (ey - sy) * t; return { x: lerp(sx, ex, t), y: Math.round(gy - 30 * Math.sin(Math.PI * t) - 6 * (1 - t)) }; }
-function winFrame(st, k, rm, promo, opts) {
-  const { ISO, PAL: P } = kitGlobals(), ctx = st.ctx, done = rm || k >= 12, drop = promo && !rm && k === 8 ? 1 : 0;
-  sceneFrame(ctx, { kit: st.kit, fill: 1, t: done ? undefined : k * 150, bob: done ? undefined : (k >> 1) % 2, dy: drop, over() {
+function winFrame(st, k, rm) {
+  const { ISO, PAL: P } = kitGlobals(), ctx = st.ctx, done = rm || k >= 12;
+  // the crowd stands once and holds (no repeating bob); confetti falls in held frames
+  sceneFrame(ctx, { kit: st.kit, fill: 1, bob: 0, t: 0, over() {
     if (!rm && k < 12) confettiAt(k).forEach((q) => { ISO.px(ctx, q.x - 1, q.y - 1, 4, q.edge ? 3 : 4, P.outline); ISO.px(ctx, q.x, q.y, 2, q.edge ? 1 : 2, P[q.c]); });
-    if (promo) {
-      const s = trophyScale(k, rm);
-      if (s) {
-        if (!TROPHY) TROPHY = trophyCanvas();
-        ctx.drawImage(TROPHY, 0, 0, 17, 16, Math.round(G.cx - 17 * s / 2), 80 - 16 * s, 17 * s, 16 * s);
-        if (!rm && k === 8) [-20, -16, 16, 20].forEach((o) => ISO.px(ctx, G.cx + o, 79, 2, 2, P.stone1));
-      }
-    }
   } });
-  if (opts && opts.onScore) opts.onScore(rm || k >= 5 ? 1 : (k + 1) / 6, k, rm);
 }
-
+/** Trophy stamp: a 20x20 art-px canvas inside the Promoted card. */
+function stampFrame(st, k, rm) {
+  const { ISO, PAL: P } = kitGlobals(), ctx = st.ctx; if (!TROPHY) TROPHY = trophyCanvas();
+  ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, STAMP, STAMP);
+  const dy = stampDy(k, rm);
+  ctx.drawImage(TROPHY, 0, 0, 17, 16, 1, 2 + dy, 17, 16);
+  if (!rm && k === 2) [[0, 17], [2, 18], [15, 18], [17, 17]].forEach((o) => ISO.px(ctx, o[0], o[1], 2, 2, P.stone1));
+}
 /** Play a beat on a stage. Returns nothing; cancel with stage.runner.stop() / stage.destroy(). */
 export function playBeat(stage, name, opts) {
   if (!stage || !DRAW[name]) return;
@@ -332,15 +333,14 @@ export function attachBeats(slot, opts) {
   const st = createStage(slot, { kit: (opts && opts.kit) || 'B' });
   if (!st) return { ball() {}, stop() {}, stage: null };
   st.rest();
-  let dirty = false;
   return {
     stage: st,
-    /** A ball has landed live (not part of a skip). Dots and singles keep the picture; a wicket, four or six plays its beat. */
+    /** A ball has landed live (not part of a skip). The picture is reset first, so a chip never stays beside a later ball; a wicket, four or six then plays its short beat (one 400 ms slot, chip and number from frame 0). */
     ball(o) {
+      st.runner.stop(); st.rest();
       const name = beatFor(o);
-      if (name) { dirty = true; playBeat(st, name); return name; }
-      if (dirty && !st.runner.running) { dirty = false; st.rest(); }   // a plain ball after a wicket: stumps stand again
-      return null;
+      if (name) playBeat(st, name);
+      return name;
     },
     stop() { st.destroy(); },
   };
@@ -356,24 +356,20 @@ export function winBeat(screen, o) {
   const st = createStage(host, { kit: 'A', cls: 'bt-win' });
   if (!st) return null;
   hero.after(host);
-  const el = o.scoreEl ? screen.querySelector(o.scoreEl) : null, fmt = o.fmt || ((n) => String(n)), final = Number(o.final) || 0;
-  const text0 = el ? el.textContent : '';
-  const onScore = (f) => { if (el && el.isConnected) el.textContent = f >= 1 ? text0 : fmt(Math.round(final * f)); };
-  playBeat(st, 'win', { onScore, done() { if (el && el.isConnected) el.textContent = text0; } });
+  playBeat(st, 'win');   // the score shows its final value at once
   return st;
 }
-/** Promotion: the win beat plus a trophy stamped on the scene; shown as a transient overlay under the result card (pointer-events none). */
+/** Promotion: a small trophy stamp inside the Promoted card (no overlay, nothing is covered). Reduced motion: the stamped trophy at once. */
 export function promoBeat(screen, o) {
   o = o || {};
-  const anchor = screen && screen.querySelector(o.after || '.rn-result');
-  if (!anchor) return null;
-  const host = document.createElement('div'); host.className = 'bt-overlay'; host.setAttribute('aria-hidden', 'true');
-  const st = createStage(host, { kit: 'A', cls: 'bt-promo' }); if (!st) return null;
-  const r = anchor.getBoundingClientRect();
-  host.style.top = Math.round(r.bottom + 8) + 'px';
-  document.body.appendChild(host);
-  playBeat(st, 'promo', { done() { setTimeout(() => host.remove(), reduced() ? 0 : 400); } });
-  return { destroy() { st.runner.stop(); host.remove(); } };
+  const card = screen && screen.querySelector(o.after || '.rn-result');
+  if (!card || !kitGlobals()) return null;
+  const cv = document.createElement('canvas'); cv.className = 'bt-stamp'; cv.setAttribute('aria-hidden', 'true');
+  card.classList.add('has-stamp'); card.appendChild(cv);
+  const sc = window.ISO.makeScene(cv, { internalW: STAMP, internalH: STAMP, scale: 2 });
+  const st = { ctx: sc.ctx, runner: createRunner() };
+  playBeat(st, 'promo');
+  return { destroy() { st.runner.stop(); cv.remove(); } };
 }
 /** Upgrade / Fans: no engine event yet. Kept callable so the economy can wire them: playStandBeat(host, 'crowd', {from, to}). */
 export function playStandBeat(host, name, opts) { const st = createStage(host, { kit: 'B' }); if (st) playBeat(st, name, opts); return st; }
