@@ -16,21 +16,6 @@
 .tr-count { display: flex; align-items: center; gap: var(--c-sp-2); min-height: 32px; font-size: var(--c-fs-s); line-height: var(--c-lh-s); }
 .tr-count .tr-hint { margin-left: auto; }
 .tr-list { margin-top: 0; }
-.tr-row { min-height: 68px; padding-top: 4px; padding-bottom: 4px; gap: var(--c-sp-2); border-bottom: var(--c-border) solid var(--stone2); }
-.tr-row--peak { background: var(--wall1); }
-.tr-name { font-size: 20px; line-height: 24px; }
-.tr-sub { display: flex; align-items: center; flex-wrap: wrap; gap: var(--c-sp-1); }
-.tr-sub .c-tag { min-height: 28px; padding: 0 6px; }
-.tr-st, .tr-peak { display: inline-flex; align-items: center; gap: var(--c-sp-1); }
-.tr-peaksub { color: var(--outline); }
-.tr-end { gap: var(--c-sp-2); align-items: center; }
-.tr-end .m0-abil { flex-direction: column; flex-wrap: nowrap; align-items: center; gap: 0; min-width: 40px; }
-.tr-end .m0-abil b { font-size: 20px; line-height: 24px; }
-.tr-end .m0-maxtag { min-height: 20px; padding: 0 4px; font-size: var(--c-fs-s); line-height: 16px; }
-.tr-end .m0-cap { display: none; }
-.tr-end .m0-grade { min-width: 36px; justify-content: center; }
-.tr-end .m0-grade--hidden { display: grid; grid-template-columns: auto auto; justify-items: center; gap: 2px var(--c-sp-1); }
-.tr-end .m0-grade--hidden .m0-flat--q { grid-column: 1 / -1; }
 .tr-coachrow { min-height: 64px; background: var(--wall1); }
 .tr-coachico { flex: none; display: grid; place-items: center; width: 44px; height: 44px; background: var(--cream); border: var(--c-border) solid var(--outline); }
 .tr-coachtitle { font-size: 18px; }
@@ -175,7 +160,7 @@
 .tr-sumh { display: flex; align-items: center; justify-content: space-between; gap: var(--c-sp-2); font-weight: 700; }
 .tr-planbox { display: inline-grid; place-items: center; width: 28px; height: 28px; border: 2px dashed var(--outline); background: var(--cream); }
 .tr-planbox.is-new { background: var(--gold); }
-.tr-auto { display: inline-flex; align-items: center; gap: var(--c-sp-1); border: 2px dashed var(--outline); padding: 0 6px; min-height: 28px; }
+.tr-auto { display: inline-flex; align-items: center; gap: var(--c-sp-1); border: 2px solid var(--outline); padding: 0 4px; min-height: 28px; }
 .tr-benchli { list-style: none; }
 .tr-bench-strip { display: flex; align-items: center; justify-content: space-between; gap: var(--c-sp-2); }
 .tr-toggle { min-height: 56px; padding: 0 var(--c-sp-2); gap: var(--c-sp-2); font-size: var(--c-fs-s); }
@@ -218,10 +203,11 @@
 .tr-gradebox.is-reveal .m0-flat--g { background: var(--gold); }
 @media (prefers-reduced-motion: no-preference) {
   .tr-gainblock { animation: tr-grow 450ms steps(3) both; transform-origin: left; }
-  .tr-gradebox.is-reveal { animation: tr-flash 1000ms steps(1) 450ms 1 both; }
+  .tr-gradebox.is-reveal { animation: tr-pulse 450ms steps(3) 450ms 1 both; }
 }
 @keyframes tr-grow { from { transform: scaleX(0); } to { transform: scaleX(1); } }
-@keyframes tr-flash { 0%, 100% { background: var(--white); } 25% { background: var(--gold); } 50% { background: var(--white); } 75% { background: var(--gold); } }
+/* one pulse, white to gold, never back: nothing flashes */
+@keyframes tr-pulse { from { background: var(--white); } to { background: var(--gold); } }
 
 /* first-time tips: a spotlight hole (its shadow dims the rest) and one card */
 .tr-tip { position: fixed; inset: 0; z-index: 90; }
@@ -250,3 +236,47 @@
 .tr-gradebox .m0-flat--g { border: var(--c-border) solid var(--outline); padding: 0 var(--c-sp-2); }
 .tr-rr__scores { flex-wrap: wrap; }
 .tr-rr__win { display: inline-flex; align-items: center; gap: var(--c-sp-1); margin-left: auto; font-weight: 700; }
+
+
+/* ===== player row: rating box | name (grade + status under it) | 4-segment block (icon, line, rating). No portrait. ===== */
+.tr-list > li.tr-row { list-style: none; display: flex; align-items: stretch; gap: 4px; width: calc(100% - 8px); margin: 4px 4px 0; min-height: 68px; padding: 4px; box-sizing: border-box; border: var(--c-border) solid var(--outline); background: var(--white); }
+.tr-row--peak { background: var(--wall1) !important; }
+.tr-list > li.tr-row.m0-row--bench { border-style: dashed; }
+.tr-ovr { flex: none; width: 46px; display: flex; flex-direction: column; align-items: center; justify-content: center; box-sizing: border-box; background: var(--white); border: var(--c-border) solid var(--outline); }
+.tr-ovr b { font: 400 28px/30px var(--font-head, var(--c-font)); font-variant-numeric: tabular-nums; }
+.tr-ovr small { font-size: 14px; line-height: 14px; }
+.tr-ovr.is-max { background: var(--gold); }
+.tr-who { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; justify-content: center; gap: 2px; text-align: left; }
+.tr-who .tr-name { display: block; font-size: var(--c-fs-m); max-width: 100%; line-height: 22px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tr-sub { display: flex; align-items: center; gap: 2px; min-height: 28px; white-space: nowrap; }
+.tr-gr { display: inline-flex; align-items: center; justify-content: center; flex: none; width: 24px; min-width: 24px; height: 28px; box-sizing: border-box; background: var(--white); border: var(--c-border) solid var(--outline); font: 400 var(--c-fs-m)/20px var(--font-head, var(--c-font)); }
+.tr-gr.is-hidden { border-style: dashed; }
+.tr-bench { display: inline-grid; place-items: center; width: 24px; height: 28px; }
+.tr-list > li.tr-row::after { display: none; }
+.tr-planbox { width: 26px; height: 26px; }
+.tr-st { display: inline-flex; align-items: center; gap: 2px; }
+.tr-won { color: var(--grass3); font-size: var(--c-fs-m); }
+.tr-rates { flex: none; display: flex; align-items: stretch; background: var(--white); border: var(--c-border) solid var(--outline); }
+.tr-rate { width: 34px; display: flex; flex-direction: column; align-items: stretch; }
+.tr-rate + .tr-rate { border-left: var(--c-border) solid var(--outline); }
+.tr-ri { flex: 1; display: flex; align-items: center; justify-content: center; min-height: 30px; }
+.tr-rv { height: 26px; border-top: var(--c-border) solid var(--outline); text-align: center; font: 400 20px/24px var(--font-head, var(--c-font)); font-variant-numeric: tabular-nums; }
+.tr-rate.is-plan > .tr-ri { outline: 2px dashed var(--outline); outline-offset: -3px; }
+.tr-rate.is-plan.is-new > .tr-rv { background: var(--gold); }
+.tr-rate.is-up > .tr-up, .tr-rate.is-up > .tr-rv { background: var(--gold); }   /* drilled this week: gold number cell with +n; the icon cell stays white */
+.tr-up { height: 16px; text-align: center; font: 400 14px/16px var(--font-head, var(--c-font)); border-top: var(--c-border) solid var(--outline); }
+.tr-rate.is-up > .tr-ri { min-height: 24px; }
+.tr-k-abil, .tr-k-up { display: inline-flex; align-items: center; justify-content: center; width: 40px; height: 28px; box-sizing: border-box; border: 2px solid var(--outline); background: var(--white); font: 400 16px/20px var(--font-head, var(--c-font)); }
+.tr-k-up { background: var(--gold); }
+.tr-auto-k { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; box-sizing: border-box; border: 2px solid var(--outline); }
+/* QA rows r2 N1: the old bench tag style must not touch the row's bench icon */
+#app .tr-sub .tr-bench { background: none; border: 0; min-height: 0; }
+
+/* row = <li> holding one real <button> (list semantics stay intact); the button fills the li */
+.tr-list > li.tr-row, .tr-list > li.tr-coachrow { padding: 0; }
+.tr-rowbtn { all: unset; box-sizing: border-box; display: flex; align-items: stretch; gap: 4px; flex: 1; min-width: 0; width: 100%; padding: 4px; cursor: pointer; color: inherit; font: inherit; text-align: left; }
+.tr-list > li.tr-coachrow > .tr-rowbtn { min-height: 64px; align-items: center; gap: var(--c-sp-2); padding: 0 var(--c-sp-2); }
+.tr-coachrow .c-row__body { flex: 1; min-width: 0; }
+/* focus: solid ring outside the border plus a fill, so a focused bench row is not a second dashed line (kit ring is dashed, inside) */
+.tr-list > li:has(> .tr-rowbtn:focus-visible) { outline: 3px solid var(--c-focus); outline-offset: 2px; background: var(--wall1); }
+.tr-rowbtn:focus-visible { outline: none; }

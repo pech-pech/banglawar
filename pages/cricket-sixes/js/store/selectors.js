@@ -46,14 +46,20 @@ export function bowlVM(s) {
     });
     return { i, name: p.name, bowl: p.bowl, overs: p.overs, eligible, reason, grade: gradeChip(p), previews, ability: shownAbility(p) };
   });
-  const call = s.call || { bowler: el.length ? el[0] : -1, field: 'A' };
-  // P5 field hint: League 1 only. TODO: or the club bought a Coach (no coach-buying code yet).
-  // P5b: the PAIR at the crease. Attack if (bp1+bp2)/2 + (bs1+bs2)/2 < 2*centre, else Protect.
+  const call = s.call || { bowler: el.length ? el[0] : -1, field: 'P' };
+  // 12b suggestion chip (never pre-applied; the call itself starts neutral: Protect). League 1 only. TODO: or the club bought a Coach (no coach-buying code yet).
+  // Pair rule: Attack if (bp1+bp2)/2 + (bs1+bs2)/2 < 2*centre ("weak pair"). Protect chip only for a big hitting pair (mean bp - centre >= 8).
+  // Anything else is not worth 1 win point (12b table 1), so no chip.
   const pair = inn.crease.map((i) => bats[i]).filter(Boolean);
   const showHint = !!(s.season && (s.season.league || 1) === 1) && pair.length > 0;
   const mean = (k) => pair.reduce((a, b) => a + b[k], 0) / (pair.length || 1);
-  const pick = mean('bp') + mean('bs') < 2 * centreOf(s) ? 'A' : 'P';
-  const fieldHint = showHint ? { pick, why: 'Weak bat? Attack. Big hitter? Protect.' } : null;
+  const centre = centreOf(s);
+  const pick = mean('bp') + mean('bs') < 2 * centre ? 'A' : 'P';
+  const worth = pick === 'A' || mean('bp') - centre >= 8;
+  const names = pair.map((b) => b.name).join(' and ');
+  // The reason names the pair and uses the same rule that picked the chip, so it can never contradict it.
+  const why = pick === 'A' ? `${names}: weak bats on average, try Attack` : `${names}: big hitters, keep Protect`;
+  const fieldHint = showHint && worth ? { pick, why } : null;
   return {
     over: inn.over, phase: ph, phaseName: PHASE_NAMES[ph], score: scoreOf(inn),
     crease: crease(inn, bats), bowlers, call, batNames: bats.map((p) => p.name), bowlNames: me.map((p) => p.name), fieldHint,
@@ -82,9 +88,9 @@ export function chaseVM(s) {
       }),
     })),
     aiBowler: lb ? { name: lb.name, bowl: lb.bowl } : null,
-    // P5b intent hint: League 1 only. TODO: or the club bought a Coach (no coach-buying code yet).
-    intentHint: s.season && (s.season.league || 1) === 1
-      ? { pick: inn.over >= 8 ? 'A' : 'R', why: 'Last 3 overs: Attack. Before that: Steady.' } : null,
+    // 12b suggestion chip: League 1 only (TODO: or a Coach), only where worth >= 1 win point: Attack in the last 3 overs. Steady is the default, so no chip before that.
+    intentHint: s.season && (s.season.league || 1) === 1 && inn.over >= 8
+      ? { pick: 'A', why: 'Last 3 overs: Attack. Before that: Steady.' } : null,
     last,
   };
 }
@@ -247,12 +253,15 @@ function coachLine(s) {
 const drillGain = (s, id) => { const e = (s.training.weekLog || []).find((x) => x.type === 'Drill' && x.playerId === id); return e || null; };
 const rowOrder = (s) => { const six = sixIds(s); return [...six.map((id) => player(s, id)), ...mine(s).squad.filter((p) => !six.includes(p.id))]; };
 
+/** The four raw 1-99 ratings of a row, in the order the row draws them (Batting Power, Batting Skill, Bowling Speed, Bowling Skill). */
+export const ratesOf = (p) => ({ batPower: p.bp, batSkill: p.bs, bowlSpeed: p.spd, bowlSkill: p.bsk });
+
 export function trainingVM(s) {
   const six = sixIds(s);
   const rows = rowOrder(s).map((p) => {
     const g = drillGain(s, p.id);
     const status = g ? (g.gain > 0 ? '+' + g.gain : 'done') : atPeak(p) ? 'peak' : 'drill';
-    const row = { id: p.id, name: p.name, bench: !six.includes(p.id), role: p.bat, type: p.bowl, ability: shownAbility(p), max: isMax(p), grade: gradeOf(p) || '?', pips: pipsOf(p), status };
+    const row = { id: p.id, name: p.name, bench: !six.includes(p.id), role: p.bat, type: p.bowl, ability: shownAbility(p), max: isMax(p), grade: gradeOf(p) || '?', pips: pipsOf(p), status, rates: ratesOf(p) };
     if (g && g.gain > 0) row.gainRating = RATING_KEY[drillDef(g.drillId).rating];
     return row;
   });

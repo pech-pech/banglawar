@@ -23,6 +23,14 @@
 /* P5: field hint line and "Tip" tag (word plus star, never colour only); hidden-grade matchup note */
 .bv-tip { display: inline-flex; align-items: center; gap: 2px; margin-left: 4px; padding: 0 4px; font: 14px/18px var(--font-body); border: 2px solid var(--outline); background: var(--gold); white-space: nowrap; }
 .bv-tip .icon, .bv-tip .bv-ph { width: 16px; height: 16px; flex: none; }
+/* 12b suggestion chip: info icon + "Tip" word + reason, one tap applies it; 56 px tall, 14 px text; the on state adds a tick word and a thick border, not colour only */
+.bv-chip { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 56px; padding: 4px 8px; text-align: left; border: 2px solid var(--outline); border-left: 8px solid var(--gold); background: var(--cream); font: 14px/16px var(--font-body); }
+.bv-keep { margin: 0; min-height: 24px; padding: 2px 4px; font: 14px/16px var(--font-body); border-left: 4px solid var(--accent); }
+.bv-chip .icon, .bv-chip .bv-ph, .bv-chip .bv-chip-i { flex: none; width: 24px; height: 24px; }
+.bv-chip-t { display: flex; flex-direction: column; min-width: 0; }
+.bv-chip-t b { font: 16px/18px var(--font-head); font-weight: 400; }
+.bv-chip.is-on { border-width: 4px; border-left-width: 8px; padding: 2px 6px; }
+.bv-chip:focus-visible { outline: 3px solid var(--outline); outline-offset: 2px; }
 .bv-more { margin: 0; padding: 2px 4px 0; font: 14px/16px var(--font-body); }
 /* last over: one compact line + Why? */
 .bv-last { flex-wrap: nowrap; min-height: 56px; gap: 6px; }

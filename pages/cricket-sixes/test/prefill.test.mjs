@@ -17,7 +17,7 @@ test('prefill: the default plan is valid for many seeds', () => {
     const s = toPlan('pf-' + i);
     assert.equal(s.stage, 'plan');
     assert.equal(planProblem(s.plan.overs), null, 'seed ' + i + ': ' + s.plan.overs);
-    assert.deepEqual(s.plan.fields, ['A', 'A', 'A']);
+    assert.deepEqual(s.plan.fields, ['P', 'P', 'P'], 'neutral field: Protect');
     const vm = planVM(s);
     assert.equal(vm.valid, true);
     assert.ok(vm.hint && vm.hint.length > 0 && vm.hint.length < 70);

@@ -110,9 +110,13 @@ export function render(el, vm, dispatch) {
   E.__bvDispatch = dispatch; E.__bvVM = vm;
   const selB = (vm.bowlers || []).find((b) => vm.call && b.i === vm.call.bowler && b.eligible);
   const hint = vm.fieldHint || null;
-  const seg = (k, icon) => `<button type="button" class="opt${fld === k ? ' is-selected' : ''}" role="radio" data-field="${k}" aria-checked="${fld === k ? 'true' : 'false'}"` +
-    `${hint && hint.pick === k ? ' aria-label="' + FIELD[k] + ', tip: suggested for the batter on strike"' : ''}>${ic(icon, 24)}${FIELD[k]}` +
-    `${hint && hint.pick === k ? '<span class="bv-tip" data-tip>' + ic('info', 16) + 'Tip</span>' : ''}</button>`;
+  const seg = (k, icon) => `<button type="button" class="opt${fld === k ? ' is-selected' : ''}" role="radio" data-field="${k}" aria-checked="${fld === k ? 'true' : 'false'}">${ic(icon, 24)}${FIELD[k]}</button>`;
+  // 12b: a tappable suggestion chip (info icon + the word "Tip"), never pre-applied. Shape and words carry the state, not colour.
+  const on = !!hint && fld === hint.pick;
+  // D1: Protect is already the default, so a Protect tip while Protect is set is a plain line, not a tap target.
+  const plain = !!hint && hint.pick === 'P' && fld === 'P';
+  const chip = plain ? `<p class="bv-keep" data-fieldhint-plain>${esc(hint.why)}</p>` : hint ? `<button type="button" class="bv-chip${on ? ' is-on' : ''}" data-chip="${hint.pick}" data-fieldhint aria-pressed="${on}">` +
+    `${ic('info', 24, 'bv-chip-i')}<span class="bv-chip-t"><b>Tip: ${on ? FIELD[hint.pick] + ' field is on' : 'try ' + FIELD[hint.pick] + ' field'}</b><span>${esc(hint.why)}</span></span></button>` : '';
   const notes = newNotes();
   const anyHidden = (vm.bowlers || []).some((b) => b.grade === '?' && b.eligible);
   const anyBest = (vm.bowlers || []).some((b) => (b.previews || []).some((p) => p.inPhase));
@@ -124,11 +128,17 @@ export function render(el, vm, dispatch) {
     `${vm.firstStrip ? stripHtml(esc) : ''}<section class="colL bv-colL">` +
     `<div class="sb bv-sb" role="radiogroup" aria-label="Bowlers">${head(vm)}${(vm.bowlers || []).map((b) => row(b, vm, notes)).join('')}</div>${anyHidden ? `<p class="bv-more" data-more>${MORE}</p>` : ''}</section>` +
     `<section class="colR bv-colR"><div class="seg bv-seg" role="radiogroup" aria-label="Field">${seg('A', 'fieldAttack')}${seg('P', 'fieldProtect')}</div>` +
-    lastLine(vm) +
-    `<div class="hints bv-hints">${hint ? `<p data-fieldhint><b>${esc(hint.why)}</b></p>` : `<p><b>Attack</b>: more wickets, more runs. <b>Protect</b>: fewer runs.</p>`}` +
+    chip + lastLine(vm) +
+    `<div class="hints bv-hints"><p><b>Attack</b>: more wickets, more runs. <b>Protect</b>: fewer runs.</p>` +
     `<p><b>${POT}</b>: D low to S best.${anyBest ? ' <b class="bv-starkey" aria-hidden="true">★</b> = best overs now.' : ''}</p></div></section>` +
     `<div class="ctabar bv-cta"><button type="button" class="c-btn c-btn--primary c-btn--cta" data-bowl${vm.canBowl === false ? ' disabled' : ''}>` +
     `<span>Bowl over ${esc(vm.over)}${selB ? ':&nbsp;<span class="name">' + esc(selB.name) + '</span>' : ''}</span></button></div>`;
+  // D3: bring the pre-filled bowler row into view inside the list only (never the page)
+  const selRow = el.querySelector('.bv-sb .sb-row.is-selected'), lst = el.querySelector('.bv-sb');
+  if (selRow && lst && lst.scrollHeight > lst.clientHeight) {
+    const a = selRow.getBoundingClientRect(), b = lst.getBoundingClientRect();
+    if (a.bottom > b.bottom) lst.scrollTop += a.bottom - b.bottom + 4; else if (a.top < b.top) lst.scrollTop -= b.top - a.top + 4;
+  }
   // QA r2 D8: dock the first-match card just above the Field bar, so the batters and the bowler named on the CTA stay visible
   const fs = el.querySelector('.fs-strip'), segEl = el.querySelector('.bv-seg');
   if (fs && segEl) { const top = segEl.getBoundingClientRect().top; if (top > 0) fs.style.bottom = Math.max(0, Math.round(window.innerHeight - top + 6)) + 'px'; }
@@ -138,6 +148,7 @@ export function render(el, vm, dispatch) {
       const t = /** @type {HTMLElement} */ (e.target).closest('button'); if (!t || t.disabled || !el.contains(t)) return;
       const d = E.__bvDispatch, v = E.__bvVM; if (!d || !v || !t.closest('.bv-strip, .fs-strip, .bv-colL, .bv-colR, .bv-cta')) return;
       if (t.hasAttribute('data-bowler')) d('MakeCall', { bowler: Number(t.getAttribute('data-bowler')), field: v.call && v.call.field });
+      else if (t.hasAttribute('data-chip')) d('MakeCall', { bowler: v.call && v.call.bowler, field: t.getAttribute('data-chip') });
       else if (t.hasAttribute('data-field')) d('MakeCall', { bowler: v.call && v.call.bowler, field: t.getAttribute('data-field') });
       else if (t.hasAttribute('data-bowl')) d('BowlOver', {});
       else if (t.hasAttribute('data-why')) openSheet('Why did the last over go that way?', whyHtml(v));

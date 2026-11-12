@@ -84,13 +84,13 @@ export function resultHtml(vm) {
   const hidden = vm.grade == null || vm.grade === '?';
   const word = vm.word + (vm.word === 'Great' ? '!' : '');
   const icon = deco(RATING_ICON[vm.rating] || 'upgrade', 48).replace('class="icon"', 'class="icon tr-rico"');
-  const wasBar = '<div class="c-stat c-stat--mid tr-stat tr-was" aria-label="Was ' + esc(before) + '"><span class="c-stat__label">Was</span><span class="c-stat__track"><i class="c-stat__fill" style="--v:' + pct(before) + '%"></i></span><b class="c-stat__val">' + esc(before) + '</b></div>';
-  const nowBar = '<div class="c-stat c-stat--mid tr-stat tr-now" aria-label="Now ' + esc(after) + ', up ' + esc(gain) + '"><span class="c-stat__label">Now</span><span class="c-stat__track"><i class="c-stat__fill tr-oldpart" style="--v:' + pct(before) + '%"></i>' +
+  const wasBar = '<div class="c-stat c-stat--mid tr-stat tr-was"><span class="c-stat__label">Was</span><span class="c-stat__track"><i class="c-stat__fill" style="--v:' + pct(before) + '%"></i></span><b class="c-stat__val">' + esc(before) + '</b></div>';
+  const nowBar = '<div class="c-stat c-stat--mid tr-stat tr-now"><span class="c-stat__label">Now</span><span class="c-stat__track"><i class="c-stat__fill tr-oldpart" style="--v:' + pct(before) + '%"></i>' +
     '<i class="tr-gainblock" style="left:' + pct(before) + '%;--n:' + gain + ';--g:' + pct(gain) + '%"></i></span><b class="c-stat__val tr-nowv">' + esc(after) + '</b></div>';
   return '<div class="tr-res" data-gain="' + gain + '" data-before="' + before + '">' +
-    '<div class="tr-res__top"><span class="tr-res__who"><b>' + esc(vm.name) + '</b><span class="tr-iw">' + deco(RATING_ICON[vm.rating] || 'upgrade', 20) + '<span>' + esc(vm.drillName) + '</span></span></span>' +
+    '<div class="tr-res__top"><span class="tr-res__who"><b>' + esc(vm.name) + '</b><span class="tr-iw">' + deco(RATING_ICON[vm.rating] || 'upgrade', 20) + '<span>' + esc(RATING_WORD[vm.rating] || vm.drillName) + '</span></span></span>' +
     '<span class="tr-gradebox' + (vm.revealed ? ' is-reveal' : '') + '">' + gradeChip(vm.grade, hidden ? 0 : 1) + '</span></div>' +
-    '<div class="tr-res__big" role="status"><span class="tr-bigico">' + icon + '</span><b class="tr-bignum" aria-label="plus ' + esc(gain) + '">+<span class="tr-bignum__n">' + esc(gain) + '</span></b>' +
+    '<div class="tr-res__big"><span class="sr-only" role="status">Plus ' + esc(gain) + ', ' + esc(word) + '</span><span class="tr-bigico">' + icon + '</span><b class="tr-bignum">+<span class="tr-bignum__n">' + esc(gain) + '</span></b>' +
     '<span class="c-tag tr-qual' + (vm.word === 'Great' ? ' c-tag--done' : '') + '">' + (vm.word === 'Great' ? deco('burst', 20) : '') + '<span>' + esc(word) + '</span></span></div>' +
     wasBar + nowBar +
     (vm.revealed ? '<p class="tr-reveal-line" role="status">' + deco('medal', 24) + '<span>Potential grade found: ' + esc(vm.grade) + '</span></p>' : '') +

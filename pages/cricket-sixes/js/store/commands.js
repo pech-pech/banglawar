@@ -27,15 +27,20 @@ function summarise(s) {
   };
 }
 
-/** Default Call: first eligible bowler, field A. null when no one can bowl. */
+/** M's pick (12b): every over's call starts neutral. Bowling: Protect. Batting: Rotate (shown as "Steady"). Never the last call. */
+export const NEUTRAL_FIELD = 'P';
+export const NEUTRAL_INTENT = 'R';
+const NEUTRAL_FIELDS = () => [NEUTRAL_FIELD, NEUTRAL_FIELD, NEUTRAL_FIELD];
+
+/** Default Call: the planned bowler (season) or first eligible, field Protect unless the player's own plan set a phase field. null when no one can bowl. */
 function defaultCall(s) {
   const el = eligibleBowlers(s.me.players, s.inn1.over, s.inn1.last);
   if (!el.length) return null;
   if (s.season && s.plan) { // season: the planned bowler (when allowed) and the planned field for this phase
     const planned = s.plan.overs[s.inn1.over - 1];
-    return { bowler: el.includes(planned) ? planned : el[0], field: s.plan.fields[phaseOf(s.inn1.over)] || 'A' };
+    return { bowler: el.includes(planned) ? planned : el[0], field: s.plan.fields[phaseOf(s.inn1.over)] || NEUTRAL_FIELD };
   }
-  return { bowler: el[0], field: 'A' };
+  return { bowler: el[0], field: NEUTRAL_FIELD };
 }
 
 /** Skill-tree effects for the match, in a season only (a step-0 match passes no fx, so its numbers are unchanged). */
@@ -81,7 +86,7 @@ function bowlOver(s, p) {
   if (n.stage === 'chase') {
     const inn = n.inn2;
     const rng = makeRng(`${n.seed}|${n.stage}|${inn.over}`);
-    const intent = p && ['D', 'R', 'A'].includes(p.intent) ? p.intent : 'R';
+    const intent = p && ['D', 'R', 'A'].includes(p.intent) ? p.intent : NEUTRAL_INTENT;
     const good = rivalCall(rng, FLAGS.rivalGoodShare);
     const batters = [n.me.players[inn.crease[0]], n.me.players[inn.crease[1]]];
     const bowler = pickBowler(n.rival.players, inn, batters, rng, good);
@@ -148,7 +153,7 @@ function newGame(payload) {
   const season = newSeasonData(seed, 1, clubs);
   return {
     v: 2, salt: '', seed, stage: 'hub', ...blankMatch(), run: newRun(seed),
-    season, clubs, plan: { overs: DEFAULT_OVERS.slice(), fields: ['A', 'A', 'A'], edited: false, key: '' },
+    season, clubs, plan: { overs: DEFAULT_OVERS.slice(), fields: NEUTRAL_FIELDS(), edited: false, key: '' },
     coaches: makeCandidates(makeRng(`${seed}|coaches`)), coachPicked: false, nets: 1,
     training: { tp: 450, week: 1, drilled: {}, nodeBought: {}, last: null, weekLog: [], weekStart: {}, drillCount: 0 },
     fixture: leagueFixture(season, 1),
@@ -162,7 +167,7 @@ function setSix(s, p) {
   const n = clone(s);
   n.clubs[0].six = p.ids.slice();
   const key = planKey(s);
-  if (!(s.plan.edited && s.plan.key === key)) n.plan = { overs: suggestedOvers(n), fields: ['A', 'A', 'A'], edited: false, key }; // never overwrite a plan the player set for this match
+  if (!(s.plan.edited && s.plan.key === key)) n.plan = { overs: suggestedOvers(n), fields: NEUTRAL_FIELDS(), edited: false, key }; // never overwrite a plan the player set for this match
   n.stage = 'plan';
   return n;
 }
@@ -368,7 +373,7 @@ function withSix(s) {
 export function livePlan(s) {
   const t = withSix(s), key = planKey(t);
   if (t.plan.edited && t.plan.key === key) return t.plan;
-  return { overs: suggestedOvers(t), fields: ['A', 'A', 'A'], edited: false, key };
+  return { overs: suggestedOvers(t), fields: NEUTRAL_FIELDS(), edited: false, key };
 }
 /** Run an old stage-bound command from the hub, then put the stage back. `plan` replaces the stored plan first (the live one). Unchanged -> the same state. */
 function viaStage(s, stage, fn, plan) {
@@ -381,7 +386,7 @@ function teamPlan(s, p) { return onHub(s) ? viaStage(s, 'plan', (x) => editPlan(
 function teamSuggest(s) {
   if (!onHub(s)) return s;
   const t = withSix(s), n = clone(t);
-  n.plan = { overs: suggestedOvers(t), fields: ['A', 'A', 'A'], edited: false, key: planKey(t) };
+  n.plan = { overs: suggestedOvers(t), fields: NEUTRAL_FIELDS(), edited: false, key: planKey(t) };
   return n;
 }
 /** One Start match: the saved six and plan (suggested if none) go straight to the match. A broken plan does nothing. */

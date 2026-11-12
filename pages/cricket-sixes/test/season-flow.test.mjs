@@ -13,7 +13,7 @@ test('whole season: ends at stage end within 11 matches, table sums, TP never ne
   assert.equal(s.stage, 'end'); assert.equal(s.season.phase, 'over'); assert.ok(s.season.champion);
   for (const k of ['hub', 'squad', 'plan', 'bowl', 'break', 'chase', 'done', 'train', 'week', 'end']) assert.ok(stages.has(k), k);
   const t = s.season.table;
-  assert.equal(t.reduce((a, r) => a + r.p, 0), 90); assert.equal(t.reduce((a, r) => a + r.pts, 0), 90 + t.reduce((a, r) => a + r.t, 0));
+  assert.equal(t.reduce((a, r) => a + r.p, 0), 90); assert.equal(t.reduce((a, r) => a + r.pts, 0), 90); // 2 points a match: win 2+0, tie 1+1
   assert.equal(s.season.results.filter((r) => r.kind === 'league').length, 45);
   assert.ok(minTp >= 0);
   const ownMatches = s.season.results.filter((r) => r.a === 'c0' || r.b === 'c0').length;
@@ -76,6 +76,9 @@ test('weekVM / trainingVM / playerVM / treeVM / coachesVM / drillResultVM shapes
   const tv = sel.trainingVM(s);
   assert.equal(tv.rows.length, 10); assert.equal(tv.total, 10); assert.equal(tv.done, 0); assert.ok(tv.coachLine);
   assert.equal(tv.rows.filter((r) => r.bench).length, 4);
+  // row layout: each row carries the four raw 1-99 ratings, in the order the row draws them
+  for (const r of tv.rows) { assert.deepEqual(Object.keys(r.rates), ['batPower', 'batSkill', 'bowlSpeed', 'bowlSkill']); for (const v of Object.values(r.rates)) assert.ok(Number.isInteger(v) && v >= 1 && v <= 99); }
+  const p0 = s.clubs[0].squad.find((p) => p.id === tv.rows[0].id); assert.deepEqual(tv.rows[0].rates, { batPower: p0.bp, batSkill: p0.bs, bowlSpeed: p0.spd, bowlSkill: p0.bsk });
   const pv = sel.playerVM(s, id); assert.equal(pv.drills.length, 4); assert.equal(pv.ratings.length, 4); assert.ok(pv.ability.overall);
   const tr = sel.treeVM(s, id); assert.equal(tr.trees.length, 2); assert.equal(tr.trees[0].nodes.length, 5);
   assert.ok(sel.coachesVM(s).coaches.length >= 1);
