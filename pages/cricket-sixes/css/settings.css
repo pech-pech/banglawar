@@ -1,0 +1,18 @@
+/* Playtest report: gear button (break and result headers only), settings sheet, feel strip. Own file; touches no other screen's rules. */
+.strip .st-gear { flex: none; width: 56px; height: 56px; min-height: 56px; margin: -4px 0 -4px auto; padding: 0; display: inline-flex; align-items: center; justify-content: center; align-self: center; }
+.strip .st-gear + .help-btn { margin-left: 0; }
+.st-gear img { width: 28px; height: 28px; image-rendering: pixelated; }
+.st-body { display: flex; flex-direction: column; gap: var(--c-sp-2); }
+.st-body .st-act { width: 100%; min-height: 56px; }
+.st-status { margin: 0; min-height: 20px; font-size: var(--c-fs-s); line-height: var(--c-lh-s); }
+.st-fallback textarea { width: 100%; min-height: 120px; font: 12px/16px monospace; background: var(--cream); color: var(--outline); border: var(--c-border) solid var(--outline); }
+.st-fallback p, .st-stamp, .st-note, .st-q { margin: 0; font-size: var(--c-fs-s); line-height: var(--c-lh-s); }
+.st-stamp { opacity: .75; overflow-wrap: anywhere; }
+.st-two { display: grid; grid-template-columns: 1fr 1fr; gap: var(--c-sp-2); }
+.st-clear { display: flex; flex-direction: column; gap: var(--c-sp-1); }
+/* feel strip on the result screen: one question at a time */
+.rp-feel { display: flex; flex-direction: column; gap: var(--c-sp-1); padding: var(--c-sp-2); background: var(--wall1); border: var(--c-border) solid var(--outline); border-radius: var(--c-radius); }
+.rp-q { margin: 0; font-size: var(--c-fs-m); line-height: var(--c-lh-m); }
+.rp-opts { display: grid; grid-template-columns: 1fr 1fr; gap: var(--c-sp-1); }
+.rp-chip { min-height: 56px; width: 100%; padding: 0 var(--c-sp-1); }
+.rp-skip { opacity: .8; }

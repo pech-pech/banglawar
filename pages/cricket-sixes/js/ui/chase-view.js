@@ -15,7 +15,7 @@ let intent = 'R'; // UI state only, never saved
 const INTENTS = [
   { k: 'D', n: 'Defend', s: 'safe', d: 'Defend: play safe. Fewer wickets, fewer big hits.' },
   { k: 'R', n: 'Rotate', s: 'singles', d: 'Rotate: take singles, keep the score moving.' },
-  { k: 'A', n: 'Attack', s: 'big hits, more risk', d: 'Attack: go for big hits. More runs, more risk.' },
+  { k: 'A', n: 'Attack', s: 'big hits, risky', d: 'Attack: go for big hits. More runs, more risk.' },
 ];
 const TYPE_ICON = { Fast: 'typeFast', Medium: 'typeMedium', Spin: 'typeSpin' };
 const ROLE_ICON = { Opener: 'roleOpener', Middle: 'roleMiddle', Lower: 'roleLower' };
@@ -147,12 +147,9 @@ export function render(el, vm, dispatch) {
     '<span class="mid"><b>' + esc(need) + '</b><span>Target ' + esc(vm.target) + ' · Over ' + esc(vm.over) + ' of 10 · ' + esc(phase) + '</span></span>' +
     '<button type="button" class="q" aria-label="Cricket words explained">?</button></header>' +
     '<section class="colL">' +
-    '<h1 class="title">Your batters</h1>' +
-    (known.length ? '<div class="bat">Their likely next bowler' + (known.length > 1 ? 's' : '') + ': ' + known.map((bw) => '<b>' + esc(bw.name) + '</b> (' + esc(bw.bowl) + ')').join(', ') + '</div>' : '') +
     '<div class="sb chase" role="table" aria-label="Your batters against their likely bowlers">' + head +
-    '<div class="legend"><span><i>▲</i> Good</span><span><i>●</i> OK</span><span><i>▼</i> Poor</span><span><i>★</i> best overs now</span><span><i>?</i> not known yet</span></div>' +
     crease.map((b) => batterRow(b, cols)).join('') + '</div>' +
-    '<div class="boxnote">' + (ex ? esc(ex.r + ' (' + ex.b + ') = ' + ex.r + ' runs from ' + ex.b + ' balls.') : '') +
+    '<div class="boxnote">' + (ex ? esc(ex.r + ' (' + ex.b + ') = ' + ex.r + (ex.r === 1 ? ' run' : ' runs') + ' from ' + ex.b + (ex.b === 1 ? ' ball.' : ' balls.')) : '') +
     (hidden ? ' Grade ? = shows after 5 practice drills.' : '') + '</div>' +
     '</section>' +
     '<section class="colR">' +

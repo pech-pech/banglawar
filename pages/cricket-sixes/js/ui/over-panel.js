@@ -1,8 +1,8 @@
-// Ball-by-ball over panel. Modal; autoplays one ball per 800 ms; calls onDone when Next is pressed.
+// Ball-by-ball over panel. Modal; autoplays one ball per 400 ms; calls onDone when Next is pressed.
 // balls: raw over balls ({n, o, ...}) optionally with batName, bowlName, bowlType for the why line.
 import { whyLine, outcomeLabel } from './why.js';
 
-export const BALL_MS = 800;
+export const BALL_MS = 400;
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const plural = (n, w) => n + ' ' + w + (n === 1 ? '' : 's');
 
