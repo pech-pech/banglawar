@@ -47,7 +47,8 @@ export function render(el, vm, dispatch) {
   el.innerHTML =
     '<div class="screen ss ss-hub hb-hub">' +
     '<div class="c-strip strip"><span class="ss-strip"><b class="rn-head">' + esc(head) + '</b><small>' + esc(sub) + '</small></span>' + helpBtn('league-table') + '</div>' +
-    '<div class="hb-tools">' + btn('Table', 'sheet:table') + '<button type="button" class="c-btn ss-save" data-act="sheet:save">' + ico('settings', 20) + 'Save</button>' + tpChip(vm.tp) + '</div>' +
+    '<div class="hb-tools">' + btn('Table', 'sheet:table') + '<button type="button" class="c-btn hb-book" data-act="sheet:book" aria-label="Pairing Book">' + ico('info', 20) + 'Book</button>' +
+    '<button type="button" class="c-btn ss-save hb-savebtn" data-act="sheet:save" aria-label="Save">' + ico('settings', 24) + '</button>' + tpChip(vm.tp) + '</div>' +
     (full ? '<div class="hb-scene" aria-label="Your club ground"></div>' + promoHtml(vm.promo, vm.unlock) + sixHtml(vm.six) : '') +
     (full ? footHtml(vm, cta) : '<div class="m0-ctabar cta hb-foot">' + btn(cta.label || 'Pick your six', cta.act || 'OpenSquad', { kind: 'cta', disabled: cta.disabled, reason: cta.reason }) + '</div>') +
     '</div>';

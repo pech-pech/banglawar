@@ -146,6 +146,8 @@ async function journey(browser, tag) {
       if (weekDone && !FULL) break;
       if (!hubSeen++) { // standings sheet, then the save sheet (view-only; Escape closes over-panel style modals)
         const t = await page.$('[data-act="sheet:table"]'); if (t) { await t.click(); await settle(500); await audit('standings-sheet'); await shot('standings'); await closeSheets(); } else bad('hub: no "Table" button');
+        const bk = await page.$('[data-act="sheet:book"]'); // P4: the Pairing Book opens from the hub, both tabs
+        if (bk) { await bk.click(); await settle(500); await audit('book-sheet'); await shot('book'); const ct = await page.$('[data-tab="combos"]'); if (ct) { await ct.click(); await settle(300); await audit('book-combos'); await shot('book-combos'); } await closeSheets(); } else bad('hub: no Book button');
         const sv = await page.$('[data-act="sheet:save"]'); if (sv) { await sv.click(); await settle(500); await audit('save-sheet'); await shot('save-sheet'); await closeSheets(); } else bad('hub: no Save button');
       }
       if (st === 'hub' && hubSeen === 1) { // P6: the team sheet opens from the Six and Overs chips; a swap and an overs edit persist

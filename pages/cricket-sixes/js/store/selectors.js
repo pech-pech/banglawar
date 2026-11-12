@@ -11,6 +11,8 @@ import { nodeStatus, treeBoost, treeOf, NODE_COUNT } from '../core/skills.js';
 import { planProblem, livePlan } from './commands.js';
 import { RUN } from '../data/run.js';
 import { seasonResult, chapterNames, runScore, carryOf } from '../core/run.js';
+import { PAIRING } from '../data/pairing.js';
+import { BATS, BOWLS, CELLS, COMBOS, SEEN_BALLS, cellIndex, cellOf, cellName, gradeWord, gradeRank, comboOf, isBook, newBook } from '../core/pairing.js';
 
 const ovStr = (balls) => `${Math.floor(balls / 6)}.${balls % 6}`;
 const scoreOf = (inn) => ({ runs: inn.runs, wk: inn.wk, balls: inn.balls, overs: ovStr(inn.balls) });
@@ -180,6 +182,7 @@ export function endVM(s) {
     rows: tableRows(s), finals: finalsVM(s), champion: clubName(s, se.champion), myPlace: placeOf(se.table, ME), tpWon: se.tpWon,
     result: { place: res.place, promoted: res.promoted, toLeague: res.toLeague, stayed: res.stayed, line: res.line },
     chapter: last ? last.chapter : null, claimed: last ? last.claimed : [],
+    notebook: last && last.notebook != null ? foundCell(last.notebook) : null,
     lastSeason, promoteTop: RUN.promoteTop, cta: lastSeason ? 'RunEnd' : 'NewSeason',
   };
 }
@@ -448,4 +451,36 @@ export function coachNoticeOf(s) {
   const focus = Object.keys(c.lv).find((f) => c.lv[f] > 0) || 'Power';
   const d = DRILLS.list.find((x) => x.focus === focus);
   return { name: c.name, focus, line: `${c.name} is your coach. He is best at ${drillPhrase(d && d.id)}.`, canChange: true };
+}
+
+// ---------------------------------------------------------------- Pairing Book (P4). Grade words only: the points number never leaves core/pairing.js.
+const COMBO_LIST = PAIRING.combos;
+const PH_WORD = ['Early', 'Middle', 'Late'], PH_OVERS = ['1-3', '4-7', '8-10'];
+/** One found cell as the views show it. @param {number} i */
+function foundCell(i) {
+  const c = cellOf(i), cb = comboOf(i);
+  return { i, bat: c.bat, bowl: c.bowl, ph: c.ph, name: cellName(i), grade: gradeWord(i), rank: gradeRank(i), combo: cb };
+}
+/** Cells found at the end of the last over (the "Pairing found" toast). [] when none. */
+export function foundVM(s) { return s && s.last && Array.isArray(s.last.found) ? s.last.found.map(foundCell) : []; }
+
+/** The Pairing Book: 3 batter groups x 3 bowler rows x 3 phase chips, and the 8 combos. */
+export function bookVM(s) {
+  const book = isBook(s.book) ? s.book : newBook();
+  const chip = (i) => {
+    const f = !!book.found[i], c = cellOf(i), cb = comboOf(i);
+    const base = { i, ph: c.ph, phase: PH_WORD[c.ph], found: f, name: cellName(i) };
+    return f ? { ...base, grade: gradeWord(i), rank: gradeRank(i), combo: cb ? cb.name : null }
+      : { ...base, balls: Math.min(SEEN_BALLS, book.balls[i]), of: SEEN_BALLS };
+  };
+  const groups = BATS.map((bat) => ({ bat, rows: BOWLS.map((bowl) => ({ bowl, chips: [0, 1, 2].map((ph) => chip(cellIndex(bat, bowl, ph))) })) }));
+  const combos = COMBO_LIST.map((x) => { // sheet order: the four that help the batter, then the four that help the bowler
+    const i = cellIndex(x[1], x[2], x[3]), f = !!book.found[i];
+    return f ? { name: x[0], found: true, bat: x[1], bowl: x[2], phase: PH_WORD[x[3]], helps: x[5] } : { name: x[0], found: false };
+  });
+  return {
+    found: book.found.reduce((a, b) => a + (b ? 1 : 0), 0), total: CELLS,
+    comboFound: combos.filter((c) => c.found).length, comboTotal: COMBOS,
+    phases: PH_WORD.map((w, k) => ({ name: w, overs: PH_OVERS[k] })), groups, combos,
+  };
 }

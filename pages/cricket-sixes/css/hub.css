@@ -1,8 +1,10 @@
 /* P6: hub as the club screen (.hb-*) and the team sheet (.ts-*). Kit variables only, no hexes. 344x780 closed Fold first. */
 .hb-hub { --bar-h: 146px; gap: 6px; }
-.hb-tools { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; gap: 8px; align-items: center; }
+.hb-tools { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 56px auto; gap: 6px; align-items: center; }
+.hb-tools .hb-book { gap: 4px; padding: 0 6px; }
+.hb-tools .hb-savebtn { padding: 0; min-width: 56px; }
 .hb-tools .c-btn { min-height: 56px; }
-.hb-tools .m0-tp { min-height: 56px; padding: 0 12px; font-size: 16px; }
+.hb-tools .m0-tp { min-height: 56px; padding: 0 8px; font-size: 16px; }
 .hb-club { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 28px; font: 400 var(--c-fs-m)/var(--c-lh-m) var(--c-font); white-space: nowrap; }
 .hb-club b { font-size: var(--c-fs-l); line-height: var(--c-lh-l); overflow: hidden; text-overflow: ellipsis; }
 .hb-club span { display: inline-flex; align-items: center; gap: 4px; }

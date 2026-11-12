@@ -1,0 +1,61 @@
+/* Pairing Book (P4): sheet, phase chips, combos, found card in the over panel. Kit variables only. 344 wide first. Chips are not pressable, so they are flat. */
+.c-sheet.sheet-fixed.bk-sheet { max-height: 94vh; max-height: 94dvh; padding-left: 10px; padding-right: 10px; }
+.bk-sheet .c-sheet__body > * + * { margin-top: 6px; }
+.bk-root { display: flex; flex-direction: column; gap: 8px; }
+.bk-head { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.bk-head .c-tag { min-height: 30px; gap: 6px; font-size: var(--c-fs-s); }
+.bk-head .c-tag::before { display: none; }
+.bk-seg { min-height: 56px; }
+.bk-note { margin: 0; font-size: var(--c-fs-s); line-height: var(--c-lh-s); }
+.bk-pane { display: flex; flex-direction: column; gap: 6px; }
+.bk-ph, .bk-row { display: grid; grid-template-columns: 26px repeat(3, minmax(0, 1fr)); gap: 6px; align-items: center; }
+.bk-ph span { display: flex; flex-direction: column; align-items: center; font: 700 var(--c-fs-s)/16px var(--c-font); }
+.bk-ph small { font: 400 14px/16px var(--c-font); }
+.bk-grp h4 { margin: 4px 0 2px; display: flex; align-items: center; gap: 6px; font: 700 var(--c-fs-m)/var(--c-lh-m) var(--c-font); }
+.bk-row { padding: 3px 0; border-bottom: 2px solid var(--wall1); }
+.bk-ty { display: flex; align-items: center; justify-content: center; }
+.bk-sheet img.icon, .bk-sheet .bk-ty img { flex: none; image-rendering: pixelated; }
+.bk-c { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; min-height: 40px; padding: 2px 3px; box-sizing: border-box;
+  border: 2px solid var(--outline); border-radius: 2px; background: var(--white); color: var(--outline); font: 700 var(--c-fs-s)/16px var(--c-font); white-space: nowrap; }
+.bk-c--q { background: var(--stone1); border-style: dashed; }
+.bk-q { display: flex; align-items: baseline; gap: 4px; }
+.bk-q b { font: 700 var(--c-fs-m)/18px var(--c-font); }
+.bk-q span { font: 400 14px/18px var(--c-font); font-variant-numeric: tabular-nums; }
+.bk-bar { display: block; position: relative; width: 100%; max-width: 72px; height: 6px; background: var(--white); outline: 1px solid var(--outline); }
+.bk-bar > i { position: absolute; left: 0; top: 0; bottom: 0; background: var(--kitA2); }
+.bk-w { display: inline-flex; align-items: center; gap: 2px; }
+.bk-g6 { background: var(--gold); }
+.bk-g5 { background: var(--accent); color: var(--white); }
+.bk-g4 { background: var(--white); }
+.bk-g3 { background: var(--wall1); }
+.bk-g2 { background: var(--danger); color: var(--white); }
+.bk-g1 { background: var(--outline); color: var(--white); }
+.bk-card { padding: var(--c-sp-2) var(--c-sp-3); }
+.bk-card > .c-strip:first-child { margin: -8px -12px 4px; font-size: var(--c-fs-m); line-height: var(--c-lh-m); }
+.bk-cb { display: grid; grid-template-columns: 24px minmax(0, 1fr) auto; gap: 8px; align-items: center; min-height: 44px; padding: 2px 0; border-bottom: 2px solid var(--wall1); font-size: var(--c-fs-s); line-height: 18px; }
+.bk-cb b { display: block; font: 700 var(--c-fs-m)/20px var(--c-font); }
+.bk-ln { display: inline-flex; align-items: center; gap: 4px; }
+.bk-cb--q b { color: var(--outline); }
+.bk-side { display: inline-flex; align-items: center; gap: 4px; min-height: 28px; }
+.bk-side::before { display: none; }
+.bk-mini { min-height: 32px; min-width: 32px; padding: 0 6px; }
+.bk-key { display: grid; grid-template-columns: 64px 48px minmax(0, 1fr); gap: 8px; align-items: center; min-height: 40px; border-bottom: 2px solid var(--wall1); font-size: var(--c-fs-s); line-height: 18px; }
+.bk-key:last-child { border-bottom: 0; }
+.bk-key b { font: 700 var(--c-fs-m)/18px var(--c-font); }
+.bk-key b small { display: block; font: 400 14px/16px var(--c-font); }
+
+/* found card: sits in the over panel under the ball lines, above Next */
+.op-card.has-found { height: 100%; }
+.op-bottom { overflow-y: auto; }
+.bk-found { display: flex; flex-direction: column; gap: 6px; padding: 8px; background: var(--outline); color: var(--white); border: 2px solid var(--white); }
+.bk-found + .bk-found { margin-top: 4px; }
+.bk-f1 { display: flex; align-items: center; gap: 8px; font: 700 var(--c-fs-l)/var(--c-lh-l) var(--c-font); }
+.bk-f2 { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: var(--c-fs-m); line-height: var(--c-lh-m); }
+.bk-f3 { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.bk-ib { display: inline-flex; flex: none; padding: 2px; background: var(--cream); border: 2px solid var(--white); }
+.bk-found .bk-c { flex-direction: row; min-height: 32px; padding: 2px 10px; box-shadow: 0 0 0 2px var(--white); }
+.bk-found .c-tag { min-height: 32px; font-size: var(--c-fs-s); }
+.bk-found .c-tag::before { display: none; }
+.bk-fsub { margin: 0; font-size: var(--c-fs-s); line-height: 18px; font-weight: 400; }
+.op-foot.has-found { display: flex; flex-direction: column; gap: 8px; min-height: 0; }
+.op-book { min-height: 56px; }

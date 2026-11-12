@@ -1,6 +1,6 @@
 // @ts-check
 // Save envelope, checksum and version migration. Pure: no storage, no clock, no rng. Never mutates its input.
-export const VERSION = 2;
+export const VERSION = 3;
 
 /** fnv1a 32-bit of a string, as 8 hex digits. @param {string} str */
 export function fnv1a(str) {
@@ -35,6 +35,8 @@ const STEPS = {
     const root = String(se.seed != null ? se.seed : data.seed != null ? data.seed : '0').replace(/\|s\d+$/, '');
     return { ...data, v: 2, run: { no: 1, root, n, league, best: league, titles: 0, finals: 0, wins: 0, bestAbility: 0, history: [], chapters: {}, last: null, ended: false } };
   },
+  // v2 -> v3: add the Pairing Book (P4). 27 cells, none seen yet (balls faced before this version were not counted). 27 = CELLS in core/pairing.js (a test keeps them equal).
+  2: (data) => ({ ...data, v: 3, book: { balls: Array(27).fill(0), found: Array(27).fill(0) } }),
 };
 
 /**

@@ -3,6 +3,7 @@
 import { T, MATCH, BAT_HOME, BOWL_HOME, CLAMPS } from '../data/match.js';
 import { FLAGS } from '../data/flags.js';
 import { leagueOf } from '../data/leagues.js';
+import { pairPoints } from './pairing.js';
 const clamp = (x, lo, hi) => Math.max(lo, Math.min(hi, x));
 export const phaseOf = (over) => over <= 3 ? 0 : over <= 7 ? 1 : 2;
 export const PHASE_NAMES = ['Early', 'Middle', 'Late'];
@@ -35,12 +36,14 @@ export function hybridField(b, over, lost, centre = T.FIELD_CENTRE) {
  * Signature: (b, w, ph, intent, field, fx?, over?, lost?, centre?). `fx` keeps its place (core-training hook). over = 1-10 (default: first
  * over of phase ph), lost = wickets lost by the batting side 0-4 (default 0), centre = FIELD_CENTRE (default 50, the league's rival strength in a season).
  * Also accepted: (b, w, ph, intent, field, over, lost, fx?, centre?).
+ * A last argument `pair` (rating points of the hidden pairing cell, default 0) goes into the same slot as the visible grid: m = MATCHUP*step + pair.
+ * With pair 0 every number is exactly as before (the 500 frozen vectors).
  */
 export function ballProbs(b, w, ph, intent, field, ...args) {
   let fx, over, lost;
-  let centre;
-  if (typeof args[0] === 'number') [over, lost, fx, centre] = args; else [fx, over, lost, centre] = args;
-  centre ??= T.FIELD_CENTRE;
+  let centre, pair;
+  if (typeof args[0] === 'number') [over, lost, fx, centre, pair] = args; else [fx, over, lost, centre, pair] = args;
+  centre ??= T.FIELD_CENTRE; pair = pair || 0;
   over ??= [1, 4, 8][ph]; lost = Math.min(lost ?? 0, 4);
   const step = MATCH[`${b.bat}|${w.bowl}`];
   let m = T.MATCHUP * step;
@@ -56,6 +59,7 @@ export function ballProbs(b, w, ph, intent, field, ...args) {
     for (const e of wf?.eff || []) if (ok(e, b.bat)) add(e);
     if (fx.burst && wf?.burst) dW += wf.burst;
   }
+  m += pair; // hidden pairing (P4): after the skill-tree changes to the visible grid, then the same slot
   let bp = b.bp + m, bs = b.bs + m, spd = w.spd - m, bsk = w.bsk - m;
   const batHome = BAT_HOME[b.bat] === ph, bowlHome = BOWL_HOME[w.bowl] === ph;
   if (batHome) { bp += T.PHASE_BONUS; bs += T.PHASE_BONUS; }
@@ -70,7 +74,7 @@ export function ballProbs(b, w, ph, intent, field, ...args) {
   const two = T.P2_BASE;
   const rest = Math.max(0, 1 - wicket - six - four - two);
   const single = Math.min(singleRaw, rest);
-  return { p: { wicket, six, four, two, single }, dot: rest - single, singleRaw, eff: { bp, bs, spd, bsk }, ft, step, batHome, bowlHome };
+  return { p: { wicket, six, four, two, single }, dot: rest - single, singleRaw, eff: { bp, bs, spd, bsk }, ft, step, pair, batHome, bowlHome };
 }
 /** Same roll order as match_sim.ball: wicket, 6, 4, 2, single, else dot. */
 export function outcomeFromX(p, singleRaw, x) {
@@ -101,7 +105,8 @@ export function newInnings(bat, bowl, target) {
   return { runs: 0, wk: 0, balls: 0, over: 1, crease: [0, 1], strike: 0, next: 2, last: null, target, done: false, pads: FLAGS.luckyPad ? T.PAD_USES : 0, overs: [] };
 }
 /** Bowl one over. Returns the six (or fewer) balls with their parts for why lines. */
-export function playOver(rng, inn, bat, bowl, bi, intent, field, fx, centre = T.FIELD_CENTRE) {
+/** `pairing` true = the hidden pairing layer is on (season matches; a step-0 match leaves it off so its numbers are unchanged). */
+export function playOver(rng, inn, bat, bowl, bi, intent, field, fx, centre = T.FIELD_CENTRE, pairing = false) {
   const ph = phaseOf(inn.over); const w = bowl[bi]; const balls = [];
   let ballFx = fx;
   if (fx && fx.of(w)?.bowl?.burst) {
@@ -112,7 +117,7 @@ export function playOver(rng, inn, bat, bowl, bi, intent, field, fx, centre = T.
   w.overs += 1; inn.last = bi;
   for (let k = 0; k < 6 && !inn.done; k++) {
     const si = inn.crease[inn.strike]; const b = bat[si];
-    const pr = ballProbs(b, w, ph, intent, field, ballFx, inn.over, inn.wk, centre);
+    const pr = ballProbs(b, w, ph, intent, field, ballFx, inn.over, inn.wk, centre, pairing ? pairPoints(b.bat, w.bowl, ph) : 0);
     let o = outcomeFromX(pr.p, pr.singleRaw, rng.random());
     inn.balls += 1; b.inn.b += 1;
     const rec = { n: `${inn.over}.${k + 1}`, o, batter: si, bowler: bi, pr, intent, field, ph };

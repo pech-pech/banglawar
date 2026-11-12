@@ -114,6 +114,8 @@ export const GLOSSARY = [
     long: 'Read "vs Brook: strong" as "this player does well against Brook". A strong matchup gives a small boost; a weak one a small penalty. On the pick screens: ▲ Good, ● OK, ▼ Poor, ★ best overs now, ? not known yet (a higher potential grade shows more).' },
   { id: 'matchup-grid', term: 'Matchup grid', group: M, short: 'Which batter roles beat which bowler types, and which lose.',
     long: 'Opener: weak v Fast, strong v Spin. Middle order: strong v Fast, weak v Medium. Lower order: strong v Medium, weak v Spin. Every other pairing is even.' },
+  { id: 'pairing-book', term: 'Pairing Book', group: M, short: 'Hidden pairings you find by playing.',
+    long: 'Each batter role against each bowler type in each phase has a hidden grade, from Hostile to Perfect (the batter\'s view). A pairing is found after it has faced 18 balls in all your matches. Found grades are saved in the Book. The grade is always at work, found or not.' },
   { id: 'best-overs', term: 'Best overs', group: M, short: 'Overs where a player\'s type does the most.',
     long: 'Batters: Opener 1-3, Middle 4-7, Lower 8-10. Bowlers: Fast 1-3, Spin 4-7, Medium 8-10. Using a player in their best overs gives a bonus.' },
   { id: 'early-overs', term: 'Early overs (1-3)', group: M, short: 'Overs 1 to 3. Openers bat; Fast bowlers shine.',

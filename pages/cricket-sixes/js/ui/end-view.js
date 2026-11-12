@@ -37,6 +37,13 @@ function withGoUp(html, top) {
   return html.slice(0, at) + '<tr class="rn-go"><td colspan="6">' + ico('upgrade', 16) + ' Above this line go up</td></tr>' + html.slice(at);
 }
 
+/* Coach's notebook (P4): from season 2 one pairing is found free at season end. Grade word only. */
+function notebookHtml(n) {
+  if (!n) return '';
+  return '<div class="c-card rn-chapter">' + ico('medal', 32) + '<div class="rn-chapter__body"><span class="rn-tag">Coach\'s notebook</span><b class="rn-name">' + esc(n.name) + ': ' + esc(n.grade) + '</b>' +
+    '<span class="rn-reward">' + ico('info', 16) + 'Found for free. See the Pairing Book.</span></div></div>';
+}
+
 export function render(el, vm, dispatch) {
   const rows = vm.rows || [];
   const place = Number(vm.myPlace) || 0;
@@ -47,7 +54,7 @@ export function render(el, vm, dispatch) {
   el.innerHTML =
     '<div class="screen ss ss-end">' +
     '<div class="c-strip strip"><span>Season over</span>' + helpBtn('season') + '</div>' +
-    resultHtml(vm.result, vm.lastSeason) + chapterHtml(vm.chapter, vm.lastSeason) +
+    resultHtml(vm.result, vm.lastSeason) + chapterHtml(vm.chapter, vm.lastSeason) + notebookHtml(vm.notebook) +
     '<div class="c-card c-card--hl ss-hero" role="status">' + ico(iWon ? 'league' : 'medal', 32) +
     '<h1 class="ss-head' + (iWon ? ' is-champ' : '') + '">' + esc(head) + '</h1>' +
     '<p class="ss-place">You finished <b>' + esc(place ? ordinal(place) : '-') + '</b> of ' + esc(rows.length || 10) + '</p>' +
