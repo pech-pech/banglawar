@@ -120,3 +120,9 @@
 .ts-cols span:nth-child(n+3) { line-height: 15px; font-size: 14px; }
 .ts-cols, .ts-row { grid-template-columns: 28px minmax(0, 1fr) 56px 56px; }
 .ts-cols span:nth-child(n+3) { text-align: center; }
+
+/* P9: next rival card (name, kit swatch, tag chip, one-line hint) */
+.hb-rival { padding: var(--c-sp-2) var(--c-sp-3); }
+.hb-rtop { display: flex; align-items: center; gap: var(--c-sp-2); min-height: 28px; }
+.hb-rtop .name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--c-fs-m); line-height: var(--c-lh-m); }
+.hb-hint { margin: 2px 0 0; font-size: 14px; line-height: 18px; }
