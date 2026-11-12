@@ -74,7 +74,7 @@ function auditInPage(strict) {
     const w2 = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
     for (let n = w2.nextNode(); n; n = w2.nextNode()) {
       const t = n.nodeValue.trim(), e = n.parentElement;
-      if (!t || !e || !vis(e) || e.closest('script,style,.ss-sr') || bar.contains(e) || scrolls(e)) continue;
+      if (!t || !e || !vis(e) || e.closest('script,style,.ss-sr,.sr-only') || bar.contains(e) || scrolls(e)) continue;
       const rg = document.createRange(); rg.selectNodeContents(n);
       const r = rg.getBoundingClientRect();
       if (r.height > 0 && r.bottom > top + 1) out.underCta.push(`${t.slice(0, 30)} (bottom ${Math.round(r.bottom)} > bar ${Math.round(top)})`);
