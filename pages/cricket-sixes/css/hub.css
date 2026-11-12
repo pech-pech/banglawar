@@ -120,3 +120,6 @@
 .ts-cols span:nth-child(n+3) { line-height: 15px; font-size: 14px; }
 .ts-cols, .ts-row { grid-template-columns: 28px minmax(0, 1fr) 56px 56px; }
 .ts-cols span:nth-child(n+3) { text-align: center; }
+
+/* A11Y (P4a): the six-player buttons and any keyboard-focusable scroller (the hub's main, a sheet body) get the same 3 px dashed focus ring as every other control. */
+.hb-p:focus-visible, #app:focus-visible, .c-sheet__body:focus-visible { outline: 3px dashed var(--c-focus); outline-offset: -3px; }

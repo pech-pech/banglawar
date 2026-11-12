@@ -1,5 +1,5 @@
 /* break-view: innings break. render(el, vm, dispatch). Reads breakVM only. */
-import { esc, ico, btn, ctaBar } from './dom.js';
+import { esc, icoDeco, btn, ctaBar } from './dom.js';
 import { helpBtn } from './hub-view.js';
 const ovWords = (o) => { const [a, b] = String(o).split('.'); const n = Number(a) || 0, m = Number(b) || 0; return (n === 1 ? '1 over' : n + ' overs') + (m ? ' and ' + (m === 1 ? '1 ball' : m + ' balls') : ''); };
 function num(a, keys) { for (var i = 0; i < keys.length; i++) if (a[keys[i]] != null) return a[keys[i]]; return 0; }
@@ -12,11 +12,11 @@ function typeIcon(t) {
 export function render(el, vm, dispatch) {
   var top = vm.top || {}, bat = top.bat || [], bowl = top.bowl || [];
   var batRows = bat.map(function (p) {
-    return '<li class="c-row brk-row">' + ico('runs', 24) + '<b class="brk-name">' + esc(p.name) + '</b>' +
+    return '<li class="c-row brk-row">' + icoDeco('runs', 24) + '<b class="brk-name">' + esc(p.name) + '</b>' +
       '<span class="brk-stat"><b>' + esc(num(p, ['r', 'runs'])) + '</b> <span class="brk-sub">(' + esc(num(p, ['b', 'balls'])) + ')</span></span></li>';
   }).join('');
   var bowlRows = bowl.map(function (p) {
-    return '<li class="c-row brk-row">' + ico(typeIcon(p.bowl || p.type), 24) + '<b class="brk-name">' + esc(p.name) + '</b>' +
+    return '<li class="c-row brk-row">' + icoDeco(typeIcon(p.bowl || p.type), 24) + '<b class="brk-name">' + esc(p.name) + '</b>' +
       '<span class="brk-stat"><b>' + esc(num(p, ['w', 'wk', 'wickets'])) + '</b> for <b>' + esc(num(p, ['r', 'runs'])) + '</b></span></li>';
   }).join('');
   var need = Number(vm.target);

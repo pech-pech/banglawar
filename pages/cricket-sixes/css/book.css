@@ -8,8 +8,10 @@
 .bk-seg { min-height: 56px; }
 .bk-note { margin: 0; font-size: var(--c-fs-s); line-height: var(--c-lh-s); }
 .bk-pane { display: flex; flex-direction: column; gap: 6px; }
+.bk-panel { display: flex; flex-direction: column; gap: 8px; }
+.bk-ph { list-style: none; margin: 0; padding: 4px 0; position: sticky; top: 0; z-index: 2; background: var(--cream); border-bottom: 2px solid var(--outline); }
 .bk-ph, .bk-row { display: grid; grid-template-columns: 26px repeat(3, minmax(0, 1fr)); gap: 6px; align-items: center; }
-.bk-ph span { display: flex; flex-direction: column; align-items: center; font: 700 var(--c-fs-s)/16px var(--c-font); }
+.bk-ph li { display: flex; flex-direction: column; align-items: center; font: 700 var(--c-fs-s)/16px var(--c-font); }
 .bk-ph small { font: 400 14px/16px var(--c-font); }
 .bk-grp h4 { margin: 4px 0 2px; display: flex; align-items: center; gap: 6px; font: 700 var(--c-fs-m)/var(--c-lh-m) var(--c-font); }
 .bk-row { padding: 3px 0; border-bottom: 2px solid var(--wall1); }

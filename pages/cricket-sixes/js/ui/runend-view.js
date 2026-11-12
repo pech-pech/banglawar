@@ -1,5 +1,5 @@
 /* runend-view: Hall of Fame at the end of a run. render(el, vm, dispatch). Reads runEndVM only. Clicks are handled by app.js (data-act). */
-import { esc, btn, ctaBar, ico } from './dom.js';
+import { esc, btn, ctaBar, icoDeco } from './dom.js';
 
 const plural = (n, one, many) => n + ' ' + (Number(n) === 1 ? one : many);
 const VALUE = {
@@ -15,7 +15,7 @@ function rowHtml(r) {
   const pend = !!r.pending;
   return '<li class="rn-row' + (pend ? ' is-pending' : '') + '">' +
     '<span class="rn-row__lab"><b>' + esc(r.label) + '</b>' +
-    '<small>' + (pend ? ico('lock', 16) + 'Coming in a later update' : esc(valueWords(r))) + '</small></span>' +
+    '<small>' + (pend ? icoDeco('lock', 16) + 'Coming in a later update' : esc(valueWords(r))) + '</small></span>' +
     '<span class="rn-row__pts"><b>' + esc(pend ? 0 : r.points) + ' pts</b><small>of ' + esc(r.maxPoints) + '</small></span></li>';
 }
 
@@ -23,7 +23,7 @@ function rowHtml(r) {
 function chapterRow(c) {
   const reached = c.reached == null ? !!c.done : !!c.reached;
   const [icon, word, cls] = c.done ? ['done', 'Done, feat won', ' is-done'] : reached ? ['pennant', 'Reached, feat missed', ' is-reached'] : ['lock', 'Not reached', ' is-pending'];
-  return '<li class="rn-li' + cls + '">' + ico(icon, 20) + '<span>' + esc(c.name) + '<small>' + word + '</small></span></li>';
+  return '<li class="rn-li' + cls + '">' + icoDeco(icon, 20) + '<span>' + esc(c.name) + '<small>' + word + '</small></span></li>';
 }
 
 function legend(c) {
@@ -33,7 +33,7 @@ function legend(c) {
 
 function carryRow(c) {
   const ok = !!c.available;
-  return '<li class="rn-li' + (ok ? ' is-done' : ' is-pending') + '">' + ico(ok ? 'done' : 'lock', 20) +
+  return '<li class="rn-li' + (ok ? ' is-done' : ' is-pending') + '">' + icoDeco(ok ? 'done' : 'lock', 20) +
     '<span>' + esc(c.label) + '<small>' + esc(c.key === 'stadium' && !ok ? 'Not built yet' : legend(c)) + '</small></span></li>';
 }
 
@@ -44,7 +44,7 @@ export function render(el, vm, dispatch) {
   el.innerHTML =
     '<div class="screen ss ss-runend">' +
     '<div class="c-strip strip"><span>Hall of Fame</span></div>' +
-    '<div class="c-card c-card--hl rn-hero" role="status">' + ico('medal', 32) +
+    '<div class="c-card c-card--hl rn-hero" role="status">' + icoDeco('medal', 32) +
     '<div><span class="rn-tag">Your run score</span><b class="rn-big">' + esc(vm.score) + '</b><small> of ' + esc(vm.max) + '</small>' +
     '<p class="rn-sub">' + esc(vm.seasons) + ' seasons · Best league ' + esc(vm.bestLeague) + ' · ' + esc(vm.titles) + (Number(vm.titles) === 1 ? ' title' : ' titles') + '</p></div></div>' +
     '<ul class="rn-rows" aria-label="Score">' + rows.map(rowHtml).join('') + '</ul>' +
