@@ -47,13 +47,20 @@ export function capSum(P) { return Math.round(4 * (1 + (P - 20) * 98 / 180)); }
 /**
  * Roll a potential: normalish(centre, spread), redraw while above limit, clamp 20..200, round.
  * @param {{normalish:(m:number,sd:number)=>number}} rng
- * @param {{league?:number, academy?:number, bonus?:number}} [o]
+ * Optional minCapSum: CONTRACT s11 floor (cap sum >= current rating sum + 12). P is raised to the
+ * smallest value whose capSum reaches it; the floor alone may lift P above the limit (up to 200).
+ * @param {{league?:number, academy?:number, bonus?:number, minCapSum?:number}} [o]
  */
 export function rollPotential(rng, o = {}) {
-  const { league = 1, academy = 1, bonus = 0 } = o;
+  const { league = 1, academy = 1, bonus = 0, minCapSum = 0 } = o;
   const c = ABILITY.centre;
   const centre = c.c0 + c.dl * (league - 1) + c.da * (academy - 1) + bonus;
   let v = rng.normalish(centre, ABILITY.spread);
   for (let i = 0; i < 100 && v > ABILITY.limit; i++) v = rng.normalish(centre, ABILITY.spread);
-  return Math.round(clamp(v, 20, Math.min(200, ABILITY.limit)));
+  let P = Math.round(clamp(v, 20, Math.min(200, ABILITY.limit)));
+  if (minCapSum > 0 && capSum(P) < minCapSum) {
+    P = Math.min(200, Math.ceil(20 + (minCapSum / 4 - 1) * 180 / 98));
+    while (P < 200 && capSum(P) < minCapSum) P++;
+  }
+  return P;
 }

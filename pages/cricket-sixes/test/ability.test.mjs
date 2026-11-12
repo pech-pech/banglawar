@@ -52,3 +52,35 @@ test('capSum formula and SAMPLE-DATA rows', { skip }, () => {
   assert.equal(cap(200), 396);
   for (let P = 20; P <= 185; P++) assert.equal(cap(P), Math.round(4 * (1 + (P - 20) * 98 / 180)), `P=${P}`);
 });
+
+test('rollPotential minCapSum floor raises P (even above limit)', { skip }, () => {
+  const rng = { normalish: () => 90 };
+  assert.ok(cap(A.rollPotential(rng, { minCapSum: 212 })) >= 212);
+  assert.equal(A.rollPotential(rng, { minCapSum: 4 }), 90);
+  const hi = A.rollPotential(rng, { minCapSum: 380 });
+  assert.ok(hi > 185 && hi <= 200 && cap(hi) >= 380);
+});
+
+test('start fixture: every player has cap room >= 12; M grades D,C,B,A,S + hidden', async () => {
+  const { makeStartState } = await import('../js/data/m0-fixture.js');
+  const { makeRng } = await import('../js/core/rng.js');
+  for (const seed of ['t1', 'a', 'b', 'c', 'd']) {
+    const rng = makeRng(seed);
+    const st = makeStartState(rng);
+    for (const p of [...st.me.players, ...st.rival.players]) {
+      assert.ok(A.capSum(p.potential) - (p.bp + p.bs + p.spd + p.bsk) >= 12, `${seed} ${p.name}`);
+      assert.ok(p.bp >= 1 && p.bsk >= 1);
+    }
+    assert.deepEqual(st.me.players.map((p) => A.gradeOf(p)), ['D', 'C', 'B', 'A', 'S', null]);
+  }
+});
+
+test('start fixture: rival mean rating sum within 4 of M mean sum', async () => {
+  const { makeStartState } = await import('../js/data/m0-fixture.js');
+  const { makeRng } = await import('../js/core/rng.js');
+  const mean = (ps) => ps.reduce((a, p) => a + p.bp + p.bs + p.spd + p.bsk, 0) / ps.length;
+  for (const seed of ['t1', 'a', 'b', 'c', 'd', 'e', 'f']) {
+    const st = makeStartState(makeRng(seed));
+    assert.ok(Math.abs(mean(st.rival.players) - mean(st.me.players)) <= 4, seed);
+  }
+});
