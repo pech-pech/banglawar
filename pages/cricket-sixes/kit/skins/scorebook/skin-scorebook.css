@@ -1,0 +1,289 @@
+/* Scorebook skin ("A" from the 2026-11-12 overhaul looks). Opt in with ONE class on <body>: skin-scorebook (js/ui/theme.js swaps it for skin-art skin-retro-green).
+   Same DOM, same flows: this file only re-maps the palette variables, the font tokens and component styles. Everything is scoped to .skin-scorebook.
+   Code-drawn, no art files. Fonts (OFL-1.1, licences in fonts/): Zilla Slab 600/700 (heads, numbers), Atkinson Hyperlegible 400/700 (body), Caveat 700 (pencil why-note only, 20 px and up).
+   Text sits on flat plates. The paper is a flat colour: no texture under text. @font-face url() resolves against THIS file. */
+@font-face { font-family: "Zilla Slab SB"; font-weight: 600; font-style: normal; font-display: swap; src: url("fonts/zilla-slab-latin-600-normal.woff2") format("woff2"); }
+@font-face { font-family: "Zilla Slab SB"; font-weight: 700; font-style: normal; font-display: swap; src: url("fonts/zilla-slab-latin-700-normal.woff2") format("woff2"); }
+@font-face { font-family: "Atkinson SB"; font-weight: 400; font-style: normal; font-display: swap; src: url("fonts/atkinson-hyperlegible-latin-400-normal.woff2") format("woff2"); }
+@font-face { font-family: "Atkinson SB"; font-weight: 700; font-style: normal; font-display: swap; src: url("fonts/atkinson-hyperlegible-latin-700-normal.woff2") format("woff2"); }
+@font-face { font-family: "Caveat SB"; font-weight: 700; font-style: normal; font-display: swap; src: url("fonts/caveat-latin-700-normal.woff2") format("woff2"); }
+
+body.skin-scorebook, .skin-scorebook {
+  /* tokens from the hand-off */
+  --sb-paper: #F3EBD8; --sb-plate: #F9F4E6; --sb-ink: #1F2A44; --sb-red: #B3261E; --sb-green: #1E4D3A; --sb-pencil: #56544D; --sb-hi: #F2D649; --sb-blue: #2F4F9E;
+  --sb-rule: rgba(31, 42, 68, .22); --sb-lift: 2px 3px 0 rgba(31, 42, 68, .18); --sb-stampfg: #FBF3E2;
+  /* the kit palette, re-mapped: every kit and screen rule reads these */
+  --cream: var(--sb-plate); --white: #FFFDF6; --outline: var(--sb-ink);
+  --wall1: #EDE3C8; --wall2: #C7B995; --stone1: #E6DFCB; --stone2: #8A8472;
+  --gold: var(--sb-hi); --accent: var(--sb-green); --danger: var(--sb-red);
+  --kitA1: var(--sb-blue); --kitA2: var(--sb-ink); --kitB1: var(--sb-red); --kitB2: #7A1B16;
+  --pitch1: #E9DDB8; --pitch2: #CDBB84;
+  --grass1: #D2E1C5; --grass2: #BBCDAB; --grass3: var(--sb-green); /* greens become pale washes so ink text keeps its contrast */
+  --font-head: "Zilla Slab SB", Georgia, serif;
+  --font-body: "Atkinson SB", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font: var(--font-body); --c-font: var(--font-body);
+  --c-radius: 4px; --c-border: 2px; --c-shadow-drop: 0px; --c-shadow-drop-lg: 0px;
+  --c-fs-s: 14px; --c-lh-s: 18px; --c-fs-m: 16px; --c-lh-m: 22px; --c-fs-l: 20px; --c-lh-l: 26px;
+  --c-focus: var(--sb-blue);
+  font-weight: 400; font-synthesis: none; color: var(--sb-ink);
+}
+.skin-scorebook, .skin-scorebook body { background: var(--sb-paper); }
+.skin-scorebook #app { background: var(--sb-paper); isolation: isolate; }
+html:has(body.skin-scorebook) { background: var(--sb-paper); }
+/* fold open: the hinge shadow sits under the content, in the gap between the two pages (x = 50%) */
+@media (min-width: 600px) {
+  .skin-scorebook #app::before { content: ""; position: fixed; top: 0; bottom: 0; left: calc(50% - 18px); width: 36px; z-index: -1; pointer-events: none;
+    background: linear-gradient(90deg, transparent, rgba(60, 40, 20, .2) 50%, transparent); }
+}
+
+/* ---- type ---- */
+.skin-scorebook :is(h1, h2, h3, h4, .c-t-l, .c-sheet__title, .c-strip, .c-strip__right, .strip b, .res-line, .res-score, .brk-score, .brk-need, .big-need, .tr-ovr b, .tr-rv, .c-row__val, .c-stat__val) { font-family: var(--font-head); font-weight: 700; }
+.skin-scorebook :is(b, strong) { font-weight: 700; }
+.skin-scorebook :is(.c-btn, .c-icon-btn, .c-seg__opt, .c-link, .c-tab, .c-chip__name, .c-tag, .name, .c-row__title) { font-family: var(--font-body); font-weight: 700; }
+.skin-scorebook :is(.c-seg__opt, .ts-tabs .c-seg__opt) { font-family: var(--font-body); }
+.skin-scorebook :is(.big-need, .res-line) { font-size: 30px; line-height: 34px; }
+.skin-scorebook .res-score { font-size: 48px; line-height: 52px; }
+.skin-scorebook .brk-score { font-size: 48px; line-height: 52px; }
+.skin-scorebook .brk-need { font-size: 20px; line-height: 24px; }
+.skin-scorebook .c-sheet__title { font-size: 22px; line-height: 26px; }
+
+/* ---- strip: an ink masthead plate ---- */
+.skin-scorebook .strip, .skin-scorebook .c-strip { background: var(--sb-ink); color: var(--sb-plate); border-bottom: 2px solid var(--sb-ink); }
+.skin-scorebook .c-strip--light { background: var(--wall1); color: var(--sb-ink); border-top: 2px solid var(--sb-ink); }
+.skin-scorebook .strip .c-res, .skin-scorebook .strip .c-chip { color: var(--sb-ink); }
+.skin-scorebook .strip > span:first-child { white-space: normal; line-height: 1.15; }
+
+/* ---- plates: flat slips, ink-edged, a little lift ---- */
+.skin-scorebook :is(.c-card, .card, .c-notice, .c-sheet, .c-toast, .hb-promo, .tr-rr, .rp-feel) { background: var(--sb-plate); color: var(--sb-ink); border: 1.5px solid var(--sb-ink); border-radius: 3px; box-shadow: var(--sb-lift); }
+.skin-scorebook .c-card--inset { background: var(--wall1); border-color: var(--sb-ink); box-shadow: none; }
+.skin-scorebook .c-card--hl { box-shadow: var(--sb-lift), inset 0 0 0 3px var(--sb-hi); }
+.skin-scorebook .c-sheet { border-bottom: 0; border-radius: 6px 6px 0 0; box-shadow: 0 -3px 0 rgba(31, 42, 68, .16); }
+.skin-scorebook .c-sheet__grab { background: var(--wall2); border: 1.5px solid var(--sb-ink); border-radius: 4px; height: 8px; }
+.skin-scorebook .c-scrim { background: var(--sb-ink); opacity: .6; }
+.skin-scorebook .c-row { background: var(--sb-plate); border-bottom: 1.5px solid var(--sb-rule); }
+.skin-scorebook .c-row__sub { color: var(--sb-pencil); }
+.skin-scorebook :is(.sub, .help-line, .muted) { color: var(--sb-pencil); opacity: 1; }
+.skin-scorebook .why { background: var(--sb-plate); border-left: 3px solid var(--sb-red); }
+.skin-scorebook .m0-list { background: var(--sb-plate); border: 1.5px solid var(--sb-ink); box-shadow: var(--sb-lift); }
+
+/* ---- buttons: ink-edged slips; selected = inked in (tick stays, so never colour only) ---- */
+.skin-scorebook .c-btn, .skin-scorebook .c-icon-btn { background: var(--sb-plate); color: var(--sb-ink); border: 2px solid var(--sb-ink); border-radius: 4px; box-shadow: var(--sb-lift); }
+.skin-scorebook .c-btn:active, .skin-scorebook .c-btn.is-pressed, .skin-scorebook .c-icon-btn:active { transform: translate(1px, 2px); box-shadow: none; background: var(--wall1); }
+.skin-scorebook .c-btn.is-selected, .skin-scorebook .c-btn[aria-pressed="true"], .skin-scorebook .c-icon-btn.is-selected, .skin-scorebook .c-icon-btn[aria-pressed="true"] { background: var(--sb-ink); color: var(--sb-plate); box-shadow: var(--sb-lift); }
+.skin-scorebook .c-btn--quiet, .skin-scorebook .c-link { background: transparent; border-color: transparent; box-shadow: none; color: var(--sb-ink); }
+.skin-scorebook .c-btn--quiet.is-selected { background: transparent; color: var(--sb-ink); box-shadow: inset 0 -4px 0 var(--sb-hi); }
+.skin-scorebook .c-btn--primary { background: var(--sb-green); color: var(--sb-plate); border-color: var(--sb-ink); }
+.skin-scorebook .c-btn--primary:active { background: #153a2b; color: var(--sb-plate); }
+.skin-scorebook .c-btn--gold { background: var(--sb-hi); color: var(--sb-ink); }
+.skin-scorebook .c-btn--danger { background: var(--sb-red); color: var(--sb-stampfg); }
+.skin-scorebook .c-btn:disabled, .skin-scorebook .c-btn.is-disabled, .skin-scorebook .c-btn[aria-disabled="true"] { background: var(--stone1); color: var(--sb-pencil); border: 2px dashed var(--sb-pencil); box-shadow: none; }
+/* the main CTA: a red rubber stamp, caps, dashed inner edge */
+.skin-scorebook .c-btn--cta { position: relative; isolation: isolate; background: var(--sb-red); color: var(--sb-stampfg); border: 2px solid var(--sb-red); border-radius: 6px; font-family: var(--font-head); font-weight: 700; font-size: 24px; line-height: 28px; letter-spacing: .05em; text-transform: uppercase; box-shadow: var(--sb-lift); }
+.skin-scorebook .c-btn--cta::after { content: ""; position: absolute; inset: 5px; z-index: -1; border: 2px dashed rgba(251, 243, 226, .55); border-radius: 4px; pointer-events: none; }
+.skin-scorebook .c-btn--cta:active { background: #8f1d17; color: var(--sb-stampfg); transform: scale(1.03); box-shadow: none; }
+.skin-scorebook .c-btn--cta:disabled, .skin-scorebook .c-btn--cta.is-disabled { background: var(--stone1); color: var(--sb-pencil); border: 2px dashed var(--sb-pencil); }
+.skin-scorebook .c-btn--cta:disabled::after, .skin-scorebook .c-btn--cta.is-disabled::after { display: none; }
+.skin-scorebook .c-btn--cta small, .skin-scorebook .hb-cta .tx small { text-transform: none; letter-spacing: 0; font-family: var(--font-body); }
+.skin-scorebook .c-btn--cta :is(.c-ico, svg, img, canvas) { color: inherit; }
+.skin-scorebook :is(.cta, .ctabar, .m0-ctabar, .hb-foot) { background: var(--sb-plate); border-top: 2px solid var(--sb-ink); }
+
+/* segmented / chips / tags */
+.skin-scorebook .c-seg { background: var(--sb-plate); border: 2px solid var(--sb-ink); border-radius: 4px; box-shadow: var(--sb-lift); overflow: hidden; }
+.skin-scorebook .c-seg__opt { background: var(--sb-plate); color: var(--sb-ink); box-shadow: none; border-left-color: var(--sb-ink); }
+.skin-scorebook .c-seg__opt.is-selected, .skin-scorebook .c-seg__opt[aria-pressed="true"] { background: var(--sb-ink); color: var(--sb-plate); box-shadow: none; }
+.skin-scorebook .c-seg__opt:active { background: var(--wall1); box-shadow: none; }
+.skin-scorebook .c-seg__opt.is-selected:active { background: var(--sb-ink); }
+.skin-scorebook .c-chip { background: var(--sb-plate); border: 2px solid var(--sb-ink); box-shadow: var(--sb-lift); }
+.skin-scorebook .c-chip__info { background: var(--wall1); border-left: 2px solid var(--sb-ink); }
+.skin-scorebook :is(.c-chip.is-selected, .c-chip[aria-pressed="true"], .c-chip:has(> .c-chip__pick[aria-pressed="true"])) { background: var(--sb-hi); color: var(--sb-ink); box-shadow: var(--sb-lift), inset 0 0 0 2px var(--sb-ink); }
+.skin-scorebook .c-chip.is-selected .c-chip__info { background: #E8CB3C; }
+.skin-scorebook .c-chip:has(.c-chip__pick:active), .skin-scorebook .c-chip.is-pressed { background: var(--wall1); box-shadow: none; transform: translate(1px, 2px); }
+.skin-scorebook :is(.c-chip.is-disabled, .c-chip:has(> .c-chip__pick:disabled)) { background: var(--stone1); border-style: dashed; box-shadow: none; opacity: 1; color: var(--sb-pencil); }
+.skin-scorebook .c-tag, .skin-scorebook .chip { background: var(--sb-plate); border: 1.5px solid var(--sb-ink); border-radius: 3px; color: var(--sb-ink); }
+.skin-scorebook .c-tag--go { background: var(--sb-green); color: var(--sb-plate); }
+.skin-scorebook .c-tag--new { background: var(--sb-hi); }
+.skin-scorebook .c-tag--warn { background: var(--sb-red); color: var(--sb-stampfg); }
+.skin-scorebook .c-tag--done { background: var(--wall1); }
+.skin-scorebook .c-tag--locked { background: var(--stone1); border-style: dashed; color: var(--sb-pencil); }
+.skin-scorebook .c-badge { background: var(--sb-red); color: var(--sb-stampfg); border-color: var(--sb-ink); }
+.skin-scorebook .c-badge--gold { background: var(--sb-hi); color: var(--sb-ink); }
+.skin-scorebook .c-res { background: var(--sb-plate); color: var(--sb-ink); border: 1.5px solid var(--sb-ink); box-shadow: var(--sb-lift); }
+.skin-scorebook .c-res.is-lit { background: var(--sb-hi); box-shadow: inset 0 0 0 2px var(--sb-ink); border-color: var(--sb-ink); }
+.skin-scorebook .c-resbar { background: var(--wall1); border-bottom: 2px solid var(--sb-ink); }
+.skin-scorebook .c-stat__track { background: var(--stone1); border: 1.5px solid var(--sb-ink); }
+.skin-scorebook :is(.hl, .hi) { background: var(--sb-hi); }
+
+/* tabs (Club / Match / Nets style): index tabs, only where the live nav has them */
+.skin-scorebook .c-tabbar { background: transparent; border-top: 0; padding: 0; gap: 0; align-items: end; }
+.skin-scorebook .c-tab { background: #E9DDBF; color: var(--sb-ink); border: 1.5px solid var(--sb-ink); border-bottom: 0; border-radius: 10px 10px 0 0; box-shadow: none; margin-left: -1.5px; }
+.skin-scorebook .c-tab.is-selected, .skin-scorebook .c-tab[aria-current="page"] { background: var(--sb-ink); color: var(--sb-plate); transform: none; box-shadow: none; }
+
+/* focus: dashed ring stays (not colour only) */
+.skin-scorebook :is(.c-btn, .c-icon-btn, .c-seg__opt, .c-tab, .c-row--tap, .c-empty, .c-chip__info, .c-res--btn, .c-link):is(:focus-visible, .is-focus) { outline: 3px dashed var(--sb-blue); outline-offset: 3px; }
+
+/* ---- Settings: Theme row (both themes; this part is unscoped in css/settings.css) ---- */
+
+/* ---- hub: stadium as a pen sketch (a filter on the canvas, no canvas code) ---- */
+.skin-scorebook .hb-scene { background: var(--sb-plate); border: 1.5px solid var(--sb-ink); box-shadow: var(--sb-lift); }
+.skin-scorebook .hb-cv { filter: sepia(.45) saturate(.7) contrast(1.05); }
+.skin-scorebook .hb-fac__tag { background: var(--sb-plate); border-color: var(--sb-ink); }
+
+/* ---- over panel: six ball rings; blue bloom on a 4, red on a 6 (word under each ring too) ---- */
+.skin-scorebook .op-scrim { background: rgba(31, 42, 68, .7); }
+.skin-scorebook .op-card { background: var(--sb-plate); border: 2px solid var(--sb-ink); box-shadow: var(--sb-lift); }
+.skin-scorebook .op-circle { border: 2.5px dashed var(--sb-pencil); background: var(--sb-plate); color: var(--sb-ink); font-family: "Caveat SB", var(--font-head); font-weight: 700; font-size: 30px; }
+.skin-scorebook .op-slot.is-filled .op-circle { border-style: solid; border-color: var(--sb-ink); background: var(--sb-plate); }
+.skin-scorebook .op-slot.k-f .op-circle { background: var(--sb-plate); border-color: var(--sb-blue); border-width: 3.5px; box-shadow: 0 0 0 5px rgba(47, 79, 158, .28); border-radius: 6px; }
+.skin-scorebook .op-slot.k-s .op-circle { background: var(--sb-plate); color: var(--sb-red); border-color: var(--sb-red); border-width: 3.5px; box-shadow: 0 0 0 5px rgba(179, 38, 30, .28); }
+.skin-scorebook .op-slot.k-w .op-circle { background: var(--sb-plate); color: var(--sb-red); border-color: var(--sb-ink); }
+.skin-scorebook .op-slot.is-unused .op-circle { border: 2px solid var(--wall2); background: var(--wall1); opacity: .6; }
+.skin-scorebook .op-divider { border-top: 1.5px solid var(--sb-rule); }
+.skin-scorebook .op-line { border-left: 3px solid var(--sb-rule); }
+.skin-scorebook .op-line.k-f { border-left-color: var(--sb-blue); } .skin-scorebook .op-line.k-s { border-left-color: var(--sb-red); } .skin-scorebook .op-line.k-w { border-left-color: var(--sb-ink); }
+.skin-scorebook .op-total { border-left-color: var(--sb-ink); }
+
+/* ---- scoreboard (bowl and chase): rating tiles are plates with a word and a symbol, tinted lightly ---- */
+.skin-scorebook .strike { background: var(--sb-ink); color: var(--sb-plate); border-radius: 2px; }
+.skin-scorebook .r-poor { background: #EBC6C0; }
+.skin-scorebook .r-good { background: #D2E1C5; }
+.skin-scorebook :is(.pbox, .rbox, .opt) { border-color: var(--sb-ink); }
+.skin-scorebook .sb-head > div { font-family: var(--font-body); font-weight: 700; font-size: 16px; line-height: 17px; }
+.skin-scorebook .sb-head small { font-weight: 400; }
+.skin-scorebook .chase .sb-head > div + div, .skin-scorebook .chase-b .sb-head > div + div { font-size: 14px; line-height: 15px; }
+.skin-scorebook .rbox .w, .skin-scorebook .rbox .s { color: var(--sb-ink); }
+.skin-scorebook .rbox .w { font-family: var(--font-body); font-weight: 700; font-size: 16px; }
+.skin-scorebook .hint { border-left-color: var(--sb-green); }
+.skin-scorebook :is(.hints p, .bv-hints p) { color: var(--sb-ink); }
+
+/* ---- training: ability = a ringed number (red ring, like pencil), skill cells keep icon / divider / raw number ---- */
+.skin-scorebook .tr-ovr { background: var(--sb-plate); border: 2.5px solid var(--sb-red); border-radius: 16px 14px 16px 14px / 14px 16px 14px 16px; }
+.skin-scorebook .tr-ovr.is-max { background: var(--sb-hi); }
+.skin-scorebook .tr-list > li.tr-row { background: var(--sb-plate); border: 1.5px solid var(--sb-ink); border-radius: 3px; box-shadow: var(--sb-lift); }
+.skin-scorebook .tr-row--peak { background: var(--wall1) !important; }
+.skin-scorebook .tr-rates, .skin-scorebook .tr-gr { background: var(--sb-plate); border: 1.5px solid var(--sb-ink); }
+.skin-scorebook .tr-rate + .tr-rate { border-left: 1.5px solid var(--sb-ink); }
+.skin-scorebook .tr-rv { border-top: 1.5px solid var(--sb-ink); }
+.skin-scorebook .tr-rate.is-plan > .tr-ri { outline: 2.5px dashed var(--sb-pencil); }
+.skin-scorebook .tr-rate.is-plan.is-new, .skin-scorebook .tr-rate.is-up { background: var(--sb-hi); }
+.skin-scorebook .tr-gr { font-family: var(--font-head); font-weight: 700; }
+.skin-scorebook .tr-won { color: var(--sb-green); font-weight: 700; }
+.skin-scorebook :is(.chase, .chase-b, .bv-head, .sb) .sb-head > div + div { white-space: normal; font-size: 14px; line-height: 15px; overflow-wrap: anywhere; letter-spacing: 0; }
+.skin-scorebook .sb-head { align-items: end; }
+
+/* ---- six sheet / squad / hub: ability = ringed number (first .ts-n and the squad number box), potential grade = plain box ---- */
+.skin-scorebook .ts-n { background: var(--sb-plate); border: 1.5px solid var(--sb-ink); border-radius: 3px; }
+.skin-scorebook .ts-n:not(.ts-g) { border: 2.5px solid var(--sb-red); border-radius: 16px 14px 16px 14px / 14px 16px 14px 16px; }
+.skin-scorebook .ts-n b { font-weight: 700; }
+.skin-scorebook :is(.ts-row.is-selected, .ts-slot.is-selected) { background: var(--sb-hi); box-shadow: inset 0 0 0 2px var(--sb-ink); }
+
+/* ---- training: "Drill all" is the red stamp (hand-off rule); the plan card is a plate ---- */
+.skin-scorebook .tr-go:not(:disabled) { position: relative; isolation: isolate; background: var(--sb-red); color: var(--sb-stampfg); border: 2px solid var(--sb-red); border-radius: 6px; font-family: var(--font-head); font-weight: 700; letter-spacing: .03em; text-transform: uppercase; }
+.skin-scorebook .tr-go:not(:disabled)::after { content: ""; position: absolute; inset: 4px; z-index: -1; border: 2px dashed rgba(251, 243, 226, .55); border-radius: 4px; pointer-events: none; }
+.skin-scorebook .tr-go:not(:disabled):active { background: #8f1d17; }
+.skin-scorebook .tr-go .tr-chip { background: var(--sb-plate); color: var(--sb-ink); text-transform: none; letter-spacing: 0; }
+.skin-scorebook .tr-plan { background: var(--wall1); }
+
+/* ---- the pencil why-note: the only Caveat on screen (20 px and up) ---- */
+.skin-scorebook .why, .skin-scorebook .why-row > :not(.ball), .skin-scorebook .bv-why-row > :not(.ball) { font-family: "Caveat SB", var(--font-body); font-weight: 700; font-size: 21px; line-height: 23px; color: var(--sb-pencil); }
+.skin-scorebook .why { background: var(--sb-plate); border: 1.5px solid var(--sb-ink); border-left: 3px solid var(--sb-red); }
+.skin-scorebook :is(.why-row, .bv-why-row) .ball { background: var(--sb-plate); border: 2px solid var(--sb-ink); font-family: var(--font-head); font-weight: 700; color: var(--sb-ink); }
+.skin-scorebook :is(.why-row, .bv-why-row) .ball.w { background: var(--sb-plate); color: var(--sb-red); border-color: var(--sb-red); }
+.skin-scorebook :is(.why-row, .bv-why-row) .ball.six { background: var(--sb-plate); color: var(--sb-red); border-color: var(--sb-red); border-width: 3px; }
+
+/* ---- selected rows (the .c-row plate rule above would otherwise hide the highlighter) and wider-type fixes ---- */
+.skin-scorebook :is(.c-row.is-selected, .m0-sel) { background: var(--sb-hi); box-shadow: inset 6px 0 0 var(--sb-ink); }
+.skin-scorebook .tr-cand { background: var(--sb-plate); border: 1.5px solid var(--sb-ink); box-shadow: var(--sb-lift); }
+.skin-scorebook .tr-cand.m0-sel { background: var(--sb-hi); }
+.skin-scorebook .tr-cand__l1 { flex-wrap: wrap; row-gap: 2px; }
+.skin-scorebook .tr-cand__name { font-size: 19px; font-family: var(--font-head); font-weight: 700; }
+.skin-scorebook .tr-cand__ico { background: var(--sb-plate); border: 1.5px solid var(--sb-ink); }
+.skin-scorebook .tr-cand__info { background: var(--wall1); border-left: 2px solid var(--sb-ink); }
+.skin-scorebook .strip b { font-size: 18px; line-height: 22px; }
+.skin-scorebook .strip > span:first-child { overflow: visible; text-overflow: clip; }
+.skin-scorebook .sq-cols { font: 700 14px/15px var(--font-body); }
+.skin-scorebook .sq-cols span:last-child { overflow-wrap: normal; text-align: right; font-size: 14px; letter-spacing: -.02em; margin-left: -10px; }
+
+/* ---- accessibility audit fixes (A11Y-scorebook.md) ---- */
+/* F-1: Zilla's default figures are old-style ("0/0" read "o/o"); numbers in play use lining figures */
+.skin-scorebook :is(h1, h2, h3, h4, .strip, .c-strip, .score, .mid, .res-score, .brk-score, .big-need, .brk-need, .tr-ovr b, .tr-rv, .c-row__val, .c-stat__val, .c-num, .ts-n b, .ss-pts, td, th, .tr-gr, .rbox .s) { font-variant-numeric: lining-nums tabular-nums; }
+/* F-2: the bowl strip's right-hand text wraps instead of clipping "Over 1 of 10" */
+.skin-scorebook .bv-strip .mid { white-space: normal; overflow: visible; overflow-wrap: anywhere; line-height: 1.15; }
+.skin-scorebook .bv-strip .mid b { white-space: normal; }
+/* F-4: hub six tiles get a visible edge (3.8:1 on paper) */
+.skin-scorebook .hb-p { border-color: #7D765E; }
+/* F-5: stat-bar fill is ink on the track */
+.skin-scorebook .c-stat__fill { background: var(--sb-ink); }
+/* F-7: unselected call buttons = ink outline (QA-A D6); selection still has tick + highlighter + thick edge */
+.skin-scorebook .opt:not(.is-selected) { box-shadow: none; border-color: var(--sb-ink); border-image: none; }
+/* F-8: the star glyph is drawn in a symbol-safe stack, not the slab */
+.skin-scorebook :is(.best, .bv-best, .bv-starkey, .legend i) { font-family: system-ui, "Segoe UI Symbol", sans-serif; }
+
+/* ======== Visual QA r1 fixes ======== */
+/* D1: lining figures everywhere (inherited; the * rule also beats classes that set tabular-nums alone) */
+body.skin-scorebook, body.skin-scorebook *, body.skin-scorebook *::before, body.skin-scorebook *::after { font-variant-numeric: lining-nums tabular-nums; }
+/* D2: the chase headline wraps, 20 px, no ellipsis */
+.skin-scorebook .chase-b .strip .mid b { white-space: normal; overflow: visible; text-overflow: clip; font-size: 20px; line-height: 22px; }
+.skin-scorebook .chase-b .strip .mid span { font-size: 14px; }
+/* D5: batter / bowler cards: role and sub lines wrap instead of spilling */
+.skin-scorebook .pbox .sub, .skin-scorebook .pbox .nm { white-space: normal; overflow-wrap: normal; word-break: normal; text-overflow: clip; }
+/* D6: overs sheet: phase and over cells keep whole words */
+.skin-scorebook .ts-band { grid-template-columns: 92px minmax(0, 1fr); }
+.skin-scorebook .ts-field b { font-size: 16px; }
+.skin-scorebook .ts-field span { white-space: nowrap; font-size: 14px; letter-spacing: -.01em; }
+.skin-scorebook .ts-sb { white-space: normal; overflow-wrap: anywhere; text-overflow: clip; line-height: 15px; }
+.skin-scorebook .ts-cn { white-space: normal; overflow-wrap: normal; line-height: 16px; }
+/* D7 and D8: table position column and season-end club name */
+.skin-scorebook .m0-table :is(th, td):first-child { width: 34px; overflow: visible; text-overflow: clip; }
+.skin-scorebook .ss-club .name { white-space: normal; overflow: visible; text-overflow: clip; overflow-wrap: normal; word-break: normal; font-size: 15px; max-width: 100%; }
+.skin-scorebook .m0-sel .ss-club .name { max-width: 100%; }
+.skin-scorebook .m0-table td { white-space: normal; }
+/* D9: match rows are plain ink-edged plates (no frame PNG, no diamond studs); last-over marks follow the over panel */
+.skin-scorebook :is(.pbox, .chase-b .sb-row.is-strike .pbox, .sb-row.is-selected .pbox) { border: 1.5px solid var(--sb-ink); border-image: none; border-radius: 3px; background: var(--sb-plate); box-shadow: var(--sb-lift); padding: 0 4px; image-rendering: auto; }
+.skin-scorebook .pbox::before, .skin-scorebook .pbox::after { display: none; }
+.skin-scorebook :is(.sb-row.is-selected .pbox, .chase-b .sb-row.is-strike .pbox) { background: var(--sb-hi); box-shadow: var(--sb-lift), inset 0 0 0 2px var(--sb-ink); border-width: 2px; }
+.skin-scorebook .sb-row.is-off .pbox { border: 2px dashed var(--sb-pencil); background: var(--stone1); box-shadow: none; }
+.skin-scorebook .sb-row.is-selected { outline: 0; }
+.skin-scorebook :is(.sb-row.is-selected .gr, .sb-row.is-selected .best, .chase-b .sb-row.is-strike .gr) { background: var(--sb-plate); }
+.skin-scorebook .opt.is-selected { border: 2px solid var(--sb-ink); background: var(--sb-hi); box-shadow: inset 0 0 0 2px var(--sb-ink); }
+.skin-scorebook .opt:not(.is-selected) { border: 2px solid var(--sb-ink); border-image: none; }
+.skin-scorebook .ball { background: var(--sb-plate); border: 2px solid var(--sb-ink); color: var(--sb-ink); font-family: var(--font-head); font-weight: 700; }
+.skin-scorebook .ball.w { background: var(--sb-plate); color: var(--sb-red); border-color: var(--sb-ink); }
+.skin-scorebook .ball.six { background: var(--sb-plate); color: var(--sb-red); border-color: var(--sb-red); border-radius: 50%; border-width: 2.5px; }
+.skin-scorebook .ball.four { border-color: var(--sb-blue); border-width: 2.5px; border-radius: 4px; }
+.skin-scorebook .ball.f { border-color: var(--sb-blue); border-width: 2.5px; border-radius: 4px; }
+/* D10: week results rows: padding, and your match is highlighted */
+.skin-scorebook .tr-rr { padding: 6px 8px; background: var(--sb-plate); }
+.skin-scorebook .tr-rr--me { background: var(--sb-hi); }
+/* D11: why lines are Atkinson; Caveat stays on the single pencil note */
+.skin-scorebook :is(.why-row, .bv-why-row) > :not(.ball) { font-family: var(--font-body); font-weight: 400; font-size: 16px; line-height: 21px; color: var(--sb-ink); }
+.skin-scorebook :is(.why-row, .bv-why-row) > :not(.ball) b { font-weight: 700; }
+/* D12: grade chips */
+.skin-scorebook :is(.tr-gr, .grade-chip, .m0-flat--g) { min-width: 26px; padding: 0 4px; justify-content: center; text-align: center; }
+/* D13: over panel ball words stack on two lines */
+.skin-scorebook .op-word { white-space: normal; text-align: center; line-height: 15px; min-height: 30px; font-size: 14px; max-width: 48px; overflow-wrap: normal; }
+/* D15: destructive actions get an ink outline, never the stamp red */
+.skin-scorebook :is([data-act="NewGame"], .st-new, .ss-newgame, .sv-new, .c-btn--danger) { background: var(--sb-plate); color: var(--sb-ink); border: 2px solid var(--sb-ink); }
+.skin-scorebook .c-btn--danger::before { content: ""; width: 8px; height: 14px; flex: none; background: currentColor; -webkit-mask: var(--c-ico-bang) center / 100% 100% no-repeat; mask: var(--c-ico-bang) center / 100% 100% no-repeat; }
+.skin-scorebook .ts-band { grid-template-columns: 86px minmax(0, 1fr); }
+.skin-scorebook .ts-sb { overflow-wrap: normal; word-break: normal; letter-spacing: -.02em; font-size: 14px; }
+.skin-scorebook .ts-slot { padding: 0; }
+.skin-scorebook .ss-strip b { font-size: 16px; line-height: 18px; letter-spacing: -.01em; }
+.skin-scorebook .ss-strip small { line-height: 16px; }
+
+/* ======== Visual QA r2 fixes ======== */
+/* N1: the font shorthand in base rules resets font-variant-numeric; font-feature-settings survives it */
+body.skin-scorebook, body.skin-scorebook *, body.skin-scorebook *::before, body.skin-scorebook *::after { font-feature-settings: "lnum" 1, "tnum" 1; }
+/* N4/N8: squad rows never split a word; keep space under the column headers */
+.skin-scorebook :is(.sq-row, .sq-pbox) * { overflow-wrap: normal; word-break: normal; }
+.skin-scorebook .sq-cols { padding-bottom: 6px; }
+/* N5: four-cell overs row: names fit */
+.skin-scorebook .ts-band { grid-template-columns: 82px minmax(0, 1fr); }
+.skin-scorebook .ts-slots--4 .ts-sb, .skin-scorebook .ts-slots .ts-sb { letter-spacing: -.04em; }
+/* N7: plan view plates like the match rows; the type line wraps at spaces */
+.skin-scorebook .pl-chip { background: var(--sb-plate); border: 1.5px solid var(--sb-ink); border-image: none; border-radius: 3px; box-shadow: var(--sb-lift); image-rendering: auto; padding: 2px 4px; }
+.skin-scorebook .pl-chip * { white-space: normal; overflow-wrap: normal; text-overflow: clip; }
+.skin-scorebook :is(.pl-slot, .pl-field) { background: var(--sb-plate); border-color: var(--sb-ink); }
+.skin-scorebook .pl-slot.is-selected { background: var(--sb-hi); box-shadow: inset 0 0 0 2px var(--sb-ink); }
+.skin-scorebook .pl-field { background: var(--wall1); }
+/* N1 (final): the `font:` shorthand in base rules (bowl.css .bv-runs, chase.css .ball) resets BOTH font-variant-numeric and font-feature-settings, so only !important holds */
+body.skin-scorebook, body.skin-scorebook *, body.skin-scorebook *::before, body.skin-scorebook *::after { font-variant-numeric: lining-nums tabular-nums !important; font-feature-settings: "lnum" 1, "tnum" 1 !important; }

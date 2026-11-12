@@ -96,7 +96,7 @@ function batterName(vm, i) {
 }
 
 function ballChip(rec) {
-  const cls = rec.o === 'W' ? 'ball w' : rec.o === 6 ? 'ball six' : 'ball';
+  const cls = rec.o === 'W' ? 'ball w' : rec.o === 6 ? 'ball six' : rec.o === 4 ? 'ball four' : 'ball';
   const txt = rec.o === 'W' ? 'W' : rec.o;
   return '<span class="' + cls + '" aria-label="' + esc(outWord(rec.o)) + '">' + esc(txt) + '</span>';
 }
@@ -135,7 +135,7 @@ export function render(el, vm, dispatch) {
   const need = vm.need > 0
     ? 'Need ' + vm.need + ' from ' + vm.ballsLeft + ' ball' + (vm.ballsLeft === 1 ? '' : 's')
     : 'Target reached';
-  const phase = PHASE_WORDS[vm.phase] || vm.phaseName || '';
+  const phase = String(PHASE_WORDS[vm.phase] || vm.phaseName || '').replace(/ /g, '\u00a0'); // N9: the phase never splits mid-phrase
   const cols = likelyBowlers(vm);
   const notes = newNotes();
   const known = cols.filter((c) => c.name);

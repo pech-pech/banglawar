@@ -16,6 +16,8 @@ const SHOTS = process.env.E2E_SHOTS || '/mnt/project-files/games-design/cricket-
 const FULL = process.env.E2E_FULL === '1';
 const VIEW = { width: 344, height: 780 };
 const SEED = 'e2e-1';
+const REDUCE = process.env.E2E_REDUCE === '1'; // E2E_REDUCE=1 emulates prefers-reduced-motion: reduce and fails on any running animation
+const THEME = process.env.E2E_THEME || ''; // E2E_THEME=scorebook plays the same journey with the Scorebook look set in the save
 
 const req = createRequire(import.meta.url);
 function loadPlaywright() {
@@ -80,13 +82,18 @@ function auditInPage(strict) {
     out.underCta = [...new Set(out.underCta)].slice(0, 6);
   }
   if (strict && document.body.scrollHeight > vh + 1) out.underCta.push('body scrolls ' + (document.body.scrollHeight - vh) + ' px');
+  // the sticky bowler-list header may never sit on top of a tile
+  out.overlap = [];
+  const hd = document.querySelector('.bv-sb > .bv-head');
+  if (hd && vis(hd)) { const hb = hd.getBoundingClientRect(); document.querySelectorAll('.bv-sb > .sb-row').forEach((r) => { const b = r.getBoundingClientRect(); if (b.height > 0 && b.top < hb.bottom - 0.5 && b.bottom > hb.bottom + 0.5) out.overlap.push(label(r)); }); }
+  out.anims = document.getAnimations().filter((x) => x.playState === 'running').map((x) => (x.animationName || x.transitionProperty || 'anim') + ' on ' + ((x.effect && x.effect.target && (x.effect.target.className || x.effect.target.tagName)) || '?'));
   out.small = [...new Set(out.small)].slice(0, 8); out.tiny = [...new Set(out.tiny)].slice(0, 8);
   return out;
 }
 
 async function journey(browser, tag) {
   const problems = [], notes = [], shots = [];
-  const ctx = await browser.newContext({ viewport: VIEW, deviceScaleFactor: 1 });
+  const ctx = await browser.newContext({ viewport: VIEW, deviceScaleFactor: 1, reducedMotion: REDUCE ? 'reduce' : 'no-preference' });
   const page = await ctx.newPage();
   const bad = (m) => { problems.push(`[${tag}] ${m}`); };
   page.on('pageerror', (e) => bad(`pageerror: ${e.message}`));
@@ -111,6 +118,8 @@ async function journey(browser, tag) {
     if (a.underCta && a.underCta.length) bad(`${key}: text runs under the CTA bar: ${a.underCta.join('; ')}`);
     if (a.small.length) bad(`${key}: tap targets under 56 px: ${a.small.join('; ')}`);
     if (a.tiny.length) bad(`${key}: text under 14 px: ${a.tiny.join('; ')}`);
+    if (a.overlap.length) bad(`${key}: bowler-list header covers a tile: ${a.overlap.join('; ')}`);
+    if (REDUCE && a.anims.length) bad(`${key}: still animating under prefers-reduced-motion: ${a.anims.join('; ')}`);
     if (a.vScroll) notes.push(`${key}: scrolls vertically (allowed only on table, training list, squad list)`);
   }
   async function shot(name) { if (!shotsOk) return; try { await page.screenshot({ path: `${SHOTS}${tag}-${name}.png` }); shots.push(name); } catch (e) { shotsOk = false; notes.push(`screenshot failed: ${e.message}`); } }
@@ -125,6 +134,7 @@ async function journey(browser, tag) {
   const first = await stage();
   if (first !== 'hub') { await ctx.close(); return { skip: `app boots into stage "${first}", not "hub": the season store/UI is not wired yet` }; } // p7-first: no coach screen before match 1
 
+  if (THEME) { await page.evaluate((t) => window.__store.dispatch('SetTheme', { theme: t }), THEME); await settle(300); const cls = await page.evaluate(() => document.body.className); if (!cls.includes('skin-' + THEME)) bad(`theme ${THEME} did not set its body class (${cls})`); }
   let coachChecked = false, steps = 0, hubSeen = 0, weekDone = false, reloaded = false, matchPlayed = false;
   while (steps++ < (FULL ? 600 : 120)) {
     const st = await stage();

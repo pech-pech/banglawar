@@ -102,6 +102,8 @@ export function playOverPanel({ title, balls, score, summaryLines = [], nextLabe
   function skip() { timers.forEach(clearTimeout); for (let i = landed; i < list.length; i++) land(i); finish(); }
   root.querySelector('.op-close').addEventListener('click', exit);
   root.querySelector('.op-close').focus();
+  // Reduced motion: no paced ball-by-ball reveal; every ball and the total are there at once (nothing changes on a timer)
+  if (typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) { skip(); return { close: exit }; }
   const t0 = performance.now();
   list.forEach((_, i) => timers.push(setTimeout(() => land(i), Math.max(0, t0 + (i + 1) * BALL_MS - performance.now()))));
   timers.push(setTimeout(finish, Math.max(0, t0 + (list.length + 1) * BALL_MS - performance.now() - 300)));
