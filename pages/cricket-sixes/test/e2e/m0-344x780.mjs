@@ -16,6 +16,7 @@ const SHOTS = process.env.E2E_SHOTS || '/mnt/project-files/games-design/cricket-
 const FULL = process.env.E2E_FULL === '1';
 const VIEW = { width: 344, height: 780 };
 const SEED = 'e2e-1';
+const THEME = process.env.E2E_THEME || ''; // E2E_THEME=scorebook plays the same journey with the Scorebook look set in the save
 
 const req = createRequire(import.meta.url);
 function loadPlaywright() {
@@ -125,6 +126,7 @@ async function journey(browser, tag) {
   const first = await stage();
   if (first !== 'hub') { await ctx.close(); return { skip: `app boots into stage "${first}", not "hub": the season store/UI is not wired yet` }; } // p7-first: no coach screen before match 1
 
+  if (THEME) { await page.evaluate((t) => window.__store.dispatch('SetTheme', { theme: t }), THEME); await settle(300); const cls = await page.evaluate(() => document.body.className); if (!cls.includes('skin-' + THEME)) bad(`theme ${THEME} did not set its body class (${cls})`); }
   let coachChecked = false, steps = 0, hubSeen = 0, weekDone = false, reloaded = false, matchPlayed = false;
   while (steps++ < (FULL ? 600 : 120)) {
     const st = await stage();

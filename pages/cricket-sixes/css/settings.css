@@ -16,3 +16,7 @@
 .rp-opts { display: grid; grid-template-columns: 1fr 1fr; gap: var(--c-sp-1); }
 .rp-chip { min-height: 56px; width: 100%; padding: 0 var(--c-sp-1); }
 .rp-skip { opacity: .8; }
+/* Theme row (Settings sheet): label + a two-option segmented control, 56 px tall */
+.st-theme { display: flex; flex-direction: column; gap: var(--c-sp-1); }
+.st-theme__lbl { font-size: var(--c-fs-s); line-height: var(--c-lh-s); font-weight: 700; }
+.st-theme__seg .c-seg__opt { white-space: normal; text-align: center; line-height: 18px; }

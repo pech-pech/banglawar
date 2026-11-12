@@ -17,6 +17,9 @@ import { RUN } from '../data/run.js';
 
 const ovStr = (balls) => `${Math.floor(balls / 6)}.${balls % 6}`;
 
+/** Look settings (UI only, never read by the rules). Absent field = 'green'. */
+export const THEMES = ['green', 'scorebook'];
+
 /** Figures snapshot of innings 1 (newInnings resets some player fields before the chase). */
 function summarise(s) {
   const inn = s.inn1;
@@ -322,6 +325,12 @@ const baseSeed = (s) => String(s.season.seed).replace(/\|s\d+$/, '');
  * @param {any} [payload]
  */
 export function applyCommand(s, cmd, payload = {}) {
+  const n = applyCommandCore(s, cmd, payload);
+  // The look setting rides along every command that rebuilds the state (NewGame, new run, ...); absent = the default look.
+  return s && s.theme && n && n !== s && n.theme === undefined ? { ...n, theme: s.theme } : n;
+}
+function applyCommandCore(s, cmd, payload) {
+  if (cmd === 'SetTheme') return s && s.stage && THEMES.includes(payload && payload.theme) && (s.theme || 'green') !== payload.theme ? { ...s, theme: payload.theme } : s;
   if (cmd === 'NewGame') return newGame(payload);
   if (cmd === 'NewMatch' && !(s && s.season)) return newMatch(payload);
   if (!s || !s.stage) return s;

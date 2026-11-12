@@ -7,7 +7,7 @@ import { gearButton, openSettings, stampOf } from './settings.js';
 import { drawFeel } from './feel.js';
 import { saveOf } from './z.js';
 
-const GEAR_STAGES = { break: 1, done: 1 }; // never on bowl or chase: a tap mid-over cannot open it by mistake
+const GEAR_STAGES = { hub: 1, semi: 1, final: 1, break: 1, done: 1 }; // never on bowl or chase: a tap mid-over cannot open it by mistake
 const BALL_MS = 400; // over-panel autoplay speed (js/ui/over-panel.js)
 
 export function attachReport(el, store) {
@@ -49,7 +49,7 @@ export function attachReport(el, store) {
           const key = s.stage + '|' + (s.last ? s.last.over : 0); if (key !== shownKey) { shownKey = key; shownT = Date.now(); } // think time runs from the first draw of a call screen
           const strip = GEAR_STAGES[s.stage] ? el.querySelector('.strip, .c-strip') : null;
           if (strip && !strip.querySelector('.st-gear')) {
-            const g = gearButton(); g.addEventListener('click', () => openSettings(rep));
+            const g = gearButton(); g.addEventListener('click', () => openSettings(rep, { get: store.get, set: (t) => store.dispatch('SetTheme', { theme: t }) }));
             strip.insertBefore(g, strip.querySelector('.help-btn'));
           }
           if (s.stage === 'done') { const scr = el.querySelector('.screen'); const m = log.data().matches.slice(-1)[0]; if (scr && m) drawFeel(scr, m, (q, a) => log.feel(q, a)); }

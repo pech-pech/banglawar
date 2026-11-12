@@ -1,5 +1,6 @@
 // Settings sheet: copy report, copy short summary, build stamp, clear data (with confirm). Nothing leaves the phone.
 import { openSheet } from '../ui/sheet.js';
+import { THEMES, themeOf } from '../ui/theme.js';
 
 const two = (n) => (n < 10 ? '0' : '') + n;
 export const stampOf = (t) => { const d = new Date(t); return d.getFullYear() + '-' + two(d.getMonth() + 1) + '-' + two(d.getDate()) + ' ' + two(d.getHours()) + ':' + two(d.getMinutes()) + ':' + two(d.getSeconds()); };
@@ -21,10 +22,12 @@ export async function copyText(text) {
 }
 
 /** @param {{summary:()=>string, full:()=>string, stamp:()=>string, count:()=>number, clear:()=>void, flush:()=>void}} rep */
-export function openSettings(rep) {
+export function openSettings(rep, look) {
   rep.flush();
   const html =
     '<div class="st-body">' +
+    (look ? '<div class="st-theme" role="group" aria-label="Theme"><span class="st-theme__lbl">Theme</span><div class="c-seg st-theme__seg">' +
+      THEMES.map((t) => '<button type="button" class="c-seg__opt" data-theme="' + t.id + '" aria-pressed="' + (themeOf(look.get()) === t.id) + '">' + t.label + '</button>').join('') + '</div></div>' : '') +
     '<button type="button" class="c-btn c-btn--primary st-act" data-st="full">Copy report</button>' +
     '<button type="button" class="c-btn st-act" data-st="short">Copy short summary</button>' +
     '<p class="st-status" role="status" aria-live="polite"></p>' +
@@ -44,6 +47,12 @@ export function openSettings(rep) {
     try { document.execCommand('copy'); } catch (e) { /* the textarea is the fallback */ }
   }
   root.addEventListener('click', (e) => {
+    const th = look && e.target.closest && e.target.closest('[data-theme]');
+    if (th) {
+      look.set(th.getAttribute('data-theme'));
+      root.querySelectorAll('[data-theme]').forEach((o) => { const on = o === th; o.setAttribute('aria-pressed', String(on)); o.classList.toggle('is-selected', on); });
+      return;
+    }
     const b = e.target.closest && e.target.closest('[data-st]'); if (!b) return;
     const k = b.getAttribute('data-st');
     if (k === 'full') copy(rep.full(), 'Report');
