@@ -2,7 +2,7 @@
 // balls: raw over balls ({n, o, ...}) optionally with batName, bowlName, bowlType for the why line.
 import { whyLine, outcomeLabel } from './why.js';
 import { chipHtml } from './book-sheet.js';
-import { ico } from './dom.js';
+import { icoDeco } from './dom.js';
 
 export const BALL_MS = 400;
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -36,11 +36,16 @@ export function foundHtml(list) {
   const fs = Array.isArray(list) ? list : [list];
   const rows = fs.map((f) => {
     const chip = chipHtml({ found: true, rank: f.rank, grade: f.grade, combo: f.combo ? f.combo.name : null, phase: ['Early', 'Middle', 'Late'][f.ph] }, f.bat + ' v ' + f.bowl, true);
-    return '<div class="bk-fr"><span class="bk-fn">' + ico(ROLE[f.bat], 20) + '<span>' + esc(f.name) + '</span></span>' + chip +
-      (f.combo ? '<span class="bk-fc">' + ico('medal', 16) + 'Combo: ' + esc(f.combo.name) + '</span>' : '') + '</div>';
+    return '<div class="bk-fr"><span class="bk-fn">' + icoDeco(ROLE[f.bat], 20) + '<span>' + esc(f.name) + '</span></span>' + chip +
+      (f.combo ? '<span class="bk-fc">' + icoDeco('medal', 16) + 'Combo: ' + esc(f.combo.name) + '</span>' : '') + '</div>';
   }).join('');
-  return '<div class="bk-found" role="status"><div class="bk-f1">' + ico('book', 24) + (fs.length > 1 ? 'Pairings found' : 'Pairing found') + '</div>' + rows +
+  return '<div class="bk-found"><div class="bk-f1">' + icoDeco('book', 24) + (fs.length > 1 ? 'Pairings found' : 'Pairing found') + '</div>' + rows +
     '<p class="bk-fsub">Saved in your Book. Grade is the batter\'s view.</p></div>';
+}
+/** Plain-words text of the found card, for the polite live region (the region exists first; finish() fills it). Pure. */
+export function foundText(list) {
+  const fs = Array.isArray(list) ? list : [list];
+  return (fs.length > 1 ? 'Pairings found. ' : 'Pairing found. ') + fs.map((f) => f.bat + ' v ' + f.bowl + ', ' + ['early', 'middle', 'late'][f.ph] + ': ' + f.grade + '.' + (f.combo ? ' Combo: ' + f.combo.name + '.' : '')).join(' ') + ' Saved in your Book.';
 }
 export function playOverPanel({ title, balls, score, summaryLines = [], nextLabel = 'Next over', found = [], onBook, onDone }) {
   const list = (balls || []).slice(0, 6);
@@ -52,11 +57,12 @@ export function playOverPanel({ title, balls, score, summaryLines = [], nextLabe
     `<header class="op-head"><h2 id="op-title" class="op-title">${esc(title)}</h2>` +
     `<button type="button" class="c-icon-btn op-close" aria-label="Close and skip to the end of the over"><span class="c-ico c-ico--x"></span></button></header><ol class="op-circles" aria-label="Balls this over">${slots}</ol>` +
     `<hr class="op-divider"><div class="op-bottom"><h3 class="op-sub">Results this over</h3><ul class="op-lines" aria-live="polite"></ul></div>` +
-    `<div class="op-foot"></div></section>`;
+    `<div class="ss-sr op-found-live" role="status" aria-live="polite" aria-atomic="true"></div><div class="op-foot"></div></section>`;
   document.body.appendChild(root);
   const slotEls = root.querySelectorAll('.op-slot');
   const lines = root.querySelector('.op-lines');
   const foot = root.querySelector('.op-foot');
+  const foundLive = root.querySelector('.op-found-live');
   const timers = [];
   let done = false, finished = false, landed = 0;
 
@@ -82,8 +88,8 @@ export function playOverPanel({ title, balls, score, summaryLines = [], nextLabe
     li.textContent = t.runs === score.runs && t.wk === score.wk ? totalLine(list, score).split('. Score')[0] + '.' : totalLine(list, score);
     lines.appendChild(li);
     for (const t of summaryLines) { const x = document.createElement('li'); x.className = 'op-line'; x.textContent = t; lines.appendChild(x); }
-    if (hasFound) foot.classList.add('has-found');
-    foot.innerHTML = (hasFound ? foundHtml(found) + `<button type="button" class="c-btn c-btn--block op-book">${ico('book', 24)}Open Book</button>` : '') +
+    if (hasFound) { foot.classList.add('has-found'); foundLive.textContent = foundText(found); }
+    foot.innerHTML = (hasFound ? foundHtml(found) + `<button type="button" class="c-btn c-btn--block op-book">${icoDeco('book', 24)}Open Book</button>` : '') +
       `<button type="button" class="c-btn c-btn--primary c-btn--cta c-btn--block op-next">${esc(nextLabel)}</button>`;
     foot.querySelector('.op-next').addEventListener('click', exit);
     const bk = foot.querySelector('.op-book');

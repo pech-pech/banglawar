@@ -1,5 +1,5 @@
 /* result-view: match end. render(el, vm, dispatch). Reads resultVM only. Clicks are handled by app.js (data-act). */
-import { esc, btn, ctaBar, ico } from './dom.js';
+import { esc, btn, ctaBar, icoDeco } from './dom.js';
 import { helpBtn } from './hub-view.js';
 const ovWords = (o) => { const [a, b] = String(o).split('.'); const n = Number(a) || 0, m = Number(b) || 0; return (n === 1 ? '1 over' : n + ' overs') + (m ? ' and ' + (m === 1 ? '1 ball' : m + ' balls') : ''); };
 
@@ -14,7 +14,7 @@ export function render(el, vm, dispatch) {
   var head = { won: 'You won', lost: 'You lost', tied: 'Tie' }[vm.result] || String(vm.result || '');
   var kind = vm.kindLabel ? '<p class="res-kind">' + esc(vm.kindLabel + (vm.oppName && vm.oppName !== 'Rival' ? ' vs ' + vm.oppName : '')) + '</p>' : '';
   var semiWin = vm.tpEarned === 0 && vm.result === 'won' && /semi/i.test(vm.kindLabel || '');
-  var tp = semiWin ? '<p class="res-tp">' + ico('tp', 20) + '<span>TP paid after the final</span></p>' : typeof vm.tpEarned === 'number' ? '<p class="res-tp">' + ico('tp', 20) + '<b>+' + esc(vm.tpEarned) + ' TP</b> <span>training points earned</span></p>' : '';
+  var tp = semiWin ? '<p class="res-tp">' + icoDeco('tp', 20) + '<span>TP paid after the final</span></p>' : typeof vm.tpEarned === 'number' ? '<p class="res-tp">' + icoDeco('tp', 20) + '<b>+' + esc(vm.tpEarned) + ' TP</b> <span>training points earned</span></p>' : '';
   // In a season the result counts: go to the training week. Outside a season: play again, or rematch the same seed (4A).
   var cta = vm.inSeason
     ? ctaBar(btn('Training week', 'FinishMatch', { kind: 'cta' }))

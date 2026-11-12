@@ -4,7 +4,7 @@
 //   {overs:[{over, phase, bowler|null, warn}], bowlers:[{i, name, bowl, ability, set}], fields, valid, reason}
 // Optional VM fields: sub (context line, e.g. "vs Brackwell CC"). Edits are view state until Start, which dispatches SetPlan {overs, fields} then NewMatch.
 // Rules mirror the match: every bowler 1-2 overs, never two in a row. The words show on the slot that breaks one.
-import { esc, ico } from './dom.js';
+import { esc, icoDeco } from './dom.js';
 import { openGlossary } from './glossary-sheet.js';
 
 const TYPE_ICON = { Fast: 'typeFast', Medium: 'typeMedium', Spin: 'typeSpin' };
@@ -89,13 +89,13 @@ export function render(el, vm, dispatch) {
     const f = FIELD[st.fields[pi]] || FIELD.P;
     const slots = []; for (let o = ph.from; o <= ph.to; o++) slots.push(slot(o - 1));
     return `<div class="pl-band"><button type="button" class="pl-field" data-field="${pi}" aria-label="${ph.name} overs ${ph.range}: ${f.word} field. Tap to switch.">` +
-      `<b>${ph.name}</b><span>${ico(f.icon, 16)}${f.word}</span></button>` +
+      `<b>${ph.name}</b><span>${icoDeco(f.icon, 16)}${f.word}</span></button>` +
       `<div class="pl-slots pl-slots--${slots.length}">${slots.join('')}</div></div>`;
   };
   const chip = (b) => {
     const n = count(b.i);
     return `<button type="button" class="pl-chip" data-bowler="${b.i}" aria-label="${esc(b.name)}, ${esc(b.bowl)} bowler, bowling ${esc(b.ability)}, ${n} of 2 overs set. Tap to give him the selected over.">` +
-      `${ico(TYPE_ICON[b.bowl] || 'typeMedium', 24)}<span class="pl-cn"><span class="name">${esc(b.name)}</span><small>${esc(b.bowl)} · ${esc(b.ability)}</small></span>` +
+      `${icoDeco(TYPE_ICON[b.bowl] || 'typeMedium', 24)}<span class="pl-cn"><span class="name">${esc(b.name)}</span><small>${esc(b.bowl)} · ${esc(b.ability)}</small></span>` +
       `<span class="pl-set${n === 0 || n > 2 ? ' is-low' : ''}" aria-hidden="true">${n}/2</span></button>`;
   };
   const sub = vm.sub || 'Their innings first, then you chase.';

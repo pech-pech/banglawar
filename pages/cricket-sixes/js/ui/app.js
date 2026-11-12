@@ -43,6 +43,8 @@ const SHEETS = {
   book: { file: 'book-sheet', fn: 'openBook', vm: ['bookVM', () => []] },
 };
 const mods = {}, loading = {};
+/** After the over panel closes the screen behind redraws; closing the Book from the found card returns focus to its main control (first match wins). */
+const BACK_FOCUS = ['#app [data-bowl]:not([disabled])', '#app .c-btn--cta:not([disabled])', '#app .cta button:not([disabled])', '#app button:not([disabled])'];
 
 export function mount(el, store) {
   let lastStage = null;
@@ -113,7 +115,7 @@ export function mount(el, store) {
     const summaryLines = [];
     if (balls.length < 6) summaryLines.push(!first && s.result === 'won' ? 'Target reached: you win!' : first ? '5th wicket: their innings is over.' : '5th wicket: your innings is over.');
     rep.panelOpen();
-    playOverPanel({ title: 'Over ' + s.last.over, balls, score: { runs: inn.runs, wk: inn.wk }, nextLabel, summaryLines, found: sel.foundVM(s), onBook: () => openByName('book'),
+    playOverPanel({ title: 'Over ' + s.last.over, balls, score: { runs: inn.runs, wk: inn.wk }, nextLabel, summaryLines, found: sel.foundVM(s), onBook: () => openByName('book', { returnFocus: BACK_FOCUS }),
       onDone() { rep.panelDone(balls.length); holding = false; render(); } });
   }
   return dispatch;

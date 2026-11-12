@@ -5,11 +5,15 @@ export function esc(s) {
   });
 }
 
-export function ico(name, size) {
+export function ico(name, size, deco) {
   const w = typeof window !== 'undefined' ? window : null;
   const i = w && w.SPR && w.SPR.iconImg ? w.SPR.iconImg(name, size || 24) : null;
+  if (i && deco) { i.setAttribute('alt', ''); i.setAttribute('aria-hidden', 'true'); }
   return i ? i.outerHTML : '';
 }
+
+/** Decorative icon: alt="" and aria-hidden, for an icon that sits next to visible words (the words carry the meaning). Use ico() with a plain-words alt only when the icon is the sole label. */
+export function icoDeco(name, size) { return ico(name, size, true); }
 
 function argAttr(arg) { return arg === undefined ? '' : ' data-arg="' + esc(JSON.stringify(arg)) + '"'; }
 
@@ -61,7 +65,7 @@ export function abilityCell(n, max) {
 }
 
 export function tpChip(n) {
-  return '<span class="c-chip chip m0-tp" aria-label="' + esc(n) + ' training points">' + ico('tp', 16) + '<b>' + esc(n) + '</b> TP</span>';
+  return '<span class="c-chip chip m0-tp">' + icoDeco('tp', 16) + '<b>' + esc(n) + '</b> <span aria-hidden="true">TP</span><span class="ss-sr"> training points</span></span>';
 }
 
 export function bindActs(root, dispatch, open) {
