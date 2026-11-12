@@ -13,7 +13,8 @@ export function render(el, vm, dispatch) {
   var tag = vm.result === 'won' ? 'c-tag c-tag--go' : vm.result === 'lost' ? 'c-tag c-tag--warn' : 'c-tag';
   var head = { won: 'You won', lost: 'You lost', tied: 'Tie' }[vm.result] || String(vm.result || '');
   var kind = vm.kindLabel ? '<p class="res-kind">' + esc(vm.kindLabel + (vm.oppName && vm.oppName !== 'Rival' ? ' vs ' + vm.oppName : '')) + '</p>' : '';
-  var tp = typeof vm.tpEarned === 'number' ? '<p class="res-tp">' + ico('tp', 20) + '<b>+' + esc(vm.tpEarned) + ' TP</b> <span>training points earned</span></p>' : '';
+  var semiWin = vm.tpEarned === 0 && vm.result === 'won' && /semi/i.test(vm.kindLabel || '');
+  var tp = semiWin ? '<p class="res-tp">' + ico('tp', 20) + '<span>TP paid after the final</span></p>' : typeof vm.tpEarned === 'number' ? '<p class="res-tp">' + ico('tp', 20) + '<b>+' + esc(vm.tpEarned) + ' TP</b> <span>training points earned</span></p>' : '';
   // In a season the result counts: go to the training week. Outside a season: play again, or rematch the same seed (4A).
   var cta = vm.inSeason
     ? ctaBar(btn('Training week', 'FinishMatch', { kind: 'cta' }))

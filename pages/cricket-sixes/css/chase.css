@@ -49,3 +49,9 @@
 .chase-b .opt.is-selected::before { position: absolute; top: 3px; right: 3px; margin: 0; }
 .chase-b .opt .two small { white-space: nowrap; }
 .chase-b .opt { padding-left: 6px; padding-right: 6px; }
+
+/* QA r2: flat grade (no bevel, no box): letter on a coloured underline, like gradeChip in dom.js */
+.chase-b .pbox .gr { border: 0; border-bottom: 4px solid var(--stone2); background: none; box-shadow: none; border-image: none; }
+.chase-b .sb-row.is-strike .gr { background: none; }
+.chase-b .gr.m0-gr-S { border-bottom-color: var(--gold); } .chase-b .gr.m0-gr-A { border-bottom-color: var(--accent); } .chase-b .gr.m0-gr-B { border-bottom-color: var(--pitch2); }
+.chase-b .gr.m0-gr-C { border-bottom-color: var(--stone2); } .chase-b .gr.m0-gr-D { border-bottom-color: var(--danger); }

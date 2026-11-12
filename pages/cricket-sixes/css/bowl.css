@@ -73,3 +73,6 @@
 /* D9: star key line. The star itself stays a shape plus the words in the key. */
 .bv-starkey { font: 14px/16px system-ui, sans-serif; }
 #app .bv-colL .gr { font-size: 14px; line-height: 14px; }
+
+/* QA r2 N3: selected row text keeps clear of the inner gold frame (frame is inset 7px) */
+#app .bv-colL .sb-row.is-selected .pbox { padding: 5px 9px; }

@@ -62,6 +62,23 @@ function auditInPage() {
     seen.add(e);
     const fs = parseFloat(getComputedStyle(e).fontSize); if (fs < 13.5) out.tiny.push(`${t.slice(0, 24)} ${fs}px`);
   }
+  // no visible text box may end below the top of the pinned CTA bar (text under the bar is unreadable). Text inside a scroll area is skipped: it may scroll under the bar.
+  out.underCta = [];
+  const bar = !sheet && [...document.querySelectorAll('.m0-ctabar, .ctabar')].filter(vis)[0];
+  if (bar) {
+    const top = bar.getBoundingClientRect().top;
+    // a scroll area (squad list, training list; body counts, it has overflow-x hidden) lets text pass under the bar by design
+    const scrolls = (e) => { for (let p = e; p && p !== document.documentElement; p = p.parentElement) { const o = getComputedStyle(p).overflowY; if ((o === 'auto' || o === 'scroll') && p.scrollHeight > p.clientHeight + 1) return true; } return false; };
+    const w2 = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+    for (let n = w2.nextNode(); n; n = w2.nextNode()) {
+      const t = n.nodeValue.trim(), e = n.parentElement;
+      if (!t || !e || !vis(e) || e.closest('script,style,.ss-sr') || bar.contains(e) || scrolls(e)) continue;
+      const rg = document.createRange(); rg.selectNodeContents(n);
+      const r = rg.getBoundingClientRect();
+      if (r.height > 0 && r.bottom > top + 1) out.underCta.push(`${t.slice(0, 30)} (bottom ${Math.round(r.bottom)} > bar ${Math.round(top)})`);
+    }
+    out.underCta = [...new Set(out.underCta)].slice(0, 6);
+  }
   out.small = [...new Set(out.small)].slice(0, 8); out.tiny = [...new Set(out.tiny)].slice(0, 8);
   return out;
 }
@@ -89,6 +106,7 @@ async function journey(browser, tag) {
     if (a.hScroll) bad(`${key}: horizontal scroll`);
     if (a.cta && a.cta.none) notes.push(`${key}: no CTA bar on this screen`);
     else if (a.cta && !a.cta.visible) bad(`${key}: main CTA "${a.cta.text}" is not fully visible without scrolling`);
+    if (a.underCta && a.underCta.length) bad(`${key}: text runs under the CTA bar: ${a.underCta.join('; ')}`);
     if (a.small.length) bad(`${key}: tap targets under 56 px: ${a.small.join('; ')}`);
     if (a.tiny.length) bad(`${key}: text under 14 px: ${a.tiny.join('; ')}`);
     if (a.vScroll) notes.push(`${key}: scrolls vertically (allowed only on table, training list, squad list)`);
@@ -117,7 +135,7 @@ async function journey(browser, tag) {
     } else if (st === 'hub' || st === 'semi' || st === 'final') {
       if (weekDone && !FULL) break;
       if (!hubSeen++) { // standings sheet, then the save sheet (view-only; Escape closes over-panel style modals)
-        const t = await page.$('[data-act="sheet:table"]'); if (t) { await t.click(); await settle(500); await audit('standings-sheet'); await shot('standings'); await closeSheets(); } else bad('hub: no "Full table" button');
+        const t = await page.$('[data-act="sheet:table"]'); if (t) { await t.click(); await settle(500); await audit('standings-sheet'); await shot('standings'); await closeSheets(); } else bad('hub: no "Table" button');
         const sv = await page.$('[data-act="sheet:save"]'); if (sv) { await sv.click(); await settle(500); await audit('save-sheet'); await shot('save-sheet'); await closeSheets(); } else bad('hub: no Save button');
       }
       if (!(await clickCta())) bad(`${st}: no enabled CTA`);
@@ -181,7 +199,7 @@ try {
     console.log(`e2e 344x780 seed ${SEED}${FULL ? ' (full season)' : ' (journey)'}: ${a.shots.length + b.shots.length} screenshots in ${SHOTS}`);
     for (const n of new Set([...a.notes, ...b.notes].map((x) => x))) console.log('note: ' + n);
     if (problems.length) { console.log(`FAIL: ${problems.length} problem(s)`); [...new Set(problems)].forEach((p) => console.log(' - ' + p)); code = 1; }
-    else console.log('PASS: no scroll-x, CTA visible, taps >= 56, text >= 14, no console/page errors, no network, reload kept state, same seed twice equal');
+    else console.log('PASS: no scroll-x, CTA visible, taps >= 56, text >= 14, no console/page errors, no network, reload kept state, same seed twice equal, no text under the CTA bar');
     console.log('not covered: reduced-motion ball reveal; re-roll of the next drill without ?seed (needs two loads with salts)');
   }
 } finally { await browser.close(); server.close(); }

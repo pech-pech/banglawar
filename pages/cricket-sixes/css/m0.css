@@ -5,12 +5,18 @@
 .m0-sel { background: var(--gold); box-shadow: inset 6px 0 0 var(--outline); outline: var(--c-border) solid var(--outline); outline-offset: -3px; }
 .m0-sel::before { content: ""; flex: none; width: 20px; height: 20px; background: var(--outline); -webkit-mask: var(--c-ico-check) center / 100% 100% no-repeat; mask: var(--c-ico-check) center / 100% 100% no-repeat; }
 .m0-grade { display: inline-flex; align-items: center; gap: var(--c-sp-1); }
-.m0-qtag { border-style: dashed; background: var(--cream); }
 .m0-pips { display: inline-flex; gap: 3px; }
 .m0-pip { display: block; width: 8px; height: 8px; border: var(--c-border) solid var(--outline); background: var(--cream); }
 .m0-pip.is-on { background: var(--gold); }
 .m0-pipn { font-size: var(--c-fs-s); line-height: var(--c-lh-s); font-variant-numeric: tabular-nums; }
-.m0-peak { background: var(--gold); gap: var(--c-sp-1); }
+.m0-flat { display: inline-flex; align-items: center; justify-content: center; flex: none; min-height: 24px; padding: 0 var(--c-sp-1); font: 700 var(--c-fs-m)/var(--c-lh-s) var(--c-font); color: var(--outline); background: none; border: 0; border-radius: 0; box-shadow: none; border-bottom: 4px solid var(--stone2); white-space: nowrap; }
+.m0-flat--q { border-bottom-style: dashed; }
+.m0-gr-S { border-bottom-color: var(--gold); }
+.m0-gr-A { border-bottom-color: var(--accent); }
+.m0-gr-B { border-bottom-color: var(--pitch2); }
+.m0-gr-C { border-bottom-color: var(--stone2); }
+.m0-gr-D { border-bottom-color: var(--danger); }
+.m0-peak { font-size: var(--c-fs-s); border-bottom-color: var(--gold); }
 .m0-abil { display: inline-flex; flex-wrap: wrap; align-items: center; gap: var(--c-sp-1); font-variant-numeric: tabular-nums; }
 .m0-max .m0-maxtag { background: var(--gold); }
 .m0-cap { flex-basis: 100%; font-size: var(--c-fs-s); line-height: var(--c-lh-s); color: var(--kitA2); }
@@ -28,3 +34,6 @@
 .m0-warn { display: block; padding: var(--c-sp-1) var(--c-sp-2); background: var(--cream); border: var(--c-border) dashed var(--danger); color: var(--outline); font-size: var(--c-fs-s); line-height: var(--c-lh-s); }
 .m0-warn::before { content: "! "; font-weight: 700; color: var(--danger); }
 .m0-empty { padding: var(--c-sp-4, 24px) var(--c-sp-3); text-align: center; color: var(--kitA2); font-size: var(--c-fs-m); line-height: var(--c-lh-m); border: var(--c-border) dashed var(--stone2); }
+/* Peak and grade are labels, not buttons: flat, no fill, no bevel, no icon. */
+.c-tag.m0-peak { background: none; color: var(--outline); border: 0; border-bottom: 4px solid var(--gold); border-radius: 0; box-shadow: none; padding: 0 var(--c-sp-1); min-height: 24px; font-size: var(--c-fs-s); }
+.c-tag.m0-peak::before, .c-tag.m0-peak::after, .m0-peak img { display: none; content: none; }

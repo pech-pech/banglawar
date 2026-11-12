@@ -21,9 +21,10 @@ function gainTile(g) {
 function result(r) {
   const aw = r.ra > r.rb, bw = r.rb > r.ra;
   return '<li class="tr-rr' + (r.me ? ' tr-rr--me' : '') + '" aria-label="' + esc(r.a + ' ' + r.ra + ' for ' + r.wa + ', ' + r.b + ' ' + r.rb + ' for ' + r.wb + (aw ? ', ' + r.a + ' won' : bw ? ', ' + r.b + ' won' : ', tied')) + '">' +
-    '<span class="tr-rr__t' + (aw ? ' is-win' : '') + '">' + (aw ? deco('done', 20) : '') + '<span>' + esc(r.a) + '</span></span><b class="tr-rr__s">' + esc(r.ra) + '/' + esc(r.wa) + '</b>' +
+    '<span class="tr-rr__names"><span class="tr-rr__t' + (aw ? ' is-win' : '') + '">' + (aw ? deco('done', 20) : '') + '<span>' + esc(r.a) + '</span></span>' +
     '<span class="tr-rr__v">' + (aw ? 'beat' : bw ? 'lost to' : 'tied') + '</span>' +
-    '<span class="tr-rr__t' + (bw ? ' is-win' : '') + '">' + (bw ? deco('done', 20) : '') + '<span>' + esc(r.b) + '</span></span><b class="tr-rr__s">' + esc(r.rb) + '/' + esc(r.wb) + '</b></li>';
+    '<span class="tr-rr__t' + (bw ? ' is-win' : '') + '">' + (bw ? deco('done', 20) : '') + '<span>' + esc(r.b) + '</span></span></span>' +
+    '<span class="tr-rr__scores"><b class="tr-rr__s">' + esc(r.ra) + '/' + esc(r.wa) + '</b><span class="tr-rr__v">to</span><b class="tr-rr__s">' + esc(r.rb) + '/' + esc(r.wb) + '</b></span></li>';
 }
 
 export function render(el, vm, dispatch) {

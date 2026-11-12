@@ -19,8 +19,8 @@ const z = 1.96;
 
 // TEST-PLAN section 3 bands: PLACEHOLDERS, report-only. Proportions get +-0.03 at N=400 once measured and frozen.
 const BANDS = {
-  'careless': { top4: [0.15, 0.40], champion: [0, 0.06], wins: [3.0, 4.5] },
-  'skilled': { top4: [0.65, 0.90], champion: [0.20, 0.45], wins: [5.5, 7.0] },
+  'careless': { top4: [0.03, 0.15], champion: [0, 0.03], wins: [2.0, 4.0] }, // NUMBERS-BANDS-NOTE 12:22
+  'skilled': { top4: [0.42, 0.60], champion: [0.11, 0.22], wins: [4.6, 5.5] }, // NUMBERS-BANDS-NOTE 12:22
 };
 
 const t0 = Date.now();
@@ -82,8 +82,8 @@ ${rows.map((r) => `| ${r.name} | ${r.n} | ${r.pts.toFixed(1)} | ${r.wins.toFixed
 ${rows.map((r) => `| ${r.name} | ${r.places.map((x) => pct(x)).join(' | ')} |`).join('\n')}
 
 ## Pass bands (placeholders from TEST-PLAN section 3, report-only)
-- careless: P(top 4) 0.15-0.40, P(champion) < 0.06, mean wins 3.0-4.5. Measured ${f1(carR.top4)}, ${f1(carR.champion)}, ${f1(carR.wins)}.
-- skilled: P(top 4) 0.65-0.90, P(champion) 0.20-0.45, mean wins 5.5-7.0. Measured ${f1(skR.top4)}, ${f1(skR.champion)}, ${f1(skR.wins)}.
+- careless: P(top 4) 0.03-0.15, P(champion) < 0.03. Measured ${f1(carR.top4)}, ${f1(carR.champion)}, ${f1(carR.wins)}.
+- skilled: P(top 4) 0.42-0.60, P(champion) 0.11-0.22, mean wins 4.6-5.5. Measured ${f1(skR.top4)}, ${f1(skR.champion)}, ${f1(skR.wins)}.
 - Order on P(top 4): skilled ${f1(skR.top4)} > best rote ${f1(bestRote.top4)} (${bestRote.name}) > idle ${f1(idleR.top4)}; noisy-skilled ${f1(nzR.top4)}. Skilled minus best rote ${pct(skR.top4 - bestRote.top4)} pts (want >= 10).
 - Report-only misses: ${misses.length ? '\n' + misses.map((m) => '  - ' + m).join('\n') : 'none'}
 

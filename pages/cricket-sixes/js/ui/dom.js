@@ -42,14 +42,14 @@ export function gradeChip(grade, pips) {
     let dots = '';
     for (let k = 0; k < 5; k++) dots += '<i class="m0-pip' + (k < n ? ' is-on' : '') + '"></i>';
     return '<span class="m0-grade m0-grade--hidden" role="img" aria-label="Grade shows after 5 drills. ' + n + ' of 5 drills done">' +
-      '<span class="c-tag m0-qtag">?</span><span class="m0-pips" aria-hidden="true">' + dots + '</span>' +
+      '<span class="m0-flat m0-flat--q">?</span><span class="m0-pips" aria-hidden="true">' + dots + '</span>' +
       '<span class="m0-pipn">' + n + '/5</span></span>';
   }
-  return '<span class="m0-grade" role="img" aria-label="Grade ' + esc(grade) + '"><span class="c-chip c-chip-grade chip-grade">' + esc(grade) + '</span></span>';
+  return '<span class="m0-grade" role="img" aria-label="Grade ' + esc(grade) + '"><span class="m0-flat m0-flat--g m0-gr-' + esc(String(grade).toUpperCase()) + '">' + esc(grade) + '</span></span>';
 }
 
 export function peakTag() {
-  return '<span class="c-tag c-tag--go m0-peak" aria-label="At peak">' + ico('peak', 16) + 'Peak</span>';
+  return '<span class="m0-flat m0-peak" aria-label="At peak">Peak</span>';
 }
 
 export function abilityCell(n, max) {

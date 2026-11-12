@@ -57,7 +57,7 @@ function row(b, vm) {
   const best = (b.previews || []).some((p) => p.inPhase);
   const star = best ? '<span class="best bv-best" aria-hidden="true">★</span>' : '';
   const pbox = `<div class="pbox"><span class="bv-icw">${sel && ok ? '<span class="bv-tick" aria-hidden="true"></span>' : ''}${ic(TYPE[b.bowl] || 'typeMedium', 24, 'ico')}</span><span class="nm name">${esc(b.name)}</span>` +
-    `<span class="sub">${esc(b.bowl)}, ${esc(b.overs)}/2 overs</span>` +
+    `<span class="sub">${esc(b.bowl)} · ${esc(b.overs)}/2</span>` +
     `<span class="gr${g === '?' ? ' bv-gq' : ''}"${g === '?' ? ' title="${DRILLS}"' : ''}>Grade${star}<b>${esc(g)}</b></span></div>`;
   const label = `${b.name}, ${b.bowl} bowler, ${b.overs} of 2 overs used, grade ${g === '?' ? 'not known yet. ' + DRILLS : g}` +
     (best ? ', in his best overs now' : '');
@@ -109,7 +109,6 @@ export function render(el, vm, dispatch) {
   const selB = (vm.bowlers || []).find((b) => vm.call && b.i === vm.call.bowler && b.eligible);
   const seg = (k, icon) => `<button type="button" class="opt${fld === k ? ' is-selected' : ''}" role="radio" data-field="${k}" aria-checked="${fld === k ? 'true' : 'false'}">${ic(icon, 24)}${FIELD[k]}</button>`;
   const anyBest = (vm.bowlers || []).some((b) => (b.previews || []).some((p) => p.inPhase));
-  const anyHidden = (vm.bowlers || []).some((b) => (b.grade || '?') === '?');
   el.innerHTML =
     `<header class="strip c-dark bv-strip" role="status">` +
     `<span class="score" aria-label="${esc(sc.runs)} runs for ${esc(sc.wk)} wickets">${esc(sc.runs)}/${esc(sc.wk)}</span>` +
@@ -120,7 +119,7 @@ export function render(el, vm, dispatch) {
     `<section class="colR bv-colR"><div class="seg bv-seg" role="radiogroup" aria-label="Field">${seg('A', 'fieldAttack')}${seg('P', 'fieldProtect')}</div>` +
     lastLine(vm) +
     `<div class="hints bv-hints"><p><b>Attack</b>: more wickets, more runs. <b>Protect</b>: fewer runs.</p>` +
-    `<p><b>Grade</b> D low to S best.${anyBest ? ' <b class="bv-starkey" aria-hidden="true">★</b> = best overs now.' : ''}${anyHidden ? ' <b>Grade ?</b>: shows after 5 practice drills.' : ''}</p></div></section>` +
+    `<p><b>Grade</b> D low to S best.${anyBest ? ' <b class="bv-starkey" aria-hidden="true">★</b> = best overs now.' : ''}</p></div></section>` +
     `<div class="ctabar bv-cta"><button type="button" class="c-btn c-btn--primary c-btn--cta" data-bowl${vm.canBowl === false ? ' disabled' : ''}>` +
     `<span>Bowl over ${esc(vm.over)}${selB ? ':&nbsp;<span class="name">' + esc(selB.name) + '</span>' : ''}</span></button></div>`;
   if (!E.__bvBound) {

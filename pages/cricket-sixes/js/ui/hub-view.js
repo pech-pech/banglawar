@@ -32,7 +32,7 @@ export function render(el, vm, dispatch) {
     '<div class="ss-vs"><b class="name">Next: ' + esc(next.oppName) + '</b><span>' + esc(next.kindWord) + '</span><span class="ss-str">' + str[0] + ' ' + str[1] + '</span></div>' +
     '<div class="ss-hm">' + ico('home', 20) + 'Home</div></section>' +
     '<section class="ss-mini" aria-label="League table around you">' + tableHtml(rows) + keyHtml({ tp: true }) + '</section>' +
-    '<div class="ss-row2">' + btn('Full table', 'sheet:table') + '<button type="button" class="c-btn ss-save" data-act="sheet:save">' + ico('settings', 20) + 'Save</button>' + tpChip(vm.tp) + '</div>' +
+    '<div class="ss-row2">' + btn('Table', 'sheet:table') + '<button type="button" class="c-btn ss-save" data-act="sheet:save">' + ico('settings', 20) + 'Save</button>' + tpChip(vm.tp) + '</div>' +
     path(vm.phaseWord) +
     ctaBar(btn(label, cta.act || 'OpenSquad', { kind: 'cta', disabled: cta.disabled, reason: cta.reason })) +
     '</div>';

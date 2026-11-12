@@ -33,9 +33,9 @@
 table.ss-table--ties th:nth-child(n+3), table.ss-table--ties td:nth-child(n+3) { width: 24px; }
 table.ss-table--ties th:nth-last-child(2), table.ss-table--ties td:nth-last-child(2) { width: 30px; }
 table.ss-table--ties th:last-child, table.ss-table--ties td:last-child { width: 48px; white-space: nowrap; }
-table.ss-table:not(.ss-table--ties) th:last-child, table.ss-table:not(.ss-table--ties) td:last-child { width: 52px; white-space: nowrap; }
 table.ss-table:not(.ss-table--ties) th:nth-child(n+3), table.ss-table:not(.ss-table--ties) td:nth-child(n+3) { width: 30px; }
 table.ss-table:not(.ss-table--ties) th:nth-last-child(2), table.ss-table:not(.ss-table--ties) td:nth-last-child(2) { width: 36px; }
+table.ss-table:not(.ss-table--ties) th:last-child, table.ss-table:not(.ss-table--ties) td:last-child { width: 52px; white-space: nowrap; }
 .ss-note { margin: 4px 0 0; font-size: 14px; line-height: 16px; }
 .ss-h { margin: 8px 0 2px; font: 18px/22px var(--font-head); font-weight: 400; }
 .ss-sheet { overflow-y: auto; max-height: 70vh; }
@@ -84,3 +84,8 @@ table.ss-table:not(.ss-table--ties) th:nth-last-child(2), table.ss-table:not(.ss
 .ss-cutlbl { font: 14px/16px var(--font-head); font-weight: 400; letter-spacing: .04em; text-transform: uppercase; }
 /* D15: spelled-out key for P W L Pts RD TP */
 .ss-key { margin: 2px 0 0; font-size: 14px; line-height: 16px; }
+
+/* QA r2 D3: RD column keeps its width (last-child rule must come after the n+3 rule); club name shrinks, never the number */
+table.ss-table:not(.ss-table--ties) th:last-child, table.ss-table:not(.ss-table--ties) td:last-child { width: 56px; overflow: visible; text-overflow: clip; }
+/* QA r2 N6: "Table" button with side padding */
+.ss-row2 > [data-act="sheet:table"] { padding: 0 20px; }
