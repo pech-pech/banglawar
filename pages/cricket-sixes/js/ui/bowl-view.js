@@ -84,7 +84,7 @@ function lastLine(vm) {
   const wk = balls.filter((r) => r.o === 'W').length;
   const chips = balls.map((r) => {
     const k = String(r.o);
-    return `<span class="ball${k === 'W' ? ' w' : k === '6' ? ' six' : ''}" role="img" aria-label="${esc(SAY(r.o))}">${esc(BADGE[k] != null ? BADGE[k] : k)}</span>`;
+    return `<span class="ball${k === 'W' ? ' w' : k === '6' ? ' six' : k === '4' ? ' four' : ''}" role="img" aria-label="${esc(SAY(r.o))}">${esc(BADGE[k] != null ? BADGE[k] : k)}</span>`;
   }).join('');
   return `<div class="last bv-last"><span class="bv-last-txt"><span class="bv-last-k">Last over:</span> ${chips}` +
     `<span class="bv-sum">= ${runs} run${runs === 1 ? '' : 's'}, ${wk} wicket${wk === 1 ? '' : 's'}</span></span>` +
@@ -98,7 +98,7 @@ function whyHtml(vm) {
   return head + (L.balls || []).slice(0, 6).map((r) => {
     const bat = (vm.batNames && vm.batNames[r.batter]) || 'The batter';
     const k = String(r.o);
-    return `<div class="bv-why-row"><span class="ball${k === 'W' ? ' w' : k === '6' ? ' six' : ''}" role="img" aria-hidden="true">${esc(BADGE[k] != null ? BADGE[k] : k)}</span>` +
+    return `<div class="bv-why-row"><span class="ball${k === 'W' ? ' w' : k === '6' ? ' six' : k === '4' ? ' four' : ''}" role="img" aria-hidden="true">${esc(BADGE[k] != null ? BADGE[k] : k)}</span>` +
       `<span>Ball ${esc(String(r.n).split('.').pop())}: <b>${esc(SAY(r.o))}</b>. ${esc(nb(whyLine(r, bat, bn)))}</span></div>`;
   }).join('');
 }

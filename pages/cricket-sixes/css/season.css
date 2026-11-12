@@ -24,7 +24,7 @@
 .ss-table td { font: 17px/20px var(--font-head); height: 38px; }
 .ss-table td.ss-club { display: table-cell; text-align: left; padding: 0 4px; font: 17px/20px var(--font-body); }
 .ss-club .name { display: inline-block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; vertical-align: middle; }
-.m0-sel .ss-club .name { max-width: calc(100% - 38px); }
+.m0-sel .ss-club .name { max-width: calc(100% - 38px); white-space: normal; } /* long names wrap at spaces instead of clipping behind the You tag */
 .ss-you { display: inline-block; margin-left: 4px; padding: 0 4px; background: var(--outline); color: var(--cream); font: 14px/16px var(--font-body); font-weight: 400; vertical-align: middle; }
 .ss-pts { background: var(--pitch1); }
 .ss-top td:first-child { background: var(--grass1); }
