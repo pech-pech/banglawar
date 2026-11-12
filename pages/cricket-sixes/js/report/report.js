@@ -4,6 +4,7 @@
 import { OVER_COLS } from './metrics.js';
 import { BANDS } from './bands.js';
 import { FLAG_DEFAULTS } from './build.js';
+import { zLines, sessionStats } from './z.js';
 
 export const MAX_MATCH_ROWS = 5;
 const sum = (xs) => xs.reduce((a, b) => a + b, 0);
@@ -88,10 +89,10 @@ export const LINES = [
     clean.ok ? 'CLEAN: YES = one build, standard game settings, no match left half-played.' : 'CLEAN: NO because ' + clean.why.map(WHY_WORDS).join('; ') + '.',
     `Taken ${clock(env.now)} | ${env.vp}`),
   ({ a }) => lines(`What you chose (bowling): Attacking field ${a.fA} overs, Defensive field ${a.fP} overs; changed field ${a.fSw} times.`,
-    `What you chose (batting): Defend ${a.iD}, Rotate ${a.iR}, Attack ${a.iA} overs; changed intent ${a.iSw} times.`,
+    `What you chose (batting): Defend ${a.iD}, Steady ${a.iR}, Attack ${a.iA} overs; changed intent ${a.iSw} times.`,
     `Same choice every over: field in ${a.roteF.rote} of ${a.roteF.n} bowling innings, intent in ${a.roteI.rote} of ${a.roteI.n} batting innings.`,
     `Runs given per over by field: Attacking ${a.rpoField.A ?? '-'}, Defensive ${a.rpoField.P ?? '-'} (bots ${BANDS.rpo.field.A} / ${BANDS.rpo.field.P} [sim]).`,
-    `Runs scored per over by intent: Defend ${a.rpoIntent.D ?? '-'}, Rotate ${a.rpoIntent.R ?? '-'}, Attack ${a.rpoIntent.A ?? '-'} (bots ${BANDS.rpo.intent.D} / ${BANDS.rpo.intent.R} / ${BANDS.rpo.intent.A} [sim]).`),
+    `Runs scored per over by intent: Defend ${a.rpoIntent.D ?? '-'}, Steady ${a.rpoIntent.R ?? '-'}, Attack ${a.rpoIntent.A ?? '-'} (bots ${BANDS.rpo.intent.D} / ${BANDS.rpo.intent.R} / ${BANDS.rpo.intent.A} [sim]).`),
   ({ a }) => lines(`Same call as the skilled bot: bowler ${P(a.fitB)}, field ${P(a.fitF)}, intent ${P(a.fitI)}.`,
     `For scale: a bot that slips 1 call in 5 scores ${BANDS.fit.noisy}%; random picks score ${BANDS.fit.random.bowler} / ${BANDS.fit.random.field} / ${BANDS.fit.random.intent}% [sim].`,
     a.mu.n ? `Bowler matchup you picked: Good ${P(a.mu.G)}, OK ${P(a.mu.O)}, Poor ${P(a.mu.P)} (${a.mu.n} overs). Skilled bot ${BANDS.matchup.skilled.join('/')}, random ${BANDS.matchup.random.join('/')} [sim].` : null),
@@ -108,15 +109,16 @@ export const LINES = [
       return wrap(`M${m.id} ${marginTxt(m)}: you ${m.us}, rival ${m.them}; close finish ${m.close ? 'yes' : 'no'} (decided over ${m.dec}); luck ${sgn(luckOf(m))} runs; ${Math.round((m.t1 - m.t0) / 1000)} s` + (m.rt != null ? `; time on result screen ${sec(m.rt)}` : ''));
     }).join('\n'),
   ({ a }) => lines(`Over panel: Next tapped within 1 s on ${P(a.instant)} of overs; closed early (skipped) ${a.skips} times.` + (a.seconds != null ? ` Average match ${a.seconds} s.` : '')),
+  ({ d, env }) => { const z = zLines(d || {}, env.save || null); return z.length ? z.map((l) => wrap(l)).join('\n') : null; },
   ({ ms }) => { const f = ms.filter((m) => Object.keys(m.feel || {}).length); return f.length ? f.slice(-3).map((m) => wrap(`Feel M${m.id}: ${feelTxt(m)}`)).join('\n') : 'Feel: no answers yet'; },
   ({ a, env, clean }) => lines(`Checks: one build ${clean.why.includes('mixed builds') ? 'WARN' : 'OK'} | standard settings ${clean.why.some((w) => w.startsWith('flags')) ? 'WARN' : 'OK'} | not mid-match ${a.live ? 'WARN' : 'OK'} | errors ${env.errors}${env.lastError ? ' (' + env.lastError + ')' : ''}`),
 ];
 
-// TODO (stubs, not built): M0 week plan, drill, coach, balance rule, save, training effect (Z1-Z6) need the M0 screens; P2 M3 skillEdge needs 10+ matches
+// Z1-Z6 are built in z.js (first session, ? share, drills, points, training effect). Still stubs: M0 week plan, coach, balance rule; P2 M3 skillEdge needs 10+ matches
 // per side; P2 M10 luckShare needs pre-match ratings; P2 M12 why-cause mix needs whyCause() per ball; P2 M15 autoplay speed-up taps need a panel hook.
 
 export function envOf(env = {}) {
-  return { build: env.build || '?', now: env.now || Date.now(), vp: env.vp || '?', errors: env.errors || 0, lastError: env.lastError || '', flags: env.flags };
+  return { build: env.build || '?', now: env.now || Date.now(), vp: env.vp || '?', errors: env.errors || 0, lastError: env.lastError || '', flags: env.flags, save: env.save || null };
 }
 
 /** Short summary text (lines joined by newline). data = the stored log, env = { build, now, vp, errors, flags }. */
@@ -132,6 +134,7 @@ export function buildData(data, env0) {
   const out = { report: 1, build: env.build, at: new Date(env.now).toISOString(), viewport: env.vp, errors: env.errors, flags: env.flags || FLAG_DEFAULTS,
     legend: 'overs rows follow overCols. s b=bowl innings c=chase. mu G/O/P/? Good/OK/Poor/unknown. fit=[bowler,field,intent] vs skilled bot. th think ms, pw panel wait ms, sk closed early',
     overCols: OVER_COLS,
+    z: { sessions: sessionStats(data), save: env.save },
     matches: ms.map((m) => ({ id: m.id, sid: m.sid, build: m.build, seed: m.seed, vp: m.vp, res: m.res || (m.ab ? 'quit' : 'live'), us: m.us, them: m.them, wkUs: m.wkUs, wkThem: m.wkThem,
       margin: m.m, close: m.close, blow: m.blow, secs: m.t1 ? Math.round((m.t1 - m.t0) / 1000) : null, screenMs: m.scr, why: m.why, gloss: m.gl, skips: m.sk, retryMs: m.rt, feel: m.feel,
       overs: m.ov.map((o) => OVER_COLS.map((k) => o[k])) })) };

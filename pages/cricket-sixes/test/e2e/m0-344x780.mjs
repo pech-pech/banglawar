@@ -117,15 +117,15 @@ async function journey(browser, tag) {
   const settle = (ms = 250) => page.waitForTimeout(ms);
   async function closeSheets() { for (let i = 0; i < 4 && (await page.$('.c-sheet')); i++) { await page.keyboard.press('Escape'); await settle(150); } }
   async function clickCta() {
-    const b = await page.$('.m0-ctabar button:not([disabled]), .ctabar button:not([disabled]), .c-btn--cta:not([disabled])');
+    const b = await page.$('.c-btn--cta:not([disabled])') || await page.$('.m0-ctabar button:not([disabled]), .ctabar button:not([disabled])');
     if (!b) return false; await b.click(); await settle(); return true;
   }
 
   await page.goto(`${ORIGIN}/cricket-sixes/?seed=${SEED}`); await settle(800);
   const first = await stage();
-  if (first !== 'coach') { await ctx.close(); return { skip: `app boots into stage "${first}", not "coach": the season store/UI is not wired yet` }; }
+  if (first !== 'hub') { await ctx.close(); return { skip: `app boots into stage "${first}", not "hub": the season store/UI is not wired yet` }; } // p7-first: no coach screen before match 1
 
-  let steps = 0, hubSeen = 0, weekDone = false, reloaded = false, matchPlayed = false;
+  let coachChecked = false, steps = 0, hubSeen = 0, weekDone = false, reloaded = false, matchPlayed = false;
   while (steps++ < (FULL ? 600 : 120)) {
     const st = await stage();
     const strict = st === 'bowl' || st === 'chase';
@@ -148,6 +148,23 @@ async function journey(browser, tag) {
         const t = await page.$('[data-act="sheet:table"]'); if (t) { await t.click(); await settle(500); await audit('standings-sheet'); await shot('standings'); await closeSheets(); } else bad('hub: no "Table" button');
         const sv = await page.$('[data-act="sheet:save"]'); if (sv) { await sv.click(); await settle(500); await audit('save-sheet'); await shot('save-sheet'); await closeSheets(); } else bad('hub: no Save button');
       }
+      if (st === 'hub' && hubSeen === 1) { // P6: the team sheet opens from the Six and Overs chips; a swap and an overs edit persist
+        const six0 = await page.evaluate(() => window.__store.get().clubs[0].six.join());
+        const chip = await page.$('.hb-edit'); if (!chip) bad('hub: no Six chip');
+        else {
+          await chip.click(); await settle(400); await audit('team-sheet-six'); await shot('team-six');
+          const on = await page.$('.ts-row:not(.ts-row--bench)');
+          if (on) { await on.click(); await settle(100); const off = await page.$('.ts-row--bench'); if (off) { await shot('team-pick'); await off.click(); await settle(200); await shot('team-swapped'); } }
+          const ot = await page.$('[data-tab="overs"]'); if (ot) { await ot.click(); await settle(300); await audit('team-sheet-overs'); await shot('team-overs'); }
+          const swapped = await page.evaluate(() => window.__store.get().clubs[0].six.join());
+          if (swapped === six0) bad('hub: a swap in the team sheet did not change the six');
+          const done = await page.$('[data-done]:not([disabled])'); if (done) await done.click(); else bad('team sheet: Done is off after a swap');
+          await settle(200);
+          if (await page.$('.c-sheet')) bad('team sheet: Done did not close it');
+          if ((await stage()) !== 'hub') bad('team sheet changed the stage');
+        }
+        await audit('hub-after-edit'); await shot('hub-after-edit');
+      }
       if (!(await clickCta())) bad(`${st}: no enabled CTA`);
     } else if (st === 'squad') {
       for (let k = 0; k < 6; k++) { const b = await page.$('.sq-row--bench'); if (!b) { bad('squad: fewer than six bench rows to pick'); break; } await b.click(); await settle(80); }
@@ -167,6 +184,13 @@ async function journey(browser, tag) {
     } else if (st === 'done') {
       if (!(await clickCta())) { bad('done: no CTA'); break; }
     } else if (st === 'train') {
+      const tip = await page.$('.tr-tip [data-tip="skip"]'); if (tip) { await audit('train-tips'); await shot('train-tips'); await tip.click(); await settle(300); } // first-time tips (P11): seen once, Skip ends them
+      if (!coachChecked) { // p7-first: the coach notice is on training week 1; Change opens the coach screen and a pick comes back here
+        coachChecked = true;
+        if (!(await page.$('.tr-cnotice'))) bad('train: no coach notice in week 1');
+        else { await shot('coach-notice'); await (await page.$('[data-act="ChangeCoach"]')).click(); await settle(300); await audit('coach-pick');
+          if ((await stage()) !== 'coach') bad('Change did not open the coach screen'); else { await (await page.$('[data-pick]')).click(); await settle(100); if (!(await clickCta())) bad('coach: no Confirm'); await settle(200); if ((await stage()) !== 'train') bad('coach pick did not return to training'); } continue; }
+      }
       const rows = await page.$$('[data-act="sheet:player"]');
       if (rows.length < 10) bad(`train: ${rows.length} player rows, want all 10 (bench trains too)`);
       let drilled = 0;

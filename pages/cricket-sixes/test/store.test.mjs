@@ -8,7 +8,7 @@ import { newGame } from './_season-bot.mjs';
 
 test('NewGame: top-level v, salt, stage, season, 10 clubs of 10, 3 coach candidates', () => {
   const s = newGame('g1').get();
-  assert.equal(s.v, 2); assert.equal(s.salt, ''); assert.equal(typeof s.stage, 'string'); assert.equal(s.stage, 'coach');
+  assert.equal(s.v, 2); assert.equal(s.salt, ''); assert.equal(typeof s.stage, 'string'); assert.equal(s.stage, 'hub');
   assert.equal(s.clubs.length, 10); assert.ok(s.clubs.every((c) => c.squad.length === 10));
   assert.equal(s.clubs[0].id, 'c0'); assert.equal(s.clubs[0].name, 'Fernhill');
   assert.equal(s.season.fixtures.length, 9); assert.equal(s.season.round, 1); assert.equal(s.season.phase, 'league');
@@ -26,7 +26,7 @@ test('save-migrate: a bare step-0 state migrates through deps.newGame to a v1 se
   const t = createStore(null); t.dispatch('NewMatch', { seed: 'old' });
   const deps = { newGame: (seed) => { const x = createStore(null); x.dispatch('NewGame', { seed: String(seed) }); return x.get(); } };
   const r = unwrap(JSON.stringify(t.get()), deps);
-  assert.ok(r.ok); assert.equal(r.state.v, 2); assert.ok(r.state.season); assert.ok(r.state.run); assert.equal(r.state.stage, 'coach');
+  assert.ok(r.ok); assert.equal(r.state.v, 2); assert.ok(r.state.season); assert.ok(r.state.run); assert.equal(r.state.stage, 'hub');
   const again = unwrap(JSON.stringify(wrap(newGame('x').get())), deps);
   assert.ok(again.ok);
 });
@@ -40,14 +40,14 @@ test('Reseed sets salt, same salt is a no-op (same object)', () => {
 });
 
 test('invalid commands return the same state', () => {
-  const s = newGame('i').get();
+  const s = { ...newGame('i').get(), stage: 'coach' };
   for (const [c, p] of [['OpenSquad', {}], ['SetSix', { ids: [] }], ['NewMatch', {}], ['FinishMatch', {}], ['EndWeek', {}], ['NextWeek', {}], ['Drill', { playerId: 'c0p0', drillId: 'bp' }], ['PickCoach', { coachId: 'nope' }], ['Nope', {}]]) {
     assert.equal(applyCommand(s, c, p), s, c);
   }
 });
 
 test('PickCoach: once, moves to hub, keeps only the picked coach', () => {
-  const s = newGame('c').get();
+  const s = { ...newGame('c').get(), stage: 'coach' }; // the coach screen is reached only through Change (p7-first)
   const id = s.coaches.find((c) => c.candidate).id;
   const a = applyCommand(s, 'PickCoach', { coachId: id });
   assert.equal(a.stage, 'hub'); assert.equal(a.coachPicked, true); assert.equal(a.coaches.length, 1); assert.equal(a.coaches[0].id, id);

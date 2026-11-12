@@ -14,11 +14,11 @@ const RATINGS = ['bp', 'bs', 'spd', 'bsk'];
 const ROLE_RANK = { Opener: 0, Middle: 1, Lower: 2 };
 const SIX = 6, OVERS = 10, MAX_STEPS = 4000;
 
-/** True when the store already speaks the season contract (NewGame -> stage 'coach' with a season). */
+/** True when the store already speaks the season contract (NewGame -> stage 'hub' with a season (p7-first: no coach screen first)). */
 export function seasonReady() {
   try {
     const s = applyCommand(null, 'NewGame', { seed: 'probe' });
-    return !!(s && s.season && s.stage === 'coach' && Array.isArray(s.clubs));
+    return !!(s && s.season && s.stage === 'hub' && Array.isArray(s.clubs));
   } catch (e) { return false; }
 }
 

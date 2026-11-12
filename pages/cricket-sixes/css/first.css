@@ -1,0 +1,41 @@
+/* p7-first: first-match strip, Potential grade notes, ability lines. Layout only; colours come from the skin variables. */
+.fs-strip { position: fixed; z-index: 60; top: auto; bottom: calc(var(--cta-bar, 88px) + 8px); left: 8px; right: 8px; display: grid; gap: 4px; padding: 6px 8px; border: 3px solid var(--outline); background: var(--cream); box-shadow: 0 6px 0 rgba(0,0,0,.25); }
+.fs-strip__head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.fs-strip__t { font: 20px/22px var(--font-head); font-weight: 400; }
+.fs-strip__skip { min-width: 72px; min-height: 56px; padding: 0 12px; font: 18px/1 var(--font-head); }
+.fs-strip__list { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.fs-strip__list li { display: grid; grid-template-columns: 24px minmax(0, 1fr); gap: 6px; align-items: start; font: 15px/18px var(--font-body); }
+.fs-strip__n { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border: 2px solid var(--outline); background: var(--gold); font: 16px/1 var(--font-head); font-weight: 400; }
+/* Potential grade column head + the two inline notes (one of each per screen) */
+.bv-head .bv-hb0, .sb-head .ch-hb0 { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 0 4px; }
+.bv-hpg { font: 14px/15px var(--font-body); white-space: nowrap; }
+.sb-head > div.ch-hb0 { text-align: left; }
+.pbox .bv-note { grid-column: 1 / -1; font: 14px/16px var(--font-body); padding-top: 2px; }
+.pbox .bv-pips { white-space: nowrap; }
+/* more lines in the player box: the text lines sit in one column, the icon and the letter box beside them, the notes under all three */
+.pbox .bv-tx { grid-column: 2; grid-row: 1; display: flex; flex-direction: column; min-width: 0; }
+.bv-colL .pbox .gr, .chase-b .pbox .gr { grid-row: 1; align-self: center; }
+.bv-colL .pbox .bv-icw, .chase-b .pbox > .ico { grid-row: 1; align-self: center; }
+.pbox .bv-tx .sub { grid-column: auto; }
+.pbox .bv-note { grid-row: 2; }
+.pbox .bv-ab, .pbox .ch-ab { font-family: var(--font-head); }
+.tr-cnotice { box-sizing: border-box; display: flex; align-items: center; gap: 8px; padding: 6px 8px; border: 3px solid var(--outline); background: var(--cream); }
+.tr-cnotice__t { flex: 1 1 auto; min-width: 0; font: 15px/18px var(--font-body); }
+.tr-cnotice__btn { flex: none; min-width: 72px; min-height: 56px; padding: 0 12px; font: 18px/1 var(--font-head); }
+/* Call screen at phone width: the bowler list scrolls inside the screen, so the Call controls and the Bowl bar never move (more lines per row, plus the first-match card) */
+@media (max-width: 599px) {
+  #app:has(> .bv-strip), #app:has(> .bv-strip) > main { display: flex; flex-direction: column; height: 100dvh; min-height: 0; overflow: hidden; gap: 5px; padding-bottom: calc(var(--cta-bar, 88px) + 4px); }
+  #app:has(> .bv-strip) > *, #app:has(> .bv-strip) .bv-colL > *, #app:has(> .bv-strip) .bv-colR > * { flex: none; }
+  #app:has(> .bv-strip) .bv-colL > .bv-sb { flex: 1 1 0; min-height: 150px; overflow-y: auto; overscroll-behavior: contain; align-content: start; grid-auto-rows: max-content; padding: 4px 4px 4px 0; -webkit-overflow-scrolling: touch; }
+  #app:has(> .bv-strip) .bv-sb > .bv-head { position: sticky; top: -4px; z-index: 2; background: var(--cream); padding-top: 4px; }
+}
+/* QA r1: the first-match card floats over the list (the list keeps its height); star beside the type; letter boxed on chase; Tip is a corner badge */
+.chase-b .pbox .gr, .chase-b .sb-row.is-strike .gr { border: 2px solid var(--outline); background: var(--cream); padding: 2px 4px; }
+.bv-seg .opt, .intent .opt { position: relative; }
+.bv-seg .opt .bv-tip, .intent .opt .bv-tip { position: absolute; top: -13px; right: 6px; margin: 0; padding: 0 3px; z-index: 1; }
+.tr-pick .tr-top { justify-content: space-between; }
+.tr-back { min-width: 72px; min-height: 56px; padding: 0 12px; font: 18px/1 var(--font-head); }
+/* QA r2 D4: every fixed-bar screen (a .screen as the direct child of main) owns its bottom bar, so main adds no 92 px padding */
+#app:has(> .screen) { padding-bottom: 0; }
+/* QA r2 D16: on the Field bar the Tip badge sits in the button row after the label, so it covers neither the label nor the row above */
+.bv-seg .opt .bv-tip { position: static; flex: none; margin-left: 2px; }

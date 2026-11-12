@@ -15,23 +15,23 @@ function gainTile(g) {
   return '<li class="tr-gain" aria-label="' + esc(g.name + (none ? ', not drilled' : ', ' + (RATING_WORD[g.rating] || '') + ' plus ' + g.n + ', ability ' + g.before + ' to ' + g.after)) + '">' +
     '<b class="name tr-gain__n">' + esc(g.name) + '</b>' +
     '<span class="tr-gain__v">' + (none ? '<span class="tr-gain__none">No drill</span>' : deco(RATING_ICON[g.rating] || 'train', 20) + '<b>+' + esc(g.n) + '</b>') + '</span>' +
-    '<span class="tr-gain__a">' + (none ? esc(g.after) : esc(g.before) + ' to ' + esc(g.after)) + '</span></li>';
+    '<span class="tr-gain__a">' + (none ? esc(g.after) : g.before !== g.after ? esc(g.before) + ' to ' + esc(g.after) : esc(g.after)) + '</span></li>';
 }
 
 function result(r) {
   const aw = r.ra > r.rb, bw = r.rb > r.ra;
   return '<li class="tr-rr' + (r.me ? ' tr-rr--me' : '') + '" aria-label="' + esc(r.a + ' ' + r.ra + ' for ' + r.wa + ', ' + r.b + ' ' + r.rb + ' for ' + r.wb + (aw ? ', ' + r.a + ' won' : bw ? ', ' + r.b + ' won' : ', tied')) + '">' +
-    '<span class="tr-rr__names"><span class="tr-rr__t' + (aw ? ' is-win' : '') + '">' + (aw ? deco('done', 20) : '') + '<span>' + esc(r.a) + '</span></span>' +
+    '<span class="tr-rr__names"><span class="tr-rr__t' + (aw ? ' is-win' : '') + '"><span>' + esc(r.a) + '</span></span>' +
     '<span class="tr-rr__v">' + (aw ? 'beat' : bw ? 'lost to' : 'tied') + '</span>' +
-    '<span class="tr-rr__t' + (bw ? ' is-win' : '') + '">' + (bw ? deco('done', 20) : '') + '<span>' + esc(r.b) + '</span></span></span>' +
-    '<span class="tr-rr__scores"><b class="tr-rr__s">' + esc(r.ra) + '/' + esc(r.wa) + '</b><span class="tr-rr__v">to</span><b class="tr-rr__s">' + esc(r.rb) + '/' + esc(r.wb) + '</b></span></li>';
+    '<span class="tr-rr__t' + (bw ? ' is-win' : '') + '"><span>' + esc(r.b) + '</span></span></span>' +
+    '<span class="tr-rr__scores"><b class="tr-rr__s">' + esc(r.ra) + '/' + esc(r.wa) + '</b><span class="tr-rr__v">to</span><b class="tr-rr__s">' + esc(r.rb) + '/' + esc(r.wb) + '</b>' + (aw || bw ? '<span class="tr-rr__win">' + deco('done', 20) + '<span>' + esc(aw ? r.a : r.b) + '</span></span>' : '') + '</span></li>';
 }
 
 export function render(el, vm, dispatch) {
   const gains = vm.gains || [], reveals = vm.reveals || [], nodes = vm.nodes || [], ups = vm.coachUps || [];
   const total = gains.reduce((a, g) => a + (g.n || 0), 0), drilled = gains.filter((g) => g.n).length;
   const notes = [];
-  if (reveals.length) notes.push(['spark', 'Grades revealed: ' + reveals.map((r) => r.name + ' is ' + r.grade).join(', ')]);
+  if (reveals.length) notes.push(['spark', 'Potential grades found: ' + reveals.map((r) => r.name + ' is ' + r.grade).join(', ')]);
   if (nodes.length) notes.push(['upgrade', 'Skill nodes: ' + nodes.map((n) => n.name + ' got ' + n.node).join(', ')]);
   if (ups.length) notes.push(['coach', 'Coach levels: ' + ups.map((u) => u.name + ' ' + u.focus + ' ' + u.level).join(', ')]);
   el.innerHTML =

@@ -3,6 +3,7 @@
 import { whyLine, outcomeLabel } from './why.js';
 import { openSheet } from './sheet.js';
 import { openGlossary } from './glossary-sheet.js';
+import { POT, gradeAria, newNotes, noteFor } from './grade-notes.js';
 
 const OUT_WORD = { W: 'Out', 6: 'Six', 4: 'Four', 2: '2 runs', 1: '1 run', 0: 'No run' };
 const outWord = (o) => OUT_WORD[String(o)] || outcomeLabel(o);
@@ -19,7 +20,7 @@ let intent = 'R'; // UI state only, never saved
 
 const INTENTS = [
   { k: 'D', n: 'Defend', s: 'safe', d: 'Defend: play safe. Fewer wickets, fewer big hits.' },
-  { k: 'R', n: 'Rotate', s: 'singles', d: 'Rotate: take singles, keep the score moving.' },
+  { k: 'R', n: 'Steady', s: 'small safe runs', d: 'Steady: small safe runs, keep the score moving.' },
   { k: 'A', n: 'Attack', s: 'big hits, risky', d: 'Attack: go for big hits. More runs, more risk.' },
 ];
 const TYPE_ICON = { Fast: 'typeFast', Medium: 'typeMedium', Spin: 'typeSpin' };
@@ -54,10 +55,9 @@ function likelyBowlers(vm) {
   return cols;
 }
 
-function gradeBox(g) {
+function gradeBox(g) { // letter only; the column head says "Potential grade"
   const hidden = !g || g === '?';
-  const aria = hidden ? 'Grade not known yet. Grade shows after 1 practice drill' : 'Grade ' + g;
-  return '<span class="gr m0-gr-' + (hidden ? 'q' : esc(g)) + '" aria-label="' + esc(aria) + '">Grade<b>' + (hidden ? '?' : esc(g)) + '</b></span>';
+  return '<span class="gr m0-gr-' + (hidden ? 'q' : esc(g)) + '" aria-label="' + esc(gradeAria(g)) + '"><b>' + (hidden ? '?' : esc(g)) + '</b></span>';
 }
 
 function ratingBox(b, bw) {
@@ -71,17 +71,18 @@ function ratingBox(b, bw) {
     '<span class="s" aria-hidden="true">' + r.s + '</span><span class="w">' + r.w + '</span></div>';
 }
 
-function batterRow(b, cols) {
+function batterRow(b, cols, st) {
   const best = (b.previews || []).some((p) => p.inPhase);
   const role = ROLE_WORD[b.bat] || b.bat || '';
   const cells = cols.map((bw) => ratingBox(b, bw)).join('');
   return '<div class="sb-row' + (b.onStrike ? ' is-strike' : '') + '" role="row">' +
     '<div class="pbox">' + ic(ROLE_ICON[b.bat], 24) +
-    '<span class="nm name">' + esc(b.name) + '</span>' +
-    '<span class="sub">' + (best ? '<span class="best" aria-label="In best overs now">★</span> ' : '') + esc(role) +
-    '<br><span aria-label="' + esc(b.r + ' runs from ' + b.b + ' balls') + '">' + esc(b.r) + ' (' + esc(b.b) + ')</span>' +
-    (b.onStrike ? ' <span class="strike">on strike</span>' : '') + '</span>' +
-    gradeBox(b.grade) + '</div>' + cells + '</div>';
+    '<span class="bv-tx"><span class="nm name">' + esc(b.name) + '</span>' +
+    '<span class="sub">' + (best ? '<span class="best" aria-label="In best overs now">★</span> ' : '') + esc(role) + '</span>' +
+    '<span class="sub ch-ab">Ability ' + esc(b.ability) + '</span>' +
+    '<span class="sub" aria-label="' + esc(b.r + ' runs from ' + b.b + ' balls') + '">' + esc(b.r) + (b.r === 1 ? ' run' : ' runs') + ' (' + esc(b.b) + ')</span>' +
+    (b.onStrike ? '<span class="sub strike">On strike</span>' : '') + '</span>' +
+    gradeBox(b.grade) + noteFor(b.grade, st, esc) + '</div>' + cells + '</div>';
 }
 
 // Batter name for a BallRec index.
@@ -132,8 +133,9 @@ export function render(el, vm, dispatch) {
     : 'Target reached';
   const phase = PHASE_WORDS[vm.phase] || vm.phaseName || '';
   const cols = likelyBowlers(vm);
+  const notes = newNotes();
   const known = cols.filter((c) => c.name);
-  const head = '<div class="sb-head" role="row"><div>Batter</div>' +
+  const head = '<div class="sb-head" role="row"><div class="ch-hb0">Batter<small class="bv-hpg">' + POT + '</small></div>' +
     cols.map((bw) => bw.name ? '<div>vs ' + esc(bw.name) + '<small>(' + esc(bw.bowl) + ')</small></div>'
       : '<div>vs ?<small>(not known yet)</small></div>').join('') + '</div>';
   const crease = vm.crease || [];
@@ -156,13 +158,13 @@ export function render(el, vm, dispatch) {
     '<button type="button" class="q" aria-label="Cricket words explained">?</button></header>' +
     '<section class="colL">' +
     '<div class="sb chase" role="table" aria-label="Your batters against their likely bowlers">' + head +
-    crease.map((b) => batterRow(b, cols)).join('') + '</div>' +
+    crease.map((b) => batterRow(b, cols, notes)).join('') + '</div>' +
     '<div class="boxnote">' + (ex ? esc(ex.r + ' (' + ex.b + ') = ' + ex.r + (ex.r === 1 ? ' run' : ' runs') + ' from ' + ex.b + (ex.b === 1 ? ' ball.' : ' balls.')) : '') +
     (crease.some((b) => (b.previews || []).some((p) => p.inPhase)) ? ' <span aria-hidden="true">★</span> = in best overs now.' : '') + '</div>' +
     '</section>' +
     '<section class="colR">' +
     '<h2 class="title ask"' + (ih ? ' data-intenthint' : '') + '>' + esc(ih ? ih.why : 'How should your batters play?') + '</h2>' +
-    '<div class="seg intent" role="radiogroup" aria-label="Batting Intent">' + seg + '</div>' +
+    '<div class="seg intent" role="radiogroup" aria-label="Batting style">' + seg + '</div>' +
     '<p class="hint" id="intent-desc">' + esc(INTENTS.find((o) => o.k === intent).d) + '</p>' +
     lastLine(vm) +
     '</section>' +

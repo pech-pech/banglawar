@@ -6,9 +6,9 @@ import { SEASON } from '../data/season.js';
 import { DRILLS, COACHES, SKILLS } from '../data/training.js';
 import { aiPickSix } from '../core/clubs.js';
 import { tableOrder, placeOf, ME, tpAward, koWinner } from '../core/season.js';
-import { drillOdds, coachLevel, canDrill, drillRoom, drillDef } from '../core/training.js';
+import { drillOdds, coachLevel, canDrill, drillRoom, drillDef, planMode, planDrill, bulkPlan, hasLastPlan, sixOf } from '../core/training.js';
 import { nodeStatus, treeBoost, treeOf, NODE_COUNT } from '../core/skills.js';
-import { planProblem } from './commands.js';
+import { planProblem, livePlan } from './commands.js';
 import { RUN } from '../data/run.js';
 import { seasonResult, chapterNames, runScore, carryOf } from '../core/run.js';
 
@@ -57,7 +57,7 @@ export function bowlVM(s) {
   return {
     over: inn.over, phase: ph, phaseName: PHASE_NAMES[ph], score: scoreOf(inn),
     crease: crease(inn, bats), bowlers, call, batNames: bats.map((p) => p.name), bowlNames: me.map((p) => p.name), fieldHint,
-    canBowl: s.stage === 'bowl' && el.includes(call.bowler), last: s.last,
+    canBowl: s.stage === 'bowl' && el.includes(call.bowler), last: s.last, firstStrip: firstStripOn(s),
   };
 }
 
@@ -74,7 +74,8 @@ export function chaseVM(s) {
     need: Math.max(0, target - inn.runs), ballsLeft: Math.max(0, (11 - inn.over) * 6),
     score: scoreOf(inn), batNames: me.map((p) => p.name), bowlNames: ai.map((p) => p.name),
     crease: crease(inn, me, (p) => ({
-      grade: gradeChip(p),
+      grade: gradeChip(p), ability: shownAbility(p), // one scale: the 20-200 overall ability, same helper as the team sheet, training and player sheet
+
       previews: aiOrder.slice(0, previewCount(p)).map((bi) => {
         const m = matchup('bat', p, ai[bi], ph);
         return { name: ai[bi].name, bowl: ai[bi].bowl, label: m.label, g: m.g, inPhase: m.inPhase };
@@ -83,7 +84,7 @@ export function chaseVM(s) {
     aiBowler: lb ? { name: lb.name, bowl: lb.bowl } : null,
     // P5b intent hint: League 1 only. TODO: or the club bought a Coach (no coach-buying code yet).
     intentHint: s.season && (s.season.league || 1) === 1
-      ? { pick: inn.over >= 8 ? 'A' : 'R', why: 'Last 3 overs: Attack. Before that: Rotate.' } : null,
+      ? { pick: inn.over >= 8 ? 'A' : 'R', why: 'Last 3 overs: Attack. Before that: Steady.' } : null,
     last,
   };
 }
@@ -204,9 +205,9 @@ export function coachPickVM(s) {
     const focus = Object.keys(c.lv).find((f) => c.lv[f] > 0) || 'Power';
     const d = DRILLS.list.find((x) => COACHES.focuses.find((f) => f.focus === focus).rating === x.id);
     const good = (lv) => { const o = drillOdds(s.nets || 1, lv); return Math.round(o.good + o.great); };
-    return { id: c.id, name: c.name, focus, drill: d.name, odds3: good(3), odds2: good(2), trees: TREES_OF_FOCUS[focus] };
+    return { id: c.id, name: c.name, focus, drill: d.name, phrase: drillPhrase(d.id), odds3: good(3), odds2: good(2), trees: TREES_OF_FOCUS[focus] };
   });
-  return { cands, picked: s.coachPicked ? (s.coaches.find((c) => !c.candidate) || {}).id || null : null };
+  return { cands, picked: s.coachPicked ? (s.coaches.find((c) => !c.candidate) || {}).id || null : (s.coachCur || null) };
 }
 
 // ---- squad and plan
@@ -255,7 +256,7 @@ export function trainingVM(s) {
     if (g && g.gain > 0) row.gainRating = RATING_KEY[drillDef(g.drillId).rating];
     return row;
   });
-  return { tp: s.training.tp, week: s.training.week, done: Object.keys(s.training.drilled || {}).length, total: rows.length, coachLine: coachLine(s), drillCost: DRILLS.costTp, rows };
+  return { tp: s.training.tp, week: s.training.week, done: Object.keys(s.training.drilled || {}).length, total: rows.length, coachLine: coachLine(s), coachNotice: coachNoticeOf(s), drillCost: DRILLS.costTp, rows, ...trainPlanVM(s) };
 }
 
 const REASON = { week: 'Already drilled this week', tp: 'Not enough TP', peak: 'At his peak', balance: 'Too far above his lowest rating', max: 'Already at 99', unknown: 'Not available' };
@@ -267,7 +268,8 @@ export function playerVM(s, id) {
   const drills = DRILLS.list.map((d) => {
     const lv = coachLevel(s.coaches, d.focus), o = drillOdds(nets, lv), chk = canDrill(s, id, d.id), room = drillRoom(p, d.id);
     return { id: d.id, name: d.name, rating: RATING_KEY[d.rating], goodPlus: Math.round(o.good + o.great), coachLine: lv ? `Coach level ${lv}` : 'No coach here',
-      room: !chk.ok ? null : room.upTo ? `Only +${room.upTo} fits` : null, locked: !chk.ok, reason: chk.ok ? null : REASON[chk.reason] };
+      room: !chk.ok ? null : room.upTo ? `Only +${room.upTo} fits` : null, locked: !chk.ok, reason: chk.ok ? null : REASON[chk.reason],
+      now: p[d.rating], plus: Math.max(0, Math.min(DRILLS.gains[2], room.room)), why: chk.reason || null };
   });
   const open = [];
   for (const side of ['bat', 'bowl']) for (let n = 1; n <= NODE_COUNT; n++) { const st = nodeStatus(s, id, side, n); if (st.status === 'available') { open.push(st.cost); break; } }
@@ -360,4 +362,84 @@ export function weekVM(s) {
     coachUps: W.coachUps.map((c) => ({ name: (s.coaches.find((x) => x.id === c.coachId) || {}).name, focus: c.focus, level: c.to })),
     roundResults: results.map((r) => ({ a: clubName(s, r.a), b: clubName(s, r.b), ra: r.ra, wa: r.wa, rb: r.rb, wb: r.wb, me: r.a === ME || r.b === ME })),
   };
+}
+
+// ---- b-p6: club hub and team sheet
+const ordinal = (n) => n + (n % 100 >= 11 && n % 100 <= 13 ? 'th' : ['th', 'st', 'nd', 'rd'][n % 10 > 3 ? 0 : n % 10]);
+
+/** The team sheet: the squad (six in batting order, bench after) and the bowling plan the hub would use right now. */
+export function teamVM(s) {
+  const lp = livePlan(s), t = { ...s, plan: lp };
+  const sq = squadVM(t), pl = planVM(t);
+  const mineC = mine(s);
+  return { opp: s.fixture ? clubName(s, s.fixture.opp) : '', players: sq.players, count: sq.count, plan: { ...pl, edited: lp.edited }, six: sixIds(s), squadSize: mineC.squad.length };
+}
+
+/** The hub as a club screen: everything hubVM has, plus the six, the promotion checklist, the next unlock and one Start match. */
+export function clubVM(s) {
+  const base = hubVM(s), se = s.season, fx = s.fixture;
+  const lp = livePlan(s), t = { ...s, plan: lp };
+  const pv = planVM(t);
+  const six = sixIds(s).map((id) => player(s, id));
+  const place = placeOf(se.table, ME);
+  const left = Math.max(0, SEASON.leagueMatches - (se.phase === 'league' ? se.round - 1 : SEASON.leagueMatches));
+  const top = RUN.promoteTop, last = (se.league || 1) >= 5;
+  const rows = [
+    { key: 'rank', title: 'Top ' + top + ' at the final', sub: left ? left + ' week' + (left > 1 ? 's' : '') + ' left' : 'Last week', state: 'todo', tag: se.results.some((r) => r.a === ME || r.b === ME) ? ordinal(place) + ' now' : 'Not started' },
+    { key: 'stadium', title: 'Stadium ' + ((se.league || 1) + 1), sub: 'Not built yet', state: 'later', tag: 'Later' },
+    { key: 'fans', title: 'Fans', sub: 'Comes with the stadium', state: 'later', tag: 'Later' },
+  ];
+  const hidden = six.filter((p) => !gradeOf(p)).sort((a, b) => (b.drillsHere | 0) - (a.drillsHere | 0))[0];
+  const unlock = hidden ? { name: hidden.name, left: Math.max(1, DRILLS.revealAfter - (hidden.drillsHere | 0)) } : null;
+  const oppPlace = fx ? placeOf(se.table, fx.opp) : 0;
+  const ko = fx && fx.kind !== 'league';
+  const word = pv.valid ? (lp.edited ? 'Saved' : 'Suggested') : 'Fix it';
+  return {
+    ...base, club: { name: mine(s).name, week: base.round, league: se.league || 1, weeksLeft: left }, lastLeague: last,
+    six: six.map((p) => ({ id: p.id, name: p.name, grade: gradeOf(p) || '?', pips: pipsOf(p) })),
+    promo: { title: 'Go up to League ' + ((se.league || 1) + 1), total: rows.length, done: rows.filter((r) => r.state === 'ok').length, rows },
+    unlock, plan: { word, ok: pv.valid, reason: pv.reason },
+    cta: fx
+      ? { label: 'Start match', act: 'StartMatch', disabled: !pv.valid, reason: pv.valid ? '' : 'Fix the overs first. ' + pv.reason,
+        sub: 'v ' + base.next.oppName + ' · ' + (ko ? base.next.kindWord : 'Home') + (oppPlace ? ' · ' + ordinal(oppPlace) : '') }
+      : { label: 'Pick your six', act: 'OpenSquad' },
+  };
+}
+
+// ---- p7train: the plan card, bulk summary, bench switch and first-time tips on the training screen
+export function trainPlanVM(s) {
+  const T = s.training, mode = planMode(s), ids = sixOf(s);
+  const run = bulkPlan(s, mode, ids), bridge = !!(s.season && s.season.n >= 2);
+  const byPlayer = {};
+  for (const id of ids) { if (T.drilled && T.drilled[id]) continue; const pl = planDrill(s, player(s, id), mode); if (pl) byPlayer[id] = { drillId: pl.drillId, rating: RATING_KEY[drillDef(pl.drillId).rating], fresh: pl.fresh }; }
+  const cost = bridge ? 0 : run.length * DRILLS.costTp;
+  const b = T.bulk;
+  let bulk = null;
+  if (b && b.items.length) {
+    const xp = {};
+    for (const it of b.items) { if (!it.gain) continue; const d = drillDef(it.drillId), c = it.coach ? s.coaches.find((x) => x.id === it.coach) : null; if (!c) continue; ((xp[c.name] ||= {})[d.focus] = (xp[c.name][d.focus] || 0) + it.gain); }
+    bulk = { n: b.items.length, total: b.items.reduce((a, x) => a + x.gain, 0), great: b.items.filter((x) => x.outcome === 'Great').length,
+      reveals: b.items.filter((x) => x.revealed).map((x) => ({ name: player(s, x.playerId).name, grade: x.grade })),
+      xp: Object.keys(xp).map((c) => ({ coach: c, text: Object.keys(xp[c]).map((f) => `${f} +${xp[c][f]}`).join(', ') })) };
+  }
+  return { plan: { mode, canRepeat: hasLastPlan(s), n: run.length, cost, tpLeft: s.training.tp - cost, free: bridge, byPlayer, bulk, autoBench: !!T.autoBench, tips: !T.tipsSeen && !(T.drillCount > 0) } };
+}
+
+// ---- p7first
+/** Plain phrase for a drill's rating (proposed wording, not checked by NUMBERS). */
+const DRILL_PHRASE = { bp: 'big hitting practice', bs: 'batting practice', spd: 'fast bowling practice', bsk: 'bowling accuracy practice' };
+export const drillPhrase = (ratingId) => DRILL_PHRASE[ratingId] || 'practice';
+
+/** First-match strip (3 lines + Skip): League 1 season 1 match 1, first over, until skipped. */
+export function firstStripOn(s) {
+  return !!(s.season && s.season.n === 1 && s.season.round === 1 && s.stage === 'bowl' && s.inn1 && s.inn1.over === 1 && !(s.seen && s.seen.firstStrip));
+}
+
+/** Notice at the top of training week 1: who the coach is and what he is best at, with Change. null once a drill is done. */
+export function coachNoticeOf(s) {
+  const c = (s.coaches || []).find((x) => !x.candidate);
+  if (!s.coachPool || !c || !s.coachPicked || ((s.training && s.training.drillCount) || 0) > 0) return null;
+  const focus = Object.keys(c.lv).find((f) => c.lv[f] > 0) || 'Power';
+  const d = DRILLS.list.find((x) => x.focus === focus);
+  return { name: c.name, focus, line: `${c.name} is your coach. He is best at ${drillPhrase(d && d.id)}.`, canChange: true };
 }
