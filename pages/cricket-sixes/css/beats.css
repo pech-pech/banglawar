@@ -1,0 +1,13 @@
+/* P10 beats: picture stage + chip. Kit variables only. Canvas is 300x200 (150x100 art px at x2). */
+.bt-slot { display: flex; justify-content: center; flex: none; padding: 3px 0; margin: 0 -8px; }   /* the stage is a full 300 px: no clipped edge */
+.bt-stage { position: relative; width: 300px; height: 200px; margin: 0 auto; box-shadow: 0 0 0 3px var(--outline); line-height: 0; }
+.bt-cv { display: block; width: 300px; height: 200px; image-rendering: pixelated; }
+/* the chip sits on the top stand, centred, with a fixed width so it never jumps between "Wicket", "Six +6" and "Four +4" */
+.bt-stage .bt-chip { position: absolute; top: 6px; left: 50%; transform: translateX(-50%); box-sizing: border-box; width: 132px; min-height: 32px; display: flex; align-items: center; justify-content: center; margin: 0; font-size: 16px; line-height: 20px; white-space: nowrap; }
+.bt-stage .bt-chip[hidden] { display: none; }
+.bt-inline { display: flex; justify-content: center; flex: none; padding: 3px 0; }
+.op-card.has-beats { height: min(764px, 100%); }
+.bt-stamp { flex: none; width: 40px; height: 40px; margin-left: auto; image-rendering: pixelated; }
+.op-bottom { overflow-y: auto; }
+.rn-result.has-stamp { grid-template-columns: auto minmax(0, 1fr) auto; }
+.rn-result .bt-stamp { grid-column: 3; grid-row: 1; margin: 0; }
