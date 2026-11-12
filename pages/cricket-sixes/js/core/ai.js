@@ -49,17 +49,18 @@ export function pickIntent(inn, chasing, rng, smart) {
 
 /**
  * Fielding call 'A'|'P'|'N'. Smart (G5 hybrid, combo_sim field_policy): Attack if KW*zw + WK*lost - KB*zh - LATE*(over>=8) > P_C, else Protect;
- * zh/zw on the striker's raw bp/bs, lost = inn.wk. 'N' once the chase target is passed. Careless = rng.pick('APN') (one draw).
+ * zh/zw on the striker's raw bp/bs read against `centre`, lost = inn.wk. 'N' once the chase target is passed. Careless = rng.pick('APN') (one draw).
  * @param {any} inn innings state (uses strike, runs, target, over, wk)
  * @param {any[]} batters batters on the crease (batters[inn.strike] is striker)
  * @param {{pick:(a:any[])=>any}} rng
  * @param {boolean} smart
+ * @param {number} [centre] FIELD_CENTRE: the league's rival strength (default 50), same for both sides
  * @returns {'A'|'P'|'N'}
  */
-export function pickField(inn, batters, rng, smart) {
+export function pickField(inn, batters, rng, smart, centre = T.FIELD_CENTRE) {
   if (!smart) return rng.pick(['A', 'P', 'N']);
   const s = batters[inn.strike];
-  let field = hybridField(s, inn.over, inn.wk);
+  let field = hybridField(s, inn.over, inn.wk, centre);
   if (inn.target != null && inn.runs > inn.target) field = 'N';
   return field;
 }
