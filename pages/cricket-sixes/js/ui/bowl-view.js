@@ -113,7 +113,9 @@ export function render(el, vm, dispatch) {
   const seg = (k, icon) => `<button type="button" class="opt${fld === k ? ' is-selected' : ''}" role="radio" data-field="${k}" aria-checked="${fld === k ? 'true' : 'false'}">${ic(icon, 24)}${FIELD[k]}</button>`;
   // 12b: a tappable suggestion chip (info icon + the word "Tip"), never pre-applied. Shape and words carry the state, not colour.
   const on = !!hint && fld === hint.pick;
-  const chip = hint ? `<button type="button" class="bv-chip${on ? ' is-on' : ''}" data-chip="${hint.pick}" data-fieldhint aria-pressed="${on}">` +
+  // D1: Protect is already the default, so a Protect tip while Protect is set is a plain line, not a tap target.
+  const plain = !!hint && hint.pick === 'P' && fld === 'P';
+  const chip = plain ? `<p class="bv-keep" data-fieldhint-plain>${esc(hint.why)}</p>` : hint ? `<button type="button" class="bv-chip${on ? ' is-on' : ''}" data-chip="${hint.pick}" data-fieldhint aria-pressed="${on}">` +
     `${ic('info', 24, 'bv-chip-i')}<span class="bv-chip-t"><b>Tip: ${on ? FIELD[hint.pick] + ' field is on' : 'try ' + FIELD[hint.pick] + ' field'}</b><span>${esc(hint.why)}</span></span></button>` : '';
   const notes = newNotes();
   const anyHidden = (vm.bowlers || []).some((b) => b.grade === '?' && b.eligible);
@@ -131,6 +133,12 @@ export function render(el, vm, dispatch) {
     `<p><b>${POT}</b>: D low to S best.${anyBest ? ' <b class="bv-starkey" aria-hidden="true">★</b> = best overs now.' : ''}</p></div></section>` +
     `<div class="ctabar bv-cta"><button type="button" class="c-btn c-btn--primary c-btn--cta" data-bowl${vm.canBowl === false ? ' disabled' : ''}>` +
     `<span>Bowl over ${esc(vm.over)}${selB ? ':&nbsp;<span class="name">' + esc(selB.name) + '</span>' : ''}</span></button></div>`;
+  // D3: bring the pre-filled bowler row into view inside the list only (never the page)
+  const selRow = el.querySelector('.bv-sb .sb-row.is-selected'), lst = el.querySelector('.bv-sb');
+  if (selRow && lst && lst.scrollHeight > lst.clientHeight) {
+    const a = selRow.getBoundingClientRect(), b = lst.getBoundingClientRect();
+    if (a.bottom > b.bottom) lst.scrollTop += a.bottom - b.bottom + 4; else if (a.top < b.top) lst.scrollTop -= b.top - a.top + 4;
+  }
   // QA r2 D8: dock the first-match card just above the Field bar, so the batters and the bowler named on the CTA stay visible
   const fs = el.querySelector('.fs-strip'), segEl = el.querySelector('.bv-seg');
   if (fs && segEl) { const top = segEl.getBoundingClientRect().top; if (top > 0) fs.style.bottom = Math.max(0, Math.round(window.innerHeight - top + 6)) + 'px'; }

@@ -20,7 +20,8 @@ test('12b field chip: League 1 shows it for a weak pair, League 2 does not, and 
   const s = atBowl('hint-1'), c = centreOf(s);
   setPair(s, c - 10, c - 10, c - 10, c - 10);
   const l1 = bowlVM(inLeague(s, 1)), l2 = bowlVM(inLeague(s, 2));
-  assert.ok(l1.fieldHint && /Weak bat/.test(l1.fieldHint.why));
+  const [n0, n1] = pairOf(s).map((b) => b.name);
+  assert.ok(l1.fieldHint && l1.fieldHint.why === `${n0} and ${n1}: weak bats on average, try Attack`, 'the reason names the pair');
   assert.equal(l1.fieldHint.pick, 'A');
   assert.equal(l2.fieldHint, null);
   assert.equal(l1.call.field, 'P', 'the call starts neutral: Protect, the chip is not applied');
@@ -31,7 +32,7 @@ test('12b field chip: pair rule picks A below 2*centre; P only as a chip for a b
   setPair(s, c + 30, c + 30, c - 30, c - 30); // pair mean exactly the centre: Protect, not a big hitter -> not worth 1 win point, no chip
   assert.equal(bowlVM(s).fieldHint, null);
   setPair(s, c + 29, c + 29, c - 30, c - 30); assert.equal(bowlVM(s).fieldHint.pick, 'A');
-  setPair(s, c + 10, c + 10, c + 10, c + 10); assert.equal(bowlVM(s).fieldHint.pick, 'P'); // mean bp - centre = 10 >= 8
+  setPair(s, c + 10, c + 10, c + 10, c + 10); assert.ok(/big hitters, keep Protect$/.test(bowlVM(s).fieldHint.why)); assert.equal(bowlVM(s).fieldHint.pick, 'P'); // mean bp - centre = 10 >= 8
   setPair(s, c + 7, c + 7, c + 7, c + 7); assert.equal(bowlVM(s).fieldHint, null); // 7 < 8
   setPair(s, c - 10, c - 10, c - 10, c - 10); assert.equal(bowlVM(s).fieldHint.pick, 'A');
 });

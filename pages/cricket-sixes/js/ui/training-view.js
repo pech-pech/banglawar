@@ -34,12 +34,11 @@ const DRILL_NAME = Object.fromEntries(DRILLS.list.map((d) => [d.id, d.name]));
 function status(r, plan, auto) {
   const s = String(r.status || '');
   if (s === 'drill') {
-    if (plan) return '<span class="tr-planbox' + (plan.fresh ? ' is-new' : '') + '" role="img" aria-label="Plan: ' + esc(DRILL_NAME[plan.drillId]) + (plan.fresh ? ', new this week' : '') + '">' + deco(RATING_ICON[plan.rating], 20) + '</span>';
-    return auto ? '<span class="tr-st tr-auto" role="img" aria-label="Auto drill at End week">' + deco('train', 20) + '</span>' : '';
+    return auto ? '<span class="tr-st tr-auto" role="img" aria-label="Auto drill at End week">' + deco('auto', 20) + '</span>' : '';
   }
   if (s === 'peak') return '<span class="tr-st tr-peak" role="img" aria-label="At peak">' + deco('peak', 20) + '</span>';
   if (s === 'done') return '<span class="tr-st tr-won" role="img" aria-label="Drilled this week">' + deco('done', 20) + '</span>';
-  if (s.charAt(0) === '+') return '<span class="tr-st tr-won" role="img" aria-label="Drilled this week, up ' + esc(s.slice(1)) + '">' + deco('done', 20) + '<b>' + esc(s) + '</b></span>';
+  if (s.charAt(0) === '+') return '<span class="tr-st tr-won" role="img" aria-label="Drilled this week, up ' + esc(s.slice(1)) + '">' + deco('done', 20) + '</span>';
   return '';
 }
 
@@ -53,7 +52,8 @@ function ratesBlock(r, plan) {
   const R = r.rates || {}, up = String(r.status || '').charAt(0) === '+' ? r.gainRating : null;
   return '<span class="tr-rates">' + RK.map((k) => {
     const cls = k === up ? ' is-up' : plan && plan.rating === k ? ' is-plan' + (plan.fresh ? ' is-new' : '') : '';
-    return '<span class="tr-rate' + cls + '"><span class="tr-ri">' + deco(RATING_ICON[k], 24) + '</span><span class="tr-rv">' + esc(R[k] == null ? '' : R[k]) + '</span></span>';
+    const gain = k === up ? '<span class="tr-up">+' + esc(String(r.status).slice(1)) + '</span>' : '';
+    return '<span class="tr-rate' + cls + '"><span class="tr-ri">' + deco(RATING_ICON[k], 24) + '</span>' + gain + '<span class="tr-rv">' + esc(R[k] == null ? '' : R[k]) + '</span></span>';
   }).join('') + '</span>';
 }
 
@@ -76,7 +76,7 @@ function rowHtml(r, P, first) {
     ' data-act="sheet:player" data-arg="' + esc(JSON.stringify({ id: r.id })) + '" aria-label="' + esc(label) + '">' +
     abilBox(r) +
     '<span class="tr-who"><span class="c-row__title name tr-name">' + esc(r.name) + '</span>' +
-    '<span class="tr-sub">' + (r.bench ? '<span class="tr-bench" role="img" aria-label="Bench">' + deco('team', 20) + '</span>' : '') + gradeBox(r, hidden) + status(r, plan, auto) + '</span></span>' +
+    '<span class="tr-sub">' + (r.bench ? '<span class="tr-bench" role="img" aria-label="Bench">' + deco('bench', 20) + '</span>' : '') + gradeBox(r, hidden) + status(r, plan, auto) + '</span></span>' +
     ratesBlock(r, plan) + '</li>';
 }
 
@@ -113,10 +113,10 @@ function summaryCard(vm) {
 
 function benchStrip(vm) {
   const on = vm.plan.autoBench;
-  return '<li class="tr-benchli"><div class="c-strip c-strip--light tr-bench-strip"><span class="tr-iw">' + deco('team', 24) + '<span>Bench</span></span>' +
+  return '<li class="tr-benchli"><div class="c-strip c-strip--light tr-bench-strip"><span class="tr-iw">' + deco('bench', 24) + '<span>Bench</span></span>' +
     '<button type="button" class="c-btn tr-toggle" data-act="AutoBench" data-arg=\'{"on":' + (!on) + '}\' aria-pressed="' + on + '" aria-label="Auto-train bench, ' + (on ? 'on' : 'off') + '. Drills bench players at End week if you have not">' +
     '<span class="tr-box">' + (on ? '<span class="c-ico c-ico--check"></span>' : '') + '</span><span>Auto-train bench</span></button></div>' +
-    (on ? '<div class="tr-benchnote">' + deco('train', 20) + '<span>Bench drills at End week</span>' + benchCost(vm) + '</div>' : '') + '</li>';
+    (on ? '<div class="tr-benchnote">' + deco('auto', 20) + '<span>Bench drills at End week</span>' + benchCost(vm) + '</div>' : '') + '</li>';
 }
 
 let tipStep = 1;
@@ -199,8 +199,11 @@ export function openHelp() {
     line(deco('peak', 24), 'Peak: drills cannot raise him') + line(deco('lock', 24), 'Full: raise his lowest first') +
     '<div class="tr-hh">Buttons</div>' +
     line(deco('team', 24), 'Drill all: the Six, one tap') + line(deco('rematch', 24), 'Repeat: same as last week') +
-    line(deco('upgrade', 24), 'Suggested: lowest rating first') + line(deco('train', 24), 'Auto: bench drills at End week') +
-    line(deco('medal', 24), 'Ability: four ratings blended') +
+    line(deco('upgrade', 24), 'Suggested: lowest rating first') +
+    '<div class="tr-hh">Row</div>' +
+    line('<span class="tr-k-abil">112</span>', 'Big number: Ability, 20 to 200') + line('<span class="tr-k-up"><b>+2</b></span>', 'Gold box: drilled, up 2') +
+    line(deco('done', 24), 'Tick: drilled this week') + line(deco('bench', 24), 'Bench player') +
+    line('<span class="tr-auto-k">' + deco('auto', 20) + '</span>', 'Auto box: bench drill at End week') + line('<span class="tr-dash"></span>', 'Dashed row: bench player') +
     '<div class="tr-hh">Icons</div>' +
     RK.map((k) => line(deco(RATING_ICON[k], 24), RATING_WORD[k])).join('') +
     [['opener', 'Opener'], ['middle', 'Middle'], ['lower', 'Lower']].map((r) => line(deco(roleIcon(r[0]), 24), r[1] + ' bat')).join('') +

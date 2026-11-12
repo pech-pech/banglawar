@@ -319,6 +319,9 @@
   ICONS.medal = ['.kk......kk.', '..kk....kk..', '...kkkkkk...', '....oooo....', '...oggggo...', '..ogwgggGo..', '.ogwggggggGo'.slice(0, 12), '.oggggggggGo', '..oggggGGo..', '...oGGGGo...', '....oooo....', '............'];
   ICONS.fan = ['.oo.........', '.otoooooooo.', '.otkkkkkkKo.', '.otwwwwwwoo.', '.otkkkkKo...', '.otooooo....', '.oto........', '.oto........', '.oto........', '.oto........', '.oto........', '.ooo........'];
   ICONS.team = ['............', '..oo....oo..', '.osso..osso.', '.osso..osso.', '..oo....oo..', '.okkko.oKKKo'.slice(0, 12), '.okkko.oKKKo'.slice(0, 12), '.okkko.oKKKo'.slice(0, 12), '.onno.onno..', '.oooo.oooo..', '............', '............'];
+  /* bench = a plank on two legs (Bench marker); auto = dumbbell over a clock (Auto drill at End week) */
+  ICONS.bench = ['............', 'oooooooooooo', 'otttttttttto', 'oooooooooooo', '.o........o.', '.o........o.', 'oooooooooooo', 'otttttttttto', 'oooooooooooo', '.o........o.', '.o........o.', '.oo......oo.'];
+  ICONS.auto = ['.oo......oo.', 'onnoooooonno', 'onnoooooonno', '.oo......oo.', '............', '....oooo....', '...owwwwo...', '..owwowwwo..', '..owwowwwo..', '..owwooowo..', '...owwwwo...', '....oooo....'];
   ICONS.more = ['............', '............', '............', '............', '.ooo.ooo.ooo', '.ono.ono.ono', '.ooo.ooo.ooo', '............', '............', '............', '............', '............'];
   ICONS.scout = ['............', '..ooo..ooo..', '.onnno.onnno', '.onnnooonnno', 'onnnnoonnnno', 'onnnnoonnnno', 'obbbboobbbbo', 'obwbboobwbbo', 'obbbboobbbbo', '.oooo..oooo.', '............', '............'];
   ICONS.league = ['............', '..oooooooo..', '.oogwgggGGoo', 'o.ogwggGGo.o', '.ooggggggGoo', '...ogggGGo..', '....oGGo....', '.....oGo....', '....oGGGo...', '..ottttttto.', '..ooooooooo.', '............'];
