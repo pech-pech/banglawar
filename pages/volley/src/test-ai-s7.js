@@ -89,7 +89,7 @@ section('E-06', function(){
 });
 
 // =====================================================================================================================================
-// E-07 Burrower (M7): under (untargetable) -> crack ring tell 1.0 s -> surface, 8-round ring of 50 -> exposed 1.5 s -> burrow.
+// E-07 Burrower (M7): under (untargetable) -> crack ring tell 1.0 s -> surface, 8-round ring of 50 -> exposed 2.5 s (M 2026-11-12) -> burrow.
 section('E-07', function(){
   function run(seed, opt){
     opt = opt || {};
@@ -121,7 +121,7 @@ section('E-07', function(){
     ok(tag + 'at least 3 full cycles in 25 s', r.log.length >= 3, r.log.length);
     ok(tag + 'tell (crack ring) 1.0 s effective before surfacing', r.log.every(function(c){ return Math.abs(c.surf - c.tell - 1.0) <= STEP * 1.5; }), r.log.map(function(c){ return (c.surf - c.tell).toFixed(3); }).join(' '));
     ok(tag + '8-round ring of enemyDmg(50) = ' + d50 + ' at s16', r.log.every(function(c){ return c.shots === 8 && c.dmg.every(function(d){ return d === d50; }); }), r.log.map(function(c){ return c.shots; }).join(' '));
-    ok(tag + 'exposed 1.5 s, then burrows', r.log.every(function(c){ return Math.abs(c.down - c.surf - 1.5) <= STEP * 1.5; }));
+    ok(tag + 'exposed 2.5 s, then burrows', r.log.every(function(c){ return Math.abs(c.down - c.surf - 2.5) <= STEP * 1.5; }));
     ok(tag + 'surfaces on the ring; spot >= 1.8 from the Operator, on open floor', r.log.every(function(c){ return c.xok && c.dh >= 1.8 - 1e-6; }) && r.inSolid === 0);
     ok(tag + 'never targetable while under; no NaN; no hurt before the first tell', r.badT === 0 && r.nan === 0 && r.hurtNoTell === 0);
     ok(tag + 'deterministic', run(7, { move:mv }).hash === r.hash, r.hash);
@@ -190,10 +190,11 @@ section('E-08', function(){
 // =====================================================================================================================================
 // Bosses: each in its baked arena (stage 20 / 30 / 40 / 50 of the real list), reached by force-clearing the rooms before it.
 var BOSSES = [
-  { stage:20, type:'B-03',  hp:12125, split:[0.5, 0.25] },
-  { stage:30, type:'B-02',  hp:13245, phase2:true },
-  { stage:40, type:'B-03V', hp:17309, split:[0.66, 0.33] },
-  { stage:50, type:'B-04',  hp:27860, phase2:true }
+  // HP x2.5 over the section 4 table (M 2026-11-12 card 1/2 "Halfway (HP x2.5)")
+  { stage:20, type:'B-03',  hp:30312, split:[0.5, 0.25] },
+  { stage:30, type:'B-02',  hp:33113, phase2:true },
+  { stage:40, type:'B-03V', hp:43272, split:[0.66, 0.33] },
+  { stage:50, type:'B-04',  hp:69653, phase2:true }
 ];
 var BOT = null;
 (function(){ var saved = process.argv.slice(); process.argv.push('--seek'); try { BOT = require('./bot.js'); } finally { process.argv.length = 0; Array.prototype.push.apply(process.argv, saved); } })();
@@ -250,7 +251,7 @@ BOSSES.forEach(function(B0){
     var tag = B0.type + ' (s' + B0.stage + '): ', def = LIST[B0.stage - 1];
     ok(tag + 'baked row is a boss room with one ' + B0.type, def && def.kind === 'boss' && def.spawns.length === 1 && def.spawns[0].type === B0.type, def && def.spawns.map(function(p){ return p.type; }));
     if (!def || def.spawns[0].type !== B0.type) return;
-    var g = fight(3, B0, { kind:'human', god:true, secs:300 });
+    var g = fight(3, B0, { kind:'human', god:true, secs:900 });
     ok(tag + 'reached the boss stage in its arena', g.at === B0.stage && g.kind === 'boss' && g.room === def.room, [g.at, g.room]);
     ok(tag + 'spawn: boss bar max HP on the table target ' + B0.hp + ' (+-1%)', g.maxHp0 != null && Math.abs(g.maxHp0 - B0.hp) / B0.hp <= 0.01, g.maxHp0);
     ok(tag + 'boss room holds no machines', g.machines === 0, g.machines);

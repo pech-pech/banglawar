@@ -1,7 +1,7 @@
 (function(){ var G = (typeof window !== 'undefined' ? window : globalThis); var V = G.V = G.V || {};
 // E-07 Burrower (03 section 3, CONTRACT-STEP7 M7). Cycle: 'under' (moves underground to a surfacing spot near, not on, the
 // Operator) -> 'tell' (ground crack ring at the spot, 1.0 s EFFECTIVE, still underground) -> 'act' (surfaces, fires an 8-round
-// ring, hit 50 each, exposed 1.5 s: the shoot window) -> 'under' again.
+// ring, hit 50 each, exposed 2.5 s: the shoot window; was 1.5, M 2026-11-12 "stay above ground for a bit longer after firing") -> 'under' again.
 // Underground ('under' and 'tell'): e.hidden = true, which the sim already honours: not targetable (auto-aim lock, rounds,
 // ricochet), no contact damage, no body separation. onDamage also returns 0 while hidden (burn/poison ticks).
 // While hidden e.knockback = 0 so the sim's immovable() skips collideBody: it passes under cover; the spot it surfaces on is open floor.
@@ -11,9 +11,9 @@
 V.AI = V.AI || {};
 var DE = (V.Data && V.Data.enemies) || (typeof require === 'function' ? (require('./data-enemies.js'), V.Data.enemies) : null);
 // Row: SIM may move this into data-enemies.js; until then this file defines it only if absent. hp 550 is a GUESS
-// (weight 1.3 like E-04/E-05, but only hittable 1.5 s per cycle). tell 1.176 base x TELL_MULT 0.85 = 1.0 effective.
+// (weight 1.3 like E-04/E-05, but only hittable 2.5 s per cycle). tell 1.176 base x TELL_MULT 0.85 = 1.0 effective.
 if (DE && !DE['E-07']) DE['E-07'] = {hp:550,contact:40,dmg:50,speed:3,r:0.45,size:'medium',xp:8,tell:1.176,cd:1.2,
-  ai:{ringN:8,shotSpeed:5,exposed:1.5,riseT:0.25,sinkT:0.3,nearMin:1.8,nearMax:3.4,otherGap:1,edge:0.8,underMax:4,repick:3,repickMove:1.5}};
+  ai:{ringN:8,shotSpeed:5,exposed:2.5,riseT:0.25,sinkT:0.3,nearMin:1.8,nearMax:3.4,otherGap:1,edge:0.8,underMax:4,repick:3,repickMove:1.5}};
 var DEG = Math.PI / 180;
 
 function open(S, api, x, y, r, e, A){

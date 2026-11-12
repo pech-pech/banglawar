@@ -22,7 +22,7 @@ var DEG = Math.PI / 180;
 function row(v){
   return { hp:7200, contact:80, dmg:110, speed:0.7, r:1, size:'large', xp:0, tell:0.941, cd:1.4, boss:true,
     immune:{ instakill:true, freeze:true, knockback:true },
-    ai:{ hpK:1.0, intro:2.5, free:1.0, splitAt: v ? [0.66, 0.33] : [0.5, 0.25],
+    ai:{ hpK:2.5, intro:2.5, free:1.0, splitAt: v ? [0.66, 0.33] : [0.5, 0.25],   // hpK 2.5: M 2026-11-12 card 1/2 "Halfway (HP x2.5)"
       genR:[1.0, 0.72, 0.52], genSize:['large', 'medium', 'medium'],
       A:{ tell:0.941, speed: v ? 8.5 : 7.0, maxLen:9, rolls:[2, 1, 1], dmg:110, recoil:0.25, cd:1.4 },
       B:{ tell:1.176, speed: v ? 14.5 : 12.0, maxLen:16, dmg:130, pause:1.2, cd:0.6 },
