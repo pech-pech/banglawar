@@ -151,7 +151,7 @@ const kitGlobals = () => (typeof window !== 'undefined' && window.SPR && window.
 
 /* 5x7 popup glyphs, drawn by the beats (the kit's 3x5 "4" reads as "y", its 6 as S/G). Rows of 5, 7 rows. */
 export const GLYPH = {
-  '4': '...1...11..1.1.1..1.11111...1....1.', '6': '.111.1....1....1111.1...11...1.111.',
+  '4': '...1...11..1.1.1..1.11111...1....1.', '6': '..11..1...1....1111.1...11...1.111.',
   '2': '.111.1...1....1...1...1...1...11111', U: '1...11...11...11...11...11...1.111.', P: '1111.1...11...11111.1....1....1....',
 };
 export function bigText(ctx, x, y, str, colour, cell) {

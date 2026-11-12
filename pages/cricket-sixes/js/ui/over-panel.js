@@ -73,7 +73,8 @@ export function playOverPanel({ title, balls, score, summaryLines = [], nextLabe
     const b = list[i], k = kind(b.o), slot = slotEls[i];
     const c = slot.querySelector('.op-circle');
     c.textContent = ballGlyph(b.o); slot.classList.add('is-filled', 'k-' + k);
-    slot.querySelector('.op-word').textContent = ballWord(b.o);
+    const w = slot.querySelector('.op-word'), wt = ballWord(b.o), m = /^(\S+) (RUNS?)$/.exec(wt);
+    if (m) { w.textContent = m[1]; w.appendChild(document.createElement('br')); w.appendChild(document.createTextNode(m[2])); } else w.textContent = wt;   // run words always read on two lines (1 / RUN, 2 / RUNS, NO / RUN), in every theme
     slot.setAttribute('aria-label', 'Ball ' + (i + 1) + ': ' + outcomeLabel(b.o));
     const why = whyLine(b, b.batName, b.bowlName);
     const li = document.createElement('li');
@@ -91,7 +92,7 @@ export function playOverPanel({ title, balls, score, summaryLines = [], nextLabe
     li.textContent = t.runs === score.runs && t.wk === score.wk ? totalLine(list, score).split('. Score')[0] + '.' : totalLine(list, score);
     lines.appendChild(li);
     for (const t of summaryLines) { const x = document.createElement('li'); x.className = 'op-line'; x.textContent = t; lines.appendChild(x); }
-    if (hasFound) { foot.classList.add('has-found'); foundLive.textContent = foundText(found); }
+    if (hasFound) { root.querySelector('.op-card').classList.add('found-shown'); foot.classList.add('has-found'); foundLive.textContent = foundText(found); }
     foot.innerHTML = (hasFound ? foundHtml(found) + `<button type="button" class="c-btn c-btn--block op-book">${icoDeco('book', 24)}Open Book</button>` : '') +
       `<button type="button" class="c-btn c-btn--primary c-btn--cta c-btn--block op-next">${esc(nextLabel)}</button>`;
     foot.querySelector('.op-next').addEventListener('click', exit);

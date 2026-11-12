@@ -11,3 +11,6 @@
 .op-bottom { overflow-y: auto; }
 .rn-result.has-stamp { grid-template-columns: auto minmax(0, 1fr) auto; }
 .rn-result .bt-stamp { grid-column: 3; grid-row: 1; margin: 0; }
+/* a Pairing Book find needs the room: once it shows (end of the over) the picture steps aside so every found row and the whole ball list fit */
+.op-card.found-shown .bt-slot { display: none; }
+.op-word { white-space: normal; text-align: center; line-height: 15px; min-height: 30px; }
