@@ -34,7 +34,7 @@ const DRILL_NAME = Object.fromEntries(DRILLS.list.map((d) => [d.id, d.name]));
 function status(r, plan, auto) {
   const s = String(r.status || '');
   if (s === 'drill') {
-    return auto ? '<span class="tr-st tr-auto" role="img" aria-label="Auto drill at End week">' + deco('auto', 20) + '</span>' : '';
+    return auto ? '<span class="tr-st tr-auto" role="img" aria-label="Auto drill at End week">' + deco('auto', 24) + '</span>' : '';
   }
   if (s === 'peak') return '<span class="tr-st tr-peak" role="img" aria-label="At peak">' + deco('peak', 20) + '</span>';
   if (s === 'done') return '<span class="tr-st tr-won" role="img" aria-label="Drilled this week">' + deco('done', 20) + '</span>';
@@ -59,7 +59,7 @@ function ratesBlock(r, plan) {
 
 /** Potential grade box: the letter, or "?" until it shows (1 drill). */
 function gradeBox(r, hidden) {
-  return '<span class="tr-gr' + (hidden ? ' is-hidden' : '') + '" role="img" aria-label="' + (hidden ? 'Potential grade hidden, shows after 1 drill' : 'Potential grade ' + esc(r.grade)) + '">' + (hidden ? '?' : esc(r.grade)) + '</span>';
+  return '<span class="tr-gr' + (hidden ? ' is-hidden' : '') + '" role="img" aria-label="' + (hidden ? 'Potential grade hidden, shows after ' + DRILLS.revealAfter + (DRILLS.revealAfter === 1 ? ' drill' : ' drills') : 'Potential grade ' + esc(r.grade)) + '">' + (hidden ? '?' : esc(r.grade)) + '</span>';
 }
 
 function rowHtml(r, P, first) {
@@ -67,17 +67,19 @@ function rowHtml(r, P, first) {
   const peakNow = r.status === 'peak';
   const hidden = r.grade == null || r.grade === '' || r.grade === '?';
   const R = r.rates || {};
-  const label = r.name + (r.bench ? ', bench' : '') + ', Ability ' + r.ability + (r.max ? ', capped at potential' : '') + '. ' +
-    RK.map((k) => RATING_WORD[k] + ' ' + R[k]).join(', ') + '. ' +
-    (hidden ? 'Potential grade hidden, ' + (r.pips || 0) + ' of 1 drill' : 'Potential grade ' + r.grade) +
-    ', ' + (r.status === 'drill' ? 'not drilled yet' : r.status === 'peak' ? 'at peak, drills cannot raise him' : r.status === 'done' ? 'done this week' : 'drilled ' + r.status) +
-    (plan && r.status === 'drill' ? ', plan: ' + DRILL_NAME[plan.drillId] : '');
-  return '<li class="c-row m0-row c-row--tap tr-row' + (r.bench ? ' m0-row--bench' : '') + (peakNow ? ' tr-row--peak' : '') + '" role="button" tabindex="0"' + (first ? ' data-ft="row"' : '') +
-    ' data-act="sheet:player" data-arg="' + esc(JSON.stringify({ id: r.id })) + '" aria-label="' + esc(label) + '">' +
+  const need = DRILLS.revealAfter;
+  const drilledWord = 'drilled, ' + (r.gainRating && RATING_WORD[r.gainRating] ? RATING_WORD[r.gainRating] + ' ' : '') + 'up ' + String(r.status).slice(1);
+  const label = r.name + (r.bench ? ', bench' : '') + ', Ability ' + r.ability + (r.max ? ', capped at potential' : '') + ', ' +
+    (hidden ? 'grade hidden, ' + (r.pips || 0) + ' of ' + need + (need === 1 ? ' drill' : ' drills') : 'grade ' + r.grade) +
+    ', ' + (r.status === 'drill' ? 'not drilled yet' : r.status === 'peak' ? 'at peak, drills cannot raise him' : r.status === 'done' ? 'done this week' : drilledWord) +
+    (plan && r.status === 'drill' ? ', plan: ' + DRILL_NAME[plan.drillId] : '') + (auto && r.status === 'drill' ? ', auto drill at End week' : '') +
+    '. Ratings: ' + RK.map((k) => RATING_WORD[k] + ' ' + R[k]).join(', ');
+  return '<li class="c-row m0-row c-row--tap tr-row' + (r.bench ? ' m0-row--bench' : '') + (peakNow ? ' tr-row--peak' : '') + '"' + (first ? ' data-ft="row"' : '') + '>' +
+    '<button type="button" class="tr-rowbtn" data-act="sheet:player" data-arg="' + esc(JSON.stringify({ id: r.id })) + '" aria-label="' + esc(label) + '">' +
     abilBox(r) +
     '<span class="tr-who"><span class="c-row__title name tr-name">' + esc(r.name) + '</span>' +
-    '<span class="tr-sub">' + (r.bench ? '<span class="tr-bench" role="img" aria-label="Bench">' + deco('bench', 20) + '</span>' : '') + gradeBox(r, hidden) + status(r, plan, auto) + '</span></span>' +
-    ratesBlock(r, plan) + '</li>';
+    '<span class="tr-sub">' + (r.bench ? '<span class="tr-bench" role="img" aria-label="Bench">' + deco('bench', 24) + '</span>' : '') + gradeBox(r, hidden) + status(r, plan, auto) + '</span></span>' +
+    ratesBlock(r, plan) + '</button></li>';
 }
 
 
@@ -104,7 +106,7 @@ function planCard(vm) {
 
 function summaryCard(vm) {
   const b = vm.plan.bulk;
-  return '<div class="c-card c-card--hl tr-sum" role="status"><div class="tr-sumh">' + iw('done', b.n + ' drills done') +
+  return '<div class="c-card c-card--hl tr-sum"><div class="tr-sumh">' + iw('done', b.n + ' drills done') +
     '<span class="c-tag c-tag--done" aria-label="plus ' + b.total + ' rating points in all"><span>+' + b.total + '</span></span></div>' +
     (b.great ? '<div class="tr-line">' + deco('burst', 20) + '<span>' + b.great + ' Great</span></div>' : '') +
     b.reveals.map((r) => '<div class="tr-line">' + deco('medal', 20) + '<span>' + esc(r.name) + ': Potential grade ' + esc(r.grade) + '</span></div>').join('') +
@@ -114,12 +116,12 @@ function summaryCard(vm) {
 function benchStrip(vm) {
   const on = vm.plan.autoBench;
   return '<li class="tr-benchli"><div class="c-strip c-strip--light tr-bench-strip"><span class="tr-iw">' + deco('bench', 24) + '<span>Bench</span></span>' +
-    '<button type="button" class="c-btn tr-toggle" data-act="AutoBench" data-arg=\'{"on":' + (!on) + '}\' aria-pressed="' + on + '" aria-label="Auto-train bench, ' + (on ? 'on' : 'off') + '. Drills bench players at End week if you have not">' +
-    '<span class="tr-box">' + (on ? '<span class="c-ico c-ico--check"></span>' : '') + '</span><span>Auto-train bench</span></button></div>' +
+    '<button type="button" class="c-btn tr-toggle" data-act="AutoBench" data-arg=\'{"on":' + (!on) + '}\' aria-pressed="' + on + '" aria-label="Auto-train bench" aria-describedby="tr-auto-hint">' +
+    '<span class="tr-box">' + (on ? '<span class="c-ico c-ico--check"></span>' : '') + '</span><span>Auto-train bench</span></button><span class="sr-only" id="tr-auto-hint">Drills bench players at End week if you have not</span></div>' +
     (on ? '<div class="tr-benchnote">' + deco('auto', 20) + '<span>Bench drills at End week</span>' + benchCost(vm) + '</div>' : '') + '</li>';
 }
 
-let tipStep = 1;
+let tipStep = 1, tipOpener = null, tipOff = null;
 /** Tips scroll their target into view; put the screen back at the top when they end. */
 const toTop = () => { window.scrollTo(0, 0); [document.documentElement, document.body].forEach((e) => { if (e) e.scrollTop = 0; }); document.querySelectorAll('.screen').forEach((e) => { e.scrollTop = 0; }); };
 /** Auto-train bench cost at End week: one chip, free from season 2. */
@@ -140,10 +142,14 @@ const TIPS = [
   { at: '[data-ft="row"]', text: 'Pick a drill. 15 TP each.', icons: () => deco('batPower', 24) + chip(PER) },
   { at: '[data-ft="all"]', text: 'Or drill your Six at once.', icons: () => deco('team', 24) + deco('upgrade', 24) },
 ];
+/** Which control had focus: its data-act (plus the plan for the Repeat/Suggested pair), so it can be found again after a re-render. */
+const actKey = (n) => n && n.getAttribute ? (n.getAttribute('data-act') || '') + (n.getAttribute('data-act') === 'SetDrillPlan' ? n.getAttribute('data-arg') : '') : '';
 function showTips(el, dispatch) {
   const host = el.firstElementChild; if (!host || host.querySelector('.tr-tip')) return;
+  if (tipOff) tipOff();
+  if (!tipOpener || !tipOpener.isConnected) { const a = document.activeElement; tipOpener = a && a !== document.body ? a : null; }
   const t = TIPS[tipStep - 1], target = host.querySelector(t.at);
-  const layer = document.createElement('div'); layer.className = 'tr-tip'; layer.setAttribute('role', 'dialog'); layer.setAttribute('aria-label', 'Training tips, step ' + tipStep + ' of 3');
+  const layer = document.createElement('div'); layer.className = 'tr-tip'; layer.setAttribute('role', 'dialog'); layer.setAttribute('aria-modal', 'true'); layer.setAttribute('aria-label', 'Training tips, step ' + tipStep + ' of 3');
   const last = tipStep === TIPS.length;
   layer.innerHTML = '<span class="tr-tip__hole" aria-hidden="true"></span><div class="c-card tr-tip__card"><div class="tr-tip__icons">' + t.icons() + '</div><b class="tr-tip__text">' + t.text + '</b>' +
     '<div class="tr-tip__row"><span class="tr-tip__n">' + tipStep + '/3</span><button type="button" class="c-btn" data-tip="skip">Skip</button>' +
@@ -155,15 +161,46 @@ function showTips(el, dispatch) {
     hole.style.cssText = 'top:' + (r.top - 4) + 'px;left:' + (r.left - 4) + 'px;width:' + (r.width + 8) + 'px;height:' + (r.height + 8) + 'px';
     const card = layer.querySelector('.tr-tip__card'); card.classList.toggle('is-top', r.top > innerHeight / 2);
   }
+  /* Same pattern as sheet.js: Escape = Skip, Tab stays inside the card, focus goes back when it ends. */
+  const finish = () => {
+    tipStep = 1; if (tipOff) tipOff(); layer.remove(); toTop(); dispatch('TipsSeen', {}); toTop();
+    const o = tipOpener; tipOpener = null;
+    const back = o && o.isConnected ? o : el.querySelector('.tr-row .tr-rowbtn');
+    if (back && back.focus) back.focus();
+  };
+  const onKey = (e) => {
+    if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); finish(); }
+    else if (e.key === 'Tab') {
+      const f = layer.querySelectorAll('button'); if (!f.length) return;
+      const a = f[0], z = f[f.length - 1], cur = document.activeElement;
+      if (!layer.contains(cur)) { e.preventDefault(); a.focus(); }
+      else if (e.shiftKey && cur === a) { e.preventDefault(); z.focus(); }
+      else if (!e.shiftKey && cur === z) { e.preventDefault(); a.focus(); }
+    }
+  };
+  document.addEventListener('keydown', onKey, true);
+  tipOff = () => { document.removeEventListener('keydown', onKey, true); tipOff = null; };
   layer.addEventListener('click', (e) => {
     const b = e.target.closest('[data-tip]'); if (!b) return;
     if (b.getAttribute('data-tip') === 'next' && !last) { tipStep += 1; layer.remove(); showTips(el, dispatch); return; }
-    tipStep = 1; layer.remove(); toTop(); dispatch('TipsSeen', {}); toTop();
+    finish();
   });
   const first = layer.querySelector('[data-tip="next"]'); if (first) first.focus();
 }
 
+/** One persistent polite region outside the re-rendered node, so changes are spoken (a rebuilt role=status is not). */
+let lastLive = '';
+function announce(text) {
+  if (typeof document === 'undefined' || text === lastLive) return;
+  let n = document.getElementById('tr-live');
+  if (!n) { n = document.createElement('div'); n.id = 'tr-live'; n.className = 'sr-only'; n.setAttribute('role', 'status'); document.body.appendChild(n); }
+  if (lastLive !== '') n.textContent = text;
+  lastLive = text;
+}
+
 export function render(el, vm, dispatch, open) {
+  if (tipOff) tipOff();
+  const had = el.contains(document.activeElement) ? document.activeElement : null, key = actKey(had);
   const rows = vm.rows || [], P = vm.plan || { byPlayer: {}, n: 0, cost: 0 };
   let body = '', benchDone = false;
   rows.forEach((r, i) => {
@@ -175,16 +212,22 @@ export function render(el, vm, dispatch, open) {
     '<div class="c-strip strip tr-top"><span>' + deco('train', 24) + ' Week ' + esc(vm.week) + '</span><span class="c-strip__right tr-tpw">' + tp(vm.tp) +
     '<button type="button" class="c-icon-btn tr-help" data-act="sheet:traininghelp" aria-label="Help: what the icons mean" aria-haspopup="dialog">' + deco('why', 24) + '</button></span></div>' +
     coachNoticeHtml(vm.coachNotice) +
-    '<div class="tr-count" role="status">' + deco('done', 20) + '<span>' + esc(vm.done) + ' of ' + esc(vm.total) + ' drilled</span></div>' +
+    '<div class="tr-count">' + deco('done', 20) + '<span>' + esc(vm.done) + ' of ' + esc(vm.total) + ' drilled</span></div>' +
     (P.bulk ? summaryCard(vm) : '') + (P.bulk && P.n === 0 ? '' : planCard(vm)) +
     '<ul class="c-list m0-list tr-list" aria-label="Your squad">' +
-    '<li class="c-row m0-row c-row--tap tr-coachrow" role="button" tabindex="0" data-act="sheet:coaches" aria-label="Coaches. ' + esc(coachWords(vm.coachLine)) + '">' +
-    '<span class="tr-coachico">' + deco('coach', 36) + '</span><span class="c-row__body"><span class="c-row__title tr-coachtitle">Coaches</span><span class="c-row__sub">' + esc(coachWords(vm.coachLine)) + '</span></span></li>' +
+    '<li class="c-row m0-row c-row--tap tr-coachrow"><button type="button" class="tr-rowbtn" data-act="sheet:coaches" aria-label="Coaches. ' + esc(coachWords(vm.coachLine)) + '">' +
+    '<span class="tr-coachico">' + deco('coach', 36) + '</span><span class="c-row__body"><span class="c-row__title tr-coachtitle">Coaches</span><span class="c-row__sub">' + esc(coachWords(vm.coachLine)) + '</span></span></button></li>' +
     body + '</ul>' +
     ctaBar(btn('End week', 'EndWeek', { kind: 'cta' })) +
     '</div>';
   bindActs(el.firstElementChild, dispatch, open);
   if (P.tips) showTips(el, dispatch);
+  else if (had && key) {
+    const same = [...el.querySelectorAll('[data-act]')].find((n) => actKey(n) === key && !n.disabled && n.getAttribute('aria-disabled') !== 'true');
+    const back = same || el.querySelector('.tr-row .tr-rowbtn');
+    if (back) back.focus();
+  }
+  announce(vm.done + ' of ' + vm.total + ' drilled' + (P.bulk ? ', ' + P.bulk.n + ' drills done, plus ' + P.bulk.total : ''));
 }
 
 /** "?" sheet (sheet:traininghelp): every explanation, one short line each, plus the icon key. */

@@ -203,10 +203,11 @@
 .tr-gradebox.is-reveal .m0-flat--g { background: var(--gold); }
 @media (prefers-reduced-motion: no-preference) {
   .tr-gainblock { animation: tr-grow 450ms steps(3) both; transform-origin: left; }
-  .tr-gradebox.is-reveal { animation: tr-flash 1000ms steps(1) 450ms 1 both; }
+  .tr-gradebox.is-reveal { animation: tr-pulse 450ms steps(3) 450ms 1 both; }
 }
 @keyframes tr-grow { from { transform: scaleX(0); } to { transform: scaleX(1); } }
-@keyframes tr-flash { 0%, 100% { background: var(--white); } 25% { background: var(--gold); } 50% { background: var(--white); } 75% { background: var(--gold); } }
+/* one pulse, white to gold, never back: nothing flashes */
+@keyframes tr-pulse { from { background: var(--white); } to { background: var(--gold); } }
 
 /* first-time tips: a spotlight hole (its shadow dims the rest) and one card */
 .tr-tip { position: fixed; inset: 0; z-index: 90; }
@@ -250,7 +251,7 @@
 .tr-sub { display: flex; align-items: center; gap: 2px; min-height: 28px; white-space: nowrap; }
 .tr-gr { display: inline-flex; align-items: center; justify-content: center; flex: none; width: 24px; min-width: 24px; height: 28px; box-sizing: border-box; background: var(--white); border: var(--c-border) solid var(--outline); font: 400 var(--c-fs-m)/20px var(--font-head, var(--c-font)); }
 .tr-gr.is-hidden { border-style: dashed; }
-.tr-bench { display: inline-grid; place-items: center; width: 20px; height: 28px; }
+.tr-bench { display: inline-grid; place-items: center; width: 24px; height: 28px; }
 .tr-list > li.tr-row::after { display: none; }
 .tr-planbox { width: 26px; height: 26px; }
 .tr-st { display: inline-flex; align-items: center; gap: 2px; }
@@ -270,3 +271,12 @@
 .tr-auto-k { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; box-sizing: border-box; border: 2px solid var(--outline); }
 /* QA rows r2 N1: the old bench tag style must not touch the row's bench icon */
 #app .tr-sub .tr-bench { background: none; border: 0; min-height: 0; }
+
+/* row = <li> holding one real <button> (list semantics stay intact); the button fills the li */
+.tr-list > li.tr-row, .tr-list > li.tr-coachrow { padding: 0; }
+.tr-rowbtn { all: unset; box-sizing: border-box; display: flex; align-items: stretch; gap: 4px; flex: 1; min-width: 0; width: 100%; padding: 4px; cursor: pointer; color: inherit; font: inherit; text-align: left; }
+.tr-list > li.tr-coachrow > .tr-rowbtn { min-height: 64px; align-items: center; gap: var(--c-sp-2); padding: 0 var(--c-sp-2); }
+.tr-coachrow .c-row__body { flex: 1; min-width: 0; }
+/* focus: solid ring outside the border plus a fill, so a focused bench row is not a second dashed line (kit ring is dashed, inside) */
+.tr-list > li:has(> .tr-rowbtn:focus-visible) { outline: 3px solid var(--c-focus); outline-offset: 2px; background: var(--wall1); }
+.tr-rowbtn:focus-visible { outline: none; }
