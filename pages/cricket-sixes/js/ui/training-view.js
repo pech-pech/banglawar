@@ -203,7 +203,7 @@ export function openHelp() {
     '<div class="tr-hh">Row</div>' +
     line('<span class="tr-k-abil">112</span>', 'Big number: Ability, 20 to 200') + line('<span class="tr-k-up"><b>+2</b></span>', 'Gold box: drilled, up 2') +
     line(deco('done', 24), 'Tick: drilled this week') + line(deco('bench', 24), 'Bench player') +
-    line('<span class="tr-auto-k">' + deco('auto', 20) + '</span>', 'Dashed box: Auto, bench drill at End week') +
+    line('<span class="tr-auto-k">' + deco('auto', 20) + '</span>', 'Auto box: bench drill at End week') + line('<span class="tr-dash"></span>', 'Dashed row: bench player') +
     '<div class="tr-hh">Icons</div>' +
     RK.map((k) => line(deco(RATING_ICON[k], 24), RATING_WORD[k])).join('') +
     [['opener', 'Opener'], ['middle', 'Middle'], ['lower', 'Lower']].map((r) => line(deco(roleIcon(r[0]), 24), r[1] + ' bat')).join('') +
