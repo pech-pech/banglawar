@@ -280,3 +280,11 @@ test('ball why lines say matchup, never pairing or Tough', async () => {
   assert.ok(out.some((l) => /matchup/i.test(l)));
   assert.ok(out.every((l) => !/pairing|tough/i.test(l)), out.filter((l) => /pairing|tough/i.test(l)).join('|'));
 });
+
+test('r2 copy: grid words are Strong / Even / Weak (batter-view Book grades keep Good and Tough); no "match-up" or "Safe pairs" left', () => {
+  const rd = (f) => readFileSync(new URL('../js/' + f, import.meta.url), 'utf8');
+  assert.match(rd('ui/bowl-view.js'), /'Strong'.*'Even'.*'Weak'/); assert.match(rd('ui/chase-view.js'), /'Strong'[\s\S]*'Even'[\s\S]*'Weak'/);
+  assert.match(rd('ui/bowl-view.js'), /For your bowler/); assert.match(rd('ui/chase-view.js'), /For your batter/);
+  assert.match(rd('data/glossary.js'), /▲ Strong, ● Even, ▼ Weak/); assert.doesNotMatch(rd('data/glossary.js'), /▼ Poor|other pairing is even/);
+  assert.doesNotMatch(rd('store/selectors.js'), /match-up|Safe pairs/);
+});

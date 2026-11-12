@@ -53,7 +53,7 @@ export function render(el, vm, dispatch) {
     '<div class="screen ss ss-hub hb-hub">' +
     '<div class="c-strip strip"><span class="ss-strip"><b class="rn-head">' + esc(head) + '</b><small>' + esc(sub) + '</small></span>' + helpBtn('league-table') + '</div>' +
     '<div class="hb-tools">' + toolBtn('Table', 'sheet:table', 'league', 'League table') + toolBtn('Book', 'sheet:book', 'book', 'Pairing Book') + toolBtn('Save', 'sheet:save', 'save', 'Save', ' ss-save') +
-    '<span class="c-chip chip m0-tp hb-tool hb-tp" aria-label="' + esc(vm.tp) + ' training points">' + ico('tp', 24) + '<span class="hb-tl"><b>' + esc(vm.tp) + '</b> TP</span></span></div>' +
+    '<span class="hb-tp" aria-label="' + esc(vm.tp) + ' training points">' + ico('tp', 24) + '<span class="hb-tl"><b>' + esc(vm.tp) + '</b> TP</span></span></div>' +
     (full ? '<div class="hb-scene" aria-label="Your club ground"></div>' + promoHtml(vm.promo, vm.unlock) + sixHtml(vm.six) : '') +
     (full ? footHtml(vm, cta) : '<div class="m0-ctabar cta hb-foot">' + btn(cta.label || 'Pick your six', cta.act || 'OpenSquad', { kind: 'cta', disabled: cta.disabled, reason: cta.reason }) + '</div>') +
     '</div>';

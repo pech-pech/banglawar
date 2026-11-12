@@ -313,9 +313,9 @@ export function drillResultVM(s, id) {
 const WEEK_REASON = 'One new skill a week';
 /** Plain name and one plain line for each skill node: [name, line]. Tuning (data/training.js) holds the numbers; players never see them. */
 const NODE_INFO = {
-  Opener: [['Steady start', 'Fewer wickets in overs 1-3'], ['Safe pairs', 'A bad match-up hurts less'], ['Fast start', 'More 4s and 6s in overs 1-3'], ['Spin basher', 'More 4s against spin'], ['Rock solid', 'A bad match-up hurts even less']],
-  Middle: [['Nudge and run', 'More singles in overs 4-7'], ['Calm hands', 'Bad match-ups hurt less'], ['Gap finder', 'More 4s in overs 4-7'], ['Pace smasher', 'More 6s against fast bowlers'], ['Anchor', 'Bad match-ups hurt much less, and fewer wickets in overs 4-7']],
-  Lower: [['Tail guard', 'Fewer wickets in overs 8-10'], ['Brave tail', 'Bad match-ups hurt a lot less'], ['Big finish', 'More 6s in overs 8-10'], ['Medium muncher', 'More 4s against medium bowlers'], ['Go for it', 'On Attack, more 4s and 6s']],
+  Opener: [['Steady start', 'Fewer wickets in overs 1-3'], ['Safe matchups', 'A weak matchup hurts less'], ['Fast start', 'More 4s and 6s in overs 1-3'], ['Spin basher', 'More 4s against spin'], ['Rock solid', 'A weak matchup hurts even less']],
+  Middle: [['Nudge and run', 'More singles in overs 4-7'], ['Calm hands', 'Weak matchups hurt less'], ['Gap finder', 'More 4s in overs 4-7'], ['Pace smasher', 'More 6s against fast bowlers'], ['Anchor', 'Weak matchups hurt much less, and fewer wickets in overs 4-7']],
+  Lower: [['Tail guard', 'Fewer wickets in overs 8-10'], ['Brave tail', 'Weak matchups hurt a lot less'], ['Big finish', 'More 6s in overs 8-10'], ['Medium muncher', 'More 4s against medium bowlers'], ['Go for it', 'On Attack, more 4s and 6s']],
   Fast: [['Quick strike', 'More wickets in overs 1-3'], ['Middle breaker', 'Middle-order batters hit fewer great shots'], ['Death stopper', 'Fewer 6s in overs 8-10'], ['Hunter field', 'More wickets with the Attack field'], ['Burst', 'One over each innings with extra wickets']],
   Medium: [['Tight finish', 'Fewer 4s in overs 8-10'], ['Tail tamer', 'Lower-order batters hit fewer great shots'], ['Boundary guard', 'Fewer 6s'], ['Middle trap', 'More wickets in overs 4-7'], ['Safe field', 'Fewer 4s with the Protect field']],
   Spin: [['Slow squeeze', 'Fewer 4s in overs 4-7'], ['Opener puzzle', 'Opening batters hit fewer great shots'], ['Turn and take', 'More wickets in overs 4-7'], ['Six stopper', 'Fewer 6s'], ['Burst', 'One over each innings with extra wickets']],

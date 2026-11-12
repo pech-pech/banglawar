@@ -25,7 +25,7 @@ const UNK = 'Not known yet';
 const MORE = 'Drill this player to see more matchups';
 const BADGE = { W: 'W', 6: '6', 4: '4', 2: '2', 1: '1', 0: '0' };
 // vm preview label -> rating box. Shape + word, never colour alone.
-const RATE = { Great: ['r-good', '▲', 'Good'], Even: ['r-ok', '●', 'OK'], Bad: ['r-poor', '▼', 'Poor'] };
+const RATE = { Great: ['r-good', '▲', 'Strong'], Even: ['r-ok', '●', 'Even'], Bad: ['r-poor', '▼', 'Weak'] };
 const FIELD = { A: 'Attack', P: 'Protect' };
 const REASON = { 'bowled last': "Bowled last over. Can't bowl now", '2 overs': 'Used both overs', 'must save overs': "Others must bowl first. Can't bowl now" };
 
@@ -126,6 +126,7 @@ export function render(el, vm, dispatch) {
     `<span class="mid"><b>Over ${esc(vm.over)} of 10</b><span>${esc(PHASE[vm.phase] || vm.phaseName)}</span></span>` +
     `<button type="button" class="q" data-gloss aria-label="Cricket words explained">?</button></header>` +
     `${vm.firstStrip ? stripHtml(esc) : ''}<section class="colL bv-colL">` +
+    `<p class="sb-cap">For your bowler</p>` +
     `<div class="sb bv-sb" role="radiogroup" aria-label="Bowlers">${head(vm)}${(vm.bowlers || []).map((b) => row(b, vm, notes)).join('')}</div>${anyHidden ? `<p class="bv-more" data-more>${MORE}</p>` : ''}</section>` +
     `<section class="colR bv-colR"><div class="seg bv-seg" role="radiogroup" aria-label="Field">${seg('A', 'fieldAttack')}${seg('P', 'fieldProtect')}</div>` +
     chip + lastLine(vm) +

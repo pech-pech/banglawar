@@ -29,11 +29,11 @@ export function bookHtml(vm, tab) {
     '<button type="button" class="c-seg__opt' + (tab === 'combos' ? ' is-selected' : '') + '" data-tab="combos" aria-pressed="' + (tab === 'combos') + '">Combos</button></div>';
   if (tab === 'combos') {
     const rows = vm.combos.map((c) => c.found
-      ? '<div class="bk-cb">' + ico('medal', 24) + '<span><b>' + esc(c.name) + '</b><span class="bk-ln">' + ico(ROLE_ICON[c.bat], 20) + ico(TYPE_ICON[c.bowl], 20) + esc(c.bat + ' v ' + c.bowl + ', ' + c.phase.toLowerCase()) + '</span></span>' +
-        '<span class="c-tag bk-side">' + ico(c.helps === 'batter' ? 'batPower' : 'bowlSpeed', 20) + (c.helps === 'batter' ? 'Helps batter' : 'Helps bowler') + '</span></div>'
+      ? '<div class="bk-cb bk-cb--f">' + ico('medal', 24) + '<b>' + esc(c.name) + '</b>' +
+        '<span class="c-tag bk-side">' + ico(c.helps === 'batter' ? 'batPower' : 'bowlSpeed', 20) + (c.helps === 'batter' ? 'Helps batter' : 'Helps bowler') + '</span><span class="bk-ln bk-where">' + ico(ROLE_ICON[c.bat], 20) + ico(TYPE_ICON[c.bowl], 20) + esc(c.bat + ' v ' + c.bowl + ', ' + c.phase.toLowerCase()) + '</span></div>'
       : '<div class="bk-cb bk-cb--q">' + ico('lock', 24) + '<span><b>' + esc(c.name) + '</b><span class="bk-ln">Not found yet</span></span><span class="bk-c bk-c--q bk-mini" role="img" aria-label="Who it helps: hidden"><b>?</b></span></div>').join('');
     const keys = vm.phases.map((p, k) => '<div class="bk-key"><b>' + esc(p.name) + '<small>Overs ' + esc(p.overs) + '</small></b><span class="bk-ln">' + PH_ICONS[k].map((n) => ico(n, 20)).join('') + '</span><span>' + PH_NOTE[k] + '</span></div>').join('');
-    return head + use + seg + '<section class="c-card bk-card" aria-label="Combos"><div class="c-strip">' + ico('medal', 24) + 'Combos<span class="c-strip__right">' + vm.comboFound + ' of ' + vm.comboTotal + '</span></div>' + rows + '</section>' +
+    return head + use + seg + '<section class="c-card bk-card" aria-label="Combos"><div class="c-strip">' + ico('medal', 24) + 'Named pairings<span class="c-strip__right">' + vm.comboFound + ' of ' + vm.comboTotal + '</span></div>' + rows + '</section>' +
       '<section class="c-card bk-card" aria-label="Phases key"><div class="c-strip">Phases</div>' + keys + '</section>';
   }
   const phHead = '<div class="bk-ph" aria-hidden="true"><span></span>' + vm.phases.map((p) => '<span>' + esc(p.name) + '<small>Overs ' + esc(p.overs) + '</small></span>').join('') + '</div>';

@@ -35,6 +35,8 @@
 .bk-cb { display: grid; grid-template-columns: 24px minmax(0, 1fr) auto; gap: 8px; align-items: center; min-height: 44px; padding: 2px 0; border-bottom: 2px solid var(--wall1); font-size: var(--c-fs-s); line-height: 18px; }
 .bk-cb b { display: block; font: 700 var(--c-fs-m)/20px var(--c-font); }
 .bk-ln { display: inline-flex; align-items: center; gap: 4px; }
+.bk-cb--f { row-gap: 0; }
+.bk-cb--f .bk-where { grid-column: 1 / -1; padding-left: 32px; }
 .bk-cb--q b { color: var(--outline); }
 .bk-side { display: inline-flex; align-items: center; gap: 4px; min-height: 28px; }
 .bk-side::before { display: none; }
@@ -72,3 +74,6 @@
 .bk-nb__sub { grid-column: 1 / -1; margin: 0; font-size: var(--c-fs-s); line-height: 18px; }
 .bk-nb .c-btn { grid-column: 1 / -1; min-height: 56px; }
 .bk-nb img.icon { image-rendering: pixelated; }
+
+/* caption above the bowl and chase matchup grid: whose view ▲ Strong / ● Even / ▼ Weak takes */
+.sb-cap { margin: -4px 0 -6px; font: 700 14px/14px var(--c-font); }
