@@ -1,4 +1,5 @@
 // P9 rival style tags: offsets, clamp, names per league, no rng drift, views' data, and the v3 -> v4 save migration.
+// Values pinned to NUMBERS tuning.json sha ff5c0aae (ladder.calendar.tags.table, bat_heavy hint, rival kits).
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { makeClubs } from '../js/core/clubs.js';
