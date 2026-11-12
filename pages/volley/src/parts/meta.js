@@ -134,9 +134,10 @@ function knownId(id){
   var T = V.Data && V.Data.enemies;
   return T ? Object.prototype.hasOwnProperty.call(T, id) : /^[EB]-\d\d$/.test(id);
 }
-var TOP = ['v', 'credits', 'rifle', 'cond', 'buys', 'power', 'runs', 'best', 'codex', 'schematics', 'keys', 'runSeq', 'purchases', 'resets', 'visitBuys', 'sd'];
+var TOP = ['v', 'credits', 'rifle', 'cond', 'buys', 'power', 'runs', 'best', 'codex', 'schematics', 'keys', 'runSeq', 'purchases', 'resets', 'visitBuys', 'sd', 'gear', 'rolls', 'catUsed'];
 var RUN_BASE = ['t', 'stage', 'win', 'kills', 'credits', 'dur'];
 var RUN_EXTRA = ['runNo', 'runBuild', 'startedAt', 'endReason', 'hpMax', 'lowestHp', 'tuneChanged', 'picks', 'cols', 'feel', 'touchContinue'];
+var GEAR_IDS = ['exo', 'modA', 'modB', 'droneA', 'droneB', 'perk2'], GEAR_MAX = 5;
 var END_REASONS = ['clear', 'death', 'abandon'], RESET_REASONS = ['corrupt', 'invalid', 'old-version', 'user'];
 function isStr(v, max){ return typeof v === 'string' && v.length <= max; }
 // One optional F1 run field: returns the clean value, or undefined when it is not valid (validate() then rejects the save;
@@ -222,6 +223,14 @@ function validate(raw){
       for (var ri2 = 0; ri2 < raw.resets.length; ri2++) { var rr = raw.resets[ri2]; if (!validReset(rr)) return null; s.resets.push({ t:rr.t, reason:rr.reason }); }
     }
     if ('visitBuys' in raw) { if (!isInt(raw.visitBuys, 0, 99)) return null; s.visitBuys = raw.visitBuys; }
+    if ('gear' in raw) {   // step 8: slot levels, 0 = locked, 1-5 = owned at that level; missing keys read as 0
+      var g = raw.gear;
+      if (!isObj(g) || !onlyKeys(g, GEAR_IDS)) return null;
+      s.gear = {};
+      for (var gi = 0; gi < GEAR_IDS.length; gi++) { var gv = (GEAR_IDS[gi] in g) ? g[GEAR_IDS[gi]] : 0; if (!isInt(gv, 0, GEAR_MAX)) return null; s.gear[GEAR_IDS[gi]] = gv; }
+    }
+    if ('rolls' in raw) { if (!isInt(raw.rolls, 0, 1e6)) return null; s.rolls = raw.rolls; }
+    if ('catUsed' in raw) { if (!isInt(raw.catUsed, 0, 1e4)) return null; s.catUsed = raw.catUsed; }
     if ('sd' in raw) {   // Supply Drop catch room (owner K, SPEC R50): plays so far and the pending payout sheet
       var q = raw.sd, pe = null;
       if (!isObj(q) || !onlyKeys(q, ['plays', 'pending']) || !isInt(q.plays, 0, 9999)) return null;
@@ -436,8 +445,16 @@ M.stats = function(){
   var L = effLevels(), T = TUNING;
   var rifleAtk = T.RIFLE_ATK_PER_LVL * (L.rifle - 1);
   var atkMul = (1 + rifleAtk / T.HERO_ATK) * (1 + T.COND_ATK_PER_LVL * L.atk);
-  return { hpAdd: hpAddAt(L.hp), atkMul: atkMul, rateMul: 1 + T.COND_RATE_PER_LVL * L.rate,
+  var o = { hpAdd: hpAddAt(L.hp), atkMul: atkMul, rateMul: 1 + T.COND_RATE_PER_LVL * L.rate,
     moveMul: 1, dmgTakenMul: 1, power: M.state.power || 0 };
+  // step 8 gear: terms exist only when that gear level is above 0, so a fresh save returns exactly the neutral object above (sim hash).
+  var g = M.gearLevel('exo');   if (g > 0) { o.hpAdd += 20 * g; o.dmgTakenMul *= (1 - 0.01 * g); }
+  g = M.gearLevel('modA');      if (g > 0) o.critAdd = 0.015 * g;
+  g = M.gearLevel('modB');      if (g > 0) o.critDmgAdd = 0.05 * g;
+  g = M.gearLevel('droneA');    if (g > 0) o.droneFrac = 0.03 + 0.01 * g;
+  g = M.gearLevel('droneB');    if (g > 0) o.guardEvery = 15 - g;
+  g = M.gearLevel('perk2');     if (g > 0) o.pierceFrac = 0.3 + 0.1 * g;
+  return o;
 };
 M.totals = function(){
   var st = M.stats(), T = TUNING, L = effLevels();
@@ -500,6 +517,138 @@ M.award = function(result){
   if (s.runs.length > TUNING.RUN_LOG_KEEP) s.runs.splice(0, s.runs.length - TUNING.RUN_LOG_KEEP);
   M.save();
   return { credits: c };
+};
+
+// ---------- step 8: chosen upgrades, tier odds, Catalyst, buyable slots + gear (SPEC-NUMBERS, PICKS) ----------
+M.TIERS = [{ id:'basic', name:'Basic', mult:1.2, odds:[80, 20, 0] }, { id:'std', name:'Standard', mult:1.6, odds:[48, 44, 8] }, { id:'prem', name:'Premium', mult:2.0, odds:[25, 50, 25] }];
+M.GRADES = [{ id:'common', steps:1 }, { id:'rare', steps:2 }, { id:'epic', steps:3 }];
+M.CATALYST_COST = 100;
+M.SLOTS = [
+  { id:'exo',    slot:'Exo-plating',  item:'Reactive Plate',  price:850,  max:GEAR_MAX, fx:'Max HP +20, damage taken -1% per level' },
+  { id:'modA',   slot:'Module A',     item:'Aim Module',      price:1400, max:GEAR_MAX, fx:'Crit chance +1.5% per level' },
+  { id:'droneA', slot:'Drone A',      item:'Wing Drone',      price:1700, max:GEAR_MAX, fx:'Drone shots deal 3% + 1% per level of ATK' },
+  { id:'modB',   slot:'Module B',     item:'Overload Cell',   price:1700, max:GEAR_MAX, fx:'Crit damage +5% per level' },
+  { id:'droneB', slot:'Drone B',      item:'Guard Drone',     price:1950, max:GEAR_MAX, fx:'Blocks one enemy bullet every 15 s minus 1 s per level' },
+  { id:'perk2',  slot:'Rifle perk 2', item:'Piercing Rounds', price:2250, max:GEAR_MAX, fx:'Shots pass through one machine at 30% + 10% per level damage' }
+];
+var GEAR_STEP = 250;   // price of the gear step from level L = 250 x L (the rifle rule)
+var STEP_RUNGS = 4;    // rungs read per price (the biggest tier is 2.0 so 3 is enough; one spare)
+function slotOf(id){ for (var i = 0; i < M.SLOTS.length; i++) if (M.SLOTS[i].id === id) return M.SLOTS[i]; return null; }
+function tierOf(id){ for (var i = 0; i < M.TIERS.length; i++) if (M.TIERS[i].id === id) return M.TIERS[i]; return null; }
+M.gearLevel = function(id){ var g = M.state.gear; var v = g && Object.prototype.hasOwnProperty.call(g, id) ? g[id] : 0; return isInt(v, 0, GEAR_MAX) ? v : 0; };
+M.slotWhy = function(id){
+  var sl = slotOf(id); if (!sl) return 'unknown';
+  if (M.gearLevel(id) > 0) return 'owned';
+  return M.state.credits >= sl.price ? '' : 'credits';
+};
+function logPurchase(item, lvl, price, before, levels, vn, visit){
+  var s = M.state, e = { t: nowMs(), run: Math.min(1e9, s.runSeq | 0), item: item, lvl: lvl, price: price, before: before, after: s.credits };
+  if (levels != null) e.levels = levels; if (visit != null) e.visit = visit; if (vn != null) e.vn = vn;
+  s.purchases = (s.purchases || []).concat([e]);
+  if (s.purchases.length > TUNING.PURCHASE_KEEP) s.purchases.splice(0, s.purchases.length - TUNING.PURCHASE_KEEP);
+}
+M.buySlot = function(id){
+  var sl = slotOf(id);
+  if (!sl || M.slotWhy(id) !== '') return false;
+  var s = M.state, before = s.credits;
+  s.credits -= sl.price;
+  s.gear = s.gear || { exo:0, modA:0, modB:0, droneA:0, droneB:0, perk2:0 };
+  s.gear[id] = 1;
+  logPurchase('Slot ' + id, 1, sl.price, before, null, null, null);   // no roll used: visitBuys untouched
+  M.save();
+  try { if (V.Report && V.Report.purchase) V.Report.purchase('Slot ' + sl.item, sl.price, {}); } catch (e) {}
+  return { ok: true, id: id, item: sl.item, price: sl.price };
+};
+// One item's state: levels, steps left and the price of its next rungs (rung i = the step i ahead).
+function itemInfo(kind, id){
+  var s = M.state, lvl, max, left, rung;
+  if (kind === 'rifle') { lvl = s.rifle.lvl; max = TUNING.RIFLE_MAX; left = max - lvl; rung = function(i){ return r25(TUNING.RIFLE_REF_STEP * Math.min(lvl + i, max - 1) * TUNING.GEAR_MULT); }; }
+  else if (kind === 'cond') {
+    if (!(id in TUNING.COND_CAPS)) return null;
+    lvl = s.cond[id]; max = TUNING.COND_CAPS[id]; left = Math.ceil((max - lvl) / TUNING.COND_BUY_LEVELS[id]);
+    rung = function(i){ return ladder(s.buys + i); };
+  } else if (kind === 'gear') {
+    if (!slotOf(id)) return null;
+    lvl = M.gearLevel(id); if (lvl < 1) return null; max = GEAR_MAX; left = max - lvl;
+    rung = function(i){ return GEAR_STEP * Math.min(lvl + i, max - 1); };
+  } else return null;
+  return { kind: kind, id: id, lvl: lvl, max: max, stepsLeft: Math.max(0, left), rung: rung };
+}
+function tierPrice(info, mult){
+  var whole = Math.floor(mult), frac = mult - whole, t = 0, i;
+  for (i = 0; i < whole; i++) t += info.rung(i);
+  return r25(t + frac * info.rung(whole));
+}
+function oddsAfter(tier, catalyst){ var o = tier.odds.slice(); if (catalyst) { o[1] += o[0]; o[0] = 0; } return o; }
+M.quote = function(kind, id, tierId, opts){
+  var info = itemInfo(kind, id), tier = tierOf(tierId), cat = !!(opts && opts.catalyst);
+  if (!info || !tier) return null;
+  var s = M.state, left = info.stepsLeft, price = left > 0 ? tierPrice(info, tier.mult) : 0;
+  var odds = oddsAfter(tier, cat), refundNote = false;
+  for (var g = 0; g < 3; g++) if (odds[g] > 0 && M.GRADES[g].steps > left) refundNote = true;
+  var catOk = left >= 2 && (s.schematics | 0) >= M.CATALYST_COST;
+  var why = '';
+  if (left <= 0) why = 'max';
+  else if (M.visitLeft() <= 0) why = 'visit';
+  else if (cat && left < 2) why = 'cat-last-step';
+  else if (cat && (s.schematics | 0) < M.CATALYST_COST) why = 'schematics';
+  else if (s.credits < price) why = 'credits';
+  return { price: price, odds: odds, stepsLeft: left, maxGain: Math.min(3, left), refundNote: refundNote, catOk: catOk, why: why };
+};
+// Deterministic grade draw: a hash of the save (buys, credits, runs, rolls, schematics, item, tier). No Math.random, no Date.
+function seedDraw(kind, id, tierId){
+  var s = M.state, h = 0x811C9DC5 | 0;
+  function mix(x){ h = Math.imul(h ^ (x | 0), 0x9E3779B1); h ^= h >>> 15; h = Math.imul(h, 0x85EBCA6B); h ^= h >>> 13; }
+  [s.buys, s.credits, s.runs.length, s.rolls | 0, s.schematics | 0, s.rifle.lvl, s.cond.hp, s.cond.atk, s.cond.rate, s.runSeq | 0].forEach(mix);
+  (kind + ':' + id + ':' + tierId).split('').forEach(function(c){ mix(c.charCodeAt(0)); });
+  h = Math.imul(h ^ (h >>> 16), 0x85EBCA6B); h = Math.imul(h ^ (h >>> 13), 0xC2B2AE35); h ^= h >>> 16;
+  return (h >>> 0) / 4294967296;
+}
+M.roll = function(kind, id, tierId, opts){
+  var q = M.quote(kind, id, tierId, opts);
+  if (!q || q.why) return false;
+  var s = M.state, info = itemInfo(kind, id), tier = tierOf(tierId), cat = !!(opts && opts.catalyst);
+  var u = seedDraw(kind, id, tierId) * 100, acc = 0, gi = 2, i;
+  var base = tier.odds;   // draw from the plain tier odds; Catalyst then lifts a Common to Rare (final odds = quote().odds)
+  for (i = 0; i < 3; i++) { acc += base[i]; if (u < acc) { gi = i; break; } }
+  while (gi > 0 && base[gi] === 0) gi--;   // float edge: never land on a 0% grade
+  var catUsedNow = cat && gi === 0;        // Schematics are spent only when the Catalyst changed the grade
+  if (catUsedNow) gi = 1;
+  var grade = M.GRADES[gi], gained = Math.min(grade.steps, q.stepsLeft);
+  var stepVal = q.price / tier.mult;   // ruling: the player always pays at least one step
+  var refund = Math.max(0, Math.min(Math.floor((grade.steps - gained) * stepVal / 25) * 25, Math.floor((q.price - stepVal) / 25) * 25));
+  var before = M.stats(), lvlBefore = info.lvl, before$ = s.credits, lvlAfter;
+  s.credits = Math.min(TUNING.CREDITS_MAX, s.credits - q.price + refund);
+  if (catUsedNow) { s.schematics = (s.schematics | 0) - M.CATALYST_COST; s.catUsed = Math.min(1e4, (s.catUsed | 0) + 1); }
+  var item, levels;
+  if (kind === 'rifle') { s.rifle.lvl += gained; lvlAfter = s.rifle.lvl; item = 'Rifle'; levels = gained; }
+  else if (kind === 'cond') {
+    levels = Math.min(TUNING.COND_BUY_LEVELS[id] * gained, TUNING.COND_CAPS[id] - s.cond[id]);
+    s.cond[id] += levels; s.buys += gained; lvlAfter = s.cond[id]; item = 'Cond ' + id; M.lastBuy = id;
+  } else { s.gear[id] += gained; lvlAfter = s.gear[id]; item = 'Gear ' + id; levels = gained; }
+  s.rolls = Math.min(1e6, (s.rolls | 0) + 1);
+  var vn = (s.visitBuys | 0) + 1, visit = Math.min(1e9 + 1, (s.runSeq | 0) + 1);
+  s.visitBuys = vn;
+  logPurchase(item, lvlAfter, q.price, before$, levels, vn, visit);
+  M.save();
+  try { if (V.Report && V.Report.purchase) V.Report.purchase(item + ' L' + lvlAfter, q.price, { levels: levels, visit: visit, vn: vn }); } catch (e) {}
+  return { ok: true, kind: kind, id: id, tier: tierId, grade: grade.id, steps: grade.steps, gained: gained, refund: refund, price: q.price, catalyst: catUsedNow, catNotNeeded: cat && !catUsedNow,
+    lvlBefore: lvlBefore, lvlAfter: lvlAfter, before: before, after: M.stats(), left: M.visitLeft() };
+};
+var ITEM_NAMES = { rifle:'Rifle', hp:'Hit points', atk:'Attack', rate:'Fire rate' };
+var ITEM_WHAT = { rifle:'Rifle damage', hp:'Max HP', atk:'Attack power', rate:'Fire rate' };
+M.items = function(){
+  var ids = [['rifle', 'rifle'], ['cond', 'hp'], ['cond', 'atk'], ['cond', 'rate']];
+  M.SLOTS.forEach(function(sl){ if (M.gearLevel(sl.id) > 0) ids.push(['gear', sl.id]); });
+  var live = [], poor = [], capped = [];
+  ids.forEach(function(p){
+    var info = itemInfo(p[0], p[1]), sl = p[0] === 'gear' ? slotOf(p[1]) : null, cap = info.stepsLeft <= 0;
+    var basic = cap ? null : tierPrice(info, M.TIERS[0].mult), aff = !cap && M.state.credits >= basic;
+    var it = { kind: p[0], id: p[1], name: sl ? sl.item : ITEM_NAMES[p[1]], what: sl ? sl.fx : ITEM_WHAT[p[1]], lvl: info.lvl, max: info.max,
+      stepsLeft: info.stepsLeft, capped: cap, basicPrice: basic, affordable: aff };
+    (cap ? capped : aff ? live : poor).push(it);
+  });
+  return live.concat(poor, capped);
 };
 
 // ---------- sample saves (08 structure rule 8; F0 #12). Plain data; each passes validate(). Bots and the debug menu use the same three. ----------

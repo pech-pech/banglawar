@@ -103,79 +103,214 @@ const calm = g => g.page.evaluate(() => { window.__setTune({ AUTO_WALK: false, E
 const has = (g, expr) => g.page.evaluate(expr);
 
 // =====================================================================
-// shop (agent P): V+(b), 2 buys per Home visit, maximums 20, atk/rate +2 levels, rifle/hp +1
-// Contract: V.Meta.buy(id) -> {ok, levels, price}; V.Meta.visitBuys.
+// shop (agent P, step 8 rewrite by MT2): chosen upgrades. Upgrades tab -> UPGRADE -> bottom sheet (V.UpSheet) -> tier chips -> one tap -> reveal.
+// API: V.Meta.quote(kind,id,tier,{catalyst}) / roll(...) (random buy is gone from the flow; buy() still works for old tests, not used here).
+// Steps: Common 1, Rare 2, Epic 3. atk/rate give +2 levels per step, rifle/hp/gear +1. VISIT_MAX 2 rolls per visit; slot buys and Catalyst use no roll.
 // =====================================================================
 async function shopGroup(browser, file, size) {
   const g = await open(browser, file, size, '');   // no home=0: the real first launch (Home on Deploy)
   try {
-    const present = await has(g, () => !!(window.V.Meta && 'visitBuys' in window.V.Meta));
-    const names = ['atk and rate buy grants +2 levels, rifle and HP +1', 'third buy in one Home visit is refused (2 buys per visit)', 'visit limit resets on a new Home visit', 'starting a run (Deploy) resets the visit allowance', 'maximum level: atk 20, rate 20, hp 10, rifle 10; a buy at the cap is refused', 'a buy at 0 credits is refused with a price', 'purchase log records the buys', 'maxed levels survive save and reload', 'Upgrades pane: fits width, targets >= 56 px, shows the 20 maximum, Maxed when all 20'];
+    const present = await has(g, () => !!(window.V.Meta && window.V.Meta.quote && window.V.Meta.roll));
+    const names = [
+      'roll grants steps by grade: atk and rate +2 levels a step, rifle and HP +1; grade words and steps agree',
+      'third roll in one Home visit is refused (2 rolls per visit); a refused roll spends nothing',
+      'visit limit resets on a new Home visit',
+      'starting a run (Deploy) resets the visit allowance',
+      'maximum level: atk 20, rate 20, hp 10, rifle 10, gear 5; a roll at the cap is refused (why max)',
+      'a roll at too few credits is refused with a price (why credits)',
+      'purchase log records each roll (levels, visit, vn)',
+      'tier prices = 1.2 / 1.6 / 2.0 x the next rungs, rounded to 25 (rifle L1 350/550/750, atk first 325/450/575, gear L1 350/550/750); odds 80/20/0, 48/44/8, 25/50/25',
+      'overshoot refund: credits = before - price + min(floor25((steps - gained) x price / mult), floor25(price - price / mult)); level never above max',
+      'buying a slot charges its price, adds the item at Lv 1, uses no roll',
+      'Catalyst: refused under 100 Schematics or with 1 step left; never Common; 100 Schematics spent only when it lifted a Common, catUsed counts those',
+      'maxed levels, gear, rolls and catUsed survive save and reload',
+      'Upgrades tab: UPGRADE button >= 56 px, no overflow, opens the sheet; tab bar stays visible',
+      'sheet content: item list (capped last, MAX), 3 tier chips with odds, Catalyst switch, "Upgrade for N CR" matches the quote',
+      'one tap spends: confirm inside 350 ms of opening does nothing; after it, one tap rolls and shows the reveal (no second confirm)',
+      'reveal: Done inside 350 ms of the card does not close; after it, the sheet returns with rolls left reduced',
+      'tier chip tap changes the confirm price; an unaffordable tier is not selected and spends nothing',
+      'Catalyst switch: off under 100 Schematics; on with 100+, odds show no Common, confirm spends 100 only if it lifted a Common',
+      'a tap on the tab bar closes the sheet with no spend',
+      'no rolls left: confirm says no rolls and does not spend; everything maxed: UPGRADE button is disabled',
+      'sheet fits the screen with the tab bar visible; targets >= 56 px'
+    ];
     if (!present) { names.forEach(n => skip(n)); return; }
-    const st = () => has(g, () => { const s = V.Meta.state; return { atk: s.cond.atk, rate: s.cond.rate, hp: s.cond.hp, rifle: s.rifle.lvl, cr: s.credits, vb: V.Meta.visitBuys }; });
-    // P's API (meta.js header): V.Meta.buy(kind, id) -> false when refused, else {ok:true, levels, lvl, price, visit, vn, left}. Contract said buy(id): both spellings are tried.
-    const buyId = id => g.page.evaluate(id => { try { const M = window.V.Meta; const r = id === 'rifle' ? M.buy('rifle', 'rifle') : M.buy('cond', id); return r && typeof r === 'object' ? { ok: !!r.ok, levels: r.levels, lvl: r.lvl, price: r.price, left: r.left } : { ok: false, raw: String(r), price: (M.cost(id === 'rifle' ? 'rifle' : 'cond', id === 'rifle' ? 'rifle' : id) || {}).credits }; } catch (e) { return { ok: false, err: e.message }; } }, id);
-    // A new Home visit = a run start (P: "resetVisit() is called when a run starts"). Quiet reset through the real hook.
+    const uiOk = !/game\.html$/.test(file);
+    const st = () => has(g, () => { const s = V.Meta.state; return { atk: s.cond.atk, rate: s.cond.rate, hp: s.cond.hp, rifle: s.rifle.lvl, cr: s.credits, vb: V.Meta.visitBuys, sch: s.schematics | 0, cu: s.catUsed | 0, rolls: s.rolls | 0, buys: s.buys, gear: Object.assign({}, s.gear || {}), left: V.Meta.visitLeft() }; });
+    const KIND = { rifle: 'rifle', hp: 'cond', atk: 'cond', rate: 'cond', exo: 'gear', modA: 'gear', modB: 'gear', droneA: 'gear', droneB: 'gear', perk2: 'gear' };
+    const roll = (id, tier = 'basic', cat = false) => g.page.evaluate(([id, tier, cat, kind]) => { try { const M = window.V.Meta; const q = M.quote(kind, id, tier, { catalyst: cat }); const r = M.roll(kind, id, tier, { catalyst: cat }); return r && r.ok ? Object.assign({ q }, { ok: true, grade: r.grade, steps: r.steps, gained: r.gained, refund: r.refund, price: r.price, lb: r.lvlBefore, la: r.lvlAfter, left: r.left, catalyst: r.catalyst }) : { ok: false, q }; } catch (e) { return { ok: false, err: e.message }; } }, [id, tier, cat, KIND[id]]);
+    const quote = (id, tier = 'basic', cat = false) => g.page.evaluate(([id, tier, cat, kind]) => window.V.Meta.quote(kind, id, tier, { catalyst: cat }), [id, tier, cat, KIND[id]]);
+    // A new Home visit = V.Meta.resetVisit() (called when a run starts). Quiet reset through the real hook.
     const newVisit = async () => { await g.page.evaluate(() => { V.Meta.resetVisit(); V.Home.show('upgrades'); }); await sleep(250); };
+    const setS = fn => g.page.evaluate(`(${fn.toString()})()`);
     await g.page.evaluate(() => { V.Meta.state.credits = 900000; V.Meta.save(); });
     await newVisit();
+    const GR = { common: 1, rare: 2, epic: 3 };
     // 1 + 2: first visit
     const a0 = await st();
-    const ra = await buyId('atk'); const a1 = await st();
-    const rr = await buyId('rate'); const a2 = await st();
-    const rh = await buyId('hp'); const a3 = await st();
-    ok(ra.ok && ra.levels === 2 && a1.atk === a0.atk + 2 && rr.ok && rr.levels === 2 && a2.rate === a1.rate + 2, 'atk and rate buy grants +2 levels, rifle and HP +1 (atk, rate)', `atk ${a0.atk}->${a1.atk} (levels ${ra.levels}, price ${ra.price}); rate ${a1.rate}->${a2.rate} (levels ${rr.levels}, price ${rr.price})`);
-    ok(!rh.ok && a3.hp === a2.hp && a3.cr === a2.cr, 'third buy in one Home visit is refused (2 buys per visit)', `hp buy ok=${rh.ok}; hp ${a2.hp}->${a3.hp}; credits ${a2.cr}->${a3.cr}; V.Meta.visitBuys=${a3.vb}`);
+    const ra = await roll('atk'); const a1 = await st();
+    const rr = await roll('rate'); const a2 = await st();
+    const rh = await roll('hp'); const a3 = await st();
+    const per = { atk: 2, rate: 2 };
+    ok(ra.ok && rr.ok && a1.atk === a0.atk + 2 * ra.gained && a2.rate === a1.rate + 2 * rr.gained && ra.steps === GR[ra.grade] && rr.steps === GR[rr.grade] && ra.gained === Math.min(ra.steps, ra.q.stepsLeft) && a1.buys === a0.buys + ra.gained, names[0], `atk ${a0.atk}->${a1.atk} (${ra.grade}, ${ra.steps} steps, price ${ra.price}); rate ${a1.rate}->${a2.rate} (${rr.grade}, ${rr.steps} steps); ladder counter ${a0.buys}->${a1.buys}`);
+    ok(!rh.ok && rh.q.why === 'visit' && a3.hp === a2.hp && a3.cr === a2.cr, names[1], `hp roll ok=${rh.ok}, why=${rh.q && rh.q.why}; hp ${a2.hp}->${a3.hp}; credits ${a2.cr}->${a3.cr}; visitBuys=${a3.vb}`);
     await newVisit();
-    const b0 = await st(); await buyId('rifle'); const b1 = await st(); await buyId('hp'); const b2 = await st(); const rx = await buyId('rate'); const b3 = await st();
-    ok(b1.rifle === b0.rifle + 1 && b2.hp === b1.hp + 1 && !rx.ok && b3.rate === b2.rate, 'visit limit resets on a new Home visit', `rifle ${b0.rifle}->${b1.rifle} (+1); hp ${b1.hp}->${b2.hp} (+1); a third buy ok=${rx.ok}; V.Meta.resetVisit() used as the visit boundary`);
-    // visit allowance is spent -> a real run start (Deploy) gives a fresh one
-    await g.page.evaluate(() => { V.Meta.resetVisit(); }); await buyId('hp'); await buyId('hp'); const vA = await st();
+    const b0 = await st(); const rb1 = await roll('rifle'); const b1 = await st(); const rb2 = await roll('hp'); const b2 = await st(); const rx = await roll('rate'); const b3 = await st();
+    ok(rb1.ok && rb2.ok && b1.rifle === b0.rifle + rb1.gained && b2.hp === b1.hp + rb2.gained && !rx.ok && b3.rate === b2.rate, names[2], `rifle ${b0.rifle}->${b1.rifle} (${rb1.grade}); hp ${b1.hp}->${b2.hp} (${rb2.grade}); a third roll ok=${rx.ok}; V.Meta.resetVisit() is the visit boundary`);
+    await g.page.evaluate(() => { V.Meta.resetVisit(); }); await roll('hp'); await roll('hp'); const vA = await st();
     const dep = await g.page.evaluate(() => { try { V.Run.start(); V.Home.hide(); return true; } catch (e) { return e.message; } }); await sleep(300);
     const vB = await st();
-    ok(dep === true && vA.vb === 2 && vB.vb === 0, 'starting a run (Deploy) resets the visit allowance', `visitBuys ${vA.vb} -> ${vB.vb} after V.Run.start()`);
+    ok(dep === true && vA.vb === 2 && vB.vb === 0, names[3], `visitBuys ${vA.vb} -> ${vB.vb} after V.Run.start()`);
     await g.page.evaluate(() => { V.Home.show('upgrades'); }); await sleep(250);
-    // 4: maxima, one item at a time (new visit each time). P's reading of "maximums 20" (P-REPORT s2): atk 20, rate 20, hp 10, rifle 10
-    // (atk and rate buy 2 levels, hp and rifle 1, every stat is 10 buys). If M means 20 for hp and rifle too, change CAPS here and COND_CAPS in meta.js.
+    // 5: maxima, one item at a time
     const CAPS = { atk: 20, rate: 20, hp: 10, rifle: 10 };
     const res = [];
     for (const id of ['atk', 'rate', 'hp', 'rifle']) {
       const cap = CAPS[id];
-      await g.page.evaluate(([id, v]) => { const s = V.Meta.state; if (id === 'rifle') s.rifle.lvl = v; else s.cond[id] = v; s.buys = s.cond.hp + Math.ceil(s.cond.atk / 2) + Math.ceil(s.cond.rate / 2); V.Meta.save(); }, [id, cap - 1]);
+      await g.page.evaluate(([id, v]) => { const s = V.Meta.state; s.credits = 900000; if (id === 'rifle') s.rifle.lvl = v; else s.cond[id] = v; s.buys = s.cond.hp + Math.ceil(s.cond.atk / 2) + Math.ceil(s.cond.rate / 2); V.Meta.save(); }, [id, cap - (id === 'atk' || id === 'rate' ? 2 : 1)]);
       await newVisit();
-      const r1 = await buyId(id); const m1 = await st(); await newVisit(); const cr = m1.cr; const r2 = await buyId(id); const m2 = await st();
+      const tier = 'std';
+      const r1 = await roll(id, tier); const m1 = await st(); await newVisit(); const cr = m1.cr; const r2 = await roll(id, tier); const m2 = await st();
       const lv = id === 'rifle' ? m1.rifle : m1[id], lv2 = id === 'rifle' ? m2.rifle : m2[id];
       const mx = await g.page.evaluate(id => V.Meta.maxLevel(id === 'rifle' ? 'rifle' : 'cond', id), id);
-      res.push({ id, ok: lv === cap && lv2 === cap && r1.ok && r1.levels === 1 && !r2.ok && m2.cr === cr && mx === cap, d: `${id}: ${cap - 1} -> ${lv} (granted ${r1.levels}) -> ${lv2}, second buy ok=${r2.ok}, credits spent ${cr - m2.cr}, V.Meta.maxLevel ${mx}` });
+      res.push({ id, ok: lv === cap && lv2 === cap && r1.ok && !r2.ok && r2.q.why === 'max' && m2.cr === cr && mx === cap, d: `${id}: -> ${lv} (${r1.grade}, gained ${r1.gained} of ${r1.steps}, refund ${r1.refund}) -> ${lv2}, second roll ok=${r2.ok} why=${r2.q && r2.q.why}, credits spent ${cr - m2.cr}, maxLevel ${mx}` });
     }
-    ok(res.every(r => r.ok), 'maximum level: atk 20, rate 20, hp 10, rifle 10; a buy at the cap is refused', res.map(r => r.d).join('; '));
-    // 5: zero credits
+    await g.page.evaluate(() => { const s = V.Meta.state; s.credits = 900000; s.gear = { exo: 4, modA: 0, modB: 0, droneA: 0, droneB: 0, perk2: 0 }; V.Meta.save(); }); await newVisit();
+    const gr1 = await roll('exo', 'std'); await newVisit(); const gcr = (await st()).cr; const gr2 = await roll('exo', 'std'); const gm = await st();
+    res.push({ id: 'exo', ok: gm.gear.exo === 5 && gr1.ok && !gr2.ok && gr2.q.why === 'max' && gm.cr === gcr, d: `exo: 4 -> ${gm.gear.exo} (${gr1.grade}, gained ${gr1.gained}), second roll why=${gr2.q && gr2.q.why}, credits spent ${gcr - gm.cr}` });
+    ok(res.every(r => r.ok), names[4], res.map(r => r.d).join('; '));
+    // 6: too few credits
     await g.page.evaluate(() => { const s = V.Meta.state; s.credits = 0; s.cond = { hp: 0, atk: 0, rate: 0 }; s.rifle.lvl = 1; s.buys = 0; V.Meta.save(); });
     await newVisit();
-    const z = await buyId('atk'); const zs = await st();
-    ok(!z.ok && zs.atk === 0 && zs.cr === 0 && typeof z.price === 'number' && z.price > 0, 'a buy at 0 credits is refused with a price', `ok=${z.ok} price=${z.price} atk ${zs.atk} credits ${zs.cr}`);
-    // 6: purchase log
+    const z = await roll('atk'); const zs = await st();
+    ok(!z.ok && z.q.why === 'credits' && z.q.price > 0 && zs.atk === 0 && zs.cr === 0, names[5], `ok=${z.ok} why=${z.q && z.q.why} price=${z.q && z.q.price} atk ${zs.atk} credits ${zs.cr}`);
+    await g.page.evaluate(() => { V.Meta.state.credits = 324; V.Meta.save(); });
+    const z2 = await quote('atk'); await g.page.evaluate(() => { V.Meta.state.credits = 325; V.Meta.save(); }); const z3 = await quote('atk');
+    // 7: purchase log
     await g.page.evaluate(() => { V.Meta.state.credits = 900000; V.Meta.save(); });
-    await newVisit(); await buyId('atk');
+    await newVisit(); await roll('atk');
     const pl = await has(g, () => { const p = V.Meta.state.purchases || []; const l = p[p.length - 1]; return l ? { n: p.length, keys: Object.keys(l), item: l.item, price: l.price, lvl: l.lvl } : null; });
-    ok(!!pl && pl.n >= 1 && typeof pl.price === 'number' && pl.price > 0 && pl.keys.includes('levels') && pl.keys.includes('visit') && pl.keys.includes('vn'), 'purchase log records the buys', pl ? `${pl.n} entries; last keys ${pl.keys.join(',')}; item ${pl.item} lvl ${pl.lvl} price ${pl.price}` : 'no purchases[]');
-    // 7: level 20 survives a reload (validator accepts the new maximum)
-    await g.page.evaluate(() => { const s = V.Meta.state; s.cond = { hp: 10, atk: 20, rate: 20 }; s.rifle.lvl = 10; s.buys = 30; V.Meta.save(); });
+    ok(!!pl && pl.n >= 1 && typeof pl.price === 'number' && pl.price > 0 && pl.keys.includes('levels') && pl.keys.includes('visit') && pl.keys.includes('vn'), names[6], pl ? `${pl.n} entries; last keys ${pl.keys.join(',')}; item ${pl.item} lvl ${pl.lvl} price ${pl.price}; edge: 324 CR -> why ${z2.why}, 325 CR -> why '${z3.why}'` : 'no purchases[]');
+    // 8: tier prices (fresh ladder: rifle 350/550/750, atk 325/450/575, gear L1 350/550/750)
+    await g.page.evaluate(() => { const s = V.Meta.state; s.credits = 900000; s.cond = { hp: 0, atk: 0, rate: 0 }; s.rifle.lvl = 1; s.buys = 0; s.gear = { exo: 1, modA: 0, modB: 0, droneA: 0, droneB: 0, perk2: 0 }; V.Meta.save(); }); await newVisit();
+    const tp = {}; for (const id of ['rifle', 'atk', 'exo']) tp[id] = await Promise.all(['basic', 'std', 'prem'].map(t => quote(id, t)));
+    const tierOk = id => { const [b, s, p] = tp[id]; const odd = [b, s, p].every(q => q.odds.reduce((x, y) => x + y, 0) === 100); const exp = { rifle: [350, 550, 750], atk: [325, 450, 575], exo: [350, 550, 750] }[id]; return odd && b.price < s.price && s.price < p.price && [b.price, s.price, p.price].join() === exp.join() && b.odds.join() === '80,20,0' && s.odds.join() === '48,44,8' && p.odds.join() === '25,50,25'; };
+    ok(['rifle', 'atk', 'exo'].every(tierOk), names[7], ['rifle', 'atk', 'exo'].map(id => `${id} ${tp[id].map(q => q.price).join('/')}`).join('; ') + '; odds 80/20/0, 48/44/8, 25/50/25');
+    // 9: overshoot refund. Gear L4 (1 step left): any Rare/Epic must refund. Loop rolls (the draw is seeded from the save, so vary credits) until both a Rare and an Epic or 80 tries.
+    const refs = []; let bad = '';
+    for (let i = 0; i < 80 && refs.length < 80; i++) {
+      await g.page.evaluate(i => { const s = V.Meta.state; s.credits = 500000 + i * 37; s.gear = { exo: 4, modA: 0, modB: 0, droneA: 0, droneB: 0, perk2: 0 }; s.visitBuys = 0; V.Meta.save(); }, i);
+      const tier = ['basic', 'std', 'prem'][i % 3]; const mult = { basic: 1.2, std: 1.6, prem: 2 }[tier];
+      const c0 = (await st()).cr; const r = await roll('exo', tier); const c1 = (await st()).cr;
+      const expRef = Math.min(Math.floor((r.steps - r.gained) * r.price / mult / 25) * 25, Math.floor((r.price - r.price / mult) / 25) * 25);   // design ruling 03:50: capped so the player pays at least one step
+      if (!(r.ok && r.gained === 1 && r.refund === expRef && c1 === c0 - r.price + r.refund)) bad += ` [${tier} ${r.grade} price ${r.price} refund ${r.refund} exp ${expRef} credits ${c0}->${c1}]`;
+      refs.push(r);
+    }
+    const withRef = refs.filter(r => r.refund > 0).length;
+    ok(!bad && withRef >= 10 && refs.every(r => r.la === 5), names[8], `${refs.length} rolls at gear L4; ${withRef} paid a refund; max refund ${Math.max(...refs.map(r => r.refund))}; mismatches:${bad || ' none'}`);
+    const over = refs.filter(r => r.refund > r.price);
+    if (over.length) info('NOTE refund larger than the price paid (Standard Epic with 1 step left)', `${over.length} of ${refs.length} rolls: e.g. price ${over[0].price} refund ${over[0].refund} (net gain of Credits for rolling). SPEC-NUMBERS s4 formula; reported to MT.`);
+    // 10: slot buy
+    await g.page.evaluate(() => { const s = V.Meta.state; s.credits = 5000; s.gear = { exo: 0, modA: 0, modB: 0, droneA: 0, droneB: 0, perk2: 0 }; s.visitBuys = 0; V.Meta.save(); });
+    const sl0 = await st(); const sb = await g.page.evaluate(() => { const M = V.Meta; return { why1: M.slotWhy('exo'), r: M.buySlot('exo'), why2: M.slotWhy('exo'), again: M.buySlot('exo'), lv: M.gearLevel('exo'), inList: M.items().some(x => x.kind === 'gear' && x.id === 'exo' && x.lvl === 1), cr: M.state.credits, vb: M.visitBuys, poor: (function(){ V.Meta.state.credits = 100; return V.Meta.slotWhy('modA') + '/' + V.Meta.buySlot('modA'); })() }; });
+    const sl1 = { cr: sb.cr, vb: sb.vb };
+    ok(sb.r && sb.r.price === 850 && sl1.cr === 5000 - 850 && sb.lv === 1 && sb.why1 === '' && sb.why2 === 'owned' && sb.again === false && sb.inList && sl1.vb === sl0.vb && sb.poor === 'credits/false', names[9], `exo 850 CR: credits ${sl0.cr}->${sl1.cr}; level ${sb.lv}; why '${sb.why1}' -> '${sb.why2}'; second buy ${sb.again}; in items() ${sb.inList}; visitBuys ${sl0.vb}->${sl1.vb}; poor: ${sb.poor}`);
+    // 11: Catalyst
+    await g.page.evaluate(() => { const s = V.Meta.state; s.credits = 900000; s.schematics = 99; s.catUsed = 0; s.cond = { hp: 0, atk: 0, rate: 0 }; s.buys = 0; s.visitBuys = 0; V.Meta.save(); });
+    const cq1 = await quote('hp', 'basic', true), cn1 = await roll('hp', 'basic', true);
+    // Ruling: Schematics are spent only when the plain roll was Common (lifted to Rare); on Rare/Epic nothing is spent (roll().catalyst false, catNotNeeded true).
+    let allRare = true, sp = 0, lifted = 0, cwhy = ''; const cu0 = (await st()).cu;
+    for (let i = 0; i < 14; i++) {
+      await g.page.evaluate(i => { const s = V.Meta.state; s.visitBuys = 0; s.credits = 900000 + i; s.schematics = 1000; s.cond = { hp: 0, atk: 0, rate: 0 }; s.buys = 0; V.Meta.save(); }, i);
+      const s0 = await st(); const r = await roll('hp', 'basic', true); const s1 = await st();
+      const spent = s0.sch - s1.sch, want = r.catalyst ? 100 : 0;
+      if (!r.ok || r.grade === 'common' || spent !== want || s1.cu !== s0.cu + (r.catalyst ? 1 : 0)) { allRare = false; cwhy += ` [#${i} ok=${r.ok} ${r.grade} cat=${r.catalyst} spent ${spent} catUsed ${s0.cu}->${s1.cu}]`; }
+      sp += spent; if (r.catalyst) lifted++;
+    }
+    const cu1 = (await st()).cu;
+    await g.page.evaluate(() => { const s = V.Meta.state; s.schematics = 500; s.gear = { exo: 4, modA: 0, modB: 0, droneA: 0, droneB: 0, perk2: 0 }; s.visitBuys = 0; V.Meta.save(); });
+    const cl = await quote('exo', 'basic', true), cln = await roll('exo', 'basic', true); const cs2 = await st();
+    ok(cq1.why === 'schematics' && !cn1.ok && allRare && lifted >= 1 && sp === 100 * lifted && cu1 === cu0 + lifted && cl.why === 'cat-last-step' && !cln.ok && cs2.sch === 500, names[10], `99 Schem: why ${cq1.why}, roll ok=${cn1.ok}; 14 Basic Catalyst rolls: never Common ${allRare}${cwhy}; Catalyst spent on ${lifted} (only where the plain roll was Common), ${sp} Schem, catUsed ${cu0}->${cu1}; 1 step left: why ${cl.why}, roll ok=${cln.ok}, Schem ${cs2.sch}`);
+    // 12: reload survival (gear, rolls, catUsed, maxed)
+    await g.page.evaluate(() => { const s = V.Meta.state; s.cond = { hp: 10, atk: 20, rate: 20 }; s.rifle.lvl = 10; s.buys = 30; s.gear = { exo: 5, modA: 3, modB: 0, droneA: 2, droneB: 1, perk2: 4 }; s.rolls = 41; s.catUsed = 6; V.Meta.save(); });
     await g.page.reload(); await g.page.waitForFunction(() => window.V && window.V.Meta && window.V.Home && window.__pv && window.__pv.S, null, { timeout: 20000 });
     await g.page.evaluate(HELPERS); await g.page.evaluate(F1H); await sleep(500);
     const rl = await st();
-    ok(rl.atk === 20 && rl.rate === 20 && rl.hp === 10 && rl.rifle === 10, 'maxed levels survive save and reload', `after reload atk ${rl.atk} rate ${rl.rate} hp ${rl.hp} rifle ${rl.rifle}`);
-    // 8: UI (Home must be styled: private build only)
-    if (/game\.html$/.test(file)) skip(names[8], 'src/game.html has the unstyled Home; UI check runs on the private build');
-    else {
-      await g.page.evaluate(() => { V.Home.go('upgrades'); }); await sleep(500);
-      const u = await g.page.evaluate(() => { const hm = document.getElementById('home'), pane = document.getElementById('pane-upgrades'); const t = window.__targets().filter(x => hm.contains(document.elementFromPoint(x.cx, x.cy)) || true); return { over: hm.scrollWidth - innerWidth, txt: pane ? pane.textContent.replace(/\s+/g, ' ').trim().slice(0, 300) : '', small: window.__targets().filter(x => Math.min(x.w, x.h) < 55.5).map(x => x.d + ' ' + x.w + 'x' + x.h), maxed: /max/i.test(pane ? pane.textContent : '') }; });
-      await shot(g, 'shop', 'upgrades-maxed');
-      await g.page.evaluate(() => { const s = V.Meta.state; s.cond = { hp: 5, atk: 5, rate: 5 }; s.rifle.lvl = 5; s.buys = 15; V.Meta.save(); V.Home.go('armory'); V.Home.go('upgrades'); }); await sleep(400);
-      const u2 = await g.page.evaluate(() => { const pane = document.getElementById('pane-upgrades'); return { txt: pane.textContent.replace(/\s+/g, ' ').trim(), small: window.__targets().filter(x => Math.min(x.w, x.h) < 55.5).map(x => x.d + ' ' + x.w + 'x' + x.h) }; });
-      await shot(g, 'shop', 'upgrades-mid');
-      ok(u.over <= 1 && u.small.length === 0 && u2.small.length === 0 && /\b20\b/.test(u2.txt) && u.maxed, names[8], `overflow ${u.over}px; small targets ${u.small.concat(u2.small).join(', ') || 'none'}; mid pane shows "20": ${/\b20\b/.test(u2.txt)}; all-20 pane says Max: ${u.maxed}; mid text: ${u2.txt.slice(0, 120)}`);
-    }
+    ok(rl.atk === 20 && rl.rate === 20 && rl.hp === 10 && rl.rifle === 10 && rl.gear.exo === 5 && rl.gear.modA === 3 && rl.gear.perk2 === 4 && rl.rolls === 41 && rl.cu === 6, names[11], `after reload atk ${rl.atk} rate ${rl.rate} hp ${rl.hp} rifle ${rl.rifle}; gear ${JSON.stringify(rl.gear)}; rolls ${rl.rolls}; catUsed ${rl.cu}`);
+
+    // ---------------- UI rows (private build only: the Home is unstyled in src/game.html) ----------------
+    if (!uiOk) { names.slice(12).forEach(n => skip(n, 'src/game.html has the unstyled Home; the sheet checks run on the private build')); return; }
+    if (!(await has(g, () => !!(window.V.UpSheet && window.V.UpSheet.open)))) { names.slice(12).forEach(n => skip(n, 'V.UpSheet not present in this build')); return; }
+    const reset = async o => { await g.page.evaluate(o => { const s = V.Meta.state; s.credits = o.cr == null ? 5000 : o.cr; s.schematics = o.sch || 0; s.cond = Object.assign({ hp: 0, atk: 0, rate: 0 }, o.cond || {}); s.rifle.lvl = o.rifle || 1; s.buys = s.cond.hp + Math.ceil(s.cond.atk / 2) + Math.ceil(s.cond.rate / 2); s.gear = Object.assign({ exo: 0, modA: 0, modB: 0, droneA: 0, droneB: 0, perk2: 0 }, o.gear || {}); s.visitBuys = o.vb || 0; s.catUsed = 0; V.Meta.save(); V.Home.show('upgrades'); }, o); await sleep(350); };
+    const rect = sel => g.page.evaluate(sel => { const e = document.querySelector(sel); if (!e || !window.__vis(e)) return null; const r = e.getBoundingClientRect(); return { cx: r.left + r.width / 2, cy: r.top + r.height / 2, w: r.width, h: r.height, top: r.top, bottom: r.bottom, left: r.left, right: r.right, txt: e.textContent.replace(/\s+/g, ' ').trim().slice(0, 80), dis: !!e.disabled || e.getAttribute('aria-disabled') === 'true' }; }, sel);
+    const tap = async sel => { const r = await rect(sel); if (!r) return false; await tapAt(g, r.cx, r.cy); return true; };
+    const sheetState = () => g.page.evaluate(() => ({ open: !!V.UpSheet.isOpen(), reveal: !!document.querySelector('.us-rv'), sheet: !!document.querySelector('.us-sheet'), go: (document.querySelector('.us-go .lbl') || {}).textContent || '', rows: [...document.querySelectorAll('.us-row')].map(r => ({ id: r.dataset.id, max: r.classList.contains('max'), sel: r.classList.contains('sel') })), tiers: [...document.querySelectorAll('.us-tier')].map(t => ({ id: t.dataset.tier, sel: t.classList.contains('sel'), no: t.classList.contains('no'), txt: t.textContent.replace(/\s+/g, ' ').trim() })), cat: (function(){ const c = document.querySelector('.us-cat'); return c ? { on: c.classList.contains('on'), off: c.classList.contains('off'), txt: c.textContent.replace(/\s+/g, ' ').trim() } : null; })() }));
+    // 13: Upgrades tab
+    await reset({ cr: 5000, cond: { hp: 2 } }); await g.page.evaluate(() => { V.Home.go('upgrades'); }); await sleep(500);
+    const ub = await rect('[data-open="upgrade"]'); const tb0 = await rect('.pv-tabbar');
+    const over0 = await g.page.evaluate(() => document.getElementById('home').scrollWidth - innerWidth);
+    await shot(g, 'shop', 'upgrades-tab');
+    const opened = await tap('[data-open="upgrade"]'); await sleep(120);
+    const s13 = await sheetState(); const tb1 = await rect('.pv-tabbar');
+    ok(!!ub && ub.h >= 55.5 && ub.w >= 55.5 && over0 <= 1 && opened && s13.open && s13.sheet && !!tb1, names[12], `UPGRADE ${ub ? Math.round(ub.w) + 'x' + Math.round(ub.h) : 'missing'}; overflow ${over0}px; sheet open ${s13.open}; tab bar visible while open ${!!tb1}`);
+    // 14: sheet content
+    await sleep(400);
+    const sq = await quote('rifle', 'basic'); const s14 = await sheetState(); const selRow = s14.rows.find(r => r.sel);
+    await shot(g, 'shop', 'sheet-open');
+    const quoteFor = async () => g.page.evaluate(() => { const it = V.Meta.items(); return it.map(x => x.id + ':' + x.basicPrice); });
+    const goTxt = s14.go, tierSel = s14.tiers.find(t => t.sel);
+    const selQ = selRow ? await quote(selRow.id, tierSel ? tierSel.id : 'basic') : null;
+    ok(s14.tiers.length === 3 && s14.tiers.every(t => /\d+/.test(t.txt) && /%|common|rare|epic|odds|chance|often|likely|rarely|sometimes|never/i.test(t.txt)) && !!s14.cat && s14.rows.length >= 4 && !!selQ && goTxt.replace(/[, ]/g, '').includes('Upgradefor' + selQ.price + 'CR'), names[13], `${s14.rows.length} rows (${s14.rows.map(r => r.id + (r.max ? '*' : '')).join(',')}); tiers: ${s14.tiers.map(t => t.txt.slice(0, 40)).join(' | ')}; catalyst: ${s14.cat && s14.cat.txt.slice(0, 50)}; confirm "${goTxt}" vs quote ${selQ && selQ.price} (${selRow && selRow.id}/${tierSel && tierSel.id})`);
+    // 15: one tap spends, arm guard
+    await g.page.evaluate(() => { V.UpSheet.close(); }); await sleep(150); await reset({ cr: 5000, cond: { hp: 2 } }); await g.page.evaluate(() => { V.Home.go('upgrades'); }); await sleep(400);
+    await tap('[data-open="upgrade"]'); await sleep(60);
+    const e0 = await st(); const early = await tap('.us-go'); await sleep(150); const e1 = await st(); const se = await sheetState();
+    ok(early && e1.cr === e0.cr && e1.rolls === e0.rolls && !se.reveal, names[14] + ' (early tap)', `confirm tapped ~60 ms after open: credits ${e0.cr}->${e1.cr}, rolls ${e0.rolls}->${e1.rolls}, reveal shown ${se.reveal}`);
+    await sleep(500);
+    const selTier = (await sheetState()).tiers.find(t => t.sel); const selId = (await sheetState()).rows.find(r => r.sel).id; const q15 = await quote(selId, selTier.id);
+    await tap('.us-go'); await sleep(60); const f1 = await st(); const sf = await sheetState();
+    const d0 = await tap('.us-done'); await sleep(60); const sd0 = await sheetState();   // inside 350 ms of the card: must not close
+    await sleep(450);
+    const lastRoll = await g.page.evaluate(() => { const p = V.Meta.state.purchases; const l = p[p.length - 1]; return l ? l.price : null; });
+    await shot(g, 'shop', 'reveal');
+    ok(f1.rolls === e0.rolls + 1 && sf.reveal && f1.cr >= e0.cr - q15.price && f1.cr <= e0.cr - q15.price + q15.price * 2 && lastRoll === q15.price, names[14], `one tap: rolls ${e0.rolls}->${f1.rolls}, reveal ${sf.reveal}, credits ${e0.cr}->${f1.cr} (price ${q15.price}, refund ${f1.cr - (e0.cr - q15.price)}), visit left ${f1.left}`);
+    // 16: reveal close guard
+    await sleep(300); const d1 = await tap('.us-done'); await sleep(450); const sd1 = await sheetState(); const g2 = await st();
+    ok(d0 && sd0.reveal && d1 && !sd1.reveal && sd1.open && g2.left === 1 && /Upgrade for|No rolls|Need/.test(sd1.go), names[15], `Done at ~80 ms: reveal still ${sd0.reveal}; after wait: reveal ${sd1.reveal}, sheet open ${sd1.open}, rolls left ${g2.left}, confirm "${sd1.go}"`);
+    // 17: tier chips
+    await reset({ cr: 700, cond: { hp: 2 } }); await g.page.evaluate(() => { V.Home.go('upgrades'); }); await sleep(400); await tap('[data-open="upgrade"]'); await sleep(600);
+    const r0 = await sheetState(); const hpRow = r0.rows.find(r => r.id === 'hp'); await tap('.us-row[data-id="hp"]'); await sleep(150);
+    const p0 = (await sheetState()).go; await tap('.us-tier[data-tier="std"]'); await sleep(150); const sS = await sheetState(); const pS = sS.go;
+    const qs = await quote('hp', 'std'), qp = await quote('hp', 'prem'); const c17a = (await st()).cr;
+    await tap('.us-tier[data-tier="prem"]'); await sleep(200); const sP = await sheetState(); const c17b = (await st()).cr;
+    const digits = s => +String(s).replace(/\D/g, '');
+    ok(sS.tiers.find(t => t.id === 'std').sel && digits(pS) === qs.price && qp.price > 700 && !sP.tiers.find(t => t.id === 'prem').sel && sP.tiers.find(t => t.id === 'prem').no && c17a === c17b, names[16], `credits 700: basic "${p0}"; std "${pS}" (quote ${qs.price}); prem costs ${qp.price} > 700: selected ${sP.tiers.find(t => t.id === 'prem').sel}, dim ${sP.tiers.find(t => t.id === 'prem').no}; credits ${c17a}->${c17b}`);
+    // 18: Catalyst switch
+    await g.page.evaluate(() => { V.UpSheet.close(); }); await sleep(150); await reset({ cr: 20000, sch: 99, cond: { hp: 2 } }); await g.page.evaluate(() => { V.Home.go('upgrades'); }); await sleep(400); await tap('[data-open="upgrade"]'); await sleep(600);
+    await tap('.us-row[data-id="hp"]'); await sleep(100);
+    await tap('.us-cat'); await sleep(150); const c99 = await sheetState();
+    await g.page.evaluate(() => { V.Meta.state.schematics = 250; V.Meta.save(); }); await sleep(250);
+    await tap('.us-cat'); await sleep(200); const c250 = await sheetState(); await shot(g, 'shop', 'sheet-catalyst');
+    const cb0 = await st(); await tap('.us-go'); await sleep(300); const cb1 = await st(); const cr1 = await g.page.evaluate(() => { const p = V.Meta.state.purchases; return p[p.length - 1]; });
+    ok(c99.cat && c99.cat.off && !c99.cat.on && c250.cat && c250.cat.on && !c250.cat.off && c250.tiers.every(t => /^\s*Basic|Standard|Premium/.test(t.txt)) && (cb1.sch === cb0.sch - 100 || cb1.sch === cb0.sch) && cb0.sch - cb1.sch === 100 * (cb1.cu - cb0.cu), names[17], `99 Schem: switch off=${c99.cat.off}, on=${c99.cat.on}; 250 Schem: on=${c250.cat.on}; tier text with Catalyst: ${c250.tiers[0].txt.slice(0, 50)}; after confirm Schem ${cb0.sch}->${cb1.sch} (100 only if the plain roll was Common), catUsed ${cb0.cu}->${cb1.cu}`);
+    // 19: tab bar tap closes with no spend
+    await g.page.evaluate(() => { V.UpSheet.close(); }); await sleep(150); await reset({ cr: 5000, cond: { hp: 2 } }); await g.page.evaluate(() => { V.Home.go('upgrades'); }); await sleep(400); await tap('[data-open="upgrade"]'); await sleep(600);
+    const t0 = await st(); const tabOk = await tap('.pv-tab[data-tab="armory"]'); await sleep(450); const t1 = await st(); const ts = await sheetState();
+    ok(tabOk && !ts.open && !ts.sheet && t1.cr === t0.cr && t1.rolls === t0.rolls, names[18], `tab tap ok=${tabOk}; sheet open after ${ts.open}; credits ${t0.cr}->${t1.cr}; rolls ${t0.rolls}->${t1.rolls}`);
+    // 20: no rolls left; everything maxed
+    await reset({ cr: 5000, cond: { hp: 2 }, vb: 2 }); await g.page.evaluate(() => { V.Home.go('upgrades'); }); await sleep(400);
+    const nr = await rect('[data-open="upgrade"]'); await tap('[data-open="upgrade"]'); await sleep(600); const n0 = await st(); const sn = await sheetState();
+    await tap('.us-go'); await sleep(300); const n1 = await st();
+    await g.page.evaluate(() => { V.UpSheet.close(); }); await sleep(150);
+    await reset({ cr: 99999, cond: { hp: 10, atk: 20, rate: 20 }, rifle: 10 }); await g.page.evaluate(() => { V.Home.go('upgrades'); }); await sleep(400);
+    const mb = await rect('[data-open="upgrade"]'); await shot(g, 'shop', 'upgrades-maxed');
+    ok(/no rolls/i.test(sn.go) && n1.cr === n0.cr && n1.rolls === n0.rolls && (!mb || mb.dis) && !!mb && /max/i.test(mb.txt), names[19], `visit used: confirm "${sn.go}", credits ${n0.cr}->${n1.cr}; all maxed: button "${mb && mb.txt}" disabled ${mb && mb.dis}`);
+    // 21: fit and targets with a full item list (rifle, 3 stats, 6 gear), one capped
+    await reset({ cr: 3000, cond: { hp: 10, atk: 4 }, rifle: 3, gear: { exo: 2, modA: 1, modB: 1, droneA: 5, droneB: 1, perk2: 1 } }); await g.page.evaluate(() => { V.Home.go('upgrades'); }); await sleep(400);
+    await tap('[data-open="upgrade"]'); await sleep(700); await shot(g, 'shop', 'sheet-full');
+    const fit = await g.page.evaluate(() => { const sh = document.querySelector('.us-sheet'), r = sh.getBoundingClientRect(), tb = document.querySelector('.pv-tabbar'), tr = tb ? tb.getBoundingClientRect() : null; const small = window.__targets().filter(x => Math.min(x.w, x.h) < 55.5).map(x => x.d + ' ' + x.w + 'x' + x.h); const rows = [...document.querySelectorAll('.us-row')].map(r => r.dataset.id + (r.classList.contains('max') ? '*' : '')); return { left: r.left, right: r.right, top: r.top, bottom: r.bottom, tabTop: tr ? tr.top : null, tabH: tr ? tr.height : 0, vw: innerWidth, vh: innerHeight, small, rows, over: document.getElementById('home').scrollWidth - innerWidth }; });
+    ok(fit.left >= -0.5 && fit.right <= fit.vw + 0.5 && fit.top >= -0.5 && fit.tabH > 0 && fit.bottom <= fit.tabTop + 1 && fit.small.length === 0 && fit.over <= 1 && fit.rows[fit.rows.length - 1].endsWith('*'), names[20], `sheet ${Math.round(fit.left)}..${Math.round(fit.right)} x ${Math.round(fit.top)}..${Math.round(fit.bottom)} in ${fit.vw}x${fit.vh}; tab bar top ${Math.round(fit.tabTop)}; small targets ${fit.small.join(', ') || 'none'}; list order ${fit.rows.join(',')} (* = capped, last)`);
+    await g.page.evaluate(() => { V.UpSheet.close(); });
   } finally { await g.ctx.close(); }
 }
 

@@ -170,6 +170,8 @@ function eatEvents(ev, S) {
       case 'boss': FX.bossIntro = FX.wall; spawnRing(x, y, 0.4, 3.2, 0.9, PAL.sensor); break;
       case 'chest': spawnRing(x, y, 0.2, 1.4, 0.5, PAL.chestTrim); spawnBurst(x, y, 14, 5, 0.5, PAL.cyan, 0.07, 4, 'B'); spawnGlint(x, y, PAL.sparkHot, 0.5, 0.4); break;
       case 'win': spawnRing(x, y, 0.5, 4.0, 1.0, PAL.cyan); break;
+      case 'drone': spawnBurst(x, y, 2, 2, 0.1, PAL.cyan, 0.04, 8, 'B', e.ang != null ? e.ang : 0, 0.6); break;   // GEAR: Wing Drone muzzle
+      case 'guard': spawnRing(x, y, 0.1, 0.6, 0.3, PAL.shield); spawnBurst(x, y, 6, 3, 0.25, PAL.shield, 0.05, 4, 'B'); break;   // GEAR: Guard Drone ate a round
       case 'fire': {
         var Hf = AN.h; Hf.kick = 1; Hf.flash = 1;
         var fa = e.ang != null ? e.ang : (S.hero.ang || 0);
@@ -1128,6 +1130,25 @@ function drawFx(S, s, t) {
   }
 }
 
+// GEAR (step 8): Wing Drone = small diamond body with a cyan eye at the shoulder; Guard Drone = a ring around the Operator,
+// full and bright when ready, a filling arc while it recharges. Sim state only (S.drone, S.guard); nothing here when the keys are absent.
+function drawGear(S, s, t) {
+  var h = S.hero, rr = (h.r || 0.28) * s;
+  if (S.guard) {
+    var g = S.guard, ready = g.t <= 0, f = ready ? 1 : 1 - g.t / g.every, cx = X(h.x), cy = Y(h.y), R = rr + 7;
+    ring(cx, cy, R, 4, withA(PAL.ink, 0.55));
+    if (ready) { ring(cx, cy, R, 2.4, PAL.shield); glow(cx, cy, R * 1.2, PAL.shield, 0.25, 3); }
+    else ring(cx, cy, R, 2.4, withA(PAL.shield, 0.75), -Math.PI / 2, -Math.PI / 2 + TAU * f);
+  }
+  if (S.drone) {
+    var d = S.drone, bob = Math.sin(t * 3.1) * 1.4, dx = X(d.x), dy = Y(d.y) + bob, z = Math.max(4, rr * 0.5) + d.kick * 1.2;
+    circ(dx + 1.5, dy + 3 + 1, z * 0.8, PAL.shadow);
+    rect(dx, dy, z * 2 + 2, z * 2 + 2, PAL.ink, Math.PI / 4);
+    rect(dx, dy, z * 2, z * 2, PAL.pierce, Math.PI / 4);
+    circ(dx, dy, z * 0.55 + d.kick * 0.8, d.kick > 0.2 ? PAL.sparkHot : PAL.cyan);
+  }
+}
+
 function drawHeroHp(S, s) {
   var h = S.hero; if (!(h.maxHp > 0)) return;
   // QA-P1 D13: 1 px ink outline + dark track, lifted clear of the rifle tip when aiming up
@@ -1359,6 +1380,7 @@ V.Scene = {
     drawLock(S, s, t); // enemy marker: under the Operator (QA-P1 D2)
     // QA-P1 D2: the Operator and its HP bar sit above every enemy layer (bodies, HP bars, lock ring)
     if (heroOn) { drawBrace(S, s); drawHero(S, s, t); drawHeroHp(S, s); }
+    if (heroOn && (S.drone || S.guard)) drawGear(S, s, t);
     else if (H && dU >= 0) drawHero(S, s, t, dU);
 
     var rd = S.rounds || [];

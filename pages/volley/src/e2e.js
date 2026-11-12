@@ -873,16 +873,19 @@ async function homeSession(browser, target, sess) {
   ok((await chip()) === '5,000', 'Credits chip updates when credits change', `chip "${await chip()}" after V.Meta credits 0 -> 5000`);
   await tapEl(page, '.pv-tab[data-tab="armory"]'); await sleep(350);
   const a0 = await page.evaluate(() => ({ c: V.Meta.state.credits, l: V.Meta.state.rifle.lvl }));
-  const aTap = await tapEl(page, '#pane-armory .ta-main[data-act="buy"]') || await tapEl(page, '#pane-armory [data-act="buy"]'); await sleep(350);
+  // v2-7: the rifle Upgrade opens the upgrade sheet with the rifle selected; one tap on the confirm rolls (after the 350 ms guard)
+  const aTap = await tapEl(page, '#pane-armory .ta-main[data-act="buy"]') || await tapEl(page, '#pane-armory [data-act="buy"]'); await sleep(600);
+  const aGo = await tapEl(page, '.us-go'); await sleep(500); await tapEl(page, '.us-done'); await sleep(450);
   const a1 = await page.evaluate(() => ({ c: V.Meta.state.credits, l: V.Meta.state.rifle.lvl }));
-  ok(aTap && a1.l === a0.l + 1 && a1.c < a0.c, 'Armory rifle buy changes V.Meta.state', `tapped=${aTap}; rifle Lv ${a0.l} -> ${a1.l}; credits ${a0.c} -> ${a1.c}`);
+  ok(aTap && aGo && a1.l >= a0.l + 1 && a1.l <= a0.l + 3 && a1.c < a0.c, 'Armory rifle upgrade (sheet roll) changes V.Meta.state', `tapped=${aTap}/${aGo}; rifle Lv ${a0.l} -> ${a1.l}; credits ${a0.c} -> ${a1.c}`);
   ok((await chip()) === String(a1.c).replace(/\B(?=(\d{3})+(?!\d))/g, ','), 'Credits chip follows the rifle buy', `chip "${await chip()}" vs state ${a1.c}`);
   await tapEl(page, '.pv-tab[data-tab="upgrades"]'); await sleep(350);
-  const u0 = await page.evaluate(() => ({ c: V.Meta.state.credits, b: V.Meta.state.buys, s: V.Meta.state.cond.hp + V.Meta.state.cond.atk + V.Meta.state.cond.rate }));
-  const uTap = await tapEl(page, '#pane-upgrades [data-buy="cond"]'); await sleep(350);
-  const u1 = await page.evaluate(() => ({ c: V.Meta.state.credits, b: V.Meta.state.buys, s: V.Meta.state.cond.hp + V.Meta.state.cond.atk + V.Meta.state.cond.rate }));
-  ok(uTap && u1.b === u0.b + 1 && u1.s >= u0.s + 1 && u1.s <= u0.s + 2 && u1.c < u0.c, 'Upgrades random buy changes V.Meta.state (F1: atk or rate buys grant 2 levels)', `tapped=${uTap}; buys ${u0.b} -> ${u1.b}; stat points ${u0.s} -> ${u1.s}; credits ${u0.c} -> ${u1.c}`);
-  ok((await chip()) === String(u1.c).replace(/\B(?=(\d{3})+(?!\d))/g, ','), 'Credits chip follows the random buy', `chip "${await chip()}" vs state ${u1.c}`);
+  const u0 = await page.evaluate(() => ({ c: V.Meta.state.credits, b: V.Meta.state.buys, r: V.Meta.state.rolls | 0, s: V.Meta.state.cond.hp + V.Meta.state.cond.atk + V.Meta.state.cond.rate }));
+  const uTap = await tapEl(page, '#pane-upgrades [data-open="upgrade"]'); await sleep(600);   // v2-7: UPGRADE opens the sheet; the first affordable item is preselected
+  const uGo = await tapEl(page, '.us-go'); await sleep(500); await tapEl(page, '.us-done'); await sleep(450);
+  const u1 = await page.evaluate(() => ({ c: V.Meta.state.credits, b: V.Meta.state.buys, r: V.Meta.state.rolls | 0, s: V.Meta.state.cond.hp + V.Meta.state.cond.atk + V.Meta.state.cond.rate, l: V.Meta.state.rifle.lvl }));
+  ok(uTap && uGo && u1.r === u0.r + 1 && u1.c < u0.c, 'Upgrades sheet roll changes V.Meta.state (one roll, credits spent)', `tapped=${uTap}/${uGo}; rolls ${u0.r} -> ${u1.r}; buys ${u0.b} -> ${u1.b}; stat points ${u0.s} -> ${u1.s}; credits ${u0.c} -> ${u1.c}`);
+  ok((await chip()) === String(u1.c).replace(/\B(?=(\d{3})+(?!\d))/g, ','), 'Credits chip follows the roll', `chip "${await chip()}" vs state ${u1.c}`);
   const saved = await page.evaluate(() => { try { return JSON.parse(localStorage.getItem(V.Meta.KEY)).buys; } catch (e) { return null; } });
   ok(saved === u1.b, 'buys are saved to localStorage', `saved buys ${saved} vs state ${u1.b}`);
 

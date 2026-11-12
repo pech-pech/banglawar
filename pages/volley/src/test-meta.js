@@ -261,4 +261,133 @@ ok('reset calls V.Home.deploy.forget when it exists, and survives one that throw
     V.SimOpts.chlen = 20; ok('LEN50 chlen 20 cap on the 50 list: 20 stages', V.chapterLen(1) === 20 && M.clearPay() === 14 * 13 + 2 * 54 + 2 * 40);
   } finally { V.STAGES.ch1 = real; V.SimOpts.chlen = 10; }
 })();
+
+// ===== STEP 8: chosen upgrades, tier odds, Catalyst, slots, gear =====
+(function(){
+  function fresh8(over){ var s = mock(); M.load({ storage:s, fresh:true }); M.state.credits = 1e6; if (over) for (var k in over) M.state[k] = over[k]; return s; }
+  var FRESH_KEYS = 'hpAdd,atkMul,rateMul,moveMul,dmgTakenMul,power';
+  fresh8(); ok('S8 fresh stats() = today exactly (six keys, neutral)', Object.keys(M.stats()).join() === FRESH_KEYS && JSON.stringify(M.stats()) === JSON.stringify({ hpAdd:0, atkMul:1, rateMul:1, moveMul:1, dmgTakenMul:1, power:0 }), M.stats());
+  ok('S8 constants', M.CATALYST_COST === 100 && M.TIERS.length === 3 && M.GRADES.map(function(g){ return g.steps; }).join() === '1,2,3' && M.TIERS.map(function(t){ return t.odds.join('/'); }).join() === '80/20/0,48/44/8,25/50/25');
+  ok('S8 each tier averages exactly its multiple in steps', M.TIERS.every(function(t){ return near((t.odds[0] + 2 * t.odds[1] + 3 * t.odds[2]) / 100, t.mult) && t.odds[0] + t.odds[1] + t.odds[2] === 100; }));
+  // prices
+  var q = M.quote('cond', 'hp', 'basic'); ok('S8 first Conditioning Basic = 250 + 0.2 x 325 = 325', q.price === 325 && q.stepsLeft === 10 && q.why === '', q);
+  ok('S8 Cond Standard / Premium at rung 0 (250 + 0.6 x 325 = 450; 250 + 325 = 575)', M.quote('cond', 'atk', 'std').price === 450 && M.quote('cond', 'rate', 'prem').price === 575);
+  ok('S8 rifle L1 Basic/Std/Prem = 250 + 0.2 x 500 = 350, 550, 750', [1, 2, 3].map(function(i){ return M.quote('rifle', 'rifle', M.TIERS[i - 1].id).price; }).join() === '350,550,750');
+  M.state.gear = { exo:1, modA:0, modB:0, droneA:0, droneB:0, perk2:0 };
+  ok('S8 gear L1 prices 350 / 550 / 750 (SPEC-NUMBERS)', ['basic', 'std', 'prem'].map(function(t){ return M.quote('gear', 'exo', t).price; }).join() === '350,550,750');
+  M.state.gear.exo = 3; ok('S8 gear L3 Standard = 750 + 0.6 x 1000 = 1350, 2 steps left, refund note', M.quote('gear', 'exo', 'std').price === 1350 && M.quote('gear', 'exo', 'std').stepsLeft === 2 && M.quote('gear', 'exo', 'std').refundNote === true);
+  M.state.gear.exo = 4; ok('S8 gear last step: Basic = 1200 (last rung repeats), 1 step left, maxGain 1', M.quote('gear', 'exo', 'basic').price === 1200 && M.quote('gear', 'exo', 'basic').maxGain === 1);
+  M.state.gear.exo = 5; ok('S8 capped gear: why max, price 0', M.quote('gear', 'exo', 'basic').why === 'max' && M.quote('gear', 'exo', 'basic').price === 0 && !M.roll('gear', 'exo', 'basic'));
+  ok('S8 quote of unknown item or tier is null; gear not owned is null', M.quote('cond', 'zz', 'basic') === null && M.quote('cond', 'hp', 'zz') === null && M.quote('gear', 'modA', 'basic') === null && M.quote('foo', 'x', 'basic') === null);
+  // Conditioning counter advances by steps gained; hp cap
+  fresh8(); var r = M.roll('cond', 'atk', 'prem'); ok('S8 roll returns the full result shape', r && r.ok && r.kind === 'cond' && r.id === 'atk' && r.tier === 'prem' && ['common', 'rare', 'epic'].indexOf(r.grade) >= 0 && r.steps === r.gained && r.refund === 0 && r.price === 575 && r.catalyst === false && r.lvlBefore === 0 && r.lvlAfter === 2 * r.gained && r.before && r.after && r.left === 1, r);
+  ok('S8 buys counter = steps gained; credits charged; one roll used; rolls counter 1', M.state.buys === r.gained && M.state.credits === 1e6 - 575 && M.visitLeft() === 1 && M.state.rolls === 1 && M.state.purchases.length === 1);
+  ok('S8 roll after.atkMul above before', r.after.atkMul > r.before.atkMul);
+  // VISIT_MAX 2 counts rolls only
+  fresh8(); M.state.gear = { exo:0, modA:0, modB:0, droneA:0, droneB:0, perk2:0 }; ok('S8 slot buys do not use a roll', M.buySlot('exo') && M.buySlot('modA') && M.visitLeft() === 2);
+  ok('S8 two rolls then visit', M.roll('rifle', 'rifle', 'basic') && M.roll('cond', 'hp', 'basic') && M.visitLeft() === 0 && M.quote('cond', 'hp', 'basic').why === 'visit' && M.roll('cond', 'hp', 'basic') === false);
+  ok('S8 slot buy still works with 0 rolls left', M.buySlot('droneA') && M.gearLevel('droneA') === 1);
+  M.resetVisit(); ok('S8 visit reset gives rolls back', M.visitLeft() === 2);
+  // slots
+  fresh8({ credits:1000 }); ok('S8 SLOTS table: 6 slots, contract order and prices', M.SLOTS.map(function(s){ return s.id + ':' + s.price; }).join() === 'exo:850,modA:1400,droneA:1700,modB:1700,droneB:1950,perk2:2250' && M.SLOTS.every(function(s){ return s.slot && s.item && s.fx; }));
+  ok('S8 slotWhy: credits / owned / ok', M.slotWhy('modA') === 'credits' && M.slotWhy('exo') === '' && (function(){ var b = M.buySlot('exo'); return b && b.ok && b.id === 'exo' && b.item === 'Reactive Plate' && b.price === 850 && M.state.credits === 150 && M.gearLevel('exo') === 1 && M.slotWhy('exo') === 'owned' && M.buySlot('exo') === false; })());
+  ok('S8 slot refused when poor, credits untouched', M.buySlot('perk2') === false && M.state.credits === 150);
+  ok('S8 buySlot unknown id false', M.buySlot('zzz') === false && M.slotWhy('zzz') !== '');
+  // items list
+  fresh8({ credits:300 }); var it = M.items(); ok('S8 items on fresh save: rifle, hp, atk, rate; unaffordable keep order; no gear', it.map(function(x){ return x.kind + ':' + x.id; }).join() === 'rifle:rifle,cond:hp,cond:atk,cond:rate' && it.every(function(x){ return x.name && x.what && !x.capped; }), it);
+  M.state.credits = 340; it = M.items(); ok('S8 items affordable first (Basic 325 for Conditioning, rifle 350 unaffordable)', it[0].kind === 'cond' && it[3].kind === 'rifle' && it[3].affordable === false && it[0].basicPrice === 325, it.map(function(x){ return x.id + x.affordable; }));
+  M.state.credits = 5e5; M.state.cond.hp = 10; M.state.gear = { exo:2, modA:0, modB:0, droneA:0, droneB:0, perk2:5 }; it = M.items();
+  ok('S8 capped rows last, owned gear only, shape', it.map(function(x){ return x.id; }).join() === 'rifle,atk,rate,exo,hp,perk2' && it[4].capped && it[4].basicPrice === null && it[5].capped && it[3].kind === 'gear' && it[3].lvl === 2 && it[3].max === 5 && it[3].stepsLeft === 3, it.map(function(x){ return x.id; }));
+  ok('S8 capped cond hp: quote max, no roll, nothing spent', M.quote('cond', 'hp', 'basic').why === 'max' && M.roll('cond', 'hp', 'basic') === false && M.state.credits === 5e5);
+  // refund
+  fresh8({ credits:1e6 }); M.state.gear = { exo:3, modA:0, modB:0, droneA:0, droneB:0, perk2:0 };
+  var refunds = 0, shown = {};
+  for (var i = 0; i < 400; i++) { var s2 = M.state; s2.gear.exo = 3; s2.credits = 1e6; s2.rolls = i; s2.visitBuys = 0; var rr = M.roll('gear', 'exo', 'std'); if (rr.grade === 'epic') { shown.epic = rr; } if (rr.grade === 'rare') shown.rare = rr; if (rr.grade === 'common') shown.common = rr; }
+  ok('S8 gear L3 Standard Epic: gains 2, refund capped at price - step = 1350 - 843.75 -> 500 (uncapped would be 825), level 5', shown.epic && shown.epic.gained === 2 && shown.epic.refund === 500 && shown.epic.lvlAfter === 5, shown.epic);
+  ok('S8 Rare with 2 left: no refund; Common 1 step no refund', shown.rare.refund === 0 && shown.rare.gained === 2 && shown.common.refund === 0 && shown.common.gained === 1);
+  fresh8(); M.state.gear = { exo:4, modA:0, modB:0, droneA:0, droneB:0, perk2:0 }; M.state.credits = 5000; var ep = null, before = 0;
+  for (i = 0; i < 400 && !ep; i++) { M.state.gear.exo = 4; M.state.credits = 5000; M.state.rolls = i; M.state.visitBuys = 0; var r3 = M.roll('gear', 'exo', 'prem'); if (r3.grade === 'epic') ep = r3; }
+  ok('S8 last step Premium Epic: price 2000, gains 1, refund capped at price - step = 1000 (uncapped 2000), credits 5000 - 2000 + 1000', ep && ep.gained === 1 && ep.price === 2000 && ep.refund === 1000 && M.state.credits === 4000, ep);
+  ok('S8 refund is a multiple of 25 for every price', (function(){ var good = true; for (var lv = 1; lv < 5; lv++) for (var t = 0; t < 3; t++) { var pr = (function(){ M.state.gear.exo = lv; return M.quote('gear', 'exo', M.TIERS[t].id).price; })(); var ref = Math.floor(2 * pr / M.TIERS[t].mult / 25) * 25; if (ref % 25) good = false; } return good; })());
+  // cond overshoot: hp 9 steps done, last step, Epic
+  fresh8(); M.state.cond.hp = 9; M.state.buys = 9; M.state.credits = 1e6; var hpEp = null;
+  for (i = 0; i < 300 && !hpEp; i++) { M.state.cond.hp = 9; M.state.buys = 9; M.state.credits = 1e6; M.state.rolls = i; M.state.visitBuys = 0; var r4 = M.roll('cond', 'hp', 'prem'); if (r4.grade === 'epic') hpEp = r4; }
+  ok('S8 hp last level Epic: capped at 10, counter moved by 1 step, refund 2 steps', hpEp && M.state.cond.hp === 10 && M.state.buys === 10 && hpEp.gained === 1 && hpEp.refund > 0 && hpEp.refund % 25 === 0, hpEp);
+  ok('S8 save still validates after rolls and refunds', !!M.validate(JSON.parse(JSON.stringify(M.state))));
+  // atk odd single level from an old save: last step gives 1 level
+  fresh8(); M.state.cond.atk = 19; M.state.buys = 19; ok('S8 old single-level atk 19: 1 step left, 1 level', M.quote('cond', 'atk', 'basic').stepsLeft === 1 && (function(){ var r5 = M.roll('cond', 'atk', 'basic'); return r5 && M.state.cond.atk === 20 && M.state.buys === 20 && !!M.validate(JSON.parse(JSON.stringify(M.state))); })());
+  // Catalyst
+  fresh8({ schematics:250 }); var qc = M.quote('cond', 'hp', 'basic', { catalyst:true });
+  ok('S8 Catalyst odds after: Basic 0/100/0, Standard 0/92/8, Premium 0/75/25; price unchanged', qc.odds.join() === '0,100,0' && M.quote('cond', 'hp', 'std', { catalyst:true }).odds.join() === '0,92,8' && M.quote('cond', 'hp', 'prem', { catalyst:true }).odds.join() === '0,75,25' && qc.price === M.quote('cond', 'hp', 'basic').price && qc.catOk && qc.why === '');
+  // ruling: Catalyst spends 100 only when it turns a Common into Rare
+  var spent = 0, kept = 0, rcC = null, rcR = null;
+  for (var ci = 0; ci < 200 && !(rcC && rcR); ci++) { var S0 = M.state; S0.cond = { hp:0, atk:0, rate:0 }; S0.buys = 0; S0.credits = 1e6; S0.schematics = 250; S0.visitBuys = 0; S0.rolls = ci; var rx = M.roll('cond', 'hp', 'basic', { catalyst:true });
+    if (rx.catalyst) { rcC = rcC || rx; spent += (250 - S0.schematics === 100) ? 1 : 0; ok('S8 Catalyst on a Common: Rare, exactly 100 spent', rx.grade === 'rare' && rx.gained === 2 && 250 - S0.schematics === 100 && rx.catNotNeeded === false); }
+    else { rcR = rcR || rx; kept += S0.schematics === 250 ? 1 : 0; ok('S8 Catalyst on a Rare/Epic roll: Schematics unchanged, catNotNeeded', rx.grade !== 'common' && S0.schematics === 250 && rx.catNotNeeded === true && rx.catalyst === false); } }
+  ok('S8 both Catalyst outcomes seen at Basic (80/20 base)', !!rcC && !!rcR);
+  M.state.catUsed = 0; M.state.schematics = 250; M.state.cond = { hp:0, atk:0, rate:0 }; M.state.buys = 0; var uses = 0;
+  for (ci = 0; ci < 50; ci++) { M.state.visitBuys = 0; M.state.cond = { hp:0, atk:0, rate:0 }; M.state.schematics = 250; M.state.rolls = 1000 + ci; if (M.roll('cond', 'hp', 'basic', { catalyst:true }).catalyst) uses++; }
+  ok('S8 catUsed counts only real uses', M.state.catUsed === uses && uses > 0 && uses < 50, [M.state.catUsed, uses]);
+  M.state.schematics = 250; M.state.catUsed = 1;
+  M.state.visitBuys = 0; M.state.schematics = 99; ok('S8 Catalyst refused under 100 Schematics (why schematics, catOk false), no charge', M.quote('cond', 'hp', 'basic', { catalyst:true }).why === 'schematics' && !M.quote('cond', 'hp', 'basic').catOk && M.roll('cond', 'hp', 'basic', { catalyst:true }) === false && M.state.schematics === 99);
+  M.state.visitBuys = 0; M.state.schematics = 500; M.state.cond.hp = 9; M.state.buys = 12; ok('S8 Catalyst not allowed with 1 step left (cat-last-step), plain roll still fine, Schematics not spent', M.quote('cond', 'hp', 'basic', { catalyst:true }).why === 'cat-last-step' && M.quote('cond', 'hp', 'basic').catOk === false && M.roll('cond', 'hp', 'basic', { catalyst:true }) === false && M.state.schematics === 500 && M.quote('cond', 'hp', 'basic').why === '');
+  M.state.cond.hp = 8; var pre = M.state.credits; var rs2 = M.roll('cond', 'hp', 'prem', { catalyst:true }); ok('S8 Catalyst with 2 steps left works and a spent Catalyst is never refunded', rs2 && rs2.grade !== 'common' && M.state.schematics === (rs2.catalyst ? 400 : 500));
+  // seeded roll: deterministic and no Math.random
+  var real = Math.random, called = 0; Math.random = function(){ called++; return real(); };
+  function seq(){ fresh8(); M.state.credits = 1e7; var out = []; for (var j = 0; j < 40; j++) { M.state.visitBuys = 0; M.state.cond = { hp:0, atk:0, rate:0 }; M.state.buys = 0; out.push(M.roll('cond', 'hp', 'std').grade[0]); } return out.join(''); }
+  var A = seq(), B = seq(); Math.random = real;
+  ok('S8 same save -> same roll sequence; Math.random never called', A === B && called === 0 && /c/.test(A) && /r/.test(A), A);
+  // odds per tier over many seeds
+  M.TIERS.forEach(function(tier){
+    var N = 30000, cnt = [0, 0, 0]; fresh8(); var S = M.state;
+    for (var j = 0; j < N; j++) {
+      S.credits = 1e6 + ((j * 7919) % 100003); S.runs.length = j % 7; S.rolls = j; S.buys = (j * 31) % 12; S.schematics = (j * 13) % 400; S.visitBuys = 0; S.cond = { hp:0, atk:0, rate:0 }; S.buys = (j * 31) % 12;
+      var rg = M.roll('cond', 'hp', tier.id); cnt[M.GRADES.map(function(g){ return g.id; }).indexOf(rg.grade)]++;
+    }
+    var worst = 0; for (var k = 0; k < 3; k++) worst = Math.max(worst, Math.abs(cnt[k] / N * 100 - tier.odds[k]));
+    ok('S8 odds ' + tier.id + ' over ' + N + ' seeds within 1.5 points of ' + tier.odds.join('/') + ' (worst ' + worst.toFixed(2) + ')', worst <= 1.5, cnt);
+    ok('S8 ' + tier.id + ' never rolls a 0% grade', tier.odds[2] > 0 || cnt[2] === 0);
+  });
+  // catalyst odds over seeds
+  (function(){ var N = 20000, cnt = [0, 0, 0]; fresh8(); var S = M.state; S.schematics = 1e6;
+    for (var j = 0; j < N; j++) { S.credits = 1e6 + j; S.rolls = j; S.visitBuys = 0; S.cond = { hp:0, atk:0, rate:0 }; S.buys = j % 9; var rg = M.roll('cond', 'hp', 'std', { catalyst:true }); cnt[['common', 'rare', 'epic'].indexOf(rg.grade)]++; if (S.schematics < 2e5) S.schematics = 1e6; }
+    ok('S8 Catalyst Standard odds 0 / 92 / 8 within 1.5 over 20000 seeds', cnt[0] === 0 && Math.abs(cnt[2] / N * 100 - 8) <= 1.5, cnt); })();
+  // stats gear terms
+  fresh8(); M.state.gear = { exo:2, modA:3, modB:4, droneA:5, droneB:1, perk2:2 }; var gs = M.stats();
+  ok('S8 gear terms', gs.hpAdd === 40 && near(gs.dmgTakenMul, 0.98) && near(gs.critAdd, 0.045) && near(gs.critDmgAdd, 0.2) && near(gs.droneFrac, 0.08) && gs.guardEvery === 14 && near(gs.pierceFrac, 0.5) && gs.atkMul === 1, gs);
+  M.state.gear = { exo:0, modA:0, modB:0, droneA:0, droneB:0, perk2:0 }; ok('S8 all-zero gear object = neutral keys only', Object.keys(M.stats()).join() === FRESH_KEYS);
+  M.state.gear = { exo:5, modA:0, modB:0, droneA:0, droneB:0, perk2:0 }; M.state.cond.hp = 5; ok('S8 exo adds onto Conditioning HP; totals maxHp', M.stats().hpAdd === 350 + 100 && M.totals().maxHp === 600 + 450 && Object.keys(M.stats()).join() === FRESH_KEYS + '', Object.keys(M.stats()));
+  // old API alive
+  fresh8(); ok('S8 old buy(cond,rand), buy(rifle), cost, whyNot, visitLeft still work', M.cost('rifle').credits === 250 && !!M.buy('cond', 'rand') && !!M.buy('rifle') && M.visitLeft() === 0 && M.whyNot('rifle') === 'visit');
+  // save round trip
+  var st3 = mock(); M.load({ storage:st3, fresh:true }); M.state.credits = 9000; M.buySlot('exo'); M.buySlot('modB'); M.state.schematics = 300; M.roll('gear', 'exo', 'basic', { catalyst:true }); M.save();
+  var snap = JSON.parse(JSON.stringify(M.state)); M.load({ storage:st3 });
+  function canon(o){ return JSON.stringify(o, function(k, v){ if (v && typeof v === 'object' && !Array.isArray(v)) { var c = {}; Object.keys(v).sort().forEach(function(x){ c[x] = v[x]; }); return c; } return v; }); }
+  ok('S8 save round trip keeps gear, rolls, catUsed, schematics; no reset', canon(M.state) === canon(snap) && M.resetSignal === '' && M.state.gear.modB === 1 && M.state.gear.exo >= 3 && M.state.rolls === 1 && M.state.catUsed === 1, M.state);
+  // old-save round trip (no new fields): loads unchanged, then still plays
+  var old = M.SAMPLES.mid(), st4 = mock(); st4.d[M.KEY] = JSON.stringify(old); M.load({ storage:st4 });
+  ok('S8 old save without gear/rolls/catUsed loads unchanged', M.resetSignal === '' && JSON.stringify(M.state) === JSON.stringify(old) && !('gear' in M.state) && M.gearLevel('exo') === 0 && Object.keys(M.stats()).join() === FRESH_KEYS);
+  ok('S8 old save: rolling then adds only the optional fields', (function(){ var r6 = M.roll('rifle', 'rifle', 'basic'); return r6 && M.state.rolls === 1 && !('gear' in M.state) && !!M.validate(JSON.parse(JSON.stringify(M.state))); })());
+  ok('S8 Report.purchase failure never breaks a roll', (function(){ V.Report = { purchase:function(){ throw new Error('x'); } }; M.state.visitBuys = 0; var r7 = M.roll('cond', 'rate', 'basic'); delete V.Report; return !!r7; })());
+})();
+
+// ruling: refund = min(floor25(unused x step), price - step); the player always pays at least one step
+(function(){
+  var worst = 0, seen = 0, rifleCap = null;
+  function go(kind, id, tierId, setup, rollsN){
+    for (var i = 0; i < rollsN; i++) { var s = mock(); M.load({ storage:s, fresh:true }); M.state.credits = 1e7; setup(); M.state.rolls = i * 3 + 1;
+      var tier = M.TIERS.filter(function(t){ return t.id === tierId; })[0], q = M.quote(kind, id, tierId), r = M.roll(kind, id, tierId); if (!r) continue;
+      var step = q.price / tier.mult; seen++;
+      ok('S8 refund within cap (' + kind + ' ' + id + ' ' + tierId + ')', r.refund % 25 === 0 && r.refund >= 0 && r.refund <= q.price - step + 1e-9 && r.refund <= (r.steps - r.gained) * step + 1e-9 && q.price - r.refund >= step - 25 - 1e-9, [r.refund, q.price, step]);
+      if (kind === 'rifle' && tierId === 'std' && r.refund > 0) rifleCap = [q.price, r.refund]; }
+  }
+  M.TIERS.forEach(function(t){
+    for (var L = 1; L <= 4; L++) (function(L){ ['exo', 'droneB'].forEach(function(g){ go('gear', g, t.id, function(){ M.state.gear = { exo:0, modA:0, modB:0, droneA:0, droneB:0, perk2:0 }; M.state.gear[g] = L; }, 12); }); })(L);
+    [8, 9].forEach(function(L){ go('rifle', 'rifle', t.id, function(){ M.state.rifle.lvl = L; }, 12); });
+    [8, 9].forEach(function(h){ go('cond', 'hp', t.id, function(){ M.state.cond.hp = h; M.state.buys = h; }, 12); });
+    go('cond', 'atk', t.id, function(){ M.state.cond.atk = 18; M.state.buys = 9; }, 12);
+  });
+  ok('S8 refund cap checks ran', seen > 300, seen);
+  ok('S8 rifle L9 Standard: price 3600 (step 2250), refund never above 1350', rifleCap === null || (rifleCap[0] === 3600 && rifleCap[1] <= 1350), rifleCap);
+})();
 console.log(n + ' checks, ' + fails + ' failed'); process.exit(fails ? 1 : 0);

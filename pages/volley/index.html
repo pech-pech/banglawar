@@ -2682,9 +2682,10 @@ function knownId(id){
   var T = V.Data && V.Data.enemies;
   return T ? Object.prototype.hasOwnProperty.call(T, id) : /^[EB]-\d\d$/.test(id);
 }
-var TOP = ['v', 'credits', 'rifle', 'cond', 'buys', 'power', 'runs', 'best', 'codex', 'schematics', 'keys', 'runSeq', 'purchases', 'resets', 'visitBuys', 'sd'];
+var TOP = ['v', 'credits', 'rifle', 'cond', 'buys', 'power', 'runs', 'best', 'codex', 'schematics', 'keys', 'runSeq', 'purchases', 'resets', 'visitBuys', 'sd', 'gear', 'rolls', 'catUsed'];
 var RUN_BASE = ['t', 'stage', 'win', 'kills', 'credits', 'dur'];
 var RUN_EXTRA = ['runNo', 'runBuild', 'startedAt', 'endReason', 'hpMax', 'lowestHp', 'tuneChanged', 'picks', 'cols', 'feel', 'touchContinue'];
+var GEAR_IDS = ['exo', 'modA', 'modB', 'droneA', 'droneB', 'perk2'], GEAR_MAX = 5;
 var END_REASONS = ['clear', 'death', 'abandon'], RESET_REASONS = ['corrupt', 'invalid', 'old-version', 'user'];
 function isStr(v, max){ return typeof v === 'string' && v.length <= max; }
 // One optional F1 run field: returns the clean value, or undefined when it is not valid (validate() then rejects the save;
@@ -2770,6 +2771,14 @@ function validate(raw){
       for (var ri2 = 0; ri2 < raw.resets.length; ri2++) { var rr = raw.resets[ri2]; if (!validReset(rr)) return null; s.resets.push({ t:rr.t, reason:rr.reason }); }
     }
     if ('visitBuys' in raw) { if (!isInt(raw.visitBuys, 0, 99)) return null; s.visitBuys = raw.visitBuys; }
+    if ('gear' in raw) {   // step 8: slot levels, 0 = locked, 1-5 = owned at that level; missing keys read as 0
+      var g = raw.gear;
+      if (!isObj(g) || !onlyKeys(g, GEAR_IDS)) return null;
+      s.gear = {};
+      for (var gi = 0; gi < GEAR_IDS.length; gi++) { var gv = (GEAR_IDS[gi] in g) ? g[GEAR_IDS[gi]] : 0; if (!isInt(gv, 0, GEAR_MAX)) return null; s.gear[GEAR_IDS[gi]] = gv; }
+    }
+    if ('rolls' in raw) { if (!isInt(raw.rolls, 0, 1e6)) return null; s.rolls = raw.rolls; }
+    if ('catUsed' in raw) { if (!isInt(raw.catUsed, 0, 1e4)) return null; s.catUsed = raw.catUsed; }
     if ('sd' in raw) {   // Supply Drop catch room (owner K, SPEC R50): plays so far and the pending payout sheet
       var q = raw.sd, pe = null;
       if (!isObj(q) || !onlyKeys(q, ['plays', 'pending']) || !isInt(q.plays, 0, 9999)) return null;
@@ -2984,8 +2993,16 @@ M.stats = function(){
   var L = effLevels(), T = TUNING;
   var rifleAtk = T.RIFLE_ATK_PER_LVL * (L.rifle - 1);
   var atkMul = (1 + rifleAtk / T.HERO_ATK) * (1 + T.COND_ATK_PER_LVL * L.atk);
-  return { hpAdd: hpAddAt(L.hp), atkMul: atkMul, rateMul: 1 + T.COND_RATE_PER_LVL * L.rate,
+  var o = { hpAdd: hpAddAt(L.hp), atkMul: atkMul, rateMul: 1 + T.COND_RATE_PER_LVL * L.rate,
     moveMul: 1, dmgTakenMul: 1, power: M.state.power || 0 };
+  // step 8 gear: terms exist only when that gear level is above 0, so a fresh save returns exactly the neutral object above (sim hash).
+  var g = M.gearLevel('exo');   if (g > 0) { o.hpAdd += 20 * g; o.dmgTakenMul *= (1 - 0.01 * g); }
+  g = M.gearLevel('modA');      if (g > 0) o.critAdd = 0.015 * g;
+  g = M.gearLevel('modB');      if (g > 0) o.critDmgAdd = 0.05 * g;
+  g = M.gearLevel('droneA');    if (g > 0) o.droneFrac = 0.03 + 0.01 * g;
+  g = M.gearLevel('droneB');    if (g > 0) o.guardEvery = 15 - g;
+  g = M.gearLevel('perk2');     if (g > 0) o.pierceFrac = 0.3 + 0.1 * g;
+  return o;
 };
 M.totals = function(){
   var st = M.stats(), T = TUNING, L = effLevels();
@@ -3050,6 +3067,138 @@ M.award = function(result){
   return { credits: c };
 };
 
+// ---------- step 8: chosen upgrades, tier odds, Catalyst, buyable slots + gear (SPEC-NUMBERS, PICKS) ----------
+M.TIERS = [{ id:'basic', name:'Basic', mult:1.2, odds:[80, 20, 0] }, { id:'std', name:'Standard', mult:1.6, odds:[48, 44, 8] }, { id:'prem', name:'Premium', mult:2.0, odds:[25, 50, 25] }];
+M.GRADES = [{ id:'common', steps:1 }, { id:'rare', steps:2 }, { id:'epic', steps:3 }];
+M.CATALYST_COST = 100;
+M.SLOTS = [
+  { id:'exo',    slot:'Exo-plating',  item:'Reactive Plate',  price:850,  max:GEAR_MAX, fx:'Max HP +20, damage taken -1% per level' },
+  { id:'modA',   slot:'Module A',     item:'Aim Module',      price:1400, max:GEAR_MAX, fx:'Crit chance +1.5% per level' },
+  { id:'droneA', slot:'Drone A',      item:'Wing Drone',      price:1700, max:GEAR_MAX, fx:'Drone shots deal 3% + 1% per level of ATK' },
+  { id:'modB',   slot:'Module B',     item:'Overload Cell',   price:1700, max:GEAR_MAX, fx:'Crit damage +5% per level' },
+  { id:'droneB', slot:'Drone B',      item:'Guard Drone',     price:1950, max:GEAR_MAX, fx:'Blocks one enemy bullet every 15 s minus 1 s per level' },
+  { id:'perk2',  slot:'Rifle perk 2', item:'Piercing Rounds', price:2250, max:GEAR_MAX, fx:'Shots pass through one machine at 30% + 10% per level damage' }
+];
+var GEAR_STEP = 250;   // price of the gear step from level L = 250 x L (the rifle rule)
+var STEP_RUNGS = 4;    // rungs read per price (the biggest tier is 2.0 so 3 is enough; one spare)
+function slotOf(id){ for (var i = 0; i < M.SLOTS.length; i++) if (M.SLOTS[i].id === id) return M.SLOTS[i]; return null; }
+function tierOf(id){ for (var i = 0; i < M.TIERS.length; i++) if (M.TIERS[i].id === id) return M.TIERS[i]; return null; }
+M.gearLevel = function(id){ var g = M.state.gear; var v = g && Object.prototype.hasOwnProperty.call(g, id) ? g[id] : 0; return isInt(v, 0, GEAR_MAX) ? v : 0; };
+M.slotWhy = function(id){
+  var sl = slotOf(id); if (!sl) return 'unknown';
+  if (M.gearLevel(id) > 0) return 'owned';
+  return M.state.credits >= sl.price ? '' : 'credits';
+};
+function logPurchase(item, lvl, price, before, levels, vn, visit){
+  var s = M.state, e = { t: nowMs(), run: Math.min(1e9, s.runSeq | 0), item: item, lvl: lvl, price: price, before: before, after: s.credits };
+  if (levels != null) e.levels = levels; if (visit != null) e.visit = visit; if (vn != null) e.vn = vn;
+  s.purchases = (s.purchases || []).concat([e]);
+  if (s.purchases.length > TUNING.PURCHASE_KEEP) s.purchases.splice(0, s.purchases.length - TUNING.PURCHASE_KEEP);
+}
+M.buySlot = function(id){
+  var sl = slotOf(id);
+  if (!sl || M.slotWhy(id) !== '') return false;
+  var s = M.state, before = s.credits;
+  s.credits -= sl.price;
+  s.gear = s.gear || { exo:0, modA:0, modB:0, droneA:0, droneB:0, perk2:0 };
+  s.gear[id] = 1;
+  logPurchase('Slot ' + id, 1, sl.price, before, null, null, null);   // no roll used: visitBuys untouched
+  M.save();
+  try { if (V.Report && V.Report.purchase) V.Report.purchase('Slot ' + sl.item, sl.price, {}); } catch (e) {}
+  return { ok: true, id: id, item: sl.item, price: sl.price };
+};
+// One item's state: levels, steps left and the price of its next rungs (rung i = the step i ahead).
+function itemInfo(kind, id){
+  var s = M.state, lvl, max, left, rung;
+  if (kind === 'rifle') { lvl = s.rifle.lvl; max = TUNING.RIFLE_MAX; left = max - lvl; rung = function(i){ return r25(TUNING.RIFLE_REF_STEP * Math.min(lvl + i, max - 1) * TUNING.GEAR_MULT); }; }
+  else if (kind === 'cond') {
+    if (!(id in TUNING.COND_CAPS)) return null;
+    lvl = s.cond[id]; max = TUNING.COND_CAPS[id]; left = Math.ceil((max - lvl) / TUNING.COND_BUY_LEVELS[id]);
+    rung = function(i){ return ladder(s.buys + i); };
+  } else if (kind === 'gear') {
+    if (!slotOf(id)) return null;
+    lvl = M.gearLevel(id); if (lvl < 1) return null; max = GEAR_MAX; left = max - lvl;
+    rung = function(i){ return GEAR_STEP * Math.min(lvl + i, max - 1); };
+  } else return null;
+  return { kind: kind, id: id, lvl: lvl, max: max, stepsLeft: Math.max(0, left), rung: rung };
+}
+function tierPrice(info, mult){
+  var whole = Math.floor(mult), frac = mult - whole, t = 0, i;
+  for (i = 0; i < whole; i++) t += info.rung(i);
+  return r25(t + frac * info.rung(whole));
+}
+function oddsAfter(tier, catalyst){ var o = tier.odds.slice(); if (catalyst) { o[1] += o[0]; o[0] = 0; } return o; }
+M.quote = function(kind, id, tierId, opts){
+  var info = itemInfo(kind, id), tier = tierOf(tierId), cat = !!(opts && opts.catalyst);
+  if (!info || !tier) return null;
+  var s = M.state, left = info.stepsLeft, price = left > 0 ? tierPrice(info, tier.mult) : 0;
+  var odds = oddsAfter(tier, cat), refundNote = false;
+  for (var g = 0; g < 3; g++) if (odds[g] > 0 && M.GRADES[g].steps > left) refundNote = true;
+  var catOk = left >= 2 && (s.schematics | 0) >= M.CATALYST_COST;
+  var why = '';
+  if (left <= 0) why = 'max';
+  else if (M.visitLeft() <= 0) why = 'visit';
+  else if (cat && left < 2) why = 'cat-last-step';
+  else if (cat && (s.schematics | 0) < M.CATALYST_COST) why = 'schematics';
+  else if (s.credits < price) why = 'credits';
+  return { price: price, odds: odds, stepsLeft: left, maxGain: Math.min(3, left), refundNote: refundNote, catOk: catOk, why: why };
+};
+// Deterministic grade draw: a hash of the save (buys, credits, runs, rolls, schematics, item, tier). No Math.random, no Date.
+function seedDraw(kind, id, tierId){
+  var s = M.state, h = 0x811C9DC5 | 0;
+  function mix(x){ h = Math.imul(h ^ (x | 0), 0x9E3779B1); h ^= h >>> 15; h = Math.imul(h, 0x85EBCA6B); h ^= h >>> 13; }
+  [s.buys, s.credits, s.runs.length, s.rolls | 0, s.schematics | 0, s.rifle.lvl, s.cond.hp, s.cond.atk, s.cond.rate, s.runSeq | 0].forEach(mix);
+  (kind + ':' + id + ':' + tierId).split('').forEach(function(c){ mix(c.charCodeAt(0)); });
+  h = Math.imul(h ^ (h >>> 16), 0x85EBCA6B); h = Math.imul(h ^ (h >>> 13), 0xC2B2AE35); h ^= h >>> 16;
+  return (h >>> 0) / 4294967296;
+}
+M.roll = function(kind, id, tierId, opts){
+  var q = M.quote(kind, id, tierId, opts);
+  if (!q || q.why) return false;
+  var s = M.state, info = itemInfo(kind, id), tier = tierOf(tierId), cat = !!(opts && opts.catalyst);
+  var u = seedDraw(kind, id, tierId) * 100, acc = 0, gi = 2, i;
+  var base = tier.odds;   // draw from the plain tier odds; Catalyst then lifts a Common to Rare (final odds = quote().odds)
+  for (i = 0; i < 3; i++) { acc += base[i]; if (u < acc) { gi = i; break; } }
+  while (gi > 0 && base[gi] === 0) gi--;   // float edge: never land on a 0% grade
+  var catUsedNow = cat && gi === 0;        // Schematics are spent only when the Catalyst changed the grade
+  if (catUsedNow) gi = 1;
+  var grade = M.GRADES[gi], gained = Math.min(grade.steps, q.stepsLeft);
+  var stepVal = q.price / tier.mult;   // ruling: the player always pays at least one step
+  var refund = Math.max(0, Math.min(Math.floor((grade.steps - gained) * stepVal / 25) * 25, Math.floor((q.price - stepVal) / 25) * 25));
+  var before = M.stats(), lvlBefore = info.lvl, before$ = s.credits, lvlAfter;
+  s.credits = Math.min(TUNING.CREDITS_MAX, s.credits - q.price + refund);
+  if (catUsedNow) { s.schematics = (s.schematics | 0) - M.CATALYST_COST; s.catUsed = Math.min(1e4, (s.catUsed | 0) + 1); }
+  var item, levels;
+  if (kind === 'rifle') { s.rifle.lvl += gained; lvlAfter = s.rifle.lvl; item = 'Rifle'; levels = gained; }
+  else if (kind === 'cond') {
+    levels = Math.min(TUNING.COND_BUY_LEVELS[id] * gained, TUNING.COND_CAPS[id] - s.cond[id]);
+    s.cond[id] += levels; s.buys += gained; lvlAfter = s.cond[id]; item = 'Cond ' + id; M.lastBuy = id;
+  } else { s.gear[id] += gained; lvlAfter = s.gear[id]; item = 'Gear ' + id; levels = gained; }
+  s.rolls = Math.min(1e6, (s.rolls | 0) + 1);
+  var vn = (s.visitBuys | 0) + 1, visit = Math.min(1e9 + 1, (s.runSeq | 0) + 1);
+  s.visitBuys = vn;
+  logPurchase(item, lvlAfter, q.price, before$, levels, vn, visit);
+  M.save();
+  try { if (V.Report && V.Report.purchase) V.Report.purchase(item + ' L' + lvlAfter, q.price, { levels: levels, visit: visit, vn: vn }); } catch (e) {}
+  return { ok: true, kind: kind, id: id, tier: tierId, grade: grade.id, steps: grade.steps, gained: gained, refund: refund, price: q.price, catalyst: catUsedNow, catNotNeeded: cat && !catUsedNow,
+    lvlBefore: lvlBefore, lvlAfter: lvlAfter, before: before, after: M.stats(), left: M.visitLeft() };
+};
+var ITEM_NAMES = { rifle:'Rifle', hp:'Hit points', atk:'Attack', rate:'Fire rate' };
+var ITEM_WHAT = { rifle:'Rifle damage', hp:'Max HP', atk:'Attack power', rate:'Fire rate' };
+M.items = function(){
+  var ids = [['rifle', 'rifle'], ['cond', 'hp'], ['cond', 'atk'], ['cond', 'rate']];
+  M.SLOTS.forEach(function(sl){ if (M.gearLevel(sl.id) > 0) ids.push(['gear', sl.id]); });
+  var live = [], poor = [], capped = [];
+  ids.forEach(function(p){
+    var info = itemInfo(p[0], p[1]), sl = p[0] === 'gear' ? slotOf(p[1]) : null, cap = info.stepsLeft <= 0;
+    var basic = cap ? null : tierPrice(info, M.TIERS[0].mult), aff = !cap && M.state.credits >= basic;
+    var it = { kind: p[0], id: p[1], name: sl ? sl.item : ITEM_NAMES[p[1]], what: sl ? sl.fx : ITEM_WHAT[p[1]], lvl: info.lvl, max: info.max,
+      stepsLeft: info.stepsLeft, capped: cap, basicPrice: basic, affordable: aff };
+    (cap ? capped : aff ? live : poor).push(it);
+  });
+  return live.concat(poor, capped);
+};
+
 // ---------- sample saves (08 structure rule 8; F0 #12). Plain data; each passes validate(). Bots and the debug menu use the same three. ----------
 var ALL_IDS = ['E-01', 'E-02', 'E-03', 'E-04', 'E-05', 'B-01'];
 function seenOf(ids){ var o = {}; ids.forEach(function(k){ o[k] = true; }); return o; }
@@ -3092,7 +3241,7 @@ try { if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') 
 //   Round damage = HERO_ATK x (1+atkAdd) x atkMul x pattern mul; rate = (1+rateAdd) x rateMul.
 //   volleys = batches per attack (1 + Multi-volley copies), 0.12 s apart. dodge = chance, capped 0.4.
 // Round flags the sim handles: r.pierce (x0.67 per enemy), r.bounceWall (up to 2, x0.5), r.rico (3 jumps, x0.7, 4 tiles).
-// Events: fire hit crit kill hurt dodge lock unlock tell door room levelup pick death pickup land supply chest boss bossphase win block.
+// Events (gear adds drone, guard): fire hit crit kill hurt dodge lock unlock tell door room levelup pick death pickup land supply chest boss bossphase win block.
 // Art/VFX fields (LIAISON 2026-11-10, additive, read-only, no rng): fire {vol, weapon}; hit {src, dir, hp, max};
 //   kill {size, last}; hurt {hp, max, down}; block {src} (enemy flat round stopped by cover); door {stage, kind}.
 // Pure deterministic sim. Fixed step 1/60 s x TIME_SCALE. No DOM, no unseeded randomness, no wall clock.
@@ -3198,7 +3347,7 @@ function callHook(S, name){
 }
 function heroStats(S){
   var st = { atkAdd:0, atkMul:1, primaryMul:1, rateAdd:0, rateMul:1, critAdd:0, critDmgAdd:0, hpMaxAdd:0, dmgTakenMul:1, moveMul:1, dodge:0, volleys:1 };
-  if (S.meta) { st.hpMaxAdd += S.meta.hpAdd || 0; st.atkMul *= S.meta.atkMul == null ? 1 : S.meta.atkMul; st.rateMul *= S.meta.rateMul == null ? 1 : S.meta.rateMul; st.moveMul *= S.meta.moveMul == null ? 1 : S.meta.moveMul; st.dmgTakenMul *= S.meta.dmgTakenMul == null ? 1 : S.meta.dmgTakenMul; } // META: run-start stats
+  if (S.meta) { st.hpMaxAdd += S.meta.hpAdd || 0; st.atkMul *= S.meta.atkMul == null ? 1 : S.meta.atkMul; st.rateMul *= S.meta.rateMul == null ? 1 : S.meta.rateMul; st.moveMul *= S.meta.moveMul == null ? 1 : S.meta.moveMul; st.dmgTakenMul *= S.meta.dmgTakenMul == null ? 1 : S.meta.dmgTakenMul; if (S.meta.critAdd > 0) st.critAdd += S.meta.critAdd; if (S.meta.critDmgAdd > 0) st.critDmgAdd += S.meta.critDmgAdd; } // META: run-start stats
   callHook(S, 'stats', st);
   if (S.deploy && V.Mods && V.Mods.Deploy) V.Mods.Deploy.applyStats(S, st);   // G: Deploy boost stats
   if (V.MODS) st.volleys = Math.max(st.volleys, 1 + count(S, 'multi')); // SK-02 echo batches (mods.js leaves them to the sim)
@@ -3424,6 +3573,9 @@ function create(seed, tune, opts){
   S.metaOpts = opts || null; S.useMeta = false; S.meta = null;
   if (opts && opts.metaStats) S.meta = opts.metaStats;
   else if (!(opts && opts.metaStats === null) && V.Meta && V.Meta.stats) { S.meta = V.Meta.stats(); S.useMeta = true; }
+  // GEAR (step 8): optional meta keys. Absent keys add no fields, no rng draws, no steps.
+  if (S.meta && S.meta.droneFrac > 0) S.drone = { x:0, y:0, frac:S.meta.droneFrac, kick:0 };
+  if (S.meta && S.meta.guardEvery > 0) S.guard = { every:S.meta.guardEvery, t:0, blocks:0 };   // starts charged
   S.credits = 0; S.stats.seen = {};
   refreshStats(S);
   if (S.meta) S.hero.hp = S.hero.maxHp; // start at full HP with the Conditioning bonus
@@ -3461,9 +3613,29 @@ function fireBatch(S){
     if (p.delay > 0) { h.delayQ.push({ t:p.delay, ang:p.ang || 0, off:off, mul:p.mul == null ? 1 : p.mul }); continue; }
     spawnRound(S, mx + px * off, my + py * off, a + (p.ang || 0), roundDamage(S, p.mul == null ? 1 : p.mul));
   }
+  if (S.drone) droneFire(S);
   ev(S, { k:'fire', x:mx, y:my, ang:a, n:list.length, vol:vol, weapon:'rifle' });
 }
 
+// GEAR: Wing Drone hovers at the left shoulder and fires one plain round per hero volley at the locked target (no crit roll, no rng).
+var DRONE_SIDE = 0.55, DRONE_BACK = 0.1, GUARD_EVENT = 'guard';
+function droneSpot(S){
+  var h = S.hero, a = h.ang || 0;
+  return { x:h.x - Math.sin(a) * DRONE_SIDE - Math.cos(a) * DRONE_BACK, y:h.y + Math.cos(a) * DRONE_SIDE - Math.sin(a) * DRONE_BACK };
+}
+function droneFire(S){
+  var d = S.drone, h = S.hero, tg = h.lockId != null ? findEnemy(S, h.lockId) : null;
+  if (!tg) return;
+  var ang = Math.atan2(tg.y - d.y, tg.x - d.x), t = S.tune;
+  var dmg = Math.max(1, Math.floor(roundDamage(S, 1) * d.frac));
+  S.rounds.push({ x:d.x, y:d.y, vx:Math.cos(ang) * t.ROUND_SPEED, vy:Math.sin(ang) * t.ROUND_SPEED, r:t.ROUND_R * 0.8, dmg:dmg, crit:false, bounces:0, wallBounces:0, hit:[], drone:true });
+  d.kick = 1;
+  ev(S, { k:'drone', x:d.x, y:d.y, ang:ang });   // own event: 'fire' would kick the rifle, drop a casing and play the rifle cue
+}
+function gearTick(S, dt){
+  if (S.drone) { var p = droneSpot(S); S.drone.x = p.x; S.drone.y = p.y; if (S.drone.kick > 0) S.drone.kick = Math.max(0, S.drone.kick - dt * 6); }
+  if (S.guard && S.guard.t > 0) S.guard.t = Math.max(0, S.guard.t - dt);
+}
 function findEnemy(S, id){ for (var i = 0; i < S.enemies.length; i++) if (S.enemies[i].id === id) return S.enemies[i]; return null; }
 // S7 hook (E-07 burrower): e.under = true makes a machine untargetable (lock, rounds, ricochet, mods), contact-free, out of body
 // separation, and immune to every damage path. The sim mirrors it into e.hidden (which mods.js and the separation passes already read).
@@ -3769,7 +3941,7 @@ function wallReflect(S, r){
   return hit;
 }
 function stepRounds(S, dt){
-  var a = S.rounds, out = [];
+  var a = S.rounds, out = [], gpf = S.meta && S.meta.pierceFrac > 0 ? Math.min(1, S.meta.pierceFrac) : 0;
   for (var i = 0; i < a.length; i++) {
     var r = a[i], alive = true;
     r.x += r.vx * dt; r.y += r.vy * dt;
@@ -3808,6 +3980,7 @@ function stepRounds(S, dt){
         break;
       }
     }
+    if (!alive && gpf > 0 && !r.drone && !r.gpUsed) { alive = true; r.gpUsed = true; r.dmg = Math.max(1, Math.floor(r.dmg * gpf)); }   // GEAR: Piercing Rounds, one machine
     if (alive) out.push(r);
   }
   S.rounds = out;
@@ -3822,6 +3995,9 @@ function stepShots(S, dt){
     if (hitsSolid(S, s.x, s.y, s.r)) { ev(S, { k:'block', x:s.x, y:s.y, src:s.src }); continue; } // cover stops enemy flat rounds (M)
     if (outOfRoom(S, s.x, s.y, -s.r)) {
       if (s.bounces > 0) { wallReflect(S, s); s.bounces--; } else if (outOfRoom(S, s.x, s.y, s.r)) continue;
+    }
+    if (S.phase !== 'results' && S.guard && S.guard.t <= 0 && h.invulnT <= 0 && Math.hypot(h.x - s.x, h.y - s.y) < s.r + HERO_HURT_R) {   // GEAR: Guard Drone eats one enemy round
+      S.guard.t = S.guard.every; S.guard.blocks++; ev(S, { k:GUARD_EVENT, x:s.x, y:s.y, src:s.src }); continue;
     }
     if (S.phase !== 'results' && Math.hypot(h.x - s.x, h.y - s.y) < s.r + HERO_HURT_R) { hurtHero(S, s.dmg, s.src, s.x, s.y); continue; }
     out.push(s);
@@ -4018,6 +4194,7 @@ function step(S, inp){
   if (!S.st) { refreshStats(S); if (V.Mods && V.Mods.Deploy) V.Mods.Deploy.runStart(S); }   // G: Deploy shield + opening picks, once
   if (S.phase === 'play') { S.stats.playSteps++; releaseSpawns(S); }
   stepHero(S, inp, dt);
+  if (S.drone || S.guard) gearTick(S, dt);
   if (S.phase === 'play' && S.hero.braced) S.stats.bracedSteps++;
   for (var i = 0; i < S.enemies.length && S.phase !== 'results'; i++) stepEnemy(S, S.enemies[i], dt);
   pruneEnemies(S);
@@ -5776,6 +5953,8 @@ function eatEvents(ev, S) {
       case 'boss': FX.bossIntro = FX.wall; spawnRing(x, y, 0.4, 3.2, 0.9, PAL.sensor); break;
       case 'chest': spawnRing(x, y, 0.2, 1.4, 0.5, PAL.chestTrim); spawnBurst(x, y, 14, 5, 0.5, PAL.cyan, 0.07, 4, 'B'); spawnGlint(x, y, PAL.sparkHot, 0.5, 0.4); break;
       case 'win': spawnRing(x, y, 0.5, 4.0, 1.0, PAL.cyan); break;
+      case 'drone': spawnBurst(x, y, 2, 2, 0.1, PAL.cyan, 0.04, 8, 'B', e.ang != null ? e.ang : 0, 0.6); break;   // GEAR: Wing Drone muzzle
+      case 'guard': spawnRing(x, y, 0.1, 0.6, 0.3, PAL.shield); spawnBurst(x, y, 6, 3, 0.25, PAL.shield, 0.05, 4, 'B'); break;   // GEAR: Guard Drone ate a round
       case 'fire': {
         var Hf = AN.h; Hf.kick = 1; Hf.flash = 1;
         var fa = e.ang != null ? e.ang : (S.hero.ang || 0);
@@ -6734,6 +6913,25 @@ function drawFx(S, s, t) {
   }
 }
 
+// GEAR (step 8): Wing Drone = small diamond body with a cyan eye at the shoulder; Guard Drone = a ring around the Operator,
+// full and bright when ready, a filling arc while it recharges. Sim state only (S.drone, S.guard); nothing here when the keys are absent.
+function drawGear(S, s, t) {
+  var h = S.hero, rr = (h.r || 0.28) * s;
+  if (S.guard) {
+    var g = S.guard, ready = g.t <= 0, f = ready ? 1 : 1 - g.t / g.every, cx = X(h.x), cy = Y(h.y), R = rr + 7;
+    ring(cx, cy, R, 4, withA(PAL.ink, 0.55));
+    if (ready) { ring(cx, cy, R, 2.4, PAL.shield); glow(cx, cy, R * 1.2, PAL.shield, 0.25, 3); }
+    else ring(cx, cy, R, 2.4, withA(PAL.shield, 0.75), -Math.PI / 2, -Math.PI / 2 + TAU * f);
+  }
+  if (S.drone) {
+    var d = S.drone, bob = Math.sin(t * 3.1) * 1.4, dx = X(d.x), dy = Y(d.y) + bob, z = Math.max(4, rr * 0.5) + d.kick * 1.2;
+    circ(dx + 1.5, dy + 3 + 1, z * 0.8, PAL.shadow);
+    rect(dx, dy, z * 2 + 2, z * 2 + 2, PAL.ink, Math.PI / 4);
+    rect(dx, dy, z * 2, z * 2, PAL.pierce, Math.PI / 4);
+    circ(dx, dy, z * 0.55 + d.kick * 0.8, d.kick > 0.2 ? PAL.sparkHot : PAL.cyan);
+  }
+}
+
 function drawHeroHp(S, s) {
   var h = S.hero; if (!(h.maxHp > 0)) return;
   // QA-P1 D13: 1 px ink outline + dark track, lifted clear of the rifle tip when aiming up
@@ -6965,6 +7163,7 @@ V.Scene = {
     drawLock(S, s, t); // enemy marker: under the Operator (QA-P1 D2)
     // QA-P1 D2: the Operator and its HP bar sit above every enemy layer (bodies, HP bars, lock ring)
     if (heroOn) { drawBrace(S, s); drawHero(S, s, t); drawHeroHp(S, s); }
+    if (heroOn && (S.drone || S.guard)) drawGear(S, s, t);
     else if (H && dU >= 0) drawHero(S, s, t, dU);
 
     var rd = S.rounds || [];
@@ -8283,7 +8482,32 @@ cue('toast', 'S-503', 'u', 1, 300, 1, 0.08, 1, function(c, o, t){ return tone(c,
 cue('count', 'S-502', 'u', 1, 50, 2, 0.03, 1, function(c, o, t){ return tone(c, o, t, { w: 'sine', f: 1320, d: 0.02, v: 0.08 }); });
 cue('buy', 'S-504a', 'u', 2, 120, 1, 0.3, 1, function(c, o, t){ tone(c, o, t, { w: 'sine', f: 880, d: 0.03, v: 0.2 }); return notes(c, o, t + 0.05, M([69, 74, 78]), 0.06, { w: 'triangle', d: 0.12, v: 0.2 }); });
 cue('equip', 'S-504b', 'u', 1, 100, 1, 0.08, 1, function(c, o, t){ noise(c, o, t, { d: 0.02, v: 0.2, hp: 2500 }); return tone(c, o, t, { w: 'sine', f: 240, f1: 160, d: 0.05, v: 0.3 }); });
-cue('unlock', 'S-509', 'u', 2, 0, 1, 0.3, 1, function(c, o, t){ tone(c, o, t, { w: 'square', f: 600, d: 0.03, v: 0.1, lp: 1500 }); return notes(c, o, t + 0.07, M([69, 76]), 0.08, { w: 'triangle', d: 0.14, v: 0.22 }); });
+// Step 8 home upgrades (SPEC-UX s6). UI bus, all [spec] <= 600 ms, epic <= 900 ms. Common grade reuses 'levelup' (alias of level_up, S-019).
+// Pitches stay in the D chapter key; levels sit with the other menu cues. Guesses until heard. The returned node is the one that ends last.
+cue('unlock', 'S-509', 'u', 2, 0, 1, 0.45, 1, function(c, o, t){   // padlock: key click, shackle pop, then a short rise (padlock break is 400 ms)
+  noise(c, o, t, { d: 0.015, v: 0.22, hp: 2600 }); tone(c, o, t, { w: 'square', f: 1200, d: 0.012, v: 0.08, lp: 3000, a: 0.001 });
+  noise(c, o, t + 0.05, { d: 0.025, v: 0.18, bp: 1400, q: 1.5 }); tone(c, o, t + 0.05, { w: 'sine', f: 520, f1: 380, d: 0.05, v: 0.2 });
+  tone(c, o, t + 0.08, { w: 'sine', f: 400, f1: 1000, d: 0.18, v: 0.08, a: 0.02 });
+  return notes(c, o, t + 0.12, M([69, 76, 81]), 0.07, { w: 'triangle', d: 0.16, v: 0.2 }); });
+cue('tick', 'S-520', 'u', 1, 40, 2, 0.05, 1, function(c, o, t){   // sheet open, tier chip, item row
+  noise(c, o, t, { d: 0.01, v: 0.07, hp: 4200 }); return tone(c, o, t, { w: 'triangle', f: 1050, d: 0.03, v: 0.13 }); });
+cue('latch', 'S-521', 'u', 1, 80, 1, 0.12, 1, function(c, o, t){   // Catalyst switch: two-part mechanical catch
+  noise(c, o, t, { d: 0.015, v: 0.18, bp: 1800, q: 1.2 }); tone(c, o, t, { w: 'square', f: 340, f1: 260, d: 0.04, v: 0.1, lp: 1400 });
+  noise(c, o, t + 0.05, { d: 0.015, v: 0.13, hp: 2600 }); return tone(c, o, t + 0.05, { w: 'triangle', f: mf(81), d: 0.06, v: 0.12 }); });
+cue('spend', 'S-522', 'u', 2, 150, 1, 0.26, 1, function(c, o, t){   // confirm: coin clink (two bright partial pairs, slightly inharmonic)
+  noise(c, o, t, { d: 0.01, v: 0.1, hp: 5000 });
+  tone(c, o, t, { w: 'sine', f: 1568, d: 0.12, v: 0.17, a: 0.001 }); tone(c, o, t, { w: 'sine', f: 3951, d: 0.08, v: 0.05, a: 0.001 });
+  tone(c, o, t + 0.06, { w: 'sine', f: 5274, d: 0.1, v: 0.04, a: 0.001 }); return tone(c, o, t + 0.06, { w: 'sine', f: 2093, d: 0.18, v: 0.15, a: 0.001 }); });
+cue('rare', 'S-523', 'u', 2, 0, 1, 0.36, 1, function(c, o, t){   // Rare reveal: 2-note rise, octave sparkle on the top note
+  tone(c, o, t + 0.11, { w: 'sine', f: mf(93), d: 0.18, v: 0.05 }); return notes(c, o, t, M([74, 81]), 0.11, { w: 'triangle', d: 0.22, v: 0.26 }); });
+cue('epic', 'S-524', 'u', 2, 0, 1, 0.75, 1, function(c, o, t){   // Epic reveal: 3-note rise, held top, shimmer run + air
+  notes(c, o, t, M([69, 74, 81]), 0.11, { w: 'triangle', d: 0.24, v: 0.24 });
+  tone(c, o, t + 0.22, { w: 'triangle', f: mf(86), d: 0.4, v: 0.1, a: 0.02 });
+  var sh = [93, 98, 100, 105, 110, 105]; for (var i = 0; i < sh.length; i++) tone(c, o, t + 0.3 + i * 0.05, { w: 'sine', f: mf(sh[i]), d: 0.08, v: 0.05 });
+  return noise(c, o, t + 0.3, { d: 0.4, v: 0.03, hp: 6000, a: 0.1 }); });
+cue('deny', 'S-525', 'u', 1, 150, 1, 0.2, 1, function(c, o, t){   // rejected tap: soft low two-step down, no buzz (child-friendly)
+  tone(c, o, t, { w: 'triangle', f: 300, f1: 260, d: 0.07, v: 0.22, lp: 1200 });
+  return tone(c, o, t + 0.09, { w: 'triangle', f: 230, f1: 200, d: 0.09, v: 0.22, lp: 1200 }); });
 cue('deploy', 'S-507', 'u', 2, 300, 1, 0.48, 1, function(c, o, t){ tone(c, o, t, { w: 'sine', f: 120, f1: 60, d: 0.2, v: 0.4 }); return noise(c, o, t, { d: 0.46, v: 0.2, bp: 300, f1: 2400, q: 1, a: 0.12 }); });
 cue('roll_sweep', 'S-508a', 'u', 2, 200, 1, 1.0, 1, function(c, o, t, v, p){ return tone(c, o, t, { w: 'triangle', f: 300, f1: 900, d: p.d || 1.0, v: 0.08, lp: 1400, a: 0.05 }); }, true);
 cue('roll_common', 'S-508b', 'u', 2, 0, 1, 0.22, 1, function(c, o, t){ return tone(c, o, t, { w: 'triangle', f: mf(74), d: 0.2, v: 0.24 }); });
@@ -8358,7 +8582,7 @@ function whenRunning(fn){
 
 // ---- baking (07 s2): UI and hero cues first, the rest one per idle slice ----
 var baked = {}, bakeQ = null, bakeN = 0, bakeMs = 0;
-var BAKE_FIRST = ['button', 'tab', 'title_tap', 'fire', 'hit', 'hurt_round', 'kill_s', 'lock', 'xp', 'level_up', 'door_open'];
+var BAKE_FIRST = ['button', 'tab', 'tick', 'spend', 'title_tap', 'fire', 'hit', 'hurt_round', 'kill_s', 'lock', 'xp', 'level_up', 'door_open'];
 function bakeAll(){
   var OAC = G.OfflineAudioContext || G.webkitOfflineAudioContext; if (!OAC || !ctx) return;
   var names = BAKE_FIRST.slice(); for (var k in C) if (names.indexOf(k) < 0) names.push(k);
@@ -8472,6 +8696,7 @@ function cueFor(e, S){
       else if (e.kind === 'credits' || e.kind === 'coin') o('coin');
       break;
     case 'levelup': o('level_up'); break;
+    case 'guard': o('block'); break;   // step 8 Guard Drone blocked a bullet (GE)
     case 'pick': o(e.level === 3 ? 'pick_lv3' : (e.level === 2 ? 'pick_lv2' : 'pick_confirm')); if (e.setDone) o('set_done', { delay: 0.2 }); break;
     case 'room': o('stage_whoosh'); if (e.kind !== 'boss' && e.kind !== 'collect' && e.kind !== 'supply') o('spawn', { delay: 0.2 }); break;
     case 'door': o('door_open'); o('room_clear', { v: clearForm++ % 4, delay: 0.1 }); break;
@@ -9354,7 +9579,7 @@ if (V.TUNE_DEFAULTS) {
   var SHELL = { AUTO_WALK: true, AUTO_WALK_DELAY: 1.0, AUTO_WALK_MULT: 2, EDGE_FLASH: true, HAPTIC_HURT_MS: 40, HAPTIC_KILL_MS: 12 };
   for (var sk in SHELL) if (!(sk in V.TUNE_DEFAULTS)) { V.TUNE_DEFAULTS[sk] = SHELL[sk]; if (V.TUNE && !(sk in V.TUNE)) V.TUNE[sk] = SHELL[sk]; }
 }
-var BUILD = 'volley-v2-6';
+var BUILD = 'volley-v2-7';
 // Persist tuning (only values that differ from defaults). Every storage call is guarded. Sound on/off is NOT kept here any more:
 // V.TUNE.SOUND is a view of V.Audio's mute, saved in 'volley.settings.v1' (audio.js), so a tune reset or save wipe keeps it.
 // f0-2: sliders were being nudged by accident while scrolling the drawer (M's Fold reports showed FIRE_INTERVAL at the
@@ -9568,7 +9793,7 @@ UI.hud = function(S, R, view){
     var chip = $('rrChip'); if (!chip) { chip = document.createElement('div'); chip.id = 'rrChip'; chip.setAttribute('aria-label', 'Rerolls banked'); $('lvl').parentNode.insertBefore(chip, $('lvl').nextSibling); }
     chip.textContent = 'RR ' + rr; chip.style.display = rr > 0 ? 'block' : 'none';
     var cc = $('crChip'); if (!cc) { cc = document.createElement('div'); cc.id = 'crChip'; cc.setAttribute('aria-label', 'Credits this run'); cc.className = 'hpT'; $('hpRow').appendChild(cc); }   // in the HP row: the top row has no room at 344 wide   // M 2026-11-12: "A credit counter should be visible during the run" (before the Deploy multiplier, which pays at run end)
-    cc.textContent = '\u25C6 ' + Math.round(S.credits || 0);
+    cc.innerHTML = '<span class="pv-coin" aria-hidden="true"></span>' + Math.round(S.credits || 0);   // QA-S8 D6: the home screens' gold coin, not a text diamond
     var rn = $('roomName'), ht = $('hudTop'); rn.style.display = ''; if (ht && ht.scrollWidth > ht.clientWidth + 1) rn.style.display = 'none';   // D3: the row is full, so the name goes (the stage chip never shrinks)
     $('xpFill').style.width = (xpPct * 100).toFixed(1) + '%';
     var xw = $('xpWrap'); if (xw) xw.style.visibility = (S.mini && S.stageKind === 'collect') ? 'hidden' : '';   // catch room: no XP bar (K)
@@ -9669,7 +9894,7 @@ var LVL_CSS = '' +
   '.card.flip{animation:cardFlip .26s ease-out}@keyframes cardFlip{from{transform:rotateX(70deg);opacity:.2}to{transform:none;opacity:1}}' +
   '#cardCont{position:absolute;inset:0;z-index:5;display:flex;align-items:flex-end;justify-content:center;padding-bottom:12%;font:700 18px system-ui,sans-serif;color:#fff;background:rgba(0,0,0,.08)}' +
   '#cardCont span{background:rgba(13,27,29,.9);border:2px solid var(--cyan);border-radius:10px;padding:14px 22px;min-height:56px;box-sizing:border-box}' +
-  '#crChip{color:#ffd25a;padding-left:4px;border-left:1px solid #45494c}' +
+  '#crChip{color:#ffd25a;padding-left:6px;border-left:1px solid #45494c;display:flex;align-items:center;gap:4px}#crChip .pv-coin{width:11px;height:11px}' +
   '#rrChip{flex:none;font-weight:800;font-size:13px;color:#0d1b1d;background:#ffd25a;border-radius:6px;padding:4px 6px;white-space:nowrap;display:none}' +
   // D3: the stage chip never shrinks (it was cut to "St..." beside the RR chip at 344); the XP bar gives the room back, the room name drops first.
   '#stageLbl{flex:none;overflow:visible;text-overflow:clip}#xpWrap{flex:1 1 40px;min-width:48px}' +
@@ -10743,13 +10968,16 @@ V.TabsA = { stagger: stagger, meta: meta, fmt: fmt, esc: esc, asset: asset, KEYS
 // ---- Armory ----------------------------------------------------------------------------------
 var ICON_RIFLE = '<path d="M2 14h14l2-3h4v3h-3v2H9l-1 4H5l1-4H2z"/>';
 var ICON_LOCK = '<rect x="5" y="11" width="14" height="10" rx="1"/><path d="M8 11V8a4 4 0 018 0v3"/>';
+var DRONE = '<circle cx="12" cy="12" r="3"/><path d="M12 9V4M12 20v-5M9 12H4M20 12h-5M6 6l3 3M18 18l-3-3M18 6l-3 3M6 18l3-3"/>';
+var MODULE = '<rect x="5" y="5" width="14" height="14" rx="2"/><path d="M9 9h6v6H9zM2 9h3M2 15h3M19 9h3M19 15h3"/>';
 var LOCKED = [
-  { name: 'Exo-plating', path: '<path d="M6 4l6 2 6-2 3 4-3 3v9H6v-9L3 8z"/>' },
-  { name: 'Module A', path: '<rect x="5" y="5" width="14" height="14" rx="2"/><path d="M9 9h6v6H9zM2 9h3M2 15h3M19 9h3M19 15h3"/>' },
-  { name: 'Module B', path: '<rect x="5" y="5" width="14" height="14" rx="2"/><path d="M9 9h6v6H9zM2 9h3M2 15h3M19 9h3M19 15h3"/>' },
-  { name: 'Drone A', path: '<circle cx="12" cy="12" r="3"/><path d="M12 9V4M12 20v-5M9 12H4M20 12h-5M6 6l3 3M18 18l-3-3M18 6l-3 3M6 18l3-3"/>' },
-  { name: 'Drone B', path: '<circle cx="12" cy="12" r="3"/><path d="M12 9V4M12 20v-5M9 12H4M20 12h-5M6 6l3 3M18 18l-3-3M18 6l-3 3M6 18l3-3"/>' }
+  { id: 'exo', name: 'Exo-plating', item: 'Reactive Plate', price: 850, path: '<path d="M6 4l6 2 6-2 3 4-3 3v9H6v-9L3 8z"/>' },
+  { id: 'modA', name: 'Module A', item: 'Aim Module', price: 1400, path: MODULE },
+  { id: 'modB', name: 'Module B', item: 'Overload Cell', price: 1700, path: MODULE },
+  { id: 'droneA', name: 'Drone A', item: 'Wing Drone', price: 1700, path: DRONE },
+  { id: 'droneB', name: 'Drone B', item: 'Guard Drone', price: 1950, path: DRONE }
 ];
+var PERK2 = { id: 'perk2', name: 'Rifle perk 2', item: 'Piercing Rounds', price: 2250, path: '<path d="M3 12h14M13 7l5 5-5 5M20 4v16"/>' };
 var CSS = [
   '.ta-rack{display:flex;gap:12px;height:232px}',
   '.ta-rackpanel{flex:none;width:112px;padding:0;overflow:hidden;background:repeating-linear-gradient(90deg,transparent 0 14px,rgba(255,255,255,.04) 14px 16px),linear-gradient(var(--pv-ui-metal-700),var(--pv-ui-metal-900))}',
@@ -10763,7 +10991,7 @@ var CSS = [
   '.ta-slot .pv-ico{font-size:26px}',
   '.ta-slot img{position:static;flex:1 1 0;min-height:0;width:100%;max-width:100%;object-fit:cover;object-position:50% 50%;border-radius:3px;display:block;pointer-events:none;margin:0}',
   '.ta-slot.r1{justify-content:flex-end;padding:6px 4px}',
-  '.ta-rpip{position:absolute;left:5px;bottom:5px;display:flex;gap:2px}.ta-rpip i{width:5px;height:5px;background:var(--rc,var(--pv-ui-r1));border:1px solid var(--pv-ui-ink)}',
+  '.ta-rpip{position:absolute;left:5px;bottom:5px;display:flex;gap:2px}.ta-rpip i{width:7px;height:7px;background:var(--rc,var(--pv-ui-r1));border:1px solid var(--pv-ui-ink)}',
   '.ta-lk{width:12px;height:12px;font-size:12px!important;margin-right:3px;vertical-align:-1px;stroke:currentColor;fill:none;stroke-width:2}',
   '.ta-slot__n{font:800 12px/1 var(--pv-ui-font-stencil);letter-spacing:0;text-transform:uppercase;color:var(--pv-ui-text-2);white-space:nowrap}',
   '.ta-slot__p{display:flex;align-items:center;font:700 12px/1 var(--pv-ui-font-stencil);letter-spacing:.08em;color:var(--pv-ui-text-3);white-space:nowrap}',
@@ -10798,12 +11026,75 @@ var CSS = [
   '.ta-perk{display:flex;align-items:center;gap:10px;min-height:42px;padding:0 10px;background:var(--pv-ui-ink);border-radius:6px;box-shadow:inset 0 0 0 1.5px var(--pv-ui-metal-600);color:var(--pv-ui-text-3)}',
   '.ta-perk b{font:800 12px/1 var(--pv-ui-font-stencil);letter-spacing:.08em;text-transform:uppercase;color:var(--pv-ui-sand);width:52px;flex:none}',
   '.ta-perk span{flex:1;font-size:12px;line-height:1.2}',
-  '@media (prefers-reduced-motion:reduce){.ta-pulse{animation:none}}'
+  '@media (prefers-reduced-motion:reduce){.ta-pulse{animation:none}}',
+  '.ta-slot{min-height:72px;min-width:72px}',
+  '.ta-slot.is-empty{opacity:.8}.ta-slot.is-empty.is-afford{opacity:1}',
+  '.ta-slot.is-empty .ta-slot__p{color:var(--pv-ui-text-2);gap:4px}',
+  '.ta-slot.is-afford .ta-slot__p{color:#ffe27a}','.ta-slot.is-afford .ta-lk{color:#ffe27a;stroke:#ffe27a}',
+  '.ta-slot.is-afford{box-shadow:inset 0 0 0 1.5px rgba(255,226,122,.6)}',
+  '.ta-slot .ta-lk{margin:0;color:var(--pv-ui-text-2);stroke:var(--pv-ui-text-2)}',
+  '.ta-slot.is-gear .ta-slot__n{white-space:normal;text-align:center;line-height:1.05}',
+  '.ta-slot.is-gear .pv-ico{font-size:20px}',
+  '.ta-perkbtn{width:100%;min-height:56px;font:inherit;text-align:left;cursor:pointer;appearance:none;border:0}',
+  '.ta-perk .ta-coin,.ta-perk .ta-lk,.ta-perk .ta-slot__p{flex:none}',
+  '.ta-perkbtn .ta-slot__p{margin-left:auto;gap:4px;color:var(--pv-ui-text-2)}',
+  '.ta-perkbtn.is-afford .ta-slot__p{color:#ffe27a}',
+  '.ta-bscrim{z-index:45}',
+  '.ta-bsheet{gap:10px;padding:8px 16px 16px}',
+  '.ta-bsheet .ta-x{position:absolute;top:8px;right:8px;width:56px;height:56px;padding:0;min-height:56px}',
+  '.ta-bsheet .ta-hd{min-height:72px}',
+  '.ta-bsheet .ta-cell{background:var(--pv-ui-metal-800,#20262c);border-radius:8px;box-shadow:inset 0 0 0 1.5px var(--pv-ui-metal-600)}',
+  '.ta-bsheet .ta-cell .pv-ico{font-size:40px;color:var(--pv-ui-text-2)}',
+  '.ta-bsheet .ta-lkbadge{position:absolute;right:-4px;bottom:-4px;width:26px;height:26px;border-radius:50%;background:var(--pv-ui-metal-900);display:flex;align-items:center;justify-content:center}',
+  '.ta-bsheet .ta-lkbadge .pv-ico{font-size:16px;stroke:currentColor;fill:none;stroke-width:2;color:#ffe27a}',
+  '.ta-bsheet .pv-btn{min-height:64px}.ta-bsheet .ta-notnow{min-height:48px}',
+  '.ta-buy{font-size:17px;letter-spacing:.08em;white-space:nowrap}',
+  '.ta-buy.is-arming{opacity:.6}',
+  '.ta-buy.is-short{background:var(--pv-ui-metal-700);color:var(--pv-ui-text);box-shadow:inset 0 0 0 1.5px var(--pv-ui-metal-500)}',
+  '.ta-shake{animation:taShake .2s linear}',
+  '@keyframes taShake{0%,100%{transform:translateX(0)}25%{transform:translateX(-4px)}75%{transform:translateX(4px)}}',
+  '.ta-brk{display:flex;flex-direction:column;align-items:center;gap:8px;padding:12px 0 8px}',
+  '.ta-brk svg{width:96px;height:96px;overflow:visible}',
+  '.ta-brk .bl,.ta-brk .br,.ta-brk .bs,.ta-brk .bk{transform-box:fill-box;transform-origin:center}',
+  '.ta-brk.go .bl{animation:taBl .4s ease-in forwards}.ta-brk.go .br{animation:taBr .4s ease-in forwards}.ta-brk.go .bk{animation:taBk .4s ease-out forwards}',
+  '.ta-brk.go .bs{animation:taBs .4s ease-out forwards}',
+  '@keyframes taBl{to{transform:translate(-14px,10px) rotate(-18deg);opacity:0}}@keyframes taBr{to{transform:translate(14px,10px) rotate(18deg);opacity:0}}',
+  '@keyframes taBk{to{transform:translate(0,-22px) rotate(25deg);opacity:0}}',
+  '@keyframes taBs{0%{transform:translate(0,0);opacity:1}100%{transform:translate(var(--dx),var(--dy)) rotate(200deg);opacity:0}}',
+  '.ta-newcard{display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center;padding:4px 0}',
+  '.ta-newcard .ta-title{font-size:20px}',
+  '.ta-newcard .ta-cell{background:var(--pv-ui-metal-800,#20262c);border-radius:8px;box-shadow:inset 0 0 0 1.5px var(--pv-ui-r1,#8aa)}',
+  '.ta-newcard .pv-ico{font-size:40px}',
+  '@media (prefers-reduced-motion:reduce){.ta-shake,.ta-brk.go *{animation:none}}'
 ].join('\n');
 
 // Rifle ATK shown on the card. V.Meta.rifleStat(lvl) wins if META exposes it; otherwise the D4 table (Ranger Rifle 50 +8 per level).
 function rifleAtk(lvl){ var M = meta(); if (typeof M.rifleStat === 'function') { var v = M.rifleStat(lvl); if (isFinite(v)) return v; } return 50 + 8 * (lvl - 1); }
 function rifleCost(){ var M = meta(); try { return M.cost('rifle', 'rifle'); } catch (_) { return null; } }
+
+// ---- buyable slots (contract CONTRACT-STEP8; local fallbacks until V.Meta.SLOTS exists) ----
+function slotDefs(){
+  var M = meta(), out = [], fb = {}; LOCKED.concat([PERK2]).forEach(function(d){ fb[d.id] = d; });
+  var src = M.SLOTS && M.SLOTS.length ? M.SLOTS : null;
+  var order = ['exo', 'modA', 'modB', 'droneA', 'droneB', 'perk2'];
+  order.forEach(function(id){
+    var d = fb[id], m = null;
+    if (src) for (var i = 0; i < src.length; i++) if (src[i].id === id) m = src[i];
+    out.push({ id: id, slot: (m && m.slot) || d.name, item: (m && m.item) || d.item, price: (m && +m.price) || d.price, path: d.path, fx: m && m.fx });
+  });
+  return out;
+}
+function slotDef(id){ var a = slotDefs(); for (var i = 0; i < a.length; i++) if (a[i].id === id) return a[i]; return null; }
+function gearLvl(id){ var M = meta(); try { return typeof M.gearLevel === 'function' ? (M.gearLevel(id) | 0) : 0; } catch (_) { return 0; } }
+function slotWhy(id){ var M = meta(); try { if (typeof M.slotWhy === 'function') return M.slotWhy(id) || ''; } catch (_) {} return gearLvl(id) > 0 ? 'owned' : ((M.state && M.state.credits || 0) >= (slotDef(id).price) ? '' : 'credits'); }
+function owned(id){ return gearLvl(id) > 0 || slotWhy(id) === 'owned'; }
+function credits(){ var st = meta().state; return (st && st.credits) || 0; }
+function priceTxt(n){ return n > 99999 ? Math.round(n / 1000) + 'K' : fmt(n); }
+function snd(n){ var A = V.Audio; if (A && typeof A.play === 'function') { try { A.play(n); } catch (_) {} } }
+function hap(ms){ if (V.haptic) { try { V.haptic(ms); } catch (_) {} } }
+function upOpen(kind, id){ var U = V.UpSheet; if (U && typeof U.open === 'function') { try { U.open(kind, id); return true; } catch (_) {} } return false; }
+// Buy-slot sheet state: null | { id, phase: 'ask' | 'break' | 'done', armAt, doneAt }
+var bs = null, bTimer = 0, pulseId = '';
 
 function ico(path, cls){ return '<svg class="pv-ico ' + (cls || '') + '" viewBox="0 0 24 24" aria-hidden="true">' + path + '</svg>'; }
 var RPIP = '<span class="ta-rpip" title="Surplus" aria-label="Surplus rarity"><i></i></span>';
@@ -10815,7 +11106,8 @@ var el = null, root = null, unsub = null, shown = false, sheetOpen = false, last
 function view(){
   var M = meta(), st = M.state || STUB.state, lvl = Math.max(1, Math.min(RIFLE_MAX, (st.rifle && st.rifle.lvl) || 1));
   var c = rifleCost(), maxed = lvl >= RIFLE_MAX || !c, credits = st.credits || 0;
-  var price = c ? c.credits : 0, can = !maxed && (typeof M.canBuy === 'function' ? !!M.canBuy('rifle', 'rifle') : credits >= price);
+  var price = c ? c.credits : 0, bq = null; try { if (typeof M.quote === 'function') bq = M.quote('rifle', 'rifle', 'basic', {}); } catch (_) {} if (bq && bq.price > 0) price = bq.price;
+  var can = !maxed && (typeof M.canBuy === 'function' ? !!M.canBuy('rifle', 'rifle') : credits >= price);
   var left = typeof M.visitLeft === 'function' ? M.visitLeft() : 2, why = typeof M.whyNot === 'function' ? M.whyNot('rifle', 'rifle') : '';
   return { lvl: lvl, maxed: maxed, price: price, can: can, credits: credits, short: Math.max(0, price - credits), left: left, why: why,
     atk: rifleAtk(lvl), next: maxed ? rifleAtk(lvl) : rifleAtk(lvl + 1) };
@@ -10828,13 +11120,14 @@ function statRow(v){
 }
 function costRow(v){
   if (v.maxed) return '<div class="ta-cost"><span class="ta-hint">Cost</span><span class="pv-small" style="margin-left:auto">Fully upgraded</span></div>';
-  return '<div class="ta-cost"><span class="ta-hint">Next upgrade</span><span class="pv-chip pv-chip--credits' + (v.can ? '' : ' is-short') + '">' + coin(18) + fmt(v.price) + '</span></div>';
+  return '<div class="ta-cost"><span class="ta-hint">' + (V.Meta && V.Meta.quote ? 'From' : 'Next upgrade') + '</span><span class="pv-chip pv-chip--credits' + (v.can ? '' : ' is-short') + '">' + coin(18) + fmt(v.price) + '</span></div>';
 }
 // P snippet 4 (pick 48): at most 2 buys per home visit. V.Meta.visitLeft() / whyNot() -> '' | 'max' | 'visit' | 'credits'.
 function upBtn(v, cls){
-  var label = v.maxed ? 'Max level' : 'Upgrade to Lv ' + (v.lvl + 1);
-  var note = v.maxed ? 'Rifle is at its top level.' : v.can ? '&nbsp;' : v.why === 'visit' ? 'Your buys for this visit are used. They come back after your next run.' : 'Need ' + fmt(v.short) + ' more credits';
-  return (v.maxed ? '' : '<div class="ta-left">Buys left this visit: <b>' + v.left + '</b></div>') +
+  var us = !!(V.UpSheet && V.UpSheet.open); var label = v.maxed ? 'Max level' : us ? 'Upgrade' : 'Upgrade to Lv ' + (v.lvl + 1);
+  if (us && !v.maxed) { v = Object.assign({}, v, { can: true }); }
+  var note = v.maxed ? 'Rifle is at its top level.' : us ? '&nbsp;' : v.can ? '&nbsp;' : v.why === 'visit' ? 'Your buys for this visit are used. They come back after your next run.' : 'Need ' + fmt(v.short) + ' more credits';
+  return (v.maxed ? '' : '<div class="ta-left">' + (us ? 'Rolls left' : 'Buys left this visit') + ': <b>' + v.left + '</b></div>') +
     '<button type="button" class="pv-btn pv-btn--primary pv-btn--block ta-up ' + (cls || '') + '" data-act="buy"' + (v.can ? '' : ' disabled') + '>' + label + '</button>' +
     '<div class="ta-note' + (!v.maxed && !v.can ? ' is-warn' : '') + '">' + note + '</div>';
 }
@@ -10844,10 +11137,7 @@ function render(){
   var v = view(), M = meta(), st = M.state || STUB.state;
   var slots = '<button type="button" class="pv-cell r1 ta-slot is-selected" data-act="open" aria-label="Ranger Rifle, level ' + v.lvl + ', open details">' + rifleImg() +
     '<span class="pv-lvl">Lv ' + v.lvl + '</span>' + RPIP + '<span class="ta-slot__n">Rifle</span></button>';
-  for (var i = 0; i < LOCKED.length; i++) {
-    slots += '<div class="pv-cell ta-slot is-empty" role="img" aria-label="' + LOCKED[i].name + ', locked">' + ico(LOCKED[i].path) +
-      '<span class="ta-slot__n">' + LOCKED[i].name + '</span><span class="ta-slot__p">' + ico(ICON_LOCK, 'ta-lk') + 'LOCKED</span></div>';
-  }
+  for (var i = 0; i < LOCKED.length; i++) slots += slotCell(slotDef(LOCKED[i].id));
   var html = '<div class="ta-root">' +
         '<div class="ta-scroll">' +
       '<div class="ta-rack"><div class="pv-panel pv-rivets ta-rackpanel" data-act="operator">' + figure() +
@@ -10860,12 +11150,71 @@ function render(){
         statRow(v) + costRow(v) + upBtn(v, 'ta-main') +
       '</section>' +
       '<p class="ta-note" style="margin:0">Credits are earned by clearing rooms.</p>' +
-    '</div>' + (sheetOpen ? sheet(v) : '') + '</div>';
+    '</div>' + (sheetOpen ? sheet(v) : '') + (bs ? buySheet() : '') + '</div>';
   el.innerHTML = html;
   root = el.firstChild;
   if (lastLvl >= 0 && v.lvl > lastLvl && !V.reducedMotion) { var cell = el.querySelector('.ta-cell'); if (cell) cell.classList.add('ta-pulse'); }
-  lastLvl = v.lvl;
+  lastLvl = v.lvl; pulseId = '';
 }
+function slotCell(d){
+  if (owned(d.id)) {
+    var lv = gearLvl(d.id) || 1;
+    return '<button type="button" class="pv-cell r1 ta-slot is-gear' + (pulseId === d.id ? ' ta-pulse' : '') + '" data-act="gear" data-id="' + d.id + '" aria-label="' + esc(d.item) + ', level ' + lv + ', tap to upgrade">' + ico(d.path) +
+      '<span class="pv-lvl">Lv ' + lv + '</span><span class="ta-slot__n">' + esc(d.item) + '</span></button>';
+  }
+  var aff = slotWhy(d.id) === '';
+  return '<button type="button" class="pv-cell ta-slot is-empty' + (aff ? ' is-afford' : '') + '" data-act="slot" data-id="' + d.id + '" aria-label="' + esc(d.slot) + ', locked, ' + d.price + ' credits. Tap to buy">' + ico(d.path) +
+    '<span class="ta-slot__n">' + esc(d.slot) + '</span><span class="ta-slot__p">' + ico(ICON_LOCK, 'ta-lk') + coin(14) + priceTxt(d.price) + '</span></button>';
+}
+function perk2Row(){
+  var d = slotDef('perk2'), lv = gearLvl('perk2');
+  if (owned('perk2')) return '<button type="button" class="ta-perk ta-perkbtn" data-act="gear" data-id="perk2"><b>Perk 2</b><span style="color:var(--pv-ui-text)">' + esc(d.item) + '</span><span class="pv-badge pv-badge--olive" style="flex:none">Lv ' + (lv || 1) + '</span></button>';
+  return '<button type="button" class="ta-perk ta-perkbtn' + (slotWhy('perk2') === '' ? ' is-afford' : '') + '" data-act="slot" data-id="perk2" aria-label="Perk 2 locked, ' + d.price + ' credits. Tap to buy"><b>Perk 2</b><span>Locked</span><span class="ta-slot__p">' + ico(ICON_LOCK, 'ta-lk') + coin(14) + priceTxt(d.price) + '</span></button>';
+}
+var PADLOCK = '<rect x="5" y="11" width="14" height="10" rx="1"/><path d="M8 11V8a4 4 0 018 0v3"/>';
+function breakSvg(){
+  var sh = '', d = [[-30, -34], [30, -30], [-36, 8], [36, 12], [-14, 38], [16, 40]];
+  for (var i = 0; i < 6; i++) sh += '<rect class="bs" x="46" y="50" width="6" height="6" fill="#ffe27a" style="--dx:' + d[i][0] + 'px;--dy:' + d[i][1] + 'px"/>';
+  return '<svg viewBox="0 0 96 96" aria-hidden="true"><path class="bk" d="M30 46V32a18 18 0 0136 0v14" fill="none" stroke="#c9d1d8" stroke-width="7" stroke-linecap="round"/>' +
+    '<path class="bl" d="M20 46h28v34H24a4 4 0 01-4-4z" fill="#ffe27a" stroke="#0f1215" stroke-width="2"/><path class="br" d="M48 46h28v30a4 4 0 01-4 4H48z" fill="#e0b73a" stroke="#0f1215" stroke-width="2"/>' + sh + '</svg>';
+}
+function buySheet(){
+  var d = slotDef(bs.id); if (!d) return '';
+  var cr = credits(), short = Math.max(0, d.price - cr), x = '<button type="button" class="pv-btn pv-btn--ghost ta-x" data-act="bclose" aria-label="Close"><svg class="pv-ico" viewBox="0 0 24 24" style="font-size:22px"><path d="M5 5l14 14M19 5L5 19"/></svg></button>';
+  var head = '<div class="pv-scrim ta-scrim ta-bscrim" data-act="bclose" role="dialog" aria-modal="true" aria-label="' + (bs.phase === 'ask' ? 'Buy ' + esc(d.slot) : esc(d.item) + ' unlocked') + '"><div class="pv-sheet ta-sheet ta-bsheet" data-keep="1"><div class="pv-sheet__grab"></div>';
+  if (bs.phase === 'break') return head + '<div class="ta-brk go" aria-live="polite">' + breakSvg() + '<span class="ta-hint">Unlocking</span></div></div></div>';
+  if (bs.phase === 'done') return head + '<div class="ta-newcard" aria-live="polite"><span class="pv-cell r1 ta-cell">' + ico(d.path) + '</span><span class="ta-title">' + esc(d.item) + '</span>' +
+      '<span class="pv-small"><span style="color:var(--pv-ui-r1);font-weight:700">Common</span> &middot; Lv 1 <span class="ta-rpip" style="position:static;display:inline-flex;margin-left:4px;vertical-align:middle"><i></i></span></span>' +
+      '<span class="ta-note" style="margin-top:2px">Now in your upgrade list</span></div>' +
+      '<button type="button" class="pv-btn pv-btn--primary pv-btn--block" data-act="bdone" data-keep="1">Done</button></div></div>';
+  var armed = Date.now() >= bs.armAt;
+  return head + x + '<div class="ta-hd"><span class="pv-cell ta-cell">' + ico(d.path) + '<span class="ta-lkbadge">' + ico(PADLOCK) + '</span></span><div class="pv-grow"><div class="pv-sheet__title" style="font-size:20px;letter-spacing:.08em">' + esc(d.slot) + '</div>' +
+      '<div class="pv-small" style="margin-top:6px">Opens the ' + esc(d.item) + ' you can upgrade</div></div></div>' +
+    '<button type="button" class="pv-btn pv-btn--primary pv-btn--block ta-buy' + (short ? ' is-short' : '') + (armed ? '' : ' is-arming') + '" data-act="bbuy" data-keep="1"' + (short ? ' aria-disabled="true"' : '') + '>' +
+      (short ? 'Need ' + fmt(short) + ' more CR' : 'Buy for ' + fmt(d.price) + ' CR') + '</button>' +
+    '<button type="button" class="pv-btn pv-btn--ghost pv-btn--block ta-notnow" data-act="bclose" data-keep="1">Not now</button></div></div>';
+}
+function openBuy(id){
+  if (!slotDef(id) || owned(id)) return;
+  bs = { id: id, phase: 'ask', armAt: Date.now() + 350 }; snd('tick'); render();
+  setTimeout(function(){ if (bs && bs.phase === 'ask' && el) { var b = el.querySelector('.ta-buy'); if (b) b.classList.remove('is-arming'); } }, 360);
+  var b = el && el.querySelector('.ta-buy'); if (b && b.focus) b.focus();
+}
+function closeBuy(){ if (!bs) return; if (bs.phase === 'break') return; if (bs.phase === 'done') pulseId = bs.id; bs = null; if (bTimer) { clearTimeout(bTimer); bTimer = 0; } render(); }
+function doBuy(){
+  if (!bs || bs.phase !== 'ask' || Date.now() < bs.armAt) return;
+  var d = slotDef(bs.id), M = meta(), btn = el.querySelector('.ta-buy');
+  if (credits() < d.price || typeof M.buySlot !== 'function') {
+    snd('deny'); if (btn && !V.reducedMotion) { btn.classList.remove('ta-shake'); void btn.offsetWidth; btn.classList.add('ta-shake'); } return;
+  }
+  var id = bs.id; bs.phase = 'break';
+  var r; try { r = M.buySlot(id); } catch (_) { r = false; }
+  if (!r) { bs.phase = 'ask'; snd('deny'); render(); return; }
+  snd('unlock'); hap(20); var fin = function(){ bTimer = 0; if (bs) { bs.phase = 'done'; bs.doneAt = Date.now() + 350; render(); } };
+  render();
+  if (V.reducedMotion) fin(); else bTimer = setTimeout(fin, 400);
+}
+
 function figure(){
   var u = asset(KEYS.rack);
   if (u) return '<img src="' + u + '" alt="The Operator" draggable="false">';
@@ -10880,7 +11229,7 @@ function sheet(v){
       '<div class="pv-small" style="margin-top:4px">Lv ' + v.lvl + ' / ' + RIFLE_MAX + '</div></div></div>' +
     statRow(v) +
     '<div class="ta-perk"><b>Perk 1</b><span style="color:var(--pv-ui-text)">Fast round, small hitbox</span><span class="pv-badge pv-badge--olive" style="flex:none">Active</span></div>' +
-    '<div class="ta-perk"><b>Perk 2</b><span>Rifle perks</span><span class="pv-badge" style="flex:none">' + ico(ICON_LOCK, 'ta-lk') + 'Locked</span></div>' +
+    perk2Row() +
     costRow(v) + upBtn(v, 'ta-sheetbuy') +
   '</div></div>';
 }
@@ -10889,10 +11238,15 @@ function onClick(e){
   var t = e.target; while (t && t !== el && !(t.getAttribute && t.getAttribute('data-act'))) t = t.parentNode;
   if (!t || t === el) return;
   var act = t.getAttribute('data-act');
+  if (act === 'bclose') { if (t.classList.contains('ta-scrim') && e.target !== t) return; if (bs && bs.phase === 'done' && Date.now() < bs.doneAt) return; closeBuy(); return; }
+  if (act === 'bdone') { if (bs && Date.now() < bs.doneAt) return; closeBuy(); return; }
+  if (act === 'bbuy') { doBuy(); return; }
+  if (act === 'slot') { openBuy(t.getAttribute('data-id')); return; }
+  if (act === 'gear') { var gid = t.getAttribute('data-id'); if (sheetOpen) { sheetOpen = false; render(); } upOpen('gear', gid); return; }
   if (act === 'close') { if (t.classList.contains('ta-scrim') && e.target !== t) return; closeSheet(); }
   else if (act === 'operator') { if (V.Home && V.Home.go) V.Home.go('operator'); }
   else if (act === 'open') { sheetOpen = true; render(); var x = el.querySelector('.ta-x'); if (x) x.focus(); }
-  else if (act === 'buy') { var M = meta(); if (M.buy('rifle', 'rifle')) buySound(); render(); }
+  else if (act === 'buy') { if (V.UpSheet && V.UpSheet.open) { sheetOpen = false; render(); upOpen('rifle', 'rifle'); return; } var M = meta(); if (M.buy('rifle', 'rifle')) buySound(); render(); }
 }
 function buySound(){ var A = V.Audio; if (A && typeof A.play === 'function') { try { A.play('buy'); } catch (_) {} } }   // S-504 buy cue (audio.js F1)
 function closeSheet(){ if (!sheetOpen) return; sheetOpen = false; render(); }
@@ -10904,12 +11258,12 @@ V.Tabs.armory = {
   mount: function(host){
     el = host; injectCss('ta-base-css', BASE_CSS); injectCss('ta-armory-css', CSS + '\n.ta-pips{display:none}');
     el.addEventListener('click', onClick);
-    if (!keyFn) { keyFn = function(e){ if (shown && sheetOpen && (e.key === 'Escape')) closeSheet(); }; document.addEventListener('keydown', keyFn); }
+    if (!keyFn) { keyFn = function(e){ if (shown && e.key === 'Escape') { if (bs) closeBuy(); else if (sheetOpen) closeSheet(); } }; document.addEventListener('keydown', keyFn); }
     var M = meta(); if (typeof M.onChange === 'function') unsub = M.onChange(function(){ if (shown) render(); else if (el) render(); });
     render();
   },
   show: function(){ shown = true; render(); var sc = el && el.querySelector('.ta-scroll'); if (sc) stagger('armory', sc.children); },
-  hide: function(){ shown = false; sheetOpen = false; }
+  hide: function(){ shown = false; sheetOpen = false; bs = null; if (bTimer) { clearTimeout(bTimer); bTimer = 0; } }
 };
 })();
 
@@ -11036,11 +11390,12 @@ V.Tabs.operator = {
 <script>
 (function(){ var G = (typeof window !== 'undefined' ? window : globalThis); var V = G.V = G.V || {};
 if (typeof document === 'undefined') return;
-/* Upgrades tab: three Conditioning stats (hp, atk, rate), buy button, "Training complete" result sheet.
-   Reads/writes only through V.Meta. Classes: pv-* from home.css, tb-up-* are local (injected below).
-   F1 shop (pick 48, shape V + option b): an Attack or Speed buy grants 2 levels (Lv x / 20), a Max HP buy 1 (Lv x / 10); at most 2 buys per home
-   visit ("Buys left this visit: N", V.Meta.visitLeft(); the allowance comes back when a run starts). Buy button and Continue are 68 and 56 px high;
-   the body scrolls, so 344x882, 475x638 and 704x783 all reach every control. No timer, no countdown, nothing nags: at 0 the button says so quietly. */
+/* Upgrades tab (step 8): the three Conditioning stat tiles as before plus an UPGRADE button. UPGRADE opens the pick-an-upgrade bottom sheet
+   (SPEC-UX section 1): item list, 3 tier chips with odds words and bars, Catalyst switch, one-tap "Upgrade for N CR", then the reveal card
+   (grade ring, pips, COMMON / RARE / EPIC, sparks, count-up, refund line, Done). Reads/writes only through V.Meta (items, quote, roll).
+   Exports V.UpSheet = {open(kind, id), close(), isOpen()}; the Armory calls open('gear', 'exo') etc. The sheet lives in #hmBody (above the tab
+   bar, which stays tappable); a tap on any tab closes it with no spend. Classes: pv-* from home.css, tb-up-* and us-* are local (injected below).
+   Guards: confirm armed 350 ms after open, reveal close armed 350 ms after the card shows; nothing closes by timer. Reduced motion: the card at once. */
 
 var NS = 'http://www.w3.org/2000/svg';
 var STATS = [
@@ -11048,14 +11403,26 @@ var STATS = [
   { id:'atk',  name:'Power Cell',       what:'Attack',       cap:20, per:2, icon:'cell' },
   { id:'rate', name:'Servo Tuning',     what:'Attack speed', cap:20, per:2, icon:'servo' }
 ];
+var NAMES = { rifle:'Ranger Rifle', hp:'Reinforced Frame', atk:'Power Cell', rate:'Servo Tuning' };
+var ICON_OF = { rifle:'rifle', hp:'frame', atk:'cell', rate:'servo', exo:'vest', modA:'aim', modB:'bolt', droneA:'drone', droneB:'guard', perk2:'pierce' };
 var ICONS = {
   frame:'<path d="M12 3l8 3v6c0 5-4 8-8 9-4-1-8-4-8-9V6z"/><path d="M12 8v7M8.5 11.5h7"/>',
   cell:'<rect x="7" y="4" width="10" height="16" rx="2"/><path d="M10 2v2M14 2v2M13 8l-3 5h4l-3 5"/>',
   servo:'<circle cx="12" cy="12" r="3.5"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4M5 5l3 3M16 16l3 3M19 5l-3 3M8 16l-3 3"/>',
+  rifle:'<path d="M2 14h13l2-3h5v4h-4l-1 3h-4l-1-3H2z"/><path d="M7 14v3"/>',
+  aim:'<circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="1.5"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/>',
+  bolt:'<rect x="5" y="6" width="14" height="12" rx="2"/><path d="M13 8l-3 4h4l-3 4"/>',
+  drone:'<circle cx="12" cy="13" r="3"/><path d="M3 8h6M15 8h6M6 8v3M18 8v3M9 13H5M19 13h-4"/>',
+  vest:'<path d="M6 4l6 2 6-2 3 4-3 3v9H6v-9L3 8z"/>',
+  guard:'<path d="M12 3l8 3v6c0 5-4 8-8 9-4-1-8-4-8-9V6z"/><circle cx="12" cy="12" r="2.5"/>',
+  pierce:'<path d="M3 12h18M17 7l5 5-5 5"/><path d="M8 7v10M12 8v8"/>',
   lock:'<rect x="5" y="11" width="14" height="10" rx="1"/><path d="M8 11V8a4 4 0 018 0v3"/>',
-  arrow:'<path d="M3 12h8M13 6l8 6-8 6z"/>'
+  arrow:'<path d="M3 12h8M13 6l8 6-8 6z"/>',
+  close:'<path d="M5 5l14 14M19 5L5 19"/>',
+  check:'<path d="M4 12l5 5L20 6"/>',
+  schem:'<rect x="4" y="3" width="16" height="18" rx="1"/><path d="M8 8h8M8 12h5M8 16h8"/>'
 };
-function ico(name, cls){ return '<svg class="pv-ico '+(cls||'')+'" viewBox="0 0 24 24" aria-hidden="true">'+ICONS[name]+'</svg>'; }
+function ico(name, cls){ return '<svg class="pv-ico ' + (cls || '') + '" viewBox="0 0 24 24" aria-hidden="true">' + (ICONS[name] || ICONS.cell) + '</svg>'; }
 var COIN = '<svg class="tb-coin" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6.6" fill="#e8b020" stroke="#0f1215" stroke-width="1.5"/><circle cx="8" cy="8" r="4" fill="none" stroke="rgba(120,70,0,.55)" stroke-width=".9"/></svg>';
 
 var COG_OLD = '<svg class="tb-cog" viewBox="0 0 40 40" width="40" height="40" aria-hidden="true"><rect x="1" y="1" width="38" height="38" rx="5" fill="#2f363e" stroke="#0f1215" stroke-width="1.5"/><g transform="translate(20 20)"><g fill="#8f897b" stroke="#0f1215" stroke-width="1"><rect x="-2.5" y="-13" width="5" height="5" rx="1"/><rect x="-2.5" y="-13" width="5" height="5" rx="1" transform="rotate(60)"/><rect x="-2.5" y="-13" width="5" height="5" rx="1" transform="rotate(120)"/><rect x="-2.5" y="-13" width="5" height="5" rx="1" transform="rotate(180)"/><rect x="-2.5" y="-13" width="5" height="5" rx="1" transform="rotate(240)"/><rect x="-2.5" y="-13" width="5" height="5" rx="1" transform="rotate(300)"/></g><circle r="9" fill="#b6b0a2" stroke="#0f1215" stroke-width="1.5"/><circle r="3.6" fill="#2f363e"/><path d="M0 -6.5l3 3M0 -6.5l-3 3" stroke="#e4dfd2" stroke-width="1.4" fill="none" stroke-linecap="round" transform="translate(0 -0.5)"/></g></svg>';
@@ -11071,152 +11438,513 @@ var CSS = '\
 .tl.mx{border-color:var(--pv-ui-r5);box-shadow:inset 0 0 0 1px var(--pv-ui-r5),0 0 8px rgba(224,169,58,.35)}\
 .tl.mx .pv-bar__fill{background:linear-gradient(#f3d27a,var(--pv-ui-r5))}\
 .tb-ti{width:36px;height:36px;flex:none;display:flex;align-items:center;justify-content:center;font-size:24px;background:var(--pv-ui-ink);border-radius:4px;color:var(--pv-ui-cyan);box-shadow:inset 0 0 0 1.5px var(--pv-ui-metal-500);overflow:hidden}\
-.tb-ti img{width:30px;height:30px;object-fit:contain}\
 .tl .tn{font:800 12px/1.05 var(--pv-ui-font-stencil);text-transform:uppercase;letter-spacing:.05em;min-height:23px}\
 .tl .tv{font:800 12px/1 var(--pv-ui-font-stencil);color:var(--pv-ui-sand)}\
 .tl .fx{font:800 12px/1 var(--pv-ui-font-stencil);color:var(--pv-ui-text-2)}\
 .tl .pv-bar{width:100%;height:10px;margin-top:auto}\
-.tb-pn{padding:10px 12px;display:flex;align-items:center;gap:12px}.tb-pn .tx{flex:1;min-width:0}.tb-cog{flex:none;width:40px;height:40px}.tb-buy .tb-coin{width:18px;height:18px}.tb-pn .r{display:flex;align-items:center}.tb-pn .cr{margin-left:auto;font:800 20px/1 var(--pv-ui-font-stencil);color:var(--pv-ui-sand);display:inline-flex;align-items:center;gap:6px}\
+.tb-pn{padding:10px 12px;display:flex;align-items:center;gap:12px}.tb-pn .tx{flex:1;min-width:0}.tb-cog{flex:none;width:40px;height:40px}.tb-coin{width:18px;height:18px;flex:none}.tb-pn .r{display:flex;align-items:center}.tb-pn .cr{margin-left:auto;font:800 20px/1 var(--pv-ui-font-stencil);color:var(--pv-ui-sand);display:inline-flex;align-items:center;gap:6px}\
 .tb-pn .sm{font-size:12px;color:var(--pv-ui-text-2);margin-top:6px}\
-.tb-buy{justify-content:space-between;padding:0 20px;min-height:68px;width:100%}\
-.tb-buy .cost{display:inline-flex;align-items:center;gap:6px;font:800 18px/1 var(--pv-ui-font-stencil);letter-spacing:.04em}\
+.tb-buy{justify-content:center;padding:0 20px;min-height:68px;width:100%}\
 .tb-buy.pv-btn--primary{min-height:68px;font-size:20px;letter-spacing:.18em}\
 .tb-spacer{flex:1;min-height:0}\
-.tb-res{position:absolute;inset:0;z-index:50;display:flex;align-items:flex-start;justify-content:center;background:rgba(5,7,9,.78);padding:70px 20px 0}\
-.tb-res .card{width:100%;padding:16px 16px 16px;display:flex;flex-direction:column;align-items:center;gap:10px;background:linear-gradient(var(--pv-ui-metal-700),var(--pv-ui-metal-900));border:2.5px solid var(--pv-ui-ink);border-radius:10px;box-shadow:0 0 0 1.5px var(--pv-ui-cyan-lo),0 0 28px rgba(56,232,255,.35),0 4px 10px rgba(0,0,0,.6)}\
-.tb-res .big{width:104px;height:104px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;background:radial-gradient(circle at 50% 35%,#0e4b57,var(--pv-ui-metal-900) 80%);border:2.5px solid var(--pv-ui-ink);border-radius:8px;box-shadow:inset 0 0 0 2px var(--pv-ui-cyan),0 0 22px rgba(56,232,255,.65),0 0 48px rgba(56,232,255,.25);color:var(--pv-ui-cyan)}\
-.tb-res .big .pv-ico{font-size:46px}.tb-res .big img{width:56px;height:56px;object-fit:contain}\
-.tb-res .big b{text-align:center;padding:0 6px;font:800 12px/1 var(--pv-ui-font-stencil);letter-spacing:.14em;color:var(--pv-ui-text);text-transform:uppercase}\
-.tb-res .plus{font:800 28px/1 var(--pv-ui-font-stencil);letter-spacing:.14em;color:var(--pv-ui-cyan);text-shadow:0 0 12px rgba(56,232,255,.6)}\
-.tb-res .ba{display:flex;align-items:center;gap:10px;width:100%;justify-content:center}\
-.tb-res .bx{flex:1;text-align:center;padding:8px 4px;background:var(--pv-ui-ink);border-radius:4px;border:1px solid var(--pv-ui-metal-600)}\
-.tb-res .bx small{display:block;font:700 12px/1 var(--pv-ui-font-stencil);letter-spacing:.12em;color:var(--pv-ui-text-3);text-transform:uppercase;margin-bottom:5px;white-space:nowrap}\
-.tb-res .bx span{font:800 19px/1 var(--pv-ui-font-stencil);white-space:nowrap}\
-.tb-res .bx.af span{color:var(--pv-ui-cyan)}\
-.tb-res .ba>.pv-ico{color:var(--pv-ui-cyan);font-size:22px}\
-.tb-res .pv-btn{width:100%;min-height:56px}\
 .tb-visit{display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:48px;padding:8px 12px;background:linear-gradient(var(--pv-ui-metal-700),var(--pv-ui-metal-800));border:1.5px solid var(--pv-ui-ink);border-radius:6px;box-shadow:inset 0 1px 0 rgba(255,255,255,.10),0 2px 0 rgba(0,0,0,.55)}\
 .tb-visit .vl{font:800 14px/1.2 var(--pv-ui-font-stencil);letter-spacing:.06em;text-transform:uppercase;color:var(--pv-ui-text)}.tb-visit .vl b{font-size:20px;color:var(--pv-ui-cyan);margin-left:4px}\
 .tb-visit.none .vl b{color:var(--pv-ui-text-3)}\
-.tb-visit .pips{display:inline-flex;gap:8px;flex:none}.tb-visit .pip{width:18px;height:18px;border-radius:50%;border:2px solid var(--pv-ui-cyan);box-sizing:border-box}.tb-visit .pip.on{background:var(--pv-ui-cyan);box-shadow:0 0 6px rgba(56,232,255,.6)}\
+.tb-visit .pips,.us-pips{display:inline-flex;gap:8px;flex:none}.tb-visit .pip,.us-pips .pip{width:18px;height:18px;border-radius:50%;border:2px solid var(--pv-ui-cyan);box-sizing:border-box}.tb-visit .pip.on,.us-pips .pip.on{background:var(--pv-ui-cyan);box-shadow:0 0 6px rgba(56,232,255,.6)}\
 .tl .per{font:700 12px/1 var(--pv-ui-font-stencil);letter-spacing:.06em;color:var(--pv-ui-text-3);text-transform:uppercase}\
 .tb-note{font-size:12px;color:var(--pv-ui-text-2);text-align:center;min-height:16px;margin:0}\
 .tb-note.is-warn{color:var(--pv-ui-text-3)}';
 
+/* ---- sheet CSS (us-*) ---- */
+var SCSS = '\
+.us-scrim{position:absolute;inset:0;z-index:60;display:flex;align-items:flex-end;justify-content:center;padding:8px 0 18px;background:rgba(5,7,9,.72);color:var(--pv-ui-text);font:400 14px/1.3 var(--pv-ui-font);box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none;animation:us-fade .2s ease-out}\
+.us-scrim *,.us-scrim *::before,.us-scrim *::after{box-sizing:border-box}\
+.us-sheet{position:relative;width:calc(100% - 16px);max-width:520px;max-height:100%;display:flex;flex-direction:column;gap:8px;padding:0 8px 8px;background:linear-gradient(var(--pv-ui-metal-700),var(--pv-ui-metal-800));border:2.5px solid var(--pv-ui-ink);border-radius:10px;box-shadow:0 0 0 1.5px var(--pv-ui-metal-500),0 4px 14px rgba(0,0,0,.65);overflow:hidden;animation:us-rise .283s cubic-bezier(.2,.8,.2,1)}\
+.us-scrim.rm,.us-scrim.rm .us-sheet{animation:none}\
+@keyframes us-fade{from{opacity:0}to{opacity:1}}\
+@keyframes us-rise{from{transform:translateY(40px);opacity:.4}to{transform:none;opacity:1}}\
+.us-hd{flex:none;height:56px;display:flex;align-items:center;gap:8px;padding-left:4px}\
+.us-hd .l{flex:1;min-width:0;display:flex;flex-direction:column;gap:5px}\
+.us-hd h2{margin:0;font:800 12px/1 var(--pv-ui-font-stencil);text-transform:uppercase;letter-spacing:.14em;color:var(--pv-ui-sand);white-space:nowrap}\
+.us-chips{display:flex;gap:6px}\
+.us-chip{display:inline-flex;align-items:center;gap:5px;height:28px;padding:0 8px 0 6px;border-radius:6px;background:var(--pv-ui-ink);border:1.5px solid var(--pv-ui-metal-500);font:800 12px/1 var(--pv-ui-font-stencil);font-variant-numeric:tabular-nums;letter-spacing:.04em;color:var(--pv-ui-text);white-space:nowrap}\
+.us-chip.cr{color:#ffe27a}.us-chip.sc .pv-ico{color:var(--pv-ui-cyan)}.us-chip .pv-ico{width:15px;height:15px}\
+.us-chip .pv-coin{width:15px;height:15px}\
+.us-rolls{flex:none;display:flex;flex-direction:column;align-items:center;gap:5px;font:800 12px/1 var(--pv-ui-font-stencil);letter-spacing:.1em;text-transform:uppercase;color:var(--pv-ui-text-2)}\
+.us-rolls .us-pips{gap:6px}.us-rolls .pip{width:16px;height:16px}\
+.us-x{flex:none;position:relative;width:56px;height:56px;padding:0;border:0;background:none;color:var(--pv-ui-text);cursor:pointer;display:flex;align-items:center;justify-content:center}\
+.us-x span{width:44px;height:44px;display:flex;align-items:center;justify-content:center;border-radius:6px;background:var(--pv-ui-metal-900);border:1.5px solid var(--pv-ui-metal-500)}\
+.us-x .pv-ico{width:22px;height:22px}\
+.us-list{flex:1 1 auto;min-height:76px;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:none;display:flex;flex-direction:column;gap:6px;padding:2px}\
+.us-list::-webkit-scrollbar{display:none}\
+.us-list.fade{-webkit-mask-image:linear-gradient(to bottom,#000 calc(100% - 18px),transparent);mask-image:linear-gradient(to bottom,#000 calc(100% - 18px),transparent)}\
+.us-row{flex:none;height:64px;display:flex;align-items:center;gap:10px;padding:0 10px 0 8px;text-align:left;color:var(--pv-ui-text);cursor:pointer;background:linear-gradient(var(--pv-ui-metal-600),var(--pv-ui-metal-700));border:1.5px solid var(--pv-ui-ink);border-radius:6px;box-shadow:inset 0 1px 0 rgba(255,255,255,.10),0 2px 0 rgba(0,0,0,.55);font:inherit;transition:border-color .083s}\
+.us-row .ti{width:40px;height:40px;flex:none;display:flex;align-items:center;justify-content:center;font-size:24px;background:var(--pv-ui-ink);border-radius:4px;color:var(--pv-ui-cyan);box-shadow:inset 0 0 0 1.5px var(--pv-ui-metal-500)}\
+.us-row .mid{flex:1;min-width:0;display:flex;flex-direction:column;gap:6px}\
+.us-row .nm{font:800 13px/1.05 var(--pv-ui-font-stencil);text-transform:uppercase;letter-spacing:.04em;white-space:normal}\
+.us-row .pv-bar{height:8px}\
+.us-row .rt{flex:none;display:flex;flex-direction:column;align-items:flex-end;gap:5px;min-width:56px}\
+.us-row .lv{font:800 12px/1 var(--pv-ui-font-stencil);color:var(--pv-ui-sand);white-space:nowrap}\
+.us-row .fr{font:800 12px/1 var(--pv-ui-font-stencil);color:var(--pv-cost,#f4c21a);display:inline-flex;align-items:center;gap:4px;font-variant-numeric:tabular-nums}\
+.us-row .fr .pv-coin{width:12px;height:12px}\
+.us-row.sel{border-color:var(--pv-ui-cyan);box-shadow:inset 0 0 0 1px var(--pv-ui-cyan),0 0 8px rgba(56,232,255,.35)}\
+.us-row .ck{display:none;width:20px;height:20px;flex:none;align-items:center;justify-content:center;border-radius:50%;background:var(--pv-ui-cyan);color:var(--pv-ui-cyan-ink)}\
+.us-row .ck .pv-ico{width:14px;height:14px;stroke-width:3}\
+.us-row.sel .ck{display:flex}\
+.us-row.max{cursor:default;pointer-events:none;background:var(--pv-ui-metal-800)}\
+.us-row.max .nm{color:var(--pv-ui-text-2)}.us-row.max .lv{color:var(--pv-ui-r5)}.us-row.max .ti,.us-row.max .pv-bar{opacity:.5}\
+.us-sel{flex:none;min-height:48px;display:flex;flex-direction:column;justify-content:center;gap:4px;padding:2px 6px}\
+.us-sel .a{font:800 14px/1.1 var(--pv-ui-font-stencil);text-transform:uppercase;letter-spacing:.06em;color:var(--pv-ui-text);white-space:normal}\
+.us-sel .b{font-size:12px;line-height:1.2;color:var(--pv-ui-text-2)}.us-sel .b b{color:var(--pv-ui-cyan)}.us-sel .b.warn{color:var(--pv-ui-amber)}\
+.us-tiers{flex:none;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}\
+.us-tier{height:88px;padding:7px 6px 8px;display:flex;flex-direction:column;align-items:center;gap:4px;color:var(--pv-ui-text);cursor:pointer;background:linear-gradient(var(--pv-ui-metal-600),var(--pv-ui-metal-700));border:1.5px solid var(--pv-ui-ink);border-radius:6px;box-shadow:inset 0 1px 0 rgba(255,255,255,.10),0 2px 0 rgba(0,0,0,.55);font:inherit;transition:transform .117s,border-color .117s}\
+.us-tier .tn{font:800 12px/1 var(--pv-ui-font-stencil);text-transform:uppercase;letter-spacing:.08em;color:var(--pv-ui-text-2)}\
+.us-tier .pr{font:800 19px/1 var(--pv-ui-font-stencil);color:var(--pv-cost,#f4c21a);font-variant-numeric:tabular-nums;letter-spacing:.02em}\
+.us-tier .ow{flex:1;display:flex;align-items:center;text-align:center;font-size:12px;line-height:1.15;color:var(--pv-ui-text)}\
+.us-tier .ob{width:100%;height:8px;display:flex;gap:1px;background:var(--pv-ui-ink);border:1px solid var(--pv-ui-ink);border-radius:2px;overflow:hidden;flex:none}\
+.us-tier .ob i{display:block;height:100%}\
+.us-tier.sel{border-color:var(--pv-ui-cyan);box-shadow:inset 0 0 0 1px var(--pv-ui-cyan),0 0 8px rgba(56,232,255,.35);transform:scale(1.04)}\
+.us-tier.sel .tn{color:var(--pv-ui-cyan)}\
+.us-tier.no .ob{opacity:.6}.us-tier.no .pr{color:var(--pv-ui-amber);}.us-tier.no .tn,.us-tier.no .ow{color:var(--pv-ui-text-2)}\
+.us-cat{flex:none;height:56px;display:flex;align-items:center;gap:10px;padding:0 10px;color:var(--pv-ui-text);cursor:pointer;text-align:left;background:linear-gradient(var(--pv-ui-metal-600),var(--pv-ui-metal-700));border:1.5px solid var(--pv-ui-ink);border-radius:6px;box-shadow:inset 0 1px 0 rgba(255,255,255,.10),0 2px 0 rgba(0,0,0,.55);font:inherit}\
+.us-cat .tx{flex:1;min-width:0;font-size:12px;line-height:1.25;color:var(--pv-ui-text-2)}.us-cat .tx b{display:block;font:800 13px/1.15 var(--pv-ui-font-stencil);letter-spacing:.05em;text-transform:uppercase;color:var(--pv-ui-text)}\
+.us-sw{flex:none;position:relative;width:48px;height:28px;border-radius:14px;background:var(--pv-ui-ink);border:1.5px solid var(--pv-ui-metal-500);transition:background .117s}\
+.us-sw::after{content:"";position:absolute;top:3px;left:3px;width:19px;height:19px;border-radius:50%;background:var(--pv-ui-metal-400);transition:transform .117s}\
+.us-cat.on .us-sw{background:var(--pv-ui-cyan-lo);border-color:var(--pv-ui-cyan)}.us-cat.on .us-sw::after{transform:translateX(20px);background:var(--pv-ui-cyan-hi)}\
+.us-cat.on{border-color:var(--pv-ui-cyan)}\
+.us-cat.off{cursor:default}.us-cat.off .us-sw{opacity:.5}.us-cat.off .tx b{color:var(--pv-ui-text-2)}\
+.us-go{flex:none;min-height:64px;width:100%;flex-direction:column;gap:3px;font-size:18px;letter-spacing:.12em;line-height:1.05;text-align:center}\
+.us-scrim .us-go.is-disabled,.us-scrim .us-go[disabled]{color:var(--pv-ui-text-2);background:var(--pv-ui-metal-800)}\
+.us-go small{font:600 12px/1.1 var(--pv-ui-font);letter-spacing:0;text-transform:none}\
+.us-go .lbl{display:inline-flex;align-items:center;gap:8px}\
+.us-sheet.tight .us-tier{height:78px}.us-sheet.tight .us-go{min-height:56px}.us-sheet.tight .us-rv{gap:4px;padding-top:6px}.us-sheet.tight .us-rv .us-card-in{gap:4px!important}.us-sheet.tight .us-ringw{width:84px;height:84px}.us-sheet.tight .us-ringw .core{width:56px;height:56px}.us-sheet.tight .us-ringw .core .pv-ico{width:32px;height:32px}.us-sheet.tight .us-word{font-size:28px}.us-sheet.tight .us-done{min-height:56px}.us-sheet.tight .us-spk i.rad{top:-48px;transform-origin:50% 48px}.us-sheet.tight{gap:6px}\
+@keyframes us-shake{0%,100%{transform:none}25%{transform:translateX(-4px)}75%{transform:translateX(4px)}}\
+.us-shake{animation:us-shake .2s linear}\
+.us-rv{flex:1 1 auto;min-height:0;overflow-y:auto;scrollbar-width:none;display:flex;flex-direction:column;align-items:center;gap:8px;padding:12px 6px 4px;cursor:pointer;text-align:center}\
+.us-rv::-webkit-scrollbar{display:none}\
+.us-rv .kic{font:800 12px/1 var(--pv-ui-font-stencil);letter-spacing:.16em;text-transform:uppercase;color:var(--pv-ui-text-2)}\
+.us-ringw{position:relative;width:132px;height:132px;flex:none;display:flex;align-items:center;justify-content:center}\
+.us-ringw svg.ring{position:absolute;inset:0;width:100%;height:100%;transform:rotate(-90deg);overflow:visible}\
+.us-ringw .trk{fill:none;stroke:var(--pv-ui-metal-600);stroke-width:7}\
+.us-ringw .arc{fill:none;stroke:var(--gc);stroke-width:7;stroke-linecap:round;stroke-dasharray:314;stroke-dashoffset:0;filter:drop-shadow(0 0 6px var(--gc))}\
+.us-ringw .pulse{position:absolute;inset:6px;border-radius:50%;border:3px solid var(--gc);opacity:0}\
+.us-ringw .core{position:relative;width:84px;height:84px;display:flex;align-items:center;justify-content:center;border-radius:10px;background:radial-gradient(circle at 50% 35%,#0e4b57,var(--pv-ui-metal-900) 80%);border:2.5px solid var(--pv-ui-ink);box-shadow:inset 0 0 0 2px var(--gc);color:var(--gc)}\
+.us-ringw .core .pv-ico{width:44px;height:44px}\
+.us-pp{display:flex;gap:8px;height:16px}.us-pp i{width:14px;height:14px;border-radius:50%;border:2px solid var(--gc);display:block}.us-pp i.on{background:var(--gc);box-shadow:0 0 6px var(--gc)}\
+.us-rv.cm .us-word{color:var(--pv-ui-text);text-shadow:none}\
+.us-word{font:800 34px/1 var(--pv-ui-font-stencil);letter-spacing:.2em;padding-left:.2em;color:var(--gc);text-shadow:0 0 14px var(--gc)}\
+.us-iname{font:800 14px/1.1 var(--pv-ui-font-stencil);letter-spacing:.08em;text-transform:uppercase;color:var(--pv-ui-text)}\
+.us-plus{font:800 24px/1 var(--pv-ui-font-stencil);letter-spacing:.12em;color:var(--pv-ui-cyan);text-shadow:0 0 10px rgba(56,232,255,.5);font-variant-numeric:tabular-nums}\
+.us-ba{display:flex;align-items:center;gap:8px;width:100%;max-width:400px}\
+.us-ba .bx{flex:1;min-width:0;text-align:center;padding:8px 4px;background:var(--pv-ui-ink);border-radius:4px;border:1px solid var(--pv-ui-metal-600)}\
+.us-ba .bx small{display:block;font:700 12px/1 var(--pv-ui-font-stencil);letter-spacing:.1em;color:var(--pv-ui-text-3);text-transform:uppercase;margin-bottom:5px;white-space:nowrap}\
+.us-ba .bx span{font:800 18px/1 var(--pv-ui-font-stencil);white-space:nowrap;font-variant-numeric:tabular-nums}\
+.us-ba .bx.af span{color:var(--pv-ui-cyan)}.us-ba>.pv-ico{color:var(--pv-ui-cyan);font-size:20px}\
+.us-refund{font:800 13px/1.1 var(--pv-ui-font-stencil);letter-spacing:.06em;color:#ffe27a;display:inline-flex;align-items:center;gap:6px}\
+.us-refund .pv-coin{width:14px;height:14px}\
+.us-catline{font:800 12px/1.2 var(--pv-ui-font-stencil);letter-spacing:.05em;text-transform:uppercase;color:var(--pv-ui-cyan)}\
+.us-tap{font-size:12px;color:var(--pv-ui-text-2);min-height:14px;opacity:0}\
+.us-done{flex:none;min-height:64px;width:100%;font-size:20px;letter-spacing:.2em}\
+.us-spk{position:absolute;left:50%;top:50%;width:0;height:0;pointer-events:none}\
+.us-spk i{position:absolute;left:-1px;top:-8px;width:3px;height:10px;border-radius:2px;background:var(--gc);opacity:0;transform-origin:50% 100%}\
+.us-spk i.rad{width:2px;height:22px;top:-70px;transform-origin:50% 70px}\
+@keyframes us-sweep{from{stroke-dashoffset:314}to{stroke-dashoffset:0}}\
+@keyframes us-stamp{0%{opacity:0;transform:scale(1.7)}60%{opacity:1;transform:scale(.94)}100%{opacity:1;transform:none}}\
+@keyframes us-in{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}\
+@keyframes us-pul{0%{opacity:.8;transform:scale(.85)}100%{opacity:0;transform:scale(1.35)}}\
+@keyframes us-spark{0%{opacity:0;transform:rotate(var(--a)) translateY(0)}20%{opacity:1}100%{opacity:0;transform:rotate(var(--a)) translateY(-86px)}}\
+@keyframes us-line{0%{opacity:0;transform:rotate(var(--a)) scaleY(.2)}30%{opacity:.9}100%{opacity:0;transform:rotate(var(--a)) scaleY(1.3)}}\
+@keyframes us-pop{0%{transform:scale(.4);opacity:0}70%{transform:scale(1.2);opacity:1}100%{transform:none;opacity:1}}\
+@keyframes us-tapin{from{opacity:0}to{opacity:1}}\
+.us-rv.an .us-card-in{animation:us-in .283s cubic-bezier(.2,.8,.2,1) .117s both}\
+.us-rv.an .arc{animation:us-sweep .6s ease-out .1s both}\
+.us-rv.an .us-word{animation:us-stamp .3s cubic-bezier(.2,.8,.2,1) .4s both}\
+.us-rv.an .us-pp i.on{animation:us-pop .25s ease-out calc(.35s + var(--k) * .12s) both}\
+.us-rv.an .pulse.p1{animation:us-pul .5s ease-out .4s both}.us-rv.an .pulse.p2{animation:us-pul .5s ease-out .7s both}\
+.us-rv.an .us-spk i{animation:us-spark .5s ease-out calc(.4s + var(--d)) both}\
+.us-rv.an .us-spk i.rad{animation:us-line .5s ease-out .4s both}\
+.us-rv.an .us-tap{animation:us-tapin .3s ease-out 1s both}\
+.us-rv:not(.an) .us-tap{opacity:1}\
+@media (max-height:700px){.us-sheet .us-sel{min-height:44px}}';
+
 function injectCss(){
-  if (document.getElementById('tb-up-css')) return;
-  var s = document.createElement('style'); s.id = 'tb-up-css'; s.textContent = CSS; document.head.appendChild(s);
+  if (!document.getElementById('tb-up-css')) { var s = document.createElement('style'); s.id = 'tb-up-css'; s.textContent = CSS; document.head.appendChild(s); }
+  if (!document.getElementById('us-css')) { var t = document.createElement('style'); t.id = 'us-css'; t.textContent = SCSS; document.head.appendChild(t); }
 }
 
-/* local stub, used only when V.Meta is missing */
+/* ---- Meta access, defensive: nothing here throws if meta.js lacks a step-8 name ---- */
 var stub = null;
 function M(){
   if (V.Meta) return V.Meta;
-  if (!stub) stub = { state:{ credits:0, cond:{hp:0,atk:0,rate:0}, settings:{sound:true,haptics:true}, codex:{seen:{}}, runs:[], best:0 },
+  if (!stub) stub = { state:{ credits:0, schematics:0, cond:{hp:0,atk:0,rate:0}, settings:{sound:true,haptics:true}, codex:{seen:{}}, runs:[], best:0 },
     cost:function(){ return {credits:100}; }, canBuy:function(){ return false; }, buyRandom:function(){ return false; },
     stats:function(){ return {hpAdd:0, atkMul:1, rateMul:1}; }, onChange:function(){}, power:1 };
   return stub;
 }
-
+var DEF_TIERS = [{id:'basic', name:'Basic', mult:1.2, odds:[80,20,0]}, {id:'std', name:'Standard', mult:1.6, odds:[48,44,8]}, {id:'prem', name:'Premium', mult:2.0, odds:[25,50,25]}];
+function tiers(){ var t = M().TIERS; return (t && t.length) ? t : DEF_TIERS; }
+function catCost(){ return M().CATALYST_COST || 100; }
+function credits(){ var s = M().state; return (s && s.credits) | 0; }
+function schem(){ var s = M().state; return (s && s.schematics) | 0; }
+function visitMax(){ var m = M(); return (m.TUNING && m.TUNING.VISIT_MAX) || 2; }
+function buysLeft(){ var m = M(); return m.visitLeft ? m.visitLeft() : visitMax(); }
 function fmt(n){ return Math.round(n).toLocaleString('en-US'); }
 function pct(m){ return '+' + Math.round((m - 1) * 100) + '%'; }
 function effectOf(id, st){
   st = st || {};
   if (id === 'hp') return '+' + fmt(st.hpAdd || 0) + ' HP';
   if (id === 'atk') return pct(st.atkMul || 1) + ' ATK';
-  return pct(st.rateMul || 1) + ' SPEED';
+  if (id === 'rate') return pct(st.rateMul || 1) + ' SPEED';
+  return '';
 }
 function el(tag, cls, html){ var e = document.createElement(tag); if (cls) e.className = cls; if (html != null) e.innerHTML = html; return e; }
 function level(id){ var c = M().state && M().state.cond; return (c && c[id]) | 0; }
 function capOf(s){ var m = M(); return (m.maxLevel && m.maxLevel('cond', s.id)) || s.cap; }
-function buysLeft(){ var m = M(); return m.visitLeft ? m.visitLeft() : 2; }
-function whyNot(){ var m = M(); return m.whyNot ? m.whyNot('cond', 'rand') : (m.canBuy && m.canBuy('cond', 'rand') ? '' : 'credits'); }
+function nowMs(){ return (G.performance && performance.now) ? performance.now() : Date.now(); }
+function reduced(){ var r = !!V.reducedMotion; try { if (!r && G.matchMedia) r = G.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) {} return r; }
+function snd(n){ try { if (V.Audio && V.Audio.play) V.Audio.play(n); } catch (e) {} }
+function hap(ms){ try { if (typeof V.haptic === 'function') V.haptic(ms); } catch (e) {} }
 function pipsHtml(n, max){ var h = ''; for (var i = 0; i < max; i++) h += '<span class="pip' + (i < n ? ' on' : '') + '"></span>'; return h; }
-function iconBox(s, withAsset){
-  return ico(s.icon);
+function esc(s){ return String(s == null ? '' : s).replace(/[&<>"]/g, function(c){ return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]; }); }
+
+function itemsList(){
+  var m = M(), out = [];
+  try { if (typeof m.items === 'function') out = m.items() || []; } catch (e) { out = []; }
+  if (!out.length && typeof m.items !== 'function') {   // meta.js without step 8: show the three stats, capped or not, so the sheet still draws
+    STATS.forEach(function(s){ var lv = level(s.id), cp = capOf(s); out.push({ kind:'cond', id:s.id, name:s.name, what:s.what, lvl:lv, max:cp, stepsLeft:Math.max(0, Math.ceil((cp - lv) / s.per)), capped:lv >= cp }); });
+  }
+  return out;
+}
+function quote(it, tierId, cat){
+  var m = M(), q = null;
+  try { if (typeof m.quote === 'function') q = m.quote(it.kind, it.id, tierId, { catalyst: !!cat }); } catch (e) { q = null; }
+  if (!q) { var t = tiers().filter(function(x){ return x.id === tierId; })[0] || DEF_TIERS[0]; q = { price:0, odds:t.odds.slice(), stepsLeft:it.stepsLeft | 0, maxGain:Math.min(3, it.stepsLeft | 0), refundNote:false, catOk:false, why:it.capped ? 'max' : 'stub' }; }
+  return q;
+}
+function dispName(it){ return NAMES[it.id] || it.name || it.id; }
+function perOf(it){ var s = STATS.filter(function(x){ return x.id === it.id; })[0]; return s ? s.per : 1; }
+
+/* odds words: the same words the chips show; numbers go in the aria-label only */
+function oddsWord(o){
+  var c = o[0], r = o[1], e = o[2];
+  if (c >= 60) return 'Mostly Common';
+  if (c <= 0 && e <= 0) return 'Rare for sure';
+  var ep = e > 0 ? 'Epic\u00a01\u00a0in\u00a0' + Math.max(1, Math.floor(100 / e)) : '';
+  if (c <= 0) return 'Rare, ' + ep;
+  if (e <= 0) return 'Common or Rare';
+  return ((e <= 10 ? 'Rare likely, ' : '') + ep);
+}
+function barHtml(o){
+  var cols = ['var(--pv-ui-r1)', 'var(--pv-ui-r3)', 'var(--pv-ui-r4)'], h = '';
+  for (var i = 0; i < 3; i++) if (o[i] > 0) h += '<i style="flex:' + o[i] + ' 1 0;background:' + cols[i] + '"></i>';
+  return h;
 }
 
+/* ---- the sheet ---- */
+var sh = null;   // {el, host, kind, id, tier, cat, phase:'pick'|'busy'|'reveal', armAt, hint, items, res, opener, raf}
+var barHook = null, keyFn = null;
+function hostEl(){ return document.getElementById('hmBody') || document.body; }
+
+function firstChoice(items){
+  var i; for (i = 0; i < items.length; i++) if (!items[i].capped && items[i].affordable !== false) return items[i];
+  for (i = 0; i < items.length; i++) if (!items[i].capped) return items[i];
+  return null;
+}
+function find(items, kind, id){ for (var i = 0; i < items.length; i++) if (items[i].kind === kind && items[i].id === id) return items[i]; return null; }
+function selItem(){ return sh && find(sh.items, sh.kind, sh.id); }
+function tierOk(it, tierId){ var q = quote(it, tierId, false); return !(q.why === 'max') && q.price <= credits(); }
+function pickTier(it){
+  if (!it) return 'basic';
+  if (sh.tier && tierOk(it, sh.tier)) return sh.tier;
+  return tierOk(it, 'std') ? 'std' : 'basic';
+}
+
+function catState(it, tierId){
+  // returns {avail, why, text}
+  var have = schem(), cost = catCost();
+  if (!it || it.capped) return { avail:false, text:'Nothing to upgrade.' };
+  if (have < cost) return { avail:false, text:'Need ' + cost + ' Schematics (have ' + have + '). Found in Supply Drops.' };
+  var q = quote(it, tierId, true);
+  if (q.why === 'cat-last-step' || (it.stepsLeft | 0) < 2) return { avail:false, text:'Needs 2 steps left. Only 1 left on this one.' };
+  if (!q.catOk) return { avail:false, text:'Not available for this one.' };
+  return { avail:true, text:'Rare or better. ' + cost + ' Schematics (have\u00a0' + have + ')' };
+}
+
+function paint(){
+  if (!sh || !sh.el) return;
+  var m = M(), items = sh.items = itemsList(), it = selItem();
+  if (!it || it.capped) { it = firstChoice(items); sh.kind = it ? it.kind : null; sh.id = it ? it.id : null; }
+  sh.tier = pickTier(it);
+  var cs = catState(it, sh.tier);
+  if (sh.cat && !cs.avail) sh.cat = false;
+  var left = buysLeft(), cr = credits();
+  var allMax = !items.length || items.every(function(x){ return x.capped; });
+  var sheet = sh.el.querySelector('.us-sheet');
+  var prevScroll = sheet.querySelector('.us-list') ? sheet.querySelector('.us-list').scrollTop : 0;
+  var h = '<div class="us-hd"><div class="l"><h2 id="us-title">Pick one to upgrade</h2><div class="us-chips">' +
+    '<span class="us-chip cr" aria-label="Credits ' + cr + '"><span class="pv-coin"></span><b>' + fmt(cr) + '</b></span>' +
+    '<span class="us-chip sc" aria-label="Schematics ' + schem() + '">' + ico('schem') + '<b>' + fmt(schem()) + '</b></span></div></div>' +
+    '<div class="us-rolls" role="status" aria-label="Rolls left ' + left + '"><span>Rolls ' + left + '</span><span class="us-pips" aria-hidden="true">' + pipsHtml(left, visitMax()) + '</span></div>' +
+    '<button type="button" class="us-x" data-act="close" aria-label="Close"><span>' + ico('close') + '</span></button></div>';
+  h += '<div class="us-list" role="listbox" aria-label="What to upgrade">';
+  items.forEach(function(x){
+    var on = !x.capped && x.kind === sh.kind && x.id === sh.id, bp = x.basicPrice;
+    var cp = Math.max(1, x.max | 0), pc = Math.min(100, Math.round((x.lvl | 0) / cp * 100));
+    h += '<button type="button" class="us-row' + (on ? ' sel' : '') + (x.capped ? ' max' : '') + '" role="option" aria-selected="' + on + '"' + (x.capped ? ' aria-disabled="true" tabindex="-1"' : '') + ' data-kind="' + x.kind + '" data-id="' + x.id + '">' +
+      '<span class="ti">' + ico(ICON_OF[x.id] || 'cell') + '</span><span class="mid"><span class="nm">' + esc(dispName(x)) + '</span><span class="pv-bar"><span class="pv-bar__fill" style="--v:' + pc + '%;display:block"></span></span></span>' +
+      '<span class="rt"><span class="lv">' + (x.capped ? 'MAX' : 'Lv ' + (x.lvl | 0) + ' / ' + cp) + '</span>' + (x.capped || bp == null ? '' : '<span class="fr"><span class="pv-coin"></span>' + fmt(bp) + '</span>') + '</span>' +
+      '<span class="ck">' + ico('check') + '</span></button>';
+  });
+  h += '</div>';
+  // selected-item line
+  var sline = '', warn = '';
+  if (allMax) sline = '<div class="a">Everything is maxed.</div><div class="b">Nothing left to upgrade.</div>';
+  else if (it) {
+    var q0 = quote(it, sh.tier, sh.cat), per = perOf(it), up = Math.min((it.lvl | 0) + (q0.maxGain | 0) * per, it.max | 0);
+    sline = '<div class="a">' + esc(dispName(it)) + '&nbsp; Lv ' + (it.lvl | 0) + ' &rarr; ' + (q0.maxGain ? (sh.el.clientWidth < 400 ? '?' : 'up to ' + up) : '?') + '</div>' +
+      '<div class="b' + (sh.hint ? ' warn' : '') + '">' + (sh.hint ? esc(sh.hint) : esc(it.what || '') + (q0.refundNote ? ' &middot; <b>Extra steps are paid back</b>' : '')) + '</div>';
+  }
+  h += '<div class="us-sel" id="us-selline" aria-live="polite">' + sline + '</div>';
+  // tier chips
+  h += '<div class="us-tiers" role="radiogroup" aria-label="How much to spend">';
+  tiers().forEach(function(t){
+    var q = it ? quote(it, t.id, sh.cat) : { price:0, odds:t.odds }, ok = it && !it.capped && q.price <= cr, on = t.id === sh.tier;
+    var o = q.odds || t.odds, wd = oddsWord(o);
+    h += '<button type="button" class="us-tier' + (on ? ' sel' : '') + (it && !it.capped && !ok ? ' no' : '') + '" role="radio" aria-checked="' + on + '" data-tier="' + t.id + '" aria-label="' + t.name + ', ' + (it && !it.capped ? q.price + ' credits, ' : '') + 'Common ' + o[0] + ' percent, Rare ' + o[1] + ', Epic ' + o[2] + '">' +
+      '<span class="tn">' + t.name + '</span><span class="pr">' + (it && !it.capped ? fmt(q.price) : '-') + '</span><span class="ow">' + wd + '</span><span class="ob" aria-hidden="true">' + barHtml(o) + '</span></button>';
+  });
+  h += '</div>';
+  // catalyst
+  h += '<button type="button" class="us-cat' + (sh.cat ? ' on' : '') + (cs.avail ? '' : ' off') + '" role="switch" aria-checked="' + !!sh.cat + '"' + (cs.avail ? '' : ' aria-disabled="true"') + ' data-act="cat">' +
+    '<span class="tx"><b>Catalyst</b>' + esc(cs.text) + '</span><span class="us-sw" aria-hidden="true"></span></button>';
+  // confirm
+  var cq = it && !it.capped ? quote(it, sh.tier, sh.cat) : null, why = '', lbl = '', sub = '';
+  if (allMax) { why = 'max'; lbl = 'Everything is maxed'; }
+  else if (!cq) { why = 'x'; lbl = 'Pick something to upgrade'; }
+  else if (left <= 0 || cq.why === 'visit') { why = 'visit'; lbl = 'No rolls left'; sub = 'Deploy to earn more.'; }
+  else if (cq.price > cr) { why = 'credits'; lbl = 'Need ' + fmt(cq.price - cr) + ' more CR'; sub = 'Play a run to earn more.'; }
+  else if (cq.why) { why = cq.why; lbl = 'Not available now'; }
+  var can = !why;
+  h += '<button type="button" class="pv-btn us-go ' + (can ? 'pv-btn--primary' : 'is-disabled') + '" data-act="go"' + (can ? '' : ' disabled') + '>' +
+    (can ? '<span class="lbl">Upgrade for ' + fmt(cq.price) + ' CR</span>' : '<span class="lbl">' + lbl + '</span>' + (sub ? '<small>' + sub + '</small>' : '')) + '</button>';
+  sheet.innerHTML = h;
+  sheet.setAttribute('aria-labelledby', 'us-title');
+  var list = sheet.querySelector('.us-list'); if (list) list.scrollTop = prevScroll;
+  sh.can = can;
+  fadeList();
+  var vh = sh.el.clientHeight; sheet.classList.toggle('tight', vh > 0 && vh < 540);
+}
+
+function onSheetClick(e){
+  if (!sh || sh.phase === 'busy') return;
+  var t = e.target;
+  if (sh.phase === 'reveal') { if (t.closest('[data-act="done"]') || t.closest('.us-rv')) revealClose(); else if (t === sh.el) revealClose(); return; }
+  var x = t.closest('[data-act="close"]'); if (x) { closeSheet(); return; }
+  if (t === sh.el) { closeSheet(); return; }
+  var row = t.closest('.us-row');
+  if (row) {
+    if (row.classList.contains('max')) return;
+    sh.kind = row.getAttribute('data-kind'); sh.id = row.getAttribute('data-id'); sh.hint = ''; snd('tick'); paint(); focusSel(); return;
+  }
+  var tr = t.closest('.us-tier');
+  if (tr) {
+    var tid = tr.getAttribute('data-tier'), it = selItem();
+    if (it && !it.capped && !tierOk(it, tid)) {
+      var q = quote(it, tid, sh.cat), nm = (tiers().filter(function(z){ return z.id === tid; })[0] || {}).name || '';
+      sh.hint = 'Need ' + fmt(Math.max(0, q.price - credits())) + ' more CR for ' + nm; snd('deny'); paint(); shake('[data-tier="' + tid + '"]'); return;
+    }
+    sh.tier = tid; sh.hint = ''; snd('tick'); paint(); var nt = sh.el.querySelector('[data-tier="' + tid + '"]'); if (nt) nt.focus(); return;
+  }
+  var ca = t.closest('[data-act="cat"]');
+  if (ca) {
+    var cs = catState(selItem(), sh.tier);
+    if (!cs.avail) { sh.hint = cs.text; snd('deny'); paint(); shake('[data-act="cat"]'); return; }
+    sh.cat = !sh.cat; sh.hint = ''; snd('latch'); paint(); var c2 = sh.el.querySelector('[data-act="cat"]'); if (c2) c2.focus(); return;
+  }
+  var go = t.closest('[data-act="go"]');
+  if (go) confirm();
+}
+function shake(sel){ var n = sh && sh.el.querySelector(sel); if (!n || reduced()) return; n.classList.remove('us-shake'); void n.offsetWidth; n.classList.add('us-shake'); }
+function fadeList(){ var l = sh && sh.el.querySelector('.us-list'); if (l) l.classList.toggle('fade', l.scrollHeight > l.clientHeight + l.scrollTop + 4); }
+function scrollSel(){ var l = sh && sh.el.querySelector('.us-list'), n = l && l.querySelector('.us-row.sel'); if (!n) return; var t = n.offsetTop - l.offsetTop; if (t < l.scrollTop) l.scrollTop = t; else if (t + n.offsetHeight > l.scrollTop + l.clientHeight) l.scrollTop = t + n.offsetHeight - l.clientHeight + 2; fadeList(); }
+function focusSel(){ var n = sh && sh.el.querySelector('.us-row.sel'); if (n) { try { n.focus({ preventScroll:true }); } catch (e) { n.focus(); } } }
+
+function confirm(){
+  if (!sh || sh.phase !== 'pick') return;
+  if (nowMs() < sh.armAt) return;                       // 350 ms arm guard after open
+  var it = selItem(); if (!it || !sh.can) { snd('deny'); return; }
+  sh.phase = 'busy';
+  var r = false;
+  try { r = M().roll ? M().roll(it.kind, it.id, sh.tier, { catalyst: !!sh.cat }) : false; } catch (e) { r = false; }
+  if (!r || !r.ok) { sh.phase = 'pick'; sh.hint = 'That did not go through.'; snd('deny'); paint(); return; }
+  snd('spend'); hap(20);
+  showReveal(it, r);
+}
+
+/* ---- reveal ---- */
+var GRADE = {
+  common:{ word:'COMMON', col:'var(--pv-ui-r1)', pips:1, snd:'levelup', hap:20, sparks:0, rad:0, pulses:0 },
+  rare:  { word:'RARE',   col:'var(--pv-ui-r3)', pips:2, snd:'rare',    hap:40, sparks:8, rad:0, pulses:0 },
+  epic:  { word:'EPIC',   col:'var(--pv-ui-r4)', pips:3, snd:'epic',    hap:60, sparks:14, rad:8, pulses:2 }
+};
+function gradeId(g){ var v = (g && typeof g === 'object') ? g.id : g; return GRADE[v] ? v : 'common'; }
+function firstNum(s){ var mm = /[-+]?\d[\d,]*(\.\d+)?/.exec(s); return mm ? { v:parseFloat(mm[0].replace(/,/g, '')), i:mm.index, len:mm[0].length, txt:mm[0] } : null; }
+function lerpText(a, b, t){
+  var na = firstNum(a), nb = firstNum(b); if (!na || !nb) return b;
+  var v = na.v + (nb.v - na.v) * t, dec = (nb.txt.split('.')[1] || '').length;
+  var s = dec ? v.toFixed(dec) : fmt(Math.round(v));
+  if (/^\+/.test(nb.txt) && v >= 0) s = '+' + s;
+  return b.slice(0, nb.i) + s + b.slice(nb.i + nb.len);
+}
+function showReveal(it, r){
+  var gid = gradeId(r.grade), g = GRADE[gid], rm = reduced();
+  var isCond = it.kind === 'cond', eb = isCond ? effectOf(it.id, r.before) : it.what || '', ea = isCond ? effectOf(it.id, r.after) : it.what || '';
+  var gained = Math.max(0, r.gained | 0), lb = r.lvlBefore | 0, la = r.lvlAfter | 0;
+  sh.phase = 'reveal'; sh.res = r; sh.item = it; sh.armAt = nowMs() + 350; sh.revAt = nowMs();
+  var sheet = sh.el.querySelector('.us-sheet');
+  var sp = '', i, a;
+  for (i = 0; i < g.sparks; i++) { a = Math.round(360 / g.sparks * i + 8); sp += '<i style="--a:' + a + 'deg;--d:' + ((i % 4) * 0.1).toFixed(1) + 's"></i>'; }
+  for (i = 0; i < g.rad; i++) sp += '<i class="rad" style="--a:' + (i * 45) + 'deg"></i>';
+  var pp = ''; for (i = 0; i < 3; i++) pp += '<i class="' + (i < g.pips ? 'on' : '') + '" style="--k:' + i + '"></i>';
+  var hasEff = !!(isCond && eb && ea);
+  var h = '<div class="us-rv' + (rm ? '' : ' an') + (gid === 'common' ? ' cm' : '') + '" style="--gc:' + g.col + '" data-act="done-card" role="group" aria-label="Upgrade result">' +
+    '<div class="us-card-in" style="display:flex;flex-direction:column;align-items:center;gap:8px;width:100%">' +
+    '<div class="kic">Upgrade complete</div>' +
+    '<div class="us-ringw"><svg class="ring" viewBox="0 0 120 120" aria-hidden="true"><circle class="trk" cx="60" cy="60" r="50"/><circle class="arc" cx="60" cy="60" r="50"/></svg>' +
+    (g.pulses ? '<span class="pulse p1"></span><span class="pulse p2"></span>' : '') + '<span class="core">' + ico(ICON_OF[it.id] || 'cell') + '</span><span class="us-spk" aria-hidden="true">' + sp + '</span></div>' +
+    '<div class="us-pp" aria-hidden="true">' + pp + '</div>' +
+    '<div class="us-word">' + g.word + '</div>' +
+    '<div class="us-iname">' + esc(dispName(it)) + '</div>' +
+    '<div class="us-plus" id="us-plus">+' + gained + ' LEVEL' + (gained === 1 ? '' : 'S') + '</div>' +
+    '<div class="us-ba"><div class="bx"><small>Before &middot; Lv ' + lb + '</small><span>' + esc(hasEff ? eb : 'Lv ' + lb) + '</span></div>' + ico('arrow') +
+    '<div class="bx af"><small>After &middot; Lv ' + la + '</small><span id="us-after">' + esc(hasEff ? (rm ? ea : eb) : 'Lv ' + (rm ? la : lb)) + '</span></div></div>' +
+    (r.catNotNeeded ? '<div class="us-catline">Catalyst not needed</div>' : (r.catalyst ? '<div class="us-catline">Catalyst: Common &rarr; Rare, ' + catCost() + ' Schematics</div>' : '')) +
+    (r.refund > 0 ? '<div class="us-refund"><span class="pv-coin"></span>+' + fmt(r.refund) + ' Credits back</div>' : '') +
+    '<div class="us-tap">Tap to close</div></div></div>' +
+    '<button type="button" class="pv-btn pv-btn--primary us-done" data-act="done">Done</button>' +
+    '<div class="us-live" aria-live="polite" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)">' + g.word.charAt(0) + g.word.slice(1).toLowerCase() + '. ' + esc(dispName(it)) + ' plus ' + gained + ' level' + (gained === 1 ? '' : 's') + ', ' + lb + ' to ' + la + '.</div>';
+  sheet.innerHTML = h;
+  snd(g.snd); hap(g.hap);
+  var btn = sheet.querySelector('.us-done'); if (btn) { try { btn.focus({ preventScroll:true }); } catch (e) { btn.focus(); } }
+  if (!rm) countUp(it, eb, ea, hasEff, lb, la);
+}
+function countUp(it, eb, ea, hasEff, lb, la){
+  var s = sh, t0 = nowMs(), node = s.el.querySelector('#us-after'), L0 = 400, D = 600;
+  function step(){
+    if (!sh || sh !== s || s.phase !== 'reveal' || !node.isConnected) return;
+    var t = Math.max(0, Math.min(1, (nowMs() - t0 - L0) / D)), k = t * t * (3 - 2 * t);
+    node.textContent = hasEff ? lerpText(eb, ea, k) : 'Lv ' + Math.round(lb + (la - lb) * k);
+    if (t < 1) s.raf = G.requestAnimationFrame(step);
+  }
+  s.raf = G.requestAnimationFrame(step);
+}
+function revealClose(){
+  if (!sh || sh.phase !== 'reveal') return;
+  if (nowMs() < sh.armAt) return;                       // 350 ms arm guard on the reveal
+  var left = sh.res ? sh.res.left : buysLeft();
+  if (typeof left !== 'number') left = buysLeft();
+  if (G.cancelAnimationFrame && sh.raf) G.cancelAnimationFrame(sh.raf);
+  if (left <= 0) { closeSheet(); return; }
+  sh.phase = 'pick'; sh.res = null; sh.hint = ''; sh.armAt = nowMs() + 350;
+  sh.kind = sh.item.kind; sh.id = sh.item.id;           // item stays selected (paint() moves on if it is now maxed)
+  snd('tick'); paint(); focusSel();
+}
+
+/* ---- open / close ---- */
+function openSheet(kind, id){
+  injectCss();
+  if (sh) closeSheet(true);
+  var host = hostEl(), scrim = el('div', 'us-scrim' + (reduced() ? ' rm' : ''));
+  scrim.setAttribute('role', 'dialog'); scrim.setAttribute('aria-modal', 'true'); scrim.setAttribute('aria-label', 'Upgrade');
+  var sheet = el('div', 'us-sheet'); scrim.appendChild(sheet); host.appendChild(scrim);
+  sh = { el:scrim, host:host, kind:null, id:null, tier:null, cat:false, phase:'pick', armAt:nowMs() + 350, hint:'', items:itemsList(), res:null, opener:document.activeElement, raf:0, can:false };
+  var pre = (kind && id) ? find(sh.items, kind, id) : null; if (!pre || pre.capped) pre = firstChoice(sh.items);
+  if (pre) { sh.kind = pre.kind; sh.id = pre.id; }
+  paint();
+  scrim.addEventListener('click', onSheetClick);
+  snd('tick');
+  scrollSel();
+  scrim.addEventListener('scroll', fadeList, true);
+  if (selItem()) focusSel(); else { var cb = scrim.querySelector('.us-x'); if (cb) cb.focus(); }
+  if (!barHook) {
+    barHook = function(e){ if (sh && e.target && e.target.closest && e.target.closest('.pv-tabbar')) closeSheet(true); };
+    document.addEventListener('click', barHook, true);
+  }
+  if (!keyFn) {
+    keyFn = function(e){
+      if (!sh) return;
+      if (e.key === 'Escape') { if (sh.phase === 'reveal') revealClose(); else if (sh.phase === 'pick') closeSheet(); e.preventDefault(); return; }
+      if (e.key === 'Tab') {   // keep focus inside the sheet
+        var f = [].slice.call(sh.el.querySelectorAll('button:not([disabled]):not([tabindex="-1"])'));
+        if (!f.length) return; var i = f.indexOf(document.activeElement);
+        if (e.shiftKey && i <= 0) { f[f.length - 1].focus(); e.preventDefault(); }
+        else if (!e.shiftKey && (i < 0 || i === f.length - 1)) { f[0].focus(); e.preventDefault(); }
+      }
+    };
+    document.addEventListener('keydown', keyFn);
+  }
+  return true;
+}
+function closeSheet(quiet){
+  if (!sh) return;
+  var s = sh; sh = null;
+  if (G.cancelAnimationFrame && s.raf) G.cancelAnimationFrame(s.raf);
+  if (s.el && s.el.parentNode) s.el.parentNode.removeChild(s.el);
+  if (barHook) { document.removeEventListener('click', barHook, true); barHook = null; }
+  if (keyFn) { document.removeEventListener('keydown', keyFn); keyFn = null; }
+  if (quiet !== true) { try { if (s.opener && s.opener.focus && s.opener.isConnected) s.opener.focus(); } catch (e) {} }
+  if (root && mounted) render();
+}
+V.UpSheet = {
+  open: function(kind, id){ return openSheet(kind, id); },
+  close: function(){ closeSheet(); },
+  isOpen: function(){ return !!sh; }
+};
+
+/* ---- the tab ---- */
 var T = V.Tabs = V.Tabs || {};
-var root = null, body = null, mounted = false, unsub = false, sheet = null;
+var root = null, body = null, mounted = false, unsub = false;
 
-function capBuys(){ var m = M(); return m.maxTotal ? m.maxTotal('cond') : 30; }
 function boughtBuys(){ var m = M(); return m.boughtCount ? m.boughtCount('cond') : 0; }
-function nextCost(){
-  var m = M(), c = null;
-  if (m.nextPrice) { var p = m.nextPrice('cond'); return p == null ? null : { credits: p }; }
-  if (m.cost) c = m.cost('cond', 'rand');
-  return c;
-}
+function capBuys(){ var m = M(); return m.maxTotal ? m.maxTotal('cond') : 30; }
 function render(){
   if (!root) return;
-  var m = M(), st = m.state || {};
-  var stats = m.stats ? m.stats() : {};
+  var m = M(), stats = m.stats ? m.stats() : {};
   body.innerHTML = '';
   var rule = el('p', 'rule');
-  rule.innerHTML = 'Trains one random stat. Attack and speed give 2 levels.<span class="n">' + boughtBuys() + ' / ' + capBuys() + ' bought</span>';
+  rule.innerHTML = 'You pick the upgrade. What you spend sets the odds of a bigger gain.<span class="n">' + boughtBuys() + ' / ' + capBuys() + ' bought</span>';
   body.appendChild(rule);
-  var left = buysLeft(), vmax = (m.TUNING && m.TUNING.VISIT_MAX) || 2;
+  var left = buysLeft(), vmax = visitMax();
   var vis = el('div', 'tb-visit' + (left <= 0 ? ' none' : '')); vis.id = 'tb-visit'; vis.setAttribute('role', 'status');
-  vis.innerHTML = '<span class="vl">Buys left this visit:<b id="tb-left">' + left + '</b></span><span class="pips" aria-hidden="true">' + pipsHtml(left, vmax) + '</span>';
+  vis.innerHTML = '<span class="vl">Rolls left this visit:<b id="tb-left">' + left + '</b></span><span class="pips" aria-hidden="true">' + pipsHtml(left, vmax) + '</span>';
   body.appendChild(vis);
   var g = el('div', 'tb-grid3');
   STATS.forEach(function(s){
     var lv = level(s.id), cp = capOf(s), max = lv >= cp;
     var t = el('div', 'tl' + (max ? ' mx' : ''));
     t.id = 'tb-' + s.id;
-    t.innerHTML = '<div class="tb-ti">' + iconBox(s, true) + '</div><div class="tn">' + s.name + '</div>' +
-      '<div class="tv">' + (max ? 'MAX' : 'Lv ' + lv + ' / ' + cp) + '</div><div class="fx">' + effectOf(s.id, stats) + '</div><div class="per">+' + s.per + ' level' + (s.per > 1 ? 's' : '') + ' per buy</div>' +
+    t.innerHTML = '<div class="tb-ti">' + ico(s.icon) + '</div><div class="tn">' + s.name + '</div>' +
+      '<div class="tv">' + (max ? 'MAX' : 'Lv ' + lv + ' / ' + cp) + '</div><div class="fx">' + effectOf(s.id, stats) + '</div><div class="per">Up to +3 steps per roll</div>' +
       '<div class="pv-bar"><div class="pv-bar__fill" style="--v:' + Math.min(100, Math.round(lv / cp * 100)) + '%"></div></div>';
     g.appendChild(t);
   });
   body.appendChild(g);
-  var c = nextCost(), all = !c;
+  var items = itemsList(), all = items.length > 0 && items.every(function(x){ return x.capped; });
+  var cheap = null; items.forEach(function(x){ if (!x.capped && x.basicPrice != null && (cheap == null || x.basicPrice < cheap)) cheap = x.basicPrice; });
   var pn = el('div', 'pv-panel tb-pn');
-  pn.innerHTML = (V.TabsA ? V.TabsA.cog(40) : COG_OLD) + '<div class="tx"><div class="r"><span class="pv-stencil pv-muted">Next upgrade</span>' + (all ? '<span class="cr">ALL MAXED</span>' : '<span class="cr">' + fmt(c ? c.credits : 0) + ' CR</span>') + '</div>' +
-    '<div class="sm">' + (all ? 'Every stat is at its cap.' : 'Upgrades one random stat that is not maxed.') + '</div></div>';
+  pn.innerHTML = (V.TabsA ? V.TabsA.cog(40) : COG_OLD) + '<div class="tx"><div class="r"><span class="pv-stencil pv-muted">Cheapest upgrade</span>' + (all ? '<span class="cr">ALL MAXED</span>' : (cheap != null ? '<span class="cr">' + fmt(cheap) + ' CR</span>' : '')) + '</div>' +
+    '<div class="sm">' + (all ? 'Everything is at its cap.' : 'Choose an item, then how much to spend. Rifle and gear are in the list too.') + '</div></div>';
   body.appendChild(pn);
   body.appendChild(el('div', 'tb-spacer'));
-  var why = all ? 'max' : whyNot(), can = !all && c && why === '';
-  var btn = el('button', 'pv-btn tb-buy ' + (can ? 'pv-btn--primary' : ''));
-  btn.type = 'button'; btn.setAttribute('data-buy', 'cond');
-  if (all) btn.innerHTML = '<span class="lbl">Maxed</span>';
-  else if (why === 'visit') btn.innerHTML = '<span class="lbl">No buys left</span><span class="cost">' + COIN + fmt(c ? c.credits : 0) + '</span>';
-  else btn.innerHTML = '<span class="lbl">Upgrade</span><span class="cost">' + COIN + fmt(c ? c.credits : 0) + '</span>';
-  if (!can) { btn.className += ' is-disabled'; btn.disabled = true; }
-  btn.addEventListener('click', buy);
+  var btn = el('button', 'pv-btn tb-buy ' + (all ? '' : 'pv-btn--primary'));
+  btn.type = 'button'; btn.setAttribute('data-open', 'upgrade');
+  btn.innerHTML = '<span class="lbl">' + (all ? 'Everything maxed' : 'Upgrade') + '</span>';
+  if (all) { btn.className += ' is-disabled'; btn.disabled = true; }
+  btn.addEventListener('click', function(){ openSheet(); });
   body.appendChild(btn);
-  // QA-HOME 12: same hint as the Armory (tab-armory.js upBtn / .ta-note): grey, never red.
-  var short = (!all && c && why === 'credits') ? Math.max(0, (c.credits | 0) - (st.credits | 0)) : 0;
-  body.appendChild(el('div', 'tb-note' + (short > 0 || why === 'visit' ? ' is-warn' : ''), why === 'visit' ? 'Your buys for this visit are used. They come back after your next run.' : (short > 0 ? 'Need ' + fmt(short) + ' more credits' : '&nbsp;')));
+  var short = (!all && cheap != null) ? Math.max(0, cheap - credits()) : 0;
+  body.appendChild(el('div', 'tb-note' + (short > 0 || left <= 0 ? ' is-warn' : ''), left <= 0 ? 'Your rolls for this visit are used. They come back after your next run.' : (short > 0 ? 'Need ' + fmt(short) + ' more credits for the cheapest upgrade' : '&nbsp;')));
 }
-
-function buy(){
-  var m = M();
-  if (!(m.canBuy && m.canBuy('cond', 'rand'))) return;
-  var before = m.stats ? m.stats() : {}, lv = {};
-  STATS.forEach(function(s){ lv[s.id] = level(s.id); });
-  var r = m.buy ? m.buy('cond', 'rand') : (m.buyRandom ? m.buyRandom('cond') : false);
-  var id = r && r.stat ? r.stat : (r === true ? m.lastBuy : (typeof r === 'string' ? r : null));
-  if (!id) return;
-  var s = STATS.filter(function(x){ return x.id === id; })[0];
-  if (!s) return;
-  showSheet(s, before, m.stats ? m.stats() : {}, lv[id], level(id), Math.max(1, level(id) - lv[id]));
-}
-
-function showSheet(s, before, after, lb, la, granted){
-  closeSheet();
-  var r = el('div', 'tb-res'); r.setAttribute('role', 'dialog'); r.setAttribute('aria-label', 'Training complete');
-  r.innerHTML = '<div class="card"><div class="pv-stencil pv-muted">Training complete</div>' +
-    '<div class="big">' + iconBox(s, false) + '<b>' + s.name + '</b></div>' +
-    '<div class="plus">+' + granted + ' LEVEL' + (granted > 1 ? 'S' : '') + '</div>' +
-    '<div class="ba"><div class="bx"><small>Before &middot; Lv ' + lb + '</small><span>' + effectOf(s.id, before) + '</span></div>' + ico('arrow') +
-    '<div class="bx af"><small>After &middot; Lv ' + la + '</small><span>' + effectOf(s.id, after) + '</span></div></div>' +
-    '<div class="pv-stencil pv-muted" id="tb-sheet-left">Buys left this visit: ' + buysLeft() + '</div>' +
-    '<button type="button" class="pv-btn pv-btn--primary" data-continue>Continue</button></div>';
-  r.querySelector('[data-continue]').addEventListener('click', closeSheet);
-  root.appendChild(r); sheet = r;
-}
-function closeSheet(){ if (sheet && sheet.parentNode) sheet.parentNode.removeChild(sheet); sheet = null; }
 
 T.upgrades = {
   id: 'upgrades', title: 'Upgrades', icon: 'upgrades',
@@ -11227,11 +11955,11 @@ T.upgrades = {
     root.appendChild(body);
     host.innerHTML = ''; host.appendChild(root);
     mounted = true;
-    if (!unsub && M().onChange) { M().onChange(function(){ if (mounted) render(); }); unsub = true; }
+    if (!unsub && M().onChange) { M().onChange(function(){ if (mounted) { render(); if (sh && sh.phase === 'pick') paint(); } }); unsub = true; }
     render();
   },
-  show: function(){ if (root) render(); },
-  hide: function(){ closeSheet(); }
+  show: function(){ closeSheet(true); if (root) render(); },
+  hide: function(){ closeSheet(true); }
 };
 })();
 
@@ -11849,12 +12577,28 @@ function build(){
   if (V.Meta && V.Meta.onChange) V.Meta.onChange(function(){ refreshCredits(); refreshPips(); });
 }
 function refreshCredits(){ var m = meta(); if (crN) crN.textContent = fmt(m ? m.credits : 0); }
-// QA-HOME 8: a dot on a tab when a buy there is affordable (FIX B3: one dot, never a number, never on the selected tab).
-// Armory = rifle upgrade (QA-HOME 8 recommended option); Upgrades = the next Conditioning buy (QA option 2).
-var PIPS = { armory: ['rifle', 'rifle'], upgrades: ['cond', 'rand'] };
+// Tab dots (step 8): one dot, never a number, never on the selected tab.
+// Upgrades = rolls left this visit AND any non-capped item affordable at the Basic tier (V.Meta.quote).
+// Armory = a locked slot is affordable (V.Meta.slotWhy === ''). Both fall back to the old canBuy rule until the step 8 meta API exists.
+function upgradesDot(M){
+  if (typeof M.items === 'function' && typeof M.quote === 'function') {
+    if (typeof M.visitLeft === 'function' && !(M.visitLeft() > 0)) return false;
+    var it = M.items() || [];
+    for (var i = 0; i < it.length; i++) { if (it[i].capped) continue; var q = M.quote(it[i].kind, it[i].id, 'basic', {}); if (q && q.why === '') return true; }
+    return false;
+  }
+  return !!M.canBuy('cond', 'rand');
+}
+function armoryDot(M){
+  if (M.SLOTS && typeof M.slotWhy === 'function') { for (var i = 0; i < M.SLOTS.length; i++) if (M.slotWhy(M.SLOTS[i].id) === '') return true; return false; }
+  return !!M.canBuy('rifle', 'rifle');
+}
 function refreshPips(){
   var M = V.Meta; if (!M || typeof M.canBuy !== 'function') return;
-  for (var id in PIPS) { var on = false; try { on = !!M.canBuy(PIPS[id][0], PIPS[id][1]); } catch (e) {} Home.pip(id, on); }
+  var on = { armory: false, upgrades: false };
+  try { on.armory = armoryDot(M); } catch (e) {}
+  try { on.upgrades = upgradesDot(M); } catch (e) {}
+  for (var id in on) Home.pip(id, on[id]);
 }
 
 Home.go = function(id){
@@ -11992,6 +12736,7 @@ function vib(ms){
   var ua = navigator.userActivation;   // vibrate before any tap logs a console error in Chrome
   if (V.TUNE.HAPTICS && ms > 0 && navigator.vibrate && (!ua || ua.hasBeenActive)) { try { navigator.vibrate(ms); } catch (_) {} }
 }
+V.haptic = vib;   // step 8: upgrade sheet calls V.haptic(20/40/60); same gate (V.TUNE.HAPTICS + user activation)
 function handleEvents(ev, live){
   if (!ev) return;
   var stop = false;

@@ -116,6 +116,27 @@ function check(id, what, ok, got){ rows.push([id, what, ok ? 'PASS' : 'FAIL', go
   S.hero.hp = 100; c.currentTime += 1; var hb0 = A.played; A.step(S);
   check('A14', 'heartbeat starts under 30% HP', A.played === hb0 + 1);
 
+  // ---- step 8 home-upgrade cues (SPEC-UX s6, CONTRACT-STEP8 AU) ----
+  var HOME = { tick: 0.6, latch: 0.6, spend: 0.6, rare: 0.6, epic: 0.9, deny: 0.6, unlock: 0.6 };
+  var hm = Object.keys(HOME).filter(function(n){ return !C[n] || C[n].bus !== 'u' || !(C[n].d <= HOME[n]) || C[n].live; });
+  check('A15', 'home cues tick latch spend rare epic deny unlock exist, ui bus, baked, length <= 600 ms (epic 900)', hm.length === 0, hm.join(',') || Object.keys(HOME).map(function(n){ return n + ' ' + Math.round(C[n].d * 1000); }).join(' '));
+  // true sound end: the last scheduled stop in the recipe (minus the 30 ms safety tail tone()/noise() add) must sit inside the cue length
+  var over = []; Object.keys(HOME).concat(['level_up']).forEach(function(n){
+    var c0 = new Ctx(), stops = []; c0.createOscillator = c0.createBufferSource = function(){ var nd = new Node(this); stops.push(nd); return nd; };
+    C[n].fn(c0, c0.destination, 0, 0, { d: C[n].d });
+    var end = Math.max.apply(null, stops.map(function(nd){ return nd.t1 || 0; })) - 0.03;
+    if (!(end <= C[n].d + 1e-9) || end > (HOME[n] || 0.6)) over.push(n + ' ' + Math.round(end * 1000) + 'ms');
+  });
+  check('A15', 'each home cue (and levelup for Common) stops inside its length and the spec cap', over.length === 0, over.join(',') || 'ok');
+  check('A15', "Common reuses levelup: 'levelup' and 'level_up' both resolve to S-019 (<= 600 ms)", A.ALIAS.levelup === 'level_up' && C.level_up.id === 'S-019' && C.level_up.d <= 0.6);
+  c.currentTime = 100; var hp0 = A.played, hok = Object.keys(HOME).concat(['levelup']).every(function(n, k){ return A.play(n, { delay: k * 0.001 }) === true; });
+  check('A15', 'all 7 home cues + levelup play once the context is unlocked', hok && A.played === hp0 + 8, A.played - hp0);
+  c.currentTime = 101; A.setLevel('sfx', 'off'); var hoff = Object.keys(HOME).every(function(n){ return A.play(n, { force: true }) === false; }); A.setLevel('sfx', 'mid');
+  A.setMuted(true); c.currentTime = 102; var hmute = Object.keys(HOME).every(function(n){ return A.play(n, { force: true }) === false; }); A.setMuted(false);
+  check('A15', 'sound setting gate: Off and muted schedule none of them', hoff && hmute);
+  c.currentTime = 103; A.play('tick'); var tk = A.played; A.play('tick'); c.currentTime += 0.05; A.play('tick');
+  check('A15', 'tick gap 40 ms: a double tap merges, a tap 50 ms later plays', A.played === tk + 1, A.played - tk);
+
   console.log('test-audio: ' + (rows.length - fails) + '/' + rows.length + ' pass');
   rows.forEach(function(r){ if (r[2] === 'FAIL' || process.argv.indexOf('-v') >= 0) console.log(r.join(' | ')); });
   process.exit(fails ? 1 : 0);

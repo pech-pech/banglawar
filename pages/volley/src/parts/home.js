@@ -216,12 +216,28 @@ function build(){
   if (V.Meta && V.Meta.onChange) V.Meta.onChange(function(){ refreshCredits(); refreshPips(); });
 }
 function refreshCredits(){ var m = meta(); if (crN) crN.textContent = fmt(m ? m.credits : 0); }
-// QA-HOME 8: a dot on a tab when a buy there is affordable (FIX B3: one dot, never a number, never on the selected tab).
-// Armory = rifle upgrade (QA-HOME 8 recommended option); Upgrades = the next Conditioning buy (QA option 2).
-var PIPS = { armory: ['rifle', 'rifle'], upgrades: ['cond', 'rand'] };
+// Tab dots (step 8): one dot, never a number, never on the selected tab.
+// Upgrades = rolls left this visit AND any non-capped item affordable at the Basic tier (V.Meta.quote).
+// Armory = a locked slot is affordable (V.Meta.slotWhy === ''). Both fall back to the old canBuy rule until the step 8 meta API exists.
+function upgradesDot(M){
+  if (typeof M.items === 'function' && typeof M.quote === 'function') {
+    if (typeof M.visitLeft === 'function' && !(M.visitLeft() > 0)) return false;
+    var it = M.items() || [];
+    for (var i = 0; i < it.length; i++) { if (it[i].capped) continue; var q = M.quote(it[i].kind, it[i].id, 'basic', {}); if (q && q.why === '') return true; }
+    return false;
+  }
+  return !!M.canBuy('cond', 'rand');
+}
+function armoryDot(M){
+  if (M.SLOTS && typeof M.slotWhy === 'function') { for (var i = 0; i < M.SLOTS.length; i++) if (M.slotWhy(M.SLOTS[i].id) === '') return true; return false; }
+  return !!M.canBuy('rifle', 'rifle');
+}
 function refreshPips(){
   var M = V.Meta; if (!M || typeof M.canBuy !== 'function') return;
-  for (var id in PIPS) { var on = false; try { on = !!M.canBuy(PIPS[id][0], PIPS[id][1]); } catch (e) {} Home.pip(id, on); }
+  var on = { armory: false, upgrades: false };
+  try { on.armory = armoryDot(M); } catch (e) {}
+  try { on.upgrades = upgradesDot(M); } catch (e) {}
+  for (var id in on) Home.pip(id, on[id]);
 }
 
 Home.go = function(id){
