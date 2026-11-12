@@ -11,6 +11,7 @@ import { makeClubs, growClubs, aiPickSix } from '../core/clubs.js';
 import { makeSchedule, makeTable, applyResult, placeOf, inTopFour, finalsDraw, finalFrom, koWinner, tpAward, simRound, simMatch, simFinals, ME } from '../core/season.js';
 import { pickCoach, doDrill, endWeek, levelOfXp } from '../core/training.js';
 import { unlockNode, makeFx } from '../core/skills.js';
+import { defaultOvers } from '../core/plan.js';
 
 const ovStr = (balls) => `${Math.floor(balls / 6)}.${balls % 6}`;
 
@@ -145,7 +146,7 @@ function newGame(payload) {
   const season = newSeasonData(seed, 1, clubs);
   return {
     v: 1, salt: '', seed, stage: 'coach', ...blankMatch(),
-    season, clubs, plan: { overs: DEFAULT_OVERS.slice(), fields: ['A', 'A', 'A'] },
+    season, clubs, plan: { overs: DEFAULT_OVERS.slice(), fields: ['A', 'A', 'A'], edited: false, key: '' },
     coaches: makeCandidates(makeRng(`${seed}|coaches`)), coachPicked: false, nets: 1,
     training: { tp: 450, week: 1, drilled: {}, nodeBought: {}, last: null, weekLog: [], weekStart: {}, drillCount: 0 },
     fixture: leagueFixture(season, 1),
@@ -158,7 +159,8 @@ function setSix(s, p) {
   if (new Set(p.ids).size !== p.ids.length || !p.ids.every((id) => have.has(id))) return s;
   const n = clone(s);
   n.clubs[0].six = p.ids.slice();
-  n.plan = { overs: DEFAULT_OVERS.slice(), fields: n.plan.fields.slice() };
+  const key = planKey(s);
+  if (!(s.plan.edited && s.plan.key === key)) n.plan = { overs: suggestedOvers(n), fields: ['A', 'A', 'A'], edited: false, key }; // never overwrite a plan the player set for this match
   n.stage = 'plan';
   return n;
 }
@@ -175,11 +177,33 @@ export function planProblem(overs) {
   return null;
 }
 
+const planKey = (s) => (s.fixture && s.season ? `${s.season.n}|${s.fixture.kind}|${s.fixture.round}|${s.fixture.opp}` : '');
+
+/** Pre-filled overs: best matchups against this opponent's batters, for the current six. Falls back to the plain rota. */
+function suggestedOvers(s) {
+  const fx = s.fixture;
+  const opp = fx && s.clubs.find((c) => c.id === fx.opp);
+  const mine = s.clubs[0];
+  if (!opp || mine.six.length !== SEASON.sixSize) return DEFAULT_OVERS.slice();
+  const byId = (club, id) => club.squad.find((x) => x.id === id);
+  return defaultOvers(mine.six.map((id) => byId(mine, id)), aiPickSix(opp).map((id) => byId(opp, id)));
+}
+
+/** Player edits while the plan screen is open. Keeps half-filled plans (null = still to pick); marks the plan as the player's own. */
+function editPlan(s, p) {
+  if (s.stage !== 'plan' || !p || !Array.isArray(p.overs) || p.overs.length !== 10) return s;
+  if (!p.overs.every((b) => b === null || (Number.isInteger(b) && b >= 0 && b < SEASON.sixSize))) return s;
+  if (!Array.isArray(p.fields) || p.fields.length !== 3 || !p.fields.every((f) => f === 'A' || f === 'P')) return s;
+  const n = clone(s);
+  n.plan = { overs: p.overs.slice(), fields: p.fields.slice(), edited: true, key: planKey(s) };
+  return n;
+}
+
 function setPlan(s, p) {
   if (s.stage !== 'plan' || !p || planProblem(p.overs)) return s;
   if (!Array.isArray(p.fields) || p.fields.length !== 3 || !p.fields.every((f) => f === 'A' || f === 'P')) return s;
   const n = clone(s);
-  n.plan = { overs: p.overs.slice(), fields: p.fields.slice() };
+  n.plan = { overs: p.overs.slice(), fields: p.fields.slice(), edited: true, key: planKey(s) };
   return n;
 }
 
@@ -281,6 +305,7 @@ export function applyCommand(s, cmd, payload = {}) {
     case 'OpenSquad': return ['hub', 'semi', 'final', 'plan'].includes(s.stage) && s.season ? { ...s, stage: 'squad' } : s;
     case 'SetSix': return setSix(s, payload);
     case 'SetPlan': return setPlan(s, payload);
+    case 'EditPlan': return editPlan(s, payload);
     case 'FinishMatch': return finishMatch(s);
     case 'Drill': return s.stage === 'train' ? doDrill(s, payload || {}, makeRng(`${s.season.seed}|drill|${s.training.week}|${payload && payload.playerId}|${s.salt}`)) : s;
     case 'UnlockNode': return s.stage === 'train' ? unlockNode(s, payload || {}) : s;
