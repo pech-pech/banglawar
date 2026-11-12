@@ -2,6 +2,7 @@
 import { esc, btn, ctaBar, tpChip, ico } from './dom.js';
 import { tableHtml, finalsHtml, nameOf, ordinal } from './table-sheet.js';
 import { helpBtn } from './hub-view.js';
+import { chipHtml } from './book-sheet.js';
 
 const CTA = { NewSeason: 'Start next season', RunEnd: 'See your run' };
 
@@ -37,6 +38,16 @@ function withGoUp(html, top) {
   return html.slice(0, at) + '<tr class="rn-go"><td colspan="6">' + ico('upgrade', 16) + ' Above this line go up</td></tr>' + html.slice(at);
 }
 
+/* Coach's notebook (P4): from season 2 one pairing is found free at season end. Own look (book icon, dashed edge), the grade as the Book's chip, a button to the Book. */
+function notebookHtml(n) {
+  if (!n) return '';
+  const chip = chipHtml({ found: true, rank: n.rank, grade: n.grade, combo: n.combo ? n.combo.name : null, phase: ['Early', 'Middle', 'Late'][n.ph] }, n.bat + ' v ' + n.bowl, true);
+  return '<section class="bk-nb" aria-label="Coach\'s notebook">' + ico('book', 32) + '<span class="bk-nb__t">Coach\'s notebook</span>' +
+    '<span class="bk-nb__row">' + esc(n.name) + chip + '</span>' +
+    '<p class="bk-nb__sub">Found for free. Grade is the batter\'s view.' + (n.combo ? ' Combo: ' + esc(n.combo.name) + '.' : '') + '</p>' +
+    '<button type="button" class="c-btn" data-act="sheet:book">' + ico('book', 24) + 'See Pairing Book</button></section>';
+}
+
 export function render(el, vm, dispatch) {
   const rows = vm.rows || [];
   const place = Number(vm.myPlace) || 0;
@@ -52,6 +63,7 @@ export function render(el, vm, dispatch) {
     '<h1 class="ss-head' + (iWon ? ' is-champ' : '') + '">' + esc(head) + '</h1>' +
     '<p class="ss-place">You finished <b>' + esc(place ? ordinal(place) : '-') + '</b> of ' + esc(rows.length || 10) + '</p>' +
     '<div class="ss-won-row">' + tpChip(vm.tpWon) + '<span>training points won this season</span></div></div>' +
+    notebookHtml(vm.notebook) +
     (vm.finals ? '<div class="c-card ss-fin"><h3>Finals</h3>' + finalsHtml(vm.finals) + '</div>' : '') +
     '<div class="ss-final-table">' + (vm.lastSeason ? tableHtml(rows, { cut: false }) : withGoUp(tableHtml(rows, { cut: false }), Number(vm.promoteTop) || 2)) + '</div>' +
     ctaBar(btn(CTA[vm.cta] || CTA.NewSeason, CTA[vm.cta] ? vm.cta : 'NewSeason', { kind: 'cta' })) +

@@ -8,6 +8,7 @@ import { makeRng } from './rng.js';
 import { makeClubs, aiPickSix } from './clubs.js';
 import { placeOf, ME } from './season.js';
 import { shownAbility, rawAbility, capSum } from './ability.js';
+import { isBook, seasonTip } from './pairing.js';
 
 const clamp = (/** @type {number} */ v, /** @type {number} */ lo, /** @type {number} */ hi) => Math.min(hi, Math.max(lo, v));
 const clone = (/** @type {any} */ x) => JSON.parse(JSON.stringify(x));
@@ -82,7 +83,9 @@ export function closeSeason(state) {
     }
   }
   if (def) chapter = { name: def.name, reward: `TP ${def.tp}`, feat: { text: def.feat.text, done: run.chapters[def.season].featDone } };
-  run.last = { n: se.n, league: se.league || 1, ...res, champion, finals, chapter, claimed };
+  let notebook = null; // Coach's notebook (P4): from season 2, the unfound pairing with the most balls is found free
+  if (isBook(n.book)) { const t = seasonTip(n.book, se.n); n.book = t.book; notebook = t.cell; }
+  run.last = { n: se.n, league: se.league || 1, ...res, champion, finals, chapter, claimed, notebook };
   return n;
 }
 

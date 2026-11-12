@@ -14,6 +14,7 @@ import { unlockNode, makeFx } from '../core/skills.js';
 import { defaultOvers } from '../core/plan.js';
 import { newRun, closeSeason, remakeRivals, carryOf, applyCarry } from '../core/run.js';
 import { RUN } from '../data/run.js';
+import { newBook, isBook, recordOver } from '../core/pairing.js';
 
 const ovStr = (balls) => `${Math.floor(balls / 6)}.${balls % 6}`;
 
@@ -78,8 +79,9 @@ function bowlOver(s, p) {
     const good = rivalCall(rng, FLAGS.rivalGoodShare);
     const intent = pickIntent(inn, false, rng, good);
     const over = inn.over;
-    const balls = playOver(rng, inn, n.rival.players, n.me.players, call.bowler, intent, call.field, fxOf(n), centreOf(n));
+    const balls = playOver(rng, inn, n.rival.players, n.me.players, call.bowler, intent, call.field, fxOf(n), centreOf(n), !!n.season);
     n.last = { balls, over, bowler: call.bowler, intent, field: call.field };
+    countBook(n, balls, n.rival.players, n.me.players);
     if (inn.done) { n.stage = 'break'; n.call = null; n.inn1Summary = summarise(n); } else n.call = defaultCall(n);
     return n;
   }
@@ -92,8 +94,9 @@ function bowlOver(s, p) {
     const bowler = pickBowler(n.rival.players, inn, batters, rng, good);
     const field = pickField(inn, batters, rng, good, centreOf(n));
     const over = inn.over;
-    const balls = playOver(rng, inn, n.me.players, n.rival.players, bowler, intent, field, fxOf(n), centreOf(n));
+    const balls = playOver(rng, inn, n.me.players, n.rival.players, bowler, intent, field, fxOf(n), centreOf(n), !!n.season);
     n.last = { balls, over, bowler, intent, field };
+    countBook(n, balls, n.me.players, n.rival.players);
     if (inn.done) {
       n.stage = 'done';
       n.result = inn.runs > n.inn1.runs ? 'won' : inn.runs === n.inn1.runs ? 'tied' : 'lost';
@@ -101,6 +104,14 @@ function bowlOver(s, p) {
     return n;
   }
   return s;
+}
+
+/** Pairing Book (P4): count the over's balls, either innings, and record the cells found at the end of the over in n.last.found. Season matches only. Mutates the private copy n. */
+function countBook(n, balls, bats, bowls) {
+  if (!n.season) return;
+  const r = recordOver(isBook(n.book) ? n.book : newBook(), balls, bats, bowls);
+  n.book = r.book;
+  n.last.found = r.newly;
 }
 
 function startChase(s) {
@@ -152,7 +163,7 @@ function newGame(payload) {
   const clubs = makeClubs(makeRng(`${seed}|clubs`), SEASON);
   const season = newSeasonData(seed, 1, clubs);
   return {
-    v: 2, salt: '', seed, stage: 'hub', ...blankMatch(), run: newRun(seed),
+    v: 3, salt: '', seed, stage: 'hub', ...blankMatch(), run: newRun(seed), book: newBook(),
     season, clubs, plan: { overs: DEFAULT_OVERS.slice(), fields: NEUTRAL_FIELDS(), edited: false, key: '' },
     coaches: makeCandidates(makeRng(`${seed}|coaches`)), coachPicked: false, nets: 1,
     training: { tp: 450, week: 1, drilled: {}, nodeBought: {}, last: null, weekLog: [], weekStart: {}, drillCount: 0 },
@@ -193,7 +204,7 @@ function suggestedOvers(s) {
   const mine = s.clubs[0];
   if (!opp || mine.six.length !== SEASON.sixSize) return DEFAULT_OVERS.slice();
   const byId = (club, id) => club.squad.find((x) => x.id === id);
-  return defaultOvers(mine.six.map((id) => byId(mine, id)), aiPickSix(opp).map((id) => byId(opp, id)));
+  return defaultOvers(mine.six.map((id) => byId(mine, id)), aiPickSix(opp).map((id) => byId(opp, id)), isBook(s.book) ? s.book : undefined);
 }
 
 /** Player edits while the plan screen is open. Keeps half-filled plans (null = still to pick); marks the plan as the player's own. */

@@ -31,9 +31,9 @@ const ROLE_WORD = { Opener: 'Opener', Middle: 'Middle order', Lower: 'Lower orde
 const PHASE_WORDS = ['Early overs (1-3)', 'Middle overs (4-7)', 'Last overs (8-10)'];
 // Map the matchup label to plain words, a shape and a colour class. Colour is never the only signal.
 const RATING = {
-  Great: { cls: 'r-good', s: '▲', w: 'Good' },
-  Even: { cls: 'r-ok', s: '●', w: 'OK' },
-  Bad: { cls: 'r-poor', s: '▼', w: 'Poor' },
+  Great: { cls: 'r-good', s: '▲', w: 'Strong' },
+  Even: { cls: 'r-ok', s: '●', w: 'Even' },
+  Bad: { cls: 'r-poor', s: '▼', w: 'Weak' },
 };
 
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) =>
@@ -159,6 +159,7 @@ export function render(el, vm, dispatch) {
     '<span class="mid"><b>' + esc(need) + '</b><span>Target ' + esc(vm.target) + ' · Over ' + esc(vm.over) + ' of 10 · ' + esc(phase) + '</span></span>' +
     '<button type="button" class="q" aria-label="Cricket words explained">?</button></header>' +
     '<section class="colL">' +
+    '<p class="sb-cap">For your batter</p>' +
     '<div class="sb chase" role="table" aria-label="Your batters against their likely bowlers">' + head +
     crease.map((b) => batterRow(b, cols, notes)).join('') + '</div>' +
     '<div class="boxnote">' + (ex ? esc(ex.r + ' (' + ex.b + ') = ' + ex.r + (ex.r === 1 ? ' run' : ' runs') + ' from ' + ex.b + (ex.b === 1 ? ' ball.' : ' balls.')) : '') +

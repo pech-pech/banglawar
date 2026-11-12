@@ -1,6 +1,8 @@
 // Ball-by-ball over panel. Modal; autoplays one ball per 400 ms; calls onDone when Next is pressed.
 // balls: raw over balls ({n, o, ...}) optionally with batName, bowlName, bowlType for the why line.
 import { whyLine, outcomeLabel } from './why.js';
+import { chipHtml } from './book-sheet.js';
+import { ico } from './dom.js';
 
 export const BALL_MS = 400;
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -26,13 +28,27 @@ const kind = (o) => (o === 'W' ? 'w' : o === 6 ? 's' : o === 4 ? 'f' : 'n');
 /**
  * @param {{title:string, balls:any[], score:{runs:number,wk:number}, nextLabel?:string, onDone:()=>void}} o
  * (summaryLines: optional extra plain lines shown under the total line.)
+ * found: pairings found this over (selectors.foundVM): a "Pairing found" card with the grade word (never a number) and an Open Book button; onBook() runs after the panel closes.
  */
-export function playOverPanel({ title, balls, score, summaryLines = [], nextLabel = 'Next over', onDone }) {
+const ROLE = { Opener: 'roleOpener', Middle: 'roleMiddle', Lower: 'roleLower' }, TYPE = { Fast: 'typeFast', Medium: 'typeMedium', Spin: 'typeSpin' };
+/** One "Pairing found" card listing every cell found this over (one title, one row per find, one saved line). Pure. Takes one find or a list. */
+export function foundHtml(list) {
+  const fs = Array.isArray(list) ? list : [list];
+  const rows = fs.map((f) => {
+    const chip = chipHtml({ found: true, rank: f.rank, grade: f.grade, combo: f.combo ? f.combo.name : null, phase: ['Early', 'Middle', 'Late'][f.ph] }, f.bat + ' v ' + f.bowl, true);
+    return '<div class="bk-fr"><span class="bk-fn">' + ico(ROLE[f.bat], 20) + '<span>' + esc(f.name) + '</span></span>' + chip +
+      (f.combo ? '<span class="bk-fc">' + ico('medal', 16) + 'Combo: ' + esc(f.combo.name) + '</span>' : '') + '</div>';
+  }).join('');
+  return '<div class="bk-found" role="status"><div class="bk-f1">' + ico('book', 24) + (fs.length > 1 ? 'Pairings found' : 'Pairing found') + '</div>' + rows +
+    '<p class="bk-fsub">Saved in your Book. Grade is the batter\'s view.</p></div>';
+}
+export function playOverPanel({ title, balls, score, summaryLines = [], nextLabel = 'Next over', found = [], onBook, onDone }) {
   const list = (balls || []).slice(0, 6);
   const root = document.createElement('div');
   root.className = 'op-scrim';
+  const hasFound = found.length > 0;
   const slots = Array.from({ length: 6 }, (_, i) => `<li class="op-slot${i >= list.length ? ' is-unused' : ''}" data-i="${i}"><span class="op-circle" aria-hidden="true"></span><span class="op-word" aria-hidden="true"></span></li>`).join('');
-  root.innerHTML = `<section class="c-card op-card" role="dialog" aria-modal="true" aria-labelledby="op-title">` +
+  root.innerHTML = `<section class="c-card op-card${hasFound ? ' has-found' : ''}" role="dialog" aria-modal="true" aria-labelledby="op-title">` +
     `<header class="op-head"><h2 id="op-title" class="op-title">${esc(title)}</h2>` +
     `<button type="button" class="c-icon-btn op-close" aria-label="Close and skip to the end of the over"><span class="c-ico c-ico--x"></span></button></header><ol class="op-circles" aria-label="Balls this over">${slots}</ol>` +
     `<hr class="op-divider"><div class="op-bottom"><h3 class="op-sub">Results this over</h3><ul class="op-lines" aria-live="polite"></ul></div>` +
@@ -66,9 +82,12 @@ export function playOverPanel({ title, balls, score, summaryLines = [], nextLabe
     li.textContent = t.runs === score.runs && t.wk === score.wk ? totalLine(list, score).split('. Score')[0] + '.' : totalLine(list, score);
     lines.appendChild(li);
     for (const t of summaryLines) { const x = document.createElement('li'); x.className = 'op-line'; x.textContent = t; lines.appendChild(x); }
-    foot.innerHTML = `<button type="button" class="c-btn c-btn--primary c-btn--cta c-btn--block op-next">${esc(nextLabel)}</button>`;
-    const btn = foot.querySelector('button');
-    btn.addEventListener('click', exit);
+    if (hasFound) foot.classList.add('has-found');
+    foot.innerHTML = (hasFound ? foundHtml(found) + `<button type="button" class="c-btn c-btn--block op-book">${ico('book', 24)}Open Book</button>` : '') +
+      `<button type="button" class="c-btn c-btn--primary c-btn--cta c-btn--block op-next">${esc(nextLabel)}</button>`;
+    foot.querySelector('.op-next').addEventListener('click', exit);
+    const bk = foot.querySelector('.op-book');
+    if (bk) bk.addEventListener('click', () => { exit(); if (typeof onBook === 'function') onBook(); });
   }
   function onKey(e) { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); exit(); } }
   document.addEventListener('keydown', onKey, true);
