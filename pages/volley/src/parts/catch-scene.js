@@ -151,7 +151,7 @@ var offT = 0, styled = false;
 function hudMode(){
   var d = G.document; if (!d || !d.body) return;
   if (!styled) { styled = true; var st = d.createElement('style'); st.id = 'csStyle';
-    st.textContent = 'body.cr-on #hud,body.cr-on #hudTop{background:transparent!important}body.cr-on #stageLbl,body.cr-on #lvl,body.cr-on #rrChip,body.cr-on #xpWrap,body.cr-on #gear,body.cr-on #hpRow,body.cr-on #toast{display:none!important}body.cr-on #pauseBtn{margin-left:auto}';
+    st.textContent = 'body.cr-on #hud,body.cr-on #hudTop{background:transparent!important}body.cr-on #stageLbl,body.cr-on #lvl,body.cr-on #rrChip,body.cr-on #crChip,body.cr-on #xpWrap,body.cr-on #gear,body.cr-on #hpRow,body.cr-on #toast{display:none!important}body.cr-on #pauseBtn{margin-left:auto}';
     d.head.appendChild(st); }
   d.body.classList.add('cr-on'); clearTimeout(offT); offT = setTimeout(function(){ if (d.body) d.body.classList.remove('cr-on'); }, 250);
 }

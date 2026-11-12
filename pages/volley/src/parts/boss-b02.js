@@ -27,7 +27,7 @@ loadKit();
 if (!DE['B-02']) DE['B-02'] = {
   hp:9000, contact:80, dmg:100, speed:0, r:0.9, size:'large', xp:0, tell:1.176, cd:1.6, boss:true,   // dmg 100 landing ring GUESS, contact 80 as B-01
   immune:{ instakill:true, freeze:true, knockback:true },
-  ai:{ hpK:0.72, intro:2.5, cd2:1.2, free:1.0,
+  ai:{ hpK:1.8, intro:2.5, cd2:1.2, free:1.0,   // M 2026-11-12 card 1/2 "Halfway (HP x2.5)": 0.72 x 2.5
     A:{ ringR:1.8, ringTell:1.176, rest:0.3, hops1:3, hops2:4, maxHop:5.5, arcH:1.6, edge:0, clear:0.05, standoff:2.5 },  // ring tell 1.0 eff per hop, rest 0.3 s
     B:{ tell:0.706, n1:8, n2:12, volleys:2, gap:0.4, shotSpeed:4, dmg:80, minDist:3.5, wait:0.5 },
     H:{ away:4.5, minD:4.0 } } };   // BAL fix: B only from >= 3.5 tiles; wait up to 0.5 s, then one hop away (H)   // B tell 0.6 eff, speed/dmg GUESS

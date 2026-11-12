@@ -5,7 +5,7 @@ if (V.TUNE_DEFAULTS) {
   var SHELL = { AUTO_WALK: true, AUTO_WALK_DELAY: 1.0, AUTO_WALK_MULT: 2, EDGE_FLASH: true, HAPTIC_HURT_MS: 40, HAPTIC_KILL_MS: 12 };
   for (var sk in SHELL) if (!(sk in V.TUNE_DEFAULTS)) { V.TUNE_DEFAULTS[sk] = SHELL[sk]; if (V.TUNE && !(sk in V.TUNE)) V.TUNE[sk] = SHELL[sk]; }
 }
-var BUILD = 'volley-v2-5';
+var BUILD = 'volley-v2-6';
 // Persist tuning (only values that differ from defaults). Every storage call is guarded. Sound on/off is NOT kept here any more:
 // V.TUNE.SOUND is a view of V.Audio's mute, saved in 'volley.settings.v1' (audio.js), so a tune reset or save wipe keeps it.
 // f0-2: sliders were being nudged by accident while scrolling the drawer (M's Fold reports showed FIRE_INTERVAL at the
@@ -209,7 +209,7 @@ UI.hud = function(S, R, view){
   var h = S.hero, room = V.ROOMS && V.ROOMS[S.roomId];
   var hp = Math.max(0, Math.ceil(h.hp)), mx = Math.max(1, Math.round(h.maxHp));
   var xpPct = h.xpNext ? Math.max(0, Math.min(1, h.xp / h.xpNext)) : 1, rr = (S.rerolls | 0);
-  var key = [S.stage, S.chNo, V.chapterLen(S.chNo), S.roomId, hp, mx, h.level, Math.round(xpPct * 200), rr, (S.mini && S.stageKind === 'collect') ? 1 : 0].join('|');
+  var key = [S.stage, S.chNo, V.chapterLen(S.chNo), S.roomId, hp, mx, h.level, Math.round(xpPct * 200), rr, (S.mini && S.stageKind === 'collect') ? 1 : 0, Math.round(S.credits || 0)].join('|');
   if (key !== lastHud) {
     lastHud = key;
     $('stNum').textContent = S.stage + '/' + V.chapterLen(S.chNo);
@@ -218,6 +218,8 @@ UI.hud = function(S, R, view){
     $('lvl').textContent = 'Lv ' + h.level;
     var chip = $('rrChip'); if (!chip) { chip = document.createElement('div'); chip.id = 'rrChip'; chip.setAttribute('aria-label', 'Rerolls banked'); $('lvl').parentNode.insertBefore(chip, $('lvl').nextSibling); }
     chip.textContent = 'RR ' + rr; chip.style.display = rr > 0 ? 'block' : 'none';
+    var cc = $('crChip'); if (!cc) { cc = document.createElement('div'); cc.id = 'crChip'; cc.setAttribute('aria-label', 'Credits this run'); cc.className = 'hpT'; $('hpRow').appendChild(cc); }   // in the HP row: the top row has no room at 344 wide   // M 2026-11-12: "A credit counter should be visible during the run" (before the Deploy multiplier, which pays at run end)
+    cc.textContent = '\u25C6 ' + Math.round(S.credits || 0);
     var rn = $('roomName'), ht = $('hudTop'); rn.style.display = ''; if (ht && ht.scrollWidth > ht.clientWidth + 1) rn.style.display = 'none';   // D3: the row is full, so the name goes (the stage chip never shrinks)
     $('xpFill').style.width = (xpPct * 100).toFixed(1) + '%';
     var xw = $('xpWrap'); if (xw) xw.style.visibility = (S.mini && S.stageKind === 'collect') ? 'hidden' : '';   // catch room: no XP bar (K)
@@ -318,6 +320,7 @@ var LVL_CSS = '' +
   '.card.flip{animation:cardFlip .26s ease-out}@keyframes cardFlip{from{transform:rotateX(70deg);opacity:.2}to{transform:none;opacity:1}}' +
   '#cardCont{position:absolute;inset:0;z-index:5;display:flex;align-items:flex-end;justify-content:center;padding-bottom:12%;font:700 18px system-ui,sans-serif;color:#fff;background:rgba(0,0,0,.08)}' +
   '#cardCont span{background:rgba(13,27,29,.9);border:2px solid var(--cyan);border-radius:10px;padding:14px 22px;min-height:56px;box-sizing:border-box}' +
+  '#crChip{color:#ffd25a;padding-left:4px;border-left:1px solid #45494c}' +
   '#rrChip{flex:none;font-weight:800;font-size:13px;color:#0d1b1d;background:#ffd25a;border-radius:6px;padding:4px 6px;white-space:nowrap;display:none}' +
   // D3: the stage chip never shrinks (it was cut to "St..." beside the RR chip at 344); the XP bar gives the room back, the room name drops first.
   '#stageLbl{flex:none;overflow:visible;text-overflow:clip}#xpWrap{flex:1 1 40px;min-width:48px}' +

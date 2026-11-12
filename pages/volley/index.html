@@ -4647,7 +4647,7 @@ var DEG = Math.PI / 180;
 function row(v){
   return { hp:7200, contact:80, dmg:110, speed:0.7, r:1, size:'large', xp:0, tell:0.941, cd:1.4, boss:true,
     immune:{ instakill:true, freeze:true, knockback:true },
-    ai:{ hpK:1.0, intro:2.5, free:1.0, splitAt: v ? [0.66, 0.33] : [0.5, 0.25],
+    ai:{ hpK:2.5, intro:2.5, free:1.0, splitAt: v ? [0.66, 0.33] : [0.5, 0.25],   // hpK 2.5: M 2026-11-12 card 1/2 "Halfway (HP x2.5)"
       genR:[1.0, 0.72, 0.52], genSize:['large', 'medium', 'medium'],
       A:{ tell:0.941, speed: v ? 8.5 : 7.0, maxLen:9, rolls:[2, 1, 1], dmg:110, recoil:0.25, cd:1.4 },
       B:{ tell:1.176, speed: v ? 14.5 : 12.0, maxLen:16, dmg:130, pause:1.2, cd:0.6 },
@@ -4934,7 +4934,7 @@ loadKit();
 if (!DE['B-02']) DE['B-02'] = {
   hp:9000, contact:80, dmg:100, speed:0, r:0.9, size:'large', xp:0, tell:1.176, cd:1.6, boss:true,   // dmg 100 landing ring GUESS, contact 80 as B-01
   immune:{ instakill:true, freeze:true, knockback:true },
-  ai:{ hpK:0.72, intro:2.5, cd2:1.2, free:1.0,
+  ai:{ hpK:1.8, intro:2.5, cd2:1.2, free:1.0,   // M 2026-11-12 card 1/2 "Halfway (HP x2.5)": 0.72 x 2.5
     A:{ ringR:1.8, ringTell:1.176, rest:0.3, hops1:3, hops2:4, maxHop:5.5, arcH:1.6, edge:0, clear:0.05, standoff:2.5 },  // ring tell 1.0 eff per hop, rest 0.3 s
     B:{ tell:0.706, n1:8, n2:12, volleys:2, gap:0.4, shotSpeed:4, dmg:80, minDist:3.5, wait:0.5 },
     H:{ away:4.5, minD:4.0 } } };   // BAL fix: B only from >= 3.5 tiles; wait up to 0.5 s, then one hop away (H)   // B tell 0.6 eff, speed/dmg GUESS
@@ -5122,7 +5122,7 @@ function clamp(v, a, b){ return v < a ? a : (v > b ? b : v); }
 if (!DE['B-04']) DE['B-04'] = {
   hp:14000, contact:80, dmg:95, speed:0.55, r:1.0, size:'large', xp:0, tell:1.176, cd:1.6, boss:true,   // dmg 95 = E-04 shell (GUESS), contact 80 as B-01
   immune:{ instakill:true, freeze:true, knockback:true },
-  ai:{ hpK:0.72, intro:2.5, cd2:1.2, free:1.0,
+  ai:{ hpK:1.8, intro:2.5, cd2:1.2, free:1.0,   // M 2026-11-12 card 1/2 "Halfway (HP x2.5)": 0.72 x 2.5
     walk:{ speed:0.55, xPad:2.0, yMin:2.5, yMax:5.5, swayT:9, keep:3.5, stride:0.9 },
     A:{ tell:1.176, rocks1:5, rocks2:7, ringR:1.0, circ1:2.8, circ2:3.6, spinTurns:1.5 },          // circle radii keep >= 1 tile gaps between rings
     B:{ tell:0.941, n1:8, n2:11, step1Deg:11, step2Deg:9, shotSpeed:3.6, rockR:0.24, dmg:85 } } };  // B speed/dmg GUESS (85 = B-01 scatter)
@@ -5424,7 +5424,7 @@ V.AI['E-06'].onDeath = function(S, e, api){
 (function(){ var G = (typeof window !== 'undefined' ? window : globalThis); var V = G.V = G.V || {};
 // E-07 Burrower (03 section 3, CONTRACT-STEP7 M7). Cycle: 'under' (moves underground to a surfacing spot near, not on, the
 // Operator) -> 'tell' (ground crack ring at the spot, 1.0 s EFFECTIVE, still underground) -> 'act' (surfaces, fires an 8-round
-// ring, hit 50 each, exposed 1.5 s: the shoot window) -> 'under' again.
+// ring, hit 50 each, exposed 2.5 s: the shoot window; was 1.5, M 2026-11-12 "stay above ground for a bit longer after firing") -> 'under' again.
 // Underground ('under' and 'tell'): e.hidden = true, which the sim already honours: not targetable (auto-aim lock, rounds,
 // ricochet), no contact damage, no body separation. onDamage also returns 0 while hidden (burn/poison ticks).
 // While hidden e.knockback = 0 so the sim's immovable() skips collideBody: it passes under cover; the spot it surfaces on is open floor.
@@ -5434,9 +5434,9 @@ V.AI['E-06'].onDeath = function(S, e, api){
 V.AI = V.AI || {};
 var DE = (V.Data && V.Data.enemies) || (typeof require === 'function' ? (require('./data-enemies.js'), V.Data.enemies) : null);
 // Row: SIM may move this into data-enemies.js; until then this file defines it only if absent. hp 550 is a GUESS
-// (weight 1.3 like E-04/E-05, but only hittable 1.5 s per cycle). tell 1.176 base x TELL_MULT 0.85 = 1.0 effective.
+// (weight 1.3 like E-04/E-05, but only hittable 2.5 s per cycle). tell 1.176 base x TELL_MULT 0.85 = 1.0 effective.
 if (DE && !DE['E-07']) DE['E-07'] = {hp:550,contact:40,dmg:50,speed:3,r:0.45,size:'medium',xp:8,tell:1.176,cd:1.2,
-  ai:{ringN:8,shotSpeed:5,exposed:1.5,riseT:0.25,sinkT:0.3,nearMin:1.8,nearMax:3.4,otherGap:1,edge:0.8,underMax:4,repick:3,repickMove:1.5}};
+  ai:{ringN:8,shotSpeed:5,exposed:2.5,riseT:0.25,sinkT:0.3,nearMin:1.8,nearMax:3.4,otherGap:1,edge:0.8,underMax:4,repick:3,repickMove:1.5}};
 var DEG = Math.PI / 180;
 
 function open(S, api, x, y, r, e, A){
@@ -9174,7 +9174,7 @@ var offT = 0, styled = false;
 function hudMode(){
   var d = G.document; if (!d || !d.body) return;
   if (!styled) { styled = true; var st = d.createElement('style'); st.id = 'csStyle';
-    st.textContent = 'body.cr-on #hud,body.cr-on #hudTop{background:transparent!important}body.cr-on #stageLbl,body.cr-on #lvl,body.cr-on #rrChip,body.cr-on #xpWrap,body.cr-on #gear,body.cr-on #hpRow,body.cr-on #toast{display:none!important}body.cr-on #pauseBtn{margin-left:auto}';
+    st.textContent = 'body.cr-on #hud,body.cr-on #hudTop{background:transparent!important}body.cr-on #stageLbl,body.cr-on #lvl,body.cr-on #rrChip,body.cr-on #crChip,body.cr-on #xpWrap,body.cr-on #gear,body.cr-on #hpRow,body.cr-on #toast{display:none!important}body.cr-on #pauseBtn{margin-left:auto}';
     d.head.appendChild(st); }
   d.body.classList.add('cr-on'); clearTimeout(offT); offT = setTimeout(function(){ if (d.body) d.body.classList.remove('cr-on'); }, 250);
 }
@@ -9354,7 +9354,7 @@ if (V.TUNE_DEFAULTS) {
   var SHELL = { AUTO_WALK: true, AUTO_WALK_DELAY: 1.0, AUTO_WALK_MULT: 2, EDGE_FLASH: true, HAPTIC_HURT_MS: 40, HAPTIC_KILL_MS: 12 };
   for (var sk in SHELL) if (!(sk in V.TUNE_DEFAULTS)) { V.TUNE_DEFAULTS[sk] = SHELL[sk]; if (V.TUNE && !(sk in V.TUNE)) V.TUNE[sk] = SHELL[sk]; }
 }
-var BUILD = 'volley-v2-5';
+var BUILD = 'volley-v2-6';
 // Persist tuning (only values that differ from defaults). Every storage call is guarded. Sound on/off is NOT kept here any more:
 // V.TUNE.SOUND is a view of V.Audio's mute, saved in 'volley.settings.v1' (audio.js), so a tune reset or save wipe keeps it.
 // f0-2: sliders were being nudged by accident while scrolling the drawer (M's Fold reports showed FIRE_INTERVAL at the
@@ -9558,7 +9558,7 @@ UI.hud = function(S, R, view){
   var h = S.hero, room = V.ROOMS && V.ROOMS[S.roomId];
   var hp = Math.max(0, Math.ceil(h.hp)), mx = Math.max(1, Math.round(h.maxHp));
   var xpPct = h.xpNext ? Math.max(0, Math.min(1, h.xp / h.xpNext)) : 1, rr = (S.rerolls | 0);
-  var key = [S.stage, S.chNo, V.chapterLen(S.chNo), S.roomId, hp, mx, h.level, Math.round(xpPct * 200), rr, (S.mini && S.stageKind === 'collect') ? 1 : 0].join('|');
+  var key = [S.stage, S.chNo, V.chapterLen(S.chNo), S.roomId, hp, mx, h.level, Math.round(xpPct * 200), rr, (S.mini && S.stageKind === 'collect') ? 1 : 0, Math.round(S.credits || 0)].join('|');
   if (key !== lastHud) {
     lastHud = key;
     $('stNum').textContent = S.stage + '/' + V.chapterLen(S.chNo);
@@ -9567,6 +9567,8 @@ UI.hud = function(S, R, view){
     $('lvl').textContent = 'Lv ' + h.level;
     var chip = $('rrChip'); if (!chip) { chip = document.createElement('div'); chip.id = 'rrChip'; chip.setAttribute('aria-label', 'Rerolls banked'); $('lvl').parentNode.insertBefore(chip, $('lvl').nextSibling); }
     chip.textContent = 'RR ' + rr; chip.style.display = rr > 0 ? 'block' : 'none';
+    var cc = $('crChip'); if (!cc) { cc = document.createElement('div'); cc.id = 'crChip'; cc.setAttribute('aria-label', 'Credits this run'); cc.className = 'hpT'; $('hpRow').appendChild(cc); }   // in the HP row: the top row has no room at 344 wide   // M 2026-11-12: "A credit counter should be visible during the run" (before the Deploy multiplier, which pays at run end)
+    cc.textContent = '\u25C6 ' + Math.round(S.credits || 0);
     var rn = $('roomName'), ht = $('hudTop'); rn.style.display = ''; if (ht && ht.scrollWidth > ht.clientWidth + 1) rn.style.display = 'none';   // D3: the row is full, so the name goes (the stage chip never shrinks)
     $('xpFill').style.width = (xpPct * 100).toFixed(1) + '%';
     var xw = $('xpWrap'); if (xw) xw.style.visibility = (S.mini && S.stageKind === 'collect') ? 'hidden' : '';   // catch room: no XP bar (K)
@@ -9667,6 +9669,7 @@ var LVL_CSS = '' +
   '.card.flip{animation:cardFlip .26s ease-out}@keyframes cardFlip{from{transform:rotateX(70deg);opacity:.2}to{transform:none;opacity:1}}' +
   '#cardCont{position:absolute;inset:0;z-index:5;display:flex;align-items:flex-end;justify-content:center;padding-bottom:12%;font:700 18px system-ui,sans-serif;color:#fff;background:rgba(0,0,0,.08)}' +
   '#cardCont span{background:rgba(13,27,29,.9);border:2px solid var(--cyan);border-radius:10px;padding:14px 22px;min-height:56px;box-sizing:border-box}' +
+  '#crChip{color:#ffd25a;padding-left:4px;border-left:1px solid #45494c}' +
   '#rrChip{flex:none;font-weight:800;font-size:13px;color:#0d1b1d;background:#ffd25a;border-radius:6px;padding:4px 6px;white-space:nowrap;display:none}' +
   // D3: the stage chip never shrinks (it was cut to "St..." beside the RR chip at 344); the XP bar gives the room back, the room name drops first.
   '#stageLbl{flex:none;overflow:visible;text-overflow:clip}#xpWrap{flex:1 1 40px;min-width:48px}' +

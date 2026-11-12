@@ -37,7 +37,7 @@ function clamp(v, a, b){ return v < a ? a : (v > b ? b : v); }
 if (!DE['B-04']) DE['B-04'] = {
   hp:14000, contact:80, dmg:95, speed:0.55, r:1.0, size:'large', xp:0, tell:1.176, cd:1.6, boss:true,   // dmg 95 = E-04 shell (GUESS), contact 80 as B-01
   immune:{ instakill:true, freeze:true, knockback:true },
-  ai:{ hpK:0.72, intro:2.5, cd2:1.2, free:1.0,
+  ai:{ hpK:1.8, intro:2.5, cd2:1.2, free:1.0,   // M 2026-11-12 card 1/2 "Halfway (HP x2.5)": 0.72 x 2.5
     walk:{ speed:0.55, xPad:2.0, yMin:2.5, yMax:5.5, swayT:9, keep:3.5, stride:0.9 },
     A:{ tell:1.176, rocks1:5, rocks2:7, ringR:1.0, circ1:2.8, circ2:3.6, spinTurns:1.5 },          // circle radii keep >= 1 tile gaps between rings
     B:{ tell:0.941, n1:8, n2:11, step1Deg:11, step2Deg:9, shotSpeed:3.6, rockR:0.24, dmg:85 } } };  // B speed/dmg GUESS (85 = B-01 scatter)

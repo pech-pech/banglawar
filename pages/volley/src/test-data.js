@@ -141,7 +141,7 @@ ok('B-01 effective tells A 1.0 / B 0.6 / C 0.8', near(eff(BE.tellA), 1.0) && nea
 ok('B-01 row tell equals its A tell', E['B-01'].tell === BE.tellA);
 ok('E-02 and E-05 lock the last 0.2 s effective', near(eff(E['E-02'].ai.lockLast), 0.2) && near(eff(E['E-05'].ai.lockLast), 0.2));
 ok('E-08 hit 110 and locks the last 0.4 s effective', E['E-08'].dmg === 110 && near(eff(E['E-08'].ai.lockLast), 0.4) && E['E-08'].static === true, [E['E-08'].dmg, E['E-08'].ai && eff(E['E-08'].ai.lockLast)]);
-ok('E-07 ring 8 rounds of 50, exposed 1.5 s', E['E-07'].dmg === 50 && E['E-07'].ai.ringN === 8 && E['E-07'].ai.exposed === 1.5, E['E-07'].ai);
+ok('E-07 ring 8 rounds of 50, exposed 2.5 s', E['E-07'].dmg === 50 && E['E-07'].ai.ringN === 8 && E['E-07'].ai.exposed === 2.5, E['E-07'].ai);
 ok('E-06 seam glows the last 0.3 s effective', near(eff(E['E-06'].ai.seam), 0.3), E['E-06'].ai && eff(E['E-06'].ai.seam));
 ok('E-06 hit 50; E-06h is smaller and small-sized', E['E-06'].dmg === 50 && E['E-06h'].r < E['E-06'].r && E['E-06h'].size === 'small', [E['E-06'].dmg, E['E-06h'].r]);
 // every row.ai number reaches the behaviour: the behaviour carries the same value (angles: row degrees x pi/180)
