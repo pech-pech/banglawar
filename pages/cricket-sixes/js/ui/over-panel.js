@@ -61,7 +61,9 @@ export function playOverPanel({ title, balls, score, summaryLines = [], nextLabe
     if (finished) return; finished = true;
     const li = document.createElement('li');
     li.className = 'op-line op-total';
-    li.textContent = totalLine(list, score);
+    const t = overTotals(list);
+    // First over: the score is the same as this over, so say it once.
+    li.textContent = t.runs === score.runs && t.wk === score.wk ? totalLine(list, score).split('. Score')[0] + '.' : totalLine(list, score);
     lines.appendChild(li);
     for (const t of summaryLines) { const x = document.createElement('li'); x.className = 'op-line'; x.textContent = t; lines.appendChild(x); }
     foot.innerHTML = `<button type="button" class="c-btn c-btn--primary c-btn--cta c-btn--block op-next">${esc(nextLabel)}</button>`;

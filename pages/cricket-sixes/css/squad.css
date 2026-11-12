@@ -1,0 +1,95 @@
+/* Squad pick (.sq-*) and bowling plan (.pl-*). Builds on css/scoreboard.css (strip, pbox, ctabar) and kit variables only. 344x780: one column. */
+#app:has(> .sq-root), #app:has(> .pl-root) { padding: 0; display: block; min-height: 0; }
+.sq-root, .pl-root { --cta-bar: 92px; display: grid; gap: 4px; align-content: start; padding: 0 8px var(--cta-bar); background: var(--cream); }
+.sq-strip, .pl-strip { margin: 0 -8px; min-height: 56px; height: auto; flex-wrap: nowrap; overflow: visible; }
+.sq-strip .mid, .pl-strip .mid { flex: 1 1 auto; text-align: left; overflow: hidden; }
+.sq-strip .mid b, .pl-strip .mid b { font-size: 22px; line-height: 24px; white-space: nowrap; }
+.pl-strip .mid span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 14px; line-height: 16px; }
+/* D8: the squad subtitle wraps to two lines instead of truncating */
+.sq-strip .mid { padding: 2px 0; }
+.sq-strip .mid span { display: block; white-space: normal; overflow: visible; font-size: 14px; line-height: 16px; }
+.sq-cnt { flex: none; font: 20px/22px var(--font-head); white-space: nowrap; }
+.sq-strip .q, .pl-strip .q { min-height: 56px; align-self: stretch; }
+/* pinned bottom bar: reason line + 56px button */
+.sq-cta, .pl-cta { z-index: 50; height: var(--cta-bar); padding: 6px 8px; display: flex; flex-direction: column; gap: 4px; justify-content: flex-end; }
+.sq-why, .pl-why { font-size: 14px; line-height: 16px; text-align: center; min-height: 16px; }
+.sq-cta .c-btn, .pl-cta .c-btn { height: 56px; flex: none; display: flex; align-items: center; justify-content: center; }
+.sq-cta .c-btn:disabled, .pl-cta .c-btn:disabled { background: var(--stone1); color: var(--outline); opacity: .75; cursor: not-allowed; box-shadow: none; border-style: dashed; }
+
+/* ---- squad ---- */
+.sq-cols, .sq-row { display: grid; grid-template-columns: minmax(0, 1fr) 42px 42px 44px; gap: 4px; }
+.sq-cols { align-items: end; padding: 3px 0 0; font: 15px/16px var(--font-head); }
+.sq-cols span { text-align: center; }
+.sq-cols span:first-child { text-align: left; padding-left: 2px; }
+.sq-list { display: grid; gap: 2px; }
+.sq-row { min-height: 56px; width: 100%; padding: 0; border: 0; background: none; font: inherit; color: inherit; text-align: left; cursor: pointer; }
+.sq-row:focus-visible { outline: 3px solid var(--outline); outline-offset: 2px; }
+.sq-pbox { grid-template-columns: 28px minmax(0, 1fr); grid-template-rows: auto auto auto; align-content: center; padding: 0 3px; border-width: 5px; }
+.sq-pbox .ico { grid-row: 1 / 4; width: 26px; height: 26px; }
+.sq-nm { display: flex; align-items: center; gap: 4px; font: 16px/17px var(--font-body); }
+.sq-sub { display: flex; align-items: center; gap: 3px; font-size: 14px; line-height: 15px; }
+.sq-sub img { width: 14px; height: 14px; flex: none; image-rendering: pixelated; }
+.sq-ord { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; background: var(--outline); color: var(--cream); font: 14px/1 var(--font-head); font-weight: 400; }
+.sq-bench { flex: none; font: 14px/14px var(--font-head); padding: 0 3px; border: 1px dashed var(--outline); background: var(--cream); }
+.sq-pips { grid-column: 2; display: flex; gap: 2px; height: 7px; align-items: center; }
+.sq-pp { display: block; width: 10px; height: 6px; border: 1px solid var(--outline); background: var(--cream); text-decoration: none; }
+.sq-pp.on { background: var(--outline); }
+.sq-nbox { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 56px; border: 2px solid var(--outline); background: var(--cream); box-shadow: inset 2px 2px 0 rgba(255,255,255,.45), inset -2px -2px 0 rgba(0,0,0,.18); }
+.sq-nbox b { font: 22px/22px var(--font-head); font-weight: 400; }
+.sq-nbox small { font: 14px/14px var(--font-body); }
+.sq-nbox .sq-best { font-weight: 700; }
+.sq-nbox.hi { background: var(--grass1); }
+.sq-gq { background: var(--white); }
+.sq-unk { background: var(--stone1); border-style: dashed; box-shadow: none; }
+.sq-benchhd { font: 15px/16px var(--font-head); display: flex; align-items: center; padding: 3px 2px 1px; border-top: 2px dashed var(--outline); margin-top: 2px; }
+/* picked = gold + ring + number badge; bench = plain stone, "Bench" word. Never colour alone. */
+.sq-row.is-selected .sq-pbox { border-image: none; border: 3px solid var(--outline); padding: 0 5px; background: var(--gold); box-shadow: inset 0 0 0 3px var(--pitch2), inset 0 0 0 5px var(--gold), inset 0 0 0 7px var(--pitch1); }
+.sq-row.is-selected { outline: 3px solid var(--gold); outline-offset: 1px; }
+.sq-row.is-selected:focus-visible { outline-color: var(--outline); }
+.sq-row--bench .sq-pbox { background: var(--stone1); opacity: .9; }
+
+/* ---- plan ---- */
+.pl-help { margin: 0; font-size: 14px; line-height: 16px; border-left: 4px solid var(--accent); padding-left: 6px; }
+.pl-grid { display: grid; gap: 4px; }
+.pl-band { display: grid; grid-template-columns: 84px minmax(0, 1fr); gap: 4px; align-items: stretch; }
+.pl-field { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; min-height: 56px; padding: 0 2px; background: var(--wall1); color: var(--outline); border: 2px solid var(--outline); box-shadow: inset 2px 2px 0 rgba(255,255,255,.45), inset -2px -2px 0 rgba(0,0,0,.18); font: inherit; cursor: pointer; }
+.pl-field b { font: 17px/18px var(--font-head); font-weight: 400; }
+.pl-field span { display: inline-flex; align-items: center; gap: 2px; font-size: 14px; line-height: 16px; }
+.pl-field img { width: 16px; height: 16px; image-rendering: pixelated; }
+.pl-slots { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 3px; }
+.pl-slot { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 56px; padding: 0 1px; background: var(--cream); color: var(--outline); border: 2px solid var(--outline); box-shadow: inset 2px 2px 0 rgba(255,255,255,.45), inset -2px -2px 0 rgba(0,0,0,.18); font: inherit; cursor: pointer; }
+.pl-n { display: flex; align-items: center; gap: 2px; font: 14px/15px var(--font-head); }
+.pl-nm { max-width: 100%; font-size: 14px; line-height: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pl-empty { font-size: 14px; line-height: 16px; opacity: .75; }
+.pl-slot.is-empty { border-style: dashed; background: var(--stone1); box-shadow: none; }
+.pl-slot.is-selected { background: var(--gold); border-width: 3px; box-shadow: inset 0 0 0 3px var(--pitch2); }
+.pl-slot.is-selected::after { content: ""; position: absolute; top: 2px; right: 2px; width: 10px; height: 8px; background: currentColor; -webkit-mask: var(--c-ico-check) center/100% 100% no-repeat; mask: var(--c-ico-check) center/100% 100% no-repeat; }
+.pl-slot.is-warn { border-color: var(--danger); box-shadow: inset 0 0 0 2px var(--danger); }
+.pl-bang { display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px; background: var(--danger); color: var(--white); font: normal 14px/1 var(--font-head); }
+.pl-bowlers { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; }
+.pl-chip { display: grid; grid-template-columns: 24px minmax(0, 1fr) auto; align-items: center; gap: 4px; min-height: 56px; padding: 0 4px; text-align: left;
+  background: none; color: var(--outline); font: inherit; cursor: pointer; border: 6px solid transparent; border-image: url("/cricket-sixes/kit/skins/retro-green/frame-chip.png") 8 fill / 16px stretch; image-rendering: pixelated; }
+.pl-chip img { width: 24px; height: 24px; }
+.pl-cn { display: flex; flex-direction: column; min-width: 0; }
+.pl-cn .name { font-size: 16px; line-height: 17px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pl-cn small { font: 14px/15px var(--font-body); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pl-set { font: 15px/16px var(--font-head); padding: 0 3px; border: 2px solid var(--outline); background: var(--cream); }
+.pl-set.is-low { border-style: dashed; }
+.pl-chip:focus-visible, .pl-slot:focus-visible, .pl-field:focus-visible, .sq-row:focus-visible { outline: 3px solid var(--outline); outline-offset: 2px; }
+@media (min-width: 600px) {
+  .sq-root, .pl-root { max-width: 560px; margin: 0 auto; }
+  .sq-strip, .pl-strip { margin: 0 -8px; }
+}
+
+.sq-root { gap: 0; }
+.sq-cols { padding-top: 2px; }
+.sq-row--bench .sq-pbox { border-width: 4px; padding: 0 4px; }
+
+/* D7: every broken rule listed, with a "!" badge (not colour alone) */
+.pl-warns { margin: 0; padding: 0; display: grid; gap: 2px; }
+.pl-warns li { display: flex; align-items: center; gap: 6px; font-size: 14px; line-height: 16px; padding: 2px 4px; border: 2px solid var(--danger); background: var(--cream); }
+.pl-warns .pl-bang { flex: none; }
+
+/* D15: pips show only while the grade is hidden: drills-to-reveal progress with a label */
+.sq-pips { height: 16px; gap: 2px; }
+.sq-pipn { margin-left: 4px; font: 14px/16px var(--font-body); white-space: nowrap; }

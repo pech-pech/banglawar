@@ -3,11 +3,24 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 const t = JSON.parse(readFileSync(process.argv[2], 'utf8'));
 const { status, source, ...T } = structuredClone(t.match.T);
-// deep-merge match.game_overrides (dotted keys, e.g. "W_INT.A": {value}) on top of T
+// Merge match.game_overrides on top of T. Dotted keys ("W_INT.A") set one leaf; plain-object values (W_INT, G5) are deep-merged so
+// sibling keys survive (the file lists both "W_INT.A" and "W_INT": {A}). The "note" entry is prose. G5 keys use field_hybrid.json names:
+// HY_KB->KB, HY_KW->KW, HY_WK->WK, HY_LATE->LATE, W_FIELD_A->W_A (combo_sim.FIELDS), per the note in the file.
+const isObj = (v) => v && typeof v === 'object' && !Array.isArray(v);
+const merge = (dst, src) => { for (const [k, v] of Object.entries(src)) { if (isObj(v) && isObj(dst[k])) merge(dst[k], v); else dst[k] = structuredClone(v); } };
+const G5_NAMES = { HY_KB: 'KB', HY_KW: 'KW', HY_WK: 'WK', HY_LATE: 'LATE', P_C: 'P_C', W_FIELD_A: 'W_A' };
 for (const [path, o] of Object.entries(t.match.game_overrides || {})) {
+  if (path === 'note') continue;
+  let val = (o && typeof o === 'object' && 'value' in o) ? o.value : o;
+  if (path === 'G5') {
+    const g = {};
+    for (const [k, v] of Object.entries(val)) { if (k === 'existing_unchanged') continue; if (!(k in G5_NAMES)) throw new Error('unknown G5 key ' + k); g[G5_NAMES[k]] = v; }
+    val = g;
+  }
   const ks = path.split('.'); let n = T;
   for (const k of ks.slice(0, -1)) n = n[k] ??= {};
-  n[ks.at(-1)] = (o && typeof o === 'object' && 'value' in o) ? o.value : o;
+  const last = ks.at(-1);
+  if (isObj(val) && isObj(n[last])) merge(n[last], val); else n[last] = structuredClone(val);
 }
 const grid = {};
 for (const g of t.match.pairing_grid.grid) grid[`${g.bat}|${g.bowl}`] = g.batter_mod_steps;

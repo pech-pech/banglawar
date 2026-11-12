@@ -110,5 +110,5 @@ test('feel strip: first 2 matches of a build, plan of 3, skip counts', () => {
 test('small pure helpers', () => {
   assert.equal(matchupOf([]), '?'); assert.equal(matchupOf([{ g: 1 }, { g: 0 }]), 'G'); assert.equal(matchupOf([{ g: -1 }]), 'P'); assert.equal(matchupOf([{ g: 0 }]), 'O');
   assert.deepEqual(expected([{ pr: { p: { six: 0.1, four: 0.1, two: 0.1, single: 0.2, wicket: 0.05 } } }]), { xr: 1.4, xw: 0.1 });
-  assert.equal(inRange(50, BANDS.runs.us), 'ok'); assert.equal(inRange(20, BANDS.runs.us), 'below'); assert.equal(inRange(999, BANDS.runs.us), 'above'); assert.deepEqual(BANDS.win, { idle: 42, rote: 48, skilled: 53 });
+  assert.equal(inRange(50, BANDS.runs.us), 'ok'); assert.equal(inRange(20, BANDS.runs.us), 'below'); assert.equal(inRange(999, BANDS.runs.us), 'above'); assert.deepEqual(BANDS.win, { idle: 44, rote: 50, skilled: 53 });
 });

@@ -1,6 +1,7 @@
 // @ts-check
 // Display-only ability, grade, previews, cap, potential roll. Pure: no Math.random, no DOM, no clock.
 import { ABILITY } from '../data/ability.js';
+import { DRILLS } from '../data/training.js';
 
 /** @typedef {{bat:'Opener'|'Middle'|'Lower', bowl:'Fast'|'Medium'|'Spin', bp:number, bs:number, spd:number, bsk:number, potential:number, drillsHere:number}} AbilityPlayer */
 
@@ -15,15 +16,23 @@ export function batPart(p) { const w = W.batting[p.bat]; return w.BP * p.bp + w.
 /** Weighted bowling rating (1..99). @param {AbilityPlayer} p */
 export function bowlPart(p) { const w = W.bowling[p.bowl]; return w.SPD * p.spd + w.BSK * p.bsk; }
 
-/** Overall shown ability 20..200, clamped at potential. @param {AbilityPlayer} p */
-export function shownAbility(p) {
-  const w = 0.5 * batPart(p) + 0.5 * bowlPart(p);
-  return Math.min(shown(w), p.potential);
-}
-/** Batting-only shown ability, clamped at potential. @param {AbilityPlayer} p */
-export function shownBat(p) { return Math.min(shown(batPart(p)), p.potential); }
-/** Bowling-only shown ability, clamped at potential. @param {AbilityPlayer} p */
-export function shownBowl(p) { return Math.min(shown(bowlPart(p)), p.potential); }
+/** True while the grade is hidden (fewer than 5 drills at this club). @param {{drillsHere:number}} p */
+export function isHidden(p) { return p.drillsHere < DRILLS.revealAfter; }
+/** Clamp at potential only once the grade is revealed (LOOK 1A: unclamped and no max while hidden). */
+const limit = (/** @type {number} */ v, /** @type {{potential:number, drillsHere:number}} */ p) => (isHidden(p) ? v : Math.min(v, p.potential));
+
+/** Unclamped overall ability 20..200 (never shown as is while revealed). @param {AbilityPlayer} p */
+export function rawAbility(p) { return shown(0.5 * batPart(p) + 0.5 * bowlPart(p)); }
+/** Overall shown ability 20..200. Clamped at potential from the 5th drill; NOT clamped while hidden. @param {AbilityPlayer} p */
+export function shownAbility(p) { return limit(rawAbility(p), p); }
+/** Batting-only shown ability (same clamp rule). @param {AbilityPlayer} p */
+export function shownBat(p) { return limit(shown(batPart(p)), p); }
+/** Bowling-only shown ability (same clamp rule). @param {AbilityPlayer} p */
+export function shownBowl(p) { return limit(shown(bowlPart(p)), p); }
+/** 2A: the four ratings add up to the cap sum. @param {AbilityPlayer} p */
+export function atPeak(p) { return p.bp + p.bs + p.spd + p.bsk >= capSum(p.potential); }
+/** 3A: revealed only, shown ability has reached potential ("max"). @param {AbilityPlayer} p */
+export function isMax(p) { return !isHidden(p) && rawAbility(p) >= p.potential; }
 
 /** True grade of a potential number. @param {number} P @returns {'D'|'C'|'B'|'A'|'S'} */
 export function bandOf(P) {
@@ -33,7 +42,7 @@ export function bandOf(P) {
 }
 
 /** Grade letter, or null while hidden (fewer than 5 drills here). @param {{potential:number, drillsHere:number}} p */
-export function gradeOf(p) { return p.drillsHere < 5 ? null : bandOf(p.potential); }
+export function gradeOf(p) { return isHidden(p) ? null : bandOf(p.potential); }
 
 /** How many matchup chips to show before a Call. @param {{potential:number, drillsHere:number}} p */
 export function previewCount(p) {

@@ -1,0 +1,91 @@
+/* ui-season: hub, league table sheet, season end. Prefix ss-. Kit variables only. */
+.ss-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.ss-loading { margin: 24px 14px; text-align: center; font: var(--c-fs-m)/var(--c-lh-m) var(--font-body); }
+.ss { gap: 6px; }
+.ss .strip { min-height: 56px; }
+.ss-strip { display: flex; flex-direction: column; text-align: left; }
+.ss-strip b { font-size: 22px; line-height: 24px; }
+.ss-strip small { font-size: 14px; line-height: 16px; }
+
+/* next fixture */
+.ss-fx { display: grid; grid-template-columns: 44px minmax(0, 1fr) auto; align-items: center; gap: 8px; min-height: 64px; padding: 6px 8px; background: var(--cream); border: var(--c-border) solid var(--outline); box-shadow: inset 0 0 0 2px var(--wall1); }
+.ss-wk { display: flex; flex-direction: column; align-items: center; background: var(--outline); color: var(--cream); padding: 2px 0; font: 14px/14px var(--font-body); }
+.ss-wk b { font: 24px/24px var(--font-head); font-weight: 400; }
+.ss-vs { min-width: 0; }
+.ss-vs > b { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font: 20px/21px var(--font-body); font-weight: 400; }
+.ss-vs > span { display: block; font-size: 14px; line-height: 16px; }
+.ss-str { white-space: nowrap; font-weight: 700; }
+.ss-hm { display: flex; align-items: center; justify-content: center; gap: 3px; min-height: 56px; min-width: 68px; padding: 0 6px; border: 2px solid var(--outline); background: var(--cream); font: 15px/16px var(--font-body); }
+.ss-hm img { width: 20px; height: 20px; image-rendering: pixelated; }
+
+/* tables (hub mini, sheet, season end) */
+.ss-table { margin: 0; }
+.ss-table th { font: 14px/16px var(--font-head); font-weight: 400; padding: 3px 2px; }
+.ss-table td { font: 17px/20px var(--font-head); height: 38px; }
+.ss-table td.ss-club { display: table-cell; text-align: left; padding: 0 4px; font: 17px/20px var(--font-body); }
+.ss-club .name { display: inline-block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; vertical-align: middle; }
+.m0-sel .ss-club .name { max-width: calc(100% - 38px); }
+.ss-you { display: inline-block; margin-left: 4px; padding: 0 4px; background: var(--outline); color: var(--cream); font: 14px/16px var(--font-body); font-weight: 400; vertical-align: middle; }
+.ss-pts { background: var(--pitch1); }
+.ss-top td:first-child { background: var(--grass1); }
+.m0-table tr.ss-tr.m0-sel td { background: var(--gold); border-bottom-width: 3px; border-top: 3px solid var(--outline); }
+.ss-cut td { text-align: left; padding: 2px 0; font: 14px/16px var(--font-body); border-top: 3px solid var(--outline); border-bottom: 0; white-space: normal; }
+table.ss-table--ties th:nth-child(n+3), table.ss-table--ties td:nth-child(n+3) { width: 24px; }
+table.ss-table--ties th:nth-last-child(2), table.ss-table--ties td:nth-last-child(2) { width: 30px; }
+table.ss-table--ties th:last-child, table.ss-table--ties td:last-child { width: 48px; white-space: nowrap; }
+table.ss-table:not(.ss-table--ties) th:nth-child(n+3), table.ss-table:not(.ss-table--ties) td:nth-child(n+3) { width: 30px; }
+table.ss-table:not(.ss-table--ties) th:nth-last-child(2), table.ss-table:not(.ss-table--ties) td:nth-last-child(2) { width: 36px; }
+table.ss-table:not(.ss-table--ties) th:last-child, table.ss-table:not(.ss-table--ties) td:last-child { width: 52px; white-space: nowrap; }
+.ss-note { margin: 4px 0 0; font-size: 14px; line-height: 16px; }
+.ss-h { margin: 8px 0 2px; font: 18px/22px var(--font-head); font-weight: 400; }
+.ss-sheet { overflow-y: auto; max-height: 70vh; }
+
+.ss-row2 { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 8px; align-items: center; }
+.ss-row2 .c-btn { min-height: 56px; }
+.ss-row2 .m0-tp { min-height: 56px; padding: 0 12px; font-size: 16px; }
+
+/* season path */
+.ss-path { display: grid; grid-template-columns: 1fr 14px 1fr 14px 1fr; align-items: stretch; }
+.ss-st { display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; min-height: 56px; padding: 2px 3px; border: 2px solid var(--outline); background: var(--cream); }
+.ss-st b { font: 16px/17px var(--font-head); font-weight: 400; }
+.ss-st span { font: 14px/15px var(--font-body); }
+.ss-st--l { background: var(--pitch1); } .ss-st--s { background: var(--grass1); } .ss-st--f { background: var(--gold); }
+.ss-st.is-now { outline: 3px solid var(--outline); outline-offset: -5px; }
+.ss-st.is-now b::before { content: "\25B6 "; }
+.ss-ar { align-self: center; text-align: center; font: 14px/1 system-ui, sans-serif; }
+
+/* knockouts */
+.ss-kos { display: flex; flex-direction: column; gap: 2px; }
+.ss-ko { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 6px; padding: 3px 0; border-bottom: 2px solid var(--stone1); font-size: 14px; line-height: 18px; }
+.ss-ko b { flex: none; font: 14px/18px var(--font-head); font-weight: 400; min-width: 84px; }
+.ss-ko .name { font-size: 16px; }
+.ss-won { font-weight: 700; }
+.ss-vs, .ss-tbd { font-size: 14px; }
+
+/* season end */
+.ss-end { --bar-h: 76px; gap: 6px; }
+.ss-hero { display: grid; grid-template-columns: auto minmax(0, 1fr); column-gap: 8px; align-items: center; padding: 8px 10px; }
+.ss-hero > img { grid-row: 1 / 3; }
+.ss-head { margin: 0; font: 26px/28px var(--font-head); font-weight: 400; }
+.ss-place { margin: 0; font-size: 16px; line-height: 20px; }
+.ss-won-row { grid-column: 1 / -1; display: flex; align-items: center; gap: 6px; font-size: 14px; line-height: 16px; }
+.ss-fin { padding: 4px 10px; gap: 0; }
+.ss-fin h3 { font-size: 18px; line-height: 22px; min-height: 0; margin: 0; padding: 0; }
+.ss-end .ss-table td { height: 30px; font-size: 16px; }
+.res--two { --bar-h: 140px; }
+.ss-hub { --bar-h: 76px; }
+.m0-ctabar .m0-btnwrap { display: flex; flex-direction: column; }
+.m0-ctabar__2 { display: flex; flex-direction: column; }
+.m0-ctabar__2 .c-btn { width: 100%; }
+.ss-save { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 56px; padding: 0 10px; }
+.ss-save img { width: 20px; height: 20px; image-rendering: pixelated; }
+
+/* D12: static label, not a button (no bevel, no fill, no arrow) */
+.ss-cutlbl { font: 14px/16px var(--font-head); font-weight: 400; letter-spacing: .04em; text-transform: uppercase; }
+/* D15: spelled-out key for P W L Pts RD TP */
+.ss-key { margin: 2px 0 0; font-size: 14px; line-height: 16px; }
+
+/* QA r2 D3: RD column keeps its width (last-child rule must come after the n+3 rule); club name shrinks, never the number */
+table.ss-table:not(.ss-table--ties) th:last-child, table.ss-table:not(.ss-table--ties) td:last-child { width: 56px; overflow: visible; text-overflow: clip; }
+/* QA r2 N6: "Table" button with side padding */
+.ss-row2 > [data-act="sheet:table"] { padding: 0 20px; }

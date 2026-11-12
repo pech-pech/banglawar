@@ -24,7 +24,7 @@ const DRILLS = 'Grade shows after 5 practice drills';
 const BADGE = { W: 'W', 6: '6', 4: '4', 2: '2', 1: '1', 0: '0' };
 // vm preview label -> rating box. Shape + word, never colour alone.
 const RATE = { Great: ['r-good', '▲', 'Good'], Even: ['r-ok', '●', 'OK'], Bad: ['r-poor', '▼', 'Poor'] };
-const FIELD = { A: 'Attacking field', P: 'Defensive field' };
+const FIELD = { A: 'Attack', P: 'Protect' };
 const REASON = { 'bowled last': "Bowled last over. Can't bowl now", '2 overs': 'Used both overs', 'must save overs': "Others must bowl first. Can't bowl now" };
 
 function head(vm) {
@@ -57,7 +57,7 @@ function row(b, vm) {
   const best = (b.previews || []).some((p) => p.inPhase);
   const star = best ? '<span class="best bv-best" aria-hidden="true">★</span>' : '';
   const pbox = `<div class="pbox"><span class="bv-icw">${sel && ok ? '<span class="bv-tick" aria-hidden="true"></span>' : ''}${ic(TYPE[b.bowl] || 'typeMedium', 24, 'ico')}</span><span class="nm name">${esc(b.name)}</span>` +
-    `<span class="sub">${esc(b.bowl)}, ${esc(b.overs)}/2 overs</span>` +
+    `<span class="sub">${esc(b.bowl)} · ${esc(b.overs)}/2</span>` +
     `<span class="gr${g === '?' ? ' bv-gq' : ''}"${g === '?' ? ' title="${DRILLS}"' : ''}>Grade${star}<b>${esc(g)}</b></span></div>`;
   const label = `${b.name}, ${b.bowl} bowler, ${b.overs} of 2 overs used, grade ${g === '?' ? 'not known yet. ' + DRILLS : g}` +
     (best ? ', in his best overs now' : '');
@@ -92,7 +92,7 @@ function lastLine(vm) {
 function whyHtml(vm) {
   const L = vm.last; if (!L) return '';
   const bn = bowlerName(vm, L.bowler);
-  const head = `<p><b class="name">${esc(bn)}</b> bowled over ${esc(L.over)} with ${L.field === 'P' ? 'a defensive' : 'an attacking'} field.</p>`;
+  const head = `<p><b class="name">${esc(bn)}</b> bowled over ${esc(L.over)} with the ${L.field === 'P' ? 'Protect' : 'Attack'} field.</p>`;
   return head + (L.balls || []).slice(0, 6).map((r) => {
     const bat = (vm.batNames && vm.batNames[r.batter]) || 'The batter';
     const k = String(r.o);
@@ -108,7 +108,7 @@ export function render(el, vm, dispatch) {
   E.__bvDispatch = dispatch; E.__bvVM = vm;
   const selB = (vm.bowlers || []).find((b) => vm.call && b.i === vm.call.bowler && b.eligible);
   const seg = (k, icon) => `<button type="button" class="opt${fld === k ? ' is-selected' : ''}" role="radio" data-field="${k}" aria-checked="${fld === k ? 'true' : 'false'}">${ic(icon, 24)}${FIELD[k]}</button>`;
-  const anyHidden = (vm.bowlers || []).some((b) => (b.grade || '?') === '?');
+  const anyBest = (vm.bowlers || []).some((b) => (b.previews || []).some((p) => p.inPhase));
   el.innerHTML =
     `<header class="strip c-dark bv-strip" role="status">` +
     `<span class="score" aria-label="${esc(sc.runs)} runs for ${esc(sc.wk)} wickets">${esc(sc.runs)}/${esc(sc.wk)}</span>` +
@@ -118,8 +118,8 @@ export function render(el, vm, dispatch) {
     `<div class="sb bv-sb" role="radiogroup" aria-label="Bowlers">${head(vm)}${(vm.bowlers || []).map((b) => row(b, vm)).join('')}</div></section>` +
     `<section class="colR bv-colR"><div class="seg bv-seg" role="radiogroup" aria-label="Field">${seg('A', 'fieldAttack')}${seg('P', 'fieldProtect')}</div>` +
     lastLine(vm) +
-    `<div class="hints bv-hints"><p><b>Attacking</b>: more wickets, more runs. <b>Defensive</b>: fewer runs.</p>` +
-    `<p><b>Grade</b> D low to S best.${anyHidden ? ' <b>Grade ?</b>: shows after 5 practice drills.' : ''}</p></div></section>` +
+    `<div class="hints bv-hints"><p><b>Attack</b>: more wickets, more runs. <b>Protect</b>: fewer runs.</p>` +
+    `<p><b>Grade</b> D low to S best.${anyBest ? ' <b class="bv-starkey" aria-hidden="true">★</b> = best overs now.' : ''}</p></div></section>` +
     `<div class="ctabar bv-cta"><button type="button" class="c-btn c-btn--primary c-btn--cta" data-bowl${vm.canBowl === false ? ' disabled' : ''}>` +
     `<span>Bowl over ${esc(vm.over)}${selB ? ':&nbsp;<span class="name">' + esc(selB.name) + '</span>' : ''}</span></button></div>`;
   if (!E.__bvBound) {

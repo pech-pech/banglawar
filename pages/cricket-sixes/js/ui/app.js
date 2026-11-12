@@ -4,28 +4,77 @@ import * as brk from './break-view.js';
 import * as chase from './chase-view.js';
 import * as result from './result-view.js';
 import { playOverPanel } from './over-panel.js';
+import * as hub from './hub-view.js';
+import * as end from './end-view.js';
+import { bindActs } from './dom.js';
 import { attachReport } from '../report/hooks.js';
 
+/* Stage table: s.stage -> [view module or file name, selector name]. A file name is loaded on first use
+   (other parts' views), so a view that has not landed yet shows "Loading" instead of breaking boot. */
 const STAGES = {
+  coach: ['coachpick-view', 'coachPickVM'],
+  hub: [hub, 'hubVM'],
+  semi: [hub, 'hubVM'],   // semi and final: the hub shows the knockout fixture (hubVM.phaseWord)
+  final: [hub, 'hubVM'],
+  squad: ['squad-view', 'squadVM'],
+  plan: ['plan-view', 'planVM'],
   bowl: [bowl, 'bowlVM'],
   break: [brk, 'breakVM'],
   chase: [chase, 'chaseVM'],
   done: [result, 'resultVM'],
+  train: ['training-view', 'trainingVM'],
+  week: ['week-view', 'weekVM'],
+  end: [end, 'endVM'],
 };
+
+/* Sheets opened by data-act="sheet:<name>" (view state only, never saved). vm: [selector, how to turn the data-arg into args]. */
+const idOf = (a) => (a && typeof a === 'object' ? (a.id != null ? a.id : a.playerId) : a);
+const SHEETS = {
+  table: { file: 'table-sheet', vm: ['tableVM', () => []] },
+  player: { file: 'player-sheet', vm: ['playerVM', (a) => [idOf(a)]] },
+  tree: { file: 'tree-sheet', vm: ['treeVM', (a) => [idOf(a), a && a.side]] },
+  result: { file: 'player-sheet', fn: 'openResult', vm: ['drillResultVM', (a) => [idOf(a)]] },
+  coaches: { file: 'coaches-sheet', vm: ['coachesVM', () => []] },
+  save: { file: 'save-sheet', vm: null },
+  glossary: { file: 'glossary-sheet', fn: 'openGlossary', vm: null },
+};
+const mods = {}, loading = {};
 
 export function mount(el, store) {
   let lastStage = null;
   const rep = attachReport(el, store); // playtest report: observes only, never throws
   let holding = false; // the over panel is open: do not draw the next screen yet
+  /** Load a view file once; null until it has arrived, then re-render. */
+  function need(file) {
+    if (mods[file]) return mods[file];
+    if (!loading[file]) loading[file] = import('./' + file + '.js').then((m) => { mods[file] = m; render(); }, (err) => { mods[file] = { error: err }; render(); });
+    return null;
+  }
+  function openByName(name, arg) {
+    const def = SHEETS[name];
+    if (!def || holding) return;
+    import('./' + def.file + '.js').then((m) => {
+      const fn = m[def.fn || 'open'] || m[Object.keys(m).find((k) => /^open/.test(k))];
+      if (typeof fn !== 'function') throw new Error('No open function in ' + def.file);
+      const s = store.get();
+      const vm = def.vm ? sel[def.vm[0]](s, ...def.vm[1](arg)) : arg;
+      fn(vm, (cmd, payload) => dispatch(cmd, payload), openByName, arg); // sheets: open(vm, dispatch, open, arg)
+    }).catch((err) => console.error(err));
+  }
+  bindActs(el, (cmd, payload) => dispatch(cmd, payload), openByName); // one click handler for every view
   function render() {
     if (holding) return;
     const s = store.get();
     const entry = STAGES[s.stage];
     try {
       if (!entry) throw new Error('Unknown stage: ' + s.stage);
-      const [view, vmName] = entry;
+      const [ref, vmName] = entry;
+      const view = typeof ref === 'string' ? need(ref) : ref;
+      if (!view) { el.innerHTML = '<p class="ss-loading" role="status">Loading</p>'; return; }
+      if (view.error) throw view.error;
+      if (typeof sel[vmName] !== 'function') throw new Error('No view model yet: ' + vmName);
       const vm = sel[vmName](s);
-      view.render(el, vm, (cmd, payload) => dispatch(cmd, payload));
+      view.render(el, vm, (cmd, payload) => dispatch(cmd, payload), openByName); // views: render(el, vm, dispatch, open)
     } catch (err) {
       console.error(err);
       el.innerHTML = '';
