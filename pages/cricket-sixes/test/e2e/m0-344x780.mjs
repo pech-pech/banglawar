@@ -123,9 +123,9 @@ async function journey(browser, tag) {
 
   await page.goto(`${ORIGIN}/cricket-sixes/?seed=${SEED}`); await settle(800);
   const first = await stage();
-  if (first !== 'coach') { await ctx.close(); return { skip: `app boots into stage "${first}", not "coach": the season store/UI is not wired yet` }; }
+  if (first !== 'hub') { await ctx.close(); return { skip: `app boots into stage "${first}", not "hub": the season store/UI is not wired yet` }; } // p7-first: no coach screen before match 1
 
-  let steps = 0, hubSeen = 0, weekDone = false, reloaded = false, matchPlayed = false;
+  let coachChecked = false, steps = 0, hubSeen = 0, weekDone = false, reloaded = false, matchPlayed = false;
   while (steps++ < (FULL ? 600 : 120)) {
     const st = await stage();
     const strict = st === 'bowl' || st === 'chase';
@@ -167,6 +167,12 @@ async function journey(browser, tag) {
     } else if (st === 'done') {
       if (!(await clickCta())) { bad('done: no CTA'); break; }
     } else if (st === 'train') {
+      if (!coachChecked) { // p7-first: the coach notice is on training week 1; Change opens the coach screen and a pick comes back here
+        coachChecked = true;
+        if (!(await page.$('.tr-cnotice'))) bad('train: no coach notice in week 1');
+        else { await shot('coach-notice'); await (await page.$('[data-act="ChangeCoach"]')).click(); await settle(300); await audit('coach-pick');
+          if ((await stage()) !== 'coach') bad('Change did not open the coach screen'); else { await (await page.$('[data-pick]')).click(); await settle(100); if (!(await clickCta())) bad('coach: no Confirm'); await settle(200); if ((await stage()) !== 'train') bad('coach pick did not return to training'); } continue; }
+      }
       const rows = await page.$$('[data-act="sheet:player"]');
       if (rows.length < 10) bad(`train: ${rows.length} player rows, want all 10 (bench trains too)`);
       let drilled = 0;

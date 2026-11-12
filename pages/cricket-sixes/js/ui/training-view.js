@@ -7,6 +7,7 @@
    `open(name, arg)` is optional; app.js maps it to the sheet modules. */
 import { esc, ico, btn, ctaBar, gradeChip, abilityCell } from './dom.js';
 import { bindActs } from './dom.js';
+import { coachNoticeHtml } from './coach-notice.js';
 
 export const ROLE_ICON = { opener: 'roleOpener', middle: 'roleMiddle', lower: 'roleLower' };
 export const TYPE_ICON = { fast: 'typeFast', medium: 'typeMedium', spin: 'typeSpin' };
@@ -54,6 +55,7 @@ export function render(el, vm, dispatch, open) {
   el.innerHTML =
     '<div class="screen tr-screen">' +
     '<div class="c-strip strip tr-top"><span>' + deco('train', 24) + ' Training · Week ' + esc(vm.week) + '</span><span class="c-strip__right tr-tpw">' + tp(vm.tp) + '</span></div>' +
+    coachNoticeHtml(vm.coachNotice) +
     '<div class="tr-count" role="status">' + deco('done', 20) + '<span>' + esc(vm.done) + ' of ' + esc(vm.total) + ' drilled</span><span class="tr-hint">Each drill costs ' + esc(vm.drillCost || 15) + ' TP</span></div>' +
     '<ul class="c-list m0-list tr-list" aria-label="Your squad">' +
     '<li class="c-row m0-row c-row--tap tr-coachrow" role="button" tabindex="0" data-act="sheet:coaches" aria-label="Coaches. ' + esc(vm.coachLine) + '">' +

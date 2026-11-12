@@ -147,7 +147,7 @@ function newGame(payload) {
   const clubs = makeClubs(makeRng(`${seed}|clubs`), SEASON);
   const season = newSeasonData(seed, 1, clubs);
   return {
-    v: 2, salt: '', seed, stage: 'coach', ...blankMatch(), run: newRun(seed),
+    v: 2, salt: '', seed, stage: 'hub', ...blankMatch(), run: newRun(seed),
     season, clubs, plan: { overs: DEFAULT_OVERS.slice(), fields: ['A', 'A', 'A'], edited: false, key: '' },
     coaches: makeCandidates(makeRng(`${seed}|coaches`)), coachPicked: false, nets: 1,
     training: { tp: 450, week: 1, drilled: {}, nodeBought: {}, last: null, weekLog: [], weekStart: {}, drillCount: 0 },
@@ -266,7 +266,7 @@ function finishMatch(s) {
     se.finals.final.winner = res.winner; se.champion = res.winner; se.phase = 'over';
   }
   n.stage = 'train';
-  return n;
+  return withDefaultCoach(n); // p7first: the coach default lands here, after match 1
 }
 
 function nextWeek(s) {
@@ -323,7 +323,9 @@ export function applyCommand(s, cmd, payload = {}) {
   switch (cmd) {
     case 'NewMatch': return seasonMatch(s);
     case 'Reseed': return payload && typeof payload.salt === 'string' && payload.salt !== s.salt ? { ...s, salt: payload.salt } : s;
-    case 'PickCoach': { const n = s.stage === 'coach' ? pickCoach(s, payload || {}) : s; return n === s ? s : { ...n, stage: 'hub' }; }
+    case 'PickCoach': { const n = s.stage === 'coach' ? pickCoach(s, payload || {}) : s; return n === s ? s : backFromCoach(n); }
+    case 'ChangeCoach': return changeCoach(s);
+    case 'SeeFirstStrip': return seeFirstStrip(s);
     case 'OpenSquad': return ['hub', 'semi', 'final', 'plan'].includes(s.stage) && s.season ? { ...s, stage: 'squad' } : s;
     case 'SetSix': return setSix(s, payload);
     case 'SetPlan': return setPlan(s, payload);
@@ -341,4 +343,51 @@ export function applyCommand(s, cmd, payload = {}) {
     case 'StartChase': return startChase(s);
     default: return s;
   }
+}
+
+// ---- p7first
+// First session: the coach is a default (no screen before match 1), asked about only after it. See mockups/p7-first/README.md.
+/** How many of the starting six a candidate coach's focus helps (their bat tree or bowl tree has that focus). */
+function coachHelps(s, cand) {
+  const focus = Object.keys(cand.lv).find((f) => cand.lv[f] > 0);
+  const mine = s.clubs[0], byId = (id) => mine.squad.find((x) => x.id === id);
+  return aiPickSix(mine).map(byId).filter((p) => p && ((SKILLS.trees[p.bat] || {}).focus === focus || (SKILLS.trees[p.bowl] || {}).focus === focus)).length;
+}
+
+/** The default coach: helps the most of the six; ties go to the first candidate. null when there is nothing to pick. */
+export function defaultCoachId(s) {
+  let best = null, top = -1;
+  for (const c of (s.coaches || []).filter((x) => x.candidate)) { const k = coachHelps(s, c); if (k > top) { top = k; best = c; } }
+  return best ? best.id : null;
+}
+
+/** Called when the first training week opens: pick the default coach if none is picked yet. Keeps the candidates in coachPool for Change. */
+function withDefaultCoach(s) {
+  if (s.coachPicked || !(s.coaches || []).some((c) => c.candidate)) return s;
+  const id = defaultCoachId(s), pool = clone(s.coaches);
+  const n = pickCoach(s, { coachId: id });
+  return n === s ? s : { ...n, coachPool: pool };
+}
+
+/** Change coach: only in training, before the first drill. Puts the three candidates back and opens the coach screen. */
+function changeCoach(s) {
+  if (s.stage !== 'train' || !s.coachPool || !s.coachPicked || ((s.training && s.training.drillCount) || 0) > 0) return s;
+  const cur = (s.coaches || []).find((c) => !c.candidate);
+  const n = clone(s);
+  n.coaches = clone(s.coachPool).map((c) => ({ ...c, candidate: true }));
+  n.coachPicked = false; n.coachBack = 'train'; n.coachCur = cur ? cur.id : null; n.stage = 'coach';
+  return n;
+}
+
+/** After a pick: back to where Change was tapped (training), else the hub. */
+function backFromCoach(n) {
+  const to = n.coachBack || 'hub';
+  const m = { ...n, stage: to }; delete m.coachBack; delete m.coachCur;
+  return m;
+}
+
+/** The first-match strip is done (Skip). Once per save. */
+function seeFirstStrip(s) {
+  if (!s.stage || (s.seen && s.seen.firstStrip)) return s;
+  return { ...s, seen: { ...(s.seen || {}), firstStrip: 1 } };
 }

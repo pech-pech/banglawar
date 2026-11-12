@@ -50,11 +50,11 @@ export function playerHtml(vm) {
     (vm.previews != null ? '<span>Sees ' + esc(vm.previews) + (Number(vm.previews) === 1 ? ' matchup' : ' matchups') + '</span>' : '') +
     (vm.bench ? '<span class="c-tag tr-bench">Bench</span>' : '') + '</div>');
   lines.push('<div class="tr-abil"><span class="tr-abil__cell"><small>Ability <span class="tr-of">/200</span></small>' + abilityCell(a.overall, !!vm.max) + '</span>' +
-    '<span class="tr-abil__cell"><small>Grade</small>' + gradeChip(vm.grade, vm.pips) + '</span>' +
+    '<span class="tr-abil__cell"><small>Potential grade</small>' + gradeChip(vm.grade, vm.pips) + (hidden ? '' : '<small class="tr-grow">how high he can grow</small>') + '</span>' +
     '<span class="tr-abil__cell"><small>Potential <span class="tr-of">/200</span></small>' + (hidden || vm.potential == null ? '<b class="tr-q">?</b>' : '<b>' + esc(vm.potential) + '</b>') + '</span></div>');
   lines.push('<p class="tr-note">' + deco('info', 20) + '<span>Ability and Potential use a 20 to 200 scale that blends the four ratings (each rating is 1 to 99).</span></p>');
   if (vm.peak) lines.push('<div class="tr-banner">' + peak() + '<span>Drills can’t raise this player now. Skill nodes still work.</span></div>');
-  if (hidden) lines.push('<p class="tr-note">' + deco('info', 20) + '<span>Grade shows after 1 drill (' + esc(vm.pips || 0) + ' done).</span></p>');
+  if (hidden) lines.push('<p class="tr-note">' + deco('info', 20) + '<span>? = not known yet. Shows after 1 practice drill (' + esc(vm.pips || 0) + ' of 1 done).</span></p>');
   lines.push('<div class="tr-stats">' + (vm.ratings || []).map(stat).join('') + '</div>');
   if (vm.limitLine) lines.push('<p class="tr-note">' + deco('info', 20) + '<span>' + esc(vm.limitLine) + '</span></p>');
   if (vm.capLine) lines.push('<p class="tr-note">' + deco('info', 20) + '<span>' + esc(vm.capLine) + '</span></p>');
@@ -85,8 +85,8 @@ export function resultHtml(vm) {
   const hit = words.map((w) => '<span class="c-tag tr-odd' + (w[0] === vm.word ? ' c-tag--done tr-odd--hit' : '') + '"' + (w[0] === vm.word ? ' aria-label="' + w[0] + ' ' + esc(w[1]) + ' percent, this is what you got"' : '') + '>' +
     esc(w[0]) + ' ' + esc(w[1]) + '%</span>').join('');
   return '<div class="tr-res">' +
-    (vm.revealed ? '<div class="tr-reveal" role="status">' + deco('medal', 36) + '<span class="tr-reveal__t">Grade found: ' + gradeChip(vm.grade, 5) + '</span></div>' : '') +
-    '<div class="tr-res__head"><small>' + esc(vm.name) + ' · ' + (vm.grade == null || vm.grade === '?' ? 'Grade hidden' : 'Grade ' + esc(vm.grade)) + '</small><h4 class="tr-res__word">' + esc(vm.drillName) + ': ' + esc(vm.word) + '</h4></div>' +
+    (vm.revealed ? '<div class="tr-reveal" role="status">' + deco('medal', 36) + '<span class="tr-reveal__t">Potential grade found: ' + gradeChip(vm.grade, 5) + '</span></div>' : '') +
+    '<div class="tr-res__head"><small>' + esc(vm.name) + ' · ' + (vm.grade == null || vm.grade === '?' ? 'Potential grade not known yet' : 'Potential grade ' + esc(vm.grade)) + '</small><h4 class="tr-res__word">' + esc(vm.drillName) + ': ' + esc(vm.word) + '</h4></div>' +
     '<div class="tr-res__gain"><span class="c-tag tr-gaintag">' + deco(RATING_ICON[vm.rating] || 'train', 20) + '<span>+' + esc(gain) + '</span></span><b>' + esc(RATING_WORD[vm.rating] || '') + ' ' + esc(vm.before) + ' to ' + esc(vm.after) + '</b></div>' +
     '<div class="c-stat c-stat--mid tr-stat"><span class="c-stat__label">' + deco(RATING_ICON[vm.rating] || 'train', 24) + '</span><span class="c-stat__track"><i class="c-stat__fill" style="--v:' + pct(before) + '%"></i><i class="c-stat__gain" style="--v:' + pct(before) + '%;--g:' + pct(gain) + '%"></i></span><b class="c-stat__val">' + esc(vm.after) + '</b></div>' +
     '<div class="tr-odds" role="group" aria-label="Chances">' + hit + '</div>' +
