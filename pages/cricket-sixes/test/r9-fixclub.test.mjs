@@ -163,11 +163,13 @@ test('SUP-CLUB #1 the release is saved in s.trial.released: survives close + rel
   const bench = c0.squad.find((p) => !c0.six.includes(p.id));
   const sold = C(s, 'SellPlayer', { id: bench.id });
   assert.equal(sold.trial.released, bench.name);
-  const back = unwrap(JSON.parse(JSON.stringify(wrap(sold))));
-  const st = back && (back.state || back);
+  const back = unwrap(JSON.stringify(wrap(sold)));
+  assert.equal(back.ok, true, back.reason); const st = back.state;
   assert.equal((st.trial || {}).released, bench.name, 'survives a save round trip');
   if (trialVM(st)) assert.equal(trialVM(st).released, bench.name);
-  assert.equal(C(sold, 'SignTrial').trial, undefined); assert.equal(C(sold, 'DeclineTrial').trial, undefined);
+  const A = await import('../js/core/activities.js'), withEcon = { ...sold, econ: { ...(sold.econ || {}), ledger: [] } };
+  assert.equal(A.declineTrial(withEcon).trial, undefined, 'Decline drops trial (and released)');
+  const roomy = JSON.parse(JSON.stringify(withEcon)); assert.equal(A.signTrial(roomy).trial, undefined, 'Sign drops trial (and released)');
   assert.equal(C(s0, 'SellPlayer', { id: bench.id }).trial, undefined, 'no trial: nothing stored');
   // vm only (a fresh sheet root = closed and reopened, or reloaded): the line and the Decline check come from the vm
   const vm = { ...tvm, squadFull: false, canSign: true, squadSize: 7, squadMax: 8, released: 'Reyes' };

@@ -7,6 +7,7 @@ import { createStore } from '../js/store/store.js';
 import { step } from './_season-bot.mjs';
 import { buildFull, buildSummary } from '../js/report/report.js';
 import { saveOf } from '../js/report/z.js';
+import { pendingNote } from '../js/report/settings.js';
 
 const mem = () => { const m = new Map(); return { getItem: (k) => (m.has(k) ? m.get(k) : null), setItem: (k, v) => m.set(k, v), removeItem: (k) => m.delete(k), m }; };
 // Drive the store through the log the way hooks.js does (same calls, no DOM).
@@ -165,6 +166,8 @@ test('QA3 B1: copy on result, finish, copy again: the match (row, Coins, Fans, p
   const r1 = copyAs(h, 'f'); // on the result screen
   assert.match(r1, /M1 is on the result screen: not in this report/);
   assert.doesNotMatch(r1, /\nM1 [LSF?] /m); assert.doesNotMatch(r1, /TP pay/);
+  assert.match(r1.split('\n')[0], /CLEAN: NO match on result screen/); assert.doesNotMatch(r1, /no match played/); // QA3 N1
+  assert.match(pendingNote(h.log.window()), /^Finish the match first for its Coins and feel\. A copy now leaves M1 for the next report\.$/); // QA3 N2
   const r1s = copyAs(h, 's'); // m10: short straight after full = the same window, not empty
   assert.match(r1s, /M1 is on the result screen/); assert.equal(r1s.split('\n')[1], r1.split('\n')[1]); // same Window line
   h.run('FinishMatch');
@@ -172,7 +175,7 @@ test('QA3 B1: copy on result, finish, copy again: the match (row, Coins, Fans, p
   const r2 = copyAs(h, 'f');
   assert.match(r2, /Window: 1 matches/); assert.match(r2, / M1 [LSF?] [WLT] /);
   assert.ok(r2.includes('TP pay ' + m.pay.total)); assert.ok(r2.includes(`Coins ${m.coins0} -> ${m.coins1}`)); assert.ok(r2.includes(`Fans +${m.fans1 - m.fans0}`));
-  assert.doesNotMatch(r2, /on the result screen/);
+  assert.doesNotMatch(r2, /on the result screen/); assert.equal(pendingNote(h.log.window()), null); assert.doesNotMatch(r2, /match on result screen/);
   const r2s = copyAs(h, 's'); assert.match(r2s, /Window: 1 matches/); assert.match(r2s, /ECONOMY Coins \d+ -> \d+/); // m10 again after the finish
   const all = [r1, r1s, r2, r2s], fulls = [r1, r2];
   assert.equal(fulls.filter((t) => / M1 [LSF?] [WLT] /.test(t)).length, 1);
@@ -189,4 +192,10 @@ test('QA3 B1: an older log record without fin is closed; a new match closes one 
   assert.equal(log.window().matches.length, 0); assert.equal(log.window().pending.id, 1);
   log.matchStart({ seed: 'b', stage: 'bowl' }); assert.equal(m.fin, 1); assert.equal(m.ab, 0);
   assert.deepEqual(log.window().matches.map((x) => x.id), [1, 2]); assert.equal(log.window().pending.id, 2); assert.equal(log.window().pending.res, null);
+});
+
+test('QA3 N1/N2: an empty window with no pending match still says no match played; a match in play gives no Settings warning', () => {
+  const log = createLog({ storage: null, build: 'rX' });
+  assert.match(buildSummary(log.data(), { build: 'rX', now: 5e12, win: log.window() }).split('\n')[0], /CLEAN: NO no match played/);
+  log.matchStart({ seed: 'a', stage: 'bowl' }); assert.equal(pendingNote(log.window()), null); assert.equal(pendingNote(null), null);
 });

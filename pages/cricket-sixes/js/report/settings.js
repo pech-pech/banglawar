@@ -15,6 +15,12 @@ export function gearButton() {
   return b;
 }
 
+/** QA3 N2: the warning shown in Settings while a match waits on its result screen (window().pending with a result); null otherwise. */
+export function pendingNote(win) {
+  const p = win && win.pending;
+  return p && p.res ? 'Finish the match first for its Coins and feel. A copy now leaves M' + p.id + ' for the next report.' : null;
+}
+
 /** Copy text. Returns true if the clipboard took it; false means the caller should show the selectable fallback. */
 export async function copyText(text) {
   try { if (navigator.clipboard && navigator.clipboard.writeText) { await navigator.clipboard.writeText(text); return true; } } catch (e) { /* blocked: fall through */ }
@@ -42,13 +48,15 @@ export function openSettings(rep, look) {
   const status = root.querySelector('.st-status'), fb = root.querySelector('.st-fallback'), ta = fb.querySelector('textarea');
   root.querySelector('.st-stamp').textContent = rep.stamp();
   const say = (t) => { status.textContent = t; try { status.scrollIntoView({ block: 'nearest' }); } catch (e) { /* older browsers */ } }; // m11: the line sits above the copy buttons so it is on screen at 344x780
+  const note = () => { try { return pendingNote(rep.window ? rep.window() : null); } catch (e) { return null; } };
+  if (note()) status.textContent = note(); // N2: warned before the copy
   // r9: Auto match day and Features rows (UI-MD). Settings stay usable if the import or the mount fails.
   if (look && look.dispatch) {
     import('../ui/matchday-settings.js').then((m) => { try { const st = look.state ? look.state() : {}; if (m.mountMatchdaySettings) m.mountMatchdaySettings(root, { features: st && st.features, auto: st && st.autoMatchday }, look.dispatch); } catch (e) { /* settings stay usable */ } }).catch(() => {});
   }
   async function copy(text, label, size) {
     fb.hidden = true;
-    if (await copyText(text)) { try { if (size && rep.copied) rep.copied(text, size); } catch (e) { /* the marker is best effort */ } say(/^Copied/.test(label) ? label : label + ' copied.'); return; } // the marker moves only after the clipboard took the text (W2)
+    if (await copyText(text)) { try { if (size && rep.copied) rep.copied(text, size); } catch (e) { /* the marker is best effort */ } const n = note(); say((/^Copied/.test(label) ? label : label + ' copied.') + (n && size ? ' ' + n : '')); return; } // the marker moves only after the clipboard took the text (W2)
     ta.value = text; fb.hidden = false; ta.focus(); ta.select(); say('Copy was blocked. Text is selected below.');
     try { document.execCommand('copy'); } catch (e) { /* the textarea is the fallback */ }
   }

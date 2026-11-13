@@ -79,7 +79,7 @@ export function cleanOf(matches, env) {
   const why = [], e = env || {};
   const cur = e.build && e.build !== '?' ? matches.filter((m) => m.build === e.build) : matches;
   if (new Set(matches.map((m) => m.build)).size > 1 || cur.length < matches.length) why.push('mixed builds');
-  if (!cur.length) why.push('no match played');
+  if (!cur.length) why.push(e.pending && e.pending.res ? 'match on result screen' : 'no match played'); // QA3 N1: a held-back match was played; it comes in the next copy
   if (e.tuningSha && e.tuningPinned && e.tuningSha !== e.tuningPinned) why.push('tuning changed');
   const flags = e.flags || FLAG_DEFAULTS, bad = Object.keys(FLAG_DEFAULTS).filter((k) => !FEATURE_FLAGS.includes(k) && (flags[k] ?? FLAG_DEFAULTS[k]) !== FLAG_DEFAULTS[k]); // features are a kind, not a flag change
   if (bad.length) why.push('flags changed: ' + bad.join(', '));
@@ -291,7 +291,7 @@ function glossOf(data, ms) {
 /** Everything the layout needs: header lines, sections, JSON top level. */
 export function reportParts(data, env0) {
   const env = envOf(env0, data), w = windowOf(data, env); w.seasons = (data.seasons || []).slice(-12);
-  const clean = cleanOf(w.range, env), sv = env.save || {}, fin = w.ms.filter((m) => m.res || m.ab);
+  const clean = cleanOf(w.range, { ...env, pending: w.pending }), sv = env.save || {}, fin = w.ms.filter((m) => m.res || m.ab);
   const on = w.ms.filter((m) => Array.isArray(m.fl)).length ? w.ms.some(featOn) : (env.features === true || env.features === 'on');
   const t0 = w.since ? w.since.atMs : (w.ms[0] ? w.ms[0].t0 : env.now);
   const rid = w.rid;
