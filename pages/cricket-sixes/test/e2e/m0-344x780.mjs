@@ -67,7 +67,7 @@ function auditInPage(strict) {
   // no visible text box may end below the top of the pinned CTA bar (text under the bar is unreadable). Text inside a scroll area is skipped: it may scroll under the bar.
   out.underCta = [];
   const bar = !sheet && [...document.querySelectorAll('.m0-ctabar, .ctabar')].filter(vis)[0];
-  if (bar) {
+  if (bar && !document.querySelector('.t2-ov')) { // a full-screen overlay (nets scene, wheel) covers the screen CTA, so it is not checked against it
     const top = bar.getBoundingClientRect().top;
     // a scroll area (squad list, training list; body counts, it has overflow-x hidden) lets text pass under the bar by design
     const scrolls = (e) => { for (let p = e; p && p !== document.documentElement && !(strict && p === document.body); p = p.parentElement) { const o = getComputedStyle(p).overflowY; if ((o === 'auto' || o === 'scroll') && p.scrollHeight > p.clientHeight + 1) return true; } return false; };

@@ -6,6 +6,7 @@ export const BANDS = {
   fit: { noisy: '85-90', random: { bowler: 26, field: 50, intent: 33 } },     // [sim] % of calls equal to the skilled call
   matchup: { skilled: [52, 30, 18], random: [35, 31, 34] },                   // [sim] Good/OK/Poor share of bowler picks
   luck: [-13, 14],                                                            // [sim] p10-p90 of (actual - expected runs) in our chase, skilled bot
+  luckBy: { won: [-9, 18], lost: [-17, 7] },                                   // [sim] p10-p90 of chase luck by result, season L1, 6,000 matches, seeds p14c-*, skilled bot
   rpo: { field: { A: 10.0, P: 9.6 }, intent: { D: 8.0, R: 9.3, A: 10.8 } },   // [sim] runs per over, pooled fixed-choice bots
 };
 export const inRange = (v, [lo, hi]) => (v == null ? 'no band' : v < lo ? 'below' : v > hi ? 'above' : 'ok');

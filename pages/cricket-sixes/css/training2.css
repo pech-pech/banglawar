@@ -117,3 +117,4 @@
 .t2-cbtns { grid-template-columns: 1fr; }
 .t2-coach .tr-coach__head { flex-wrap: wrap; }
 .t2-cb { white-space: normal; }
+.wh-go.is-collect, .wh-ov .wh-go.is-collect.c-btn--primary.c-btn--cta { --_bg: var(--gold); --_fg: var(--outline); --_hi: var(--white); --_bgp: var(--wall1); background: var(--gold); color: var(--outline); }

@@ -65,7 +65,7 @@ test('data block parses, one row per over, under about 8 KB, no personal fields'
 });
 
 test('CLEAN goes NO for mixed builds, changed flags, a live match', () => {
-  const m = (build, res) => ({ build, res, ab: 0, ov: [] });
+  let sd = 0; const m = (build, res) => ({ build, res, ab: 0, ov: [], seed: 's' + sd++ });
   assert.deepEqual(cleanOf([m('a', 'won'), m('a', 'lost')], ENV), { ok: true, why: [] });
   assert.ok(cleanOf([m('a', 'won'), m('b', 'won')], ENV).why.includes('mixed builds'));
   assert.match(cleanOf([m('a', 'won')], { flags: { luckyPad: true, burst: false, rivalGoodShare: 0.7 } }).why[0], /flags changed: luckyPad/);
@@ -134,4 +134,29 @@ test('word-level glossary counts: line, top 8 + rest, JSON export', () => {
   const g = {}; for (let i = 0; i < 10; i++) g['w' + i] = 10 - i;
   assert.match(wordsLine(g), /^Words opened: W0 10, .*W7 3, \+3 more\.$/);
   assert.equal(wordsLine({}), null);
+});
+
+test('CLEAN fails on a fixed seed or a repeated seed', () => {
+  const m = (seed) => ({ build: 'a', res: 'won', ab: 0, ov: [], seed });
+  assert.ok(cleanOf([m('x'), m('y')], { ...ENV, fixedSeed: true }).why.includes('fixed seed'));
+  assert.ok(cleanOf([m('x'), m('x')], ENV).why.includes('repeated seed'));
+  assert.equal(cleanOf([m('x'), m('y')], ENV).ok, true);
+});
+
+test('luck lines: bands by result, scaled total, too few matches, quit adds nothing', () => {
+  const log = createLog({ storage: null, build: 'sixes-r6', now: () => 1000 }); play(log, 2, 'skilled');
+  const t = buildSummary(log.data(), ENV).replace(/\s+/g, ' ');
+  assert.ok(t.includes('after a win -9 to +18, after a loss -17 to +7'), t);
+  assert.ok(t.includes('usual total over 2 matches: -20 to +20') && t.includes('too few matches to call luck'));
+  const d = log.data(), base = aggregate(d.matches);
+  const quit = { ...d.matches[0], res: null, ab: 1, ov: d.matches[0].ov.map((o) => ({ ...o, r: o.r + 50, xr: o.xr })) };
+  const a2 = aggregate([...d.matches, quit]);
+  assert.equal(a2.scored, base.scored); assert.equal(a2.xScored, base.xScored); assert.equal(a2.wkTook, base.wkTook);
+});
+
+test('engine luck: 200 seeded matches stay within 3 sd of expected', () => {
+  const log = createLog({ storage: null, build: 'x', now: () => 1000 }); play(log, 200, 'skilled');
+  const ovs = log.data().matches.flatMap((m) => m.ov);
+  const diff = ovs.reduce((n, o) => n + o.r - o.xr, 0);
+  assert.ok(Math.abs(diff) < 3 * 11 * Math.sqrt(200), 'run luck drifted: ' + diff);
 });
