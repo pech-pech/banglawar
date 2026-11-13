@@ -17,7 +17,8 @@ import { RUN, SQUAD } from '../data/run.js';
 import { newBook, isBook, recordOver } from '../core/pairing.js';
 import { activityOptions, pickActivity, signTrial, declineTrial, actLedger, roundKey } from '../core/activities.js';
 import { takeFreePick, freePickPending } from '../core/economy.js';
-import { VERSION, dropFreepickNotice } from '../core/save-migrate.js';
+import { VERSION, dropFreepickNotice, emptyWheelMeta } from '../core/save-migrate.js';
+import { metaWheel, recordSpin, afterResult, seasonTokens, useToken, buyNode, canBuy, swapSpokes, powerDone, dismissTierUp, nextTierUp } from '../core/wheelmeta.js';
 import { rollMatchday, teamBoost, scaleRatings, resolvePep, roarAt } from '../core/matchday.js';
 import { MD } from '../data/matchday.js';
 
@@ -168,7 +169,7 @@ function newGame(payload) {
   const g = {
     v: VERSION, salt: '', features: true, seed, stage: 'hub', ...blankMatch(), run: newRun(seed), book: newBook(),
     season, clubs, plan: { overs: DEFAULT_OVERS.slice(), fields: NEUTRAL_FIELDS(), edited: false, key: '' },
-    econ: newEconomy(), coaches: [makeStartCoach('k0', COACH_NAMES[makeRng(`${seed}|coaches`).int(COACH_NAMES.length)])], coachPicked: true, nets: 1, releaseLedger: [],
+    econ: newEconomy(), coaches: [makeStartCoach('k0', COACH_NAMES[makeRng(`${seed}|coaches`).int(COACH_NAMES.length)])], coachPicked: true, nets: 1, releaseLedger: [], wheelMeta: emptyWheelMeta(), wheelCraft: { owned: {} },
     training: { tp: 450, week: 1, nodeBought: {}, weekLog: [], weekStart: {}, netsRuns: 0, focusChanges: 0, focus: 'bat', effort: 'normal', spotlight_id: null, coach_id: null, last_plan: null },
     fixture: leagueFixture(season, 1),
   };
@@ -350,7 +351,7 @@ function newSeason(s) {
   Object.assign(n, blankMatch()); delete n.match;
   n.stage = 'hub';
   n.fixture = leagueFixture(n.season, 1);
-  return n;
+  return FLAGS.wheelMeta ? seasonTokens(n) : n; // tokens refill from the owned ranks at each season start
 }
 
 function runEnd(s) {
@@ -368,6 +369,8 @@ function newRunFrom(s, p) {
   const n = applyCarry(fresh, carryOf(s, p && p.coachId));
   n.run = newRun(`${s.run.root}|R${no}`, no);
   n.salt = s.salt;
+  n.wheelMeta = emptyWheelMeta(); // the tree, tally, Spokes and tokens reset with the run; wheelCraft rides in through applyCarry
+  if (s.wheelFeatures === false) n.wheelFeatures = false;
   return n;
 }
 /** The game seed is the first season's seed; later seasons append |s<n>. */
@@ -384,7 +387,9 @@ export function applyCommand(s, cmd, payload = {}) {
   const t = s && s.theme && n && n !== s && n.theme === undefined ? { ...n, theme: s.theme } : n;
   const u = s && s.autoMatchday && t && t !== s && t.autoMatchday === undefined && t.stage ? { ...t, autoMatchday: true } : t;
   // The features switch (M 18:37) also rides along: a rebuilt state keeps the player's choice (absent on an old save = on).
-  return cmd !== 'SetFeatures' && s && s.features === false && u && u !== s && u.stage && u.features !== false ? { ...u, features: false } : u;
+  const f = cmd !== 'SetFeatures' && s && s.features === false && u && u !== s && u.stage && u.features !== false ? { ...u, features: false } : u;
+  // Same for the wheel switch: a rebuilt state (NewGame, new run) keeps the player's choice; absent = on.
+  return cmd !== 'SetWheelFeatures' && s && s.wheelFeatures === false && f && f !== s && f.stage && f.wheelFeatures !== false ? { ...f, wheelFeatures: false } : f;
 }
 function applyCommandCore(s, cmd, payload) {
   if (cmd === 'SetTheme') return s && s.stage && THEMES.includes(payload && payload.theme) && (s.theme || 'green') !== payload.theme ? { ...s, theme: payload.theme } : s;
@@ -404,6 +409,11 @@ function applyCommandCore(s, cmd, payload) {
       if (!payload.on && n.stage === 'matchday') n.stage = 'plan';
       return n;
     }
+    case 'SetWheelFeatures': return payload && typeof payload.on === 'boolean' && (s.wheelFeatures !== false) !== payload.on ? { ...s, wheelFeatures: payload.on } : s;
+    case 'BuyNode': return FLAGS.wheelMeta && payload && typeof payload.id === 'string' && canBuy(s, payload.id).ok ? buyNode(s, payload.id) : s;
+    case 'UseToken': return viaTrain(s, (x) => useTok(x, payload));
+    case 'SwapSpokes': return FLAGS.wheelMeta && powerDone(s) ? swapSpokes(s) : s;
+    case 'DismissTierUp': return FLAGS.wheelMeta && nextTierUp(s) ? dismissTierUp(s) : s;
     case 'PickActivity': return pickAct(s, payload);
     case 'SignTrial': return FLAGS.activities && s.econ ? signTrial(s) : s;
     case 'DeclineTrial': return FLAGS.activities && s.econ ? declineTrial(s) : s;
@@ -559,10 +569,30 @@ function spin(s, p) {
   const T = s.training, plan = planOf(s);
   const two = !!(p && p.slot === 2), key = two ? 'pending2' : 'pending'; // slot 2 = the Twin Spotlight Pass wheel
   if (!(two ? plan.spotlight2Id : plan.spotlightId) || (T[key] && T[key].week === T.week) || (T.nets && T.nets.week === T.week)) return s;
-  const wheel = wheelSlices(plan.effort, coachStepInUse(s)), careful = p && p.careful && typeof p.careful === 'object' ? p.careful : !!(p && p.careful);
-  const result = spinResult(TRAIN_RNG(s, two ? 'spin2' : 'spin'), wheel, careful);
-  const n = clone(s);
+  const meta = FLAGS.wheelMeta, base = wheelSlices(plan.effort, coachStepInUse(s)), wheel = meta ? metaWheel(base, 'spot', s) : base;
+  const careful = p && p.careful && typeof p.careful === 'object' ? p.careful : !!(p && p.careful);
+  let result = spinResult(TRAIN_RNG(s, two ? 'spin2' : 'spin'), wheel, careful);
+  let n = clone(s);
+  if (meta) { // wheel meta: the tree's after-effects, then the tally. The meta wheel is stored so a reload shows the same wheel.
+    const a = afterResult(n, 'spot', result, WM_RNG(s, two ? 'spot2' : 'spot')); n = clone(a.s); result = a.result;
+    n = clone(recordSpin(n, 'spot', { count: 1 })); // each Twin spin counts 1: the pass is 2 spins in all
+  }
   n.training[key] = { week: T.week, careful, wheel, result };
+  return n;
+}
+/** Seeded stream for the wheel meta (`seed|wm|tag|week|extra|salt`): never Math.random. */
+const WM_RNG = (s, tag, extra = '') => makeRng(`${s.season.seed}|wm|${tag}|${s.training.week}|${extra}|${s.salt}`);
+/** UseToken {wheel:'spot'|'course', kind, careful?, slot?}: a token on the result still waiting in pending (before Run nets / Run course). */
+function useTok(s, p) {
+  if (!FLAGS.wheelMeta || !p || typeof p.kind !== 'string') return s;
+  const T = s.training, course = p.wheel === 'course', wid = course ? 'course' : 'spot', key = course ? 'coursePending' : p.slot === 2 ? 'pending2' : 'pending';
+  const pend = T[key];
+  if (!pend || (!course && pend.week !== T.week)) return s;
+  const used = pend.tokUsed | 0, stop = p.careful && typeof p.careful === 'object' ? p.careful : !!p.careful;
+  const r = useToken(s, wid, p.kind, pend, WM_RNG(s, 'tok', `${key}|${p.kind}|${used}`), stop);
+  if (!r || !r.pending || (r.s === s && r.pending === pend)) return s;
+  const n = clone(r.s);
+  n.training[key] = { ...r.pending, tokUsed: used + 1 };
   return n;
 }
 function doRunNets(s) {
@@ -583,9 +613,13 @@ function courseSpin(s, p) {
   const id = p && p.coachId, T = s.training;
   if (!id || !canCourse(s, id).ok || (T.coursePending && T.coursePending.coachId === id)) return s;
   const c = coachList(s).find((x) => x.id === id);
-  const wheel = courseWheel(c.step), careful = p.careful && typeof p.careful === 'object' ? p.careful : !!p.careful;
-  const n = clone(s);
-  n.training.coursePending = { coachId: id, careful, wheel, result: spinResult(TRAIN_RNG(s, 'course', id), wheel, careful) };
+  const wheel = FLAGS.wheelMeta ? metaWheel(courseWheel(c.step), 'course', s) : courseWheel(c.step), careful = p.careful && typeof p.careful === 'object' ? p.careful : !!p.careful;
+  let n = clone(s), result = spinResult(TRAIN_RNG(s, 'course', id), wheel, careful);
+  if (FLAGS.wheelMeta) { // Second Opinion etc.; the course counts 1 spin
+    const a = afterResult(n, 'course', result, WM_RNG(s, 'course', id)); n = clone(a.s); result = a.result;
+    n = clone(recordSpin(n, 'course', { count: 1 }));
+  }
+  n.training.coursePending = { coachId: id, careful, wheel, result };
   return n;
 }
 function doRunCourse(s, p) {

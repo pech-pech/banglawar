@@ -7,7 +7,7 @@ import { newEconomy, backfillEconomy } from './economy.js';
 import { ECON as E } from '../data/economy.js';
 import { SQUAD } from '../data/run.js';
 import { coachFromOld, startCoach } from './training.js';
-export const VERSION = 6;
+export const VERSION = 7;
 
 /** fnv1a 32-bit of a string, as 8 hex digits. @param {string} str */
 export function fnv1a(str) {
@@ -21,6 +21,9 @@ export function wrap(state) {
   const data = JSON.parse(JSON.stringify(state));
   return { v: VERSION, sum: fnv1a(JSON.stringify(data)), data };
 }
+
+/** The empty per-run wheel meta block (contract: Save v7). A new run starts from this. */
+export const emptyWheelMeta = () => ({ tally: 0, spokes: 0, spent: 0, owned: {}, tokens: { respin: 0, nudge: 0, two: 0, wild: 0, lift: 0 }, tokSeason: 0, spotTokensUsed: 0, streak: 0, tierSeen: 0, tierUpQueue: [], swapDone: {} });
 
 const isObj = (x) => x !== null && typeof x === 'object' && !Array.isArray(x);
 
@@ -142,6 +145,8 @@ const STEPS = {
     return n; // r9 L8: no 'freepick' notice key (noticeOf never showed it, so it could not be dismissed); the Home pending card is the reminder
 
   },
+  // v6 -> v7 (wheel meta): the per-run Spokes block and the craft block that carries across runs. Both empty; existing blocks are kept. Idempotent.
+  6: (data) => ({ ...data, v: 7, wheelMeta: isObj(data.wheelMeta) ? data.wheelMeta : emptyWheelMeta(), wheelCraft: isObj(data.wheelCraft) ? data.wheelCraft : { owned: {} } }),
 };
 
 /** r9 L8: strip the retired 'freepick' notice key in place (keeps any other keys; no keys left -> no notice). @param {any} s */

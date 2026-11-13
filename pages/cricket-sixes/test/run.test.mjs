@@ -157,9 +157,9 @@ test('an old v1 save migrates: run is added from the season, play continues', ()
   const s = clone(toEnd(newGame('old')));
   delete s.run; s.v = 1; s.season.n = 5;
   const r = unwrap(JSON.stringify(s));
-  assert.equal(r.ok, true); assert.equal(r.state.v, 6); assert.equal(r.from, 1);
+  assert.equal(r.ok, true); assert.equal(r.state.v, 7); assert.equal(r.from, 1);
   assert.deepEqual([r.state.run.n, r.state.run.no, r.state.run.league, r.state.run.root], [5, 1, 1, 'old']);
-  assert.equal(VERSION, 6);
+  assert.equal(VERSION, 7);
   const n = C(r.state, 'NewSeason'); assert.equal(n.season.n, 6); assert.equal(n.stage, 'hub'); assert.equal(sel.hubVM(n).run.of, 12);
   assert.equal(sel.endVM(r.state).result.place >= 1, true);
   const back = unwrap(JSON.stringify(wrap(C(null, 'NewGame', { seed: 'z' }))));
