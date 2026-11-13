@@ -8,6 +8,7 @@ import { stripHtml } from './first-strip.js';
 import { chipRowHtml, roarChipHtml } from './matchday-view.js';
 import { abilityLine } from './letters-ui.js';
 import { POT, gradeAria, newNotes, noteFor } from './grade-notes.js';
+import { nameHtml } from './dom.js';
 
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const ic = (name, size, cls) => {
@@ -34,7 +35,7 @@ const REASON = { 'bowled last': "Bowled last over. Can't bowl now", '2 overs': '
 function head(vm) { // 'Potential grade' is the column head for the letter boxes (no per-row label)
   const c = (vm.crease || []).slice(0, 2);
   return `<div class="sb-head bv-head" role="presentation"><div class="bv-hb0">Bowler<small class="bv-hpg">${POT}</small></div>` +
-    c.map((b) => `<div class="bv-bx${b.onStrike ? ' is-strike' : ''}"><span class="name bv-vs${String(b.name).length > 6 ? ' bv-long' : ''}">${esc(b.name)}</span>` +
+    c.map((b) => `<div class="bv-bx${b.onStrike ? ' is-strike' : ''}"><span class="name bv-vs${String(b.name).length > 6 ? ' bv-long' : ''}">${nameHtml(b.name)}</span>` +
       `<small>${esc(ROLE[b.bat] || b.bat)}</small>` +
       `<span class="bv-runs">${esc(b.r)} (${esc(b.b)})</span>` +
       (b.onStrike ? '<span class="strike bv-st">on strike</span>' : '') + `</div>`).join('') + `</div>`;

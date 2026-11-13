@@ -77,7 +77,7 @@ export function renderTrial(root, vm, dispatch) {
       (p.type ? '<li>' + iw(typeIcon(p.type), cap(p.type) + ' bowler') + '</li>' : '') +
       (numOk(p.batShown) ? letterRow('batSkill', 'Batting', p.batShown) : '') + (numOk(p.bowlShown) ? letterRow('bowlSkill', 'Bowling', p.bowlShown) : '') +
       (ab && !numOk(p.batShown) ? letterRow('team', 'Ability', p.ability) : '') +
-      '<li>' + (hidden ? iw('info', 'Grade hidden. It shows after 1 practice drill.') : '<span>' + icoDeco('info', 24) + '</span><span>Potential grade <b class="lt-in">' + esc(p.grade) + '</b></span>') + '</li>';
+      '<li>' + (hidden ? iw('info', 'Potential grade: hidden until 1 practice drill.') : '<span>' + icoDeco('info', 24) + '</span><span>Potential grade <b class="lt-in">' + esc(p.grade) + '</b></span>') + '</li>';
   root.innerHTML = '<div class="screen cl-screen cl-trialsheet"><h3 class="cl-h" tabindex="-1">' + icoDeco(coach ? 'coach' : 'team', 24) + '<span>' + name + '</span>' +
     (coach ? '<span class="c-tag" aria-label="Grade ' + esc(letterOfStep(p.step)) + '">' + esc(letterOfStep(p.step)) + '</span>' : '') + '</h3>' +
     '<ul class="cl-facts">' + facts +

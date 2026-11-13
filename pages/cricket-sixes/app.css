@@ -38,6 +38,9 @@ img { max-width: 100%; image-rendering: pixelated; }
 .c-chip:has(> .c-chip__pick[aria-pressed="true"]), .c-chip[aria-pressed="true"] { background: var(--gold); box-shadow: inset 0 0 0 2px var(--outline), 0 var(--c-shadow-drop) 0 var(--outline); }
 .c-chip[aria-pressed="true"] .c-chip__name::before, .c-chip:has(> .c-chip__pick[aria-pressed="true"]) .c-chip__name::before { content: ""; display: inline-block; width: 12px; height: 10px; margin-right: 6px; background: currentColor; -webkit-mask: var(--c-ico-check) center / 100% 100% no-repeat; mask: var(--c-ico-check) center / 100% 100% no-repeat; }
 .c-chip:has(> .c-chip__pick:disabled), .c-chip[aria-disabled="true"] { background: var(--stone1); border-style: dashed; box-shadow: none; opacity: .7; }
+/* QA2 m5: green look, disabled buttons: dark label on the grey wash (white was 1.6:1), plus a dashed inner frame so "off" is not colour only.
+   The painted frame owns the border, so the dash is an inset outline inside the 6 px frame edge. Scorebook draws its own dashed border. */
+.skin-retro-green .c-btn:not(.c-btn--quiet):is(:disabled, .is-disabled, [aria-disabled="true"]) { color: var(--sk-text); outline: 2px dashed var(--sk-text); outline-offset: -9px; }
 .ball-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--c-sp-1); }
 .why { margin: 0; padding: var(--c-sp-1) var(--c-sp-2); background: var(--wall1); border-left: 4px solid var(--outline); font-size: var(--c-fs-s); line-height: var(--c-lh-s); overflow-wrap: anywhere; }
 .muted { opacity: .75; }

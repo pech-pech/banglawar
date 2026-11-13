@@ -42,19 +42,21 @@ export function renderFreePick(root, vm, dispatch) {
   const byId = {}; (Array.isArray(vm.options) ? vm.options : []).forEach((o) => { byId[o.id || o.what] = o; });
   const sel = root.__clPick && byId[root.__clPick] && !byId[root.__clPick].owned ? root.__clPick : null;
   const slot = sel ? SLOTS.find((x) => x.id === sel) : null;
+  const bar = root.querySelector('.screen > .st-bar'); // r9 L7: the report's settings bar (gear) lives in .screen; keep the node (and its listener) across a local re-render
   root.innerHTML = '<div class="screen cl-screen cl-fpick"><h3 class="cl-h" tabindex="-1">' + icoDeco('upgrade', 24) + '<span>Pick your free facility</span></h3>' +
     '<p class="cl-note">' + icoDeco('info', 24) + '<span>One facility gets its level 1 free. You buy the rest with Coins.</span></p>' +
     '<div class="cl-fps" role="radiogroup" aria-label="Free facility">' + SLOTS.map((x) => cardHtml(x, byId[x.id], x.id === sel)).join('') + '</div>' +
     '<button type="button" class="c-btn c-btn--primary cl-take" data-cl-act="TakeFreePick"' + (sel ? '' : ' disabled aria-disabled="true"') + '>' + icoDeco('done', 24) + '<span>' + (slot ? 'Take ' + esc(slot.name) + ' free' : 'Tap a facility first') + '</span></button></div>';
+  if (bar) { const sc = root.querySelector('.screen'); if (sc) sc.insertBefore(bar, sc.firstChild); }
   if (!root.__clBound) {
     root.__clBound = true;
     root.addEventListener('click', (ev) => {
       const t = ev.target.closest && ev.target.closest('[data-cl-pick],[data-cl-act]');
       if (!t || !root.contains(t) || t.disabled) return;
       if (t.hasAttribute('data-cl-pick')) {
-        const id = t.getAttribute('data-cl-pick'); root.__clPick = id; renderFreePick(root, root.__clVm, dispatch);
+        const id = t.getAttribute('data-cl-pick'); root.__clPick = id; if (root.__clKeep) root.__clKeep(id); renderFreePick(root, root.__clVm, dispatch);
         const b = root.querySelector('[data-cl-pick="' + id + '"]'); if (b) b.focus();
-      } else if (root.__clPick) { const what = root.__clPick; root.__clPick = null; dispatch('TakeFreePick', { what }); }
+      } else if (root.__clPick) { const what = root.__clPick; root.__clPick = null; if (root.__clKeep) root.__clKeep(null); dispatch('TakeFreePick', { what }); }
     });
   }
   root.__clVm = vm;
@@ -66,6 +68,7 @@ export function render(el, vm, dispatch) {
   el.innerHTML = '';
   const host = document.createElement('div');
   host.__clPick = el.__clFpPick || null;
+  host.__clKeep = (id) => { el.__clFpPick = id; }; // r9 L7: the pick lives on the stage element, so a store re-render keeps it
   renderFreePick(host, vm, (n, a) => dispatch(n, a));
   el.appendChild(host);
   return el;

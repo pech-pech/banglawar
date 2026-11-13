@@ -6,6 +6,15 @@ export function esc(s) {
   });
 }
 
+/** Escaped name with one soft hyphen in the middle of a long one-word name, so a narrow box can wrap it to 2 lines ("Chowd-" / "hury")
+ *  instead of clipping it. A name that fits stays on one line (a soft hyphen only shows where the line breaks). QA2 m7. */
+export function nameHtml(s, min = 8) {
+  const t = String(s == null ? '' : s);
+  if (t.length < min || /\s/.test(t)) return esc(t);
+  const k = Math.ceil(t.length / 2);
+  return esc(t.slice(0, k)) + '&shy;' + esc(t.slice(k));
+}
+
 export function ico(name, size, deco) {
   const w = typeof window !== 'undefined' ? window : null;
   const i = w && w.SPR && w.SPR.iconImg ? w.SPR.iconImg(name, size || 24) : null;

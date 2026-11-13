@@ -167,8 +167,11 @@ export function payCourse(/** @type {any} */ s, /** @type {number} */ coins) {
 // ---- stadium + facilities ----
 export const netsLevel = (/** @type {any} */ s) => econOf(s).fac.nets;
 export const gymTp = (/** @type {any} */ s) => E.GYM_TP[econOf(s).fac.gym];
-/** Coins for facility level L. Level 1 comes from FAC_L1_COST when the free-pick gate is on. */
-export const facCost = (/** @type {string} */ k, /** @type {number} */ L) => (L === 1 && on('freePick') ? E.FAC_L1_COST[k] : E.FAC_COST[k][L]);
+/** r9 M1: the facility rules come from the save's own economy, never the live flag: a free-pick economy (econ.freePick set) always uses
+ *  FAC_L1_COST / FAC_OPEN_V2, so switching features off cannot make the legacy 0-Coin L1s (Stands, Nets, Academy) buildable. No econ given -> the flag. */
+const v2Rules = (/** @type {any} */ e) => (e ? !!e.freePick : on('freePick'));
+/** Coins for facility level L. Level 1 comes from FAC_L1_COST on a free-pick economy. @param {string} k @param {number} L @param {any} [e] the economy */
+export const facCost = (/** @type {string} */ k, /** @type {number} */ L, /** @type {any} */ e) => (L === 1 && v2Rules(e) ? E.FAC_L1_COST[k] : E.FAC_COST[k][L]);
 /** @param {any} s */
 export function buildOptions(s) {
   const e = econOf(s), out = [];
@@ -184,8 +187,8 @@ export function buildOptions(s) {
   for (const k of E.FAC) {
     const cur = e.fac[k]; if (cur >= 5) continue;
     const L = cur + 1;
-    const open = (on('freePick') ? E.FAC_OPEN_V2 : E.FAC_OPEN)[k];
-    gate(k, L, facCost(k, L), 0, 0, e.stadium < open ? `Needs Stadium ${open}` : L > e.stadium ? `Needs Stadium ${L}` : null);
+    const open = (v2Rules(e) ? E.FAC_OPEN_V2 : E.FAC_OPEN)[k];
+    gate(k, L, facCost(k, L, e), 0, 0, e.stadium < open ? `Needs Stadium ${open}` : L > e.stadium ? `Needs Stadium ${L}` : null);
   }
   return out;
 }

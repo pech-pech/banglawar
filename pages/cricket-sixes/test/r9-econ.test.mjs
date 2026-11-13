@@ -85,7 +85,7 @@ test('free pick: Nets L0 is safe for training; FAC_START_NETS 1 is the fallback'
 }));
 
 // ---- migration v6
-test('v6 migration: each facility mix; nothing owned is removed; notice only with the flag', () => {
+test('v6 migration: each facility mix; nothing owned is removed; no freepick notice (r9 L8)', () => {
   assert.equal(VERSION, 6);
   const v5 = (fac) => ({ v: 5, stage: 'hub', season: { n: 1, league: 1, results: [] }, econ: { ...X.newEconomy({ legacy: true }), backfilled: true, fac: { ...E.FAC_START, ...fac } } });
   const old = migrate(v5({}), 5).state;
@@ -93,11 +93,11 @@ test('v6 migration: each facility mix; nothing owned is removed; notice only wit
   assert.deepEqual(old.econ.fac, { stands: 1, shop: 0, nets: 1, gym: 0, pitch: 0, academy: 1, scout: 0 });
   withFlags({ freePick: true }, () => {
     const n = migrate(v5({}), 5).state;
-    assert.equal(n.notice, 'freepick'); assert.equal(X.freePickPending(n), true);
+    assert.equal(n.notice, undefined, 'r9 L8: no undismissable freepick notice'); assert.equal(X.freePickPending(n), true);
     assert.deepEqual(X.freePickOptions(n).filter((x) => x.ok).map((x) => x.what), ['shop', 'gym', 'pitch', 'scout']);
     assert.equal(X.freePickOptions(n).find((x) => x.what === 'stands').owned, true);
     const t = X.takeFreePick(n, 'pitch'); assert.equal(t.econ.fac.pitch, 1); assert.equal(t.econ.coins, n.econ.coins); assert.equal(t.econ.fac.stands, 1);
-    const withNotice = migrate({ ...v5({}), notice: 'squad8' }, 5).state; assert.equal(withNotice.notice, 'squad8+freepick');
+    const withNotice = migrate({ ...v5({}), notice: 'squad8' }, 5).state; assert.equal(withNotice.notice, 'squad8');
     const all = migrate(v5({ shop: 2, gym: 3, pitch: 1, scout: 5, stands: 4 }), 5).state;
     assert.deepEqual(all.econ.freePick, { done: true, pick: null }); assert.equal(all.notice, undefined); assert.equal(all.econ.fac.scout, 5); assert.equal(all.econ.fac.stands, 4);
     assert.equal(X.freePickPending(all), false);

@@ -496,7 +496,9 @@ const pct = (x) => Math.round(x * 100);
 /** The rolled match day for the fixture on screen (the live match keeps it on s.match.md). Pep follows the slot in the current six. */
 function mdOf(s) {
   if (!FLAGS.matchday) return null;
-  const md = (s.match && s.match.md) || (s.fixture && s.fixture.md) || null;
+  // r9 QA2 B1: s.match.md outlives its match. Before the match starts (hub, squad, plan, matchday...) read this fixture's roll; the live match roll only on bowl/break/chase/done.
+  const live = s.stage === 'bowl' || s.stage === 'chase' || s.stage === 'break' || s.stage === 'done';
+  const md = live ? ((s.match && s.match.md) || (s.fixture && s.fixture.md) || null) : ((s.fixture && s.fixture.md) || null);
   if (!md) return null;
   const ids = s.stage === 'bowl' || s.stage === 'chase' || s.stage === 'break' || s.stage === 'done' ? null : sixIds(s);
   return ids ? { ...md, pepId: resolvePep(md, ids) } : md;
@@ -547,11 +549,18 @@ export function matchdayVM(s) {
 }
 
 // ---------------------------------------------------------------- r9 fan activities, trial player, free facility pick
+/** r9 QA2 m6: a coach find carries only an id; name it from the waiting trial, the signed coaches or the trial ledger. */
+function findNamed(s, f) {
+  if (!f || typeof f !== 'object' || f.type !== 'coach' || f.name) return f || null;
+  const tr = s.trial && s.trial.coach && s.trial.coach.id === f.id ? s.trial.coach : null;
+  const c = tr || (s.coaches || []).find((x) => x && x.id === f.id) || ((s.econ && s.econ.ledger) || []).find((x) => x && x.k === 'trial' && x.id === f.id);
+  return c && c.name ? { ...f, name: c.name } : f;
+}
 /** This week's fan activity card + sheet. null unless the flag is on and the club has an economy. */
 export function activitiesVM(s) {
   if (!FLAGS.activities || !s.econ || !s.season) return null;
   const o = activityOptions(s), last = s.econ.act && s.econ.act.hist && s.econ.act.hist[0];
-  const picked = o.why === 'done' && last ? { id: last.id, name: last.id === 'rest' ? 'Rest week' : (ACT.TABLE.find((r) => r.id === last.id) || { name: last.id }).name, fans: last.fans, coins: last.coins, find: last.find || null } : null;
+  const picked = o.why === 'done' && last ? { id: last.id, name: last.id === 'rest' ? 'Rest week' : (ACT.TABLE.find((r) => r.id === last.id) || { name: last.id }).name, fans: last.fans, coins: last.coins, find: findNamed(s, last.find) } : null;
   return {
     available: o.open, why: o.why, round: o.key, picked, coins: s.econ.coins, purse: s.econ.coins,
     options: o.rows.map((r) => ({ id: r.id, name: r.name, blurb: r.blurb, cost: r.coins, fans: r.fans, tiltPct: pct(r.tilt), findPct: r.findPct, repeat: r.repeat,

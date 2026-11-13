@@ -109,7 +109,10 @@ const sixPlayers = (/** @type {any} */ club) => { const ids = club.six && club.s
 
 /** Rival six average minus ours, raw 1-99. Uses the six that played when a match is on the state, else the saved sixes. @param {any} s @param {any} [rival] club or id */
 export function sixGap(s, rival) {
-  const mine = s.me && s.me.players && s.me.players.length ? s.me.players : sixPlayers(s.clubs.find((/** @type {any} */ c) => c.id === ME));
+  const club = s.clubs && s.clubs.find((/** @type {any} */ c) => c.id === ME);
+  // r9 M3: match copies carry the match-day boost (hype, toss, pep). Pay reads the unboosted ratings: the same player from the squad (copies are cloned from it).
+  const base = (/** @type {any} */ p) => (club && club.squad.find((/** @type {any} */ q) => q.id === p.id)) || p;
+  const mine = s.me && s.me.players && s.me.players.length ? s.me.players.map(base) : sixPlayers(club);
   const rc = clubOf(s, rival);
   const theirs = s.rival && s.rival.players && s.rival.players.length && !rival ? s.rival.players : rc ? sixPlayers(rc) : [];
   return avgRaw(theirs) - avgRaw(mine);

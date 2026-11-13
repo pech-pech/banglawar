@@ -26,11 +26,12 @@ test('M2 free pick: one plain line each, no dev words, no parenthetical, "No eff
 
 const pl = { id: 'p9', name: 'Asha', role: 'Middle', type: 'Spin', batShown: 80, bowlShown: 60, ability: 70, grade: '?' };
 const tvm = { kind: 'player', player: pl, coach: null, wage: 12, squadFull: false, canSign: true, why: '', release: [] };
-test('M3 trial player: role + type icons, batting/bowling letters, "Grade hidden" instead of a bare ?', () => {
+test('M3 trial player: role + type icons, batting/bowling letters, "Potential grade: hidden" instead of a bare ?', () => {
   const r = fakeRoot(); renderTrial(r, tvm, () => {});
   assert.match(r.innerHTML, /Middle order/); assert.match(r.innerHTML, /Spin bowler/);
   assert.equal((r.innerHTML.match(/lt-box/g) || []).length, 2);
-  assert.match(r.innerHTML, /Grade hidden/);
+  assert.match(r.innerHTML, /Potential grade: hidden until 1 practice drill/); // QA2 m4: the letters shown are ability; only the potential grade is hidden
+  assert.doesNotMatch(r.innerHTML, /Grade hidden/);
   assert.doesNotMatch(r.innerHTML, /m0-flat--q|>\?</);
   const g = fakeRoot(); renderTrial(g, { ...tvm, player: { ...pl, grade: 'B' } }, () => {});
   assert.match(g.innerHTML, /Potential grade <b class="lt-in">B<\/b>/);

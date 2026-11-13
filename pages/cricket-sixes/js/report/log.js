@@ -54,7 +54,7 @@ export function createLog(o = {}) {
       const md = mdOf(s);
       if (md && !m.md) m.md = { hype: md.hype, hi: md.hypeIdx, toss: md.toss, pep: md.pepId || null, fm: md.hypeFanMult != null ? md.hypeFanMult : null, roar: (md.roar || []).map((x, i) => (x ? i : -1)).filter((i) => i >= 0) };
       const wk = (inn) => (inn && inn.wkLog) || [];
-      if (s.inn1 && s.inn1.settledOn || s.inn2 && s.inn2.settledOn) m.settled = wk(s.inn1).map((w) => ({ in: 1, ...w })).concat(wk(s.inn2).map((w) => ({ in: 2, ...w })));
+      if (FLAGS.settled || (s.inn1 && s.inn1.settledOn) || (s.inn2 && s.inn2.settledOn)) m.settled = wk(s.inn1).map((w) => ({ in: 1, ...w })).concat(wk(s.inn2).map((w) => ({ in: 2, ...w })));
       const ro = (inn) => (inn && inn.roarOvers) || [];
       if (ro(s.inn1).length || ro(s.inn2).length) m.roarOvers = { 1: ro(s.inn1), 2: ro(s.inn2) };
     } catch (e) { /* feature absent */ }
@@ -127,7 +127,7 @@ export function createLog(o = {}) {
       if (!m || m.pay || !after || !after.pay) return;
       const p = after.pay, e0 = (before && before.econ) || {}, e1 = after.econ || {};
       m.pay = { base: p.base | 0, win: p.win | 0, stars: p.stars | 0, total: p.total | 0 };
-      try { const row = (e1.ledger || []).filter((r) => r.k === 'match').slice(-1)[0]; if (row) m.eco = { gate: row.gate | 0, win: row.winBonus | 0, shop: row.shop | 0, wage: row.wages | 0, up: row.upkeep | 0, net: row.net | 0, fans: row.fans | 0, arr: row.arrears | 0, ...(row.hype ? { hype: row.hype } : {}), ...(row.fanSplit ? { fs: row.fanSplit } : {}) }; } catch (e) { /* no ledger */ }
+      try { const row = (e1.ledger || []).filter((r) => r.k === 'match').slice(-1)[0]; if (row) m.eco = { gate: row.gate | 0, win: row.winBonus | 0, shop: row.shop | 0, wage: row.wages | 0, up: row.upkeep | 0, net: row.net | 0, fans: row.fans | 0, arr: row.arrears | 0, ...(row.hype ? { hype: row.hype } : {}), ...(row.split ? { fs: row.split } : {}) }; } catch (e) { /* no ledger */ }
       m.coins0 = e0.coins | 0; m.coins1 = e1.coins | 0; m.fans0 = e0.fans | 0; m.fans1 = e1.fans | 0;
     }),
     feel: safe((q, a, fact) => {
@@ -154,7 +154,7 @@ export function createLog(o = {}) {
         const co = T0.coach_id ? 1 : 0, nr = d.nets.slice().reverse().find((x) => x.wk === T0.week && x.s === s), idle = co && nr && !nr.cs ? 1 : 0; // idle = a coach was set but his strong focus was not the week's (quality 0)
         ev('weeks', { ...base, wk: T0.week, tpEnd: T0.tp | 0, aff: netsRecordAff(before), nets: ran ? 1 : 0, hint: null, coach: co, cidle: idle });
       } else if (cmd === 'PickActivity' || cmd === 'SignTrial' || cmd === 'DeclineTrial' || cmd === 'TakeFreePick') {
-        const a0 = before.econ || {}, a1 = after.econ || {}, h = (a1.act && a1.act.hist) || [], last = h[h.length - 1], tr = before.trial || null;
+        const a0 = before.econ || {}, a1 = after.econ || {}, h = (a1.act && a1.act.hist) || [], last = h[0], tr = before.trial || null;
         const rec = { ...base, k: cmd === 'PickActivity' ? 'act' : cmd === 'TakeFreePick' ? 'fp' : cmd === 'SignTrial' ? 'sign' : 'decl' };
         if (cmd === 'PickActivity') Object.assign(rec, { id: payload && payload.id, coins: (a0.coins | 0) - (a1.coins | 0), fans: (a1.fans | 0) - (a0.fans | 0), find: last && last.find ? last.find : null, dry: a1.act ? a1.act.dry | 0 : null });
         else if (cmd === 'TakeFreePick') rec.what = payload && payload.what;

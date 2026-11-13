@@ -121,7 +121,8 @@ export function pickActivity(s, id, rng) {
         const L = league(s), n = s.season?.n || 1, step = Math.max(1, Math.min(21, 5 + 3 * (L - 1) + Math.floor(r.random() * 5) - 2));
         const used = new Set((s.coaches || []).map((/** @type {any} */ c) => c.name));
         const pool = SURNAMES.filter((x) => !used.has(x));
-        const coach = { id: `tc${n}-${roundIdx(s)}`, name: r.pick(pool.length ? pool : SURNAMES), step, strong: r.random() < 0.5 ? ['bat'] : ['bowl'], away: 0, courseSeason: null };
+        const runNo = (s.run && s.run.no) || 1; // r9 L4: the run number keeps ids unique across runs (a carried coach keeps his id)
+        const coach = { id: `tc${runNo}.${n}-${roundIdx(s)}`, name: r.pick(pool.length ? pool : SURNAMES), step, strong: r.random() < 0.5 ? ['bat'] : ['bowl'], away: 0, courseSeason: null };
         trial = { kind: 'coach', coach, wage: 0, from: id, key: o.key }; find = { type: 'coach', id: coach.id };
       }
       e.act.dry = 0;
@@ -143,7 +144,7 @@ export function signTrial(s) {
     if (c.squad.length >= SQUAD.size || c.squad.some((/** @type {any} */ x) => x.id === t.player.id)) return s;
     c.squad.push(clone(t.player));
   } else {
-    if (coachList(s).length >= MAX_COACHES) return s;
+    if (coachList(s).length >= MAX_COACHES || (s.coaches || []).some((/** @type {any} */ c) => c.id === t.coach.id)) return s; // r9 L4: never two coaches with one id
     n.coaches = (n.coaches || []).concat([clone(t.coach)]);
   }
   if (e.ledger.length > E.LEDGER_MAX) e.ledger.splice(0, e.ledger.length - E.LEDGER_MAX);
@@ -161,5 +162,6 @@ export function declineTrial(s) {
 export function canSignTrial(s) {
   const t = trialOf(s); if (!t) return { ok: false, why: 'none' };
   if (t.kind === 'player') return s.clubs[0].squad.length >= SQUAD.size ? { ok: false, why: SQUAD.fullText } : { ok: true, why: '' };
+  if ((s.coaches || []).some((/** @type {any} */ c) => c.id === t.coach.id)) return { ok: false, why: 'Already on your staff' };
   return coachList(s).length >= MAX_COACHES ? { ok: false, why: 'Coach slots full: release one first' } : { ok: true, why: '' };
 }

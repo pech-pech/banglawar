@@ -168,6 +168,8 @@ html:has(body.skin-scorebook) { background: var(--sb-paper); }
 .skin-scorebook .tr-gr { font-family: var(--font-head); font-weight: 700; }
 .skin-scorebook .tr-won { color: var(--sb-green); font-weight: 700; }
 .skin-scorebook :is(.chase, .chase-b, .bv-head, .sb) .sb-head > div + div { white-space: normal; font-size: 14px; line-height: 15px; overflow-wrap: anywhere; letter-spacing: 0; }
+/* QA2 M2: Atkinson at 14 px is wider than Jersey; the crease box role word ("Middle order", "Lower order") wraps at its space instead of spilling past the box */
+.skin-scorebook .bv-head .bv-bx > small { white-space: normal; overflow-wrap: anywhere; max-width: 100%; }
 .skin-scorebook .sb-head { align-items: end; }
 
 /* ---- six sheet / squad / hub: ability = ringed number (first .ts-n and the squad number box), potential grade = plain box ---- */

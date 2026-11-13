@@ -13,7 +13,7 @@ export function doneLine(d) {
   if (d.id === 'rest') return 'Rest week. Nothing spent.';
   const f = d.find;
   const t = f && typeof f === 'object' ? f.type : f;
-  const find = !t || t === 'none' ? '' : t === 'coins' ? (f.coins != null ? ' Found ' + fmt(f.coins) + ' Coins.' : ' Found some Coins.') : t === 'player' ? ' Found a trial player.' : ' Found something.';
+  const find = !t || t === 'none' ? '' : t === 'coins' ? (f.coins != null ? ' Found ' + fmt(f.coins) + ' Coins.' : ' Found some Coins.') : t === 'player' ? ' Found a trial player.' : t === 'coach' ? ' Found a trial coach' + (f.name ? ': ' + f.name : '') + '.' : ' Found something.';
   return (d.name || 'Activity') + ': +' + fmt(d.fans) + ' Fans.' + find;
 }
 

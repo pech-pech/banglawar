@@ -17,7 +17,7 @@ import { RUN, SQUAD } from '../data/run.js';
 import { newBook, isBook, recordOver } from '../core/pairing.js';
 import { activityOptions, pickActivity, signTrial, declineTrial, actLedger, roundKey } from '../core/activities.js';
 import { takeFreePick, freePickPending } from '../core/economy.js';
-import { VERSION } from '../core/save-migrate.js';
+import { VERSION, dropFreepickNotice } from '../core/save-migrate.js';
 import { rollMatchday, teamBoost, scaleRatings, resolvePep, roarAt } from '../core/matchday.js';
 import { MD } from '../data/matchday.js';
 
@@ -274,6 +274,7 @@ function seasonMatch(s) {
     me: { name: mine.name, players: mine.six.map((id) => (md ? scaleRatings(copyPlayer(byId(mine, id)), teamBoost(md, id)) : copyPlayer(byId(mine, id)))) },
     rival: { name: opp.name, players: aiPickSix(opp).map((id) => copyPlayer(byId(opp, id))) },
   };
+  delete n.match; // r9 H2: the last match's roll never outlives its match (s.match is set only when this match has a match day)
   if (md) { n.match = { md }; n.fixture = { ...fx, md }; }
   n.inn1 = newInnings(n.rival.players, n.me.players, null);
   n.call = defaultCall(n);
@@ -293,6 +294,7 @@ function finishMatch(s) {
   if (finKey) pay.total = finalsTp(finKey);
   n.training.tp += pay.total; se.tpWon += pay.total;
   n.pay = { ...pay, outcome, opp: fx.opp, round: fx.round };
+  delete n.match; // r9 H2: the match is over; its match-day roll goes with it
   Object.assign(n, tickBuild(applyMatch(n, { win: outcome === 'won', tie: outcome === 'tied', ...(FLAGS.matchday && n.fixture.md ? { hypeIdx: n.fixture.md.hypeIdx } : {}) })));
   if (finKey) Object.assign(n, finalsReward(n, finKey));
   se.last = { kind: fx.kind, round: fx.round };
@@ -343,7 +345,7 @@ function newSeason(s) {
   n.clubs = n.run.last.promoted ? remakeRivals(n.clubs, n.run.root, league, nn) : growClubs(n.clubs, SEASON.aiGrowth);
   n.season = newSeasonData(baseSeed(s), nn, n.clubs, league);
   n.run.n = nn; n.run.league = league;
-  Object.assign(n, blankMatch());
+  Object.assign(n, blankMatch()); delete n.match;
   n.stage = 'hub';
   n.fixture = leagueFixture(n.season, 1);
   return n;
@@ -405,7 +407,8 @@ function applyCommandCore(s, cmd, payload) {
     case 'DeclineTrial': return FLAGS.activities && s.econ ? declineTrial(s) : s;
     case 'TakeFreePick': {
       if (!FLAGS.freePick || !s.econ || !payload || typeof payload.what !== 'string') return s;
-      const n = takeFreePick(s, payload.what);
+      const t = takeFreePick(s, payload.what);
+      const n = t !== s ? dropFreepickNotice({ ...t }) : t; // r9 L8: an old save's 'freepick' notice key goes with the pick
       return n !== s && n.stage === 'freepick' ? { ...n, stage: 'hub' } : n;
     }
     case 'OpenMatchday': return openMatchday(s);
@@ -477,7 +480,10 @@ function screenDue(s) {
 /** One fan activity (or Rest week) per round, from the hub. The find roll has its own stream: save seed + round, never the ball RNG. */
 function pickAct(s, p) {
   if (!FLAGS.activities || !s.season || !s.fixture || !s.econ || !HUB_STAGES.includes(s.stage) || !p || typeof p.id !== 'string') return s;
-  return pickActivity(s, p.id, makeRng(`${baseSeed(s)}|act|${roundKey(s)}|${s.salt}`));
+  const n = pickActivity(s, p.id, makeRng(`${baseSeed(s)}|act|${roundKey(s)}|${s.salt}`));
+  // r9 M2: a roll stored early (TeamSix / OpenMatchday before the activity) would lose this activity's hype tilt. Until the screen is done, roll again later.
+  if (n !== s && n.fixture && n.fixture.md && !n.fixture.mdDone) { const { md, ...fx } = n.fixture; return { ...n, fixture: fx }; }
+  return n;
 }
 function openMatchday(s) {
   if (!FLAGS.matchday || !s.season || !s.fixture || !['hub', 'semi', 'final', 'squad', 'plan'].includes(s.stage)) return s;

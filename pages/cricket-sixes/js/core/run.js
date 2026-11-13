@@ -157,7 +157,7 @@ export function applyCarry(fresh, carry) {
     mine.squad[i] = { ...carry.legend, id: weakest.id };
     mine.six = aiPickSix(mine);
   }
-  if (carry.coach) { n.coaches = [carry.coach]; n.coachPicked = true; n.stage = 'hub'; }
+  if (carry.coach) { n.coaches = [carry.coach]; n.coachPicked = true; n.stage = fresh.stage === 'freepick' ? 'freepick' : 'hub'; } // r9 L6: a new run with a free pick waiting opens on the pick, like a new game
   return n;
 }
 

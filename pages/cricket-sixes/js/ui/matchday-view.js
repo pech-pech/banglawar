@@ -4,7 +4,7 @@
 // vm = STORE selectors.matchdayVM: {oppName, kindWord, hype:{level, idx, word, perfPct, fanMult}, odds:[{level,word,pct}x4],
 //   roar:{on, chancePct, overs}, toss:{won, boostPct, line}, pep:{slot,id,name,boostPct}|null, six:[{slot,id,name,pep}], boost, auto, forced}.
 // Commands: MatchdayGo (vm.next: 'Start match' when it starts the match, 'Next: Plan' when it opens Plan), BackToSquad. Plain words, no countdown, no sound, no spend on luck.
-import { esc, icoDeco, bindActs } from './dom.js';
+import { esc, icoDeco } from './dom.js';
 import { openSheet } from './sheet.js';
 
 export const HYPE = {
@@ -53,7 +53,7 @@ export function oddsHtml(vm) {
     '<table class="md-odds"><caption class="ss-sr">Crowd mood odds today</caption><thead><tr><th scope="col">Mood</th><th scope="col">Boost</th><th scope="col">Chance</th></tr></thead><tbody>' + rows + '</tbody></table>' +
     '<p><b>Toss:</b> win it for +5% for your team. If the rival wins it, nothing changes.</p>' +
     '<p><b>Pep talk:</b> one of your six gets +5% more.</p>' +
-    '<p><b>Crowd roar:</b> some overs your whole team gets +5% for that over. Bigger crowds roar more often.</p>' +
+    '<p><b>Crowd roar:</b> some overs your whole team gets +5% for that over. More Fans, more roars.</p>' +
     '<p>Boosts stack by multiplying. They are for your team only.</p></div>';
 }
 
@@ -116,7 +116,13 @@ export function render(el, vm, dispatch) {
   const key = [vm.kindWord, vm.oppName, vm.hype.level, vm.toss.won, vm.pep && vm.pep.id].join('|');
   const shown = SEEN[key] || (SEEN[key] = {});
   const paint = (live, focus) => {
-    el.innerHTML = matchdayHtml(vm, shown);
+    // r9 QA2 m1: a reveal tap repaints only the body, so the strip keeps the Settings gear the report hooks put there
+    const oldBody = live != null ? el.querySelector('.md-root > .md-body') : null;
+    if (oldBody) {
+      const tpl = document.createElement('template'); tpl.innerHTML = matchdayHtml(vm, shown);
+      const nb = tpl.content.querySelector('.md-body');
+      if (nb) oldBody.replaceWith(nb); else el.innerHTML = matchdayHtml(vm, shown);
+    } else el.innerHTML = matchdayHtml(vm, shown);
     if (live) { const r = el.querySelector('[data-md-live]'); if (r) r.textContent = live; }
     if (focus) { const f = el.querySelector(focus); if (f) /** @type {HTMLElement} */ (f).focus(); }
   };
@@ -124,7 +130,7 @@ export function render(el, vm, dispatch) {
   paint();
   if (!E.__mdBound) {
     E.__mdBound = true;
-    bindActs(el, (cmd, arg) => E.__mdDispatch(cmd, arg), null);
+    // r9 review H1: no bindActs here. el is the shared #app, which app.js already binds once; a second handler fired every data-act twice.
     el.addEventListener('click', (e) => {
       const t = /** @type {HTMLElement} */ (e.target).closest('[data-md]'); if (!t || !el.contains(t)) return;
       const w = t.getAttribute('data-md'), V = E.__mdVM;
