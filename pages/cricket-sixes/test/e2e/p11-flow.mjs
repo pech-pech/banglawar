@@ -139,6 +139,14 @@ try {
     }
   }
 
+  /** Wheel meta (w2): a match-day card may open a dial/reel overlay. Tap SPIN, wait, tap STOP/skip, then Collect until it closes. */
+  async function driveSpin() {
+    for (let i = 0; i < 12 && (await page.$('.dr-ov')); i++) {
+      const g = await page.$('.dr-ov [data-go]:not([aria-disabled="true"])');
+      if (g) await g.click(); await settle(i === 0 ? 1600 : 900);
+    }
+  }
+
   // ---- play one match (needed for steps 2 and 4); drive hub -> squad -> plan -> match -> done ----
   const coins0 = await coins();
   let steps = 0, payText = '', coinsDone = null, seenSquad = false;
@@ -155,7 +163,7 @@ try {
       sawMd++;
       if (FEAT_OFF) { step(9, 'matchday screen must not show with features off', false, 'matchday showed'); break; }
       if (sawMd === 1) await audit(9, 'matchday screen (start)');
-      for (const w of ['hype', 'toss', 'pep']) { const b = await page.$(`[data-md="${w}"]`); if (!b) continue; await b.click(); await settle(350); if (sawMd === 1) { await audit(9, `matchday after ${w}`); await shot('09c-md-' + w); } }
+      for (const w of ['hype', 'toss', 'pep']) { const b = await page.$(`[data-md="${w}"]`); if (!b) continue; await b.click(); await settle(350); await driveSpin(); if (sawMd === 1) { await audit(9, `matchday after ${w}`); await shot('09c-md-' + w); } }
       const q = await page.$('[data-md="info"]');
       if (sawMd === 1) { step(9, 'matchday has the "?" odds button', !!q, 'no [data-md=info]'); if (q) { await q.click(); await settle(450); await audit(9, 'matchday odds sheet', '.c-sheet'); for (let i = 0; i < 4 && (await page.$('.c-sheet')); i++) { await page.keyboard.press('Escape'); await settle(150); } } }
       const go = await page.$('[data-act="MatchdayGo"]:not([disabled])'); if (!go) { step(9, 'matchday go button enabled after the reveal taps', false, 'no enabled [data-act=MatchdayGo]'); break; }

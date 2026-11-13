@@ -6,7 +6,7 @@ import { planFeel } from '../js/report/feel.js';
 import { BANDS } from '../js/report/bands.js';
 import { FLAG_DEFAULTS } from '../js/report/build.js';
 
-const B = 'sixes-r9';
+const B = 'sixes-w1';
 const ENV = { build: B, now: Date.UTC(2026, 10, 13, 18, 0), vp: 'screen 344x780', errors: 0, flags: { ...FLAG_DEFAULTS }, rid: 4 };
 let sd = 0;
 const bowl = (o, mu, bm, f = 'A') => ({ o, s: 'b', mu, bm, f, r: 8, w: 0, xr: 8, xw: 0.4, fit: [1, 1, null], th: 2000, gm: 0 });
@@ -18,7 +18,7 @@ const d = (ms, extra = {}) => ({ sessions: [], matches: ms, ...extra });
 test('header: CR build, CLEAN, features kind, save, season/round, rid, viewport; window line', () => {
   const t = buildText(d([m(), m()]), { ...ENV, save: { v: 5, season: 2, round: 3, rounds: 9, league: 1 } });
   const [h1, h2] = t.split('\n');
-  assert.equal(h1, 'CR sixes-r9 | CLEAN: YES | features off | save v5 | S2 R3/9 L1 | #4 | screen 344x780');
+  assert.equal(h1, 'CR sixes-w1 | CLEAN: YES | features off | save v5 | S2 R3/9 L1 | #4 | screen 344x780');
   assert.match(h2, /^Window: 2 matches, 0 nets runs, since start \(.*Z to 11-13 18:00Z\)\. \[W\] window \[S\] season \[G\] save$/);
 });
 
