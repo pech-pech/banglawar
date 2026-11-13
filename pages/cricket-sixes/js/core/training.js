@@ -200,6 +200,8 @@ export function courseUsesLicence(s, coachId) { const c = coachById(s, coachId);
 
 // ---- wheels
 const WS = TRAIN2.wheelStop;
+/** Physics numbers for a wheel: wheel.phys {W0, J, SD} (wheel meta: Slow Spin, Steady Axle, Aim Guide) over TRAIN2.wheelStop; none = WS itself. @param {any} [wheel] */
+const physOf = (wheel) => (wheel && wheel.phys ? { ...WS, ...wheel.phys } : WS);
 /** Slice values (jackpot first, then the layout in the order they pass the pointer) and widths in units. @param {{slices:number[],widths:number[],jackpot:number}} w @param {number[]} [base] */
 function buildWheel(w, base) {
   const widths = w.widths.slice(), C = widths.reduce((x, y) => x + y, 0);
@@ -225,11 +227,11 @@ export function wheelWidths(wheel) {
   const t = all.find((x) => x.jackpot === g) || TRAIN2.wheel.normal; return t.widths.slice(0, wheel.slices.length);
 }
 /** Wheel speed (units/s) and arc turned (units) at wheel time t seconds after SPIN. @param {number} t */
-export const wheelSpeed = (t) => WS.W0 * Math.exp(-t / WS.TAU);
+export const wheelSpeed = (/** @type {number} */ t, /** @type {{W0?:number}} */ phys) => (phys || WS).W0 * Math.exp(-t / WS.TAU); // phys = optional wheel.phys
 /** @param {number} t */
-export const wheelArc = (t) => WS.W0 * WS.TAU * (1 - Math.exp(-t / WS.TAU));
+export const wheelArc = (/** @type {number} */ t, /** @type {{W0?:number}} */ phys) => (phys || WS).W0 * WS.TAU * (1 - Math.exp(-t / WS.TAU));
 /** Ease-out distance after a STOP at time t (cubic: starts at the current speed, so no jump). @param {number} t */
-export const stopDist = (t) => wheelSpeed(t) * WS.D / 3;
+export const stopDist = (/** @type {number} */ t, /** @type {{W0?:number}} */ phys) => wheelSpeed(t, phys) * WS.D / 3;
 /** Extra travel s seconds after STOP: dist*(1-(1-u)^3) + e*(3u^2-2u^3), u = s/D (clamped). @param {number} dist @param {number} e @param {number} s */
 export function stopExtra(dist, e, s) { const u = Math.max(0, Math.min(1, s / WS.D)); return dist * (1 - Math.pow(1 - u, 3)) + e * (3 * u * u - 2 * u * u * u); }
 /** Wheel coordinate (units, 0..C) -> slice index. @param {{slices:number[],jackpotIndex?:number,widths?:number[]}} wheel @param {number} pos */
@@ -239,23 +241,25 @@ export function sliceAt(wheel, pos) {
 }
 /** Where the slice under the pointer ends up for a STOP at t (clamped 1..6) from start offset phi with wobble e. Pure. @param {any} wheel @param {{t:number,phi:number,e:number}} stop */
 export function stopLanding(wheel, stop) {
-  const w = wheelWidths(wheel), C = w.reduce((x, y) => x + y, 0);
-  const t = Math.max(WS.STOP_FROM, Math.min(WS.COAST, stop.t)), e = Math.max(-WS.J, Math.min(WS.J, stop.e)), phi = ((stop.phi % C) + C) % C;
-  const base = phi + wheelArc(t), dist = stopDist(t), pos = base + dist + e;
+  const w = wheelWidths(wheel), C = w.reduce((x, y) => x + y, 0), P = physOf(wheel);
+  const t = Math.max(WS.STOP_FROM, Math.min(WS.COAST, stop.t)), e = Math.max(-P.J, Math.min(P.J, stop.e)), phi = ((stop.phi % C) + C) % C;
+  const base = phi + wheelArc(t, P), dist = stopDist(t, P), pos = base + dist + e;
   return { t, phi, e, base, dist, pos, index: sliceAt(wheel, pos) };
 }
 /** The tap time an average careful player picks (jackpot arrival nearest IDEAL, plus a normal timing error SD). @param {any} wheel @param {number} phi @param {number} g1 @param {number} g2 uniform draws (0,1] */
 export function carefulTapTime(wheel, phi, g1, g2) {
-  const w = wheelWidths(wheel), C = w.reduce((x, y) => x + y, 0), cJ = w.slice(0, wheel.jackpotIndex || 0).reduce((x, y) => x + y, 0) + w[wheel.jackpotIndex || 0] / 2;
-  const g = (/** @type {number} */ t) => phi + wheelArc(t) + stopDist(t); // monotone in t
+  const w = wheelWidths(wheel), C = w.reduce((x, y) => x + y, 0), P = physOf(wheel);
+  const centre = (/** @type {number} */ j) => w.slice(0, j).reduce((x, y) => x + y, 0) + w[j] / 2;
+  const cJs = (wheel.golds && wheel.golds.length ? wheel.golds : [wheel.jackpotIndex || 0]).map(centre); // wheel meta: Extra Gold adds a second target
+  const g = (/** @type {number} */ t) => phi + wheelArc(t, P) + stopDist(t, P); // monotone in t
   let best = WS.IDEAL, bd = Infinity;
-  for (let k = Math.floor(g(WS.STOP_FROM) / C); k <= Math.ceil(g(WS.COAST) / C); k++) {
+  for (const cJ of cJs) for (let k = Math.floor(g(WS.STOP_FROM) / C); k <= Math.ceil(g(WS.COAST) / C); k++) {
     const target = cJ + k * C; if (target < g(WS.STOP_FROM) || target > g(WS.COAST)) continue;
     let lo = WS.STOP_FROM, hi = WS.COAST; for (let i = 0; i < 40; i++) { const m = (lo + hi) / 2; if (g(m) < target) lo = m; else hi = m; }
     if (Math.abs(lo - WS.IDEAL) < bd) { bd = Math.abs(lo - WS.IDEAL); best = lo; }
   }
   const z = Math.sqrt(-2 * Math.log(Math.max(1e-12, g1))) * Math.cos(2 * Math.PI * g2);
-  return Math.max(WS.STOP_FROM, Math.min(WS.COAST, best + z * WS.SD));
+  return Math.max(WS.STOP_FROM, Math.min(WS.COAST, best + z * P.SD));
 }
 /**
  * Where the wheel stops. The result is the slice under the pointer at the landing position (stopLanding): no aim, no snap.
@@ -264,14 +268,14 @@ export function carefulTapTime(wheel, phi, g1, g2) {
  * @param {{random:()=>number}} rng @param {any} wheel @param {boolean|{t:number,phi?:number,e?:number}} [stop]
  */
 export function spinResult(rng, wheel, stop = false) {
-  const w = wheelWidths(wheel), C = w.reduce((x, y) => x + y, 0);
+  const w = wheelWidths(wheel), C = w.reduce((x, y) => x + y, 0), P = physOf(wheel);
   const d = [rng.random(), rng.random(), rng.random(), rng.random(), rng.random()];
   const o = stop && typeof stop === 'object' ? stop : null;
   const phi = o && Number.isFinite(o.phi) ? /** @type {number} */ (o.phi) : d[0] * C;
-  const e = o && Number.isFinite(o.e) ? /** @type {number} */ (o.e) : (d[2] * 2 - 1) * WS.J;
+  const e = o && Number.isFinite(o.e) ? /** @type {number} */ (o.e) : (d[2] * 2 - 1) * P.J;
   const t = o && Number.isFinite(o.t) ? o.t : stop === true ? carefulTapTime(wheel, phi, 1 - d[3], d[4]) : WS.STOP_FROM + d[1] * (WS.COAST - WS.STOP_FROM);
   const L = stopLanding(wheel, { t, phi, e });
-  return { index: L.index, gain: wheel.slices[L.index], jackpot: L.index === (wheel.jackpotIndex || 0), t: L.t, phi: L.phi, e: L.e };
+  return { index: L.index, gain: wheel.slices[L.index], jackpot: wheel.golds ? wheel.golds.includes(L.index) : L.index === (wheel.jackpotIndex || 0), t: L.t, phi: L.phi, e: L.e };
 }
 /** Course: coach gains the wheel's steps (cap S+), is away one week, one course a season. spin = a spinResult (or none: random tap). @param {any} s @param {{random:()=>number}} rng @param {string} coachId @param {{gain?:number}|null} [spin] @param {boolean} [licence] true = a held Licence may cover a 2nd course (the caller consumes it) */
 export function runCourse(s, rng, coachId, spin, licence) {

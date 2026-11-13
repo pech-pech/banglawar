@@ -1,0 +1,33 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>dial/reel harness (fake data)</title>
+<link rel="stylesheet" href="../../kit/components.css">
+<link rel="stylesheet" href="../../kit/skins/retro-green/skin-retro-green.css">
+<link rel="stylesheet" href="../../app.css"><link rel="stylesheet" href="../../css/training2.css"><link rel="stylesheet" href="../../css/dialreel.css">
+<link rel="stylesheet" href="../../kit/skins/scorebook/skin-scorebook.css">
+<script src="../../kit/palette.js"></script><script src="../../kit/iso.js"></script><script src="../../kit/sprites.js"></script>
+</head><body class="skin-retro-green"><div id="app" style="min-height:100vh"><button id="opener">open</button></div>
+<script type="module">
+import { openDial, dialLand } from '../../js/ui/dial-view.js';
+import { openReel, reelLand } from '../../js/ui/reel-view.js';
+const q = new URLSearchParams(location.search), w = q.get('w') || 'hype', pend = q.get('pending') !== null ? { index: +q.get('pending') } : null, guide = q.has('guide');
+let pending = null;
+const card = (t, s) => '<div class="wh-who"><b>' + t + '</b></div><small>' + s + '</small>';
+const D = {
+  hype: { mode: 'aim', title: 'Hype wheel', cardHtml: card('Crowd hype for today', 'Aim for the gold.'), legendHtml: 'Gold: Nuts +10%', slices: [{ label: 'Medium', sub: '+4%', w: 3.5 }, { label: 'Low', sub: '+2%', w: 3.5 }, { label: 'Nuts', sub: '+10%', w: 1, gold: true }, { label: 'High', sub: '+6%', w: 2 }] },
+  toss: { mode: 'reveal', kind: 'coin', title: 'Toss wheel', cardHtml: card('The coin toss', 'One tap.'), slices: [{ label: 'Won toss', sub: '+5%', w: 1 }, { label: 'Good sport', sub: '+1 Spoke', w: 1 }] },
+  pep: { mode: 'reveal', kind: 'lights', title: 'Pep wheel', cardHtml: card('Captain pep talk', 'One tap.'), slices: [{ label: '+5%', w: 1 }, { label: 'Slot 1', sub: '+5%', w: 1 }, { label: 'Slot 2', sub: '+5%', w: 1 }, { label: 'Gold', sub: 'x2', w: 1, gold: true }, { label: '+5%', w: 1 }, { label: 'Slot 3', sub: '+5%', w: 1 }] },
+};
+const cl = (label, w, find, tone, icon) => ({ label, w, find, tone, icon });
+const R = {
+  find: { mode: 'aim', title: 'Activity find', cardHtml: card('Street Game', 'Aim for a gold cell.'), cells: [cl('Nothing', 2.76, 0, 'none'), cl('Coach', 0.19, 1, 'coach', 'coin'), cl('Nothing', 2.76, 0, 'none'), cl('Coins', 0.38, 1, 'coins', 'coin'), cl('Nothing', 2.76, 0, 'none'), cl('Player', 0.19, 1, 'player'), cl('Nothing', 2.76, 0, 'none'), cl('Player', 0.19, 1, 'player')] },
+  findB: { mode: 'aim', title: 'Activity find', cardHtml: card('Banner Night', 'Aim for a gold cell.'), cells: [cl('Nothing', 2.22, 0, 'none'), cl('Coach', 0.62, 1, 'coach'), cl('Nothing', 2.22, 0, 'none'), cl('Coins', 0.94, 1, 'coins'), cl('Nothing', 2.22, 0, 'none'), cl('Player', 0.62, 1, 'player'), cl('Nothing', 2.22, 0, 'none'), cl('Player', 0.94, 1, 'player')] },
+  scout: { mode: 'reveal', title: 'Scout wheel', cardHtml: card('Scout list', 'One tap.'), cells: [cl('1 name', 3, 0, 'none'), cl('2 names', 2, 0, 'player'), cl('Gold name', 1, 1, 'gold'), cl('1 name', 3, 0, 'none'), cl('3 names', 1.5, 0, 'coach'), cl('2 names', 1.5, 0, 'player')] },
+  finals: { mode: 'reveal', title: 'Finals prize', cardHtml: card('Finals prize', 'One tap.'), cells: [cl('20 TP', 2, 0, 'player'), cl('+1 Medal', 1, 1, 'gold'), cl('30 Coins', 2, 0, 'none'), cl('20 Fans', 2, 0, 'coach'), cl('15 TP', 2, 0, 'none'), cl('20 Coins', 3, 0, 'player')] },
+};
+const common = (n) => ({ pending: pend, guide, getPending: () => pending, describe: (p) => ({ big: 'Result ' + p.index, chip: '+' + p.index, say: 'Result ' + p.index, gold: p.index === 2 }), onCollect() { document.title = 'collected'; } });
+const cfg = D[w] || R[w], isDial = !!D[w], n = (cfg.slices || cfg.cells).length;
+const ws = (cfg.slices || cfg.cells).map((x) => x.w);
+const o = Object.assign({}, cfg, common(), { onSpin(s) { window.__stop = s; pending = { index: s.reveal ? +(q.get('target') || 1) % n : (isDial ? dialLand : reelLand)(ws, s).index }; } });
+window.__open = () => (isDial ? openDial : openReel)(o);
+window.__open();
+</script></body></html>

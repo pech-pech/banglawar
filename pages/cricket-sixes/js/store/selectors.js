@@ -19,6 +19,8 @@ import { ACT } from '../data/activities.js';
 import { activityOptions, trialOf, canSignTrial } from '../core/activities.js';
 import { freePickOptions, freePickPending, matchIncome } from '../core/economy.js';
 import { MD } from '../data/matchday.js';
+import { WM, NODES } from '../data/wheelmeta.js';
+import { metaOf, rankOf, tierNow, canBuy, effective, metaWheel, tokenOptions, powerDone, nextTierUp } from '../core/wheelmeta.js';
 import { teamBoost, roarAt, resolvePep } from '../core/matchday.js';
 import { BATS, BOWLS, CELLS, COMBOS, SEEN_BALLS, cellIndex, cellOf, cellName, gradeWord, gradeRank, comboOf, isBook, newBook } from '../core/pairing.js';
 
@@ -302,16 +304,25 @@ const rowOrder = (s) => { const six = sixIds(s); return [...six.map((id) => play
 /** The four raw 1-99 ratings of a row, in the order the row draws them (Batting Power, Batting Skill, Bowling Speed, Bowling Skill). */
 export const ratesOf = (p) => ({ batPower: p.bp, batSkill: p.bs, bowlSpeed: p.spd, bowlSkill: p.bsk });
 
+/** Course wheel meta extras: course.wheel (tree applied, or the stored wheel while a result waits), guide, tokens, look. */
+const courseMeta = (s, c, used) => { const x = metaExtras(s, 'course', courseWheel(c.step), used ? s.training.coursePending : null, 1); return { wheel: x.wheel, guide: x.guide, tokens: used ? x.tokens : [], look: x.look }; };
 const coachRow = (s, c) => {
   const cc = canCourse(s, c.id), used = s.training.coursePending && s.training.coursePending.coachId === c.id;
   return {
     id: c.id, name: c.name, step: c.step, letter: letterOfStep(c.step), strong: c.strong.slice(), strongWords: strongWords(c.strong),
-    here: !(c.away > 0), away: c.away | 0, course: { ok: cc.ok, why: cc.why, licence: cc.ok && courseUsesLicence(s, c.id), cost: courseCost(s, c.id), free: !s.econ, spun: !!used, pending: used ? { index: s.training.coursePending.result.index, gain: s.training.coursePending.result.gain, jackpot: s.training.coursePending.result.jackpot } : null },
+    here: !(c.away > 0), away: c.away | 0, course: { ok: cc.ok, why: cc.why, licence: cc.ok && courseUsesLicence(s, c.id), cost: courseCost(s, c.id), free: !s.econ, spun: !!used, pending: used ? { index: s.training.coursePending.result.index, gain: s.training.coursePending.result.gain, jackpot: s.training.coursePending.result.jackpot } : null,
+      ...(FLAGS.wheelMeta ? courseMeta(s, c, used) : {}) },
   };
 };
 /** Gain the spotlight player really gets after the cap-sum, balance and 99 limits. */
 const spotApplied = (s, plan, gain, id = plan.spotlightId) => { const p = id && player(s, id); return p ? Math.max(0, Math.min(gain, drillRoom(p, focusRating(p, plan.focus)).room)) : 0; };
-const wheelVM = (w) => ({ slices: w.slices.slice(), jackpotIndex: w.jackpotIndex, jackpotGain: w.jackpotGain, widths: w.widths ? w.widths.slice() : undefined });
+const wheelVM = (w) => ({ slices: w.slices.slice(), jackpotIndex: w.jackpotIndex, jackpotGain: w.jackpotGain, widths: w.widths ? w.widths.slice() : undefined, ...(w.phys ? { phys: { ...w.phys } } : {}), ...(w.golds ? { golds: w.golds.slice() } : {}) });
+/** Wheel meta extras for a wheel open site (flag on only): the wheel with the tree applied (or the stored one while a result waits), guide, tokens, look. */
+const metaExtras = (s, wid, base, pend, slot) => {
+  const wheel = wheelVM(pend && pend.wheel ? pend.wheel : metaWheel(base, wid, s));
+  const fx = effective(s)[wid] || {};
+  return { wheel, guide: !!fx.guide, tokens: tokenVM(s, wid, slot).options, look: craftLook(s) };
+};
 
 export function trainingVM(s) {
   const T = s.training, plan = planOf(s), pre = netsPreview(s), six = sixIds(s);
@@ -326,13 +337,17 @@ export function trainingVM(s) {
   const efforts = EFFORTS.map((id) => { const e = TRAIN2.efforts[id]; return { id, label: e.label, cost: e.cost, mean: Math.round(meanGain(effortOdds(id, 0, plan.focus === 'bal')) * 100) / 100, on: plan.effort === id }; });
   const focuses = FOCUSES.map((id) => ({ id, label: TRAIN2.focusLabels[id], on: plan.focus === id }));
   const coaches = coachList(s).map((c) => ({ ...coachRow(s, c), picked: plan.coachId === c.id, helps: c.strong.includes(plan.focus) }));
-  const wheel = plan.spotlightId ? wheelVM(wheelSlices(plan.effort, coachStepInUse(s))) : null;
+  const baseW = plan.spotlightId ? wheelSlices(plan.effort, coachStepInUse(s)) : null, M = FLAGS.wheelMeta;
+  const mx1 = baseW && M ? metaExtras(s, 'spot', baseW, T.pending && T.pending.week === T.week ? T.pending : null, 1) : null;
+  const mx2 = baseW && M && plan.spotlight2Id ? metaExtras(s, 'spot', baseW, T.pending2 && T.pending2.week === T.week ? T.pending2 : null, 2) : null;
+  const wheel = baseW ? (mx1 ? mx1.wheel : wheelVM(baseW)) : null;
+  const hasP1 = !!(T.pending && T.pending.week === T.week), hasP2 = !!(T.pending2 && T.pending2.week === T.week);
   const done = !!(T.nets && T.nets.week === T.week);
   return {
     tp: T.tp, week: T.week, plan, focuses, efforts, rows, coaches, coachQuality: coachQuality(s), coachLetter: coachStepInUse(s) ? letterOfStep(coachStepInUse(s)) : null,
     preview: { cost: pre.cost, tpLeft: T.tp - pre.cost, trainCount: pre.trainIds.length, shortCount: pre.shortIds.length, skipCount: pre.skippedIds.length, hint: pre.hint },
-    spotlight: { id: plan.spotlightId, wheel, pending: T.pending && T.pending.week === T.week ? { careful: T.pending.careful, index: T.pending.result.index, gain: T.pending.result.gain, jackpot: T.pending.result.jackpot, applied: spotApplied(s, plan, T.pending.result.gain) } : null },
-    twin: { held: twinHeld(s), line: twinHeld(s) > 0 ? 'Twin Spotlight Pass: pick 2' : '', id: plan.spotlight2Id, wheel: plan.spotlight2Id ? wheel : null,
+    spotlight: { id: plan.spotlightId, wheel, ...(mx1 ? { guide: mx1.guide, tokens: hasP1 ? mx1.tokens : [], look: mx1.look } : {}), pending: T.pending && T.pending.week === T.week ? { careful: T.pending.careful, index: T.pending.result.index, gain: T.pending.result.gain, jackpot: T.pending.result.jackpot, applied: spotApplied(s, plan, T.pending.result.gain) } : null },
+    twin: { held: twinHeld(s), line: twinHeld(s) > 0 ? 'Twin Spotlight Pass: pick 2' : '', id: plan.spotlight2Id, wheel: plan.spotlight2Id ? (mx2 ? mx2.wheel : wheel) : null, ...(mx2 ? { guide: mx2.guide, tokens: hasP2 ? mx2.tokens : [], look: mx2.look } : {}),
       pending: T.pending2 && T.pending2.week === T.week ? { careful: T.pending2.careful, index: T.pending2.result.index, gain: T.pending2.result.gain, jackpot: T.pending2.result.jackpot, applied: spotApplied(s, plan, T.pending2.result.gain, plan.spotlight2Id) } : null },
     licence: { held: licenceHeld(s), line: licenceHeld(s) > 0 ? 'Licence: 2nd course allowed' : '' },
     done, result: done ? { lines: T.nets.lines, cost: T.nets.cost, skipped: T.nets.skipped } : null, tips: !T.tipsSeen && !(T.netsRuns > 0),
@@ -606,4 +621,44 @@ export function freePickVM(s) {
   if (!FLAGS.freePick || !s.econ || !s.econ.freePick) return null;
   const options = freePickOptions(s).map((o) => ({ id: o.what, name: o.name, effect: o.effect, recommended: o.recommended, note: o.note, owned: o.owned, ok: o.ok, price: o.price }));
   return { pending: freePickPending(s), done: !!s.econ.freePick.done, pick: s.econ.freePick.pick || null, options };
+}
+
+// ---- wheel meta (Spokes, Workshop, tier-up, tokens, craft look). All plain data for the views; nothing here changes state.
+const BRANCHES = [['control', 'Control'], ['fortune', 'Fortune'], ['specialist', 'Specialist'], ['craft', 'Craft']];
+const materialOf = (tier) => WM.MATERIALS[Math.max(0, Math.min(WM.MATERIALS.length, tier) - 1)];
+const NODE_STATE = { ok: 'buy', max: 'max', spokes: 'short', locked: 'locked', needs: 'locked', off: 'locked' };
+const nodeNote = (c, rank, max) => c.ok ? (c.cost >= WM.CONFIRM_AT ? 'Buy? This stays for the run.' : '') : c.reason === 'spokes' ? 'Need ' + c.cost + ' Spokes, you have ' + c.have + '.' : c.reason === 'max' ? (max > 1 ? 'All ' + max + ' ranks bought.' : 'Bought.') : 'Opens later.';
+
+/** The Workshop: hidden until tier 1 and the flag. states: owned (bought; a later rank may still open later), max (all ranks bought), buy, short (need more Spokes), locked (opens later). */
+export function workshopVM(s) {
+  const m = metaOf(s), tier = tierNow(s), visible = !!(FLAGS.wheelMeta && tier >= 1);
+  const branches = BRANCHES.map(([id, name]) => ({ id, name, nodes: NODES.filter((n) => n.branch === id).map((n) => {
+    const rank = rankOf(s, n.id), max = n.max_rank, c = canBuy(s, n.id), cost = rank >= max ? 0 : (n.cost[rank] != null ? n.cost[rank] : c.cost);
+    const next = NODE_STATE[c.reason] || (c.ok ? 'buy' : 'locked'), state = rank >= max ? (max > 1 ? 'max' : 'owned') : rank > 0 && next === 'locked' ? 'owned' : next; // owned with ranks to come: the next rank opens later
+    return { id: n.id, name: n.name, tier: n.tier, rank, max, cost, state, words: n.words, note: nodeNote(c, rank, max), confirm: state === 'buy' && cost >= WM.CONFIRM_AT };
+  }) }));
+  return { visible, spokes: m.spokes | 0, tier, material: materialOf(tier), branches, swap: { open: !!(FLAGS.wheelMeta && powerDone(s) && (m.spokes | 0) >= WM.SWAP_RATE), coins: Math.floor((m.spokes | 0) / WM.SWAP_RATE), rate: WM.SWAP_RATE } };
+}
+
+/** The tier-up card, or null when none waits: {tier, material, title, line, unlocks:[node names]}. */
+export function tierUpVM(s) {
+  if (!FLAGS.wheelMeta) return null;
+  const q = nextTierUp(s); const tier = q && typeof q === 'object' ? q.tier : q;
+  if (!tier) return null;
+  const last = tier >= WM.TIERS.length;
+  return { tier, material: materialOf(tier), title: 'Tier ' + tier, line: 'Every spin now drops 1 more Spoke.' + (last ? ' The Crystal Wheel look is yours.' : ''), unlocks: NODES.filter((n) => n.tier === tier && n.branch !== 'craft').map((n) => n.name), crystal: last };
+}
+
+/** Token buttons for the result that waits: {options:[{kind,label}], counts:{respin,nudge,two,wild,lift}, spotLeft}. wheel = 'spot' | 'course'; slot 2 = the Twin wheel. Empty when the flag is off or no result waits. */
+export function tokenVM(s, wheel, slot = 1) {
+  const m = metaOf(s), T = s && s.training || {};
+  const pend = !FLAGS.wheelMeta ? null : wheel === 'course' ? T.coursePending : slot === 2 ? T.pending2 : T.pending;
+  const live = pend && (wheel === 'course' || pend.week === T.week);
+  return { options: live ? tokenOptions(s, wheel, pend).map((o) => ({ kind: o.kind, label: o.label })) : [], counts: { ...m.tokens }, spotLeft: Math.max(0, WM.SPOT_TOKEN_CAP - (m.spotTokensUsed | 0)) };
+}
+
+/** Wheel look from the Craft ranks (they carry across runs). Each is a rank 0..max; material comes from the tier. {rim, hub, ptr, trail, pal, spoke, burst, stand, tick, name, crystal, material} */
+export function craftLook(s) {
+  const r = (id) => rankOf(s, id);
+  return { rim: r('k_rim'), hub: r('k_hub'), ptr: r('k_ptr'), tick: r('k_tick'), trail: r('k_trail'), pal: r('k_pal'), spoke: r('k_spoke'), burst: r('k_burst'), stand: r('k_stand'), name: r('k_name') > 0, crystal: r('k_crystal') > 0, material: FLAGS.wheelMeta ? materialOf(tierNow(s)) : 'wood' };
 }

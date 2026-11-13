@@ -17,6 +17,11 @@ export function autoMatchdayRowHtml(on) {
   return '<div class="md-set md-set--auto">' + switchHtml('data-md-auto', 'Auto match day', 'Skips the match day screen after your first 3 match days. Your boosts then show as small notes on the plan.', on) + '</div>';
 }
 
+/** Wheel upgrades row (Spokes and Workshop): On / Off, SetWheelFeatures {on}. Pure. */
+export function wheelRowHtml(on) {
+  return '<div class="md-set md-set--wheel">' + switchHtml('data-md-wheel', 'Wheel upgrades', 'Spokes, the Workshop and wheel powers. Turn off to spin the old wheels. Your Spokes are kept.', on) + '</div>';
+}
+
 function flip(b, next) {
   b.setAttribute('aria-checked', String(next)); b.classList.toggle('is-on', next);
   b.querySelector('.md-switch__v').textContent = next ? 'On' : 'Off';
@@ -24,7 +29,7 @@ function flip(b, next) {
 function make(html) { const w = document.createElement('div'); w.innerHTML = html; return /** @type {HTMLElement} */ (w.firstElementChild); }
 
 /** Add both rows (features above auto) before the first button of the settings body. Returns {features, auto} elements.
- * @param {HTMLElement} root @param {{features?:boolean, auto?:boolean}} st @param {(cmd:string, payload:any)=>void} dispatch */
+ * @param {HTMLElement} root @param {{features?:boolean, auto?:boolean, wheel?:boolean}} st @param {(cmd:string, payload:any)=>void} dispatch */
 export function mountMatchdaySettings(root, st, dispatch) {
   const feat = make(featuresRowHtml(st.features !== false)), auto = make(autoMatchdayRowHtml(!!st.auto));
   auto.hidden = st.features === false;
@@ -40,7 +45,16 @@ export function mountMatchdaySettings(root, st, dispatch) {
     const next = b.getAttribute('aria-checked') !== 'true';
     dispatch('SetAutoMatchday', { on: next }); flip(b, next);
   });
-  return { features: feat, auto };
+  let wheel = null; // only when the caller passes st.wheel (older callers get the two rows as before)
+  if (st.wheel !== undefined) {
+    wheel = make(wheelRowHtml(st.wheel !== false)); root.insertBefore(wheel, first || null);
+    wheel.addEventListener('click', (e) => {
+      const b = /** @type {HTMLElement} */ (e.target).closest('[data-md-wheel]'); if (!b) return;
+      const next = b.getAttribute('aria-checked') !== 'true';
+      dispatch('SetWheelFeatures', { on: next }); flip(b, next);
+    });
+  }
+  return { features: feat, auto, wheel };
 }
 /** Kept for callers that only want the auto row. */
 export function mountAutoMatchday(root, on, dispatch) { return mountMatchdaySettings(root, { features: true, auto: on }, dispatch).auto; }

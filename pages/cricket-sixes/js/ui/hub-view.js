@@ -56,6 +56,12 @@ function econHtml(e) {
   return '<div class="hb-tools hb-tools3">' + money + toolBtn('Stadium', 'sheet:stadium', 'home', 'Stadium') + toolBtn('Extras', 'sheet:sinks', 'shop', 'Extras') + '</div>';
 }
 
+/* Wheel meta: one row to the Workshop, from wheel tier 1 (vm.workshop.visible); never shows a spin count */
+function workshopRowHtml(w) {
+  if (!w || !w.visible) return '';
+  return '<button type="button" class="c-btn hb-wk" data-act="sheet:workshop" aria-label="Wheel Workshop, ' + esc(w.spokes) + ' Spokes">' + icoDeco('upgrade', 24) + '<span>Wheel Workshop</span><span class="hb-wkn"><b>' + esc(w.spokes) + '</b> Spokes</span></button>';
+}
+
 /* r9 club cards (flags off: the VMs are absent or off, so nothing is drawn): free facility pending, trial player, this week's fan activity. */
 function clubCardsHtml(vm) {
   const h = pendingCardHtml(vm.freePick) + trialCardHtml(vm.trial || (vm.activities && vm.activities.trial)) + activitiesCardHtml(vm.activities);
@@ -94,7 +100,7 @@ export function render(el, vm, dispatch) {
     '<div class="c-strip strip"><span class="ss-strip"><b class="rn-head">' + esc(head) + '</b><small>' + esc(sub) + '</small></span>' + helpBtn('league-table') + '</div>' +
     '<div class="hb-tools">' + toolBtn('Table', 'sheet:table', 'league', 'League table') + toolBtn('Book', 'sheet:book', 'book', 'Pairing Book') + toolBtn('Save', 'sheet:save', 'save', 'Save', ' ss-save') +
     '<span class="hb-tp">' + icoDeco('tp', 24) + '<span class="hb-tl"><b>' + esc(vm.tp) + '</b> <span aria-hidden="true">TP</span><span class="ss-sr"> training points</span></span></span></div>' +
-    (full ? noticeHtml(vm.notice) + econHtml(vm.econ) + clubCardsHtml(vm) + '<div class="hb-scene" aria-label="Your club ground"></div>' + rivalHtml(vm.next)  + promoHtml(vm.promo, vm.unlock) + sixHtml(vm.six, vm.gap ? pairText(vm.gap) : '') : '') +
+    (full ? noticeHtml(vm.notice) + econHtml(vm.econ) + workshopRowHtml(vm.workshop) + clubCardsHtml(vm) + '<div class="hb-scene" aria-label="Your club ground"></div>' + rivalHtml(vm.next)  + promoHtml(vm.promo, vm.unlock) + sixHtml(vm.six, vm.gap ? pairText(vm.gap) : '') : '') +
     (full ? footHtml(vm, cta) : '<div class="m0-ctabar cta hb-foot">' + btn(cta.label || 'Pick your six', cta.act || 'OpenSquad', { kind: 'cta', disabled: cta.disabled, reason: cta.reason }) + '</div>') +
     '</div>';
   const nb = el.querySelector('[data-notice]');
