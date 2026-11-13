@@ -8,7 +8,7 @@ import { FLAGS } from '../data/flags.js';
 import { SEASON } from '../data/season.js';
 import { makeClubs, growClubs, aiPickSix } from '../core/clubs.js';
 import { makeSchedule, makeTable, applyResult, placeOf, inTopFour, finalsDraw, finalFrom, koWinner, matchPay, tpAward, simRound, simMatch, simFinals, ME } from '../core/season.js';
-import { planOf, setPlan as setTrainPlan, runNets, endWeek, coachList, coachStepInUse, startCoach as makeStartCoach, passScout, courseUsesLicence, courseCost, signCoach, releaseCoach, pickWeekCoach, canCourse, courseWheel, runCourse, wheelSlices, spinResult } from '../core/training.js';
+import { planOf, setPlan as setTrainPlan, runNets, endWeek, coachList, scoutList, coachStepInUse, startCoach as makeStartCoach, passScout, courseUsesLicence, courseCost, signCoach, releaseCoach, pickWeekCoach, canCourse, courseWheel, runCourse, wheelSlices, spinResult } from '../core/training.js';
 import { unlockNode, makeFx } from '../core/skills.js';
 import { defaultOvers } from '../core/plan.js';
 import { newEconomy, applyMatch, tickBuild, finalsReward, finalsTp, payCourse, useHeld, startBuild, buySink, buyMedal, buyLegacy } from '../core/economy.js';
@@ -19,6 +19,7 @@ import { activityOptions, pickActivity, signTrial, declineTrial, actLedger, roun
 import { takeFreePick, freePickPending } from '../core/economy.js';
 import { VERSION, dropFreepickNotice, emptyWheelMeta } from '../core/save-migrate.js';
 import { metaWheel, recordSpin, afterResult, seasonTokens, useToken, buyNode, canBuy, swapSpokes, powerDone, dismissTierUp, nextTierUp } from '../core/wheelmeta.js';
+import { canMdSpin, mdSpin, settleMd, stopOf, findForce, afterFind, canScoutSpin, scoutSpin, canFinalsSpin, finalsSpin } from './wmstore.js';
 import { rollMatchday, teamBoost, scaleRatings, resolvePep, roarAt } from '../core/matchday.js';
 import { MD } from '../data/matchday.js';
 
@@ -265,8 +266,9 @@ function setPlan(s, p) {
 
 const copyPlayer = (p) => ({ ...clone(p), overs: 0, figs: { r: 0, w: 0 }, inn: { r: 0, b: 0, out: false } });
 
-function seasonMatch(s) {
-  if (s.stage !== 'plan' || !s.fixture || planProblem(s.plan.overs)) return s;
+function seasonMatch(s0) {
+  if (s0.stage !== 'plan' || !s0.fixture || planProblem(s0.plan.overs)) return s0;
+  const s = settleMd(s0, mdFor); // wheel meta: any match-day wheel not spun yet gets a random tap here (no-op with the flag off)
   const fx = s.fixture;
   const mine = s.clubs[0], opp = s.clubs.find((c) => c.id === fx.opp);
   const byId = (club, id) => club.squad.find((x) => x.id === id);
@@ -415,6 +417,11 @@ function applyCommandCore(s, cmd, payload) {
     case 'SwapSpokes': return FLAGS.wheelMeta && powerDone(s) ? swapSpokes(s) : s;
     case 'DismissTierUp': return FLAGS.wheelMeta && nextTierUp(s) ? dismissTierUp(s) : s;
     case 'PickActivity': return pickAct(s, payload);
+    case 'HypeSpin': return canMdSpin(s, 'hype') ? mdSpin(s, 'hype', stopOf(payload), s.clubs[0].six) : s;
+    case 'TossSpin': return canMdSpin(s, 'toss') ? mdSpin(s, 'toss', false, s.clubs[0].six) : s;
+    case 'PepSpin': return canMdSpin(s, 'pep') ? mdSpin(withSix(s), 'pep', false) : s;
+    case 'ScoutSpin': return canScoutSpin(s, () => scoutList(s)) ? scoutSpin(s) : s;
+    case 'FinalsSpin': return canFinalsSpin(s) ? finalsSpin(s) : s;
     case 'SignTrial': return FLAGS.activities && s.econ ? signTrial(s) : s;
     case 'DeclineTrial': return FLAGS.activities && s.econ ? declineTrial(s) : s;
     case 'TakeFreePick': {
@@ -483,7 +490,9 @@ export function mdFor(s, sixIds) {
   if (!FLAGS.matchday || !fx || !s.season) return null;
   const seed = `${s.season.seed}|${fx.kind}|${fx.round}|${s.salt}`;
   const md = fx.md || rollMatchday(seed, { fans: s.econ ? s.econ.fans : 0, actLedger: actLedgerOf(s), sixIds });
-  return { ...md, pepId: resolvePep(md, sixIds) };
+  const out = { ...md, pepId: resolvePep(md, sixIds) };
+  if (md.pepSlots) { out.pepIds = md.pepSlots.map((x) => (sixIds && sixIds[x - 1] != null ? sixIds[x - 1] : null)).filter((x) => x != null); out.pepId = out.pepIds.length ? out.pepIds[0] : null; }
+  return out;
 }
 /** Show the screen? Flag on, and auto is off or fewer than the first N screens have been seen. */
 function screenDue(s) {
@@ -492,7 +501,9 @@ function screenDue(s) {
 /** One fan activity (or Rest week) per round, from the hub. The find roll has its own stream: save seed + round, never the ball RNG. */
 function pickAct(s, p) {
   if (!FLAGS.activities || !s.season || !s.fixture || !s.econ || !HUB_STAGES.includes(s.stage) || !p || typeof p.id !== 'string') return s;
-  const n = pickActivity(s, p.id, makeRng(`${baseSeed(s)}|act|${roundKey(s)}|${s.salt}`));
+  const force = findForce(s, p.id, p); // wheel meta: the Find reel decides the find (null with the flag off, on a repeat week or a rest)
+  let n = pickActivity(s, p.id, makeRng(`${baseSeed(s)}|act|${roundKey(s)}|${s.salt}`), force);
+  if (force && n !== s) n = afterFind(n, p.id, force);
   // r9 M2: a roll stored early (TeamSix / OpenMatchday before the activity) would lose this activity's hype tilt. Until the screen is done, roll again later.
   if (n !== s && n.fixture && n.fixture.md && !n.fixture.mdDone) { const { md, ...fx } = n.fixture; return { ...n, fixture: fx }; }
   return n;
@@ -504,7 +515,7 @@ function openMatchday(s) {
 }
 function matchdayGo(s) {
   if (s.stage !== 'matchday' || !s.fixture) return s;
-  const t = withSix(s), fx = t.fixture;
+  const t = settleMd(withSix(s), mdFor), fx = t.fixture;
   const seen = fx.mdDone ? (t.mdSeen || 0) : (t.mdSeen || 0) + 1;
   const base = { ...t, mdSeen: seen, fixture: { ...fx, mdDone: true } };
   delete base.fixture.mdThen;

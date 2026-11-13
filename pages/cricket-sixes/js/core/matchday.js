@@ -50,9 +50,11 @@ export function rollMatchday(seed, ctx = {}) {
 /** Boost fraction for one of our six from hype, toss and pep (multiplicative). 0.213 = +21.3%. Roar is separate (roarAt). */
 export function teamBoost(md, playerId) {
   if (!md) return 0;
-  let f = 1 + (MD.HYPE_PERF[md.hype] || 0);
-  if (md.toss === 'won') f *= 1 + MD.TOSS_BOOST;
-  if (md.pepId != null && playerId === md.pepId) f *= 1 + MD.PEP_BOOST;
+  // wheel meta: the spins write the real numbers (hypePerf, tossBoost, pepIds); absent = the r9 constants
+  let f = 1 + (md.hypePerf != null ? md.hypePerf : MD.HYPE_PERF[md.hype] || 0);
+  const tb = md.tossBoost != null ? md.tossBoost : md.toss === 'won' ? MD.TOSS_BOOST : 0;
+  if (tb) f *= 1 + tb;
+  if (md.pepId != null && (playerId === md.pepId || (md.pepIds && md.pepIds.includes(playerId)))) f *= 1 + MD.PEP_BOOST;
   return f - 1;
 }
 

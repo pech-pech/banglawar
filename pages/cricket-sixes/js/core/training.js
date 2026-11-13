@@ -145,12 +145,14 @@ const scoutRec = (s) => (s.scout && s.scout.n === seasonN(s) ? s.scout : null);
 export function scoutList(s) {
   if (scoutRec(s)) return [];
   const L = leagueOfState(s), n = seasonN(s), rng = makeRng(`${s.seed || 'sixes'}|scout|${n}|${L}`);
-  const count = CO.scoutSize[L - 1], out = [];
+  const sp = s.scoutSpin && s.scoutSpin.n === n ? s.scoutSpin : null; // wheel meta: the Scout wheel's Extra name (+1 candidate) and Top name (+steps to the best)
+  const count = CO.scoutSize[L - 1] + (sp ? (sp.extra | 0) : 0), out = [];
   for (let i = 0; i < count; i++) {
     const step = Math.max(1, Math.min(CO.maxStep, CO.scoutCentre[L - 1] + rng.int(2 * CO.scoutSpread + 1) - CO.scoutSpread));
     const strong = rng.shuffle(FOCUSES.slice()).slice(0, 1 + rng.int(2));
     out.push({ id: `sc${n}-${i}`, name: rng.pick(SURNAMES), step, strong });
   }
+  if (sp && sp.steps > 0 && out.length) { const best = out.reduce((b, c) => (c.step > b.step ? c : b), out[0]); best.step = Math.min(CO.maxStep, best.step + sp.steps); }
   return out;
 }
 /** Can the player still sign someone? { ok, why: ''|'closed'|'full'|'unknown' } @param {any} s @param {string} [id] */

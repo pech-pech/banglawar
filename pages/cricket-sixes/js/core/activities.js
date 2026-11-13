@@ -84,9 +84,10 @@ const E_SD = 8;
 /**
  * Pick an activity (or 'rest'). Pays Coins, adds Fans, records the tilt, rolls a find on its own stream. Refused (same state) when closed, unknown, done or unaffordable.
  * Fixed draw order on rng: find roll, find kind, Coins amount, then the player draw. Coach with no free slot, or a trial already waiting, turns into Coins.
- * @param {any} s @param {string} id @param {{random:()=>number, normalish:Function, pick:Function}} [rng]
+ * Wheel meta: `force` = the Find reel's result {find, kind, bonus} replaces the percent roll (the draws are still taken, so the stream keeps its order).
+ * @param {any} s @param {string} id @param {{random:()=>number, normalish:Function, pick:Function}} [rng] @param {{find:boolean, kind:string|null, bonus?:number}|null} [force]
  */
-export function pickActivity(s, id, rng) {
+export function pickActivity(s, id, rng, force = null) {
   const o = activityOptions(s);
   if (!o.open) return s;
   const e = clone(s.econ); e.act = e.act || { hist: [], dry: 0, doneKey: null };
@@ -108,9 +109,9 @@ export function pickActivity(s, id, rng) {
   if (!line.repeat) {
     rolled = true;
     const pity = e.act.dry >= ACT.ACT_PITY_WEEKS;
-    if (pity || uFind * 100 < row.find) {
+    if (force ? force.find : (pity || uFind * 100 < row.find)) {
       const m = row.mix, t = uKind * (m.coins + m.player + m.coach);
-      let kind = t < m.coins ? 'coins' : t < m.coins + m.player ? 'player' : 'coach';
+      let kind = force && force.kind ? force.kind : t < m.coins ? 'coins' : t < m.coins + m.player ? 'player' : 'coach';
       const lo = ACT.ACT_COIN_FIND[0], hi = ACT.ACT_COIN_FIND[1], gain = rd(cost * (lo + (hi - lo) * uCoins));
       const taken = trialOf(s) != null;
       if (kind === 'player' && (taken)) kind = 'coins';
@@ -126,6 +127,7 @@ export function pickActivity(s, id, rng) {
         trial = { kind: 'coach', coach, wage: 0, from: id, key: o.key }; find = { type: 'coach', id: coach.id };
       }
       e.act.dry = 0;
+      if (force && force.bonus) { e.coins += force.bonus; ledger({ k: 'actfind', id, coins: force.bonus, bonus: true }); }
     } else e.act.dry = (e.act.dry | 0) + 1;
   }
   e.act.hist = [{ idx, key: o.key, id, tilt: row.tilt, coins: cost, fans, find, rolled }, ...e.act.hist].slice(0, 6);

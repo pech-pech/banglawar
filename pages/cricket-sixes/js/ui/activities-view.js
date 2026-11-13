@@ -2,6 +2,7 @@
    Tap an activity -> plain confirm (cost, Fans, find chance) -> PickActivity { id }. "Rest week" is free: PickActivity { id: 'rest' }. Never blocked by Coins reserve (warn only). */
 import { esc, icoDeco } from './dom.js';
 import { openSheet } from './sheet.js';
+import { spinFind } from './wm-spins.js';
 
 const fmt = (n) => String(Math.round(Number(n) || 0)).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
 const ICON = { street: 'runs', clinic: 'team', signing: 'book', tea: 'shop', sixhit: 'burst', banner: 'pennant' };
@@ -69,7 +70,12 @@ function bind(root, dispatch) {
       if (t.hasAttribute('data-cl-close')) { if (root.__clClose) root.__clClose(); }
       else if (t.hasAttribute('data-cl-pick')) { root.__clPick = t.getAttribute('data-cl-pick'); renderActivities(root, root.__clVm, dispatch); const sc = root.closest && root.closest('.c-sheet__body'); if (sc) sc.scrollTop = 0; const h = root.querySelector('.cl-h'); if (h) h.focus(); }
       else if (t.hasAttribute('data-cl-back')) { const was = root.__clPick; root.__clPick = null; renderActivities(root, root.__clVm, dispatch); const b = root.querySelector('[data-cl-pick="' + was + '"]'); if (b) b.focus(); }
-      else { const id = t.getAttribute('data-id'); root.__clPick = null; dispatch('PickActivity', { id }); }
+      else {
+        const id = t.getAttribute('data-id'); root.__clPick = null;
+        const o = ((root.__clVm && root.__clVm.options) || []).find((x) => x.id === id);
+        if (o && o.reel && !o.repeat && root.__clReel) root.__clReel(o); // wheel meta: the Find reel; its STOP sends the pick (flag off: o.reel is null, the old tap)
+        else dispatch('PickActivity', { id });
+      }
     });
   }
 }
@@ -128,6 +134,12 @@ export function openActivities(vm, dispatch, _open, _arg, refresh) {
     if (res) { host.__clResult = res; host.__clClose = close; renderActivities(host, fresh, () => {}); }
     else if (close) close();
   });
+  // wheel meta: the Find reel. The first SPIN sends PickActivity { id, stop }; the stored result is read back from the fresh view model.
+  host.__clReel = (o) => {
+    const cur = () => { const v = refresh ? refresh() : host.__clVm, x = ((v && v.options) || []).find((y) => y.id === o.id); return (x && x.reel) || o.reel; };
+    spinFind({ get: cur, look: (host.__clVm || vm).look, title: o.name, pick: (extra) => dispatchPick('PickActivity', { id: o.id, ...extra }), onCollect: () => {} });
+  };
+  const dispatchPick = (n, a) => { dispatch(n, a); const fresh = refresh ? refresh() : null, res = fresh && resultOf(fresh); if (res) { host.__clResult = res; host.__clClose = close; renderActivities(host, fresh, () => {}); } };
   close = openSheet('Fan activity', '');
   const body = document.querySelector('.sheet-fixed .c-sheet__body');
   body.textContent = '';

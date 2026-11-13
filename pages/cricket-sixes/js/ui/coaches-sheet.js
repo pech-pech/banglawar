@@ -9,7 +9,7 @@ import { esc } from './dom.js';
 import { deco, strongHtml } from './training-view.js';
 import { letterOfStep } from '../core/letters.js';
 import { openWheel } from './wheel-view.js';
-import { scoutBodyHtml, scoutDone } from './coachpick-view.js';
+import { scoutBodyHtml, scoutDone, scoutSpinOpen } from './coachpick-view.js';
 import { courseWheel } from '../core/training.js';
 
 function coachHtml(c) {
@@ -68,7 +68,11 @@ function openScout(sv, dispatch, refresh) {
   const html = (v) => scoutBodyHtml(v) + '<button type="button" class="c-btn c-btn--primary c-btn--cta c-btn--block" data-pass="1">' + scoutDone(v) + '</button>';
   const close = openSheet('Scout list', html(sv));
   const body = document.querySelector('.sheet-fixed .c-sheet__body'); if (!body) return;
+  const redraw = () => { const v = refresh ? refresh().scout : null; if (v) body.innerHTML = html(v); };
+  const spin = (auto) => scoutSpinOpen(() => (refresh ? refresh().scout : sv), dispatch, redraw, auto);
+  spin(true); // wheel meta: the Scout reveal when the list opens (spin is null with the flag off)
   body.addEventListener('click', (e) => {
+    if (e.target.closest('[data-scoutspin]')) { spin(false); return; }
     const t = e.target.closest('[data-act],[data-pass]'); if (!t || t.disabled) return;
     if (t.hasAttribute('data-pass')) { close(); dispatch('PassScout', {}); return; }
     let arg = {}; try { arg = JSON.parse(t.getAttribute('data-arg') || '{}'); } catch (_) { /* none */ }

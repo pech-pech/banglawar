@@ -22,6 +22,7 @@ import { MD } from '../data/matchday.js';
 import { WM, NODES } from '../data/wheelmeta.js';
 import { metaOf, rankOf, tierNow, canBuy, effective, metaWheel, tokenOptions, powerDone, nextTierUp } from '../core/wheelmeta.js';
 import { teamBoost, roarAt, resolvePep } from '../core/matchday.js';
+import { mdSpinVM, findSpinVM, scoutSpinVM, finalsSpinVM } from './wmstore.js';
 import { BATS, BOWLS, CELLS, COMBOS, SEEN_BALLS, cellIndex, cellOf, cellName, gradeWord, gradeRank, comboOf, isBook, newBook } from '../core/pairing.js';
 
 const ovStr = (balls) => `${Math.floor(balls / 6)}.${balls % 6}`;
@@ -139,6 +140,7 @@ export function resultVM(s) {
   return {
     result: s.result, line, inn1: scoreOf(a), inn2: scoreOf(b), inSeason: !!s.season, seed: s.seed,
     oppName: opp ? opp.name : 'Rival', kindLabel: fx ? RESULT_KIND[fx.kind] : 'Friendly', tpEarned, pay, money: moneyPreview(s, pay),
+    finals: finalsSpinVM(s), look: FLAGS.wheelMeta ? craftLook(s) : null, // wheel meta: the Finals prize reel (null with the flag off / a league match)
   };
 }
 /** r9 QA3 M1: what FinishMatch will pay and charge for this match (the same matchIncome call and hype index), shown on the result screen.
@@ -253,7 +255,7 @@ const strongWords = (strong) => (strong || []).map((f) => SIDE_WORD[f]);
 export function coachPickVM(s) {
   const open = canSign(s).ok, signed = s.scout && s.scout.n === (s.season && s.season.n) ? s.scout.signed : null;
   const cands = scoutList(s).map((c) => ({ id: c.id, name: c.name, letter: letterOfStep(c.step), step: c.step, strong: c.strong.slice(), strongWords: strongWords(c.strong) }));
-  return { cands, open, full: coachList(s).length >= MAX_COACHES, mine: coachList(s).map((c) => ({ id: c.id, name: c.name, letter: letterOfStep(c.step), strong: c.strong.slice() })), picked: signed, passed: !!(s.scout && s.scout.passed), why: canSign(s).why };
+  return { cands, open, full: coachList(s).length >= MAX_COACHES, mine: coachList(s).map((c) => ({ id: c.id, name: c.name, letter: letterOfStep(c.step), strong: c.strong.slice() })), picked: signed, passed: !!(s.scout && s.scout.passed), why: canSign(s).why, spin: open ? scoutSpinVM(s) : null, look: FLAGS.wheelMeta ? craftLook(s) : null };
 }
 
 // ---- squad and plan
@@ -525,6 +527,8 @@ export function bookVM(s) {
 // ---------------------------------------------------------------- r9 match day (flag matchday; every key below is absent with the flag off)
 const HYPE_WORD = { low: 'Quiet crowd', med: 'Good crowd', high: 'Big crowd', nuts: 'Wild crowd' }; // r9 fix M6: the same words on the Match day screen, its odds table and the Plan chip
 const pct = (x) => Math.round(x * 100);
+const hypePerfOf = (md) => (md.hypePerf != null ? md.hypePerf : MD.HYPE_PERF[md.hype]); // wheel meta writes the real number
+const tossBoostOf = (md) => (md.tossBoost != null ? md.tossBoost : md.toss === 'won' ? MD.TOSS_BOOST : 0);
 /** The rolled match day for the fixture on screen (the live match keeps it on s.match.md). Pep follows the slot in the current six. */
 function mdOf(s) {
   if (!FLAGS.matchday) return null;
@@ -540,8 +544,8 @@ const nameOfId = (s, id) => { const p = id != null ? player(s, id) : null; retur
 export function chipsVM(s) {
   const md = mdOf(s);
   if (!md) return [];
-  const chips = [{ key: 'hype', text: `${HYPE_WORD[md.hype]} +${pct(MD.HYPE_PERF[md.hype])}%` }];
-  chips.push({ key: 'toss', text: md.toss === 'won' ? `Won the toss +${pct(MD.TOSS_BOOST)}%` : 'Rival won the toss' });
+  const chips = [{ key: 'hype', text: `${HYPE_WORD[md.hype]} +${pct(hypePerfOf(md))}%` }];
+  chips.push({ key: 'toss', text: tossBoostOf(md) > 0 ? `${md.toss === 'won' ? 'Won the toss' : 'Good sport'} +${Math.round(tossBoostOf(md) * 1000) / 10}%` : 'Rival won the toss' });
   const nm = nameOfId(s, md.pepId) || (s.me && s.me.players && md.pepSlot ? '' : '');
   if (md.pepId != null && nm) chips.push({ key: 'pep', text: `Pep talk: ${nm} +${pct(MD.PEP_BOOST)}%` });
   return chips.map((c) => ({ ...c, aria: c.text }));
@@ -569,13 +573,14 @@ export function matchdayVM(s) {
   const forced = !!(FLAGS.matchday && (s.mdSeen || 0) < MD.MATCHDAY_FIRST_N_SHOWN);
   return {
     oppName: opp ? opp.name : 'Rival', kindWord: KIND_WORD[fx.kind],
-    hype: { level: md.hype, idx: md.hypeIdx, word: HYPE_WORD[md.hype], perfPct: pct(MD.HYPE_PERF[md.hype]), fanMult: md.hypeFanMult },
+    hype: { level: md.hype, idx: md.hypeIdx, word: HYPE_WORD[md.hype], perfPct: pct(hypePerfOf(md)), fanMult: md.hypeFanMult },
     odds,
     roar: { on: !!FLAGS.roar, chancePct: Math.round(md.roarChance * 100), overs: md.roar.filter(Boolean).length },
-    toss: { won: md.toss === 'won', boostPct: md.toss === 'won' ? pct(MD.TOSS_BOOST) : 0, line: md.toss === 'won' ? `You won the toss +${pct(MD.TOSS_BOOST)}% for the team` : 'Rival won the toss. Nothing changes.' },
+    toss: { won: tossBoostOf(md) > 0, boostPct: Math.round(tossBoostOf(md) * 1000) / 10, line: tossBoostOf(md) > 0 ? (md.toss === 'won' ? `You won the toss +${Math.round(tossBoostOf(md) * 1000) / 10}% for the team` : `Good sport +${Math.round(tossBoostOf(md) * 1000) / 10}% for the team`) : 'Rival won the toss. Nothing changes.' },
     pep: md.pepId != null ? { slot: md.pepSlot, id: md.pepId, name: pepName, boostPct: pct(MD.PEP_BOOST) } : null,
     six,
     boost: { teamPct: pct(team), pepPct: pct(pepB), line: pepName ? `Team +${pct(team)}%, ${pepName} +${pct(pepB)}%` : `Team +${pct(team)}%` },
+    wm: mdSpinVM(s), look: FLAGS.wheelMeta ? craftLook(s) : null, // wheel meta: dial / reveal props + stored results (null with the flag off)
     auto: !!s.autoMatchday, forced, next: fx.mdThen === 'start' ? 'Start match' : 'Next: Plan', back: 'Back to squad', // from the hub Go starts the match; from Squad it opens Plan (m1: the label says what the button does)
   };
 }
@@ -596,7 +601,8 @@ export function activitiesVM(s) {
   return {
     available: o.open, why: o.why, round: o.key, picked, coins: s.econ.coins, purse: s.econ.coins,
     options: o.rows.map((r) => ({ id: r.id, name: r.name, blurb: r.blurb, cost: r.coins, fans: r.fans, tiltPct: pct(r.tilt), findPct: r.findPct, repeat: r.repeat,
-      note: r.repeat ? 'Same as last week: half Fans, no find' : '', ok: r.ok, why: r.why, warn: r.warn })),
+      note: r.repeat ? 'Same as last week: half Fans, no find' : '', ok: r.ok, why: r.why, warn: r.warn, reel: r.repeat || r.id === 'rest' ? null : findSpinVM(s, r.id) })),
+    look: FLAGS.wheelMeta ? craftLook(s) : null,
     rest: { id: 'rest', label: 'Rest week', free: true, ok: o.open },
     pity: { weeks: o.dry, of: ACT.ACT_PITY_WEEKS, next: o.pity },
     trial: trialVM(s),
