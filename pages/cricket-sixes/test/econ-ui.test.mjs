@@ -82,7 +82,7 @@ test('sinks sheet: coin sinks dispatch BuySink; legacy dispatches BuyLegacy with
   assert.match(r.innerHTML, /Buy Hall of Fame wing 1\?/);
   r.click({ 'data-econ-act': 'BuySink', 'data-id': 'hall_1' });
   r.click({ 'data-econ-pick': 'legacy:' });
-  assert.match(r.innerHTML, /Finish the Hall/);
+  assert.match(r.innerHTML, /all six/);
   assert.match(r.innerHTML, /data-econ-act="BuyLegacy"[^>]*disabled/);
   assert.deepEqual(calls, [['BuySink', { id: 'hall_1' }]]);
   const s2 = mk({ coins: 99999, stadium: 4, sinks: { hall_1: 1, hall_2: 1, hall_3: 1 } });

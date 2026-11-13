@@ -102,7 +102,7 @@ export function tpAward(kind, result, league = 1) {
 // ---------------------------------------------------------------- match pay (SPEC s5, rule C Stars hybrid)
 const clampN = (/** @type {number} */ v, /** @type {number} */ lo, /** @type {number} */ hi) => Math.min(hi, Math.max(lo, v));
 /** Raw 1-99 overall of a player: plain mean of the batting and bowling parts (same measure the AI pick uses). */
-const rawOverall = (/** @type {any} */ p) => 0.5 * batPart(p) + 0.5 * bowlPart(p);
+const rawOverall = (/** @type {any} */ p) => (p.bp + p.bs + p.spd + p.bsk) / 4; // plain mean of the four ratings (r7: was role-weighted, which put pay.gap 0.5 off the six means)
 const avgRaw = (/** @type {any[]} */ ps) => (ps.length ? ps.reduce((a, p) => a + rawOverall(p), 0) / ps.length : 0);
 const clubOf = (/** @type {any} */ s, /** @type {any} */ c) => (typeof c === 'string' ? s.clubs.find((/** @type {any} */ x) => x.id === c) : c);
 const sixPlayers = (/** @type {any} */ club) => { const ids = club.six && club.six.length === 6 ? club.six : aiPickSix(club); return ids.map((/** @type {string} */ id) => club.squad.find((/** @type {any} */ p) => p.id === id)).filter(Boolean); };

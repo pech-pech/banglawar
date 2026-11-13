@@ -38,6 +38,7 @@ export const strongText = (strong) => (strong || []).map((f) => FOCUS_WORD[f] ||
 const RK = { batPower: 'bp', batSkill: 'bs', bowlSpeed: 'spd', bowlSkill: 'bsk' };
 const WORD_KEY = { Power: 'bp', Technique: 'bs', Pace: 'spd', Craft: 'bsk' };
 const shortRates = (r) => (r && r.bp == null ? { bp: r.batPower, bs: r.batSkill, spd: r.bowlSpeed, bsk: r.bowlSkill } : r || {});
+const rawTwin = (vm) => vm.twin || { held: 0, line: '', wheel: null, pending: null };
 /** trainingVM -> the small shape this view draws. */
 export function adapt(vm) {
   const rows = (vm.rows || []).map((r) => ({ ...r, state: r.status || r.state, rates: shortRates(r.rates) }));
@@ -46,8 +47,10 @@ export function adapt(vm) {
   const pc = (vm.coaches || []).find((c) => c.picked) || null, pv = vm.preview || {};
   const wl = vm.spotlight && vm.spotlight.wheel;
   const wheel = sp && wl ? { slices: wl.slices, jackpotIndex: wl.jackpotIndex, player: { id: sp.id, name: sp.name, rates: sp.rates }, stat: WORD_KEY[sp.stat] || 'bp', pending: vm.spotlight.pending || null, room: vm.spotlight.room != null ? vm.spotlight.room : vm.room } : null;
+  const tw = rawTwin(vm), sp2 = tw.held > 0 ? rows.find((r) => r.id === P.spotlight2Id) : null, wl2 = tw.wheel;
+  const wheel2 = sp2 && wl2 ? { slices: wl2.slices, jackpotIndex: wl2.jackpotIndex, player: { id: sp2.id, name: sp2.name, rates: sp2.rates }, stat: WORD_KEY[sp2.stat] || 'bp', pending: tw.pending || null } : null;
   const nets = vm.done && vm.result ? { id: vm.week, cost: vm.result.cost, lines: vm.result.lines.map((l) => ({ ...l, stat: RK[l.rating] || l.rating || WORD_KEY[l.stat] || 'bp' })), skipped: rows.filter((r) => r.state === 'skip').map((r) => ({ id: r.id, name: r.name, why: "Can't gain" })) } : null;
-  return { week: vm.week, tp: vm.tp, plan: { ...P, spotlightName: sp ? sp.name : null }, costs: { easy: 10, normal: 13, push: 18, ...costs }, coach: pc, rows, wheel, nets, canRun: vm.canRun !== false,
+  return { week: vm.week, tp: vm.tp, twin: { held: tw.held, line: tw.line, name: sp2 ? sp2.name : null }, wheel2, plan: { ...P, spotlightName: sp ? sp.name : null }, costs: { easy: 10, normal: 13, push: 18, ...costs }, coach: pc, rows, wheel, nets, canRun: vm.canRun !== false,
     preview: { cost: pv.cost || 0, trainN: pv.trainCount != null ? pv.trainCount : pv.trainN, skippedN: pv.skipCount != null ? pv.skipCount : pv.skippedN || 0, shortN: pv.shortCount != null ? pv.shortCount : pv.shortN || 0, hint: pv.hint || null } };
 }
 
@@ -82,31 +85,32 @@ function seg(group, label, opts, cur) {
     '<button type="button" class="c-seg__opt t2-opt" data-act="SetTrainPlan" data-arg=\'{"' + group + '":"' + o.v + '"}\' aria-pressed="' + (cur === o.v) + '" aria-label="' + esc(o.aria) + '">' + deco(o.ico, 20) + '<span class="t2-ol"><span>' + esc(o.w) + '</span>' + (o.sub ? '<small>' + o.sub + '</small>' : '') + '</span></button>').join('') + '</div>';
 }
 
-function spotSheet(vm, dispatch) {
-  const rows = vm.rows || [], cur = vm.plan.spotlightId;
+function spotSheet(vm, dispatch, slot) {
+  const two = slot === 2, key = two ? 'spotlight2Id' : 'spotlightId', skipId = two ? vm.plan.spotlightId : null;
+  const rows = (vm.rows || []).filter((r) => r.id !== skipId), cur = two ? vm.plan.spotlight2Id : vm.plan.spotlightId;
   const item = (id, name, sub) => '<button type="button" class="c-btn c-btn--block t2-pickrow" data-sp="' + esc(id == null ? '' : id) + '" aria-pressed="' + (cur === id || (cur == null && id == null)) + '"><span class="t2-pk"><b>' + esc(name) + '</b>' + (sub ? '<small>' + esc(sub) + '</small>' : '') + '</span></button>';
-  const close = openSheet('Spotlight wheel', '<p class="tr-note">' + deco('info', 20) + '<span>One player spins the wheel instead of his normal roll. Same cost.</span></p>' + item(null, 'No Spotlight', 'Everyone rolls as usual') +
+  const close = openSheet(two ? 'Second Spotlight' : 'Spotlight wheel', '<p class="tr-note">' + deco('info', 20) + '<span>' + (two ? 'Twin Spotlight Pass: a second player spins his own wheel. Same cost.' : 'One player spins the wheel instead of his normal roll. Same cost.') + '</span></p>' + item(null, two ? 'No second player' : 'No Spotlight', 'Everyone else rolls as usual') +
     rows.filter((r) => r.state !== 'skip').map((r) => item(r.id, r.name, strongOf(r))).join(''));
   const body = document.querySelector('.sheet-fixed .c-sheet__body');
-  if (body) body.addEventListener('click', (e) => { const b = e.target.closest('[data-sp]'); if (!b) return; const v = b.getAttribute('data-sp'); close(); dispatch('SetTrainPlan', { spotlightId: v === '' ? null : v }); });
+  if (body) body.addEventListener('click', (e) => { const b = e.target.closest('[data-sp]'); if (!b) return; const v = b.getAttribute('data-sp'); close(); dispatch('SetTrainPlan', { [key]: v === '' ? null : v }); });
 }
 const strongOf = (r) => { const k = ['bp', 'bs', 'spd', 'bsk'].reduce((m, x) => ((r.rates || {})[x] || 0) < ((r.rates || {})[m] || 0) ? x : m, 'bp'); return 'Lowest: ' + STAT(k).word + ' ' + letterOfRaw((r.rates || {})[k] || 1); };
 
-function openSpotlightWheel(dispatch) {
-  const w = latest.vm.wheel; if (!w) { runPending = true; dispatch('RunNets', {}); return; }
+function openSpotlightWheel(dispatch, slot) {
+  const two = slot === 2, w = two ? latest.vm.wheel2 : latest.vm.wheel; if (!w) { runPending = true; dispatch('RunNets', {}); return; }
   const st = STAT(w.stat), rates = w.player.rates || {}, raw0 = rates[statKey(w.stat)] != null ? rates[statKey(w.stat)] : 1;
   const pr = w.player;
   const card = '<div class="wh-who"><b class="t2-nm">' + esc(pr.name) + '</b><span class="c-tag">Wheel is yours this week</span></div><div class="wh-gr">' +
     ['bp', 'bs', 'spd', 'bsk'].map((k) => '<span class="wh-g' + (k === statKey(w.stat) ? ' hit' : '') + '">' + deco(STAT(k).icon, 20) + '<span>' + esc(STAT(k).word) + '</span><b>' + esc(letterOfRaw(rates[k] || 1)) + '</b></span>').join('') + '</div>';
   openWheel({
-    title: 'Spotlight', sub: 'Week ' + latest.vm.week, cardHtml: card, slices: w.slices, jackpotIndex: w.jackpotIndex, aim: w.aim, pending: w.pending || null,
-    onSpin: (careful) => dispatch('Spin', { careful }), getPending: () => { const sp = latest.raw.spotlight; return (sp && sp.pending) || null; },
+    title: 'Spotlight', sub: 'Week ' + latest.vm.week + (latest.vm.wheel2 ? (two ? ', second spin' : ', first spin') : ''), cardHtml: card, slices: w.slices, jackpotIndex: w.jackpotIndex, aim: w.aim, pending: w.pending || null,
+    onSpin: (careful) => dispatch('Spin', two ? { careful, slot: 2 } : { careful }), getPending: () => { const sp = two ? latest.raw.twin : latest.raw.spotlight; return (sp && sp.pending) || null; },
     describe: (p) => {
       const g = p.applied != null ? p.applied : Math.min(p.gain, w.room == null ? 99 : w.room), to = raw0 + g, a = letterOfRaw(raw0), b = letterOfRaw(to), moved = stepOfRaw(to) !== stepOfRaw(raw0);
       return { big: st.word, from: a, to: b, barHtml: moved ? '' : letterBar(to, raw0), breakthrough: !!(p.jackpot || moved),
         say: pr.name + ' ' + st.word + ': wheel plus ' + g + ', ' + (moved ? a + ' to ' + b : a + ', the bar fills') + (p.jackpot ? ', jackpot' : '') + '.' };
     },
-    onCollect: () => { runPending = true; dispatch('RunNets', {}); },
+    onCollect: () => { if (!two && latest.vm.wheel2) { openSpotlightWheel(dispatch, 2); return; } runPending = true; dispatch('RunNets', {}); },
   });
 }
 
@@ -139,11 +143,13 @@ export function render(el, rawVm, dispatch, open) {
       '<span class="c-row__sub t2-strong">' + (c ? strongHtml(c.strong) : '<span>Tap to pick this week\'s coach</span>') + '</span></span></button></li>';
     const spotRow = '<li class="c-row m0-row c-row--tap t2-prow"><button type="button" class="tr-rowbtn" data-lo="spotpick" aria-label="' + esc(P.spotlightName ? 'Spotlight: ' + P.spotlightName + '. Tap to change' : 'Spotlight: none. Tap to pick a player for the wheel') + '">' +
       '<span class="tr-coachico">' + deco('burst', 36) + '</span><span class="c-row__body"><span class="c-row__title tr-coachtitle">Spotlight</span><span class="c-row__sub">' + esc(P.spotlightName || 'None (optional)') + '</span></span></button></li>';
+    const tw = vm.twin, sp2Row = tw && tw.held > 0 ? '<li class="c-row m0-row c-row--tap t2-prow"><button type="button" class="tr-rowbtn" data-lo="spot2pick"' + (P.spotlightId ? '' : ' aria-disabled="true"') + ' aria-label="' + esc(tw.line + '. ' + (!P.spotlightId ? 'Pick the first Spotlight player first' : tw.name ? 'Second player: ' + tw.name + '. Tap to change' : 'Tap to pick the second player')) + '">' +
+      '<span class="tr-coachico">' + deco('burst', 36) + '</span><span class="c-row__body"><span class="c-row__title tr-coachtitle">' + esc(tw.line) + '</span><span class="c-row__sub">' + esc(!P.spotlightId ? 'Pick the first player above' : tw.name || 'None yet') + '</span></span></button></li>' : '';
     const cost = 'Cost ' + pv.cost + ' TP' + (pv.skippedN ? ", " + pv.skippedN + " can't gain" : '');
     body = '<div class="t2-plan">' +
       seg('focus', 'Focus', ['bat', 'bowl', 'bal'].map((f) => ({ v: f, w: FOCUS_WORD[f], ico: FOCUS_ICON[f], aria: FOCUS_WORD[f] + ' focus' })), P.focus) +
       seg('effort', 'Effort', ['easy', 'normal', 'push'].map((f) => ({ v: f, w: EFFORT_WORD[f], ico: EFFORT_ICON[f], sub: costs[f] + ' TP', aria: EFFORT_WORD[f] + ' effort, ' + costs[f] + ' training points each' })), P.effort) + '</div>' +
-      '<ul class="c-list m0-list t2-pick" aria-label="This week">' + coachRow + spotRow + '</ul>' +
+      '<ul class="c-list m0-list t2-pick" aria-label="This week">' + coachRow + spotRow + sp2Row + '</ul>' +
       '<div class="t2-cost" role="status"><b>' + esc(cost) + '</b>' + (pv.shortN ? '<span>' + deco('tp', 20) + '<span>Short on TP: ' + pv.shortN + ' will wait</span></span>' : '') + (pv.hint ? '<span>' + deco('info', 20) + '<span>' + esc(pv.hint) + '</span></span>' : '') + '</div>' +
       '<ul class="c-list m0-list tr-list" aria-label="Your squad">' + rows.map(rowHtml).join('') + '</ul>';
     cta = ctaBar('<button type="button" class="c-btn c-btn--primary c-btn--cta c-btn--block t2-run" data-lo="runnets" data-ft="run"' + (pv.trainN && vm.canRun ? '' : ' disabled aria-disabled="true"') + ' aria-label="' + esc(pv.trainN ? 'Run nets, ' + pv.cost + ' training points' : 'Run nets: nobody can train') + '">' +
@@ -154,7 +160,8 @@ export function render(el, rawVm, dispatch, open) {
   bindActs(root, dispatch, open);
   root.addEventListener('click', (e) => {
     const t = e.target.closest && e.target.closest('[data-lo]'); if (!t || t.disabled) return; const a = t.getAttribute('data-lo');
-    if (a === 'spotpick') spotSheet(vm, dispatch);
+    if (a === 'spotpick') spotSheet(vm, dispatch, 1);
+    else if (a === 'spot2pick') { if (P.spotlightId) spotSheet(vm, dispatch, 2); }
     else if (a === 'runnets') { if (P.spotlightId) openSpotlightWheel(dispatch); else { runPending = true; dispatch('RunNets', {}); } }
   });
   if (had && key) { const same = [...el.querySelectorAll('[data-act]')].find((n) => ((n.getAttribute('data-act') || '') + (n.getAttribute('data-arg') || '')) === key && !n.disabled); const b = same || el.querySelector('[data-lo="runnets"], [data-ft="done"]'); if (b) b.focus(); }

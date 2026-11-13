@@ -139,7 +139,11 @@ test('late sinks: order, gates, reserve rule', () => {
   // reserve: coins just short of price + reserve
   const need = X.reserveNeeded(s);
   const tight = ec(s, { coins: 1400 + need - 1 });
-  assert.equal(X.sinkOptions(tight).find((o) => o.id === 'hall_2').ok, false);
+  const hall2 = X.sinkOptions(tight).find((o) => o.id === 'hall_2');
+  assert.equal(hall2.ok, true, 'reserve only warns'); assert.equal(hall2.warn, 'Leaves less than your safe reserve');
+  assert.equal(X.buySink(tight, 'hall_2').econ.coins, tight.econ.coins - 1400, 'buy still goes through');
+  assert.equal(X.sinkOptions(ec(s, { coins: 1400 + need })).find((o) => o.id === 'hall_2').warn, '');
+  assert.equal(X.sinkOptions(ec(s, { coins: 1399 })).find((o) => o.id === 'hall_2').ok, false, 'coins still needed');
   assert.equal(X.reserveOk(tight, 1400), false);
   assert.equal(X.reserveOk(ec(s, { coins: 1400 + need }), 1400), true);
   // retreat once a season
@@ -160,13 +164,17 @@ test('Medal shop', () => {
 });
 
 test('Legacy Project: 8,000 L4 / 13,000 L5, +500 Fans, segments, gating', () => {
-  const rich = (league, stadium, extra = {}) => ec(mk(8, 40, league), { stadium, coins: 1e6, sinks: { hall_1: 1, hall_2: 1, hall_3: 1, ...extra } });
+  const rich = (league, stadium, extra = {}) => ec(mk(8, 40, league), { stadium, coins: 1e6, sinks: { hall_1: 1, hall_2: 1, hall_3: 1, floodlights: 1, big_screen: 1, roof_crest: 1, ...extra } });
   let s = rich(4, 4);
   const o = X.legacyOffer(s);
   assert.equal(o.price, 8000); assert.equal(o.ok, true); assert.equal(o.fans, 500);
-  assert.equal(X.legacyOffer(ec(mk(8, 40, 4), { stadium: 3, coins: 1e6 })).ok, false);
+  const all6 = { hall_1: 1, hall_2: 1, hall_3: 1, floodlights: 1, big_screen: 1, roof_crest: 1 };
+  assert.equal(X.legacyOffer(ec(mk(8, 40, 4), { stadium: 3, coins: 1e6, sinks: all6 })).ok, true, 'no Stadium 4 gate: only the six sinks');
+  assert.equal(X.legacyOffer(ec(mk(8, 40, 4), { stadium: 5, coins: 1e6, sinks: { ...all6, roof_crest: 0 } })).ok, false);
+  const poor = X.legacyOffer(ec(mk(8, 40, 4), { coins: 8001, sinks: all6 })); assert.equal(poor.ok, true); assert.equal(poor.warn, 'Leaves less than your safe reserve');
+  assert.equal(X.legacyOffer(ec(mk(8, 40, 4), { coins: 7999, sinks: all6 })).ok, false);
   assert.equal(X.legacyOffer(ec(mk(8, 40, 4), { stadium: 4, coins: 1e6 })).ok, false); // halls not bought
-  assert.equal(X.legacyOffer(rich(5, 5)).ok, false); // finishing not bought
+  assert.equal(X.legacyOffer(rich(5, 5, { roof_crest: 0 })).ok, false); // finishing not bought
   const l5 = rich(5, 5, { floodlights: 1, big_screen: 1, roof_crest: 1 });
   assert.equal(X.legacyOffer(l5).price, 13000);
   s = X.buyLegacy(s); assert.equal(s.econ.coins, 1e6 - 8000); assert.equal(s.econ.fans, 500); assert.equal(s.econ.legacy, 1);
@@ -206,4 +214,13 @@ test('pure: inputs not mutated', () => {
   const s = mk(); const before = JSON.stringify(s);
   X.applyMatch(s, { win: true }); X.finalsReward(s, 'champ'); X.startBuild(s, 'gym'); X.payCourse(s, 5);
   assert.equal(JSON.stringify(s), before);
+});
+
+test('a tie gives half a win in Fans (finals multiplier as usual; stands not multiplied)', () => {
+  const s = mk(8, 40, 1); const w = X.matchIncome(s, { win: true }).fans, l = X.matchIncome(s, { win: false }).fans, t = X.matchIncome(s, { tie: true }).fans;
+  assert.equal(t, (w + l) / 2); assert.equal(t - 5, 25); // 5 = Stands 1
+  const st = ec(s, { fac: { ...s.econ.fac, stands: 3 } });
+  assert.equal(X.matchIncome(st, { tie: true }).fans, 25 + 15);
+  const hi = mk(8, 40, 3); const m = (X.matchIncome(hi, { win: true }).fans - 5) / 40;
+  assert.equal(X.matchIncome(hi, { tie: true }).fans, Math.round(25 * m) + 5);
 });

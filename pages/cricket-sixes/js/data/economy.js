@@ -46,10 +46,10 @@ export const ECON = {
   COURSE_FACTOR: [1, 1.25, 1.55, 1.95, 2.5], COURSE_BASE: 24, COURSE_PER_STEP: 6,
   MEDAL_SHOP: [
     { id: 'trophy_cabinet', name: 'Trophy Cabinet (gold trim on the stadium)', medals: 1, once: true },
-    { id: 'twin_drill', name: 'Twin Drill Pass (one player drills twice in a week)', medals: 2 },
+    { id: 'twin_drill', name: 'Twin Spotlight Pass (two players get the Spotlight wheel next training week)', medals: 2 },
     { id: 'clear_sight', name: 'Clear-sight Scout Report (one trip shows exact ratings)', medals: 3 },
     { id: 'wage_holiday', name: 'Wage Holiday (half wages for one season)', medals: 4 },
-    { id: 'master_licence', name: 'Master Coach Licence (opens one tree top without the level-3 coach)', medals: 6 },
+    { id: 'master_licence', name: 'Master Coach Licence (one coach may take a second course this season)', medals: 6 },
   ],
   SINKS: [
     { id: 'hall_1', name: 'Hall of Fame wing 1', coins: 700, stadium: 4, needs: null },
@@ -62,7 +62,7 @@ export const ECON = {
     { id: 'legends_banner', name: 'Legends Banner', medals: 5, needs: 'hall_2' },
     { id: 'coach_retreat', name: 'Coach Retreat Week', coins: 500, stadium: 4, repeat: 'season' },
   ],
-  LEGACY: { gateStadium: 4, price: { 4: 8000, 5: 13000 }, fans: 500, segmentsPerTier: 10,
+  LEGACY: { price: { 4: 8000, 5: 13000 }, fans: 500, segmentsPerTier: 10,
     names: ['Riverside Orchard', 'Village Green Pavilion', 'Sunrise Nets Hall', 'Old Oak Scoreboard', 'Harbour Lights Terrace', 'Meadow Practice Wing',
       'Windmill Bandstand', 'Lantern Walk', 'Hilltop Clock Tower', 'Brookside Gardens', 'Friendship Gate', 'Cricket Green Museum'] },
   TIER_NAMES: ['Local Hero', 'County Name', 'Regional Star', 'National Treasure', 'Cricket Legend'],

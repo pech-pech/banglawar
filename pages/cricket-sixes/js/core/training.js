@@ -48,26 +48,42 @@ export function focusRating(p, focus) {
 }
 
 // ---- plan
-const lastOf = (/** @type {any} */ s) => { const l = s.training && s.training.lastPlan; return l && typeof l.focus === 'string' ? l : null; };
+/** Held Twin Spotlight Passes / Master Coach Licences: the Medal shop's buy count in econ.sinks (old saves keep what they bought). @param {any} s */
+export const twinHeld = (s) => (s.econ && s.econ.sinks && s.econ.sinks.twin_drill) | 0;
+/** @param {any} s */
+export const licenceHeld = (s) => (s.econ && s.econ.sinks && s.econ.sinks.master_licence) | 0;
+// ONE plan record (r7): the live choice is training.focus / effort / spotlight_id / coach_id; training.last_plan is last week's record
+// ({focus, effort, ...}). Legacy lastPlan / sel are read as a fallback and turned into these by save-migrate (tidyPlan).
+const lastOf = (/** @type {any} */ s) => { const T = s.training || {}, l = T.last_plan || T.lastPlan; return l && typeof l.focus === 'string' ? l : null; };
 /** The week's plan; focus and effort default to last week's. @param {any} s */
 export function planOf(s) {
-  const sel = (s.training && s.training.sel) || {}, last = lastOf(s);
+  const T = s.training || {}, leg = T.sel || {};
+  const sel = { focus: T.focus ?? leg.focus, effort: T.effort ?? leg.effort, spotlightId: T.spotlight_id ?? leg.spotlightId, coachId: T.coach_id ?? leg.coachId }, last = lastOf(s);
   const focus = FOCUSES.includes(sel.focus) ? sel.focus : last && FOCUSES.includes(last.focus) ? last.focus : 'bat';
   const effort = EFFORTS.includes(sel.effort) ? sel.effort : last && EFFORTS.includes(last.effort) ? last.effort : 'normal';
   const spotlightId = sel.spotlightId && findPlayer(s, sel.spotlightId) ? sel.spotlightId : null;
   const co = sel.coachId ? (s.coaches || []).find((/** @type {any} */ c) => c.id === sel.coachId) : null;
-  return { focus, effort, spotlightId, coachId: co && !(co.away > 0) ? co.id : null };
+  const sp2 = T.spotlight2_id, spotlight2Id = spotlightId && twinHeld(s) > 0 && sp2 && sp2 !== spotlightId && findPlayer(s, sp2) ? sp2 : null; // 2nd Spotlight: only with a held Twin Pass
+  return { focus, effort, spotlightId, ...(spotlight2Id ? { spotlight2Id } : {}), coachId: co && !(co.away > 0) ? co.id : null };
 }
 /** Patch { focus?, effort?, spotlightId?, coachId? }. Bad values return the same state. @param {any} s @param {any} patch */
 export function setPlan(s, patch = {}) {
   if (patch.focus !== undefined && !FOCUSES.includes(patch.focus)) return s;
   if (patch.effort !== undefined && !EFFORTS.includes(patch.effort)) return s;
   if (patch.spotlightId && !findPlayer(s, patch.spotlightId)) return s;
+  if (patch.spotlight2Id && (!findPlayer(s, patch.spotlight2Id) || !twinHeld(s))) return s;
   if (patch.coachId) { const c = (s.coaches || []).find((/** @type {any} */ x) => x.id === patch.coachId); if (!c || c.away > 0) return s; }
   const n = clone(s); n.training ||= {};
-  const cur = planOf(s);
-  n.training.sel = { focus: cur.focus, effort: cur.effort, spotlightId: cur.spotlightId, coachId: cur.coachId };
-  for (const k of ['focus', 'effort', 'spotlightId', 'coachId']) if (patch[k] !== undefined) n.training.sel[k] = patch[k] || (k === 'focus' || k === 'effort' ? patch[k] : null);
+  const cur = planOf(s), T = n.training;
+  delete T.sel;
+  if (patch.focus !== undefined && patch.focus !== cur.focus) T.focusChanges = (T.focusChanges || 0) + 1;
+  T.focus = cur.focus; T.effort = cur.effort; T.spotlight_id = cur.spotlightId; T.coach_id = cur.coachId;
+  if (patch.focus !== undefined) T.focus = patch.focus;
+  if (patch.effort !== undefined) T.effort = patch.effort;
+  if (patch.spotlightId !== undefined) T.spotlight_id = patch.spotlightId || null;
+  if (patch.spotlight2Id !== undefined) T.spotlight2_id = patch.spotlight2Id || null;
+  if (!T.spotlight_id || T.spotlight2_id === T.spotlight_id) T.spotlight2_id = null;
+  if (patch.coachId !== undefined) T.coach_id = patch.coachId || null;
   return n;
 }
 
@@ -158,7 +174,7 @@ export function passScout(s) { if (scoutRec(s)) return s; const n = clone(s); n.
 export function releaseCoach(s, id) {
   if (!coachById(s, id)) return s;
   const n = clone(s); n.coaches = n.coaches.filter((/** @type {any} */ c) => c.id !== id);
-  if (n.training && n.training.sel && n.training.sel.coachId === id) n.training.sel.coachId = null;
+  if (n.training) { if (n.training.coach_id === id) n.training.coach_id = null; if (n.training.sel && n.training.sel.coachId === id) n.training.sel.coachId = null; }
   return n;
 }
 
@@ -167,16 +183,20 @@ export function courseCost(s, coachId) {
   const c = coachById(s, coachId); if (!c) return 0;
   return Math.round((CO.courseBase + CO.coursePerStep * normCoach(c).step) * CO.courseFactor[leagueOfState(s) - 1]);
 }
-/** { ok, why: ''|'unknown'|'max'|'away'|'season'|'coins' } (coins checked only when s.econ exists) @param {any} s @param {string} coachId */
-export function canCourse(s, coachId) {
+/** { ok, why: ''|'unknown'|'max'|'away'|'season'|'coins' } (coins checked only when s.econ exists; licence = override for a held Master Coach Licence) @param {any} s @param {string} coachId @param {boolean} [licence] */
+export function canCourse(s, coachId, licence) {
   const raw = coachById(s, coachId); if (!raw) return { ok: false, why: 'unknown' };
   const c = normCoach(raw);
   if (c.step >= CO.maxStep) return { ok: false, why: 'max' };
   if (c.away > 0) return { ok: false, why: 'away' };
-  if (c.courseSeason === seasonN(s)) return { ok: false, why: 'season' };
+  // Master Coach Licence: lifts the 1-course-a-season cap once, for one 2nd course (licence = override when econ is not on the state)
+  if (c.courseSeason === seasonN(s) && !((licence ?? licenceHeld(s) > 0) && c.licenceSeason !== seasonN(s))) return { ok: false, why: 'season' };
   if (s.econ && (s.econ.coins || 0) < courseCost(s, coachId)) return { ok: false, why: 'coins' };
   return { ok: true, why: '' };
 }
+
+/** True when this coach already took a course this season, so the next one spends the Master Coach Licence. @param {any} s @param {string} coachId */
+export function courseUsesLicence(s, coachId) { const c = coachById(s, coachId); return !!c && normCoach(c).courseSeason === seasonN(s); }
 
 // ---- wheels
 const ARRANGE = (/** @type {number[]} */ rest) => { // spread equal numbers apart: low, high, low, high ...
@@ -209,17 +229,17 @@ export function spinResult(rng, wheel, careful = false) {
   const index = careful && a < wheel.aim ? wheel.jackpotIndex : Math.min(wheel.slices.length - 1, Math.floor(b * wheel.slices.length));
   return { index, gain: wheel.slices[index], jackpot: index === wheel.jackpotIndex };
 }
-/** Course: coach gains the wheel's steps (cap S+), is away one week, one course a season. spin = a spinResult (or none: random tap). @param {any} s @param {{random:()=>number}} rng @param {string} coachId @param {{gain?:number}|null} [spin] */
-export function runCourse(s, rng, coachId, spin) {
-  if (!canCourse(s, coachId).ok) return s;
+/** Course: coach gains the wheel's steps (cap S+), is away one week, one course a season. spin = a spinResult (or none: random tap). @param {any} s @param {{random:()=>number}} rng @param {string} coachId @param {{gain?:number}|null} [spin] @param {boolean} [licence] true = a held Licence may cover a 2nd course (the caller consumes it) */
+export function runCourse(s, rng, coachId, spin, licence) {
+  if (!canCourse(s, coachId, licence).ok) return s;
   const price = courseCost(s, coachId);
   const n = clone(s), i = n.coaches.findIndex((/** @type {any} */ c) => c.id === coachId);
   // TODO: swap for economy.payCourse(n, price) once js/core/economy.js (ECON-CORE) lands; until then deduct directly.
   if (n.econ) n.econ.coins = (n.econ.coins || 0) - price;
   const c = Object.assign(n.coaches[i], normCoach(n.coaches[i]));
   const gain = spin && Number.isFinite(spin.gain) ? /** @type {number} */ (spin.gain) : spinResult(rng, courseWheel(c.step), false).gain;
-  c.step = Math.min(CO.maxStep, c.step + gain); c.away = CO.awayWeeks; c.courseSeason = seasonN(s);
-  if (n.training && n.training.sel && n.training.sel.coachId === coachId) n.training.sel.coachId = null;
+  c.step = Math.min(CO.maxStep, c.step + gain); c.away = CO.awayWeeks; if (c.courseSeason === seasonN(s)) c.licenceSeason = seasonN(s); c.courseSeason = seasonN(s);
+  if (n.training) { if (n.training.coach_id === coachId) n.training.coach_id = null; if (n.training.sel && n.training.sel.coachId === coachId) n.training.sel.coachId = null; }
   return n;
 }
 
@@ -249,7 +269,7 @@ const ensureWeekStart = (/** @type {any} */ n) => { n.training.weekStart ||= {};
  * Run the nets: one roll per player who can gain (Six first), same effort and cost each; the Spotlight player takes the
  * wheel result instead of his roll. opts.wheel = a spinResult ({ index, gain, jackpot }); missing = a random-tap spin
  * (opts.careful for the careful rate). Draws one rng.random() per rolled player (two for a self-spun wheel). One run a week.
- * @param {any} s @param {{random:()=>number}} rng @param {{wheel?:{gain:number,jackpot?:boolean}|null, careful?:boolean}} [opts]
+ * @param {any} s @param {{random:()=>number}} rng @param {{wheel?:{gain:number,jackpot?:boolean}|null, wheel2?:{gain:number,jackpot?:boolean}|null, careful?:boolean}} [opts]
  */
 export function runNets(s, rng, opts = {}) {
   const none = { state: s, lines: [], cost: 0, skipped: 0 };
@@ -259,18 +279,20 @@ export function runNets(s, rng, opts = {}) {
   const { plan } = r, q = TRAIN2.netsTerm * ((n.nets || 1) - 1) + coachQuality(s);
   const odds = effortOdds(plan.effort, q, plan.focus === 'bal'), lines = [];
   const wheelOn = plan.spotlightId && r.trainIds.includes(plan.spotlightId);
+  const wheel2On = plan.spotlight2Id && r.trainIds.includes(plan.spotlight2Id); // Twin Pass: a second, separate spin
+  const wheel2 = wheel2On ? (opts.wheel2 && Number.isFinite(opts.wheel2.gain) ? opts.wheel2 : spinResult(rng, wheelSlices(plan.effort, coachStepInUse(s)), !!opts.careful)) : null;
   const wheel = wheelOn ? (opts.wheel && Number.isFinite(opts.wheel.gain) ? opts.wheel : spinResult(rng, wheelSlices(plan.effort, coachStepInUse(s)), !!opts.careful)) : null;
   const words = ['Okay', 'Good', 'Great'];
   for (const id of r.trainIds) {
     const p = findPlayer(n, id), st = focusRating(p, plan.focus), room = drillRoom(p, st).room;
-    let rolled, wheelGain;
-    if (wheelOn && id === plan.spotlightId && wheel) { rolled = wheel.gain; wheelGain = wheel.gain; }
+    let rolled, wheelGain, wh = wheel;
+    if (wheel2On && id === plan.spotlight2Id && wheel2) { rolled = wheel2.gain; wheelGain = wheel2.gain; wh = wheel2; }
+    else if (wheelOn && id === plan.spotlightId && wheel) { rolled = wheel.gain; wheelGain = wheel.gain; }
     else { const x = rng.random() * 100; rolled = x < odds.okay ? 1 : x < odds.okay + odds.good ? 2 : 3; }
     const gain = Math.min(rolled, room), from = p[st], wasHidden = isHidden(p);
     p[st] = from + gain; p.drillsHere += 1;
-    n.training.drillCount = (n.training.drillCount || 0) + 1;
     const word = words[Math.min(3, wheelGain !== undefined ? Math.max(1, wheelGain >= 3 ? 3 : wheelGain) : rolled) - 1];
-    const jackpot = wheelGain !== undefined && !!wheel && !!wheel.jackpot;
+    const jackpot = wheelGain !== undefined && !!wh && !!wh.jackpot;
     const breakthrough = (wheelGain === undefined && rolled === 3) || jackpot || stepOfRaw(p[st]) > stepOfRaw(from);
     /** @type {any} */ const line = { id, name: p.name, stat: TRAIN2.statNames[st], rating: st, fromRaw: from, toRaw: p[st], word, breakthrough };
     if (wheelGain !== undefined) line.wheelGain = wheelGain;
@@ -279,7 +301,7 @@ export function runNets(s, rng, opts = {}) {
     if (wasHidden && !isHidden(p)) logEntry(n, { type: 'GradeRevealed', playerId: id, grade: bandOf(p.potential) });
   }
   const cost = r.cost * r.trainIds.length;
-  n.training.tp -= cost; n.training.netsWeek = n.training.week;
+  n.training.tp -= cost; n.training.netsWeek = n.training.week; n.training.netsRuns = (n.training.netsRuns || 0) + 1; // netsRuns: report counter; p.drillsHere stays the grade-reveal counter
   n.training.last = { week: n.training.week, lines, cost, skipped: r.skippedIds.length };
   return { state: n, lines, cost, skipped: r.skippedIds.length, skippedIds: r.skippedIds, shortIds: r.shortIds };
 }
@@ -294,13 +316,16 @@ export function endWeek(state) {
   const log = n.training.weekLog || [];
   const gains = squadOf(n).map((/** @type {any} */ p) => ({ playerId: p.id, by: RATINGS.map((k, i) => p[k] - n.training.weekStart[p.id][i]) }))
     .filter((/** @type {any} */ g) => g.by.some((/** @type {number} */ v) => v !== 0)).map((/** @type {any} */ g) => ({ ...g, total: g.by.reduce((/** @type {number} */ a, /** @type {number} */ b) => a + b, 0) }));
-  n.training.weekSummary = { week: n.training.week, gains,
+  let letters = 0; // letter steps crossed this week, all players and ratings (a step = one rung of the 21-letter ladder)
+  for (const p of squadOf(n)) RATINGS.forEach((k, i) => { letters += Math.max(0, stepOfRaw(p[k]) - stepOfRaw(n.training.weekStart[p.id][i])); });
+  n.training.weekSummary = { week: n.training.week, steps: gains.reduce((/** @type {number} */ a, /** @type {any} */ g) => a + g.total, 0), letters, gains,
     reveals: log.filter((/** @type {any} */ e) => e.type === 'GradeRevealed').map((/** @type {any} */ e) => ({ playerId: e.playerId, grade: e.grade })),
     nodes: log.filter((/** @type {any} */ e) => e.type === 'NodeUnlocked').map((/** @type {any} */ e) => ({ playerId: e.playerId, side: e.side, node: e.node })),
     lines: (n.training.last && n.training.last.lines) || [] };
   const pl = planOf(state);
-  n.training.lastPlan = { focus: pl.focus, effort: pl.effort };
-  n.training.sel = { focus: pl.focus, effort: pl.effort, spotlightId: null, coachId: null };
+  n.training.last_plan = { focus: pl.focus, effort: pl.effort };
+  delete n.training.lastPlan; delete n.training.sel;
+  n.training.focus = pl.focus; n.training.effort = pl.effort; n.training.spotlight_id = null; n.training.spotlight2_id = null; n.training.coach_id = null;
   for (const c of n.coaches || []) if (c.away > 0) c.away -= 1;
   n.training.week += 1; n.training.nodeBought = {}; n.training.last = null; n.training.weekLog = []; n.training.netsWeek = null;
   n.training.weekStart = Object.fromEntries(squadOf(n).map((/** @type {any} */ p) => [p.id, RATINGS.map((k) => p[k])]));

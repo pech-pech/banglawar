@@ -22,13 +22,14 @@ function coachHtml(c) {
     '<div class="t2-strong">' + strongHtml(c.strong) + '</div>' +
     '<p class="tr-note">' + deco(fit ? 'done' : 'info', 20) + '<span>' + (fit ? 'Helps this week: strong in the focus.' : 'No coach help this week: not strong in the focus.') + '</span></p>' +
     '<div class="t2-cbtns"><button type="button" class="c-btn t2-cb" data-pick="' + esc(c.id) + '" aria-pressed="' + !!c.picked + '"' + (c.away ? ' disabled aria-disabled="true"' : '') + '>' + (c.picked ? 'Picked this week' : 'Pick this week') + '</button>' +
-    '<button type="button" class="c-btn t2-cb" data-course="' + esc(c.id) + '"' + (cr.ok ? '' : ' disabled aria-disabled="true"') + ' aria-label="' + esc('Course for ' + c.name + (price ? ', ' + price : '') + (cr.ok ? '. He is away 1 week' : '. ' + (cr.why || 'Not now'))) + '">' + deco('upgrade', 20) + '<span>Course' + (price ? ': ' + esc(price) : '') + '</span></button></div>' +
+    '<button type="button" class="c-btn t2-cb" data-course="' + esc(c.id) + '"' + (cr.ok ? '' : ' disabled aria-disabled="true"') + ' aria-label="' + esc('Course for ' + c.name + (price ? ', ' + price : '') + (cr.ok ? (cr.licence ? '. Uses your Licence' : '') + '. He is away 1 week' : '. ' + (cr.why || 'Not now'))) + '">' + deco('upgrade', 20) + '<span>Course' + (price ? ': ' + esc(price) : '') + (cr.licence ? ' (2nd, Licence)' : '') + '</span></button></div>' +
     (cr.ok ? '' : '<p class="tr-note t2-why">' + deco('lock', 20) + '<span>' + esc(cr.why || 'Not now') + '</span></p>') + '</section>';
 }
 
 export function coachesHtml(vm) {
   const cs = vm.coaches || [], free = Math.max(0, (vm.slots || 3) - cs.length), none = !cs.some((c) => c.picked);
-  return cs.map((c) => coachHtml(c)).join('') +
+  const lic = vm.licence && vm.licence.held > 0 ? '<p class="tr-note t2-lic">' + deco('done', 20) + '<span>' + esc(vm.licence.line || 'Licence: 2nd course allowed') + '</span></p>' : '';
+  return lic + cs.map((c) => coachHtml(c)).join('') +
     Array.from({ length: free }, () => '<div class="t2-slot" aria-label="Empty coach slot"><span>' + deco('coach', 24) + '</span><span>Empty slot</span></div>').join('') +
     '<button type="button" class="c-btn c-btn--block t2-scout" data-scout="1">' + deco('scout', 20) + '<span>Scout list' + (vm.scout && vm.scout.open ? '' : ' (done this season)') + '</span></button>' +
     '<button type="button" class="c-btn c-btn--block t2-none" data-pick=""' + (none ? ' aria-pressed="true"' : ' aria-pressed="false"') + '>' + (none ? 'No coach this week (picked)' : 'No coach this week') + '</button>' +
