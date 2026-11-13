@@ -29,15 +29,17 @@ export function attachReport(el, store) {
     window.addEventListener('error', (e) => log.error(e.message));
     window.addEventListener('unhandledrejection', (e) => log.error(e.reason));
     document.addEventListener('visibilitychange', () => { if (document.hidden) flush(); else { stageT = Date.now(); shownT = Date.now(); } });
-    document.addEventListener('click', (e) => { const t = e.target.closest && e.target.closest('[data-gloss]'); if (t) lastGloss = t.getAttribute('data-gloss') || ''; }, true);
+    let glossTap = false;
+    document.addEventListener('click', (e) => { const t = e.target.closest && e.target.closest('[data-gloss]'); if (t) { lastGloss = t.getAttribute('data-gloss') || ''; glossTap = true; } }, true);
     // Why? and glossary opens, seen as sheets added to the body (no change to the views).
     new MutationObserver((muts) => {
       for (const m of muts) for (const n of m.addedNodes) {
         if (!n.classList) continue;
-        if (n.classList.contains('gloss-root')) { const hl = n.querySelector('.is-hl'); log.gloss((hl && hl.getAttribute('data-id')) || lastGloss || 'full list (' + stage + ')'); lastGloss = ''; }
+        if (n.classList.contains('gloss-root')) { const hl = n.querySelector('.is-hl'); log.gloss((hl && hl.getAttribute('data-id')) || lastGloss || 'full list (' + stage + ')'); lastGloss = ''; glossTap = false; }
         else if (n.classList.contains('c-sheet')) {
           const t = (n.querySelector('.c-sheet__title') || {}).textContent || '';
-          if (/^Why/i.test(t)) log.why(); else if (t !== 'Settings') { log.gloss(lastGloss || 'cricket words'); lastGloss = ''; }
+          if (/^Why/i.test(t)) log.why(); else if (glossTap) { log.gloss(lastGloss || 'cricket words'); } // only a tapped "?" / word counts; Book, Table, Team and other sheets do not
+          lastGloss = ''; glossTap = false;
         }
       }
     }).observe(document.body, { childList: true });
