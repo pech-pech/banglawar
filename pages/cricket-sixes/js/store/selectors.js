@@ -224,7 +224,7 @@ const strongWords = (strong) => (strong || []).map((f) => SIDE_WORD[f]);
 export function coachPickVM(s) {
   const open = canSign(s).ok, signed = s.scout && s.scout.n === (s.season && s.season.n) ? s.scout.signed : null;
   const cands = scoutList(s).map((c) => ({ id: c.id, name: c.name, letter: letterOfStep(c.step), step: c.step, strong: c.strong.slice(), strongWords: strongWords(c.strong) }));
-  return { cands, open, full: coachList(s).length >= MAX_COACHES, picked: signed, passed: !!(s.scout && s.scout.passed), why: canSign(s).why };
+  return { cands, open, full: coachList(s).length >= MAX_COACHES, mine: coachList(s).map((c) => ({ id: c.id, name: c.name, letter: letterOfStep(c.step), strong: c.strong.slice() })), picked: signed, passed: !!(s.scout && s.scout.passed), why: canSign(s).why };
 }
 
 // ---- squad and plan
@@ -278,9 +278,11 @@ const coachRow = (s, c) => {
   const cc = canCourse(s, c.id), used = s.training.coursePending && s.training.coursePending.coachId === c.id;
   return {
     id: c.id, name: c.name, step: c.step, letter: letterOfStep(c.step), strong: c.strong.slice(), strongWords: strongWords(c.strong),
-    here: !(c.away > 0), away: c.away | 0, course: { ok: cc.ok, why: cc.why, cost: courseCost(s, c.id), free: !s.econ, spun: !!used },
+    here: !(c.away > 0), away: c.away | 0, course: { ok: cc.ok, why: cc.why, cost: courseCost(s, c.id), free: !s.econ, spun: !!used, pending: used ? { index: s.training.coursePending.result.index, gain: s.training.coursePending.result.gain, jackpot: s.training.coursePending.result.jackpot } : null },
   };
 };
+/** Gain the spotlight player really gets after the cap-sum, balance and 99 limits. */
+const spotApplied = (s, plan, gain) => { const p = plan.spotlightId && player(s, plan.spotlightId); return p ? Math.max(0, Math.min(gain, drillRoom(p, focusRating(p, plan.focus)).room)) : 0; };
 const wheelVM = (w) => ({ slices: w.slices.slice(), jackpotIndex: w.jackpotIndex, jackpotGain: w.jackpotGain });
 
 export function trainingVM(s) {
@@ -301,7 +303,7 @@ export function trainingVM(s) {
   return {
     tp: T.tp, week: T.week, plan, focuses, efforts, rows, coaches, coachQuality: coachQuality(s), coachLetter: coachStepInUse(s) ? letterOfStep(coachStepInUse(s)) : null,
     preview: { cost: pre.cost, tpLeft: T.tp - pre.cost, trainCount: pre.trainIds.length, shortCount: pre.shortIds.length, skipCount: pre.skippedIds.length, hint: pre.hint },
-    spotlight: { id: plan.spotlightId, wheel, pending: T.pending && T.pending.week === T.week ? { careful: T.pending.careful, index: T.pending.result.index, gain: T.pending.result.gain, jackpot: T.pending.result.jackpot } : null },
+    spotlight: { id: plan.spotlightId, wheel, pending: T.pending && T.pending.week === T.week ? { careful: T.pending.careful, index: T.pending.result.index, gain: T.pending.result.gain, jackpot: T.pending.result.jackpot, applied: spotApplied(s, plan, T.pending.result.gain) } : null },
     done, result: done ? { lines: T.nets.lines, cost: T.nets.cost, skipped: T.nets.skipped } : null, tips: !T.tipsSeen && !(T.drillCount > 0),
     canRun: !done && pre.trainIds.length > 0, notice: noticeOf(s),
   };
@@ -382,7 +384,7 @@ export function weekVM(s) {
     week: W.week, pos: placeOf(s.season.table, ME), tp: s.training.tp, cta: s.season.phase === 'over' ? 'See season results' : 'Next match', gains, lines: W.lines || [],
     reveals: W.reveals.map((r) => ({ name: name(r.playerId), grade: r.grade })),
     nodes: W.nodes.map((n) => ({ name: name(n.playerId), node: n.node })),
-    coachUps: [], pay: s.pay || null,
+    coachUps: [], course: s.training.courseDone && s.training.courseDone.week === W.week ? { ...s.training.courseDone, fromLetter: letterOfStep(s.training.courseDone.from), toLetter: letterOfStep(s.training.courseDone.to) } : null, pay: s.pay || null,
     roundResults: results.map((r) => ({ a: clubName(s, r.a), b: clubName(s, r.b), ra: r.ra, wa: r.wa, rb: r.rb, wb: r.wb, me: r.a === ME || r.b === ME })),
   };
 }

@@ -30,6 +30,7 @@ export function render(el, vm, dispatch) {
   const notes = [];
   if (reveals.length) notes.push(['spark', 'Potential grades found: ' + reveals.map((r) => r.name + ' is ' + r.grade).join(', ')]);
   if (nodes.length) notes.push(['upgrade', 'Skill nodes: ' + nodes.map((n) => n.name + ' got ' + n.node).join(', ')]);
+  const cr = vm.course; if (cr) notes.push(['coach', 'Course: ' + cr.name + ' ' + cr.fromLetter + (cr.fromLetter === cr.toLetter ? ' (top grade)' : ' to ' + cr.toLetter) + (cr.jackpot ? ', jackpot' : '')]);
   el.innerHTML =
     '<div class="screen tr-screen tr-week">' +
     '<div class="c-strip strip tr-top"><span>' + deco('week', 24) + ' Week ' + esc(vm.week) + ' done</span><span class="c-strip__right tr-tpw">' + tp(vm.tp) + '</span></div>' +

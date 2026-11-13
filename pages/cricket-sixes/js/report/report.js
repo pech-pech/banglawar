@@ -104,7 +104,7 @@ export const LINES = [
     `Why? opened ${a.why} times${a.whyBy.length ? ' (' + a.whyBy.slice(-MAX_MATCH_ROWS).join(', ') + ')' : ''}.`,
     `Word list "?" opened ${sum(Object.values(a.gloss))} times.`,
     wordsLine(a.gloss)),
-  ({ a }) => { const n = a.finished, tot = Math.round(1.28 * 11 * Math.sqrt(n)), wk = r1(1.28 * 1.5 * Math.sqrt(n)), L = BANDS.luckBy, g = (v) => (v > 0 ? '+' : '') + v; // wicket sd ~1.5 a match (p10-p90 -2.6..+2.4)
+  ({ a }) => { const n = a.finished, tot = Math.round(1.28 * 11 * Math.sqrt(n)), wk = r1(1.28 * 1.95 * Math.sqrt(n)), L = BANDS.luckBy, g = (v) => (v > 0 ? '+' : '') + v; // wicket sd 1.95 a match (NUMBERS: p10-p90 -2.6..+2.4 = 2 x 1.28 x sd)
     return lines(`Luck: you scored ${a.scored} runs, expected ${a.xScored}; the rival scored ${a.conc}, expected ${a.xConc} (finished matches only; usual total over ${n} ${n === 1 ? 'match' : 'matches'}: -${tot} to +${tot}${n < 10 ? '; too few matches to call luck' : ''}).`,
       `Wickets: you lost ${a.wkLost} (expected ${a.xWkLost}), you took ${a.wkTook} (expected ${a.xWkTook}); usual wicket luck over ${n} ${n === 1 ? 'match' : 'matches'}: -${wk} to +${wk}.`,
       `In one match, luck in your chase usually lands between ${BANDS.luck[0]} and +${BANDS.luck[1]} runs; after a win ${L.won[0]} to ${g(L.won[1])}, after a loss ${L.lost[0]} to ${g(L.lost[1])} [sim].`); },

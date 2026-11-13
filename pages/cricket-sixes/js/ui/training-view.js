@@ -45,7 +45,7 @@ export function adapt(vm) {
   const costs = {}; (vm.efforts || []).forEach((e) => { costs[e.id] = e.cost; });
   const pc = (vm.coaches || []).find((c) => c.picked) || null, pv = vm.preview || {};
   const wl = vm.spotlight && vm.spotlight.wheel;
-  const wheel = sp && wl ? { slices: wl.slices, jackpotIndex: wl.jackpotIndex, player: { id: sp.id, name: sp.name, rates: sp.rates }, stat: WORD_KEY[sp.stat] || 'bp', pending: vm.spotlight.pending || null } : null;
+  const wheel = sp && wl ? { slices: wl.slices, jackpotIndex: wl.jackpotIndex, player: { id: sp.id, name: sp.name, rates: sp.rates }, stat: WORD_KEY[sp.stat] || 'bp', pending: vm.spotlight.pending || null, room: vm.spotlight.room != null ? vm.spotlight.room : vm.room } : null;
   const nets = vm.done && vm.result ? { id: vm.week, cost: vm.result.cost, lines: vm.result.lines.map((l) => ({ ...l, stat: RK[l.rating] || l.rating || WORD_KEY[l.stat] || 'bp' })), skipped: rows.filter((r) => r.state === 'skip').map((r) => ({ id: r.id, name: r.name, why: "Can't gain" })) } : null;
   return { week: vm.week, tp: vm.tp, plan: { ...P, spotlightName: sp ? sp.name : null }, costs: { easy: 10, normal: 13, push: 18, ...costs }, coach: pc, rows, wheel, nets, canRun: vm.canRun !== false,
     preview: { cost: pv.cost || 0, trainN: pv.trainCount != null ? pv.trainCount : pv.trainN, skippedN: pv.skipCount != null ? pv.skipCount : pv.skippedN || 0, shortN: pv.shortCount != null ? pv.shortCount : pv.shortN || 0, hint: pv.hint || null } };
@@ -102,7 +102,7 @@ function openSpotlightWheel(dispatch) {
     title: 'Spotlight', sub: 'Week ' + latest.vm.week, cardHtml: card, slices: w.slices, jackpotIndex: w.jackpotIndex, aim: w.aim, pending: w.pending || null,
     onSpin: (careful) => dispatch('Spin', { careful }), getPending: () => { const sp = latest.raw.spotlight; return (sp && sp.pending) || null; },
     describe: (p) => {
-      const g = Math.min(p.gain, w.room == null ? 99 : w.room), to = raw0 + g, a = letterOfRaw(raw0), b = letterOfRaw(to), moved = stepOfRaw(to) !== stepOfRaw(raw0);
+      const g = p.applied != null ? p.applied : Math.min(p.gain, w.room == null ? 99 : w.room), to = raw0 + g, a = letterOfRaw(raw0), b = letterOfRaw(to), moved = stepOfRaw(to) !== stepOfRaw(raw0);
       return { big: st.word, from: a, to: b, barHtml: moved ? '' : letterBar(to, raw0), breakthrough: !!(p.jackpot || moved),
         say: pr.name + ' ' + st.word + ': wheel plus ' + g + ', ' + (moved ? a + ' to ' + b : a + ', the bar fills') + (p.jackpot ? ', jackpot' : '') + '.' };
     },

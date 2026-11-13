@@ -139,9 +139,9 @@ try {
   if (stT === 'train') {
     await settle(400); await shot('02a-train'); await audit(6, 'training screen');
     const tipSkip = await page.$('.tr-tip [data-tip="skip"]'); if (tipSkip) { await tipSkip.click(); await settle(200); }
-    const bowl = await page.$('[data-act="setPlan"][data-arg*="bowl"]'); const push = await page.$('[data-act="setPlan"][data-arg*="push"]');
+    const bowl = await page.$('[data-act="SetTrainPlan"][data-arg*="bowl"]'); const push = await page.$('[data-act="SetTrainPlan"][data-arg*="push"]');
     step(2, 'Focus and Effort buttons exist', !!(bowl && push), 'setPlan buttons missing');
-    if (bowl) { await bowl.click(); await settle(150); } if (push) { const p2 = await page.$('[data-act="setPlan"][data-arg*="push"]'); if (p2) await p2.click(); await settle(150); }
+    if (bowl) { await bowl.click(); await settle(150); } if (push) { const p2 = await page.$('[data-act="SetTrainPlan"][data-arg*="push"]'); if (p2) await p2.click(); await settle(150); }
     const plan = await page.evaluate(() => { const t = window.__store.get().training || {}; return JSON.stringify({ focus: t.focus, effort: t.effort, plan: t.plan || null, lastPlan: t.lastPlan || null }); });
     step(2, 'plan stored as bowl + push', /bowl/.test(plan) && /push/.test(plan), `plan ${plan}`);
     // spotlight one player

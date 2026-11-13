@@ -14,7 +14,7 @@
 import { esc, icoDeco } from './dom.js';
 
 const TAU = Math.PI * 2;
-const W0 = 11, WMIN = 1.5, TAUD = 1.5, SLOW = 3.2; // rad/s start, floor, decay time (s), slow zone below this speed
+const W0 = 11, WMIN = 1.2, TAUD = 1.0, WIN0 = 3.2, WIN1 = 3.8, COAST = 6; // rad/s start, floor, decay time (s); careful window (s after SPIN, 0.6 s long); no tap by COAST s = coast to a random landing
 const reducedNow = () => typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 /** Resolve a CSS variable to [r,g,b] (works through var() chains and both skins). */
@@ -51,8 +51,9 @@ export function openWheel(o) {
     css = Math.max(160, Math.min(w, h, 340)); size = Math.floor(css / S / 2) * 2; css = size * S;
     wrap.style.width = wrap.style.height = css + 'px'; cv.width = cv.height = size; cv.style.width = cv.style.height = css + 'px'; draw();
   }
+  const elapsed = () => (performance.now() - t0) / 1000, inWin = () => { const e = elapsed(); return e >= WIN0 && e <= WIN1; };
   function draw() {
-    const w = size, cx = w / 2, cy = w / 2, R = w / 2 - 1, im = ctx.createImageData(w, w), d = im.data, slow = state === 'spin' && speed <= SLOW, moving = state === 'spin' || state === 'land';
+    const w = size, cx = w / 2, cy = w / 2, R = w / 2 - 1, im = ctx.createImageData(w, w), d = im.data, slow = state === 'spin' && inWin(), moving = state === 'spin' || state === 'land';
     for (let y = 0; y < w; y++) for (let x = 0; x < w; x++) {
       const dx = x + 0.5 - cx, dy = y + 0.5 - cy, r = Math.sqrt(dx * dx + dy * dy); if (r > R) continue;
       const th = Math.atan2(dy, dx); let phi = (th + Math.PI / 2 - rot) % TAU; if (phi < 0) phi += TAU;
@@ -76,13 +77,14 @@ export function openWheel(o) {
     labels.forEach((l, i) => {
       const b = (i + 0.5) * A + rot - Math.PI / 2, rl = R * 0.67;
       l.style.left = (cx + Math.cos(b) * rl) * S + 'px'; l.style.top = (cy + Math.sin(b) * rl) * S + 'px';
-      l.style.color = lum(fills[i]) > 0.5 ? 'rgb(' + pal.out + ')' : '#fff'; l.style.opacity = moving && speed > SLOW ? '.55' : '1';
+      l.style.color = lum(fills[i]) > 0.5 ? 'rgb(' + pal.out + ')' : '#fff'; l.style.opacity = moving && speed > 3 ? '.55' : '1';
     });
   }
   const setMsg = (t) => { msg.textContent = t; };
   function frame(t) {
     if (closed) return; const dt = Math.min(0.05, (t - lastT) / 1000 || 0.016); lastT = t;
-    if (state === 'spin') { speed = WMIN + (W0 - WMIN) * Math.exp(-((t - t0) / 1000) / TAUD); rot += speed * dt; if (speed <= SLOW + 0.01 && !ov.classList.contains('is-slow')) { ov.classList.add('is-slow'); setMsg('Slow now. Tap STOP for a careful stop.'); } }
+    if (state === 'spin') { speed = WMIN + (W0 - WMIN) * Math.exp(-((t - t0) / 1000) / TAUD); rot += speed * dt; const w = inWin(); if (w !== ov.classList.contains('is-slow')) { ov.classList.toggle('is-slow', w); setMsg(w ? 'Now: tap STOP for a careful stop.' : elapsed() > WIN1 ? 'Too late: a random stop.' : 'Turning. Tap STOP when the slow marker glows.'); }
+      if ((t - t0) / 1000 > COAST) stop(); }
     else if (state === 'land') {
       const k = Math.min(1, (t - landing.t) / landing.D), e = 1 - Math.pow(1 - k, 3); rot = landing.r0 + (landing.r1 - landing.r0) * e;
       if (k >= 1) { state = 'result'; rot = landing.r1; draw(); showResult(); return; }
@@ -103,8 +105,8 @@ export function openWheel(o) {
     go.textContent = o.collectLabel || 'COLLECT'; go.classList.add('is-collect'); go.setAttribute('aria-label', o.collectLabel || 'Collect'); go.focus();
     if (!reduced) draw();
   }
-  function spin() { state = 'spin'; t0 = performance.now(); speed = W0; setMsg('Turning. Wait for the gold dashes to glow, then tap STOP.'); go.textContent = 'STOP'; go.setAttribute('aria-label', 'Stop the wheel'); ov.classList.add('is-turning'); raf = requestAnimationFrame(frame); }
-  function stop() { const careful = speed <= SLOW; ov.classList.remove('is-turning'); o.onSpin(careful); const p = o.getPending(); if (!p) { close(); return; } setMsg(careful ? 'Good timing!' : 'Stopping...'); landOn(p.index); }
+  function spin() { state = 'spin'; t0 = performance.now(); speed = W0; setMsg('Turning. Tap STOP when the slow marker glows.'); go.textContent = 'STOP'; go.setAttribute('aria-label', 'Stop the wheel'); ov.classList.add('is-turning'); raf = requestAnimationFrame(frame); }
+  function stop() { const careful = inWin(); ov.classList.remove('is-turning'); o.onSpin(careful); const p = o.getPending(); if (!p) { close(); return; } setMsg(careful ? 'Good timing!' : 'Stopping...'); landOn(p.index); }
   go.addEventListener('click', () => {
     if (state === 'idle') { if (reduced) { o.onSpin(true); const p = o.getPending(); if (!p) return; rot = -(p.index + 0.5) * A; draw(); showResult(); } else spin(); }
     else if (state === 'spin') stop();
@@ -123,6 +125,6 @@ export function openWheel(o) {
   layout();
   const pend = o.pending || null;
   if (pend) { rot = -(pend.index + 0.5) * A; state = 'result'; draw(); showResult(); }
-  else { setMsg(reduced ? 'Tap SPIN. The result shows at once.' : 'Tap SPIN. The wheel slows down. Tap STOP when it is slow.'); go.focus(); }
+  else { setMsg(reduced ? 'Tap SPIN. The result shows at once.' : 'Tap SPIN. The wheel slows. Tap STOP when the slow marker glows.'); go.focus(); }
   return close;
 }

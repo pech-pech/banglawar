@@ -503,6 +503,8 @@ function doRunCourse(s, p) {
   if (!n || n === bare) return s;
   const m = clone(n);
   if (paid.econ) m.econ = clone(paid.econ);
+  const was = coachList(s).find((x) => x.id === id), now = coachList(m).find((x) => x.id === id);
+  m.training.courseDone = { week: s.training.week, coachId: id, name: was.name, from: was.step, to: now.step, gain: now.step - was.step, jackpot: !!pend.result.jackpot };
   delete m.training.coursePending;
   return m;
 }
