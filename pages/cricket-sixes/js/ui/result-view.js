@@ -3,13 +3,16 @@ import { esc, btn, ctaBar, icoDeco } from './dom.js';
 import { helpBtn } from './hub-view.js';
 import { winBeat } from './beats.js';
 
+/* QA3 m6: one line per player, his Stars first (★★ Ferrara: 66 runs); screen readers hear "(2 Stars)". */
+const starLine = (w) => { const n = Math.max(1, w.n | 0); return '<li><span class="pay-n" aria-hidden="true">' + '★'.repeat(n) + '</span> <b>' + esc(w.name) + '</b>: ' + esc(w.why) + '<span class="ss-sr"> (' + n + (n === 1 ? ' Star' : ' Stars') + ')</span></li>'; };
 /* Pay card (SPEC s5): Squad base / Win (hidden on a loss) / Stars / Total. Tap the Stars line to see who earned them. View state only. */
 export function payCard(pay) {
   if (!pay) return '';
   const row = (l, v, sub) => '<div class="pay-row"><span>' + esc(l) + (sub ? '<small>' + esc(sub) + '</small>' : '') + '</span><b>' + v + '</b></div>';
   const stars = pay.stars || 0, who = pay.starList || [];
   const starRow = '<button type="button" class="pay-row" data-pay-stars aria-expanded="false" aria-controls="pay-who"><span>' + '<span class="pay-star" aria-hidden="true">★</span> Stars x' + esc(stars) + '<small>Tap to see who</small></span><b>+' + esc(pay.starsTp) + '</b></button>' +
-    '<ul class="pay-who" id="pay-who" hidden>' + (who.length ? who.map((w) => '<li><b>' + esc(w.name) + '</b>: ' + esc(w.why) + '</li>').join('') : '<li>No Stars this match.</li>') + '</ul>';
+    '<ul class="pay-who" id="pay-who" hidden>' + (who.length ? who.map(starLine).join('') : '<li>No Stars this match.</li>') +
+    (pay.starsRaw > stars ? '<li class="pay-cap">' + esc(pay.starsRaw) + ' Stars earned: ' + esc(stars) + ' is the most that pay.</li>' : '') + '</ul>';
   return '<div class="c-card res-card pay" aria-label="Training points earned"><h3>Training points</h3>' +
     (pay.base ? row('Squad base', esc(pay.base)) : '') +
     (pay.win > 0 ? row(pay.winNote === 'a tie' ? 'Tie' : 'Win', '+' + esc(pay.win), pay.winNote && pay.winNote !== 'a tie' ? '(' + pay.winNote + ')' : '') : '') +

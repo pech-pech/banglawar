@@ -143,7 +143,7 @@ export function matchPay(s, result) {
   const kind = (typeof result === 'object' && result.kind) || (s.fixture && s.fixture.kind) || 'league';
   const list = [];
   let raw = 0;
-  for (const p of (s.me && s.me.players) || []) { const st = starsOf(p); if (st.n) { raw += st.n; list.push({ id: p.id, name: p.name, why: st.why }); } }
+  for (const p of (s.me && s.me.players) || []) { const st = starsOf(p); if (st.n) { raw += st.n; list.push({ id: p.id, name: p.name, why: st.why, n: st.n }); } }
   const stars = Math.min(raw, PAY.starCap);
   const gap = sixGap(s, s.rival && s.rival.players && s.rival.players.length ? undefined : s.fixture && s.fixture.opp);
   if (kind !== 'league') {
