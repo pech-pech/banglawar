@@ -4,7 +4,7 @@ import { applyCommand } from '../js/store/commands.js';
 import { bowlVM, chaseVM } from '../js/store/selectors.js';
 import { skilledBowler, skilledField, skilledIntent } from '../js/core/skilled.js';
 import { createLog, KEY } from '../js/report/log.js';
-import { aggregate, buildSummary, buildData, buildFull, cleanOf, wrap, LINES } from '../js/report/report.js';
+import { wordsLine, aggregate, buildSummary, buildData, buildFull, cleanOf, wrap, LINES } from '../js/report/report.js';
 import { nextQuestion } from '../js/report/feel.js';
 import { matchupOf, expected } from '../js/report/metrics.js';
 import { BANDS, inRange } from '../js/report/bands.js';
@@ -43,7 +43,7 @@ test('summary: plain words, wrapped, no codes, no data pointer', () => {
   const t = buildSummary(log.data(), ENV), lines = t.split('\n');
   assert.match(lines[0], /^CRICKET REPORT sixes-r4  CLEAN: YES  \(3 matches, 0 errors\)/);
   for (const w of ['What you chose (bowling)', 'Attacking field', 'Defensive field', 'Same call as the skilled bot', 'Thinking time', 'Luck:', 'Results:', 'M3 ', 'Over panel:', 'Feel M', 'Checks:']) assert.ok(t.includes(w), w);
-  assert.ok(t.includes('Why? opened 1 times') && t.includes('economy x2'));
+  assert.ok(t.includes('Why? opened 1 times') && t.includes('Words opened: Economy 2'));
   assert.ok(t.includes('finish skipped') && !t.includes('"-"'));
   assert.ok(lines.every((l) => l.length <= 78), 'long line: ' + lines.find((l) => l.length > 78));
   assert.ok(!/rote|\bfit\b|noisy|\bdpr\b|\b\dwk\b/.test(t), 'codes in summary');
@@ -122,4 +122,16 @@ test('report: reopening mid-match is not a new match or a first Start (Z1), and 
   log2.stage('bowl'); t = 9000; log2.matchStart({ seed: 's1', stage: 'bowl' }, true);
   assert.equal(log2.data().matches.length, 1); assert.equal(log2.data().matches[0].ab, 0);
   assert.equal(log2.data().sessions.at(-1).first, undefined); assert.equal(log2.data().sessions.at(-1).end, 'bowl');
+});
+
+test('word-level glossary counts: line, top 8 + rest, JSON export', () => {
+  const log = createLog({ storage: null, build: 'sixes-r6', now: () => 1000 }); play(log, 1, 'skilled');
+  for (const [w, n] of [['burst', 3], ['line', 2], ['pairing', 1]]) for (let i = 0; i < n; i++) log.gloss(w);
+  const t = buildSummary(log.data(), ENV);
+  assert.ok(t.includes('Words opened: Burst 3, Line 2, Pairing 1.'), t);
+  assert.ok(t.includes('Word list "?" opened 6 times.'));
+  assert.deepEqual(JSON.parse(buildData(log.data(), ENV)).wordsOpened, { burst: 3, line: 2, pairing: 1 });
+  const g = {}; for (let i = 0; i < 10; i++) g['w' + i] = 10 - i;
+  assert.match(wordsLine(g), /^Words opened: W0 10, .*W7 3, \+3 more\.$/);
+  assert.equal(wordsLine({}), null);
 });

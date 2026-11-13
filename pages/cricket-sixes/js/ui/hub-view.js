@@ -8,6 +8,20 @@ export function helpBtn(id, label) {
     ' aria-label="' + esc(label || 'Cricket words (glossary)') + '">?</button>';
 }
 
+let noticeGone = false; // view state: the squad-of-8 line is gone once tapped (the store command, if any, clears it for good)
+function noticeHtml(n) {
+  if (!n || noticeGone) return '';
+  const k = Number(n.moved) || 0;
+  const txt = 'The squad is now 8.' + (k ? ' ' + k + ' player' + (k === 1 ? '' : 's') + ' moved on.' : '');
+  return '<button type="button" class="hb-notice" data-notice role="status" aria-label="' + esc(txt + ' Tap to dismiss.') + '">' + icoDeco('info', 24) + '<span>' + esc(txt) + '</span><small>Tap to close</small></button>';
+}
+const sayL = (L) => String(L).replace(/\+$/, ' plus').replace(/-$/, ' minus');
+/* Pre-match letter pair (SPEC s5): our six against theirs, letters not numbers. */
+function pairHtml(g) {
+  if (!g) return '';
+  return '<div class="pm-pair" role="group" aria-label="Our six ' + esc(sayL(g.ours)) + ', their six ' + esc(sayL(g.theirs)) + '"><span>Our six <b class="lt-in">' + esc(g.ours) + '</b></span><span>Their six <b class="lt-in">' + esc(g.theirs) + '</b></span></div>';
+}
+
 const TICK = { ok: 'c-tag--done', later: 'c-tag--locked', todo: '' };
 
 function promoHtml(pr, unlock) {
@@ -28,6 +42,14 @@ function rivalHtml(next) {
   if (!t) return '';
   return '<button type="button" class="c-btn hb-rival" data-act="sheet:rival" aria-label="Next: ' + esc(next.oppName) + ', ' + esc(t.chip) + '. Tap for the hint.">' + icoDeco('scout', 24) +
     '<span class="hb-rtx name">Next: ' + esc(next.oppName) + ' · ' + esc(t.chip) + '</span></button>';
+}
+
+/* P8 economy: three tools plus one compact Coins / Fans / Medals line (hidden when the save has no economy). */
+function econHtml(e) {
+  if (!e) return '';
+  const n = (v) => esc(String(Math.round(Number(v) || 0)).replace(/\B(?=(\d{3})+(?!\d))/g, ','));
+  return '<div class="hb-tools hb-tools3">' + toolBtn('Money', 'sheet:money', 'coin', 'Club money') + toolBtn('Stadium', 'sheet:stadium', 'home', 'Stadium') + toolBtn('Extras', 'sheet:sinks', 'shop', 'Extras') + '</div>' +
+    '<p class="hb-econ" aria-label="Coins ' + n(e.coins) + ', Fans ' + n(e.fans) + ', Medals ' + n(e.medals) + '">' + icoDeco('coin', 16) + '<b>' + n(e.coins) + '</b> Coins' + ' · ' + icoDeco('fan', 16) + '<b>' + n(e.fans) + '</b> Fans' + ' · ' + icoDeco('medal', 16) + '<b>' + n(e.medals) + '</b> Medals</p>';
 }
 
 function sixHtml(six) {
@@ -62,9 +84,11 @@ export function render(el, vm, dispatch) {
     '<div class="c-strip strip"><span class="ss-strip"><b class="rn-head">' + esc(head) + '</b><small>' + esc(sub) + '</small></span>' + helpBtn('league-table') + '</div>' +
     '<div class="hb-tools">' + toolBtn('Table', 'sheet:table', 'league', 'League table') + toolBtn('Book', 'sheet:book', 'book', 'Pairing Book') + toolBtn('Save', 'sheet:save', 'save', 'Save', ' ss-save') +
     '<span class="hb-tp">' + icoDeco('tp', 24) + '<span class="hb-tl"><b>' + esc(vm.tp) + '</b> <span aria-hidden="true">TP</span><span class="ss-sr"> training points</span></span></span></div>' +
-    (full ? '<div class="hb-scene" aria-label="Your club ground"></div>' + rivalHtml(vm.next) + promoHtml(vm.promo, vm.unlock) + sixHtml(vm.six) : '') +
+    (full ? noticeHtml(vm.notice) + econHtml(vm.econ) + '<div class="hb-scene" aria-label="Your club ground"></div>' + rivalHtml(vm.next) + pairHtml(vm.gap) + promoHtml(vm.promo, vm.unlock) + sixHtml(vm.six) : '') +
     (full ? footHtml(vm, cta) : '<div class="m0-ctabar cta hb-foot">' + btn(cta.label || 'Pick your six', cta.act || 'OpenSquad', { kind: 'cta', disabled: cta.disabled, reason: cta.reason }) + '</div>') +
     '</div>';
+  const nb = el.querySelector('[data-notice]');
+  if (nb) nb.addEventListener('click', () => { noticeGone = true; nb.remove(); dispatch('DismissNotice', {}); });
   const host = el.querySelector('.hb-scene');
   if (host) drawClub(host, { onTap(id, name) { openSheet(name, '<div class="c-card c-card--inset hb-built">' + icoDeco('lock', 24) + '<span>Not built yet. It comes with the stadium.</span></div>'); } });
   [].forEach.call(el.querySelectorAll('canvas.hb-head'), (cv) => drawHead(cv, cv.getAttribute('data-key')));

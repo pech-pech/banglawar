@@ -6,7 +6,7 @@
    The picked node is view state only (module variable, cleared on close). */
 import { openSheet } from './sheet.js';
 import { esc, bindActs } from './dom.js';
-import { roleIcon, typeIcon, deco } from './training-view.js';
+import { roleIcon, typeIcon, deco } from './letters-ui.js';
 
 let picked = null; // `${side}:${i}`
 

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { nodeStatus, unlockNode, treeBoost, playerFx, makeFx } from '../js/core/skills.js';
-import { doDrill, endWeek } from '../js/core/training.js';
+import { runNets, endWeek } from '../js/core/training.js';
 import { game, player, coach, me, fixed } from './_tr-fixture.mjs';
 
 const lv3 = (focus) => coach({ lv: { Power: 0, Technique: 0, Pace: 0, Craft: 0, [focus]: 3 } });
@@ -19,14 +19,14 @@ test('nodes unlock in order 1..5 at 30/45/75/120/180 TP', () => {
   }
   assert.equal(unlockNode(s, { playerId: 'p1', side: 'bowl', node: 5 }), s, 'already owned');
 });
-test('one node per player per week, and it does not use the drill', () => {
+test('one node per player per week, and it does not use the nets', () => {
   let s = game({ tp: 1000 });
   s = unlockNode(s, { playerId: 'p1', side: 'bat', node: 1 });
   assert.equal(nodeStatus(s, 'p1', 'bat', 2).reason, 'week');
   assert.equal(unlockNode(s, { playerId: 'p1', side: 'bowl', node: 1 }), s, 'the other tree is the same player: refused');
-  assert.equal(s.training.drilled.p1, undefined);
-  const t = doDrill(s, { playerId: 'p1', drillId: 'bp' }, fixed(0.1));
-  assert.equal(t.training.tp, 1000 - 30 - 15);
+  assert.notEqual(s.training.netsWeek, s.training.week);
+  const t = runNets({ ...s, training: { ...s.training, lastPlan: { focus: 'bat', effort: 'normal' } } }, fixed(0.1), {}).state;
+  assert.equal(t.training.tp, 1000 - 30 - 13);
   assert.equal(nodeStatus(endWeek(s), 'p1', 'bat', 2).status, 'available');
 });
 test('not enough TP is refused', () => {
@@ -36,7 +36,7 @@ test('not enough TP is refused', () => {
 });
 test('Top node needs a matching coach at level 3+ at the moment of unlocking only', () => {
   const four = player({ nodes: { bat: 4, bowl: 0 } }); // Middle: Technique
-  const no = game({ players: [four], coaches: [lv3('Power')], tp: 500 });
+  const no = game({ players: [four], coaches: [lv3('Pace')], tp: 500 }); // a bowling coach does not help a batting tree (P11: Power/Technique = Batting, Pace/Craft = Bowling)
   assert.equal(nodeStatus(no, 'p1', 'bat', 5).reason, 'coach');
   assert.equal(unlockNode(no, { playerId: 'p1', side: 'bat', node: 5 }), no);
   const low = game({ players: [four], coaches: [coach({ lv: { Power: 0, Technique: 2, Pace: 0, Craft: 0 } })], tp: 500 });
@@ -58,7 +58,8 @@ test('treeBoost x1.5 with a matching level 3+ coach, x1 without (leaves) or belo
   assert.equal(treeBoost([lv3('Pace')], 'Fast'), 1.5);
   assert.equal(treeBoost([lv3('Craft')], 'Spin'), 1.5);
   assert.equal(treeBoost([lv3('Craft')], 'Medium'), 1.5);
-  assert.equal(treeBoost([lv3('Power')], 'Middle'), 1);
+  assert.equal(treeBoost([lv3('Power')], 'Middle'), 1.5, 'P11: Power and Technique are one Batting focus');
+  assert.equal(treeBoost([lv3('Pace')], 'Middle'), 1);
   assert.equal(treeBoost([], 'Middle'), 1);
   assert.equal(treeBoost([coach({ lv: { Power: 0, Technique: 2, Pace: 0, Craft: 0 } })], 'Middle'), 1);
 });

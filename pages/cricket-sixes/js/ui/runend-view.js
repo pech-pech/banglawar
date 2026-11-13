@@ -1,11 +1,12 @@
 /* runend-view: Hall of Fame at the end of a run. render(el, vm, dispatch). Reads runEndVM only. Clicks are handled by app.js (data-act). */
 import { esc, btn, ctaBar, icoDeco } from './dom.js';
+import { letterOfShown } from '../core/letters.js';
 
 const plural = (n, one, many) => n + ' ' + (Number(n) === 1 ? one : many);
 const VALUE = {
   titles: (v) => plural(v, 'league title', 'league titles'),
   league: (v) => 'Reached League ' + v,
-  best_player: (v) => 'Best player: ability ' + v,
+  best_player: (v) => 'Best player: ability ' + letterOfShown(Number(v)),
   finals: (v) => plural(v, 'final played', 'finals played'),
   sgrads: (v) => plural(v, 'graduate', 'graduates'),
 };
@@ -28,7 +29,7 @@ function chapterRow(c) {
 
 function legend(c) {
   const m = c.key === 'legend' && /^(.+) at (\d+)% \(ability (\d+)\)$/.exec(c.detail || '');
-  return m ? m[1] + ' comes back at ' + m[2] + '% of his best (ability ' + m[3] + ')' : (c.detail || '');
+  return m ? m[1] + ' comes back at ' + m[2] + '% of his best (ability ' + letterOfShown(Number(m[3])) + ')' : (c.detail || '');
 }
 
 function carryRow(c) {

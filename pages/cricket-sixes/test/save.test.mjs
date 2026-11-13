@@ -13,8 +13,8 @@ const memStorage = (init = {}) => {
 };
 const throwing = () => ({ getItem() { throw new Error('denied'); }, setItem() { throw new Error('denied'); }, removeItem() { throw new Error('denied'); } });
 
-test('keys are cs.save.1 and cs.save.1.bak, VERSION is 4', () => {
-  assert.equal(KEY, 'cs.save.1'); assert.equal(BAK, 'cs.save.1.bak'); assert.equal(VERSION, 4);
+test('keys are cs.save.1 and cs.save.1.bak, VERSION is 5', () => {
+  assert.equal(KEY, 'cs.save.1'); assert.equal(BAK, 'cs.save.1.bak'); assert.equal(VERSION, 5);
 });
 
 test('round trip: wrap then unwrap deep-equals the state', () => {
@@ -49,7 +49,7 @@ test('migrate: step-0 state loads to current VERSION with new-game defaults', ()
   const r = unwrap(JSON.stringify(s0), { newGame: fakeNewGame });
   assert.equal(r.ok, true); assert.equal(r.from, 0);
   assert.equal(r.state.v, VERSION);
-  assert.equal(r.state.stage, 'coach');
+  assert.equal(r.state.stage, 'hub'); // v5: the coach pick screen is gone, a stuck 'coach' stage goes to the hub
   assert.ok(r.state.season);
   assert.equal(r.state.salt, '');
 });

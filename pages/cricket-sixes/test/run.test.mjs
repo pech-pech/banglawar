@@ -27,7 +27,7 @@ const full = () => (cache ||= playRun('run-a'));
 /** An end-of-season state with my table place forced, run.last cleared so NewSeason closes it from the table. */
 function forced(seed, place, league = 1) {
   const s = clone(toEnd(newGame(seed)));
-  s.season.league = league; s.run.league = league; s.run.last = null;
+  s.season.league = league; s.run.league = league; s.run.last = null; s.econ.stadium = Math.min(5, league + 1); // promotion needs the next stadium (P8)
   const t = s.season.table; const me = t.find((r) => r.id === 'c0');
   const others = t.filter((r) => r.id !== 'c0');
   others.forEach((r, i) => { r.pts = 50 - i; r.rf = 500; r.ra = 400; r.w = 20; });
@@ -125,7 +125,7 @@ test('a missed feat is claimed at a later season end, with no second TP', () => 
   assert.equal(closeSeason(miss).run.chapters[3].featDone, false);
 });
 
-test('NewRun applies the legend and the level-2 coach, and nothing else carries', () => {
+test('NewRun applies the legend and the carried coach (grade C- at most), and nothing else carries', () => {
   const { store } = full(); const old = store.get();
   const e = sel.runEndVM(old);
   assert.equal(e.cta, 'NewRun'); assert.equal(e.max, 9999); assert.equal(e.rows.length, 7); assert.equal(e.seasons, 12);
@@ -145,8 +145,8 @@ test('NewRun applies the legend and the level-2 coach, and nothing else carries'
   assert.deepEqual(others(n), others(fresh));
   assert.deepEqual(n.clubs.slice(1), fresh.clubs.slice(1));
   assert.equal(n.coaches.length, 1); const c = n.coaches[0];
-  assert.deepEqual(Object.values(c.lv).sort(), [0, 0, 0, 2]); assert.equal(n.coachPicked, true);
-  assert.equal(n.training.tp, fresh.training.tp); assert.deepEqual(n.training.drilled, {}); assert.equal(n.training.week, 1);
+  assert.ok(c.step >= 1 && c.step <= RUN.carry.coachStep); assert.ok(Array.isArray(c.strong) && c.strong.length >= 1); assert.equal(n.coachPicked, true);
+  assert.equal(n.training.tp, fresh.training.tp); assert.equal(n.training.week, 1);
   assert.deepEqual(n.plan, fresh.plan); assert.deepEqual(n.season.table, fresh.season.table);
   assert.equal(C(n, 'NewRun', {}), n, 'only from runend');
   const sc = clone(n); sc.clubs[0].squad.forEach((p) => { if (!p.legend) { p.bp = p.bs = p.spd = p.bsk = 1; } });
@@ -157,9 +157,9 @@ test('an old v1 save migrates: run is added from the season, play continues', ()
   const s = clone(toEnd(newGame('old')));
   delete s.run; s.v = 1; s.season.n = 5;
   const r = unwrap(JSON.stringify(s));
-  assert.equal(r.ok, true); assert.equal(r.state.v, 4); assert.equal(r.from, 1);
+  assert.equal(r.ok, true); assert.equal(r.state.v, 5); assert.equal(r.from, 1);
   assert.deepEqual([r.state.run.n, r.state.run.no, r.state.run.league, r.state.run.root], [5, 1, 1, 'old']);
-  assert.equal(VERSION, 4);
+  assert.equal(VERSION, 5);
   const n = C(r.state, 'NewSeason'); assert.equal(n.season.n, 6); assert.equal(n.stage, 'hub'); assert.equal(sel.hubVM(n).run.of, 12);
   assert.equal(sel.endVM(r.state).result.place >= 1, true);
   const back = unwrap(JSON.stringify(wrap(C(null, 'NewGame', { seed: 'z' }))));

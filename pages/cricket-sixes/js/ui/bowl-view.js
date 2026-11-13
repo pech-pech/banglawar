@@ -5,6 +5,7 @@ import { whyLine, outcomeLabel } from './why.js';
 import { openSheet } from './sheet.js';
 import { openGlossary } from './glossary-sheet.js';
 import { stripHtml } from './first-strip.js';
+import { abilityLine } from './letters-ui.js';
 import { POT, gradeAria, newNotes, noteFor } from './grade-notes.js';
 
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -59,9 +60,9 @@ function row(b, vm, st) {
   const best = (b.previews || []).some((p) => p.inPhase);
   const star = best ? '<span class="best bv-best" aria-hidden="true">★</span>' : '';
   const pbox = `<div class="pbox"><span class="bv-icw">${sel && ok ? '<span class="bv-tick" aria-hidden="true"></span>' : ''}${ic(TYPE[b.bowl] || 'typeMedium', 24, 'ico')}</span><span class="bv-tx"><span class="nm name">${esc(b.name)}</span>` +
-    `<span class="sub">${star}${esc(b.bowl)}</span><span class="sub bv-ab">Ability ${esc(b.ability)}</span><span class="sub bv-ov">${esc(b.overs)} of 2 overs</span></span>` +
+    `<span class="sub">${star}${esc(b.bowl)}</span><span class="sub bv-ab">${abilityLine(b.ability).html}</span><span class="sub bv-ov">${esc(b.overs)} of 2 overs</span></span>` +
     `<span class="gr${g === '?' ? ' bv-gq' : ''}"><b>${esc(g)}</b></span>${noteFor(g, st, esc)}</div>`;
-  const label = `${b.name}, ${b.bowl} bowler, ability ${b.ability}, ${b.overs} of 2 overs used, ${gradeAria(g)}` +
+  const label = `${b.name}, ${b.bowl} bowler, ability ${abilityLine(b.ability).say}, ${b.overs} of 2 overs used, ${gradeAria(g)}` +
     (best ? ', in his best overs now' : '');
   if (!ok) {
     const why = REASON[b.reason] || "Can't bowl now";

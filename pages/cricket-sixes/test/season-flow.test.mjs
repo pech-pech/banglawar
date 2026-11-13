@@ -41,27 +41,41 @@ test('deterministic: same seed, same commands -> same JSON; different seed diffe
 test('FinishMatch pays TP, fills the table, plays the 4 AI matches', () => {
   const store = newGame('fm'); const s = untilStage(store, 'done'); const tp0 = s.training.tp;
   const f = C(s, 'FinishMatch');
-  assert.equal(f.stage, 'train'); assert.ok(f.training.tp >= tp0 + 60);
+  assert.equal(f.stage, 'train'); assert.ok(f.training.tp >= tp0 + 45); assert.equal(f.pay.base, 45); assert.equal(f.pay.total, f.training.tp - tp0);
   assert.equal(f.season.results.length, 5); assert.equal(f.season.table.reduce((a, r) => a + r.p, 0), 10);
   assert.equal(C(f, 'FinishMatch'), f);
 });
 
-test('drills: one per player per week, 15 TP, week advances once on EndWeek, drillCount counts', () => {
-  const store = newGame('dr'); let s = untilStage(store, 'train');
-  const id = s.clubs[0].squad[0].id, tp = s.training.tp;
-  const a = C(s, 'Drill', { playerId: id, drillId: 'bp' });
-  assert.equal(a.training.tp, tp - 15); assert.equal(a.training.drillCount, 1);
-  assert.equal(C(a, 'Drill', { playerId: id, drillId: 'bs' }), a);
+test('nets: one Run a week at the plan cost, week advances once on EndWeek', () => {
+  const store = newGame('dr'); const s = untilStage(store, 'train');
+  const tp = s.training.tp;
+  const a = C(C(s, 'SetTrainPlan', { focus: 'bowl', effort: 'push' }), 'RunNets');
+  assert.ok(a.training.tp < tp && (tp - a.training.tp) % 18 === 0); assert.equal(a.training.nets.week, 1); assert.ok(a.training.nets.lines.length > 0);
+  assert.equal(a.training.focus, 'bowl'); assert.equal(a.training.effort, 'push');
+  assert.equal(C(a, 'RunNets'), a, 'one Run a week');
   const w0 = a.training.week; const e = C(a, 'EndWeek');
-  assert.equal(e.stage, 'week'); assert.equal(e.training.week, w0 + 1);
+  assert.equal(e.stage, 'week'); assert.equal(e.training.week, w0 + 1); assert.equal(e.training.last_plan.focus, 'bowl'); assert.equal(e.training.nets, undefined);
   const n = C(e, 'NextWeek'); assert.equal(n.stage, 'hub'); assert.equal(n.season.round, 2); assert.equal(n.training.week, w0 + 1);
   assert.equal(n.fixture.round, 2);
 });
 
-test('drill roll depends on the salt (re-roll without ?seed) but not on call order', () => {
-  const store = newGame('salt'); const s = untilStage(store, 'train'); const id = s.clubs[0].squad[1].id;
-  const same = (x, y) => JSON.stringify(C(x, 'Drill', { playerId: id, drillId: 'spd' }).training.last) === JSON.stringify(C(y, 'Drill', { playerId: id, drillId: 'spd' }).training.last);
-  assert.ok(same(s, s));
+test('spotlight: Spin needs a player, stores the result once; Run uses it; same state -> same result', () => {
+  const s = untilStage(newGame('sp'), 'train'); const id = s.clubs[0].squad[0].id;
+  assert.equal(C(s, 'Spin', { careful: true }), s, 'no spotlight, no spin');
+  const p = C(s, 'SetTrainPlan', { spotlightId: id }), a = C(p, 'Spin', { careful: true });
+  assert.equal(a.training.pending.result.gain >= 1, true); assert.equal(C(a, 'Spin', {}), a);
+  assert.deepEqual(C(p, 'Spin', { careful: true }).training.pending, a.training.pending);
+  const r = C(a, 'RunNets'); assert.equal(r.training.pending, undefined);
+  const line = r.training.nets.lines.find((l) => l.id === id); if (line) assert.equal(line.wheelGain, a.training.pending.result.gain);
+});
+
+test('courses: spin, run; the coach is away a week and the Coins go through the economy', () => {
+  const s = untilStage(newGame('cs'), 'train'); const c = s.coaches[0];
+  const sp = C(s, 'CourseSpin', { coachId: c.id, careful: true }); assert.ok(sp.training.coursePending);
+  assert.equal(C(s, 'RunCourse', { coachId: c.id }), s, 'spin first');
+  const r = C(sp, 'RunCourse', { coachId: c.id });
+  assert.ok(r.coaches[0].step > c.step); assert.equal(r.coaches[0].away, 1); assert.ok(r.econ.coins < s.econ.coins);
+  assert.equal(C(C(r, 'CourseSpin', { coachId: c.id }), 'RunCourse', { coachId: c.id }).coaches[0].step, r.coaches[0].step, 'one course a coach a season');
 });
 
 test('UnlockNode spends TP and sets nodes (stage train)', () => {
@@ -71,21 +85,18 @@ test('UnlockNode spends TP and sets nodes (stage train)', () => {
   assert.equal(C(s, 'UnlockNode', { playerId: id, side: 'bat', node: 2 }), s);
 });
 
-test('weekVM / trainingVM / playerVM / treeVM / coachesVM / drillResultVM shapes', () => {
+test('weekVM / trainingVM / playerVM / treeVM / coachesVM shapes', () => {
   const store = newGame('vm'); let s = untilStage(store, 'train'); const id = s.clubs[0].squad[0].id;
   const tv = sel.trainingVM(s);
-  assert.equal(tv.rows.length, 10); assert.equal(tv.total, 10); assert.equal(tv.done, 0); assert.ok(tv.coachLine);
-  assert.equal(tv.rows.filter((r) => r.bench).length, 4);
-  // row layout: each row carries the four raw 1-99 ratings, in the order the row draws them
-  for (const r of tv.rows) { assert.deepEqual(Object.keys(r.rates), ['batPower', 'batSkill', 'bowlSpeed', 'bowlSkill']); for (const v of Object.values(r.rates)) assert.ok(Number.isInteger(v) && v >= 1 && v <= 99); }
-  const p0 = s.clubs[0].squad.find((p) => p.id === tv.rows[0].id); assert.deepEqual(tv.rows[0].rates, { batPower: p0.bp, batSkill: p0.bs, bowlSpeed: p0.spd, bowlSkill: p0.bsk });
-  const pv = sel.playerVM(s, id); assert.equal(pv.drills.length, 4); assert.equal(pv.ratings.length, 4); assert.ok(pv.ability.overall);
+  assert.equal(tv.rows.length, 8); assert.equal(tv.rows.filter((r) => r.bench).length, 2); assert.equal(tv.done, false); assert.equal(tv.canRun, true);
+  assert.deepEqual(tv.efforts.map((e) => e.cost), [10, 13, 18]); assert.deepEqual(tv.focuses.map((f) => f.id), ['bat', 'bowl', 'bal']);
+  for (const r of tv.rows) { assert.deepEqual(Object.keys(r.rates), ['batPower', 'batSkill', 'bowlSpeed', 'bowlSkill']); assert.match(r.letter, /^[A-FS][-+]?$/); assert.ok(r.ticks >= 0 && r.ticks <= 3); }
+  const pv = sel.playerVM(s, id); assert.equal(pv.ratings.length, 4); assert.ok(pv.ability.overall); assert.match(pv.ratings[0].letter, /^[A-FS][-+]?$/);
   const tr = sel.treeVM(s, id); assert.equal(tr.trees.length, 2); assert.equal(tr.trees[0].nodes.length, 5);
   assert.ok(sel.coachesVM(s).coaches.length >= 1);
-  s = C(s, 'Drill', { playerId: id, drillId: 'bp' });
-  const dr = sel.drillResultVM(s); assert.ok(['Okay', 'Good', 'Great'].includes(dr.word)); assert.equal(dr.id, id);
+  s = C(s, 'RunNets'); assert.equal(sel.trainingVM(s).done, true);
   s = C(s, 'EndWeek'); const wv = sel.weekVM(s);
-  assert.equal(wv.gains.length, 10); assert.ok(wv.roundResults.length >= 5); assert.ok(wv.pos >= 1);
+  assert.equal(wv.gains.length, 8); assert.ok(wv.roundResults.length >= 5); assert.ok(wv.pos >= 1);
 });
 
 test('NewSeason: fresh fixtures and table, AI clubs grew, M keeps squad, TP kept', () => {

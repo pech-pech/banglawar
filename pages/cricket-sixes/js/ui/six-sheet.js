@@ -5,6 +5,7 @@
 import { esc, icoDeco, tagChip } from './dom.js';
 import { openSheet } from './sheet.js';
 import { check } from './plan-view.js';
+import { shownCell, spoken, benchSlots, fitTick } from './letters-ui.js';
 
 const ROLE_ICON = { Opener: 'roleOpener', Middle: 'roleMiddle', Lower: 'roleLower' };
 const TYPE_ICON = { Fast: 'typeFast', Medium: 'typeMedium', Spin: 'typeSpin' };
@@ -28,16 +29,16 @@ export function openTeam(vm, dispatch, _open, arg, refresh) {
   const body = /** @type {HTMLElement} */ (root.parentElement);
   body.classList.add('ts-body'); if (body.parentElement) body.parentElement.classList.add('tr-tall', 'ts-sheet');
 
-  function playerRow(p, on) {
+  function playerRow(p, on, slot) {
     const hidden = !p.grade || p.grade === '?';
     const picked = st.out === p.id;
     const sub = (p.role ? esc(p.role) : '') + (p.type ? ' · ' + icoDeco(TYPE_ICON[p.type], 14) + esc(p.type) : '');
-    const label = p.name + ', ' + (p.role || '') + ', ' + (p.type || '') + ', ability ' + p.ability + ', ' + (hidden ? 'grade hidden' : 'grade ' + p.grade) +
-      (on ? '. Playing, bats number ' + (p.order + 1) + '. Tap to swap out.' : '. On the bench. Tap to bring in.') + (picked ? ' Selected.' : '');
+    const label = p.name + ', ' + (p.role || '') + ', ' + (p.type || '') + ', ability ' + spoken(shownCell(p.ability).letter) + ', ' + (hidden ? 'grade hidden' : 'grade ' + p.grade) +
+      (on ? '. Playing, bats number ' + (p.order + 1) + '. Tap to swap out.' : '. ' + (slot ? slot.label + (slot.fit ? ', good fit' : '') : 'On the bench') + '. Tap to bring in.') + (picked ? ' Selected.' : '');
     return '<button type="button" class="ts-row' + (picked ? ' is-selected' : '') + (on ? '' : ' ts-row--bench') + '" data-pid="' + esc(p.id) + '" aria-pressed="' + picked + '" aria-label="' + esc(label) + '">' +
       '<span class="ts-ico">' + icoDeco(ROLE_ICON[p.role] || 'roleMiddle', 24) + '</span>' +
-      '<span class="ts-nm"><span class="name">' + (on ? '<b class="ts-ord" aria-hidden="true">' + (p.order + 1) + '</b>' : '') + esc(p.name) + (picked ? '<span class="ts-out">' + icoDeco('alert', 14) + 'Out</span>' : '') + '</span><small>' + sub + '</small></span>' +
-      '<span class="ts-n"><b>' + esc(p.ability) + '</b></span>' +
+      '<span class="ts-nm"><span class="name">' + (on ? '<b class="ts-ord" aria-hidden="true">' + (p.order + 1) + '</b>' : '') + esc(p.name) + (slot ? '<span class="ts-out ts-slot">' + esc(slot.label) + '</span>' : '') + (picked ? '<span class="ts-out">' + icoDeco('alert', 14) + 'Out</span>' : '') + '</span><small>' + sub + (slot && slot.fit ? ' ' + fitTick() : '') + '</small></span>' +
+      '<span class="ts-n">' + shownCell(p.ability).html + '</span>' +
       '<span class="ts-n ts-g' + (hidden ? ' is-q' : '') + '"><b>' + (hidden ? '?' : esc(p.grade)) + '</b></span>' +
       '' + '</button>';
   }
@@ -47,9 +48,9 @@ export function openTeam(vm, dispatch, _open, arg, refresh) {
     const outName = st.out ? (V.players.find((p) => p.id === st.out) || {}).name : '';
     return '<p class="ts-strip">' + (st.toast ? '<b>' + esc(st.toast) + '</b>' : st.out ? '<b>' + esc(outName) + ' goes out.</b> Tap who comes in below.' : st.nudge ? '<b>Tap who goes out first.</b>' : 'Playing. <b>Tap to swap</b>') + '</p>' +
       '<div class="ts-cols" aria-hidden="true"><span>Player</span><span>Ability</span><span>Potential grade</span></div>' +
-      '<div class="ts-list" role="group" aria-label="Playing six">' + six.map((p) => playerRow(p, true)).join('') + '</div>' +
+      '<div class="ts-list" role="group" aria-label="Playing six">' + six.map((p) => playerRow(p, true, null)).join('') + '</div>' +
       '<p class="ts-strip">Bench: ' + ben.length + ' not playing</p>' +
-      '<div class="ts-list" role="group" aria-label="Bench">' + ben.map((p) => playerRow(p, false)).join('') + '</div>';
+      '<div class="ts-list" role="group" aria-label="Bench">' + (() => { const sl = benchSlots(ben); return ben.map((p) => playerRow(p, false, sl.get(p.id))).join(''); })() + '</div>';
   }
 
   function oversPane() {

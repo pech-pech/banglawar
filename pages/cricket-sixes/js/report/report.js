@@ -98,7 +98,8 @@ export const LINES = [
     a.mu.n ? `Bowler matchup you picked: Good ${P(a.mu.G)}, OK ${P(a.mu.O)}, Poor ${P(a.mu.P)} (${a.mu.n} overs). Skilled bot ${BANDS.matchup.skilled.join('/')}, random ${BANDS.matchup.random.join('/')} [sim].` : null),
   ({ a }) => lines(`Thinking time per call: median ${sec(a.thinkMed)}, longest ${sec(a.thinkMax)}; under 1.5 s on ${P(a.thinkFast)} of calls.`,
     `Why? opened ${a.why} times${a.whyBy.length ? ' (' + a.whyBy.slice(-MAX_MATCH_ROWS).join(', ') + ')' : ''}.`,
-    `Word list "?" opened ${sum(Object.values(a.gloss))} times${Object.keys(a.gloss).length ? ': ' + Object.entries(a.gloss).map(([k, v]) => k + (v > 1 ? ' x' + v : '')).join(', ') : ''}.`),
+    `Word list "?" opened ${sum(Object.values(a.gloss))} times.`,
+    wordsLine(a.gloss)),
   ({ a }) => lines(`Luck: you scored ${a.scored} runs, expected ${a.xScored}; the rival scored ${a.conc}, expected ${a.xConc}.`,
     `Wickets: you lost ${a.wkLost} (expected ${a.xWkLost}), you took ${a.wkTook} (expected ${a.xWkTook}).`,
     `In one match, luck in your chase usually lands between ${BANDS.luck[0]} and +${BANDS.luck[1]} runs [sim].`),
@@ -122,6 +123,15 @@ export function envOf(env = {}) {
 }
 
 /** Short summary text (lines joined by newline). data = the stored log, env = { build, now, vp, errors, flags }. */
+/** Per-word open counts, most opened first (ties by name). */
+export const wordsOf = (gloss) => Object.entries(gloss || {}).sort((x, y) => y[1] - x[1] || (x[0] < y[0] ? -1 : 1));
+/** "Words opened: Burst 3, Line 2 (top 8), +N more"; null when none. */
+export function wordsLine(gloss) {
+  const w = wordsOf(gloss); if (!w.length) return null;
+  const cap = (k) => k.charAt(0).toUpperCase() + k.slice(1), rest = w.slice(8).reduce((n, e) => n + e[1], 0);
+  return 'Words opened: ' + w.slice(0, 8).map(([k, v]) => cap(k) + ' ' + v).join(', ') + (rest ? `, +${rest} more` : '') + '.';
+}
+
 export function buildSummary(data, env0) {
   const env = envOf(env0), ms = data.matches || [];
   const ctx = { a: aggregate(ms), ms, env, clean: cleanOf(ms, env), d: data };
@@ -135,6 +145,7 @@ export function buildData(data, env0) {
     legend: 'overs rows follow overCols. s b=bowl innings c=chase. mu G/O/P/? Good/OK/Poor/unknown. fit=[bowler,field,intent] vs skilled bot. th think ms, pw panel wait ms, sk closed early',
     overCols: OVER_COLS,
     z: { sessions: sessionStats(data), save: env.save },
+    wordsOpened: Object.fromEntries(wordsOf(aggregate(data.matches || []).gloss)),
     matches: ms.map((m) => ({ id: m.id, sid: m.sid, build: m.build, seed: m.seed, vp: m.vp, res: m.res || (m.ab ? 'quit' : 'live'), us: m.us, them: m.them, wkUs: m.wkUs, wkThem: m.wkThem,
       margin: m.m, close: m.close, blow: m.blow, secs: m.t1 ? Math.round((m.t1 - m.t0) / 1000) : null, screenMs: m.scr, why: m.why, gloss: m.gl, skips: m.sk, retryMs: m.rt, feel: m.feel,
       overs: m.ov.map((o) => OVER_COLS.map((k) => o[k])) })) };

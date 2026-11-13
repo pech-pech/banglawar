@@ -3,16 +3,16 @@
 import { RUN } from '../data/run.js';
 import { LEAGUES, leagueOf } from '../data/leagues.js';
 import { SEASON } from '../data/season.js';
-import { COACHES } from '../data/training.js';
+import { coachList } from './training.js';
 import { makeRng } from './rng.js';
 import { makeClubs, aiPickSix } from './clubs.js';
 import { placeOf, ME } from './season.js';
 import { shownAbility, rawAbility, capSum } from './ability.js';
+import { canPromote } from './economy.js';
 import { isBook, seasonTip } from './pairing.js';
 
 const clamp = (/** @type {number} */ v, /** @type {number} */ lo, /** @type {number} */ hi) => Math.min(hi, Math.max(lo, v));
 const clone = (/** @type {any} */ x) => JSON.parse(JSON.stringify(x));
-const FOCI = ['Power', 'Technique', 'Pace', 'Craft'];
 
 /** Fresh run record. @param {string} root game seed (run 1) or the run's root seed @param {number} [no] run number */
 export function newRun(root, no = 1) {
@@ -38,9 +38,10 @@ function bestOwn(state) {
 export function seasonResult(state) {
   const se = state.season, league = se.league || 1;
   const place = placeOf(se.table, ME);
-  const promoted = place <= RUN.promoteTop && league < LEAGUES.max;
+  const gate = canPromote(state), promoted = place <= RUN.promoteTop && league < LEAGUES.max && gate.ok;
   const toLeague = promoted ? league + 1 : league;
   const line = promoted ? `Promoted to League ${toLeague}.`
+    : place <= RUN.promoteTop && league < LEAGUES.max && !gate.ok ? `Finished ${ordinal(place)}. ${gate.why}.`
     : league >= LEAGUES.max ? `Finished ${ordinal(place)}. League ${LEAGUES.max} is the top league.`
       : `Finished ${ordinal(place)}. Top ${RUN.promoteTop} go up.`;
   return { place, promoted, toLeague, stayed: !promoted, line };
@@ -133,18 +134,17 @@ export function legendOf(p) {
   return L;
 }
 
-/** Coach at the carried level, in his best focus. @param {any} c */
+/** The coach as he carries: same name and strong focuses, grade capped at RUN.carry.coachStep (C-), away and course marks cleared. @param {any} c */
 export function carryCoach(c) {
-  const best = FOCI.slice().sort((a, b) => (c.lv[b] || 0) - (c.lv[a] || 0))[0];
-  const L = RUN.carry.coachLevel;
-  return { ...clone(c), candidate: false, lv: Object.fromEntries(FOCI.map((f) => [f, f === best ? L : 0])), xp: Object.fromEntries(FOCI.map((f) => [f, f === best ? COACHES.xp[L - 1] : 0])) };
+  const cc = coachList({ coaches: [c] })[0];
+  return { id: cc.id, name: cc.name, step: Math.min(cc.step, RUN.carry.coachStep), strong: cc.strong.slice(), away: 0, courseSeason: null };
 }
 
 /** What would carry into the next run. @param {any} state @param {string} [coachId] */
 export function carryOf(state, coachId) {
   const own = bestOwn(state);
   const staff = (state.coaches || []).filter((/** @type {any} */ c) => !c.candidate);
-  const coach = staff.find((/** @type {any} */ c) => c.id === coachId) || staff[0] || null;
+  const coach = staff.find((/** @type {any} */ c) => c.id === coachId) || staff.slice().sort((/** @type {any} */ a, /** @type {any} */ b) => (b.step || 0) - (a.step || 0))[0] || null;
   return { legend: own ? legendOf(own) : null, coach: coach ? carryCoach(coach) : null };
 }
 

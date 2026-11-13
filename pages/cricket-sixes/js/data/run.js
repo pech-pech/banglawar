@@ -25,5 +25,22 @@ export const RUN = {
     { season: 9, name: 'Trophy Shelf', coins: 300, tp: 200, medals: 1, feat: { kind: 'titles', target: 2, text: 'Win 2 league titles' } },
     { season: 12, name: 'Legends Banner Day', coins: 400, tp: 250, medals: 1, feat: { kind: 'league', target: 5, text: 'Reach League 5' } },
   ],
-  carry: { legendPct: 60, coachLevel: 2 },
+  carry: { legendPct: 60, coachLevel: 2, coachStep: 10 }, // coachStep = min(21, 4 + 3 x level 2): the coach carries at C- at most (SPEC s9 / CONTRACT old->new map)
+};
+
+// P11 match pay (SPEC s5) and squad of 8 (SPEC s6, s7). Hand-written: data/season.js is generated and must not carry these.
+export const PAY = {
+  source: '2026-11-13-training/SPEC.md s5',
+  base: 45, win: 15, tie: 7, gapSlope: 0.04, gapMin: 0.5, gapMax: 1.5,
+  starTp: 4, starCap: 8,
+  bat: [15, 30], // runs for 1 and 2 Stars
+  bowl: [1, 2], // wickets for 1 and 2 Stars
+  // plain words for the gap, rival six average minus ours (raw 1-99): [upper bound, words]
+  notes: [[-6, 'we are much stronger'], [-2, 'we are a little stronger'], [2, 'an even match'], [6, 'rival a little stronger'], [Infinity, 'rival much stronger']],
+};
+export const SQUAD = {
+  source: '2026-11-13-training/SPEC.md s6, s7',
+  size: 8, min: 6, startSlots: [0, 1, 2, 3, 4, 5, 8, 9], // slots 1-6 plus 9 and 10
+  // WAGE_K 7.0 lives in data/economy.js (wageOf); not repeated here.
+  fullText: 'Squad full: release one first',
 };

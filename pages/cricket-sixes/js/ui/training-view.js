@@ -1,16 +1,14 @@
-/* training-view: screen 5, the training week list. render(el, vm, dispatch, open). Reads trainingVM only.
-   trainingVM = { tp, week, done, total, coachLine,
-     drillCost?: 15,
-     rows: [{ id, name, bench, role:'Opener'|'Middle'|'Lower', type:'Fast'|'Medium'|'Spin', ability, max, grade, pips,
-              status:'drill'|'+n'|'peak'|'done', gainRating?: 'batPower'|'batSkill'|'bowlSpeed'|'bowlSkill' }] }
-   vm.plan (P7): { mode, canRepeat, n, cost, tpLeft, free, byPlayer:{id:{drillId,rating,fresh}}, bulk:{n,total,great,reveals,xp}|null, autoBench, tips }.
-   Taps: a row -> `sheet:player {id}`; the coach row -> `sheet:coaches {}`; End week -> command EndWeek.
-   `open(name, arg)` is optional; app.js maps it to the sheet modules. */
-import { esc, icoDeco, btn, ctaBar } from './dom.js';
-import { bindActs } from './dom.js';
+/* training-view: screen 5, the training week (P11 redo). render(el, vm, dispatch, open). Reads trainingVM (selectors.js) only.
+   A normal week = 2 taps: Run nets, Done. Focus and Effort are remembered from last week.
+   Uses: week, tp, plan{focus,effort,spotlightId,coachId}, efforts[{id,cost}], rows[{id,name,bench,role,type,rates:{batPower,batSkill,bowlSpeed,bowlSkill},status:'train'|'short'|'skip',stat}],
+         coaches[{id,name,letter,strong,picked}], preview{cost,trainCount,shortCount,skipCount,hint}, spotlight{wheel:{slices,jackpotIndex},pending|null},
+         done, canRun, result{lines:[{id,name,rating,fromRaw,toRaw,word,wheelGain?,breakthrough}],cost,skipped}.
+   Commands: SetTrainPlan {focus|effort|spotlightId|coachId}, Spin {careful}, RunNets {}, EndWeek {}. Taps: a row -> sheet:player; coach row -> sheet:coaches. */
+import { esc, icoDeco, bindActs, ctaBar } from './dom.js';
 import { openSheet } from './sheet.js';
-import { DRILLS } from '../data/training.js';
-import { coachNoticeHtml } from './coach-notice.js';
+import { letterOfRaw, stepOfRaw } from '../core/letters.js';
+import { playNets, lineHtml, letterBar, STAT, statKey } from './nets-scene.js';
+import { openWheel } from './wheel-view.js';
 
 export const ROLE_ICON = { opener: 'roleOpener', middle: 'roleMiddle', lower: 'roleLower' };
 export const TYPE_ICON = { fast: 'typeFast', medium: 'typeMedium', spin: 'typeSpin' };
@@ -18,178 +16,43 @@ export const RATING_ICON = { batPower: 'batPower', batSkill: 'batSkill', bowlSpe
 export const RATING_WORD = { batPower: 'Batting Power', batSkill: 'Batting Skill', bowlSpeed: 'Bowling Speed', bowlSkill: 'Bowling Skill' };
 export const roleIcon = (r) => ROLE_ICON[String(r || '').toLowerCase()] || 'roleMiddle';
 export const typeIcon = (t) => TYPE_ICON[String(t || '').toLowerCase()] || 'typeMedium';
-const cap = (s) => { s = String(s || ''); return s.charAt(0).toUpperCase() + s.slice(1).toLowerCase(); };
 /** A decorative icon (the words beside it carry the meaning). */
 export const deco = (name, size) => icoDeco(name, size || 20);
 /** Icon + word, kept together. */
 export const iw = (name, word) => '<span class="tr-iw">' + deco(name, 20) + '<span>' + esc(word) + '</span></span>';
-/** TP chip: tp icon, number, word (dom.tpChip draws a coin, and coins are cut from milestone 0). */
+/** TP chip: tp icon, number, word. */
 export const tp = (n) => '<span class="c-chip chip m0-tp tr-tp" aria-label="' + esc(n) + ' training points">' + deco('tp', 20) + '<b>' + esc(n) + '</b><span>TP</span></span>';
-/** 2A: the Peak tag, icon + word. */
+/** The Peak tag, icon + word. */
 export const peak = () => '<span class="c-tag m0-peak tr-peak" aria-label="At peak">' + deco('peak', 20) + '<span>Peak</span></span>';
-
-const RK = ['batPower', 'batSkill', 'bowlSpeed', 'bowlSkill'];
-const DRILL_NAME = Object.fromEntries(DRILLS.list.map((d) => [d.id, d.name]));
-/** Under the name: grade box, then one status (planned drill / Auto / peak / drilled +n). Icons carry the meaning; the row label has the words. */
-function status(r, plan, auto) {
-  const s = String(r.status || '');
-  if (s === 'drill') {
-    return auto ? '<span class="tr-st tr-auto" role="img" aria-label="Auto drill at End week">' + deco('auto', 24) + '</span>' : '';
-  }
-  if (s === 'peak') return '<span class="tr-st tr-peak" role="img" aria-label="At peak">' + deco('peak', 20) + '</span>';
-  if (s === 'done') return '<span class="tr-st tr-won" role="img" aria-label="Drilled this week">' + deco('done', 20) + '</span>';
-  if (s.charAt(0) === '+') return '<span class="tr-st tr-won" role="img" aria-label="Drilled this week, up ' + esc(s.slice(1)) + '">' + deco('done', 20) + '</span>';
-  return '';
-}
-
-/** Rating box: the 20-200 Ability. A "max" word under it when he is capped at potential. */
-function abilBox(r) {
-  return '<span class="tr-ovr' + (r.max ? ' is-max' : '') + '" role="img" aria-label="Ability ' + esc(r.ability) + (r.max ? ', max' : '') + '"><b>' + esc(r.ability) + '</b>' + (r.max ? '<small>max</small>' : '') + '</span>';
-}
-
-/** The 4-segment block: icon on top, a divider line, the raw 1-99 rating below. Gold = drilled this week, dashed = the planned drill. */
-function ratesBlock(r, plan) {
-  const R = r.rates || {}, up = String(r.status || '').charAt(0) === '+' ? r.gainRating : null;
-  return '<span class="tr-rates">' + RK.map((k) => {
-    const cls = k === up ? ' is-up' : plan && plan.rating === k ? ' is-plan' + (plan.fresh ? ' is-new' : '') : '';
-    const gain = k === up ? '<span class="tr-up">+' + esc(String(r.status).slice(1)) + '</span>' : '';
-    return '<span class="tr-rate' + cls + '"><span class="tr-ri">' + deco(RATING_ICON[k], 24) + '</span>' + gain + '<span class="tr-rv">' + esc(R[k] == null ? '' : R[k]) + '</span></span>';
-  }).join('') + '</span>';
-}
-
-/** Potential grade box: the letter, or "?" until it shows (1 drill). */
-function gradeBox(r, hidden) {
-  return '<span class="tr-gr' + (hidden ? ' is-hidden' : '') + '" role="img" aria-label="' + (hidden ? 'Potential grade hidden, shows after ' + DRILLS.revealAfter + (DRILLS.revealAfter === 1 ? ' drill' : ' drills') : 'Potential grade ' + esc(r.grade)) + '">' + (hidden ? '?' : esc(r.grade)) + '</span>';
-}
-
-function rowHtml(r, P, first) {
-  const plan = P && P.byPlayer && P.byPlayer[r.id], auto = !!(P && P.autoBench && r.bench);
-  const peakNow = r.status === 'peak';
-  const hidden = r.grade == null || r.grade === '' || r.grade === '?';
-  const R = r.rates || {};
-  const need = DRILLS.revealAfter;
-  const drilledWord = 'drilled, ' + (r.gainRating && RATING_WORD[r.gainRating] ? RATING_WORD[r.gainRating] + ' ' : '') + 'up ' + String(r.status).slice(1);
-  const label = r.name + (r.bench ? ', bench' : '') + ', Ability ' + r.ability + (r.max ? ', capped at potential' : '') + ', ' +
-    (hidden ? 'grade hidden, ' + (r.pips || 0) + ' of ' + need + (need === 1 ? ' drill' : ' drills') : 'grade ' + r.grade) +
-    ', ' + (r.status === 'drill' ? 'not drilled yet' : r.status === 'peak' ? 'at peak, drills cannot raise him' : r.status === 'done' ? 'done this week' : drilledWord) +
-    (plan && r.status === 'drill' ? ', plan: ' + DRILL_NAME[plan.drillId] : '') + (auto && r.status === 'drill' ? ', auto drill at End week' : '') +
-    '. Ratings: ' + RK.map((k) => RATING_WORD[k] + ' ' + R[k]).join(', ');
-  return '<li class="c-row m0-row c-row--tap tr-row' + (r.bench ? ' m0-row--bench' : '') + (peakNow ? ' tr-row--peak' : '') + '"' + (first ? ' data-ft="row"' : '') + '>' +
-    '<button type="button" class="tr-rowbtn" data-act="sheet:player" data-arg="' + esc(JSON.stringify({ id: r.id })) + '" aria-label="' + esc(label) + '">' +
-    abilBox(r) +
-    '<span class="tr-who"><span class="c-row__title name tr-name">' + esc(r.name) + '</span>' +
-    '<span class="tr-sub">' + (r.bench ? '<span class="tr-bench" role="img" aria-label="Bench">' + deco('bench', 24) + '</span>' : '') + gradeBox(r, hidden) + status(r, plan, auto) + '</span></span>' +
-    ratesBlock(r, plan) + '</button></li>';
-}
-
-
-/* ---- P7+P11: plan card, bulk summary, bench switch, "?" sheet, first-time tips. Every visible string is 6 words or fewer. ---- */
-const PER = DRILLS.costTp;
 /** TP chip: icon + number, the cost on a button. */
 export const chip = (n) => '<span class="tr-chip" aria-label="' + esc(n) + ' Training Points">' + deco('tp', 24) + '<span>' + esc(n) + '</span></span>';
 
-function planCard(vm) {
-  const P = vm.plan, rep = P.mode === 'repeat';
-  const seg = [['repeat', 'Repeat', 'rematch'], ['suggested', 'Suggested', 'upgrade']].map((o) =>
-    '<button type="button" class="c-seg__opt" data-act="SetDrillPlan" data-arg=\'{"plan":"' + o[0] + '"}\' aria-pressed="' + (P.mode === o[0]) + '"' +
-    (o[0] === 'repeat' && !P.canRepeat ? ' disabled aria-label="Repeat last week: no last week yet"' : ' aria-label="' + (o[0] === 'repeat' ? 'Repeat last week' : 'Suggested drills') + '"') + '>' + deco(o[2], 20) + '<span>' + o[1] + '</span></button>').join('');
-  const none = P.n === 0;
-  const word = none ? (vm.done >= vm.total || vm.plan.bulk ? 'All drilled' : 'No TP left') : 'Drill all ' + P.n;
-  const goAct = none ? '' : rep ? ' data-act="RepeatWeek"' : ' data-act="DrillAll" data-arg=\'{"plan":"suggested"}\'';
-  const aria = none ? word : 'Drill all ' + P.n + ' players, ' + (rep ? "last week's drills" : 'suggested drills') + ', costs ' + P.cost + ' Training Points';
-  const note = !P.canRepeat ? 'No last week yet' : P.free ? 'Free this season' : (P.tpLeft - (P.autoBench ? benchSpend(vm) : 0)) + ' TP left after week';
-  return '<div class="c-card c-card--inset tr-plan" id="tr-plan"><div class="c-seg" role="group" aria-label="Plan for Drill all">' + seg + '</div>' +
-    '<button type="button" class="c-btn c-btn--primary c-btn--block tr-go" data-ft="all"' + goAct + (none ? ' disabled aria-disabled="true"' : '') + ' aria-label="' + esc(aria) + '">' +
-    '<span class="tr-goL">' + deco('team', 24) + '<span>' + esc(word) + '</span></span>' + (none ? '' : P.free ? '<span class="tr-chip">' + deco('tp', 24) + '<span>0</span></span>' : chip(P.cost)) + '</button>' +
-    '<div class="tr-line">' + deco(P.canRepeat ? 'tp' : 'week', 20) + '<span>' + esc(note) + '</span></div></div>';
+export const FOCUS_WORD = { bat: 'Batting', bowl: 'Bowling', bal: 'Balanced' };
+export const FOCUS_ICON = { bat: 'batPower', bowl: 'bowlSpeed', bal: 'team' };
+const EFFORT_WORD = { easy: 'Easy', normal: 'Normal', push: 'Push' };
+const EFFORT_ICON = { easy: 'week', normal: 'upgrade', push: 'burst' };
+/** Strong focus icons + words for a coach: `[bat icon] Batting [ball icon] Bowling`. */
+export const strongHtml = (strong) => (strong || []).map((f) => '<span class="t2-fi">' + deco(FOCUS_ICON[f] || 'train', 20) + '<span>' + esc(FOCUS_WORD[f] || f) + '</span></span>').join('');
+export const strongText = (strong) => (strong || []).map((f) => FOCUS_WORD[f] || f).join(' and ') || 'none';
+
+const RK = { batPower: 'bp', batSkill: 'bs', bowlSpeed: 'spd', bowlSkill: 'bsk' };
+const WORD_KEY = { Power: 'bp', Technique: 'bs', Pace: 'spd', Craft: 'bsk' };
+const shortRates = (r) => (r && r.bp == null ? { bp: r.batPower, bs: r.batSkill, spd: r.bowlSpeed, bsk: r.bowlSkill } : r || {});
+/** trainingVM -> the small shape this view draws. */
+export function adapt(vm) {
+  const rows = (vm.rows || []).map((r) => ({ ...r, state: r.status || r.state, rates: shortRates(r.rates) }));
+  const P = vm.plan || { focus: 'bat', effort: 'normal' }, sp = rows.find((r) => r.id === P.spotlightId);
+  const costs = {}; (vm.efforts || []).forEach((e) => { costs[e.id] = e.cost; });
+  const pc = (vm.coaches || []).find((c) => c.picked) || null, pv = vm.preview || {};
+  const wl = vm.spotlight && vm.spotlight.wheel;
+  const wheel = sp && wl ? { slices: wl.slices, jackpotIndex: wl.jackpotIndex, player: { id: sp.id, name: sp.name, rates: sp.rates }, stat: WORD_KEY[sp.stat] || 'bp', pending: vm.spotlight.pending || null } : null;
+  const nets = vm.done && vm.result ? { id: vm.week, cost: vm.result.cost, lines: vm.result.lines.map((l) => ({ ...l, stat: RK[l.rating] || l.rating || WORD_KEY[l.stat] || 'bp' })), skipped: rows.filter((r) => r.state === 'skip').map((r) => ({ id: r.id, name: r.name, why: "Can't gain" })) } : null;
+  return { week: vm.week, tp: vm.tp, plan: { ...P, spotlightName: sp ? sp.name : null }, costs: { easy: 10, normal: 13, push: 18, ...costs }, coach: pc, rows, wheel, nets, canRun: vm.canRun !== false,
+    preview: { cost: pv.cost || 0, trainN: pv.trainCount != null ? pv.trainCount : pv.trainN, skippedN: pv.skipCount != null ? pv.skipCount : pv.skippedN || 0, shortN: pv.shortCount != null ? pv.shortCount : pv.shortN || 0, hint: pv.hint || null } };
 }
 
-function summaryCard(vm) {
-  const b = vm.plan.bulk;
-  return '<div class="c-card c-card--hl tr-sum"><div class="tr-sumh">' + iw('done', b.n + ' drills done') +
-    '<span class="c-tag c-tag--done" aria-label="plus ' + b.total + ' rating points in all"><span>+' + b.total + '</span></span></div>' +
-    (b.great ? '<div class="tr-line">' + deco('burst', 20) + '<span>' + b.great + ' Great</span></div>' : '') +
-    b.reveals.map((r) => '<div class="tr-line">' + deco('medal', 20) + '<span>' + esc(r.name) + ': Potential grade ' + esc(r.grade) + '</span></div>').join('') +
-    b.xp.map((x) => '<div class="tr-line">' + deco('coach', 20) + '<span>' + esc(x.coach) + ' XP: ' + esc(x.text) + '</span></div>').join('') + '</div>';
-}
+let latest = null, runPending = false, lastLive = '';
 
-function benchStrip(vm) {
-  const on = vm.plan.autoBench;
-  return '<li class="tr-benchli"><div class="c-strip c-strip--light tr-bench-strip"><span class="tr-iw">' + deco('bench', 24) + '<span>Bench</span></span>' +
-    '<button type="button" class="c-btn tr-toggle" data-act="AutoBench" data-arg=\'{"on":' + (!on) + '}\' aria-pressed="' + on + '" aria-label="Auto-train bench" aria-describedby="tr-auto-hint">' +
-    '<span class="tr-box">' + (on ? '<span class="c-ico c-ico--check"></span>' : '') + '</span><span>Auto-train bench</span></button><span class="sr-only" id="tr-auto-hint">Drills bench players at End week if you have not</span></div>' +
-    (on ? '<div class="tr-benchnote">' + deco('auto', 20) + '<span>Bench drills at End week</span>' + benchCost(vm) + '</div>' : '') + '</li>';
-}
-
-let tipStep = 1, tipOpener = null, tipOff = null;
-/** Tips scroll their target into view; put the screen back at the top when they end. */
-const toTop = () => { window.scrollTo(0, 0); [document.documentElement, document.body].forEach((e) => { if (e) e.scrollTop = 0; }); document.querySelectorAll('.screen').forEach((e) => { e.scrollTop = 0; }); };
-/** Auto-train bench cost at End week: one chip, free from season 2. */
-/** QA r2 N3: TP the bench takes at End week (after this plan), so the plan line shows the real balance. */
-function benchSpend(vm) {
-  const P = vm.plan; if (P.free) return 0;
-  const left = Math.max(0, P.tpLeft);
-  return Math.min((vm.rows || []).filter((r) => r.bench && r.status === 'drill').length, Math.floor(left / PER)) * PER;
-}
-function benchCost(vm) {
-  const P = vm.plan, n = Math.min((vm.rows || []).filter((r) => r.bench && r.status === 'drill').length, Math.floor(vm.tp / PER));
-  return P.free ? '<span class="tr-chip">' + deco('tp', 24) + '<span>0</span></span>' : n ? chip(n * PER) : '';
-}
-const FOCUS_WORD = { Power: 'Big hitting', Technique: 'Batting', Pace: 'Fast bowling', Craft: 'Bowling accuracy' };
-const coachWords = (t) => String(t || '').replace(/: (Power|Technique|Pace|Craft) level/, (m, f) => ': ' + FOCUS_WORD[f] + ' level');
-const TIPS = [
-  { at: '[data-ft="row"]', text: 'Pick a player.', icons: () => deco('roleMiddle', 24) + deco('typeFast', 24) },
-  { at: '[data-ft="row"]', text: 'Pick a drill. 15 TP each.', icons: () => deco('batPower', 24) + chip(PER) },
-  { at: '[data-ft="all"]', text: 'Or drill your Six at once.', icons: () => deco('team', 24) + deco('upgrade', 24) },
-];
-/** Which control had focus: its data-act (plus the plan for the Repeat/Suggested pair), so it can be found again after a re-render. */
-const actKey = (n) => n && n.getAttribute ? (n.getAttribute('data-act') || '') + (n.getAttribute('data-act') === 'SetDrillPlan' ? n.getAttribute('data-arg') : '') : '';
-function showTips(el, dispatch) {
-  const host = el.firstElementChild; if (!host || host.querySelector('.tr-tip')) return;
-  if (tipOff) tipOff();
-  if (!tipOpener || !tipOpener.isConnected) { const a = document.activeElement; tipOpener = a && a !== document.body ? a : null; }
-  const t = TIPS[tipStep - 1], target = host.querySelector(t.at);
-  const layer = document.createElement('div'); layer.className = 'tr-tip'; layer.setAttribute('role', 'dialog'); layer.setAttribute('aria-modal', 'true'); layer.setAttribute('aria-label', 'Training tips, step ' + tipStep + ' of 3');
-  const last = tipStep === TIPS.length;
-  layer.innerHTML = '<span class="tr-tip__hole" aria-hidden="true"></span><div class="c-card tr-tip__card"><div class="tr-tip__icons">' + t.icons() + '</div><b class="tr-tip__text">' + t.text + '</b>' +
-    '<div class="tr-tip__row"><span class="tr-tip__n">' + tipStep + '/3</span><button type="button" class="c-btn" data-tip="skip">Skip</button>' +
-    '<button type="button" class="c-btn c-btn--primary" data-tip="next">' + (last ? 'Got it' : 'Next') + '</button></div></div>';
-  host.appendChild(layer);
-  if (target) {
-    target.scrollIntoView({ block: 'center' });
-    const r = target.getBoundingClientRect(), hole = layer.querySelector('.tr-tip__hole');
-    hole.style.cssText = 'top:' + (r.top - 4) + 'px;left:' + (r.left - 4) + 'px;width:' + (r.width + 8) + 'px;height:' + (r.height + 8) + 'px';
-    const card = layer.querySelector('.tr-tip__card'); card.classList.toggle('is-top', r.top > innerHeight / 2);
-  }
-  /* Same pattern as sheet.js: Escape = Skip, Tab stays inside the card, focus goes back when it ends. */
-  const finish = () => {
-    tipStep = 1; if (tipOff) tipOff(); layer.remove(); toTop(); dispatch('TipsSeen', {}); toTop();
-    const o = tipOpener; tipOpener = null;
-    const back = o && o.isConnected ? o : el.querySelector('.tr-row .tr-rowbtn');
-    if (back && back.focus) back.focus();
-  };
-  const onKey = (e) => {
-    if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); finish(); }
-    else if (e.key === 'Tab') {
-      const f = layer.querySelectorAll('button'); if (!f.length) return;
-      const a = f[0], z = f[f.length - 1], cur = document.activeElement;
-      if (!layer.contains(cur)) { e.preventDefault(); a.focus(); }
-      else if (e.shiftKey && cur === a) { e.preventDefault(); z.focus(); }
-      else if (!e.shiftKey && cur === z) { e.preventDefault(); a.focus(); }
-    }
-  };
-  document.addEventListener('keydown', onKey, true);
-  tipOff = () => { document.removeEventListener('keydown', onKey, true); tipOff = null; };
-  layer.addEventListener('click', (e) => {
-    const b = e.target.closest('[data-tip]'); if (!b) return;
-    if (b.getAttribute('data-tip') === 'next' && !last) { tipStep += 1; layer.remove(); showTips(el, dispatch); return; }
-    finish();
-  });
-  const first = layer.querySelector('[data-tip="next"]'); if (first) first.focus();
-}
-
-/** One persistent polite region outside the re-rendered node, so changes are spoken (a rebuilt role=status is not). */
-let lastLive = '';
 function announce(text) {
   if (typeof document === 'undefined' || text === lastLive) return;
   let n = document.getElementById('tr-live');
@@ -198,58 +61,114 @@ function announce(text) {
   lastLive = text;
 }
 
-export function render(el, vm, dispatch, open) {
-  if (tipOff) tipOff();
-  const had = el.contains(document.activeElement) ? document.activeElement : null, key = actKey(had);
-  const rows = vm.rows || [], P = vm.plan || { byPlayer: {}, n: 0, cost: 0 };
-  let body = '', benchDone = false;
-  rows.forEach((r, i) => {
-    if (r.bench && !benchDone) { benchDone = true; body += benchStrip(vm); }
-    body += rowHtml(r, P, i === 0);
-  });
-  el.innerHTML =
-    '<div class="screen tr-screen">' +
-    '<div class="c-strip strip tr-top"><span>' + deco('train', 24) + ' Week ' + esc(vm.week) + '</span><span class="c-strip__right tr-tpw">' + tp(vm.tp) +
-    '<button type="button" class="c-icon-btn tr-help" data-act="sheet:traininghelp" aria-label="Help: what the icons mean" aria-haspopup="dialog">' + deco('why', 24) + '</button></span></div>' +
-    coachNoticeHtml(vm.coachNotice) +
-    '<div class="tr-count">' + deco('done', 20) + '<span>' + esc(vm.done) + ' of ' + esc(vm.total) + ' drilled</span></div>' +
-    (P.bulk ? summaryCard(vm) : '') + (P.bulk && P.n === 0 ? '' : planCard(vm)) +
-    '<ul class="c-list m0-list tr-list" aria-label="Your squad">' +
-    '<li class="c-row m0-row c-row--tap tr-coachrow"><button type="button" class="tr-rowbtn" data-act="sheet:coaches" aria-label="Coaches. ' + esc(coachWords(vm.coachLine)) + '">' +
-    '<span class="tr-coachico">' + deco('coach', 36) + '</span><span class="c-row__body"><span class="c-row__title tr-coachtitle">Coaches</span><span class="c-row__sub">' + esc(coachWords(vm.coachLine)) + '</span></span></button></li>' +
-    body + '</ul>' +
-    ctaBar(btn('End week', 'EndWeek', { kind: 'cta' })) +
-    '</div>';
-  bindActs(el.firstElementChild, dispatch, open);
-  if (P.tips) showTips(el, dispatch);
-  else if (had && key) {
-    const same = [...el.querySelectorAll('[data-act]')].find((n) => actKey(n) === key && !n.disabled && n.getAttribute('aria-disabled') !== 'true');
-    const back = same || el.querySelector('.tr-row .tr-rowbtn');
-    if (back) back.focus();
-  }
-  announce(vm.done + ' of ' + vm.total + ' drilled' + (P.bulk ? ', ' + P.bulk.n + ' drills done, plus ' + P.bulk.total : ''));
+const statsStrip = (rates) => ['bp', 'bs', 'spd', 'bsk'].map((k) => {
+  const r = rates && rates[k] != null ? rates[k] : 1, st = STAT(k);
+  return '<span class="t2-ms" aria-label="' + esc(st.word + ' ' + letterOfRaw(r)) + '">' + deco(st.icon, 20) + '<b>' + esc(letterOfRaw(r)) + '</b></span>';
+}).join('');
+
+function rowHtml(r) {
+  const word = r.state === 'skip' ? "Can't gain" : r.state === 'short' ? 'Waits: not enough TP' : '';
+  const label = r.name + (r.bench ? ', bench' : '') + ', ' + ['bp', 'bs', 'spd', 'bsk'].map((k) => STAT(k).word + ' ' + letterOfRaw((r.rates || {})[k] || 1)).join(', ') + (word ? ', ' + word : '');
+  return '<li class="c-row m0-row c-row--tap tr-row t2-row' + (r.bench ? ' m0-row--bench' : '') + (r.state && r.state !== 'train' ? ' is-off' : '') + '">' +
+    '<button type="button" class="tr-rowbtn" data-act="sheet:player" data-arg="' + esc(JSON.stringify({ id: r.id })) + '" aria-label="' + esc(label) + '">' +
+    '<span class="t2-who"><span class="c-row__title name tr-name">' + esc(r.name) + '</span><span class="t2-sub">' +
+    (r.bench ? '<span class="tr-bench" role="img" aria-label="Bench">' + deco('bench', 20) + '</span>' : '') + deco(roleIcon(r.role), 20) + deco(typeIcon(r.type), 20) +
+    (word ? '<span class="t2-off">' + deco(r.state === 'skip' ? 'lock' : 'tp', 20) + '<span>' + esc(word) + '</span></span>' : '') + '</span></span>' +
+    '<span class="t2-ms-row">' + statsStrip(r.rates) + '</span></button></li>';
 }
 
-/** "?" sheet (sheet:traininghelp): every explanation, one short line each, plus the icon key. */
+function seg(group, label, opts, cur) {
+  return '<div class="c-seg t2-seg" role="group" aria-label="' + esc(label) + '">' + opts.map((o) =>
+    '<button type="button" class="c-seg__opt t2-opt" data-act="SetTrainPlan" data-arg=\'{"' + group + '":"' + o.v + '"}\' aria-pressed="' + (cur === o.v) + '" aria-label="' + esc(o.aria) + '">' + deco(o.ico, 20) + '<span class="t2-ol"><span>' + esc(o.w) + '</span>' + (o.sub ? '<small>' + o.sub + '</small>' : '') + '</span></button>').join('') + '</div>';
+}
+
+function spotSheet(vm, dispatch) {
+  const rows = vm.rows || [], cur = vm.plan.spotlightId;
+  const item = (id, name, sub) => '<button type="button" class="c-btn c-btn--block t2-pickrow" data-sp="' + esc(id == null ? '' : id) + '" aria-pressed="' + (cur === id || (cur == null && id == null)) + '">' + esc(name) + (sub ? '<small>' + esc(sub) + '</small>' : '') + '</button>';
+  const close = openSheet('Spotlight wheel', '<p class="tr-note">' + deco('info', 20) + '<span>One player spins the wheel instead of his normal roll. Same cost.</span></p>' + item(null, 'No Spotlight', 'Everyone rolls as usual') +
+    rows.filter((r) => r.state !== 'skip').map((r) => item(r.id, r.name, strongOf(r))).join(''));
+  const body = document.querySelector('.sheet-fixed .c-sheet__body');
+  if (body) body.addEventListener('click', (e) => { const b = e.target.closest('[data-sp]'); if (!b) return; const v = b.getAttribute('data-sp'); close(); dispatch('SetTrainPlan', { spotlightId: v === '' ? null : v }); });
+}
+const strongOf = (r) => { const k = ['bp', 'bs', 'spd', 'bsk'].reduce((m, x) => ((r.rates || {})[x] || 0) < ((r.rates || {})[m] || 0) ? x : m, 'bp'); return 'Lowest: ' + STAT(k).word + ' ' + letterOfRaw((r.rates || {})[k] || 1); };
+
+function openSpotlightWheel(dispatch) {
+  const w = latest.vm.wheel; if (!w) { runPending = true; dispatch('RunNets', {}); return; }
+  const st = STAT(w.stat), rates = w.player.rates || {}, raw0 = rates[statKey(w.stat)] != null ? rates[statKey(w.stat)] : 1;
+  const pr = w.player;
+  const card = '<div class="wh-who"><b class="t2-nm">' + esc(pr.name) + '</b><span class="c-tag">Wheel is yours this week</span></div><div class="wh-gr">' +
+    ['bp', 'bs', 'spd', 'bsk'].map((k) => '<span class="wh-g' + (k === statKey(w.stat) ? ' hit' : '') + '">' + deco(STAT(k).icon, 20) + '<span>' + esc(STAT(k).word) + '</span><b>' + esc(letterOfRaw(rates[k] || 1)) + '</b></span>').join('') + '</div>';
+  openWheel({
+    title: 'Spotlight', sub: 'Week ' + latest.vm.week, cardHtml: card, slices: w.slices, jackpotIndex: w.jackpotIndex, aim: w.aim, pending: w.pending || null,
+    onSpin: (careful) => dispatch('Spin', { careful }), getPending: () => { const sp = latest.raw.spotlight; return (sp && sp.pending) || null; },
+    describe: (p) => {
+      const g = Math.min(p.gain, w.room == null ? 99 : w.room), to = raw0 + g, a = letterOfRaw(raw0), b = letterOfRaw(to), moved = stepOfRaw(to) !== stepOfRaw(raw0);
+      return { big: st.word, from: a, to: b, barHtml: moved ? '' : letterBar(to, raw0), breakthrough: !!(p.jackpot || moved),
+        say: pr.name + ' ' + st.word + ': wheel plus ' + g + ', ' + (moved ? a + ' to ' + b : a + ', the bar fills') + (p.jackpot ? ', jackpot' : '') + '.' };
+    },
+    onCollect: () => { runPending = true; dispatch('RunNets', {}); },
+  });
+}
+
+function afterRender(el, vm, dispatch) {
+  if (vm.nets && runPending) {
+    runPending = false;
+    const n = vm.nets;
+    playNets({ lines: n.lines, skipped: n.skipped, week: vm.week }, {});
+  }
+}
+
+export function render(el, rawVm, dispatch, open) {
+  const vm = adapt(rawVm); latest = { vm, dispatch, raw: rawVm };
+  const P = vm.plan, pv = vm.preview || { cost: 0, trainN: 0, skippedN: 0, shortN: 0, hint: null }, costs = vm.costs || { easy: 10, normal: 13, push: 18 };
+  const had = el.contains(document.activeElement) ? document.activeElement : null, key = had && had.getAttribute ? (had.getAttribute('data-act') || '') + (had.getAttribute('data-arg') || '') : '';
+  const nets = vm.nets, rows = vm.rows || [];
+  const top = '<div class="c-strip strip tr-top"><span>' + deco('train', 24) + ' Week ' + esc(vm.week) + '</span><span class="c-strip__right tr-tpw">' + tp(vm.tp) +
+    '<button type="button" class="c-icon-btn tr-help" data-act="sheet:traininghelp" aria-label="Help: how training works" aria-haspopup="dialog">' + deco('why', 24) + '</button></span></div>';
+  let body, cta;
+  if (nets) {
+    const g = nets.lines.length, up = nets.lines.filter((l) => letterOfRaw(l.toRaw) !== letterOfRaw(l.fromRaw)).length;
+    body = '<div class="c-card c-card--hl t2-sum"><div class="tr-h"><b class="tr-iw">' + deco('done', 20) + '<span>Nets done</span></b></div>' +
+      '<p class="tr-note">' + deco('info', 20) + '<span>' + g + ' trained' + (up ? ', ' + up + ' moved up a letter' : '') + (nets.skipped && nets.skipped.length ? ', ' + nets.skipped.length + " can't gain" : '') + '. Cost ' + esc(nets.cost) + ' TP.</span></p></div>' +
+      '<ul class="t2-lines" aria-label="Results">' + nets.lines.map((l) => lineHtml(l)).join('') + '</ul>';
+    cta = ctaBar('<button type="button" class="c-btn c-btn--primary c-btn--cta c-btn--block" data-act="EndWeek" data-ft="done">Done</button>');
+  } else {
+    const c = vm.coach;
+    const coachRow = '<li class="c-row m0-row c-row--tap t2-prow"><button type="button" class="tr-rowbtn" data-act="sheet:coaches" aria-label="' + esc(c ? 'Coach this week: ' + c.name + ', grade ' + c.letter + ', strong in ' + strongText(c.strong) + '. Tap to change' : 'No coach this week. Tap to pick one') + '">' +
+      '<span class="tr-coachico">' + deco('coach', 36) + '</span><span class="c-row__body"><span class="c-row__title tr-coachtitle">' + (c ? esc(c.name) + ' <b class="t2-grade">' + esc(c.letter) + '</b>' : 'No coach') + '</span>' +
+      '<span class="c-row__sub t2-strong">' + (c ? strongHtml(c.strong) : '<span>Tap to pick this week\'s coach</span>') + '</span></span></button></li>';
+    const spotRow = '<li class="c-row m0-row c-row--tap t2-prow"><button type="button" class="tr-rowbtn" data-lo="spotpick" aria-label="' + esc(P.spotlightName ? 'Spotlight: ' + P.spotlightName + '. Tap to change' : 'Spotlight: none. Tap to pick a player for the wheel') + '">' +
+      '<span class="tr-coachico">' + deco('burst', 36) + '</span><span class="c-row__body"><span class="c-row__title tr-coachtitle">Spotlight</span><span class="c-row__sub">' + esc(P.spotlightName || 'None (optional)') + '</span></span></button></li>';
+    const cost = 'Cost ' + pv.cost + ' TP' + (pv.skippedN ? ", " + pv.skippedN + " can't gain" : '');
+    body = '<div class="t2-plan">' +
+      seg('focus', 'Focus', ['bat', 'bowl', 'bal'].map((f) => ({ v: f, w: FOCUS_WORD[f], ico: FOCUS_ICON[f], aria: FOCUS_WORD[f] + ' focus' })), P.focus) +
+      seg('effort', 'Effort', ['easy', 'normal', 'push'].map((f) => ({ v: f, w: EFFORT_WORD[f], ico: EFFORT_ICON[f], sub: costs[f] + ' TP', aria: EFFORT_WORD[f] + ' effort, ' + costs[f] + ' training points each' })), P.effort) + '</div>' +
+      '<ul class="c-list m0-list t2-pick" aria-label="This week">' + coachRow + spotRow + '</ul>' +
+      '<div class="t2-cost" role="status"><b>' + esc(cost) + '</b>' + (pv.shortN ? '<span>' + deco('tp', 20) + '<span>Short on TP: ' + pv.shortN + ' will wait</span></span>' : '') + (pv.hint ? '<span>' + deco('info', 20) + '<span>' + esc(pv.hint) + '</span></span>' : '') + '</div>' +
+      '<ul class="c-list m0-list tr-list" aria-label="Your squad">' + rows.map(rowHtml).join('') + '</ul>';
+    cta = ctaBar('<button type="button" class="c-btn c-btn--primary c-btn--cta c-btn--block t2-run" data-lo="runnets" data-ft="run"' + (pv.trainN && vm.canRun ? '' : ' disabled aria-disabled="true"') + ' aria-label="' + esc(pv.trainN ? 'Run nets, ' + pv.cost + ' training points' : 'Run nets: nobody can train') + '">' +
+      '<span class="tr-goL">' + deco('train', 24) + '<span>Run nets</span></span>' + chip(pv.cost) + '</button>');
+  }
+  el.innerHTML = '<div class="screen tr-screen t2-screen">' + top + body + cta + '</div>';
+  const root = el.firstElementChild;
+  bindActs(root, dispatch, open);
+  root.addEventListener('click', (e) => {
+    const t = e.target.closest && e.target.closest('[data-lo]'); if (!t || t.disabled) return; const a = t.getAttribute('data-lo');
+    if (a === 'spotpick') spotSheet(vm, dispatch);
+    else if (a === 'runnets') { if (P.spotlightId) openSpotlightWheel(dispatch); else { runPending = true; dispatch('RunNets', {}); } }
+  });
+  if (had && key) { const same = [...el.querySelectorAll('[data-act]')].find((n) => ((n.getAttribute('data-act') || '') + (n.getAttribute('data-arg') || '')) === key && !n.disabled); const b = same || el.querySelector('[data-lo="runnets"], [data-ft="done"]'); if (b) b.focus(); }
+  announce(nets ? 'Nets done. ' + nets.lines.length + ' trained.' : 'Cost ' + pv.cost + ' TP' + (pv.skippedN ? ', ' + pv.skippedN + " can't gain" : '') + (pv.hint ? '. ' + pv.hint : ''));
+  afterRender(el, vm, dispatch);
+}
+
+/** "?" sheet (sheet:traininghelp): short plain lines. */
 export function openHelp() {
   const line = (k, t) => '<div class="tr-hl"><span class="tr-k">' + k + '</span><span>' + esc(t) + '</span></div>';
-  const bar = '<span class="tr-bar tr-bar--key"><i style="width:55%"></i><i class="is-gain" style="left:55%;width:25%"></i></span>';
-  const n = DRILLS.revealAfter;
   const html = '<div class="tr-help-body">' +
-    line(deco('tp', 24), 'Each drill costs ' + PER + ' TP') + line(bar, 'Gold: most he can gain') +
-    line('<span class="tr-dash"></span>', 'Dashed: drill he gets next') + line('<span class="c-tag">B</span>', 'Potential: how good he can get') +
-    line('<span class="c-tag">?</span>', 'Potential grade shows after ' + n + (n === 1 ? ' drill' : ' drills')) +
-    line(deco('peak', 24), 'Peak: drills cannot raise him') + line(deco('lock', 24), 'Full: raise his lowest first') +
-    '<div class="tr-hh">Buttons</div>' +
-    line(deco('team', 24), 'Drill all: the Six, one tap') + line(deco('rematch', 24), 'Repeat: same as last week') +
-    line(deco('upgrade', 24), 'Suggested: lowest rating first') +
-    '<div class="tr-hh">Row</div>' +
-    line('<span class="tr-k-abil">112</span>', 'Big number: Ability, 20 to 200') + line('<span class="tr-k-up"><b>+2</b></span>', 'Gold box: drilled, up 2') +
-    line(deco('done', 24), 'Tick: drilled this week') + line(deco('bench', 24), 'Bench player') +
-    line('<span class="tr-auto-k">' + deco('auto', 20) + '</span>', 'Auto box: bench drill at End week') + line('<span class="tr-dash"></span>', 'Dashed row: bench player') +
-    '<div class="tr-hh">Icons</div>' +
-    RK.map((k) => line(deco(RATING_ICON[k], 24), RATING_WORD[k])).join('') +
-    [['opener', 'Opener'], ['middle', 'Middle'], ['lower', 'Lower']].map((r) => line(deco(roleIcon(r[0]), 24), r[1] + ' bat')).join('') +
-    [['fast', 'Fast'], ['medium', 'Medium'], ['spin', 'Spin']].map((r) => line(deco(typeIcon(r[0]), 24), r[1] + ' bowl')).join('') + '</div>';
+    line(deco('batPower', 24), 'Focus: which ratings train this week') + line(deco('upgrade', 24), 'Effort: Easy 10, Normal 13, Push 18 TP each') +
+    line(deco('coach', 24), 'Coach: pick one by hand each week') + line(deco('burst', 24), 'Spotlight: one player spins the wheel') +
+    line(deco('lock', 24), "Can't gain: full, so not charged") + line('<span class="t2-ticks"><i class="t2-tk on"></i><i class="t2-tk on"></i><i class="t2-tk"></i><i class="t2-tk"></i></span>', 'Bar: 4 ticks make one letter step') +
+    line('<b>C+</b>', 'Letters: F- is lowest, S+ is highest') + '</div>';
   return openSheet('Training help', html);
 }

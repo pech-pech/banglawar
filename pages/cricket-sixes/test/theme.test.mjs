@@ -29,7 +29,7 @@ test('gameplay is untouched: the theme does not change any rule state', () => {
   const a = game(), b = game(); b.dispatch('SetTheme', { theme: 'scorebook' });
   const { theme, ...rest } = b.get();
   assert.equal(theme, 'scorebook'); assert.deepEqual(rest, a.get());
-  for (const t of [a, b]) { t.dispatch('Reseed', { salt: 'x' }); t.dispatch('PickCoach', {}); }
+  for (const t of [a, b]) { t.dispatch('Reseed', { salt: 'x' }); }
   const { theme: _t, ...rb } = b.get(); assert.deepEqual(rb, a.get());
 });
 
@@ -38,8 +38,8 @@ test('the theme survives a later command (Reseed)', () => {
   t.dispatch('Reseed', { salt: 'y' }); assert.equal(t.get().theme, 'scorebook');
 });
 
-test('save: theme round-trips, no extra version bump (P9 is 4), an old save without it loads as green', () => {
-  assert.equal(VERSION, 4);
+test('save: theme round-trips, no extra version bump (P11 is 5), an old save without it loads as green', () => {
+  assert.equal(VERSION, 5);
   const s = { ...game().get(), theme: 'scorebook' };
   const r = unwrap(JSON.stringify(wrap(s))); assert.equal(r.ok, true); assert.equal(r.state.theme, 'scorebook');
   const store = memStorage(), sv = createSave(store);

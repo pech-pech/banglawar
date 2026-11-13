@@ -1,6 +1,6 @@
-import { createStore } from './store/store.js';
+import { createStore, keepV4Copy } from './store/store.js';
 import { mount } from './ui/app.js';
-import { createSave } from './platform/save.js';
+import { createSave, KEY } from './platform/save.js';
 import { openSaveSheet } from './ui/save-sheet.js';
 import { applyTheme, themeOf } from './ui/theme.js';
 
@@ -13,6 +13,7 @@ const newGame = (seed) => { const t = createStore(null); t.dispatch('NewGame', {
 
 // 1. Load (and migrate) the save; a missing or unreadable save starts a new game.
 const loaded = save.load({ newGame });
+try { keepV4Copy(window.localStorage, KEY, loaded.from); } catch (e) { /* storage blocked: no backup */ }
 const store = createStore(loaded.state || null);
 if (!loaded.state) {
   const seed = q || rand();
