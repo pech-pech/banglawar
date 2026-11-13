@@ -2,6 +2,11 @@
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Sixes</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#1C2A22">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
 <link rel="stylesheet" href="kit/components.css">
 <link rel="stylesheet" href="kit/skins/retro-green/skin-retro-green.css">
 <link rel="stylesheet" href="app.css">
@@ -29,4 +34,5 @@
 <body class="skin-art skin-retro-green">
 <main id="app"></main>
 <script type="module" src="js/main.js"></script>
+<script>if('serviceWorker' in navigator&&isSecureContext)addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch((e)=>console.warn('sw',e)));</script>
 </body></html>
