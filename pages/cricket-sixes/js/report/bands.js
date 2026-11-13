@@ -4,7 +4,7 @@
 // [pre-P14] LUCK: "expected" runs are the sum of the per-ball probabilities the engine used (pr.p), and those already include the hidden pairing points (match.js pairPoints). So luck = actual minus expected-with-pairing; it moves with Book/pairing knowledge until P14 lands. The luck bands below are pairing-inclusive and carry this label (LUCK_LABEL).
 export const LUCK_LABEL = '[pre-P14]';
 export const BANDS = {
-  win: { idle: 44, rote: 50, skilled: 53 },                                  // [sim r4 step-0] win %, footer only, NOT re-simmed: season win % is 35 / 49 / 59 (idle / best rote P/R / skilled) [sim r7], and test/report.test.mjs pins this row
+  win: { idle: 35, rote: 49, skilled: 59 },                                  // [sim r7] season win % (idle / best rote P/R / skilled), footer only
   runs: { us: [33, 99], them: [44, 110] },                                    // [sim r7] usual range (p10-p90), skilled bot, season matches
   fit: { noisy: '85-90', random: { bowler: 26, field: 50, intent: 33 } },     // [sim r7] % of calls equal to the skilled call (noisy bot 86 / 90 / 87; careless bot 26.5 / 50.1 / 33.4)
   matchup: { skilled: [50, 22, 28], random: [37, 22, 41] },                   // [sim r7] Good/OK/Poor share of bowler picks (OK includes no-preview picks), skilled bot and careless (random) bot

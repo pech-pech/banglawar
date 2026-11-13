@@ -42,7 +42,7 @@ test('summary: plain words, wrapped, no codes, no data pointer', () => {
   log.why(); log.gloss('economy'); clk += 2000; log.gloss('economy'); log.feel('q1', 'A bit'); log.feel('q2', '-');
   const t = buildSummary(log.data(), ENV), lines = t.split('\n');
   assert.match(lines[0], /^CRICKET REPORT sixes-r4  CLEAN: YES  \(3 matches, 0 errors\)/);
-  for (const w of ['What you chose (bowling)', 'Attacking field', 'Defensive field', 'Same call as the skilled bot', 'Thinking time', 'Luck:', 'Results:', 'M3 ', 'Over panel:', 'Feel M', 'Checks:']) assert.ok(t.includes(w), w);
+  for (const w of ['What you chose (bowling)', 'Attacking field', 'Defensive field', 'Same call as the skilled bot', 'Thinking time', 'Luck:', 'Results:', 'M3 ', 'Feel M', 'Checks:']) assert.ok(t.includes(w), w);
   assert.ok(t.includes('Why? opened 1 times') && t.includes('Words opened: Economy 2'));
   assert.ok(t.includes('finish skipped') && !t.includes('"-"'));
   assert.ok(lines.every((l) => l.length <= 78), 'long line: ' + lines.find((l) => l.length > 78));
@@ -110,7 +110,7 @@ test('feel strip: first 2 matches of a build, plan of 3, skip counts', () => {
 test('small pure helpers', () => {
   assert.equal(matchupOf([]), '?'); assert.equal(matchupOf([{ g: 1 }, { g: 0 }]), 'G'); assert.equal(matchupOf([{ g: -1 }]), 'P'); assert.equal(matchupOf([{ g: 0 }]), 'O');
   assert.deepEqual(expected([{ pr: { p: { six: 0.1, four: 0.1, two: 0.1, single: 0.2, wicket: 0.05 } } }]), { xr: 1.4, xw: 0.1 });
-  assert.equal(inRange(50, BANDS.runs.us), 'ok'); assert.equal(inRange(20, BANDS.runs.us), 'below'); assert.equal(inRange(999, BANDS.runs.us), 'above'); assert.deepEqual(BANDS.win, { idle: 44, rote: 50, skilled: 53 });
+  assert.equal(inRange(50, BANDS.runs.us), 'ok'); assert.equal(inRange(20, BANDS.runs.us), 'below'); assert.equal(inRange(999, BANDS.runs.us), 'above'); assert.deepEqual(BANDS.win, { idle: 35, rote: 49, skilled: 59 });
 });
 
 test('report: reopening mid-match is not a new match or a first Start (Z1), and a quiet session still has an end screen (Z2)', () => {
