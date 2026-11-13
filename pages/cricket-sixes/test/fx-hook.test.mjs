@@ -23,7 +23,7 @@ test('a batting node adds its probability only inside its condition (Opener N1: 
 });
 test('a bowling node uses the bowler: Fast N1 wicket +0.15 pp overs 1-3; the coach boost makes it x1.5', () => {
   const b = bat(), w = bowl({ nodes: { bat: 0, bowl: 1 } });
-  const c3 = coach({ lv: { Power: 0, Technique: 0, Pace: 3, Craft: 0 } });
+  const c3 = coach({ step: 13, strong: ['bowl'] }) /* P11: B- (old level 3), strong in Bowling */;
   const d1 = ballProbs(b, w, 0, 'R', 'N', makeFx([])).p.wicket - base(b, w, 0, 'R', 'N').p.wicket;
   const d2 = ballProbs(b, w, 0, 'R', 'N', makeFx([c3])).p.wicket - base(b, w, 0, 'R', 'N').p.wicket;
   assert.ok(Math.abs(d1 - 0.0015) < 1e-12); assert.ok(Math.abs(d2 - 0.00225) < 1e-12);

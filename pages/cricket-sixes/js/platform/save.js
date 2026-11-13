@@ -5,6 +5,7 @@ import { wrap, unwrap } from '../core/save-migrate.js';
 
 export const KEY = 'cs.save.1';
 export const BAK = 'cs.save.1.bak';
+export const V4BAK = 'cs.save.1.v4bak';
 
 /** Browser storage, or null when blocked. */
 function browserStorage() {
@@ -30,7 +31,11 @@ export function createSave(storage = browserStorage()) {
       for (const [text, source] of /** @type {const} */ ([[main, 'main'], [bak, 'bak']])) {
         if (text == null) continue;
         const r = unwrap(text, deps);
-        if (r.ok) return { state: r.state, source, from: r.from };
+        if (r.ok) {
+          // Squad-of-8 (v5) migration releases players: keep one untouched copy of the v4 save, once.
+          if (r.from === 4 && source === 'main' && get(V4BAK) == null) put(V4BAK, text);
+          return { state: r.state, source, from: r.from };
+        }
         if (r.reason === 'newer') { blocked = true; return { state: null, source: 'none', reason: 'newer' }; }
         reason = reason || r.reason;
       }

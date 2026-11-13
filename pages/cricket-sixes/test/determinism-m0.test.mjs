@@ -38,22 +38,24 @@ test('standings: same seed gives the same table after every round, and it stays 
   assert.deepEqual(end.map((r) => r.id), sorted.map((r) => r.id), 'table kept sorted by points, run difference, wins, club id');
 });
 
-test('training: same seed + same drills give the same ratings; a new salt re-rolls them', { skip }, () => {
-  // Drill is legal only in stage 'train': play the first match with the idle bot, stop when the training week opens, then drill.
+test('training: same seed + same nets run give the same ratings; a new salt re-rolls them', { skip }, () => {
+  // RunNets (P11; replaces the removed per-player Drill) is legal only in stage 'train': play the first match with the idle bot,
+  // stop when the training week opens, set a plan, run the nets. The roll is keyed on seed|salt|week, so the salt must matter.
   const train = (salt) => {
     let s = null;
     season('det-train', idle(), { stopAt: (x) => x.stage === 'train' && ((s = x), true) });
     assert.ok(s, 'reached the training week');
     s = store.applyCommand(s, 'Reseed', { salt });
-    // the drill is keyed on season.seed|drill|week|playerId|salt: drill every squad player once
-    for (const p of s.clubs[0].squad) for (const d of ['bp', 'bs', 'spd', 'bsk']) { const n = store.applyCommand(s, 'Drill', { playerId: p.id, drillId: d }); if (n !== s) { s = n; break; } }
-    return s;
+    s = store.applyCommand(s, 'SetTrainPlan', { focus: 'bat', effort: 'push' });
+    return store.applyCommand(s, 'RunNets');
   };
   const a = train(''), b = train(''), c = train('some-other-load');
   assert.equal(J(a.clubs[0].squad), J(b.clubs[0].squad));
   assert.equal(a.training.tp, b.training.tp);
-  assert.ok(a.training.drillCount > 0, 'at least one drill must have been accepted');
-  assert.notEqual(J(a.clubs[0].squad), J(c.clubs[0].squad), 'ten drills under a different salt should not all roll alike');
+  assert.equal(J(a.training.nets), J(b.training.nets));
+  assert.ok(a.training.nets && a.training.nets.week === a.training.week, 'the nets must have run (RunNets accepted)');
+  assert.ok(a.training.nets.lines.length > 0, 'at least one player trained');
+  assert.notEqual(J(a.clubs[0].squad), J(c.clubs[0].squad), 'the nets under a different salt should not roll alike');
 });
 
 test('AI-v-AI league results do not depend on what M does (own sub-streams only)', { skip }, () => {
@@ -98,7 +100,7 @@ test('reload from save mid-season continues identically (same seed, same salt)',
   assert.equal(J(cont.state), J(through.state), 'finishing from the reloaded save equals the uninterrupted season');
 });
 
-test('reload with a different salt (no ?seed) may re-roll the next drill but keeps the table and squad', { skip }, () => {
+test('reload with a different salt (no ?seed) may re-roll the next nets run but keeps the table and squad', { skip }, () => {
   let mid = null;
   season('det-8', skilled(), { stopAt: (s) => s.stage === 'week' && s.training.week === 3 && ((mid = s), true) });
   const re = store.applyCommand(mid, 'Reseed', { salt: 'new-load' });
