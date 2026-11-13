@@ -2,7 +2,7 @@
 // Adding a metric = add one function to LINES (a line of the summary) and, if it needs a new number, one field in aggregate().
 // Marks: [sim] from the 400-seed sweep, [guess] our estimate (see bands.js).
 import { OVER_COLS } from './metrics.js';
-import { BANDS } from './bands.js';
+import { BANDS, LUCK_LABEL } from './bands.js';
 import { FLAG_DEFAULTS } from './build.js';
 import { zLines, sessionStats } from './z.js';
 
@@ -44,15 +44,14 @@ export function aggregate(matches) {
     roteF: rote('f', 'b'), roteI: rote('i', 'c'),
     fitF: pct(sum(fits(1)), fits(1).length), fitI: pct(sum(fits(2)), fits(2).length), fitB: pct(sum(fits(0)), fits(0).length),
     goodPick: pct(offered.filter((o) => o.mu === 'G').length, offered.length), goodOffered: offered.length,
-    mu: { n: bo.length, G: pct(bo.filter((o) => o.mu === 'G').length, bo.length), P: pct(bo.filter((o) => o.mu === 'P').length, bo.length), O: pct(bo.filter((o) => o.mu === 'G' || o.mu === 'P' ? false : true).length, bo.length) }, // no preview counts as OK, as in the band
+    mu: { n: bo.length, G: pct(bo.filter((o) => o.mu === 'G').length, bo.length), P: pct(bo.filter((o) => o.mu === 'P').length, bo.length), O: pct(bo.filter((o) => o.mu === 'O').length, bo.length), U: pct(bo.filter((o) => o.mu !== 'G' && o.mu !== 'O' && o.mu !== 'P').length, bo.length) }, // P0-10: no preview (U) is its own bucket, not OK
     rpoField: { A: per(bo, 'f', 'A'), P: per(bo, 'f', 'P') }, rpoIntent: { D: per(co, 'i', 'D'), R: per(co, 'i', 'R'), A: per(co, 'i', 'A') },
     rpoMu: { G: per(bo, 'mu', 'G'), O: per(bo, 'mu', 'O'), P: per(bo, 'mu', 'P') }, // P2 M9 previewTruth: Good must beat Poor
     thinkMed: median(think), thinkMax: think.length ? Math.max(...think) : null, thinkFast: pct(think.filter((t) => t < 1500).length, think.length),
-    why: sum(matches.map((m) => m.why)), whyBy: matches.filter((m) => m.why).map((m) => 'M' + m.id + ' ' + m.why), gloss: matches.reduce((a, m) => { for (const k in m.gl) a[k] = (a[k] || 0) + m.gl[k]; return a; }, {}),
+    why: sum(matches.map((m) => m.why)), whyBy: matches.filter((m) => m.why).map((m) => 'M' + m.id + ' ' + m.why), gloss: matches.reduce((a, m) => { for (const k in (m.gl || {})) a[k] = (a[k] || 0) + m.gl[k]; return a; }, {}),
     skips: sum(matches.map((m) => m.sk)), overs: all.length, instant: pct(waits.filter((w) => w < 1000).length, waits.length),
     xScored: r1(sum(dco.map((o) => o.xr))), scored, xConc: r1(sum(dbo.map((o) => o.xr))), conc, xWkLost: r1(sum(dco.map((o) => o.xw))), wkLost: sum(dco.map((o) => o.w)),
     xWkTook: r1(sum(dbo.map((o) => o.xw))), wkTook: sum(dbo.map((o) => o.w)),
-    retryFast: pct(done.filter((m) => m.res === 'lost' && m.rt != null && m.rt <= 10000).length, done.filter((m) => m.res === 'lost' && m.rt != null).length),
     seconds: done.length ? Math.round(sum(done.map((m) => (m.t1 - m.t0) / 1000)) / done.length) : null,
   };
 }
@@ -71,18 +70,25 @@ export function wrap(text, width = 70) {
 }
 const lines = (...ls) => ls.filter(Boolean).map((l) => wrap(l)).join('\n');
 
-/** CLEAN rule (game-computed): one build, flags at default, no match in progress. Reasons are plain words. */
+/** CLEAN rule (game-computed). Records are filtered to the running build first (P0-3); records of other builds only add "mixed builds". Reasons are plain words.
+ *  env: build, flags, fixedSeed, errors, tuningSha + tuningPinned (when both known), trimmed (log was trimmed), save.migrated. Empty window = NO. */
 export function cleanOf(matches, env) {
-  const why = [];
-  if (new Set(matches.map((m) => m.build)).size > 1) why.push('mixed builds');
-  const flags = (env && env.flags) || FLAG_DEFAULTS, bad = Object.keys(FLAG_DEFAULTS).filter((k) => flags[k] !== FLAG_DEFAULTS[k]);
+  const why = [], e = env || {};
+  const cur = e.build && e.build !== '?' ? matches.filter((m) => m.build === e.build) : matches;
+  if (new Set(matches.map((m) => m.build)).size > 1 || cur.length < matches.length) why.push('mixed builds');
+  if (!cur.length) why.push('no match played');
+  if (e.tuningSha && e.tuningPinned && e.tuningSha !== e.tuningPinned) why.push('tuning changed');
+  const flags = e.flags || FLAG_DEFAULTS, bad = Object.keys(FLAG_DEFAULTS).filter((k) => flags[k] !== FLAG_DEFAULTS[k]);
   if (bad.length) why.push('flags changed: ' + bad.join(', '));
-  if (matches.some((m) => !m.res && !m.ab)) why.push('match in progress');
-  if (env && env.fixedSeed) why.push('fixed seed');
-  if (new Set(matches.map((m) => m.seed)).size < matches.length) why.push('repeated seed');
+  if (cur.some((m) => !m.res && !m.ab)) why.push('match in progress');
+  if (e.errors > 0) why.push('errors');
+  if (e.fixedSeed) why.push('fixed seed');
+  if (new Set(cur.map((m) => m.seed)).size < cur.length) why.push('repeated seed');
+  if (e.save && e.save.migrated) why.push('migrated save');
+  if (e.trimmed) why.push('trimmed');
   return { ok: !why.length, why };
 }
-const WHY_WORDS = (w) => (w === 'mixed builds' ? 'more than one build in this report' : w === 'match in progress' ? 'a match is still being played' : w === 'fixed seed' ? 'the page was opened with a fixed seed, so rolls can repeat' : w === 'repeated seed' ? 'two matches used the same seed' : w.replace('flags changed', 'game settings changed'));
+const WHY_WORDS = (w) => (w === 'mixed builds' ? 'more than one build in this report (older builds are left out of the numbers)' : w === 'no match played' ? 'no match was played on this build' : w === 'match in progress' ? 'a match is still being played' : w === 'fixed seed' ? 'the page was opened with a fixed seed, so rolls can repeat' : w === 'repeated seed' ? 'two matches used the same seed' : w === 'tuning changed' ? 'the tuning data is not the pinned version' : w === 'errors' ? 'the game logged errors' : w === 'migrated save' ? 'the save was migrated from an older version' : w === 'trimmed' ? 'the log was trimmed to fit storage, so old matches are missing' : w.replace('flags changed', 'game settings changed'));
 const FEEL_TAG = { q1: 'picks mattered', q2: 'finish', q3: 'knew why', q4: 'ball speed' };
 const feelTxt = (m) => Object.entries(m.feel || {}).map(([q, v]) => (v === '-' ? (FEEL_TAG[q] || q) + ' skipped' : (FEEL_TAG[q] || q) + ' ' + v)).join(', ');
 
@@ -99,7 +105,7 @@ export const LINES = [
     `Runs scored per over by intent: Defend ${a.rpoIntent.D ?? '-'}, Steady ${a.rpoIntent.R ?? '-'}, Attack ${a.rpoIntent.A ?? '-'} (bots ${BANDS.rpo.intent.D} / ${BANDS.rpo.intent.R} / ${BANDS.rpo.intent.A} [sim]).`),
   ({ a }) => lines(`Same call as the skilled bot: bowler ${P(a.fitB)}, field ${P(a.fitF)}, intent ${P(a.fitI)}.`,
     `For scale: a bot that slips 1 call in 5 scores ${BANDS.fit.noisy}%; random picks score ${BANDS.fit.random.bowler} / ${BANDS.fit.random.field} / ${BANDS.fit.random.intent}% [sim].`,
-    a.mu.n ? `Bowler matchup you picked: Good ${P(a.mu.G)}, OK ${P(a.mu.O)}, Poor ${P(a.mu.P)} (${a.mu.n} overs). Skilled bot ${BANDS.matchup.skilled.join('/')}, random ${BANDS.matchup.random.join('/')} [sim].` : null),
+    a.mu.n ? `Bowler matchup you picked: Good ${P(a.mu.G)}, OK ${P(a.mu.O)}, Poor ${P(a.mu.P)}, no preview ${P(a.mu.U)} (${a.mu.n} overs). Skilled bot ${BANDS.matchup.skilled.join('/')}, random ${BANDS.matchup.random.join('/')} [sim].` : null),
   ({ a }) => lines(`Thinking time per call: median ${sec(a.thinkMed)}, longest ${sec(a.thinkMax)}; under 1.5 s on ${P(a.thinkFast)} of calls.`,
     `Why? opened ${a.why} times${a.whyBy.length ? ' (' + a.whyBy.slice(-MAX_MATCH_ROWS).join(', ') + ')' : ''}.`,
     `Word list "?" opened ${sum(Object.values(a.gloss))} times.`,
@@ -107,12 +113,12 @@ export const LINES = [
   ({ a }) => { const n = a.finished, tot = Math.round(1.28 * 11 * Math.sqrt(n)), wk = r1(1.28 * 1.95 * Math.sqrt(n)), L = BANDS.luckBy, g = (v) => (v > 0 ? '+' : '') + v; // wicket sd 1.95 a match (NUMBERS: p10-p90 -2.6..+2.4 = 2 x 1.28 x sd)
     return lines(`Luck: you scored ${a.scored} runs, expected ${a.xScored}; the rival scored ${a.conc}, expected ${a.xConc} (finished matches only; usual total over ${n} ${n === 1 ? 'match' : 'matches'}: -${tot} to +${tot}${n < 10 ? '; too few matches to call luck' : ''}).`,
       `Wickets: you lost ${a.wkLost} (expected ${a.xWkLost}), you took ${a.wkTook} (expected ${a.xWkTook}); usual wicket luck over ${n} ${n === 1 ? 'match' : 'matches'}: -${wk} to +${wk}.`,
-      `In one match, luck in your chase usually lands between ${BANDS.luck[0]} and +${BANDS.luck[1]} runs; after a win ${L.won[0]} to ${g(L.won[1])}, after a loss ${L.lost[0]} to ${g(L.lost[1])} [sim].`); },
+      `In one match, luck in your chase usually lands between ${BANDS.luck[0]} and +${BANDS.luck[1]} runs; after a win ${L.won[0]} to ${g(L.won[1])}, after a loss ${L.lost[0]} to ${g(L.lost[1])} [sim r7] ${LUCK_LABEL}.`); },
   ({ a, ms }) => lines(`Results: won ${a.won}, lost ${a.lost}, tied ${a.tied} of ${a.finished} finished; close finishes ${a.close}, big wins or losses ${a.blow}, quit ${a.quit}.`,
     `Usual range for runs in a match: you ${BANDS.runs.us.join('-')}, rival ${BANDS.runs.them.join('-')} [sim].`) +
     '\n' + ms.slice(-MAX_MATCH_ROWS).map((m) => {
       if (!m.res) return wrap(`M${m.id} ${m.ab ? 'Quit' : 'Still playing'} during ${m.stage} (${m.ov.length} overs, not counted)`);
-      return wrap(`M${m.id} ${marginTxt(m)}: you ${m.us}, rival ${m.them}; close finish ${m.close ? 'yes' : 'no'} (decided over ${m.dec}); luck ${sgn(luckOf(m))} runs; ${Math.round((m.t1 - m.t0) / 1000)} s` + (m.rt != null ? `; time on result screen ${sec(m.rt)}` : ''));
+      return wrap(`M${m.id} ${marginTxt(m)}: you ${m.us}, rival ${m.them}; close finish ${m.close ? 'yes' : 'no'} (decided over ${m.dec}); luck ${sgn(luckOf(m))} runs; ${Math.round((m.t1 - m.t0) / 1000)} s`);
     }).join('\n'),
   ({ a }) => lines(`Over panel: Next tapped within 1 s on ${P(a.instant)} of overs; closed early (skipped) ${a.skips} times.` + (a.seconds != null ? ` Average match ${a.seconds} s.` : '')),
   ({ d, env }) => { const z = zLines(d || {}, env.save || null); return z.length ? z.map((l) => wrap(l)).join('\n') : null; },
@@ -123,8 +129,8 @@ export const LINES = [
 // Z1-Z6 are built in z.js (first session, ? share, drills, points, training effect). Still stubs: M0 week plan, coach, balance rule; P2 M3 skillEdge needs 10+ matches
 // per side; P2 M10 luckShare needs pre-match ratings; P2 M12 why-cause mix needs whyCause() per ball; P2 M15 autoplay speed-up taps need a panel hook.
 
-export function envOf(env = {}) {
-  return { build: env.build || '?', now: env.now || Date.now(), vp: env.vp || '?', errors: env.errors || 0, lastError: env.lastError || '', flags: env.flags, save: env.save || null };
+export function envOf(env = {}, data = null) {
+  return { trimmed: !!(env.trimmed || (data && data.trimmed)), fixedSeed: !!env.fixedSeed, tuningSha: env.tuningSha, tuningPinned: env.tuningPinned, build: env.build || '?', now: env.now || Date.now(), vp: env.vp || '?', errors: env.errors || 0, lastError: env.lastError || '', flags: env.flags, save: env.save || null };
 }
 
 /** Short summary text (lines joined by newline). data = the stored log, env = { build, now, vp, errors, flags }. */
@@ -137,24 +143,38 @@ export function wordsLine(gloss) {
   return 'Words opened: ' + w.slice(0, 8).map(([k, v]) => cap(k) + ' ' + v).join(', ') + (rest ? `, +${rest} more` : '') + '.';
 }
 
+/** Matches of the running build only (P0-3). Env build '?' (unknown) keeps all. */
+const windowOf = (data, env) => (data.matches || []).filter((m) => env.build === '?' || m.build === env.build);
+/** Word opens: per-match counts plus the session buckets se.gl (opens outside a match, P0-5); old logs have no se.gl. */
+function glossOf(data, ms) {
+  const g = aggregate(ms).gloss;
+  for (const s of data.sessions || []) for (const k in (s.gl || {})) g[k] = (g[k] || 0) + s.gl[k];
+  return g;
+}
+
 export function buildSummary(data, env0) {
-  const env = envOf(env0), ms = data.matches || [];
-  const ctx = { a: aggregate(ms), ms, env, clean: cleanOf(ms, env), d: data };
+  const env = envOf(env0, data), ms = windowOf(data, env), all = data.matches || [];
+  const a = aggregate(ms); a.gloss = glossOf(data, ms);
+  const ctx = { a, ms, env, clean: cleanOf(all, env), d: data };
   return LINES.map((f) => { try { return f(ctx); } catch (e) { return null; } }).filter(Boolean).join('\n');
 }
 
 /** Compact JSON for bots and the team: last 5 matches, overs as arrays in the column order given once. */
 export function buildData(data, env0) {
-  const env = envOf(env0), ms = (data.matches || []).slice(-MAX_MATCH_ROWS);
+  const env = envOf(env0, data), ms = windowOf(data, env).slice(-MAX_MATCH_ROWS);
   const out = { report: 1, build: env.build, at: new Date(env.now).toISOString(), viewport: env.vp, errors: env.errors, flags: env.flags || FLAG_DEFAULTS,
     legend: 'overs rows follow overCols. s b=bowl innings c=chase. mu G/O/P/? Good/OK/Poor/unknown. fit=[bowler,field,intent] vs skilled bot. th think ms, pw panel wait ms, sk closed early',
     overCols: OVER_COLS,
     z: { sessions: sessionStats(data), save: env.save },
-    wordsOpened: Object.fromEntries(wordsOf(aggregate(data.matches || []).gloss)),
+    wordsOpened: Object.fromEntries(wordsOf(glossOf(data, windowOf(data, env)))),
     matches: ms.map((m) => ({ id: m.id, sid: m.sid, build: m.build, seed: m.seed, vp: m.vp, res: m.res || (m.ab ? 'quit' : 'live'), us: m.us, them: m.them, wkUs: m.wkUs, wkThem: m.wkThem,
-      margin: m.m, close: m.close, blow: m.blow, secs: m.t1 ? Math.round((m.t1 - m.t0) / 1000) : null, screenMs: m.scr, why: m.why, gloss: m.gl, skips: m.sk, retryMs: m.rt, feel: m.feel,
-      overs: m.ov.map((o) => OVER_COLS.map((k) => o[k])) })) };
+      k: m.k, r: m.r, season: m.season, league: m.league, pay: m.pay, coins: m.coins0 != null ? [m.coins0, m.coins1] : undefined, fans: m.fans0 != null ? [m.fans0, m.fans1] : undefined,
+      margin: m.m, close: m.close, blow: m.blow, secs: m.t1 ? Math.round((m.t1 - m.t0) / 1000) : null, screenMs: m.scr, why: m.why, gloss: m.gl, skips: m.sk, feel: m.feel,
+      overs: (m.ov || []).map((o) => OVER_COLS.map((k) => o[k])) })) };
   return JSON.stringify(out);
 }
 
-export const buildFull = (data, env) => buildSummary(data, env) + '\nFull data (JSON, last ' + Math.min((data.matches || []).length, MAX_MATCH_ROWS) + (((data.matches || []).length === 1) ? ' match' : ' matches') + ') follows.\n\n' + buildData(data, env);
+export function buildFull(data, env) {
+  const n = Math.min(windowOf(data, envOf(env, data)).length, MAX_MATCH_ROWS);
+  return buildSummary(data, env) + '\nFull data (JSON, last ' + n + (n === 1 ? ' match' : ' matches') + ') follows.\n\n' + buildData(data, env);
+}

@@ -1,7 +1,7 @@
 // Z1-Z6 playtest lines: first session and training. Pure: (log data, save state) -> numbers and words. No DOM, no storage, no clock.
 // Z1 time to first Start match | Z2 screen where each session ended | Z3 '?' share | Z4 nets runs, effort, focus changes | Z5 unspent TP | Z6 last week's training effect.
 // The save's top-level me and rival are the last match's squads; the report calls them lastMatch.
-import { DRILLS } from '../data/training.js';
+import { DRILLS, TRAIN2 } from '../data/training.js';
 
 const sum = (xs) => xs.reduce((a, b) => a + b, 0);
 const r1 = (x) => Math.round(x * 10) / 10;
@@ -20,11 +20,11 @@ export function saveOf(s) {
   if (!s || !s.training) return null;
   const mine = (s.clubs || []).find((c) => c.id === 'c0'), squad = (mine && mine.squad) || [];
   const hidden = squad.filter((p) => (p.drillsHere | 0) < DRILLS.revealAfter).length;
-  const t = s.training, weeksDone = Math.max(0, (t.week | 0) - 1), ws = t.weekSummary || null;
+  const t = s.training, effort = ['easy', 'normal', 'push'].includes(t.effort) ? t.effort : 'normal', perPlayer = TRAIN2.efforts[effort].cost, pushCost = TRAIN2.efforts.push.cost, weeksDone = Math.max(0, (t.week | 0) - 1), ws = t.weekSummary || null;
   const lm = s.me && s.rival ? lastMatchOf(s) : null;
   return {
     stage: s.stage, week: t.week | 0, tp: t.tp | 0, weeksDone,
-    netsThisWeek: t.netsWeek != null && t.netsWeek === t.week ? 1 : 0, effort: ['easy', 'normal', 'push'].includes(t.effort) ? t.effort : 'normal', focusChanges: t.focusChanges | 0, canDrill: Math.floor((t.tp | 0) / (DRILLS.costTp || 15)), cost: DRILLS.costTp || 15,
+    netsThisWeek: t.netsWeek != null && t.netsWeek === t.week ? 1 : 0, effort, focusChanges: t.focusChanges | 0, perPlayer, runCost: perPlayer * squad.length, affordPush: squad.length > 0 && (t.tp | 0) >= pushCost * squad.length, migrated: !!s.migrated, // P0-4: cost per player is TRAIN2.efforts[effort].cost (the nets cost), not DRILLS.costTp
     squad: squad.length, hidden, hiddenShare: squad.length ? Math.round((100 * hidden) / squad.length) : null,
     last: ws ? { week: ws.week, steps: ws.steps != null ? ws.steps | 0 : sum((ws.gains || []).map((g) => g.total | 0)), letters: ws.letters | 0 } : null,
     lastMatch: lm,
@@ -45,14 +45,13 @@ const ENDS = { hub: 'club screen', squad: 'pick six', plan: 'over plan', bowl: '
 /** Summary lines Z1-Z6 (plain words, no codes). Each returns text or null. @param {any} data stored log @param {any} save saveOf() result or null */
 export function zLines(data, save) {
   const ss = sessionStats(data), out = [];
-  if (ss.n) {
-    out.push(`First session: time from opening the game to Start match: ${ss.firstMed == null ? 'no match started yet' : 'median ' + ss.firstMed + ' s, longest ' + ss.firstMax + ' s'}` + (ss.neverStarted ? `; ${plural(ss.neverStarted, 'session')} never started a match.` : '.'));
+  if (ss.n) { // P0-13: the first-session timing line is gone; sessionStats() still reads se.first from old logs
     out.push('Each session ended on: ' + Object.entries(ss.ends).map(([k, v]) => (ENDS[k] || k) + (v > 1 ? ' x' + v : '')).join(', ') + '.');
   }
   if (!save) { out.push('Training: no save in this report, so drills, points and ? share are missing.'); return out; }
   out.push(`? share: ${save.hidden} of ${save.squad} players still show ? (potential grade not known yet), ${save.hiddenShare == null ? '-' : save.hiddenShare + '%'}.`);
   out.push(`Nets runs this week: ${save.netsThisWeek} · Effort: ${save.effort[0].toUpperCase() + save.effort.slice(1)} · Focus changes: ${save.focusChanges}`);
-  out.push(`Unspent training points: ${save.tp} now, enough for ${plural(save.canDrill, 'drill')} at ${save.cost} each.`);
+  out.push(`Unspent training points: ${save.tp} now. A Nets run on ${save.effort[0].toUpperCase() + save.effort.slice(1)} costs ${save.perPlayer} per player (${save.runCost} for ${save.squad}); Push ${save.affordPush ? 'is' : 'is not'} affordable now.`);
   if (save.last) out.push(`Last week: +${save.last.steps} steps across the squad, ${save.last.letters} ${save.last.letters === 1 ? 'letter' : 'letters'} gained`);
   const m = save.lastMatch;
   if (m) out.push(`lastMatch (the save's me and rival): ${m.us} vs ${m.them}, ${m.result || 'no result'}${m.usRuns != null ? ', ' + m.usRuns + ' to ' + m.themRuns : ''}` + (m.topBat ? `; top bat ${m.topBat.n} ${m.topBat.v}` : '') + (m.topBowl ? `; top bowler ${m.topBowl.n} ${m.topBowl.v} wickets` : '') + '.');
