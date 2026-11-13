@@ -33,6 +33,12 @@ export const ECON = {
   },
   FAC_OPEN: { stands: 1, shop: 2, nets: 1, gym: 1, pitch: 3, academy: 1, scout: 1 }, // stadium level that opens facility level 1
   FAC_START: { stands: 1, shop: 0, nets: 1, gym: 0, pitch: 0, academy: 1, scout: 0 },
+  // r9 free-pick gate (FLAGS.freePick on): every facility starts L0, one L1 is free, the rest cost Coins from round 1 (no stadium gate on L1).
+  FAC_OPEN_V2: { stands: 1, shop: 1, nets: 1, gym: 1, pitch: 1, academy: 1, scout: 1 },
+  FAC_START_V2: { stands: 0, shop: 0, nets: 0, gym: 0, pitch: 0, academy: 0, scout: 0 },
+  FAC_START_NETS: 0, // M Q2: Nets L0 tested safe (training reads s.nets, not econ.fac.nets). Set 1 to pre-own Nets L1 if that ever breaks.
+  FAC_L1_COST: { stands: 100, shop: 90, nets: 40, gym: 70, pitch: 120, academy: 60, scout: 80 },
+  HYPE_FAN_MULT: [1, 1.1, 1.25, 1.5], // low / med / high / nuts: win/loss/tie Fans part only, after the league mult
   UPKEEP: 1.0,
   RECRUIT: [300, 480, 720, 1050, 1500],   // next-season recruit envelope by league
   // wages: (WAGE_FLOOR + WAGE_K x (avg/WAGE_REF)^WAGE_P) x potFactor once P is revealed

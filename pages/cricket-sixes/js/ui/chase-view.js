@@ -3,6 +3,7 @@
 import { whyLine, outcomeLabel } from './why.js';
 import { openSheet } from './sheet.js';
 import { openGlossary } from './glossary-sheet.js';
+import { chipRowHtml, roarChipHtml } from './matchday-view.js';
 import { abilityLine } from './letters-ui.js';
 import { POT, gradeAria, newNotes, noteFor } from './grade-notes.js';
 
@@ -159,6 +160,7 @@ export function render(el, vm, dispatch) {
     '<span class="score" aria-label="Score ' + esc(sc.runs) + ' runs for ' + esc(sc.wk) + ' out">' + esc(sc.runs) + '/' + esc(sc.wk) + '</span>' +
     '<span class="mid"><b>' + esc(need) + '</b><span>Target ' + esc(vm.target) + ' · Over ' + esc(vm.over) + ' of 10 · ' + esc(phase) + '</span></span>' +
     '<button type="button" class="q" aria-label="Cricket words explained">?</button></header>' +
+    chipRowHtml(vm.chips) + roarChipHtml(vm.roar) +
     '<section class="colL">' +
     '<p class="sb-cap">For your batter</p>' +
     '<div class="sb chase" role="table" aria-label="Your batters against their likely bowlers">' + head +

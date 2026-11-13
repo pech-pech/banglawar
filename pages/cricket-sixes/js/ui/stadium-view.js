@@ -49,7 +49,7 @@ function slotBtn(slot, s, optList) {
   let state, tag;
   if (building) { state = 'Building: ' + b.left + (b.left === 1 ? ' match' : ' matches') + ' left'; tag = 'build'; }
   else if (!o) { state = 'Top level'; tag = 'done'; }
-  else if (o.ok) { state = (lvl ? 'Upgrade' : 'Build') + ' for ' + fmt(o.coins) + ' Coins'; tag = 'upgrade'; }
+  else if (o.ok) { state = (lvl ? 'Upgrade' : 'Build level 1') + ' for ' + fmt(o.coins) + ' Coins'; tag = 'upgrade'; }
   else { state = nbsp(o.why || 'Locked'); tag = 'lock'; }
   return '<button type="button" class="c-btn ec-slot' + (lvl ? '' : ' is-empty') + (building ? ' is-building' : '') + '" data-econ-pick="' + slot.id + '" aria-label="' +
     esc(slot.name + ', ' + levelWord(lvl) + '. ' + effectLine(slot.id, lvl) + '. ' + state) + '">' + icoDeco(slot.icon, 24) + '<span class="ec-slot__n">' + esc(slot.name) + '</span>' + pips(lvl, 5) + '<span class="ec-slot__e">' + esc(effectLine(slot.id, lvl)) + '</span>' +
@@ -71,6 +71,14 @@ function stadiumHead(s, optList) {
     '<span class="ec-big__t"><span>Next stadium: level ' + esc(o.level) + '</span><small>' + (o.ok ? fmt(o.coins) + ' Coins' : esc(nbsp(o.why || 'Not ready yet'))) + '</small></span></button>';
   return '<section class="c-card ec-stad" aria-label="Stadium">' + '<h3 class="c-strip c-strip--light"><span>' + icoDeco('home', 24) + ' Stadium level ' + esc(lvl) + '</span><span class="c-strip__right">' + fmt(Math.round(eco.seatsOf(e))) + ' seats</span></h3>' +
     '<p class="ec-stad__line">' + leagueLine(s) + ' A facility cannot be higher than the stadium.</p>' + act + '</section>';
+}
+
+/** A free level 1 is waiting (r9 free pick): say so, with a button that opens the picker. Nothing when the flag is off. */
+function freeLine(s) {
+  let pend = false;
+  try { pend = typeof eco.freePickPending === 'function' ? !!eco.freePickPending(s) : !!(econOf(s).freePick && econOf(s).freePick.pending === true); } catch (_) { pend = false; }
+  if (!pend) return '';
+  return '<p class="ec-note" role="status">' + icoDeco('upgrade', 24) + '<span>A free level 1 is waiting. Pick it on Home (Free facility card).</span></p>';
 }
 
 /** The plain confirm panel for one build. */
@@ -104,7 +112,7 @@ export function renderStadium(root, state, dispatch) {
     root.__ecPick = null;
     const e = econOf(state);
     root.innerHTML = '<div class="screen ec-screen ec-stadium">' + '<p class="ec-purse" aria-label="' + esc(fmt(e.coins) + ' Coins, ' + fmt(e.fans) + ' Fans') + '">' + icoDeco('coin', 24) + '<b>' + fmt(e.coins) + '</b> Coins ' + icoDeco('fan', 24) + '<b>' + fmt(e.fans) + '</b> Fans</p>' +
-      stadiumHead(state, optList) + '<h3 class="ec-h">Facilities</h3><div class="ec-slots">' + SLOTS.map((x) => slotBtn(x, state, optList)).join('') + '</div>' + fansBarsHtml(state) + '</div>';
+      stadiumHead(state, optList) + freeLine(state) + '<h3 class="ec-h">Facilities</h3><div class="ec-slots">' + SLOTS.map((x) => slotBtn(x, state, optList)).join('') + '</div>' + fansBarsHtml(state) + '</div>';
   }
   if (!root.__ecBound) {
     root.__ecBound = true;

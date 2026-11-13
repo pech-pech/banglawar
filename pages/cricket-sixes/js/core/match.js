@@ -4,6 +4,8 @@ import { T, MATCH, BAT_HOME, BOWL_HOME, CLAMPS } from '../data/match.js';
 import { FLAGS } from '../data/flags.js';
 import { leagueOf } from '../data/leagues.js';
 import { pairPoints } from './pairing.js';
+import { MD } from '../data/matchday.js';
+import { roarAt, scaleRatings } from './matchday.js';
 const clamp = (x, lo, hi) => Math.max(lo, Math.min(hi, x));
 export const phaseOf = (over) => over <= 3 ? 0 : over <= 7 ? 1 : 2;
 export const PHASE_NAMES = ['Early', 'Middle', 'Late'];
@@ -38,11 +40,13 @@ export function hybridField(b, over, lost, centre = T.FIELD_CENTRE) {
  * Also accepted: (b, w, ph, intent, field, over, lost, fx?, centre?).
  * A last argument `pair` (rating points of the hidden pairing cell, default 0) goes into the same slot as the visible grid: m = MATCHUP*step + pair.
  * With pair 0 every number is exactly as before (the 500 frozen vectors).
+ * A last argument `faced` (balls this batter has faced this innings, before this ball) feeds the hidden "settled" rule: with FLAGS.settled,
+ * wicket *= 1 - SETTLED_K x min(faced, 25)/25, after the clamp, inside pr (so luck and the why line read the same pr). Flag off: nothing changes.
  */
 export function ballProbs(b, w, ph, intent, field, ...args) {
   let fx, over, lost;
-  let centre, pair;
-  if (typeof args[0] === 'number') [over, lost, fx, centre, pair] = args; else [fx, over, lost, centre, pair] = args;
+  let centre, pair, faced;
+  if (typeof args[0] === 'number') [over, lost, fx, centre, pair, faced] = args; else [fx, over, lost, centre, pair, faced] = args;
   centre ??= T.FIELD_CENTRE; pair = pair || 0;
   over ??= [1, 4, 8][ph]; lost = Math.min(lost ?? 0, 4);
   const step = MATCH[`${b.bat}|${w.bowl}`];
@@ -67,14 +71,18 @@ export function ballProbs(b, w, ph, intent, field, ...args) {
   const C = CLAMPS;
   const ft = fieldTerms(b, field, over, lost, centre);
   const xa = intent === 'A' ? T.PH_WA[ph] : 0; // Attack only, by phase index
-  const wicket = clamp(T.W_BASE + T.W_K * (spd - bs) + T.W_INT[intent] + xa + ft.w + dW, C.wicket[0], C.wicket[1]);
+  let wicket = clamp(T.W_BASE + T.W_K * (spd - bs) + T.W_INT[intent] + xa + ft.w + dW, C.wicket[0], C.wicket[1]);
+  let settled;
+  if (FLAGS.settled) { settled = Math.min(Math.max(faced || 0, 0), MD.SETTLED_MAX_BALLS) / MD.SETTLED_MAX_BALLS; wicket *= 1 - MD.SETTLED_K * settled; }
   const six = clamp(T.S6_BASE + T.PW_K * (bp - bsk) + T.S6_INT[intent] + ft.six + d6, C.six[0], C.six[1]);
   const four = clamp(T.S4_BASE + T.PW_K * (bp - bsk) + T.S4_INT[intent] + ft.four + d4, C.four[0], C.four[1]);
   const singleRaw = clamp(T.P1_BASE + T.P1_K * (bs - bsk) + T.P1_INT[intent] + d1, C.single[0], C.single[1]);
   const two = T.P2_BASE;
   const rest = Math.max(0, 1 - wicket - six - four - two);
   const single = Math.min(singleRaw, rest);
-  return { p: { wicket, six, four, two, single }, dot: rest - single, singleRaw, eff: { bp, bs, spd, bsk }, ft, step, pair, batHome, bowlHome };
+  const out = { p: { wicket, six, four, two, single }, dot: rest - single, singleRaw, eff: { bp, bs, spd, bsk }, ft, step, pair, batHome, bowlHome };
+  if (settled !== undefined) out.settled = settled;
+  return out;
 }
 /** Same roll order as match_sim.ball: wicket, 6, 4, 2, single, else dot. */
 export function outcomeFromX(p, singleRaw, x) {
@@ -106,7 +114,9 @@ export function newInnings(bat, bowl, target) {
 }
 /** Bowl one over. Returns the six (or fewer) balls with their parts for why lines. */
 /** `pairing` true = the hidden pairing layer is on (season matches; a step-0 match leaves it off so its numbers are unchanged). */
-export function playOver(rng, inn, bat, bowl, bi, intent, field, fx, centre = T.FIELD_CENTRE, pairing = false) {
+/** `opts` (optional, r9): { ours: 'bat'|'bowl' (which side is ours), md: rollMatchday result, innIdx: 0|1 (0 = we bowl first, 1 = our chase) }.
+ *  With FLAGS.roar and a roar over, our side's ratings are scaled x(1+ROAR_BOOST) for this over only (on copies). Rival never roars. */
+export function playOver(rng, inn, bat, bowl, bi, intent, field, fx, centre = T.FIELD_CENTRE, pairing = false, opts = undefined) {
   const ph = phaseOf(inn.over); const w = bowl[bi]; const balls = [];
   let ballFx = fx;
   if (fx && fx.of(w)?.bowl?.burst) {
@@ -115,13 +125,20 @@ export function playOver(rng, inn, bat, bowl, bi, intent, field, fx, centre = T.
     if (used === inn.over || (used === 0 && (BOWL_HOME[w.bowl] === ph || inn.over >= 8))) { inn.burstOver = inn.over; ballFx = { of: fx.of, burst: true }; }
   }
   w.overs += 1; inn.last = bi;
+  const roarOn = !!(FLAGS.roar && opts && opts.md && opts.ours && roarAt(opts.md, (opts.innIdx ?? (opts.ours === 'bowl' ? 0 : 1)) * 10 + inn.over - 1));
+  if (roarOn) (inn.roarOvers ||= []).push(inn.over);
   for (let k = 0; k < 6 && !inn.done; k++) {
     const si = inn.crease[inn.strike]; const b = bat[si];
-    const pr = ballProbs(b, w, ph, intent, field, ballFx, inn.over, inn.wk, centre, pairing ? pairPoints(b.bat, w.bowl, ph) : 0);
+    const faced = b.inn.b;
+    const bq = roarOn && opts.ours === 'bat' ? scaleRatings(b, MD.ROAR_BOOST) : b;
+    const wq = roarOn && opts.ours === 'bowl' ? scaleRatings(w, MD.ROAR_BOOST) : w;
+    const pr = ballProbs(bq, wq, ph, intent, field, ballFx, inn.over, inn.wk, centre, pairing ? pairPoints(b.bat, w.bowl, ph) : 0, faced);
     let o = outcomeFromX(pr.p, pr.singleRaw, rng.random());
     inn.balls += 1; b.inn.b += 1;
     const rec = { n: `${inn.over}.${k + 1}`, o, batter: si, bowler: bi, pr, intent, field, ph };
+    if (pr.settled !== undefined) rec.faced = faced;
     if (o === 'W') {
+      if (pr.settled !== undefined) (inn.wkLog ||= []).push({ side: opts && opts.ours ? (opts.ours === 'bat' ? 'me' : 'rival') : null, batterId: b.id ?? si, balls: faced, settled: pr.settled });
       inn.wk += 1; w.figs.w += 1; b.inn.out = true;
       if (inn.wk >= 5 || inn.next >= bat.length) inn.done = true; else inn.crease[inn.strike] = inn.next++;
     } else {
@@ -133,6 +150,8 @@ export function playOver(rng, inn, bat, bowl, bi, intent, field, fx, centre = T.
   }
   inn.strike ^= 1; inn.over += 1;
   if (inn.over > 10) inn.done = true;
-  inn.overs.push({ bowler: bi, intent, field, balls });
+  const ov = { bowler: bi, intent, field, balls };
+  if (roarOn) ov.roar = true;
+  inn.overs.push(ov);
   return balls;
 }

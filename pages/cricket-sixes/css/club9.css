@@ -1,0 +1,30 @@
+/* r9 club cards and sheets (.cl-*): activities, trial player, free facility. Kit variables only, no hexes. 344x780 closed Fold first; fits 475. Static: no motion. */
+.cl-cards { display: grid; gap: var(--c-sp-2); }
+.cl-card { display: grid; grid-template-columns: 24px minmax(0, 1fr); align-items: center; justify-content: stretch; gap: var(--c-sp-2); min-height: 56px; padding: 4px var(--c-sp-3); text-align: left; white-space: normal; }
+.cl-card img, .cl-opt img, .cl-fp img, .cl-screen img { flex: none; image-rendering: pixelated; }
+.cl-card__t { display: grid; min-width: 0; }
+.cl-card__t b { font: 700 var(--c-fs-m)/20px var(--c-font); }
+.cl-card__t small { font: 400 14px/18px var(--c-font); }
+.cl-card.is-done { border-style: dashed; }
+.cl-free, .cl-trial { border-width: 4px; }
+
+.cl-screen { display: flex; flex-direction: column; gap: var(--c-sp-2); padding-bottom: var(--c-sp-3); }
+.cl-h { margin: var(--c-sp-2) 0 0; display: flex; align-items: center; gap: var(--c-sp-2); font: 700 var(--c-fs-l)/var(--c-lh-l) var(--c-font); }
+.cl-note { display: grid; grid-template-columns: 24px minmax(0, 1fr); gap: var(--c-sp-2); align-items: start; margin: 0; padding: var(--c-sp-2) var(--c-sp-3); background: var(--wall1); border: var(--c-border) solid var(--wall2); font: 400 14px/20px var(--c-font); }
+.cl-note--warn { border-style: dashed; border-color: var(--outline); }
+.cl-purse { display: flex; align-items: center; gap: var(--c-sp-2); margin: 0; min-height: 32px; font: 400 14px/20px var(--c-font); }
+.cl-purse b { font-size: var(--c-fs-l); }
+.cl-facts { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--c-sp-2); }
+.cl-facts li { display: grid; grid-template-columns: 24px minmax(0, 1fr); gap: var(--c-sp-2); align-items: center; min-height: 32px; font: 400 14px/20px var(--c-font); }
+
+.cl-opts, .cl-fps { display: grid; gap: var(--c-sp-2); }
+.cl-opt, .cl-fp { display: grid; grid-template-columns: 24px minmax(0, 1fr); gap: var(--c-sp-3); align-items: center; justify-content: stretch; min-height: 64px; padding: 4px var(--c-sp-3); text-align: left; white-space: normal; }
+.cl-opt__t { display: grid; gap: 2px; min-width: 0; }
+.cl-opt__n { font: 700 var(--c-fs-m)/20px var(--c-font); }
+.cl-opt__s { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; font: 400 14px/18px var(--c-font); }
+.cl-fp.is-sel { border-style: double; border-width: 4px; }
+.cl-fp.is-owned { border-style: dashed; }
+.cl-actions { display: grid; gap: var(--c-sp-2); }
+.cl-take { width: 100%; margin: 0; box-sizing: border-box; }
+.cl-actions .c-btn, .cl-take { display: flex; align-items: center; justify-content: center; gap: var(--c-sp-2); min-height: 56px; }
+.cl-card:focus-visible, .cl-opt:focus-visible, .cl-fp:focus-visible, .cl-actions .c-btn:focus-visible, .cl-take:focus-visible { outline: 3px dashed var(--c-focus); outline-offset: 3px; }

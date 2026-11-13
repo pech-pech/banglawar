@@ -5,6 +5,7 @@ import { whyLine, outcomeLabel } from './why.js';
 import { openSheet } from './sheet.js';
 import { openGlossary } from './glossary-sheet.js';
 import { stripHtml } from './first-strip.js';
+import { chipRowHtml, roarChipHtml } from './matchday-view.js';
 import { abilityLine } from './letters-ui.js';
 import { POT, gradeAria, newNotes, noteFor } from './grade-notes.js';
 
@@ -126,7 +127,7 @@ export function render(el, vm, dispatch) {
     `<span class="score" aria-label="${esc(sc.runs)} runs for ${esc(sc.wk)} wickets">${esc(sc.runs)}/${esc(sc.wk)}</span>` +
     `<span class="mid"><b>Over ${esc(vm.over)} of 10</b><span>${esc(PHASE[vm.phase] || vm.phaseName)}</span></span>` +
     `<button type="button" class="q" data-gloss aria-label="Cricket words explained">?</button></header>` +
-    `${vm.firstStrip ? stripHtml(esc) : ''}<section class="colL bv-colL">` +
+    `${vm.firstStrip ? stripHtml(esc) : ''}${chipRowHtml(vm.chips)}${roarChipHtml(vm.roar)}<section class="colL bv-colL">` +
     `<p class="sb-cap">For your bowler</p>` +
     `<div class="sb bv-sb" role="radiogroup" aria-label="Bowlers">${head(vm)}${(vm.bowlers || []).map((b) => row(b, vm, notes)).join('')}</div>${anyHidden ? `<p class="bv-more" data-more>${MORE}</p>` : ''}</section>` +
     `<section class="colR bv-colR"><div class="seg bv-seg" role="radiogroup" aria-label="Field">${seg('A', 'fieldAttack')}${seg('P', 'fieldProtect')}</div>` +

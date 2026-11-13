@@ -1,15 +1,17 @@
 /* wheel-view: the Spotlight wheel and the Course wheel, layout A (big centre wheel under the card, result box + COLLECT below).
    openWheel(o) -> close()
    o = { title, sub?, cardHtml,                 card under the strip (trusted markup)
-         slices:number[10], jackpotIndex, aim,  from core wheelSlices / courseWheel
+         slices:number[10], jackpotIndex, widths?:number[10],   from core wheelSlices / courseWheel (widths: units; missing = looked up from the jackpot gain)
          plus:'+'  (slice label prefix),
          pending: {index,gain,jackpot}|null,    already spun (reload / reopen): opens on the result
-         onSpin(careful:boolean),               dispatch the store command (spin / courseSpin); the result must then be readable from getPending()
+         onSpin(stop),                          stop = {t, phi, e}: the STOP time (wheel seconds), start offset and wobble. Dispatch it as the Spin payload's `careful` value; core spinResult(rng, wheel, stop) derives the slice from it. The result must then be readable from getPending()
+         onTick?({loud, rate}),                 optional: one call per slice boundary under the pointer (sound hook; the project has no audio yet)
          getPending() -> {index,gain,jackpot}|null,
          describe(p) -> { big:'+2 Power', from:'C', to:'C+', barHtml?, breakthrough:bool, say:'one line for the live region' },
          onCollect(), collectLabel?:'COLLECT', onClose?() }
-   SPIN then STOP (two taps, no auto-start). The wheel slows as it turns; STOP in the slow zone = careful, else random.
-   Reduced motion: no spin; one tap shows the result at once at the careful rate. Result is read once (live region).
+   SPIN then STOP (two taps, no auto-start). WHEEL-STOP-V2: the wheel slows by itself (w = W0*exp(-t/TAU)); STOP (live from 1 s) eases it out over 1 s
+   from the current speed with a small wobble; the slice under the pointer wins (no snap, no hidden aim, no preview). No STOP by 6 s = the game taps at 6 s.
+   Reduced motion: no spin; one tap shows the result at once, from an average careful player's synthetic tap. Result is read once (live region).
    Canvas drawn in code, pixel style, palette read from the page's CSS variables (Green and chalk and Scorebook both work). */
 import { esc, icoDeco } from './dom.js';
 

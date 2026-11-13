@@ -4,9 +4,11 @@ import { applyTag } from './tags.js';
 import { aiPickSix } from './clubs.js';
 import { rawAbility, isHidden } from './ability.js';
 import { newEconomy, backfillEconomy } from './economy.js';
+import { FLAGS } from '../data/flags.js';
+import { ECON as E } from '../data/economy.js';
 import { SQUAD } from '../data/run.js';
 import { coachFromOld, startCoach } from './training.js';
-export const VERSION = 5;
+export const VERSION = 6;
 
 /** fnv1a 32-bit of a string, as 8 hex digits. @param {string} str */
 export function fnv1a(str) {
@@ -116,7 +118,7 @@ const STEPS = {
       }
     }
     if (!Array.isArray(n.releaseLedger)) n.releaseLedger = [];
-    if (!isObj(n.econ)) n.econ = { ...newEconomy(), backfilled: false }; // paid for played rounds just below
+    if (!isObj(n.econ)) n.econ = { ...newEconomy({ legacy: true }), backfilled: false }; // paid for played rounds just below
     Object.assign(n, backfillNote(n));
     const T = isObj(n.training) ? { ...n.training } : {};
     for (const k of ['drilled', 'last', 'bulk', 'plan', 'drillPlan', 'lastPlan', 'autoBench']) delete T[k];
@@ -127,6 +129,18 @@ const STEPS = {
     n.coachPicked = true;
     for (const k of ['coachPool', 'coachBack', 'coachCur']) delete n[k];
     if (n.stage === 'coach') n.stage = 'hub'; // the pick screen is gone: the start coach is given
+    return n;
+  },
+  // v5 -> v6 (r9, fans-matchday SPEC s1): the free facility pick. If econ.freePick is unset it is set pending (done at once when every facility is owned: no refund,
+  // nothing owned is removed). With FLAGS.freePick on and something still at L0, the Home card is flagged by notice 'freepick'. Idempotent.
+  5: (data) => {
+    const n = { ...data, v: 6 };
+    if (!isObj(n.econ)) return n;
+    if (isObj(n.econ.freePick)) return n;
+    const fac = isObj(n.econ.fac) ? n.econ.fac : {};
+    const open = E.FAC.some((k) => !(fac[k] > 0));
+    n.econ = { ...n.econ, freePick: open ? { done: false, pick: null } : { done: true, pick: null } };
+    if (open && FLAGS.freePick) n.notice = !n.notice ? 'freepick' : String(n.notice).split('+').includes('freepick') ? n.notice : n.notice + '+freepick';
     return n;
   },
 };

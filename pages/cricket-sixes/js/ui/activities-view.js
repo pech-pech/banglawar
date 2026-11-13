@@ -1,0 +1,104 @@
+/* activities-view: "This week's fan activity". Home card + sheet. Reads activitiesVM(s) only (shape in build/r9/UI-CLUB.md).
+   Tap an activity -> plain confirm (cost, Fans, find chance) -> PickActivity { id }. "Rest week" is free: PickActivity { id: 'rest' }. Never blocked by Coins reserve (warn only). */
+import { esc, icoDeco } from './dom.js';
+import { openSheet } from './sheet.js';
+
+const fmt = (n) => String(Math.round(Number(n) || 0)).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+const ICON = { street: 'runs', clinic: 'team', signing: 'book', tea: 'shop', sixhit: 'burst', banner: 'pennant' };
+const iconOf = (o) => ICON[o.id] || 'fan';
+
+/** One line saying what this week's pick gave (Home card and sheet). */
+export function doneLine(d) {
+  if (!d) return '';
+  if (d.id === 'rest') return 'Rest week. Nothing spent.';
+  const f = d.find;
+  const t = f && typeof f === 'object' ? f.type : f;
+  const find = !t || t === 'none' ? '' : t === 'coins' ? (f.coins != null ? ' Found ' + fmt(f.coins) + ' Coins.' : ' Found some Coins.') : t === 'player' ? ' Found a trial player.' : ' Found something.';
+  return (d.name || 'Activity') + ': +' + fmt(d.fans) + ' Fans.' + find;
+}
+
+/** Home card. A button that opens the sheet. Returns '' when the feature is off (vm null/on false). */
+export function activitiesCardHtml(vm) {
+  if (!vm) return '';
+  const done = !!(vm.picked || vm.available === false);
+  const sub = done ? (doneLine(vm.picked) || 'Done for this round.') : 'Pick one, or rest. Resting is free.';
+  return '<button type="button" class="c-btn c-card cl-card cl-act' + (done ? ' is-done' : '') + '" data-act="sheet:activities" aria-label="' + esc('This week\'s fan activity. ' + sub) + '">' +
+    icoDeco(done ? 'done' : 'fan', 24) + '<span class="cl-card__t"><b>This week\'s fan activity</b><small>' + esc(sub) + '</small></span></button>';
+}
+
+/** vm.pity = { weeks: picked weeks since the last find, of: weeks until a find is sure }. */
+function pityLeft(vm) { const p = vm && vm.pity; return p && p.of != null && p.weeks != null ? Math.max(1, p.of - p.weeks) : null; }
+
+function optionBtn(o) {
+  const tags = [];
+  if (o.repeat) tags.push('Same as last week: half the Fans, no find');
+  const find = o.repeat ? '' : o.findPct ? ' · ' + o.findPct + ' in 100 find something' : '';
+  const state = o.warn ? o.warn : '';
+  return '<button type="button" class="c-btn cl-opt" data-cl-pick="' + esc(o.id) + '" aria-label="' + esc(o.name + '. ' + o.cost + ' Coins, ' + o.fans + ' Fans. ' + (o.blurb || '') + (tags[0] ? '. ' + tags[0] : '')) + '">' +
+    icoDeco(iconOf(o), 24) + '<span class="cl-opt__t"><span class="cl-opt__n">' + esc(o.name) + '</span>' +
+    '<span class="cl-opt__s">' + icoDeco('coin', 16) + fmt(o.cost) + ' Coins · ' + icoDeco('fan', 16) + '+' + fmt(o.fans) + ' Fans' + esc(find) + '</span>' +
+    (tags[0] ? '<span class="cl-opt__s">' + icoDeco('info', 16) + esc(tags[0]) + '</span>' : '') +
+    (state ? '<span class="cl-opt__s">' + icoDeco('alert', 16) + esc(state) + '</span>' : '') + '</span></button>';
+}
+
+function confirmHtml(o, vm) {
+  if (o.id === 'rest') {
+    return '<div class="screen cl-screen cl-confirm"><h3 class="cl-h" tabindex="-1">Rest this week?</h3><p class="cl-note">' + icoDeco('info', 24) + '<span>No Coins spent, no Fans. Nothing bad happens.</span></p>' +
+      '<div class="cl-actions"><button type="button" class="c-btn c-btn--primary" data-cl-act="PickActivity" data-id="rest">' + icoDeco('done', 24) + '<span>Yes, rest</span></button>' +
+      '<button type="button" class="c-btn" data-cl-back="1">' + icoDeco('close', 24) + '<span>No, go back</span></button></div></div>';
+  }
+  const hasCoins = vm.coins != null, left = (Number(vm.coins) || 0) - (Number(o.cost) || 0);
+  return '<div class="screen cl-screen cl-confirm"><h3 class="cl-h" tabindex="-1">' + esc(o.name) + '?</h3>' +
+    (o.blurb ? '<p class="cl-note">' + icoDeco(iconOf(o), 24) + '<span>' + esc(o.blurb) + '</span></p>' : '') +
+    '<ul class="cl-facts"><li>' + icoDeco('coin', 24) + '<span>Cost: ' + fmt(o.cost) + ' Coins</span></li>' +
+    '<li>' + icoDeco('fan', 24) + '<span>Fans: +' + fmt(o.fans) + (o.repeat ? ' (half, same as last week)' : '') + '</span></li>' +
+    '<li>' + icoDeco('info', 24) + '<span>' + (o.repeat ? 'No find this time.' : 'Find chance: ' + (o.findPct || 0) + ' in 100. Finds are Coins or a trial player.') + '</span></li>' +
+    (hasCoins ? '<li>' + icoDeco('coin', 24) + '<span>Coins after: ' + (o.ok === false ? 'not enough' : fmt(left)) + '</span></li>' : '') + '</ul>' +
+    (o.warn ? '<p class="cl-note cl-note--warn" role="status">' + icoDeco('alert', 24) + '<span>' + esc(o.warn) + '</span></p>' : '') +
+    (o.ok === false ? '<p class="cl-note cl-note--warn" role="status">' + icoDeco('lock', 24) + '<span>' + esc(o.why || 'Not enough Coins.') + '</span></p>' : '') +
+    '<div class="cl-actions"><button type="button" class="c-btn c-btn--primary" data-cl-act="PickActivity" data-id="' + esc(o.id) + '"' + (o.ok === false ? ' disabled aria-disabled="true"' : '') + '>' + icoDeco('done', 24) + '<span>Yes, do it</span></button>' +
+    '<button type="button" class="c-btn" data-cl-back="1">' + icoDeco('close', 24) + '<span>No, go back</span></button></div></div>';
+}
+
+export function renderActivities(root, vm, dispatch) {
+  vm = vm || { options: [] };
+  const opts = Array.isArray(vm.options) ? vm.options : [];
+  const pick = root.__clPick || null;
+  const found = pick === 'rest' ? { id: 'rest' } : opts.find((o) => o.id === pick);
+  if (found && vm.available !== false) root.innerHTML = confirmHtml(found, vm);
+  else {
+    root.__clPick = null;
+    const d = vm.picked || null;
+    root.innerHTML = '<div class="screen cl-screen cl-acts">' +
+      (vm.coins != null ? '<p class="cl-purse" aria-label="' + esc(fmt(vm.coins) + ' Coins') + '">' + icoDeco('coin', 24) + '<b>' + fmt(vm.coins) + '</b> Coins</p>' : '') +
+      (vm.available === false || d ? '<p class="cl-note" role="status">' + icoDeco('done', 24) + '<span>' + esc(doneLine(d) || 'Done for this round.') + ' Next one after the next round.</span></p>'
+        : '<p class="cl-note">' + icoDeco('fan', 24) + '<span>One a round. Each gives Fans and a small find chance. Odds are shown.</span></p>' +
+          '<div class="cl-opts">' + opts.map(optionBtn).join('') + '</div>' +
+          '<button type="button" class="c-btn cl-opt cl-rest" data-cl-pick="rest">' + icoDeco('week', 24) + '<span class="cl-opt__t"><span class="cl-opt__n">Rest week</span><span class="cl-opt__s">Free. No penalty.</span></span></button>') +
+      (pityLeft(vm) != null && !(vm.available === false || d) ? '<p class="cl-note">' + icoDeco('info', 24) + '<span>A find is sure within ' + esc(pityLeft(vm)) + ' more picked ' + (pityLeft(vm) === 1 ? 'week' : 'weeks') + '.</span></p>' : '') + '</div>';
+  }
+  if (!root.__clBound) {
+    root.__clBound = true;
+    root.addEventListener('click', (ev) => {
+      const t = ev.target.closest && ev.target.closest('[data-cl-pick],[data-cl-back],[data-cl-act]');
+      if (!t || !root.contains(t) || t.disabled) return;
+      if (t.hasAttribute('data-cl-pick')) { root.__clPick = t.getAttribute('data-cl-pick'); renderActivities(root, root.__clVm, dispatch); const sc = root.closest && root.closest('.c-sheet__body'); if (sc) sc.scrollTop = 0; const h = root.querySelector('.cl-h'); if (h) h.focus(); }
+      else if (t.hasAttribute('data-cl-back')) { const was = root.__clPick; root.__clPick = null; renderActivities(root, root.__clVm, dispatch); const b = root.querySelector('[data-cl-pick="' + was + '"]'); if (b) b.focus(); }
+      else { const id = t.getAttribute('data-id'); root.__clPick = null; dispatch('PickActivity', { id }); }
+    });
+  }
+  root.__clVm = vm;
+  return root;
+}
+
+/** Sheet opener (app.js SHEETS: open(vm, dispatch)). */
+export function openActivities(vm, dispatch) {
+  const host = document.createElement('div');
+  let close;
+  renderActivities(host, vm, (n, a) => { dispatch(n, a); if (close) close(); });
+  close = openSheet('Fan activity', '');
+  const body = document.querySelector('.sheet-fixed .c-sheet__body');
+  body.textContent = '';
+  body.appendChild(host);
+  return close;
+}

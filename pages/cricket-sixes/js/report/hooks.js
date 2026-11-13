@@ -57,6 +57,7 @@ export function attachReport(el, store) {
             const g = gearButton(); g.addEventListener('click', () => openSettings(rep, { get: store.get, set: (t) => store.dispatch('SetTheme', { theme: t }) }));
             strip.insertBefore(g, strip.querySelector('.help-btn'));
           }
+          if (s.stage === 'hub') log.seen(s);
           if (s.stage === 'done') { const scr = el.querySelector('.screen'); const m = log.data().matches.slice(-1)[0]; if (scr && m) drawFeel(scr, m, (q, a) => log.feel(q, a)); }
         } catch (e) { log.error(e); }
       },
@@ -65,6 +66,8 @@ export function attachReport(el, store) {
         try {
           if (cmd === 'NewMatch' || (cmd === 'StartMatch' && after && after.stage === 'bowl')) log.matchStart(after); // P0-1: the hub sends StartMatch, not NewMatch
           else if (cmd === 'FinishMatch') log.finish(before, after);
+          if (cmd === 'MakeCall') log.touch(before, after);
+          if (cmd !== 'BowlOver') log.command(cmd, payload, before, after); // r9: nets, spins, weeks, buys, seasons
           else if (cmd === 'BowlOver' && after !== before) log.over(before, after, { th: Date.now() - shownT });
         } catch (e) { log.error(e); }
       },
