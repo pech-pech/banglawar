@@ -1,0 +1,20 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 13281d5822e13454bb02f414436205d1, type: 3}
+  m_Name: MixerMadHudSkin
+  m_EditorClassIdentifier: MixerMad.Runtime::MixerMad.Game.HudSkin
+  button: {fileID: 21300000, guid: 22e3b366a102e4ca1849b4d5b97115f8, type: 3}
+  panel: {fileID: 21300000, guid: f05d1622d94854639b98b6a0cf07ac6b, type: 3}
+  gas: {fileID: 21300000, guid: 1bdc34e48adfe472487df26891034edf, type: 3}
+  brake: {fileID: 21300000, guid: 8f92b682d3c8a48a1baede3fba6ec278, type: 3}
+  starEmpty: {fileID: 21300000, guid: 236aaaa6c4c724a89b260e690dd78acb, type: 3}
+  starFull: {fileID: 21300000, guid: 2f6753d7c35464c77bdcabcfbd1beec5, type: 3}

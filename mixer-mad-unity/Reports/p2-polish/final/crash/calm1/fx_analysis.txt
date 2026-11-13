@@ -1,0 +1,27 @@
+teleport  1 t=   2.09s  particles PASS (oldest - since = -0.100 s)  tracks PASS (longest 0.66 m)  live@first=0
+teleport  2 t=  13.16s  particles PASS (oldest - since = -0.017 s)  tracks PASS (longest 0.00 m)  live@first=0
+teleport  3 t=  17.53s  particles PASS (oldest - since = -0.017 s)  tracks PASS (longest 0.00 m)  live@first=0
+teleport  4 t=  21.92s  particles PASS (oldest - since = -0.017 s)  tracks PASS (longest 0.00 m)  live@first=0
+teleport  5 t=  26.30s  particles PASS (oldest - since = -0.017 s)  tracks PASS (longest 0.00 m)  live@first=0
+teleport  6 t=  30.55s  particles PASS (oldest - since = -0.017 s)  tracks PASS (longest 0.00 m)  live@first=0
+teleport  7 t=  34.10s  particles PASS (oldest - since = -0.017 s)  tracks PASS (longest 0.63 m)  live@first=0
+teleport  8 t=  42.63s  particles PASS (oldest - since = -0.017 s)  tracks PASS (longest 0.00 m)  live@first=0
+teleport  9 t=  53.01s  particles PASS (oldest - since = -0.017 s)  tracks PASS (longest 0.63 m)  live@first=0
+teleport 10 t=  61.55s  particles PASS (oldest - since = -0.017 s)  tracks PASS (longest 0.00 m)  live@first=0
+teleport 11 t=  71.93s  particles PASS (oldest - since = -0.018 s)  tracks PASS (longest 0.63 m)  live@first=0
+teleport 12 t=  80.46s  particles PASS (oldest - since = -0.017 s)  tracks PASS (longest 0.00 m)  live@first=0
+teleport 13 t=  90.83s  particles PASS (oldest - since = -0.017 s)  tracks PASS (longest 0.68 m)  live@first=0
+teleport 14 t=  99.36s  particles PASS (oldest - since = -0.017 s)  tracks PASS (longest 0.00 m)  live@first=0
+teleport 15 t= 104.11s  particles PASS (oldest - since = -0.017 s)  tracks PASS (longest 0.66 m)  live@first=0
+teleport 16 t= 114.65s  particles PASS (oldest - since = -0.017 s)  tracks PASS (longest 0.66 m)  live@first=0
+teleport 17 t= 125.18s  particles PASS (oldest - since = -0.017 s)  tracks PASS (longest 0.66 m)  live@first=0
+teleport 19 t= 135.71s  particles PASS (oldest - since = -0.017 s)  tracks PASS (longest 0.61 m)  live@first=0
+teleport 20 t= 136.75s  particles PASS (oldest - since = -0.017 s)  tracks PASS (longest 0.65 m)  live@first=0
+teleport 21 t= 137.81s  particles PASS (oldest - since = -0.017 s)  tracks PASS (longest 0.61 m)  live@first=0
+teleport 23 t= 138.85s  particles PASS (oldest - since = -0.017 s)  tracks PASS (longest 0.66 m)  live@first=0
+teleport 24 t= 208.86s  particles PASS (oldest - since = -0.017 s)  tracks PASS (longest 0.66 m)  live@first=0
+teleport 25 t= 227.45s  particles PASS (oldest - since = -0.017 s)  tracks PASS (longest 0.61 m)  live@first=0
+teleport 26 t= 246.04s  particles PASS (oldest - since = -0.017 s)  tracks PASS (longest 0.61 m)  live@first=0
+teleport 27 t= 264.62s  particles PASS (oldest - since = -0.017 s)  tracks PASS (longest 0.00 m)  live@first=0
+teleports checked 25, failed 0; longest track segment in the run 0.81 m; peak live FX particles 61
+RESULT PASS
