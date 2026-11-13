@@ -2,9 +2,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { render, workshopHtml, nodeRowHtml, nodeSheetHtml } from '../js/ui/workshop-view.js';
+import { render, workshopHtml, nodeRowHtml, nodeSheetHtml, swapSheetHtml } from '../js/ui/workshop-view.js';
 import { tierUpHtml } from '../js/ui/tierup-card.js';
-import { normLook, colourOf, MATERIALS, wheelSvg } from '../js/ui/wheel-look.js';
+import { normLook, colourOf, MATERIALS, wheelSvg, sliceWheelSvg } from '../js/ui/wheel-look.js';
 
 const read = (p) => readFileSync(new URL('../' + p, import.meta.url), 'utf8');
 function fakeRoot() {
@@ -47,7 +47,29 @@ test('workshop: swap row only when open; tap dispatches SwapSpokes', () => {
   assert.doesNotMatch(workshopHtml(vm()), /Spare Spokes/);
   const calls = [], r = fakeRoot(); render(r, vm({ swap: { open: true, coins: 6 } }), (c, p) => calls.push([c, p]));
   assert.match(r.innerHTML, /Spare Spokes: swap 2 for 1 Coin/);
-  r.tap('[data-wk-swap]', {}); assert.deepEqual(calls, [['SwapSpokes', {}]]);
+  r.tap('[data-wk-swap]', {}); assert.deepEqual(calls, [], 'a tap only asks: SwapSpokes waits for the confirm sheet (never silent)');
+  assert.match(r.innerHTML, /Swap spare Spokes/); assert.doesNotMatch(r.innerHTML, /Swap 2 Spokes/);
+});
+test('workshop: the swap confirm shows the real numbers (37 Spokes -> 36 for 18 Coins, keep 1)', () => {
+  const h = swapSheetHtml(37, 2);
+  assert.match(h, /Swap 36 Spokes for 18 Coins\?/); assert.match(h, /You keep 1\./); assert.match(h, /data-wk-swap-yes/); assert.match(h, /data-wk-swap-back/); assert.match(h, />Back</);
+  assert.match(swapSheetHtml(10, 2), /Swap 10 Spokes for 5 Coins\?/); assert.match(swapSheetHtml(10, 2), /You keep none/);
+});
+test('workshop copy: one-rank nodes never say "rank 0 of 1"; locked by tier says which wheel opens it', () => {
+  assert.doesNotMatch(nodeSheetHtml(node({ max: 1, rank: 0, state: 'buy' }), 30, ''), /rank 0 of 1/); assert.match(nodeSheetHtml(node({ max: 1, rank: 0, state: 'buy' }), 30, ''), /Not owned yet/);
+  assert.match(nodeSheetHtml(node({ max: 1, rank: 1, state: 'owned' }), 30, ''), /Owned/); assert.match(nodeSheetHtml(node({ max: 2, rank: 1, state: 'buy' }), 30, ''), /rank 1 of 2/);
+  assert.match(nodeRowHtml(node({ state: 'locked', tier: 4 }), 5, 2), /Opens with the Silver wheel/); assert.match(nodeRowHtml(node({ state: 'locked' }), 5, 2), /Opens later/);
+  assert.match(nodeSheetHtml(node({ state: 'locked', tier: 5 }), 5, '', 2), /Opens with the Gold wheel\./);
+});
+test('workshop wheel card: the open branch is marked and long bead rows become a "3/12" tag', () => {
+  const svg = wheelSvg({ mat: 'wood', spokes: 4, size: 100, beads: [{ on: 3, total: 12, sel: true }, { on: 1, total: 4 }, null, null] });
+  assert.match(svg, /class="wk-sel"/); assert.match(svg, />3\/12</); assert.equal((svg.match(/<circle[^>]*r="[12]\.[0-9]"/g) || []).length >= 4, true, 'the short row keeps its beads');
+});
+test('look helpers: sliceWheelSvg draws a real slice wheel; plain = no rim paint and no studs; wood has no studs', () => {
+  const plain = sliceWheelSvg({ mat: 'wood', bars: 4, size: 72, plain: true }), wood = sliceWheelSvg({ mat: 'wood', bars: 4, size: 72 }), brass = sliceWheelSvg({ mat: 'brass', bars: 5, size: 72 });
+  for (const h of [plain, wood, brass]) { assert.equal((h.match(/<path /g) || []).length, 10, 'ten slices'); assert.match(h, />\+5</); }
+  assert.doesNotMatch(plain, /wk-stud/); assert.doesNotMatch(wood, /wk-stud/); assert.match(brass, /wk-stud/); assert.notEqual(plain, wood);
+  assert.match(sliceWheelSvg({ mat: 'crystal', bars: 12, size: 72 }), /M50 44L56 50L50 56L44 50Z/, 'gem cap at Crystal');
 });
 test('workshop: a branch tab changes the list (view state only)', () => {
   const r = fakeRoot(); render(r, vm(), () => {}); assert.ok(r.innerHTML.includes('Aim Guide'));
@@ -73,4 +95,13 @@ test('wheel-view keeps the old behaviour without o.look / o.guide / o.tokens and
   const src = read('js/ui/wheel-view.js');
   assert.match(src, /o\.guide && state === 'spin'/); assert.match(src, /o\.phys/); assert.match(src, /LK = normLook\(o\.look\)/);
   assert.match(src, /carefulTapTime\(WO, ph, 1 - Math\.random\(\), Math\.random\(\), \.\.\.PX\)/);
+});
+
+test('tier-up card: names the new rim, lists the nodes that open, shows real slice wheels, says "bars" for the wheel rods; tier 1 compares plain vs wooden', () => {
+  const h = tierUpHtml({ tier: 3, material: 'steel', from: 'brass', unlocks: ['Gold Chime', 'Big Boost'] });
+  assert.match(h, /New: Steel rim and studs/); assert.match(h, /Opens: Gold Chime, Big Boost/); assert.equal((h.match(/<path /g) || []).length, 20, 'two slice wheels');
+  assert.doesNotMatch(h, /\d+ spokes/i, 'the wheel rods are not called spokes'); assert.ok(h.includes('Every spin now drops 1 more Spoke'), 'Spoke = the currency only');
+  const t1 = tierUpHtml({ tier: 1, material: 'wood', unlocks: [] }); assert.doesNotMatch(t1, /Opens:/); assert.match(t1, /New: Wooden rim,/);
+  assert.match(t1, /tu-before">[^]*?<\/div><span class="tu-arr/); assert.doesNotMatch(t1.split('tu-after')[0], /rgb\(158,108,62\)/, 'before = unpainted');
+  assert.match(t1.split('tu-after')[1], /rgb\(158,108,62\)/, 'after = wood');
 });

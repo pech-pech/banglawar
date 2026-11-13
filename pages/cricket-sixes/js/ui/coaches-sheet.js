@@ -53,7 +53,7 @@ export function open(vm, dispatch, openFn, arg, refresh) {
       const card = '<div class="wh-who"><b class="t2-nm">' + esc(co.name) + '</b><span class="c-tag">Course: away 1 week</span></div><div class="wh-gr"><span class="wh-g hit"><span>Grade</span><b>' + esc(co.letter) + '</b></span><span class="wh-g wh-wide"><span>Strong</span><b class="t2-strong">' + strongHtml(co.strong) + '</b></span></div>';
       openWheel({
         title: 'Course', sub: co.name, cardHtml: card, slices: w.slices, jackpotIndex: w.jackpotIndex, widths: w.widths, aim: w.aim, pending: co.course.pending || null, plus: '+',
-        guide: !!co.course.guide, tokens: co.course.tokens || [], getTokens: () => cur().tokens || [], look: co.course.look || null, phys: w.phys || null, golds: w.golds || null, onToken: (kind, careful) => dispatch('UseToken', { wheel: 'course', kind, careful }), // wheel meta: empty when the flag is off
+        guide: !!co.course.guide, tokens: co.course.tokens || [], getTokens: () => cur().tokens || [], look: co.course.look || null, phys: w.phys || null, golds: w.golds || null, spokeGain: () => cur().spokeGain || 0, onToken: (kind, careful) => dispatch('UseToken', { wheel: 'course', kind, careful }), // wheel meta: empty when the flag is off
         onSpin: (careful) => dispatch('CourseSpin', { coachId: id, careful }), getPending: () => cur().pending || null,
         describe: (r) => { const to = Math.min(21, from + r.gain), a = letterOfStep(from), b = letterOfStep(to); return { big: 'Grade steps', from: a, to: b, breakthrough: !!r.jackpot || a !== b, say: co.name + ' course: ' + a + (a === b ? ', already top grade' : ' to ' + b) + (r.jackpot ? ', jackpot' : '') + '.' }; },
         onCollect: () => dispatch('RunCourse', { coachId: id }),

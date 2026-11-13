@@ -12,15 +12,16 @@
          Wheel meta (all optional; absent = the wheel looks and behaves exactly as before):
          phys?:{W0,J,SD}        physics from the wheel (Slow / Steady / Guide); passed to wheelSpeed, wheelArc, stopDist, stopExtra, stopLanding, carefulTapTime and used for the wobble and the spin start speed
          guide?:boolean         Aim Guide: a landing tick on the rim while the wheel turns (where the slice under the pointer ends up if STOP is tapped now)
-         tokens?:[{kind,label}], getTokens?()=>[...] (the fresh list; read after every result)   token buttons after the result; onToken(kind) uses one, then getPending() is read again and the new result is shown
-         look?:{rim,hub,ptr,trail,pal,spoke,burst,stand,name,crystal,material}   craft look (cosmetic only) }
+         tokens?:[{kind,label,count?,left?}], getTokens?()=>[...] (the fresh list; read after every result)   token buttons after the result (count = shown as "x2"; left = Spotlight uses left this season); onToken(kind) uses one, then getPending() is read again; the wheel visibly acts (short re-spin / slice step / second pointer flash / bonus pop; none with reduced motion) and one outcome line is shown ("Spin Again: kept +3")
+         spokeGain?()=>number   Spokes this spin drops (a small chip on the result card; absent or 0 = no chip)
+         look?:{rim,hub,ptr,trail,pal,spoke,burst,stand,name,crystal,material}   craft look (cosmetic only; the tier-7 Crystal look wins over Rim Paint / Hub Cap) }
    SPIN then STOP (two taps, no auto-start). WHEEL-STOP-V2: the wheel slows by itself (w = W0*exp(-t/TAU)); STOP (live from 1 s) eases it out over 1 s
    from the current speed with a small wobble; the slice under the pointer wins (no snap, no hidden aim, no preview). No STOP by 6 s = the game taps at 6 s.
    Reduced motion: no spin; one tap shows the result at once, from an average careful player's synthetic tap. Result is read once (live region).
    Canvas drawn in code, pixel style, palette read from the page's CSS variables (Green and chalk and Scorebook both work). */
 import { esc, icoDeco } from './dom.js';
 import { wheelWidths, wheelSpeed, wheelArc, stopDist, stopExtra, stopLanding, carefulTapTime } from '../core/training.js';
-import { matOf, colourOf, normLook, PALETTES } from './wheel-look.js';
+import { matOf, colourOf, normLook, PALETTES, spokeIcon } from './wheel-look.js';
 import { TRAIN2 } from '../data/training.js';
 
 const TAU = Math.PI * 2;
@@ -46,17 +47,17 @@ export function openWheel(o) {
   const app = document.getElementById('app'), wasInert = !!(app && app.inert), opener = document.activeElement;
   const pal = { cream: tok('--cream', '#F3EBD3'), out: tok('--outline', '#2A2238'), gold: tok('--gold', '#D2B357'), wall: tok('--wall1', '#E3D8B9'), g2: tok('--grass2', '#7EB261'), acc: tok('--accent', '#22625D'), b1: tok('--kitA1', '#3b5ba5') };
   const LP = LK && PALETTES[LK.pal] || null, mat = LK && LK.material ? matOf(LK.material) : null; // craft look: colour-blind safe slice palette, tier material on the rim
-  const ringCol = (LK && colourOf(LK.rim)) || (mat && mat.rim) || pal.cream, trailCol = (LK && colourOf(LK.trail)) || pal.cream, hubCol = (LK && colourOf(LK.hub)) || pal.acc, ptrCol = LK && colourOf(LK.ptr);
+  const crys = !!(LK && LK.crystal), cmat = matOf('crystal'), ringCol = crys ? cmat.rim : (LK && colourOf(LK.rim)) || (mat && mat.rim) || pal.cream, trailCol = (LK && colourOf(LK.trail)) || pal.cream, hubCol = crys ? cmat.rim : (LK && colourOf(LK.hub)) || pal.acc, ptrCol = LK && colourOf(LK.ptr);
   const shape = LK && LK.spoke ? String(LK.spoke) : '';
   const fillOf = (i) => (GD.includes(i) ? pal.gold : LP ? (o.slices[i] <= 1 ? LP.low : o.slices[i] === 2 ? LP[2] : o.slices[i] === 3 ? LP[3] : LP[4]) : o.slices[i] <= 1 ? pal.wall : o.slices[i] === 2 ? pal.g2 : o.slices[i] === 3 ? pal.acc : pal.b1);
   const fills = o.slices.map((_, i) => fillOf(i));
   const ov = document.createElement('section');
-  ov.className = 't2-ov wh-ov'; ov.setAttribute('role', 'dialog'); ov.setAttribute('aria-modal', 'true'); ov.setAttribute('aria-label', o.title);
+  ov.className = 't2-ov wh-ov' + (crys ? ' is-crystal' : ''); ov.setAttribute('role', 'dialog'); ov.setAttribute('aria-modal', 'true'); ov.setAttribute('aria-label', o.title);
   const sliceWords = o.slices.map((v, i) => '+' + v + (GD.includes(i) ? ' jackpot' : '')).join(', ');
   ov.innerHTML = '<div class="t2-strip"><span>' + icoDeco('burst', 24) + ' ' + esc(o.title) + (o.sub ? ' <small>' + esc(o.sub) + '</small>' : '') + '</span>' +
     '<button type="button" class="c-icon-btn wh-x" aria-label="Close"><span class="c-ico c-ico--x"></span></button></div>' +
     '<div class="wh-card c-card">' + (o.cardHtml || '') + '</div>' +
-    '<div class="wh-stage"><div class="wh-wrap" role="img" aria-label="Wheel of ' + N + ' slices: ' + esc(sliceWords) + '"><canvas class="wh-cv"></canvas><span class="wh-ptr" aria-hidden="true"></span><span class="wh-hub" aria-hidden="true"></span>' + (LK && LK.crystal ? '<span class="wh-crystal" aria-hidden="true"></span>' : '') + '</div>' + (LK && LK.stand ? '<span class="wh-stand wh-stand--' + esc(String(LK.stand).replace(/[^a-z]/gi, '')) + '" aria-hidden="true"></span>' : '') + '<span class="wh-plate" aria-hidden="true" hidden></span></div>' +
+    '<div class="wh-stage"><div class="wh-wrap" role="img" aria-label="Wheel of ' + N + ' slices: ' + esc(sliceWords) + '"><canvas class="wh-cv"></canvas><span class="wh-ptr" aria-hidden="true"></span><span class="wh-hub" aria-hidden="true"></span>' + (LK && LK.crystal ? '<span class="wh-crystal" aria-hidden="true"></span>' : '') + (LK && LK.stand ? '<span class="wh-stand wh-stand--' + esc(String(LK.stand).replace(/[^a-z]/gi, '')) + '" aria-hidden="true"></span>' : '') + (LK && LK.name ? '<span class="wh-plate" aria-hidden="true" hidden></span>' : '') + '</div></div>' +
     '<div class="wh-foot"><div class="wh-msg c-card" data-msg></div><div class="wh-res c-card c-card--inset" data-res hidden></div><div class="wh-tok" data-tok hidden></div>' +
     '<button type="button" class="c-btn c-btn--primary c-btn--cta c-btn--block wh-go" data-go>SPIN</button></div>' +
     '<div class="sr-only" role="status" aria-live="polite" data-live></div>';
@@ -69,8 +70,8 @@ export function openWheel(o) {
   const centreOf = (i) => (cum[i] + cum[i + 1]) / 2;
 
   function layout() { // wheel sized from the free height (stage), never wider than the screen
-    const st = $(".wh-stage"), h = st.clientHeight - 24 - 22, w = st.clientWidth - 24;
-    css = Math.max(160, Math.min(w, h, 340)); size = Math.floor(css / S / 2) * 2; css = size * S;
+    const st = $(".wh-stage"), RES = LK && LK.name ? 34 : LK && LK.stand ? 14 : 0, h = st.clientHeight - 24 - 22 - RES, w = st.clientWidth - 24; // RES: room under the rim for the stand / name plate (they hang from the wheel box)
+    css = Math.max(160, Math.min(w, h, 340)); size = Math.floor(css / S / 2) * 2; css = size * S; wrap.style.marginBottom = RES ? RES + 'px' : '';
     wrap.style.width = wrap.style.height = css + 'px'; cv.width = cv.height = size; cv.style.width = cv.style.height = css + 'px'; draw();
   }
   function hubSpoke(th, r, rot) { // the hub's spokes as pixels: shape plain (none) / round (dots) / blade (thin) / diamond
@@ -81,7 +82,7 @@ export function openWheel(o) {
     return d < 0.22 && r > 4;
   }
   function draw() {
-    const w = size, cx = w / 2, cy = w / 2, R = w / 2 - 1, im = ctx.createImageData(w, w), d = im.data, moving = state === 'spin' || state === 'land', rot = pos * U;
+    const w = size, cx = w / 2, cy = w / 2, R = w / 2 - 1, im = ctx.createImageData(w, w), d = im.data, moving = state === 'spin' || state === 'land' || state === 'tok', rot = pos * U;
     for (let y = 0; y < w; y++) for (let x = 0; x < w; x++) {
       const dx = x + 0.5 - cx, dy = y + 0.5 - cy, r = Math.sqrt(dx * dx + dy * dy); if (r > R) continue;
       const th = Math.atan2(dy, dx); let q = (rot - (th + Math.PI / 2)) % TAU; if (q < 0) q += TAU; // wheel angle under this pixel; slices pass the pointer in list order
@@ -89,7 +90,8 @@ export function openWheel(o) {
       const m = (u - cum[idx]) * U, wa = widths[idx] * U, bd = r * Math.sin(Math.min(m, wa - m, Math.PI / 2));
       const sa = ((th + Math.PI / 2 + Math.PI * 3) % TAU) - Math.PI; let c;
       if (r > R - 1.6) c = pal.out;
-      else if (r > R - 6) c = r < R - 5.2 || bd < 1.3 ? pal.out : ringCol;
+      else if (r > R - 6) { c = r < R - 5.2 || bd < 1.3 ? pal.out : ringCol; if (crys && r > R - 4.8 && r < R - 2.2 && Math.abs(((q / TAU * 16) % 1) - 0.5) * TAU / 16 * r < 1.1) c = cmat.stud; } // Crystal: white pixel studs on the cyan rim
+      else if (crys && r < 12) { const a = (((th - rot * 0.15) % TAU) + TAU) % TAU, f = (a / TAU * 12) % 1, dm = Math.abs(dx) + Math.abs(dy); c = dm < 3.2 ? (dm < 1.6 ? [255, 255, 255] : cmat.rim) : r > 4 && Math.abs(f - 0.5) * 2 < 0.2 ? cmat.rim : pal.out; } // Crystal gem cap: dark hub, light spokes, a gem diamond
       else if (LK && shape && r < 12) c = r < 4 ? [255, 255, 255] : hubSpoke(th, r, rot) ? pal.cream : hubCol;
       else if (r < 4) c = [255, 255, 255]; else if (r < 10) c = pal.acc; else if (r < 12) c = pal.cream;
       else if (bd < 0.9) c = pal.out;
@@ -103,14 +105,14 @@ export function openWheel(o) {
     }
     ctx.putImageData(im, 0, 0);
     if (o.guide && state === 'spin') { // Aim Guide: where the slice under the pointer ends up if STOP is tapped now (pointer + ease-out distance), as a radial tick on the rim
-      const ga = -Math.PI / 2 - stopDist(Math.min(clock - spinEv, WS.COAST), ...PX) * U, gx = Math.cos(ga), gy = Math.sin(ga);
-      for (let r = R - 13; r <= R - 1; r++) { const x = Math.round(cx + gx * r), y = Math.round(cy + gy * r); ctx.fillStyle = 'rgb(' + pal.out + ')'; ctx.fillRect(x - 2, y - 2, 4, 4); }
-      for (let r = R - 12; r <= R - 2; r++) { const x = Math.round(cx + gx * r), y = Math.round(cy + gy * r); ctx.fillStyle = '#fff'; ctx.fillRect(x - 1, y - 1, 2, 2); }
+      const ga = -Math.PI / 2 - stopDist(Math.min(clock - spinEv, WS.COAST), ...PX) * U, gx = Math.cos(ga), gy = Math.sin(ga), r0 = R - 15, plot = (rr, o, col) => { ctx.fillStyle = col; ctx.fillRect(Math.round(cx + gx * rr - gy * o), Math.round(cy + gy * rr + gx * o), 1, 1); };
+      for (const [grow, col] of [[1.6, 'rgb(' + pal.out + ')'], [0, 'rgb(' + pal.gold + ')']]) for (let rr = r0 - grow; rr <= R - 0.5; rr += 0.5) { const t = Math.max(0, (rr - r0) / (R - r0)), hw = 0.6 + t * 3.4 + grow; for (let o = -hw; o <= hw; o += 0.5) plot(rr, o, col); } // Aim Guide: an outlined gold wedge on the rim, wide end at the rim
+      for (let rr = r0 + 2; rr <= R - 2; rr += 0.5) plot(rr, 0, '#fff');
     }
     const a = rot - centreOf(JP) * U - Math.PI / 2, ax = Math.round(cx + Math.cos(a) * (R - 3.6)), ay = Math.round(cy + Math.sin(a) * (R - 3.6));
     for (let j = -5; j <= 5; j++) for (let i = -5; i <= 5; i++) { const q = Math.abs(i) + Math.abs(j); if (q > 5) continue; ctx.fillStyle = q >= 5 ? 'rgb(' + pal.out + ')' : q >= 4 ? '#fff' : 'rgb(' + pal.gold + ')'; ctx.fillRect(ax + i, ay + j, 1, 1); } // diamond on the jackpot slice
     labels.forEach((l, i) => {
-      const b = rot - centreOf(i) * U - Math.PI / 2, rl = R * (GD.includes(i) ? 0.8 : 0.62);
+      const b = rot - centreOf(i) * U - Math.PI / 2, thin = widths[i] * U < 0.2, rl = R * (thin ? 0.88 : GD.includes(i) ? 0.8 : 0.62); l.style.fontSize = thin ? '17px' : ''; // a thin slice (the extra gold): smaller label, further out where it is wider
       l.style.left = (cx + Math.cos(b) * rl) * S + 'px'; l.style.top = (cy + Math.sin(b) * rl) * S + 'px';
       l.style.color = lum(fills[i]) > 0.5 ? 'rgb(' + pal.out + ')' : '#fff'; l.style.opacity = moving && speed > 8 ? '.55' : '1';
     });
@@ -133,28 +135,65 @@ export function openWheel(o) {
       speed = Math.max(0, (L.dist * 3 * (1 - u) * (1 - u) + L.e * 6 * u * (1 - u) + adj * 6 * u * (1 - u)) / WS.D); tick(was, pos, u >= 1);
       if (s >= WS.D) { state = 'result'; draw(); showResult(); return; }
     }
+    else if (state === 'tok') {
+      const T = tw, u = Math.min(1, Math.max(0, (clock - T.t0) / T.dur)), e = (v) => 1 - Math.pow(1 - v, 3);
+      if (T.kind === 'two') { const h = 0.5; pos = u < h ? T.from + (T.mid - T.from) * e(u / h) : T.mid + (T.to - T.mid) * e((u - h) / (1 - h)); if (!T.flashed && u >= h) { T.flashed = true; flash2(); } speed = 10 * (1 - (u < h ? u / h : (u - h) / (1 - h))); }
+      else if (T.kind === 'nudge') { pos = T.from + (T.to - T.from) * (u * u * (3 - 2 * u)); speed = 2; }
+      else if (T.kind === 'lift') { speed = 0; }
+      else { pos = T.from + (T.to - T.from) * e(u); speed = 14 * (1 - u); }
+      tick(was, pos);
+      if (u >= 1) { pos = T.dest; state = 'result'; draw(); finishToken(); return; }
+    }
     draw(); raf = requestAnimationFrame(frame);
   }
   const MSG_GO = 'Turning. Tap STOP when you want it to slow down. Tap early and it goes further.';
-  function showTokens(p) { // token buttons after the result (only when the store offers some); a used token swaps the result and the buttons are read again
-    const list = (o.getTokens ? o.getTokens() : typeof o.tokens === 'function' ? o.tokens(p) : o.tokens) || [];
-    tokBox.hidden = !list.length; tokBox.innerHTML = '';
-    list.forEach((t) => { const b = document.createElement('button'); b.type = 'button'; b.className = 'c-btn wh-tk'; b.textContent = t.label; b.setAttribute('data-kind', t.kind); b.setAttribute('aria-label', t.label);
-      b.addEventListener('click', () => { if (state !== 'result' || !o.onToken) return; o.onToken(t.kind); const q = o.getPending(); if (!q) return; pos = centreOf(q.index); draw(); showResult(true); const f = tokBox.querySelector('button') || go; f.focus(); }); tokBox.appendChild(b); });
+  const TOKNAME = { respin: 'Spin Again', two: 'Pick Two', nudge: 'Nudge', lift: 'Lucky Lift' }, PL = () => o.plus || '+';
+  /** One outcome line for a used token: what the wheel now says, whether or not it improved. */
+  function outcomeLine(kind, b, q) {
+    const nm = TOKNAME[kind] || 'Token', g0 = b ? b.gain : q.gain;
+    if (kind === 'lift') return q.gain > g0 ? nm + ': +' + (q.gain - g0) + ' bonus, now ' + PL() + q.gain : nm + ': no bonus, kept ' + PL() + g0;
+    if (kind === 'nudge') return q.index !== (b && b.index) ? nm + ': moved to ' + PL() + q.gain : nm + ': kept ' + PL() + g0;
+    return q.gain > g0 ? nm + ': new ' + PL() + q.gain : nm + ': kept ' + PL() + g0;
   }
+  function showTokens(p, line) { // token buttons after the result (only when the store offers some); a used token plays a short action on the wheel, then the result and the buttons are read again
+    const list = (o.getTokens ? o.getTokens() : typeof o.tokens === 'function' ? o.tokens(p) : o.tokens) || [];
+    tokBox.hidden = !list.length && !line; tokBox.innerHTML = ''; tokBox.classList.remove('is-busy');
+    if (line) { const l = document.createElement('p'); l.className = 'wh-out'; l.setAttribute('data-out', ''); l.textContent = line; tokBox.appendChild(l); }
+    list.forEach((t) => { const b = document.createElement('button'), n = t.count > 0 ? ' x' + t.count : ''; b.type = 'button'; b.className = 'c-btn wh-tk'; b.textContent = t.label + n; b.setAttribute('data-kind', t.kind); b.setAttribute('aria-label', t.label + (n ? ', ' + t.count + ' left' : ''));
+      b.addEventListener('click', () => { if (state !== 'result' || !o.onToken) return; const before = o.getPending(); o.onToken(t.kind); const q = o.getPending(); if (!q) return; useVisible(t.kind, before, q); }); tokBox.appendChild(b); });
+    const left = list.length && list[0].left !== undefined ? list[0].left : null;
+    if (left !== null) { const n = document.createElement('p'); n.className = 'wh-tknote'; n.textContent = 'Spotlight: ' + left + (left === 1 ? ' token use' : ' token uses') + ' left this season'; tokBox.appendChild(n); }
+  }
+  let tw = null;
+  function flash2() { // Pick Two: the second pointer flashes
+    ptr.classList.add('is-flash'); const g = document.createElement('span'); g.className = 'wh-ptr wh-ptr2'; g.setAttribute('aria-hidden', 'true'); wrap.appendChild(g); setTimeout(() => { g.remove(); ptr.classList.remove('is-flash'); }, 520);
+  }
+  function useVisible(kind, before, q) { // the wheel visibly acts, then the outcome line. Reduced motion: no motion, just the line.
+    const line = outcomeLine(kind, before, q), dest = centreOf(q.index);
+    if (reduced) { pos = dest; draw(); showResult(true, line); const f = tokBox.querySelector('button') || go; f.focus(); return; }
+    const from = pos, fwd = (((dest - from) % C) + C) % C, half = (((dest - from + C / 2) % C) + C) % C - C / 2;
+    tw = { kind, t0: clock, from, dest, line, dur: kind === 'two' ? 1.9 : kind === 'nudge' ? 0.5 : kind === 'lift' ? 0.8 : 1.3, to: kind === 'nudge' ? from + half : from + 2 * C + fwd };
+    if (kind === 'two') { tw.mid = from + C + ((((centreOf((q.index + 3) % N) - from) % C) + C) % C); tw.to = tw.mid + C + ((((dest - tw.mid) % C) + C) % C); } // first stop on another slice (the pointer flashes), then the final one
+    state = 'tok'; tokBox.querySelectorAll('button').forEach((b) => b.setAttribute('aria-disabled', 'true')); tokBox.classList.add('is-busy');
+    waitLook(kind === 'lift' ? 'Lifting...' : kind === 'nudge' ? 'Stepping...' : 'Spinning again...', 'Please wait'); ov.classList.add('is-turning');
+    if (kind === 'lift') { const bn = document.createElement('span'), d = q.gain - (before ? before.gain : q.gain); bn.className = 'wh-bonus'; bn.setAttribute('aria-hidden', 'true'); bn.textContent = d > 0 ? '+' + d : '+0'; wrap.appendChild(bn); setTimeout(() => bn.remove(), 900); }
+    raf = requestAnimationFrame(frame);
+  }
+  function finishToken() { ov.classList.remove('is-turning'); showResult(true, tw && tw.line); const f = tokBox.querySelector('button') || go; f.focus(); tw = null; }
   function burst() { // landing burst (craft look): a few pixel bits fly out once; none with reduced motion
     if (!LK || !LK.burst || reduced) return; const b = document.createElement('span'); b.className = 'wh-burst wh-burst--' + String(LK.burst).replace(/[^a-z]/gi, ''); b.setAttribute('aria-hidden', 'true');
     for (let i = 0; i < 12; i++) { const a = i / 12 * TAU, r = css * 0.46, e = document.createElement('i'); e.style.setProperty('--bx', Math.round(Math.cos(a) * r) + 'px'); e.style.setProperty('--by', Math.round(Math.sin(a) * r) + 'px'); b.appendChild(e); }
     wrap.appendChild(b); setTimeout(() => b.remove(), 1000);
   }
-  function showResult(again) {
-    const p = o.getPending(); if (!p) return; const d = o.describe(p);
+  function showResult(again, line) {
+    const p = o.getPending(); if (!p) return; const d = o.describe(p), sg = o.spokeGain ? Number(o.spokeGain()) || 0 : 0;
     state = 'result'; ov.classList.remove('is-turning'); msg.hidden = true; res.hidden = false; ov.classList.toggle('is-jp', !!p.jackpot);
     res.innerHTML = (p.jackpot ? '<span class="wh-jp">' + icoDeco('burst', 20) + ' JACKPOT! Breakthrough!</span>' : d.breakthrough && wholeLetter(d.from, d.to) ? '<span class="wh-bt">Breakthrough!</span>' : '') +
       '<div class="wh-big"><span class="wh-chip">' + esc(o.plus || '+') + esc(p.gain) + '</span><b>' + esc(d.big) + '</b></div>' +
-      '<div class="wh-chg">' + (d.from !== d.to ? '<span>' + esc(d.from) + '</span><span class="t2-arr" aria-hidden="true"></span><b class="t2-new">' + esc(d.to) + '</b>' : d.barHtml ? d.barHtml + '<small>(bar fills)</small>' : '<span>' + esc(d.from) + '</span><small>(same letter)</small>') + '</div>';
-    live.textContent = d.say || ''; // read once
-    showTokens(p); if (!again && !o.pending) burst();
+      '<div class="wh-chg">' + (d.from !== d.to ? '<span>' + esc(d.from) + '</span><span class="t2-arr" aria-hidden="true"></span><b class="t2-new">' + esc(d.to) + '</b>' : d.barHtml ? d.barHtml + '<small>(bar fills)</small>' : '<span>' + esc(d.from) + '</span><small>(same letter)</small>') + '</div>' +
+      (sg > 0 ? '<div class="wh-sp">' + spokeIcon(20) + '<b>+' + esc(sg) + ' Spokes</b></div>' : '');
+    live.textContent = (line ? line + '. ' : '') + (d.say || ''); // read once
+    showTokens(p, line); if (!again && !o.pending) burst();
     go.textContent = o.collectLabel || 'COLLECT'; go.classList.add('is-collect', 'c-btn--gold'); go.classList.remove('c-btn--primary'); go.removeAttribute('aria-disabled'); go.classList.remove('is-wait', 'is-disabled'); go.setAttribute('aria-label', o.collectLabel || 'Collect'); xLook(false); go.focus();
     if (!reduced) draw();
   }
@@ -190,10 +229,10 @@ export function openWheel(o) {
     ov.remove(); if (app) app.inert = wasInert; if (opener && opener.isConnected && opener.focus) opener.focus(); if (!done && o.onClose) o.onClose();
   }
   function onKey(e) {
-    if (e.key === 'Escape' && state !== 'spin' && state !== 'land') { e.preventDefault(); e.stopPropagation(); close(); }
+    if (e.key === 'Escape' && state !== 'spin' && state !== 'land' && state !== 'tok') { e.preventDefault(); e.stopPropagation(); close(); }
     else if (e.key === 'Tab') { const f = [...ov.querySelectorAll('button')].filter((b) => !b.disabled); if (!f.length) return; const a = f[0], z = f[f.length - 1]; if (e.shiftKey && document.activeElement === a) { e.preventDefault(); z.focus(); } else if (!e.shiftKey && document.activeElement === z) { e.preventDefault(); a.focus(); } }
   }
-  $('.wh-x').addEventListener('click', () => { if (state !== 'spin' && state !== 'land') close(); });
+  $('.wh-x').addEventListener('click', () => { if (state !== 'spin' && state !== 'land' && state !== 'tok') close(); });
   document.addEventListener('keydown', onKey, true); window.addEventListener('resize', layout);
   layout();
   const pend = o.pending || null;

@@ -20,7 +20,7 @@ import { activityOptions, trialOf, canSignTrial } from '../core/activities.js';
 import { freePickOptions, freePickPending, matchIncome } from '../core/economy.js';
 import { MD } from '../data/matchday.js';
 import { WM, NODES } from '../data/wheelmeta.js';
-import { metaOf, rankOf, tierNow, canBuy, effective, metaWheel, tokenOptions, powerDone, nextTierUp } from '../core/wheelmeta.js';
+import { metaOf, rankOf, tierOf, tierNow, canBuy, effective, metaWheel, tokenOptions, powerDone, nextTierUp } from '../core/wheelmeta.js';
 import { teamBoost, roarAt, resolvePep } from '../core/matchday.js';
 import { mdSpinVM, findSpinVM, scoutSpinVM, finalsSpinVM } from './wmstore.js';
 import { BATS, BOWLS, CELLS, COMBOS, SEEN_BALLS, cellIndex, cellOf, cellName, gradeWord, gradeRank, comboOf, isBook, newBook } from '../core/pairing.js';
@@ -307,7 +307,7 @@ const rowOrder = (s) => { const six = sixIds(s); return [...six.map((id) => play
 export const ratesOf = (p) => ({ batPower: p.bp, batSkill: p.bs, bowlSpeed: p.spd, bowlSkill: p.bsk });
 
 /** Course wheel meta extras: course.wheel (tree applied, or the stored wheel while a result waits), guide, tokens, look. */
-const courseMeta = (s, c, used) => { const x = metaExtras(s, 'course', courseWheel(c.step), used ? s.training.coursePending : null, 1); return { wheel: x.wheel, guide: x.guide, tokens: used ? x.tokens : [], look: x.look }; };
+const courseMeta = (s, c, used) => { const x = metaExtras(s, 'course', courseWheel(c.step), used ? s.training.coursePending : null, 1); return { wheel: x.wheel, guide: x.guide, tokens: used ? x.tokens : [], look: x.look, spokeGain: used ? spokeGainOf(s, 'course') : 0 }; };
 const coachRow = (s, c) => {
   const cc = canCourse(s, c.id), used = s.training.coursePending && s.training.coursePending.coachId === c.id;
   return {
@@ -319,6 +319,8 @@ const coachRow = (s, c) => {
 /** Gain the spotlight player really gets after the cap-sum, balance and 99 limits. */
 const spotApplied = (s, plan, gain, id = plan.spotlightId) => { const p = id && player(s, id); return p ? Math.max(0, Math.min(gain, drillRoom(p, focusRating(p, plan.focus)).room)) : 0; };
 const wheelVM = (w) => ({ slices: w.slices.slice(), jackpotIndex: w.jackpotIndex, jackpotGain: w.jackpotGain, widths: w.widths ? w.widths.slice() : undefined, ...(w.phys ? { phys: { ...w.phys } } : {}), ...(w.golds ? { golds: w.golds.slice() } : {}) });
+/** Spokes the last spin on this wheel dropped (the tally already counts it: tier before it + base). 0 with the flag off or no spin yet. */
+const spokeGainOf = (s, wheel) => { if (!FLAGS.wheelMeta) return 0; const m = metaOf(s), t = m.tally | 0; return t < 1 ? 0 : (WM.SPOKE_BASE[wheel] || 0) + WM.SPOKE_PER_TIER * tierOf(t - 1); };
 /** Wheel meta extras for a wheel open site (flag on only): the wheel with the tree applied (or the stored one while a result waits), guide, tokens, look. */
 const metaExtras = (s, wid, base, pend, slot) => {
   const wheel = wheelVM(pend && pend.wheel ? pend.wheel : metaWheel(base, wid, s));
@@ -348,8 +350,8 @@ export function trainingVM(s) {
   return {
     tp: T.tp, week: T.week, plan, focuses, efforts, rows, coaches, coachQuality: coachQuality(s), coachLetter: coachStepInUse(s) ? letterOfStep(coachStepInUse(s)) : null,
     preview: { cost: pre.cost, tpLeft: T.tp - pre.cost, trainCount: pre.trainIds.length, shortCount: pre.shortIds.length, skipCount: pre.skippedIds.length, hint: pre.hint },
-    spotlight: { id: plan.spotlightId, wheel, ...(mx1 ? { guide: mx1.guide, tokens: hasP1 ? mx1.tokens : [], look: mx1.look } : {}), pending: T.pending && T.pending.week === T.week ? { careful: T.pending.careful, index: T.pending.result.index, gain: T.pending.result.gain, jackpot: T.pending.result.jackpot, applied: spotApplied(s, plan, T.pending.result.gain) } : null },
-    twin: { held: twinHeld(s), line: twinHeld(s) > 0 ? 'Twin Spotlight Pass: pick 2' : '', id: plan.spotlight2Id, wheel: plan.spotlight2Id ? (mx2 ? mx2.wheel : wheel) : null, ...(mx2 ? { guide: mx2.guide, tokens: hasP2 ? mx2.tokens : [], look: mx2.look } : {}),
+    spotlight: { id: plan.spotlightId, wheel, ...(mx1 ? { guide: mx1.guide, tokens: hasP1 ? mx1.tokens : [], look: mx1.look, spokeGain: hasP1 ? spokeGainOf(s, 'spot') : 0 } : {}), pending: T.pending && T.pending.week === T.week ? { careful: T.pending.careful, index: T.pending.result.index, gain: T.pending.result.gain, jackpot: T.pending.result.jackpot, applied: spotApplied(s, plan, T.pending.result.gain) } : null },
+    twin: { held: twinHeld(s), line: twinHeld(s) > 0 ? 'Twin Spotlight Pass: pick 2' : '', id: plan.spotlight2Id, wheel: plan.spotlight2Id ? (mx2 ? mx2.wheel : wheel) : null, ...(mx2 ? { guide: mx2.guide, tokens: hasP2 ? mx2.tokens : [], look: mx2.look, spokeGain: hasP2 ? spokeGainOf(s, 'spot') : 0 } : {}),
       pending: T.pending2 && T.pending2.week === T.week ? { careful: T.pending2.careful, index: T.pending2.result.index, gain: T.pending2.result.gain, jackpot: T.pending2.result.jackpot, applied: spotApplied(s, plan, T.pending2.result.gain, plan.spotlight2Id) } : null },
     licence: { held: licenceHeld(s), line: licenceHeld(s) > 0 ? 'Licence: 2nd course allowed' : '' },
     done, result: done ? { lines: T.nets.lines, cost: T.nets.cost, skipped: T.nets.skipped } : null, tips: !T.tipsSeen && !(T.netsRuns > 0),
@@ -660,7 +662,7 @@ export function tokenVM(s, wheel, slot = 1) {
   const m = metaOf(s), T = s && s.training || {};
   const pend = !FLAGS.wheelMeta ? null : wheel === 'course' ? T.coursePending : slot === 2 ? T.pending2 : T.pending;
   const live = pend && (wheel === 'course' || pend.week === T.week);
-  return { options: live ? tokenOptions(s, wheel, pend).map((o) => ({ kind: o.kind, label: o.label })) : [], counts: { ...m.tokens }, spotLeft: Math.max(0, WM.SPOT_TOKEN_CAP - (m.spotTokensUsed | 0)) };
+  return { options: live ? tokenOptions(s, wheel, pend).map((o) => ({ kind: o.kind, label: o.label, count: (m.tokens || {})[/Wild\)$/.test(o.label) ? 'wild' : o.kind] | 0, ...(wheel === 'spot' ? { left: Math.max(0, WM.SPOT_TOKEN_CAP - (m.spotTokensUsed | 0)) } : {}) })) : [], counts: { ...m.tokens }, spotLeft: Math.max(0, WM.SPOT_TOKEN_CAP - (m.spotTokensUsed | 0)) };
 }
 
 /** Wheel look from the Craft ranks (they carry across runs). Each is a rank 0..max; material comes from the tier. {rim, hub, ptr, trail, pal, spoke, burst, stand, tick, name, crystal, material} */

@@ -213,8 +213,11 @@ export function seasonTokens(s) {
   m.tokens = { respin: e.respin, nudge: e.nudge, two: e.two, wild: e.wild, lift: e.lift }; m.spotTokensUsed = 0; m.tokSeason = n;
   return x;
 }
+/** The result the stores keep is {week?, careful, wheel, result:{index,gain,jackpot,..}, tokUsed?, used?, lifted?}; the token rules read one flat {index, gain, jackpot, wheel, ..}. A flat object passes through. @param {any} p */
+export const flatPending = (p) => (p && p.result && typeof p.result === 'object' ? { ...p, ...p.result, ...(p.wheel ? { wheel: p.wheel } : {}) } : p);
 /** Which store a kind would draw from: its own tokens first, then Wild; null if it cannot be used now. */
-function tokenSource(/** @type {any} */ s, /** @type {string} */ wheelId, /** @type {string} */ kind, /** @type {any} */ p) {
+function tokenSource(/** @type {any} */ s, /** @type {string} */ wheelId, /** @type {string} */ kind, /** @type {any} */ p0) {
+  const p = flatPending(p0);
   if (!FLAGS.wheelMeta || !p || !SKILL.includes(wheelId) || !KINDS.includes(kind)) return null;
   const m = metaOf(s), t = m.tokens || {};
   if (wheelId === 'spot' && (m.spotTokensUsed | 0) >= WM.SPOT_TOKEN_CAP) return null;
@@ -244,6 +247,7 @@ export function tokenOptions(s, wheelId, pending) {
  */
 export function useToken(s, wheelId, kind, pending, rng, stop) {
   const src = tokenSource(s, wheelId, kind, pending); if (!src) return { s, pending };
+  pending = flatPending(pending);
   const wheel = pending.wheel || defaultWheel(s, wheelId), X = effective(s)[wheelId], streak0 = pending.streak0 | 0;
   let p = { ...pending, wheel, used: [...(pending.used || []), kind] };
   if (kind === 'respin' || kind === 'two') {

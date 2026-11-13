@@ -601,9 +601,10 @@ function useTok(s, p) {
   if (!pend || (!course && pend.week !== T.week)) return s;
   const used = pend.tokUsed | 0, stop = p.careful && typeof p.careful === 'object' ? p.careful : !!p.careful;
   const r = useToken(s, wid, p.kind, pend, WM_RNG(s, 'tok', `${key}|${p.kind}|${used}`), stop);
-  if (!r || !r.pending || (r.s === s && r.pending === pend)) return s;
-  const n = clone(r.s);
-  n.training[key] = { ...r.pending, tokUsed: used + 1 };
+  if (!r || !r.pending || r.s === s) return s;
+  const n = clone(r.s), f = r.pending, res = { ...pend.result }; // the stored shape is {.., result}: write the new result back into .result
+  for (const k of ['index', 'gain', 'jackpot', 'boosted', 't', 'phi', 'e', 'streak0']) if (f[k] !== undefined) res[k] = f[k];
+  n.training[key] = { ...pend, result: res, ...(f.used ? { used: f.used } : {}), ...(f.lifted ? { lifted: true } : {}), tokUsed: used + 1 };
   return n;
 }
 function doRunNets(s) {

@@ -1,5 +1,6 @@
 /* hub-view: the season home. render(el, vm, dispatch). Reads hubVM only. Clicks are handled by app.js (data-act). */
 import { esc, btn, tpChip, icoDeco } from './dom.js';
+import { spokeIcon } from './wheel-look.js';
 import { drawClub, drawHead } from './club-canvas.js';
 import { openSheet } from './sheet.js';
 import { activitiesCardHtml } from './activities-view.js';
@@ -59,7 +60,7 @@ function econHtml(e) {
 /* Wheel meta: one row to the Workshop, from wheel tier 1 (vm.workshop.visible); never shows a spin count */
 function workshopRowHtml(w) {
   if (!w || !w.visible) return '';
-  return '<button type="button" class="c-btn hb-wk" data-act="sheet:workshop" aria-label="Wheel Workshop, ' + esc(w.spokes) + ' Spokes">' + icoDeco('upgrade', 24) + '<span>Wheel Workshop</span><span class="hb-wkn"><b>' + esc(w.spokes) + '</b> Spokes</span></button>';
+  return '<button type="button" class="c-btn hb-wk" data-act="sheet:workshop" aria-label="Wheel Workshop, ' + esc(w.spokes) + ' Spokes">' + spokeIcon(24) + '<span>Wheel Workshop</span><span class="hb-wkn"><b>' + esc(w.spokes) + '</b> Spokes</span></button>';
 }
 
 /* r9 club cards (flags off: the VMs are absent or off, so nothing is drawn): free facility pending, trial player, this week's fan activity. */
