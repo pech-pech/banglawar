@@ -7,7 +7,7 @@ import { FLAG_DEFAULTS, BUILD } from '../js/report/build.js';
 import { FLAGS } from '../js/data/flags.js';
 import { TRAIN2 } from '../js/data/training.js';
 
-const B = 'sixes-r7';
+const B = 'sixes-r8';
 const ENV = { build: B, now: Date.UTC(2026, 10, 13, 10, 0), vp: 'v', errors: 0, flags: { ...FLAG_DEFAULTS } };
 let sd = 0;
 const m = (o = {}) => ({ id: ++sd, build: B, res: 'won', ab: 0, ov: [], seed: 's' + sd, us: 50, them: 40, m: { k: 'wk', n: 2 }, t0: 0, t1: 60000, gl: {}, why: 0, sk: 0, feel: {}, ...o });
@@ -78,7 +78,7 @@ test('P0-13 removed lines: retry/result-screen time, first-session line; old and
 
 test('P0-14 FLAG_DEFAULTS mirrors data/flags.js; BUILD is the r7 label', () => {
   assert.deepEqual(FLAG_DEFAULTS, FLAGS);
-  assert.equal(BUILD, 'sixes-r7');
+  assert.equal(BUILD, 'sixes-r8');
 });
 
 test('P0-16 regression P4: fixed seed is CLEAN NO; P5: a quit match adds nothing to luck', () => {
