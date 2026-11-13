@@ -195,6 +195,7 @@ export function openWheel(o) {
     live.textContent = (line ? line + '. ' : '') + (d.say || ''); // read once
     showTokens(p, line); if (!again && !o.pending) burst();
     go.textContent = o.collectLabel || 'COLLECT'; go.classList.add('is-collect', 'c-btn--gold'); go.classList.remove('c-btn--primary'); go.removeAttribute('aria-disabled'); go.classList.remove('is-wait', 'is-disabled'); go.setAttribute('aria-label', o.collectLabel || 'Collect'); xLook(false); go.focus();
+    layout(); // the foot is taller now (result, tokens, outcome line): size the wheel to the room left so the stand and plate under it are never covered or clipped
     if (!reduced) draw();
   }
   /** m5: the button shows it is waiting: words, dimmed look (css .wh-go.is-wait), aria-disabled. Static: nothing flashes. */

@@ -176,7 +176,7 @@
 .wk-lg i { display: block; width: 14px; height: 14px; border: 2px solid var(--outline); box-sizing: border-box; }
 .wk-lg b { font-weight: 400; }
 .wk-lg.is-now { font-weight: 700; }
-.wk-tabs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px; }
+.wk-tabs { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.5fr) minmax(0, .8fr); gap: 4px; } /* the long word (Specialist) gets the wider tab */
 .wk-tab { min-height: 48px; min-width: 0; padding: 0 2px; font-size: var(--c-fs-s); line-height: 16px; letter-spacing: -.3px; overflow: hidden; }
 .wk-tab > span { min-width: 0; overflow: hidden; text-overflow: clip; }
 .wk-tab[aria-pressed="true"], .skin-art .wk-tab[aria-pressed="true"] { --_selbg: var(--accent); --_selfg: var(--cream); --_wash: var(--accent); --_bg: var(--accent); background-color: var(--accent); color: var(--cream); box-shadow: inset 0 -5px 0 var(--gold), 0 var(--c-shadow-drop) 0 var(--outline); }
@@ -234,13 +234,13 @@
 .wh-ov .wh-hub { background: var(--wh-hub, var(--accent)); }
 .wh-tok { display: flex; flex-wrap: wrap; gap: var(--c-sp-2); justify-content: center; }
 .wh-tok[hidden] { display: none; }
-.wh-tok .c-btn { flex: 1 1 40%; min-height: 48px; }
+.wh-tok .c-btn { flex: 1 1 40%; min-height: 48px; padding: 0 var(--c-sp-1); white-space: normal; line-height: 1.15; }
 .wh-stand { position: absolute; left: 50%; bottom: 4px; width: 46%; height: 12px; transform: translateX(-50%); background: var(--wall2); border: 2px solid var(--outline); box-sizing: border-box; z-index: 0; }
 .wh-stand--steel { background: var(--stone2, var(--stone1)); }
 .wh-stand--gold { background: var(--gold); }
 .wh-stand--wood { background: var(--wall2); }
 .wh-plate { position: absolute; left: 50%; bottom: 2px; transform: translateX(-50%); max-width: 90%; padding: 0 var(--c-sp-2); background: var(--cream); border: 2px solid var(--outline); font-size: var(--c-fs-s); line-height: 18px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; z-index: 2; }
-.wh-crystal { position: absolute; inset: 0; pointer-events: none; z-index: 1; border-radius: 50%; }
+.wh-crystal { position: absolute; inset: 2px; pointer-events: none; z-index: 1; border-radius: 50%; }
 .wh-burst { position: absolute; left: 50%; top: 50%; width: 0; height: 0; pointer-events: none; z-index: 3; }
 .wh-burst i { position: absolute; left: -4px; top: -4px; width: 8px; height: 8px; background: var(--gold); border: 2px solid var(--outline); box-sizing: border-box; }
 @media (prefers-reduced-motion: no-preference) { .wh-burst i { animation: wh-pop .9s ease-out 1 both; } }

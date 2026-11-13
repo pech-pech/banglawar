@@ -45,7 +45,7 @@ export function workshopHtml(vm) {
   const bs = vm.branches || [];
   if (!picked || !bs.some((b) => b.id === picked)) picked = (bs[0] || {}).id;
   const cur = bs.find((b) => b.id === picked) || { nodes: [] }, spokes = Number(vm.spokes) || 0, sw = vm.swap;
-  const tabs = bs.map((b) => '<button type="button" class="c-btn wk-tab" data-wk-branch="' + esc(b.id) + '" aria-pressed="' + (b.id === picked) + '"><span>' + esc(b.name) + '</span></button>').join('');
+  const tabs = bs.map((b) => '<button type="button" class="c-btn wk-tab' + (b.id === picked ? ' is-selected' : '') + '" data-wk-branch="' + esc(b.id) + '" aria-pressed="' + (b.id === picked) + '"><span>' + esc(b.name) + '</span></button>').join('');
   return '<div class="c-strip strip wk-top"><span class="wk-ttl">Wheel Workshop</span><span class="c-strip__right"><span class="wk-spk" role="status" aria-label="' + spokes + ' Spokes">' + spokeIcon(22) + '<b>' + esc(spokes) + '</b></span>' +
     '<button type="button" class="c-icon-btn" data-wk-close aria-label="Close"><span class="c-ico c-ico--x"></span></button></span></div>' +
     '<div class="wk-body">' + wheelCard(vm, picked) + '<div class="wk-tabs" role="group" aria-label="Branches">' + tabs + '</div>' +
