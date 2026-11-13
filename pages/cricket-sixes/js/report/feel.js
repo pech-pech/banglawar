@@ -57,6 +57,6 @@ export function drawFeel(screenEl, m, onAnswer, ctx) {
     onAnswer(q, b.getAttribute('data-a'), fact);
     drawFeel(screenEl, m, onAnswer, ctx);
   });
-  const cta = screenEl.querySelector('.cta');
-  screenEl.insertBefore(box, cta || null);
+  const at = screenEl.querySelector(':scope > .rp-feel-at') || screenEl.querySelector('.cta'); // QA3 m9: the result view marks the spot right under its cards
+  screenEl.insertBefore(box, at || null);
 }

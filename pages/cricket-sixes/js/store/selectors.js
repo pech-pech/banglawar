@@ -17,7 +17,7 @@ import { PAIRING } from '../data/pairing.js';
 import { FLAGS } from '../data/flags.js';
 import { ACT } from '../data/activities.js';
 import { activityOptions, trialOf, canSignTrial } from '../core/activities.js';
-import { freePickOptions, freePickPending } from '../core/economy.js';
+import { freePickOptions, freePickPending, matchIncome } from '../core/economy.js';
 import { MD } from '../data/matchday.js';
 import { teamBoost, roarAt, resolvePep } from '../core/matchday.js';
 import { BATS, BOWLS, CELLS, COMBOS, SEEN_BALLS, cellIndex, cellOf, cellName, gradeWord, gradeRank, comboOf, isBook, newBook } from '../core/pairing.js';
@@ -136,7 +136,24 @@ export function resultVM(s) {
   }
   return {
     result: s.result, line, inn1: scoreOf(a), inn2: scoreOf(b), inSeason: !!s.season, seed: s.seed,
-    oppName: opp ? opp.name : 'Rival', kindLabel: fx ? RESULT_KIND[fx.kind] : 'Friendly', tpEarned, pay,
+    oppName: opp ? opp.name : 'Rival', kindLabel: fx ? RESULT_KIND[fx.kind] : 'Friendly', tpEarned, pay, money: moneyPreview(s, pay),
+  };
+}
+/** r9 QA3 M1: what FinishMatch will pay and charge for this match (the same matchIncome call and hype index), shown on the result screen.
+ *  null with the features off, outside a season or without an economy. crowd = the match-day hype word, or null without match day. */
+function moneyPreview(s, pay) {
+  const fx = s.season && s.fixture ? s.fixture : null;
+  if (!fx || !s.econ || !pay || !(FLAGS.matchday || FLAGS.activities)) return null;
+  let outcome = s.result;
+  if (fx.kind !== 'league') outcome = koWinner({ a: ME, b: fx.opp, ra: s.inn2.runs, rb: s.inn1.runs }, placeOf(s.season.table, ME), placeOf(s.season.table, fx.opp)) === ME ? 'won' : 'lost';
+  const md = FLAGS.matchday && fx.md ? fx.md : null;
+  let inc = null; try { inc = matchIncome(s, { win: outcome === 'won', tie: outcome === 'tied', ...(md ? { hypeIdx: md.hypeIdx } : {}) }); } catch (e) { return null; }
+  const e = s.econ, coinsIn = inc.gate + inc.winBonus + inc.shop, due = inc.wages + inc.upkeep + (e.arrears | 0), left = (e.coins | 0) + coinsIn;
+  return {
+    crowd: md ? { level: md.hype, word: HYPE_WORD[md.hype] || 'Crowd' } : null,
+    fans: inc.fans | 0, gate: inc.gate | 0, wages: inc.wages | 0,
+    extra: (inc.winBonus | 0) + (inc.shop | 0), upkeep: inc.upkeep | 0, winBonus: inc.winBonus | 0, shop: inc.shop | 0,
+    net: inc.net | 0, coinsAfter: Math.max(0, left - due), short: due > left ? due - left : 0,
   };
 }
 

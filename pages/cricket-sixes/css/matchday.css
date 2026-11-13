@@ -27,7 +27,7 @@
 .md-tag { margin-left: auto; display: inline-flex; align-items: center; gap: 4px; }
 .md-total { margin: 0; padding: 6px 8px; font-weight: 700; font-size: var(--c-fs-m); line-height: var(--c-lh-m); border-left: 4px solid var(--outline); background: var(--wall1); }
 .md-cta { display: flex; gap: 8px; }
-.md-cta .md-back { flex: 0 0 auto; min-height: 56px; white-space: nowrap; padding: 0 10px; font-size: 16px; } /* QA3 m8: one line, never below 14px */
+.md-cta .md-back { flex: 0 0 auto; width: auto; min-height: 56px; white-space: nowrap; padding: 0 10px; font-size: 16px; } /* QA3 m8: one line, never below 14px */
 .md-cta .c-btn--primary { flex: 1 1 auto; min-width: 0; padding: 0 8px; }
 .md-info { display: flex; flex-direction: column; gap: 8px; font-size: 14px; line-height: 18px; }
 .md-info p { margin: 0; }

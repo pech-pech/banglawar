@@ -92,7 +92,7 @@ export function renderTrial(root, vm, dispatch) {
       '<p class="cl-note cl-note--warn">' + icoDeco('info', 24) + '<span>' + esc('You released ' + released + '. Sign ' + (p.name || 'the trial player') + ', or keep ' + (size ? size + ' players' : 'a smaller squad') + '?') + '</span></p>' +
       '<div class="cl-actions"><button type="button" class="c-btn c-btn--primary" data-cl-act="SignTrial"' + (full ? ' disabled aria-disabled="true"' : '') + '>' + icoDeco('done', 24) + '<span>Sign ' + name + '</span></button>' +
       '<button type="button" class="c-btn" data-cl-act="DeclineTrial" data-cl-sure="1">' + icoDeco('close', 24) + '<span>' + esc(size ? 'Keep ' + size + ', decline' : 'Decline anyway') + '</span></button>' +
-      '<button type="button" class="c-btn" data-cl-relback="1">' + icoDeco('back', 24) + '<span>Back</span></button></div></div>';
+      '<button type="button" class="c-btn" data-cl-relback="1">' + icoDeco('close', 24) + '<span>Back</span></button></div></div>';
     bindTrial(root, dispatch); return root;
   }
   const ab = !coach && numOk(p.ability) ? shownCell(p.ability) : null;

@@ -18,10 +18,34 @@ export function payCard(pay) {
 }
 const ovWords = (o) => { const [a, b] = String(o).split('.'); const n = Number(a) || 0, m = Number(b) || 0; return (n === 1 ? '1 over' : n + ' overs') + (m ? ' and ' + (m === 1 ? '1 ball' : m + ' balls') : ''); };
 
-function score(label, inn) {
+function score(label, inn, both) {
   inn = inn || {};
+  const full = String(inn.overs) === '10' || String(inn.overs) === '10.0'; // QA3 m9: a full 10 overs goes without saying when both sides batted them all
   return '<li class="res-row"><span class="res-who">' + esc(label) + '</span>' +
-    '<b class="res-score">' + esc(inn.runs) + ' for ' + esc(inn.wk) + '</b><span class="res-in">in ' + esc(ovWords(inn.overs)) + '</span></li>';
+    '<b class="res-score">' + esc(inn.runs) + ' for ' + esc(inn.wk) + '</b>' + (full && both ? '' : '<span class="res-in">in ' + esc(ovWords(inn.overs)) + '</span>') + '</li>';
+}
+const fullInn = (inn) => !!inn && (String(inn.overs) === '10' || String(inn.overs) === '10.0');
+
+const fmtN = (n) => String(Math.abs(Math.round(Number(n) || 0))).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+const signed = (n) => (n < 0 ? '-' : '+') + fmtN(n);
+/* r9 QA3 M1: Match day money (resultVM.money, the FinishMatch preview): crowd word, then Fans, Gate and Wages tiles with icon + sign + word, then the net line.
+   Colour never carries the meaning alone: every value has a sign and the words in / out / new. */
+export function moneyCard(m) {
+  if (!m) return '';
+  const cell = (icon, v, word, aria) => '<li class="rm-cell" aria-label="' + esc(aria) + '">' + icoDeco(icon, 20) + '<b>' + esc(v) + '</b><span>' + esc(word) + '</span></li>';
+  const parts = [];
+  if (m.winBonus) parts.push('win +' + fmtN(m.winBonus));
+  if (m.shop) parts.push('shop +' + fmtN(m.shop));
+  if (m.upkeep) parts.push('upkeep -' + fmtN(m.upkeep));
+  return '<section class="c-card res-card res-money" aria-label="Match day money">' +
+    '<h3><span>Match day money</span>' + (m.crowd ? '<span class="rm-crowd">' + icoDeco('home', 20) + esc(m.crowd.word) + '</span>' : '') + '</h3>' +
+    '<ul class="rm-cells">' +
+    cell('fan', signed(m.fans), 'Fans new', signed(m.fans) + ' new Fans') +
+    cell('coin', signed(m.gate), 'Gate in', 'Gate ' + signed(m.gate) + ' Coins in') +
+    cell('team', signed(-m.wages), 'Wages out', 'Wages ' + signed(-m.wages) + ' Coins out') + '</ul>' +
+    '<p class="rm-net">' + icoDeco(m.net < 0 ? 'alert' : 'coin', 20) + '<span><b>Net ' + esc(signed(m.net)) + ' Coins</b>' + (parts.length ? ' (' + esc(parts.join(', ')) + ')' : '') + '</span></p>' +
+    (m.short ? '<p class="rm-net rm-short" role="status">' + icoDeco('alert', 20) + '<span>Wages short by ' + esc(fmtN(m.short)) + ' Coins: paid from later matches.</span></p>' : '') +
+    '</section>';
 }
 
 export function render(el, vm, dispatch) {
@@ -38,8 +62,9 @@ export function render(el, vm, dispatch) {
     '<div class="screen res' + (vm.inSeason || !vm.seed ? '' : ' res--two') + '">' +
     '<div class="c-strip strip"><span>Match over</span>' + helpBtn('wicket') + '</div>' +
     '<div class="c-card c-card--hl res-hero" role="status"><span class="' + tag + '">' + ({ won: 'Victory', lost: 'Defeat' }[vm.result] || 'Level') + '</span>' +
-    '<h1 class="res-line">' + esc(vm.line || head) + '</h1>' + kind + (vm.pay ? '' : tp) + '</div>' + payCard(vm.pay) +
-    '<div class="c-card res-card"><h3>Scores</h3><ul class="c-list list-flat">' + score(vm.oppName || 'Rival', vm.inn1) + score('You', vm.inn2) + '</ul></div>' +
+    '<h1 class="res-line">' + esc(vm.line || head) + '</h1>' + kind + (vm.pay ? '' : tp) +
+    '<ul class="c-list list-flat res-scores" aria-label="Scores">' + score(vm.oppName || 'Rival', vm.inn1, fullInn(vm.inn1) && fullInn(vm.inn2)) + score('You', vm.inn2, fullInn(vm.inn1) && fullInn(vm.inn2)) + '</ul></div>' + // QA3 m9: the scores sit in the hero, so the money card and the feel question fit above the CTA at 344x780
+    payCard(vm.pay) + moneyCard(vm.money) + '<div class="rp-feel-at"></div>' + // the feel question goes just before this anchor (report/feel.js)
     cta + '</div>';
   var sr = el.querySelector('[data-pay-stars]');
   if (sr) sr.addEventListener('click', function () {
@@ -47,7 +72,7 @@ export function render(el, vm, dispatch) {
     if (open) list.removeAttribute('hidden'); else list.setAttribute('hidden', '');
     sr.setAttribute('aria-expanded', open ? 'true' : 'false');
   });
-  if (vm.result === 'won' && vm.inn2) winBeat(el); // P10 win beat: picture only, the score shows at once, no result change
+  if (vm.result === 'won' && vm.inn2) winBeat(el, vm.money ? { after: '.rp-feel-at' } : undefined); // QA3 M1/m9: with the money card the picture goes under the cards, so money and the feel question stay above the CTA // P10 win beat: picture only, the score shows at once, no result change
 }
 
 function newSeed() {

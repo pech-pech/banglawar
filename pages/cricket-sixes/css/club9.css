@@ -52,3 +52,15 @@
 .cl-fp__k { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
 .cl-opt__s > .cl-fp__k { margin-left: 4px; }
 @media (min-width: 600px) { .cl-fpick--pin .cl-fp-cta { padding-left: max(12px, calc(50% - 200px)); padding-right: max(12px, calc(50% - 200px)); } }
+
+/* r9 fix5 (QA3 m1-m4): trial release rows, release / decline notes, toast, coach grade tag. Static: no motion. */
+.cl-rel .cl-opt__s { gap: 2px var(--c-sp-2); }
+.cl-rel__k { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
+.cl-rel__l { gap: 4px var(--c-sp-3); }
+.cl-done { border-style: double; border-width: 4px; border-color: var(--outline); }
+/* m3: sits under the header strip (never over the gear or "?"), and taps pass through it */
+.cl-toast { top: calc(64px + env(safe-area-inset-top, 0px)); pointer-events: none; gap: var(--c-sp-2); }
+.cl-toast img { flex: none; image-rendering: pixelated; }
+/* m4: the coach tag reads "Grade E+" */
+.cl-grade { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; font-size: 14px; }
+.cl-grade b { font-size: var(--c-fs-m); }

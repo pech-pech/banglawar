@@ -142,8 +142,8 @@ test('QA3 m2 a release is announced, and Decline after it asks first (Sign / kee
 });
 
 test('QA3 m3 toast: no taps blocked, kept off the header, has an icon', () => {
-  const css = read('css/club9.css'), last = css.slice(css.lastIndexOf('.cl-toast'));
-  assert.match(last, /pointer-events: none/);
+  const css = read('css/club9.css');
+  assert.match(css, /\.cl-toast \{[^}]*top: calc\(64px[^}]*pointer-events: none/);
   assert.match(read('js/ui/trial-card.js'), /insertAdjacentHTML\('afterbegin', icoDeco\(/);
 });
 
