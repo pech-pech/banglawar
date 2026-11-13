@@ -112,3 +112,14 @@ test('small pure helpers', () => {
   assert.deepEqual(expected([{ pr: { p: { six: 0.1, four: 0.1, two: 0.1, single: 0.2, wicket: 0.05 } } }]), { xr: 1.4, xw: 0.1 });
   assert.equal(inRange(50, BANDS.runs.us), 'ok'); assert.equal(inRange(20, BANDS.runs.us), 'below'); assert.equal(inRange(999, BANDS.runs.us), 'above'); assert.deepEqual(BANDS.win, { idle: 44, rote: 50, skilled: 53 });
 });
+
+test('report: reopening mid-match is not a new match or a first Start (Z1), and a quiet session still has an end screen (Z2)', () => {
+  let t = 1000; const now = () => t;
+  const log = createLog({ storage: null, now, build: 'x', env: () => 'vp' });
+  t = 6000; log.matchStart({ seed: 's1', stage: 'bowl' });
+  assert.equal(log.data().sessions.at(-1).first, 5000);
+  const log2 = createLog({ storage: { getItem: () => JSON.stringify(log.data()), setItem() {}, removeItem() {} }, now, build: 'x', env: () => 'vp' });
+  log2.stage('bowl'); t = 9000; log2.matchStart({ seed: 's1', stage: 'bowl' }, true);
+  assert.equal(log2.data().matches.length, 1); assert.equal(log2.data().matches[0].ab, 0);
+  assert.equal(log2.data().sessions.at(-1).first, undefined); assert.equal(log2.data().sessions.at(-1).end, 'bowl');
+});

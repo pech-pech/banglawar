@@ -25,7 +25,8 @@ export function attachReport(el, store) {
       count: () => log.data().matches.length, flush,
       clear: () => { log.clear(); }, // no half-match record: counting restarts at the next new match
     };
-    if (store.get() && store.get().stage === 'bowl') log.matchStart(store.get());
+    if (store.get()) log.stage(store.get().stage); // Z2: a session that closes before any screen change still has an end screen
+    if (store.get() && store.get().stage === 'bowl') log.matchStart(store.get(), true);
     window.addEventListener('error', (e) => log.error(e.message));
     window.addEventListener('unhandledrejection', (e) => log.error(e.reason));
     document.addEventListener('visibilitychange', () => { if (document.hidden) flush(); else { stageT = Date.now(); shownT = Date.now(); } });

@@ -35,9 +35,11 @@ export function createLog(o = {}) {
     /** Raw trail, one tuple per fact: [seconds, type, payload]. Add any new fact here first, then derive a metric from it. */
     event: safe((type, a) => { d.events.push([Math.round(now() / 1000), type, a == null ? 0 : a]); if (d.events.length > CAPS.events) d.events.splice(0, d.events.length - CAPS.events); }),
     open,
-    matchStart: safe((s) => {
-      const se = d.sessions[d.sessions.length - 1]; if (se && se.first == null) se.first = Math.max(0, now() - se.t0); // Z1: ms from opening the game to the first Start match
-      const prev = open(); if (prev) { prev.ab = 1; prev.t1 = now(); }
+    matchStart: safe((s, resume) => {
+      const prev = open();
+      if (resume && prev && prev.seed === s.seed) return; // reopened mid-match: keep the open record, it is not a new start
+      const se = d.sessions[d.sessions.length - 1]; if (!resume && se && se.first == null) se.first = Math.max(0, now() - se.t0); // Z1: ms from opening the game to the first Start match (a resume is not a start)
+      if (prev) { prev.ab = 1; prev.t1 = now(); }
       d.matches.push({ id: ++d.seq, sid, build, seed: s.seed, vp: env(), t0: now(), t1: 0, res: null, ab: 0, stage: s.stage, ov: [], scr: {}, why: 0, gl: {}, sk: 0, th: [], feel: {}, rt: null, err: 0 });
       if (d.matches.length > CAP.matches) d.matches.splice(0, d.matches.length - CAP.matches);
       api.event('matchStart', s.seed);
