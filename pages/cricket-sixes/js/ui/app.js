@@ -58,7 +58,7 @@ function decorate(s, vm) {
   if ((s.stage === 'hub' || s.stage === 'semi' || s.stage === 'final') && s.season) {
     if (s.econ && !vm.econ) vm.econ = s.econ;
     if (s.fixture && !vm.gap) vm.gap = gapLetters(s, s.fixture.opp);
-    if (s.notice === 'squad8' && !vm.notice) vm.notice = { kind: 'squad8', moved: (s.releaseLedger || []).length };
+    if (s.notice && !vm.notice) vm.notice = sel.noticeOf(s);
   }
   return vm;
 }

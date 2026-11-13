@@ -12,7 +12,7 @@ let noticeGone = false; // view state: the squad-of-8 line is gone once tapped (
 function noticeHtml(n) {
   if (!n || noticeGone) return '';
   const k = Number(n.moved) || 0;
-  const txt = 'The squad is now 8.' + (k ? ' ' + k + ' player' + (k === 1 ? '' : 's') + ' moved on.' : '');
+  const txt = n.line || 'The squad is now 8.' + (k ? ' ' + k + ' player' + (k === 1 ? '' : 's') + ' moved on.' : '');
   return '<button type="button" class="hb-notice" data-notice role="status" aria-label="' + esc(txt + ' Tap to dismiss.') + '">' + icoDeco('info', 24) + '<span>' + esc(txt) + '</span><small>Tap to close</small></button>';
 }
 const sayL = (L) => String(L).replace(/\+$/, ' plus').replace(/-$/, ' minus');

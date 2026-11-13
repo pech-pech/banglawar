@@ -89,7 +89,7 @@ test('endWeek remembers focus+effort, clears spotlight and week coach, week+1, g
   let s = setPlan(game({ players: pl, plan: null }), { focus: 'bowl', effort: 'easy', spotlightId: 'p2', coachId: 'k1' });
   const r = runNets(s, makeRng('e'), {});
   const e = endWeek(r.state);
-  assert.equal(e.training.week, 2); assert.deepEqual(e.training.lastPlan, { focus: 'bowl', effort: 'easy' });
+  assert.equal(e.training.week, 2); assert.deepEqual(e.training.last_plan, { focus: 'bowl', effort: 'easy' }); assert.equal(e.training.lastPlan, undefined); assert.equal(e.training.sel, undefined);
   assert.deepEqual(planOf(e), { focus: 'bowl', effort: 'easy', spotlightId: null, coachId: null });
   assert.equal(e.training.weekSummary.reveals.length, 1); assert.equal(e.training.weekSummary.gains.length, 8);
   assert.equal(runNets(e, makeRng('e2'), {}).lines.length, 8, 'new week runs again');

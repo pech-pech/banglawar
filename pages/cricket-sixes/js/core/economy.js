@@ -6,7 +6,7 @@ import { ECON as E } from '../data/economy.js';
 
 export const newEconomy = () => ({
   coins: E.START_COINS, fans: 0, medals: 0, stadium: 1, fac: { ...E.FAC_START }, build: null,
-  arrears: 0, missed: 0, sinks: {}, legacy: 0, ledger: [],
+  arrears: 0, missed: 0, sinks: {}, legacy: 0, ledger: [], backfilled: true, // a new game has nothing to back-fill
 });
 
 const clone = (/** @type {any} */ o) => JSON.parse(JSON.stringify(o));
@@ -86,6 +86,35 @@ function boardSale(/** @type {any} */ s) {
   const nc = { ...c, squad: sq(c.squad), six: sq(c.six) };
   if (c.bench) nc.bench = sq(c.bench);
   return { ...s, econ: e, clubs: [nc, ...s.clubs.slice(1)] };
+}
+
+// ---- one-off back-fill (r7): matches played before the economy existed ----
+const MINE = 'c0';
+/** League rounds of the current season the player club has played, in order. @param {any} s */
+const playedLeague = (s) => (s.season?.results || []).filter((/** @type {any} */ r) => r && r.kind === 'league' && (r.a === MINE || r.b === MINE));
+/**
+ * Pay the matches already in s.season.results once, by the shipped match formulas (gate, win bonus, shop, wages, upkeep, Fans).
+ * Runs from Fans 0 so the gate grows as it would have; Coins land on the current balance (never below 0, no arrears), ledger rows get backfill:true.
+ * Guard: skipped when econ.backfilled; only the rounds without a 'match' ledger row are paid (the first N results). Always sets econ.backfilled.
+ * @param {any} s @returns {{state:any, rounds:number}}
+ */
+export function backfillEconomy(s) {
+  const e0 = econOf(s);
+  if (e0.backfilled) return { state: s, rounds: 0 };
+  const rows = (e0.ledger || []).filter((/** @type {any} */ r) => r.k === 'match' && !r.backfill).length;
+  const todo = playedLeague(s).slice(0, Math.max(0, playedLeague(s).length - rows));
+  const e = clone(e0); e.backfilled = true;
+  if (!todo.length) return { state: withEcon(s, e), rounds: 0 };
+  const tmp = { ...s, econ: { ...clone(e0), fans: 0 } };
+  const out = [];
+  for (const r of todo) {
+    const win = r.winner === MINE, inc = matchIncome(tmp, { win });
+    tmp.econ.fans += inc.fans;
+    e.fans += inc.fans; e.coins = Math.max(0, e.coins + inc.net);
+    out.push({ k: 'match', win, ...inc, arrears: 0, backfill: true, round: r.round });
+  }
+  e.ledger = [...out, ...e.ledger].slice(-E.LEDGER_MAX);
+  return { state: withEcon(s, e), rounds: todo.length };
 }
 
 // ---- finals ----

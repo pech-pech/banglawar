@@ -162,7 +162,7 @@ function newGame(payload) {
     v: 5, salt: '', seed, stage: 'hub', ...blankMatch(), run: newRun(seed), book: newBook(),
     season, clubs, plan: { overs: DEFAULT_OVERS.slice(), fields: NEUTRAL_FIELDS(), edited: false, key: '' },
     econ: newEconomy(), coaches: [makeStartCoach('k0', COACH_NAMES[makeRng(`${seed}|coaches`).int(COACH_NAMES.length)])], coachPicked: true, nets: 1, releaseLedger: [],
-    training: { tp: 450, week: 1, nodeBought: {}, weekLog: [], weekStart: {}, drillCount: 0, focus: 'bat', effort: 'normal', spotlight_id: null, last_plan: null, lastPlan: null },
+    training: { tp: 450, week: 1, nodeBought: {}, weekLog: [], weekStart: {}, netsRuns: 0, focusChanges: 0, focus: 'bat', effort: 'normal', spotlight_id: null, coach_id: null, last_plan: null },
     fixture: leagueFixture(season, 1),
   };
 }
@@ -458,9 +458,10 @@ const TRAIN_RNG = (s, tag, extra = '') => makeRng(`${s.season.seed}|${tag}|${s.t
 /** Mirror the plan into the named save fields (focus, effort, spotlight_id, last_plan) so a save reads plainly. Returns the same state when nothing moved. */
 function sync(s) {
   if (s === undefined || !s.training) return s;
-  const p = planOf(s), T = s.training, lp = T.lastPlan || T.last_plan || null;
-  if (T.focus === p.focus && T.effort === p.effort && T.spotlight_id === p.spotlightId && T.last_plan === lp) return s;
-  return { ...s, training: { ...T, focus: p.focus, effort: p.effort, spotlight_id: p.spotlightId, last_plan: lp } };
+  const p = planOf(s), T = s.training, lp = T.last_plan || T.lastPlan || null;
+  if (T.focus === p.focus && T.effort === p.effort && T.spotlight_id === p.spotlightId && T.last_plan === lp && !T.lastPlan && !T.sel) return s;
+  const { lastPlan, sel, ...rest } = T;
+  return { ...s, training: { ...rest, focus: p.focus, effort: p.effort, spotlight_id: p.spotlightId, coach_id: p.coachId, last_plan: lp } };
 }
 /** Tap the wheel (SPIN then STOP): the result waits in training.pending until Run nets. One spin a week, and only with a spotlight player. */
 function spin(s, p) {

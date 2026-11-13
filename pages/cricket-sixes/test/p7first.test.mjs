@@ -52,17 +52,20 @@ test('report Z1-Z2: time to first Start match and the screen each session ended 
 test('report Z3-Z6 from a save, and me/rival are called lastMatch', () => {
   const st = newGame('p7f'); let g = 0; while (st.get().stage !== 'train' && g++ < 400) step(st);
   const s = st.get(), z = saveOf(s);
-  assert.equal(z.tp, s.training.tp); assert.equal(z.squad, 8); assert.ok(z.hidden >= 0 && z.hidden <= 8); assert.equal(z.perWeek, null);
+  assert.equal(z.tp, s.training.tp); assert.equal(z.squad, 8); assert.ok(z.hidden >= 0 && z.hidden <= 8); assert.equal(z.netsThisWeek, 0);
   assert.ok(z.lastMatch && z.lastMatch.us === 'Fernhill');
   const t = zLines({ sessions: [{ first: 5000, end: 'train' }] }, z).join('\n');
-  for (const w of ['? share:', 'Drills per week: no week finished yet', 'Unspent training points:', 'lastMatch (the save\'s me and rival)', 'Each session ended on: training']) assert.ok(t.includes(w), w);
+  for (const w of ['? share:', 'Nets runs this week: 0 · Effort: Normal · Focus changes: 0', 'Unspent training points:', 'lastMatch (the save\'s me and rival)', 'Each session ended on: training']) assert.ok(t.includes(w), w);
   const log = createLog({ storage: null, build: 'x' });
   const sum = buildSummary(log.data(), { ...ENV, save: z }); assert.ok(sum.includes('Unspent training points'));
   const j = JSON.parse(buildData(log.data(), { ...ENV, save: z })); assert.equal(j.z.save.lastMatch.us, 'Fernhill'); assert.ok(!('me' in j.z.save) && !('rival' in j.z.save));
   assert.match(zLines({ sessions: [] }, null).join(' '), /no save/);
 });
 
-test('report Z on the 2026-11-12 playtest numbers: 15 drills in 2 weeks, 60 TP unspent', () => {
-  const z = saveOf({ stage: 'hub', training: { tp: 60, week: 3, drillCount: 15, drilled: {}, weekSummary: { week: 2, gains: [{ total: 1 }, { total: 2 }], reveals: [] } }, clubs: [{ id: 'c0', squad: [{ drillsHere: 6 }] }] });
-  assert.equal(z.perWeek, 7.5); assert.equal(z.tp, 60); assert.equal(z.canDrill, 4); assert.equal(z.hiddenShare, 0); assert.equal(z.last.gain, 3);
+test('report Z4 and Z6 read the nets counters and the week summary', () => {
+  const z = saveOf({ stage: 'hub', training: { tp: 60, week: 3, week_: 0, netsWeek: 3, netsRuns: 2, focusChanges: 1, effort: 'push', weekSummary: { week: 2, steps: 7, letters: 2, gains: [{ total: 1 }, { total: 2 }], reveals: [] } }, clubs: [{ id: 'c0', squad: [{ drillsHere: 6 }] }] });
+  assert.equal(z.tp, 60); assert.equal(z.canDrill, 4); assert.equal(z.hiddenShare, 0); assert.equal(z.last.steps, 7);
+  const t = zLines({ sessions: [] }, z).join('\n');
+  assert.ok(t.includes('Nets runs this week: 1 · Effort: Push · Focus changes: 1'), t);
+  assert.ok(t.includes('Last week: +7 steps across the squad, 2 letters gained'), t);
 });

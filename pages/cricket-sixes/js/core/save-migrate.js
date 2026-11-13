@@ -3,7 +3,7 @@
 import { applyTag } from './tags.js';
 import { aiPickSix } from './clubs.js';
 import { rawAbility, isHidden } from './ability.js';
-import { newEconomy } from './economy.js';
+import { newEconomy, backfillEconomy } from './economy.js';
 import { SQUAD } from '../data/run.js';
 import { coachFromOld, startCoach } from './training.js';
 export const VERSION = 5;
@@ -51,6 +51,32 @@ export function autoRelease(club, keep, floor) {
   return out;
 }
 
+/** One plan record (r7): training.sel -> focus / effort / spotlight_id / coach_id, training.lastPlan -> last_plan; drillCount (a dead counter, p.drillsHere is the reveal counter) is dropped; report counters start at 0. Idempotent. */
+function tidyTraining(n) {
+  if (!isObj(n.training)) return {};
+  const T = { ...n.training }, sel = isObj(T.sel) ? T.sel : {};
+  if (isObj(T.sel)) {
+    if (typeof sel.focus === 'string') T.focus = sel.focus;
+    if (typeof sel.effort === 'string') T.effort = sel.effort;
+    if (sel.spotlightId !== undefined) T.spotlight_id = sel.spotlightId || null;
+    if (sel.coachId !== undefined) T.coach_id = sel.coachId || null;
+  }
+  if (!T.last_plan && isObj(T.lastPlan) && typeof T.lastPlan.focus === 'string') T.last_plan = { ...T.lastPlan };
+  delete T.sel; delete T.lastPlan; delete T.drillCount;
+  if (T.coach_id === undefined) T.coach_id = null;
+  T.netsRuns = T.netsRuns | 0; T.focusChanges = T.focusChanges | 0;
+  return { training: T };
+}
+
+/** One-off economy back-fill for matches already played (r7); safe to call again (econ.backfilled). Returns the fields to merge: econ, notice. */
+function backfillNote(n) {
+  if (!isObj(n.econ) || n.econ.backfilled) return {};
+  const r = backfillEconomy(n);
+  if (!r.rounds) return { econ: r.state.econ };
+  const notice = !n.notice ? 'econ-backfill' : String(n.notice).includes('econ-backfill') ? n.notice : n.notice + '+econ-backfill';
+  return { econ: r.state.econ, notice };
+}
+
 /**
  * Steps keyed by the version they upgrade FROM. Each takes a private copy and returns the next version's state.
  * deps.newGame(seed) -> state (the store's NewGame); optional, so this file stays free of core imports.
@@ -90,7 +116,8 @@ const STEPS = {
       }
     }
     if (!Array.isArray(n.releaseLedger)) n.releaseLedger = [];
-    if (!isObj(n.econ)) n.econ = newEconomy();
+    if (!isObj(n.econ)) n.econ = { ...newEconomy(), backfilled: false }; // paid for played rounds just below
+    Object.assign(n, backfillNote(n));
     const T = isObj(n.training) ? { ...n.training } : {};
     for (const k of ['drilled', 'last', 'bulk', 'plan', 'drillPlan', 'lastPlan', 'autoBench']) delete T[k];
     T.focus = T.focus || 'bat'; T.effort = T.effort || 'normal'; T.spotlight_id = T.spotlight_id || null; T.last_plan = T.last_plan || null; // training.js reads lastPlan / sel and defaults when absent
@@ -119,6 +146,8 @@ export function migrate(data, from, deps) {
     if (!STEPS[v]) return { ok: false, state: null, from, reason: 'shape' };
     s = STEPS[v](s, deps);
   }
+  if (s.v === VERSION) Object.assign(s, tidyTraining(s));
+  if (s.v === VERSION && isObj(s.season)) Object.assign(s, backfillNote(s)); // v5 saves written by r6 have an economy but no back-fill
   return { ok: true, state: s, from };
 }
 

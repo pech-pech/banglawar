@@ -240,7 +240,7 @@ test('v2 save migrates to v3 with an empty Book, keeps everything else, and play
   assert.equal(m.ok, true); assert.equal(m.state.v, 5); assert.equal(VERSION, 5); assert.equal(m.from, 2);
   assert.deepEqual(m.state.book, newBook()); assert.equal(m.state.book.balls.length, CELLS);
   // v5 (P11) drops the old training.lastPlan (a map shape); everything else must be untouched
-  const noPlan = (x) => ({ ...x, v: 2, book: undefined, training: { ...x.training, lastPlan: undefined } });
+  const noPlan = (x) => ({ ...x, v: 2, book: undefined, training: { ...x.training, lastPlan: undefined, sel: undefined, last_plan: undefined, coach_id: undefined, netsRuns: undefined, focusChanges: undefined } });
   assert.deepEqual(noPlan(m.state), noPlan(s), 'nothing else changed');
   assert.equal(migrate(m.state, 5).state.v, 5);
   // through the envelope

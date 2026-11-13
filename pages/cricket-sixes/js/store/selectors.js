@@ -173,9 +173,12 @@ export function hubVM(s) {
 
 /** The one gentle line after a v5 load (SPEC s7). null once dismissed. */
 export function noticeOf(s) {
-  if (s.notice !== 'squad8') return null;
-  const n = (s.releaseLedger || []).length;
-  return { key: 'squad8', line: `The squad is now ${SQUAD.size}.${n ? ` ${n} player${n === 1 ? '' : 's'} moved on.` : ''}` };
+  const keys = String(s.notice || '').split('+');
+  const lines = [];
+  if (keys.includes('squad8')) { const n = (s.releaseLedger || []).length; lines.push(`The squad is now ${SQUAD.size}.${n ? ` ${n} player${n === 1 ? '' : 's'} moved on.` : ''}`); }
+  if (keys.includes('econ-backfill')) lines.push('Club accounts caught up for the matches you already played.');
+  if (!lines.length) return null;
+  return { key: keys.includes('squad8') ? 'squad8' : 'econ-backfill', line: lines.join(' '), moved: (s.releaseLedger || []).length };
 }
 
 function finalsVM(s) {
@@ -304,7 +307,7 @@ export function trainingVM(s) {
     tp: T.tp, week: T.week, plan, focuses, efforts, rows, coaches, coachQuality: coachQuality(s), coachLetter: coachStepInUse(s) ? letterOfStep(coachStepInUse(s)) : null,
     preview: { cost: pre.cost, tpLeft: T.tp - pre.cost, trainCount: pre.trainIds.length, shortCount: pre.shortIds.length, skipCount: pre.skippedIds.length, hint: pre.hint },
     spotlight: { id: plan.spotlightId, wheel, pending: T.pending && T.pending.week === T.week ? { careful: T.pending.careful, index: T.pending.result.index, gain: T.pending.result.gain, jackpot: T.pending.result.jackpot, applied: spotApplied(s, plan, T.pending.result.gain) } : null },
-    done, result: done ? { lines: T.nets.lines, cost: T.nets.cost, skipped: T.nets.skipped } : null, tips: !T.tipsSeen && !(T.drillCount > 0),
+    done, result: done ? { lines: T.nets.lines, cost: T.nets.cost, skipped: T.nets.skipped } : null, tips: !T.tipsSeen && !(T.netsRuns > 0),
     canRun: !done && pre.trainIds.length > 0, notice: noticeOf(s),
   };
 }
