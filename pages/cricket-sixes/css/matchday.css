@@ -2,7 +2,7 @@
 .md-root { display: flex; flex-direction: column; min-height: 100%; padding-bottom: calc(var(--cta-bar, 88px) + 8px); }
 .md-strip .q { flex: none; min-width: 56px; min-height: 56px; }
 /* QA3 m8: the "?" is the same .help-btn as the hub and training strips (cream, framed), with the strip's own right gutter */
-.md-strip .help-btn { margin-right: var(--c-sp-1); }
+.md-strip .help-btn { margin-right: var(--c-sp-2); }
 .md-body { display: flex; flex-direction: column; gap: 8px; padding: 8px 0; }
 .md-tap { display: flex; align-items: center; justify-content: flex-start; gap: 10px; width: 100%; min-height: 64px; padding: 6px 12px; text-align: left; white-space: normal; }
 .md-tap span { display: flex; flex-direction: column; min-width: 0; }

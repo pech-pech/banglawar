@@ -66,4 +66,6 @@
 .chase-b .ch-boosts ~ .colL { margin-top: 0; }
 @media (max-width: 599px) {
   .chase-b.has-boosts .pbox, .chase-b.has-boosts .rbox { min-height: 128px; } /* content needs ~110px; rows still grow with it */
+  /* SUP-4 N1: Scorebook's wider font wraps the score strip to 3 lines, so with features off overs 8-10 overflowed too */
+  .skin-scorebook .chase-b .pbox, .skin-scorebook .chase-b .rbox { min-height: 128px; }
 }
