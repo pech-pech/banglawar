@@ -598,7 +598,7 @@ export function trialVM(s) {
   const full = t.kind === 'player' && squadFull(s);
   // Who can be let go to make room: the existing SellPlayer gate decides (bench only in season, never below the minimum squad).
   const release = full ? mine(s).squad.filter((p) => canSell(s, p.id).ok).map((p) => ({ id: p.id, name: p.name, role: p.bat, type: p.bowl, shown: shownAbility(p), batShown: shownBat(p), bowlShown: shownBowl(p) })) /* QA3 m1: same letters as the trial player */ : [];
-  return { kind: t.kind, player, coach, wage: t.wage, squadFull: full, release, squadSize: mine(s).squad.length, squadMax: SQUAD.size,
+  return { kind: t.kind, player, coach, wage: t.wage, squadFull: full, release, squadSize: mine(s).squad.length, squadMax: SQUAD.size, released: t.kind === 'player' && t.released ? String(t.released) : '',
     canSign: can.ok, why: can.ok ? '' : can.why, sign: 'Sign', decline: 'Decline' };
 }
 /** The one free facility. pending = show the screen / Home card. null with the flag off. */

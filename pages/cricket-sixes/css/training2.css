@@ -154,3 +154,7 @@
 /* m11: the wheel's X cannot close while the wheel turns or slows: dashed frame, dimmed X, aria-disabled (not colour alone) */
 .wh-ov .wh-x.is-wait { background: var(--stone1); border-style: dashed; box-shadow: none; transform: none; cursor: not-allowed; outline: 2px dashed var(--outline); outline-offset: -8px; }
 .wh-ov .wh-x.is-wait > .c-ico { opacity: .45; }
+.t2-l2 .t2-wd { margin-left: auto; }
+/* m7: the training strip keeps "Week 1" whole at 344: the first span takes its own width; the decorative icon gives way on a narrow phone */
+.tr-top > span:first-child { flex: 0 0 auto; overflow: visible; }
+@media (max-width: 360px) { .tr-top > span:first-child > img { display: none; } }

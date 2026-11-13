@@ -153,3 +153,28 @@ test('QA3 m4 coach sheet: aria label in words, visible "Grade" word on the tag',
   assert.doesNotMatch(r.innerHTML, /Strong in bat/);
   assert.match(r.innerHTML, /<span aria-hidden="true">Grade<\/span><b/);
 });
+
+test('SUP-CLUB #1 the release is saved in s.trial.released: survives close + reload, cleared on Sign / Decline', async () => {
+  const { applyCommand: C } = await import('../js/store/commands.js');
+  const { wrap, unwrap } = await import('../js/core/save-migrate.js');
+  const s0 = C(null, 'NewGame', { seed: 'sup1' }), c0 = s0.clubs[0];
+  const tp = { ...JSON.parse(JSON.stringify(c0.squad[0])), id: 'tr1', name: 'Akhtar' };
+  const s = { ...s0, trial: { kind: 'player', player: tp, wage: 7, from: 'banner' } };
+  const bench = c0.squad.find((p) => !c0.six.includes(p.id));
+  const sold = C(s, 'SellPlayer', { id: bench.id });
+  assert.equal(sold.trial.released, bench.name);
+  const back = unwrap(JSON.parse(JSON.stringify(wrap(sold))));
+  const st = back && (back.state || back);
+  assert.equal((st.trial || {}).released, bench.name, 'survives a save round trip');
+  if (trialVM(st)) assert.equal(trialVM(st).released, bench.name);
+  assert.equal(C(sold, 'SignTrial').trial, undefined); assert.equal(C(sold, 'DeclineTrial').trial, undefined);
+  assert.equal(C(s0, 'SellPlayer', { id: bench.id }).trial, undefined, 'no trial: nothing stored');
+  // vm only (a fresh sheet root = closed and reopened, or reloaded): the line and the Decline check come from the vm
+  const vm = { ...tvm, squadFull: false, canSign: true, squadSize: 7, squadMax: 8, released: 'Reyes' };
+  const calls = [], r = fakeRoot(); renderTrial(r, vm, (n, a) => calls.push([n, a]));
+  assert.match(r.innerHTML, /Reyes released\. Squad now 7 of 8\./);
+  r.click({ 'data-cl-act': 'DeclineTrial' });
+  assert.deepEqual(calls, []); assert.match(r.innerHTML, /Keep 7, decline/);
+  const c = fakeRoot(); renderTrial(c, { kind: 'coach', player: null, coach: { id: 'c', name: 'M', step: 9, strong: [] }, wage: 0, canSign: true, released: 'X' }, () => {});
+  assert.doesNotMatch(c.innerHTML, /released/);
+});

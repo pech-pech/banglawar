@@ -199,8 +199,10 @@ function addPlayer(s, p) {
 function sellPlayer(s, p) {
   if (!p || !canSell(s, p.id).ok) return s;
   const n = clone(s), c = n.clubs[0];
+  const gone = c.squad.find((x) => x.id === p.id);
   c.squad = c.squad.filter((x) => x.id !== p.id);
   c.six = aiPickSix(c);
+  if (n.trial && n.trial.kind === 'player' && gone) n.trial.released = gone.name; // QA3 m2 / SUP-CLUB #1: saved, so the trial sheet still says who left after close or reload (Sign / Decline drop n.trial)
   n.plan = { ...n.plan, edited: false, key: '' };
   return n;
 }

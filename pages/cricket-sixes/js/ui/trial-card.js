@@ -84,14 +84,14 @@ export function renderTrial(root, vm, dispatch) {
     root.innerHTML = '<div class="screen cl-screen cl-trialsheet">' + body + '</div>';
     bindTrial(root, dispatch); return root;
   }
-  const released = !coach && root.__clReleased ? String(root.__clReleased) : '';
+  const released = coach ? '' : String(vm.released || root.__clReleased || ''); // saved in s.trial.released (survives close + reload); the DOM copy covers a vm without it
   const size = Number(vm.squadSize) || 0, max = Number(vm.squadMax) || 0;
   const sizeWord = size ? 'Squad now ' + size + (max ? ' of ' + max : '') : 'Squad has a free place';
   if (mode === 'decline' && released) { // QA3 m2: Decline after a release asks first, so a short squad is a choice
     root.innerHTML = '<div class="screen cl-screen cl-trialsheet"><h3 class="cl-h" tabindex="-1">' + icoDeco('alert', 24) + '<span>' + esc(sizeWord) + '</span></h3>' +
       '<p class="cl-note cl-note--warn">' + icoDeco('info', 24) + '<span>' + esc('You released ' + released + '. Sign ' + (p.name || 'the trial player') + ', or keep ' + (size ? size + ' players' : 'a smaller squad') + '?') + '</span></p>' +
       '<div class="cl-actions"><button type="button" class="c-btn c-btn--primary" data-cl-act="SignTrial"' + (full ? ' disabled aria-disabled="true"' : '') + '>' + icoDeco('done', 24) + '<span>Sign ' + name + '</span></button>' +
-      '<button type="button" class="c-btn" data-cl-act="DeclineTrial" data-cl-sure="1">' + icoDeco('close', 24) + '<span>' + esc(size ? 'Keep ' + size + ', decline' : 'Decline anyway') + '</span></button>' +
+      '<button type="button" class="c-btn" data-cl-act="DeclineTrial" data-cl-sure="1">' + icoDeco('team', 24) + '<span>' + esc(size ? 'Keep ' + size + ', decline' : 'Decline anyway') + '</span></button>' +
       '<button type="button" class="c-btn" data-cl-relback="1">' + icoDeco('close', 24) + '<span>Back</span></button></div></div>';
     bindTrial(root, dispatch); return root;
   }
@@ -137,7 +137,7 @@ function bindTrial(root, dispatch) {
     }
     else {
       const vm = root.__clVm, p = vm && (vm.player || vm.coach), cmd = t.getAttribute('data-cl-act');
-      if (cmd === 'DeclineTrial' && root.__clReleased && vm && vm.player && !t.hasAttribute('data-cl-sure')) { root.__clRel = 'decline'; again(); return; }
+      if (cmd === 'DeclineTrial' && (vm && vm.released || root.__clReleased) && vm && vm.player && !t.hasAttribute('data-cl-sure')) { root.__clRel = 'decline'; again(); return; }
       dispatch(cmd, {});
       if (p) confirmLine(cmd === 'SignTrial' ? (p.name + (vm.player ? ' joined your squad.' : ' joined your coaches.')) : ('You declined ' + p.name + '.'));
     }

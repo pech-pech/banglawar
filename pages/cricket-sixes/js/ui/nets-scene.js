@@ -39,10 +39,11 @@ export function lineHtml(l, cls) {
   return '<li class="t2-line ' + (cls || '') + '" aria-label="' + esc(lineText(l)) + '">' +
     '<span class="t2-l1"><b class="t2-nm">' + nameHtml(l.name) + '</b><span class="t2-st">' + icoDeco(st.icon, 20) + '<span>' + esc(st.word) + '</span></span>' +
     '<span class="t2-ch"><span>' + esc(a) + '</span>' + (moved ? '<span class="t2-arr" aria-hidden="true"></span><b class="t2-new">' + esc(b) + '</b>' : '') + '</span>' +
-    '<span class="t2-wd">' + esc(l.word) + '!</span></span>' +
+    '</span>' +
     '<span class="t2-l2">' + letterBar(l.toRaw, l.fromRaw) +
     (l.wheelGain ? '<span class="t2-wheel">Wheel +' + esc(l.wheelGain) + '</span>' : '') +
-    (bigStep(l) ? '<span class="t2-bt">Breakthrough!</span>' : '') + '</span></li>';
+    (bigStep(l) ? '<span class="t2-bt">Breakthrough!</span>' : '') +
+    '<span class="t2-wd">' + esc(l.word) + '!</span></span></li>'; // QA3 m7: the word sits at the end of row 2, so row 1 has room for the whole name
 }
 
 export const skipLine = (n) => '<li class="t2-line t2-line--skip" aria-label="' + esc(n.name + ', cannot gain this week') + '"><span class="t2-l1"><b class="t2-nm">' + nameHtml(n.name) + '</b><span class="t2-wd">' + esc(n.why || "Can't gain") + '</span></span></li>';
