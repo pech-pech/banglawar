@@ -2,7 +2,10 @@
 // Env: E2E_FULL=1 plays the whole season to the end screen; E2E_SHOTS=dir moves the screenshots; E2E_SOFT=1 never exits 1.
 // Journey (default): coach -> hub (standings sheet, save sheet) -> squad -> plan -> one match (over panel tapped through)
 //   -> result -> training week (Run nets) -> reload mid-week -> end week -> week summary -> hub.   ?seed=e2e-1, fresh context each run.
-// Playwright is preinstalled (global); no install. If the app still boots into the step-0 match, the run SKIPS with exit 0.
+// r9: the app is ON by default for two new stages: 'freepick' (first launch: tap a facility, tap Take, -> hub) and 'matchday'
+//   (Squad/hub Start match -> reveal taps hype/toss/pep + the "?" sheet -> Next: Plan). Both are driven by real taps and audited (scroll-x, taps, text).
+//   E2E_FEATURES=off: taps the gear, flips "New match-day and fan features" to Off in Settings (real taps), then plays the OLD flow;
+//   fails if freepick or matchday ever shows. Playwright is preinstalled (global); no install. If the app boots into an unknown stage, the run SKIPS with exit 0.
 import http from 'node:http';
 import { createRequire } from 'node:module';
 import { readFile } from 'node:fs/promises';
@@ -17,6 +20,7 @@ const FULL = process.env.E2E_FULL === '1';
 const VIEW = { width: 344, height: 780 };
 const SEED = 'e2e-1';
 const REDUCE = process.env.E2E_REDUCE === '1'; // E2E_REDUCE=1 emulates prefers-reduced-motion: reduce and fails on any running animation
+const FEAT_OFF = (process.env.E2E_FEATURES || '') === 'off'; // E2E_FEATURES=off: switch the r9 features off in Settings, expect the old flow
 const THEME = process.env.E2E_THEME || ''; // E2E_THEME=scorebook plays the same journey with the Scorebook look set in the save
 
 const req = createRequire(import.meta.url);
@@ -132,10 +136,31 @@ async function journey(browser, tag) {
 
   await page.goto(`${ORIGIN}/cricket-sixes/?seed=${SEED}`); await settle(800);
   const first = await stage();
-  if (first !== 'hub') { await ctx.close(); return { skip: `app boots into stage "${first}", not "hub": the season store/UI is not wired yet` }; } // p7-first: no coach screen before match 1
-
+  if (first !== 'hub' && first !== 'freepick') { await ctx.close(); return { skip: `app boots into stage "${first}", not "freepick" or "hub": the season store/UI is not wired yet` }; } // p7-first: no coach screen before match 1
+  let sawFree = false, sawMd = 0;
   if (THEME) { await page.evaluate((t) => window.__store.dispatch('SetTheme', { theme: t }), THEME); await settle(300); const cls = await page.evaluate(() => document.body.className); if (!cls.includes('skin-' + THEME)) bad(`theme ${THEME} did not set its body class (${cls})`); }
-  let coachChecked = false, steps = 0, hubSeen = 0, weekDone = false, reloaded = false, matchPlayed = false;
+  async function switchFeaturesOff() { // real taps: gear -> Settings sheet -> Features switch Off. Runs on the first hub, after the free pick (the freepick screen has no gear, see E2E.md).
+    const gear = await page.$('.st-gear'); if (!gear) { bad('settings: no gear button on the hub'); }
+    else {
+      await gear.click(); await settle(500);
+      const sw = await page.$('[data-md-features]');
+      if (!sw) bad('settings: no "New match-day and fan features" switch');
+      else {
+        await audit('settings-sheet-features'); await shot('settings-features');
+        if ((await sw.getAttribute('aria-checked')) !== 'true') bad('settings: features switch is not On by default');
+        await sw.click(); await settle(300);
+        if ((await sw.getAttribute('aria-checked')) !== 'false' || !/off/i.test(await sw.innerText())) bad('settings: features switch did not show Off with the word Off');
+        if (await page.$eval('.md-set--auto', (e) => !e.hidden)) bad('settings: Auto match day row still shown with features off');
+        await audit('settings-sheet-features-off');
+      }
+      await closeSheets(); await settle(300);
+      const f = await page.evaluate(() => window.__store.get().features);
+      if (f !== false) bad(`settings: store.features is ${f}, want false`);
+      const st1 = await stage(); if (st1 !== 'hub') bad(`features off: stage is ${st1}, want hub`);
+    }
+  }
+
+  let featOffDone = false, coachChecked = false, steps = 0, hubSeen = 0, weekDone = false, reloaded = false, matchPlayed = false;
   while (steps++ < (FULL ? 600 : 120)) {
     const st = await stage();
     const strict = st === 'bowl' || st === 'chase';
@@ -149,11 +174,44 @@ async function journey(browser, tag) {
     }
     await shot(String(steps).padStart(2, '0') + '-' + st);
     if (st === 'end') { await shot('end'); break; }
-    if (st === 'coach') {
+    if (st === 'freepick') {
+      sawFree = true;
+      if (FEAT_OFF && featOffDone) { bad('features off, but the freepick screen showed again'); break; }
+      await audit('freepick'); await shot('freepick');
+      const txt = await page.evaluate(() => document.body.innerText);
+      if (!/Pick your free facility/i.test(txt)) bad('freepick: heading "Pick your free facility" missing');
+      const cards = await page.$$('[data-cl-pick]:not([disabled])'); if (cards.length < 3) bad(`freepick: only ${cards.length} pickable facilities`);
+      const take0 = await page.$('[data-cl-act="TakeFreePick"]'); if (take0 && !(await take0.isDisabled())) bad('freepick: Take button enabled before anything was picked');
+      const stands = (await page.$('[data-cl-pick="stands"]:not([disabled])')) || cards[0]; if (!stands) { bad('freepick: nothing to pick'); break; }
+      await stands.click(); await settle(200);
+      await audit('freepick-picked'); await shot('freepick-picked');
+      const take = await page.$('[data-cl-act="TakeFreePick"]:not([disabled])'); if (!take) { bad('freepick: Take stayed disabled after a pick'); break; }
+      const tb = await take.boundingBox(); if (!tb || tb.y < 0 || tb.y + tb.height > VIEW.height) bad('freepick: the Take button is not fully visible without scrolling');
+      await take.click(); await settle(400);
+      const after = await stage(); if (after !== 'hub') bad(`freepick: Take returned to "${after}", want hub`);
+      if (await page.evaluate(() => /squad is now 8/i.test(document.body.innerText))) bad('hub: shows the "squad is now 8" notice after the free pick (noticeOf must return null for freepick)');
+    } else if (st === 'matchday') {
+      sawMd++;
+      if (FEAT_OFF) { bad('features off, but the matchday screen showed'); break; }
+      await audit('matchday'); await shot('matchday-start');
+      for (const w of ['hype', 'toss', 'pep']) {
+        const b = await page.$(`[data-md="${w}"]`);
+        if (!b) continue; // already shown, or no pep slot
+        await b.click(); await settle(350); await audit('matchday-after-' + w); await shot('matchday-' + w);
+      }
+      const q = await page.$('[data-md="info"]');
+      if (q) { await q.click(); await settle(500); await audit('matchday-info-sheet'); await shot('matchday-info'); await closeSheets(); } else bad('matchday: no "?" odds button');
+      if (await page.$('[data-md]:not([data-md="info"])')) bad('matchday: a reveal tap is still pending after all taps');
+      await audit('matchday-done');
+      if (!(await page.$('[data-act="MatchdayGo"]:not([disabled])'))) { bad('matchday: no enabled go button (MatchdayGo)'); break; }
+      await (await page.$('[data-act="MatchdayGo"]')).click(); await settle(400);
+      const nx = await stage(); if (nx !== 'plan' && nx !== 'bowl') bad(`matchday: go led to "${nx}", want plan (or the match)`);
+    } else if (st === 'coach') {
       await (await page.$('[data-pick]')).click(); await settle(100);
       if (!(await clickCta())) bad('coach: no enabled Confirm after picking a coach');
     } else if (st === 'hub' || st === 'semi' || st === 'final') {
       if (weekDone && !FULL) break;
+      if (FEAT_OFF && !featOffDone) { featOffDone = true; await switchFeaturesOff(); }
       if (!hubSeen++) { // standings sheet, then the save sheet (view-only; Escape closes over-panel style modals)
         const t = await page.$('[data-act="sheet:table"]'); if (t) { await t.click(); await settle(500); await audit('standings-sheet'); await shot('standings'); await closeSheets(); } else bad('hub: no "Table" button');
         const bk = await page.$('[data-act="sheet:book"]'); // P4: the Pairing Book opens from the hub, both tabs
@@ -226,7 +284,10 @@ async function journey(browser, tag) {
     } else { bad(`unknown stage ${st}`); break; }
   }
   if (steps > (FULL ? 600 : 120)) bad('journey did not finish within the step limit');
+  if (FEAT_OFF && !featOffDone) bad('features-off run never reached a hub to switch them off');
   if (!matchPlayed) bad('journey never reached a match');
+  if (!sawFree) bad('the freepick screen never showed on a new game (features default on)');
+  if (!FEAT_OFF && !sawMd) bad('features on: the matchday screen never showed before a match');
   for (const m of missing) if (!/\/favicon\.ico$/.test(m)) bad(`failed response ${m}`); // the browser's own favicon probe is not the app
   const final = await snap();
   await ctx.close();
@@ -299,7 +360,7 @@ try {
     const b = await journey(browser, 'run2');
     const problems = [...a.problems, ...b.problems];
     if (a.final !== b.final) problems.push(`same seed twice gave different end states:\n  run1 ${a.final}\n  run2 ${b.final}`);
-    console.log(`e2e 344x780 seed ${SEED}${FULL ? ' (full season)' : ' (journey)'}: ${a.shots.length + b.shots.length} screenshots in ${SHOTS}`);
+    console.log(`e2e 344x780 seed ${SEED}${FULL ? ' (full season)' : ' (journey)'}${FEAT_OFF ? ' (features OFF)' : ''}: ${a.shots.length + b.shots.length} screenshots in ${SHOTS}`);
     for (const n of new Set([...a.notes, ...b.notes].map((x) => x))) console.log('note: ' + n);
     if (problems.length) { console.log(`FAIL: ${problems.length} problem(s)`); [...new Set(problems)].forEach((p) => console.log(' - ' + p)); code = 1; }
     else console.log('PASS: no scroll-x, CTA visible, taps >= 56, text >= 14, no console/page errors, no network, reload kept state, same seed twice equal, no text under the CTA bar');

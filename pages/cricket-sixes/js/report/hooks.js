@@ -66,7 +66,7 @@ export function attachReport(el, store) {
       /** Called after every command: before/after are the store states around it. */
       dispatched(cmd, payload, before, after) {
         try {
-          if (cmd === 'NewMatch' || (cmd === 'StartMatch' && after && after.stage === 'bowl')) log.matchStart(after); // P0-1: the hub sends StartMatch, not NewMatch
+          if (cmd === 'NewMatch' || ((cmd === 'StartMatch' || cmd === 'MatchdayGo') && after && after.stage === 'bowl')) log.matchStart(after); // P0-1: the hub sends StartMatch, not NewMatch
           else if (cmd === 'FinishMatch') log.finish(before, after);
           else if (cmd === 'BowlOver' && after !== before) log.over(before, after, { th: Date.now() - shownT });
           if (cmd === 'MakeCall') log.touch(before, after);
