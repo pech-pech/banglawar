@@ -98,7 +98,7 @@ export function openWheel(o) {
     if (closed) return; const dt = Math.min(0.05, (t - lastF) / 1000 || 0.016); lastF = t; clock += dt; const was = pos;
     if (state === 'spin') {
       const c = Math.min(clock - spinEv, WS.COAST); speed = wheelSpeed(c); pos = phi + wheelArc(c);
-      if (c >= WS.STOP_FROM && go.getAttribute('aria-disabled') === 'true') { go.removeAttribute('aria-disabled'); go.classList.remove('is-wait'); setMsg(MSG_GO); }
+      if (c >= WS.STOP_FROM && go.getAttribute('aria-disabled') === 'true') { go.removeAttribute('aria-disabled'); go.classList.remove('is-wait', 'is-disabled'); go.textContent = 'STOP'; go.setAttribute('aria-label', 'Stop the wheel'); setMsg(MSG_GO); }
       if (clock - spinEv >= WS.COAST) { stop(WS.COAST); } else tick(was, pos);
     } else if (state === 'land') {
       const s = clock - tapT, L = stopInfo, u = Math.min(1, s / WS.D);
@@ -116,17 +116,19 @@ export function openWheel(o) {
       '<div class="wh-big"><span class="wh-chip">' + esc(o.plus || '+') + esc(p.gain) + '</span><b>' + esc(d.big) + '</b></div>' +
       '<div class="wh-chg">' + (d.from !== d.to ? '<span>' + esc(d.from) + '</span><span class="t2-arr" aria-hidden="true"></span><b class="t2-new">' + esc(d.to) + '</b>' : d.barHtml ? d.barHtml + '<small>(bar fills)</small>' : '<span>' + esc(d.from) + '</span><small>(same letter)</small>') + '</div>';
     live.textContent = d.say || ''; // read once
-    go.textContent = o.collectLabel || 'COLLECT'; go.classList.add('is-collect', 'c-btn--gold'); go.classList.remove('c-btn--primary'); go.removeAttribute('aria-disabled'); go.setAttribute('aria-label', o.collectLabel || 'Collect'); go.focus();
+    go.textContent = o.collectLabel || 'COLLECT'; go.classList.add('is-collect', 'c-btn--gold'); go.classList.remove('c-btn--primary'); go.removeAttribute('aria-disabled'); go.classList.remove('is-wait', 'is-disabled'); go.setAttribute('aria-label', o.collectLabel || 'Collect'); go.focus();
     if (!reduced) draw();
   }
-  function spin() { state = 'spin'; phi = pos; spinEv = clock; speed = WS.W0; setMsg('Get ready. STOP wakes up in a moment.'); go.textContent = 'STOP'; go.setAttribute('aria-label', 'Stop the wheel'); go.setAttribute('aria-disabled', 'true'); go.classList.add('is-wait'); ov.classList.add('is-turning'); raf = requestAnimationFrame(frame); }
+  /** m5: the button shows it is waiting: words, dimmed look (css .wh-go.is-wait), aria-disabled. Static: nothing flashes. */
+  function waitLook(text, aria) { go.textContent = text; go.setAttribute('aria-label', aria); go.setAttribute('aria-disabled', 'true'); go.classList.add('is-wait', 'is-disabled'); }
+  function spin() { state = 'spin'; phi = pos; spinEv = clock; speed = WS.W0; setMsg('Get ready. STOP wakes up in a moment.'); waitLook('Wait...', 'Wait. STOP wakes up in a moment'); ov.classList.add('is-turning'); raf = requestAnimationFrame(frame); }
   /** STOP at wheel time t (seconds after SPIN, from the tap's own timestamp). The wobble is drawn now; the result comes from the landing position. */
   function stop(t) {
     const e = (Math.random() * 2 - 1) * WS.J, L = stopLanding({ slices: o.slices, jackpotIndex: JP, widths }, { t, phi, e });
     o.onSpin({ t: L.t, phi: L.phi, e: L.e }); const p = o.getPending(); if (!p) { close(); return; }
     // the store agrees with the landing: the wheel just eases out. If an older store answered with its own slice, steer the ease to that slice so the card never contradicts the wheel.
     adj = 0; if (p.index !== L.index) { const end = L.base + L.dist + L.e, mid = centreOf(p.index); adj = (((mid - end) % C) + C) % C; }
-    stopInfo = { base: L.base, dist: L.dist, e: L.e }; tapT = spinEv + L.t; state = 'land'; speed = wheelSpeed(L.t); ov.classList.remove('is-turning'); setMsg('Slowing down...');
+    stopInfo = { base: L.base, dist: L.dist, e: L.e }; tapT = spinEv + L.t; state = 'land'; speed = wheelSpeed(L.t); ov.classList.remove('is-turning'); waitLook('Slowing...', 'Slowing down. Please wait'); setMsg('Slowing down...');
   }
   function onGo(ev) {
     if (state === 'idle') {

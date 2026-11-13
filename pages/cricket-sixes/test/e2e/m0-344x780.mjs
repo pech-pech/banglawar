@@ -186,6 +186,7 @@ async function journey(browser, tag) {
       await stands.click(); await settle(200);
       await audit('freepick-picked'); await shot('freepick-picked');
       const take = await page.$('[data-cl-act="TakeFreePick"]:not([disabled])'); if (!take) { bad('freepick: Take stayed disabled after a pick'); break; }
+      await page.evaluate(() => window.scrollTo(0, 0)); await settle(100); // measure at scroll 0 (a click scrolls the page, which hid this in some runs)
       const tb = await take.boundingBox(); if (!tb || tb.y < 0 || tb.y + tb.height > VIEW.height) bad('freepick: the Take button is not fully visible without scrolling');
       await take.click(); await settle(400);
       const after = await stage(); if (after !== 'hub') bad(`freepick: Take returned to "${after}", want hub`);

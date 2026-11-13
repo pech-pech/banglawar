@@ -21,7 +21,7 @@ export function doneLine(d) {
 export function activitiesCardHtml(vm) {
   if (!vm) return '';
   const done = !!(vm.picked || vm.available === false);
-  const sub = done ? (doneLine(vm.picked) || 'Done for this round.') : 'Pick one, or rest. Resting is free.';
+  const sub = done ? (doneLine(vm.picked) || 'Done for this week.') : 'Pick one, or rest. Resting is free.';
   return '<button type="button" class="c-btn c-card cl-card cl-act' + (done ? ' is-done' : '') + '" data-act="sheet:activities" aria-label="' + esc('This week\'s fan activity. ' + sub) + '">' +
     icoDeco(done ? 'done' : 'fan', 24) + '<span class="cl-card__t"><b>This week\'s fan activity</b><small>' + esc(sub) + '</small></span></button>';
 }
@@ -32,11 +32,11 @@ function pityLeft(vm) { const p = vm && vm.pity; return p && p.of != null && p.w
 function optionBtn(o) {
   const tags = [];
   if (o.repeat) tags.push('Same as last week: half the Fans, no find');
-  const find = o.repeat ? '' : o.findPct ? ' · ' + o.findPct + ' in 100 find something' : '';
+  const find = o.repeat ? '' : o.findPct ? o.findPct + ' in 100 find something' : '';
   const state = o.warn ? o.warn : '';
   return '<button type="button" class="c-btn cl-opt" data-cl-pick="' + esc(o.id) + '" aria-label="' + esc(o.name + '. ' + o.cost + ' Coins, ' + o.fans + ' Fans. ' + (o.blurb || '') + (tags[0] ? '. ' + tags[0] : '')) + '">' +
     icoDeco(iconOf(o), 24) + '<span class="cl-opt__t"><span class="cl-opt__n">' + esc(o.name) + '</span>' +
-    '<span class="cl-opt__s">' + icoDeco('coin', 16) + fmt(o.cost) + ' Coins · ' + icoDeco('fan', 16) + '+' + fmt(o.fans) + ' Fans' + esc(find) + '</span>' +
+    '<span class="cl-opt__s"><span class="cl-nb">' + icoDeco('coin', 16) + fmt(o.cost) + ' Coins</span><span class="cl-nb">' + icoDeco('fan', 16) + '+' + fmt(o.fans) + ' Fans</span>' + (find ? '<span class="cl-nb">' + icoDeco('info', 16) + esc(find) + '</span>' : '') + '</span>' +
     (tags[0] ? '<span class="cl-opt__s">' + icoDeco('info', 16) + esc(tags[0]) + '</span>' : '') +
     (state ? '<span class="cl-opt__s">' + icoDeco('alert', 16) + esc(state) + '</span>' : '') + '</span></button>';
 }
@@ -60,10 +60,32 @@ function confirmHtml(o, vm) {
     '<button type="button" class="c-btn" data-cl-back="1">' + icoDeco('close', 24) + '<span>No, go back</span></button></div></div>';
 }
 
+function bind(root, dispatch) {
+  if (!root.__clBound) {
+    root.__clBound = true;
+    root.addEventListener('click', (ev) => {
+      const t = ev.target.closest && ev.target.closest('[data-cl-pick],[data-cl-back],[data-cl-act],[data-cl-close]');
+      if (!t || !root.contains(t) || t.disabled) return;
+      if (t.hasAttribute('data-cl-close')) { if (root.__clClose) root.__clClose(); }
+      else if (t.hasAttribute('data-cl-pick')) { root.__clPick = t.getAttribute('data-cl-pick'); renderActivities(root, root.__clVm, dispatch); const sc = root.closest && root.closest('.c-sheet__body'); if (sc) sc.scrollTop = 0; const h = root.querySelector('.cl-h'); if (h) h.focus(); }
+      else if (t.hasAttribute('data-cl-back')) { const was = root.__clPick; root.__clPick = null; renderActivities(root, root.__clVm, dispatch); const b = root.querySelector('[data-cl-pick="' + was + '"]'); if (b) b.focus(); }
+      else { const id = t.getAttribute('data-id'); root.__clPick = null; dispatch('PickActivity', { id }); }
+    });
+  }
+}
+
 export function renderActivities(root, vm, dispatch) {
   vm = vm || { options: [] };
   const opts = Array.isArray(vm.options) ? vm.options : [];
   const pick = root.__clPick || null;
+  if (root.__clResult) {
+    root.innerHTML = '<div class="screen cl-screen cl-result"><h3 class="cl-h" tabindex="-1">' + icoDeco('done', 24) + '<span>Done</span></h3>' +
+      '<p class="cl-note" role="status" aria-live="polite">' + icoDeco(root.__clResult.find ? 'fan' : 'done', 24) + '<span>' + esc(root.__clResult.fans) + '</span></p>' +
+      (root.__clResult.find ? '<p class="cl-note cl-found" role="status" aria-live="polite">' + icoDeco('scout', 24) + '<span>' + esc(root.__clResult.find) + '</span></p>' : '') +
+      '<div class="cl-actions"><button type="button" class="c-btn c-btn--primary" data-cl-close="1">' + icoDeco('done', 24) + '<span>OK</span></button></div></div>';
+    const h = root.querySelector && root.querySelector('.cl-h'); if (h && h.focus) h.focus();
+    bind(root, dispatch); root.__clVm = vm; return root;
+  }
   const found = pick === 'rest' ? { id: 'rest' } : opts.find((o) => o.id === pick);
   if (found && vm.available !== false) root.innerHTML = confirmHtml(found, vm);
   else {
@@ -71,31 +93,41 @@ export function renderActivities(root, vm, dispatch) {
     const d = vm.picked || null;
     root.innerHTML = '<div class="screen cl-screen cl-acts">' +
       (vm.coins != null ? '<p class="cl-purse" aria-label="' + esc(fmt(vm.coins) + ' Coins') + '">' + icoDeco('coin', 24) + '<b>' + fmt(vm.coins) + '</b> Coins</p>' : '') +
-      (vm.available === false || d ? '<p class="cl-note" role="status">' + icoDeco('done', 24) + '<span>' + esc(doneLine(d) || 'Done for this round.') + ' Next one after the next round.</span></p>'
-        : '<p class="cl-note">' + icoDeco('fan', 24) + '<span>One a round. Each gives Fans and a small find chance. Odds are shown.</span></p>' +
+      (vm.available === false || d ? '<p class="cl-note" role="status">' + icoDeco('done', 24) + '<span>' + esc(doneLine(d) || 'Done for this week.') + ' Next one next week.</span></p>'
+        : '<p class="cl-note">' + icoDeco('fan', 24) + '<span>One each week. Each gives Fans and a small find chance. Odds are shown.</span></p>' +
           '<div class="cl-opts">' + opts.map(optionBtn).join('') + '</div>' +
           '<button type="button" class="c-btn cl-opt cl-rest" data-cl-pick="rest">' + icoDeco('week', 24) + '<span class="cl-opt__t"><span class="cl-opt__n">Rest week</span><span class="cl-opt__s">Free. No penalty.</span></span></button>') +
       (pityLeft(vm) != null && !(vm.available === false || d) ? '<p class="cl-note">' + icoDeco('info', 24) + '<span>A find is sure within ' + esc(pityLeft(vm)) + ' more picked ' + (pityLeft(vm) === 1 ? 'week' : 'weeks') + '.</span></p>' : '') + '</div>';
   }
-  if (!root.__clBound) {
-    root.__clBound = true;
-    root.addEventListener('click', (ev) => {
-      const t = ev.target.closest && ev.target.closest('[data-cl-pick],[data-cl-back],[data-cl-act]');
-      if (!t || !root.contains(t) || t.disabled) return;
-      if (t.hasAttribute('data-cl-pick')) { root.__clPick = t.getAttribute('data-cl-pick'); renderActivities(root, root.__clVm, dispatch); const sc = root.closest && root.closest('.c-sheet__body'); if (sc) sc.scrollTop = 0; const h = root.querySelector('.cl-h'); if (h) h.focus(); }
-      else if (t.hasAttribute('data-cl-back')) { const was = root.__clPick; root.__clPick = null; renderActivities(root, root.__clVm, dispatch); const b = root.querySelector('[data-cl-pick="' + was + '"]'); if (b) b.focus(); }
-      else { const id = t.getAttribute('data-id'); root.__clPick = null; dispatch('PickActivity', { id }); }
-    });
-  }
+  bind(root, dispatch);
   root.__clVm = vm;
   return root;
 }
 
-/** Sheet opener (app.js SHEETS: open(vm, dispatch)). */
-export function openActivities(vm, dispatch) {
+/** The reveal moment: what this week's pick gave, from the fresh view model (never a flash: the sheet stays until OK). */
+export function resultOf(vm) {
+  const d = vm && vm.picked; if (!d) return null;
+  const f = d.find, ty = f && typeof f === 'object' ? f.type : f;
+  const tr = vm.trial || null;
+  let find = '';
+  if (ty === 'player') find = 'Found a trial player' + (tr && tr.player ? ': ' + tr.player.name : '') + '!';
+  else if (ty === 'coach') find = 'Found a trial coach' + (tr && tr.coach ? ': ' + tr.coach.name : '') + '!';
+  else if (ty === 'coins') find = f.coins != null ? 'Found ' + fmt(f.coins) + ' Coins!' : 'Found some Coins!';
+  const fans = d.id === 'rest' ? 'Rest week. Nothing spent.' : (d.name || 'Activity') + ': +' + fmt(d.fans) + ' Fans.';
+  return { fans, find };
+}
+
+/** Sheet opener (app.js SHEETS: open(vm, dispatch, open, arg, refresh)). The sheet stays open after a pick to show the result. */
+export function openActivities(vm, dispatch, _open, _arg, refresh) {
   const host = document.createElement('div');
   let close;
-  renderActivities(host, vm, (n, a) => { dispatch(n, a); if (close) close(); });
+  renderActivities(host, vm, (n, a) => {
+    dispatch(n, a);
+    const fresh = n === 'PickActivity' && refresh ? refresh() : null;
+    const res = fresh && resultOf(fresh);
+    if (res) { host.__clResult = res; host.__clClose = close; renderActivities(host, fresh, () => {}); }
+    else if (close) close();
+  });
   close = openSheet('Fan activity', '');
   const body = document.querySelector('.sheet-fixed .c-sheet__body');
   body.textContent = '';

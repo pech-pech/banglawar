@@ -2,16 +2,19 @@
    for migrated saves (pendingCardHtml + sheet openFreePick). Reads freePickVM(s) only (shape in build/r9/UI-CLUB.md). Dispatches TakeFreePick { what }. */
 import { esc, icoDeco } from './dom.js';
 import { openSheet } from './sheet.js';
-import { SLOTS, EFFECT } from './stadium-view.js';
+import { SLOTS } from './stadium-view.js';
 
-/* Honest labels: say plainly what does nothing yet. Never hidden. */
-export const NOTE = {
-  stands: 'Recommended: more Fans',
-  nets: 'Training effects come later. Does nothing extra yet',
-  academy: 'Needs the sign screen. Does nothing yet',
-  scout: 'Needs the sign screen. Does nothing yet',
-  pitch: 'Pitch types are not in matches yet. Does nothing yet',
+/* One plain player-facing line per facility. NOTE = the short honest tag for facilities that do nothing yet (shown once). */
+export const LINE = {
+  stands: 'More Fans and seats.',
+  gym: 'More training points each match.',
+  shop: 'More Coins each match.',
+  nets: 'Better training nets.',
+  pitch: 'Helps one kind of bowler.',
+  academy: 'Young players to sign.',
+  scout: 'Finds coaches and players.',
 };
+export const NOTE = { nets: 'No effect yet', academy: 'No effect yet', scout: 'No effect yet', pitch: 'No effect yet' };
 const fmt = (n) => String(Math.round(Number(n) || 0)).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
 
 export function pendingCardHtml(vm) {
@@ -22,14 +25,15 @@ export function pendingCardHtml(vm) {
 
 function cardHtml(slot, o, sel) {
   const owned = o && o.owned;
-  const note = (o && o.note) || NOTE[slot.id] || (o && o.recommended ? 'Recommended' : '');
-  const effect = (o && o.effect) || (EFFECT[slot.id] ? EFFECT[slot.id][1] : slot.does);
-  const price = '';
+  const rec = !!(o && o.recommended) || slot.id === 'stands';
+  const line = LINE[slot.id] || slot.does;
+  const note = NOTE[slot.id] || '';
+  const aria = slot.name + '. ' + line + (note ? ' ' + note + '.' : '') + (owned ? ' You already have it.' : rec ? ' Recommended.' : '');
   return '<button type="button" class="c-btn cl-fp' + (sel ? ' is-sel' : '') + (owned ? ' is-owned' : '') + '" data-cl-pick="' + slot.id + '" role="radio" aria-checked="' + (sel ? 'true' : 'false') + '"' + (owned ? ' disabled aria-disabled="true"' : '') +
-    ' aria-label="' + esc(slot.name + '. Gives ' + slot.does + '. ' + (owned ? 'You already have it.' : note) + price) + '">' + icoDeco(slot.icon, 24) +
-    '<span class="cl-opt__t"><span class="cl-opt__n">' + esc(slot.name) + (sel ? ' ' + '<span class="c-tag c-tag--done">Picked</span>' : '') + '</span>' +
-    '<span class="cl-opt__s">' + esc(slot.does) + (effect && effect !== 'none' ? ' (' + esc(effect) + ')' : '') + '</span>' +
-    (owned ? '<span class="cl-opt__s">' + icoDeco('done', 16) + 'You already have it</span>' : note ? '<span class="cl-opt__s">' + icoDeco(slot.id === 'stands' ? 'fan' : 'info', 16) + esc(note) + '</span>' : '') + '</span></button>';
+    ' aria-label="' + esc(aria) + '">' + icoDeco(slot.icon, 24) +
+    '<span class="cl-opt__t"><span class="cl-opt__n">' + esc(slot.name) + (sel ? ' <span class="c-tag c-tag--done">Picked</span>' : '') + (rec && !owned ? ' <span class="c-tag">Recommended</span>' : '') + '</span>' +
+    '<span class="cl-opt__s">' + esc(line) + '</span>' +
+    (owned ? '<span class="cl-opt__s">' + icoDeco('done', 16) + '<span>You already have it</span></span>' : note ? '<span class="cl-opt__s">' + icoDeco('info', 16) + '<span>' + esc(note) + '</span></span>' : '') + '</span></button>';
 }
 
 /** Full screen and sheet body. root.__clPick = chosen facility id (view state). */

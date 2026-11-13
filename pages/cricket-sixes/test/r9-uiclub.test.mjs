@@ -81,8 +81,8 @@ test('free pick: seven cards, honest labels, nothing hidden; pick then Take disp
   const calls = [], r = fakeRoot();
   renderFreePick(r, fvm, (n, a) => calls.push([n, a]));
   assert.equal((r.innerHTML.match(/role="radio"/g) || []).length, 7);
-  assert.match(r.innerHTML, /Recommended: more Fans/);
-  assert.equal((r.innerHTML.match(/>[^<]*Does nothing yet</g) || []).length, 3, 'academy, scout, pitch');
+  assert.match(r.innerHTML, /Recommended/);
+  assert.equal((r.innerHTML.match(/>No effect yet</g) || []).length, 4, 'nets, pitch, academy, scout');
   assert.match(r.innerHTML, /Tap a facility first/);
   assert.match(r.innerHTML, /data-cl-act="TakeFreePick"[^>]*disabled/);
   r.click({ 'data-cl-pick': 'nets' });
@@ -90,7 +90,7 @@ test('free pick: seven cards, honest labels, nothing hidden; pick then Take disp
   assert.match(r.innerHTML, /aria-checked="true"/);
   r.click({ 'data-cl-act': 'TakeFreePick' });
   assert.deepEqual(calls, [['TakeFreePick', { what: 'nets' }]]);
-  assert.ok(NOTE.academy && NOTE.scout && NOTE.pitch);
+  assert.ok(NOTE.academy && NOTE.scout && NOTE.pitch && NOTE.nets);
 });
 
 test('free pick: owned facilities are shown and disabled (migrated saves); pending card only while pending', () => {

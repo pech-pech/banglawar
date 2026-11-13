@@ -10,7 +10,7 @@ import { tableOrder, placeOf, ME, matchPay, gapLetters, koWinner } from '../core
 import { planOf, netsPreview, coachList, scoutList, canSign, coachQuality, coachStepInUse, courseCost, courseUsesLicence, canCourse, twinHeld, licenceHeld, effortOdds, meanGain, wheelSlices, courseWheel, EFFORTS, FOCUSES, MAX_COACHES, sixOf, drillRoom, focusRating } from '../core/training.js';
 import { letterOfRaw, letterOfShown, letterOfStep, ticksOfRaw, fillOfRaw, stepOfRaw } from '../core/letters.js';
 import { nodeStatus, treeBoost, treeOf, NODE_COUNT } from '../core/skills.js';
-import { planProblem, livePlan, squadFull } from './commands.js';
+import { planProblem, livePlan, squadFull, canSell } from './commands.js';
 import { RUN, SQUAD } from '../data/run.js';
 import { seasonResult, chapterNames, runScore, carryOf } from '../core/run.js';
 import { PAIRING } from '../data/pairing.js';
@@ -567,9 +567,12 @@ export function trialVM(s) {
   const t = trialOf(s);
   if (!t) return null;
   const can = canSignTrial(s), x = t.player || t.coach;
-  const player = t.kind === 'player' ? { id: x.id, name: x.name, bat: x.bat, bowl: x.bowl, ability: shownAbility(x), grade: gradeChip(x), ...ratesOf(x) } : null;
-  const coach = t.kind === 'coach' ? { id: x.id, name: x.name, step: x.step } : null;
-  return { kind: t.kind, player, coach, wage: t.wage, squadFull: t.kind === 'player' && squadFull(s), squadSize: mine(s).squad.length, squadMax: SQUAD.size,
+  const player = t.kind === 'player' ? { id: x.id, name: x.name, bat: x.bat, bowl: x.bowl, role: x.bat, type: x.bowl, batShown: shownBat(x), bowlShown: shownBowl(x), ability: shownAbility(x), grade: gradeChip(x), ...ratesOf(x) } : null;
+  const coach = t.kind === 'coach' ? { id: x.id, name: x.name, step: x.step, strong: Array.isArray(x.strong) ? x.strong.slice() : [] } : null;
+  const full = t.kind === 'player' && squadFull(s);
+  // Who can be let go to make room: the existing SellPlayer gate decides (bench only in season, never below the minimum squad).
+  const release = full ? mine(s).squad.filter((p) => canSell(s, p.id).ok).map((p) => ({ id: p.id, name: p.name, role: p.bat, type: p.bowl, shown: shownAbility(p) })) : [];
+  return { kind: t.kind, player, coach, wage: t.wage, squadFull: full, release, squadSize: mine(s).squad.length, squadMax: SQUAD.size,
     canSign: can.ok, why: can.ok ? '' : can.why, sign: 'Sign', decline: 'Decline' };
 }
 /** The one free facility. pending = show the screen / Home card. null with the flag off. */

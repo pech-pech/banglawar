@@ -8,10 +8,15 @@
 .md-card { padding: 8px 12px; box-shadow: inset 0 0 0 3px var(--gold); }
 .md-h { color: var(--outline); font-weight: 700; display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin: 0; font-size: var(--c-fs-m); line-height: var(--c-lh-m); }
 .md-pct { margin-left: auto; padding: 0 6px; background: var(--gold); border: 2px solid var(--outline); border-radius: var(--c-radius); }
-.md-steps { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; margin: 6px 0 0; padding: 0; }
-.md-step { display: flex; align-items: center; gap: 6px; min-height: 28px; font-size: 14px; line-height: 18px; opacity: .75; }
-.md-step.is-on { opacity: 1; }
-.md-step.is-now { font-weight: 700; }
+.md-steps { display: flex; gap: 4px; margin: 6px 0 0; padding: 0; }
+.md-step { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; align-items: stretch; gap: 2px; font-size: 14px; line-height: 18px; text-align: center; }
+.md-bar { display: block; height: 14px; border: 2px solid var(--outline); background: var(--cream); }
+.md-step.is-on .md-bar { background: var(--gold); }
+.md-step.is-now .md-bar { height: 18px; margin-top: -2px; border-width: 3px; }
+.md-lab { white-space: nowrap; }
+.md-step.is-now .md-lab, .md-today { font-weight: 700; }
+.md-today { min-height: 18px; }
+.md-step.is-now .md-today { text-decoration: underline; }
 .md-line { display: flex; align-items: center; gap: 6px; margin: 0; font-size: 14px; line-height: 18px; }
 .md-sixl { display: flex; flex-direction: column; gap: 2px; margin: 6px 0 0; padding: 0; }
 .md-six { display: flex; align-items: center; gap: 8px; min-height: 32px; padding: 0 6px; font-size: 14px; line-height: 18px; border-left: 4px solid var(--wall2); }
@@ -29,7 +34,8 @@
 .md-odds tr.is-today th::after { content: " (today)"; font-weight: 400; }
 /* chip row (Plan and match headers when the screen is skipped) */
 .md-chips { display: flex; flex-wrap: wrap; gap: 4px; margin: 4px 0; padding: 0; }
-.md-chip { display: inline-flex; align-items: center; gap: 4px; min-height: 28px; padding: 2px 8px; font-size: 14px; line-height: 18px; background: var(--wall1); border: 2px solid var(--outline); border-radius: var(--c-radius); }
+.md-chip { display: inline-flex; align-items: center; gap: 4px; min-height: 28px; padding: 2px 0; margin-right: 8px; font-size: 14px; line-height: 18px; } /* m10: a plain note, no border or fill, so it does not look like a button (it is not tappable) */
+.md-chips { gap: 0 4px; }
 /* roar chip: gold, words, one calm frame */
 .md-roar { display: flex; align-items: center; justify-content: center; gap: 6px; margin: 0; min-height: 28px; padding: 2px 8px; font-size: 14px; line-height: 18px; background: var(--gold); color: var(--outline); border: 2px solid var(--outline); border-radius: var(--c-radius); }
 .op-card > .md-roar { flex: none; }
@@ -43,3 +49,7 @@
   .md-card.is-shown { animation: md-in .2s ease-out; }
   @keyframes md-in { from { opacity: .4; } to { opacity: 1; } }
 }
+/* m10: air between the roar note and the "For your bowler/batter" caption, so the caption heads the choice below, not the roar note */
+.md-chips ~ .colL, .md-roar ~ .colL { margin-top: 14px; }
+.md-chips ~ .colL .sb-cap, .md-roar ~ .colL .sb-cap { margin-top: 4px; }
+.md-roar { border-color: transparent; } /* m10: a flat gold note, no button frame */

@@ -111,7 +111,7 @@ export function wordsLine(gloss) {
 export function windowOf(data, env) {
   if (env.win && Array.isArray(env.win.matches)) { // RPT-LOG window (hooks env.win): already after the marker and of the running build
     const W = env.win, dr = W.dropped ? Array.from({ length: W.dropped.n }, () => ({ build: W.dropped.build, res: 'won', seed: null })) : [];
-    return { range: W.matches.concat(dr), ms: W.matches, nets: W.nets || [], spins: W.spins || [], buys: W.buys || [], weeks: W.weeks || [], feel: W.feel || [], since: W.since || null, dropped: W.dropped || null, rid: env.rid || ((data.rid | 0) + 1) };
+    return { range: W.matches.concat(dr), ms: W.matches, nets: W.nets || [], spins: W.spins || [], buys: W.buys || [], club: W.club || [], weeks: W.weeks || [], feel: W.feel || [], since: W.since || null, dropped: W.dropped || null, rid: env.rid || ((data.rid | 0) + 1) };
   }
   const mk = data.marker || null, seq = mk ? mk.matchSeq | 0 : 0, ev = mk ? mk.evSeq | 0 : 0, at = mk ? mk.atMs | 0 : 0;
   const okB = (r) => env.build === '?' || !bOf(r) || bOf(r) === env.build;
@@ -120,7 +120,7 @@ export function windowOf(data, env) {
   const list = (k) => (data[k] || []).filter((r) => okB(r) && after(r));
   const other = range.filter((m) => !okB(m));
   const dropped = other.length ? { n: other.length, build: bOf(other[other.length - 1]) } : null;
-  return { range, ms: range.filter(okB), nets: list('nets'), spins: list('spins'), buys: list('buys'), weeks: list('weeks'), feel: list('feelLog'), since: mk ? { rid: mk.rid | 0, atMs: at } : null, dropped, rid: env.rid || ((data.rid | 0) + 1) };
+  return { range, ms: range.filter(okB), nets: list('nets'), spins: list('spins'), buys: list('buys'), club: list('club'), weeks: list('weeks'), feel: list('feelLog'), since: mk ? { rid: mk.rid | 0, atMs: at } : null, dropped, rid: env.rid || ((data.rid | 0) + 1) };
 }
 
 // ---- string helpers for the machine lines and JSON ----
@@ -212,7 +212,8 @@ const ov = (ms) => ms.flatMap((m) => m.ov || []);
 function secE(w, env) {
   const title = 'ECONOMY [W] Q3';
   const fin = w.ms.filter((m) => m.res && m.coins0 != null), B = w.buys, sv = env.save || {};
-  if (!fin.length && !B.length) return { key: 'E', title, h: ['none in window'], m: 'e:none', j: {}, short: 'ECONOMY none in window' };
+  const CL = w.club || [], acts = CL.filter((x) => x.k === 'act'), fps = CL.filter((x) => x.k === 'fp');
+  if (!fin.length && !B.length && !CL.length) return { key: 'E', title, h: ['none in window'], m: 'e:none', j: {}, short: 'ECONOMY none in window' };
   const eco = fin.map((m) => m.eco || null), has = eco.filter(Boolean);
   const gi = (k) => sum(has.map((e) => e[k] | 0));
   const inn = { base: gi('gate'), win: gi('win'), stars: gi('shop') }, out = { wage: gi('wage'), up: gi('up'), bld: sum(B.map((b) => b.price | 0)) };
@@ -231,20 +232,26 @@ function secE(w, env) {
     const warnB = cnt(B, (b) => b.warn);
     h.push(`Buys ${B.length}${last ? ': ' + last : ''}. Reserve warning, bought while shown ${warnB}. Arrears ${arrears} matches, missed paydays ${sv.missed | 0}. ${verdict(warnB >= 2)}`);
   }
+  const fnd = (t) => cnt(acts, (a) => a.find && a.find.type === t);
+  if (acts.length) h.push(`Activities ${acts.length}: Coins spent ${sum(acts.map((a) => a.coins | 0))}, Fans +${sum(acts.map((a) => a.fans | 0))}, finds ${cnt(acts, (a) => a.find)} (coins ${fnd('coins')}, player ${fnd('player')}, coach ${fnd('coach')}), dry picks ${cnt(acts, (a) => a.dry > 0)}.`);
+  if (fps.length) h.push(`Free pick: ${fps.map((x) => x.what || '?').join(', ')}.`);
   if (sv.migrated) h.push('Economy partly from a migrated save.');
-  const j = { c0, c1, in: inn, out, oth, fans: [f0, f1], nw: wn.length ? Math.round(sum(wn) / wn.length) : null, nl: ls.length ? Math.round(sum(ls) / ls.length) : null, buy: B.map((b) => [b.item, b.price, b.c0, b.alt]), arr: arrears, warn: [cnt(B, (b) => b.warn), cnt(B, (b) => b.warn)], bf: sv.migrated ? 1 : 0 };
-  return { key: 'E', title, h, m: `e:${c0}|${c1}|${income}|${out.wage + out.up}|${oth ?? '-'}|f${f1 - f0}|b${B.length}|arr${arrears}`, j, short: `ECONOMY Coins ${c0 ?? '-'} -> ${c1 ?? '-'}, ${B.length} buys, Fans +${f1 - f0}` };
+  const j = { act: acts.length ? [acts.length, sum(acts.map((a) => a.coins | 0)), sum(acts.map((a) => a.fans | 0)), cnt(acts, (a) => a.find)] : undefined, fp: fps.length ? fps.map((x) => x.what || '?') : undefined, c0, c1, in: inn, out, oth, fans: [f0, f1], nw: wn.length ? Math.round(sum(wn) / wn.length) : null, nl: ls.length ? Math.round(sum(ls) / ls.length) : null, buy: B.map((b) => [b.item, b.price, b.c0, b.alt]), arr: arrears, warn: [cnt(B, (b) => b.warn), cnt(B, (b) => b.warn)], bf: sv.migrated ? 1 : 0 };
+  return { key: 'E', title, h, m: `e:${c0}|${c1}|${income}|${out.wage + out.up}|${oth ?? '-'}|f${f1 - f0}|b${B.length}|arr${arrears}|act${acts.length}|fp${fps.length}`, j, short: `ECONOMY Coins ${c0 ?? '-'} -> ${c1 ?? '-'}, ${B.length} buys, Fans +${f1 - f0}${acts.length ? ', ' + acts.length + ' activities' : ''}` };
 }
 
 function secC(w, env) {
   const title = 'COACHES [W] Q4';
   const R = w.nets, W = w.weeks, own = (env.save && env.save.coaches) || [], courses = w.buys.filter((b) => b.k === 'course');
-  if (!R.length && !courses.length) return { key: 'C', title, h: ['none in window'], m: 'c:none', j: {}, short: 'COACHES none in window' };
+  const tr = (w.club || []).filter((x) => x.k === 'sign' || x.k === 'decl');
+  if (!R.length && !courses.length && !tr.length) return { key: 'C', title, h: ['none in window'], m: 'c:none', j: {}, short: 'COACHES none in window' };
   const used = cnt(R, (r) => r.co), idle = cnt(W, (x) => x.cidle), weeks = W.length || R.length, c = own[0];
   const h = [`${c ? 'Coach ' + c[0] + (c[2] ? ' (' + c[2] + ')' : '') + ': ' : 'Coach: '}used ${used} of ${weeks} weeks, idle ${idle}. ${weeks >= 3 ? verdict(used * 2 < weeks) : 'n small'}`];
   const gains = courses.map((b) => b.gn).filter((x) => x != null), best = Math.max(0, ...own.map((x) => x[1] | 0));
   h.push(`Courses bought ${courses.length} (${sum(courses.map((b) => b.price | 0))} Coins)${gains.length ? ', wheel +' + sum(gains) + ' step' : ''}. Best coach step ${best} of 21.`);
-  return { key: 'C', title, h, m: `c:${c ? c[0] : '-'}|u${used}|w${weeks}|i${idle}|crs${courses.length}|best${best}`, j: { own, use: [used, idle, weeks], course: [courses.length, sum(courses.map((b) => b.price | 0)), gains], best }, short: `COACHES used ${used} of ${weeks} weeks, ${courses.length} courses` };
+  const tl = (kind, k) => cnt(tr, (x) => x.k === k && x.who && x.who.kind === kind), tw = { cs: tl('coach', 'sign'), cd: tl('coach', 'decl'), ps: tl('player', 'sign'), pd: tl('player', 'decl') };
+  if (tr.length) h.push(`Trials: coach signed ${tw.cs}, declined ${tw.cd}; player signed ${tw.ps}, declined ${tw.pd}.`);
+  return { key: 'C', title, h, m: `c:${c ? c[0] : '-'}|tr${tw.cs}/${tw.cd}/${tw.ps}/${tw.pd}|u${used}|w${weeks}|i${idle}|crs${courses.length}|best${best}`, j: { own, trial: tr.length ? [tw.cs, tw.cd, tw.ps, tw.pd] : undefined, use: [used, idle, weeks], course: [courses.length, sum(courses.map((b) => b.price | 0)), gains], best }, short: `COACHES used ${used} of ${weeks} weeks, ${courses.length} courses` };
 }
 
 function secS(w, env) {

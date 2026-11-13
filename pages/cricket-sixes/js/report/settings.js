@@ -29,10 +29,10 @@ export function openSettings(rep, look) {
     '<div class="st-body">' +
     (look ? '<div class="st-theme" role="group" aria-label="Theme"><span class="st-theme__lbl">Theme</span><div class="c-seg st-theme__seg">' +
       THEMES.map((t) => '<button type="button" class="c-seg__opt" data-theme="' + t.id + '" aria-pressed="' + (themeOf(look.get()) === t.id) + '">' + t.label + '</button>').join('') + '</div></div>' : '') +
+    '<p class="st-status" role="status" aria-live="polite"></p>' +
     '<button type="button" class="c-btn c-btn--primary st-act" data-st="full">Copy report (full)</button>' +
     '<button type="button" class="c-btn st-act" data-st="short">Copy short</button>' +
     '<button type="button" class="c-btn st-act" data-st="last">Copy last again</button>' +
-    '<p class="st-status" role="status" aria-live="polite"></p>' +
     '<div class="st-fallback" hidden><p>Copy blocked (the report window did not move). Press and hold the text, choose Select all, then Copy.</p><textarea readonly rows="6" aria-label="Report text"></textarea></div>' +
     '<p class="st-stamp"></p>' +
     '<div class="st-clear"><button type="button" class="c-btn st-act" data-st="clear">Clear report data</button></div>' +
@@ -41,14 +41,14 @@ export function openSettings(rep, look) {
   const root = document.querySelector('.sheet-fixed .st-body'); if (!root) return;
   const status = root.querySelector('.st-status'), fb = root.querySelector('.st-fallback'), ta = fb.querySelector('textarea');
   root.querySelector('.st-stamp').textContent = rep.stamp();
-  const say = (t) => { status.textContent = t; };
+  const say = (t) => { status.textContent = t; try { status.scrollIntoView({ block: 'nearest' }); } catch (e) { /* older browsers */ } }; // m11: the line sits above the copy buttons so it is on screen at 344x780
   // r9: Auto match day and Features rows (UI-MD). Settings stay usable if the import or the mount fails.
   if (look && look.dispatch) {
     import('../ui/matchday-settings.js').then((m) => { try { const st = look.state ? look.state() : {}; if (m.mountMatchdaySettings) m.mountMatchdaySettings(root, { features: st && st.features, auto: st && st.autoMatchday }, look.dispatch); } catch (e) { /* settings stay usable */ } }).catch(() => {});
   }
   async function copy(text, label, size) {
     fb.hidden = true;
-    if (await copyText(text)) { try { if (size && rep.copied) rep.copied(text, size); } catch (e) { /* the marker is best effort */ } say(label + ' copied.'); return; } // the marker moves only after the clipboard took the text (W2)
+    if (await copyText(text)) { try { if (size && rep.copied) rep.copied(text, size); } catch (e) { /* the marker is best effort */ } say(/^Copied/.test(label) ? label : label + ' copied.'); return; } // the marker moves only after the clipboard took the text (W2)
     ta.value = text; fb.hidden = false; ta.focus(); ta.select(); say('Copy was blocked. Text is selected below.');
     try { document.execCommand('copy'); } catch (e) { /* the textarea is the fallback */ }
   }
@@ -63,7 +63,7 @@ export function openSettings(rep, look) {
     const k = b.getAttribute('data-st');
     if (k === 'full') copy(rep.full(), 'Report', 'f');
     else if (k === 'short') copy(rep.summary(), 'Short summary', 's');
-    else if (k === 'last') { const l = rep.lastText ? rep.lastText() : rep.last && rep.last(); if (l && l.text) copy(l.text, 'Last report again'); else say('Nothing copied yet.'); }
+    else if (k === 'last') { const l = rep.lastText ? rep.lastText() : rep.last && rep.last(); if (l && l.text) copy(l.text, 'Copied the last report again.'); else say('Nothing copied yet.'); }
     else if (k === 'clear') {
       const box = root.querySelector('.st-clear');
       box.innerHTML = '<p class="st-q">Clear ' + rep.count() + ' saved matches?</p><div class="st-two"><button type="button" class="c-btn st-act" data-st="yes">Yes, clear</button><button type="button" class="c-btn st-act" data-st="no">Keep</button></div>';

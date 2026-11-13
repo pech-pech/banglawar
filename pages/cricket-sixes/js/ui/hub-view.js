@@ -100,6 +100,8 @@ export function render(el, vm, dispatch) {
   const nb = el.querySelector('[data-notice]');
   if (nb) nb.addEventListener('click', () => { noticeGone = true; nb.remove(); dispatch('DismissNotice', {}); });
   const host = el.querySelector('.hb-scene');
-  if (host) drawClub(host, { onTap(id, name) { openSheet(name, '<div class="c-card c-card--inset hb-built">' + icoDeco('lock', 24) + '<span>Not built yet. It comes with the stadium.</span></div>'); } });
+  if (host) drawClub(host, { levels: (vm.econ && vm.econ.fac) || {}, onTap(id, name, lv) {
+    openSheet(name, '<div class="c-card c-card--inset hb-built">' + icoDeco(lv > 0 ? 'done' : 'lock', 24) + '<span>' + (lv > 0 ? 'Level ' + lv + '. Build more in Stadium.' : 'Not built yet. Build it in Stadium.') + '</span></div>');
+  } });
   [].forEach.call(el.querySelectorAll('canvas.hb-head'), (cv) => drawHead(cv, cv.getAttribute('data-key')));
 }

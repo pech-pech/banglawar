@@ -10,6 +10,7 @@ import { saveOf } from './z.js';
 
 const RESUME = { bowl: 1, break: 1, chase: 1 };
 const GEAR_STAGES = { hub: 1, semi: 1, final: 1, break: 1, done: 1, train: 1, week: 1, end: 1, runend: 1, squad: 1, plan: 1, freepick: 1, matchday: 1 }; // never on bowl or chase: a tap mid-over cannot open it by mistake
+const BAR_STAGES = { freepick: 1, squad: 1 };
 const TAP_MS = 1500; // a glossary sheet counts only within this long of a real tap on a ? or word
 
 export function attachReport(el, store) {
@@ -54,7 +55,11 @@ export function attachReport(el, store) {
         try {
           if (s.stage !== stage) { flush(); stage = s.stage; stageT = Date.now(); log.stage(stage); }
           const key = s.stage + '|' + (s.last ? s.last.over : 0); if (key !== shownKey) { shownKey = key; shownT = Date.now(); } // think time runs from the first draw of a call screen
-          const strip = GEAR_STAGES[s.stage] ? (el.querySelector('.strip') || el.querySelector('.c-strip')) : null; // .strip first: a c-strip heading inside a card can come earlier on the page
+          let strip = GEAR_STAGES[s.stage] ? (el.querySelector('.strip') || el.querySelector('.c-strip')) : null; // .strip first: a c-strip heading inside a card can come earlier on the page
+          if (GEAR_STAGES[s.stage] && BAR_STAGES[s.stage]) { // m3 free pick has no strip; M5 the squad strip is full (title, count, ?): a thin bar of its own keeps the title whole
+            const root = el.querySelector(s.stage === 'squad' ? '.sq-root' : '.screen');
+            if (root) { let bar = root.querySelector('.st-bar'); if (!bar) { bar = document.createElement('div'); bar.className = 'st-bar'; bar.style.cssText = 'display:flex;justify-content:flex-end;'; root.insertBefore(bar, root.firstChild); } strip = bar; }
+          }
           if (strip && !strip.querySelector('.st-gear')) {
             const g = gearButton(); g.addEventListener('click', () => openSettings(rep, { get: store.get, set: (t) => store.dispatch('SetTheme', { theme: t }), dispatch: store.dispatch, state: store.get }));
             const anchor = strip.querySelector('.help-btn') || strip.querySelector(':scope > .q'); // M5: the squad strip has a .q, no .help-btn; with neither the gear goes last

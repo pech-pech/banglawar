@@ -108,7 +108,7 @@ export function createLog(o = {}) {
       const inWin = d.matches.filter((m) => m.id > ms), other = inWin.filter((m) => !cur(m));
       const evs = (k) => d[k].filter((r) => r.q > es && cur(r));
       const oth = other.length + ['nets', 'spins', 'weeks', 'buys', 'feelLog', 'club'].reduce((a, k) => a + d[k].filter((r) => r.q > es && !cur(r)).length, 0);
-      return { matches: inWin.filter(cur), nets: evs('nets'), spins: evs('spins'), weeks: evs('weeks'), buys: evs('buys'), feel: evs('feelLog'), since: mk ? { rid: mk.rid, atMs: mk.atMs } : null,
+      return { matches: inWin.filter(cur), nets: evs('nets'), spins: evs('spins'), weeks: evs('weeks'), buys: evs('buys'), club: evs('club'), feel: evs('feelLog'), since: mk ? { rid: mk.rid, atMs: mk.atMs } : null,
         dropped: oth ? { n: oth, build: (other[0] || {}).build || (d.builds.find((x) => x !== build) || '') } : null };
     },
     stage: safe((stage) => { const se = d.sessions[d.sessions.length - 1]; if (se) se.end = stage; const m = open(); if (m) m.stage = stage; }), // P0-7: a finished record keeps its stage. Z2: se.end = the screen the session was on last
@@ -158,7 +158,7 @@ export function createLog(o = {}) {
         const rec = { ...base, k: cmd === 'PickActivity' ? 'act' : cmd === 'TakeFreePick' ? 'fp' : cmd === 'SignTrial' ? 'sign' : 'decl' };
         if (cmd === 'PickActivity') Object.assign(rec, { id: payload && payload.id, coins: (a0.coins | 0) - (a1.coins | 0), fans: (a1.fans | 0) - (a0.fans | 0), find: last && last.find ? last.find : null, dry: a1.act ? a1.act.dry | 0 : null });
         else if (cmd === 'TakeFreePick') rec.what = payload && payload.what;
-        else rec.who = tr ? { kind: tr.kind || 'player', id: (tr.player || tr.coach || {}).id || null, wage: tr.wage | 0 } : null;
+        else rec.who = tr ? { kind: tr.kind || (tr.coach ? 'coach' : 'player'), id: (tr.player || tr.coach || {}).id || null, wage: tr.wage | 0 } : null;
         ev('club', rec);
       } else if (cmd === 'StartBuild' || cmd === 'BuySink' || cmd === 'BuyMedal' || cmd === 'BuyLegacy' || cmd === 'RunCourse') {
         const c0 = before.econ ? before.econ.coins | 0 : 0, c1 = after.econ ? after.econ.coins | 0 : 0, price = c0 - c1;

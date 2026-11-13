@@ -28,3 +28,13 @@
 .cl-screen .cl-take { width: auto; margin: 0 4px 0 0; box-sizing: border-box; }
 .cl-actions .c-btn, .cl-take { display: flex; align-items: center; justify-content: center; gap: var(--c-sp-2); min-height: 56px; }
 .cl-card:focus-visible, .cl-opt:focus-visible, .cl-fp:focus-visible, .cl-actions .c-btn:focus-visible, .cl-take:focus-visible { outline: 3px dashed var(--c-focus); outline-offset: 3px; }
+
+/* icon + number never split across lines; lines wrap between groups */
+.cl-nb { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; margin-right: var(--c-sp-2); }
+.cl-lrow__t { display: flex; align-items: center; gap: var(--c-sp-2); }
+.cl-strong__t { display: flex; flex-wrap: wrap; align-items: center; gap: 2px var(--c-sp-3); }
+.cl-strong .t2-strong { font-size: 14px; line-height: 20px; }
+.cl-strong .t2-fi { font-weight: 700; }
+.cl-opts { grid-auto-rows: minmax(56px, auto); }
+.cl-found { border-style: double; border-width: 4px; font-weight: 700; }
+.cl-toast { position: fixed; left: var(--c-sp-3); right: var(--c-sp-3); top: var(--c-sp-3); z-index: 60; margin: 0 auto; max-width: 440px; box-sizing: border-box; padding: var(--c-sp-2) var(--c-sp-3); min-height: 56px; display: flex; align-items: center; background: var(--wall1); color: var(--outline); border: 4px double var(--outline); font: 700 14px/20px var(--c-font); }

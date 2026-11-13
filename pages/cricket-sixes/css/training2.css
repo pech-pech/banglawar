@@ -95,6 +95,9 @@
 .wh-jp, .wh-bt { padding: 0 var(--c-sp-2); background: var(--outline); color: var(--gold); font-size: var(--c-fs-m); display: inline-flex; align-items: center; gap: var(--c-sp-1); }
 .wh-ov.is-jp .wh-res { background: var(--gold); }
 .wh-go { min-height: 64px; font-size: var(--c-fs-l); }
+/* m5: waiting look (1 s before STOP is live, and while the wheel slows): flat grey, dashed frame, no shadow, no motion */
+.wh-ov .wh-go.is-wait, .wh-ov .wh-go.is-wait.c-btn--primary.c-btn--cta { --_bg: var(--stone1); --_fg: var(--outline); --_hi: var(--stone1); --_wash: var(--stone1); background: var(--stone1); color: var(--outline); border-style: dashed; box-shadow: none; cursor: default; transform: none; }
+.skin-art .wh-ov .wh-go.is-wait { border-image-source: var(--c-frame-btn); }
 .wh-go.is-collect, .wh-go.is-collect.c-btn--primary { background: var(--gold); color: var(--outline); }
 @media (max-height: 700px) { .wh-res { grid-template-columns: auto 1fr; text-align: left; } .wh-big, .wh-chg { font-size: var(--c-fs-m); } }
 
