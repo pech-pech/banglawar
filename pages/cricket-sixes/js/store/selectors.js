@@ -7,7 +7,7 @@ import { DRILLS, SKILLS, TRAIN2 } from '../data/training.js';
 import { aiPickSix } from '../core/clubs.js';
 import { tagInfo } from '../core/tags.js';
 import { tableOrder, placeOf, ME, matchPay, gapLetters, koWinner } from '../core/season.js';
-import { planOf, netsPreview, coachList, scoutList, canSign, coachQuality, coachStepInUse, courseCost, canCourse, effortOdds, meanGain, wheelSlices, courseWheel, EFFORTS, FOCUSES, MAX_COACHES, sixOf, drillRoom, focusRating } from '../core/training.js';
+import { planOf, netsPreview, coachList, scoutList, canSign, coachQuality, coachStepInUse, courseCost, courseUsesLicence, canCourse, twinHeld, licenceHeld, effortOdds, meanGain, wheelSlices, courseWheel, EFFORTS, FOCUSES, MAX_COACHES, sixOf, drillRoom, focusRating } from '../core/training.js';
 import { letterOfRaw, letterOfShown, letterOfStep, ticksOfRaw, fillOfRaw, stepOfRaw } from '../core/letters.js';
 import { nodeStatus, treeBoost, treeOf, NODE_COUNT } from '../core/skills.js';
 import { planProblem, livePlan, squadFull } from './commands.js';
@@ -281,11 +281,11 @@ const coachRow = (s, c) => {
   const cc = canCourse(s, c.id), used = s.training.coursePending && s.training.coursePending.coachId === c.id;
   return {
     id: c.id, name: c.name, step: c.step, letter: letterOfStep(c.step), strong: c.strong.slice(), strongWords: strongWords(c.strong),
-    here: !(c.away > 0), away: c.away | 0, course: { ok: cc.ok, why: cc.why, cost: courseCost(s, c.id), free: !s.econ, spun: !!used, pending: used ? { index: s.training.coursePending.result.index, gain: s.training.coursePending.result.gain, jackpot: s.training.coursePending.result.jackpot } : null },
+    here: !(c.away > 0), away: c.away | 0, course: { ok: cc.ok, why: cc.why, licence: cc.ok && courseUsesLicence(s, c.id), cost: courseCost(s, c.id), free: !s.econ, spun: !!used, pending: used ? { index: s.training.coursePending.result.index, gain: s.training.coursePending.result.gain, jackpot: s.training.coursePending.result.jackpot } : null },
   };
 };
 /** Gain the spotlight player really gets after the cap-sum, balance and 99 limits. */
-const spotApplied = (s, plan, gain) => { const p = plan.spotlightId && player(s, plan.spotlightId); return p ? Math.max(0, Math.min(gain, drillRoom(p, focusRating(p, plan.focus)).room)) : 0; };
+const spotApplied = (s, plan, gain, id = plan.spotlightId) => { const p = id && player(s, id); return p ? Math.max(0, Math.min(gain, drillRoom(p, focusRating(p, plan.focus)).room)) : 0; };
 const wheelVM = (w) => ({ slices: w.slices.slice(), jackpotIndex: w.jackpotIndex, jackpotGain: w.jackpotGain });
 
 export function trainingVM(s) {
@@ -295,7 +295,7 @@ export function trainingVM(s) {
     const st = focusRating(p, plan.focus), line = T.nets && T.nets.week === T.week ? T.nets.lines.find((l) => l.id === p.id) : null;
     return {
       id: p.id, name: p.name, bench: !six.includes(p.id), role: p.bat, type: p.bowl, ...letterVM(p), grade: gradeOf(p) || '?', pips: pipsOf(p), peak: atPeak(p), max: isMax(p), rates: ratesOf(p),
-      status: train.has(p.id) ? 'train' : short.has(p.id) ? 'short' : skip.has(p.id) ? 'skip' : 'train', stat: TRAIN2.statNames[st], spotlight: plan.spotlightId === p.id, line,
+      status: train.has(p.id) ? 'train' : short.has(p.id) ? 'short' : skip.has(p.id) ? 'skip' : 'train', stat: TRAIN2.statNames[st], spotlight: plan.spotlightId === p.id, spotlight2: plan.spotlight2Id === p.id, line,
     };
   });
   const efforts = EFFORTS.map((id) => { const e = TRAIN2.efforts[id]; return { id, label: e.label, cost: e.cost, mean: Math.round(meanGain(effortOdds(id, 0, plan.focus === 'bal')) * 100) / 100, on: plan.effort === id }; });
@@ -307,6 +307,9 @@ export function trainingVM(s) {
     tp: T.tp, week: T.week, plan, focuses, efforts, rows, coaches, coachQuality: coachQuality(s), coachLetter: coachStepInUse(s) ? letterOfStep(coachStepInUse(s)) : null,
     preview: { cost: pre.cost, tpLeft: T.tp - pre.cost, trainCount: pre.trainIds.length, shortCount: pre.shortIds.length, skipCount: pre.skippedIds.length, hint: pre.hint },
     spotlight: { id: plan.spotlightId, wheel, pending: T.pending && T.pending.week === T.week ? { careful: T.pending.careful, index: T.pending.result.index, gain: T.pending.result.gain, jackpot: T.pending.result.jackpot, applied: spotApplied(s, plan, T.pending.result.gain) } : null },
+    twin: { held: twinHeld(s), line: twinHeld(s) > 0 ? 'Twin Spotlight Pass: pick 2' : '', id: plan.spotlight2Id, wheel: plan.spotlight2Id ? wheel : null,
+      pending: T.pending2 && T.pending2.week === T.week ? { careful: T.pending2.careful, index: T.pending2.result.index, gain: T.pending2.result.gain, jackpot: T.pending2.result.jackpot, applied: spotApplied(s, plan, T.pending2.result.gain, plan.spotlight2Id) } : null },
+    licence: { held: licenceHeld(s), line: licenceHeld(s) > 0 ? 'Licence: 2nd course allowed' : '' },
     done, result: done ? { lines: T.nets.lines, cost: T.nets.cost, skipped: T.nets.skipped } : null, tips: !T.tipsSeen && !(T.netsRuns > 0),
     canRun: !done && pre.trainIds.length > 0, notice: noticeOf(s),
   };
@@ -364,6 +367,7 @@ export function coachesVM(s) {
   const plan = planOf(s), list = coachList(s);
   return {
     coaches: list.map((c) => ({ ...coachRow(s, c), picked: plan.coachId === c.id, helps: c.strong.includes(plan.focus) })),
+    licence: { held: licenceHeld(s), line: licenceHeld(s) > 0 ? 'Licence: 2nd course allowed' : '' },
     slots: MAX_COACHES, free: Math.max(0, MAX_COACHES - list.length), full: list.length >= MAX_COACHES, scout: coachPickVM(s),
     note: 'Pick a coach for the week. He helps only when he is strong in the focus. A course makes a coach better and takes him away for a week.',
   };

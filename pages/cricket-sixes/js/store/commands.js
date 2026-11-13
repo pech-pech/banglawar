@@ -8,10 +8,10 @@ import { FLAGS } from '../data/flags.js';
 import { SEASON } from '../data/season.js';
 import { makeClubs, growClubs, aiPickSix } from '../core/clubs.js';
 import { makeSchedule, makeTable, applyResult, placeOf, inTopFour, finalsDraw, finalFrom, koWinner, matchPay, tpAward, simRound, simMatch, simFinals, ME } from '../core/season.js';
-import { planOf, setPlan as setTrainPlan, runNets, endWeek, coachList, coachStepInUse, startCoach as makeStartCoach, passScout, courseCost, signCoach, releaseCoach, pickWeekCoach, canCourse, courseWheel, runCourse, wheelSlices, spinResult } from '../core/training.js';
+import { planOf, setPlan as setTrainPlan, runNets, endWeek, coachList, coachStepInUse, startCoach as makeStartCoach, passScout, courseUsesLicence, courseCost, signCoach, releaseCoach, pickWeekCoach, canCourse, courseWheel, runCourse, wheelSlices, spinResult } from '../core/training.js';
 import { unlockNode, makeFx } from '../core/skills.js';
 import { defaultOvers } from '../core/plan.js';
-import { newEconomy, applyMatch, tickBuild, finalsReward, finalsTp, payCourse, startBuild, buySink, buyMedal, buyLegacy } from '../core/economy.js';
+import { newEconomy, applyMatch, tickBuild, finalsReward, finalsTp, payCourse, useHeld, startBuild, buySink, buyMedal, buyLegacy } from '../core/economy.js';
 import { newRun, closeSeason, remakeRivals, carryOf, applyCarry } from '../core/run.js';
 import { RUN, SQUAD } from '../data/run.js';
 import { newBook, isBook, recordOver } from '../core/pairing.js';
@@ -466,21 +466,24 @@ function sync(s) {
 /** Tap the wheel (SPIN then STOP): the result waits in training.pending until Run nets. One spin a week, and only with a spotlight player. */
 function spin(s, p) {
   const T = s.training, plan = planOf(s);
-  if (!plan.spotlightId || (T.pending && T.pending.week === T.week) || (T.nets && T.nets.week === T.week)) return s;
+  const two = !!(p && p.slot === 2), key = two ? 'pending2' : 'pending'; // slot 2 = the Twin Spotlight Pass wheel
+  if (!(two ? plan.spotlight2Id : plan.spotlightId) || (T[key] && T[key].week === T.week) || (T.nets && T.nets.week === T.week)) return s;
   const wheel = wheelSlices(plan.effort, coachStepInUse(s)), careful = !!(p && p.careful);
-  const result = spinResult(TRAIN_RNG(s, 'spin'), wheel, careful);
+  const result = spinResult(TRAIN_RNG(s, two ? 'spin2' : 'spin'), wheel, careful);
   const n = clone(s);
-  n.training.pending = { week: T.week, careful, wheel, result };
+  n.training[key] = { week: T.week, careful, wheel, result };
   return n;
 }
 function doRunNets(s) {
   const T = s.training;
   if (T.nets && T.nets.week === T.week) return s;
   const plan = planOf(s), pend = T.pending && T.pending.week === T.week && plan.spotlightId ? T.pending : null;
-  const r = runNets(s, TRAIN_RNG(s, 'nets'), pend ? { wheel: pend.result } : {});
+  const pend2 = T.pending2 && T.pending2.week === T.week && plan.spotlight2Id ? T.pending2 : null;
+  const r = runNets(s, TRAIN_RNG(s, 'nets'), { ...(pend ? { wheel: pend.result } : {}), ...(pend2 ? { wheel2: pend2.result } : {}) });
   if (!r || !r.state || r.state === s) return s;
-  const n = clone(r.state);
-  delete n.training.pending;
+  const usedTwin = !!plan.spotlight2Id && (r.lines || []).some((l) => l.id === plan.spotlight2Id && l.wheelGain !== undefined);
+  let n = clone(usedTwin ? useHeld(r.state, 'twin_drill') : r.state); // the Twin Pass is used up by the nets run it covered
+  delete n.training.pending; delete n.training.pending2;
   n.training.nets = { week: T.week, lines: r.lines || [], cost: r.cost || 0, skipped: r.skipped || 0 };
   n.training.last_plan = { focus: plan.focus, effort: plan.effort, spotlight_id: plan.spotlightId || null, coachId: plan.coachId || null };
   return sync(n);
@@ -499,17 +502,19 @@ function doRunCourse(s, p) {
   if (!id || !pend || pend.coachId !== id || !canCourse(s, id).ok) return s;
   const cost = courseCost(s, id), paid = payCourse(s, cost); // Coins go through the economy; training's own deduct is bypassed
   if (cost > 0 && paid === s) return s;
+  const lic = courseUsesLicence(s, id); // a 2nd course this season spends the Master Coach Licence
   const bare = { ...s }; delete bare.econ;
-  const n = runCourse(bare, TRAIN_RNG(s, 'course', id), id, pend.result);
+  const n = runCourse(bare, TRAIN_RNG(s, 'course', id), id, pend.result, lic);
   if (!n || n === bare) return s;
   const m = clone(n);
   if (paid.econ) m.econ = clone(paid.econ);
+  if (lic && m.econ) m.econ = clone(useHeld(m, 'master_licence').econ);
   const was = coachList(s).find((x) => x.id === id), now = coachList(m).find((x) => x.id === id);
   m.training.courseDone = { week: s.training.week, coachId: id, name: was.name, from: was.step, to: now.step, gain: now.step - was.step, jackpot: !!pend.result.jackpot };
   delete m.training.coursePending;
   return m;
 }
-const clearWeek = (s) => { const n = clone(s); delete n.training.pending; delete n.training.nets; delete n.training.coursePending; return n; };
+const clearWeek = (s) => { const n = clone(s); delete n.training.pending; delete n.training.pending2; delete n.training.nets; delete n.training.coursePending; return n; };
 const viaTrain = (s, fn) => { if (s.stage !== 'train') return s; const n = fn(s); return n === s ? s : sync(n); };
 
 /** The first-match strip is done (Skip). Once per save. */

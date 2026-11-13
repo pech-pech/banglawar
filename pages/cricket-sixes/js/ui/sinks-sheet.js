@@ -69,7 +69,7 @@ function confirmHtml(pick, s) {
     '<ul class="ec-facts"><li>' + icoDeco(medals ? 'medal' : 'coin', 24) + '<span>Cost: ' + fmt(cost) + (medals ? ' Medals' : ' Coins') + '</span></li>' +
     '<li>' + icoDeco(medals ? 'medal' : 'coin', 24) + '<span>' + (medals ? 'Medals' : 'Coins') + ' after: ' + (ok ? fmt(after) : 'not available') + '</span></li>' +
     (kind === 'legacy' ? '<li>' + icoDeco('fan', 24) + '<span>Adds 500 Fans and one Club Legend segment</span></li>' : '') + '</ul>' +
-    (!medals && ok ? '<p class="ec-note">' + icoDeco('info', 24) + '<span>The club keeps enough Coins back to pay wages for a few matches.</span></p>' : '') +
+    (!medals && ok && o.warn ? '<p class="ec-note ec-note--warn" role="status">' + icoDeco('info', 24) + '<span>' + esc(o.warn) + '</span></p>' : '') +
     (ok ? '' : '<p class="ec-note ec-note--warn" role="status">' + icoDeco('lock', 24) + '<span>' + esc(o.why || 'Not ready yet.') + '</span></p>') +
     '<div class="ec-actions"><button type="button" class="c-btn c-btn--primary" data-econ-act="' + (kind === 'legacy' ? 'BuyLegacy' : kind === 'medal' ? 'BuyMedal' : 'BuySink') + '" data-id="' + esc(id) + '"' + (ok ? '' : ' disabled aria-disabled="true"') + '>' +
     icoDeco('done', 24) + '<span>Yes, buy</span></button>' + back + '</div></div>';

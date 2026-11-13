@@ -60,7 +60,8 @@ export function matchIncome(s, result = {}) {
   const shop = rd(E.SHOP[e.fac.shop] * m);
   const wages = wageTotal(s, e);
   const upkeep = rd(E.UPKEEP * m * (sumLevels(e) + 2 * (e.stadium - 1)));
-  const fans = rd((result.win ? E.FAN_WIN : E.FAN_LOSS) * fanMult(s)) + E.FAN_STANDS[e.fac.stands];
+  const base = result.win ? E.FAN_WIN : result.tie ? (E.FAN_WIN + E.FAN_LOSS) / 2 : E.FAN_LOSS; // a tie = half a win
+  const fans = rd(base * fanMult(s)) + E.FAN_STANDS[e.fac.stands]; // the Fans multiplier is on results only, never on the stands
   return { gate, winBonus, shop, wages, upkeep, net: gate + winBonus + shop - wages - upkeep, fans };
 }
 /** Pay one match: earn, then pay upkeep + wages + old arrears. Short = arrears build; two missed in a row sells best-paid outside the six (never below 6). */
@@ -137,7 +138,10 @@ export function reserveNeeded(/** @type {any} */ s) {
   const e = econOf(s), inc = matchIncome(s, {});
   return E.RESERVE_WAGE_PAYDAYS * inc.wages + E.RECRUIT[league(s) - 1] + E.RESERVE_PAYDAYS * (inc.wages + inc.upkeep);
 }
-export const reserveOk = (/** @type {any} */ s, /** @type {number} */ price) => canAfford(s, price) && econOf(s).coins - price >= reserveNeeded(s);
+/** WARN ONLY: true when Coins left after paying price would be under the safe reserve. Never blocks a buy. */
+export const reserveLow = (/** @type {any} */ s, /** @type {number} */ price) => econOf(s).coins - price < reserveNeeded(s);
+export const RESERVE_WARNING = 'Leaves less than your safe reserve';
+export const reserveOk = (/** @type {any} */ s, /** @type {number} */ price) => canAfford(s, price) && !reserveLow(s, price);
 
 // ---- courses ----
 export const courseFactor = (/** @type {any} */ s) => E.COURSE_FACTOR[league(s) - 1];
@@ -161,7 +165,7 @@ export function buildOptions(s) {
     if (!why && inArrears(e)) why = 'Pay the wages first';
     if (!why && e.fans < fansGate) why = `Needs ${fansGate} Fans, you have ${e.fans}`;
     if (!why && e.coins < coins) why = `Needs ${coins} Coins, you have ${e.coins}`;
-    out.push({ what, level, coins, fansGate, matches, ok: !why, why: why || '' });
+    out.push({ what, level, coins, fansGate, matches, ok: !why, why: why || '', warn: !why && reserveLow(s, coins) ? RESERVE_WARNING : '' });
   };
   if (e.stadium < 5) { const L = e.stadium + 1; gate('stadium', L, E.STADIUM_COST[L], E.STADIUM_FANS[L], E.STADIUM_BUILD[L], null); }
   for (const k of E.FAC) {
@@ -208,9 +212,9 @@ export function sinkOptions(s) {
     if (!why && k.stadium && e.stadium < k.stadium) why = `Needs Stadium ${k.stadium}`;
     if (!why && k.needs && !doneCount(e, k.needs)) why = `Needs ${E.SINKS.find((x) => x.id === k.needs)?.name} first`;
     if (!why && k.repeat === 'retired' && n >= retiredCount(s)) why = 'Needs a retired player';
-    if (!why && k.coins != null && !reserveOk(s, k.coins)) why = canAfford(s, k.coins) ? 'Keep a safety reserve' : 'Needs more Coins';
+    if (!why && k.coins != null && !canAfford(s, k.coins)) why = inArrears(e) ? 'Pay the wages first' : 'Needs more Coins';
     if (!why && k.medals != null && e.medals < k.medals) why = 'Needs more Medals';
-    return { id: k.id, name: k.name, coins: k.coins ?? 0, medals: k.medals ?? 0, done: n, ok: !why, why };
+    return { id: k.id, name: k.name, coins: k.coins ?? 0, medals: k.medals ?? 0, done: n, ok: !why, why, warn: !why && k.coins != null && reserveLow(s, k.coins) ? RESERVE_WARNING : '' };
   });
 }
 export function buySink(/** @type {any} */ s, /** @type {string} */ id) {
@@ -219,6 +223,12 @@ export function buySink(/** @type {any} */ s, /** @type {string} */ id) {
   const e = clone(econOf(s)); e.coins -= o.coins; e.medals -= o.medals; e.sinks[id] = (e.sinks[id] || 0) + 1;
   if (id === 'coach_retreat') e.sinks.retreatSeason = seasonN(s);
   note(e, { k: 'sink', id, coins: o.coins, medals: o.medals });
+  return withEcon(s, e);
+}
+/** Use up one held Medal item (Twin Spotlight Pass, Master Coach Licence): the held count is the buy count in sinks. */
+export function useHeld(/** @type {any} */ s, /** @type {string} */ id) {
+  const e = clone(econOf(s)); if (!(e.sinks[id] > 0)) return s;
+  e.sinks[id] -= 1; note(e, { k: 'used', id });
   return withEcon(s, e);
 }
 export function medalShop(/** @type {any} */ s) {
@@ -239,15 +249,14 @@ export function buyMedal(/** @type {any} */ s, /** @type {string} */ id) {
 }
 
 // ---- Legacy Project + Fans bars ----
-/** Needs Stadium 4 and every one-off Coin sink open at your stadium bought (halls; finishing at Stadium 5), under the reserve rule. */
+/** Needs all 6 one-off Coin sinks bought (3 Hall wings, Floodlights, Big Screen, Roof and Crest) and the Coins; a low reserve only warns. */
 export function legacyOffer(/** @type {any} */ s) {
   const e = econOf(s), L = E.LEGACY, name = L.names[e.legacy % L.names.length];
   const price = L.price[Math.min(5, Math.max(4, league(s)))];
   let why = '';
-  if (e.stadium < L.gateStadium) why = `Needs Stadium ${L.gateStadium}`;
-  else if (E.SINKS.some((k) => k.coins != null && !k.repeat && e.stadium >= k.stadium && !doneCount(e, k.id))) why = 'Finish the Hall and stadium extras first';
-  else if (!reserveOk(s, price)) why = canAfford(s, price) ? 'Keep a safety reserve' : 'Needs more Coins';
-  return { name, price, fans: L.fans, ok: !why, why };
+  if (E.SINKS.some((k) => k.coins != null && !k.repeat && !doneCount(e, k.id))) why = 'Buy all six Hall and stadium extras first';
+  else if (!canAfford(s, price)) why = inArrears(e) ? 'Pay the wages first' : 'Needs more Coins';
+  return { name, price, fans: L.fans, ok: !why, why, warn: !why && reserveLow(s, price) ? RESERVE_WARNING : '' };
 }
 export function buyLegacy(/** @type {any} */ s) {
   const o = legacyOffer(s); if (!o.ok) return s;

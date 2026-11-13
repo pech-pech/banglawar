@@ -92,7 +92,7 @@ function confirmHtml(id, s, optList) {
     '<ul class="ec-facts"><li>' + icoDeco('coin', 24) + '<span>Cost: ' + fmt(o.coins) + ' Coins</span></li>' +
     '<li>' + icoDeco('build', 24) + '<span>Takes ' + (o.matches ? o.matches + (o.matches === 1 ? ' match' : ' matches') : 'no matches. It is ready now') + '</span></li>' + fansLine +
     '<li>' + icoDeco('coin', 24) + '<span>Coins after: ' + (ok ? fmt(left) : 'not enough or locked') + '</span></li></ul>' +
-    (ok ? '' : '<p class="ec-note ec-note--warn" role="status">' + icoDeco('lock', 24) + '<span>' + esc(o.why || 'Not ready yet.') + '</span></p>') +
+    (ok ? (o.warn ? '<p class="ec-note ec-note--warn" role="status">' + icoDeco('info', 24) + '<span>' + esc(o.warn) + '</span></p>' : '') : '<p class="ec-note ec-note--warn" role="status">' + icoDeco('lock', 24) + '<span>' + esc(o.why || 'Not ready yet.') + '</span></p>') +
     '<div class="ec-actions"><button type="button" class="c-btn c-btn--primary" data-econ-act="StartBuild" data-what="' + esc(id) + '"' + (ok ? '' : ' disabled aria-disabled="true"') + '>' + icoDeco('build', 24) + '<span>Yes, build</span></button>' + back + '</div></div>';
 }
 
