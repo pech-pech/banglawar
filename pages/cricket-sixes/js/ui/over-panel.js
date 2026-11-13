@@ -3,6 +3,7 @@
 import { whyLine, outcomeLabel } from './why.js';
 import { chipHtml } from './book-sheet.js';
 import { icoDeco } from './dom.js';
+import { attachBeats } from './beats.js';
 
 export const BALL_MS = 400;
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -47,15 +48,15 @@ export function foundText(list) {
   const fs = Array.isArray(list) ? list : [list];
   return (fs.length > 1 ? 'Pairings found. ' : 'Pairing found. ') + fs.map((f) => f.bat + ' v ' + f.bowl + ', ' + ['early', 'middle', 'late'][f.ph] + ': ' + f.grade + '.' + (f.combo ? ' Combo: ' + f.combo.name + '.' : '')).join(' ') + ' Saved in your Book.';
 }
-export function playOverPanel({ title, balls, score, summaryLines = [], nextLabel = 'Next over', found = [], onBook, onDone }) {
+export function playOverPanel({ title, balls, score, summaryLines = [], nextLabel = 'Next over', batKit, found = [], onBook, onDone }) {
   const list = (balls || []).slice(0, 6);
   const root = document.createElement('div');
   root.className = 'op-scrim';
   const hasFound = found.length > 0;
   const slots = Array.from({ length: 6 }, (_, i) => `<li class="op-slot${i >= list.length ? ' is-unused' : ''}" data-i="${i}"><span class="op-circle" aria-hidden="true"></span><span class="op-word" aria-hidden="true"></span></li>`).join('');
-  root.innerHTML = `<section class="c-card op-card${hasFound ? ' has-found' : ''}" role="dialog" aria-modal="true" aria-labelledby="op-title">` +
+  root.innerHTML = `<section class="c-card op-card has-beats${hasFound ? ' has-found' : ''}" role="dialog" aria-modal="true" aria-labelledby="op-title">` +
     `<header class="op-head"><h2 id="op-title" class="op-title">${esc(title)}</h2>` +
-    `<button type="button" class="c-icon-btn op-close" aria-label="Close and skip to the end of the over"><span class="c-ico c-ico--x"></span></button></header><ol class="op-circles" aria-label="Balls this over">${slots}</ol>` +
+    `<button type="button" class="c-icon-btn op-close" aria-label="Close and skip to the end of the over"><span class="c-ico c-ico--x"></span></button></header><div class="bt-slot"></div><ol class="op-circles" aria-label="Balls this over">${slots}</ol>` +
     `<hr class="op-divider"><div class="op-bottom"><h3 class="op-sub">Results this over</h3><ul class="op-lines" aria-live="polite"></ul></div>` +
     `<div class="ss-sr op-found-live" role="status" aria-live="polite" aria-atomic="true"></div><div class="op-foot"></div></section>`;
   document.body.appendChild(root);
@@ -64,20 +65,23 @@ export function playOverPanel({ title, balls, score, summaryLines = [], nextLabe
   const foot = root.querySelector('.op-foot');
   const foundLive = root.querySelector('.op-found-live');
   const timers = [];
+  const beats = attachBeats(root.querySelector('.bt-slot'), { kit: batKit }); // P10 beats: pictures only, js/ui/beats.js
   let done = false, finished = false, landed = 0;
 
-  function land(i) {
+  function land(i, live) {
     if (i < landed) return; landed = i + 1;
     const b = list[i], k = kind(b.o), slot = slotEls[i];
     const c = slot.querySelector('.op-circle');
     c.textContent = ballGlyph(b.o); slot.classList.add('is-filled', 'k-' + k);
-    slot.querySelector('.op-word').textContent = ballWord(b.o);
+    const w = slot.querySelector('.op-word'), wt = ballWord(b.o), m = /^(\S+) (RUNS?)$/.exec(wt);
+    if (m) { w.textContent = m[1]; w.appendChild(document.createElement('br')); w.appendChild(document.createTextNode(m[2])); } else w.textContent = wt;   // run words always read on two lines (1 / RUN, 2 / RUNS, NO / RUN), in every theme
     slot.setAttribute('aria-label', 'Ball ' + (i + 1) + ': ' + outcomeLabel(b.o));
     const why = whyLine(b, b.batName, b.bowlName);
     const li = document.createElement('li');
     li.className = 'op-line k-' + k;
     li.innerHTML = `<b>Ball ${i + 1}: ${esc(outcomeLabel(b.o).replace(/^./, (x) => x.toUpperCase()))}.</b> ${esc(why)}`;
     lines.appendChild(li);
+    if (live) beats.ball(b.o);
   }
   function finish() {
     if (finished) return; finished = true;
@@ -88,7 +92,7 @@ export function playOverPanel({ title, balls, score, summaryLines = [], nextLabe
     li.textContent = t.runs === score.runs && t.wk === score.wk ? totalLine(list, score).split('. Score')[0] + '.' : totalLine(list, score);
     lines.appendChild(li);
     for (const t of summaryLines) { const x = document.createElement('li'); x.className = 'op-line'; x.textContent = t; lines.appendChild(x); }
-    if (hasFound) { foot.classList.add('has-found'); foundLive.textContent = foundText(found); }
+    if (hasFound) { root.querySelector('.op-card').classList.add('found-shown'); foot.classList.add('has-found'); foundLive.textContent = foundText(found); }
     foot.innerHTML = (hasFound ? foundHtml(found) + `<button type="button" class="c-btn c-btn--block op-book">${icoDeco('book', 24)}Open Book</button>` : '') +
       `<button type="button" class="c-btn c-btn--primary c-btn--cta c-btn--block op-next">${esc(nextLabel)}</button>`;
     foot.querySelector('.op-next').addEventListener('click', exit);
@@ -97,7 +101,7 @@ export function playOverPanel({ title, balls, score, summaryLines = [], nextLabe
   }
   function onKey(e) { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); exit(); } }
   document.addEventListener('keydown', onKey, true);
-  function exit() { if (done) return; skip(); done = true; document.removeEventListener('keydown', onKey, true); root.remove(); onDone && onDone(); }
+  function exit() { if (done) return; skip(); beats.stop(); done = true; document.removeEventListener('keydown', onKey, true); root.remove(); onDone && onDone(); }
   /** Land every remaining ball at once so no result is lost. */
   function skip() { timers.forEach(clearTimeout); for (let i = landed; i < list.length; i++) land(i); finish(); }
   root.querySelector('.op-close').addEventListener('click', exit);
@@ -105,7 +109,7 @@ export function playOverPanel({ title, balls, score, summaryLines = [], nextLabe
   // Reduced motion: no paced ball-by-ball reveal; every ball and the total are there at once (nothing changes on a timer)
   if (typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) { skip(); return { close: exit }; }
   const t0 = performance.now();
-  list.forEach((_, i) => timers.push(setTimeout(() => land(i), Math.max(0, t0 + (i + 1) * BALL_MS - performance.now()))));
+  list.forEach((_, i) => timers.push(setTimeout(() => land(i, true), Math.max(0, t0 + (i + 1) * BALL_MS - performance.now()))));
   timers.push(setTimeout(finish, Math.max(0, t0 + (list.length + 1) * BALL_MS - performance.now() - 300)));
   return { close: exit };
 }

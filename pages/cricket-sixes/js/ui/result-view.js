@@ -1,6 +1,7 @@
 /* result-view: match end. render(el, vm, dispatch). Reads resultVM only. Clicks are handled by app.js (data-act). */
 import { esc, btn, ctaBar, icoDeco } from './dom.js';
 import { helpBtn } from './hub-view.js';
+import { winBeat } from './beats.js';
 const ovWords = (o) => { const [a, b] = String(o).split('.'); const n = Number(a) || 0, m = Number(b) || 0; return (n === 1 ? '1 over' : n + ' overs') + (m ? ' and ' + (m === 1 ? '1 ball' : m + ' balls') : ''); };
 
 function score(label, inn) {
@@ -26,6 +27,7 @@ export function render(el, vm, dispatch) {
     '<h1 class="res-line">' + esc(vm.line || head) + '</h1>' + kind + tp + '</div>' +
     '<div class="c-card res-card"><h3>Scores</h3><ul class="c-list list-flat">' + score(vm.oppName || 'Rival', vm.inn1) + score('You', vm.inn2) + '</ul></div>' +
     cta + '</div>';
+  if (vm.result === 'won' && vm.inn2) winBeat(el); // P10 win beat: picture only, the score shows at once, no result change
 }
 
 function newSeed() {

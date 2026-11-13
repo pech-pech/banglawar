@@ -3,6 +3,7 @@ import { esc, btn, ctaBar, tpChip, icoDeco } from './dom.js';
 import { tableHtml, finalsHtml, nameOf, ordinal } from './table-sheet.js';
 import { helpBtn } from './hub-view.js';
 import { chipHtml } from './book-sheet.js';
+import { promoBeat } from './beats.js';
 
 const CTA = { NewSeason: 'Start next season', RunEnd: 'See your run' };
 
@@ -68,4 +69,5 @@ export function render(el, vm, dispatch) {
     '<div class="ss-final-table">' + (vm.lastSeason ? tableHtml(rows, { cut: false }) : withGoUp(tableHtml(rows, { cut: false }), Number(vm.promoteTop) || 2)) + '</div>' +
     ctaBar(btn(CTA[vm.cta] || CTA.NewSeason, CTA[vm.cta] ? vm.cta : 'NewSeason', { kind: 'cta' })) +
     '</div>';
+  if (vm.result && vm.result.promoted && !vm.lastSeason) promoBeat(el, { after: '.rn-result' }); // P10 promotion beat: transient trophy picture, the card below is the stamp
 }
