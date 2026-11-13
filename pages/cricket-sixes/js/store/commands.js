@@ -19,7 +19,7 @@ import { activityOptions, pickActivity, signTrial, declineTrial, actLedger, roun
 import { takeFreePick, freePickPending } from '../core/economy.js';
 import { VERSION, dropFreepickNotice, emptyWheelMeta } from '../core/save-migrate.js';
 import { metaWheel, recordSpin, afterResult, seasonTokens, useToken, buyNode, canBuy, swapSpokes, powerDone, dismissTierUp, nextTierUp } from '../core/wheelmeta.js';
-import { canMdSpin, mdSpin, settleMd, stopOf, findForce, afterFind, canScoutSpin, scoutSpin, canFinalsSpin, finalsSpin } from './wmstore.js';
+import { canMdSpin, mdSpin, settleMd, stopOf, findForce, afterFind, canScoutSpin, scoutSpin, canFinalsSpin, finalsSpin, mdKeep } from './wmstore.js';
 import { rollMatchday, teamBoost, scaleRatings, resolvePep, roarAt } from '../core/matchday.js';
 import { MD } from '../data/matchday.js';
 
@@ -286,8 +286,9 @@ function seasonMatch(s0) {
   return n;
 }
 
-function finishMatch(s) {
-  if (s.stage !== 'done' || !s.season || !s.fixture) return s;
+function finishMatch(s0) {
+  if (s0.stage !== 'done' || !s0.season || !s0.fixture) return s0;
+  const s = canFinalsSpin(s0) ? finalsSpin(s0) : s0; // wheel meta: an unspun Finals prize gets a seeded random tap, never forfeited (no-op with the flag off)
   const n = clone(s), se = n.season, fx = n.fixture;
   const res = { round: fx.round, kind: fx.kind, a: ME, b: fx.opp, ra: n.inn2.runs, wa: n.inn2.wk, rb: n.inn1.runs, wb: n.inn1.wk, winner: null };
   let outcome = n.result;
@@ -433,6 +434,7 @@ function applyCommandCore(s, cmd, payload) {
     case 'HypeSpin': return canMdSpin(s, 'hype') ? mdSpin(s, 'hype', stopOf(payload), s.clubs[0].six) : s;
     case 'TossSpin': return canMdSpin(s, 'toss') ? mdSpin(s, 'toss', false, s.clubs[0].six) : s;
     case 'PepSpin': return canMdSpin(s, 'pep') ? mdSpin(withSix(s), 'pep', false) : s;
+    case 'MdKeep': return mdKeep(s, payload && Array.isArray(payload.which) ? payload.which : []);
     case 'ScoutSpin': return canScoutSpin(s, () => scoutList(s)) ? scoutSpin(s) : s;
     case 'FinalsSpin': return canFinalsSpin(s) ? finalsSpin(s) : s;
     case 'SignTrial': return FLAGS.activities && s.econ ? signTrial(s) : s;

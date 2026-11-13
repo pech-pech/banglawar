@@ -68,6 +68,20 @@ export function mdSpin(s, which, stop, six) {
   return recordSpin(t, which, opts);
 }
 
+/** The upgrades switch went On while this match day was open: rolls the player already saw (Off-mode cards) are kept as the stored result, never re-spun. No Spokes (nothing was spun). @param {any} s @param {string[]} which */
+export function mdKeep(s, which) {
+  if (!on() || !FLAGS.matchday || !s || !s.season || !s.fixture || s.stage !== 'matchday' || !s.fixture.md) return s;
+  const list = (which || []).filter((w) => (w === 'hype' || w === 'toss' || w === 'pep') && !mdSpun(s, /** @type {any} */ (w)));
+  if (!list.length) return s;
+  const n = clone(s), m = n.fixture.md; m.wm = { ...(m.wm || {}) };
+  for (const w of list) {
+    if (w === 'hype') { const d = hypeDialOf(n), i = Math.max(0, d.slices.findIndex((c) => c.level === m.hype)); m.wm.hype = { index: i, level: m.hype, pts: d.slices[i] ? d.slices[i].pts : 0, boosted: false, kept: true }; }
+    else if (w === 'toss') m.wm.toss = { index: m.toss === 'won' ? 0 : 1, id: m.toss === 'won' ? 'won' : (+m.tossBoost > 0 ? 'sport' : 'lost'), boostPct: Math.round((+m.tossBoost || 0) * 1000) / 10, kept: true };
+    else { const sl = m.pepSlots && m.pepSlots.length ? m.pepSlots.slice() : [m.pepSlot | 0 || 1]; m.wm.pep = { index: sl[0] - 1, slots: sl, id: 'kept', kept: true }; }
+  }
+  return n;
+}
+
 /** Match start: any of the three wheels not yet spun gets a random tap (the game never blocks). Makes the md if there is none. @param {any} s @param {(s:any, six:any[])=>any} mdFor */
 export function settleMd(s, mdFor) {
   if (!on() || !FLAGS.matchday || !s || !s.season || !s.fixture) return s;
@@ -111,7 +125,10 @@ export function findForce(s, id, p) {
 /** After pickActivity: tally + the pending reel result kept on s.findSpin. @param {any} s @param {string} id @param {any} force */
 export function afterFind(s, id, force) {
   const n = clone(recordSpin(s, 'find'));
-  n.findSpin = { key: roundKey(s), id, index: force.index, type: force.kind, find: !!force.find, pity: !!force.pity, boosted: !!force.boosted };
+  // what was really paid (a Player / Coach cell can fall back to Coins): read it from the activity history, never from the reel
+  const h = n.econ && n.econ.act && n.econ.act.hist && n.econ.act.hist[0], real = h && h.id === id && h.find && typeof h.find === 'object' ? h.find : null;
+  const bonus = real && real.type === 'coins' ? (force.bonus | 0) : 0;
+  n.findSpin = { key: roundKey(s), id, index: force.index, type: real ? real.type : 'none', find: !!real, coins: real && real.type === 'coins' ? (real.coins | 0) + bonus : 0, bonus, pity: !!force.pity, boosted: !!force.boosted };
   return n;
 }
 /** Reel props for one activity's Find (before the pick) + the stored result of the pick just made. null with the flag off / a repeat week. @param {any} s @param {string} id */
@@ -121,7 +138,7 @@ export function findSpinVM(s, id) {
   const cells = reel.cells.map((c) => ({ label: WORD[c.type], w: c.w, find: c.find, tone: c.find ? (c.gold ? 'gold' : c.type) : 'none', gold: c.gold }));
   const fs = s.findSpin && s.findSpin.id === id ? s.findSpin : null;
   const E2 = effective(s);
-  return { cells, guide: !!(E2.find && E2.find.guide), pending: fs ? { index: fs.index, type: fs.type, find: fs.find, pity: fs.pity, jackpot: !!(fs.find && reel.cells[fs.index] && reel.cells[fs.index].gold) } : null, pityNext: activityOptions(s).pity };
+  return { cells, guide: !!(E2.find && E2.find.guide), pending: fs ? { index: fs.index, type: fs.type, find: fs.find, coins: fs.coins | 0, bonus: fs.bonus | 0, pity: fs.pity, jackpot: !!(fs.find && reel.cells[fs.index] && reel.cells[fs.index].gold) } : null, pityNext: activityOptions(s).pity };
 }
 
 // ---------------------------------------------------------------- Scout list

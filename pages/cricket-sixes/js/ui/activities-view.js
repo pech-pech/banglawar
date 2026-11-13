@@ -33,7 +33,7 @@ function pityLeft(vm) { const p = vm && vm.pity; return p && p.of != null && p.w
 function optionBtn(o) {
   const tags = [];
   if (o.repeat) tags.push('Same as last week: half the Fans, no find');
-  const find = o.repeat ? '' : o.findPct ? o.findPct + ' in 100 find something' : '';
+  const find = o.repeat ? '' : o.findPct ? 'Find chance about ' + o.findPct + ' in 100' : '';
   const state = o.warn ? o.warn : '';
   return '<button type="button" class="c-btn cl-opt" data-cl-pick="' + esc(o.id) + '" aria-label="' + esc(o.name + '. ' + o.cost + ' Coins, ' + o.fans + ' Fans. ' + (o.blurb || '') + (tags[0] ? '. ' + tags[0] : '')) + '">' +
     icoDeco(iconOf(o), 24) + '<span class="cl-opt__t"><span class="cl-opt__n">' + esc(o.name) + '</span>' +
@@ -53,7 +53,7 @@ function confirmHtml(o, vm) {
     (o.blurb ? '<p class="cl-note">' + icoDeco(iconOf(o), 24) + '<span>' + esc(o.blurb) + '</span></p>' : '') +
     '<ul class="cl-facts"><li>' + icoDeco('coin', 24) + '<span>Cost: ' + fmt(o.cost) + ' Coins</span></li>' +
     '<li>' + icoDeco('fan', 24) + '<span>Fans: +' + fmt(o.fans) + (o.repeat ? ' (half, same as last week)' : '') + '</span></li>' +
-    '<li>' + icoDeco('info', 24) + '<span>' + (o.repeat ? 'No find this time.' : 'Find chance: ' + (o.findPct || 0) + ' in 100. Finds are Coins or a trial player.') + '</span></li>' +
+    '<li>' + icoDeco('info', 24) + '<span>' + (o.repeat ? 'No find this time.' : 'Find chance about ' + (o.findPct || 0) + ' in 100. Good timing helps. Finds are Coins or a trial player.') + '</span></li>' +
     (hasCoins ? '<li>' + icoDeco('coin', 24) + '<span>Coins after: ' + (o.ok === false ? 'not enough' : fmt(left)) + '</span></li>' : '') + '</ul>' +
     (o.warn ? '<p class="cl-note cl-note--warn" role="status">' + icoDeco('alert', 24) + '<span>' + esc(o.warn) + '</span></p>' : '') +
     (o.ok === false ? '<p class="cl-note cl-note--warn" role="status">' + icoDeco('lock', 24) + '<span>' + esc(o.why || 'Not enough Coins.') + '</span></p>' : '') +
@@ -100,7 +100,7 @@ export function renderActivities(root, vm, dispatch) {
     root.innerHTML = '<div class="screen cl-screen cl-acts">' +
       (vm.coins != null ? '<p class="cl-purse" aria-label="' + esc(fmt(vm.coins) + ' Coins') + '">' + icoDeco('coin', 24) + '<b>' + fmt(vm.coins) + '</b> Coins</p>' : '') +
       (vm.available === false || d ? '<p class="cl-note" role="status">' + icoDeco('done', 24) + '<span>' + esc(doneLine(d) || 'Done for this week.') + ' Next one next week.</span></p>'
-        : '<p class="cl-note">' + icoDeco('fan', 24) + '<span>One each week. Each gives Fans and a small find chance. Odds are shown.</span></p>' +
+        : '<p class="cl-note">' + icoDeco('fan', 24) + '<span>One each week. Each gives Fans and a small find chance. Good timing helps.</span></p>' +
           '<div class="cl-opts">' + opts.map(optionBtn).join('') + '</div>' +
           '<button type="button" class="c-btn cl-opt cl-rest" data-cl-pick="rest">' + icoDeco('week', 24) + '<span class="cl-opt__t"><span class="cl-opt__n">Rest week</span><span class="cl-opt__s">Free. No penalty.</span></span></button>') +
       (pityLeft(vm) != null && !(vm.available === false || d) ? '<p class="cl-note">' + icoDeco('info', 24) + '<span>A find is sure within ' + esc(pityLeft(vm)) + ' more picked ' + (pityLeft(vm) === 1 ? 'week' : 'weeks') + '.</span></p>' : '') + '</div>';
@@ -137,7 +137,7 @@ export function openActivities(vm, dispatch, _open, _arg, refresh) {
   // wheel meta: the Find reel. The first SPIN sends PickActivity { id, stop }; the stored result is read back from the fresh view model.
   host.__clReel = (o) => {
     const cur = () => { const v = refresh ? refresh() : host.__clVm, x = ((v && v.options) || []).find((y) => y.id === o.id); return (x && x.reel) || o.reel; };
-    spinFind({ get: cur, look: (host.__clVm || vm).look, title: o.name, pick: (extra) => dispatchPick('PickActivity', { id: o.id, ...extra }), onCollect: () => {} });
+    spinFind({ get: cur, look: (host.__clVm || vm).look, title: o.name, pick: (extra) => dispatchPick('PickActivity', { id: o.id, ...extra }), onCollect: () => { const ok = host.querySelector('[data-cl-close]'); if (ok) ok.focus(); } });
   };
   const dispatchPick = (n, a) => { dispatch(n, a); const fresh = refresh ? refresh() : null, res = fresh && resultOf(fresh); if (res) { host.__clResult = res; host.__clClose = close; renderActivities(host, fresh, () => {}); } };
   close = openSheet('Fan activity', '');

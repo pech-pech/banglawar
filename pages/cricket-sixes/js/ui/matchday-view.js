@@ -114,7 +114,7 @@ const SEEN = {}; // reveal state by vm.key, so coming back from Squad keeps what
 /** @param {HTMLElement} el @param {any} vm @param {(cmd:string, payload:any)=>void} dispatch */
 export function render(el, vm, dispatch) {
   const E = /** @type {any} */ (el);
-  const key = vm.wm ? [vm.kindWord, vm.oppName, 'wm'].join('|') : [vm.kindWord, vm.oppName, vm.hype.level, vm.toss.won, vm.pep && vm.pep.id].join('|'); // wheel meta: the spins change the roll, the reveal state must survive that
+  const key = vm.key ? String(vm.key) : vm.wm ? [vm.kindWord, vm.oppName, 'wm'].join('|') : [vm.kindWord, vm.oppName, vm.hype.level, vm.toss.won, vm.pep && vm.pep.id].join('|'); // wheel meta: the spins change the roll, the reveal state must survive that
   const shown = SEEN[key] || (SEEN[key] = {});
   const paint = (live, focus) => {
     // r9 QA2 m1: a reveal tap repaints only the body, so the strip keeps the Settings gear the report hooks put there
@@ -127,6 +127,8 @@ export function render(el, vm, dispatch) {
     if (live) { const r = el.querySelector('[data-md-live]'); if (r) r.textContent = live; }
     if (focus) { const f = el.querySelector(focus); if (f) /** @type {HTMLElement} */ (f).focus(); }
   };
+  // the upgrades switch went On with cards already opened (Off-mode rolls): keep those rolls, never re-spin them
+  if (vm.wm) { const keep = ['hype', 'toss', 'pep'].filter((w) => shown[w] && vm.wm[w] && !vm.wm[w].spun); if (keep.length && !E.__mdKeeping) { E.__mdKeeping = true; Promise.resolve().then(() => { E.__mdKeeping = false; (E.__mdDispatch || dispatch)('MdKeep', { which: keep }); }); } }
   E.__mdVM = vm; E.__mdShown = shown; E.__mdPaint = paint;
   paint();
   if (!E.__mdBound) {

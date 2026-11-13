@@ -140,7 +140,7 @@ export function resultVM(s) {
   return {
     result: s.result, line, inn1: scoreOf(a), inn2: scoreOf(b), inSeason: !!s.season, seed: s.seed,
     oppName: opp ? opp.name : 'Rival', kindLabel: fx ? RESULT_KIND[fx.kind] : 'Friendly', tpEarned, pay, money: moneyPreview(s, pay),
-    finals: finalsSpinVM(s), look: FLAGS.wheelMeta ? craftLook(s) : null, // wheel meta: the Finals prize reel (null with the flag off / a league match)
+    finals: spokesOn(finalsSpinVM(s), s, 'finals'), look: FLAGS.wheelMeta ? craftLook(s) : null, // wheel meta: the Finals prize reel (null with the flag off / a league match)
   };
 }
 /** r9 QA3 M1: what FinishMatch will pay and charge for this match (the same matchIncome call and hype index), shown on the result screen.
@@ -262,7 +262,7 @@ const strongWords = (strong) => (strong || []).map((f) => SIDE_WORD[f]);
 export function coachPickVM(s) {
   const open = canSign(s).ok, signed = s.scout && s.scout.n === (s.season && s.season.n) ? s.scout.signed : null;
   const cands = scoutList(s).map((c) => ({ id: c.id, name: c.name, letter: letterOfStep(c.step), step: c.step, strong: c.strong.slice(), strongWords: strongWords(c.strong) }));
-  return { cands, open, full: coachList(s).length >= MAX_COACHES, mine: coachList(s).map((c) => ({ id: c.id, name: c.name, letter: letterOfStep(c.step), strong: c.strong.slice() })), picked: signed, passed: !!(s.scout && s.scout.passed), why: canSign(s).why, spin: open ? scoutSpinVM(s) : null, look: FLAGS.wheelMeta ? craftLook(s) : null };
+  return { cands, open, full: coachList(s).length >= MAX_COACHES, mine: coachList(s).map((c) => ({ id: c.id, name: c.name, letter: letterOfStep(c.step), strong: c.strong.slice() })), picked: signed, passed: !!(s.scout && s.scout.passed), why: canSign(s).why, spin: open ? spokesOn(scoutSpinVM(s), s, 'scout') : null, look: FLAGS.wheelMeta ? craftLook(s) : null };
 }
 
 // ---- squad and plan
@@ -333,7 +333,9 @@ const coachRow = (s, c) => {
 const spotApplied = (s, plan, gain, id = plan.spotlightId) => { const p = id && player(s, id); return p ? Math.max(0, Math.min(gain, drillRoom(p, focusRating(p, plan.focus)).room)) : 0; };
 const wheelVM = (w) => ({ slices: w.slices.slice(), jackpotIndex: w.jackpotIndex, jackpotGain: w.jackpotGain, widths: w.widths ? w.widths.slice() : undefined, ...(w.phys ? { phys: { ...w.phys } } : {}), ...(w.golds ? { golds: w.golds.slice() } : {}) });
 /** Spokes the last spin on this wheel dropped (the tally already counts it: tier before it + base). 0 with the flag off or no spin yet. */
-const spokeGainOf = (s, wheel) => { if (!FLAGS.wheelMeta) return 0; const m = metaOf(s), t = m.tally | 0; return t < 1 ? 0 : (WM.SPOKE_BASE[wheel] || 0) + WM.SPOKE_PER_TIER * tierOf(t - 1); };
+/** Add spokeGain to a reel VM once it has a stored result. @param {any} vm */
+const spokesOn = (vm, s, wheel) => (vm ? { ...vm, spokeGain: vm.pending ? spokeGainOf(s, wheel) : 0 } : vm);
+export const spokeGainOf = (s, wheel) => { if (!FLAGS.wheelMeta) return 0; const m = metaOf(s), t = m.tally | 0; return t < 1 ? 0 : (WM.SPOKE_BASE[wheel] || 0) + WM.SPOKE_PER_TIER * tierOf(t - 1); };
 /** Wheel meta extras for a wheel open site (flag on only): the wheel with the tree applied (or the stored one while a result waits), guide, tokens, look. */
 const metaExtras = (s, wid, base, pend, slot) => {
   const wheel = wheelVM(pend && pend.wheel ? pend.wheel : metaWheel(base, wid, s));
@@ -578,6 +580,12 @@ function mdExtras(s, overIdx) {
   return out;
 }
 /** The Match day screen. null unless the flag is on and a fixture is waiting. */
+/** Wheel meta: a spokeGain on every dial / reel result (the Spokes that spin dropped; 0 until spun or for a kept roll). @param {any} s @param {any} wm */
+function withSpokes(s, wm) {
+  if (!wm) return wm;
+  for (const w of ['hype', 'toss', 'pep']) if (wm[w]) wm[w].spokeGain = wm[w].pending && !(s.fixture.md.wm && s.fixture.md.wm[w] && s.fixture.md.wm[w].kept) ? spokeGainOf(s, w) : 0;
+  return wm;
+}
 export function matchdayVM(s) {
   const md = mdOf(s);
   if (!md || !s.season || !s.fixture) return null;
@@ -588,7 +596,7 @@ export function matchdayVM(s) {
   const odds = md.odds.map((o, i) => ({ level: MD.HYPE_LEVELS[i], word: HYPE_WORD[MD.HYPE_LEVELS[i]], pct: Math.round(o) }));
   const forced = !!(FLAGS.matchday && (s.mdSeen || 0) < MD.MATCHDAY_FIRST_N_SHOWN);
   return {
-    oppName: opp ? opp.name : 'Rival', kindWord: KIND_WORD[fx.kind],
+    oppName: opp ? opp.name : 'Rival', kindWord: KIND_WORD[fx.kind], key: `${s.season.n || 1}|${fx.kind}|${fx.round}|${opp ? opp.id : ''}`, // the reveal memory key: a repeated opponent in a later season is a new match day
     hype: { level: md.hype, idx: md.hypeIdx, word: HYPE_WORD[md.hype], perfPct: pct(hypePerfOf(md)), fanMult: md.hypeFanMult },
     odds,
     roar: { on: !!FLAGS.roar, chancePct: Math.round(md.roarChance * 100), overs: md.roar.filter(Boolean).length },
@@ -596,7 +604,7 @@ export function matchdayVM(s) {
     pep: md.pepId != null ? { slot: md.pepSlot, id: md.pepId, name: pepName, boostPct: pct(MD.PEP_BOOST) } : null,
     six,
     boost: { teamPct: pct(team), pepPct: pct(pepB), line: pepName ? `Team +${pct(team)}%, ${pepName} +${pct(pepB)}%` : `Team +${pct(team)}%` },
-    wm: mdSpinVM(s), look: FLAGS.wheelMeta ? craftLook(s) : null, // wheel meta: dial / reveal props + stored results (null with the flag off)
+    wm: withSpokes(s, mdSpinVM(s)), look: FLAGS.wheelMeta ? craftLook(s) : null, // wheel meta: dial / reveal props + stored results (null with the flag off)
     auto: !!s.autoMatchday, forced, next: fx.mdThen === 'start' ? 'Start match' : 'Next: Plan', back: 'Back to squad', // from the hub Go starts the match; from Squad it opens Plan (m1: the label says what the button does)
   };
 }
@@ -617,7 +625,7 @@ export function activitiesVM(s) {
   return {
     available: o.open, why: o.why, round: o.key, picked, coins: s.econ.coins, purse: s.econ.coins,
     options: o.rows.map((r) => ({ id: r.id, name: r.name, blurb: r.blurb, cost: r.coins, fans: r.fans, tiltPct: pct(r.tilt), findPct: r.findPct, repeat: r.repeat,
-      note: r.repeat ? 'Same as last week: half Fans, no find' : '', ok: r.ok, why: r.why, warn: r.warn, reel: r.repeat || r.id === 'rest' ? null : findSpinVM(s, r.id) })),
+      note: r.repeat ? 'Same as last week: half Fans, no find' : '', ok: r.ok, why: r.why, warn: r.warn, reel: r.repeat || r.id === 'rest' ? null : spokesOn(findSpinVM(s, r.id), s, 'find') })),
     look: FLAGS.wheelMeta ? craftLook(s) : null,
     rest: { id: 'rest', label: 'Rest week', free: true, ok: o.open },
     pity: { weeks: o.dry, of: ACT.ACT_PITY_WEEKS, next: o.pity },

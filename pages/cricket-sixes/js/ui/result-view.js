@@ -4,12 +4,14 @@ import { helpBtn } from './hub-view.js';
 import { winBeat } from './beats.js';
 import { spinFinals } from './wm-spins.js';
 
+/** One icon per prize kind (Medal, TP, Fans, Coins). */
+const prizeIcon = (p) => (!p ? 'medal' : p.medal > 0 ? 'medal' : p.tp > 0 ? 'tp' : p.fans > 0 ? 'fan' : p.coins > 0 ? 'coin' : 'medal');
 /** Wheel meta: the Finals prize card (null finals = nothing). due = spin button; after the spin the prize reads as one line. */
 export function finalsCard(f) {
   if (!f) return '';
   return '<section class="c-card res-card res-finals" aria-label="Finals prize"><h3>Finals prize</h3>' + (f.due
     ? '<button type="button" class="c-btn c-btn--primary c-btn--block" data-finals-spin="1">' + icoDeco('burst', 20) + '<span>Spin for the prize</span></button>'
-    : '<p class="rm-net" role="status">' + icoDeco('medal', 20) + '<b>' + esc(f.pending ? f.pending.label : '') + '</b></p>') + '</section>';
+    : '<p class="rm-net" role="status">' + icoDeco(prizeIcon(f.pending), 20) + '<b>' + esc(f.pending ? f.pending.label : '') + '</b></p>') + '</section>';
 }
 
 /* QA3 m6: one line per player, his Stars first (★★ Ferrara: 66 runs); screen readers hear "(2 Stars)". */
@@ -80,7 +82,7 @@ export function render(el, vm, dispatch) {
     payCard(vm.pay) + moneyCard(vm.money) + finalsCard(vm.finals) + '<div class="rp-feel-at"></div>' + // the feel question goes just before this anchor (report/feel.js)
     cta + '</div>';
   var fb = el.querySelector('[data-finals-spin]');
-  if (fb) fb.addEventListener('click', function () { spinFinals({ get: function () { return latestFinals; }, look: vm.look, dispatch: dispatch, onCollect: function () {} }); });
+  if (fb) fb.addEventListener('click', function () { spinFinals({ get: function () { return latestFinals; }, look: vm.look, dispatch: dispatch, onCollect: function () { var c = document.querySelector('[data-act="FinishMatch"]'); if (c) c.focus(); } }); });
   latestFinals = vm.finals;
   var sr = el.querySelector('[data-pay-stars]');
   if (sr) sr.addEventListener('click', function () {

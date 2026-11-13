@@ -54,7 +54,7 @@ export function openReel(o) {
   function drawTop() {
     tctx.clearRect(0, 0, W, H); const band = Math.min(56, H * 0.14);
     for (let y = 0; y < band; y += 2) for (let x = 0; x < W; x += 2) { const k = 1 - y / band; if ((x / 2 + y / 2) % 2 === 0 || k > 0.6) { tctx.fillStyle = 'rgba(' + pal.out + ',' + (0.6 * k).toFixed(2) + ')'; tctx.fillRect(x, y, 2, 2); tctx.fillRect(x, H - y - 2, 2, 2); } }
-    const cy = H / 2; tctx.fillStyle = 'rgb(' + pal.out + ')'; tctx.fillRect(0, cy - 2, W, 4); tctx.fillStyle = 'rgb(' + pal.needle + ')'; tctx.fillRect(0, cy - 1, W, 2); // 4 px line: outline rim, cream core
+    const cy = H / 2; if (state !== 'result') { tctx.fillStyle = 'rgb(' + pal.out + ')'; tctx.fillRect(0, cy - 2, W, 4); tctx.fillStyle = 'rgb(' + pal.needle + ')'; tctx.fillRect(0, cy - 1, W, 2); } // result: side arrows only, the winning label is never struck through // 4 px line: outline rim, cream core
     const tri = (x, dir) => { for (let i = 0; i < 12; i++) { const hgt = 12 - i; tctx.fillStyle = 'rgb(' + pal.out + ')'; tctx.fillRect(x + dir * i * 2 - (dir < 0 ? 2 : 0), cy - hgt - 2, 2, hgt * 2 + 4); tctx.fillStyle = 'rgb(' + pal.needle + ')'; tctx.fillRect(x + dir * i * 2 - (dir < 0 ? 2 : 0), cy - hgt + 1, 2, hgt * 2 - 2); } };
     tri(0, 1); tri(W, -1);
   }
@@ -106,7 +106,7 @@ export function openReel(o) {
     sh.setBusy(true); sh.waitLook('Tap to skip', 'Skip to the result'); go.removeAttribute('aria-disabled'); go.classList.remove('is-wait', 'is-disabled'); sh.setMsg('The reel is turning...'); raf = requestAnimationFrame(frame);
   }
   function finishReveal() { cancelAnimationFrame(raf); off = centreOf(target); state = 'result'; draw(); showRes(); }
-  function showRes() { const p = o.getPending(); if (!p) return; draw(); sh.showResult(p, o.describe(p)); }
+  function showRes() { const p = o.getPending(); if (!p) return; drawTop(); draw(); sh.showResult(p, o.describe(p)); }
   function onGo(ev) {
     if (state === 'idle') {
       if (reveal) { if (reduced) { o.onSpin({ reveal: true, t: 0, phi: 0, e: 0 }); const p = o.getPending(); if (!p) return; target = p.index | 0; off = centreOf(target); state = 'result'; showRes(); } else startReveal(); }

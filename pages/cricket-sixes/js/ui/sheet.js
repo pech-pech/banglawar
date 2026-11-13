@@ -43,7 +43,7 @@ export function openSheet(title, html, opts) {
     if (typeof onClose === 'function') onClose();
   }
   function onKey(e) {
-    if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); close(); }
+    if (e.key === 'Escape') { if (document.querySelector('.dr-ov')) return; /* a dial / reel over the sheet owns Escape (closes alone) */ e.preventDefault(); e.stopPropagation(); close(); }
     else if (e.key === 'Tab') {
       const f = sheet.querySelectorAll('button:not([tabindex="-1"]),[href],input,select,textarea,[tabindex]:not([tabindex="-1"])');
       if (!f.length) return;

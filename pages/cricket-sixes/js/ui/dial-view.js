@@ -6,7 +6,7 @@
          onSpin(stop),                           aim: stop = {t, phi, e} (STOP time in dial seconds, start phase over the whole 2L loop, wobble); reveal: {reveal:true} then the result is read from getPending()
          getPending() -> {index, jackpot?}|null,
          describe(p) -> { big, chip?, flash?, lineHtml?, say, gold?:bool },
-         onCollect(), collectLabel?, onClose?(), onTick?({loud, rate}),
+         onCollect(), collectLabel?, onClose?(), onTick?({loud, rate}), spokeGain?()=>number (a '+N Spokes' chip on the result card; 0 = none),
          guide?:bool                              Aim Guide upgrade: a small tick on the rim shows where the needle would land if STOP were pressed now
          look?:{rim, hub, needle, gold}           craft look (css colour strings or [r,g,b]); missing = skin palette
          J?:number, V?:number,                    overrides (aim): wobble in units, sweep speed units/s; default J = 1.2 x gold width, V = 16
@@ -17,6 +17,7 @@
    Canvas drawn in code, pixel style, palette read from the page's CSS variables (both skins). */
 import { esc, icoDeco } from './dom.js';
 import { releaseInert } from './inert.js';
+import { spokeIcon } from './wheel-look.js';
 
 export const DR = { L: 10, V: 16, G: 0.5, STOP_FROM: 0.8, COAST: 3, AIM_LO: 1.5, AIM_HI: 2.5, JK: 1.2, HOLD: 0.3, REVEAL_T: 2.5, RAMP: 0.2 / 1.5, CRUISE: 0.8 / 1.5 };
 const TAU = Math.PI * 2;
@@ -88,15 +89,17 @@ export function mountShell(o, cfg) {
   sh.goLook = (text, aria) => { go.textContent = text; go.setAttribute('aria-label', aria); go.removeAttribute('aria-disabled'); go.classList.remove('is-wait', 'is-disabled'); };
   sh.setBusy = (b) => { sh.busy = b; ov.classList.toggle('is-turning', b); if (!b) sh.xLook(false); };
   sh.showResult = (p, d) => {
-    sh.busy = false; ov.classList.remove('is-turning'); msg.hidden = true; res.hidden = false; ov.classList.toggle('is-jp', !!(p.jackpot || d.gold));
+    const sg = o.spokeGain ? Number(o.spokeGain()) || 0 : 0; sh.busy = false; ov.classList.remove('is-turning'); msg.hidden = true; res.hidden = false; ov.classList.toggle('is-jp', !!(p.jackpot || d.gold));
     res.innerHTML = (p.jackpot || d.gold ? '<span class="wh-jp">' + icoDeco('burst', 20) + ' ' + esc(d.flash || 'Gold!') + '</span>' : '') +
-      '<div class="wh-big">' + (d.chip ? '<span class="wh-chip">' + esc(d.chip) + '</span>' : '') + '<b>' + esc(d.big) + '</b></div>' + (d.lineHtml ? '<div class="wh-chg">' + d.lineHtml + '</div>' : d.line ? '<div class="wh-chg"><span>' + esc(d.line) + '</span></div>' : '');
+      '<div class="wh-big">' + (d.chip ? '<span class="wh-chip">' + esc(d.chip) + '</span>' : '') + '<b>' + esc(d.big) + '</b></div>' + (d.lineHtml ? '<div class="wh-chg">' + d.lineHtml + '</div>' : d.line ? '<div class="wh-chg"><span>' + esc(d.line) + '</span></div>' : '') +
+      (sg > 0 ? '<div class="wh-sp">' + spokeIcon(20) + '<b>+' + esc(sg) + ' Spokes</b></div>' : '');
     live.textContent = d.say || ''; // read once
     go.textContent = o.collectLabel || 'COLLECT'; go.classList.add('is-collect', 'c-btn--gold'); go.classList.remove('c-btn--primary'); sh.goLook(o.collectLabel || 'COLLECT', o.collectLabel || 'Collect'); sh.xLook(false); sh.state = 'result'; go.focus();
   };
   sh.close = (done) => {
     if (sh.closed) return; sh.closed = true; sh.dispose.forEach((f) => f()); document.removeEventListener('keydown', onKey, true); window.removeEventListener('resize', onRz);
-    ov.remove(); releaseInert(app); if (opener && opener.isConnected && opener.focus) opener.focus(); if (!done && o.onClose) o.onClose();
+    ov.remove(); releaseInert(app); if (opener && opener.isConnected && opener.focus) opener.focus();
+    if (!done && sh.state === 'result' && o.onCollect) o.onCollect(); else if (!done && o.onClose) o.onClose(); // Escape / X at a result = Collect (the result is kept either way)
   };
   const onRz = () => { if (sh.onResize) sh.onResize(); };
   function onKey(e) {
@@ -112,13 +115,13 @@ export function mountShell(o, cfg) {
 export function openDial(o) {
   const reveal = o.mode === 'reveal', kind = o.kind || 'lights', reduced = reducedNow(), S = 2;
   const sl = o.slices, N = sl.length, widths = sl.map((s) => s.w), L = widths.reduce((a, b) => a + b, 0), cum = cumOf(widths), U = Math.PI / L;
-  const goldI = Math.max(0, sl.findIndex((s) => s.gold)), V = o.V || DR.V, Jw = o.J != null ? o.J : DR.JK * (widths[goldI] || 1), T = (o.plan && o.plan.total) || DR.REVEAL_T;
+  const goldI = sl.reduce((b, s, i) => (s.gold && (b < 0 || widths[i] > widths[b]) ? i : b), -1) < 0 ? 0 : sl.reduce((b, s, i) => (s.gold && (b < 0 || widths[i] > widths[b]) ? i : b), -1), V = o.V || DR.V, Jw = o.J != null ? o.J : DR.JK * (widths[goldI] || 1), T = (o.plan && o.plan.total) || DR.REVEAL_T;
   const centreOf = (i) => (cum[i] + cum[i + 1]) / 2;
   const pal = palette(o.look), coin = reveal && kind === 'coin';
   const fillOf = (i) => (sl[i].gold ? pal.gold : [pal.wall, pal.g2, pal.stone, pal.b1][i % 4]);
   const fills = sl.map((_, i) => fillOf(i));
   const words = sl.map((s) => s.label + (s.sub ? ' ' + s.sub : '')).join(', ');
-  const stageHtml = '<div class="dr-wrap" role="img" aria-label="' + (coin ? 'Coin: ' : 'Half dial of ' + N + ' slices: ') + esc(words) + '"><canvas class="dr-cv"></canvas>' + (coin ? '' : '<span class="dr-ptr" aria-hidden="true"></span>') + '</div>';
+  const stageHtml = '<div class="dr-wrap" role="img" aria-label="' + (coin ? 'Coin: ' : 'Half dial of ' + N + ' slices: ') + esc(words) + '"><canvas class="dr-cv"></canvas>' + (coin || (reveal && kind === 'lights') ? '' : '<span class="dr-ptr" aria-hidden="true"></span>') + '</div>';
   const sh = mountShell(o, { cls: 'dr-dial dr-' + (reveal ? kind : 'aim'), stageHtml, goLabel: 'SPIN' });
   const { ov, go, stage } = sh, wrap = ov.querySelector('.dr-wrap'), cv = ov.querySelector('.dr-cv'), ctx = cv.getContext('2d'), ptr = ov.querySelector('.dr-ptr');
   const labs = coin ? [] : sl.map((s, i) => { const e = document.createElement('span'); e.className = 'dr-lab' + (s.gold ? ' is-gold' : ''); e.setAttribute('aria-hidden', 'true'); e.innerHTML = s.gold && !reveal ? '<i class="dr-star"></i>' : '<b>' + esc(s.label) + '</b>' + (s.sub ? '<small>' + esc(s.sub) + '</small>' : ''); wrap.appendChild(e); return e; });
