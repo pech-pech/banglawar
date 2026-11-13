@@ -80,7 +80,7 @@ test('stadium gates: Fans to START, facility <= stadium level, shop/pitch opens'
   let o = X.buildOptions(s);
   const st = o.find((x) => x.what === 'stadium');
   assert.deepEqual([st.level, st.coins, st.fansGate, st.matches, st.ok], [2, 390, 310, 1, false]);
-  assert.equal(st.why, 'Needs more Fans');
+  assert.match(st.why, /^Needs \d+ Fans, you have \d+$/);
   assert.equal(o.find((x) => x.what === 'nets').ok, false); // L2 nets needs stadium 2
   assert.equal(o.find((x) => x.what === 'gym').ok, true);   // L1 gym ok at stadium 1
   assert.equal(o.find((x) => x.what === 'shop').ok, false); // shop opens at stadium 2

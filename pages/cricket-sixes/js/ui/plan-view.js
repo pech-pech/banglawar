@@ -96,7 +96,7 @@ export function render(el, vm, dispatch) {
   const chip = (b) => {
     const n = count(b.i);
     return `<button type="button" class="pl-chip" data-bowler="${b.i}" aria-label="${esc(b.name)}, ${esc(b.bowl)} bowler, bowling ${abilityLine(b.ability).say}, ${n} of 2 overs set. Tap to give him the selected over.">` +
-      `${icoDeco(TYPE_ICON[b.bowl] || 'typeMedium', 24)}<span class="pl-cn"><span class="name">${esc(b.name)}</span><small>${esc(b.bowl)} · ${abilityLine(b.ability, "").html}</small></span>` +
+      `${icoDeco(TYPE_ICON[b.bowl] || 'typeMedium', 24)}<span class="pl-cn"><span class="name">${esc(b.name)}</span><small>${esc(b.bowl)}</small><small>${abilityLine(b.ability).html}</small></span>` +
       `<span class="pl-set${n === 0 || n > 2 ? ' is-low' : ''}" aria-hidden="true">${n}/2</span></button>`;
   };
   const sub = vm.sub || 'Their innings first, then you chase.';

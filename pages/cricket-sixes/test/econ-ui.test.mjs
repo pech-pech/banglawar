@@ -25,7 +25,7 @@ test('stadium view: seven fixed slots in the contract order, each a button with 
   assert.match(r.innerHTML, /Not built/);
 });
 
-test('stadium view: tap a slot -> plain confirm; Yes dispatches startBuild { what }; No returns', () => {
+test('stadium view: tap a slot -> plain confirm; Yes dispatches StartBuild { what }; No returns', () => {
   const calls = []; const r = fakeRoot(); const s = mk({ coins: 5000 });
   renderStadium(r, s, (n, a) => calls.push([n, a]));
   r.click({ 'data-econ-pick': 'gym' });
@@ -34,15 +34,15 @@ test('stadium view: tap a slot -> plain confirm; Yes dispatches startBuild { wha
   r.click({ 'data-econ-back': '1' });
   assert.match(r.innerHTML, /ec-slots/);
   r.click({ 'data-econ-pick': 'gym' });
-  r.click({ 'data-econ-act': 'startBuild', 'data-what': 'gym' });
-  assert.deepEqual(calls, [['startBuild', { what: 'gym' }]]);
+  r.click({ 'data-econ-act': 'StartBuild', 'data-what': 'gym' });
+  assert.deepEqual(calls, [['StartBuild', { what: 'gym' }]]);
 });
 
 test('stadium view: a locked build says why in words and the Yes button is disabled', () => {
   const r = fakeRoot(); renderStadium(r, mk(), () => {});
   r.click({ 'data-econ-pick': 'pitch' });
   assert.match(r.innerHTML, /Needs Stadium 3/);
-  assert.match(r.innerHTML, /data-econ-act="startBuild"[^>]*disabled/);
+  assert.match(r.innerHTML, /data-econ-act="StartBuild"[^>]*disabled/);
 });
 
 test('stadium view: stadium build in progress shows matches left and uses the real core', () => {
@@ -65,30 +65,30 @@ test('money view: arrears shows a plain warning', () => {
   assert.match(r.innerHTML, /Wages are behind by 80 Coins/);
 });
 
-test('sinks sheet: lists Medal shop, confirm names the cost and dispatches buyMedal { id }', () => {
+test('sinks sheet: lists Medal shop, confirm names the cost and dispatches BuyMedal { id }', () => {
   const calls = []; const r = fakeRoot(); const s = finalsReward(mk(), 'champ');
   renderSinks(r, s, (n, a) => calls.push([n, a]));
   assert.match(r.innerHTML, /Medal shop/); assert.match(r.innerHTML, /Trophy Cabinet/);
   r.click({ 'data-econ-pick': 'medal:trophy_cabinet' });
   assert.match(r.innerHTML, /Buy Trophy Cabinet\?/); assert.match(r.innerHTML, /Cost: 1 Medal/);
-  r.click({ 'data-econ-act': 'buyMedal', 'data-id': 'trophy_cabinet' });
-  assert.deepEqual(calls, [['buyMedal', { id: 'trophy_cabinet' }]]);
+  r.click({ 'data-econ-act': 'BuyMedal', 'data-id': 'trophy_cabinet' });
+  assert.deepEqual(calls, [['BuyMedal', { id: 'trophy_cabinet' }]]);
 });
 
-test('sinks sheet: coin sinks dispatch buySink; legacy dispatches buyLegacy with no id; locked ones cannot be confirmed', () => {
+test('sinks sheet: coin sinks dispatch BuySink; legacy dispatches BuyLegacy with no id; locked ones cannot be confirmed', () => {
   const calls = []; const r = fakeRoot(); const s = mk({ coins: 99999, stadium: 4 });
   renderSinks(r, s, (n, a) => calls.push([n, a]));
   r.click({ 'data-econ-pick': 'sink:hall_1' });
   assert.match(r.innerHTML, /Buy Hall of Fame wing 1\?/);
-  r.click({ 'data-econ-act': 'buySink', 'data-id': 'hall_1' });
+  r.click({ 'data-econ-act': 'BuySink', 'data-id': 'hall_1' });
   r.click({ 'data-econ-pick': 'legacy:' });
   assert.match(r.innerHTML, /Finish the Hall/);
-  assert.match(r.innerHTML, /data-econ-act="buyLegacy"[^>]*disabled/);
-  assert.deepEqual(calls, [['buySink', { id: 'hall_1' }]]);
+  assert.match(r.innerHTML, /data-econ-act="BuyLegacy"[^>]*disabled/);
+  assert.deepEqual(calls, [['BuySink', { id: 'hall_1' }]]);
   const s2 = mk({ coins: 99999, stadium: 4, sinks: { hall_1: 1, hall_2: 1, hall_3: 1 } });
   const r2 = fakeRoot(); const c2 = []; renderSinks(r2, s2, (n, a) => c2.push([n, a]));
-  r2.click({ 'data-econ-pick': 'legacy:' }); r2.click({ 'data-econ-act': 'buyLegacy' });
-  assert.deepEqual(c2, [['buyLegacy', {}]]);
+  r2.click({ 'data-econ-pick': 'legacy:' }); r2.click({ 'data-econ-act': 'BuyLegacy' });
+  assert.deepEqual(c2, [['BuyLegacy', {}]]);
 });
 
 test('look rules: no bare ico( in the new views, no hex colours or small fonts in economy.css, reduced motion block, taps', () => {
@@ -99,4 +99,27 @@ test('look rules: no bare ico( in the new views, no hex colours or small fonts i
   assert.match(css, /prefers-reduced-motion: reduce/);
   for (const sel of ['ec-slot', 'ec-item', 'ec-actions .c-btn']) assert.ok(new RegExp(sel.replace(' ', '[^}]*?') ).test(css));
   assert.doesNotMatch(css, /animation\s*:\s*(?!none)\S/);
+});
+
+test('QA fixes: dispatch names match the store, confirm title is focusable, plain words, real next league, top level panel, Legend shows built', () => {
+  const cmds = read('js/store/commands.js');
+  for (const n of ['StartBuild', 'BuySink', 'BuyMedal', 'BuyLegacy']) assert.ok(cmds.includes("case '" + n + "'"), n);
+  const r = fakeRoot(); renderStadium(r, mk({ fans: 120 }), () => {});
+  assert.match(r.innerHTML, /Needs 310 Fans, you have 120/);
+  assert.match(r.innerHTML, /League 2 needs Stadium.2\./);
+  assert.doesNotMatch(r.innerHTML, /blur|bonus \+/);
+  r.click({ 'data-econ-pick': 'stadium' });
+  assert.match(r.innerHTML, /<h3 class="ec-h" tabindex="-1">/);
+  const top = mk({ fac: { stands: 5, gym: 5, shop: 5, nets: 5, pitch: 5, academy: 5, scout: 5 }, stadium: 5 });
+  const r2 = fakeRoot(); renderStadium(r2, top, () => {}); r2.click({ 'data-econ-pick': 'gym' });
+  assert.match(r2.innerHTML, /Gym: top level/); assert.match(r2.innerHTML, /Close/); assert.doesNotMatch(r2.innerHTML, /Nothing more to build/);
+  const r3 = fakeRoot(); renderSinks(r3, mk({ stadium: 4, legacy: 3 }), () => {});
+  assert.match(r3.innerHTML, /3 built so far/);
+  assert.equal((r3.innerHTML.match(/ec-seg is-on/g) || []).length, 3);
+});
+
+test('sinks sheet: coach licence note uses a coach letter, no level digits', async () => {
+  const { splitName } = await import('../js/ui/sinks-sheet.js');
+  const n = splitName('Master Coach Licence (opens one tree top without the level-3 coach)').note;
+  assert.match(n, /a B- coach/); assert.doesNotMatch(n, /level/);
 });

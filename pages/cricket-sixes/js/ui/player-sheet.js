@@ -4,12 +4,14 @@
    playerVM keeps its numbers (engine); ratings:[{key, val}] val is raw 1..99, ability.overall is shown 20..200. */
 import { openSheet } from './sheet.js';
 import { esc, gradeChip, abilityCell, bindActs } from './dom.js';
-import { rawCell, deco, roleIcon, typeIcon, spoken } from './letters-ui.js';
+import { rawCell, shownCell, deco, roleIcon, typeIcon, spoken } from './letters-ui.js';
+const ROLE_WORD = { opener: 'Opener', middle: 'Middle order', lower: 'Lower order' };
 
 const cap = (s) => { s = String(s || ''); return s.charAt(0).toUpperCase() + s.slice(1).toLowerCase(); };
 const RATING_ICON = { batPower: 'batPower', batSkill: 'batSkill', bowlSpeed: 'bowlSpeed', bowlSkill: 'bowlSkill' };
 const RATING_WORD = { batPower: 'Batting Power', batSkill: 'Batting Skill', bowlSpeed: 'Bowling Speed', bowlSkill: 'Bowling Skill' };
 
+function abilityBox(a, max) { const c = shownCell(a); return '<span class="m0-abil' + (max ? ' m0-max' : '') + '" aria-label="' + esc(spoken(c.letter)) + (max ? ', max' : '') + '">' + c.html + (max ? '<span class="c-tag m0-maxtag">max</span>' : '') + '</span>'; }
 function stat(r) {
   const label = RATING_WORD[r.key] || r.key, c = rawCell(r.val);
   return '<div class="lt-stat" aria-label="' + esc(label + ' ' + spoken(c.letter)) + '"><span class="tr-iw">' + deco(RATING_ICON[r.key] || 'train', 24) + '<span>' + esc(label) + '</span></span>' + c.html + '</div>';
@@ -20,10 +22,10 @@ export function playerHtml(vm) {
   const a = vm.ability || {};
   const lines = [];
   lines.push('<div class="tr-who">' + (vm.age != null ? '<span>Age ' + esc(vm.age) + '</span>' : '') +
-    '<span class="tr-iw">' + deco(roleIcon(vm.role), 20) + '<span>' + esc(cap(vm.role)) + '</span></span>' +
+    '<span class="tr-iw">' + deco(roleIcon(vm.role), 20) + '<span>' + esc(ROLE_WORD[String(vm.role).toLowerCase()] || cap(vm.role)) + '</span></span>' +
     '<span class="tr-iw">' + deco(typeIcon(vm.type), 20) + '<span>' + esc(cap(vm.type)) + '</span></span>' +
     (vm.bench ? '<span class="c-tag tr-bench">Bench</span>' : '') + '</div>');
-  lines.push('<div class="tr-abil"><span class="tr-abil__cell"><small>Ability</small>' + abilityCell(a.overall, !!vm.max) + '</span>' +
+  lines.push('<div class="tr-abil"><span class="tr-abil__cell"><small>Ability</small>' + abilityBox(a.overall, !!vm.max) + '</span>' +
     '<span class="tr-abil__cell"><small>Potential grade</small>' + gradeChip(vm.grade, vm.pips) + (hidden ? '' : '<small class="tr-grow">how high he can grow</small>') + '</span></div>');
   if (vm.peak) lines.push('<div class="tr-banner">' + deco('peak', 20) + '<span>At peak: training can’t raise this player now. Skill nodes still work.</span></div>');
   if (hidden) lines.push('<p class="tr-note">' + deco('info', 20) + '<span>? = not known yet. It shows after he trains once.</span></p>');
@@ -31,7 +33,7 @@ export function playerHtml(vm) {
   if (vm.capLine) lines.push('<p class="tr-note">' + deco('info', 20) + '<span>' + esc(vm.capLine) + '</span></p>');
   const n = vm.node || {};
   lines.push('<button type="button" class="c-btn tr-tree" data-act="sheet:tree" data-arg="' + esc(JSON.stringify({ id: vm.id })) + '">' + deco('upgrade', 24) +
-    '<span>Skill tree</span>' + (n.cost != null ? '<span class="tr-treecost">' + deco('tp', 20) + '<b>' + esc(n.cost) + '</b></span>' : '') + '</button>');
+    '<span>Skill tree</span>' + (n.cost != null ? '<span class="tr-treecost">' + deco('tp', 20) + '<b>' + esc(n.cost) + ' TP</b></span>' : '') + '</button>');
   return lines.join('');
 }
 

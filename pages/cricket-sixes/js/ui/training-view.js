@@ -7,7 +7,7 @@
 import { esc, icoDeco, bindActs, ctaBar } from './dom.js';
 import { openSheet } from './sheet.js';
 import { letterOfRaw, stepOfRaw } from '../core/letters.js';
-import { playNets, lineHtml, letterBar, STAT, statKey } from './nets-scene.js';
+import { playNets, lineHtml, skipLine, letterBar, STAT, statKey } from './nets-scene.js';
 import { openWheel } from './wheel-view.js';
 
 export const ROLE_ICON = { opener: 'roleOpener', middle: 'roleMiddle', lower: 'roleLower' };
@@ -84,7 +84,7 @@ function seg(group, label, opts, cur) {
 
 function spotSheet(vm, dispatch) {
   const rows = vm.rows || [], cur = vm.plan.spotlightId;
-  const item = (id, name, sub) => '<button type="button" class="c-btn c-btn--block t2-pickrow" data-sp="' + esc(id == null ? '' : id) + '" aria-pressed="' + (cur === id || (cur == null && id == null)) + '">' + esc(name) + (sub ? '<small>' + esc(sub) + '</small>' : '') + '</button>';
+  const item = (id, name, sub) => '<button type="button" class="c-btn c-btn--block t2-pickrow" data-sp="' + esc(id == null ? '' : id) + '" aria-pressed="' + (cur === id || (cur == null && id == null)) + '"><span class="t2-pk"><b>' + esc(name) + '</b>' + (sub ? '<small>' + esc(sub) + '</small>' : '') + '</span></button>';
   const close = openSheet('Spotlight wheel', '<p class="tr-note">' + deco('info', 20) + '<span>One player spins the wheel instead of his normal roll. Same cost.</span></p>' + item(null, 'No Spotlight', 'Everyone rolls as usual') +
     rows.filter((r) => r.state !== 'skip').map((r) => item(r.id, r.name, strongOf(r))).join(''));
   const body = document.querySelector('.sheet-fixed .c-sheet__body');
@@ -130,7 +130,7 @@ export function render(el, rawVm, dispatch, open) {
     const g = nets.lines.length, up = nets.lines.filter((l) => letterOfRaw(l.toRaw) !== letterOfRaw(l.fromRaw)).length;
     body = '<div class="c-card c-card--hl t2-sum"><div class="tr-h"><b class="tr-iw">' + deco('done', 20) + '<span>Nets done</span></b></div>' +
       '<p class="tr-note">' + deco('info', 20) + '<span>' + g + ' trained' + (up ? ', ' + up + ' moved up a letter' : '') + (nets.skipped && nets.skipped.length ? ', ' + nets.skipped.length + " can't gain" : '') + '. Cost ' + esc(nets.cost) + ' TP.</span></p></div>' +
-      '<ul class="t2-lines" aria-label="Results">' + nets.lines.map((l) => lineHtml(l)).join('') + '</ul>';
+      '<ul class="t2-lines" aria-label="Results">' + nets.lines.map((l) => lineHtml(l)).join('') + (nets.skipped || []).map(skipLine).join('') + '</ul>';
     cta = ctaBar('<button type="button" class="c-btn c-btn--primary c-btn--cta c-btn--block" data-act="EndWeek" data-ft="done">Done</button>');
   } else {
     const c = vm.coach;

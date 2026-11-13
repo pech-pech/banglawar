@@ -42,7 +42,7 @@ export function lineHtml(l, cls) {
     (l.breakthrough ? '<span class="t2-bt">Breakthrough!</span>' : '') + '</span></li>';
 }
 
-const lane = (n) => '<li class="t2-line t2-line--skip" aria-label="' + esc(n.name + ', cannot gain this week') + '"><span class="t2-l1"><b class="t2-nm">' + esc(n.name) + '</b><span class="t2-wd">' + esc(n.why || "Can't gain") + '</span></span></li>';
+export const skipLine = (n) => '<li class="t2-line t2-line--skip" aria-label="' + esc(n.name + ', cannot gain this week') + '"><span class="t2-l1"><b class="t2-nm">' + esc(n.name) + '</b><span class="t2-wd">' + esc(n.why || "Can't gain") + '</span></span></li>';
 
 export function playNets(o, opts) {
   opts = opts || {};
@@ -55,8 +55,8 @@ export function playNets(o, opts) {
   const summary = 'Nets done. ' + lines.length + ' trained' + (ups ? ', ' + ups + ' moved up a letter' : '') + (skipped.length ? ', ' + skipped.length + " can't gain" : '') + '.';
   ov.innerHTML = '<div class="t2-strip"><span>' + icoDeco('train', 24) + ' Nets day' + (o.week ? ' <small>Week ' + esc(o.week) + '</small>' : '') + '</span></div>' +
     '<ul class="ns-lanes" aria-label="Nets lanes">' + lines.map((l, i) => '<li class="ns-lane" data-i="' + i + '"><span class="ns-runner" aria-hidden="true">' + icoDeco(STAT(l.stat).icon, 20) + '</span><ul class="ns-res">' + lineHtml(l, 'ns-hide') + '</ul></li>').join('') +
-    skipped.map((k) => '<li class="ns-lane ns-lane--skip"><ul class="ns-res">' + lane(k) + '</ul></li>').join('') + '</ul>' +
-    '<div class="t2-foot"><button type="button" class="c-btn c-btn--primary c-btn--block ns-skip">Tap to skip</button></div>' +
+    skipped.map((k) => '<li class="ns-lane ns-lane--skip"><ul class="ns-res">' + skipLine(k) + '</ul></li>').join('') + '</ul>' +
+    '<div class="t2-foot"><button type="button" class="c-btn c-btn--primary c-btn--cta c-btn--block ns-skip">Tap to skip</button></div>' +
     '<div class="sr-only" role="status" aria-live="polite" id="ns-live"></div>';
   document.body.appendChild(ov); if (app) app.inert = true;
   const btn = ov.querySelector('.ns-skip'), live = ov.querySelector('#ns-live'), laneEls = [...ov.querySelectorAll('.ns-lane')];

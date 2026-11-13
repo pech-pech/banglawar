@@ -42,4 +42,37 @@ div.pay-row { min-height: 40px; }
 .hb-notice span { min-width: 0; flex: 1 1 140px; }
 .hb-notice small { margin-left: auto; }
 .hb-tools3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-.hb-econ { margin: 0; display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 4px; font-size: 14px; line-height: 18px; }
+
+/* QA fixes */
+.pay-who[hidden] { display: none; }
+.pay-star { font-size: 22px; line-height: 22px; margin-right: 2px; }
+/* ticks stacked under the letter */
+.lt-line { display: inline-flex; align-items: center; gap: 6px; }
+.lt-line .lt-cell { align-items: center; }
+.lt-in { display: inline-block; }
+/* squad row: main button (name + bat + bowl) and a separate info button (potential grade) */
+.sq-wrap { display: grid; grid-template-columns: minmax(0, 1fr) 44px; gap: 4px; }
+.sq-row { grid-template-columns: minmax(0, 1fr) 42px 42px; }
+.sq-info { cursor: pointer; font: inherit; color: inherit; padding: 0; }
+.sq-info img { image-rendering: pixelated; }
+.sq-pbox { grid-template-rows: auto auto auto auto; }
+.sq-pbox .ico { grid-row: 1 / 5; }
+.sq-benchline { grid-column: 2; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.sq-sub { flex-wrap: wrap; gap: 0 8px; }
+.sq-ty { display: inline-flex; align-items: center; gap: 3px; }
+.sq-nm { min-width: 0; overflow-wrap: anywhere; white-space: normal; }
+/* bowl CTA: over on line 1, bowler on line 2 */
+.bv-ct { display: flex; flex-direction: column; align-items: center; line-height: 20px; }
+.bv-ct small { font-size: 14px; line-height: 16px; max-width: 100%; overflow-wrap: anywhere; }
+/* Scorebook: names wrap/shrink, never clip */
+.hb-p .nm { white-space: normal; overflow: visible; text-overflow: clip; overflow-wrap: anywhere; font-size: 14px; line-height: 16px; }
+.pl-cn .name, .ts-nm .name { white-space: normal; overflow-wrap: anywhere; text-overflow: clip; }
+.ts-wrap { display: grid; grid-template-columns: minmax(0, 1fr) 56px; gap: 4px; }
+.ts-wrap .ts-row { grid-template-columns: 28px minmax(0, 1fr) 56px; }
+.ts-info { flex-direction: column; cursor: pointer; font: inherit; color: inherit; padding: 0; }
+.ts-info img { image-rendering: pixelated; }
+.hb-coins { font-size: 14px; line-height: 14px; white-space: nowrap; }
+.hb-promo .hb-check { min-height: 32px; line-height: 18px; } .hb-promo { padding-top: 4px; padding-bottom: 4px; }
+.ts-wrap .ts-info, .sq-wrap .sq-info { min-width: 56px; min-height: 56px; box-sizing: border-box; }
+.sq-wrap { grid-template-columns: minmax(0, 1fr) 56px; }
+.ts-wrap { grid-template-columns: minmax(0, 1fr) 56px; }

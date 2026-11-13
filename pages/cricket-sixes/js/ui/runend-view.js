@@ -6,7 +6,7 @@ const plural = (n, one, many) => n + ' ' + (Number(n) === 1 ? one : many);
 const VALUE = {
   titles: (v) => plural(v, 'league title', 'league titles'),
   league: (v) => 'Reached League ' + v,
-  best_player: (v) => 'Best player: ability ' + letterOfShown(Number(v)),
+  best_player: (v) => 'Ability ' + letterOfShown(Number(v)),
   finals: (v) => plural(v, 'final played', 'finals played'),
   sgrads: (v) => plural(v, 'graduate', 'graduates'),
 };

@@ -28,7 +28,9 @@ test('squad: bench slots are soft labels with a fit tick, Confirm stays on', () 
   assert.match(el.innerHTML, /Bench batter/); assert.match(el.innerHTML, /Bench bowler/);
   assert.match(el.innerHTML, /sq-fit/);
   assert.ok(!/data-confirm[^>]*disabled/.test(el.innerHTML));
-  const full = fake(); squad(full, { players, count: 6, valid: true, reason: '', squadFull: true }, () => {});
+  const full = fake(); squad(full, { players, count: 6, valid: true, reason: '', squadFull: true, adding: true }, () => {});
+  const idle = fake(); squad(idle, { players, count: 6, valid: true, reason: '', squadFull: true }, () => {});
+  assert.ok(!idle.innerHTML.includes(SQUAD_FULL), 'the full line shows only in an add flow');
   assert.ok(full.innerHTML.includes(SQUAD_FULL));
 });
 
@@ -83,4 +85,17 @@ test('source: no view prints a raw rating (ability, bat, bowl, potential) outsid
     const src = readFileSync(new URL('../js/ui/' + f + '.js', import.meta.url), 'utf8');
     src.split('\n').forEach((ln, i) => { if (bad.test(ln)) assert.fail(f + ':' + (i + 1) + ' ' + ln.trim()); });
   }
+});
+
+test('QA: [hidden] lists stay hidden (display rule needs a [hidden] rule)', () => {
+  const css = readFileSync(new URL('../css/letters.css', import.meta.url), 'utf8');
+  assert.match(css, /\.pay-who\[hidden\]\s*\{\s*display:\s*none/);
+  for (const m of css.matchAll(/(\.[\w-]+)\s*\{[^}]*display:\s*(?:grid|flex)/g)) {
+    if (m[1] === '.pay-who') assert.match(css, /\.pay-who\[hidden\]/);
+  }
+});
+test('QA: squad rows have a separate player-card button; header has no drills; bench tag on its own line', () => {
+  const el = fake(); squad(el, { players, count: 6, valid: true, reason: '' }, () => {});
+  assert.match(el.innerHTML, /data-act="sheet:player"/); assert.ok(!/Player · drills/.test(el.innerHTML));
+  assert.match(el.innerHTML, /sq-benchline/);
 });

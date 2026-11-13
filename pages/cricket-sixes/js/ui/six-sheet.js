@@ -35,12 +35,11 @@ export function openTeam(vm, dispatch, _open, arg, refresh) {
     const sub = (p.role ? esc(p.role) : '') + (p.type ? ' · ' + icoDeco(TYPE_ICON[p.type], 14) + esc(p.type) : '');
     const label = p.name + ', ' + (p.role || '') + ', ' + (p.type || '') + ', ability ' + spoken(shownCell(p.ability).letter) + ', ' + (hidden ? 'grade hidden' : 'grade ' + p.grade) +
       (on ? '. Playing, bats number ' + (p.order + 1) + '. Tap to swap out.' : '. ' + (slot ? slot.label + (slot.fit ? ', good fit' : '') : 'On the bench') + '. Tap to bring in.') + (picked ? ' Selected.' : '');
-    return '<button type="button" class="ts-row' + (picked ? ' is-selected' : '') + (on ? '' : ' ts-row--bench') + '" data-pid="' + esc(p.id) + '" aria-pressed="' + picked + '" aria-label="' + esc(label) + '">' +
+    return '<div class="ts-wrap"><button type="button" class="ts-row' + (picked ? ' is-selected' : '') + (on ? '' : ' ts-row--bench') + '" data-pid="' + esc(p.id) + '" aria-pressed="' + picked + '" aria-label="' + esc(label) + '">' +
       '<span class="ts-ico">' + icoDeco(ROLE_ICON[p.role] || 'roleMiddle', 24) + '</span>' +
       '<span class="ts-nm"><span class="name">' + (on ? '<b class="ts-ord" aria-hidden="true">' + (p.order + 1) + '</b>' : '') + esc(p.name) + (slot ? '<span class="ts-out ts-slot">' + esc(slot.label) + '</span>' : '') + (picked ? '<span class="ts-out">' + icoDeco('alert', 14) + 'Out</span>' : '') + '</span><small>' + sub + (slot && slot.fit ? ' ' + fitTick() : '') + '</small></span>' +
       '<span class="ts-n">' + shownCell(p.ability).html + '</span>' +
-      '<span class="ts-n ts-g' + (hidden ? ' is-q' : '') + '"><b>' + (hidden ? '?' : esc(p.grade)) + '</b></span>' +
-      '' + '</button>';
+      '</button><button type="button" class="ts-n ts-g ts-info' + (hidden ? ' is-q' : '') + '" data-info="' + esc(p.id) + '" aria-label="' + esc('Player card for ' + p.name + (hidden ? ', potential grade not known yet' : ', potential grade ' + p.grade)) + '"><b aria-hidden="true">' + (hidden ? '?' : esc(p.grade)) + '</b>' + icoDeco('info', 14) + '</button></div>';
   }
 
   function sixPane() {
@@ -93,6 +92,7 @@ export function openTeam(vm, dispatch, _open, arg, refresh) {
     if (t.hasAttribute('data-done')) { if (!t.hasAttribute('disabled')) close(); return; }
     if (t.hasAttribute('data-tab')) { tab = /** @type {any} */ (t.getAttribute('data-tab')); st.toast = ''; st.nudge = false; paint(); return; }
     if (t.hasAttribute('data-suggest')) { dispatch('TeamSuggest'); sync(); st.sel = -1; paint('[data-done]'); return; }
+    if (t.hasAttribute('data-info')) { const pid = t.getAttribute('data-info'); close(); if (_open) _open('player', { id: pid }); return; }
     if (t.hasAttribute('data-pid')) {
       const id = t.getAttribute('data-pid'), p = V.players.find((x) => String(x.id) === id); if (!p) return;
       st.toast = '';

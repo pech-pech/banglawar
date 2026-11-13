@@ -35,17 +35,18 @@ function row(p, pos, maxBat, maxBowl, slot) {
   const hidden = !p.grade || p.grade === '?';
   const role = ROLE_WORD[p.role] || '';
   const type = p.type || '';
-  const subHtml = (role ? esc(role) : '') + (role && type ? ' · ' : '') + (type ? `${icoDeco(TYPE_ICON[type], 14)}${esc(type)}` : '');
+  const subHtml = (role ? `<span>${esc(role)}</span>` : '') + (type ? `<span class="sq-ty">${icoDeco(TYPE_ICON[type], 14)}${esc(type)}</span>` : '');
   const label = `${p.name}${role ? ', ' + role : ''}${type ? ', ' + type + ' bowler' : ''}, batting ${spoken(shownCell(p.bat).letter)}, bowling ${spoken(shownCell(p.bowl).letter)}, ` +
     (hidden ? 'potential grade ' + DRILLS + `, ${p.pips | 0} of 1 drill` : 'potential grade ' + p.grade) +
     (p.bat === maxBat ? ', best batter' : '') + (p.bowl === maxBowl ? ', best bowler' : '') + (p.peak ? ', at peak' : '') + (on ? `. Picked, bats number ${pos + 1}. Tap to take out.` : '. ' + (slot ? slot.label + (slot.fit ? ', good fit' : '') : 'On the bench') + '. Tap to pick.');
-  return `<button type="button" class="sq-row${on ? ' is-selected' : ' sq-row--bench'}" role="checkbox" aria-checked="${on}" data-id="${esc(p.id)}" aria-label="${esc(label)}">` +
+  return `<div class="sq-wrap"><button type="button" class="sq-row${on ? ' is-selected' : ' sq-row--bench'}" role="checkbox" aria-checked="${on}" data-id="${esc(p.id)}" aria-label="${esc(label)}">` +
     `<div class="pbox sq-pbox">${icoDeco(ROLE_ICON[p.role] || 'roleMiddle', 26)}` +
-    `<span class="nm name sq-nm">${on ? `<b class="sq-ord" aria-hidden="true">${pos + 1}</b>` : `<span class="sq-bench">${esc(slot ? slot.label : 'Bench')}</span>`}${esc(p.name)}</span>` +
-    `<span class="sub sq-sub">${subHtml}${slot && slot.fit ? ' ' + fitTick() : ''}</span>${hidden ? pips(p.pips) : ''}</div>` +
+    `<span class="nm name sq-nm">${on ? `<b class="sq-ord" aria-hidden="true">${pos + 1}</b>` : ''}${esc(p.name)}</span>` +
+    (on ? '' : `<span class="sub sq-benchline"><span class="sq-bench">${esc(slot ? slot.label : 'Bench')}</span>${slot && slot.fit ? fitTick() : ''}</span>`) +
+    `<span class="sub sq-sub">${subHtml}</span>${hidden ? pips(p.pips) : ''}</div>` +
     `<div class="sq-nbox${p.bat === maxBat ? ' hi' : ''}">${shownCell(p.bat).html}${p.bat === maxBat ? '<small class="sq-best">Best</small>' : ''}</div>` +
     `<div class="sq-nbox${p.bowl === maxBowl ? ' hi' : ''}">${shownCell(p.bowl).html}${p.bowl === maxBowl ? '<small class="sq-best">Best</small>' : ''}</div>` +
-    `<div class="sq-nbox sq-gq${hidden ? ' sq-unk' : ''}"><b aria-hidden="true">${hidden ? '?' : esc(p.grade)}</b>${p.peak ? '<small>Peak</small>' : ''}</div></button>`;
+    `</button><button type="button" class="sq-nbox sq-gq sq-info${hidden ? ' sq-unk' : ''}" data-act="sheet:player" data-arg="${esc(JSON.stringify({ id: p.id }))}" aria-label="${esc('Player card for ' + p.name + (hidden ? ', potential grade not known yet' : ', potential grade ' + p.grade))}"><b aria-hidden="true">${hidden ? '?' : esc(p.grade)}</b>${p.peak ? '<small>Peak</small>' : icoDeco('info', 14)}</button></div>`;
 }
 
 /** @param {HTMLElement} el @param {any} vm @param {(cmd:string, payload:any)=>void} dispatch */
@@ -74,10 +75,10 @@ export function render(el, vm, dispatch) {
     `<header class="strip c-dark sq-strip"><span class="mid"><b>${esc(title)}</b><span>${esc(sub)}</span></span>` +
     `<span class="score sq-cnt" aria-live="polite">${n} of ${SIX} picked</span>` +
     `<button type="button" class="q" data-gloss aria-label="Cricket words explained">?</button></header>` +
-    `<div class="sq-cols" aria-hidden="true"><span>Player · drills</span><span>Bat</span><span>Bowl</span><span>Potential grade</span></div>` +
+    `<div class="sq-cols" aria-hidden="true"><span>Player</span><span>Bat</span><span>Bowl</span><span>Potential grade</span></div>` +
     `<div class="sq-list" role="group" aria-label="Squad of ${players.length}">` +
     picked.map((p, i) => row(p, i, maxBat, maxBowl, null)).join('') +
-    (vm.squadFull ? `<div class="sq-full" role="status">${esc(SQUAD_FULL)}</div>` : '') +
+    (vm.squadFull && vm.adding ? `<div class="sq-full" role="status">${esc(SQUAD_FULL)}</div>` : '') +
     (bench.length ? `<div class="sq-benchhd">Bench: ${bench.length} not playing</div>` : '') +
     bench.map((p) => row(p, -1, maxBat, maxBowl, slots.get(p.id))).join('') + `</div>` +
     `<div class="ctabar sq-cta"><div class="sq-why" id="sq-why" role="status">${esc(reason)}</div>` +

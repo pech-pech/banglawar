@@ -1,16 +1,20 @@
 /* sinks-sheet: late sinks (Coins), the Medal shop, and the Legacy Project, each with a plain confirm panel.
-   renderSinks(root, state, dispatch) draws into root. Dispatches: buySink { id }, buyMedal { id }, buyLegacy {}.
+   renderSinks(root, state, dispatch) draws into root. Dispatches: BuySink { id }, BuyMedal { id }, BuyLegacy {}.
    Reads eco.sinkOptions / medalShop / legacyOffer / fansBars. Item fields used: id, name, coins, medals, ok, why ('Done' = bought). Legacy offer: name, price, fans, ok, why.
    openSinks(state, dispatch) shows it in a bottom sheet. Digits are fine: Coins and Medals are currencies. */
 import { esc, icoDeco } from './dom.js';
 import { openSheet } from './sheet.js';
 import { fmt, fansBarsHtml } from './club-money-view.js';
 import * as eco from '../core/economy.js';
+import { letterOfStep } from '../core/letters.js';
+import { TRAIN2 } from '../data/training.js';
 
 const econOf = (s) => (s && s.econ) || {};
 const safe = (f, s) => { try { return f(s); } catch (_) { return null; } };
 /** "Trophy Cabinet (gold trim)" -> { title, note }. */
 export function splitName(n) {
+  const lv = (x) => letterOfStep(TRAIN2.coach.oldStepBase + TRAIN2.coach.oldStepPerLevel * x);
+  n = String(n || '').replace(/the level-(\d) coach/g, (_, d) => 'a ' + lv(Number(d)) + ' coach');
   const m = /^(.*?)\s*\((.*)\)\s*$/.exec(String(n || ''));
   return m ? { title: m[1], note: m[2] } : { title: String(n || ''), note: '' };
 }
@@ -39,7 +43,7 @@ function legacyHtml(s) {
   const e = econOf(s);
   const price = Number(o.price) || 0;
   const state = o.ok ? 'Buy for ' + fmt(price) + ' Coins' : (o.why || 'Locked');
-  return '<section class="c-card ec-legacy" aria-label="Legacy Project"><h3 class="c-strip c-strip--light"><span>' + icoDeco('home', 24) + ' Legacy Project</span><span class="c-strip__right">' + fmt(e.legacy || 0) + ' built</span></h3>' +
+  return '<section class="c-card ec-legacy" aria-label="Legacy Project"><h3 class="c-strip c-strip--light"><span>' + icoDeco('legacy', 24) + ' Legacy Project</span><span class="c-strip__right">' + fmt(e.legacy || 0) + ' built</span></h3>' +
     '<p class="ec-stad__line">Build something for the village. It has no match effect. Each one adds a segment to Club Legend and 500 Fans.</p>' +
     '<button type="button" class="c-btn ec-item' + (o.ok ? '' : ' is-locked') + '" data-econ-pick="legacy:" aria-label="' + esc((o.name || 'Legacy Project') + '. ' + state) + '">' + icoDeco(o.ok ? 'coin' : 'lock', 24) +
     '<span class="ec-item__t"><span class="ec-item__n">' + esc(o.name || 'Next project') + '</span><small class="ec-item__s">' + esc(state) + '</small></span></button></section>';
@@ -56,18 +60,18 @@ function confirmHtml(pick, s) {
     heading = o ? 'Buy ' + splitName(o.name).title + '?' : 'Not available';
   }
   const back = '<button type="button" class="c-btn ec-back" data-econ-back="1">' + icoDeco('close', 24) + '<span>No, go back</span></button>';
-  if (!o) return '<div class="screen ec-screen ec-confirm"><h3 class="ec-h">' + esc(heading) + '</h3>' + back + '</div>';
+  if (!o) return '<div class="screen ec-screen ec-confirm"><h3 class="ec-h" tabindex="-1">' + esc(heading) + '</h3>' + back + '</div>';
   const medals = !!o.medals, ok = !!o.ok && !isDone(o);
   const have = medals ? Number(e.medals) || 0 : Number(e.coins) || 0, cost = medals ? o.medals : Number(o.coins) || 0;
   const after = have - cost;
   const note = splitName(o.name).note;
-  return '<div class="screen ec-screen ec-confirm"><h3 class="ec-h">' + esc(heading) + '</h3>' + (note ? '<p class="ec-note">' + icoDeco('info', 24) + '<span>' + esc(note) + '</span></p>' : '') +
+  return '<div class="screen ec-screen ec-confirm"><h3 class="ec-h" tabindex="-1">' + esc(heading) + '</h3>' + (note ? '<p class="ec-note">' + icoDeco('info', 24) + '<span>' + esc(note) + '</span></p>' : '') +
     '<ul class="ec-facts"><li>' + icoDeco(medals ? 'medal' : 'coin', 24) + '<span>Cost: ' + fmt(cost) + (medals ? ' Medals' : ' Coins') + '</span></li>' +
     '<li>' + icoDeco(medals ? 'medal' : 'coin', 24) + '<span>' + (medals ? 'Medals' : 'Coins') + ' after: ' + (ok ? fmt(after) : 'not available') + '</span></li>' +
     (kind === 'legacy' ? '<li>' + icoDeco('fan', 24) + '<span>Adds 500 Fans and one Club Legend segment</span></li>' : '') + '</ul>' +
     (!medals && ok ? '<p class="ec-note">' + icoDeco('info', 24) + '<span>The club keeps enough Coins back to pay wages for a few matches.</span></p>' : '') +
     (ok ? '' : '<p class="ec-note ec-note--warn" role="status">' + icoDeco('lock', 24) + '<span>' + esc(o.why || 'Not ready yet.') + '</span></p>') +
-    '<div class="ec-actions"><button type="button" class="c-btn c-btn--primary" data-econ-act="' + (kind === 'legacy' ? 'buyLegacy' : kind === 'medal' ? 'buyMedal' : 'buySink') + '" data-id="' + esc(id) + '"' + (ok ? '' : ' disabled aria-disabled="true"') + '>' +
+    '<div class="ec-actions"><button type="button" class="c-btn c-btn--primary" data-econ-act="' + (kind === 'legacy' ? 'BuyLegacy' : kind === 'medal' ? 'BuyMedal' : 'BuySink') + '" data-id="' + esc(id) + '"' + (ok ? '' : ' disabled aria-disabled="true"') + '>' +
     icoDeco('done', 24) + '<span>Yes, buy</span></button>' + back + '</div></div>';
 }
 
@@ -88,9 +92,9 @@ export function renderSinks(root, state, dispatch) {
     root.addEventListener('click', (ev) => {
       const t = ev.target.closest && ev.target.closest('[data-econ-pick],[data-econ-back],[data-econ-act]');
       if (!t || !root.contains(t) || t.disabled) return;
-      if (t.hasAttribute('data-econ-pick')) { root.__ecPick = t.getAttribute('data-econ-pick'); renderSinks(root, root.__ecState, dispatch); const y = root.querySelector('.ec-actions .c-btn,.ec-back'); if (y) y.focus(); }
+      if (t.hasAttribute('data-econ-pick')) { root.__ecPick = t.getAttribute('data-econ-pick'); renderSinks(root, root.__ecState, dispatch); const sc = root.closest && root.closest('.c-sheet__body'); if (sc) sc.scrollTop = 0; const h = root.querySelector('.ec-h'); if (h) h.focus(); }
       else if (t.hasAttribute('data-econ-back')) { const was = root.__ecPick; root.__ecPick = null; renderSinks(root, root.__ecState, dispatch); const b = root.querySelector('[data-econ-pick="' + was + '"]'); if (b) b.focus(); }
-      else { const name = t.getAttribute('data-econ-act'), id = t.getAttribute('data-id'); root.__ecPick = null; dispatch(name, name === 'buyLegacy' ? {} : { id }); }
+      else { const name = t.getAttribute('data-econ-act'), id = t.getAttribute('data-id'); root.__ecPick = null; dispatch(name, name === 'BuyLegacy' ? {} : { id }); }
     });
   }
   root.__ecState = state;

@@ -9,6 +9,7 @@ import { esc } from './dom.js';
 import { deco, strongHtml } from './training-view.js';
 import { letterOfStep } from '../core/letters.js';
 import { openWheel } from './wheel-view.js';
+import { scoutBodyHtml, scoutDone } from './coachpick-view.js';
 import { courseWheel } from '../core/training.js';
 
 function coachHtml(c) {
@@ -28,6 +29,8 @@ function coachHtml(c) {
 export function coachesHtml(vm) {
   const cs = vm.coaches || [], free = Math.max(0, (vm.slots || 3) - cs.length), none = !cs.some((c) => c.picked);
   return cs.map((c) => coachHtml(c)).join('') +
+    Array.from({ length: free }, () => '<div class="t2-slot" aria-label="Empty coach slot"><span>' + deco('coach', 24) + '</span><span>Empty slot</span></div>').join('') +
+    '<button type="button" class="c-btn c-btn--block t2-scout" data-scout="1">' + deco('scout', 20) + '<span>Scout list' + (vm.scout && vm.scout.open ? '' : ' (done this season)') + '</span></button>' +
     '<button type="button" class="c-btn c-btn--block t2-none" data-pick=""' + (none ? ' aria-pressed="true"' : ' aria-pressed="false"') + '>' + (none ? 'No coach this week (picked)' : 'No coach this week') + '</button>' +
     '<p class="tr-note">' + deco('info', 20) + '<span>' + (free ? free + (free === 1 ? ' slot' : ' slots') + ' free.' : 'Full: release one to sign.') + ' A coach helps only when he is strong in this week\'s focus.</span></p>';
 }
@@ -37,6 +40,8 @@ export function open(vm, dispatch, openFn, arg, refresh) {
   const body = document.querySelector('.sheet-fixed .c-sheet__body');
   if (!body) return close;
   body.addEventListener('click', (e) => {
+    const sc = e.target.closest('[data-scout]');
+    if (sc) { close(); openScout(vm.scout || (refresh && refresh().scout) || {}, dispatch, refresh); return; }
     const p = e.target.closest('[data-pick]'), c = e.target.closest('[data-course]');
     if (p && !p.disabled) { const id = p.getAttribute('data-pick'); close(); dispatch('PickWeekCoach', { coachId: id === '' ? null : id }); }
     else if (c && !c.disabled) {
@@ -44,7 +49,7 @@ export function open(vm, dispatch, openFn, arg, refresh) {
       close();
       const cur = () => { const v = refresh ? refresh() : vm, k = (v.coaches || []).find((x) => x.id === id); return k && k.course ? k.course : co.course; };
       const w = co.course.wheel || courseWheel(co.step), from = co.step;
-      const card = '<div class="wh-who"><b class="t2-nm">' + esc(co.name) + '</b><span class="c-tag">Course: away 1 week</span></div><div class="wh-gr"><span class="wh-g hit"><span>Grade</span><b>' + esc(co.letter) + '</b></span><span class="wh-g"><span>Strong</span><b class="t2-strong">' + strongHtml(co.strong) + '</b></span></div>';
+      const card = '<div class="wh-who"><b class="t2-nm">' + esc(co.name) + '</b><span class="c-tag">Course: away 1 week</span></div><div class="wh-gr"><span class="wh-g hit"><span>Grade</span><b>' + esc(co.letter) + '</b></span><span class="wh-g wh-wide"><span>Strong</span><b class="t2-strong">' + strongHtml(co.strong) + '</b></span></div>';
       openWheel({
         title: 'Course', sub: co.name, cardHtml: card, slices: w.slices, jackpotIndex: w.jackpotIndex, aim: w.aim, pending: co.course.pending || null, plus: '+',
         onSpin: (careful) => dispatch('CourseSpin', { coachId: id, careful }), getPending: () => cur().pending || null,
@@ -54,4 +59,18 @@ export function open(vm, dispatch, openFn, arg, refresh) {
     }
   });
   return close;
+}
+
+/** The scout list as a sheet (sign, pass, release). Redraws from refresh() after each command. */
+function openScout(sv, dispatch, refresh) {
+  const html = (v) => scoutBodyHtml(v) + '<button type="button" class="c-btn c-btn--primary c-btn--cta c-btn--block" data-pass="1">' + scoutDone(v) + '</button>';
+  const close = openSheet('Scout list', html(sv));
+  const body = document.querySelector('.sheet-fixed .c-sheet__body'); if (!body) return;
+  body.addEventListener('click', (e) => {
+    const t = e.target.closest('[data-act],[data-pass]'); if (!t || t.disabled) return;
+    if (t.hasAttribute('data-pass')) { close(); dispatch('PassScout', {}); return; }
+    let arg = {}; try { arg = JSON.parse(t.getAttribute('data-arg') || '{}'); } catch (_) { /* none */ }
+    dispatch(t.getAttribute('data-act'), arg);
+    const v = refresh ? refresh().scout : null; if (v) body.innerHTML = html(v);
+  });
 }

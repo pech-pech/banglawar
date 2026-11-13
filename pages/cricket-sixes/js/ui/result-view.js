@@ -8,7 +8,7 @@ export function payCard(pay) {
   if (!pay) return '';
   const row = (l, v, sub) => '<div class="pay-row"><span>' + esc(l) + (sub ? '<small>' + esc(sub) + '</small>' : '') + '</span><b>' + v + '</b></div>';
   const stars = pay.stars || 0, who = pay.starList || [];
-  const starRow = '<button type="button" class="pay-row" data-pay-stars aria-expanded="false" aria-controls="pay-who"><span>' + icoDeco('medal', 24) + ' Stars x' + esc(stars) + '<small>Tap to see who</small></span><b>+' + esc(pay.starsTp) + '</b></button>' +
+  const starRow = '<button type="button" class="pay-row" data-pay-stars aria-expanded="false" aria-controls="pay-who"><span>' + '<span class="pay-star" aria-hidden="true">★</span> Stars x' + esc(stars) + '<small>Tap to see who</small></span><b>+' + esc(pay.starsTp) + '</b></button>' +
     '<ul class="pay-who" id="pay-who" hidden>' + (who.length ? who.map((w) => '<li><b>' + esc(w.name) + '</b>: ' + esc(w.why) + '</li>').join('') : '<li>No Stars this match.</li>') + '</ul>';
   return '<div class="c-card res-card pay" aria-label="Training points earned"><h3>Training points</h3>' +
     (pay.base ? row('Squad base', esc(pay.base)) : '') +

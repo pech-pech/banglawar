@@ -45,7 +45,7 @@ export const letterOfRawRating = letterOfRaw;
 /** One line "Ability B+ ▮▮▯▯" for a shown ability (20..200): letter then four ticks. Returns { html, say }. @param {number} a */
 export function abilityLine(a, label) {
   const L = letterOfShown(a), raw = 1 + (Number(a) - 20) * 98 / 180;
-  return { letter: L, say: spoken(L), html: '<span class="lt-line">' + esc(label || 'Ability') + ' <b class="lt-in">' + esc(L) + '</b>' + ticks(ticksOfRaw(raw)) + '</span>' };
+  return { letter: L, say: spoken(L), html: '<span class="lt-line">' + (label === '' ? '' : esc(label || 'Ability') + ' ') + '<span class="lt-cell"><b class="lt-in">' + esc(L) + '</b>' + ticks(ticksOfRaw(raw)) + '</span></span>' };
 }
 
 /** Soft bench slots (SPEC s6): the first two bench players are "Bench batter" and "Bench bowler", picked by who is better at which.

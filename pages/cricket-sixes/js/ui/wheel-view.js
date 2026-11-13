@@ -38,7 +38,7 @@ export function openWheel(o) {
     '<button type="button" class="c-icon-btn wh-x" aria-label="Close"><span class="c-ico c-ico--x"></span></button></div>' +
     '<div class="wh-card c-card">' + (o.cardHtml || '') + '</div>' +
     '<div class="wh-stage"><div class="wh-wrap" role="img" aria-label="Wheel of ' + N + ' slices: ' + esc(sliceWords) + '"><canvas class="wh-cv"></canvas><span class="wh-ptr" aria-hidden="true"></span><span class="wh-hub" aria-hidden="true"></span></div></div>' +
-    '<div class="wh-foot"><div class="wh-msg c-card" data-msg></div><div class="wh-res c-card" data-res hidden></div>' +
+    '<div class="wh-foot"><div class="wh-msg c-card" data-msg></div><div class="wh-res c-card c-card--inset" data-res hidden></div>' +
     '<button type="button" class="c-btn c-btn--primary c-btn--cta c-btn--block wh-go" data-go>SPIN</button></div>' +
     '<div class="sr-only" role="status" aria-live="polite" data-live></div>';
   document.body.appendChild(ov); if (app) app.inert = true;
@@ -98,11 +98,11 @@ export function openWheel(o) {
   function showResult() {
     const p = o.getPending(); if (!p) return; const d = o.describe(p);
     state = 'result'; ov.classList.remove('is-slow'); msg.hidden = true; res.hidden = false; ov.classList.toggle('is-jp', !!p.jackpot);
-    res.innerHTML = (p.jackpot ? '<span class="wh-jp">' + icoDeco('burst', 20) + ' JACKPOT!</span>' : '') + (d.breakthrough ? '<span class="wh-bt">Breakthrough!</span>' : '') +
+    res.innerHTML = (p.jackpot ? '<span class="wh-jp">' + icoDeco('burst', 20) + ' JACKPOT! Breakthrough!</span>' : d.breakthrough ? '<span class="wh-bt">Breakthrough!</span>' : '') +
       '<div class="wh-big"><span class="wh-chip">' + esc(o.plus || '+') + esc(p.gain) + '</span><b>' + esc(d.big) + '</b></div>' +
-      '<div class="wh-chg"><span>' + esc(d.from) + '</span>' + (d.from !== d.to ? '<span class="t2-arr" aria-hidden="true"></span><b class="t2-new">' + esc(d.to) + '</b>' : '<small>stays, the bar fills</small>') + (d.barHtml || '') + '</div>';
+      '<div class="wh-chg">' + (d.from !== d.to ? '<span>' + esc(d.from) + '</span><span class="t2-arr" aria-hidden="true"></span><b class="t2-new">' + esc(d.to) + '</b>' : d.barHtml ? d.barHtml + '<small>(bar fills)</small>' : '<span>' + esc(d.from) + '</span><small>(same letter)</small>') + '</div>';
     live.textContent = d.say || ''; // read once
-    go.textContent = o.collectLabel || 'COLLECT'; go.classList.add('is-collect'); go.setAttribute('aria-label', o.collectLabel || 'Collect'); go.focus();
+    go.textContent = o.collectLabel || 'COLLECT'; go.classList.add('is-collect', 'c-btn--gold'); go.classList.remove('c-btn--primary'); go.setAttribute('aria-label', o.collectLabel || 'Collect'); go.focus();
     if (!reduced) draw();
   }
   function spin() { state = 'spin'; t0 = performance.now(); speed = W0; setMsg('Turning. Tap STOP when the slow marker glows.'); go.textContent = 'STOP'; go.setAttribute('aria-label', 'Stop the wheel'); ov.classList.add('is-turning'); raf = requestAnimationFrame(frame); }

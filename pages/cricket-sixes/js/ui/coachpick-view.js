@@ -14,17 +14,22 @@ function card(c, full) {
     (c.signed ? '<span class="c-tag c-tag--done">Signed</span>' : '<button type="button" class="c-btn t2-cb" data-act="SignCoach" data-arg="' + esc(JSON.stringify({ id: c.id, coachId: c.id })) + '"' + (full ? ' disabled aria-disabled="true"' : '') + ' aria-label="Sign ' + esc(c.name) + '">Sign</button>') + '</li>';
 }
 
-export function render(el, vm, dispatch) {
+/** The scout list body (cards, and "Your coaches" with Release when full). Used by the screen and by the sheet in the coaches sheet. */
+export function scoutBodyHtml(vm) {
   const cands = (vm.cands || []).map((c) => ({ ...c, signed: c.signed || (vm.picked != null && vm.picked === c.id) })), mine = vm.mine || [], full = !!vm.full;
-  el.innerHTML =
-    '<div class="screen tr-screen tr-pick">' +
-    '<div class="c-strip strip tr-top"><span>' + deco('scout', 24) + ' Scout list</span></div>' +
-    '<p class="tr-note tr-intro">' + deco('info', 24) + '<span>' + (full ? 'Full: release one to sign.' : 'Sign one coach, or pass.') + '</span></p>' +
+  return '<p class="tr-note tr-intro">' + deco('info', 24) + '<span>' + (vm.open === false && vm.why ? esc(vm.why) : full ? 'Full: release one to sign.' : 'Sign one coach, or pass.') + '</span></p>' +
     '<ul class="c-list m0-list tr-cands" aria-label="Coaches to sign">' + cands.map((c) => card(c, full && !c.signed)).join('') + '</ul>' +
     (full ? '<div class="c-card t2-rel"><div class="tr-h"><b>Your coaches</b></div><ul class="c-list list-flat">' + mine.map((m) =>
       '<li class="c-row m0-row t2-cand"><div class="t2-candtxt"><span class="t2-who"><b class="name">' + esc(m.name) + '</b><span class="t2-strong">' + strongHtml(m.strong) + '</span></span><span class="t2-grade" aria-hidden="true">' + esc(m.letter) + '</span></div>' +
-      '<button type="button" class="c-btn t2-cb" data-act="ReleaseCoach" data-arg="' + esc(JSON.stringify({ id: m.id, coachId: m.id })) + '" aria-label="Release ' + esc(m.name) + ', grade ' + esc(m.letter) + '">Release</button></li>').join('') + '</ul></div>' : '') +
-    ctaBar('<button type="button" class="c-btn c-btn--primary c-btn--cta c-btn--block" data-act="PassScout">' + (cands.some((c) => c.signed) ? 'Done' : 'Pass') + '</button>') +
+      '<button type="button" class="c-btn t2-cb" data-act="ReleaseCoach" data-arg="' + esc(JSON.stringify({ id: m.id, coachId: m.id })) + '" aria-label="Release ' + esc(m.name) + ', grade ' + esc(m.letter) + '">Release</button></li>').join('') + '</ul></div>' : '');
+}
+export const scoutDone = (vm) => (vm.cands || []).some((c) => c.signed || (vm.picked != null && vm.picked === c.id)) ? 'Done' : 'Pass';
+
+export function render(el, vm, dispatch) {
+  el.innerHTML =
+    '<div class="screen tr-screen tr-pick">' +
+    '<div class="c-strip strip tr-top"><span>' + deco('scout', 24) + ' Scout list</span></div>' + scoutBodyHtml(vm) +
+    ctaBar('<button type="button" class="c-btn c-btn--primary c-btn--cta c-btn--block" data-act="PassScout">' + scoutDone(vm) + '</button>') +
     '</div>';
   window.scrollTo && window.scrollTo(0, 0);
   bindActs(el.firstElementChild, dispatch);

@@ -33,10 +33,10 @@ export function fansBarsHtml(s) {
   const seg = Math.max(0, Math.min(10, Number(legend.segments) || 0));
   const crowdWords = crowd.next ? (fill >= 1 ? 'Full. Enough Fans to start ' + crowd.next : on + ' of 10 segments full. Fills toward ' + crowd.next) : 'Full. You have the biggest stadium';
   const open = b.showLegend !== false;
-  const legendWords = !open ? 'Opens when the Crowd is full' : (legend.name ? legend.name + '. ' : '') + 'Tier ' + fmt(legend.tier + 1) + ', ' + seg + ' of 10 segments. Each Legacy Project adds one';
+  const legendWords = !open ? (seg ? seg + ' built so far. The rest opens when the Crowd is full' : 'Opens when the Crowd is full') : (legend.name ? legend.name + '. ' : '') + 'Tier ' + fmt(legend.tier + 1) + ', ' + seg + ' of 10 segments. Each Legacy Project adds one';
   return '<section class="ec-bars" aria-label="Fans bars">' +
     '<div class="ec-bar"><span class="ec-bar__h">' + icoDeco('fan', 24) + '<b>Crowd</b></span>' + segs(on, 10, 'ec-segs--crowd') + '<span class="ec-bar__t">' + esc(crowdWords) + '</span></div>' +
-    '<div class="ec-bar"><span class="ec-bar__h">' + icoDeco('medal', 24) + '<b>Club Legend</b></span>' + segs(open ? seg : 0, 10, 'ec-segs--legend') + '<span class="ec-bar__t">' + esc(legendWords) + '</span></div></section>';
+    '<div class="ec-bar"><span class="ec-bar__h">' + icoDeco('medal', 24) + '<b>Club Legend</b></span>' + segs(seg, 10, 'ec-segs--legend') + '<span class="ec-bar__t">' + esc(legendWords) + '</span></div></section>';
 }
 
 function lineRow(label, n, kind) {

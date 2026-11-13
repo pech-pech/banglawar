@@ -130,8 +130,8 @@ export function buildOptions(s) {
     let why = bad;
     if (!why && e.build && matches > 0) why = 'One big build at a time';
     if (!why && inArrears(e)) why = 'Pay the wages first';
-    if (!why && e.fans < fansGate) why = 'Needs more Fans';
-    if (!why && e.coins < coins) why = 'Needs more Coins';
+    if (!why && e.fans < fansGate) why = `Needs ${fansGate} Fans, you have ${e.fans}`;
+    if (!why && e.coins < coins) why = `Needs ${coins} Coins, you have ${e.coins}`;
     out.push({ what, level, coins, fansGate, matches, ok: !why, why: why || '' });
   };
   if (e.stadium < 5) { const L = e.stadium + 1; gate('stadium', L, E.STADIUM_COST[L], E.STADIUM_FANS[L], E.STADIUM_BUILD[L], null); }
