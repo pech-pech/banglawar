@@ -4,6 +4,9 @@ import { tableHtml, finalsHtml, nameOf, ordinal } from './table-sheet.js';
 import { helpBtn } from './hub-view.js';
 import { chipHtml } from './book-sheet.js';
 import { promoBeat } from './beats.js';
+import { swapCardHtml, bindSwap } from './swap-offer.js';
+
+let swapNote = null; // {key, text}: "Swapped N Spokes for M Coins." for the season it was done in
 
 const CTA = { NewSeason: 'Start next season', RunEnd: 'See your run' };
 
@@ -49,6 +52,7 @@ function notebookHtml(n) {
     '<button type="button" class="c-btn" data-act="sheet:book">' + icoDeco('book', 24) + 'See Pairing Book</button></section>';
 }
 
+const swapKey = (vm) => 'r' + vm.runNo + 's' + vm.season;
 export function render(el, vm, dispatch) {
   const rows = vm.rows || [];
   const place = Number(vm.myPlace) || 0;
@@ -64,10 +68,11 @@ export function render(el, vm, dispatch) {
     '<h1 class="ss-head' + (iWon ? ' is-champ' : '') + '">' + esc(head) + '</h1>' +
     '<p class="ss-place">You finished <b>' + esc(place ? ordinal(place) : '-') + '</b> of ' + esc(rows.length || 10) + '</p>' +
     '<div class="ss-won-row">' + tpChip(vm.tpWon) + '<span>training points won this season</span></div></div>' +
-    notebookHtml(vm.notebook) +
+    notebookHtml(vm.notebook) + swapCardHtml(vm.swap, swapNote && swapNote.key === swapKey(vm) ? swapNote.text : '') +
     (vm.finals ? '<div class="c-card ss-fin"><h3>Finals</h3>' + finalsHtml(vm.finals) + '</div>' : '') +
     '<div class="ss-final-table">' + (vm.lastSeason ? tableHtml(rows, { cut: false }) : withGoUp(tableHtml(rows, { cut: false }), Number(vm.promoteTop) || 2)) + '</div>' +
     ctaBar(btn(CTA[vm.cta] || CTA.NewSeason, CTA[vm.cta] ? vm.cta : 'NewSeason', { kind: 'cta' })) +
     '</div>';
+  bindSwap(el, vm.swap, dispatch, { auto: true, key: swapKey(vm), onDone: (text) => { swapNote = { key: swapKey(vm), text }; } }); // Spare Spokes: the same confirm as the Workshop, offered once here
   if (vm.result && vm.result.promoted && !vm.lastSeason) promoBeat(el, { after: '.rn-result' }); // P10 promotion beat: transient trophy picture, the card below is the stamp
 }

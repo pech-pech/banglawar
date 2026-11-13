@@ -4,6 +4,7 @@
    One slow free turn (no prize): the new wheel turns once and its rim changes material. Reduced motion: the same card, still (before and after side by side, nothing moves).
    Reads once to a screen reader. No spin counts, no odds. */
 import { esc } from './dom.js';
+import { releaseInert } from './inert.js';
 import { MATERIALS, MAT_NAME, sliceWheelSvg } from './wheel-look.js';
 
 const SPOKES = [4, 5, 6, 8, 10, 12, 12]; // bars drawn on the hub per tier (art only; the word Spoke stays for the currency)
@@ -25,12 +26,12 @@ export function tierUpHtml(vm) {
 
 export function openTierUp(vm, o) {
   o = o || {};
-  const app = document.getElementById('app'), wasInert = !!(app && app.inert), opener = document.activeElement;
+  const app = document.getElementById('app'), opener = document.activeElement;
   const ov = document.createElement('section'); ov.className = 'tu-ov'; ov.setAttribute('role', 'dialog'); ov.setAttribute('aria-modal', 'true'); ov.setAttribute('aria-label', 'New wheel');
   ov.innerHTML = tierUpHtml(vm); document.body.appendChild(ov); if (app) app.inert = true;
   let closed = false;
   function close(tree) {
-    if (closed) return; closed = true; document.removeEventListener('keydown', onKey, true); ov.remove(); if (app) app.inert = wasInert;
+    if (closed) return; closed = true; document.removeEventListener('keydown', onKey, true); ov.remove(); releaseInert(app);
     if (o.dispatch) o.dispatch('DismissTierUp', {});
     if (tree && o.onTree) o.onTree(); else if (!tree && o.onDone) o.onDone();
     if (!tree && opener && opener.isConnected && opener.focus) opener.focus();

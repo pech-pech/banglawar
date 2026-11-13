@@ -11,6 +11,8 @@
          onCollect(), collectLabel?:'COLLECT', onClose?(),
          Wheel meta (all optional; absent = the wheel looks and behaves exactly as before):
          phys?:{W0,J,SD}        physics from the wheel (Slow / Steady / Guide); passed to wheelSpeed, wheelArc, stopDist, stopExtra, stopLanding, carefulTapTime and used for the wobble and the spin start speed
+         zone?:number           Aim Zone (seconds, e.g. 0.2): the dashed pointer-lane marks glow gold while a gold slice is within that many seconds of the pointer (a timing cue; no odds change). None with reduced motion
+         chime?:boolean         Gold Chime: the pointer flashes gold, and onTick gets {chime:true}, each time a gold slice passes under it. None with reduced motion
          guide?:boolean         Aim Guide: a landing tick on the rim while the wheel turns (where the slice under the pointer ends up if STOP is tapped now)
          tokens?:[{kind,label,count?,left?}], getTokens?()=>[...] (the fresh list; read after every result)   token buttons after the result (count = shown as "x2"; left = Spotlight uses left this season); onToken(kind) uses one, then getPending() is read again; the wheel visibly acts (short re-spin / slice step / second pointer flash / bonus pop; none with reduced motion) and one outcome line is shown ("Spin Again: kept +3")
          spokeGain?()=>number   Spokes this spin drops (a small chip on the result card; absent or 0 = no chip)
@@ -20,6 +22,7 @@
    Reduced motion: no spin; one tap shows the result at once, from an average careful player's synthetic tap. Result is read once (live region).
    Canvas drawn in code, pixel style, palette read from the page's CSS variables (Green and chalk and Scorebook both work). */
 import { esc, icoDeco } from './dom.js';
+import { releaseInert } from './inert.js';
 import { wheelWidths, wheelSpeed, wheelArc, stopDist, stopExtra, stopLanding, carefulTapTime } from '../core/training.js';
 import { matOf, colourOf, normLook, PALETTES, spokeIcon } from './wheel-look.js';
 import { TRAIN2 } from '../data/training.js';
@@ -37,14 +40,24 @@ export const wholeLetter = (a, b) => String(a || '').charAt(0) !== String(b || '
 const lum = (c) => (0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]) / 255;
 const dim = (c, k) => c.map((v) => Math.round(v * (1 - k)));
 
+/** Aim Zone: is a gold slice under the pointer, or due under it (or just past it) within `zone` seconds at the wheel's speed (units/second)? cum = slice edges in wheel units (cum[i]..cum[i+1] is slice i), C = the wheel's total width, golds = gold slice indices. Pure. */
+export function goldNearPointer(pos, speed, zone, cum, C, golds) {
+  if (!(zone > 0)) return false;
+  const reach = Math.max(0, speed) * zone;
+  for (const g of golds) { const a = cum[g], b = cum[g + 1], inside = (((pos - a) % C) + C) % C < b - a, ahead = (((a - pos) % C) + C) % C, behind = (((pos - b) % C) + C) % C; if (inside || ahead <= reach || behind <= reach) return true; }
+  return false;
+}
+/** Gold Chime: does the pointer moving from slice a to slice b just enter a gold slice? Pure. */
+export const chimeEnters = (a, b, golds) => a !== b && golds.includes(b) && !golds.includes(a);
+
 export function openWheel(o) {
   const N = o.slices.length, JP = o.jackpotIndex || 0, reduced = reducedNow();
-  const PH = o.phys || null, WS = PH ? { ...TRAIN2.wheelStop, ...PH } : TRAIN2.wheelStop, LK = normLook(o.look), GD = o.golds && o.golds.length ? o.golds : [o.jackpotIndex || 0], PX = PH ? [PH] : []; // PX: the optional trailing phys argument for the core helpers
+  const ZONE = !reduced && +o.zone > 0 ? +o.zone : 0, CHIME = !reduced && !!o.chime, PH = o.phys || null, WS = PH ? { ...TRAIN2.wheelStop, ...PH } : TRAIN2.wheelStop, LK = normLook(o.look), GD = o.golds && o.golds.length ? o.golds : [o.jackpotIndex || 0], PX = PH ? [PH] : []; // PX: the optional trailing phys argument for the core helpers
   const widths = wheelWidths({ slices: o.slices, jackpotIndex: JP, widths: o.widths }), C = widths.reduce((a, b) => a + b, 0), U = TAU / C; // units -> radians
   const WO = { slices: o.slices, jackpotIndex: JP, widths, ...(PH ? { phys: PH } : {}), ...(o.golds ? { golds: o.golds } : {}) }; // the wheel the core helpers see
   const cum = [0]; widths.forEach((w, i) => cum.push(cum[i] + w));
   const sliceOf = (pos) => { let u = pos % C; if (u < 0) u += C; for (let i = 0; i < N; i++) if (u < cum[i + 1]) return i; return N - 1; };
-  const app = document.getElementById('app'), wasInert = !!(app && app.inert), opener = document.activeElement;
+  const app = document.getElementById('app'), opener = document.activeElement;
   const pal = { cream: tok('--cream', '#F3EBD3'), out: tok('--outline', '#2A2238'), gold: tok('--gold', '#D2B357'), wall: tok('--wall1', '#E3D8B9'), g2: tok('--grass2', '#7EB261'), acc: tok('--accent', '#22625D'), b1: tok('--kitA1', '#3b5ba5') };
   const LP = LK && PALETTES[LK.pal] || null, mat = LK && LK.material ? matOf(LK.material) : null; // craft look: colour-blind safe slice palette, tier material on the rim
   const crys = !!(LK && LK.crystal), cmat = matOf('crystal'), ringCol = crys ? cmat.rim : (LK && colourOf(LK.rim)) || (mat && mat.rim) || pal.cream, trailCol = (LK && colourOf(LK.trail)) || pal.cream, hubCol = crys ? cmat.rim : (LK && colourOf(LK.hub)) || pal.acc, ptrCol = LK && colourOf(LK.ptr);
@@ -81,8 +94,11 @@ export function openWheel(o) {
     if (shape === 'diamond') return d < (1 - Math.abs(r - 8) / 4) * 0.7 && Math.abs(r - 8) < 4;
     return d < 0.22 && r > 4;
   }
+  const ZONE_COL = [255, 226, 110];
+  /** Aim Zone: is a gold slice under the pointer, or due under it (or just past it) within ZONE seconds at the current speed? Spin state only. */
+  const goldNear = () => state === 'spin' && goldNearPointer(pos, speed, ZONE, cum, C, GD);
   function draw() {
-    const w = size, cx = w / 2, cy = w / 2, R = w / 2 - 1, im = ctx.createImageData(w, w), d = im.data, moving = state === 'spin' || state === 'land' || state === 'tok', rot = pos * U;
+    const w = size, cx = w / 2, cy = w / 2, R = w / 2 - 1, im = ctx.createImageData(w, w), d = im.data, moving = state === 'spin' || state === 'land' || state === 'tok', rot = pos * U, zoneOn = ZONE > 0 && goldNear();
     for (let y = 0; y < w; y++) for (let x = 0; x < w; x++) {
       const dx = x + 0.5 - cx, dy = y + 0.5 - cy, r = Math.sqrt(dx * dx + dy * dy); if (r > R) continue;
       const th = Math.atan2(dy, dx); let q = (rot - (th + Math.PI / 2)) % TAU; if (q < 0) q += TAU; // wheel angle under this pixel; slices pass the pointer in list order
@@ -98,8 +114,9 @@ export function openWheel(o) {
       else {
         c = fills[idx]; if (((x + y) & 1) === 0 && r > R - 15 && r < R - 8) c = dim(c, 0.18);
         if (moving && ((r > R * 0.36 && r < R * 0.4) || (r > R * 0.66 && r < R * 0.69)) && Math.floor(q * 27 / TAU) % 3 !== 0) c = trailCol;
-        if (r > R - 9.6 && r < R - 7.4 && Math.abs(sa) < 0.62 && Math.floor((sa + 0.62) / 0.095) % 2 === 0) c = dim(pal.gold, 0.25); // dashes mark the pointer lane (no aim help)
-        if (r > R - 10.4 && r <= R - 9.6 && Math.abs(sa) < 0.62) c = pal.out;
+        if (r > R - 9.6 && r < R - 7.4 && Math.abs(sa) < 0.62 && Math.floor((sa + 0.62) / 0.095) % 2 === 0) c = zoneOn ? ZONE_COL : dim(pal.gold, 0.25); // dashes mark the pointer lane (no aim help); Aim Zone: they glow gold when gold is near
+        if (r > R - 10.4 && r <= R - 9.6 && Math.abs(sa) < 0.62) c = zoneOn ? ZONE_COL : pal.out;
+        if (zoneOn && r > R - 11.4 && r <= R - 10.4 && Math.abs(sa) < 0.62) c = pal.out; // Aim Zone: the glow sits in an outlined lane
       }
       const p = (y * w + x) * 4; d[p] = c[0]; d[p + 1] = c[1]; d[p + 2] = c[2]; d[p + 3] = 255;
     }
@@ -120,7 +137,9 @@ export function openWheel(o) {
   const setMsg = (t) => { msg.textContent = t; };
   function tick(from, to, loud) { // one call per slice boundary crossed; the pointer flexes a little (cosmetic, never moves the wheel)
     const a = sliceOf(from), b = sliceOf(to); if (a === b) return;
-    if (o.onTick) o.onTick({ loud: !!loud, rate: speed });
+    const chime = CHIME && chimeEnters(a, b, GD); // Gold Chime: a gold slice has just come under the pointer
+    if (o.onTick) o.onTick(chime ? { loud: true, rate: speed, chime: true } : { loud: !!loud, rate: speed });
+    if (chime) { ptr.classList.add('is-chime'); setTimeout(() => ptr.classList.remove('is-chime'), 320); }
     if (!reduced) { ptr.style.transform = 'rotate(' + Math.min(10, speed * 0.5) + 'deg)'; requestAnimationFrame(() => { ptr.style.transform = ''; }); }
   }
   function frame(t) {
@@ -189,10 +208,11 @@ export function openWheel(o) {
     const p = o.getPending(); if (!p) return; const d = o.describe(p), sg = o.spokeGain ? Number(o.spokeGain()) || 0 : 0;
     state = 'result'; ov.classList.remove('is-turning'); msg.hidden = true; res.hidden = false; ov.classList.toggle('is-jp', !!p.jackpot);
     res.innerHTML = (p.jackpot ? '<span class="wh-jp">' + icoDeco('burst', 20) + ' JACKPOT! Breakthrough!</span>' : d.breakthrough && wholeLetter(d.from, d.to) ? '<span class="wh-bt">Breakthrough!</span>' : '') +
-      '<div class="wh-big"><span class="wh-chip">' + esc(o.plus || '+') + esc(p.gain) + '</span><b>' + esc(d.big) + '</b></div>' +
+      '<div class="wh-big"><span class="wh-chip' + (p.boosted || p.hot ? ' is-boost' : '') + '">' + esc(o.plus || '+') + esc(p.gain) + '</span><b>' + esc(d.big) + '</b></div>' +
+      (p.boosted || p.hot ? '<div class="wh-bst">' + (p.boosted ? '<span class="wh-bst1">Booster ' + esc(o.plus || '+') + esc(p.boostBy || 1) + '</span>' : '') + (p.hot ? '<span class="wh-bst1">Hot Streak ' + esc(o.plus || '+') + esc(p.hotBy || 1) + '</span>' : '') + '</div>' : '') +
       '<div class="wh-chg">' + (d.from !== d.to ? '<span>' + esc(d.from) + '</span><span class="t2-arr" aria-hidden="true"></span><b class="t2-new">' + esc(d.to) + '</b>' : d.barHtml ? d.barHtml + '<small>(bar fills)</small>' : '<span>' + esc(d.from) + '</span><small>(same letter)</small>') + '</div>' +
       (sg > 0 ? '<div class="wh-sp">' + spokeIcon(20) + '<b>+' + esc(sg) + ' Spokes</b></div>' : '');
-    live.textContent = (line ? line + '. ' : '') + (d.say || ''); // read once
+    live.textContent = (line ? line + '. ' : '') + (d.say || '') + (p.boosted ? ' Booster plus ' + (p.boostBy || 1) + '.' : '') + (p.hot ? ' Hot Streak plus ' + (p.hotBy || 1) + '.' : ''); // read once
     showTokens(p, line); if (!again && !o.pending) burst();
     go.textContent = o.collectLabel || 'COLLECT'; go.classList.add('is-collect', 'c-btn--gold'); go.classList.remove('c-btn--primary'); go.removeAttribute('aria-disabled'); go.classList.remove('is-wait', 'is-disabled'); go.setAttribute('aria-label', o.collectLabel || 'Collect'); xLook(false); go.focus();
     if (LK) layout(); // wheel meta only (flag off: unchanged). The foot is taller now (result, tokens, outcome line): size the wheel to the room left so the stand and plate under it are never covered or clipped
@@ -227,7 +247,7 @@ export function openWheel(o) {
   go.addEventListener('click', onGo);
   function close(done) {
     if (closed) return; closed = true; cancelAnimationFrame(raf); document.removeEventListener('keydown', onKey, true); window.removeEventListener('resize', layout);
-    ov.remove(); if (app) app.inert = wasInert; if (opener && opener.isConnected && opener.focus) opener.focus(); if (!done && o.onClose) o.onClose();
+    ov.remove(); releaseInert(app); if (opener && opener.isConnected && opener.focus) opener.focus(); if (!done && o.onClose) o.onClose();
   }
   function onKey(e) {
     if (e.key === 'Escape' && state !== 'spin' && state !== 'land' && state !== 'tok') { e.preventDefault(); e.stopPropagation(); close(); }

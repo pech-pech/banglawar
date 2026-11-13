@@ -8,6 +8,8 @@
 //   guide     Aim Guide owned (tap SD x GUIDE_SD_FACTOR; draw the landing tick)     goldAdd width added to the gold slice (Widener + the wheel's own node)
 //   extraGold number of extra gold slices (0|1; never on toss)                      floor   value added to the lowest slices (value units, spot/course/hype/toss, else 0)
 //   booster   {chance, value, count, unit}: chance a random non-gold slice shines; value = Booster value x unit (what a landing on it adds)
+//   zone      Aim Zone seconds (spot, course only, else 0): the lane marks glow while the gold slice is within this many seconds of the pointer (a cue, no odds change)
+//   chime     Gold Chime owned (spot, course only, else false): the pointer flashes gold, and onTick gets {chime:true}, each time a gold slice passes under it
 // Extra keys by wheel (for Agent E, applying to dial/reel wheels):
 //   spot:   streak (1 = Hot Streak: gold right after gold pays +1)
 //   course: bestOfTwo (1 = Second Opinion)
@@ -104,7 +106,7 @@ export function buyNode(s, id) {
 // ---- effects (port of sim effective + build)
 /** @param {string} w */
 const neutralWheel = (w) => ({
-  w0Mult: 1, jMult: 1, guide: false, goldAdd: 0, extraGold: 0, floor: 0, booster: { chance: 0, value: 0, count: 0, unit: /** @type {any} */ (WM.UNIT)[w] },
+  w0Mult: 1, jMult: 1, guide: false, zone: 0, chime: false, goldAdd: 0, extraGold: 0, floor: 0, booster: { chance: 0, value: 0, count: 0, unit: /** @type {any} */ (WM.UNIT)[w] },
   ...(w === 'spot' ? { streak: 0 } : {}), ...(w === 'course' ? { bestOfTwo: 0 } : {}),
   ...(w === 'hype' ? { rareAdd: 0, lowToMedium: 0 } : {}), ...(w === 'toss' ? { rareAdd: 0, consolation: 0 } : {}),
   ...(w === 'pep' ? { rareAdd: 0, neighbourMult: 1 } : {}), ...(w === 'find' ? { rareAdd: 0, cheer: 0 } : {}),
@@ -117,13 +119,15 @@ export function effective(s) {
   if (!FLAGS.wheelMeta) return out;
   const own = metaOf(s).owned || {}; out.tier = tierNow(s);
   let w0 = 0, wob = 0, guide = false, jw = 0, bch = 0, bval = 1, extra = 0, floor = 0;
-  /** @type {Record<string,number>} */ const jwBy = {}, rwBy = {}; const tokens = out.tokens;
+  /** @type {Record<string,number>} */ const jwBy = {}, rwBy = {}, zoneBy = {}; /** @type {Record<string,boolean>} */ const cueBy = {}; const tokens = out.tokens;
   for (const id of Object.keys(own)) {
     const r = own[id] | 0, n = BY[id]; if (!r || !n || n.branch === 'craft') continue;
     const { type, per_rank: p, scope } = n.effect, all = scope.length >= WHEEL_IDS.length;
     if (type === 'w0_mult') w0 += p * r;
     else if (type === 'wobble_mult') wob += p * r;
     else if (type === 'preview_mark') guide = true;
+    else if (type === 'window_add_s') { for (const w of scope) if (SKILL.includes(w)) zoneBy[w] = (zoneBy[w] || 0) + p * r; }
+    else if (type === 'aim_cue') { for (const w of scope) if (SKILL.includes(w)) cueBy[w] = true; }
     else if (type === 'jackpot_width_add') { if (all) jw += p * r; else for (const w of scope) jwBy[w] = (jwBy[w] || 0) + p * r; }
     else if (type === 'rare_width_add') for (const w of scope) rwBy[w] = (rwBy[w] || 0) + p * r;
     else if (type === 'booster_chance') bch += p * r;
@@ -142,7 +146,7 @@ export function effective(s) {
     X.goldAdd = jw + (jwBy[w] || 0); X.extraGold = w === 'toss' ? 0 : extra;
     X.booster = { chance: Math.min(1, bch), value: bval * /** @type {any} */ (WM.UNIT)[w], count: bval, unit: /** @type {any} */ (WM.UNIT)[w] };
     if ('rareAdd' in X) X.rareAdd = rwBy[w] || 0;
-    if (w === 'spot' || w === 'course') { X.w0Mult = Math.max(0.3, 1 + w0); X.jMult = Math.max(0, 1 + wob); X.guide = guide; }
+    if (w === 'spot' || w === 'course') { X.w0Mult = Math.max(0.3, 1 + w0); X.jMult = Math.max(0, 1 + wob); X.guide = guide; X.zone = zoneBy[w] || 0; X.chime = !!cueBy[w]; }
     if (['spot', 'course', 'hype', 'toss'].includes(w)) X.floor = floor * /** @type {any} */ (WM.UNIT)[w];
   }
   return out;

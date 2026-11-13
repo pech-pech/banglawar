@@ -4,6 +4,7 @@
          nodes:[{ id, name, rank, max, cost, state:'owned'|'buy'|'short'|'locked'|'max', words, confirm }] }], swap:{ open, coins } }
    Commands: BuyNode {id}, SwapSpokes {}. View state only (module): the picked branch tab. The spin count is never shown; locked reads "Opens later". */
 import { esc } from './dom.js';
+import { releaseInert } from './inert.js';
 import { openSheet } from './sheet.js';
 import { MATERIALS, MAT_NAME, matOf, rgb, wheelSvg, spokeIcon } from './wheel-look.js';
 
@@ -131,11 +132,11 @@ export function render(el, vm, dispatch, open) {
 
 /** The overlay: appended to body below the sheet layer (css .wk-ov z-index 4), the page behind inert. */
 export function openWorkshop(vm, dispatch, open, arg, refresh) {
-  const app = document.getElementById('app'), wasInert = !!(app && app.inert), opener = document.activeElement;
+  const app = document.getElementById('app'), opener = document.activeElement;
   const ov = document.createElement('section'); ov.className = 'wk-ov'; ov.setAttribute('role', 'dialog'); ov.setAttribute('aria-modal', 'true'); ov.setAttribute('aria-label', 'Wheel Workshop');
   document.body.appendChild(ov); if (app) app.inert = true; swapNote = '';
   let closed = false;
-  function close() { if (closed) return; closed = true; document.removeEventListener('keydown', onKey, true); ov.remove(); if (app) app.inert = wasInert; if (opener && opener.isConnected && opener.focus) opener.focus(); }
+  function close() { if (closed) return; closed = true; document.removeEventListener('keydown', onKey, true); ov.remove(); releaseInert(app); if (opener && opener.isConnected && opener.focus) opener.focus(); }
   function onKey(e) { if (e.key === 'Escape' && !document.querySelector('.sheet-fixed')) { e.preventDefault(); e.stopPropagation(); close(); } }
   document.addEventListener('keydown', onKey, true);
   ov.__wkOv = ov; ov.__wk = { vm, dispatch, open, close, refresh };

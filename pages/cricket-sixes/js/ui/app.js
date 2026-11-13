@@ -9,6 +9,7 @@ import * as end from './end-view.js';
 import { bindActs } from './dom.js';
 import { matchPay, gapLetters } from '../core/season.js';
 import { attachReport } from '../report/hooks.js';
+import { overlayOpen } from './inert.js';
 
 /* Stage table: s.stage -> [view module or file name, selector name]. A file name is loaded on first use
    (other parts' views), so a view that has not landed yet shows "Loading" instead of breaking boot. */
@@ -84,10 +85,17 @@ export function mount(el, store) {
     return null;
   }
   /** Wheel meta: a tier-up card waits after a wheel result. Shown once the wheel overlay has closed; both buttons dismiss it (DismissTierUp); "See the tree" opens the Workshop. */
-  let tierOpen = false;
+  let tierOpen = false, tierWatch = null;
+  /** The card waits while any overlay is up (wheel, Workshop, the nets scene, a sheet). When that overlay closes nothing re-renders, so a small body watcher tries again once and then stops. */
+  function watchOverlays() {
+    if (tierWatch || typeof MutationObserver !== 'function') return;
+    tierWatch = new MutationObserver(() => { if (!overlayOpen()) { tierWatch.disconnect(); tierWatch = null; maybeTierUp(store.get()); } });
+    tierWatch.observe(document.body, { childList: true });
+  }
   function maybeTierUp(s) {
-    if (tierOpen || holding || typeof sel.tierUpVM !== 'function' || document.querySelector('.wh-ov, .tu-ov, .wk-ov')) return;
+    if (tierOpen || holding || typeof sel.tierUpVM !== 'function') return;
     const vm = sel.tierUpVM(s); if (!vm) return;
+    if (overlayOpen()) { watchOverlays(); return; }
     tierOpen = true;
     import('./tierup-card.js').then((m) => m.openTierUp(vm, { dispatch: (c, p) => { tierOpen = false; dispatch(c, p); }, onTree: () => openByName('workshop') })).catch((err) => { tierOpen = false; console.error(err); });
   }

@@ -356,10 +356,23 @@ function newSeason(s) {
   return FLAGS.wheelMeta ? seasonTokens(n) : n; // tokens refill from the owned ranks at each season start
 }
 
+/** The Wheel upgrades switch. Turning it back on mid-season refills this season's tokens when they were not (main.js flips FLAGS.wheelMeta only after the command, so it is on for the refill here). */
+function wheelSwitch(s, on) {
+  const n = { ...s, wheelFeatures: on };
+  if (!on || !s.season || !s.wheelMeta) return n;
+  const was = FLAGS.wheelMeta; FLAGS.wheelMeta = true;
+  try { return seasonTokens(n); } finally { FLAGS.wheelMeta = was; }
+}
+
 function runEnd(s) {
   if (s.stage !== 'end' || !s.season || !s.run || s.season.n < RUN.seasons) return s;
-  const n = clone(closeSeason(s));
+  let n = clone(closeSeason(s));
   n.run.ended = true; n.stage = 'runend';
+  // Wheel meta: leftover Spokes swap for Coins before the reset (2 Spokes = 1 Coin, once the power tree is done). Coins do not carry into the next run (a new run starts a fresh economy), so the swap is only recorded in the run record for the run-end screen.
+  if (FLAGS.wheelMeta && powerDone(n) && n.econ) {
+    const sw = swapSpokes(n);
+    if (sw !== n) { const row = sw.econ.ledger[sw.econ.ledger.length - 1]; n = clone(sw); n.run.spokeSwap = { spokes: row.spokes, coins: row.coins }; }
+  }
   return n;
 }
 
@@ -411,7 +424,7 @@ function applyCommandCore(s, cmd, payload) {
       if (!payload.on && n.stage === 'matchday') n.stage = 'plan';
       return n;
     }
-    case 'SetWheelFeatures': return payload && typeof payload.on === 'boolean' && (s.wheelFeatures !== false) !== payload.on ? { ...s, wheelFeatures: payload.on } : s;
+    case 'SetWheelFeatures': return payload && typeof payload.on === 'boolean' && (s.wheelFeatures !== false) !== payload.on ? wheelSwitch(s, payload.on) : s;
     case 'BuyNode': return FLAGS.wheelMeta && payload && typeof payload.id === 'string' && canBuy(s, payload.id).ok ? buyNode(s, payload.id) : s;
     case 'UseToken': return viaTrain(s, (x) => useTok(x, payload));
     case 'SwapSpokes': return FLAGS.wheelMeta && powerDone(s) ? swapSpokes(s) : s;

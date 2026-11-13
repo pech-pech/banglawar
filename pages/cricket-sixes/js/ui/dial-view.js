@@ -16,6 +16,7 @@
    Reveal: the result is already drawn; one tap plays the coin or the lights, tap again (or anywhere) to skip. Reduced motion: no motion, result at once.
    Canvas drawn in code, pixel style, palette read from the page's CSS variables (both skins). */
 import { esc, icoDeco } from './dom.js';
+import { releaseInert } from './inert.js';
 
 export const DR = { L: 10, V: 16, G: 0.5, STOP_FROM: 0.8, COAST: 3, AIM_LO: 1.5, AIM_HI: 2.5, JK: 1.2, HOLD: 0.3, REVEAL_T: 2.5, RAMP: 0.2 / 1.5, CRUISE: 0.8 / 1.5 };
 const TAU = Math.PI * 2;
@@ -69,7 +70,7 @@ const gauss = () => { let s = 0; for (let i = 0; i < 6; i++) s += Math.random();
 
 // ---------- shared overlay shell (same conventions as wheel-view) ----------
 export function mountShell(o, cfg) {
-  const app = document.getElementById('app'), wasInert = !!(app && app.inert), opener = document.activeElement;
+  const app = document.getElementById('app'), opener = document.activeElement;
   const ov = document.createElement('section');
   ov.className = 't2-ov wh-ov dr-ov ' + (cfg.cls || ''); ov.setAttribute('role', 'dialog'); ov.setAttribute('aria-modal', 'true'); ov.setAttribute('aria-label', o.title);
   ov.innerHTML = '<div class="t2-strip"><span>' + icoDeco('burst', 24) + ' ' + esc(o.title) + (o.sub ? ' <small>' + esc(o.sub) + '</small>' : '') + '</span>' +
@@ -95,7 +96,7 @@ export function mountShell(o, cfg) {
   };
   sh.close = (done) => {
     if (sh.closed) return; sh.closed = true; sh.dispose.forEach((f) => f()); document.removeEventListener('keydown', onKey, true); window.removeEventListener('resize', onRz);
-    ov.remove(); if (app) app.inert = wasInert; if (opener && opener.isConnected && opener.focus) opener.focus(); if (!done && o.onClose) o.onClose();
+    ov.remove(); releaseInert(app); if (opener && opener.isConnected && opener.focus) opener.focus(); if (!done && o.onClose) o.onClose();
   };
   const onRz = () => { if (sh.onResize) sh.onResize(); };
   function onKey(e) {

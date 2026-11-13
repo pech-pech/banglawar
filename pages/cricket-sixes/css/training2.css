@@ -264,6 +264,10 @@
 .wh-tknote { flex: 1 1 100%; margin: 0; text-align: center; font-size: var(--c-fs-s); color: var(--cream); }
 .wh-sp { display: inline-flex; align-items: center; gap: 4px; font-size: var(--c-fs-m); }
 .wh-ptr.is-flash { border-top-color: var(--gold); }
+.wh-ov .wh-ptr.is-chime { border-top-color: var(--gold); filter: drop-shadow(0 0 4px var(--gold)); } /* Gold Chime: the pointer flashes gold as a gold slice passes under it (no motion needed; none with reduced motion since the wheel does not turn) */
+.wh-bst { display: flex; flex-wrap: wrap; gap: var(--c-sp-1); justify-content: center; font-size: var(--c-fs-m); font-weight: 700; } /* Booster / Hot Streak lines on the result card */
+.wh-bst1 { padding: 0 var(--c-sp-2); background: var(--cream); color: var(--outline); border: 2px dashed var(--outline); }
+.wh-chip.is-boost { outline: 2px dashed var(--outline); outline-offset: 2px; }
 .wh-ptr2 { left: calc(50% + 22px); top: -14px; border-top-color: var(--gold); opacity: 0; }
 .wh-ptr2::after { display: none; }
 .wh-bonus { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 4; pointer-events: none; padding: 0 var(--c-sp-2); background: var(--gold); border: 2px solid var(--outline); font: 700 var(--c-fs-l)/1.4 var(--c-font); }

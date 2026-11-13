@@ -5,6 +5,7 @@
    Letters only: `Rafi  Power  C -> C+  Good!`, fill bar 4 ticks per step. The only digit is the wheel's +N.
    Also exports the small helpers the other train views share (STAT, letterBar, lineText). */
 import { esc, icoDeco, nameHtml } from './dom.js';
+import { releaseInert } from './inert.js';
 import { stepOfRaw, letterOfRaw, ticksOfRaw } from '../core/letters.js';
 
 /** Stat key (core short key or old long key) -> { k, icon, word, long }. */
@@ -52,7 +53,7 @@ export function playNets(o, opts) {
   opts = opts || {};
   const lines = o.lines || [], skipped = o.skipped || [], n = lines.length + skipped.length;
   const reduced = opts.reduced != null ? opts.reduced : typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const app = document.getElementById('app'), wasInert = !!(app && app.inert), opener = document.activeElement;
+  const app = document.getElementById('app'), opener = document.activeElement;
   const ov = document.createElement('section');
   ov.className = 't2-ov ns-scene'; ov.setAttribute('role', 'dialog'); ov.setAttribute('aria-modal', 'true'); ov.setAttribute('aria-label', 'Nets day');
   const ups = lines.filter((l) => letterOfRaw(l.toRaw) !== letterOfRaw(l.fromRaw)).length;
@@ -74,7 +75,7 @@ export function playNets(o, opts) {
   }
   function close() {
     if (closed) return; closed = true; if (timer) clearTimeout(timer);
-    document.removeEventListener('keydown', onKey, true); ov.remove(); if (app) app.inert = wasInert;
+    document.removeEventListener('keydown', onKey, true); ov.remove(); releaseInert(app);
     if (opener && opener.isConnected && opener.focus) opener.focus();
     if (opts.onDone) opts.onDone();
   }
