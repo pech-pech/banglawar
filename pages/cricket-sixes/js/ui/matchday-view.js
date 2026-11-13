@@ -82,7 +82,7 @@ export function matchdayHtml(vm, shown) {
     : 'Tap the cards to see your boost.';
   return '<div class="md-root">' +
     '<header class="strip c-dark md-strip"><span class="mid"><b>Match day</b><span>' + esc((vm.kindWord ? vm.kindWord + ' ' : '') + (vm.oppName ? 'vs ' + vm.oppName : 'Before the match')) + '</span></span>' +
-    '<button type="button" class="q" data-md="info" aria-label="How match day works">?</button></header>' +
+    '<button type="button" class="c-icon-btn help-btn" data-md="info" aria-label="How match day works">?</button></header>' +
     '<div class="md-body">' + hype + roar + toss + pep +
     '<p class="md-total" aria-label="Boost total">' + total + '</p>' +
     '<p class="ss-sr" role="status" aria-live="polite" aria-atomic="true" data-md-live></p></div>' +

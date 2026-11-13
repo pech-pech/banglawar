@@ -136,7 +136,7 @@ test('trial card: coach kind shows a letter grade (not a step number), strong fo
   assert.match(trialCardHtml(cvm), /Trial coach: Mehta/);
   const calls = [], r = fakeRoot();
   renderTrial(r, cvm, (n, a) => calls.push([n, a]));
-  assert.match(r.innerHTML, /class="c-tag" aria-label="Grade [A-Z][+-]?"/);
+  assert.match(r.innerHTML, /class="c-tag cl-grade" aria-label="Grade [A-Z]( plus| minus)?"><span aria-hidden="true">Grade<\/span><b aria-hidden="true">[A-Z][+-]?<\/b>/); // QA3 m4: visible "Grade" word, spoken letter
   assert.match(r.innerHTML, /No wage/);
   assert.match(r.innerHTML, /t2-fi/);
   assert.doesNotMatch(r.innerHTML, /Grade 15|>15</);

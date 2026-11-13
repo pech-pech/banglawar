@@ -106,3 +106,50 @@ test('m4 canvas label uses the real level (not built at 0)', () => {
   assert.match(src, /'not built'/);
   assert.match(read('js/ui/hub-view.js'), /levels: \(vm\.econ && vm\.econ\.fac\)/);
 });
+
+// r9 FIX5-CLUB (QA3 m1-m4)
+test('QA3 m1 release rows show Batting and Bowling letters with icons and the bowling type, like the trial player', () => {
+  const r = fakeRoot();
+  const full = { ...tvm, squadFull: true, canSign: false, release: [{ id: 'b1', name: 'Kofi', role: 'middle', type: 'medium', shown: 50, batShown: 60, bowlShown: 90 }] };
+  renderTrial(r, full, () => {}); r.click({ 'data-cl-relopen': '1' });
+  const row = r.innerHTML.match(/data-cl-relpick="b1"[^]*?<\/button>/)[0];
+  assert.equal((row.match(/lt-box/g) || []).length, 2, 'two letters, not one overall');
+  assert.match(row, /Medium/);
+  assert.match(row, /aria-label="Release Kofi, Middle order, Medium bowler, batting [A-S]( plus| minus)?, bowling [A-S]( plus| minus)?"/);
+  assert.match(read('js/store/selectors.js'), /shown: shownAbility\(p\), batShown: shownBat\(p\), bowlShown: shownBowl\(p\)/);
+});
+
+test('QA3 m2 a release is announced, and Decline after it asks first (Sign / keep 7 / back)', () => {
+  const els = {};
+  globalThis.document = { getElementById: (i) => els[i] || null, createElement: () => ({ setAttribute() {}, remove() {}, parentNode: {} }), body: { appendChild(e) { els[e.id] = e; } } };
+  try {
+    const calls = [], r = fakeRoot();
+    const full = { ...tvm, squadFull: true, canSign: false, squadSize: 8, squadMax: 8, release: [{ id: 'b1', name: 'Reyes', role: 'middle', type: 'fast', shown: 50 }] };
+    renderTrial(r, full, (n, a) => calls.push([n, a]));
+    r.click({ 'data-cl-sell': 'b1' });
+    assert.equal(els['cl-confirm-line'].textContent, 'Reyes released.');
+    renderTrial(r, { ...full, squadFull: false, canSign: true, squadSize: 7, release: [] }, () => {});
+    assert.match(r.innerHTML, /Reyes released\. Squad now 7 of 8\./);
+    r.click({ 'data-cl-act': 'DeclineTrial' });
+    assert.deepEqual(calls, [['SellPlayer', { id: 'b1' }]], 'no decline before the warning');
+    assert.match(r.innerHTML, /Squad now 7 of 8/); assert.match(r.innerHTML, /keep 7 players\?/);
+    assert.match(r.innerHTML, /Keep 7, decline/); assert.match(r.innerHTML, /Sign Asha/);
+    r.click({ 'data-cl-relback': '1' });
+    assert.doesNotMatch(r.innerHTML, /Keep 7, decline/);
+    r.click({ 'data-cl-act': 'DeclineTrial' }); r.click({ 'data-cl-act': 'DeclineTrial', 'data-cl-sure': '1' });
+    assert.deepEqual(calls.at(-1), ['DeclineTrial', {}]);
+  } finally { delete globalThis.document; }
+});
+
+test('QA3 m3 toast: no taps blocked, kept off the header, has an icon', () => {
+  const css = read('css/club9.css'), last = css.slice(css.lastIndexOf('.cl-toast'));
+  assert.match(last, /pointer-events: none/);
+  assert.match(read('js/ui/trial-card.js'), /insertAdjacentHTML\('afterbegin', icoDeco\(/);
+});
+
+test('QA3 m4 coach sheet: aria label in words, visible "Grade" word on the tag', () => {
+  const r = fakeRoot(); renderTrial(r, { kind: 'coach', player: null, coach: { id: 'c', name: 'Mensah', step: 9, strong: ['bat', 'bowl'] }, wage: 0, canSign: true }, () => {});
+  assert.match(r.innerHTML, /aria-label="Strong in Batting and Bowling"/);
+  assert.doesNotMatch(r.innerHTML, /Strong in bat/);
+  assert.match(r.innerHTML, /<span aria-hidden="true">Grade<\/span><b/);
+});

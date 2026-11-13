@@ -111,7 +111,7 @@ export function wordsLine(gloss) {
 export function windowOf(data, env) {
   if (env.win && Array.isArray(env.win.matches)) { // RPT-LOG window (hooks env.win): already after the marker and of the running build
     const W = env.win, dr = W.dropped ? Array.from({ length: W.dropped.n }, () => ({ build: W.dropped.build, res: 'won', seed: null })) : [];
-    return { range: W.matches.concat(dr), ms: W.matches, nets: W.nets || [], spins: W.spins || [], buys: W.buys || [], club: W.club || [], weeks: W.weeks || [], feel: W.feel || [], since: W.since || null, dropped: W.dropped || null, rid: env.rid || ((data.rid | 0) + 1) };
+    return { range: W.matches.concat(dr), ms: W.matches, nets: W.nets || [], spins: W.spins || [], buys: W.buys || [], club: W.club || [], weeks: W.weeks || [], feel: W.feel || [], since: W.since || null, dropped: W.dropped || null, pending: W.pending || null, rid: env.rid || ((data.rid | 0) + 1) };
   }
   const mk = data.marker || null, seq = mk ? mk.matchSeq | 0 : 0, ev = mk ? mk.evSeq | 0 : 0, at = mk ? mk.atMs | 0 : 0;
   const okB = (r) => env.build === '?' || !bOf(r) || bOf(r) === env.build;
@@ -298,8 +298,9 @@ export function reportParts(data, env0) {
   const h1 = `CR ${env.build} | CLEAN: ${clean.ok ? 'YES' : 'NO ' + clean.why.join(', ')} | features ${on ? 'on' : 'off'} | save v${sv.v || '?'} | S${sv.season || '?'} R${sv.round || '?'}/${sv.rounds || 9} L${sv.league || '?'} | #${rid} | ${env.vp}`;
   const h2 = `Window: ${fin.length} matches, ${w.nets.length} nets runs, since ${w.since ? '#' + w.since.rid : 'start'} (${utc(t0)} to ${utc(env.now)}). [W] window [S] season [G] save`;
   const h3 = w.dropped ? `Dropped ${w.dropped.n} records from ${w.dropped.build}` : null;
+  const pd = w.pending, h4 = pd ? (pd.res ? `M${pd.id} is on the result screen: not in this report. Leave the result screen, then copy: it comes in whole with its Coins, Fans, pay and feel.` : `M${pd.id} is still in play: it comes in whole in the next report.`) : null; // QA3 B1
   const secs = [secT(w, env), secM(w), secE(w, env), secC(w, env), secS(w, env), secF(w, data)];
-  return { env, w, clean, on, rid, h: [h1, h2, h3].filter(Boolean), secs, drop: w.dropped ? w.dropped.n : 0 };
+  return { env, w, clean, on, rid, h: [h1, h2, h3, h4].filter(Boolean), secs, drop: w.dropped ? w.dropped.n : 0 };
 }
 
 const LIM = { full: 2500, short: 1000, json: 4000 };

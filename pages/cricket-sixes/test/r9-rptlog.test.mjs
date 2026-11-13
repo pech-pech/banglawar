@@ -5,6 +5,8 @@ import { createLog, KEY, CAPS } from '../js/report/log.js';
 import { OVER_COLS, winProb, decidedOver, avoidablePoor, mdOf } from '../js/report/metrics.js';
 import { createStore } from '../js/store/store.js';
 import { step } from './_season-bot.mjs';
+import { buildFull, buildSummary } from '../js/report/report.js';
+import { saveOf } from '../js/report/z.js';
 
 const mem = () => { const m = new Map(); return { getItem: (k) => (m.has(k) ? m.get(k) : null), setItem: (k, v) => m.set(k, v), removeItem: (k) => m.delete(k), m }; };
 // Drive the store through the log the way hooks.js does (same calls, no DOM).
@@ -80,9 +82,10 @@ test('marker + last text: copied() moves the window; window() returns only recor
   const h = driven('rl3'); playTo(h, (s) => s.stage === 'done'); h.run('FinishMatch');
   let w = h.log.window(); assert.equal(w.matches.length, 1); assert.equal(w.since, null); assert.equal(h.log.nextRid(), 1);
   const rid = h.log.copied('TEXT ONE', 'f'); assert.equal(rid, 1);
-  assert.deepEqual(h.log.window().matches, []); assert.equal(h.log.window().since.rid, 1); assert.equal(h.log.nextRid(), 2);
+  assert.equal(h.log.window().matches.length, 1); assert.equal(h.log.window().since, null); assert.equal(h.log.nextRid(), 2); // QA3 m10: nothing new since the copy = the same window again
   assert.equal(h.log.lastText().text, 'TEXT ONE'); assert.equal(h.log.lastText().size, 'f');
   playTo(h, (s) => s.stage === 'done' && s.season.round >= 2 || s.season.round >= 2); // a second match
+  assert.ok(!h.log.window().matches.some((m) => m.id === 1)); assert.equal(h.log.window().since.rid, 1); // something new: the window starts after copy #1
   const d = JSON.parse(h.storage.getItem(KEY)); assert.equal(d.marker.rid, 1); assert.equal(d.lastText.text, 'TEXT ONE'); // persisted
   h.log.copied('TEXT TWO', 's'); assert.equal(h.log.lastText().rid, 2); assert.equal(h.log.lastText().size, 's');
 });
@@ -151,4 +154,39 @@ test('club events: activity, trial and free pick are logged (d.club, capped)', (
   log.command('PickActivity', { id: 'rest' }, b, { econ: { coins: 70, fans: 9, act: { hist: [{ find: null }], dry: 1 } } });
   log.command('SignTrial', {}, b, { econ: b.econ, trial: null }); log.command('TakeFreePick', { what: 'nets' }, b, { econ: { coins: 100, fans: 6 } });
   const c = log.data().club; assert.equal(c.length, 2); assert.deepEqual([c[0].k, c[0].who.id, c[0].who.wage, c[1].k, c[1].what], ['sign', 'p9', 12, 'fp', 'nets']);
+});
+
+// QA3 B1 + m10: a copy on the result screen must not lose the match; short after full shows the same window.
+const envOfH = (h) => ({ build: 'rX', now: 5e12, vp: 'test', errors: 0, flags: {}, features: true, win: h.log.window(), rid: h.log.nextRid(), lastText: h.log.lastText(), builds: ['rX'], save: saveOf(h.store.get()) });
+const copyAs = (h, size) => { const t = size === 's' ? buildSummary(h.log.data(), envOfH(h)) : buildFull(h.log.data(), envOfH(h)); h.log.copied(t, size); return t; };
+
+test('QA3 B1: copy on result, finish, copy again: the match (row, Coins, Fans, pay) is in exactly one report', () => {
+  const h = driven('q3r'); playTo(h, (s) => s.stage === 'done');
+  const r1 = copyAs(h, 'f'); // on the result screen
+  assert.match(r1, /M1 is on the result screen: not in this report/);
+  assert.doesNotMatch(r1, /\nM1 [LSF?] /m); assert.doesNotMatch(r1, /TP pay/);
+  const r1s = copyAs(h, 's'); // m10: short straight after full = the same window, not empty
+  assert.match(r1s, /M1 is on the result screen/); assert.equal(r1s.split('\n')[1], r1.split('\n')[1]); // same Window line
+  h.run('FinishMatch');
+  const m = h.log.data().matches[0]; assert.ok(m.pay && m.coins1 != null && m.fin === 1);
+  const r2 = copyAs(h, 'f');
+  assert.match(r2, /Window: 1 matches/); assert.match(r2, / M1 [LSF?] [WLT] /);
+  assert.ok(r2.includes('TP pay ' + m.pay.total)); assert.ok(r2.includes(`Coins ${m.coins0} -> ${m.coins1}`)); assert.ok(r2.includes(`Fans +${m.fans1 - m.fans0}`));
+  assert.doesNotMatch(r2, /on the result screen/);
+  const r2s = copyAs(h, 's'); assert.match(r2s, /Window: 1 matches/); assert.match(r2s, /ECONOMY Coins \d+ -> \d+/); // m10 again after the finish
+  const all = [r1, r1s, r2, r2s], fulls = [r1, r2];
+  assert.equal(fulls.filter((t) => / M1 [LSF?] [WLT] /.test(t)).length, 1);
+  assert.equal(fulls.filter((t) => t.includes('TP pay ' + m.pay.total)).length, 1);
+  assert.equal(all.filter((t) => t.includes(`Coins ${m.coins0} -> ${m.coins1}`) || t.includes(`ECONOMY Coins ${m.coins0} -> ${m.coins1}`)).length, 2); // full + its same-moment short
+  // a third copy after real play moves on: M1 is gone
+  playTo(h, (s) => s.stage === 'bowl'); h.stepOne();
+  const r3 = copyAs(h, 'f'); assert.doesNotMatch(r3, / M1 [LSF?] [WLT] /); assert.doesNotMatch(r3, /TP pay/);
+});
+
+test('QA3 B1: an older log record without fin is closed; a new match closes one left on the result screen', () => {
+  const log = createLog({ storage: null, build: 'rX' });
+  log.matchStart({ seed: 'a', stage: 'bowl' }); const m = log.data().matches[0]; m.res = 'won';
+  assert.equal(log.window().matches.length, 0); assert.equal(log.window().pending.id, 1);
+  log.matchStart({ seed: 'b', stage: 'bowl' }); assert.equal(m.fin, 1); assert.equal(m.ab, 0);
+  assert.deepEqual(log.window().matches.map((x) => x.id), [1, 2]); assert.equal(log.window().pending.id, 2); assert.equal(log.window().pending.res, null);
 });

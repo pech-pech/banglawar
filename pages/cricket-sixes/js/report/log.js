@@ -62,6 +62,12 @@ export function createLog(o = {}) {
   const ev = (k, rec) => { d[k].push({ q: ++d.eseq, b: build, t: now(), ...rec }); };
   const KIND = { league: 'L', semi: 'S', final: 'F' };
   const open = () => { const m = d.matches[d.matches.length - 1]; return m && !m.res && !m.ab ? m : null; };
+  /** QA3 B1: the newest match while it is not closed yet (in play, or on the result screen before FinishMatch logs pay, Coins, Fans and feel). A copy never cuts past it. */
+  const pending = () => { const m = d.matches[d.matches.length - 1]; return m && m.fin === 0 && !m.ab && !m.pay ? m : null; }; // fin 0 = opened by this code; older records have no fin and count as closed
+  const cut = () => { const p = pending(); return { matchSeq: p ? p.id - 1 : d.seq, evSeq: d.eseq }; };
+  /** QA3 m10: nothing new since the last copy = the same moment: a second copy (short after full) shows the same window again, not an empty one. */
+  const sameMoment = () => { const mk = d.marker, c = cut(); return !!(mk && mk.matchSeq === c.matchSeq && mk.evSeq === c.evSeq); };
+  const startOf = () => { const mk = d.marker; return mk && sameMoment() ? (mk.from || null) : mk; };
 
   const netsRecordAff = (before) => { try { return pushAffordable(before) ? 1 : 0; } catch (e) { return 0; } };
   const api = {
@@ -71,8 +77,9 @@ export function createLog(o = {}) {
       const prev = open();
       if (resume && prev && prev.seed === s.seed) return; // reopened mid-match: keep the open record, it is not a new start
       if (prev) { prev.ab = 1; prev.t1 = now(); }
+      const last = d.matches[d.matches.length - 1]; if (last && last.fin === 0) last.fin = 1; // QA3 B1: a new match closes the one before it
       const fx = s.fixture || null, sn = s.season || null; // P0-6: which fixture this was
-      d.matches.push({ id: ++d.seq, sid, build, seed: s.seed, vp: env(), t0: now(), t1: 0, res: null, ab: 0, stage: s.stage, k: fx ? (KIND[fx.kind] || '?') : null, r: fx ? fx.round : null, season: sn ? sn.n : null, league: sn ? sn.league : null, ov: [], scr: {}, why: 0, gl: {}, sk: 0, th: [], feel: {}, err: 0, tun: TUNING_SHA, fl: flagsOn(), tc: [] });
+      d.matches.push({ id: ++d.seq, sid, build, seed: s.seed, vp: env(), t0: now(), t1: 0, res: null, ab: 0, stage: s.stage, k: fx ? (KIND[fx.kind] || '?') : null, r: fx ? fx.round : null, season: sn ? sn.n : null, league: sn ? sn.league : null, ov: [], scr: {}, why: 0, gl: {}, sk: 0, th: [], feel: {}, err: 0, fin: 0, tun: TUNING_SHA, fl: flagsOn(), tc: [] });
       mdInto(d.matches[d.matches.length - 1], s);
       if (d.matches.length > CAP.matches) d.matches.splice(0, d.matches.length - CAP.matches);
     }),
@@ -95,7 +102,8 @@ export function createLog(o = {}) {
     /** Copy resolved: move the window marker (W1/W2) and keep the text for "Copy last again". Call only after the clipboard write succeeded. Returns the new report id. */
     copied: safe((text, size) => {
       const rid = d.rid + 1; d.rid = rid;
-      d.marker = { rid, atMs: now(), matchSeq: d.seq, evSeq: d.eseq, build };
+      const c = cut(), s0 = startOf(), from = s0 ? { rid: s0.rid, atMs: s0.atMs, matchSeq: s0.matchSeq, evSeq: s0.evSeq } : null; // m10: a same-moment copy keeps the start of the window it showed
+      d.marker = { rid, atMs: now(), matchSeq: c.matchSeq, evSeq: c.evSeq, build, from }; // B1: the cut stops before a match that is not closed yet
       d.lastText = { rid, text: String(text || ''), size: size === 's' ? 's' : 'f', at: now(), build };
       return rid;
     }),
@@ -103,12 +111,12 @@ export function createLog(o = {}) {
     lastText: () => d.lastText,
     /** Records after the marker, running build only. since = marker {rid, atMs} or null. dropped = {n, build} for records of the other build kept in the log (H3). */
     window: () => {
-      const mk = d.marker, ms = mk ? mk.matchSeq : 0, es = mk ? mk.evSeq : 0;
+      const mk = startOf(), ms = mk ? mk.matchSeq : 0, es = mk ? mk.evSeq : 0, p = pending();
       const cur = (r) => (r.b || r.build) === build;
-      const inWin = d.matches.filter((m) => m.id > ms), other = inWin.filter((m) => !cur(m));
+      const inWin = d.matches.filter((m) => m.id > ms && !(m === p && m.res)), other = inWin.filter((m) => !cur(m)); // B1: a match on its result screen (not closed yet) joins the next window whole; one in play shows as live and comes again whole
       const evs = (k) => d[k].filter((r) => r.q > es && cur(r));
       const oth = other.length + ['nets', 'spins', 'weeks', 'buys', 'feelLog', 'club'].reduce((a, k) => a + d[k].filter((r) => r.q > es && !cur(r)).length, 0);
-      return { matches: inWin.filter(cur), nets: evs('nets'), spins: evs('spins'), weeks: evs('weeks'), buys: evs('buys'), club: evs('club'), feel: evs('feelLog'), since: mk ? { rid: mk.rid, atMs: mk.atMs } : null,
+      return { matches: inWin.filter(cur), nets: evs('nets'), spins: evs('spins'), weeks: evs('weeks'), buys: evs('buys'), club: evs('club'), feel: evs('feelLog'), since: mk ? { rid: mk.rid, atMs: mk.atMs } : null, pending: p && cur(p) ? { id: p.id, res: p.res || null } : null,
         dropped: oth ? { n: oth, build: (other[0] || {}).build || (d.builds.find((x) => x !== build) || '') } : null };
     },
     stage: safe((stage) => { const se = d.sessions[d.sessions.length - 1]; if (se) se.end = stage; const m = open(); if (m) m.stage = stage; }), // P0-7: a finished record keeps its stage. Z2: se.end = the screen the session was on last
@@ -124,7 +132,8 @@ export function createLog(o = {}) {
     /** FinishMatch: pay and the coin/fan change land on the match just finished (P0-6). */
     finish: safe((before, after) => {
       let m = null; for (let i = d.matches.length - 1; i >= 0; i--) if (d.matches[i].res) { m = d.matches[i]; break; }
-      if (!m || m.pay || !after || !after.pay) return;
+      if (!m) return; m.fin = 1; // QA3 B1: closed, so the next copy may cut past it
+      if (m.pay || !after || !after.pay) return;
       const p = after.pay, e0 = (before && before.econ) || {}, e1 = after.econ || {};
       m.pay = { base: p.base | 0, win: p.win | 0, stars: p.stars | 0, total: p.total | 0 };
       try { const row = (e1.ledger || []).filter((r) => r.k === 'match').slice(-1)[0]; if (row) m.eco = { gate: row.gate | 0, win: row.winBonus | 0, shop: row.shop | 0, wage: row.wages | 0, up: row.upkeep | 0, net: row.net | 0, fans: row.fans | 0, arr: row.arrears | 0, ...(row.hype ? { hype: row.hype } : {}), ...(row.split ? { fs: row.split } : {}) }; } catch (e) { /* no ledger */ }

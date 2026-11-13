@@ -1,6 +1,8 @@
 /* Match day screen, chip row, roar chip, auto toggle (r9). Kit colours only. Calm: no motion unless the player allows it. */
 .md-root { display: flex; flex-direction: column; min-height: 100%; padding-bottom: calc(var(--cta-bar, 88px) + 8px); }
 .md-strip .q { flex: none; min-width: 56px; min-height: 56px; }
+/* QA3 m8: the "?" is the same .help-btn as the hub and training strips (cream, framed), with the strip's own right gutter */
+.md-strip .help-btn { margin-right: var(--c-sp-1); }
 .md-body { display: flex; flex-direction: column; gap: 8px; padding: 8px 0; }
 .md-tap { display: flex; align-items: center; justify-content: flex-start; gap: 10px; width: 100%; min-height: 64px; padding: 6px 12px; text-align: left; white-space: normal; }
 .md-tap span { display: flex; flex-direction: column; min-width: 0; }
@@ -25,7 +27,7 @@
 .md-tag { margin-left: auto; display: inline-flex; align-items: center; gap: 4px; }
 .md-total { margin: 0; padding: 6px 8px; font-weight: 700; font-size: var(--c-fs-m); line-height: var(--c-lh-m); border-left: 4px solid var(--outline); background: var(--wall1); }
 .md-cta { display: flex; gap: 8px; }
-.md-cta .md-back { flex: 0 0 38%; min-height: 56px; white-space: normal; }
+.md-cta .md-back { flex: 0 0 auto; min-height: 56px; white-space: nowrap; padding: 0 10px; font-size: 16px; } /* QA3 m8: one line, never below 14px */
 .md-cta .c-btn--primary { flex: 1 1 auto; min-width: 0; padding: 0 8px; }
 .md-info { display: flex; flex-direction: column; gap: 8px; font-size: 14px; line-height: 18px; }
 .md-info p { margin: 0; }

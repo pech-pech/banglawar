@@ -56,3 +56,14 @@
 .chase-b .sb-row.is-strike .gr { background: none; }
 .chase-b .gr.m0-gr-S { border-bottom-color: var(--gold); } .chase-b .gr.m0-gr-A { border-bottom-color: var(--accent); } .chase-b .gr.m0-gr-B { border-bottom-color: var(--pitch2); }
 .chase-b .gr.m0-gr-C { border-bottom-color: var(--stone2); } .chase-b .gr.m0-gr-D { border-bottom-color: var(--danger); }
+
+/* r9 fix4 (E2E #3): match-day chips + roar chip on one wrapping line (.ch-boosts), compact, and the batter tiles give back the height the
+   line takes, so nothing runs under the CTA bar at 344x780. Words + icon on every chip; text stays 14px; nothing here is tappable. */
+.chase-b .ch-boosts { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 8px; margin: 0; }
+.chase-b .ch-boosts .md-chips { display: flex; flex-wrap: wrap; gap: 0 8px; margin: 0; }
+.chase-b .ch-boosts .md-chip { min-height: 22px; margin: 0; padding: 0; }
+.chase-b .ch-boosts .md-roar { display: inline-flex; min-height: 22px; padding: 0 6px; }
+.chase-b .ch-boosts ~ .colL { margin-top: 0; }
+@media (max-width: 599px) {
+  .chase-b.has-boosts .pbox, .chase-b.has-boosts .rbox { min-height: 128px; } /* content needs ~110px; rows still grow with it */
+}

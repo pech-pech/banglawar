@@ -127,7 +127,7 @@ export function render(el, rawVm, dispatch, open) {
   const P = vm.plan, pv = vm.preview || { cost: 0, trainN: 0, skippedN: 0, shortN: 0, hint: null }, costs = vm.costs || { easy: 10, normal: 13, push: 18 };
   const had = el.contains(document.activeElement) ? document.activeElement : null, key = had && had.getAttribute ? (had.getAttribute('data-act') || '') + (had.getAttribute('data-arg') || '') : '';
   const nets = vm.nets, rows = vm.rows || [];
-  const top = '<div class="c-strip strip tr-top"><span>' + deco('train', 24) + ' Week ' + esc(vm.week) + '</span><span class="c-strip__right tr-tpw">' + tp(vm.tp) +
+  const top = '<div class="c-strip strip tr-top"><span>' + deco('train', 24) + '<span class="tr-wk"><span class="tr-nw">Week ' + esc(vm.week) + '</span></span></span><span class="c-strip__right tr-tpw">' + tp(vm.tp) +
     '<button type="button" class="c-icon-btn tr-help" data-act="sheet:traininghelp" aria-label="Help: how training works" aria-haspopup="dialog">' + deco('why', 24) + '</button></span></div>';
   let body, cta;
   if (nets) {

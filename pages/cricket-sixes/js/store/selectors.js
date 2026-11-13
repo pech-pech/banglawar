@@ -580,7 +580,7 @@ export function trialVM(s) {
   const coach = t.kind === 'coach' ? { id: x.id, name: x.name, step: x.step, strong: Array.isArray(x.strong) ? x.strong.slice() : [] } : null;
   const full = t.kind === 'player' && squadFull(s);
   // Who can be let go to make room: the existing SellPlayer gate decides (bench only in season, never below the minimum squad).
-  const release = full ? mine(s).squad.filter((p) => canSell(s, p.id).ok).map((p) => ({ id: p.id, name: p.name, role: p.bat, type: p.bowl, shown: shownAbility(p) })) : [];
+  const release = full ? mine(s).squad.filter((p) => canSell(s, p.id).ok).map((p) => ({ id: p.id, name: p.name, role: p.bat, type: p.bowl, shown: shownAbility(p), batShown: shownBat(p), bowlShown: shownBowl(p) })) /* QA3 m1: same letters as the trial player */ : [];
   return { kind: t.kind, player, coach, wage: t.wage, squadFull: full, release, squadSize: mine(s).squad.length, squadMax: SQUAD.size,
     canSign: can.ok, why: can.ok ? '' : can.why, sign: 'Sign', decline: 'Decline' };
 }

@@ -142,3 +142,15 @@
 .wh-ov.is-jp .wh-res.c-card--inset { --_wash: var(--gold); background: var(--gold); }
 .wh-ptr { border-top-color: var(--outline); }
 .wh-ptr::after { content: ""; position: absolute; left: -9px; top: -22px; border-left: 9px solid transparent; border-right: 9px solid transparent; border-top: 17px solid var(--gold); }
+
+/* ---- QA3 r9 fixes (FIX5-TRAIN) ---- */
+/* m7: a name is never cut to "Jab...". It keeps its own width (a long one-word name may break once at its soft hyphen, see nameHtml);
+   when the row is too narrow the skill and letter change move to a second line instead. */
+.t2-l1 { flex-wrap: wrap; row-gap: 0; }
+.t2-nm { flex: 0 0 auto; max-width: 100%; min-width: 0; overflow: visible; text-overflow: clip; white-space: normal; hyphens: manual; }
+/* m7: "Week 1" never splits; "done" may go to a second line */
+.tr-top .tr-wk { min-width: 0; }
+.tr-top .tr-nw { white-space: nowrap; }
+/* m11: the wheel's X cannot close while the wheel turns or slows: dashed frame, dimmed X, aria-disabled (not colour alone) */
+.wh-ov .wh-x.is-wait { background: var(--stone1); border-style: dashed; box-shadow: none; transform: none; cursor: not-allowed; outline: 2px dashed var(--outline); outline-offset: -8px; }
+.wh-ov .wh-x.is-wait > .c-ico { opacity: .45; }

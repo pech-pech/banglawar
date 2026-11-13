@@ -187,7 +187,7 @@ async function journey(browser, tag) {
       await audit('freepick-picked'); await shot('freepick-picked');
       const take = await page.$('[data-cl-act="TakeFreePick"]:not([disabled])'); if (!take) { bad('freepick: Take stayed disabled after a pick'); break; }
       await page.evaluate(() => window.scrollTo(0, 0)); await settle(100); // measure at scroll 0 (a click scrolls the page, which hid this in some runs)
-      const tb = await take.boundingBox(); if (!tb || tb.y < 0 || tb.y + tb.height > VIEW.height) bad('freepick: the Take button is not fully visible without scrolling');
+      const tb = await take.boundingBox(); if (!tb || tb.y < 0 || tb.y + tb.height > VIEW.height) bad(`freepick: the Take button is not fully visible without scrolling (top ${tb && Math.round(tb.y)}, bottom ${tb && Math.round(tb.y + tb.height)}, viewport ${VIEW.height})`);
       await take.click(); await settle(400);
       const after = await stage(); if (after !== 'hub') bad(`freepick: Take returned to "${after}", want hub`);
       if (await page.evaluate(() => /squad is now 8/i.test(document.body.innerText))) bad('hub: shows the "squad is now 8" notice after the free pick (noticeOf must return null for freepick)');
