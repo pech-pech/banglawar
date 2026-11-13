@@ -112,7 +112,7 @@ export function openWheel(o) {
     const a = rot - centreOf(JP) * U - Math.PI / 2, ax = Math.round(cx + Math.cos(a) * (R - 3.6)), ay = Math.round(cy + Math.sin(a) * (R - 3.6));
     for (let j = -5; j <= 5; j++) for (let i = -5; i <= 5; i++) { const q = Math.abs(i) + Math.abs(j); if (q > 5) continue; ctx.fillStyle = q >= 5 ? 'rgb(' + pal.out + ')' : q >= 4 ? '#fff' : 'rgb(' + pal.gold + ')'; ctx.fillRect(ax + i, ay + j, 1, 1); } // diamond on the jackpot slice
     labels.forEach((l, i) => {
-      const b = rot - centreOf(i) * U - Math.PI / 2, thin = widths[i] * U < 0.2, rl = R * (thin ? 0.88 : GD.includes(i) ? 0.8 : 0.62); l.style.fontSize = thin ? '17px' : ''; // a thin slice (the extra gold): smaller label, further out where it is wider
+      const b = rot - centreOf(i) * U - Math.PI / 2, thin = widths[i] * U < 0.2, rl = R * (GD.includes(i) ? 0.8 : 0.62); l.style.fontSize = thin ? '14px' : ''; // a thin slice (the extra gold): a smaller label so it stays inside the slice edges
       l.style.left = (cx + Math.cos(b) * rl) * S + 'px'; l.style.top = (cy + Math.sin(b) * rl) * S + 'px';
       l.style.color = lum(fills[i]) > 0.5 ? 'rgb(' + pal.out + ')' : '#fff'; l.style.opacity = moving && speed > 8 ? '.55' : '1';
     });
@@ -195,7 +195,7 @@ export function openWheel(o) {
     live.textContent = (line ? line + '. ' : '') + (d.say || ''); // read once
     showTokens(p, line); if (!again && !o.pending) burst();
     go.textContent = o.collectLabel || 'COLLECT'; go.classList.add('is-collect', 'c-btn--gold'); go.classList.remove('c-btn--primary'); go.removeAttribute('aria-disabled'); go.classList.remove('is-wait', 'is-disabled'); go.setAttribute('aria-label', o.collectLabel || 'Collect'); xLook(false); go.focus();
-    layout(); // the foot is taller now (result, tokens, outcome line): size the wheel to the room left so the stand and plate under it are never covered or clipped
+    if (LK) layout(); // wheel meta only (flag off: unchanged). The foot is taller now (result, tokens, outcome line): size the wheel to the room left so the stand and plate under it are never covered or clipped
     if (!reduced) draw();
   }
   /** m5: the button shows it is waiting: words, dimmed look (css .wh-go.is-wait), aria-disabled. Static: nothing flashes. */
