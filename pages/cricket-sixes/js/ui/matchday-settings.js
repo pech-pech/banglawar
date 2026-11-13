@@ -14,7 +14,7 @@ export function featuresRowHtml(on) {
 }
 /** Auto match day row. Pure. */
 export function autoMatchdayRowHtml(on) {
-  return '<div class="md-set md-set--auto">' + switchHtml('data-md-auto', 'Auto match day', 'Skips the match day screen. Your boosts show as small chips on the plan.', on) + '</div>';
+  return '<div class="md-set md-set--auto">' + switchHtml('data-md-auto', 'Auto match day', 'Skips the match day screen after your first 3 match days. Your boosts then show as small notes on the plan.', on) + '</div>';
 }
 
 function flip(b, next) {

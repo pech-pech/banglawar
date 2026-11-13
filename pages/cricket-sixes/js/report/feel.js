@@ -4,7 +4,7 @@ export const QUESTIONS = {
   tr: { text: 'Training this week: did anything happen?', opts: ['Nothing', 'Some', 'Exciting'] },
   wh: { text: 'The wheel stop: was the timing fair?', opts: ['Too fast', 'Fair', 'Too slow', 'Luck only'] },
   ec: { text: 'Your last spend: did it matter?', opts: ['Mattered', 'Meh', 'Wish I had saved'] },
-  pk: { text: 'Your picks this match', opts: ['Clearly', 'A bit', 'No'] },
+  pk: { text: 'Did your picks matter this match?', opts: ['Clearly', 'A bit', 'No'] },
 };
 export const PRIORITY = ['wh', 'ec', 'tr', 'pk'];
 export const SKIP = '-';

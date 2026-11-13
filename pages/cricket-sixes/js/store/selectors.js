@@ -491,7 +491,7 @@ export function bookVM(s) {
 }
 
 // ---------------------------------------------------------------- r9 match day (flag matchday; every key below is absent with the flag off)
-const HYPE_WORD = { low: 'Quiet crowd', med: 'Warm crowd', high: 'Loud crowd', nuts: 'Crowd going wild' };
+const HYPE_WORD = { low: 'Quiet crowd', med: 'Good crowd', high: 'Big crowd', nuts: 'Wild crowd' }; // r9 fix M6: the same words on the Match day screen, its odds table and the Plan chip
 const pct = (x) => Math.round(x * 100);
 /** The rolled match day for the fixture on screen (the live match keeps it on s.match.md). Pep follows the slot in the current six. */
 function mdOf(s) {
@@ -542,7 +542,7 @@ export function matchdayVM(s) {
     pep: md.pepId != null ? { slot: md.pepSlot, id: md.pepId, name: pepName, boostPct: pct(MD.PEP_BOOST) } : null,
     six,
     boost: { teamPct: pct(team), pepPct: pct(pepB), line: pepName ? `Team +${pct(team)}%, ${pepName} +${pct(pepB)}%` : `Team +${pct(team)}%` },
-    auto: !!s.autoMatchday, forced, next: 'Next: Plan', back: 'Back to squad',
+    auto: !!s.autoMatchday, forced, next: fx.mdThen === 'start' ? 'Start match' : 'Next: Plan', back: 'Back to squad', // from the hub Go starts the match; from Squad it opens Plan (m1: the label says what the button does)
   };
 }
 

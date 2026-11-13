@@ -3,7 +3,7 @@
 // The rolls are already made (vm); taps only REVEAL them. Reveal state is view state, never saved, never rolls anything.
 // vm = STORE selectors.matchdayVM: {oppName, kindWord, hype:{level, idx, word, perfPct, fanMult}, odds:[{level,word,pct}x4],
 //   roar:{on, chancePct, overs}, toss:{won, boostPct, line}, pep:{slot,id,name,boostPct}|null, six:[{slot,id,name,pep}], boost, auto, forced}.
-// Commands: MatchdayGo (Next: Plan), BackToSquad. Plain words, no countdown, no sound, no spend on luck.
+// Commands: MatchdayGo (vm.next: 'Start match' when it starts the match, 'Next: Plan' when it opens Plan), BackToSquad. Plain words, no countdown, no sound, no spend on luck.
 import { esc, icoDeco, bindActs } from './dom.js';
 import { openSheet } from './sheet.js';
 
@@ -11,7 +11,7 @@ export const HYPE = {
   low: { word: 'Quiet crowd', line: 'Quiet crowd today' },
   med: { word: 'Good crowd', line: 'Good crowd today' },
   high: { word: 'Big crowd', line: 'Big crowd today' },
-  nuts: { word: 'Wild crowd', line: 'The crowd is going wild' },
+  nuts: { word: 'Wild crowd', line: 'Wild crowd today' },
 };
 const LEVELS = ['low', 'med', 'high', 'nuts'];
 /** Plain word for a hype level. Pure. */
@@ -61,9 +61,11 @@ export function oddsHtml(vm) {
 export function matchdayHtml(vm, shown) {
   const b = boostTotals(vm, shown);
   const lvl = LEVELS.indexOf(vm.hype.level);
-  const steps = LEVELS.map((k, i) => '<li class="md-step' + (shown.hype && i <= lvl ? ' is-on' : '') + (shown.hype && i === lvl ? ' is-now' : '') + '"><span aria-hidden="true">' + (shown.hype && i <= lvl ? '■' : '□') + '</span>' + esc(HYPE[k].word) + '</li>').join('');
+  // m9: a meter of 4 steps in one row. The level is marked by the fill AND the word "Today" (never colour alone).
+  const steps = LEVELS.map((k, i) => { const on = shown.hype && i <= lvl, now = shown.hype && i === lvl, w = HYPE[k].word.replace(' crowd', '');
+    return '<li class="md-step' + (on ? ' is-on' : '') + (now ? ' is-now' : '') + '"' + (now ? ' aria-current="true"' : '') + '><span class="md-bar" aria-hidden="true"></span><span class="md-lab">' + esc(w) + '</span><span class="md-today">' + (now ? 'Today' : '') + '</span></li>'; }).join('');
   const hype = shown.hype
-    ? '<section class="c-card md-card is-shown" aria-label="Crowd today"><h2 class="md-h">' + icoDeco('fan', 24) + esc(hypeWord(vm.hype.level)) + ' <span class="md-pct">+' + esc(vm.hype.perfPct) + '%</span></h2><ol class="md-steps list-flat" aria-label="Crowd mood, four steps">' + steps + '</ol></section>'
+    ? '<section class="c-card md-card is-shown" aria-label="Crowd today"><h2 class="md-h">' + icoDeco('fan', 24) + esc(hypeWord(vm.hype.level)) + ' <span class="md-pct">+' + esc(vm.hype.perfPct) + '%</span></h2><ol class="md-steps list-flat" aria-label="Crowd meter, four steps: Quiet, Good, Big, Wild">' + steps + '</ol></section>'
     : '<button type="button" class="c-btn md-tap" data-md="hype">' + icoDeco('fan', 24) + '<span><b>Tap to see the crowd today</b><small>Quiet, good, big or wild</small></span></button>';
   const toss = shown.toss
     ? '<section class="c-card md-card is-shown" aria-label="Toss"><h2 class="md-h">' + icoDeco('medal', 24) + (vm.toss.won ? 'You won the toss <span class="md-pct">+' + esc(vm.toss.boostPct) + '%</span>' : 'Rival won the toss. Nothing changes.') + '</h2></section>'
@@ -85,7 +87,7 @@ export function matchdayHtml(vm, shown) {
     '<p class="md-total" aria-label="Boost total">' + total + '</p>' +
     '<p class="ss-sr" role="status" aria-live="polite" aria-atomic="true" data-md-live></p></div>' +
     '<div class="ctabar md-cta"><button type="button" class="c-btn md-back" data-act="BackToSquad">Back to squad</button>' +
-    '<button type="button" class="c-btn c-btn--primary c-btn--cta" data-act="MatchdayGo">Next: Plan</button></div></div>';
+    '<button type="button" class="c-btn c-btn--primary c-btn--cta" data-act="MatchdayGo">' + esc(vm.next || 'Next: Plan') + '</button></div></div>';
 }
 
 /** Spoken line for a card the moment it is shown (the live region reads it once). Pure. */
