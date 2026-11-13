@@ -1,5 +1,5 @@
 /* result screen: stacked rows, fills one screen */
-.res { gap: 8px; }
+.res { gap: 6px; }
 .res .res-hero { text-align: center; padding: 14px 12px; display: flex; flex-direction: column; align-items: center; gap: 8px; }
 .res-line { margin: 0; font-family: var(--font-head); font-size: 34px; line-height: 38px; font-weight: 400; }
 .res .res-card { flex: 1 1 auto; display: flex; flex-direction: column; padding: 8px 12px; }
@@ -20,3 +20,36 @@
 .res-score { font-size: 44px; line-height: 48px; }
 .res-row { padding: 2px 0; }
 .res .res-card { padding: 6px 12px; }
+/* r9 QA3 m9 + M1: scores in one row inside the hero, then TP, Match day money and the feel question, all above the CTA at 344x780 */
+.res .res-hero { padding: 6px 10px; gap: 2px; }
+.res .res-line { font-size: 28px; line-height: 32px; }
+.res .res-kind { font-size: 16px; line-height: 20px; }
+.res .res-scores { width: 100%; display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin: 4px 0 0; padding: 0; border-top: 2px solid var(--outline); }
+.res .res-scores .res-row { min-height: 0; padding: 4px 0 0; border-bottom: 0; gap: 0; }
+.res .res-scores .res-who { font-size: 14px; line-height: 18px; overflow-wrap: anywhere; }
+.res .res-scores .res-score { font-size: 26px; line-height: 30px; white-space: nowrap; }
+.res .res-scores .res-in { font-size: 14px; line-height: 18px; }
+.res .pay-row { min-height: 32px; padding: 2px 8px; }
+.res button.pay-row { min-height: 56px; }
+.res .res-card h3 { min-height: 24px; font-size: 16px; line-height: 22px; }
+.res .res-card { flex: none; }
+.res-money h3 { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
+.rm-crowd { display: inline-flex; align-items: center; gap: 4px; font-size: 14px; line-height: 18px; }
+.res-money .rm-cells { flex: none; flex-direction: row; list-style: none; margin: 0; padding: 4px 0 0; display: grid; grid-template-columns: repeat(3, auto); justify-content: space-between; gap: 2px; }
+.rm-cell { display: grid; grid-template-columns: auto 1fr; grid-template-rows: auto auto; column-gap: 4px; align-items: center; min-width: 0; }
+.rm-cell img { grid-row: 1 / span 2; }
+.rm-cell b { font: 18px/20px var(--font-head); font-weight: 400; white-space: nowrap; }
+.rm-cell span { font-size: 14px; line-height: 16px; white-space: nowrap; }
+.rm-net { margin: 4px 0 0; display: flex; align-items: flex-start; gap: 4px; font-size: 14px; line-height: 18px; }
+.rm-net img { flex: none; margin-top: -1px; }
+.rm-short { font-weight: 700; }
+.res .rp-feel { padding: 6px 3px; gap: 4px; }
+.res .rp-q { padding: 0 4px; }
+.res .rp-q { font-size: 16px; line-height: 20px; }
+.res .rp-opts { grid-template-columns: none; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 2px; }
+.res .rp-chip { font-size: 14px; line-height: 16px; padding: 0 4px; white-space: normal; overflow-wrap: break-word; }
+.rp-feel-at { display: contents; }
+.res div.pay-row small { display: inline; margin-left: 4px; }
+.res .res-money { padding: 6px 8px; }
+.skin-scorebook .res .res-line { font-size: 24px; line-height: 28px; }
+.skin-scorebook .res .res-score { font-size: 24px; line-height: 28px; }

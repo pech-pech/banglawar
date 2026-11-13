@@ -31,7 +31,7 @@ test('wheel: modal dialog, Escape, focus trap, reduced motion = instant result, 
   assert.match(wheel, /e\.key === 'Tab'/);
   assert.match(wheel, /prefers-reduced-motion: reduce/);
   assert.match(wheel, /aria-live="polite"/);
-  assert.match(wheel, /careful = inWin\(\)/);
+  assert.match(wheel, /o\.onSpin\(/); // the stop (time, start, wobble) goes to the engine; no window flag
 });
 
 test('nets scene: modal, skippable by tap and Escape, reduced motion shows all lines at once, summary read once', () => {

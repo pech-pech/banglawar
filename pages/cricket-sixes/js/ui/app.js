@@ -27,6 +27,8 @@ const STAGES = {
   week: ['week-view', 'weekVM'],
   end: [end, 'endVM'],
   runend: ['runend-view', 'runEndVM'],
+  matchday: ['matchday-view', 'matchdayVM'],   // r9: between Squad and Plan (flag matchday)
+  freepick: ['freepick-view', 'freePickVM'],   // r9: first launch, before Home (flag freePick)
 };
 
 /* Sheets opened by data-act="sheet:<name>" (view state only, never saved). vm: [selector, how to turn the data-arg into args]. */
@@ -45,6 +47,9 @@ const SHEETS = {
   team: { file: 'six-sheet', fn: 'openTeam', vm: ['teamVM', () => []] },
   rival: { file: 'rival-sheet', vm: ['rivalVM', () => []] },
   book: { file: 'book-sheet', fn: 'openBook', vm: ['bookVM', () => []] },
+  activities: { file: 'activities-view', fn: 'openActivities', vm: ['activitiesVM', () => []] },
+  trial: { file: 'trial-card', fn: 'openTrial', vm: ['trialVM', () => []] },
+  freepick: { file: 'freepick-view', fn: 'openFreePick', vm: ['freePickVM', () => []] },
 };
 const mods = {}, loading = {};
 /** Letters data the views need, taken from the core when the view model does not already carry it: the pay card (result), the pre-match letter pair and the squad-of-8 notice (hub). */
@@ -59,6 +64,7 @@ function decorate(s, vm) {
     if (s.econ && !vm.econ) vm.econ = s.econ;
     if (s.fixture && !vm.gap) vm.gap = gapLetters(s, s.fixture.opp);
     if (s.notice && !vm.notice) vm.notice = sel.noticeOf(s);
+    if (vm.activities === undefined) { vm.activities = sel.activitiesVM(s); vm.trial = sel.trialVM(s); vm.freePick = sel.freePickVM(s); } // r9: null with the flags off
   }
   return vm;
 }
@@ -135,7 +141,7 @@ export function mount(el, store) {
     const summaryLines = [];
     if (balls.length < 6) summaryLines.push(!first && s.result === 'won' ? 'Target reached: you win!' : first ? '5th wicket: their innings is over.' : '5th wicket: your innings is over.');
     rep.panelOpen();
-    playOverPanel({ title: 'Over ' + s.last.over, balls, score: { runs: inn.runs, wk: inn.wk }, nextLabel, summaryLines, batKit: first ? 'B' : 'A', found: sel.foundVM(s), onBook: () => openByName('book', { returnFocus: BACK_FOCUS }),
+    playOverPanel({ title: 'Over ' + s.last.over, balls, score: { runs: inn.runs, wk: inn.wk }, nextLabel, summaryLines, batKit: first ? 'B' : 'A', found: sel.foundVM(s), roar: s.last.roar || false, onBook: () => openByName('book', { returnFocus: BACK_FOCUS }),
       onDone() { rep.panelDone(balls.length); holding = false; render(); } });
   }
   return dispatch;

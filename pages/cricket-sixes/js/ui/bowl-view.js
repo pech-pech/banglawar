@@ -5,8 +5,10 @@ import { whyLine, outcomeLabel } from './why.js';
 import { openSheet } from './sheet.js';
 import { openGlossary } from './glossary-sheet.js';
 import { stripHtml } from './first-strip.js';
+import { chipRowHtml, roarChipHtml } from './matchday-view.js';
 import { abilityLine } from './letters-ui.js';
 import { POT, gradeAria, newNotes, noteFor } from './grade-notes.js';
+import { nameHtml } from './dom.js';
 
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const ic = (name, size, cls) => {
@@ -33,7 +35,7 @@ const REASON = { 'bowled last': "Bowled last over. Can't bowl now", '2 overs': '
 function head(vm) { // 'Potential grade' is the column head for the letter boxes (no per-row label)
   const c = (vm.crease || []).slice(0, 2);
   return `<div class="sb-head bv-head" role="presentation"><div class="bv-hb0">Bowler<small class="bv-hpg">${POT}</small></div>` +
-    c.map((b) => `<div class="bv-bx${b.onStrike ? ' is-strike' : ''}"><span class="name bv-vs${String(b.name).length > 6 ? ' bv-long' : ''}">${esc(b.name)}</span>` +
+    c.map((b) => `<div class="bv-bx${b.onStrike ? ' is-strike' : ''}"><span class="name bv-vs${String(b.name).length > 6 ? ' bv-long' : ''}">${nameHtml(b.name)}</span>` +
       `<small>${esc(ROLE[b.bat] || b.bat)}</small>` +
       `<span class="bv-runs">${esc(b.r)} (${esc(b.b)})</span>` +
       (b.onStrike ? '<span class="strike bv-st">on strike</span>' : '') + `</div>`).join('') + `</div>`;
@@ -126,7 +128,7 @@ export function render(el, vm, dispatch) {
     `<span class="score" aria-label="${esc(sc.runs)} runs for ${esc(sc.wk)} wickets">${esc(sc.runs)}/${esc(sc.wk)}</span>` +
     `<span class="mid"><b>Over ${esc(vm.over)} of 10</b><span>${esc(PHASE[vm.phase] || vm.phaseName)}</span></span>` +
     `<button type="button" class="q" data-gloss aria-label="Cricket words explained">?</button></header>` +
-    `${vm.firstStrip ? stripHtml(esc) : ''}<section class="colL bv-colL">` +
+    `${vm.firstStrip ? stripHtml(esc) : ''}${chipRowHtml(vm.chips)}${roarChipHtml(vm.roar)}<section class="colL bv-colL">` +
     `<p class="sb-cap">For your bowler</p>` +
     `<div class="sb bv-sb" role="radiogroup" aria-label="Bowlers">${head(vm)}${(vm.bowlers || []).map((b) => row(b, vm, notes)).join('')}</div>${anyHidden ? `<p class="bv-more" data-more>${MORE}</p>` : ''}</section>` +
     `<section class="colR bv-colR"><div class="seg bv-seg" role="radiogroup" aria-label="Field">${seg('A', 'fieldAttack')}${seg('P', 'fieldProtect')}</div>` +

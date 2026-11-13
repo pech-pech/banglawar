@@ -4,6 +4,8 @@ import { whyLine, outcomeLabel } from './why.js';
 import { chipHtml } from './book-sheet.js';
 import { icoDeco } from './dom.js';
 import { attachBeats } from './beats.js';
+import { roarChipHtml } from './matchday-view.js';
+export { roarChipHtml };
 
 export const BALL_MS = 400;
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -48,7 +50,7 @@ export function foundText(list) {
   const fs = Array.isArray(list) ? list : [list];
   return (fs.length > 1 ? 'Pairings found. ' : 'Pairing found. ') + fs.map((f) => f.bat + ' v ' + f.bowl + ', ' + ['early', 'middle', 'late'][f.ph] + ': ' + f.grade + '.' + (f.combo ? ' Combo: ' + f.combo.name + '.' : '')).join(' ') + ' Saved in your Book.';
 }
-export function playOverPanel({ title, balls, score, summaryLines = [], nextLabel = 'Next over', batKit, found = [], onBook, onDone }) {
+export function playOverPanel({ title, balls, score, summaryLines = [], nextLabel = 'Next over', batKit, found = [], onBook, onDone, roar = false }) {
   const list = (balls || []).slice(0, 6);
   const root = document.createElement('div');
   root.className = 'op-scrim';
@@ -56,7 +58,7 @@ export function playOverPanel({ title, balls, score, summaryLines = [], nextLabe
   const slots = Array.from({ length: 6 }, (_, i) => `<li class="op-slot${i >= list.length ? ' is-unused' : ''}" data-i="${i}"><span class="op-circle" aria-hidden="true"></span><span class="op-word" aria-hidden="true"></span></li>`).join('');
   root.innerHTML = `<section class="c-card op-card has-beats${hasFound ? ' has-found' : ''}" role="dialog" aria-modal="true" aria-labelledby="op-title">` +
     `<header class="op-head"><h2 id="op-title" class="op-title">${esc(title)}</h2>` +
-    `<button type="button" class="c-icon-btn op-close" aria-label="Close and skip to the end of the over"><span class="c-ico c-ico--x"></span></button></header><div class="bt-slot"></div><ol class="op-circles" aria-label="Balls this over">${slots}</ol>` +
+    `<button type="button" class="c-icon-btn op-close" aria-label="Close and skip to the end of the over"><span class="c-ico c-ico--x"></span></button></header><div class="bt-slot"></div>${roarChipHtml(roar)}<ol class="op-circles" aria-label="Balls this over">${slots}</ol>` +
     `<hr class="op-divider"><div class="op-bottom"><h3 class="op-sub">Results this over</h3><ul class="op-lines" aria-live="polite"></ul></div>` +
     `<div class="ss-sr op-found-live" role="status" aria-live="polite" aria-atomic="true"></div><div class="op-foot"></div></section>`;
   document.body.appendChild(root);

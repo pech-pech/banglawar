@@ -10,7 +10,7 @@ export const SLOTS = [
   { id: 'stands', name: 'Stands', icon: 'fan', does: 'more Fans and seats' },
   { id: 'gym', name: 'Gym', icon: 'train', does: 'more training points each match' },
   { id: 'shop', name: 'Shop', icon: 'shop', does: 'more Coins each match' },
-  { id: 'nets', name: 'Nets', icon: 'batSkill', does: 'better drills' },
+  { id: 'nets', name: 'Nets', icon: 'batSkill', does: 'more training effects later' },
   { id: 'pitch', name: 'Pitch', icon: 'pitch', does: 'a small bonus for one kind of bowler' },
   { id: 'academy', name: 'Academy', icon: 'team', does: 'better young players to sign' },
   { id: 'scout', name: 'Scout', icon: 'scout', does: 'a clearer look at rivals and recruits' },
@@ -19,7 +19,7 @@ export const SLOTS = [
 export const EFFECT = {
   stands: ['none', '+5 Fans, seats as built', '+10 Fans, +10% seats', '+15 Fans, +20% seats', '+20 Fans, +30% seats', '+25 Fans, +40% seats'],
   shop: ['none', '+6 Coins', '+12 Coins', '+22 Coins', '+34 Coins', '+50 Coins'],
-  nets: ['none', 'normal drills', 'drills a little better', 'drills better', 'drills much better', 'drills the best'],
+  nets: ['none', 'no drill change yet', 'no drill change yet', 'no drill change yet', 'no drill change yet', 'no drill change yet'],
   gym: ['none', '+17 TP', '+20 TP', '+23 TP', '+26 TP', '+29 TP'],
   pitch: ['none', 'helps your bowlers a little', 'helps your bowlers a little', 'helps your bowlers some', 'helps your bowlers some', 'helps your bowlers a lot'],
   academy: ['none', '1 offered', 'better odds', 'choose from 2', 'better odds', 'choose from 3'],
@@ -49,7 +49,7 @@ function slotBtn(slot, s, optList) {
   let state, tag;
   if (building) { state = 'Building: ' + b.left + (b.left === 1 ? ' match' : ' matches') + ' left'; tag = 'build'; }
   else if (!o) { state = 'Top level'; tag = 'done'; }
-  else if (o.ok) { state = (lvl ? 'Upgrade' : 'Build') + ' for ' + fmt(o.coins) + ' Coins'; tag = 'upgrade'; }
+  else if (o.ok) { state = (lvl ? 'Upgrade' : 'Build level 1') + ' for ' + fmt(o.coins) + ' Coins'; tag = 'upgrade'; }
   else { state = nbsp(o.why || 'Locked'); tag = 'lock'; }
   return '<button type="button" class="c-btn ec-slot' + (lvl ? '' : ' is-empty') + (building ? ' is-building' : '') + '" data-econ-pick="' + slot.id + '" aria-label="' +
     esc(slot.name + ', ' + levelWord(lvl) + '. ' + effectLine(slot.id, lvl) + '. ' + state) + '">' + icoDeco(slot.icon, 24) + '<span class="ec-slot__n">' + esc(slot.name) + '</span>' + pips(lvl, 5) + '<span class="ec-slot__e">' + esc(effectLine(slot.id, lvl)) + '</span>' +
@@ -71,6 +71,14 @@ function stadiumHead(s, optList) {
     '<span class="ec-big__t"><span>Next stadium: level ' + esc(o.level) + '</span><small>' + (o.ok ? fmt(o.coins) + ' Coins' : esc(nbsp(o.why || 'Not ready yet'))) + '</small></span></button>';
   return '<section class="c-card ec-stad" aria-label="Stadium">' + '<h3 class="c-strip c-strip--light"><span>' + icoDeco('home', 24) + ' Stadium level ' + esc(lvl) + '</span><span class="c-strip__right">' + fmt(Math.round(eco.seatsOf(e))) + ' seats</span></h3>' +
     '<p class="ec-stad__line">' + leagueLine(s) + ' A facility cannot be higher than the stadium.</p>' + act + '</section>';
+}
+
+/** A free level 1 is waiting (r9 free pick): say so, with a button that opens the picker. Nothing when the flag is off. */
+function freeLine(s) {
+  let pend = false;
+  try { pend = typeof eco.freePickPending === 'function' ? !!eco.freePickPending(s) : !!(econOf(s).freePick && econOf(s).freePick.pending === true); } catch (_) { pend = false; }
+  if (!pend) return '';
+  return '<p class="ec-note" role="status">' + icoDeco('upgrade', 24) + '<span>A free level 1 is waiting. Pick it on Home (Free facility card).</span></p>';
 }
 
 /** The plain confirm panel for one build. */
@@ -104,7 +112,7 @@ export function renderStadium(root, state, dispatch) {
     root.__ecPick = null;
     const e = econOf(state);
     root.innerHTML = '<div class="screen ec-screen ec-stadium">' + '<p class="ec-purse" aria-label="' + esc(fmt(e.coins) + ' Coins, ' + fmt(e.fans) + ' Fans') + '">' + icoDeco('coin', 24) + '<b>' + fmt(e.coins) + '</b> Coins ' + icoDeco('fan', 24) + '<b>' + fmt(e.fans) + '</b> Fans</p>' +
-      stadiumHead(state, optList) + '<h3 class="ec-h">Facilities</h3><div class="ec-slots">' + SLOTS.map((x) => slotBtn(x, state, optList)).join('') + '</div>' + fansBarsHtml(state) + '</div>';
+      stadiumHead(state, optList) + freeLine(state) + '<h3 class="ec-h">Facilities</h3><div class="ec-slots">' + SLOTS.map((x) => slotBtn(x, state, optList)).join('') + '</div>' + fansBarsHtml(state) + '</div>';
   }
   if (!root.__ecBound) {
     root.__ecBound = true;

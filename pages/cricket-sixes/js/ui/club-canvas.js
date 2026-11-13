@@ -1,6 +1,6 @@
 /* club-canvas: the hub's 2:1 stadium picture, code-drawn from kit/sprites.js (SPR, ISO, PAL are page globals).
    drawClub(host, opts) fills `host` with a canvas and one transparent button per building.
-   opts: { levels: {id: 1..5}, marks: {id: 'upgrade'|'alert'}, onTap(id, name), names }  Pins show only for ids in marks.
+   opts: { levels: {id: 0..5} (real econ.fac; 0 = not built, drawn as level 1), marks: {id: 'upgrade'|'alert'}, onTap(id, name, level), names }  Pins show only for ids in marks.
    Whole-number scale from a 160x80 base, so the picture is exactly 2:1 and pixel-sharp at every width. */
 const BASEW = 160, BASEH = 80;
 /* id, label, dx from centre (internal px), y of footprint centre, roof height above centre */
@@ -28,7 +28,7 @@ export function drawClub(host, opts) {
 
   const L = FAC.map((f) => {
     const fp = SPR.footprint[f[0]];
-    const o = { id: f[0], name: f[1], x: mid + f[2], y: f[3] + DY, fp, lv: levels[f[0]] || 1, mark: marks[f[0]] || null };
+    const o = { id: f[0], name: f[1], x: mid + f[2], y: f[3] + DY, fp, lv: Math.max(0, Number(levels[f[0]]) || 0), mark: marks[f[0]] || null };
     o.halfW = o.id === 'pitch' ? 32 : (fp.w + fp.d) * 4; o.halfH = o.id === 'pitch' ? 16 : (fp.w + fp.d) * 2;
     o.top = o.y - f[4]; o.front = o.id !== 'pitch' && f[3] > 55;
     o.tip = o.front ? o.y - 2 : Math.max(o.top - 1, 20);
@@ -41,10 +41,10 @@ export function drawClub(host, opts) {
     l = Math.max(0, l); r = Math.min(W, r); top = Math.max(0, top); bot = Math.min(H, bot);
     const b = document.createElement('button');
     b.type = 'button'; b.className = 'hb-fac'; b.dataset.id = o.id;
-    b.setAttribute('aria-label', o.name + ', level ' + o.lv + (o.mark === 'upgrade' ? ', upgrade ready' : o.mark === 'alert' ? ', something waiting' : ''));
+    b.setAttribute('aria-label', o.name + ', ' + (o.lv > 0 ? 'level ' + o.lv : 'not built') + (o.mark === 'upgrade' ? ', upgrade ready' : o.mark === 'alert' ? ', something waiting' : ''));
     b.innerHTML = '<span class="hb-fac__tag" aria-hidden="true">' + o.name + '</span>';
     b.style.cssText = 'left:' + l * SC + 'px;top:' + top * SC + 'px;width:' + (r - l) * SC + 'px;height:' + (bot - top) * SC + 'px';
-    if (opts.onTap) b.addEventListener('click', () => opts.onTap(o.id, o.name));
+    if (opts.onTap) b.addEventListener('click', () => opts.onTap(o.id, o.name, o.lv));
     host.appendChild(b);
     return o;
   });
@@ -63,7 +63,7 @@ export function drawClub(host, opts) {
   ISO.setOrigin(by.pitch.x, by.pitch.y); ISO.ellipseField(ctx, 0, 0, 4, 4, { radiusX: 40, radiusY: 17 });
   L.forEach((o) => {
     const ox = o.x - (o.fp.w - o.fp.d) * 4, oy = o.y - (o.fp.w + o.fp.d) * 2;
-    const put = (k) => { ISO.setOrigin(ox, oy); SPR.building(o.id, k, 0, 0, o.lv); };
+    const put = (k) => { ISO.setOrigin(ox, oy); SPR.building(o.id, k, 0, 0, Math.max(1, o.lv)); };
     if (o.id === 'pitch') put(ctx); else at(o.y + o.halfH, put);
   });
   [[4, H - 3, 0], [W - 4, H - 2, 0], [mid - 92, 24, 1], [mid + 92, 26, 1]].forEach((r) => { if (r[0] > 2 && r[0] < W - 2) at(r[1], (c) => SPR.tree(c, r[0], r[1], { size: r[2] })); });

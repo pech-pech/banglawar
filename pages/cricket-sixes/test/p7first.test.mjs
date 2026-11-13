@@ -57,8 +57,8 @@ test('report Z3-Z6 from a save, and me/rival are called lastMatch', () => {
   const t = zLines({ sessions: [{ first: 5000, end: 'train' }] }, z).join('\n');
   for (const w of ['? share:', 'Nets runs this week: 0 · Effort: Normal · Focus changes: 0', 'Unspent training points:', 'lastMatch (the save\'s me and rival)', 'Each session ended on: training']) assert.ok(t.includes(w), w);
   const log = createLog({ storage: null, build: 'x' });
-  const sum = buildSummary(log.data(), { ...ENV, save: z }); assert.ok(sum.includes('Unspent training points'));
-  const j = JSON.parse(buildData(log.data(), { ...ENV, save: z })); assert.equal(j.z.save.lastMatch.us, 'Fernhill'); assert.ok(!('me' in j.z.save) && !('rival' in j.z.save));
+  const sum = buildSummary(log.data(), { ...ENV, save: z }); assert.ok(sum.startsWith('CR ')); // r9: the v2 layout has no Z lines; the save feeds the header and SEASON
+  const j = JSON.parse(buildData(log.data(), { ...ENV, save: z })); assert.ok(!('me' in j) && !('rival' in j) && !('z' in j));
   assert.match(zLines({ sessions: [] }, null).join(' '), /no save/);
 });
 

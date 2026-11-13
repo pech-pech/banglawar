@@ -95,6 +95,10 @@
 .wh-jp, .wh-bt { padding: 0 var(--c-sp-2); background: var(--outline); color: var(--gold); font-size: var(--c-fs-m); display: inline-flex; align-items: center; gap: var(--c-sp-1); }
 .wh-ov.is-jp .wh-res { background: var(--gold); }
 .wh-go { min-height: 64px; font-size: var(--c-fs-l); }
+/* m5: waiting look (1 s before STOP is live, and while the wheel slows): flat grey, dashed frame, no shadow, no motion */
+.wh-ov .wh-go.is-wait, .wh-ov .wh-go.is-wait.c-btn--primary.c-btn--cta { --_bg: var(--stone1); --_fg: var(--outline); --_hi: var(--stone1); --_wash: var(--stone1); background: var(--stone1); color: var(--outline); border-style: dashed; box-shadow: none; cursor: default; transform: none; }
+/* QA2 m2: a url() in a var resolves against the stylesheet that USES it (css/), so name the green tile from here; .skin-art is the green look only */
+.skin-art .wh-ov .wh-go.is-wait { border-image-source: url("../kit/skins/retro-green/frame-btn.png"); }
 .wh-go.is-collect, .wh-go.is-collect.c-btn--primary { background: var(--gold); color: var(--outline); }
 @media (max-height: 700px) { .wh-res { grid-template-columns: auto 1fr; text-align: left; } .wh-big, .wh-chg { font-size: var(--c-fs-m); } }
 
@@ -138,3 +142,19 @@
 .wh-ov.is-jp .wh-res.c-card--inset { --_wash: var(--gold); background: var(--gold); }
 .wh-ptr { border-top-color: var(--outline); }
 .wh-ptr::after { content: ""; position: absolute; left: -9px; top: -22px; border-left: 9px solid transparent; border-right: 9px solid transparent; border-top: 17px solid var(--gold); }
+
+/* ---- QA3 r9 fixes (FIX5-TRAIN) ---- */
+/* m7: a name is never cut to "Jab...". It keeps its own width (a long one-word name may break once at its soft hyphen, see nameHtml);
+   when the row is too narrow the skill and letter change move to a second line instead. */
+.t2-l1 { flex-wrap: wrap; row-gap: 0; }
+.t2-nm { flex: 0 0 auto; max-width: 100%; min-width: 0; overflow: visible; text-overflow: clip; white-space: normal; hyphens: manual; }
+/* m7: "Week 1" never splits; "done" may go to a second line */
+.tr-top .tr-wk { min-width: 0; }
+.tr-top .tr-nw { white-space: nowrap; }
+/* m11: the wheel's X cannot close while the wheel turns or slows: dashed frame, dimmed X, aria-disabled (not colour alone) */
+.wh-ov .wh-x.is-wait { background: var(--stone1); border-style: dashed; box-shadow: none; transform: none; cursor: not-allowed; outline: 2px dashed var(--outline); outline-offset: -8px; }
+.wh-ov .wh-x.is-wait > .c-ico { opacity: .45; }
+.t2-l2 .t2-wd { margin-left: auto; }
+/* m7: the training strip keeps "Week 1" whole at 344: the first span takes its own width; the decorative icon gives way on a narrow phone */
+.tr-top > span:first-child { flex: 0 0 auto; overflow: visible; }
+@media (max-width: 360px) { .tr-top > span:first-child > img { display: none; } }

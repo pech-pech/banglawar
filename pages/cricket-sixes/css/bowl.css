@@ -76,7 +76,7 @@
 .bv-head .bv-hb0 { align-self: end; }
 .bv-head .bv-bx { align-self: stretch; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; min-width: 0; padding: 3px 2px; border: 2px solid var(--outline); background: var(--cream); text-align: center; }
 .bv-head .bv-bx.is-strike { background: var(--gold); border-width: 3px; padding: 2px 1px; }
-.bv-head .bv-vs { display: block; max-width: 100%; font: 14px/16px var(--font-body); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bv-head .bv-vs { display: block; max-width: 100%; font: 14px/16px var(--font-body); white-space: normal; overflow-wrap: anywhere; } /* QA2: wraps at its soft hyphen (nameHtml), never clipped */
 .bv-head .bv-bx small { font: 14px/15px var(--font-body); white-space: nowrap; }
 .bv-head .bv-runs { font: 15px/17px var(--font-head); white-space: nowrap; }
 .bv-head .bv-st { font-size: 14px; line-height: 15px; padding: 0 3px; white-space: nowrap; }

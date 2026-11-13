@@ -10,10 +10,16 @@ import { tableOrder, placeOf, ME, matchPay, gapLetters, koWinner } from '../core
 import { planOf, netsPreview, coachList, scoutList, canSign, coachQuality, coachStepInUse, courseCost, courseUsesLicence, canCourse, twinHeld, licenceHeld, effortOdds, meanGain, wheelSlices, courseWheel, EFFORTS, FOCUSES, MAX_COACHES, sixOf, drillRoom, focusRating } from '../core/training.js';
 import { letterOfRaw, letterOfShown, letterOfStep, ticksOfRaw, fillOfRaw, stepOfRaw } from '../core/letters.js';
 import { nodeStatus, treeBoost, treeOf, NODE_COUNT } from '../core/skills.js';
-import { planProblem, livePlan, squadFull } from './commands.js';
+import { planProblem, livePlan, squadFull, canSell } from './commands.js';
 import { RUN, SQUAD } from '../data/run.js';
 import { seasonResult, chapterNames, runScore, carryOf } from '../core/run.js';
 import { PAIRING } from '../data/pairing.js';
+import { FLAGS } from '../data/flags.js';
+import { ACT } from '../data/activities.js';
+import { activityOptions, trialOf, canSignTrial } from '../core/activities.js';
+import { freePickOptions, freePickPending, matchIncome } from '../core/economy.js';
+import { MD } from '../data/matchday.js';
+import { teamBoost, roarAt, resolvePep } from '../core/matchday.js';
 import { BATS, BOWLS, CELLS, COMBOS, SEEN_BALLS, cellIndex, cellOf, cellName, gradeWord, gradeRank, comboOf, isBook, newBook } from '../core/pairing.js';
 
 const ovStr = (balls) => `${Math.floor(balls / 6)}.${balls % 6}`;
@@ -68,6 +74,7 @@ export function bowlVM(s) {
     over: inn.over, phase: ph, phaseName: PHASE_NAMES[ph], score: scoreOf(inn),
     crease: crease(inn, bats), bowlers, call, batNames: bats.map((p) => p.name), bowlNames: me.map((p) => p.name), fieldHint,
     canBowl: s.stage === 'bowl' && el.includes(call.bowler), last: s.last, firstStrip: firstStripOn(s),
+    ...mdExtras(s, inn.over - 1),
   };
 }
 
@@ -95,7 +102,7 @@ export function chaseVM(s) {
     // 12b suggestion chip: League 1 only (TODO: or a Coach), only where worth >= 1 win point: Attack in the last 3 overs. Steady is the default, so no chip before that.
     intentHint: s.season && (s.season.league || 1) === 1 && inn.over >= 8
       ? { pick: 'A', why: 'Last 3 overs: Attack. Before that: Steady.' } : null,
-    last,
+    last, ...mdExtras(s, 10 + inn.over - 1),
   };
 }
 
@@ -129,7 +136,24 @@ export function resultVM(s) {
   }
   return {
     result: s.result, line, inn1: scoreOf(a), inn2: scoreOf(b), inSeason: !!s.season, seed: s.seed,
-    oppName: opp ? opp.name : 'Rival', kindLabel: fx ? RESULT_KIND[fx.kind] : 'Friendly', tpEarned, pay,
+    oppName: opp ? opp.name : 'Rival', kindLabel: fx ? RESULT_KIND[fx.kind] : 'Friendly', tpEarned, pay, money: moneyPreview(s, pay),
+  };
+}
+/** r9 QA3 M1: what FinishMatch will pay and charge for this match (the same matchIncome call and hype index), shown on the result screen.
+ *  null with the features off, outside a season or without an economy. crowd = the match-day hype word, or null without match day. */
+function moneyPreview(s, pay) {
+  const fx = s.season && s.fixture ? s.fixture : null;
+  if (!fx || !s.econ || !pay || !(FLAGS.matchday || FLAGS.activities)) return null;
+  let outcome = s.result;
+  if (fx.kind !== 'league') outcome = koWinner({ a: ME, b: fx.opp, ra: s.inn2.runs, rb: s.inn1.runs }, placeOf(s.season.table, ME), placeOf(s.season.table, fx.opp)) === ME ? 'won' : 'lost';
+  const md = FLAGS.matchday && fx.md ? fx.md : null;
+  let inc = null; try { inc = matchIncome(s, { win: outcome === 'won', tie: outcome === 'tied', ...(md ? { hypeIdx: md.hypeIdx } : {}) }); } catch (e) { return null; }
+  const e = s.econ, coinsIn = inc.gate + inc.winBonus + inc.shop, due = inc.wages + inc.upkeep + (e.arrears | 0), left = (e.coins | 0) + coinsIn;
+  return {
+    crowd: md ? { level: md.hype, word: HYPE_WORD[md.hype] || 'Crowd' } : null,
+    fans: inc.fans | 0, gate: inc.gate | 0, wages: inc.wages | 0,
+    extra: (inc.winBonus | 0) + (inc.shop | 0), upkeep: inc.upkeep | 0, winBonus: inc.winBonus | 0, shop: inc.shop | 0,
+    net: inc.net | 0, coinsAfter: Math.max(0, left - due), short: due > left ? due - left : 0,
   };
 }
 
@@ -268,6 +292,7 @@ export function planVM(s) {
     bowlers: six.map((p, i) => ({ i, name: p.name, bowl: p.bowl, ability: shownAbility(p), set: overs.filter((x) => x === i).length })),
     fields: s.plan.fields.slice(), valid: !prob, reason: prob || '',
     hint: s.season && s.fixture ? (s.plan.edited ? 'Your plan. Tap any over to change.' : 'Suggested by matchups. Tap any over to change.') : undefined,
+    ...mdExtras(s, -1),
   };
 }
 
@@ -286,7 +311,7 @@ const coachRow = (s, c) => {
 };
 /** Gain the spotlight player really gets after the cap-sum, balance and 99 limits. */
 const spotApplied = (s, plan, gain, id = plan.spotlightId) => { const p = id && player(s, id); return p ? Math.max(0, Math.min(gain, drillRoom(p, focusRating(p, plan.focus)).room)) : 0; };
-const wheelVM = (w) => ({ slices: w.slices.slice(), jackpotIndex: w.jackpotIndex, jackpotGain: w.jackpotGain });
+const wheelVM = (w) => ({ slices: w.slices.slice(), jackpotIndex: w.jackpotIndex, jackpotGain: w.jackpotGain, widths: w.widths ? w.widths.slice() : undefined });
 
 export function trainingVM(s) {
   const T = s.training, plan = planOf(s), pre = netsPreview(s), six = sixIds(s);
@@ -480,4 +505,105 @@ export function bookVM(s) {
     comboFound: combos.filter((c) => c.found).length, comboTotal: COMBOS,
     phases: PH_WORD.map((w, k) => ({ name: w, overs: PH_OVERS[k] })), groups, combos,
   };
+}
+
+// ---------------------------------------------------------------- r9 match day (flag matchday; every key below is absent with the flag off)
+const HYPE_WORD = { low: 'Quiet crowd', med: 'Good crowd', high: 'Big crowd', nuts: 'Wild crowd' }; // r9 fix M6: the same words on the Match day screen, its odds table and the Plan chip
+const pct = (x) => Math.round(x * 100);
+/** The rolled match day for the fixture on screen (the live match keeps it on s.match.md). Pep follows the slot in the current six. */
+function mdOf(s) {
+  if (!FLAGS.matchday) return null;
+  // r9 QA2 B1: s.match.md outlives its match. Before the match starts (hub, squad, plan, matchday...) read this fixture's roll; the live match roll only on bowl/break/chase/done.
+  const live = s.stage === 'bowl' || s.stage === 'chase' || s.stage === 'break' || s.stage === 'done';
+  const md = live ? ((s.match && s.match.md) || (s.fixture && s.fixture.md) || null) : ((s.fixture && s.fixture.md) || null);
+  if (!md) return null;
+  const ids = s.stage === 'bowl' || s.stage === 'chase' || s.stage === 'break' || s.stage === 'done' ? null : sixIds(s);
+  return ids ? { ...md, pepId: resolvePep(md, ids) } : md;
+}
+const nameOfId = (s, id) => { const p = id != null ? player(s, id) : null; return p ? p.name : ''; };
+/** Chip row for Plan and the match header: hype, toss, pep. [{key, text, aria}] */
+export function chipsVM(s) {
+  const md = mdOf(s);
+  if (!md) return [];
+  const chips = [{ key: 'hype', text: `${HYPE_WORD[md.hype]} +${pct(MD.HYPE_PERF[md.hype])}%` }];
+  chips.push({ key: 'toss', text: md.toss === 'won' ? `Won the toss +${pct(MD.TOSS_BOOST)}%` : 'Rival won the toss' });
+  const nm = nameOfId(s, md.pepId) || (s.me && s.me.players && md.pepSlot ? '' : '');
+  if (md.pepId != null && nm) chips.push({ key: 'pep', text: `Pep talk: ${nm} +${pct(MD.PEP_BOOST)}%` });
+  return chips.map((c) => ({ ...c, aria: c.text }));
+}
+/** Extra VM keys for plan / bowl / chase: chips, and the roar for the over about to be played (overIdx 0..19, -1 = none). */
+function mdExtras(s, overIdx) {
+  const md = mdOf(s);
+  if (!md) return {};
+  const out = { chips: chipsVM(s) };
+  if (FLAGS.roar && overIdx >= 0 && (s.stage === 'bowl' || s.stage === 'chase')) {
+    const on = roarAt(md, overIdx), text = `Crowd roar +${pct(MD.ROAR_BOOST)}%`;
+    out.roar = on ? { on: true, text, aria: text } : null;
+  }
+  return out;
+}
+/** The Match day screen. null unless the flag is on and a fixture is waiting. */
+export function matchdayVM(s) {
+  const md = mdOf(s);
+  if (!md || !s.season || !s.fixture) return null;
+  const fx = s.fixture, opp = club(s, fx.opp);
+  const six = sixIds(s).map((id, i) => ({ slot: i + 1, id, name: nameOfId(s, id), pep: id === md.pepId }));
+  const team = teamBoost(md, null), pepB = md.pepId != null ? teamBoost(md, md.pepId) : team;
+  const pepName = nameOfId(s, md.pepId);
+  const odds = md.odds.map((o, i) => ({ level: MD.HYPE_LEVELS[i], word: HYPE_WORD[MD.HYPE_LEVELS[i]], pct: Math.round(o) }));
+  const forced = !!(FLAGS.matchday && (s.mdSeen || 0) < MD.MATCHDAY_FIRST_N_SHOWN);
+  return {
+    oppName: opp ? opp.name : 'Rival', kindWord: KIND_WORD[fx.kind],
+    hype: { level: md.hype, idx: md.hypeIdx, word: HYPE_WORD[md.hype], perfPct: pct(MD.HYPE_PERF[md.hype]), fanMult: md.hypeFanMult },
+    odds,
+    roar: { on: !!FLAGS.roar, chancePct: Math.round(md.roarChance * 100), overs: md.roar.filter(Boolean).length },
+    toss: { won: md.toss === 'won', boostPct: md.toss === 'won' ? pct(MD.TOSS_BOOST) : 0, line: md.toss === 'won' ? `You won the toss +${pct(MD.TOSS_BOOST)}% for the team` : 'Rival won the toss. Nothing changes.' },
+    pep: md.pepId != null ? { slot: md.pepSlot, id: md.pepId, name: pepName, boostPct: pct(MD.PEP_BOOST) } : null,
+    six,
+    boost: { teamPct: pct(team), pepPct: pct(pepB), line: pepName ? `Team +${pct(team)}%, ${pepName} +${pct(pepB)}%` : `Team +${pct(team)}%` },
+    auto: !!s.autoMatchday, forced, next: fx.mdThen === 'start' ? 'Start match' : 'Next: Plan', back: 'Back to squad', // from the hub Go starts the match; from Squad it opens Plan (m1: the label says what the button does)
+  };
+}
+
+// ---------------------------------------------------------------- r9 fan activities, trial player, free facility pick
+/** r9 QA2 m6: a coach find carries only an id; name it from the waiting trial, the signed coaches or the trial ledger. */
+function findNamed(s, f) {
+  if (!f || typeof f !== 'object' || f.type !== 'coach' || f.name) return f || null;
+  const tr = s.trial && s.trial.coach && s.trial.coach.id === f.id ? s.trial.coach : null;
+  const c = tr || (s.coaches || []).find((x) => x && x.id === f.id) || ((s.econ && s.econ.ledger) || []).find((x) => x && x.k === 'trial' && x.id === f.id);
+  return c && c.name ? { ...f, name: c.name } : f;
+}
+/** This week's fan activity card + sheet. null unless the flag is on and the club has an economy. */
+export function activitiesVM(s) {
+  if (!FLAGS.activities || !s.econ || !s.season) return null;
+  const o = activityOptions(s), last = s.econ.act && s.econ.act.hist && s.econ.act.hist[0];
+  const picked = o.why === 'done' && last ? { id: last.id, name: last.id === 'rest' ? 'Rest week' : (ACT.TABLE.find((r) => r.id === last.id) || { name: last.id }).name, fans: last.fans, coins: last.coins, find: findNamed(s, last.find) } : null;
+  return {
+    available: o.open, why: o.why, round: o.key, picked, coins: s.econ.coins, purse: s.econ.coins,
+    options: o.rows.map((r) => ({ id: r.id, name: r.name, blurb: r.blurb, cost: r.coins, fans: r.fans, tiltPct: pct(r.tilt), findPct: r.findPct, repeat: r.repeat,
+      note: r.repeat ? 'Same as last week: half Fans, no find' : '', ok: r.ok, why: r.why, warn: r.warn })),
+    rest: { id: 'rest', label: 'Rest week', free: true, ok: o.open },
+    pity: { weeks: o.dry, of: ACT.ACT_PITY_WEEKS, next: o.pity },
+    trial: trialVM(s),
+  };
+}
+/** The Trial card (Sign / Decline). null when no find is waiting (or the flag is off). */
+export function trialVM(s) {
+  if (!FLAGS.activities || !s.econ) return null;
+  const t = trialOf(s);
+  if (!t) return null;
+  const can = canSignTrial(s), x = t.player || t.coach;
+  const player = t.kind === 'player' ? { id: x.id, name: x.name, bat: x.bat, bowl: x.bowl, role: x.bat, type: x.bowl, batShown: shownBat(x), bowlShown: shownBowl(x), ability: shownAbility(x), grade: gradeChip(x), ...ratesOf(x) } : null;
+  const coach = t.kind === 'coach' ? { id: x.id, name: x.name, step: x.step, strong: Array.isArray(x.strong) ? x.strong.slice() : [] } : null;
+  const full = t.kind === 'player' && squadFull(s);
+  // Who can be let go to make room: the existing SellPlayer gate decides (bench only in season, never below the minimum squad).
+  const release = full ? mine(s).squad.filter((p) => canSell(s, p.id).ok).map((p) => ({ id: p.id, name: p.name, role: p.bat, type: p.bowl, shown: shownAbility(p), batShown: shownBat(p), bowlShown: shownBowl(p) })) /* QA3 m1: same letters as the trial player */ : [];
+  return { kind: t.kind, player, coach, wage: t.wage, squadFull: full, release, squadSize: mine(s).squad.length, squadMax: SQUAD.size, released: t.kind === 'player' && t.released ? String(t.released) : '',
+    canSign: can.ok, why: can.ok ? '' : can.why, sign: 'Sign', decline: 'Decline' };
+}
+/** The one free facility. pending = show the screen / Home card. null with the flag off. */
+export function freePickVM(s) {
+  if (!FLAGS.freePick || !s.econ || !s.econ.freePick) return null;
+  const options = freePickOptions(s).map((o) => ({ id: o.what, name: o.name, effect: o.effect, recommended: o.recommended, note: o.note, owned: o.owned, ok: o.ok, price: o.price }));
+  return { pending: freePickPending(s), done: !!s.econ.freePick.done, pick: s.econ.freePick.pick || null, options };
 }

@@ -4,9 +4,10 @@
 //   {overs:[{over, phase, bowler|null, warn}], bowlers:[{i, name, bowl, ability, set}], fields, valid, reason}
 // Optional VM fields: sub (context line, e.g. "vs Brackwell CC"). Edits are view state until Start, which dispatches SetPlan {overs, fields} then NewMatch.
 // Rules mirror the match: every bowler 1-2 overs, never two in a row. The words show on the slot that breaks one.
-import { esc, icoDeco } from './dom.js';
+import { esc, icoDeco, nameHtml } from './dom.js';
 import { abilityLine } from './letters-ui.js';
 import { openGlossary } from './glossary-sheet.js';
+import { chipRowHtml } from './matchday-view.js';
 
 const TYPE_ICON = { Fast: 'typeFast', Medium: 'typeMedium', Spin: 'typeSpin' };
 const PHASES = [{ name: 'Early', range: '1-3', from: 1, to: 3 }, { name: 'Middle', range: '4-7', from: 4, to: 7 }, { name: 'Late', range: '8-10', from: 8, to: 10 }];
@@ -81,7 +82,7 @@ export function render(el, vm, dispatch) {
   const nameOf = (i) => (bowlers.find((b) => b.i === i) || {}).name || '';
   const slot = (k) => {
     const b = st.overs[k], w = warn[k], on = st.sel === k;
-    const face = b == null ? '<span class="pl-empty">Pick</span>' : `<span class="pl-nm name">${esc(nameOf(b))}</span>`;
+    const face = b == null ? '<span class="pl-empty">Pick</span>' : `<span class="pl-nm name">${nameHtml(nameOf(b))}</span>`;
     return `<button type="button" class="pl-slot${on ? ' is-selected' : ''}${w ? ' is-warn' : ''}${b == null ? ' is-empty' : ''}" data-slot="${k}" aria-pressed="${on}" ` +
       `aria-label="Over ${k + 1}, ${b == null ? 'no bowler yet' : esc(nameOf(b))}${w ? '. Problem: ' + w : ''}${on ? '. Selected. Tap a bowler below.' : ''}">` +
       `<span class="pl-n">${k + 1}${w ? '<i class="pl-bang" aria-hidden="true">!</i>' : ''}</span>${face}</button>`;
@@ -104,6 +105,7 @@ export function render(el, vm, dispatch) {
     `<div class="pl-root">` +
     `<header class="strip c-dark pl-strip"><span class="mid"><b>Bowling plan</b><span>${esc(sub)}</span></span>` +
     `<button type="button" class="q" data-gloss aria-label="Cricket words explained">?</button></header>` +
+    chipRowHtml(vm.chips) +
     `<p class="pl-help${st.nudge ? ' is-nudge' : ''}" role="status">${st.nudge ? '<b>Tap an over first.</b> Then tap who bowls it.' : helpHtml(vm.hint)}</p>` +
     `<div class="pl-grid">${PHASES.map(band).join('')}</div>` +
     `<div class="pl-bowlers" role="group" aria-label="Your six bowlers">${bowlers.map(chip).join('')}</div>` +

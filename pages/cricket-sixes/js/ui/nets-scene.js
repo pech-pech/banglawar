@@ -4,7 +4,7 @@
    skipped = [{ id, name, why }]  players who could not train (no charge): shown as a quiet lane.
    Letters only: `Rafi  Power  C -> C+  Good!`, fill bar 4 ticks per step. The only digit is the wheel's +N.
    Also exports the small helpers the other train views share (STAT, letterBar, lineText). */
-import { esc, icoDeco } from './dom.js';
+import { esc, icoDeco, nameHtml } from './dom.js';
 import { stepOfRaw, letterOfRaw, ticksOfRaw } from '../core/letters.js';
 
 /** Stat key (core short key or old long key) -> { k, icon, word, long }. */
@@ -24,25 +24,29 @@ export function letterBar(raw, from) {
   return '<span class="t2-lt"><b>' + esc(L) + '</b><span class="t2-ticks" role="img" aria-label="' + esc('Bar ' + (t + 1) + ' of 4 in ' + L) + '">' + ticks + '</span></span>';
 }
 
+/** QA3 m5: the tag shows only when the line crosses a whole letter (E+ to D-), not on every step. */
+export const bigStep = (l) => !!l && letterOfRaw(l.fromRaw).charAt(0) !== letterOfRaw(l.toRaw).charAt(0);
+
 /** Plain words for one result: `Rafi, Power, C to C+, Good, Breakthrough`. */
 export function lineText(l) {
   const a = letterOfRaw(l.fromRaw), b = letterOfRaw(l.toRaw);
-  return l.name + ', ' + STAT(l.stat).word + ', ' + (a === b ? a + ', bar fills' : a + ' to ' + b) + ', ' + l.word + (l.wheelGain ? ', wheel plus ' + l.wheelGain : '') + (l.breakthrough ? ', Breakthrough' : '');
+  return l.name + ', ' + STAT(l.stat).word + ', ' + (a === b ? a + ', bar fills' : a + ' to ' + b) + ', ' + l.word + (l.wheelGain ? ', wheel plus ' + l.wheelGain : '') + (bigStep(l) ? ', Breakthrough' : '');
 }
 
 /** One result line (used by the scene and by the list on the training screen). */
 export function lineHtml(l, cls) {
   const st = STAT(l.stat), a = letterOfRaw(l.fromRaw), b = letterOfRaw(l.toRaw), moved = a !== b;
   return '<li class="t2-line ' + (cls || '') + '" aria-label="' + esc(lineText(l)) + '">' +
-    '<span class="t2-l1"><b class="t2-nm">' + esc(l.name) + '</b><span class="t2-st">' + icoDeco(st.icon, 20) + '<span>' + esc(st.word) + '</span></span>' +
+    '<span class="t2-l1"><b class="t2-nm">' + nameHtml(l.name) + '</b><span class="t2-st">' + icoDeco(st.icon, 20) + '<span>' + esc(st.word) + '</span></span>' +
     '<span class="t2-ch"><span>' + esc(a) + '</span>' + (moved ? '<span class="t2-arr" aria-hidden="true"></span><b class="t2-new">' + esc(b) + '</b>' : '') + '</span>' +
-    '<span class="t2-wd">' + esc(l.word) + '!</span></span>' +
+    '</span>' +
     '<span class="t2-l2">' + letterBar(l.toRaw, l.fromRaw) +
     (l.wheelGain ? '<span class="t2-wheel">Wheel +' + esc(l.wheelGain) + '</span>' : '') +
-    (l.breakthrough ? '<span class="t2-bt">Breakthrough!</span>' : '') + '</span></li>';
+    (bigStep(l) ? '<span class="t2-bt">Breakthrough!</span>' : '') +
+    '<span class="t2-wd">' + esc(l.word) + '!</span></span></li>'; // QA3 m7: the word sits at the end of row 2, so row 1 has room for the whole name
 }
 
-export const skipLine = (n) => '<li class="t2-line t2-line--skip" aria-label="' + esc(n.name + ', cannot gain this week') + '"><span class="t2-l1"><b class="t2-nm">' + esc(n.name) + '</b><span class="t2-wd">' + esc(n.why || "Can't gain") + '</span></span></li>';
+export const skipLine = (n) => '<li class="t2-line t2-line--skip" aria-label="' + esc(n.name + ', cannot gain this week') + '"><span class="t2-l1"><b class="t2-nm">' + nameHtml(n.name) + '</b><span class="t2-wd">' + esc(n.why || "Can't gain") + '</span></span></li>';
 
 export function playNets(o, opts) {
   opts = opts || {};

@@ -1,0 +1,88 @@
+/* freepick-view: pick ONE facility, its level 1 is free. Full screen (render(el, vm, dispatch), first launch before Home) and a Home pending card
+   for migrated saves (pendingCardHtml + sheet openFreePick). Reads freePickVM(s) only (shape in build/r9/UI-CLUB.md). Dispatches TakeFreePick { what }. */
+import { esc, icoDeco } from './dom.js';
+import { openSheet } from './sheet.js';
+import { SLOTS } from './stadium-view.js';
+
+/* One plain player-facing line per facility. NOTE = the short honest tag for facilities that do nothing yet (shown once). */
+export const LINE = {
+  stands: 'More Fans and seats.',
+  gym: 'More training points each match.',
+  shop: 'More Coins each match.',
+  nets: 'Better training nets.',
+  pitch: 'Helps one kind of bowler.',
+  academy: 'Young players to sign.',
+  scout: 'Finds coaches and players.',
+};
+export const NOTE = { nets: 'No effect yet', academy: 'No effect yet', scout: 'No effect yet', pitch: 'No effect yet' };
+const fmt = (n) => String(Math.round(Number(n) || 0)).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+
+export function pendingCardHtml(vm) {
+  if (!vm || !vm.pending) return '';
+  return '<button type="button" class="c-btn c-card cl-card cl-free" data-act="sheet:freepick" aria-label="Free facility: pick one. Tap to choose.">' +
+    icoDeco('upgrade', 24) + '<span class="cl-card__t"><b>Free facility: pick one</b><small>Its level 1 costs nothing</small></span></button>';
+}
+
+function cardHtml(slot, o, sel) {
+  const owned = o && o.owned;
+  const rec = !!(o && o.recommended) || slot.id === 'stands';
+  const line = LINE[slot.id] || slot.does;
+  const note = NOTE[slot.id] || '';
+  const aria = slot.name + '. ' + line + (note ? ' ' + note + '.' : '') + (owned ? ' You already have it.' : rec ? ' Recommended.' : '');
+  return '<button type="button" class="c-btn cl-fp' + (sel ? ' is-sel' : '') + (owned ? ' is-owned' : '') + '" data-cl-pick="' + slot.id + '" role="radio" aria-checked="' + (sel ? 'true' : 'false') + '"' + (owned ? ' disabled aria-disabled="true"' : '') +
+    ' aria-label="' + esc(aria) + '">' + icoDeco(slot.icon, 24) +
+    '<span class="cl-opt__t"><span class="cl-opt__n">' + esc(slot.name) + (sel ? ' <span class="c-tag c-tag--done">Picked</span>' : '') + (rec && !owned ? ' <span class="c-tag">Recommended</span>' : '') + '</span>' +
+    '<span class="cl-opt__s"><span>' + esc(line) + '</span>' + // r9 fix4: the note shares the line (wraps only when it must), so the cards stay short at 344x780
+    (owned ? '<span class="cl-fp__k">' + icoDeco('done', 16) + '<span>You already have it</span></span>' : note ? '<span class="cl-fp__k">' + icoDeco('info', 16) + '<span>' + esc(note) + '</span></span>' : '') + '</span></span></button>';
+}
+
+/** Full screen and sheet body. root.__clPick = chosen facility id (view state). */
+export function renderFreePick(root, vm, dispatch) {
+  vm = vm || { options: [] };
+  const byId = {}; (Array.isArray(vm.options) ? vm.options : []).forEach((o) => { byId[o.id || o.what] = o; });
+  const sel = root.__clPick && byId[root.__clPick] && !byId[root.__clPick].owned ? root.__clPick : null;
+  const slot = sel ? SLOTS.find((x) => x.id === sel) : null;
+  const bar = root.querySelector('.screen > .st-bar'); // r9 L7: the report's settings bar (gear) lives in .screen; keep the node (and its listener) across a local re-render
+  root.innerHTML = '<div class="screen cl-screen cl-fpick' + (root.__clPin ? ' cl-fpick--pin' : '') + '"><h3 class="cl-h" tabindex="-1">' + icoDeco('upgrade', 24) + '<span>Pick your free facility</span></h3>' +
+    '<p class="cl-note">' + icoDeco('info', 24) + '<span>One facility gets its level 1 free. You buy the rest with Coins.</span></p>' +
+    '<div class="cl-fps" role="radiogroup" aria-label="Free facility">' + SLOTS.map((x) => cardHtml(x, byId[x.id], x.id === sel)).join('') + '</div>' +
+    (root.__clPin ? '<div class="ctabar cta cl-fp-cta">' : '') + // r9 fix4: the full screen pins Take in the standard bottom CTA bar (the sheet keeps it inline)
+    '<button type="button" class="c-btn c-btn--primary cl-take" data-cl-act="TakeFreePick"' + (sel ? '' : ' disabled aria-disabled="true"') + '>' + icoDeco('done', 24) + '<span>' + (slot ? 'Take ' + esc(slot.name) + ' free' : 'Tap a facility first') + '</span></button>' + (root.__clPin ? '</div>' : '') + '</div>';
+  if (bar) { const sc = root.querySelector('.screen'); if (sc) sc.insertBefore(bar, sc.firstChild); }
+  if (!root.__clBound) {
+    root.__clBound = true;
+    root.addEventListener('click', (ev) => {
+      const t = ev.target.closest && ev.target.closest('[data-cl-pick],[data-cl-act]');
+      if (!t || !root.contains(t) || t.disabled) return;
+      if (t.hasAttribute('data-cl-pick')) {
+        const id = t.getAttribute('data-cl-pick'); root.__clPick = id; if (root.__clKeep) root.__clKeep(id); renderFreePick(root, root.__clVm, dispatch);
+        const b = root.querySelector('[data-cl-pick="' + id + '"]'); if (b) b.focus();
+      } else if (root.__clPick) { const what = root.__clPick; root.__clPick = null; if (root.__clKeep) root.__clKeep(null); dispatch('TakeFreePick', { what }); }
+    });
+  }
+  root.__clVm = vm;
+  return root;
+}
+
+/** Stage view: render(el, vm, dispatch). */
+export function render(el, vm, dispatch) {
+  el.innerHTML = '';
+  const host = document.createElement('div');
+  host.__clPick = el.__clFpPick || null;
+  host.__clPin = true;
+  host.__clKeep = (id) => { el.__clFpPick = id; }; // r9 L7: the pick lives on the stage element, so a store re-render keeps it
+  renderFreePick(host, vm, (n, a) => dispatch(n, a));
+  el.appendChild(host);
+  return el;
+}
+
+export function openFreePick(vm, dispatch) {
+  const host = document.createElement('div');
+  let close;
+  renderFreePick(host, vm, (n, a) => { dispatch(n, a); if (close) close(); });
+  close = openSheet('Free facility', '');
+  const body = document.querySelector('.sheet-fixed .c-sheet__body');
+  body.textContent = '';
+  body.appendChild(host);
+  return close;
+}

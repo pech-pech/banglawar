@@ -13,8 +13,8 @@ const memStorage = (init = {}) => {
 };
 const throwing = () => ({ getItem() { throw new Error('denied'); }, setItem() { throw new Error('denied'); }, removeItem() { throw new Error('denied'); } });
 
-test('keys are cs.save.1 and cs.save.1.bak, VERSION is 5', () => {
-  assert.equal(KEY, 'cs.save.1'); assert.equal(BAK, 'cs.save.1.bak'); assert.equal(VERSION, 5);
+test('keys are cs.save.1 and cs.save.1.bak, VERSION is 6', () => {
+  assert.equal(KEY, 'cs.save.1'); assert.equal(BAK, 'cs.save.1.bak'); assert.equal(VERSION, 6);
 });
 
 test('round trip: wrap then unwrap deep-equals the state', () => {

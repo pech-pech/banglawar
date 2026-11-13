@@ -2,6 +2,9 @@
 import { esc, btn, tpChip, icoDeco } from './dom.js';
 import { drawClub, drawHead } from './club-canvas.js';
 import { openSheet } from './sheet.js';
+import { activitiesCardHtml } from './activities-view.js';
+import { trialCardHtml } from './trial-card.js';
+import { pendingCardHtml } from './freepick-view.js';
 
 export function helpBtn(id, label) {
   return '<button type="button" class="c-icon-btn help-btn" data-act="sheet:glossary"' + (id ? ' data-arg="' + esc(JSON.stringify(id)) + '"' : '') +
@@ -53,6 +56,12 @@ function econHtml(e) {
   return '<div class="hb-tools hb-tools3">' + money + toolBtn('Stadium', 'sheet:stadium', 'home', 'Stadium') + toolBtn('Extras', 'sheet:sinks', 'shop', 'Extras') + '</div>';
 }
 
+/* r9 club cards (flags off: the VMs are absent or off, so nothing is drawn): free facility pending, trial player, this week's fan activity. */
+function clubCardsHtml(vm) {
+  const h = pendingCardHtml(vm.freePick) + trialCardHtml(vm.trial || (vm.activities && vm.activities.trial)) + activitiesCardHtml(vm.activities);
+  return h ? '<div class="cl-cards">' + h + '</div>' : '';
+}
+
 function sixHtml(six, pair) {
   return '<div class="hb-sixhead">' + (pair || 'Our six') + ' · batting order</div><div class="hb-six" role="group" aria-label="Our six, batting order">' + six.map((p, i) => {
     const hid = p.grade === '?';
@@ -85,12 +94,14 @@ export function render(el, vm, dispatch) {
     '<div class="c-strip strip"><span class="ss-strip"><b class="rn-head">' + esc(head) + '</b><small>' + esc(sub) + '</small></span>' + helpBtn('league-table') + '</div>' +
     '<div class="hb-tools">' + toolBtn('Table', 'sheet:table', 'league', 'League table') + toolBtn('Book', 'sheet:book', 'book', 'Pairing Book') + toolBtn('Save', 'sheet:save', 'save', 'Save', ' ss-save') +
     '<span class="hb-tp">' + icoDeco('tp', 24) + '<span class="hb-tl"><b>' + esc(vm.tp) + '</b> <span aria-hidden="true">TP</span><span class="ss-sr"> training points</span></span></span></div>' +
-    (full ? noticeHtml(vm.notice) + econHtml(vm.econ) + '<div class="hb-scene" aria-label="Your club ground"></div>' + rivalHtml(vm.next)  + promoHtml(vm.promo, vm.unlock) + sixHtml(vm.six, vm.gap ? pairText(vm.gap) : '') : '') +
+    (full ? noticeHtml(vm.notice) + econHtml(vm.econ) + clubCardsHtml(vm) + '<div class="hb-scene" aria-label="Your club ground"></div>' + rivalHtml(vm.next)  + promoHtml(vm.promo, vm.unlock) + sixHtml(vm.six, vm.gap ? pairText(vm.gap) : '') : '') +
     (full ? footHtml(vm, cta) : '<div class="m0-ctabar cta hb-foot">' + btn(cta.label || 'Pick your six', cta.act || 'OpenSquad', { kind: 'cta', disabled: cta.disabled, reason: cta.reason }) + '</div>') +
     '</div>';
   const nb = el.querySelector('[data-notice]');
   if (nb) nb.addEventListener('click', () => { noticeGone = true; nb.remove(); dispatch('DismissNotice', {}); });
   const host = el.querySelector('.hb-scene');
-  if (host) drawClub(host, { onTap(id, name) { openSheet(name, '<div class="c-card c-card--inset hb-built">' + icoDeco('lock', 24) + '<span>Not built yet. It comes with the stadium.</span></div>'); } });
+  if (host) drawClub(host, { levels: (vm.econ && vm.econ.fac) || {}, onTap(id, name, lv) {
+    openSheet(name, '<div class="c-card c-card--inset hb-built">' + icoDeco(lv > 0 ? 'done' : 'lock', 24) + '<span>' + (lv > 0 ? 'Level ' + lv + '. Build more in Stadium.' : 'Not built yet. Build it in Stadium.') + '</span></div>');
+  } });
   [].forEach.call(el.querySelectorAll('canvas.hb-head'), (cv) => drawHead(cv, cv.getAttribute('data-key')));
 }

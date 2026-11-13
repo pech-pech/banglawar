@@ -4,9 +4,10 @@ import { applyTag } from './tags.js';
 import { aiPickSix } from './clubs.js';
 import { rawAbility, isHidden } from './ability.js';
 import { newEconomy, backfillEconomy } from './economy.js';
+import { ECON as E } from '../data/economy.js';
 import { SQUAD } from '../data/run.js';
 import { coachFromOld, startCoach } from './training.js';
-export const VERSION = 5;
+export const VERSION = 6;
 
 /** fnv1a 32-bit of a string, as 8 hex digits. @param {string} str */
 export function fnv1a(str) {
@@ -116,7 +117,7 @@ const STEPS = {
       }
     }
     if (!Array.isArray(n.releaseLedger)) n.releaseLedger = [];
-    if (!isObj(n.econ)) n.econ = { ...newEconomy(), backfilled: false }; // paid for played rounds just below
+    if (!isObj(n.econ)) n.econ = { ...newEconomy({ legacy: true }), backfilled: false }; // paid for played rounds just below
     Object.assign(n, backfillNote(n));
     const T = isObj(n.training) ? { ...n.training } : {};
     for (const k of ['drilled', 'last', 'bulk', 'plan', 'drillPlan', 'lastPlan', 'autoBench']) delete T[k];
@@ -129,7 +130,27 @@ const STEPS = {
     if (n.stage === 'coach') n.stage = 'hub'; // the pick screen is gone: the start coach is given
     return n;
   },
+  // v5 -> v6 (r9, fans-matchday SPEC s1): the free facility pick. If econ.freePick is unset it is set pending (done at once when every facility is owned: no refund,
+  // nothing owned is removed). With FLAGS.freePick on and something still at L0, the Home pending card offers it. Idempotent.
+  5: (data) => {
+    const n = { ...data, v: 6 };
+    if (!isObj(n.econ)) return n;
+    if (isObj(n.econ.freePick)) return n;
+    const fac = isObj(n.econ.fac) ? n.econ.fac : {};
+    const open = E.FAC.some((k) => !(fac[k] > 0));
+    n.econ = { ...n.econ, freePick: open ? { done: false, pick: null } : { done: true, pick: null } };
+    return n; // r9 L8: no 'freepick' notice key (noticeOf never showed it, so it could not be dismissed); the Home pending card is the reminder
+
+  },
 };
+
+/** r9 L8: strip the retired 'freepick' notice key in place (keeps any other keys; no keys left -> no notice). @param {any} s */
+export function dropFreepickNotice(s) {
+  if (!isObj(s) || typeof s.notice !== 'string' || !s.notice.split('+').includes('freepick')) return s;
+  const keys = s.notice.split('+').filter((k) => k && k !== 'freepick');
+  if (keys.length) s.notice = keys.join('+'); else delete s.notice;
+  return s;
+}
 
 /**
  * @param {any} data a state at version `from`
@@ -147,6 +168,7 @@ export function migrate(data, from, deps) {
     s = STEPS[v](s, deps);
   }
   if (s.v === VERSION) Object.assign(s, tidyTraining(s));
+  if (s.v === VERSION) dropFreepickNotice(s); // r9 L8: saves written before the fix carry an undismissable 'freepick' key
   if (s.v === VERSION && isObj(s.season)) Object.assign(s, backfillNote(s)); // v5 saves written by r6 have an economy but no back-fill
   return { ok: true, state: s, from };
 }

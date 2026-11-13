@@ -1,5 +1,7 @@
 // P11 flow e2e at 344x780 (closed Fold): v4 save -> squad 8 -> one match + pay card -> training week (wheel, nets) -> stadium.
 // Run from the app root:  node test/e2e/p11-flow.mjs        Env: E2E_REDUCE=1 (wheel gives an instant result), E2E_SOFT=1 (never exit 1), E2E_SHOTS=dir.
+// r9: features are ON by default. The migrated v4 save shows a "Free facility" card on the hub (tapped, audited, taken) and every Start match goes through the
+//   matchday screen (reveal taps, "?" sheet, go button, audited). E2E_FEATURES=off flips the Settings switch by tap first and expects the old flow (no matchday, no card).
 // Each numbered step reports PASS/FAIL on its own; the run continues past a failed step where it can.
 import http from 'node:http';
 import { createRequire } from 'node:module';
@@ -12,6 +14,7 @@ import { fileURLToPath } from 'node:url';
 const ROOT = fileURLToPath(new URL('../../', import.meta.url));
 const SHOTS = process.env.E2E_SHOTS || '/tmp/p11-shots/';
 const REDUCE = process.env.E2E_REDUCE === '1';
+const FEAT_OFF = (process.env.E2E_FEATURES || '') === 'off';
 const VIEW = { width: 344, height: 780 };
 const req = createRequire(import.meta.url);
 function loadPlaywright() {
@@ -74,7 +77,7 @@ page.on('request', (r) => { if (!r.url().startsWith(ORIGIN) && !r.url().startsWi
 const settle = (ms = 250) => page.waitForTimeout(ms);
 const stage = () => page.evaluate(() => (window.__store ? window.__store.get().stage : null));
 const coins = () => page.evaluate(() => { const s = window.__store.get(); return s.econ ? s.econ.coins : null; });
-const shot = async (name) => { try { await page.screenshot({ path: `${SHOTS}p11-${REDUCE ? 'rm-' : ''}${name}.png` }); } catch (e) { /* optional */ } };
+const shot = async (name) => { try { await page.screenshot({ path: `${SHOTS}p11-${REDUCE ? 'rm-' : ''}${FEAT_OFF ? 'off-' : ''}${name}.png` }); } catch (e) { /* optional */ } };
 async function audit(n, key, scopeSel) {
   const a = await page.evaluate(auditInPage, scopeSel || null);
   if (a.hScroll) step(n, `${key}: no horizontal scroll`, false, 'horizontal scroll');
@@ -100,6 +103,42 @@ try {
   step(1, '.v4bak holds the untouched v4 save', bakV === 4, `v is ${bakV}`);
   await shot('01-hub');
 
+  // ---- (9) r9 free facility card (migrated save) or, with E2E_FEATURES=off, the Settings switch ----
+  let sawMd = 0;
+  if (FEAT_OFF) {
+    const gear = await page.$('.st-gear'); step(9, 'Settings gear on the hub', !!gear, 'no .st-gear');
+    if (gear) {
+      await gear.click(); await settle(500);
+      const sw = await page.$('[data-md-features]'); step(9, 'Features switch in Settings', !!sw, 'no [data-md-features]');
+      if (sw) {
+        await audit(6, 'settings sheet (features)', '.c-sheet');
+        await sw.click(); await settle(300);
+        step(9, 'Features switch shows the word Off', (await sw.getAttribute('aria-checked')) === 'false' && /off/i.test(await sw.innerText()), 'switch not Off');
+      }
+      for (let i = 0; i < 4 && (await page.$('.c-sheet')); i++) { await page.keyboard.press('Escape'); await settle(150); }
+      const f = await page.evaluate(() => window.__store.get().features);
+      step(9, 'store.features is false after the tap', f === false, `features is ${f}`);
+      step(9, 'no free-facility card with features off', !(await page.$('[data-act="sheet:freepick"]')), 'card still shown');
+    }
+  } else {
+    const card = await page.$('[data-act="sheet:freepick"]');
+    step(9, 'hub shows the "Free facility" card on a migrated save', !!card, 'no [data-act="sheet:freepick"]');
+    if (card) {
+      await card.click(); await settle(400);
+      await audit(9, 'free facility sheet', '.c-sheet'); await shot('09a-freepick-sheet');
+      const take0 = await page.$('.c-sheet [data-cl-act="TakeFreePick"]');
+      step(9, 'Take is off before a pick', !!take0 && (await take0.isDisabled()), 'Take enabled or missing');
+      const pick = (await page.$('.c-sheet [data-cl-pick="stands"]:not([disabled])')) || (await page.$('.c-sheet [data-cl-pick]:not([disabled])'));
+      if (pick) { await pick.click(); await settle(200); }
+      const take = await page.$('.c-sheet [data-cl-act="TakeFreePick"]:not([disabled])');
+      step(9, 'Take is on after a pick', !!take, 'Take stayed disabled');
+      if (take) { await take.click(); await settle(400); }
+      for (let i = 0; i < 4 && (await page.$('.c-sheet')); i++) { await page.keyboard.press('Escape'); await settle(150); }
+      step(9, 'card gone after Take, stage hub', !(await page.$('[data-act="sheet:freepick"]')) && (await stage()) === 'hub', `stage ${await stage()}`);
+      await shot('09b-hub-after-freepick');
+    }
+  }
+
   // ---- play one match (needed for steps 2 and 4); drive hub -> squad -> plan -> match -> done ----
   const coins0 = await coins();
   let steps = 0, payText = '', coinsDone = null, seenSquad = false;
@@ -112,6 +151,16 @@ try {
       await audit(6, 'result screen'); if (!(await clickCta())) break; continue;
     }
     if (st === 'hub' || st === 'semi' || st === 'final') { if (!(await clickCta())) { step(4, 'hub has an enabled CTA', false, 'none'); break; } }
+    else if (st === 'matchday') {
+      sawMd++;
+      if (FEAT_OFF) { step(9, 'matchday screen must not show with features off', false, 'matchday showed'); break; }
+      if (sawMd === 1) await audit(9, 'matchday screen (start)');
+      for (const w of ['hype', 'toss', 'pep']) { const b = await page.$(`[data-md="${w}"]`); if (!b) continue; await b.click(); await settle(350); if (sawMd === 1) { await audit(9, `matchday after ${w}`); await shot('09c-md-' + w); } }
+      const q = await page.$('[data-md="info"]');
+      if (sawMd === 1) { step(9, 'matchday has the "?" odds button', !!q, 'no [data-md=info]'); if (q) { await q.click(); await settle(450); await audit(9, 'matchday odds sheet', '.c-sheet'); for (let i = 0; i < 4 && (await page.$('.c-sheet')); i++) { await page.keyboard.press('Escape'); await settle(150); } } }
+      const go = await page.$('[data-act="MatchdayGo"]:not([disabled])'); if (!go) { step(9, 'matchday go button enabled after the reveal taps', false, 'no enabled [data-act=MatchdayGo]'); break; }
+      await go.click(); await settle(400);
+    }
     else if (st === 'squad') {
       if (!seenSquad) { seenSquad = true; const sq = await text(); const bad = ratingDigits(sq); step(3, 'no rating digits on the squad screen', !bad.length, bad.join(' | ')); await audit(6, 'squad screen'); await shot('03-squad'); }
       for (let k = 0; k < 6; k++) { const b = await page.$('.sq-row--bench'); if (!b) break; await b.click(); await settle(80); }
@@ -125,6 +174,8 @@ try {
       await settle(250); await page.keyboard.press('Escape'); await settle(150);
     } else { step(4, 'known stage', false, `unknown stage ${st}`); break; }
   }
+
+  if (!FEAT_OFF) step(9, 'the matchday screen showed before the match', sawMd > 0, 'never reached stage matchday'); else step(9, 'old flow: no matchday screen', sawMd === 0, 'matchday showed');
 
   // ---- (4) pay card + Coins ----
   step(4, 'pay card shows "Squad base" and 45', /Squad base/i.test(payText) && /\b45\b/.test(payText), 'Squad base / 45 not in the result screen');
@@ -229,9 +280,9 @@ try {
   step(0, 'script ran without throwing', false, e.stack || String(e));
 } finally { await browser.close(); server.close(); }
 
-const names = { 0: 'harness', 1: 'v4 load', 2: 'training week', 3: 'no rating digits', 4: 'match pay + Coins', 5: 'stadium', 6: 'tap/text sizes', 7: 'reduced motion', 8: 'errors' };
+const names = { 0: 'harness', 1: 'v4 load', 2: 'training week', 3: 'no rating digits', 4: 'match pay + Coins', 5: 'stadium', 6: 'tap/text sizes', 7: 'reduced motion', 8: 'errors', 9: 'r9 free pick / matchday / features' };
 let bad = 0;
-console.log(`p11-flow 344x780${REDUCE ? ' (reduced motion)' : ''}`);
+console.log(`p11-flow 344x780${REDUCE ? ' (reduced motion)' : ''}${FEAT_OFF ? ' (features OFF)' : ''}`);
 for (const r of results) { if (!r.ok) bad++; console.log(`${r.ok ? 'PASS' : 'FAIL'} [${r.n} ${names[r.n]}] ${r.name}${r.ok ? '' : ' -- ' + r.why}`); }
 console.log(bad ? `FAIL: ${bad} of ${results.length} checks` : `PASS: ${results.length} checks`);
 process.exit(process.env.E2E_SOFT === '1' ? 0 : bad ? 1 : 0);

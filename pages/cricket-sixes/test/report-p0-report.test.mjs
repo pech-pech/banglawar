@@ -1,13 +1,13 @@
 // Report v2 Phase 0, REPORT part: P0-3 CLEAN reasons, P0-4 training cost from the game data, P0-10 U bucket, P0-13 removals, P0-14 flag mirror, P0-16 P4/P5 regressions.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { cleanOf, aggregate, buildSummary, buildData, LINES } from '../js/report/report.js';
+import { cleanOf, aggregate, buildSummary, buildText, buildData } from '../js/report/report.js';
 import { saveOf, zLines } from '../js/report/z.js';
 import { FLAG_DEFAULTS, BUILD } from '../js/report/build.js';
 import { FLAGS } from '../js/data/flags.js';
 import { TRAIN2 } from '../js/data/training.js';
 
-const B = 'sixes-r8';
+const B = 'sixes-r9';
 const ENV = { build: B, now: Date.UTC(2026, 10, 13, 10, 0), vp: 'v', errors: 0, flags: { ...FLAG_DEFAULTS } };
 let sd = 0;
 const m = (o = {}) => ({ id: ++sd, build: B, res: 'won', ab: 0, ov: [], seed: 's' + sd, us: 50, them: 40, m: { k: 'wk', n: 2 }, t0: 0, t1: 60000, gl: {}, why: 0, sk: 0, feel: {}, ...o });
@@ -35,12 +35,11 @@ test('P0-3 CLEAN: one test per reason, and an empty window is NO', () => {
 test('P0-3 report filters records to the running build; old-build records never reach the numbers', () => {
   const d = { sessions: [], matches: [m({ build: 'sixes-r4', us: 99 }), m({ us: 51 }), m({ us: 52 })] };
   const t = buildSummary(d, ENV);
-  assert.match(t.split('\n')[0], /CLEAN: NO  \(2 matches/);
-  assert.ok(t.includes('more than one build'));
-  assert.equal(JSON.parse(buildData(d, ENV)).matches.length, 2);
-  assert.match(buildSummary({ sessions: [], matches: [] }, ENV).split('\n')[0], /CLEAN: NO  \(0 matches/);
-  assert.match(buildSummary({ sessions: [], matches: [] }, ENV), /no match was played/);
-  assert.match(buildSummary({ sessions: [], matches: [m()], trimmed: 1 }, ENV).split('\n')[0], /CLEAN: NO/);
+  assert.match(t.split('\n')[0], /CLEAN: NO mixed builds/);
+  assert.match(t, /Dropped 1 records from sixes-r4|MATCH 2W/);
+  assert.equal(JSON.parse(buildData(d, ENV)).M.length, 2);
+  assert.match(buildSummary({ sessions: [], matches: [] }, ENV).split('\n')[0], /CLEAN: NO no match played/);
+  assert.match(buildSummary({ sessions: [], matches: [m()], trimmed: 1 }, ENV).split('\n')[0], /CLEAN: NO trimmed/);
 });
 
 test('P0-4 training cost comes from TRAIN2: Normal 13 per player (104 for 8); Push affordable at 144, not 143', () => {
@@ -50,6 +49,7 @@ test('P0-4 training cost comes from TRAIN2: Normal 13 per player (104 for 8); Pu
   assert.equal(saveOf(save({ training: { tp: 143 } })).affordPush, false);
   const t = zLines({ sessions: [] }, z).join('\n');
   assert.ok(t.includes('13 per player (104 for 8)'), t);
+  assert.ok(buildSummary({ sessions: [], matches: [m()] }, { ...ENV, save: z }).startsWith('CR '));
   assert.ok(!/15 each|enough for/.test(t), t);
   assert.equal(saveOf(save({ training: { effort: 'push' } })).runCost, 144);
   assert.equal(saveOf(save({ top: { migrated: 1 } })).migrated, true);
@@ -59,26 +59,25 @@ test('P0-10 no-preview overs are their own bucket U, not OK', () => {
   const o = (mu) => ({ o: 1, s: 'b', mu, gm: 0, f: 'A', r: 5, xr: 5, w: 0, xw: 0, fit: [1, 1, null] });
   const a = aggregate([m({ ov: [o('G'), o('O'), o('P'), o('?')] })]);
   assert.deepEqual([a.mu.G, a.mu.O, a.mu.P, a.mu.U], [25, 25, 25, 25]);
-  const t = buildSummary({ sessions: [], matches: [m({ ov: [o('G'), o('?')] })] }, ENV);
+  const t = buildText({ sessions: [], matches: [m({ ov: [o('G'), o('?')] })] }, ENV);
   assert.ok(/Good 50%, OK 0%, Poor 0%, no preview 50%/.test(t.replace(/\s+/g, ' ')), t);
 });
 
 test('P0-13 removed lines: retry/result-screen time, first-session line; old and new log shapes both work', () => {
   const old = { sessions: [{ id: 1, first: 42000, end: 'hub' }], events: [[1, 'x', 0]], matches: [m({ rt: 3000, res: 'lost', m: { k: 'run', n: 4 } })] };
-  const t = buildSummary(old, ENV);
+  const t = buildText(old, ENV);
   assert.ok(!/First session|result screen|retry/i.test(t), t);
   assert.ok(!('retryFast' in aggregate(old.matches)));
   assert.ok(!/retryMs/.test(buildData(old, ENV)));
-  const neu = { sessions: [{ id: 1, end: 'hub', gl: { economy: 2 } }], matches: [m({ k: 'L', r: 3, season: 1, league: 1, pay: { total: 90 }, coins0: 10, coins1: 100, gl: { burst: 1 } })], trimmed: 0 };
-  const t2 = buildSummary(neu, ENV);
-  assert.ok(t2.includes('Word list "?" opened 3 times.') && t2.includes('Economy 2'), t2);
-  const j = JSON.parse(buildData(neu, ENV)); assert.equal(j.matches[0].k, 'L'); assert.equal(j.matches[0].pay.total, 90);
-  assert.ok(LINES.length > 5);
+  const neu = { sessions: [{ id: 1, end: 'hub', gl: { economy: 2 } }], matches: [m({ k: 'L', r: 3, season: 1, league: 1, pay: { total: 90 }, coins0: 10, coins1: 100, gl: { burst: 2 } })], trimmed: 0 };
+  const t2 = buildText(neu, ENV);
+  assert.ok(t2.includes('Letter words tapped 4.') && t2.includes('TP pay 90'), t2);
+  const j = JSON.parse(buildData(neu, ENV)); assert.equal(j.M[0].k, 'L'); assert.equal(j.M[0].res, 'W'); assert.equal(j.E.c1, 100);
 });
 
 test('P0-14 FLAG_DEFAULTS mirrors data/flags.js; BUILD is the r7 label', () => {
   assert.deepEqual(FLAG_DEFAULTS, FLAGS);
-  assert.equal(BUILD, 'sixes-r8');
+  assert.equal(BUILD, 'sixes-r9');
 });
 
 test('P0-16 regression P4: fixed seed is CLEAN NO; P5: a quit match adds nothing to luck', () => {

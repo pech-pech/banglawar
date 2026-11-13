@@ -3,11 +3,19 @@
 // Pure: every function returns a new state (s.econ is cloned); no clock, no Math.random, no DOM, no storage.
 // Reads (never writes) s.season.league / s.season.n, s.clubs[0].squad / .six, s.retired (array). Numbers: js/data/economy.js.
 import { ECON as E } from '../data/economy.js';
+import { FLAGS } from '../data/flags.js';
 
-export const newEconomy = () => ({
-  coins: E.START_COINS, fans: 0, medals: 0, stadium: 1, fac: { ...E.FAC_START }, build: null,
-  arrears: 0, missed: 0, sinks: {}, legacy: 0, ledger: [], backfilled: true, // a new game has nothing to back-fill
-});
+/** r9 flag read (live, so tests can flip it). @param {string} k */
+const on = (k) => !!(/** @type {any} */ (FLAGS))[k];
+/** New economy. FLAGS.freePick: every facility L0 (Nets per FAC_START_NETS) and one free L1 to pick. opts.legacy forces the old start (save migration). @param {{legacy?:boolean}} [opts] */
+export const newEconomy = (opts = {}) => {
+  const v2 = on('freePick') && !opts.legacy;
+  const e = {
+    coins: E.START_COINS, fans: 0, medals: 0, stadium: 1, fac: v2 ? { ...E.FAC_START_V2, nets: E.FAC_START_NETS } : { ...E.FAC_START }, build: null,
+    arrears: 0, missed: 0, sinks: {}, legacy: 0, ledger: [], backfilled: true, // a new game has nothing to back-fill
+  };
+  return v2 ? { ...e, freePick: { done: false, pick: null } } : e;
+};
 
 const clone = (/** @type {any} */ o) => JSON.parse(JSON.stringify(o));
 const econOf = (/** @type {any} */ s) => s.econ || newEconomy();
@@ -51,7 +59,7 @@ const wageTotal = (/** @type {any} */ s, /** @type {any} */ e) => { const t = sq
 
 // ---- match income ----
 export const seatsOf = (/** @type {any} */ e) => E.CAP[e.stadium] * (1 + E.STANDS_CAP_PCT[e.fac.stands] / 100);
-/** @param {any} s @param {{win?:boolean, tie?:boolean}} result */
+/** @param {any} s @param {{win?:boolean, tie?:boolean, hypeIdx?:number}} result hypeIdx 0..3 (low..nuts) scales the result part of the Fans only. */
 export function matchIncome(s, result = {}) {
   const e = econOf(s), m = coinMult(s), seats = seatsOf(e);
   const fill = Math.min(E.FILL_MAX, E.FILL_BASE + E.FILL_PER_FAN * e.fans / seats);
@@ -61,8 +69,11 @@ export function matchIncome(s, result = {}) {
   const wages = wageTotal(s, e);
   const upkeep = rd(E.UPKEEP * m * (sumLevels(e) + 2 * (e.stadium - 1)));
   const base = result.win ? E.FAN_WIN : result.tie ? (E.FAN_WIN + E.FAN_LOSS) / 2 : E.FAN_LOSS; // a tie = half a win
-  const fans = rd(base * fanMult(s)) + E.FAN_STANDS[e.fac.stands]; // the Fans multiplier is on results only, never on the stands
-  return { gate, winBonus, shop, wages, upkeep, net: gate + winBonus + shop - wages - upkeep, fans };
+  const hm = Number.isInteger(result.hypeIdx) ? E.HYPE_FAN_MULT[Math.min(3, Math.max(0, /** @type {number} */ (result.hypeIdx)))] : null;
+  const resFans = rd(base * fanMult(s) * (hm == null ? 1 : hm)); // league mult first, then the hype mult; both on results only, never on the stands
+  const fans = resFans + E.FAN_STANDS[e.fac.stands];
+  const out = { gate, winBonus, shop, wages, upkeep, net: gate + winBonus + shop - wages - upkeep, fans };
+  return hm == null ? out : { ...out, split: { result: resFans, hypeMult: hm, stands: E.FAN_STANDS[e.fac.stands] } };
 }
 /** Pay one match: earn, then pay upkeep + wages + old arrears. Short = arrears build; two missed in a row sells best-paid outside the six (never below 6). */
 export function applyMatch(s, result = {}) {
@@ -156,6 +167,11 @@ export function payCourse(/** @type {any} */ s, /** @type {number} */ coins) {
 // ---- stadium + facilities ----
 export const netsLevel = (/** @type {any} */ s) => econOf(s).fac.nets;
 export const gymTp = (/** @type {any} */ s) => E.GYM_TP[econOf(s).fac.gym];
+/** r9 M1: the facility rules come from the save's own economy, never the live flag: a free-pick economy (econ.freePick set) always uses
+ *  FAC_L1_COST / FAC_OPEN_V2, so switching features off cannot make the legacy 0-Coin L1s (Stands, Nets, Academy) buildable. No econ given -> the flag. */
+const v2Rules = (/** @type {any} */ e) => (e ? !!e.freePick : on('freePick'));
+/** Coins for facility level L. Level 1 comes from FAC_L1_COST on a free-pick economy. @param {string} k @param {number} L @param {any} [e] the economy */
+export const facCost = (/** @type {string} */ k, /** @type {number} */ L, /** @type {any} */ e) => (L === 1 && v2Rules(e) ? E.FAC_L1_COST[k] : E.FAC_COST[k][L]);
 /** @param {any} s */
 export function buildOptions(s) {
   const e = econOf(s), out = [];
@@ -171,7 +187,8 @@ export function buildOptions(s) {
   for (const k of E.FAC) {
     const cur = e.fac[k]; if (cur >= 5) continue;
     const L = cur + 1;
-    gate(k, L, E.FAC_COST[k][L], 0, 0, e.stadium < E.FAC_OPEN[k] ? `Needs Stadium ${E.FAC_OPEN[k]}` : L > e.stadium ? `Needs Stadium ${L}` : null);
+    const open = (v2Rules(e) ? E.FAC_OPEN_V2 : E.FAC_OPEN)[k];
+    gate(k, L, facCost(k, L, e), 0, 0, e.stadium < open ? `Needs Stadium ${open}` : L > e.stadium ? `Needs Stadium ${L}` : null);
   }
   return out;
 }
@@ -270,4 +287,32 @@ export function fansBars(/** @type {any} */ s) {
   const fill = next ? Math.min(1, e.fans / E.STADIUM_FANS[next]) : 1;
   const tier = Math.floor(e.legacy / E.LEGACY.segmentsPerTier);
   return { crowd: { fill, next: next ? `Stadium ${next}` : null }, legend: { tier, name: E.TIER_NAMES[Math.min(tier, E.TIER_NAMES.length - 1)], segments: e.legacy % E.LEGACY.segmentsPerTier }, showLegend: fill >= 1 };
+}
+
+// ---- free pick (r9, fans-matchday SPEC s1): one facility L1 is free, chosen once ----
+const FREE_TEXT = {
+  stands: { name: 'Stands', effect: 'More seats and more Fans every match', rec: true },
+  shop: { name: 'Shop', effect: 'Coins from the shop every match' },
+  nets: { name: 'Nets', effect: 'Training nets for your players' },
+  gym: { name: 'Gym', effect: 'More Training Points every week' },
+  pitch: { name: 'Pitch', effect: 'A better pitch', note: 'Pitch types are not in matches yet' },
+  academy: { name: 'Academy', effect: 'Young players join your club', note: 'Needs the sign screen' },
+  scout: { name: 'Scout', effect: 'Finds new coaches and players', note: 'Needs the sign screen' },
+};
+/** True while a free pick is still waiting (flag on, not taken, something still at L0). @param {any} s */
+export function freePickPending(s) {
+  const e = econOf(s);
+  return on('freePick') && !!e.freePick && !e.freePick.done && E.FAC.some((k) => (e.fac[k] || 0) === 0);
+}
+/** The seven cards: facilities still at L0 can be picked; the rest show as owned. Recommended Stands; honest notes on no-effect-yet ones. @param {any} s */
+export function freePickOptions(s) {
+  const e = econOf(s), open = freePickPending(s);
+  return E.FAC.map((k) => ({ what: k, name: FREE_TEXT[k].name, effect: FREE_TEXT[k].effect, note: FREE_TEXT[k].note || '', recommended: !!FREE_TEXT[k].rec, price: E.FAC_L1_COST[k], owned: (e.fac[k] || 0) >= 1, ok: open && (e.fac[k] || 0) === 0 }));
+}
+/** Take the free L1: no charge, no upkeep change beyond the level. Refused when done, owned or flag off. @param {any} s @param {string} what */
+export function takeFreePick(s, what) {
+  if (!freePickPending(s) || !E.FAC.includes(what) || (econOf(s).fac[what] || 0) !== 0) return s;
+  const e = clone(econOf(s)); e.fac[what] = 1; e.freePick = { done: true, pick: what };
+  note(e, { k: 'freepick', what, level: 1, coins: 0 });
+  return withEcon(s, e);
 }

@@ -15,6 +15,11 @@ import { newEconomy, applyMatch, tickBuild, finalsReward, finalsTp, payCourse, u
 import { newRun, closeSeason, remakeRivals, carryOf, applyCarry } from '../core/run.js';
 import { RUN, SQUAD } from '../data/run.js';
 import { newBook, isBook, recordOver } from '../core/pairing.js';
+import { activityOptions, pickActivity, signTrial, declineTrial, actLedger, roundKey } from '../core/activities.js';
+import { takeFreePick, freePickPending } from '../core/economy.js';
+import { VERSION, dropFreepickNotice } from '../core/save-migrate.js';
+import { rollMatchday, teamBoost, scaleRatings, resolvePep, roarAt } from '../core/matchday.js';
+import { MD } from '../data/matchday.js';
 
 const ovStr = (balls) => `${Math.floor(balls / 6)}.${balls % 6}`;
 
@@ -82,8 +87,9 @@ function bowlOver(s, p) {
     const good = rivalCall(rng, FLAGS.rivalGoodShare);
     const intent = pickIntent(inn, false, rng, good);
     const over = inn.over;
-    const balls = playOver(rng, inn, n.rival.players, n.me.players, call.bowler, intent, call.field, fxOf(n), centreOf(n), !!n.season);
+    const balls = playOver(rng, inn, n.rival.players, n.me.players, call.bowler, intent, call.field, fxOf(n), centreOf(n), !!n.season, roarOpts(n, 'bowl', 0));
     n.last = { balls, over, bowler: call.bowler, intent, field: call.field };
+    markRoar(n, 0, over);
     countBook(n, balls, n.rival.players, n.me.players);
     if (inn.done) { n.stage = 'break'; n.call = null; n.inn1Summary = summarise(n); } else n.call = defaultCall(n);
     return n;
@@ -97,8 +103,9 @@ function bowlOver(s, p) {
     const bowler = pickBowler(n.rival.players, inn, batters, rng, good);
     const field = pickField(inn, batters, rng, good, centreOf(n));
     const over = inn.over;
-    const balls = playOver(rng, inn, n.me.players, n.rival.players, bowler, intent, field, fxOf(n), centreOf(n), !!n.season);
+    const balls = playOver(rng, inn, n.me.players, n.rival.players, bowler, intent, field, fxOf(n), centreOf(n), !!n.season, roarOpts(n, 'bat', 1));
     n.last = { balls, over, bowler, intent, field };
+    markRoar(n, 1, over);
     countBook(n, balls, n.me.players, n.rival.players);
     if (inn.done) {
       n.stage = 'done';
@@ -158,13 +165,15 @@ function newGame(payload) {
   mine.squad = SQUAD.startSlots.map((i) => mine.squad[i]);
   mine.six = aiPickSix(mine);
   const season = newSeasonData(seed, 1, clubs);
-  return {
-    v: 5, salt: '', seed, stage: 'hub', ...blankMatch(), run: newRun(seed), book: newBook(),
+  const g = {
+    v: VERSION, salt: '', features: true, seed, stage: 'hub', ...blankMatch(), run: newRun(seed), book: newBook(),
     season, clubs, plan: { overs: DEFAULT_OVERS.slice(), fields: NEUTRAL_FIELDS(), edited: false, key: '' },
     econ: newEconomy(), coaches: [makeStartCoach('k0', COACH_NAMES[makeRng(`${seed}|coaches`).int(COACH_NAMES.length)])], coachPicked: true, nets: 1, releaseLedger: [],
     training: { tp: 450, week: 1, nodeBought: {}, weekLog: [], weekStart: {}, netsRuns: 0, focusChanges: 0, focus: 'bat', effort: 'normal', spotlight_id: null, coach_id: null, last_plan: null },
     fixture: leagueFixture(season, 1),
   };
+  if (FLAGS.freePick && freePickPending(g)) g.stage = 'freepick'; // first launch: pick the free facility before Home
+  return g;
 }
 
 // ---- squad of 8 (SPEC s6)
@@ -190,8 +199,10 @@ function addPlayer(s, p) {
 function sellPlayer(s, p) {
   if (!p || !canSell(s, p.id).ok) return s;
   const n = clone(s), c = n.clubs[0];
+  const gone = c.squad.find((x) => x.id === p.id);
   c.squad = c.squad.filter((x) => x.id !== p.id);
   c.six = aiPickSix(c);
+  if (n.trial && n.trial.kind === 'player' && gone) n.trial.released = gone.name; // QA3 m2 / SUP-CLUB #1: saved, so the trial sheet still says who left after close or reload (Sign / Decline drop n.trial)
   n.plan = { ...n.plan, edited: false, key: '' };
   return n;
 }
@@ -205,6 +216,7 @@ function setSix(s, p) {
   const key = planKey(s);
   if (!(s.plan.edited && s.plan.key === key)) n.plan = { overs: suggestedOvers(n), fields: NEUTRAL_FIELDS(), edited: false, key }; // never overwrite a plan the player set for this match
   n.stage = 'plan';
+  if (screenDue(n)) { n.stage = 'matchday'; n.fixture = { ...n.fixture, md: mdFor(n, p.ids) }; }
   return n;
 }
 
@@ -258,11 +270,14 @@ function seasonMatch(s) {
   const mine = s.clubs[0], opp = s.clubs.find((c) => c.id === fx.opp);
   const byId = (club, id) => club.squad.find((x) => x.id === id);
   const seed = `${s.season.seed}|${fx.kind}|${fx.round}|${s.salt}`;
+  const md = FLAGS.matchday ? mdFor(s, mine.six) : null; // rolled once per fixture; hype, toss and pep scale COPIES of our six (never the save)
   const n = {
     ...s, ...blankMatch(), seed, stage: 'bowl',
-    me: { name: mine.name, players: mine.six.map((id) => copyPlayer(byId(mine, id))) },
+    me: { name: mine.name, players: mine.six.map((id) => (md ? scaleRatings(copyPlayer(byId(mine, id)), teamBoost(md, id)) : copyPlayer(byId(mine, id)))) },
     rival: { name: opp.name, players: aiPickSix(opp).map((id) => copyPlayer(byId(opp, id))) },
   };
+  delete n.match; // r9 H2: the last match's roll never outlives its match (s.match is set only when this match has a match day)
+  if (md) { n.match = { md }; n.fixture = { ...fx, md }; }
   n.inn1 = newInnings(n.rival.players, n.me.players, null);
   n.call = defaultCall(n);
   return n;
@@ -281,7 +296,8 @@ function finishMatch(s) {
   if (finKey) pay.total = finalsTp(finKey);
   n.training.tp += pay.total; se.tpWon += pay.total;
   n.pay = { ...pay, outcome, opp: fx.opp, round: fx.round };
-  Object.assign(n, tickBuild(applyMatch(n, { win: outcome === 'won', tie: outcome === 'tied' })));
+  delete n.match; // r9 H2: the match is over; its match-day roll goes with it
+  Object.assign(n, tickBuild(applyMatch(n, { win: outcome === 'won', tie: outcome === 'tied', ...(FLAGS.matchday && n.fixture.md ? { hypeIdx: n.fixture.md.hypeIdx } : {}) })));
   if (finKey) Object.assign(n, finalsReward(n, finKey));
   se.last = { kind: fx.kind, round: fx.round };
   n.fixture = null;
@@ -331,7 +347,7 @@ function newSeason(s) {
   n.clubs = n.run.last.promoted ? remakeRivals(n.clubs, n.run.root, league, nn) : growClubs(n.clubs, SEASON.aiGrowth);
   n.season = newSeasonData(baseSeed(s), nn, n.clubs, league);
   n.run.n = nn; n.run.league = league;
-  Object.assign(n, blankMatch());
+  Object.assign(n, blankMatch()); delete n.match;
   n.stage = 'hub';
   n.fixture = leagueFixture(n.season, 1);
   return n;
@@ -365,7 +381,10 @@ const baseSeed = (s) => String(s.season.seed).replace(/\|s\d+$/, '');
 export function applyCommand(s, cmd, payload = {}) {
   const n = applyCommandCore(s, cmd, payload);
   // The look setting rides along every command that rebuilds the state (NewGame, new run, ...); absent = the default look.
-  return s && s.theme && n && n !== s && n.theme === undefined ? { ...n, theme: s.theme } : n;
+  const t = s && s.theme && n && n !== s && n.theme === undefined ? { ...n, theme: s.theme } : n;
+  const u = s && s.autoMatchday && t && t !== s && t.autoMatchday === undefined && t.stage ? { ...t, autoMatchday: true } : t;
+  // The features switch (M 18:37) also rides along: a rebuilt state keeps the player's choice (absent on an old save = on).
+  return cmd !== 'SetFeatures' && s && s.features === false && u && u !== s && u.stage && u.features !== false ? { ...u, features: false } : u;
 }
 function applyCommandCore(s, cmd, payload) {
   if (cmd === 'SetTheme') return s && s.stage && THEMES.includes(payload && payload.theme) && (s.theme || 'green') !== payload.theme ? { ...s, theme: payload.theme } : s;
@@ -378,6 +397,26 @@ function applyCommandCore(s, cmd, payload) {
     case 'SeeFirstStrip': return seeFirstStrip(s);
     case 'OpenSquad': return ['hub', 'semi', 'final', 'plan'].includes(s.stage) && s.season ? { ...s, stage: 'squad' } : s;
     case 'SetSix': return setSix(s, payload);
+    case 'SetFeatures': {
+      if (!payload || typeof payload.on !== 'boolean' || (s.features !== false) === payload.on) return s;
+      const n = { ...s, features: payload.on };
+      if (!payload.on && n.stage === 'freepick') n.stage = 'hub'; // a screen of a switched-off feature must not stay up
+      if (!payload.on && n.stage === 'matchday') n.stage = 'plan';
+      return n;
+    }
+    case 'PickActivity': return pickAct(s, payload);
+    case 'SignTrial': return FLAGS.activities && s.econ ? signTrial(s) : s;
+    case 'DeclineTrial': return FLAGS.activities && s.econ ? declineTrial(s) : s;
+    case 'TakeFreePick': {
+      if (!FLAGS.freePick || !s.econ || !payload || typeof payload.what !== 'string') return s;
+      const t = takeFreePick(s, payload.what);
+      const n = t !== s ? dropFreepickNotice({ ...t }) : t; // r9 L8: an old save's 'freepick' notice key goes with the pick
+      return n !== s && n.stage === 'freepick' ? { ...n, stage: 'hub' } : n;
+    }
+    case 'OpenMatchday': return openMatchday(s);
+    case 'MatchdayGo': return matchdayGo(s);
+    case 'BackToSquad': return backToSquad(s);
+    case 'SetAutoMatchday': return payload && typeof payload.on === 'boolean' && !!s.autoMatchday !== payload.on ? { ...s, autoMatchday: payload.on } : s;
     case 'SetPlan': return setPlan(s, payload);
     case 'TeamSix': return teamSix(s, payload);
     case 'TeamPlan': return teamPlan(s, payload);
@@ -415,6 +454,57 @@ function applyCommandCore(s, cmd, payload) {
   }
 }
 
+// ---- r9 match day (flag matchday). One roll per fixture, kept on the fixture; Back to Squad reuses it.
+/** Crowd roar for our side: only with both flags on and a rolled match day (else playOver gets no opts = as today). */
+function roarOpts(n, ours, innIdx) {
+  const md = n.match && n.match.md;
+  return FLAGS.roar && md ? { ours, md, innIdx } : undefined;
+}
+/** The over just played was a crowd roar: s.last.roar = {on,text,aria} for the over panel (only with both flags on). */
+function markRoar(n, innIdx, over) {
+  const md = n.match && n.match.md;
+  if (FLAGS.roar && md && roarAt(md, innIdx * 10 + over - 1)) { const text = `Crowd roar +${Math.round(MD.ROAR_BOOST * 100)}%`; n.last.roar = { on: true, text, aria: text }; }
+}
+/** Tilts of recent fan activities, newest first: this round, last, the one before (ECON actLedger). */
+export const actLedgerOf = (s) => (FLAGS.activities && s.econ && s.econ.act ? actLedger(s) : []);
+/** The match day for this fixture: the stored roll, or a new one from the match seed. Pep follows the slot in the CURRENT six. */
+export function mdFor(s, sixIds) {
+  const fx = s.fixture;
+  if (!FLAGS.matchday || !fx || !s.season) return null;
+  const seed = `${s.season.seed}|${fx.kind}|${fx.round}|${s.salt}`;
+  const md = fx.md || rollMatchday(seed, { fans: s.econ ? s.econ.fans : 0, actLedger: actLedgerOf(s), sixIds });
+  return { ...md, pepId: resolvePep(md, sixIds) };
+}
+/** Show the screen? Flag on, and auto is off or fewer than the first N screens have been seen. */
+function screenDue(s) {
+  return !!(FLAGS.matchday && s.season && s.fixture && (!s.autoMatchday || (s.mdSeen || 0) < MD.MATCHDAY_FIRST_N_SHOWN));
+}
+/** One fan activity (or Rest week) per round, from the hub. The find roll has its own stream: save seed + round, never the ball RNG. */
+function pickAct(s, p) {
+  if (!FLAGS.activities || !s.season || !s.fixture || !s.econ || !HUB_STAGES.includes(s.stage) || !p || typeof p.id !== 'string') return s;
+  const n = pickActivity(s, p.id, makeRng(`${baseSeed(s)}|act|${roundKey(s)}|${s.salt}`));
+  // r9 M2: a roll stored early (TeamSix / OpenMatchday before the activity) would lose this activity's hype tilt. Until the screen is done, roll again later.
+  if (n !== s && n.fixture && n.fixture.md && !n.fixture.mdDone) { const { md, ...fx } = n.fixture; return { ...n, fixture: fx }; }
+  return n;
+}
+function openMatchday(s) {
+  if (!FLAGS.matchday || !s.season || !s.fixture || !['hub', 'semi', 'final', 'squad', 'plan'].includes(s.stage)) return s;
+  const t = withSix(s);
+  return { ...t, stage: 'matchday', fixture: { ...t.fixture, md: mdFor(t, t.clubs[0].six) } };
+}
+function matchdayGo(s) {
+  if (s.stage !== 'matchday' || !s.fixture) return s;
+  const t = withSix(s), fx = t.fixture;
+  const seen = fx.mdDone ? (t.mdSeen || 0) : (t.mdSeen || 0) + 1;
+  const base = { ...t, mdSeen: seen, fixture: { ...fx, mdDone: true } };
+  delete base.fixture.mdThen;
+  if (fx.mdThen === 'start') { const plan = livePlan(base); return planProblem(plan.overs) ? { ...base, stage: 'hub' } : seasonMatch({ ...base, stage: 'plan', plan }); }
+  return { ...base, stage: 'plan', plan: livePlan(base) };
+}
+function backToSquad(s) {
+  return ['matchday', 'plan'].includes(s.stage) && s.season && s.fixture ? { ...s, stage: 'squad' } : s;
+}
+
 // ---- b-p6: team sheet on the hub and one Start match (stage stays on the hub; the old squad and plan stages still work)
 const HUB_STAGES = ['hub', 'semi', 'final'];
 const onHub = (s) => !!(s && s.season && s.fixture && HUB_STAGES.includes(s.stage));
@@ -450,6 +540,7 @@ function startMatch(s) {
   if (!onHub(s)) return s;
   const t = withSix(s), plan = livePlan(t);
   if (planProblem(plan.overs)) return s;
+  if (screenDue(t) && !(t.fixture && t.fixture.mdDone)) return { ...t, stage: 'matchday', fixture: { ...t.fixture, md: mdFor(t, t.clubs[0].six), mdThen: 'start' } }; // match-day screen first; Go starts the match
   return seasonMatch({ ...t, stage: 'plan', plan });
 }
 
@@ -468,7 +559,7 @@ function spin(s, p) {
   const T = s.training, plan = planOf(s);
   const two = !!(p && p.slot === 2), key = two ? 'pending2' : 'pending'; // slot 2 = the Twin Spotlight Pass wheel
   if (!(two ? plan.spotlight2Id : plan.spotlightId) || (T[key] && T[key].week === T.week) || (T.nets && T.nets.week === T.week)) return s;
-  const wheel = wheelSlices(plan.effort, coachStepInUse(s)), careful = !!(p && p.careful);
+  const wheel = wheelSlices(plan.effort, coachStepInUse(s)), careful = p && p.careful && typeof p.careful === 'object' ? p.careful : !!(p && p.careful);
   const result = spinResult(TRAIN_RNG(s, two ? 'spin2' : 'spin'), wheel, careful);
   const n = clone(s);
   n.training[key] = { week: T.week, careful, wheel, result };
@@ -492,7 +583,7 @@ function courseSpin(s, p) {
   const id = p && p.coachId, T = s.training;
   if (!id || !canCourse(s, id).ok || (T.coursePending && T.coursePending.coachId === id)) return s;
   const c = coachList(s).find((x) => x.id === id);
-  const wheel = courseWheel(c.step), careful = !!p.careful;
+  const wheel = courseWheel(c.step), careful = p.careful && typeof p.careful === 'object' ? p.careful : !!p.careful;
   const n = clone(s);
   n.training.coursePending = { coachId: id, careful, wheel, result: spinResult(TRAIN_RNG(s, 'course', id), wheel, careful) };
   return n;

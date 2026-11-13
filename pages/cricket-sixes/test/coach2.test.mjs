@@ -74,7 +74,7 @@ test('course with Coins: needs coins, deducts the price', () => {
 test('course wheel spin without a given result uses the rng', () => {
   const s = game({ coaches: [K({ step: 8 })] }), r = runCourse(s, makeRng('x'), 'k1', null);
   const g = coachList(r)[0].step - 8; assert.ok(g >= 1 && g <= 3);
-  assert.equal(spinResult({ random: () => 0 }, courseWheel(8), true).gain, 3);
+  const cw = courseWheel(8); assert.equal(spinResult({ random: () => 0 }, cw, { t: 3, phi: 0.2, e: 0 }).gain, spinResult({ random: () => 0 }, cw, { t: 3, phi: 0.325, e: 0 }).gain); // the stop decides, not an aim roll
 });
 
 test('away coach does not help; wheel uses the coach step', () => {

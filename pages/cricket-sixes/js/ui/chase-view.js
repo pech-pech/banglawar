@@ -3,6 +3,7 @@
 import { whyLine, outcomeLabel } from './why.js';
 import { openSheet } from './sheet.js';
 import { openGlossary } from './glossary-sheet.js';
+import { chipRowHtml, roarChipHtml } from './matchday-view.js';
 import { abilityLine } from './letters-ui.js';
 import { POT, gradeAria, newNotes, noteFor } from './grade-notes.js';
 
@@ -127,6 +128,13 @@ function whyHtml(vm) {
     }).join('');
 }
 
+/* r9 fix4 (E2E #3): the match-day chips and the roar chip share ONE wrapping line on chase (words + icon each), so they do not push
+   the last-over line under the CTA bar at 344x780. Same markup as bowl (chipRowHtml, roarChipHtml); only the wrapper and css/chase.css differ. */
+function boostsHtml(vm) {
+  const inner = roarChipHtml(vm.roar) + chipRowHtml(vm.chips);
+  return inner ? '<div class="ch-boosts">' + inner + '</div>' : '';
+}
+
 const ctaText = (over) => 'Bat over ' + over + ': ' + INTENTS.find((o) => o.k === intent).n;
 
 export function render(el, vm, dispatch) {
@@ -153,12 +161,14 @@ export function render(el, vm, dispatch) {
       '" role="radio" aria-checked="' + sel + '"><span class="two">' + o.n + '<small>' + o.s + '</small></span></button>';
   }).join('');
 
+  const boosts = boostsHtml(vm);
   el.innerHTML =
-    '<div class="chase-b">' +
+    '<div class="chase-b' + (boosts ? ' has-boosts' : '') + '">' +
     '<header class="strip c-dark" aria-label="Score">' +
     '<span class="score" aria-label="Score ' + esc(sc.runs) + ' runs for ' + esc(sc.wk) + ' out">' + esc(sc.runs) + '/' + esc(sc.wk) + '</span>' +
     '<span class="mid"><b>' + esc(need) + '</b><span>Target ' + esc(vm.target) + ' · Over ' + esc(vm.over) + ' of 10 · ' + esc(phase) + '</span></span>' +
     '<button type="button" class="q" aria-label="Cricket words explained">?</button></header>' +
+    boosts +
     '<section class="colL">' +
     '<p class="sb-cap">For your batter</p>' +
     '<div class="sb chase" role="table" aria-label="Your batters against their likely bowlers">' + head +
