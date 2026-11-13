@@ -1,259 +1,313 @@
 // @ts-check
-// Training rolls, drill room (cap, balance, 99), grade reveal, coach XP, week end. Pure and seeded:
-// every function takes the state (and an rng that doDrill draws ONE number from) and returns a new state.
-// An invalid command returns the SAME state object. No Math.random, Date or DOM.
-import { DRILLS, ODDS, COACHES } from '../data/training.js';
-import { BRIDGE_DRILL_MULT } from '../data/leagues.js';
-import { SKILLS } from '../data/training.js';
+// Weekly nets (P11 redo): Focus + Effort + optional Spotlight wheel, coaches (grade steps, scout list, courses), week end.
+// Pure and seeded: every function takes the state (and an rng where it rolls) and returns a NEW state; an invalid
+// command returns the SAME state object. No Math.random, Date or DOM. Numbers: data/training.js TRAIN2 (SPEC 2026-11-13).
+import { DRILLS, TRAIN2 } from '../data/training.js';
+import { SURNAMES } from '../data/names.js';
+import { makeRng } from './rng.js';
 import { aiPickSix } from './clubs.js';
 import { capSum, bandOf, isHidden } from './ability.js';
+import { stepOfRaw } from './letters.js';
 
-export const DRILL_IDS = DRILLS.list.map((d) => d.id);
-export const TP_PER_DRILL = DRILLS.costTp;
+export const EFFORTS = ['easy', 'normal', 'push'];
+export const FOCUSES = ['bat', 'bowl', 'bal'];
 const RATINGS = ['bp', 'bs', 'spd', 'bsk'];
+const CO = TRAIN2.coach;
+const clone = (/** @type {any} */ x) => structuredClone(x);
 
-/** @param {string} id */
-export const drillDef = (id) => DRILLS.list.find((d) => d.id === id) || null;
-
-/** Okay/Good/Great percentages for a Nets level (1..5) and the best matching coach focus level (0..5). Table rows from tuning.json. */
-export function drillOdds(nets, coachLevelN) {
-  const n = Math.min(5, Math.max(1, nets | 0)), c = Math.min(5, Math.max(0, coachLevelN | 0));
-  const r = ODDS.table.find((x) => x.nets === n && x.coach === c);
-  return { okay: r.okay, good: r.good, great: r.great };
-}
-/** x in [0,100). Okay if x < okay, Good if x < okay+good, else Great. */
-export function rollOutcome(odds, x) {
-  const i = x < odds.okay ? 0 : x < odds.okay + odds.good ? 1 : 2;
-  return { outcome: DRILLS.outcomes[i], gain: DRILLS.gains[i] };
-}
-/** One draw: rng.random(). */
-export function rollDrill(rng, nets, coachLevelN) {
-  const odds = drillOdds(nets, coachLevelN); const x = rng.random() * 100;
-  return { odds, x, ...rollOutcome(odds, x) };
-}
-
-const staff = (coaches) => (coaches || []).filter((c) => !c.candidate && !(c.away > 0));
-/** Level of the best staff coach in a focus (0 = nobody has it). */
-export function coachLevel(coaches, focus) { return staff(coaches).reduce((m, c) => Math.max(m, c.lv?.[focus] || 0), 0); }
-/** Best matching coach for a focus: highest level, then most XP, then first. Level 0 never helps. */
-export function bestCoach(coaches, focus) {
-  let best = null;
-  for (const c of staff(coaches)) {
-    const L = c.lv?.[focus] || 0; if (!L) continue;
-    if (!best || L > best.lv[focus] || (L === best.lv[focus] && (c.xp?.[focus] || 0) > (best.xp?.[focus] || 0))) best = c;
-  }
-  return best;
-}
-/** Coach level for an XP total: cut-offs 0/30/70/125/190 are levels 1..5. */
-export function levelOfXp(xp) { let L = 1; COACHES.xp.forEach((t, i) => { if (xp >= t) L = i + 1; }); return L; }
-
-/** Coach pick, once per save, rejected after any drill. The chosen candidate joins the staff; the others go. */
-export function pickCoach(state, { coachId } = {}) {
-  if (state.coachPicked || (state.training?.drillCount || 0) > 0) return state;
-  const c = (state.coaches || []).find((x) => x.id === coachId && x.candidate);
-  if (!c) return state;
-  const n = structuredClone(state);
-  n.coaches = n.coaches.filter((x) => !x.candidate || x.id === coachId).map((x) => ({ ...x, candidate: false }));
-  n.coachPicked = true;
-  return n;
-}
-
-const squadOf = (s) => (s.clubs || []).find((c) => c.id === 'c0')?.squad || [];
+// ---- squad helpers
+const squadOf = (/** @type {any} */ s) => (s.clubs || []).find((/** @type {any} */ c) => c.id === 'c0')?.squad || [];
 /** @param {any} s @param {string} id */
-export const findPlayer = (s, id) => squadOf(s).find((p) => p.id === id) || null;
-
-/**
- * How much a drill on one rating can add: the least of the cap-sum room, the balance room (15 above the
- * player's own lowest) and the 99 limit. why = which one binds ('cap' wins ties, then 'balance', then 'max').
- */
-export function drillRoom(p, drillId) {
-  const d = drillDef(drillId); if (!d) return { room: 0, locked: true, why: 'unknown', lowest: 0 };
-  const r = p[d.rating], lowest = Math.min(...RATINGS.map((k) => p[k]));
-  const cap = capSum(p.potential) - RATINGS.reduce((a, k) => a + p[k], 0);
-  const bal = lowest + DRILLS.balance - r, top = DRILLS.hardCap - r;
-  const room = Math.min(cap, bal, top);
-  const why = room === cap ? 'cap' : room === bal ? 'balance' : 'max';
-  return { room, locked: room <= 0, why, lowest, capRoom: cap, balanceRoom: bal, maxRoom: top, upTo: room < DRILLS.gains[2] && room > 0 ? room : null };
-}
-const WHY_REASON = { cap: 'peak', balance: 'balance', max: 'max' };
-
-/** { ok, reason } with reason one of: 'unknown' 'week' 'tp' 'peak' 'balance' 'max'. */
-export function canDrill(state, playerId, drillId) {
-  const p = findPlayer(state, playerId);
-  if (!p || !drillDef(drillId)) return { ok: false, reason: 'unknown' };
-  if (state.training.drilled?.[playerId]) return { ok: false, reason: 'week' };
-  const room = drillRoom(p, drillId);
-  if (room.locked) return { ok: false, reason: WHY_REASON[room.why], room };
-  if (!bridgeOn(state) && state.training.tp < TP_PER_DRILL) return { ok: false, reason: 'tp', room };
-  return { ok: true, reason: '', room };
-}
-
-/** Bridge lever on from run season 2. */
-const bridgeOn = (s) => !!(s.season && s.season.n >= 2);
-
-const ensureWeekStart = (n) => {
-  n.training.weekStart ||= {};
-  for (const p of squadOf(n)) n.training.weekStart[p.id] ||= RATINGS.map((k) => p[k]);
-};
-const logEntry = (n, e) => { (n.training.weekLog ||= []).push(e); };
-
-/**
- * One drill. Rolls Okay/Good/Great (ONE rng.random()), cuts the gain to the room, spends 15 TP,
- * counts a drill here (the grade shows on the 5th), and gives the best matching coach XP equal to the points made.
- * Locked, repeat or unaffordable drills return the same state and spend nothing.
- */
-export function doDrill(state, { playerId, drillId } = {}, rng) {
-  const chk = canDrill(state, playerId, drillId); if (!chk.ok) return state;
-  const n = structuredClone(state); ensureWeekStart(n);
-  const p = findPlayer(n, playerId), d = drillDef(drillId);
-  const bridge = bridgeOn(n);
-  // Bridge (remove when economy lands): from run season 2 one tap runs floor(m) + (rng < frac(m)) drills; extra rng is drawn only then.
-  const reps = bridge ? Math.floor(BRIDGE_DRILL_MULT) + (rng.random() < BRIDGE_DRILL_MULT - Math.floor(BRIDGE_DRILL_MULT) ? 1 : 0) : 1;
-  const level = coachLevel(n.coaches, d.focus), nets = n.nets || 1;
-  const rec = { playerId, drillId, rating: d.rating, outcome: 'Okay', rolled: 0, gain: 0, cut: false, why: null, before: p[d.rating], after: p[d.rating],
-    odds: null, nets, coachLevel: level, tp: bridge ? 0 : TP_PER_DRILL, reps, revealed: false, grade: null, coach: null };
-  const rank = { Okay: 0, Good: 1, Great: 2 };
-  for (let i = 0; i < reps; i++) {
-    const room = i === 0 ? chk.room : drillRoom(p, drillId);
-    if (room.locked) break;
-    const roll = rollDrill(rng, nets, coachLevel(n.coaches, d.focus));
-    const gain = Math.min(roll.gain, room.room), before = p[d.rating];
-    p[d.rating] = before + gain;
-    const wasHidden = isHidden(p);
-    p.drillsHere += 1;
-    n.training.drillCount = (n.training.drillCount || 0) + 1;
-    rec.rolled += roll.gain; rec.gain += gain; rec.after = p[d.rating]; rec.odds = rec.odds || roll.odds;
-    if (rec.drills == null || (rank[roll.outcome] ?? 0) > (rank[rec.outcome] ?? 0)) rec.outcome = roll.outcome;
-    rec.drills = (rec.drills || 0) + 1;
-    if (gain < roll.gain) { rec.cut = true; rec.why = room.why; }
-    const c = bestCoach(n.coaches, d.focus);
-    if (c) {
-      const mine = n.coaches.find((x) => x.id === c.id), from = mine.lv[d.focus];
-      mine.xp[d.focus] = (mine.xp[d.focus] || 0) + gain; mine.lv[d.focus] = Math.max(from, levelOfXp(mine.xp[d.focus]));
-      rec.coach = { id: mine.id, focus: d.focus, xp: (rec.coach ? rec.coach.xp : 0) + gain, from: rec.coach ? rec.coach.from : from, to: mine.lv[d.focus] };
-      if (mine.lv[d.focus] > from) logEntry(n, { type: 'CoachLevelUp', coachId: mine.id, focus: d.focus, from, to: mine.lv[d.focus] });
-    }
-    logEntry(n, { type: 'Drill', playerId, drillId, outcome: roll.outcome, gain });
-    if (wasHidden && !isHidden(p)) {
-      rec.revealed = true; rec.grade = bandOf(p.potential);
-      logEntry(n, { type: 'GradeRevealed', playerId, grade: rec.grade });
-    }
-  }
-  if (!bridge) n.training.tp -= TP_PER_DRILL;
-  n.training.drilled = { ...n.training.drilled, [playerId]: true };
-  n.training.last = rec;
-  return n;
-}
-
-/**
- * Close the training week: build the summary (gains, reveals, nodes, coach level-ups), clear the
- * one-drill and one-node marks, take a new rating snapshot, and move training.week on by one.
- */
-export function endWeek(state) {
-  const n = structuredClone(state); ensureWeekStart(n);
-  const log = n.training.weekLog || [];
-  const gains = squadOf(n).map((p) => ({ playerId: p.id, by: RATINGS.map((k, i) => p[k] - n.training.weekStart[p.id][i]) }))
-    .filter((g) => g.by.some((v) => v !== 0)).map((g) => ({ ...g, total: g.by.reduce((a, b) => a + b, 0) }));
-  n.training.weekSummary = { week: n.training.week, gains,
-    reveals: log.filter((e) => e.type === 'GradeRevealed').map((e) => ({ playerId: e.playerId, grade: e.grade })),
-    nodes: log.filter((e) => e.type === 'NodeUnlocked').map((e) => ({ playerId: e.playerId, side: e.side, node: e.node })),
-    coachUps: log.filter((e) => e.type === 'CoachLevelUp').map((e) => ({ coachId: e.coachId, focus: e.focus, from: e.from, to: e.to })) };
-  const drillsLogged = log.filter((e) => e.type === 'Drill'); // Repeat last week reads this; a skipped week keeps the older plan
-  if (drillsLogged.length) n.training.lastPlan = Object.fromEntries(drillsLogged.map((e) => [e.playerId, e.drillId]));
-  n.training.bulk = null;
-  n.training.week += 1; n.training.drilled = {}; n.training.nodeBought = {}; n.training.last = null; n.training.weekLog = [];
-  n.training.weekStart = Object.fromEntries(squadOf(n).map((p) => [p.id, RATINGS.map((k) => p[k])]));
-  return n;
-}
-
-// ---- bulk drills (P7+P11): Drill all (the Six), Repeat last week, Auto-train bench. Each drill is one doDrill, so a bulk run
-// rolls exactly like tapping by hand in the same order. rngFor(playerId) gives the same rng the Drill command uses.
-const FOCUS_OF = (p) => [SKILLS.trees[p.bat] && SKILLS.trees[p.bat].focus, SKILLS.trees[p.bowl] && SKILLS.trees[p.bowl].focus];
-
-/** The Six in list order (saved six, else the AI pick like the selectors). @param {any} s */
+export const findPlayer = (s, id) => squadOf(s).find((/** @type {any} */ p) => p.id === id) || null;
+/** The Six in list order (saved six, else the AI pick). @param {any} s */
 export function sixOf(s) {
-  const c = (s.clubs || []).find((x) => x.id === 'c0');
+  const c = (s.clubs || []).find((/** @type {any} */ x) => x.id === 'c0');
   if (!c) return [];
   return c.six && c.six.length === 6 ? c.six.slice() : aiPickSix(c).slice(0, 6);
 }
-/** Bench in squad order. */
-export const benchOf = (s) => { const six = sixOf(s); return squadOf(s).filter((p) => !six.includes(p.id)).map((p) => p.id); };
+/** Bench in squad order. @param {any} s */
+export const benchOf = (s) => { const six = sixOf(s); return squadOf(s).filter((/** @type {any} */ p) => !six.includes(p.id)).map((/** @type {any} */ p) => p.id); };
+const leagueOfState = (/** @type {any} */ s) => Math.min(5, Math.max(1, (s.season && s.season.league) || (s.run && s.run.league) || 1));
+const seasonN = (/** @type {any} */ s) => (s.season && s.season.n) || 1;
 
-/** Suggested drill: his lowest rating that still has room; tie goes to his tree focus, then drill order. null when nothing has room. */
-export function suggestedDrill(p) {
-  const foci = FOCUS_OF(p); let best = null;
-  for (const d of DRILLS.list) {
-    if (drillRoom(p, d.id).room <= 0) continue;
-    if (!best || p[d.rating] < p[best.rating] || (p[d.rating] === p[best.rating] && foci.includes(d.focus) && !foci.includes(best.focus))) best = d;
+/**
+ * How much a stat can still gain: least of cap-sum room, balance room (15 above his own lowest) and the 99 limit.
+ * @param {any} p @param {string} rating bp|bs|spd|bsk
+ */
+export function drillRoom(p, rating) {
+  const r = p[rating], lowest = Math.min(...RATINGS.map((k) => p[k]));
+  const cap = capSum(p.potential) - RATINGS.reduce((a, k) => a + p[k], 0);
+  const bal = lowest + DRILLS.balance - r, top = DRILLS.hardCap - r;
+  const room = Math.min(cap, bal, top);
+  return { room, locked: room <= 0, why: room === cap ? 'cap' : room === bal ? 'balance' : 'max', lowest };
+}
+/** The stat a focus rolls on: the lowest rating of its set (first on ties). @param {any} p @param {string} focus */
+export function focusRating(p, focus) {
+  const set = TRAIN2.focusRatings[focus] || TRAIN2.focusRatings.bat;
+  return set.reduce((/** @type {string} */ b, /** @type {string} */ k) => (p[k] < p[b] ? k : b), set[0]);
+}
+
+// ---- plan
+const lastOf = (/** @type {any} */ s) => { const l = s.training && s.training.lastPlan; return l && typeof l.focus === 'string' ? l : null; };
+/** The week's plan; focus and effort default to last week's. @param {any} s */
+export function planOf(s) {
+  const sel = (s.training && s.training.sel) || {}, last = lastOf(s);
+  const focus = FOCUSES.includes(sel.focus) ? sel.focus : last && FOCUSES.includes(last.focus) ? last.focus : 'bat';
+  const effort = EFFORTS.includes(sel.effort) ? sel.effort : last && EFFORTS.includes(last.effort) ? last.effort : 'normal';
+  const spotlightId = sel.spotlightId && findPlayer(s, sel.spotlightId) ? sel.spotlightId : null;
+  const co = sel.coachId ? (s.coaches || []).find((/** @type {any} */ c) => c.id === sel.coachId) : null;
+  return { focus, effort, spotlightId, coachId: co && !(co.away > 0) ? co.id : null };
+}
+/** Patch { focus?, effort?, spotlightId?, coachId? }. Bad values return the same state. @param {any} s @param {any} patch */
+export function setPlan(s, patch = {}) {
+  if (patch.focus !== undefined && !FOCUSES.includes(patch.focus)) return s;
+  if (patch.effort !== undefined && !EFFORTS.includes(patch.effort)) return s;
+  if (patch.spotlightId && !findPlayer(s, patch.spotlightId)) return s;
+  if (patch.coachId) { const c = (s.coaches || []).find((/** @type {any} */ x) => x.id === patch.coachId); if (!c || c.away > 0) return s; }
+  const n = clone(s); n.training ||= {};
+  const cur = planOf(s);
+  n.training.sel = { focus: cur.focus, effort: cur.effort, spotlightId: cur.spotlightId, coachId: cur.coachId };
+  for (const k of ['focus', 'effort', 'spotlightId', 'coachId']) if (patch[k] !== undefined) n.training.sel[k] = patch[k] || (k === 'focus' || k === 'effort' ? patch[k] : null);
+  return n;
+}
+
+// ---- odds, quality
+/** Okay/Good/Great percentages at an effort, Quality q and focus. Okay -q, Good/Great +q/2; Balanced scales Good/Great by 0.5. */
+export function effortOdds(effort, q = 0, balanced = false) {
+  const e = TRAIN2.efforts[effort] || TRAIN2.efforts.normal;
+  let ok = Math.max(0, e.okay - q), g = e.good + q / 2, t = e.great + q / 2;
+  if (balanced) { g *= TRAIN2.balancedGG; t *= TRAIN2.balancedGG; ok = 100 - g - t; }
+  const sum = ok + g + t; return { okay: ok * 100 / sum, good: g * 100 / sum, great: t * 100 / sum };
+}
+/** Mean gain of an odds row. @param {{okay:number,good:number,great:number}} o */
+export const meanGain = (o) => (o.okay + 2 * o.good + 3 * o.great) / 100;
+
+// ---- coaches
+/** @param {any} s */
+const coachById = (s, id) => (s.coaches || []).find((/** @type {any} */ c) => c.id === id) || null;
+/** Coaches in slot order, normalised to { id, name, step, strong, away, courseSeason }. @param {any} s */
+export function coachList(s) { return (s.coaches || []).filter((/** @type {any} */ c) => !c.candidate).map(normCoach); }
+function normCoach(/** @type {any} */ c) {
+  if (typeof c.step === 'number' && Array.isArray(c.strong)) return { ...c, away: c.away | 0 };
+  return coachFromOld(c);
+}
+/** Old coach (lv per Power/Technique/Pace/Craft) -> new: step = min(21, 4 + 3 x max lv); strong from top ratings. @param {any} c */
+export function coachFromOld(c) {
+  const lv = c.lv || {}, mx = Math.max(0, ...Object.values(lv).map((v) => Number(v) || 0));
+  const bat = Math.max(lv.Power || 0, lv.Technique || 0), bowl = Math.max(lv.Pace || 0, lv.Craft || 0);
+  const strong = mx === 0 ? ['bat', 'bowl'] : bat === bowl ? ['bat', 'bowl'] : bat > bowl ? ['bat'] : ['bowl'];
+  return { id: c.id, name: c.name, step: Math.min(CO.maxStep, CO.oldStepBase + CO.oldStepPerLevel * mx), strong, away: 0, courseSeason: null };
+}
+/** The coach a new game starts with: step 4 (E-), strong Batting + Bowling. @param {string} id @param {string} name */
+export const startCoach = (id, name) => ({ id, name, step: CO.start.step, strong: CO.start.strong.slice(), away: 0, courseSeason: null });
+/** Old-shape helper kept for skills.js: best old-style level (0..5) a staff coach has on a side's focus. @param {any[]} coaches @param {string} focus Power|Technique|Pace|Craft|bat|bowl */
+export function coachLevel(coaches, focus) {
+  const side = focus === 'bat' || focus === 'bowl' ? focus : focus === 'Power' || focus === 'Technique' ? 'bat' : 'bowl';
+  let best = 0;
+  for (const raw of coaches || []) {
+    if (raw.candidate) continue; const c = normCoach(raw);
+    if (c.away > 0 || !(c.strong.includes(side) || c.strong.includes('bal'))) continue;
+    best = Math.max(best, Math.min(5, Math.max(0, Math.floor((c.step - CO.oldStepBase) / CO.oldStepPerLevel))));
   }
-  return best ? best.id : null;
+  return best;
 }
-/** The drill a bulk run gives him: { drillId, fresh } or null. Repeat uses last week's drill when he has one with room; otherwise Suggested (fresh = true). */
-export function planDrill(s, p, mode) {
-  if (!p) return null;
-  const last = s.training.lastPlan && s.training.lastPlan[p.id];
-  if (mode === 'repeat' && last && drillDef(last) && drillRoom(p, last).room > 0) return { drillId: last, fresh: false };
-  const d = suggestedDrill(p);
-  return d ? { drillId: d, fresh: mode === 'repeat' } : null;
+/** Pick this week's coach by hand (null = none). Away or unknown coaches are refused. @param {any} s @param {string|null} id */
+export const pickWeekCoach = (s, id) => setPlan(s, { coachId: id || null });
+/** Quality the picked coach adds this week: 0.95 x step when strong in the focus, else 0. @param {any} s */
+export function coachQuality(s) {
+  const p = planOf(s), raw = p.coachId && coachById(s, p.coachId); if (!raw) return 0;
+  const c = normCoach(raw);
+  return c.strong.includes(p.focus) ? CO.qualityPerStep * c.step : 0;
 }
-export const hasLastPlan = (s) => !!(s.training.lastPlan && Object.keys(s.training.lastPlan).length);
-/** The plan setting: saved choice, else Repeat when there is a last week. */
-export const planMode = (s) => s.training.plan === 'suggested' || s.training.plan === 'repeat' ? (s.training.plan === 'repeat' && !hasLastPlan(s) ? 'suggested' : s.training.plan) : (hasLastPlan(s) ? 'repeat' : 'suggested');
+/** Grade step of the coach helping this week (0 = none). @param {any} s */
+export function coachStepInUse(s) { const q = coachQuality(s); return q > 0 ? Math.round(q / CO.qualityPerStep) : 0; }
+export const MAX_COACHES = CO.slots;
 
-/** Who a run would drill, in order, capped by TP (no cap from season 2: the bridge drills cost nothing). */
-export function bulkPlan(s, mode, ids) {
-  const out = []; let tp = s.training.tp;
-  for (const id of ids) {
-    if (s.training.drilled && s.training.drilled[id]) continue;
-    const p = findPlayer(s, id), pl = planDrill(s, p, mode);
-    if (!pl || drillRoom(p, pl.drillId).room <= 0) continue;
-    if (!bridgeOn(s)) { if (tp < TP_PER_DRILL) break; tp -= TP_PER_DRILL; }
-    out.push({ playerId: id, ...pl });
+/** @param {any} s @returns {{n:number, signed:string|null, passed:boolean}|null} */
+const scoutRec = (s) => (s.scout && s.scout.n === seasonN(s) ? s.scout : null);
+/** This season's scout list: [{ id, name, step, strong }] (deterministic from seed, season, league). Empty once you signed or passed. */
+export function scoutList(s) {
+  if (scoutRec(s)) return [];
+  const L = leagueOfState(s), n = seasonN(s), rng = makeRng(`${s.seed || 'sixes'}|scout|${n}|${L}`);
+  const count = CO.scoutSize[L - 1], out = [];
+  for (let i = 0; i < count; i++) {
+    const step = Math.max(1, Math.min(CO.maxStep, CO.scoutCentre[L - 1] + rng.int(2 * CO.scoutSpread + 1) - CO.scoutSpread));
+    const strong = rng.shuffle(FOCUSES.slice()).slice(0, 1 + rng.int(2));
+    out.push({ id: `sc${n}-${i}`, name: rng.pick(SURNAMES), step, strong });
   }
   return out;
 }
-
-function runBulk(state, mode, ids, rngFor) {
-  let n = state; const items = [];
-  for (const step of bulkPlan(state, mode, ids)) {
-    const next = doDrill(n, { playerId: step.playerId, drillId: step.drillId }, rngFor(step.playerId));
-    if (next === n) continue;
-    n = next; const r = n.training.last;
-    items.push({ playerId: step.playerId, drillId: step.drillId, fresh: step.fresh, outcome: r.outcome, gain: r.gain, revealed: !!r.revealed, grade: r.grade, coach: r.coach ? r.coach.id : null });
-  }
-  return { n, items };
+/** Can the player still sign someone? { ok, why: ''|'closed'|'full'|'unknown' } @param {any} s @param {string} [id] */
+export function canSign(s, id) {
+  if (scoutRec(s)) return { ok: false, why: 'closed' };
+  if (coachList(s).length >= CO.slots) return { ok: false, why: 'full' };
+  if (id && !scoutList(s).some((c) => c.id === id)) return { ok: false, why: 'unknown' };
+  return { ok: true, why: '' };
 }
-
-/** Drill all: the Six, who have not drilled, one drill each (mode 'repeat' | 'suggested'). Same state back when nobody can drill. */
-export function drillAll(state, mode, rngFor) {
-  const m = mode === 'repeat' || mode === 'suggested' ? mode : planMode(state);
-  const { n, items } = runBulk(state, m, sixOf(state), rngFor);
-  if (!items.length) return state;
-  n.training.plan = m;
-  const prev = state.training.bulk;
-  n.training.bulk = { plan: m, items: (prev ? prev.items : []).concat(items) };
+/** Sign one scouted coach (free). Full slots: release one first. @param {any} s @param {string} id */
+export function signCoach(s, id) {
+  if (!canSign(s, id).ok) return s;
+  const c = scoutList(s).find((x) => x.id === id); if (!c) return s;
+  const n = clone(s); n.coaches = (n.coaches || []).concat([{ ...c, away: 0, courseSeason: null }]);
+  n.scout = { n: seasonN(s), signed: id, passed: false };
   return n;
 }
-/** Repeat last week: needs a last week. */
-export const repeatWeek = (state, rngFor) => (hasLastPlan(state) ? drillAll(state, 'repeat', rngFor) : state);
+/** Pass on this season's scout list. @param {any} s */
+export function passScout(s) { if (scoutRec(s)) return s; const n = clone(s); n.scout = { n: seasonN(s), signed: null, passed: true }; return n; }
+/** Release a coach (frees a slot). @param {any} s @param {string} id */
+export function releaseCoach(s, id) {
+  if (!coachById(s, id)) return s;
+  const n = clone(s); n.coaches = n.coaches.filter((/** @type {any} */ c) => c.id !== id);
+  if (n.training && n.training.sel && n.training.sel.coachId === id) n.training.sel.coachId = null;
+  return n;
+}
 
-/** Auto-train bench setting (default off, kept across weeks). on: true/false, or omit to flip. */
-export function setAutoBench(state, on) {
-  const v = typeof on === 'boolean' ? on : !state.training.autoBench;
-  if (!!state.training.autoBench === v) return state;
-  const n = structuredClone(state); n.training.autoBench = v; return n;
+/** Coin price of a course (spec price; free until Coins ship, CONTRACT). @param {any} s @param {string} coachId */
+export function courseCost(s, coachId) {
+  const c = coachById(s, coachId); if (!c) return 0;
+  return Math.round((CO.courseBase + CO.coursePerStep * normCoach(c).step) * CO.courseFactor[leagueOfState(s) - 1]);
 }
-/** At End week with Auto-train bench on: each bench player not yet drilled gets his Suggested drill while TP lasts. */
-export function autoBenchDrills(state, rngFor) {
-  if (!state.training.autoBench) return state;
-  return runBulk(state, 'suggested', benchOf(state), rngFor).n;
+/** { ok, why: ''|'unknown'|'max'|'away'|'season'|'coins' } (coins checked only when s.econ exists) @param {any} s @param {string} coachId */
+export function canCourse(s, coachId) {
+  const raw = coachById(s, coachId); if (!raw) return { ok: false, why: 'unknown' };
+  const c = normCoach(raw);
+  if (c.step >= CO.maxStep) return { ok: false, why: 'max' };
+  if (c.away > 0) return { ok: false, why: 'away' };
+  if (c.courseSeason === seasonN(s)) return { ok: false, why: 'season' };
+  if (s.econ && (s.econ.coins || 0) < courseCost(s, coachId)) return { ok: false, why: 'coins' };
+  return { ok: true, why: '' };
 }
-/** The Repeat / Suggested switch (saved per game). */
-export function setDrillPlan(state, mode) {
-  if ((mode !== 'repeat' && mode !== 'suggested') || state.training.plan === mode) return state;
-  const n = structuredClone(state); n.training.plan = mode; return n;
+
+// ---- wheels
+const ARRANGE = (/** @type {number[]} */ rest) => { // spread equal numbers apart: low, high, low, high ...
+  const a = rest.slice().sort((x, y) => x - y), out = []; let i = 0, j = a.length - 1;
+  while (i <= j) { out.push(a[i++]); if (i <= j) out.push(a[j--]); }
+  return out;
+};
+function buildWheel(/** @type {number[]} */ base, /** @type {number} */ jackpot, /** @type {number} */ aim) {
+  return { slices: [jackpot].concat(ARRANGE(base)), jackpotIndex: 0, jackpotGain: jackpot, aim };
 }
+/**
+ * Spotlight wheel: 10 slices (index 0 is the jackpot). coachStep = grade step of the coach helping this week (0 = none):
+ * every 6 coach Quality turns one +1 slice into +2 (one +1 stays); careful aim +0.003 per step.
+ * @param {string} effort @param {number} [coachStep]
+ */
+export function wheelSlices(effort, coachStep = 0) {
+  const w = TRAIN2.wheel[effort] || TRAIN2.wheel.normal, base = w.slices.slice();
+  const up = Math.round(CO.qualityPerStep * coachStep * CO.wheelUpPerQ);
+  for (let i = 0; i < up && base.filter((v) => v === 1).length > 1; i++) base[base.indexOf(1)] = 2;
+  return buildWheel(base, w.jackpot, w.aim + CO.aimPerStep * coachStep);
+}
+/** Course wheel: +1 x5, +2 x4, jackpot +3 (coach step does not change it). @param {number} [_coachStep] */
+export function courseWheel(_coachStep = 0) { const w = CO.courseWheel; return buildWheel(w.slices, w.jackpot, w.aim); }
+/**
+ * Where the wheel stops. Two draws always. A careful tap lands on the jackpot with probability aim, else the natural
+ * (uniform) landing; a random tap is the natural landing. @param {{random:()=>number}} rng @param {{slices:number[],jackpotIndex:number,aim:number}} wheel @param {boolean} [careful]
+ */
+export function spinResult(rng, wheel, careful = false) {
+  const a = rng.random(), b = rng.random();
+  const index = careful && a < wheel.aim ? wheel.jackpotIndex : Math.min(wheel.slices.length - 1, Math.floor(b * wheel.slices.length));
+  return { index, gain: wheel.slices[index], jackpot: index === wheel.jackpotIndex };
+}
+/** Course: coach gains the wheel's steps (cap S+), is away one week, one course a season. spin = a spinResult (or none: random tap). @param {any} s @param {{random:()=>number}} rng @param {string} coachId @param {{gain?:number}|null} [spin] */
+export function runCourse(s, rng, coachId, spin) {
+  if (!canCourse(s, coachId).ok) return s;
+  const price = courseCost(s, coachId);
+  const n = clone(s), i = n.coaches.findIndex((/** @type {any} */ c) => c.id === coachId);
+  // TODO: swap for economy.payCourse(n, price) once js/core/economy.js (ECON-CORE) lands; until then deduct directly.
+  if (n.econ) n.econ.coins = (n.econ.coins || 0) - price;
+  const c = Object.assign(n.coaches[i], normCoach(n.coaches[i]));
+  const gain = spin && Number.isFinite(spin.gain) ? /** @type {number} */ (spin.gain) : spinResult(rng, courseWheel(c.step), false).gain;
+  c.step = Math.min(CO.maxStep, c.step + gain); c.away = CO.awayWeeks; c.courseSeason = seasonN(s);
+  if (n.training && n.training.sel && n.training.sel.coachId === coachId) n.training.sel.coachId = null;
+  return n;
+}
+
+// ---- nets
+/** Who trains this week, in Six-first order: trainIds (TP covers), shortIds (can gain, TP short), skippedIds (no legal gain, free). @param {any} s */
+function roster(s) {
+  const plan = planOf(s), cost = TRAIN2.efforts[plan.effort].cost;
+  const six = sixOf(s), sq = squadOf(s);
+  const order = six.map((/** @type {string} */ id) => findPlayer(s, id)).filter(Boolean).concat(sq.filter((/** @type {any} */ p) => !six.includes(p.id)));
+  const skippedIds = [], able = [];
+  for (const p of order) (drillRoom(p, focusRating(p, plan.focus)).locked ? skippedIds : able).push(p);
+  let pool = (s.training && s.training.tp) || 0; const trainIds = [], shortIds = [];
+  for (const p of able) { if (pool >= cost) { pool -= cost; trainIds.push(p.id); } else shortIds.push(p.id); }
+  return { plan, cost, trainIds, shortIds, skippedIds: skippedIds.map((p) => p.id), ableCount: able.length };
+}
+/** What Run would do: { cost, trainIds, skippedIds, shortIds, hint|null }. @param {any} s */
+export function netsPreview(s) {
+  const r = roster(s);
+  const hint = r.ableCount < TRAIN2.lockedHintBelow ? `Only ${r.ableCount} can train. Try Balanced or the other focus.` : null;
+  return { cost: r.cost * r.trainIds.length, trainIds: r.trainIds, skippedIds: r.skippedIds, shortIds: r.shortIds, hint };
+}
+
+const logEntry = (/** @type {any} */ n, /** @type {any} */ e) => { (n.training.weekLog ||= []).push(e); };
+const ensureWeekStart = (/** @type {any} */ n) => { n.training.weekStart ||= {}; for (const p of squadOf(n)) n.training.weekStart[p.id] ||= RATINGS.map((k) => p[k]); };
+
+/**
+ * Run the nets: one roll per player who can gain (Six first), same effort and cost each; the Spotlight player takes the
+ * wheel result instead of his roll. opts.wheel = a spinResult ({ index, gain, jackpot }); missing = a random-tap spin
+ * (opts.careful for the careful rate). Draws one rng.random() per rolled player (two for a self-spun wheel). One run a week.
+ * @param {any} s @param {{random:()=>number}} rng @param {{wheel?:{gain:number,jackpot?:boolean}|null, careful?:boolean}} [opts]
+ */
+export function runNets(s, rng, opts = {}) {
+  const none = { state: s, lines: [], cost: 0, skipped: 0 };
+  if (!s.training || s.training.netsWeek === s.training.week) return none;
+  const r = roster(s); if (!r.trainIds.length) return { ...none, skipped: r.skippedIds.length };
+  const n = clone(s); ensureWeekStart(n);
+  const { plan } = r, q = TRAIN2.netsTerm * ((n.nets || 1) - 1) + coachQuality(s);
+  const odds = effortOdds(plan.effort, q, plan.focus === 'bal'), lines = [];
+  const wheelOn = plan.spotlightId && r.trainIds.includes(plan.spotlightId);
+  const wheel = wheelOn ? (opts.wheel && Number.isFinite(opts.wheel.gain) ? opts.wheel : spinResult(rng, wheelSlices(plan.effort, coachStepInUse(s)), !!opts.careful)) : null;
+  const words = ['Okay', 'Good', 'Great'];
+  for (const id of r.trainIds) {
+    const p = findPlayer(n, id), st = focusRating(p, plan.focus), room = drillRoom(p, st).room;
+    let rolled, wheelGain;
+    if (wheelOn && id === plan.spotlightId && wheel) { rolled = wheel.gain; wheelGain = wheel.gain; }
+    else { const x = rng.random() * 100; rolled = x < odds.okay ? 1 : x < odds.okay + odds.good ? 2 : 3; }
+    const gain = Math.min(rolled, room), from = p[st], wasHidden = isHidden(p);
+    p[st] = from + gain; p.drillsHere += 1;
+    n.training.drillCount = (n.training.drillCount || 0) + 1;
+    const word = words[Math.min(3, wheelGain !== undefined ? Math.max(1, wheelGain >= 3 ? 3 : wheelGain) : rolled) - 1];
+    const jackpot = wheelGain !== undefined && !!wheel && !!wheel.jackpot;
+    const breakthrough = (wheelGain === undefined && rolled === 3) || jackpot || stepOfRaw(p[st]) > stepOfRaw(from);
+    /** @type {any} */ const line = { id, name: p.name, stat: TRAIN2.statNames[st], rating: st, fromRaw: from, toRaw: p[st], word, breakthrough };
+    if (wheelGain !== undefined) line.wheelGain = wheelGain;
+    lines.push(line);
+    logEntry(n, { type: 'Drill', playerId: id, rating: st, outcome: word, gain });
+    if (wasHidden && !isHidden(p)) logEntry(n, { type: 'GradeRevealed', playerId: id, grade: bandOf(p.potential) });
+  }
+  const cost = r.cost * r.trainIds.length;
+  n.training.tp -= cost; n.training.netsWeek = n.training.week;
+  n.training.last = { week: n.training.week, lines, cost, skipped: r.skippedIds.length };
+  return { state: n, lines, cost, skipped: r.skippedIds.length, skippedIds: r.skippedIds, shortIds: r.shortIds };
+}
+
+/**
+ * Close the training week: summary (gains, grade reveals, nodes), remember focus + effort, clear the week's coach and spotlight,
+ * bring away coaches back, snapshot ratings, week + 1.
+ * @param {any} state
+ */
+export function endWeek(state) {
+  const n = clone(state); ensureWeekStart(n);
+  const log = n.training.weekLog || [];
+  const gains = squadOf(n).map((/** @type {any} */ p) => ({ playerId: p.id, by: RATINGS.map((k, i) => p[k] - n.training.weekStart[p.id][i]) }))
+    .filter((/** @type {any} */ g) => g.by.some((/** @type {number} */ v) => v !== 0)).map((/** @type {any} */ g) => ({ ...g, total: g.by.reduce((/** @type {number} */ a, /** @type {number} */ b) => a + b, 0) }));
+  n.training.weekSummary = { week: n.training.week, gains,
+    reveals: log.filter((/** @type {any} */ e) => e.type === 'GradeRevealed').map((/** @type {any} */ e) => ({ playerId: e.playerId, grade: e.grade })),
+    nodes: log.filter((/** @type {any} */ e) => e.type === 'NodeUnlocked').map((/** @type {any} */ e) => ({ playerId: e.playerId, side: e.side, node: e.node })),
+    lines: (n.training.last && n.training.last.lines) || [] };
+  const pl = planOf(state);
+  n.training.lastPlan = { focus: pl.focus, effort: pl.effort };
+  n.training.sel = { focus: pl.focus, effort: pl.effort, spotlightId: null, coachId: null };
+  for (const c of n.coaches || []) if (c.away > 0) c.away -= 1;
+  n.training.week += 1; n.training.nodeBought = {}; n.training.last = null; n.training.weekLog = []; n.training.netsWeek = null;
+  n.training.weekStart = Object.fromEntries(squadOf(n).map((/** @type {any} */ p) => [p.id, RATINGS.map((k) => p[k])]));
+  return n;
+}
+/** @param {any} state */
 export function seeTips(state) {
   if (state.training.tipsSeen) return state;
-  const n = structuredClone(state); n.training.tipsSeen = true; return n;
+  const n = clone(state); n.training.tipsSeen = true; return n;
 }

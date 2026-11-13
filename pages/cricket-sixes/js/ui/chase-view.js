@@ -3,6 +3,7 @@
 import { whyLine, outcomeLabel } from './why.js';
 import { openSheet } from './sheet.js';
 import { openGlossary } from './glossary-sheet.js';
+import { abilityLine } from './letters-ui.js';
 import { POT, gradeAria, newNotes, noteFor } from './grade-notes.js';
 
 const OUT_WORD = { W: 'Out', 6: 'Six', 4: 'Four', 2: '2 runs', 1: '1 run', 0: 'No run' };
@@ -81,7 +82,7 @@ function batterRow(b, cols, st) {
     '<div class="pbox">' + ic(ROLE_ICON[b.bat], 24) +
     '<span class="bv-tx"><span class="nm name">' + esc(b.name) + '</span>' +
     '<span class="sub">' + (best ? '<span class="best" aria-label="In best overs now">★</span> ' : '') + esc(role) + '</span>' +
-    '<span class="sub ch-ab">Ability ' + esc(b.ability) + '</span>' +
+    '<span class="sub ch-ab">' + abilityLine(b.ability).html + '</span>' +
     '<span class="sub" aria-label="' + esc(b.r + ' runs from ' + b.b + ' balls') + '">' + esc(b.r) + (b.r === 1 ? ' run' : ' runs') + ' (' + esc(b.b) + ')</span>' +
     (b.onStrike ? '<span class="sub strike">On strike</span>' : '') + '</span>' +
     gradeBox(b.grade) + noteFor(b.grade, st, esc) + '</div>' + cells + '</div>';

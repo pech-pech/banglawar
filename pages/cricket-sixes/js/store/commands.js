@@ -6,14 +6,14 @@ import { pickBowler, pickIntent, pickField, rivalCall } from '../core/ai.js';
 import { makeStartState } from '../data/m0-fixture.js';
 import { FLAGS } from '../data/flags.js';
 import { SEASON } from '../data/season.js';
-import { SKILLS, COACHES } from '../data/training.js';
 import { makeClubs, growClubs, aiPickSix } from '../core/clubs.js';
-import { makeSchedule, makeTable, applyResult, placeOf, inTopFour, finalsDraw, finalFrom, koWinner, tpAward, simRound, simMatch, simFinals, ME } from '../core/season.js';
-import { pickCoach, doDrill, endWeek, levelOfXp, drillAll, repeatWeek, setAutoBench, autoBenchDrills, setDrillPlan, seeTips } from '../core/training.js';
+import { makeSchedule, makeTable, applyResult, placeOf, inTopFour, finalsDraw, finalFrom, koWinner, matchPay, tpAward, simRound, simMatch, simFinals, ME } from '../core/season.js';
+import { planOf, setPlan as setTrainPlan, runNets, endWeek, coachList, coachStepInUse, startCoach as makeStartCoach, passScout, courseCost, signCoach, releaseCoach, pickWeekCoach, canCourse, courseWheel, runCourse, wheelSlices, spinResult } from '../core/training.js';
 import { unlockNode, makeFx } from '../core/skills.js';
 import { defaultOvers } from '../core/plan.js';
+import { newEconomy, applyMatch, tickBuild, finalsReward, finalsTp, payCourse, startBuild, buySink, buyMedal, buyLegacy } from '../core/economy.js';
 import { newRun, closeSeason, remakeRivals, carryOf, applyCarry } from '../core/run.js';
-import { RUN } from '../data/run.js';
+import { RUN, SQUAD } from '../data/run.js';
 import { newBook, isBook, recordOver } from '../core/pairing.js';
 
 const ovStr = (balls) => `${Math.floor(balls / 6)}.${balls % 6}`;
@@ -128,21 +128,10 @@ function startChase(s) {
 
 
 // ---------------------------------------------------------------- season (CONTRACT m0 section 2)
-const FOCI = ['Power', 'Technique', 'Pace', 'Craft'];
-const COACH_NAMES = ['Okafor', 'Lindqvist', 'Mehta', 'Bryce', 'Haldane', 'Pryce', 'Tanaka', 'Vickers'];
 const DEFAULT_OVERS = [0, 1, 2, 3, 4, 5, 0, 1, 2, 3];
 const clone = (x) => JSON.parse(JSON.stringify(x));
 
-/** Level 3 coach candidates, one focus each (training core's pickCoach keeps the one picked). */
-function makeCandidates(rng) {
-  const foci = rng.shuffle(FOCI.slice()).slice(0, 3);
-  const names = rng.shuffle(COACH_NAMES.slice());
-  return foci.map((f, i) => ({
-    id: `k${i}`, name: names[i], candidate: true,
-    xp: Object.fromEntries(FOCI.map((x) => [x, x === f ? COACHES.xp[2] : 0])),
-    lv: Object.fromEntries(FOCI.map((x) => [x, x === f ? 3 : 0])),
-  }));
-}
+const COACH_NAMES = ['Okafor', 'Lindqvist', 'Mehta', 'Bryce', 'Haldane', 'Pryce', 'Tanaka', 'Vickers'];
 
 /** M's pair for a league round: { round, kind, opp }. */
 function leagueFixture(season, round) {
@@ -164,14 +153,47 @@ const blankMatch = () => ({ me: null, rival: null, inn1: null, inn2: null, call:
 function newGame(payload) {
   const seed = String(payload && payload.seed != null ? payload.seed : '0');
   const clubs = makeClubs(makeRng(`${seed}|clubs`), SEASON);
+  // Squad of 8 (SPEC s6): M keeps slots 1-6 plus 9 and 10. The AI clubs keep their 10.
+  const mine = clubs[0];
+  mine.squad = SQUAD.startSlots.map((i) => mine.squad[i]);
+  mine.six = aiPickSix(mine);
   const season = newSeasonData(seed, 1, clubs);
   return {
-    v: 4, salt: '', seed, stage: 'hub', ...blankMatch(), run: newRun(seed), book: newBook(),
+    v: 5, salt: '', seed, stage: 'hub', ...blankMatch(), run: newRun(seed), book: newBook(),
     season, clubs, plan: { overs: DEFAULT_OVERS.slice(), fields: NEUTRAL_FIELDS(), edited: false, key: '' },
-    coaches: makeCandidates(makeRng(`${seed}|coaches`)), coachPicked: false, nets: 1,
-    training: { tp: 450, week: 1, drilled: {}, nodeBought: {}, last: null, weekLog: [], weekStart: {}, drillCount: 0 },
+    econ: newEconomy(), coaches: [makeStartCoach('k0', COACH_NAMES[makeRng(`${seed}|coaches`).int(COACH_NAMES.length)])], coachPicked: true, nets: 1, releaseLedger: [],
+    training: { tp: 450, week: 1, nodeBought: {}, weekLog: [], weekStart: {}, drillCount: 0, focus: 'bat', effort: 'normal', spotlight_id: null, last_plan: null, lastPlan: null },
     fixture: leagueFixture(season, 1),
   };
+}
+
+// ---- squad of 8 (SPEC s6)
+/** True when M's squad is at the cap. @param {any} s */
+export const squadFull = (s) => s.clubs[0].squad.length >= SQUAD.size;
+/** Sign / academy gate: { ok, why }. A full squad needs a release first (declining stays free). @param {any} s */
+export function canAddPlayer(s) { return squadFull(s) ? { ok: false, why: SQUAD.fullText } : { ok: true, why: '' }; }
+/** Sale gate. A starter (in the Six) can only go at season end; nobody goes below the minimum. @param {any} s @param {string} id */
+export function canSell(s, id) {
+  const c = s.clubs[0];
+  if (!c.squad.some((p) => p.id === id)) return { ok: false, why: 'Not in your squad' };
+  if (c.squad.length <= SQUAD.min) return { ok: false, why: `Keep at least ${SQUAD.min} players` };
+  const six = c.six.length === SEASON.sixSize ? c.six : aiPickSix(c);
+  if (six.includes(id) && !(s.stage === 'end' || (s.season && s.season.phase === 'over'))) return { ok: false, why: 'A starter can only leave at season end' };
+  return { ok: true, why: '' };
+}
+function addPlayer(s, p) {
+  if (!p || !p.player || !p.player.id || !canAddPlayer(s).ok || s.clubs[0].squad.some((x) => x.id === p.player.id)) return s;
+  const n = clone(s);
+  n.clubs[0].squad.push({ drillsHere: 0, nodes: { bat: 0, bowl: 0 }, ...clone(p.player) });
+  return n;
+}
+function sellPlayer(s, p) {
+  if (!p || !canSell(s, p.id).ok) return s;
+  const n = clone(s), c = n.clubs[0];
+  c.squad = c.squad.filter((x) => x.id !== p.id);
+  c.six = aiPickSix(c);
+  n.plan = { ...n.plan, edited: false, key: '' };
+  return n;
 }
 
 function setSix(s, p) {
@@ -254,8 +276,13 @@ function finishMatch(s) {
   if (fx.kind === 'league') res.winner = res.ra > res.rb ? ME : res.ra < res.rb ? fx.opp : null;
   else { res.winner = koWinner(res, placeOf(se.table, ME), placeOf(se.table, fx.opp)); outcome = res.winner === ME ? 'won' : 'lost'; }
   se.results.push(res);
-  const tp = tpAward(fx.kind, outcome, se.league);
-  n.training.tp += tp; se.tpWon += tp;
+  const pay = matchPay(n, { outcome, kind: fx.kind });
+  const finKey = fx.kind === 'semi' ? (outcome === 'lost' ? 'semi' : null) : fx.kind === 'final' ? (outcome === 'won' ? 'champ' : 'runner') : null;
+  if (finKey) pay.total = finalsTp(finKey);
+  n.training.tp += pay.total; se.tpWon += pay.total;
+  n.pay = { ...pay, outcome, opp: fx.opp, round: fx.round };
+  Object.assign(n, tickBuild(applyMatch(n, { win: outcome === 'won', tie: outcome === 'tied' })));
+  if (finKey) Object.assign(n, finalsReward(n, finKey));
   se.last = { kind: fx.kind, round: fx.round };
   n.fixture = null;
 
@@ -285,7 +312,7 @@ function finishMatch(s) {
     se.finals.final.winner = res.winner; se.champion = res.winner; se.phase = 'over';
   }
   n.stage = 'train';
-  return withDefaultCoach(n); // p7first: the coach default lands here, after match 1
+  return n;
 }
 
 function nextWeek(s) {
@@ -348,8 +375,6 @@ function applyCommandCore(s, cmd, payload) {
   switch (cmd) {
     case 'NewMatch': return seasonMatch(s);
     case 'Reseed': return payload && typeof payload.salt === 'string' && payload.salt !== s.salt ? { ...s, salt: payload.salt } : s;
-    case 'PickCoach': { const n = s.stage === 'coach' ? pickCoach(s, payload || {}) : s; return n === s ? s : backFromCoach(n); }
-    case 'ChangeCoach': return changeCoach(s);
     case 'SeeFirstStrip': return seeFirstStrip(s);
     case 'OpenSquad': return ['hub', 'semi', 'final', 'plan'].includes(s.stage) && s.season ? { ...s, stage: 'squad' } : s;
     case 'SetSix': return setSix(s, payload);
@@ -360,14 +385,25 @@ function applyCommandCore(s, cmd, payload) {
     case 'StartMatch': return startMatch(s);
     case 'EditPlan': return editPlan(s, payload);
     case 'FinishMatch': return finishMatch(s);
-    case 'Drill': return s.stage === 'train' ? doDrill(s, payload || {}, makeRng(`${s.season.seed}|drill|${s.training.week}|${payload && payload.playerId}|${s.salt}`)) : s;
-    case 'DrillAll': return s.stage === 'train' ? drillAll(s, payload && payload.plan, drillRngFor(s)) : s;
-    case 'RepeatWeek': return s.stage === 'train' ? repeatWeek(s, drillRngFor(s)) : s;
-    case 'AutoBench': return s.stage === 'train' ? setAutoBench(s, payload && payload.on) : s;
-    case 'SetDrillPlan': return s.stage === 'train' ? setDrillPlan(s, payload && payload.plan) : s;
-    case 'TipsSeen': return s.stage === 'train' ? seeTips(s) : s;
+    case 'SetTrainPlan': return viaTrain(s, (x) => setTrainPlan(x, payload || {}));
+    case 'Spin': return viaTrain(s, (x) => spin(x, payload));
+    case 'RunNets': return viaTrain(s, doRunNets);
+    case 'PickWeekCoach': return viaTrain(s, (x) => pickWeekCoach(x, payload && payload.coachId != null ? payload.coachId : null));
+    case 'PassScout': return viaTrain(s, passScout);
+    case 'SignCoach': return viaTrain(s, (x) => signCoach(x, payload && payload.coachId));
+    case 'ReleaseCoach': return viaTrain(s, (x) => releaseCoach(x, payload && payload.coachId));
+    case 'CourseSpin': return viaTrain(s, (x) => courseSpin(x, payload));
+    case 'RunCourse': return viaTrain(s, (x) => doRunCourse(x, payload));
+    case 'TipsSeen': return s.stage === 'train' && !s.training.tipsSeen ? { ...s, training: { ...s.training, tipsSeen: true } } : s;
     case 'UnlockNode': return s.stage === 'train' ? unlockNode(s, payload || {}) : s;
-    case 'EndWeek': return s.stage === 'train' ? { ...endWeek(autoBenchDrills(s, drillRngFor(s))), stage: 'week' } : s;
+    case 'EndWeek': return s.stage === 'train' ? { ...sync(clearWeek(endWeek(s))), stage: 'week' } : s;
+    case 'StartBuild': return s.season && payload ? startBuild(s, payload.what) : s;
+    case 'BuySink': return s.season && payload ? buySink(s, payload.id) : s;
+    case 'BuyMedal': return s.season && payload ? buyMedal(s, payload.id) : s;
+    case 'BuyLegacy': return s.season ? buyLegacy(s) : s;
+    case 'AddPlayer': return addPlayer(s, payload);
+    case 'SellPlayer': return sellPlayer(s, payload);
+    case 'DismissNotice': return s.notice ? (({ notice, ...rest }) => rest)(s) : s;
     case 'NextWeek': return nextWeek(s);
     case 'NewSeason': return newSeason(s);
     case 'RunEnd': return runEnd(s);
@@ -417,49 +453,63 @@ function startMatch(s) {
   return seasonMatch({ ...t, stage: 'plan', plan });
 }
 
-// ---- p7train: bulk drills use the same rng the single Drill command uses, so a bulk run rolls like tapping by hand
-const drillRngFor = (s) => (id) => makeRng(`${s.season.seed}|drill|${s.training.week}|${id}|${s.salt}`);
-
-// ---- p7first
-// First session: the coach is a default (no screen before match 1), asked about only after it. See mockups/p7-first/README.md.
-/** How many of the starting six a candidate coach's focus helps (their bat tree or bowl tree has that focus). */
-function coachHelps(s, cand) {
-  const focus = Object.keys(cand.lv).find((f) => cand.lv[f] > 0);
-  const mine = s.clubs[0], byId = (id) => mine.squad.find((x) => x.id === id);
-  return aiPickSix(mine).map(byId).filter((p) => p && ((SKILLS.trees[p.bat] || {}).focus === focus || (SKILLS.trees[p.bowl] || {}).focus === focus)).length;
+// ---- P11 training redo: plan, nets, spotlight wheel, coaches, courses. The maths is in core/training.js; these only route and seed.
+const TRAIN_RNG = (s, tag, extra = '') => makeRng(`${s.season.seed}|${tag}|${s.training.week}|${extra}|${s.salt}`);
+/** Mirror the plan into the named save fields (focus, effort, spotlight_id, last_plan) so a save reads plainly. Returns the same state when nothing moved. */
+function sync(s) {
+  if (s === undefined || !s.training) return s;
+  const p = planOf(s), T = s.training, lp = T.lastPlan || T.last_plan || null;
+  if (T.focus === p.focus && T.effort === p.effort && T.spotlight_id === p.spotlightId && T.last_plan === lp) return s;
+  return { ...s, training: { ...T, focus: p.focus, effort: p.effort, spotlight_id: p.spotlightId, last_plan: lp } };
 }
-
-/** The default coach: helps the most of the six; ties go to the first candidate. null when there is nothing to pick. */
-export function defaultCoachId(s) {
-  let best = null, top = -1;
-  for (const c of (s.coaches || []).filter((x) => x.candidate)) { const k = coachHelps(s, c); if (k > top) { top = k; best = c; } }
-  return best ? best.id : null;
-}
-
-/** Called when the first training week opens: pick the default coach if none is picked yet. Keeps the candidates in coachPool for Change. */
-function withDefaultCoach(s) {
-  if (s.coachPicked || !(s.coaches || []).some((c) => c.candidate)) return s;
-  const id = defaultCoachId(s), pool = clone(s.coaches);
-  const n = pickCoach(s, { coachId: id });
-  return n === s ? s : { ...n, coachPool: pool };
-}
-
-/** Change coach: only in training, before the first drill. Puts the three candidates back and opens the coach screen. */
-function changeCoach(s) {
-  if (s.stage !== 'train' || !s.coachPool || !s.coachPicked || ((s.training && s.training.drillCount) || 0) > 0) return s;
-  const cur = (s.coaches || []).find((c) => !c.candidate);
+/** Tap the wheel (SPIN then STOP): the result waits in training.pending until Run nets. One spin a week, and only with a spotlight player. */
+function spin(s, p) {
+  const T = s.training, plan = planOf(s);
+  if (!plan.spotlightId || (T.pending && T.pending.week === T.week) || (T.nets && T.nets.week === T.week)) return s;
+  const wheel = wheelSlices(plan.effort, coachStepInUse(s)), careful = !!(p && p.careful);
+  const result = spinResult(TRAIN_RNG(s, 'spin'), wheel, careful);
   const n = clone(s);
-  n.coaches = clone(s.coachPool).map((c) => ({ ...c, candidate: true }));
-  n.coachPicked = false; n.coachBack = 'train'; n.coachCur = cur ? cur.id : null; n.stage = 'coach';
+  n.training.pending = { week: T.week, careful, wheel, result };
   return n;
 }
-
-/** After a pick: back to where Change was tapped (training), else the hub. */
-function backFromCoach(n) {
-  const to = n.coachBack || 'hub';
-  const m = { ...n, stage: to }; delete m.coachBack; delete m.coachCur;
+function doRunNets(s) {
+  const T = s.training;
+  if (T.nets && T.nets.week === T.week) return s;
+  const plan = planOf(s), pend = T.pending && T.pending.week === T.week && plan.spotlightId ? T.pending : null;
+  const r = runNets(s, TRAIN_RNG(s, 'nets'), pend ? { wheel: pend.result } : {});
+  if (!r || !r.state || r.state === s) return s;
+  const n = clone(r.state);
+  delete n.training.pending;
+  n.training.nets = { week: T.week, lines: r.lines || [], cost: r.cost || 0, skipped: r.skipped || 0 };
+  n.training.last_plan = { focus: plan.focus, effort: plan.effort, spotlight_id: plan.spotlightId || null, coachId: plan.coachId || null };
+  return sync(n);
+}
+function courseSpin(s, p) {
+  const id = p && p.coachId, T = s.training;
+  if (!id || !canCourse(s, id).ok || (T.coursePending && T.coursePending.coachId === id)) return s;
+  const c = coachList(s).find((x) => x.id === id);
+  const wheel = courseWheel(c.step), careful = !!p.careful;
+  const n = clone(s);
+  n.training.coursePending = { coachId: id, careful, wheel, result: spinResult(TRAIN_RNG(s, 'course', id), wheel, careful) };
+  return n;
+}
+function doRunCourse(s, p) {
+  const id = p && p.coachId, pend = s.training.coursePending;
+  if (!id || !pend || pend.coachId !== id || !canCourse(s, id).ok) return s;
+  const cost = courseCost(s, id), paid = payCourse(s, cost); // Coins go through the economy; training's own deduct is bypassed
+  if (cost > 0 && paid === s) return s;
+  const bare = { ...s }; delete bare.econ;
+  const n = runCourse(bare, TRAIN_RNG(s, 'course', id), id, pend.result);
+  if (!n || n === bare) return s;
+  const m = clone(n);
+  if (paid.econ) m.econ = clone(paid.econ);
+  const was = coachList(s).find((x) => x.id === id), now = coachList(m).find((x) => x.id === id);
+  m.training.courseDone = { week: s.training.week, coachId: id, name: was.name, from: was.step, to: now.step, gain: now.step - was.step, jackpot: !!pend.result.jackpot };
+  delete m.training.coursePending;
   return m;
 }
+const clearWeek = (s) => { const n = clone(s); delete n.training.pending; delete n.training.nets; delete n.training.coursePending; return n; };
+const viaTrain = (s, fn) => { if (s.stage !== 'train') return s; const n = fn(s); return n === s ? s : sync(n); };
 
 /** The first-match strip is done (Skip). Once per save. */
 function seeFirstStrip(s) {

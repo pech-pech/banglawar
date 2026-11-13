@@ -84,19 +84,16 @@ const noisy = {
 export const POLICIES = [idle, careless, ...['A', 'P'].flatMap((f) => ['D', 'R', 'A'].map((i) => rote(f, i))), skilled, noisy];
 export const policyByName = (n) => POLICIES.find((p) => p.name === n);
 
-/** Training week: drill (lowest rating that has room) then buy nodes. Returns the new state. */
+/** Training week: plan + nets run, then buy nodes. Returns the new state. */
 function trainWeek(s, pol, r) {
   if (pol.train === 'none') return s;
   const squad = mySquad(s);
   const order = pol.train === 'random' ? r.shuffle(squad.map((p) => p.id)) : squad.slice().sort((a, b) => rsum(a) - rsum(b)).map((p) => p.id);
-  for (const id of order) {
-    const p = mySquad(s).find((x) => x.id === id);
-    const drills = pol.train === 'random' ? r.shuffle(RATINGS.slice()) : RATINGS.slice().sort((a, b) => p[a] - p[b]);
-    for (const d of drills) {
-      const n = applyCommand(s, 'Drill', { playerId: id, drillId: d });
-      if (n !== s) { s = n; break; }
-    }
-  }
+  // Training redo: one plan a week (focus + effort), then one nets run for all 8.
+  const focus = pol.train === 'random' ? r.pick(['bat', 'bowl', 'bal']) : 'bal';
+  const effort = pol.train === 'random' ? r.pick(['easy', 'normal', 'push']) : 'normal';
+  s = applyCommand(s, 'SetTrainPlan', { focus, effort, spotlightId: null });
+  s = applyCommand(s, 'RunNets', {});
   if (pol.train === 'all') {
     for (const id of order.slice().reverse()) {
       const p = mySquad(s).find((x) => x.id === id);

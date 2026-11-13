@@ -16,7 +16,7 @@ export function attachReport(el, store) {
     let storage = null; try { storage = window.localStorage; storage.getItem('x'); } catch (e) { storage = null; }
     const vp = () => 'screen ' + window.innerWidth + 'x' + window.innerHeight + ' at ' + (window.devicePixelRatio || 1) + 'x pixels, ' + (window.innerHeight >= window.innerWidth ? 'upright' : 'sideways');
     const log = createLog({ storage, now: () => Date.now(), build: BUILD, env: vp });
-    const env = () => ({ build: BUILD, now: Date.now(), vp: vp(), errors: log.data().errors.n, lastError: log.data().errors.last.slice(-1)[0] || '', flags: { ...FLAGS }, save: saveOf(store.get()) });
+    const env = () => ({ build: BUILD, now: Date.now(), vp: vp(), errors: log.data().errors.n, lastError: log.data().errors.last.slice(-1)[0] || '', flags: { ...FLAGS }, fixedSeed: (() => { try { return new URLSearchParams(location.search).has('seed'); } catch (e) { return false; } })(), save: saveOf(store.get()) });
     let shownKey = '', stage = null, stageT = Date.now(), shownT = Date.now(), panelT = 0, lastGloss = '', resultT = 0;
     const flush = () => { try { if (stage) log.screen(stage, Date.now() - stageT); stageT = Date.now(); } catch (e) { /* ignore */ } };
     const rep = {
@@ -25,19 +25,22 @@ export function attachReport(el, store) {
       count: () => log.data().matches.length, flush,
       clear: () => { log.clear(); }, // no half-match record: counting restarts at the next new match
     };
-    if (store.get() && store.get().stage === 'bowl') log.matchStart(store.get());
+    if (store.get()) log.stage(store.get().stage); // Z2: a session that closes before any screen change still has an end screen
+    if (store.get() && store.get().stage === 'bowl') log.matchStart(store.get(), true);
     window.addEventListener('error', (e) => log.error(e.message));
     window.addEventListener('unhandledrejection', (e) => log.error(e.reason));
     document.addEventListener('visibilitychange', () => { if (document.hidden) flush(); else { stageT = Date.now(); shownT = Date.now(); } });
-    document.addEventListener('click', (e) => { const t = e.target.closest && e.target.closest('[data-gloss]'); if (t) lastGloss = t.getAttribute('data-gloss') || ''; }, true);
+    let glossTap = false;
+    document.addEventListener('click', (e) => { const t = e.target.closest && e.target.closest('[data-gloss]'); if (t) { lastGloss = t.getAttribute('data-gloss') || ''; glossTap = true; } }, true);
     // Why? and glossary opens, seen as sheets added to the body (no change to the views).
     new MutationObserver((muts) => {
       for (const m of muts) for (const n of m.addedNodes) {
         if (!n.classList) continue;
-        if (n.classList.contains('gloss-root')) { const hl = n.querySelector('.is-hl'); log.gloss((hl && hl.getAttribute('data-id')) || lastGloss || 'full list (' + stage + ')'); lastGloss = ''; }
+        if (n.classList.contains('gloss-root')) { const hl = n.querySelector('.is-hl'); log.gloss((hl && hl.getAttribute('data-id')) || lastGloss || 'full list (' + stage + ')'); lastGloss = ''; glossTap = false; }
         else if (n.classList.contains('c-sheet')) {
           const t = (n.querySelector('.c-sheet__title') || {}).textContent || '';
-          if (/^Why/i.test(t)) log.why(); else if (t !== 'Settings') { log.gloss(lastGloss || 'cricket words'); lastGloss = ''; }
+          if (/^Why/i.test(t)) log.why(); else if (glossTap) { log.gloss(lastGloss || 'cricket words'); } // only a tapped "?" / word counts; Book, Table, Team and other sheets do not
+          lastGloss = ''; glossTap = false;
         }
       }
     }).observe(document.body, { childList: true });

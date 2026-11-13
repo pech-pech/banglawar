@@ -15,6 +15,5 @@ export function noteFor(g, st, esc) {
     if (st.q) return ''; st.q = true;
     return '<span class="bv-note" data-qnote>? = ' + esc(UNKNOWN_WHY) + ' <span class="bv-pips" aria-hidden="true">▫ 0/1</span></span>';
   }
-  if (st.grow) return ''; st.grow = true;
-  return '<span class="bv-note" data-grow>' + esc(GROW) + '</span>';
+  return ''; // the 'how high he can grow' words live in the legend line under the list (POT line), not inside a tile
 }

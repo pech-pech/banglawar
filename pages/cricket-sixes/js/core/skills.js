@@ -3,6 +3,7 @@
 // Pure: no Math.random, Date or DOM. Invalid commands return the SAME state object.
 import { SKILLS } from '../data/training.js';
 import { coachLevel, findPlayer } from './training.js';
+// Coach shape (P11): grade step + strong focuses. coachLevel() maps it to the old 0..5 level (step 4 + 3 per level), so a B- (13) coach strong in the side boosts like old level 3.
 
 export const COSTS = SKILLS.costs;
 export const NODE_COUNT = COSTS.length;

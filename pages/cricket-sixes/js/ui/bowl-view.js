@@ -5,6 +5,7 @@ import { whyLine, outcomeLabel } from './why.js';
 import { openSheet } from './sheet.js';
 import { openGlossary } from './glossary-sheet.js';
 import { stripHtml } from './first-strip.js';
+import { abilityLine } from './letters-ui.js';
 import { POT, gradeAria, newNotes, noteFor } from './grade-notes.js';
 
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -59,9 +60,9 @@ function row(b, vm, st) {
   const best = (b.previews || []).some((p) => p.inPhase);
   const star = best ? '<span class="best bv-best" aria-hidden="true">★</span>' : '';
   const pbox = `<div class="pbox"><span class="bv-icw">${sel && ok ? '<span class="bv-tick" aria-hidden="true"></span>' : ''}${ic(TYPE[b.bowl] || 'typeMedium', 24, 'ico')}</span><span class="bv-tx"><span class="nm name">${esc(b.name)}</span>` +
-    `<span class="sub">${star}${esc(b.bowl)}</span><span class="sub bv-ab">Ability ${esc(b.ability)}</span><span class="sub bv-ov">${esc(b.overs)} of 2 overs</span></span>` +
+    `<span class="sub">${star}${esc(b.bowl)}</span><span class="sub bv-ab">${abilityLine(b.ability).html}</span><span class="sub bv-ov">${esc(b.overs)} of 2 overs</span></span>` +
     `<span class="gr${g === '?' ? ' bv-gq' : ''}"><b>${esc(g)}</b></span>${noteFor(g, st, esc)}</div>`;
-  const label = `${b.name}, ${b.bowl} bowler, ability ${b.ability}, ${b.overs} of 2 overs used, ${gradeAria(g)}` +
+  const label = `${b.name}, ${b.bowl} bowler, ability ${abilityLine(b.ability).say}, ${b.overs} of 2 overs used, ${gradeAria(g)}` +
     (best ? ', in his best overs now' : '');
   if (!ok) {
     const why = REASON[b.reason] || "Can't bowl now";
@@ -131,9 +132,9 @@ export function render(el, vm, dispatch) {
     `<section class="colR bv-colR"><div class="seg bv-seg" role="radiogroup" aria-label="Field">${seg('A', 'fieldAttack')}${seg('P', 'fieldProtect')}</div>` +
     chip + lastLine(vm) +
     `<div class="hints bv-hints"><p><b>Attack</b>: more wickets, more runs. <b>Protect</b>: fewer runs.</p>` +
-    `<p><b>${POT}</b>: D low to S best.${anyBest ? ' <b class="bv-starkey" aria-hidden="true">★</b> = best overs now.' : ''}</p></div></section>` +
+    `<p><b>${POT}</b>: how high he can grow, D low to S best.${anyBest ? ' <b class="bv-starkey" aria-hidden="true">★</b> = best overs now.' : ''}</p></div></section>` +
     `<div class="ctabar bv-cta"><button type="button" class="c-btn c-btn--primary c-btn--cta" data-bowl${vm.canBowl === false ? ' disabled' : ''}>` +
-    `<span>Bowl over ${esc(vm.over)}${selB ? ':&nbsp;<span class="name">' + esc(selB.name) + '</span>' : ''}</span></button></div>`;
+    `<span class="bv-ct">Bowl over ${esc(vm.over)}${selB ? '<small class="name">' + esc(selB.name) + '</small>' : ''}</span></button></div>`;
   // D3: bring the pre-filled bowler row into view inside the list only (never the page)
   const selRow = el.querySelector('.bv-sb .sb-row.is-selected'), lst = el.querySelector('.bv-sb');
   if (selRow && lst && lst.scrollHeight > lst.clientHeight) {

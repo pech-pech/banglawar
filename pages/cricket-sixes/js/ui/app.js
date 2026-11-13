@@ -7,6 +7,7 @@ import { playOverPanel } from './over-panel.js';
 import * as hub from './hub-view.js';
 import * as end from './end-view.js';
 import { bindActs } from './dom.js';
+import { matchPay, gapLetters } from '../core/season.js';
 import { attachReport } from '../report/hooks.js';
 
 /* Stage table: s.stage -> [view module or file name, selector name]. A file name is loaded on first use
@@ -31,10 +32,12 @@ const STAGES = {
 /* Sheets opened by data-act="sheet:<name>" (view state only, never saved). vm: [selector, how to turn the data-arg into args]. */
 const idOf = (a) => (a && typeof a === 'object' ? (a.id != null ? a.id : a.playerId) : a);
 const SHEETS = {
+  money: { file: 'club-money-view', fn: 'openClubMoney', state: true },
+  stadium: { file: 'stadium-view', fn: 'openStadium', state: true },
+  sinks: { file: 'sinks-sheet', fn: 'openSinks', state: true },
   table: { file: 'table-sheet', vm: ['tableVM', () => []] },
   player: { file: 'player-sheet', vm: ['playerVM', (a) => [idOf(a)]] },
   tree: { file: 'tree-sheet', vm: ['treeVM', (a) => [idOf(a), a && a.side]] },
-  result: { file: 'player-sheet', fn: 'openResult', vm: ['drillResultVM', (a) => [idOf(a)]] },
   coaches: { file: 'coaches-sheet', vm: ['coachesVM', () => []] },
   traininghelp: { file: 'training-view', fn: 'openHelp', vm: null },
   save: { file: 'save-sheet', vm: null },
@@ -44,6 +47,21 @@ const SHEETS = {
   book: { file: 'book-sheet', fn: 'openBook', vm: ['bookVM', () => []] },
 };
 const mods = {}, loading = {};
+/** Letters data the views need, taken from the core when the view model does not already carry it: the pay card (result), the pre-match letter pair and the squad-of-8 notice (hub). */
+function decorate(s, vm) {
+  if (!vm || typeof vm !== 'object') return vm;
+  if (s.stage === 'done' && s.season && s.fixture && !vm.pay) {
+    const pay = matchPay(s, s.result);
+    if (pay.kind !== 'league' && typeof vm.tpEarned === 'number') pay.total = vm.tpEarned;
+    vm.pay = pay;
+  }
+  if ((s.stage === 'hub' || s.stage === 'semi' || s.stage === 'final') && s.season) {
+    if (s.econ && !vm.econ) vm.econ = s.econ;
+    if (s.fixture && !vm.gap) vm.gap = gapLetters(s, s.fixture.opp);
+    if (s.notice === 'squad8' && !vm.notice) vm.notice = { kind: 'squad8', moved: (s.releaseLedger || []).length };
+  }
+  return vm;
+}
 /** After the over panel closes the screen behind redraws; closing the Book from the found card returns focus to its main control (first match wins). */
 const BACK_FOCUS = ['#app [data-bowl]:not([disabled])', '#app .c-btn--cta:not([disabled])', '#app .cta button:not([disabled])', '#app button:not([disabled])'];
 
@@ -64,7 +82,7 @@ export function mount(el, store) {
       const fn = m[def.fn || 'open'] || m[Object.keys(m).find((k) => /^open/.test(k))];
       if (typeof fn !== 'function') throw new Error('No open function in ' + def.file);
       const s = store.get();
-      const vm = def.vm ? sel[def.vm[0]](s, ...def.vm[1](arg)) : arg;
+      const vm = def.state ? s : def.vm ? sel[def.vm[0]](s, ...def.vm[1](arg)) : arg;
       fn(vm, (cmd, payload) => dispatch(cmd, payload), openByName, arg, () => (def.vm ? sel[def.vm[0]](store.get(), ...def.vm[1](arg)) : arg)); // sheets: open(vm, dispatch, open, arg, refresh)
     }).catch((err) => console.error(err));
   }
@@ -80,7 +98,7 @@ export function mount(el, store) {
       if (!view) { el.innerHTML = '<p class="ss-loading" role="status">Loading</p>'; return; }
       if (view.error) throw view.error;
       if (typeof sel[vmName] !== 'function') throw new Error('No view model yet: ' + vmName);
-      const vm = sel[vmName](s);
+      const vm = decorate(s, sel[vmName](s));
       view.render(el, vm, (cmd, payload) => dispatch(cmd, payload), openByName); // views: render(el, vm, dispatch, open)
     } catch (err) {
       console.error(err);

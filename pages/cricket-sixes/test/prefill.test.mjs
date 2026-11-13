@@ -6,7 +6,6 @@ import { planVM } from '../js/store/selectors.js';
 // M's pick (13:46): the bowling plan opens pre-filled with the best matchups, and any over can be changed.
 function toPlan(seed, ids) {
   let s = C(null, 'NewGame', { seed });
-  s = C(s, 'PickCoach', { coachId: s.coaches.find((c) => c.candidate).id });
   s = C(s, 'OpenSquad', {});
   s = C(s, 'SetSix', { ids: ids || s.clubs[0].squad.slice(0, 6).map((p) => p.id) });
   return s;

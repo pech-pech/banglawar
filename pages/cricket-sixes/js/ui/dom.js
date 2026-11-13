@@ -1,4 +1,5 @@
 // Shared view helpers (contract section 6; frozen). Each returns trusted markup; pass user text through esc().
+import { letterOfShown } from '../core/letters.js';
 export function esc(s) {
   return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
     return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
@@ -56,12 +57,14 @@ export function peakTag() {
   return '<span class="m0-flat m0-peak" aria-label="At peak">Peak</span>';
 }
 
+/** Ability as a letter (SPEC s4). n = shown ability 20..200; the number is never printed. */
 export function abilityCell(n, max) {
+  const L = letterOfShown(n), sp = String(L).replace(/\+$/, ' plus').replace(/-$/, ' minus');
   if (max) {
-    return '<span class="m0-abil m0-max" aria-label="' + esc(n) + ', max. Capped at potential ' + esc(n) + '">' +
-      '<b>' + esc(n) + '</b><span class="c-tag m0-maxtag">max</span><span class="m0-cap">Capped at potential ' + esc(n) + '</span></span>';
+    return '<span class="m0-abil m0-max" aria-label="' + esc(sp) + ', max. Capped at potential ' + esc(sp) + '">' +
+      '<b>' + esc(L) + '</b><span class="c-tag m0-maxtag">max</span><span class="m0-cap">Capped at potential ' + esc(L) + '</span></span>';
   }
-  return '<span class="m0-abil"><b>' + esc(n) + '</b></span>';
+  return '<span class="m0-abil" aria-label="' + esc(sp) + '"><b>' + esc(L) + '</b></span>';
 }
 
 export function tpChip(n) {

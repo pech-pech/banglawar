@@ -4,7 +4,7 @@ import { applyCommand } from '../js/store/commands.js';
 import { bowlVM, chaseVM } from '../js/store/selectors.js';
 import { skilledBowler, skilledField, skilledIntent } from '../js/core/skilled.js';
 import { createLog, KEY } from '../js/report/log.js';
-import { aggregate, buildSummary, buildData, buildFull, cleanOf, wrap, LINES } from '../js/report/report.js';
+import { wordsLine, aggregate, buildSummary, buildData, buildFull, cleanOf, wrap, LINES } from '../js/report/report.js';
 import { nextQuestion } from '../js/report/feel.js';
 import { matchupOf, expected } from '../js/report/metrics.js';
 import { BANDS, inRange } from '../js/report/bands.js';
@@ -43,7 +43,7 @@ test('summary: plain words, wrapped, no codes, no data pointer', () => {
   const t = buildSummary(log.data(), ENV), lines = t.split('\n');
   assert.match(lines[0], /^CRICKET REPORT sixes-r4  CLEAN: YES  \(3 matches, 0 errors\)/);
   for (const w of ['What you chose (bowling)', 'Attacking field', 'Defensive field', 'Same call as the skilled bot', 'Thinking time', 'Luck:', 'Results:', 'M3 ', 'Over panel:', 'Feel M', 'Checks:']) assert.ok(t.includes(w), w);
-  assert.ok(t.includes('Why? opened 1 times') && t.includes('economy x2'));
+  assert.ok(t.includes('Why? opened 1 times') && t.includes('Words opened: Economy 2'));
   assert.ok(t.includes('finish skipped') && !t.includes('"-"'));
   assert.ok(lines.every((l) => l.length <= 78), 'long line: ' + lines.find((l) => l.length > 78));
   assert.ok(!/rote|\bfit\b|noisy|\bdpr\b|\b\dwk\b/.test(t), 'codes in summary');
@@ -65,7 +65,7 @@ test('data block parses, one row per over, under about 8 KB, no personal fields'
 });
 
 test('CLEAN goes NO for mixed builds, changed flags, a live match', () => {
-  const m = (build, res) => ({ build, res, ab: 0, ov: [] });
+  let sd = 0; const m = (build, res) => ({ build, res, ab: 0, ov: [], seed: 's' + sd++ });
   assert.deepEqual(cleanOf([m('a', 'won'), m('a', 'lost')], ENV), { ok: true, why: [] });
   assert.ok(cleanOf([m('a', 'won'), m('b', 'won')], ENV).why.includes('mixed builds'));
   assert.match(cleanOf([m('a', 'won')], { flags: { luckyPad: true, burst: false, rivalGoodShare: 0.7 } }).why[0], /flags changed: luckyPad/);
@@ -111,4 +111,52 @@ test('small pure helpers', () => {
   assert.equal(matchupOf([]), '?'); assert.equal(matchupOf([{ g: 1 }, { g: 0 }]), 'G'); assert.equal(matchupOf([{ g: -1 }]), 'P'); assert.equal(matchupOf([{ g: 0 }]), 'O');
   assert.deepEqual(expected([{ pr: { p: { six: 0.1, four: 0.1, two: 0.1, single: 0.2, wicket: 0.05 } } }]), { xr: 1.4, xw: 0.1 });
   assert.equal(inRange(50, BANDS.runs.us), 'ok'); assert.equal(inRange(20, BANDS.runs.us), 'below'); assert.equal(inRange(999, BANDS.runs.us), 'above'); assert.deepEqual(BANDS.win, { idle: 44, rote: 50, skilled: 53 });
+});
+
+test('report: reopening mid-match is not a new match or a first Start (Z1), and a quiet session still has an end screen (Z2)', () => {
+  let t = 1000; const now = () => t;
+  const log = createLog({ storage: null, now, build: 'x', env: () => 'vp' });
+  t = 6000; log.matchStart({ seed: 's1', stage: 'bowl' });
+  assert.equal(log.data().sessions.at(-1).first, 5000);
+  const log2 = createLog({ storage: { getItem: () => JSON.stringify(log.data()), setItem() {}, removeItem() {} }, now, build: 'x', env: () => 'vp' });
+  log2.stage('bowl'); t = 9000; log2.matchStart({ seed: 's1', stage: 'bowl' }, true);
+  assert.equal(log2.data().matches.length, 1); assert.equal(log2.data().matches[0].ab, 0);
+  assert.equal(log2.data().sessions.at(-1).first, undefined); assert.equal(log2.data().sessions.at(-1).end, 'bowl');
+});
+
+test('word-level glossary counts: line, top 8 + rest, JSON export', () => {
+  const log = createLog({ storage: null, build: 'sixes-r6', now: () => 1000 }); play(log, 1, 'skilled');
+  for (const [w, n] of [['burst', 3], ['line', 2], ['pairing', 1]]) for (let i = 0; i < n; i++) log.gloss(w);
+  const t = buildSummary(log.data(), ENV);
+  assert.ok(t.includes('Words opened: Burst 3, Line 2, Pairing 1.'), t);
+  assert.ok(t.includes('Word list "?" opened 6 times.'));
+  assert.deepEqual(JSON.parse(buildData(log.data(), ENV)).wordsOpened, { burst: 3, line: 2, pairing: 1 });
+  const g = {}; for (let i = 0; i < 10; i++) g['w' + i] = 10 - i;
+  assert.match(wordsLine(g), /^Words opened: W0 10, .*W7 3, \+3 more\.$/);
+  assert.equal(wordsLine({}), null);
+});
+
+test('CLEAN fails on a fixed seed or a repeated seed', () => {
+  const m = (seed) => ({ build: 'a', res: 'won', ab: 0, ov: [], seed });
+  assert.ok(cleanOf([m('x'), m('y')], { ...ENV, fixedSeed: true }).why.includes('fixed seed'));
+  assert.ok(cleanOf([m('x'), m('x')], ENV).why.includes('repeated seed'));
+  assert.equal(cleanOf([m('x'), m('y')], ENV).ok, true);
+});
+
+test('luck lines: bands by result, scaled total, too few matches, quit adds nothing', () => {
+  const log = createLog({ storage: null, build: 'sixes-r6', now: () => 1000 }); play(log, 2, 'skilled');
+  const t = buildSummary(log.data(), ENV).replace(/\s+/g, ' ');
+  assert.ok(t.includes('after a win -9 to +18, after a loss -17 to +7'), t);
+  assert.ok(t.includes('usual total over 2 matches: -20 to +20') && t.includes('too few matches to call luck'));
+  const d = log.data(), base = aggregate(d.matches);
+  const quit = { ...d.matches[0], res: null, ab: 1, ov: d.matches[0].ov.map((o) => ({ ...o, r: o.r + 50, xr: o.xr })) };
+  const a2 = aggregate([...d.matches, quit]);
+  assert.equal(a2.scored, base.scored); assert.equal(a2.xScored, base.xScored); assert.equal(a2.wkTook, base.wkTook);
+});
+
+test('engine luck: 200 seeded matches stay within 3 sd of expected', () => {
+  const log = createLog({ storage: null, build: 'x', now: () => 1000 }); play(log, 200, 'skilled');
+  const ovs = log.data().matches.flatMap((m) => m.ov);
+  const diff = ovs.reduce((n, o) => n + o.r - o.xr, 0);
+  assert.ok(Math.abs(diff) < 3 * 11 * Math.sqrt(200), 'run luck drifted: ' + diff);
 });

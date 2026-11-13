@@ -1,7 +1,12 @@
 // @ts-check
 // Save envelope, checksum and version migration. Pure: no storage, no clock, no rng. Never mutates its input.
 import { applyTag } from './tags.js';
-export const VERSION = 4;
+import { aiPickSix } from './clubs.js';
+import { rawAbility, isHidden } from './ability.js';
+import { newEconomy } from './economy.js';
+import { SQUAD } from '../data/run.js';
+import { coachFromOld, startCoach } from './training.js';
+export const VERSION = 5;
 
 /** fnv1a 32-bit of a string, as 8 hex digits. @param {string} str */
 export function fnv1a(str) {
@@ -17,6 +22,34 @@ export function wrap(state) {
 }
 
 const isObj = (x) => x !== null && typeof x === 'object' && !Array.isArray(x);
+
+/** Old-shape coach to the new shape, dropping the old xp / lv / candidate keys. */
+function oldCoach(c) {
+  const { xp, lv, candidate, ...rest } = c;
+  return { ...rest, ...coachFromOld(c) };
+}
+
+/** Refund value of a player: 0.5 x fee, the fee read from his ability before the grade shows and from his potential after. Ties: lower rating sum first. */
+export function refundValue(p) {
+  const a = isHidden(p) ? rawAbility(p) : p.potential;
+  return Math.round(0.5 * a * 100) / 100;
+}
+
+/** Players to release (never in the Six, lowest refund value first) until `keep` remain; never below `floor`. Returns ledger entries. */
+export function autoRelease(club, keep, floor) {
+  const six = Array.isArray(club.six) && club.six.length === 6 ? club.six : aiPickSix(club);
+  const sum = (p) => p.bp + p.bs + p.spd + p.bsk;
+  const pool = club.squad.filter((p) => !six.includes(p.id)).map((p) => ({ p, v: refundValue(p) }))
+    .sort((a, b) => a.v - b.v || sum(a.p) - sum(b.p) || (a.p.id < b.p.id ? -1 : 1));
+  const out = [];
+  let left = club.squad.length;
+  for (const { p, v } of pool) {
+    if (left <= keep || left <= floor) break;
+    out.push({ player_id: p.id, name: p.name, value_at_release: v, rule: 'squad8' });
+    left--;
+  }
+  return out;
+}
 
 /**
  * Steps keyed by the version they upgrade FROM. Each takes a private copy and returns the next version's state.
@@ -43,6 +76,31 @@ const STEPS = {
     const league = (isObj(data.season) && Number.isInteger(data.season.league) ? data.season.league : isObj(data.run) && Number.isInteger(data.run.league) ? data.run.league : 1);
     const clubs = Array.isArray(data.clubs) ? data.clubs.map((c) => (isObj(c) && /^c[1-3]$/.test(c.id) && Array.isArray(c.squad) ? applyTag(c, league, Number(c.id.slice(1))) : c)) : data.clubs;
     return { ...data, v: 4, clubs };
+  },
+  // v4 -> v5 (P11): squad of 8, new training fields, coach shape, release ledger. SPEC s7. The store keeps a .v4bak copy of the raw v4 save (store.js).
+  4: (data) => {
+    const n = { ...data, v: 5 };
+    const club = Array.isArray(n.clubs) ? n.clubs.find((c) => isObj(c) && c.id === 'c0') : null;
+    if (club && Array.isArray(club.squad)) {
+      const out = autoRelease(club, SQUAD.size, SQUAD.min);
+      if (out.length) {
+        n.clubs = n.clubs.map((c) => (c === club ? { ...club, squad: club.squad.filter((p) => !out.some((r) => r.player_id === p.id)) } : c));
+        n.releaseLedger = [...(Array.isArray(n.releaseLedger) ? n.releaseLedger : []), ...out];
+        n.notice = 'squad8';
+      }
+    }
+    if (!Array.isArray(n.releaseLedger)) n.releaseLedger = [];
+    if (!isObj(n.econ)) n.econ = newEconomy();
+    const T = isObj(n.training) ? { ...n.training } : {};
+    for (const k of ['drilled', 'last', 'bulk', 'plan', 'drillPlan', 'lastPlan', 'autoBench']) delete T[k];
+    T.focus = T.focus || 'bat'; T.effort = T.effort || 'normal'; T.spotlight_id = T.spotlight_id || null; T.last_plan = T.last_plan || null; // training.js reads lastPlan / sel and defaults when absent
+    n.training = T;
+    const staff = (Array.isArray(n.coaches) ? n.coaches : []).filter((c) => isObj(c) && !c.candidate).map((c) => (typeof c.step === 'number' && Array.isArray(c.strong) ? c : oldCoach(c)));
+    n.coaches = staff.length ? staff : [startCoach('k0', 'Okafor')];
+    n.coachPicked = true;
+    for (const k of ['coachPool', 'coachBack', 'coachCur']) delete n[k];
+    if (n.stage === 'coach') n.stage = 'hub'; // the pick screen is gone: the start coach is given
+    return n;
   },
 };
 

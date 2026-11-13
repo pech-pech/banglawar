@@ -7,6 +7,9 @@ import { makeRng } from './rng.js';
 import { newInnings, playOver, centreOf } from './match.js';
 import { pickBowler, pickIntent, pickField, rivalCall } from './ai.js';
 import { aiPickSix } from './clubs.js';
+import { batPart, bowlPart } from './ability.js';
+import { letterOfRaw } from './letters.js';
+import { PAY } from '../data/run.js';
 
 export const ME = 'c0';
 const P = SEASON.points;
@@ -93,6 +96,62 @@ export function tpAward(kind, result, league = 1) {
   if (kind === 'league') return (T.perMatch + (result === 'won' ? T.perWin : 0)) * m;
   if (kind === 'semi') return result === 'lost' ? T.semiLoser : 0; // the winner is paid for the final
   return result === 'won' ? T.champion : T.runnerUp;
+}
+
+
+// ---------------------------------------------------------------- match pay (SPEC s5, rule C Stars hybrid)
+const clampN = (/** @type {number} */ v, /** @type {number} */ lo, /** @type {number} */ hi) => Math.min(hi, Math.max(lo, v));
+/** Raw 1-99 overall of a player: plain mean of the batting and bowling parts (same measure the AI pick uses). */
+const rawOverall = (/** @type {any} */ p) => 0.5 * batPart(p) + 0.5 * bowlPart(p);
+const avgRaw = (/** @type {any[]} */ ps) => (ps.length ? ps.reduce((a, p) => a + rawOverall(p), 0) / ps.length : 0);
+const clubOf = (/** @type {any} */ s, /** @type {any} */ c) => (typeof c === 'string' ? s.clubs.find((/** @type {any} */ x) => x.id === c) : c);
+const sixPlayers = (/** @type {any} */ club) => { const ids = club.six && club.six.length === 6 ? club.six : aiPickSix(club); return ids.map((/** @type {string} */ id) => club.squad.find((/** @type {any} */ p) => p.id === id)).filter(Boolean); };
+
+/** Rival six average minus ours, raw 1-99. Uses the six that played when a match is on the state, else the saved sixes. @param {any} s @param {any} [rival] club or id */
+export function sixGap(s, rival) {
+  const mine = s.me && s.me.players && s.me.players.length ? s.me.players : sixPlayers(s.clubs.find((/** @type {any} */ c) => c.id === ME));
+  const rc = clubOf(s, rival);
+  const theirs = s.rival && s.rival.players && s.rival.players.length && !rival ? s.rival.players : rc ? sixPlayers(rc) : [];
+  return avgRaw(theirs) - avgRaw(mine);
+}
+
+/** Letter pair for the pre-match screen: our six and theirs. The rival six is the AI pick; ours is the saved six. @param {any} s @param {any} rivalClub club or id */
+export function gapLetters(s, rivalClub) {
+  const me = s.clubs.find((/** @type {any} */ c) => c.id === ME), rc = clubOf(s, rivalClub);
+  return { ours: letterOfRaw(avgRaw(sixPlayers(me))), theirs: letterOfRaw(rc ? avgRaw(sixPlayers(rc)) : 0) };
+}
+
+/** Stars one of our players earned: bat 15+ runs = 1, 30+ = 2; bowl 1 wicket = 1, 2+ = 2. @param {any} p */
+export function starsOf(p) {
+  const r = (p.inn && p.inn.r) || 0, w = (p.figs && p.figs.w) || 0;
+  const b = r >= PAY.bat[1] ? 2 : r >= PAY.bat[0] ? 1 : 0, o = w >= PAY.bowl[1] ? 2 : w >= PAY.bowl[0] ? 1 : 0;
+  const why = [b ? `${r} run${r === 1 ? '' : 's'}` : '', o ? `${w} wicket${w === 1 ? '' : 's'}` : ''].filter(Boolean).join(' and ');
+  return { n: b + o, why };
+}
+
+/**
+ * TP for a finished match. League: 45 + 15 x clamp(1 + 0.04 x gap, 0.5, 1.5) on a win (7 on a tie) + 4 x min(Stars, 8).
+ * Semi and final are unchanged (tpAward); their Stars are listed but pay nothing.
+ * @param {any} s state with me.players (figures), fixture {kind, opp} and clubs
+ * @param {'won'|'tied'|'lost'|{outcome:string, kind?:string}} result
+ */
+export function matchPay(s, result) {
+  const outcome = typeof result === 'string' ? result : result.outcome;
+  const kind = (typeof result === 'object' && result.kind) || (s.fixture && s.fixture.kind) || 'league';
+  const list = [];
+  let raw = 0;
+  for (const p of (s.me && s.me.players) || []) { const st = starsOf(p); if (st.n) { raw += st.n; list.push({ id: p.id, name: p.name, why: st.why }); } }
+  const stars = Math.min(raw, PAY.starCap);
+  const gap = sixGap(s, s.rival && s.rival.players && s.rival.players.length ? undefined : s.fixture && s.fixture.opp);
+  if (kind !== 'league') {
+    const total = tpAward(/** @type {any} */ (kind), /** @type {any} */ (outcome), (s.season && s.season.league) || 1);
+    return { kind, base: 0, win: 0, winNote: '', stars, starsRaw: raw, starsTp: 0, total, starList: list, gap };
+  }
+  const f = clampN(1 + PAY.gapSlope * gap, PAY.gapMin, PAY.gapMax);
+  const win = outcome === 'won' ? Math.round(PAY.win * f) : outcome === 'tied' ? PAY.tie : 0;
+  const winNote = outcome === 'won' ? (PAY.notes.find(([hi]) => gap < hi) || PAY.notes[PAY.notes.length - 1])[1] : outcome === 'tied' ? 'a tie' : '';
+  const starsTp = PAY.starTp * stars;
+  return { kind, base: PAY.base, win, winNote, stars, starsRaw: raw, starsTp, total: PAY.base + win + starsTp, starList: list, gap };
 }
 
 /** Copy of a club's picked six, ready for the match core. */

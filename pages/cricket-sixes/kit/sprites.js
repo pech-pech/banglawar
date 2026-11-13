@@ -324,6 +324,9 @@
   ICONS.auto = ['.oo......oo.', 'onnoooooonno', 'onnoooooonno', '.oo......oo.', '............', '....oooo....', '...owwwwo...', '..owwowwwo..', '..owwowwwo..', '..owwooowo..', '...owwwwo...', '....oooo....'];
   ICONS.more = ['............', '............', '............', '............', '.ooo.ooo.ooo', '.ono.ono.ono', '.ooo.ooo.ooo', '............', '............', '............', '............', '............'];
   ICONS.scout = ['............', '..ooo..ooo..', '.onnno.onnno', '.onnnooonnno', 'onnnnoonnnno', 'onnnnoonnnno', 'obbbboobbbbo', 'obwbboobwbbo', 'obbbboobbbbo', '.oooo..oooo.', '............', '............'];
+  /* pitch = a cut strip of grass with a stump at each end; legacy = a gold cup on a plinth (Legacy Project) */
+  ICONS.pitch = ['............', 'oooooooooooo', 'odeedddeedeo', 'odeeoccoeedo', 'odeeoccoeedo', 'odeeoccoeedo', 'odeeoccoeedo', 'odeeoccoeedo', 'odeedddeedeo', 'oooooooooooo', '....o..o....', '............'];
+  ICONS.legacy = ['............', 'ogooooooogo.', 'ogoggwggoGo.', '.oogwggGoo..', '..oggggGGo..', '...ogggGo...', '....oggGo...', '.....oGo....', '.....oGo....', '...oottoo...', '..ottttttto.', '..oooooooo..'];
   ICONS.league = ['............', '..oooooooo..', '.oogwgggGGoo', 'o.ogwggGGo.o', '.ooggggggGoo', '...ogggGGo..', '....oGGo....', '.....oGo....', '....oGGGo...', '..ottttttto.', '..ooooooooo.', '............'];
   /* rating, batting-type and bowling-type icons: bat family (wood bat + mark), ball family (ball + mark); burst = force, ring = precision */
   ICONS.batPower = ['.oo.........', 'otto........', 'octo..o.o.o.', 'octo.ogogogo', 'otto..ogggo.', 'otto.oggGggo', 'otto..ogggo.', 'otto.ogogogo', 'ogo...o.o.o.', 'ogo.........', 'ogo.........', '.o..........'];

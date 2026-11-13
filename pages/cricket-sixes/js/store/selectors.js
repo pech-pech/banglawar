@@ -3,14 +3,15 @@
 import { phaseOf, PHASE_NAMES, matchup, eligibleBowlers, centreOf } from '../core/match.js';
 import { gradeOf, previewCount, shownAbility, shownBat, shownBowl, atPeak, isMax, batPart, bowlPart } from '../core/ability.js';
 import { SEASON } from '../data/season.js';
-import { DRILLS, COACHES, SKILLS } from '../data/training.js';
+import { DRILLS, SKILLS, TRAIN2 } from '../data/training.js';
 import { aiPickSix } from '../core/clubs.js';
 import { tagInfo } from '../core/tags.js';
-import { tableOrder, placeOf, ME, tpAward, koWinner } from '../core/season.js';
-import { drillOdds, coachLevel, canDrill, drillRoom, drillDef, planMode, planDrill, bulkPlan, hasLastPlan, sixOf } from '../core/training.js';
+import { tableOrder, placeOf, ME, matchPay, gapLetters, koWinner } from '../core/season.js';
+import { planOf, netsPreview, coachList, scoutList, canSign, coachQuality, coachStepInUse, courseCost, canCourse, effortOdds, meanGain, wheelSlices, courseWheel, EFFORTS, FOCUSES, MAX_COACHES, sixOf, drillRoom, focusRating } from '../core/training.js';
+import { letterOfRaw, letterOfShown, letterOfStep, ticksOfRaw, fillOfRaw, stepOfRaw } from '../core/letters.js';
 import { nodeStatus, treeBoost, treeOf, NODE_COUNT } from '../core/skills.js';
-import { planProblem, livePlan } from './commands.js';
-import { RUN } from '../data/run.js';
+import { planProblem, livePlan, squadFull } from './commands.js';
+import { RUN, SQUAD } from '../data/run.js';
 import { seasonResult, chapterNames, runScore, carryOf } from '../core/run.js';
 import { PAIRING } from '../data/pairing.js';
 import { BATS, BOWLS, CELLS, COMBOS, SEEN_BALLS, cellIndex, cellOf, cellName, gradeWord, gradeRank, comboOf, isBook, newBook } from '../core/pairing.js';
@@ -116,18 +117,19 @@ export function resultVM(s) {
   // Rival club name, match kind and TP for this match (TP is paid when the match is finished, same rule as finishMatch).
   const fx = s.season && s.fixture ? s.fixture : null;
   const opp = fx ? s.clubs.find((c) => c.id === fx.opp) : null;
-  let tpEarned = null;
-  if (fx) {
+  let tpEarned = null, pay = null;
+  if (fx && s.me && s.me.players) {
     let outcome = s.result;
     if (fx.kind !== 'league') {
       const w = koWinner({ a: ME, b: fx.opp, ra: b.runs, rb: a.runs }, placeOf(s.season.table, ME), placeOf(s.season.table, fx.opp));
       outcome = w === ME ? 'won' : 'lost';
     }
-    tpEarned = tpAward(fx.kind, outcome);
+    pay = matchPay(s, { outcome, kind: fx.kind });
+    tpEarned = pay.total;
   }
   return {
     result: s.result, line, inn1: scoreOf(a), inn2: scoreOf(b), inSeason: !!s.season, seed: s.seed,
-    oppName: opp ? opp.name : 'Rival', kindLabel: fx ? RESULT_KIND[fx.kind] : 'Friendly', tpEarned,
+    oppName: opp ? opp.name : 'Rival', kindLabel: fx ? RESULT_KIND[fx.kind] : 'Friendly', tpEarned, pay,
   };
 }
 
@@ -159,13 +161,21 @@ export function hubVM(s) {
   if (fx) {
     const opp = club(s, fx.opp);
     const d = strengthOf(opp, aiPickSix(opp)) - strengthOf(mine(s), sixIds(s));
-    next = { oppName: opp.name, tag: tagInfo(opp), kindWord: KIND_WORD[fx.kind], oppStrength: d > 2 ? 'Stronger' : d < -2 ? 'Weaker' : 'Even' };
+    next = { oppName: opp.name, tag: tagInfo(opp), kindWord: KIND_WORD[fx.kind], oppStrength: d > 2 ? 'Stronger' : d < -2 ? 'Weaker' : 'Even', letters: gapLetters(s, opp) };
   }
   return {
     season: { n: se.n, league: se.league }, round: se.phase === 'league' ? se.round : se.phase === 'semi' ? SEASON.leagueMatches + 1 : SEASON.leagueMatches + 2,
     phaseWord: PHASE_WORD[se.phase], next, table5: rows.slice(from, from + 5), tp: s.training.tp, cta: 'Pick your six',
     run: s.run ? { season: se.n, of: RUN.seasons, league: se.league || 1, ...chapterNames(s.run) } : undefined,
+    notice: noticeOf(s), squadFull: squadFull(s),
   };
+}
+
+/** The one gentle line after a v5 load (SPEC s7). null once dismissed. */
+export function noticeOf(s) {
+  if (s.notice !== 'squad8') return null;
+  const n = (s.releaseLedger || []).length;
+  return { key: 'squad8', line: `The squad is now ${SQUAD.size}.${n ? ` ${n} player${n === 1 ? '' : 's'} moved on.` : ''}` };
 }
 
 function finalsVM(s) {
@@ -200,35 +210,47 @@ export function runEndVM(s) {
     seasons: run.history.length, bestLeague: run.best, titles: run.titles,
     chapters: RUN.chapters.map((c) => ({ name: c.name, done: !!(run.chapters[c.season] && run.chapters[c.season].featDone), reached: !!run.chapters[c.season] })),
     carry: [
-      { key: 'legend', label: 'Legend', detail: carry.legend ? `${carry.legend.name} at ${RUN.carry.legendPct}% (ability ${legendAbility})` : 'No player to carry', available: !!carry.legend },
-      { key: 'coach', label: 'Coach', detail: carry.coach ? `${carry.coach.name} at level ${RUN.carry.coachLevel}` : 'No coach to carry', available: !!carry.coach },
+      { key: 'legend', label: 'Legend', detail: carry.legend ? `${carry.legend.name} at ${RUN.carry.legendPct}% (${letterOfShown(legendAbility)})` : 'No player to carry', available: !!carry.legend },
+      { key: 'coach', label: 'Coach', detail: carry.coach ? `${carry.coach.name}, grade ${letterOfStep(carry.coach.step)}` : 'No coach to carry', available: !!carry.coach },
       { key: 'stadium', label: 'Stadium', detail: 'Comes with the stadium', available: false },
     ],
     cta: 'NewRun',
   };
 }
 
-// ---- coach pick
-const TREES_OF_FOCUS = Object.fromEntries(['Power', 'Technique', 'Pace', 'Craft'].map((f) => [f, Object.keys(SKILLS.trees).filter((t) => SKILLS.trees[t].focus === f).map((t) => t.toLowerCase())]));
+// ---- coach scouting (one list a season; sign one or pass)
+const SIDE_WORD = TRAIN2.focusLabels;
+const strongWords = (strong) => (strong || []).map((f) => SIDE_WORD[f]);
 export function coachPickVM(s) {
-  const cands = s.coaches.filter((c) => c.candidate).map((c) => {
-    const focus = Object.keys(c.lv).find((f) => c.lv[f] > 0) || 'Power';
-    const d = DRILLS.list.find((x) => COACHES.focuses.find((f) => f.focus === focus).rating === x.id);
-    const good = (lv) => { const o = drillOdds(s.nets || 1, lv); return Math.round(o.good + o.great); };
-    return { id: c.id, name: c.name, focus, drill: d.name, phrase: drillPhrase(d.id), odds3: good(3), odds2: good(2), trees: TREES_OF_FOCUS[focus] };
-  });
-  return { cands, picked: s.coachPicked ? (s.coaches.find((c) => !c.candidate) || {}).id || null : (s.coachCur || null) };
+  const open = canSign(s).ok, signed = s.scout && s.scout.n === (s.season && s.season.n) ? s.scout.signed : null;
+  const cands = scoutList(s).map((c) => ({ id: c.id, name: c.name, letter: letterOfStep(c.step), step: c.step, strong: c.strong.slice(), strongWords: strongWords(c.strong) }));
+  return { cands, open, full: coachList(s).length >= MAX_COACHES, mine: coachList(s).map((c) => ({ id: c.id, name: c.name, letter: letterOfStep(c.step), strong: c.strong.slice() })), picked: signed, passed: !!(s.scout && s.scout.passed), why: canSign(s).why };
 }
 
 // ---- squad and plan
+/** Letter, fill (0..1 inside the step) and lit ticks (0..3) of a player's overall raw rating. */
+export const letterVM = (p) => { const r = 0.5 * batPart(p) + 0.5 * bowlPart(p); return { letter: letterOfRaw(r), fill: fillOfRaw(r), ticks: ticksOfRaw(r), step: stepOfRaw(r) }; };
+/** The two bench places are soft slots: "Bench batter" and "Bench bowler". A fit gets a hint tick; nothing here ever blocks Confirm. */
+function benchSlots(s) {
+  const six = sixIds(s), bench = mine(s).squad.filter((p) => !six.includes(p.id));
+  const lean = (p) => batPart(p) - bowlPart(p);
+  const sorted = bench.slice().sort((a, b) => lean(b) - lean(a) || (a.id < b.id ? -1 : 1));
+  const bat = sorted[0] || null, bowl = sorted.length > 1 ? sorted[sorted.length - 1] : null;
+  return [
+    { key: 'batter', label: 'Bench batter', playerId: bat ? bat.id : null, fit: !!bat && lean(bat) > 0 },
+    { key: 'bowler', label: 'Bench bowler', playerId: bowl ? bowl.id : null, fit: !!bowl && lean(bowl) < 0 },
+  ];
+}
 export function squadVM(s) {
-  const six = sixIds(s);
+  const six = sixIds(s), slots = benchSlots(s);
   return {
     title: 'Pick your six', sub: s.fixture ? `Next: ${clubName(s, s.fixture.opp)}. Choose 6 of ${mine(s).squad.length}; first pick bats first.` : undefined,
     players: mine(s).squad.map((p) => ({
-      id: p.id, name: p.name, role: p.bat, type: p.bowl, bat: shownBat(p), bowl: shownBowl(p), ability: shownAbility(p),
+      id: p.id, name: p.name, role: p.bat, type: p.bowl, bat: shownBat(p), bowl: shownBowl(p), ability: shownAbility(p), ...letterVM(p),
       grade: gradeOf(p) || '?', pips: pipsOf(p), peak: atPeak(p), max: isMax(p), order: six.includes(p.id) ? six.indexOf(p.id) : null,
+      benchSlot: (slots.find((x) => x.playerId === p.id) || {}).label || null,
     })),
+    bench: slots, full: squadFull(s), squadFull: squadFull(s), fullText: squadFull(s) ? SQUAD.fullText : '', size: mine(s).squad.length,
     count: six.length, valid: six.length === SEASON.sixSize, reason: six.length === SEASON.sixSize ? '' : `Pick ${SEASON.sixSize} players.`,
   };
 }
@@ -246,68 +268,61 @@ export function planVM(s) {
   };
 }
 
-// ---- training
-const staff = (s) => s.coaches.filter((c) => !c.candidate);
-function coachLine(s) {
-  const c = staff(s)[0];
-  if (!c) return 'No coach yet';
-  const best = Object.keys(c.lv).sort((a, b) => c.lv[b] - c.lv[a])[0];
-  return `Coach ${c.name}: ${best} level ${c.lv[best]}`;
-}
-const drillGain = (s, id) => { const e = (s.training.weekLog || []).find((x) => x.type === 'Drill' && x.playerId === id); return e || null; };
+// ---- training (P11 redo): Focus + Effort + Spotlight, one Run
 const rowOrder = (s) => { const six = sixIds(s); return [...six.map((id) => player(s, id)), ...mine(s).squad.filter((p) => !six.includes(p.id))]; };
 
 /** The four raw 1-99 ratings of a row, in the order the row draws them (Batting Power, Batting Skill, Bowling Speed, Bowling Skill). */
 export const ratesOf = (p) => ({ batPower: p.bp, batSkill: p.bs, bowlSpeed: p.spd, bowlSkill: p.bsk });
 
+const coachRow = (s, c) => {
+  const cc = canCourse(s, c.id), used = s.training.coursePending && s.training.coursePending.coachId === c.id;
+  return {
+    id: c.id, name: c.name, step: c.step, letter: letterOfStep(c.step), strong: c.strong.slice(), strongWords: strongWords(c.strong),
+    here: !(c.away > 0), away: c.away | 0, course: { ok: cc.ok, why: cc.why, cost: courseCost(s, c.id), free: !s.econ, spun: !!used, pending: used ? { index: s.training.coursePending.result.index, gain: s.training.coursePending.result.gain, jackpot: s.training.coursePending.result.jackpot } : null },
+  };
+};
+/** Gain the spotlight player really gets after the cap-sum, balance and 99 limits. */
+const spotApplied = (s, plan, gain) => { const p = plan.spotlightId && player(s, plan.spotlightId); return p ? Math.max(0, Math.min(gain, drillRoom(p, focusRating(p, plan.focus)).room)) : 0; };
+const wheelVM = (w) => ({ slices: w.slices.slice(), jackpotIndex: w.jackpotIndex, jackpotGain: w.jackpotGain });
+
 export function trainingVM(s) {
-  const six = sixIds(s);
+  const T = s.training, plan = planOf(s), pre = netsPreview(s), six = sixIds(s);
+  const train = new Set(pre.trainIds), short = new Set(pre.shortIds), skip = new Set(pre.skippedIds);
   const rows = rowOrder(s).map((p) => {
-    const g = drillGain(s, p.id);
-    const status = g ? (g.gain > 0 ? '+' + g.gain : 'done') : atPeak(p) ? 'peak' : 'drill';
-    const row = { id: p.id, name: p.name, bench: !six.includes(p.id), role: p.bat, type: p.bowl, ability: shownAbility(p), max: isMax(p), grade: gradeOf(p) || '?', pips: pipsOf(p), status, rates: ratesOf(p) };
-    if (g && g.gain > 0) row.gainRating = RATING_KEY[drillDef(g.drillId).rating];
-    return row;
+    const st = focusRating(p, plan.focus), line = T.nets && T.nets.week === T.week ? T.nets.lines.find((l) => l.id === p.id) : null;
+    return {
+      id: p.id, name: p.name, bench: !six.includes(p.id), role: p.bat, type: p.bowl, ...letterVM(p), grade: gradeOf(p) || '?', pips: pipsOf(p), peak: atPeak(p), max: isMax(p), rates: ratesOf(p),
+      status: train.has(p.id) ? 'train' : short.has(p.id) ? 'short' : skip.has(p.id) ? 'skip' : 'train', stat: TRAIN2.statNames[st], spotlight: plan.spotlightId === p.id, line,
+    };
   });
-  return { tp: s.training.tp, week: s.training.week, done: Object.keys(s.training.drilled || {}).length, total: rows.length, coachLine: coachLine(s), coachNotice: coachNoticeOf(s), drillCost: DRILLS.costTp, rows, ...trainPlanVM(s) };
+  const efforts = EFFORTS.map((id) => { const e = TRAIN2.efforts[id]; return { id, label: e.label, cost: e.cost, mean: Math.round(meanGain(effortOdds(id, 0, plan.focus === 'bal')) * 100) / 100, on: plan.effort === id }; });
+  const focuses = FOCUSES.map((id) => ({ id, label: TRAIN2.focusLabels[id], on: plan.focus === id }));
+  const coaches = coachList(s).map((c) => ({ ...coachRow(s, c), picked: plan.coachId === c.id, helps: c.strong.includes(plan.focus) }));
+  const wheel = plan.spotlightId ? wheelVM(wheelSlices(plan.effort, coachStepInUse(s))) : null;
+  const done = !!(T.nets && T.nets.week === T.week);
+  return {
+    tp: T.tp, week: T.week, plan, focuses, efforts, rows, coaches, coachQuality: coachQuality(s), coachLetter: coachStepInUse(s) ? letterOfStep(coachStepInUse(s)) : null,
+    preview: { cost: pre.cost, tpLeft: T.tp - pre.cost, trainCount: pre.trainIds.length, shortCount: pre.shortIds.length, skipCount: pre.skippedIds.length, hint: pre.hint },
+    spotlight: { id: plan.spotlightId, wheel, pending: T.pending && T.pending.week === T.week ? { careful: T.pending.careful, index: T.pending.result.index, gain: T.pending.result.gain, jackpot: T.pending.result.jackpot, applied: spotApplied(s, plan, T.pending.result.gain) } : null },
+    done, result: done ? { lines: T.nets.lines, cost: T.nets.cost, skipped: T.nets.skipped } : null, tips: !T.tipsSeen && !(T.drillCount > 0),
+    canRun: !done && pre.trainIds.length > 0, notice: noticeOf(s),
+  };
 }
 
-const REASON = { week: 'Already drilled this week', tp: 'Not enough TP', peak: 'At his peak', balance: 'Too far above his lowest rating', max: 'Already at 99', unknown: 'Not available' };
 export function playerVM(s, id) {
   const p = player(s, id);
   if (!p) return null;
-  const nets = s.nets || 1;
   const six = sixIds(s);
-  const drills = DRILLS.list.map((d) => {
-    const lv = coachLevel(s.coaches, d.focus), o = drillOdds(nets, lv), chk = canDrill(s, id, d.id), room = drillRoom(p, d.id);
-    return { id: d.id, name: d.name, rating: RATING_KEY[d.rating], goodPlus: Math.round(o.good + o.great), coachLine: lv ? `Coach level ${lv}` : 'No coach here',
-      room: !chk.ok ? null : room.upTo ? `Only +${room.upTo} fits` : null, locked: !chk.ok, reason: chk.ok ? null : REASON[chk.reason],
-      now: p[d.rating], plus: Math.max(0, Math.min(DRILLS.gains[2], room.room)), why: chk.reason || null };
-  });
   const open = [];
   for (const side of ['bat', 'bowl']) for (let n = 1; n <= NODE_COUNT; n++) { const st = nodeStatus(s, id, side, n); if (st.status === 'available') { open.push(st.cost); break; } }
   const hidden = gradeOf(p) === null;
   return {
-    id, name: p.name, bench: !six.includes(id), role: p.bat, type: p.bowl, grade: gradeOf(p) || '?', pips: pipsOf(p), peak: atPeak(p), max: isMax(p),
-    potential: hidden ? null : p.potential, previews: previewCount(p), tp: s.training.tp, drillCost: DRILLS.costTp,
+    id, name: p.name, bench: !six.includes(id), role: p.bat, type: p.bowl, grade: gradeOf(p) || '?', pips: pipsOf(p), peak: atPeak(p), max: isMax(p), ...letterVM(p),
+    potential: hidden ? null : p.potential, potentialLetter: hidden ? null : letterOfShown(p.potential), previews: previewCount(p), tp: s.training.tp,
     ability: { bat: shownBat(p), bowl: shownBowl(p), overall: shownAbility(p) },
-    ratings: RATINGS.map((k) => ({ key: RATING_KEY[k], val: p[k], limit: Math.min(DRILLS.hardCap, p[k] + Math.max(0, drillRoom(p, k).room)) })),
+    ratings: RATINGS.map((k) => ({ key: RATING_KEY[k], val: p[k], letter: letterOfRaw(p[k]), ticks: ticksOfRaw(p[k]), fill: fillOfRaw(p[k]), limit: Math.min(DRILLS.hardCap, p[k] + Math.max(0, drillRoom(p, k).room)) })),
     limitLine: `Ratings go up to ${DRILLS.hardCap}, and no more than ${DRILLS.balance} above the lowest one.`,
-    capLine: null,
-    drills, node: { cost: open.length ? Math.min(...open) : null, label: 'Skill trees' },
-  };
-}
-
-export function drillResultVM(s, id) {
-  const r = s.training.last;
-  if (!r || (id != null && r.playerId !== id)) return null;
-  const p = player(s, r.playerId), rows = rowOrder(s);
-  const next = rows.find((x) => !s.training.drilled[x.id]);
-  return {
-    id: p.id, name: p.name, grade: gradeOf(p) || '?', pips: pipsOf(p), drillName: drillDef(r.drillId).name, word: r.outcome, rating: RATING_KEY[r.rating],
-    gain: r.gain, before: r.before, after: r.after, odds: r.odds, cut: r.cut, revealed: !!r.revealed,
-    coachLine: r.coachLevel ? `Coach level ${r.coachLevel} helped` : 'No coach for this drill', coachXp: r.coach ? `+${r.coach.xp} XP` : '',
-    tp: s.training.tp, left: rows.length - Object.keys(s.training.drilled).length, next: next ? { id: next.id, name: next.name } : null,
+    capLine: null, node: { cost: open.length ? Math.min(...open) : null, label: 'Skill trees' },
   };
 }
 
@@ -325,14 +340,14 @@ export function treeVM(s, id) {
   const p = player(s, id);
   if (!p) return null;
   const trees = ['bat', 'bowl'].map((side) => {
-    const tree = treeOf(p, side), def = SKILLS.trees[tree], boosted = treeBoost(s.coaches, tree) > 1;
+    const tree = treeOf(p, side), def = SKILLS.trees[tree], boosted = treeBoost(s.coaches, tree) > 1, need = (lv) => letterOfStep(TRAIN2.coach.oldStepBase + TRAIN2.coach.oldStepPerLevel * lv);
     const owned = p.nodes ? p.nodes[side] || 0 : 0;
     return {
-      side, title: side === 'bat' ? `${tree} batting` : `${tree} bowling`, key: tree.toLowerCase(), owned, boost: { on: boosted, text: boosted ? 'Coach bonus: effects x1.5' : `Needs a level ${SKILLS.boostMinLevel} ${def.focus} coach for x${SKILLS.boost}` },
+      side, title: side === 'bat' ? `${tree} batting` : `${tree} bowling`, key: tree.toLowerCase(), owned, boost: { on: boosted, text: boosted ? 'Coach bonus: effects x1.5' : `Needs a ${need(SKILLS.boostMinLevel)} coach strong in ${SIDE_WORD[side]} for x${SKILLS.boost}` },
       nodes: def.nodes.map((nd, k) => {
         const i = k + 1, st = nodeStatus(s, id, side, i);
         const state = st.status === 'owned' ? 'done' : i === owned + 1 ? 'next' : 'locked';
-        const reason = st.status === 'owned' || st.status === 'available' ? null : st.reason === 'order' ? 'Buy the earlier node first.' : st.reason === 'coach' ? `Needs a level ${nd.needsCoachLevel} ${def.focus} coach.` : null;
+        const reason = st.status === 'owned' || st.status === 'available' ? null : st.reason === 'order' ? 'Buy the earlier node first.' : st.reason === 'coach' ? `Needs a ${need(nd.needsCoachLevel)} coach strong in ${SIDE_WORD[side]}.` : null;
         const info = NODE_INFO[tree] && NODE_INFO[tree][k];
         const weekLock = st.status === 'locked' && st.reason === 'week';
         return { i, name: info ? info[0] : `Skill ${i}`, text: info ? info[1] : nd.text, cost: nd.cost, state: weekLock ? 'locked' : state, reason: weekLock ? WEEK_REASON : reason, weekLock };
@@ -343,36 +358,33 @@ export function treeVM(s, id) {
 }
 
 export function coachesVM(s) {
-  const T = COACHES.xp;
-  const coaches = staff(s).map((c) => ({
-    id: c.id, name: c.name, here: !(c.away > 0),
-    foci: COACHES.focuses.map((f) => {
-      const lv = c.lv[f.focus] || 0;
-      return { key: f.focus, drill: DRILLS.list.find((d) => d.id === f.rating).name, level: lv, xp: c.xp[f.focus] || 0, from: lv ? T[lv - 1] : 0, to: lv >= T.length ? null : T[lv] };
-    }),
-    boost: Object.values(c.lv).some((v) => v >= SKILLS.boostMinLevel) ? `Skill trees x${SKILLS.boost} while he is here` : null,
-  }));
-  return { coaches, note: 'A coach helps the drill that matches his focus. Each level adds to the Good chance.' };
+  const plan = planOf(s), list = coachList(s);
+  return {
+    coaches: list.map((c) => ({ ...coachRow(s, c), picked: plan.coachId === c.id, helps: c.strong.includes(plan.focus) })),
+    slots: MAX_COACHES, free: Math.max(0, MAX_COACHES - list.length), full: list.length >= MAX_COACHES, scout: coachPickVM(s),
+    note: 'Pick a coach for the week. He helps only when he is strong in the focus. A course makes a coach better and takes him away for a week.',
+  };
 }
 
 // ---- week summary
 export function weekVM(s) {
-  const W = s.training.weekSummary || { week: s.training.week - 1, gains: [], reveals: [], nodes: [], coachUps: [] };
-  const name = (id) => player(s, id).name;
+  const W = s.training.weekSummary || { week: s.training.week - 1, gains: [], reveals: [], nodes: [], lines: [] };
+  const name = (id) => (player(s, id) || { name: '?' }).name;
   const gains = rowOrder(s).map((p) => {
     const g = W.gains.find((x) => x.playerId === p.id);
-    if (!g) return { id: p.id, name: p.name, rating: null, n: 0, before: shownAbility(p), after: shownAbility(p) };
+    const after = letterVM(p);
+    if (!g) return { id: p.id, name: p.name, rating: null, n: 0, before: after.letter, after: after.letter, ...after };
     const prev = { ...p }; RATINGS.forEach((k, i) => { prev[k] = p[k] - g.by[i]; });
     const at = g.by.findIndex((v) => v > 0);
-    return { id: p.id, name: p.name, rating: at >= 0 ? RATING_KEY[RATINGS[at]] : null, n: g.total, before: shownAbility(prev), after: shownAbility(p) };
+    return { id: p.id, name: p.name, rating: at >= 0 ? RATING_KEY[RATINGS[at]] : null, n: g.total, before: letterVM(prev).letter, after: after.letter, ...after, stepUp: letterVM(prev).step < after.step };
   });
   const last = s.season.last;
   const results = s.season.results.filter((r) => last && r.kind === last.kind && (last.kind !== 'league' || r.round === last.round));
   return {
-    week: W.week, pos: placeOf(s.season.table, ME), tp: s.training.tp, cta: s.season.phase === 'over' ? 'See season results' : 'Next match', gains,
+    week: W.week, pos: placeOf(s.season.table, ME), tp: s.training.tp, cta: s.season.phase === 'over' ? 'See season results' : 'Next match', gains, lines: W.lines || [],
     reveals: W.reveals.map((r) => ({ name: name(r.playerId), grade: r.grade })),
     nodes: W.nodes.map((n) => ({ name: name(n.playerId), node: n.node })),
-    coachUps: W.coachUps.map((c) => ({ name: (s.coaches.find((x) => x.id === c.coachId) || {}).name, focus: c.focus, level: c.to })),
+    coachUps: [], course: s.training.courseDone && s.training.courseDone.week === W.week ? { ...s.training.courseDone, fromLetter: letterOfStep(s.training.courseDone.from), toLetter: letterOfStep(s.training.courseDone.to) } : null, pay: s.pay || null,
     roundResults: results.map((r) => ({ a: clubName(s, r.a), b: clubName(s, r.b), ra: r.ra, wa: r.wa, rb: r.rb, wb: r.wb, me: r.a === ME || r.b === ME })),
   };
 }
@@ -425,42 +437,10 @@ export function clubVM(s) {
   };
 }
 
-// ---- p7train: the plan card, bulk summary, bench switch and first-time tips on the training screen
-export function trainPlanVM(s) {
-  const T = s.training, mode = planMode(s), ids = sixOf(s);
-  const run = bulkPlan(s, mode, ids), bridge = !!(s.season && s.season.n >= 2);
-  const byPlayer = {};
-  for (const id of ids) { if (T.drilled && T.drilled[id]) continue; const pl = planDrill(s, player(s, id), mode); if (pl) byPlayer[id] = { drillId: pl.drillId, rating: RATING_KEY[drillDef(pl.drillId).rating], fresh: pl.fresh }; }
-  const cost = bridge ? 0 : run.length * DRILLS.costTp;
-  const b = T.bulk;
-  let bulk = null;
-  if (b && b.items.length) {
-    const xp = {};
-    for (const it of b.items) { if (!it.gain) continue; const d = drillDef(it.drillId), c = it.coach ? s.coaches.find((x) => x.id === it.coach) : null; if (!c) continue; ((xp[c.name] ||= {})[d.focus] = (xp[c.name][d.focus] || 0) + it.gain); }
-    bulk = { n: b.items.length, total: b.items.reduce((a, x) => a + x.gain, 0), great: b.items.filter((x) => x.outcome === 'Great').length,
-      reveals: b.items.filter((x) => x.revealed).map((x) => ({ name: player(s, x.playerId).name, grade: x.grade })),
-      xp: Object.keys(xp).map((c) => ({ coach: c, text: Object.keys(xp[c]).map((f) => `${f} +${xp[c][f]}`).join(', ') })) };
-  }
-  return { plan: { mode, canRepeat: hasLastPlan(s), n: run.length, cost, tpLeft: s.training.tp - cost, free: bridge, byPlayer, bulk, autoBench: !!T.autoBench, tips: !T.tipsSeen && !(T.drillCount > 0) } };
-}
-
 // ---- p7first
-/** Plain phrase for a drill's rating (proposed wording, not checked by NUMBERS). */
-const DRILL_PHRASE = { bp: 'big hitting practice', bs: 'batting practice', spd: 'fast bowling practice', bsk: 'bowling accuracy practice' };
-export const drillPhrase = (ratingId) => DRILL_PHRASE[ratingId] || 'practice';
-
 /** First-match strip (3 lines + Skip): League 1 season 1 match 1, first over, until skipped. */
 export function firstStripOn(s) {
   return !!(s.season && s.season.n === 1 && s.season.round === 1 && s.stage === 'bowl' && s.inn1 && s.inn1.over === 1 && !(s.seen && s.seen.firstStrip));
-}
-
-/** Notice at the top of training week 1: who the coach is and what he is best at, with Change. null once a drill is done. */
-export function coachNoticeOf(s) {
-  const c = (s.coaches || []).find((x) => !x.candidate);
-  if (!s.coachPool || !c || !s.coachPicked || ((s.training && s.training.drillCount) || 0) > 0) return null;
-  const focus = Object.keys(c.lv).find((f) => c.lv[f] > 0) || 'Power';
-  const d = DRILLS.list.find((x) => x.focus === focus);
-  return { name: c.name, focus, line: `${c.name} is your coach. He is best at ${drillPhrase(d && d.id)}.`, canChange: true };
 }
 
 // ---------------------------------------------------------------- Pairing Book (P4). Grade words only: the points number never leaves core/pairing.js.

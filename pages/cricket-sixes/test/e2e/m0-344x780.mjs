@@ -1,7 +1,7 @@
 // M0 end-to-end at 344x780 ONLY (the closed Fold). Run from the app root:  node test/e2e/m0-344x780.mjs
 // Env: E2E_FULL=1 plays the whole season to the end screen; E2E_SHOTS=dir moves the screenshots; E2E_SOFT=1 never exits 1.
 // Journey (default): coach -> hub (standings sheet, save sheet) -> squad -> plan -> one match (over panel tapped through)
-//   -> result -> training week (drills) -> reload mid-week -> end week -> week summary -> hub.   ?seed=e2e-1, fresh context each run.
+//   -> result -> training week (Run nets) -> reload mid-week -> end week -> week summary -> hub.   ?seed=e2e-1, fresh context each run.
 // Playwright is preinstalled (global); no install. If the app still boots into the step-0 match, the run SKIPS with exit 0.
 import http from 'node:http';
 import { createRequire } from 'node:module';
@@ -67,7 +67,7 @@ function auditInPage(strict) {
   // no visible text box may end below the top of the pinned CTA bar (text under the bar is unreadable). Text inside a scroll area is skipped: it may scroll under the bar.
   out.underCta = [];
   const bar = !sheet && [...document.querySelectorAll('.m0-ctabar, .ctabar')].filter(vis)[0];
-  if (bar) {
+  if (bar && !document.querySelector('.t2-ov')) { // a full-screen overlay (nets scene, wheel) covers the screen CTA, so it is not checked against it
     const top = bar.getBoundingClientRect().top;
     // a scroll area (squad list, training list; body counts, it has overflow-x hidden) lets text pass under the bar by design
     const scrolls = (e) => { for (let p = e; p && p !== document.documentElement && !(strict && p === document.body); p = p.parentElement) { const o = getComputedStyle(p).overflowY; if ((o === 'auto' || o === 'scroll') && p.scrollHeight > p.clientHeight + 1) return true; } return false; };
@@ -196,24 +196,24 @@ async function journey(browser, tag) {
     } else if (st === 'done') {
       if (!(await clickCta())) { bad('done: no CTA'); break; }
     } else if (st === 'train') {
-      const tip = await page.$('.tr-tip [data-tip="skip"]'); if (tip) { await audit('train-tips'); await shot('train-tips'); await tip.click(); await settle(300); } // first-time tips (P11): seen once, Skip ends them
-      if (!coachChecked) { // p7-first: the coach notice is on training week 1; Change opens the coach screen and a pick comes back here
-        coachChecked = true;
-        if (!(await page.$('.tr-cnotice'))) bad('train: no coach notice in week 1');
-        else { await shot('coach-notice'); await (await page.$('[data-act="ChangeCoach"]')).click(); await settle(300); await audit('coach-pick');
-          if ((await stage()) !== 'coach') bad('Change did not open the coach screen'); else { await (await page.$('[data-pick]')).click(); await settle(100); if (!(await clickCta())) bad('coach: no Confirm'); await settle(200); if ((await stage()) !== 'train') bad('coach pick did not return to training'); } continue; }
-      }
+      // P11 redo: Focus + Effort + optional Spotlight, one Run nets, then Done. Two taps a normal week.
       const rows = await page.$$('[data-act="sheet:player"]');
-      if (rows.length < 10) bad(`train: ${rows.length} player rows, want all 10 (bench trains too)`);
-      let drilled = 0;
-      for (let k = 0; k < Math.min(3, rows.length); k++) {
-        await (await page.$$('[data-act="sheet:player"]'))[k].click(); await settle(400);
-        if (k === 0) { await audit('player-sheet'); await shot('player-sheet'); }
-        const d = await page.$('.c-sheet [data-act="Drill"]:not([disabled])');
-        if (d) { await d.click(); await settle(400); if (!drilled++) { await audit('drill-result'); await shot('drill-result'); } }
-        await closeSheets();
+      if (rows.length < 8) bad(`train: ${rows.length} player rows, want all 8 (bench trains too)`);
+      if (!(await page.$('[data-act="SetTrainPlan"]'))) bad('train: no Focus/Effort buttons');
+      await audit('train'); await shot('train');
+      const run = await page.$('[data-lo="runnets"]:not([disabled])');
+      if (!run) bad('train: Run nets missing or disabled');
+      else {
+        await run.click(); await settle(400);
+        if (await page.$('.wh-ov')) { // a Spotlight is set (remembered plan): SPIN, STOP, COLLECT
+          await audit('wheel'); await shot('wheel');
+          await (await page.$('.wh-ov [data-go]')).click(); await settle(REDUCE ? 300 : 2800); if (!REDUCE) { await (await page.$('.wh-ov [data-go]')).click(); await settle(1500); }
+          await shot('wheel-result'); await (await page.$('.wh-ov [data-go]')).click(); await settle(400);
+        }
+        if (await page.$('.ns-scene')) { await audit('nets-scene'); await shot('nets-scene'); await (await page.$('.ns-skip')).click(); await settle(200); if (await page.$('.ns-scene')) { await (await page.$('.ns-skip')).click(); await settle(200); } }
+        if (!(await page.$('.t2-line'))) bad('train: no result lines after Run nets');
+        await audit('nets-result'); await shot('nets-result');
       }
-      if (!drilled) bad('train: no drill button could be tapped');
       if (!reloaded) { // reload mid-week keeps week, table, six, TP and drills; the saved game wins over ?seed
         reloaded = true; const before = await snap(); await page.reload(); await settle(800);
         const after = await snap(); if (before !== after) bad(`reload mid-week changed the state:\n  before ${before}\n  after  ${after}`);

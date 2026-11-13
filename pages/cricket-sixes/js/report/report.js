@@ -32,7 +32,9 @@ export function aggregate(matches) {
   const offered = bo.filter((o) => o.gm > 0); // overs where a Good matchup was on offer
   const think = all.map((o) => o.th).filter((v) => v != null);
   const waits = all.map((o) => o.pw).filter((v) => v != null);
-  const scored = sum(co.map((o) => o.r)), conc = sum(bo.map((o) => o.r));
+  const dov = (side) => done.flatMap((m) => m.ov.filter((o) => o.s === side)); // luck lines count finished matches only (a quit match adds nothing)
+  const dco = dov('c'), dbo = dov('b');
+  const scored = sum(dco.map((o) => o.r)), conc = sum(dbo.map((o) => o.r));
   return {
     n: matches.length, finished: done.length, quit: matches.filter((m) => m.ab).length, live: matches.some((m) => !m.res && !m.ab),
     won: cnt(done.map((m) => m.res), 'won'), lost: cnt(done.map((m) => m.res), 'lost'), tied: cnt(done.map((m) => m.res), 'tied'),
@@ -48,8 +50,8 @@ export function aggregate(matches) {
     thinkMed: median(think), thinkMax: think.length ? Math.max(...think) : null, thinkFast: pct(think.filter((t) => t < 1500).length, think.length),
     why: sum(matches.map((m) => m.why)), whyBy: matches.filter((m) => m.why).map((m) => 'M' + m.id + ' ' + m.why), gloss: matches.reduce((a, m) => { for (const k in m.gl) a[k] = (a[k] || 0) + m.gl[k]; return a; }, {}),
     skips: sum(matches.map((m) => m.sk)), overs: all.length, instant: pct(waits.filter((w) => w < 1000).length, waits.length),
-    xScored: r1(sum(co.map((o) => o.xr))), scored, xConc: r1(sum(bo.map((o) => o.xr))), conc, xWkLost: r1(sum(co.map((o) => o.xw))), wkLost: sum(co.map((o) => o.w)),
-    xWkTook: r1(sum(bo.map((o) => o.xw))), wkTook: sum(bo.map((o) => o.w)),
+    xScored: r1(sum(dco.map((o) => o.xr))), scored, xConc: r1(sum(dbo.map((o) => o.xr))), conc, xWkLost: r1(sum(dco.map((o) => o.xw))), wkLost: sum(dco.map((o) => o.w)),
+    xWkTook: r1(sum(dbo.map((o) => o.xw))), wkTook: sum(dbo.map((o) => o.w)),
     retryFast: pct(done.filter((m) => m.res === 'lost' && m.rt != null && m.rt <= 10000).length, done.filter((m) => m.res === 'lost' && m.rt != null).length),
     seconds: done.length ? Math.round(sum(done.map((m) => (m.t1 - m.t0) / 1000)) / done.length) : null,
   };
@@ -76,9 +78,11 @@ export function cleanOf(matches, env) {
   const flags = (env && env.flags) || FLAG_DEFAULTS, bad = Object.keys(FLAG_DEFAULTS).filter((k) => flags[k] !== FLAG_DEFAULTS[k]);
   if (bad.length) why.push('flags changed: ' + bad.join(', '));
   if (matches.some((m) => !m.res && !m.ab)) why.push('match in progress');
+  if (env && env.fixedSeed) why.push('fixed seed');
+  if (new Set(matches.map((m) => m.seed)).size < matches.length) why.push('repeated seed');
   return { ok: !why.length, why };
 }
-const WHY_WORDS = (w) => (w === 'mixed builds' ? 'more than one build in this report' : w === 'match in progress' ? 'a match is still being played' : w.replace('flags changed', 'game settings changed'));
+const WHY_WORDS = (w) => (w === 'mixed builds' ? 'more than one build in this report' : w === 'match in progress' ? 'a match is still being played' : w === 'fixed seed' ? 'the page was opened with a fixed seed, so rolls can repeat' : w === 'repeated seed' ? 'two matches used the same seed' : w.replace('flags changed', 'game settings changed'));
 const FEEL_TAG = { q1: 'picks mattered', q2: 'finish', q3: 'knew why', q4: 'ball speed' };
 const feelTxt = (m) => Object.entries(m.feel || {}).map(([q, v]) => (v === '-' ? (FEEL_TAG[q] || q) + ' skipped' : (FEEL_TAG[q] || q) + ' ' + v)).join(', ');
 
@@ -98,10 +102,12 @@ export const LINES = [
     a.mu.n ? `Bowler matchup you picked: Good ${P(a.mu.G)}, OK ${P(a.mu.O)}, Poor ${P(a.mu.P)} (${a.mu.n} overs). Skilled bot ${BANDS.matchup.skilled.join('/')}, random ${BANDS.matchup.random.join('/')} [sim].` : null),
   ({ a }) => lines(`Thinking time per call: median ${sec(a.thinkMed)}, longest ${sec(a.thinkMax)}; under 1.5 s on ${P(a.thinkFast)} of calls.`,
     `Why? opened ${a.why} times${a.whyBy.length ? ' (' + a.whyBy.slice(-MAX_MATCH_ROWS).join(', ') + ')' : ''}.`,
-    `Word list "?" opened ${sum(Object.values(a.gloss))} times${Object.keys(a.gloss).length ? ': ' + Object.entries(a.gloss).map(([k, v]) => k + (v > 1 ? ' x' + v : '')).join(', ') : ''}.`),
-  ({ a }) => lines(`Luck: you scored ${a.scored} runs, expected ${a.xScored}; the rival scored ${a.conc}, expected ${a.xConc}.`,
-    `Wickets: you lost ${a.wkLost} (expected ${a.xWkLost}), you took ${a.wkTook} (expected ${a.xWkTook}).`,
-    `In one match, luck in your chase usually lands between ${BANDS.luck[0]} and +${BANDS.luck[1]} runs [sim].`),
+    `Word list "?" opened ${sum(Object.values(a.gloss))} times.`,
+    wordsLine(a.gloss)),
+  ({ a }) => { const n = a.finished, tot = Math.round(1.28 * 11 * Math.sqrt(n)), wk = r1(1.28 * 1.95 * Math.sqrt(n)), L = BANDS.luckBy, g = (v) => (v > 0 ? '+' : '') + v; // wicket sd 1.95 a match (NUMBERS: p10-p90 -2.6..+2.4 = 2 x 1.28 x sd)
+    return lines(`Luck: you scored ${a.scored} runs, expected ${a.xScored}; the rival scored ${a.conc}, expected ${a.xConc} (finished matches only; usual total over ${n} ${n === 1 ? 'match' : 'matches'}: -${tot} to +${tot}${n < 10 ? '; too few matches to call luck' : ''}).`,
+      `Wickets: you lost ${a.wkLost} (expected ${a.xWkLost}), you took ${a.wkTook} (expected ${a.xWkTook}); usual wicket luck over ${n} ${n === 1 ? 'match' : 'matches'}: -${wk} to +${wk}.`,
+      `In one match, luck in your chase usually lands between ${BANDS.luck[0]} and +${BANDS.luck[1]} runs; after a win ${L.won[0]} to ${g(L.won[1])}, after a loss ${L.lost[0]} to ${g(L.lost[1])} [sim].`); },
   ({ a, ms }) => lines(`Results: won ${a.won}, lost ${a.lost}, tied ${a.tied} of ${a.finished} finished; close finishes ${a.close}, big wins or losses ${a.blow}, quit ${a.quit}.`,
     `Usual range for runs in a match: you ${BANDS.runs.us.join('-')}, rival ${BANDS.runs.them.join('-')} [sim].`) +
     '\n' + ms.slice(-MAX_MATCH_ROWS).map((m) => {
@@ -122,6 +128,15 @@ export function envOf(env = {}) {
 }
 
 /** Short summary text (lines joined by newline). data = the stored log, env = { build, now, vp, errors, flags }. */
+/** Per-word open counts, most opened first (ties by name). */
+export const wordsOf = (gloss) => Object.entries(gloss || {}).sort((x, y) => y[1] - x[1] || (x[0] < y[0] ? -1 : 1));
+/** "Words opened: Burst 3, Line 2 (top 8), +N more"; null when none. */
+export function wordsLine(gloss) {
+  const w = wordsOf(gloss); if (!w.length) return null;
+  const cap = (k) => k.charAt(0).toUpperCase() + k.slice(1), rest = w.slice(8).reduce((n, e) => n + e[1], 0);
+  return 'Words opened: ' + w.slice(0, 8).map(([k, v]) => cap(k) + ' ' + v).join(', ') + (rest ? `, +${rest} more` : '') + '.';
+}
+
 export function buildSummary(data, env0) {
   const env = envOf(env0), ms = data.matches || [];
   const ctx = { a: aggregate(ms), ms, env, clean: cleanOf(ms, env), d: data };
@@ -135,6 +150,7 @@ export function buildData(data, env0) {
     legend: 'overs rows follow overCols. s b=bowl innings c=chase. mu G/O/P/? Good/OK/Poor/unknown. fit=[bowler,field,intent] vs skilled bot. th think ms, pw panel wait ms, sk closed early',
     overCols: OVER_COLS,
     z: { sessions: sessionStats(data), save: env.save },
+    wordsOpened: Object.fromEntries(wordsOf(aggregate(data.matches || []).gloss)),
     matches: ms.map((m) => ({ id: m.id, sid: m.sid, build: m.build, seed: m.seed, vp: m.vp, res: m.res || (m.ab ? 'quit' : 'live'), us: m.us, them: m.them, wkUs: m.wkUs, wkThem: m.wkThem,
       margin: m.m, close: m.close, blow: m.blow, secs: m.t1 ? Math.round((m.t1 - m.t0) / 1000) : null, screenMs: m.scr, why: m.why, gloss: m.gl, skips: m.sk, retryMs: m.rt, feel: m.feel,
       overs: m.ov.map((o) => OVER_COLS.map((k) => o[k])) })) };

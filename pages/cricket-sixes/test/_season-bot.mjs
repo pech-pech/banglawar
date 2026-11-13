@@ -7,12 +7,11 @@ export function newGame(seed = 'bot-1') {
   return store;
 }
 
-/** One step by stage. Returns false when the season is at 'end'. opts.drills = drills per week. */
+/** One step by stage. Returns false when the season is at 'end'. opts.drills = 0 skips the nets. */
 export function step(store, opts = {}) {
   const s = store.get();
   const d = (c, p) => store.dispatch(c, p);
   switch (s.stage) {
-    case 'coach': d('PickCoach', { coachId: s.coaches.find((c) => c.candidate).id }); break;
     case 'hub': case 'semi': case 'final': d('OpenSquad'); break;
     case 'squad': d('SetSix', { ids: s.clubs[0].squad.slice(0, 6).map((p) => p.id) }); break;
     case 'plan': d('SetPlan', { overs: s.plan.overs, fields: s.plan.fields }); d('NewMatch'); break;
@@ -21,8 +20,7 @@ export function step(store, opts = {}) {
     case 'chase': d('BowlOver', { intent: 'R' }); break;
     case 'done': d('FinishMatch'); break;
     case 'train': {
-      const n = opts.drills == null ? 2 : opts.drills;
-      s.clubs[0].squad.slice(0, n).forEach((p, i) => d('Drill', { playerId: p.id, drillId: ['bp', 'bs', 'spd', 'bsk'][i % 4] }));
+      if (opts.drills !== 0) { d('SetTrainPlan', { focus: 'bat', effort: 'normal', coachId: s.coaches[0] && s.coaches[0].id }); d('RunNets'); }
       d('EndWeek'); break;
     }
     case 'week': d('NextWeek'); break;

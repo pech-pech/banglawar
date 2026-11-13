@@ -1,0 +1,78 @@
+/* Letter grades (SPEC s4): a letter box plus a 4-tick fill bar; no digits. Colour is never the only signal: the letter is the signal. */
+.lt-cell { display: inline-flex; flex-direction: column; align-items: center; gap: 2px; }
+.lt-box { display: inline-flex; align-items: center; justify-content: center; min-width: 32px; min-height: 28px; padding: 0 4px; border: 2px solid var(--outline); background: var(--cream); font: 22px/24px var(--font-head); }
+.lt-box b { font-weight: 400; }
+.lt-S, .lt-A { background: var(--gold); }
+.lt-B { background: var(--grass1); }
+.lt-F, .lt-E { background: var(--stone1); }
+.lt-bar { display: inline-flex; gap: 2px; height: 6px; }
+.lt-bar i { display: block; width: 8px; height: 6px; border: 1px solid var(--outline); background: var(--cream); }
+.lt-bar i.on { background: var(--outline); }
+.lt-line { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; }
+/* squad row: letter cells replace the number boxes */
+.sq-nbox .lt-cell { gap: 3px; }
+.sq-nbox .lt-box { border: 0; background: none; min-width: 0; font-size: 22px; }
+.sq-nbox.hi .lt-box { background: none; }
+.sq-soft { font: 14px/16px var(--font-body); display: inline-flex; align-items: center; gap: 3px; }
+.sq-fit { display: inline-flex; align-items: center; gap: 2px; font: 14px/16px var(--font-head); }
+.sq-full { font-size: 14px; line-height: 16px; padding: 6px 8px; border: 2px dashed var(--outline); background: var(--cream); }
+/* pay card */
+.pay { display: grid; gap: 0; }
+.pay-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 56px; padding: 6px 8px; width: 100%; font: 16px/20px var(--font-body); background: none; border: 0; border-bottom: 2px solid var(--outline); color: inherit; text-align: left; }
+.pay-row small { display: block; font-size: 14px; line-height: 16px; }
+.pay-row b { font: 20px/22px var(--font-head); font-weight: 400; white-space: nowrap; }
+.pay-tot { background: var(--gold); border-bottom: 0; }
+.pay-who { list-style: none; margin: 0; padding: 4px 8px 8px 24px; display: grid; gap: 2px; font-size: 14px; line-height: 18px; }
+/* hub notice */
+.hb-notice { display: flex; align-items: center; gap: 8px; min-height: 56px; padding: 6px 8px; font: 14px/18px var(--font-body); border: 2px solid var(--outline); color: inherit; background: var(--cream); text-align: left; }
+.hb-notice span { flex: 1 1 auto; }
+/* pre-match letter pair */
+.pm-pair { display: flex; align-items: center; justify-content: center; gap: 10px; font-size: 14px; }
+.pm-pair > span { display: inline-flex; align-items: center; gap: 4px; }
+.ts-slot { background: var(--cream); color: var(--outline); border: 1px dashed var(--outline); }
+.sq-nbox .lt-bar i { width: 6px; }
+.lt-in { font: 18px/20px var(--font-head); font-weight: 400; padding: 0 3px; border: 2px solid var(--outline); background: var(--cream); }
+.lt-line .lt-bar { margin-left: 2px; }
+.lt-stat { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 8px; min-height: 56px; padding: 4px 6px; border-bottom: 2px solid var(--outline); }
+.hb-notice small { font-size: 14px; line-height: 16px; flex: none; }
+div.pay-row { min-height: 40px; }
+.res .pay { flex: none; }
+.pay h3 { border-bottom: 2px solid var(--outline); }
+.hb-notice { box-sizing: border-box; max-width: 100%; white-space: normal; flex-wrap: wrap; }
+.hb-notice span { min-width: 0; flex: 1 1 140px; }
+.hb-notice small { margin-left: auto; }
+.hb-tools3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+
+/* QA fixes */
+.pay-who[hidden] { display: none; }
+.pay-star { font-size: 22px; line-height: 22px; margin-right: 2px; }
+/* ticks stacked under the letter */
+.lt-line { display: inline-flex; align-items: center; gap: 6px; }
+.lt-line .lt-cell { align-items: center; }
+.lt-in { display: inline-block; }
+/* squad row: main button (name + bat + bowl) and a separate info button (potential grade) */
+.sq-wrap { display: grid; grid-template-columns: minmax(0, 1fr) 44px; gap: 4px; }
+.sq-row { grid-template-columns: minmax(0, 1fr) 42px 42px; }
+.sq-info { cursor: pointer; font: inherit; color: inherit; padding: 0; }
+.sq-info img { image-rendering: pixelated; }
+.sq-pbox { grid-template-rows: auto auto auto auto; }
+.sq-pbox .ico { grid-row: 1 / 5; }
+.sq-benchline { grid-column: 2; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.sq-sub { flex-wrap: wrap; gap: 0 8px; }
+.sq-ty { display: inline-flex; align-items: center; gap: 3px; }
+.sq-nm { min-width: 0; overflow-wrap: anywhere; white-space: normal; }
+/* bowl CTA: over on line 1, bowler on line 2 */
+.bv-ct { display: flex; flex-direction: column; align-items: center; line-height: 20px; }
+.bv-ct small { font-size: 14px; line-height: 16px; max-width: 100%; overflow-wrap: anywhere; }
+/* Scorebook: names wrap/shrink, never clip */
+.hb-p .nm { white-space: normal; overflow: visible; text-overflow: clip; overflow-wrap: anywhere; font-size: 14px; line-height: 16px; }
+.pl-cn .name, .ts-nm .name { white-space: normal; overflow-wrap: anywhere; text-overflow: clip; }
+.ts-wrap { display: grid; grid-template-columns: minmax(0, 1fr) 56px; gap: 4px; }
+.ts-wrap .ts-row { grid-template-columns: 28px minmax(0, 1fr) 56px; }
+.ts-info { flex-direction: column; cursor: pointer; font: inherit; color: inherit; padding: 0; }
+.ts-info img { image-rendering: pixelated; }
+.hb-coins { font-size: 14px; line-height: 14px; white-space: nowrap; }
+.hb-promo .hb-check { min-height: 32px; line-height: 18px; } .hb-promo { padding-top: 4px; padding-bottom: 4px; }
+.ts-wrap .ts-info, .sq-wrap .sq-info { min-width: 56px; min-height: 56px; box-sizing: border-box; }
+.sq-wrap { grid-template-columns: minmax(0, 1fr) 56px; }
+.ts-wrap { grid-template-columns: minmax(0, 1fr) 56px; }

@@ -5,8 +5,7 @@ import { teamVM, clubVM } from '../js/store/selectors.js';
 
 // P6: the six and the overs are edited from the hub (stage stays), and one Start match uses what is saved.
 function hub(seed) {
-  let s = C(null, 'NewGame', { seed });
-  return C(s, 'PickCoach', { coachId: s.coaches.find((c) => c.candidate).id });
+  return C(null, 'NewGame', { seed });
 }
 const ids = (s) => s.clubs[0].squad.map((p) => p.id);
 
