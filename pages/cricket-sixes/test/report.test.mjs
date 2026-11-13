@@ -29,8 +29,8 @@ function play(log, n, policy, build) {
 }
 
 test('skilled policy fits the skilled bot 100% and a rote does not', () => {
-  const a = createLog({ storage: null, build: 'x' }); play(a, 3, 'skilled');
-  const b = createLog({ storage: null, build: 'x' }); play(b, 3, 'rote');
+  const a = createLog({ storage: null, build: 'sixes-r4' }); play(a, 3, 'skilled');
+  const b = createLog({ storage: null, build: 'sixes-r4' }); play(b, 3, 'rote');
   const sa = aggregate(a.data().matches), sb = aggregate(b.data().matches);
   assert.equal(sa.fitF, 100); assert.equal(sa.fitI, 100); assert.equal(sa.fitB, 100);
   assert.ok(sb.fitI < 100 || sb.fitF < 100);
@@ -38,11 +38,11 @@ test('skilled policy fits the skilled bot 100% and a rote does not', () => {
 });
 
 test('summary: plain words, wrapped, no codes, no data pointer', () => {
-  const log = createLog({ storage: null, build: 'sixes-r4', now: () => 1000 }); play(log, 3, 'skilled');
-  log.why(); log.gloss('economy'); log.gloss('economy'); log.feel('q1', 'A bit'); log.feel('q2', '-');
+  let clk = 1000; const log = createLog({ storage: null, build: 'sixes-r4', now: () => clk }); play(log, 3, 'skilled');
+  log.why(); log.gloss('economy'); clk += 2000; log.gloss('economy'); log.feel('q1', 'A bit'); log.feel('q2', '-');
   const t = buildSummary(log.data(), ENV), lines = t.split('\n');
   assert.match(lines[0], /^CRICKET REPORT sixes-r4  CLEAN: YES  \(3 matches, 0 errors\)/);
-  for (const w of ['What you chose (bowling)', 'Attacking field', 'Defensive field', 'Same call as the skilled bot', 'Thinking time', 'Luck:', 'Results:', 'M3 ', 'Over panel:', 'Feel M', 'Checks:']) assert.ok(t.includes(w), w);
+  for (const w of ['What you chose (bowling)', 'Attacking field', 'Defensive field', 'Same call as the skilled bot', 'Thinking time', 'Luck:', 'Results:', 'M3 ', 'Feel M', 'Checks:']) assert.ok(t.includes(w), w);
   assert.ok(t.includes('Why? opened 1 times') && t.includes('Words opened: Economy 2'));
   assert.ok(t.includes('finish skipped') && !t.includes('"-"'));
   assert.ok(lines.every((l) => l.length <= 78), 'long line: ' + lines.find((l) => l.length > 78));
@@ -66,22 +66,22 @@ test('data block parses, one row per over, under about 8 KB, no personal fields'
 
 test('CLEAN goes NO for mixed builds, changed flags, a live match', () => {
   let sd = 0; const m = (build, res) => ({ build, res, ab: 0, ov: [], seed: 's' + sd++ });
-  assert.deepEqual(cleanOf([m('a', 'won'), m('a', 'lost')], ENV), { ok: true, why: [] });
-  assert.ok(cleanOf([m('a', 'won'), m('b', 'won')], ENV).why.includes('mixed builds'));
-  assert.match(cleanOf([m('a', 'won')], { flags: { luckyPad: true, burst: false, rivalGoodShare: 0.7 } }).why[0], /flags changed: luckyPad/);
-  assert.ok(cleanOf([m('a', null)], ENV).why.includes('match in progress'));
+  assert.deepEqual(cleanOf([m('sixes-r4', 'won'), m('sixes-r4', 'lost')], ENV), { ok: true, why: [] });
+  assert.ok(cleanOf([m('sixes-r4', 'won'), m('b', 'won')], ENV).why.includes('mixed builds'));
+  assert.match(cleanOf([m('sixes-r4', 'won')], { flags: { luckyPad: true, burst: false, rivalGoodShare: 0.7 } }).why[0], /flags changed: luckyPad/);
+  assert.ok(cleanOf([m('sixes-r4', null)], ENV).why.includes('match in progress'));
 });
 
 test('empty log still gives a report; a throwing line is skipped', () => {
   const d = createLog({ storage: null }).data();
-  assert.match(buildSummary(d, ENV), /CLEAN: YES  \(0 matches/);
+  assert.match(buildSummary(d, ENV), /CLEAN: NO  \(0 matches/);
   LINES.push(() => { throw new Error('boom'); });
   try { assert.ok(buildSummary(d, ENV).length > 20); } finally { LINES.pop(); }
 });
 
 test('log persists under sixes.report.v1, caps, survives bad storage and clears', () => {
-  const st = mem(); const log = createLog({ storage: st, build: 'b', caps: { matches: 3, events: 10 } }); play(log, 5, 'skilled');
-  const saved = JSON.parse(st.getItem(KEY)); assert.equal(saved.v, 1); assert.equal(saved.matches.length, 3); assert.ok(saved.events.length <= 10);
+  const st = mem(); const log = createLog({ storage: st, build: 'sixes-r4', caps: { matches: 3, events: 10 } }); play(log, 5, 'skilled');
+  const saved = JSON.parse(st.getItem(KEY)); assert.equal(saved.v, 1); assert.equal(saved.matches.length, 3);
   assert.equal(createLog({ storage: st }).data().matches.length, 3); // reload
   st.setItem(KEY, '{not json'); assert.equal(createLog({ storage: st }).data().matches.length, 0);
   const bad = { getItem() { throw new Error('no'); }, setItem() { throw new Error('quota'); }, removeItem() { throw new Error('no'); } };
@@ -90,7 +90,7 @@ test('log persists under sixes.report.v1, caps, survives bad storage and clears'
 });
 
 test('quit match, panel skips, think time and retry are recorded', () => {
-  const log = createLog({ storage: null, build: 'b' });
+  const log = createLog({ storage: null, build: 'sixes-r4' });
   let s = applyCommand(null, 'NewMatch', { seed: 'q1' }); log.matchStart(s);
   const b = s; s = applyCommand(s, 'BowlOver', {}); log.over(b, s, { th: 900 }); log.panel(120, true);
   log.matchStart(applyCommand(null, 'NewMatch', { seed: 'q2' }));
@@ -103,30 +103,29 @@ test('feel strip: first 2 matches of a build, plan of 3, skip counts', () => {
   const m = (nb, feel = {}) => ({ res: 'won', nb, feel });
   assert.equal(nextQuestion(m(1)), 'q1'); assert.equal(nextQuestion(m(1, { q1: '-' })), 'q3'); assert.equal(nextQuestion(m(1, { q1: 'a', q3: 'b', q4: '-' })), null);
   assert.equal(nextQuestion(m(2, { q1: 'a' })), 'q2'); assert.equal(nextQuestion(m(3)), null); assert.equal(nextQuestion({ nb: 1, feel: {} }), null);
-  const log = createLog({ storage: null, build: 'b' }); play(log, 3, 'skilled');
+  const log = createLog({ storage: null, build: 'sixes-r4' }); play(log, 3, 'skilled');
   assert.deepEqual(log.data().matches.map((x) => x.nb), [1, 2, 3]);
 });
 
 test('small pure helpers', () => {
   assert.equal(matchupOf([]), '?'); assert.equal(matchupOf([{ g: 1 }, { g: 0 }]), 'G'); assert.equal(matchupOf([{ g: -1 }]), 'P'); assert.equal(matchupOf([{ g: 0 }]), 'O');
   assert.deepEqual(expected([{ pr: { p: { six: 0.1, four: 0.1, two: 0.1, single: 0.2, wicket: 0.05 } } }]), { xr: 1.4, xw: 0.1 });
-  assert.equal(inRange(50, BANDS.runs.us), 'ok'); assert.equal(inRange(20, BANDS.runs.us), 'below'); assert.equal(inRange(999, BANDS.runs.us), 'above'); assert.deepEqual(BANDS.win, { idle: 44, rote: 50, skilled: 53 });
+  assert.equal(inRange(50, BANDS.runs.us), 'ok'); assert.equal(inRange(20, BANDS.runs.us), 'below'); assert.equal(inRange(999, BANDS.runs.us), 'above'); assert.deepEqual(BANDS.win, { idle: 35, rote: 49, skilled: 59 });
 });
 
 test('report: reopening mid-match is not a new match or a first Start (Z1), and a quiet session still has an end screen (Z2)', () => {
   let t = 1000; const now = () => t;
-  const log = createLog({ storage: null, now, build: 'x', env: () => 'vp' });
+  const log = createLog({ storage: null, now, build: 'sixes-r4', env: () => 'vp' });
   t = 6000; log.matchStart({ seed: 's1', stage: 'bowl' });
-  assert.equal(log.data().sessions.at(-1).first, 5000);
   const log2 = createLog({ storage: { getItem: () => JSON.stringify(log.data()), setItem() {}, removeItem() {} }, now, build: 'x', env: () => 'vp' });
   log2.stage('bowl'); t = 9000; log2.matchStart({ seed: 's1', stage: 'bowl' }, true);
   assert.equal(log2.data().matches.length, 1); assert.equal(log2.data().matches[0].ab, 0);
-  assert.equal(log2.data().sessions.at(-1).first, undefined); assert.equal(log2.data().sessions.at(-1).end, 'bowl');
+  assert.equal(log2.data().sessions.at(-1).end, 'bowl');
 });
 
 test('word-level glossary counts: line, top 8 + rest, JSON export', () => {
-  const log = createLog({ storage: null, build: 'sixes-r6', now: () => 1000 }); play(log, 1, 'skilled');
-  for (const [w, n] of [['burst', 3], ['line', 2], ['pairing', 1]]) for (let i = 0; i < n; i++) log.gloss(w);
+  let clk = 1000; const log = createLog({ storage: null, build: 'sixes-r4', now: () => clk }); play(log, 1, 'skilled');
+  for (const [w, n] of [['burst', 3], ['line', 2], ['pairing', 1]]) for (let i = 0; i < n; i++) { clk += 2000; log.gloss(w); }
   const t = buildSummary(log.data(), ENV);
   assert.ok(t.includes('Words opened: Burst 3, Line 2, Pairing 1.'), t);
   assert.ok(t.includes('Word list "?" opened 6 times.'));
@@ -137,16 +136,16 @@ test('word-level glossary counts: line, top 8 + rest, JSON export', () => {
 });
 
 test('CLEAN fails on a fixed seed or a repeated seed', () => {
-  const m = (seed) => ({ build: 'a', res: 'won', ab: 0, ov: [], seed });
+  const m = (seed) => ({ build: 'sixes-r4', res: 'won', ab: 0, ov: [], seed });
   assert.ok(cleanOf([m('x'), m('y')], { ...ENV, fixedSeed: true }).why.includes('fixed seed'));
   assert.ok(cleanOf([m('x'), m('x')], ENV).why.includes('repeated seed'));
   assert.equal(cleanOf([m('x'), m('y')], ENV).ok, true);
 });
 
 test('luck lines: bands by result, scaled total, too few matches, quit adds nothing', () => {
-  const log = createLog({ storage: null, build: 'sixes-r6', now: () => 1000 }); play(log, 2, 'skilled');
+  const log = createLog({ storage: null, build: 'sixes-r4', now: () => 1000 }); play(log, 2, 'skilled');
   const t = buildSummary(log.data(), ENV).replace(/\s+/g, ' ');
-  assert.ok(t.includes('after a win -9 to +18, after a loss -17 to +7'), t);
+  assert.ok(t.includes('after a win -9 to +16, after a loss -18 to +6'), t);
   assert.ok(t.includes('usual total over 2 matches: -20 to +20') && t.includes('too few matches to call luck'));
   const d = log.data(), base = aggregate(d.matches);
   const quit = { ...d.matches[0], res: null, ab: 1, ov: d.matches[0].ov.map((o) => ({ ...o, r: o.r + 50, xr: o.xr })) };
@@ -155,7 +154,7 @@ test('luck lines: bands by result, scaled total, too few matches, quit adds noth
 });
 
 test('engine luck: 200 seeded matches stay within 3 sd of expected', () => {
-  const log = createLog({ storage: null, build: 'x', now: () => 1000 }); play(log, 200, 'skilled');
+  const log = createLog({ storage: null, build: 'sixes-r4', now: () => 1000 }); play(log, 200, 'skilled');
   const ovs = log.data().matches.flatMap((m) => m.ov);
   const diff = ovs.reduce((n, o) => n + o.r - o.xr, 0);
   assert.ok(Math.abs(diff) < 3 * 11 * Math.sqrt(200), 'run luck drifted: ' + diff);

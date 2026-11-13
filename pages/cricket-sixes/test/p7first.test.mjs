@@ -44,9 +44,9 @@ test('copy: Potential grade in the glossary, Rotate is Steady (label only, key R
 test('report Z1-Z2: time to first Start match and the screen each session ended on', () => {
   let t = 1000; const log = createLog({ storage: null, build: 'x', now: () => t });
   log.stage('hub'); t += 42000; log.matchStart({ seed: 's', stage: 'plan' }); log.stage('bowl');
-  const se = log.data().sessions[0]; assert.equal(se.first, 42000); assert.equal(se.end, 'bowl');
+  const se = log.data().sessions[0]; assert.equal(se.end, 'bowl');
   assert.deepEqual(sessionStats({ sessions: [{ first: 42000, end: 'bowl' }, { first: 20000, end: 'hub' }, { end: 'hub' }] }), { n: 3, started: 2, neverStarted: 1, firstMed: 31, firstMax: 42, ends: { bowl: 1, hub: 2 } });
-  assert.match(buildSummary(log.data(), ENV), /median 42 s/);
+  assert.doesNotMatch(buildSummary(log.data(), ENV), /First session/); // P0-13: the line is gone, sessionStats keeps reading old logs
 });
 
 test('report Z3-Z6 from a save, and me/rival are called lastMatch', () => {
@@ -64,7 +64,7 @@ test('report Z3-Z6 from a save, and me/rival are called lastMatch', () => {
 
 test('report Z4 and Z6 read the nets counters and the week summary', () => {
   const z = saveOf({ stage: 'hub', training: { tp: 60, week: 3, week_: 0, netsWeek: 3, netsRuns: 2, focusChanges: 1, effort: 'push', weekSummary: { week: 2, steps: 7, letters: 2, gains: [{ total: 1 }, { total: 2 }], reveals: [] } }, clubs: [{ id: 'c0', squad: [{ drillsHere: 6 }] }] });
-  assert.equal(z.tp, 60); assert.equal(z.canDrill, 4); assert.equal(z.hiddenShare, 0); assert.equal(z.last.steps, 7);
+  assert.equal(z.tp, 60); assert.equal(z.perPlayer, 18); assert.equal(z.runCost, 18); assert.equal(z.hiddenShare, 0); assert.equal(z.last.steps, 7);
   const t = zLines({ sessions: [] }, z).join('\n');
   assert.ok(t.includes('Nets runs this week: 1 · Effort: Push · Focus changes: 1'), t);
   assert.ok(t.includes('Last week: +7 steps across the squad, 2 letters gained'), t);

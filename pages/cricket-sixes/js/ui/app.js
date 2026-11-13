@@ -102,6 +102,7 @@ export function mount(el, store) {
       view.render(el, vm, (cmd, payload) => dispatch(cmd, payload), openByName); // views: render(el, vm, dispatch, open)
     } catch (err) {
       console.error(err);
+      rep.error(err); // P0-12: view throws count in the report's errs
       el.innerHTML = '';
       const p = document.createElement('pre');
       p.className = 'app-error';

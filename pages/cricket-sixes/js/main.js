@@ -14,6 +14,7 @@ const newGame = (seed) => { const t = createStore(null); t.dispatch('NewGame', {
 // 1. Load (and migrate) the save; a missing or unreadable save starts a new game.
 const loaded = save.load({ newGame });
 const store = createStore(loaded.state || null);
+try { window.__csLoadedFrom = loaded.from; } catch (e) { /* report only: migrated-save flag */ }
 if (!loaded.state) {
   const seed = q || rand();
   store.dispatch('NewGame', { seed });
