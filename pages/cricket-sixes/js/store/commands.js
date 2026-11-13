@@ -8,7 +8,7 @@ import { FLAGS } from '../data/flags.js';
 import { SEASON } from '../data/season.js';
 import { makeClubs, growClubs, aiPickSix } from '../core/clubs.js';
 import { makeSchedule, makeTable, applyResult, placeOf, inTopFour, finalsDraw, finalFrom, koWinner, matchPay, tpAward, simRound, simMatch, simFinals, ME } from '../core/season.js';
-import { planOf, setPlan as setTrainPlan, runNets, endWeek, coachList, scoutList, coachStepInUse, startCoach as makeStartCoach, passScout, courseUsesLicence, courseCost, signCoach, releaseCoach, pickWeekCoach, canCourse, courseWheel, runCourse, wheelSlices, spinResult } from '../core/training.js';
+import { planOf, netsPreview, setPlan as setTrainPlan, runNets, endWeek, coachList, scoutList, coachStepInUse, startCoach as makeStartCoach, passScout, courseUsesLicence, courseCost, signCoach, releaseCoach, pickWeekCoach, canCourse, courseWheel, runCourse, wheelSlices, spinResult } from '../core/training.js';
 import { unlockNode, makeFx } from '../core/skills.js';
 import { defaultOvers } from '../core/plan.js';
 import { newEconomy, applyMatch, tickBuild, finalsReward, finalsTp, payCourse, useHeld, startBuild, buySink, buyMedal, buyLegacy } from '../core/economy.js';
@@ -580,12 +580,13 @@ function spin(s, p) {
   const T = s.training, plan = planOf(s);
   const two = !!(p && p.slot === 2), key = two ? 'pending2' : 'pending'; // slot 2 = the Twin Spotlight Pass wheel
   if (!(two ? plan.spotlight2Id : plan.spotlightId) || (T[key] && T[key].week === T.week) || (T.nets && T.nets.week === T.week)) return s;
+  if (FLAGS.wheelMeta && netsPreview(s).skippedIds.includes(two ? plan.spotlight2Id : plan.spotlightId)) return s; // 02 section 7: a Spotlight player who cannot gain gets no wheel, so no tally and no Spokes
   const meta = FLAGS.wheelMeta, base = wheelSlices(plan.effort, coachStepInUse(s)), wheel = meta ? metaWheel(base, 'spot', s) : base;
   const careful = p && p.careful && typeof p.careful === 'object' ? p.careful : !!(p && p.careful);
   let result = spinResult(TRAIN_RNG(s, two ? 'spin2' : 'spin'), wheel, careful);
   let n = clone(s);
   if (meta) { // wheel meta: the tree's after-effects, then the tally. The meta wheel is stored so a reload shows the same wheel.
-    const a = afterResult(n, 'spot', result, WM_RNG(s, two ? 'spot2' : 'spot')); n = clone(a.s); result = a.result;
+    const a = afterResult(n, 'spot', result, WM_RNG(s, two ? 'spot2' : 'spot'), { wheel }); n = clone(a.s); result = a.result;
     n = clone(recordSpin(n, 'spot', { count: 1 })); // each Twin spin counts 1: the pass is 2 spins in all
   }
   n.training[key] = { week: T.week, careful, wheel, result };
@@ -628,7 +629,7 @@ function courseSpin(s, p) {
   const wheel = FLAGS.wheelMeta ? metaWheel(courseWheel(c.step), 'course', s) : courseWheel(c.step), careful = p.careful && typeof p.careful === 'object' ? p.careful : !!p.careful;
   let n = clone(s), result = spinResult(TRAIN_RNG(s, 'course', id), wheel, careful);
   if (FLAGS.wheelMeta) { // Second Opinion etc.; the course counts 1 spin
-    const a = afterResult(n, 'course', result, WM_RNG(s, 'course', id)); n = clone(a.s); result = a.result;
+    const a = afterResult(n, 'course', result, WM_RNG(s, 'course', id), { wheel }); n = clone(a.s); result = a.result;
     n = clone(recordSpin(n, 'course', { count: 1 }));
   }
   n.training.coursePending = { coachId: id, careful, wheel, result };
