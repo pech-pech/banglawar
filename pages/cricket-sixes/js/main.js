@@ -2,6 +2,7 @@ import { createStore } from './store/store.js';
 import { mount } from './ui/app.js';
 import { createSave } from './platform/save.js';
 import { openSaveSheet } from './ui/save-sheet.js';
+import { FLAGS } from './data/flags.js';
 import { applyTheme, themeOf } from './ui/theme.js';
 
 const rand = () => Array.from(crypto.getRandomValues(new Uint8Array(8)), (b) => b.toString(16).padStart(2, '0')).join('');
@@ -11,7 +12,14 @@ const save = createSave();
 /** The store's NewGame as a plain function, for migrating a step-0 save. null when the store has no NewGame yet. */
 const newGame = (seed) => { const t = createStore(null); t.dispatch('NewGame', { seed: String(seed) }); return t.get(); };
 
+/** r9 features (M 18:37): on unless the save says features:false. data/flags.js stays all-false for tests; the app sets them here. */
+const FEATURE_FLAGS = ['matchday', 'settled', 'roar', 'activities', 'freePick'];
+const applyFeatures = (s) => { const on = !s || s.features !== false; FEATURE_FLAGS.forEach((k) => { FLAGS[k] = on; }); };
+// Before the load: migration and NewGame read the flags (free-pick start, v6 notice).
+
 // 1. Load (and migrate) the save; a missing or unreadable save starts a new game.
+// Flags on first (the default): a new game or a migration reads them; a stored features:false is applied right after the load.
+applyFeatures(null);
 const loaded = save.load({ newGame });
 const store = createStore(loaded.state || null);
 try { window.__csLoadedFrom = loaded.from; } catch (e) { /* report only: migrated-save flag */ }
@@ -22,6 +30,10 @@ if (!loaded.state) {
 }
 // 2. Reseed: ?seed fixes the rolls (empty salt); otherwise every load re-rolls them.
 store.dispatch('Reseed', { salt: q ? '' : rand() });
+
+applyFeatures(store.get());
+let lastFeatures = store.get() && store.get().features;
+store.subscribe((s) => { if (s && s.features !== lastFeatures) { lastFeatures = s.features; applyFeatures(s); } });
 
 // 2b. Look: applied before the first render, and live whenever SetTheme changes it.
 applyTheme(themeOf(store.get()));

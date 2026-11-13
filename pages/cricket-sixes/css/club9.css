@@ -25,6 +25,6 @@
 .cl-fp.is-sel { border-style: double; border-width: 4px; }
 .cl-fp.is-owned { border-style: dashed; }
 .cl-actions { display: grid; gap: var(--c-sp-2); }
-.cl-take { width: 100%; margin: 0; box-sizing: border-box; }
+.cl-screen .cl-take { width: auto; margin: 0 4px 0 0; box-sizing: border-box; }
 .cl-actions .c-btn, .cl-take { display: flex; align-items: center; justify-content: center; gap: var(--c-sp-2); min-height: 56px; }
 .cl-card:focus-visible, .cl-opt:focus-visible, .cl-fp:focus-visible, .cl-actions .c-btn:focus-visible, .cl-take:focus-visible { outline: 3px dashed var(--c-focus); outline-offset: 3px; }

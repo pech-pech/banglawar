@@ -18,13 +18,15 @@ export function attachReport(el, store) {
     let storage = null; try { storage = window.localStorage; storage.getItem('x'); } catch (e) { storage = null; }
     const vp = () => 'screen ' + window.innerWidth + 'x' + window.innerHeight + ' at ' + (window.devicePixelRatio || 1) + 'x pixels, ' + (window.innerHeight >= window.innerWidth ? 'upright' : 'sideways');
     const log = createLog({ storage, now: () => Date.now(), build: BUILD, env: vp });
-    const env = () => ({ build: BUILD, now: Date.now(), vp: vp(), errors: log.data().errors.n, lastError: log.data().errors.last.slice(-1)[0] || '', flags: { ...FLAGS }, fixedSeed: (() => { try { return new URLSearchParams(location.search).has('seed'); } catch (e) { return false; } })(), save: saveOf(store.get()), tuningSha: TUNING_SHA, tuningPinned: TUNING_PINNED, migrated: (() => { try { const f = window.__csLoadedFrom; return f != null && f < 5; } catch (e) { return false; } })() });
+    const env = () => ({ build: BUILD, now: Date.now(), vp: vp(), errors: log.data().errors.n, lastError: log.data().errors.last.slice(-1)[0] || '', flags: { ...FLAGS }, features: store.get() ? store.get().features !== false : true, win: log.window(), rid: log.nextRid(), lastText: log.lastText(), builds: log.data().builds, fixedSeed: (() => { try { return new URLSearchParams(location.search).has('seed'); } catch (e) { return false; } })(), save: saveOf(store.get()), tuningSha: TUNING_SHA, tuningPinned: TUNING_PINNED, migrated: (() => { try { const f = window.__csLoadedFrom; return f != null && f < 5; } catch (e) { return false; } })() });
     let shownKey = '', stage = null, stageT = Date.now(), shownT = Date.now(), lastGloss = '', tapT = 0;
     const flush = () => { try { if (stage) log.screen(stage, Date.now() - stageT); stageT = Date.now(); } catch (e) { /* ignore */ } };
     const rep = {
       stamp: () => 'Build ' + BUILD + ' | ' + stampOf(Date.now()) + ' local | ' + vp(),
       summary: () => buildSummary(log.data(), env()), full: () => buildFull(log.data(), env()),
       count: () => log.data().matches.length, flush,
+      // r9 copy marker (M 8.1): call after the clipboard write resolved; a failed write must NOT call it. size 'f' full | 's' short. Returns the report id.
+      copied: (text, size) => log.copied(text, size), lastText: () => log.lastText(), window: () => log.window(), nextRid: () => log.nextRid(),
       clear: () => { log.clear(); }, // no half-match record: counting restarts at the next new match
     };
     if (store.get()) log.stage(store.get().stage); // Z2: a session that closes before any screen change still has an end screen
@@ -54,11 +56,11 @@ export function attachReport(el, store) {
           const key = s.stage + '|' + (s.last ? s.last.over : 0); if (key !== shownKey) { shownKey = key; shownT = Date.now(); } // think time runs from the first draw of a call screen
           const strip = GEAR_STAGES[s.stage] ? (el.querySelector('.strip') || el.querySelector('.c-strip')) : null; // .strip first: a c-strip heading inside a card can come earlier on the page
           if (strip && !strip.querySelector('.st-gear')) {
-            const g = gearButton(); g.addEventListener('click', () => openSettings(rep, { get: store.get, set: (t) => store.dispatch('SetTheme', { theme: t }) }));
+            const g = gearButton(); g.addEventListener('click', () => openSettings(rep, { get: store.get, set: (t) => store.dispatch('SetTheme', { theme: t }), dispatch: store.dispatch, state: store.get }));
             strip.insertBefore(g, strip.querySelector('.help-btn'));
           }
           if (s.stage === 'hub') log.seen(s);
-          if (s.stage === 'done') { const scr = el.querySelector('.screen'); const m = log.data().matches.slice(-1)[0]; if (scr && m) drawFeel(scr, m, (q, a) => log.feel(q, a)); }
+          if (s.stage === 'done') { const scr = el.querySelector('.screen'); const m = log.data().matches.slice(-1)[0]; if (scr && m) drawFeel(scr, m, (q, a, fact) => log.feel(q, a, fact), log.data()); }
         } catch (e) { log.error(e); }
       },
       /** Called after every command: before/after are the store states around it. */
@@ -66,9 +68,9 @@ export function attachReport(el, store) {
         try {
           if (cmd === 'NewMatch' || (cmd === 'StartMatch' && after && after.stage === 'bowl')) log.matchStart(after); // P0-1: the hub sends StartMatch, not NewMatch
           else if (cmd === 'FinishMatch') log.finish(before, after);
+          else if (cmd === 'BowlOver' && after !== before) log.over(before, after, { th: Date.now() - shownT });
           if (cmd === 'MakeCall') log.touch(before, after);
           if (cmd !== 'BowlOver') log.command(cmd, payload, before, after); // r9: nets, spins, weeks, buys, seasons
-          else if (cmd === 'BowlOver' && after !== before) log.over(before, after, { th: Date.now() - shownT });
         } catch (e) { log.error(e); }
       },
       panelOpen() {}, panelDone() {}, // P0-13: the over-panel timer and its ball-speed copy are gone; app.js still calls these

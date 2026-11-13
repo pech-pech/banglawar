@@ -6,9 +6,9 @@ import { FLAGS } from '../data/flags.js';
 import { BUILD } from './build.js';
 
 export const KEY = 'sixes.report.v1';
-export const CAPS = { matches: 24, nets: 24, spins: 60, buys: 40, feel: 40, weeks: 24, errors: 5, sessions: 8, seasons: 12 }; // [guess] P0-8; per-season aggregates (12 max) live outside these caps
+export const CAPS = { matches: 24, nets: 24, spins: 60, buys: 40, feel: 40, weeks: 24, club: 40, errors: 5, sessions: 8, seasons: 12 }; // [guess] P0-8; per-season aggregates (12 max) live outside these caps
 
-export const blank = () => ({ v: 1, seq: 0, sessions: [], matches: [], errors: { n: 0, last: [] }, buildMatches: {}, rid: 0, marker: null, lastText: null, builds: [], eseq: 0, seasons: [], nets: [], spins: [], weeks: [], buys: [], feelLog: [] });
+export const blank = () => ({ v: 1, seq: 0, sessions: [], matches: [], errors: { n: 0, last: [] }, buildMatches: {}, rid: 0, marker: null, lastText: null, builds: [], eseq: 0, seasons: [], nets: [], spins: [], weeks: [], buys: [], feelLog: [], club: [] });
 
 /** @param {{storage?:any, now?:()=>number, build?:string, env?:()=>any}} [o] */
 export function createLog(o = {}) {
@@ -24,14 +24,14 @@ export function createLog(o = {}) {
   { // W4: a new build starts a new window; records are kept one build back, older ones go. The last copied text and the id counter stay.
     if (d.builds[d.builds.length - 1] !== build) { d.builds.push(build); d.builds = d.builds.slice(-2); if (d.marker && d.marker.build !== build) d.marker = null; }
     const keep = (r) => !r.b && !r.build ? true : d.builds.includes(r.b || r.build);
-    d.matches = d.matches.filter(keep); for (const k of ['nets', 'spins', 'weeks', 'buys', 'feelLog']) d[k] = d[k].filter(keep);
+    d.matches = d.matches.filter(keep); for (const k of ['nets', 'spins', 'weeks', 'buys', 'feelLog', 'club']) d[k] = d[k].filter(keep);
   }
   const sid = (d.sessions.length ? d.sessions[d.sessions.length - 1].id : 0) + 1;
   d.sessions.push({ id: sid, t0: now(), build, vp: env() });
   d.sessions = d.sessions.slice(-CAP.sessions);
 
   const safe = (fn) => (...a) => { try { const r = fn(...a); save(); return r; } catch (e) { fail(e); return undefined; } };
-  const LISTS = ['nets', 'spins', 'buys', 'weeks', 'feelLog'], CAPK = { feelLog: 'feel' }; // optional per-feature lists: capped here, written by later report parts
+  const LISTS = ['nets', 'spins', 'buys', 'weeks', 'feelLog', 'club'], CAPK = { feelLog: 'feel' }; // optional per-feature lists: capped here, written by later report parts
   const capLists = (div = 1) => { for (const k of LISTS) if (Array.isArray(d[k])) d[k] = d[k].slice(-Math.max(1, Math.floor(CAP[CAPK[k] || k] / div))); };
   const write = () => { storage.setItem(KEY, JSON.stringify(d)); };
   /** Storage full (P0-9): trim in order, retrying after each step: per-over rows of matches older than the last 3, then halve nets/spins/buys, then drop old matches. Season aggregates, marker and last text are never touched. */
@@ -41,8 +41,8 @@ export function createLog(o = {}) {
     () => { d.matches = d.matches.slice(-3); },
   ];
   function save() {
-    if (!storage) return;
     capLists();
+    if (!storage) return;
     try { write(); return; } catch (e) { /* full: trim */ }
     for (const t of trims) { try { t(); d.trimmed = 1; write(); return; } catch (e) { /* next step */ } }
   }
@@ -107,7 +107,7 @@ export function createLog(o = {}) {
       const cur = (r) => (r.b || r.build) === build;
       const inWin = d.matches.filter((m) => m.id > ms), other = inWin.filter((m) => !cur(m));
       const evs = (k) => d[k].filter((r) => r.q > es && cur(r));
-      const oth = other.length + ['nets', 'spins', 'weeks', 'buys', 'feelLog'].reduce((a, k) => a + d[k].filter((r) => r.q > es && !cur(r)).length, 0);
+      const oth = other.length + ['nets', 'spins', 'weeks', 'buys', 'feelLog', 'club'].reduce((a, k) => a + d[k].filter((r) => r.q > es && !cur(r)).length, 0);
       return { matches: inWin.filter(cur), nets: evs('nets'), spins: evs('spins'), weeks: evs('weeks'), buys: evs('buys'), feel: evs('feelLog'), since: mk ? { rid: mk.rid, atMs: mk.atMs } : null,
         dropped: oth ? { n: oth, build: (other[0] || {}).build || (d.builds.find((x) => x !== build) || '') } : null };
     },
@@ -153,6 +153,13 @@ export function createLog(o = {}) {
         const T0 = before.training || {}, ran = T0.netsWeek === T0.week;
         const co = T0.coach_id ? 1 : 0, nr = d.nets.slice().reverse().find((x) => x.wk === T0.week && x.s === s), idle = co && nr && !nr.cs ? 1 : 0; // idle = a coach was set but his strong focus was not the week's (quality 0)
         ev('weeks', { ...base, wk: T0.week, tpEnd: T0.tp | 0, aff: netsRecordAff(before), nets: ran ? 1 : 0, hint: null, coach: co, cidle: idle });
+      } else if (cmd === 'PickActivity' || cmd === 'SignTrial' || cmd === 'DeclineTrial' || cmd === 'TakeFreePick') {
+        const a0 = before.econ || {}, a1 = after.econ || {}, h = (a1.act && a1.act.hist) || [], last = h[h.length - 1], tr = before.trial || null;
+        const rec = { ...base, k: cmd === 'PickActivity' ? 'act' : cmd === 'TakeFreePick' ? 'fp' : cmd === 'SignTrial' ? 'sign' : 'decl' };
+        if (cmd === 'PickActivity') Object.assign(rec, { id: payload && payload.id, coins: (a0.coins | 0) - (a1.coins | 0), fans: (a1.fans | 0) - (a0.fans | 0), find: last && last.find ? last.find : null, dry: a1.act ? a1.act.dry | 0 : null });
+        else if (cmd === 'TakeFreePick') rec.what = payload && payload.what;
+        else rec.who = tr ? { kind: tr.kind || 'player', id: (tr.player || tr.coach || {}).id || null, wage: tr.wage | 0 } : null;
+        ev('club', rec);
       } else if (cmd === 'StartBuild' || cmd === 'BuySink' || cmd === 'BuyMedal' || cmd === 'BuyLegacy' || cmd === 'RunCourse') {
         const c0 = before.econ ? before.econ.coins | 0 : 0, c1 = after.econ ? after.econ.coins | 0 : 0, price = c0 - c1;
         const item = cmd === 'BuyLegacy' ? 'legacy' : cmd === 'RunCourse' ? (payload && payload.coachId) || 'course' : (payload && (payload.what || payload.id)) || cmd;

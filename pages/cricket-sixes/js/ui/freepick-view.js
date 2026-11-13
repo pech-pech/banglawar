@@ -7,6 +7,7 @@ import { SLOTS, EFFECT } from './stadium-view.js';
 /* Honest labels: say plainly what does nothing yet. Never hidden. */
 export const NOTE = {
   stands: 'Recommended: more Fans',
+  nets: 'Training effects come later. Does nothing extra yet',
   academy: 'Needs the sign screen. Does nothing yet',
   scout: 'Needs the sign screen. Does nothing yet',
   pitch: 'Pitch types are not in matches yet. Does nothing yet',

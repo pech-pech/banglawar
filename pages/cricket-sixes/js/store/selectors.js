@@ -294,7 +294,7 @@ const coachRow = (s, c) => {
 };
 /** Gain the spotlight player really gets after the cap-sum, balance and 99 limits. */
 const spotApplied = (s, plan, gain, id = plan.spotlightId) => { const p = id && player(s, id); return p ? Math.max(0, Math.min(gain, drillRoom(p, focusRating(p, plan.focus)).room)) : 0; };
-const wheelVM = (w) => ({ slices: w.slices.slice(), jackpotIndex: w.jackpotIndex, jackpotGain: w.jackpotGain });
+const wheelVM = (w) => ({ slices: w.slices.slice(), jackpotIndex: w.jackpotIndex, jackpotGain: w.jackpotGain, widths: w.widths ? w.widths.slice() : undefined });
 
 export function trainingVM(s) {
   const T = s.training, plan = planOf(s), pre = netsPreview(s), six = sixIds(s);
@@ -553,7 +553,7 @@ export function activitiesVM(s) {
   const o = activityOptions(s), last = s.econ.act && s.econ.act.hist && s.econ.act.hist[0];
   const picked = o.why === 'done' && last ? { id: last.id, name: last.id === 'rest' ? 'Rest week' : (ACT.TABLE.find((r) => r.id === last.id) || { name: last.id }).name, fans: last.fans, coins: last.coins, find: last.find || null } : null;
   return {
-    available: o.open, why: o.why, round: o.key, picked,
+    available: o.open, why: o.why, round: o.key, picked, coins: s.econ.coins, purse: s.econ.coins,
     options: o.rows.map((r) => ({ id: r.id, name: r.name, blurb: r.blurb, cost: r.coins, fans: r.fans, tiltPct: pct(r.tilt), findPct: r.findPct, repeat: r.repeat,
       note: r.repeat ? 'Same as last week: half Fans, no find' : '', ok: r.ok, why: r.why, warn: r.warn })),
     rest: { id: 'rest', label: 'Rest week', free: true, ok: o.open },

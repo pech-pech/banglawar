@@ -4,8 +4,8 @@ import { applyCommand } from '../js/store/commands.js';
 import { bowlVM, chaseVM } from '../js/store/selectors.js';
 import { skilledBowler, skilledField, skilledIntent } from '../js/core/skilled.js';
 import { createLog, KEY } from '../js/report/log.js';
-import { wordsLine, aggregate, buildSummary, buildData, buildFull, cleanOf, wrap, LINES } from '../js/report/report.js';
-import { nextQuestion } from '../js/report/feel.js';
+import { wordsLine, aggregate, buildSummary, buildText, buildData, buildFull, cleanOf, wrap } from '../js/report/report.js';
+import { nextQuestion, planFeel } from '../js/report/feel.js';
 import { matchupOf, expected } from '../js/report/metrics.js';
 import { BANDS, inRange } from '../js/report/bands.js';
 
@@ -37,31 +37,28 @@ test('skilled policy fits the skilled bot 100% and a rote does not', () => {
   assert.equal(sb.fP, 0); assert.ok(sb.fA > 0); assert.equal(sb.iD + sb.iA, 0); assert.ok(sb.iR > 0); assert.equal(sb.iSw, 0); assert.equal(sb.roteF.rote, sb.roteF.n); assert.equal(sb.roteI.rote, sb.roteI.n);
 });
 
-test('summary: plain words, wrapped, no codes, no data pointer', () => {
+test('report v2 layout: header, sections with machine lines, Q tags, plain words, short has no JSON', () => {
   let clk = 1000; const log = createLog({ storage: null, build: 'sixes-r4', now: () => clk }); play(log, 3, 'skilled');
-  log.why(); log.gloss('economy'); clk += 2000; log.gloss('economy'); log.feel('q1', 'A bit'); log.feel('q2', '-');
-  const t = buildSummary(log.data(), ENV), lines = t.split('\n');
-  assert.match(lines[0], /^CRICKET REPORT sixes-r4  CLEAN: YES  \(3 matches, 0 errors\)/);
-  for (const w of ['What you chose (bowling)', 'Attacking field', 'Defensive field', 'Same call as the skilled bot', 'Thinking time', 'Luck:', 'Results:', 'M3 ', 'Feel M', 'Checks:']) assert.ok(t.includes(w), w);
-  assert.ok(t.includes('Why? opened 1 times') && t.includes('Words opened: Economy 2'));
-  assert.ok(t.includes('finish skipped') && !t.includes('"-"'));
-  assert.ok(lines.every((l) => l.length <= 78), 'long line: ' + lines.find((l) => l.length > 78));
-  assert.ok(!/rote|\bfit\b|noisy|\bdpr\b|\b\dwk\b/.test(t), 'codes in summary');
-  assert.ok(!/follows/.test(t), 'short summary must not promise data');
-  assert.ok(t.includes('[sim]'));
-  assert.ok(buildFull(log.data(), ENV).includes('Full data (JSON, last 3 matches) follows.'));
+  log.gloss('economy'); clk += 2000; log.gloss('economy'); log.feel('q1', 'A bit');
+  const t = buildText(log.data(), ENV), lines = t.split('\n');
+  assert.match(lines[0], /^CR sixes-r4 \| CLEAN: YES \| features off \| save v\? .* \| #1 \| screen 344x780/);
+  assert.match(lines[1], /^Window: 3 matches, 0 nets runs, since start/);
+  for (const w of ['TRAINING [W] Q1 Q5', 'MATCH CALLS [W] Q2', 'ECONOMY [W] Q3', 'COACHES [W] Q4', 'SEASON [S] Q3 Q6 Q7', 'FEEL [W]', 'none in window', ' m:', 'M3 ', 'Luck [pre-P14]', 'fit 100%', '[sim r7']) assert.ok(t.includes(w), w);
+  assert.ok(t.length <= 2500, 'text size ' + t.length);
+  const sh = buildSummary(log.data(), ENV); assert.ok(sh.length <= 1000 && !sh.includes('{') && sh.endsWith('short: no per-over data, use Full for Q2'));
+  assert.ok(buildFull(log.data(), ENV).includes('\nJSON:\n'));
 });
 
 test('wrap keeps lines near 70 characters and indents the rest', () => {
   const w = wrap('word '.repeat(40).trim()).split('\n'); assert.ok(w.length > 2); assert.ok(w.every((l) => l.length <= 70)); assert.ok(w.slice(1).every((l) => l.startsWith('  ')));
 });
 
-test('data block parses, one row per over, under about 8 KB, no personal fields', () => {
+test('data block parses, per-over strings for the last 3 matches, under 4,000 chars', () => {
   const log = createLog({ storage: null, build: 'sixes-r4' }); play(log, 5, 'skilled');
   const j = buildData(log.data(), ENV); const o = JSON.parse(j);
-  assert.equal(o.matches.length, 5); assert.equal(o.matches[0].overs[0].length, o.overCols.length); assert.ok(o.matches[0].overs.length >= 5 && o.matches[0].overs.length <= 20);
-  assert.ok(j.length < 9500, 'size ' + j.length);
-  assert.ok(buildFull(log.data(), ENV).includes(j));
+  assert.equal(o.M.length, 3); assert.equal(o.Mold.n, 2); assert.ok(o.M[0].f.length >= 1 && o.M[0].f.length <= 10 && o.M[0].i.length >= 1); assert.equal(o.b, 'sixes-r4'); assert.equal(o.rid, 1);
+  assert.ok(j.length <= 4000, 'size ' + j.length);
+  assert.ok(buildFull(log.data(), ENV).endsWith(j));
 });
 
 test('CLEAN goes NO for mixed builds, changed flags, a live match', () => {
@@ -74,9 +71,7 @@ test('CLEAN goes NO for mixed builds, changed flags, a live match', () => {
 
 test('empty log still gives a report; a throwing line is skipped', () => {
   const d = createLog({ storage: null }).data();
-  assert.match(buildSummary(d, ENV), /CLEAN: NO  \(0 matches/);
-  LINES.push(() => { throw new Error('boom'); });
-  try { assert.ok(buildSummary(d, ENV).length > 20); } finally { LINES.pop(); }
+  assert.match(buildSummary(d, ENV), /^CR sixes-r4 \| CLEAN: NO no match played/);
 });
 
 test('log persists under sixes.report.v1, caps, survives bad storage and clears', () => {
@@ -96,13 +91,21 @@ test('quit match, panel skips, think time and retry are recorded', () => {
   log.matchStart(applyCommand(null, 'NewMatch', { seed: 'q2' }));
   const ms = log.data().matches; assert.equal(ms[0].ab, 1); assert.equal(ms[0].sk, 1); assert.equal(ms[0].ov[0].th, 900); assert.equal(ms[0].ov[0].sk, 1);
   const a = aggregate(ms); assert.equal(a.quit, 1); assert.equal(a.skips, 1); assert.equal(a.thinkFast, 100);
-  assert.match(buildSummary(log.data(), ENV), /M1 Quit during bowl/);
+  assert.match(buildText(log.data(), ENV), /M1 \? quit/);
 });
 
-test('feel strip: first 2 matches of a build, plan of 3, skip counts', () => {
-  const m = (nb, feel = {}) => ({ res: 'won', nb, feel });
-  assert.equal(nextQuestion(m(1)), 'q1'); assert.equal(nextQuestion(m(1, { q1: '-' })), 'q3'); assert.equal(nextQuestion(m(1, { q1: 'a', q3: 'b', q4: '-' })), null);
-  assert.equal(nextQuestion(m(2, { q1: 'a' })), 'q2'); assert.equal(nextQuestion(m(3)), null); assert.equal(nextQuestion({ nb: 1, feel: {} }), null);
+test('feel strip v2: first 2 matches of a build up to 2, then 1, pk fallback, result only', () => {
+  const m = (nb, id, feel = {}) => ({ id, res: 'won', nb, feel, build: 'b', m: { k: 'wk', n: 2 } });
+  assert.deepEqual(planFeel(m(1, 1), {}), ['pk']);
+  const ctx = { feelLog: [], nets: [{ q: 1, b: 'b' }], spins: [{ q: 2, b: 'b' }], buys: [{ q: 3, b: 'b', item: 'nets2' }] };
+  assert.deepEqual(planFeel(m(1, 1), ctx), ['wh', 'ec']); assert.deepEqual(planFeel(m(3, 3), ctx), ['wh']);
+  assert.deepEqual(planFeel(m(1, 1, { wh: 'Fair' }), ctx), ['ec']);
+  assert.deepEqual(planFeel({ ...m(1, 1), res: 'lost', m: { k: 'run', n: 41 } }, ctx), []);
+  assert.deepEqual(planFeel({ ...m(1, 1), res: null }, ctx), []);
+  const skipped = { ...ctx, feelLog: [{ f: 'wh', v: 'sk', id: 1, q: 5, b: 'b' }, { f: 'wh', v: 'sk', id: 2, q: 6, b: 'b' }] };
+  assert.ok(!planFeel(m(4, 4), { ...skipped, spins: [{ q: 9, b: 'b' }] }).includes('wh')); // skipped twice: paused 5 matches
+  assert.ok(planFeel(m(4, 8), { ...skipped, spins: [{ q: 9, b: 'b' }] }).includes('wh'));
+  assert.equal(nextQuestion(m(1, 1), {}), 'pk');
   const log = createLog({ storage: null, build: 'sixes-r4' }); play(log, 3, 'skilled');
   assert.deepEqual(log.data().matches.map((x) => x.nb), [1, 2, 3]);
 });
@@ -123,13 +126,11 @@ test('report: reopening mid-match is not a new match or a first Start (Z1), and 
   assert.equal(log2.data().sessions.at(-1).end, 'bowl');
 });
 
-test('word-level glossary counts: line, top 8 + rest, JSON export', () => {
+test('word opens: letter-words line only above 3, pure wordsLine, JSON count', () => {
   let clk = 1000; const log = createLog({ storage: null, build: 'sixes-r4', now: () => clk }); play(log, 1, 'skilled');
   for (const [w, n] of [['burst', 3], ['line', 2], ['pairing', 1]]) for (let i = 0; i < n; i++) { clk += 2000; log.gloss(w); }
-  const t = buildSummary(log.data(), ENV);
-  assert.ok(t.includes('Words opened: Burst 3, Line 2, Pairing 1.'), t);
-  assert.ok(t.includes('Word list "?" opened 6 times.'));
-  assert.deepEqual(JSON.parse(buildData(log.data(), ENV)).wordsOpened, { burst: 3, line: 2, pairing: 1 });
+  assert.ok(buildText(log.data(), ENV).includes('Letter words tapped 6.'));
+  assert.equal(JSON.parse(buildData(log.data(), ENV)).F.words, 6);
   const g = {}; for (let i = 0; i < 10; i++) g['w' + i] = 10 - i;
   assert.match(wordsLine(g), /^Words opened: W0 10, .*W7 3, \+3 more\.$/);
   assert.equal(wordsLine({}), null);
@@ -142,11 +143,11 @@ test('CLEAN fails on a fixed seed or a repeated seed', () => {
   assert.equal(cleanOf([m('x'), m('y')], ENV).ok, true);
 });
 
-test('luck lines: bands by result, scaled total, too few matches, quit adds nothing', () => {
+test('luck line: bands by result, too few matches, quit adds nothing', () => {
   const log = createLog({ storage: null, build: 'sixes-r4', now: () => 1000 }); play(log, 2, 'skilled');
-  const t = buildSummary(log.data(), ENV).replace(/\s+/g, ' ');
-  assert.ok(t.includes('after a win -9 to +16, after a loss -18 to +6'), t);
-  assert.ok(t.includes('usual total over 2 matches: -20 to +20') && t.includes('too few matches to call luck'));
+  const t = buildText(log.data(), ENV).replace(/\s+/g, ' ');
+  assert.ok(t.includes('win -9..+16, loss -18..+6'), t);
+  assert.ok(t.includes('n small'));
   const d = log.data(), base = aggregate(d.matches);
   const quit = { ...d.matches[0], res: null, ab: 1, ov: d.matches[0].ov.map((o) => ({ ...o, r: o.r + 50, xr: o.xr })) };
   const a2 = aggregate([...d.matches, quit]);

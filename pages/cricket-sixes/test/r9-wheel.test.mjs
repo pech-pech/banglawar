@@ -5,10 +5,10 @@ import { makeRng } from '../js/core/rng.js';
 const WS = TRAIN2.wheelStop, sum = (a) => a.reduce((x, y) => x + y, 0);
 const rollMean = (e) => meanGain(effortOdds(e));
 
-test('tuning: speed B W0 24, jackpot slice 0.35, wobble 0.6, no aim key', () => {
+test('tuning: speed B W0 24, jackpot slice 0.35 (Push and course 0.48 after NUMBERS retune), wobble 0.6, no aim key', () => {
   assert.equal(WS.W0, 24); assert.equal(WS.J, 0.6); assert.equal(WS.D, 1); assert.equal(WS.COAST, 6); assert.equal(WS.STOP_FROM, 1);
-  for (const e of ['easy', 'normal', 'push']) { const w = wheelSlices(e); assert.equal(w.widths[0], 0.35); assert.equal(w.widths.length, 10); assert.equal('aim' in w, false); assert.equal(TRAIN2.wheel[e].aim, undefined); }
-  assert.equal(courseWheel().widths[0], 0.65); assert.equal('aim' in courseWheel(), false);
+  for (const e of ['easy', 'normal', 'push']) { const w = wheelSlices(e); assert.equal(w.widths[0], e === 'push' ? 0.48 : 0.35); assert.equal(w.widths.length, 10); assert.equal('aim' in w, false); assert.equal(TRAIN2.wheel[e].aim, undefined); }
+  assert.equal(courseWheel().widths[0], 0.48); assert.equal('aim' in courseWheel(), false);
   const n = wheelSlices('normal'); assert.deepEqual(n.slices, [5, 2, 1, 3, 1, 1, 3, 1, 1, 2]); assert.ok(Math.abs(n.C - 8.55) < 1e-9);
 });
 test('stop is smooth: start speed of the ease equals the wheel speed, ends at base+dist+e', () => {

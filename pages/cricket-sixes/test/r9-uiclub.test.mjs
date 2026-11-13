@@ -130,3 +130,24 @@ test('static rules: no bare ico(, no localStorage/fetch, plain PascalCase comman
   assert.match(read('index.html'), /css\/club9\.css/);
   assert.equal((read('index.html').match(/club9\.css/g) || []).length, 1);
 });
+
+test('trial card: coach kind shows a letter grade (not a step number), strong focuses, no wage; Sign/Decline same commands', () => {
+  const cvm = { kind: 'coach', player: null, coach: { id: 'c1', name: 'Mehta', step: 15, strong: ['bat', 'bowl'] }, wage: 0, squadFull: false, canSign: true, why: '' };
+  assert.match(trialCardHtml(cvm), /Trial coach: Mehta/);
+  const calls = [], r = fakeRoot();
+  renderTrial(r, cvm, (n, a) => calls.push([n, a]));
+  assert.match(r.innerHTML, /class="c-tag" aria-label="Grade [A-Z][+-]?"/);
+  assert.match(r.innerHTML, /No wage/);
+  assert.match(r.innerHTML, /t2-fi/);
+  assert.doesNotMatch(r.innerHTML, /Grade 15|>15</);
+  r.click({ 'data-cl-act': 'SignTrial' }); r.click({ 'data-cl-act': 'DeclineTrial' });
+  assert.deepEqual(calls, [['SignTrial', {}], ['DeclineTrial', {}]]);
+  const f = fakeRoot(); renderTrial(f, { ...cvm, canSign: false, squadFull: true, why: '' }, () => {});
+  assert.match(f.innerHTML, /No free coach slot/);
+});
+
+test('stadium view: Nets promise no drill effect (training ignores Nets today)', () => {
+  const r = fakeRoot(); renderStadium(r, { econ: Object.assign(newEconomy(), { coins: 500 }), season: { league: 1, n: 1 }, clubs: [] }, () => {});
+  assert.doesNotMatch(r.innerHTML, /better drills|drills a little|drills (much )?better|drills the best/);
+  assert.match(r.innerHTML, /more training effects later|no drill change yet/);
+});

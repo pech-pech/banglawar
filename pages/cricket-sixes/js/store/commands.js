@@ -16,9 +16,9 @@ import { newRun, closeSeason, remakeRivals, carryOf, applyCarry } from '../core/
 import { RUN, SQUAD } from '../data/run.js';
 import { newBook, isBook, recordOver } from '../core/pairing.js';
 import { activityOptions, pickActivity, signTrial, declineTrial, actLedger, roundKey } from '../core/activities.js';
-import { takeFreePick } from '../core/economy.js';
+import { takeFreePick, freePickPending } from '../core/economy.js';
 import { VERSION } from '../core/save-migrate.js';
-import { rollMatchday, teamBoost, scaleRatings, resolvePep } from '../core/matchday.js';
+import { rollMatchday, teamBoost, scaleRatings, resolvePep, roarAt } from '../core/matchday.js';
 import { MD } from '../data/matchday.js';
 
 const ovStr = (balls) => `${Math.floor(balls / 6)}.${balls % 6}`;
@@ -89,6 +89,7 @@ function bowlOver(s, p) {
     const over = inn.over;
     const balls = playOver(rng, inn, n.rival.players, n.me.players, call.bowler, intent, call.field, fxOf(n), centreOf(n), !!n.season, roarOpts(n, 'bowl', 0));
     n.last = { balls, over, bowler: call.bowler, intent, field: call.field };
+    markRoar(n, 0, over);
     countBook(n, balls, n.rival.players, n.me.players);
     if (inn.done) { n.stage = 'break'; n.call = null; n.inn1Summary = summarise(n); } else n.call = defaultCall(n);
     return n;
@@ -104,6 +105,7 @@ function bowlOver(s, p) {
     const over = inn.over;
     const balls = playOver(rng, inn, n.me.players, n.rival.players, bowler, intent, field, fxOf(n), centreOf(n), !!n.season, roarOpts(n, 'bat', 1));
     n.last = { balls, over, bowler, intent, field };
+    markRoar(n, 1, over);
     countBook(n, balls, n.me.players, n.rival.players);
     if (inn.done) {
       n.stage = 'done';
@@ -163,13 +165,15 @@ function newGame(payload) {
   mine.squad = SQUAD.startSlots.map((i) => mine.squad[i]);
   mine.six = aiPickSix(mine);
   const season = newSeasonData(seed, 1, clubs);
-  return {
+  const g = {
     v: VERSION, salt: '', features: true, seed, stage: 'hub', ...blankMatch(), run: newRun(seed), book: newBook(),
     season, clubs, plan: { overs: DEFAULT_OVERS.slice(), fields: NEUTRAL_FIELDS(), edited: false, key: '' },
     econ: newEconomy(), coaches: [makeStartCoach('k0', COACH_NAMES[makeRng(`${seed}|coaches`).int(COACH_NAMES.length)])], coachPicked: true, nets: 1, releaseLedger: [],
     training: { tp: 450, week: 1, nodeBought: {}, weekLog: [], weekStart: {}, netsRuns: 0, focusChanges: 0, focus: 'bat', effort: 'normal', spotlight_id: null, coach_id: null, last_plan: null },
     fixture: leagueFixture(season, 1),
   };
+  if (FLAGS.freePick && freePickPending(g)) g.stage = 'freepick'; // first launch: pick the free facility before Home
+  return g;
 }
 
 // ---- squad of 8 (SPEC s6)
@@ -389,11 +393,21 @@ function applyCommandCore(s, cmd, payload) {
     case 'SeeFirstStrip': return seeFirstStrip(s);
     case 'OpenSquad': return ['hub', 'semi', 'final', 'plan'].includes(s.stage) && s.season ? { ...s, stage: 'squad' } : s;
     case 'SetSix': return setSix(s, payload);
-    case 'SetFeatures': return payload && typeof payload.on === 'boolean' && (s.features !== false) !== payload.on ? { ...s, features: payload.on } : s;
+    case 'SetFeatures': {
+      if (!payload || typeof payload.on !== 'boolean' || (s.features !== false) === payload.on) return s;
+      const n = { ...s, features: payload.on };
+      if (!payload.on && n.stage === 'freepick') n.stage = 'hub'; // a screen of a switched-off feature must not stay up
+      if (!payload.on && n.stage === 'matchday') n.stage = 'plan';
+      return n;
+    }
     case 'PickActivity': return pickAct(s, payload);
     case 'SignTrial': return FLAGS.activities && s.econ ? signTrial(s) : s;
     case 'DeclineTrial': return FLAGS.activities && s.econ ? declineTrial(s) : s;
-    case 'TakeFreePick': return FLAGS.freePick && s.econ && payload && typeof payload.what === 'string' ? takeFreePick(s, payload.what) : s;
+    case 'TakeFreePick': {
+      if (!FLAGS.freePick || !s.econ || !payload || typeof payload.what !== 'string') return s;
+      const n = takeFreePick(s, payload.what);
+      return n !== s && n.stage === 'freepick' ? { ...n, stage: 'hub' } : n;
+    }
     case 'OpenMatchday': return openMatchday(s);
     case 'MatchdayGo': return matchdayGo(s);
     case 'BackToSquad': return backToSquad(s);
@@ -440,6 +454,11 @@ function applyCommandCore(s, cmd, payload) {
 function roarOpts(n, ours, innIdx) {
   const md = n.match && n.match.md;
   return FLAGS.roar && md ? { ours, md, innIdx } : undefined;
+}
+/** The over just played was a crowd roar: s.last.roar = {on,text,aria} for the over panel (only with both flags on). */
+function markRoar(n, innIdx, over) {
+  const md = n.match && n.match.md;
+  if (FLAGS.roar && md && roarAt(md, innIdx * 10 + over - 1)) { const text = `Crowd roar +${Math.round(MD.ROAR_BOOST * 100)}%`; n.last.roar = { on: true, text, aria: text }; }
 }
 /** Tilts of recent fan activities, newest first: this round, last, the one before (ECON actLedger). */
 export const actLedgerOf = (s) => (FLAGS.activities && s.econ && s.econ.act ? actLedger(s) : []);
@@ -532,7 +551,7 @@ function spin(s, p) {
   const T = s.training, plan = planOf(s);
   const two = !!(p && p.slot === 2), key = two ? 'pending2' : 'pending'; // slot 2 = the Twin Spotlight Pass wheel
   if (!(two ? plan.spotlight2Id : plan.spotlightId) || (T[key] && T[key].week === T.week) || (T.nets && T.nets.week === T.week)) return s;
-  const wheel = wheelSlices(plan.effort, coachStepInUse(s)), careful = !!(p && p.careful);
+  const wheel = wheelSlices(plan.effort, coachStepInUse(s)), careful = p && p.careful && typeof p.careful === 'object' ? p.careful : !!(p && p.careful);
   const result = spinResult(TRAIN_RNG(s, two ? 'spin2' : 'spin'), wheel, careful);
   const n = clone(s);
   n.training[key] = { week: T.week, careful, wheel, result };
@@ -556,7 +575,7 @@ function courseSpin(s, p) {
   const id = p && p.coachId, T = s.training;
   if (!id || !canCourse(s, id).ok || (T.coursePending && T.coursePending.coachId === id)) return s;
   const c = coachList(s).find((x) => x.id === id);
-  const wheel = courseWheel(c.step), careful = !!p.careful;
+  const wheel = courseWheel(c.step), careful = p.careful && typeof p.careful === 'object' ? p.careful : !!p.careful;
   const n = clone(s);
   n.training.coursePending = { coachId: id, careful, wheel, result: spinResult(TRAIN_RNG(s, 'course', id), wheel, careful) };
   return n;

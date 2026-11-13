@@ -6,7 +6,7 @@ import { BANDS, inRange, LUCK_LABEL } from '../js/report/bands.js';
 const SRC = readFileSync(new URL('../js/report/bands.js', import.meta.url), 'utf8');
 
 test('P0-15 bands: exported shape is stable', () => {
-  assert.deepEqual(Object.keys(BANDS).sort(), ['fit', 'luck', 'luckBy', 'matchup', 'rpo', 'runs', 'win']);
+  assert.deepEqual(Object.keys(BANDS).sort(), ['avoidablePoor', 'blow', 'close', 'fit', 'luck', 'luckBy', 'matchup', 'rpo', 'runs', 'win']);
   for (const k of ['runs.us', 'runs.them', 'luck', 'luckBy.won', 'luckBy.lost']) {
     const [lo, hi] = k.split('.').reduce((o, p) => o[p], BANDS);
     assert.ok(Number.isFinite(lo) && Number.isFinite(hi) && lo < hi, k);
@@ -24,7 +24,7 @@ test('P0-15 bands: luck is labelled [pre-P14] and the sim is marked r7', () => {
   const luckLines = SRC.split('\n').filter((l) => /^\s*luck(By)?:/.test(l));
   assert.equal(luckLines.length, 2);
   for (const l of luckLines) assert.ok(l.includes('[pre-P14]') && l.includes('[sim r7]'), l);
-  for (const k of ['runs', 'fit', 'matchup', 'rpo']) assert.ok(new RegExp(`^\\s*${k}:.*\\[sim r7\\]`, 'm').test(SRC), k);
+  for (const k of ['runs', 'fit', 'matchup', 'rpo', 'close']) assert.ok(new RegExp(`^\\s*${k}:.*\\[sim r7\\]`, 'm').test(SRC), k);
 });
 
 test('P0-15 bands: luck bands are ordered sensibly (wins above losses, mixed band spans both)', () => {

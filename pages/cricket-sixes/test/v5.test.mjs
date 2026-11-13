@@ -22,7 +22,7 @@ test('VERSION 5: players over 8 are released outside the Six, lowest refund firs
   const s = v4save(); const six = s.clubs[0].six.slice();
   const m = migrate(s, 4); assert.equal(m.ok, true);
   const n = m.state, sq = n.clubs[0].squad;
-  assert.equal(n.v, 5); assert.equal(VERSION, 5); assert.equal(sq.length, 8);
+  assert.equal(n.v, 6); assert.equal(VERSION, 6); assert.equal(sq.length, 8);
   assert.ok(six.every((id) => sq.some((p) => p.id === id)), 'the Six stays');
   assert.deepEqual(n.releaseLedger.map((r) => r.player_id).sort(), ['c0p6', 'c0p7']);
   for (const r of n.releaseLedger) { assert.deepEqual(Object.keys(r).sort(), ['name', 'player_id', 'rule', 'value_at_release']); assert.equal(typeof r.value_at_release, 'number'); }

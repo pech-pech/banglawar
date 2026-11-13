@@ -30,7 +30,7 @@ test('r6-migrated v5 save (one paid match): fix-up gives about 285 Fans and 1,62
   const s = atR7(5);
   delete s.econ.backfilled; s.econ.coins = 1158; s.econ.fans = 15; s.econ.fac.gym = 1; s.econ.fac.scout = 1;
   s.econ.ledger = [{ k: 'match', win: false, gate: 74, winBonus: 0, shop: 0, wages: 61, upkeep: 5, net: 8, fans: 15, arrears: 0 }];
-  const a = unwrap(JSON.stringify(wrap(s))).state;
+  const a = unwrap(JSON.stringify({ ...wrap(s), v: 5 })).state;
   assert.equal(a.econ.fans, 285);
   assert.ok(Math.abs(a.econ.coins - 1626) <= 70, 'coins ' + a.econ.coins); // report: about 1,626 with a flat gate of 74; the shipped formula lets the gate grow with Fans, and our test squad pays lower wages (57 vs 61)
   assert.equal(a.notice, 'econ-backfill');

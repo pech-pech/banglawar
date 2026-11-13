@@ -10,7 +10,7 @@ export const SLOTS = [
   { id: 'stands', name: 'Stands', icon: 'fan', does: 'more Fans and seats' },
   { id: 'gym', name: 'Gym', icon: 'train', does: 'more training points each match' },
   { id: 'shop', name: 'Shop', icon: 'shop', does: 'more Coins each match' },
-  { id: 'nets', name: 'Nets', icon: 'batSkill', does: 'better drills' },
+  { id: 'nets', name: 'Nets', icon: 'batSkill', does: 'more training effects later' },
   { id: 'pitch', name: 'Pitch', icon: 'pitch', does: 'a small bonus for one kind of bowler' },
   { id: 'academy', name: 'Academy', icon: 'team', does: 'better young players to sign' },
   { id: 'scout', name: 'Scout', icon: 'scout', does: 'a clearer look at rivals and recruits' },
@@ -19,7 +19,7 @@ export const SLOTS = [
 export const EFFECT = {
   stands: ['none', '+5 Fans, seats as built', '+10 Fans, +10% seats', '+15 Fans, +20% seats', '+20 Fans, +30% seats', '+25 Fans, +40% seats'],
   shop: ['none', '+6 Coins', '+12 Coins', '+22 Coins', '+34 Coins', '+50 Coins'],
-  nets: ['none', 'normal drills', 'drills a little better', 'drills better', 'drills much better', 'drills the best'],
+  nets: ['none', 'no drill change yet', 'no drill change yet', 'no drill change yet', 'no drill change yet', 'no drill change yet'],
   gym: ['none', '+17 TP', '+20 TP', '+23 TP', '+26 TP', '+29 TP'],
   pitch: ['none', 'helps your bowlers a little', 'helps your bowlers a little', 'helps your bowlers some', 'helps your bowlers some', 'helps your bowlers a lot'],
   academy: ['none', '1 offered', 'better odds', 'choose from 2', 'better odds', 'choose from 3'],
