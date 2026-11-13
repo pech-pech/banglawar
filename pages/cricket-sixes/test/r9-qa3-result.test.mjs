@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { FLAGS } from '../js/data/flags.js';
 import { createStore } from '../js/store/store.js';
 import * as sel from '../js/store/selectors.js';
-import { moneyCard } from '../js/ui/result-view.js';
+import { moneyCard, payCard } from '../js/ui/result-view.js';
 import { step } from './_season-bot.mjs';
 
 const withFlags = (f, fn) => { const old = { ...FLAGS }; Object.assign(FLAGS, f); try { return fn(); } finally { Object.assign(FLAGS, old); } };
@@ -48,4 +48,18 @@ test('QA3 M1: money card shows icons plus signed words, never colour alone', () 
   assert.match(h, /aria-label="Wages -58 Coins out"/);
   const short = moneyCard({ crowd: null, fans: 5, gate: 40, wages: 90, winBonus: 0, shop: 0, upkeep: 2, net: -52, coinsAfter: 0, short: 30 });
   assert.match(short, /Wages short by 30 Coins/); assert.match(short.replace(/<[^>]+>/g, ' '), /Net -52 Coins/); assert.doesNotMatch(short, /rm-crowd/);
+});
+
+test('QA3 m6: every Stars line carries its count; the counts add up to starsRaw; a cap line when more were earned than pay', () => {
+  for (const seed of ['q3r', 'q3m', 'mm4']) {
+    const store = toDone(seed), pay = sel.resultVM(store.get()).pay;
+    assert.ok(pay.starList.every((w) => Number.isInteger(w.n) && w.n >= 1), seed);
+    assert.equal(pay.starList.reduce((a, w) => a + w.n, 0), pay.starsRaw, seed);
+  }
+  const pay = { kind: 'league', base: 45, win: 0, stars: 8, starsRaw: 9, starsTp: 32, total: 77, starList: [{ name: 'Ferrara', why: '66 runs', n: 2 }, { name: 'Ravi', why: '3 wickets', n: 1 }] };
+  const h = payCard(pay), t = h.replace(/<[^>]+>/g, '');
+  assert.match(h, /<span class="pay-n" aria-hidden="true">★★<\/span> <b>Ferrara<\/b>: 66 runs<span class="ss-sr"> \(2 Stars\)<\/span>/);
+  assert.match(h, /aria-hidden="true">★<\/span> <b>Ravi<\/b>: 3 wickets<span class="ss-sr"> \(1 Star\)/);
+  assert.match(t, /9 Stars earned: 8 is the most that pay\./);
+  assert.doesNotMatch(payCard({ ...pay, stars: 3, starsRaw: 3 }), /most that pay/);
 });
