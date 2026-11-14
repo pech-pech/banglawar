@@ -4,6 +4,7 @@ import { overRecord, matchResult, decidedOver, mdOf, seasonSnap, netsRecord, alt
 import { TUNING_SHA } from '../data/tuning-sha.js';
 import { FLAGS } from '../data/flags.js';
 import { BUILD } from './build.js';
+import { timingBucket } from '../core/training.js'; // wa2: one bucket rule for the report and the wheel
 
 export const KEY = 'sixes.report.v1';
 export const CAPS = { matches: 24, nets: 24, spins: 60, buys: 40, feel: 40, weeks: 24, club: 40, errors: 5, sessions: 8, seasons: 12 }; // [guess] P0-8; per-season aggregates (12 max) live outside these caps
@@ -157,7 +158,7 @@ export function createLog(o = {}) {
       else if (cmd === 'Spin') {
         const two = !!(payload && payload.slot === 2), k = two ? 'pending2' : 'pending', p = after.training && after.training[k];
         if (p && p.result && !(before.training && before.training[k] === p)) { const t = Number.isFinite(p.result.t) ? p.result.t : null; // seconds
-          ev('spins', { ...base, wk: p.week, eff: (after.training.effort || null), careful: p.careful ? 1 : 0, ms: t == null ? null : Math.round(t * 1000), bk: t == null ? null : t >= 6 ? 'o' : t < 3.2 ? 'e' : t <= 3.8 ? 'c' : 'l', g: p.result.gain, jp: p.result.jackpot ? 1 : 0, slot: two ? 2 : 1 }); }
+          ev('spins', { ...base, wk: p.week, eff: (after.training.effort || null), careful: p.careful ? 1 : 0, ms: t == null ? null : Math.round(t * 1000), bk: t == null ? null : timingBucket(t), g: p.result.gain, jp: p.result.jackpot ? 1 : 0, slot: two ? 2 : 1 }); }
       } else if (cmd === 'EndWeek') {
         const T0 = before.training || {}, ran = T0.netsWeek === T0.week;
         const co = T0.coach_id ? 1 : 0, nr = d.nets.slice().reverse().find((x) => x.wk === T0.week && x.s === s), idle = co && nr && !nr.cs ? 1 : 0; // idle = a coach was set but his strong focus was not the week's (quality 0)

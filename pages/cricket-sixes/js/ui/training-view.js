@@ -104,6 +104,7 @@ function openSpotlightWheel(dispatch, slot) {
   const card = '<div class="wh-who"><b class="t2-nm">' + esc(pr.name) + '</b><span class="c-tag">Wheel is yours this week</span></div><div class="wh-gr">' +
     ['bp', 'bs', 'spd', 'bsk'].map((k) => '<span class="wh-g' + (k === statKey(w.stat) ? ' hit' : '') + '">' + deco(STAT(k).icon, 20) + '<span>' + esc(STAT(k).word) + '</span><b>' + esc(letterOfRaw(rates[k] || 1)) + '</b></span>').join('') + '</div>';
   openWheel({
+    timing: true, // wa2: STOP pulse in the careful window + timing line
     title: 'Spotlight', sub: 'Week ' + latest.vm.week + (latest.vm.wheel2 ? (two ? ', second spin' : ', first spin') : ''), cardHtml: card, slices: w.slices, jackpotIndex: w.jackpotIndex, widths: w.widths, aim: w.aim, pending: w.pending || null,
     // wheel meta (flag on; empty / null otherwise): guide = Aim Guide tick, tokens = buttons for the waiting result, getTokens = the fresh list after each command, look = craft look
     guide: w.guide, zone: w.zone, chime: w.chime, tokens: w.tokens, getTokens: () => { const sp = two ? latest.raw.twin : latest.raw.spotlight; return (sp && sp.tokens) || []; }, look: w.look, phys: w.phys, golds: w.golds, spokeGain: () => { const sp = two ? latest.raw.twin : latest.raw.spotlight; return (sp && sp.spokeGain) || 0; },

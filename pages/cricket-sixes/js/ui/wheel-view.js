@@ -17,6 +17,7 @@
          tokens?:[{kind,label,count?,left?}], getTokens?()=>[...] (the fresh list; read after every result)   token buttons after the result (count = shown as "x2"; left = Spotlight uses left this season); onToken(kind) uses one, then getPending() is read again; the wheel visibly acts (short re-spin / slice step / second pointer flash / bonus pop; none with reduced motion) and one outcome line is shown ("Spin Again: kept +3")
          spokeGain?()=>number   Spokes this spin drops (a small chip on the result card; absent or 0 = no chip)
          wa1 Find (agent "find"): labels?:string[] (word per slice), aims?:number[] (careful targets, units), plainResult?:true (describe -> {chip, big, line}), jpText?, tokName?, outcome?(kind, before, after) -> line
+         timing?:boolean        wa2 (Spotlight + Course): STOP pulses gold while the spin is inside the careful window (TIMING_WIN 3.2-3.8 s after SPIN; reduced motion: steady gold border); after the STOP one line Early / Good timing / Late / Coasted. WHEN only, never where it lands; no odds change
          look?:{rim,hub,ptr,trail,pal,spoke,burst,stand,name,crystal,material}   craft look (cosmetic only; the tier-7 Crystal look wins over Rim Paint / Hub Cap) }
    SPIN then STOP (two taps, no auto-start). WHEEL-STOP-V2: the wheel slows by itself (w = W0*exp(-t/TAU)); STOP (live from 1 s) eases it out over 1 s
    from the current speed with a small wobble; the slice under the pointer wins (no snap, no hidden aim, no preview). No STOP by 6 s = the game taps at 6 s.
@@ -24,7 +25,7 @@
    Canvas drawn in code, pixel style, palette read from the page's CSS variables (Green and chalk and Scorebook both work). */
 import { esc, icoDeco } from './dom.js';
 import { releaseInert } from './inert.js';
-import { wheelWidths, wheelSpeed, wheelArc, stopDist, stopExtra, stopLanding, carefulTapTime } from '../core/training.js';
+import { wheelWidths, wheelSpeed, wheelArc, stopDist, stopExtra, stopLanding, carefulTapTime, TIMING_WIN, timingBucket, TIMING_LINE } from '../core/training.js';
 import { matOf, colourOf, normLook, PALETTES, spokeIcon } from './wheel-look.js';
 import { TRAIN2 } from '../data/training.js';
 
@@ -53,6 +54,7 @@ export const chimeEnters = (a, b, golds) => a !== b && golds.includes(b) && !gol
 
 export function openWheel(o) {
   const N = o.slices.length, JP = o.jackpotIndex || 0, reduced = reducedNow();
+  const TIMING = !!o.timing; let timeB = null; // wa2: timing cue on; bucket of the last STOP ('e'|'c'|'l'|'o', null = none yet)
   const ZONE = !reduced && +o.zone > 0 ? +o.zone : 0, CHIME = !reduced && !!o.chime, PH = o.phys || null, WS = PH ? { ...TRAIN2.wheelStop, ...PH } : TRAIN2.wheelStop, LK = normLook(o.look), GD = o.golds && o.golds.length ? o.golds : [o.jackpotIndex || 0], PX = PH ? [PH] : []; // PX: the optional trailing phys argument for the core helpers
   const widths = wheelWidths({ slices: o.slices, jackpotIndex: JP, widths: o.widths }), C = widths.reduce((a, b) => a + b, 0), U = TAU / C; // units -> radians
   const WO = { slices: o.slices, jackpotIndex: JP, widths, ...(PH ? { phys: PH } : {}), ...(o.golds ? { golds: o.golds } : {}), ...(o.aims ? { aims: o.aims } : {}) }; // the wheel the core helpers see (wa1 find: aims = careful targets)
@@ -169,7 +171,8 @@ export function openWheel(o) {
     if (state === 'spin') {
       const c = Math.min(clock - spinEv, WS.COAST); speed = wheelSpeed(c, ...PX); pos = phi + wheelArc(c, ...PX);
       if (c >= WS.STOP_FROM && go.getAttribute('aria-disabled') === 'true') { go.removeAttribute('aria-disabled'); go.classList.remove('is-wait', 'is-disabled'); go.textContent = 'STOP'; go.setAttribute('aria-label', 'Stop the wheel'); setMsg(MSG_GO); }
-      if (clock - spinEv >= WS.COAST) { stop(WS.COAST); } else tick(was, pos);
+      if (TIMING) { const tw0 = clock - spinEv, inW = tw0 >= TIMING_WIN.lo && tw0 <= TIMING_WIN.hi; if (inW !== go.classList.contains('is-window')) go.classList.toggle('is-window', inW); } // wa2: the careful window (WHEN, not where)
+      if (clock - spinEv >= WS.COAST) { stop(WS.COAST, true); } else tick(was, pos);
     } else if (state === 'land') {
       const s = clock - tapT, L = stopInfo, u = Math.min(1, s / WS.D);
       pos = L.base + stopExtra(L.dist, L.e, s, ...PX) + adj * (3 * u * u - 2 * u * u * u);
@@ -238,7 +241,8 @@ export function openWheel(o) {
       (p.boosted || p.hot ? '<div class="wh-bst">' + (p.boosted ? '<span class="wh-bst1">Booster ' + esc(o.plus || '+') + esc(p.boostBy || 1) + '</span>' : '') + (p.hot ? '<span class="wh-bst1">Hot Streak ' + esc(o.plus || '+') + esc(p.hotBy || 1) + '</span>' : '') + '</div>' : '') +
       '<div class="wh-chg">' + (d.from !== d.to ? '<span>' + esc(d.from) + '</span><span class="t2-arr" aria-hidden="true"></span><b class="t2-new">' + esc(d.to) + '</b>' : d.barHtml ? d.barHtml + '<small>(bar fills)</small>' : '<span>' + esc(d.from) + '</span><small>(same letter)</small>') + '</div>' +
       (sg > 0 ? '<div class="wh-sp">' + spokeIcon(20) + '<b>+' + esc(sg) + ' Spokes</b></div>' : '');
-    live.textContent = (line ? line + '. ' : '') + (d.say || '') + (p.boosted ? ' Booster plus ' + (p.boostBy || 1) + '.' : '') + (p.hot ? ' Hot Streak plus ' + (p.hotBy || 1) + '.' : ''); // read once
+    if (TIMING && timeB && !o.plainResult) res.insertAdjacentHTML('beforeend', '<div class="wh-tim wh-tim--' + timeB + '" data-timing="' + timeB + '">' + esc(TIMING_LINE[timeB]) + '</div>'); // wa2: one timing line (copy only)
+    live.textContent = (TIMING && timeB && !o.plainResult ? TIMING_LINE[timeB] + '. ' : '') + (line ? line + '. ' : '') + (d.say || '') + (p.boosted ? ' Booster plus ' + (p.boostBy || 1) + '.' : '') + (p.hot ? ' Hot Streak plus ' + (p.hotBy || 1) + '.' : ''); // read once
     showTokens(p, line); if (!again && !o.pending) burst();
     go.textContent = o.collectLabel || 'COLLECT'; go.classList.add('is-collect', 'c-btn--gold'); go.classList.remove('c-btn--primary'); go.removeAttribute('aria-disabled'); go.classList.remove('is-wait', 'is-disabled'); go.setAttribute('aria-label', o.collectLabel || 'Collect'); xLook(false); go.focus();
     if (o.plainResult) { const cd = $('.wh-card'), pl = $('.wh-plate'); if (cd) cd.style.display = 'none'; res.style.minHeight = '0'; if (pl) pl.hidden = true; ov.classList.add('is-res-compact'); } // wa1 fixfind: Find result: the hint card, the name plate and the result box's empty height make way so the wheel stays big (>= ~240 px at 475x638)
@@ -251,8 +255,9 @@ export function openWheel(o) {
   function xLook(off) { const x = $('.wh-x'); if (!x) return; x.classList.toggle('is-wait', off); x.classList.toggle('is-disabled', off); if (off) { x.setAttribute('aria-disabled', 'true'); x.setAttribute('aria-label', 'Close (wait for the wheel to stop)'); } else { x.removeAttribute('aria-disabled'); x.setAttribute('aria-label', 'Close'); } }
   function spin() { state = 'spin'; phi = pos; spinEv = clock; speed = WS.W0; setMsg('Get ready. STOP wakes up in a moment.'); waitLook('Wait...', 'Wait. STOP wakes up in a moment'); ov.classList.add('is-turning'); raf = requestAnimationFrame(frame); }
   /** STOP at wheel time t (seconds after SPIN, from the tap's own timestamp). The wobble is drawn now; the result comes from the landing position. */
-  function stop(t) {
+  function stop(t, coasted) {
     const e = (Math.random() * 2 - 1) * WS.J, L = stopLanding(WO, { t, phi, e }, ...PX);
+    go.classList.remove('is-window'); if (TIMING) timeB = timingBucket(L.t, !!coasted); // wa2: same buckets as the Copy report
     o.onSpin({ t: L.t, phi: L.phi, e: L.e }); const p = o.getPending(); if (!p) { close(); return; }
     // the store agrees with the landing: the wheel just eases out. If an older store answered with its own slice, steer the ease to that slice so the card never contradicts the wheel.
     adj = 0; if (p.index !== L.index) { const end = L.base + L.dist + L.e, mid = centreOf(p.index); adj = (((mid - end) % C) + C) % C; }
