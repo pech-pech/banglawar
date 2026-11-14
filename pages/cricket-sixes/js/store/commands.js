@@ -13,7 +13,9 @@ import { unlockNode, makeFx } from '../core/skills.js';
 import { defaultOvers } from '../core/plan.js';
 import { newEconomy, applyMatch, tickBuild, finalsReward, finalsTp, payCourse, useHeld, startBuild, buySink, buyMedal, buyLegacy } from '../core/economy.js';
 import { newRun, closeSeason, remakeRivals, carryOf, applyCarry } from '../core/run.js';
-import { RUN, SQUAD } from '../data/run.js';
+import { RUN, SQUAD, SKEW } from '../data/run.js';
+import { skewPlayer, squadMax } from '../core/skew.js';
+import { recruitSign, recruitPass } from '../core/recruit.js';
 import { newBook, isBook, recordOver } from '../core/pairing.js';
 import { activityOptions, pickActivity, signTrial, declineTrial, actLedger, roundKey } from '../core/activities.js';
 import { takeFreePick, freePickPending } from '../core/economy.js';
@@ -165,10 +167,12 @@ function newGame(payload) {
   // Squad of 8 (SPEC s6): M keeps slots 1-6 plus 9 and 10. The AI clubs keep their 10.
   const mine = clubs[0];
   mine.squad = SQUAD.startSlots.map((i) => mine.squad[i]);
+  // s1 (2026-11-14-squad-skew): new games skew our players by batting type and get a 9th squad place. Shift only, no rng draw, so rivals are identical.
+  mine.squad = mine.squad.map((p) => skewPlayer(p, SEASON.capRoom));
   mine.six = aiPickSix(mine);
   const season = newSeasonData(seed, 1, clubs);
   const g = {
-    v: VERSION, salt: '', features: true, seed, stage: 'hub', ...blankMatch(), run: newRun(seed), book: newBook(),
+    v: VERSION, rules: { squadSkew: 1, squadMax: SKEW.squadMax }, salt: '', features: true, seed, stage: 'hub', ...blankMatch(), run: newRun(seed), book: newBook(),
     season, clubs, plan: { overs: DEFAULT_OVERS.slice(), fields: NEUTRAL_FIELDS(), edited: false, key: '' },
     econ: newEconomy(), coaches: [makeStartCoach('k0', COACH_NAMES[makeRng(`${seed}|coaches`).int(COACH_NAMES.length)])], coachPicked: true, nets: 1, releaseLedger: [], wheelMeta: emptyWheelMeta(), wheelCraft: { owned: {} },
     training: { tp: 450, week: 1, nodeBought: {}, weekLog: [], weekStart: {}, netsRuns: 0, focusChanges: 0, focus: 'bat', effort: 'normal', spotlight_id: null, coach_id: null, last_plan: null },
@@ -178,9 +182,10 @@ function newGame(payload) {
   return g;
 }
 
-// ---- squad of 8 (SPEC s6)
+// ---- squad of 8 (SPEC s6); s1: 9 for new games (s.rules.squadMax)
+export { squadMax };
 /** True when M's squad is at the cap. @param {any} s */
-export const squadFull = (s) => s.clubs[0].squad.length >= SQUAD.size;
+export const squadFull = (s) => s.clubs[0].squad.length >= squadMax(s);
 /** Sign / academy gate: { ok, why }. A full squad needs a release first (declining stays free). @param {any} s */
 export function canAddPlayer(s) { return squadFull(s) ? { ok: false, why: SQUAD.fullText } : { ok: true, why: '' }; }
 /** Sale gate. A starter (in the Six) can only go at season end; nobody goes below the minimum. @param {any} s @param {string} id */
@@ -473,6 +478,8 @@ function applyCommandCore(s, cmd, payload) {
     case 'BuyMedal': return s.season && payload ? buyMedal(s, payload.id) : s;
     case 'BuyLegacy': return s.season ? buyLegacy(s) : s;
     case 'AddPlayer': return addPlayer(s, payload);
+    case 'SignRecruit': return recruitSign(s, payload || {});
+    case 'PassRecruit': return recruitPass(s);
     case 'SellPlayer': return sellPlayer(s, payload);
     case 'DismissNotice': return s.notice ? (({ notice, ...rest }) => rest)(s) : s;
     case 'NextWeek': return nextWeek(s);

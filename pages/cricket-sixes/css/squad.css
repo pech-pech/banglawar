@@ -94,3 +94,5 @@
 /* D15: pips show only while the grade is hidden: drills-to-reveal progress with a label */
 .sq-pips { height: 16px; gap: 2px; }
 .sq-pipn { margin-left: 4px; font: 14px/16px var(--font-body); white-space: nowrap; }
+/* s1: squad count "8/9" under the sub line */
+.sq-strip .mid .sq-size { font-weight: 700; }

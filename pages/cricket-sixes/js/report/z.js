@@ -36,7 +36,7 @@ export function saveOf(s) {
     lastMatch: lm,
     stage: s.stage, week: t.week | 0, tp: t.tp | 0, weeksDone,
     netsThisWeek: t.netsWeek != null && t.netsWeek === t.week ? 1 : 0, effort, focusChanges: t.focusChanges | 0, perPlayer, runCost: perPlayer * squad.length, affordPush: squad.length > 0 && (t.tp | 0) >= pushCost * squad.length, migrated: !!s.migrated, // P0-4: cost per player is TRAIN2.efforts[effort].cost (the nets cost), not DRILLS.costTp
-    squad: squad.length, hidden, hiddenShare: squad.length ? Math.round((100 * hidden) / squad.length) : null,
+    squad: squad.length, squadMax: (s.rules && s.rules.squadMax) || 8, skew: s.rules && s.rules.squadSkew ? 1 : 0, hidden, hiddenShare: squad.length ? Math.round((100 * hidden) / squad.length) : null,
     last: ws ? { week: ws.week, steps: ws.steps != null ? ws.steps | 0 : sum((ws.gains || []).map((g) => g.total | 0)), letters: ws.letters | 0 } : null,
   };
 }

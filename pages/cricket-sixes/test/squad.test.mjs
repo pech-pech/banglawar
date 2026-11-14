@@ -10,10 +10,10 @@ const atSquad = (seed = 'sq') => {
 };
 const ids = (s, n = 6, from = 0) => s.clubs[0].squad.slice(from, from + n).map((p) => p.id);
 
-test('squad has 8; squadVM lists all 8 with role, type, order', () => {
+test('squad has 8 of 9 (s1); squadVM lists all 8 with role, type, order', () => {
   const s = atSquad(); assert.equal(s.stage, 'squad');
   const v = sel.squadVM(s);
-  assert.equal(v.players.length, 8); assert.equal(v.bench.length, 2); assert.deepEqual(v.bench.map((b) => b.label), ['Bench batter', 'Bench bowler']); assert.equal(v.full, true); assert.equal(v.count, 6); assert.equal(v.valid, true);
+  assert.equal(v.players.length, 8); assert.equal(v.bench.length, 2); assert.deepEqual(v.bench.map((b) => b.label), ['Bench batter', 'Bench bowler']); assert.equal(v.full, false); assert.equal(v.max, 9); assert.equal(v.count, 6); assert.equal(v.valid, true);
   assert.ok(v.players.every((p) => p.role && p.type && 'grade' in p && 'pips' in p && (p.order === null) === !s.clubs[0].six.includes(p.id)));
 });
 

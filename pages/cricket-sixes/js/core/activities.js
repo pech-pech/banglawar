@@ -11,6 +11,7 @@ import { leagueOf } from '../data/leagues.js';
 import { SURNAMES } from '../data/names.js';
 import { makeRng } from './rng.js';
 import { rollPotential } from './ability.js';
+import { skewOn, skewPlayer, squadMax } from './skew.js';
 import { canAfford, reserveLow, wageOf, RESERVE_WARNING } from './economy.js';
 import { coachList, MAX_COACHES } from './training.js';
 
@@ -77,7 +78,7 @@ function rollPlayer(s, rng) {
   const types = Object.entries(SEASON.types).flatMap(([k, c]) => Array(/** @type {number} */ (c)).fill(k));
   const p = { id: `t${roundKey(s).replace('.', '-')}`, name: rng.pick(pool.length ? pool : SURNAMES), bat: rng.pick(roles), bowl: rng.pick(types), bp: rate(), bs: rate(), spd: rate(), bsk: rate(), potential: 0, drillsHere: 0, nodes: { bat: 0, bowl: 0 } };
   p.potential = rollPotential(rng, { league: L, academy: Math.max(1, s.econ.fac?.academy || 1), minCapSum: p.bp + p.bs + p.spd + p.bsk + SEASON.capRoom });
-  return p;
+  return skewOn(s) ? skewPlayer(p, SEASON.capRoom) : p; // s1: shift after every draw, so the find stream is unchanged
 }
 const E_SD = 8;
 
@@ -143,7 +144,7 @@ export function signTrial(s) {
   const e = n.econ; e.ledger.push({ k: 'trial', what: t.kind, id: (t.player || t.coach).id, name: (t.player || t.coach).name, wage: t.wage, signed: true });
   if (t.kind === 'player') {
     const c = n.clubs[0];
-    if (c.squad.length >= SQUAD.size || c.squad.some((/** @type {any} */ x) => x.id === t.player.id)) return s;
+    if (c.squad.length >= squadMax(s) || c.squad.some((/** @type {any} */ x) => x.id === t.player.id)) return s;
     c.squad.push(clone(t.player));
   } else {
     if (coachList(s).length >= MAX_COACHES || (s.coaches || []).some((/** @type {any} */ c) => c.id === t.coach.id)) return s; // r9 L4: never two coaches with one id
@@ -163,7 +164,7 @@ export function declineTrial(s) {
 /** Can the waiting trial be signed? { ok, why } for the card (squad full -> release first). @param {any} s */
 export function canSignTrial(s) {
   const t = trialOf(s); if (!t) return { ok: false, why: 'none' };
-  if (t.kind === 'player') return s.clubs[0].squad.length >= SQUAD.size ? { ok: false, why: SQUAD.fullText } : { ok: true, why: '' };
+  if (t.kind === 'player') return s.clubs[0].squad.length >= squadMax(s) ? { ok: false, why: SQUAD.fullText } : { ok: true, why: '' };
   if ((s.coaches || []).some((/** @type {any} */ c) => c.id === t.coach.id)) return { ok: false, why: 'Already on your staff' };
   return coachList(s).length >= MAX_COACHES ? { ok: false, why: 'Coach slots full: release one first' } : { ok: true, why: '' };
 }

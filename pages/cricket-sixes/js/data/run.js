@@ -44,3 +44,9 @@ export const SQUAD = {
   // WAGE_K 7.0 lives in data/economy.js (wageOf); not repeated here.
   fullText: 'Squad full: release one first',
 };
+/** s1 squad skew + squad 9 (2026-11-14-squad-skew/SPEC.md, M vrf 03:44-03:47). New games only: s.rules = { squadSkew: 1, squadMax: 9 }. */
+export const SKEW = {
+  source: '2026-11-14-squad-skew/SPEC.md',
+  opener: { bat: 8, bowl: -8, pot: 16 }, middle: { bat: 0, bowl: 0, pot: 0 }, lower: { bat: -8, bowl: 8, pot: -16 },
+  squadMax: 9, squadStart: 8, recruits: ['Opener', 'Middle', 'Lower'], // season-end list: one of each batting type
+};

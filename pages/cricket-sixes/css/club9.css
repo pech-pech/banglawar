@@ -64,3 +64,14 @@
 /* m4: the coach tag reads "Grade E+" */
 .cl-grade { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; font-size: 14px; }
 .cl-grade b { font-size: var(--c-fs-m); }
+
+/* s1 season-end recruits (js/ui/recruit-card.js): a card above the end-screen CTA. Rows read like trial release rows; Sign sits to the right. 344 first. Static. */
+.cl-recruits { margin: var(--c-sp-2) 0; padding: var(--c-sp-2) var(--c-sp-3) var(--c-sp-3); }
+.cl-recruits .cl-h { margin-top: 0; }
+.cl-rc-list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--c-sp-2); }
+.cl-rc-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--c-sp-2); align-items: center; padding-bottom: var(--c-sp-2); border-bottom: var(--c-border) dashed var(--wall2); }
+.cl-rc-row:last-child { border-bottom: 0; padding-bottom: 0; }
+.cl-rc-info { display: grid; grid-template-columns: 24px minmax(0, 1fr); gap: var(--c-sp-2); align-items: center; min-width: 0; }
+.cl-rc-info .cl-opt__s { gap: 2px var(--c-sp-2); }
+.cl-rc-sign { display: flex; align-items: center; justify-content: center; gap: 4px; width: auto; min-width: 96px; min-height: 56px; margin: 0; }
+.cl-rc-sign:focus-visible { outline: 3px dashed var(--c-focus); outline-offset: 3px; }
