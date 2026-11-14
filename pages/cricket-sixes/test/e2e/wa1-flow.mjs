@@ -318,7 +318,7 @@ try {
       const toks = await B.tokens('.dr-ov'); seen[w] = { res: r.res.replace(/\s+/g, ' ').slice(0, 50), toks: toks.map((t) => t.label) };
       const noteTxt = await B.text('.dr-ov .wh-tknote').catch(() => '');
       if (noteTxt) seen[w].note = noteTxt;
-      if (!used && toks.length && (w === 'hype' || w === 'toss')) {
+      if (!used && toks.length) {
         await B.shot(`11-${w}-offer`);
         const pick = toks.find((t) => t.kind === 'lift') || toks[0];
         const before = await B.S(() => { const m = window.__store.get().wheelMeta; return { mt: m.matchTokUsed, tu: m.tokUsed, tok: m.tokens }; });
@@ -337,7 +337,7 @@ try {
       }
       await B.collect('.dr-ov');
     }
-    step(4, 'a token offer appeared on Hype or Toss', !!used, `offers ${JSON.stringify(seen)}`);
+    step(4, 'a token offer appeared on Hype, Toss or Pep', !!used, `offers ${JSON.stringify(seen)}`);
     note(4, 'offers seen', JSON.stringify(seen).slice(0, 300));
     // the kept result reaches the match
     const md = await B.S(() => { const f = window.__store.get().fixture || {}; const m = f.md || {}; return { hype: m.hype, hypePerf: m.hypePerf, tossBoost: m.tossBoost, wm: m.wm ? Object.keys(m.wm) : null }; });
