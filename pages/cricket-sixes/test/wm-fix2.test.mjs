@@ -10,7 +10,7 @@ import { RUN } from '../js/data/run.js';
 import { NODES } from '../js/data/wheelmeta.js';
 import { emptyWheelMeta } from '../js/core/save-migrate.js';
 import { effective, metaWheel } from '../js/core/wheelmeta.js';
-import { wheelSlices } from '../js/core/training.js';
+import { wheelSlices, netsPreview } from '../js/core/training.js';
 import { goldNearPointer, chimeEnters } from '../js/ui/wheel-view.js';
 import { releaseInert, OVERLAYS } from '../js/ui/inert.js';
 import { swapCardHtml } from '../js/ui/swap-offer.js';
@@ -76,7 +76,7 @@ test('Gold Chime: only when the pointer enters a gold slice from a non-gold one'
 const capPlayer = (s, id) => { const n = JSON.parse(JSON.stringify(s)); const p = n.clubs[0].squad.find((x) => x.id === id); for (const k of ['bp', 'bs', 'spd', 'bsk']) p[k] = 99; return n; };
 test('Spotlight on a player who cannot gain: no wheel, no tally, no Spokes (02 section 7)', () => {
   withFlag(true, () => {
-    const s0 = untilTrain('f2c'), id = s0.clubs[0].squad[0].id, cap = C(capPlayer(s0, id), 'SetTrainPlan', { spotlightId: id });
+    const s0 = untilTrain('f2c'), id = netsPreview(s0).trainIds[0], cap = C(capPlayer(s0, id), 'SetTrainPlan', { spotlightId: id }); // a player who can gain until capped (s1 skew can lock squad[0])
     assert.ok(sel.trainingVM(cap).rows.find((r) => r.id === id).status === 'skip', 'fixture: the player cannot gain');
     assert.equal(sel.trainingVM(cap).spotlight.wheel, null, 'the wheel is not offered');
     const after = C(cap, 'Spin', { careful: true });
@@ -85,7 +85,7 @@ test('Spotlight on a player who cannot gain: no wheel, no tally, no Spokes (02 s
     assert.equal(spun.wheelMeta.tally, ok.wheelMeta.tally + 1, 'a player who can gain still counts');
   });
   withFlag(false, () => { // r9 behaviour is untouched with the flag off
-    const s0 = untilTrain('f2c'), id = s0.clubs[0].squad[0].id, cap = C(capPlayer(s0, id), 'SetTrainPlan', { spotlightId: id });
+    const s0 = untilTrain('f2c'), id = netsPreview(s0).trainIds[0], cap = C(capPlayer(s0, id), 'SetTrainPlan', { spotlightId: id });
     assert.ok(sel.trainingVM(cap).spotlight.wheel, 'flag off: wheel as before');
   });
 });

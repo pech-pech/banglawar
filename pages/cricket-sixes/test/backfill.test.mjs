@@ -7,8 +7,8 @@ import * as sel from '../js/store/selectors.js';
 const clone = (x) => JSON.parse(JSON.stringify(x));
 const res = (round, win) => ({ round, kind: 'league', a: 'c0', b: 'c1', ra: win ? 100 : 80, wa: 3, rb: win ? 80 : 100, wb: 5, winner: win ? 'c0' : 'c1' });
 /** Round 7 with 6 wins and 1 loss (the last). */
-function atR7(v) {
-  const s = clone(C(null, 'NewGame', { seed: 'bf1' }));
+function atR7(v, seed = 'bf1') {
+  const s = clone(C(null, 'NewGame', { seed }));
   s.season.results = [1, 2, 3, 4, 5, 6].map((r) => res(r, true)).concat([res(7, false)]);
   s.v = v; s.stage = 'hub';
   return s;
@@ -27,7 +27,7 @@ test('v4 save at round 7, 6W 1L: back-filled once, rows marked, notice shown', (
 });
 
 test('r6-migrated v5 save (one paid match): fix-up gives about 285 Fans and 1,626 Coins, idempotent', () => {
-  const s = atR7(5);
+  const s = atR7(5, 'bf3'); // s1 skew moves potential, so wages; bf3's start squad pays 57 a match (bf1 now 53)
   delete s.econ.backfilled; s.econ.coins = 1158; s.econ.fans = 15; s.econ.fac.gym = 1; s.econ.fac.scout = 1;
   s.econ.ledger = [{ k: 'match', win: false, gate: 74, winBonus: 0, shop: 0, wages: 61, upkeep: 5, net: 8, fans: 15, arrears: 0 }];
   const a = unwrap(JSON.stringify({ ...wrap(s), v: 5 })).state;
