@@ -1,4 +1,5 @@
 /* sheet.js: one bottom sheet at a time. openSheet(title, html, {onClose, returnFocus}) -> close(). returnFocus: element, selector, list of selectors (first match wins) or function, resolved when the sheet closes; used when the opener is gone. The page behind is inert while a sheet is open. html is trusted markup built by the caller. */
+import { releaseInert } from './inert.js';
 let current = null;
 
 /** Resolve a returnFocus option to a focusable element, or null. Selectors are tried in order at close time (the screen behind may have redrawn). */
@@ -28,8 +29,7 @@ export function openSheet(title, html, opts) {
   sheet.querySelector('.c-sheet__body').innerHTML = html;
   const btn = sheet.querySelector('.c-icon-btn');
   const app = document.getElementById('app');
-  const wasInert = !!(app && app.inert);
-  if (app) app.inert = true; // the page behind is not reachable by keyboard or AT while the sheet is open
+    if (app) app.inert = true; // the page behind is not reachable by keyboard or AT while the sheet is open
   let closed = false;
   function close() {
     if (closed) return;
@@ -37,13 +37,13 @@ export function openSheet(title, html, opts) {
     document.removeEventListener('keydown', onKey, true);
     scrim.remove(); sheet.remove();
     if (current === close) current = null;
-    if (app) app.inert = wasInert;
+    releaseInert(app);
     const back = opener && opener.isConnected && opener !== document.body ? opener : resolveFocus(returnFocus);
     if (back && back.focus) back.focus();
     if (typeof onClose === 'function') onClose();
   }
   function onKey(e) {
-    if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); close(); }
+    if (e.key === 'Escape') { if (document.querySelector('.dr-ov')) return; /* a dial / reel over the sheet owns Escape (closes alone) */ e.preventDefault(); e.stopPropagation(); close(); }
     else if (e.key === 'Tab') {
       const f = sheet.querySelectorAll('button:not([tabindex="-1"]),[href],input,select,textarea,[tabindex]:not([tabindex="-1"])');
       if (!f.length) return;

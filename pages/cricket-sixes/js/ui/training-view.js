@@ -46,9 +46,9 @@ export function adapt(vm) {
   const costs = {}; (vm.efforts || []).forEach((e) => { costs[e.id] = e.cost; });
   const pc = (vm.coaches || []).find((c) => c.picked) || null, pv = vm.preview || {};
   const wl = vm.spotlight && vm.spotlight.wheel;
-  const wheel = sp && wl ? { slices: wl.slices, jackpotIndex: wl.jackpotIndex, player: { id: sp.id, name: sp.name, rates: sp.rates }, stat: WORD_KEY[sp.stat] || 'bp', pending: vm.spotlight.pending || null, room: vm.spotlight.room != null ? vm.spotlight.room : vm.room } : null;
+  const wheel = sp && wl ? { slices: wl.slices, jackpotIndex: wl.jackpotIndex, widths: wl.widths, player: { id: sp.id, name: sp.name, rates: sp.rates }, stat: WORD_KEY[sp.stat] || 'bp', pending: vm.spotlight.pending || null, guide: !!vm.spotlight.guide, zone: +vm.spotlight.zone || 0, chime: !!vm.spotlight.chime, tokens: vm.spotlight.tokens || [], look: vm.spotlight.look || null, phys: wl.phys || null, golds: wl.golds || null, room: vm.spotlight.room != null ? vm.spotlight.room : vm.room } : null;
   const tw = rawTwin(vm), sp2 = tw.held > 0 ? rows.find((r) => r.id === P.spotlight2Id) : null, wl2 = tw.wheel;
-  const wheel2 = sp2 && wl2 ? { slices: wl2.slices, jackpotIndex: wl2.jackpotIndex, player: { id: sp2.id, name: sp2.name, rates: sp2.rates }, stat: WORD_KEY[sp2.stat] || 'bp', pending: tw.pending || null } : null;
+  const wheel2 = sp2 && wl2 ? { slices: wl2.slices, jackpotIndex: wl2.jackpotIndex, widths: wl2.widths, player: { id: sp2.id, name: sp2.name, rates: sp2.rates }, stat: WORD_KEY[sp2.stat] || 'bp', pending: tw.pending || null, guide: !!tw.guide, zone: +tw.zone || 0, chime: !!tw.chime, tokens: tw.tokens || [], look: tw.look || null, phys: wl2.phys || null, golds: wl2.golds || null } : null;
   const nets = vm.done && vm.result ? { id: vm.week, cost: vm.result.cost, lines: vm.result.lines.map((l) => ({ ...l, stat: RK[l.rating] || l.rating || WORD_KEY[l.stat] || 'bp' })), skipped: rows.filter((r) => r.state === 'skip').map((r) => ({ id: r.id, name: r.name, why: "Can't gain" })) } : null;
   return { week: vm.week, tp: vm.tp, twin: { held: tw.held, line: tw.line, name: sp2 ? sp2.name : null }, wheel2, plan: { ...P, spotlightName: sp ? sp.name : null }, costs: { easy: 10, normal: 13, push: 18, ...costs }, coach: pc, rows, wheel, nets, canRun: vm.canRun !== false,
     preview: { cost: pv.cost || 0, trainN: pv.trainCount != null ? pv.trainCount : pv.trainN, skippedN: pv.skipCount != null ? pv.skipCount : pv.skippedN || 0, shortN: pv.shortCount != null ? pv.shortCount : pv.shortN || 0, hint: pv.hint || null } };
@@ -103,7 +103,10 @@ function openSpotlightWheel(dispatch, slot) {
   const card = '<div class="wh-who"><b class="t2-nm">' + esc(pr.name) + '</b><span class="c-tag">Wheel is yours this week</span></div><div class="wh-gr">' +
     ['bp', 'bs', 'spd', 'bsk'].map((k) => '<span class="wh-g' + (k === statKey(w.stat) ? ' hit' : '') + '">' + deco(STAT(k).icon, 20) + '<span>' + esc(STAT(k).word) + '</span><b>' + esc(letterOfRaw(rates[k] || 1)) + '</b></span>').join('') + '</div>';
   openWheel({
-    title: 'Spotlight', sub: 'Week ' + latest.vm.week + (latest.vm.wheel2 ? (two ? ', second spin' : ', first spin') : ''), cardHtml: card, slices: w.slices, jackpotIndex: w.jackpotIndex, aim: w.aim, pending: w.pending || null,
+    title: 'Spotlight', sub: 'Week ' + latest.vm.week + (latest.vm.wheel2 ? (two ? ', second spin' : ', first spin') : ''), cardHtml: card, slices: w.slices, jackpotIndex: w.jackpotIndex, widths: w.widths, aim: w.aim, pending: w.pending || null,
+    // wheel meta (flag on; empty / null otherwise): guide = Aim Guide tick, tokens = buttons for the waiting result, getTokens = the fresh list after each command, look = craft look
+    guide: w.guide, zone: w.zone, chime: w.chime, tokens: w.tokens, getTokens: () => { const sp = two ? latest.raw.twin : latest.raw.spotlight; return (sp && sp.tokens) || []; }, look: w.look, phys: w.phys, golds: w.golds, spokeGain: () => { const sp = two ? latest.raw.twin : latest.raw.spotlight; return (sp && sp.spokeGain) || 0; },
+    onToken: (kind, careful) => dispatch('UseToken', two ? { wheel: 'spot', kind, careful, slot: 2 } : { wheel: 'spot', kind, careful }),
     onSpin: (careful) => dispatch('Spin', two ? { careful, slot: 2 } : { careful }), getPending: () => { const sp = two ? latest.raw.twin : latest.raw.spotlight; return (sp && sp.pending) || null; },
     describe: (p) => {
       const g = p.applied != null ? p.applied : Math.min(p.gain, w.room == null ? 99 : w.room), to = raw0 + g, a = letterOfRaw(raw0), b = letterOfRaw(to), moved = stepOfRaw(to) !== stepOfRaw(raw0);

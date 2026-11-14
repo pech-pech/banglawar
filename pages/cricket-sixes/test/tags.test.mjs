@@ -69,14 +69,14 @@ test('views: tableVM rows and hubVM next carry the tag; untagged rows carry null
   assert.deepEqual(sel.hubVM(s).next.tag, tagInfo(nextOpp));
 });
 
-test('save: VERSION is 6; v3 save gets tagged rivals once, ratings offset once; v4 round-trips', () => {
-  assert.equal(VERSION, 6);
+test('save: VERSION is 7; v3 save gets tagged rivals once, ratings offset once; v4 round-trips', () => {
+  assert.equal(VERSION, 7);
   const g = newGame('t4').get();
   const v3 = structuredClone(g); v3.v = 3;
   const orig = {};
   for (const id of ['c1', 'c2', 'c3']) { const c = v3.clubs.find((x) => x.id === id); delete c.tag; delete c.kit; c.name = 'Old ' + id; for (const p of c.squad) for (const k of R) p[k] = 50; orig[id] = c; }
   const m = migrate(v3, 3);
-  assert.equal(m.ok, true); assert.equal(m.state.v, 6);
+  assert.equal(m.ok, true); assert.equal(m.state.v, 7);
   const c1 = m.state.clubs.find((x) => x.id === 'c1'), c4 = m.state.clubs.find((x) => x.id === 'c4');
   assert.equal(c1.name, 'Pebble Lane Pups'); assert.equal(c1.tag, 'bat_heavy');
   assert.ok(c1.squad.every((p) => p.bp === 56 && p.bs === 53 && p.spd === 46 && p.bsk === 46));

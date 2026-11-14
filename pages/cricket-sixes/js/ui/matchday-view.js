@@ -6,6 +6,7 @@
 // Commands: MatchdayGo (vm.next: 'Start match' when it starts the match, 'Next: Plan' when it opens Plan), BackToSquad. Plain words, no countdown, no sound, no spend on luck.
 import { esc, icoDeco } from './dom.js';
 import { openSheet } from './sheet.js';
+import { spinHype, spinToss, spinPep } from './wm-spins.js';
 
 export const HYPE = {
   low: { word: 'Quiet crowd', line: 'Quiet crowd today' },
@@ -48,7 +49,7 @@ export function roarChipHtml(roar) {
 /** Info sheet body: odds, toss, pep, roar, in plain words. Pure. */
 export function oddsHtml(vm) {
   const od = vm.odds || [], o = LEVELS.map((k, i) => (od[i] ? od[i].pct : [35, 35, 20, 10][i])), per = [2, 4, 6, 10];
-  const rows = LEVELS.map((k, i) => '<tr' + (k === vm.hype.level ? ' class="is-today"' : '') + '><th scope="row">' + esc(HYPE[k].word) + '</th><td>+' + per[i] + '% to your team</td><td>' + o[i] + ' in 100</td></tr>').join('');
+  const rows = LEVELS.map((k, i) => '<tr' + (k === vm.hype.level && !vm.wm ? ' class="is-today"' : '') + '><th scope="row">' + esc(HYPE[k].word) + '</th><td>+' + per[i] + '% to your team</td><td>' + o[i] + ' in 100</td></tr>').join('');
   return '<div class="md-info"><p>Each match day the crowd mood is drawn before you see it. More Fans and fan activities tilt the odds a little. Nothing here costs Coins.</p>' +
     '<table class="md-odds"><caption class="ss-sr">Crowd mood odds today</caption><thead><tr><th scope="col">Mood</th><th scope="col">Boost</th><th scope="col">Chance</th></tr></thead><tbody>' + rows + '</tbody></table>' +
     '<p><b>Toss:</b> win it for +5% for your team. If the rival wins it, nothing changes.</p>' +
@@ -113,7 +114,7 @@ const SEEN = {}; // reveal state by vm.key, so coming back from Squad keeps what
 /** @param {HTMLElement} el @param {any} vm @param {(cmd:string, payload:any)=>void} dispatch */
 export function render(el, vm, dispatch) {
   const E = /** @type {any} */ (el);
-  const key = [vm.kindWord, vm.oppName, vm.hype.level, vm.toss.won, vm.pep && vm.pep.id].join('|');
+  const key = vm.key ? String(vm.key) : vm.wm ? [vm.kindWord, vm.oppName, 'wm'].join('|') : [vm.kindWord, vm.oppName, vm.hype.level, vm.toss.won, vm.pep && vm.pep.id].join('|'); // wheel meta: the spins change the roll, the reveal state must survive that
   const shown = SEEN[key] || (SEEN[key] = {});
   const paint = (live, focus) => {
     // r9 QA2 m1: a reveal tap repaints only the body, so the strip keeps the Settings gear the report hooks put there
@@ -126,6 +127,8 @@ export function render(el, vm, dispatch) {
     if (live) { const r = el.querySelector('[data-md-live]'); if (r) r.textContent = live; }
     if (focus) { const f = el.querySelector(focus); if (f) /** @type {HTMLElement} */ (f).focus(); }
   };
+  // the upgrades switch went On with cards already opened (Off-mode rolls): keep those rolls, never re-spin them
+  if (vm.wm) { const keep = ['hype', 'toss', 'pep'].filter((w) => shown[w] && vm.wm[w] && !vm.wm[w].spun); if (keep.length && !E.__mdKeeping) { E.__mdKeeping = true; Promise.resolve().then(() => { E.__mdKeeping = false; (E.__mdDispatch || dispatch)('MdKeep', { which: keep }); }); } }
   E.__mdVM = vm; E.__mdShown = shown; E.__mdPaint = paint;
   paint();
   if (!E.__mdBound) {
@@ -135,6 +138,13 @@ export function render(el, vm, dispatch) {
       const t = /** @type {HTMLElement} */ (e.target).closest('[data-md]'); if (!t || !el.contains(t)) return;
       const w = t.getAttribute('data-md'), V = E.__mdVM;
       if (w === 'info') { openSheet('How match day works', oddsHtml(V), { returnFocus: '[data-md="info"]' }); return; }
+      if (V.wm && V.wm[w] && !E.__mdShown[w]) { // wheel meta: the card opens the spin; Collect reveals the card (the result is already stored by the spin command)
+        const get = () => E.__mdVM.wm[w], d = (c, a) => E.__mdDispatch(c, a || {});
+        const done = () => { E.__mdShown[w] = true; const nx = ['hype', 'toss', 'pep'].find((k) => !E.__mdShown[k]); E.__mdPaint(liveLine(E.__mdVM, w), nx ? '[data-md="' + nx + '"]' : '[data-act="MatchdayGo"]'); };
+        const o = { get, look: V.look, dispatch: d, onCollect: done };
+        if (w === 'hype') spinHype({ ...o, oppName: V.oppName }); else if (w === 'toss') spinToss(o); else spinPep({ ...o, names: (V.six || []).map((p) => p.name) });
+        return;
+      }
       E.__mdShown[w] = true;
       // focus moves to the Next button when the last card opens; otherwise to the next unopened card
       const nxt = ['hype', 'toss', 'pep'].find((k) => !E.__mdShown[k]);

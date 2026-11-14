@@ -145,12 +145,13 @@ export function carryOf(state, coachId) {
   const own = bestOwn(state);
   const staff = (state.coaches || []).filter((/** @type {any} */ c) => !c.candidate);
   const coach = staff.find((/** @type {any} */ c) => c.id === coachId) || staff.slice().sort((/** @type {any} */ a, /** @type {any} */ b) => (b.step || 0) - (a.step || 0))[0] || null;
-  return { legend: own ? legendOf(own) : null, coach: coach ? carryCoach(coach) : null };
+  return { legend: own ? legendOf(own) : null, coach: coach ? carryCoach(coach) : null, wheelCraft: clone(state.wheelCraft && typeof state.wheelCraft === 'object' ? state.wheelCraft : { owned: {} }) }; // wheelCraft: Craft ranks carry free into the next run
 }
 
-/** Put the carried legend (replacing M's weakest) and coach into a fresh new-game state. @param {any} fresh @param {{legend:any, coach:any}} carry */
+/** Put the carried legend (replacing M's weakest), coach and Craft ranks into a fresh new-game state. @param {any} fresh @param {{legend:any, coach:any}} carry */
 export function applyCarry(fresh, carry) {
   const n = clone(fresh), mine = n.clubs.find((/** @type {any} */ c) => c.id === ME);
+  if (carry.wheelCraft) n.wheelCraft = clone(carry.wheelCraft);
   if (carry.legend) {
     const weakest = mine.squad.slice().sort((/** @type {any} */ a, /** @type {any} */ b) => rawAbility(a) - rawAbility(b) || (a.id < b.id ? -1 : 1))[0];
     const i = mine.squad.findIndex((/** @type {any} */ p) => p.id === weakest.id);

@@ -42,7 +42,7 @@ test('B1: StartMatch -> matchday -> MatchdayGo -> BowlOver gives one record, and
   assert.ok(planFeel(m, d).length >= 1, 'feel strip has a question for the matchday match');
 }));
 
-const B = 'sixes-r9', ENV = { build: B, now: Date.UTC(2026, 10, 13, 18, 0), vp: 'screen 344x780', errors: 0, flags: { ...FLAG_DEFAULTS }, rid: 4 };
+const B = 'sixes-w1', ENV = { build: B, now: Date.UTC(2026, 10, 13, 18, 0), vp: 'screen 344x780', errors: 0, flags: { ...FLAG_DEFAULTS }, rid: 4 };
 const mm = { id: 1, build: B, res: 'won', seed: 's', k: 'L', r: 1, us: 61, them: 58, m: { k: 'wk', n: 2 }, t0: 1000, t1: 61000, ov: [], gl: {}, why: 0, sk: 0, feel: {}, coins0: 100, coins1: 180, fans0: 10, fans1: 50, pay: { total: 90 }, eco: { gate: 120, win: 70, shop: 6, wage: 100, up: 16, net: 80, fans: 40, arr: 0 } };
 const club = [
   { q: 1, b: B, s: 1, k: 'act', id: 'banner', coins: 85, fans: 30, find: { type: 'coach', id: 'c9' }, dry: 0 },

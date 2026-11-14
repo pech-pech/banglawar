@@ -48,6 +48,7 @@ export function render(el, vm, dispatch) {
     '<div class="c-card c-card--hl rn-hero" role="status">' + icoDeco('medal', 32) +
     '<div><span class="rn-tag">Your run score</span><b class="rn-big">' + esc(vm.score) + '</b><small> of ' + esc(vm.max) + '</small>' +
     '<p class="rn-sub">' + esc(vm.seasons) + ' seasons · Best league ' + esc(vm.bestLeague) + ' · ' + esc(vm.titles) + (Number(vm.titles) === 1 ? ' title' : ' titles') + '</p></div></div>' +
+    (vm.swapped && vm.swapped.coins > 0 ? '<div class="c-card rn-swap" role="status"><b>Spare Spokes swapped: +' + esc(vm.swapped.coins) + (vm.swapped.coins === 1 ? ' Coin' : ' Coins') + '</b><small>' + esc(vm.swapped.spokes) + ' Spokes. Coins do not carry to your next run.</small></div>' : '') +
     '<ul class="rn-rows" aria-label="Score">' + rows.map(rowHtml).join('') + '</ul>' +
     (ch.length ? '<h2 class="ss-h">Chapters</h2><ul class="rn-list">' + ch.map(chapterRow).join('') + '</ul>' : '') +
     (carry.length ? '<h2 class="ss-h">Carries to your next run</h2><ul class="rn-list">' + carry.map(carryRow).join('') + '</ul>' : '') +

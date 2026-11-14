@@ -9,7 +9,7 @@ import { esc } from './dom.js';
 import { deco, strongHtml } from './training-view.js';
 import { letterOfStep } from '../core/letters.js';
 import { openWheel } from './wheel-view.js';
-import { scoutBodyHtml, scoutDone } from './coachpick-view.js';
+import { scoutBodyHtml, scoutDone, scoutSpinOpen } from './coachpick-view.js';
 import { courseWheel } from '../core/training.js';
 
 function coachHtml(c) {
@@ -52,7 +52,8 @@ export function open(vm, dispatch, openFn, arg, refresh) {
       const w = co.course.wheel || courseWheel(co.step), from = co.step;
       const card = '<div class="wh-who"><b class="t2-nm">' + esc(co.name) + '</b><span class="c-tag">Course: away 1 week</span></div><div class="wh-gr"><span class="wh-g hit"><span>Grade</span><b>' + esc(co.letter) + '</b></span><span class="wh-g wh-wide"><span>Strong</span><b class="t2-strong">' + strongHtml(co.strong) + '</b></span></div>';
       openWheel({
-        title: 'Course', sub: co.name, cardHtml: card, slices: w.slices, jackpotIndex: w.jackpotIndex, aim: w.aim, pending: co.course.pending || null, plus: '+',
+        title: 'Course', sub: co.name, cardHtml: card, slices: w.slices, jackpotIndex: w.jackpotIndex, widths: w.widths, aim: w.aim, pending: co.course.pending || null, plus: '+',
+        guide: !!co.course.guide, zone: +co.course.zone || 0, chime: !!co.course.chime, tokens: co.course.tokens || [], getTokens: () => cur().tokens || [], look: co.course.look || null, phys: w.phys || null, golds: w.golds || null, spokeGain: () => cur().spokeGain || 0, onToken: (kind, careful) => dispatch('UseToken', { wheel: 'course', kind, careful }), // wheel meta: empty when the flag is off
         onSpin: (careful) => dispatch('CourseSpin', { coachId: id, careful }), getPending: () => cur().pending || null,
         describe: (r) => { const to = Math.min(21, from + r.gain), a = letterOfStep(from), b = letterOfStep(to); return { big: 'Grade steps', from: a, to: b, breakthrough: !!r.jackpot || a !== b, say: co.name + ' course: ' + a + (a === b ? ', already top grade' : ' to ' + b) + (r.jackpot ? ', jackpot' : '') + '.' }; },
         onCollect: () => dispatch('RunCourse', { coachId: id }),
@@ -67,7 +68,11 @@ function openScout(sv, dispatch, refresh) {
   const html = (v) => scoutBodyHtml(v) + '<button type="button" class="c-btn c-btn--primary c-btn--cta c-btn--block" data-pass="1">' + scoutDone(v) + '</button>';
   const close = openSheet('Scout list', html(sv));
   const body = document.querySelector('.sheet-fixed .c-sheet__body'); if (!body) return;
+  const redraw = () => { const v = refresh ? refresh().scout : null; if (v) body.innerHTML = html(v); };
+  const spin = (auto) => scoutSpinOpen(() => (refresh ? refresh().scout : sv), dispatch, redraw, auto);
+  spin(true); // wheel meta: the Scout reveal when the list opens (spin is null with the flag off)
   body.addEventListener('click', (e) => {
+    if (e.target.closest('[data-scoutspin]')) { spin(false); return; }
     const t = e.target.closest('[data-act],[data-pass]'); if (!t || t.disabled) return;
     if (t.hasAttribute('data-pass')) { close(); dispatch('PassScout', {}); return; }
     let arg = {}; try { arg = JSON.parse(t.getAttribute('data-arg') || '{}'); } catch (_) { /* none */ }

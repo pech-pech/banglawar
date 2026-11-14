@@ -198,7 +198,7 @@ async function journey(browser, tag) {
       for (const w of ['hype', 'toss', 'pep']) {
         const b = await page.$(`[data-md="${w}"]`);
         if (!b) continue; // already shown, or no pep slot
-        await b.click(); await settle(350); await audit('matchday-after-' + w); await shot('matchday-' + w);
+        await b.click(); await settle(350); for (let i = 0; i < 12 && (await page.$('.dr-ov')); i++) { const g = await page.$('.dr-ov [data-go]:not([aria-disabled="true"])'); if (g) await g.click(); await settle(i === 0 ? 1600 : 900); } await audit('matchday-after-' + w); await shot('matchday-' + w);
       }
       const q = await page.$('[data-md="info"]');
       if (q) { await q.click(); await settle(500); await audit('matchday-info-sheet'); await shot('matchday-info'); await closeSheets(); } else bad('matchday: no "?" odds button');

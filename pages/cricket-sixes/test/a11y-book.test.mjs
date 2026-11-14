@@ -78,7 +78,7 @@ test('found card: live region exists with the panel, finish() fills it, the card
 
 test('sheet: returnFocus option, page behind is inert, tab trap skips roving tabindex -1', () => {
   const sh = src('sheet.js');
-  assert.match(sh, /returnFocus/); assert.match(sh, /app\.inert = true/); assert.match(sh, /app\.inert = wasInert/); assert.match(sh, /button:not\(\[tabindex="-1"\]\)/);
+  assert.match(sh, /returnFocus/); assert.match(sh, /app\.inert = true/); assert.match(sh, /releaseInert\(app\)/); assert.match(sh, /button:not\(\[tabindex="-1"\]\)/);
   assert.match(src('book-sheet.js'), /returnFocus: arg && arg\.returnFocus/);
   assert.match(src('app.js'), /onBook: \(\) => openByName\('book', \{ returnFocus: BACK_FOCUS \}\)/);
 });

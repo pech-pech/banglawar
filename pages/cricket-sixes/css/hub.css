@@ -143,3 +143,7 @@
 .hb-hub--rv .hb-sixhead { line-height: 16px; }
 /* the top strip is 8 px too wide (scoreboard.css gives .strip margin 0 -8px): the "?" lost its right edge */
 .hb-hub > .strip { margin-left: 0; margin-right: 0; }
+
+/* Wheel Workshop entry (Wheel meta): one 56 px row, shown from wheel tier 1 */
+.hb-wk { display: flex; align-items: center; justify-content: flex-start; gap: var(--c-sp-2); min-height: 56px; padding: 0 var(--c-sp-3); font: 700 var(--c-fs-m)/var(--c-lh-m) var(--c-font); text-align: left; }
+.hb-wk .hb-wkn { margin-left: auto; display: inline-flex; align-items: center; gap: 4px; }

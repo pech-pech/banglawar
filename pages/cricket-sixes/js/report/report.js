@@ -81,7 +81,7 @@ export function cleanOf(matches, env) {
   if (new Set(matches.map((m) => m.build)).size > 1 || cur.length < matches.length) why.push('mixed builds');
   if (!cur.length) why.push(e.pending && e.pending.res ? 'match on result screen' : 'no match played'); // QA3 N1: a held-back match was played; it comes in the next copy
   if (e.tuningSha && e.tuningPinned && e.tuningSha !== e.tuningPinned) why.push('tuning changed');
-  const flags = e.flags || FLAG_DEFAULTS, bad = Object.keys(FLAG_DEFAULTS).filter((k) => !FEATURE_FLAGS.includes(k) && (flags[k] ?? FLAG_DEFAULTS[k]) !== FLAG_DEFAULTS[k]); // features are a kind, not a flag change
+  const flags = e.flags || FLAG_DEFAULTS, bad = Object.keys(FLAG_DEFAULTS).filter((k) => !FEATURE_FLAGS.includes(k) && k !== 'wheelMeta' && (flags[k] ?? FLAG_DEFAULTS[k]) !== FLAG_DEFAULTS[k]); // features are a kind, not a flag change
   if (bad.length) why.push('flags changed: ' + bad.join(', '));
   if (cur.some((m) => !m.res && !m.ab)) why.push('match in progress');
   if (e.errors > 0) why.push('errors');
@@ -344,7 +344,8 @@ export function buildData(data, env0) {
 
 /** Full copy: text then the JSON block. */
 export function buildFull(data, env) {
-  return buildText(data, env) + '\nJSON:\n' + buildData(data, env);
+  const meta = Array.isArray(env && env.meta) && env.meta.length ? '\n' + env.meta.join('\n') : ''; // wheel meta lines (metaReport), only with the flag on
+  return buildText(data, env) + meta + '\nJSON:\n' + buildData(data, env);
 }
 
 /** What the log must record at copy time: the text sent (kept for Copy last again). */

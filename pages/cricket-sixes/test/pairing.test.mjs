@@ -237,22 +237,22 @@ test('v2 save migrates to v3 with an empty Book, keeps everything else, and play
   const s = clone(newGame('pb-10').get()); delete s.book; s.v = 2;
   assert.equal(unwrap(JSON.stringify({ v: 2, sum: 'nope', data: s })).ok, false, 'a v2 envelope needs its checksum');
   const m = migrate(s, 2);
-  assert.equal(m.ok, true); assert.equal(m.state.v, 6); assert.equal(VERSION, 6); assert.equal(m.from, 2);
+  assert.equal(m.ok, true); assert.equal(m.state.v, 7); assert.equal(VERSION, 7); assert.equal(m.from, 2);
   assert.deepEqual(m.state.book, newBook()); assert.equal(m.state.book.balls.length, CELLS);
   // v5 (P11) drops the old training.lastPlan (a map shape); everything else must be untouched
   const noPlan = (x) => ({ ...x, v: 2, book: undefined, econ: x.econ && { ...x.econ, freePick: undefined }, training: { ...x.training, lastPlan: undefined, sel: undefined, last_plan: undefined, coach_id: undefined, netsRuns: undefined, focusChanges: undefined } });
   assert.deepEqual(noPlan(m.state), noPlan(s), 'nothing else changed');
-  assert.equal(migrate(m.state, 5).state.v, 6);
+  assert.equal(migrate(m.state, 5).state.v, 7);
   // through the envelope
   const env = unwrap(JSON.stringify({ v: 2, sum: wrap(s).sum, data: JSON.parse(JSON.stringify(s)) }));
-  assert.equal(env.ok, true); assert.equal(env.state.v, 6);
+  assert.equal(env.ok, true); assert.equal(env.state.v, 7);
   // a v1 save goes through both steps
   const v1 = clone(s); delete v1.run; v1.v = 1;
-  const m1 = migrate(v1, 1); assert.equal(m1.ok, true); assert.equal(m1.state.v, 6); assert.ok(m1.state.run); assert.deepEqual(m1.state.book, newBook());
+  const m1 = migrate(v1, 1); assert.equal(m1.ok, true); assert.equal(m1.state.v, 7); assert.ok(m1.state.run); assert.deepEqual(m1.state.book, newBook());
   // and keeps playing: the Book counts on from zero
   let g = m.state, n = 0; while (g.stage !== 'bowl' && n++ < 20) { const st = { get: () => g, dispatch: (c, p) => { g = C(g, c, p); } }; step(st); }
   g = C(g, 'BowlOver'); assert.equal(g.book.balls.reduce((a, x) => a + x, 0), g.last.balls.length);
-  assert.equal(wrap(g).v, 6);
+  assert.equal(wrap(g).v, 7);
 });
 
 test('migration step keeps its own 27 equal to the Book size', () => {

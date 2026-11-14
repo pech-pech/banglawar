@@ -5,6 +5,16 @@
    Letter grade and strong focus icons only; no numbers. */
 import { esc, ctaBar, bindActs } from './dom.js';
 import { deco, strongHtml, strongText } from './training-view.js';
+import { spinScout } from './wm-spins.js';
+
+/** Wheel meta: the Scout reveal reel (once a season, when the list opens). get() -> the fresh coachPickVM. Asked once per list; the button below reopens it. */
+let asked = '';
+export function scoutSpinOpen(get, dispatch, onCollect, auto) {
+  const v = get(); if (!v || !v.spin || v.spin.spun || v.open === false) return;
+  const key = (v.cands[0] || {}).id || 'x'; if (auto && asked === key) return; asked = key;
+  spinScout({ get: () => (get() || {}).spin, look: v.look, dispatch, onCollect: onCollect || (() => {}) });
+}
+export const scoutSpinBtn = (vm) => (vm.spin && !vm.spin.spun && vm.open !== false ? '<button type="button" class="c-btn c-btn--block t2-scout" data-scoutspin="1">' + deco('scout', 20) + '<span>Ask the scouts</span></button>' : '');
 
 function card(c, full) {
   const label = 'Coach ' + c.name + ', grade ' + c.letter + ', strong in ' + strongText(c.strong) + (c.signed ? '. Signed' : full ? '. Full: release one to sign' : '');
@@ -17,7 +27,7 @@ function card(c, full) {
 /** The scout list body (cards, and "Your coaches" with Release when full). Used by the screen and by the sheet in the coaches sheet. */
 export function scoutBodyHtml(vm) {
   const cands = (vm.cands || []).map((c) => ({ ...c, signed: c.signed || (vm.picked != null && vm.picked === c.id) })), mine = vm.mine || [], full = !!vm.full;
-  return '<p class="tr-note tr-intro">' + deco('info', 24) + '<span>' + (vm.open === false && vm.why ? esc(vm.why) : full ? 'Full: release one to sign.' : 'Sign one coach, or pass.') + '</span></p>' +
+  return scoutSpinBtn(vm) + '<p class="tr-note tr-intro">' + deco('info', 24) + '<span>' + (vm.open === false && vm.why ? esc(vm.why) : full ? 'Full: release one to sign.' : 'Sign one coach, or pass.') + '</span></p>' +
     '<ul class="c-list m0-list tr-cands" aria-label="Coaches to sign">' + cands.map((c) => card(c, full && !c.signed)).join('') + '</ul>' +
     (full ? '<div class="c-card t2-rel"><div class="tr-h"><b>Your coaches</b></div><ul class="c-list list-flat">' + mine.map((m) =>
       '<li class="c-row m0-row t2-cand"><div class="t2-candtxt"><span class="t2-who"><b class="name">' + esc(m.name) + '</b><span class="t2-strong">' + strongHtml(m.strong) + '</span></span><span class="t2-grade" aria-hidden="true">' + esc(m.letter) + '</span></div>' +
@@ -25,6 +35,7 @@ export function scoutBodyHtml(vm) {
 }
 export const scoutDone = (vm) => (vm.cands || []).some((c) => c.signed || (vm.picked != null && vm.picked === c.id)) ? 'Done' : 'Pass';
 
+let latest = null;
 export function render(el, vm, dispatch) {
   el.innerHTML =
     '<div class="screen tr-screen tr-pick">' +
@@ -33,4 +44,7 @@ export function render(el, vm, dispatch) {
     '</div>';
   window.scrollTo && window.scrollTo(0, 0);
   bindActs(el.firstElementChild, dispatch);
+  latest = vm;
+  const b = el.querySelector('[data-scoutspin]'); if (b) b.addEventListener('click', () => scoutSpinOpen(() => latest, dispatch, null, false));
+  scoutSpinOpen(() => latest, dispatch, null, true); // wheel meta: opens by itself the first time the list shows (vm.spin null with the flag off)
 }

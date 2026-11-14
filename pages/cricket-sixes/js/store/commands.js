@@ -8,7 +8,7 @@ import { FLAGS } from '../data/flags.js';
 import { SEASON } from '../data/season.js';
 import { makeClubs, growClubs, aiPickSix } from '../core/clubs.js';
 import { makeSchedule, makeTable, applyResult, placeOf, inTopFour, finalsDraw, finalFrom, koWinner, matchPay, tpAward, simRound, simMatch, simFinals, ME } from '../core/season.js';
-import { planOf, setPlan as setTrainPlan, runNets, endWeek, coachList, coachStepInUse, startCoach as makeStartCoach, passScout, courseUsesLicence, courseCost, signCoach, releaseCoach, pickWeekCoach, canCourse, courseWheel, runCourse, wheelSlices, spinResult } from '../core/training.js';
+import { planOf, netsPreview, setPlan as setTrainPlan, runNets, endWeek, coachList, scoutList, coachStepInUse, startCoach as makeStartCoach, passScout, courseUsesLicence, courseCost, signCoach, releaseCoach, pickWeekCoach, canCourse, courseWheel, runCourse, wheelSlices, spinResult } from '../core/training.js';
 import { unlockNode, makeFx } from '../core/skills.js';
 import { defaultOvers } from '../core/plan.js';
 import { newEconomy, applyMatch, tickBuild, finalsReward, finalsTp, payCourse, useHeld, startBuild, buySink, buyMedal, buyLegacy } from '../core/economy.js';
@@ -17,7 +17,9 @@ import { RUN, SQUAD } from '../data/run.js';
 import { newBook, isBook, recordOver } from '../core/pairing.js';
 import { activityOptions, pickActivity, signTrial, declineTrial, actLedger, roundKey } from '../core/activities.js';
 import { takeFreePick, freePickPending } from '../core/economy.js';
-import { VERSION, dropFreepickNotice } from '../core/save-migrate.js';
+import { VERSION, dropFreepickNotice, emptyWheelMeta } from '../core/save-migrate.js';
+import { metaWheel, recordSpin, afterResult, seasonTokens, useToken, buyNode, canBuy, swapSpokes, powerDone, dismissTierUp, nextTierUp } from '../core/wheelmeta.js';
+import { canMdSpin, mdSpin, settleMd, stopOf, findForce, afterFind, canScoutSpin, scoutSpin, canFinalsSpin, finalsSpin, mdKeep } from './wmstore.js';
 import { rollMatchday, teamBoost, scaleRatings, resolvePep, roarAt } from '../core/matchday.js';
 import { MD } from '../data/matchday.js';
 
@@ -168,7 +170,7 @@ function newGame(payload) {
   const g = {
     v: VERSION, salt: '', features: true, seed, stage: 'hub', ...blankMatch(), run: newRun(seed), book: newBook(),
     season, clubs, plan: { overs: DEFAULT_OVERS.slice(), fields: NEUTRAL_FIELDS(), edited: false, key: '' },
-    econ: newEconomy(), coaches: [makeStartCoach('k0', COACH_NAMES[makeRng(`${seed}|coaches`).int(COACH_NAMES.length)])], coachPicked: true, nets: 1, releaseLedger: [],
+    econ: newEconomy(), coaches: [makeStartCoach('k0', COACH_NAMES[makeRng(`${seed}|coaches`).int(COACH_NAMES.length)])], coachPicked: true, nets: 1, releaseLedger: [], wheelMeta: emptyWheelMeta(), wheelCraft: { owned: {} },
     training: { tp: 450, week: 1, nodeBought: {}, weekLog: [], weekStart: {}, netsRuns: 0, focusChanges: 0, focus: 'bat', effort: 'normal', spotlight_id: null, coach_id: null, last_plan: null },
     fixture: leagueFixture(season, 1),
   };
@@ -264,8 +266,9 @@ function setPlan(s, p) {
 
 const copyPlayer = (p) => ({ ...clone(p), overs: 0, figs: { r: 0, w: 0 }, inn: { r: 0, b: 0, out: false } });
 
-function seasonMatch(s) {
-  if (s.stage !== 'plan' || !s.fixture || planProblem(s.plan.overs)) return s;
+function seasonMatch(s0) {
+  if (s0.stage !== 'plan' || !s0.fixture || planProblem(s0.plan.overs)) return s0;
+  const s = settleMd(s0, mdFor); // wheel meta: any match-day wheel not spun yet gets a random tap here (no-op with the flag off)
   const fx = s.fixture;
   const mine = s.clubs[0], opp = s.clubs.find((c) => c.id === fx.opp);
   const byId = (club, id) => club.squad.find((x) => x.id === id);
@@ -283,8 +286,9 @@ function seasonMatch(s) {
   return n;
 }
 
-function finishMatch(s) {
-  if (s.stage !== 'done' || !s.season || !s.fixture) return s;
+function finishMatch(s0) {
+  if (s0.stage !== 'done' || !s0.season || !s0.fixture) return s0;
+  const s = canFinalsSpin(s0) ? finalsSpin(s0) : s0; // wheel meta: an unspun Finals prize gets a seeded random tap, never forfeited (no-op with the flag off)
   const n = clone(s), se = n.season, fx = n.fixture;
   const res = { round: fx.round, kind: fx.kind, a: ME, b: fx.opp, ra: n.inn2.runs, wa: n.inn2.wk, rb: n.inn1.runs, wb: n.inn1.wk, winner: null };
   let outcome = n.result;
@@ -350,13 +354,26 @@ function newSeason(s) {
   Object.assign(n, blankMatch()); delete n.match;
   n.stage = 'hub';
   n.fixture = leagueFixture(n.season, 1);
-  return n;
+  return FLAGS.wheelMeta ? seasonTokens(n) : n; // tokens refill from the owned ranks at each season start
+}
+
+/** The Wheel upgrades switch. Turning it back on mid-season refills this season's tokens when they were not (main.js flips FLAGS.wheelMeta only after the command, so it is on for the refill here). */
+function wheelSwitch(s, on) {
+  const n = { ...s, wheelFeatures: on };
+  if (!on || !s.season || !s.wheelMeta) return n;
+  const was = FLAGS.wheelMeta; FLAGS.wheelMeta = true;
+  try { return seasonTokens(n); } finally { FLAGS.wheelMeta = was; }
 }
 
 function runEnd(s) {
   if (s.stage !== 'end' || !s.season || !s.run || s.season.n < RUN.seasons) return s;
-  const n = clone(closeSeason(s));
+  let n = clone(closeSeason(s));
   n.run.ended = true; n.stage = 'runend';
+  // Wheel meta: leftover Spokes swap for Coins before the reset (2 Spokes = 1 Coin, once the power tree is done). Coins do not carry into the next run (a new run starts a fresh economy), so the swap is only recorded in the run record for the run-end screen.
+  if (FLAGS.wheelMeta && powerDone(n) && n.econ) {
+    const sw = swapSpokes(n);
+    if (sw !== n) { const row = sw.econ.ledger[sw.econ.ledger.length - 1]; n = clone(sw); n.run.spokeSwap = { spokes: row.spokes, coins: row.coins }; }
+  }
   return n;
 }
 
@@ -368,6 +385,8 @@ function newRunFrom(s, p) {
   const n = applyCarry(fresh, carryOf(s, p && p.coachId));
   n.run = newRun(`${s.run.root}|R${no}`, no);
   n.salt = s.salt;
+  n.wheelMeta = emptyWheelMeta(); // the tree, tally, Spokes and tokens reset with the run; wheelCraft rides in through applyCarry
+  if (s.wheelFeatures === false) n.wheelFeatures = false;
   return n;
 }
 /** The game seed is the first season's seed; later seasons append |s<n>. */
@@ -384,7 +403,9 @@ export function applyCommand(s, cmd, payload = {}) {
   const t = s && s.theme && n && n !== s && n.theme === undefined ? { ...n, theme: s.theme } : n;
   const u = s && s.autoMatchday && t && t !== s && t.autoMatchday === undefined && t.stage ? { ...t, autoMatchday: true } : t;
   // The features switch (M 18:37) also rides along: a rebuilt state keeps the player's choice (absent on an old save = on).
-  return cmd !== 'SetFeatures' && s && s.features === false && u && u !== s && u.stage && u.features !== false ? { ...u, features: false } : u;
+  const f = cmd !== 'SetFeatures' && s && s.features === false && u && u !== s && u.stage && u.features !== false ? { ...u, features: false } : u;
+  // Same for the wheel switch: a rebuilt state (NewGame, new run) keeps the player's choice; absent = on.
+  return cmd !== 'SetWheelFeatures' && s && s.wheelFeatures === false && f && f !== s && f.stage && f.wheelFeatures !== false ? { ...f, wheelFeatures: false } : f;
 }
 function applyCommandCore(s, cmd, payload) {
   if (cmd === 'SetTheme') return s && s.stage && THEMES.includes(payload && payload.theme) && (s.theme || 'green') !== payload.theme ? { ...s, theme: payload.theme } : s;
@@ -404,7 +425,18 @@ function applyCommandCore(s, cmd, payload) {
       if (!payload.on && n.stage === 'matchday') n.stage = 'plan';
       return n;
     }
+    case 'SetWheelFeatures': return payload && typeof payload.on === 'boolean' && (s.wheelFeatures !== false) !== payload.on ? wheelSwitch(s, payload.on) : s;
+    case 'BuyNode': return FLAGS.wheelMeta && payload && typeof payload.id === 'string' && canBuy(s, payload.id).ok ? buyNode(s, payload.id) : s;
+    case 'UseToken': return viaTrain(s, (x) => useTok(x, payload));
+    case 'SwapSpokes': return FLAGS.wheelMeta && powerDone(s) ? swapSpokes(s) : s;
+    case 'DismissTierUp': return FLAGS.wheelMeta && nextTierUp(s) ? dismissTierUp(s) : s;
     case 'PickActivity': return pickAct(s, payload);
+    case 'HypeSpin': return canMdSpin(s, 'hype') ? mdSpin(s, 'hype', stopOf(payload), s.clubs[0].six) : s;
+    case 'TossSpin': return canMdSpin(s, 'toss') ? mdSpin(s, 'toss', false, s.clubs[0].six) : s;
+    case 'PepSpin': return canMdSpin(s, 'pep') ? mdSpin(withSix(s), 'pep', false) : s;
+    case 'MdKeep': return mdKeep(s, payload && Array.isArray(payload.which) ? payload.which : []);
+    case 'ScoutSpin': return canScoutSpin(s, () => scoutList(s)) ? scoutSpin(s) : s;
+    case 'FinalsSpin': return canFinalsSpin(s) ? finalsSpin(s) : s;
     case 'SignTrial': return FLAGS.activities && s.econ ? signTrial(s) : s;
     case 'DeclineTrial': return FLAGS.activities && s.econ ? declineTrial(s) : s;
     case 'TakeFreePick': {
@@ -473,7 +505,9 @@ export function mdFor(s, sixIds) {
   if (!FLAGS.matchday || !fx || !s.season) return null;
   const seed = `${s.season.seed}|${fx.kind}|${fx.round}|${s.salt}`;
   const md = fx.md || rollMatchday(seed, { fans: s.econ ? s.econ.fans : 0, actLedger: actLedgerOf(s), sixIds });
-  return { ...md, pepId: resolvePep(md, sixIds) };
+  const out = { ...md, pepId: resolvePep(md, sixIds) };
+  if (md.pepSlots) { out.pepIds = md.pepSlots.map((x) => (sixIds && sixIds[x - 1] != null ? sixIds[x - 1] : null)).filter((x) => x != null); out.pepId = out.pepIds.length ? out.pepIds[0] : null; }
+  return out;
 }
 /** Show the screen? Flag on, and auto is off or fewer than the first N screens have been seen. */
 function screenDue(s) {
@@ -482,7 +516,9 @@ function screenDue(s) {
 /** One fan activity (or Rest week) per round, from the hub. The find roll has its own stream: save seed + round, never the ball RNG. */
 function pickAct(s, p) {
   if (!FLAGS.activities || !s.season || !s.fixture || !s.econ || !HUB_STAGES.includes(s.stage) || !p || typeof p.id !== 'string') return s;
-  const n = pickActivity(s, p.id, makeRng(`${baseSeed(s)}|act|${roundKey(s)}|${s.salt}`));
+  const force = findForce(s, p.id, p); // wheel meta: the Find reel decides the find (null with the flag off, on a repeat week or a rest)
+  let n = pickActivity(s, p.id, makeRng(`${baseSeed(s)}|act|${roundKey(s)}|${s.salt}`), force);
+  if (force && n !== s) n = afterFind(n, p.id, force);
   // r9 M2: a roll stored early (TeamSix / OpenMatchday before the activity) would lose this activity's hype tilt. Until the screen is done, roll again later.
   if (n !== s && n.fixture && n.fixture.md && !n.fixture.mdDone) { const { md, ...fx } = n.fixture; return { ...n, fixture: fx }; }
   return n;
@@ -494,7 +530,7 @@ function openMatchday(s) {
 }
 function matchdayGo(s) {
   if (s.stage !== 'matchday' || !s.fixture) return s;
-  const t = withSix(s), fx = t.fixture;
+  const t = settleMd(withSix(s), mdFor), fx = t.fixture;
   const seen = fx.mdDone ? (t.mdSeen || 0) : (t.mdSeen || 0) + 1;
   const base = { ...t, mdSeen: seen, fixture: { ...fx, mdDone: true } };
   delete base.fixture.mdThen;
@@ -559,10 +595,32 @@ function spin(s, p) {
   const T = s.training, plan = planOf(s);
   const two = !!(p && p.slot === 2), key = two ? 'pending2' : 'pending'; // slot 2 = the Twin Spotlight Pass wheel
   if (!(two ? plan.spotlight2Id : plan.spotlightId) || (T[key] && T[key].week === T.week) || (T.nets && T.nets.week === T.week)) return s;
-  const wheel = wheelSlices(plan.effort, coachStepInUse(s)), careful = p && p.careful && typeof p.careful === 'object' ? p.careful : !!(p && p.careful);
-  const result = spinResult(TRAIN_RNG(s, two ? 'spin2' : 'spin'), wheel, careful);
-  const n = clone(s);
+  if (FLAGS.wheelMeta && netsPreview(s).skippedIds.includes(two ? plan.spotlight2Id : plan.spotlightId)) return s; // 02 section 7: a Spotlight player who cannot gain gets no wheel, so no tally and no Spokes
+  const meta = FLAGS.wheelMeta, base = wheelSlices(plan.effort, coachStepInUse(s)), wheel = meta ? metaWheel(base, 'spot', s) : base;
+  const careful = p && p.careful && typeof p.careful === 'object' ? p.careful : !!(p && p.careful);
+  let result = spinResult(TRAIN_RNG(s, two ? 'spin2' : 'spin'), wheel, careful);
+  let n = clone(s);
+  if (meta) { // wheel meta: the tree's after-effects, then the tally. The meta wheel is stored so a reload shows the same wheel.
+    const a = afterResult(n, 'spot', result, WM_RNG(s, two ? 'spot2' : 'spot'), { wheel }); n = clone(a.s); result = a.result;
+    n = clone(recordSpin(n, 'spot', { count: 1 })); // each Twin spin counts 1: the pass is 2 spins in all
+  }
   n.training[key] = { week: T.week, careful, wheel, result };
+  return n;
+}
+/** Seeded stream for the wheel meta (`seed|wm|tag|week|extra|salt`): never Math.random. */
+const WM_RNG = (s, tag, extra = '') => makeRng(`${s.season.seed}|wm|${tag}|${s.training.week}|${extra}|${s.salt}`);
+/** UseToken {wheel:'spot'|'course', kind, careful?, slot?}: a token on the result still waiting in pending (before Run nets / Run course). */
+function useTok(s, p) {
+  if (!FLAGS.wheelMeta || !p || typeof p.kind !== 'string') return s;
+  const T = s.training, course = p.wheel === 'course', wid = course ? 'course' : 'spot', key = course ? 'coursePending' : p.slot === 2 ? 'pending2' : 'pending';
+  const pend = T[key];
+  if (!pend || (!course && pend.week !== T.week)) return s;
+  const used = pend.tokUsed | 0, stop = p.careful && typeof p.careful === 'object' ? p.careful : !!p.careful;
+  const r = useToken(s, wid, p.kind, pend, WM_RNG(s, 'tok', `${key}|${p.kind}|${used}`), stop);
+  if (!r || !r.pending || r.s === s) return s;
+  const n = clone(r.s), f = r.pending, res = { ...pend.result }; // the stored shape is {.., result}: write the new result back into .result
+  for (const k of ['index', 'gain', 'jackpot', 'boosted', 't', 'phi', 'e', 'streak0']) if (f[k] !== undefined) res[k] = f[k];
+  n.training[key] = { ...pend, result: res, ...(f.used ? { used: f.used } : {}), ...(f.lifted ? { lifted: true } : {}), tokUsed: used + 1 };
   return n;
 }
 function doRunNets(s) {
@@ -583,9 +641,13 @@ function courseSpin(s, p) {
   const id = p && p.coachId, T = s.training;
   if (!id || !canCourse(s, id).ok || (T.coursePending && T.coursePending.coachId === id)) return s;
   const c = coachList(s).find((x) => x.id === id);
-  const wheel = courseWheel(c.step), careful = p.careful && typeof p.careful === 'object' ? p.careful : !!p.careful;
-  const n = clone(s);
-  n.training.coursePending = { coachId: id, careful, wheel, result: spinResult(TRAIN_RNG(s, 'course', id), wheel, careful) };
+  const wheel = FLAGS.wheelMeta ? metaWheel(courseWheel(c.step), 'course', s) : courseWheel(c.step), careful = p.careful && typeof p.careful === 'object' ? p.careful : !!p.careful;
+  let n = clone(s), result = spinResult(TRAIN_RNG(s, 'course', id), wheel, careful);
+  if (FLAGS.wheelMeta) { // Second Opinion etc.; the course counts 1 spin
+    const a = afterResult(n, 'course', result, WM_RNG(s, 'course', id), { wheel }); n = clone(a.s); result = a.result;
+    n = clone(recordSpin(n, 'course', { count: 1 }));
+  }
+  n.training.coursePending = { coachId: id, careful, wheel, result };
   return n;
 }
 function doRunCourse(s, p) {

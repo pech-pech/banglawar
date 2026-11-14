@@ -7,6 +7,7 @@ import { FLAGS } from '../data/flags.js';
 import { gearButton, openSettings, stampOf } from './settings.js';
 import { drawFeel } from './feel.js';
 import { saveOf } from './z.js';
+import { metaReport } from '../core/wheelmeta.js';
 import { VERSION as SAVE_VERSION } from '../core/save-migrate.js'; // r9 review L3: migrated = loaded from an older save version (now 6)
 
 const RESUME = { bowl: 1, break: 1, chase: 1 };
@@ -20,7 +21,7 @@ export function attachReport(el, store) {
     let storage = null; try { storage = window.localStorage; storage.getItem('x'); } catch (e) { storage = null; }
     const vp = () => 'screen ' + window.innerWidth + 'x' + window.innerHeight + ' at ' + (window.devicePixelRatio || 1) + 'x pixels, ' + (window.innerHeight >= window.innerWidth ? 'upright' : 'sideways');
     const log = createLog({ storage, now: () => Date.now(), build: BUILD, env: vp });
-    const env = () => ({ build: BUILD, now: Date.now(), vp: vp(), errors: log.data().errors.n, lastError: log.data().errors.last.slice(-1)[0] || '', flags: { ...FLAGS }, features: store.get() ? store.get().features !== false : true, win: log.window(), rid: log.nextRid(), lastText: log.lastText(), builds: log.data().builds, fixedSeed: (() => { try { return new URLSearchParams(location.search).has('seed'); } catch (e) { return false; } })(), save: saveOf(store.get()), tuningSha: TUNING_SHA, tuningPinned: TUNING_PINNED, migrated: (() => { try { const f = window.__csLoadedFrom; return f != null && f < SAVE_VERSION; } catch (e) { return false; } })() });
+    const env = () => ({ build: BUILD, now: Date.now(), vp: vp(), errors: log.data().errors.n, lastError: log.data().errors.last.slice(-1)[0] || '', flags: { ...FLAGS }, features: store.get() ? store.get().features !== false : true, win: log.window(), rid: log.nextRid(), lastText: log.lastText(), builds: log.data().builds, fixedSeed: (() => { try { return new URLSearchParams(location.search).has('seed'); } catch (e) { return false; } })(), save: saveOf(store.get()), meta: (() => { try { return FLAGS.wheelMeta && store.get() ? metaReport(store.get()) : []; } catch (e) { return []; } })(), tuningSha: TUNING_SHA, tuningPinned: TUNING_PINNED, migrated: (() => { try { const f = window.__csLoadedFrom; return f != null && f < SAVE_VERSION; } catch (e) { return false; } })() });
     let shownKey = '', stage = null, stageT = Date.now(), shownT = Date.now(), lastGloss = '', tapT = 0;
     const flush = () => { try { if (stage) log.screen(stage, Date.now() - stageT); stageT = Date.now(); } catch (e) { /* ignore */ } };
     const rep = {

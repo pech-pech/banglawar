@@ -9,6 +9,7 @@ import * as end from './end-view.js';
 import { bindActs } from './dom.js';
 import { matchPay, gapLetters } from '../core/season.js';
 import { attachReport } from '../report/hooks.js';
+import { overlayOpen } from './inert.js';
 
 /* Stage table: s.stage -> [view module or file name, selector name]. A file name is loaded on first use
    (other parts' views), so a view that has not landed yet shows "Loading" instead of breaking boot. */
@@ -50,6 +51,7 @@ const SHEETS = {
   activities: { file: 'activities-view', fn: 'openActivities', vm: ['activitiesVM', () => []] },
   trial: { file: 'trial-card', fn: 'openTrial', vm: ['trialVM', () => []] },
   freepick: { file: 'freepick-view', fn: 'openFreePick', vm: ['freePickVM', () => []] },
+  workshop: { file: 'workshop-view', fn: 'openWorkshop', vm: ['workshopVM', () => []] }, // Wheel meta: from Home, hidden until wheel tier 1
 };
 const mods = {}, loading = {};
 /** Letters data the views need, taken from the core when the view model does not already carry it: the pay card (result), the pre-match letter pair and the squad-of-8 notice (hub). */
@@ -64,6 +66,7 @@ function decorate(s, vm) {
     if (s.econ && !vm.econ) vm.econ = s.econ;
     if (s.fixture && !vm.gap) vm.gap = gapLetters(s, s.fixture.opp);
     if (s.notice && !vm.notice) vm.notice = sel.noticeOf(s);
+    if (vm.workshop === undefined && typeof sel.workshopVM === 'function') vm.workshop = sel.workshopVM(s); // Wheel meta: .visible only from tier 1 with the flag on
     if (vm.activities === undefined) { vm.activities = sel.activitiesVM(s); vm.trial = sel.trialVM(s); vm.freePick = sel.freePickVM(s); } // r9: null with the flags off
   }
   return vm;
@@ -80,6 +83,21 @@ export function mount(el, store) {
     if (mods[file]) return mods[file];
     if (!loading[file]) loading[file] = import('./' + file + '.js').then((m) => { mods[file] = m; render(); }, (err) => { mods[file] = { error: err }; render(); });
     return null;
+  }
+  /** Wheel meta: a tier-up card waits after a wheel result. Shown once the wheel overlay has closed; both buttons dismiss it (DismissTierUp); "See the tree" opens the Workshop. */
+  let tierOpen = false, tierWatch = null;
+  /** The card waits while any overlay is up (wheel, Workshop, the nets scene, a sheet). When that overlay closes nothing re-renders, so a small body watcher tries again once and then stops. */
+  function watchOverlays() {
+    if (tierWatch || typeof MutationObserver !== 'function') return;
+    tierWatch = new MutationObserver(() => { if (!overlayOpen()) { tierWatch.disconnect(); tierWatch = null; maybeTierUp(store.get()); } });
+    tierWatch.observe(document.body, { childList: true });
+  }
+  function maybeTierUp(s) {
+    if (tierOpen || holding || typeof sel.tierUpVM !== 'function') return;
+    const vm = sel.tierUpVM(s); if (!vm) return;
+    if (overlayOpen()) { watchOverlays(); return; }
+    tierOpen = true;
+    import('./tierup-card.js').then((m) => m.openTierUp(vm, { dispatch: (c, p) => { tierOpen = false; dispatch(c, p); }, onTree: () => openByName('workshop') })).catch((err) => { tierOpen = false; console.error(err); });
   }
   function openByName(name, arg) {
     const def = SHEETS[name];
@@ -117,6 +135,7 @@ export function mount(el, store) {
       el.appendChild(p);
     }
     rep.rendered(s);
+    maybeTierUp(s);
     if (s.stage !== lastStage) { lastStage = s.stage; window.scrollTo(0, 0); }
   }
   store.subscribe(render);

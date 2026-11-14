@@ -15,11 +15,12 @@ const newGame = (seed) => { const t = createStore(null); t.dispatch('NewGame', {
 /** r9 features (M 18:37): on unless the save says features:false. data/flags.js stays all-false for tests; the app sets them here. */
 const FEATURE_FLAGS = ['matchday', 'settled', 'roar', 'activities', 'freePick'];
 const applyFeatures = (s) => { const on = !s || s.features !== false; FEATURE_FLAGS.forEach((k) => { FLAGS[k] = on; }); };
+const applyWheel = (s) => { FLAGS.wheelMeta = !s || s.wheelFeatures !== false; }; // wheel meta: on unless the save says wheelFeatures:false
 // Before the load: migration and NewGame read the flags (free-pick start, v6 notice).
 
 // 1. Load (and migrate) the save; a missing or unreadable save starts a new game.
 // Flags on first (the default): a new game or a migration reads them; a stored features:false is applied right after the load.
-applyFeatures(null);
+applyFeatures(null); applyWheel(null);
 const loaded = save.load({ newGame });
 const store = createStore(loaded.state || null);
 try { window.__csLoadedFrom = loaded.from; } catch (e) { /* report only: migrated-save flag */ }
@@ -34,6 +35,9 @@ store.dispatch('Reseed', { salt: q ? '' : rand() });
 applyFeatures(store.get());
 let lastFeatures = store.get() && store.get().features;
 store.subscribe((s) => { if (s && s.features !== lastFeatures) { lastFeatures = s.features; applyFeatures(s); } });
+applyWheel(store.get());
+let lastWheel = store.get() && store.get().wheelFeatures;
+store.subscribe((s) => { if (s && s.wheelFeatures !== lastWheel) { lastWheel = s.wheelFeatures; applyWheel(s); } });
 
 // 2b. Look: applied before the first render, and live whenever SetTheme changes it.
 applyTheme(themeOf(store.get()));

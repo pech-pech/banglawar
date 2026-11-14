@@ -52,7 +52,7 @@ export function openSettings(rep, look) {
   if (note()) status.textContent = note(); // N2: warned before the copy
   // r9: Auto match day and Features rows (UI-MD). Settings stay usable if the import or the mount fails.
   if (look && look.dispatch) {
-    import('../ui/matchday-settings.js').then((m) => { try { const st = look.state ? look.state() : {}; if (m.mountMatchdaySettings) m.mountMatchdaySettings(root, { features: st && st.features, auto: st && st.autoMatchday }, look.dispatch); } catch (e) { /* settings stay usable */ } }).catch(() => {});
+    import('../ui/matchday-settings.js').then((m) => { try { const st = look.state ? look.state() : {}; if (m.mountMatchdaySettings) m.mountMatchdaySettings(root, { features: st && st.features, auto: st && st.autoMatchday, wheel: !(st && st.wheelFeatures === false) }, look.dispatch); } catch (e) { /* settings stay usable */ } }).catch(() => {});
   }
   async function copy(text, label, size) {
     fb.hidden = true;
