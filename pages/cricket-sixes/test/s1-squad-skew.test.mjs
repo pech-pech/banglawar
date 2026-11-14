@@ -7,6 +7,7 @@ import { makeRng } from '../js/core/rng.js';
 import { SEASON } from '../js/data/season.js';
 import { SQUAD, SKEW } from '../js/data/run.js';
 import { skewPlayer } from '../js/core/skew.js';
+import { bowlPart } from '../js/core/ability.js';
 import { recruitList } from '../js/core/recruit.js';
 import { capSum } from '../js/core/ability.js';
 import { ABILITY } from '../js/data/ability.js';
@@ -31,7 +32,7 @@ test('s1 start squad = plain roll shifted by batting type; rivals identical', ()
     const plain = SQUAD.startSlots.map((i) => raw[0].squad[i]);
     s.clubs[0].squad.forEach((p, i) => {
       const q = plain[i], k = SKEW[q.bat.toLowerCase()];
-      assert.equal(p.bp, Math.max(1, Math.min(99, q.bp + k.bat))); assert.equal(p.spd, Math.max(1, Math.min(99, q.spd + k.bowl)));
+      assert.equal(p.bp, Math.max(1, Math.min(99, q.bp + k.bat))); assert.ok(p.spd >= Math.max(1, Math.min(99, q.spd + k.bowl)), 'shift, or lifted by the bowl floor');
       assert.ok(p.potential >= 20 && p.potential <= Math.max(ABILITY.limit, q.potential));
       assert.ok(capSum(p.potential) >= p.bp + p.bs + p.spd + p.bsk + SEASON.capRoom || p.potential === 200, 'cap floor kept');
     });
@@ -92,4 +93,11 @@ test('old save: no recruits, cap 8', () => {
   const s = (({ rules, ...r }) => r)(C(null, 'NewGame', { seed: 'old' }));
   assert.equal(sel.recruitsVM(atEnd(s)), null);
   const e = atEnd(s); assert.equal(C(e, 'SignRecruit', { id: 'r1-0' }), e);
+});
+
+test('s1 bowl floor: every new game has 2+ starters bowling 50+', () => {
+  for (let i = 0; i < 300; i++) {
+    const c = C(null, 'NewGame', { seed: 'bf' + i }).clubs[0];
+    assert.ok(c.squad.filter((p) => c.six.includes(p.id) && bowlPart(p) >= SKEW.bowlFloor).length >= SKEW.minBowlers, 'seed bf' + i);
+  }
 });

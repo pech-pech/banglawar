@@ -37,6 +37,8 @@ export function recruitList(s) {
   });
 }
 
+/** Signing fee in Coins (SKEW.recruitFee by league; 0 until M's fee card). @param {any} s */
+export const recruitFee = (s) => SKEW.recruitFee[leagueN(s) - 1] || 0;
 /** Sign recruit `id`. Full squad: `leaveId` (in the squad) leaves, free. Same state when refused. @param {any} s @param {{id?:string, leaveId?:string}} p */
 export function recruitSign(s, p) {
   if (!recruitOpen(s) || !p || !p.id) return s;
@@ -44,11 +46,14 @@ export function recruitSign(s, p) {
   const c0 = s.clubs[0];
   if (c0.squad.some((/** @type {any} */ x) => x.id === r.id)) return s;
   const full = c0.squad.length >= squadMax(s);
+  const fee = recruitFee(s);
+  if (fee > 0 && !(s.econ && s.econ.coins >= fee)) return s;
   if (full && !(p.leaveId && c0.squad.some((/** @type {any} */ x) => x.id === p.leaveId))) return s;
   const n = clone(s), c = n.clubs[0];
   let left = null;
   if (full) { left = c.squad.find((/** @type {any} */ x) => x.id === p.leaveId); c.squad = c.squad.filter((/** @type {any} */ x) => x.id !== p.leaveId); }
   c.squad.push(r);
+  if (fee > 0) n.econ.coins -= fee;
   c.six = aiPickSix(c);
   n.plan = { ...n.plan, edited: false, key: '' };
   n.recruit = { n: seasonN(s), signed: r.id, name: r.name, left: left ? left.name : null, passed: false };

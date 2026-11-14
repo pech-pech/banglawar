@@ -14,7 +14,7 @@ import { defaultOvers } from '../core/plan.js';
 import { newEconomy, applyMatch, tickBuild, finalsReward, finalsTp, payCourse, useHeld, startBuild, buySink, buyMedal, buyLegacy } from '../core/economy.js';
 import { newRun, closeSeason, remakeRivals, carryOf, applyCarry } from '../core/run.js';
 import { RUN, SQUAD, SKEW } from '../data/run.js';
-import { skewPlayer, squadMax } from '../core/skew.js';
+import { skewPlayer, squadMax, bowlFloor } from '../core/skew.js';
 import { recruitSign, recruitPass } from '../core/recruit.js';
 import { newBook, isBook, recordOver } from '../core/pairing.js';
 import { activityOptions, pickActivity, signTrial, declineTrial, actLedger, roundKey } from '../core/activities.js';
@@ -169,6 +169,8 @@ function newGame(payload) {
   mine.squad = SQUAD.startSlots.map((i) => mine.squad[i]);
   // s1 (2026-11-14-squad-skew): new games skew our players by batting type and get a 9th squad place. Shift only, no rng draw, so rivals are identical.
   mine.squad = mine.squad.map((p) => skewPlayer(p, SEASON.capRoom));
+  mine.six = aiPickSix(mine);
+  mine.squad = bowlFloor(mine.squad, mine.six, SEASON.capRoom);
   mine.six = aiPickSix(mine);
   const season = newSeasonData(seed, 1, clubs);
   const g = {
