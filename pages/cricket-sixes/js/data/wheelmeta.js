@@ -29,22 +29,22 @@ const N = (id, branch, tier, name, cost, type, per, scope, words, requires = [])
 
 export const NODES = [
   // Control (every wheel; on toss, pep, scout, finals it is feel only)
-  N('c_slow', 'control', 1, 'Slow Spin', [10, 25, 60], 'w0_mult', -0.15, ALL, 'Every wheel turns slower. On Spotlight, Course, Find and Hype it is easier to stop where you want.'),
+  N('c_slow', 'control', 1, 'Slow Spin', [10, 25, 60], 'w0_mult', -0.15, ALL, 'Every wheel turns slower. Easier to stop on Spotlight, Course, Find and Hype.'),
   N('c_steady', 'control', 2, 'Steady Axle', [20, 40], 'wobble_mult', -0.15, ALL, 'Every wheel wobbles less when it stops.'),
   N('c_zone', 'control', 2, 'Aim Zone', [20], 'window_add_s', 0.2, ALL, 'A softer glow shows a good moment to tap.'),
   N('c_chime', 'control', 4, 'Gold Chime', [40], 'aim_cue', 1, ALL, 'A little chime rings as gold comes near the pointer.'),
-  N('c_guide', 'control', 6, 'Aim Guide', [130], 'preview_mark', 1, ALL, 'A small tick shows where the wheel will stop. Your taps on Spotlight, Course, Find and Hype get steadier.'),
+  N('c_guide', 'control', 6, 'Aim Guide', [130], 'preview_mark', 1, ALL, 'A tick shows where it stops. Steadier taps on Spotlight, Course, Find, Hype.'),
   // Fortune
-  N('f_wide', 'fortune', 2, 'Widener', [15, 30, 60], 'jackpot_width_add', 0.02, ALL, 'The gold slice gets a bit wider on every wheel.'),
+  N('f_wide', 'fortune', 2, 'Widener', [15, 30, 60], 'jackpot_width_add', 0.02, ALL, 'The best slice gets a bit wider on every wheel.'),
   N('f_boost', 'fortune', 2, 'Booster', [15, 30, 60], 'booster_chance', 0.2, ALL, 'Sometimes one slice shines. If you land on it, it pays one more.'),
   N('f_bigb', 'fortune', 4, 'Big Boost', [55, 95], 'booster_value', 1, ALL, 'The shining slice pays even more.', ['f_boost']),
   N('f_extra', 'fortune', 4, 'Extra Gold', [90], 'extra_slice', 1, GOLD, 'A second, smaller gold slice joins the wheel.'),
-  N('f_respin', 'fortune', 3, 'Spin Again', [25, 55, 95], 'respin_tokens_per_season', 1, ALL, 'One more Spin Again token each season. Use it on any wheel: spin again and keep the better. Up to 2 tokens a season on each wheel.'),
+  N('f_respin', 'fortune', 3, 'Spin Again', [25, 55, 95], 'respin_tokens_per_season', 1, ALL, 'Spin again on any wheel, keep the better. Up to 2 a season each wheel.'),
   N('f_nudge', 'fortune', 3, 'Nudge', [45], 'nudge_tokens_per_season', 1, ALL, 'A Nudge token each season. Slide to the next slice, but never onto gold.'),
-  N('f_two', 'fortune', 5, 'Pick Two', [90], 'pick_two_tokens_per_season', 1, ALL, 'A Pick Two token each season. Two tries on one spin of any wheel, keep the better.'),
+  N('f_two', 'fortune', 5, 'Pick Two', [90], 'pick_two_tokens_per_season', 1, ALL, 'One token a season. Two tries on any wheel spin, keep the better.'),
   N('f_wild', 'fortune', 6, 'Wild Token', [130], 'wild_tokens_per_season', 1, ALL, 'A Wild token each season. It can stand in for any other token.'),
-  N('f_floor', 'fortune', 3, 'Kind Floor', [35], 'floor_value', 1, ['spot', 'course', 'hype', 'toss'], 'The smallest slices pay a little more.'),
-  N('f_lift', 'fortune', 5, 'Lucky Lift', [130], 'lift_tokens_per_season', 1, ALL, 'A Lucky Lift token each season. A bonus that only adds, never above gold. Not on Find.'),
+  N('f_floor', 'fortune', 3, 'Kind Floor', [35], 'floor_value', 1, ['spot', 'course', 'hype', 'toss'], 'Smallest slices pay a bit more. Works on Spotlight, Course, Hype and Toss.'),
+  N('f_lift', 'fortune', 5, 'Lucky Lift', [130], 'lift_tokens_per_season', 1, ALL, 'One token a season. Adds a bonus, never above gold. Not on Find.'),
   // Specialist
   N('sp_spot_n', 'specialist', 2, 'Star Pupil', [25, 55], 'jackpot_width_add', 0.02, ['spot'], 'The Spotlight gold slice gets wider.'),
   N('sp_spot_r', 'specialist', 5, 'Hot Streak', [95], 'streak_value', 1, ['spot'], 'Gold right after gold pays one more.'),
@@ -61,7 +61,7 @@ export const NODES = [
   N('sp_sct_n', 'specialist', 4, 'Top Name', [45], 'jackpot_width_add', 0.1, ['scout'], 'The top name gets a wider slice.'),
   N('sp_sct_r', 'specialist', 6, "Scout's Eye", [80], 'floor_value', 'extra_plus_1', ['scout'], 'Even a quiet look finds one step.'),
   N('sp_fin_n', 'specialist', 4, 'Trophy Polish', [45], 'jackpot_width_add', 0.1, ['finals'], 'The trophy slice gets wider.'),
-  N('sp_fin_r', 'specialist', 6, 'Prize Pair', [70], 'neighbour_half', 0.5, ['finals'], 'Coins, TP and Fans prizes are one and a half times bigger. Medals stay the same.'),
+  N('sp_fin_r', 'specialist', 6, 'Prize Pair', [70], 'neighbour_half', 0.5, ['finals'], 'Coin, TP and Fans prizes are one and a half times bigger. Not Medals.'),
   // Craft (looks only, carries to the next run)
   N('k_rim', 'craft', 1, 'Rim Paint', [5, 10, 10], 'cosmetic', 'rim', ALL, 'Paint the rim of your wheel.'),
   N('k_hub', 'craft', 1, 'Hub Cap', [5, 10, 10], 'cosmetic', 'hub', ALL, 'A new cap for the middle of the wheel.'),

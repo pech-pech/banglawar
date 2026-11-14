@@ -8,6 +8,7 @@ import { MD } from '../data/matchday.js';
 import { ACT } from '../data/activities.js';
 import { ECON as E } from '../data/economy.js';
 import { makeRng } from '../core/rng.js';
+import { DR } from '../data/dialreel.js';
 import { effective, recordSpin, tokenOptions, useToken, tokenLeft, matchKeyOf } from '../core/wheelmeta.js';
 import { canSign } from '../core/training.js';
 import { hypeDialFor, dialResult, findReel, reelResult, pityFind, revealWheel, revealResult, modsFor } from '../core/dialreel.js';
@@ -262,7 +263,7 @@ export function findSpinVM(s, id) {
   return { slices: w.slices.slice(), widths: w.widths.slice(), jackpotIndex: w.jackpotIndex, golds: w.finds.slice(), aims: w.aims.slice(), phys: { ...w.phys }, labels, cells,
     guide: !!X.guide, zone: +X.zone || 0, chime: !!X.chime,
     pending: fs ? { index: fs.index, type: fs.type, find: fs.find, coins: fs.coins | 0, bonus: fs.bonus | 0, pity: fs.pity, second: !!fs.second, jackpot: !!fs.find, used: fs.used || [] } : null,
-    tokens: fs ? findTokens(s).map((o) => ({ kind: o.kind, label: o.label })) : [], tokLeft: left && left.wheelLeft != null ? left.wheelLeft : null,
+    tokens: fs ? findTokens(s).map((o) => ({ kind: o.kind, label: o.label, count: (((s.wheelMeta && s.wheelMeta.tokens) || {})[o.src]) | 0 /* wa1 fixfind: pool count, capped in spinFind */ })) : [], tokLeft: left && left.wheelLeft != null ? left.wheelLeft : null,
     pityNext: activityOptions(s).pity };
 }
 
@@ -315,5 +316,14 @@ export function finalsSpinVM(s) {
   if (!on() || !s.season || !s.fixture || s.stage !== 'done' || (s.fixture.kind !== 'semi' && s.fixture.kind !== 'final')) return null;
   const fs = s.finalsSpin && s.finalsSpin.key === finalsKey(s) ? s.finalsSpin : null, w = fs && fs.src && fs.src.wheel ? fs.src.wheel : revealWheel('finals', modsFor(effective(s), 'finals'));
   return { due: !fs, cells: w.slices.map((/** @type {any} */ c) => ({ label: c.label, w: c.w, tone: c.gold ? 'gold' : 'none', gold: !!c.gold })), ...ctlOf(s, 'finals'), tokens: wmTokens(s, 'finals'),
-    pending: fs ? { index: fs.index, label: fs.label, coins: fs.coins, tp: fs.tp, fans: fs.fans, medal: fs.medal, jackpot: fs.medal > 0, lifted: !!fs.lifted } : null };
+    pending: fs ? { index: fs.index, label: fs.label, coins: fs.coins, tp: fs.tp, fans: fs.fans, medal: fs.medal, jackpot: fs.medal > 0, lifted: !!fs.lifted, ...finalsWhy(fs, w) } : null };
+}
+/** wa1 fixreel (QA V7): why the prize differs from the cell. base = the cell's Coins/TP/Fans (+ Booster Coins) before Prize Pair; pair = Prize Pair owned (x1.5, never Medals);
+ * lift = Coins a Lucky Lift added (paid - cell x Pair). @param {any} fs @param {any} w */
+function finalsWhy(fs, w) {
+  const c = w && w.slices && w.slices[fs.index], m = (w && w.mods) || {}; if (!c) return {};
+  const fx = c.fx || {}, base = { coins: (fx.coins | 0) + (fs.src && fs.src.boosted ? (m.bval || 1) * DR.UNIT.finals : 0), tp: fx.tp | 0, fans: fx.fans | 0 };
+  const pair = !!m.nb && !(fx.medal > 0) && (base.coins + base.tp + base.fans > 0), x = (/** @type {number} */ v) => (pair && v ? Math.floor(v * 1.5 + 0.5) : v);
+  const lift = fs.lifted ? Math.max(0, (fs.coins | 0) - x(base.coins)) : 0;
+  return { base, pair, lift };
 }

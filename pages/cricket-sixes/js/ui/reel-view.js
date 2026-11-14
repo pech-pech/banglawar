@@ -8,7 +8,7 @@
          describe(p) -> { big, chip?, flash?, lineHtml?, say, gold?:bool },
          onCollect(), collectLabel?, onClose?(), onTick?({loud, rate}),
          guide?:bool, look?:{rim, hub, needle, gold}, V?, J?, plan?:{total} (reveal s, default 3), px?:px per unit (default 100)
-         wa1: tokens?:[{kind,label,count?,left?,match?}], getTokens?(), onToken(kind), tokName?, tokVal?(p), tokText?(p)   same pattern as wheel-view: buttons after the result, a short replay (none with reduced motion), one outcome line ("Spin Again: kept +4%") and the uses-left note
+         wa1: tokens?:[{kind,label,count?,left?,match?}], getTokens?(), onToken(kind), tokName?, tokVal?(p), tokText?(p), tokLine?(kind,before,q) (own outcome words, null = shared line)   same pattern as wheel-view: buttons after the result, a short replay (none with reduced motion), one outcome line ("Spin Again: kept +4%") and the uses-left note
          wa1: zone?:s, chime?:bool (aim dial: the needle glows near gold / flashes on entering it); guide on a reveal = a feel-only tick as it slows }
    Aim: SPIN then STOP, live from 0.8 s, auto at 3.0 s. The strip loops one way (7 units/s); STOP glides 0.5 s plus a wobble; the cell under the 4 px centre line wins.
    No snap, no hidden roll, no landing preview (the Aim Guide upgrade only). Reveal: result already drawn; one tap plays, tap again or anywhere skips; reduced motion = result at once.
@@ -49,7 +49,10 @@ export function openReel(o) {
   const fills = cells.map(fillOf);
   const words = cells.map((c) => c.label + (c.find ? ' (find)' : '')).join(', ');
   const stageHtml = '<div class="dr-reel" role="img" aria-label="Slot reel of ' + N + ' cells: ' + esc(words) + '"><canvas class="dr-rcv"></canvas><div class="dr-labs"></div><canvas class="dr-ov2" aria-hidden="true"></canvas></div>';
-  const cfg = { cls: 'dr-reelov dr-' + (reveal ? 'reveal' : 'aim'), stageHtml, goLabel: 'SPIN' }, sh = mountShell(o, cfg);
+  let tokOwn = null; // wa1 fixreel: o.tokLine(kind, before, q) words the outcome line itself (Finals: "Lucky Lift: +10 Coins"); the shared shell line is replaced
+  const oS = o.tokLine && o.onToken ? { ...o, onToken: (kind) => { const b = o.getPending(); o.onToken(kind); tokOwn = o.tokLine(kind, b, o.getPending()) || null; } } : o;
+  const cfg = { cls: 'dr-reelov dr-' + (reveal ? 'reveal' : 'aim'), stageHtml, goLabel: 'SPIN' }, sh = mountShell(oS, cfg);
+  if (oS !== o) { const st = sh.showTokens; sh.showTokens = (line) => { const l = line && tokOwn ? tokOwn : line; if (line) tokOwn = null; st(l); }; }
   const { ov, go, stage } = sh, box = ov.querySelector('.dr-reel'), cv = ov.querySelector('.dr-rcv'), ctx = cv.getContext('2d'), top = ov.querySelector('.dr-ov2'), tctx = top.getContext('2d'), labBox = ov.querySelector('.dr-labs');
   const COPIES = [-1, 0, 1, 2]; const labs = [];
   cells.forEach((c, i) => COPIES.forEach((m) => { const e = document.createElement('span'); e.className = 'dr-cell' + (c.find ? ' is-find' : ''); e.setAttribute('aria-hidden', 'true'); e.innerHTML = (c.icon ? icoDeco(c.icon, 16) : '') + '<b>' + esc(c.label) + '</b>'; labBox.appendChild(e); labs.push({ e, i, m }); }));

@@ -2,7 +2,7 @@
 import { esc, btn, ctaBar, icoDeco } from './dom.js';
 import { helpBtn } from './hub-view.js';
 import { winBeat } from './beats.js';
-import { spinFinals } from './wm-spins.js';
+import { spinFinals, finalsWords } from './wm-spins.js';
 
 /** One icon per prize kind (Medal, TP, Fans, Coins). */
 const prizeIcon = (p) => (!p ? 'medal' : p.medal > 0 ? 'medal' : p.tp > 0 ? 'tp' : p.fans > 0 ? 'fan' : p.coins > 0 ? 'coin' : 'medal');
@@ -11,7 +11,7 @@ export function finalsCard(f) {
   if (!f) return '';
   return '<section class="c-card res-card res-finals" aria-label="Finals prize"><h3>Finals prize</h3>' + (f.due
     ? '<button type="button" class="c-btn c-btn--primary c-btn--block" data-finals-spin="1">' + icoDeco('burst', 20) + '<span>Spin for the prize</span></button>'
-    : '<p class="rm-net" role="status">' + icoDeco(prizeIcon(f.pending), 20) + '<b>' + esc(f.pending ? f.pending.label : '') + '</b></p>') + '</section>';
+    : '<p class="rm-net" role="status">' + icoDeco(prizeIcon(f.pending), 20) + '<b>' + esc(f.pending ? finalsWords(f.pending) : '') + '</b></p>') + '</section>';
 }
 
 /* QA3 m6: one line per player, his Stars first (★★ Ferrara: 66 runs); screen readers hear "(2 Stars)". */
@@ -78,8 +78,9 @@ export function render(el, vm, dispatch) {
     '<div class="c-strip strip"><span>Match over</span>' + helpBtn('wicket') + '</div>' +
     '<div class="c-card c-card--hl res-hero" role="status"><span class="' + tag + '">' + ({ won: 'Victory', lost: 'Defeat' }[vm.result] || 'Level') + '</span>' +
     '<h1 class="res-line">' + esc(vm.line || head) + '</h1>' + kind + (vm.pay ? '' : tp) +
-    '<ul class="c-list list-flat res-scores" aria-label="Scores">' + score(vm.oppName || 'Rival', vm.inn1, fullInn(vm.inn1) && fullInn(vm.inn2)) + score('You', vm.inn2, fullInn(vm.inn1) && fullInn(vm.inn2)) + '</ul></div>' + // QA3 m9: the scores sit in the hero, so the money card and the feel question fit above the CTA at 344x780
-    payCard(vm.pay) + moneyCard(vm.money) + finalsCard(vm.finals) + '<div class="rp-feel-at"></div>' + // the feel question goes just before this anchor (report/feel.js)
+    '<ul class="c-list list-flat res-scores" aria-label="Scores">' + score(vm.oppName || 'Rival', vm.inn1, fullInn(vm.inn1) && fullInn(vm.inn2)) + score('You', vm.inn2, fullInn(vm.inn1) && fullInn(vm.inn2)) + '</ul></div>' +
+    (vm.finals && vm.finals.due ? finalsCard(vm.finals) : '') + // wa1 fixreel (QA V8): a prize still to spin sits under the hero, never under the pinned CTA bar // QA3 m9: the scores sit in the hero, so the money card and the feel question fit above the CTA at 344x780
+    payCard(vm.pay) + moneyCard(vm.money) + (vm.finals && vm.finals.due ? '' : finalsCard(vm.finals)) + '<div class="rp-feel-at"></div>' + // the feel question goes just before this anchor (report/feel.js)
     cta + '</div>';
   var fb = el.querySelector('[data-finals-spin]');
   if (fb) fb.addEventListener('click', function () { spinFinals({ get: function () { return latestFinals; }, look: vm.look, dispatch: dispatch, onCollect: function () { var c = document.querySelector('[data-act="FinishMatch"]'); if (c) c.focus(); } }); });

@@ -187,7 +187,10 @@ try {
     if (!course && courseAny) step(1, 'Send on course enabled with 5000 Coins', false, (await courseAny.innerText()).replace(/\s+/g, ' '));
     if (course) {
       const cid = await course.getAttribute('data-id');
-      await course.click(); await A.settle(600);
+      await course.click(); await A.settle(400);
+      const cfm = await p.$('.c-sheet [data-cf="yes"]'); // fixtrain: confirm sheet with the price first
+      step(1, 'Send on course shows a confirm with the price', !!cfm && /Coins|Free/.test(await p.$eval('.c-sheet', (n) => n.textContent).catch(() => '')), 'no confirm sheet');
+      if (cfm) { await cfm.click(); await A.settle(600); }
       const ov = await p.$('.wh-ov');
       step(1, 'Send on course opens the Course big wheel', !!ov, 'no .wh-ov after tap');
       if (ov) {

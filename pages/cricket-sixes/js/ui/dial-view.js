@@ -87,6 +87,11 @@ export function tokenNote(list, name) {
   const b = t.match ? '1 token a match day.' : '';
   return (a + (a && b ? ' ' : '') + b);
 }
+/** fixdial V4: the uses a token button can really give now = min(tokens held, season uses left, 1 when capped a match day). Pure. */
+export function tokUsable(t) {
+  let n = (t && t.count) | 0; if (t && t.left != null) n = Math.min(n, t.left | 0); if (t && t.match) n = Math.min(n, 1);
+  return Math.max(0, n);
+}
 /** Aim Zone on the dial: is the needle at x inside a gold slice or within `reach` units of one? Pure. */
 export function goldNearX(x, reach, cum, golds) {
   if (!(reach > 0)) return false;
@@ -130,7 +135,7 @@ export function mountShell(o, cfg) {
     tokBox.hidden = !list.length && !line; tokBox.innerHTML = ''; tokBox.classList.remove('is-busy');
     if (line) { const l = document.createElement('p'); l.className = 'wh-out'; l.setAttribute('data-out', ''); l.textContent = line; tokBox.appendChild(l); }
     list.forEach((t) => {
-      const b = document.createElement('button'), n = t.count > 0 ? ' x' + t.count : ''; b.type = 'button'; b.className = 'c-btn wh-tk'; b.textContent = t.label + n; b.setAttribute('data-kind', t.kind); b.setAttribute('aria-label', t.label + (n ? ', ' + t.count + ' left' : ''));
+      const use = tokUsable(t), b = document.createElement('button'), n = use > 0 ? ' x' + use : ''; b.type = 'button'; b.className = 'c-btn wh-tk'; b.textContent = t.label + n; b.setAttribute('data-kind', t.kind); b.setAttribute('aria-label', t.label + (n ? ', ' + use + ' left' : '')); // fixdial V4: the count is what can really be used now (agrees with the note)
       b.addEventListener('click', () => {
         if (sh.state !== 'result' || sh.busy || !o.onToken) return; const before = o.getPending(); o.onToken(t.kind); const q = o.getPending(); if (!q) return;
         const ln = tokenLine(t.kind, before, q, o.tokText || defText, o.tokVal || defVal);
@@ -177,8 +182,9 @@ export function openDial(o) {
   const labs = coin ? [] : sl.map((s, i) => { const e = document.createElement('span'); e.className = 'dr-lab' + (s.gold ? ' is-gold' : ''); e.setAttribute('aria-hidden', 'true'); e.innerHTML = s.gold && !reveal ? '<i class="dr-star"></i>' : '<b>' + esc(s.label) + '</b>' + (s.sub ? '<small>' + esc(s.sub) + '</small>' : ''); wrap.appendChild(e); return e; });
   let coinLab = null; if (coin) { coinLab = document.createElement('span'); coinLab.className = 'dr-coinlab'; coinLab.setAttribute('aria-hidden', 'true'); wrap.appendChild(coinLab); }
   let state = 'idle', needle = L / 2, lit = -1, size = 100, css = 200, hh = 60, raf = 0, clock = 0, lastF = 0, spinEv = 0, phi = 0, tapT = 0, stopInfo = null, adj = 0, prevIdx = sliceAtX(cum, L / 2), shown = 0, flip = 0, face = 0, sched = null, target = 0, revT0 = 0, base0 = null, skipped = false, tw = null, chimeT = -9;
-  let layer = null, layerLit = -2;
-  const MSG_GO = 'Turning. Tap STOP when the gold slice is under the tick. Tap early and it goes further.';
+  let layer = null, layerLit = '', lits = [], litGold = false; // fixdial V5: lits = extra lit slices (Pep double), litGold = draw the lit slices gold
+  const isLit = (i) => i === lit || lits.includes(i), litKey = () => lit + '|' + lits.join(',') + '|' + litGold;
+  const MSG_GO = 'Turning. Stop the needle on gold.' + (o.guide ? ' The tick shows where it will land.' : '') + ' Tap early and it goes further.'; // fixdial V3: the needle moves, the slices stay still
 
   function layout() {
     const w = stage.clientWidth - 16, h = stage.clientHeight - 36;
@@ -199,15 +205,17 @@ export function openDial(o) {
         else if (bd < 0.9) c = pal.out;
         else {
           c = fills[idx]; if (((x + y) & 1) === 0 && r > R - 15 && r < R - 8) c = dim(c, 0.18);
-          if (dimR) c = idx === lit ? lift(c, 0.45) : dim(c, 0.35);
+          if (dimR) c = isLit(idx) ? (litGold ? (((x + y) & 1) === 0 && r > R - 15 && r < R - 8 ? dim(pal.gold, 0.12) : pal.gold) : lift(c, 0.45)) : dim(c, 0.35);
         }
       }
       if (c) { const p = (y * w + x) * 4; d[p] = c[0]; d[p + 1] = c[1]; d[p + 2] = c[2]; d[p + 3] = 255; }
     }
-    layer = im; layerLit = lit;
+    layer = im; layerLit = litKey();
   }
   function line(x0, y0, x1, y1, col, th) { const n = Math.ceil(Math.hypot(x1 - x0, y1 - y0)); ctx.fillStyle = 'rgb(' + col + ')'; for (let i = 0; i <= n; i++) { const t = i / n; ctx.fillRect(Math.round(x0 + (x1 - x0) * t - th / 2), Math.round(y0 + (y1 - y0) * t - th / 2), th, th); } }
   const diamond = (ax, ay, k, fill) => { for (let j = -k; j <= k; j++) for (let i = -k; i <= k; i++) { const q = Math.abs(i) + Math.abs(j); if (q > k) continue; ctx.fillStyle = q >= k ? 'rgb(' + pal.out + ')' : q >= k - 1 ? '#fff' : 'rgb(' + fill + ')'; ctx.fillRect(ax + i, ay + j, 1, 1); } };
+  /** fixdial V2: the Aim Guide landing mark, a dark-outlined wedge across the rim band (about 16 css px), readable on every slice colour. */
+  const landMark = (x, R) => { const a = polar(x, R + 1), b = polar(x, R - 9); line(a[0], a[1], b[0], b[1], pal.out, 5); line(a[0], a[1], b[0], b[1], [255, 255, 255], 3); const c = polar(x, R - 9); diamond(Math.round(c[0]), Math.round(c[1]), 3, ZONE_COL); };
   const polar = (x, rr) => { const a = Math.PI - x * U; return [size / 2 + Math.cos(a) * rr, size / 2 - Math.sin(a) * rr]; };
   function drawCoin() {
     const w = size, cx = w / 2, cy = w / 2, R = w / 2 - 3, ph = flip % TAU, cs = Math.cos(ph), frontSide = cs >= 0, rx = Math.max(1.5, Math.abs(cs) * R);
@@ -217,10 +225,10 @@ export function openDial(o) {
   }
   function draw() {
     if (coin) { drawCoin(); return; }
-    if (!layer || layerLit !== lit) build(); ctx.putImageData(layer, 0, 0);
+    if (!layer || layerLit !== litKey()) build(); ctx.putImageData(layer, 0, 0);
     const R = size / 2 - 1, cx = size / 2, cy = size / 2;
-    if (o.guide && reveal && !coin && state === 'play' && clock - revT0 >= T * 0.65) { const pp = polar(centreOf(target), R - 3.6); diamond(Math.round(pp[0]), Math.round(pp[1]), 4, pal.gold); } // wa1 Aim Guide on a reveal: feel only, the tick shows the light it is slowing onto
-    if (o.guide && !reveal && state === 'spin' && shown >= DR.STOP_FROM) { const g = reflect(phi + V * shown + V * DR.G / 3, L), pp = polar(g, R - 3.6); diamond(Math.round(pp[0]), Math.round(pp[1]), 4, pal.gold); } // Aim Guide: where STOP would land now (no wobble)
+    if (o.guide && reveal && !coin && state === 'play' && clock - revT0 >= T * 0.65) landMark(centreOf(target), R); // wa1 Aim Guide on a reveal: feel only, the tick shows the light it is slowing onto
+    if (o.guide && !reveal && state === 'spin' && shown >= DR.STOP_FROM) landMark(reflect(phi + V * shown + V * DR.G / 3, L), R); // Aim Guide: where STOP would land now (no wobble)
     if (!reveal) {
       const tip = polar(needle, R - 7), ex = tip[0], ey = tip[1], zoneOn = state === 'spin' && goldNearX(needle, V * ZONE, cum, golds);
       line(cx, cy, ex, ey, pal.out, 4); line(cx, cy, ex, ey, zoneOn ? ZONE_COL : pal.needle, 2); // Aim Zone: the needle glows gold while gold is near
@@ -229,7 +237,9 @@ export function openDial(o) {
     }
     labs.forEach((l, i) => {
       const rl = R * (widths[i] * 18 / L < 24 ? 0.7 : 0.66), p = polar(centreOf(i), rl);
-      l.style.left = p[0] * S + 'px'; l.style.top = p[1] * S + 'px'; l.style.color = lum(fills[i]) > 0.5 ? 'rgb(' + pal.out + ')' : '#fff'; l.style.opacity = lit >= 0 && i !== lit ? '.5' : '1';
+      l.style.left = p[0] * S + 'px'; l.style.top = p[1] * S + 'px';
+      if (reveal) { l.style.color = 'rgb(' + pal.cream + ')'; l.style.fontSize = '22px'; l.style.textShadow = '-2px 0 rgb(' + pal.out + '),2px 0 rgb(' + pal.out + '),0 -2px rgb(' + pal.out + '),0 2px rgb(' + pal.out + '),2px 2px rgb(' + pal.out + ')'; l.style.opacity = '1'; } // fixdial V5: cream numbers with a dark outline, >= 4.5:1 on any slice, lit or dim
+      else { l.style.color = lum(fills[i]) > 0.5 ? 'rgb(' + pal.out + ')' : '#fff'; l.style.opacity = lit >= 0 && !isLit(i) ? '.5' : '1'; }
       if (sl[i].gold && !reveal) l.style.width = '';
     });
     if (ptr) ptr.style.left = '50%';
@@ -267,7 +277,7 @@ export function openDial(o) {
   function startReveal() {
     o.onSpin({ reveal: true, t: 0, phi: 0, e: 0 }); const p = o.getPending(); if (!p) { sh.close(); return; }
     target = Math.max(0, Math.min(N - 1, p.index | 0)); revT0 = clock; skipped = false; state = 'play'; sh.setBusy(true); sh.waitLook('Tap to skip', 'Skip to the result'); go.removeAttribute('aria-disabled'); go.classList.remove('is-wait', 'is-disabled'); sh.setMsg(coin ? 'Flipping...' : 'The lights are chasing...');
-    sched = kind === 'lights' ? pepSchedule(N, target, T) : null; lit = kind === 'lights' ? 0 : -1; raf = requestAnimationFrame(frame);
+    sched = kind === 'lights' ? pepSchedule(N, target, T) : null; lit = kind === 'lights' ? 0 : -1; lits = []; litGold = false; raf = requestAnimationFrame(frame);
   }
   function playFrame() {
     const t = clock - revT0;
@@ -276,14 +286,14 @@ export function openDial(o) {
     if (t >= T + DR.HOLD) finishReveal();
   }
   function finishReveal() { lit = coin ? -1 : target; flip = TAU * 3; state = 'result'; draw(); showRes(); }
-  function showRes() { const p = o.getPending(); if (!p) return; if (reveal && !coin) lit = p.index; draw(); const d = o.describe(p); sh.showResult(p, d); }
+  function showRes() { const p = o.getPending(); if (!p) return; if (reveal && !coin) { lit = p.index; lits = (p.slots || []).map((x) => (x | 0) - 1).filter((i) => i >= 0 && i < N); litGold = lits.length > 1; } draw(); const d = o.describe(p); sh.showResult(p, d); }
   // ----- wa1 token replay: a short spin to the new result (respin / two), one step (nudge) or a bonus pop (lift); then the shell shows the result again -----
   function replay(k, before, q, done) {
     const to = Math.max(0, Math.min(N - 1, q.index | 0)), dur = k === 'two' ? 1.9 : k === 'nudge' ? 0.5 : k === 'lift' ? 0.8 : 1.3, x0 = needle, other = (to + Math.max(1, N >> 1)) % N;
     tw = { k, t0: clock, dur, done, to, x0, from: target, qm: 2 * L + centreOf(other), q1: (k === 'two' ? 4 * L : 2 * L) + centreOf(to) };
     if (k === 'lift') { const d = (o.tokVal ? o.tokVal(q) - o.tokVal(before || q) : 0); sh.pop(d > 0 ? '+' + Math.round(d * 10) / 10 : '+0', wrap); }
     if (reveal && kind === 'lights' && k !== 'lift' && k !== 'nudge') sched = pepSchedule(N, to, dur);
-    target = to; state = 'tok'; raf = requestAnimationFrame(frame);
+    target = to; state = 'tok'; if (k !== 'lift') { lits = []; litGold = false; } raf = requestAnimationFrame(frame);
   }
   function tokFrame() {
     const T2 = tw, t = clock - T2.t0, u = Math.min(1, t / T2.dur), h = 0.5;
@@ -318,7 +328,7 @@ export function openDial(o) {
   const pend = o.pending || null;
   if (pend) { target = pend.index | 0; needle = centreOf(target); flip = TAU * 3; lit = reveal && !coin ? target : -1; state = 'result'; draw(); showRes(); }
   else {
-    sh.setMsg(reduced ? 'Tap SPIN. The result shows at once.' : reveal ? 'One tap. Tap again to skip.' : 'Tap SPIN. Tap STOP when the gold slice is under the tick.'); if (coin) { target = 0; draw(); } go.focus();
+    sh.setMsg(reduced ? 'Tap SPIN. The result shows at once.' : reveal ? 'One tap. Tap again to skip.' : 'Tap SPIN, then stop the needle on gold.' + (o.guide ? ' The tick shows where it will land.' : '')); if (coin) { target = 0; draw(); } go.focus();
   }
   return () => sh.close();
 }

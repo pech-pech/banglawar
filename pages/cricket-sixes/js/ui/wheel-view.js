@@ -82,11 +82,28 @@ export function openWheel(o) {
   // wheel state: pos = the wheel coordinate (units) under the pointer; the wheel's turn is rot = pos * U.
   let state = 'idle', pos = Math.random() * C, phi = pos, speed = 0, clock = 0, lastF = 0, tapT = 0, stopInfo = null, adj = 0, raf = 0, closed = false, S = 2, size = 100, css = 200, spinEv = 0, prevIdx = sliceOf(pos);
   const centreOf = (i) => (cum[i] + cum[i + 1]) / 2;
+  // wa1 fixfind: word labels (Find) sit on the whole gold block (a run of gold cells), sized to fit inside the slice and the rim; too thin -> a gold Nothing is skipped, a find block gets a diamond icon
+  const WL = !!o.labels, isG = (i) => GD.includes(i), joinP = (i) => WL && i > 0 && isG(i) && isG(i - 1), joinN = (i) => WL && i < N - 1 && isG(i) && isG(i + 1);
+  const plan = WL ? o.labels.map((t, i) => { let s0 = i, s1 = i; if (isG(i)) { while (joinP(s0)) s0--; while (joinN(s1)) s1++; } return { text: t || '', c: (cum[s0] + cum[s1 + 1]) / 2, half: (cum[s1 + 1] - cum[s0]) * U / 2, rl: 0, ico: false }; }) : null;
+  function fitLabels() {
+    if (!WL) return; const rIn = (size / 2 - 12) * S, rHub = 13 * S, f0 = Math.round(Math.min(24, Math.max(13, css * 0.075)));
+    labels.forEach((l, i) => {
+      const P = plan[i]; P.rl = 0; P.ico = false; l.classList.remove('is-ico'); l.removeAttribute('style'); l.hidden = !P.text; if (!P.text) return; l.textContent = P.text;
+      const sa = Math.sin(Math.min(P.half, Math.PI / 2));
+      for (let fs = f0; fs >= 12; fs--) { // largest font whose bounding circle fits between the slice edges and inside the rim lane
+        l.style.fontSize = fs + 'px'; l.style.lineHeight = Math.round(fs * 1.1) + 'px';
+        const h = Math.hypot(l.offsetWidth, l.offsetHeight) / 2 + 1, near = Math.max(h / sa, rHub + h), far = rIn - h;
+        if (near <= far) { P.rl = (near + far) / 2; return; }
+      }
+      if (isG(i)) { P.ico = true; P.rl = rIn - 9; l.textContent = ''; l.classList.add('is-ico'); Object.assign(l.style, { fontSize: '', width: '12px', height: '12px', background: 'rgb(' + pal.gold + ')', border: '2px solid rgb(' + pal.out + ')', boxShadow: '0 0 0 1px #fff', transform: 'translate(-50%,-50%) rotate(45deg)' }); return; }
+      l.hidden = true; // a Nothing gap too thin for the word: unlabelled (its plain colour says it)
+    });
+  }
 
   function layout() { // wheel sized from the free height (stage), never wider than the screen
     const st = $(".wh-stage"), RES = LK && LK.name ? 34 : LK && LK.stand ? 14 : 0, h = st.clientHeight - 24 - 22 - RES, w = st.clientWidth - 24; // RES: room under the rim for the stand / name plate (they hang from the wheel box)
     css = Math.max(160, Math.min(w, h, 340)); size = Math.floor(css / S / 2) * 2; css = size * S; wrap.style.marginBottom = RES ? RES + 'px' : '';
-    wrap.style.width = wrap.style.height = css + 'px'; cv.width = cv.height = size; cv.style.width = cv.style.height = css + 'px'; draw();
+    wrap.style.width = wrap.style.height = css + 'px'; cv.width = cv.height = size; cv.style.width = cv.style.height = css + 'px'; fitLabels(); draw();
   }
   function hubSpoke(th, r, rot) { // the hub's spokes as pixels: shape plain (none) / round (dots) / blade (thin) / diamond
     if (shape === 'plain') return false;
@@ -104,7 +121,7 @@ export function openWheel(o) {
       const dx = x + 0.5 - cx, dy = y + 0.5 - cy, r = Math.sqrt(dx * dx + dy * dy); if (r > R) continue;
       const th = Math.atan2(dy, dx); let q = (rot - (th + Math.PI / 2)) % TAU; if (q < 0) q += TAU; // wheel angle under this pixel; slices pass the pointer in list order
       const u = q / U; let idx = 0; while (idx < N - 1 && u >= cum[idx + 1]) idx++;
-      const m = (u - cum[idx]) * U, wa = widths[idx] * U, bd = r * Math.sin(Math.min(m, wa - m, Math.PI / 2));
+      const m = (u - cum[idx]) * U, wa = widths[idx] * U, bd = r * Math.sin(Math.min(joinP(idx) ? 9 : m, joinN(idx) ? 9 : wa - m, Math.PI / 2)); // wa1 fixfind: no spoke line inside one gold find block
       const sa = ((th + Math.PI / 2 + Math.PI * 3) % TAU) - Math.PI; let c;
       if (r > R - 1.6) c = pal.out;
       else if (r > R - 6) { c = r < R - 5.2 || bd < 1.3 ? pal.out : ringCol; if (crys && r > R - 4.8 && r < R - 2.2 && Math.abs(((q / TAU * 16) % 1) - 0.5) * TAU / 16 * r < 1.1) c = cmat.stud; } // Crystal: white pixel studs on the cyan rim
@@ -129,7 +146,11 @@ export function openWheel(o) {
     }
     const a = rot - centreOf(JP) * U - Math.PI / 2, ax = Math.round(cx + Math.cos(a) * (R - 3.6)), ay = Math.round(cy + Math.sin(a) * (R - 3.6));
     for (let j = -5; j <= 5; j++) for (let i = -5; i <= 5; i++) { const q = Math.abs(i) + Math.abs(j); if (q > 5) continue; ctx.fillStyle = q >= 5 ? 'rgb(' + pal.out + ')' : q >= 4 ? '#fff' : 'rgb(' + pal.gold + ')'; ctx.fillRect(ax + i, ay + j, 1, 1); } // diamond on the jackpot slice
-    labels.forEach((l, i) => {
+    if (WL) labels.forEach((l, i) => { const P = plan[i]; if (l.hidden) return; const b = rot - P.c * U - Math.PI / 2; // wa1 fixfind: fitted word labels
+      l.style.left = cx * S + Math.cos(b) * P.rl + 'px'; l.style.top = cy * S + Math.sin(b) * P.rl + 'px';
+      if (!P.ico) l.style.color = lum(fills[i]) > 0.5 ? 'rgb(' + pal.out + ')' : '#fff'; l.style.opacity = moving && speed > 8 ? '.55' : '1';
+    });
+    else labels.forEach((l, i) => {
       const b = rot - centreOf(i) * U - Math.PI / 2, thin = widths[i] * U < 0.2, rl = R * (GD.includes(i) ? 0.8 : 0.62); l.style.fontSize = thin ? '14px' : ''; // a thin slice (the extra gold): a smaller label so it stays inside the slice edges
       l.style.left = (cx + Math.cos(b) * rl) * S + 'px'; l.style.top = (cy + Math.sin(b) * rl) * S + 'px';
       l.style.color = lum(fills[i]) > 0.5 ? 'rgb(' + pal.out + ')' : '#fff'; l.style.opacity = moving && speed > 8 ? '.55' : '1';
@@ -220,7 +241,8 @@ export function openWheel(o) {
     live.textContent = (line ? line + '. ' : '') + (d.say || '') + (p.boosted ? ' Booster plus ' + (p.boostBy || 1) + '.' : '') + (p.hot ? ' Hot Streak plus ' + (p.hotBy || 1) + '.' : ''); // read once
     showTokens(p, line); if (!again && !o.pending) burst();
     go.textContent = o.collectLabel || 'COLLECT'; go.classList.add('is-collect', 'c-btn--gold'); go.classList.remove('c-btn--primary'); go.removeAttribute('aria-disabled'); go.classList.remove('is-wait', 'is-disabled'); go.setAttribute('aria-label', o.collectLabel || 'Collect'); xLook(false); go.focus();
-    if (LK) layout(); // wheel meta only (flag off: unchanged). The foot is taller now (result, tokens, outcome line): size the wheel to the room left so the stand and plate under it are never covered or clipped
+    if (o.plainResult) { const cd = $('.wh-card'); if (cd) cd.style.display = 'none'; } // wa1 fixfind: Find result: the hint card makes way so the wheel stays big (>= ~240 px at 475x638)
+    if (LK || o.plainResult) layout(); // wheel meta only (flag off: unchanged). The foot is taller now (result, tokens, outcome line): size the wheel to the room left so the stand and plate under it are never covered or clipped
     if (!reduced) draw();
   }
   /** m5: the button shows it is waiting: words, dimmed look (css .wh-go.is-wait), aria-disabled. Static: nothing flashes. */

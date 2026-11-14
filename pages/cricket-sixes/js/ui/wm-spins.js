@@ -31,7 +31,7 @@ export const TOKVAL = {
 export function spinHype({ get, look, dispatch, onCollect, oppName }) {
   const h = get();
   return openDial({
-    mode: 'aim', title: 'Crowd today', sub: oppName || '', cardHtml: '<p class="dr-hint">Stop the needle on the gold slice for a wild crowd.</p>', slices: h.slices, look: dialLook(look),
+    mode: 'aim', title: 'Crowd today', sub: oppName || '', cardHtml: '<p class="dr-hint">Stop the needle on gold for a wild crowd.' + (h.guide ? ' The tick shows where it will land.' : '') + '</p>', slices: h.slices /* fixdial V3 */, look: dialLook(look),
     ...tokProps(get, dispatch, 'hype', 'Hype'), tokVal: TOKVAL.hype, tokText: (p) => HYPE_WORD[p.level || 'low'] + ' +' + p.pts + '%',
     pending: h.pending, onSpin: (stop) => dispatch('HypeSpin', stopOf(stop)), getPending: () => get().pending,
     describe: (p) => { const lv = p.level || 'low'; return { big: HYPE_WORD[lv], chip: '+' + p.pts + '%', say: HYPE_WORD[lv] + ', plus ' + p.pts + ' percent for your team.', gold: lv === 'nuts' }; },
@@ -85,7 +85,7 @@ export function spinFind({ get, look, pick, useToken, onCollect, title }) {
       return { ...d, chip: p.find ? d.chip : '', line };
     },
     outcome: (kind, b, q) => { const nm = { respin: 'Spin Again', two: 'Pick Two', nudge: 'Nudge' }[kind] || 'Token'; return q.find && !(b && b.find) ? nm + ': found ' + word(q) + '!' : nm + ': still nothing'; },
-    tokens: r.tokens || [], getTokens: () => { const x = get(); return (x.tokens || []).map((t) => (x.tokLeft != null ? { ...t, left: x.tokLeft } : t)); },
+    tokens: r.tokens || [], getTokens: () => { const x = get(); return (x.tokens || []).map((t) => (x.tokLeft != null ? { ...t, left: x.tokLeft, ...(t.count != null ? { count: Math.min(t.count | 0, x.tokLeft) } : {}) } : t)); }, // wa1 fixfind: xN never above the uses left this season
     onToken: useToken ? (kind) => useToken(kind) : undefined,
     onCollect, spokeGain: () => get().spokeGain || 0,
   });
@@ -103,6 +103,18 @@ export function finalsWords(p) {
   if (p.medal > 0) parts.push('+' + p.medal + ' Medal'); if (p.coins > 0) parts.push(p.coins + ' Coins'); if (p.tp > 0) parts.push(p.tp + ' TP'); if (p.fans > 0) parts.push(p.fans + ' Fans');
   return parts.length ? parts.join(' + ') : (p.label || 'Prize');
 }
+/** wa1 fixreel (QA V7): the reason line when the prize is not the cell's label: "Prize Pair: 20 Fans x1.5 = 30" (one part per unit Prize Pair raised). '' when none. */
+export function finalsPairLine(p) {
+  if (!p || !p.pair || !p.base) return '';
+  const x = (v) => Math.floor(v * 1.5 + 0.5), u = [['coins', 'Coins'], ['tp', 'TP'], ['fans', 'Fans']].filter(([k]) => p.base[k] > 0);
+  return u.length ? 'Prize Pair: ' + u.map(([k, w]) => p.base[k] + ' ' + w + ' x1.5 = ' + x(p.base[k])).join(', ') : '';
+}
+/** wa1 fixreel (QA V7): the plain Lucky Lift line ("Lucky Lift: +10 Coins"); other tokens keep the shared line (null = use it). */
+export function finalsTokLine(kind, before, q) {
+  if (kind !== 'lift') return null;
+  const d = (TOKVAL.finals(q || {}) - TOKVAL.finals(before || q || {})) | 0;
+  return d > 0 ? 'Lucky Lift: +' + d + ' Coins' : 'Lucky Lift: no bonus';
+}
 /** Scout: reveal reel when the list opens. get() -> vm.spin; dispatch('ScoutSpin'). */
 export function spinScout({ get, look, dispatch, onCollect }) {
   const s = get();
@@ -119,9 +131,9 @@ export function spinFinals({ get, look, dispatch, onCollect }) {
   const f = get();
   return openReel({
     mode: 'reveal', title: 'Finals prize', cardHtml: '<p class="dr-hint">Spin for your prize.</p>', plan: { total: 3 }, cells: f.cells, look: dialLook(look), pending: f.pending,
-    ...tokProps(get, dispatch, 'finals', 'Finals'), tokVal: TOKVAL.finals, tokText: finalsWords,
+    ...tokProps(get, dispatch, 'finals', 'Finals'), tokVal: TOKVAL.finals, tokText: finalsWords, tokLine: finalsTokLine,
     onSpin: () => dispatch('FinalsSpin', {}), getPending: () => get().pending,
-    describe: (p) => { const w = finalsWords(p); return { big: w, say: 'Finals prize: ' + w + '.', gold: !!p.jackpot }; },
+    describe: (p) => { const w = finalsWords(p), why = finalsPairLine(p); return { big: w, ...(why ? { line: why } : {}), say: 'Finals prize: ' + w + '.' + (why ? ' ' + why.replace('x1.5', 'times one and a half') + '.' : ''), gold: !!p.jackpot }; },
     onCollect, spokeGain: () => get().spokeGain || 0,
   });
 }
