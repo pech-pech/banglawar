@@ -75,3 +75,11 @@
 .cl-rc-info .cl-opt__s { gap: 2px var(--c-sp-2); }
 .cl-rc-sign { display: flex; align-items: center; justify-content: center; gap: 4px; width: auto; min-width: 96px; min-height: 56px; margin: 0; }
 .cl-rc-sign:focus-visible { outline: 3px dashed var(--c-focus); outline-offset: 3px; }
+
+/* s1 fix round 1 (QA-VISUAL D1, D2): Cancel beside the "Who leaves?" heading; leave rows carry a visible "Let go" verb on the right. */
+.cl-rc-head { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: var(--c-sp-2); }
+.cl-rc-cancel-top { display: flex; align-items: center; justify-content: center; width: auto; min-width: 88px; min-height: 48px; margin: 0; }
+.cl-rc-cancel-top:focus-visible { outline: 3px dashed var(--c-focus); outline-offset: 3px; }
+.cl-rc-leave { position: relative; }
+.cl-rc-leave .cl-opt__n { padding-right: 80px; } /* room for the tag on the name line, so the letters keep the full row width */
+.cl-rc-go { position: absolute; top: 6px; right: 6px; padding: 2px var(--c-sp-2); border: var(--c-border) solid var(--outline); background: var(--wall1); font: 700 14px/20px var(--c-font); white-space: nowrap; }

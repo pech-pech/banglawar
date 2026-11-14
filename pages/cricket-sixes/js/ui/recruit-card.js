@@ -70,7 +70,7 @@ function inner(rc, mode) {
   if (who) { // D1: a Cancel beside the heading too, so backing out needs no scroll past 9 rows
     return '<div class="cl-rc-head"><h3 class="cl-h" tabindex="-1">' + icoDeco('team', 24) + '<span>Who leaves?</span></h3>' +
       '<button type="button" class="c-btn cl-rc-cancel-top" data-rc-cancel="1">Cancel</button></div>' +
-      (rel.length ? '<p class="cl-note">' + icoDeco('info', 24) + '<span>' + esc('Squad full' + (sizeWord(rc) ? ' (' + sizeWord(rc) + ')' : '') + '. Pick one player to leave so ' + who.name + ' can join. They go for good.') + '</span></p>' +
+      (rel.length ? '<p class="cl-note">' + icoDeco('info', 24) + '<span>' + esc((sizeWord(rc) ? sizeWord(rc) + ' is full' : 'Squad full') + '. Pick one player to leave so ' + who.name + ' can join. They go for good.') + '</span></p>' +
         '<div class="cl-opts">' + rel.map(leaveRow).join('') + '</div>'
         : '<p class="cl-note cl-note--warn" role="status">' + icoDeco('lock', 24) + '<span>Nobody can leave right now.</span></p>') +
       '<div class="cl-actions"><button type="button" class="c-btn" data-rc-cancel="1">' + icoDeco('close', 24) + '<span>Cancel</span></button></div>';
@@ -93,7 +93,6 @@ export function bindRecruit(el, rc, dispatch) {
   const focusHead = () => { const h = el.querySelector('[data-rc] .cl-h') || el.querySelector('[data-rc] .cl-done'); if (h && h.focus) { if (!h.hasAttribute('tabindex')) h.setAttribute('tabindex', '-1'); h.focus(); } };
   const show = (mode) => { card.innerHTML = inner(rc, mode); focusHead(); };
   const find = (arr, id) => (arr || []).find((x) => String(x.id) === String(id));
-  const nameOf = (id) => { const r = find(rc.list, id); return r ? r.name : 'The recruit'; };
   const focusSel = (sel) => { const b = card.querySelector(sel); if (b && b.focus) b.focus(); else focusHead(); };
   const attr = (v) => (typeof CSS !== 'undefined' && CSS.escape ? CSS.escape(String(v)) : String(v).replace(/["\\]/g, '\\$&'));
   let picked = null, leaving = null;
