@@ -320,3 +320,11 @@
 .ct-cfm { display: grid; grid-template-columns: 1fr 1.4fr; gap: var(--c-sp-2); }
 .ct-cfm .c-btn { min-height: 56px; }
 .t2-netslv { margin-top: var(--c-sp-1); }
+
+/* wa2: STOP glows gold while the spin is inside the careful window (3.2-3.8 s; WHEN only). Base = steady gold border (reduced motion keeps this);
+   with motion it pulses: 3 half-beats of 0.2 s fill the 0.6 s window once, no endless loop (a11y: nothing flashes; under 3 a second). Timing line after the STOP. */
+.wh-ov .wh-go.is-window { outline: 4px solid var(--gold); outline-offset: 2px; }
+@media (prefers-reduced-motion: no-preference) { .wh-ov .wh-go.is-window { animation: wh-win .2s ease-in-out 3 alternate both; } }
+@keyframes wh-win { from { box-shadow: 0 0 0 0 var(--gold); } to { box-shadow: 0 0 0 7px var(--gold); } }
+.wh-tim { flex: 0 0 100%; width: 100%; margin-top: 4px; font-weight: 700; font-size: var(--c-fs-s, 14px); text-align: center; color: var(--outline); } /* QA D1: own row under the result, never inline after Spokes */
+.wh-tim--c { background: var(--gold); border-radius: 4px; padding: 1px 8px; display: inline-block; }

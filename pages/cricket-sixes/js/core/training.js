@@ -392,3 +392,13 @@ export function seeTips(state) {
   if (state.training.tipsSeen) return state;
   const n = clone(state); n.training.tipsSeen = true; return n;
 }
+
+/** wa2: the careful STOP window (seconds after SPIN), the same window the Copy report buckets by. Feel only: no odds change. */
+export const TIMING_WIN = Object.freeze({ lo: 3.2, hi: 3.8 });
+/** wa2: timing bucket of a STOP. t = STOP time in seconds; coasted = the game tapped at COAST (no player STOP). 'c' careful, 'e' early, 'l' late, 'o' coasted (Copy report codes). */
+export function timingBucket(t, coasted) {
+  if (coasted || !Number.isFinite(t) || t >= TRAIN2.wheelStop.COAST) return 'o';
+  return t < TIMING_WIN.lo ? 'e' : t <= TIMING_WIN.hi ? 'c' : 'l';
+}
+/** wa2: the one result line for a timing bucket. */
+export const TIMING_LINE = Object.freeze({ e: 'Early', c: 'Good timing', l: 'Late', o: 'Coasted' });
