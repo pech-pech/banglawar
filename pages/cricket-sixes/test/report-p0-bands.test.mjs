@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { BANDS, inRange, LUCK_LABEL } from '../js/report/bands.js';
+import { BANDS, inRange } from '../js/report/bands.js';
 
 const SRC = readFileSync(new URL('../js/report/bands.js', import.meta.url), 'utf8');
 
@@ -19,11 +19,13 @@ test('P0-15 bands: Good/OK/Poor shares sum to about 100', () => {
   for (const r of [BANDS.matchup.skilled, BANDS.matchup.random]) assert.ok(Math.abs(r.reduce((a, b) => a + b, 0) - 100) <= 1);
 });
 
-test('P0-15 bands: luck is labelled [pre-P14] and the sim is marked r7', () => {
-  assert.equal(LUCK_LABEL, '[pre-P14]');
+test('P14 bands: luck carries no pre-P14 label, luck bands are [sim] from the P14 audit, other sims are r7', () => {
+  assert.ok(!/pre-P14|LUCK_LABEL/.test(SRC));
+  assert.deepEqual(BANDS.luck, [-13, 14]);
+  assert.deepEqual(BANDS.luckBy, { won: [-9, 18], lost: [-17, 7] });
   const luckLines = SRC.split('\n').filter((l) => /^\s*luck(By)?:/.test(l));
   assert.equal(luckLines.length, 2);
-  for (const l of luckLines) assert.ok(l.includes('[pre-P14]') && l.includes('[sim r7]'), l);
+  for (const l of luckLines) assert.ok(l.includes('[sim]'), l);
   for (const k of ['runs', 'fit', 'matchup', 'rpo', 'close']) assert.ok(new RegExp(`^\\s*${k}:.*\\[sim r7\\]`, 'm').test(SRC), k);
 });
 

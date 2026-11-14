@@ -43,7 +43,7 @@ test('report v2 layout: header, sections with machine lines, Q tags, plain words
   const t = buildText(log.data(), ENV), lines = t.split('\n');
   assert.match(lines[0], /^CR sixes-r4 \| CLEAN: YES \| features off \| save v\? .* \| #1 \| screen 344x780/);
   assert.match(lines[1], /^Window: 3 matches, 0 nets runs, since start/);
-  for (const w of ['TRAINING [W] Q1 Q5', 'MATCH CALLS [W] Q2', 'ECONOMY [W] Q3', 'COACHES [W] Q4', 'SEASON [S] Q3 Q6 Q7', 'FEEL [W]', 'none in window', ' m:', 'M3 ', 'Luck [pre-P14]', 'fit 100%', '[sim r7']) assert.ok(t.includes(w), w);
+  for (const w of ['TRAINING [W] Q1 Q5', 'MATCH CALLS [W] Q2', 'ECONOMY [W] Q3', 'COACHES [W] Q4', 'SEASON [S] Q3 Q6 Q7', 'FEEL [W]', 'none in window', ' m:', 'M3 ', 'Luck: ', 'fit 100%', '[sim r7']) assert.ok(t.includes(w), w);
   assert.ok(t.length <= 2500, 'text size ' + t.length);
   const sh = buildSummary(log.data(), ENV); assert.ok(sh.length <= 1000 && !sh.includes('{') && sh.endsWith('short: no per-over data, use Full for Q2'));
   assert.ok(buildFull(log.data(), ENV).includes('\nJSON:\n'));
@@ -146,7 +146,7 @@ test('CLEAN fails on a fixed seed or a repeated seed', () => {
 test('luck line: bands by result, too few matches, quit adds nothing', () => {
   const log = createLog({ storage: null, build: 'sixes-r4', now: () => 1000 }); play(log, 2, 'skilled');
   const t = buildText(log.data(), ENV).replace(/\s+/g, ' ');
-  assert.ok(t.includes('win -9..+16, loss -18..+6'), t);
+  assert.ok(t.includes('win -9..+18, loss -17..+7 [sim]'), t);
   assert.ok(t.includes('n small'));
   const d = log.data(), base = aggregate(d.matches);
   const quit = { ...d.matches[0], res: null, ab: 1, ov: d.matches[0].ov.map((o) => ({ ...o, r: o.r + 50, xr: o.xr })) };

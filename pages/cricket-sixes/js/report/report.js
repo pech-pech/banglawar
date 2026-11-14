@@ -2,7 +2,7 @@
 // Every line serves a design question (Q1-Q8, see REPORT-V2-SPEC); the section title names them. Records may lack any r9 field: every read tolerates that.
 // Marks: [sim] from the 400-seed sweep, [guess] our estimate (see bands.js).
 import { avoidablePoor } from './metrics.js';
-import { BANDS, LUCK_LABEL } from './bands.js';
+import { BANDS } from './bands.js';
 import { FLAG_DEFAULTS } from './build.js';
 import { zLines } from './z.js';
 
@@ -171,7 +171,7 @@ function matchRow(m) {
   const att = c.filter((o) => o.i === 'A'), early = att.filter((o) => o.o <= 7).length;
   const mu = (k) => b.filter((o) => o.mu === k).length, mg = m.res ? (m.res === 'won' ? m.m.n + 'wk' : m.res === 'lost' ? m.m.n + 'runs' : '0') : '';
   const av = avoidOf(b), fit = fitOf(m), th = thinkOf(m), fsw = switches(b.map((o) => o.f)), isw = switches(c.map((o) => o.i));
-  const L = m.res ? `luck ${sgn(luckOf(m))} ${LUCK_LABEL}` : 'luck -';
+  const L = m.res ? `luck ${sgn(luckOf(m))}` : 'luck -';
   const txt = `M${m.id} ${m.k || '?'} ${resLetter(m)} ${m.us ?? '-'}-${m.them ?? '-'}${mg ? ' by ' + mg : ''} | field A${f('A')} P${f('P')} sw${fsw} | intent D${i('D')} R${i('R')} A${i('A')} sw${isw} | att early ${early}/7 | att wkts ${sum(att.map((o) => o.w | 0))} in ${att.length} ov | pick G${mu('G')} O${mu('O')} P${mu('P')} U${b.length - mu('G') - mu('O') - mu('P')} | fit ${fit == null ? '-' : fit + '%'} | ${L}${th == null ? '' : ' | think ' + th + ' s'}${m.touched != null ? ' | touched ' + m.touched + '/10' : ''}${m.m && m.res && m.dec != null ? ' | decided over ' + m.dec : ''}`;
   const rb = b.map((o) => o.r | 0), rc = c.map((o) => o.r | 0);
   const j = { id: m.id, k: m.k || null, r: m.r ?? null, res: resLetter(m), us: m.us ?? null, th: m.them ?? null, mg: m.m ? [m.m.k, m.m.n] : null, f: str(b, 'f'), fs: fsw, i: str(c, 'i'), is: isw, g: str(b, 'mu'), gx: av.bad, wc: sum(att.map((o) => o.w | 0)), tc: att.length, fit, rb, rc, lk: m.res ? luckOf(m) : null, tk: th, cn: m.touched ?? null, dec: m.dec ?? null };
@@ -201,7 +201,7 @@ function secM(w) {
     const near = (v, r) => v != null && Math.abs(v - r) <= 10, ft = [['bowler', a.fitB], ['field', a.fitF], ['intent', a.fitI]].filter(([k, v]) => near(v, BANDS.fit.random[k])).map(([k]) => k);
     h.push(`Close finishes ${cnt(fin, (m) => m.close)} of ${fin.length}${closeBand}. Fit with skilled bot ${P(a.fitB)}/${P(a.fitF)}/${P(a.fitI)}${ft.length ? ': near random for ' + ft.join(', ') + ' (field choice not readable?)' : ''}.`);
   }
-  if (fin.length) { const L = BANDS.luckBy, g = (v) => (v > 0 ? '+' : '') + v; h.push(`Luck ${LUCK_LABEL}: scored ${a.scored} vs exp ${a.xScored}, rival ${a.conc} vs ${a.xConc}; wkts lost ${a.wkLost} vs ${a.xWkLost}, taken ${a.wkTook} vs ${a.xWkTook}. Per match win ${L.won[0]}..${g(L.won[1])}, loss ${L.lost[0]}..${g(L.lost[1])} [sim r7].${fin.length < 10 ? ' n small' : ''}`); }
+  if (fin.length) { const L = BANDS.luckBy, g = (v) => (v > 0 ? '+' : '') + v; h.push(`Luck: scored ${a.scored} vs exp ${a.xScored}, rival ${a.conc} vs ${a.xConc}; wkts lost ${a.wkLost} vs ${a.xWkLost}, taken ${a.wkTook} vs ${a.xWkTook}. Per match win ${L.won[0]}..${g(L.won[1])}, loss ${L.lost[0]}..${g(L.lost[1])} [sim].${fin.length < 10 ? ' n small' : ''}`); }
   const mds = rows.filter((m) => m.md);
   if (mds.length) h.push(`Match day: hype ${mds.map((m) => m.md.hype || '-').join('/')}, toss won ${cnt(mds, (m) => m.md.toss === 'won')} of ${mds.length}, roar overs ${sum(mds.map((m) => (m.md.roar || []).length))}${rows.some((m) => Array.isArray(m.settled)) ? ', settled wickets ' + sum(rows.map((m) => (m.settled || []).length)) : ''}.`);
   const mach = 'm:' + rows.map((m) => m.id + resLetter(m)).join(',') + '|A' + a.fA + 'P' + a.fP + '|D' + a.iD + 'R' + a.iR + 'A' + a.iA + '|att' + P(attShare) + '|pick' + [a.mu.G, a.mu.O, a.mu.P, a.mu.U].join('/') + '|avP' + (avPct ?? '-') + '|fit' + [a.fitB, a.fitF, a.fitI].join('/') + '|close' + cnt(fin, (m) => m.close) + '/' + fin.length;
