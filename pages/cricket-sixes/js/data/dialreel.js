@@ -10,6 +10,7 @@ export const DR = {
   DIAL: { L: 10, V: 16, G: 0.5, J_PER_NUTS: 1.2, ORDER: ['med', 'low', 'nuts', 'high'], C0: 9.5 }, // C0 = old hype wheel width total (tree widths are in those units)
   REEL: { C: 12, V: 7, G: 0.5, J: 0.8, CELLS: 4, ORDER: ['coach', 'coins', 'player'], RARE_K: 1.8, GOLD_K: 1.2, EXTRA_W: 0.75, FIND_UNIT: 10 },
   EXTRA_W: 0.75, // Extra Gold slice width vs the main gold
+  GUIDE_SD_FACTOR: 0.727, // wa1: Aim Guide narrows the tap error on the Hype dial (110 -> 80 ms)
   UNIT: { hype: 1, toss: 1, pep: 0.5, find: 10, scout: 1, finals: 10 }, // Booster / Floor unit per wheel
   HYPE_PTS: { low: 2, med: 4, high: 6, nuts: 10 },
   // Reveal-only spins. Seconds of spin (contract) then a hold with the result highlighted (read once).
@@ -62,3 +63,9 @@ export const DR = {
   // Second Gold on Finals pays 40 Coins and never a Medal (WHEEL-META capstone rule); on Scout / Pep it copies the gold slice.
   FINALS_SECOND: { id: 'coins40', label: '40 Coins', fx: { coins: 40 } },
 };
+
+// ---- Find big wheel (wa1 slice A, agent "find"; 2026-11-14-wheel-all-spins SPEC s1 + s3a, sim/find_fast_sim.py). Replaces the Find reel when the flag is on.
+// C = circumference (units); BLOCKS equal find blocks (total width = find rate x C), evenly spaced, the rest Nothing. W0 / D / J = spin speed,
+// glide after STOP (s), wobble (units). SD = careful tap error (s; Aim Guide x GUIDE_SD). Tree: Slow W0 x w0Mult, Steady J x jMult, Widener + Sharp Eyes
+// = width added to EACH find block (units), Extra Gold = one more block EXTRA_W x a block's width. ORDER = type order inside a block.
+export const FIND_WHEEL = { W0: 36, D: 2.0, J: 0.8, BLOCKS: 3, C: 10, SD: 0.11, GUIDE_SD: 0.08, EXTRA_W: 0.75, ORDER: ['coach', 'coins', 'player'] };

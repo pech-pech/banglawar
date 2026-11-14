@@ -2,7 +2,8 @@
 // Weekly nets (P11 redo): Focus + Effort + optional Spotlight wheel, coaches (grade steps, scout list, courses), week end.
 // Pure and seeded: every function takes the state (and an rng where it rolls) and returns a NEW state; an invalid
 // command returns the SAME state object. No Math.random, Date or DOM. Numbers: data/training.js TRAIN2 (SPEC 2026-11-13).
-import { DRILLS, TRAIN2 } from '../data/training.js';
+import { DRILLS, TRAIN2, NETS_Q } from '../data/training.js';
+import { FLAGS } from '../data/flags.js';
 import { SURNAMES } from '../data/names.js';
 import { makeRng } from './rng.js';
 import { aiPickSix } from './clubs.js';
@@ -202,7 +203,7 @@ export function courseUsesLicence(s, coachId) { const c = coachById(s, coachId);
 
 // ---- wheels
 const WS = TRAIN2.wheelStop;
-/** Physics numbers for a wheel: wheel.phys {W0, J, SD} (wheel meta: Slow Spin, Steady Axle, Aim Guide) over TRAIN2.wheelStop; none = WS itself. @param {any} [wheel] */
+/** Physics numbers for a wheel: wheel.phys {W0, J, SD, D?} (wheel meta: Slow Spin, Steady Axle, Aim Guide; D = Find glide) over TRAIN2.wheelStop; none = WS itself. @param {any} [wheel] */
 const physOf = (wheel) => (wheel && wheel.phys ? { ...WS, ...wheel.phys } : WS);
 /** Slice values (jackpot first, then the layout in the order they pass the pointer) and widths in units. @param {{slices:number[],widths:number[],jackpot:number}} w @param {number[]} [base] */
 function buildWheel(w, base) {
@@ -233,9 +234,9 @@ export const wheelSpeed = (/** @type {number} */ t, /** @type {{W0?:number}} */ 
 /** @param {number} t */
 export const wheelArc = (/** @type {number} */ t, /** @type {{W0?:number}} */ phys) => (phys || WS).W0 * WS.TAU * (1 - Math.exp(-t / WS.TAU));
 /** Ease-out distance after a STOP at time t (cubic: starts at the current speed, so no jump). @param {number} t */
-export const stopDist = (/** @type {number} */ t, /** @type {{W0?:number}} */ phys) => wheelSpeed(t, phys) * WS.D / 3;
-/** Extra travel s seconds after STOP: dist*(1-(1-u)^3) + e*(3u^2-2u^3), u = s/D (clamped). @param {number} dist @param {number} e @param {number} s */
-export function stopExtra(dist, e, s) { const u = Math.max(0, Math.min(1, s / WS.D)); return dist * (1 - Math.pow(1 - u, 3)) + e * (3 * u * u - 2 * u * u * u); }
+export const stopDist = (/** @type {number} */ t, /** @type {{W0?:number,D?:number}} */ phys) => wheelSpeed(t, phys) * ((phys && phys.D) || WS.D) / 3; // phys.D: per-wheel glide (Find 2.0 s); none = WS.D
+/** Extra travel s seconds after STOP: dist*(1-(1-u)^3) + e*(3u^2-2u^3), u = s/D (clamped; D = phys.D or WS.D). @param {number} dist @param {number} e @param {number} s @param {{D?:number}} [phys] */
+export function stopExtra(dist, e, s, phys) { const u = Math.max(0, Math.min(1, s / ((phys && phys.D) || WS.D))); return dist * (1 - Math.pow(1 - u, 3)) + e * (3 * u * u - 2 * u * u * u); }
 /** Wheel coordinate (units, 0..C) -> slice index. @param {{slices:number[],jackpotIndex?:number,widths?:number[]}} wheel @param {number} pos */
 export function sliceAt(wheel, pos) {
   const w = wheelWidths(wheel), C = w.reduce((x, y) => x + y, 0); let u = pos % C; if (u < 0) u += C;
@@ -252,7 +253,7 @@ export function stopLanding(wheel, stop) {
 export function carefulTapTime(wheel, phi, g1, g2) {
   const w = wheelWidths(wheel), C = w.reduce((x, y) => x + y, 0), P = physOf(wheel);
   const centre = (/** @type {number} */ j) => w.slice(0, j).reduce((x, y) => x + y, 0) + w[j] / 2;
-  const cJs = (wheel.golds && wheel.golds.length ? wheel.golds : [wheel.jackpotIndex || 0]).map(centre); // wheel meta: Extra Gold adds a second target
+  const cJs = wheel.aims && wheel.aims.length ? wheel.aims : (wheel.golds && wheel.golds.length ? wheel.golds : [wheel.jackpotIndex || 0]).map(centre); // wheel meta: Extra Gold adds a second target; aims = explicit target positions in units (Find: block centres)
   const g = (/** @type {number} */ t) => phi + wheelArc(t, P) + stopDist(t, P); // monotone in t
   let best = WS.IDEAL, bd = Infinity;
   for (const cJ of cJs) for (let k = Math.floor(g(WS.STOP_FROM) / C); k <= Math.ceil(g(WS.COAST) / C); k++) {
@@ -305,6 +306,11 @@ function roster(s) {
   for (const p of able) { if (pool >= cost) { pool -= cost; trainIds.push(p.id); } else shortIds.push(p.id); }
   return { plan, cost, trainIds, shortIds, skippedIds: skippedIds.map((p) => p.id), ableCount: able.length };
 }
+/** wa1 (SPEC 2026-11-14 s4): Nets facility level 0-5 from econ.fac.nets (no econ -> 0). @param {any} s */
+export const netsFacLevel = (s) => Math.max(0, Math.min(NETS_Q.length - 1, (s && s.econ && s.econ.fac && s.econ.fac.nets) | 0));
+/** Nets quality Q for the odds (Okay -Q, Good/Great +Q/2). A bug fix, not a wheel upgrade: gated on FLAGS.freePick (the r9 facility economy
+ *  where Nets starts L0; on in the game, off in the frozen vectors), NOT on wheelMeta. On: NETS_Q[econ.fac.nets]. Off: the old netsTerm x (s.nets - 1) (= 0). @param {any} s */
+export const netsQuality = (s) => (FLAGS.freePick ? NETS_Q[netsFacLevel(s)] : TRAIN2.netsTerm * (((s && s.nets) || 1) - 1));
 /** What Run would do: { cost, trainIds, skippedIds, shortIds, hint|null }. @param {any} s */
 export function netsPreview(s) {
   const r = roster(s);
@@ -326,7 +332,7 @@ export function runNets(s, rng, opts = {}) {
   if (!s.training || s.training.netsWeek === s.training.week) return none;
   const r = roster(s); if (!r.trainIds.length) return { ...none, skipped: r.skippedIds.length };
   const n = clone(s); ensureWeekStart(n);
-  const { plan } = r, q = TRAIN2.netsTerm * ((n.nets || 1) - 1) + coachQuality(s);
+  const { plan } = r, q = netsQuality(s) + coachQuality(s);
   const odds = effortOdds(plan.effort, q, plan.focus === 'bal'), lines = [];
   const wheelOn = plan.spotlightId && r.trainIds.includes(plan.spotlightId);
   const wheel2On = plan.spotlight2Id && r.trainIds.includes(plan.spotlight2Id); // Twin Pass: a second, separate spin

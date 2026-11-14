@@ -3,12 +3,13 @@
    Uses: week, tp, plan{focus,effort,spotlightId,coachId}, efforts[{id,cost}], rows[{id,name,bench,role,type,rates:{batPower,batSkill,bowlSpeed,bowlSkill},status:'train'|'short'|'skip',stat}],
          coaches[{id,name,letter,strong,picked}], preview{cost,trainCount,shortCount,skipCount,hint}, spotlight{wheel:{slices,jackpotIndex},pending|null},
          done, canRun, result{lines:[{id,name,rating,fromRaw,toRaw,word,wheelGain?,breakthrough}],cost,skipped}.
-   Commands: SetTrainPlan {focus|effort|spotlightId|coachId}, Spin {careful}, RunNets {}, EndWeek {}. Taps: a row -> sheet:player; coach row -> sheet:coaches. */
+   Commands: SetTrainPlan {focus|effort|spotlightId|coachId}, Spin {careful}, RunNets {}, EndWeek {}. Taps: a row -> sheet:player; coach strip (wa1) -> SetTrainPlan {coachId}, sheet:coaches {course}|{scout}|none. */
 import { esc, icoDeco, bindActs, ctaBar } from './dom.js';
 import { openSheet } from './sheet.js';
 import { letterOfRaw, stepOfRaw } from '../core/letters.js';
 import { playNets, lineHtml, skipLine, letterBar, STAT, statKey } from './nets-scene.js';
 import { openWheel } from './wheel-view.js';
+import { drawHead } from './club-canvas.js';
 
 export const ROLE_ICON = { opener: 'roleOpener', middle: 'roleMiddle', lower: 'roleLower' };
 export const TYPE_ICON = { fast: 'typeFast', medium: 'typeMedium', spin: 'typeSpin' };
@@ -117,6 +118,55 @@ function openSpotlightWheel(dispatch, slot) {
   });
 }
 
+/* wa1 (SPEC 2026-11-14 s2): the coach strip at the top of the Training tab. 3 slots: portrait, letter grade, strong focus icons.
+   Tap a coach = pick him for the week (SetTrainPlan {coachId}; tap the picked one again = no coach). Away = greyed "Back next week".
+   Send on course and Scout list open the same flows as the Coaches sheet (sheet:coaches with arg {course} / {scout}). */
+const WHY_COURSE = { max: 'Top grade', season: 'Done this season', away: 'Away', unknown: 'Not now' };
+const courseWhy = (cr) => (cr.why === 'coins' ? 'Need ' + cr.cost + ' Coins' : WHY_COURSE[cr.why] || cr.why || 'Not now');
+const hasSprites = () => typeof window !== 'undefined' && !!(window.SPR && window.ISO);
+/** Strip display name: the surname (last word), and the first part of a double-barrelled one ("Okonkwo-Bramley" -> "Okonkwo"). Full name stays in aria and the sheets. */
+export const shortName = (n) => { const w = String(n || '').trim().split(/\s+/).pop() || ''; return w.length > 9 && w.includes('-') ? w.split('-')[0] : w; };
+function ctCard(c) {
+  const cr = c.course || {}, away = c.away > 0, price = cr.free ? 'Free' : cr.cost != null ? cr.cost + ' Coins' : '';
+  const say = 'Coach ' + c.name + ', grade ' + c.letter + ', strong in ' + strongText(c.strong) + (away ? '. Away, back next week' : c.picked ? '. Coach this week. Tap for no coach' : '. Tap to pick for this week') + (!away && c.picked && !c.helps ? '. Not strong in this focus, so no help' : '');
+  const face = hasSprites() ? '<canvas class="ct-face" data-ct-face="' + esc(c.id) + '" aria-hidden="true"></canvas>' : '<span class="ct-face">' + deco('coach', 24) + '</span>';
+  // fixtrain: the picked state is its own full-width line (check + "This week", or warn + "No help"), never cut by the face / grade line.
+  const tag = away ? '<span class="ct-tag ct-tag--away">Back next week</span>' : c.picked ? (c.helps ? '<span class="ct-tag ct-tag--on">' + deco('done', 16) + '<span>This week</span></span>' : '<span class="ct-tag ct-tag--nohelp">' + deco('info', 16) + '<span>No help</span></span>') : '';
+  const course = away ? '' : '<button type="button" class="c-btn ct-course" data-ct="course" data-id="' + esc(c.id) + '"' + (cr.ok ? '' : ' aria-disabled="true"') +
+    ' aria-label="' + esc('Send ' + c.name + ' on course' + (price ? ', ' + price : '') + (cr.ok ? (cr.licence ? ', uses your Licence' : '') + '. He is away 1 week' : '. ' + courseWhy(cr))) + '">' +
+    '<span class="ct-cw">' + deco('upgrade', 16) + '<span>Course</span></span><small>' + esc(cr.ok ? price + (cr.licence ? ', Licence' : '') : courseWhy(cr)) + '</small></button>';
+  return '<li class="ct-slot' + (c.picked ? ' is-picked' : '') + (away ? ' is-away' : '') + '">' +
+    '<button type="button" class="ct-pick" data-ct="pick" data-id="' + esc(c.id) + '" aria-pressed="' + !!c.picked + '"' + (away ? ' aria-disabled="true"' : '') + ' aria-label="' + esc(say) + '">' +
+    '<span class="ct-l1"><span class="ct-name name" aria-hidden="true">' + esc(shortName(c.name)) + '</span></span>' +
+    '<span class="ct-l2">' + face + '<b class="ct-grade" aria-hidden="true">' + esc(c.letter) + '</b><span class="ct-fi" aria-hidden="true">' + (c.strong || []).map((f) => deco(FOCUS_ICON[f] || 'train', 16)).join('') + '</span></span>' + tag + '</button>' + course + '</li>';
+}
+export function coachStripHtml(raw) {
+  const cs = (raw && raw.coaches) || [], st = (raw && raw.strip) || { slots: 3, scoutOpen: false };
+  const free = Math.max(0, (st.slots || 3) - cs.length);
+  const empty = Array.from({ length: free }, () => '<li class="ct-slot ct-empty"><button type="button" class="ct-emptyin" data-ct="scout" aria-label="Empty coach slot: open the Scout list to sign a coach">' + deco('coach', 20) + '<span>Empty slot</span><small>Sign a coach</small></button></li>').join('');
+  // fit: compact strip (2 rows of 56 px taps); the head (All coaches, Scout list) is a narrow column at the right of the slots.
+  return '<section class="ct-strip" aria-label="Coaches">' +
+    '<ul class="ct-row">' + cs.map(ctCard).join('') + empty + '</ul>' +
+    '<div class="ct-head"><button type="button" class="c-btn ct-all" data-ct="all" aria-label="All coaches: pick and send on course" aria-haspopup="dialog">' + deco('coach', 20) + '<span>All</span></button><button type="button" class="c-btn ct-scout" data-ct="scout" aria-label="' + esc(st.scoutOpen ? 'Scout list: sign a new coach' : 'Scout list, done this season') + '">' + deco('scout', 20) + '<span>Scout</span>' + (st.scoutOpen ? '<i class="ct-dot" aria-hidden="true"></i>' : '') + '</button></div></section>';
+}
+/** fixtrain: confirm before Coins are spent (like the Stadium build confirm). Yes -> the course wheel (sheet:coaches {course}). */
+function courseConfirm(raw, id, open) {
+  const c = ((raw && raw.coaches) || []).find((x) => x.id === id); if (!c) return;
+  const cr = c.course || {}, price = cr.free ? 'Free' : cr.cost != null ? cr.cost + ' Coins' : '';
+  const close = openSheet('Send on course?', '<p class="tr-note">' + deco('upgrade', 20) + '<span>' + esc(c.name + ' goes on a course and spins the Course wheel for grade steps. He is away 1 week.') + '</span></p>' +
+    '<p class="ct-cost"><b>Cost: ' + esc(price || 'Free') + '</b>' + (cr.licence ? '<span>Uses your Licence</span>' : '') + '</p>' +
+    '<div class="ct-cfm"><button type="button" class="c-btn ct-cfm-no" data-cf="no">Not now</button><button type="button" class="c-btn c-btn--primary ct-cfm-yes" data-cf="yes">' + esc('Yes, send' + (price ? ': ' + price : '')) + '</button></div>',
+  { returnFocus: ['[data-ct="course"][data-id="' + id + '"]', '[data-lo="runnets"]'] });
+  const body = document.querySelector('.sheet-fixed .c-sheet__body');
+  if (body) body.addEventListener('click', (e) => { const b = e.target.closest('[data-cf]'); if (!b) return; close(); if (b.getAttribute('data-cf') === 'yes') open('coaches', { course: id }); });
+}
+function drawFaces(root) { if (!hasSprites()) return; [].forEach.call(root.querySelectorAll('canvas[data-ct-face]'), (cv) => { try { drawHead(cv, 'coach:' + cv.getAttribute('data-ct-face')); } catch (_) { /* portrait is decoration */ } }); }
+
+/** fixtrain: the Nets facility level that drives the Okay / Good / Great odds, on the Nets result card. */
+function netsLevelLine(raw) {
+  const L = raw && raw.nets && raw.nets.level != null ? +raw.nets.level : null; if (L == null) return '';
+  return '<p class="tr-note t2-netslv">' + deco('batSkill', 20) + '<span>' + (L > 0 ? 'Nets level ' + L + ': more Good and Great drills.' : 'Nets level 0: build Nets in the Stadium for more Good and Great drills.') + '</span></p>';
+}
 function afterRender(el, vm, dispatch) {
   if (vm.nets && runPending) {
     runPending = false;
@@ -136,23 +186,20 @@ export function render(el, rawVm, dispatch, open) {
   if (nets) {
     const g = nets.lines.length, up = nets.lines.filter((l) => letterOfRaw(l.toRaw) !== letterOfRaw(l.fromRaw)).length;
     body = '<div class="c-card c-card--hl t2-sum"><div class="tr-h"><b class="tr-iw">' + deco('done', 20) + '<span>Nets done</span></b></div>' +
-      '<p class="tr-note">' + deco('info', 20) + '<span>' + g + ' trained' + (up ? ', ' + up + ' moved up a letter' : '') + (nets.skipped && nets.skipped.length ? ', ' + nets.skipped.length + " can't gain" : '') + '. Cost ' + esc(nets.cost) + ' TP.</span></p></div>' +
+      '<p class="tr-note">' + deco('info', 20) + '<span>' + g + ' trained' + (up ? ', ' + up + ' moved up a letter' : '') + (nets.skipped && nets.skipped.length ? ', ' + nets.skipped.length + " can't gain" : '') + '. Cost ' + esc(nets.cost) + ' TP.</span></p>' + netsLevelLine(rawVm) + '</div>' +
       '<ul class="t2-lines" aria-label="Results">' + nets.lines.map((l) => lineHtml(l)).join('') + (nets.skipped || []).map(skipLine).join('') + '</ul>';
     cta = ctaBar('<button type="button" class="c-btn c-btn--primary c-btn--cta c-btn--block" data-act="EndWeek" data-ft="done">Done</button>');
   } else {
-    const c = vm.coach;
-    const coachRow = '<li class="c-row m0-row c-row--tap t2-prow"><button type="button" class="tr-rowbtn" data-act="sheet:coaches" aria-label="' + esc(c ? 'Coach this week: ' + c.name + ', grade ' + c.letter + ', strong in ' + strongText(c.strong) + '. Tap to change' : 'No coach this week. Tap to pick one') + '">' +
-      '<span class="tr-coachico">' + deco('coach', 36) + '</span><span class="c-row__body"><span class="c-row__title tr-coachtitle">' + (c ? esc(c.name) + ' <b class="t2-grade">' + esc(c.letter) + '</b>' : 'No coach') + '</span>' +
-      '<span class="c-row__sub t2-strong">' + (c ? strongHtml(c.strong) : '<span>Tap to pick this week\'s coach</span>') + '</span></span></button></li>';
+    // wa1: the old coach row is now the coach strip above (coachStripHtml); the Coaches sheet opens from the strip head.
     const spotRow = '<li class="c-row m0-row c-row--tap t2-prow"><button type="button" class="tr-rowbtn" data-lo="spotpick" aria-label="' + esc(P.spotlightName ? 'Spotlight: ' + P.spotlightName + '. Tap to change' : 'Spotlight: none. Tap to pick a player for the wheel') + '">' +
       '<span class="tr-coachico">' + deco('burst', 36) + '</span><span class="c-row__body"><span class="c-row__title tr-coachtitle">Spotlight</span><span class="c-row__sub">' + esc(P.spotlightName || 'None (optional)') + '</span></span></button></li>';
     const tw = vm.twin, sp2Row = tw && tw.held > 0 ? '<li class="c-row m0-row c-row--tap t2-prow"><button type="button" class="tr-rowbtn" data-lo="spot2pick"' + (P.spotlightId ? '' : ' aria-disabled="true"') + ' aria-label="' + esc(tw.line + '. ' + (!P.spotlightId ? 'Pick the first Spotlight player first' : tw.name ? 'Second player: ' + tw.name + '. Tap to change' : 'Tap to pick the second player')) + '">' +
       '<span class="tr-coachico">' + deco('burst', 36) + '</span><span class="c-row__body"><span class="c-row__title tr-coachtitle">' + esc(tw.line) + '</span><span class="c-row__sub">' + esc(!P.spotlightId ? 'Pick the first player above' : tw.name || 'None yet') + '</span></span></button></li>' : '';
     const cost = 'Cost ' + pv.cost + ' TP' + (pv.skippedN ? ", " + pv.skippedN + " can't gain" : '');
-    body = '<div class="t2-plan">' +
+    body = coachStripHtml(rawVm) + '<div class="t2-plan">' +
       seg('focus', 'Focus', ['bat', 'bowl', 'bal'].map((f) => ({ v: f, w: FOCUS_WORD[f], ico: FOCUS_ICON[f], aria: FOCUS_WORD[f] + ' focus' })), P.focus) +
       seg('effort', 'Effort', ['easy', 'normal', 'push'].map((f) => ({ v: f, w: EFFORT_WORD[f], ico: EFFORT_ICON[f], sub: costs[f] + ' TP', aria: EFFORT_WORD[f] + ' effort, ' + costs[f] + ' training points each' })), P.effort) + '</div>' +
-      '<ul class="c-list m0-list t2-pick" aria-label="This week">' + coachRow + spotRow + sp2Row + '</ul>' +
+      '<ul class="c-list m0-list t2-pick" aria-label="This week">' + spotRow + sp2Row + '</ul>' +
       '<div class="t2-cost" role="status"><b>' + esc(cost) + '</b>' + (pv.shortN ? '<span>' + deco('tp', 20) + '<span>Short on TP: ' + pv.shortN + ' will wait</span></span>' : '') + (pv.hint ? '<span>' + deco('info', 20) + '<span>' + esc(pv.hint) + '</span></span>' : '') + '</div>' +
       '<ul class="c-list m0-list tr-list" aria-label="Your squad">' + rows.map(rowHtml).join('') + '</ul>';
     cta = ctaBar('<button type="button" class="c-btn c-btn--primary c-btn--cta c-btn--block t2-run" data-lo="runnets" data-ft="run"' + (pv.trainN && vm.canRun ? '' : ' disabled aria-disabled="true"') + ' aria-label="' + esc(pv.trainN ? 'Run nets, ' + pv.cost + ' training points' : 'Run nets: nobody can train') + '">' +
@@ -167,6 +214,15 @@ export function render(el, rawVm, dispatch, open) {
     else if (a === 'spot2pick') { if (P.spotlightId) spotSheet(vm, dispatch, 2); }
     else if (a === 'runnets') { if (P.spotlightId) openSpotlightWheel(dispatch); else { runPending = true; dispatch('RunNets', {}); } }
   });
+  root.addEventListener('click', (e) => { // wa1 coach strip
+    const t = e.target.closest && e.target.closest('[data-ct]'); if (!t || t.getAttribute('aria-disabled') === 'true') return;
+    const a = t.getAttribute('data-ct'), id = t.getAttribute('data-id');
+    if (a === 'pick') dispatch('SetTrainPlan', { coachId: P.coachId === id ? null : id });
+    else if (a === 'course' && open) courseConfirm(rawVm, id, open);
+    else if (a === 'scout' && open) open('coaches', { scout: 1 });
+    else if (a === 'all' && open) open('coaches');
+  });
+  drawFaces(root);
   if (had && key) { const same = [...el.querySelectorAll('[data-act]')].find((n) => ((n.getAttribute('data-act') || '') + (n.getAttribute('data-arg') || '')) === key && !n.disabled); const b = same || el.querySelector('[data-lo="runnets"], [data-ft="done"]'); if (b) b.focus(); }
   announce(nets ? 'Nets done. ' + nets.lines.length + ' trained.' : 'Cost ' + pv.cost + ' TP' + (pv.skippedN ? ', ' + pv.skippedN + " can't gain" : '') + (pv.hint ? '. ' + pv.hint : ''));
   afterRender(el, vm, dispatch);

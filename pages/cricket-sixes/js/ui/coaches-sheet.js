@@ -36,7 +36,11 @@ export function coachesHtml(vm) {
     '<p class="tr-note">' + deco('info', 20) + '<span>' + (free ? free + (free === 1 ? ' slot' : ' slots') + ' free.' : 'Full: release one to sign.') + ' A coach helps only when he is strong in this week\'s focus.</span></p>';
 }
 
+/** open(vm, dispatch, open, arg, refresh). wa1: arg { course: coachId } starts that coach's course wheel at once, arg { scout: 1 } opens the
+ *  scout list at once (the Training tab coach strip uses these, so both flows are the same code as the sheet's buttons). */
 export function open(vm, dispatch, openFn, arg, refresh) {
+  if (arg && arg.course) { startCourse(vm, arg.course, dispatch, refresh); return () => {}; }
+  if (arg && arg.scout) { openScout(vm.scout || (refresh && refresh().scout) || {}, dispatch, refresh); return () => {}; }
   const close = openSheet('Coaches', coachesHtml(vm));
   const body = document.querySelector('.sheet-fixed .c-sheet__body');
   if (!body) return close;
@@ -46,25 +50,30 @@ export function open(vm, dispatch, openFn, arg, refresh) {
     const p = e.target.closest('[data-pick]'), c = e.target.closest('[data-course]');
     if (p && !p.disabled) { const id = p.getAttribute('data-pick'); close(); dispatch('PickWeekCoach', { coachId: id === '' ? null : id }); }
     else if (c && !c.disabled) {
-      const id = c.getAttribute('data-course'), co = (vm.coaches || []).find((x) => x.id === id); if (!co) return;
-      close();
-      const cur = () => { const v = refresh ? refresh() : vm, k = (v.coaches || []).find((x) => x.id === id); return k && k.course ? k.course : co.course; };
-      const w = co.course.wheel || courseWheel(co.step), from = co.step;
-      const card = '<div class="wh-who"><b class="t2-nm">' + esc(co.name) + '</b><span class="c-tag">Course: away 1 week</span></div><div class="wh-gr"><span class="wh-g hit"><span>Grade</span><b>' + esc(co.letter) + '</b></span><span class="wh-g wh-wide"><span>Strong</span><b class="t2-strong">' + strongHtml(co.strong) + '</b></span></div>';
-      openWheel({
-        title: 'Course', sub: co.name, cardHtml: card, slices: w.slices, jackpotIndex: w.jackpotIndex, widths: w.widths, aim: w.aim, pending: co.course.pending || null, plus: '+',
-        guide: !!co.course.guide, zone: +co.course.zone || 0, chime: !!co.course.chime, tokens: co.course.tokens || [], getTokens: () => cur().tokens || [], look: co.course.look || null, phys: w.phys || null, golds: w.golds || null, spokeGain: () => cur().spokeGain || 0, onToken: (kind, careful) => dispatch('UseToken', { wheel: 'course', kind, careful }), // wheel meta: empty when the flag is off
-        onSpin: (careful) => dispatch('CourseSpin', { coachId: id, careful }), getPending: () => cur().pending || null,
-        describe: (r) => { const to = Math.min(21, from + r.gain), a = letterOfStep(from), b = letterOfStep(to); return { big: 'Grade steps', from: a, to: b, breakthrough: !!r.jackpot || a !== b, say: co.name + ' course: ' + a + (a === b ? ', already top grade' : ' to ' + b) + (r.jackpot ? ', jackpot' : '') + '.' }; },
-        onCollect: () => dispatch('RunCourse', { coachId: id }),
-      });
+      const id = c.getAttribute('data-course'); if (!(vm.coaches || []).some((x) => x.id === id)) return;
+      close(); startCourse(vm, id, dispatch, refresh);
     }
   });
   return close;
 }
 
+/** The Course big wheel for one coach (Coins, away 1 week). Does nothing when the course is not allowed now. */
+export function startCourse(vm, id, dispatch, refresh) {
+  const co = (vm.coaches || []).find((x) => x.id === id); if (!co || !co.course || !co.course.ok) return;
+  const cur = () => { const v = refresh ? refresh() : vm, k = (v.coaches || []).find((x) => x.id === id); return k && k.course ? k.course : co.course; };
+  const w = co.course.wheel || courseWheel(co.step), from = co.step;
+  const card = '<div class="wh-who"><b class="t2-nm">' + esc(co.name) + '</b><span class="c-tag">Course: away 1 week</span></div><div class="wh-gr"><span class="wh-g hit"><span>Grade</span><b>' + esc(co.letter) + '</b></span><span class="wh-g wh-wide"><span>Strong</span><b class="t2-strong">' + strongHtml(co.strong) + '</b></span></div>';
+  openWheel({
+    title: 'Course', sub: co.name, cardHtml: card, slices: w.slices, jackpotIndex: w.jackpotIndex, widths: w.widths, aim: w.aim, pending: co.course.pending || null, plus: '+',
+    guide: !!co.course.guide, zone: +co.course.zone || 0, chime: !!co.course.chime, tokens: co.course.tokens || [], getTokens: () => cur().tokens || [], look: co.course.look || null, phys: w.phys || null, golds: w.golds || null, spokeGain: () => cur().spokeGain || 0, onToken: (kind, careful) => dispatch('UseToken', { wheel: 'course', kind, careful }), // wheel meta: empty when the flag is off
+    onSpin: (careful) => dispatch('CourseSpin', { coachId: id, careful }), getPending: () => cur().pending || null,
+    describe: (r) => { const to = Math.min(21, from + r.gain), a = letterOfStep(from), b = letterOfStep(to); return { big: 'Grade steps', from: a, to: b, breakthrough: !!r.jackpot || a !== b, say: co.name + ' course: ' + a + (a === b ? ', already top grade' : ' to ' + b) + (r.jackpot ? ', jackpot' : '') + '.' }; },
+    onCollect: () => dispatch('RunCourse', { coachId: id }),
+  });
+}
+
 /** The scout list as a sheet (sign, pass, release). Redraws from refresh() after each command. */
-function openScout(sv, dispatch, refresh) {
+export function openScout(sv, dispatch, refresh) {
   const html = (v) => scoutBodyHtml(v) + '<button type="button" class="c-btn c-btn--primary c-btn--cta c-btn--block" data-pass="1">' + scoutDone(v) + '</button>';
   const close = openSheet('Scout list', html(sv));
   const body = document.querySelector('.sheet-fixed .c-sheet__body'); if (!body) return;

@@ -9,3 +9,6 @@ export const TRAIN2 = {"efforts":{"easy":{"label":"Easy","cost":10,"okay":80,"go
 "wheelStop":{"W0":24,"TAU":3,"D":1,"J":0.6,"STOP_FROM":1,"COAST":6,"IDEAL":3.5,"SD":0.11},
 "letters":[["F-",20,1],["F",34,9],["F+",47,16],["E-",60,23],["E",67,27],["E+",74,31],["D-",80,34],["D",87,38],["D+",94,42],["C-",100,45],["C",104,47],["C+",108,49],["B-",112,52],["B",116,54],["B+",120,56],["A-",124,58],["A",130,61],["A+",135,64],["S-",140,67],["S",160,78],["S+",180,89]],"ticksPerStep":4,
 "coach":{"qualityPerStep":0.95,"slots":3,"maxStep":21,"start":{"step":4,"strong":["bat","bowl"]},"scoutSize":[2,2,3,3,3],"scoutCentre":[5,8,11,14,17],"scoutSpread":2,"courseBase":24,"coursePerStep":6,"courseFactor":[1.0,1.25,1.55,1.95,2.5],"perCoachPerSeason":1,"awayWeeks":1,"courseWheel":{"slices":[1,1,2,1,2,1,2,1,2],"widths":[0.48,0.9,0.9,1.2,0.9,1.2,0.9,1.2,0.9,1.2],"jackpot":3},"wheelUpPerQ":0.16666666666666666,"aimPerStep":0.003,"oldStepBase":4,"oldStepPerLevel":3}};
+// NETS_Q (wa1, 2026-11-14-wheel-all-spins/SPEC.md s4): Nets quality by facility level 0-5 (econ.fac.nets). Hand-added: keep when regenerating.
+// Q works like the coach term: Okay share -Q, Good and Great +Q/2 each. Coach Q adds on top. Replaces netsTerm x (s.nets - 1) when FLAGS.freePick is on (bug fix, not tied to the wheel upgrades switch).
+export const NETS_Q = [3, 6, 8, 10, 12, 14];

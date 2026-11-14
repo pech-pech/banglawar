@@ -17,17 +17,26 @@ export function scoutSpinOpen(get, dispatch, onCollect, auto) {
 export const scoutSpinBtn = (vm) => (vm.spin && !vm.spin.spun && vm.open !== false ? '<button type="button" class="c-btn c-btn--block t2-scout" data-scoutspin="1">' + deco('scout', 20) + '<span>Ask the scouts</span></button>' : '');
 
 function card(c, full) {
-  const label = 'Coach ' + c.name + ', grade ' + c.letter + ', strong in ' + strongText(c.strong) + (c.signed ? '. Signed' : full ? '. Full: release one to sign' : '');
+  const label = 'Coach ' + c.name + ', grade ' + c.letter + ', strong in ' + strongText(c.strong) + (c.signed ? '. Signed' : full ? '. Slots full: release a coach to sign' : '');
   return '<li class="c-row m0-row t2-cand' + (c.signed ? ' m0-sel' : '') + '"><div class="t2-candtxt" aria-label="' + esc(label) + '">' +
     '<span class="tr-cand__ico">' + deco('coach', 36) + '</span><span class="t2-who"><b class="name tr-cand__name">' + esc(c.name) + '</b><span class="t2-strong">' + strongHtml(c.strong) + '</span></span>' +
     '<span class="t2-grade" aria-hidden="true">' + esc(c.letter) + '</span></div>' +
-    (c.signed ? '<span class="c-tag c-tag--done">Signed</span>' : '<button type="button" class="c-btn t2-cb" data-act="SignCoach" data-arg="' + esc(JSON.stringify({ id: c.id, coachId: c.id })) + '"' + (full ? ' disabled aria-disabled="true"' : '') + ' aria-label="Sign ' + esc(c.name) + '">Sign</button>') + '</li>';
+    (c.signed ? '<span class="c-tag c-tag--done">Signed</span>' : '<button type="button" class="c-btn t2-cb" data-act="SignCoach" data-arg="' + esc(JSON.stringify({ id: c.id, coachId: c.id })) + '"' + (full ? ' disabled aria-disabled="true"' : '') + ' aria-label="Sign ' + esc(c.name) + (full ? '. Slots full' : '') + '">' + (full ? '<span>Sign</span><small class="t2-cb__why">Slots full</small>' : 'Sign') + '</button>') + '</li>';
+}
+
+/** The info line over the list: a plain sentence, never a bare why code (vqa2 06). */
+export const FULL_LINE = 'All coach slots are full. Release a coach to sign a new one.';
+const WHY_LINE = { full: FULL_LINE, closed: 'The scout list is shut until next season.', unknown: 'That coach is not on the list.' };
+function scoutLine(vm, full) {
+  if (vm.open === false && vm.why) return WHY_LINE[vm.why] || String(vm.why);
+  if (full) return FULL_LINE;
+  return 'Sign one coach, or pass.';
 }
 
 /** The scout list body (cards, and "Your coaches" with Release when full). Used by the screen and by the sheet in the coaches sheet. */
 export function scoutBodyHtml(vm) {
   const cands = (vm.cands || []).map((c) => ({ ...c, signed: c.signed || (vm.picked != null && vm.picked === c.id) })), mine = vm.mine || [], full = !!vm.full;
-  return scoutSpinBtn(vm) + '<p class="tr-note tr-intro">' + deco('info', 24) + '<span>' + (vm.open === false && vm.why ? esc(vm.why) : full ? 'Full: release one to sign.' : 'Sign one coach, or pass.') + '</span></p>' +
+  return scoutSpinBtn(vm) + '<p class="tr-note tr-intro">' + deco('info', 24) + '<span>' + esc(scoutLine(vm, full)) + '</span></p>' +
     '<ul class="c-list m0-list tr-cands" aria-label="Coaches to sign">' + cands.map((c) => card(c, full && !c.signed)).join('') + '</ul>' +
     (full ? '<div class="c-card t2-rel"><div class="tr-h"><b>Your coaches</b></div><ul class="c-list list-flat">' + mine.map((m) =>
       '<li class="c-row m0-row t2-cand"><div class="t2-candtxt"><span class="t2-who"><b class="name">' + esc(m.name) + '</b><span class="t2-strong">' + strongHtml(m.strong) + '</span></span><span class="t2-grade" aria-hidden="true">' + esc(m.letter) + '</span></div>' +

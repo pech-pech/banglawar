@@ -10,6 +10,8 @@
 import { DR } from '../data/dialreel.js';
 import { MD } from '../data/matchday.js';
 import { hypeOdds } from './matchday.js';
+import { FIND_WHEEL } from '../data/dialreel.js'; // wa1 find: Find big wheel
+import { spinResult } from './training.js'; // wa1 find: Find big wheel physics
 
 const clamp = (x, lo, hi) => Math.max(lo, Math.min(hi, x));
 const sum = (a) => a.reduce((x, y) => x + y, 0);
@@ -17,7 +19,8 @@ const gauss = (g1, g2) => Math.sqrt(-2 * Math.log(Math.max(1e-12, g1))) * Math.c
 
 // ---------------------------------------------------------------- tree modifiers (adapter)
 /** Neutral per-wheel modifiers. goldAdd/rareAdd in the old wheel units (Widener, Top Name, Trophy Polish / Big Voice, Coin Weight, Pep Voice, Sharp Eyes). */
-export const neutralMods = () => ({ goldAdd: 0, rareAdd: 0, extra: 0, floor: 0, hfloor: 0, sfloor: 0, cons: 0, nb: 0, cheer: 0, bch: 0, bval: 1 });
+// wa1: Control too (w0Mult = Slow Spin speed factor, jMult = Steady Axle wobble factor, guide 0|1 = Aim Guide). hypeDial applies them; reveal wheels ignore them (feel only).
+export const neutralMods = () => ({ goldAdd: 0, rareAdd: 0, extra: 0, floor: 0, hfloor: 0, sfloor: 0, cons: 0, nb: 0, cheer: 0, bch: 0, bval: 1, w0Mult: 1, jMult: 1, guide: 0 });
 
 /**
  * Modifiers for one wheel from the sim-style effective(owned) object (E: jw, jw_by, rw_by, bch, bval, extra, floor, hfloor, sfloor, cons, nb, cheer).
@@ -36,15 +39,17 @@ export function modsFromSim(E, wheelId) {
   m.nb = (wheelId === 'pep' || wheelId === 'finals') && E.nb && E.nb[wheelId] ? 1 : 0;
   m.cheer = wheelId === 'find' ? (E.cheer || 0) : 0;
   m.bch = clamp(E.bch || 0, 0, 1); m.bval = E.bval || 1;
+  m.w0Mult = E.w0 != null ? E.w0 : 1; m.jMult = E.wob != null ? E.wob : 1; m.guide = E.guide ? 1 : 0;
   return m;
 }
 
 /** Sim E from owned ranks {nodeId: rank} (sim node ids). Only the keys the dial/reel/reveal wheels read. @param {Record<string,number>} own */
 export function simFromRanks(own) {
   const r = (id) => (own && own[id]) | 0;
-  const E = { jw: 0.02 * r('f_wide'), jw_by: /** @type {any} */ ({ scout: 0.1 * r('sp_sct_n'), finals: 0.1 * r('sp_fin_n') }), rw_by: /** @type {any} */ ({ hype: 0.08 * r('sp_hyp_n'), toss: 0.1 * r('sp_tos_n'), pep: 0.08 * r('sp_pep_n'), find: 0.06 * r('sp_fnd_n') }),
+  const E = { jw: 0.02 * r('f_wide'), jw_by: /** @type {any} */ ({ scout: 0.1 * r('sp_sct_n'), finals: 0.1 * r('sp_fin_n') }), rw_by: /** @type {any} */ ({ hype: 0.08 * r('sp_hyp_n'), toss: 0.1 * r('sp_tos_n'), pep: 0.08 * r('sp_pep_n'), find: 0.02 * r('sp_fnd_n') }), // wa1 findtune: Sharp Eyes 0.02 a block a rank
     bch: Math.min(1, 0.2 * r('f_boost')), bval: 1 + r('f_bigb'), extra: r('f_extra'), floor: r('f_floor'), hfloor: r('sp_hyp_r'), sfloor: r('sp_sct_r'),
-    cons: r('sp_tos_r') ? 1 : 0, nb: /** @type {any} */ ({ pep: r('sp_pep_r'), finals: r('sp_fin_r') }), cheer: r('sp_fnd_r') ? 1 : 0 };
+    cons: r('sp_tos_r') ? 1 : 0, nb: /** @type {any} */ ({ pep: r('sp_pep_r'), finals: r('sp_fin_r') }), cheer: r('sp_fnd_r') ? 1 : 0,
+    w0: Math.max(0.3, 1 - 0.15 * r('c_slow')), wob: Math.max(0, 1 - 0.15 * r('c_steady')), guide: r('c_guide') ? 1 : 0 };
   return E;
 }
 
@@ -63,6 +68,7 @@ export function modsFor(eff, wheelId) {
   m.floor = +w.floor || 0; m.hfloor = w.lowToMedium ? 1 : 0; m.sfloor = w.scoutFloor ? 1 : 0; m.cons = w.consolation ? 1 : 0;
   m.nb = +w.neighbourMult > 1 ? 1 : 0; m.cheer = w.cheer ? 1 : 0;
   m.bch = clamp(+b.chance || 0, 0, 1); m.bval = +(b.count ?? 1) || 1; // count = Booster value in units; the unit per wheel is DR.UNIT here
+  m.w0Mult = Number.isFinite(+w.w0Mult) && w.w0Mult != null ? +w.w0Mult : 1; m.jMult = Number.isFinite(+w.jMult) && w.jMult != null ? +w.jMult : 1; m.guide = w.guide ? 1 : 0;
   return m;
 }
 
@@ -141,8 +147,13 @@ export function hypeDial(odds, mods = neutralMods(), tilt = 0) {
   slices[slices.length - 1].b = D.L; // exact end
   const main = slices.find((s) => s.kind === 'nuts' && !s.second);
   const targets = []; for (const s of slices) if (s.gold) { const c = (s.a + s.b) / 2; targets.push(c, 2 * D.L - c); }
-  return { kind: 'dial', wheel: 'hype', L: D.L, V: D.V, G: D.G, J: D.J_PER_NUTS * (main ? main.w : 1), slices, targets, mods: m, tilt };
+  // wa1 Control on the dial (02 s5): V = 16 x w0Mult, J = 1.2 x widest Nuts x jMult, careful tap sd x 0.727 with Aim Guide
+  const sd = DR.SD_AVG * (m.guide ? DR.GUIDE_SD_FACTOR : 1);
+  return { kind: 'dial', wheel: 'hype', L: D.L, V: D.V * m.w0Mult, G: D.G, J: D.J_PER_NUTS * (main ? main.w : 1) * m.jMult, sd, guide: !!m.guide, slices, targets, mods: m, tilt };
 }
+
+/** Aim Guide tick: needle x (0..L) where a STOP pressed at wheel time `now` would land, wobble left out. Draw it only when dial.guide. @param {any} dial @param {number} phi @param {number} now */
+export function dialGuideX(dial, phi, now) { const t = clampStop(now); return tri(phi + dial.V * t + dial.V * dial.G / 3, dial.L); }
 
 /** Hype dial straight from Fans and the activity ledger (hypeOdds). @param {number} fans @param {any[]} actLedger @param {any} [mods] */
 export function hypeDialFor(fans, actLedger, mods) { const h = hypeOdds(fans, actLedger); return hypeDial(h.odds, mods, h.t); }
@@ -163,7 +174,7 @@ export function dialResult(rng, dial, stop = false) {
   const d = Array.from({ length: 7 }, () => rng.random()), o = stop && typeof stop === 'object' ? stop : null;
   const phi = o && Number.isFinite(o.phi) ? /** @type {number} */ (o.phi) : d[0] * 2 * dial.L;
   const e = o && Number.isFinite(o.e) ? /** @type {number} */ (o.e) : (d[2] * 2 - 1) * dial.J;
-  const t = o && Number.isFinite(o.t) ? o.t : stop === true ? carefulTap(dial.targets, 2 * dial.L, dial.V, dial.G, phi, 1 - d[3], d[4]) : DR.STOP_FROM + d[1] * (DR.COAST - DR.STOP_FROM);
+  const t = o && Number.isFinite(o.t) ? o.t : stop === true ? carefulTap(dial.targets, 2 * dial.L, dial.V, dial.G, phi, 1 - d[3], d[4], dial.sd || DR.SD_AVG) : DR.STOP_FROM + d[1] * (DR.COAST - DR.STOP_FROM);
   const L = dialLanding(dial, { t, phi, e }), s = dial.slices[L.index];
   let pts = s.pts, boosted = false;
   const m = dial.mods;
@@ -237,6 +248,49 @@ export function pityFind(rng, reel) {
   const fc = reel.cells.filter((c) => c.find), tot = sum(fc.map((c) => c.w)); let x = rng.random() * tot;
   for (const c of fc) { if (x < c.w) return { index: c.index, type: c.type }; x -= c.w; }
   const c = fc[fc.length - 1]; return { index: c.index, type: c.type };
+}
+
+// ---------------------------------------------------------------- Find big wheel (wa1 slice A, agent "find")
+/**
+ * Find big wheel for an activity {find: percent, mix} (SPEC 2026-11-14 s1 + s3a, sim/find_fast_sim.py). C = 10 units: BLOCKS equal find blocks (total
+ * width = find rate x C) each followed by an equal Nothing gap. Tree: every block + goldAdd (Widener) + rareAdd (Sharp Eyes); Extra Gold = one more block
+ * (EXTRA_W x a block) with its own gap, the gaps shrink so C stays 10. Inside a block the types split by the mix (order Coach, Coins, Player).
+ * Control ctl {w0Mult, jMult, guide}: phys W0 = 36 x w0Mult, J = 0.8 x jMult, D = 2.0, SD = 0.11 (0.08 with Aim Guide). Big-wheel shape for training.js
+ * spinResult: slices (1 find, 0 Nothing), widths, jackpotIndex, golds [] (no jackpot block: a find is not a "gold" for tokens), finds (find slice indices),
+ * aims (block centres = careful targets), phys; plus cells [{index,type,find,block,w,a,b}] and mods.
+ * @param {{find:number,mix:Record<string,number>}} act @param {any} [mods] @param {{w0Mult?:number,jMult?:number,guide?:boolean}} [ctl]
+ */
+export function findWheel(act, mods = neutralMods(), ctl = {}) {
+  const F = FIND_WHEEL, m = { ...neutralMods(), ...mods }, f = clamp((act.find || 0) / 100, 0, 1);
+  let sh = Object.entries(act.mix || {}).filter(([, v]) => v > 0).map(([k, v]) => [k, v]);
+  if (!sh.length) sh = [['coins', 1]];
+  const shTot = sum(sh.map((x) => x[1])); sh = sh.map(([k, v]) => [k, v / shTot]).sort((a, b) => F.ORDER.indexOf(a[0]) - F.ORDER.indexOf(b[0]));
+  const bw = f * F.C / F.BLOCKS + (m.goldAdd || 0) + (m.rareAdd || 0), nx = Math.max(0, m.extra | 0);
+  const blocks = Array.from({ length: F.BLOCKS }, () => bw).concat(Array.from({ length: nx }, () => bw * F.EXTRA_W));
+  const gap = Math.max(0, (F.C - sum(blocks)) / blocks.length), raw = [];
+  blocks.forEach((w, bi) => { for (const [type, v] of sh) raw.push({ type, find: true, block: bi, w: w * v }); if (gap > 0) raw.push({ type: 'nothing', find: false, block: -1, w: gap }); });
+  const tot = sum(raw.map((c) => c.w)); let x = 0;
+  const cells = raw.map((c, i) => { const w = F.C * c.w / tot, a = x; x += w; return { index: i, type: c.type, find: c.find, block: c.block, second: c.block >= F.BLOCKS, w, a, b: x }; });
+  cells[cells.length - 1].b = F.C;
+  const aims = blocks.map((_, bi) => { const bc = cells.filter((c) => c.block === bi); return (bc[0].a + bc[bc.length - 1].b) / 2; });
+  const finds = cells.filter((c) => c.find).map((c) => c.index), w0 = +(ctl.w0Mult ?? 1) || 1, jm = +(ctl.jMult ?? 1);
+  return { kind: 'wheel', wheel: 'find', C: F.C, slices: cells.map((c) => (c.find ? 1 : 0)), widths: cells.map((c) => c.w), jackpotIndex: finds[0] || 0, golds: [], finds, aims, cells,
+    phys: { W0: F.W0 * w0, J: F.J * (Number.isFinite(jm) ? jm : 1), D: F.D, SD: ctl.guide ? F.GUIDE_SD : F.SD }, mods: m, actFind: act.find };
+}
+/**
+ * One Find big-wheel spin (stop: as spinResult: {t,phi?,e?} the player's STOP, true = careful synthetic tap, false = random). Always draws 8 numbers
+ * (5 spinResult + cheer + 2 booster). Second Cheer: a Nothing landing gets one more random pick by width. Booster: a hidden boosted cell (any cell);
+ * landing on it pays bval x 10 Coins when it is a Coins find. Returns {index, type, find, second, boosted, coinsBonus, t, phi, e}.
+ * @param {{random:()=>number}} rng @param {any} wheel @param {boolean|{t:number,phi?:number,e?:number}} [stop]
+ */
+export function findWheelResult(rng, wheel, stop = false) {
+  const r = spinResult(rng, wheel, stop), d = [rng.random(), rng.random(), rng.random()], m = wheel.mods || neutralMods();
+  let cell = wheel.cells[r.index], second = false;
+  const cheered = !cell.find && !!m.cheer; // wa1 findtune: the free re-spin was used (found or not); the store caps it at 1 a season
+  if (cheered) { const c2 = wheel.cells[cellAt(wheel.cells, d[0] * wheel.C)]; if (c2.find) { cell = c2; second = true; } }
+  let coinsBonus = 0, boosted = false;
+  if (m.bch && d[1] < m.bch) { const bi = Math.min(wheel.cells.length - 1, Math.floor(d[2] * wheel.cells.length)); if (bi === r.index && cell.type === 'coins' && !second) { coinsBonus = m.bval * DR.UNIT.find; boosted = true; } }
+  return { index: r.index, type: cell.find ? cell.type : null, find: cell.find, second, cheered, boosted, coinsBonus, t: r.t, phi: r.phi, e: r.e };
 }
 
 // ---------------------------------------------------------------- reveal-only wheels (Toss, Pep, Scout, Finals)
