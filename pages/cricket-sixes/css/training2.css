@@ -326,5 +326,5 @@
 .wh-ov .wh-go.is-window { outline: 4px solid var(--gold); outline-offset: 2px; }
 @media (prefers-reduced-motion: no-preference) { .wh-ov .wh-go.is-window { animation: wh-win .2s ease-in-out 3 alternate both; } }
 @keyframes wh-win { from { box-shadow: 0 0 0 0 var(--gold); } to { box-shadow: 0 0 0 7px var(--gold); } }
-.wh-tim { margin-top: 4px; font-weight: 700; font-size: var(--c-fs-s, 14px); text-align: center; color: var(--outline); }
+.wh-tim { flex: 0 0 100%; width: 100%; margin-top: 4px; font-weight: 700; font-size: var(--c-fs-s, 14px); text-align: center; color: var(--outline); } /* QA D1: own row under the result, never inline after Spokes */
 .wh-tim--c { background: var(--gold); border-radius: 4px; padding: 1px 8px; display: inline-block; }

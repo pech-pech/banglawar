@@ -53,7 +53,7 @@ test('wheel-view: timing option wiring (window class during spin, removed on sto
   assert.match(wheel, /stop\(WS\.COAST, true\)/, 'the game tap at COAST is a coast');
   assert.match(wheel, /function stop\(t, coasted\)/);
   assert.match(wheel, /go\.classList\.remove\('is-window'\); if \(TIMING\) timeB = timingBucket\(L\.t, !!coasted\)/);
-  assert.match(wheel, /if \(TIMING && timeB && !o\.plainResult\) res\.insertAdjacentHTML\('beforeend', '<div class="wh-tim wh-tim--' \+ timeB \+ '" data-timing="' \+ timeB \+ '">' \+ esc\(TIMING_LINE\[timeB\]\)/);
+  assert.match(wheel, /if \(TIMING && timeB && !o\.plainResult\) res\.insertAdjacentHTML\('beforeend', '<div class="wh-tim" data-timing="' \+ timeB \+ '"><span class="wh-tim--' \+ timeB \+ '">' \+ esc\(TIMING_LINE\[timeB\]\)/);
   assert.match(wheel, /live\.textContent = \(TIMING && timeB && !o\.plainResult \? TIMING_LINE\[timeB\] \+ '\. ' : ''\)/, 'live region starts with the line');
 });
 
