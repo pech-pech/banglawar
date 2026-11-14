@@ -166,3 +166,40 @@ test('find2 flag off: UseToken {wheel:find} and the old activity pick are unchan
   assert.equal(C(a, 'UseToken', { wheel: 'find', kind: 'respin' }), a);
   const o = sel.activitiesVM(s).options.find((x) => x.id === 'banner'); assert.equal(o.reel, null);
 }));
+
+// ---------------------------------------------------------------- wa1 find2 (review H2): REAL full tree via effective() -> modsFor(E,'find') -> findWheel(row, mods, E.find)
+import { NODES } from '../js/data/wheelmeta.js';
+import { effective, } from '../js/core/wheelmeta.js';
+import { modsFor } from '../js/core/dialreel.js';
+const allOwned = () => withFlags(ON, () => {
+  const s = newGame('wa1f2-all').get(), wm = { ...metaOf(s), owned: {}, tally: 600 }, wc = { ...(s.wheelCraft || {}), owned: {} };
+  for (const n of NODES) (n.branch === 'craft' ? wc.owned : wm.owned)[n.id] = n.max_rank;
+  const E = effective({ ...s, wheelMeta: wm, wheelCraft: wc });
+  return { mods: modsFor(E, 'find'), ctl: E.find || {} };
+});
+const realFull = (cheer) => { const { mods, ctl } = allOwned(); return rate(18, true, { ...mods, ...(cheer ? {} : { cheer: 0 }) }, ctl, 20000, 'f2all' + cheer); };
+// wa1 findtune (NUMBERS ruling, SPEC 3a BUILD Q 16:55): Sharp Eyes +0.02 a block a rank; Second Cheer 1 a season (no token, never chains); no Nudge on Find
+const FIND_SPINS_SEASON = 6; // season model for the 1-a-season Second Cheer
+const realSeason = () => { const { mods, ctl } = allOwned(); const wc = findWheel({ find: 18, mix: MIX }, mods, ctl), w = findWheel({ find: 18, mix: MIX }, { ...mods, cheer: 0 }, ctl), r = makeRng('ftseason');
+  let h = 0, n = 0; for (let s = 0; s < 20000 / FIND_SPINS_SEASON; s++) { let used = false; for (let k = 0; k < FIND_SPINS_SEASON; k++) { const x = findWheelResult(r, used ? w : wc, true); if (x.cheered) used = true; h += x.find ? 1 : 0; n++; } } return 100 * h / n; };
+test('findtune H2: every node owned (effective -> modsFor) at 18%: ~47% a spin, ~51% with Second Cheer 1 a season, both < 55% (bug line)', () => {
+  const { mods } = allOwned(); assert.equal(+mods.rareAdd.toFixed(3), 0.04, 'Sharp Eyes 2 ranks = +0.04 a block');
+  const spin = realFull(false), season = realSeason();
+  console.log(`# findtune real full tree @18% avg careful: ${spin.toFixed(1)}% a spin (Sharp Eyes in), ${season.toFixed(1)}% with Second Cheer 1 a season (${FIND_SPINS_SEASON} Find spins)`);
+  assert.ok(spin > 44 && spin < 51, 'full tree a spin ' + spin); assert.ok(season > spin && season < 55, 'with Second Cheer ' + season);
+});
+import { findForce } from '../js/store/wmstore.js';
+test('findtune: Second Cheer fires once a season (wheelMeta.cheerUsed{season}, missing = 0), never on a token spin, no Nudge on Find', () => withFlags(ON, () => {
+  const s0 = newGame('wa1ft-cheer').get(), wm = { ...metaOf(s0), owned: { sp_fnd_r: 1 }, tokens: { respin: 0, nudge: 2, two: 0, wild: 0, lift: 0 } };
+  const s = { ...s0, econ: { ...s0.econ, coins: 5000 }, wheelMeta: wm }, sn = (s.season && s.season.n) || 1; let hits = 0;
+  for (let i = 0; i < 60 && hits < 4; i++) {
+    const stop = { t: 1.1 + i * 0.13, phi: i * 0.41, e: 0 }, f = findForce(s, 'banner', { stop }); if (!f || !f.cheered) continue;
+    hits++;
+    const used = { ...s, wheelMeta: { ...wm, cheerUsed: { [sn]: 1 } } }, g = findForce(used, 'banner', { stop });
+    assert.equal(g.cheered, false, 'no second cheer this season'); assert.equal(g.second, false);
+    const a = C(s, 'PickActivity', { id: 'banner', stop }); assert.equal(metaOf(a).cheerUsed[sn], 1, 'cheer marked used');
+    if (!a.findSpin.find) { const vm = findSpinVM(a, 'banner'); assert.ok(!vm.tokens.some((t) => t.kind === 'nudge'), 'no Nudge on Find'); }
+  }
+  assert.ok(hits >= 2, 'cheer cases: ' + hits);
+  const t = Object.values(findWheelOf(s, 'banner').mods).length; assert.ok(t > 0);
+}));

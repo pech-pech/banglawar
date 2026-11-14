@@ -333,7 +333,7 @@ function lifted(/** @type {string} */ w, /** @type {any} */ p, /** @type {any} *
   else if (w === 'finals') fx.coins = Math.max(+fx.coins || 0, Math.min((+fx.coins || 0) + b, capv)); // never a Medal
   else if (w === 'pep') { // b > 0: one more player with chance b (one draw), never past the cap
     const slots = (p.slots || []).slice(), hit = rng.random() < b;
-    if (hit && slots.length + 1 <= capv && slots.length) { let n = (slots[slots.length - 1] % 6) + 1; while (slots.includes(n)) n = (n % 6) + 1; slots.push(n); }
+    if (hit && slots.length < capv && slots.length) { let n = (slots[slots.length - 1] % 6) + 1; while (slots.includes(n)) n = (n % 6) + 1; slots.push(n); }
     fx.pep = slots.length; return { fx, slots };
   }
   return { fx };

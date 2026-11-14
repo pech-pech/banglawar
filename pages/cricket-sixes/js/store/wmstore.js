@@ -29,7 +29,7 @@ export function stopOf(p) {
 }
 const fixtureKey = (/** @type {any} */ s) => `${s.fixture.kind}|${s.fixture.round}|${s.salt}`;
 const rngFor = (/** @type {any} */ s, /** @type {string} */ tag, /** @type {string} */ key) => makeRng(`${s.season.seed}|wm|${tag}|${key}`);
-const seasonN = (/** @type {any} */ s) => (s.season && s.season.n) || 1;
+const seasonN = (/** @type {any} */ s) => (s && s.season && s.season.n) || 1;
 export const actLedgerFor = (/** @type {any} */ s) => (FLAGS.activities && s.econ && s.econ.act ? actLedger(s) : []);
 
 // ---------------------------------------------------------------- match day: Hype dial, Toss, Pep
@@ -185,6 +185,9 @@ const rowOf = (/** @type {string} */ id) => ACT.TABLE.find((r) => r.id === id) |
 export const findWheelOf = (/** @type {any} */ s, /** @type {string} */ id) => { const row = rowOf(id); if (!row) return null; const E2 = effective(s); return findWheel(row, modsFor(E2, 'find'), E2.find || {}); };
 export const findReelOf = findWheelOf; // old name (wa1: Find is a big wheel now)
 const findKey = (/** @type {any} */ s, /** @type {string} */ id) => `${roundKey(s)}|${id}`;
+// wa1 findtune: Second Cheer = one free re-spin after a no-find, max 1 a season, no token, never chains (wheelMeta.cheerUsed{season}; missing = 0)
+export const cheerLeft = (/** @type {any} */ s) => !((((s && s.wheelMeta && s.wheelMeta.cheerUsed) || {})[seasonN(s)]) | 0);
+const noCheer = (/** @type {any} */ w) => (w && w.mods && w.mods.cheer ? { ...w, mods: { ...w.mods, cheer: 0 } } : w);
 const actRngOf = (/** @type {any} */ s) => makeRng(`${String(s.season.seed).replace(/\|s\d+$/, '')}|act|${roundKey(s)}|${s.salt}`); // the same stream commands.js pickAct uses
 
 /** What the wheel decided for picking activity `id` now: {find, kind, bonus, index, pity, boosted, second, prevAct} or null (flag off, repeat week, rest, refused). @param {any} s @param {string} id @param {any} p */
@@ -194,8 +197,8 @@ export function findForce(s, id, p) {
   if (!o.open || !line || !line.ok || line.repeat || !wheel) return null;
   const rng = rngFor(s, 'find', findKey(s, id)), prevAct = s.econ.act ? clone(s.econ.act) : null;
   if (o.pity) { const r = pityFind(rng, wheel); return { find: true, kind: r.type, bonus: 0, index: r.index, pity: true, boosted: false, second: false, prevAct }; }
-  const r = findWheelResult(rng, wheel, stopOf(p));
-  return { find: r.find, kind: r.type, bonus: r.coinsBonus || 0, index: r.index, pity: false, boosted: r.boosted, second: r.second, prevAct };
+  const r = findWheelResult(rng, cheerLeft(s) ? wheel : noCheer(wheel), stopOf(p)); // wa1 findtune: cheer only while unused this season
+  return { find: r.find, kind: r.type, bonus: r.coinsBonus || 0, index: r.index, pity: false, boosted: r.boosted, second: r.second, cheered: !!r.cheered, prevAct };
 }
 /** findSpin from the state right after a pick (what was really paid: a Player / Coach cell can fall back to Coins; read from the activity history). */
 function findSpinOf(/** @type {any} */ n, /** @type {any} */ key, /** @type {string} */ id, /** @type {any} */ force, /** @type {any} */ extra) {
@@ -208,6 +211,7 @@ function findSpinOf(/** @type {any} */ n, /** @type {any} */ key, /** @type {str
 export function afterFind(s, id, force) {
   const n = clone(recordSpin(s, 'find'));
   n.findSpin = findSpinOf(n, roundKey(s), id, force, {});
+  if (force && force.cheered) { const m = n.wheelMeta || (n.wheelMeta = clone(WMF.metaOf(n))); m.cheerUsed = { ...(m.cheerUsed || {}), [seasonN(n)]: 1 }; } // wa1 findtune
   return n;
 }
 /** The pending Find as core's token API reads it ({wheel, index, find, type}). null when no token can apply (no pick this round, a find, already paid on). @param {any} s */
@@ -228,7 +232,7 @@ export function findTokens(s) { const p = findPending(s); return p && WMF.tokenO
  */
 export function useFindToken(s, p) {
   const pend = findPending(s); if (!pend || !p || typeof p.kind !== 'string' || !WMF.useToken) return s;
-  const fs = s.findSpin, wheel = findWheelOf(s, fs.id) || pend.wheel, used = fs.tokUsed | 0, stop = p.stop && typeof p.stop === 'object' && Number.isFinite(p.stop.t) ? { t: p.stop.t, phi: p.stop.phi, e: p.stop.e } : p.careful === undefined ? true : !!p.careful;
+  const fs = s.findSpin, wheel = noCheer(findWheelOf(s, fs.id) || pend.wheel), /* wa1 findtune: a token spin never cheers */ used = fs.tokUsed | 0, stop = p.stop && typeof p.stop === 'object' && Number.isFinite(p.stop.t) ? { t: p.stop.t, phi: p.stop.phi, e: p.stop.e } : p.careful === undefined ? true : !!p.careful;
   const ctx = { spin: (/** @type {any} */ rng, /** @type {any} */ st) => ({ wheel, ...findWheelResult(rng, wheel, st) }) };
   const r = WMF.useToken(s, 'find', p.kind, pend, rngFor(s, 'findtok', `${findKey(s, fs.id)}|${p.kind}|${used}`), stop, ctx);
   if (!r || !r.pending || r.s === s) return s;

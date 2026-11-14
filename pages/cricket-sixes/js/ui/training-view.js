@@ -127,23 +127,24 @@ const hasSprites = () => typeof window !== 'undefined' && !!(window.SPR && windo
 function ctCard(c) {
   const cr = c.course || {}, away = c.away > 0, price = cr.free ? 'Free' : cr.cost != null ? cr.cost + ' Coins' : '';
   const say = 'Coach ' + c.name + ', grade ' + c.letter + ', strong in ' + strongText(c.strong) + (away ? '. Away, back next week' : c.picked ? '. Coach this week. Tap for no coach' : '. Tap to pick for this week') + (!away && c.picked && !c.helps ? '. Not strong in this focus, so no help' : '');
-  const face = hasSprites() ? '<canvas class="ct-face" data-ct-face="' + esc(c.id) + '" aria-hidden="true"></canvas>' : '<span class="ct-face">' + deco('coach', 28) + '</span>';
+  const face = hasSprites() ? '<canvas class="ct-face" data-ct-face="' + esc(c.id) + '" aria-hidden="true"></canvas>' : '<span class="ct-face">' + deco('coach', 24) + '</span>';
   const tag = away ? '<span class="ct-tag ct-tag--away">Back next week</span>' : c.picked ? '<span class="ct-tag ct-tag--on">' + (c.helps ? 'This week' : 'This week, no help') + '</span>' : '';
   const course = away ? '' : '<button type="button" class="c-btn ct-course" data-ct="course" data-id="' + esc(c.id) + '"' + (cr.ok ? '' : ' aria-disabled="true"') +
     ' aria-label="' + esc('Send ' + c.name + ' on course' + (price ? ', ' + price : '') + (cr.ok ? (cr.licence ? ', uses your Licence' : '') + '. He is away 1 week' : '. ' + courseWhy(cr))) + '">' +
-    '<span>Send on course</span><small>' + esc(cr.ok ? price + (cr.licence ? ', Licence' : '') : courseWhy(cr)) + '</small></button>';
+    '<span class="ct-cw">' + deco('upgrade', 16) + '<span>Course</span></span><small>' + esc(cr.ok ? price + (cr.licence ? ', Licence' : '') : courseWhy(cr)) + '</small></button>';
   return '<li class="ct-slot' + (c.picked ? ' is-picked' : '') + (away ? ' is-away' : '') + '">' +
     '<button type="button" class="ct-pick" data-ct="pick" data-id="' + esc(c.id) + '" aria-pressed="' + !!c.picked + '"' + (away ? ' aria-disabled="true"' : '') + ' aria-label="' + esc(say) + '">' +
-    '<span class="ct-top">' + face + '<b class="t2-grade ct-grade" aria-hidden="true">' + esc(c.letter) + '</b></span>' +
-    '<span class="ct-name name">' + esc(c.name) + '</span><span class="ct-fi" aria-hidden="true">' + (c.strong || []).map((f) => deco(FOCUS_ICON[f] || 'train', 20)).join('') + '</span>' + tag + '</button>' + course + '</li>';
+    '<span class="ct-l1"><span class="ct-name name">' + esc(c.name) + '</span></span>' +
+    '<span class="ct-l2">' + face + '<b class="ct-grade" aria-hidden="true">' + esc(c.letter) + '</b>' + (tag && !away ? '' : '<span class="ct-fi" aria-hidden="true">' + (c.strong || []).map((f) => deco(FOCUS_ICON[f] || 'train', 16)).join('') + '</span>') + (away ? '' : tag) + '</span>' + (away ? tag : '') + '</button>' + course + '</li>';
 }
 export function coachStripHtml(raw) {
   const cs = (raw && raw.coaches) || [], st = (raw && raw.strip) || { slots: 3, scoutOpen: false };
   const free = Math.max(0, (st.slots || 3) - cs.length);
-  const empty = Array.from({ length: free }, () => '<li class="ct-slot ct-empty"><span class="ct-emptyin">' + deco('coach', 24) + '<span>Empty slot</span></span></li>').join('');
+  const empty = Array.from({ length: free }, () => '<li class="ct-slot ct-empty"><span class="ct-emptyin">' + deco('coach', 20) + '<span>Empty slot</span></span></li>').join('');
+  // fit: compact strip (2 rows of 56 px taps); the head (All coaches, Scout list) is a narrow column at the right of the slots.
   return '<section class="ct-strip" aria-label="Coaches">' +
-    '<div class="ct-head"><button type="button" class="c-btn ct-all" data-ct="all" aria-label="All coaches: pick and send on course" aria-haspopup="dialog">' + deco('coach', 20) + '<span>Coaches</span></button><button type="button" class="c-btn ct-scout" data-ct="scout" aria-label="' + esc(st.scoutOpen ? 'Scout list: sign a new coach' : 'Scout list, done this season') + '">' + deco('scout', 20) + '<span>Scout list</span>' + (st.scoutOpen ? '<i class="ct-dot" aria-hidden="true"></i>' : '') + '</button></div>' +
-    '<ul class="ct-row">' + cs.map(ctCard).join('') + empty + '</ul></section>';
+    '<ul class="ct-row">' + cs.map(ctCard).join('') + empty + '</ul>' +
+    '<div class="ct-head"><button type="button" class="c-btn ct-all" data-ct="all" aria-label="All coaches: pick and send on course" aria-haspopup="dialog">' + deco('coach', 20) + '<span>All</span></button><button type="button" class="c-btn ct-scout" data-ct="scout" aria-label="' + esc(st.scoutOpen ? 'Scout list: sign a new coach' : 'Scout list, done this season') + '">' + deco('scout', 20) + '<span>Scout</span>' + (st.scoutOpen ? '<i class="ct-dot" aria-hidden="true"></i>' : '') + '</button></div></section>';
 }
 function drawFaces(root) { if (!hasSprites()) return; [].forEach.call(root.querySelectorAll('canvas[data-ct-face]'), (cv) => { try { drawHead(cv, 'coach:' + cv.getAttribute('data-ct-face')); } catch (_) { /* portrait is decoration */ } }); }
 

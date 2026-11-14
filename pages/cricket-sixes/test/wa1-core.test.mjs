@@ -25,7 +25,7 @@ test('data: tokens on all 8 wheels, cap rule F, Control and Fortune token scopes
   const by = Object.fromEntries(NODES.map((n) => [n.id, n]));
   for (const id of ['c_slow', 'c_steady', 'c_zone', 'c_chime', 'c_guide', 'f_respin', 'f_nudge', 'f_two', 'f_wild', 'f_lift']) assert.equal(by[id].effect.scope.length, 8, id);
   assert.deepEqual(by.f_floor.effect.scope, ['spot', 'course', 'hype', 'toss']);
-  assert.ok(!/Spotlight|Course/.test(by.f_respin.words + by.f_two.words + by.c_slow.words));
+  assert.ok(!/Spotlight|Course/.test(by.f_respin.words + by.f_two.words)); // node copy owned by core2
 });
 
 test('effective: Control on every wheel, feelOnly on toss/pep/scout/finals, Hype dial V/J/sd', () => on(() => {
@@ -104,7 +104,8 @@ test('guards: no token on gold, Nudge never onto gold/Nuts, Lift never above gol
   const tn = useToken(s, 'toss', 'nudge', sp, makeRng('tn'), undefined, ctx); assert.equal(tn.pending.id, 'won'); assert.equal(tn.pending.fx.tossb, 5, 'Nudge on Toss allowed (sport -> won)');
   assert.equal(tokenOptions(s, 'toss', { wheel: tw, ...revealOn(tw, 'won') }, ctx).length, 0, 'won 5% is not under 5');
   const pw = revealWheel('pep', modsFor(effective(s), 'pep')), pp = { wheel: pw, ...revealOn(pw, 'slot3') }; pp.fx.pep = 1;
-  for (let k = 0; k < 30; k++) { const l = useToken(s, 'pep', 'lift', pp, makeRng('pl' + k), undefined, ctx); assert.ok(l.pending.slots.length <= 2 && l.pending.fx.pep === l.pending.slots.length); }
+  let plus = 0; for (let k = 0; k < 200; k++) { const l = useToken(s, 'pep', 'lift', pp, makeRng('pl' + k), undefined, ctx); assert.ok(l.pending.slots.length <= 2 && l.pending.fx.pep === l.pending.slots.length); plus += l.pending.slots.length - 1; }
+  assert.ok(plus > 25 && plus < 75, 'pep lift adds a player about 1 in 4: ' + plus);
   assert.equal(tokenOptions(s, 'pep', { wheel: pw, ...revealOn(pw, 'double') }, ctx).length, 0, 'no token on Double pep');
   const sw = revealWheel('scout', modsFor(effective(s), 'scout')), q1 = { wheel: sw, ...revealOn(sw, 'top1') };
   assert.ok(!tokenOptions(s, 'scout', q1).some((o) => o.kind === 'lift'), 'scout lift cap 1: a 1-step result is not lifted');

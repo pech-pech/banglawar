@@ -60,7 +60,7 @@ async function open(tag) {
     shot: async (name) => { try { await page.screenshot({ path: `${SHOTS}wa1-${tag}-${name}.png` }); } catch (e) { /* optional */ } },
     async closeSheets() { for (let i = 0; i < 5 && (await page.$('.c-sheet')); i++) { await page.keyboard.press('Escape'); await page.waitForTimeout(200); } },
     async boot() {
-      await page.goto(`${ORIGIN}/cricket-sixes/?seed=${encodeURIComponent(SEED)}`); await page.waitForTimeout(900);
+      await page.goto(`${ORIGIN}/cricket-sixes/?seed=${encodeURIComponent(SEED)}`); await page.waitForFunction(() => window.__store && window.__store.get(), null, { timeout: 15000 }); await page.waitForTimeout(600);
       const pick = await page.$('[data-cl-pick]'); if (pick) { await pick.click(); await page.waitForTimeout(200); const t = await page.$('[data-cl-act="TakeFreePick"]:not([disabled])'); if (t) { await t.click(); await page.waitForTimeout(400); } }
     },
     /** Drive stages by command until stopAt (or a stage in the list). Returns the stage reached. */
@@ -89,7 +89,7 @@ async function open(tag) {
         const s = structuredClone(window.__store.get()); (0, eval)('(' + src + ')')(s, { NODES: wm.NODES });
         localStorage.setItem('cs.save.1', JSON.stringify(m.wrap(s)));
       }, patchSrc);
-      await page.goto(`${ORIGIN}/cricket-sixes/?seed=${encodeURIComponent(SEED)}`); await page.waitForTimeout(900);
+      await page.goto(`${ORIGIN}/cricket-sixes/?seed=${encodeURIComponent(SEED)}`); await page.waitForFunction(() => window.__store && window.__store.get(), null, { timeout: 15000 }); await page.waitForTimeout(600);
     },
     /** Spin overlay (wheel-view / dial-view / reel-view): tap SPIN, tap STOP when it shows, wait for the result. Returns {ok, res, go}. */
     async spinToResult(ovSel = '.wh-ov') {
@@ -158,10 +158,10 @@ try {
     step(1, 'a pickable coach card exists', !!pickBtn, 'no [data-ct=pick]');
     if (pickBtn) {
       const id = await pickBtn.getAttribute('data-id');
-      const before = await A.S(() => { const t = window.__store.get().training || {}; return (t.plan && t.plan.coachId) ?? t.coachId ?? null; });
+      const before = await A.S(() => { const t = window.__store.get().training || {}; return t.coach_id ?? (t.sel && t.sel.coachId) ?? (t.plan && t.plan.coachId) ?? null; });
       if (before === id) { await pickBtn.click(); await A.settle(300); } // was picked: tap off first
       await (await p.$(`.ct-strip [data-ct="pick"][data-id="${id}"]`)).click(); await A.settle(350);
-      const after = await A.S(() => { const t = window.__store.get().training || {}; return (t.plan && t.plan.coachId) ?? t.coachId ?? null; });
+      const after = await A.S(() => { const t = window.__store.get().training || {}; return t.coach_id ?? (t.sel && t.sel.coachId) ?? (t.plan && t.plan.coachId) ?? null; });
       step(1, 'tap a coach = picked in the store', after === id, `coachId ${before} -> ${after}, wanted ${id}`);
       const hl = await p.$eval(`.ct-strip [data-ct="pick"][data-id="${id}"]`, (b) => b.getAttribute('aria-pressed') === 'true' && b.closest('.ct-slot').classList.contains('is-picked')).catch(() => false);
       step(1, 'picked coach is highlighted (is-picked, aria-pressed)', hl, 'no highlight');

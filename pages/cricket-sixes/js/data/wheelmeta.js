@@ -56,8 +56,8 @@ export const NODES = [
   N('sp_tos_r', 'specialist', 5, 'Good Sport', [90], 'consolation', 2.5, ['toss'], 'The good sport slice also gives a small boost.'),
   N('sp_pep_n', 'specialist', 3, 'Pep Voice', [35, 70], 'rare_width_add', 0.08, ['pep'], 'The Double Pep slice gets wider.'),
   N('sp_pep_r', 'specialist', 6, 'Pep Rally', [115], 'neighbour_half', 0.5, ['pep'], 'Every Pep result is one and a half times bigger.'),
-  N('sp_fnd_n', 'specialist', 3, 'Sharp Eyes', [35, 70], 'rare_width_add', 0.06, ['find'], 'The find slices get wider.'),
-  N('sp_fnd_r', 'specialist', 6, 'Second Cheer', [125], 'cheer_respin', 1, ['find'], 'A cheer slice gives one more free spin.'),
+  N('sp_fnd_n', 'specialist', 3, 'Sharp Eyes', [35, 70], 'rare_width_add', 0.02, ['find'], 'The find slices get wider.'), // wa1 findtune: +0.02 a find block a rank (SPEC 3a BUILD Q 16:55)
+  N('sp_fnd_r', 'specialist', 6, 'Second Cheer', [125], 'cheer_respin', 1, ['find'], 'Once a season, a miss gets a free spin.'), // wa1 findtune
   N('sp_sct_n', 'specialist', 4, 'Top Name', [45], 'jackpot_width_add', 0.1, ['scout'], 'The top name gets a wider slice.'),
   N('sp_sct_r', 'specialist', 6, "Scout's Eye", [80], 'floor_value', 'extra_plus_1', ['scout'], 'Even a quiet look finds one step.'),
   N('sp_fin_n', 'specialist', 4, 'Trophy Polish', [45], 'jackpot_width_add', 0.1, ['finals'], 'The trophy slice gets wider.'),

@@ -145,6 +145,8 @@ async function patchAndReload(P, extra) {
 }
 const saveText = (P) => P.page.evaluate(() => localStorage.getItem('cs.save.1'));
 const withSalt = (txt, salt) => { const o = JSON.parse(txt); const st = o.state || o.s || o; if (st && 'salt' in st) st.salt = salt; return JSON.stringify(o); };
+/** Find with no find help (so a no-find + its token offer can show): drop Widener, Extra Gold, the Find specialist nodes, Control; keep tokens. */
+const lessFind = (txt, salt) => { const o = JSON.parse(withSalt(txt, salt)); const st = o.state || o.s || o; const ow = st.wheelMeta.owned; for (const k of ['f_wide', 'f_extra', 'f_boost', 'f_bigb', 'sp_fnd_n', 'sp_fnd_r']) delete ow[k]; return JSON.stringify(o); };
 
 // ---- GEN
 log('GEN saves');
@@ -195,7 +197,7 @@ async function sceneTrain() {
 async function sceneFind() {
   const src = SAVES.hub2 || SAVES.hub;
   for (let attempt = 0; attempt < 6; attempt++) {
-    const P = await newPage(attempt ? withSalt(src, 'qa' + attempt) : src);
+    const P = await newPage(attempt ? lessFind(src, 'qa' + attempt) : src);
     const card = await P.page.$('[data-act="sheet:activities"]');
     if (!card) { log('  find: no activities card on hub', await P.stage()); MISSED.push('find: no activities card'); await P.done(); return; }
     await card.click(); await P.settle(500);
@@ -210,7 +212,7 @@ async function sceneFind() {
     if (!attempt) await P.shot('find-1idle');
     await P.page.click('.wh-ov [data-go]'); await P.settle(700);
     if (!attempt) await P.shot('find-2spin');
-    await waitGo(P, /STOP/i, 6000); await P.settle(attempt * 170);
+    await waitGo(P, /STOP/i, 6000); await P.settle(attempt * 233);
     if (!attempt) await P.shot('find-3stop-ready');
     await P.page.click('.wh-ov [data-go]').catch(() => {}); await P.settle(900);
     if (!attempt) await P.shot('find-4landing');

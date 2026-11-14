@@ -13,7 +13,7 @@ export const FIND_CHECK = { rate: 18, n: 3000, bug: 55, none: 22.9, full: 47.1 }
 const memo = new Map(); // same tree -> same number (seeded); a copy calls this twice
 /** Avg careful Find % at an 18% activity for the tree in `s` (seeded, game code). @param {any} s @param {number} [n] */
 export function findCareful(s, n = FIND_CHECK.n) {
-  const E = effective(s), mods = modsFor(E, 'find'), ctl = E.find || {}, key = JSON.stringify([mods, ctl, n]);
+  const E = effective(s), mods = { ...modsFor(E, 'find'), cheer: 0 } /* wa1 findtune: Second Cheer is 1 a season, not a per-spin rate */, ctl = E.find || {}, key = JSON.stringify([mods, ctl, n]);
   if (memo.has(key)) return memo.get(key);
   const w = findWheel({ find: FIND_CHECK.rate, mix: { coins: 1 } }, mods, ctl), rng = makeRng('report|findcheck');
   let hit = 0; for (let i = 0; i < n; i++) if (findWheelResult(rng, w, true).find) hit++;

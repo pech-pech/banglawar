@@ -46,7 +46,7 @@ export function modsFromSim(E, wheelId) {
 /** Sim E from owned ranks {nodeId: rank} (sim node ids). Only the keys the dial/reel/reveal wheels read. @param {Record<string,number>} own */
 export function simFromRanks(own) {
   const r = (id) => (own && own[id]) | 0;
-  const E = { jw: 0.02 * r('f_wide'), jw_by: /** @type {any} */ ({ scout: 0.1 * r('sp_sct_n'), finals: 0.1 * r('sp_fin_n') }), rw_by: /** @type {any} */ ({ hype: 0.08 * r('sp_hyp_n'), toss: 0.1 * r('sp_tos_n'), pep: 0.08 * r('sp_pep_n'), find: 0.06 * r('sp_fnd_n') }),
+  const E = { jw: 0.02 * r('f_wide'), jw_by: /** @type {any} */ ({ scout: 0.1 * r('sp_sct_n'), finals: 0.1 * r('sp_fin_n') }), rw_by: /** @type {any} */ ({ hype: 0.08 * r('sp_hyp_n'), toss: 0.1 * r('sp_tos_n'), pep: 0.08 * r('sp_pep_n'), find: 0.02 * r('sp_fnd_n') }), // wa1 findtune: Sharp Eyes 0.02 a block a rank
     bch: Math.min(1, 0.2 * r('f_boost')), bval: 1 + r('f_bigb'), extra: r('f_extra'), floor: r('f_floor'), hfloor: r('sp_hyp_r'), sfloor: r('sp_sct_r'),
     cons: r('sp_tos_r') ? 1 : 0, nb: /** @type {any} */ ({ pep: r('sp_pep_r'), finals: r('sp_fin_r') }), cheer: r('sp_fnd_r') ? 1 : 0,
     w0: Math.max(0.3, 1 - 0.15 * r('c_slow')), wob: Math.max(0, 1 - 0.15 * r('c_steady')), guide: r('c_guide') ? 1 : 0 };
@@ -286,10 +286,11 @@ export function findWheel(act, mods = neutralMods(), ctl = {}) {
 export function findWheelResult(rng, wheel, stop = false) {
   const r = spinResult(rng, wheel, stop), d = [rng.random(), rng.random(), rng.random()], m = wheel.mods || neutralMods();
   let cell = wheel.cells[r.index], second = false;
-  if (!cell.find && m.cheer) { const c2 = wheel.cells[cellAt(wheel.cells, d[0] * wheel.C)]; if (c2.find) { cell = c2; second = true; } }
+  const cheered = !cell.find && !!m.cheer; // wa1 findtune: the free re-spin was used (found or not); the store caps it at 1 a season
+  if (cheered) { const c2 = wheel.cells[cellAt(wheel.cells, d[0] * wheel.C)]; if (c2.find) { cell = c2; second = true; } }
   let coinsBonus = 0, boosted = false;
   if (m.bch && d[1] < m.bch) { const bi = Math.min(wheel.cells.length - 1, Math.floor(d[2] * wheel.cells.length)); if (bi === r.index && cell.type === 'coins' && !second) { coinsBonus = m.bval * DR.UNIT.find; boosted = true; } }
-  return { index: r.index, type: cell.find ? cell.type : null, find: cell.find, second, boosted, coinsBonus, t: r.t, phi: r.phi, e: r.e };
+  return { index: r.index, type: cell.find ? cell.type : null, find: cell.find, second, cheered, boosted, coinsBonus, t: r.t, phi: r.phi, e: r.e };
 }
 
 // ---------------------------------------------------------------- reveal-only wheels (Toss, Pep, Scout, Finals)
