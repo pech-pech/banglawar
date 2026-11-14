@@ -56,9 +56,10 @@ try {
   await page.goto(URL0); await settle(1000);
   // free facility card etc: take it if shown
   // ---- play one match to reach the training week (same drive as p11-flow) ----
+  let fpTried = false;
   for (let i = 0; i < 160; i++) {
     const st = await stage(); if (st === 'train') break;
-    const fp = await page.$('[data-act="sheet:freepick"]'); if (st === 'hub' && fp) { await fp.click(); await settle(400); const t = await page.$('.c-sheet .c-btn--primary:not([disabled])'); if (t) { await t.click(); await settle(400); } await closeAll(); continue; }
+    const fp = fpTried ? null : await page.$('[data-act="sheet:freepick"]'); if (st === 'hub' && fp) { fpTried = true; await fp.click(); await settle(400); const t = await page.$('.c-sheet .c-btn--primary:not([disabled])'); if (t) { await t.click(); await settle(400); } await closeAll(); continue; }
     if (await page.$('.dr-ov, .wh-ov')) { const g = await page.$('.dr-ov [data-go]:not([aria-disabled="true"]), .wh-ov [data-go]:not([aria-disabled="true"])'); if (g) await g.click(); else await page.keyboard.press('Escape'); await settle(900); continue; }
     if (st === 'done') { const star = await page.$('[data-pay-stars]'); if (star) { await star.click(); await settle(150); } if (!(await clickCta())) break; continue; }
     if (st === 'hub' || st === 'semi' || st === 'final' || st === 'week') { if (!(await clickCta())) break; }
