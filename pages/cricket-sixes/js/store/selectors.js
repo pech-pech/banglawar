@@ -10,7 +10,10 @@ import { tableOrder, placeOf, ME, matchPay, gapLetters, koWinner } from '../core
 import { planOf, netsPreview, coachList, scoutList, canSign, coachQuality, coachStepInUse, courseCost, courseUsesLicence, canCourse, twinHeld, licenceHeld, effortOdds, meanGain, wheelSlices, courseWheel, EFFORTS, FOCUSES, MAX_COACHES, sixOf, drillRoom, focusRating } from '../core/training.js';
 import { letterOfRaw, letterOfShown, letterOfStep, ticksOfRaw, fillOfRaw, stepOfRaw } from '../core/letters.js';
 import { nodeStatus, treeBoost, treeOf, NODE_COUNT } from '../core/skills.js';
-import { planProblem, livePlan, squadFull, canSell } from './commands.js';
+import { planProblem, livePlan, squadFull, canSell, squadMax } from './commands.js';
+import { recruitList, recruitRec, recruitOpen } from '../core/recruit.js';
+import { skewOn } from '../core/skew.js';
+import { wageOf } from '../core/economy.js';
 import { RUN, SQUAD } from '../data/run.js';
 import { seasonResult, chapterNames, runScore, carryOf } from '../core/run.js';
 import { PAIRING } from '../data/pairing.js';
@@ -235,6 +238,19 @@ export function endVM(s) {
     notebook: last && last.notebook != null ? foundCell(last.notebook) : null,
     lastSeason, promoteTop: RUN.promoteTop, cta: lastSeason ? 'RunEnd' : 'NewSeason',
     season: se.n, runNo: run ? run.no : 1, swap: lastSeason ? { open: false } : swapVM(s), // wheel meta: the last season swaps by itself at run end
+    recruits: recruitsVM(s),
+  };
+}
+/** s1 season-end recruits (null on old saves). Rows carry the trial card's fields so the two read the same. @param {any} s */
+export function recruitsVM(s) {
+  if (!skewOn(s) || !s.season) return null;
+  const rec = recruitRec(s), sq = mine(s).squad, max = squadMax(s);
+  const row = (/** @type {any} */ p) => ({ id: p.id, name: p.name, role: p.bat, type: p.bowl, shown: shownAbility(p), batShown: shownBat(p), bowlShown: shownBowl(p) });
+  const full = sq.length >= max;
+  return {
+    list: recruitOpen(s) ? recruitList(s).map((p) => ({ ...row(p), wage: wageOf(p) })) : [],
+    full, release: full && recruitOpen(s) ? sq.map(row) : [], size: sq.length, max,
+    signed: rec && rec.signed ? String(rec.name || '') : null, left: rec && rec.left ? String(rec.left) : null, passed: !!(rec && rec.passed),
   };
 }
 
@@ -288,7 +304,7 @@ export function squadVM(s) {
       grade: gradeOf(p) || '?', pips: pipsOf(p), peak: atPeak(p), max: isMax(p), order: six.includes(p.id) ? six.indexOf(p.id) : null,
       benchSlot: (slots.find((x) => x.playerId === p.id) || {}).label || null,
     })),
-    bench: slots, full: squadFull(s), squadFull: squadFull(s), fullText: squadFull(s) ? SQUAD.fullText : '', size: mine(s).squad.length,
+    bench: slots, full: squadFull(s), squadFull: squadFull(s), fullText: squadFull(s) ? SQUAD.fullText : '', size: mine(s).squad.length, max: squadMax(s),
     count: six.length, valid: six.length === SEASON.sixSize, reason: six.length === SEASON.sixSize ? '' : `Pick ${SEASON.sixSize} players.`,
   };
 }
@@ -643,7 +659,7 @@ export function trialVM(s) {
   const full = t.kind === 'player' && squadFull(s);
   // Who can be let go to make room: the existing SellPlayer gate decides (bench only in season, never below the minimum squad).
   const release = full ? mine(s).squad.filter((p) => canSell(s, p.id).ok).map((p) => ({ id: p.id, name: p.name, role: p.bat, type: p.bowl, shown: shownAbility(p), batShown: shownBat(p), bowlShown: shownBowl(p) })) /* QA3 m1: same letters as the trial player */ : [];
-  return { kind: t.kind, player, coach, wage: t.wage, squadFull: full, release, squadSize: mine(s).squad.length, squadMax: SQUAD.size, released: t.kind === 'player' && t.released ? String(t.released) : '',
+  return { kind: t.kind, player, coach, wage: t.wage, squadFull: full, release, squadSize: mine(s).squad.length, squadMax: squadMax(s), released: t.kind === 'player' && t.released ? String(t.released) : '',
     canSign: can.ok, why: can.ok ? '' : can.why, sign: 'Sign', decline: 'Decline' };
 }
 /** The one free facility. pending = show the screen / Home card. null with the flag off. */

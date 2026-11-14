@@ -5,7 +5,7 @@ import { FLAGS } from '../js/data/flags.js';
 import { createStore } from '../js/store/store.js';
 import { KEY } from '../js/report/log.js';
 import { buildText, buildData, buildSummary } from '../js/report/report.js';
-import { FLAG_DEFAULTS } from '../js/report/build.js';
+import { FLAG_DEFAULTS, BUILD } from '../js/report/build.js';
 import { planFeel, QUESTIONS } from '../js/report/feel.js';
 import { step } from './_season-bot.mjs';
 
@@ -73,7 +73,7 @@ test('M1: a real PickActivity is logged and the report text then names it', () =
   const before = h.store.get(); h.run('PickActivity', { id: 'street' });
   assert.notEqual(h.store.get(), before, 'activity accepted');
   const d = h.data(); assert.equal(d.club.length, 1); assert.equal(d.club[0].k, 'act');
-  assert.match(buildText({ ...d, matches: [] }, ENV), /Activities 1: Coins spent/);
+  assert.match(buildText({ ...d, matches: [] }, { ...ENV, build: BUILD }), /Activities 1: Coins spent/); // live records carry the running BUILD; the report window keeps only that build
 }));
 
 test('M5 + m3: gear goes before .q when there is no .help-btn, appends otherwise, and freepick/matchday are gear stages', async () => {

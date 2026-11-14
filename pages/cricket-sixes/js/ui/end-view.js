@@ -5,6 +5,7 @@ import { helpBtn } from './hub-view.js';
 import { chipHtml } from './book-sheet.js';
 import { promoBeat } from './beats.js';
 import { swapCardHtml, bindSwap } from './swap-offer.js';
+import { recruitCardHtml, bindRecruit } from './recruit-card.js';
 
 let swapNote = null; // {key, text}: "Swapped N Spokes for M Coins." for the season it was done in
 
@@ -71,8 +72,10 @@ export function render(el, vm, dispatch) {
     notebookHtml(vm.notebook) + swapCardHtml(vm.swap, swapNote && swapNote.key === swapKey(vm) ? swapNote.text : '') +
     (vm.finals ? '<div class="c-card ss-fin"><h3>Finals</h3>' + finalsHtml(vm.finals) + '</div>' : '') +
     '<div class="ss-final-table">' + (vm.lastSeason ? tableHtml(rows, { cut: false }) : withGoUp(tableHtml(rows, { cut: false }), Number(vm.promoteTop) || 2)) + '</div>' +
+    recruitCardHtml(vm.recruits) + // s1: season-end recruits, just above the CTA (null = nothing)
     ctaBar(btn(CTA[vm.cta] || CTA.NewSeason, CTA[vm.cta] ? vm.cta : 'NewSeason', { kind: 'cta' })) +
     '</div>';
   bindSwap(el, vm.swap, dispatch, { auto: true, key: swapKey(vm), onDone: (text) => { swapNote = { key: swapKey(vm), text }; } }); // Spare Spokes: the same confirm as the Workshop, offered once here
+  bindRecruit(el, vm.recruits, dispatch);
   if (vm.result && vm.result.promoted && !vm.lastSeason) promoBeat(el, { after: '.rn-result' }); // P10 promotion beat: transient trophy picture, the card below is the stamp
 }

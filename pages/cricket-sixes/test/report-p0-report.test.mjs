@@ -77,7 +77,7 @@ test('P0-13 removed lines: retry/result-screen time, first-session line; old and
 
 test('P0-14 FLAG_DEFAULTS mirrors data/flags.js; BUILD is the r7 label', () => {
   assert.deepEqual(FLAG_DEFAULTS, FLAGS);
-  assert.equal(BUILD, 'sixes-w1');
+  assert.equal(BUILD, 'sixes-s1');
 });
 
 test('P0-16 regression P4: fixed seed is CLEAN NO; P5: a quit match adds nothing to luck', () => {

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { applyCommand as C } from '../js/store/commands.js';
 import * as sel from '../js/store/selectors.js';
 import * as X from '../js/core/economy.js';
-import { planOf, canCourse } from '../js/core/training.js';
+import { planOf, canCourse, netsPreview } from '../js/core/training.js';
 import { newGame, step } from './_season-bot.mjs';
 
 const untilTrain = (seed) => { const st = newGame(seed); let g = 0; while (st.get().stage !== 'train' && g++ < 3000 && step(st)); return st.get(); };
@@ -36,7 +36,7 @@ test('Twin pass: second spotlight needs a pass, the first player, and a differen
 });
 
 test('Twin pass: two separate spins, each replaces that player\'s roll, pass used up on the run', () => {
-  const s0 = untilTrain('tw2'), [a, b] = s0.clubs[0].squad.map((p) => p.id);
+  const s0 = untilTrain('tw2'), [a, b] = netsPreview(s0).trainIds; // two players who can gain this week (s1 skew can lock a squad-order pick)
   let s = withSinks(C(s0, 'SetTrainPlan', { spotlightId: a }), { twin_drill: 2 });
   s = C(s, 'SetTrainPlan', { spotlight2Id: b });
   const one = C(s, 'Spin', { careful: true }); assert.ok(one.training.pending);

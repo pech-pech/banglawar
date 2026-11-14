@@ -72,7 +72,8 @@ export function render(el, vm, dispatch) {
   const sub = vm.sub || `Choose ${SIX} of ${players.length}. First pick bats first.`;
   el.innerHTML =
     `<div class="sq-root">` +
-    `<header class="strip c-dark sq-strip"><span class="mid"><b>${esc(title)}</b><span>${esc(sub)}</span></span>` +
+    `<header class="strip c-dark sq-strip"><span class="mid"><b>${esc(title)}</b><span>${esc(sub)}</span>` +
+    (Number(vm.size) && Number(vm.max) ? `<span class="sq-size" aria-label="Squad ${Number(vm.size)} of ${Number(vm.max)}">Squad ${Number(vm.size)}/${Number(vm.max)}</span>` : '') + `</span>` +
     `<span class="score sq-cnt" aria-live="polite">${n} of ${SIX} picked</span>` +
     `<button type="button" class="q" data-gloss aria-label="Cricket words explained">?</button></header>` +
     `<div class="sq-cols" aria-hidden="true"><span>Player</span><span>Bat</span><span>Bowl</span><span>Potential grade</span></div>` +

@@ -80,8 +80,8 @@ test('store keeps one .v4bak copy of the raw v4 save', () => {
   assert.equal(keepV4Copy(st, 'cs.save.1', 5), false); assert.equal(keepV4Copy(null, 'k', 4), false);
 });
 
-test('squad full: sign / academy is refused with the plain line; starter sale only at season end', () => {
-  const s = C(null, 'NewGame', { seed: 'sf' });
+test('squad full (old-rules save, cap 8): sign / academy is refused with the plain line; starter sale only at season end', () => {
+  const s = (({ rules, ...rest }) => rest)(C(null, 'NewGame', { seed: 'sf' })); // s1: no rules = old save
   assert.deepEqual(canAddPlayer(s), { ok: false, why: 'Squad full: release one first' });
   const extra = { ...clone(s.clubs[0].squad[0]), id: 'new1', name: 'New' };
   assert.equal(C(s, 'AddPlayer', { player: extra }), s);
