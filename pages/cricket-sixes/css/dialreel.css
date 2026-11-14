@@ -21,3 +21,5 @@
 .dr-ov .wh-go { min-height: 64px; }
 @media (max-height: 700px) { .dr-stage { padding-top: 18px; } }
 @media (prefers-reduced-motion: reduce) { .dr-ptr { transition: none; } }
+/* rv1 dial fix: 3 token buttons sit in one row (was 2 + 1 = two rows), so the Hype dial keeps its size at the result. Outcome line and note still take a full row. */
+.dr-ov .wh-tok .wh-tk { flex: 1 1 0; min-width: 0; padding: 0 4px; }
