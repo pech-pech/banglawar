@@ -101,7 +101,7 @@ export function openWheel(o) {
   }
 
   function layout() { // wheel sized from the free height (stage), never wider than the screen
-    const st = $(".wh-stage"), RES = LK && LK.name ? 34 : LK && LK.stand ? 14 : 0, h = st.clientHeight - 24 - 22 - RES, w = st.clientWidth - 24; // RES: room under the rim for the stand / name plate (they hang from the wheel box)
+    const st = $(".wh-stage"), RES = LK && LK.name && !ov.classList.contains('is-res-compact') ? 34 : LK && (LK.stand || LK.name) ? 14 : 0, h = st.clientHeight - 24 - 22 - RES, w = st.clientWidth - 24; // RES: room under the rim for the stand / name plate (they hang from the wheel box)
     css = Math.max(160, Math.min(w, h, 340)); size = Math.floor(css / S / 2) * 2; css = size * S; wrap.style.marginBottom = RES ? RES + 'px' : '';
     wrap.style.width = wrap.style.height = css + 'px'; cv.width = cv.height = size; cv.style.width = cv.style.height = css + 'px'; fitLabels(); draw();
   }
@@ -241,7 +241,7 @@ export function openWheel(o) {
     live.textContent = (line ? line + '. ' : '') + (d.say || '') + (p.boosted ? ' Booster plus ' + (p.boostBy || 1) + '.' : '') + (p.hot ? ' Hot Streak plus ' + (p.hotBy || 1) + '.' : ''); // read once
     showTokens(p, line); if (!again && !o.pending) burst();
     go.textContent = o.collectLabel || 'COLLECT'; go.classList.add('is-collect', 'c-btn--gold'); go.classList.remove('c-btn--primary'); go.removeAttribute('aria-disabled'); go.classList.remove('is-wait', 'is-disabled'); go.setAttribute('aria-label', o.collectLabel || 'Collect'); xLook(false); go.focus();
-    if (o.plainResult) { const cd = $('.wh-card'); if (cd) cd.style.display = 'none'; } // wa1 fixfind: Find result: the hint card makes way so the wheel stays big (>= ~240 px at 475x638)
+    if (o.plainResult) { const cd = $('.wh-card'), pl = $('.wh-plate'); if (cd) cd.style.display = 'none'; res.style.minHeight = '0'; if (pl) pl.hidden = true; ov.classList.add('is-res-compact'); } // wa1 fixfind: Find result: the hint card, the name plate and the result box's empty height make way so the wheel stays big (>= ~240 px at 475x638)
     if (LK || o.plainResult) layout(); // wheel meta only (flag off: unchanged). The foot is taller now (result, tokens, outcome line): size the wheel to the room left so the stand and plate under it are never covered or clipped
     if (!reduced) draw();
   }

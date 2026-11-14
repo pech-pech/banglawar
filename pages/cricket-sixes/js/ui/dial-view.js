@@ -215,7 +215,7 @@ export function openDial(o) {
   function line(x0, y0, x1, y1, col, th) { const n = Math.ceil(Math.hypot(x1 - x0, y1 - y0)); ctx.fillStyle = 'rgb(' + col + ')'; for (let i = 0; i <= n; i++) { const t = i / n; ctx.fillRect(Math.round(x0 + (x1 - x0) * t - th / 2), Math.round(y0 + (y1 - y0) * t - th / 2), th, th); } }
   const diamond = (ax, ay, k, fill) => { for (let j = -k; j <= k; j++) for (let i = -k; i <= k; i++) { const q = Math.abs(i) + Math.abs(j); if (q > k) continue; ctx.fillStyle = q >= k ? 'rgb(' + pal.out + ')' : q >= k - 1 ? '#fff' : 'rgb(' + fill + ')'; ctx.fillRect(ax + i, ay + j, 1, 1); } };
   /** fixdial V2: the Aim Guide landing mark, a dark-outlined wedge across the rim band (about 16 css px), readable on every slice colour. */
-  const landMark = (x, R) => { const a = polar(x, R + 1), b = polar(x, R - 9); line(a[0], a[1], b[0], b[1], pal.out, 5); line(a[0], a[1], b[0], b[1], [255, 255, 255], 3); const c = polar(x, R - 9); diamond(Math.round(c[0]), Math.round(c[1]), 3, ZONE_COL); };
+  const landMark = (x, R) => { const a = polar(x, R - 1), b = polar(x, R - 10); line(a[0], a[1], b[0], b[1], pal.out, 7); line(a[0], a[1], b[0], b[1], [255, 255, 255], 4); const c = polar(x, R - 11); diamond(Math.round(c[0]), Math.round(c[1]), 4, ZONE_COL); };
   const polar = (x, rr) => { const a = Math.PI - x * U; return [size / 2 + Math.cos(a) * rr, size / 2 - Math.sin(a) * rr]; };
   function drawCoin() {
     const w = size, cx = w / 2, cy = w / 2, R = w / 2 - 3, ph = flip % TAU, cs = Math.cos(ph), frontSide = cs >= 0, rx = Math.max(1.5, Math.abs(cs) * R);
@@ -238,7 +238,7 @@ export function openDial(o) {
     labs.forEach((l, i) => {
       const rl = R * (widths[i] * 18 / L < 24 ? 0.7 : 0.66), p = polar(centreOf(i), rl);
       l.style.left = p[0] * S + 'px'; l.style.top = p[1] * S + 'px';
-      if (reveal) { l.style.color = 'rgb(' + pal.cream + ')'; l.style.fontSize = '22px'; l.style.textShadow = '-2px 0 rgb(' + pal.out + '),2px 0 rgb(' + pal.out + '),0 -2px rgb(' + pal.out + '),0 2px rgb(' + pal.out + '),2px 2px rgb(' + pal.out + ')'; l.style.opacity = '1'; } // fixdial V5: cream numbers with a dark outline, >= 4.5:1 on any slice, lit or dim
+      if (reveal) { l.style.color = 'rgb(' + pal.cream + ')'; const lb = l.querySelector('b'); if (lb) lb.style.fontSize = '24px'; l.style.textShadow = '-2px 0 rgb(' + pal.out + '),2px 0 rgb(' + pal.out + '),0 -2px rgb(' + pal.out + '),0 2px rgb(' + pal.out + '),2px 2px rgb(' + pal.out + ')'; l.style.opacity = '1'; } // fixdial V5: cream numbers with a dark outline, >= 4.5:1 on any slice, lit or dim
       else { l.style.color = lum(fills[i]) > 0.5 ? 'rgb(' + pal.out + ')' : '#fff'; l.style.opacity = lit >= 0 && !isLit(i) ? '.5' : '1'; }
       if (sl[i].gold && !reveal) l.style.width = '';
     });
