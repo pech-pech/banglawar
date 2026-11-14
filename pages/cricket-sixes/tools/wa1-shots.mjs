@@ -144,9 +144,12 @@ async function patchAndReload(P, extra) {
   await P.page.reload(); await P.settle(900);
 }
 const saveText = (P) => P.page.evaluate(() => localStorage.getItem('cs.save.1'));
-const withSalt = (txt, salt) => { const o = JSON.parse(txt); const st = o.state || o.s || o; if (st && 'salt' in st) st.salt = salt; return JSON.stringify(o); };
-/** Find with no find help (so a no-find + its token offer can show): drop Widener, Extra Gold, the Find specialist nodes, Control; keep tokens. */
-const lessFind = (txt, salt) => { const o = JSON.parse(withSalt(txt, salt)); const st = o.state || o.s || o; const ow = st.wheelMeta.owned; for (const k of ['f_wide', 'f_extra', 'f_boost', 'f_bigb', 'sp_fnd_n', 'sp_fnd_r']) delete ow[k]; return JSON.stringify(o); };
+// a save is {v, sum, data}: re-wrap after a patch so the checksum stays right (else the load falls back to a new game)
+const { wrap: reWrap } = await import('../js/core/save-migrate.js');
+const patchSave = (txt, fn) => { const o = JSON.parse(txt); const st = o.data; fn(st); return JSON.stringify(reWrap(st)); };
+const withSalt = (txt, salt) => patchSave(txt, (st) => { st.salt = salt; });
+/** Find with no find help (so a no-find + its token offer can show): drop Widener, Extra Gold, Booster, the Find specialist nodes; keep tokens. */
+const lessFind = (txt, salt) => patchSave(txt, (st) => { st.salt = salt; const ow = st.wheelMeta.owned; for (const k of ['f_wide', 'f_extra', 'f_boost', 'f_bigb', 'sp_fnd_n', 'sp_fnd_r']) delete ow[k]; });
 
 // ---- GEN
 log('GEN saves');
