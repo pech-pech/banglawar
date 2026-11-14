@@ -19,11 +19,15 @@
 //   find:   rareAdd (Sharp Eyes: width added to EACH find slice), cheer (1 = Second Cheer: a cheer slice gives one more free spin)
 //   scout:  scoutFloor (1 = Scout's Eye: a quiet slice pays at least 1 step); goldAdd already includes Top Name (+0.10)
 //   finals: neighbourMult (1 or 1.5: Prize Pair on Coins, TP and Fans; Medals never); goldAdd includes Trophy Polish (+0.10)
-// Tokens (Q1 = A): respin, nudge, two, wild, lift only work on Spotlight (cap 2 a season, any kind) and Course (no cap).
+// wa1 (2026-11-14-wheel-all-spins): Control (w0Mult, jMult, guide, zone, chime) is filled on EVERY wheel; feelOnly = true on toss, pep, scout,
+//   finals (views may look slower / draw a tick, landing stays random). hype.dial = {V, Jmult, sdMult} (02 s5). Tokens work on all 8 wheels with
+//   cap rule F (2 a season per wheel, Course uncapped; 1 a match day across hype, toss, pep). API: build/wa1/API-TOKENS.md.
 import { WM, NODES, WHEEL_IDS } from '../data/wheelmeta.js';
 import { FLAGS } from '../data/flags.js';
 import { ECON } from '../data/economy.js';
 import { courseWheel, wheelSlices, wheelWidths, spinResult } from './training.js';
+import { dialResult, revealResult } from './dialreel.js';
+import { MD } from '../data/matchday.js';
 
 const clone = (/** @type {any} */ x) => structuredClone(x);
 const BY = Object.fromEntries(NODES.map((n) => [n.id, n]));
@@ -32,7 +36,7 @@ const SKILL = ['spot', 'course'];
 const TOKEN_OF = /** @type {Record<string,string>} */ ({ respin_tokens_per_season: 'respin', nudge_tokens_per_season: 'nudge', pick_two_tokens_per_season: 'two', wild_tokens_per_season: 'wild', lift_tokens_per_season: 'lift' });
 const KINDS = ['respin', 'two', 'nudge', 'lift'];
 const LABEL = /** @type {Record<string,string>} */ ({ respin: 'Spin Again', two: 'Pick Two', nudge: 'Nudge', lift: 'Lucky Lift' });
-const freshMeta = () => ({ tally: 0, spokes: 0, spent: 0, owned: {}, tokens: { respin: 0, nudge: 0, two: 0, wild: 0, lift: 0 }, tokSeason: 0, spotTokensUsed: 0, streak: 0, tierSeen: 0, tierUpQueue: [], swapDone: {} });
+const freshMeta = () => ({ tally: 0, spokes: 0, spent: 0, owned: {}, tokens: { respin: 0, nudge: 0, two: 0, wild: 0, lift: 0 }, tokSeason: 0, spotTokensUsed: 0, streak: 0, tierSeen: 0, tierUpQueue: [], swapDone: {}, tokUsed: {}, matchTokUsed: { key: '', n: 0 } });
 const seasonOf = (/** @type {any} */ s) => (s && s.season && s.season.n) || 1;
 
 // ---- reads
@@ -106,9 +110,9 @@ export function buyNode(s, id) {
 // ---- effects (port of sim effective + build)
 /** @param {string} w */
 const neutralWheel = (w) => ({
-  w0Mult: 1, jMult: 1, guide: false, zone: 0, chime: false, goldAdd: 0, extraGold: 0, floor: 0, booster: { chance: 0, value: 0, count: 0, unit: /** @type {any} */ (WM.UNIT)[w] },
+  w0Mult: 1, jMult: 1, guide: false, zone: 0, chime: false, feelOnly: WM.FEEL_ONLY.includes(w), goldAdd: 0, extraGold: 0, floor: 0, booster: { chance: 0, value: 0, count: 0, unit: /** @type {any} */ (WM.UNIT)[w] },
   ...(w === 'spot' ? { streak: 0 } : {}), ...(w === 'course' ? { bestOfTwo: 0 } : {}),
-  ...(w === 'hype' ? { rareAdd: 0, lowToMedium: 0 } : {}), ...(w === 'toss' ? { rareAdd: 0, consolation: 0 } : {}),
+  ...(w === 'hype' ? { rareAdd: 0, lowToMedium: 0, dial: { V: 16, Jmult: 1, sdMult: 1 } } : {}), ...(w === 'toss' ? { rareAdd: 0, consolation: 0 } : {}),
   ...(w === 'pep' ? { rareAdd: 0, neighbourMult: 1 } : {}), ...(w === 'find' ? { rareAdd: 0, cheer: 0 } : {}),
   ...(w === 'scout' ? { scoutFloor: 0 } : {}), ...(w === 'finals' ? { neighbourMult: 1 } : {}),
 });
@@ -126,8 +130,8 @@ export function effective(s) {
     if (type === 'w0_mult') w0 += p * r;
     else if (type === 'wobble_mult') wob += p * r;
     else if (type === 'preview_mark') guide = true;
-    else if (type === 'window_add_s') { for (const w of scope) if (SKILL.includes(w)) zoneBy[w] = (zoneBy[w] || 0) + p * r; }
-    else if (type === 'aim_cue') { for (const w of scope) if (SKILL.includes(w)) cueBy[w] = true; }
+    else if (type === 'window_add_s') { for (const w of scope) zoneBy[w] = (zoneBy[w] || 0) + p * r; }
+    else if (type === 'aim_cue') { for (const w of scope) cueBy[w] = true; }
     else if (type === 'jackpot_width_add') { if (all) jw += p * r; else for (const w of scope) jwBy[w] = (jwBy[w] || 0) + p * r; }
     else if (type === 'rare_width_add') for (const w of scope) rwBy[w] = (rwBy[w] || 0) + p * r;
     else if (type === 'booster_chance') bch += p * r;
@@ -146,7 +150,8 @@ export function effective(s) {
     X.goldAdd = jw + (jwBy[w] || 0); X.extraGold = w === 'toss' ? 0 : extra;
     X.booster = { chance: Math.min(1, bch), value: bval * /** @type {any} */ (WM.UNIT)[w], count: bval, unit: /** @type {any} */ (WM.UNIT)[w] };
     if ('rareAdd' in X) X.rareAdd = rwBy[w] || 0;
-    if (w === 'spot' || w === 'course') { X.w0Mult = Math.max(0.3, 1 + w0); X.jMult = Math.max(0, 1 + wob); X.guide = guide; X.zone = zoneBy[w] || 0; X.chime = !!cueBy[w]; }
+    X.w0Mult = Math.max(0.3, 1 + w0); X.jMult = Math.max(0, 1 + wob); X.guide = guide; X.zone = zoneBy[w] || 0; X.chime = !!cueBy[w]; // Control on every wheel (wa1)
+    if (w === 'hype') X.dial = { V: 16 * X.w0Mult, Jmult: X.jMult, sdMult: guide ? WM.GUIDE_SD_FACTOR : 1 };
     if (['spot', 'course', 'hype', 'toss'].includes(w)) X.floor = floor * /** @type {any} */ (WM.UNIT)[w];
   }
   return out;
@@ -208,62 +213,157 @@ export function afterResult(s, wheelId, result, rng, opts = {}) {
   return { s: n, result: r };
 }
 
-// ---- tokens
-/** Refill tokens from the owned ranks at season start (once a season; Spotlight uses 0). @param {any} s */
+// ---- tokens (wa1: all 8 wheels, cap rule F; API in build/wa1/API-TOKENS.md)
+export const TOKEN_WHEELS = WHEEL_IDS.slice();
+/** Refill tokens from the owned ranks at season start (once a season). Per-wheel counters reset. @param {any} s */
 export function seasonTokens(s) {
   if (!FLAGS.wheelMeta) return s;
   const n = seasonOf(s), m0 = metaOf(s); if (m0.tokSeason === n) return s;
   const x = clone(s), m = (x.wheelMeta ||= freshMeta()), e = effective(x).tokens;
-  m.tokens = { respin: e.respin, nudge: e.nudge, two: e.two, wild: e.wild, lift: e.lift }; m.spotTokensUsed = 0; m.tokSeason = n;
+  m.tokens = { respin: e.respin, nudge: e.nudge, two: e.two, wild: e.wild, lift: e.lift }; m.spotTokensUsed = 0; m.tokUsed = {}; m.tokSeason = n;
   return x;
 }
 /** The result the stores keep is {week?, careful, wheel, result:{index,gain,jackpot,..}, tokUsed?, used?, lifted?}; the token rules read one flat {index, gain, jackpot, wheel, ..}. A flat object passes through. @param {any} p */
 export const flatPending = (p) => (p && p.result && typeof p.result === 'object' ? { ...p, ...p.result, ...(p.wheel ? { wheel: p.wheel } : {}) } : p);
+/** Match-day key for the 1-a-match cap: `season|kind|round|salt`. @param {any} s */
+export const matchKeyOf = (s) => (s && s.fixture ? `${seasonOf(s)}|${s.fixture.kind}|${s.fixture.round}|${s.salt}` : '');
+/** Tokens used this season on a wheel (old saves: spotTokensUsed counts for spot). */
+const usedOn = (/** @type {any} */ m, /** @type {string} */ w) => { const u = ((m.tokUsed || {})[w]) | 0; return w === 'spot' ? Math.max(u, m.spotTokensUsed | 0) : u; };
+const matchUsed = (/** @type {any} */ m, /** @type {string} */ key) => (m.matchTokUsed && m.matchTokUsed.key === key ? m.matchTokUsed.n | 0 : 0);
+const keyOf = (/** @type {any} */ s, /** @type {any} */ ctx) => (ctx && typeof ctx.matchKey === 'string' && ctx.matchKey ? ctx.matchKey : matchKeyOf(s));
+/** Uses left: {pool (tokens in the shared pool), wheelLeft (this season on this wheel; null = uncapped), matchLeft (this match day; null off hype/toss/pep)}. @param {any} s @param {string} wheelId @param {{matchKey?:string}} [ctx] */
+export function tokenLeft(s, wheelId, ctx = {}) {
+  const m = metaOf(s), t = m.tokens || {}, cap = /** @type {any} */ (WM.TOKEN_CAP_WHEEL_SEASON)[wheelId];
+  const pool = ['respin', 'nudge', 'two', 'wild', 'lift'].reduce((a, k) => a + (t[k] | 0), 0);
+  return { pool, wheelLeft: cap == null ? null : Math.max(0, cap - usedOn(m, wheelId)), matchLeft: WM.MATCH_WHEELS.includes(wheelId) ? Math.max(0, WM.TOKEN_CAP_MATCH - matchUsed(m, keyOf(s, ctx))) : null };
+}
+/** Gold slice indexes of the spun wheel (no token on these, never nudged onto). */
+function goldsOf(/** @type {string} */ w, /** @type {any} */ wheel) {
+  if (!wheel) return [];
+  if (w === 'spot' || w === 'course') return wheel.golds || [wheel.jackpotIndex || 0];
+  if (w === 'find') return Array.isArray(wheel.golds) ? wheel.golds : [];
+  return (wheel.slices || []).map((/** @type {any} */ c, /** @type {number} */ i) => (c.gold ? i : -1)).filter((/** @type {number} */ i) => i >= 0);
+}
+const isFindCell = (/** @type {any} */ wheel, /** @type {number} */ j) => (wheel.cells ? !!(wheel.cells[j] && wheel.cells[j].find) : Array.isArray(wheel.finds) ? wheel.finds.includes(j) : false);
+const fxValue = (/** @type {string} */ w, /** @type {any} */ fx, /** @type {any} */ p) => {
+  fx = fx || {};
+  if (w === 'toss') return +fx.tossb || 0;
+  if (w === 'pep') return fx.pep != null ? +fx.pep : p && p.slots ? p.slots.length : 0;
+  if (w === 'scout') return +fx.steps || 0;
+  return (+fx.coins || 0) + (+fx.tp || 0) + (+fx.fans || 0) + WM.FINALS_MEDAL_EQ * (+fx.medal || 0); // finals: Coin-eq
+};
+/** The value the token rules compare: spot/course gain, hype pts, toss boost %, pep players, scout steps, finals Coin-eq, find 1|0. @param {string} wheelId @param {any} pending */
+export function tokenValue(wheelId, pending) {
+  const p = flatPending(pending); if (!p) return 0;
+  if (wheelId === 'spot' || wheelId === 'course') return +p.gain || 0;
+  if (wheelId === 'hype') return +p.pts || 0;
+  if (wheelId === 'find') return p.find ? 1 : 0;
+  return fxValue(wheelId, p.fx, p);
+}
+/** Slice fx as revealResult would pay it (Prize Pair x1.5 on Finals Coins/TP/Fans). */
+function sliceFx(/** @type {string} */ w, /** @type {any} */ wheel, /** @type {number} */ j) {
+  const fx = { ...wheel.slices[j].fx };
+  if (w === 'finals' && wheel.mods && wheel.mods.nb) for (const k of ['coins', 'tp', 'fans']) if (fx[k]) fx[k] = Math.floor(fx[k] * 1.5 + 0.5);
+  if (w === 'pep') fx.pep = wheel.slices[j].id === 'double' || (fx.pep | 0) >= 2 ? 2 : 1;
+  return fx;
+}
+const sliceValue = (/** @type {string} */ w, /** @type {any} */ wheel, /** @type {number} */ j) =>
+  w === 'spot' || w === 'course' ? wheel.slices[j] : w === 'hype' ? wheel.slices[j].pts : w === 'find' ? (isFindCell(wheel, j) ? 1 : 0) : fxValue(w, sliceFx(w, wheel, j), null);
+/** Neighbour slice (one over, never onto gold) that pays more than now, or -1. The Hype half-dial does not wrap; every other wheel does. */
+function nudgeTo(/** @type {string} */ w, /** @type {any} */ wheel, /** @type {any} */ p) {
+  const L = wheel.slices.length, golds = goldsOf(w, wheel), v = tokenValue(w, p);
+  const nb = w === 'hype' ? [p.index - 1, p.index + 1].filter((j) => j >= 0 && j < L) : [(p.index - 1 + L) % L, (p.index + 1) % L];
+  const c = nb.filter((j) => !golds.includes(j)).sort((a, b) => sliceValue(w, wheel, b) - sliceValue(w, wheel, a));
+  return c.length && sliceValue(w, wheel, c[0]) > v ? c[0] : -1;
+}
+/** The spun wheel has the shape this wheel's rules read (dial / reveal slices are objects; find has cells or finds). */
+const shapeOk = (/** @type {string} */ w, /** @type {any} */ wheel) => (w === 'find' ? !!(wheel.slices && (wheel.cells || Array.isArray(wheel.finds)))
+  : !!(wheel.slices && wheel.slices.length && typeof wheel.slices[0] === 'object' && (w !== 'hype' || wheel.kind === 'dial') && (w === 'hype' || wheel.kind === w)));
 /** Which store a kind would draw from: its own tokens first, then Wild; null if it cannot be used now. */
-function tokenSource(/** @type {any} */ s, /** @type {string} */ wheelId, /** @type {string} */ kind, /** @type {any} */ p0) {
+function tokenSource(/** @type {any} */ s, /** @type {string} */ wheelId, /** @type {string} */ kind, /** @type {any} */ p0, /** @type {any} */ ctx) {
   const p = flatPending(p0);
-  if (!FLAGS.wheelMeta || !p || !SKILL.includes(wheelId) || !KINDS.includes(kind)) return null;
-  const m = metaOf(s), t = m.tokens || {};
-  if (wheelId === 'spot' && (m.spotTokensUsed | 0) >= WM.SPOT_TOKEN_CAP) return null;
+  if (!FLAGS.wheelMeta || !p || !TOKEN_WHEELS.includes(wheelId) || !KINDS.includes(kind)) return null;
+  const m = metaOf(s), t = m.tokens || {}, cap = /** @type {any} */ (WM.TOKEN_CAP_WHEEL_SEASON)[wheelId];
+  if (cap != null && usedOn(m, wheelId) >= cap) return null;
+  if (WM.MATCH_WHEELS.includes(wheelId) && matchUsed(m, keyOf(s, ctx)) >= WM.TOKEN_CAP_MATCH) return null;
   const src = (t[kind] | 0) > 0 ? kind : (t.wild | 0) > 0 ? 'wild' : null; if (!src) return null;
-  const wheel = p.wheel || defaultWheel(s, wheelId), golds = wheel.golds || [wheel.jackpotIndex || 0];
-  if (golds.includes(p.index)) return null;                       // gold is never improved: every tool is for a non-gold stop
-  if (kind === 'lift' && p.lifted) return null;
-  if (kind === 'nudge') { const best = nudgeTo(wheel, p); if (best < 0) return null; }
+  const wheel = p.wheel || (SKILL.includes(wheelId) ? defaultWheel(s, wheelId) : null); if (!wheel) return null;
+  if (!SKILL.includes(wheelId) && !shapeOk(wheelId, wheel)) return null; // a pending from another wheel kind: no offer
+  if (wheelId === 'find' ? !!p.find : goldsOf(wheelId, wheel).includes(p.index)) return null; // gold (or a find) is never improved
+  const v = tokenValue(wheelId, p);
+  if (kind === 'lift') {
+    if (p.lifted || wheelId === 'find') return null;
+    if (!SKILL.includes(wheelId)) { const [, capv] = /** @type {any} */ (WM.LIFT_BY)[wheelId]; if (liftBase(wheelId, p) >= capv) return null; }
+    return src;
+  }
+  if (!SKILL.includes(wheelId) && wheelId !== 'find' && v >= /** @type {any} */ (WM.TOKEN_BELOW)[wheelId]) return null;
+  if (kind === 'nudge' && nudgeTo(wheelId, wheel, p) < 0) return null;
   return src;
 }
-/** Neighbour slice (one over, never onto gold) that pays more than now, or -1. */
-function nudgeTo(/** @type {any} */ wheel, /** @type {any} */ p) {
-  const L = wheel.slices.length, golds = wheel.golds || [wheel.jackpotIndex || 0];
-  const c = [(p.index - 1 + L) % L, (p.index + 1) % L].filter((j) => !golds.includes(j)).sort((a, b) => wheel.slices[b] - wheel.slices[a]);
-  return c.length && wheel.slices[c[0]] > p.gain ? c[0] : -1;
+/** The field Lucky Lift adds to (sim LIFT_KEY): hype pts, toss boost, pep players, scout steps, finals Coins (not Coin-eq). */
+const liftBase = (/** @type {string} */ w, /** @type {any} */ p) => (w === 'hype' ? +p.pts || 0 : w === 'finals' ? +(p.fx && p.fx.coins) || 0 : tokenValue(w, p));
+/** Buttons to show after the stop: [{kind:'respin'|'two'|'nudge'|'lift', label, src}]. Empty with the flag off, no tokens, a cap reached, or on gold. @param {any} s @param {string} wheelId @param {any} pending the result (+ .wheel) @param {{matchKey?:string}} [ctx] */
+export function tokenOptions(s, wheelId, pending, ctx = {}) {
+  return KINDS.map((kind) => { const src = tokenSource(s, wheelId, kind, pending, ctx); return src ? { kind, label: LABEL[kind] + (src === 'wild' ? ' (Wild)' : ''), src } : null; }).filter((x) => !!x);
 }
-/** Buttons to show after the stop: [{kind:'respin'|'two'|'nudge'|'lift', label}]. Empty off Spotlight/Course, with no tokens, at the Spotlight cap, or on gold. @param {any} s @param {string} wheelId @param {any} pending the result (+ wheel) */
-export function tokenOptions(s, wheelId, pending) {
-  return KINDS.map((kind) => { const src = tokenSource(s, wheelId, kind, pending); return src ? { kind, label: LABEL[kind] + (src === 'wild' ? ' (Wild)' : '') } : null; }).filter((x) => !!x);
+/** One re-spin of the same wheel (core), as a flat pending part. */
+function respinOf(/** @type {any} */ s, /** @type {string} */ w, /** @type {any} */ wheel, /** @type {any} */ p, /** @type {any} */ rng, /** @type {any} */ stop) {
+  const st = stop === undefined ? true : stop;
+  if (w === 'spot' || w === 'course') return decorate(wheel, effective(s)[w], w, p.streak0 | 0, spinResult(rng, wheel, st), rng);
+  if (w === 'hype') return dialResult(rng, wheel, st);
+  if (w === 'find') { const r = spinResult(rng, wheel, st), f = isFindCell(wheel, r.index); return { ...r, find: f, type: f && wheel.cells && wheel.cells[r.index] ? wheel.cells[r.index].type : null }; }
+  return revealResult(rng, wheel);
+}
+/** Nudge result on wheel slice j (flat pending part). */
+function nudged(/** @type {string} */ w, /** @type {any} */ wheel, /** @type {number} */ j) {
+  if (w === 'spot' || w === 'course') return { index: j, gain: wheel.slices[j], jackpot: false, boosted: false };
+  if (w === 'find') return { index: j, find: true, type: wheel.cells && wheel.cells[j] ? wheel.cells[j].type : null, boosted: false };
+  const c = wheel.slices[j];
+  if (w === 'hype') { const li = MD.HYPE_LEVELS.indexOf(c.level); return { index: j, level: c.level, levelIdx: li, pts: c.pts, perf: c.pts / 100, fanMult: MD.HYPE_FAN_MULT[li], boosted: false }; }
+  const fx = sliceFx(w, wheel, j);
+  return { index: j, id: c.id, label: c.label, fx, boosted: false, ...(w === 'pep' ? { slot: c.slot || null, slots: c.slot ? [c.slot] : [] } : {}) };
+}
+/** Lucky Lift on a dial / reveal result: bonus from WM.LIFT_BY, only adds, never above the cap. */
+function lifted(/** @type {string} */ w, /** @type {any} */ p, /** @type {any} */ rng) {
+  const [ch, capv] = /** @type {any} */ (WM.LIFT_BY)[w], b = ch[Math.floor(rng.random() * ch.length)];
+  if (w === 'hype') { const pts = Math.max(p.pts, Math.min(p.pts + b, capv)); return { pts, perf: pts / 100 }; }
+  const fx = { ...(p.fx || {}) };
+  if (w === 'toss') fx.tossb = Math.max(+fx.tossb || 0, Math.min((+fx.tossb || 0) + b, capv));
+  else if (w === 'scout') fx.steps = Math.max(+fx.steps || 0, Math.min((+fx.steps || 0) + b, capv));
+  else if (w === 'finals') fx.coins = Math.max(+fx.coins || 0, Math.min((+fx.coins || 0) + b, capv)); // never a Medal
+  else if (w === 'pep') { // b > 0: one more player with chance b (one draw), never past the cap
+    const slots = (p.slots || []).slice(), hit = rng.random() < b;
+    if (hit && slots.length + 1 <= capv && slots.length) { let n = (slots[slots.length - 1] % 6) + 1; while (slots.includes(n)) n = (n % 6) + 1; slots.push(n); }
+    fx.pep = slots.length; return { fx, slots };
+  }
+  return { fx };
 }
 /**
- * Use one token on a result. respin / two: spin again and keep the better (never worse); nudge: one slice over, never onto gold;
- * lift: a bonus that only adds, never above gold. Wild stands in when the kind has none. Spotlight stops at 2 tokens a season.
- * Not allowed = the same {s, pending}. stop = how the new spin is tapped (spinResult stop; default a careful synthetic tap).
- * @param {any} s @param {string} wheelId @param {string} kind @param {any} pending the result, with .wheel (the meta wheel spun) @param {{random:()=>number}} rng @param {boolean|{t:number,phi?:number,e?:number}} [stop]
+ * Use one token on a result (any of the 8 wheels). respin / two: spin again and keep the better (never worse); nudge: one slice over, never onto gold;
+ * lift: a bonus that only adds, never above gold. Wild stands in when the kind has none. Caps: 2 a season per wheel (Course none), 1 a match day on hype/toss/pep.
+ * Not allowed = the same {s, pending}. stop = how an aimable re-spin is tapped (default a careful synthetic tap). ctx = {matchKey?, spin?(rng, stop)}.
+ * @param {any} s @param {string} wheelId @param {string} kind @param {any} pending the result, with .wheel (the wheel spun) @param {{random:()=>number}} rng
+ * @param {boolean|{t:number,phi?:number,e?:number}} [stop] @param {{matchKey?:string, spin?:(rng:any, stop:any)=>any}} [ctx]
  * @returns {{s:any, pending:any}}
  */
-export function useToken(s, wheelId, kind, pending, rng, stop) {
-  const src = tokenSource(s, wheelId, kind, pending); if (!src) return { s, pending };
+export function useToken(s, wheelId, kind, pending, rng, stop, ctx = {}) {
+  const src = tokenSource(s, wheelId, kind, pending, ctx); if (!src) return { s, pending };
   pending = flatPending(pending);
-  const wheel = pending.wheel || defaultWheel(s, wheelId), X = effective(s)[wheelId], streak0 = pending.streak0 | 0;
+  const wheel = pending.wheel || defaultWheel(s, wheelId), streak0 = pending.streak0 | 0;
   let p = { ...pending, wheel, used: [...(pending.used || []), kind] };
   if (kind === 'respin' || kind === 'two') {
-    const r2 = decorate(wheel, X, wheelId, streak0, spinResult(rng, wheel, stop === undefined ? true : stop), rng);
-    if (r2.gain > p.gain) p = { ...p, ...r2, wheel, used: p.used };
+    const r2 = ctx && typeof ctx.spin === 'function' ? flatPending(ctx.spin(rng, stop)) : respinOf(s, wheelId, wheel, p, rng, stop);
+    if (r2 && tokenValue(wheelId, r2) > tokenValue(wheelId, p)) p = { ...p, ...r2, wheel, used: p.used };
   } else if (kind === 'nudge') {
-    const j = nudgeTo(wheel, p); p = { ...p, index: j, gain: wheel.slices[j], jackpot: false, boosted: false };
-  } else {
+    p = { ...p, ...nudged(wheelId, wheel, nudgeTo(wheelId, wheel, p)) };
+  } else if (SKILL.includes(wheelId)) {
     const cap = wheel.slices[wheel.jackpotIndex || 0], b = wheelId === 'spot' ? WM.LIFT[Math.floor(rng.random() * WM.LIFT.length)] : WM.LIFT_COURSE[Math.floor(rng.random() * WM.LIFT_COURSE.length)];
     p = { ...p, gain: Math.max(p.gain, Math.min(p.gain + b, cap)), lifted: true };
-  }
-  const n = clone(s), m = n.wheelMeta; m.tokens[src] -= 1; if (wheelId === 'spot') { m.spotTokensUsed = (m.spotTokensUsed | 0) + 1; m.streak = p.jackpot ? streak0 + 1 : 0; }
+  } else p = { ...p, ...lifted(wheelId, p, rng), lifted: true };
+  const n = clone(s), m = n.wheelMeta; m.tokens[src] -= 1;
+  m.tokUsed = { ...(m.tokUsed || {}) }; m.tokUsed[wheelId] = usedOn(m, wheelId) + 1;
+  if (wheelId === 'spot') { m.spotTokensUsed = (m.spotTokensUsed | 0) + 1; m.streak = p.jackpot ? streak0 + 1 : 0; }
+  if (WM.MATCH_WHEELS.includes(wheelId)) { const key = keyOf(s, ctx); m.matchTokUsed = { key, n: matchUsed(m, key) + 1 }; }
   return { s: n, pending: p };
 }
 
@@ -289,5 +389,8 @@ export function metaReport(s) {
   return [`Wheel upgrades: ${FLAGS.wheelMeta ? 'on' : 'off'}, tier ${tier} (${WM.MATERIALS[Math.max(0, tier - 1)]}), tally ${m.tally}, Spokes ${m.spokes} (spent ${m.spent})`,
     `Tree: ${own}`, `Craft: ${craft}`, `Tokens: spin again ${t.respin | 0}, nudge ${t.nudge | 0}, pick two ${t.two | 0}, wild ${t.wild | 0}, lift ${t.lift | 0}; Spotlight used ${m.spotTokensUsed | 0} of ${WM.SPOT_TOKEN_CAP}`,
     `Spotlight: speed x${E.spot.w0Mult.toFixed(2)}, wobble x${E.spot.jMult.toFixed(2)}, gold +${E.spot.goldAdd.toFixed(2)}, extra gold ${E.spot.extraGold}, booster ${E.spot.booster.chance.toFixed(1)} x ${E.spot.booster.value}, guide ${E.spot.guide ? 'on' : 'off'}`,
-    `Course: gold +${E.course.goldAdd.toFixed(2)}, second opinion ${E.course.bestOfTwo}`].map((x) => String(x));
+    `Course: gold +${E.course.goldAdd.toFixed(2)}, second opinion ${E.course.bestOfTwo}`,
+    `Hype dial: speed ${E.hype.dial.V.toFixed(1)}, wobble x${E.hype.dial.Jmult.toFixed(2)}, tap error x${E.hype.dial.sdMult.toFixed(3)}; Control feel only on toss, pep, scout, finals`,
+    `Tokens used this season: ${WHEEL_IDS.map((w) => { const c = /** @type {any} */ (WM.TOKEN_CAP_WHEEL_SEASON)[w]; return `${w} ${usedOn(m, w)}${c == null ? '' : '/' + c}`; }).join(', ')}; match day ${m.matchTokUsed && m.matchTokUsed.key === matchKeyOf(s) ? m.matchTokUsed.n | 0 : 0}/${WM.TOKEN_CAP_MATCH}`,
+    `Full-tree value vs no tree (design, avg careful): ${WHEEL_IDS.map((w) => `${w} x${/** @type {any} */ (WM.FULL_RATIO)[w].toFixed(2)}`).join(', ')}`].map((x) => String(x));
 }

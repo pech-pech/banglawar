@@ -8,6 +8,7 @@ import { aiPickSix } from '../core/clubs.js';
 import { tagInfo } from '../core/tags.js';
 import { tableOrder, placeOf, ME, matchPay, gapLetters, koWinner } from '../core/season.js';
 import { planOf, netsPreview, coachList, scoutList, canSign, coachQuality, coachStepInUse, courseCost, courseUsesLicence, canCourse, twinHeld, licenceHeld, effortOdds, meanGain, wheelSlices, courseWheel, EFFORTS, FOCUSES, MAX_COACHES, sixOf, drillRoom, focusRating } from '../core/training.js';
+import { netsFacLevel, netsQuality } from '../core/training.js'; // wa1 train
 import { letterOfRaw, letterOfShown, letterOfStep, ticksOfRaw, fillOfRaw, stepOfRaw } from '../core/letters.js';
 import { nodeStatus, treeBoost, treeOf, NODE_COUNT } from '../core/skills.js';
 import { planProblem, livePlan, squadFull, canSell, squadMax } from './commands.js';
@@ -26,6 +27,7 @@ import { WM, NODES } from '../data/wheelmeta.js';
 import { metaOf, rankOf, tierOf, tierNow, canBuy, effective, metaWheel, tokenOptions, powerDone, nextTierUp } from '../core/wheelmeta.js';
 import { teamBoost, roarAt, resolvePep } from '../core/matchday.js';
 import { mdSpinVM, findSpinVM, scoutSpinVM, finalsSpinVM } from './wmstore.js';
+import { wmTokens } from './wmstore.js'; // wa1 wire: token buttons for Hype / Toss / Pep / Scout / Finals
 import { BATS, BOWLS, CELLS, COMBOS, SEEN_BALLS, cellIndex, cellOf, cellName, gradeWord, gradeRank, comboOf, isBook, newBook } from '../core/pairing.js';
 
 const ovStr = (balls) => `${Math.floor(balls / 6)}.${balls % 6}`;
@@ -388,6 +390,8 @@ export function trainingVM(s) {
     licence: { held: licenceHeld(s), line: licenceHeld(s) > 0 ? 'Licence: 2nd course allowed' : '' },
     done, result: done ? { lines: T.nets.lines, cost: T.nets.cost, skipped: T.nets.skipped } : null, tips: !T.tipsSeen && !(T.netsRuns > 0),
     canRun: !done && pre.trainIds.length > 0, notice: noticeOf(s),
+    // wa1 train (SPEC 2026-11-14 s2/s4): coach strip on the Training tab (3 slots, scout list) + Nets level/quality. Owner: train.
+    strip: { slots: MAX_COACHES, free: Math.max(0, MAX_COACHES - coaches.length), scoutOpen: !!canSign(s).ok }, nets: { level: netsFacLevel(s), q: netsQuality(s) },
   };
 }
 
@@ -698,6 +702,7 @@ export function tierUpVM(s) {
 /** Token buttons for the result that waits: {options:[{kind,label}], counts:{respin,nudge,two,wild,lift}, spotLeft}. wheel = 'spot' | 'course'; slot 2 = the Twin wheel. Empty when the flag is off or no result waits. */
 export function tokenVM(s, wheel, slot = 1) {
   const m = metaOf(s), T = s && s.training || {};
+  if (['hype', 'toss', 'pep', 'scout', 'finals'].includes(wheel)) return { options: FLAGS.wheelMeta ? wmTokens(s, wheel) : [], counts: { ...m.tokens }, spotLeft: Math.max(0, WM.SPOT_TOKEN_CAP - (m.spotTokensUsed | 0)) }; // wa1 wire: the waiting match-day / scout / finals result
   const pend = !FLAGS.wheelMeta ? null : wheel === 'course' ? T.coursePending : slot === 2 ? T.pending2 : T.pending;
   const live = pend && (wheel === 'course' || pend.week === T.week);
   return { options: live ? tokenOptions(s, wheel, pend).map((o) => ({ kind: o.kind, label: o.label, count: (m.tokens || {})[/Wild\)$/.test(o.label) ? 'wild' : o.kind] | 0, ...(wheel === 'spot' ? { left: Math.max(0, WM.SPOT_TOKEN_CAP - (m.spotTokensUsed | 0)) } : {}) })) : [], counts: { ...m.tokens }, spotLeft: Math.max(0, WM.SPOT_TOKEN_CAP - (m.spotTokensUsed | 0)) };

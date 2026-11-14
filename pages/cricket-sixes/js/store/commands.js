@@ -22,6 +22,8 @@ import { takeFreePick, freePickPending } from '../core/economy.js';
 import { VERSION, dropFreepickNotice, emptyWheelMeta } from '../core/save-migrate.js';
 import { metaWheel, recordSpin, afterResult, seasonTokens, useToken, buyNode, canBuy, swapSpokes, powerDone, dismissTierUp, nextTierUp } from '../core/wheelmeta.js';
 import { canMdSpin, mdSpin, settleMd, stopOf, findForce, afterFind, canScoutSpin, scoutSpin, canFinalsSpin, finalsSpin, mdKeep } from './wmstore.js';
+import { useFindToken } from './wmstore.js'; // wa1 find
+import { wmUseToken } from './wmstore.js'; // wa1 wire: tokens on Hype / Toss / Pep / Scout / Finals
 import { rollMatchday, teamBoost, scaleRatings, resolvePep, roarAt } from '../core/matchday.js';
 import { MD } from '../data/matchday.js';
 
@@ -434,7 +436,9 @@ function applyCommandCore(s, cmd, payload) {
     }
     case 'SetWheelFeatures': return payload && typeof payload.on === 'boolean' && (s.wheelFeatures !== false) !== payload.on ? wheelSwitch(s, payload.on) : s;
     case 'BuyNode': return FLAGS.wheelMeta && payload && typeof payload.id === 'string' && canBuy(s, payload.id).ok ? buyNode(s, payload.id) : s;
-    case 'UseToken': return viaTrain(s, (x) => useTok(x, payload));
+    case 'UseToken': if (payload && payload.wheel === 'find') return useFindToken(s, payload); // wa1 find: Find wheel token branch (agent "find")
+      if (payload && ['hype', 'toss', 'pep', 'scout', 'finals'].includes(payload.wheel)) return wmUseToken(s, payload); // wa1 wire: match-day / scout / finals wheels
+      return viaTrain(s, (x) => useTok(x, payload));
     case 'SwapSpokes': return FLAGS.wheelMeta && powerDone(s) ? swapSpokes(s) : s;
     case 'DismissTierUp': return FLAGS.wheelMeta && nextTierUp(s) ? dismissTierUp(s) : s;
     case 'PickActivity': return pickAct(s, payload);

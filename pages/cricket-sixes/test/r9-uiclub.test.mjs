@@ -146,8 +146,8 @@ test('trial card: coach kind shows a letter grade (not a step number), strong fo
   assert.match(f.innerHTML, /No free coach slot/);
 });
 
-test('stadium view: Nets promise no drill effect (training ignores Nets today)', () => {
+test('stadium view: Nets say better nets give more Good and Great drills (NETS_Q by level)', () => {
   const r = fakeRoot(); renderStadium(r, { econ: Object.assign(newEconomy(), { coins: 500 }), season: { league: 1, n: 1 }, clubs: [] }, () => {});
-  assert.doesNotMatch(r.innerHTML, /better drills|drills a little|drills (much )?better|drills the best/);
-  assert.match(r.innerHTML, /more training effects later|no drill change yet/);
+  assert.doesNotMatch(r.innerHTML, /more training effects later|no drill change yet/);
+  assert.match(r.innerHTML, /more Good and Great drills/);
 });

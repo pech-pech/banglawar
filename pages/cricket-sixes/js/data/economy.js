@@ -36,7 +36,7 @@ export const ECON = {
   // r9 free-pick gate (FLAGS.freePick on): every facility starts L0, one L1 is free, the rest cost Coins from round 1 (no stadium gate on L1).
   FAC_OPEN_V2: { stands: 1, shop: 1, nets: 1, gym: 1, pitch: 1, academy: 1, scout: 1 },
   FAC_START_V2: { stands: 0, shop: 0, nets: 0, gym: 0, pitch: 0, academy: 0, scout: 0 },
-  FAC_START_NETS: 0, // M Q2: Nets L0 tested safe (training reads s.nets, not econ.fac.nets). Set 1 to pre-own Nets L1 if that ever breaks.
+  FAC_START_NETS: 0, // M Q2: Nets starts L0. wa1 fix (SPEC 2026-11-14 s4): training now reads econ.fac.nets (flag freePick on, as in the game), NETS_Q L0 3 ... L5 14 (data/training.js); L0 is a small base, not zero. Flag off = old s.nets rule (no effect).
   FAC_L1_COST: { stands: 100, shop: 90, nets: 40, gym: 70, pitch: 120, academy: 60, scout: 80 },
   HYPE_FAN_MULT: [1, 1.1, 1.25, 1.5], // low / med / high / nuts: win/loss/tie Fans part only, after the league mult
   UPKEEP: 1.0,

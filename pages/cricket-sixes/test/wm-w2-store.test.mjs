@@ -90,8 +90,9 @@ test('reload-safe: pending results survive a JSON round trip and read the same f
 test('Find: the reel decides the find, tallies (Find = 2 Spokes), keeps the pending result; rest has no reel', () => withFlags(ON, () => {
   const st = newGame('w2-find'); let s = st.get(); s = { ...s, econ: { ...s.econ, coins: 5000 } };
   const vm = sel.activitiesVM(s), o = vm.options.find((x) => x.id === 'banner');
-  assert.ok(o.reel && o.reel.cells.length === 8, 'eight cells, pending null'); assert.equal(o.reel.pending, null);
-  assert.equal(o.reel.cells.reduce((a, c) => a + c.w, 0).toFixed(6), '12.000000');
+  // wa1 find: Find is a big wheel: 3 blocks x 3 types + 3 Nothing gaps = 12 cells, 10 units round
+  assert.ok(o.reel && o.reel.cells.length === 12, 'twelve cells, pending null'); assert.equal(o.reel.pending, null);
+  assert.equal(o.reel.cells.reduce((a, c) => a + c.w, 0).toFixed(6), '10.000000');
   const a = C(s, 'PickActivity', { id: 'banner', stop: { t: 2, phi: 1.5, e: 0.1 } }), b = C(s, 'PickActivity', { id: 'banner', stop: { t: 2, phi: 1.5, e: 0.1 } });
   assert.deepEqual(a, b); assert.equal(tally(a), 1); assert.equal(spokes(a), 2);
   assert.equal(a.findSpin.id, 'banner');

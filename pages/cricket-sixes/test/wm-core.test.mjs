@@ -111,7 +111,7 @@ test('tokens: refill from ranks, Spotlight cap 2, Course no cap, guards, Wild, n
   let s = full(); s = seasonTokens(s); assert.deepEqual(metaOf(s).tokens, { respin: 3, nudge: 1, two: 1, wild: 1, lift: 1 }); assert.equal(seasonTokens(s), s, 'once a season');
   const w = metaWheel(wheelSlices('normal'), 'spot', s), pend = { index: 2, gain: 1, jackpot: false, wheel: w, streak0: 0 };
   assert.deepEqual(tokenOptions(s, 'spot', pend).map((o) => o.kind), ['respin', 'two', 'nudge', 'lift']);
-  assert.equal(tokenOptions(s, 'hype', pend).length, 0); assert.equal(tokenOptions(s, 'toss', pend).length, 0);
+  assert.equal(tokenOptions(s, 'hype', pend).length, 0); assert.equal(tokenOptions(s, 'toss', pend).length, 0); // wa1: a Spotlight-shaped result on a dial/reveal wheel gets nothing (Hype/Toss tokens: test/wa1-core.test.mjs)
   assert.equal(tokenOptions(s, 'spot', { ...pend, index: 0, jackpot: true }).length, 0, 'no tool on gold');
   const rng = makeRng('tk'); let r = useToken(s, 'spot', 'respin', pend, rng); assert.equal(metaOf(r.s).tokens.respin, 2); assert.equal(metaOf(r.s).spotTokensUsed, 1); assert.ok(r.pending.gain >= pend.gain);
   r = useToken(r.s, 'spot', 'respin', { ...pend, gain: 1 }, rng); assert.equal(metaOf(r.s).spotTokensUsed, 2);

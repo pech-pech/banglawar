@@ -10,7 +10,7 @@ import { MATERIALS, MAT_NAME, matOf, rgb, wheelSvg, spokeIcon } from './wheel-lo
 
 const BRANCH_ANGLE = { control: -3 * Math.PI / 4, fortune: -Math.PI / 4, specialist: Math.PI / 4, craft: 3 * Math.PI / 4 };
 const BRANCH_ORDER = ['control', 'fortune', 'specialist', 'craft'];
-const BRANCH_NOTE = { control: 'Control branch', fortune: 'Fortune branch', specialist: 'Specialist branch', craft: 'Craft branch: looks only' };
+const BRANCH_NOTE = { control: 'Control: helps you stop on every wheel', fortune: 'Fortune: tokens work on every wheel', specialist: 'Specialist: one wheel each', craft: 'Craft branch: looks only' }; // wa1: Control and tokens on all 8 wheels
 let swapNote = ''; // the last swap, said once in the swap card (view state)
 let picked = null; // the open branch tab (view state, never saved)
 

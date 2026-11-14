@@ -16,6 +16,7 @@
          guide?:boolean         Aim Guide: a landing tick on the rim while the wheel turns (where the slice under the pointer ends up if STOP is tapped now)
          tokens?:[{kind,label,count?,left?}], getTokens?()=>[...] (the fresh list; read after every result)   token buttons after the result (count = shown as "x2"; left = Spotlight uses left this season); onToken(kind) uses one, then getPending() is read again; the wheel visibly acts (short re-spin / slice step / second pointer flash / bonus pop; none with reduced motion) and one outcome line is shown ("Spin Again: kept +3")
          spokeGain?()=>number   Spokes this spin drops (a small chip on the result card; absent or 0 = no chip)
+         wa1 Find (agent "find"): labels?:string[] (word per slice), aims?:number[] (careful targets, units), plainResult?:true (describe -> {chip, big, line}), jpText?, tokName?, outcome?(kind, before, after) -> line
          look?:{rim,hub,ptr,trail,pal,spoke,burst,stand,name,crystal,material}   craft look (cosmetic only; the tier-7 Crystal look wins over Rim Paint / Hub Cap) }
    SPIN then STOP (two taps, no auto-start). WHEEL-STOP-V2: the wheel slows by itself (w = W0*exp(-t/TAU)); STOP (live from 1 s) eases it out over 1 s
    from the current speed with a small wobble; the slice under the pointer wins (no snap, no hidden aim, no preview). No STOP by 6 s = the game taps at 6 s.
@@ -54,7 +55,7 @@ export function openWheel(o) {
   const N = o.slices.length, JP = o.jackpotIndex || 0, reduced = reducedNow();
   const ZONE = !reduced && +o.zone > 0 ? +o.zone : 0, CHIME = !reduced && !!o.chime, PH = o.phys || null, WS = PH ? { ...TRAIN2.wheelStop, ...PH } : TRAIN2.wheelStop, LK = normLook(o.look), GD = o.golds && o.golds.length ? o.golds : [o.jackpotIndex || 0], PX = PH ? [PH] : []; // PX: the optional trailing phys argument for the core helpers
   const widths = wheelWidths({ slices: o.slices, jackpotIndex: JP, widths: o.widths }), C = widths.reduce((a, b) => a + b, 0), U = TAU / C; // units -> radians
-  const WO = { slices: o.slices, jackpotIndex: JP, widths, ...(PH ? { phys: PH } : {}), ...(o.golds ? { golds: o.golds } : {}) }; // the wheel the core helpers see
+  const WO = { slices: o.slices, jackpotIndex: JP, widths, ...(PH ? { phys: PH } : {}), ...(o.golds ? { golds: o.golds } : {}), ...(o.aims ? { aims: o.aims } : {}) }; // the wheel the core helpers see (wa1 find: aims = careful targets)
   const cum = [0]; widths.forEach((w, i) => cum.push(cum[i] + w));
   const sliceOf = (pos) => { let u = pos % C; if (u < 0) u += C; for (let i = 0; i < N; i++) if (u < cum[i + 1]) return i; return N - 1; };
   const app = document.getElementById('app'), opener = document.activeElement;
@@ -66,7 +67,7 @@ export function openWheel(o) {
   const fills = o.slices.map((_, i) => fillOf(i));
   const ov = document.createElement('section');
   ov.className = 't2-ov wh-ov' + (crys ? ' is-crystal' : ''); ov.setAttribute('role', 'dialog'); ov.setAttribute('aria-modal', 'true'); ov.setAttribute('aria-label', o.title);
-  const sliceWords = o.slices.map((v, i) => '+' + v + (GD.includes(i) ? ' jackpot' : '')).join(', ');
+  const sliceWords = o.labels ? o.labels.map((l, i) => l || (GD.includes(i) ? 'gold' : 'blank')).join(', ') : o.slices.map((v, i) => '+' + v + (GD.includes(i) ? ' jackpot' : '')).join(', '); /* wa1 find: o.labels = word labels */
   ov.innerHTML = '<div class="t2-strip"><span>' + icoDeco('burst', 24) + ' ' + esc(o.title) + (o.sub ? ' <small>' + esc(o.sub) + '</small>' : '') + '</span>' +
     '<button type="button" class="c-icon-btn wh-x" aria-label="Close"><span class="c-ico c-ico--x"></span></button></div>' +
     '<div class="wh-card c-card">' + (o.cardHtml || '') + '</div>' +
@@ -77,7 +78,7 @@ export function openWheel(o) {
   document.body.appendChild(ov); if (app) app.inert = true;
   const $ = (q) => ov.querySelector(q), wrap = $('.wh-wrap'), cv = $('.wh-cv'), ctx = cv.getContext('2d'), go = $('[data-go]'), msg = $('[data-msg]'), res = $('[data-res]'), live = $('[data-live]'), ptr = $('.wh-ptr'), tokBox = $('[data-tok]');
   if (LK) { if (ptrCol) ov.style.setProperty('--wh-ptr', 'rgb(' + ptrCol + ')'); if (LK.hub && colourOf(LK.hub)) ov.style.setProperty('--wh-hub', 'rgb(' + hubCol + ')'); const pl = $('.wh-plate'); if (LK.name && pl) { pl.textContent = String(LK.name).slice(0, 24); pl.hidden = false; pl.setAttribute('aria-hidden', 'true'); } }
-  const labels = o.slices.map((v, i) => { const s = document.createElement('span'); s.className = 'wh-lab' + (GD.includes(i) ? ' is-jp' : ''); s.textContent = (o.plus || '+') + v; s.setAttribute('aria-hidden', 'true'); wrap.appendChild(s); return s; });
+  const labels = o.slices.map((v, i) => { const s = document.createElement('span'); s.className = 'wh-lab' + (GD.includes(i) ? ' is-jp' : ''); s.textContent = o.labels ? o.labels[i] || '' : (o.plus || '+') + v; /* wa1 find: word labels */ s.setAttribute('aria-hidden', 'true'); wrap.appendChild(s); return s; });
   // wheel state: pos = the wheel coordinate (units) under the pointer; the wheel's turn is rot = pos * U.
   let state = 'idle', pos = Math.random() * C, phi = pos, speed = 0, clock = 0, lastF = 0, tapT = 0, stopInfo = null, adj = 0, raf = 0, closed = false, S = 2, size = 100, css = 200, spinEv = 0, prevIdx = sliceOf(pos);
   const centreOf = (i) => (cum[i] + cum[i + 1]) / 2;
@@ -169,6 +170,7 @@ export function openWheel(o) {
   const TOKNAME = { respin: 'Spin Again', two: 'Pick Two', nudge: 'Nudge', lift: 'Lucky Lift' }, PL = () => o.plus || '+';
   /** One outcome line for a used token: what the wheel now says, whether or not it improved. */
   function outcomeLine(kind, b, q) {
+    if (o.outcome) return o.outcome(kind, b, q); // wa1 find: the caller words the outcome
     const nm = TOKNAME[kind] || 'Token', g0 = b ? b.gain : q.gain;
     if (kind === 'lift') return q.gain > g0 ? nm + ': +' + (q.gain - g0) + ' bonus, now ' + PL() + q.gain : nm + ': no bonus, kept ' + PL() + g0;
     if (kind === 'nudge') return q.index !== (b && b.index) ? nm + ': moved to ' + PL() + q.gain : nm + ': kept ' + PL() + g0;
@@ -181,7 +183,7 @@ export function openWheel(o) {
     list.forEach((t) => { const b = document.createElement('button'), n = t.count > 0 ? ' x' + t.count : ''; b.type = 'button'; b.className = 'c-btn wh-tk'; b.textContent = t.label + n; b.setAttribute('data-kind', t.kind); b.setAttribute('aria-label', t.label + (n ? ', ' + t.count + ' left' : ''));
       b.addEventListener('click', () => { if (state !== 'result' || !o.onToken) return; const before = o.getPending(); o.onToken(t.kind); const q = o.getPending(); if (!q) return; useVisible(t.kind, before, q); }); tokBox.appendChild(b); });
     const left = list.length && list[0].left !== undefined ? list[0].left : null;
-    if (left !== null) { const n = document.createElement('p'); n.className = 'wh-tknote'; n.textContent = 'Spotlight: ' + left + (left === 1 ? ' token use' : ' token uses') + ' left this season'; tokBox.appendChild(n); }
+    if (left !== null) { const n = document.createElement('p'); n.className = 'wh-tknote'; n.textContent = (o.tokName || 'Spotlight') + ': ' + left + (left === 1 ? ' token use' : ' token uses') + ' left this season'; tokBox.appendChild(n); }
   }
   let tw = null;
   function flash2() { // Pick Two: the second pointer flashes
@@ -207,7 +209,10 @@ export function openWheel(o) {
   function showResult(again, line) {
     const p = o.getPending(); if (!p) return; const d = o.describe(p), sg = o.spokeGain ? Number(o.spokeGain()) || 0 : 0;
     state = 'result'; ov.classList.remove('is-turning'); msg.hidden = true; res.hidden = false; ov.classList.toggle('is-jp', !!p.jackpot);
-    res.innerHTML = (p.jackpot ? '<span class="wh-jp">' + icoDeco('burst', 20) + ' JACKPOT! Breakthrough!</span>' : d.breakthrough && wholeLetter(d.from, d.to) ? '<span class="wh-bt">Breakthrough!</span>' : '') +
+    if (o.plainResult) res.innerHTML = (p.jackpot ? '<span class="wh-jp">' + icoDeco('burst', 20) + ' ' + esc(o.jpText || 'JACKPOT!') + '</span>' : '') + // wa1 find: a word result (chip + big line + one plain line)
+      '<div class="wh-big">' + (d.chip ? '<span class="wh-chip' + (p.boosted ? ' is-boost' : '') + '">' + esc(d.chip) + '</span>' : '') + '<b>' + esc(d.big) + '</b></div>' + (d.line ? '<div class="wh-chg"><span>' + esc(d.line) + '</span></div>' : '') +
+      (sg > 0 ? '<div class="wh-sp">' + spokeIcon(20) + '<b>+' + esc(sg) + ' Spokes</b></div>' : '');
+    else res.innerHTML = (p.jackpot ? '<span class="wh-jp">' + icoDeco('burst', 20) + ' JACKPOT! Breakthrough!</span>' : d.breakthrough && wholeLetter(d.from, d.to) ? '<span class="wh-bt">Breakthrough!</span>' : '') +
       '<div class="wh-big"><span class="wh-chip' + (p.boosted || p.hot ? ' is-boost' : '') + '">' + esc(o.plus || '+') + esc(p.gain) + '</span><b>' + esc(d.big) + '</b></div>' +
       (p.boosted || p.hot ? '<div class="wh-bst">' + (p.boosted ? '<span class="wh-bst1">Booster ' + esc(o.plus || '+') + esc(p.boostBy || 1) + '</span>' : '') + (p.hot ? '<span class="wh-bst1">Hot Streak ' + esc(o.plus || '+') + esc(p.hotBy || 1) + '</span>' : '') + '</div>' : '') +
       '<div class="wh-chg">' + (d.from !== d.to ? '<span>' + esc(d.from) + '</span><span class="t2-arr" aria-hidden="true"></span><b class="t2-new">' + esc(d.to) + '</b>' : d.barHtml ? d.barHtml + '<small>(bar fills)</small>' : '<span>' + esc(d.from) + '</span><small>(same letter)</small>') + '</div>' +

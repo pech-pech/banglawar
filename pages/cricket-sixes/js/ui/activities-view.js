@@ -100,7 +100,7 @@ export function renderActivities(root, vm, dispatch) {
     root.innerHTML = '<div class="screen cl-screen cl-acts">' +
       (vm.coins != null ? '<p class="cl-purse" aria-label="' + esc(fmt(vm.coins) + ' Coins') + '">' + icoDeco('coin', 24) + '<b>' + fmt(vm.coins) + '</b> Coins</p>' : '') +
       (vm.available === false || d ? '<p class="cl-note" role="status">' + icoDeco('done', 24) + '<span>' + esc(doneLine(d) || 'Done for this week.') + ' Next one next week.</span></p>'
-        : '<p class="cl-note">' + icoDeco('fan', 24) + '<span>One each week. Each gives Fans and a small find chance. Good timing helps.</span></p>' +
+        : '<p class="cl-note">' + icoDeco('fan', 24) + '<span>' + (opts.some((x) => x && x.reel) ? 'One each week. Each gives Fans and a spin of the Find wheel. Stop on a gold block to find Coins, a player or a coach.' : 'One each week. Each gives Fans and a small find chance. Good timing helps.') /* wa1 find2: Find wheel copy (flag off: old line) */ + '</span></p>' +
           '<div class="cl-opts">' + opts.map(optionBtn).join('') + '</div>' +
           '<button type="button" class="c-btn cl-opt cl-rest" data-cl-pick="rest">' + icoDeco('week', 24) + '<span class="cl-opt__t"><span class="cl-opt__n">Rest week</span><span class="cl-opt__s">Free. No penalty.</span></span></button>') +
       (pityLeft(vm) != null && !(vm.available === false || d) ? '<p class="cl-note">' + icoDeco('info', 24) + '<span>A find is sure within ' + esc(pityLeft(vm)) + ' more picked ' + (pityLeft(vm) === 1 ? 'week' : 'weeks') + '.</span></p>' : '') + '</div>';
@@ -137,7 +137,7 @@ export function openActivities(vm, dispatch, _open, _arg, refresh) {
   // wheel meta: the Find reel. The first SPIN sends PickActivity { id, stop }; the stored result is read back from the fresh view model.
   host.__clReel = (o) => {
     const cur = () => { const v = refresh ? refresh() : host.__clVm, x = ((v && v.options) || []).find((y) => y.id === o.id); return (x && x.reel) || o.reel; };
-    spinFind({ get: cur, look: (host.__clVm || vm).look, title: o.name, pick: (extra) => dispatchPick('PickActivity', { id: o.id, ...extra }), onCollect: () => { const ok = host.querySelector('[data-cl-close]'); if (ok) ok.focus(); } });
+    spinFind({ get: cur, look: (host.__clVm || vm).look, title: o.name, pick: (extra) => dispatchPick('PickActivity', { id: o.id, ...extra }), useToken: (kind) => dispatchPick('UseToken', { wheel: 'find', kind }) /* wa1 find */, onCollect: () => { const ok = host.querySelector('[data-cl-close]'); if (ok) ok.focus(); } });
   };
   const dispatchPick = (n, a) => { dispatch(n, a); const fresh = refresh ? refresh() : null, res = fresh && resultOf(fresh); if (res) { host.__clResult = res; host.__clClose = close; renderActivities(host, fresh, () => {}); } };
   close = openSheet('Fan activity', '');

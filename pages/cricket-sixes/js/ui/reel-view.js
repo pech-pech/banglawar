@@ -7,7 +7,9 @@
          getPending() -> {index, jackpot?}|null,  index = the cell under the line
          describe(p) -> { big, chip?, flash?, lineHtml?, say, gold?:bool },
          onCollect(), collectLabel?, onClose?(), onTick?({loud, rate}),
-         guide?:bool, look?:{rim, hub, needle, gold}, V?, J?, plan?:{total} (reveal s, default 3), px?:px per unit (default 100) }
+         guide?:bool, look?:{rim, hub, needle, gold}, V?, J?, plan?:{total} (reveal s, default 3), px?:px per unit (default 100)
+         wa1: tokens?:[{kind,label,count?,left?,match?}], getTokens?(), onToken(kind), tokName?, tokVal?(p), tokText?(p)   same pattern as wheel-view: buttons after the result, a short replay (none with reduced motion), one outcome line ("Spin Again: kept +4%") and the uses-left note
+         wa1: zone?:s, chime?:bool (aim dial: the needle glows near gold / flashes on entering it); guide on a reveal = a feel-only tick as it slows }
    Aim: SPIN then STOP, live from 0.8 s, auto at 3.0 s. The strip loops one way (7 units/s); STOP glides 0.5 s plus a wobble; the cell under the 4 px centre line wins.
    No snap, no hidden roll, no landing preview (the Aim Guide upgrade only). Reveal: result already drawn; one tap plays, tap again or anywhere skips; reduced motion = result at once.
    Cells 19 px tall (Street Game) still read: icon + text, text size follows the cell. Canvas drawn in code (pixel style), palette from CSS vars (both skins). */
@@ -28,6 +30,16 @@ export function reelRevealDist(x0, xEnd, C, T, minV = 7) {
   const a = DR.RAMP * T, b = DR.CRUISE * T, k = a / 2 + (b - a) + (T - b) / 3; let A = mod(xEnd - x0, C); while (A / k < minV) A += C; return A;
 }
 
+// ---------- wa1 Control feel (pure; tested) ----------
+export const ZONE_COL = [255, 226, 110];
+/** Aim Zone on the reel: is a gold cell on the line at offset x, or within `reach` units of it either way (wraps at C)? Pure. */
+export function goldNearLine(x, reach, cum, C, golds) {
+  if (!(reach >= 0) || !golds.length) return false;
+  return golds.some((g) => { const a = cum[g], b = cum[g + 1]; if (x >= a && x < b) return true; const d1 = mod(a - x, C), d2 = mod(x - b, C); return reach > 0 && (d1 <= reach || d2 <= reach); });
+}
+/** Gold Chime: the line has just moved from a non-gold cell into a gold one. Pure. */
+export const chimeEnters = (a, b, golds) => a !== b && golds.includes(b) && !golds.includes(a);
+
 export function openReel(o) {
   const reveal = o.mode === 'reveal', reduced = reducedNow(), S = 2, cells = o.cells, N = cells.length, widths = cells.map((c) => c.w), C = widths.reduce((a, b) => a + b, 0), cum = cumOf(widths);
   const PX = o.px || RL.PX, V = o.V || RL.V, Jw = o.J != null ? o.J : RL.J, T = (o.plan && o.plan.total) || RL.REVEAL_T, pal = palette(o.look);
@@ -37,12 +49,13 @@ export function openReel(o) {
   const fills = cells.map(fillOf);
   const words = cells.map((c) => c.label + (c.find ? ' (find)' : '')).join(', ');
   const stageHtml = '<div class="dr-reel" role="img" aria-label="Slot reel of ' + N + ' cells: ' + esc(words) + '"><canvas class="dr-rcv"></canvas><div class="dr-labs"></div><canvas class="dr-ov2" aria-hidden="true"></canvas></div>';
-  const sh = mountShell(o, { cls: 'dr-reelov dr-' + (reveal ? 'reveal' : 'aim'), stageHtml, goLabel: 'SPIN' });
+  const cfg = { cls: 'dr-reelov dr-' + (reveal ? 'reveal' : 'aim'), stageHtml, goLabel: 'SPIN' }, sh = mountShell(o, cfg);
   const { ov, go, stage } = sh, box = ov.querySelector('.dr-reel'), cv = ov.querySelector('.dr-rcv'), ctx = cv.getContext('2d'), top = ov.querySelector('.dr-ov2'), tctx = top.getContext('2d'), labBox = ov.querySelector('.dr-labs');
   const COPIES = [-1, 0, 1, 2]; const labs = [];
   cells.forEach((c, i) => COPIES.forEach((m) => { const e = document.createElement('span'); e.className = 'dr-cell' + (c.find ? ' is-find' : ''); e.setAttribute('aria-hidden', 'true'); e.innerHTML = (c.icon ? icoDeco(c.icon, 16) : '') + '<b>' + esc(c.label) + '</b>'; labBox.appendChild(e); labs.push({ e, i, m }); }));
-  let state = 'idle', off = Math.random() * C, phi = off, clock = 0, lastF = 0, spinEv = 0, tapT = 0, stopInfo = null, adj = 0, raf = 0, W = 100, H = 400, shown = 0, prevIdx = sliceAtX(cum, off), target = 0, revT0 = 0, rev = null, skipped = false;
+  let state = 'idle', off = Math.random() * C, phi = off, clock = 0, lastF = 0, spinEv = 0, tapT = 0, stopInfo = null, adj = 0, raf = 0, W = 100, H = 400, shown = 0, prevIdx = sliceAtX(cum, off), target = 0, revT0 = 0, rev = null, skipped = false, tw = null;
   const MSG_GO = 'Turning. Tap STOP when a gold cell is on the line. Tap early and it goes further.';
+  const golds = cells.map((c, i) => (c.gold || (!reveal && c.find) ? i : -1)).filter((i) => i >= 0), ZONE = !reduced && +o.zone > 0 ? +o.zone : 0, CHIME = !reduced && !!o.chime; let chimeT = -9; // wa1 Control feel (Aim Zone glow, Gold Chime flash); on a reveal it is feel only
 
   function layout() {
     const w = stage.clientWidth - 16, h = stage.clientHeight - 12;
@@ -71,10 +84,12 @@ export function openReel(o) {
       const vis0 = Math.max(0, t0), vis1 = Math.min(h, t1), hpx = (t1 - t0) * S, fs = Math.max(11, Math.min(20, Math.floor(hpx - 5)));
       e.style.visibility = 'visible'; e.style.fontSize = fs + 'px'; e.style.lineHeight = fs + 'px'; e.style.color = lum(f) > 0.5 ? 'rgb(' + pal.out + ')' : '#fff'; e.style.transform = 'translate(-50%,-50%) translateY(' + (((vis0 + vis1) / 2) * S).toFixed(1) + 'px)';
     }
+    if ((ZONE || CHIME) && (state === 'spin' || state === 'play' || state === 'tok')) { const zoneOn = ZONE > 0 && goldNearLine(off, V * ZONE, cum, C, golds), flash = CHIME && clock - chimeT < 0.32; if (zoneOn || flash) { ctx.fillStyle = 'rgb(' + ZONE_COL + ')'; const hh = flash ? 9 : 6; ctx.fillRect(0, cyL - hh, 3, hh * 2); ctx.fillRect(w - 3, cyL - hh, 3, hh * 2); } } // wa1 Aim Zone: the side marks at the line glow gold while gold is near; Gold Chime: a taller flash as gold reaches the line
+    if (o.guide && reveal && state === 'play' && clock - revT0 >= T * 0.65) { const gy = cyL; ctx.fillStyle = 'rgb(' + pal.out + ')'; ctx.fillRect(0, gy - 4, 7, 9); ctx.fillRect(w - 7, gy - 4, 7, 9); ctx.fillStyle = 'rgb(' + pal.gold + ')'; ctx.fillRect(0, gy - 3, 6, 7); ctx.fillRect(w - 6, gy - 3, 6, 7); } // wa1 Aim Guide on a reveal: feel only, a gold tick at the line as the reel slows
     if (o.guide && !reveal && state === 'spin' && shown >= DR.STOP_FROM) { const gy = cyL + (V * RL.G / 3) * ppu; ctx.fillStyle = 'rgb(' + pal.out + ')'; ctx.fillRect(0, gy - 3, 6, 7); ctx.fillStyle = 'rgb(' + pal.gold + ')'; ctx.fillRect(0, gy - 2, 5, 5); ctx.fillStyle = 'rgb(' + pal.out + ')'; ctx.fillRect(w - 6, gy - 3, 6, 7); ctx.fillStyle = 'rgb(' + pal.gold + ')'; ctx.fillRect(w - 5, gy - 2, 5, 5); } // Aim Guide: the cell that will be on the line if STOP is pressed now sits here
   }
   labBox.style.left = '0'; labBox.style.top = '0';
-  const tick = (a, b, loud) => { if (a !== b && o.onTick) o.onTick({ loud: !!loud, rate: V }); };
+  const tick = (a, b, loud) => { if (a === b) return; const ch = CHIME && state !== 'result' && chimeEnters(a, b, golds); if (ch) chimeT = clock; if (o.onTick) o.onTick(ch ? { loud: true, rate: V, chime: true } : { loud: !!loud, rate: V }); };
 
   function frame(t) {
     if (sh.closed) return; const dt = Math.min(0.05, (t - lastF) / 1000 || 0.016); lastF = t; clock += dt;
@@ -87,6 +102,11 @@ export function openReel(o) {
       if (s >= RL.G) { state = 'result'; draw(); showRes(); return; }
     } else if (state === 'play') {
       const t2 = clock - revT0; off = mod(rev.x0 + rev.A * revealFrac(Math.min(t2, T), T), C); const ix = sliceAtX(cum, off); tick(prevIdx, ix); prevIdx = ix; if (t2 >= T + DR.HOLD) { finishReveal(); return; }
+    } else if (state === 'tok') { // wa1 token replay
+      const T2 = tw, t2 = clock - T2.t0, u = Math.min(1, t2 / T2.dur);
+      if (T2.k === 'nudge') off = mod(T2.x0 + T2.A * smooth(u), C); else if (T2.k !== 'lift') off = mod(T2.x0 + T2.A * revealFrac(Math.min(t2, T2.dur), T2.dur), C);
+      const ix = sliceAtX(cum, off); tick(prevIdx, ix, u >= 1); prevIdx = ix;
+      if (u >= 1) { off = centreOf(T2.to); state = 'result'; tw = null; drawTop(); draw(); T2.done(); return; }
     }
     draw(); raf = requestAnimationFrame(frame);
   }
@@ -107,6 +127,15 @@ export function openReel(o) {
   }
   function finishReveal() { cancelAnimationFrame(raf); off = centreOf(target); state = 'result'; draw(); showRes(); }
   function showRes() { const p = o.getPending(); if (!p) return; drawTop(); draw(); sh.showResult(p, o.describe(p)); }
+  /** wa1 token replay: a short re-spin to the new cell (respin / two), a glide one cell over (nudge) or a bonus pop (lift); then the shell shows the result again. */
+  function replay(k, before, q, done) {
+    const to = Math.max(0, Math.min(N - 1, q.index | 0)), dur = k === 'two' ? 1.9 : k === 'nudge' ? 0.5 : k === 'lift' ? 0.8 : 1.3, x0 = off, xEnd = centreOf(to);
+    const fwd = mod(xEnd - x0, C), half = mod(xEnd - x0 + C / 2, C) - C / 2;
+    tw = { k, t0: clock, dur, done, to, x0, A: k === 'nudge' ? half : k === 'lift' ? 0 : reelRevealDist(x0, xEnd, C, dur, 9) || fwd };
+    if (k === 'lift') { const d = o.tokVal ? o.tokVal(q) - o.tokVal(before || q) : 0; sh.pop(d > 0 ? '+' + Math.round(d * 10) / 10 : '+0', box); }
+    target = to; state = 'tok'; drawTop(); raf = requestAnimationFrame(frame);
+  }
+  cfg.replay = replay;
   function onGo(ev) {
     if (state === 'idle') {
       if (reveal) { if (reduced) { o.onSpin({ reveal: true, t: 0, phi: 0, e: 0 }); const p = o.getPending(); if (!p) return; target = p.index | 0; off = centreOf(target); state = 'result'; showRes(); } else startReveal(); }

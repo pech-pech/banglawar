@@ -24,13 +24,13 @@ const withOwned = (s, owned, extra = {}) => ({ ...s, wheelMeta: { ...emptyWheelM
 const allPower = () => Object.fromEntries(NODES.filter((n) => n.branch !== 'craft').map((n) => [n.id, n.max_rank]));
 
 // ---- 2. Aim Zone, Gold Chime
-test('effective: Aim Zone adds 0.2 s and Gold Chime sets the cue, on Spotlight and Course only, only when owned', () => {
+test('effective: Aim Zone adds 0.2 s and Gold Chime sets the cue, on every wheel (wa1: Control on all 8), only when owned', () => {
   withFlag(true, () => {
     const s = untilTrain('f2a'), none = effective(s);
     for (const w of ['spot', 'course']) { assert.equal(none[w].zone, 0); assert.equal(none[w].chime, false); }
     const e = effective(withOwned(s, { c_zone: 1, c_chime: 1 }));
     for (const w of ['spot', 'course']) { assert.equal(e[w].zone, 0.2); assert.equal(e[w].chime, true); }
-    for (const w of ['hype', 'toss', 'pep', 'find', 'scout', 'finals']) { assert.equal(e[w].zone, 0, w); assert.equal(e[w].chime, false, w); }
+    for (const w of ['hype', 'toss', 'pep', 'find', 'scout', 'finals']) { assert.equal(e[w].zone, 0.2, w); assert.equal(e[w].chime, true, w); } // wa1: was 0/false off spot/course
     const z = effective(withOwned(s, { c_zone: 1 })); assert.equal(z.spot.zone, 0.2); assert.equal(z.spot.chime, false);
     const base = metaWheel(wheelSlices('normal'), 'spot', s), wz = metaWheel(wheelSlices('normal'), 'spot', withOwned(s, { c_zone: 1, c_chime: 1 }));
     assert.deepEqual(wz, base, 'no odds change: the wheel itself is identical');

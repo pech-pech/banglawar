@@ -191,7 +191,8 @@ test('Copy report: hooks pass metaReport lines and buildFull appends them only w
   const data = { matches: [], sessions: [] }, env = { build: 'b', now: 1, vp: 'v', errors: 0 };
   const plain = buildFull(data, env), withMeta = buildFull(data, { ...env, meta: ['Wheel: tier 2, 30 Spokes'] });
   assert.ok(!plain.includes('Wheel: tier 2')); assert.ok(withMeta.includes('\nWheel: tier 2, 30 Spokes\nJSON:')); assert.equal(buildFull(data, { ...env, meta: [] }), plain);
-  assert.match(readFileSync(new URL('../js/report/hooks.js', import.meta.url), 'utf8'), /FLAGS\.wheelMeta && store\.get\(\) \? metaReport\(store\.get\(\)\)/);
+  assert.match(readFileSync(new URL('../js/report/hooks.js', import.meta.url), 'utf8'), /FLAGS\.wheelMeta && store\.get\(\) \? wmLines\(store\.get\(\)\)/);
+  assert.match(readFileSync(new URL('../js/report/wm.js', import.meta.url), 'utf8'), /metaReport\(s\)/); // wmLines = metaReport lines + Find check
 });
 
 test('Settings: the Wheel upgrades row mounts and dispatches SetWheelFeatures', async () => {

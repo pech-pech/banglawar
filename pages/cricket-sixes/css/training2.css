@@ -278,3 +278,25 @@
 @keyframes wh-flash2 { 0%, 100% { opacity: 0; } 20%, 70% { opacity: 1; } }
 @keyframes wh-bonus { from { transform: translate(-50%, -30%) scale(.6); opacity: 0; } 30% { opacity: 1; transform: translate(-50%, -50%) scale(1.2); } to { transform: translate(-50%, -120%) scale(1); opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .wh-ptr2, .wh-bonus { display: none; } }
+
+/* ---- wa1 coach strip on the Training tab (SPEC 2026-11-14 s2). Owner: train. Tokens only, taps >= 56px (the e2e tap audit). ---- */
+.ct-strip { display: grid; gap: var(--c-sp-2); margin: var(--c-sp-2) 0; }
+.ct-head { display: flex; align-items: center; justify-content: space-between; gap: var(--c-sp-2); }
+.ct-all, .ct-scout { min-height: 56px; display: inline-flex; align-items: center; gap: var(--c-sp-1); padding: 0 var(--c-sp-3); font-size: var(--c-fs-m); font-weight: 700; position: relative; }
+.ct-dot { display: inline-block; width: 10px; height: 10px; background: var(--gold); border: var(--c-border) solid var(--outline); }
+.ct-row { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--c-sp-2); }
+.ct-slot { display: grid; grid-template-rows: 1fr auto; gap: var(--c-sp-1); min-width: 0; }
+.ct-pick { display: grid; justify-items: start; align-content: start; gap: 2px; min-height: 56px; width: 100%; min-width: 0; padding: var(--c-sp-2); text-align: left; font: inherit; color: inherit; background: var(--cream); border: var(--c-border) solid var(--outline); cursor: pointer; }
+.ct-slot.is-picked .ct-pick { background: var(--gold); box-shadow: 0 0 0 2px var(--outline) inset; }
+.ct-slot.is-away .ct-pick { background: var(--stone1); opacity: .6; cursor: default; }
+.ct-top { display: flex; align-items: center; justify-content: space-between; width: 100%; }
+.ct-face { display: inline-flex; width: 28px; height: 28px; image-rendering: pixelated; }
+.ct-grade { min-width: 36px; font-size: var(--c-fs-m); line-height: 24px; }
+.ct-name { display: block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 700; font-size: var(--c-fs-m); }
+.ct-fi { display: flex; gap: var(--c-sp-1); }
+.ct-tag { font-size: var(--c-fs-s); line-height: var(--c-lh-s); font-weight: 700; }
+.c-btn.ct-course { min-height: 56px; width: 100%; min-width: 0; display: grid; justify-items: center; align-content: center; gap: 0; padding: 2px var(--c-sp-1); font: 700 var(--c-fs-s)/var(--c-lh-s) var(--c-font); white-space: normal; }
+.ct-course small { font: 400 var(--c-fs-s)/var(--c-lh-s) var(--c-font); }
+.ct-course[aria-disabled="true"] { opacity: .55; cursor: default; }
+.ct-empty { display: flex; }
+.ct-emptyin { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--c-sp-1); width: 100%; min-height: 96px; border: var(--c-border) dashed var(--outline); background: var(--stone1); font-size: var(--c-fs-s); }

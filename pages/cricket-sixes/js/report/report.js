@@ -336,6 +336,7 @@ export function buildData(data, env0) {
   const M = S.M; delete S.M;
   const out = { rid: p.rid, since: p.w.since ? p.w.since.atMs : null, at: new Date(env.now).toISOString(), b: env.build, tun: env.tuningSha || null, sv: (env.save && env.save.v) || null, vp: env.vp, clean: p.clean.ok ? 1 : 0, why: p.clean.why, feat: p.on ? 1 : 0, errs: env.errors, drop: p.drop, sz: 'f', ...S, M: Array.isArray(M) ? M : [] };
   const sec = p.secs.find((s) => s.key === 'M'); if (sec && sec.old) out.Mold = sec.old;
+  if (env0 && env0.wm) out.wm = env0.wm; // wa1: tokens used per wheel, match-day count, Find check [yours, full, every node], bug flag
   let js = JSON.stringify(out);
   if (js.length > LIM.json) { for (const m of out.M) { delete m.rb; delete m.rc; } js = JSON.stringify(out); } // overflow: runs per over go first
   if (js.length > LIM.json) { for (const m of out.M) { delete m.g; delete m.f; delete m.i; } out.trimmed = 1; js = JSON.stringify(out); }
