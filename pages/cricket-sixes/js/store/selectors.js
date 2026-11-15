@@ -29,7 +29,7 @@ import { metaOf, rankOf, tierOf, tierNow, canBuy, effective, metaWheel, tokenOpt
 import { teamBoost, roarAt, resolvePep } from '../core/matchday.js';
 import { mdSpinVM, findSpinVM, scoutSpinVM, finalsSpinVM } from './wmstore.js';
 import { wmTokens } from './wmstore.js'; // wa1 wire: token buttons for Hype / Toss / Pep / Scout / Finals
-import { BATS, BOWLS, CELLS, COMBOS, SEEN_BALLS, cellIndex, cellOf, cellName, gradeWord, gradeRank, comboOf, isBook, newBook } from '../core/pairing.js';
+import { BATS, BOWLS, CELLS, COMBOS, SEEN_BALLS, cellIndex, cellOf, cellName, comboOf, isBook, newBook, winOf, nearestCell } from '../core/pairing.js';
 
 const ovStr = (balls) => `${Math.floor(balls / 6)}.${balls % 6}`;
 const scoreOf = (inn) => ({ runs: inn.runs, wk: inn.wk, balls: inn.balls, overs: ovStr(inn.balls) });
@@ -77,7 +77,8 @@ export function bowlVM(s) {
       const m = matchup('bowl', bats[bi], p, ph);
       return { name: bats[bi].name, bat: bats[bi].bat, label: m.label, g: m.g, inPhase: m.inPhase };
     });
-    return { i, name: p.name, bowl: p.bowl, overs: p.overs, eligible, reason, grade: gradeChip(p), previews, ability: shownAbility(p) };
+    return { i, name: p.name, bowl: p.bowl, overs: p.overs, eligible, reason, grade: gradeChip(p), previews, ability: shownAbility(p),
+      book: eligible ? bowlBookLine(isBook(s.book) ? s.book : null, crease(inn, bats), p.bowl, ph) : null };
   });
   const call = s.call || { bowler: el.length ? el[0] : -1, field: 'P' };
   // 12b suggestion chip (never pre-applied; the call itself starts neutral: Protect). League 1 only. TODO: or the club bought a Coach (no coach-buying code yet).
@@ -97,6 +98,7 @@ export function bowlVM(s) {
     over: inn.over, phase: ph, phaseName: PHASE_NAMES[ph], score: scoreOf(inn),
     crease: crease(inn, bats), bowlers, call, batNames: bats.map((p) => p.name), bowlNames: me.map((p) => p.name), fieldHint,
     canBowl: s.stage === 'bowl' && el.includes(call.bowler), last: s.last, lastWhy: lastWhyVM(s), firstStrip: firstStripOn(s),
+    bookNote: bowlers.some((b) => b.book) ? BOOK_PICK_NOTE : null,
     ...mdExtras(s, inn.over - 1),
   };
 }
@@ -252,7 +254,7 @@ export function endVM(s) {
     rows: tableRows(s), finals: finalsVM(s), champion: clubName(s, se.champion), myPlace: placeOf(se.table, ME), tpWon: se.tpWon,
     result: { place: res.place, promoted: res.promoted, toLeague: res.toLeague, stayed: res.stayed, line: res.line },
     chapter: last ? last.chapter : null, claimed: last ? last.claimed : [],
-    notebook: last && last.notebook != null ? foundCell(last.notebook) : null,
+    notebook: last && last.notebook != null ? bookCell(last.notebook, isBook(s.book) ? s.book : null) : null,
     lastSeason, promoteTop: RUN.promoteTop, cta: lastSeason ? 'RunEnd' : 'NewSeason',
     season: se.n, runNo: run ? run.no : 1, swap: lastSeason ? { open: false } : swapVM(s), // wheel meta: the last season swaps by itself at run end
     recruits: recruitsVM(s),
@@ -545,37 +547,84 @@ export function firstStripOn(s) {
   return !!(s.season && s.season.n === 1 && s.season.round === 1 && s.stage === 'bowl' && s.inn1 && s.inn1.over === 1 && !(s.seen && s.seen.firstStrip));
 }
 
-// ---------------------------------------------------------------- Pairing Book (P4). Grade words only: the points number never leaves core/pairing.js.
-const COMBO_LIST = PAIRING.combos;
-const PH_WORD = ['Early', 'Middle', 'Late'], PH_OVERS = ['1-3', '4-7', '8-10'];
-/** One found cell as the views show it. @param {number} i */
-function foundCell(i) {
-  const c = cellOf(i), cb = comboOf(i);
-  return { i, bat: c.bat, bowl: c.bowl, ph: c.ph, name: cellName(i), grade: gradeWord(i), rank: gradeRank(i), combo: cb };
+// ---------------------------------------------------------------- Book (P6: 3x3 grid per phase + one card). Who-wins words only: the points number never leaves core/pairing.js.
+const PH_OVERS = ['1-3', '4-7', '8-10'];
+const BAT_WORD = { Opener: 'Openers', Middle: 'Middle order', Lower: 'Lower order' }; // card band, titles, fills line
+const BAT_SHORT = { Opener: 'Openers', Middle: 'Middle', Lower: 'Lower' }; // grid cell, row heads
+// Win size 1-6 (F8-B: combo adds in). Singular verb for a bowler type, plural for a batter group.
+const WIN_ONE = ['', 'wins a bit', 'wins', 'wins big', 'wins huge', 'crushes', 'crushes it'];
+const WIN_MANY = ['', 'win a bit', 'win', 'win big', 'win huge', 'crush', 'crush it'];
+export const BOOK_RULE = 'Watch a pairing 18 balls. It goes in.';
+/** Who-wins band text for a found cell, e.g. "Fast wins a bit", "Middle order win". */
+export function bandText(bat, bowl, w) { return w.side === 'bowler' ? bowl + ' ' + WIN_ONE[w.size] : BAT_WORD[bat] + ' ' + WIN_MANY[w.size]; }
+/**
+ * One Book cell as every view shows it (sheet grid + card, found panel, notebook, mini grid). book may be null (then balls = 18 for a found cell).
+ * Found: side, size, band, cellWord, combo, seen, why, use. Unfound: toGo, lines. Both: title, overs, aria.
+ * @param {number} i @param {{balls:number[],found:number[]}|null} book @param {boolean} [forceFound]
+ */
+export function bookCell(i, book, forceFound) {
+  const c = cellOf(i), f = forceFound || !book || !!book.found[i];
+  const balls = book ? Math.min(SEEN_BALLS, book.balls[i]) : SEEN_BALLS;
+  const base = { i, bat: c.bat, bowl: c.bowl, ph: c.ph, overs: PH_OVERS[c.ph], oversLabel: 'Overs ' + PH_OVERS[c.ph], title: BAT_WORD[c.bat] + ' v ' + c.bowl,
+    batWord: BAT_WORD[c.bat], batShort: BAT_SHORT[c.bat], found: f, balls, of: SEEN_BALLS, name: cellName(i) };
+  if (!f) {
+    const k = SEEN_BALLS - balls;
+    const toGo = k === 1 ? '1 ball to go.' : k + ' balls to go.';
+    const fills = 'Fills when ' + BAT_WORD[c.bat] + ' face ' + c.bowl + ' in overs ' + PH_OVERS[c.ph] + ', any season match, bat or bowl.';
+    return { ...base, band: 'Not found yet', toGo, fills, lines: [toGo, fills],
+      aria: BAT_WORD[c.bat] + ' v ' + c.bowl + ', overs ' + PH_OVERS[c.ph] + ': not found, ' + balls + ' of ' + SEEN_BALLS + ' balls.' };
+  }
+  const w = winOf(i), cb = comboOf(i), band = bandText(c.bat, c.bowl, w);
+  const seen = !book || book.balls[i] >= SEEN_BALLS;
+  const lowBat = BAT_WORD[c.bat].toLowerCase();
+  return { ...base, side: w.side, size: w.size, band, cellWord: w.side === 'bowler' ? c.bowl : BAT_SHORT[c.bat],
+    combo: cb ? cb.name : null, comboLine: cb ? 'A bonus on top.' : null, seen,
+    why: seen ? 'Why: you saw 18 balls of it.' : "Why: Coach's notebook, season end.",
+    use: w.side === 'bowler' ? 'Use: the bowler pick shows it. Your plan leans to ' + c.bowl + ' at their ' + lowBat + '.'
+      : 'Use: the bowler pick shows it. Your plan keeps ' + c.bowl + ' off their ' + lowBat + '.',
+    aria: BAT_WORD[c.bat] + ' v ' + c.bowl + ', overs ' + PH_OVERS[c.ph] + ': ' + band + (cb ? ', combo ' + cb.name : '') + '.' };
 }
-/** Cells found at the end of the last over (the "Pairing found" toast). [] when none. */
-export function foundVM(s) { return s && s.last && Array.isArray(s.last.found) ? s.last.found.map(foundCell) : []; }
-
-/** The Pairing Book: 3 batter groups x 3 bowler rows x 3 phase chips, and the 8 combos. */
+/** Cells found at the end of the last over (the just-found panel). [] when none. Reads s.book for seen/gift. */
+export function foundVM(s) {
+  const book = s && isBook(s.book) ? s.book : null;
+  return s && s.last && Array.isArray(s.last.found) ? s.last.found.map((i) => bookCell(i, book, true)) : [];
+}
+/** Goal card for a cell (nearest unfound). */
+export function goalOf(cell) {
+  return { tag: 'Your first goal', line1: 'Watch ' + cell.batWord + ' face ' + cell.bowl + ' in overs ' + cell.overs + '.',
+    line2: cell.balls + ' of 18 balls. ' + (SEEN_BALLS - cell.balls) + ' to go. Just play. Every ball counts, for either team.' };
+}
+/** The Book: 27 cells (index = cell number; phase = i % 3), counts, nearest unfound cell, goal card when nothing is found. */
 export function bookVM(s) {
-  const book = isBook(s.book) ? s.book : newBook();
-  const chip = (i) => {
-    const f = !!book.found[i], c = cellOf(i), cb = comboOf(i);
-    const base = { i, ph: c.ph, phase: PH_WORD[c.ph], found: f, name: cellName(i) };
-    return f ? { ...base, grade: gradeWord(i), rank: gradeRank(i), combo: cb ? cb.name : null }
-      : { ...base, balls: Math.min(SEEN_BALLS, book.balls[i]), of: SEEN_BALLS };
-  };
-  const groups = BATS.map((bat) => ({ bat, rows: BOWLS.map((bowl) => ({ bowl, chips: [0, 1, 2].map((ph) => chip(cellIndex(bat, bowl, ph))) })) }));
-  const combos = COMBO_LIST.map((x) => { // sheet order: the four that help the batter, then the four that help the bowler
-    const i = cellIndex(x[1], x[2], x[3]), f = !!book.found[i];
-    return f ? { name: x[0], found: true, bat: x[1], bowl: x[2], phase: PH_WORD[x[3]], helps: x[5] } : { name: x[0], found: false };
-  });
+  const book = isBook(s && s.book) ? s.book : newBook();
+  const cells = Array.from({ length: CELLS }, (_, i) => bookCell(i, book));
+  const found = book.found.reduce((a, b) => a + (b ? 1 : 0), 0);
+  const comboFound = cells.filter((c) => c.found && c.combo).length;
+  const nearest = nearestCell(book);
+  const firstFound = cells.findIndex((c) => c.found);
   return {
-    found: book.found.reduce((a, b) => a + (b ? 1 : 0), 0), total: CELLS,
-    comboFound: combos.filter((c) => c.found).length, comboTotal: COMBOS,
-    phases: PH_WORD.map((w, k) => ({ name: w, overs: PH_OVERS[k] })), groups, combos,
+    found, total: CELLS, comboFound, comboTotal: COMBOS, rule: BOOK_RULE, cells,
+    nearest, firstFound, empty: found === 0, goal: found === 0 && nearest >= 0 ? goalOf(cells[nearest]) : null,
+    phases: PH_OVERS.map((o, k) => ({ ph: k, overs: o, label: 'Overs ' + o })),
+    rows: BATS.map((bat) => ({ bat, word: BAT_SHORT[bat] })), cols: BOWLS.map((bowl) => ({ bowl, word: bowl })),
+    /** Cell number at row r (batter), col c (bowler), phase ph. */
+    at: (r, c, ph) => r * 9 + c * 3 + ph,
   };
 }
+/** Bowler-pick Book line (F1 A, presentation only): striker's cell first, then the non-striker's; one line at most; null when none fits. */
+function bowlBookLine(book, crease, bowl, ph) {
+  if (!book) return null;
+  const order = crease.slice().sort((a, b) => (b.onStrike ? 1 : 0) - (a.onStrike ? 1 : 0));
+  for (const bat of order) {
+    if (!(bat.bat in BAT_WORD)) continue;
+    const i = cellIndex(bat.bat, bowl, ph);
+    if (!book.found[i]) continue;
+    const w = winOf(i), band = bandText(bat.bat, bowl, w), other = w.side === 'bowler' ? BAT_WORD[bat.bat] : bowl;
+    return { i, side: w.side, size: w.size, bat: bat.bat, text: 'Book: ' + band + ' v ' + other, aria: 'Book: ' + band + ' versus ' + other };
+  }
+  return null;
+}
+export const BOOK_PICK_NOTE = 'Book lines come from what you found. They can differ from the grid. Your call.';
 
 // ---------------------------------------------------------------- r9 match day (flag matchday; every key below is absent with the flag off)
 const HYPE_WORD = { low: 'Quiet crowd', med: 'Good crowd', high: 'Big crowd', nuts: 'Wild crowd' }; // r9 fix M6: the same words on the Match day screen, its odds table and the Plan chip

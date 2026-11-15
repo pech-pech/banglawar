@@ -98,3 +98,22 @@ main:has(> .bv-strip) { gap: 2px; }
 .lw { flex: 1 1 100%; min-width: 0; margin: 0; font: 14px/18px var(--font-body); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .lw b { font-family: var(--font-head); font-weight: 400; }
 .ball.is-key { outline: 3px solid var(--outline); outline-offset: 1px; }
+/* P6 section 5: Book line on an eligible bowler row (a full-width grid row under the box and the two rating boxes). Dashed border, 16 px text,
+   winner word always written; green = your bowler wins, pink = the batters win (same washes as the Strong / Weak boxes); ▲ / ▼ repeat it. */
+.sb-row .bv-book { grid-column: 1 / -1; display: flex; align-items: center; gap: 6px; min-height: 28px; padding: 3px 6px; border: 2px dashed var(--outline); color: var(--outline); font: 16px/18px var(--font-body); }
+.sb-row .bv-book.is-bowler { background: var(--grass1); }
+.sb-row .bv-book.is-batter { background: color-mix(in srgb, var(--danger) 72%, var(--white)); }
+.sb-row .bv-book .icon, .sb-row .bv-book .bv-ph, .sb-row .bv-book .bv-book-i { flex: none; width: 20px; height: 20px; grid-row: auto; }
+.sb-row .bv-book .bv-book-t { flex: 1 1 auto; min-width: 0; white-space: normal; overflow-wrap: anywhere; }
+.sb-row .bv-book .bv-book-s { flex: none; font: 16px/16px var(--font-head); }
+.bv-hints .bv-booknote { font-size: 14px; line-height: 18px; white-space: normal; }
+.skin-scorebook .sb-row .bv-book { border-color: var(--sb-ink); color: var(--sb-ink); }
+.skin-scorebook .sb-row .bv-book.is-bowler { background: #D2E1C5; }
+.skin-scorebook .sb-row .bv-book.is-batter { background: #EBC6C0; }
+.skin-scorebook .bv-hints .bv-booknote { color: var(--sb-ink); }
+/* QA D8 (A): the Book line belongs to the row above it: a smaller gap above (tucked under the boxes), a bigger gap below (to the next row),
+   and the selected row's gold outline wraps the boxes and the line together. */
+.sb-row .bv-book { margin-top: -3px; }
+.sb-row:has(> .bv-book) { margin-bottom: 7px; }
+.sb-row.is-selected:has(> .bv-book) { outline-offset: 3px; }
+.skin-scorebook .sb-row.is-selected:has(> .bv-book) { outline: 2px solid var(--sb-ink); outline-offset: 3px; }

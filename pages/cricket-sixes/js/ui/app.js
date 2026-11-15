@@ -12,6 +12,7 @@ import { attachReport } from '../report/hooks.js';
 import { overlayOpen } from './inert.js';
 import { FLAGS } from '../data/flags.js';
 import { callCompare } from '../store/callcmp.js';
+import { addFinds, clearBadge } from './book-badge.js';
 
 /* Stage table: s.stage -> [view module or file name, selector name]. A file name is loaded on first use
    (other parts' views), so a view that has not landed yet shows "Loading" instead of breaking boot. */
@@ -71,8 +72,14 @@ function decorate(s, vm) {
     if (vm.workshop === undefined && typeof sel.workshopVM === 'function') vm.workshop = sel.workshopVM(s); // Wheel meta: .visible only from tier 1 with the flag on
     if (vm.activities === undefined) { vm.activities = sel.activitiesVM(s); vm.trial = sel.trialVM(s); vm.freePick = sel.freePickVM(s); } // r9: null with the flags off
   }
+  if (s.stage === 'end' && vm.notebook) {
+    if (!vm.book) vm.book = sel.bookVM(s); // P6: the notebook card's mini grid
+    const key = (s.run && s.run.no) + '|' + (s.season && s.season.n) + '|' + vm.notebook.i;
+    if (key !== giftKey) { giftKey = key; addFinds(1); } // P6 badge: the season-end gift counts once
+  }
   return vm;
 }
+let giftKey = null;
 /** After the over panel closes the screen behind redraws; closing the Book from the found card returns focus to its main control (first match wins). */
 const BACK_FOCUS = ['#app [data-bowl]:not([disabled])', '#app .c-btn--cta:not([disabled])', '#app .cta button:not([disabled])', '#app button:not([disabled])'];
 
@@ -104,6 +111,10 @@ export function mount(el, store) {
   function openByName(name, arg) {
     const def = SHEETS[name];
     if (!def || holding) return;
+    if (name === 'book') { // P6 badge: opening the Book clears it (session only)
+      clearBadge();
+      document.querySelectorAll('.hb-plate[data-plate="book"]').forEach((b) => { const g = b.querySelector('.hb-badge'); if (g) { g.hidden = true; g.textContent = ''; } b.removeAttribute('aria-label'); });
+    }
     import('./' + def.file + '.js').then((m) => {
       const fn = m[def.fn || 'open'] || m[Object.keys(m).find((k) => /^open/.test(k))];
       if (typeof fn !== 'function') throw new Error('No open function in ' + def.file);
@@ -163,7 +174,9 @@ export function mount(el, store) {
     if (balls.length < 6) summaryLines.push(!first && s.result === 'won' ? 'Target reached: you win!' : first ? '5th wicket: their innings is over.' : '5th wicket: your innings is over.');
     const hint = FLAGS.callHint ? callCompare(before, s, { onError: (e) => rep.error(e) }) : null;
     rep.panelOpen();
-    playOverPanel({ callHint: hint, title: 'Over ' + s.last.over, balls, score: { runs: inn.runs, wk: inn.wk }, nextLabel, summaryLines, batKit: first ? 'B' : 'A', found: sel.foundVM(s), roar: s.last.roar || false, onBook: () => openByName('book', { returnFocus: BACK_FOCUS }),
+    const found = sel.foundVM(s);
+    if (found.length) addFinds(found.length); // P6 badge: finds since the Book was last opened
+    playOverPanel({ callHint: hint, title: 'Over ' + s.last.over, balls, score: { runs: inn.runs, wk: inn.wk }, nextLabel, summaryLines, batKit: first ? 'B' : 'A', found, book: found.length ? sel.bookVM(s) : null, roar: s.last.roar || false, onBook: (cell) => openByName('book', { returnFocus: BACK_FOCUS, cell }),
       onDone(info) { rep.panelDone(info); holding = false; render(); } });
   }
   return dispatch;
