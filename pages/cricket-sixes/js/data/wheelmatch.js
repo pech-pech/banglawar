@@ -6,7 +6,7 @@ export const WHEEL_MATCH = Object.freeze({ W0: 36, TAU: 3.0, D: 2.0, J: 1.2, COA
   SD_AVG: 0.110, SD_GOOD: 0.070, SD_GUIDE_AVG: 0.080, SD_GUIDE_GOOD: 0.050, SLOW_PER_RANK: 0.15, SLOW_FULL: 0.55, STEADY_FULL: 0.7225, STEADY_CAP: 0.7,
   SLICE_MAX_P: 0.12 }); // SLICE_MAX_P: slice width cap (1.2 of CIRC 10 units); wider segments split into equal pieces (numbers thread fix)
 export const WHEEL_RIVAL_OFF = -8, CLASSIC_RIVAL_OFF = 1.9; // OFF -8 with the slice cap (numbers thread; was -10)
-export const WHEEL_RIVAL_BOOST = 9.9; // = CLASSIC_RIVAL_OFF - WHEEL_RIVAL_OFF; added to every rival rating (bp, bs, spd, bsk) in wheel mode only
+export const WHEEL_RIVAL_BOOST = 11.9; // = CLASSIC_RIVAL_OFF - WHEEL_RIVAL_OFF; added to every rival rating (bp, bs, spd, bsk) in wheel mode only
 export const MATCH_SPOKES_PER_SPIN = 1;
 export const AUTO_PACE = Object.freeze({ over: 0.6, event: 0.9 });
 export const BALL_SPEED = Object.freeze({ full: 0.4, plain: 0.2, fastFrom: 4 }); // from over 4: dot/1/2 at 0.2 s, 4/6/W at 0.4; last two overs of an innings full

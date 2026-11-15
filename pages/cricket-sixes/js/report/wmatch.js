@@ -1,5 +1,5 @@
 // Wheel match mode lines for the copy report (2026-11-15 wheel match SPEC s14, 06-DEV-SPEED "Copy report"). Pure: records in, strings out.
-// Header: `mode:W off:-10` (or `mode:C off:+1.9`); W line: spins, auto, stop buckets, landed vs expected, Aim Guide; `dev:` line (changed keys only).
+// Header: `mode:W off:-8` (WHEEL_RIVAL_OFF; or `mode:C off:+1.9`); W line: spins, auto, stop buckets, landed vs expected, Aim Guide; `dev:` line (changed keys only).
 // Over rows of a WheelOver carry the classic columns that still mean something (bowler, matchup, runs, wickets, ball-level xr/xw) and null for
 // field / intent / their fit (there are no calls in wheel mode), plus wa auto 1/0, wb stop bucket (c|e|l|o, null when auto), wc careful 1/0,
 // wg Aim Guide 1/0, wx [model xr, model xw] (the Expected line of that over).
@@ -54,7 +54,7 @@ export function modeOf(ms, envMode) {
   return envMode === 'wheel' ? 'W' : envMode === 'classic' ? 'C' : null;
 }
 const offTxt = (v) => (v > 0 ? '+' : '') + v;
-/** Header piece: `mode:W off:-10`, `mode:C off:+1.9`, mixed `mode:W+C off:-10/+1.9`; null when unknown. */
+/** Header piece (from WHEEL_RIVAL_OFF / CLASSIC_RIVAL_OFF): `mode:W off:-8`, `mode:C off:+1.9`, mixed `mode:W+C off:-8/+1.9`; null when unknown. */
 export function modeHeader(mode) {
   if (!mode) return null;
   const off = mode === 'W' ? offTxt(WHEEL_RIVAL_OFF) : mode === 'C' ? offTxt(CLASSIC_RIVAL_OFF) : offTxt(WHEEL_RIVAL_OFF) + '/' + offTxt(CLASSIC_RIVAL_OFF);

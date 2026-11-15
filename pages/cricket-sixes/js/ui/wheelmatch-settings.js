@@ -51,6 +51,7 @@ export function devSectionHtml(dev, on) {
 
 export const WMS_CSS = [
   '.wms-mode,.wms-sec{display:flex;flex-direction:column;gap:6px}',
+  '.wms-mode[hidden],.wms-sec[hidden]{display:none}',
   '.wms-seg .c-seg__opt{flex-direction:column;gap:0;min-height:56px;white-space:normal;line-height:18px}',
   '.wms-seg .c-seg__opt small{font-size:13px;font-weight:400}',
   '.wms-mode.is-live .wms-seg{opacity:.55}',
