@@ -3,10 +3,9 @@
 // (NewGame -> StartMatch -> WheelOver x up to 20 -> StartChase), season path (league 1, centre 30, pairing on, settled on), so the
 // store's rival boost (+WHEEL_RIVAL_BOOST on rival bp/bs/spd/bsk) applies. Teams follow the sim's make_teams (wheel_match_sim.py):
 // six players, ratings N(50, 8) - 20 + offset clamped 1..99, bat roles O,O,M,M,L,L, bowl types 2 Fast 2 Medium 2 Spin shuffled.
-//   variant wheel     ours at +1.9 (Classic OFF), rival at 0, store adds +11.9 to rival  => OFF -10 by rating difference (the game)
-//   variant wheel-abs ours at -10, rival pre-lowered 11.9 so after the boost it sits at 0  => sim absolute levels (OFF -10 exactly as T["OFF"])
-//   variant wheel-old ours at +1.9, rival pre-lowered 11.9                                  => old OFF +1.9 row of the SPEC 6 table
-//   variant classic   matchMode classic, BowlOver / StartChase with default calls           => rival must be unboosted (sanity)
+//   variant wheel     ours at +1.9 (the Classic offset), rival at 0 (league centre 30). The engine plays the rival +11.9 (rivalBoostOf) and
+//                     reads the field centre at 30 + 11.9, i.e. the sim's OFF -10 shifted up 11.9 (same rating differences, same z vs centre)
+//   variant classic   matchMode classic, BowlOver / StartChase with default calls: no boost, centre 30 (sanity)
 // Tapper bots pick the STOP time t (and the start offset phi) and pass {t, phi} through WheelOver:
 //   random  t uniform 1..6 s
 //   avg     careful naive aim (wheel_match_sim spin_wheel 'naive'): best-value slice with width >= 0.5 unit, tap time whose honest
@@ -23,18 +22,16 @@ import { applyCommand } from '../js/store/commands.js';
 import { FLAGS } from '../js/data/flags.js';
 import { makeRng } from '../js/core/rng.js';
 import { WHEEL_MATCH as WMX, WHEEL_RIVAL_BOOST } from '../js/data/wheelmatch.js';
-import { matchPhys } from '../js/core/wheelmatch.js';
+import { matchPhys, rivalBoostOf, matchOpts, boostedRival } from '../js/core/wheelmatch.js';
+import { centreOf } from '../js/core/match.js';
 import { suggestedBowler, rivalBowler, modelOf } from '../js/store/wheelmatch-store.js';
 
 export const SPEC_TABLE = { // SPEC s6 win % (python wheel_match_sim, n 3000 at OFF -10, n 1200 at +1.9)
   wheel: { random: 30.7, avg: 60.1, good: 64.0, full: 77.5 },
-  'wheel-abs': { random: 30.7, avg: 60.1, good: 64.0, full: 77.5 },
-  'wheel-old': { random: 53.8, avg: 74.7, good: 79.8, full: 88.9 },
 };
 const SD = { avg: WMX.SD_AVG, good: WMX.SD_GOOD, full: WMX.SD_GUIDE_AVG, savvy: WMX.SD_AVG };
 const T_MID = 3.5, T_MIN = 0.5, MIN_AIM_W = 0.5, CENTRE_OFF = -20; // sim: CENTRE 30 = 50 - 20
-const OUR_OFF = { wheel: 1.9, 'wheel-abs': -10, 'wheel-old': 1.9, classic: 1.9 };
-const RIVAL_PRE = { wheel: 0, 'wheel-abs': -WHEEL_RIVAL_BOOST, 'wheel-old': -WHEEL_RIVAL_BOOST, classic: 0 };
+const OUR_OFF = { wheel: 1.9, classic: 1.9 };
 
 const clamp = (x, lo, hi) => Math.max(lo, Math.min(hi, x));
 /** Box-Muller normal (tool only). */
@@ -100,14 +97,15 @@ export function playMatch(base, k, variant, who) {
   const mine = base.clubs[0], oppId = base.fixture.opp;
   const ours = makeTeam(trng, OUR_OFF[variant], 'c0p', mine.squad);
   const opp0 = base.clubs.find((c) => c.id === oppId);
-  const rivalRaw = makeTeam(trng, 0, `${oppId}p`, opp0.squad);
-  const rival = rivalRaw.map((p) => ({ ...p, bp: p.bp + RIVAL_PRE[variant], bs: p.bs + RIVAL_PRE[variant], spd: p.spd + RIVAL_PRE[variant], bsk: p.bsk + RIVAL_PRE[variant] }));
+  const rival = makeTeam(trng, 0, `${oppId}p`, opp0.squad);
   const clubs = base.clubs.map((c) => (c.id === 'c0' ? { ...c, squad: ours, six: ours.map((p) => p.id) } : c.id === oppId ? { ...c, squad: rival, six: rival.map((p) => p.id) } : c));
   let s = { ...base, clubs, salt: `k${k}`, plan: { ...base.plan, edited: false, key: '' } };
   s = applyCommand(s, 'StartMatch');
   if (s.stage !== 'bowl') throw new Error(`StartMatch did not start a match (stage ${s.stage})`);
+  // boost check: save keeps raw rival ratings; the engine adds +11.9 (wheel) / 0 (classic) and moves the field centre by the same amount
   const want = variant === 'classic' ? 0 : WHEEL_RIVAL_BOOST;
-  const boostOk = s.rival.players.every((p) => { const q = rival.find((x) => x.id === p.id); return Math.abs(p.bp - q.bp - want) < 1e-9 && Math.abs(p.bsk - q.bsk - want) < 1e-9; });
+  const raw = s.rival.players.every((p) => { const q = rival.find((x) => x.id === p.id); return p.bp === q.bp && p.bsk === q.bsk; });
+  const boostOk = raw && rivalBoostOf(s) === want && Math.abs(matchOpts(s, 'bowl').centre - centreOf(s) - want) < 1e-9 && boostedRival(s.rival.players[0], want).bp === Math.min(99, s.rival.players[0].bp + want);
   const ms = [], prng = makeRng(`parity|tap|${who}|${k}`);
   for (let guard = 0; guard < 40; guard++) {
     if (s.stage === 'break') { s = applyCommand(s, 'StartChase'); continue; }
