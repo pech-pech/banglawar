@@ -111,9 +111,11 @@ function lastLine(vm) {
   const runs = last.balls.reduce((t, r) => t + (typeof r.o === 'number' ? r.o : 0), 0);
   const wk = last.balls.filter((r) => r.o === 'W').length;
   const sum = runs + (runs === 1 ? ' run' : ' runs') + (wk ? ', ' + wk + ' out' : '');
-  return '<div class="last-b"><span class="lt"><b>Last over ' + esc(last.over) + '</b>: ' + esc(sum) +
-    '<span class="balls">' + last.balls.slice(0, 6).map(ballChip).join('') + '</span></span>' +
-    '<button type="button" class="c-btn why-b" id="why">Why?</button></div>';
+  const W = vm.lastWhy; // P13: inline why line (flag whyInline); null = flag off, old Why? button
+  const chips = last.balls.slice(0, 6).map((r, i) => (W && W.key === i ? ballChip(r).replace('class="ball', 'class="is-key ball') : ballChip(r))).join('');
+  const head = '<span class="lt"><b>Last over ' + esc(last.over) + '</b>: ' + esc(sum) + '<span class="balls">' + chips + '</span></span>';
+  if (W) return '<div class="last-b has-why">' + head + '<p class="lw" aria-hidden="true"><b>Why:</b> ' + esc(W.text) + '</p><span class="ss-sr">Why: ' + esc(W.say) + '</span></div>';
+  return '<div class="last-b">' + head + '<button type="button" class="c-btn why-b" id="why">Why?</button></div>';
 }
 
 function whyHtml(vm) {

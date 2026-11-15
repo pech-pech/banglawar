@@ -65,7 +65,7 @@ test('a finished match stores dec (L4, not over - 1), touched, tun, fl, eco', ()
   const m = h.log.data().matches[0];
   assert.ok(Number.isInteger(m.dec) && m.dec >= 1 && m.dec <= 10);
   assert.equal(m.dec, decidedOver(m.ov, m.res));
-  assert.equal(typeof m.tun, 'string'); assert.deepEqual(m.fl, []); assert.equal(m.touched, 0);
+  assert.equal(typeof m.tun, 'string'); assert.deepEqual(m.fl, ['whyInline', 'callHint']); // P13: two flags default on assert.equal(m.touched, 0);
   assert.ok(m.eco && m.eco.gate > 0 && m.eco.net === m.eco.gate + m.eco.win + m.eco.shop - m.eco.wage - m.eco.up); // L3: coin split per match
   assert.equal(m.md, undefined); assert.equal(m.settled, undefined); // match-day fields absent when the features are off
 });

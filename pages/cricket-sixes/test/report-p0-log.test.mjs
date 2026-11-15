@@ -107,7 +107,7 @@ test('P0-9: storage full trims in order, sets trimmed, keeps marker and last tex
   const log = createLog({ storage: st, build: 'b' });
   for (let i = 0; i < 6; i++) { log.matchStart({ seed: 's' + i, stage: 'bowl' }); log.data().matches.at(-1).ov = Array.from({ length: 12 }, (_, o) => ({ o, str: 'x'.repeat(200) })); }
   const d = log.data(); d.marker = { id: 5 }; d.last = 'text'; d.nets = Array.from({ length: 24 }, () => ({ a: 'y'.repeat(50) }));
-  limit = JSON.stringify(d).length - 3000; log.why();
+  limit = JSON.stringify(d).length - 3000; log.hint(null);
   const saved = JSON.parse(st.getItem(KEY)); assert.equal(saved.trimmed, 1); assert.equal(log.data().trimmed, 1);
   assert.equal(saved.matches.length, 6, 'matches kept: older overs went first');
   assert.equal(saved.matches[0].ov.length, 0); assert.equal(saved.matches[5].ov.length, 12);

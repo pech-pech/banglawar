@@ -1,6 +1,6 @@
 /* over-panel: modal ball-by-ball over. Kit colours only. */
 .op-scrim { position: fixed; inset: 0; z-index: 70; display: flex; align-items: center; justify-content: center; padding: 8px; background: rgba(28, 42, 34, .72); }
-.op-card { width: 100%; max-width: 420px; height: 560px; max-height: 100%; overflow: hidden; display: flex; flex-direction: column; gap: 8px; padding: 12px; }
+.op-card { width: 100%; max-width: 420px; height: 560px; max-height: 100%; overflow: hidden; display: flex; flex-direction: column; gap: 4px; padding: 12px; }
 .op-head { display: flex; align-items: center; justify-content: space-between; min-height: 56px; margin: -4px -4px 0 0; }
 .op-close { flex: none; width: 56px; height: 56px; min-width: 56px; min-height: 56px; }
 .op-title { margin: 0 0 0 56px; flex: 1; text-align: center; font-size: var(--c-fs-l); line-height: var(--c-lh-l); }
@@ -16,15 +16,18 @@
 .op-slot.k-s .op-word, .op-slot.k-w .op-word, .op-slot.k-f .op-word { font-weight: 700; }
 .op-slot.is-unused .op-circle { border: 3px solid var(--wall2); background: var(--wall1); opacity: .6; }
 .op-divider { width: 100%; margin: 0; border: 0; border-top: 4px solid var(--outline); }
-.op-bottom { min-height: 0; flex: 1 1 auto; }
+.op-bottom { min-height: 0; flex: 1 1 auto; overflow: hidden; }
 .op-sub { margin: 0 0 4px; font-size: var(--c-fs-m); line-height: var(--c-lh-m); }
 .op-lines { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 3px; }
 .op-line { font-size: 15px; line-height: 18px; padding-left: 6px; border-left: 4px solid var(--wall2); }
 .op-line.k-f { border-left-color: var(--gold); } .op-line.k-s { border-left-color: var(--accent); } .op-line.k-w { border-left-color: var(--danger); }
 .op-total { font-weight: 700; border-left-color: var(--outline); margin-top: 2px; }
-.op-foot { min-height: 64px; }
+.op-foot { flex: none; min-height: 64px; }
+.op-call { margin: 0 0 4px; font-size: 15px; line-height: 18px; padding-left: 6px; border-left: 4px solid var(--outline); }
 .op-next { min-height: 64px; }
 @media (prefers-reduced-motion: no-preference) {
   .op-slot.is-filled .op-circle { animation: op-pop .28s ease-out; }
   @keyframes op-pop { 0% { transform: scale(.4); } 70% { transform: scale(1.15); } 100% { transform: scale(1); } }
 }
+/* P13 QA D2: pixel fonts have no bold weight, so the call word and the "Why:" label also get an underline (a shape, not a colour) */
+.op-call b, .lw b { text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 2px; }
