@@ -380,7 +380,7 @@ export function endWeek(state) {
     nodes: log.filter((/** @type {any} */ e) => e.type === 'NodeUnlocked').map((/** @type {any} */ e) => ({ playerId: e.playerId, side: e.side, node: e.node })),
     lines: (n.training.last && n.training.last.lines) || [] };
   const pl = planOf(state);
-  n.training.last_plan = { focus: pl.focus, effort: pl.effort };
+  n.training.last_plan = { focus: pl.focus, effort: pl.effort, coachId: pl.coachId || null }; // coachId: the nets coach, so next week's match day knows who is training (match coach)
   delete n.training.lastPlan; delete n.training.sel;
   n.training.focus = pl.focus; n.training.effort = pl.effort; n.training.spotlight_id = null; n.training.spotlight2_id = null; n.training.coach_id = null;
   for (const c of n.coaches || []) if (c.away > 0) c.away -= 1;
@@ -407,7 +407,8 @@ export const TIMING_LINE = Object.freeze({ e: 'Early', c: 'Good timing', l: 'Lat
 // ---- Match coach (SPEC 2026-11-15): a coach neither picked for this week's nets nor away on a course can lift our side in the match.
 /** Idle coaches in slot order: not away, not the coach picked for nets. @param {any} s */
 export function idleCoaches(s) {
-  const nets = planOf(s).coachId;
+  // The nets pick comes after the match each week, so at match day the training coach is this week's pick if made, else last week's nets coach.
+  const last = lastOf(s), nets = planOf(s).coachId || (last && last.coachId) || null;
   return coachList(s).filter((/** @type {any} */ c) => !(c.away > 0) && c.id !== nets);
 }
 /**

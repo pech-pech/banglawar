@@ -160,3 +160,16 @@ test('report: mc per match record and the COACHES line', () => {
   assert.match(txt, /Match coach used 1 of 2 matches/);
   assert.match(txt, /"mc":\[3,1\.5\]/);
 });
+
+test('match day after EndWeek: last week\'s nets coach still counts as training (e2e finding 1)', async () => {
+  const { endWeek } = await import('../js/core/training.js');
+  const s = toPlan(7);
+  const t = withCoaches(s, [co('a', 10, 'bat+bowl'), co('b', 6, 'bowl')], 'a');
+  const e = endWeek(t);
+  assert.equal(e.training.coach_id, null, 'week pick cleared as before');
+  assert.equal(e.training.last_plan.coachId, 'a');
+  assert.deepEqual(idleCoaches(e).map((x) => x.id), ['b'], 'last nets coach a is not idle at next match day');
+  assert.equal(matchCoachOf(e).coach.id, 'b', 'default is the other coach');
+  const p = { ...e, training: { ...e.training, coach_id: 'b' } };
+  assert.deepEqual(idleCoaches(p).map((x) => x.id), ['a'], 'a fresh nets pick this week wins over last week');
+});
