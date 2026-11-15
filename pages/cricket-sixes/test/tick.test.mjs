@@ -25,7 +25,7 @@ test('Aim Guide node: new text, same rank and cost', () => {
   assert.equal(n.words || n.text || n.desc, 'Sharper landing tick and steadier stop.');
 });
 test('copy report JSON carries tick:1', () => {
-  const B = 'sixes-p13book', ENV = { build: B, now: Date.UTC(2026, 10, 15, 10, 0), vp: 'screen 344x780', errors: 0, flags: { ...FLAG_DEFAULTS }, rid: 1 };
+  const B = 'sixes-wheelmatch', ENV = { build: B, now: Date.UTC(2026, 10, 15, 10, 0), vp: 'screen 344x780', errors: 0, flags: { ...FLAG_DEFAULTS }, rid: 1 };
   const data = { matches: [], builds: [B], nets: [], spins: [], weeks: [], buys: [], feelLog: [], club: [], seasons: [], sessions: [], errors: { n: 0, last: [] }, marker: null, rid: 0, seq: 1, eseq: 0 };
   const j = JSON.parse(buildData(data, ENV)); assert.equal(j.tick, 1); assert.equal(REPORT_TICK, 1); assert.ok('rid' in j && 'clean' in j);
 });
