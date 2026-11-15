@@ -129,7 +129,7 @@ const liveProblems = () => {
   });
   return bad;
 };
-test('A11Y-1 reduced-motion Auto: each over and the summary are announced, not wiped by the next render', { todo: 'A11Y-1: setLive then done() -> release() re-renders the auto shell in the same task (wheelmatch-view.js:515, 309); liveNote goes into a fresh region (311-312)' }, async () => {
+test('A11Y-1 reduced-motion Auto: each over and the summary are announced, not wiped by the next render', async () => {
   env(true);
   const T = globalThis.setTimeout; globalThis.setTimeout = (fn, ms) => T(() => { LOG.push(['tick']); fn(); }, ms);
   try {

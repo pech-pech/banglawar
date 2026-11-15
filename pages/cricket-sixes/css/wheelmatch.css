@@ -4,13 +4,13 @@
 .skin-scorebook { --wm-ink: var(--sb-ink); --wm-hi: var(--sb-hi); }
 
 #app:has(> .wm) { padding: 0; display: block; }
-.wm { display: flex; flex-direction: column; gap: 4px; height: 100vh; height: 100dvh; padding: 0 8px 8px; overflow: hidden; color: var(--outline); }
+.wm { display: flex; flex-direction: column; gap: 4px; height: 100vh; height: 100dvh; padding: 0 8px 8px; overflow-x: hidden; overflow-y: auto; color: var(--outline); } /* zoom / 200% text: the screen scrolls, the CTA stays on the bottom edge */
 .wm > * { flex: none; }
 .wm .wm-strip { margin: 0 -8px; }
 .wm .wm-strip .q { flex: none; width: 56px; height: 56px; border: 0; background: var(--gold); color: var(--outline); font: 28px/1 var(--font-head); }
 .wm p { margin: 0; }
 .wm-cap { font-weight: 700; font-size: 16px; line-height: 20px; }
-.wm-cap small { font-weight: 400; font-size: 13px; margin-left: 4px; }
+.wm-cap small { font-weight: 400; font-size: 14px; margin-left: 4px; }
 .wm .md-chips { margin: 2px 0 0; }
 .wm .md-chip { min-height: 24px; }
 .wm .md-roar { margin: 0; }
@@ -19,7 +19,7 @@
 .wm-need { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 44px; padding: 4px 12px; background: var(--outline); color: var(--cream); }
 .wm-need b { font: 20px/24px var(--font-head); }
 .wm-need em { font-style: normal; color: var(--gold); }
-.wm-need span { font-size: 13px; line-height: 16px; text-align: right; }
+.wm-need span { font-size: 14px; line-height: 16px; text-align: right; }
 
 /* bowler rows (pick screen) */
 .wm-bowlers { display: flex; flex-direction: column; gap: 3px; padding-bottom: 3px; min-height: 0; flex: 0 1 auto; overflow-y: auto; }
@@ -30,7 +30,7 @@
 .wm-bn, .wm-ov { display: flex; flex-direction: column; min-width: 0; }
 .wm-bn b { font-size: 17px; line-height: 19px; }
 .wm-bn small, .wm-ov small { font-size: 14px; line-height: 15px; }
-.wm-sug { font-weight: 400; font-size: 12px; border: 1px solid var(--outline); padding: 0 4px; margin-left: 4px; }
+.wm-sug { font-weight: 400; font-size: 14px; border: 1px solid var(--outline); padding: 0 4px; margin-left: 4px; }
 .wm-ov { align-items: flex-end; }
 .wm-ov b { font-size: 18px; line-height: 20px; }
 
@@ -39,7 +39,7 @@
 .wm-bats { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
 .wm-bat { display: flex; flex-direction: column; min-height: 52px; padding: 4px 10px; border: 2px solid var(--outline); background: var(--white, #fffdf6); }
 .wm-bat.is-strike { background: var(--gold); }
-.wm-bat small { font-size: 13px; line-height: 16px; }
+.wm-bat small { font-size: 14px; line-height: 16px; }
 
 /* last over line */
 .wm-last { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; font-size: 14px; line-height: 18px; }
@@ -50,7 +50,7 @@
 
 /* Expected line, who line, roar */
 .wm-exp { font-size: 15px; line-height: 20px; font-weight: 700; text-align: center; }
-.wm-roar { display: inline-block; padding: 0 6px; background: var(--gold); border: 2px solid var(--outline); font-size: 13px; }
+.wm-roar { display: inline-block; padding: 0 6px; background: var(--gold); border: 2px solid var(--outline); font-size: 14px; }
 .wm-who { display: flex; align-items: center; justify-content: space-between; gap: 6px; font-size: 14px; line-height: 18px; min-height: 24px; }
 .wm-back { min-height: 44px; }
 .wm .wm-back { min-height: 44px; height: 44px; min-width: 44px; padding: 0 10px; font-size: 14px; line-height: 18px; }
@@ -59,7 +59,7 @@
 .wm-autos { display: flex; gap: 6px; }
 .wm-auto { flex: 1 1 0; min-height: 48px; font-size: 15px; padding: 0 6px; }
 .wm-achips { display: flex; flex-wrap: wrap; gap: 4px; min-height: 22px; }
-.wm-achips li { padding: 0 6px; border: 2px solid var(--outline); background: var(--white, #fffdf6); font-size: 13px; line-height: 18px; font-weight: 700; }
+.wm-achips li { padding: 0 6px; border: 2px solid var(--outline); background: var(--white, #fffdf6); font-size: 14px; line-height: 18px; font-weight: 700; }
 
 /* wheel */
 .wm-stage { flex: 1 1 auto; min-height: 150px; display: flex; align-items: center; justify-content: center; overflow: hidden; }
@@ -84,13 +84,13 @@
 .wm-tim--c { background: var(--gold); }
 
 /* main button: BOWL OVER / BAT OVER / SPIN / STOP / NEXT OVER; Stop auto pinned 56 px */
-.wm-cta { margin-top: auto; padding-top: 4px; }
+.wm-cta { margin-top: auto; padding-top: 4px; position: sticky; bottom: 0; z-index: 3; background: var(--cream); }
 .wm .wm-go { display: flex; flex-direction: column; align-items: center; justify-content: center; width: 100%; min-height: 76px; padding: 4px 12px; line-height: 1.1; }
 .wm .wm-go > span { font: 28px/32px var(--font-head); letter-spacing: .03em; }
 .wm .wm-go > small { font-size: 15px; line-height: 18px; font-weight: 700; }
 .wm .wm-go.is-wait { opacity: .7; border-style: dashed; }
 .wm .wm-go.is-glow { outline: 4px solid var(--gold); outline-offset: 2px; box-shadow: 0 0 0 var(--wm-glow, 0px) var(--gold); }
-.wm .wm-go.is-glow > span { color: var(--gold); }
+.wm .wm-go.is-glow > span { color: #FFE36E; font-size: 28px; } /* A11Y: 5.5:1 on the green CTA, 5.1:1 on the Scorebook red, and large text */
 .wm .wm-stopauto { min-height: 56px; height: 56px; }
 .wm .wm-stopauto > span { font-size: 22px; line-height: 26px; }
 

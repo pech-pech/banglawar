@@ -108,14 +108,14 @@ function palette() {
 // ---------- markup ----------
 function header(vm, sub, score) {
   const sc = score || vm.score || { runs: 0, wk: 0 };
-  return '<header class="strip c-dark wm-strip" role="status"><span class="score" aria-label="' + esc(sc.runs) + ' runs for ' + esc(sc.wk) + ' wickets">' + esc(sc.runs) + '/' + esc(sc.wk) + '</span>' +
+  return '<header class="strip c-dark wm-strip"><span class="score" aria-label="' + esc(sc.runs) + ' runs for ' + esc(sc.wk) + ' wickets">' + esc(sc.runs) + '/' + esc(sc.wk) + '</span>' +
     '<span class="mid"><b>' + esc(sub && sub.big || 'Over ' + vm.over + ' of 10') + '</b><span>' + esc(sub && sub.small || (vm.side === 'bat' ? 'You bat' : 'You bowl')) + '</span></span>' +
     '<button type="button" class="q" data-act="sheet:glossary" aria-label="Cricket words explained">?</button></header>';
 }
 function needBanner(vm, right) {
   if (vm.side !== 'bat' || !vm.need) return '';
   const n = vm.need;
-  return '<div class="wm-need" role="status"><b>Need <em>' + esc(n.runs) + '</em> off <em>' + esc(n.balls) + '</em> balls</b>' + (right ? '<span>' + right + '</span>' : '') + '</div>';
+  return '<div class="wm-need"><b>Need <em>' + esc(n.runs) + '</em> off <em>' + esc(n.balls) + '</em> balls</b>' + (right ? '<span>' + right + '</span>' : '') + '</div>';
 }
 function lastHtml(vm) {
   const L = vm.last; if (!L || !(L.balls || []).length) return '<p class="wm-last">First over. No balls yet.</p>';
@@ -303,14 +303,14 @@ export function render(el, vm, dispatch, open) {
   if (key !== st.key) { st.key = key; st.phase = 'pick'; st.bowler = null; st.res = null; if (st.auto) stopAuto(); }
   if (!st.mounted) { // reload mid-over: the stored result shows (no re-spin) until NEXT
     st.mounted = true; const L = vm.last, rk = resKey(vm, L && L.over);
-    if (L && L.wheel && (!L.wheel.auto || reducedNow()) && L.over === vm.over - 1 && seenGet() !== rk) st.res = { wheel: L.wheel, balls: L.balls || [], over: L.over, score: vm.score, stage: null, nextLabel: 'Next over', seenKey: rk, reload: true };
+    if (L && L.wheel && !L.wheel.auto && L.over === vm.over - 1 && seenGet() !== rk) st.res = { wheel: L.wheel, balls: L.balls || [], over: L.over, score: vm.score, stage: null, nextLabel: 'Next over', seenKey: rk, reload: true };
   }
   if (vm.over !== st.over) { st.over = vm.over; if (!st.res) st.phase = st.auto ? 'auto' : 'pick'; }
   if (st.res) return showResult(el, vm, st.res, false);
   if (st.auto) { el.innerHTML = wheelHtml(vm, 'auto'); const w = setupWheel(el, vm.segs, vm); w.draw(st.restPos || 0, { over: vm.over }); bindView(el); const b = el.querySelector('[data-wm="stop-auto"]'); if (b && st.focusStop) b.focus(); scheduleAuto(); return; }
   if (st.phase === 'ready') { if (vm.side === 'bowl' && st.bowler != null && st.bowler !== vm.bowler && typeof vm.vmFor === 'function') { const v2 = vm.vmFor(st.bowler); if (v2) { vm = v2; st.vm = vm; } } el.innerHTML = wheelHtml(vm, 'ready'); const w = setupWheel(el, vm.segs, vm); st.restPos = st.restPos || Math.random() * WHEEL_MATCH.CIRC; w.draw(st.restPos, { over: vm.over }); bindView(el); readyHint(el, vm); const g = el.querySelector('[data-wm="spin"]'); if (g) g.focus(); return; }
   el.innerHTML = pickHtml(vm); bindView(el);
-  if (st.liveNote) { setLive(el, st.liveNote); st.liveNote = ''; }
+  if (st.liveNote) { const n = st.liveNote; st.liveNote = ''; setTimeout(() => setLive(el, n), 0); } // A11Y-1: a task after the render, so the region exists before its text
 }
 function readyHint(el, vm) {
   if (reducedNow()) return;
@@ -458,7 +458,7 @@ function showResult(el, vm, r, fresh, keepWheel) {
   function finish() {
     if (finished) return; finished = true; timers.forEach(clearTimeout); for (let i = landed; i < balls.length; i++) land(i);
     const f = r.found || []; const fp = res.querySelector('.wm-found');
-    if (f.length && fp) { fp.hidden = false; fp.innerHTML = '<button type="button" class="c-btn wm-book">New in your Book! (' + f.length + ')</button>'; }
+    if (f.length && fp) { fp.hidden = false; fp.innerHTML = '<button type="button" class="c-btn wm-book">New in your Book! (' + f.length + ')</button>'; if (st.wheel) { st.wheel.size(); st.wheel.draw(st.drawPos != null ? st.drawPos : 0, { over }); } } // D13: refit the wheel to the room left
   }
   if (reduced || !fresh) finish();
   else { const ts = ballTimes(balls, over, 10); ts.forEach((tt, i) => timers.push(setTimeout(() => land(i), tt * 1000))); timers.push(setTimeout(finish, (ts[ts.length - 1] || 0) * 1000 + 200)); }
@@ -515,7 +515,7 @@ function autoStep() {
     st.restPos = r.wheel && r.wheel.pos != null ? r.wheel.pos : 0;
     if (typeof r.release === 'function') r.release(); else render(el, st.vm, st.dispatch, st.open);
   };
-  if (reducedNow()) { setLive(el, 'Over ' + (r.over || vm.over) + ': ' + overWords(t.runs, t.wk) + '.'); done(); return; }
+  if (reducedNow()) { setLive(el, 'Over ' + (r.over || vm.over) + ': ' + overWords(t.runs, t.wk) + '.'); setTimeout(done, pace * 1000); return; } // A11Y-1: keep the Auto pace; the next render is a later task, so the text is read
   // 0.35 s fast spin, 0.25 s cubic ease-out onto the unaimed result; a wicket / end / last over holds 0.3 s more
   const w = st.wheel, segs = (r.wheel && r.wheel.segs) || vm.segs || [], C = WHEEL_MATCH.CIRC, from = st.restPos || 0, to = r.wheel && r.wheel.pos != null ? r.wheel.pos : from;
   const fwd = ((((to - from) % C) + C) % C), total = 2 * C + fwd, fast = 0.35, ease = 0.25, T = fast + ease;

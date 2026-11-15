@@ -91,7 +91,7 @@ if (!noE2e) {
   const mainE2e = join(work, 'main-e2e.json');
   const runE2e = (root, tag) => {
     const res = {};
-    for (const f of readdirSync(join(root, 'test/e2e')).filter((x) => x.endsWith('.mjs'))) {
+    for (const f of readdirSync(join(main, 'test/e2e')).filter((x) => x.endsWith('.mjs'))) { // classic guard: only the e2e scripts that exist on main
       const b = basename(f, '.mjs');
       const r = spawnSync('node', ['test/e2e/' + f], { cwd: root, encoding: 'utf8', timeout: 600000, maxBuffer: 1 << 26, env: { ...process.env, E2E_SHOTS: join(work, `shots-${tag}`, b) + '/' } });
       const txt = (r.stdout || '') + (r.stderr || '');
