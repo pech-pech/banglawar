@@ -26,6 +26,9 @@ import { useFindToken } from './wmstore.js'; // wa1 find
 import { wmUseToken } from './wmstore.js'; // wa1 wire: tokens on Hype / Toss / Pep / Scout / Finals
 import { rollMatchday, teamBoost, scaleRatings, resolvePep, roarAt } from '../core/matchday.js';
 import { MD } from '../data/matchday.js';
+import { MATCH_SPOKES_PER_SPIN } from '../data/wheelmatch.js';
+import { matchModeOf, matchPhys, ctrlOf, landingPos, unaimedPos, segAt, pickSample, stopBucket, isCareful, replayOver } from '../core/wheelmatch.js';
+import { isWheelMatch, legalBowlers, suggestedBowler, rivalBowler, setMatchMode, setDev, devReset, modelOf } from './wheelmatch-store.js';
 
 const ovStr = (balls) => `${Math.floor(balls / 6)}.${balls % 6}`;
 
@@ -61,20 +64,25 @@ function defaultCall(s) {
 /** Skill-tree effects for the match, in a season only (a step-0 match passes no fx, so its numbers are unchanged). */
 const fxOf = (s) => (s.season ? makeFx(s.coaches) : undefined);
 
-function newMatch(payload) {
+function newMatch(payload, prev) {
   const seed = String(payload && payload.seed != null ? payload.seed : '0');
   const { me, rival } = makeStartState(makeRng(`${seed}|teams`));
+  // Wheel match: payload.mode, else a Rematch (same seed) keeps the old match's mode, else classic. Classic adds no key (state as before).
+  const mode = payload && (payload.mode === 'wheel' || payload.mode === 'classic') ? payload.mode : prev && prev.mode === 'wheel' && prev.seed === seed ? 'wheel' : 'classic';
   const s = {
     seed, stage: 'bowl', me, rival,
     inn1: newInnings(rival.players, me.players, null),
     inn2: null, call: null, last: null, result: null, inn1Summary: null,
   };
+  if (mode === 'wheel') { s.mode = 'wheel'; s.wheelLog = []; }
+  if (prev && prev.matchMode) s.matchMode = prev.matchMode;
+  if (prev && prev.dev) s.dev = prev.dev;
   s.call = defaultCall(s);
   return s;
 }
 
 function makeCall(s, p) {
-  if (s.stage !== 'bowl') return s;
+  if (s.stage !== 'bowl' || isWheelMatch(s)) return s;
   const el = eligibleBowlers(s.me.players, s.inn1.over, s.inn1.last);
   if (!p || !el.includes(p.bowler) || (p.field !== 'A' && p.field !== 'P')) return s;
   const n = structuredClone(s);
@@ -83,6 +91,7 @@ function makeCall(s, p) {
 }
 
 function bowlOver(s, p) {
+  if (isWheelMatch(s)) return s; // wheel match: one spin an over (WheelOver)
   const n = structuredClone(s);
   if (n.stage === 'bowl') {
     const inn = n.inn1;
@@ -140,6 +149,68 @@ function startChase(s) {
 }
 
 
+// ---------------------------------------------------------------- wheel match (2026-11-15 wheel-match CONTRACT "Store")
+const isNum = (x) => typeof x === 'number' && Number.isFinite(x);
+
+/**
+ * WheelOver {bowler?, stop?:{t, phi}, auto?}: one spin = one over. Bowl: our bowler picked live (legal only; auto = the suggested one).
+ * Chase: the rival's bowler is deterministic (rivalBowler). Calls are neutral (field P, intent R). The landing picks one sampled over and the
+ * real over is replayed with that sample's rng, so the 6-ball row is exactly the label. Innings end, break, result: as bowlOver.
+ */
+function wheelOver(s, p) {
+  if (!isWheelMatch(s) || (s.stage !== 'bowl' && s.stage !== 'chase')) return s;
+  const bowlSide = s.stage === 'bowl', side = bowlSide ? 'bowl' : 'bat', innIdx = bowlSide ? 0 : 1;
+  const auto = !!(p && p.auto);
+  const stop = !auto && p && p.stop && isNum(p.stop.t) && isNum(p.stop.phi) ? p.stop : null;
+  if (!auto && !stop) return s; // an aimed spin needs its STOP
+  let bowler;
+  if (bowlSide) {
+    const legal = legalBowlers(s);
+    bowler = p && Number.isInteger(p.bowler) ? p.bowler : auto ? suggestedBowler(s) : -1;
+    if (!legal.includes(bowler)) { if (!auto) return s; bowler = suggestedBowler(s); }
+    if (bowler < 0) return s;
+  } else bowler = rivalBowler(s);
+  const inn0 = bowlSide ? s.inn1 : s.inn2, over = inn0.over;
+  const phys = matchPhys(s), ctrl = ctrlOf(s);
+  let pos, tickPos = null, t = null, phi = null, bucket = null;
+  if (stop) {
+    t = Math.max(phys.STOP_FROM, Math.min(stop.t, phys.COAST)); phi = stop.phi; // same clamp as the landing (core stopParts)
+    const jr = makeRng(`${s.seed}|wmj|${s.stage}|${over}`);
+    const e = (jr.random() * 2 - 1) * phys.J;
+    pos = landingPos(phys, { t, phi, e });
+    tickPos = landingPos(phys, { t, phi, e: 0 });
+    bucket = stopBucket(t, stop.t >= phys.COAST);
+  } else pos = unaimedPos(makeRng(`${s.seed}|wma|${s.stage}|${over}`));
+  // Land, pick the sample, replay it on a clone. The replay must give the sample's runs/wkts; on a mismatch (stale memo) rebuild uncached once.
+  let model, seg, sample, n, inn, balls, runs0, wk0;
+  for (const fresh of [false, true]) {
+    model = modelOf(s, side, bowler, fresh);
+    seg = model.segs[segAt(model.segs, pos)];
+    sample = pickSample(makeRng(`${s.seed}|wmp|${s.stage}|${over}`), model.samples, seg);
+    n = structuredClone(s);
+    inn = bowlSide ? n.inn1 : n.inn2; runs0 = inn.runs; wk0 = inn.wk;
+    balls = replayOver(n, side, bowler, sample.k); // the landed sample's rng on the real state: same fx, centre, pairing, roar, boost as the model; field P, intent R
+    if (inn.runs - runs0 === sample.runs && inn.wk - wk0 === sample.wk) break;
+  }
+  const careful = stop ? isCareful(model.segs, segAt(model.segs, tickPos)) : false;
+  const bats = bowlSide ? n.rival.players : n.me.players, bowls = bowlSide ? n.me.players : n.rival.players;
+  const runs = inn.runs - runs0, wk = inn.wk - wk0;
+  const end = sample.end || (!bowlSide && inn.done && inn.runs === inn.target ? 'TIE' : '');
+  n.last = { balls, over, bowler, intent: NEUTRAL_INTENT, field: NEUTRAL_FIELD };
+  markRoar(n, innIdx, over);
+  countBook(n, balls, bats, bowls);
+  n.last.wheel = { segId: seg.id, label: seg.label, pos, tickPos, phi, t, segs: model.segs, end, auto, runs, wk };
+  (n.wheelLog ||= []).push({ inn: innIdx + 1, over, segId: seg.id, label: seg.label, t, auto, bucket, careful, runs, wk, xr: model.expect.xr, xw: model.expect.xw, guide: !!ctrl.guide });
+  if (FLAGS.wheelMeta && n.season) { const m = (n.wheelMeta ||= emptyWheelMeta()); m.spokes = (m.spokes | 0) + MATCH_SPOKES_PER_SPIN; } // 1 Spoke a spin, no tally
+  if (bowlSide) {
+    if (inn.done) { n.stage = 'break'; n.call = null; n.inn1Summary = summarise(n); } else n.call = defaultCall(n);
+  } else if (inn.done) {
+    n.stage = 'done';
+    n.result = inn.runs > n.inn1.runs ? 'won' : inn.runs === n.inn1.runs ? 'tied' : 'lost';
+  }
+  return n;
+}
+
 // ---------------------------------------------------------------- season (CONTRACT m0 section 2)
 const DEFAULT_OVERS = [0, 1, 2, 3, 4, 5, 0, 1, 2, 3];
 const clone = (x) => JSON.parse(JSON.stringify(x));
@@ -182,6 +253,7 @@ function newGame(payload) {
     training: { tp: 450, week: 1, nodeBought: {}, weekLog: [], weekStart: {}, netsRuns: 0, focusChanges: 0, focus: 'bat', effort: 'normal', spotlight_id: null, coach_id: null, last_plan: null },
     fixture: leagueFixture(season, 1),
   };
+  if (FLAGS.wheelMatch) g.matchMode = 'wheel'; // wheel match is the default for NEW games (flag set by main.js; off in old tests); missing key = classic
   if (FLAGS.freePick && freePickPending(g)) g.stage = 'freepick'; // first launch: pick the free facility before Home
   return g;
 }
@@ -287,11 +359,14 @@ function seasonMatch(s0) {
   const mco = md ? matchCoachOf(s) : null, mc = mco && (mco.boost.bat || mco.boost.bowl) ? { id: mco.coach.id, name: mco.coach.name, bat: mco.boost.bat, bowl: mco.boost.bowl } : null;
   if (md && mc) md = { ...md, mc };
   const scaled = (id) => { const f = teamBoost(md, id), p = copyPlayer(byId(mine, id)); return mc ? scaleRatings(p, (1 + f) * (1 + mc.bat) - 1, (1 + f) * (1 + mc.bowl) - 1) : scaleRatings(p, f); };
+  const wheel = matchModeOf(s) === 'wheel'; // frozen on the match record for the whole match
   const n = {
     ...s, ...blankMatch(), seed, stage: 'bowl',
     me: { name: mine.name, players: mine.six.map((id) => (md ? scaled(id) : copyPlayer(byId(mine, id)))) },
-    rival: { name: opp.name, players: aiPickSix(opp).map((id) => copyPlayer(byId(opp, id))) },
+    rival: { name: opp.name, players: aiPickSix(opp).map((id) => copyPlayer(byId(opp, id))) }, // raw ratings: the wheel boost is applied by the engine on its copies (display paths stay true)
   };
+  delete n.mode; delete n.wheelLog;
+  if (wheel) { n.mode = 'wheel'; n.wheelLog = []; }
   delete n.match; // r9 H2: the last match's roll never outlives its match (s.match is set only when this match has a match day)
   if (md) { n.match = { md }; n.fixture = { ...fx, md }; }
   n.inn1 = newInnings(n.rival.players, n.me.players, null);
@@ -314,6 +389,7 @@ function finishMatch(s0) {
   n.training.tp += pay.total; se.tpWon += pay.total;
   n.pay = { ...pay, outcome, opp: fx.opp, round: fx.round };
   delete n.match; // r9 H2: the match is over; its match-day roll goes with it
+  delete n.mode; // the next match reads the Settings mode again (wheelLog stays until the next match starts, for the report)
   Object.assign(n, tickBuild(applyMatch(n, { win: outcome === 'won', tie: outcome === 'tied', ...(FLAGS.matchday && n.fixture.md ? { hypeIdx: n.fixture.md.hypeIdx } : {}) })));
   if (finKey) Object.assign(n, finalsReward(n, finKey));
   se.last = { kind: fx.kind, round: fx.round };
@@ -400,6 +476,7 @@ function newRunFrom(s, p) {
   n.salt = s.salt;
   n.wheelMeta = emptyWheelMeta(); // the tree, tally, Spokes and tokens reset with the run; wheelCraft rides in through applyCarry
   if (s.wheelFeatures === false) n.wheelFeatures = false;
+  if (s.matchMode) n.matchMode = s.matchMode; // the player's match mode choice carries into the next run
   return n;
 }
 /** The game seed is the first season's seed; later seasons append |s<n>. */
@@ -413,7 +490,8 @@ const baseSeed = (s) => String(s.season.seed).replace(/\|s\d+$/, '');
 export function applyCommand(s, cmd, payload = {}) {
   const n = applyCommandCore(s, cmd, payload);
   // The look setting rides along every command that rebuilds the state (NewGame, new run, ...); absent = the default look.
-  const t = s && s.theme && n && n !== s && n.theme === undefined ? { ...n, theme: s.theme } : n;
+  const t0 = s && s.theme && n && n !== s && n.theme === undefined ? { ...n, theme: s.theme } : n;
+  const t = s && s.dev && t0 && t0 !== s && t0.dev === undefined && t0.stage ? { ...t0, dev: s.dev } : t0; // Dev settings are per device: they ride along a rebuilt state
   const u = s && s.autoMatchday && t && t !== s && t.autoMatchday === undefined && t.stage ? { ...t, autoMatchday: true } : t;
   // The features switch (M 18:37) also rides along: a rebuilt state keeps the player's choice (absent on an old save = on).
   const f = cmd !== 'SetFeatures' && s && s.features === false && u && u !== s && u.stage && u.features !== false ? { ...u, features: false } : u;
@@ -423,7 +501,7 @@ export function applyCommand(s, cmd, payload = {}) {
 function applyCommandCore(s, cmd, payload) {
   if (cmd === 'SetTheme') return s && s.stage && THEMES.includes(payload && payload.theme) && (s.theme || 'green') !== payload.theme ? { ...s, theme: payload.theme } : s;
   if (cmd === 'NewGame') return newGame(payload);
-  if (cmd === 'NewMatch' && !(s && s.season)) return newMatch(payload);
+  if (cmd === 'NewMatch' && !(s && s.season)) return newMatch(payload, s);
   if (!s || !s.stage) return s;
   switch (cmd) {
     case 'NewMatch': return seasonMatch(s);
@@ -500,6 +578,10 @@ function applyCommandCore(s, cmd, payload) {
     case 'MakeCall': return makeCall(s, payload);
     case 'BowlOver': return bowlOver(s, payload);
     case 'StartChase': return startChase(s);
+    case 'WheelOver': return wheelOver(s, payload);
+    case 'SetMatchMode': return setMatchMode(s, payload);
+    case 'SetDev': return setDev(s, payload);
+    case 'DevReset': return devReset(s, payload);
     default: return s;
   }
 }
@@ -614,7 +696,7 @@ function spin(s, p) {
   const two = !!(p && p.slot === 2), key = two ? 'pending2' : 'pending'; // slot 2 = the Twin Spotlight Pass wheel
   if (!(two ? plan.spotlight2Id : plan.spotlightId) || (T[key] && T[key].week === T.week) || (T.nets && T.nets.week === T.week)) return s;
   if (FLAGS.wheelMeta && netsPreview(s).skippedIds.includes(two ? plan.spotlight2Id : plan.spotlightId)) return s; // 02 section 7: a Spotlight player who cannot gain gets no wheel, so no tally and no Spokes
-  const meta = FLAGS.wheelMeta, base = wheelSlices(plan.effort, coachStepInUse(s)), wheel = meta ? metaWheel(base, 'spot', s) : base;
+  const meta = FLAGS.wheelMeta, base = wheelSlices(plan.effort, coachStepInUse(s)), wheel = metaWheel(base, 'spot', s); // flag off: the input wheel (Dev otherMult adds phys)
   const careful = p && p.careful && typeof p.careful === 'object' ? p.careful : !!(p && p.careful);
   let result = spinResult(TRAIN_RNG(s, two ? 'spin2' : 'spin'), wheel, careful);
   let n = clone(s);
@@ -659,7 +741,7 @@ function courseSpin(s, p) {
   const id = p && p.coachId, T = s.training;
   if (!id || !canCourse(s, id).ok || (T.coursePending && T.coursePending.coachId === id)) return s;
   const c = coachList(s).find((x) => x.id === id);
-  const wheel = FLAGS.wheelMeta ? metaWheel(courseWheel(c.step), 'course', s) : courseWheel(c.step), careful = p.careful && typeof p.careful === 'object' ? p.careful : !!p.careful;
+  const wheel = metaWheel(courseWheel(c.step), 'course', s) /* flag off: the plain wheel (Dev otherMult adds phys) */, careful = p.careful && typeof p.careful === 'object' ? p.careful : !!p.careful;
   let n = clone(s), result = spinResult(TRAIN_RNG(s, 'course', id), wheel, careful);
   if (FLAGS.wheelMeta) { // Second Opinion etc.; the course counts 1 spin
     const a = afterResult(n, 'course', result, WM_RNG(s, 'course', id), { wheel }); n = clone(a.s); result = a.result;

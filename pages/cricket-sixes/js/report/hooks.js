@@ -8,6 +8,7 @@ import { gearButton, openSettings, stampOf } from './settings.js';
 import { drawFeel } from './feel.js';
 import { saveOf } from './z.js';
 import { wmLines, wmJson } from './wm.js'; // wa1: wheel upgrade lines + Find check
+import { matchModeOf, devChanged } from '../core/wheelmatch.js'; // wheel match mode: header mode, dev: line
 import { VERSION as SAVE_VERSION } from '../core/save-migrate.js'; // r9 review L3: migrated = loaded from an older save version (now 6)
 
 const RESUME = { bowl: 1, break: 1, chase: 1 };
@@ -21,7 +22,8 @@ export function attachReport(el, store) {
     let storage = null; try { storage = window.localStorage; storage.getItem('x'); } catch (e) { storage = null; }
     const vp = () => 'screen ' + window.innerWidth + 'x' + window.innerHeight + ' at ' + (window.devicePixelRatio || 1) + 'x pixels, ' + (window.innerHeight >= window.innerWidth ? 'upright' : 'sideways');
     const log = createLog({ storage, now: () => Date.now(), build: BUILD, env: vp });
-    const env = () => ({ build: BUILD, now: Date.now(), vp: vp(), errors: log.data().errors.n, lastError: log.data().errors.last.slice(-1)[0] || '', flags: { ...FLAGS }, features: store.get() ? store.get().features !== false : true, win: log.window(), rid: log.nextRid(), lastText: log.lastText(), builds: log.data().builds, fixedSeed: (() => { try { return new URLSearchParams(location.search).has('seed'); } catch (e) { return false; } })(), save: saveOf(store.get()), meta: (() => { try { return FLAGS.wheelMeta && store.get() ? wmLines(store.get()) : []; } catch (e) { return []; } })(), wm: (() => { try { return FLAGS.wheelMeta && store.get() ? wmJson(store.get()) : null; } catch (e) { return null; } })(), tuningSha: TUNING_SHA, tuningPinned: TUNING_PINNED, migrated: (() => { try { const f = window.__csLoadedFrom; return f != null && f < SAVE_VERSION; } catch (e) { return false; } })() });
+    const env = () => ({ build: BUILD, now: Date.now(), vp: vp(), errors: log.data().errors.n, lastError: log.data().errors.last.slice(-1)[0] || '', flags: { ...FLAGS }, features: store.get() ? store.get().features !== false : true, win: log.window(), rid: log.nextRid(), lastText: log.lastText(), builds: log.data().builds, fixedSeed: (() => { try { return new URLSearchParams(location.search).has('seed'); } catch (e) { return false; } })(), save: saveOf(store.get()), meta: (() => { try { return FLAGS.wheelMeta && store.get() ? wmLines(store.get()) : []; } catch (e) { return []; } })(), wm: (() => { try { return FLAGS.wheelMeta && store.get() ? wmJson(store.get()) : null; } catch (e) { return null; } })(), tuningSha: TUNING_SHA, tuningPinned: TUNING_PINNED, migrated: (() => { try { const f = window.__csLoadedFrom; return f != null && f < SAVE_VERSION; } catch (e) { return false; } })(),
+      matchMode: (() => { try { return store.get() ? matchModeOf(store.get()) : null; } catch (e) { return null; } })(), dev: (() => { try { return store.get() ? devChanged(store.get()) : null; } catch (e) { return null; } })() });
     let shownKey = '', stage = null, stageT = Date.now(), shownT = Date.now(), lastGloss = '', tapT = 0;
     const flush = () => { try { if (stage) log.screen(stage, Date.now() - stageT); stageT = Date.now(); } catch (e) { /* ignore */ } };
     const rep = {
@@ -77,8 +79,9 @@ export function attachReport(el, store) {
           if ((cmd === 'NewMatch' || ((cmd === 'StartMatch' || cmd === 'MatchdayGo') && after && after.stage === 'bowl')) && !(before && before.stage === 'bowl')) log.matchStart(after); // r9 review H1: a command repeated mid-match is not a new start // P0-1: the hub sends StartMatch, not NewMatch
           else if (cmd === 'FinishMatch') log.finish(before, after);
           else if (cmd === 'BowlOver' && after !== before) log.over(before, after, { th: Date.now() - shownT });
+          else if (cmd === 'WheelOver' && after !== before && after && after.last) log.over(before, after, { th: Date.now() - shownT, wheel: true }); // wheel match: one row per spun over
           if (cmd === 'MakeCall') log.touch(before, after);
-          if (cmd !== 'BowlOver') log.command(cmd, payload, before, after); // r9: nets, spins, weeks, buys, seasons
+          if (cmd !== 'BowlOver' && cmd !== 'WheelOver') log.command(cmd, payload, before, after); // r9: nets, spins, weeks, buys, seasons
         } catch (e) { log.error(e); }
       },
       panelOpen() {}, // P0-13: the over-panel timer is gone; app.js still calls this

@@ -6,6 +6,7 @@ import { BANDS } from './bands.js';
 import { FLAG_DEFAULTS } from './build.js';
 import { zLines } from './z.js';
 import { REPORT_TICK } from '../core/landtick.js';
+import { isWheel, wheelStats, wheelLine, wheelArr, modeOf, modeHeader, kindOf, devLine } from './wmatch.js'; // wheel match mode (2026-11-15, SPEC s14)
 
 export const MAX_MATCH_ROWS = 5;
 const sum = (xs) => xs.reduce((a, b) => a + b, 0);
@@ -82,7 +83,7 @@ export function cleanOf(matches, env) {
   if (new Set(matches.map((m) => m.build)).size > 1 || cur.length < matches.length) why.push('mixed builds');
   if (!cur.length) why.push(e.pending && e.pending.res ? 'match on result screen' : 'no match played'); // QA3 N1: a held-back match was played; it comes in the next copy
   if (e.tuningSha && e.tuningPinned && e.tuningSha !== e.tuningPinned) why.push('tuning changed');
-  const flags = e.flags || FLAG_DEFAULTS, bad = Object.keys(FLAG_DEFAULTS).filter((k) => !FEATURE_FLAGS.includes(k) && k !== 'wheelMeta' && (flags[k] ?? FLAG_DEFAULTS[k]) !== FLAG_DEFAULTS[k]); // features are a kind, not a flag change
+  const flags = e.flags || FLAG_DEFAULTS, bad = Object.keys(FLAG_DEFAULTS).filter((k) => !FEATURE_FLAGS.includes(k) && k !== 'wheelMeta' && k !== 'wheelMatch' && (flags[k] ?? FLAG_DEFAULTS[k]) !== FLAG_DEFAULTS[k]); // features (and the match mode) are a kind, not a flag change
   if (bad.length) why.push('flags changed: ' + bad.join(', '));
   if (cur.some((m) => !m.res && !m.ab)) why.push('match in progress');
   if (e.errors > 0) why.push('errors');
@@ -92,11 +93,13 @@ export function cleanOf(matches, env) {
   if (e.trimmed) why.push('trimmed');
   const kinds = new Set(cur.filter((m) => Array.isArray(m.fl)).map((m) => (featOn(m) ? 1 : 0)));
   if (kinds.size > 1) why.push('features switched');
+  if (new Set(cur.filter((m) => m.mo === 'W' || m.mo === 'C').map((m) => m.mo)).size > 1) why.push('mode switched'); // wheel match: W and C are two build kinds
+  if (e.dev && Object.keys(e.dev).length) why.push('dev tweaked'); // Dev wheel speeds changed (dev: line)
   return { ok: !why.length, why };
 }
 
 export function envOf(env = {}, data = null) {
-  return { trimmed: !!(env.trimmed || (data && data.trimmed)), fixedSeed: !!env.fixedSeed, tuningSha: env.tuningSha, tuningPinned: env.tuningPinned, migrated: !!env.migrated, build: env.build || '?', now: env.now || Date.now(), vp: env.vp || '?', errors: env.errors || 0, lastError: env.lastError || '', flags: env.flags, features: env.features, win: env.win, rid: env.rid, save: env.save || null };
+  return { trimmed: !!(env.trimmed || (data && data.trimmed)), fixedSeed: !!env.fixedSeed, tuningSha: env.tuningSha, tuningPinned: env.tuningPinned, migrated: !!env.migrated, build: env.build || '?', now: env.now || Date.now(), vp: env.vp || '?', errors: env.errors || 0, lastError: env.lastError || '', flags: env.flags, features: env.features, win: env.win, rid: env.rid, save: env.save || null, matchMode: env.matchMode || null, dev: env.dev || null };
 }
 
 /** Per-word open counts, most opened first (ties by name). */
@@ -166,7 +169,17 @@ function secT(w, env) {
 }
 
 const resLetter = (m) => (m.ab ? 'quit' : m.res === 'won' ? 'W' : m.res === 'lost' ? 'L' : 'T');
+/** Wheel match row: the call columns print n/a W (no field / intent / Attack calls in wheel mode); bowler picks, luck and the W numbers stay. */
+function matchRowW(m) {
+  const b = bowlOvs(m), mu = (k) => b.filter((o) => o.mu === k).length, mg = m.res ? (m.res === 'won' ? m.m.n + 'wk' : m.res === 'lost' ? m.m.n + 'runs' : '0') : '';
+  const th = thinkOf(m), ws = wheelStats([m]), L = m.res ? `luck ${sgn(luckOf(m))}` : 'luck -';
+  const txt = `M${m.id} ${m.k || '?'} ${resLetter(m)} ${m.us ?? '-'}-${m.them ?? '-'}${mg ? ' by ' + mg : ''} | wheel | field n/a W | intent n/a W | att early n/a W | pick G${mu('G')} O${mu('O')} P${mu('P')} U${b.length - mu('G') - mu('O') - mu('P')} | fit n/a W | ${L}${th == null ? '' : ' | think ' + th + ' s'}${m.res && m.dec != null ? ' | decided over ' + m.dec : ''}`;
+  const j = { id: m.id, k: m.k || null, r: m.r ?? null, res: resLetter(m), us: m.us ?? null, th: m.them ?? null, mg: m.m ? [m.m.k, m.m.n] : null, mo: 'W', g: str(b, 'mu'), rb: b.map((o) => o.r | 0), rc: chaseOvs(m).map((o) => o.r | 0), lk: m.res ? luckOf(m) : null, tk: th, dec: m.dec ?? null, wl: wheelArr(ws) };
+  if (m.md) { j.md = m.md; j.mc = m.mc || 0; } if (Array.isArray(m.settled)) j.st = m.settled.length;
+  return { txt, j };
+}
 function matchRow(m) {
+  if (isWheel(m)) return matchRowW(m);
   const b = bowlOvs(m), c = chaseOvs(m);
   const f = (k) => b.filter((o) => o.f === k).length, i = (k) => c.filter((o) => o.i === k).length;
   const att = c.filter((o) => o.i === 'A'), early = att.filter((o) => o.o <= 7).length;
@@ -182,20 +195,34 @@ function matchRow(m) {
 
 function secM(w) {
   const title = 'MATCH CALLS [W] Q2';
-  const rows = w.ms.filter((m) => m.res || m.ab);
+  let rows = w.ms.filter((m) => m.res || m.ab);
   if (!rows.length) return { key: 'M', title, h: ['none in window'], m: 'm:none', j: [], old: null, short: 'MATCH none in window' };
   const shown = rows.slice(-3), older = rows.slice(0, -3);
   const old = older.length ? { n: older.length, W: cnt(older, (m) => m.res === 'won'), L: cnt(older, (m) => m.res === 'lost'), T: cnt(older, (m) => m.res === 'tied') } : null;
   const h = []; if (old) h.push(`and ${old.n} earlier: ${old.W}W ${old.L}L${old.T ? ' ' + old.T + 'T' : ''}`);
   const rr = shown.map(matchRow); for (const r of rr) h.push(r.txt);
   const nRows = rr.length + (old ? 1 : 0);
-  const fin = rows.filter((m) => m.res), a = aggregate(w.ms), cb = ov(rows);
+  const wRows = rows.filter(isWheel), allW = wRows.length > 0 && wRows.length === rows.length;
+  const rowsAll = rows; if (wRows.length && !allW) rows = rows.filter((m) => !isWheel(m)); // mixed window: the classic lines and bands read the classic matches only
+  const fin = rows.filter((m) => m.res), a = aggregate(wRows.length && !allW ? w.ms.filter((m) => !isWheel(m)) : w.ms), cb = ov(rows);
   const attAll = rows.flatMap((m) => chaseOvs(m).filter((o) => o.i === 'A')), cOv = rows.flatMap(chaseOvs);
   const attEarly = cOv.filter((o) => o.i === 'A' && o.o <= 7).length, attShare = pct(attEarly, cOv.length);
   const awk = attAll.length ? r1(sum(attAll.map((o) => o.w | 0)) / attAll.length) : null;
   const sameF = a.roteF.n >= 3 || a.n >= 3 ? a.roteF.n && a.roteF.rote / a.roteF.n >= 0.9 : false;
   const av = avoidOf(rows.flatMap(bowlOvs)), avPct = pct(av.bad, av.n);
   const weak = rows.flatMap(bowlOvs).filter((o) => o.o <= 3 && o.mu === 'P'), weakKept = pct(weak.length, rows.flatMap(bowlOvs).filter((o) => o.o <= 3).length);
+  if (allW) { // wheel only: no calls, no classic bands (SPEC s14); the W line carries the aim facts
+    const ws = wheelStats(rowsAll), fw = rowsAll.filter((m) => m.res);
+    h.push(wheelLine(ws));
+    h.push('Calls: n/a W. Same field n/a W. Call hints n/a W. Why opens n/a W.');
+    h.push(`Matchup picks Good ${P(a.mu.G)}, OK ${P(a.mu.O)}, Poor ${P(a.mu.P)}, no preview ${P(a.mu.U)} (wheel: no classic band).`);
+    if (fw.length) h.push(`Close finishes ${cnt(fw, (m) => m.close)} of ${fw.length}. Luck: scored ${a.scored} vs exp ${a.xScored}, rival ${a.conc} vs ${a.xConc}; wkts lost ${a.wkLost} vs ${a.xWkLost}, taken ${a.wkTook} vs ${a.xWkTook} (wheel: no classic band).${fw.length < 10 ? ' n small' : ''}`);
+    const mdsW = rowsAll.filter((m) => m.md);
+    if (mdsW.length) h.push(`Match day: hype ${mdsW.map((m) => m.md.hype || '-').join('/')}, toss won ${cnt(mdsW, (m) => m.md.toss === 'won')} of ${mdsW.length}, roar overs ${sum(mdsW.map((m) => (m.md.roar || []).length))}.`);
+    const machW = 'm:' + rowsAll.map((m) => m.id + resLetter(m)).join(',') + '|W' + wheelArr(ws).join(',') + '|pick' + [a.mu.G, a.mu.O, a.mu.P, a.mu.U].join('/') + '|close' + cnt(fw, (m) => m.close) + '/' + fw.length;
+    return { key: 'M', title, h, nRows, m: machW, j: rr.map((r) => r.j), old, wl: wheelArr(ws), short: `MATCH ${cnt(fw, (m) => m.res === 'won')}W ${cnt(fw, (m) => m.res === 'lost')}L, wheel ${ws.n} spun, careful ${ws.c}` };
+  }
+  if (wRows.length) h.push(wheelLine(wheelStats(wRows)) + ' Classic lines below read the classic matches only.');
   h.push(`Calls: Attack in overs 1-7 ${P(attShare)} of batting overs. Attack wkts/over ${awk ?? '-'}. Same field 90%+: ${sameF ? 'yes' : 'no'}. Weak pick kept in overs 1-3: ${P(weakKept)}. ${fin.length < 3 ? 'n small' : verdict((attShare != null && attShare > 33) || sameF || (weakKept != null && weakKept > 50))} [sim 0.8 wkts per Attack over]`);
   const hd = rows.flatMap((m) => m.ov || []).map((o) => o.hd), hint = [hd.filter((x) => x >= 1500).length, hd.filter((x) => x > 0).length];
   h.push(`Calls: hint read ${hint[0]}/${hint[1]} overs (>=1.5 s).`);
@@ -207,8 +234,8 @@ function secM(w) {
   if (fin.length) { const L = BANDS.luckBy, g = (v) => (v > 0 ? '+' : '') + v; h.push(`Luck: scored ${a.scored} vs exp ${a.xScored}, rival ${a.conc} vs ${a.xConc}; wkts lost ${a.wkLost} vs ${a.xWkLost}, taken ${a.wkTook} vs ${a.xWkTook}. Per match win ${L.won[0]}..${g(L.won[1])}, loss ${L.lost[0]}..${g(L.lost[1])} [sim].${fin.length < 10 ? ' n small' : ''}`); }
   const mds = rows.filter((m) => m.md);
   if (mds.length) h.push(`Match day: hype ${mds.map((m) => m.md.hype || '-').join('/')}, toss won ${cnt(mds, (m) => m.md.toss === 'won')} of ${mds.length}, roar overs ${sum(mds.map((m) => (m.md.roar || []).length))}${rows.some((m) => Array.isArray(m.settled)) ? ', settled wickets ' + sum(rows.map((m) => (m.settled || []).length)) : ''}.`);
-  const mach = 'm:' + rows.map((m) => m.id + resLetter(m)).join(',') + '|A' + a.fA + 'P' + a.fP + '|D' + a.iD + 'R' + a.iR + 'A' + a.iA + '|att' + P(attShare) + '|pick' + [a.mu.G, a.mu.O, a.mu.P, a.mu.U].join('/') + '|avP' + (avPct ?? '-') + '|fit' + [a.fitB, a.fitF, a.fitI].join('/') + '|close' + cnt(fin, (m) => m.close) + '/' + fin.length;
-  return { key: 'M', title, h, nRows, m: mach, j: rr.map((r) => r.j), hint, old, short: `MATCH ${cnt(fin, (m) => m.res === 'won')}W ${cnt(fin, (m) => m.res === 'lost')}L, fit ${P(a.fitB)}/${P(a.fitF)}/${P(a.fitI)}, avoidable Poor ${P(avPct)}` };
+  const mach = 'm:' + rowsAll.map((m) => m.id + resLetter(m)).join(',') + (wRows.length ? '|W' + wheelArr(wheelStats(wRows)).join(',') : '') + '|A' + a.fA + 'P' + a.fP + '|D' + a.iD + 'R' + a.iR + 'A' + a.iA + '|att' + P(attShare) + '|pick' + [a.mu.G, a.mu.O, a.mu.P, a.mu.U].join('/') + '|avP' + (avPct ?? '-') + '|fit' + [a.fitB, a.fitF, a.fitI].join('/') + '|close' + cnt(fin, (m) => m.close) + '/' + fin.length;
+  return { key: 'M', title, h, nRows, m: mach, j: rr.map((r) => r.j), hint, old, ...(wRows.length ? { wl: wheelArr(wheelStats(wRows)) } : {}), short: `MATCH ${cnt(fin, (m) => m.res === 'won')}W ${cnt(fin, (m) => m.res === 'lost')}L, fit ${P(a.fitB)}/${P(a.fitF)}/${P(a.fitI)}, avoidable Poor ${P(avPct)}` };
 }
 const ov = (ms) => ms.flatMap((m) => m.ov || []);
 
@@ -300,12 +327,14 @@ export function reportParts(data, env0) {
   const on = w.ms.filter((m) => Array.isArray(m.fl)).length ? w.ms.some(featOn) : (env.features === true || env.features === 'on');
   const t0 = w.since ? w.since.atMs : (w.ms[0] ? w.ms[0].t0 : env.now);
   const rid = w.rid;
-  const h1 = `CR ${env.build} | CLEAN: ${clean.ok ? 'YES' : 'NO ' + clean.why.join(', ')} | features ${on ? 'on' : 'off'} | save v${sv.v || '?'} | S${sv.season || '?'} R${sv.round || '?'}/${sv.rounds || 9} L${sv.league || '?'} | #${rid} | ${env.vp}`;
+  const mode = modeOf(w.ms, env.matchMode), mh = modeHeader(mode); // wheel match: mode:W|C off:-9|+1.9 (absent for old records without a mode and no env)
+  const h1 = `CR ${env.build} | CLEAN: ${clean.ok ? 'YES' : 'NO ' + clean.why.join(', ')} | features ${on ? 'on' : 'off'} | save v${sv.v || '?'} | S${sv.season || '?'} R${sv.round || '?'}/${sv.rounds || 9} L${sv.league || '?'}${mh ? ' | ' + mh : ''} | #${rid} | ${env.vp}`;
   const h2 = `Window: ${fin.length} matches, ${w.nets.length} nets runs, since ${w.since ? '#' + w.since.rid : 'start'} (${utc(t0)} to ${utc(env.now)}). [W] window [S] season [G] save`;
   const h3 = w.dropped ? `Dropped ${w.dropped.n} records from ${w.dropped.build}` : null;
   const pd = w.pending, h4 = pd ? (pd.res ? `M${pd.id} is on the result screen: not in this report. Leave the result screen, then copy: it comes in whole with its Coins, Fans, pay and feel.` : `M${pd.id} is still in play: it comes in whole in the next report.`) : null; // QA3 B1
   const secs = [secT(w, env), secM(w), secE(w, env), secC(w, env), secS(w, env), secF(w, data)];
-  return { env, w, clean, on, rid, h: [h1, h2, h3, h4].filter(Boolean), secs, drop: w.dropped ? w.dropped.n : 0 };
+  const h5 = devLine(env.dev); // Dev on with changed values only (06-DEV-SPEED)
+  return { env, w, clean, on, rid, h: [h1, h2, h3, h4, h5].filter(Boolean), secs, drop: w.dropped ? w.dropped.n : 0, mode };
 }
 
 const LIM = { full: 2500, short: 1000, json: 4000 };
@@ -342,6 +371,9 @@ export function buildData(data, env0) {
   const out = { rid: p.rid, since: p.w.since ? p.w.since.atMs : null, at: new Date(env.now).toISOString(), b: env.build, tun: env.tuningSha || null, sv: (env.save && env.save.v) || null, vp: env.vp, clean: p.clean.ok ? 1 : 0, why: p.clean.why, feat: p.on ? 1 : 0, errs: env.errors, drop: p.drop, sz: 'f', tick: REPORT_TICK, ...S, M: Array.isArray(M) ? M : [] };
   const sec = p.secs.find((s) => s.key === 'M'); if (sec && sec.old) out.Mold = sec.old;
   if (sec && sec.hint) out.hint = sec.hint;
+  if (p.mode) out.kind = kindOf(p.mode); // CLEAN build kind: wheel | classic | mixed
+  if (sec && sec.wl) out.wl = sec.wl; // W numbers [n, bowl, bat, auto, careful, early, late, coast, runs +-, wkts +-, guide]
+  if (env.dev && Object.keys(env.dev).length) out.dev = env.dev;
   if (env0 && env0.wm) out.wm = env0.wm; // wa1: tokens used per wheel, match-day count, Find check [yours, full, every node], bug flag
   let js = JSON.stringify(out);
   if (js.length > LIM.json) { for (const m of out.M) { delete m.rb; delete m.rc; } js = JSON.stringify(out); } // overflow: runs per over go first

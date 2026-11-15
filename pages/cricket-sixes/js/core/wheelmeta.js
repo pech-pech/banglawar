@@ -28,6 +28,7 @@ import { ECON } from '../data/economy.js';
 import { courseWheel, wheelSlices, wheelWidths, spinResult } from './training.js';
 import { dialResult, revealResult } from './dialreel.js';
 import { MD } from '../data/matchday.js';
+import { devVal } from './wheelmatch.js'; // wheel match Dev: otherMult (1 unless Dev is on)
 
 const clone = (/** @type {any} */ x) => structuredClone(x);
 const BY = Object.fromEntries(NODES.map((n) => [n.id, n]));
@@ -164,7 +165,8 @@ export function effective(s) {
  * @param {{slices:number[], jackpotIndex?:number, widths?:number[], C?:number}} wheel @param {string} wheelId @param {any} s
  */
 export function metaWheel(wheel, wheelId, s) {
-  if (!FLAGS.wheelMeta) return wheel;
+  const om = otherMultOf(s);
+  if (!FLAGS.wheelMeta) return om === 1 ? wheel : { ...wheel, phys: { W0: BASE.W0 * om } }; // Dev otherMult on the plain wheel; x1 = the input wheel itself
   const X = effective(s)[wheelId] || neutralWheel(wheelId), ji = wheel.jackpotIndex || 0, ws = wheelWidths(wheel);
   let L = wheel.slices.map((v, i) => ({ v, w: ws[i], gold: i === ji }));
   L[ji].w += X.goldAdd;
@@ -177,8 +179,10 @@ export function metaWheel(wheel, wheelId, s) {
   if (X.floor && SKILL.includes(wheelId)) L = L.map((q) => (q.v === 1 && !q.gold ? { ...q, v: q.v + X.floor } : q));
   const widths = L.map((q) => q.w), C = widths.reduce((a, b) => a + b, 0), golds = L.map((q, i) => (q.gold ? i : -1)).filter((i) => i >= 0);
   return { ...wheel, slices: L.map((q) => q.v), jackpotIndex: L.findIndex((q) => q.gold), widths, C, golds,
-    phys: { W0: BASE.W0 * X.w0Mult, J: BASE.J * X.jMult, SD: BASE.SD * (X.guide ? WM.GUIDE_SD_FACTOR : 1) } };
+    phys: { W0: BASE.W0 * om * X.w0Mult, J: BASE.J * X.jMult, SD: BASE.SD * (X.guide ? WM.GUIDE_SD_FACTOR : 1) } }; // otherMult before Control (Slow stacks)
 }
+/** Wheel match Dev (06-DEV-SPEED rule 7): start speed multiplier for every wheel except the match wheel. 1 unless Dev is on. @param {any} s */
+export const otherMultOf = (s) => devVal(s, 'otherMult');
 
 // ---- results: booster, Hot Streak, Second Opinion
 const defaultWheel = (/** @type {any} */ s, /** @type {string} */ wheelId) => metaWheel(wheelId === 'course' ? courseWheel() : wheelSlices('normal'), wheelId, s);

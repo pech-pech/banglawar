@@ -21,6 +21,7 @@ const applyWheel = (s) => { FLAGS.wheelMeta = !s || s.wheelFeatures !== false; }
 // 1. Load (and migrate) the save; a missing or unreadable save starts a new game.
 // Flags on first (the default): a new game or a migration reads them; a stored features:false is applied right after the load.
 applyFeatures(null); applyWheel(null);
+FLAGS.wheelMatch = true; // 2026-11-15: new games start in Wheel match mode (old saves without matchMode stay Classic)
 const loaded = save.load({ newGame });
 const store = createStore(loaded.state || null);
 try { window.__csLoadedFrom = loaded.from; } catch (e) { /* report only: migrated-save flag */ }
