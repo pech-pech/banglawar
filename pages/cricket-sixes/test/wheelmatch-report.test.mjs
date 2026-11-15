@@ -57,10 +57,10 @@ test('W line math matches s.wheelLog (careful = log.careful, auto out of the sto
   for (let i = 0; i < L.length; i++) { assert.equal(m.ov[i].r, L[i].runs); assert.equal(m.ov[i].f, null); assert.equal(m.ov[i].i, null); assert.equal(m.ov[i].wa, L[i].auto ? 1 : 0); }
 });
 
-test('wheel report: header mode:W off:-10, W line, n/a W fields, CLEAN kind wheel, no classic bands', () => {
+test('wheel report: header mode:W off:-8, W line, n/a W fields, CLEAN kind wheel, no classic bands', () => {
   const { log } = playWheel('wmr-2');
   const t = buildText(log.data(), ENV), lines = t.split('\n');
-  assert.match(lines[0], / \| mode:W off:-10 \| #2 \| /);
+  assert.match(lines[0], / \| mode:W off:-8 \| #2 \| /);
   assert.match(lines[0], /CLEAN: YES/);
   assert.ok(lines.some((l) => /^ Wheel: \d+ spun/.test(l)), 'W line');
   assert.match(t, / M1 \S+ [WLT] .*\| field n\/a W \| intent n\/a W \| att early n\/a W \|.*\| fit n\/a W \|/);
@@ -92,7 +92,7 @@ test('CLEAN: W and C in one window = mode switched; wheelMatch flag is a kind, n
   assert.deepEqual(cleanOf([w, c], ENV).why, ['mode switched']);
   assert.deepEqual(cleanOf([w], { ...ENV, flags: { ...FLAG_DEFAULTS, wheelMatch: true } }).why, []);
   const t = buildText({ sessions: [], matches: [w, c] }, ENV);
-  assert.match(t.split('\n')[0], /mode:W\+C off:-10\/\+1\.9/);
+  assert.match(t.split('\n')[0], /mode:W\+C off:-8\/\+1\.9/);
   assert.match(t, /Wheel: \d+ spun .* Classic lines below read the classic matches only\./);
   assert.match(t, /Calls: Attack in overs 1-7/);
   assert.equal(JSON.parse(buildData({ sessions: [], matches: [w, c] }, ENV)).kind, 'mixed');
@@ -100,7 +100,7 @@ test('CLEAN: W and C in one window = mode switched; wheelMatch flag is a kind, n
 
 test('mode helpers: env mode when the window has no match; old records without a mode print nothing', () => {
   assert.equal(modeOf([], 'wheel'), 'W'); assert.equal(modeOf([], 'classic'), 'C'); assert.equal(modeOf([{}], undefined), null);
-  assert.equal(modeHeader('W'), 'mode:W off:-10'); assert.equal(modeHeader('C'), 'mode:C off:+1.9'); assert.equal(modeHeader(null), null);
+  assert.equal(modeHeader('W'), 'mode:W off:-8'); assert.equal(modeHeader('C'), 'mode:C off:+1.9'); assert.equal(modeHeader(null), null);
   assert.equal(kindOf('W'), 'wheel'); assert.equal(kindOf('C'), 'classic');
-  assert.match(buildText({ sessions: [], matches: [] }, { ...ENV, matchMode: 'wheel' }).split('\n')[0], /mode:W off:-10/);
+  assert.match(buildText({ sessions: [], matches: [] }, { ...ENV, matchMode: 'wheel' }).split('\n')[0], /mode:W off:-8/);
 });
