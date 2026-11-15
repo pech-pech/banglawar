@@ -81,6 +81,11 @@ async function open(tag, { reduced = false } = {}) {
       for (let i = 0; i < 220; i++) {
         const st = await H.stage(); if (want.includes(st)) return st;
         same = st === prev ? same + 1 : 0; prev = st;
+        if (same === 3) { // stuck: say what is on screen, tap a dismiss button if one is there
+          await H.shot('stuck-' + st);
+          if (process.env.E2E_TRACE) console.error('stuck on ' + st + ': ' + (await buttons(page)).map((b) => b.text + (b.dis ? '(dis)' : '')).join(' | ').slice(0, 600));
+          await clickBtn(page, /^(Got it|OK|Close|Not now|Later|Continue)\b/i); await page.waitForTimeout(300);
+        }
         if (same >= 4 && (st === 'train' || st === 'week')) { // the training week is not under test: end it through the store (as tfc.mjs advance does)
           await H.closeSheets(); await page.evaluate((x) => window.__store.dispatch(x === 'train' ? 'EndWeek' : 'NextWeek'), st); await page.waitForTimeout(400); same = 0; continue;
         }
@@ -487,7 +492,8 @@ async function groupB(H) {
   await H.settle(600);
   const s = await H.get();
   step(g, 'next match is classic (s.mode)', s.mode !== 'wheel', 'mode ' + s.mode);
-  step(g, 'classic bowl screen: no BOWL OVER wheel button', !(await findBtn(page, /^BOWL OVER\b/i)).length, 'wheel button shown');
+  const cl = await page.evaluate(() => ({ wm: !!document.querySelector('.wm'), txt: document.body.innerText }));
+  step(g, 'classic bowl screen: no wheel view, Attack / Protect shown', !cl.wm && /\bAttack\b/.test(cl.txt) && /\bProtect\b/.test(cl.txt), `wheel view ${cl.wm}; ${cl.txt.replace(/\s+/g, ' ').slice(0, 160)}`);
   await H.shot('classic-next-match');
   await page.evaluate(() => window.__store.dispatch('BowlOver', { bowler: 0 }));
   await H.settle(300);

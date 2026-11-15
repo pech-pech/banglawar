@@ -14,7 +14,8 @@ test('segx fixture sane', () => {
   for (const c of fx.cases) {
     assert.equal(samplesOf(c).length, c.n, c.name);
     assert.ok(Math.abs(c.segs.reduce((a, s) => a + s.p, 0) - 1) < 1e-9, c.name);
-    assert.ok(c.segs.length <= fx.meta.consts.K_SEG, c.name);
+    assert.ok(new Set(c.segs.map((s) => s.id.split('#')[0])).size <= fx.meta.consts.K_SEG, c.name); // K_SEG labels; the slice cap splits wide ones
+    assert.ok(c.segs.every((s) => s.p <= fx.meta.consts.SLICE_MAX_P + 1e-9), c.name);
   }
   assert.equal(fx.meta.ref_agree, fx.meta.ref_compared, 'python spec fold agrees with sim/segments.py fold where comparable');
 });

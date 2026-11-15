@@ -57,17 +57,26 @@ test('matchModeOf: missing = classic', () => {
   assert.equal(W.matchModeOf({ matchMode: 'wheel' }), 'wheel'); assert.equal(W.matchModeOf({ matchMode: 'x' }), 'classic');
 });
 
-test('segments: p sums to 1, widths sum to CIRC, <= K_SEG, starts contiguous, one WIN / one AO at most', () => {
+const baseId = (/** @type {any} */ g) => g.id.split('#')[0];
+test('segments: p sums to 1, widths sum to CIRC, <= K_SEG labels, every slice <= SLICE_MAX_P, starts contiguous, one WIN / one AO label at most', () => {
   for (const [s, side, bi] of ALL) {
     const { segs } = segsOf(s, side, bi);
-    assert.ok(segs.length >= 1 && segs.length <= WMX.K_SEG, `count ${segs.length}`);
+    const labels = new Set(segs.map(baseId));
+    assert.ok(labels.size >= 1 && labels.size <= WMX.K_SEG, `labels ${labels.size}`);
+    assert.ok(segs.every((g) => g.p <= WMX.SLICE_MAX_P + EPS), 'slice width cap');
+    for (const id of labels) { // pieces of one label: equal p, ids id#1..id#n, same outcome
+      const ps = segs.filter((g) => baseId(g) === id);
+      if (ps.length > 1) { assert.deepEqual(ps.map((g) => g.id).sort(), ps.map((_, i) => `${id}#${i + 1}`).sort()); assert.ok(ps.every((g) => Math.abs(g.p - ps[0].p) < EPS && g.label === ps[0].label && g.runs === ps[0].runs && g.wk === ps[0].wk && g.end === ps[0].end)); assert.ok(ps[0].p * ps.length > WMX.SLICE_MAX_P * (ps.length - 1) + EPS, 'n = ceil(p / cap)'); }
+      else assert.equal(ps[0].id, id);
+    }
     assert.ok(Math.abs(segs.reduce((a, g) => a + g.p, 0) - 1) < EPS);
     assert.ok(Math.abs(segs.reduce((a, g) => a + g.width, 0) - WMX.CIRC) < EPS);
     let x = 0; for (const g of segs) { assert.ok(Math.abs(g.start - x) < EPS); assert.ok(Math.abs(g.width - g.p * WMX.CIRC) < EPS); x += g.width; }
-    assert.ok(segs.filter((g) => g.end === 'WIN').length <= 1); assert.ok(segs.filter((g) => g.end === 'AO').length <= 1);
+    assert.ok(new Set(segs.filter((g) => g.end === 'WIN').map(baseId)).size <= 1); assert.ok(new Set(segs.filter((g) => g.end === 'AO').map(baseId)).size <= 1);
     assert.equal(new Set(segs.map((g) => g.id)).size, segs.length, 'ids unique');
     for (const g of segs) {
-      if (!g.end) { assert.equal(g.id, `${g.runs}w${g.wk}`); assert.equal(g.label, String(g.runs)); assert.ok(g.p >= WMX.MIN_P - EPS || segs.filter((q) => !q.end).length === 1, `${g.id} under MIN_P`); }
+      const pl = segs.filter((q) => baseId(q) === baseId(g)).reduce((a, q) => a + q.p, 0); // the label's whole p (all its pieces)
+      if (!g.end) { assert.equal(baseId(g), `${g.runs}w${g.wk}`); assert.equal(g.label, String(g.runs)); assert.ok(pl >= WMX.MIN_P - EPS || new Set(segs.filter((q) => !q.end).map(baseId)).size === 1, `${g.id} under MIN_P`); }
       assert.equal(g.stars, g.wk); assert.ok(['good', 'so', 'bad'].includes(g.tone));
       if (side === 'bowl') assert.notEqual(g.end, 'WIN');
     }
@@ -81,7 +90,7 @@ test('every segment label outcome has >= 1 sample; pickSample returns a matching
     for (const g of segs) {
       const hit = samples.filter((x) => (g.end ? x.end === g.end : !x.end && x.runs === g.runs && x.wk === g.wk));
       assert.ok(hit.length >= 1, `${g.id} has no sample`);
-      assert.ok(g.members.includes(g.end ? hit[0].key : g.id));
+      assert.ok(g.members.includes(g.end ? hit[0].key : baseId(g)));
       for (let r = 0; r < 5; r++) {
         const x = W.pickSample(rng, samples, g);
         if (g.end) assert.equal(x.end, g.end); else { assert.equal(x.end, ''); assert.equal(x.runs, g.runs); assert.equal(x.wk, g.wk); }
@@ -128,18 +137,19 @@ test('fx (skill effects) read through copies: samples and replay agree, and fx c
   }
 });
 
-test('WIN and ALL OUT are single segments that replay to a win / all out', () => {
+test('WIN and ALL OUT are single labels (pieces when wider than the cap) that replay to a win / all out', () => {
   const s0 = chaseState('abc', 3);
   const win = structuredClone(s0); win.inn2.target = win.inn2.runs + 4; // 5 to win
   const { samples, segs } = segsOf(win, 'bat', rivalBowler(win));
-  const w = segs.filter((g) => g.end === 'WIN'); assert.equal(w.length, 1); assert.equal(w[0].label, 'WIN'); assert.equal(w[0].tone, 'good');
+  const w = segs.filter((g) => g.end === 'WIN'); assert.ok(w.length >= 1); assert.equal(new Set(w.map(baseId)).size, 1); assert.ok(w.every((g) => g.label === 'WIN' && g.tone === 'good'));
+  assert.ok(Math.abs(w.reduce((a, g) => a + g.p, 0) - samples.filter((x) => x.end === 'WIN').length / samples.length) < EPS, 'WIN pieces sum to the WIN mass');
   assert.ok(samples.filter((x) => x.end === 'WIN').every((x) => x.runs >= 5));
   const x = W.pickSample(makeRng('w'), samples, w[0]), n = structuredClone(win); W.replayOver(n, 'bat', rivalBowler(win), x.k);
   assert.ok(n.inn2.runs > n.inn2.target);
   // last wicket standing: any wicket = ALL OUT
   const ao = structuredClone(bowlState('xyz', 4).get()); ao.inn1.wk = 4;
   const r = segsOf(ao, 'bowl', ourBowler(ao), 1000);
-  const a = r.segs.filter((g) => g.end === 'AO'); assert.equal(a.length, 1); assert.equal(a[0].label, 'ALL OUT'); assert.equal(a[0].tone, 'good', 'bowling: all out is good for us');
+  const a = r.segs.filter((g) => g.end === 'AO'); assert.ok(a.length >= 1); assert.ok(a.every((g) => g.id.split('#')[0] === 'AO' && g.label === 'ALL OUT' && g.tone === 'good'), 'bowling: all out is good for us');
   assert.ok(r.segs.filter((g) => !g.end).every((g) => g.wk === 0), 'no normal wicket labels left at 4 down');
   const y = W.pickSample(makeRng('a'), r.samples, a[0]), m = structuredClone(ao); W.replayOver(m, 'bowl', ourBowler(ao), y.k);
   assert.ok(m.inn1.done && m.inn1.wk >= 5);
@@ -168,20 +178,24 @@ test('wickets kept: label wicket mass vs sampled (normal outcomes) drops < 0.03 
   assert.ok(Math.abs(drop / k) < 0.03, `avg dropped wicket mass ${(drop / k).toFixed(4)}`);
 });
 
-test('zigzag rim order: normal segs best, worst, 2nd best, 2nd worst ... (value for us); WIN first, ALL OUT last', () => {
-  let sawAO = 0;
+test('zigzag rim order: slices best, worst, 2nd best, 2nd worst ... (value for us); unsplit WIN first, unsplit ALL OUT last; split pieces apart', () => {
+  let sawAO = 0, sawSplit = 0;
   for (const [s0, side, bi] of ALL) for (const wk of [null, 4]) {
     const s = structuredClone(s0); if (wk != null) innOf(s, side).wk = wk;
     const { segs } = segsOf(s, side, bi);
+    const fixed = (/** @type {any} */ g) => g.end && g.id === g.end; // an unsplit WIN / AO keeps its SPEC place
     const win = segs.findIndex((g) => g.end === 'WIN'); if (win >= 0) assert.equal(win, 0, 'WIN at the top end');
-    const ao = segs.findIndex((g) => g.end === 'AO'); if (ao >= 0) { assert.equal(ao, segs.length - 1, 'AO at the bottom end'); sawAO++; }
-    const nrm = segs.filter((g) => !g.end), rest = nrm.slice();
+    const ao = segs.findIndex((g) => g.end === 'AO' && fixed(g)); if (ao >= 0) { assert.equal(ao, segs.length - 1, 'AO at the bottom end'); sawAO++; }
+    if (segs.some((g) => g.id.includes('#'))) sawSplit++;
+    const nrm = segs.filter((g) => !fixed(g)), rest = nrm.slice();
     for (let i = 0; i < nrm.length; i++) {
       const vals = rest.map((g) => g.value), want = i % 2 === 0 ? Math.max(...vals) : Math.min(...vals);
       assert.equal(nrm[i].value, want, `pos ${i}`); rest.splice(rest.indexOf(nrm[i]), 1);
     }
+    // pieces of one label never sit side by side while another value is left to put between them
+    for (let i = 1; i < nrm.length; i++) if (baseId(nrm[i]) === baseId(nrm[i - 1])) assert.ok(new Set(nrm.slice(i).map((g) => g.value)).size === 1, `${nrm[i].id} next to ${nrm[i - 1].id}`);
   }
-  assert.ok(sawAO > 0);
+  assert.ok(sawAO > 0); assert.ok(sawSplit > 0, 'some live over has a slice wider than the cap');
 });
 
 test('wicket value: bowl 7, bat clamp(14 - 1.2 x req rate, 3, 10)', () => {

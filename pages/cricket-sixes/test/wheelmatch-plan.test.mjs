@@ -412,8 +412,8 @@ test('T12 chase WIN mid-over: label WIN, row ends on the winning ball, result wo
     autoUntil(st, (s) => s.stage === 'chase' && VM(s).segs.some((x) => x.end === 'WIN'));
     if (st.get().stage !== 'chase') continue;
     const segWin = VM(st.get()).segs.filter((x) => x.end === 'WIN');
-    assert.equal(segWin.length, 1, 'ONE WIN seg');
-    assert.equal(segWin[0].label, 'WIN');
+    assert.equal(new Set(segWin.map((x) => x.id.split('#')[0])).size, 1, 'ONE WIN label (pieces when wider than the slice cap)');
+    assert.ok(segWin.every((x) => x.label === 'WIN'));
     const r = landOn(st, (x) => x.end === 'WIN');
     const inn = r.n.inn2, L = r.n.last.balls;
     assert.ok(inn.runs > inn.target);
@@ -432,8 +432,8 @@ test('T14 ALL OUT mid-over: one AO seg, label ALL OUT, panel stops at the 5th wi
     autoUntil(st, (s) => (s.stage === 'bowl' || s.stage === 'chase') && VM(s).segs.some((x) => x.end === 'AO'));
     if (st.get().stage === 'done') continue;
     const segs = VM(st.get()).segs.filter((x) => x.end === 'AO');
-    assert.equal(segs.length, 1, 'ONE ALL OUT seg');
-    assert.equal(segs[0].label, 'ALL OUT');
+    assert.equal(new Set(segs.map((x) => x.id.split('#')[0])).size, 1, 'ONE ALL OUT label (pieces when wider than the slice cap)');
+    assert.ok(segs.every((x) => x.label === 'ALL OUT'));
     const r = landOn(st, (x) => x.end === 'AO');
     const inn = r.prev.stage === 'bowl' ? r.n.inn1 : r.n.inn2, L = r.n.last.balls;
     assert.equal(inn.wk, 5); assert.ok(inn.done);
@@ -463,7 +463,7 @@ function liveStates() {
   return STATES;
 }
 
-test('segment invariants on 200 seeded live states (p sum 1, <= K_SEG segs, wicket classes kept, one WIN / AO, labels, rim)', (t) => {
+test('segment invariants on 200 seeded live states (p sum 1, <= K_SEG labels, slice cap, wicket classes kept, one WIN / AO, labels, rim)', (t) => {
   if (needWheel(t)) return;
   const W = WD.WHEEL_MATCH;
   const states = liveStates();
@@ -479,7 +479,10 @@ test('segment invariants on 200 seeded live states (p sum 1, <= K_SEG segs, wick
     const tag = `state ${si} (${s.stage} over ${inn.over}, ${inn.runs}/${inn.wk})`;
     const sum = segs.reduce((a, x) => a + x.p, 0);
     assert.ok(Math.abs(sum - 1) < 1e-9, `${tag}: p sum ${sum}`);
-    assert.ok(segs.length >= 1 && segs.length <= W.K_SEG, `${tag}: ${segs.length} segs`);
+    const base = (x) => x.id.split('#')[0], whole = (x) => segs.filter((q) => base(q) === base(x)).reduce((a, q) => a + q.p, 0); // a label = all its pieces
+    const nLab = new Set(segs.map(base)).size;
+    assert.ok(nLab >= 1 && nLab <= W.K_SEG, `${tag}: ${nLab} labels`);
+    assert.ok(segs.every((x) => x.p <= W.SLICE_MAX_P + 1e-9), `${tag}: slice wider than SLICE_MAX_P`);
     assert.equal(new Set(segs.map((x) => x.id)).size, segs.length, `${tag}: ids unique`);
     let pos = segs[0].start;
     for (const x of segs) {
@@ -493,22 +496,22 @@ test('segment invariants on 200 seeded live states (p sum 1, <= K_SEG segs, wick
       else if (x.end === 'AO') assert.equal(x.label, 'ALL OUT');
       else {
         assert.equal(x.label, String(x.runs));
-        assert.ok(x.p >= W.MIN_P - 1e-12, `${tag}: normal seg ${x.id} under MIN_P (${x.p})`);
+        assert.ok(whole(x) >= W.MIN_P - 1e-12, `${tag}: normal seg ${x.id} under MIN_P (${whole(x)})`);
       }
       assert.equal(WM.segAt(segs, x.start + x.width / 2), segs.indexOf(x));
       assert.equal(WM.segAt(segs, x.start + x.width / 2 + W.CIRC), segs.indexOf(x), 'segAt is mod CIRC');
     }
-    const normal = segs.filter((x) => !x.end);
+    const normal = segs.filter((x) => !x.end && !/#[2-9]|#\d\d/.test(x.id)); // one row per label (piece #1 or unsplit)
     assert.equal(new Set(normal.map((x) => `${x.runs}|${x.wk}`)).size, normal.length, `${tag}: (runs,wk) unique`);
     // ends
     const fr = (f) => samples.filter(f).length / samples.length;
     for (const [end, lab] of [['WIN', 'WIN'], ['AO', 'ALL OUT']]) {
       const m = fr((x) => x.end === end), ss = segs.filter((x) => x.end === end);
-      if (m > 0) { assert.equal(ss.length, 1, `${tag}: one ${lab} seg`); assert.ok(Math.abs(ss[0].p - m) < 1e-9, `${tag}: ${lab} p = sample share`); }
+      if (m > 0) { assert.equal(new Set(ss.map(base)).size, 1, `${tag}: one ${lab} label`); assert.ok(Math.abs(whole(ss[0]) - m) < 1e-9, `${tag}: ${lab} p = sample share`); }
       else assert.equal(ss.length, 0);
     }
     if (bowl) assert.equal(fr((x) => x.end === 'WIN'), 0, `${tag}: rival never gets target logic`);
-    const iW = segs.findIndex((x) => x.end === 'WIN'), iA = segs.findIndex((x) => x.end === 'AO');
+    const iW = segs.findIndex((x) => x.id === 'WIN'), iA = segs.findIndex((x) => x.id === 'AO'); // unsplit ends; split ones join the zigzag (core test)
     if (iW >= 0) assert.ok(iW === 0 || iW === segs.length - 1, `${tag}: WIN at a rim end`);
     if (iA >= 0) assert.ok(iA === 0 || iA === segs.length - 1, `${tag}: AO at a rim end`);
     if (iW >= 0 && iA >= 0) assert.notEqual(iW, iA);
@@ -522,10 +525,10 @@ test('segment invariants on 200 seeded live states (p sum 1, <= K_SEG segs, wick
     for (const x of normal) {
       assert.ok(Array.isArray(x.members) && x.members.length, `${tag}: members`);
       const share = x.members.reduce((a, k) => a + (keyOf.get(k) || 0), 0) / samples.length;
-      assert.ok(Math.abs(share - x.p) < 1e-9, `${tag}: seg ${x.id} p ${x.p} != members share ${share}`);
+      assert.ok(Math.abs(share - whole(x)) < 1e-9, `${tag}: seg ${x.id} p ${whole(x)} != members share ${share}`);
     }
     const xwS = samples.filter((x) => !x.end).reduce((a, x) => a + x.wk, 0) / samples.length;
-    const xwG = normal.reduce((a, x) => a + x.p * x.wk, 0);
+    const xwG = normal.reduce((a, x) => a + whole(x) * x.wk, 0);
     assert.ok(Math.abs(xwS - xwG) < 0.06, `${tag}: wicket mass ${xwS.toFixed(3)} folded to ${xwG.toFixed(3)}`);
   }
 });

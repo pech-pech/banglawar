@@ -233,7 +233,7 @@ function modeOf(xs) {
   return best || { runs: 0, wk: 0 };
 }
 /**
- * Segments for one over: folded normal labels in zigzag rim order (best for us, worst, 2nd best, 2nd worst, ...), plus one WIN seg
+ * Segments for one over: folded normal labels, each capped at SLICE_MAX_P width (wider ones split into equal pieces), in zigzag rim order (best for us, worst, 2nd best, 2nd worst, ...), plus one WIN seg
  * (chase passes target) first and one ALL OUT seg last. WIN/AO value = top/bottom of the value order for us (AO is good for us when we bowl).
  * ctx {side, needRuns?, ballsLeft?}.
  * @param {{k:number,runs:number,wk:number,end:string,key:string}[]} samples @param {{side:'bowl'|'bat',needRuns?:number,ballsLeft?:number}} ctx
@@ -262,11 +262,22 @@ export function buildSegments(samples, ctx) {
     segs.push({ id: end, runs: m.runs, wk: m.wk, end, p: xs.length / N, label: end === 'WIN' ? 'WIN' : 'ALL OUT', stars: m.wk, tone: goodForUs ? 'good' : 'bad',
       value: goodForUs ? hiV + 1 : loV - 1, members: [...new Set(xs.map((x) => x.key))].sort() });
   }
-  // zigzag rim order: NORMAL segments by value for us (ties: fewer wickets, then fewer runs), best, worst, 2nd best, 2nd worst ...;
-  // WIN first (top end), ALL OUT last (bottom end), either side (SPEC s2)
-  const sorted = segs.filter((g) => !g.end).sort((a, b) => b.value - a.value || a.wk - b.wk || a.runs - b.runs);
+  // slice width cap (SLICE_MAX_P): a segment with p > cap splits into n = ceil(p / cap) equal pieces (same label, outcome, members;
+  // id `${id}#i`). Odds and Expected are unchanged; only the aim value of a fat slice drops (numbers thread fix, v3 fold + cap).
+  /** @type {any[]} */ const pieces = [];
+  for (const g of segs) {
+    const n = Math.max(1, Math.ceil(g.p / WMX.SLICE_MAX_P - 1e-9));
+    if (n === 1) { pieces.push({ ...g, piece: 0 }); continue; }
+    for (let i = 0; i < n; i++) pieces.push({ ...g, id: `${g.id}#${i + 1}`, p: g.p / n, piece: i, split: true });
+  }
+  // zigzag rim order by value for us (ties: fewer wickets, then fewer runs, then piece), best, worst, 2nd best, 2nd worst ...:
+  // equal-value pieces end up separated by the worst slices. An unsplit WIN seg sits first (top end) and an unsplit ALL OUT seg last
+  // (bottom end), either side (SPEC s2). A SPLIT WIN / ALL OUT seg joins the zigzag by its value (top / bottom), as wheel_match_sim
+  // orders every seg, so its pieces are spread too (a split WIN still starts the rim: it is the top value).
+  const fixed = (/** @type {any} */ g) => g.end && !g.split;
+  const sorted = pieces.filter((g) => !fixed(g)).sort((a, b) => b.value - a.value || a.wk - b.wk || a.runs - b.runs || a.piece - b.piece);
   const order = []; for (let a = 0, b = sorted.length - 1; a <= b; ) { order.push(sorted[a++]); if (a <= b) order.push(sorted[b--]); }
-  const win = segs.find((g) => g.end === 'WIN'), ao = segs.find((g) => g.end === 'AO');
+  const win = pieces.find((g) => g.end === 'WIN' && fixed(g)), ao = pieces.find((g) => g.end === 'AO' && fixed(g));
   if (win) order.unshift(win);
   if (ao) order.push(ao);
   let x = 0;

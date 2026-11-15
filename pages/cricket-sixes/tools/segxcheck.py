@@ -22,6 +22,10 @@ SPEC s2 vs segments.py (SPEC wins; each is applied in fold_spec):
      merge the thinnest (tie: lower wkts, then lower runs) into the nearest other normal seg by the same fold rule.
   e. Rim order: segments.py has none; wheel_match_sim zigzags all segs incl. AO by value. SPEC: zigzag the normals by
      value for us, WIN at the top end (first), ALL OUT at the bottom end (last).
+  f. Slice width cap (numbers thread fix, sim/v3_cap_sim.py WMAX): after the fold, a seg with p > SLICE_MAX_P = 0.12 splits
+     into ceil(p / 0.12) equal pieces (id "<id>#i", same label/outcome/members). Pieces are zigzagged by value (ties: wkts,
+     runs, piece) so equal pieces sit apart. An unsplit WIN / ALL OUT keeps its SPEC place (first / last); a SPLIT one joins
+     the zigzag at its value (WIN top; AO top when bowling, bottom when batting), as wheel_match_sim orders every seg.
 Tie-breaks (not in SPEC; chosen so the result is deterministic; match segments.py when it is deterministic):
   - fill: count desc, then wkts asc, runs asc.   - class-mean label: |runs - mean| asc, count desc, runs asc.
   - fold: same wkts -> |dr| asc, runs asc; else |dw| asc, |dr| asc, runs asc, wkts asc.
@@ -29,10 +33,10 @@ Tie-breaks (not in SPEC; chosen so the result is deterministic; match segments.p
 Value for us: bowl  v = -runs + 7*wk;  bat  v = runs - cw*wk, cw = clamp(14 - 1.2*rr, 3, 10), rr = needRuns*6/ballsLeft
 (rr = 6 when no need given).
 """
-import sys, os, json, random, collections
+import sys, os, json, random, collections, math
 
 REF_DIR = "/mnt/project-files/games-design/cricket-sixes/2026-11-15-wheel-match/sim"
-K_SEG, MIN_P, RESERVE_MIN, HIGH_TAIL_Q, CIRC = 10, 0.025, 0.03, 0.85, 10
+K_SEG, MIN_P, RESERVE_MIN, HIGH_TAIL_Q, CIRC, SLICE_MAX_P = 10, 0.025, 0.03, 0.85, 10, 0.12
 WK_VAL_BOWL, WK_A, WK_B, WK_LO, WK_HI = 7, 14, 1.2, 3, 10
 
 # ------------------------------------------------------------------ fold (SPEC s2)
@@ -110,10 +114,25 @@ def fold_spec(samples, ctx):
     segs = [dict(id="%dw%d" % k, label=str(k[0]), runs=k[0], wk=k[1], end="", p=mass[k] / N, count=mass[k],
                  value=value(ctx, k[0], k[1]), members=["%dw%d" % m for m in sorted(mem[k], key=lambda q: (q[1], q[0]))])
             for k in mass]
-    segs.sort(key=lambda s: (-s["value"], s["wk"], s["runs"]))
-    order = zigzag(segs)
-    if nwin: order.insert(0, dict(id="WIN", label="WIN", end="WIN", p=nwin / N, count=nwin))
-    if nao: order.append(dict(id="AO", label="ALL OUT", end="AO", p=nao / N, count=nao))
+    vals = [s["value"] for s in segs]; hi = max(vals) if vals else 0; lo = min(vals) if vals else 0
+    if nwin: segs.append(dict(id="WIN", label="WIN", end="WIN", p=nwin / N, count=nwin, value=hi + 1, runs=0, wk=0))
+    if nao: segs.append(dict(id="AO", label="ALL OUT", end="AO", p=nao / N, count=nao, runs=0, wk=0,
+                             value=hi + 1 if ctx["side"] == "bowl" else lo - 1))
+    # slice width cap (numbers thread fix): p > SLICE_MAX_P -> n = ceil(p / cap) equal pieces, id "<id>#i", same label/outcome
+    pieces = []
+    for s in segs:
+        n = max(1, math.ceil(s["p"] / SLICE_MAX_P - 1e-9))
+        if n == 1: pieces.append(dict(s, piece=0, split=False)); continue
+        for i in range(n):
+            pieces.append(dict(s, id="%s#%d" % (s["id"], i + 1), p=s["p"] / n, count=s["count"] / n, piece=i, split=True))
+    # rim: zigzag by value (ties wk, runs, piece); an unsplit WIN first / unsplit AO last (SPEC s2); split WIN/AO pieces join the zigzag
+    fixed = lambda s: s["end"] != "" and not s["split"]
+    zz = sorted([s for s in pieces if not fixed(s)], key=lambda s: (-s["value"], s["wk"], s["runs"], s["piece"]))
+    order = zigzag(zz)
+    order = [s for s in pieces if fixed(s) and s["end"] == "WIN"] + order + [s for s in pieces if fixed(s) and s["end"] == "AO"]
+    for s in order:
+        for k in ("piece", "split"): s.pop(k, None)
+        if s["end"]: s.pop("value"); s.pop("runs"); s.pop("wk")
     x = 0.0
     for s in order:
         s["start"] = x; s["width"] = s["p"] * CIRC; x += s["width"]
@@ -216,7 +235,8 @@ def main():
     for c in cases():
         segs = fold_spec(c["samples"], c["ctx"])
         assert abs(sum(s["p"] for s in segs) - 1) < 1e-9, c["name"]
-        assert len(segs) <= K_SEG, c["name"]
+        assert len({s["id"].split("#")[0] for s in segs}) <= K_SEG, c["name"]
+        assert all(s["p"] <= SLICE_MAX_P + 1e-9 for s in segs), c["name"]
         rc = ref_check(ref_fold, c["samples"]) if ref_fold else dict(compared=False)
         if rc["compared"]: compared += 1; agree += rc["agree"]
         tbl = collections.Counter(c["samples"])
@@ -229,7 +249,7 @@ def main():
         print("%-28s n=%4d segs=%2d  %s%s" % (c["name"], len(c["samples"]), len(segs), " ".join(s["id"] for s in segs),
                                              "" if not rc["compared"] else ("  [ref ok]" if rc["agree"] else "  [ref: %s]" % rc["note"])))
     meta = dict(source="tools/segxcheck.py", spec="2026-11-15-wheel-match SPEC s2 + 01a; reference sim/segments.py fold()",
-                consts=dict(K_SEG=K_SEG, MIN_P=MIN_P, RESERVE_MIN=RESERVE_MIN, HIGH_TAIL_Q=HIGH_TAIL_Q, CIRC=CIRC),
+                consts=dict(K_SEG=K_SEG, MIN_P=MIN_P, RESERVE_MIN=RESERVE_MIN, HIGH_TAIL_Q=HIGH_TAIL_Q, CIRC=CIRC, SLICE_MAX_P=SLICE_MAX_P),
                 ref_compared=compared, ref_agree=agree)
     with open(out_path, "w") as f:
         json.dump(dict(meta=meta, cases=res), f, indent=0, separators=(",", ":"))
