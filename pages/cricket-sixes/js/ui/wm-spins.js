@@ -13,6 +13,8 @@ export function dialLook(look) {
   if (rim) o.rim = rim; if (hub) o.hub = hub; if (nd) o.needle = nd;
   return o;
 }
+/** Reveal length (s): the base over the wheel match Dev otherMult (vm.speedMult, only present when Dev changes it), so x2 plays twice as fast. Pure. */
+export const revealT = (base, v) => base / ((v && +v.speedMult > 0) ? +v.speedMult : 1);
 const HYPE_WORD = { low: 'Quiet crowd', med: 'Good crowd', high: 'Big crowd', nuts: 'Wild crowd' };
 const stopOf = (s) => (s && Number.isFinite(s.t) ? { stop: { t: s.t, phi: s.phi, e: s.e } } : {});
 /** wa1: the token + Control props every dial / reel takes from its VM piece (get() -> {tokens, guide, zone, chime, V, J}). wheel = the UseToken wheel id. */
@@ -42,7 +44,7 @@ export function spinHype({ get, look, dispatch, onCollect, oppName }) {
 export function spinToss({ get, look, dispatch, onCollect }) {
   const t = get();
   return openDial({
-    mode: 'reveal', kind: 'coin', title: 'The toss', cardHtml: '<p class="dr-hint">Toss the coin.</p>', plan: { total: 2.5 }, slices: t.slices, look: dialLook(look), pending: t.pending,
+    mode: 'reveal', kind: 'coin', title: 'The toss', cardHtml: '<p class="dr-hint">Toss the coin.</p>', plan: { total: revealT(2.5, t) }, slices: t.slices, look: dialLook(look), pending: t.pending,
     ...tokProps(get, dispatch, 'toss', 'Toss'), tokVal: TOKVAL.toss, tokText: (p) => (p.index === 0 ? 'Won toss' : p.sport || p.boostPct ? 'Good sport' : 'Rival won') + (p.boostPct ? ' +' + p.boostPct + '%' : ''),
     onSpin: () => dispatch('TossSpin', {}), getPending: () => get().pending,
     describe: (p) => p.index === 0
@@ -57,7 +59,7 @@ export const pepSlices = (/** @type {any[]} */ sl, /** @type {string[]} */ names
 export function spinPep({ get, look, dispatch, onCollect, names }) {
   const p0 = get(), who = (p) => (p.slots || [p.index + 1]).map((x) => names[x - 1] || 'Player ' + x);
   return openDial({
-    mode: 'reveal', kind: 'lights', title: 'Pep talk', cardHtml: '<p class="dr-hint">Who gets the pep talk?</p>', plan: { total: 2.5 }, slices: pepSlices(p0.slices, names), nameLabels: true, look: dialLook(look), pending: p0.pending,
+    mode: 'reveal', kind: 'lights', title: 'Pep talk', cardHtml: '<p class="dr-hint">Who gets the pep talk?</p>', plan: { total: revealT(2.5, p0) }, slices: pepSlices(p0.slices, names), nameLabels: true, look: dialLook(look), pending: p0.pending,
     ...tokProps(get, dispatch, 'pep', 'Pep'), tokVal: TOKVAL.pep, tokText: (p) => who(p).join(' and '),
     onSpin: () => dispatch('PepSpin', {}), getPending: () => get().pending,
     describe: (p) => { const w = who(p).join(' and '); return { big: w + ' got the pep talk', chip: '+5%', say: w + ' got the pep talk, plus 5 percent.', gold: (p.slots || []).length > 1 }; },
@@ -121,7 +123,7 @@ export function finalsTokLine(kind, before, q) {
 export function spinScout({ get, look, dispatch, onCollect }) {
   const s = get();
   return openReel({
-    mode: 'reveal', title: 'The scouts', cardHtml: '<p class="dr-hint">What do the scouts bring?</p>', plan: { total: 3 }, cells: s.cells, look: dialLook(look), pending: s.pending,
+    mode: 'reveal', title: 'The scouts', cardHtml: '<p class="dr-hint">What do the scouts bring?</p>', plan: { total: revealT(3, s) }, cells: s.cells, look: dialLook(look), pending: s.pending,
     ...tokProps(get, dispatch, 'scout', 'Scout'), tokVal: TOKVAL.scout, tokText: (p) => scoutWords(p).short,
     onSpin: () => dispatch('ScoutSpin', {}), getPending: () => get().pending,
     describe: (p) => { const w = scoutWords(p); return { big: w.big, say: w.say, gold: !p.extra && !!p.jackpot }; },
@@ -132,7 +134,7 @@ export function spinScout({ get, look, dispatch, onCollect }) {
 export function spinFinals({ get, look, dispatch, onCollect }) {
   const f = get();
   return openReel({
-    mode: 'reveal', title: 'Finals prize', cardHtml: '<p class="dr-hint">Spin for your prize.</p>', plan: { total: 3 }, cells: f.cells, look: dialLook(look), pending: f.pending,
+    mode: 'reveal', title: 'Finals prize', cardHtml: '<p class="dr-hint">Spin for your prize.</p>', plan: { total: revealT(3, f) }, cells: f.cells, look: dialLook(look), pending: f.pending,
     ...tokProps(get, dispatch, 'finals', 'Finals'), tokVal: TOKVAL.finals, tokText: finalsWords, tokLine: finalsTokLine,
     onSpin: () => dispatch('FinalsSpin', {}), getPending: () => get().pending,
     describe: (p) => { const w = finalsWords(p), why = finalsPairLine(p); return { big: w, ...(why ? { line: why } : {}), say: 'Finals prize: ' + w + '.' + (why ? ' ' + why.replace('x1.5', 'times one and a half') + '.' : ''), gold: !!p.jackpot }; },

@@ -9,7 +9,7 @@ import { ACT } from '../data/activities.js';
 import { ECON as E } from '../data/economy.js';
 import { makeRng } from '../core/rng.js';
 import { DR } from '../data/dialreel.js';
-import { effective, recordSpin, tokenOptions, useToken, tokenLeft, matchKeyOf } from '../core/wheelmeta.js';
+import { effective, recordSpin, tokenOptions, useToken, tokenLeft, matchKeyOf, otherMultOf } from '../core/wheelmeta.js';
 import { canSign } from '../core/training.js';
 import { hypeDialFor, dialResult, findReel, reelResult, pityFind, revealWheel, revealResult, modsFor } from '../core/dialreel.js';
 import { activityOptions, actLedger, roundKey } from '../core/activities.js';
@@ -35,7 +35,9 @@ export const actLedgerFor = (/** @type {any} */ s) => (FLAGS.activities && s.eco
 
 // ---------------------------------------------------------------- match day: Hype dial, Toss, Pep
 /** The Hype dial for this fixture's match day (Fans, activity ledger, tree). @param {any} s */
-export function hypeDialOf(s) { return hypeDialFor(s.econ ? s.econ.fans : 0, actLedgerFor(s), modsFor(effective(s), 'hype')); }
+export function hypeDialOf(s) { return hypeDialFor(s.econ ? s.econ.fans : 0, actLedgerFor(s), otherSpeed(modsFor(effective(s), 'hype'), s)); }
+/** Wheel match Dev otherMult on a mods / Control object's w0Mult (the Hype V and the Find W0 scale with it; Slow stacks). x1 = the same object. @param {any} m @param {any} s */
+export const otherSpeed = (m, s) => { const om = otherMultOf(s); return om === 1 ? m : { ...m, w0Mult: (Number.isFinite(+m.w0Mult) && m.w0Mult != null ? +m.w0Mult : 1) * om }; };
 export const tossWheelOf = (/** @type {any} */ s) => revealWheel('toss', modsFor(effective(s), 'toss'));
 export const pepWheelOf = (/** @type {any} */ s) => revealWheel('pep', modsFor(effective(s), 'pep'));
 
@@ -162,7 +164,8 @@ export function settleMd(s, mdFor) {
 /** Control feel props for a dial / reel: guide tick, Aim Zone seconds, Gold Chime (feel only on the reveal wheels). @param {any} s @param {string} w */
 export function ctlOf(s, w) {
   const x = effective(s)[w] || {};
-  return { guide: !!x.guide, ...(+x.zone > 0 ? { zone: +x.zone } : {}), ...(x.chime ? { chime: true } : {}) };
+  const om = otherMultOf(s); // wheel match Dev: the reveal wheels (toss, pep, scout, finals) play faster / slower; x1 adds nothing
+  return { guide: !!x.guide, ...(+x.zone > 0 ? { zone: +x.zone } : {}), ...(x.chime ? { chime: true } : {}), ...(om !== 1 && w !== 'hype' ? { speedMult: om } : {}) };
 }
 /** The three spin widgets for the match-day screen. null with the flag off or no md. pending = the stored result (or null). @param {any} s */
 export function mdSpinVM(s) {
@@ -183,7 +186,7 @@ export function mdSpinVM(s) {
 const WORD = { coins: 'Coins', player: 'Player', coach: 'Coach', nothing: 'Nothing' };
 const rowOf = (/** @type {string} */ id) => ACT.TABLE.find((r) => r.id === id) || null;
 /** The Find big wheel for activity `id` with the tree (Widener, Sharp Eyes, Extra Gold, Booster, Second Cheer; Control: Slow, Steady, Guide). @param {any} s @param {string} id */
-export const findWheelOf = (/** @type {any} */ s, /** @type {string} */ id) => { const row = rowOf(id); if (!row) return null; const E2 = effective(s); return findWheel(row, modsFor(E2, 'find'), E2.find || {}); };
+export const findWheelOf = (/** @type {any} */ s, /** @type {string} */ id) => { const row = rowOf(id); if (!row) return null; const E2 = effective(s); return findWheel(row, modsFor(E2, 'find'), otherSpeed(E2.find || {}, s)); };
 export const findReelOf = findWheelOf; // old name (wa1: Find is a big wheel now)
 const findKey = (/** @type {any} */ s, /** @type {string} */ id) => `${roundKey(s)}|${id}`;
 // wa1 findtune: Second Cheer = one free re-spin after a no-find, max 1 a season, no token, never chains (wheelMeta.cheerUsed{season}; missing = 0)

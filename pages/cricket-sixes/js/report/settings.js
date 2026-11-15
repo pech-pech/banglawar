@@ -21,6 +21,11 @@ export function pendingNote(win) {
   return p && p.res ? 'Finish the match first for its Coins and feel. A copy now leaves M' + p.id + ' for the next report.' : null;
 }
 
+/** Match runs on these stages: SetMatchMode is ignored there, so the row is greyed ("Applies next match"). */
+export const MATCH_LIVE = { bowl: 1, break: 1, chase: 1, done: 1 };
+/** Wheel match rows' input from the store state: {mode, live, dev}. Missing matchMode = classic. Pure. @param {any} st */
+export const wheelMatchSt = (st) => ({ mode: st && st.matchMode === 'wheel' ? 'wheel' : 'classic', live: !!(st && MATCH_LIVE[st.stage]), dev: (st && st.dev) || null });
+
 /** Copy text. Returns true if the clipboard took it; false means the caller should show the selectable fallback. */
 export async function copyText(text) {
   try { if (navigator.clipboard && navigator.clipboard.writeText) { await navigator.clipboard.writeText(text); return true; } } catch (e) { /* blocked: fall through */ }
@@ -53,6 +58,8 @@ export function openSettings(rep, look) {
   // r9: Auto match day and Features rows (UI-MD). Settings stay usable if the import or the mount fails.
   if (look && look.dispatch) {
     import('../ui/matchday-settings.js').then((m) => { try { const st = look.state ? look.state() : {}; if (m.mountMatchdaySettings) m.mountMatchdaySettings(root, { features: st && st.features, auto: st && st.autoMatchday, wheel: !(st && st.wheelFeatures === false) }, look.dispatch); } catch (e) { /* settings stay usable */ } }).catch(() => {});
+    // Wheel match mode (2026-11-15): Match mode row on top (greyed mid-match), Dev switch + Wheel speed section at the bottom.
+    import('../ui/wheelmatch-settings.js').then((m) => { try { const st = look.state ? look.state() : {}; m.mountWheelMatchSettings(root, wheelMatchSt(st), look.dispatch); } catch (e) { /* settings stay usable */ } }).catch(() => {});
   }
   async function copy(text, label, size) {
     fb.hidden = true;

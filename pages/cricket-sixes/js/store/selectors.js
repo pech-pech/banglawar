@@ -27,7 +27,7 @@ import { MD } from '../data/matchday.js';
 import { ECON as ECON_DATA } from '../data/economy.js';
 const ECON_FANS_GATE = ECON_DATA.STADIUM_FANS;
 import { WM, NODES } from '../data/wheelmeta.js';
-import { metaOf, rankOf, tierOf, tierNow, canBuy, effective, metaWheel, tokenOptions, powerDone, nextTierUp } from '../core/wheelmeta.js';
+import { metaOf, rankOf, tierOf, tierNow, canBuy, effective, metaWheel, otherMultOf, tokenOptions, powerDone, nextTierUp } from '../core/wheelmeta.js';
 import { teamBoost, roarAt, resolvePep, matchCoachText } from '../core/matchday.js';
 import { matchCoachOf } from '../core/training.js';
 import { mdSpinVM, findSpinVM, scoutSpinVM, finalsSpinVM } from './wmstore.js';
@@ -364,7 +364,7 @@ const coachRow = (s, c) => {
   return {
     id: c.id, name: c.name, step: c.step, letter: letterOfStep(c.step), strong: c.strong.slice(), strongWords: strongWords(c.strong),
     here: !(c.away > 0), away: c.away | 0, course: { ok: cc.ok, why: cc.why, licence: cc.ok && courseUsesLicence(s, c.id), cost: courseCost(s, c.id), free: !s.econ, spun: !!used, pending: used ? { index: s.training.coursePending.result.index, gain: s.training.coursePending.result.gain, jackpot: s.training.coursePending.result.jackpot, ...boostOf(s, 'course', s.training.coursePending.result) } : null,
-      ...(FLAGS.wheelMeta ? courseMeta(s, c, used) : {}) },
+      ...(FLAGS.wheelMeta ? courseMeta(s, c, used) : otherMultOf(s) !== 1 ? { wheel: wheelVM(used && s.training.coursePending.wheel ? s.training.coursePending.wheel : metaWheel(courseWheel(c.step), 'course', s)) } : {}) },
   };
 };
 /** Gain the spotlight player really gets after the cap-sum, balance and 99 limits. */
@@ -400,7 +400,7 @@ export function trainingVM(s) {
   const baseW = plan.spotlightId && !capped(plan.spotlightId, hasP1) ? wheelSlices(plan.effort, coachStepInUse(s)) : null, M = FLAGS.wheelMeta;
   const mx1 = baseW && M ? metaExtras(s, 'spot', baseW, T.pending && T.pending.week === T.week ? T.pending : null, 1) : null;
   const mx2 = baseW && M && plan.spotlight2Id && !capped(plan.spotlight2Id, hasP2) ? metaExtras(s, 'spot', baseW, T.pending2 && T.pending2.week === T.week ? T.pending2 : null, 2) : null;
-  const wheel = baseW ? (mx1 ? mx1.wheel : wheelVM(baseW)) : null;
+  const wheel = baseW ? (mx1 ? mx1.wheel : wheelVM(metaWheel(baseW, 'spot', s))) : null; // flag off: metaWheel = baseW unless Dev otherMult
   const done = !!(T.nets && T.nets.week === T.week);
   return {
     tp: T.tp, week: T.week, plan, focuses, efforts, rows, coaches, coachQuality: coachQuality(s), coachLetter: coachStepInUse(s) ? letterOfStep(coachStepInUse(s)) : null,
@@ -804,4 +804,12 @@ export function fansGateVM(s) {
   const L = st + 1, gate = ECON_FANS_GATE[L], fans = Math.max(0, Math.floor(Number(e.fans) || 0));
   const ready = fans >= gate, c = (n) => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
   return { text: ready ? `Fans ready: build stadium L${L}` : `Fans ${c(fans)} / ${c(gate)} for stadium L${L}`, pct: ready ? 100 : Math.floor(fans * 100 / gate), ready, hidden: false, next: L };
+}
+
+// ---- wheel match mode (2026-11-15): the wheel screen VM lives in wheelmatch-store.js
+export { wheelMatchVM, bowlerChips as wheelBowlerChips, NEXT_MATCH_TEXT } from './wheelmatch-store.js';
+/** Settings row for the match mode: value from Settings, greyed mid-match with "Applies next match". @param {any} s */
+export function matchModeVM(s) {
+  const busy = !!(s && ['bowl', 'break', 'chase', 'done'].includes(s.stage));
+  return { value: s && s.matchMode === 'wheel' ? 'wheel' : 'classic', running: s && s.stage && busy ? (s.mode === 'wheel' ? 'wheel' : 'classic') : null, disabled: busy, note: busy ? 'Applies next match' : '' };
 }
