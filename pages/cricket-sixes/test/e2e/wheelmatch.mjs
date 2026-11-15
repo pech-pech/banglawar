@@ -163,11 +163,12 @@ async function startSpin(H) {
   await armGlow(page);
   const go = await clickBtn(page, /^(BOWL OVER|BAT OVER)\b/i);
   if (!go) return { ok: false, why: 'no enabled BOWL OVER / BAT OVER button: ' + (await buttons(page)).map((b) => b.text).join(' | ') };
-  await page.waitForTimeout(120);
+  await page.waitForTimeout(250);
+  const ready = await page.evaluate(() => document.body.innerText);
   const spin = await findBtn(page, /^SPIN\b/i);
   if (spin.length) await clickBtn(page, /^SPIN\b/i);
   const stopSeen = await waitFor(page, () => [...document.querySelectorAll('button')].some((b) => /^STOP/i.test((b.innerText || '').trim()) && !b.disabled), null, 3000);
-  return { ok: stopSeen, why: stopSeen ? '' : 'no STOP button after SPIN: ' + (await buttons(page)).map((b) => b.text).join(' | '), spinBtn: spin.length > 0 };
+  return { ok: stopSeen, why: stopSeen ? '' : 'no STOP button after SPIN: ' + (await buttons(page)).map((b) => b.text).join(' | '), spinBtn: spin.length > 0, ready };
 }
 /** Tap STOP exactly at secs after t0 (in-page timer). */
 async function stopAt(page, secs) {
@@ -179,37 +180,26 @@ async function stopAt(page, secs) {
     }, wait);
   }), secs);
 }
-/** After an over landed: get through the ball row / panel until the next over button or a non-bowl/chase stage. */
-async function finishOver(H, stageWas) {
+/** After an over landed: tap the result's NEXT (the first tap only fills the balls) until the pick screen (BOWL OVER / BAT OVER) or a
+ *  non-wheel screen. app.js holds the next stage's screen until NEXT, so the store stage alone is not enough. */
+async function finishOver(H) {
   const page = H.page; const t0 = Date.now();
   while (Date.now() - t0 < 20000) {
-    const st = await H.stage();
-    if (st !== stageWas) return st;
-    const next = await page.$('.op-next'); if (next) { await next.click().catch(() => {}); await page.waitForTimeout(250); continue; }
+    const nx = await page.$('[data-wm-next]');
+    if (nx) { await nx.click().catch(() => {}); await page.waitForTimeout(250); continue; }
     const btns = await buttons(page);
-    if (btns.some((b) => /^(BOWL OVER|BAT OVER|Show result)\b/i.test(b.text) && !b.dis)) return st;
-    const nx = btns.find((b) => !b.dis && /^(Next( over| bowler)?|Innings break|See result|Continue|OK)\b/i.test(b.text));
-    if (nx) { await clickBtn(page, new RegExp('^' + nx.text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i')); await page.waitForTimeout(250); continue; }
+    if (btns.some((b) => /^(BOWL OVER|BAT OVER)\b/i.test(b.text) && !b.dis)) return H.stage();
+    if (!(await page.$('.wm'))) { const st = await H.stage(); if (st !== 'bowl' && st !== 'chase') return st; }
     await page.waitForTimeout(200);
   }
   return 'timeout';
 }
-/** Pick a bowler chip if the bowl screen wants one (the suggested chip may already be selected). Returns the chip names seen. */
-async function bowlerChips(H) {
-  return H.S(() => {
-    const s = window.__store.get(); const names = (s.me && s.me.players || []).map((p) => p.name);
-    const chips = [...document.querySelectorAll('button, [role="radio"], [role="button"]')].filter((e) => { const r = e.getBoundingClientRect(); return r.width > 0 && r.height > 0 && names.some((n) => n && (e.innerText || '').includes(n)); });
-    return chips.map((e) => ({ text: (e.innerText || '').trim().replace(/\s+/g, ' ').slice(0, 40), dis: !!e.disabled || e.getAttribute('aria-disabled') === 'true', sel: e.getAttribute('aria-pressed') === 'true' || e.getAttribute('aria-checked') === 'true' || /is-sel|selected|is-on/.test(e.className), h: e.getBoundingClientRect().height }));
-  });
-}
+/** Bowler rows on the wheel bowl screen (.wm-brow, js/ui/wheelmatch-view.js). */
+const bowlerChips = (H) => H.S(() => [...document.querySelectorAll('.wm-brow')].map((e) => ({ text: (e.innerText || '').trim().replace(/\s+/g, ' ').slice(0, 40), dis: e.getAttribute('aria-disabled') === 'true', sel: e.getAttribute('aria-checked') === 'true', h: e.getBoundingClientRect().height })));
+/** The suggested bowler is pre-picked; tap the first open row only if none is picked. */
 async function pickBowler(H) {
-  const chips = await bowlerChips(H);
-  if (chips.some((c) => c.sel && !c.dis)) return true;
-  return H.S(() => {
-    const s = window.__store.get(); const names = (s.me && s.me.players || []).map((p) => p.name);
-    const c = [...document.querySelectorAll('button, [role="radio"]')].find((e) => !e.disabled && e.getAttribute('aria-disabled') !== 'true' && names.some((n) => n && (e.innerText || '').includes(n)));
-    if (c) c.click(); return !!c;
-  });
+  const chips = await bowlerChips(H); if (chips.some((c) => c.sel)) return true;
+  const b = await H.page.$('.wm-brow[data-bowler]:not([aria-disabled="true"])'); if (b) await b.click(); return !!b;
 }
 /** Hand-spin one over: SPIN, STOP at secs. Returns facts. */
 async function handOver(H, secs, { reloadAfterStop = false } = {}) {
@@ -224,10 +214,10 @@ async function handOver(H, secs, { reloadAfterStop = false } = {}) {
     const keep = { len: logLen(after), seg: after.last && after.last.wheel && after.last.wheel.segId, inn: JSON.stringify([after.inn1 && after.inn1.runs, after.inn1 && after.inn1.wk, after.inn2 && after.inn2.runs]), stage: after.stage };
     await H.reload(); await H.settle(2500);
     const r = await H.get();
-    reloaded = { keep, got: { len: logLen(r), seg: r.last && r.last.wheel && r.last.wheel.segId, inn: JSON.stringify([r.inn1 && r.inn1.runs, r.inn1 && r.inn1.wk, r.inn2 && r.inn2.runs]), stage: r.stage }, body: await H.body() };
+    reloaded = { keep, got: { len: logLen(r), seg: r.last && r.last.wheel && r.last.wheel.segId, inn: JSON.stringify([r.inn1 && r.inn1.runs, r.inn1 && r.inn1.wk, r.inn2 && r.inn2.runs]), stage: r.stage }, body: await H.body(), spinning: !!(await page.$('[data-wm="stop"]')) };
   }
   const glow = await page.evaluate(() => { const g = window.__wmGlow || {}; return { on: g.on || [], frames: g.frames, stopT: g.stopT }; });
-  return { ok: stopped && landed, why: !stopped ? 'STOP button gone at tap time' : !landed ? 'no wheelLog entry / s.last.wheel after STOP' : '', before, after, glow, reloaded, stageWas, spinBtn: sp.spinBtn };
+  return { ready: sp.ready, ok: stopped && landed, why: !stopped ? 'STOP button gone at tap time' : !landed ? 'no wheelLog entry / s.last.wheel after STOP' : '', before, after, glow, reloaded, stageWas, spinBtn: sp.spinBtn };
 }
 function landedFacts(f) {
   const w = f.after.last.wheel; const seg = (w.segs || []).find((x) => x.id === w.segId) || null;
@@ -238,7 +228,7 @@ async function waitAutoStop(H, ms = 45000) {
   return waitFor(H.page, () => { const s = window.__store.get(); if (s.stage !== 'bowl' && s.stage !== 'chase') return true; return ![...document.querySelectorAll('button')].some((b) => /Stop auto/i.test(b.innerText || '') && b.getBoundingClientRect().width > 0); }, null, ms);
 }
 /** Watch for a ball row (over panel) while auto runs. */
-async function armPanelWatch(page) { await page.evaluate(() => { window.__wmPanel = 0; const mo = new MutationObserver(() => { if (document.querySelector('.op-card, .op-circles, [data-ball-row]')) window.__wmPanel++; }); mo.observe(document.body, { childList: true, subtree: true }); window.__wmPanelMo = mo; }); }
+async function armPanelWatch(page) { await page.evaluate(() => { window.__wmPanel = 0; const mo = new MutationObserver(() => { if (document.querySelector('.op-card, .wm-res:not([hidden]) .op-circles')) window.__wmPanel++; }); mo.observe(document.body, { childList: true, subtree: true }); window.__wmPanelMo = mo; }); }
 async function readPanelWatch(page) { return page.evaluate(() => { if (window.__wmPanelMo) window.__wmPanelMo.disconnect(); return window.__wmPanel | 0; }); }
 async function openSettings(H) {
   const g = await H.page.$('.st-gear'); if (!g) return false;
@@ -259,12 +249,19 @@ const chooseClassic = (page) => page.evaluate(() => {
   c.dispatchEvent(new MouseEvent('click', { bubbles: true })); return 'clicked classic';
 });
 
+/** Fallback so the rest of the run still tests the wheel: SetMatchMode wheel before the first match (and say so). */
+async function forceWheel(H, g) {
+  await H.S(() => window.__store.dispatch('SetMatchMode', { mode: 'wheel' }));
+  note(g, 'fallback', 'new game was not wheel; SetMatchMode wheel dispatched so the remaining checks run -> matchMode ' + (await H.get()).matchMode);
+}
+
 // ---------------------------------------------------------------- A: full wheel match
 async function groupA() {
   const H = await open('A'); const page = H.page; const g = 'A';
   await H.boot(SEED + '-a');
   const s0 = await H.get();
   step(g, 'new game: s.matchMode is "wheel"', s0.matchMode === 'wheel', 'matchMode=' + s0.matchMode);
+  if (s0.matchMode !== 'wheel') await forceWheel(H, g);
   const st = await H.play(['bowl']);
   if (!step(g, 'reached the first match bowl stage by taps', st === 'bowl', 'play -> ' + st)) { await H.shot('A-stuck'); return H; }
   await H.settle(600);
@@ -282,7 +279,6 @@ async function groupA() {
   let body = await H.body();
   const bad = (body.match(/\b(Attack|Protect|Why\??|grade|Potential)\b/gi) || []);
   step(g, 'bowl screen: no Attack / Protect / Why / grade text', !bad.length, 'found: ' + [...new Set(bad)].join(', '));
-  step(g, 'bowl screen: Expected line "Expected: x runs, y wkts"', /Expected:\s*[\d.]+\s*runs?,\s*[\d.]+\s*wkts?/i.test(body), body.replace(/\s+/g, ' ').slice(0, 200));
   step(g, 'bowl screen: no Auto rest of innings before over 1', !(await findBtn(page, /Auto rest/i)).length, 'shown at over 1');
   step(g, 'bowl screen: Auto over button', (await findBtn(page, /^Auto over/i)).length === 1, (await buttons(page)).map((b) => b.text).join(' | '));
   step(g, 'no Settings gear on the bowl screen', !(await page.$('.st-gear')), 'gear shown');
@@ -291,6 +287,8 @@ async function groupA() {
   // over 1: hand spin, STOP at 3.5 s
   let f = await handOver(H, 3.5);
   if (step(g, 'over 1: SPIN then STOP lands (wheelLog + s.last.wheel)', f.ok, f.why)) {
+    step(g, 'wheel screen (after BOWL OVER): Expected line "Expected: x runs, y wkts"', /Expected:\s*[\d.]+\s*runs?,\s*[\d.]+\s*wkts?/i.test(f.ready), f.ready.replace(/\s+/g, ' ').slice(0, 200));
+    step(g, 'wheel screen: SPIN step after BOWL OVER', f.spinBtn, 'no SPIN button');
     await H.shot('over1-landed');
     const L = landedFacts(f);
     step(g, 'over 1: not auto, stop t ~3.5 s', !L.w.auto && Math.abs(L.w.t - 3.5) < 0.25, `auto=${L.w.auto} t=${L.w.t}`);
@@ -303,13 +301,20 @@ async function groupA() {
       step(g, 'over 1: innings score rose by the label', L.dRuns === L.runs, `score +${L.dRuns}, balls ${L.runs}`);
       step(g, 'over 1: wheelLog entry matches (segId, not auto)', L.entry && L.entry.segId === L.w.segId && !L.entry.auto, JSON.stringify(L.entry));
     }
-    const panelSeen = await waitFor(page, () => !!document.querySelector('.op-card, .op-circles, [data-ball-row]'), null, 4500);
+    const panelSeen = await waitFor(page, () => !!document.querySelector('.wm-res:not([hidden]) .op-circles'), null, 4500);
     step(g, 'over 1: ball row shows after the glide', panelSeen, 'no .op-card/.op-circles/[data-ball-row]');
-    if (panelSeen) { await H.settle(1500); await H.shot('over1-ballrow'); }
+    if (panelSeen) {
+      await H.settle(2800); await H.shot('over1-ballrow');
+      const filled = await page.evaluate(() => document.querySelectorAll('.wm-res .op-slot.is-filled').length);
+      const Lb = landedFacts(f);
+      step(g, 'over 1: ball row fills one circle per ball', filled === Lb.balls.length, `${filled} filled vs ${Lb.balls.length} balls`);
+      const chipTxt = await page.evaluate(() => (document.querySelector('.wm-res .wm-chip') || {}).textContent || '');
+      step(g, 'over 1: "Landed on" chip shows the label', Lb.seg && chipTxt.startsWith(String(Lb.seg.label)), `chip "${chipTxt}" label ${Lb.seg && Lb.seg.label}`);
+    }
     const g1 = f.glow;
     step(g, 'over 1: "STOP!" glow seen before the 3.5 s tap, not before 3.2 s', g1.on.length > 0 && Math.min(...g1.on) >= 3.15, `glow frames at ${g1.on.slice(0, 3).map((x) => x.toFixed(2))}..; ${g1.frames} frames`);
   }
-  let st2 = await finishOver(H, 'bowl');
+  let st2 = await finishOver(H);
   step(g, 'over 1: ball row closes, next over ready', st2 === 'bowl', 'after panel: ' + st2);
 
   // over 2: STOP late at 4.4 s -> the whole glow window is visible
@@ -322,7 +327,7 @@ async function groupA() {
       step(g, 'over 2: logged bucket late', !L.entry || L.entry.bucket === 'l', 'bucket ' + (L.entry && L.entry.bucket));
       if (L.seg) step(g, 'over 2: ball runs total = landed label', L.runs === L.seg.runs, `balls ${L.runs} vs ${L.seg.label}`);
     }
-    st2 = await finishOver(H, 'bowl');
+    st2 = await finishOver(H);
   }
   body = await H.body();
   const autoRest = await findBtn(page, /Auto rest/i);
@@ -337,10 +342,10 @@ async function groupA() {
       const s3 = await H.get();
       step(g, 'reload: no re-spin 2.5 s later (wheelLog unchanged)', logLen(s3) === r.keep.len, `${logLen(s3)} vs ${r.keep.len}`);
       const seg = (f.after.last.wheel.segs || []).find((x) => x.id === r.keep.seg);
-      step(g, 'reload: the screen shows the over 3 result (label in text, or the next-over button with the score)', !!seg && (r.body.includes(String(seg.label)) || /BOWL OVER/i.test(r.body)), r.body.replace(/\s+/g, ' ').slice(0, 160));
+      step(g, 'reload: the screen shows the over 3 result ("Landed on" + label), not a spinning wheel', !!seg && /Landed on/i.test(r.body) && r.body.includes(String(seg.label)) && !r.spinning, r.body.replace(/\s+/g, ' ').slice(0, 200));
       await H.shot('reload-after-stop');
     }
-    st2 = await finishOver(H, await H.stage());
+    st2 = await finishOver(H);
   }
 
   // Auto rest of innings -> break
@@ -386,14 +391,14 @@ async function groupA() {
     // one hand-spun bat over
     f = await handOver(H, 3.5);
     if (step(g, 'chase over 1: BAT OVER, SPIN, STOP lands', f.ok, f.why)) { const L = landedFacts(f); if (L.seg) step(g, 'chase over 1: runs = label', L.runs === L.seg.runs, `${L.runs} vs ${L.seg.label}`); }
-    let cs = await finishOver(H, 'chase');
+    let cs = await finishOver(H);
     if (cs === 'chase') {
       // Stop auto halts
-      await clickBtn(page, /Auto rest/i); await H.settle(900);
+      await clickBtn(page, /Auto rest/i); await H.settle(700);
       const stopped = await clickBtn(page, /Stop auto/i);
-      await H.settle(400); const n1 = logLen(await H.get()); await H.settle(1800); const n2 = logLen(await H.get());
+      await H.settle(1500); const n1 = logLen(await H.get()); await H.settle(2000); const n2 = logLen(await H.get());
       step(g, 'Stop auto halts the auto run', stopped && n1 === n2, `stop tapped=${stopped}, log ${n1} -> ${n2}`);
-      await finishOver(H, 'chase');
+      await finishOver(H);
       if ((await H.stage()) === 'chase') {
         await clickBtn(page, /Auto rest/i);
         await waitAutoStop(H);
@@ -406,11 +411,11 @@ async function groupA() {
           await H.shot('chase-last-over-pause');
           f = await handOver(H, 3.5);
           step(g, 'last over hand-spun', f.ok, f.why);
-          await finishOver(H, 'chase');
+          await finishOver(H);
         } else note(g, 'auto pause before last over', `chase decided before over 10 (stage ${sc.stage}, inn2 over ${sc.inn2 && sc.inn2.over}, result ${sc.result}); pause not exercised`);
       }
     }
-    for (let i = 0; i < 12 && (await H.stage()) === 'chase'; i++) { await clickBtn(page, /^Auto over/i); await H.settle(1200); await finishOver(H, 'chase'); }
+    for (let i = 0; i < 12 && (await H.stage()) === 'chase'; i++) { await clickBtn(page, /^Auto over/i); await H.settle(1500); await finishOver(H); }
   }
   const sd = await H.get();
   step(g, 'match reaches the result screen', sd.stage === 'done', 'stage ' + sd.stage);
@@ -484,11 +489,13 @@ async function groupB(H) {
 async function groupC() {
   const H = await open('C', { reduced: true }); const page = H.page; const g = 'C';
   await H.boot(SEED + '-c');
+  if ((await H.get()).matchMode !== 'wheel') await forceWheel(H, g);
   const st = await H.play(['bowl']);
   if (!step(g, 'reduced motion: reached bowl', st === 'bowl', 'play -> ' + st)) return H;
   await H.settle(500);
   step(g, 'reduced motion: match is wheel', (await H.get()).mode === 'wheel', 'mode ' + (await H.get()).mode);
   await pickBowler(H);
+  await clickBtn(page, /^BOWL OVER\b/i); await H.settle(400);
   const btns = await buttons(page);
   step(g, 'reduced motion: button reads "Show result"', btns.some((b) => /Show result/i.test(b.text)), btns.map((b) => b.text).join(' | '));
   await H.shot('reduced-idle');

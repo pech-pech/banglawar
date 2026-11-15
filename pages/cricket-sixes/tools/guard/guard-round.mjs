@@ -68,8 +68,8 @@ function unit(root, which = 'all') {
   if (!files.length) return { pass: 0, fail: 0, tests: 0, failing: [], files: 0, txt: '' };
   const r = spawnSync('node', ['--test', ...files], { cwd: root, encoding: 'utf8', maxBuffer: 1 << 28, timeout: 900000 });
   const txt = (r.stdout || '') + (r.stderr || '');
-  const num = (k) => { const m = txt.match(new RegExp(`^ℹ ${k} (\\d+)`, 'm')); return m ? +m[1] : NaN; };
-  const failing = [...new Set([...txt.matchAll(/^\s*✖ (.+?)(?: \([\d.]+m?s\))?$/gm)].map((m) => m[1].trim()))].filter((x) => !/^failing tests:?$/.test(x));
+  const num = (k) => { const m = txt.match(new RegExp(`^(?:ℹ|#) ${k} (\\d+)`, 'm')); return m ? +m[1] : NaN; };
+  const failing = [...new Set([...txt.matchAll(/^\s*not ok \d+ - (.+)$/gm)].map((m) => m[1].trim()))];
   return { pass: num('pass'), fail: num('fail'), tests: num('tests'), failing, files: files.length, txt };
 }
 const mainUnitPath = join(work, 'main-unit.json');

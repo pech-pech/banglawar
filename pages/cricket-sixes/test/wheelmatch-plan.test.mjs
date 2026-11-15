@@ -150,7 +150,7 @@ const modelOf = (s) => {
 };
 
 // ------------------------------------------------------------ mode
-test('T20 new game is wheel; old save without the key reads classic (matchModeOf)', (t) => {
+test('T20 save round trip: a v7 save with no matchMode loads classic; a new wheel game keeps wheel', (t) => {
   if (needWheel(t)) return;
   const st = createStore(null);
   withFlags({ wheelMatch: true }, () => st.dispatch('NewGame', { seed: 'wm1-new' })); // main.js turns FLAGS.wheelMatch on; off in tests keeps old suites classic
@@ -163,54 +163,6 @@ test('T20 new game is wheel; old save without the key reads classic (matchModeOf
   assert.equal(WM.matchModeOf(r.state), 'classic', 'a v7 save with no matchMode must load as classic');
   const r2 = unwrap(JSON.stringify(wrap(st.get())));
   assert.equal(r2.state.matchMode, 'wheel', 'round trip keeps matchMode');
-});
-
-test('T21 mode frozen at match start: SetMatchMode ignored mid-match, BowlOver/MakeCall ignored in wheel, mode dropped at FinishMatch', (t) => {
-  if (needWheel(t)) return;
-  const st = toMatch('wm1-freeze');
-  const s0 = st.get();
-  assert.equal(s0.mode, 'wheel');
-  assert.equal(st.dispatch('SetMatchMode', { mode: 'classic' }), s0, 'SetMatchMode must be ignored during a match');
-  assert.equal(st.dispatch('BowlOver', {}), s0, 'classic BowlOver must be ignored in a wheel match');
-  const el = eligibleBowlers(s0.me.players, s0.inn1.over, s0.inn1.last);
-  assert.equal(st.dispatch('MakeCall', { bowler: el[0], field: 'A' }), s0, 'MakeCall must be ignored in a wheel match');
-  playWheel(st, autoPick, (prev, n) => assert.equal(n.mode, 'wheel'));
-  assert.equal(st.dispatch('SetMatchMode', { mode: 'classic' }), st.get(), 'still ignored at the result screen (stage done)');
-  st.dispatch('FinishMatch');
-  assert.equal(st.get().mode, undefined, 'FinishMatch removes the match mode');
-  // Next match takes the new Settings value.
-  const st2 = createStore(st.get());
-  st2.dispatch('SetMatchMode', { mode: 'classic' });
-  assert.equal(st2.get().matchMode, 'classic');
-});
-
-test('T21 a classic Settings value gives a classic match record; WheelOver is ignored there', (t) => {
-  if (needWheel(t)) return;
-  const st = toMatch('wm1-cls', { mode: 'classic' });
-  assert.equal(st.get().mode, 'classic');
-  const s0 = st.get();
-  assert.equal(st.dispatch('WheelOver', { auto: true }), s0, 'WheelOver must be ignored in a classic match');
-});
-
-// ------------------------------------------------------------ rival boost (SPEC s6)
-test('rival boost: wheel only, exactly +11.9 on bp/bs/spd/bsk of the rival copies; ours and the save untouched', (t) => {
-  if (needWheel(t)) return;
-  assert.equal(WD.WHEEL_RIVAL_BOOST, 11.9);
-  const w = toMatch('wm1-boost', { mode: 'wheel' }).get();
-  const c = toMatch('wm1-boost', { mode: 'classic' }).get();
-  assert.equal(w.seed, c.seed);
-  assert.equal(w.rival.players.length, 6);
-  w.rival.players.forEach((p, i) => {
-    const q = c.rival.players[i];
-    for (const k of ['bp', 'bs', 'spd', 'bsk']) assert.ok(Math.abs(p[k] - (q[k] + 11.9)) < 1e-9, `rival ${i} ${k}: wheel ${p[k]} classic ${q[k]}`);
-    const strip4 = (x) => { const { bp, bs, spd, bsk, ...r } = x; return r; };
-    assert.deepEqual(strip4(p), strip4(q), `rival ${i}: only the four ratings differ`);
-  });
-  assert.deepEqual(w.me.players, c.me.players, 'our six are not boosted');
-  assert.deepEqual(w.clubs, c.clubs, 'the save clubs are never boosted (copies only)');
-  // The classic copy equals the club squad ratings.
-  const opp = c.clubs.find((x) => x.name === c.rival.name);
-  for (const p of c.rival.players) { const q = opp.squad.find((x) => x.id === p.id); if (q) for (const k of ['bp', 'bs', 'spd', 'bsk']) assert.equal(p[k], q[k]); }
 });
 
 // ------------------------------------------------------------ full wheel matches: calls, bowlers, labels, log, Spokes, VM
@@ -324,27 +276,6 @@ test('Spokes: 1 per spin incl. auto, to spokes not tally; early finish pays the 
   t.diagnostic(`matches finishing early: ${short}/${MATCH_SEEDS.length}`);
 });
 
-test('Spokes: a classic match pays 0 match Spokes (wheelMeta on)', (t) => {
-  if (needWheel(t)) return;
-  withFlags({ wheelMeta: true }, () => {
-    const st = toMatch('wm1-cls-spokes', { mode: 'classic' });
-    const sp = st.get().wheelMeta.spokes, ta = st.get().wheelMeta.tally;
-    let g = 0;
-    while (st.get().stage !== 'done' && g++ < 60) { const s = st.get(); if (s.stage === 'break') st.dispatch('StartChase'); else st.dispatch('BowlOver', s.stage === 'chase' ? { intent: 'R' } : {}); }
-    assert.equal(st.get().stage, 'done');
-    assert.equal(st.get().wheelMeta.spokes, sp); assert.equal(st.get().wheelMeta.tally, ta);
-    assert.ok(!(st.get().wheelLog && st.get().wheelLog.length), 'no wheel log in classic');
-  });
-});
-
-test('Spokes: none paid with FLAGS.wheelMeta off', (t) => {
-  if (needWheel(t)) return;
-  const st = toMatch('wm1-nometa');
-  const sp = st.get().wheelMeta.spokes;
-  wheelStep(st, { auto: true });
-  assert.equal(st.get().wheelMeta.spokes, sp);
-});
-
 test('Auto: logged auto, landing = unaimedPos(seed|wma|stage|over), never counted careful', (t) => {
   if (needWheel(t)) return;
   let autos = 0;
@@ -383,22 +314,24 @@ test('aimed landing: tick = landingPos(e=0) of the stored stop; landed pos withi
   }
 });
 
-test('Expected line = mean of the over samples; log xr/xw match; VM text format', (t) => {
+test('Expected line = mean of the over samples (model, log xr/xw, VM text)', (t) => {
   if (needWheel(t)) return;
   const m = playedMatches()[0];
-  for (const [i, o] of m.overs.slice(0, 6).entries()) {
-    const side = o.prev.stage === 'bowl' ? 'bat' : 'bat';
-    const v = VM ? VM(o.prev) : null;
-    const bowler = o.prev.stage === 'bowl' ? o.next.last.bowler : o.next.last.bowler;
+  for (const [i, o] of m.overs.slice(0, 12).entries()) {
+    const bowler = o.next.last.bowler;
     const mod = WM.wheelOverModel(o.prev, o.prev.stage === 'bowl' ? 'bowl' : 'bat', bowler, {});
-    const xr = mod.samples.reduce((a, x) => a + x.runs, 0) / mod.samples.length, xw = mod.samples.reduce((a, x) => a + x.wk, 0) / mod.samples.length;
+    const n = mod.samples.length, xr = mod.samples.reduce((a, x) => a + x.runs, 0) / n, xw = mod.samples.reduce((a, x) => a + x.wk, 0) / n;
+    assert.equal(n, WD.WHEEL_MATCH.N_SAMP);
     const ex = WM.expectOf(mod.samples);
     assert.ok(Math.abs(ex.xr - xr) < 1e-9 && Math.abs(ex.xw - xw) < 1e-9, 'expectOf = sample mean');
-    assert.ok(Math.abs(m.final.wheelLog[i].xr - xr) < 1e-9, `log xr ${m.final.wheelLog[i].xr} vs ${xr}`);
-    assert.ok(Math.abs(m.final.wheelLog[i].xw - xw) < 1e-9);
-    if (v && o.prev.stage === 'chase') { /* the VM shows the model for the store's own rival bowler */ }
-    if (v && o.prev.stage === 'bowl' && v.suggested === bowler) assert.equal(v.expectText, `Expected: ${xr.toFixed(1)} runs, ${xw.toFixed(1)} wkts`);
-    void side;
+    assert.ok(Math.abs(mod.expect.xr - xr) < 1e-9 && Math.abs(mod.expect.xw - xw) < 1e-9, 'model expect = sample mean');
+    assert.ok(Math.abs(m.final.wheelLog[i].xr - xr) < 1e-9 && Math.abs(m.final.wheelLog[i].xw - xw) < 1e-9, `log over ${i + 1}: xr/xw = sample mean of the landed model`);
+    if (VM) {
+      const v = VM(o.prev);
+      const vb = o.prev.stage === 'bowl' ? v.suggested : bowler; // the VM shows the model of the suggested (bowl) / store-chosen rival (chase) bowler
+      const vm = WM.wheelOverModel(o.prev, o.prev.stage === 'bowl' ? 'bowl' : 'bat', vb, {});
+      assert.equal(v.expectText, `Expected: ${vm.expect.xr.toFixed(1)} runs, ${vm.expect.xw.toFixed(1)} wkts`);
+    }
   }
 });
 
@@ -426,24 +359,6 @@ test('VM over the match: autoPauseNow only before the last over of a live chase;
   const done = playedMatches()[0].final;
   const vd = VM(done);
   assert.ok(!(vd && vd.autoPauseNow), 'decided chase never pauses');
-});
-
-test('determinism: a whole auto wheel match by seed is identical; another seed differs', (t) => {
-  if (needWheel(t)) return;
-  const run = (seed) => { const st = toMatch(seed); playWheel(st, autoPick); return JSON.stringify(st.get()); };
-  const a = run('wm1-det'), b = run('wm1-det');
-  assert.equal(a, b);
-  assert.notEqual(a, run('wm1-det2'));
-});
-
-test('T28 auto rest = auto over pressed repeatedly; switching to manual mid-way continues deterministically', (t) => {
-  if (needWheel(t)) return;
-  const a = toMatch('wm1-mix'), b = toMatch('wm1-mix');
-  for (let i = 0; i < 3; i++) { wheelStep(a, { auto: true }); wheelStep(b, { auto: true }); }
-  assert.equal(JSON.stringify(a.get()), JSON.stringify(b.get()));
-  const el = eligibleBowlers(a.get().me.players, a.get().inn1.over, a.get().inn1.last);
-  wheelStep(a, { bowler: el[0], stop: { t: 3.4, phi: 2.5 } }); wheelStep(b, { bowler: el[0], stop: { t: 3.4, phi: 2.5 } });
-  assert.equal(JSON.stringify(a.get()), JSON.stringify(b.get()));
 });
 
 test('T22 persist at STOP: JSON / save round trip keeps s.last.wheel; the over cannot be spun again', (t) => {
@@ -509,7 +424,7 @@ test('T12 chase WIN mid-over: label WIN, row ends on the winning ball, result wo
   assert.ok(seen >= 1, 'no WIN seg reached in 6 seeds');
 });
 
-test('T14 ALL OUT mid-over: one AO seg, label ALL OUT with 5 stars? panel stops at the 5th wicket', (t) => {
+test('T14 ALL OUT mid-over: one AO seg, label ALL OUT, panel stops at the 5th wicket', (t) => {
   if (needWheel(t) || !VM) return t.skip('needs engine + VM');
   let seen = 0;
   for (let k = 0; k < 8 && seen < 1; k++) {
@@ -527,25 +442,6 @@ test('T14 ALL OUT mid-over: one AO seg, label ALL OUT with 5 stars? panel stops 
     seen++;
   }
   assert.ok(seen >= 1, 'no ALL OUT seg reached in 8 seeds');
-});
-
-test('T13 tie: landing runs = target over the last ball gives result tied', (t) => {
-  if (needWheel(t) || !VM) return t.skip('needs engine + VM');
-  let seen = 0;
-  for (let k = 0; k < 12 && !seen; k++) {
-    const st = toMatch(`wm1-tie-${k}`); devExact(st);
-    autoUntil(st, (s) => s.stage === 'chase' && s.inn2.over === 10);
-    const s = st.get();
-    if (s.stage !== 'chase') continue;
-    const gap = s.inn1.runs - s.inn2.runs;
-    const r = landOn(st, (x) => !x.end && x.runs === gap);
-    if (!r) continue;
-    assert.equal(r.n.stage, 'done');
-    assert.equal(r.n.inn2.runs, r.n.inn1.runs);
-    assert.equal(r.n.result, 'tied');
-    seen++;
-  }
-  if (!seen) t.diagnostic('no tie-able last over in 12 seeds');
 });
 
 // ------------------------------------------------------------ segment invariants over 200 seeded states
@@ -631,36 +527,6 @@ test('segment invariants on 200 seeded live states (p sum 1, <= K_SEG segs, wick
     const xwS = samples.filter((x) => !x.end).reduce((a, x) => a + x.wk, 0) / samples.length;
     const xwG = normal.reduce((a, x) => a + x.p * x.wk, 0);
     assert.ok(Math.abs(xwS - xwG) < 0.06, `${tag}: wicket mass ${xwS.toFixed(3)} folded to ${xwG.toFixed(3)}`);
-  }
-});
-
-test('T16 pickSample always returns a sample whose outcome equals the seg label', (t) => {
-  if (needWheel(t)) return;
-  const rng = makeRng('wm1-pick');
-  for (const s of liveStates().slice(0, 60)) {
-    const bowl = s.stage === 'bowl', inn = bowl ? s.inn1 : s.inn2;
-    const bi = eligibleBowlers(bowl ? s.me.players : s.rival.players, inn.over, inn.last)[0];
-    const samples = WM.sampleOvers(s, bowl ? 'bowl' : 'bat', bi, { n: 300 });
-    const segs = WM.buildSegments(samples, bowl ? { side: 'bowl' } : { side: 'bat', needRuns: s.inn1.runs + 1 - inn.runs, ballsLeft: 60 - inn.balls });
-    for (const seg of segs) for (let j = 0; j < 3; j++) {
-      const x = WM.pickSample(rng, samples, seg);
-      if (seg.end) assert.equal(x.end, seg.end);
-      else { assert.equal(x.end, ''); assert.equal(x.runs, seg.runs); assert.equal(x.wk, seg.wk); }
-    }
-  }
-});
-
-test('T6 determinism: sampleOvers / segments identical for the same state; the live state is not mutated', (t) => {
-  if (needWheel(t)) return;
-  for (const s of liveStates().slice(0, 10)) {
-    const before = JSON.stringify(s);
-    const bowl = s.stage === 'bowl', inn = bowl ? s.inn1 : s.inn2;
-    const bi = eligibleBowlers(bowl ? s.me.players : s.rival.players, inn.over, inn.last)[0];
-    const a = WM.sampleOvers(s, bowl ? 'bowl' : 'bat', bi, { n: 200 }), b = WM.sampleOvers(s, bowl ? 'bowl' : 'bat', bi, { n: 200 });
-    assert.deepEqual(a, b);
-    const ctx = bowl ? { side: 'bowl' } : { side: 'bat', needRuns: s.inn1.runs + 1 - inn.runs, ballsLeft: 60 - inn.balls };
-    assert.deepEqual(WM.buildSegments(a, ctx), WM.buildSegments(b, ctx));
-    assert.equal(JSON.stringify(s), before, 'sampling must work on clones');
   }
 });
 

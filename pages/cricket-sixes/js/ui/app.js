@@ -104,6 +104,7 @@ export function mount(el, store) {
   }
   function maybeTierUp(s) {
     if (tierOpen || holding || typeof sel.tierUpVM !== 'function') return;
+    if (s && s.mode === 'wheel' && (s.stage === 'bowl' || s.stage === 'chase' || s.stage === 'break')) return; // wheel match: never between overs; it waits for the result screen
     const vm = sel.tierUpVM(s); if (!vm) return;
     if (overlayOpen()) { watchOverlays(); return; }
     tierOpen = true;
@@ -128,7 +129,7 @@ export function mount(el, store) {
   function render() {
     if (holding) return;
     const s = store.get();
-    const entry = STAGES[s.stage];
+    const entry = wheelStage(s) ? WHEEL_STAGE : STAGES[s.stage];
     try {
       if (!entry) throw new Error('Unknown stage: ' + s.stage);
       const [ref, vmName] = entry;
@@ -137,6 +138,7 @@ export function mount(el, store) {
       if (view.error) throw view.error;
       if (typeof sel[vmName] !== 'function') throw new Error('No view model yet: ' + vmName);
       const vm = decorate(s, sel[vmName](s));
+      if (entry === WHEEL_STAGE && vm && typeof vm === 'object') { if (!vm.info) vm.info = wheelInfo(s); vm.vmFor = (pick) => { const v = sel.wheelMatchVM(store.get(), pick); if (v) v.info = vm.info; return v; }; } // the wheel for a picked bowler
       view.render(el, vm, (cmd, payload) => dispatch(cmd, payload), openByName); // views: render(el, vm, dispatch, open)
     } catch (err) {
       console.error(err);
@@ -158,6 +160,7 @@ export function mount(el, store) {
   /** BowlOver: apply it, then show the panel; the next screen draws only when Next is pressed. */
   function dispatch(cmd, payload) {
     if (holding) return;
+    if (cmd === 'WheelOver') return wheelOver(payload);
     if (cmd !== 'BowlOver') { const b = store.get(); store.dispatch(cmd, payload); rep.dispatched(cmd, payload, b, store.get()); return; }
     const before = store.get();
     holding = true;
@@ -180,5 +183,38 @@ export function mount(el, store) {
     playOverPanel({ callHint: hint, title: 'Over ' + s.last.over, balls, score: { runs: inn.runs, wk: inn.wk }, nextLabel, summaryLines, batKit: first ? 'B' : 'A', found, book: found.length ? sel.bookVM(s) : null, roar: s.last.roar || false, onBook: (cell) => openByName('book', { returnFocus: BACK_FOCUS, cell }),
       onDone(info) { rep.panelDone(info); holding = false; render(); } });
   }
+  /** Wheel match: apply WheelOver and hold the screen (no re-render) so the wheel view can glide, beat and play the ball row.
+   *  Returns the result handle for the view, or null when the store ignored it. release() redraws whatever stage comes next. */
+  function wheelOver(payload) {
+    const before = store.get();
+    holding = true;
+    store.dispatch('WheelOver', payload);
+    const s = store.get();
+    rep.dispatched('WheelOver', payload, before, s);
+    if (s === before || !s.last || !s.last.wheel) { holding = false; render(); return null; }
+    const first = before.stage === 'bowl', inn = first ? s.inn1 : s.inn2;
+    let found = [];
+    try { found = (s.last.wheel.auto ? [] : sel.foundVM(s)) || []; if (found.length) addFinds(found.length); } catch (e) { rep.error(e); }
+    let need = null;
+    try { if (!first && s.stage === 'chase') { const v = sel.wheelMatchVM(s); need = v && v.need || null; } } catch (e) { rep.error(e); }
+    let released = false;
+    return { wheel: s.last.wheel, balls: s.last.balls || [], over: s.last.over, score: { runs: inn.runs, wk: inn.wk }, stage: s.stage, result: s.result, roar: s.last.roar || false, found, need,
+      release() { if (released) return; released = true; holding = false; render(); } };
+  }
   return dispatch;
+}
+const WHEEL_STAGE = ['wheelmatch-view', 'wheelMatchVM'];
+/** Wheel match mode (s.mode, frozen for the match) draws the bowl and chase stages with the wheel view; everything else is unchanged. */
+const wheelStage = (s) => !!s && s.mode === 'wheel' && (s.stage === 'bowl' || s.stage === 'chase') && typeof sel.wheelMatchVM === 'function';
+/** Extra words for the wheel screens from the classic selectors (chips, batters at the crease, bowler types). Optional; never throws. */
+function wheelInfo(s) {
+  const info = {};
+  try {
+    const v = s.stage === 'bowl' ? sel.bowlVM(s) : sel.chaseVM(s);
+    if (v) {
+      info.chips = v.chips || null; info.crease = (v.crease || []).map((b) => ({ name: b.name, r: b.r, b: b.b, onStrike: !!b.onStrike })); info.phaseName = v.phaseName || '';
+      if (v.bowlers) { info.bowlTypes = {}; v.bowlers.forEach((b) => { info.bowlTypes[b.i] = b.bowl; }); }
+    }
+  } catch (e) { /* words only */ }
+  return info;
 }

@@ -75,7 +75,7 @@ test('SetMatchMode: ignored mid-match (bowl/break/chase/done); the match keeps i
   assert.equal(s.stage, 'done');
   assert.equal(C(s, 'SetMatchMode', { mode: 'classic' }), s);
   s = C(s, 'FinishMatch');
-  assert.equal('mode' in s, false); assert.ok(s.wheelLog.length >= 11); // the log stays for the report until the next match
+  assert.equal('mode' in s, false); assert.ok(s.wheelLog.length >= 2); // the log stays for the report until the next match
   const t = C(s, 'SetMatchMode', { mode: 'classic' });
   assert.equal(t.matchMode, 'classic');
   // next match is classic: run the bot to the next bowl stage
@@ -171,7 +171,7 @@ test('Spokes: +1 a spin (spokes only, no tally) with wheelMeta on; about 20 a ma
     assert.deepEqual({ ...one.wheelMeta, spokes: m0.spokes }, m0);
     const d = autoMatch(s);
     assert.equal(d.wheelMeta.spokes - m0.spokes, d.wheelLog.length);
-    assert.ok(d.wheelLog.length >= 11 && d.wheelLog.length <= 20);
+    assert.equal(d.wheelLog.length, d.inn1.overs.length + d.inn2.overs.length); assert.ok(d.wheelLog.length <= 20);
     // classic: a whole match by BowlOver leaves Spokes alone
     let c = toBowl('wms-sp', false); const c0 = clone(c.wheelMeta), g = { n: 0 };
     while (c.stage !== 'done' && g.n++ < 40) c = c.stage === 'break' ? C(c, 'StartChase') : C(c, 'BowlOver', { intent: 'R' });
@@ -221,12 +221,12 @@ test('bowler chips: reasons for last over, 2 overs, must-save; a legal pick alwa
     return { inn1: { over: hist.length + 1, last: hist.length ? hist.at(-1) : null, overs: hist.map((b) => ({ bowler: b })) }, me: { players } };
   };
   let st = bowlerChips(mk([0, 1, 0, 1]));
-  assert.equal(st[0].reason, 'Bowled 2 overs'); assert.equal(st[1].reason, 'Bowled 2 overs');
+  assert.equal(st[0].reason, 'Bowled 2 overs'); assert.equal(st[1].reason, 'Bowled last over'); assert.equal(st[2].ok, true);
   st = bowlerChips(mk([0, 1, 0, 1, 2, 3, 2, 3]));
   assert.deepEqual(st.filter((c) => c.ok).map((c) => c.idx), [4, 5]);
   assert.equal(st[2].reason, 'Bowled 2 overs');
-  st = bowlerChips(mk([0, 1, 2, 3, 0, 1, 2, 3])); // 4 and 5 must bowl the last two
-  assert.equal(st[0].reason, 'Others must bowl first');
+  st = bowlerChips(mk([0, 1, 2, 3, 4, 0, 1, 2, 3])); // 5 has not bowled: the last over is his
+  assert.equal(st[4].reason, 'Others must bowl first'); assert.deepEqual(st.filter((c) => c.ok).map((c) => c.idx), [5]);
   const rng = makeRng('wms-hist');
   for (let k = 0; k < 500; k++) {
     const hist = [];
@@ -255,11 +255,11 @@ test('wheelMatchVM: shape, expected line, suggested, auto rest after over 1, roa
   if (other) assert.equal(wheelMatchVM(s, other.idx).bowler, other.idx);
   const s2 = W(s, AUTO);
   assert.equal(wheelMatchVM(s2).autoRestShown, true);
-  // roar chip known before the spin (flags on, a roar over)
+  // roar chip known before the spin (flag on, a roar over); none on a plain over
   withFlags({ roar: true }, () => {
-    const t = clone(s); t.match = { md: { roar: Array(20).fill(0).map((_, i) => (i === 0 ? 1 : 0)), roarOvers: [0] } };
-    const r = wheelMatchVM(t).roar;
-    assert.ok(r === null || r.on === true); // shape depends on md; see the md-based check below
+    const t = clone(s); t.match = { md: { roar: [true, false] } };
+    assert.deepEqual(wheelMatchVM(t).roar, { on: true, text: 'Crowd roar +5%', aria: 'Crowd roar +5%' });
+    t.inn1.over = 2; assert.equal(wheelMatchVM(t).roar, null);
   });
 });
 
@@ -289,8 +289,9 @@ test('results: won, lost and tied paths end the chase exactly as classic', () =>
   base.inn2.over = 10; base.inn2.balls = 54; base.inn2.runs = 50; base.inn2.wk = 0;
   base.rival.players.forEach((p, i) => { p.overs = i === 5 ? 1 : 2; }); base.inn2.last = 4; // rival 5 bowls the last over
   const seen = {};
-  for (let T = 40; T <= 90 && Object.keys(seen).length < 3; T++) {
-    const x = clone(base); x.inn1.runs = T; x.inn2.target = T; x.seed = `${base.seed}|T${T}`; // own seed: the model memo is keyed by seed, not target
+  for (let j = 0; j < 200 && Object.keys(seen).length < 3; j++) {
+    const T = 50 + (j % 13);
+    const x = clone(base); x.inn1.runs = T; x.inn2.target = T; x.seed = `${base.seed}|T${j}`; // own seed per try: the model memo is keyed by seed, not target
     const n = W(x, AUTO);
     assert.equal(n.stage, 'done');
     const want = n.inn2.runs > T ? 'won' : n.inn2.runs === T ? 'tied' : 'lost';

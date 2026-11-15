@@ -5,6 +5,7 @@ import { TUNING_SHA } from '../data/tuning-sha.js';
 import { FLAGS } from '../data/flags.js';
 import { BUILD } from './build.js';
 import { timingBucket } from '../core/training.js'; // wa2: one bucket rule for the report and the wheel
+import { wheelOverRecord } from './wmatch.js'; // wheel match mode (2026-11-15): over rows of a WheelOver
 
 export const KEY = 'sixes.report.v1';
 export const CAPS = { matches: 24, nets: 24, spins: 60, buys: 40, feel: 40, weeks: 24, club: 40, errors: 5, sessions: 8, seasons: 12 }; // [guess] P0-8; per-season aggregates (12 max) live outside these caps
@@ -81,14 +82,14 @@ export function createLog(o = {}) {
       if (prev) { prev.ab = 1; prev.t1 = now(); }
       const last = d.matches[d.matches.length - 1]; if (last && last.fin === 0) last.fin = 1; // QA3 B1: a new match closes the one before it
       const fx = s.fixture || null, sn = s.season || null; // P0-6: which fixture this was
-      d.matches.push({ id: ++d.seq, sid, build, seed: s.seed, vp: env(), t0: now(), t1: 0, res: null, ab: 0, stage: s.stage, k: fx ? (KIND[fx.kind] || '?') : null, r: fx ? fx.round : null, season: sn ? sn.n : null, league: sn ? sn.league : null, ov: [], scr: {}, gl: {}, sk: 0, th: [], feel: {}, err: 0, fin: 0, tun: TUNING_SHA, fl: flagsOn(), tc: [] });
+      d.matches.push({ id: ++d.seq, sid, build, seed: s.seed, vp: env(), t0: now(), t1: 0, res: null, ab: 0, stage: s.stage, k: fx ? (KIND[fx.kind] || '?') : null, r: fx ? fx.round : null, season: sn ? sn.n : null, league: sn ? sn.league : null, ov: [], scr: {}, gl: {}, sk: 0, th: [], feel: {}, err: 0, fin: 0, tun: TUNING_SHA, fl: flagsOn(), tc: [], mo: s.mode === 'wheel' ? 'W' : 'C' }); // mo: match mode frozen at the start (W wheel, C classic)
       mdInto(d.matches[d.matches.length - 1], s);
       if (d.matches.length > CAP.matches) d.matches.splice(0, d.matches.length - CAP.matches);
     }),
     /** A BowlOver went from `before` to `after`. t = { th: think ms }. */
     over: safe((before, after, t) => {
       const m = open(); if (!m || !after.last) return;
-      m.ov.push(overRecord(before, after, t)); m.stage = after.stage;
+      m.ov.push(t && t.wheel ? wheelOverRecord(before, after, t) : overRecord(before, after, t)); m.stage = after.stage; // t.wheel: a WheelOver (wheel match mode)
       if (after.stage === 'done') {
         Object.assign(m, matchResult(after)); m.t1 = now();
         const dec = decidedOver(m.ov, after.result); if (dec != null) m.dec = dec; // L4: not "over - 1"; the over after which the winner stayed above 90%
