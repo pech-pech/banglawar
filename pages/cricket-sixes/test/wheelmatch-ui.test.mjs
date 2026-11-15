@@ -59,8 +59,9 @@ test('labels: no stars always uses the wide layout; ALL OUT stars shrink to fit'
   assert.ok(p.gap * 5 <= chord + 1e-9); assert.ok(p.starHalf <= p.gap * 0.42 + 1e-9);
 });
 test('labels scale with the wheel radius', () => {
-  const a = labelPlan(1, 1, 146), b = labelPlan(1, 1, 73);
-  assert.ok(Math.abs(b.font * 2 - a.font) < 1e-9);
+  const a = labelPlan(1, 1, 292), b = labelPlan(1, 1, 146), c = labelPlan(1, 1, 60);
+  assert.ok(Math.abs(b.font * 2 - a.font) < 1e-9); assert.ok(Math.abs(a.starR - 2 * b.starR) < 1e-9);
+  assert.equal(c.font, 18, 'numbers never under 18 px (QA D5)');
 });
 
 test('auto pace: 0.6 s an over, 0.9 s with a wicket, an innings end or the last over', () => {
@@ -87,6 +88,16 @@ test('glide plan ends exactly on the stored landing and starts at the rim under 
     assert.ok(Math.abs(p.e - e) < 1e-6, 'wobble recovered ' + t + ' ' + e);
     assert.ok(Math.abs(wrapHalf(p.base + p.dist - landingPos(phys, { ...stop, e: 0 }), C)) < 1e-9, 'no-wobble end = the tick');
   }
+});
+test('F9: end slices never print runs or stars before landing; the result chip uses the landed over', async () => {
+  const { labelText, sliceText, landedText } = await import('../js/ui/wheelmatch-view.js');
+  const win = { end: 'WIN', label: 'WIN', runs: 9, stars: 1, tone: 'good' }, ao = { end: 'AO', label: 'ALL OUT', runs: 3, stars: 2, tone: 'good' };
+  assert.equal(labelText(win), 'WIN'); assert.equal(sliceText(win), '▲ WIN'); assert.equal(sliceText(ao), '▲ ALL OUT');
+  assert.equal(landedText(win, { runs: 7, wk: 0 }), 'WIN 7'); assert.equal(landedText({ label: '8', stars: 1 }, { runs: 8, wk: 1 }), '8 ✱');
+  assert.equal(sliceText({ label: '12', stars: 2, tone: 'bad' }), '▼ 12 ✱✱');
+});
+test('F11: the decider over is the player\'s (no Auto over / Auto rest when autoPauseNow)', () => {
+  assert.equal(autoStopWhy({ side: 'bat', autoPauseNow: true }, 'over', 0), 'pause');
 });
 test('end marks and over words', () => {
   assert.equal(endMark('WIN'), 'WIN'); assert.equal(endMark('AO'), 'ALL OUT'); assert.equal(endMark('TIE'), 'TIE'); assert.equal(endMark('', 'tied'), 'TIE'); assert.equal(endMark(''), '');

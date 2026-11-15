@@ -3,7 +3,7 @@
 // One spin = one over. The wheel is built from N_SAMP sampled overs of the REAL engine (playOver) from the live state; a segment is a
 // folded (runs, wkts) outcome with width = probability. Landing a segment picks one sampled over with exactly that outcome; the store
 // replays that sample on the live state with the same rng string, so the 6-ball row and the next state match the label exactly.
-import { WHEEL_MATCH as WMX, DEV_DEFAULTS, DEV_RANGE, WHEEL_TONE } from '../data/wheelmatch.js';
+import { WHEEL_MATCH as WMX, DEV_DEFAULTS, DEV_RANGE, WHEEL_TONE, WHEEL_RIVAL_BOOST } from '../data/wheelmatch.js';
 import { FLAGS } from '../data/flags.js';
 import { makeRng } from './rng.js';
 import { playOver, centreOf } from './match.js';
@@ -86,10 +86,16 @@ export function stopBucket(t, coasted) {
 }
 
 // ---- sampled overs
-/** Default playOver extras for a side, exactly as commands.js bowlOver: fx in a season, league centre, pairing in a season, roar opts. @param {any} s @param {'bowl'|'bat'} side */
+// ---- rival strength (SPEC s6, REVIEW F1/F2/F6)
+/** Wheel match: rival rating boost (the save keeps raw rival players; the boost is applied on the engine's copies only). 0 for classic. @param {any} s */
+export const rivalBoostOf = (s) => (s && s.mode === 'wheel' ? WHEEL_RIVAL_BOOST : 0);
+const RATING_MAX = 99;
+/** A rival player as the engine plays him: +boost on bp, bs, spd, bsk, capped at 99 (sim make_team clamp). Same object when boost is 0. @param {any} p @param {number} b */
+export const boostedRival = (p, b) => (b ? { ...p, bp: Math.min(RATING_MAX, p.bp + b), bs: Math.min(RATING_MAX, p.bs + b), spd: Math.min(RATING_MAX, p.spd + b), bsk: Math.min(RATING_MAX, p.bsk + b) } : p);
+/** Default playOver extras for a side, as commands.js bowlOver: fx in a season, league centre (+ rival boost in wheel mode, so the rival sits at the centre as in the sim), pairing in a season, roar opts. @param {any} s @param {'bowl'|'bat'} side */
 export function matchOpts(s, side) {
   const md = s && s.match && s.match.md;
-  return { fx: s && s.season ? makeFx(s.coaches) : undefined, centre: centreOf(s), pairing: !!(s && s.season),
+  return { fx: s && s.season ? makeFx(s.coaches) : undefined, centre: centreOf(s) + rivalBoostOf(s), pairing: !!(s && s.season),
     roar: FLAGS.roar && md ? { ours: side, md, innIdx: side === 'bowl' ? 0 : 1 } : undefined };
 }
 /** @param {any} s @param {'bowl'|'bat'} side @param {any} [opts] */
@@ -99,7 +105,8 @@ function fullOpts(s, side, opts) {
 }
 /** Innings and teams for a side: 'bowl' = inn1 (rival bats, we bowl), 'bat' = inn2 (we bat). @param {any} s @param {'bowl'|'bat'} side */
 function sideParts(s, side) {
-  return side === 'bowl' ? { inn: s.inn1, bat: s.rival.players, bowl: s.me.players } : { inn: s.inn2, bat: s.me.players, bowl: s.rival.players };
+  const b = rivalBoostOf(s);
+  return side === 'bowl' ? { inn: s.inn1, bat: s.rival.players, bowl: s.me.players, batB: b, bowlB: 0 } : { inn: s.inn2, bat: s.me.players, bowl: s.rival.players, batB: 0, bowlB: b };
 }
 /** The rng string of sample k (the store replays the landed sample with the same string). @param {any} s @param {'bowl'|'bat'} side @param {number} over @param {number} k */
 export const sampleSeed = (s, side, over, k) => `${s.seed}|wm|${side}|${over}|${k}`;
@@ -107,41 +114,59 @@ export const sampleSeed = (s, side, over, k) => `${s.seed}|wm|${side}|${over}|${
 const endOf = (inn, bat) => (inn.target != null && inn.runs > inn.target ? 'WIN' : inn.wk >= 5 || inn.crease.some((/** @type {number} */ i) => bat[i] && bat[i].inn.out) ? 'AO' : '');
 const keyOf = (/** @type {number} */ runs, /** @type {number} */ wk, /** @type {string} */ end) => (end ? `${end}:${runs}w${wk}` : `${runs}w${wk}`);
 
+/** One sampled over. `key` is made on demand (most samples never need it: perf). */
+class Sample {
+  /** @param {number} k @param {number} runs @param {number} wk @param {''|'WIN'|'AO'} end */
+  constructor(k, runs, wk, end) { this.k = k; this.runs = runs; this.wk = wk; this.end = end; }
+  get key() { return keyOf(this.runs, this.wk, this.end); }
+  toJSON() { return { k: this.k, runs: this.runs, wk: this.wk, end: this.end, key: this.key }; }
+}
+/** fx that reads the originals' (memoised) skill effects through copies. @param {any} fx @param {WeakMap<object, object>} orig */
+const fxVia = (fx, orig) => (fx ? { of: (/** @type {any} */ q) => fx.of(orig.get(q) || q) } : undefined);
+
 /**
- * Sample the coming over n times with the real playOver on light copies of the live innings and players (only the fields playOver
- * writes are copied: innings counters/crease/logs, every batter's .inn, the bowler's .overs/.figs). Neutral calls: field 'P', intent 'R'.
- * opts {fx, centre, pairing, roar, n}; missing parts as commands.js (matchOpts). The live state is never touched.
+ * Sample the coming over n times with the real playOver on light copies of the live innings and players (copied once per build; per sample
+ * only the fields playOver writes are reset: innings counters/crease/logs, every batter's .inn, the bowler's .overs/.figs). Neutral calls:
+ * field 'P', intent 'R'. Wheel mode: rival copies carry the rating boost. opts {fx, centre, pairing, roar, n}; missing parts as matchOpts.
+ * The live state is never touched.
  * @param {any} s @param {'bowl'|'bat'} side @param {number} bowlerIdx @param {any} [opts]
  * @returns {{k:number, runs:number, wk:number, end:''|'WIN'|'AO', key:string}[]}
  */
 export function sampleOvers(s, side, bowlerIdx, opts) {
   const o = fullOpts(s, side, opts), n = (opts && opts.n) || WMX.N_SAMP;
-  const { inn, bat, bowl } = sideParts(s, side), over = inn.over;
+  const { inn, bat, bowl, batB, bowlB } = sideParts(s, side), over = inn.over;
   /** @type {WeakMap<object, object>} */ const orig = new WeakMap();
-  const fx = o.fx ? { of: (/** @type {any} */ q) => o.fx.of(orig.get(q) || q) } : undefined; // copies read the originals' (memoised) skill effects
+  const fx = fxVia(o.fx, orig);
   const w0 = bowl[bowlerIdx];
-  const out = [];
+  const bat2 = bat.map((/** @type {any} */ p) => { const c = { ...boostedRival(p, batB) }; orig.set(c, p); return c; });
+  const bowl2 = bowl.slice(), wc = { ...boostedRival(w0, bowlB) }; orig.set(wc, w0); bowl2[bowlerIdx] = wc;
+  const nb = bat.length, out = new Array(n);
   for (let k = 0; k < n; k++) {
     const i2 = { ...inn, crease: inn.crease.slice(), overs: [] };
     if (inn.roarOvers) i2.roarOvers = inn.roarOvers.slice();
     if (inn.wkLog) i2.wkLog = inn.wkLog.slice();
-    const bat2 = bat.map((/** @type {any} */ p) => { const c = { ...p, inn: { ...p.inn } }; orig.set(c, p); return c; });
-    const bowl2 = bowl.slice(), wc = { ...w0, figs: { ...w0.figs } }; orig.set(wc, w0); bowl2[bowlerIdx] = wc;
+    for (let j = 0; j < nb; j++) bat2[j].inn = { ...bat[j].inn };
+    wc.overs = w0.overs; wc.figs = { ...w0.figs };
     playOver(makeRng(sampleSeed(s, side, over, k)), i2, bat2, bowl2, bowlerIdx, 'R', 'P', fx, o.centre, o.pairing, o.roar);
-    const runs = i2.runs - inn.runs, wk = i2.wk - inn.wk;
-    const end = /** @type {''|'WIN'|'AO'} */ (endOf(i2, bat2));
-    out.push({ k, runs, wk, end, key: keyOf(runs, wk, end) });
+    out[k] = new Sample(k, i2.runs - inn.runs, i2.wk - inn.wk, /** @type {''|'WIN'|'AO'} */ (endOf(i2, bat2)));
   }
   return out;
 }
 /**
  * Replay sample k on the LIVE (already cloned by the store) state: same rng string, real innings and players, neutral calls.
  * Mutates n like playOver does and returns the balls. Pass the same opts the model was built with (or none: matchOpts(n, side)).
+ * Wheel mode: the rival plays as boosted copies that share .inn / .figs with the real players; .overs is written back.
  * @param {any} n @param {'bowl'|'bat'} side @param {number} bowlerIdx @param {number} k @param {any} [opts]
  */
 export function replayOver(n, side, bowlerIdx, k, opts) {
-  const o = fullOpts(n, side, opts), { inn, bat, bowl } = sideParts(n, side);
-  return playOver(makeRng(sampleSeed(n, side, inn.over, k)), inn, bat, bowl, bowlerIdx, 'R', 'P', o.fx, o.centre, o.pairing, o.roar);
+  const o = fullOpts(n, side, opts), { inn, bat, bowl, batB, bowlB } = sideParts(n, side);
+  if (!batB && !bowlB) return playOver(makeRng(sampleSeed(n, side, inn.over, k)), inn, bat, bowl, bowlerIdx, 'R', 'P', o.fx, o.centre, o.pairing, o.roar);
+  /** @type {WeakMap<object, object>} */ const orig = new WeakMap();
+  const cp = (/** @type {any[]} */ team, /** @type {number} */ b) => team.map((p) => { const c = boostedRival(p, b); if (c !== p) orig.set(c, p); return c; });
+  const bat2 = cp(bat, batB), bowl2 = cp(bowl, bowlB);
+  const balls = playOver(makeRng(sampleSeed(n, side, inn.over, k)), inn, bat2, bowl2, bowlerIdx, 'R', 'P', fxVia(o.fx, orig), o.centre, o.pairing, o.roar);
+  bowl2.forEach((c, i) => { if (c !== bowl[i]) bowl[i].overs = c.overs; }); // .inn and .figs are shared objects; .overs is a number
+  return balls;
 }
 /** Mean runs and wickets of the samples (Expected line). @param {{runs:number,wk:number}[]} samples */
 export function expectOf(samples) {
@@ -255,8 +280,8 @@ export function segAt(segs, pos) {
   return segs.length - 1;
 }
 /** Does a sample show this segment's label outcome? WIN/AO: any sample with that end. @param {any} x @param {any} seg */
-const matches = (x, seg) => (seg.end ? x.end === seg.end : !x.end && x.runs === seg.runs && x.wk === seg.wk);
-/** One sample whose outcome is the segment's label (uniform among them; one rng draw). Panel always matches the label. @param {{random:()=>number}} rng @param {any[]} samples @param {any} seg */
+const matches = (x, seg) => (seg.end === 'WIN' ? x.end === 'WIN' && x.wk === seg.wk : seg.end ? x.end === seg.end : !x.end && x.runs === seg.runs && x.wk === seg.wk);
+/** One sample whose outcome is the segment's label (uniform among them; one rng draw). Panel always matches the label: WIN picks only WIN samples with the seg's wickets (its stars, REVIEW F9). @param {{random:()=>number}} rng @param {any[]} samples @param {any} seg */
 export function pickSample(rng, samples, seg) {
   const xs = samples.filter((x) => matches(x, seg));
   const r = rng.random();
@@ -271,16 +296,23 @@ export function isCareful(segs, idx) {
 }
 
 // ---- the over model (memoised)
-const MEMO = new Map(), MEMO_MAX = 4;
+const MEMO = new Map(), MEMO_MAX = 8;
+/** Everything playOver reads that can differ between two states with the same seed/over/score (REVIEW F3). @param {any} s @param {'bowl'|'bat'} side @param {number} bi */
+function stateKey(s, side, bi) {
+  const { inn, bat, bowl } = sideParts(s, side), w = bowl[bi] || {};
+  const cr = inn.crease.map((/** @type {number} */ i) => `${i}:${bat[i] ? bat[i].inn.b : ''}`).join(',');
+  return `${inn.strike}|${cr}|${inn.next}|${inn.last}|${inn.burstOver ?? ''}|${w.overs}|${inn.target ?? ''}|${rivalBoostOf(s)}|${centreOf(s)}`;
+}
 /**
- * Samples, segments and the Expected line for the coming over. Memoised by seed|side|over|bowler|runs|wk|balls|n (small Map, max 4).
- * need {runs, balls} in a chase: runs to win and balls left.
+ * Samples, segments and the Expected line for the coming over. Memoised (LRU, max 8) by seed|side|over|bowler|runs|wk|balls|n + stateKey.
+ * opts.fresh = true skips the memo (store: rebuild after a replay mismatch). need {runs, balls} in a chase: runs to win and balls left.
  * @param {any} s @param {'bowl'|'bat'} side @param {number} bowlerIdx @param {any} [opts]
  */
 export function wheelOverModel(s, side, bowlerIdx, opts) {
-  const inn = sideParts(s, side).inn, n = (opts && opts.n) || WMX.N_SAMP;
-  const key = `${s.seed}|${side}|${inn.over}|${bowlerIdx}|${inn.runs}|${inn.wk}|${inn.balls}|${n}`;
-  const hit = MEMO.get(key); if (hit) return hit;
+  const inn = sideParts(s, side).inn, n = (opts && opts.n) || WMX.N_SAMP, fresh = !!(opts && opts.fresh);
+  const key = `${s.seed}|${side}|${inn.over}|${bowlerIdx}|${inn.runs}|${inn.wk}|${inn.balls}|${n}|${stateKey(s, side, bowlerIdx)}`;
+  const hit = fresh ? null : MEMO.get(key);
+  if (hit) { MEMO.delete(key); MEMO.set(key, hit); return hit; } // LRU
   const samples = sampleOvers(s, side, bowlerIdx, opts);
   const need = side === 'bat' && inn.target != null ? { runs: inn.target + 1 - inn.runs, balls: 60 - inn.balls } : undefined;
   const segs = buildSegments(samples, need ? { side, needRuns: need.runs, ballsLeft: need.balls } : { side });

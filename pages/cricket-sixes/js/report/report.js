@@ -328,7 +328,7 @@ export function reportParts(data, env0) {
   const t0 = w.since ? w.since.atMs : (w.ms[0] ? w.ms[0].t0 : env.now);
   const rid = w.rid;
   const mode = modeOf(w.ms, env.matchMode), mh = modeHeader(mode); // wheel match: mode:W|C off:-10|+1.9 (absent for old records without a mode and no env)
-  const h1 = `CR ${env.build} | CLEAN: ${clean.ok ? 'YES' : 'NO ' + clean.why.join(', ')} | features ${on ? 'on' : 'off'}${mh ? ' | ' + mh : ''} | save v${sv.v || '?'} | S${sv.season || '?'} R${sv.round || '?'}/${sv.rounds || 9} L${sv.league || '?'} | #${rid} | ${env.vp}`;
+  const h1 = `CR ${env.build} | CLEAN: ${clean.ok ? 'YES' : 'NO ' + clean.why.join(', ')} | features ${on ? 'on' : 'off'} | save v${sv.v || '?'} | S${sv.season || '?'} R${sv.round || '?'}/${sv.rounds || 9} L${sv.league || '?'}${mh ? ' | ' + mh : ''} | #${rid} | ${env.vp}`;
   const h2 = `Window: ${fin.length} matches, ${w.nets.length} nets runs, since ${w.since ? '#' + w.since.rid : 'start'} (${utc(t0)} to ${utc(env.now)}). [W] window [S] season [G] save`;
   const h3 = w.dropped ? `Dropped ${w.dropped.n} records from ${w.dropped.build}` : null;
   const pd = w.pending, h4 = pd ? (pd.res ? `M${pd.id} is on the result screen: not in this report. Leave the result screen, then copy: it comes in whole with its Coins, Fans, pay and feel.` : `M${pd.id} is still in play: it comes in whole in the next report.`) : null; // QA3 B1

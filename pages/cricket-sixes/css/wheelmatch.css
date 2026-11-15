@@ -22,14 +22,14 @@
 .wm-need span { font-size: 13px; line-height: 16px; text-align: right; }
 
 /* bowler rows (pick screen) */
-.wm-bowlers { display: flex; flex-direction: column; gap: 4px; min-height: 0; flex: 0 1 auto; overflow-y: auto; }
-.wm-brow { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 8px; width: 100%; min-height: 48px; padding: 4px 10px; text-align: left;
+.wm-bowlers { display: flex; flex-direction: column; gap: 3px; padding-bottom: 3px; min-height: 0; flex: 0 1 auto; overflow-y: auto; }
+.wm-brow { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 8px; width: 100%; min-height: 44px; padding: 1px 10px; text-align: left;
   font: inherit; color: var(--outline); background: var(--white, #fffdf6); border: 2px solid var(--outline); box-shadow: 0 3px 0 var(--outline); cursor: pointer; }
 .wm-brow.is-on { background: var(--gold); border-width: 3px; }
 .wm-brow.is-off { opacity: .6; border-style: dashed; box-shadow: none; cursor: not-allowed; background: var(--wall1); }
 .wm-bn, .wm-ov { display: flex; flex-direction: column; min-width: 0; }
-.wm-bn b { font-size: 17px; line-height: 20px; }
-.wm-bn small, .wm-ov small { font-size: 13px; line-height: 16px; }
+.wm-bn b { font-size: 17px; line-height: 19px; }
+.wm-bn small, .wm-ov small { font-size: 14px; line-height: 15px; }
 .wm-sug { font-weight: 400; font-size: 12px; border: 1px solid var(--outline); padding: 0 4px; margin-left: 4px; }
 .wm-ov { align-items: flex-end; }
 .wm-ov b { font-size: 18px; line-height: 20px; }
@@ -52,7 +52,8 @@
 .wm-exp { font-size: 15px; line-height: 20px; font-weight: 700; text-align: center; }
 .wm-roar { display: inline-block; padding: 0 6px; background: var(--gold); border: 2px solid var(--outline); font-size: 13px; }
 .wm-who { display: flex; align-items: center; justify-content: space-between; gap: 6px; font-size: 14px; line-height: 18px; min-height: 24px; }
-.wm-back { min-height: 44px; min-width: 44px; padding: 0 10px; font-size: 14px; }
+.wm-back { min-height: 44px; }
+.wm .wm-back { min-height: 44px; height: 44px; min-width: 44px; padding: 0 10px; font-size: 14px; line-height: 18px; }
 
 /* auto buttons */
 .wm-autos { display: flex; gap: 6px; }
@@ -68,9 +69,9 @@
   color: var(--white, #fff); background: var(--accent); border: 3px solid var(--outline); box-shadow: 0 4px 0 var(--outline); pointer-events: none; }
 .wm-mark--allout { background: var(--danger); }
 .wm-mark--tie { background: var(--outline); color: var(--gold); }
-.wm-legend { display: flex; flex-wrap: wrap; justify-content: center; gap: 2px 12px; font-size: 13px; line-height: 20px; }
+.wm-legend { display: flex; flex-wrap: wrap; justify-content: center; gap: 2px 12px; font-size: 14px; line-height: 20px; }
 .wm-legend span { display: inline-flex; align-items: center; gap: 4px; }
-.wm-sw { display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px; border: 2px solid var(--wm-ink); font-size: 9px; font-style: normal; color: var(--wm-ink); }
+.wm-sw { display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px; border: 2px solid var(--wm-ink); font-size: 10px; font-style: normal; color: var(--wm-ink); }
 .wm-sw--good, .wm-t--good { background: var(--wm-good); } .wm-sw--so, .wm-t--so { background: var(--wm-so); } .wm-sw--bad, .wm-t--bad { background: var(--wm-bad); }
 .wm-star { font-style: normal; font-weight: 900; }
 .wm-row { display: flex; align-items: center; justify-content: space-between; gap: 6px; min-height: 44px; flex-wrap: wrap; }
@@ -78,7 +79,7 @@
 .wm-now.is-hint { font-size: 14px; line-height: 18px; }
 .wm-nowv { display: inline-block; min-width: 44px; padding: 2px 8px; border: 2px solid var(--outline); font: 20px/24px var(--font-head); text-align: center; color: var(--wm-ink); }
 .wm-ctrl { display: flex; flex-wrap: wrap; gap: 4px; margin-left: auto; }
-.wm-ctrl li { padding: 2px 6px; background: var(--gold); border: 2px solid var(--outline); font-size: 13px; line-height: 16px; font-weight: 700; }
+.wm-ctrl li { padding: 2px 6px; background: var(--gold); border: 2px solid var(--outline); font-size: 14px; line-height: 16px; font-weight: 700; }
 .wm-tim { padding: 2px 10px; border: 2px solid var(--outline); font-weight: 700; font-size: 15px; }
 .wm-tim--c { background: var(--gold); }
 
@@ -110,3 +111,7 @@
   @keyframes wm-stamp { from { transform: translate(-50%, -50%) rotate(-8deg) scale(1.4); } to { transform: translate(-50%, -50%) rotate(-8deg) scale(1); } }
   .wm-balls .op-slot.is-filled .op-circle { animation: op-pop .28s ease-out; }
 }
+.wm [hidden] { display: none !important; }
+.wm-cv { will-change: transform; transform-origin: 50% 50%; }
+.wm-ovl { position: absolute; left: 0; top: 0; pointer-events: none; }
+.wm-mark { z-index: 2; }

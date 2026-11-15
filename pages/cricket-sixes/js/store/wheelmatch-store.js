@@ -8,7 +8,7 @@ import { makeRng } from '../core/rng.js';
 import { roarAt } from '../core/matchday.js';
 import { MD } from '../data/matchday.js';
 import { FLAGS } from '../data/flags.js';
-import { WHEEL_RIVAL_BOOST, DEV_DEFAULTS } from '../data/wheelmatch.js';
+import { DEV_DEFAULTS } from '../data/wheelmatch.js';
 import { matchModeOf, devClamp, matchPhys, ctrlOf, wheelOverModel } from '../core/wheelmatch.js';
 import { planProblem } from './commands.js';
 
@@ -20,8 +20,8 @@ export const MATCH_STAGES = ['bowl', 'break', 'chase', 'done'];
 export const NEXT_MATCH_TEXT = 'Applies next match';
 
 // ---------------------------------------------------------------- rival boost
-/** Wheel mode only: a rival copy with +WHEEL_RIVAL_BOOST on bp, bs, spd, bsk (higher = better on each). @param {any} p */
-export const boostRival = (p) => ({ ...p, bp: p.bp + WHEEL_RIVAL_BOOST, bs: p.bs + WHEEL_RIVAL_BOOST, spd: p.spd + WHEEL_RIVAL_BOOST, bsk: p.bsk + WHEEL_RIVAL_BOOST });
+/** Wheel mode only: the rival as the engine plays him (+WHEEL_RIVAL_BOOST on bp, bs, spd, bsk, cap 99). The save keeps raw ratings. */
+export { boostedRival, rivalBoostOf } from '../core/wheelmatch.js';
 
 // ---------------------------------------------------------------- bowler rule (live pick, plan validator)
 const OVERS = 10;
@@ -124,7 +124,7 @@ function roarChip(s, overIdx) {
 }
 
 /** The over model; the engine derives fx, centre, pairing and roar from the state exactly as bowlOver (matchOpts). @param {any} s @param {'bowl'|'bat'} side @param {number} bowler */
-export const modelOf = (s, side, bowler) => wheelOverModel(s, side, bowler);
+export const modelOf = (s, side, bowler, fresh = false) => wheelOverModel(s, side, bowler, fresh ? { fresh: true } : undefined);
 
 /**
  * The wheel screen. null unless a wheel match is in stage bowl or chase.

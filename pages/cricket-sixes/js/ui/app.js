@@ -199,7 +199,8 @@ export function mount(el, store) {
     try { if (!first && s.stage === 'chase') { const v = sel.wheelMatchVM(s); need = v && v.need || null; } } catch (e) { rep.error(e); }
     let released = false;
     return { wheel: s.last.wheel, balls: s.last.balls || [], over: s.last.over, score: { runs: inn.runs, wk: inn.wk }, stage: s.stage, result: s.result, roar: s.last.roar || false, found, need,
-      release() { if (released) return; released = true; holding = false; render(); } };
+      release() { if (released) return; released = true; holding = false; render(); },
+      prebuild() { try { const t = store.get(); if (t && (t.stage === 'bowl' || t.stage === 'chase')) sel.wheelMatchVM(t); } catch (e) { /* only warms the model memo */ } } }; // PERF fix 4: next over's model off the Next tap
   }
   return dispatch;
 }

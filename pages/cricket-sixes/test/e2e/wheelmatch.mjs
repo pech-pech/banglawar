@@ -46,7 +46,7 @@ const ORIGIN = `http://127.0.0.1:${server.address().port}`;
 try { mkdirSync(SHOTS, { recursive: true }); } catch (e) { /* shots are optional */ }
 
 const results = []; // { g, name, ok, why, note }
-const step = (g, name, ok, why) => { results.push({ g, name, ok: !!ok, why: ok ? '' : why || '' }); return !!ok; };
+const step = (g, name, ok, why) => { results.push({ g, name, ok: !!ok, why: ok ? '' : why || '' }); if (process.env.E2E_TRACE) console.error(`${ok ? 'pass' : 'FAIL'} ${g} ${name}${ok ? '' : ' -- ' + why}`); return !!ok; };
 const note = (g, name, info) => { results.push({ g, name, ok: true, note: true, why: info || '' }); };
 const allErrs = [];
 const browser = await chromium.launch();
@@ -132,7 +132,7 @@ const wkOf = (balls) => (balls || []).filter((b) => b.o === 'W').length;
 /** Install the in-page recorder: t0 at the SPIN (or BOWL/BAT OVER) tap, every frame where a visible button reads "STOP!". */
 async function armGlow(page) {
   await page.evaluate(() => {
-    const G = window.__wmGlow = { t0: null, on: [], frames: 0, stopT: null };
+    const G = window.__wmGlow = { t0: null, on: [], frames: 0, stopT: null, last: 0, lag: [], lagSum: 0, maxGap: 0 };
     if (!window.__wmGlowHook) {
       window.__wmGlowHook = true;
       document.addEventListener('click', (e) => {
@@ -147,9 +147,10 @@ async function armGlow(page) {
       const g = window.__wmGlow; if (!g || g.done) return;
       if (g.t0 != null) {
         g.frames++;
-        const t = (performance.now() - g.t0) / 1000;
+        const now = performance.now(); if (g.last) { const gap = now - g.last; g.maxGap = Math.max(g.maxGap, gap); g.lagSum += Math.max(0, gap - 50) / 1000; } g.last = now; // the view clamps dt at 50 ms: its clock lags wall time by the excess
+        const t = (now - g.t0) / 1000;
         const lit = [...document.querySelectorAll('button, [role="button"]')].some((b) => /STOP!/.test(b.innerText || '') && b.getBoundingClientRect().width > 0);
-        if (lit) g.on.push(t);
+        if (lit) { g.on.push(t); g.lag.push(g.lagSum); }
         if (t > 8) { g.done = true; return; }
       }
       requestAnimationFrame(loop);
@@ -216,7 +217,7 @@ async function handOver(H, secs, { reloadAfterStop = false } = {}) {
     const r = await H.get();
     reloaded = { keep, got: { len: logLen(r), seg: r.last && r.last.wheel && r.last.wheel.segId, inn: JSON.stringify([r.inn1 && r.inn1.runs, r.inn1 && r.inn1.wk, r.inn2 && r.inn2.runs]), stage: r.stage }, body: await H.body(), spinning: !!(await page.$('[data-wm="stop"]')) };
   }
-  const glow = await page.evaluate(() => { const g = window.__wmGlow || {}; return { on: g.on || [], frames: g.frames, stopT: g.stopT }; });
+  const glow = await page.evaluate(() => { const g = window.__wmGlow || {}; return { on: g.on || [], lag: g.lag || [], frames: g.frames, stopT: g.stopT, maxGap: g.maxGap }; });
   return { ready: sp.ready, ok: stopped && landed, why: !stopped ? 'STOP button gone at tap time' : !landed ? 'no wheelLog entry / s.last.wheel after STOP' : '', before, after, glow, reloaded, stageWas, spinBtn: sp.spinBtn };
 }
 function landedFacts(f) {
@@ -321,8 +322,10 @@ async function groupA() {
   if (st2 === 'bowl') {
     f = await handOver(H, 4.4);
     if (step(g, 'over 2: SPIN then late STOP lands', f.ok, f.why)) {
-      const on = f.glow.on; const lo = on.length ? Math.min(...on) : NaN, hi = on.length ? Math.max(...on) : NaN;
-      step(g, 'STOP glow "STOP!" only between 3.2 and 3.8 s after SPIN', on.length > 0 && lo >= 3.15 && hi <= 3.9 && hi >= 3.6, `glow ${lo.toFixed(2)}..${hi.toFixed(2)} s (${on.length} frames)`);
+      const on = f.glow.on, lg = f.glow.lag; const lo = on.length ? on[0] : NaN, hi = on.length ? on[on.length - 1] : NaN;
+      const loC = lo - (lg[0] || 0), hiC = hi - (lg[lg.length - 1] || 0); // on the view's own (frame-clamped) clock
+      step(g, 'STOP glow "STOP!" only between 3.2 and 3.8 s after SPIN (view clock), one shot', on.length > 0 && loC >= 3.15 && loC <= 3.3 && hiC <= 3.85 && hiC >= 3.6 && hi - lo <= 0.75, `wall ${lo.toFixed(2)}..${hi.toFixed(2)} s, view clock ${loC.toFixed(2)}..${hiC.toFixed(2)} s (${on.length} frames, max frame gap ${Math.round(f.glow.maxGap)} ms)`);
+      if (hi - (lg[lg.length - 1] || 0) !== hi) note(g, 'glow vs wall clock', `frames over 50 ms made the view clock lag wall time by ${(lg[lg.length - 1] || 0).toFixed(2)} s: glow seen at wall ${lo.toFixed(2)}..${hi.toFixed(2)} s`);
       const L = landedFacts(f);
       step(g, 'over 2: logged bucket late', !L.entry || L.entry.bucket === 'l', 'bucket ' + (L.entry && L.entry.bucket));
       if (L.seg) step(g, 'over 2: ball runs total = landed label', L.runs === L.seg.runs, `balls ${L.runs} vs ${L.seg.label}`);
@@ -364,6 +367,8 @@ async function groupA() {
     step(g, 'auto overs logged auto in wheelLog', (sB.wheelLog || []).slice(3).every((e) => e.auto), JSON.stringify((sB.wheelLog || []).slice(3).map((e) => e.auto)));
   }
   if ((await H.stage()) === 'break') {
+    const left = await waitFor(page, () => !document.querySelector('.wm'), null, 6000);
+    step(g, 'wheel screen gives way to the break screen after the last auto over', left, 'wheel view still shown 6 s after stage break');
     await H.settle(400); await H.shot('break');
     await noHScroll(H, g, 'break');
     if (await openSettings(H)) {

@@ -200,7 +200,7 @@ async function genLate(n) {
 
 // ---- wheel helpers
 const btn = (P) => P.page.$eval('.wm-cta .wm-go', (b) => ({ text: b.innerText.replace(/\s+/g, ' '), cls: b.className, wm: b.getAttribute('data-wm') })).catch(() => ({}));
-async function toReady(P) { const g = await P.page.$('[data-wm="go"]'); if (!g) return false; await g.click(); await P.settle(500); return !!(await P.page.$('[data-wm="spin"]')); }
+async function toReady(P) { const nx = await P.page.$('[data-wm-next]'); if (nx) { NOTES['resumedResult-' + MADE.length] = await P.page.$eval('.wm-strip .mid', (e) => e.innerText).catch(() => '?'); await nx.click(); await P.settle(300); const nx2 = await P.page.$('[data-wm-next]'); if (nx2) { await nx2.click(); await P.settle(300); } } const g = await P.page.$('[data-wm="go"]'); if (!g) return false; await g.click(); await P.settle(500); return !!(await P.page.$('[data-wm="spin"]')); }
 /** Tap SPIN; shots at wheel times `at` (s after SPIN); tap STOP at stopAt (null = coast); then post-stop shots at `after` (s after STOP). */
 async function spinRun(P, prefix, { at = [], stopAt = 3.45, after = [], crops = [] } = {}) {
   await P.page.click('[data-wm="spin"]'); const t0 = Date.now(); const info = [];
@@ -216,7 +216,8 @@ async function spinRun(P, prefix, { at = [], stopAt = 3.45, after = [], crops = 
   for (const t of after) {
     const wait = t * 1000 - (Date.now() - ts); if (wait > 0) await P.settle(wait);
     const nm = prefix + '-s' + t.toFixed(1).replace('.', '_'); await P.shot(nm); if (crops.includes('s' + t)) await P.crop(nm, '.wm-cv');
-    info.push({ nm, after: t, real: +((Date.now() - ts) / 1000).toFixed(2), btn: (await btn(P)).text, mark: await P.page.$eval('.wm-mark', (m) => (m.hidden ? '' : m.textContent)).catch(() => '') });
+    info.push({ nm, after: t, real: +((Date.now() - ts) / 1000).toFixed(2), btn: (await btn(P)).text, mark: await P.page.$eval('.wm-mark', (m) => (m.hidden ? '' : m.textContent)).catch(() => ''),
+      probe: await P.S(() => ['.wm-row', '.wm-legend', '.wm-now', '.wm-exp', '.wm-who', '.wm-stage', '.wm-cv'].map((q) => { const e = document.querySelector(q); if (!e) return q + ' none'; const r = e.getBoundingClientRect(); return q + (e.hidden ? ' [hidden]' : '') + ' ' + getComputedStyle(e).display + ' ' + Math.round(r.top) + '+' + Math.round(r.height); }).join(' | ')) });
   }
   NOTES[prefix] = info; return info;
 }
@@ -232,7 +233,7 @@ async function sceneBowl() {
     await P.shot(tag + '-pick');
     if (!(await toReady(P))) { MISSED.push(tag + ': no ready'); await P.shot(tag + '-noready'); await P.done(tag); continue; }
     await P.shot(tag + '-ready'); await P.crop(tag + '-ready', '.wm-cv');
-    if (tag === 'bowl5') await spinRun(P, tag + '-spin', { at: [0.5, 1.5, 3.4, 3.6], stopAt: 3.7, after: [1.0, 2.1, 2.6, 3.4, 6.0], crops: [1.5, 3.4, 's2.6'] });
+    if (tag === 'bowl5') await spinRun(P, tag + '-spin', { at: [0.5, 1.5, 3.4, 3.6], stopAt: 3.7, after: [1.0, 2.1, 2.6, 3.4, 6.0], crops: [1.5, 's2.6'] });
     else if (tag === 'bowl1') await spinRun(P, tag + '-spin', { at: [1.5], stopAt: null, after: [2.5, 6.0] });
     await P.done(tag);
   }
@@ -246,7 +247,7 @@ async function sceneBat() {
     await P.shot(tag + '-pick');
     if (!(await toReady(P))) { MISSED.push(tag + ': no ready'); await P.done(tag); continue; }
     await P.shot(tag + '-ready'); await P.crop(tag + '-ready', '.wm-cv');
-    if (tag === 'chase5') await spinRun(P, tag + '-spin', { at: [1.5, 3.4], stopAt: 3.5, after: [2.6, 6.0], crops: [3.4] });
+    if (tag === 'chase5') await spinRun(P, tag + '-spin', { at: [1.5, 3.4], stopAt: 3.5, after: [2.6, 6.0], crops: ['s2.6'] });
     await P.done(tag);
   }
 }
@@ -258,10 +259,17 @@ async function sceneMarks() {
     NOTES['segs-late' + i] = await segInfo(P);
     if (!(await toReady(P))) { await P.done(); continue; }
     await P.shot('late' + i + '-ready'); await P.crop('late' + i + '-ready', '.wm-cv');
-    const info = await spinRun(P, 'late' + i + '-spin', { at: [], stopAt: 3.5, after: [2.3, 6.0] });
+    const info = await spinRun(P, 'late' + i + '-spin', { at: [3.4], stopAt: 3.5, after: [2.3, 6.0] });
     const mk = info.map((x) => x.mark).filter(Boolean)[0]; if (mk) got[mk] = 'late' + i;
-    // play on with auto to the end of the match: maybe the mark shows on a later over
     await P.done('late' + i);
+    // retries (fresh rest angle each time): hunt a WIN / ALL OUT / TIE mark on this save, unnamed shots go to scratch names
+    for (let k = 0; k < 5 && Object.keys(got).length < 3; k++) {
+      const Q = await newPage(late[i]); if (!(await toReady(Q))) { await Q.done(); break; }
+      await Q.page.click('[data-wm="spin"]'); await Q.settle(1000 + 700 * k); await Q.page.click('.wm-cta .wm-go', { force: true });
+      let m2 = ''; for (let w = 0; w < 14 && !m2; w++) { await Q.settle(200); m2 = await Q.page.$eval('.wm-mark', (m) => (m.hidden ? '' : m.textContent)).catch(() => ''); }
+      if (m2 && !got[m2]) { got[m2] = 'late' + i + 'r' + k; await Q.shot('mark-' + m2.replace(' ', '').toLowerCase() + '-landing'); await Q.crop('mark-' + m2.replace(' ', '').toLowerCase(), '.wm-wrap'); await Q.settle(3500); await Q.shot('mark-' + m2.replace(' ', '').toLowerCase() + '-result'); }
+      await Q.done('late' + i + 'r' + k);
+    }
   }
   NOTES.marks = got;
 }
@@ -275,9 +283,10 @@ async function sceneAuto() {
   await P.done('auto');
 }
 async function sceneSettings() {
-  for (const [tag, src] of [['idle', SAVES.bowl1 && null], ['live', SAVES.bowl5]]) {
-    const P = await newPage(src || SAVES.bowl1);
-    if (tag === 'idle') { await drive(P, (s) => !['bowl', 'break', 'chase'].includes(s.stage), 400); await P.settle(500); }
+  for (const tag of ['idle', 'live', 'idle-scorebook']) {
+    const P = await newPage(SAVES.chase9 || SAVES.bowl5, { theme: /scorebook/.test(tag) ? 'scorebook' : null });
+    await drive(P, tag === 'live' ? (s) => s.stage === 'done' : (s) => s.stage === 'hub' || s.stage === 'matchday' || s.stage === 'week', 600); await P.page.reload(); await P.settle(900);
+    NOTES['settings-' + tag + '-stage'] = await P.stage();
     const g = await P.page.$('.st-gear'); if (!g) { MISSED.push('settings ' + tag + ': no gear'); await P.shot('settings-' + tag + '-nogear'); await P.done(); continue; }
     await g.click(); await P.settle(900);
     const row = await P.page.$('.wms-mode'); if (!row) { MISSED.push('settings ' + tag + ': no .wms-mode'); await P.shot('settings-' + tag + '-norow'); await P.done(); continue; }

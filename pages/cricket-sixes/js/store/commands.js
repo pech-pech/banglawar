@@ -28,7 +28,7 @@ import { rollMatchday, teamBoost, scaleRatings, resolvePep, roarAt } from '../co
 import { MD } from '../data/matchday.js';
 import { MATCH_SPOKES_PER_SPIN } from '../data/wheelmatch.js';
 import { matchModeOf, matchPhys, ctrlOf, landingPos, unaimedPos, segAt, pickSample, stopBucket, isCareful, replayOver } from '../core/wheelmatch.js';
-import { isWheelMatch, boostRival, legalBowlers, suggestedBowler, rivalBowler, setMatchMode, setDev, devReset, modelOf } from './wheelmatch-store.js';
+import { isWheelMatch, legalBowlers, suggestedBowler, rivalBowler, setMatchMode, setDev, devReset, modelOf } from './wheelmatch-store.js';
 
 const ovStr = (balls) => `${Math.floor(balls / 6)}.${balls % 6}`;
 
@@ -69,7 +69,6 @@ function newMatch(payload, prev) {
   const { me, rival } = makeStartState(makeRng(`${seed}|teams`));
   // Wheel match: payload.mode, else a Rematch (same seed) keeps the old match's mode, else classic. Classic adds no key (state as before).
   const mode = payload && (payload.mode === 'wheel' || payload.mode === 'classic') ? payload.mode : prev && prev.mode === 'wheel' && prev.seed === seed ? 'wheel' : 'classic';
-  if (mode === 'wheel') rival.players = rival.players.map(boostRival);
   const s = {
     seed, stage: 'bowl', me, rival,
     inn1: newInnings(rival.players, me.players, null),
@@ -172,26 +171,29 @@ function wheelOver(s, p) {
     if (bowler < 0) return s;
   } else bowler = rivalBowler(s);
   const inn0 = bowlSide ? s.inn1 : s.inn2, over = inn0.over;
-  const model = modelOf(s, side, bowler);
   const phys = matchPhys(s), ctrl = ctrlOf(s);
-  let pos, tickPos = null, t = null, phi = null, bucket = null, careful = false;
+  let pos, tickPos = null, t = null, phi = null, bucket = null;
   if (stop) {
-    t = Math.max(0, Math.min(stop.t, phys.COAST)); phi = stop.phi;
+    t = Math.max(phys.STOP_FROM, Math.min(stop.t, phys.COAST)); phi = stop.phi; // same clamp as the landing (core stopParts)
     const jr = makeRng(`${s.seed}|wmj|${s.stage}|${over}`);
     const e = (jr.random() * 2 - 1) * phys.J;
     pos = landingPos(phys, { t, phi, e });
     tickPos = landingPos(phys, { t, phi, e: 0 });
     bucket = stopBucket(t, stop.t >= phys.COAST);
-    careful = isCareful(model.segs, segAt(model.segs, tickPos));
   } else pos = unaimedPos(makeRng(`${s.seed}|wma|${s.stage}|${over}`));
-  const seg = model.segs[segAt(model.segs, pos)];
-  const sample = pickSample(makeRng(`${s.seed}|wmp|${s.stage}|${over}`), model.samples, seg);
-
-  const n = structuredClone(s);
-  const inn = bowlSide ? n.inn1 : n.inn2;
+  // Land, pick the sample, replay it on a clone. The replay must give the sample's runs/wkts; on a mismatch (stale memo) rebuild uncached once.
+  let model, seg, sample, n, inn, balls, runs0, wk0;
+  for (const fresh of [false, true]) {
+    model = modelOf(s, side, bowler, fresh);
+    seg = model.segs[segAt(model.segs, pos)];
+    sample = pickSample(makeRng(`${s.seed}|wmp|${s.stage}|${over}`), model.samples, seg);
+    n = structuredClone(s);
+    inn = bowlSide ? n.inn1 : n.inn2; runs0 = inn.runs; wk0 = inn.wk;
+    balls = replayOver(n, side, bowler, sample.k); // the landed sample's rng on the real state: same fx, centre, pairing, roar, boost as the model; field P, intent R
+    if (inn.runs - runs0 === sample.runs && inn.wk - wk0 === sample.wk) break;
+  }
+  const careful = stop ? isCareful(model.segs, segAt(model.segs, tickPos)) : false;
   const bats = bowlSide ? n.rival.players : n.me.players, bowls = bowlSide ? n.me.players : n.rival.players;
-  const runs0 = inn.runs, wk0 = inn.wk;
-  const balls = replayOver(n, side, bowler, sample.k); // the landed sample's rng on the real state: same fx, centre, pairing, roar as bowlOver; field P, intent R
   const runs = inn.runs - runs0, wk = inn.wk - wk0;
   const end = sample.end || (!bowlSide && inn.done && inn.runs === inn.target ? 'TIE' : '');
   n.last = { balls, over, bowler, intent: NEUTRAL_INTENT, field: NEUTRAL_FIELD };
@@ -361,7 +363,7 @@ function seasonMatch(s0) {
   const n = {
     ...s, ...blankMatch(), seed, stage: 'bowl',
     me: { name: mine.name, players: mine.six.map((id) => (md ? scaled(id) : copyPlayer(byId(mine, id)))) },
-    rival: { name: opp.name, players: aiPickSix(opp).map((id) => (wheel ? boostRival(copyPlayer(byId(opp, id))) : copyPlayer(byId(opp, id)))) },
+    rival: { name: opp.name, players: aiPickSix(opp).map((id) => copyPlayer(byId(opp, id))) }, // raw ratings: the wheel boost is applied by the engine on its copies (display paths stay true)
   };
   delete n.mode; delete n.wheelLog;
   if (wheel) { n.mode = 'wheel'; n.wheelLog = []; }

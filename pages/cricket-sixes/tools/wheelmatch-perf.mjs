@@ -185,6 +185,10 @@ async function browserAt(browser, ORIGIN, rate) {
   await page.waitForFunction(() => !!window.__store);
   const cdp = await ctx.newCDPSession(page);
   await cdp.send('Emulation.setCPUThrottlingRate', { rate });
+  await cdp.send('Performance.enable', { timeDomain: 'threadTicks' }).catch(() => cdp.send('Performance.enable'));
+  const metrics = async () => Object.fromEntries((await cdp.send('Performance.getMetrics')).metrics.map((m) => [m.name, m.value]));
+  // main-thread busy ms per frame (all tasks: script, style, layout, paint), from CDP Performance metrics
+  const busy = (a, b, frames) => ({ taskMsPerFrame: r1(1000 * (b.TaskDuration - a.TaskDuration) / Math.max(1, frames)), scriptMsPerFrame: r1(1000 * (b.ScriptDuration - a.ScriptDuration) / Math.max(1, frames)), styleLayoutMsPerFrame: r1(1000 * (b.RecalcStyleDuration - a.RecalcStyleDuration + b.LayoutDuration - a.LayoutDuration) / Math.max(1, frames)) });
   const out = { rate };
 
   // 1. build ms in page (cold, direct engine call; same module instance as the app)
@@ -240,15 +244,15 @@ async function browserAt(browser, ORIGIN, rate) {
     if (pickIdx == null) break;
     await page.click(`.wm [data-bowler="${pickIdx}"]`, { timeout: 3000 }).catch((e) => { out.chipErr = String(e.message).slice(0, 120); });
     await page.click('.wm [data-wm="go"]', { timeout: 3000 }).catch(() => {});
-    await paint(); await takeB();
-    const spin = { kind, bowler: pickIdx };
-    await rafOn();
+    await paint();
+    const spin = { kind, bowler: pickIdx, buildsBeforeSpin: await takeB() };
+    const m0 = await metrics(); await rafOn();
     await page.click('.wm [data-wm="spin"]', { timeout: 3000 }).catch((e) => { spin.spinErr = String(e.message).slice(0, 80); });
     await page.waitForTimeout(3500);
     const tStop = await page.evaluate(() => performance.now());
     await page.click('.wm [data-wm="stop"]', { timeout: 3000 }).catch((e) => { spin.stopErr = String(e.message).slice(0, 80); });
     await page.waitForTimeout(2700); // glide D 2.0 s + landing beat
-    const R = await rafOff();
+    const R = await rafOff(); spin.mainThread = busy(m0, await metrics(), R.d.length);
     const pre = [], post = []; R.t.forEach((t, i) => (t <= tStop ? pre : post).push(R.d[i]));
     spin.spin = fstat(pre.slice(2)); spin.afterStop = fstat(post);
     spin.workSpin = wstat(R.w.filter((x) => x[0] <= tStop)); spin.workAfterStop = wstat(R.w.filter((x) => x[0] > tStop));
@@ -268,11 +272,11 @@ async function browserAt(browser, ORIGIN, rate) {
   auto.found = await rest.count();
   if (auto.found) {
     const o0 = await page.evaluate(() => window.__store.get().inn1.over);
-    await takeB(); await rafOn();
+    await takeB(); const m0 = await metrics(); await rafOn();
     const t0 = Date.now(); await rest.click();
     await page.waitForFunction(() => window.__store.get().stage !== 'bowl', null, { timeout: 90000, polling: 50 }).catch(() => {});
     auto.wallMs = Date.now() - t0; auto.overs = 11 - o0; auto.msPerOver = Math.round(auto.wallMs / auto.overs);
-    const R = await rafOff(); auto.frames = fstat(R.d.slice(1)); auto.work = wstat(R.w);
+    const R = await rafOff(); auto.mainThread = busy(m0, await metrics(), R.d.length); auto.frames = fstat(R.d.slice(1)); auto.work = wstat(R.w);
     const b = await takeB(); auto.builds = b.length; auto.buildMs = b.length ? stat(b.map((x) => x.ms)) : null; auto.who = [...new Set(b.map((x) => x.who))];
     auto.stage = await page.evaluate(() => window.__store.get().stage);
   }

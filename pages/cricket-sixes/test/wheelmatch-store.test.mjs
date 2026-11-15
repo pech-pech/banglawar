@@ -7,7 +7,9 @@ import { bowlerChips, legalBowlers, suggestedBowler, completePlan, rivalBowler }
 import { planProblem } from '../js/store/commands.js';
 import { FLAGS } from '../js/data/flags.js';
 import { WHEEL_RIVAL_BOOST, DEV_DEFAULTS } from '../js/data/wheelmatch.js';
-import { matchModeOf, devClamp } from '../js/core/wheelmatch.js';
+import { matchModeOf, devClamp, matchOpts, sampleOvers, expectOf, wheelOverModel, rivalBoostOf, boostedRival } from '../js/core/wheelmatch.js';
+import { createSave } from '../js/platform/save.js';
+import { wrap } from '../js/core/save-migrate.js';
 import { makeRng } from '../js/core/rng.js';
 import { newGame, step } from './_season-bot.mjs';
 
@@ -85,22 +87,27 @@ test('SetMatchMode: ignored mid-match (bowl/break/chase/done); the match keeps i
   assert.notEqual(C(x, 'BowlOver'), x);
 });
 
-test('rival boost: +WHEEL_RIVAL_BOOST on bp, bs, spd, bsk of the rival copies in wheel only; our side and the save untouched', () => {
+test('rival boost: save keeps raw rivals (display true); the engine plays them +WHEEL_RIVAL_BOOST (cap 99) with centre + boost; classic none', () => {
   assert.equal(WHEEL_RIVAL_BOOST, 11.9);
   const w = toBowl('wms-boost', true), c = toBowl('wms-boost', false);
-  assert.deepEqual(w.me, c.me);
-  w.rival.players.forEach((p, i) => {
-    const q = c.rival.players[i];
-    for (const k of ['bp', 'bs', 'spd', 'bsk']) assert.ok(Math.abs(p[k] - q[k] - 11.9) < 1e-9, k);
-    assert.equal(p.name, q.name);
-  });
-  const opp = w.clubs.find((x) => x.id === w.fixture.opp);
-  for (const p of w.rival.players) { const src = opp.squad.find((x) => x.name === p.name); assert.ok(Math.abs(p.bp - src.bp - 11.9) < 1e-9); }
-  // non-season: same rule
+  assert.deepEqual(w.me, c.me); assert.deepEqual(w.rival, c.rival); // F2: no boost in the save / display paths
+  assert.equal(rivalBoostOf(w), 11.9); assert.equal(rivalBoostOf(c), 0);
+  const p = w.rival.players[0], b = boostedRival(p, rivalBoostOf(w));
+  for (const k of ['bp', 'bs', 'spd', 'bsk']) assert.ok(Math.abs(b[k] - Math.min(99, p[k] + 11.9)) < 1e-9, k);
+  assert.equal(boostedRival(p, 0), p);
+  assert.deepEqual(boostedRival({ bp: 95, bs: 10, spd: 88, bsk: 87.1 }, 11.9), { bp: 99, bs: 21.9, spd: 99, bsk: 99 }); // F6
+  assert.equal(matchOpts(w, 'bowl').centre, matchOpts(c, 'bowl').centre + 11.9); // F1: rival at the centre, as the sim
+  // the boost is real: rival bat innings scores more than the same state played classic-style through the engine
+  const xw = expectOf(sampleOvers(w, 'bowl', 0, { n: 400 })).xr, xc = expectOf(sampleOvers(c, 'bowl', 0, { n: 400 })).xr;
+  assert.ok(xw > xc, `${xw} > ${xc}`);
+  // replay writes the real players: overs and figs land on the save's raw rival
+  let s = toBowl('wms-boost'); let g = 0;
+  while (s.stage !== 'chase' && g++ < 30) s = s.stage === 'break' ? C(s, 'StartChase') : W(s, AUTO);
+  const n = W(s, AUTO), bw = n.last.bowler;
+  assert.equal(n.rival.players[bw].overs, 1); assert.equal(n.rival.players[bw].bp, s.rival.players[bw].bp);
+  assert.equal(n.rival.players[bw].figs.r, n.last.wheel.runs);
   const qw = quick('q1'), qc = C(null, 'NewMatch', { seed: 'q1' });
-  assert.equal('mode' in qc, false);
-  assert.ok(Math.abs(qw.rival.players[0].bsk - qc.rival.players[0].bsk - 11.9) < 1e-9);
-  assert.deepEqual(qw.me, qc.me);
+  assert.equal('mode' in qc, false); assert.deepEqual(qw.rival, qc.rival);
 });
 
 // ---------------------------------------------------------------- WheelOver
@@ -320,4 +327,45 @@ test('SetDev clamps a partial patch; DevReset resets matchW0 or all four, keeps 
   const s = toBowl('wms-dev');
   const on = { ...s, dev: { ...DEV_DEFAULTS, on: true, matchW0: 50 } }, off = { ...s, dev: { ...DEV_DEFAULTS, on: false, matchW0: 50 } };
   assert.equal(wheelMatchVM(on).phys.W0, 50); assert.equal(wheelMatchVM(off).phys.W0, 36);
+});
+
+// ---------------------------------------------------------------- review fixes
+test('F3: memo keys the state playOver reads (same seed/over/score, other crease) and WheelOver replay always equals the sample', () => {
+  const s = toBowl('wms-f3'); let a = W(s, AUTO);
+  if (a.stage !== 'bowl') return;
+  const b = clone(a); b.inn1.strike ^= 1; // same seed, over, runs, wk, balls: other striker
+  const bw = suggestedBowler(a);
+  const ma = wheelOverModel(a, 'bowl', bw), mb = wheelOverModel(b, 'bowl', bw);
+  assert.notEqual(ma, mb);
+  assert.equal(wheelOverModel(a, 'bowl', bw), ma); // hit
+  assert.notEqual(wheelOverModel(a, 'bowl', bw, { fresh: true }), ma);
+  for (const x of [a, b]) { const n = W(x, AUTO); assert.equal(ballsRuns(n.last.balls), n.last.wheel.runs); const seg = segOf(n); if (!seg.end) assert.equal(n.last.wheel.runs, seg.runs); }
+});
+
+test('F5: STOP before STOP_FROM is stored as STOP_FROM (the time the landing used)', () => {
+  const s = toBowl('wms-f5'), bw = suggestedBowler(s);
+  const a = W(s, { bowler: bw, stop: { t: 0.2, phi: 3 } }), b = W(s, { bowler: bw, stop: { t: 1, phi: 3 } });
+  assert.equal(a.last.wheel.t, 1); assert.equal(a.wheelLog[0].t, 1); assert.equal(a.wheelLog[0].bucket, 'e');
+  assert.equal(a.last.wheel.pos, b.last.wheel.pos);
+});
+
+test('F9: a WIN landing replays a winning over with the seg wickets (stars)', () => {
+  let found = 0;
+  for (let i = 0; i < 12 && found < 3; i++) {
+    let s = quick(`wms-f9-${i}`), g = 0;
+    while (s.stage !== 'done' && g++ < 40) {
+      s = s.stage === 'break' ? C(s, 'StartChase') : W(s, AUTO);
+      if (s.last && s.last.wheel && s.last.wheel.end === 'WIN') { found++; assert.equal(s.last.wheel.wk, segOf(s).wk); assert.equal(s.result, 'won'); }
+    }
+  }
+  assert.ok(found >= 1, 'saw a WIN landing');
+});
+
+test('F17: save export leaves Dev settings out; import ignores them', () => {
+  const sv = createSave(null);
+  const g = C(withFlags({ wheelMatch: true }, () => C(null, 'NewGame', { seed: 'wms-f17' })), 'SetDev', { patch: { on: true, matchW0: 50 } });
+  const text = sv.exportText(g);
+  assert.equal(JSON.parse(text).data.dev, undefined);
+  const r = sv.importText(JSON.stringify(wrap(g))); // a file written with dev in it (older build)
+  assert.equal(r.ok, true); assert.equal('dev' in r.state, false); assert.equal(r.state.matchMode, 'wheel');
 });

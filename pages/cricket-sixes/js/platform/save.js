@@ -12,6 +12,9 @@ function browserStorage() {
   try { const s = window.localStorage; s.getItem(KEY); return s; } catch (e) { return null; }
 }
 
+/** The state without the per-device Dev settings (s.dev). @param {any} s */
+const noDev = (s) => { if (!s || typeof s !== 'object' || !('dev' in s)) return s; const { dev, ...rest } = s; return rest; };
+
 /** @param {any} [storage] defaults to window.localStorage; pass null for none (tests, private mode) */
 export function createSave(storage = browserStorage()) {
   let blocked = false; // a newer-version save is on disk: never overwrite it
@@ -57,7 +60,7 @@ export function createSave(storage = browserStorage()) {
       blocked = false;
       try { if (storage) { storage.removeItem(KEY); storage.removeItem(BAK); } } catch (e) { /* private mode */ }
     },
-    exportText: (state) => JSON.stringify(wrap(state)),
-    importText: (text, deps) => unwrap(text, deps),
+    exportText: (state) => JSON.stringify(wrap(noDev(state))), // Dev settings are per device: never in a shared export (06-DEV-SPEED Save)
+    importText: (text, deps) => { const r = unwrap(text, deps); return r && r.ok && r.state ? { ...r, state: noDev(r.state) } : r; },
   };
 }

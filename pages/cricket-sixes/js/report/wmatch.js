@@ -28,21 +28,23 @@ export function wheelOverRecord(before, after, t = {}) {
   return rec;
 }
 
-/** W numbers over a set of match records: {n, b, a, auto, c, e, l, o, dr, dw, guide}. dr / dw = landed minus expected for us
+/** W numbers over a set of match records: {n, b, a, auto, c, e, l, o, dr, dw, guide, adr, adw}. dr / dw = landed minus expected for us over AIMED overs only
+ *  (REVIEW F10); adr / adw = the same for auto overs
  *  (bat overs runs - xr, bowl overs xr - runs; wickets: bowl overs w - xw, bat overs xw - w). Auto overs count in n and the landed totals,
- *  never in the stop buckets or careful. @param {any[]} ms */
+ *  never in the stop buckets, careful or the aimed landed delta. @param {any[]} ms */
 export function wheelStats(ms) {
   const ov = ms.filter(isWheel).flatMap((m) => (m.ov || []).filter((o) => o && o.wx));
   const aimed = ov.filter((o) => !o.wa), cnt = (f) => ov.filter(f).length, ac = (k) => aimed.filter((o) => o.wb === k).length;
   const xr = (o) => (o.wx && o.wx[0] != null ? o.wx[0] : o.xr || 0), xw = (o) => (o.wx && o.wx[1] != null ? o.wx[1] : o.xw || 0);
-  const dr = sum(ov.map((o) => (o.s === 'c' ? (o.r | 0) - xr(o) : xr(o) - (o.r | 0))));
-  const dw = sum(ov.map((o) => (o.s === 'b' ? (o.w | 0) - xw(o) : xw(o) - (o.w | 0))));
-  return { n: ov.length, b: cnt((o) => o.s === 'b'), a: cnt((o) => o.s === 'c'), auto: cnt((o) => o.wa), c: aimed.filter((o) => o.wc).length, e: ac('e'), l: ac('l'), o: ac('o'), dr: r1(dr), dw: r1(dw), guide: ov.some((o) => o.wg) };
+  const DR = (os) => r1(sum(os.map((o) => (o.s === 'c' ? (o.r | 0) - xr(o) : xr(o) - (o.r | 0)))));
+  const DW = (os) => r1(sum(os.map((o) => (o.s === 'b' ? (o.w | 0) - xw(o) : xw(o) - (o.w | 0)))));
+  const auto = ov.filter((o) => o.wa); // auto / skip / reduced-motion overs land unaimed: their delta is printed apart, never mixed into the aim number
+  return { n: ov.length, b: cnt((o) => o.s === 'b'), a: cnt((o) => o.s === 'c'), auto: auto.length, c: aimed.filter((o) => o.wc).length, e: ac('e'), l: ac('l'), o: ac('o'), dr: DR(aimed), dw: DW(aimed), guide: ov.some((o) => o.wg), adr: DR(auto), adw: DW(auto) };
 }
 /** SPEC s14 W line. @param {ReturnType<typeof wheelStats>} w */
-export const wheelLine = (w) => `Wheel: ${w.n} spun (${w.b} bowl, ${w.a} bat), auto ${w.auto}. Stops careful ${w.c} / early ${w.e} / late ${w.l} / coast ${w.o}. Landed vs expected ${sgn(w.dr)} runs, wickets ${sgn(w.dw)}. Aim Guide ${w.guide ? 'on' : 'off'}.`;
+export const wheelLine = (w) => `Wheel: ${w.n} spun (${w.b} bowl, ${w.a} bat), auto ${w.auto}. Stops careful ${w.c} / early ${w.e} / late ${w.l} / coast ${w.o}. Landed vs expected ${sgn(w.dr)} runs, wickets ${sgn(w.dw)}. Aim Guide ${w.guide ? 'on' : 'off'}.${w.auto ? ` Auto overs landed vs expected ${sgn(w.adr)} runs, wickets ${sgn(w.adw)}.` : ''}`;
 /** Compact JSON / machine form. @param {ReturnType<typeof wheelStats>} w */
-export const wheelArr = (w) => [w.n, w.b, w.a, w.auto, w.c, w.e, w.l, w.o, w.dr, w.dw, w.guide ? 1 : 0];
+export const wheelArr = (w) => [w.n, w.b, w.a, w.auto, w.c, w.e, w.l, w.o, w.dr, w.dw, w.guide ? 1 : 0, w.adr, w.adw];
 
 /** Mode of the window: 'W' | 'C' | 'W+C' from records that carry mo; none -> envMode ('wheel'|'classic') or null (old records, no env). */
 export function modeOf(ms, envMode) {

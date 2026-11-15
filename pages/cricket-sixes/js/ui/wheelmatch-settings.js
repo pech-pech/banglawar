@@ -45,7 +45,7 @@ export function sliderHtml(key, v) {
 export function devSectionHtml(dev, on) {
   const d = devClamp(dev || {});
   return '<div class="wms-sec" data-wm-sec' + (on ? '' : ' hidden') + '><b class="wms-title">Wheel speed</b>' + sliderHtml('matchW0', d.matchW0) +
-    '<div class="wms-two"><button type="button" class="c-btn wms-btn" data-wm-reset="one">Reset</button><button type="button" class="c-btn wms-btn" data-wm-reset="all">Reset all</button></div>' +
+    '<div class="wms-two"><button type="button" class="c-btn wms-btn" data-wm-reset="one" aria-label="Reset match wheel speed">Reset</button><button type="button" class="c-btn wms-btn" data-wm-reset="all" aria-label="Reset all four wheel speeds">Reset all</button></div>' +
     '<details class="wms-adv"><summary>Advanced</summary>' + sliderHtml('matchJ', d.matchJ) + sliderHtml('matchD', d.matchD) + sliderHtml('otherMult', d.otherMult) + '</details></div>';
 }
 

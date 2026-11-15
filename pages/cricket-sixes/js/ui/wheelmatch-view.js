@@ -43,7 +43,7 @@ export function labelPlan(span, stars, R) {
     : { row: false, numR: R * 0.57, starR: R * 0.88, glyphR: R * 0.75, starHalf: 5 * k, gap: 14.5 * k };
   const chord = (r) => 2 * r * Math.sin(Math.min(span, Math.PI) / 2);
   if (n > 1) { const fit = (chord(p.starR) - 4 * k) / n; if (fit < p.gap) { p.gap = Math.max(4, fit); p.starHalf = Math.min(p.starHalf, p.gap * 0.42); } }
-  p.font = 25 * k; p.maxW = Math.max(10, chord(p.numR) - 6 * k);
+  p.font = Math.max(18, 25 * k); p.maxW = Math.max(10, chord(p.numR) - 6 * k);
   return p;
 }
 /** Seconds one Auto over takes on screen (AUTO_PACE): 0.6, or 0.9 with a wicket, an innings end (WIN / ALL OUT) or the last over. Pure. */
@@ -55,7 +55,7 @@ export function autoPace(balls, opts = {}, P = AUTO_PACE) {
  *  'done' (Auto over: its one over is spun), or '' (go on). kind 'over' | 'rest'; spun = overs auto has spun this run. Pure. */
 export function autoStopWhy(vm, kind, spun) {
   if (!vm || (vm.side !== 'bowl' && vm.side !== 'bat')) return 'end';
-  if (kind === 'over') return spun >= 1 ? 'done' : '';
+  if (kind === 'over') return spun >= 1 ? 'done' : vm.autoPauseNow ? 'pause' : '';
   if (vm.autoPauseNow) return 'pause';
   return '';
 }
@@ -68,6 +68,16 @@ export function glidePlan(phys, stop, finalPos, C = WHEEL_MATCH.CIRC) {
   const approx = phys.W0 * Math.exp(-Math.min(stop.t, phys.COAST) / phys.TAU) * phys.D / 3;
   const dist = raw + C * Math.round((approx - raw) / C);
   return { base, dist, e: wrapHalf(finalPos - (base + dist), C) };
+}
+/** Slice text before landing: the runs label, or the word only for an end slice (WIN / ALL OUT never print runs or stars, F9). Pure. */
+export function labelText(g) { return g.end === 'WIN' ? 'WIN' : g.end === 'AO' ? 'ALL OUT' : String(g.label); }
+/** Slice text with its wicket stars (Stop now box, wheel words). End slices: the word only. Pure. */
+export const toneMark = (t) => (t === 'good' ? '▲' : t === 'bad' ? '▼' : '●');
+export const sliceText = (g) => toneMark(g.tone) + ' ' + labelText(g) + (!g.end && g.stars ? ' ' + '✱'.repeat(g.stars) : '');
+/** Result chip from the LANDED over (s.last.wheel runs/wk), never the slice's sampled mode: "8 ✱", "WIN 9 ✱". Pure. */
+export function landedText(g, w) {
+  const runs = w && w.runs != null ? w.runs : g ? g.runs : 0, wk = w && w.wk != null ? w.wk : g ? g.stars : 0;
+  return (g && g.end ? labelText(g) + ' ' : '') + runs + (wk ? ' ' + '✱'.repeat(wk) : '');
 }
 /** Over end word for the mark: 'WIN' | 'TIE' | 'ALL OUT' | ''. Pure. */
 export function endMark(end, result) {
@@ -82,9 +92,9 @@ export function overWords(runs, wk) { return plural(runs, 'run') + ', ' + (wk ? 
 // ---------- view state (session only) ----------
 const st = { mounted: false, key: '', over: 0, phase: 'pick', bowler: null, auto: null, autoSpun: 0, autoSum: null, stopReq: false, busy: false, res: null, el: null, vm: null, dispatch: null, open: null, live: '', chips: [] };
 const reducedNow = () => typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
-const SEEN = 'cs.wm.seen';
-const seenGet = () => { try { return localStorage.getItem(SEEN) || ''; } catch (e) { return ''; } };
-const seenSet = (k) => { try { localStorage.setItem(SEEN, k); } catch (e) { /* per-viewer convenience only */ } };
+let seenKey = ''; // in memory only: after a reload the last stored hand-spun result shows once (no re-spin), then NEXT
+const seenGet = () => seenKey;
+const seenSet = (k) => { seenKey = k; };
 const resKey = (vm, over) => (vm.side || '') + '|' + over + '|' + (vm.score ? vm.score.runs + '/' + vm.score.wk : '');
 
 const TONE = { good: ['good', 'good for us'], so: ['so', 'so-so'], bad: ['bad', 'bad for us'] };
@@ -121,7 +131,8 @@ function ctrlChips(c) {
   return a.length ? '<ul class="wm-ctrl list-flat" aria-label="Workshop">' + a.map((t) => '<li>' + esc(t) + '</li>').join('') + '</ul>' : '';
 }
 function autoRow(vm) {
-  const rest = vm.autoRestShown && !vm.autoPauseNow;
+  if (vm.autoPauseNow) return ''; // the decider over is the player's (F11)
+  const rest = vm.autoRestShown;
   return '<div class="wm-autos"><button type="button" class="c-btn wm-auto" data-wm="auto-over">Auto over</button>' +
     (rest ? '<button type="button" class="c-btn wm-auto" data-wm="auto-rest">Auto rest of innings</button>' : '') + '</div>';
 }
@@ -134,7 +145,7 @@ function bowlerRows(vm) {
     const on = b.ok && b.idx === sel, sug = b.idx === vm.suggested && b.ok;
     const body = '<span class="wm-bn"><b class="name">' + esc(b.name) + (sug ? ' <small class="wm-sug">suggested</small>' : '') + '</b><small>' + esc(why || sub) + '</small></span>' +
       '<span class="wm-ov"><b>' + esc(b.overs) + '/2</b><small>overs</small></span>';
-    return b.ok ? '<button type="button" class="wm-brow' + (on ? ' is-on' : '') + '" role="radio" aria-checked="' + on + '" data-bowler="' + b.idx + '" aria-label="' + esc(b.name + ', ' + sub + ', ' + b.overs + ' of 2 overs') + '">' + body + '</button>'
+    return b.ok ? '<button type="button" class="wm-brow' + (on ? ' is-on' : '') + '" role="radio" aria-checked="' + on + '" data-bowler="' + b.idx + '" aria-label="' + esc(b.name + (sug ? ', suggested' : '') + ', ' + sub + ', ' + b.overs + ' of 2 overs') + '">' + body + '</button>'
       : '<div class="wm-brow is-off" role="radio" aria-checked="false" aria-disabled="true" aria-label="' + esc(b.name + '. ' + why) + '">' + body + '</div>';
   }).join('') + '</div>';
 }
@@ -186,21 +197,27 @@ function wheelHtml(vm, mode) {
     '<div class="wm-cta">' + go + '</div>' + liveHtml() + '</div>';
 }
 function segWords(segs) {
-  return 'Over wheel: ' + (segs || []).map((g) => g.label + (g.stars ? ' with ' + plural(g.stars, 'wicket') : '') + ' ' + Math.round((g.p || 0) * 100) + ' in 100').join(', ');
+  return 'Over wheel: ' + (segs || []).map((g) => labelText(g) + (!g.end && g.stars ? ' with ' + plural(g.stars, 'wicket') : '') + ' ' + Math.round((g.p || 0) * 100) + ' in 100 ' + (TONE[g.tone] || TONE.so)[1]).join(', ');
 }
 
 // ---------- wheel canvas ----------
 function makeWheel(cv, segs, vm) {
   const C = WHEEL_MATCH.CIRC, U = TAU / C, pal = palette();
   const k = Math.min(2, (typeof devicePixelRatio === 'number' && devicePixelRatio) || 1);
-  let W = 0, R = 0, M = 0, bmp = null, landed = -1;
-  const ctx = cv.getContext('2d');
+  let W = 0, R = 0, M = 0, landed = -1, lastRot = null;
+  // PERF fix 5: the static wheel (segments, stars, rim) is painted once per model on cv and turned by a CSS transform (compositor);
+  // only the overlay (upright labels and tone marks, tick, Aim Guide band, hub, pointer) is drawn per frame.
+  const bctx = cv.getContext('2d');
+  let ovc = cv.parentElement && cv.parentElement.querySelector('.wm-ovl');
+  if (!ovc) { ovc = document.createElement('canvas'); ovc.className = 'wm-ovl'; ovc.setAttribute('aria-hidden', 'true'); cv.insertAdjacentElement('afterend', ovc); }
+  const ctx = ovc.getContext('2d');
   function size() {
     const wrap = cv.parentElement, stage = wrap && wrap.parentElement;
     const w = stage ? stage.clientWidth : 300, h = stage ? stage.clientHeight : 300;
     W = Math.max(150, Math.floor(Math.min(w, h, 380)));
-    cv.width = cv.height = Math.round(W * k); cv.style.width = cv.style.height = W + 'px'; if (wrap) { wrap.style.width = wrap.style.height = W + 'px'; }
-    M = Math.max(20, Math.round(W * 0.085)); R = W / 2 - M; bmp = paint();
+    for (const c of [cv, ovc]) { c.width = c.height = Math.round(W * k); c.style.width = c.style.height = W + 'px'; }
+    if (wrap) { wrap.style.width = wrap.style.height = W + 'px'; }
+    M = Math.max(20, Math.round(W * 0.085)); R = W / 2 - M; paint(); lastRot = null;
   }
   function star(c, x, y, s) { c.beginPath(); for (let i = 0; i < 3; i++) { const a = i * Math.PI / 3, dx = s * Math.sin(a), dy = s * Math.cos(a); c.moveTo(x - dx, y - dy); c.lineTo(x + dx, y + dy); } c.stroke(); }
   function glyph(c, tone, x, y, s) {
@@ -209,8 +226,8 @@ function makeWheel(cv, segs, vm) {
     else if (tone === 'bad') { c.moveTo(x, y + s); c.lineTo(x + s, y - s * 0.8); c.lineTo(x - s, y - s * 0.8); c.closePath(); c.fill(); }
     else { c.arc(x, y, s * 0.6, 0, TAU); c.fill(); }
   }
-  function paint() { // the wheel at pos 0 (segments, labels, stars, glyphs, rim): drawn once per over, then only rotated
-    const o = document.createElement('canvas'); o.width = o.height = Math.round(W * k); const c = o.getContext('2d'); c.scale(k, k); c.translate(W / 2, W / 2);
+  function paint() { // the wheel at pos 0 (segments, stars, rim): drawn once per over (and on landing), then only turned by CSS
+    const c = bctx; c.setTransform(k, 0, 0, k, 0, 0); c.clearRect(0, 0, W, W); c.translate(W / 2, W / 2);
     const fill = (g) => pal[g.tone] || pal.so, ks = R / 146;
     (segs || []).forEach((g, i) => {
       const a0 = -(g.start + g.width) * U - Math.PI / 2, a1 = -g.start * U - Math.PI / 2;
@@ -218,31 +235,29 @@ function makeWheel(cv, segs, vm) {
       if (landed >= 0 && i !== landed) { c.fillStyle = 'rgba(31,41,69,.30)'; c.fill(); }
       c.lineWidth = 2.5 * ks; c.strokeStyle = pal.ink; c.stroke();
     });
-    (segs || []).forEach((g) => {
-      const span = g.width * U, m = -(g.start + g.width / 2) * U, P = labelPlan(span, g.stars || 0, R);
-      const at = (r, fn) => { c.save(); c.translate(r * Math.sin(m), -r * Math.cos(m)); c.rotate(m); fn(); c.restore(); };
-      c.fillStyle = pal.ink; c.strokeStyle = pal.ink;
-      at(P.numR, () => { let f = P.font; const txt = String(g.label); c.font = '900 ' + f + 'px ' + fontFam(); let w = c.measureText(txt).width; if (w > P.maxW) { f = Math.max(9, f * P.maxW / w); c.font = '900 ' + f + 'px ' + fontFam(); } c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(txt, 0, 1); });
-      if (g.stars) at(P.starR, () => { c.lineWidth = Math.max(1.6, 3.4 * ks * Math.min(1, P.starHalf / (6.5 * ks))); c.lineCap = 'square'; for (let j = 0; j < g.stars; j++) star(c, (j - (g.stars - 1) / 2) * P.gap, 0, P.starHalf); });
-      at(P.glyphR, () => glyph(c, g.tone, 0, 0, 4 * ks));
-    });
     if (landed >= 0 && segs[landed]) { const g = segs[landed], a0 = -(g.start + g.width) * U - Math.PI / 2, a1 = -g.start * U - Math.PI / 2;
       c.beginPath(); c.moveTo(0, 0); c.arc(0, 0, R - 2, a0, a1); c.closePath(); c.lineWidth = 7 * ks; c.strokeStyle = pal.hi; c.stroke(); c.lineWidth = 2 * ks; c.strokeStyle = pal.ink; c.stroke(); }
     c.beginPath(); c.arc(0, 0, R + 7 * ks, 0, TAU); c.lineWidth = 12 * ks; c.strokeStyle = pal.ink; c.stroke();
     for (let j = 0; j < 36; j++) { const a = j / 36 * TAU, r = R + 7 * ks, s = 4 * ks; c.fillStyle = j % 2 ? pal.hi : pal.cream; c.fillRect(r * Math.sin(a) - s / 2, -r * Math.cos(a) - s / 2, s, s); }
-    return o;
+    (segs || []).forEach((g) => { // wicket stars turn with the wheel (an asterisk reads the same at any angle)
+      const stars = g.end ? 0 : g.stars || 0; if (!stars) return;
+      const m = -(g.start + g.width / 2) * U, P = labelPlan(g.width * U, stars, R), sx = P.starR * Math.sin(m), sy = -P.starR * Math.cos(m), tx = Math.cos(m), ty = Math.sin(m);
+      c.strokeStyle = pal.ink; c.lineWidth = Math.max(1.6, 3.4 * ks * Math.min(1, P.starHalf / (6.5 * ks))); c.lineCap = 'square';
+      for (let j = 0; j < stars; j++) { const o = (j - (stars - 1) / 2) * P.gap; star(c, sx + o * tx, sy + o * ty, P.starHalf); }
+    });
   }
   /** One frame. pos = rim units under the pointer; tick = landing units (null = none); band = Aim Guide half-width (units, 0 = none). */
   function draw(pos, f = {}) {
     if (!W) return; const ks = R / 146;
+    const rot = (((pos % C) + C) % C) * U; if (rot !== lastRot) { lastRot = rot; cv.style.transform = 'rotate(' + rot.toFixed(5) + 'rad)'; }
     ctx.setTransform(k, 0, 0, k, 0, 0); ctx.clearRect(0, 0, W, W); ctx.save(); ctx.translate(W / 2, W / 2);
-    ctx.save(); ctx.rotate(pos * U); ctx.drawImage(bmp, -W / 2, -W / 2, W, W); ctx.restore();
+    labels(pos);
     if (f.tick != null) {
       const a = (pos - f.tick) * U, rr = R + 7 * ks;
       if (f.band > 0) { const b = f.band * U; ctx.beginPath(); ctx.arc(0, 0, rr, a - b - Math.PI / 2, a + b - Math.PI / 2); ctx.lineWidth = 12 * ks; ctx.strokeStyle = pal.hi; ctx.stroke(); ctx.setLineDash([3, 3]); ctx.lineWidth = 1.5; ctx.strokeStyle = pal.ink; ctx.stroke(); ctx.setLineDash([]); }
       ctx.save(); ctx.rotate(a); ctx.beginPath(); ctx.moveTo(0, -(R + 2 * ks)); ctx.lineTo(-7 * ks, -(R + 20 * ks)); ctx.lineTo(7 * ks, -(R + 20 * ks)); ctx.closePath();
       ctx.fillStyle = pal.hi; ctx.fill(); ctx.lineWidth = 2.5 * ks; ctx.strokeStyle = pal.ink; ctx.lineJoin = 'round'; ctx.stroke();
-      ctx.fillStyle = pal.ink; ctx.font = '900 ' + Math.max(9, 11 * ks) + 'px ' + fontFam(); ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('AIM', 0, -(R + 28 * ks)); ctx.restore();
+      ctx.fillStyle = pal.ink; ctx.font = '900 ' + Math.max(9, 11 * ks) + 'px ' + fontFam(); ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; if (Math.cos(a) < 0) { ctx.translate(0, -(R + 28 * ks)); ctx.rotate(Math.PI); ctx.fillText('AIM', 0, 0); } else ctx.fillText('AIM', 0, -(R + 28 * ks)); ctx.restore();
     }
     // hub (does not turn): OVER n
     const hr = 27 * ks; ctx.beginPath(); ctx.arc(0, 0, hr, 0, TAU); ctx.fillStyle = pal.ink; ctx.fill();
@@ -255,7 +270,25 @@ function makeWheel(cv, segs, vm) {
     ctx.fillStyle = f.chime ? pal.white : pal.hi; ctx.fill(); ctx.lineWidth = 3 * ks; ctx.strokeStyle = pal.ink; ctx.lineJoin = 'round'; ctx.stroke();
     ctx.restore();
   }
-  function land(i) { landed = i; bmp = paint(); }
+  /** Labels per frame (QA D2/D3, F16): text is radial but flipped in the lower half so it never reads upside down; tone marks and
+   *  stars are drawn screen-upright, so a good ▲ never turns into ▼. End slices (WIN / ALL OUT) show the word only (F9). */
+  function labels(pos) {
+    const ks = R / 146, fam = fontFam();
+    (segs || []).forEach((g) => {
+      const span = g.width * U, a = (pos - (g.start + g.width / 2)) * U, stars = g.end ? 0 : g.stars || 0, P = labelPlan(span, stars, R);
+      const lower = Math.cos(a) < 0, xy = (r) => [r * Math.sin(a), -r * Math.cos(a)];
+      ctx.fillStyle = pal.ink; ctx.strokeStyle = pal.ink;
+      const txt = labelText(g); let f = P.font, [x, y] = xy(P.numR);
+      ctx.font = '900 ' + f + 'px ' + fam; let w = ctx.measureText(txt).width;
+      if (w > P.maxW) f = f * P.maxW / w;
+      let show = txt;
+      if (f < 10 && g.end) { const sh = g.end === 'AO' ? 'AO' : 'WIN'; f = P.font; ctx.font = '900 ' + f + 'px ' + fam; w = ctx.measureText(sh).width; if (w > P.maxW) f = f * P.maxW / w; show = sh; }
+      if (f >= 9) { ctx.save(); ctx.translate(x, y); ctx.rotate(lower ? a + Math.PI : a); ctx.font = '900 ' + f + 'px ' + fam; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(show, 0, 1); ctx.restore(); }
+      const c = ctx, at = (r, fn) => { const [gx, gy] = xy(r); c.save(); c.translate(gx, gy); fn(); c.restore(); }; // screen-upright mark
+      at(P.glyphR, () => glyph(c, g.tone, 0, 0, 4 * ks));
+    });
+  }
+  function land(i) { landed = i; paint(); }
   size();
   return { draw, land, size, get R() { return R; } };
 }
@@ -270,7 +303,7 @@ export function render(el, vm, dispatch, open) {
   if (key !== st.key) { st.key = key; st.phase = 'pick'; st.bowler = null; st.res = null; if (st.auto) stopAuto(); }
   if (!st.mounted) { // reload mid-over: the stored result shows (no re-spin) until NEXT
     st.mounted = true; const L = vm.last, rk = resKey(vm, L && L.over);
-    if (L && L.wheel && !L.wheel.auto && L.over === vm.over - 1 && seenGet() !== rk) st.res = { wheel: L.wheel, balls: L.balls || [], over: L.over, score: vm.score, stage: null, nextLabel: 'Next over', seenKey: rk, reload: true };
+    if (L && L.wheel && (!L.wheel.auto || reducedNow()) && L.over === vm.over - 1 && seenGet() !== rk) st.res = { wheel: L.wheel, balls: L.balls || [], over: L.over, score: vm.score, stage: null, nextLabel: 'Next over', seenKey: rk, reload: true };
   }
   if (vm.over !== st.over) { st.over = vm.over; if (!st.res) st.phase = st.auto ? 'auto' : 'pick'; }
   if (st.res) return showResult(el, vm, st.res, false);
@@ -282,7 +315,7 @@ export function render(el, vm, dispatch, open) {
 function readyHint(el, vm) {
   if (reducedNow()) return;
   const n = el.querySelector('.wm-now'); if (!n) return;
-  n.hidden = false; n.classList.add('is-hint'); n.innerHTML = '<span>Spin, then tap STOP when a ▲ slice is at the AIM tick</span>';
+  n.hidden = false; n.classList.add('is-hint'); n.innerHTML = '<span>Spin, then watch the AIM tick: tap STOP when a ▲ slice is at it</span>';
 }
 function setupWheel(el, segs, vm) {
   const cv = el.querySelector('.wm-cv'); const w = makeWheel(cv, segs || [], vm);
@@ -297,9 +330,9 @@ function bindView(el) {
   root.addEventListener('click', (e) => {
     const t = e.target.closest('button, [data-res-tap]'); if (!t || !root.contains(t) || t.disabled) return;
     const vm = st.vm, act = t.getAttribute('data-wm');
-    if (t.hasAttribute('data-bowler')) { st.bowler = Number(t.getAttribute('data-bowler')); render(el, vm, st.dispatch, st.open); return; }
+    if (t.hasAttribute('data-bowler')) { st.bowler = Number(t.getAttribute('data-bowler')); render(el, vm, st.dispatch, st.open); const f = el.querySelector('[data-bowler="' + st.bowler + '"]'); if (f) f.focus(); return; }
     if (act === 'go') { if (vm.side === 'bowl' && pickedBowler(vm) == null) return; st.bowler = pickedBowler(vm); st.phase = 'ready'; st.restPos = Math.random() * WHEEL_MATCH.CIRC; render(el, vm, st.dispatch, st.open); }
-    else if (act === 'back') { st.phase = 'pick'; render(el, vm, st.dispatch, st.open); }
+    else if (act === 'back') { st.phase = 'pick'; render(el, vm, st.dispatch, st.open); const f = el.querySelector('[data-wm="go"]'); if (f) f.focus(); }
     else if (act === 'spin') onSpin(el, vm, t);
     else if (act === 'auto-over' || act === 'auto-rest') startAuto(el, act === 'auto-rest' ? 'rest' : 'over');
     else if (act === 'stop-auto') { st.stopReq = true; t.setAttribute('aria-disabled', 'true'); t.querySelector('span').textContent = 'Stopping after this over'; }
@@ -312,13 +345,14 @@ function onSpin(el, vm, btn) {
   const phys = vm.phys || WHEEL_MATCH, payloadBowler = vm.side === 'bowl' ? { bowler: pickedBowler(vm) } : {};
   if (reducedNow()) { // no spin, no tick, no glow: the unaimed result (store lands it), text first, balls at once
     const r = st.dispatch('WheelOver', { ...payloadBowler, auto: true }); if (!r) return; // the store lands an aimless spin only as auto (no STOP)
-    st.res = r; showResult(el, vm, r, true); return;
+    st.res = r; const keep = !!el.querySelector('.wm--wheel') && !!st.wheel; if (keep) { const sg = (r.wheel && r.wheel.segs) || vm.segs || [], li = sg.findIndex((g) => g.id === (r.wheel && r.wheel.segId)); if (li >= 0) st.wheel.land(li); st.drawPos = r.wheel && r.wheel.pos != null ? r.wheel.pos : 0; }
+    showResult(el, vm, r, true, keep); return;
   }
   st.busy = true;
   const C = WHEEL_MATCH.CIRC, phi = st.restPos || 0, w = st.wheel, ctrl = vm.ctrl || {}, guide = !!ctrl.guide, segs = vm.segs || [];
   const nowBox = el.querySelector('.wm-now'), nowV = el.querySelector('.wm-nowv');
   const sub = btn.querySelector('small'), lab = btn.querySelector('span');
-  let clock = 0, last = 0, raf = 0, stopped = false, prevSeg = -1, chimeUntil = -1;
+  let clock = 0, last = 0, raf = 0, stopped = false, prevSeg = -1, chimeUntil = -1, lastNow = -1, lastGlow = null, lastGlowOn = false;
   const segAtPos = (p) => { const u = ((p % C) + C) % C; for (let i = 0; i < segs.length; i++) { const g = segs[i]; if (u >= g.start && u < g.start + g.width) return i; } return segs.length ? segs.length - 1 : -1; };
   const waitLook = (on) => { btn.classList.toggle('is-wait', on); if (on) btn.setAttribute('aria-disabled', 'true'); else btn.removeAttribute('aria-disabled'); };
   lab.textContent = 'Wait...'; sub.textContent = 'STOP wakes up in a moment'; waitLook(true); btn.setAttribute('data-wm', 'stop');
@@ -334,18 +368,20 @@ function onSpin(el, vm, btn) {
     if (ctrl.chime && si !== prevSeg && segs[si] && segs[si].tone === 'good') chimeUntil = clock + 0.3; prevSeg = si; chime = clock < chimeUntil; // feel only
     st.drawPos = pos; st.drawOpts = { over: vm.over, tick, band: guide ? phys.J : 0, zone, chime };
     w.draw(pos, st.drawOpts);
-    const ne = nowEl(); if (ne) { const g = segs[segAtPos(tick)]; if (g) { ne.textContent = g.label + (g.stars ? ' ' + '✱'.repeat(g.stars) : ''); ne.className = 'wm-nowv wm-t--' + (g.tone || 'so'); } }
+    const ni = segAtPos(tick), ne = ni !== lastNow ? nowEl() : null; if (ne) { lastNow = ni; const g = segs[ni]; if (g) { ne.textContent = sliceText(g); ne.className = 'wm-nowv wm-t--' + (g.tone || 'so'); } }
     if (t >= phys.STOP_FROM && btn.classList.contains('is-wait')) { waitLook(false); lab.textContent = 'STOP'; sub.textContent = 'tap when your slice is at AIM'; btn.setAttribute('aria-label', 'Stop the wheel'); }
     const gl = glowPhase(clock); // time only; one shot
-    btn.classList.toggle('is-glow', gl.on); btn.style.setProperty('--wm-glow', (gl.level * 7).toFixed(1) + 'px');
-    if (gl.on) { lab.textContent = 'STOP!'; sub.textContent = 'Now! ' + WHEEL_MATCH.GLOW_LO + '-' + WHEEL_MATCH.GLOW_HI + ' s'; }
+    const gv = gl.on ? (gl.level * 7).toFixed(1) : ''; // DOM writes only on change (PERF fix 5)
+    if (gl.on !== lastGlowOn) { lastGlowOn = gl.on; btn.classList.toggle('is-glow', gl.on); }
+    if (gv !== lastGlow) { lastGlow = gv; if (gv) btn.style.setProperty('--wm-glow', gv + 'px'); }
+    if (gl.on && lab.textContent !== 'STOP!') { lab.textContent = 'STOP!'; sub.textContent = 'Now! ' + WHEEL_MATCH.GLOW_LO + '-' + WHEEL_MATCH.GLOW_HI + ' s'; }
     else if (clock > WHEEL_MATCH.GLOW_HI && lab.textContent === 'STOP!') { lab.textContent = 'STOP'; sub.textContent = 'tap when your slice is at AIM'; }
     if (clock >= phys.COAST) return doStop(phys.COAST, true);
     raf = requestAnimationFrame(frame);
   }
   function doStop(t, coasted) {
     if (stopped) return; stopped = true; cancelAnimationFrame(raf); btn.removeEventListener('click', onTap, true);
-    btn.classList.remove('is-glow'); waitLook(true); lab.textContent = 'Slowing...'; sub.textContent = 'please wait';
+    btn.classList.remove('is-glow'); waitLook(true); btn.removeAttribute('aria-label'); lab.textContent = 'Slowing...'; sub.textContent = 'please wait';
     const stop = { t: Math.max(phys.STOP_FROM, Math.min(phys.COAST, t)), phi };
     const r = st.dispatch('WheelOver', { ...payloadBowler, stop });
     if (!r) { st.busy = false; st.phase = 'pick'; render(el, st.vm, st.dispatch, st.open); return; }
@@ -379,7 +415,7 @@ function afterLanding(el, vm, r, pos, bucket) {
   if (idx >= 0) w.land(idx); w.draw(pos, { over: vm.over });
   const tim = el.querySelector('.wm-tim'); if (tim && bucket) { tim.hidden = false; tim.textContent = TIMING_LINE[bucket] || ''; tim.className = 'wm-tim wm-tim--' + bucket; }
   const mk = endMark(r.wheel && r.wheel.end, r.result); stamp(el, mk);
-  setTimeout(() => { st.res = r; st.busy = false; showResult(el, st.vm || vm, r, true, true); }, mk ? 600 : 400);
+  setTimeout(() => { st.res = r; st.busy = false; showResult(el, st.vm || vm, r, true, true); if (typeof r.prebuild === 'function') setTimeout(r.prebuild, 0); }, mk ? 600 : 400); // warm the next over in the ball row's first gap
 }
 function stamp(el, mk) { const m = el.querySelector('.wm-mark'); if (!m) return; m.hidden = !mk; m.textContent = mk; m.className = 'wm-mark' + (mk ? ' wm-mark--' + mk.replace(' ', '').toLowerCase() : ''); }
 
@@ -395,18 +431,21 @@ function showResult(el, vm, r, fresh, keepWheel) {
     if (reduced || fresh) setLive(el, say); // the live region is in the DOM first; the result text goes in before the balls
     const w = setupWheel(el, segs, v); if (idx >= 0) w.land(idx); const pos = r.wheel && r.wheel.pos != null ? r.wheel.pos : (g ? g.start + g.width / 2 : 0); st.drawPos = pos; st.drawOpts = { over }; w.draw(pos, { over });
     stamp(el, mk);
-  } else setLive(el, say);
+  } else { setLive(el, say); stamp(el, mk); }
   const root = el.querySelector('.wm'); root.classList.add('is-result');
   const sc = r.score || vm.score; const hs = root.querySelector('.wm-strip .score'); if (hs && sc) { hs.textContent = sc.runs + '/' + sc.wk; hs.setAttribute('aria-label', sc.runs + ' runs for ' + sc.wk + ' wickets'); }
   const hm = root.querySelector('.wm-strip .mid'); if (hm) hm.innerHTML = '<b>Over ' + esc(over) + ' done</b><span>' + esc(r.stage === 'break' ? 'Innings over' : r.stage === 'done' ? 'Match over' : 'Next: over ' + (over + 1) + ' of 10') + '</span>';
   if (r.need && root.querySelector('.wm-need')) root.querySelector('.wm-need b').innerHTML = 'Need <em>' + esc(r.need.runs) + '</em> off <em>' + esc(r.need.balls) + '</em> balls';
   ['.wm-row', '.wm-legend', '.wm-exp', '.wm-who'].forEach((q) => { const x = root.querySelector(q); if (x) x.hidden = true; });
   const res = root.querySelector('.wm-res'); res.hidden = false;
-  const chip = g ? '<b class="wm-chip wm-t--' + esc(g.tone || 'so') + '">' + esc(g.label) + (g.stars ? ' ' + '✱'.repeat(g.stars) : '') + '</b>' : '';
+  const chip = g ? '<b class="wm-chip wm-t--' + esc(g.tone || 'so') + '">' + esc(toneMark(g.tone) + ' ' + landedText(g, r.wheel)) + '</b>' : '';
   const slots = Array.from({ length: 6 }, (_, i) => '<li class="op-slot' + (i >= balls.length ? ' is-unused' : '') + '" data-i="' + i + '"><span class="op-circle" aria-hidden="true"></span><span class="op-word" aria-hidden="true"></span></li>').join('');
   res.innerHTML = '<div class="wm-resh"><span>Landed on</span>' + chip + '<span class="wm-eq">= ' + esc(overWords(t.runs, t.wk)) + '</span>' +
     '<button type="button" class="c-icon-btn wm-x" aria-label="Skip to the end of the over"><span class="c-ico c-ico--x"></span></button></div>' +
     '<ol class="op-circles wm-balls" aria-label="Balls this over" data-res-tap>' + slots + '</ol><p class="wm-found" hidden></p>';
+  if (st.wheel) { st.wheel.size(); st.wheel.draw(st.drawPos != null ? st.drawPos : 0, { over }); } // the panel took room: fit the wheel to what is left
+  const nr = root.querySelector('.wm-need span'); if (nr && vm.side === 'bat') nr.textContent = '+' + t.runs + ' this over';
+  const nb = root.querySelector('.wm-need b'); if (nb && r.stage === 'done') nb.textContent = r.result === 'won' ? 'You won the chase!' : r.result === 'tied' ? 'Scores level: a tie' : 'Chase over: they won';
   const cta = root.querySelector('.wm-cta'), nx = r.stage === 'done' ? 'See result' : r.stage === 'break' ? 'Innings break' : 'NEXT OVER';
   const nsub = r.stage === 'done' || r.stage === 'break' ? '' : vm.side === 'bowl' ? 'pick bowler for over ' + (over + 1) : 'over ' + (over + 1) + ' of 10';
   cta.innerHTML = '<button type="button" class="c-btn c-btn--primary c-btn--cta wm-go" data-wm-next><span>' + esc(nx) + '</span>' + (nsub ? '<small>' + esc(nsub) + '</small>' : '') + '</button>';
@@ -459,7 +498,7 @@ function autoStep() {
   if (why) {
     const S = st.autoSum, to = (vm.over || 1) - 1;
     const note = why === 'pause' ? 'Auto paused. ' + (vm.needText || 'Last over') + '. Your over!' : S && st.autoSpun ? spanWords(S.from, to) + ': ' + S.runs + ' for ' + S.wk + '.' : '';
-    stopAuto(note); render(el, vm, st.dispatch, st.open); return;
+    stopAuto(note); render(el, vm, st.dispatch, st.open); const f = el.querySelector('[data-wm="go"]'); if (f) f.focus(); return;
   }
   st.busy = true;
   const r = st.dispatch('WheelOver', { auto: true });
@@ -493,7 +532,8 @@ function autoStep() {
     if (sc && r.score) sc.textContent = r.score.runs + '/' + r.score.wk;
     const ol = el.querySelector('.wm-achips'); if (ol) { const li = document.createElement('li'); li.textContent = chip; ol.appendChild(li); }
     stamp(el, endMark(r.wheel && r.wheel.end, r.result));
-    setTimeout(done, Math.max(0, (pace - T) * 1000));
+    const t1 = performance.now(); if (typeof r.prebuild === 'function') r.prebuild(); // the auto pace hides the next model's build
+    setTimeout(done, Math.max(0, (pace - T) * 1000 - (performance.now() - t1)));
   }
   raf = requestAnimationFrame(f);
 }

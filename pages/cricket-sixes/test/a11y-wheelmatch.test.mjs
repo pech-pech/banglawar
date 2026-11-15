@@ -1,7 +1,7 @@
 // A11Y guards for the Wheel match screens (2026-11-15 wheel match build; SPEC s4 STOP glow, s13 reduced motion; findings in
 // /mnt/project-files/games-design/cricket-sixes/2026-11-15-wheel-match-build/A11Y.md). DOM-less: the view is driven through a recording fake DOM
 // (no jsdom), the Settings rows through their pure string builders. Open defects are `todo` tests named after their A11Y.md id: they run and
-// report, but do not fail the suite until the view is fixed (then drop the todo).
+// report, but do not fail the suite until the view is fixed (then drop the todo). "(fixed)" tests guard defects closed during the build.
 // Live pass (475x638, reduced motion on and off, 44 px targets, focus order, live region): A11Y_E2E=1 node --test test/a11y-wheelmatch.test.mjs
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -113,10 +113,34 @@ test('the live region is role=status, aria-live=polite, aria-atomic and on every
   for (const h of [d.pick, d.ready]) assert.match(h, /<div class="ss-sr wm-live" role="status" aria-live="polite" aria-atomic="true"><\/div>/);
 });
 
-test('A11Y-1 live region outlives the re-render that fills it (announcement is not dropped)', { todo: 'A11Y-1: wm-live is rebuilt by el.innerHTML in the same task as its text (wheelmatch-view.js:394-395, 280, 479)' }, () => {
+test('reduced motion: the result is announced in the live region already on screen (no rebuild between tap and text)', () => {
   const d = drive(true); LOG = []; d.el.click('spin');
-  const shell = LOG.findLast((e) => e[0] === 'html');
-  assert.doesNotMatch(shell[1], /wm-live/, 'the live region must persist outside the replaced markup');
+  const liveAt = LOG.findIndex((e) => e[0] === 'set' && e[1] === '.wm-live' && e[2] === 'textContent');
+  assert.ok(liveAt >= 0); assert.equal(LOG.slice(0, liveAt).some((e) => e[0] === 'html'), false, 'markup rebuilt before the text: a new live region is often not read');
+});
+
+// Every live text must go into a region that existed before this task and must not be wiped by a rebuild in the same task.
+const liveProblems = () => {
+  const bad = [];
+  LOG.forEach((e, i) => {
+    if (!(e[0] === 'set' && e[1] === '.wm-live' && e[2] === 'textContent' && e[3])) return;
+    let j = i - 1; while (j >= 0 && LOG[j][0] !== 'tick') { if (LOG[j][0] === 'html') { bad.push('fresh region: ' + e[3]); break; } j--; }
+    let k = i + 1; while (k < LOG.length && LOG[k][0] !== 'tick') { if (LOG[k][0] === 'html') { bad.push('wiped: ' + e[3]); break; } k++; }
+  });
+  return bad;
+};
+test('A11Y-1 reduced-motion Auto: each over and the summary are announced, not wiped by the next render', { todo: 'A11Y-1: setLive then done() -> release() re-renders the auto shell in the same task (wheelmatch-view.js:515, 309); liveNote goes into a fresh region (311-312)' }, async () => {
+  env(true);
+  const T = globalThis.setTimeout; globalThis.setTimeout = (fn, ms) => T(() => { LOG.push(['tick']); fn(); }, ms);
+  try {
+    const el = fakeEl(); let vm = vmOf();
+    const dispatch = (c) => (c === 'WheelOver' ? { ...hold(), release() { vm = vmOf('bowl', { over: vm.over + 1, score: { runs: 33, wk: 2 } }); V.render(el, vm, dispatch, null); } } : null);
+    V.render(el, vm, dispatch, null); el.click('auto-over');
+    await new Promise((r) => T(r, 50));
+    const said = LOG.filter((e) => e[0] === 'set' && e[1] === '.wm-live' && e[3]).map((e) => e[3]);
+    assert.ok(said.length >= 1, 'something was announced');
+    assert.deepEqual(liveProblems(), []);
+  } finally { globalThis.setTimeout = T; }
 });
 
 // ---------- names ----------
@@ -134,7 +158,7 @@ test('buttons have text names: BOWL OVER, BAT OVER, SPIN, Auto over, Auto rest o
   assert.match(view, /aria-label="Skip to the end of the over"/);
 });
 
-test('A11Y-5 the spin button name follows its text after STOP (no stale "Stop the wheel" while it reads "Slowing...")', { todo: 'A11Y-5: doStop never clears aria-label (wheelmatch-view.js:348)' }, () => {
+test('A11Y-5 (fixed) the spin button name follows its text after STOP (no stale "Stop the wheel" while it reads "Slowing...")', () => {
   const fn = view.slice(view.indexOf('function doStop('), view.indexOf('function onTap('));
   assert.match(fn, /removeAttribute\('aria-label'\)|setAttribute\('aria-label', 'Slowing/);
 });
@@ -159,13 +183,13 @@ test('blocked bowlers: not a button, aria-disabled, reason in visible text and i
   assert.match(pick, /aria-checked="true" data-bowler="0"/);
 });
 
-test('A11Y-7 the "suggested" tag is in the bowler row name', { todo: 'A11Y-7: aria-label on .wm-brow drops the visible "suggested" (wheelmatch-view.js:137)' }, () => {
+test('A11Y-7 (fixed) the "suggested" tag is in the bowler row name', () => {
   const { pick } = drive(false);
   const r = pick.match(/<button [^>]*data-bowler="0"[^>]*>/)[0];
   assert.match(attr(r, 'aria-label'), /suggested/);
 });
 
-test('A11Y-2 focus stays on the picked bowler row after the re-render', { todo: 'A11Y-2: bowler tap / Change bowler / auto end re-render via innerHTML and focus falls to <body> (wheelmatch-view.js:279, 300, 302, 462)' }, () => {
+test('A11Y-2 (fixed) focus stays on the picked bowler row after the re-render', () => {
   env(false); const el = fakeEl(); const vm = vmOf();
   V.render(el, vm, () => null, null); LOG = [];
   el.click(null, { bowler: 3 });
@@ -184,7 +208,7 @@ test('canvas is role=img with a text alternative listing every segment (label, w
   assert.match(alt, /15 with 2 wickets 25 in 100/);
 });
 
-test('A11Y-3 the wheel text alternative says which slices are good / so-so / bad for us', { todo: 'A11Y-3: segWords omits tone; legend is aria-hidden (wheelmatch-view.js:188-190, 168)' }, () => {
+test('A11Y-3 (fixed) the wheel text alternative says which slices are good / so-so / bad for us', () => {
   const alt = attr(drive(false).ready.match(/<canvas class="wm-cv"[^>]*>/)[0], 'aria-label');
   assert.match(alt, /good/); assert.match(alt, /bad/); assert.match(alt, /so-so/);
 });
@@ -195,7 +219,7 @@ test('glow reads time only: on 3.2-3.8 s, 3 half-beats of 0.2 s, one shot; the t
   assert.deepEqual([3.25, 3.45, 3.65].map((t) => V.glowPhase(t).beat), [0, 1, 2]);
   assert.equal(V.glowPhase.length >= 1, true);
   const fr = view.slice(view.indexOf('function frame('), view.indexOf('function doStop('));
-  assert.match(fr, /if \(gl\.on\) \{ lab\.textContent = 'STOP!'/);
+  assert.match(fr, /if \(gl\.on[^)]*\) \{ lab\.textContent = 'STOP!'/);
   assert.doesNotMatch(fr, /segs\[[^\]]*\][^;]*is-glow/, 'glow must not read the segments');
 });
 
@@ -209,27 +233,36 @@ test('reduced motion source path: no tick, glow or spin before the result', () =
 test('slices carry glyphs (up-triangle good, dot so-so, down-triangle bad) and stars; balls carry glyph + word', () => {
   const g = view.slice(view.indexOf('function glyph('), view.indexOf('function paint('));
   assert.match(g, /tone === 'good'/); assert.match(g, /tone === 'bad'/); assert.match(g, /c\.arc\(/);
-  assert.match(view, /at\(P\.glyphR, \(\) => glyph\(c, g\.tone/);
+  assert.match(view, /glyph\((c|ctx), g\.tone/);
   assert.match(view, /'✱'\.repeat\(g\.stars\)/);
   assert.match(view, /s\.setAttribute\('aria-label', 'Ball ' \+ \(i \+ 1\)/);
   assert.match(drive(false).ready, /wm-sw--good">▲<\/i>good for us/);
 });
 
-test('A11Y-4 the "Landed on" chip and the "Stop now" readout show the tone by more than colour', { todo: 'A11Y-4: .wm-chip / .wm-nowv use wm-t--tone colour only, no glyph or word (wheelmatch-view.js:337, 405)' }, () => {
+test('A11Y-4 (fixed) the "Landed on" chip and the "Stop now" readout show the tone by more than colour', () => {
   const d = drive(true); LOG = []; d.el.click('spin');
   const res = LOG.find((e) => e[0] === 'set' && e[1] === '.wm-res' && e[2] === 'innerHTML');
   const chip = res[3].match(/<b class="wm-chip[^>]*>([^<]*)<\/b>/)[1];
   assert.match(chip, /[▲●▼]|good|so-so|bad/);
 });
 
+test('A11Y-6 (fixed) slice glyphs keep their meaning at any wheel angle (a bad down-triangle must not read as up at the bottom)', () => {
+  const d = view.slice(view.indexOf('function draw('), view.indexOf('function land('));
+  assert.match(d, /glyph\(/, 'draw glyphs upright per frame, or use shapes that do not depend on direction');
+});
+
+test('A11Y-9 (fixed) [hidden] really hides wheel-screen parts (no display rule overrides it)', () => {
+  assert.match(read('css/wheelmatch.css'), /\.wm \[hidden\]\s*\{\s*display:\s*none\s*!important/);
+});
+
 // ---------- touch targets ----------
 test('Stop auto is pinned and 56 px; wheel-screen buttons are at least 44 px (css/wheelmatch.css)', { skip: !existsSync(new URL('../css/wheelmatch.css', import.meta.url)) && 'css/wheelmatch.css not built yet' }, () => {
   const css = read('css/wheelmatch.css');
-  const rule = (sel) => { const at = css.split('\n').find((l) => l.startsWith(sel + ' {') || l.includes('} ' + sel + ' {')); return at ? at.slice(at.indexOf(sel + ' {')).replace(/\}.*$/, '') : ''; };
-  assert.match(rule('.wm .wm-stopauto'), /min-height:\s*56px/);
+  const rule = (sel) => { for (const q of [sel, '.wm ' + sel]) { const at = css.split('\n').find((l) => l.startsWith(q + ' {') || l.includes('} ' + q + ' {')); if (at) return at.slice(at.indexOf(q + ' {')).replace(/\}.*$/, ''); } return ''; };
+  assert.match(rule('.wm-stopauto'), /min-height:\s*56px/);
   // pinned: the screen is a 100dvh column and the CTA row takes margin-top:auto (the e2e pass checks it sits on the bottom edge)
   assert.match(rule('.wm'), /height:\s*100dvh/); assert.match(rule('.wm-cta'), /margin-top:\s*auto/);
-  assert.match(rule('.wm .wm-go'), /min-height:\s*(\d+)px/); assert.ok(+rule('.wm .wm-go').match(/min-height:\s*(\d+)px/)[1] >= 44);
+  assert.match(rule('.wm-go'), /min-height:\s*(\d+)px/); assert.ok(+rule('.wm-go').match(/min-height:\s*(\d+)px/)[1] >= 44);
   for (const sel of ['.wm-brow', '.wm-auto', '.wm-back', '.wm-x', '.wm-book']) assert.ok(+((rule(sel).match(/min-height:\s*(\d+)px/) || [])[1] || 0) >= 44, sel);
 });
 
@@ -262,7 +295,7 @@ test('settings: 44 px slider thumb and buttons; Dev is a named switch; Match mod
   assert.match(devSectionHtml({}, false), /data-wm-sec hidden/);
 });
 
-test('A11Y-8 the Reset buttons say what they reset', { todo: 'A11Y-8: two buttons named only "Reset" / "Reset all" (wheelmatch-settings.js:48)' }, () => {
+test('A11Y-8 (fixed) the Reset buttons say what they reset', () => {
   assert.match(devSectionHtml({}, true), /data-wm-reset="one"[^>]*aria-label="Reset match wheel speed"|>Reset (match )?wheel speed</);
 });
 
@@ -343,9 +376,11 @@ async function e2e() {
       const alt = await page.getAttribute('.wm-cv', 'aria-label'), role = await page.getAttribute('.wm-cv', 'role');
       step(tag + 'ready: canvas role=img + segment list', role === 'img' && /^Over wheel: .+ in 100/.test(alt || ''), role + ' ' + alt);
       note(tag + 'ready: canvas alt', alt);
+      note(tag + 'ready: tab order', (await tabOrder(page, 4)).join(' > ')); await page.focus('[data-wm="spin"]');
       const spinName = await page.textContent('[data-wm="spin"] > span');
       step(tag + 'ready: spin button reads ' + (reduced ? 'Show result' : 'SPIN'), spinName === (reduced ? 'Show result' : 'SPIN'), spinName);
       step(tag + 'ready: focus on the spin button', /SPIN|Show result/.test(await active(page)), await active(page));
+      step(tag + 'ready: no empty "Stop now" box before the spin (A11Y-9)', !(await page.$eval('.wm-now', (e) => e.getBoundingClientRect().height > 0 && !e.classList.contains('is-hint') && !(e.querySelector('.wm-nowv') || {}).textContent)), 'visible with an empty readout');
       a = await audit(page); step(tag + 'ready: 44 px targets', !a.small.length, a.small.join(', ')); step(tag + 'ready: no control cut off', !a.clipped.length, a.clipped.join(', '));
       const oldLive = await page.$('.wm-live');
       if (reduced) {
@@ -398,7 +433,7 @@ async function e2e() {
 test('E2E 475x638: reduced motion and normal (A11Y_E2E=1)', { skip: !process.env.A11Y_E2E && 'set A11Y_E2E=1 to run the browser pass', timeout: 180000 }, async (t) => {
   const out = await e2e();
   for (const r of out) t.diagnostic((r.ok ? (r.note !== undefined ? 'NOTE ' : 'PASS ') : 'FAIL ') + r.name + (r.note !== undefined ? ': ' + r.note : r.why ? ': ' + r.why : ''));
-  const KNOWN = /A11Y-2/; // open defects in A11Y.md: reported, not failed
+  const KNOWN = /A11Y-1\b/; // open defects in A11Y.md: reported, not failed
   const bad = out.filter((r) => !r.ok && !KNOWN.test(r.name));
   assert.equal(bad.length, 0, bad.map((r) => r.name + ': ' + r.why).join('\n'));
 });
