@@ -93,7 +93,7 @@ if (!noE2e) {
     const res = {};
     for (const f of readdirSync(join(main, 'test/e2e')).filter((x) => x.endsWith('.mjs'))) { // classic guard: only the e2e scripts that exist on main
       const b = basename(f, '.mjs');
-      const r = spawnSync('node', ['test/e2e/' + f], { cwd: root, encoding: 'utf8', timeout: 600000, maxBuffer: 1 << 26, env: { ...process.env, E2E_SHOTS: join(work, `shots-${tag}`, b) + '/' } });
+      const r = spawnSync('node', ['test/e2e/' + f], { cwd: root, encoding: 'utf8', timeout: 600000, maxBuffer: 1 << 26, env: { ...process.env, E2E_SHOTS: join(work, `shots-${tag}`, b) + '/', ...(tag === 'live' ? { NODE_OPTIONS: `--require ${new URL('./e2e-classic-hook.cjs', import.meta.url).pathname}` } : {}) } });
       const txt = (r.stdout || '') + (r.stderr || '');
       writeFileSync(join(work, `e2e-${tag}-${b}.log`), txt);
       const fails = txt.split('\n').filter((l) => /\bFAIL\b|✗|✖/.test(l)).slice(0, 4).map((l) => l.trim().slice(0, 120));
@@ -104,7 +104,7 @@ if (!noE2e) {
   const me = existsSync(mainE2e) ? JSON.parse(readFileSync(mainE2e, 'utf8')) : (() => { const x = runE2e(main, 'main'); writeFileSync(mainE2e, JSON.stringify(x)); return x; })();
   const le = runE2e(live, 'live');
   const worse = Object.keys(me).filter((k) => me[k].code === 0 && le[k] && le[k].code !== 0);
-  e2eLine = `e2e: ${Object.keys(le).map((k) => `${k} ${le[k].code === 0 ? 'ok' : 'FAIL(' + le[k].code + ')'}${me[k] && me[k].code !== 0 ? '[main also ' + me[k].code + ']' : ''}`).join(', ')}`;
+  e2eLine = `e2e (old scripts, live forced classic via e2e-classic-hook): ${Object.keys(le).map((k) => `${k} ${le[k].code === 0 ? 'ok' : 'FAIL(' + le[k].code + ')'}${me[k] && me[k].code !== 0 ? '[main also ' + me[k].code + ']' : ''}`).join(', ')}`;
   if (worse.length) { regress = true; e2eLine += `\n  - **new e2e failures vs main: ${worse.join(', ')}**` + worse.map((k) => le[k].fails.map((l) => `\n    - ${k}: ${l}`).join('')).join(''); }
 }
 say(e2eLine);
