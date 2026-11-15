@@ -610,7 +610,7 @@ export function matchdayVM(s) {
   const md = mdOf(s);
   if (!md || !s.season || !s.fixture) return null;
   const fx = s.fixture, opp = club(s, fx.opp);
-  const six = sixIds(s).map((id, i) => ({ slot: i + 1, id, name: nameOfId(s, id), pep: id === md.pepId }));
+  const six = sixIds(s).map((id, i) => { const pl = player(s, id); return { slot: i + 1, id, name: nameOfId(s, id), pep: id === md.pepId, bat: pl ? shownBat(pl) : null, bowl: pl ? shownBowl(pl) : null }; }); // M 2026-11-15: bat + bowl ratings on the six
   const team = teamBoost(md, null), pepB = md.pepId != null ? teamBoost(md, md.pepId) : team;
   const pepName = nameOfId(s, md.pepId);
   const odds = md.odds.map((o, i) => ({ level: MD.HYPE_LEVELS[i], word: HYPE_WORD[MD.HYPE_LEVELS[i]], pct: Math.round(o) }));

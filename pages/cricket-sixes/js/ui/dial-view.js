@@ -238,7 +238,8 @@ export function openDial(o) {
     labs.forEach((l, i) => {
       const rl = R * (widths[i] * 18 / L < 24 ? 0.7 : 0.66), p = polar(centreOf(i), rl);
       l.style.left = p[0] * S + 'px'; l.style.top = p[1] * S + 'px';
-      if (reveal) { l.style.color = 'rgb(' + pal.cream + ')'; const lb = l.querySelector('b'); if (lb) lb.style.fontSize = '24px'; l.style.textShadow = '-2px 0 rgb(' + pal.out + '),2px 0 rgb(' + pal.out + '),0 -2px rgb(' + pal.out + '),0 2px rgb(' + pal.out + '),2px 2px rgb(' + pal.out + ')'; l.style.opacity = '1'; } // fixdial V5: cream numbers with a dark outline, >= 4.5:1 on any slice, lit or dim
+      if (o.nameLabels) { const a = Math.PI - centreOf(i) * U, rot = a <= Math.PI / 2 ? -a : Math.PI - a, q = polar(centreOf(i), R * 0.64); l.style.left = q[0] * S + 'px'; l.style.top = q[1] * S + 'px'; l.style.transform = 'translate(-50%,-50%) rotate(' + (rot * 180 / Math.PI).toFixed(1) + 'deg)'; l.classList.add('is-name'); } // names run along the slice, upright
+      if (reveal) { l.style.color = 'rgb(' + pal.cream + ')'; const lb = l.querySelector('b'); if (lb) lb.style.fontSize = o.nameLabels ? '' : '24px'; l.style.textShadow = '-2px 0 rgb(' + pal.out + '),2px 0 rgb(' + pal.out + '),0 -2px rgb(' + pal.out + '),0 2px rgb(' + pal.out + '),2px 2px rgb(' + pal.out + ')'; l.style.opacity = '1'; } // fixdial V5: cream numbers with a dark outline, >= 4.5:1 on any slice, lit or dim
       else { l.style.color = lum(fills[i]) > 0.5 ? 'rgb(' + pal.out + ')' : '#fff'; l.style.opacity = lit >= 0 && !isLit(i) ? '.5' : '1'; }
       if (sl[i].gold && !reveal) l.style.width = '';
     });
