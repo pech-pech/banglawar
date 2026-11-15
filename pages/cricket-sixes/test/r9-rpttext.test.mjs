@@ -41,7 +41,7 @@ test('window from env.win (RPT-LOG) and Dropped line; marker rid in header', () 
 
 test('M1 row: avoidable Poor, close-finish band, decided over, near random, touched, luck label', () => {
   const t = buildText(d([m()]), ENV);
-  assert.match(t, /M\d+ L W 61-58 by 2wk \| field A\d P\d sw\d+ \| intent D0 R7 A3 sw1 \| att early 0\/7 \| att wkts \d in 3 ov \| pick G5 O0 P5 U0 \| fit 100% \| luck 0 \[pre-P14\] | think 1\.8 s \| touched 3\/10 \| decided over 9/);
+  assert.match(t, /M\d+ L W 61-58 by 2wk \| field A\d P\d sw\d+ \| intent D0 R7 A3 sw1 \| att early 0\/7 \| att wkts \d in 3 ov \| pick G5 O0 P5 U0 \| fit 100% \| luck 0 \| think 1\.8 s \| touched 3\/10 \| decided over 9/);
   assert.match(t, /Avoidable Poor in overs 1-7: 43% of 7 \(skilled 19%, random 39% \[sim r7\]\)/);
   assert.ok(t.includes('Close finishes 1 of 1 [sim r7: ' + BANDS.close.skilled + '% of matches]'));
   const rnd = m({ ov: ovs().map((o) => (o.s === 'b' ? { ...o, fit: [1, 1, null] } : { ...o, fit: [null, null, 0] })) });
