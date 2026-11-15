@@ -24,7 +24,12 @@
 .md-six { display: flex; align-items: center; gap: 8px; min-height: 32px; padding: 0 6px; font-size: 14px; line-height: 18px; border-left: 4px solid var(--wall2); }
 .md-six.is-pep { font-weight: 700; background: var(--gold); border-left-color: var(--outline); }
 .md-slot { flex: none; width: 20px; text-align: center; }
-.md-tag { margin-left: auto; display: inline-flex; align-items: center; gap: 4px; }
+.md-tag { margin-left: 6px; display: inline-flex; align-items: center; gap: 2px; white-space: nowrap; }
+.md-six .name { flex: 1 1 auto; min-width: 0; display: flex; align-items: center; overflow: hidden; }
+.md-rts { flex: none; display: flex; gap: 4px; }
+.md-rt { flex: none; width: 64px; display: flex; justify-content: center; }
+.md-sixh { display: flex; align-items: center; gap: 4px; margin: 6px 0 0; padding: 0 6px 0 10px; font-size: 14px; line-height: 18px; color: var(--ink2, inherit); }
+.md-sixh > span:first-child { flex: 1 1 auto; }
 .md-total { margin: 0; padding: 6px 8px; font-weight: 700; font-size: var(--c-fs-m); line-height: var(--c-lh-m); border-left: 4px solid var(--outline); background: var(--wall1); }
 .md-cta { display: flex; gap: 8px; }
 .md-cta .md-back { flex: 0 0 auto; width: auto; min-height: 56px; white-space: nowrap; padding: 0 10px; font-size: 16px; } /* QA3 m8: one line, never below 14px */

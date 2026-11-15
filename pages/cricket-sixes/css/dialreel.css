@@ -8,6 +8,7 @@
 .dr-lab { position: absolute; transform: translate(-50%, -50%); display: grid; justify-items: center; gap: 0; pointer-events: none; text-align: center; line-height: 18px; white-space: nowrap; }
 .dr-lab b { font-size: 18px; font-weight: 700; }
 .dr-lab small { font-size: 16px; }
+.dr-lab.is-name b { font-size: 17px; max-width: 92px; overflow: hidden; text-overflow: ellipsis; } /* pep: player names along each slice */
 .dr-star { display: block; width: 22px; height: 22px; background: var(--outline); clip-path: polygon(50% 0, 62% 36%, 100% 38%, 70% 60%, 80% 100%, 50% 76%, 20% 100%, 30% 60%, 0 38%, 38% 36%); }
 .dr-coinlab { position: absolute; transform: translate(-50%, -50%); font-size: 22px; line-height: 24px; font-weight: 700; color: var(--outline); pointer-events: none; text-align: center; max-width: 60%; }
 .dr-reel { position: relative; overflow: hidden; border: var(--c-border) solid var(--outline); background: var(--outline); touch-action: manipulation; }

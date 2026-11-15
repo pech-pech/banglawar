@@ -5,6 +5,7 @@
 //   roar:{on, chancePct, overs}, toss:{won, boostPct, line}, pep:{slot,id,name,boostPct}|null, six:[{slot,id,name,pep}], boost, auto, forced}.
 // Commands: MatchdayGo (vm.next: 'Start match' when it starts the match, 'Next: Plan' when it opens Plan), BackToSquad. Plain words, no countdown, no sound, no spend on luck.
 import { esc, icoDeco } from './dom.js';
+import { shownCell } from './letters-ui.js';
 import { openSheet } from './sheet.js';
 import { spinHype, spinToss, spinPep } from './wm-spins.js';
 
@@ -71,10 +72,13 @@ export function matchdayHtml(vm, shown) {
   const toss = shown.toss
     ? '<section class="c-card md-card is-shown" aria-label="Toss"><h2 class="md-h">' + icoDeco('medal', 24) + (vm.toss.won ? 'You won the toss <span class="md-pct">+' + esc(vm.toss.boostPct) + '%</span>' : 'Rival won the toss. Nothing changes.') + '</h2></section>'
     : '<button type="button" class="c-btn md-tap" data-md="toss">' + icoDeco('medal', 24) + '<span><b>Tap to flip the coin</b><small>Win the toss for a boost</small></span></button>';
-  const six = (vm.six || []).map((p) => '<li class="md-six' + (shown.pep && vm.pep && p.slot === vm.pep.slot ? ' is-pep' : '') + '"><span class="md-slot" aria-hidden="true">' + esc(p.slot) + '</span><span class="name">' + esc(p.name) + '</span>' +
-    (shown.pep && vm.pep && p.slot === vm.pep.slot ? '<span class="md-tag">' + icoDeco('team', 16) + 'Pep talk +' + esc(vm.pep.boostPct) + '%</span>' : '') + '</li>').join('');
+  const rate = (p) => (p.bat != null ? '<span class="md-rt">' + shownCell(p.bat).html + '</span><span class="md-rt">' + shownCell(p.bowl).html + '</span>' : '');
+  const said = (p) => (p.bat != null ? ', batting ' + shownCell(p.bat).letter + ', bowling ' + shownCell(p.bowl).letter : '');
+  const six = (vm.six || []).map((p) => { const isPep = shown.pep && vm.pep && p.slot === vm.pep.slot; return '<li class="md-six' + (isPep ? ' is-pep' : '') + '" aria-label="' + esc(p.slot + '. ' + p.name + said(p) + (isPep ? ', pep talk plus ' + vm.pep.boostPct + ' percent' : '')) + '"><span class="md-slot" aria-hidden="true">' + esc(p.slot) + '</span><span class="name" aria-hidden="true">' + esc(p.name) +
+    (isPep ? '<span class="md-tag">' + icoDeco('team', 16) + '+' + esc(vm.pep.boostPct) + '%</span>' : '') + '</span>' + '<span class="md-rts" aria-hidden="true">' + rate(p) + '</span></li>'; }).join('');
+  const sixHead = (vm.six || []).some((p) => p.bat != null) ? '<div class="md-sixh" aria-hidden="true"><span>Batting order</span><span class="md-rt">Bat</span><span class="md-rt">Bowl</span></div>' : '';
   const pep = shown.pep
-    ? '<section class="c-card md-card is-shown" aria-label="Pep talk"><h2 class="md-h">' + icoDeco('team', 24) + esc(vm.pep.name) + ' got the pep talk</h2><ol class="md-sixl list-flat" aria-label="Your six, in batting order">' + six + '</ol></section>'
+    ? '<section class="c-card md-card is-shown" aria-label="Pep talk"><h2 class="md-h">' + icoDeco('team', 24) + esc(vm.pep.name) + ' got the pep talk</h2>' + sixHead + '<ol class="md-sixl list-flat" aria-label="Your six, in batting order">' + six + '</ol></section>'
     : '<button type="button" class="c-btn md-tap" data-md="pep">' + icoDeco('team', 24) + '<span><b>Tap for the pep talk</b><small>One of your six gets a lift</small></span></button>';
   const roar = vm.roar && vm.roar.chancePct != null ? '<p class="md-line">' + icoDeco('fan', 20) + 'Crowd roar chance: ' + esc(vm.roar.chancePct) + '% an over</p>' : '';
   const names = shown.pep && vm.pep && b.pepPct !== b.teamPct;
