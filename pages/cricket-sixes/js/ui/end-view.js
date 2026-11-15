@@ -2,7 +2,8 @@
 import { esc, btn, ctaBar, tpChip, icoDeco } from './dom.js';
 import { tableHtml, finalsHtml, nameOf, ordinal } from './table-sheet.js';
 import { helpBtn } from './hub-view.js';
-import { chipHtml } from './book-sheet.js';
+import { cardHtml } from './book-sheet.js';
+import { miniHtml } from './over-panel.js';
 import { promoBeat } from './beats.js';
 import { swapCardHtml, bindSwap } from './swap-offer.js';
 import { recruitCardHtml, bindRecruit } from './recruit-card.js';
@@ -43,14 +44,14 @@ function withGoUp(html, top) {
   return html.slice(0, at) + '<tr class="rn-go"><td colspan="6">' + icoDeco('upgrade', 16) + ' Above this line go up</td></tr>' + html.slice(at);
 }
 
-/* Coach's notebook (P4): from season 2 one pairing is found free at season end. Own look (book icon, dashed edge), the grade as the Book's chip, a button to the Book. */
-function notebookHtml(n) {
+/* Coach's notebook (P4, P6 2.4): from season 2 one pairing is found free at season end. Own look (book icon, dashed edge), the same card as the Book and the found panel,
+   the mini grid of its phase with the cell outlined (when vm.book is there), a button to the Book with that cell selected. */
+export function notebookHtml(n, book) {
   if (!n) return '';
-  const chip = chipHtml({ found: true, rank: n.rank, grade: n.grade, combo: n.combo ? n.combo.name : null, phase: ['Early', 'Middle', 'Late'][n.ph] }, n.bat + ' v ' + n.bowl, true);
-  return '<section class="bk-nb" aria-label="Coach\'s notebook">' + icoDeco('book', 32) + '<span class="bk-nb__t">Coach\'s notebook</span>' +
-    '<span class="bk-nb__row">' + esc(n.name) + chip + '</span>' +
-    '<p class="bk-nb__sub">Found for free. Grade is the batter\'s view.' + (n.combo ? ' Combo: ' + esc(n.combo.name) + '.' : '') + '</p>' +
-    '<button type="button" class="c-btn" data-act="sheet:book">' + icoDeco('book', 24) + 'See Pairing Book</button></section>';
+  return '<section class="bk-nb" aria-label="Coach\'s notebook"><p class="bk-nb__t">' + icoDeco('book', 32) + '<span>Coach\'s notebook</span></p>' +
+    '<p class="bk-nb__sub">New in your Book! Found for free.</p>' + cardHtml(n) +
+    miniHtml(book, n.ph, [n.i]) +
+    '<button type="button" class="c-btn c-btn--block" data-act="sheet:book" data-arg=\'{"cell":' + Number(n.i) + '}\'>' + icoDeco('book', 24) + '<span>See Book</span></button></section>';
 }
 
 const swapKey = (vm) => 'r' + vm.runNo + 's' + vm.season;
@@ -69,7 +70,7 @@ export function render(el, vm, dispatch) {
     '<h1 class="ss-head' + (iWon ? ' is-champ' : '') + '">' + esc(head) + '</h1>' +
     '<p class="ss-place">You finished <b>' + esc(place ? ordinal(place) : '-') + '</b> of ' + esc(rows.length || 10) + '</p>' +
     '<div class="ss-won-row">' + tpChip(vm.tpWon) + '<span>training points won this season</span></div></div>' +
-    notebookHtml(vm.notebook) + swapCardHtml(vm.swap, swapNote && swapNote.key === swapKey(vm) ? swapNote.text : '') +
+    notebookHtml(vm.notebook, vm.book) + swapCardHtml(vm.swap, swapNote && swapNote.key === swapKey(vm) ? swapNote.text : '') +
     (vm.finals ? '<div class="c-card ss-fin"><h3>Finals</h3>' + finalsHtml(vm.finals) + '</div>' : '') +
     '<div class="ss-final-table">' + (vm.lastSeason ? tableHtml(rows, { cut: false }) : withGoUp(tableHtml(rows, { cut: false }), Number(vm.promoteTop) || 2)) + '</div>' +
     recruitCardHtml(vm.recruits) + // s1: season-end recruits, just above the CTA (null = nothing)

@@ -77,3 +77,21 @@ export function cellName(i) {
   const c = cellOf(i);
   return `${c.bat} v ${c.bowl}, ${['early', 'middle', 'late'][c.ph]}`;
 }
+
+/** P6 who wins a cell (F8-B: the combo bonus adds into the size). side 'bowler' when the points are below 0, else 'batter'; size = min(6, |grade + combo|), 1-6.
+ *  Every combo has the same sign as its grade, so a combo only makes the size bigger. The points number stays inside core. @param {number} i */
+export function winOf(i) {
+  const c = PAIRING.cells[i], p = c[3] + c[4];
+  return { side: p < 0 ? 'bowler' : 'batter', size: Math.min(6, Math.abs(p)) };
+}
+/** Size 1-6 of a cell's win (see winOf). @param {number} i */
+export const sizeOf = (i) => winOf(i).size;
+/** Nearest cell to find: the unfound cell with the most balls, ties to the lowest cell number (the same rule as seasonTip). ph (0-2) limits it to one phase. -1 when none. */
+export function nearestCell(book, ph) {
+  let best = -1;
+  for (let i = 0; i < CELLS; i++) {
+    if (book.found[i] || (ph != null && PAIRING.cells[i][2] !== ph)) continue;
+    if (best < 0 || book.balls[i] > book.balls[best]) best = i;
+  }
+  return best;
+}
