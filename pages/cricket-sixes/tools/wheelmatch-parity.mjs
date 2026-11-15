@@ -3,8 +3,8 @@
 // (NewGame -> StartMatch -> WheelOver x up to 20 -> StartChase), season path (league 1, centre 30, pairing on, settled on), so the
 // store's rival boost (+WHEEL_RIVAL_BOOST on rival bp/bs/spd/bsk) applies. Teams follow the sim's make_teams (wheel_match_sim.py):
 // six players, ratings N(50, 8) - 20 + offset clamped 1..99, bat roles O,O,M,M,L,L, bowl types 2 Fast 2 Medium 2 Spin shuffled.
-//   variant wheel     ours at +1.9 (the Classic offset), rival at 0 (league centre 30). The engine plays the rival +WHEEL_RIVAL_BOOST (9.9, rivalBoostOf)
-//                     and reads the field centre at 30 + 9.9, i.e. the sim's OFF -8 shifted up 9.9 (same rating differences, same z vs centre)
+//   variant wheel     ours at +1.9 (the Classic offset), rival at 0 (league centre 30). The engine plays the rival +WHEEL_RIVAL_BOOST (10.9, rivalBoostOf)
+//                     and reads the field centre at 30 + 10.9, i.e. the sim OFF -9 shifted up 10.9 (same rating differences, same z vs centre)
 //   variant classic   matchMode classic, BowlOver / StartChase with default calls: no boost, centre 30 (sanity)
 // Tapper bots pick the STOP time t (and the start offset phi) and pass {t, phi} through WheelOver:
 //   random  t uniform 1..6 s
@@ -26,7 +26,7 @@ import { matchPhys, rivalBoostOf, matchOpts, boostedRival } from '../js/core/whe
 import { centreOf } from '../js/core/match.js';
 import { suggestedBowler, rivalBowler, modelOf } from '../js/store/wheelmatch-store.js';
 
-export const SPEC_TABLE = { // target win % (numbers thread: python v3 fold + slice cap 0.12, sim/v3_cap_sim.py, OFF -8, phys 36/2.0/1.2, n 1500, league 1).
+export const SPEC_TABLE = { // target win % (numbers thread: python v3 fold + slice cap 0.12, sim/v3_cap_sim.py, OFF -8 row; JS ships OFF -9, see PARITY.md; phys 36/2.0/1.2, n 1500, league 1).
   // Was SPEC s6 at OFF -10 with the cluster builder: random 30.7, avg 60.1, good 64.0, full 77.5.
   wheel: { random: 33.4, avg: 55.2, good: 59.5, full: 72.9 },
 };

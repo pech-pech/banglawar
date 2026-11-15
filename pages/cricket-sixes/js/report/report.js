@@ -327,7 +327,7 @@ export function reportParts(data, env0) {
   const on = w.ms.filter((m) => Array.isArray(m.fl)).length ? w.ms.some(featOn) : (env.features === true || env.features === 'on');
   const t0 = w.since ? w.since.atMs : (w.ms[0] ? w.ms[0].t0 : env.now);
   const rid = w.rid;
-  const mode = modeOf(w.ms, env.matchMode), mh = modeHeader(mode); // wheel match: mode:W|C off:-8|+1.9 (absent for old records without a mode and no env)
+  const mode = modeOf(w.ms, env.matchMode), mh = modeHeader(mode); // wheel match: mode:W|C off:-9|+1.9 (absent for old records without a mode and no env)
   const h1 = `CR ${env.build} | CLEAN: ${clean.ok ? 'YES' : 'NO ' + clean.why.join(', ')} | features ${on ? 'on' : 'off'} | save v${sv.v || '?'} | S${sv.season || '?'} R${sv.round || '?'}/${sv.rounds || 9} L${sv.league || '?'}${mh ? ' | ' + mh : ''} | #${rid} | ${env.vp}`;
   const h2 = `Window: ${fin.length} matches, ${w.nets.length} nets runs, since ${w.since ? '#' + w.since.rid : 'start'} (${utc(t0)} to ${utc(env.now)}). [W] window [S] season [G] save`;
   const h3 = w.dropped ? `Dropped ${w.dropped.n} records from ${w.dropped.build}` : null;

@@ -88,14 +88,14 @@ test('SetMatchMode: ignored mid-match (bowl/break/chase/done); the match keeps i
 });
 
 test('rival boost: save keeps raw rivals (display true); the engine plays them +WHEEL_RIVAL_BOOST (cap 99) with centre + boost; classic none', () => {
-  assert.equal(WHEEL_RIVAL_BOOST, 9.9); // OFF -8 (numbers thread, with the slice cap)
+  assert.equal(WHEEL_RIVAL_BOOST, 10.9); // OFF -9 (numbers thread, with the slice cap)
   const w = toBowl('wms-boost', true), c = toBowl('wms-boost', false);
   assert.deepEqual(w.me, c.me); assert.deepEqual(w.rival, c.rival); // F2: no boost in the save / display paths
   assert.equal(rivalBoostOf(w), WHEEL_RIVAL_BOOST); assert.equal(rivalBoostOf(c), 0);
   const p = w.rival.players[0], b = boostedRival(p, rivalBoostOf(w));
   for (const k of ['bp', 'bs', 'spd', 'bsk']) assert.ok(Math.abs(b[k] - Math.min(99, p[k] + WHEEL_RIVAL_BOOST)) < 1e-9, k);
   assert.equal(boostedRival(p, 0), p);
-  assert.deepEqual(boostedRival({ bp: 95, bs: 10, spd: 90, bsk: 89.1 }, 9.9), { bp: 99, bs: 19.9, spd: 99, bsk: 99 }); // F6
+  assert.deepEqual(boostedRival({ bp: 95, bs: 10, spd: 90, bsk: 88.1 }, 10.9), { bp: 99, bs: 20.9, spd: 99, bsk: 99 }); // F6
   assert.equal(matchOpts(w, 'bowl').centre, matchOpts(c, 'bowl').centre + WHEEL_RIVAL_BOOST); // F1: rival at the centre, as the sim
   // the boost is real: rival bat innings scores more than the same state played classic-style through the engine
   const xw = expectOf(sampleOvers(w, 'bowl', 0, { n: 400 })).xr, xc = expectOf(sampleOvers(c, 'bowl', 0, { n: 400 })).xr;
