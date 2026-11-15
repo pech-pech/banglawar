@@ -1,0 +1,49 @@
+/* Hub L2 "Living ground", Scorebook theme. Load AFTER css/hub.css and kit/skins/scorebook/skin-scorebook.css.
+   Colours, borders, fonts and frames ONLY: all sizes, spacing and positions stay in css/hub.css (taps >= 56 px, text >= 14 px).
+   Tokens: the --sb-* set from skin-scorebook.css, no new hex. Contrast pairs (WCAG, computed) are listed in the build report. */
+
+/* ---- header: ink masthead (the strip rule already paints it); save slip + titles ---- */
+.skin-scorebook .hb-head { background: var(--sb-ink); color: var(--sb-plate); border-bottom: 2px solid var(--sb-ink); }
+.skin-scorebook .hb-head .rn-head { font-family: var(--font-head); font-weight: 700; color: var(--sb-plate); }
+.skin-scorebook .hb-head .hb-lg { font-family: var(--font-head); font-weight: 700; color: var(--sb-hi); }
+.skin-scorebook .hb-save { background: var(--sb-plate); color: var(--sb-ink); border: 2px solid var(--sb-ink); border-radius: 4px; box-shadow: var(--sb-lift); font-family: var(--font-body); font-weight: 700; }
+.skin-scorebook .hb-save:active { background: var(--wall1); box-shadow: none; }
+
+/* ---- next-chapter strip: a green ledger band under the ink masthead ---- */
+.skin-scorebook .hb-chap { background: var(--sb-green); color: var(--sb-plate); border-top: 0; border-bottom: 2px solid var(--sb-ink); font-family: var(--font-body); font-weight: 400; }
+.skin-scorebook .hb-chap b { font-family: var(--font-head); font-weight: 700; color: var(--sb-hi); }
+
+/* ---- ground: the canvas is a pen sketch, same filter as the old scene ---- */
+.skin-scorebook .hb-gcv { filter: sepia(.45) saturate(.7) contrast(1.05); }
+
+/* ---- scoreboard: one ink slate, ruled cells; Coins = the tap, edged in highlighter gold ---- */
+.skin-scorebook .hb-board { background: var(--sb-ink); color: var(--sb-plate); border: 2px solid var(--sb-ink); border-radius: 4px; box-shadow: var(--sb-lift); }
+.skin-scorebook .hb-cell { background: var(--sb-ink); color: var(--sb-plate); border: 0; border-radius: 0; box-shadow: none; font-family: var(--font-body); }
+.skin-scorebook .hb-cell + .hb-cell { border-left: 2px solid var(--stone2); }
+.skin-scorebook .hb-cell--coins + .hb-cell { border-left: 0; }
+.skin-scorebook .hb-cell b { font-family: var(--font-head); font-weight: 700; color: var(--sb-plate); }
+.skin-scorebook .hb-cell small { font-family: var(--font-body); font-weight: 700; color: var(--sb-plate); text-transform: none; letter-spacing: 0; }
+.skin-scorebook .hb-cell--coins { box-shadow: inset 0 0 0 3px var(--sb-hi); cursor: pointer; }
+.skin-scorebook .hb-cell--coins:active { background: var(--sb-green); box-shadow: inset 0 0 0 3px var(--sb-hi); transform: none; }
+.skin-scorebook .hb-cell--coins:is(:focus-visible, .is-focus) { outline: 3px dashed var(--sb-hi); outline-offset: -8px; }
+
+/* ---- slot plates: flat paper slips, ink edge, lift (the .c-btn rule gives the base; restated so hub.css cannot leak the green look) ---- */
+.skin-scorebook .hb-plate { background: var(--sb-plate); color: var(--sb-ink); border: 2px solid var(--sb-ink); border-radius: 4px; box-shadow: var(--sb-lift); font-family: var(--font-body); font-weight: 700; }
+.skin-scorebook .hb-plate:active { background: var(--wall1); box-shadow: none; transform: translate(1px, 2px); }
+.skin-scorebook .hb-plate:is(:focus-visible, .is-focus) { outline: 3px dashed var(--sb-blue); outline-offset: 3px; }
+.skin-scorebook .hb-pl { font-family: var(--font-body); font-weight: 700; color: var(--sb-ink); }
+.skin-scorebook .hb-badge { background: var(--sb-red); color: var(--sb-stampfg); border: 1.5px solid var(--sb-ink); border-radius: 3px; font-family: var(--font-body); font-weight: 700; }
+
+/* ---- hint bubble: a paper slip with an ink edge; "Resting is free" in margin-red ---- */
+.skin-scorebook .hb-bubble { background: var(--sb-plate); color: var(--sb-ink); border: 2px solid var(--sb-ink); border-radius: 4px; box-shadow: var(--sb-lift); font-family: var(--font-body); font-weight: 400; font-size: 14px; line-height: 18px; letter-spacing: 0; }
+.skin-scorebook .hb-bubble em { font-style: normal; font-weight: 700; color: var(--sb-red); }
+/* tail: colour only (a border-triangle tail takes its colour from the top edge; geometry stays in hub.css) */
+.skin-scorebook .hb-bubble::after { border-top-color: var(--sb-ink); border-color: var(--sb-ink) transparent transparent; }
+.skin-scorebook .hb-bubble::before { border-top-color: var(--sb-plate); }
+
+/* ---- live facility hit-areas stay invisible; keep the focus ring visible in this theme ---- */
+.skin-scorebook .hb-fac:focus-visible { outline: 3px dashed var(--sb-blue); outline-offset: -3px; }
+
+/* "Workshop" (locked plate) was 3 px wider than its box at 344: slightly tighter plate, label still >= 14 px */
+.skin-scorebook .hb-plate { padding-left: 1px; padding-right: 1px; gap: 1px; }
+.skin-scorebook .hb-pl { font-size: 15px; letter-spacing: -.01em; }
