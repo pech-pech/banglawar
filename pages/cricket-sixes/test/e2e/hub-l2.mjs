@@ -119,6 +119,7 @@ async function runHub(browser, key, vp, opts = {}) {
     await page.waitForTimeout(400); // canvas draw + facility buttons
     await shot('hub');
     for (const s of ['.hb-head .hb-save', '.hb-board', '.hb-field', '.hb-row--top', '.hb-row--bot', '.hb-more', '.hb-foot']) step(`has ${s}`, !!(await page.$(s)), 'missing');
+    { const fg = await page.$('.hb-fg'); const tx = fg ? await fg.innerText() : ''; step('Fans gate line shown (or stadium L5)', !fg || /^Fans (ready: build stadium L\d|[\d,]+ \/ [\d,]+ for stadium L\d)/.test(tx.trim()), 'bad text: ' + tx); }
     step('canvas.hb-gcv present', !!(await page.$('.hb-ground canvas.hb-gcv')), 'missing');
     const ground2 = await page.evaluate(() => { const g = document.querySelector('.hb-ground').getBoundingClientRect(); return Math.round(g.height); });
     if (vp[0] === 344 && vp[1] === 882) step('ground height >= 440 at 344x882', ground2 >= 440, `ground is ${ground2}px tall`);

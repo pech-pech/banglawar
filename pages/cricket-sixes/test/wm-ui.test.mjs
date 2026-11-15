@@ -93,7 +93,7 @@ test('look helpers: ranks map to looks, 0 = none, colours parse, wheel svg draws
 });
 test('wheel-view keeps the old behaviour without o.look / o.guide / o.tokens and reads phys', () => {
   const src = read('js/ui/wheel-view.js');
-  assert.match(src, /o\.guide && state === 'spin'/); assert.match(src, /o\.phys/); assert.match(src, /LK = normLook\(o\.look\)/);
+  assert.match(src, /tk !== 'none' && state === 'spin'/); assert.match(src, /guide: !!o.guide/); assert.match(src, /o\.phys/); assert.match(src, /LK = normLook\(o\.look\)/);
   assert.match(src, /carefulTapTime\(WO, ph, 1 - Math\.random\(\), Math\.random\(\), \.\.\.PX\)/);
 });
 

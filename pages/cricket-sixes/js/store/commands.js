@@ -8,7 +8,7 @@ import { FLAGS } from '../data/flags.js';
 import { SEASON } from '../data/season.js';
 import { makeClubs, growClubs, aiPickSix } from '../core/clubs.js';
 import { makeSchedule, makeTable, applyResult, placeOf, inTopFour, finalsDraw, finalFrom, koWinner, matchPay, tpAward, simRound, simMatch, simFinals, ME } from '../core/season.js';
-import { planOf, netsPreview, setPlan as setTrainPlan, runNets, endWeek, coachList, scoutList, coachStepInUse, startCoach as makeStartCoach, passScout, courseUsesLicence, courseCost, signCoach, releaseCoach, pickWeekCoach, canCourse, courseWheel, runCourse, wheelSlices, spinResult } from '../core/training.js';
+import { planOf, netsPreview, setPlan as setTrainPlan, runNets, endWeek, coachList, scoutList, coachStepInUse, startCoach as makeStartCoach, passScout, courseUsesLicence, courseCost, signCoach, releaseCoach, pickWeekCoach, canCourse, courseWheel, runCourse, wheelSlices, spinResult, matchCoachOf, setMatchCoach } from '../core/training.js';
 import { unlockNode, makeFx } from '../core/skills.js';
 import { defaultOvers } from '../core/plan.js';
 import { newEconomy, applyMatch, tickBuild, finalsReward, finalsTp, payCourse, useHeld, startBuild, buySink, buyMedal, buyLegacy } from '../core/economy.js';
@@ -282,10 +282,14 @@ function seasonMatch(s0) {
   const mine = s.clubs[0], opp = s.clubs.find((c) => c.id === fx.opp);
   const byId = (club, id) => club.squad.find((x) => x.id === id);
   const seed = `${s.season.seed}|${fx.kind}|${fx.round}|${s.salt}`;
-  const md = FLAGS.matchday ? mdFor(s, mine.six) : null; // rolled once per fixture; hype, toss and pep scale COPIES of our six (never the save)
+  let md = FLAGS.matchday ? mdFor(s, mine.six) : null; // rolled once per fixture; hype, toss and pep scale COPIES of our six (never the save)
+  // Match coach (SPEC 2026-11-15): the idle coach's bat / bowl boost multiplies with Hype, Pep and Toss; ours only, no cap, no RNG draw. Absent with no idle coach.
+  const mco = md ? matchCoachOf(s) : null, mc = mco && (mco.boost.bat || mco.boost.bowl) ? { id: mco.coach.id, name: mco.coach.name, bat: mco.boost.bat, bowl: mco.boost.bowl } : null;
+  if (md && mc) md = { ...md, mc };
+  const scaled = (id) => { const f = teamBoost(md, id), p = copyPlayer(byId(mine, id)); return mc ? scaleRatings(p, (1 + f) * (1 + mc.bat) - 1, (1 + f) * (1 + mc.bowl) - 1) : scaleRatings(p, f); };
   const n = {
     ...s, ...blankMatch(), seed, stage: 'bowl',
-    me: { name: mine.name, players: mine.six.map((id) => (md ? scaleRatings(copyPlayer(byId(mine, id)), teamBoost(md, id)) : copyPlayer(byId(mine, id)))) },
+    me: { name: mine.name, players: mine.six.map((id) => (md ? scaled(id) : copyPlayer(byId(mine, id)))) },
     rival: { name: opp.name, players: aiPickSix(opp).map((id) => copyPlayer(byId(opp, id))) },
   };
   delete n.match; // r9 H2: the last match's roll never outlives its match (s.match is set only when this match has a match day)
@@ -470,6 +474,7 @@ function applyCommandCore(s, cmd, payload) {
     case 'SetTrainPlan': return viaTrain(s, (x) => setTrainPlan(x, payload || {}));
     case 'Spin': return viaTrain(s, (x) => spin(x, payload));
     case 'RunNets': return viaTrain(s, doRunNets);
+    case 'SetMatchCoach': return setMatchCoach(s, payload && payload.coachId != null ? payload.coachId : null); // match day: this week's match coach (null = default)
     case 'PickWeekCoach': return viaTrain(s, (x) => pickWeekCoach(x, payload && payload.coachId != null ? payload.coachId : null));
     case 'PassScout': return viaTrain(s, passScout);
     case 'SignCoach': return viaTrain(s, (x) => signCoach(x, payload && payload.coachId));

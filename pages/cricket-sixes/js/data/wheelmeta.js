@@ -33,7 +33,7 @@ export const NODES = [
   N('c_steady', 'control', 2, 'Steady Axle', [20, 40], 'wobble_mult', -0.15, ALL, 'Every wheel wobbles less when it stops.'),
   N('c_zone', 'control', 2, 'Aim Zone', [20], 'window_add_s', 0.2, ALL, 'A softer glow shows a good moment to tap.'),
   N('c_chime', 'control', 4, 'Gold Chime', [40], 'aim_cue', 1, ALL, 'A little chime rings as gold comes near the pointer.'),
-  N('c_guide', 'control', 6, 'Aim Guide', [130], 'preview_mark', 1, ALL, 'A tick shows where it stops. Steadier taps on Spotlight, Course, Find, Hype.'),
+  N('c_guide', 'control', 6, 'Aim Guide', [130], 'preview_mark', 1, ALL, 'Sharper landing tick and steadier stop.'),
   // Fortune
   N('f_wide', 'fortune', 2, 'Widener', [15, 30, 60], 'jackpot_width_add', 0.02, ALL, 'The best slice gets a bit wider on every wheel.'),
   N('f_boost', 'fortune', 2, 'Booster', [15, 30, 60], 'booster_chance', 0.2, ALL, 'Sometimes one slice shines. If you land on it, it pays one more.'),

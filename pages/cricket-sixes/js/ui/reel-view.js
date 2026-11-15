@@ -14,6 +14,7 @@
    No snap, no hidden roll, no landing preview (the Aim Guide upgrade only). Reveal: result already drawn; one tap plays, tap again or anywhere skips; reduced motion = result at once.
    Cells 19 px tall (Street Game) still read: icon + text, text size follows the cell. Canvas drawn in code (pixel style), palette from CSS vars (both skins). */
 import { esc, icoDeco } from './dom.js';
+import { tickKind } from '../core/landtick.js';
 import { DR, mountShell, palette, reducedNow, lum, dim, cumOf, sliceAtX, easeOut3, smooth, revealFrac } from './dial-view.js';
 
 export const RL = { C: 12, V: 7, G: 0.5, J: 0.8, REVEAL_T: 3, PX: 100 };
@@ -57,7 +58,7 @@ export function openReel(o) {
   const COPIES = [-1, 0, 1, 2]; const labs = [];
   cells.forEach((c, i) => COPIES.forEach((m) => { const e = document.createElement('span'); e.className = 'dr-cell' + (c.find ? ' is-find' : ''); e.setAttribute('aria-hidden', 'true'); e.innerHTML = (c.icon ? icoDeco(c.icon, 16) : '') + '<b>' + esc(c.label) + '</b>'; labBox.appendChild(e); labs.push({ e, i, m }); }));
   let state = 'idle', off = Math.random() * C, phi = off, clock = 0, lastF = 0, spinEv = 0, tapT = 0, stopInfo = null, adj = 0, raf = 0, W = 100, H = 400, shown = 0, prevIdx = sliceAtX(cum, off), target = 0, revT0 = 0, rev = null, skipped = false, tw = null;
-  const MSG_GO = 'Turning. Tap STOP when a gold cell is on the line. Tap early and it goes further.';
+  const MSG_GO = 'Turning. Tap STOP when a gold cell is on the line. The tick shows where it will land. Tap early and it goes further.';
   const golds = cells.map((c, i) => (c.gold || (!reveal && c.find) ? i : -1)).filter((i) => i >= 0), ZONE = !reduced && +o.zone > 0 ? +o.zone : 0, CHIME = !reduced && !!o.chime; let chimeT = -9; // wa1 Control feel (Aim Zone glow, Gold Chime flash); on a reveal it is feel only
 
   function layout() {
@@ -89,7 +90,11 @@ export function openReel(o) {
     }
     if ((ZONE || CHIME) && (state === 'spin' || state === 'play' || state === 'tok')) { const zoneOn = ZONE > 0 && goldNearLine(off, V * ZONE, cum, C, golds), flash = CHIME && clock - chimeT < 0.32; if (zoneOn || flash) { ctx.fillStyle = 'rgb(' + ZONE_COL + ')'; const hh = flash ? 9 : 6; ctx.fillRect(0, cyL - hh, 3, hh * 2); ctx.fillRect(w - 3, cyL - hh, 3, hh * 2); } } // wa1 Aim Zone: the side marks at the line glow gold while gold is near; Gold Chime: a taller flash as gold reaches the line
     if (o.guide && reveal && state === 'play' && clock - revT0 >= T * 0.65) { const gy = cyL; ctx.fillStyle = 'rgb(' + pal.out + ')'; ctx.fillRect(0, gy - 4, 7, 9); ctx.fillRect(w - 7, gy - 4, 7, 9); ctx.fillStyle = 'rgb(' + pal.gold + ')'; ctx.fillRect(0, gy - 3, 6, 7); ctx.fillRect(w - 6, gy - 3, 6, 7); } // wa1 Aim Guide on a reveal: feel only, a gold tick at the line as the reel slows
-    if (o.guide && !reveal && state === 'spin' && shown >= DR.STOP_FROM) { const gy = cyL + (V * RL.G / 3) * ppu; ctx.fillStyle = 'rgb(' + pal.out + ')'; ctx.fillRect(0, gy - 3, 6, 7); ctx.fillStyle = 'rgb(' + pal.gold + ')'; ctx.fillRect(0, gy - 2, 5, 5); ctx.fillStyle = 'rgb(' + pal.out + ')'; ctx.fillRect(w - 6, gy - 3, 6, 7); ctx.fillStyle = 'rgb(' + pal.gold + ')'; ctx.fillRect(w - 5, gy - 2, 5, 5); } // Aim Guide: the cell that will be on the line if STOP is pressed now sits here
+    const tk = tickKind({ reveal, guide: !!o.guide, reduced });
+    if ((tk === 'wedge' || tk === 'plain') && state === 'spin' && shown >= DR.STOP_FROM) { const gy = cyL + (V * RL.G / 3) * ppu; // landing tick: the cell that will be on the line if STOP is pressed now sits here (free for everyone; Aim Guide = bigger gold marks)
+      if (tk === 'wedge') { ctx.fillStyle = 'rgb(' + pal.out + ')'; ctx.fillRect(0, gy - 3, 6, 7); ctx.fillStyle = 'rgb(' + pal.gold + ')'; ctx.fillRect(0, gy - 2, 5, 5); ctx.fillStyle = 'rgb(' + pal.out + ')'; ctx.fillRect(w - 6, gy - 3, 6, 7); ctx.fillStyle = 'rgb(' + pal.gold + ')'; ctx.fillRect(w - 5, gy - 2, 5, 5); }
+      else { ctx.fillStyle = 'rgb(' + pal.out + ')'; ctx.fillRect(0, gy - 2, 5, 5); ctx.fillRect(w - 5, gy - 2, 5, 5); ctx.fillStyle = '#fff'; ctx.fillRect(0, gy - 1, 4, 3); ctx.fillRect(w - 4, gy - 1, 4, 3); } // plain: a small white mark in a 1 px outline, each side
+    }
   }
   labBox.style.left = '0'; labBox.style.top = '0';
   const tick = (a, b, loud) => { if (a === b) return; const ch = CHIME && state !== 'result' && chimeEnters(a, b, golds); if (ch) chimeT = clock; if (o.onTick) o.onTick(ch ? { loud: true, rate: V, chime: true } : { loud: !!loud, rate: V }); };
@@ -158,6 +163,6 @@ export function openReel(o) {
   layout();
   const pend = o.pending || null;
   if (pend) { target = pend.index | 0; off = centreOf(target); state = 'result'; draw(); showRes(); }
-  else { sh.setMsg(reduced ? 'Tap SPIN. The result shows at once.' : reveal ? 'One tap. Tap again to skip.' : 'Tap SPIN. Tap STOP when a gold cell is on the line.'); go.focus(); }
+  else { sh.setMsg(reduced ? 'Tap SPIN. The result shows at once.' : reveal ? 'One tap. Tap again to skip.' : 'Tap SPIN. Tap STOP when a gold cell is on the line. The tick shows where it will land.'); go.focus(); }
   return () => sh.close();
 }

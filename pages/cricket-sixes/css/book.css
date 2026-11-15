@@ -1,81 +1,165 @@
-/* Pairing Book (P4): sheet, phase chips, combos, found card in the over panel. Kit variables only. 344 wide first. Chips are not pressable, so they are flat. */
+/* Book (P6): rule strip, phase toggle, 3x3 grid, one card, footer. Kit variables only; 344 wide first (grid 62 + 3 x ~80 px, cells >= 56 px tall, text >= 14 px).
+   Bowler wins = green, batter wins = pink, not found = dashed paper; the word always carries the meaning, never colour alone. Theme: default (retro green) and .skin-scorebook below. */
+.bk-root, .bk-found, .bk-nb { --bk-bowl: #B4D79B; --bk-bat: #E3A9B0; --bk-q: var(--cream); --bk-ink: var(--outline); --bk-fill: var(--grass2, #629753); --bk-off: var(--stone1); --bk-sel: var(--gold); --bk-paper: var(--sk-primp-text, var(--cream)); } /* --bk-paper: the sheet's own fill (retro-green frame fill #EEF0E4) */
 .c-sheet.sheet-fixed.bk-sheet { max-height: 94vh; max-height: 94dvh; padding-left: 10px; padding-right: 10px; }
-.bk-sheet .c-sheet__body > * + * { margin-top: 6px; }
-.bk-root { display: flex; flex-direction: column; gap: 8px; }
-.bk-head { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
-.bk-head .c-tag { min-height: 30px; gap: 6px; font-size: var(--c-fs-s); }
-.bk-head .c-tag::before { display: none; }
-.bk-seg { min-height: 56px; }
-.bk-note { margin: 0; font-size: var(--c-fs-s); line-height: var(--c-lh-s); }
-.bk-pane { display: flex; flex-direction: column; gap: 6px; }
-.bk-panel { display: flex; flex-direction: column; gap: 8px; }
-.bk-ph { list-style: none; margin: 0; padding: 4px 0; position: sticky; top: 0; z-index: 2; background: var(--cream); border-bottom: 2px solid var(--outline); }
-.bk-ph, .bk-row { display: grid; grid-template-columns: 26px repeat(3, minmax(0, 1fr)); gap: 6px; align-items: center; }
-.bk-ph li { display: flex; flex-direction: column; align-items: center; font: 700 var(--c-fs-s)/16px var(--c-font); }
-.bk-ph small { font: 400 14px/16px var(--c-font); }
-.bk-grp h4 { margin: 4px 0 2px; display: flex; align-items: center; gap: 6px; font: 700 var(--c-fs-m)/var(--c-lh-m) var(--c-font); }
-.bk-row { padding: 3px 0; border-bottom: 2px solid var(--wall1); }
-.bk-ty { display: flex; align-items: center; justify-content: center; }
-.bk-sheet img.icon, .bk-sheet .bk-ty img { flex: none; image-rendering: pixelated; }
-.bk-c { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; min-height: 40px; padding: 2px 3px; box-sizing: border-box;
-  border: 2px solid var(--outline); border-radius: 2px; background: var(--white); color: var(--outline); font: 700 var(--c-fs-s)/16px var(--c-font); white-space: nowrap; }
-.bk-c--q { background: var(--stone1); border-style: dashed; }
-.bk-q { display: flex; align-items: baseline; gap: 4px; }
-.bk-q b { font: 700 var(--c-fs-m)/18px var(--c-font); }
-.bk-q span { font: 400 14px/18px var(--c-font); font-variant-numeric: tabular-nums; }
-.bk-bar { display: block; position: relative; width: 100%; max-width: 72px; height: 6px; background: var(--white); outline: 1px solid var(--outline); }
-.bk-bar > i { position: absolute; left: 0; top: 0; bottom: 0; background: var(--kitA2); }
-.bk-w { display: inline-flex; align-items: center; gap: 2px; }
-.bk-g6 { background: var(--gold); }
-.bk-g5 { background: var(--accent); color: var(--white); }
-.bk-g4 { background: var(--white); }
-.bk-g3 { background: var(--wall1); }
-.bk-g2 { background: var(--danger); color: var(--white); }
-.bk-g1 { background: var(--outline); color: var(--white); }
-.bk-card { padding: var(--c-sp-2) var(--c-sp-3); }
-.bk-card > .c-strip:first-child { margin: -8px -12px 4px; font-size: var(--c-fs-m); line-height: var(--c-lh-m); }
-.bk-cb { display: grid; grid-template-columns: 24px minmax(0, 1fr) auto; gap: 8px; align-items: center; min-height: 44px; padding: 2px 0; border-bottom: 2px solid var(--wall1); font-size: var(--c-fs-s); line-height: 18px; }
-.bk-cb b { display: block; font: 700 var(--c-fs-m)/20px var(--c-font); }
-.bk-ln { display: inline-flex; align-items: center; gap: 4px; }
-.bk-cb--f { row-gap: 0; }
-.bk-cb--f .bk-where { grid-column: 1 / -1; padding-left: 32px; }
-.bk-cb--q b { color: var(--outline); }
-.bk-side { display: inline-flex; align-items: center; gap: 4px; min-height: 28px; }
-.bk-side::before { display: none; }
-.bk-mini { min-height: 32px; min-width: 32px; padding: 0 6px; }
-.bk-key { display: grid; grid-template-columns: 64px 48px minmax(0, 1fr); gap: 8px; align-items: center; min-height: 40px; border-bottom: 2px solid var(--wall1); font-size: var(--c-fs-s); line-height: 18px; }
-.bk-key:last-child { border-bottom: 0; }
-.bk-key b { font: 700 var(--c-fs-m)/18px var(--c-font); }
-.bk-key b small { display: block; font: 400 14px/16px var(--c-font); }
+.bk-root { display: flex; flex-direction: column; gap: 8px; padding: 0 6px; color: var(--bk-ink); } /* side room: the 6 px selection ring and focus ring of an edge cell are not clipped by the scroll box */
+.bk-sheet img.icon, .bk-grid img.icon, .bk-card2 img.icon, .bk-foot img.icon { flex: none; image-rendering: pixelated; }
 
-/* found card: sits in the over panel under the ball lines, above Next */
-.op-card.has-found { height: 100%; }
-.op-bottom { overflow-y: auto; }
-.bk-found { max-height: 240px; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; padding: 6px 8px; background: var(--outline); color: var(--white); border: 2px solid var(--white); }
-.bk-found + .bk-found { margin-top: 4px; }
-.bk-f1 { display: flex; align-items: center; gap: 8px; font: 700 var(--c-fs-m)/24px var(--c-font); }
-.bk-f1 + .bk-fr { border-top: 0; padding-top: 0; }
-.bk-fr { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 4px 8px; padding-top: 4px; border-top: 2px solid var(--white); }
-.bk-fn { display: inline-flex; align-items: center; gap: 4px; font-size: var(--c-fs-m); line-height: var(--c-lh-m); min-width: 0; }
-.bk-fc { flex-basis: 100%; display: inline-flex; align-items: center; gap: 4px; font-size: var(--c-fs-s); line-height: 18px; }
-.bk-tkey { display: flex; gap: 16px; align-items: center; font: 700 var(--c-fs-s)/var(--c-lh-s) var(--c-font); }
-.bk-f2 { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: var(--c-fs-m); line-height: var(--c-lh-m); }
-.bk-f3 { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.bk-ib { display: inline-flex; flex: none; padding: 2px; background: var(--cream); border: 2px solid var(--white); }
-.bk-found .bk-c { flex-direction: row; min-height: 32px; padding: 2px 10px; box-shadow: 0 0 0 2px var(--white); }
-.bk-found .c-tag { min-height: 32px; font-size: var(--c-fs-s); }
-.bk-found .c-tag::before { display: none; }
-.bk-fsub { margin: 0; font-size: var(--c-fs-s); line-height: 18px; font-weight: 400; }
-.op-foot.has-found { display: flex; flex-direction: column; gap: 6px; min-height: 0; }
-.op-book { min-height: 56px; }
+/* 1. rule strip */
+.bk-rule { margin: 0; display: flex; align-items: center; gap: 8px; min-height: 36px; padding: 4px 8px; border: 2px dashed var(--bk-ink); background: var(--white); font: 400 var(--c-fs-m)/var(--c-lh-m) var(--c-font); }
 
-/* notebook card on the season-over screen: own look (dashed book-blue edge), not the result medal card */
-.bk-nb { display: grid; grid-template-columns: 32px minmax(0, 1fr); gap: 4px 10px; align-items: center; padding: 8px 10px; background: var(--white); border: 3px dashed var(--kitA2); }
-.bk-nb__t { font: 700 var(--c-fs-m)/var(--c-lh-m) var(--c-font); }
-.bk-nb__row { grid-column: 2; display: flex; align-items: center; flex-wrap: wrap; gap: 6px 8px; font-size: var(--c-fs-m); line-height: var(--c-lh-m); }
-.bk-nb__sub { grid-column: 1 / -1; margin: 0; font-size: var(--c-fs-s); line-height: 18px; }
-.bk-nb .c-btn { grid-column: 1 / -1; min-height: 56px; }
-.bk-nb img.icon { image-rendering: pixelated; }
+/* 2. phase toggle: a radio group of 3 segments, 56 px */
+.bk-phs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border: 3px solid var(--bk-ink); background: var(--white); }
+.bk-ph { min-height: 56px; min-width: 56px; margin: 0; padding: 0 4px; border: 0; border-left: 3px solid var(--bk-ink); border-radius: 0; background: var(--white); color: var(--bk-ink);
+  font: 700 var(--c-fs-m)/18px var(--font-head, var(--c-font)); cursor: pointer; }
+.bk-ph:first-child { border-left: 0; }
+.bk-ph[aria-checked="true"] { background: var(--accent); color: var(--white); box-shadow: inset 0 -5px 0 var(--bk-sel); }
+.bk-ph:focus-visible { outline: 3px dashed var(--c-focus); outline-offset: -7px; }
+.bk-ph[aria-checked="true"]:focus-visible { outline-color: var(--white); }
 
-/* caption above the bowl and chase matchup grid: whose view ▲ Strong / ● Even / ▼ Weak takes */
+/* 3. the grid: rows = their batter, cols = your bowler */
+.bk-grid { display: grid; grid-template-columns: 62px repeat(3, minmax(0, 1fr)); gap: 6px; align-items: stretch; }
+.bk-yb { grid-column: 2 / 5; padding-bottom: 2px; border-bottom: 2px solid var(--bk-ink); text-align: center; font: 700 14px/16px var(--c-font); }
+.bk-corner, .bk-colh, .bk-rowh { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; text-align: center; font: 700 14px/16px var(--c-font); }
+.bk-corner { justify-content: flex-end; font-weight: 400; }
+.bk-colh { justify-content: flex-end; padding-bottom: 2px; }
+.bk-grid--mini .bk-colh { border-bottom: 2px solid var(--bk-ink); }
+.bk-cell { position: relative; box-sizing: border-box; min-height: 60px; min-width: 56px; margin: 0; padding: 6px 0; border: 3px solid var(--bk-ink); border-radius: 2px;
+  background: var(--white); color: var(--bk-ink); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+  font: 700 16px/18px var(--font-head, var(--c-font)); text-align: center; cursor: pointer; }
+.bk-cell.is-bowler { background: var(--bk-bowl); }
+.bk-cell.is-batter { background: var(--bk-bat); }
+.bk-cell.is-q { border-style: dashed; background: var(--bk-q); font: 400 15px/16px var(--c-font); }
+.bk-cell.is-sel { box-shadow: 0 0 0 3px var(--bk-sel), 0 0 0 6px var(--bk-ink); z-index: 1; }
+.bk-cell.is-new { outline: 3px solid var(--bk-sel); outline-offset: 2px; z-index: 1; }
+.bk-cell:focus-visible { outline: 3px dashed var(--c-focus); outline-offset: 3px; }
+.bk-cw { display: block; max-width: 100%; overflow-wrap: anywhere; }
+.bk-qn { font-variant-numeric: tabular-nums; }
+/* size pips 1-6: dark blocks, 6 x 6 + 5 x 2 = 46 px fits a 56 px cell; they read on green, pink and paper */
+.bk-pips { display: inline-flex; gap: 2px; flex: none; }
+.bk-pips i { display: block; width: 6px; height: 10px; background: var(--bk-ink); }
+/* pips + medal row under the cell word: the medal sits inline after the pips (never over the word); wraps under them in a narrow cell */
+.bk-pr { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 2px; max-width: 100%; min-height: 18px; } /* same row height with or without a medal: words line up across a row */
+/* medal: gold badge on a found combo cell only (never on an unfound cell) */
+.bk-medal { display: inline-flex; align-items: center; justify-content: center; flex: none; width: 18px; height: 18px; box-sizing: border-box; background: var(--gold); border: 2px solid var(--bk-ink); border-radius: 50%; }
+.bk-medal::before { content: ""; width: 6px; height: 6px; background: var(--bk-ink); clip-path: polygon(50% 0, 62% 38%, 100% 38%, 69% 61%, 81% 100%, 50% 76%, 19% 100%, 31% 61%, 0 38%, 38% 38%); }
+.bk-medal:has(img)::before { display: none; }
+.bk-pr .bk-medal { width: 16px; height: 16px; } /* 6 pips + medal = 64 px: fits one row in a 344 px cell */
+.bk-bar { display: block; position: relative; width: 80%; max-width: 64px; height: 8px; border: 2px solid var(--bk-ink); background: var(--white); }
+.bk-bar > i { position: absolute; left: 0; top: 0; bottom: 0; background: var(--bk-fill); }
+.bk-grid--mini { gap: 4px; grid-template-columns: 56px repeat(3, minmax(0, 1fr)); }
+.bk-grid--mini .bk-cell { min-height: 48px; cursor: default; padding-top: 4px; padding-bottom: 4px; }
+/* new cells pulse only when motion is welcome; the outline stays either way */
+@media (prefers-reduced-motion: no-preference) {
+  .bk-cell.is-new { animation: bk-pulse 1.2s ease-in-out 3; }
+  @keyframes bk-pulse { 50% { outline-offset: 5px; } }
+}
+
+/* key: colours (who wins), then size (pips) and the combo medal, as in the mockup (F8-B) */
+.bk-key { margin: 6px 0 0; display: flex; flex-direction: column; align-items: center; gap: 4px; font: 400 14px/18px var(--c-font); }
+.bk-key > p { margin: 0; display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 12px; }
+.bk-key > p > span { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
+.bk-key .bk-pips { margin-right: 2px; }
+.bk-sw { display: inline-block; width: 14px; height: 14px; border: 2px solid var(--bk-ink); }
+.bk-sw.is-bowler { background: var(--bk-bowl); } .bk-sw.is-batter { background: var(--bk-bat); }
+
+/* 4. the card */
+.bk-split { display: flex; flex-direction: column; gap: 10px; }
+/* D1: the card box keeps the tallest card's height (a combo card, 302 px at 344), so the sheet does not resize and the grid stays under the finger between taps.
+   Capped at the room left in a full-height sheet (94dvh less the ~590 px of chrome, rule, toggle, grid, key and footer): once the sheet is full height
+   it cannot grow, so the grid is still, and short cards leave no blank space to scroll. */
+.bk-cardw { min-height: 302px; min-height: min(302px, calc(94vh - 590px)); min-height: min(302px, calc(94dvh - 590px)); }
+.bk-card2 { display: flex; flex-direction: column; gap: 6px; padding: 8px 10px 10px; background: var(--white); color: var(--bk-ink); border: 3px solid var(--bk-ink); text-align: left; }
+.bk-ct { margin: 0; display: flex; align-items: center; gap: 8px; font: 700 var(--c-fs-l)/var(--c-lh-l) var(--font-head, var(--c-font)); }
+.bk-ic { display: inline-flex; align-items: center; gap: 4px; flex: none; }
+.bk-ctw { min-width: 0; }
+.bk-cs { margin: -4px 0 0; font: 400 var(--c-fs-s)/var(--c-lh-s) var(--c-font); }
+.bk-band { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; min-height: 40px; padding: 4px 8px; border: 2px solid var(--bk-ink); font: 700 var(--c-fs-l)/22px var(--font-head, var(--c-font)); }
+.bk-band.is-bowler { background: var(--bk-bowl); }
+.bk-band.is-batter { background: var(--bk-bat); }
+.bk-band.is-q { background: var(--bk-q); border-style: dashed; }
+.bk-band .bk-pips { margin-left: auto; gap: 3px; }
+.bk-band .bk-pips i { width: 8px; height: 16px; }
+.bk-combo { margin: 0; display: flex; align-items: center; gap: 8px; padding: 4px 8px; background: var(--gold); border: 2px solid var(--bk-ink); font: 400 var(--c-fs-m)/var(--c-lh-m) var(--c-font); }
+.bk-combo b { display: block; font-weight: 700; }
+.bk-ln { margin: 0; display: grid; grid-template-columns: 24px minmax(0, 1fr); gap: 8px; align-items: start; font: 400 var(--c-fs-m)/var(--c-lh-m) var(--c-font); }
+.bk-ln:not(:has(img)) { grid-template-columns: minmax(0, 1fr); }
+.bk-togo { margin: 0; font: 700 var(--c-fs-l)/var(--c-lh-l) var(--font-head, var(--c-font)); }
+.bk-bar18 { display: grid; grid-template-columns: repeat(18, minmax(0, 1fr)); gap: 2px; height: 18px; padding: 2px; box-sizing: border-box; border: 2px solid var(--bk-ink); background: var(--white); }
+.bk-bar18 i { background: var(--bk-off); }
+.bk-bar18 i.is-on { background: var(--bk-fill); }
+.bk-goal { box-shadow: inset 0 0 0 3px var(--gold); }
+.bk-gtop { margin: 0; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.bk-gtag, .bk-gov, .bk-tag { display: inline-flex; align-items: center; gap: 6px; min-height: 30px; padding: 2px 8px; border: 2px solid var(--bk-ink); background: var(--white); font: 700 var(--c-fs-s)/var(--c-lh-s) var(--c-font); white-space: nowrap; }
+.bk-gtag { background: var(--gold); }
+.bk-g1 { margin: 0; font: 700 var(--c-fs-l)/var(--c-lh-l) var(--font-head, var(--c-font)); }
+.bk-g2 { margin: 0; font: 400 var(--c-fs-m)/var(--c-lh-m) var(--c-font); }
+
+/* 5. footer */
+/* the footer sticks to the bottom of the sheet's scroll box, so the counts stay in view when a tall card scrolls */
+.bk-foot { position: sticky; bottom: 0; z-index: 2; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px; margin: 0 -6px; padding: 8px 6px 2px; border-top: 3px solid var(--bk-ink); background: var(--bk-paper); }
+.bk-tag { font-size: var(--c-fs-m); min-height: 36px; gap: 4px; padding: 2px 6px; }
+/* fade above the footer while the sheet body scrolls on (book-sheet.js sets .bk-more): a cue that the card goes on below */
+.c-sheet__body.bk-more .bk-foot::before { content: ""; position: absolute; left: 0; right: 0; bottom: calc(100% + 3px); height: 40px; background: linear-gradient(to bottom, transparent, var(--bk-paper)); pointer-events: none; }
+
+@media (min-width: 600px) {
+  .bk-split { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); gap: 14px; align-items: start; }
+  .bk-grid:not(.bk-grid--mini) { grid-template-columns: 70px repeat(3, minmax(0, 1fr)); }
+  .bk-grid:not(.bk-grid--mini) .bk-cell { min-height: 72px; }
+  .bk-cardw, .skin-scorebook .bk-cardw { min-height: 302px; } /* card beside the grid: the tallest card sets the sheet height */
+}
+
+/* ---- Scorebook theme: colours, borders, fonts only (sizes stay above). --sb-* tokens, no new hex. ---- */
+.skin-scorebook .bk-root, .skin-scorebook .bk-found, .skin-scorebook .bk-nb { --bk-bowl: var(--grass1); --bk-bat: color-mix(in srgb, var(--sb-red) 22%, var(--sb-plate)); --bk-q: var(--sb-paper); --bk-ink: var(--sb-ink); --bk-fill: var(--sb-green); --bk-off: var(--wall1); --bk-sel: var(--sb-hi); --bk-paper: var(--sb-plate); }
+.skin-scorebook .bk-rule { background: var(--sb-plate); border-color: var(--sb-ink); font-family: var(--font-body); }
+.skin-scorebook .bk-phs, .skin-scorebook .bk-ph { background: var(--sb-plate); border-color: var(--sb-ink); color: var(--sb-ink); border-radius: 0; font-family: var(--font-body); }
+.skin-scorebook .bk-phs { border-radius: 4px; box-shadow: var(--sb-lift); }
+.skin-scorebook .bk-ph[aria-checked="true"] { background: var(--sb-ink); color: var(--sb-plate); box-shadow: inset 0 -5px 0 var(--sb-hi); }
+.skin-scorebook .bk-cell { border-width: 2px; border-radius: 4px; font-family: var(--font-head); }
+.skin-scorebook .bk-cell.is-q { font-family: var(--font-body); }
+.skin-scorebook .bk-cell.is-sel { box-shadow: 0 0 0 3px var(--sb-hi), 0 0 0 5px var(--sb-ink); }
+.skin-scorebook .bk-cell:focus-visible, .skin-scorebook .bk-ph:focus-visible { outline-color: var(--sb-blue); }
+.skin-scorebook .bk-colh, .skin-scorebook .bk-yb { border-bottom-color: var(--sb-ink); }
+.skin-scorebook .bk-card2 { background: var(--sb-plate); border: 2px solid var(--sb-ink); border-radius: 4px; box-shadow: var(--sb-lift); }
+.skin-scorebook .bk-goal { box-shadow: inset 0 0 0 3px var(--sb-hi), var(--sb-lift); }
+.skin-scorebook .bk-ct, .skin-scorebook .bk-band, .skin-scorebook .bk-togo, .skin-scorebook .bk-g1 { font-family: var(--font-head); }
+.skin-scorebook .bk-combo, .skin-scorebook .bk-gtag { background: var(--sb-hi); color: var(--sb-ink); }
+.skin-scorebook .bk-medal { background: var(--sb-hi); border-color: var(--sb-ink); }
+.skin-scorebook .bk-tag, .skin-scorebook .bk-gov { background: var(--sb-plate); border-radius: 3px; font-family: var(--font-body); }
+.skin-scorebook .bk-foot { border-top-color: var(--sb-ink); }
+.skin-scorebook .bk-cardw { min-height: 302px; min-height: min(302px, calc(94vh - 579px)); min-height: min(302px, calc(94dvh - 579px)); } /* scorebook chrome is ~11 px shorter */
+.skin-scorebook .bk-tag { font-size: 15px; padding: 2px 5px; } /* D7: the wider body face keeps both count tags on one row at 344 */
+
+/* caption above the bowl and chase matchup grid */
 .sb-cap { margin: -4px 0 -6px; font: 700 14px/14px var(--c-font); }
+
+/* B: found panel */
+/* P6 2.4: "New in your Book!" block in the over panel (cards + mini grid come from book-sheet.js), Open Book badge, Coach's notebook card. */
+/* QA D2 (A): once a find shows, the per-ball lines step aside (the circles above still show every ball); the over total stays.
+   No inner scrolls: the card itself is the only scroll box, and only when the found block is taller than the screen. */
+.op-card.has-beats.found-shown { height: 100%; max-height: 100%; overflow-y: auto; overscroll-behavior: contain; }
+.op-card.found-shown > * { flex-shrink: 0; }
+.op-card.found-shown .op-bottom { flex: none; min-height: 0; overflow: visible; }
+.op-card.found-shown .op-ball, .op-card.found-shown .op-sub { display: none; }
+.op-card.found-shown .op-total { margin-top: 0; }
+.op-foot.has-found { flex: none; min-height: 0; display: flex; flex-direction: column; gap: 8px; }
+.op-foot.has-found > .bk-found { flex: none; min-height: 0; max-height: none; overflow: visible; display: flex; flex-direction: column; gap: 8px; padding: 8px; margin: 0; background: var(--outline); color: var(--white); border: 2px solid var(--outline); }
+.bk-new { margin: 0; display: flex; align-items: center; gap: 8px; font: 700 var(--c-fs-l)/var(--c-lh-l) var(--c-font); color: var(--white); }
+.bk-new__t { text-decoration: underline 3px var(--gold); text-underline-offset: 5px; }
+.bk-found .bk-card2 { color: var(--outline); box-shadow: 0 0 0 3px var(--gold); }
+.bk-more { margin: 0; font-size: var(--c-fs-m); line-height: var(--c-lh-m); color: var(--white); }
+/* QA D6 (A): mini grid box with its heading "Your Book, overs a-b" + "n of 27" and the key line (found.html .mgw) */
+.bk-mgw { display: flex; flex-direction: column; gap: 4px; padding: 6px 8px 8px; background: var(--cream); color: var(--outline); border: 3px solid var(--outline); }
+.bk-mgw .bk-grid--mini { background: none; padding: 0; border: 0; }
+.bk-mh { margin: 0; display: flex; align-items: baseline; justify-content: space-between; gap: 6px; flex-wrap: wrap; }
+.bk-mh__t { font: 700 18px/22px var(--c-font); }
+.bk-mh__n { font-size: 16px; line-height: 18px; }
+.bk-lg { margin: 0; font-size: 15px; line-height: 17px; }
+.skin-scorebook .bk-mgw { color: var(--sb-ink, var(--outline)); }
+.op-book { position: relative; min-height: 56px; }
+.op-badge { position: absolute; top: -10px; right: -6px; min-width: 28px; height: 28px; padding: 0 5px; display: inline-flex; align-items: center; justify-content: center;
+  background: var(--gold); color: var(--outline); border: 3px solid var(--outline); border-radius: 14px; font: 700 16px/1 var(--c-font); }
+.bk-nb { display: flex; flex-direction: column; gap: 8px; padding: 8px 10px; background: var(--white); border: 3px dashed var(--kitA2); }
+.bk-nb .bk-nb__t { margin: 0; display: flex; align-items: center; gap: 8px; font: 700 var(--c-fs-m)/var(--c-lh-m) var(--c-font); }
+.bk-nb .bk-nb__sub { margin: 0; font-size: var(--c-fs-s); line-height: 18px; }
+.bk-nb .c-btn { min-height: 56px; }

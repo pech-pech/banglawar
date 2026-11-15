@@ -31,7 +31,7 @@ export const TOKVAL = {
 export function spinHype({ get, look, dispatch, onCollect, oppName }) {
   const h = get();
   return openDial({
-    mode: 'aim', title: 'Crowd today', sub: oppName || '', cardHtml: '<p class="dr-hint">Stop the needle on gold for a wild crowd.' + (h.guide ? ' The tick shows where it will land.' : '') + '</p>', slices: h.slices /* fixdial V3 */, look: dialLook(look),
+    mode: 'aim', title: 'Crowd today', sub: oppName || '', cardHtml: '<p class="dr-hint">Stop the needle on gold for a wild crowd.' + ' The tick shows where it will land.' + '</p>', slices: h.slices /* fixdial V3 */, look: dialLook(look),
     ...tokProps(get, dispatch, 'hype', 'Hype'), tokVal: TOKVAL.hype, tokText: (p) => HYPE_WORD[p.level || 'low'] + ' +' + p.pts + '%',
     pending: h.pending, onSpin: (stop) => dispatch('HypeSpin', stopOf(stop)), getPending: () => get().pending,
     describe: (p) => { const lv = p.level || 'low'; return { big: HYPE_WORD[lv], chip: '+' + p.pts + '%', say: HYPE_WORD[lv] + ', plus ' + p.pts + ' percent for your team.', gold: lv === 'nuts' }; },
@@ -77,7 +77,7 @@ export function spinFind({ get, look, pick, useToken, onCollect, title }) {
   const r = get(), word = (p) => (p && p.find ? (FIND_WORD[p.type] || 'something') : 'Nothing');
   const asWheel = (p) => (p ? { ...p, gain: p.find ? 1 : 0, jackpot: !!p.find } : p); // the wheel reads index / gain / jackpot
   return openWheel({
-    title: title || 'Find', cardHtml: '<p class="dr-hint">Stop on a gold block to find Coins, a player or a coach.</p>',
+    title: title || 'Find', cardHtml: '<p class="dr-hint">Stop on a gold block to find Coins, a player or a coach. The tick shows where it will land.</p>',
     slices: r.slices, widths: r.widths, jackpotIndex: r.jackpotIndex, golds: r.golds, aims: r.aims, labels: r.labels, phys: r.phys,
     guide: !!r.guide, zone: r.zone || 0, chime: !!r.chime, look, plainResult: true, jpText: 'FOUND!', tokName: 'Find',
     pending: asWheel(r.pending), onSpin: (stop) => pick(stopOf(stop)), getPending: () => asWheel(get().pending),

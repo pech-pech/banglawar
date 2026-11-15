@@ -1,6 +1,6 @@
 // @ts-check
 // Match day: hype, toss, pep talk, crowd roar, rating scaling. Pure. Rolls use their OWN stream (never the ball RNG).
-import { MD } from '../data/matchday.js';
+import { MD, MATCH_COACH } from '../data/matchday.js';
 import { makeRng } from './rng.js';
 
 const clamp = (x, lo, hi) => Math.max(lo, Math.min(hi, x));
@@ -61,9 +61,31 @@ export function teamBoost(md, playerId) {
 /** Is over overIdx (0..19: innings index x 10 + over - 1) a crowd roar over? */
 export const roarAt = (md, overIdx) => !!(md && md.roar && md.roar[overIdx]);
 
-/** Copy of p with bp, bs, spd, bsk x(1+x), capped at RMAX. Never writes back. Missing fields stay missing. */
-export function scaleRatings(p, x) {
+/** Copy of p with bp, bs x(1+x) and spd, bsk x(1+xBowl) (xBowl defaults to x), capped at RMAX. Never writes back. Missing fields stay missing. */
+export function scaleRatings(p, x, xBowl = x) {
   const q = { ...p };
-  for (const k of ['bp', 'bs', 'spd', 'bsk']) if (typeof p[k] === 'number') q[k] = Math.min(MD.RMAX, p[k] * (1 + x));
+  for (const k of ['bp', 'bs']) if (typeof p[k] === 'number') q[k] = Math.min(MD.RMAX, p[k] * (1 + x));
+  for (const k of ['spd', 'bsk']) if (typeof p[k] === 'number') q[k] = Math.min(MD.RMAX, p[k] * (1 + xBowl));
   return q;
+}
+
+/**
+ * Match coach boost from his strong focuses: { bat, bowl } fractions (0.03 = +3%). Bat -> bat, Bowl -> bowl, Balanced -> balancedPct to both.
+ * Per side the best single contribution counts, never a sum (bal+bowl = bowl 3%, bat 1.5%). @param {string[]} strong
+ */
+export function matchCoachBoost(strong) {
+  const st = Array.isArray(strong) ? strong : [];
+  const bal = st.includes('bal') ? MATCH_COACH.balancedPct : 0;
+  return { bat: Math.max(bal, st.includes('bat') ? MATCH_COACH.pct : 0), bowl: Math.max(bal, st.includes('bowl') ? MATCH_COACH.pct : 0) };
+}
+/** Words for the chip: "Coach Lee: bowling +3%", "batting and bowling +3%", "batting +1.5%, bowling +3%". @param {string} name @param {{bat:number,bowl:number}} b */
+export function matchCoachText(name, b) {
+  const p = (x) => `+${Math.round(x * 1000) / 10}%`;
+  if (!b || (!b.bat && !b.bowl)) return `Coach ${name}: no boost`;
+  let t;
+  if (b.bat === b.bowl) t = `batting and bowling ${p(b.bat)}`;
+  else if (!b.bat) t = `bowling ${p(b.bowl)}`;
+  else if (!b.bowl) t = `batting ${p(b.bat)}`;
+  else t = `batting ${p(b.bat)}, bowling ${p(b.bowl)}`;
+  return `Coach ${name}: ${t}`;
 }

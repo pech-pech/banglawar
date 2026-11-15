@@ -1,7 +1,8 @@
 // Ball-by-ball over panel. Modal; autoplays one ball per 400 ms; calls onDone when Next is pressed.
 // balls: raw over balls ({n, o, ...}) optionally with batName, bowlName, bowlType for the why line.
 import { whyLine, outcomeLabel } from './why.js';
-import { chipHtml } from './book-sheet.js';
+import { cardHtml, gridHtml } from './book-sheet.js';
+import { badgeCount, badgeText, badgeAria } from './book-badge.js';
 import { icoDeco } from './dom.js';
 import { attachBeats } from './beats.js';
 import { roarChipHtml } from './matchday-view.js';
@@ -31,24 +32,36 @@ const kind = (o) => (o === 'W' ? 'w' : o === 6 ? 's' : o === 4 ? 'f' : 'n');
 /**
  * @param {{title:string, balls:any[], score:{runs:number,wk:number}, nextLabel?:string, onDone:()=>void}} o
  * (summaryLines: optional extra plain lines shown under the total line.)
- * found: pairings found this over (selectors.foundVM): a "Pairing found" card with the grade word (never a number) and an Open Book button; onBook() runs after the panel closes.
+ * found: cells found this over (selectors.foundVM). book: selectors.bookVM for the mini grid (optional).
+ * The "New in your Book!" block (P6 2.4) and an Open Book button with the session badge; onBook(cell) runs after the panel closes.
  */
-const ROLE = { Opener: 'roleOpener', Middle: 'roleMiddle', Lower: 'roleLower' }, TYPE = { Fast: 'typeFast', Medium: 'typeMedium', Spin: 'typeSpin' };
-/** One "Pairing found" card listing every cell found this over (one title, one row per find, one saved line). Pure. Takes one find or a list. */
-export function foundHtml(list) {
-  const fs = Array.isArray(list) ? list : [list];
-  const rows = fs.map((f) => {
-    const chip = chipHtml({ found: true, rank: f.rank, grade: f.grade, combo: f.combo ? f.combo.name : null, phase: ['Early', 'Middle', 'Late'][f.ph] }, f.bat + ' v ' + f.bowl, true);
-    return '<div class="bk-fr"><span class="bk-fn">' + icoDeco(ROLE[f.bat], 20) + '<span>' + esc(f.name) + '</span></span>' + chip +
-      (f.combo ? '<span class="bk-fc">' + icoDeco('medal', 16) + 'Combo: ' + esc(f.combo.name) + '</span>' : '') + '</div>';
-  }).join('');
-  return '<div class="bk-found"><div class="bk-f1">' + icoDeco('book', 24) + (fs.length > 1 ? 'Pairings found' : 'Pairing found') + '</div>' + rows +
-    '<p class="bk-fsub">Saved in your Book. Grade is the batter\'s view.</p></div>';
+const MAX_CARDS = 2;
+/** "New in your Book!" block: up to 2 cards, "and N more in the Book", then the mini grid of this over's phase with the new cells outlined. Pure. Takes one find or a list; book (bookVM) is optional. */
+export function foundHtml(list, book) {
+  const fs = (Array.isArray(list) ? list : [list]).filter(Boolean);
+  if (!fs.length) return '';
+  const more = fs.length - MAX_CARDS;
+  return '<div class="bk-found"><p class="bk-new">' + icoDeco('book', 24) + '<span class="bk-new__t">New in your Book!</span></p>' +
+    fs.slice(0, MAX_CARDS).map((c) => cardHtml(c)).join('') +
+    (more > 0 ? '<p class="bk-more">and ' + more + ' more in the Book</p>' : '') +
+    miniHtml(book, fs[0].ph, fs.map((c) => c.i)) + '</div>';
 }
-/** Plain-words text of the found card, for the polite live region (the region exists first; finish() fills it). Pure. */
+/** Mini grid with its heading "Your Book, overs 1-3" (+ "n of 27") and the key line (found.html). Shared by the found panel and the notebook. Pure; '' without a book. */
+export function miniHtml(book, ph, newCells) {
+  if (!book) return '';
+  const p = book.phases && book.phases[ph], ov = p ? (p.overs ? 'overs ' + p.overs : String(p.label || '').toLowerCase()) : '';
+  return '<div class="bk-mgw"><p class="bk-mh"><span class="bk-mh__t">Your Book' + (ov ? ', ' + esc(ov) : '') + '</span>' +
+    (book.total ? '<span class="bk-mh__n">' + Number(book.found) + ' of ' + Number(book.total) + '</span>' : '') + '</p>' +
+    gridHtml(book, ph, -1, { mini: true, newCells }) + '<p class="bk-lg">Word = who wins. Pips = how big. Outlined = new.</p></div>';
+}
+/** One find in words (PLAN 3.6): "Openers v Spin, overs 1-3: Spin wins. Seen for 18 balls." Gift: "... Coach's notebook." Pure. */
+export function findText(c) {
+  return c.title + ', overs ' + c.overs + ': ' + c.band + '.' + (c.combo ? ' Combo: ' + c.combo + '.' : '') + (c.seen === false ? " Coach's notebook." : ' Seen for 18 balls.');
+}
+/** Plain-words text of the found block, for the polite live region (the region exists first; finish() fills it). Pure. */
 export function foundText(list) {
-  const fs = Array.isArray(list) ? list : [list];
-  return (fs.length > 1 ? 'Pairings found. ' : 'Pairing found. ') + fs.map((f) => f.bat + ' v ' + f.bowl + ', ' + ['early', 'middle', 'late'][f.ph] + ': ' + f.grade + '.' + (f.combo ? ' Combo: ' + f.combo.name + '.' : '')).join(' ') + ' Saved in your Book.';
+  const fs = (Array.isArray(list) ? list : [list]).filter(Boolean);
+  return fs.length ? 'New in your Book. ' + fs.map(findText).join(' ') : '';
 }
 /** The call-vs-other-call line (P13). Bold call name = text before the first ':'; text is escaped. Pure. hint: {text, say} | null */
 export function callHtml(hint) {
@@ -57,7 +70,13 @@ export function callHtml(hint) {
   const body = i > 0 ? '<b>' + esc(t.slice(0, i)) + '</b>' + esc(t.slice(i)) : esc(t);
   return '<p class="op-call" role="status" aria-live="polite" aria-label="' + esc(hint.say || t) + '">' + body + '</p>';
 }
-export function playOverPanel({ title, balls, score, summaryLines = [], nextLabel = 'Next over', batKit, found = [], onBook, onDone, roar = false, callHint = null }) {
+/** Open Book button with the session badge (hidden at 0). Pure. */
+export function bookBtnHtml(n) {
+  const t = badgeText(n);
+  return '<button type="button" class="c-btn c-btn--block op-book">' + icoDeco('book', 24) + '<span>Open Book</span>' +
+    (t ? '<span class="op-badge" aria-hidden="true">' + t + '</span><span class="ss-sr"> ' + badgeAria(n) + '</span>' : '') + '</button>';
+}
+export function playOverPanel({ title, balls, score, summaryLines = [], nextLabel = 'Next over', batKit, found = [], book = null, onBook, onDone, roar = false, callHint = null }) {
   const list = (balls || []).slice(0, 6);
   const root = document.createElement('div');
   root.className = 'op-scrim';
@@ -87,7 +106,7 @@ export function playOverPanel({ title, balls, score, summaryLines = [], nextLabe
     slot.setAttribute('aria-label', 'Ball ' + (i + 1) + ': ' + outcomeLabel(b.o));
     const why = whyLine(b, b.batName, b.bowlName);
     const li = document.createElement('li');
-    li.className = 'op-line k-' + k;
+    li.className = 'op-line op-ball k-' + k;
     li.innerHTML = `<b>Ball ${i + 1}: ${esc(outcomeLabel(b.o).replace(/^./, (x) => x.toUpperCase()))}.</b> ${esc(why)}`;
     lines.appendChild(li);
     if (live) beats.ball(b.o);
@@ -103,11 +122,11 @@ export function playOverPanel({ title, balls, score, summaryLines = [], nextLabe
     for (const t of summaryLines) { const x = document.createElement('li'); x.className = 'op-line'; x.textContent = t; lines.appendChild(x); }
     if (hasFound) { root.querySelector('.op-card').classList.add('found-shown'); foot.classList.add('has-found'); foundLive.textContent = foundText(found); }
     if (callHint) hintAt = performance.now();
-    foot.innerHTML = callHtml(callHint) + (hasFound ? foundHtml(found) + `<button type="button" class="c-btn c-btn--block op-book">${icoDeco('book', 24)}Open Book</button>` : '') +
+    foot.innerHTML = callHtml(callHint) + (hasFound ? foundHtml(found, book) + bookBtnHtml(badgeCount() || found.length) : '') +
       `<button type="button" class="c-btn c-btn--primary c-btn--cta c-btn--block op-next">${esc(nextLabel)}</button>`;
     foot.querySelector('.op-next').addEventListener('click', exit);
     const bk = foot.querySelector('.op-book');
-    if (bk) bk.addEventListener('click', () => { exit(); if (typeof onBook === 'function') onBook(); });
+    if (bk) bk.addEventListener('click', () => { exit(); if (typeof onBook === 'function') onBook(found[0].i); });
   }
   function onKey(e) { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); exit(); } }
   document.addEventListener('keydown', onKey, true);

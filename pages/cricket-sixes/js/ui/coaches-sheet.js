@@ -62,7 +62,7 @@ export function startCourse(vm, id, dispatch, refresh) {
   const co = (vm.coaches || []).find((x) => x.id === id); if (!co || !co.course || !co.course.ok) return;
   const cur = () => { const v = refresh ? refresh() : vm, k = (v.coaches || []).find((x) => x.id === id); return k && k.course ? k.course : co.course; };
   const w = co.course.wheel || courseWheel(co.step), from = co.step;
-  const card = '<div class="wh-who"><b class="t2-nm">' + esc(co.name) + '</b><span class="c-tag">Course: away 1 week</span></div><div class="wh-gr"><span class="wh-g hit"><span>Grade</span><b>' + esc(co.letter) + '</b></span><span class="wh-g wh-wide"><span>Strong</span><b class="t2-strong">' + strongHtml(co.strong) + '</b></span></div>';
+  const card = '<div class="wh-who"><b class="t2-nm">' + esc(co.name) + '</b><span class="c-tag">Course: away 1 week</span></div><div class="wh-gr"><span class="wh-g hit"><span>Grade</span><b>' + esc(co.letter) + '</b></span><span class="wh-g wh-wide"><span>Strong</span><b class="t2-strong">' + strongHtml(co.strong) + '</b></span></div><p class="dr-hint">The tick shows where it will land.</p>';
   openWheel({
     timing: true, // wa2: STOP pulse in the careful window + timing line
     title: 'Course', sub: co.name, cardHtml: card, slices: w.slices, jackpotIndex: w.jackpotIndex, widths: w.widths, aim: w.aim, pending: co.course.pending || null, plus: '+',

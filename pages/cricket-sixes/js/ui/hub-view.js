@@ -1,11 +1,13 @@
 /* hub-view: the season home. render(el, vm, dispatch). Reads hubVM only. Clicks are handled by app.js (data-act). */
 import { esc, btn, tpChip, icoDeco } from './dom.js';
+import { badgeCount, badgeText, badgeAria } from './book-badge.js';
 import { spokeIcon } from './wheel-look.js';
 import { drawHead } from './club-canvas.js';
 import { drawGround } from './ground-canvas.js';
 import { openSheet } from './sheet.js';
 import { trialCardHtml } from './trial-card.js';
 import { pendingCardHtml } from './freepick-view.js';
+import { fansGateHtml } from './table-sheet.js';
 
 export function helpBtn(id, label) {
   return '<button type="button" class="c-icon-btn help-btn" data-act="sheet:glossary"' + (id ? ' data-arg="' + esc(JSON.stringify(id)) + '"' : '') +
@@ -52,12 +54,15 @@ function boardHtml(vm) {
   const coins = e ? '<button type="button" class="hb-cell hb-cell--coins" data-act="sheet:money" aria-label="Club money: ' + esc(fmtN(e.coins)) + ' Coins">' + icoDeco('coin', 24) + '<span class="hb-cv2"><b>' + esc(fmtN(e.coins)) + '</b><small>Coins</small></span></button>' : '';
   const tp = '<div class="hb-cell hb-cell--tp hb-tp">' + icoDeco('tp', 24) + '<span class="hb-cv2"><b>' + esc(vm.tp) + '</b><small><span aria-hidden="true">TP</span><span class="ss-sr"> training points</span></small></span></div>';
   const sp = w && w.visible ? '<div class="hb-cell hb-cell--spokes">' + spokeIcon(24) + '<span class="hb-cv2"><b>' + esc(w.spokes) + '</b><small>Spokes</small></span></div>' : '';
-  return '<div class="hb-board" role="group" aria-label="Club scoreboard">' + coins + tp + sp + '</div>';
+  return '<div class="hb-board" role="group" aria-label="Club scoreboard">' + coins + tp + sp + '</div>' + fansGateHtml(vm.fansGate, 'hb-fg');
 }
 
 function slotHtml(slot, plate) {
   const lk = !plate && slot === 'workshop' ? '<button type="button" class="c-btn hb-plate is-locked" data-plate="workshop" aria-disabled="true" aria-label="Wheel Workshop, opens later">' + icoDeco('lock', 24) + '<span class="hb-pl">Workshop</span><span class="hb-badge" hidden></span></button>' : '';
-  const p = plate ? '<button type="button" class="c-btn hb-plate" data-plate="' + slot + '" data-act="' + plate.act + '"' + (plate.aria ? ' aria-label="' + esc(plate.aria) + '"' : '') + '>' + plate.icon + '<span class="hb-pl">' + esc(plate.word) + '</span><span class="hb-badge" hidden></span></button>' : lk;
+  const bt = plate && plate.badge ? badgeText(plate.badge) : ''; // P6: Book plate badge (session count, js/ui/book-badge.js)
+  const aria = bt ? (plate.aria || plate.word) + ', ' + badgeAria(plate.badge) : plate && plate.aria;
+  const p = plate ? '<button type="button" class="c-btn hb-plate" data-plate="' + slot + '" data-act="' + plate.act + '"' + (aria ? ' aria-label="' + esc(aria) + '"' : '') + '>' + plate.icon + '<span class="hb-pl">' + esc(plate.word) + '</span>' +
+    (bt ? '<span class="hb-badge" aria-hidden="true">' + esc(bt) + '</span>' : '<span class="hb-badge" hidden></span>') + '</button>' : lk;
   return '<div class="hb-slot" data-slot="' + slot + '"' + (plate ? '' : ' data-locked="1"') + '><div class="hb-bld"></div>' + p + '</div>';
 }
 
@@ -65,7 +70,7 @@ function groundHtml(vm) {
   const w = vm.workshop, a = vm.activities;
   const P = (act, icon, word, aria) => ({ act, icon: icoDeco(icon, 24), word, aria });
   const top = slotHtml('table', P('sheet:table', 'league', 'Table')) + slotHtml('stadium', P('sheet:stadium', 'home', 'Stadium')) + slotHtml('extras', P('sheet:sinks', 'shop', 'Extras'));
-  const bot = slotHtml('book', P('sheet:book', 'book', 'Book')) +
+  const bot = slotHtml('book', { ...P('sheet:book', 'book', 'Book'), badge: badgeCount() }) +
     slotHtml('workshop', w && w.visible ? { act: 'sheet:workshop', icon: spokeIcon(24), word: 'Wheel Workshop', aria: 'Wheel Workshop, ' + w.spokes + ' Spokes' } : null) +
     slotHtml('fans', a ? P('sheet:activities', 'pennant', 'Fan activity') : null);
   const bubble = a && !a.picked && a.available !== false ? '<div class="hb-bubble" role="status">This week: pick one, or rest. <em>Resting is free.</em></div>' : '';

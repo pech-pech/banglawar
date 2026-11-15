@@ -1,6 +1,6 @@
 /* table-sheet: the full league table (tableVM) in a bottom sheet, plus the shared table markup. Reads tableVM only. */
 import { openSheet } from './sheet.js';
-import { esc, tagChip } from './dom.js';
+import { esc, tagChip, icoDeco } from './dom.js';
 
 export const nameOf = (x) => (x && typeof x === 'object' ? x.name : x);
 const rdText = (n) => { n = Number(n) || 0; return (n > 0 ? '+' : n < 0 ? '−' : '') + Math.abs(n); };
@@ -41,8 +41,14 @@ export function keyHtml(opts) {
   return '<p class="ss-key">P played, W won, L lost, ' + (opts && opts.ties ? 'T tied, ' : '') + 'Pts points, RD run difference' + (opts && opts.tp ? ', TP training points' : '') + '.</p>';
 }
 
+/** Fans gate line + bar (fansGateVM). Empty when hidden. @param {any} g */
+export function fansGateHtml(g, cls) {
+  if (!g || g.hidden) return '';
+  return '<div class="fg' + (cls ? ' ' + cls : '') + (g.ready ? ' is-ready' : '') + '" role="group" aria-label="' + esc(g.text) + '"><span class="fg-tx">' + (g.ready ? icoDeco('done', 16) : '') + esc(g.text) + '</span><span class="fg-bar" aria-hidden="true"><i style="width:' + (Number(g.pct) || 0) + '%"></i></span></div>';
+}
+
 export function html(vm) {
-  return tableHtml(vm.rows, { ties: true, cut: true }) + keyHtml({ ties: true }) +
+  return fansGateHtml(vm.fansGate) + tableHtml(vm.rows, { ties: true, cut: true }) + keyHtml({ ties: true }) +
     '<p class="ss-note">Same points? Bigger run difference (RD) ranks higher: runs scored minus runs given away.</p>' +
     (vm.finals ? '<h4 class="ss-h">Finals</h4>' + finalsHtml(vm.finals) : '');
 }
