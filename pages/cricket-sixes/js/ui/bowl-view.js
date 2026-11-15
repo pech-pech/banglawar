@@ -71,7 +71,16 @@ function row(b, vm, st) {
     return `<div class="sb-row is-off" role="radio" aria-disabled="true" aria-checked="false" aria-label="${esc(label)}. ${esc(why)}">${pbox}<div class="offnote">${esc(why)}</div></div>`;
   }
   return `<button type="button" class="sb-row${sel ? ' is-selected' : ''}" role="radio" data-bowler="${b.i}" aria-checked="${sel ? 'true' : 'false'}"` +
-    ` aria-label="${esc(label)}. ${esc(ariaRates(b, crease))}">${pbox}${crease.map((bat) => rbox(b, bat)).join('')}</button>`;
+    ` aria-label="${esc(label)}. ${esc(ariaRates(b, crease))}${b.book ? ', ' + esc(b.book.aria) : ''}">${pbox}${crease.map((bat) => rbox(b, bat)).join('')}${bookLine(b.book)}</button>`;
+}
+
+// P6 section 5: one dashed "Book:" line under the bowler box when a found cell fits (presentation only). Winner word always written; the
+// shape (up = your bowler wins, down = the batters win) and the colour only repeat it. No points number.
+function bookLine(bk) {
+  if (!bk) return '';
+  const side = bk.side === 'bowler' ? 'is-bowler' : 'is-batter';
+  return `<div class="bv-book ${side}">${ic('book', 20, 'bv-book-i')}<span class="bv-book-t">${esc(bk.text)}</span>` +
+    `<span class="bv-book-s" aria-hidden="true">${bk.side === 'bowler' ? '▲' : '▼'}</span></div>`;
 }
 
 function bowlerName(vm, i) {
@@ -134,7 +143,7 @@ export function render(el, vm, dispatch) {
     `<section class="colR bv-colR"><div class="seg bv-seg" role="radiogroup" aria-label="Field">${seg('A', 'fieldAttack')}${seg('P', 'fieldProtect')}</div>` +
     chip + lastLine(vm) +
     `<div class="hints bv-hints"><p><b>Attack</b>: more wickets, more runs. <b>Protect</b>: fewer runs.</p>` +
-    `<p><b>${POT}</b>: how high he can grow, D low to S best.${anyBest ? ' <b class="bv-starkey" aria-hidden="true">★</b> = best overs now.' : ''}</p></div></section>` +
+    `<p><b>${POT}</b>: how high he can grow, D low to S best.${anyBest ? ' <b class="bv-starkey" aria-hidden="true">★</b> = best overs now.' : ''}</p>${vm.bookNote ? `<p class="bv-booknote">${esc(vm.bookNote)}</p>` : ''}</div></section>` +
     `<div class="ctabar bv-cta"><button type="button" class="c-btn c-btn--primary c-btn--cta" data-bowl${vm.canBowl === false ? ' disabled' : ''}>` +
     `<span class="bv-ct">Bowl over ${esc(vm.over)}${selB ? '<small class="name">' + esc(selB.name) + '</small>' : ''}</span></button></div>`;
   // D3: bring the pre-filled bowler row into view inside the list only (never the page)
