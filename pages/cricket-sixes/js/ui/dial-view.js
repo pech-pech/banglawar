@@ -20,7 +20,7 @@
 import { esc, icoDeco } from './dom.js';
 import { releaseInert } from './inert.js';
 import { spokeIcon } from './wheel-look.js';
-import { tickKind } from '../core/landtick.js';
+import { tickKind, TICK } from '../core/landtick.js';
 
 export const DR = { L: 10, V: 16, G: 0.5, STOP_FROM: 0.8, COAST: 3, AIM_LO: 1.5, AIM_HI: 2.5, JK: 1.2, HOLD: 0.3, REVEAL_T: 2.5, RAMP: 0.2 / 1.5, CRUISE: 0.8 / 1.5 };
 const TAU = Math.PI * 2;
@@ -215,8 +215,13 @@ export function openDial(o) {
   }
   function line(x0, y0, x1, y1, col, th) { const n = Math.ceil(Math.hypot(x1 - x0, y1 - y0)); ctx.fillStyle = 'rgb(' + col + ')'; for (let i = 0; i <= n; i++) { const t = i / n; ctx.fillRect(Math.round(x0 + (x1 - x0) * t - th / 2), Math.round(y0 + (y1 - y0) * t - th / 2), th, th); } }
   const diamond = (ax, ay, k, fill) => { for (let j = -k; j <= k; j++) for (let i = -k; i <= k; i++) { const q = Math.abs(i) + Math.abs(j); if (q > k) continue; ctx.fillStyle = q >= k ? 'rgb(' + pal.out + ')' : q >= k - 1 ? '#fff' : 'rgb(' + fill + ')'; ctx.fillRect(ax + i, ay + j, 1, 1); } };
-  /** fixdial V2: the Aim Guide landing mark, a dark-outlined wedge across the rim band (about 16 css px), readable on every slice colour. */
-  const landMark = (x, R, plain) => { const a = polar(x, R - 1), b = polar(x, R - 10); if (plain) { line(a[0], a[1], b[0], b[1], pal.out, 4); line(a[0], a[1], b[0], b[1], [255, 255, 255], 2); return; } line(a[0], a[1], b[0], b[1], pal.out, 6); line(a[0], a[1], b[0], b[1], [255, 255, 255], 3); const c = polar(x, R - 11); diamond(Math.round(c[0]), Math.round(c[1]), 4, ZONE_COL); }; // plain = free tick (thin white bar, 1 px outline); else the Aim Guide mark (sharper bar + gold diamond)
+  /** Landing mark across the rim band, pixel-snapped and the same size and shape as the wheels' (13 px long): plain = dark 2 px core with a 1 px white halo; else (Aim Guide) the outlined gold wedge, sharp tip inside, wide end at the rim. */
+  const landMark = (x, R, plain) => {
+    const a = Math.PI - x * U, gx = Math.cos(a), gy = -Math.sin(a), cx = size / 2, cy = size / 2, r0 = R - 15, pt = (rr, o, col) => { ctx.fillStyle = col; ctx.fillRect(Math.round(cx + gx * rr - gy * o), Math.round(cy + gy * rr + gx * o), 1, 1); };
+    if (plain) { for (const [hw, col] of [[TICK.PLAIN_PX / 2 + 1, '#fff'], [TICK.PLAIN_PX / 2, 'rgb(' + pal.out + ')']]) for (let rr = r0 - (hw > 1.5 ? 1 : 0); rr <= R - 0.5; rr += 0.5) for (let o = -hw; o <= hw; o += 0.5) pt(rr, o, col); return; }
+    for (const [grow, col] of [[1.6, 'rgb(' + pal.out + ')'], [0, 'rgb(' + pal.gold + ')']]) for (let rr = r0 - grow; rr <= R - 0.5; rr += 0.5) { const t = Math.max(0, (rr - r0) / (R - r0)), hw = TICK.WEDGE_TIP_PX + t * 3 + grow; for (let o = -hw; o <= hw; o += 0.5) pt(rr, o, col); }
+    for (let rr = r0 + 2; rr <= R - 2; rr += 0.5) pt(rr, 0, '#fff');
+  };
   const polar = (x, rr) => { const a = Math.PI - x * U; return [size / 2 + Math.cos(a) * rr, size / 2 - Math.sin(a) * rr]; };
   function drawCoin() {
     const w = size, cx = w / 2, cy = w / 2, R = w / 2 - 3, ph = flip % TAU, cs = Math.cos(ph), frontSide = cs >= 0, rx = Math.max(1.5, Math.abs(cs) * R);

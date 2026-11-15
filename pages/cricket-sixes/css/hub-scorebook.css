@@ -54,3 +54,5 @@
 .skin-scorebook .hb-ground > .hb-fg .fg-bar { border-color: var(--sb-plate); }
 .skin-scorebook .hb-ground > .hb-fg .fg-bar > i { background: var(--sb-hi); }
 .skin-scorebook .fg-bar { border-color: var(--sb-ink); }
+.skin-scorebook .fg.is-ready .fg-bar > i { background: var(--sb-green); }
+.skin-scorebook .hb-ground > .hb-fg.is-ready .fg-bar > i { background: var(--grass1); }

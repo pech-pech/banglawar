@@ -208,6 +208,9 @@
 .fg-tx { font-size: 14px; line-height: 16px; font-weight: 700; overflow-wrap: anywhere; }
 .fg-bar { display: block; height: 6px; border: 1px solid var(--outline); background: var(--cream); }
 .fg-bar > i { display: block; height: 100%; background: var(--gold); }
-.fg.is-ready .fg-bar > i { background: var(--c-ok, var(--gold)); }
-.hb-ground > .hb-fg { flex: none; background: var(--outline); color: var(--cream); margin-top: -6px; }
+.fg-tx { display: flex; align-items: center; gap: 3px; }
+.fg-tx svg, .fg-tx img { flex: none; }
+.fg.is-ready .fg-bar > i { background: var(--grass3); } /* QA D5: --c-ok was never defined, so ready looked like progress; green + a check icon now */
+.hb-ground > .hb-fg.is-ready .fg-bar > i { background: var(--grass1); }
+.hb-ground > .hb-fg { flex: none; background: var(--outline); color: var(--cream); margin-top: -6px; grid-template-columns: auto minmax(40px, 1fr); align-items: center; column-gap: 8px; padding: 2px 6px; } /* QA D9: text and bar on ONE row so the band is ~16 px, not ~29 */
 .hb-ground > .hb-fg .fg-bar { border-color: var(--cream); background: transparent; }

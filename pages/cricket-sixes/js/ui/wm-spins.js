@@ -77,7 +77,7 @@ export function spinFind({ get, look, pick, useToken, onCollect, title }) {
   const r = get(), word = (p) => (p && p.find ? (FIND_WORD[p.type] || 'something') : 'Nothing');
   const asWheel = (p) => (p ? { ...p, gain: p.find ? 1 : 0, jackpot: !!p.find } : p); // the wheel reads index / gain / jackpot
   return openWheel({
-    title: title || 'Find', cardHtml: '<p class="dr-hint">Stop on a gold block to find Coins, a player or a coach.</p>',
+    title: title || 'Find', cardHtml: '<p class="dr-hint">Stop on a gold block to find Coins, a player or a coach. The tick shows where it will land.</p>',
     slices: r.slices, widths: r.widths, jackpotIndex: r.jackpotIndex, golds: r.golds, aims: r.aims, labels: r.labels, phys: r.phys,
     guide: !!r.guide, zone: r.zone || 0, chime: !!r.chime, look, plainResult: true, jpText: 'FOUND!', tokName: 'Find',
     pending: asWheel(r.pending), onSpin: (stop) => pick(stopOf(stop)), getPending: () => asWheel(get().pending),

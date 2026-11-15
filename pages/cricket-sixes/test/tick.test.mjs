@@ -29,3 +29,10 @@ test('copy report JSON carries tick:1', () => {
   const data = { matches: [], builds: [B], nets: [], spins: [], weeks: [], buys: [], feelLog: [], club: [], seasons: [], sessions: [], errors: { n: 0, last: [] }, marker: null, rid: 0, seq: 1, eseq: 0 };
   const j = JSON.parse(buildData(data, ENV)); assert.equal(j.tick, 1); assert.equal(REPORT_TICK, 1); assert.ok('rid' in j && 'clean' in j);
 });
+test('QA fixes: tick on its own canvas above the sheen, dark core with white halo; gold labels stay opaque; dial uses the wheel tick size', () => {
+  const rd = (f) => readFileSync(new URL('../js/ui/' + f + '.js', import.meta.url), 'utf8'), w = rd('wheel-view'), d = rd('dial-view');
+  assert.match(w, /wh-tk/); assert.match(w, /\[TICK\.PLAIN_PX \/ 2 \+ 1, '#fff'\], \[TICK\.PLAIN_PX \/ 2, 'rgb\(' \+ pal\.out/);
+  assert.match(w, /speed > 8 && !isG\(i\)/); assert.match(w, /speed > 8 && !GD\.includes\(i\)/);
+  assert.match(d, /r0 = R - 15/); assert.match(d, /WEDGE_TIP_PX/); assert.doesNotMatch(d, /diamond\(Math\.round\(c\[0\]\)/);
+  for (const f of ['wheel-view', 'wm-spins', 'training-view', 'coaches-sheet']) assert.match(rd(f), /The tick shows where it will land\./, f);
+});

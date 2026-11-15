@@ -58,7 +58,7 @@ export function openReel(o) {
   const COPIES = [-1, 0, 1, 2]; const labs = [];
   cells.forEach((c, i) => COPIES.forEach((m) => { const e = document.createElement('span'); e.className = 'dr-cell' + (c.find ? ' is-find' : ''); e.setAttribute('aria-hidden', 'true'); e.innerHTML = (c.icon ? icoDeco(c.icon, 16) : '') + '<b>' + esc(c.label) + '</b>'; labBox.appendChild(e); labs.push({ e, i, m }); }));
   let state = 'idle', off = Math.random() * C, phi = off, clock = 0, lastF = 0, spinEv = 0, tapT = 0, stopInfo = null, adj = 0, raf = 0, W = 100, H = 400, shown = 0, prevIdx = sliceAtX(cum, off), target = 0, revT0 = 0, rev = null, skipped = false, tw = null;
-  const MSG_GO = 'Turning. Tap STOP when a gold cell is on the line. Tap early and it goes further.';
+  const MSG_GO = 'Turning. Tap STOP when a gold cell is on the line. The tick shows where it will land. Tap early and it goes further.';
   const golds = cells.map((c, i) => (c.gold || (!reveal && c.find) ? i : -1)).filter((i) => i >= 0), ZONE = !reduced && +o.zone > 0 ? +o.zone : 0, CHIME = !reduced && !!o.chime; let chimeT = -9; // wa1 Control feel (Aim Zone glow, Gold Chime flash); on a reveal it is feel only
 
   function layout() {
@@ -163,6 +163,6 @@ export function openReel(o) {
   layout();
   const pend = o.pending || null;
   if (pend) { target = pend.index | 0; off = centreOf(target); state = 'result'; draw(); showRes(); }
-  else { sh.setMsg(reduced ? 'Tap SPIN. The result shows at once.' : reveal ? 'One tap. Tap again to skip.' : 'Tap SPIN. Tap STOP when a gold cell is on the line.'); go.focus(); }
+  else { sh.setMsg(reduced ? 'Tap SPIN. The result shows at once.' : reveal ? 'One tap. Tap again to skip.' : 'Tap SPIN. Tap STOP when a gold cell is on the line. The tick shows where it will land.'); go.focus(); }
   return () => sh.close();
 }

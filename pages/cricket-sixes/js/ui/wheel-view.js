@@ -74,14 +74,14 @@ export function openWheel(o) {
   ov.innerHTML = '<div class="t2-strip"><span>' + icoDeco('burst', 24) + ' ' + esc(o.title) + (o.sub ? ' <small>' + esc(o.sub) + '</small>' : '') + '</span>' +
     '<button type="button" class="c-icon-btn wh-x" aria-label="Close"><span class="c-ico c-ico--x"></span></button></div>' +
     '<div class="wh-card c-card">' + (o.cardHtml || '') + '</div>' +
-    '<div class="wh-stage"><div class="wh-wrap" role="img" aria-label="Wheel of ' + N + ' slices: ' + esc(sliceWords) + '"><canvas class="wh-cv"></canvas><span class="wh-ptr" aria-hidden="true"></span><span class="wh-hub" aria-hidden="true"></span>' + (LK && LK.crystal ? '<span class="wh-crystal" aria-hidden="true"></span>' : '') + (LK && LK.stand ? '<span class="wh-stand wh-stand--' + esc(String(LK.stand).replace(/[^a-z]/gi, '')) + '" aria-hidden="true"></span>' : '') + (LK && LK.name ? '<span class="wh-plate" aria-hidden="true" hidden></span>' : '') + '</div></div>' +
+    '<div class="wh-stage"><div class="wh-wrap" role="img" aria-label="Wheel of ' + N + ' slices: ' + esc(sliceWords) + '"><canvas class="wh-cv"></canvas><canvas class="wh-tk" aria-hidden="true"></canvas><span class="wh-ptr" aria-hidden="true"></span><span class="wh-hub" aria-hidden="true"></span>' + (LK && LK.crystal ? '<span class="wh-crystal" aria-hidden="true"></span>' : '') + (LK && LK.stand ? '<span class="wh-stand wh-stand--' + esc(String(LK.stand).replace(/[^a-z]/gi, '')) + '" aria-hidden="true"></span>' : '') + (LK && LK.name ? '<span class="wh-plate" aria-hidden="true" hidden></span>' : '') + '</div></div>' +
     '<div class="wh-foot"><div class="wh-msg c-card" data-msg></div><div class="wh-res c-card c-card--inset" data-res hidden></div><div class="wh-tok" data-tok hidden></div>' +
     '<button type="button" class="c-btn c-btn--primary c-btn--cta c-btn--block wh-go" data-go>SPIN</button></div>' +
     '<div class="sr-only" role="status" aria-live="polite" data-live></div>';
   document.body.appendChild(ov); if (app) app.inert = true;
-  const $ = (q) => ov.querySelector(q), wrap = $('.wh-wrap'), cv = $('.wh-cv'), ctx = cv.getContext('2d'), go = $('[data-go]'), msg = $('[data-msg]'), res = $('[data-res]'), live = $('[data-live]'), ptr = $('.wh-ptr'), tokBox = $('[data-tok]');
+  const $ = (q) => ov.querySelector(q), wrap = $('.wh-wrap'), cv = $('.wh-cv'), ctx = cv.getContext('2d'), tkc = $('.wh-tk'), tctx = tkc.getContext('2d'), go = $('[data-go]'), msg = $('[data-msg]'), res = $('[data-res]'), live = $('[data-live]'), ptr = $('.wh-ptr'), tokBox = $('[data-tok]');
   if (LK) { if (ptrCol) ov.style.setProperty('--wh-ptr', 'rgb(' + ptrCol + ')'); if (LK.hub && colourOf(LK.hub)) ov.style.setProperty('--wh-hub', 'rgb(' + hubCol + ')'); const pl = $('.wh-plate'); if (LK.name && pl) { pl.textContent = String(LK.name).slice(0, 24); pl.hidden = false; pl.setAttribute('aria-hidden', 'true'); } }
-  const labels = o.slices.map((v, i) => { const s = document.createElement('span'); s.className = 'wh-lab' + (GD.includes(i) ? ' is-jp' : ''); s.textContent = o.labels ? o.labels[i] || '' : (o.plus || '+') + v; /* wa1 find: word labels */ s.setAttribute('aria-hidden', 'true'); wrap.appendChild(s); return s; });
+  const labels = o.slices.map((v, i) => { const s = document.createElement('span'); s.className = 'wh-lab' + (GD.includes(i) ? ' is-jp' : ''); s.style.zIndex = '2'; s.textContent = o.labels ? o.labels[i] || '' : (o.plus || '+') + v; /* wa1 find: word labels */ s.setAttribute('aria-hidden', 'true'); wrap.appendChild(s); return s; });
   // wheel state: pos = the wheel coordinate (units) under the pointer; the wheel's turn is rot = pos * U.
   let state = 'idle', pos = Math.random() * C, phi = pos, speed = 0, clock = 0, lastF = 0, tapT = 0, stopInfo = null, adj = 0, raf = 0, closed = false, S = 2, size = 100, css = 200, spinEv = 0, prevIdx = sliceOf(pos);
   const centreOf = (i) => (cum[i] + cum[i + 1]) / 2;
@@ -106,7 +106,7 @@ export function openWheel(o) {
   function layout() { // wheel sized from the free height (stage), never wider than the screen
     const st = $(".wh-stage"), RES = LK && LK.name && !ov.classList.contains('is-res-compact') ? 34 : LK && (LK.stand || LK.name) ? 14 : 0, h = st.clientHeight - 24 - 22 - RES, w = st.clientWidth - 24; // RES: room under the rim for the stand / name plate (they hang from the wheel box)
     css = Math.max(160, Math.min(w, h, 340)); size = Math.floor(css / S / 2) * 2; css = size * S; wrap.style.marginBottom = RES ? RES + 'px' : '';
-    wrap.style.width = wrap.style.height = css + 'px'; cv.width = cv.height = size; cv.style.width = cv.style.height = css + 'px'; fitLabels(); draw();
+    wrap.style.width = wrap.style.height = css + 'px'; cv.width = cv.height = size; cv.style.width = cv.style.height = css + 'px'; tkc.width = tkc.height = size; tkc.style.cssText = 'position:absolute;left:0;top:0;z-index:2;pointer-events:none;image-rendering:pixelated;width:' + css + 'px;height:' + css + 'px'; fitLabels(); draw();
   }
   function hubSpoke(th, r, rot) { // the hub's spokes as pixels: shape plain (none) / round (dots) / blade (thin) / diamond
     if (shape === 'plain') return false;
@@ -141,27 +141,27 @@ export function openWheel(o) {
       }
       const p = (y * w + x) * 4; d[p] = c[0]; d[p + 1] = c[1]; d[p + 2] = c[2]; d[p + 3] = 255;
     }
-    ctx.putImageData(im, 0, 0);
+    ctx.putImageData(im, 0, 0); tctx.clearRect(0, 0, w, w); // the landing tick lives on its own canvas above the glass sheen (z 2; the labels sit above it)
     const tk = tickKind({ guide: !!o.guide, reduced });
     if (tk !== 'none' && state === 'spin') { // landing tick (free for everyone): where the slice under the pointer ends up if STOP is tapped now (pointer + ease-out distance), as a radial tick on the rim; Aim Guide = gold wedge
-      const ga = -Math.PI / 2 - stopDist(Math.min(clock - spinEv, WS.COAST), ...PX) * U, gx = Math.cos(ga), gy = Math.sin(ga), r0 = R - 15, plot = (rr, o, col) => { ctx.fillStyle = col; ctx.fillRect(Math.round(cx + gx * rr - gy * o), Math.round(cy + gy * rr + gx * o), 1, 1); };
+      const ga = -Math.PI / 2 - stopDist(Math.min(clock - spinEv, WS.COAST), ...PX) * U, gx = Math.cos(ga), gy = Math.sin(ga), r0 = R - 15, plot = (rr, o, col) => { tctx.fillStyle = col; tctx.fillRect(Math.round(cx + gx * rr - gy * o), Math.round(cy + gy * rr + gx * o), 1, 1); };
       if (tk === 'wedge') {
         for (const [grow, col] of [[1.6, 'rgb(' + pal.out + ')'], [0, 'rgb(' + pal.gold + ')']]) for (let rr = r0 - grow; rr <= R - 0.5; rr += 0.5) { const t = Math.max(0, (rr - r0) / (R - r0)), hw = TICK.WEDGE_TIP_PX + t * 3 + grow; for (let o = -hw; o <= hw; o += 0.5) plot(rr, o, col); } // Aim Guide: an outlined gold wedge on the rim, sharp tip inside, wide end at the rim
         for (let rr = r0 + 2; rr <= R - 2; rr += 0.5) plot(rr, 0, '#fff');
-      } else { // plain tick: a thin white bar (2 px) with a 1 px dark outline, 13 px long across the rim band; readable on every slice and skin
-        for (const [hw, col] of [[TICK.PLAIN_PX / 2 + 1, 'rgb(' + pal.out + ')'], [TICK.PLAIN_PX / 2, '#fff']]) for (let rr = r0 - (hw > 1.5 ? 1 : 0); rr <= R - 0.5; rr += 0.5) for (let o = -hw; o <= hw; o += 0.5) plot(rr, o, col);
+      } else { // plain tick: a dark 2 px bar with a 1 px white halo, 13 px long across the rim band; readable on every slice and skin
+        for (const [hw, col] of [[TICK.PLAIN_PX / 2 + 1, '#fff'], [TICK.PLAIN_PX / 2, 'rgb(' + pal.out + ')']]) for (let rr = r0 - (hw > 1.5 ? 1 : 0); rr <= R - 0.5; rr += 0.5) for (let o = -hw; o <= hw; o += 0.5) plot(rr, o, col);
       }
     }
     const a = rot - centreOf(JP) * U - Math.PI / 2, ax = Math.round(cx + Math.cos(a) * (R - 3.6)), ay = Math.round(cy + Math.sin(a) * (R - 3.6));
     for (let j = -5; j <= 5; j++) for (let i = -5; i <= 5; i++) { const q = Math.abs(i) + Math.abs(j); if (q > 5) continue; ctx.fillStyle = q >= 5 ? 'rgb(' + pal.out + ')' : q >= 4 ? '#fff' : 'rgb(' + pal.gold + ')'; ctx.fillRect(ax + i, ay + j, 1, 1); } // diamond on the jackpot slice
     if (WL) labels.forEach((l, i) => { const P = plan[i]; if (l.hidden) return; const b = rot - P.c * U - Math.PI / 2; // wa1 fixfind: fitted word labels
       l.style.left = cx * S + Math.cos(b) * P.rl + 'px'; l.style.top = cy * S + Math.sin(b) * P.rl + 'px';
-      if (!P.ico) l.style.color = lum(fills[i]) > 0.5 ? 'rgb(' + pal.out + ')' : '#fff'; l.style.opacity = moving && speed > 8 ? '.55' : '1';
+      if (!P.ico) l.style.color = lum(fills[i]) > 0.5 ? 'rgb(' + pal.out + ')' : '#fff'; l.style.opacity = moving && speed > 8 && !isG(i) ? '.55' : '1';
     });
     else labels.forEach((l, i) => {
       const b = rot - centreOf(i) * U - Math.PI / 2, thin = widths[i] * U < 0.2, rl = R * (GD.includes(i) ? 0.8 : 0.62); l.style.fontSize = thin ? '14px' : ''; // a thin slice (the extra gold): a smaller label so it stays inside the slice edges
       l.style.left = (cx + Math.cos(b) * rl) * S + 'px'; l.style.top = (cy + Math.sin(b) * rl) * S + 'px';
-      l.style.color = lum(fills[i]) > 0.5 ? 'rgb(' + pal.out + ')' : '#fff'; l.style.opacity = moving && speed > 8 ? '.55' : '1';
+      l.style.color = lum(fills[i]) > 0.5 ? 'rgb(' + pal.out + ')' : '#fff'; l.style.opacity = moving && speed > 8 && !GD.includes(i) ? '.55' : '1';
     });
   }
   const setMsg = (t) => { msg.textContent = t; };
@@ -196,7 +196,7 @@ export function openWheel(o) {
     }
     draw(); raf = requestAnimationFrame(frame);
   }
-  const MSG_GO = 'Turning. Tap STOP when you want it to slow down. Tap early and it goes further.';
+  const MSG_GO = 'Turning. Tap STOP when you want it to slow down. The tick shows where it will land. Tap early and it goes further.';
   const TOKNAME = { respin: 'Spin Again', two: 'Pick Two', nudge: 'Nudge', lift: 'Lucky Lift' }, PL = () => o.plus || '+';
   /** One outcome line for a used token: what the wheel now says, whether or not it improved. */
   function outcomeLine(kind, b, q) {
@@ -296,6 +296,6 @@ export function openWheel(o) {
   layout();
   const pend = o.pending || null;
   if (pend) { pos = centreOf(pend.index); state = 'result'; draw(); showResult(); }
-  else { setMsg(reduced ? 'Tap SPIN. The result shows at once.' : 'Tap SPIN. Tap STOP when the gold slice is near the top.'); go.focus(); }
+  else { setMsg(reduced ? 'Tap SPIN. The result shows at once.' : 'Tap SPIN. Tap STOP when the gold slice is near the top. The tick shows where it will land.'); go.focus(); }
   return close;
 }

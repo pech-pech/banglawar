@@ -330,4 +330,6 @@
 .wh-tim--c { background: var(--gold); border-radius: 4px; padding: 1px 8px; display: inline-block; }
 
 /* Match coach tag (SPEC 2026-11-15): idle coach on the strip; regular weight so it fits a Fold-cover slot at 14px */
-.ct-tag--mc { font-weight: 400; text-overflow: ellipsis; }
+.ct-tag--mc { align-self: end; justify-self: start; width: max-content; max-width: 100%; height: 14px; padding: 0 4px 0 2px; box-sizing: border-box; font-weight: 700; line-height: 14px; background: var(--outline); color: var(--cream); } /* QA D6: a small solid badge (icon + "Match") on its own 14 px line: 16+18+14 = 48 px fits the 56 px tap with no overlap, and is short enough for a 344 slot */
+.ct-tag--mc svg, .ct-tag--mc img { width: 14px; height: 14px; }
+/* QA D6b: the picked tag said "This week" and clipped to "This wee" at 344 wide; it now shows "Picked" (full words stay for screen readers) */

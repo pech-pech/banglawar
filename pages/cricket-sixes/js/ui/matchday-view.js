@@ -64,7 +64,9 @@ export function coachRowHtml(c) {
   if (!c) return '';
   if (c.none) return '<p class="md-mc md-mc--none" aria-label="Match coach">' + icoDeco('coach', 24) + '<span><b>Match coach</b><small>' + esc(c.line) + '</small></span></p>';
   const opts = c.options || [], at = Math.max(0, opts.findIndex((o) => o.picked)), nxt = opts.length > 1 ? opts[(at + 1) % opts.length] : null;
-  const body = icoDeco('coach', 24) + '<span><b>Match coach: ' + esc(c.name) + ' <i class="md-mcg">' + esc(c.letter) + '</i></b><small>' + esc(c.text) + '</small></span>' + (nxt ? '<span class="md-mcc" aria-hidden="true">Change</span>' : '');
+  const sw = String(c.name || '').trim().split(/\s+/).pop() || '', sn = sw.length > 9 && sw.includes('-') ? sw.split('-')[0] : sw; // short name like the strip chip: "Lee"
+  const sm = String(c.text || '').replace(/^Coach [^:]*: /, ''), small = sm ? sm.charAt(0).toUpperCase() + sm.slice(1) : sm; // the name is in the line above
+  const body = icoDeco('coach', 24) + '<span><b>Match coach: ' + esc(sn) + ' <i class="md-mcg">' + esc(c.letter) + '</i></b><small>' + esc(small) + '</small></span>' + (nxt ? '<span class="md-mcc" aria-hidden="true">Change</span>' : '');
   return nxt
     ? '<button type="button" class="c-btn md-tap md-mc" data-md="coach" data-id="' + esc(nxt.id) + '" aria-label="' + esc('Match coach ' + c.name + ', grade ' + c.letter + '. ' + c.text + '. Tap to change to ' + nxt.name) + '">' + body + '</button>'
     : '<p class="md-mc" aria-label="' + esc('Match coach ' + c.name + ', grade ' + c.letter + '. ' + c.text) + '">' + body + '</p>';
