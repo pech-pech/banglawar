@@ -24,9 +24,12 @@ import { ACT } from '../data/activities.js';
 import { activityOptions, trialOf, canSignTrial } from '../core/activities.js';
 import { freePickOptions, freePickPending, matchIncome } from '../core/economy.js';
 import { MD } from '../data/matchday.js';
+import { ECON as ECON_DATA } from '../data/economy.js';
+const ECON_FANS_GATE = ECON_DATA.STADIUM_FANS;
 import { WM, NODES } from '../data/wheelmeta.js';
 import { metaOf, rankOf, tierOf, tierNow, canBuy, effective, metaWheel, tokenOptions, powerDone, nextTierUp } from '../core/wheelmeta.js';
-import { teamBoost, roarAt, resolvePep } from '../core/matchday.js';
+import { teamBoost, roarAt, resolvePep, matchCoachText } from '../core/matchday.js';
+import { matchCoachOf } from '../core/training.js';
 import { mdSpinVM, findSpinVM, scoutSpinVM, finalsSpinVM } from './wmstore.js';
 import { wmTokens } from './wmstore.js'; // wa1 wire: token buttons for Hype / Toss / Pep / Scout / Finals
 import { BATS, BOWLS, CELLS, COMBOS, SEEN_BALLS, cellIndex, cellOf, cellName, comboOf, isBook, newBook, winOf, nearestCell } from '../core/pairing.js';
@@ -238,7 +241,7 @@ function finalsVM(s) {
   return { semis: F.semis.map(m), final: m(F.final) };
 }
 
-export function tableVM(s) { return { rows: tableRows(s), finals: finalsVM(s) }; }
+export function tableVM(s) { return { rows: tableRows(s), finals: finalsVM(s), fansGate: fansGateVM(s) }; }
 
 /** Spare Spokes swap offer: {open, spokes (what the swap would spend), coins, rate}. open = flag on, power tree done, an economy, and at least one pair. Used by the Workshop and the season-end screen. */
 export function swapVM(s) {
@@ -390,7 +393,8 @@ export function trainingVM(s) {
   });
   const efforts = EFFORTS.map((id) => { const e = TRAIN2.efforts[id]; return { id, label: e.label, cost: e.cost, mean: Math.round(meanGain(effortOdds(id, 0, plan.focus === 'bal')) * 100) / 100, on: plan.effort === id }; });
   const focuses = FOCUSES.map((id) => ({ id, label: TRAIN2.focusLabels[id], on: plan.focus === id }));
-  const coaches = coachList(s).map((c) => ({ ...coachRow(s, c), picked: plan.coachId === c.id, helps: c.strong.includes(plan.focus) }));
+  const mcId = matchCoachIdOf(s);
+  const coaches = coachList(s).map((c) => ({ ...coachRow(s, c), picked: plan.coachId === c.id, helps: c.strong.includes(plan.focus), matchCoach: !!mcId && mcId === c.id }));
   const hasP1 = !!(T.pending && T.pending.week === T.week), hasP2 = !!(T.pending2 && T.pending2.week === T.week);
   const capped = (id, has) => FLAGS.wheelMeta && skip.has(id) && !has; // 02 section 7: a Spotlight player who cannot gain is not offered the wheel (no tally, no Spokes)
   const baseW = plan.spotlightId && !capped(plan.spotlightId, hasP1) ? wheelSlices(plan.effort, coachStepInUse(s)) : null, M = FLAGS.wheelMeta;
@@ -461,9 +465,9 @@ export function treeVM(s, id) {
 }
 
 export function coachesVM(s) {
-  const plan = planOf(s), list = coachList(s);
+  const plan = planOf(s), list = coachList(s), mcId = matchCoachIdOf(s);
   return {
-    coaches: list.map((c) => ({ ...coachRow(s, c), picked: plan.coachId === c.id, helps: c.strong.includes(plan.focus) })),
+    coaches: list.map((c) => ({ ...coachRow(s, c), picked: plan.coachId === c.id, helps: c.strong.includes(plan.focus), matchCoach: !!mcId && mcId === c.id })),
     licence: { held: licenceHeld(s), line: licenceHeld(s) > 0 ? 'Licence: 2nd course allowed' : '' },
     slots: MAX_COACHES, free: Math.max(0, MAX_COACHES - list.length), full: list.length >= MAX_COACHES, scout: coachPickVM(s),
     note: 'Pick a coach for the week. He helps only when he is strong in the focus. A course makes a coach better and takes him away for a week.',
@@ -627,6 +631,16 @@ function bowlBookLine(book, crease, bowl, ph) {
 export const BOOK_PICK_NOTE = 'Book lines come from what you found. They can differ from the grid. Your call.';
 
 // ---------------------------------------------------------------- r9 match day (flag matchday; every key below is absent with the flag off)
+/** Match coach (SPEC 2026-11-15): id of this week's match coach (training tab tag), null with the flag off or none idle. */
+function matchCoachIdOf(s) { try { if (!FLAGS.matchday || !s.training) return null; const m = matchCoachOf(s); return m ? m.coach.id : null; } catch (e) { return null; } }
+/** The Match coach row for the Match day screen: { none, line, name, letter, text, change, options:[{id,name,letter,text,picked}] }. null with the flag off. */
+export function matchCoachVM(s) {
+  if (!FLAGS.matchday || !s.training) return null;
+  const m = matchCoachOf(s);
+  if (!m) return { none: true, line: 'No match coach this week', name: '', letter: '', text: '', change: false, options: [] };
+  const opt = (c) => ({ id: c.id, name: c.name, letter: letterOfStep(c.step), strong: c.strong.slice(), text: matchCoachText(c.name, matchCoachOf({ ...s, training: { ...s.training, matchCoachId: c.id } }).boost), picked: c.id === m.coach.id });
+  return { none: false, line: m.coach.name, name: m.coach.name, letter: letterOfStep(m.coach.step), text: matchCoachText(m.coach.name, m.boost), change: m.idle.length > 1, options: m.idle.map(opt) };
+}
 const HYPE_WORD = { low: 'Quiet crowd', med: 'Good crowd', high: 'Big crowd', nuts: 'Wild crowd' }; // r9 fix M6: the same words on the Match day screen, its odds table and the Plan chip
 const pct = (x) => Math.round(x * 100);
 const hypePerfOf = (md) => (md.hypePerf != null ? md.hypePerf : MD.HYPE_PERF[md.hype]); // wheel meta writes the real number
@@ -650,6 +664,9 @@ export function chipsVM(s) {
   chips.push({ key: 'toss', text: tossBoostOf(md) > 0 ? `${md.toss === 'won' ? 'Won the toss' : 'Good sport'} +${Math.round(tossBoostOf(md) * 1000) / 10}%` : 'Rival won the toss' });
   const nm = nameOfId(s, md.pepId) || (s.me && s.me.players && md.pepSlot ? '' : '');
   if (md.pepId != null && nm) chips.push({ key: 'pep', text: `Pep talk: ${nm} +${pct(MD.PEP_BOOST)}%` });
+  const live = s.stage === 'bowl' || s.stage === 'chase' || s.stage === 'break' || s.stage === 'done'; // the coach in play is the one stored with the match; before it starts, today's pick
+  const mc = live ? md.mc : (() => { const m = matchCoachOf(s); return m && (m.boost.bat || m.boost.bowl) ? { name: m.coach.name, bat: m.boost.bat, bowl: m.boost.bowl } : null; })();
+  if (mc) chips.push({ key: 'coach', text: matchCoachText(mc.name, mc) });
   return chips.map((c) => ({ ...c, aria: c.text }));
 }
 /** Extra VM keys for plan / bowl / chase: chips, and the roar for the over about to be played (overIdx 0..19, -1 = none). */
@@ -686,7 +703,7 @@ export function matchdayVM(s) {
     roar: { on: !!FLAGS.roar, chancePct: Math.round(md.roarChance * 100), overs: md.roar.filter(Boolean).length },
     toss: { won: tossBoostOf(md) > 0, boostPct: Math.round(tossBoostOf(md) * 1000) / 10, line: tossBoostOf(md) > 0 ? (md.toss === 'won' ? `You won the toss +${Math.round(tossBoostOf(md) * 1000) / 10}% for the team` : `Good sport +${Math.round(tossBoostOf(md) * 1000) / 10}% for the team`) : 'Rival won the toss. Nothing changes.' },
     pep: md.pepId != null ? { slot: md.pepSlot, id: md.pepId, name: pepName, boostPct: pct(MD.PEP_BOOST) } : null,
-    six,
+    six, coach: matchCoachVM(s),
     boost: { teamPct: pct(team), pepPct: pct(pepB), line: pepName ? `Team +${pct(team)}%, ${pepName} +${pct(pepB)}%` : `Team +${pct(team)}%` },
     wm: withSpokes(s, mdSpinVM(s)), look: FLAGS.wheelMeta ? craftLook(s) : null, // wheel meta: dial / reveal props + stored results (null with the flag off)
     auto: !!s.autoMatchday, forced, next: fx.mdThen === 'start' ? 'Start match' : 'Next: Plan', back: 'Back to squad', // from the hub Go starts the match; from Squad it opens Plan (m1: the label says what the button does)
@@ -776,4 +793,15 @@ export function tokenVM(s, wheel, slot = 1) {
 export function craftLook(s) {
   const r = (id) => rankOf(s, id);
   return { rim: r('k_rim'), hub: r('k_hub'), ptr: r('k_ptr'), tick: r('k_tick'), trail: r('k_trail'), pal: r('k_pal'), spoke: r('k_spoke'), burst: r('k_burst'), stand: r('k_stand'), name: r('k_name') > 0, crystal: r('k_crystal') > 0, material: FLAGS.wheelMeta ? materialOf(tierNow(s)) : 'wood' };
+}
+
+/** Stadium Fans gate line (report p13 s2). Reads the same figures as the build check (s.econ.fans, ECON.STADIUM_FANS[level to build]); progress only, no number changes.
+ *  @returns {{text:string, pct:number, ready:boolean, hidden:boolean, next:number|null}} hidden at Stadium 5 or with no economy. */
+export function fansGateVM(s) {
+  const e = s && s.econ;
+  const st = e ? Number(e.stadium) | 0 : 5;
+  if (!e || st >= 5) return { text: '', pct: 100, ready: false, hidden: true, next: null };
+  const L = st + 1, gate = ECON_FANS_GATE[L], fans = Math.max(0, Math.floor(Number(e.fans) || 0));
+  const ready = fans >= gate, c = (n) => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  return { text: ready ? `Fans ready: build stadium L${L}` : `Fans ${c(fans)} / ${c(gate)} for stadium L${L}`, pct: ready ? 100 : Math.floor(fans * 100 / gate), ready, hidden: false, next: L };
 }

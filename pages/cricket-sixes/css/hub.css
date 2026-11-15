@@ -202,3 +202,12 @@
   .hb-field { min-height: 200px; }
 }
 @media (prefers-reduced-motion: reduce) { .hb-l2 * { animation: none !important; transition: none !important; } }
+
+/* Fans gate line + bar (report p13 s2): one 14px line and a 6px bar under the scoreboard / above the league table. Progress only. */
+.fg { display: grid; gap: 3px; padding: 3px 4px; min-width: 0; }
+.fg-tx { font-size: 14px; line-height: 16px; font-weight: 700; overflow-wrap: anywhere; }
+.fg-bar { display: block; height: 6px; border: 1px solid var(--outline); background: var(--cream); }
+.fg-bar > i { display: block; height: 100%; background: var(--gold); }
+.fg.is-ready .fg-bar > i { background: var(--c-ok, var(--gold)); }
+.hb-ground > .hb-fg { flex: none; background: var(--outline); color: var(--cream); margin-top: -6px; }
+.hb-ground > .hb-fg .fg-bar { border-color: var(--cream); background: transparent; }

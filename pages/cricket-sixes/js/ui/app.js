@@ -67,6 +67,7 @@ function decorate(s, vm) {
   }
   if ((s.stage === 'hub' || s.stage === 'semi' || s.stage === 'final') && s.season) {
     if (s.econ && !vm.econ) vm.econ = s.econ;
+    if (vm.fansGate === undefined) vm.fansGate = sel.fansGateVM(s);
     if (s.fixture && !vm.gap) vm.gap = gapLetters(s, s.fixture.opp);
     if (s.notice && !vm.notice) vm.notice = sel.noticeOf(s);
     if (vm.workshop === undefined && typeof sel.workshopVM === 'function') vm.workshop = sel.workshopVM(s); // Wheel meta: .visible only from tier 1 with the flag on

@@ -1,5 +1,7 @@
 // @ts-check
 // Match-day tuning keys (SPEC 2026-11-13 section 10 line 1). Same names as the spec. Edit here to dial it; no rebuild of logic.
+// Match coach (SPEC 2026-11-15): an idle coach adds pct per strong focus (Balanced = balancedPct to both). One side never sums: the best single contribution counts.
+export const MATCH_COACH = { pct: 0.03, balancedPct: 0.015 };
 export const MD = {
   SETTLED_K: 0.42, SETTLED_MAX_BALLS: 25,
   ROAR_BASE: 0.05, ROAR_FANS_ADD: 0.25, ROAR_FANS_REF: 4000, ROAR_CAP: 0.30, ROAR_BOOST: 0.05,

@@ -31,7 +31,7 @@ export function boostTotals(vm, shown) {
   return { teamPct: pct(h * t), pepPct: pct(h * t * p) };
 }
 
-const ICON = { hype: 'fan', toss: 'medal', pep: 'team', roar: 'fan' };
+const ICON = { hype: 'fan', toss: 'medal', pep: 'team', roar: 'fan', coach: 'coach' };
 /** Small row of result chips (Plan, match headers) when the screen was skipped. chips: [{k, text}]. Pure. */
 export function chipRowHtml(chips) {
   if (!chips || !chips.length) return '';
@@ -57,6 +57,17 @@ export function oddsHtml(vm) {
     '<p><b>Pep talk:</b> one of your six gets +5% more.</p>' +
     '<p><b>Crowd roar:</b> some overs your whole team gets +5% for that over. More Fans, more roars.</p>' +
     '<p>Boosts stack by multiplying. They are for your team only.</p></div>';
+}
+
+/** The "Match coach" row (SPEC 2026-11-15). vm.coach = {none, line, name, letter, text, change, options:[{id,picked}]} or absent. Tap = the next idle coach. Pure. */
+export function coachRowHtml(c) {
+  if (!c) return '';
+  if (c.none) return '<p class="md-mc md-mc--none" aria-label="Match coach">' + icoDeco('coach', 24) + '<span><b>Match coach</b><small>' + esc(c.line) + '</small></span></p>';
+  const opts = c.options || [], at = Math.max(0, opts.findIndex((o) => o.picked)), nxt = opts.length > 1 ? opts[(at + 1) % opts.length] : null;
+  const body = icoDeco('coach', 24) + '<span><b>Match coach: ' + esc(c.name) + ' <i class="md-mcg">' + esc(c.letter) + '</i></b><small>' + esc(c.text) + '</small></span>' + (nxt ? '<span class="md-mcc" aria-hidden="true">Change</span>' : '');
+  return nxt
+    ? '<button type="button" class="c-btn md-tap md-mc" data-md="coach" data-id="' + esc(nxt.id) + '" aria-label="' + esc('Match coach ' + c.name + ', grade ' + c.letter + '. ' + c.text + '. Tap to change to ' + nxt.name) + '">' + body + '</button>'
+    : '<p class="md-mc" aria-label="' + esc('Match coach ' + c.name + ', grade ' + c.letter + '. ' + c.text) + '">' + body + '</p>';
 }
 
 /** The whole screen as markup. shown = which cards are revealed. Pure. @param {any} vm @param {{hype?:boolean,toss?:boolean,pep?:boolean}} shown */
@@ -88,7 +99,7 @@ export function matchdayHtml(vm, shown) {
   return '<div class="md-root">' +
     '<header class="strip c-dark md-strip"><span class="mid"><b>Match day</b><span>' + esc((vm.kindWord ? vm.kindWord + ' ' : '') + (vm.oppName ? 'vs ' + vm.oppName : 'Before the match')) + '</span></span>' +
     '<button type="button" class="c-icon-btn help-btn" data-md="info" aria-label="How match day works">?</button></header>' +
-    '<div class="md-body">' + hype + roar + toss + pep +
+    '<div class="md-body">' + hype + roar + toss + pep + coachRowHtml(vm.coach) +
     '<p class="md-total" aria-label="Boost total">' + total + '</p>' +
     '<p class="ss-sr" role="status" aria-live="polite" aria-atomic="true" data-md-live></p></div>' +
     '<div class="ctabar md-cta"><button type="button" class="c-btn md-back" data-act="BackToSquad">Back to squad</button>' +
@@ -141,6 +152,7 @@ export function render(el, vm, dispatch) {
     el.addEventListener('click', (e) => {
       const t = /** @type {HTMLElement} */ (e.target).closest('[data-md]'); if (!t || !el.contains(t)) return;
       const w = t.getAttribute('data-md'), V = E.__mdVM;
+      if (w === 'coach') { const id = t.getAttribute('data-id'); if (id) E.__mdDispatch('SetMatchCoach', { coachId: id }); return; }
       if (w === 'info') { openSheet('How match day works', oddsHtml(V), { returnFocus: '[data-md="info"]' }); return; }
       if (V.wm && V.wm[w] && !E.__mdShown[w]) { // wheel meta: the card opens the spin; Collect reveals the card (the result is already stored by the spin command)
         const get = () => E.__mdVM.wm[w], d = (c, a) => E.__mdDispatch(c, a || {});

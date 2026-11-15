@@ -7,6 +7,7 @@ import { drawGround } from './ground-canvas.js';
 import { openSheet } from './sheet.js';
 import { trialCardHtml } from './trial-card.js';
 import { pendingCardHtml } from './freepick-view.js';
+import { fansGateHtml } from './table-sheet.js';
 
 export function helpBtn(id, label) {
   return '<button type="button" class="c-icon-btn help-btn" data-act="sheet:glossary"' + (id ? ' data-arg="' + esc(JSON.stringify(id)) + '"' : '') +
@@ -53,7 +54,7 @@ function boardHtml(vm) {
   const coins = e ? '<button type="button" class="hb-cell hb-cell--coins" data-act="sheet:money" aria-label="Club money: ' + esc(fmtN(e.coins)) + ' Coins">' + icoDeco('coin', 24) + '<span class="hb-cv2"><b>' + esc(fmtN(e.coins)) + '</b><small>Coins</small></span></button>' : '';
   const tp = '<div class="hb-cell hb-cell--tp hb-tp">' + icoDeco('tp', 24) + '<span class="hb-cv2"><b>' + esc(vm.tp) + '</b><small><span aria-hidden="true">TP</span><span class="ss-sr"> training points</span></small></span></div>';
   const sp = w && w.visible ? '<div class="hb-cell hb-cell--spokes">' + spokeIcon(24) + '<span class="hb-cv2"><b>' + esc(w.spokes) + '</b><small>Spokes</small></span></div>' : '';
-  return '<div class="hb-board" role="group" aria-label="Club scoreboard">' + coins + tp + sp + '</div>';
+  return '<div class="hb-board" role="group" aria-label="Club scoreboard">' + coins + tp + sp + '</div>' + fansGateHtml(vm.fansGate, 'hb-fg');
 }
 
 function slotHtml(slot, plate) {

@@ -129,10 +129,10 @@ const hasSprites = () => typeof window !== 'undefined' && !!(window.SPR && windo
 export const shortName = (n) => { const w = String(n || '').trim().split(/\s+/).pop() || ''; return w.length > 9 && w.includes('-') ? w.split('-')[0] : w; };
 function ctCard(c) {
   const cr = c.course || {}, away = c.away > 0, price = cr.free ? 'Free' : cr.cost != null ? cr.cost + ' Coins' : '';
-  const say = 'Coach ' + c.name + ', grade ' + c.letter + ', strong in ' + strongText(c.strong) + (away ? '. Away, back next week' : c.picked ? '. Coach this week. Tap for no coach' : '. Tap to pick for this week') + (!away && c.picked && !c.helps ? '. Not strong in this focus, so no help' : '');
+  const say = 'Coach ' + c.name + ', grade ' + c.letter + ', strong in ' + strongText(c.strong) + (away ? '. Away, back next week' : c.picked ? '. Coach this week. Tap for no coach' : '. Tap to pick for this week') + (!away && c.picked && !c.helps ? '. Not strong in this focus, so no help' : '') + (c.matchCoach && !c.picked && !away ? '. Match coach this week' : '');
   const face = hasSprites() ? '<canvas class="ct-face" data-ct-face="' + esc(c.id) + '" aria-hidden="true"></canvas>' : '<span class="ct-face">' + deco('coach', 24) + '</span>';
   // fixtrain: the picked state is its own full-width line (check + "This week", or warn + "No help"), never cut by the face / grade line.
-  const tag = away ? '<span class="ct-tag ct-tag--away">Back next week</span>' : c.picked ? (c.helps ? '<span class="ct-tag ct-tag--on">' + deco('done', 16) + '<span>This week</span></span>' : '<span class="ct-tag ct-tag--nohelp">' + deco('info', 16) + '<span>No help</span></span>') : '';
+  const tag = away ? '<span class="ct-tag ct-tag--away">Back next week</span>' : c.picked ? (c.helps ? '<span class="ct-tag ct-tag--on">' + deco('done', 16) + '<span>This week</span></span>' : '<span class="ct-tag ct-tag--nohelp">' + deco('info', 16) + '<span>No help</span></span>') : c.matchCoach ? '<span class="ct-tag ct-tag--mc">Match coach</span>' : '';
   const course = away ? '' : '<button type="button" class="c-btn ct-course" data-ct="course" data-id="' + esc(c.id) + '"' + (cr.ok ? '' : ' aria-disabled="true"') +
     ' aria-label="' + esc('Send ' + c.name + ' on course' + (price ? ', ' + price : '') + (cr.ok ? (cr.licence ? ', uses your Licence' : '') + '. He is away 1 week' : '. ' + courseWhy(cr))) + '">' +
     '<span class="ct-cw">' + deco('upgrade', 16) + '<span>Course</span></span><small>' + esc(cr.ok ? price + (cr.licence ? ', Licence' : '') : courseWhy(cr)) + '</small></button>';

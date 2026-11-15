@@ -60,3 +60,11 @@
 .md-chips ~ .colL, .md-roar ~ .colL { margin-top: 14px; }
 .md-chips ~ .colL .sb-cap, .md-roar ~ .colL .sb-cap { margin-top: 4px; }
 .md-roar { border-color: transparent; } /* m10: a flat gold note, no button frame */
+
+/* Match coach row (SPEC 2026-11-15): a tap row like the other cards; 56px+ tap, 14px text, wraps on the Fold cover (344 / 475 wide). */
+.md-mc { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 56px; margin: 0; padding: 6px 12px; box-sizing: border-box; text-align: left; white-space: normal; }
+p.md-mc { background: var(--cream); border: var(--c-border, 2px) solid var(--outline); }
+.md-mc > span:not(.md-mcc) { display: flex; flex-direction: column; flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; }
+.md-mc b, .md-mc small { font-size: 14px; line-height: 18px; }
+.md-mcg { font-style: normal; font-weight: 700; padding: 0 4px; background: var(--cream); border: 2px solid var(--outline); }
+.md-mcc { flex: none; font-size: 14px; line-height: 18px; font-weight: 700; padding: 2px 8px; border: 2px solid var(--outline); background: var(--gold); }

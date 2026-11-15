@@ -28,6 +28,7 @@ import { releaseInert } from './inert.js';
 import { wheelWidths, wheelSpeed, wheelArc, stopDist, stopExtra, stopLanding, carefulTapTime, TIMING_WIN, timingBucket, TIMING_LINE } from '../core/training.js';
 import { matOf, colourOf, normLook, PALETTES, spokeIcon } from './wheel-look.js';
 import { TRAIN2 } from '../data/training.js';
+import { tickKind, TICK } from '../core/landtick.js';
 
 const TAU = Math.PI * 2;
 const reducedNow = () => typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -141,10 +142,15 @@ export function openWheel(o) {
       const p = (y * w + x) * 4; d[p] = c[0]; d[p + 1] = c[1]; d[p + 2] = c[2]; d[p + 3] = 255;
     }
     ctx.putImageData(im, 0, 0);
-    if (o.guide && state === 'spin') { // Aim Guide: where the slice under the pointer ends up if STOP is tapped now (pointer + ease-out distance), as a radial tick on the rim
+    const tk = tickKind({ guide: !!o.guide, reduced });
+    if (tk !== 'none' && state === 'spin') { // landing tick (free for everyone): where the slice under the pointer ends up if STOP is tapped now (pointer + ease-out distance), as a radial tick on the rim; Aim Guide = gold wedge
       const ga = -Math.PI / 2 - stopDist(Math.min(clock - spinEv, WS.COAST), ...PX) * U, gx = Math.cos(ga), gy = Math.sin(ga), r0 = R - 15, plot = (rr, o, col) => { ctx.fillStyle = col; ctx.fillRect(Math.round(cx + gx * rr - gy * o), Math.round(cy + gy * rr + gx * o), 1, 1); };
-      for (const [grow, col] of [[1.6, 'rgb(' + pal.out + ')'], [0, 'rgb(' + pal.gold + ')']]) for (let rr = r0 - grow; rr <= R - 0.5; rr += 0.5) { const t = Math.max(0, (rr - r0) / (R - r0)), hw = 0.6 + t * 3.4 + grow; for (let o = -hw; o <= hw; o += 0.5) plot(rr, o, col); } // Aim Guide: an outlined gold wedge on the rim, wide end at the rim
-      for (let rr = r0 + 2; rr <= R - 2; rr += 0.5) plot(rr, 0, '#fff');
+      if (tk === 'wedge') {
+        for (const [grow, col] of [[1.6, 'rgb(' + pal.out + ')'], [0, 'rgb(' + pal.gold + ')']]) for (let rr = r0 - grow; rr <= R - 0.5; rr += 0.5) { const t = Math.max(0, (rr - r0) / (R - r0)), hw = TICK.WEDGE_TIP_PX + t * 3 + grow; for (let o = -hw; o <= hw; o += 0.5) plot(rr, o, col); } // Aim Guide: an outlined gold wedge on the rim, sharp tip inside, wide end at the rim
+        for (let rr = r0 + 2; rr <= R - 2; rr += 0.5) plot(rr, 0, '#fff');
+      } else { // plain tick: a thin white bar (2 px) with a 1 px dark outline, 13 px long across the rim band; readable on every slice and skin
+        for (const [hw, col] of [[TICK.PLAIN_PX / 2 + 1, 'rgb(' + pal.out + ')'], [TICK.PLAIN_PX / 2, '#fff']]) for (let rr = r0 - (hw > 1.5 ? 1 : 0); rr <= R - 0.5; rr += 0.5) for (let o = -hw; o <= hw; o += 0.5) plot(rr, o, col);
+      }
     }
     const a = rot - centreOf(JP) * U - Math.PI / 2, ax = Math.round(cx + Math.cos(a) * (R - 3.6)), ay = Math.round(cy + Math.sin(a) * (R - 3.6));
     for (let j = -5; j <= 5; j++) for (let i = -5; i <= 5; i++) { const q = Math.abs(i) + Math.abs(j); if (q > 5) continue; ctx.fillStyle = q >= 5 ? 'rgb(' + pal.out + ')' : q >= 4 ? '#fff' : 'rgb(' + pal.gold + ')'; ctx.fillRect(ax + i, ay + j, 1, 1); } // diamond on the jackpot slice

@@ -31,7 +31,7 @@ export const TOKVAL = {
 export function spinHype({ get, look, dispatch, onCollect, oppName }) {
   const h = get();
   return openDial({
-    mode: 'aim', title: 'Crowd today', sub: oppName || '', cardHtml: '<p class="dr-hint">Stop the needle on gold for a wild crowd.' + (h.guide ? ' The tick shows where it will land.' : '') + '</p>', slices: h.slices /* fixdial V3 */, look: dialLook(look),
+    mode: 'aim', title: 'Crowd today', sub: oppName || '', cardHtml: '<p class="dr-hint">Stop the needle on gold for a wild crowd.' + ' The tick shows where it will land.' + '</p>', slices: h.slices /* fixdial V3 */, look: dialLook(look),
     ...tokProps(get, dispatch, 'hype', 'Hype'), tokVal: TOKVAL.hype, tokText: (p) => HYPE_WORD[p.level || 'low'] + ' +' + p.pts + '%',
     pending: h.pending, onSpin: (stop) => dispatch('HypeSpin', stopOf(stop)), getPending: () => get().pending,
     describe: (p) => { const lv = p.level || 'low'; return { big: HYPE_WORD[lv], chip: '+' + p.pts + '%', say: HYPE_WORD[lv] + ', plus ' + p.pts + ' percent for your team.', gold: lv === 'nuts' }; },

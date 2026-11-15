@@ -47,3 +47,10 @@
 /* "Workshop" (locked plate) was 3 px wider than its box at 344: slightly tighter plate, label still >= 14 px */
 .skin-scorebook .hb-plate { padding-left: 1px; padding-right: 1px; gap: 1px; }
 .skin-scorebook .hb-pl { font-size: 15px; letter-spacing: -.01em; }
+
+/* Fans gate line (report p13 s2) in the Scorebook skin: ink plate under the board. */
+.skin-scorebook .hb-ground > .hb-fg { background: var(--sb-ink); color: var(--sb-plate); border-radius: 0 0 4px 4px; }
+.skin-scorebook .hb-ground > .hb-fg .fg-tx { font-family: var(--font-body); }
+.skin-scorebook .hb-ground > .hb-fg .fg-bar { border-color: var(--sb-plate); }
+.skin-scorebook .hb-ground > .hb-fg .fg-bar > i { background: var(--sb-hi); }
+.skin-scorebook .fg-bar { border-color: var(--sb-ink); }

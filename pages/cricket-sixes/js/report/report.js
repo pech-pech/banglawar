@@ -5,6 +5,7 @@ import { avoidablePoor } from './metrics.js';
 import { BANDS } from './bands.js';
 import { FLAG_DEFAULTS } from './build.js';
 import { zLines } from './z.js';
+import { REPORT_TICK } from '../core/landtick.js';
 
 export const MAX_MATCH_ROWS = 5;
 const sum = (xs) => xs.reduce((a, b) => a + b, 0);
@@ -175,7 +176,7 @@ function matchRow(m) {
   const txt = `M${m.id} ${m.k || '?'} ${resLetter(m)} ${m.us ?? '-'}-${m.them ?? '-'}${mg ? ' by ' + mg : ''} | field A${f('A')} P${f('P')} sw${fsw} | intent D${i('D')} R${i('R')} A${i('A')} sw${isw} | att early ${early}/7 | att wkts ${sum(att.map((o) => o.w | 0))} in ${att.length} ov | pick G${mu('G')} O${mu('O')} P${mu('P')} U${b.length - mu('G') - mu('O') - mu('P')} | fit ${fit == null ? '-' : fit + '%'} | ${L}${th == null ? '' : ' | think ' + th + ' s'}${m.touched != null ? ' | touched ' + m.touched + '/10' : ''}${m.m && m.res && m.dec != null ? ' | decided over ' + m.dec : ''}`;
   const rb = b.map((o) => o.r | 0), rc = c.map((o) => o.r | 0);
   const j = { id: m.id, k: m.k || null, r: m.r ?? null, res: resLetter(m), us: m.us ?? null, th: m.them ?? null, mg: m.m ? [m.m.k, m.m.n] : null, f: str(b, 'f'), fs: fsw, i: str(c, 'i'), is: isw, g: str(b, 'mu'), gx: av.bad, wc: sum(att.map((o) => o.w | 0)), tc: att.length, fit, rb, rc, lk: m.res ? luckOf(m) : null, tk: th, cn: m.touched ?? null, dec: m.dec ?? null };
-  if (m.md) j.md = m.md; if (Array.isArray(m.settled)) j.st = m.settled.length;
+  if (m.md) { j.md = m.md; j.mc = m.mc || 0; } if (Array.isArray(m.settled)) j.st = m.settled.length;
   return { txt, j };
 }
 
@@ -246,14 +247,16 @@ function secC(w, env) {
   const title = 'COACHES [W] Q4';
   const R = w.nets, W = w.weeks, own = (env.save && env.save.coaches) || [], courses = w.buys.filter((b) => b.k === 'course');
   const tr = (w.club || []).filter((x) => x.k === 'sign' || x.k === 'decl');
-  if (!R.length && !courses.length && !tr.length) return { key: 'C', title, h: ['none in window'], m: 'c:none', j: {}, short: 'COACHES none in window' };
+  const MM = (w.ms || []).filter((m) => m.md && (m.res || m.ab)), mcUsed = cnt(MM, (m) => Array.isArray(m.mc));
+  if (!R.length && !courses.length && !tr.length && !MM.length) return { key: 'C', title, h: ['none in window'], m: 'c:none', j: {}, short: 'COACHES none in window' };
   const used = cnt(R, (r) => r.co), idle = cnt(W, (x) => x.cidle), weeks = W.length || R.length, c = own[0];
   const h = [`${c ? 'Coach ' + c[0] + (c[2] ? ' (' + c[2] + ')' : '') + ': ' : 'Coach: '}used ${used} of ${weeks} weeks, idle ${idle}. ${weeks >= 3 ? verdict(used * 2 < weeks) : 'n small'}`];
   const gains = courses.map((b) => b.gn).filter((x) => x != null), best = Math.max(0, ...own.map((x) => x[1] | 0));
   h.push(`Courses bought ${courses.length} (${sum(courses.map((b) => b.price | 0))} Coins)${gains.length ? ', wheel +' + sum(gains) + ' step' : ''}. Best coach step ${best} of 21.`);
+  if (MM.length) h.push(`Match coach used ${mcUsed} of ${MM.length} matches.`);
   const tl = (kind, k) => cnt(tr, (x) => x.k === k && x.who && x.who.kind === kind), tw = { cs: tl('coach', 'sign'), cd: tl('coach', 'decl'), ps: tl('player', 'sign'), pd: tl('player', 'decl') };
   if (tr.length) h.push(`Trials: coach signed ${tw.cs}, declined ${tw.cd}; player signed ${tw.ps}, declined ${tw.pd}.`);
-  return { key: 'C', title, h, m: `c:${c ? c[0] : '-'}|tr${tw.cs}/${tw.cd}/${tw.ps}/${tw.pd}|u${used}|w${weeks}|i${idle}|crs${courses.length}|best${best}`, j: { own, trial: tr.length ? [tw.cs, tw.cd, tw.ps, tw.pd] : undefined, use: [used, idle, weeks], course: [courses.length, sum(courses.map((b) => b.price | 0)), gains], best }, short: `COACHES used ${used} of ${weeks} weeks, ${courses.length} courses` };
+  return { key: 'C', title, h, m: `c:${c ? c[0] : '-'}|tr${tw.cs}/${tw.cd}/${tw.ps}/${tw.pd}|u${used}|w${weeks}|i${idle}|crs${courses.length}|best${best}${MM.length ? '|mc' + mcUsed + '/' + MM.length : ''}`, j: { mc: MM.length ? [mcUsed, MM.length] : undefined, own, trial: tr.length ? [tw.cs, tw.cd, tw.ps, tw.pd] : undefined, use: [used, idle, weeks], course: [courses.length, sum(courses.map((b) => b.price | 0)), gains], best }, short: `COACHES used ${used} of ${weeks} weeks, ${courses.length} courses${MM.length ? ', match coach used ' + mcUsed + ' of ' + MM.length : ''}` };
 }
 
 function secS(w, env) {
@@ -336,7 +339,7 @@ export function buildSummary(data, env) {
 export function buildData(data, env0) {
   const p = reportParts(data, env0), env = p.env, S = Object.fromEntries(p.secs.map((s) => [s.key, s.j]));
   const M = S.M; delete S.M;
-  const out = { rid: p.rid, since: p.w.since ? p.w.since.atMs : null, at: new Date(env.now).toISOString(), b: env.build, tun: env.tuningSha || null, sv: (env.save && env.save.v) || null, vp: env.vp, clean: p.clean.ok ? 1 : 0, why: p.clean.why, feat: p.on ? 1 : 0, errs: env.errors, drop: p.drop, sz: 'f', ...S, M: Array.isArray(M) ? M : [] };
+  const out = { rid: p.rid, since: p.w.since ? p.w.since.atMs : null, at: new Date(env.now).toISOString(), b: env.build, tun: env.tuningSha || null, sv: (env.save && env.save.v) || null, vp: env.vp, clean: p.clean.ok ? 1 : 0, why: p.clean.why, feat: p.on ? 1 : 0, errs: env.errors, drop: p.drop, sz: 'f', tick: REPORT_TICK, ...S, M: Array.isArray(M) ? M : [] };
   const sec = p.secs.find((s) => s.key === 'M'); if (sec && sec.old) out.Mold = sec.old;
   if (sec && sec.hint) out.hint = sec.hint;
   if (env0 && env0.wm) out.wm = env0.wm; // wa1: tokens used per wheel, match-day count, Find check [yours, full, every node], bug flag

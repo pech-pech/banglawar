@@ -54,6 +54,7 @@ export function createLog(o = {}) {
     try {
       const md = mdOf(s);
       if (md && !m.md) m.md = { hype: md.hype, hi: md.hypeIdx, toss: md.toss, pep: md.pepId || null, fm: md.hypeFanMult != null ? md.hypeFanMult : null, roar: (md.roar || []).map((x, i) => (x ? i : -1)).filter((i) => i >= 0) };
+      if (md && m.mc === undefined) m.mc = md.mc ? [Math.round(md.mc.bat * 1000) / 10, Math.round(md.mc.bowl * 1000) / 10] : 0; // match coach used: [bat %, bowl %], 0 = none
       const wk = (inn) => (inn && inn.wkLog) || [];
       if (FLAGS.settled || (s.inn1 && s.inn1.settledOn) || (s.inn2 && s.inn2.settledOn)) m.settled = wk(s.inn1).map((w) => ({ in: 1, ...w })).concat(wk(s.inn2).map((w) => ({ in: 2, ...w })));
       const ro = (inn) => (inn && inn.roarOvers) || [];

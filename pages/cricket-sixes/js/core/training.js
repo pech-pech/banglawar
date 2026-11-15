@@ -9,6 +9,7 @@ import { makeRng } from './rng.js';
 import { aiPickSix } from './clubs.js';
 import { capSum, bandOf, isHidden } from './ability.js';
 import { stepOfRaw } from './letters.js';
+import { matchCoachBoost } from './matchday.js';
 
 export const EFFORTS = ['easy', 'normal', 'push'];
 export const FOCUSES = ['bat', 'bowl', 'bal'];
@@ -383,7 +384,7 @@ export function endWeek(state) {
   delete n.training.lastPlan; delete n.training.sel;
   n.training.focus = pl.focus; n.training.effort = pl.effort; n.training.spotlight_id = null; n.training.spotlight2_id = null; n.training.coach_id = null;
   for (const c of n.coaches || []) if (c.away > 0) c.away -= 1;
-  n.training.week += 1; n.training.nodeBought = {}; n.training.last = null; n.training.weekLog = []; n.training.netsWeek = null;
+  delete n.training.matchCoachId; n.training.week += 1; n.training.nodeBought = {}; n.training.last = null; n.training.weekLog = []; n.training.netsWeek = null;
   n.training.weekStart = Object.fromEntries(squadOf(n).map((/** @type {any} */ p) => [p.id, RATINGS.map((k) => p[k])]));
   return n;
 }
@@ -402,3 +403,29 @@ export function timingBucket(t, coasted) {
 }
 /** wa2: the one result line for a timing bucket. */
 export const TIMING_LINE = Object.freeze({ e: 'Early', c: 'Good timing', l: 'Late', o: 'Coasted' });
+
+// ---- Match coach (SPEC 2026-11-15): a coach neither picked for this week's nets nor away on a course can lift our side in the match.
+/** Idle coaches in slot order: not away, not the coach picked for nets. @param {any} s */
+export function idleCoaches(s) {
+  const nets = planOf(s).coachId;
+  return coachList(s).filter((/** @type {any} */ c) => !(c.away > 0) && c.id !== nets);
+}
+/**
+ * This week's match coach: { coach, idle, boost:{bat,bowl}, chosen } or null when none is idle.
+ * Default = highest grade idle coach (ties: slot order). training.matchCoachId (per week) overrides it while he is still idle; missing/stale = default.
+ * @param {any} s
+ */
+export function matchCoachOf(s) {
+  const idle = idleCoaches(s); if (!idle.length) return null;
+  let best = idle[0]; for (const c of idle) if (c.step > best.step) best = c;
+  const id = s.training && s.training.matchCoachId, pick = id ? idle.find((/** @type {any} */ c) => c.id === id) : null;
+  const coach = pick || best;
+  return { coach, idle, boost: matchCoachBoost(coach.strong), chosen: !!pick, defaultId: best.id };
+}
+/** Pick this week's match coach (null = back to the default). Not-idle or unknown coaches return the same state. @param {any} s @param {string|null} id */
+export function setMatchCoach(s, id) {
+  if (!s.training) return s;
+  if (id == null) { if (s.training.matchCoachId == null) return s; const n = clone(s); delete n.training.matchCoachId; return n; }
+  if (!idleCoaches(s).some((/** @type {any} */ c) => c.id === id)) return s;
+  const n = clone(s); n.training.matchCoachId = id; return n;
+}
