@@ -50,7 +50,14 @@ export function foundText(list) {
   const fs = Array.isArray(list) ? list : [list];
   return (fs.length > 1 ? 'Pairings found. ' : 'Pairing found. ') + fs.map((f) => f.bat + ' v ' + f.bowl + ', ' + ['early', 'middle', 'late'][f.ph] + ': ' + f.grade + '.' + (f.combo ? ' Combo: ' + f.combo.name + '.' : '')).join(' ') + ' Saved in your Book.';
 }
-export function playOverPanel({ title, balls, score, summaryLines = [], nextLabel = 'Next over', batKit, found = [], onBook, onDone, roar = false }) {
+/** The call-vs-other-call line (P13). Bold call name = text before the first ':'; text is escaped. Pure. hint: {text, say} | null */
+export function callHtml(hint) {
+  if (!hint || !hint.text) return '';
+  const t = String(hint.text), i = t.indexOf(':');
+  const body = i > 0 ? '<b>' + esc(t.slice(0, i)) + '</b>' + esc(t.slice(i)) : esc(t);
+  return '<p class="op-call" role="status" aria-live="polite" aria-label="' + esc(hint.say || t) + '">' + body + '</p>';
+}
+export function playOverPanel({ title, balls, score, summaryLines = [], nextLabel = 'Next over', batKit, found = [], onBook, onDone, roar = false, callHint = null }) {
   const list = (balls || []).slice(0, 6);
   const root = document.createElement('div');
   root.className = 'op-scrim';
@@ -68,7 +75,7 @@ export function playOverPanel({ title, balls, score, summaryLines = [], nextLabe
   const foundLive = root.querySelector('.op-found-live');
   const timers = [];
   const beats = attachBeats(root.querySelector('.bt-slot'), { kit: batKit }); // P10 beats: pictures only, js/ui/beats.js
-  let done = false, finished = false, landed = 0;
+  let done = false, finished = false, landed = 0, hintAt = 0;
 
   function land(i, live) {
     if (i < landed) return; landed = i + 1;
@@ -95,7 +102,8 @@ export function playOverPanel({ title, balls, score, summaryLines = [], nextLabe
     lines.appendChild(li);
     for (const t of summaryLines) { const x = document.createElement('li'); x.className = 'op-line'; x.textContent = t; lines.appendChild(x); }
     if (hasFound) { root.querySelector('.op-card').classList.add('found-shown'); foot.classList.add('has-found'); foundLive.textContent = foundText(found); }
-    foot.innerHTML = (hasFound ? foundHtml(found) + `<button type="button" class="c-btn c-btn--block op-book">${icoDeco('book', 24)}Open Book</button>` : '') +
+    if (callHint) hintAt = performance.now();
+    foot.innerHTML = callHtml(callHint) + (hasFound ? foundHtml(found) + `<button type="button" class="c-btn c-btn--block op-book">${icoDeco('book', 24)}Open Book</button>` : '') +
       `<button type="button" class="c-btn c-btn--primary c-btn--cta c-btn--block op-next">${esc(nextLabel)}</button>`;
     foot.querySelector('.op-next').addEventListener('click', exit);
     const bk = foot.querySelector('.op-book');
@@ -103,7 +111,7 @@ export function playOverPanel({ title, balls, score, summaryLines = [], nextLabe
   }
   function onKey(e) { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); exit(); } }
   document.addEventListener('keydown', onKey, true);
-  function exit() { if (done) return; skip(); beats.stop(); done = true; document.removeEventListener('keydown', onKey, true); root.remove(); onDone && onDone(); }
+  function exit() { if (done) return; const dwell = callHint && finished && hintAt ? Math.max(0, Math.round(performance.now() - hintAt)) : 0; skip(); beats.stop(); done = true; document.removeEventListener('keydown', onKey, true); root.remove(); onDone && onDone({ hint: !!callHint, alt: callHint ? (callHint.alt == null ? null : callHint.alt) : null, dwell }); }
   /** Land every remaining ball at once so no result is lost. */
   function skip() { timers.forEach(clearTimeout); for (let i = landed; i < list.length; i++) land(i); finish(); }
   root.querySelector('.op-close').addEventListener('click', exit);

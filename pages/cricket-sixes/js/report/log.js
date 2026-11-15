@@ -80,7 +80,7 @@ export function createLog(o = {}) {
       if (prev) { prev.ab = 1; prev.t1 = now(); }
       const last = d.matches[d.matches.length - 1]; if (last && last.fin === 0) last.fin = 1; // QA3 B1: a new match closes the one before it
       const fx = s.fixture || null, sn = s.season || null; // P0-6: which fixture this was
-      d.matches.push({ id: ++d.seq, sid, build, seed: s.seed, vp: env(), t0: now(), t1: 0, res: null, ab: 0, stage: s.stage, k: fx ? (KIND[fx.kind] || '?') : null, r: fx ? fx.round : null, season: sn ? sn.n : null, league: sn ? sn.league : null, ov: [], scr: {}, why: 0, gl: {}, sk: 0, th: [], feel: {}, err: 0, fin: 0, tun: TUNING_SHA, fl: flagsOn(), tc: [] });
+      d.matches.push({ id: ++d.seq, sid, build, seed: s.seed, vp: env(), t0: now(), t1: 0, res: null, ab: 0, stage: s.stage, k: fx ? (KIND[fx.kind] || '?') : null, r: fx ? fx.round : null, season: sn ? sn.n : null, league: sn ? sn.league : null, ov: [], scr: {}, gl: {}, sk: 0, th: [], feel: {}, err: 0, fin: 0, tun: TUNING_SHA, fl: flagsOn(), tc: [] });
       mdInto(d.matches[d.matches.length - 1], s);
       if (d.matches.length > CAP.matches) d.matches.splice(0, d.matches.length - CAP.matches);
     }),
@@ -122,7 +122,12 @@ export function createLog(o = {}) {
     },
     stage: safe((stage) => { const se = d.sessions[d.sessions.length - 1]; if (se) se.end = stage; const m = open(); if (m) m.stage = stage; }), // P0-7: a finished record keeps its stage. Z2: se.end = the screen the session was on last
     screen: safe((stage, ms) => { const m = d.matches[d.matches.length - 1]; if (m && ms > 0) m.scr[stage] = (m.scr[stage] || 0) + Math.round(Math.min(ms, 600000)); }),
-    why: safe(() => { const m = d.matches[d.matches.length - 1]; if (m) m.why++; }),
+    /** P13: the call hint on the over panel. alt = the other call letter shown, or null when no hint was drawn; dwell = ms it stayed. Written on the open match's last over row. */
+    hint: safe((alt, dwell) => {
+      const m = open(), ov = m && m.ov[m.ov.length - 1]; if (!ov) return;
+      ov.ha = alt == null ? null : String(alt).slice(0, 1);
+      ov.hd = ov.ha == null ? null : Math.min(60000, Math.max(0, Math.round((Number(dwell) || 0) / 100) * 100));
+    }),
     /** A glossary word or "?" opened by a real tap. Counts into the open match, else the session bucket se.gl (never a finished record). Same word within 1 s counts once. */
     gloss: safe((term) => {
       const t = String(term || 'full list').slice(0, 24), at = now();

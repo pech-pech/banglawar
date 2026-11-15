@@ -10,6 +10,8 @@ import { bindActs } from './dom.js';
 import { matchPay, gapLetters } from '../core/season.js';
 import { attachReport } from '../report/hooks.js';
 import { overlayOpen } from './inert.js';
+import { FLAGS } from '../data/flags.js';
+import { callCompare } from '../store/callcmp.js';
 
 /* Stage table: s.stage -> [view module or file name, selector name]. A file name is loaded on first use
    (other parts' views), so a view that has not landed yet shows "Loading" instead of breaking boot. */
@@ -159,9 +161,10 @@ export function mount(el, store) {
     const nextLabel = s.stage === 'done' ? 'See result' : s.stage === 'break' ? 'Innings break' : first ? 'Next bowler' : 'Next over';
     const summaryLines = [];
     if (balls.length < 6) summaryLines.push(!first && s.result === 'won' ? 'Target reached: you win!' : first ? '5th wicket: their innings is over.' : '5th wicket: your innings is over.');
+    const hint = FLAGS.callHint ? callCompare(before, s, { onError: (e) => rep.error(e) }) : null;
     rep.panelOpen();
-    playOverPanel({ title: 'Over ' + s.last.over, balls, score: { runs: inn.runs, wk: inn.wk }, nextLabel, summaryLines, batKit: first ? 'B' : 'A', found: sel.foundVM(s), roar: s.last.roar || false, onBook: () => openByName('book', { returnFocus: BACK_FOCUS }),
-      onDone() { rep.panelDone(balls.length); holding = false; render(); } });
+    playOverPanel({ callHint: hint, title: 'Over ' + s.last.over, balls, score: { runs: inn.runs, wk: inn.wk }, nextLabel, summaryLines, batKit: first ? 'B' : 'A', found: sel.foundVM(s), roar: s.last.roar || false, onBook: () => openByName('book', { returnFocus: BACK_FOCUS }),
+      onDone(info) { rep.panelDone(info); holding = false; render(); } });
   }
   return dispatch;
 }

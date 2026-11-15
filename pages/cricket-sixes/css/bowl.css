@@ -92,3 +92,9 @@
 /* R2 fit: the screen must not scroll or tuck text under the Bowl bar at 344x780, even with hidden grades and a last-over row */
 main:has(> .bv-strip) { gap: 2px; }
 .bv-more { padding-top: 0; }
+/* P13 inline why line: one line under the chips, 14px min, no tap. Key ball chip gets a ring (shape, not colour only). */
+.bv-last.has-why { flex-wrap: wrap; row-gap: 0; }
+.bv-last.has-why .bv-last-txt { flex: 1 1 100%; }
+.lw { flex: 1 1 100%; min-width: 0; margin: 0; font: 14px/18px var(--font-body); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lw b { font-family: var(--font-head); font-weight: 400; }
+.ball.is-key { outline: 3px solid var(--outline); outline-offset: 1px; }

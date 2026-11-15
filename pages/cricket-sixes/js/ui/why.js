@@ -78,7 +78,7 @@ function pick(rec, bat, bowl) {
   if (i === 'A') return R('intent', `${bat} went for too much and found no gap.`, `Attack mode: ${bat} swung and missed. No run.`, `${bat} tried to hit out and got nothing.`);
   if (f === 'P') return R('field', 'The field was back on the rope.', 'Field back: no easy runs.', 'The deep field stopped the runs.');
   if (e.bsk - e.bs >= MIN_GAP) return R('gap', `${bowl} was too tight for ${bat}.`, `${bowl} bowled tight to ${bat}.`, `${bat} could not get ${bowl} away.`);
-  return R('gap', `${bowl} bowled a good ball to ${bat}.`, `${bat} found no gap against ${bowl}.`, `${bowl} gave ${bat} nothing to hit.`);
+  return Object.assign(R('gap', `${bowl} bowled a good ball to ${bat}.`, `${bat} found no gap against ${bowl}.`, `${bowl} gave ${bat} nothing to hit.`), { sub: 'ball' });
 }
 
 /** Cause category of a ball's why line: matchup | phase | intent | field | gap | odds | luck. Pure. */
@@ -89,6 +89,63 @@ export function whyLine(rec, batterName, bowlerName) {
   const bat = String(batterName || 'The batter'), bowl = String(bowlerName || 'the bowler');
   const t = pick(rec, bat, bowl).t;
   return t[hashN(rec.n) % t.length];
+}
+
+// ---- P13: inline why line on the call screens (no tap). Short form <= 28 chars, no names, your view.
+/** Sheet title kept for the whyInline-off kill switch (report hook matched ^Why before P13). */
+export const WHY_TITLE = 'Why: last over';
+const RANK = { matchup: 0, phase: 1, field: 2, intent: 2, gap: 3, odds: 4, luck: 5 };
+const INT_NAME = { D: 'Defend', R: 'Steady', A: 'Attack' };
+const FIELD_NAME = { A: 'Attack', P: 'Protect', N: 'Neutral' };
+const FIELD_OUT = { W: 'wicket', 6: 'a six', 4: 'a four', 2: '2 runs', 1: '1 run', 0: 'no run' };
+
+/** Index of the ball the line explains: first wicket, else first six, else first four, else the first ball of the most common cause (ties: matchup > phase > field/intent > gap > odds > luck). -1 for no balls. Pure. */
+export function keyBall(balls) {
+  const bs = (balls || []).slice(0, 6);
+  if (!bs.length) return -1;
+  for (const o of ['W', 6, 4]) { const i = bs.findIndex((b) => b.o === o); if (i >= 0) return i; }
+  const n = {}, first = {};
+  bs.forEach((b, i) => { const c = whyCause(b); n[c] = (n[c] || 0) + 1; if (first[c] == null) first[c] = i; });
+  const best = Object.keys(n).sort((a, b) => (n[b] - n[a]) || (RANK[a] - RANK[b]) || (first[a] - first[b]))[0];
+  return first[best];
+}
+
+/**
+ * Short why text for one ball, from the picking player's view. Pure.
+ * @param {any} rec ball record (o, intent, field, pr, ph, n)
+ * @param {{you:'bowl'|'bat', K:string, R:string, bat?:string, bowl?:string}} ctx K = bowler type, R = batter role, bat/bowl = names for `say`
+ * @returns {{text:string, say:string, cause:string}}
+ */
+export function whyShort(rec, ctx) {
+  const you = ctx.you, K = ctx.K || 'Bowler', R = ctx.R || 'Batter';
+  const p = pick(rec, 'The batter', 'the bowler'), o = rec.o;
+  const bowlerWin = o === 'W' || o === 0;
+  const mine = you === 'bowl' ? K : R, theirs = you === 'bowl' ? R : K;
+  const batWho = you === 'bat' ? 'Your' : 'Their', bowlWho = you === 'bowl' ? 'Your' : 'Their';
+  let text;
+  switch (p.cat) {
+    case 'matchup': {
+      const step = (rec.pr && rec.pr.step) || 0;
+      const strong = you === 'bowl' ? step < 0 : step > 0;
+      text = `${strong ? '▲' : '▼'} ${mine} vs ${theirs}: ${strong ? 'Strong' : 'Weak'}`; break;
+    }
+    case 'phase': {
+      const bowlerBest = bowlerWin; // pick: bowlHome on W/0, batHome on runs
+      const yours = bowlerBest ? you === 'bowl' : you === 'bat';
+      text = `★ Best overs: ${yours ? 'your' : 'their'} ${bowlerBest ? K : R}`; break;
+    }
+    case 'intent': {
+      const I = INT_NAME[rec.intent] || 'Steady';
+      text = o === 'W' ? `${batWho} ${I}: lost a wicket` : (o === 6 || o === 4) ? `${batWho} ${I} paid off` : o === 1 ? `${batWho} ${I}: took a single` : `${batWho} ${I}: no run`;
+      break;
+    }
+    case 'field': text = `${bowlWho} ${FIELD_NAME[rec.field] || 'Neutral'} field: ${FIELD_OUT[String(o)] || 'no run'}`; break;
+    case 'gap':
+      text = p.sub === 'ball' ? 'Good ball, no gap' : `Ratings: ${bowlerWin ? (you === 'bowl' ? 'your' : 'their') + ' bowler' : (you === 'bat' ? 'your' : 'their') + ' batter'} won`; break;
+    case 'odds': text = 'Rare wicket, against odds'; break;
+    default: text = 'Just how the ball fell';
+  }
+  return { text, say: whyLine(rec, ctx.bat, ctx.bowl), cause: p.cat };
 }
 
 /** Tiny self-check. Returns a list of failures (empty = pass). */

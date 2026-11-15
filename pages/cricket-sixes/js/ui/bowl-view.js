@@ -85,12 +85,15 @@ function lastLine(vm) {
   const balls = L.balls.slice(0, 6);
   const runs = balls.reduce((a, r) => a + (r.o === 'W' ? 0 : Number(r.o) || 0), 0);
   const wk = balls.filter((r) => r.o === 'W').length;
-  const chips = balls.map((r) => {
+  const W = vm.lastWhy; // P13: inline why line (flag whyInline); null = flag off, old Why? button
+  const chips = balls.map((r, i) => {
     const k = String(r.o);
-    return `<span class="ball${k === 'W' ? ' w' : k === '6' ? ' six' : k === '4' ? ' four' : ''}" role="img" aria-label="${esc(SAY(r.o))}">${esc(BADGE[k] != null ? BADGE[k] : k)}</span>`;
+    return `<span class="ball${k === 'W' ? ' w' : k === '6' ? ' six' : k === '4' ? ' four' : ''}${W && W.key === i ? ' is-key' : ''}" role="img" aria-label="${esc(SAY(r.o))}">${esc(BADGE[k] != null ? BADGE[k] : k)}</span>`;
   }).join('');
-  return `<div class="last bv-last"><span class="bv-last-txt"><span class="bv-last-k">Last over:</span> ${chips}` +
-    `<span class="bv-sum">= ${runs} run${runs === 1 ? '' : 's'}, ${wk} wicket${wk === 1 ? '' : 's'}</span></span>` +
+  const head = `<span class="bv-last-txt"><span class="bv-last-k">Last over:</span> ${chips}` +
+    `<span class="bv-sum">= ${runs} run${runs === 1 ? '' : 's'}, ${wk} wicket${wk === 1 ? '' : 's'}</span></span>`;
+  if (W) return `<div class="last bv-last has-why">${head}<p class="lw" aria-hidden="true"><b>Why:</b> ${esc(W.text)}</p><span class="ss-sr">Why: ${esc(W.say)}</span></div>`;
+  return `<div class="last bv-last">${head}` +
     `<button type="button" class="c-btn bv-why" data-why aria-label="Why did the last over go that way?">Why?</button></div>`;
 }
 

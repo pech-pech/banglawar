@@ -69,3 +69,8 @@
   /* SUP-4 N1: Scorebook's wider font wraps the score strip to 3 lines, so with features off overs 8-10 overflowed too */
   .skin-scorebook .chase-b .pbox, .skin-scorebook .chase-b .rbox { min-height: 128px; }
 }
+/* P13 inline why line (shared .lw rules in css/bowl.css) */
+.chase-b .last-b.has-why { flex-wrap: wrap; row-gap: 2px; }
+.chase-b .last-b.has-why .lt { flex: 1 1 100%; }
+.chase-b .last-b .lw { flex: 1 1 100%; min-width: 0; margin: 0; font: 14px/18px var(--font-body); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.chase-b .last-b .ball.is-key { outline: 3px solid var(--outline); outline-offset: 1px; }

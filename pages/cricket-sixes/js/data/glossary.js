@@ -129,7 +129,9 @@ export const GLOSSARY = [
   { id: 'scouting', term: 'Scouting (size up)', group: M, short: 'Seeing matchups against batters before you pick.',
     long: 'The number of players you can size up depends on the potential grade of the player making the call (the bowler, or the batter on strike): D1, C2, B3, A4, S6. A hidden potential grade sees 1.' },
   { id: 'why-line', term: 'Why line', group: M, short: 'A one-line reason for what just happened.',
-    long: 'It names the main cause, such as a strong matchup or best-over bonus, so you can learn from each over. Tap Why? to open it.' },
+    long: 'It names the main cause, such as a strong matchup or best-over bonus, so you can learn from each over. It shows under Last over on the call screen. The over panel shows a line for every ball.' },
+  { id: 'call-check', term: 'Call check', group: M, short: 'Your call against the other one, same balls.',
+    long: 'The game plays the over again with the other call and the same luck, then compares the runs it expects. It is not the dice: a lucky over does not change it.' },
 
   // ---- Club
   { id: 'coins', term: 'Coins', group: C, short: 'Money for running the club.',

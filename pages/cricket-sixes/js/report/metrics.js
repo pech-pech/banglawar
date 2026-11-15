@@ -9,6 +9,7 @@
 import { bowlVM, chaseVM } from '../store/selectors.js';
 import { skilledBowler, skilledField, skilledIntent } from '../core/skilled.js';
 import { tableOrder, placeOf, ME } from '../core/season.js';
+import { overExpect } from '../core/match.js';
 import { ECON as E } from '../data/economy.js';
 import { drillRoom, coachStepInUse, netsPreview } from '../core/training.js';
 import { TRAIN2 } from '../data/training.js';
@@ -52,11 +53,7 @@ export function matchupOf(previews) {
 
 /** Expected runs and wickets of a set of balls, from the probabilities the engine used. */
 export function expected(balls) {
-  let xr = 0, xw = 0;
-  for (const b of balls || []) {
-    const p = b.pr && b.pr.p; if (!p) continue;
-    xr += 6 * p.six + 4 * p.four + 2 * p.two + p.single; xw += p.wicket;
-  }
+  const { xr, xw } = overExpect(balls);
   return { xr: r1(xr), xw: r1(xw) };
 }
 

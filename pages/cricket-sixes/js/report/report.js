@@ -48,7 +48,7 @@ export function aggregate(matches) {
     rpoField: { A: per(bo, 'f', 'A'), P: per(bo, 'f', 'P') }, rpoIntent: { D: per(co, 'i', 'D'), R: per(co, 'i', 'R'), A: per(co, 'i', 'A') },
     rpoMu: { G: per(bo, 'mu', 'G'), O: per(bo, 'mu', 'O'), P: per(bo, 'mu', 'P') }, // P2 M9 previewTruth: Good must beat Poor
     thinkMed: median(think), thinkMax: think.length ? Math.max(...think) : null, thinkFast: pct(think.filter((t) => t < 1500).length, think.length),
-    why: sum(matches.map((m) => m.why)), whyBy: matches.filter((m) => m.why).map((m) => 'M' + m.id + ' ' + m.why), gloss: matches.reduce((a, m) => { for (const k in (m.gl || {})) a[k] = (a[k] || 0) + m.gl[k]; return a; }, {}),
+    gloss: matches.reduce((a, m) => { for (const k in (m.gl || {})) a[k] = (a[k] || 0) + m.gl[k]; return a; }, {}),
     skips: sum(matches.map((m) => m.sk)), overs: all.length, instant: pct(waits.filter((w) => w < 1000).length, waits.length),
     xScored: r1(sum(dco.map((o) => o.xr))), scored, xConc: r1(sum(dbo.map((o) => o.xr))), conc, xWkLost: r1(sum(dco.map((o) => o.xw))), wkLost: sum(dco.map((o) => o.w)),
     xWkTook: r1(sum(dbo.map((o) => o.xw))), wkTook: sum(dbo.map((o) => o.w)),
@@ -196,6 +196,8 @@ function secM(w) {
   const av = avoidOf(rows.flatMap(bowlOvs)), avPct = pct(av.bad, av.n);
   const weak = rows.flatMap(bowlOvs).filter((o) => o.o <= 3 && o.mu === 'P'), weakKept = pct(weak.length, rows.flatMap(bowlOvs).filter((o) => o.o <= 3).length);
   h.push(`Calls: Attack in overs 1-7 ${P(attShare)} of batting overs. Attack wkts/over ${awk ?? '-'}. Same field 90%+: ${sameF ? 'yes' : 'no'}. Weak pick kept in overs 1-3: ${P(weakKept)}. ${fin.length < 3 ? 'n small' : verdict((attShare != null && attShare > 33) || sameF || (weakKept != null && weakKept > 50))} [sim 0.8 wkts per Attack over]`);
+  const hd = rows.flatMap((m) => m.ov || []).map((o) => o.hd), hint = [hd.filter((x) => x >= 1500).length, hd.filter((x) => x > 0).length];
+  h.push(`Calls: hint read ${hint[0]}/${hint[1]} overs (>=1.5 s).`);
   h.push(`Matchup picks Good ${P(a.mu.G)}, OK ${P(a.mu.O)}, Poor ${P(a.mu.P)}, no preview ${P(a.mu.U)} [sim r7 season: ${BANDS.matchup.skilled.join('/')} skilled, ${BANDS.matchup.random.join('/')} random]. Avoidable Poor in overs 1-7: ${P(avPct)}${av.n ? ' of ' + av.n : ''} (skilled ${BANDS.avoidablePoor.skilled}%, random ${BANDS.avoidablePoor.random}% [sim r7]).`);
   if (fin.length) {
     const near = (v, r) => v != null && Math.abs(v - r) <= 10, ft = [['bowler', a.fitB], ['field', a.fitF], ['intent', a.fitI]].filter(([k, v]) => near(v, BANDS.fit.random[k])).map(([k]) => k);
@@ -205,7 +207,7 @@ function secM(w) {
   const mds = rows.filter((m) => m.md);
   if (mds.length) h.push(`Match day: hype ${mds.map((m) => m.md.hype || '-').join('/')}, toss won ${cnt(mds, (m) => m.md.toss === 'won')} of ${mds.length}, roar overs ${sum(mds.map((m) => (m.md.roar || []).length))}${rows.some((m) => Array.isArray(m.settled)) ? ', settled wickets ' + sum(rows.map((m) => (m.settled || []).length)) : ''}.`);
   const mach = 'm:' + rows.map((m) => m.id + resLetter(m)).join(',') + '|A' + a.fA + 'P' + a.fP + '|D' + a.iD + 'R' + a.iR + 'A' + a.iA + '|att' + P(attShare) + '|pick' + [a.mu.G, a.mu.O, a.mu.P, a.mu.U].join('/') + '|avP' + (avPct ?? '-') + '|fit' + [a.fitB, a.fitF, a.fitI].join('/') + '|close' + cnt(fin, (m) => m.close) + '/' + fin.length;
-  return { key: 'M', title, h, nRows, m: mach, j: rr.map((r) => r.j), old, short: `MATCH ${cnt(fin, (m) => m.res === 'won')}W ${cnt(fin, (m) => m.res === 'lost')}L, fit ${P(a.fitB)}/${P(a.fitF)}/${P(a.fitI)}, avoidable Poor ${P(avPct)}` };
+  return { key: 'M', title, h, nRows, m: mach, j: rr.map((r) => r.j), hint, old, short: `MATCH ${cnt(fin, (m) => m.res === 'won')}W ${cnt(fin, (m) => m.res === 'lost')}L, fit ${P(a.fitB)}/${P(a.fitF)}/${P(a.fitI)}, avoidable Poor ${P(avPct)}` };
 }
 const ov = (ms) => ms.flatMap((m) => m.ov || []);
 
@@ -336,6 +338,7 @@ export function buildData(data, env0) {
   const M = S.M; delete S.M;
   const out = { rid: p.rid, since: p.w.since ? p.w.since.atMs : null, at: new Date(env.now).toISOString(), b: env.build, tun: env.tuningSha || null, sv: (env.save && env.save.v) || null, vp: env.vp, clean: p.clean.ok ? 1 : 0, why: p.clean.why, feat: p.on ? 1 : 0, errs: env.errors, drop: p.drop, sz: 'f', ...S, M: Array.isArray(M) ? M : [] };
   const sec = p.secs.find((s) => s.key === 'M'); if (sec && sec.old) out.Mold = sec.old;
+  if (sec && sec.hint) out.hint = sec.hint;
   if (env0 && env0.wm) out.wm = env0.wm; // wa1: tokens used per wheel, match-day count, Find check [yours, full, every node], bug flag
   let js = JSON.stringify(out);
   if (js.length > LIM.json) { for (const m of out.M) { delete m.rb; delete m.rc; } js = JSON.stringify(out); } // overflow: runs per over go first

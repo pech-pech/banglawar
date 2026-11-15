@@ -19,6 +19,7 @@ import { RUN, SQUAD } from '../data/run.js';
 import { seasonResult, chapterNames, runScore, carryOf } from '../core/run.js';
 import { PAIRING } from '../data/pairing.js';
 import { FLAGS } from '../data/flags.js';
+import { whyShort, keyBall } from '../ui/why.js';
 import { ACT } from '../data/activities.js';
 import { activityOptions, trialOf, canSignTrial } from '../core/activities.js';
 import { freePickOptions, freePickPending, matchIncome } from '../core/economy.js';
@@ -48,6 +49,20 @@ function battersFromStriker(inn, players) {
   const order = [inn.crease[inn.strike], inn.crease[1 - inn.strike]];
   for (let i = inn.next; i < players.length; i++) order.push(i);
   return order.filter((i) => !players[i].inn.out);
+}
+
+/** P13: the inline why line for the last over on the bowl / chase call screen. {key, text, say} or null (flag off, first over of the innings). Derived only; nothing saved. */
+export function lastWhyVM(s) {
+  if (!FLAGS.whyInline || !s || !s.last || !(s.last.balls || []).length) return null;
+  const you = s.stage === 'chase' ? 'bat' : 'bowl';
+  const bats = (you === 'bowl' ? s.rival : s.me).players, bowls = (you === 'bowl' ? s.me : s.rival).players;
+  const bw = bowls[s.last.bowler] || {};
+  const balls = s.last.balls.slice(0, 6);
+  const key = keyBall(balls);
+  if (key < 0) return null;
+  const b = balls[key], bt = bats[b.batter] || {};
+  const r = whyShort({ ...b, bowlType: bw.bowl }, { you, K: bw.bowl, R: bt.bat, bat: bt.name, bowl: bw.name });
+  return { key, text: r.text, say: r.say };
 }
 
 export function bowlVM(s) {
@@ -81,7 +96,7 @@ export function bowlVM(s) {
   return {
     over: inn.over, phase: ph, phaseName: PHASE_NAMES[ph], score: scoreOf(inn),
     crease: crease(inn, bats), bowlers, call, batNames: bats.map((p) => p.name), bowlNames: me.map((p) => p.name), fieldHint,
-    canBowl: s.stage === 'bowl' && el.includes(call.bowler), last: s.last, firstStrip: firstStripOn(s),
+    canBowl: s.stage === 'bowl' && el.includes(call.bowler), last: s.last, lastWhy: lastWhyVM(s), firstStrip: firstStripOn(s),
     ...mdExtras(s, inn.over - 1),
   };
 }
@@ -110,7 +125,7 @@ export function chaseVM(s) {
     // 12b suggestion chip: League 1 only (TODO: or a Coach), only where worth >= 1 win point: Attack in the last 3 overs. Steady is the default, so no chip before that.
     intentHint: s.season && (s.season.league || 1) === 1 && inn.over >= 8
       ? { pick: 'A', why: 'Last 3 overs: Attack. Before that: Steady.' } : null,
-    last, ...mdExtras(s, 10 + inn.over - 1),
+    last, lastWhy: lastWhyVM(s), ...mdExtras(s, 10 + inn.over - 1),
   };
 }
 

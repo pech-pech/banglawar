@@ -39,14 +39,14 @@ export function attachReport(el, store) {
     document.addEventListener('visibilitychange', () => { if (document.hidden) flush(); else { stageT = Date.now(); shownT = Date.now(); } });
     const tapped = () => Date.now() - tapT < TAP_MS;
     document.addEventListener('click', (e) => { const t = e.target.closest && e.target.closest('[data-gloss], .q'); if (t) { lastGloss = (t.getAttribute && t.getAttribute('data-gloss')) || ''; tapT = Date.now(); } }, true);
-    // Why? and glossary opens, seen as sheets added to the body (no change to the views).
+    // Glossary opens, seen as sheets added to the body (no change to the views).
     new MutationObserver((muts) => {
       for (const m of muts) for (const n of m.addedNodes) {
         if (!n.classList) continue;
         if (n.classList.contains('gloss-root')) { if (tapped()) { const hl = n.querySelector('.is-hl'); log.gloss((hl && hl.getAttribute('data-id')) || lastGloss || 'full list'); } lastGloss = ''; tapT = 0; } // P0-5: no tap, no count
         else if (n.classList.contains('c-sheet')) {
           const t = (n.querySelector('.c-sheet__title') || {}).textContent || '';
-          if (/^Why/i.test(t)) log.why(); else if (tapped()) { log.gloss(lastGloss || 'cricket words'); } // only a tapped "?" / word counts; Book, Table, Team and other sheets do not
+          if (tapped()) { log.gloss(lastGloss || 'cricket words'); } // only a tapped "?" / word counts; Book, Table, Team and other sheets do not
           lastGloss = ''; tapT = 0;
         }
       }
@@ -81,7 +81,9 @@ export function attachReport(el, store) {
           if (cmd !== 'BowlOver') log.command(cmd, payload, before, after); // r9: nets, spins, weeks, buys, seasons
         } catch (e) { log.error(e); }
       },
-      panelOpen() {}, panelDone() {}, // P0-13: the over-panel timer and its ball-speed copy are gone; app.js still calls these
+      panelOpen() {}, // P0-13: the over-panel timer is gone; app.js still calls this
+      /** P13: the over panel closed. info = {hint, alt, dwell}; a number or undefined from an old caller counts as no hint. */
+      panelDone(info) { try { const h = !!(info && typeof info === 'object' && info.hint); log.hint(h ? info.alt : null, h ? info.dwell : null); } catch (e) { /* ignore */ } },
       error(e) { try { log.error(e); } catch (_) { /* ignore */ } },
     };
   } catch (e) { try { console.warn('report off:', e); } catch (_) { /* ignore */ } return noop; }

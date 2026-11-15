@@ -155,3 +155,13 @@ export function playOver(rng, inn, bat, bowl, bi, intent, field, fx, centre = T.
   inn.overs.push(ov);
   return balls;
 }
+
+/** Expected runs and wickets of a set of balls, raw (unrounded), from the probabilities the engine used (b.pr.p). */
+export function overExpect(balls) {
+  let xr = 0, xw = 0;
+  for (const b of balls || []) {
+    const p = b.pr && b.pr.p; if (!p) continue;
+    xr += 6 * p.six + 4 * p.four + 2 * p.two + p.single; xw += p.wicket;
+  }
+  return { xr, xw };
+}
