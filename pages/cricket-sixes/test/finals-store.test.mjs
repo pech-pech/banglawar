@@ -7,7 +7,8 @@ import { FLAGS } from '../js/data/flags.js';
 import { applyCommand as C } from '../js/store/commands.js';
 import * as sel from '../js/store/selectors.js';
 import * as wm from '../js/store/wmstore.js';
-import { wireStops, finalsWheelOf } from '../js/store/wheels/finals.js';
+import { spinKeyOf, statsOf, storedStop } from '../js/core/wheel-stops.js';
+import { finalsWheelOf } from '../js/store/wheels/finals.js';
 import { finalsWheel, finalsRing, FINALS_MULT } from '../js/core/wheels/finals.js';
 import { FINALS_SLICES as S } from '../js/data/wheels/finals.js';
 import { spinHandler } from '../js/store/spin-registry.js';
@@ -67,25 +68,23 @@ test('9: result decided at STOP; reload shows the same slice, no re-spin; unspun
 }));
 
 test('no payload (Auto / leave) = seeded width-weighted draw, still reload-safe, auto:true recorded', () => withFlags(ON, () => {
-  const s = finalsScreen(), got = [];
-  wireStops({ recordStop: (n, id, key, rec) => got.push({ id, key, rec }) });
-  try {
-    const a = C(s, 'FinalsSpin'); assert.ok(a.finalsSpin.index >= 0 && a.finalsSpin.index < 12);
-    assert.equal(got[0].rec.auto, true); assert.equal(got[0].rec.sliceId, a.finalsSpin.index);
-  } finally { wireStops({ recordStop: null, spinKeyOf: null }); }
+  const s = finalsScreen();
+  const a = C(s, 'FinalsSpin'); assert.ok(a.finalsSpin.index >= 0 && a.finalsSpin.index < 12);
+  const e = a.wheels.stops.finals[a.finalsSpin.key];
+  assert.equal(e.stops[0].auto, true); assert.equal(e.stops[0].sliceId, a.finalsSpin.index);
+  assert.equal(a.wheels.stats.finals.n, 1); assert.equal(a.wheels.stats.finals.taps.length, 0, 'auto leaves no tap');
 }));
 
-test('recordStop: called with the draft, key, and the paid field', () => withFlags(ON, () => {
-  const s = finalsScreen(), got = [];
-  wireStops({ recordStop: (n, id, key, rec) => { got.push({ n, id, key, rec }); } });
-  try {
-    const a = C(s, 'FinalsSpin', stopAt(10));
-    assert.equal(got.length, 1); const g = got[0];
-    assert.equal(g.id, 'finals'); assert.equal(g.key, a.finalsSpin.key); assert.equal(g.n.finalsSpin.index, 10);
-    assert.deepEqual(g.rec, { stopT: 3500, cycle: 1, tInCycle: 3.5, sliceId: 10, value: 25, paid: 25, auto: false, respin: 0 });
-    C(a, 'FinalsSpin', stopAt(1)); assert.equal(got.length, 1, 'refused spin records nothing');
-    C(s, 'FinalsSpin', stopAt(0)); assert.equal(got[1].rec.paid, 1); assert.equal(got[1].rec.value, 60);
-  } finally { wireStops({ recordStop: null, spinKeyOf: null }); }
+test('recordStop: real wheel-stops write, keyed season|kind|round, with the paid field', () => withFlags(ON, () => {
+  const s = finalsScreen();
+  const a = C(s, 'FinalsSpin', stopAt(10));
+  assert.equal(a.finalsSpin.key, spinKeyOf(s, 'finals'));
+  const e = storedStop(a, 'finals', a.finalsSpin.key); assert.equal(e.stops.length, 1);
+  assert.deepEqual(e.stops[0], { stopT: 3500, cycle: 1, tInCycle: 3.5, sliceId: 10, value: 25, paid: 25, auto: false, respin: 0 });
+  assert.equal(statsOf(a, 'finals').n, 1); assert.equal(statsOf(a, 'finals').taps.length, 1);
+  C(a, 'FinalsSpin', stopAt(1)); assert.equal(statsOf(C(a, 'FinalsSpin', stopAt(1)), 'finals').n, 1, 'refused spin records nothing');
+  const z = C(s, 'FinalsSpin', stopAt(0)); const z0 = storedStop(z, 'finals', z.finalsSpin.key).stops[0]; assert.equal(z0.paid, 1); assert.equal(z0.value, 60);
+  assert.equal(statsOf(z, 'finals').careful, 1, 'value 60 is above the wheel median');
 }));
 
 test('11: tokens: Medal (gold) offers none; token Spin Again keeps pay in sync with the ledger', () => withFlags(ON, () => {

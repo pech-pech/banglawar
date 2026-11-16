@@ -7,7 +7,8 @@ import { makeRng } from '../../core/rng.js';
 import { effective, recordSpin } from '../../core/wheelmeta.js';
 import * as WMF from '../../core/wheelmeta.js'; // wa1 find: tokens on the Find wheel (tokenOptions / useToken / tokenLeft)
 import { pityFind, findWheel, findWheelResult } from '../../core/wheels/find.js'; // wa1 find: Find big wheel
-import { normWheels } from '../../core/save-migrate.js';
+import { recordStop } from '../../core/wheel-stops.js';
+import { cycleOf } from '../../core/wheel-pulse.js';
 import { modsFor } from '../../core/wheels/common.js';
 import { activityOptions, roundKey } from '../../core/activities.js';
 import { pickActivity as pickActFind } from '../../core/activities.js'; // wa1 find: a token find is paid by re-running the pick
@@ -21,17 +22,10 @@ const findKey = (/** @type {any} */ s, /** @type {string} */ id) => `${roundKey(
 // Second Cheer = one free aimed re-spin after a no-find, max 1 a season, no token, never chains (wheelMeta.cheerUsed{season}; missing = 0)
 export const cheerLeft = (/** @type {any} */ s) => !((((s && s.wheelMeta && s.wheelMeta.cheerUsed) || {})[seasonN(s)]) | 0);
 const markCheer = (/** @type {any} */ n) => { const m = n.wheelMeta || (n.wheelMeta = clone(WMF.metaOf(n))); m.cheerUsed = { ...(m.cheerUsed || {}), [seasonN(n)]: 1 }; };
-/** Local stand-in for T1's recordStop(n, 'find', spinKey, rec) (js/core/wheel-stops.js, not landed): same save shape (CONTRACT-A s6). Swap the body for the import when it lands. */
+/** STOP of the Find wheel via the shared recordStop (CONTRACT-A s6/7). The Find wheel has no median: careful = the tick was on a FIND block. t = seconds since SPIN. */
 function recordFindStop(/** @type {any} */ n, /** @type {string} */ key, /** @type {any} */ r, /** @type {number} */ respin) {
-  normWheels(n);
-  const t = Number.isFinite(r.t) ? Math.max(0, r.t) : 0, cycle = Math.floor(t / 6) + 1, tIn = t - 6 * (cycle - 1), value = r.find ? 1 : 0;
-  const W = n.wheels, rec = (W.stops.find ||= {})[key] || (W.stops.find[key] = { stops: [], kept: 0, spent: false });
-  rec.stops.push({ stopT: Math.round(t * 1000), cycle, tInCycle: tIn, sliceId: r.index | 0, value, auto: false, respin });
-  rec.kept = rec.stops.reduce((b, x, i) => (x.value > rec.stops[b].value ? i : b), 0); // higher value kept, a tie keeps the first
-  if (respin) rec.spent = true;
-  const st = W.stats.find || (W.stats.find = { n: 0, careful: 0, early: 0, late: 0, taps: [] });
-  st.n++; if (value > 0) st.careful++; if (tIn < 3.2) st.early++; else if (tIn > 3.8) st.late++;
-  st.taps.push({ cycle, tInCycle: tIn }); if (st.taps.length > 200) st.taps.splice(0, st.taps.length - 200);
+  const t = Number.isFinite(r.t) ? Math.max(0, r.t) : 0, { cycle, tInCycle } = cycleOf(t), find = !!r.find;
+  recordStop(n, 'find', key, { stopT: Math.round(t * 1000), cycle, tInCycle, sliceId: r.index | 0, value: find ? 1 : 0, auto: false, respin, ...(respin ? { spent: true } : {}) }, { careful: find });
 }
 const actRngOf = (/** @type {any} */ s) => makeRng(`${String(s.season.seed).replace(/\|s\d+$/, '')}|act|${roundKey(s)}|${s.salt}`); // the same stream commands.js pickAct uses
 

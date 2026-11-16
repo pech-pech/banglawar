@@ -3,6 +3,7 @@
 // The wiring (finals.js / spinFinals) calls openWheel(finalsWheelOpts(vm, ctx)) once T1 lands. Labels = PAID amount; the result strip says the same number.
 import { paidRing } from '../../core/finals-paid.js';
 import { finalsWords, finalsPairLine, finalsTokLine } from './finals.js';
+import { FINALS_SLICES } from '../../data/wheels/finals.js';
 import { dialLook, revealT, tokProps, TOKVAL } from './shared.js';
 
 /** Legend under the ring (SPEC 2f, QA mockups-t4 #5): the Medal slice is 4% and prints "M"; the Medal icon sits in the legend. `icon` is an icon name for the view, `ch` is the printed letter. */
@@ -10,6 +11,23 @@ export const FINALS_LEGEND = Object.freeze([Object.freeze({ ch: 'M', icon: 'meda
 
 /** The one number a prize slice pays (what the label prints): Coins, TP or Fans, in that order; 0 for a Medal. @param {any} p */
 export const paidOf = (p) => (p ? (p.coins | 0) || (p.tp | 0) || (p.fans | 0) || 0 : 0);
+
+/** Wheel image name (A11Y F4, option B: grouped by tier, short). Labels are the PAID amounts. @param {any[]} ring */
+export function finalsWheelAria(ring) {
+  const parts = [], tiers = [['top', 'top prizes'], ['mid', 'middle prizes'], ['low', 'small prizes']];
+  for (const [t, name] of tiers) {
+    const rows = ring.filter((r) => r.tier === t); if (!rows.length) continue;
+    parts.push(rows.length + ' ' + name + ': ' + rows.map((r) => (r.label === 'M' ? 'Gold Medal' : r.label)).join(', '));
+  }
+  return 'Finals prize wheel, ' + ring.length + ' slices, ' + (parts.length ? parts.join('; ') : 'no prizes listed');
+}
+
+/** Result sentence for the live region (A11Y F5), states the paid amount. @param {{label?:string, type?:string}} row ring row (+ slice type) */
+export function finalsLanded(row) {
+  const r = row || {}, t = r.type ? String(r.type) : '';
+  if (r.label === 'M' || t === 'Medal') return 'Landed: Gold Medal. Plus 1 Medal for your cabinet.';
+  return 'Landed: ' + (r.label || 'a prize') + (t ? ' ' + t : '') + '. You are paid ' + (r.label || 'the prize') + (t ? ' ' + t : '') + '.';
+}
 
 /**
  * @param {any} vm finalsSpinVM(s): {ring, cells, pending, tokens, ...ctl}; vm.ring rows are CONTRACT-A sec 5 (type/amount extra keys optional)
@@ -30,6 +48,7 @@ export function finalsWheelOpts(vm, ctx = {}) {
     wheelId: ctx.wheelId || 'finals', ...(ctx.spinKey ? { spinKey: ctx.spinKey } : {}), ...(ctx.wobKey ? { wobKey: ctx.wobKey } : {}), ...(ctx.J != null ? { J: ctx.J } : {}), ...(ctx.stored ? { stored: ctx.stored } : {}),
     title: 'Finals prize', cardHtml: '<p class="dr-hint">Spin for your prize.</p>',
     ring, legend: FINALS_LEGEND.map((l) => ({ ...l })),
+    aria: { wheel: finalsWheelAria(ring), landed: (/** @type {any} */ stop) => finalsLanded({ ...(ring[stop.sliceId] || {}), type: (FINALS_SLICES[stop.sliceId] || {}).type }), status: 'polite' },
     plan: { total: revealT(3, vm) }, look: dialLook(ctx.look), pending: vm.pending,
     ...tokProps(get, dispatch, 'finals', 'Finals'), tokVal: TOKVAL.finals, tokText: finalsWords, tokLine: finalsTokLine,
     onSpin: (/** @type {any} */ stop) => dispatch('FinalsSpin', { stop }), getPending: () => get().pending,

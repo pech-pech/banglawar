@@ -1,6 +1,7 @@
 // Find store + spin handler (wheels-like-match SPEC s5, 11a, 11b, 13): rate ring, STOP written to wheels.stops.find, result kept across a reload,
 // FIND offers no token and no Nudge, Second Cheer = one free aimed re-spin after a no-find (FindCheer), max 1 a season, no token; widening ceiling 13.0%.
 import test from 'node:test';
+import { statsOf } from '../js/core/wheel-stops.js';
 import assert from 'node:assert/strict';
 import { FLAGS } from '../js/data/flags.js';
 import { makeRng } from '../js/core/rng.js';
@@ -41,7 +42,7 @@ test('STOP is written on disk: wheels.stops.find[spinKey] + wheels.stats.find, a
     if (a.findSpin.pity) continue;
     checked++;
     const rec = a.wheels.stops.find[keyOf(a)]; assert.equal(rec.stops.length, 1);
-    const st = rec.stops[0]; assert.equal(st.sliceId, a.findSpin.index); assert.equal(st.value, a.findSpin.find ? 1 : 0); assert.equal(st.respin, 0); assert.equal(st.auto, false);
+    const st = rec.stops[0]; assert.equal(st.sliceId, a.findSpin.index); assert.equal(st.value, a.findSpin.find ? 1 : 0); assert.equal(st.respin, 0); assert.equal(st.auto, false); assert.equal(statsOf(a, 'find').n, 1); assert.equal(statsOf(a, 'find').careful, a.findSpin.find ? 1 : 0, 'careful = tick on a FIND block');
     assert.ok(st.cycle >= 1 && Number.isFinite(st.tInCycle) && Number.isInteger(st.stopT));
     const stats = a.wheels.stats.find; assert.equal(stats.n, 1); assert.equal(stats.taps.length, 1); assert.equal(stats.careful, st.value);
     const b = JSON.parse(JSON.stringify(a)); // reload

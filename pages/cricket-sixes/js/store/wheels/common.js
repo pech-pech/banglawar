@@ -39,3 +39,6 @@ export function ctlOf(s, w) {
   const om = otherMultOf(s); // wheel match Dev: the reveal wheels (toss, pep, scout, finals) play faster / slower; x1 adds nothing
   return { guide: !!x.guide, ...(+x.zone > 0 ? { zone: +x.zone } : {}), ...(x.chime ? { chime: true } : {}), ...(om !== 1 && w !== 'hype' ? { speedMult: om } : {}) };
 }
+
+/** Median of a list of slice values (the wheel median that `careful` is judged against, SPEC s13). @param {number[]} vs */
+export const medianOf = (vs) => { const a = vs.map(Number).filter(Number.isFinite).sort((x, y) => x - y), m = a.length >> 1; return a.length ? (a.length % 2 ? a[m] : (a[m - 1] + a[m]) / 2) : 0; };

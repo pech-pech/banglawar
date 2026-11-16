@@ -6,13 +6,11 @@ export const FIND_TIE_EPS = 0.05;
 export const FIND_AIM_MIN_W = 0.3;
 export const FIND_GLOW_CENTER = 3.5;
 const CIRC = 10, EQ = 1e-9;
+import { tickAt, ARC_PER_CYCLE } from './wheel-pulse.js';
 
-// Fallback pulse tick (CONTRACT-A sec 3, W0 36, D 2), used only when no tick fn is injected (T1's wheel-pulse.js not landed).
-const W0 = 36, D = 2, E38 = Math.exp(-3.8 / 3), W38 = W0 * E38;
-const pulseW = (t) => { if (t < 3.8) return W0 * Math.exp(-t / 3); const x = (t - 3.8) / 2.2; return W38 + (W0 - W38) * x * x * (3 - 2 * x); };
-const pulseArc = (t) => { if (t < 3.8) return W0 * 3 * (1 - Math.exp(-t / 3)); const x = (t - 3.8) / 2.2, u = t - 3.8; return W0 * 3 * (1 - E38) + W38 * u + (W0 - W38) * 2.2 * (x ** 3 - x ** 4 / 2); };
-export const ARC_PER_CYCLE_FALLBACK = W0 * 3 * (1 - E38) + 2.2 * (W38 + (W0 - W38) / 2);
-export const tickFallback = (e) => { const k = Math.floor(e / 6), t = e - 6 * k; return k * ARC_PER_CYCLE_FALLBACK + pulseArc(t) + pulseW(t) * D / 3; };
+// Pulse tick from the shared wheel-pulse.js (CONTRACT-A sec 3, W0 36, D 2). tickFallback / ARC_PER_CYCLE_FALLBACK keep their old names.
+export const ARC_PER_CYCLE_FALLBACK = ARC_PER_CYCLE();
+export const tickFallback = (e) => tickAt(e);
 
 // Starts (rim units from the pointer, clockwise) of each ring row.
 export const blockStarts = (ring) => { let a = 0; return ring.map((r) => { const s = a; a += r.w; return s; }); };

@@ -6,7 +6,8 @@ import { effective, recordSpin } from '../../core/wheelmeta.js';
 import { revealResult } from '../../core/wheels/reveal.js';
 import { modsFor } from '../../core/wheels/common.js';
 import { finalsWheel, finalsRing, FINALS_MULT } from '../../core/wheels/finals.js';
-import { clone, on, rngFor, seasonN, wmTokensOf, stopOf } from './common.js';
+import { clone, on, rngFor, wmTokensOf, stopOf, medianOf } from './common.js';
+import { recordStop, spinKeyOf } from '../../core/wheel-stops.js';
 import { ctlOf } from './common.js';
 
 /** The Coin / Fans multipliers on the Finals prize: none exist today (the old reel paid fx raw), so x1. One place to change if one is ever added. @param {any} _s */
@@ -14,12 +15,8 @@ export const finalsMult = (_s) => FINALS_MULT;
 /** The 12-slice Finals wheel for this save (tree applied, labels = paid amounts). @param {any} s */
 export const finalsWheelOf = (s) => finalsWheel(modsFor(effective(s), 'finals'), finalsMult(s));
 
-// STOP bookkeeping seam. recordStop / spinKeyOf (CONTRACT-A sec 7, js/core/wheel-stops.js) are built by T1 / S0 and are not in the tree yet, so they are wired in, not imported:
-// wireStops({recordStop, spinKeyOf}). Unwired = nothing is recorded and the key is finalsKey(s) (season|kind|round; the contract's per-season key would collide a semi and a final).
-/** @type {{recordStop:null|((n:any,w:string,k:string,r:any)=>any), spinKeyOf:null|((s:any,w:string,c?:any)=>string)}} */
-const stops = { recordStop: null, spinKeyOf: null };
-/** @param {{recordStop?:any, spinKeyOf?:any}} h */
-export const wireStops = (h) => { Object.assign(stops, h); };
+/** Old seam, kept so callers compile: recordStop / spinKeyOf are imported from js/core/wheel-stops.js now, nothing to wire. @param {any} [_h] */
+export const wireStops = (_h) => {};
 
 /** The result AT STOP: sliceId (the view's STOP slice) pins the slice, else the seeded width-weighted draw. Same 6 draws as revealResult. @param {{random:()=>number}} rng @param {any} wheel @param {any} [sliceId] */
 export function finalsResultAt(rng, wheel, sliceId) {
@@ -28,7 +25,8 @@ export function finalsResultAt(rng, wheel, sliceId) {
   return revealResult({ random: () => { const v = rng.random(); if (first) { first = false; return ((c.a + c.b) / 2) / wheel.total; } return v; } }, wheel);
 }
 
-export const finalsKey = (/** @type {any} */ s) => `${seasonN(s)}|${s.fixture.kind}|${s.fixture.round}`;
+/** season|kind|round (semi and final each spin once): thin wrapper of spinKeyOf(s, 'finals'). */
+export const finalsKey = (/** @type {any} */ s) => spinKeyOf(s, 'finals');
 /** Command guard for FinalsSpin: result screen of a semi or final, not spun for this fixture. @param {any} s */
 export const canFinalsSpin = (s) => on() && !!s.season && !!s.fixture && s.stage === 'done' && (s.fixture.kind === 'semi' || s.fixture.kind === 'final') && !(s.finalsSpin && s.finalsSpin.key === finalsKey(s));
 /** One Finals reel spin: pays Coins / TP / Fans / Medal now (ledger row), keeps s.finalsSpin for a reload, recordSpin. @param {any} s */
@@ -43,11 +41,11 @@ export function finalsSpin(s, p) {
   }
   if (tp && n.training) { n.training.tp += tp; if (n.season) n.season.tpWon += tp; }
   n.finalsSpin = row;
-  if (stops.recordStop) { // synchronous with the result, same dispatch (CONTRACT-A sec 7); stopOf keeps the old careful / random payloads working
+  { // synchronous with the result, same dispatch (CONTRACT-A sec 7); stopOf keeps the old careful / random payloads working
     const o = /** @type {any} */ (stopOf(p)) || {}, c = w.slices[r.index], t = Number.isFinite(o.t) ? o.t : 0;
-    stops.recordStop(n, 'finals', stops.spinKeyOf ? stops.spinKeyOf(s, 'finals', { key: row.key }) : row.key,
+    recordStop(n, 'finals', spinKeyOf(s, 'finals', { key: row.key }),
       { stopT: Math.round(Number.isFinite(st && st.stopT) ? st.stopT : t * 1000), cycle: Math.max(1, (st && st.cycle) | 0 || 1), tInCycle: Number.isFinite(st && st.tInCycle) ? st.tInCycle : t,
-        sliceId: r.index, value: c.value, paid: row.paid, auto: !st, respin: st && st.respin ? 1 : 0 });
+        sliceId: r.index, value: c.value, paid: row.paid, auto: !st, respin: st && st.respin ? 1 : 0 }, { median: medianOf(w.slices.map((/** @type {any} */ x) => x.value)) });
   }
   return n;
 }

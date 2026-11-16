@@ -7,6 +7,7 @@ import { scoutCardsOf, scoutSliceRow, scoutSliceToken, withLandedCard, scoutSeas
 import { scoutNudge, scoutKeep, scoutSliceId } from '../js/core/wheels/scout.js';
 import { makeScoutCards } from '../js/core/scout-cards.js';
 import { scoutList } from '../js/core/training.js';
+import { spinKeyOf, statsOf } from '../js/core/wheel-stops.js';
 import { SCOUT_SLICES } from '../js/data/wheels/scout.js';
 
 FLAGS.wheelMeta = true;
@@ -30,6 +31,7 @@ test('STOP decides from the slice table, adds that card, stores + records the st
   assert.deepEqual(n.wheels.scoutCards['2'], cards);
   assert.deepEqual(row.card, cards[0]);
   const e = n.wheels.stops.scout['2'];
+  assert.equal(spinKeyOf(n, 'scout'), '2'); assert.equal(statsOf(n, 'scout').n, 1);
   assert.equal(e.stops.length, 1); assert.equal(e.stops[0].sliceId, 0); assert.equal(e.stops[0].value, 2); assert.equal(e.stops[0].respin, 0);
   assert.equal(n.wheels.stats.scout.n, 1);
   assert.equal(s.wheels, undefined, 'input state untouched');

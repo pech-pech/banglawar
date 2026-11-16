@@ -3,7 +3,9 @@
 import { effective, recordSpin } from '../../core/wheelmeta.js';
 import { revealWheel, revealResult } from '../../core/wheels/reveal.js';
 import { modsFor } from '../../core/wheels/common.js';
-import { clone, on, rngFor, seasonN, wmTokensOf } from './common.js';
+import { clone, on, rngFor, seasonN, wmTokensOf, medianOf } from './common.js';
+import { recordStop } from '../../core/wheel-stops.js';
+import { seasonIdOf } from '../../core/spin-keys.js';
 import { ctlOf } from './common.js';
 
 /** Command guard for ScoutSpin: flag, the list is still open, not spun this season. @param {any} s @param {()=>any[]} list */
@@ -38,7 +40,7 @@ import { scoutSliceId, scoutIsGold, scoutKeep, scoutNudge } from '../../core/whe
 import { STEPS } from '../../core/letters.js';
 const stepOfLetter = (/** @type {string} */ g) => { const r = STEPS.find((x) => x.letter === g); return r ? r.step : 1; };
 
-export const scoutSeasonId = (/** @type {any} */ s) => String(seasonN(s)); // CONTRACT-A lead call 5: seasonIdOf (js/core/spin-keys.js) not landed; same value, stubbed
+export const scoutSeasonId = (/** @type {any} */ s) => seasonIdOf(s); // CONTRACT-A lead call 5: the shared seasonIdOf
 const leagueOf = (/** @type {any} */ s) => Math.min(5, Math.max(1, (s.season && s.season.league) || (s.run && s.run.league) || 1));
 /** This season's 10 cards: the stored ones, else regenerated from the season seed (same generator, so identical). Never writes. @param {any} s */
 export function scoutCardsOf(s) {
@@ -53,25 +55,12 @@ export function ensureScoutCards(n) {
   return sc[k];
 }
 
-// recordStop: CONTRACT-A sec 7 / lead call 9 = recordStop(n, wheelId, spinKey, rec) in js/core/wheel-stops.js (T1/S0). That file is NOT in the tree yet, so
-// a local writer with the sec 6/7 shape is the default; wheel-stops.js (or the app) swaps in the real one with setRecordStop.
+// recordStop is the shared one (js/core/wheel-stops.js, CONTRACT-A sec 7); careful = value above the Scout wheel median.
+const SCOUT_MEDIAN = medianOf(SCOUT_SLICES.map((/** @type {any} */ x) => x.value));
 /** @type {(n:any, wheelId:string, spinKey:string, rec:any) => any} */
-let recordStopFn = (n, wheelId, spinKey, rec) => {
-  const w = n.wheels && typeof n.wheels === 'object' ? n.wheels : (n.wheels = {});
-  const by = w.stops && typeof w.stops === 'object' ? w.stops : (w.stops = {});
-  const wh = by[wheelId] && typeof by[wheelId] === 'object' ? by[wheelId] : (by[wheelId] = {});
-  const e = wh[spinKey] || (wh[spinKey] = { stops: [], kept: 0, spent: false }), { kept, spent, ...r } = rec;
-  e.stops.push(r);
-  if (kept != null) e.kept = kept; else if (r.value > e.stops[e.kept | 0].value) e.kept = e.stops.length - 1; // higher keeps, tie keeps the first
-  if (spent != null) e.spent = !!spent;
-  const st = w.stats && typeof w.stats === 'object' ? w.stats : (w.stats = {});
-  const a = st[wheelId] || (st[wheelId] = { n: 0, careful: 0, early: 0, late: 0, taps: [] });
-  a.n++;
-  if (!r.auto) { if (r.value > 0.5) a.careful++; if (r.tInCycle < 3.2) a.early++; if (r.tInCycle > 3.8) a.late++; a.taps.push({ cycle: r.cycle, tInCycle: r.tInCycle }); if (a.taps.length > 200) a.taps.splice(0, a.taps.length - 200); }
-  return n;
-};
-/** Swap in the shared recordStop. @param {typeof recordStopFn} fn */
-export const setRecordStop = (fn) => { if (typeof fn === 'function') recordStopFn = fn; };
+const recordStopFn = (n, wheelId, spinKey, rec) => recordStop(n, wheelId, spinKey, rec, { median: SCOUT_MEDIAN });
+/** Old seam, kept so callers compile: the shared recordStop is always used now. @param {any} [_fn] */
+export const setRecordStop = (_fn) => {};
 
 const recOf = (/** @type {any} */ stop, /** @type {number} */ sliceId, /** @type {number} */ respin) => ({
   stopT: Math.max(0, Math.round(+stop.stopT || 0)), cycle: Math.max(1, stop.cycle | 0 || 1), tInCycle: +stop.tInCycle || 0, sliceId, value: SCOUT_SLICES[sliceId].value, auto: !!stop.auto, respin });

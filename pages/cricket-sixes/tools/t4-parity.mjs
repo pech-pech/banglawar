@@ -1,13 +1,15 @@
 #!/usr/bin/env node
 // T4 parity harness (wheels SPEC 2a-2c, 5, 9, 10; test 1, 2, 2b). Pure modules only: Find / Scout / Finals data, find-aim, finals-paid.
-// Pulse: js/core/wheel-pulse.js is NOT required; uses the fallback tick in find-aim.js (CONTRACT-A sec 3 / SPEC 2c), W0 scaled for Slow.
+// Pulse: the real js/core/wheel-pulse.js tickAt (CONTRACT-A sec 3 / SPEC 2c), W0 scaled for Slow.
 // Rows: random / careful / good / full Control (Slow x0.55, Steady x0.7225, Guide sd 0.080). Careful sd 0.110, good 0.070.
 // Usage: node tools/t4-parity.mjs [--n 20000] [--seed 1] [--calibrate]
 import { fileURLToPath } from 'node:url';
 import { FIND_SLICES, FIND_RATES, FIND_J } from '../js/data/wheels/find.js';
 import { SCOUT_SLICES } from '../js/data/wheels/scout.js';
 import { FINALS_SLICES } from '../js/data/wheels/finals.js';
-import { findAimTarget, arrivalNear, tickFallback, FIND_GLOW_CENTER } from '../js/core/find-aim.js';
+import { tickAt } from '../js/core/wheel-pulse.js';
+import { WHEEL_ENGINE } from '../js/data/wheel-engine.js';
+import { findAimTarget, arrivalNear, FIND_GLOW_CENTER } from '../js/core/find-aim.js';
 import { paidAmount } from '../js/core/finals-paid.js';
 
 const CIRC = 10, J0 = 1.2, MIN_W = 0.5, FIND_MIN_W = 0.3;
@@ -21,7 +23,7 @@ export const WHEELS = [
   { key: 'Finals coin-eq', ring: FINALS_SLICES, J: J0, score: (s) => (s.type === 'Medal' ? s.value : paidAmount(s)), unit: 'coin-eq', rand: 21.6 },
 ];
 
-const tickFor = (slow) => { const k = slow ? 0.55 : 1; return (e) => k * tickFallback(e); };
+const tickFor = (slow) => { const P = { W0: WHEEL_ENGINE.W0 * (slow ? 0.55 : 1) }; return (e) => tickAt(e, P); };
 const sliceAt = (ring, pos) => { let a = 0; const p = ((pos % CIRC) + CIRC) % CIRC; for (const s of ring) { a += s.w; if (p < a) return s; } return ring[ring.length - 1]; };
 
 /** Mean score of one wheel for a tapper over n spins. who: random | careful | good | full. */
@@ -56,7 +58,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const a = process.argv.slice(2), arg = (k, d) => (a.includes(k) ? Number(a[a.indexOf(k) + 1]) : d);
   const n = arg('--n', 20000), seed = arg('--seed', 1);
   const f = (x, d = 3) => x.toFixed(d);
-  console.log(`T4 parity  n=${n} seed=${seed}  pulse=fallback tick (find-aim.js; wheel-pulse.js absent)`);
+  console.log(`T4 parity  n=${n} seed=${seed}  pulse=wheel-pulse.js tickAt`);
   console.log('wheel'.padEnd(16) + ['random', 'careful', 'good', 'full'].map((s) => s.padStart(18)).join(''));
   for (const r of table(n, seed)) console.log(r.key.padEnd(16) + ['random', 'careful', 'good', 'full'].map((k) => (k === 'random' ? f(r[k]) : `${f(r[k])} (${f(r[k] / r.random, 2)}x)`).padStart(18)).join(''));
   if (a.includes('--calibrate')) {

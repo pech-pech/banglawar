@@ -38,6 +38,21 @@ const findLine = (p) => {
   return { big: 'Found ' + w, chip: 'Trial', say: 'You found ' + w + '.', gold: true };
 };
 
+/** Wheel image name (A11Y F4, option B: grouped by tier). @param {any[]} ring */
+export function findWheelAria(ring) {
+  const f = ring.filter((r) => r.gold).length, c = ring.length - f;
+  return 'Find wheel, ' + ring.length + ' blocks: ' + f + ' FIND blocks (top tier) and ' + c + ' CHEER blocks (middle tier)';
+}
+
+/** Result sentence for the live region (A11Y F5). FIND: the block's prize; CHEER: a free look. @param {any} row ring row @param {any} [prize] */
+export function findLanded(row, prize) {
+  if (row && row.gold) {
+    const w = prize && prize.type === 'coins' ? ((prize.coins | 0).toLocaleString('en') + ' Coins') : prize && WORD[prize.type] ? WORD[prize.type] : 'a prize';
+    return 'Landed: FIND. You found ' + w + '.';
+  }
+  return 'Landed: CHEER. No find this time. Next week, maybe.';
+}
+
 /**
  * @param {any} vm findSpinVM result ({rate, phys, guide, zone, chime, pending, tokens, tokLeft, spokeGain?})
  * @param {{wheelId?:string, spinKey?:string, wobKey?:string, look?:any, title?:string, stored?:any, pick:(stop:any)=>any, useToken?:(kind:string)=>any, onCollect?:()=>void, get?:()=>any}} ctx
@@ -55,6 +70,7 @@ export function findWheelOpts(vm, ctx) {
     labels: ring.map((s) => s.label), golds: ring.filter((s) => s.gold).map((s) => s.id),
     J: FIND_J, phys: vm && vm.phys ? { ...vm.phys, J: FIND_J } : undefined,
     guide: !!(vm && vm.guide), zone: (vm && vm.zone) || 0, chime: !!(vm && vm.chime), look: ctx.look,
+    aria: { wheel: findWheelAria(ring), landed: (stop) => findLanded(ring[stop.sliceId], (get() || {}).pending), status: 'polite' },
     plainResult: true, jpText: 'FOUND!', tokName: 'Find',
     pending: asWheel(vm && vm.pending), getPending: () => asWheel(get().pending),
     // the one STOP callback: the store spin type (PickActivity / UseToken / FindCheer) decides and records the stop (recordFindStop / recordStop)
