@@ -94,7 +94,8 @@ test('look helpers: ranks map to looks, 0 = none, colours parse, wheel svg draws
 test('wheel-view keeps the old behaviour without o.look / o.guide / o.tokens and reads phys', () => {
   const src = read('js/ui/wheel-view.js');
   assert.match(src, /tk !== 'none' && state === 'spin'/); assert.match(src, /guide: !!o.guide/); assert.match(src, /o\.phys/); assert.match(src, /LK = normLook\(o\.look\)/);
-  assert.match(src, /carefulTapTime\(WO, ph, 1 - Math\.random\(\), Math\.random\(\), \.\.\.PX\)/);
+  // SPEC 2e: no reduced-motion tap (no synthetic careful tap); the result always comes from the player's STOP
+  assert.doesNotMatch(src, /carefulTapTime/); assert.match(src, /const t = clk\.tap\(ms\); if \(t == null\) return; stop\(t\)/);
 });
 
 test('tier-up card: names the new rim, lists the nodes that open, shows real slice wheels, says "bars" for the wheel rods; tier 1 compares plain vs wooden', () => {

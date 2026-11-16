@@ -23,7 +23,7 @@
 
 /* bowler rows (pick screen) */
 .wm-bowlers { display: flex; flex-direction: column; gap: 3px; padding-bottom: 3px; min-height: 0; flex: 0 1 auto; overflow-y: auto; }
-.wm-brow { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 8px; width: 100%; min-height: 44px; padding: 1px 10px; text-align: left;
+.wm-brow { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 8px; width: 100%; min-height: 56px; padding: 1px 10px; text-align: left;
   font: inherit; color: var(--outline); background: var(--white, #fffdf6); border: 2px solid var(--outline); box-shadow: 0 3px 0 var(--outline); cursor: pointer; }
 .wm-brow.is-on { background: var(--gold); border-width: 3px; }
 .wm-brow.is-off { opacity: .6; border-style: dashed; box-shadow: none; cursor: not-allowed; background: var(--wall1); }
@@ -52,12 +52,14 @@
 .wm-exp { font-size: 15px; line-height: 20px; font-weight: 700; text-align: center; }
 .wm-roar { display: inline-block; padding: 0 6px; background: var(--gold); border: 2px solid var(--outline); font-size: 14px; }
 .wm-who { display: flex; align-items: center; justify-content: space-between; gap: 6px; font-size: 14px; line-height: 18px; min-height: 24px; }
-.wm-back { min-height: 44px; }
-.wm .wm-back { min-height: 44px; height: 44px; min-width: 44px; padding: 0 10px; font-size: 14px; line-height: 18px; }
+.wm-back { min-height: 56px; min-width: 56px; }
+.wm .wm-back { min-height: 56px; height: 56px; min-width: 56px; padding: 0 12px; font-size: 15px; line-height: 18px; } /* "Change": 56 px tap (SPEC 2a) */
 
 /* auto buttons */
 .wm-autos { display: flex; gap: 6px; }
-.wm-auto { flex: 1 1 0; min-height: 48px; font-size: 15px; padding: 0 6px; }
+.wm-auto { flex: 1 1 0; min-height: 56px; min-width: 56px; font-size: 16px; padding: 0 8px; }
+.wm-auto[disabled], .wm-auto[aria-disabled="true"] { opacity: .55; border-style: dashed; box-shadow: none; cursor: not-allowed; } /* SPEC 2h: shown, disabled while a wheel spins */
+.wm-auto[disabled]::after { content: " \2014  after this over"; font-weight: 400; font-size: 14px; }
 .wm-achips { display: flex; flex-wrap: wrap; gap: 4px; min-height: 22px; }
 .wm-achips li { padding: 0 6px; border: 2px solid var(--outline); background: var(--white, #fffdf6); font-size: 14px; line-height: 18px; font-weight: 700; }
 
@@ -85,7 +87,7 @@
 
 /* main button: BOWL OVER / BAT OVER / SPIN / STOP / NEXT OVER; Stop auto pinned 56 px */
 .wm-cta { margin-top: auto; padding-top: 4px; position: sticky; bottom: 0; z-index: 3; background: var(--cream); }
-.wm .wm-go { display: flex; flex-direction: column; align-items: center; justify-content: center; width: 100%; min-height: 76px; padding: 4px 12px; line-height: 1.1; }
+.wm .wm-go { display: flex; flex-direction: column; align-items: center; justify-content: center; width: 100%; min-height: 76px; min-width: 56px; padding: 4px 12px; line-height: 1.1; }
 .wm .wm-go > span { font: 28px/32px var(--font-head); letter-spacing: .03em; }
 .wm .wm-go > small { font-size: 15px; line-height: 18px; font-weight: 700; }
 .wm .wm-go.is-wait { opacity: .7; border-style: dashed; }
@@ -99,18 +101,15 @@
 .wm-resh { display: flex; align-items: center; gap: 8px; font-size: 15px; line-height: 20px; min-height: 44px; }
 .wm-chip { display: inline-block; min-width: 40px; padding: 2px 8px; border: 2px solid var(--outline); font: 20px/24px var(--font-head); text-align: center; color: var(--wm-ink); }
 .wm-eq { flex: 1 1 auto; }
-.wm-x { flex: none; width: 44px; height: 44px; min-width: 44px; min-height: 44px; }
 .wm-balls { margin-top: 2px; cursor: pointer; }
 .wm-balls .op-word { font-size: 11px; line-height: 13px; min-height: 13px; }
 .wm-found { margin-top: 4px; }
-.wm-book { width: 100%; min-height: 44px; }
+.wm-book { width: 100%; min-height: 56px; }
 .wm.is-result .wm-stage { min-height: 120px; }
 
-@media (prefers-reduced-motion: no-preference) {
-  .wm-mark:not([hidden]) { animation: wm-stamp .2s steps(3) both; }
-  @keyframes wm-stamp { from { transform: translate(-50%, -50%) rotate(-8deg) scale(1.4); } to { transform: translate(-50%, -50%) rotate(-8deg) scale(1); } }
-  .wm-balls .op-slot.is-filled .op-circle { animation: op-pop .28s ease-out; }
-}
+.wm-mark:not([hidden]) { animation: wm-stamp .2s steps(3) both; } /* no motion-preference branch (wheels SPEC 2e) */
+@keyframes wm-stamp { from { transform: translate(-50%, -50%) rotate(-8deg) scale(1.4); } to { transform: translate(-50%, -50%) rotate(-8deg) scale(1); } }
+.wm-balls .op-slot.is-filled .op-circle { animation: op-pop .28s ease-out; }
 .wm [hidden] { display: none !important; }
 .wm-cv { will-change: transform; transform-origin: 50% 50%; }
 .wm-ovl { position: absolute; left: 0; top: 0; pointer-events: none; }

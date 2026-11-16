@@ -1,19 +1,25 @@
-/* wheelmatch-view: Wheel match mode (2026-11-15 SPEC s1-4, 8, 9, 13; build CONTRACT UI). One spin = one whole over.
+/* wheelmatch-view: Wheel match mode (2026-11-15 SPEC s1-4, 8, 9, 13; wheels SPEC 2a, 2c, 2d, 2e, 2h; CONTRACT-A 2-4). One spin = one whole over.
    render(el, vm, dispatch, open), vm = selectors.wheelMatchVM(s) (+ vm.info from app.js: chips, crease, bowler types; all optional).
-   Screens (view state only, never saved): pick (bowler rows / bat info) -> wheel ready (SPIN) -> spin (STOP live from 1 s, glow 3.2-3.8 s,
-   coast at 6 s) -> glide to the stored landing over D -> 0.40 s beat -> ball row (BALL_SPEED) -> NEXT. Auto over / Auto rest of innings:
-   WheelOver {auto:true} paced 0.6 / 0.9 s, no ball row, pinned Stop auto. Reduced motion: no spin, tick or glow; "Show result".
+   Screens (view state only, never saved): pick (bowler rows / bat info) -> wheel ready (SPIN) -> spin on the pulse (STOP live after the 0.35 s
+   guard, STOP glow 3.2-3.8 s of every 6 s cycle; the wheel spins until the player taps STOP) -> glide to the stored landing over D -> 0.40 s beat
+   -> ball row (BALL_SPEED) -> NEXT. Clock: elapsed = performance.now() - SPIN time, never integrated from frames; STOP time from the tap's
+   event.timeStamp. "Auto rest of innings": WheelOver {auto:true} paced 0.6 / 0.9 s, no ball row, pinned Stop auto; shown disabled while a wheel spins.
    The landing tick is core landingPos(phys, {t, phi, e: 0}) every frame (the same function the store lands with). The STOP glow reads time only.
    dispatch('WheelOver', p) returns app.js's hold handle {wheel, balls, score, over, stage, nextLabel, ..., release()} or null when rejected. */
 import { WHEEL_MATCH, BALL_SPEED, AUTO_PACE } from '../data/wheelmatch.js';
 import { landingPos, rimAt, stopBucket } from '../core/wheelmatch.js';
-import { stopExtra, TIMING_LINE } from '../core/training.js';
+import { landSplit } from '../core/landtick.js';
+import { cycleOf, pulseW } from '../core/wheel-pulse.js';
+import { stopExtra } from '../core/training.js';
+import { glowOn } from './wheel-look.js';
+import { autoRestHtml } from '../store/wheelmatch-store.js';
 import { ballGlyph, ballWord, overTotals } from './over-panel.js';
 import { chipRowHtml, roarChipHtml } from './matchday-view.js';
 
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const TAU = Math.PI * 2;
 const plural = (n, w) => n + ' ' + w + (n === 1 ? '' : 's');
+const TIM_WORD = Object.freeze({ e: 'Early', c: 'Good timing', l: 'Late' }); // timing chip after a STOP (stopBucket)
 
 // ---------- pure helpers (test/wheelmatch-ui.test.mjs) ----------
 
@@ -27,12 +33,13 @@ export function ballDelay(o, over, overs = 10, B = BALL_SPEED) {
 export function ballTimes(balls, over, overs = 10, B = BALL_SPEED) {
   let t = 0; return (balls || []).map((b) => (t += ballDelay(b.o, over, overs, B)));
 }
-/** STOP glow at wheel time t (s after SPIN): on inside GLOW_LO..GLOW_HI; GLOW_BEATS half-beats of GLOW_BEAT (up, down, up), one shot.
- *  level 0..1 (the glow ring spread). Reads time only, never the segments. Pure. */
+/** STOP glow at wheel time t (s after SPIN), in EVERY pulse cycle: on while the cycle time is in GLOW (3.2-3.8 s, wheel-look glowOn);
+ *  GLOW_BEATS half-beats of GLOW_BEAT (up, down, up), one shot a cycle. level 0..1 (the glow ring spread). Reads time only. Pure. */
 export function glowPhase(t, G = WHEEL_MATCH) {
-  if (!(t >= G.GLOW_LO && t <= G.GLOW_HI)) return { on: false, beat: -1, level: 0 };
-  const x = (t - G.GLOW_LO) / G.GLOW_BEAT, beat = Math.min(G.GLOW_BEATS - 1, Math.floor(x)), u = Math.min(1, x - beat);
-  return { on: true, beat, level: beat % 2 === 0 ? u : 1 - u };
+  const u = cycleOf(t, G).tInCycle;
+  if (!(t >= 0) || !glowOn(u)) return { on: false, beat: -1, level: 0 };
+  const x = (u - G.GLOW[0]) / G.GLOW_BEAT, beat = Math.min(G.GLOW_BEATS - 1, Math.floor(x)), v = Math.min(1, x - beat);
+  return { on: true, beat, level: beat % 2 === 0 ? v : 1 - v };
 }
 /** Label layout for one slice (mockups/QA): wide = number outer, stars in a row inside; narrow (the stars do not fit in a row) = number inner,
  *  stars in a row near the rim. span = slice angle (radians), stars = wickets, R = wheel radius (px). Sizes scale from the mockup's R 146. Pure. */
@@ -46,26 +53,26 @@ export function labelPlan(span, stars, R) {
   p.font = Math.max(18, 25 * k); p.maxW = Math.max(10, chord(p.numR) - 6 * k);
   return p;
 }
-/** Seconds one Auto over takes on screen (AUTO_PACE): 0.6, or 0.9 with a wicket, an innings end (WIN / ALL OUT) or the last over. Pure. */
+/** Seconds one over of "Auto rest of innings" takes on screen (AUTO_PACE): 0.6, or 0.9 with a wicket, an innings end (WIN / ALL OUT) or the last over. Pure. */
 export function autoPace(balls, opts = {}, P = AUTO_PACE) {
   const wk = (balls || []).some((b) => b.o === 'W');
   return wk || opts.end || opts.lastOver ? P.event : P.over;
 }
-/** Should Auto stop before the next over? 'end' (not our innings screen any more), 'pause' (live chase, last over: the decider is the player's),
- *  'done' (Auto over: its one over is spun), or '' (go on). kind 'over' | 'rest'; spun = overs auto has spun this run. Pure. */
-export function autoStopWhy(vm, kind, spun) {
+/** Should "Auto rest of innings" stop before the next over? 'end' (not our innings screen any more), 'pause' (live chase, last over: the
+ *  decider is the player's), or '' (go on). The only Auto is the rest of the innings (wheels SPEC 2h): kind and spun are kept for the old
+ *  call shape and never end a run early. Pure. */
+export function autoStopWhy(vm, kind, spun) { // eslint-disable-line no-unused-vars
   if (!vm || (vm.side !== 'bowl' && vm.side !== 'bat')) return 'end';
-  if (kind === 'over') return spun >= 1 ? 'done' : vm.autoPauseNow ? 'pause' : '';
   if (vm.autoPauseNow) return 'pause';
   return '';
 }
 /** Signed shortest offset in [-C/2, C/2). Pure. */
 export const wrapHalf = (d, C = WHEEL_MATCH.CIRC) => ((((d + C / 2) % C) + C) % C) - C / 2;
 /** Glide plan from the STOP to the stored landing: base = rim under the pointer at the STOP, dist = no-wobble glide (unwrapped near the
- *  physical glide speed*D/3), e = what is left to the stored final pos (the wobble). pos(s) = base + stopExtra(dist, e, s, phys). Pure. */
+ *  pulse glide w(t) x D/3 of the STOP's cycle time), e = what is left to the stored final pos (the wobble). pos(s) = base + stopExtra(dist, e, s, phys). Pure. */
 export function glidePlan(phys, stop, finalPos, C = WHEEL_MATCH.CIRC) {
   const base = rimAt(phys, stop.t, stop.phi), raw = landingPos(phys, { t: stop.t, phi: stop.phi, e: 0 }) - base;
-  const approx = phys.W0 * Math.exp(-Math.min(stop.t, phys.COAST) / phys.TAU) * phys.D / 3;
+  const approx = landSplit(phys, stop.t).dist;
   const dist = raw + C * Math.round((approx - raw) / C);
   return { base, dist, e: wrapHalf(finalPos - (base + dist), C) };
 }
@@ -91,7 +98,8 @@ export function overWords(runs, wk) { return plural(runs, 'run') + ', ' + (wk ? 
 
 // ---------- view state (session only) ----------
 const st = { mounted: false, key: '', over: 0, phase: 'pick', bowler: null, auto: null, autoSpun: 0, autoSum: null, stopReq: false, busy: false, res: null, el: null, vm: null, dispatch: null, open: null, live: '', chips: [] };
-const reducedNow = () => typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+/** A tap's time on the performance.now() clock: event.timeStamp when it is on that clock (a sane DOMHighResTimeStamp), else now. */
+const tapTime = (ev) => { const now = performance.now(), ts = ev && ev.timeStamp; return typeof ts === 'number' && ts > 0 && ts <= now + 50 ? ts : now; };
 let seenKey = ''; // in memory only: after a reload the last stored hand-spun result shows once (no re-spin), then NEXT
 const seenGet = () => seenKey;
 const seenSet = (k) => { seenKey = k; };
@@ -130,11 +138,10 @@ function ctrlChips(c) {
   if (c.guide) a.push('Aim Guide'); if (c.zone) a.push('Aim Zone'); if (c.chime) a.push('Gold Chime');
   return a.length ? '<ul class="wm-ctrl list-flat" aria-label="Workshop">' + a.map((t) => '<li>' + esc(t) + '</li>').join('') + '</ul>' : '';
 }
-function autoRow(vm) {
+function autoRow(vm, spinning) {
   if (vm.autoPauseNow) return ''; // the decider over is the player's (F11)
-  const rest = vm.autoRestShown;
-  return '<div class="wm-autos"><button type="button" class="c-btn wm-auto" data-wm="auto-over">Auto over</button>' +
-    (rest ? '<button type="button" class="c-btn wm-auto" data-wm="auto-rest">Auto rest of innings</button>' : '') + '</div>';
+  const b = autoRestHtml(vm, !!spinning); // shown from over 2; disabled while a wheel spins (SPEC 2h)
+  return b ? '<div class="wm-autos">' + b + '</div>' : '';
 }
 const REASON = {};
 function bowlerRows(vm) {
@@ -161,14 +168,14 @@ function batPair(vm) {
   return c.length ? c.map((b) => b.name).join(' & ') : '';
 }
 function pickHtml(vm) {
-  const reduced = reducedNow(), info = vm.info || {};
+  const info = vm.info || {};
   if (vm.side === 'bat') {
     const c = info.crease || [];
     const bats = c.length ? '<p class="wm-cap">Your batters</p><div class="wm-bats">' + c.map((b) => '<div class="wm-bat' + (b.onStrike ? ' is-strike' : '') + '"><b class="name">' + esc(b.name) + '</b><small>' + esc(b.r != null ? b.r + ' (' + b.b + ')' : '') + (b.onStrike ? ' · on strike' : '') + '</small></div>').join('') + '</div>' : '';
     return '<div class="wm wm--pick wm--bat">' + header(vm, { small: vm.target ? 'Chasing ' + vm.target : 'You bat' }) + needBanner(vm, vm.need ? esc(Math.max(0, (vm.need.wkLeft != null ? vm.need.wkLeft : 5 - (vm.score ? vm.score.wk : 0)))) + ' wickets left' : '') +
       chipRowHtml(info.chips) + roarChipHtml(vm.roar) + '<p class="wm-cap">Their bowler this over</p><p class="wm-their">' + esc(vm.rivalBowler ? vm.rivalBowler.name + (vm.rivalBowler.role ? ' (' + vm.rivalBowler.role + ')' : '') : 'They pick a bowler') + '</p>' + bats + lastHtml(vm) +
       '<p class="wm-exp">' + esc(vm.expectText || '') + '</p>' + autoRow(vm) +
-      '<div class="wm-cta"><button type="button" class="c-btn c-btn--primary c-btn--cta wm-go" data-wm="go"><span>BAT OVER ' + esc(vm.over) + '</span><small>' + esc(batPair(vm) || (reduced ? 'Show result' : 'whole over in one spin')) + '</small></button></div>' + liveHtml() + '</div>';
+      '<div class="wm-cta"><button type="button" class="c-btn c-btn--primary c-btn--cta wm-go" data-wm="go"><span>BAT OVER ' + esc(vm.over) + '</span><small>' + esc(batPair(vm) || 'whole over in one spin') + '</small></button></div>' + liveHtml() + '</div>';
   }
   const b = bowlerOf(vm, pickedBowler(vm));
   return '<div class="wm wm--pick wm--bowl">' + header(vm, { small: info.phaseName || 'You bowl' }) + chipRowHtml(info.chips) + roarChipHtml(vm.roar) +
@@ -184,16 +191,16 @@ function whoLine(vm, back) {
   return '<p class="wm-who"><span><b class="name">' + esc(b ? b.name : '') + '</b>' + (ty ? ' (' + esc(ty) + ')' : '') + ' bowls' + (pair ? ' to <b class="name">' + esc(pair) + '</b>' : '') + '</span>' + (back ? '<button type="button" class="c-btn wm-back" data-wm="back">Change</button>' : '') + '</p>';
 }
 function wheelHtml(vm, mode) {
-  const reduced = reducedNow(), auto = mode === 'auto';
+  const auto = mode === 'auto';
   const go = auto ? '<button type="button" class="c-btn c-btn--primary wm-go wm-stopauto" data-wm="stop-auto"><span>Stop auto</span></button>'
-    : '<button type="button" class="c-btn c-btn--primary c-btn--cta wm-go" data-wm="spin"><span>' + (reduced ? 'Show result' : 'SPIN') + '</span><small>' + (reduced ? 'whole over at once' : 'whole over in one spin') + '</small></button>';
+    : '<button type="button" class="c-btn c-btn--primary c-btn--cta wm-go" data-wm="spin"><span>SPIN</span><small>whole over in one spin</small></button>';
   return '<div class="wm wm--wheel wm--' + (vm.side === 'bat' ? 'bat' : 'bowl') + (auto ? ' is-auto' : '') + '">' + header(vm) +
     needBanner(vm, vm.side === 'bat' ? esc(batPair(vm)) : '') + whoLine(vm, mode === 'ready') +
     '<p class="wm-exp">' + esc(vm.expectText || '') + (vm.roar ? ' <span class="wm-roar">' + esc(typeof vm.roar === 'object' && vm.roar.text || 'Crowd roar +5%') + '</span>' : '') + '</p>' +
-    (auto ? '<ol class="wm-achips list-flat" aria-label="Auto overs">' + st.chips.map((c) => '<li>' + esc(c) + '</li>').join('') + '</ol>' : '') +
+    (auto ? '<ol class="wm-achips list-flat" aria-label="Overs so far">' + st.chips.map((c) => '<li>' + esc(c) + '</li>').join('') + '</ol>' : '') +
     '<div class="wm-stage"><div class="wm-wrap"><canvas class="wm-cv" role="img" aria-label="' + esc(segWords(vm.segs)) + '"></canvas><span class="wm-mark" hidden></span></div></div>' + legendHtml() +
     '<div class="wm-row"><div class="wm-now" hidden><span>Stop now:</span><b class="wm-nowv"></b></div><span class="wm-tim" hidden></span>' + ctrlChips(vm.ctrl) + '</div>' +
-    '<div class="wm-res" hidden></div>' +
+    '<div class="wm-res" hidden></div>' + (mode === 'ready' ? autoRow(vm, false) : '') +
     '<div class="wm-cta">' + go + '</div>' + liveHtml() + '</div>';
 }
 function segWords(segs) {
@@ -313,7 +320,6 @@ export function render(el, vm, dispatch, open) {
   if (st.liveNote) { const n = st.liveNote; st.liveNote = ''; setTimeout(() => setLive(el, n), 0); } // A11Y-1: a task after the render, so the region exists before its text
 }
 function readyHint(el, vm) {
-  if (reducedNow()) return;
   const n = el.querySelector('.wm-now'); if (!n) return;
   n.hidden = false; n.classList.add('is-hint'); n.innerHTML = '<span>Spin, then watch the AIM tick: tap STOP when a ▲ slice is at it</span>';
 }
@@ -333,78 +339,77 @@ function bindView(el) {
     if (t.hasAttribute('data-bowler')) { st.bowler = Number(t.getAttribute('data-bowler')); render(el, vm, st.dispatch, st.open); const f = el.querySelector('[data-bowler="' + st.bowler + '"]'); if (f) f.focus(); return; }
     if (act === 'go') { if (vm.side === 'bowl' && pickedBowler(vm) == null) return; st.bowler = pickedBowler(vm); st.phase = 'ready'; st.restPos = Math.random() * WHEEL_MATCH.CIRC; render(el, vm, st.dispatch, st.open); }
     else if (act === 'back') { st.phase = 'pick'; render(el, vm, st.dispatch, st.open); const f = el.querySelector('[data-wm="go"]'); if (f) f.focus(); }
-    else if (act === 'spin') onSpin(el, vm, t);
-    else if (act === 'auto-over' || act === 'auto-rest') startAuto(el, act === 'auto-rest' ? 'rest' : 'over');
+    else if (act === 'spin') onSpin(el, vm, t, e);
+    else if (act === 'auto-rest') startAuto(el, 'rest');
     else if (act === 'stop-auto') { st.stopReq = true; t.setAttribute('aria-disabled', 'true'); t.querySelector('span').textContent = 'Stopping after this over'; }
   });
 }
 
 // ---------- spin / STOP / glide ----------
-function onSpin(el, vm, btn) {
+/** SPIN: the wheel turns on the pulse until the player taps STOP (no time limit). ev = the SPIN tap (its timeStamp starts the clock). */
+function onSpin(el, vm, btn, ev) {
   if (st.busy) return;
-  const phys = vm.phys || WHEEL_MATCH, payloadBowler = vm.side === 'bowl' ? { bowler: pickedBowler(vm) } : {};
-  if (reducedNow()) { // no spin, no tick, no glow: the unaimed result (store lands it), text first, balls at once
-    const r = st.dispatch('WheelOver', { ...payloadBowler, auto: true }); if (!r) return; // the store lands an aimless spin only as auto (no STOP)
-    st.res = r; const keep = !!el.querySelector('.wm--wheel') && !!st.wheel; if (keep) { const sg = (r.wheel && r.wheel.segs) || vm.segs || [], li = sg.findIndex((g) => g.id === (r.wheel && r.wheel.segId)); if (li >= 0) st.wheel.land(li); st.drawPos = r.wheel && r.wheel.pos != null ? r.wheel.pos : 0; }
-    showResult(el, vm, r, true, keep); return;
-  }
   st.busy = true;
+  const spinTs = tapTime(ev), GUARD = WHEEL_MATCH.STOP_GUARD_S;
+  const phys = vm.phys || WHEEL_MATCH, payloadBowler = vm.side === 'bowl' ? { bowler: pickedBowler(vm) } : {};
   const C = WHEEL_MATCH.CIRC, phi = st.restPos || 0, w = st.wheel, ctrl = vm.ctrl || {}, guide = !!ctrl.guide, segs = vm.segs || [];
-  const nowBox = el.querySelector('.wm-now'), nowV = el.querySelector('.wm-nowv');
+  const nowBox = el.querySelector('.wm-now');
   const sub = btn.querySelector('small'), lab = btn.querySelector('span');
-  let clock = 0, last = 0, raf = 0, stopped = false, prevSeg = -1, chimeUntil = -1, lastNow = -1, lastGlow = null, lastGlowOn = false;
+  let raf = 0, stopped = false, prevSeg = -1, chimeUntil = -1, lastNow = -1, lastGlow = null, lastGlowOn = false;
   const segAtPos = (p) => { const u = ((p % C) + C) % C; for (let i = 0; i < segs.length; i++) { const g = segs[i]; if (u >= g.start && u < g.start + g.width) return i; } return segs.length ? segs.length - 1 : -1; };
   const waitLook = (on) => { btn.classList.toggle('is-wait', on); if (on) btn.setAttribute('aria-disabled', 'true'); else btn.removeAttribute('aria-disabled'); };
   lab.textContent = 'Wait...'; sub.textContent = 'STOP wakes up in a moment'; waitLook(true); btn.setAttribute('data-wm', 'stop');
   const back = el.querySelector('[data-wm="back"]'); if (back) back.remove();
+  const ar = el.querySelector('[data-wm="auto-rest"]'); if (ar) { ar.disabled = true; ar.setAttribute('aria-disabled', 'true'); } // SPEC 2h: disabled while the wheel spins
   if (nowBox) { nowBox.classList.remove('is-hint'); nowBox.innerHTML = '<span>Stop now:</span><b class="wm-nowv"></b>'; }
   const nowEl = () => el.querySelector('.wm-nowv');
-  function frame(ts) {
-    if (stopped) return; const dt = last ? Math.min(0.05, (ts - last) / 1000) : 0.016; last = ts; clock += dt; // tab hidden: the clock pauses (dt clamp)
-    const t = Math.min(clock, phys.COAST), pos = rimAt(phys, t, phi), tick = landingPos(phys, { t, phi, e: 0 });
-    const speed = phys.W0 * Math.exp(-t / phys.TAU), si = segAtPos(pos);
+  const elapsedNow = () => Math.max(0, (performance.now() - spinTs) / 1000); // never integrated: a hidden tab keeps the clock running
+  function frame() {
+    if (stopped) return;
+    const t = elapsedNow(), tc = cycleOf(t, phys).tInCycle, pos = rimAt(phys, t, phi), tick = landingPos(phys, { t, phi, e: 0 });
+    const speed = pulseW(tc, phys), si = segAtPos(pos);
     let zone = false, chime = false;
     if (ctrl.zone) { const z = typeof ctrl.zone === 'number' ? ctrl.zone : 0.2, reach = speed * z; for (let d = 0; d <= reach + 1e-9; d += Math.max(0.05, reach / 8)) { const g = segs[segAtPos(pos + d)]; if (g && g.tone === 'good') { zone = true; break; } } } // feel only
-    if (ctrl.chime && si !== prevSeg && segs[si] && segs[si].tone === 'good') chimeUntil = clock + 0.3; prevSeg = si; chime = clock < chimeUntil; // feel only
+    if (ctrl.chime && si !== prevSeg && segs[si] && segs[si].tone === 'good') chimeUntil = t + 0.3; prevSeg = si; chime = t < chimeUntil; // feel only
     st.drawPos = pos; st.drawOpts = { over: vm.over, tick, band: guide ? phys.J : 0, zone, chime };
     w.draw(pos, st.drawOpts);
     const ni = segAtPos(tick), ne = ni !== lastNow ? nowEl() : null; if (ne) { lastNow = ni; const g = segs[ni]; if (g) { ne.textContent = sliceText(g); ne.className = 'wm-nowv wm-t--' + (g.tone || 'so'); } }
-    if (t >= phys.STOP_FROM && btn.classList.contains('is-wait')) { waitLook(false); lab.textContent = 'STOP'; sub.textContent = 'tap when your slice is at AIM'; btn.setAttribute('aria-label', 'Stop the wheel'); }
-    const gl = glowPhase(clock); // time only; one shot
+    if (t >= GUARD && btn.classList.contains('is-wait')) { waitLook(false); lab.textContent = 'STOP'; sub.textContent = 'tap when your slice is at AIM'; btn.setAttribute('aria-label', 'Stop the wheel'); }
+    const gl = glowPhase(t); // time only; one shot every cycle
     const gv = gl.on ? (gl.level * 7).toFixed(1) : ''; // DOM writes only on change (PERF fix 5)
     if (gl.on !== lastGlowOn) { lastGlowOn = gl.on; btn.classList.toggle('is-glow', gl.on); }
     if (gv !== lastGlow) { lastGlow = gv; if (gv) btn.style.setProperty('--wm-glow', gv + 'px'); }
-    if (gl.on && lab.textContent !== 'STOP!') { lab.textContent = 'STOP!'; sub.textContent = 'Now! ' + WHEEL_MATCH.GLOW_LO + '-' + WHEEL_MATCH.GLOW_HI + ' s'; }
-    else if (clock > WHEEL_MATCH.GLOW_HI && lab.textContent === 'STOP!') { lab.textContent = 'STOP'; sub.textContent = 'tap when your slice is at AIM'; }
-    if (clock >= phys.COAST) return doStop(phys.COAST, true);
+    if (gl.on && lab.textContent !== 'STOP!') { lab.textContent = 'STOP!'; sub.textContent = 'Now!'; }
+    else if (!gl.on && lab.textContent === 'STOP!') { lab.textContent = 'STOP'; sub.textContent = 'tap when your slice is at AIM'; }
     raf = requestAnimationFrame(frame);
   }
-  function doStop(t, coasted) {
+  function doStop(t) {
     if (stopped) return; stopped = true; cancelAnimationFrame(raf); btn.removeEventListener('click', onTap, true);
     btn.classList.remove('is-glow'); waitLook(true); btn.removeAttribute('aria-label'); lab.textContent = 'Slowing...'; sub.textContent = 'please wait';
-    const stop = { t: Math.max(phys.STOP_FROM, Math.min(phys.COAST, t)), phi };
+    const stopT = Math.round(t * 1000), c = cycleOf(stopT / 1000);
+    const stop = { t, phi, stopT, cycle: c.cycle, tInCycle: c.tInCycle }; // the store records it at STOP (recordStop) before the glide
     const r = st.dispatch('WheelOver', { ...payloadBowler, stop });
     if (!r) { st.busy = false; st.phase = 'pick'; render(el, st.vm, st.dispatch, st.open); return; }
     const L = r.wheel || {}, plan = glidePlan(phys, stop, L.pos != null ? L.pos : rimAt(phys, stop.t, phi));
-    const bucket = stopBucket(stop.t, !!coasted);
+    const bucket = stopBucket(stop.t);
     if (nowBox) nowBox.hidden = true;
-    let g0 = 0, gl = 0;
-    function glide(ts) {
-      const dt = gl ? Math.min(0.05, (ts - gl) / 1000) : 0.016; gl = ts; g0 += dt;
-      const s = Math.min(g0, phys.D), pos = plan.base + stopExtra(plan.dist, plan.e, s, phys);
+    const g0 = performance.now();
+    function glide() {
+      const s = Math.min(Math.max(0, (performance.now() - g0) / 1000), phys.D), pos = plan.base + stopExtra(plan.dist, plan.e, s, phys);
       st.drawPos = pos; st.drawOpts = { over: vm.over }; w.draw(pos, st.drawOpts);
-      if (g0 < phys.D) { raf = requestAnimationFrame(glide); return; }
+      if (s < phys.D) { raf = requestAnimationFrame(glide); return; }
       const fin = L.pos != null ? L.pos : pos; st.drawPos = fin;
       afterLanding(el, vm, r, fin, bucket);
     }
     raf = requestAnimationFrame(glide);
   }
-  function onTap(ev) {
+  function onTap(ev2) {
     if (st.vm !== vm && !el.contains(btn)) return;
-    ev.stopPropagation(); ev.preventDefault();
-    const t = Math.min(clock, phys.COAST);
-    if (t < phys.STOP_FROM) return; // early presses do nothing
-    doStop(t, false);
+    ev2.stopPropagation(); ev2.preventDefault();
+    if (stopped) return;
+    const t = (tapTime(ev2) - spinTs) / 1000; // STOP time from the tap itself, not the next frame
+    if (!(t >= GUARD)) return; // STOP guard: a SPIN double tap never becomes a STOP
+    doStop(t);
   }
   btn.addEventListener('click', onTap, true);
   raf = requestAnimationFrame(frame);
@@ -413,7 +418,7 @@ function onSpin(el, vm, btn) {
 function afterLanding(el, vm, r, pos, bucket) {
   const w = st.wheel, segs = (r.wheel && r.wheel.segs) || vm.segs || [], idx = segs.findIndex((g) => g.id === (r.wheel && r.wheel.segId));
   if (idx >= 0) w.land(idx); w.draw(pos, { over: vm.over });
-  const tim = el.querySelector('.wm-tim'); if (tim && bucket) { tim.hidden = false; tim.textContent = TIMING_LINE[bucket] || ''; tim.className = 'wm-tim wm-tim--' + bucket; }
+  const tim = el.querySelector('.wm-tim'); if (tim && bucket) { tim.hidden = false; tim.textContent = TIM_WORD[bucket] || ''; tim.className = 'wm-tim wm-tim--' + bucket; }
   const mk = endMark(r.wheel && r.wheel.end, r.result); stamp(el, mk);
   setTimeout(() => { st.res = r; st.busy = false; showResult(el, st.vm || vm, r, true, true); if (typeof r.prebuild === 'function') setTimeout(r.prebuild, 0); }, mk ? 600 : 400); // warm the next over in the ball row's first gap
 }
@@ -421,14 +426,14 @@ function stamp(el, mk) { const m = el.querySelector('.wm-mark'); if (!m) return;
 
 // ---------- result: wheel at rest + ball row ----------
 function showResult(el, vm, r, fresh, keepWheel) {
-  const reduced = reducedNow(), segs = (r.wheel && r.wheel.segs) || vm.segs || [], idx = segs.findIndex((g) => g.id === (r.wheel && r.wheel.segId)), g = segs[idx];
+  const segs = (r.wheel && r.wheel.segs) || vm.segs || [], idx = segs.findIndex((g) => g.id === (r.wheel && r.wheel.segId)), g = segs[idx];
   const balls = (r.balls || []).slice(0, 6), t = overTotals(balls), mk = endMark(r.wheel && r.wheel.end, r.result), over = r.over || vm.over - 1;
   const say = 'Over ' + over + ': ' + overWords(t.runs, t.wk) + (mk ? '. ' + (mk === 'ALL OUT' ? 'All out' : mk === 'WIN' ? 'Target reached, you win' : 'Scores level, a tie') : '') + '.';
   const shell = !keepWheel || !el.querySelector('.wm--wheel');
   if (shell) {
     const v = { ...vm, over, segs };
     el.innerHTML = wheelHtml(v, 'result');
-    if (reduced || fresh) setLive(el, say); // the live region is in the DOM first; the result text goes in before the balls
+    if (fresh) setLive(el, say); // the live region is in the DOM first; the result text goes in before the balls
     const w = setupWheel(el, segs, v); if (idx >= 0) w.land(idx); const pos = r.wheel && r.wheel.pos != null ? r.wheel.pos : (g ? g.start + g.width / 2 : 0); st.drawPos = pos; st.drawOpts = { over }; w.draw(pos, { over });
     stamp(el, mk);
   } else { setLive(el, say); stamp(el, mk); }
@@ -440,8 +445,7 @@ function showResult(el, vm, r, fresh, keepWheel) {
   const res = root.querySelector('.wm-res'); res.hidden = false;
   const chip = g ? '<b class="wm-chip wm-t--' + esc(g.tone || 'so') + '">' + esc(toneMark(g.tone) + ' ' + landedText(g, r.wheel)) + '</b>' : '';
   const slots = Array.from({ length: 6 }, (_, i) => '<li class="op-slot' + (i >= balls.length ? ' is-unused' : '') + '" data-i="' + i + '"><span class="op-circle" aria-hidden="true"></span><span class="op-word" aria-hidden="true"></span></li>').join('');
-  res.innerHTML = '<div class="wm-resh"><span>Landed on</span>' + chip + '<span class="wm-eq">= ' + esc(overWords(t.runs, t.wk)) + '</span>' +
-    '<button type="button" class="c-icon-btn wm-x" aria-label="Skip to the end of the over"><span class="c-ico c-ico--x"></span></button></div>' +
+  res.innerHTML = '<div class="wm-resh"><span>Landed on</span>' + chip + '<span class="wm-eq">= ' + esc(overWords(t.runs, t.wk)) + '</span></div>' +
     '<ol class="op-circles wm-balls" aria-label="Balls this over" data-res-tap>' + slots + '</ol><p class="wm-found" hidden></p>';
   if (st.wheel) { st.wheel.size(); st.wheel.draw(st.drawPos != null ? st.drawPos : 0, { over }); } // the panel took room: fit the wheel to what is left
   const nr = root.querySelector('.wm-need span'); if (nr && vm.side === 'bat') nr.textContent = '+' + t.runs + ' this over';
@@ -460,11 +464,11 @@ function showResult(el, vm, r, fresh, keepWheel) {
     const f = r.found || []; const fp = res.querySelector('.wm-found');
     if (f.length && fp) { fp.hidden = false; fp.innerHTML = '<button type="button" class="c-btn wm-book">New in your Book! (' + f.length + ')</button>'; if (st.wheel) { st.wheel.size(); st.wheel.draw(st.drawPos != null ? st.drawPos : 0, { over }); } } // D13: refit the wheel to the room left
   }
-  if (reduced || !fresh) finish();
+  if (!fresh) finish();
   else { const ts = ballTimes(balls, over, 10); ts.forEach((tt, i) => timers.push(setTimeout(() => land(i), tt * 1000))); timers.push(setTimeout(finish, (ts[ts.length - 1] || 0) * 1000 + 200)); }
   res.addEventListener('click', (e) => {
     if (e.target.closest('.wm-book')) { const f = r.found || []; next(); if (st.open) st.open('book', { cell: f[0] && f[0].i }); return; }
-    finish(); // tap the panel (or X) to fill every ball at once
+    finish(); // after the landing only: tap the panel to fill every ball at once
   });
   function next() {
     if (!finished) { finish(); return; }
@@ -515,7 +519,6 @@ function autoStep() {
     st.restPos = r.wheel && r.wheel.pos != null ? r.wheel.pos : 0;
     if (typeof r.release === 'function') r.release(); else render(el, st.vm, st.dispatch, st.open);
   };
-  if (reducedNow()) { setLive(el, 'Over ' + (r.over || vm.over) + ': ' + overWords(t.runs, t.wk) + '.'); setTimeout(done, pace * 1000); return; } // A11Y-1: keep the Auto pace; the next render is a later task, so the text is read
   // 0.35 s fast spin, 0.25 s cubic ease-out onto the unaimed result; a wicket / end / last over holds 0.3 s more
   const w = st.wheel, segs = (r.wheel && r.wheel.segs) || vm.segs || [], C = WHEEL_MATCH.CIRC, from = st.restPos || 0, to = r.wheel && r.wheel.pos != null ? r.wheel.pos : from;
   const fwd = ((((to - from) % C) + C) % C), total = 2 * C + fwd, fast = 0.35, ease = 0.25, T = fast + ease;

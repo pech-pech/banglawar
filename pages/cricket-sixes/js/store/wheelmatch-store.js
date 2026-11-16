@@ -127,6 +127,20 @@ function roarChip(s, overIdx) {
 export const modelOf = (s, side, bowler, fresh = false) => wheelOverModel(s, side, bowler, fresh ? { fresh: true } : undefined);
 
 /**
+ * "Auto rest of innings" state (SPEC 2h): visible from over 2; DISABLED (still shown) while a wheel spins, so no wheel is ever auto-stopped.
+ * There is no per-over auto. Pure. @param {{autoRestShown?:boolean}|null} vm @param {boolean} spinning
+ */
+export function autoRestState(vm, spinning) {
+  const shown = !!(vm && vm.autoRestShown), disabled = shown && !!spinning;
+  return { shown, disabled, attrs: disabled ? ' aria-disabled="true" disabled' : '' };
+}
+/** The "Auto rest of innings" button html, '' when not shown (>= 56 px via .wm-auto in css). Pure. @param {{autoRestShown?:boolean}|null} vm @param {boolean} spinning */
+export function autoRestHtml(vm, spinning) {
+  const a = autoRestState(vm, spinning);
+  return a.shown ? '<button type="button" class="c-btn wm-auto" data-wm="auto-rest"' + a.attrs + '>Auto rest of innings</button>' : '';
+}
+
+/**
  * The wheel screen. null unless a wheel match is in stage bowl or chase.
  * @param {any} s @param {number} [pick] bowler the player is looking at (bowl side); default the suggested bowler
  */

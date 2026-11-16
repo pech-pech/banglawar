@@ -55,8 +55,9 @@ test('Easy and Push give the same ring; every slice pays at least x1; course car
 test('coach step does not change the ring (the +1 -> +2 coach lift is retired with the effort rings)', () => {
   const a = wheelSlices('normal', 0), b = wheelSlices('normal', 21); assert.deepEqual(a, b);
 });
-test('wheel-view: no aim, no natural landing branch, stop timestamp, tick, reduced motion', () => {
+test('wheel-view: no aim, no natural landing branch, stop timestamp, tick, no reduced-motion path (SPEC 2e)', () => {
   const src = fs.readFileSync(new URL('../js/ui/wheel-view.js', import.meta.url), 'utf8');
-  assert.equal(/\.aim\b|natural|WIN0|WIN1|inWin/.test(src), false); assert.ok(/timeStamp/.test(src)); assert.ok(/prefers-reduced-motion/.test(src)); assert.ok(/stopExtra/.test(src)); assert.ok(/stopLanding/.test(src));
+  assert.equal(/\.aim\b|natural|WIN0|WIN1|inWin/.test(src), false); assert.ok(/timeStamp/.test(src)); assert.equal(/prefers-reduced-motion|reducedNow|\breduced\b/.test(src), false); assert.ok(/stopExtra/.test(src));
+  assert.ok(/pulseStop\(P, phi, t, e, cum, C, RESPIN\)/.test(src), 'pulse landing: phi + tickAt(t) + e'); assert.equal(/stopLanding|COAST|STOP_FROM/.test(src), false, 'no old coast landing');
   assert.equal(/[^a-zA-Z]ico\(/.test(src.replace(/icoDeco\(/g, '')), false);
 });

@@ -7,9 +7,9 @@
 //                     and reads the field centre at 30 + 10.9, i.e. the sim OFF -9 shifted up 10.9 (same rating differences, same z vs centre)
 //   variant classic   matchMode classic, BowlOver / StartChase with default calls: no boost, centre 30 (sanity)
 // Tapper bots pick the STOP time t (and the start offset phi) and pass {t, phi} through WheelOver:
-//   random  t uniform 1..6 s
+//   random  t uniform guide..6 s (STOP_GUARD_S to the end of cycle 1)
 //   avg     careful naive aim (wheel_match_sim spin_wheel 'naive'): best-value slice with width >= 0.5 unit, tap time whose honest
-//           landing (e 0) is the slice centre with arrival nearest 3.5 s, then t + N(0, 0.110)
+//           landing (e 0, pulse tickAt) is the slice centre with arrival nearest 3.5 s, then t + N(0, 0.110)
 //   good    same, sd 0.070
 //   full    avg with full Control (wheel meta ranks Slow 3, Steady 2, Aim Guide): game physics W0 x0.55, J x0.7225, sd 0.080
 //   savvy   avg sd, picks the slice with the best expected value under its own error model (aim.py choose_target / sim 'savvy')
@@ -22,6 +22,7 @@ import { applyCommand } from '../js/store/commands.js';
 import { FLAGS } from '../js/data/flags.js';
 import { makeRng } from '../js/core/rng.js';
 import { WHEEL_MATCH as WMX, WHEEL_RIVAL_BOOST } from '../js/data/wheelmatch.js';
+import { tickAt } from '../js/core/wheel-pulse.js';
 import { matchPhys, rivalBoostOf, matchOpts, boostedRival } from '../js/core/wheelmatch.js';
 import { centreOf } from '../js/core/match.js';
 import { suggestedBowler, rivalBowler, modelOf } from '../js/store/wheelmatch-store.js';
@@ -37,18 +38,22 @@ const OUR_OFF = { wheel: 1.9, classic: 1.9 };
 const clamp = (x, lo, hi) => Math.max(lo, Math.min(hi, x));
 /** Box-Muller normal (tool only). */
 const gauss = (rng, sd) => { const u = Math.max(1e-12, rng.random()), v = rng.random(); return sd * Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); };
-/** Unwrapped honest landing (e 0): arc(t) + glide distance. Same as core landingPos without the mod. */
-const landU = (P, t) => P.W0 * P.TAU * (1 - Math.exp(-t / P.TAU)) + P.W0 * Math.exp(-t / P.TAU) * P.D / 3;
-function solveT(P, target) { let lo = T_MIN, hi = P.COAST; for (let i = 0; i < 40; i++) { const m = (lo + hi) / 2; if (landU(P, m) < target) lo = m; else hi = m; } return (lo + hi) / 2; }
-/** Tap time whose honest landing is rim pos c from offset phi, arrival nearest 3.5 s (sim tap_time). */
+/** Unwrapped honest landing (e 0) on the pulse: tickAt(t) (core landing = phi + tickAt + wobble, mod CIRC; no coast). */
+const landU = (P, t) => tickAt(t, P);
+const T_HI = WMX.PULSE_PERIOD - 1e-6; // careful taps stay in cycle 1 (t < PULSE_PERIOD)
+const T_LO = Math.max(T_MIN, WMX.STOP_GUARD_S);
+/** Slope of the tick in units/s at t (savvy error model). */
+const slopeU = (P, t) => (landU(P, t + 1e-4) - landU(P, t - 1e-4)) / 2e-4;
+function solveT(P, target) { let lo = T_LO, hi = T_HI; for (let i = 0; i < 50; i++) { const m = (lo + hi) / 2; if (landU(P, m) < target) lo = m; else hi = m; } return (lo + hi) / 2; }
+/** Tap time (cycle 1, after the guard) whose honest landing is rim pos c from offset phi, arrival nearest 3.5 s (sim tap_time). */
 function tapTime(P, c, phi) {
-  const C = WMX.CIRC, k0 = Math.round((landU(P, T_MID) + phi - c) / C), lo = landU(P, T_MIN), hi = landU(P, P.COAST);
+  const C = WMX.CIRC, k0 = Math.round((landU(P, T_MID) + phi - c) / C), lo = landU(P, T_LO), hi = landU(P, T_HI);
   let best = null;
   for (const k of [k0 - 1, k0, k0 + 1]) {
     const tg = c + k * C - phi; if (tg < lo || tg > hi) continue;
     const t = solveT(P, tg); if (best == null || Math.abs(t - T_MID) < Math.abs(best - T_MID)) best = t;
   }
-  return best ?? P.COAST;
+  return best ?? T_MID;
 }
 const Phi = (z) => 0.5 * (1 + erf(z / Math.SQRT2));
 function erf(x) { const s = Math.sign(x), a = Math.abs(x), t = 1 / (1 + 0.3275911 * a); return s * (1 - (((((1.061405429 * t - 1.453152027) * t) + 1.421413741) * t - 0.284496736) * t + 0.254829592) * t * Math.exp(-a * a)); }
@@ -58,13 +63,13 @@ function errCdf(x, sig, J) { if (J <= 1e-9) return Phi(x / sig); return sig / (2
 /** Pick {t, phi} for a tapper on these segments. */
 export function chooseStop(who, segs, P, rng) {
   const phi = rng.random() * WMX.CIRC;
-  if (who === 'random') return { t: 1 + 5 * rng.random(), phi };
+  if (who === 'random') return { t: T_LO + (WMX.PULSE_PERIOD - T_LO) * rng.random(), phi };
   const sd = SD[who], cen = segs.map((g) => g.start + g.width / 2);
   let tgt;
   if (who === 'savvy') {
     let bv = -Infinity;
     for (let i = 0; i < segs.length; i++) {
-      const t = tapTime(P, cen[i], phi), sig = sd * P.W0 * Math.exp(-t / P.TAU) * (1 - P.D / (3 * P.TAU));
+      const t = tapTime(P, cen[i], phi), sig = sd * Math.abs(slopeU(P, t));
       let ev = 0, pt = 0;
       for (const g of segs) { let m = 0; for (const k of [-1, 0, 1]) m += errCdf(g.start + g.width - cen[i] + k * WMX.CIRC, sig, P.J) - errCdf(g.start - cen[i] + k * WMX.CIRC, sig, P.J); ev += m * g.value; pt += m; }
       ev /= Math.max(pt, 1e-9); if (ev > bv) { bv = ev; tgt = i; }
@@ -74,7 +79,7 @@ export function chooseStop(who, segs, P, rng) {
     tgt = cand.reduce((a, i) => (segs[i].value > segs[a].value ? i : a), cand[0]);
   }
   const t0 = tapTime(P, cen[tgt], phi);
-  return { t: Math.min(P.COAST, Math.max(T_MIN, t0 + gauss(rng, sd))), phi };
+  return { t: Math.min(T_HI, Math.max(T_LO, t0 + gauss(rng, sd))), phi };
 }
 
 const BAT = ['Opener', 'Opener', 'Middle', 'Middle', 'Lower', 'Lower'];

@@ -1,5 +1,6 @@
 /* wheel-look: shared look helpers for the Wheel meta UI (wheel-view, workshop-view, tierup-card). Pure, no DOM at import time.
    Cosmetics only: nothing here changes a number. Colours are colour-blind safe by use: every slice also carries its number. */
+import { WHEEL_ENGINE } from '../data/wheel-engine.js';
 export const MATERIALS = ['wood', 'brass', 'steel', 'silver', 'gold', 'star', 'crystal'];
 export const MAT_NAME = { wood: 'Wooden', brass: 'Brass', steel: 'Steel', silver: 'Silver', gold: 'Gold', star: 'Star', crystal: 'Crystal' };
 /** rim colour, dark edge, stud colour per material (pixel-style flat tones) */
@@ -106,3 +107,58 @@ export function sliceWheelSvg(o) {
   return s + '</svg>';
 }
 const TAU = Math.PI * 2, TAU10 = TAU / 10;
+
+/* ---- A2.2: look helpers for the pulse wheels (pure, cosmetic; SPEC 2f, 14 tests 8 and 12). ---- */
+/** STOP glow window in cycle seconds (WHEEL_ENGINE.GLOW). Time only: no slice, tier or ring changes it. */
+export const GLOW_WINDOW = WHEEL_ENGINE.GLOW;
+/** An under-7% slice (rim units: 0.7 of 10) prints one character or a signed number. */
+export const LABEL_MIN_W = 0.7;
+/** true while the STOP glow is lit: tInCycle in [3.2, 3.8] (both ends in). Same for any slice at AIM. */
+export function glowOn(tInCycle) {
+  const t = +tInCycle;
+  return t >= GLOW_WINDOW[0] && t <= GLOW_WINDOW[1];
+}
+/** Draw spec for the AIM marker: a gold up-pointing triangle with an ink outline and the word AIM (shape + text, never colour alone).
+ *  Coordinates are in a 100-unit box, tip pointing down at the wheel from above the rim. */
+export function aimMarker(o) {
+  const size = (o && o.size) || 100, k = size / 100;
+  const pts = [[38, 0], [62, 0], [50, 22]].map((p) => Object.freeze([+(p[0] * k).toFixed(2), +(p[1] * k).toFixed(2)]));
+  return Object.freeze({
+    shape: 'triangle-down', points: Object.freeze(pts), fill: 'var(--gold, #d2b357)', stroke: 'var(--outline, #2a2238)', strokeW: 2.5,
+    text: 'AIM', fontPx: 12, bold: true, textHalo: 2.5, textX: 50 * k, textY: 36 * k,
+  });
+}
+const LEAD_NUM = /^[x×]?\s*([+\-−]?\d+(?:\.\d+)?)(?![\d.])/i;
+/** The text a slice prints. w >= 0.7: the row label. w < 0.7: exactly one character, or a signed number ("+2", "1.2"). */
+export function sliceLabel(row) {
+  const r = row || {}, raw = r.label == null ? '' : String(r.label).trim();
+  if (!(r.w < LABEL_MIN_W)) return raw;
+  const m = LEAD_NUM.exec(raw);
+  if (m) return m[1];
+  const ch = Array.from(raw)[0];
+  if (ch) return ch;
+  return typeof r.value === 'number' ? String(r.value) : '?';
+}
+/** Legend rows [{ch, text}] for every under-7% slice of a ring, one per distinct slice meaning (SPEC 2f).
+ *  Same printed character + same text = one row. Same character with different text = both listed, never merged. */
+export function legendRows(ring) {
+  const out = [], seen = new Set();
+  for (const r of Array.isArray(ring) ? ring : []) {
+    if (!r || !(r.w < LABEL_MIN_W)) continue;
+    const ch = sliceLabel(r);
+    const text = String(r.legend || r.name || (r.label != null && String(r.label).trim()) || (typeof r.value === 'number' ? 'value ' + r.value : ch));
+    const key = ch + '\u0000' + text;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(Object.freeze({ ch, text }));
+  }
+  return out;
+}
+const SAND = [226, 208, 160], PALE_SAND = [240, 232, 206], TIER_GREEN = [126, 178, 97];
+const TIER_SHAPES = {
+  top: Object.freeze({ tier: 'top', shape: 'triangle-up', colour: TIER_GREEN, name: 'high' }),
+  mid: Object.freeze({ tier: 'mid', shape: 'dot', colour: SAND, name: 'middle' }),
+  low: Object.freeze({ tier: 'low', shape: 'dot', colour: PALE_SAND, name: 'lowest' }),
+};
+/** Tier mark: top = green up-triangle, mid = sand dot, low = pale sand dot (a quiet "fine", never rose). Shape differs from colour alone. */
+export function tierShape(tier) { return TIER_SHAPES[tier] || TIER_SHAPES.mid; }

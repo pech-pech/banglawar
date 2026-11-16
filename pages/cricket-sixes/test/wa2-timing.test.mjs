@@ -48,13 +48,15 @@ test('report log uses timingBucket for the spins bk field (old inline rule gone)
 
 test('wheel-view: timing option wiring (window class during spin, removed on stop, bucket + line after stop)', () => {
   assert.match(wheel, /import \{[^}]*TIMING_WIN, timingBucket, TIMING_LINE[^}]*\} from '\.\.\/core\/training\.js'/);
-  assert.match(wheel, /const TIMING = !!o\.timing/);
+  // SPEC 2a / CONTRACT-A 4: the glow is always on (o.timing is accepted and ignored); no coast, so no game tap and no "Coasted" bucket
+  assert.match(wheel, /const TIMING = true;/, 'glow always on');
+  assert.doesNotMatch(wheel, /o\.timing\b/, 'the timing option is never read');
   assert.match(wheel, /tw0 >= TIMING_WIN\.lo && tw0 <= TIMING_WIN\.hi/);
   assert.match(wheel, /go\.classList\.toggle\('is-window', inW\)/);
-  assert.match(wheel, /if \(TIMING\) \{ const tw0 = clock - spinEv/, 'window only with the timing option');
-  assert.match(wheel, /stop\(WS\.COAST, true\)/, 'the game tap at COAST is a coast');
-  assert.match(wheel, /function stop\(t, coasted\)/);
-  assert.match(wheel, /go\.classList\.remove\('is-window'\); if \(TIMING\) timeB = timingBucket\(L\.t, !!coasted\)/);
+  assert.match(wheel, /if \(TIMING\) \{ const tw0 = clock - spinEv - \(f\.cycle - 1\) \* PERIOD/, 'window on cycle time, every cycle');
+  assert.doesNotMatch(wheel, /COAST|coasted|STOP_FROM/, 'no coast and no game tap');
+  assert.match(wheel, /function stop\(t\) \{/);
+  assert.match(wheel, /go\.classList\.remove\('is-window'\); if \(TIMING\) timeB = timingBucket\(st\.tInCycle\)/);
   assert.match(wheel, /if \(TIMING && timeB && !o\.plainResult\) res\.insertAdjacentHTML\('beforeend', '<div class="wh-tim" data-timing="' \+ timeB \+ '"><span class="wh-tim--' \+ timeB \+ '">' \+ esc\(TIMING_LINE\[timeB\]\)/);
   assert.match(wheel, /live\.textContent = \(TIMING && timeB && !o\.plainResult \? TIMING_LINE\[timeB\] \+ '\. ' : ''\)/, 'live region starts with the line');
 });
