@@ -6,7 +6,10 @@ import { rawAbility, isHidden } from './ability.js';
 import { newEconomy, backfillEconomy } from './economy.js';
 import { ECON as E } from '../data/economy.js';
 import { SQUAD } from '../data/run.js';
-import { coachFromOld, startCoach } from './training.js';
+import { coachFromOld, startCoach, MAX_COACHES } from './training.js';
+import { WHEELS_DEFAULT, CLINIC_DEFAULT, SCOUT_DEFAULT, COACH_FIELDS_DEFAULT, REPORT_JOBS_DEFAULT } from '../data/save-defaults.js';
+import { weekKey } from './week-key.js';
+export { weekKey, weekKeyOf } from './week-key.js';
 export const VERSION = 7;
 
 /** fnv1a 32-bit of a string, as 8 hex digits. @param {string} str */
@@ -157,6 +160,51 @@ export function dropFreepickNotice(s) {
   return s;
 }
 
+/** Kind of a value for the default fill: 'obj' (plain object), 'arr', 'num' (finite only), 'bool', 'str', or 'bad'. */
+const kindOf = (x) => (Array.isArray(x) ? 'arr' : isObj(x) ? 'obj' : typeof x === 'number' ? (Number.isFinite(x) ? 'num' : 'bad') : typeof x === 'boolean' ? 'bool' : typeof x === 'string' ? 'str' : 'bad');
+
+/** Fill missing keys of `t` from `def` in place, recursing into non-empty object defaults. A present value is kept unless its kind differs
+ * from the default's (then it is replaced by a clone of the default). A null default keeps any present value. Empty object defaults are free maps. */
+function fillInto(t, def) {
+  for (const k of Object.keys(def)) {
+    const d = def[k];
+    if (t[k] === undefined) { t[k] = structuredClone(d); continue; }
+    if (d === null) continue;
+    if (kindOf(t[k]) !== kindOf(d)) { t[k] = structuredClone(d); continue; }
+    if (isObj(d) && Object.keys(d).length) fillInto(t[k], d);
+  }
+  return t;
+}
+
+/** `s.wheels` with every sub-map present (CONTRACT-A s6 name). Mutates and returns `s`. @param {any} s */
+export function normWheels(s) {
+  if (!isObj(s)) return s;
+  if (!isObj(s.wheels)) s.wheels = {};
+  fillInto(s.wheels, WHEELS_DEFAULT);
+  return s;
+}
+
+/**
+ * Add the save keys introduced without a VERSION bump (wheels SPEC s13, coach-weekly SPEC s9): `wheels.*`, `clinic.*`, `scout.*` (merged into
+ * the existing scout record), per-coach fields on each staff coach, `report.jobs`. Adds missing keys only; never overwrites a present value of
+ * the right type; never throws on partial or garbage values. Idempotent. Mutates and returns `s` (callers pass a private copy).
+ * @param {any} s
+ */
+export function fillSaveDefaults(s) {
+  if (!isObj(s)) return s;
+  normWheels(s);
+  if (!isObj(s.clinic)) s.clinic = {};
+  const T = isObj(s.training) ? s.training : {};
+  fillInto(s.clinic, { ...CLINIC_DEFAULT, week: weekKey(s), slots: MAX_COACHES, netsDone: T.netsWeek != null && T.netsWeek === T.week }); // CONTRACT-B s1: derived defaults
+  if (!isObj(s.scout)) s.scout = {};
+  fillInto(s.scout, SCOUT_DEFAULT);
+  if (Array.isArray(s.coaches)) for (const c of s.coaches) if (isObj(c) && !c.candidate) fillInto(c, COACH_FIELDS_DEFAULT);
+  if (!isObj(s.report)) s.report = {};
+  if (!isObj(s.report.jobs)) s.report.jobs = {};
+  fillInto(s.report.jobs, REPORT_JOBS_DEFAULT);
+  return s;
+}
+
 /**
  * @param {any} data a state at version `from`
  * @param {number} from
@@ -175,6 +223,7 @@ export function migrate(data, from, deps) {
   if (s.v === VERSION) Object.assign(s, tidyTraining(s));
   if (s.v === VERSION) dropFreepickNotice(s); // r9 L8: saves written before the fix carry an undismissable 'freepick' key
   if (s.v === VERSION && isObj(s.season)) Object.assign(s, backfillNote(s)); // v5 saves written by r6 have an economy but no back-fill
+  if (s.v === VERSION) fillSaveDefaults(s); // new keys, no VERSION bump: defaults for anything missing, present values kept
   return { ok: true, state: s, from };
 }
 

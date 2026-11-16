@@ -12,7 +12,30 @@ import { openWheel } from './wheel-view.js';
 import { scoutBodyHtml, scoutDone, scoutSpinOpen } from './coachpick-view.js';
 import { courseWheel } from '../core/training.js';
 
-function coachHtml(c) {
+/* Z5 UI slots (SEAMS-S0): fenced, return '' today. Owners: Course T2, job chip + XP bar T5, Clinic button T6. */
+/* SLOT:Course start */
+export function slotCourse(vm) { return ''; } // owner: T2
+/* SLOT:Course end */
+/* SLOT:JobChip start */
+export function slotJobChip(vm, coach) { return ''; } // owner: T5
+/* SLOT:JobChip end */
+/* SLOT:XpBar start */
+export function slotXpBar(vm, coach) { return ''; } // owner: T5
+/* SLOT:XpBar end */
+/* SLOT:ClinicBtn start */
+export function slotClinicBtn(vm, coach) { return ''; } // owner: T6
+/* SLOT:ClinicBtn end */
+/* SLOT:Click start */
+/** Click slot (S0 lead call 3d): called first in this file's click handlers. Return true when the click was handled (the handler then stops).
+ *  ctx = { vm, dispatch, open, close?, refresh?, where }. T5 and T6 add their branches inside their own fence. Today: false, nothing handled. */
+export function slotClick(e, ctx) {
+  /* SLOT:Click:T5 */
+  /* SLOT:Click:T6 */
+  return false;
+}
+/* SLOT:Click end */
+
+function coachHtml(c, vm) {
   const fit = !!c.helps;
   const cr = c.course || {};
   const price = cr.free ? 'Free' : cr.cost != null ? cr.cost + ' Coins' : '';
@@ -23,13 +46,13 @@ function coachHtml(c) {
     '<p class="tr-note">' + deco(fit ? 'done' : 'info', 20) + '<span>' + (fit ? 'Helps this week: strong in the focus.' : 'No coach help this week: not strong in the focus.') + '</span></p>' +
     '<div class="t2-cbtns"><button type="button" class="c-btn t2-cb" data-pick="' + esc(c.id) + '" aria-pressed="' + !!c.picked + '"' + (c.away ? ' disabled aria-disabled="true"' : '') + '>' + (c.picked ? 'Picked this week' : 'Pick this week') + '</button>' +
     '<button type="button" class="c-btn t2-cb" data-course="' + esc(c.id) + '"' + (cr.ok ? '' : ' disabled aria-disabled="true"') + ' aria-label="' + esc('Course for ' + c.name + (price ? ', ' + price : '') + (cr.ok ? (cr.licence ? '. Uses your Licence' : '') + '. He is away 1 week' : '. ' + (cr.why || 'Not now'))) + '">' + deco('upgrade', 20) + '<span>Course' + (price ? ': ' + esc(price) : '') + (cr.licence ? ' (2nd, Licence)' : '') + '</span></button></div>' +
-    (cr.ok ? '' : '<p class="tr-note t2-why">' + deco('lock', 20) + '<span>' + esc(cr.why || 'Not now') + '</span></p>') + '</section>';
+    (cr.ok ? '' : '<p class="tr-note t2-why">' + deco('lock', 20) + '<span>' + esc(cr.why || 'Not now') + '</span></p>') + slotJobChip(vm, c) + slotXpBar(vm, c) + slotClinicBtn(vm, c) + '</section>';
 }
 
 export function coachesHtml(vm) {
   const cs = vm.coaches || [], free = Math.max(0, (vm.slots || 3) - cs.length), none = !cs.some((c) => c.picked);
   const lic = vm.licence && vm.licence.held > 0 ? '<p class="tr-note t2-lic">' + deco('done', 20) + '<span>' + esc(vm.licence.line || 'Licence: 2nd course allowed') + '</span></p>' : '';
-  return lic + cs.map((c) => coachHtml(c)).join('') +
+  return lic + slotCourse(vm) + cs.map((c) => coachHtml(c, vm)).join('') +
     Array.from({ length: free }, () => '<div class="t2-slot" aria-label="Empty coach slot"><span>' + deco('coach', 24) + '</span><span>Empty slot</span></div>').join('') +
     '<button type="button" class="c-btn c-btn--block t2-scout" data-scout="1">' + deco('scout', 20) + '<span>Scout list' + (vm.scout && vm.scout.open ? '' : ' (done this season)') + '</span></button>' +
     '<button type="button" class="c-btn c-btn--block t2-none" data-pick=""' + (none ? ' aria-pressed="true"' : ' aria-pressed="false"') + '>' + (none ? 'No coach this week (picked)' : 'No coach this week') + '</button>' +
@@ -45,6 +68,7 @@ export function open(vm, dispatch, openFn, arg, refresh) {
   const body = document.querySelector('.sheet-fixed .c-sheet__body');
   if (!body) return close;
   body.addEventListener('click', (e) => {
+    if (slotClick(e, { vm, dispatch, open: openFn, close, refresh, where: 'coaches' })) return;
     const sc = e.target.closest('[data-scout]');
     if (sc) { close(); openScout(vm.scout || (refresh && refresh().scout) || {}, dispatch, refresh); return; }
     const p = e.target.closest('[data-pick]'), c = e.target.closest('[data-course]');
@@ -82,6 +106,7 @@ export function openScout(sv, dispatch, refresh) {
   const spin = (auto) => scoutSpinOpen(() => (refresh ? refresh().scout : sv), dispatch, redraw, auto);
   spin(true); // wheel meta: the Scout reveal when the list opens (spin is null with the flag off)
   body.addEventListener('click', (e) => {
+    if (slotClick(e, { vm: sv, dispatch, close, refresh, where: 'scout' })) return;
     if (e.target.closest('[data-scoutspin]')) { spin(false); return; }
     const t = e.target.closest('[data-act],[data-pass]'); if (!t || t.disabled) return;
     if (t.hasAttribute('data-pass')) { close(); dispatch('PassScout', {}); return; }

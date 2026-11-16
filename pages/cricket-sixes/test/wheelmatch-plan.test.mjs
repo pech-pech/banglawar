@@ -30,7 +30,10 @@ const GOLDEN = {
   r9: '1b390244843ca821d5c8a8bd948663fccbb603868aba065400aacdfbe738310d',
   quick: '716ec809d6b12f30ee2b3f75ebb40fc2317004243bf4db421717e7acbaad5862',
 };
-const strip = (s) => { if (!s || typeof s !== 'object') return s; const { mode, ...r } = s; return r; };
+// S0 (M OK 2026-11-16): also drop the S0 default save keys (wheels, clinic, report, per-coach weekly fields, scout extras) so the classic freeze hash still guards classic play only.
+const COACH_NEW = ['xp', 'xpTotal', 'job', 'jobWeek', 'stepUpPending', 'stepsXp', 'stepsCourse'];
+const s0strip = (r) => { const { wheels, clinic, report, ...o } = r; if (Array.isArray(o.coaches)) o.coaches = o.coaches.map((c) => { if (!c || typeof c !== 'object') return c; const k = { ...c }; for (const f of COACH_NEW) delete k[f]; return k; }); if (o.scout && typeof o.scout === 'object') { const { bonusNames, extraThisSeason, ...sc } = o.scout; if (Object.keys(sc).length) o.scout = sc; else delete o.scout; } return o; };
+const strip = (s) => { if (!s || typeof s !== 'object') return s; const { mode, ...r } = s; return s0strip(r); };
 function seasonTrace(seed, flagSet, matches, onState) {
   return withFlags(flagSet, () => {
     const a = createStore(null); a.dispatch('NewGame', { seed });

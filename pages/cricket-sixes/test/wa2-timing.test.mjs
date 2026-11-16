@@ -7,7 +7,7 @@ import { TIMING_WIN, timingBucket, TIMING_LINE } from '../js/core/training.js';
 import { TRAIN2 } from '../js/data/training.js';
 
 const read = (p) => readFileSync(new URL('../' + p, import.meta.url), 'utf8');
-const wheel = read('js/ui/wheel-view.js'), view = read('js/ui/training-view.js'), coaches = read('js/ui/coaches-sheet.js'), find = read('js/ui/wm-spins.js'), t2 = read('css/training2.css'), log = read('js/report/log.js');
+const wheel = read('js/ui/wheel-view.js'), view = read('js/ui/training-view.js'), coaches = read('js/ui/coaches-sheet.js'), find = read('js/ui/wheels/find.js'), t2 = read('css/training2.css'), log = read('js/report/log.js');
 
 test('TIMING_WIN is 3.2-3.8 s, frozen; COAST is 6 s', () => {
   assert.deepEqual({ ...TIMING_WIN }, { lo: 3.2, hi: 3.8 });

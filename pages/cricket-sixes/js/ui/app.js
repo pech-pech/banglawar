@@ -55,6 +55,10 @@ const SHEETS = {
   trial: { file: 'trial-card', fn: 'openTrial', vm: ['trialVM', () => []] },
   freepick: { file: 'freepick-view', fn: 'openFreePick', vm: ['freePickVM', () => []] },
   workshop: { file: 'workshop-view', fn: 'openWorkshop', vm: ['workshopVM', () => []] }, // Wheel meta: from Home, hidden until wheel tier 1
+  /* SHEETS:T5 start */
+  /* SHEETS:T5 end */
+  /* SHEETS:T6 start */
+  /* SHEETS:T6 end */
 };
 const mods = {}, loading = {};
 /** Letters data the views need, taken from the core when the view model does not already carry it: the pay card (result), the pre-match letter pair and the squad-of-8 notice (hub). */

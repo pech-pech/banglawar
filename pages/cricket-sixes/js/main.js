@@ -4,6 +4,7 @@ import { createSave } from './platform/save.js';
 import { openSaveSheet } from './ui/save-sheet.js';
 import { FLAGS } from './data/flags.js';
 import { applyTheme, themeOf } from './ui/theme.js';
+import './install.js'; // S0 lead call 3a: T5 / T6 listener and command modules (empty today)
 
 const rand = () => Array.from(crypto.getRandomValues(new Uint8Array(8)), (b) => b.toString(16).padStart(2, '0')).join('');
 const q = new URLSearchParams(location.search).get('seed');

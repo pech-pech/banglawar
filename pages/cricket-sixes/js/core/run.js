@@ -10,6 +10,7 @@ import { placeOf, ME } from './season.js';
 import { shownAbility, rawAbility, capSum } from './ability.js';
 import { canPromote } from './economy.js';
 import { isBook, seasonTip } from './pairing.js';
+import { fireHook } from './hooks.js';
 
 const clamp = (/** @type {number} */ v, /** @type {number} */ lo, /** @type {number} */ hi) => Math.min(hi, Math.max(lo, v));
 const clone = (/** @type {any} */ x) => JSON.parse(JSON.stringify(x));
@@ -87,6 +88,7 @@ export function closeSeason(state) {
   let notebook = null; // Coach's notebook (P4): from season 2, the unfound pairing with the most balls is found free
   if (isBook(n.book)) { const t = seasonTip(n.book, se.n); n.book = t.book; notebook = t.cell; }
   run.last = { n: se.n, league: se.league || 1, ...res, champion, finals, chapter, claimed, notebook };
+  fireHook('seasonClose', n, { season: se.n, place: res.place, champion }); // S0 Z3: before any carry (carryOf/applyCarry run later, in commands.js)
   return n;
 }
 
@@ -137,7 +139,8 @@ export function legendOf(p) {
 /** The coach as he carries: same name and strong focuses, grade capped at RUN.carry.coachStep (C-), away and course marks cleared. @param {any} c */
 export function carryCoach(c) {
   const cc = coachList({ coaches: [c] })[0];
-  return { id: cc.id, name: cc.name, step: Math.min(cc.step, RUN.carry.coachStep), strong: cc.strong.slice(), away: 0, courseSeason: null };
+  const { licenceSeason, ...rest } = cc; // a course mark: cleared like courseSeason
+  return { ...rest, id: cc.id, name: cc.name, step: Math.min(cc.step, RUN.carry.coachStep), strong: cc.strong.slice(), away: 0, courseSeason: null }; // Z6: unknown fields (xp, job...) carry; known ones as before
 }
 
 /** What would carry into the next run. @param {any} state @param {string} [coachId] */

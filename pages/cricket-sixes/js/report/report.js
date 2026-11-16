@@ -5,6 +5,7 @@ import { avoidablePoor } from './metrics.js';
 import { BANDS } from './bands.js';
 import { FLAG_DEFAULTS } from './build.js';
 import { zLines } from './z.js';
+import { reportLines } from './lines.js'; // Z4 seam: WHEELS / COACHES / CLINIC line registry (empty today)
 import { REPORT_TICK } from '../core/landtick.js';
 import { isWheel, wheelStats, wheelLine, wheelArr, modeOf, modeHeader, kindOf, devLine } from './wmatch.js'; // wheel match mode (2026-11-15, SPEC s14)
 
@@ -99,7 +100,7 @@ export function cleanOf(matches, env) {
 }
 
 export function envOf(env = {}, data = null) {
-  return { trimmed: !!(env.trimmed || (data && data.trimmed)), fixedSeed: !!env.fixedSeed, tuningSha: env.tuningSha, tuningPinned: env.tuningPinned, migrated: !!env.migrated, build: env.build || '?', now: env.now || Date.now(), vp: env.vp || '?', errors: env.errors || 0, lastError: env.lastError || '', flags: env.flags, features: env.features, win: env.win, rid: env.rid, save: env.save || null, matchMode: env.matchMode || null, dev: env.dev || null };
+  return { trimmed: !!(env.trimmed || (data && data.trimmed)), fixedSeed: !!env.fixedSeed, tuningSha: env.tuningSha, tuningPinned: env.tuningPinned, migrated: !!env.migrated, build: env.build || '?', now: env.now || Date.now(), vp: env.vp || '?', errors: env.errors || 0, lastError: env.lastError || '', flags: env.flags, features: env.features, win: env.win, rid: env.rid, save: env.save || null, matchMode: env.matchMode || null, dev: env.dev || null, state: env.state || null };
 }
 
 /** Per-word open counts, most opened first (ties by name). */
@@ -193,7 +194,7 @@ function matchRow(m) {
   return { txt, j };
 }
 
-function secM(w) {
+function secM(w, env = {}) {
   const title = 'MATCH CALLS [W] Q2';
   let rows = w.ms.filter((m) => m.res || m.ab);
   if (!rows.length) return { key: 'M', title, h: ['none in window'], m: 'm:none', j: [], old: null, short: 'MATCH none in window' };
@@ -214,6 +215,7 @@ function secM(w) {
   if (allW) { // wheel only: no calls, no classic bands (SPEC s14); the W line carries the aim facts
     const ws = wheelStats(rowsAll), fw = rowsAll.filter((m) => m.res);
     h.push(wheelLine(ws));
+    h.push(...reportLines('WHEELS', env.state || {})); // Z4 WHEELS (owner: wheel store thread); empty today
     h.push('Calls: n/a W. Same field n/a W. Call hints n/a W. Why opens n/a W.');
     h.push(`Matchup picks Good ${P(a.mu.G)}, OK ${P(a.mu.O)}, Poor ${P(a.mu.P)}, no preview ${P(a.mu.U)} (wheel: no classic band).`);
     if (fw.length) h.push(`Close finishes ${cnt(fw, (m) => m.close)} of ${fw.length}. Luck: scored ${a.scored} vs exp ${a.xScored}, rival ${a.conc} vs ${a.xConc}; wkts lost ${a.wkLost} vs ${a.xWkLost}, taken ${a.wkTook} vs ${a.xWkTook} (wheel: no classic band).${fw.length < 10 ? ' n small' : ''}`);
@@ -223,6 +225,7 @@ function secM(w) {
     return { key: 'M', title, h, nRows, m: machW, j: rr.map((r) => r.j), old, wl: wheelArr(ws), short: `MATCH ${cnt(fw, (m) => m.res === 'won')}W ${cnt(fw, (m) => m.res === 'lost')}L, wheel ${ws.n} spun, careful ${ws.c}` };
   }
   if (wRows.length) h.push(wheelLine(wheelStats(wRows)) + ' Classic lines below read the classic matches only.');
+  if (wRows.length) h.push(...reportLines('WHEELS', env.state || {})); // Z4 WHEELS; empty today
   h.push(`Calls: Attack in overs 1-7 ${P(attShare)} of batting overs. Attack wkts/over ${awk ?? '-'}. Same field 90%+: ${sameF ? 'yes' : 'no'}. Weak pick kept in overs 1-3: ${P(weakKept)}. ${fin.length < 3 ? 'n small' : verdict((attShare != null && attShare > 33) || sameF || (weakKept != null && weakKept > 50))} [sim 0.8 wkts per Attack over]`);
   const hd = rows.flatMap((m) => m.ov || []).map((o) => o.hd), hint = [hd.filter((x) => x >= 1500).length, hd.filter((x) => x > 0).length];
   h.push(`Calls: hint read ${hint[0]}/${hint[1]} overs (>=1.5 s).`);
@@ -283,6 +286,8 @@ function secC(w, env) {
   if (MM.length) h.push(`Match coach used ${mcUsed} of ${MM.length} matches.`);
   const tl = (kind, k) => cnt(tr, (x) => x.k === k && x.who && x.who.kind === kind), tw = { cs: tl('coach', 'sign'), cd: tl('coach', 'decl'), ps: tl('player', 'sign'), pd: tl('player', 'decl') };
   if (tr.length) h.push(`Trials: coach signed ${tw.cs}, declined ${tw.cd}; player signed ${tw.ps}, declined ${tw.pd}.`);
+  h.push(...reportLines('COACHES', env.state || {})); // Z4 COACHES (owner: coach thread); empty today
+  h.push(...reportLines('CLINIC', env.state || {})); // Z4 CLINIC (owner: clinic thread); empty today
   return { key: 'C', title, h, m: `c:${c ? c[0] : '-'}|tr${tw.cs}/${tw.cd}/${tw.ps}/${tw.pd}|u${used}|w${weeks}|i${idle}|crs${courses.length}|best${best}${MM.length ? '|mc' + mcUsed + '/' + MM.length : ''}`, j: { mc: MM.length ? [mcUsed, MM.length] : undefined, own, trial: tr.length ? [tw.cs, tw.cd, tw.ps, tw.pd] : undefined, use: [used, idle, weeks], course: [courses.length, sum(courses.map((b) => b.price | 0)), gains], best }, short: `COACHES used ${used} of ${weeks} weeks, ${courses.length} courses${MM.length ? ', match coach used ' + mcUsed + ' of ' + MM.length : ''}` };
 }
 
@@ -332,7 +337,7 @@ export function reportParts(data, env0) {
   const h2 = `Window: ${fin.length} matches, ${w.nets.length} nets runs, since ${w.since ? '#' + w.since.rid : 'start'} (${utc(t0)} to ${utc(env.now)}). [W] window [S] season [G] save`;
   const h3 = w.dropped ? `Dropped ${w.dropped.n} records from ${w.dropped.build}` : null;
   const pd = w.pending, h4 = pd ? (pd.res ? `M${pd.id} is on the result screen: not in this report. Leave the result screen, then copy: it comes in whole with its Coins, Fans, pay and feel.` : `M${pd.id} is still in play: it comes in whole in the next report.`) : null; // QA3 B1
-  const secs = [secT(w, env), secM(w), secE(w, env), secC(w, env), secS(w, env), secF(w, data)];
+  const secs = [secT(w, env), secM(w, env), secE(w, env), secC(w, env), secS(w, env), secF(w, data)];
   const h5 = devLine(env.dev); // Dev on with changed values only (06-DEV-SPEED)
   return { env, w, clean, on, rid, h: [h1, h2, h3, h4, h5].filter(Boolean), secs, drop: w.dropped ? w.dropped.n : 0, mode };
 }
