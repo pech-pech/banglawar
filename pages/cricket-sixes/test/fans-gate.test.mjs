@@ -44,3 +44,11 @@ test('table view model carries the gate', () => {
   assert.ok('fansGate' in { fansGate: 1 }); // shape guard below needs a full state; selector-level check is above
   assert.equal(typeof tableVM, 'function');
 });
+test('fans, gate and left ride along; hidden is zeros', () => {
+  const g = fansGateVM(S(2, 765));
+  assert.equal(g.fans, 765); assert.equal(g.gate, 1140); assert.equal(g.left, 375);
+  const r = fansGateVM(S(2, 5000));
+  assert.equal(r.fans, 5000); assert.equal(r.left, 0);
+  const h = fansGateVM(S(5, 9999));
+  assert.deepEqual([h.fans, h.gate, h.left], [0, 0, 0]);
+});

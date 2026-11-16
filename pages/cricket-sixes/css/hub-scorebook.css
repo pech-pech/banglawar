@@ -34,25 +34,43 @@
 .skin-scorebook .hb-pl { font-family: var(--font-body); font-weight: 700; color: var(--sb-ink); }
 .skin-scorebook .hb-badge { background: var(--sb-red); color: var(--sb-stampfg); border: 1.5px solid var(--sb-ink); border-radius: 3px; font-family: var(--font-body); font-weight: 700; }
 
-/* ---- hint bubble: a paper slip with an ink edge; "Resting is free" in margin-red ---- */
-.skin-scorebook .hb-bubble { background: var(--sb-plate); color: var(--sb-ink); border: 2px solid var(--sb-ink); border-radius: 4px; box-shadow: var(--sb-lift); font-family: var(--font-body); font-weight: 400; font-size: 14px; line-height: 18px; letter-spacing: 0; }
-.skin-scorebook .hb-bubble em { font-style: normal; font-weight: 700; color: var(--sb-red); }
-/* tail: colour only (a border-triangle tail takes its colour from the top edge; geometry stays in hub.css) */
-.skin-scorebook .hb-bubble::after { border-top-color: var(--sb-ink); border-color: var(--sb-ink) transparent transparent; }
-.skin-scorebook .hb-bubble::before { border-top-color: var(--sb-plate); }
 
-/* ---- live facility hit-areas stay invisible; keep the focus ring visible in this theme ---- */
-.skin-scorebook .hb-fac:focus-visible { outline: 3px dashed var(--sb-blue); outline-offset: -3px; }
 
 /* "Workshop" (locked plate) was 3 px wider than its box at 344: slightly tighter plate, label still >= 14 px */
 .skin-scorebook .hb-plate { padding-left: 1px; padding-right: 1px; gap: 1px; }
 .skin-scorebook .hb-pl { font-size: 15px; letter-spacing: -.01em; }
 
-/* Fans gate line (report p13 s2) in the Scorebook skin: ink plate under the board. */
-.skin-scorebook .hb-ground > .hb-fg { background: var(--sb-ink); color: var(--sb-plate); border-radius: 0 0 4px 4px; }
-.skin-scorebook .hb-ground > .hb-fg .fg-tx { font-family: var(--font-body); }
-.skin-scorebook .hb-ground > .hb-fg .fg-bar { border-color: var(--sb-plate); }
-.skin-scorebook .hb-ground > .hb-fg .fg-bar > i { background: var(--sb-hi); }
+/* ---- C2.5: dock tiles, banner, band, week chip, Match Plan, strip plate, squad column ---- */
+.skin-scorebook .hb-dock .hb-plate { background: var(--sb-plate); color: var(--sb-ink); border: 2px solid var(--sb-ink); border-radius: 4px; box-shadow: var(--sb-lift); }
+.skin-scorebook .hb-dock .hb-plate.is-locked { background: var(--sb-paper); color: var(--sb-pencil); border-style: dashed; box-shadow: none; }
+.skin-scorebook .hb-banner { background: var(--sb-green); border: 2px solid var(--sb-ink); border-radius: 4px; box-shadow: var(--sb-lift); }
+.skin-scorebook .hb-bcv { filter: sepia(.45) saturate(.7) contrast(1.05); }
+.skin-scorebook .hb-band { background: var(--sb-ink); color: var(--sb-plate); border-top: 2px solid var(--sb-ink); font-family: var(--font-body); }
+.skin-scorebook .hb-band .hb-fg .fg-bar > i { background: var(--sb-hi); }
+.skin-scorebook .hb-week { display: flex; align-items: center; justify-content: center; text-align: center; line-height: 16px; white-space: normal; overflow: hidden; padding-left: 4px; padding-right: 4px; min-width: 0; }
+.skin-scorebook .hb-week:active { background: var(--sb-plate); box-shadow: none; transform: translate(1px, 2px); }
+.skin-scorebook .hb-week:is(:focus-visible, .is-focus) { outline: 3px dashed var(--sb-blue); outline-offset: 3px; }
+.skin-scorebook .hb-plan { background: var(--sb-plate); color: var(--sb-ink); border: 2px solid var(--sb-ink); border-radius: 4px; box-shadow: var(--sb-lift); font-family: var(--font-body); font-weight: 700; }
+.skin-scorebook .hb-plan:active { background: var(--wall1); box-shadow: none; transform: translate(1px, 2px); }
+.skin-scorebook .hb-plan:is(:focus-visible, .is-focus) { outline: 3px dashed var(--sb-blue); outline-offset: 3px; }
+.skin-scorebook .hb-plan .hb-badge { background: var(--sb-red); color: var(--sb-stampfg); }
+.skin-scorebook .hb-strip { background: var(--sb-plate); color: var(--sb-ink); border: 2px solid var(--sb-ink); border-radius: 4px; box-shadow: var(--sb-lift); font-family: var(--font-body); }
+.skin-scorebook .hb-colB:focus-visible { outline: 3px dashed var(--sb-blue); outline-offset: -3px; }
 .skin-scorebook .fg-bar { border-color: var(--sb-ink); }
 .skin-scorebook .fg.is-ready .fg-bar > i { background: var(--sb-green); }
-.skin-scorebook .hb-ground > .hb-fg.is-ready .fg-bar > i { background: var(--grass1); }
+/* week chip: long labels ("Free facility: pick one") ellipsize inside the 56 px tap, never leave the button */
+.skin-scorebook .hb-week { display: flex; align-items: center; justify-content: center; text-align: center; line-height: 16px; white-space: normal; overflow: hidden; padding-left: 4px; padding-right: 4px; min-width: 0; }
+
+/* tokens: the scorebook red is already dark enough for text on the plate */
+.skin-scorebook .hb-hub { --danger-ink: var(--sb-red); }
+/* the banner tap stays a transparent hit area over the canvas in every skin */
+.skin-scorebook .hb-banner > .hb-gb.c-btn, .skin-scorebook .hb-banner > .hb-gb.c-btn:is(:active, .is-pressed) { border: 0; background: transparent; box-shadow: none; transform: none; }
+/* strip: inside the plate, nothing may spill over its border; band text never wraps */
+.skin-scorebook .hb-strip { overflow: hidden; }
+.skin-scorebook .hb-cap, .skin-scorebook .hb-th { white-space: nowrap; overflow: hidden; }
+.skin-scorebook .hb-band .hb-fg .fg-tx { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; }
+.skin-scorebook .hb-week { white-space: normal; }
+.skin-scorebook .hb-colB:focus-visible { outline-offset: 0; }
+/* scorebook strip: the plate border takes 4 px, so goal and caption give back 4 px and the key line is whole */
+.skin-scorebook .hb-goal { height: 34px; }
+.skin-scorebook .hb-cap { margin-top: 2px; }

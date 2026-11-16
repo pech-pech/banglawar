@@ -516,6 +516,15 @@ export function teamVM(s) {
 }
 
 /** The hub as a club screen: everything hubVM has, plus the six, the promotion checklist, the next unlock and one Start match. */
+/** The next hidden-grade player in the six and the drills left until the grade shows, or null. @param {any[]} six */
+function unlockOf(six) {
+  const hidden = six.filter((p) => !gradeOf(p)).sort((a, b) => (b.drillsHere | 0) - (a.drillsHere | 0))[0];
+  return hidden ? { name: hidden.name, left: Math.max(1, DRILLS.revealAfter - (hidden.drillsHere | 0)) } : null;
+}
+/** The Week sheet's data (same sources decorate() and the hub use). */
+export function weekSheetVM(s) {
+  return { notice: s && s.notice ? noticeOf(s) : null, freePick: freePickVM(s), trial: trialVM(s), activities: activitiesVM(s), unlock: s && s.season ? unlockOf(sixIds(s).map((id) => player(s, id))) : null };
+}
 export function clubVM(s) {
   const base = hubVM(s), se = s.season, fx = s.fixture;
   const lp = livePlan(s), t = { ...s, plan: lp };
@@ -529,14 +538,13 @@ export function clubVM(s) {
     { key: 'stadium', title: 'Stadium ' + ((se.league || 1) + 1), sub: 'Not built yet', state: 'later', tag: 'Later' },
     { key: 'fans', title: 'Fans', sub: 'Comes with the stadium', state: 'later', tag: 'Later' },
   ];
-  const hidden = six.filter((p) => !gradeOf(p)).sort((a, b) => (b.drillsHere | 0) - (a.drillsHere | 0))[0];
-  const unlock = hidden ? { name: hidden.name, left: Math.max(1, DRILLS.revealAfter - (hidden.drillsHere | 0)) } : null;
+  const unlock = unlockOf(six);
   const oppPlace = fx ? placeOf(se.table, fx.opp) : 0;
   const ko = fx && fx.kind !== 'league';
   const word = pv.valid ? (lp.edited ? 'Saved' : 'Suggested') : 'Fix it';
   return {
     ...base, club: { name: mine(s).name, week: base.round, league: se.league || 1, weeksLeft: left }, lastLeague: last,
-    six: six.map((p) => ({ id: p.id, name: p.name, grade: gradeOf(p) || '?', pips: pipsOf(p) })),
+    six: six.map((p) => ({ id: p.id, name: p.name, grade: gradeOf(p) || '?', pips: pipsOf(p), bat: shownBat(p), bowl: shownBowl(p) })),
     promo: { title: 'Go up to League ' + ((se.league || 1) + 1), total: rows.length, done: rows.filter((r) => r.state === 'ok').length, rows },
     unlock, plan: { word, ok: pv.valid, reason: pv.reason },
     cta: fx
@@ -797,14 +805,14 @@ export function craftLook(s) {
 }
 
 /** Stadium Fans gate line (report p13 s2). Reads the same figures as the build check (s.econ.fans, ECON.STADIUM_FANS[level to build]); progress only, no number changes.
- *  @returns {{text:string, pct:number, ready:boolean, hidden:boolean, next:number|null}} hidden at Stadium 5 or with no economy. */
+ *  @returns {{text:string, pct:number, ready:boolean, hidden:boolean, next:number|null, fans:number, gate:number, left:number}} hidden at Stadium 5 or with no economy. */
 export function fansGateVM(s) {
   const e = s && s.econ;
   const st = e ? Number(e.stadium) | 0 : 5;
-  if (!e || st >= 5) return { text: '', pct: 100, ready: false, hidden: true, next: null };
+  if (!e || st >= 5) return { text: '', pct: 100, ready: false, hidden: true, next: null, fans: 0, gate: 0, left: 0 };
   const L = st + 1, gate = ECON_FANS_GATE[L], fans = Math.max(0, Math.floor(Number(e.fans) || 0));
   const ready = fans >= gate, c = (n) => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-  return { text: ready ? `Fans ready: build stadium L${L}` : `Fans ${c(fans)} / ${c(gate)} for stadium L${L}`, pct: ready ? 100 : Math.floor(fans * 100 / gate), ready, hidden: false, next: L };
+  return { text: ready ? `Fans ready: build stadium L${L}` : `Fans ${c(fans)} / ${c(gate)} for stadium L${L}`, pct: ready ? 100 : Math.floor(fans * 100 / gate), ready, hidden: false, next: L, fans, gate, left: Math.max(0, gate - fans) };
 }
 
 // ---- wheel match mode (2026-11-15): the wheel screen VM lives in wheelmatch-store.js

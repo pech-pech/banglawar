@@ -13,6 +13,7 @@ import { overlayOpen } from './inert.js';
 import { FLAGS } from '../data/flags.js';
 import { callCompare } from '../store/callcmp.js';
 import { addFinds, clearBadge } from './book-badge.js';
+import { clinicReadyCount } from '../core/clinic.js';
 
 /* Stage table: s.stage -> [view module or file name, selector name]. A file name is loaded on first use
    (other parts' views), so a view that has not landed yet shows "Loading" instead of breaking boot. */
@@ -54,6 +55,7 @@ const SHEETS = {
   activities: { file: 'activities-view', fn: 'openActivities', vm: ['activitiesVM', () => []] },
   trial: { file: 'trial-card', fn: 'openTrial', vm: ['trialVM', () => []] },
   freepick: { file: 'freepick-view', fn: 'openFreePick', vm: ['freePickVM', () => []] },
+  week: { file: 'week-sheet', fn: 'openWeek', vm: ['weekSheetVM', () => []] },
   workshop: { file: 'workshop-view', fn: 'openWorkshop', vm: ['workshopVM', () => []] }, // Wheel meta: from Home, hidden until wheel tier 1
   /* SHEETS:T5 start */
   job: { file: 'job-sheet-vm', fn: 'openJob', state: true },
@@ -77,6 +79,7 @@ function decorate(s, vm) {
     if (s.fixture && !vm.gap) vm.gap = gapLetters(s, s.fixture.opp);
     if (s.notice && !vm.notice) vm.notice = sel.noticeOf(s);
     if (vm.workshop === undefined && typeof sel.workshopVM === 'function') vm.workshop = sel.workshopVM(s); // Wheel meta: .visible only from tier 1 with the flag on
+    if (vm.matchPlan === undefined) vm.matchPlan = { clinic: Math.max(0, Math.min(3, clinicReadyCount(s) | 0)) };
     if (vm.activities === undefined) { vm.activities = sel.activitiesVM(s); vm.trial = sel.trialVM(s); vm.freePick = sel.freePickVM(s); } // r9: null with the flags off
   }
   if (s.stage === 'end' && vm.notebook) {
@@ -208,6 +211,7 @@ export function mount(el, store) {
       release() { if (released) return; released = true; holding = false; render(); },
       prebuild() { try { const t = store.get(); if (t && (t.stage === 'bowl' || t.stage === 'chase')) sel.wheelMatchVM(t); } catch (e) { /* only warms the model memo */ } } }; // PERF fix 4: next over's model off the Next tap
   }
+  dispatch.openByName = openByName; // T5 asks: lets main.js open a sheet by name (return value stays dispatch)
   return dispatch;
 }
 const WHEEL_STAGE = ['wheelmatch-view', 'wheelMatchVM'];

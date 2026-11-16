@@ -73,91 +73,104 @@ test('L2 board: no coins cell without econ', async () => {
 
 const PLATES = { table: 'sheet:table', stadium: 'sheet:stadium', extras: 'sheet:sinks', book: 'sheet:book', workshop: 'sheet:workshop', fans: 'sheet:activities' };
 
-test('L2 six plates: right data-act per slot, 24px icon + hb-pl word, 6 slots in 2 rows', async () => {
+test('L2 dock: 6 tiles, right data-act per slot, 24px icon + hb-pl word', async () => {
   const h = await html();
-  assert.match(h, /hb-row--top/); assert.match(h, /hb-row--bot/); assert.match(h, /hb-field/); assert.match(h, /class="[^"]*hb-ground[^"]*"/); assert.match(h, /aria-label="Your club ground"/);
+  assert.match(h, /class="[^"]*hb-dock[^"]*"/); assert.match(h, /aria-label="Club buildings"/);
   for (const [s, act] of Object.entries(PLATES)) {
-    assert.match(h, new RegExp('data-slot="' + s + '"'), 'slot ' + s);
     const b = btnOf(h, 'data-plate="' + s + '"');
-    assert.ok(b, 'plate ' + s);
+    assert.ok(b, 'tile ' + s);
     assert.match(b, /class="[^"]*hb-plate/); assert.match(b, new RegExp('data-act="' + act + '"')); assert.match(b, /hb-pl/);
   }
-  assert.equal((h.match(/data-slot="/g) || []).length, 6);
-  assert.equal((h.match(/class="[^"]*hb-bld/g) || []).length, 6, 'one .hb-bld per slot');
-  assert.ok(h.indexOf('hb-row--top') < h.indexOf('hb-field') && h.indexOf('hb-field') < h.indexOf('hb-row--bot'), 'order top row, field, bottom row');
+  assert.equal((h.match(/data-plate="/g) || []).length, 6);
+  assert.ok(!/data-slot=|hb-field|hb-row--|hb-bld|hb-ground/.test(h), 'no ground markup');
 });
 
-test('L2 book plate has hidden .hb-badge', async () => {
+test('L2 book tile has hidden .hb-badge when nothing new', async () => {
   const h = await html();
   const b = btnOf(h, 'data-plate="book"');
-  assert.match(b, /<span[^>]*hb-badge[^>]*\bhidden\b[^>]*>/);
+  assert.match(b, /<span[^>]*hb-badge[^>]*\shidden(?=[\s>])[^>]*>/);
 });
 
-test('L2 workshop locked when not visible: disabled plate, no sheet, slot kept', async () => {
+test('L2 workshop locked when not visible: disabled tile, no sheet, slot kept', async () => {
   const h = await html({ workshop: { visible: false, spokes: 0 } });
   assert.ok(!/sheet:workshop/.test(h)); assert.match(h, /aria-disabled="true"/); assert.match(h, /opens later/);
-  assert.match(h, /data-slot="workshop"/); assert.match(h, /data-locked/);
+  assert.match(h, /data-plate="workshop"/); assert.match(h, /is-locked/);
 });
 
-test('L2 fans plate absent when activities null, slot kept', async () => {
+test('L2 fans slot kept (locked) when activities off', async () => {
   const h = await html({ activities: null });
-  assert.ok(!/data-plate="fans"/.test(h)); assert.ok(!/sheet:activities/.test(h));
-  assert.match(h, /data-slot="fans"/);
-  assert.ok(!/hb-bubble/.test(h), 'no bubble without activities');
+  assert.ok(!/sheet:activities/.test(h));
+  const b = btnOf(h, 'data-plate="fans"');
+  assert.ok(b, 'fans tile stays'); assert.match(b, /is-locked/); assert.match(b, /aria-disabled="true"/);
+  assert.ok(!/hb-bubble/.test(h), 'no bubble');
 });
 
-test('L2 bubble: only when activities pending', async () => {
-  const yes = await html();
-  const b = nodeOf(yes, /<div[^>]*hb-bubble[^>]*>[\s\S]*?<\/div>/);
-  assert.ok(b, 'bubble shown'); assert.match(b, /role="status"/); assert.match(text(b), /This week: pick one, or rest\./); assert.match(b, /<em>Resting is free\.<\/em>/);
-  const noav = await html({ activities: { picked: null, available: true } });
-  assert.match(noav, /hb-bubble/);
-  const picked = await html({ activities: { picked: { id: 'tea', name: 'Tea', fans: 3 }, available: true } });
-  assert.ok(!/hb-bubble/.test(picked), 'hidden once picked');
-  assert.match(picked, /data-plate="fans"/, 'plate stays after pick');
-  const unav = await html({ activities: { picked: null, available: false } });
-  assert.ok(!/hb-bubble/.test(unav), 'hidden when unavailable');
+test('L2 Fans tile shows "!" badge only when an activity is pending', async () => {
+  const bang = (h) => nodeOf(btnOf(h, 'data-plate="fans"'), /<span[^>]*hb-badge[^>]*>[\s\S]*?<\/span>/);
+  const yes = bang(await html());
+  assert.ok(yes && !/\shidden(?=[\s>])/.test(yes.match(/<span[^>]*>/)[0]) && text(yes).trim() === '!', 'pending shows !');
+  const picked = bang(await html({ activities: { picked: { id: 'tea', name: 'Tea', fans: 3 }, available: true } }));
+  assert.match(picked, /\shidden(?=[\s>])/, 'hidden once picked');
+  const unav = bang(await html({ activities: { picked: null, available: false } }));
+  assert.match(unav, /\shidden(?=[\s>])/, 'hidden when unavailable');
+  assert.ok(!/hb-bubble/.test(await html()), 'no bubble element');
+});
+
+test('L2 This week chip: shows fan activity word, opens sheet:week, absent when nothing waits', async () => {
+  const h = await html();
+  const chip = btnOf(h, 'hb-week');
+  assert.ok(chip, 'chip'); assert.match(chip, /data-act="sheet:week"/); assert.match(text(chip), /Fan activity: pick one, or rest/);
+  const none = await html({ activities: { picked: null, available: false } });
+  assert.ok(!/hb-week/.test(none), 'no chip when nothing waits');
 });
 
 test('L2 removed: no hb-tools, hb-wk, hb-money, hb-scene, activities card', async () => {
   const h = await html();
-  for (const c of ['hb-tools', 'hb-wk', 'hb-money', 'hb-scene', 'cl-act', 'hb-tool"']) assert.ok(!h.includes(c), c + ' must be gone');
+  for (const c of ['hb-tools', 'hb-wk"', 'hb-money', 'hb-scene', 'cl-act', 'hb-tool"']) assert.ok(!h.includes(c), c + ' must be gone');
   assert.ok(!/This week's fan activity/.test(h) && !/This week&#39;s fan activity/.test(h));
-  assert.equal((h.match(/sheet:activities/g) || []).length, 1, 'only the Fans plate opens activities');
+  assert.equal((h.match(/sheet:activities/g) || []).length, 1, 'only the Fans tile opens activities');
 });
 
-test('L2 .hb-more keeps promo, six, rival, free-pick and trial cards', async () => {
+test('L2 chip lists notice, free pick and trial; no rival/promo/cards on home', async () => {
   const h = await html({
     next: { oppName: 'Brackwell CC', tag: { chip: 'Hard hitters', hint: 'x' } },
     notice: { kind: 'squad8', moved: 2 },
-    freePick: { open: true, id: 'nets', name: 'Nets', options: [{ id: 'nets', name: 'Nets' }] },
-    trial: { open: true, name: 'Trialist', role: 'Opener', grade: 'C' },
+    freePick: { pending: true, open: true, id: 'nets', name: 'Nets', options: [{ id: 'nets', name: 'Nets' }] },
+    trial: { player: { name: 'Trialist' } },
   });
-  const i = h.indexOf('hb-more');
-  assert.ok(i > 0, '.hb-more exists');
-  assert.ok(i > h.indexOf('data-slot="fans"'), 'after the ground');
-  const more = h.slice(i, h.indexOf('hb-foot', i) > 0 ? h.indexOf('<div class="m0-ctabar') : undefined);
-  for (const re of [/hb-promo/, /hb-six"/, /hb-rival/, /hb-notice/]) assert.match(more, re, String(re));
-  assert.match(text(more), /Our six/);
-  // free-pick / trial cards render only if their own views accept this vm shape; they must never sit inside the ground
-  const ground = h.slice(h.indexOf('hb-ground'), i);
-  assert.ok(!/hb-promo|hb-six"|hb-rival|cl-cards/.test(ground), 'cards are below the ground');
+  const { weekItems } = await import('../js/ui/week-sheet.js');
+  const keys = weekItems(base({ notice: { kind: 'squad8', moved: 2 }, freePick: { pending: true }, trial: { player: { name: 'Trialist' } } })).map((i) => i.key);
+  for (const k of ['notice', 'free', 'trial', 'activity']) assert.ok(keys.includes(k), 'week item ' + k);
+  assert.match(text(btnOf(h, 'hb-week')), / · \d/, 'chip shows a count');
+  assert.ok(!/hb-rival|hb-promo|cl-cards/.test(h), 'no rival, promo or card blocks on home');
+  assert.ok(!/hb-more/.test(h), 'hb-more is gone');
 });
 
-test('L2 footer unchanged: Six, Overs, Start match', async () => {
+test('L2 footer: ONE Match Plan button, 6 picked, Overs word, Start match', async () => {
   const h = await html();
   const foot = h.slice(h.indexOf('m0-ctabar'));
   assert.match(foot, /hb-foot/);
-  assert.match(foot, /Edit the six: 6 picked/); assert.match(foot, /Edit the overs: suggested/);
+  const edits = foot.match(/<button[^>]*hb-edit[^>]*>/g) || [];
+  assert.equal(edits.length, 1, 'one .hb-edit');
+  assert.match(edits[0], /hb-plan/);
+  const p = nodeOf(foot, /<button[^>]*hb-edit[\s\S]*?<\/button>/);
+  assert.match(text(p), /Match Plan/); assert.match(text(p), /6 picked · Overs: Suggested/);
   assert.match(foot, /data-act="StartMatch"/); assert.match(text(foot), /Start match/); assert.match(text(foot), /v Brackwell CC · Home/);
   assert.equal((h.match(/m0-ctabar/g) || []).length, 1);
   const dis = await html({ cta: { label: 'Start match', act: 'StartMatch', disabled: true, reason: 'Fix the overs first.' } });
   assert.match(dis, /disabled/); assert.match(dis, /Fix the overs first\./);
 });
 
+test('L2 invalid plan: is-warn and overs arg', async () => {
+  const h = await html({ plan: { word: 'Fix it', ok: false, reason: 'x' } });
+  const p = nodeOf(h, /<button[^>]*hb-plan[^>]*>/);
+  assert.match(p, /is-warn/); assert.match(p, /overs/);
+  assert.equal((h.match(/m0-ctabar/g) || []).length, 1);
+});
+
 test('L2 non-full mode stays simple (header + single CTA)', async () => {
   const h = await render({ season: { n: 1, league: 1 }, phaseWord: 'League', tp: 5, cta: 'Pick your six' });
-  assert.ok(!/hb-ground|hb-board|hb-slot|hb-bubble|hb-more/.test(h), 'no ground in simple mode');
+  assert.ok(!/hb-dock|hb-board|hb-slot|hb-bubble|hb-more/.test(h), 'no ground in simple mode');
   assert.match(h, /OpenSquad/); assert.match(h, /Pick your six/); assert.match(h, /League/);
   assert.equal((h.match(/<button[^>]*hb-cta|c-btn--cta/g) || []).length >= 1, true);
 });
