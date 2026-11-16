@@ -1,6 +1,8 @@
 import test from 'node:test'; import assert from 'node:assert/strict';
 import { runNets, setPlan, spotPaid, netsPreview } from '../js/core/training.js';
 import { game, P, makeRng } from './_tr2-fixture.mjs';
+import { weekKey } from '../js/core/week-key.js';
+const wk = (s, boost) => ({ week: weekKey(s), boost }); // clinicOf only reads this week's block
 
 test('spotPaid: stochastic rounding is EV-true (x1.2, x1.5 within 0.01 over 20000 rolls), never below the roll, deterministic per seed', () => {
   for (const mult of [1.2, 1.5]) {
@@ -32,10 +34,10 @@ test('room cap: the Spotlight paid roll never passes the room', () => {
 test('TP short: a Clinic-boosted player trains first; no boost changes nothing', () => {
   const base = game({ players: [P(1), P(2)], tp: 13, plan: { focus: 'bat', effort: 'normal' } });
   assert.deepEqual(netsPreview(base).trainIds, ['p1']); assert.deepEqual(netsPreview(base).shortIds, ['p2']);
-  for (const b of [{}, { p2: { pcts: [], extraRun: false } }]) assert.deepEqual(netsPreview({ ...base, clinic: { boost: b } }).trainIds, ['p1']);
-  const s = { ...base, clinic: { boost: { p2: { pcts: [10], extraRun: false } } } };
+  for (const b of [{}, { p2: { pcts: [], extraRun: false } }]) assert.deepEqual(netsPreview({ ...base, clinic: wk(base, b) }).trainIds, ['p1']);
+  const s = { ...base, clinic: wk(base, { p2: { pcts: [10], extraRun: false } }) };
   assert.deepEqual(netsPreview(s).trainIds, ['p2']); assert.deepEqual(netsPreview(s).shortIds, ['p1']);
   const r = runNets(s, makeRng('b'), {}); assert.deepEqual(r.lines.map((l) => l.id), ['p2']);
-  const e = { ...base, clinic: { boost: { p2: { pcts: [], extraRun: true } } } }; assert.deepEqual(netsPreview(e).trainIds, ['p2']);
+  const e = { ...base, clinic: wk(base, { p2: { pcts: [], extraRun: true } }) }; assert.deepEqual(netsPreview(e).trainIds, ['p2']);
   assert.deepEqual(netsPreview({ ...base, clinic: 'garbage' }).trainIds, ['p1']);
 });

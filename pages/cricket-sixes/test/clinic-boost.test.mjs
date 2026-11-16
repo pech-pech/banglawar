@@ -156,14 +156,14 @@ test('edge: stale week, missing or corrupt clinic block: no boost, no throw', (t
   assert.deepEqual(jackpotRun({}, {}), []);
 });
 
-test('edge: TP-short or skipped boosted player has no line: nothing gained, no free jackpot', (t) => {
+test('edge: TP-short: a boosted player trains first (T2 rule), the unboosted one at the end is the one left out', (t) => {
   t.after(clearHooks); listen();
-  const s0 = game({ tp: 26 }); // normal effort costs 13: only p1, p2 train
+  const s0 = game({ tp: 26 }); // normal effort costs 13: two players train
   const s = withClinic(s0, { p8: { pcts: [20], extraRun: true } });
   const base = runNets(s0, makeRng('tp'), {}), r = runNets(s, makeRng('tp'), {});
-  assert.ok(!r.lines.some((l) => l.id === 'p8'));
-  assert.deepEqual(me(r.state, 'p8'), me(base.state, 'p8'));
-  assert.deepEqual(normStats(r.state.clinic.stats), emptyStats());
+  assert.ok(!base.lines.some((l) => l.id === 'p8'), 'without the boost p8 is left out');
+  assert.ok(r.lines.some((l) => l.id === 'p8'), 'with the boost p8 trains first');
+  assert.equal(r.lines.length, base.lines.length, 'still two players: TP is unchanged');
 });
 
 test('jackpot: extra roll after the main run, same focus, 0 TP, not boosted, ODDS_EASY + Q', (t) => {
