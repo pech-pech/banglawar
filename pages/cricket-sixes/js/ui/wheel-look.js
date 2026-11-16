@@ -128,27 +128,29 @@ export function aimMarker(o) {
     text: 'AIM', fontPx: 12, bold: true, textHalo: 2.5, textX: 50 * k, textY: 36 * k,
   });
 }
-const SIGNED_NUM = /^[+\-−]?\d+(?:\.\d+)?$/;
+const LEAD_NUM = /^[x×]?\s*([+\-−]?\d+(?:\.\d+)?)(?![\d.])/i;
 /** The text a slice prints. w >= 0.7: the row label. w < 0.7: exactly one character, or a signed number ("+2", "1.2"). */
 export function sliceLabel(row) {
   const r = row || {}, raw = r.label == null ? '' : String(r.label).trim();
   if (!(r.w < LABEL_MIN_W)) return raw;
-  const num = raw.replace(/^x(?=[+\-−]?\d)/i, '');
-  if (SIGNED_NUM.test(num)) return num;
+  const m = LEAD_NUM.exec(raw);
+  if (m) return m[1];
   const ch = Array.from(raw)[0];
   if (ch) return ch;
   return typeof r.value === 'number' ? String(r.value) : '?';
 }
-/** Legend rows [{ch, text}] for every under-7% slice of a ring, one per distinct printed character (SPEC 2f). */
+/** Legend rows [{ch, text}] for every under-7% slice of a ring, one per distinct slice meaning (SPEC 2f).
+ *  Same printed character + same text = one row. Same character with different text = both listed, never merged. */
 export function legendRows(ring) {
   const out = [], seen = new Set();
   for (const r of Array.isArray(ring) ? ring : []) {
     if (!r || !(r.w < LABEL_MIN_W)) continue;
     const ch = sliceLabel(r);
-    if (seen.has(ch)) continue;
-    seen.add(ch);
-    const text = r.legend || r.name || (r.label != null && String(r.label).trim()) || (typeof r.value === 'number' ? 'value ' + r.value : ch);
-    out.push(Object.freeze({ ch, text: String(text) }));
+    const text = String(r.legend || r.name || (r.label != null && String(r.label).trim()) || (typeof r.value === 'number' ? 'value ' + r.value : ch));
+    const key = ch + '\u0000' + text;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(Object.freeze({ ch, text }));
   }
   return out;
 }

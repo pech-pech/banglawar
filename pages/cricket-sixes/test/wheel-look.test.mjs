@@ -60,3 +60,18 @@ test('aim marker spec is a shape plus the word AIM at 12 px', () => {
 });
 
 test('existing exports still work', () => assert.equal(MATERIALS.length, 7));
+
+test('FL "+2 steps" prints "+2"; words print the first letter; x1.2 prints 1.2', () => {
+  assert.equal(sliceLabel({ w: 0.3, label: '+2 steps' }), '+2');
+  assert.equal(sliceLabel({ w: 0.3, label: 'x1.2' }), '1.2');
+  assert.equal(sliceLabel({ w: 0.3, label: 'Fast' }), 'F');
+  assert.equal(sliceLabel({ w: 0.3, label: 'Xtra' }), 'X');
+});
+
+test('FL legend keeps different slices sharing a letter apart, merges identical ones', () => {
+  const rows = legendRows([
+    { w: 0.3, label: 'Fast', legend: 'Fast ball' }, { w: 0.3, label: 'Free', legend: 'Free hit' },
+    { w: 0.3, label: 'Fast', legend: 'Fast ball' }, { w: 0.3, label: '+2 steps' },
+  ]);
+  assert.deepEqual(rows.map((r) => [r.ch, r.text]), [['F', 'Fast ball'], ['F', 'Free hit'], ['+2', '+2 steps']]);
+});
