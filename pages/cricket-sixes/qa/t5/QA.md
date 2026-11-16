@@ -62,3 +62,27 @@ Options:
 ## Not visual (for the build owner)
 - Fixture coach 0 had `job:'nets'` but shows Study, and no shot ever shows a Nets chip. The section 10 case "Only coach is the nets coach: he is Nets" is not covered by any shot. In 05 the only coach is shown as Match.
 - 09 and 10 are byte-identical, which is fine because the card appeared on its own.
+
+## Recheck (diff-only, new shots 01, 02, 05b, 06, 07, 08, 10, 11)
+
+### Verdict: FAIL on one item (D5). D1, D2, D3, D4 and D6 are fixed. No new defects found.
+
+| Defect | Result | Evidence |
+|---|---|---|
+| D1 XP track | PASS | Each segment now has a 2 css px #2a2238 outline: **12.7:1** against cream (243,235,211). Filled segments are #946b00 inside the outline, empty ones are light grey. The away coach's bar in 07 is now visible. |
+| D2 locked rows | PASS (just) | Locked label, reason and XP text are (95,90,102) on (227,216,185): **4.71:1**. The dashed border still shows "locked". |
+| D3 OK button | PASS | OK in 10 uses the same cream fill (243,235,211), 2px #2a2238 border and ink text as Close in 02. Same pixel colours, 272x56. |
+| D4 zero coaches | PASS | 06 shows one dashed card across three columns with "No coach" above "Sign a coach". Both lines are the same size as the 14px chip text (15 device px cap height at 2x), ink on grey is 9.5:1, and the card is about 221x115 css px (well over 56). |
+| D5 focus tags at 344 | **FAIL** | 01, 05b, 07 and 08 still cut the tag icons at the card's right edge. Mehta and Merrick show half a bat, and Okonkwo shows a bat and half a ball. At 475 (11) all tags show in full. |
+| D6 copy | PASS | The rows read "+12 XP at week end" and "+8 XP and 1 scout name". Visible copy no longer contains "EndWeek"; the word only appears as a command id in code. The X stays alongside Close/OK, which D6 option 2 allowed. |
+
+Also checked: chips are 70.9x56 at 344 and 114.6x56 on Fold, and every measured font is 14px or larger. 05b now covers the Nets chip from section 10. Fold 475x638 with 3 coaches: the strip runs from y82 to y272, RUN NETS runs from y572 to y628 with no scroll, and there is no horizontal overflow in any shot.
+
+### Remaining: D5 (minor): focus tags clipped on portrait cards at 344
+Options:
+1. Below about 90px card width, wrap the tag icons onto a second row under the portrait and grade, or under the name.
+2. At 344, show only as many whole icons as fit (`overflow:hidden` on a flex row whose items cannot shrink, so the row drops whole icons and never shows a partial one).
+3. Hide tags on the strip card at narrow widths and show them in the coach picker sheet header instead.
+
+### Advisory (not blocking): XP bars still run together at 344
+In 01 the gap between coach columns (4 css px) is close to the gap between segments (3 css px), so the three bars still read as one long row. Options: widen the column gap to 8px or more; inset each bar 4px so it sits inside its chip's edges; or put each bar in its own dark pill track.

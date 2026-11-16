@@ -12,5 +12,5 @@
 .cw-chip { flex-direction: column; gap: 0; padding: 2px var(--c-sp-1, 4px); min-width: 56px; box-sizing: border-box; line-height: 16px; }
 .cw-chip .cw-ico { width: 18px; height: 18px; }
 .cw-chip .cw-word { font-size: 14px; line-height: 16px; overflow: visible; }
-/* D5: at 360 px and narrower the focus-icon row clips; show only the first icon, at 12 px with tighter gaps so it fits whole. */
-@media (max-width: 360px) { .ct-l2 { gap: 2px; } .ct-fi > :nth-child(n+2) { display: none; } .ct-fi > :first-child, .ct-fi svg, .ct-fi img, .ct-fi canvas { width: 12px; height: 12px; } }
+/* D5: the .ct-l2 row is face 18 + grade + icons in ~64 px inner width; only ~5.5-12 px is left for icons, so .ct-fi (min-width 0) shrank and showed a partial slice. At 360 px and narrower no whole icon fits: hide the icon row (focus stays in the aria-label and the Coaches sheet). */
+@media (max-width: 360px) { .ct-l2 { overflow: hidden; } .ct-fi { display: none; } }
