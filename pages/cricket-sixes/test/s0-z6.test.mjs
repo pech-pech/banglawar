@@ -18,8 +18,8 @@ const counted = (seed) => { const r = makeRng(seed); const c = { draws: 0, rando
 const KNOWN = ['id', 'name', 'step', 'strong', 'away', 'courseSeason'];
 const pick = (o, ks) => Object.fromEntries(ks.filter((k) => k in o).map((k) => [k, o[k]]));
 
-test('Z6 clinic stub: clinicReadyCount is 0 for any state', () => {
-  for (const s of [null, {}, game()]) assert.equal(clinicReadyCount(s), 0);
+test('Z6 clinic stub: clinicReadyCount is an int 0-3 and never throws', () => {
+  for (const s of [null, {}, game()]) { const v = clinicReadyCount(s); assert.ok(Number.isInteger(v) && v >= 0 && v <= 3); }
 });
 
 test('Z6 normCoach (coachList): known fields byte-equal to before, unknown coach fields kept', () => {

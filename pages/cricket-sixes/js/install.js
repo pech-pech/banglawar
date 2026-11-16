@@ -6,4 +6,7 @@
 /* INSTALL:T5 start */
 /* INSTALL:T5 end */
 /* INSTALL:T6 start */
+import './core/clinic-hooks.js';
+import './store/spins/clinic.js';
+import './report/clinic.js';
 /* INSTALL:T6 end */

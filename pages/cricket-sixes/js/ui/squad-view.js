@@ -5,10 +5,12 @@
 // Optional VM fields used when present: title, sub (context line), and per player role ('Opener'|'Middle'|'Lower') and type ('Fast'|'Medium'|'Spin').
 // The tick-offs are view state (never saved); "Confirm my six" dispatches SetSix {ids} once, in batting order.
 import { esc, icoDeco } from './dom.js';
+import { boostChipsHtml, boostParts } from './boost-chip.js';
 import { openGlossary } from './glossary-sheet.js';
 import { shownCell, spoken, benchSlots, fitTick, SQUAD_FULL } from './letters-ui.js';
 
 const SIX = 6;
+const boostChipsText = (b) => boostParts(b).join(', ');
 const ROLE_ICON = { Opener: 'roleOpener', Middle: 'roleMiddle', Lower: 'roleLower' };
 const ROLE_WORD = { Opener: 'Opener', Middle: 'Middle', Lower: 'Lower order' };
 const TYPE_ICON = { Fast: 'typeFast', Medium: 'typeMedium', Spin: 'typeSpin' };
@@ -30,7 +32,8 @@ function reasonFor(n, flash) {
 }
 
 /** @param {any} p @param {number} pos index in the batting order or -1 @param {number} maxBat @param {number} maxBowl */
-function row(p, pos, maxBat, maxBowl, slot) {
+function row(p, pos, maxBat, maxBowl, slot, boost) {
+  const bst = boost && boost[p.id] != null ? boost[p.id] : p.boost, chips = boostChipsHtml(bst);
   const on = pos > -1;
   const hidden = !p.grade || p.grade === '?';
   const role = ROLE_WORD[p.role] || '';
@@ -38,12 +41,12 @@ function row(p, pos, maxBat, maxBowl, slot) {
   const subHtml = (role ? `<span>${esc(role)}</span>` : '') + (type ? `<span class="sq-ty">${icoDeco(TYPE_ICON[type], 14)}${esc(type)}</span>` : '');
   const label = `${p.name}${role ? ', ' + role : ''}${type ? ', ' + type + ' bowler' : ''}, batting ${spoken(shownCell(p.bat).letter)}, bowling ${spoken(shownCell(p.bowl).letter)}, ` +
     (hidden ? 'potential grade ' + DRILLS + `, ${p.pips | 0} of 1 drill` : 'potential grade ' + p.grade) +
-    (p.bat === maxBat ? ', best batter' : '') + (p.bowl === maxBowl ? ', best bowler' : '') + (p.peak ? ', at peak' : '') + (on ? `. Picked, bats number ${pos + 1}. Tap to take out.` : '. ' + (slot ? slot.label + (slot.fit ? ', good fit' : '') : 'On the bench') + '. Tap to pick.');
+    (p.bat === maxBat ? ', best batter' : '') + (p.bowl === maxBowl ? ', best bowler' : '') + (p.peak ? ', at peak' : '') + (chips ? ', ' + boostChipsText(bst) : '') + (on ? `. Picked, bats number ${pos + 1}. Tap to take out.` : '. ' + (slot ? slot.label + (slot.fit ? ', good fit' : '') : 'On the bench') + '. Tap to pick.');
   return `<div class="sq-wrap"><button type="button" class="sq-row${on ? ' is-selected' : ' sq-row--bench'}" role="checkbox" aria-checked="${on}" data-id="${esc(p.id)}" aria-label="${esc(label)}">` +
     `<div class="pbox sq-pbox">${icoDeco(ROLE_ICON[p.role] || 'roleMiddle', 26)}` +
     `<span class="nm name sq-nm">${on ? `<b class="sq-ord" aria-hidden="true">${pos + 1}</b>` : ''}${esc(p.name)}</span>` +
     (on ? '' : `<span class="sub sq-benchline"><span class="sq-bench">${esc(slot ? slot.label : 'Bench')}</span>${slot && slot.fit ? fitTick() : ''}</span>`) +
-    `<span class="sub sq-sub">${subHtml}</span>${hidden ? pips(p.pips) : ''}</div>` +
+    `<span class="sub sq-sub">${subHtml}</span>${chips}${hidden ? pips(p.pips) : ''}</div>` +
     `<div class="sq-nbox${p.bat === maxBat ? ' hi' : ''}">${shownCell(p.bat).html}${p.bat === maxBat ? '<small class="sq-best">Best</small>' : ''}</div>` +
     `<div class="sq-nbox${p.bowl === maxBowl ? ' hi' : ''}">${shownCell(p.bowl).html}${p.bowl === maxBowl ? '<small class="sq-best">Best</small>' : ''}</div>` +
     `</button><button type="button" class="sq-nbox sq-gq sq-info${hidden ? ' sq-unk' : ''}" data-act="sheet:player" data-arg="${esc(JSON.stringify({ id: p.id }))}" aria-label="${esc('Player card for ' + p.name + (hidden ? ', potential grade not known yet' : ', potential grade ' + p.grade))}"><b aria-hidden="true">${hidden ? '?' : esc(p.grade)}</b>${p.peak ? '<small>Peak</small>' : icoDeco('info', 14)}</button></div>`;
@@ -78,10 +81,10 @@ export function render(el, vm, dispatch) {
     `<button type="button" class="q" data-gloss aria-label="Cricket words explained">?</button></header>` +
     `<div class="sq-cols" aria-hidden="true"><span>Player</span><span>Bat</span><span>Bowl</span><span>Potential grade</span></div>` +
     `<div class="sq-list" role="group" aria-label="Squad of ${players.length}">` +
-    picked.map((p, i) => row(p, i, maxBat, maxBowl, null)).join('') +
+    picked.map((p, i) => row(p, i, maxBat, maxBowl, null, vm.boost)).join('') +
     (vm.squadFull && vm.adding ? `<div class="sq-full" role="status">${esc(SQUAD_FULL)}</div>` : '') +
     (bench.length ? `<div class="sq-benchhd">Bench: ${bench.length} not playing</div>` : '') +
-    bench.map((p) => row(p, -1, maxBat, maxBowl, slots.get(p.id))).join('') + `</div>` +
+    bench.map((p) => row(p, -1, maxBat, maxBowl, slots.get(p.id), vm.boost)).join('') + `</div>` +
     `<div class="ctabar sq-cta"><div class="sq-why" id="sq-why" role="status">${esc(reason)}</div>` +
     `<button type="button" class="c-btn c-btn--primary c-btn--cta" data-confirm aria-describedby="sq-why"${ok ? '' : ' disabled aria-disabled="true"'}>Confirm my six</button></div>` +
     `</div>`;

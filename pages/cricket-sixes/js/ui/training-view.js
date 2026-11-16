@@ -152,7 +152,17 @@ export function slotJobChip(vm, coach) { return ''; } // owner: T5
 export function slotXpBar(vm, coach) { return ''; } // owner: T5
 /* SLOT:XpBar end */
 /* SLOT:ClinicBtn start */
-export function slotClinicBtn(vm, coach) { return ''; } // owner: T6
+export function slotClinicBtn(vm, coach) {
+  if (!coach || !coach.id) return '';
+  const k = (coach.clinic && typeof coach.clinic === 'object') ? coach.clinic : (vm && vm.clinic && vm.clinic[coach.id]) || null;
+  const away = coach.away > 0, st = away ? 'course' : k && ['ready', 'used', 'nets', 'course'].includes(k.state) ? k.state : '';
+  if (!st) return ''; // no Clinic data in the coach row (T7 adds coach.clinic): show nothing rather than guess
+  const nm = String(coach.name || 'Coach'), won = st === 'used' ? [k && k.prize, k && k.playerName].filter(Boolean).join(' ') : '';
+  const word = { ready: 'Spin ready', used: won || 'Used', nets: 'Nets done', course: 'On course' }[st];
+  const say = { ready: 'Clinic spin for ' + nm + ', ready. Tap to pick a player', used: 'Clinic spin for ' + nm + ' used' + (won ? ': ' + won : ''), nets: 'Clinic for ' + nm + ': nets already done this week', course: 'Clinic for ' + nm + ': on course' }[st];
+  return '<button type="button" class="c-btn cn-btn ' + { ready: 'cn-btn-ready', used: 'cn-btn-used', nets: 'cn-btn-nets', course: 'cn-btn-course' }[st] + '" data-cn="spin" data-id="' + esc(coach.id) + '"' + (st === 'ready' ? '' : ' aria-disabled="true"') + ' aria-label="' + esc(say) + '">' +
+    '<span class="cn-bw">' + deco('burst', 16) + '<span>Clinic</span></span><small>' + esc(word) + '</small></button>';
+}
 /* SLOT:ClinicBtn end */
 /* SLOT:Click start */
 /** Click slot (S0 lead call 3d): called first in this file's click handlers. Return true when the click was handled (the handler then stops).
@@ -160,6 +170,10 @@ export function slotClinicBtn(vm, coach) { return ''; } // owner: T6
 export function slotClick(e, ctx) {
   /* SLOT:Click:T5 */
   /* SLOT:Click:T6 */
+  { // Clinic button: opens the player pick sheet (sheets key 'clinicpick', state vm, arg {coachId}). Grey states do nothing.
+    const b = e && e.target && e.target.closest ? e.target.closest('[data-cn="spin"]') : null;
+    if (b && ctx && ctx.where !== 'scout') { if (b.getAttribute('aria-disabled') !== 'true' && ctx.open) { if (ctx.close) ctx.close(); ctx.open('clinicpick', { coachId: b.getAttribute('data-id') }); } return true; }
+  }
   return false;
 }
 /* SLOT:Click end */

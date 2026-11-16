@@ -6,6 +6,7 @@
    Also exports the small helpers the other train views share (STAT, letterBar, lineText). */
 import { esc, icoDeco, nameHtml } from './dom.js';
 import { releaseInert } from './inert.js';
+import { boostTotalHtml, boostTotalText } from './boost-chip.js';
 import { stepOfRaw, letterOfRaw, ticksOfRaw } from '../core/letters.js';
 
 /** Stat key (core short key or old long key) -> { k, icon, word, long }. */
@@ -31,7 +32,8 @@ export const bigStep = (l) => !!l && letterOfRaw(l.fromRaw).charAt(0) !== letter
 /** Plain words for one result: `Rafi, Power, C to C+, Good, Breakthrough`. */
 export function lineText(l) {
   const a = letterOfRaw(l.fromRaw), b = letterOfRaw(l.toRaw);
-  return l.name + ', ' + STAT(l.stat).word + ', ' + (a === b ? a + ', bar fills' : a + ' to ' + b) + ', ' + l.word + (l.wheelGain ? ', wheel plus ' + l.wheelGain : '') + (bigStep(l) ? ', Breakthrough' : '');
+  const bt = l.boost && boostTotalText(l.boost);
+  return l.name + (bt ? ', ' + bt : '') + ', ' + STAT(l.stat).word + ', ' + (a === b ? a + ', bar fills' : a + ' to ' + b) + ', ' + l.word + (l.wheelGain ? ', wheel plus ' + l.wheelGain : '') + (bigStep(l) ? ', Breakthrough' : '');
 }
 
 /** One result line (used by the scene and by the list on the training screen). */
@@ -43,7 +45,7 @@ export function lineHtml(l, cls) {
     '</span>' +
     '<span class="t2-l2">' + letterBar(l.toRaw, l.fromRaw) +
     (l.wheelGain ? '<span class="t2-wheel">Wheel +' + esc(l.wheelGain) + '</span>' : '') +
-    (bigStep(l) ? '<span class="t2-bt">Breakthrough!</span>' : '') +
+    (bigStep(l) ? '<span class="t2-bt">Breakthrough!</span>' : '') + (l.boost ? boostTotalHtml(l.boost) : '') +
     '<span class="t2-wd">' + esc(l.word) + '!</span></span></li>'; // QA3 m7: the word sits at the end of row 2, so row 1 has room for the whole name
 }
 
