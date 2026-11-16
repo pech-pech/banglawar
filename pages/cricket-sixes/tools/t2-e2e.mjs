@@ -9,7 +9,7 @@ import net from 'node:net';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = fileURLToPath(new URL('../', import.meta.url));
-const OUT = (process.env.T2_OUT || '/mnt/project-files/games-design/cricket-sixes/2026-11-16-combined-handoff/t2/shots/').replace(/\/?$/, '/');
+const OUT = (process.env.T2_OUT || '/mnt/project-files/games-design/cricket-sixes/2026-11-16-combined-handoff/t2/shots4/').replace(/\/?$/, '/');
 const VIEW = { width: 344, height: 882 };
 const { chromium } = createRequire(import.meta.url)('playwright');
 mkdirSync(OUT, { recursive: true });
@@ -92,10 +92,35 @@ try {
   check(/x\d/.test(sp), 'spotlight strip shows an xN.N multiplier: "' + sp + '"');
   check(!/wheel plus/i.test(sp), 'spotlight strip has no old "wheel plus" text');
   check(await tap('.wh-ov [data-go]'), 'spotlight COLLECT tapped'); await settle(1200);
+  await page.waitForFunction(() => !/Tap to skip/i.test(document.body.innerText), null, { timeout: 30000 }).catch(() => {}); await settle(600); // Nets reveal over: no "Tap to skip" left
+  check(!/Tap to skip/i.test(await page.evaluate(() => document.body.innerText)), 'Nets after-screen: the reveal has ended');
   await shot('train-5-after');
   const rec = await page.evaluate(() => { const w = (window.__store.get().wheels || {}).stops || {}; return ['spot', 'course'].map((k) => Object.keys(w[k] || {}).length); });
   check(rec[0] > 0 && rec[1] > 0, 'stops recorded in wheels.stops (spot ' + rec[0] + ', course ' + rec[1] + ')');
 } catch (e) { check(false, 'script threw: ' + (e.stack || e.message || e)); await shot('zz-failure').catch(() => {}); }
+
+// Course +4 cut at S-: the coach is at step 18, so a +4 (gold) pays only +1. Try later STOP times in fresh sessions until the gold slice lands; shot course-cut-*.
+try {
+  let hit = false;
+  for (let k = 0; k < 30 && !hit; k++) {
+    const c3 = await browser.newContext({ viewport: VIEW, deviceScaleFactor: 1, serviceWorkers: 'block' });
+    await c3.addInitScript((text) => { try { if (!localStorage.getItem('cs.save.1')) localStorage.setItem('cs.save.1', text); } catch (_) { /* none */ } }, saved);
+    const pg = await c3.newPage(); pg.setDefaultTimeout(8000);
+    await pg.goto(`${ORIGIN}/index.html?seed=t2e2e${k}`); await pg.waitForFunction(() => window.__store && window.__store.get(), null, { timeout: 15000 }); await pg.waitForTimeout(700);
+    for (let j = 0; j < 4; j++) { const d = await pg.evaluate(() => { const b = [...document.querySelectorAll('button')].find((x) => /^Done$/i.test((x.innerText || '').trim()) && x.getBoundingClientRect().width > 0); if (b) { b.click(); return true; } return false; }); if (!d) break; await pg.waitForTimeout(350); }
+    for (let j = 0; j < 4 && (await pg.$('.c-sheet, .sheet-fixed, .tr-tip')); j++) { const sk = await pg.$('.tr-tip [data-tip="skip"]'); if (sk) await sk.click(); else await pg.keyboard.press('Escape'); await pg.waitForTimeout(250); }
+    const id = await pg.evaluate(() => { const b = document.querySelector('[data-ct="course"]:not([aria-disabled="true"])'); if (b) { b.click(); return b.getAttribute('data-id'); } return null; });
+    if (!id) { await c3.close(); break; }
+    await pg.waitForTimeout(500); await pg.evaluate(() => { const b = document.querySelector('[data-cf="yes"]'); if (b) b.click(); }); await pg.waitForTimeout(900);
+    await pg.evaluate(() => document.querySelector('.wh-ov [data-go]').click()); await pg.waitForTimeout(3300 + k * 97);
+    await pg.evaluate(() => document.querySelector('.wh-ov [data-go]').click());
+    await pg.waitForSelector('.wh-ov [data-res]:not([hidden])', { timeout: 9000 }).catch(() => {}); await pg.waitForTimeout(800);
+    const txt = await pg.evaluate(() => { const r = document.querySelector('.wh-ov [data-res]'); return r && !r.hidden ? r.innerText.replace(/\s+/g, ' ').trim() : ''; });
+    if (/\+4/.test(txt)) { hit = true; await pg.screenshot({ path: OUT + 'course-cut-4-result.png' }); console.log('  course +4 cut strip:', txt); check(/cut at/i.test(txt), 'Course +4 at S-: the cut line is on the card: "' + txt + '"'); }
+    await c3.close();
+  }
+  check(hit, 'a Course +4 landing was shot (course-cut-4-result)');
+} catch (e) { check(false, 'course cut session threw: ' + (e.stack || e.message || e)); }
 
 // Kind Floor Spotlight: a second session whose save owns the Kind Floor node (f_floor). The selector does not pass the flag to the Spotlight vm yet,
 // so this run patches js/store/selectors.js in flight (kindFloor: mx1.kindFloor) to show the T2 view with the flag set. Shots spotlight-kf-*.
