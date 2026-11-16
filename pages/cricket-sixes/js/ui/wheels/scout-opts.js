@@ -1,6 +1,6 @@
 // @ts-check
 // Scout wheel: pure openWheel option builder (wheels SPEC 2f, 9, 11a; 08-A11Y F4, F5, N7; CONTRACT-A sec 4, 5). T4 wave 3b, scout.
-// Per-row extras for the renderer: row.card {grade, name6, focus, icon}, row.tierShape 'triangle' (above centre) | 'dot' (centre) | 'gold' (+2). Legend rows {ch, icon, text}. Result: '<Name> (<Grade>) joins as your first name, +N steps' (Top name only on the +2 card).
+// Per-row extras for the renderer: row.card {grade, name6, focus, icon}, row.tierShape 'triangle' (above centre) | 'dot' (centre) | 'gold' (+2). Legend rows {ch (shape word tri|dot|gold), text}. Result: '<Name> (<Grade>) joins as your first name, +N steps' (Top name only on the +2 card).
 // No DOM, no openWheel call: the host does `openWheel(scoutWheelOpts(vm, ctx))` once T1's engine lands. spinScout (wheels/scout.js) stays the live path.
 import { scoutWords } from './scout.js';
 
@@ -33,9 +33,9 @@ export function scoutRing(vm) {
 
 /** Legend under the wheel (QA 7: no empty icon, tiers named in words; the +2 gold swatch). Glyphs are decorative (A11Y: legend glyphs aria-hidden). */
 export const SCOUT_LEGEND = Object.freeze([
-  Object.freeze({ ch: '\u25B2', icon: 'triangle', text: 'triangle = above centre' }),
-  Object.freeze({ ch: '\u25CF', icon: 'dot', text: 'dot = centre' }),
-  Object.freeze({ ch: '\u2605', icon: 'gold', text: 'gold = +2' }),
+  Object.freeze({ ch: 'tri', text: 'triangle = above centre' }),
+  Object.freeze({ ch: 'dot', text: 'dot = centre' }),
+  Object.freeze({ ch: 'gold', text: 'gold = +2' }),
 ]);
 
 /** Wheel image name (A11Y F4, option B: grouped by tier, short). @param {any[]} ring */
