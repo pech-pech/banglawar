@@ -46,7 +46,7 @@ test('parity EV ratios near 1.33 / 1.46 / 1.70', () => {
 test('describe gives the visible text and the one line T1 reads in its live region', () => {
   const { calls, deps, ctx } = mk(); openClinicWheel(ctx, deps);
   const d = calls.open.describe({ sliceId: 4, kind: 'L', value: 20 });
-  assert.equal(d.big, 'Landed: Large, +20%.'); assert.equal(d.say, d.big); assert.equal(d.gold, false);
+  assert.equal(d.big, 'Plus 20% nets boost'); assert.equal(d.say, 'Plus 20% nets boost.'); assert.equal(d.gold, false);
   assert.equal(calls.open.describe({ sliceId: 9, kind: 'JP', value: 30 }).gold, true);
 });
 test('wobble is not drawn twice: stop passes through as the engine gave it', () => {

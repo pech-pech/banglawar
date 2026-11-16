@@ -218,3 +218,13 @@ test('L3 real flow: no second Spoke after EndWeek before newSeason', () => {
   const again = C(C(e, 'ClinicPick', { coachId: coachId(e, 1), playerId: firstPlayer(s0) }), 'ClinicSpin', stopFor('S'));
   assert.equal(again.wheelMeta.spokes, spokes);
 });
+
+test('review: STOP for another coach or spinKey than the pending pick is refused', () => {
+  const p = pick(base());
+  const wrongCoach = C(p, 'ClinicSpin', { ...stopFor('M'), coachId: 'someone-else' });
+  assert.deepEqual(wrongCoach.clinic.spins, []); assert.ok(wrongCoach.clinic.pending);
+  const wrongKey = C(p, 'ClinicSpin', { ...stopFor('M'), spinKey: '218:nope' });
+  assert.deepEqual(wrongKey.clinic.spins, []);
+  const ok = C(p, 'ClinicSpin', { ...stopFor('M'), coachId: coachId(p), spinKey: clinicSpinKey(p, coachId(p)) });
+  assert.equal(ok.clinic.spins.length, 1);
+});

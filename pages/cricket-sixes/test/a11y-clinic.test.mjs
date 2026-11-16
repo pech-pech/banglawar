@@ -81,7 +81,7 @@ test('class prefix is cn- (never ct-slot, cl-) in clinic.css and the Clinic mark
 
 test('wheel result: read once by T1 live region (describe().say); visible text equals what is said', () => {
   const w = read('js/ui/wheels/clinic.js'), v = read('js/ui/wheel-view.js');
-  assert.match(w, /say: t/);
+  assert.match(w, /say: t \+/);
   assert.match(v, /role="status" aria-live="polite" data-live/);
   for (let i = 0; i < CLINIC_SLICE_ORDER.length; i++) assert.match(clinicResultText(i), /^Landed: .+\.$/);
 });

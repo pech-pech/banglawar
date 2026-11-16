@@ -6,6 +6,7 @@ import { wheelWobble, wobbleKey } from '../../core/wheel-wobble.js';
 import { recordStop, storedStop } from '../../core/wheel-stops.js';
 import { CLINIC_SLICES, CLINIC_SLICE_ORDER, CLINIC_WHEEL_ID, clinicRing } from '../../data/clinic.js';
 
+const EFFECT = { S: 'Plus 5% nets boost', M: 'Plus 10% nets boost', L: 'Plus 20% nets boost', JP: 'One extra nets roll' };
 const KIND_WORDS = { S: 'Small, +5%', M: 'Medium, +10%', L: 'Large, +20%', JP: 'Jackpot, one extra nets roll' };
 
 /** Median of the ring's slice values (careful = value strictly above it). Pure. */
@@ -53,7 +54,8 @@ export function openClinicWheel(ctx, deps) {
   const wobKey = ctx.wobKey || (deps.wobbleKey ? deps.wobbleKey(s0, CLINIC_WHEEL_ID, Number.isInteger(ctx.slot) ? ctx.slot : 0, 0) : `clinic|${ctx.spinKey}`);
   let landed = stored && stored.stops && stored.stops[stored.kept | 0] ? clinicPending(stored.stops[stored.kept | 0]) : null;
   // T1's wheel screen owns the live region (role=status, aria-live=polite, [data-live]): it reads describe().say once at the result, never while the wheel turns (SPEC s6).
-  const describe = (p) => { const t = clinicResultText(p.sliceId), k = p.kind; return { big: t, chip: '', say: t, gold: k === 'JP' }; };
+  // T1's result box already says "Landed on <slice>" (chip) and its live region reads it: the host line is only the effect, so nothing is said twice.
+  const describe = (p) => { const t = EFFECT[p.kind] || '', k = p.kind; return { big: t, chip: '', say: t + '.', gold: k === 'JP' }; };
   const close = deps.openWheel({
     wheelId: CLINIC_WHEEL_ID, spinKey: ctx.spinKey, ring: clinicRing(), J, wobKey,
     title: 'Clinic', plainResult: true, look: ctx.look,

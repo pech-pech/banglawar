@@ -71,9 +71,12 @@ export function clinicSpin(s, a) {
   if (!isObj(p) || p.coachId == null || p.playerId == null) return s;
   const slot = int(p.slot, -1); // stored by clinicPick, derived there
   const key = keyFn()(s, p.coachId);
+  if ((a.coachId != null && a.coachId !== p.coachId) || (a.spinKey != null && a.spinKey !== key)) return s; // the wheel must be the pending pick's wheel
   if (isObj(s.clinic) && Array.isArray(s.clinic.spins) && s.clinic.spins.some((x) => x && x.spinKey === key)) return s; // reload after STOP: no second Spoke
   const cc = canClinicFn();
   if (typeof cc === 'function') { const r = cc(s, p.coachId); if (!r || !r.ok) return s; }
+  const pk = pickableFn()(s);
+  if (!Array.isArray(pk) || !pk.some((q) => q.playerId === p.playerId && q.ok)) return s; // the picked player must still be able to gain
   const sliceId = int(a.stop.sliceId, -1);
   const kind = CLINIC_SLICE_ORDER[sliceId];
   if (!kind) return s;

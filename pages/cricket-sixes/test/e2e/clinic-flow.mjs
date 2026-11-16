@@ -93,7 +93,7 @@ try {
         }
         step('wheel SPIN then STOP', !!res, 'no result shown within 16 s');
         const vis = await get(() => { const r = document.querySelector('[data-res]'); return r ? r.innerText.replace(/\s+/g, ' ').trim() : ''; }), live = await get(() => { const l = document.querySelector('[data-live]'); return l ? l.textContent.replace(/\s+/g, ' ').trim() : ''; });
-        step('aria-live text equals visible result', !!live && (live.match(/Landed: [^.]*\./) || [''])[0] && vis.includes((live.match(/Landed: [^.]*\./) || [''])[0]) && true, `live "${live}" visible "${vis}"`);
+        const eff = (live.match(/(Plus \d+% nets boost|One extra nets roll)/) || [''])[0]; step('aria-live text equals visible result', !!eff && vis.includes(eff) && /Landed on/.test(vis) && !/false|undefined/.test(vis), `live "${live}" visible "${vis}"`);
         const slice = await get((c) => { const s = window.__store.get(), x = (s.clinic.spins || []).find((q) => q.coachId === c); return x ? JSON.stringify([s.clinic.boost]) : null; }, coachId);
         await wait(700); await load();
         const slice2 = await get((c) => { const s = window.__store.get(), x = ((s.clinic || {}).spins || []).find((q) => q.coachId === c); return x ? JSON.stringify([s.clinic.boost]) : null; }, coachId);
