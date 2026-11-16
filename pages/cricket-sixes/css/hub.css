@@ -1,49 +1,6 @@
 /* P6: hub as the club screen (.hb-*) and the team sheet (.ts-*). Kit variables only, no hexes. 344x780 closed Fold first. */
+/* H2 (C1.1): fenced blocks (STRIP, SIX, FOOT, BANNER, LAYOUT) belong to their C2.x owners; everything else here is C1.1. */
 .hb-hub { --bar-h: 146px; gap: 6px; }
-
-.hb-cv { position: absolute; left: 0; top: 0; display: block; image-rendering: pixelated; }
-.hb-fac { position: absolute; background: transparent; border: 0; padding: 0; margin: 0; cursor: pointer; -webkit-tap-highlight-color: transparent; min-height: 0; }
-.hb-fac:focus-visible { outline: 3px dashed var(--c-focus); outline-offset: -3px; }
-.hb-fac__tag { display: none; }
-.hb-built { display: flex; align-items: center; gap: var(--c-sp-3); padding: var(--c-sp-2) var(--c-sp-3); }
-
-/* promotion checklist */
-.hb-promo { padding: var(--c-sp-2) var(--c-sp-3); }
-.hb-promo > .c-strip:first-child { margin: -8px -12px 4px; font-size: var(--c-fs-m); line-height: var(--c-lh-m); white-space: nowrap; }
-.hb-check { display: grid; grid-template-columns: 24px minmax(0, 1fr) auto; align-items: center; gap: var(--c-sp-2); min-height: 44px; }
-.hb-check + .hb-check { border-top: 2px solid var(--wall1); }
-.hb-check img, .hb-next img, .hb-edit img, .hb-cta img { flex: none; image-rendering: pixelated; }
-.hb-check .sub { display: block; font-size: var(--c-fs-s); line-height: 16px; }
-.hb-next { display: grid; grid-template-columns: 24px minmax(0, 1fr); align-items: center; gap: var(--c-sp-2); min-height: 44px; margin-top: 4px; padding-top: 4px; border-top: 2px dashed var(--wall2); font-size: var(--c-fs-s); line-height: 18px; }
-.hb-next .lb { display: block; font-weight: 700; }
-
-/* the six: 3 x 2 cells, portrait + name + flat grade chip; every cell opens the Six tab */
-.hb-sixhead { font: 400 var(--c-fs-s)/var(--c-lh-s) var(--c-font); }
-.hb-six { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; }
-.hb-p { font: inherit; color: inherit; text-align: left; cursor: pointer; display: grid; grid-template-columns: 28px minmax(0, 1fr); grid-template-rows: auto auto; column-gap: 4px; align-items: center; min-height: 56px; padding: 2px 4px; background: var(--wall1); border: var(--c-border) solid var(--wall2); }
-.hb-p canvas { grid-row: 1 / 3; display: block; image-rendering: pixelated; width: 28px; height: 28px; }
-.hb-p .nm { font-size: var(--c-fs-s); line-height: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.hb-p .c-tag { justify-self: start; font-size: var(--c-fs-s); box-shadow: none; }
-
-/* footer: Six / Overs chips and one Start match */
-.hb-foot { height: auto; display: grid; gap: var(--c-sp-2); padding: 8px 14px calc(8px + env(safe-area-inset-bottom)); }
-.hb-edits { display: grid; grid-template-columns: 1fr 1fr; gap: var(--c-sp-2); }
-.hb-edit { justify-content: flex-start; gap: var(--c-sp-2); padding: 0 var(--c-sp-2); }
-.hb-edit .tx { display: grid; text-align: left; min-width: 0; }
-.hb-edit .tx small { font-size: var(--c-fs-s); line-height: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.hb-edit .tx span { line-height: 18px; }
-.hb-edit.is-warn { border-style: dashed; }
-.hb-cta { gap: var(--c-sp-3); min-height: 64px; }
-.hb-cta .tx { display: grid; text-align: left; min-width: 0; }
-.hb-cta .tx span { line-height: 20px; }
-.hb-cta .tx small { font-size: var(--c-fs-s); line-height: 16px; letter-spacing: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.hb-foot .m0-warn { display: block; }
-
-@media (min-width: 600px) {
-  .hb-foot { grid-template-columns: 1fr 1fr 1.6fr; align-items: end; }
-  .hb-edits { display: contents; }
-  .hb-foot .m0-warn { grid-column: 1 / -1; }
-}
 
 /* ---- team sheet ---- */
 .ts-body { padding-bottom: 0; }
@@ -66,7 +23,7 @@
 .ts-nm .name { display: flex; align-items: center; gap: 4px; font: 16px/18px var(--font-body); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ts-nm small { display: flex; align-items: center; gap: 3px; font-size: var(--c-fs-s); line-height: 16px; white-space: nowrap; overflow: hidden; }
 .ts-ord { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; background: var(--outline); color: var(--cream); font: 14px/1 var(--font-head); font-weight: 400; }
-.ts-n { display: flex; align-items: center; justify-content: center; min-height: 44px; border: 2px solid var(--outline); background: var(--white); }
+.ts-n { display: flex; align-items: center; justify-content: center; min-height: 56px; border: 2px solid var(--outline); background: var(--white); }
 .ts-n b { font: 20px/20px var(--font-head); font-weight: 400; }
 .ts-g.is-q { background: var(--stone1); border-style: dashed; }
 .ts-foot { position: sticky; bottom: 0; display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: var(--c-sp-2); padding: 8px 0 4px; background: var(--cream); margin-top: 4px; }
@@ -98,9 +55,8 @@
 .ts-field { padding: 0; }
 
 /* QA r1: scoreboard.css gives every <main> 92 px bottom padding; the hub is a fixed-bar screen of its own, so none (D4) */
+/* QA r1: scoreboard.css gives every <main> 92 px bottom padding; the hub is a fixed-bar screen of its own, so none (D4) */
 #app:has(> .hb-hub) { padding: 0; }
-/* D21: an open to-do is plain text, not a boxed tag that looks like a button */
-.hb-state { font-size: var(--c-fs-s); line-height: 18px; white-space: nowrap; text-align: right; }
 /* D11: "Out" sits after the name on its own dark chip */
 .ts-out { flex: none; display: inline-flex; align-items: center; gap: 3px; padding: 0 5px; min-height: 20px; background: var(--outline); color: var(--cream); font: 14px/18px var(--font-head); }
 .ts-out img { filter: none; }
@@ -112,31 +68,17 @@
 
 /* A11Y (P4a): the six-player buttons and any keyboard-focusable scroller (the hub's main, a sheet body) get the same 3 px dashed focus ring as every other control. */
 .hb-p:focus-visible, #app:focus-visible, .c-sheet__body:focus-visible { outline: 3px dashed var(--c-focus); outline-offset: -3px; }
-/* P9: next rival chip row (one 56 px tap) and the tight hub spacing that keeps "Our six" above the CTA bar */
-.hb-rival { display: flex; align-items: center; justify-content: flex-start; gap: var(--c-sp-2); min-height: 56px; padding: 2px var(--c-sp-3); text-align: left; }
-.hb-rival img { flex: none; image-rendering: pixelated; }
-.hb-rival .hb-rtx { flex: 1 1 auto; min-width: 0; white-space: normal; overflow-wrap: anywhere; font-size: 16px; line-height: 20px; }
-.hb-hub--rv { gap: 4px; }
-.hb-hub--rv .hb-check { min-height: 34px; }
-.hb-hub--rv .hb-promo { padding-top: 4px; padding-bottom: 4px; }
+/* next-rival hint sheet (opened from the strip) */
 .rv-sheet { display: grid; gap: var(--c-sp-2); padding: var(--c-sp-2) 0; }
 .rv-hint { margin: 0; font-size: 16px; line-height: 22px; }
 .ts-rival { display: grid; gap: 2px; margin-bottom: var(--c-sp-2); }
 .ts-rival p { margin: 0; font-size: 14px; line-height: 18px; }
-.hb-hub--rv .hb-check { min-height: 32px; padding: 0; }
-.hb-hub--rv .hb-check .c-tag { min-height: 0; padding-top: 0; padding-bottom: 0; }
-.hb-hub--rv .hb-promo > .c-strip:first-child { min-height: 30px; margin-bottom: 2px; }
-.hb-hub--rv .hb-check { line-height: 18px; }
-.hb-hub--rv .hb-sixhead { line-height: 16px; }
 /* the top strip is 8 px too wide (scoreboard.css gives .strip margin 0 -8px): the "?" lost its right edge */
 .hb-hub > .strip { margin-left: 0; margin-right: 0; }
 
-
-
-/* ===== L2 "Living ground": header, chapter strip, ground, board, plates, bubble ===== */
-.hb-l2 { gap: 0; --row-h: 164px; --gnd-min: 520px; }
+/* ===== H2 home: header, chapter strip, board, dock ===== */
+.hb-l2 { gap: 0; }
 .hb-l2 > * { grid-column: 1 / -1; }
-.screen.hb-l2 > .hb-ground, .screen.hb-l2 > .hb-chap { margin-left: 0 !important; margin-right: 0 !important; }
 .hb-head { align-items: center; gap: 4px; padding-right: 4px; }
 .hb-head .ss-strip { flex: 1 1 0; min-width: 0; }
 .hb-head .rn-head, .hb-head .hb-lg { font-size: 24px !important; line-height: 26px !important; white-space: nowrap; }
@@ -144,15 +86,9 @@
 .hb-head .hb-sub { font-size: 14px; line-height: 16px; }
 .hb-save { flex: none; width: 56px; height: 56px; min-height: 56px; padding: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0; font: 700 14px/16px var(--c-font); letter-spacing: 0; }
 .hb-save img { width: 24px; height: 24px; image-rendering: pixelated; }
+.hb-save span { font-size: 14px; line-height: 16px; letter-spacing: 0; }
 .hb-chap { margin: 0; padding: 6px 12px; min-height: 34px; background: var(--outline); color: var(--cream); font: 400 16px/20px var(--c-font); border-bottom: var(--c-border) solid var(--outline); }
 .hb-chap b { color: var(--gold); font-weight: 700; }
-
-.hb-ground { position: relative; flex: 1 1 auto; display: flex; flex-direction: column; gap: 6px; padding: 8px; min-height: max(var(--gnd-min), calc(100dvh - 104px - var(--bar-h))); background: var(--grass2); overflow: hidden; isolation: isolate; }
-.hb-ground > * { position: relative; z-index: 1; }
-.hb-gcv { position: absolute !important; left: 0; top: 0; z-index: 0 !important; display: block; image-rendering: pixelated; pointer-events: none; }
-.hb-fac { position: absolute; z-index: 2; background: transparent; border: 0; padding: 0; margin: 0; cursor: pointer; -webkit-tap-highlight-color: transparent; min-height: 0; }
-.hb-fac:focus-visible { outline: 3px dashed var(--c-focus); outline-offset: -3px; }
-.hb-built { display: flex; align-items: center; gap: var(--c-sp-3); padding: var(--c-sp-2) var(--c-sp-3); }
 
 .hb-board { flex: none; display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); background: var(--outline); border: var(--c-border) solid var(--outline); color: var(--cream); }
 .hb-cell { display: flex; align-items: center; justify-content: center; gap: 6px; min-width: 0; min-height: 56px; padding: 4px; margin: 0; background: transparent; color: var(--cream); border: 0; border-radius: 0; box-shadow: none; font: inherit; text-align: left; }
@@ -165,45 +101,16 @@
 .hb-cell--coins { cursor: pointer; border: var(--c-border) solid var(--gold); }
 .hb-cell--coins:focus-visible { outline: 3px dashed var(--c-focus); outline-offset: -5px; }
 
-.hb-row { flex: none; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
-.hb-slot { display: flex; flex-direction: column; justify-content: flex-end; gap: 4px; min-width: 0; }
-.hb-bld { flex: none; height: 100px; }
-.hb-plate { position: relative; width: 100%; min-height: 56px; height: 56px; padding: 2px; display: flex; align-items: center; justify-content: center; gap: 2px; font: 700 16px/16px var(--c-font); letter-spacing: 0; white-space: normal; overflow: visible; text-align: left; background: var(--cream); color: var(--outline); border: var(--c-border) solid var(--outline); }
+/* dock: 2 x 3 plates, 56 px rows, 6 px gap */
+.hb-dock { flex: none; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); grid-auto-rows: 56px; gap: 6px; }
+.hb-plate { position: relative; width: 100%; min-width: 0; min-height: 56px; height: 56px; padding: 2px; display: flex; align-items: center; justify-content: center; gap: 2px; font: 700 16px/16px var(--c-font); letter-spacing: 0; white-space: normal; overflow: visible; text-align: left; background: var(--cream); color: var(--outline); border: var(--c-border) solid var(--outline); }
 .hb-plate img, .hb-plate svg { flex: none; width: 24px; height: 24px; image-rendering: pixelated; }
-.hb-save span { font-size: 14px; line-height: 16px; letter-spacing: 0; }
 .hb-pl { font-size: 16px; line-height: 18px; letter-spacing: 0; min-width: 0; flex: 0 1 auto; white-space: normal; overflow: visible; text-overflow: clip; }
 .hb-plate.is-locked { opacity: .85; border-style: dashed; cursor: default; }
 .hb-badge { position: absolute; top: -6px; right: -4px; min-width: 20px; height: 20px; padding: 0 4px; background: var(--danger); color: var(--white); border: var(--c-border) solid var(--outline); font: 700 14px/16px var(--c-font); text-align: center; }
 .hb-badge[hidden] { display: none; }
-.hb-field { flex: 1 1 auto; min-height: 120px; }
 
-/* fan bubble: HTML over the field, just above the fans slot, tail points at it */
-.hb-bubble { position: absolute !important; z-index: 3 !important; right: 8px; bottom: calc(var(--row-h) + 18px); width: calc(66.667% - 6px); max-width: 320px; padding: 6px 8px; background: var(--white); color: var(--outline); border: var(--c-border) solid var(--outline); font: 400 14px/18px var(--c-font); }
-.hb-bubble em { font-style: normal; color: var(--danger); white-space: nowrap; }
-.hb-bubble::after { content: ""; position: absolute; right: 22px; top: 100%; border: 8px solid transparent; border-top-color: var(--outline); border-bottom-width: 0; }
-.hb-bubble::before { content: ""; position: absolute; right: 24px; top: calc(100% - 2px); z-index: 1; border: 6px solid transparent; border-top-color: var(--white); border-bottom-width: 0; }
-
-.hb-more { display: grid; gap: var(--c-sp-2); padding: 30px 0 0; }
-.hb-more:empty { display: none; }
-
-@media (min-width: 600px) {
-  .hb-l2 { --row-h: 188px; --gnd-min: 680px; }
-  .hb-head .ss-strip { flex-direction: row; align-items: baseline; gap: 0; flex-wrap: wrap; }
-  .hb-head .hb-lg::before { content: "\00a0\00b7\00a0"; white-space: pre; }
-  .hb-head .hb-sub { margin-left: 8px; }
-  .screen.hb-l2 > .hb-ground, .screen.hb-l2 > .hb-chap { margin-left: -14px !important; margin-right: -14px !important; }
-  .hb-bld { height: 124px; }
-  .hb-ground { padding: 8px 14px; }
-  .hb-chap { padding-left: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .hb-bubble { right: 14px; }
-}
-@media (max-width: 599px) and (max-height: 700px) {
-  .hb-l2 { --gnd-min: 620px; }
-  .hb-field { min-height: 200px; }
-}
-@media (prefers-reduced-motion: reduce) { .hb-l2 * { animation: none !important; transition: none !important; } }
-
-/* Fans gate line + bar (report p13 s2): one 14px line and a 6px bar under the scoreboard / above the league table. Progress only. */
+/* Fans gate line + bar (report p13 s2): one 14px line and a 6px bar. Progress only. */
 .fg { display: grid; gap: 3px; padding: 3px 4px; min-width: 0; }
 .fg-tx { font-size: 14px; line-height: 16px; font-weight: 700; overflow-wrap: anywhere; }
 .fg-bar { display: block; height: 6px; border: 1px solid var(--outline); background: var(--cream); }
@@ -211,6 +118,127 @@
 .fg-tx { display: flex; align-items: center; gap: 3px; }
 .fg-tx svg, .fg-tx img { flex: none; }
 .fg.is-ready .fg-bar > i { background: var(--grass3); } /* QA D5: --c-ok was never defined, so ready looked like progress; green + a check icon now */
-.hb-ground > .hb-fg.is-ready .fg-bar > i { background: var(--grass1); }
-.hb-ground > .hb-fg { flex: none; background: var(--outline); color: var(--cream); margin-top: -6px; grid-template-columns: auto minmax(40px, 1fr); align-items: center; column-gap: 8px; padding: 2px 6px; } /* QA D9: text and bar on ONE row so the band is ~16 px, not ~29 */
-.hb-ground > .hb-fg .fg-bar { border-color: var(--cream); background: transparent; }
+
+/* FENCE:STRIP start */
+/* C2.1 strip: goal 36 + caption 22 + key 16 = 74 (cap 76) */
+.hb-strip { box-sizing: border-box; display: flex; flex-direction: column; height: 74px; min-width: 0; overflow: hidden; }
+.hb-goal { flex: none; display: flex; align-items: center; gap: 8px; height: 36px; padding: 0 10px 0 8px; background: var(--outline); color: var(--cream); border-bottom: 2px solid var(--outline); white-space: nowrap; min-width: 0; }
+.hb-goal img, .hb-goal svg { flex: none; width: 24px; height: 24px; }
+.hb-goal__t { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
+.hb-goal__a { font: 18px/16px var(--font-head); overflow: hidden; text-overflow: ellipsis; }
+.hb-goal__a em { font-style: normal; color: var(--gold); }
+.hb-goal__b { font: 16px/16px var(--c-font); color: var(--grass1); overflow: hidden; text-overflow: ellipsis; }
+.hb-goal__g { flex: none; display: flex; flex-direction: column; align-items: flex-end; }
+.hb-goal__n { font: 16px/16px var(--c-font); color: var(--grass1); }
+.hb-goal__n b { font: 400 18px/16px var(--font-head); color: var(--cream); }
+.hb-goal__cx { display: flex; gap: 4px; padding-top: 2px; }
+.hb-goal__cx i { display: block; width: 14px; height: 14px; box-sizing: border-box; border: 2px solid var(--cream); }
+.hb-goal__cx i.on { background: var(--cream); box-shadow: inset 0 0 0 2px var(--outline); }
+.hb-cap { flex: none; display: flex; align-items: center; gap: 4px; height: 20px; margin-top: 4px; padding: 0 8px; font: 16px/16px var(--c-font); white-space: nowrap; position: relative; }
+.hb-cap .lt-box { min-width: 28px; min-height: 20px; padding: 0 2px; font: 18px/16px var(--font-head); }
+.hb-cap__v { font: 18px/16px var(--font-head); }
+.hb-cap__v--up { color: var(--grass3); }
+.hb-cap__v--dn { color: var(--danger-ink, var(--danger)); }
+.hb-cap__sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.hb-th { flex: none; display: flex; align-items: center; justify-content: center; gap: 14px; height: 14px; padding: 0 6px; font: 14px/14px var(--c-font); white-space: nowrap; }
+.hb-th__k, .hb-th__k > span { display: flex; align-items: center; }
+.hb-th__k { gap: 4px; }
+.hb-th__k > span { gap: 2px; }
+.hb-mi { display: block; flex: none; image-rendering: pixelated; }
+.hb-mi .mo { fill: var(--outline); } .hb-mi .mg { fill: var(--gold); } .hb-mi .mr { fill: var(--danger); } .hb-mi .mw { fill: var(--white); } .hb-mi .mR { fill: var(--danger); fill-opacity: .7; }
+/* FENCE:STRIP end */
+
+/* FENCE:SIX start */
+/* C2.2 (stub keeps today's cell look) */
+.hb-six { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-auto-flow: column; grid-template-rows: repeat(3, 56px); gap: 6px; }
+.hb-p { font: inherit; color: inherit; text-align: left; cursor: pointer; display: grid; grid-template-columns: 12px minmax(0, 1fr) 34px 34px; align-items: center; gap: 4px; min-height: 56px; padding: 2px 4px; background: var(--wall1); border: var(--c-border) solid var(--wall2); }
+.hb-p .hb-n { font-size: 14px; line-height: 16px; font-weight: 700; }
+.hb-p .nm { font-size: 14px; line-height: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+/* FENCE:SIX end */
+
+/* FENCE:FOOT start */
+/* C2.3 (stub keeps today's footer look) */
+.hb-foot { height: auto; display: grid; gap: var(--c-sp-2); padding: 8px 14px calc(8px + env(safe-area-inset-bottom)); }
+.hb-edit { justify-content: flex-start; gap: var(--c-sp-2); padding: 0 var(--c-sp-2); }
+.hb-edit .tx { display: grid; text-align: left; min-width: 0; }
+.hb-edit .tx small { font-size: var(--c-fs-s); line-height: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hb-edit .tx span { line-height: 18px; }
+.hb-edit.is-warn { border-style: dashed; }
+.hb-edit img, .hb-cta img { flex: none; image-rendering: pixelated; }
+.hb-cta { gap: var(--c-sp-3); min-height: 64px; }
+.hb-cta .tx { display: grid; text-align: left; min-width: 0; }
+.hb-cta .tx span { line-height: 20px; }
+.hb-cta .tx small { font-size: var(--c-fs-s); line-height: 16px; letter-spacing: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hb-plan { position: relative; min-height: 56px; width: 100%; overflow: visible; }
+.hb-plan .hb-badge { top: 50%; right: 8px; transform: translateY(-50%); background: var(--danger-ink, var(--danger)); color: var(--cream); border: 2px solid var(--outline); min-width: 20px; height: 20px; font-size: 14px; line-height: 16px; }
+.hb-plan .tx { padding-right: 28px; }
+.hb-pl-sub.is-red, .hb-why { color: var(--danger-ink, var(--danger)); }
+/* the reason lives in the red Match Plan sub-line at every width; the long form stays in the markup (tests, screen readers) but takes no room */
+.hb-why, .hb-foot .m0-warn { display: none; }
+/* FENCE:FOOT end */
+
+/* FENCE:BANNER start */
+/* C2.4 */
+.hb-banner { position: relative; overflow: hidden; background: var(--grass2); border: var(--c-border) solid var(--outline); }
+.hb-bcv { position: absolute; left: 0; top: 0; z-index: 0; display: block; image-rendering: pixelated; pointer-events: none; }
+.hb-banner > .hb-gb, .hb-banner > .hb-band { position: relative; z-index: 1; }
+.hb-band .hb-fg { background: var(--outline); color: var(--cream); grid-template-columns: auto minmax(40px, 1fr); align-items: center; column-gap: 8px; padding: 2px 6px; }
+.hb-band .hb-fg .fg-bar { border-color: var(--cream); background: transparent; }
+.hb-banner { min-height: 176px; max-height: 236px; display: flex; flex-direction: column; }
+.hb-gb { flex: 1 1 auto; display: flex; flex-direction: column; align-items: flex-start; justify-content: space-between; min-height: 56px; }
+.hb-gtag { display: inline-block; font-size: var(--c-fs-s, 14px); line-height: 20px; color: var(--cream); background: var(--outline); padding: 2px 8px; }
+.hb-ghost { display: inline-block; margin-left: 4px; font-size: 14px; line-height: 20px; color: var(--cream); background: var(--outline); padding: 2px 8px; }
+.hb-band { flex: 0 0 56px; height: 56px; display: flex; align-items: center; gap: 8px; padding: 0 6px; box-sizing: border-box; }
+.hb-band .hb-fg { flex: 1 1 50%; min-width: 0; max-width: 50%; }
+.hb-band:not(.has-week) .hb-fg { max-width: none; }
+.hb-band .hb-week { flex: 1 1 50%; min-width: 0; min-height: 56px; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* the banner tap is a transparent hit area over the canvas: .skin-art paints every .c-btn with a filled border-image frame, which hid the canvas */
+.hb-banner > .hb-gb.c-btn, .hb-banner > .hb-gb.c-btn:is(:active, .is-pressed) { border: 0; border-image: none; border-radius: 0; background: transparent; box-shadow: none; transform: none; }
+.hb-banner > .hb-gb.c-btn:focus-visible { outline: 3px solid var(--cream); outline-offset: -3px; }
+/* FENCE:BANNER end */
+
+/* FENCE:LAYOUT start */
+.hb-mid { display: flex; flex-direction: column; gap: 6px; padding: 6px 0 0; flex: 1 1 auto; min-height: 0; }
+.hb-l2 { display: flex; flex-direction: column; box-sizing: border-box; height: 100vh; height: 100dvh; padding-bottom: 140px; overflow: hidden; }
+.hb-l2 > * { flex: none; }
+.hb-l2 > .hb-mid { flex: 1 1 auto; }
+.hb-colA { flex: 1 1 auto; min-height: 0; }
+.hb-colA, .hb-colB { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.hb-banner { flex: 1 1 auto; min-height: 176px; max-height: 236px; }
+.hb-gb { position: relative; z-index: 1; display: block; width: 100%; min-height: 56px; margin: 0; padding: 0 6px; background: transparent; border: 0; text-align: left; cursor: pointer; }
+.hb-band { position: absolute; left: 0; right: 0; bottom: 0; min-height: 56px; display: flex; align-items: center; gap: 6px; }
+@media (min-width: 600px) {
+  .hb-head .ss-strip { flex-direction: row; align-items: baseline; gap: 0; flex-wrap: wrap; }
+  .hb-head .hb-lg::before { content: "\00a0\00b7\00a0"; white-space: pre; }
+  .hb-head .hb-sub { margin-left: 8px; }
+  .hb-head .hb-lg { color: var(--cream); } /* gold on the plain header was 3.43:1; cream clears 4.5 */
+  .hb-mid { flex-direction: row; align-items: stretch; }
+  .hb-colA, .hb-colB { flex: 0 0 calc(50% - 3px); width: calc(50% - 3px); }
+  .hb-banner { max-height: none; }
+  .hb-chap { padding-left: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .hb-six { grid-template-columns: 1fr; grid-auto-flow: row; grid-template-rows: none; grid-auto-rows: 56px; }
+}
+@media (max-width: 599px) and (max-height: 700px) {
+  .hb-banner { flex: 0 0 auto; min-height: 96px; }
+  /* the banner cannot go under tag row 56 + band 56 (both taps); the room for squad row 1 comes from the chapter band and START instead */
+  .hb-chap { min-height: 22px; padding-top: 1px; padding-bottom: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .hb-mid { padding-top: 4px; }
+  .hb-foot { gap: 4px; padding-top: 6px; padding-bottom: calc(6px + env(safe-area-inset-bottom)); }
+  .hb-l2 { padding-bottom: 132px; }
+  .hb-ghost { display: none; }
+  .hb-mid { flex: 1 1 auto; min-height: 0; }
+  .hb-colA { flex: none; }
+  .hb-colB { flex: 1 1 auto; overflow: auto; min-height: 0; }
+  .hb-colB > * { flex: none; }
+  .hb-strip { height: auto; }
+  .hb-strip .hb-cap, .hb-strip .hb-th { display: none; }
+  /* bottom fade: more squad below */
+  .hb-colB::after { content: ""; display: block; flex: none; position: sticky; bottom: 0; height: 10px; margin-top: -10px; background: linear-gradient(to bottom, transparent, var(--cream)); pointer-events: none; }
+}
+@media (max-height: 700px) { .hb-ghost { display: none; } }
+.hb-colB:focus-visible { outline: 3px dashed var(--c-focus); outline-offset: 0; }
+@media (min-width: 600px) {
+  .hb-foot { grid-template-columns: 1fr 1.4fr; align-items: stretch; }
+}
+@media (prefers-reduced-motion: reduce) { .hb-l2 * { animation: none !important; transition: none !important; } }
+/* FENCE:LAYOUT end */

@@ -65,7 +65,7 @@ div.pay-row { min-height: 40px; }
 .bv-ct { display: flex; flex-direction: column; align-items: center; line-height: 20px; }
 .bv-ct small { font-size: 14px; line-height: 16px; max-width: 100%; overflow-wrap: anywhere; }
 /* Scorebook: names wrap/shrink, never clip */
-.hb-p .nm { white-space: normal; overflow: visible; text-overflow: clip; overflow-wrap: anywhere; font-size: 14px; line-height: 16px; }
+.hb-p .nm { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 14px; line-height: 16px; }
 .pl-cn .name, .ts-nm .name { white-space: normal; overflow-wrap: anywhere; text-overflow: clip; }
 .ts-wrap { display: grid; grid-template-columns: minmax(0, 1fr) 56px; gap: 4px; }
 .ts-wrap .ts-row { grid-template-columns: 28px minmax(0, 1fr) 56px; }

@@ -1,0 +1,5 @@
+.cw-xp{display:inline-flex;gap:3px;box-sizing:border-box;margin:0 4px;max-width:calc(100% - 8px);align-items:center;min-height:10px}
+.cw-seg{width:8px;height:8px;box-sizing:border-box;border-radius:2px;background:rgba(42,34,56,.25);border:1px solid #2a2238}
+.cw-seg.on{background:#946b00}
+.cw-max .cw-seg{background:#946b00}
+.cw-maxtag{margin-left:6px;font-size:14px;letter-spacing:.08em;font-weight:700}

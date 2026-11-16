@@ -12,7 +12,8 @@ window.PAL = {
   skin1:'#EBD0B5', skin2:'#BD9775', skin3:'#765846',
   hair1:'#2D2622', hair2:'#966846',
   kitA1:'#4E6DB9', kitA2:'#334577', kitB1:'#C3614E', kitB2:'#7E3E3A',
-  gold:'#D2B357', accent:'#22625D', danger:'#BD5260'
+  gold:'#D2B357', accent:'#22625D', danger:'#BD5260',
+  'danger-ink':'#963040' /* red for TEXT on cream (6.3:1); danger stays the fill */
 };
 /* Toned-down variants for review: add ?pal=soft | muted | dusty to any page URL (now applied on top of the Muted base).
    Each one only lowers saturation (and for dusty, leans 10% toward a warm beige). Names never change. */
