@@ -127,7 +127,7 @@ const courseWhy = (cr) => (cr.why === 'coins' ? 'Need ' + cr.cost + ' Coins' : W
 const hasSprites = () => typeof window !== 'undefined' && !!(window.SPR && window.ISO);
 /** Strip display name: the surname (last word), and the first part of a double-barrelled one ("Okonkwo-Bramley" -> "Okonkwo"). Full name stays in aria and the sheets. */
 export const shortName = (n) => { const w = String(n || '').trim().split(/\s+/).pop() || ''; return w.length > 9 && w.includes('-') ? w.split('-')[0] : w; };
-function ctCard(c) {
+function ctCard(c, vm) {
   const cr = c.course || {}, away = c.away > 0, price = cr.free ? 'Free' : cr.cost != null ? cr.cost + ' Coins' : '';
   const say = 'Coach ' + c.name + ', grade ' + c.letter + ', strong in ' + strongText(c.strong) + (away ? '. Away, back next week' : c.picked ? '. Coach this week. Tap for no coach' : '. Tap to pick for this week') + (!away && c.picked && !c.helps ? '. Not strong in this focus, so no help' : '') + (c.matchCoach && !c.picked && !away ? '. Match coach this week' : '');
   const face = hasSprites() ? '<canvas class="ct-face" data-ct-face="' + esc(c.id) + '" aria-hidden="true"></canvas>' : '<span class="ct-face">' + deco('coach', 24) + '</span>';
@@ -139,15 +139,37 @@ function ctCard(c) {
   return '<li class="ct-slot' + (c.picked ? ' is-picked' : '') + (away ? ' is-away' : '') + '">' +
     '<button type="button" class="ct-pick" data-ct="pick" data-id="' + esc(c.id) + '" aria-pressed="' + !!c.picked + '"' + (away ? ' aria-disabled="true"' : '') + ' aria-label="' + esc(say) + '">' +
     '<span class="ct-l1"><span class="ct-name name" aria-hidden="true">' + esc(shortName(c.name)) + '</span></span>' +
-    '<span class="ct-l2">' + face + '<b class="ct-grade" aria-hidden="true">' + esc(c.letter) + '</b><span class="ct-fi" aria-hidden="true">' + (c.strong || []).map((f) => deco(FOCUS_ICON[f] || 'train', 16)).join('') + '</span></span>' + tag + '</button>' + course + '</li>';
+    '<span class="ct-l2">' + face + '<b class="ct-grade" aria-hidden="true">' + esc(c.letter) + '</b><span class="ct-fi" aria-hidden="true">' + (c.strong || []).map((f) => deco(FOCUS_ICON[f] || 'train', 16)).join('') + '</span></span>' + tag + '</button>' + course + slotJobChip(vm, c) + slotXpBar(vm, c) + slotClinicBtn(vm, c) + '</li>';
 }
-export function coachStripHtml(raw) {
+/* Z5 UI slots (SEAMS-S0): fenced, return '' today. Owners: Spotlight T2, job chip + XP bar T5, Clinic button T6. */
+/* SLOT:Spotlight start */
+export function slotSpotlight(vm) { return ''; } // owner: T2
+/* SLOT:Spotlight end */
+/* SLOT:JobChip start */
+export function slotJobChip(vm, coach) { return ''; } // owner: T5
+/* SLOT:JobChip end */
+/* SLOT:XpBar start */
+export function slotXpBar(vm, coach) { return ''; } // owner: T5
+/* SLOT:XpBar end */
+/* SLOT:ClinicBtn start */
+export function slotClinicBtn(vm, coach) { return ''; } // owner: T6
+/* SLOT:ClinicBtn end */
+/* SLOT:Click start */
+/** Click slot (S0 lead call 3d): called first in this file's click handlers. Return true when the click was handled (the handler then stops).
+ *  ctx = { vm, dispatch, open, close?, refresh?, where }. T5 and T6 add their branches inside their own fence. Today: false, nothing handled. */
+export function slotClick(e, ctx) {
+  /* SLOT:Click:T5 */
+  /* SLOT:Click:T6 */
+  return false;
+}
+/* SLOT:Click end */
+export function coachStripHtml(raw, vm) {
   const cs = (raw && raw.coaches) || [], st = (raw && raw.strip) || { slots: 3, scoutOpen: false };
   const free = Math.max(0, (st.slots || 3) - cs.length);
   const empty = Array.from({ length: free }, () => '<li class="ct-slot ct-empty"><button type="button" class="ct-emptyin" data-ct="scout" aria-label="Empty coach slot: open the Scout list to sign a coach">' + deco('coach', 20) + '<span>Empty slot</span><small>Sign a coach</small></button></li>').join('');
   // fit: compact strip (2 rows of 56 px taps); the head (All coaches, Scout list) is a narrow column at the right of the slots.
   return '<section class="ct-strip" aria-label="Coaches">' +
-    '<ul class="ct-row">' + cs.map(ctCard).join('') + empty + '</ul>' +
+    '<ul class="ct-row">' + cs.map((c) => ctCard(c, vm)).join('') + empty + '</ul>' +
     '<div class="ct-head"><button type="button" class="c-btn ct-all" data-ct="all" aria-label="All coaches: pick and send on course" aria-haspopup="dialog">' + deco('coach', 20) + '<span>All</span></button><button type="button" class="c-btn ct-scout" data-ct="scout" aria-label="' + esc(st.scoutOpen ? 'Scout list: sign a new coach' : 'Scout list, done this season') + '">' + deco('scout', 20) + '<span>Scout</span>' + (st.scoutOpen ? '<i class="ct-dot" aria-hidden="true"></i>' : '') + '</button></div></section>';
 }
 /** fixtrain: confirm before Coins are spent (like the Stadium build confirm). Yes -> the course wheel (sheet:coaches {course}). */
@@ -197,7 +219,7 @@ export function render(el, rawVm, dispatch, open) {
     const tw = vm.twin, sp2Row = tw && tw.held > 0 ? '<li class="c-row m0-row c-row--tap t2-prow"><button type="button" class="tr-rowbtn" data-lo="spot2pick"' + (P.spotlightId ? '' : ' aria-disabled="true"') + ' aria-label="' + esc(tw.line + '. ' + (!P.spotlightId ? 'Pick the first Spotlight player first' : tw.name ? 'Second player: ' + tw.name + '. Tap to change' : 'Tap to pick the second player')) + '">' +
       '<span class="tr-coachico">' + deco('burst', 36) + '</span><span class="c-row__body"><span class="c-row__title tr-coachtitle">' + esc(tw.line) + '</span><span class="c-row__sub">' + esc(!P.spotlightId ? 'Pick the first player above' : tw.name || 'None yet') + '</span></span></button></li>' : '';
     const cost = 'Cost ' + pv.cost + ' TP' + (pv.skippedN ? ", " + pv.skippedN + " can't gain" : '');
-    body = coachStripHtml(rawVm) + '<div class="t2-plan">' +
+    body = slotSpotlight(vm) + coachStripHtml(rawVm, vm) + '<div class="t2-plan">' +
       seg('focus', 'Focus', ['bat', 'bowl', 'bal'].map((f) => ({ v: f, w: FOCUS_WORD[f], ico: FOCUS_ICON[f], aria: FOCUS_WORD[f] + ' focus' })), P.focus) +
       seg('effort', 'Effort', ['easy', 'normal', 'push'].map((f) => ({ v: f, w: EFFORT_WORD[f], ico: EFFORT_ICON[f], sub: costs[f] + ' TP', aria: EFFORT_WORD[f] + ' effort, ' + costs[f] + ' training points each' })), P.effort) + '</div>' +
       '<ul class="c-list m0-list t2-pick" aria-label="This week">' + spotRow + sp2Row + '</ul>' +
@@ -210,6 +232,7 @@ export function render(el, rawVm, dispatch, open) {
   const root = el.firstElementChild;
   bindActs(root, dispatch, open);
   root.addEventListener('click', (e) => {
+    if (slotClick(e, { vm: rawVm, dispatch, open, where: 'training' })) { e.stopImmediatePropagation(); return; } // one slot call per click: the coach strip handler below is skipped too
     const t = e.target.closest && e.target.closest('[data-lo]'); if (!t || t.disabled) return; const a = t.getAttribute('data-lo');
     if (a === 'spotpick') spotSheet(vm, dispatch, 1);
     else if (a === 'spot2pick') { if (P.spotlightId) spotSheet(vm, dispatch, 2); }

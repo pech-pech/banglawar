@@ -10,6 +10,8 @@ import { aiPickSix } from './clubs.js';
 import { capSum, bandOf, isHidden } from './ability.js';
 import { stepOfRaw } from './letters.js';
 import { matchCoachBoost } from './matchday.js';
+import { fireHook, pipeHook } from './hooks.js';
+import { weekKey, weekKeyOf } from './week-key.js';
 
 export const EFFORTS = ['easy', 'normal', 'push'];
 export const FOCUSES = ['bat', 'bowl', 'bal'];
@@ -107,7 +109,7 @@ const coachById = (s, id) => (s.coaches || []).find((/** @type {any} */ c) => c.
 export function coachList(s) { return (s.coaches || []).filter((/** @type {any} */ c) => !c.candidate).map(normCoach); }
 function normCoach(/** @type {any} */ c) {
   if (typeof c.step === 'number' && Array.isArray(c.strong)) return { ...c, away: c.away | 0 };
-  return coachFromOld(c);
+  const { lv, ...rest } = c; return { ...rest, ...coachFromOld(c) }; // Z6: unknown fields (xp, job, step...) ride along; the known ones are rebuilt
 }
 /** Old coach (lv per Power/Technique/Pace/Craft) -> new: step = min(21, 4 + 3 x max lv); strong from top ratings. @param {any} c */
 export function coachFromOld(c) {
@@ -169,11 +171,11 @@ export function signCoach(s, id) {
   if (!canSign(s, id).ok) return s;
   const c = scoutList(s).find((x) => x.id === id); if (!c) return s;
   const n = clone(s); n.coaches = (n.coaches || []).concat([{ ...c, away: 0, courseSeason: null }]);
-  n.scout = { n: seasonN(s), signed: id, passed: false };
+  n.scout = { ...(n.scout && typeof n.scout === 'object' ? n.scout : {}), n: seasonN(s), signed: id, passed: false }; // lead call 1: scout.* keys kept
   return n;
 }
 /** Pass on this season's scout list. @param {any} s */
-export function passScout(s) { if (scoutRec(s)) return s; const n = clone(s); n.scout = { n: seasonN(s), signed: null, passed: true }; return n; }
+export function passScout(s) { if (scoutRec(s)) return s; const n = clone(s); n.scout = { ...(n.scout && typeof n.scout === 'object' ? n.scout : {}), n: seasonN(s), signed: null, passed: true }; return n; } // lead call 1: scout.* keys kept
 /** Release a coach (frees a slot). @param {any} s @param {string} id */
 export function releaseCoach(s, id) {
   if (!coachById(s, id)) return s;
@@ -340,7 +342,8 @@ export function runNets(s, rng, opts = {}) {
   const wheel2 = wheel2On ? (opts.wheel2 && Number.isFinite(opts.wheel2.gain) ? opts.wheel2 : spinResult(rng, wheelSlices(plan.effort, coachStepInUse(s)), !!opts.careful)) : null;
   const wheel = wheelOn ? (opts.wheel && Number.isFinite(opts.wheel.gain) ? opts.wheel : spinResult(rng, wheelSlices(plan.effort, coachStepInUse(s)), !!opts.careful)) : null;
   const words = ['Okay', 'Good', 'Great'];
-  for (const id of r.trainIds) {
+  const order = pipeHook('netsOrder', r.trainIds, n, { coachId: plan.coachId || null }); // lead call 9: no listeners = r.trainIds as is (same order, same rng draws)
+  for (const id of order) {
     const p = findPlayer(n, id), st = focusRating(p, plan.focus), room = drillRoom(p, st).room;
     let rolled, wheelGain, wh = wheel;
     if (wheel2On && id === plan.spotlight2Id && wheel2) { rolled = wheel2.gain; wheelGain = wheel2.gain; wh = wheel2; }
@@ -360,6 +363,7 @@ export function runNets(s, rng, opts = {}) {
   const cost = r.cost * r.trainIds.length;
   n.training.tp -= cost; n.training.netsWeek = n.training.week; n.training.netsRuns = (n.training.netsRuns || 0) + 1; // netsRuns: report counter; p.drillsHere stays the grade-reveal counter
   n.training.last = { week: n.training.week, lines, cost, skipped: r.skippedIds.length };
+  fireHook('netsRun', n, { week: s.training.week, weekKey: weekKey(s), plan: { focus: plan.focus, effort: plan.effort, coachId: plan.coachId || null }, q, lines, trainIds: r.trainIds, shortIds: r.shortIds, skippedIds: r.skippedIds }); // S0 Z3: no listeners = no-op
   return { state: n, lines, cost, skipped: r.skippedIds.length, skippedIds: r.skippedIds, shortIds: r.shortIds };
 }
 
@@ -386,6 +390,7 @@ export function endWeek(state) {
   for (const c of n.coaches || []) if (c.away > 0) c.away -= 1;
   delete n.training.matchCoachId; n.training.week += 1; n.training.nodeBought = {}; n.training.last = null; n.training.weekLog = []; n.training.netsWeek = null;
   n.training.weekStart = Object.fromEntries(squadOf(n).map((/** @type {any} */ p) => [p.id, RATINGS.map((k) => p[k])]));
+  fireHook('endWeek', n, { week: state.training.week, weekKey: weekKeyOf(state.season && state.season.n, state.training.week) }); // the CLOSING week // S0 Z3: no listeners = no-op
   return n;
 }
 /** @param {any} state */

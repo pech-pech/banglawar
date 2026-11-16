@@ -48,7 +48,7 @@ test('view helpers: outcome line, uses-left note, Aim Zone reach', () => {
 });
 
 test('views: dial and reel take the wheel-view token props and replay a short spin; wm-spins passes them for all five wheels', () => {
-  const dial = read('js/ui/dial-view.js'), reel = read('js/ui/reel-view.js'), sp = read('js/ui/wm-spins.js');
+  const dial = read('js/ui/dial-view.js'), reel = read('js/ui/reel-view.js'), sp = ['hype', 'toss', 'pep', 'scout', 'finals'].map((w) => read('js/ui/wheels/' + w + '.js')).join('\n');
   assert.match(dial, /data-tok/); assert.match(dial, /o\.getTokens \? o\.getTokens\(\)/); assert.match(dial, /o\.onToken\(t\.kind\)/);
   assert.match(dial, /cfg\.replay = replay/); assert.match(reel, /cfg\.replay = replay/);
   assert.match(dial, /reducedNow\(\) \|\| !cfg\.replay/, 'reduced motion: the line only, no replay');

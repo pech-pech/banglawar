@@ -8,7 +8,7 @@ import { FLAGS } from '../data/flags.js';
 import { SEASON } from '../data/season.js';
 import { makeClubs, growClubs, aiPickSix } from '../core/clubs.js';
 import { makeSchedule, makeTable, applyResult, placeOf, inTopFour, finalsDraw, finalFrom, koWinner, matchPay, tpAward, simRound, simMatch, simFinals, ME } from '../core/season.js';
-import { planOf, netsPreview, setPlan as setTrainPlan, runNets, endWeek, coachList, scoutList, coachStepInUse, startCoach as makeStartCoach, passScout, courseUsesLicence, courseCost, signCoach, releaseCoach, pickWeekCoach, canCourse, courseWheel, runCourse, wheelSlices, spinResult, matchCoachOf, setMatchCoach } from '../core/training.js';
+import { planOf, setPlan as setTrainPlan, runNets, endWeek, coachList, startCoach as makeStartCoach, passScout, courseUsesLicence, courseCost, signCoach, releaseCoach, pickWeekCoach, canCourse, runCourse, matchCoachOf, setMatchCoach } from '../core/training.js';
 import { unlockNode, makeFx } from '../core/skills.js';
 import { defaultOvers } from '../core/plan.js';
 import { newEconomy, applyMatch, tickBuild, finalsReward, finalsTp, payCourse, useHeld, startBuild, buySink, buyMedal, buyLegacy } from '../core/economy.js';
@@ -17,18 +17,20 @@ import { RUN, SQUAD, SKEW } from '../data/run.js';
 import { skewPlayer, squadMax, bowlFloor } from '../core/skew.js';
 import { recruitSign, recruitPass } from '../core/recruit.js';
 import { newBook, isBook, recordOver } from '../core/pairing.js';
-import { activityOptions, pickActivity, signTrial, declineTrial, actLedger, roundKey } from '../core/activities.js';
+import { activityOptions, signTrial, declineTrial, actLedger } from '../core/activities.js';
 import { takeFreePick, freePickPending } from '../core/economy.js';
-import { VERSION, dropFreepickNotice, emptyWheelMeta } from '../core/save-migrate.js';
-import { metaWheel, recordSpin, afterResult, seasonTokens, useToken, buyNode, canBuy, swapSpokes, powerDone, dismissTierUp, nextTierUp } from '../core/wheelmeta.js';
-import { canMdSpin, mdSpin, settleMd, stopOf, findForce, afterFind, canScoutSpin, scoutSpin, canFinalsSpin, finalsSpin, mdKeep } from './wmstore.js';
+import { VERSION, dropFreepickNotice, emptyWheelMeta, fillSaveDefaults } from '../core/save-migrate.js';
+import { seasonTokens, useToken, buyNode, canBuy, swapSpokes, powerDone, dismissTierUp, nextTierUp } from '../core/wheelmeta.js';
+import { settleMd, canFinalsSpin, finalsSpin, mdKeep } from './wmstore.js';
 import { useFindToken } from './wmstore.js'; // wa1 find
 import { wmUseToken } from './wmstore.js'; // wa1 wire: tokens on Hype / Toss / Pep / Scout / Finals
 import { rollMatchday, teamBoost, scaleRatings, resolvePep, roarAt } from '../core/matchday.js';
 import { MD } from '../data/matchday.js';
-import { MATCH_SPOKES_PER_SPIN } from '../data/wheelmatch.js';
-import { matchModeOf, matchPhys, ctrlOf, landingPos, unaimedPos, segAt, pickSample, stopBucket, isCareful, replayOver } from '../core/wheelmatch.js';
+import { matchModeOf } from '../core/wheelmatch.js';
 import { isWheelMatch, legalBowlers, suggestedBowler, rivalBowler, setMatchMode, setDev, devReset, modelOf } from './wheelmatch-store.js';
+import { spinHandler } from './spin-registry.js';
+import { fireHook } from '../core/hooks.js'; // Z3: matchEnd event
+import './spins/index.js'; // Z2: registers the spin handlers (Spin, CourseSpin, HypeSpin, TossSpin, PepSpin, ScoutSpin, FinalsSpin, PickActivity find, WheelOver)
 
 const ovStr = (balls) => `${Math.floor(balls / 6)}.${balls % 6}`;
 
@@ -150,66 +152,7 @@ function startChase(s) {
 
 
 // ---------------------------------------------------------------- wheel match (2026-11-15 wheel-match CONTRACT "Store")
-const isNum = (x) => typeof x === 'number' && Number.isFinite(x);
-
-/**
- * WheelOver {bowler?, stop?:{t, phi}, auto?}: one spin = one over. Bowl: our bowler picked live (legal only; auto = the suggested one).
- * Chase: the rival's bowler is deterministic (rivalBowler). Calls are neutral (field P, intent R). The landing picks one sampled over and the
- * real over is replayed with that sample's rng, so the 6-ball row is exactly the label. Innings end, break, result: as bowlOver.
- */
-function wheelOver(s, p) {
-  if (!isWheelMatch(s) || (s.stage !== 'bowl' && s.stage !== 'chase')) return s;
-  const bowlSide = s.stage === 'bowl', side = bowlSide ? 'bowl' : 'bat', innIdx = bowlSide ? 0 : 1;
-  const auto = !!(p && p.auto);
-  const stop = !auto && p && p.stop && isNum(p.stop.t) && isNum(p.stop.phi) ? p.stop : null;
-  if (!auto && !stop) return s; // an aimed spin needs its STOP
-  let bowler;
-  if (bowlSide) {
-    const legal = legalBowlers(s);
-    bowler = p && Number.isInteger(p.bowler) ? p.bowler : auto ? suggestedBowler(s) : -1;
-    if (!legal.includes(bowler)) { if (!auto) return s; bowler = suggestedBowler(s); }
-    if (bowler < 0) return s;
-  } else bowler = rivalBowler(s);
-  const inn0 = bowlSide ? s.inn1 : s.inn2, over = inn0.over;
-  const phys = matchPhys(s), ctrl = ctrlOf(s);
-  let pos, tickPos = null, t = null, phi = null, bucket = null;
-  if (stop) {
-    t = Math.max(phys.STOP_FROM, Math.min(stop.t, phys.COAST)); phi = stop.phi; // same clamp as the landing (core stopParts)
-    const jr = makeRng(`${s.seed}|wmj|${s.stage}|${over}`);
-    const e = (jr.random() * 2 - 1) * phys.J;
-    pos = landingPos(phys, { t, phi, e });
-    tickPos = landingPos(phys, { t, phi, e: 0 });
-    bucket = stopBucket(t, stop.t >= phys.COAST);
-  } else pos = unaimedPos(makeRng(`${s.seed}|wma|${s.stage}|${over}`));
-  // Land, pick the sample, replay it on a clone. The replay must give the sample's runs/wkts; on a mismatch (stale memo) rebuild uncached once.
-  let model, seg, sample, n, inn, balls, runs0, wk0;
-  for (const fresh of [false, true]) {
-    model = modelOf(s, side, bowler, fresh);
-    seg = model.segs[segAt(model.segs, pos)];
-    sample = pickSample(makeRng(`${s.seed}|wmp|${s.stage}|${over}`), model.samples, seg);
-    n = structuredClone(s);
-    inn = bowlSide ? n.inn1 : n.inn2; runs0 = inn.runs; wk0 = inn.wk;
-    balls = replayOver(n, side, bowler, sample.k); // the landed sample's rng on the real state: same fx, centre, pairing, roar, boost as the model; field P, intent R
-    if (inn.runs - runs0 === sample.runs && inn.wk - wk0 === sample.wk) break;
-  }
-  const careful = stop ? isCareful(model.segs, segAt(model.segs, tickPos)) : false;
-  const bats = bowlSide ? n.rival.players : n.me.players, bowls = bowlSide ? n.me.players : n.rival.players;
-  const runs = inn.runs - runs0, wk = inn.wk - wk0;
-  const end = sample.end || (!bowlSide && inn.done && inn.runs === inn.target ? 'TIE' : '');
-  n.last = { balls, over, bowler, intent: NEUTRAL_INTENT, field: NEUTRAL_FIELD };
-  markRoar(n, innIdx, over);
-  countBook(n, balls, bats, bowls);
-  n.last.wheel = { segId: seg.id, label: seg.label, pos, tickPos, phi, t, segs: model.segs, end, auto, runs, wk };
-  (n.wheelLog ||= []).push({ inn: innIdx + 1, over, segId: seg.id, label: seg.label, t, auto, bucket, careful, runs, wk, xr: model.expect.xr, xw: model.expect.xw, guide: !!ctrl.guide });
-  if (FLAGS.wheelMeta && n.season) { const m = (n.wheelMeta ||= emptyWheelMeta()); m.spokes = (m.spokes | 0) + MATCH_SPOKES_PER_SPIN; } // 1 Spoke a spin, no tally
-  if (bowlSide) {
-    if (inn.done) { n.stage = 'break'; n.call = null; n.inn1Summary = summarise(n); } else n.call = defaultCall(n);
-  } else if (inn.done) {
-    n.stage = 'done';
-    n.result = inn.runs > n.inn1.runs ? 'won' : inn.runs === n.inn1.runs ? 'tied' : 'lost';
-  }
-  return n;
-}
+// WheelOver lives in js/store/spins/match.js (Z2 spin registry), dispatched below via spinHandler('WheelOver').
 
 // ---------------------------------------------------------------- season (CONTRACT m0 section 2)
 const DEFAULT_OVERS = [0, 1, 2, 3, 4, 5, 0, 1, 2, 3];
@@ -253,6 +196,7 @@ function newGame(payload) {
     training: { tp: 450, week: 1, nodeBought: {}, weekLog: [], weekStart: {}, netsRuns: 0, focusChanges: 0, focus: 'bat', effort: 'normal', spotlight_id: null, coach_id: null, last_plan: null },
     fixture: leagueFixture(season, 1),
   };
+  fillSaveDefaults(g); // lead call 12: a new game holds the same default keys a migrated save gets (wheels, clinic, scout, coach fields, report.jobs)
   if (FLAGS.wheelMatch) g.matchMode = 'wheel'; // wheel match is the default for NEW games (flag set by main.js; off in old tests); missing key = classic
   if (FLAGS.freePick && freePickPending(g)) g.stage = 'freepick'; // first launch: pick the free facility before Home
   return g;
@@ -420,6 +364,7 @@ function finishMatch(s0) {
   } else {
     se.finals.final.winner = res.winner; se.champion = res.winner; se.phase = 'over';
   }
+  fireHook('matchEnd', n, { won: outcome === 'won' }); // Z3: coach XP / Clinic listen here
   n.stage = 'train';
   return n;
 }
@@ -477,7 +422,7 @@ function newRunFrom(s, p) {
   n.wheelMeta = emptyWheelMeta(); // the tree, tally, Spokes and tokens reset with the run; wheelCraft rides in through applyCarry
   if (s.wheelFeatures === false) n.wheelFeatures = false;
   if (s.matchMode) n.matchMode = s.matchMode; // the player's match mode choice carries into the next run
-  return n;
+  return fillSaveDefaults(n); // lead call 12: the carried coach gets any missing coach fields
 }
 /** The game seed is the first season's seed; later seasons append |s<n>. */
 const baseSeed = (s) => String(s.season.seed).replace(/\|s\d+$/, '');
@@ -524,12 +469,9 @@ function applyCommandCore(s, cmd, payload) {
     case 'SwapSpokes': return FLAGS.wheelMeta && powerDone(s) ? swapSpokes(s) : s;
     case 'DismissTierUp': return FLAGS.wheelMeta && nextTierUp(s) ? dismissTierUp(s) : s;
     case 'PickActivity': return pickAct(s, payload);
-    case 'HypeSpin': return canMdSpin(s, 'hype') ? mdSpin(s, 'hype', stopOf(payload), s.clubs[0].six) : s;
-    case 'TossSpin': return canMdSpin(s, 'toss') ? mdSpin(s, 'toss', false, s.clubs[0].six) : s;
-    case 'PepSpin': return canMdSpin(s, 'pep') ? mdSpin(withSix(s), 'pep', false) : s;
+    case 'HypeSpin': case 'TossSpin': case 'PepSpin': return spinHandler(cmd)(s, payload, SPIN_CTX); // js/store/spins/{hype,toss,pep}.js
     case 'MdKeep': return mdKeep(s, payload && Array.isArray(payload.which) ? payload.which : []);
-    case 'ScoutSpin': return canScoutSpin(s, () => scoutList(s)) ? scoutSpin(s) : s;
-    case 'FinalsSpin': return canFinalsSpin(s) ? finalsSpin(s) : s;
+    case 'ScoutSpin': case 'FinalsSpin': return spinHandler(cmd)(s, payload, SPIN_CTX); // js/store/spins/{scout,finals}.js
     case 'SignTrial': return FLAGS.activities && s.econ ? signTrial(s) : s;
     case 'DeclineTrial': return FLAGS.activities && s.econ ? declineTrial(s) : s;
     case 'TakeFreePick': {
@@ -550,14 +492,14 @@ function applyCommandCore(s, cmd, payload) {
     case 'EditPlan': return editPlan(s, payload);
     case 'FinishMatch': return finishMatch(s);
     case 'SetTrainPlan': return viaTrain(s, (x) => setTrainPlan(x, payload || {}));
-    case 'Spin': return viaTrain(s, (x) => spin(x, payload));
+    case 'Spin': return viaTrain(s, (x) => spinHandler('Spin')(x, payload, SPIN_CTX)); // js/store/spins/spot.js
     case 'RunNets': return viaTrain(s, doRunNets);
     case 'SetMatchCoach': return setMatchCoach(s, payload && payload.coachId != null ? payload.coachId : null); // match day: this week's match coach (null = default)
     case 'PickWeekCoach': return viaTrain(s, (x) => pickWeekCoach(x, payload && payload.coachId != null ? payload.coachId : null));
     case 'PassScout': return viaTrain(s, passScout);
     case 'SignCoach': return viaTrain(s, (x) => signCoach(x, payload && payload.coachId));
     case 'ReleaseCoach': return viaTrain(s, (x) => releaseCoach(x, payload && payload.coachId));
-    case 'CourseSpin': return viaTrain(s, (x) => courseSpin(x, payload));
+    case 'CourseSpin': return viaTrain(s, (x) => spinHandler('CourseSpin')(x, payload, SPIN_CTX)); // js/store/spins/course.js
     case 'RunCourse': return viaTrain(s, (x) => doRunCourse(x, payload));
     case 'TipsSeen': return s.stage === 'train' && !s.training.tipsSeen ? { ...s, training: { ...s.training, tipsSeen: true } } : s;
     case 'UnlockNode': return s.stage === 'train' ? unlockNode(s, payload || {}) : s;
@@ -578,11 +520,14 @@ function applyCommandCore(s, cmd, payload) {
     case 'MakeCall': return makeCall(s, payload);
     case 'BowlOver': return bowlOver(s, payload);
     case 'StartChase': return startChase(s);
-    case 'WheelOver': return wheelOver(s, payload);
+    case 'WheelOver': return spinHandler('WheelOver')(s, payload, SPIN_CTX); // js/store/spins/match.js
     case 'SetMatchMode': return setMatchMode(s, payload);
     case 'SetDev': return setDev(s, payload);
     case 'DevReset': return devReset(s, payload);
-    default: return s;
+    default: { // lead call 3b: a spin type registered from js/install.js (T5 SetJob, T6 Clinic*) runs like the cases above; unknown = no-op as before
+      const h = spinHandler(cmd);
+      return h ? h(s, payload, SPIN_CTX) : s;
+    }
   }
 }
 
@@ -616,9 +561,7 @@ function screenDue(s) {
 /** One fan activity (or Rest week) per round, from the hub. The find roll has its own stream: save seed + round, never the ball RNG. */
 function pickAct(s, p) {
   if (!FLAGS.activities || !s.season || !s.fixture || !s.econ || !HUB_STAGES.includes(s.stage) || !p || typeof p.id !== 'string') return s;
-  const force = findForce(s, p.id, p); // wheel meta: the Find reel decides the find (null with the flag off, on a repeat week or a rest)
-  let n = pickActivity(s, p.id, makeRng(`${baseSeed(s)}|act|${roundKey(s)}|${s.salt}`), force);
-  if (force && n !== s) n = afterFind(n, p.id, force);
+  const n = spinHandler('PickActivity')(s, p, SPIN_CTX); // Find reel + pick: js/store/spins/find.js
   // r9 M2: a roll stored early (TeamSix / OpenMatchday before the activity) would lose this activity's hype tilt. Until the screen is done, roll again later.
   if (n !== s && n.fixture && n.fixture.md && !n.fixture.mdDone) { const { md, ...fx } = n.fixture; return { ...n, fixture: fx }; }
   return n;
@@ -690,23 +633,7 @@ function sync(s) {
   const { lastPlan, sel, ...rest } = T;
   return { ...s, training: { ...rest, focus: p.focus, effort: p.effort, spotlight_id: p.spotlightId, coach_id: p.coachId, last_plan: lp } };
 }
-/** Tap the wheel (SPIN then STOP): the result waits in training.pending until Run nets. One spin a week, and only with a spotlight player. */
-function spin(s, p) {
-  const T = s.training, plan = planOf(s);
-  const two = !!(p && p.slot === 2), key = two ? 'pending2' : 'pending'; // slot 2 = the Twin Spotlight Pass wheel
-  if (!(two ? plan.spotlight2Id : plan.spotlightId) || (T[key] && T[key].week === T.week) || (T.nets && T.nets.week === T.week)) return s;
-  if (FLAGS.wheelMeta && netsPreview(s).skippedIds.includes(two ? plan.spotlight2Id : plan.spotlightId)) return s; // 02 section 7: a Spotlight player who cannot gain gets no wheel, so no tally and no Spokes
-  const meta = FLAGS.wheelMeta, base = wheelSlices(plan.effort, coachStepInUse(s)), wheel = metaWheel(base, 'spot', s); // flag off: the input wheel (Dev otherMult adds phys)
-  const careful = p && p.careful && typeof p.careful === 'object' ? p.careful : !!(p && p.careful);
-  let result = spinResult(TRAIN_RNG(s, two ? 'spin2' : 'spin'), wheel, careful);
-  let n = clone(s);
-  if (meta) { // wheel meta: the tree's after-effects, then the tally. The meta wheel is stored so a reload shows the same wheel.
-    const a = afterResult(n, 'spot', result, WM_RNG(s, two ? 'spot2' : 'spot'), { wheel }); n = clone(a.s); result = a.result;
-    n = clone(recordSpin(n, 'spot', { count: 1 })); // each Twin spin counts 1: the pass is 2 spins in all
-  }
-  n.training[key] = { week: T.week, careful, wheel, result };
-  return n;
-}
+// Spin (Spotlight wheel) lives in js/store/spins/spot.js: afterResult(n, 'spot', result, WM_RNG(s, two ? 'spot2' : 'spot'), { wheel }), via spinHandler('Spin').
 /** Seeded stream for the wheel meta (`seed|wm|tag|week|extra|salt`): never Math.random. */
 const WM_RNG = (s, tag, extra = '') => makeRng(`${s.season.seed}|wm|${tag}|${s.training.week}|${extra}|${s.salt}`);
 /** UseToken {wheel:'spot'|'course', kind, careful?, slot?}: a token on the result still waiting in pending (before Run nets / Run course). */
@@ -737,19 +664,7 @@ function doRunNets(s) {
   n.training.last_plan = { focus: plan.focus, effort: plan.effort, spotlight_id: plan.spotlightId || null, coachId: plan.coachId || null };
   return sync(n);
 }
-function courseSpin(s, p) {
-  const id = p && p.coachId, T = s.training;
-  if (!id || !canCourse(s, id).ok || (T.coursePending && T.coursePending.coachId === id)) return s;
-  const c = coachList(s).find((x) => x.id === id);
-  const wheel = metaWheel(courseWheel(c.step), 'course', s) /* flag off: the plain wheel (Dev otherMult adds phys) */, careful = p.careful && typeof p.careful === 'object' ? p.careful : !!p.careful;
-  let n = clone(s), result = spinResult(TRAIN_RNG(s, 'course', id), wheel, careful);
-  if (FLAGS.wheelMeta) { // Second Opinion etc.; the course counts 1 spin
-    const a = afterResult(n, 'course', result, WM_RNG(s, 'course', id), { wheel }); n = clone(a.s); result = a.result;
-    n = clone(recordSpin(n, 'course', { count: 1 }));
-  }
-  n.training.coursePending = { coachId: id, careful, wheel, result };
-  return n;
-}
+// CourseSpin lives in js/store/spins/course.js: afterResult(n, 'course', result, WM_RNG(s, 'course', id), { wheel }), via spinHandler('CourseSpin').
 function doRunCourse(s, p) {
   const id = p && p.coachId, pend = s.training.coursePending;
   if (!id || !pend || pend.coachId !== id || !canCourse(s, id).ok) return s;
@@ -775,3 +690,12 @@ function seeFirstStrip(s) {
   if (!s.stage || (s.seen && s.seen.firstStrip)) return s;
   return { ...s, seen: { ...(s.seen || {}), firstStrip: 1 } };
 }
+
+// ---- Z2 spin registry: the commands.js helpers the spin handlers use (js/store/spins/*). Built after every helper above is defined.
+const SPIN_CTX = {
+  clone, withSix, baseSeed, TRAIN_RNG, WM_RNG,
+  // wheelmatch-store.js imports commands.js, so spins/match.js gets these from here (no ESM cycle). Wrapped: read at call time, never during a cyclic load.
+  isWheelMatch: (...a) => isWheelMatch(...a), legalBowlers: (...a) => legalBowlers(...a), suggestedBowler: (...a) => suggestedBowler(...a),
+  rivalBowler: (...a) => rivalBowler(...a), modelOf: (...a) => modelOf(...a),
+  markRoar, countBook, summarise, defaultCall, NEUTRAL_INTENT, NEUTRAL_FIELD,
+};

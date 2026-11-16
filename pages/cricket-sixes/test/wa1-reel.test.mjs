@@ -43,8 +43,7 @@ test('result words: Scout after a Lift shows the extra name and the step; Finals
   assert.equal(finalsWords({ label: '20 TP', coins: 0, tp: 20, fans: 0, medal: 0 }), '20 TP');
   assert.equal(finalsWords({ label: '20 TP', coins: 10, tp: 20, fans: 0, medal: 0 }), '10 Coins + 20 TP', 'a Lift adds Coins to a TP prize');
   assert.equal(finalsWords({ label: '+1 Medal', coins: 0, tp: 0, fans: 0, medal: 1 }), '+1 Medal');
-  const src = read('js/ui/wm-spins.js');
-  assert.match(src, /tokText: \(p\) => scoutWords\(p\)\.short/); assert.match(src, /tokText: finalsWords/);
+  assert.match(read('js/ui/wheels/scout.js'), /tokText: \(p\) => scoutWords\(p\)\.short/); assert.match(read('js/ui/wheels/finals.js'), /tokText: finalsWords/);
   assert.match(read('js/ui/reel-view.js'), /chimeEnters\(a, b, golds\)/);
 });
 

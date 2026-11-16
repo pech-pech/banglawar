@@ -49,7 +49,7 @@ test('coach map: step = min(21, 4 + 3 x max level); strong from the top ratings;
   const n = migrate(v4save(), 4).state;
   assert.equal(n.coaches.length, 1); const c = n.coaches[0];
   assert.equal(c.id, 'k9'); assert.equal(c.step, 19); assert.deepEqual(c.strong, ['bat']);
-  assert.equal(c.lv, undefined); assert.equal(c.xp, undefined); assert.equal(c.candidate, undefined);
+  assert.equal(c.lv, undefined); assert.equal(c.xp, 0, 'old xp map dropped; coach-weekly xp starts at 0 (CONTRACT-B s1)'); assert.equal(c.candidate, undefined);
   assert.equal(n.coachPicked, true);
   const both = v4save(); both.coaches[0].lv = { Power: 2, Technique: 0, Pace: 2, Craft: 0 };
   assert.deepEqual(migrate(both, 4).state.coaches[0].strong, ['bat', 'bowl']);
