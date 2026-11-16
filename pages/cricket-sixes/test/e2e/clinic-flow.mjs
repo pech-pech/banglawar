@@ -99,7 +99,7 @@ try {
         const slice2 = await get((c) => { const s = window.__store.get(), x = ((s.clinic || {}).spins || []).find((q) => q.coachId === c); return x ? JSON.stringify([s.clinic.boost]) : null; }, coachId);
         step('reload keeps the same slice', !!slice && slice === slice2, `${slice} -> ${slice2}`);
         await closeSheets();
-        const nets = await page.$('[data-act="nets"], [data-tr="nets"], .tr-nets, [data-lo="nets"]');
+        const nets = await page.$('[data-lo="runnets"]:not([disabled])');
         if (!nets) skip('Nets shows the Clinic chip/line', 'no Nets control found on the Training screen to tap');
         else { await nets.click(); await wait(2500); const body = await get(() => document.body.innerText); step('Nets shows the Clinic chip/line', /Clinic/i.test(body) && /\+\d+%|Extra run/i.test(body), 'no "Clinic +N%" / "Extra run" text after Nets'); await closeSheets(); }
         await advance('train'); // nets done: a week end moves on, then the new week is Training again
