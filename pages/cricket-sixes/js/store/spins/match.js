@@ -7,7 +7,7 @@ import { makeRng } from '../../core/rng.js';
 import { FLAGS } from '../../data/flags.js';
 import { emptyWheelMeta } from '../../core/save-migrate.js';
 import { MATCH_SPOKES_PER_SPIN } from '../../data/wheelmatch.js';
-import { matchPhys, ctrlOf, landingPos, unaimedPos, segAt, pickSample, stopBucket, isCareful, replayOver } from '../../core/wheelmatch.js';
+import { matchPhys, matchWobble, ctrlOf, landingPos, unaimedPos, segAt, pickSample, stopBucket, isCareful, replayOver } from '../../core/wheelmatch.js';
 import { recordStop, spinKeyOf, storedStop } from '../../core/wheel-stops.js';
 import { cycleOf } from '../../core/wheel-pulse.js';
 import { WHEEL_ENGINE } from '../../data/wheel-engine.js';
@@ -61,8 +61,7 @@ export function wheelOver(s, p, ctx) {
   let pos = null, tickPos = null, t = null, phi = null, bucket = null;
   if (stop) {
     t = Math.max(WHEEL_ENGINE.STOP_GUARD_S, stop.t); phi = stop.phi; // STOP guard only; no upper clamp (no coast)
-    const jr = makeRng(`${s.seed}|wmj|${s.stage}|${over}`);
-    const e = (jr.random() * 2 - 1) * phys.J;
+    const e = matchWobble(s, matchBallOf(innIdx, over), 0, phys.J); // keyed wobble (CONTRACT-A sec 3): spinIndex = ball no., respin 0
     pos = landingPos(phys, { t, phi, e });
     tickPos = landingPos(phys, { t, phi, e: 0 });
     bucket = stopBucket(t);
