@@ -62,19 +62,20 @@ test('tree effects ported: Slow, Steady, Guide, gold width, extra gold, floor', 
   assert.ok(Math.abs(E.spot.booster.chance - 0.6) < 1e-9); assert.equal(E.spot.booster.count, 3); assert.equal(E.pep.booster.value, 1.5);
   assert.deepEqual(E.tokens, { respin: 3, nudge: 1, two: 1, wild: 1, lift: 1 });
   const w = metaWheel(wheelSlices('normal'), 'spot', s);
-  assert.equal(w.slices.length, 11); assert.deepEqual(w.golds, [0, 4]); assert.equal(w.slices[4], 5);
-  assert.ok(Math.abs(w.widths[0] - 0.45) < 1e-9); assert.ok(Math.abs(w.widths[4] - 0.45 * 0.75) < 1e-9);
+  // SPOT_SLICES ring (SPEC 3): gold x3.0 at 1.2 units + 0.10 widening = 1.3; Extra Gold (x0.75) goes farthest from the first gold (SPEC 11a) = index 5
+  assert.equal(w.slices.length, 11); assert.deepEqual(w.golds, [0, 5]); assert.equal(w.slices[5], 3);
+  assert.ok(Math.abs(w.widths[0] - 1.3) < 1e-9); assert.ok(Math.abs(w.widths[5] - 1.3 * 0.75) < 1e-9);
   assert.ok(w.slices.some((v, i) => v === 1 && !w.golds.includes(i)), 'Kind Floor pays nothing here (flag only; T2 perks/kind-floor.js pays)'); assert.equal(w.phys.SD, 0.08);
   assert.ok(Math.abs(w.phys.W0 - 36 * 0.55) < 1e-9); assert.ok(Math.abs(w.phys.J - 1.2 * 0.7225) < 1e-9); assert.equal(w.phys.D, 2); // engine (was W0 13.2 / J 0.42 on W0 24 / J 0.6)
   const n = metaWheel(wheelSlices('normal'), 'spot', fresh()); assert.deepEqual(n.slices, wheelSlices('normal').slices); assert.deepEqual(n.phys, { W0: 36, J: 1.2, SD: 0.11, D: 2 });
   const kf = effective({ ...fresh(), wheelMeta: { ...fresh().wheelMeta, owned: { f_floor: 1 } } }); assert.equal(kf.spot.kindFloor, 1); assert.equal(kf.course.kindFloor, 1); assert.equal(effective(fresh()).spot.kindFloor, 0);
 }));
 
-test('physics reads wheel.phys; without it the old numbers hold', () => {
-  const w = wheelSlices('normal'), a = spinResult(makeRng('p'), w, true), b = spinResult(makeRng('p'), { ...w, phys: { W0: 24, J: 0.6, SD: 0.11 } }, true);
+test('physics reads wheel.phys; without it the engine numbers (SPEC 2a: W0 36, J 1.2) hold', () => {
+  const w = wheelSlices('normal'), a = spinResult(makeRng('p'), w, true), b = spinResult(makeRng('p'), { ...w, phys: { W0: 36, J: 1.2, SD: 0.11 } }, true);
   assert.deepEqual(a, b);
-  assert.ok(Math.abs(wheelArc(2, { W0: 12 }) - wheelArc(2) / 2) < 1e-9);
-  const slow = spinResult(makeRng('p'), { ...w, phys: { W0: 12, J: 0.6, SD: 0.11 } }, { t: 3, phi: 0, e: 0 }), norm = spinResult(makeRng('p'), w, { t: 3, phi: 0, e: 0 });
+  assert.ok(Math.abs(wheelArc(2, { W0: 18 }) - wheelArc(2) / 2) < 1e-9);
+  const slow = spinResult(makeRng('p'), { ...w, phys: { W0: 18, J: 1.2, SD: 0.11 } }, { t: 3, phi: 0, e: 0 }), norm = spinResult(makeRng('p'), w, { t: 3, phi: 0, e: 0 });
   assert.notEqual(slow.index === norm.index && slow.t === norm.t && JSON.stringify(slow) === JSON.stringify(norm), 'x');
 });
 
@@ -139,8 +140,8 @@ test('tokens: refill from ranks, Spotlight cap 2, Course no cap, guards, Wild, n
   // Wild stands in; nudge target never gold; lift capped at gold
   let t = fresh(); t.wheelMeta.tokens.wild = 1; t.wheelMeta.tally = 600; const pw = { index: 2, gain: 1, jackpot: false, wheel: wheelSlices('normal') };
   t = { ...t, wheelMeta: t.wheelMeta }; assert.deepEqual(tokenOptions(t, 'spot', pw).map((o) => o.label), ['Spin Again (Wild)', 'Pick Two (Wild)', 'Nudge (Wild)', 'Lucky Lift (Wild)']);
-  const pn = { index: 2, gain: 1, jackpot: false, wheel: wheelSlices('normal') }, nd = useToken(t, 'spot', 'nudge', pn, rng); assert.equal(nd.pending.index, 3); assert.equal(nd.pending.gain, 3); assert.equal(nd.s.wheelMeta.tokens.wild, 0);
-  assert.equal(useToken(t, 'spot', 'nudge', { index: 1, gain: 2, jackpot: false, wheel: wheelSlices('normal') }, rng).s, t, 'no better neighbour: no token spent');
+  const pn = { index: 2, gain: 1, jackpot: false, wheel: wheelSlices('normal') }, nd = useToken(t, 'spot', 'nudge', pn, rng); assert.equal(nd.pending.index, 3); assert.equal(nd.pending.gain, 1.5); assert.equal(nd.s.wheelMeta.tokens.wild, 0); // SPOT ring: x1.0 -> x1.5
+  assert.equal(useToken(t, 'spot', 'nudge', { index: 6, gain: 1.2, jackpot: false, wheel: wheelSlices('normal') }, rng).s, t, 'no better neighbour: no token spent'); // x1.2 between two x1.0
   for (let i = 0; i < 40; i++) { const q = useToken(t, 'spot', 'lift', { index: 2, gain: 4, jackpot: false, wheel: wheelSlices('normal') }, makeRng('l' + i)); assert.ok(q.pending.gain <= 5 && q.pending.gain >= 4); assert.equal(tokenOptions(q.s, 'spot', q.pending).some((o) => o.kind === 'lift'), false); }
 }));
 
