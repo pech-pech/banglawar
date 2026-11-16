@@ -89,13 +89,35 @@ test('test 3: patient tapper at the cycle-4 time nearest 3.5 s gains at most +0.
   }
 });
 
-// SPEC 14 test 3 second clause (wait for 3.6-3.8 s of cycle 4, at most +0.03). FINDING for the lead: with the SPEC 3-10 rings
-// this tapper gains more on rings with several top slices (Toss +0.08 at n 30000 / Spotlight +0.04), so the SPEC bound is NOT met
-// by the shipped pulse. The guard below pins the current size (regression only); it is not the SPEC +0.03.
-test('test 3: waiting for 3.6-3.8 s (finding: above the SPEC +0.03 on some rings, guard +0.14)', () => {
+// SPEC 14 test 3 second clause, literal reading: a tapper waiting for 3.6-3.8 s of cycle 4 (cycle 4 only; no window -> the plain cycle-1
+// careful tap), gain over cycle 1 at most +0.03. Paired: phase, noise and wobble key are shared across tappers per spin index.
+// Measured n 20000 (seed here): -0.00..+0.01 on every ring; Toss at n 100000: -0.001 (T3 sim: -0.002). Noise s.d. ~0.01 at n 20000,
+// so the n 20000 check allows 0.03 + 0.015; Toss is also held to the strict +0.03 at n 100000.
+const N_WAIT = 20000, TOL_WAIT = 0.015;
+test('test 3: waiting for 3.6-3.8 s of cycle 4 only gains at most +0.03 (SPEC rings; tolerance 0.015 at n 20000)', () => {
+  assert.equal(TAPPERS.patientSlowLast.onlyLast, true);
   for (const k of Object.keys(R)) {
-    const n = k.startsWith('find') ? N_FIND : N_SKILL, tol = k.startsWith('find') ? 0.02 / RANDOM[k] : 0;
-    const d = run(k, 'patientSlow', n).ratio - run(k, 'careful', n).ratio;
-    assert.ok(d <= 0.14 + tol, `${k} patientSlow gains ${d.toFixed(3)}`);
+    if (k.startsWith('find')) continue;   // Find rings are not in the SPEC test-3 ring list
+    const d = run(k, 'patientSlowLast', N_WAIT).ratio - run(k, 'careful', N_WAIT).ratio;
+    assert.ok(d <= 0.03 + TOL_WAIT, `${k} patientSlowLast gains ${d.toFixed(3)}`);
+  }
+});
+
+test('test 3: Toss waiting for 3.6-3.8 s of cycle 4 stays within the strict +0.03 at n 100000', () => {
+  const n = 100000, d = run('toss', 'patientSlowLast', n).ratio - run('toss', 'careful', n).ratio;
+  assert.ok(d <= 0.03, `toss patientSlowLast gains ${d.toFixed(3)}`);
+});
+
+// FINDING (not the cycle-4 SPEC assertion; see TEST3-RECONCILE.md and T4-PATIENT-TAPPER.md): a player who watches cycles 1-4 for the
+// first pulse whose slow end (3.6-3.8 s) covers a top slice (patientSlow = SPEC 01 / python definition, cycle-1 fallback) gains
+// +0.005..+0.015 on most rings but Toss +0.07 (three 5% slices); patientSlowAny (cycle-4 fallback, "pick the better cycle") gains
+// +0.03..+0.05. Report to M. The guard pins the current size (regression only): 0.14.
+test('test 3 finding: 4-pulse wait for the slow end (Toss +0.07 above SPEC +0.03, regression guard +0.14)', () => {
+  for (const tp of ['patientSlow', 'patientSlowAny']) {
+    for (const k of Object.keys(R)) {
+      const n = k.startsWith('find') ? N_FIND : N_SKILL, tol = k.startsWith('find') ? 0.02 / RANDOM[k] : 0;
+      const d = run(k, tp, n).ratio - run(k, 'careful', n).ratio;
+      assert.ok(d <= 0.14 + tol, `${k} ${tp} gains ${d.toFixed(3)}`);
+    }
   }
 });

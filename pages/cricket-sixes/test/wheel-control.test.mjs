@@ -69,12 +69,14 @@ test('controlRanks reads owned ranks; flag off = all 0', () => {
   } finally { /** @type {any} */ (FLAGS).wheelMeta = was; }
 });
 
-test('existing exports keep their behaviour (metaWheel phys, effective multipliers)', () => {
+test('metaWheel phys = the engine after Control (T2 review: was W0 24 / J 0.6); effective multipliers = controlPhys', () => {
   const was = FLAGS.wheelMeta; /** @type {any} */ (FLAGS).wheelMeta = true;
   try {
     const s = { wheelMeta: { owned: { c_slow: 3, c_steady: 2, c_guide: 1 } } };
-    const E = effective(s).spot; near(E.w0Mult, 0.55); near(E.jMult, 0.7); assert.equal(E.guide, true);
+    const E = effective(s).spot; near(E.w0Mult, 0.55); near(E.jMult, 0.7225); assert.equal(E.guide, true);
     const w = metaWheel({ slices: [1, 2, 3, 4, 5, 6], jackpotIndex: 0 }, 'spot', s);
-    near(w.phys.W0, 24 * 0.55); near(w.phys.J, 0.6 * 0.7); near(w.phys.SD, 0.11 * 0.727);
+    assert.deepEqual(w.phys, { ...controlPhys(controlRanks(s), WHEEL_ENGINE, WHEEL_ENGINE.J), D: WHEEL_ENGINE.D });
+    near(w.phys.W0, 36 * 0.55); near(w.phys.J, 1.2 * 0.7225); assert.equal(w.phys.SD, 0.08); assert.equal(w.phys.D, 2);
+    const n = metaWheel({ slices: [1, 2, 3], jackpotIndex: 0 }, 'course', {}); assert.deepEqual(n.phys, { W0: 36, J: 1.2, SD: 0.11, D: 2 });
   } finally { /** @type {any} */ (FLAGS).wheelMeta = was; }
 });

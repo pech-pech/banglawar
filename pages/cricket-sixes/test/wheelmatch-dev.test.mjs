@@ -32,7 +32,7 @@ test('T-dev-1 default off: new save has Dev off, section hidden, every wheel at 
   const base = wheelSlices('normal'), cw = courseWheel(3);
   withFlags({ wheelMeta: false }, () => { assert.equal(metaWheel(base, 'spot', s), base); assert.equal(metaWheel(cw, 'course', s), cw); });
   withFlags({ wheelMeta: true }, () => {
-    assert.equal(metaWheel(base, 'spot', s).phys.W0, 24);
+    assert.equal(metaWheel(base, 'spot', s).phys.W0, 36);
     assert.equal(findWheelOf(s, FIND_ID).phys.W0, 36);
     assert.equal(hypeDialOf(s).V, 16);
     for (const w of ['hype', 'toss', 'pep', 'scout', 'finals']) assert.equal('speedMult' in ctlOf(s, w), false, w);
@@ -70,20 +70,20 @@ test('T-dev-8 Off ignores saved values; On uses them', () => {
   assert.equal(matchPhys(on).W0, 70); assert.equal(otherMultOf(on), 2);
 });
 
-test('T-dev-9 otherMult x2: Find W0 72, Hype V 32, Spotlight / Course W0 48, reveals twice as fast; Slow stacks (x0.55); match wheel unaffected', () => {
+test('T-dev-9 otherMult x2: Find W0 72, Hype V 32, Spotlight / Course W0 72, reveals twice as fast; Slow stacks (x0.55); match wheel unaffected', () => {
   const s0 = game(), s = dev(s0, { on: true, otherMult: 2 });
   withFlags({ wheelMeta: true }, () => {
     assert.equal(findWheelOf(s, FIND_ID).phys.W0, 72);
     assert.equal(hypeDialOf(s).V, 32);
-    assert.equal(metaWheel(wheelSlices('normal'), 'spot', s).phys.W0, 48);
-    assert.equal(metaWheel(courseWheel(3), 'course', s).phys.W0, 48);
+    assert.equal(metaWheel(wheelSlices('normal'), 'spot', s).phys.W0, 72);
+    assert.equal(metaWheel(courseWheel(3), 'course', s).phys.W0, 72);
     for (const w of ['toss', 'pep', 'scout', 'finals']) assert.equal(ctlOf(s, w).speedMult, 2, w);
     // Slow Spin rank 3 (w0Mult 0.55) stacks on top
     const slow = { ...s, wheelMeta: { ...(s.wheelMeta || {}), owned: { ...((s.wheelMeta || {}).owned || {}), c_slow: 3 } } };
     const wm = effective(slow).find.w0Mult; assert.ok(Math.abs(wm - 0.55) < 1e-9);
     assert.ok(Math.abs(findWheelOf(slow, FIND_ID).phys.W0 - 72 * 0.55) < 1e-9);
     assert.ok(Math.abs(hypeDialOf(slow).V - 32 * 0.55) < 1e-9);
-    assert.ok(Math.abs(metaWheel(wheelSlices('normal'), 'spot', slow).phys.W0 - 48 * 0.55) < 1e-9);
+    assert.ok(Math.abs(metaWheel(wheelSlices('normal'), 'spot', slow).phys.W0 - 72 * 0.55) < 1e-9);
     // the match wheel reads matchW0 only
     assert.equal(matchPhys(s).W0, matchPhys(s0).W0);
   });

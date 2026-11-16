@@ -31,12 +31,12 @@ test('data: tokens on all 8 wheels, cap rule F, Control and Fortune token scopes
 test('effective: Control on every wheel, feelOnly on toss/pep/scout/finals, Hype dial V/J/sd', () => on(() => {
   const E = effective(full());
   for (const w of TOKEN_WHEELS) {
-    const X = E[w]; assert.ok(Math.abs(X.w0Mult - 0.55) < 1e-9, w); assert.ok(Math.abs(X.jMult - 0.7) < 1e-9, w);
+    const X = E[w]; assert.ok(Math.abs(X.w0Mult - 0.55) < 1e-9, w); assert.ok(Math.abs(X.jMult - 0.7225) < 1e-9, w); // Steady 0.85^2 (CONTRACT-A sec 2; was 0.7 linear)
     assert.equal(X.guide, true); assert.ok(Math.abs(X.zone - 0.2) < 1e-9); assert.equal(X.chime, true);
     assert.equal(X.feelOnly, ['toss', 'pep', 'scout', 'finals'].includes(w), w);
   }
   for (const [r, v] of [[1, 13.6], [2, 11.2], [3, 8.8]]) assert.ok(Math.abs(effective(own({ c_slow: r })).hype.dial.V - v) < 1e-9);
-  assert.ok(Math.abs(E.hype.dial.Jmult - 0.7) < 1e-9); assert.ok(Math.abs(E.hype.dial.sdMult - 0.727) < 1e-9);
+  assert.ok(Math.abs(E.hype.dial.Jmult - 0.7225) < 1e-9); assert.ok(Math.abs(E.hype.dial.sdMult - 0.727) < 1e-9);
   const n = effective(fresh()); assert.equal(n.hype.dial.V, 16); assert.equal(n.find.w0Mult, 1); assert.equal(n.toss.guide, false);
   FLAGS.wheelMeta = false; const off = effective(full()); assert.equal(off.hype.w0Mult, 1); assert.equal(off.hype.dial.V, 16); assert.equal(off.find.zone, 0);
 }));
@@ -45,7 +45,7 @@ test('hypeDial applies Control: V = 16 x w0Mult, J = 1.2 x Nuts width x jMult, s
   const base = hypeDial(ODDS0), nm = hypeDial(ODDS0, neutralMods());
   assert.equal(base.V, 16); assert.equal(base.sd, DR.SD_AVG); assert.equal(base.guide, false); assert.deepEqual(base, nm);
   const d = hypeDial(ODDS0, modsFor(effective(own({ c_slow: 3, c_steady: 2, c_guide: 1 })), 'hype'));
-  assert.ok(Math.abs(d.V - 8.8) < 1e-9); assert.ok(Math.abs(d.J - base.J * 0.7) < 1e-9); assert.ok(Math.abs(d.sd - 0.11 * 0.727) < 1e-9); assert.equal(d.guide, true);
+  assert.ok(Math.abs(d.V - 8.8) < 1e-9); assert.ok(Math.abs(d.J - base.J * 0.7225) < 1e-9); assert.ok(Math.abs(d.sd - 0.11 * 0.727) < 1e-9); assert.equal(d.guide, true);
   for (const t of [0.9, 1.4, 2.2, 2.9]) { const phi = 3.3; assert.ok(Math.abs(dialGuideX(d, phi, t) - dialLanding(d, { t, phi, e: 0 }).x) < 1e-9); }
 }));
 
@@ -135,11 +135,15 @@ test('flag off: no offers, same state; Spotlight and Course offers unchanged (no
 });
 
 // ---- season sim (port of all_spins_sim.py season_loop + spin_wheel, rule F, avg careful) through the game code
+// SPEC rings (wheels SPEC 3 / 4; T2 ships them): Spotlight slices are x multipliers, Course steps. SPEC rule: no "/ 1.5", ratio = value / own random.
+const X1 = 7.4 / 7, P1 = 7.3 / 7;
+const SPOT_RING = () => ({ slices: [3, 1, 1, 1.5, 1, 1, 1.2, 1, 1, 1], jackpotIndex: 0, widths: [1.2, X1, X1, 0.8, X1, X1, 0.6, X1, X1, X1] });
+const COURSE_RING = () => ({ slices: [4, 1, 3, 1, 2, 1, 2, 1, 1, 1, 1], jackpotIndex: 0, widths: [1.2, P1, 0.8, P1, 0.35, P1, 0.35, P1, P1, P1, P1] });
 const SPINS = { spot: 9.95, course: 1.33, hype: 9.95, toss: 9.95, pep: 9.95, scout: 1, finals: 0.6 };
 function seasonRun(s0, seasons, seed, tokensOn = true) {
   const rng = makeRng(seed), R = {}; let s = s0;
   for (const w of ['spot', 'course', 'hype', 'toss', 'pep', 'scout', 'finals']) R[w] = { v: 0, n: 0, g: 0, tok: 0 };
-  const E0 = effective(s), wheels = { spot: metaWheel(wheelSlices('normal'), 'spot', s), course: metaWheel(courseWheel(), 'course', s), hype: dialOf(s) };
+  const E0 = effective(s), wheels = { spot: metaWheel(SPOT_RING(), 'spot', s), course: metaWheel(COURSE_RING(), 'course', s), hype: dialOf(s) };
   for (const w of ['toss', 'pep', 'scout', 'finals']) wheels[w] = revealWheel(w, modsFor(E0, w));
   for (let sn = 0; sn < seasons; sn++) {
     s = JSON.parse(JSON.stringify(s)); s.season = { n: sn + 1 }; s = seasonTokens(s); if (!tokensOn) s.wheelMeta.tokens = { respin: 0, nudge: 0, two: 0, wild: 0, lift: 0 };
@@ -166,12 +170,14 @@ function seasonRun(s0, seasons, seed, tokensOn = true) {
   }
   const out = {}; for (const [w, r] of Object.entries(R)) out[w] = { v: r.v / r.n, g: r.g / r.n, tok: r.tok / seasons }; return out;
 }
-test('PARITY rule F season (02 s3 row F, avg careful): Spotlight 2.54x, Course 3.01, Hype 7.31, Toss 4.49, Pep +1-5%, Scout 1.52, Finals 36.95', () => on(() => {
+test('PARITY rule F season (avg careful, SPEC rings): Spotlight under 3.0x (SPEC 11c 2.52x), Course 3.76 (SPEC 11c), Hype 7.31, Toss 4.49, Pep +1-5%, Scout 1.52, Finals 36.95', () => on(() => {
   const F = seasonRun(full(), 1500, 'seasonF'), N = seasonRun(fresh(), 600, 'seasonN', false);
-  const line = (o) => Object.entries(o).map(([w, r]) => `${w} ${(w === 'spot' ? r.v / 1.5 : r.v).toFixed(3)} g${(r.g * 100).toFixed(0)}% t${r.tok.toFixed(2)}`).join(' | ');
+  const line = (o) => Object.entries(o).map(([w, r]) => `${w} ${r.v.toFixed(3)} g${(r.g * 100).toFixed(0)}% t${r.tok.toFixed(2)}`).join(' | ');
   console.log('season F   ', line(F)); console.log('season none', line(N));
-  assert.ok(Math.abs(F.spot.v / 1.5 - 2.54) <= 0.06, 'spot ' + F.spot.v / 1.5);
-  assert.ok(Math.abs(F.course.v - 3.01) <= 0.12, 'course ' + F.course.v);
+  // was spot v / 1.5 = 2.54 +-0.06 and course 3.01 +-0.12 (old points wheel, W0 24 physics). Spotlight is a multiplier now: bug line < 3.0x (SPEC 11c);
+  // its 2.52x needs T2's Spotlight perks in x units (Booster / Hot Streak / Lift still pay old points here).
+  assert.ok(F.spot.v < 3.0 && F.spot.v > N.spot.v, 'spot ' + F.spot.v);
+  assert.ok(Math.abs(F.course.v - 3.76) <= 0.12, 'course ' + F.course.v);
   assert.ok(Math.abs(F.hype.v - 7.31) <= 0.2 && F.hype.v < 8 && F.hype.g < 0.5, 'hype ' + F.hype.v);
   assert.ok(Math.abs(F.toss.v - 4.49) <= 0.25, 'toss ' + F.toss.v); // Pep: the game's w2 Pep reel pays 1.70 at full tree with no tokens (sim 1.908: older port gap, not tokens); token gain must be small (sim +1.5%)
   assert.ok(F.pep.v > 1.70 && F.pep.v < 1.80, 'pep ' + F.pep.v);

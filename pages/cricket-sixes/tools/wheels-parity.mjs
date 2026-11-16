@@ -28,7 +28,12 @@ export const TAPPERS = Object.freeze({
   full:     { who: 'avg',  control: true,  cycle: 1 },
   goodfull: { who: 'good', control: true,  cycle: 1 },
   patient:  { who: 'avg',  control: false, cycle: 4 },   // taps at the cycle-4 time nearest 3.5 s (SPEC test 3)
-  patientSlow: { who: 'avg', control: false, cycle: 4, waitLo: 3.6, waitHi: 3.8 }, // waits for 3.6-3.8 s of cycle 4
+  // SPEC test 3 clause 2 (SPEC 01 / python def, T4 W14): first of cycles 1-4 whose 3.6-3.8 s window covers a best slice; if none, the plain cycle-1 careful tap.
+  patientSlow: { who: 'avg', control: false, cycle: 4, waitLo: 3.6, waitHi: 3.8, fallback: 1 },
+  // Literal "waiting for 3.6-3.8 s of cycle 4" (cycle 4 only, one look); no window -> cycle-1 careful tap. See TEST3-RECONCILE.md.
+  patientSlowLast: { who: 'avg', control: false, cycle: 4, waitLo: 3.6, waitHi: 3.8, onlyLast: true, fallback: 1 },
+  // FINDING, not SPEC: old harness tapper, no window in cycles 1-4 -> cycle-4 nearest 3.5 s ("pick the better cycle", T4-PATIENT-TAPPER.md).
+  patientSlowAny: { who: 'avg', control: false, cycle: 4, waitLo: 3.6, waitHi: 3.8 },
 });
 
 const C = WHEEL_ENGINE.CIRC;
@@ -78,7 +83,7 @@ export function runTapper(rows, tapperName, { n = 2000, seed = 'parity', name = 
   if (!T) throw new Error(`unknown tapper ${tapperName}`);
   const edges = edgesOf(rows), rnd = exactRandom(rows);
   const J0 = J ?? WHEEL_ENGINE.J, ma = minAim ?? SIM.MIN_AIM;
-  // Common random numbers: stream depends on seed + ring + n only, not on tapper, so careful / patient / full share phases and noise.
+  // Common random numbers (phase, noise AND wobble key per spin index, same across tappers => paired comparison): stream depends on seed + ring + n only, not on tapper, so careful / patient / full share phases and noise.
   const rng = makeRng(`${seed}|tap|${name}|${n}`);
   const hits = new Array(rows.length).fill(0);
   let sum = 0;
@@ -92,13 +97,13 @@ export function runTapper(rows, tapperName, { n = 2000, seed = 'parity', name = 
       const P = { W0: WHEEL_ENGINE.W0 * (ctl ? SIM.SLOW : 1), D: WHEEL_ENGINE.D };
       const sd = (ctl ? SIM.GSD : SIM.SD)[T.who], Jt = J0 * (ctl ? SIM.STEADY : 1);
       const tRef = SIM.T_MID + WHEEL_ENGINE.PULSE_PERIOD * (T.cycle - 1);
-      let t0 = pickTarget(rows, edges, phi, P, tRef, ma).t;
+      let t0 = pickTarget(rows, edges, phi, P, T.fallback === 1 ? SIM.T_MID : tRef, ma).t;   // fallback 1: cycle-1 careful tap
       if (T.waitLo != null) { // waits for an arrival inside [3.6, 3.8] of its cycle if one exists, else the normal tap
         const hit = waitWindow(rows, edges, phi, P, T);
         if (hit != null) t0 = hit;
       }
       const t = Math.max(SIM.T_MIN, t0 + z * sd);
-      pos = phi + tickAt(t, P) + wheelWobble(`${seed}|wob|${name}|${tapperName}|${i}|0`, Jt);
+      pos = phi + tickAt(t, P) + wheelWobble(`${seed}|wob|${name}|${i}|0`, Jt);
     }
     const s = sliceAt(edges, pos);
     hits[s]++; sum += rows[s].value;
@@ -106,10 +111,10 @@ export function runTapper(rows, tapperName, { n = 2000, seed = 'parity', name = 
   return { n, mean: sum / n, ratio: sum / n / rnd, random: rnd, hits };
 }
 
-// Patient variant: first of cycles 1..cycle whose tick window [3.6, 3.8] covers the centre of a best slice.
+// Patient variant: first of cycles 1..cycle (only the last when T.onlyLast) whose tick window [3.6, 3.8] covers the centre of a best slice.
 function waitWindow(rows, edges, phi, P, T) {
   const PER = WHEEL_ENGINE.PULSE_PERIOD, vmax = Math.max(...rows.filter((s) => s.w >= SIM.MIN_AIM).map((s) => s.value));
-  for (let j = 0; j < T.cycle; j++) {
+  for (let j = T.onlyLast ? T.cycle - 1 : 0; j < T.cycle; j++) {
     const a = tickAt(j * PER + T.waitLo, P) + phi, b = tickAt(j * PER + T.waitHi, P) + phi;
     for (let i = 0; i < rows.length; i++) {
       if (rows[i].value !== vmax || rows[i].w < SIM.MIN_AIM) continue;
@@ -162,7 +167,7 @@ if (isMain) {
     const bad = checkRing(rows, { allowEqual: true, cap: 0.13 });
     if (bad.length) console.log(`warn ${nm}: ${bad.join('; ')}`);
     const o = { n, seed, name: nm, J, minAim: minAim ?? (nm.startsWith('find') ? SIM.FIND_MIN_AIM : undefined) };
-    res[nm] = parityRow(rows, o, patient ? ['careful', 'patient', 'patientSlow'] : ['random', 'careful', 'good', 'full', 'goodfull']);
+    res[nm] = parityRow(rows, o, patient ? ['careful', 'patient', 'patientSlow', 'patientSlowLast', 'patientSlowAny'] : ['random', 'careful', 'good', 'full', 'goodfull']);
   }
   console.log(`wheels parity, n ${n}, seed ${seed}; cell = mean (ratio over exact random)`);
   console.log(formatTable(res));
