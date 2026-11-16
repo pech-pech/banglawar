@@ -10,7 +10,7 @@ import { deco, strongHtml } from './training-view.js';
 import { letterOfStep } from '../core/letters.js';
 import { openWheel } from './wheel-view.js';
 import { scoutBodyHtml, scoutDone, scoutSpinOpen } from './coachpick-view.js';
-import { courseWheel } from '../core/training.js';
+import { applyKindFloor } from '../core/perks/kind-floor.js';
 import { COURSE_SLICES } from '../data/wheel-slices-train.js';
 
 /* Z5 UI slots (SEAMS-S0): fenced, return '' today. Owners: Course T2, job chip + XP bar T5, Clinic button T6. */
@@ -31,6 +31,14 @@ export function slotCourse(vm) {
   return '<section class="tr-note t2-course" aria-label="Course wheel"><span>' + deco('info', 20) + '</span><span>Course wheel: a gold +4 slice (12%), a thin +2 slice, the rest +1 or +3. One course a season.</span>' +
     (notes ? '<ul class="t2-course-why">' + notes + '</ul>' : '') + '</section>';
 } // owner: T2
+/** The Course ring for a coach's course vm: COURSE_SLICES with Kind Floor applied when course.kindFloor is set, or the tree's widths / extra gold (Widener, Extra Gold) when the vm wheel carries them. */
+export function courseRing(cr) {
+  const base = applyKindFloor(COURSE_SLICES, !!(cr && cr.kindFloor)).map((r) => ({ ...r, label: r.label.startsWith('x') ? '+' + r.label.slice(1) : r.label }));
+  const w = cr && cr.wheel, v = w && w.slices, ws = w && w.widths;
+  if (!Array.isArray(v) || !Array.isArray(ws) || v.length !== ws.length || !v.length || (v.length === base.length && ws.every((x, i) => Math.abs(x - base[i].w) < 1e-6))) return base;
+  const same = v.length === base.length, golds = w.golds && w.golds.length ? w.golds : [w.jackpotIndex || 0];
+  return v.map((x, i) => { const val = same ? base[i].value : x; return { id: i, w: ws[i], value: val, label: '+' + val, tier: val > 1 ? 'top' : 'low', gold: golds.includes(i) }; });
+}
 /* SLOT:Course end */
 /* SLOT:JobChip start */
 export function slotJobChip(vm, coach) { return ''; } // owner: T5
@@ -101,14 +109,14 @@ export function open(vm, dispatch, openFn, arg, refresh) {
 export function startCourse(vm, id, dispatch, refresh) {
   const co = (vm.coaches || []).find((x) => x.id === id); if (!co || !co.course || !co.course.ok) return;
   const cur = () => { const v = refresh ? refresh() : vm, k = (v.coaches || []).find((x) => x.id === id); return k && k.course ? k.course : co.course; };
-  const w = co.course.wheel || courseWheel(co.step), from = co.step;
+  const from = co.step, cr0 = co.course;
   const card = '<div class="wh-who"><b class="t2-nm">' + esc(co.name) + '</b><span class="c-tag">Course: away 1 week</span></div><div class="wh-gr"><span class="wh-g hit"><span>Grade</span><b>' + esc(co.letter) + '</b></span><span class="wh-g wh-wide"><span>Strong</span><b class="t2-strong">' + strongHtml(co.strong) + '</b></span></div><p class="dr-hint">The tick shows where it will land.</p>';
   openWheel({
-    wheelId: 'course', ring: COURSE_SLICES, legend: [{ ch: '+2', text: 'thin slice: +2 steps' }], // CONTRACT-A sec 4: ring replaces slices/widths once T1 merges
-    title: 'Course', sub: co.name, cardHtml: card, slices: w.slices, jackpotIndex: w.jackpotIndex, widths: w.widths, aim: w.aim, pending: co.course.pending || null, plus: '+',
-    guide: !!co.course.guide, zone: +co.course.zone || 0, chime: !!co.course.chime, tokens: co.course.tokens || [], getTokens: () => cur().tokens || [], look: co.course.look || null, phys: w.phys || null, golds: w.golds || null, spokeGain: () => cur().spokeGain || 0, onToken: (kind, careful) => dispatch('UseToken', { wheel: 'course', kind, careful }), // wheel meta: empty when the flag is off
-    onSpin: (careful) => dispatch('CourseSpin', { coachId: id, careful }), getPending: () => cur().pending || null,
-    describe: (r) => { const to = Math.min(COURSE_CAP_STEP, from + r.gain), paid = to - from, a = letterOfStep(from), b = letterOfStep(to), cut = paid < r.gain; return { big: 'Grade steps', from: a, to: b, paid, breakthrough: !!r.jackpot || a !== b, say: co.name + ' course: ' + (cut ? '+' + r.gain + ', cut at ' + letterOfStep(COURSE_CAP_STEP) + ': you gain +' + paid + '. ' : '') + a + (a === b ? ', already top grade' : ' to ' + b) + (r.jackpot ? ', jackpot' : '') + '.' }; },
+    wheelId: 'course', spinKey: cr0.spinKey || undefined, wobKey: cr0.wobKey || undefined, stored: cr0.stored || undefined, ring: courseRing(cr0), legend: [{ ch: '+2', text: 'thin slice: +2 steps' }], J: 1.2, // CONTRACT-A sec 4: ring + engine J 1.2 (phys.J = after Steady)
+    title: 'Course', sub: co.name, cardHtml: card, pending: cr0.pending || null,
+    guide: !!cr0.guide, zone: +cr0.zone || 0, chime: !!cr0.chime, tokens: cr0.tokens || [], getTokens: () => cur().tokens || [], look: cr0.look || null, phys: (cr0.wheel && cr0.wheel.phys) || undefined, spokeGain: () => cur().spokeGain || 0, onToken: (kind, careful) => dispatch('UseToken', { wheel: 'course', kind, careful }), // wheel meta: empty when the flag is off
+    onSpin: (stop) => dispatch('CourseSpin', { coachId: id, careful: stop, stop }), getPending: () => cur().pending || null, // the handler records the stop (recordStop) and lands the same slice
+    describe: (r) => { const to = Math.min(COURSE_CAP_STEP, from + r.gain), paid = to - from, a = letterOfStep(from), b = letterOfStep(to), cut = paid < r.gain; return { big: 'Grade steps', from: a, to: b, paid, breakthrough: !!r.jackpot || a !== b, say: co.name + ' course: ' + (cut ? '+' + r.gain + ', cut at ' + letterOfStep(COURSE_CAP_STEP) + ': you gain +' + paid + '. ' : '') + (a === b ? a + (cut ? ' stays' : ', already top grade') : a + ' to ' + b) + (r.jackpot ? ', jackpot' : '') + '.' }; },
     onCollect: () => dispatch('RunCourse', { coachId: id }),
   });
 }
