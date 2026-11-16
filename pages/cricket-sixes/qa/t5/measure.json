@@ -28,8 +28,7 @@
  "notes": [
   "stage after load: train",
   "payout via EndWeek: before [[3,99,0],[6,0,0]] after {\"stage\":\"week\",\"c\":[[4,9,1],[6,0,0]]}",
-  "step-up card auto-shown after payout: false",
-  "NOTE: step-up card is registered as sheet \"stepup\" but nothing opens it automatically; shot 10 opened it by a synthetic data-act=\"sheet:stepup\" click. Card present: false",
+  "step-up card auto-shown after payout: true",
   "fold 475x638: {\"viewport\":\"475x638\",\"scrollY\":0,\"pageScrollH\":638,\"strip\":{\"top\":82,\"bottom\":272,\"left\":22,\"right\":453,\"h\":190,\"w\":431},\"stripHeight\":190,\"runNets\":{\"top\":572,\"bottom\":628,\"left\":14,\"right\":461,\"h\":56,\"w\":447},\"runNetsFullyVisibleNoScroll\":true,\"runNetsClippedByScroller\":false,\"coachSlots\":3}"
  ],
  "shots": [
@@ -54,11 +53,11 @@
     },
     {
      "cw": "job",
-     "cls": "cw-chip cw-chip-study",
+     "cls": "cw-chip cw-chip-match cw-locked",
      "w": 70.9,
      "h": 56,
      "minFont": 14,
-     "text": "Study"
+     "text": "Match"
     },
     {
      "cw": "xp",
@@ -110,11 +109,11 @@
     },
     {
      "cw": "job",
-     "cls": "cw-chip cw-chip-study",
+     "cls": "cw-chip cw-chip-match cw-locked",
      "w": 70.9,
      "h": 56,
      "minFont": 14,
-     "text": "Study"
+     "text": "Match"
     },
     {
      "cw": "xp",
@@ -174,11 +173,11 @@
    "els": [
     {
      "cw": "job",
-     "cls": "cw-chip cw-chip-study",
+     "cls": "cw-chip cw-chip-scout",
      "w": 70.9,
      "h": 56,
      "minFont": 14,
-     "text": "Study"
+     "text": "Scout"
     },
     {
      "cw": "xp",
@@ -190,11 +189,11 @@
     },
     {
      "cw": "job",
-     "cls": "cw-chip cw-chip-study",
+     "cls": "cw-chip cw-chip-match cw-locked",
      "w": 70.9,
      "h": 56,
      "minFont": 14,
-     "text": "Study"
+     "text": "Match"
     },
     {
      "cw": "xp",
@@ -246,11 +245,11 @@
     },
     {
      "cw": "job",
-     "cls": "cw-chip cw-chip-study",
+     "cls": "cw-chip cw-chip-match cw-locked",
      "w": 70.9,
      "h": 56,
      "minFont": 14,
-     "text": "Study"
+     "text": "Match"
     },
     {
      "cw": "xp",
@@ -270,11 +269,11 @@
    "els": [
     {
      "cw": "job",
-     "cls": "cw-chip cw-chip-study",
+     "cls": "cw-chip cw-chip-match cw-locked",
      "w": 70.9,
      "h": 56,
      "minFont": 14,
-     "text": "Study"
+     "text": "Match"
     },
     {
      "cw": "xp",
@@ -301,11 +300,11 @@
    "els": [
     {
      "cw": "job",
-     "cls": "cw-chip cw-chip-study",
+     "cls": "cw-chip cw-chip-away cw-locked",
      "w": 70.9,
      "h": 56,
      "minFont": 14,
-     "text": "Study"
+     "text": "On course"
     },
     {
      "cw": "xp",
@@ -317,11 +316,11 @@
     },
     {
      "cw": "job",
-     "cls": "cw-chip cw-chip-study",
+     "cls": "cw-chip cw-chip-match cw-locked",
      "w": 70.9,
      "h": 56,
      "minFont": 14,
-     "text": "Study"
+     "text": "Match"
     },
     {
      "cw": "xp",
@@ -378,14 +377,32 @@
   },
   {
    "shot": "09-after-payout",
-   "els": [],
+   "els": [
+    {
+     "cw": "stepup-ok",
+     "cls": "cw-stepup-ok",
+     "w": 272,
+     "h": 56,
+     "minFont": 18,
+     "text": "OK"
+    }
+   ],
    "overflowX": false,
    "scrollW": 344,
    "clientW": 344
   },
   {
    "shot": "10-stepup-card",
-   "els": [],
+   "els": [
+    {
+     "cw": "stepup-ok",
+     "cls": "cw-stepup-ok",
+     "w": 272,
+     "h": 56,
+     "minFont": 18,
+     "text": "OK"
+    }
+   ],
    "overflowX": false,
    "scrollW": 344,
    "clientW": 344

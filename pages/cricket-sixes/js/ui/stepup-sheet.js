@@ -22,6 +22,19 @@ export function openStepUp(s, dispatch, open, arg) {
   });
 }
 
+/** openByName-equivalent for main.js: app.js mount() returns dispatch, not openByName, so click a hidden data-act="sheet:<name>" button inside the app root (bindActs listens there). @param {any} [root] @param {any} [doc] */
+export function makeOpenByName(root, doc) {
+  return (/** @type {string} */ name) => {
+    const d = doc || (typeof document !== 'undefined' ? document : null), r = root || (d && d.getElementById('app'));
+    if (!d || !r) return false;
+    const b = d.createElement('button');
+    b.setAttribute('type', 'button'); b.setAttribute('data-act', 'sheet:' + name); b.setAttribute('aria-hidden', 'true'); b.tabIndex = -1; b.hidden = true;
+    r.appendChild(b);
+    try { b.click(); } finally { if (b.parentNode) b.parentNode.removeChild(b); }
+    return true;
+  };
+}
+
 const LIVE_STAGES = ['bowl', 'chase', 'break'];
 
 /** Ui flags from state plus env probes. wheelOpen: wheel mode screen or a wheel overlay; matchLive: match overs stage; netsScene: env probe. @param {any} state @param {any} [env] */

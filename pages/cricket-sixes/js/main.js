@@ -4,7 +4,7 @@ import { createSave } from './platform/save.js';
 import { openSaveSheet } from './ui/save-sheet.js';
 import { FLAGS } from './data/flags.js';
 import { applyTheme, themeOf } from './ui/theme.js';
-import { installStepUpWatcher } from './ui/stepup-sheet.js';
+import { installStepUpWatcher, makeOpenByName } from './ui/stepup-sheet.js';
 import { overlayOpen } from './ui/inert.js';
 import './install.js'; // S0 lead call 3a: T5 / T6 listener and command modules (empty today)
 
@@ -54,9 +54,9 @@ store.subscribe((s) => { saved = save.save(s); });
 window.__store = store;
 window.__save = save;
 const ui = mount(document.getElementById('app'), store);
-// T5: auto-open the coach step-up sheet. Needs mount() to return { openByName } (asked of T7); no-op until then.
-if (ui && typeof ui.openByName === 'function') {
-  installStepUpWatcher({ store, openByName: ui.openByName, overlayOpen, wheelOverlay: () => !!document.querySelector('.wh-ov'), netsScene: () => !!document.querySelector('.ns-scene') });
+// T5: auto-open the coach step-up sheet. mount() returns dispatch, so open through a hidden data-act="sheet:stepup" click inside #app.
+{
+  installStepUpWatcher({ store, openByName: (ui && typeof ui.openByName === 'function') ? ui.openByName : makeOpenByName(document.getElementById('app')), overlayOpen, wheelOverlay: () => !!document.querySelector('.wh-ov'), netsScene: () => !!document.querySelector('.ns-scene') });
 }
 
 // 4. Save sheet: any element with data-act="sheet:save" opens it.

@@ -33,4 +33,26 @@ test('T5.5 season rollover resets the cap and drops unused names', () => {
   assert.equal(scoutNameGain(n, 'c0'), 1);
   const e = {}; seasonReset(e); assert.deepEqual(e.scout, { extraThisSeason: 0, bonusNames: 0 });
 });
-// T5.6 skipped: scoutList() builds `count` from CO.scoutSize + s.scoutSpin.extra only; wiring bonus names needs an edit to training.js.
+import { scoutList } from '../js/core/training.js';
+import { TRAIN2 } from '../js/data/training.js';
+const base = (seed, bonus) => ({ seed, scout: { bonusNames: bonus, extraThisSeason: 0 } });
+test('T5.6 extra names follow the same grade-centre rule (1000 seeded draws)', () => {
+  const norm = [], extra = [];
+  for (let i = 0; i < 1000; i++) {
+    const a = scoutList(base('s' + i, 0)), b = scoutList(base('s' + i, 1));
+    assert.equal(b.length, a.length + 1);
+    a.forEach((c) => norm.push(c.step)); extra.push(b[b.length - 1].step);
+  }
+  const mean = (x) => x.reduce((p, c) => p + c, 0) / x.length;
+  const sd = Math.sqrt(mean(norm.map((v) => (v - mean(norm)) ** 2)));
+  assert.ok(Math.abs(mean(extra) - mean(norm)) <= sd, `${mean(extra)} vs ${mean(norm)} sd ${sd}`);
+});
+test('scoutList grows by bonusNames, stays deterministic, ids stable, resets at season close', () => {
+  const L0 = scoutList(base('x', 0));
+  for (const k of [1, 2]) {
+    const l = scoutList(base('x', k)); assert.equal(l.length, L0.length + k);
+    assert.deepEqual(l, scoutList(base('x', k)));
+    assert.deepEqual(l.slice(0, L0.length), L0); assert.equal(l[l.length - 1].id, `sc${l[0].id.match(/^sc(\d+)-/)[1]}-${L0.length + k - 1}`);
+  }
+  const n = base('x', 2); seasonReset(n.scout ? n : n); assert.equal(scoutList(n).length, L0.length);
+});

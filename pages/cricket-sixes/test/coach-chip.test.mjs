@@ -31,3 +31,13 @@ test('T6.6 missing coach or unknown job gives empty string', () => {
   assert.equal(chipHtml(undefined), '');
   assert.equal(chipHtml({ id: 'a', job: 'bogus' }), '');
 });
+
+test('away coach shows On course chip (vm job away or coach.away>0), not Study', async () => {
+  const { slotJobChip } = await import('../js/ui/training-view.js');
+  const { slotJobChip: s2 } = await import('../js/ui/coaches-sheet.js');
+  for (const f of [slotJobChip, s2]) {
+    assert.match(f({}, { id: 'a', job: 'away' }), /On course/);
+    assert.match(f({}, { id: 'a', job: 'study', away: 1 }), /On course/);
+    assert.match(f({}, { id: 'a', job: 'study' }), /Study/);
+  }
+});

@@ -22,7 +22,7 @@ export function slotCourse(vm) { return ''; } // owner: T2
 /* SLOT:JobChip start */
 export function slotJobChip(vm, coach) { // owner: T5
   if (!coach || !coach.id) return '';
-  return chipHtml({ id: coach.id, job: normJob(coach.job), locked: !!coach.jobLocked, why: coach.why || '' });
+  return chipHtml({ id: coach.id, job: (coach.away > 0 || coach.job === 'away') ? 'away' : normJob(coach.job), locked: !!coach.jobLocked, why: coach.why || '' });
 }
 /* SLOT:JobChip end */
 /* SLOT:XpBar start */

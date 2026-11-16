@@ -66,9 +66,9 @@ await shot('09-after-payout');
 const auto = await page.$('.cw-stepup');
 notes.push('step-up card auto-shown after payout: ' + !!auto);
 if (!auto) {
-  await page.evaluate(() => { const b = document.createElement('button'); b.setAttribute('data-act', 'sheet:stepup'); b.id = 'qa-su'; b.style.cssText = 'position:fixed;top:0;left:0;width:10px;height:10px;opacity:0'; document.body.appendChild(b); });
+  await page.evaluate(() => { const b = document.createElement('button'); b.setAttribute('data-act', 'sheet:stepup'); b.id = 'qa-su'; b.style.cssText = 'position:fixed;top:0;left:0;width:10px;height:10px;opacity:0'; (document.getElementById('app') || document.body).appendChild(b); }); // bindActs listens on #app
   await page.click('#qa-su', { force: true }).catch(() => {}); await wait(600);
-  notes.push('NOTE: step-up card is registered as sheet "stepup" but nothing opens it automatically; shot 10 opened it by a synthetic data-act="sheet:stepup" click. Card present: ' + !!(await page.$('.cw-stepup')));
+  notes.push('NOTE: step-up card is registered as sheet "stepup" but nothing opens it automatically (main.js installs the watcher only if mount() returns {openByName}; mount() returns dispatch); shot 10 opened it by a synthetic data-act="sheet:stepup" click. Card present: ' + !!(await page.$('.cw-stepup')));
 }
 await shot('10-stepup-card');
 // 11: fold check at 475x638 dsf 2, 3-coach strip, no scrolling

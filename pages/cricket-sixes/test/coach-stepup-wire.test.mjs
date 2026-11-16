@@ -47,3 +47,13 @@ test('watcher waits for overlay, live match, none pending', () => {
   const c = fakeEnv(); installStepUpWatcher(c.env); c.subs[0]({ stage: 'hub', coaches: [] });
   assert.deepEqual([a.opened, b.opened, c.opened], [[], [], []]);
 });
+
+test('makeOpenByName clicks a hidden data-act sheet button inside the app root', async () => {
+  const { makeOpenByName } = await import('../js/ui/stepup-sheet.js');
+  const seen = [];
+  const mkEl = () => { const a = {}; return { setAttribute: (k, v) => { a[k] = v; }, getAttribute: (k) => a[k], click() { seen.push(a['data-act']); }, parentNode: null }; };
+  const root = { appendChild(e) { e.parentNode = { removeChild() { seen.push('removed'); } }; } };
+  const open = makeOpenByName(root, { createElement: mkEl });
+  assert.equal(open('stepup'), true);
+  assert.deepEqual(seen, ['sheet:stepup', 'removed']);
+});
