@@ -89,7 +89,7 @@ export function normLook(l) {
  *  o = { mat, bars, size, plain? } plain = a first wheel with no material yet (unpainted: no rim colour, no studs). Cosmetic only. */
 const SLICE_VALS = [5, 2, 1, 3, 1, 1, 3, 1, 1, 2];
 export function sliceWheelSvg(o) {
-  const m = matOf(o.mat), plain = !!o.plain, size = o.size || 120, n = SLICE_VALS.length, cx = 50, cy = 50, R = 46, bars = Math.max(3, o.bars || 4), crystal = o.mat === 'crystal' && !plain;
+  const m = matOf(o.mat), plain = !!o.plain, size = o.size || 120, n = SLICE_VALS.length, cx = 50, cy = 50, R = 46, bars = Math.max(3, o.bars || 4), fu = Math.max(9, 1400 / size) /* >= 14 px rendered; below 100 px the +v text is dropped (shape only) */, crystal = o.mat === 'crystal' && !plain;
   const fill = (v) => (v === 5 ? 'var(--gold, #d2b357)' : v === 3 ? 'var(--accent, #22625d)' : v === 2 ? 'var(--grass2, #7eb261)' : 'var(--wall1, #e3d8b9)');
   const pt = (a, r) => [cx + Math.cos(a) * r, cy + Math.sin(a) * r];
   const rim = plain ? [196, 186, 160] : m.rim, edge = plain ? [90, 84, 72] : m.edge;
@@ -97,7 +97,7 @@ export function sliceWheelSvg(o) {
   for (let i = 0; i < n; i++) {
     const a0 = -Math.PI / 2 + (i - 0.5) * TAU10, a1 = a0 + TAU10, [x0, y0] = pt(a0, R - 6), [x1, y1] = pt(a1, R - 6), v = SLICE_VALS[i], am = (a0 + a1) / 2, [tx, ty] = pt(am, 28);
     s += '<path d="M50 50L' + x0.toFixed(1) + ' ' + y0.toFixed(1) + 'A' + (R - 6) + ' ' + (R - 6) + ' 0 0 1 ' + x1.toFixed(1) + ' ' + y1.toFixed(1) + 'Z" fill="' + fill(v) + '" stroke="var(--outline, #2a2238)" stroke-width="1"/>' +
-      '<text x="' + tx.toFixed(1) + '" y="' + (ty + 3.4).toFixed(1) + '" text-anchor="middle" font-size="9" font-weight="700" font-family="inherit" fill="' + (v === 3 ? '#fff' : 'var(--outline, #2a2238)') + '">+' + v + '</text>';
+      (size < 100 ? '' : '<text x="' + tx.toFixed(1) + '" y="' + (ty + fu * 0.38).toFixed(1) + '" text-anchor="middle" font-size="' + fu.toFixed(1) + '" font-weight="700" font-family="inherit" fill="' + (v === 3 ? '#fff' : 'var(--outline, #2a2238)') + '">+' + v + '</text>');
   }
   s += '<circle cx="50" cy="50" r="' + (R - 2) + '" fill="none" stroke="' + rgb(rim) + '" stroke-width="6" class="wk-rim"/><circle cx="50" cy="50" r="' + R + '" fill="none" stroke="' + rgb(edge) + '" stroke-width="1.6"/><circle cx="50" cy="50" r="' + (R - 5.2) + '" fill="none" stroke="' + rgb(edge) + '" stroke-width="1"/>';
   if (!plain && o.mat !== 'wood') for (let i = 0; i < 16; i++) { const [sx, sy] = pt(i / 16 * TAU, R - 2); s += '<rect class="wk-stud" x="' + (sx - 1.3).toFixed(1) + '" y="' + (sy - 1.3).toFixed(1) + '" width="2.6" height="2.6" fill="' + rgb(m.stud) + '"/>'; }

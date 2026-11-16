@@ -16,7 +16,7 @@ const OUT = (process.env.QA_OUT || '/mnt/project-files/games-design/cricket-sixe
 const ALL = ['spot', 'course', 'find', 'hype', 'toss', 'pep', 'scout', 'finals'];
 const RINGS = (process.env.RINGS ? process.env.RINGS.split(',') : ALL).filter((r) => ALL.includes(r));
 const IDLE_S = process.env.E2E_FAST === '1' ? 6 : 60, GUIDE = process.env.GUIDE === '1' ? '&guide=1' : '';
-const VIEW = { width: 344, height: 882 };
+const VIEW = (() => { const m = /^(\d+)x(\d+)$/.exec(process.env.VIEW || ''); return m ? { width: +m[1], height: +m[2] } : { width: 344, height: 882 }; })(); // VIEW=WxH, default 344x882
 const { chromium } = createRequire(import.meta.url)('playwright');
 const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.png': 'image/png', '.woff2': 'font/woff2', '.webmanifest': 'application/json' };
 const server = http.createServer(async (rq, rs) => {

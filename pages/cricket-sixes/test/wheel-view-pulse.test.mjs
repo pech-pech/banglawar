@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { spinClock, spinFrame, pulseStop, storedStop, sliceIndexAt, ringDir, screenAngle, landedIndex } from '../js/ui/wheel-view.js';
 import { timingBucket } from '../js/core/training.js';
-import { GLOW_WINDOW } from '../js/ui/wheel-look.js';
+import { GLOW_WINDOW, sliceLabel } from '../js/ui/wheel-look.js';
 import { WHEEL_ENGINE } from '../js/data/wheel-engine.js';
 import { tickAt, pulseW } from '../js/core/wheel-pulse.js';
 import { wheelWobble } from '../js/core/wheel-wobble.js';
@@ -181,7 +181,7 @@ test('T6 live QA 1: a pending without an index shows the stopped slice, never Na
 
 test('D2 ring result: "Landed on [slice label]", no lone "+", no "(same letter)", no Training words', () => {
   const r = src.slice(src.indexOf('function ringResultHtml'), src.indexOf('function showResult'));
-  assert.match(r, /Landed on/); assert.match(r, /chip = lab/);
+  assert.match(r, /Landed on/); assert.match(r, /chip = short \|\| lab/);
   assert.doesNotMatch(r, /same letter|Breakthrough|Booster|o\.plus/);
   assert.match(src, /if \(RING\) res\.innerHTML = ringResultHtml\(p, d, sg\)/, 'ring wheels take the ring path even without plainResult');
   assert.match(src, /typeof d === 'object' \? d : \{ big: String/, 'a string describe() is accepted');
@@ -200,4 +200,35 @@ test('ring look: labels fitted radially, tier marks drawn, no diamond, legend un
   assert.match(src, /Tick on:/); assert.match(src, /wh-aimt/);
   assert.match(src, /const MSG_GO = 'Turning\. Tap STOP\.'/); assert.doesNotMatch(src, /Tap early and it goes further|near the top/);
   assert.match(src, /fixCss/, 'one wheel size across states');
+});
+
+test('non-ring result (Training / Course / Find / Hype pass slices): same block as the ring, no lone "+", no "(same letter)", short chip, honest hint', () => {
+  const a = src.indexOf('function landedRow'), r = src.slice(a, src.indexOf('function showResult'));
+  assert.match(r, /Landed on/); assert.doesNotMatch(r, /same letter|o\.plus \|\| '\+'\) \+ esc\(p\.gain\)/);
+  assert.match(src, /ringResultHtml\(p, d, sg\) \+ \(p\.boosted \|\| p\.hot/, 'the non-ring path shares the ring block');
+  assert.doesNotMatch(src, /\(same letter\)/);
+  assert.match(r, /chip = short \|\| lab/, 'chip prints sliceLabel (+2 steps -> +2); the full label is its title and the spoken line');
+  assert.equal(sliceLabel({ label: '+2 steps', w: 0.4 }), '+2'); assert.equal(sliceLabel({ label: '+2 steps', w: 1 }), '+2 steps');
+  assert.match(src, /The tick shows about where it will land\./); assert.doesNotMatch(src, /The tick shows where it will land/);
+});
+test('result box css keeps every line inside the box at 344 px (column, wraps, no overflow)', () => {
+  const css = readFileSync(new URL('../css/wheel-shared.css', import.meta.url), 'utf8');
+  assert.match(css, /\.wh-ov \.wh-res \{[^}]*flex-direction: column[^}]*max-width: 100%[^}]*overflow-wrap: anywhere/);
+  assert.match(css, /\.wh-ov \.wh-res > \* \{[^}]*min-width: 0/);
+});
+
+test('a11y: focus waits ~150 ms after the live text; the STOP glow window relabels the button to "Stop now" and announces it once', () => {
+  assert.match(src, /function focusGo\(el\) \{ setTimeout\([\s\S]*?, 150\)/);
+  assert.match(src, /go\.setAttribute\('aria-label', inW \? 'Stop now' : 'Stop the wheel'\)/);
+  assert.match(src, /if \(inW\) live\.textContent = 'Stop now\.'/, 'announced once, when the window opens');
+});
+test('ring layout: vertical room is 10 px (AIM word is clamped into the stage), side room keeps 30 px; tier marks sit inside the Aim lane; STOP glow reads WHEEL_ENGINE.GLOW', () => {
+  assert.match(src, /AMV = RING \? 10 : 0/); assert.match(src, /22 \+ 2 \* AMV/);
+  assert.match(src, /mx = cx \+ Math\.cos\(a\) \* \(R - 15\.5 \* kk\)/);
+  assert.match(src, /tw0 >= E\.GLOW\[0\] && tw0 <= E\.GLOW\[1\]/); assert.doesNotMatch(src, /TIMING_WIN\.lo/);
+  assert.match(src, /Math\.min\(sw - ox - hw - 2/, 'AIM word clamp');
+});
+test('N8 "+1 Spoke" singular; D10 the tick sentence shows once (the card wins)', () => {
+  assert.match(src, /Number\(sg\) === 1 \? ' Spoke' : ' Spokes'/);
+  assert.match(src, /\/tick shows\/i\.test\(\(\$\('\.wh-card'\)/);
 });
