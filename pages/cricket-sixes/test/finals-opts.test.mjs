@@ -32,7 +32,7 @@ test('ctx.mult re-labels rows that carry type', () => {
 
 test('Medal legend has icon, kept strings and tokText shape', () => {
   const o = finalsWheelOpts({ ring: S, pending: null }, {});
-  assert.deepEqual(o.legend, [{ ch: 'M', icon: 'medal', text: 'Gold Medal (4%)' }]);
+  assert.deepEqual(o.legend, [{ ch: 'M', icon: 'medal', text: 'M = Gold Medal (4%)' }]);
   assert.match(o.cardHtml, /Spin for your prize\./);
   assert.equal(o.wheelId, 'finals');
   assert.equal(typeof o.tokText, 'function');

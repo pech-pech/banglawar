@@ -1,5 +1,6 @@
 // @ts-check
 // Scout wheel: pure openWheel option builder (wheels SPEC 2f, 9, 11a; 08-A11Y F4, F5, N7; CONTRACT-A sec 4, 5). T4 wave 3b, scout.
+// Per-row extras for the renderer: row.card {grade, name6, focus, icon}, row.tierShape 'triangle' (above centre) | 'dot' (centre) | 'gold' (+2). Legend rows {ch, icon, text}. Result: '<Name> (<Grade>) joins as your first name, +N steps' (Top name only on the +2 card).
 // No DOM, no openWheel call: the host does `openWheel(scoutWheelOpts(vm, ctx))` once T1's engine lands. spinScout (wheels/scout.js) stays the live path.
 import { scoutWords } from './scout.js';
 
@@ -16,7 +17,7 @@ const focusWord = (/** @type {string} */ f) => FOCUS_WORD[/** @type {'bat'} */ (
 export const cutName = (n) => { const t = String(n == null ? '' : n); return t.length > SCOUT_PARTS.nameMax ? t.slice(0, SCOUT_PARTS.nameMax) + '.' : t; };
 
 /** One slice's card parts for the wheel drawing. @param {{grade:string,surname:string,focus:string}} c */
-export const cardParts = (c) => ({ grade: c.grade, name: cutName(c.surname), fullName: c.surname, focus: c.focus, icon: FOCUS_ICON[/** @type {'bat'} */ (c.focus)] || 'all', ...SCOUT_PARTS });
+export const cardParts = (c) => ({ grade: c.grade, name6: cutName(c.surname), name: cutName(c.surname), fullName: c.surname, focus: c.focus, icon: FOCUS_ICON[/** @type {'bat'} */ (c.focus)] || 'all', ...SCOUT_PARTS });
 
 /** "Centre", "Centre plus 1 step" for a slice value. @param {number} v */
 const centreWords = (v) => (v > 0 ? 'Centre plus ' + v + (v === 1 ? ' step' : ' steps') : 'Centre');
@@ -26,15 +27,15 @@ export function scoutRing(vm) {
   const cards = vm.cards || [];
   return (vm.ring || []).map((/** @type {any} */ r, /** @type {number} */ i) => {
     const c = cards[i] || { grade: '', surname: '', focus: 'bal' };
-    return { id: r.id, w: r.w, value: r.value, label: c.grade + ' ' + cutName(c.surname), tier: r.tier, gold: !!r.gold, card: cardParts(c) };
+    return { id: r.id, w: r.w, value: r.value, label: c.grade + ' ' + cutName(c.surname), tier: r.tier, gold: !!r.gold, tierShape: r.gold ? 'gold' : r.value > 0 ? 'triangle' : 'dot', card: cardParts(c) };
   });
 }
 
 /** Legend under the wheel (QA 7: no empty icon, tiers named in words; the +2 gold swatch). Glyphs are decorative (A11Y: legend glyphs aria-hidden). */
 export const SCOUT_LEGEND = Object.freeze([
-  Object.freeze({ ch: 'tri', text: 'above centre' }),
-  Object.freeze({ ch: 'dot', text: 'centre' }),
-  Object.freeze({ ch: 'gold', text: '+2 gold' }),
+  Object.freeze({ ch: '\u25B2', icon: 'triangle', text: 'triangle = above centre' }),
+  Object.freeze({ ch: '\u25CF', icon: 'dot', text: 'dot = centre' }),
+  Object.freeze({ ch: '\u2605', icon: 'gold', text: 'gold = +2' }),
 ]);
 
 /** Wheel image name (A11Y F4, option B: grouped by tier, short). @param {any[]} ring */
@@ -50,6 +51,16 @@ export function scoutWheelAria(ring) {
 /** Result sentence for the live region (A11Y F5), equal to the visible panel text. @param {{grade:string,surname:string,focus:string}} c @param {number} value */
 export function scoutLanded(c, value) {
   return 'Landed: ' + c.grade + ' ' + c.surname + ', ' + focusWord(c.focus) + '. ' + centreWords(value) + '. New card goes first on your list.';
+}
+
+/** Result text naming the landed card. Extra name keeps the scout words; the +2 card is the only 'Top name'. @param {any} p @param {(id:number)=>any} cardOf */
+export function scoutDescribe(p, cardOf) {
+  const w = scoutWords(p);
+  if (p.extra) return { big: w.big, say: w.say, gold: false };
+  const c = p.card || cardOf(p.sliceId != null ? p.sliceId : p.index | 0), st = p.steps | 0, stw = '+' + st + (st === 1 ? ' step' : ' steps');
+  if (!c || !c.surname) return { big: w.big, say: w.say, gold: !!p.jackpot };
+  const who = c.surname + ' (' + c.grade + ')', gold = !!p.jackpot;
+  return { big: (gold ? 'Top name: ' : '') + who + ' joins as your first name, ' + stw, say: (gold ? 'Top name. ' : '') + who + ' joins as your first name, ' + stw.slice(1) + '.', gold };
 }
 
 /**
@@ -73,7 +84,8 @@ export function scoutWheelOpts(vm, ctx) {
     ...(ctx.tokProps ? ctx.tokProps(get, ctx.dispatch, 'scout', 'Scout') : {}),
     tokText: (p) => scoutWords(p).short,
     onSpin: (/** @type {any} */ stop) => ctx.dispatch('ScoutSpin', { stop }),
-    describe: (/** @type {any} */ p) => { const w = scoutWords(p); return { big: w.big, say: w.say, gold: !p.extra && !!p.jackpot }; },
+    plainResult: true, jpText: 'JACKPOT!',
+    describe: (/** @type {any} */ p) => scoutDescribe(p, cardOf),
     onCollect: ctx.onCollect || (() => {}), spokeGain: () => (get() || {}).spokeGain || 0,
     ...(ctx.onClose ? { onClose: ctx.onClose } : {}),
   };
