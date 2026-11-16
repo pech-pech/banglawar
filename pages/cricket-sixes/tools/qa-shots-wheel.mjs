@@ -1,7 +1,7 @@
 // Wheel-ring QA shots over tools/wheel-sandbox.html (all 8 rings). 344x882, deviceScaleFactor 1, Chromium, local server only (other hosts aborted).
 // Run:  node pages/cricket-sixes/tools/qa-shots-wheel.mjs            (all rings + 60 s idle check, about 2 min)
 // Env:  E2E_FAST=1 idle check 6 s instead of 60 s | RINGS=spot,hype subset | GUIDE=1 add &guide=1 | QA_OUT=dir (default t1/qa/wheel/)
-// Per ring shots: <ring>-1-ready, <ring>-2-spin-1.0s, <ring>-3-glow-3.5s, <ring>-4-result (taken when the result strip shows, waits up to 8 s after STOP). Times are wall time from the SPIN tap.
+// Per ring shots: <ring>-1-ready, <ring>-2-spin-1.0s, <ring>-3-glow-3.5s, <ring>-4-result (taken when the result strip shows, waits up to 8 s after STOP). Times are on the page clock from the SPIN click's event.timeStamp (the wheel's own clock).
 // Idle check (ring spot): SPIN, then no tap for 60 s (6 s fast): the wheel must still be spinning (STOP label, no result, no stop logged, still moving).
 // audit.json: per shot tap targets (every visible button / role=button / input under 56 px listed in small), per-check results, console errors. Exit 1 if any check fails.
 import http from 'node:http';
@@ -36,6 +36,10 @@ const check = (ring, name, ok, detail = '') => { CHECKS.push({ ring, check: name
 /** Run one named step; a throw (missing element on the old view, timeout) becomes a FAIL for that check only. */
 async function step(ring, name, fn) { try { return await fn(); } catch (e) { check(ring, name, false, String(e.message || e).split('\n')[0].slice(0, 160)); return undefined; } }
 const wait = async (t0, secs) => { const w = secs * 1000 - (Date.now() - t0); if (w > 0) await new Promise((r) => setTimeout(r, w)); };
+/** Page clock: the wheel's t0 is the SPIN click's own event.timeStamp (performance.now() clock), read back from the page; waits poll performance.now() there. */
+const spinTs = (page) => page.evaluate(() => window.__clk[window.__clk.length - 1]);
+const pageWait = (page, ts, secs) => page.waitForFunction(([t, s]) => performance.now() >= t + s * 1000, [ts, secs], { polling: 'raf', timeout: 0 });
+const pageSince = (page, ts) => page.evaluate((t) => (performance.now() - t) / 1000, ts);
 
 function auditInPage() {
   const vis = (e) => { const r = e.getBoundingClientRect(), cs = getComputedStyle(e); return r.width > 0 && r.height > 0 && cs.visibility !== 'hidden' && cs.display !== 'none' && !e.closest('[hidden]'); };
@@ -52,6 +56,7 @@ async function newPage(tag, query) {
   const ctx = await browser.newContext({ viewport: VIEW, deviceScaleFactor: 1, serviceWorkers: 'block' });
   await ctx.route('**/*', (route) => { const u = route.request().url(); if (u.startsWith(ORIGIN) || u.startsWith('data:') || u.startsWith('blob:')) return route.continue(); BLOCKED.push(u); return route.abort(); });
   const page = await ctx.newPage(); page.setDefaultTimeout(6000);
+  await page.addInitScript(() => { window.__clk = []; document.addEventListener('click', (e) => window.__clk.push(e.timeStamp), true); });
   page.on('pageerror', (e) => ERRS.push(`[${tag}] pageerror: ${e.message}`));
   page.on('console', (m) => { if (m.type() === 'error' && !/status of 404|net::ERR_FAILED/.test(m.text())) ERRS.push(`[${tag}] console: ${m.text()}`); });
   await page.goto(`${ORIGIN}/cricket-sixes/tools/wheel-sandbox.html?${query}`);
@@ -69,13 +74,13 @@ async function ringRun(ring) {
     if (!info) return;
     await page.waitForTimeout(500);
     await step(ring, 'shot-ready', async () => { const a = await shot(page, ring, '1-ready'); check(ring, 'shot-ready', true); check(ring, 'tap-targets-56-ready', !a.small || !a.small.length, (a.small || []).join('; ')); check(ring, 'no-hscroll-ready', !a.hScroll); });
-    const t0 = Date.now();
     const clicked = await step(ring, 'spin-tap', async () => { await page.click('.wh-ov [data-go]'); check(ring, 'spin-tap', true); return true; });
     if (!clicked) return;
-    await wait(t0, 1.0);
+    const t0 = await spinTs(page); // the SPIN tap's own timeStamp, read from the page
+    await pageWait(page, t0, 1.0);
     await step(ring, 'shot-spinning', async () => { const a = await shot(page, ring, '2-spin-1.0s'); const s = await goState(page); const sig1 = await canvasSig(page); await page.waitForTimeout(120); const sig2 = await canvasSig(page); check(ring, 'shot-spinning', true); check(ring, 'spinning-moves', sig1 !== sig2, `go="${s.go}"`); check(ring, 'tap-targets-56-spin', !a.small || !a.small.length, (a.small || []).join('; ')); check(ring, 'no-result-while-spinning', !s.res && s.stops === 0); });
-    await wait(t0, 3.3); // the audit + screenshot take about 150-200 ms, so this lands the glow shot on about 3.5 s
-    await step(ring, 'shot-glow', async () => { const a = await shot(page, ring, '3-glow-3.5s'); const s = await goState(page); check(ring, 'shot-glow', true); check(ring, 'glow-on-at-3.5s', s.glow, `go="${s.go}" at ${((Date.now() - t0) / 1000).toFixed(2)}s`); check(ring, 'tap-targets-56-glow', !a.small || !a.small.length, (a.small || []).join('; ')); });
+    await pageWait(page, t0, 3.3); // on the wheel's own clock; the audit + screenshot take about 150-200 ms, so this lands the glow shot on about 3.5 s
+    await step(ring, 'shot-glow', async () => { const a = await shot(page, ring, '3-glow-3.5s'); const s = await goState(page); check(ring, 'shot-glow', true); check(ring, 'glow-on-at-3.5s', s.glow, `go="${s.go}" at ${(await pageSince(page, t0)).toFixed(2)}s (page clock)`); check(ring, 'tap-targets-56-glow', !a.small || !a.small.length, (a.small || []).join('; ')); });
     await step(ring, 'stop-tap', async () => { await page.click('.wh-ov [data-go]'); check(ring, 'stop-tap', true); });
     const tStop = Date.now();
     await step(ring, 'stop-logged', async () => { await page.waitForFunction(() => (window.__stops || []).length >= 1, null, { timeout: 4000 }); const st = await page.evaluate(() => window.__stops.slice()); const o = st[0]; const keys = ['t', 'phi', 'e', 'stopT', 'cycle', 'tInCycle', 'sliceId', 'respin']; const miss = keys.filter((k) => !(k in o)); check(ring, 'stop-logged', st.length === 1, `n=${st.length}`); check(ring, 'stop-object-keys', !miss.length, miss.length ? 'missing ' + miss.join(',') : JSON.stringify(o)); check(ring, 'stop-near-glow', o.tInCycle >= 3.0 && o.tInCycle <= 4.2, `tInCycle ${o.tInCycle}`); });
@@ -89,7 +94,7 @@ async function idleCheck() {
   const { ctx, page } = await newPage('idle', `ring=${ring}${GUIDE}`);
   try {
     await step('idle', 'idle-open', async () => { await page.waitForSelector('.wh-ov [data-go]', { timeout: 6000 }); await page.click('.wh-ov [data-go]'); });
-    const t0 = Date.now(); await wait(t0, IDLE_S);
+    const t0 = await spinTs(page); await pageWait(page, t0, IDLE_S);
     await step('idle', 'idle-still-spinning', async () => {
       const s = await goState(page), a = await canvasSig(page); await page.waitForTimeout(120); const b = await canvasSig(page);
       await shot(page, 'idle', `${IDLE_S}s`);

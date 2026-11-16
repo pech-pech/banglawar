@@ -3,7 +3,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { spinClock, spinFrame, pulseStop, storedStop, sliceIndexAt } from '../js/ui/wheel-view.js';
+import { spinClock, spinFrame, pulseStop, storedStop, sliceIndexAt, ringDir, screenAngle, landedIndex } from '../js/ui/wheel-view.js';
+import { timingBucket } from '../js/core/training.js';
 import { GLOW_WINDOW } from '../js/ui/wheel-look.js';
 import { WHEEL_ENGINE } from '../js/data/wheel-engine.js';
 import { tickAt, pulseW } from '../js/core/wheel-pulse.js';
@@ -157,4 +158,46 @@ test('view source: onSpin before the result animation; no coast, auto-stop, skip
   assert.match(src, /STOP_GUARD_S/); assert.match(src, /tickKind\(\{ guide: !!o\.guide \}\)/);
   assert.match(src, /if \(o\.guide && JE > 0\)/, 'Aim Guide draws the J band');
   for (const k of ['wheelId', 'spinKey', 'ring', 'J', 'wobKey', 'stored', 'legend']) assert.match(src, new RegExp('o\\.' + k + '\\b'), 'option ' + k);
+});
+
+// ---- QA fixes (T3 QA D2/D9 + stored-stop timing, T6 live QA 1) ----
+test('D9: a ring is drawn clockwise in list order; the next slice reaches the pointer as the wheel turns (old keys keep their look)', () => {
+  assert.equal(ringDir(true), -1); assert.equal(ringDir(false), 1);
+  const U = 2 * Math.PI / HYPE.C, mid = (i) => (HYPE.cum[i] + HYPE.cum[i + 1]) / 2, cw = (a) => ((a + Math.PI / 2) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI); // clockwise from the top
+  const pos = mid(0); let prev = -1;
+  for (let i = 0; i < 9; i++) { const a = cw(screenAngle(mid(i), pos, U, ringDir(true))); assert.ok(a > prev, 'slice ' + i + ' clockwise of ' + (i - 1)); prev = a; }
+  assert.ok(Math.abs(cw(screenAngle(mid(0), pos, U, -1))) < 1e-9, 'the slice at pos is under the pointer');
+  const later = pos + 0.3; assert.ok(cw(screenAngle(mid(1), later, U, -1)) < cw(screenAngle(mid(1), pos, U, -1)), 'as pos grows, slice 1 moves toward the pointer');
+});
+
+test('T6 live QA 1: a pending without an index shows the stopped slice, never NaN', () => {
+  assert.equal(landedIndex({ index: 3 }, { sliceId: 5 }, 9), 3);
+  assert.equal(landedIndex({ gain: 4 }, { sliceId: 5 }, 9), 5);
+  assert.equal(landedIndex({ index: null }, { sliceId: 2 }, 9), 2);
+  assert.equal(landedIndex({ index: 40 }, null, 9), 8, 'clamped');
+  assert.equal(landedIndex(null, null, 9), 0);
+  assert.match(src, /mid = centreOf\(pi\)/, 'the ease-out steers with the safe index');
+});
+
+test('D2 ring result: "Landed on [slice label]", no lone "+", no "(same letter)", no Training words', () => {
+  const r = src.slice(src.indexOf('function ringResultHtml'), src.indexOf('function showResult'));
+  assert.match(r, /Landed on/); assert.match(r, /chip = lab/);
+  assert.doesNotMatch(r, /same letter|Breakthrough|Booster|o\.plus/);
+  assert.match(src, /if \(RING\) res\.innerHTML = ringResultHtml\(p, d, sg\)/, 'ring wheels take the ring path even without plainResult');
+  assert.match(src, /typeof d === 'object' \? d : \{ big: String/, 'a string describe() is accepted');
+});
+
+test('stored stop reopens with its Early / Good timing / Late line from timingBucket(stored.tInCycle)', () => {
+  assert.match(src, /if \(stRec && Number\.isFinite\(\+stRec\.tInCycle\)[^;]*\) timeB = timingBucket\(\+stRec\.tInCycle\)/);
+  assert.match(src, /const TL = TIMING && timeB && \(RING \|\| !o\.plainResult\)/, 'ring wheels always show the timing line');
+  assert.equal(typeof timingBucket(3.5), 'string');
+});
+
+test('ring look: labels fitted radially, tier marks drawn, no diamond, legend under the stage, AIM on the tick, Tick on readout, one honest line', () => {
+  assert.match(src, /radialFit\(/); assert.match(src, /radialTurn\(b\)/);
+  assert.match(src, /tierMark\(row\.tier/); assert.match(src, /if \(!RING\) for \(let j = -5/, 'no jackpot diamond on ring wheels');
+  assert.match(src, /'<\/div><\/div>' \+ legendHtml \+/, 'legend sits after the stage, not inside it');
+  assert.match(src, /Tick on:/); assert.match(src, /wh-aimt/);
+  assert.match(src, /const MSG_GO = 'Turning\. Tap STOP\.'/); assert.doesNotMatch(src, /Tap early and it goes further|near the top/);
+  assert.match(src, /fixCss/, 'one wheel size across states');
 });

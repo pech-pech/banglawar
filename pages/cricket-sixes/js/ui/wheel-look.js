@@ -162,3 +162,54 @@ const TIER_SHAPES = {
 };
 /** Tier mark: top = green up-triangle, mid = sand dot, low = pale sand dot (a quiet "fine", never rose). Shape differs from colour alone. */
 export function tierShape(tier) { return TIER_SHAPES[tier] || TIER_SHAPES.mid; }
+
+/* ---- QA fixes (T3 QA D4 / D5, T1 QA D2 / D3): radial slice labels and drawn tier marks. Pure. ---- */
+/** Tier mark drawn on every ring slice (SPEC 2f, mockups): gold and top = dark green up-triangle, mid = sand dot, low = pale sand dot. Always upright on screen. */
+const MARKS = {
+  top: Object.freeze({ shape: 'triangle-up', fill: Object.freeze([63, 143, 58]) }),
+  mid: Object.freeze({ shape: 'dot', fill: Object.freeze([205, 181, 114]) }),
+  low: Object.freeze({ shape: 'dot', fill: Object.freeze([255, 250, 240]) }),
+};
+export function tierMark(tier, gold) { return gold ? MARKS.top : MARKS[tier] || MARKS.mid; }
+/** Slices narrower than this (radians, 10 degrees) may drop the tier mark when they carry a letter (SPEC 2f). */
+export const MARK_MIN_RAD = Math.PI / 18;
+/** The ways a label may be set: one line, then two lines (split at ", " if any, else at the space nearest the middle). */
+export function labelLines(text) {
+  const t = String(text == null ? '' : text).trim(), out = [[t]];
+  const c = t.indexOf(', ');
+  if (c > 0) { out.push([t.slice(0, c + 1), t.slice(c + 2)]); return out; }
+  const sp = [...t.matchAll(/ /g)].map((m) => m.index);
+  if (sp.length) { const k = sp.reduce((a, b) => (Math.abs(b - t.length / 2) < Math.abs(a - t.length / 2) ? b : a)); out.push([t.slice(0, k), t.slice(k + 1)]); }
+  return out;
+}
+/** Fit a radial label in its slice (T3 QA D4 option A): the text runs along the slice centre line, between rIn (hub) and rOut (inside the tier mark).
+ *  half = half the slice angle (radians). measure(lines, f) -> {w, h} in px. Largest font from fMax down to fMin, one line before two at the same font.
+ *  The text box (h across) must fit between the slice edges at its inner end: r0 * sin(half) >= h / 2 + pad.
+ *  Returns {f, lines, rc} (rc = radius of the text box centre, kept at rPref when that fits) or null (too long: print sliceLabel + a legend row). */
+export function radialFit(o) {
+  const { text, half, rIn, rOut, measure } = o, fMax = o.fMax || 18, fMin = o.fMin || 12, pad = o.pad == null ? 2 : o.pad;
+  const sa = Math.sin(Math.min(Math.max(half, 1e-6), Math.PI / 2)), ways = Array.isArray(o.ways) && o.ways.length ? o.ways : labelLines(text); // o.ways: the caller's own line sets, tried in order
+  for (let f = fMax; f >= fMin; f--) for (const lines of ways) {
+    const m = measure(lines, f), r0 = Math.max(rIn, (m.h / 2 + pad) / sa);
+    if (r0 + m.w <= rOut) { const lo = r0 + m.w / 2, hi = rOut - m.w / 2, p = o.rPref == null ? lo : o.rPref; return { f, lines, rc: Math.max(lo, Math.min(hi, p)) }; }
+  }
+  return null;
+}
+/** Text rotation (radians) for a radial label whose centre sits at canvas angle a (0 = right, y down): along the radius, never upside down. */
+export function radialTurn(a) { return Math.cos(a) >= -1e-9 ? a : a + Math.PI; }
+/** Legend chip words a host may pass for a tier shape (T4 QA 2: never print them as text); -> the shape key, or '' for a real character. */
+const SHAPE_WORDS = { tri: 'top', triangle: 'top', top: 'top', 'triangle-up': 'top', dot: 'mid', mid: 'mid', pale: 'low', low: 'low', gold: 'gold' };
+export function legendShape(ch) { return SHAPE_WORDS[String(ch == null ? '' : ch).trim().toLowerCase()] || ''; }
+/** A Scout-style card on a ring row ({grade|g, name|n, focus|ic}) -> {grade, name (6 letters, then a dot), focus} or null. Unknown fields are ignored. */
+export function cardOf(row) {
+  const c = row && row.card; if (!c || typeof c !== 'object') return null;
+  const grade = String(c.grade != null ? c.grade : c.g != null ? c.g : '').trim(), full = String(c.name != null ? c.name : c.n != null ? c.n : '').trim(), focus = String(c.focus != null ? c.focus : c.ic != null ? c.ic : c.icon != null ? c.icon : '').trim().toLowerCase();
+  return { grade, name: Array.from(full).length > 7 ? Array.from(full).slice(0, 6).join('') + '.' : full, focus };
+}
+/** Legend rows: the given rows, then one per under-7% slice and per slice in `narrow` (its label did not fit, so it prints one character). One row per meaning. */
+export function legendWith(ring, narrow, given) {
+  const rows = legendRows((Array.isArray(ring) ? ring : []).map((r, i) => (narrow && narrow[i] && r ? { ...r, w: 0 } : r)));
+  const out = [], seen = new Set(), g = Array.isArray(given) ? given : [], gch = new Set(g.map((r) => String(r.ch)));
+  for (const r of [...g, ...rows.filter((r) => !gch.has(String(r.ch)))]) { const k = String(r.ch) + '\u0000' + String(r.text); if (seen.has(k)) continue; seen.add(k); out.push(r); } // a host row wins over the automatic row for the same character
+  return out;
+}

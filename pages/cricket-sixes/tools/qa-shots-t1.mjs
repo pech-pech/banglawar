@@ -1,8 +1,8 @@
 // T1 wave 4 QA shots: match wheel + one training wheel (Spotlight), pulse build. 344x882, deviceScaleFactor 1, Chromium (preinstalled, no installs).
 // Run:  node pages/cricket-sixes/tools/qa-shots-t1.mjs
 // Env:  QA_OUT=dir (default the t1/qa folder), QA_SEED=x. Never edits game source; no network except localhost (others aborted).
-// Match wheel: pick, ready, spinning (1.5 s), glow window (3.2, 3.5, 3.8 s after SPIN), STOP at 3.5 s, result (0.6 s and 3.0 s after STOP).
-// Training wheel (Spotlight): ready, spinning, glow (3.5 s), result. Timings are real wall time from the SPIN tap; shots take ~100 ms so the
+// Match wheel: pick, ready, spinning (1.5 s), glow window (3.15 preglow, 3.5, 3.8 s after SPIN), over-2 Auto-rest-disabled shot, STOP at 3.5 s, result (0.6 s and 3.0 s after STOP).
+// Training wheel (Spotlight): ready, spinning, glow (3.5 s), result. Timings are the page clock from the SPIN click's event.timeStamp; shots take ~100 ms so the
 // glow shots are taken 0.05 s early. out/audit.json lists per shot: buttons under 56 px, horizontal scroll, banned words, console errors.
 import http from 'node:http';
 import { createRequire } from 'node:module';
@@ -52,6 +52,7 @@ async function newPage(tag) {
   const ctx = await browser.newContext({ viewport: VIEW, deviceScaleFactor: 1, serviceWorkers: 'block' });
   await ctx.route('**/*', (route) => { const u = route.request().url(); if (u.startsWith(ORIGIN) || u.startsWith('data:') || u.startsWith('blob:')) return route.continue(); BLOCKED.push(u); return route.abort(); });
   const page = await ctx.newPage(); page.setDefaultTimeout(6000);
+  await page.addInitScript(() => { window.__clk = []; document.addEventListener('click', (e) => window.__clk.push(e.timeStamp), true); });
   page.on('pageerror', (e) => ERRS.push(`[${tag}] pageerror: ${e.message}`));
   page.on('console', (m) => { if (m.type() === 'error' && !/status of 404|net::ERR_FAILED/.test(m.text())) ERRS.push(`[${tag}] console: ${m.text()}`); });
   const P = {
@@ -91,7 +92,10 @@ function drive(P, stopFn, guardN = 900) {
     return S.get().stage;
   }, [stopFn.toString(), guardN]);
 }
-const wait = async (t0, secs) => { const w = secs * 1000 - (Date.now() - t0); if (w > 0) await new Promise((r) => setTimeout(r, w)); };
+/** Page clock: t0 = the SPIN click's own event.timeStamp (performance.now() clock, read back from the page); waits poll performance.now() in the page. */
+const spinTs = (P) => P.page.evaluate(() => window.__clk[window.__clk.length - 1]);
+const pageWait = (P, ts, secs) => P.page.waitForFunction(([t, s]) => performance.now() >= t + s * 1000, [ts, secs], { polling: 'raf', timeout: 0 });
+const wait = async (t0, secs) => { const w = secs * 1000 - (Date.now() - t0); if (w > 0) await new Promise((r) => setTimeout(r, w)); }; // wall time: only for gaps after STOP
 
 // ---------------------------------------------------------------- match wheel
 async function matchWheel() {
@@ -104,11 +108,31 @@ async function matchWheel() {
   if (!(await P.clickText(/^BOWL OVER\b/i))) { MISSED.push('match: no BOWL OVER'); await P.ctx.close(); return; }
   await P.settle(500); await P.shot('m1-wheel-ready');
   if (!(await P.clickText(/^SPIN\b/i))) { MISSED.push('match: no SPIN'); await P.ctx.close(); return; }
-  const t0 = Date.now();
-  for (const [name, at] of [['m2-spinning-1_5s', 1.5], ['m3-glow-3_2s', 3.15], ['m3-glow-3_5s', 3.45], ['m3-glow-3_8s', 3.75]]) { await wait(t0, at); await P.shot(name); }
-  await wait(t0, 3.5 + 0.35); // glow shots cost time; STOP is a tap, any time past 3.5 s is fine for the result shots
+  const t0 = await spinTs(P);
+  for (const [name, at] of [['m2-spinning-1_5s', 1.5], ['m3-preglow-3_15s', 3.15], ['m3-glow-3_5s', 3.45], ['m3-glow-3_8s', 3.75]]) { await pageWait(P, t0, at); await P.shot(name); }
+  await pageWait(P, t0, 3.5 + 0.35); // glow shots cost time; STOP is a tap, any time past 3.5 s is fine for the result shots
   const stopAt = Date.now(); const ok = await P.clickText(/^STOP/i); if (!ok) MISSED.push('match: STOP not tappable at 3.9 s');
   await P.settle(600); await P.shot('m4-result-0_6s'); await wait(stopAt, 3.5); await P.shot('m5-result-3s');
+  await P.ctx.close();
+}
+
+// ---------------------------------------------------------------- match wheel, over 2+: "Auto rest of innings" disabled while the wheel spins
+async function matchAutoDisabled() {
+  log('match wheel over 2+ (Auto rest disabled while spinning)');
+  const P = await newPage('match-auto');
+  const st = await drive(P, (s) => s.stage === 'bowl'); if (st !== 'bowl') { MISSED.push('auto: stage ' + st); await P.ctx.close(); return; }
+  await P.S(() => window.__store.dispatch('WheelOver', { auto: true })); // over 1 played; the next bowl screen is over 2
+  await P.page.reload(); await P.settle(1000);
+  const pickRow = await P.page.$('.wm-brow[data-bowler]:not([aria-disabled="true"])'); if (pickRow && !(await P.page.$('.wm-brow[aria-checked="true"]'))) await pickRow.click();
+  const idle = await P.page.$('[data-wm="auto-rest"]'); if (!idle) MISSED.push('auto: no "Auto rest of innings" button on the over-2 pick screen');
+  if (!(await P.clickText(/^BOWL OVER\b/i))) { MISSED.push('auto: no BOWL OVER'); await P.ctx.close(); return; }
+  await P.settle(500);
+  if (!(await P.clickText(/^SPIN\b/i))) { MISSED.push('auto: no SPIN'); await P.ctx.close(); return; }
+  const t0 = await spinTs(P); await pageWait(P, t0, 1.5);
+  const a = await P.page.evaluate(() => { const b = document.querySelector('[data-wm="auto-rest"]'); return b ? { disabled: b.disabled || b.getAttribute('aria-disabled') === 'true', text: b.innerText.trim() } : null; });
+  await P.shot('m6-auto-rest-disabled-spinning');
+  if (!a) MISSED.push('auto: Auto rest button not visible while spinning'); else if (!a.disabled) MISSED.push('auto: Auto rest button is NOT disabled while spinning');
+  else log('  auto rest disabled while spinning: ok');
   await P.ctx.close();
 }
 
@@ -127,15 +151,16 @@ async function trainingWheel() {
   await P.shot('t1-wheel-ready');
   const spinTap = () => P.page.evaluate(() => { const b = document.querySelector('.wh-ov [data-go]') || [...document.querySelectorAll('.wh-ov button')].find((x) => /^SPIN/i.test(x.innerText)); if (b && !b.disabled) { b.click(); return true; } return false; });
   if (!(await spinTap())) { MISSED.push('train: SPIN not tappable'); await P.ctx.close(); return; }
-  const t0 = Date.now();
-  await wait(t0, 1.5); await P.shot('t2-spinning-1_5s');
-  await wait(t0, 3.45); await P.shot('t3-glow-3_5s');
-  await wait(t0, 3.9); const stopped = await spinTap(); if (!stopped) MISSED.push('train: STOP not tappable at 3.9 s');
+  const t0 = await spinTs(P);
+  await pageWait(P, t0, 1.5); await P.shot('t2-spinning-1_5s');
+  await pageWait(P, t0, 3.45); await P.shot('t3-glow-3_5s');
+  await pageWait(P, t0, 3.9); const stopped = await spinTap(); if (!stopped) MISSED.push('train: STOP not tappable at 3.9 s');
   const sAt = Date.now(); await P.settle(700); await P.shot('t4-result-0_7s'); await wait(sAt, 3.5); await P.shot('t5-result-3s');
   await P.ctx.close();
 }
 
 try { await matchWheel(); } catch (e) { MISSED.push('match wheel threw: ' + (e.message || e)); }
+try { await matchAutoDisabled(); } catch (e) { MISSED.push('auto-rest shot threw: ' + (e.message || e)); }
 try { await trainingWheel(); } catch (e) { MISSED.push('training wheel threw: ' + (e.message || e)); }
 const bad = Object.entries(AUDIT).filter(([, a]) => a && ((a.small || []).length || (a.banned || []).length || a.hScroll)).map(([k, a]) => `${k}: small[${(a.small || []).join('; ')}] banned[${(a.banned || []).join('; ')}] hScroll=${a.hScroll}`);
 writeFileSync(OUT + 'audit.json', JSON.stringify({ viewport: VIEW, dpr: 1, made: MADE, missed: MISSED, networkBlocked: BLOCKED, errors: ERRS, flagged: bad, audit: AUDIT }, null, 1));

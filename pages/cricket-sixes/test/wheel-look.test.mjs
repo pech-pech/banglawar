@@ -1,7 +1,7 @@
 // A2.2 look helpers: SPEC section 14 test 8 (glow is time only) and test 12 (labels, legend, no colour alone).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { glowOn, sliceLabel, legendRows, tierShape, aimMarker, MATERIALS } from '../js/ui/wheel-look.js';
+import { glowOn, sliceLabel, legendRows, tierShape, aimMarker, MATERIALS, tierMark, labelLines, radialFit, radialTurn, legendWith, legendShape, cardOf, MARK_MIN_RAD } from '../js/ui/wheel-look.js';
 
 test('8 glow is on for 3.2..3.8 s of every cycle and nothing else', () => {
   for (const t of [3.2, 3.5, 3.8]) assert.equal(glowOn(t), true, 't ' + t);
@@ -74,4 +74,55 @@ test('FL legend keeps different slices sharing a letter apart, merges identical 
     { w: 0.3, label: 'Fast', legend: 'Fast ball' }, { w: 0.3, label: '+2 steps' },
   ]);
   assert.deepEqual(rows.map((r) => [r.ch, r.text]), [['F', 'Fast ball'], ['F', 'Free hit'], ['+2', '+2 steps']]);
+});
+
+// ---- QA fixes: radial labels, tier marks, legend rows (T3 QA D4/D5, T4 QA 1-3, T2 QA) ----
+const fake = (lines, f) => ({ w: Math.max(...lines.map((l) => l.length)) * f * 0.6, h: lines.length * Math.round(f * 1.12) }); // ~0.6 em per letter
+
+test('D5 tier mark: gold and top = up-triangle, mid and low = dots, low paler than mid; never colour alone', () => {
+  assert.equal(tierMark('top').shape, 'triangle-up'); assert.equal(tierMark('low', true).shape, 'triangle-up', 'gold is a top mark');
+  assert.equal(tierMark('mid').shape, 'dot'); assert.equal(tierMark('low').shape, 'dot'); assert.equal(tierMark('zzz').shape, 'dot');
+  const sum = (c) => c[0] + c[1] + c[2]; assert.ok(sum(tierMark('low').fill) > sum(tierMark('mid').fill), 'pale sand lighter than sand');
+  assert.ok(Math.abs(MARK_MIN_RAD - Math.PI / 18) < 1e-12, '10 degrees');
+});
+
+test('D4 labelLines: one line first, then a split at ", " (Toss), else at the middle space', () => {
+  assert.deepEqual(labelLines('No boost, +1 Spoke'), [['No boost, +1 Spoke'], ['No boost,', '+1 Spoke']]);
+  assert.deepEqual(labelLines('Linden +10%'), [['Linden +10%'], ['Linden', '+10%']]);
+  assert.deepEqual(labelLines('x3.0'), [['x3.0']]);
+});
+
+test('D4 radialFit: the text box stays inside its slice edges and inside rOut; never under the floor', () => {
+  const cases = [['No boost, +1 Spoke', Math.PI / 10], ['Linden +10%', 0.258], ['NUTS +10', 0.314], ['x1.0', 0.33], ['+2', 0.11]];
+  for (const [text, half] of cases) {
+    const F = radialFit({ text, half, rIn: 28, rOut: 118, measure: fake, rPref: 70, fMin: 12 });
+    assert.ok(F, 'fits: ' + text); const m = fake(F.lines, F.f), r0 = F.rc - m.w / 2;
+    assert.ok(F.f >= 12 && F.f <= 18, 'font in range ' + text);
+    assert.ok(r0 >= 28 - 1e-9 && F.rc + m.w / 2 <= 118 + 1e-9, 'inside hub..rOut ' + text);
+    assert.ok(r0 * Math.sin(half) >= m.h / 2 + 2 - 1e-9, 'inside the slice edges at its inner end ' + text);
+  }
+  const two = radialFit({ text: 'No boost, +1 Spoke', half: Math.PI / 10, rIn: 28, rOut: 118, measure: fake, fMin: 12 });
+  assert.equal(two.lines.length, 2, 'Toss wraps to two lines');
+  assert.equal(radialFit({ text: 'A very long prize name here', half: 0.05, rIn: 28, rOut: 80, measure: fake, fMin: 14 }), null, 'too long: null (one character + legend)');
+  const ways = radialFit({ text: '20', ways: [['20 Coins'], ['20', 'Coins']], half: 0.26, rIn: 28, rOut: 112, measure: fake, fMin: 14 });
+  assert.ok(ways && ways.lines.join(' ') === '20 Coins', 'caller line sets are used');
+});
+
+test('D4 radialTurn: a label never reads upside down (turn within -90..+90 degrees)', () => {
+  for (let d = -180; d <= 360; d += 7.5) { const t = radialTurn(d * Math.PI / 180), c = Math.cos(t); assert.ok(c >= -1e-9, 'angle ' + d); }
+});
+
+test('legendWith: host rows first and kept, narrow slices add one row each, duplicates merged', () => {
+  const ring = [{ w: 1, label: 'No boost, +1 Spoke' }, { w: 1, label: 'No boost, +1 Spoke' }, { w: 0.4, label: 'M', legend: 'Gold Medal' }, { w: 1, label: '+5%' }];
+  const rows = legendWith(ring, [true, true, false, false], [{ ch: 'tri', text: 'above centre' }]);
+  assert.deepEqual(rows.map((r) => r.ch + '=' + r.text), ['tri=above centre', 'N=No boost, +1 Spoke', 'M=Gold Medal']);
+  assert.deepEqual(legendWith(ring.slice(3), [], null), []);
+  assert.deepEqual(legendWith([{ w: 0.6, label: '1.2' }], [], [{ ch: '1.2', text: 'x1.2' }]).map((r) => r.text), ['x1.2'], 'the host row for 1.2 is the only 1.2 row');
+});
+
+test('T4 QA 2: shape words on legend chips map to shapes (never printed); cards are read from any key style', () => {
+  assert.equal(legendShape('tri'), 'top'); assert.equal(legendShape('dot'), 'mid'); assert.equal(legendShape('pale'), 'low'); assert.equal(legendShape('GOLD'), 'gold'); assert.equal(legendShape('F'), ''); assert.equal(legendShape('M'), '');
+  assert.deepEqual(cardOf({ card: { g: 'B+', n: 'Okonkwo-Bell', ic: 'Bat' } }), { grade: 'B+', name: 'Okonkw.', focus: 'bat' });
+  assert.deepEqual(cardOf({ card: { grade: 'E', name: 'Ito', focus: 'bal' } }), { grade: 'E', name: 'Ito', focus: 'bal' });
+  assert.equal(cardOf({ label: 'x1.0' }), null);
 });

@@ -25,3 +25,41 @@
 .wk-tier--top { background: var(--grass2, #7eb261); clip-path: polygon(50% 0, 100% 100%, 0 100%); }
 .wk-tier--mid { background: #e2d0a0; border-radius: 50%; }
 .wk-tier--low { background: #f0e8ce; border-radius: 50%; box-shadow: inset 0 0 0 1px rgba(42, 34, 56, .35); }
+
+/* ---- Ring wheel QA fixes (T3 QA D2/D4/D5/D8, T1 QA D1-D6, T6 live QA) ---- */
+/* Legend under the wheel, centred, full width (never beside the wheel in the flex stage, where it was cut at x 320-344). */
+.wh-ov .wk-legend.wh-lgd { display: flex; flex: none; flex-wrap: wrap; justify-content: center; gap: 4px 12px; min-height: 0; margin: 2px 16px 6px; padding: 0; list-style: none; font-size: 14px; line-height: 22px; grid-template-columns: none; }
+.wh-ov .wk-legend.wh-lgd[hidden] { display: none; }
+/* Radial slice labels: the view sets font size, place and turn; lines are centred. */
+.wh-ov .wh-lab.wh-rlab { white-space: nowrap; text-align: center; font-weight: 800; letter-spacing: 0; transform-origin: 50% 50%; }
+/* AIM rides the landing tick (as on the match wheel): gold triangle on the rim + the word AIM with an ink-on-cream halo. */
+.wh-ov .wh-aimt, .wh-ov .wh-aimw { position: absolute; z-index: 3; pointer-events: none; }
+.wh-ov .wh-aimt { display: block; width: 24px; height: 17px; line-height: 0; }
+.wh-ov .wh-aimt svg { display: block; overflow: visible; }
+.wh-ov .wh-aimw { font-size: 13px; line-height: 14px; font-weight: 800; color: var(--outline, #2a2238); text-shadow: 1px 0 var(--cream, #f3ebd3), -1px 0 var(--cream, #f3ebd3), 0 1px var(--cream, #f3ebd3), 0 -1px var(--cream, #f3ebd3); white-space: nowrap; }
+.wh-ov .wh-aimt[hidden], .wh-ov .wh-aimw[hidden] { display: none; }
+/* "Tick on: <slice>" readout while a ring wheel turns. */
+.wh-ov .wh-now { display: flex; align-items: center; justify-content: center; gap: 8px; flex-wrap: wrap; font-weight: 700; }
+.wh-ov .wh-nowv { padding: 1px 8px; border: 2px solid var(--outline, #2a2238); font-size: 18px; line-height: 24px; white-space: nowrap; }
+.wh-ov .wh-msg2 { display: block; margin-top: 4px; font-size: var(--c-fs-s, 14px); }
+/* Result box: content grows down inside the box, nothing sits above its top edge or outside it (T3 QA D2, T1 QA D4 t5). */
+.wh-ov .wh-res { justify-content: flex-start; height: auto; overflow: visible; }
+.wh-ov .wh-res > * { flex: none; max-width: 100%; }
+.wh-ov .wh-land { flex-wrap: wrap; justify-content: center; font-size: var(--c-fs-m, 16px); font-weight: 700; }
+.wh-ov .wh-land .wh-chip { font-size: var(--c-fs-l, 20px); }
+.wh-ov .wh-line { text-align: center; font-size: var(--c-fs-m, 16px); line-height: 1.3; }
+/* 56 px on every tap (T6 live QA 5): token buttons too. */
+.wh-ov .wh-go, .wh-ov .wh-x, .wh-ov .wh-tok .c-btn { box-sizing: border-box; min-height: 56px; }
+.wh-ov .wh-x { min-width: 56px; }
+/* T4 QA: card chip, legend icons and shapes, 14 px letters, gold-filled STOP glow. */
+.wh-ov .wh-cg { position: absolute; z-index: 2; transform-origin: 50% 50%; min-width: 26px; padding: 1px 4px; border-radius: 4px; background: var(--outline, #2a2238); color: #fff; font-size: 14px; line-height: 18px; font-weight: 800; text-align: center; white-space: nowrap; pointer-events: none; }
+.wh-ov .wk-legend.wh-lgd .wk-legend-ch { min-width: 22px; height: 22px; font-size: 14px; }
+.wh-ov .wk-legend.wh-lgd .wk-tier { width: 14px; height: 14px; }
+.wh-ov .wk-legend.wh-lgd .wk-tier--top { background: #3f8f3a; }
+.wh-ov .wk-legend.wh-lgd .wk-tier--mid { background: #cdb572; box-shadow: inset 0 0 0 1.5px var(--outline, #2a2238); }
+.wh-ov .wk-legend.wh-lgd .wk-tier--low { background: #fffaf0; box-shadow: inset 0 0 0 1.5px var(--outline, #2a2238); }
+.wk-tier--gold { background: var(--gold, #d2b357); box-shadow: inset 0 0 0 2px var(--outline, #2a2238); }
+.wh-ov .wk-legend-ico { display: inline-flex; width: 16px; height: 16px; }
+.wh-ov .wk-legend-ico:empty { display: none; }
+.wh-ov .wh-go.is-glow, .wh-ov .wh-go.is-glow.c-btn--primary.c-btn--cta { --_bg: var(--gold, #d2b357); --_fg: var(--outline, #2a2238); --_hi: var(--white, #fff); --_wash: var(--gold, #d2b357); background: var(--gold, #d2b357); color: var(--outline, #2a2238); }
+.wh-ov .t2-strip small { font-size: 14px; }
