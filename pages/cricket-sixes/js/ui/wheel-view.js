@@ -401,7 +401,7 @@ export function openWheel(o) {
   function ringResultHtml(p, d, sg) {
     const k = landedIndex(p, lastStop, N), row = landedRow(k), lab = String(row.label == null ? row.value : row.label) + (row.sub != null && String(row.sub).trim() ? ' ' + String(row.sub).trim() : ''), short = sliceLabel(row) + (row.sub != null && String(row.sub).trim() && !(row.w < LABEL_MIN_W) ? ' ' + String(row.sub).trim() : ''), chip = short || lab, big = d.big != null ? String(d.big) : '';
     landedFull = lab; landedShort = chip !== lab;
-    const chg = !RING && ((d.from != null && d.to != null && String(d.from) !== '' && d.from !== d.to) ? '<div class="wh-chg"><span>' + esc(d.from) + '</span><span class="t2-arr" aria-hidden="true"></span><b class="t2-new">' + esc(d.to) + '</b></div>' : d.barHtml ? '<div class="wh-chg">' + d.barHtml + '</div>' : '');
+    const chg = RING ? '' : ((d.from != null && d.to != null && String(d.from) !== '' && d.from !== d.to) ? '<div class="wh-chg"><span>' + esc(d.from) + '</span><span class="t2-arr" aria-hidden="true"></span><b class="t2-new">' + esc(d.to) + '</b></div>' : d.barHtml ? '<div class="wh-chg">' + d.barHtml + '</div>' : '');
     return (p.jackpot && o.jpText ? '<span class="wh-jp">' + icoDeco('burst', 20) + ' ' + esc(o.jpText) + '</span>' : '') +
       '<div class="wh-big wh-land"><span>Landed on</span><span class="wh-chip' + (p.boosted || p.hot ? ' is-boost' : '') + '"' + (chip !== lab ? ' title="' + esc(lab) + '" aria-label="' + esc(lab) + '"' : '') + '>' + esc(chip) + '</span></div>' +
       (big && big !== chip && big !== lab ? '<div class="wh-line"><b>' + esc(big) + '</b></div>' : '') + (d.line ? '<div class="wh-line">' + esc(d.line) + '</div>' : '') + chg +
