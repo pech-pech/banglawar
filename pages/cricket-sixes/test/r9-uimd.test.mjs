@@ -11,8 +11,8 @@ test('boostTotals multiplies, shows only revealed parts', () => {
   assert.deepEqual(boostTotals(vm, { hype: false, toss: false, pep: false }), { teamPct: 0, pepPct: 0 });
   assert.equal(boostTotals(vm, { hype: true, toss: false, pep: false }).teamPct, 4);
   const all = boostTotals({ ...vm, hype: { ...vm.hype, perfPct: 10 } }, { hype: true, toss: true, pep: true });
-  assert.equal(all.teamPct, 16);   // 1.10 x 1.05 = 1.155 -> 16 (rounded)
-  assert.equal(all.pepPct, 21);    // x 1.05 = 1.21275 -> 21
+  assert.equal(all.teamPct, 15.5);   // 1.10 x 1.05 = 1.155 -> 15.5 (one decimal)
+  assert.equal(all.pepPct, 21.3);    // x 1.05 = 1.21275 -> 21.3
 });
 test('lost toss adds nothing', () => {
   const t = boostTotals({ ...vm, toss: { won: false, boostPct: 5 } }, { hype: true, toss: true, pep: false });
@@ -37,7 +37,7 @@ test('revealed screen shows results as words and one pep player', () => {
 });
 test('lost toss copy is kind', () => {
   const h = matchdayHtml({ ...vm, toss: { won: false, boostPct: 5 } }, { hype: true, toss: true, pep: false });
-  assert.match(h, /Rival won the toss\. Nothing changes\./);
+  assert.match(h, /No boost\. \+1 Spoke\./);
 });
 test('odds sheet sums to 100 and lists four words', () => {
   const h = oddsHtml(vm);
@@ -82,4 +82,8 @@ test('features row: switch with words, plain copy', () => {
   const h = featuresRowHtml(true);
   assert.match(h, /New match-day and fan features/); assert.match(h, /role="switch"[^>]*aria-checked="true"/); assert.match(h, /data-md-features/);
   assert.match(featuresRowHtml(false), /aria-checked="false"[\s\S]*>Off</);
+});
+test('N3: a +2.5% toss shows +2.5%, not 2', () => {
+  const t = boostTotals({ ...vm, hype: { ...vm.hype, perfPct: 0 }, toss: { won: true, boostPct: 2.5 } }, { hype: true, toss: true, pep: false });
+  assert.equal(t.teamPct, 2.5);
 });

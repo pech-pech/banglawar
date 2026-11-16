@@ -68,7 +68,9 @@ test('Gold Chime: only when the pointer enters a gold slice from a non-gold one'
   assert.equal(chimeEnters(3, 4, [0, 4]), true, 'the extra gold chimes too');
   const js = read('js/ui/wheel-view.js');
   assert.match(js, /chime: true/, 'onTick gets {chime:true}'); assert.match(js, /is-chime/, 'the pointer flashes');
-  assert.match(js, /ZONE = !reduced/, 'no zone with reduced motion'); assert.match(js, /CHIME = !reduced/, 'no chime with reduced motion');
+  // SPEC 2e: no reduced-motion path; Aim Zone and Gold Chime always work when owned
+  assert.match(js, /ZONE = \+o\.zone > 0 \? \+o\.zone : 0/, 'zone whenever set'); assert.match(js, /CHIME = !!o\.chime/, 'chime whenever set');
+  assert.doesNotMatch(js, /\breduced\b|prefers-reduced-motion/, 'no reduced-motion branch');
   assert.match(read('css/training2.css'), /\.wh-ov \.wh-ptr\.is-chime/);
 });
 
@@ -121,9 +123,9 @@ test('result card data: Booster and Hot Streak come through the Spotlight and Co
     const r = s.training.pending.result;
     const setR = (x) => ({ ...s, training: { ...s.training, pending: { ...s.training.pending, result: { ...r, ...x } } } });
     const b = sel.trainingVM(setR({ boosted: true, jackpot: false })).spotlight.pending;
-    assert.equal(b.boosted, true); assert.equal(b.boostBy, 2, 'Big Boost: value 2'); assert.equal(b.hot, false);
+    assert.equal(b.boosted, true); assert.equal(b.boostBy, 2 / 1.5, 'Big Boost: value 2 x UNIT.spot (1/1.5) on Spotlight'); assert.equal(b.hot, false);
     const h = sel.trainingVM(setR({ boosted: false, jackpot: true, streak0: 1 })).spotlight.pending;
-    assert.equal(h.hot, true); assert.equal(h.hotBy, 1); assert.equal(h.boosted, false);
+    assert.equal(h.hot, true); assert.equal(h.hotBy, Math.round(1 * (1 / 1.5) * 1000) / 1000, 'Hot Streak: streak0 1 x UNIT.spot, rounded to 3dp'); assert.equal(h.boosted, false);
     const plain = sel.trainingVM(setR({ boosted: false, jackpot: true, streak0: 0 })).spotlight.pending; assert.equal(plain.hot, false);
     const cid = sel.trainingVM(s).coaches[0].id, cp = { coachId: cid, careful: true, wheel: s.training.pending.wheel, result: { ...r, boosted: true, jackpot: false } };
     const row = sel.trainingVM({ ...s, training: { ...s.training, coursePending: cp } }).coaches.find((c) => c.id === cid);

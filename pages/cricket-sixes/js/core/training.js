@@ -2,7 +2,9 @@
 // Weekly nets (P11 redo): Focus + Effort + optional Spotlight wheel, coaches (grade steps, scout list, courses), week end.
 // Pure and seeded: every function takes the state (and an rng where it rolls) and returns a NEW state; an invalid
 // command returns the SAME state object. No Math.random, Date or DOM. Numbers: data/training.js TRAIN2 (SPEC 2026-11-13).
-import { DRILLS, TRAIN2, NETS_Q } from '../data/training.js';
+import { DRILLS, TRAIN2, NETS_Q, COURSE_MAX_STEP, COURSES_PER_SEASON } from '../data/training.js';
+import { SPOT_SLICES, COURSE_SLICES } from '../data/wheel-slices-train.js';
+import { applyKindFloor } from './perks/kind-floor.js';
 import { FLAGS } from '../data/flags.js';
 import { SURNAMES } from '../data/names.js';
 import { makeRng } from './rng.js';
@@ -12,6 +14,10 @@ import { stepOfRaw } from './letters.js';
 import { matchCoachBoost } from './matchday.js';
 import { fireHook, pipeHook } from './hooks.js';
 import { weekKey, weekKeyOf } from './week-key.js';
+import { spinKeyOf } from './wheel-stops.js';
+import { tickAt, cycleOf, ARC_PER_CYCLE, pulseArc, pulseW } from './wheel-pulse.js';
+import * as clinicMod from './clinic.js'; // clinicOf may not exist on this branch: read it off the namespace
+import { bonusNamesOf } from './coach-scout.js';
 
 export const EFFORTS = ['easy', 'normal', 'push'];
 export const FOCUSES = ['bat', 'bowl', 'bal'];
@@ -150,7 +156,7 @@ export function scoutList(s) {
   if (scoutRec(s)) return [];
   const L = leagueOfState(s), n = seasonN(s), rng = makeRng(`${s.seed || 'sixes'}|scout|${n}|${L}`);
   const sp = s.scoutSpin && s.scoutSpin.n === n ? s.scoutSpin : null; // wheel meta: the Scout wheel's Extra name (+1 candidate) and Top name (+steps to the best)
-  const count = CO.scoutSize[L - 1] + (sp ? (sp.extra | 0) : 0), out = [];
+  const count = CO.scoutSize[L - 1] + (sp ? (sp.extra | 0) : 0) + bonusNamesOf(s), out = []; // Scout-job names (coach-scout.js) are extra loop iterations: same grade-centre rule
   for (let i = 0; i < count; i++) {
     const step = Math.max(1, Math.min(CO.maxStep, CO.scoutCentre[L - 1] + rng.int(2 * CO.scoutSpread + 1) - CO.scoutSpread));
     const strong = rng.shuffle(FOCUSES.slice()).slice(0, 1 + rng.int(2));
@@ -189,48 +195,51 @@ export function courseCost(s, coachId) {
   const c = coachById(s, coachId); if (!c) return 0;
   return Math.round((CO.courseBase + CO.coursePerStep * normCoach(c).step) * CO.courseFactor[leagueOfState(s) - 1]);
 }
-/** { ok, why: ''|'unknown'|'max'|'away'|'season'|'coins' } (coins checked only when s.econ exists; licence = override for a held Master Coach Licence) @param {any} s @param {string} coachId @param {boolean} [licence] */
+/** Course cap (T5 shape, local until coach-steps.js merges): a course result is cut at step 19 (S-). @param {number} step @param {number} gain @returns {{to:number,cut:boolean}} */
+export function courseCap(step, gain) { const raw = step + gain, to = Math.min(raw, COURSE_MAX_STEP); return { to, cut: raw > COURSE_MAX_STEP }; }
+/** Steps a course really pays after the cap: { to, cut, paid }. @param {number} step @param {number} gain */
+export function courseResult(step, gain) { const r = courseCap(step, gain); return { ...r, paid: Math.max(0, r.to - step) }; }
+/** M override of SPEC s4: a coach at step 19 or more MAY take the club's one course; the result is cut at 19 (he gains 0). Always ok; the season, away and coins limits live in canCourse. @param {{step:number}} _coach @returns {{ok:boolean,why:string}} */
+export function canStartCourse(_coach) { return { ok: true, why: '' }; }
+/** 1 course a season for the club (any coach). @param {any} n */
+export function courseAllowed(n) { return (n.coaches || []).filter((/** @type {any} */ c) => c.courseSeason === seasonN(n)).length < COURSES_PER_SEASON; }
+/** { ok, why: ''|'unknown'|'away'|'season'|'coins' } (coins checked only when s.econ exists; licence = override for a held Master Coach Licence) @param {any} s @param {string} coachId @param {boolean} [licence] */
 export function canCourse(s, coachId, licence) {
   const raw = coachById(s, coachId); if (!raw) return { ok: false, why: 'unknown' };
   const c = normCoach(raw);
-  if (c.step >= CO.maxStep) return { ok: false, why: 'max' };
   if (c.away > 0) return { ok: false, why: 'away' };
-  // Master Coach Licence: lifts the 1-course-a-season cap once, for one 2nd course (licence = override when econ is not on the state)
-  if (c.courseSeason === seasonN(s) && !((licence ?? licenceHeld(s) > 0) && c.licenceSeason !== seasonN(s))) return { ok: false, why: 'season' };
+  // 1 course a season for the club. The Master Coach Licence (economy item) still lifts it once, for one 2nd course (licence = override when econ is not on the state)
+  if (!courseAllowed(s) && !((licence ?? licenceHeld(s) > 0) && !(s.coaches || []).some((/** @type {any} */ x) => x.licenceSeason === seasonN(s)))) return { ok: false, why: 'season' };
   if (s.econ && (s.econ.coins || 0) < courseCost(s, coachId)) return { ok: false, why: 'coins' };
   return { ok: true, why: '' };
 }
 
-/** True when this coach already took a course this season, so the next one spends the Master Coach Licence. @param {any} s @param {string} coachId */
-export function courseUsesLicence(s, coachId) { const c = coachById(s, coachId); return !!c && normCoach(c).courseSeason === seasonN(s); }
+/** True when the club already took a course this season, so the next one spends the Master Coach Licence. @param {any} s @param {string} coachId */
+export function courseUsesLicence(s, coachId) { return !!coachById(s, coachId) && !courseAllowed(s); }
 
 // ---- wheels
 const WS = TRAIN2.wheelStop;
+// STOP window (s after SPIN) for the synthetic taps: no coast, so one pulse cycle (CONTRACT-A sec 3: 6 s), STOP ignored for the first 0.35 s.
+const TAP_FROM = 0.35, TAP_TO = 6;
 /** Physics numbers for a wheel: wheel.phys {W0, J, SD, D?} (wheel meta: Slow Spin, Steady Axle, Aim Guide; D = Find glide) over TRAIN2.wheelStop; none = WS itself. @param {any} [wheel] */
 const physOf = (wheel) => (wheel && wheel.phys ? { ...WS, ...wheel.phys } : WS);
-/** Slice values (jackpot first, then the layout in the order they pass the pointer) and widths in units. @param {{slices:number[],widths:number[],jackpot:number}} w @param {number[]} [base] */
-function buildWheel(w, base) {
-  const widths = w.widths.slice(), C = widths.reduce((x, y) => x + y, 0);
-  return { slices: [w.jackpot].concat(base || w.slices), jackpotIndex: 0, jackpotGain: w.jackpot, widths, C };
+/** Table ring (SliceRow[], widths in rim units summing 10) -> the wheel object old consumers read: slices = values, widths, golds, plus the ring itself. @param {ReadonlyArray<any>} ring */
+function wheelOfRing(ring) {
+  const widths = ring.map((r) => r.w), golds = ring.filter((r) => r.gold).map((r) => r.id), g = golds.length ? golds[0] : 0;
+  return { slices: ring.map((r) => r.value), jackpotIndex: g, jackpotGain: ring[g].value, widths, C: widths.reduce((x, y) => x + y, 0), golds, ring: ring.map((r) => ({ ...r })) };
 }
 /**
- * Spotlight wheel: 10 slices (index 0 is the jackpot, the narrow one). coachStep = grade step of the coach helping this week (0 = none):
- * every 6 coach Quality turns one +1 slice into +2 (one +1 stays; the slice keeps its width). No aim: the stop decides (spinResult).
- * @param {string} effort @param {number} [coachStep]
+ * Spotlight wheel: SPOT_SLICES (CONTRACT-A sec 5 rows; value = x on the normal roll, mean 1.292). Effort and coach step no longer change the ring
+ * (args kept so old calls work). kindFloor = the Kind Floor perk is owned: the lowest tier pays and reads x1.2, never gold (applyKindFloor).
+ * @param {string} [_effort] @param {number} [_coachStep] @param {boolean} [kindFloor]
  */
-export function wheelSlices(effort, coachStep = 0) {
-  const w = TRAIN2.wheel[effort] || TRAIN2.wheel.normal, base = w.slices.slice();
-  const up = Math.round(CO.qualityPerStep * coachStep * CO.wheelUpPerQ);
-  for (let i = 0; i < up && base.filter((v) => v === 1).length > 1; i++) base[base.indexOf(1)] = 2;
-  return buildWheel(w, base);
-}
-/** Course wheel: +1 x5, +2 x4, jackpot +3 (coach step does not change it). @param {number} [_coachStep] */
-export function courseWheel(_coachStep = 0) { return buildWheel(CO.courseWheel); }
-/** Widths for a plain {slices, jackpotIndex} wheel (saved or view-side): the layout is told by the jackpot gain (3 course, 4 easy, 5 normal, 6 push). @param {{slices:number[],jackpotIndex?:number,widths?:number[]}} wheel */
+export function wheelSlices(_effort, _coachStep = 0, kindFloor = false) { return wheelOfRing(applyKindFloor(SPOT_SLICES, !!kindFloor)); }
+/** Course wheel: COURSE_SLICES (+4 gold 12%, mean 1.590). Coach step does not change it. @param {number} [_coachStep] */
+export function courseWheel(_coachStep = 0) { return wheelOfRing(COURSE_SLICES); }
+/** Widths for a plain {slices} wheel (saved or view-side): saved widths win; else the ring by length (11 = Course, else Spotlight). @param {{slices:number[],jackpotIndex?:number,widths?:number[]}} wheel */
 export function wheelWidths(wheel) {
   if (wheel.widths && wheel.widths.length === wheel.slices.length) return wheel.widths;
-  const g = wheel.slices[wheel.jackpotIndex || 0], all = [TRAIN2.wheel.easy, TRAIN2.wheel.normal, TRAIN2.wheel.push, CO.courseWheel];
-  const t = all.find((x) => x.jackpot === g) || TRAIN2.wheel.normal; return t.widths.slice(0, wheel.slices.length);
+  const ring = wheel.slices.length === COURSE_SLICES.length ? COURSE_SLICES : SPOT_SLICES; return ring.map((r) => r.w).slice(0, wheel.slices.length);
 }
 /** Wheel speed (units/s) and arc turned (units) at wheel time t seconds after SPIN. @param {number} t */
 export const wheelSpeed = (/** @type {number} */ t, /** @type {{W0?:number}} */ phys) => (phys || WS).W0 * Math.exp(-t / WS.TAU); // phys = optional wheel.phys
@@ -245,11 +254,12 @@ export function sliceAt(wheel, pos) {
   const w = wheelWidths(wheel), C = w.reduce((x, y) => x + y, 0); let u = pos % C; if (u < 0) u += C;
   let acc = 0; for (let i = 0; i < w.length; i++) { acc += w[i]; if (u < acc) return i; } return w.length - 1;
 }
-/** Where the slice under the pointer ends up for a STOP at t (clamped 1..6) from start offset phi with wobble e. Pure. @param {any} wheel @param {{t:number,phi:number,e:number}} stop */
+/** Where the slice under the pointer ends up for a STOP at t (>= 0, no upper clamp: the wheel spins until STOP) from start offset phi with wobble e. Pure. @param {any} wheel @param {{t:number,phi:number,e:number}} stop */
 export function stopLanding(wheel, stop) {
   const w = wheelWidths(wheel), C = w.reduce((x, y) => x + y, 0), P = physOf(wheel);
-  const t = Math.max(WS.STOP_FROM, Math.min(WS.COAST, stop.t)), e = Math.max(-P.J, Math.min(P.J, stop.e)), phi = ((stop.phi % C) + C) % C;
-  const base = phi + wheelArc(t, P), dist = stopDist(t, P), pos = base + dist + e;
+  const t = Math.max(0, stop.t), e = Math.max(-P.J, Math.min(P.J, stop.e)), phi = ((stop.phi % C) + C) % C;
+  // pulse (SPEC 2c, CONTRACT-A sec 3): landing = phi + tickAt(t) + e, the point the view's tick shows. base = phi + arc, dist = w(t) x D/3 (glide)
+  const { cycle, tInCycle } = cycleOf(t, P), base = phi + (cycle - 1) * ARC_PER_CYCLE(P) + pulseArc(tInCycle, P), dist = pulseW(tInCycle, P) * P.D / 3, pos = base + dist + e;
   return { t, phi, e, base, dist, pos, index: sliceAt(wheel, pos) };
 }
 /** The tap time an average careful player picks (jackpot arrival nearest IDEAL, plus a normal timing error SD). @param {any} wheel @param {number} phi @param {number} g1 @param {number} g2 uniform draws (0,1] */
@@ -257,15 +267,15 @@ export function carefulTapTime(wheel, phi, g1, g2) {
   const w = wheelWidths(wheel), C = w.reduce((x, y) => x + y, 0), P = physOf(wheel);
   const centre = (/** @type {number} */ j) => w.slice(0, j).reduce((x, y) => x + y, 0) + w[j] / 2;
   const cJs = wheel.aims && wheel.aims.length ? wheel.aims : (wheel.golds && wheel.golds.length ? wheel.golds : [wheel.jackpotIndex || 0]).map(centre); // wheel meta: Extra Gold adds a second target; aims = explicit target positions in units (Find: block centres)
-  const g = (/** @type {number} */ t) => phi + wheelArc(t, P) + stopDist(t, P); // monotone in t
+  const g = (/** @type {number} */ t) => phi + tickAt(t, P); // the pulse tick (SPEC 2c), monotone in t
   let best = WS.IDEAL, bd = Infinity;
-  for (const cJ of cJs) for (let k = Math.floor(g(WS.STOP_FROM) / C); k <= Math.ceil(g(WS.COAST) / C); k++) {
-    const target = cJ + k * C; if (target < g(WS.STOP_FROM) || target > g(WS.COAST)) continue;
-    let lo = WS.STOP_FROM, hi = WS.COAST; for (let i = 0; i < 40; i++) { const m = (lo + hi) / 2; if (g(m) < target) lo = m; else hi = m; }
+  for (const cJ of cJs) for (let k = Math.floor(g(TAP_FROM) / C); k <= Math.ceil(g(TAP_TO) / C); k++) {
+    const target = cJ + k * C; if (target < g(TAP_FROM) || target > g(TAP_TO)) continue;
+    let lo = TAP_FROM, hi = TAP_TO; for (let i = 0; i < 40; i++) { const m = (lo + hi) / 2; if (g(m) < target) lo = m; else hi = m; }
     if (Math.abs(lo - WS.IDEAL) < bd) { bd = Math.abs(lo - WS.IDEAL); best = lo; }
   }
   const z = Math.sqrt(-2 * Math.log(Math.max(1e-12, g1))) * Math.cos(2 * Math.PI * g2);
-  return Math.max(WS.STOP_FROM, Math.min(WS.COAST, best + z * P.SD));
+  return Math.max(TAP_FROM, Math.min(TAP_TO, best + z * P.SD));
 }
 /**
  * Where the wheel stops. The result is the slice under the pointer at the landing position (stopLanding): no aim, no snap.
@@ -279,7 +289,7 @@ export function spinResult(rng, wheel, stop = false) {
   const o = stop && typeof stop === 'object' ? stop : null;
   const phi = o && Number.isFinite(o.phi) ? /** @type {number} */ (o.phi) : d[0] * C;
   const e = o && Number.isFinite(o.e) ? /** @type {number} */ (o.e) : (d[2] * 2 - 1) * P.J;
-  const t = o && Number.isFinite(o.t) ? o.t : stop === true ? carefulTapTime(wheel, phi, 1 - d[3], d[4]) : WS.STOP_FROM + d[1] * (WS.COAST - WS.STOP_FROM);
+  const t = o && Number.isFinite(o.t) ? o.t : stop === true ? carefulTapTime(wheel, phi, 1 - d[3], d[4]) : TAP_FROM + d[1] * (TAP_TO - TAP_FROM);
   const L = stopLanding(wheel, { t, phi, e });
   return { index: L.index, gain: wheel.slices[L.index], jackpot: wheel.golds ? wheel.golds.includes(L.index) : L.index === (wheel.jackpotIndex || 0), t: L.t, phi: L.phi, e: L.e };
 }
@@ -292,7 +302,9 @@ export function runCourse(s, rng, coachId, spin, licence) {
   if (n.econ) n.econ.coins = (n.econ.coins || 0) - price;
   const c = Object.assign(n.coaches[i], normCoach(n.coaches[i]));
   const gain = spin && Number.isFinite(spin.gain) ? /** @type {number} */ (spin.gain) : spinResult(rng, courseWheel(c.step), false).gain;
-  c.step = Math.min(CO.maxStep, c.step + gain); c.away = CO.awayWeeks; if (c.courseSeason === seasonN(s)) c.licenceSeason = seasonN(s); c.courseSeason = seasonN(s);
+  const cr = courseResult(c.step, gain), second = !courseAllowed(s); // cut at step 19; paid = steps really added
+  c.step = cr.to; c.stepsCourse = (c.stepsCourse | 0) + cr.paid; c.away = CO.awayWeeks; if (second) c.licenceSeason = seasonN(s); c.courseSeason = seasonN(s);
+  if (cr.cut && n.report && n.report.jobs && typeof n.report.jobs.courseCut === 'number') n.report.jobs.courseCut += 1; // CONTRACT-B: counts courses the cap cut
   if (n.training) { if (n.training.coach_id === coachId) n.training.coach_id = null; if (n.training.sel && n.training.sel.coachId === coachId) n.training.sel.coachId = null; }
   return n;
 }
@@ -305,6 +317,7 @@ function roster(s) {
   const order = six.map((/** @type {string} */ id) => findPlayer(s, id)).filter(Boolean).concat(sq.filter((/** @type {any} */ p) => !six.includes(p.id)));
   const skippedIds = [], able = [];
   for (const p of order) (drillRoom(p, focusRating(p, plan.focus)).locked ? skippedIds : able).push(p);
+  const bo = boostedIds(s); if (bo.size) able.sort((a, b) => (bo.has(b.id) ? 1 : 0) - (bo.has(a.id) ? 1 : 0)); // TP runs short: a Clinic-boosted player trains first (stable sort, SPEC s7)
   let pool = (s.training && s.training.tp) || 0; const trainIds = [], shortIds = [];
   for (const p of able) { if (pool >= cost) { pool -= cost; trainIds.push(p.id); } else shortIds.push(p.id); }
   return { plan, cost, trainIds, shortIds, skippedIds: skippedIds.map((p) => p.id), ableCount: able.length };
@@ -324,6 +337,17 @@ export function netsPreview(s) {
 const logEntry = (/** @type {any} */ n, /** @type {any} */ e) => { (n.training.weekLog ||= []).push(e); };
 const ensureWeekStart = (/** @type {any} */ n) => { n.training.weekStart ||= {}; for (const p of squadOf(n)) n.training.weekStart[p.id] ||= RATINGS.map((k) => p[k]); };
 
+/** Spotlight pay: normal roll x wheel multiplier in whole steps, EV-true stochastic rounding: floor(roll*mult), plus 1 with probability frac.
+ *  u in [0,1) comes from the caller's own seeded stream (never the training rng). Never below the roll. @param {number} roll @param {number} mult @param {number} u */
+export function spotPaid(roll, mult, u = 0) { const v = roll * mult, f = Math.floor(v); return Math.max(roll, f + (u < v - f ? 1 : 0)); }
+/** Clinic-boosted player ids (SPEC s7): boosted = key present with pcts.length > 0 or extraRun. Reads clinicOf(s).boost; absent shape = none. @param {any} s */
+function boostedIds(s) {
+  let b; try { const c = typeof clinicMod.clinicOf === 'function' ? clinicMod.clinicOf(s) : (s && s.clinic); b = c && c.boost; } catch { return new Set(); }
+  if (!b || typeof b !== 'object') return new Set();
+  return new Set(Object.keys(b).filter((k) => { const v = b[k]; return !!v && ((Array.isArray(v.pcts) && v.pcts.length > 0) || !!v.extraRun); }));
+}
+/** The spot pay stream for one spin: seeded from the spin record key, independent of the training rng. @param {any} s @param {string} id @param {number} slot */
+function spotPayRng(s, id, slot) { let k = ''; try { k = spinKeyOf(s, 'spot', { slot, playerId: id }); } catch { k = `${weekKey(s)}|${id}`; } return makeRng(`spotpay|${k}`); }
 /**
  * Run the nets: one roll per player who can gain (Six first), same effort and cost each; the Spotlight player takes the
  * wheel result instead of his roll. opts.wheel = a spinResult ({ index, gain, jackpot }); missing = a random-tap spin
@@ -345,17 +369,19 @@ export function runNets(s, rng, opts = {}) {
   const order = pipeHook('netsOrder', r.trainIds, n, { coachId: plan.coachId || null }); // lead call 9: no listeners = r.trainIds as is (same order, same rng draws)
   for (const id of order) {
     const p = findPlayer(n, id), st = focusRating(p, plan.focus), room = drillRoom(p, st).room;
-    let rolled, wheelGain, wh = wheel;
-    if (wheel2On && id === plan.spotlight2Id && wheel2) { rolled = wheel2.gain; wheelGain = wheel2.gain; wh = wheel2; }
-    else if (wheelOn && id === plan.spotlightId && wheel) { rolled = wheel.gain; wheelGain = wheel.gain; }
-    else { const x = rng.random() * 100; rolled = x < odds.okay ? 1 : x < odds.okay + odds.good ? 2 : 3; }
+    let rolled, wheelGain, wheelMult, wh = wheel;
+    const normalRoll = () => { const x = rng.random() * 100; return x < odds.okay ? 1 : x < odds.okay + odds.good ? 2 : 3; };
+    // Spotlight: the wheel value is a multiplier on the player's normal roll (SPEC wheels-like-match s3), whole steps, never below the roll.
+    if (wheel2On && id === plan.spotlight2Id && wheel2) { rolled = spotPaid(normalRoll(), wheel2.gain, spotPayRng(s, id, 2).random()); wheelGain = rolled; wheelMult = wheel2.gain; wh = wheel2; }
+    else if (wheelOn && id === plan.spotlightId && wheel) { rolled = spotPaid(normalRoll(), wheel.gain, spotPayRng(s, id, 1).random()); wheelGain = rolled; wheelMult = wheel.gain; }
+    else rolled = normalRoll();
     const gain = Math.min(rolled, room), from = p[st], wasHidden = isHidden(p);
     p[st] = from + gain; p.drillsHere += 1;
     const word = words[Math.min(3, wheelGain !== undefined ? Math.max(1, wheelGain >= 3 ? 3 : wheelGain) : rolled) - 1];
     const jackpot = wheelGain !== undefined && !!wh && !!wh.jackpot;
     const breakthrough = (wheelGain === undefined && rolled === 3) || jackpot || stepOfRaw(p[st]) > stepOfRaw(from);
     /** @type {any} */ const line = { id, name: p.name, stat: TRAIN2.statNames[st], rating: st, fromRaw: from, toRaw: p[st], word, breakthrough };
-    if (wheelGain !== undefined) line.wheelGain = wheelGain;
+    if (wheelGain !== undefined) { line.wheelGain = wheelGain; line.wheelMult = wheelMult; } // wheelMult = the wheel's x on the normal roll
     lines.push(line);
     logEntry(n, { type: 'Drill', playerId: id, rating: st, outcome: word, gain });
     if (wasHidden && !isHidden(p)) logEntry(n, { type: 'GradeRevealed', playerId: id, grade: bandOf(p.potential) });
@@ -399,14 +425,10 @@ export function seeTips(state) {
   const n = clone(state); n.training.tipsSeen = true; return n;
 }
 
-/** wa2: the careful STOP window (seconds after SPIN), the same window the Copy report buckets by. Feel only: no odds change. */
+// DEPRECATED shims (CONTRACT-A RETIRE list: TIMING_WIN, timingBucket, TIMING_LINE go with the old wheel-view (T1) and js/report/log.js (T8)).
+// Kept only so those two files still link until they drop their imports; no COAST, nothing new reads them. DELETE once both imports are gone.
 export const TIMING_WIN = Object.freeze({ lo: 3.2, hi: 3.8 });
-/** wa2: timing bucket of a STOP. t = STOP time in seconds; coasted = the game tapped at COAST (no player STOP). 'c' careful, 'e' early, 'l' late, 'o' coasted (Copy report codes). */
-export function timingBucket(t, coasted) {
-  if (coasted || !Number.isFinite(t) || t >= TRAIN2.wheelStop.COAST) return 'o';
-  return t < TIMING_WIN.lo ? 'e' : t <= TIMING_WIN.hi ? 'c' : 'l';
-}
-/** wa2: the one result line for a timing bucket. */
+export function timingBucket(/** @type {number} */ t) { return !Number.isFinite(t) ? 'o' : t < TIMING_WIN.lo ? 'e' : t <= TIMING_WIN.hi ? 'c' : 'l'; }
 export const TIMING_LINE = Object.freeze({ e: 'Early', c: 'Good timing', l: 'Late', o: 'Coasted' });
 
 // ---- Match coach (SPEC 2026-11-15): a coach neither picked for this week's nets nor away on a course can lift our side in the match.

@@ -66,3 +66,45 @@ export function dialResult(rng, dial, stop = false) {
   const levelIdx = MD.HYPE_LEVELS.indexOf(s.level);
   return { index: L.index, level: s.level, levelIdx, pts, perf: pts / 100, fanMult: MD.HYPE_FAN_MULT[levelIdx], boosted, t: L.t, phi, e: L.e, x: L.x };
 }
+
+// ---- T3 ring API (CONTRACT-A s5/s7): slice-row ring + stop by sliceId. Old dial functions above stay as they are. ----
+// TODO(T3-after-T1): gold widening (goldAdd), Extra Gold second NUTS and ring splitting need T1's wheel-ring.js (not merged); not done here.
+import { hypeSlicesFor } from '../../data/wheels/hype.js';
+import { applyWarmCrowd, warmCrowdOwned } from '../perks/warm-crowd.js';
+
+/** Level of a ring row: 'nuts'|'high'|'med'|'low' (row.level, else read from the label). @param {any} row */
+export function HYPE_LEVEL_OF(row) {
+  if (row && row.level) return row.level;
+  const w = String((row && row.label) || '').split(' ')[0].toLowerCase();
+  return w === 'nuts' || w === 'high' || w === 'med' || w === 'low' ? w : 'med';
+}
+
+/** Hype ring rows for tilt. Order: Kind Floor / Home Crowd (LOW lifts), then Warm Crowd. @param {any} [mods] @param {number} [tilt] */
+export function hypeRing(mods = neutralMods(), tilt = 0) {
+  const m = { ...neutralMods(), ...mods };
+  const rows = hypeSlicesFor(tilt).map((/** @type {any} */ r) => {
+    const level = HYPE_LEVEL_OF(r);
+    if (level !== 'low') return { ...r, level };
+    let value = r.value + m.floor * DR.UNIT.hype, lv = 'low', label = r.label;
+    if (m.hfloor) { value = Math.max(value, 4); lv = 'med'; }
+    if (value !== r.value) label = '+' + value;
+    return { ...r, value, level: lv, label };
+  });
+  return applyWarmCrowd(rows, warmCrowdOwned(m));
+}
+
+/**
+ * Hype result from a ring stop. stop = {sliceId, tInCycle?, t?, phi?, e?, x?}. Always draws 7 numbers in dialResult's order (d[5], d[6] drive the Booster).
+ * Same shape as dialResult. @param {{random:()=>number}} rng @param {any[]} ring @param {any} stop @param {any} [mods]
+ */
+export function hypeAtStop(rng, ring, stop, mods = neutralMods()) {
+  const d = Array.from({ length: 7 }, () => rng.random()), m = { ...neutralMods(), ...mods }, st = stop || {};
+  const index = ring.findIndex((/** @type {any} */ r) => r.id === st.sliceId), i = index < 0 ? 0 : index, s = ring[i];
+  let pts = s.value, boosted = false;
+  if (m.bch && d[5] < m.bch) {
+    const cand = ring.filter((/** @type {any} */ c) => !c.gold), bi = cand[Math.min(cand.length - 1, Math.floor(d[6] * cand.length))];
+    if (bi && bi.id === s.id) { pts += m.bval * DR.UNIT.hype; boosted = true; }
+  }
+  const level = HYPE_LEVEL_OF(s), levelIdx = MD.HYPE_LEVELS.indexOf(level), num = (/** @type {any} */ v) => (Number.isFinite(v) ? v : 0);
+  return { index: s.id, level, levelIdx, pts, perf: pts / 100, fanMult: MD.HYPE_FAN_MULT[levelIdx], boosted, t: num(st.tInCycle ?? st.t), phi: num(st.phi), e: num(st.e), x: num(st.x) };
+}

@@ -1,0 +1,35 @@
+BASELINE-C (C3.3 rerun on the fixed H2 tree)
+Main = origin/main 3c08e8c (worktree /tmp/main-wt3, removed after run). H2 = claude/project-thread-gel9oa working tree (uncommitted H2 changes).
+
+== 1. node --test test/*.test.mjs
+MAIN: tests 1025, pass 1024, fail 0, skipped 1, failing files: none
+H2:   tests 1051, pass 1050, fail 0, skipped 1, failing files: none
+Differences: H2 has 26 more tests (test files differ; not itemised). No new failures.
+
+== 2. e2e (E2E_SOFT=1)
+book-p6      MAIN: 296 PASS / 0 FAIL
+             H2:   296 PASS / 0 FAIL (rerun; first H2 run had 280 PASS and a SKIP "found panel" flake: the over found no cell, not reproduced on rerun)
+             Diff: none after rerun
+m0-344x780   MAIN: 1 PASS, exits 1 (uncaught TimeoutError/elementHandle.click not enabled at clickCta, m0-344x780.mjs:134)
+             H2:   1 PASS, exits 1 (same crash, same line)
+             Diff: none (same crash on main)
+p11-flow     MAIN: 65 PASS / 0 FAIL ("PASS: 64 checks" summary)
+             H2:   66 PASS / 0 FAIL ("PASS: 65 checks")
+             Diff: new passes in H2 only: "This week" chip on the hub; "squad is now 8" row in the This week sheet; "Free facility" row in This week sheet (migrated save). Main-only: "squad is now 8" line on the hub, "card gone after Take" (hub card), "hub shows the Free facility card" (replaced by the sheet/row checks). Net +1.
+tfc          MAIN: 93 PASS / 34 FAIL
+             H2:   93 PASS / 34 FAIL
+             Diff: none. Identical failing list (Aim Guide wheel-open checks, known Wheel default since #60).
+wa1-flow     MAIN: 15 PASS / 4 FAIL ("3 of 20 checks")
+             H2:   13 PASS / 4 FAIL ("3 of 18 checks")
+             FAIL list identical: [1] training coach strip, [2] find big wheel, [3] match day plain (all stage stuck-no-change:bowl), [4] tokens.
+             Diff: token-offer checks run on different stages (token offers are random per wheel result; H2 run had no offers on Hype/Toss so checks ran on Pep). Not a code difference.
+p13-why-hint MAIN: crashes (uncaught TimeoutError), 0 checks reported
+             H2:   crashes (uncaught TimeoutError), 0 checks reported
+             Diff: none.
+
+== 3. Differences summary (H2 vs main)
+- No new unit test failures.
+- No new e2e FAIL checks (tfc, wa1-flow identical failing lists; both known-failing on main).
+- New passes in H2: p11-flow +1 (This week chip / sheet rows).
+- Flake only: book-p6 first H2 run SKIPPED the over-panel section (did not reproduce on rerun).
+- m0-344x780 and p13-why-hint crash identically on both trees.

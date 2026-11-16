@@ -1,0 +1,19 @@
+BASELINE T1 (Task G1), pages/cricket-sixes
+Date      : 2026-11-16 (07:27 UTC)
+Git head  : 3c08e8c (git rev-parse --short HEAD)
+Command   : node --test test/*.test.mjs
+Result    : tests 1025, pass 1024, fail 0, skip 1, cancelled 0, todo 0
+Failing   : none
+
+Working tree at baseline (untracked, from other helpers, not in HEAD):
+  js/core/wheel-pulse.js, js/core/wheel-ring.js, js/core/wheel-wobble.js,
+  js/data/wheel-engine.js, test/wheel-ring.test.mjs, test/wheel-wobble.test.mjs
+
+Frozen vector md5 (working tree, md5sum):
+e4325c773b7f8eef076eda7c49a13496  test/ball-vectors.json
+21cb036ef79bb769c4f7a2f0084e0e6b  test/ball-vectors-pair.json
+ac5560625de998d66e699df43ab5c886  test/match-vectors.test.mjs
+566fe02ab12a97cb5dbe3effd3ba15bf  test/fixtures/wheelmatch-segx.json
+bde4996b84c8e97b08364be2e54d87db  test/fixtures/v4-save-10.json
+c13275e7dec34b40fc52ef30771a038d  test/fixtures/p13-whyline-snap.json
+8f82fa37a26ba3aab144fb822d705356  test/fixtures/v7-save.json

@@ -38,7 +38,7 @@ test('m8: match day "?" uses the shared help button look; Back to squad stays on
 
 test('m11: the wheel X is shown off (aria-disabled + is-wait, dashed) while it turns or slows, and back on at the result', () => {
   const js = read('js/ui/wheel-view.js');
-  assert.match(js, /function waitLook[^\n]*xLook\(true\)/); assert.match(js, /xLook\(false\); go\.focus\(\)/);
+  assert.match(js, /function waitLook[^\n]*xLook\(true\)/); assert.match(js, /xLook\(false\); focusGo\(go\)/);
   assert.match(js, /x\.setAttribute\('aria-disabled', 'true'\)/);
   assert.match(read('css/training2.css'), /\.wh-ov \.wh-x\.is-wait \{[^}]*border-style: dashed/);
 });

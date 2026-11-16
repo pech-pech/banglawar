@@ -32,7 +32,7 @@ test('T-dev-1 default off: new save has Dev off, section hidden, every wheel at 
   const base = wheelSlices('normal'), cw = courseWheel(3);
   withFlags({ wheelMeta: false }, () => { assert.equal(metaWheel(base, 'spot', s), base); assert.equal(metaWheel(cw, 'course', s), cw); });
   withFlags({ wheelMeta: true }, () => {
-    assert.equal(metaWheel(base, 'spot', s).phys.W0, 24);
+    assert.equal(metaWheel(base, 'spot', s).phys.W0, 36);
     assert.equal(findWheelOf(s, FIND_ID).phys.W0, 36);
     assert.equal(hypeDialOf(s).V, 16);
     for (const w of ['hype', 'toss', 'pep', 'scout', 'finals']) assert.equal('speedMult' in ctlOf(s, w), false, w);
@@ -70,28 +70,28 @@ test('T-dev-8 Off ignores saved values; On uses them', () => {
   assert.equal(matchPhys(on).W0, 70); assert.equal(otherMultOf(on), 2);
 });
 
-test('T-dev-9 otherMult x2: Find W0 72, Hype V 32, Spotlight / Course W0 48, reveals twice as fast; Slow stacks (x0.55); match wheel unaffected', () => {
+test('T-dev-9 otherMult x2: Find W0 72, Hype V 32, Spotlight / Course W0 72, reveals twice as fast; Slow stacks (x0.55); match wheel unaffected', () => {
   const s0 = game(), s = dev(s0, { on: true, otherMult: 2 });
   withFlags({ wheelMeta: true }, () => {
     assert.equal(findWheelOf(s, FIND_ID).phys.W0, 72);
     assert.equal(hypeDialOf(s).V, 32);
-    assert.equal(metaWheel(wheelSlices('normal'), 'spot', s).phys.W0, 48);
-    assert.equal(metaWheel(courseWheel(3), 'course', s).phys.W0, 48);
+    assert.equal(metaWheel(wheelSlices('normal'), 'spot', s).phys.W0, 72);
+    assert.equal(metaWheel(courseWheel(3), 'course', s).phys.W0, 72);
     for (const w of ['toss', 'pep', 'scout', 'finals']) assert.equal(ctlOf(s, w).speedMult, 2, w);
     // Slow Spin rank 3 (w0Mult 0.55) stacks on top
     const slow = { ...s, wheelMeta: { ...(s.wheelMeta || {}), owned: { ...((s.wheelMeta || {}).owned || {}), c_slow: 3 } } };
     const wm = effective(slow).find.w0Mult; assert.ok(Math.abs(wm - 0.55) < 1e-9);
     assert.ok(Math.abs(findWheelOf(slow, FIND_ID).phys.W0 - 72 * 0.55) < 1e-9);
     assert.ok(Math.abs(hypeDialOf(slow).V - 32 * 0.55) < 1e-9);
-    assert.ok(Math.abs(metaWheel(wheelSlices('normal'), 'spot', slow).phys.W0 - 48 * 0.55) < 1e-9);
+    assert.ok(Math.abs(metaWheel(wheelSlices('normal'), 'spot', slow).phys.W0 - 72 * 0.55) < 1e-9);
     // the match wheel reads matchW0 only
     assert.equal(matchPhys(s).W0, matchPhys(s0).W0);
   });
   withFlags({ wheelMeta: false }, () => {
-    const w = metaWheel(wheelSlices('normal'), 'spot', s); assert.equal(w.phys.W0, 48); // plain wheel path
+    const w = metaWheel(wheelSlices('normal'), 'spot', s); assert.equal(w.phys.W0, 72); // plain wheel path: TRAIN2.wheelStop.W0 36 (SPEC 2a) x otherMult 2
     // the landing follows the faster wheel
     const a = stopLanding(wheelSlices('normal'), { t: 2, phi: 0, e: 0 }), b = stopLanding(w, { t: 2, phi: 0, e: 0 });
-    assert.ok(Math.abs((b.base - 0) - 2 * (a.base - 0)) < 1e-9);
+    assert.ok(Math.abs(b.base - 2 * a.base) < 1e-9); // plain wheel W0 36 (engine), the dev wheel 72: twice the arc
   });
   assert.equal(revealT(2.5, { speedMult: 2 }), 1.25); assert.equal(revealT(3, { speedMult: 0.5 }), 6);
 });
@@ -154,9 +154,9 @@ test('T-dev-14 (DOM-less) Settings rows: Match mode row, Dev switch, Wheel speed
   assert.ok(sec.indexOf('data-wm-key="matchW0"') < sec.indexOf('<details'));
   assert.equal(devFmt('otherMult', 1), 'x1.00'); assert.equal(devFmt('matchD', 2), '2.0 s'); assert.equal(devFmt('matchJ', 1.2), '1.2');
   for (const k of DEV_KEYS) { const [lo, hi, st] = DEV_RANGE[k]; assert.match(sec, new RegExp(`data-wm-key="${k}" min="${lo}" max="${hi}" step="${st}"`)); }
-  // 44 px touch targets: thumb 44 x 44 (webkit + moz), input 44 px tall, buttons and the fold summary >= 44 px
-  assert.match(WMS_CSS, /-webkit-slider-thumb\{[^}]*width:44px;height:44px/); assert.match(WMS_CSS, /-moz-range-thumb\{[^}]*width:44px;height:44px/);
-  assert.match(WMS_CSS, /\.wms-range\{width:100%;height:44px/); assert.match(WMS_CSS, /\.wms-btn\{min-height:44px/); assert.match(WMS_CSS, /summary\{min-height:44px/);
+  // 56 px touch targets (L-CS-6): thumb 56 x 56 (webkit + moz), input 56 px tall, buttons and the fold summary >= 56 px
+  assert.match(WMS_CSS, /-webkit-slider-thumb\{[^}]*width:56px;height:56px/); assert.match(WMS_CSS, /-moz-range-thumb\{[^}]*width:56px;height:56px/);
+  assert.match(WMS_CSS, /\.wms-range\{width:100%;height:56px/); assert.match(WMS_CSS, /\.wms-btn\{min-height:56px/); assert.match(WMS_CSS, /summary\{min-height:56px/);
   // Fold cover 475 x 638: no fixed width wider than the sheet's 443 px content box, readouts never clip (nowrap, small min width)
   for (const m of WMS_CSS.matchAll(/(?:^|[;{])(?:min-)?width:(\d+)px/g)) assert.ok(+m[1] <= 443, m[0]);
   assert.match(WMS_CSS, /\.wms-val\{[^}]*white-space:nowrap/); assert.match(WMS_CSS, /\.wms-head\{[^}]*flex-wrap:wrap/);

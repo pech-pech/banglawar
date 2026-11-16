@@ -56,13 +56,13 @@ test('short of TP: Six first, Run never blocked', () => {
   const z = runNets(game({ tp: 3 }), makeRng('t'), {}); assert.equal(z.lines.length, 0); assert.equal(z.cost, 0);
 });
 
-test('spotlight: wheel replaces the roll, same cost, wheelGain on the line, jackpot is a breakthrough', () => {
+test('spotlight: the wheel value multiplies the normal roll (SPEC wheels-like-match s3), same cost, wheelGain + wheelMult on the line, gold is a breakthrough', () => {
   const s = setPlan(game({ plan: { focus: 'bat', effort: 'normal' } }), { spotlightId: 'p3' });
-  const r = runNets(s, makeRng('w'), { wheel: { index: 0, gain: 5, jackpot: true } });
-  const l = r.lines.find((x) => x.id === 'p3'); assert.equal(l.wheelGain, 5); assert.equal(l.toRaw - l.fromRaw, 5); assert.equal(l.breakthrough, true); assert.equal(l.word, 'Great');
+  const r = runNets(s, makeRng('w'), { wheel: { index: 0, gain: 3, jackpot: true } });
+  const l = r.lines.find((x) => x.id === 'p3'); assert.equal(l.wheelMult, 3); assert.ok(l.wheelGain >= 3 && l.wheelGain <= 9 && l.wheelGain % 3 === 0, 'roll 1-3 x 3'); assert.equal(l.toRaw - l.fromRaw, l.wheelGain); assert.equal(l.breakthrough, true); assert.equal(l.word, 'Great');
   assert.equal(r.cost, 104); assert.equal(r.lines.filter((x) => x.wheelGain !== undefined).length, 1);
-  const cut = runNets(setPlan(game({ players: [P(1, { potential: 120 }), ...[2, 3, 4, 5, 6, 7, 8].map((i) => P(i))], plan: { focus: 'bat', effort: 'normal' } }), { spotlightId: 'p1' }), makeRng('w'), { wheel: { gain: 5, jackpot: true } });
-  const c = cut.lines.find((x) => x.id === 'p1'); assert.ok(c.toRaw - c.fromRaw <= 5);
+  const cut = runNets(setPlan(game({ players: [P(1, { potential: 120 }), ...[2, 3, 4, 5, 6, 7, 8].map((i) => P(i))], plan: { focus: 'bat', effort: 'normal' } }), { spotlightId: 'p1' }), makeRng('w'), { wheel: { gain: 3, jackpot: true } });
+  const c = cut.lines.find((x) => x.id === 'p1'); assert.ok(c.toRaw - c.fromRaw <= 9);
 });
 
 test('Great roll and letter step are breakthroughs; deterministic per seed; gains within 1..3', () => {

@@ -25,11 +25,12 @@ test('Focus and Effort are pressed-state groups with full plain labels; no bare 
   for (const f of ['training-view', 'wheel-view', 'nets-scene', 'coaches-sheet', 'coachpick-view', 'week-view']) assert.equal(/[^a-zA-Z]ico\(/.test(read('js/ui/' + f + '.js').replace(/icoDeco\(/g, '')), false, f + ' uses bare ico(');
 });
 
-test('wheel: modal dialog, Escape, focus trap, reduced motion = instant result, result read once in a live region', () => {
+test('wheel: modal dialog, Escape, focus trap, no reduced-motion path (SPEC 2e: every wheel always spins), result read once in a live region', () => {
   assert.match(wheel, /setAttribute\('aria-modal', 'true'\)/);
   assert.match(wheel, /e\.key === 'Escape'/);
   assert.match(wheel, /e\.key === 'Tab'/);
-  assert.match(wheel, /prefers-reduced-motion: reduce/);
+  assert.doesNotMatch(wheel, /prefers-reduced-motion|matchMedia|reducedNow|\breduced\b/, 'SPEC 2e: no reduced-motion handling in the wheel');
+  assert.doesNotMatch(wheel, /Show result/, 'SPEC 2e: no "Show result" path');
   assert.match(wheel, /aria-live="polite"/);
   assert.match(wheel, /o\.onSpin\(/); // the stop (time, start, wobble) goes to the engine; no window flag
 });
