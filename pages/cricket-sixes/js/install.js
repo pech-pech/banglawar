@@ -4,6 +4,12 @@
 //   T6: js/store/spins/clinic.js (registers ClinicSpin, ClinicPick, ClinicLater) and its hook listeners (netsOrder ...).
 // Spin types registered here are dispatched by the default case of js/store/commands.js. Empty today: nothing changes.
 /* INSTALL:T5 start */
+import './store/spins/coach-job.js';
+import './store/spins/coach-stepup.js';
+import { installCoachHooks } from './core/coach-hooks.js';
+import { installCoachReport } from './report/coach.js';
+installCoachHooks();
+installCoachReport();
 /* INSTALL:T5 end */
 /* INSTALL:T6 start */
 /* INSTALL:T6 end */

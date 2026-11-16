@@ -17,6 +17,7 @@ import { weekKey, weekKeyOf } from './week-key.js';
 import { spinKeyOf } from './wheel-stops.js';
 import { tickAt, cycleOf, ARC_PER_CYCLE, pulseArc, pulseW } from './wheel-pulse.js';
 import * as clinicMod from './clinic.js'; // clinicOf may not exist on this branch: read it off the namespace
+import { bonusNamesOf } from './coach-scout.js';
 
 export const EFFORTS = ['easy', 'normal', 'push'];
 export const FOCUSES = ['bat', 'bowl', 'bal'];
@@ -155,7 +156,7 @@ export function scoutList(s) {
   if (scoutRec(s)) return [];
   const L = leagueOfState(s), n = seasonN(s), rng = makeRng(`${s.seed || 'sixes'}|scout|${n}|${L}`);
   const sp = s.scoutSpin && s.scoutSpin.n === n ? s.scoutSpin : null; // wheel meta: the Scout wheel's Extra name (+1 candidate) and Top name (+steps to the best)
-  const count = CO.scoutSize[L - 1] + (sp ? (sp.extra | 0) : 0), out = [];
+  const count = CO.scoutSize[L - 1] + (sp ? (sp.extra | 0) : 0) + bonusNamesOf(s), out = []; // Scout-job names (coach-scout.js) are extra loop iterations: same grade-centre rule
   for (let i = 0; i < count; i++) {
     const step = Math.max(1, Math.min(CO.maxStep, CO.scoutCentre[L - 1] + rng.int(2 * CO.scoutSpread + 1) - CO.scoutSpread));
     const strong = rng.shuffle(FOCUSES.slice()).slice(0, 1 + rng.int(2));

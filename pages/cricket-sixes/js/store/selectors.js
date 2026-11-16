@@ -18,6 +18,7 @@ import { wageOf } from '../core/economy.js';
 import { RUN, SQUAD } from '../data/run.js';
 import { seasonResult, chapterNames, runScore, carryOf } from '../core/run.js';
 import { PAIRING } from '../data/pairing.js';
+import { coachVmFields } from '../core/coach-vmfields.js';
 import { FLAGS } from '../data/flags.js';
 import { whyShort, keyBall } from '../ui/why.js';
 import { ACT } from '../data/activities.js';
@@ -363,7 +364,7 @@ const coachRow = (s, c) => {
   const cc = canCourse(s, c.id), used = s.training.coursePending && s.training.coursePending.coachId === c.id;
   return {
     id: c.id, name: c.name, step: c.step, letter: letterOfStep(c.step), strong: c.strong.slice(), strongWords: strongWords(c.strong),
-    here: !(c.away > 0), away: c.away | 0, course: { ok: cc.ok, why: cc.why, licence: cc.ok && courseUsesLicence(s, c.id), cost: courseCost(s, c.id), free: !s.econ, spun: !!used, pending: used ? { index: s.training.coursePending.result.index, gain: s.training.coursePending.result.gain, jackpot: s.training.coursePending.result.jackpot, ...boostOf(s, 'course', s.training.coursePending.result) } : null,
+    here: !(c.away > 0), away: c.away | 0, ...coachVmFields(s, c), course: { ok: cc.ok, why: cc.why, licence: cc.ok && courseUsesLicence(s, c.id), cost: courseCost(s, c.id), free: !s.econ, spun: !!used, pending: used ? { index: s.training.coursePending.result.index, gain: s.training.coursePending.result.gain, jackpot: s.training.coursePending.result.jackpot, ...boostOf(s, 'course', s.training.coursePending.result) } : null,
       ...(FLAGS.wheelMeta ? courseMeta(s, c, used) : otherMultOf(s) !== 1 ? { wheel: wheelVM(used && s.training.coursePending.wheel ? s.training.coursePending.wheel : metaWheel(courseWheel(c.step), 'course', s)) } : {}) },
   };
 };
