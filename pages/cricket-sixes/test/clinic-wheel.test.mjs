@@ -34,8 +34,10 @@ test('stop record and recordStop median', () => {
   const { calls, deps } = mk(); applyClinicStop({}, '101:c1', { sliceId: 5, cycle: 1 }, deps);
   assert.equal(calls.rec[0][0], 'clinic'); assert.equal(calls.rec[0][3].median, 10);
 });
-test('default loader says T1 engine missing', async () => {
-  await assert.rejects(() => loadClinicDeps(), /T1 engine missing/);
+test('default loader resolves T1 engine, wobble and stop store', async () => {
+  globalThis.document = globalThis.document || { createElement() { return {}; }, body: {}, getElementById() { return null; } };
+  const d = await loadClinicDeps();
+  for (const k of ['openWheel', 'wheelWobble', 'recordStop', 'storedStop']) assert.equal(typeof d[k], 'function', k);
 });
 test('parity EV ratios near 1.33 / 1.46 / 1.70', () => {
   const r = clinicParity(20000, 11);

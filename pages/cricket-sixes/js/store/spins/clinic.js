@@ -5,30 +5,22 @@ import { FLAGS } from '../../data/flags.js';
 import { CLINIC_SLICE_ORDER, CLINIC_SLICES, CLINIC_PCT, CLINIC_SPOKES_PER_SPIN, CLINIC_WHEEL_ID } from '../../data/clinic.js';
 import { emptyWheelMeta, weekKey } from '../../core/save-migrate.js';
 import { coachList } from '../../core/training.js';
+import { recordStop } from '../../core/wheel-stops.js';
 import * as CORE from '../../core/clinic.js'; // namespace: canClinic / clinicSpinKey are being written by another helper
 
 const isObj = (x) => !!x && typeof x === 'object' && !Array.isArray(x);
 const int = (x, d = 0) => (Number.isFinite(Number(x)) && x !== null && x !== '' ? Math.trunc(Number(x)) : d);
 const MEDIAN = 10; // median of the ten rim values (5 5 5 5 10 10 20 20 20 30)
 
-// T1's recordStop (js/core/wheel-stops.js) is not on main yet: loaded lazily, tests inject a fake with setClinicDeps.
-let deps = { recordStop: null, canClinic: null, clinicSpinKey: null, pickable: null };
-try { const m = await import('../../core/wheel-stops.js'); if (typeof m.recordStop === 'function') deps.recordStop = m.recordStop; } catch (_) { /* not landed */ }
-/** Test seam: inject {recordStop, canClinic, clinicSpinKey}; pass null to reset a member. */
-export function setClinicDeps(d) { deps = { ...deps, ...d }; }
+// T1's recordStop (js/core/wheel-stops.js): recordStop(n, 'clinic', spinKey, rec, {median}). Tests may inject a fake with setClinicDeps.
+let deps = { recordStop, canClinic: null, clinicSpinKey: null, pickable: null };
+/** Test seam: inject {recordStop, canClinic, clinicSpinKey, pickable}; a null member goes back to the real one. */
+export function setClinicDeps(d) { deps = { ...deps, ...d }; if (!deps.recordStop) deps.recordStop = recordStop; }
 const pickableFn = () => deps.pickable || CORE.pickable;
 /** Spins happen in a training-week stage only (L3): between EndWeek and newSeason the stage is 'week'/'end'. States without a stage (unit fixtures) pass. */
 const stageOk = (s) => typeof s.stage !== 'string' || s.stage === 'train';
 const canClinicFn = () => deps.canClinic || CORE.canClinic;
 const keyFn = () => deps.clinicSpinKey || CORE.clinicSpinKey || ((s, coachId) => `${weekKey(s)}:${coachId}`);
-
-/** Fallback when recordStop is absent: append the record only (no stats). */
-function fallbackRecord(n, wheelId, key, rec) {
-  const w = (n.wheels = isObj(n.wheels) ? n.wheels : {});
-  const st = (w.stops = isObj(w.stops) ? w.stops : {});
-  const m = (st[wheelId] = isObj(st[wheelId]) ? st[wheelId] : {});
-  if (!m[key]) m[key] = rec;
-}
 
 /** The clinic block for this week (reset when stale). Mutates draft n. */
 function block(n) {
@@ -89,7 +81,8 @@ export function clinicSpin(s, a) {
   const rec = { stopT: int(st.stopT), cycle: int(st.cycle, 1), tInCycle: Number.isFinite(st.tInCycle) ? st.tInCycle : 0, sliceId, value: CLINIC_SLICES[kind].value }; // value from the slice, not the client (M6)
   const n = structuredClone(s);
   const c = block(n);
-  if (typeof deps.recordStop === 'function') deps.recordStop(n, CLINIC_WHEEL_ID, key, rec, { median: MEDIAN }); else fallbackRecord(n, CLINIC_WHEEL_ID, key, rec);
+  if (!key) return s;
+  deps.recordStop(n, CLINIC_WHEEL_ID, key, rec, { median: MEDIAN });
   let spokePaid = false;
   if (FLAGS.wheelMeta && n.season) { const m = (n.wheelMeta ||= emptyWheelMeta()); m.spokes = int(m.spokes) + CLINIC_SPOKES_PER_SPIN; spokePaid = true; }
   c.spins.push({ slot, coachId: p.coachId, playerId: p.playerId, spinKey: key, spokePaid });

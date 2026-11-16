@@ -32,6 +32,7 @@ import { metaOf, rankOf, tierOf, tierNow, canBuy, effective, metaWheel, otherMul
 import { teamBoost, roarAt, resolvePep, matchCoachText } from '../core/matchday.js';
 import { matchCoachOf } from '../core/training.js';
 import { clinicCoachVM, clinicBoostMap } from '../core/clinic-vm.js'; /* VM:T6 */
+export { clinicWheelVM } from '../core/clinic-vm.js'; /* VM:T6 */
 import { mdSpinVM, findSpinVM, scoutSpinVM, finalsSpinVM } from './wmstore.js';
 import { wmTokens } from './wmstore.js'; // wa1 wire: token buttons for Hype / Toss / Pep / Scout / Finals
 import { BATS, BOWLS, CELLS, COMBOS, SEEN_BALLS, cellIndex, cellOf, cellName, comboOf, isBook, newBook, winOf, nearestCell } from '../core/pairing.js';

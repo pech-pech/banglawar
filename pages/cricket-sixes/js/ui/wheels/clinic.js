@@ -2,6 +2,8 @@
 /* wheels/clinic: the Clinic wheel screen (coach-weekly SPEC s6, s8; CONTRACT-B s5; CONTRACT-A s3-s7). Owner T6.
    Built on T1's openWheel. T1's engine is injected (deps), so this file loads and tests without it.
    No auto-stop, no Auto, no reduced-motion path: the wheel always spins until STOP. */
+import { wheelWobble, wobbleKey } from '../../core/wheel-wobble.js';
+import { recordStop, storedStop } from '../../core/wheel-stops.js';
 import { CLINIC_SLICES, CLINIC_SLICE_ORDER, CLINIC_WHEEL_ID, clinicRing } from '../../data/clinic.js';
 
 const KIND_WORDS = { S: 'Small, +5%', M: 'Medium, +10%', L: 'Large, +20%', JP: 'Jackpot, one extra nets roll' };
@@ -32,13 +34,11 @@ export function applyClinicStop(n, spinKey, stop, deps) {
   deps.recordStop(n, CLINIC_WHEEL_ID, spinKey, clinicStopRec(stop), { median: clinicMedian() });
   return n;
 }
-/** Lazy default engine. Throws until T1's modules exist. */
+/** Default deps: T1's wobble and stop store, plus the wheel screen (imported lazily: it touches the DOM). */
 export async function loadClinicDeps() {
-  try {
-    const [v, w, st] = await Promise.all([import('../wheel-view.js'), import('../../core/wheel-wobble.js'), import('../../core/wheel-stops.js')]);
-    if (!v.openWheel || !w.wheelWobble || !st.recordStop || !st.storedStop) throw new Error('missing export');
-    return { openWheel: v.openWheel, wheelWobble: w.wheelWobble, wobbleKey: w.wobbleKey, recordStop: st.recordStop, storedStop: st.storedStop };
-  } catch (e) { throw new Error('T1 engine missing: openWheel / wheelWobble / recordStop / storedStop (' + (e && e.message) + ')'); }
+  const v = await import('../wheel-view.js');
+  if (typeof v.openWheel !== 'function') throw new Error('openWheel missing in js/ui/wheel-view.js');
+  return { openWheel: v.openWheel, wheelWobble, wobbleKey, recordStop, storedStop };
 }
 /**
  * Open the Clinic wheel. Returns close() (or a Promise of it when deps is omitted and loaded lazily).

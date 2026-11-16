@@ -3,7 +3,7 @@
 import { CLINIC_SLICES, CLINIC_SLICE_ORDER, CLINIC_WHEEL_ID, CLINIC_PCT } from '../data/clinic.js';
 import { clinicOf, canClinic, clinicSpinKey } from './clinic.js';
 import { normBoost } from './clinic-boost.js';
-import { findPlayer } from './training.js';
+import { findPlayer, coachList } from './training.js';
 
 const isObj = (/** @type {any} */ x) => !!x && typeof x === 'object' && !Array.isArray(x);
 
@@ -42,4 +42,12 @@ export function clinicBoostMap(s) {
     for (const id of Object.keys(b)) { const e = normBoost(b[id]); if (e.pcts.length || e.extraRun) out[id] = e; }
   } catch { /* empty map */ }
   return out;
+}
+
+/** View model of the Clinic wheel sheet: the live state plus the pending pick of this coach. Called again by refresh() so the wheel reads fresh state. @param {any} s @param {{coachId?:string, playerId?:string}} [arg] */
+export function clinicWheelVM(s, arg) {
+  const p = (s && s.clinic && s.clinic.pending) || null, a = arg || {};
+  const coachId = a.coachId != null ? a.coachId : p && p.coachId, playerId = a.playerId != null ? a.playerId : p && p.playerId;
+  const slot = p && p.coachId === coachId && Number.isInteger(p.slot) ? p.slot : Math.max(0, coachList(s).findIndex((c) => c && c.id === coachId));
+  return { s, coachId, playerId, slot, spinKey: clinicSpinKey(s, coachId) };
 }
