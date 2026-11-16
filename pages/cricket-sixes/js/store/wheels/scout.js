@@ -65,7 +65,7 @@ export const setRecordStop = (_fn) => {};
 const recOf = (/** @type {any} */ stop, /** @type {number} */ sliceId, /** @type {number} */ respin) => ({
   stopT: Math.max(0, Math.round(+stop.stopT || 0)), cycle: Math.max(1, stop.cycle | 0 || 1), tInCycle: +stop.tInCycle || 0, sliceId, value: SCOUT_SLICES[sliceId].value, auto: !!stop.auto, respin });
 const rowOfSlice = (/** @type {any} */ s, /** @type {number} */ id, /** @type {any} */ cards, /** @type {any} */ extra) => ({
-  n: seasonN(s), index: id, id: SCOUT_SLICES[id].gold ? 'top2' : 'slice', steps: 0, extra: 0, sliceId: id, value: SCOUT_SLICES[id].value, card: { ...cards[id] }, tokUsed: 0, ...extra });
+  n: seasonN(s), index: id, id: SCOUT_SLICES[id].gold ? 'top2' : 'slice', steps: SCOUT_SLICES[id].value | 0, extra: 0, sliceId: id, value: SCOUT_SLICES[id].value, card: { ...cards[id] }, tokUsed: 0, ...extra });
 
 /** Does the payload carry a new-wheel STOP (a valid sliceId)? @param {any} p */
 export const isSliceStop = (p) => !!(p && p.stop && typeof p.stop === 'object' && scoutSliceId(p.stop.sliceId) >= 0 && stopConsistent(p.stop));
