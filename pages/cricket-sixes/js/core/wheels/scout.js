@@ -2,6 +2,7 @@
 // Scout reveal kind hooks (S0 Z1, owner T4). Read by the dispatcher in ./reveal.js.
 import { DR } from '../../data/dialreel.js';
 import { SCOUT_SLICES } from '../../data/wheels/scout.js';
+import { WHEEL_ENGINE } from '../../data/wheel-engine.js';
 
 /** @type {{extraKey:string, tweak:(sl:any[], m:any)=>void, boost:(fx:any, v:number, d:number[])=>void}} */
 export const REVEAL_KIND = {
@@ -26,4 +27,19 @@ export function scoutNudge(id) {
   const c = [(id + n - 1) % n, (id + 1) % n].filter((j) => !SCOUT_SLICES[j].gold && SCOUT_SLICES[j].value > cur.value);
   if (!c.length) return -1;
   return c.length === 2 && SCOUT_SLICES[c[1]].value > SCOUT_SLICES[c[0]].value ? c[1] : c[0];
+}
+
+/** Is a STOP payload's timing coherent? When stopT (ms), cycle and tInCycle (s) are all given, (cycle-1) x PULSE_PERIOD + tInCycle must equal stopT / 1000 (50 ms slack). Missing fields pass. @param {any} stop */
+export function stopConsistent(stop) {
+  if (!stop || typeof stop !== 'object') return true;
+  const { stopT, cycle, tInCycle } = stop;
+  if (stopT == null || cycle == null || tInCycle == null) return true;
+  if (![stopT, cycle, tInCycle].every(Number.isFinite) || stopT < 0 || cycle < 1 || tInCycle < 0) return false;
+  return Math.abs((cycle - 1) * WHEEL_ENGINE.PULSE_PERIOD + tInCycle - stopT / 1000) <= 0.05;
+}
+/** Width-weighted seeded slice id for a stop-less (Auto / leave) Scout spin: one draw. @param {{random:()=>number}} rng */
+export function scoutAutoSlice(rng) {
+  const tot = SCOUT_SLICES.reduce((a, c) => a + c.w, 0); let x = rng.random() * tot;
+  for (const c of SCOUT_SLICES) { x -= c.w; if (x < 0) return c.id; }
+  return SCOUT_SLICES.length - 1;
 }

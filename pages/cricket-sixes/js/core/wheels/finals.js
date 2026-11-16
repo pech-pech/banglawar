@@ -35,7 +35,7 @@ export function finalsWheel(mods, mult = FINALS_MULT) {
   const m = { ...neutralMods(), ...(mods || {}) };
   const sl = FINALS_SLICES.map((r) => {
     const paid = paidAmount(r, mult), medal = r.type === 'Medal';
-    const w = medal ? Math.min(MEDAL_MAX_W, r.w + m.goldAdd + m.rareAdd) : r.w;
+    const w = medal ? Math.max(r.w, Math.min(MEDAL_MAX_W, r.w + m.goldAdd + m.rareAdd)) : r.w;
     return { id: medal ? 'medal' : `${r.type.toLowerCase()}${r.amount}`, label: medal ? 'M' : String(m.nb ? pair(paid) : paid), w, gold: !!r.gold, rare: medal, low: false,
       fx: { [FX_KEY[r.type]]: medal ? 1 : paid }, value: r.value, type: r.type, tier: r.tier, second: false };
   });

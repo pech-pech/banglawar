@@ -58,3 +58,10 @@ test('onSpin passes the stop to the store pick; tokens drop nudge; results text'
   assert.equal(o.describe({ find: true, type: 'player' }).big, 'Found a trial player');
   assert.equal(o.getPending(), null);
 });
+
+test('Second Cheer label reads cheerDone, not second (second = Extra Gold block)', () => {
+  const d = (pending) => findWheelOpts(vm(0.18), ctx()).describe(pending);
+  assert.ok(!d({ find: true, type: 'coins', second: true, cheerDone: false }).line.includes('Second Cheer'), 'Extra Gold find is not a Cheer');
+  assert.ok(d({ find: true, type: 'coins', second: false, cheerDone: true }).line.includes('Second Cheer'), 'a find won by the Cheer shows it');
+  assert.ok(d({ find: false, second: false, cheerDone: true }).line.includes('Second Cheer'));
+});

@@ -4,7 +4,7 @@ import { effective, recordSpin } from '../../core/wheelmeta.js';
 import { revealWheel, revealResult } from '../../core/wheels/reveal.js';
 import { modsFor } from '../../core/wheels/common.js';
 import { clone, on, rngFor, seasonN, wmTokensOf, medianOf } from './common.js';
-import { recordStop } from '../../core/wheel-stops.js';
+import { recordStop, storedStop } from '../../core/wheel-stops.js';
 import { seasonIdOf } from '../../core/spin-keys.js';
 import { ctlOf } from './common.js';
 
@@ -28,7 +28,7 @@ export function scoutSpinVM(s) {
     pending: sp ? { index: sp.index, steps: sp.steps, extra: sp.extra, jackpot: sp.id === 'top2', lifted: !!sp.lifted } : null,
     // new wheel (SPEC 9): ring rows, the 10 cards, the stored stop (a reload opens on it, never re-spins). Additive; old fields above unchanged.
     wheelId: 'scout', spinKey: scoutSeasonId(s), ring: SCOUT_SLICES.map((c) => ({ ...c })), cards: scoutCardsOf(s).map((c) => ({ ...c })),
-    stored: scoutSliceRow(s) ? { sliceId: scoutSliceRow(s).sliceId, value: scoutSliceRow(s).value, card: { ...scoutSliceRow(s).card }, tokUsed: scoutSliceRow(s).tokUsed | 0 } : null };
+    stored: scoutSliceRow(s) ? storedStop(s, 'scout', scoutSeasonId(s)) : null };
 }
 
 // ---------------------------------------------------------------- new Scout wheel (SPEC 9, 11a, 13; T4 wave 2)
@@ -36,7 +36,7 @@ export function scoutSpinVM(s) {
 // the view) and written at once to s.scoutSpin + wheels.stops.scout[seasonId], so a reload shows the same slice. The old reveal path (no stop.sliceId) is kept.
 import { makeScoutCards } from '../../core/scout-cards.js';
 import { SCOUT_SLICES } from '../../data/wheels/scout.js';
-import { scoutSliceId, scoutIsGold, scoutKeep, scoutNudge } from '../../core/wheels/scout.js';
+import { scoutSliceId, scoutIsGold, scoutKeep, scoutNudge, stopConsistent, scoutAutoSlice } from '../../core/wheels/scout.js';
 import { STEPS } from '../../core/letters.js';
 const stepOfLetter = (/** @type {string} */ g) => { const r = STEPS.find((x) => x.letter === g); return r ? r.step : 1; };
 
@@ -68,7 +68,11 @@ const rowOfSlice = (/** @type {any} */ s, /** @type {number} */ id, /** @type {a
   n: seasonN(s), index: id, id: SCOUT_SLICES[id].gold ? 'top2' : 'slice', steps: 0, extra: 0, sliceId: id, value: SCOUT_SLICES[id].value, card: { ...cards[id] }, tokUsed: 0, ...extra });
 
 /** Does the payload carry a new-wheel STOP (a valid sliceId)? @param {any} p */
-export const isSliceStop = (p) => !!(p && p.stop && typeof p.stop === 'object' && scoutSliceId(p.stop.sliceId) >= 0);
+export const isSliceStop = (p) => !!(p && p.stop && typeof p.stop === 'object' && scoutSliceId(p.stop.sliceId) >= 0 && stopConsistent(p.stop));
+/** A stop object that is not valid: sliceId given but out of range, or timing that disagrees with itself. Rejected, never turned into a draw. @param {any} p */
+export const isBadStop = (p) => !!(p && p.stop && typeof p.stop === 'object' && ((p.stop.sliceId != null && scoutSliceId(p.stop.sliceId) < 0) || !stopConsistent(p.stop)));
+/** Stop-less ScoutSpin (Auto / leave): a seeded width-weighted draw on SCOUT_SLICES, recorded auto:true. @param {any} s */
+export const scoutAutoStop = (s) => ({ stop: { sliceId: scoutAutoSlice(rngFor(s, 'scout', String(seasonN(s)))), stopT: 0, cycle: 1, tInCycle: 0, auto: true } });
 /**
  * ScoutSpin on the new wheel: p.stop = {sliceId, stopT, cycle, tInCycle, auto?}. Decided here, stored, recorded. Same s when not allowed (guard is canScoutSpin).
  * @param {any} s @param {any} p

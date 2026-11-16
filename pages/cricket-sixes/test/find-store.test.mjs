@@ -109,3 +109,9 @@ test('result is decided at STOP: same rng + same stop = same slice, type drawn o
   assert.equal(a.type === null, !a.find);
   assert.equal(findWheel({ find: 18, mix: MIX }, neutralMods(), { jMult: 0.7225 }).phys.J, 1.5 * 0.7225);
 });
+
+test('findSpinVM carries spinKey and stored (same sliceId) after STOP', () => withFlags(ON, () => {
+  const s = rich('fs-vmkey'), pre = findSpinVM(s, 'banner'); assert.equal(pre.stored, null); assert.equal(pre.spinKey, keyOf(C(s, 'PickActivity', { id: 'banner', stop: stopAt(1) })));
+  const a = C(s, 'PickActivity', { id: 'banner', stop: stopAt(1) }), vm = findSpinVM(JSON.parse(JSON.stringify(a)), 'banner');
+  assert.equal(vm.stored.stops[vm.stored.kept].sliceId, a.findSpin.index); assert.equal(typeof vm.stored.spent, 'boolean');
+}));

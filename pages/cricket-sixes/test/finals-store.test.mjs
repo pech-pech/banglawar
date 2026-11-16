@@ -104,3 +104,9 @@ test('frozen vectors md5 unchanged', () => {
   assert.equal(m.v, 'e4325c773b7f8eef076eda7c49a13496'); assert.equal(m.p, '21cb036ef79bb769c4f7a2f0084e0e6b');
   assert.equal(finalsWheelOf(finalsScreen()).slices.length, 12);
 });
+
+test('finalsSpinVM carries spinKey and stored (same sliceId) after STOP', () => withFlags(ON, () => {
+  const s = finalsScreen(), pre = sel.resultVM(clone(s)).finals; assert.equal(pre.spinKey, spinKeyOf(s, 'finals')); assert.equal(pre.stored, null);
+  const a = C(s, 'FinalsSpin', stopAt(7)), vm = sel.resultVM(clone(a)).finals;
+  assert.equal(vm.stored.stops[vm.stored.kept].sliceId, 7); assert.equal(vm.spinKey, spinKeyOf(s, 'finals'));
+}));

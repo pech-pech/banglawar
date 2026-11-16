@@ -3,10 +3,11 @@
 import { makeRng } from '../../core/rng.js';
 import { pickActivity, roundKey } from '../../core/activities.js';
 import { findForce, afterFind } from '../wmstore.js';
-import { findCheer } from '../wheels/find.js';
+import { findCheer, isBadFindStop } from '../wheels/find.js';
 import { registerSpin } from '../spin-registry.js';
 
 export function findSpin(s, p, ctx) {
+  if (isBadFindStop(p)) return s; // STOP timing that disagrees with itself
   const force = findForce(s, p.id, p); // wheel meta: the Find reel decides the find (null with the flag off, on a repeat week or a rest)
   let n = pickActivity(s, p.id, makeRng(`${ctx.baseSeed(s)}|act|${roundKey(s)}|${s.salt}`), force);
   if (force && n !== s) n = afterFind(n, p.id, force);

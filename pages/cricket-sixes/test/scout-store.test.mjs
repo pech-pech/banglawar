@@ -12,7 +12,7 @@ import { SCOUT_SLICES } from '../js/data/wheels/scout.js';
 
 FLAGS.wheelMeta = true;
 const base = () => ({ seed: 'abc', season: { n: 2, league: 3, seed: 'abc|s2' }, scout: null, wheelMeta: null, training: { week: 1 }, clubs: [] });
-const stop = (sliceId, extra = {}) => ({ stop: { sliceId, stopT: 3500, cycle: 1, tInCycle: 3.5, ...extra } });
+const stop = (sliceId, extra = {}) => { const cycle = extra.cycle || 1; return { stop: { sliceId, stopT: (cycle - 1) * 6000 + 3500, cycle, tInCycle: 3.5, ...extra } }; };
 
 test('pure rules: gold neighbours, nudge, keep, slice id guard', () => {
   assert.equal(scoutSliceId(10), -1); assert.equal(scoutSliceId('1'), -1); assert.equal(scoutSliceId(0), 0);
@@ -45,7 +45,7 @@ test('reload after STOP shows the same slice and cannot be re-spun', () => {
   assert.equal(scoutSliceRow(re).sliceId, 4);
   assert.deepEqual(scoutCardsOf(re), n.wheels.scoutCards['2']);
   assert.equal(scoutSpin(re, stop(7)), re);
-  assert.equal(scoutSpinVM(re).stored.sliceId, 4);
+  const sv = scoutSpinVM(re); assert.equal(sv.stored.stops[sv.stored.kept].sliceId, 4); assert.equal(sv.spinKey, '2');
   assert.equal(scoutSpinVM(re).spun, true);
 });
 
@@ -56,11 +56,19 @@ test('before STOP: unspun, nothing stored, cards regenerate identically', () => 
   assert.equal(vm.ring.length, 10); assert.equal(vm.cards.length, 10); assert.equal(scoutSeasonId(s), '2');
 });
 
-test('bad sliceId = old reveal path (unchanged behaviour)', () => {
-  const n = scoutSpin(base(), { stop: { t: 3.5 } });
-  assert.deepEqual(n.scoutSpin && n.scoutSpin.sliceId, undefined);
-  assert.ok(n.scoutSpin && n.scoutSpin.src);
-  assert.deepEqual(scoutSpin(base(), undefined).scoutSpin.n, 2);
+test('bad sliceId is rejected; no stop (Auto / leave) = seeded draw on the new ring, auto:true; inconsistent stopT rejected', () => {
+  const s = base();
+  assert.equal(scoutSpin(s, { stop: { sliceId: 10, stopT: 3500, cycle: 1, tInCycle: 3.5 } }), s, 'sliceId out of range');
+  assert.equal(scoutSpin(s, { stop: { sliceId: -1 } }), s);
+  assert.equal(scoutSpin(s, stop(3, { stopT: 9000 })), s, 'stopT disagrees with cycle + tInCycle');
+  assert.equal(scoutSpin(s, { stop: { sliceId: 3, stopT: 3500, cycle: 2, tInCycle: 3.5 } }), s, 'cycle 2 but stopT / tInCycle say cycle 1');
+  for (const p of [undefined, {}, { stop: { t: 3.5 } }]) {
+    const n = scoutSpin(base(), p), row = scoutSliceRow(n);
+    assert.ok(row && row.sliceId >= 0 && row.sliceId < 10, 'new-shape row, never the old reveal ring');
+    assert.equal(row.src, undefined); assert.equal(row.value, SCOUT_SLICES[row.sliceId].value);
+    assert.equal(n.wheels.stops.scout['2'].stops[0].auto, true); assert.equal(n.wheels.stops.scout['2'].stops[0].sliceId, row.sliceId);
+    assert.deepEqual(scoutSpin(base(), p).scoutSpin, n.scoutSpin, 'seeded: same save, same slice');
+  }
   assert.ok(typeof wmScoutSpin === 'function');
 });
 

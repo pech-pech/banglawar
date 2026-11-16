@@ -77,7 +77,7 @@ export function findWheelOpts(vm, ctx) {
     onSpin: (stop) => ctx.pick(stop),
     describe: (p) => {
       const d = p.find ? findLine(p) : { big: 'Nothing this time', say: 'No find this time. Next week, maybe.' };
-      return { ...d, chip: p.find ? d.chip : '', line: [p.second ? 'Second Cheer: one more look!' : '', d.line || ''].filter(Boolean).join(' ') };
+      return { ...d, chip: p.find ? d.chip : '', line: [p.cheerDone ? 'Second Cheer: one more look!' : '', d.line || ''].filter(Boolean).join(' ') };
     },
     outcome: (kind, b, q) => { const nm = { respin: 'Spin Again', two: 'Pick Two' }[kind] || 'Token'; return q.find && !(b && b.find) ? nm + ': found ' + word(q) + '!' : nm + ': still nothing'; },
     tokens: tokensOf(vm || {}), getTokens: () => tokensOf(get()),

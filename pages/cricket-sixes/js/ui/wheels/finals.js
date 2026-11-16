@@ -1,7 +1,8 @@
 // @ts-check
 /* wheels/finals: split from wm-spins.js (w2 wheel glue). */
-import { openReel } from '../reel-view.js';
-import { dialLook, revealT, tokProps, TOKVAL } from './shared.js';
+import { openWheel } from '../wheel-view.js';
+import { finalsWheelOpts } from './finals-opts.js';
+import { TOKVAL } from './shared.js';
 
 /** wa1: the words for a Finals prize from what it pays (a Lucky Lift adds Coins to any prize but a Medal; the slice label alone would go stale). */
 export function finalsWords(p) {
@@ -21,14 +22,8 @@ export function finalsTokLine(kind, before, q) {
   const d = (TOKVAL.finals(q || {}) - TOKVAL.finals(before || q || {})) | 0;
   return d > 0 ? 'Lucky Lift: +' + d + ' Coins' : 'Lucky Lift: no bonus';
 }
-/** Finals prize: reveal reel on the result screen. get() -> vm.finals; dispatch('FinalsSpin'). */
+/** Finals prize through openWheel (A3.9): finalsWheelOpts(vm, ctx); STOP dispatches FinalsSpin {stop}; a stored result (vm.pending / vm.stored) opens on the result, never re-spins. get() -> vm.finals; ctx keys (spinKey, stored, J, wobKey) ride on vm. */
 export function spinFinals({ get, look, dispatch, onCollect }) {
-  const f = get();
-  return openReel({
-    mode: 'reveal', title: 'Finals prize', cardHtml: '<p class="dr-hint">Spin for your prize.</p>', plan: { total: revealT(3, f) }, cells: f.cells, look: dialLook(look), pending: f.pending,
-    ...tokProps(get, dispatch, 'finals', 'Finals'), tokVal: TOKVAL.finals, tokText: finalsWords, tokLine: finalsTokLine,
-    onSpin: () => dispatch('FinalsSpin', {}), getPending: () => get().pending,
-    describe: (p) => { const w = finalsWords(p), why = finalsPairLine(p); return { big: w, ...(why ? { line: why } : {}), say: 'Finals prize: ' + w + '.' + (why ? ' ' + why.replace('x1.5', 'times one and a half') + '.' : ''), gold: !!p.jackpot }; },
-    onCollect, spokeGain: () => get().spokeGain || 0,
-  });
+  const f = get() || {}, vm = f.ring ? f : { ...f, ring: (f.cells || []).map((c, i) => ({ id: i, w: c.w, value: 0, label: c.label, tier: 'mid', gold: !!c.gold })) };
+  return openWheel({ ...finalsWheelOpts(vm, { get, dispatch, look, onCollect, spinKey: f.spinKey, stored: f.stored, wobKey: f.wobKey, J: f.J }), tokText: finalsWords });
 }

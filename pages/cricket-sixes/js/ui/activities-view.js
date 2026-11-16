@@ -137,7 +137,7 @@ export function openActivities(vm, dispatch, _open, _arg, refresh) {
   // wheel meta: the Find reel. The first SPIN sends PickActivity { id, stop }; the stored result is read back from the fresh view model.
   host.__clReel = (o) => {
     const cur = () => { const v = refresh ? refresh() : host.__clVm, x = ((v && v.options) || []).find((y) => y.id === o.id); return (x && x.reel) || o.reel; };
-    spinFind({ get: cur, look: (host.__clVm || vm).look, title: o.name, pick: (extra) => dispatchPick('PickActivity', { id: o.id, ...extra }), useToken: (kind) => dispatchPick('UseToken', { wheel: 'find', kind }) /* wa1 find */, onCollect: () => { const ok = host.querySelector('[data-cl-close]'); if (ok) ok.focus(); } });
+    spinFind({ get: cur, look: (host.__clVm || vm).look, title: o.name, pick: (extra) => dispatchPick('PickActivity', { id: o.id, ...extra }) /* extra = {stop} */, useToken: (kind) => dispatchPick('UseToken', { wheel: 'find', kind }) /* wa1 find */, onCollect: () => { const ok = host.querySelector('[data-cl-close]'); if (ok) ok.focus(); } });
   };
   const dispatchPick = (n, a) => { dispatch(n, a); const fresh = refresh ? refresh() : null, res = fresh && resultOf(fresh); if (res) { host.__clResult = res; host.__clClose = close; renderActivities(host, fresh, () => {}); } };
   close = openSheet('Fan activity', '');

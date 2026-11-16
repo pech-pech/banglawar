@@ -7,9 +7,10 @@ import { makeRng } from '../../core/rng.js';
 import { effective, recordSpin } from '../../core/wheelmeta.js';
 import * as WMF from '../../core/wheelmeta.js'; // wa1 find: tokens on the Find wheel (tokenOptions / useToken / tokenLeft)
 import { pityFind, findWheel, findWheelResult } from '../../core/wheels/find.js'; // wa1 find: Find big wheel
-import { recordStop } from '../../core/wheel-stops.js';
+import { recordStop, storedStop } from '../../core/wheel-stops.js';
 import { cycleOf } from '../../core/wheel-pulse.js';
 import { modsFor } from '../../core/wheels/common.js';
+import { stopConsistent } from '../../core/wheels/scout.js';
 import { activityOptions, roundKey } from '../../core/activities.js';
 import { pickActivity as pickActFind } from '../../core/activities.js'; // wa1 find: a token find is paid by re-running the pick
 import { clone, on, rngFor, seasonN, stopOf, otherSpeed } from './common.js';
@@ -24,9 +25,18 @@ export const cheerLeft = (/** @type {any} */ s) => !((((s && s.wheelMeta && s.wh
 const markCheer = (/** @type {any} */ n) => { const m = n.wheelMeta || (n.wheelMeta = clone(WMF.metaOf(n))); m.cheerUsed = { ...(m.cheerUsed || {}), [seasonN(n)]: 1 }; };
 /** STOP of the Find wheel via the shared recordStop (CONTRACT-A s6/7). The Find wheel has no median: careful = the tick was on a FIND block. t = seconds since SPIN. */
 function recordFindStop(/** @type {any} */ n, /** @type {string} */ key, /** @type {any} */ r, /** @type {number} */ respin) {
-  const t = Number.isFinite(r.t) ? Math.max(0, r.t) : 0, { cycle, tInCycle } = cycleOf(t), find = !!r.find;
-  recordStop(n, 'find', key, { stopT: Math.round(t * 1000), cycle, tInCycle, sliceId: r.index | 0, value: find ? 1 : 0, auto: false, respin, ...(respin ? { spent: true } : {}) }, { careful: find });
+  const t = Number.isFinite(r.t) ? Math.max(0, r.t) : 0, find = !!r.find, o = r.rec || timingOf(null, t);
+  recordStop(n, 'find', key, { stopT: o.stopT, cycle: o.cycle, tInCycle: o.tInCycle, sliceId: r.index | 0, value: find ? 1 : 0, auto: o.auto, respin, ...(respin ? { spent: true } : {}) }, { careful: find });
 }
+/** Timing + auto flag of a Find STOP from the command payload (stop {t, stopT?, cycle?, tInCycle?, auto?}); a stop-less / careful-less payload is a random tap = auto. t = seconds since SPIN. @param {any} p @param {number} t */
+function timingOf(p, t) {
+  const st = p && p.stop && typeof p.stop === 'object' ? p.stop : null, c = cycleOf(t), real = !!st && Number.isFinite(st.t);
+  const ok = (/** @type {any} */ x) => Number.isFinite(x);
+  return { stopT: ok(st && st.stopT) ? Math.max(0, Math.round(st.stopT)) : Math.round(t * 1000), cycle: st && ok(st.cycle) && st.cycle >= 1 ? st.cycle | 0 : c.cycle, tInCycle: ok(st && st.tInCycle) ? st.tInCycle : c.tInCycle,
+    auto: st && st.auto != null ? !!st.auto : !(real || (p && p.careful === true)) };
+}
+/** A Find STOP whose timing disagrees with itself (stopT vs cycle + tInCycle) is rejected by the spin handlers. @param {any} p */
+export const isBadFindStop = (p) => !!(p && p.stop && typeof p.stop === 'object' && !stopConsistent(p.stop));
 const actRngOf = (/** @type {any} */ s) => makeRng(`${String(s.season.seed).replace(/\|s\d+$/, '')}|act|${roundKey(s)}|${s.salt}`); // the same stream commands.js pickAct uses
 
 /** What the wheel decided for picking activity `id` now: {find, kind, bonus, index, pity, boosted, second, prevAct} or null (flag off, repeat week, rest, refused). @param {any} s @param {string} id @param {any} p */
@@ -37,7 +47,7 @@ export function findForce(s, id, p) {
   const rng = rngFor(s, 'find', findKey(s, id)), prevAct = s.econ.act ? clone(s.econ.act) : null;
   if (o.pity) { const r = pityFind(rng, wheel); return { find: true, kind: r.type, bonus: 0, index: r.index, pity: true, boosted: false, second: false, t: 0, prevAct }; }
   const r = findWheelResult(rng, wheel, stopOf(p)); // decided at STOP; Second Cheer is a separate spin (findCheer)
-  return { find: r.find, kind: r.type, bonus: r.coinsBonus || 0, index: r.index, pity: false, boosted: r.boosted, second: r.second, t: r.t, prevAct };
+  return { find: r.find, kind: r.type, bonus: r.coinsBonus || 0, index: r.index, pity: false, boosted: r.boosted, second: r.second, t: r.t, rec: timingOf(p, r.t), prevAct };
 }
 /** findSpin from the state right after a pick (what was really paid: a Player / Coach cell can fall back to Coins; read from the activity history). */
 function findSpinOf(/** @type {any} */ n, /** @type {any} */ key, /** @type {string} */ id, /** @type {any} */ force, /** @type {any} */ extra) {
@@ -50,7 +60,7 @@ function findSpinOf(/** @type {any} */ n, /** @type {any} */ key, /** @type {str
 export function afterFind(s, id, force) {
   const n = clone(recordSpin(s, 'find'));
   n.findSpin = findSpinOf(n, roundKey(s), id, force, {});
-  if (force && !force.pity) recordFindStop(n, findKey(s, id), { index: force.index, find: !!n.findSpin.find, t: force.t }, 0); // STOP on disk with the result (a pity find has no spin)
+  if (force && !force.pity) recordFindStop(n, findKey(s, id), { index: force.index, find: !!n.findSpin.find, t: force.t, rec: force.rec }, 0); // STOP on disk with the result (a pity find has no spin)
   return n;
 }
 /** The pending Find as core's token API reads it ({wheel, index, find, type}). null when no token can apply (no pick this round, a find, already paid on). @param {any} s */
@@ -81,6 +91,7 @@ function rePickWithFind(n, fs, force, extra) {
  * @param {any} s @param {any} p
  */
 export function useFindToken(s, p) {
+  if (isBadFindStop(p)) return s;
   const pend = findPending(s); if (!pend || !p || typeof p.kind !== 'string' || p.kind === 'nudge' || !WMF.useToken) return s;
   const fs = s.findSpin, wheel = findWheelOf(s, fs.id) || pend.wheel, used = fs.tokUsed | 0, stop = p.stop && typeof p.stop === 'object' && Number.isFinite(p.stop.t) ? { t: p.stop.t, phi: p.stop.phi, e: p.stop.e } : p.careful === undefined ? true : !!p.careful;
   /** @type {any} */ let last = null;
@@ -94,12 +105,12 @@ export function useFindToken(s, p) {
     out = rePickWithFind(clone(r.s), fs, { find: true, kind: type, bonus: q.coinsBonus | 0, index: q.index, pity: false, boosted: !!q.boosted, second: !!q.second }, extra);
     if (!out) return s;
   }
-  if (last) recordFindStop(out, findKey(s, fs.id), { index: last.index, find: !!last.find, t: last.t }, 1); // the token's spin
+  if (last) recordFindStop(out, findKey(s, fs.id), { index: last.index, find: !!last.find, t: last.t, rec: timingOf(p, last.t) }, 1); // the token's spin
   return out;
 }
 /** True while the round's no-find can take its Second Cheer: owned, unused this season, a real spin (no pity), not yet taken. @param {any} s */
 export function cheerOffer(s) {
-  const fs = s && s.findSpin; if (!on() || !fs || !s.econ || fs.key !== roundKey(s) || fs.find || fs.pity || fs.cheerDone) return false;
+  const fs = s && s.findSpin; if (!on() || !fs || !s.econ || fs.key !== roundKey(s) || fs.find || fs.pity || fs.cheerDone || (fs.tokUsed | 0) > 0) return false; // Second Cheer never follows a token
   const h = s.econ.act && s.econ.act.hist && s.econ.act.hist[0]; if (!h || h.id !== fs.id || h.find || !h.rolled) return false;
   const w = findWheelOf(s, fs.id); return !!(w && w.mods && w.mods.cheer && cheerLeft(s));
 }
@@ -109,7 +120,7 @@ export function cheerOffer(s) {
  * @param {any} s @param {any} p
  */
 export function findCheer(s, p) {
-  if (!cheerOffer(s)) return s;
+  if (!cheerOffer(s) || isBadFindStop(p)) return s;
   const fs = s.findSpin, wheel = findWheelOf(s, fs.id); if (!wheel) return s;
   const r = findWheelResult(rngFor(s, 'findcheer', findKey(s, fs.id)), wheel, stopOf(p));
   const n = clone(s); markCheer(n);
@@ -119,7 +130,7 @@ export function findCheer(s, p) {
     out = rePickWithFind(n, fs, { find: true, kind: r.type, bonus: r.coinsBonus || 0, index: r.index, pity: false, boosted: r.boosted, second: r.second }, extra);
     if (!out) return s;
   }
-  recordFindStop(out, findKey(s, fs.id), { index: r.index, find: r.find, t: r.t }, 1);
+  recordFindStop(out, findKey(s, fs.id), { index: r.index, find: r.find, t: r.t, rec: timingOf(p, r.t) }, 1);
   return out;
 }
 /** Big-wheel props for one activity's Find (before the pick) + the stored result of the pick just made. null with the flag off / a repeat week. @param {any} s @param {string} id */
@@ -131,7 +142,8 @@ export function findSpinVM(s, id) {
   const cells = w.cells.map((/** @type {any} */ c, /** @type {number} */ i) => ({ label: labels[i], w: c.w, find: c.find, tone: c.find ? 'find' : 'none', block: c.block }));
   const fs = s.findSpin && s.findSpin.id === id && s.findSpin.key === roundKey(s) ? s.findSpin : null, E2 = effective(s), X = E2.find || {};
   const left = WMF.tokenLeft ? WMF.tokenLeft(s, 'find', {}) : null;
-  return { slices: w.slices.slice(), widths: w.widths.slice(), jackpotIndex: w.jackpotIndex, golds: w.finds.slice(), aims: w.aims.slice(), phys: { ...w.phys }, labels, cells, rows: w.rows.map((/** @type {any} */ r) => ({ ...r })), rate: w.rate,
+  const spinKey = findKey(s, id);
+  return { spinKey, stored: storedStop(s, 'find', spinKey), slices: w.slices.slice(), widths: w.widths.slice(), jackpotIndex: w.jackpotIndex, golds: w.finds.slice(), aims: w.aims.slice(), phys: { ...w.phys }, labels, cells, rows: w.rows.map((/** @type {any} */ r) => ({ ...r })), rate: w.rate,
     guide: !!X.guide, zone: +X.zone || 0, chime: !!X.chime,
     pending: fs ? { index: fs.index, type: fs.type, find: fs.find, coins: fs.coins | 0, bonus: fs.bonus | 0, pity: fs.pity, second: !!fs.second, jackpot: !!fs.find, used: fs.used || [], cheer: cheerOffer(s), cheerDone: !!fs.cheerDone, cheerIndex: fs.cheerDone ? fs.cheerIndex : null } : null,
     tokens: fs ? findTokens(s).map((/** @type {any} */ o) => ({ kind: o.kind, label: o.label, count: (((s.wheelMeta && s.wheelMeta.tokens) || {})[o.src]) | 0 /* wa1 fixfind: pool count, capped in spinFind */ })) : [], tokLeft: left && left.wheelLeft != null ? left.wheelLeft : null,
