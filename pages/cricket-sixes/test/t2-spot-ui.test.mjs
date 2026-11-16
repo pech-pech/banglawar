@@ -21,7 +21,7 @@ test('slot: empty without a player, strip with one', () => {
 });
 test('openSpotlightWheel: new call shape, timing retired, hooks kept', () => {
   assert.ok(!/timing: true/.test(src));
-  assert.ok(src.includes("wheelId: 'spot'") && src.includes('ring = spotRing(w)') && src.includes('legend: spotLegend(ring), J: 1.2'));
+  assert.ok(src.includes("wheelId: 'spot'") && src.includes('ring = spotRing(w)') && src.includes('legend: spotLegend(ring).concat(spotKey(ring, !!w.kindFloor)), J: 1.2'));
   assert.ok(src.includes("onSpin: (stop) => dispatch('Spin'") && src.includes('stored: w.stored'));
   assert.ok(!/COAST|STOP_FROM|wheelStop/.test(src) && !src.includes('wheel plus') && !src.includes('widths: w.widths'));
   assert.ok(src.includes('The tick shows where it will land.'));

@@ -40,6 +40,16 @@ export function courseRing(cr) {
   const same = v.length === base.length, golds = w.golds && w.golds.length ? w.golds : [w.jackpotIndex || 0];
   return v.map((x, i) => { const val = same ? base[i].value : x; return { id: i, w: ws[i], value: val, label: '+' + val, tier: val > 1 ? 'top' : 'low', gold: golds.includes(i) }; });
 }
+/** Course legend rows (host rows win): tier key gold +4, triangle +3 / +2, dot = the floor; Kind Floor adds the one-line why. */
+export function courseKey(cr) {
+  const kf = !!(cr && cr.kindFloor), rows = [{ ch: 'gold', text: '+4 gold' }, { ch: 'tri', text: '+3, +2' }, { ch: 'dot', text: kf ? '+2 (Kind Floor)' : '+1' }, { ch: '+2', text: 'thin slice: +2 steps' }];
+  if (kf) rows.push({ ch: 'KF', text: 'Kind Floor: every +1 pays +2' });
+  return rows;
+}
+/** Course result meaning line: "Grade E- > E", the cut note when the cap bit, and the Kind Floor note when it lifted a +1. */
+export function courseLine(r, a, b, paid, cut, capLetter, lifted) {
+  return (cut ? '+' + r.gain + ', cut at ' + capLetter + ': you gain +' + paid + '. ' : '') + (a === b ? 'Grade ' + a + ' (same)' : 'Grade ' + a + ' > ' + b) + (lifted ? '. Kind Floor lifted this +1 piece to +2' : '');
+}
 /* SLOT:Course end */
 /* SLOT:JobChip start */
 export function slotJobChip(vm, coach) { return ''; } // owner: T5
@@ -113,11 +123,11 @@ export function startCourse(vm, id, dispatch, refresh) {
   const from = co.step, cr0 = co.course;
   const card = '<div class="wh-who"><b class="t2-nm">' + esc(co.name) + '</b><span class="c-tag">Course: away 1 week</span></div><div class="wh-gr"><span class="wh-g hit"><span>Grade</span><b>' + esc(co.letter) + '</b></span><span class="wh-g wh-wide"><span>Strong</span><b class="t2-strong">' + strongHtml(co.strong) + '</b></span></div><p class="dr-hint">The tick shows where it will land.</p>';
   openWheel({
-    wheelId: 'course', spinKey: cr0.spinKey || undefined, wobKey: cr0.wobKey || undefined, stored: cr0.stored || undefined, ring: courseRing(cr0), legend: [{ ch: '+2', text: 'thin slice: +2 steps' }], J: 1.2, // CONTRACT-A sec 4: ring + engine J 1.2 (phys.J = after Steady)
+    wheelId: 'course', spinKey: cr0.spinKey || undefined, wobKey: cr0.wobKey || undefined, stored: cr0.stored || undefined, ring: courseRing(cr0), legend: courseKey(cr0), J: 1.2, // CONTRACT-A sec 4: ring + engine J 1.2 (phys.J = after Steady)
     title: 'Course', sub: co.name, cardHtml: card, pending: cr0.pending || null,
     guide: !!cr0.guide, zone: +cr0.zone || 0, chime: !!cr0.chime, tokens: cr0.tokens || [], getTokens: () => cur().tokens || [], look: cr0.look || null, phys: (cr0.wheel && cr0.wheel.phys) || undefined, spokeGain: () => cur().spokeGain || 0, onToken: (kind, careful) => dispatch('UseToken', { wheel: 'course', kind, careful }), // wheel meta: empty when the flag is off
     onSpin: (stop) => dispatch('CourseSpin', { coachId: id, careful: stop, stop }), getPending: () => cur().pending || null, // the handler records the stop (recordStop) and lands the same slice
-    describe: (r) => { const to = Math.min(COURSE_CAP_STEP, from + r.gain), paid = to - from, a = letterOfStep(from), b = letterOfStep(to), cut = paid < r.gain; return { big: 'Grade steps', from: a, to: b, paid, line: cut ? '+' + r.gain + ', cut at ' + letterOfStep(COURSE_CAP_STEP) + ': you gain +' + paid : '', breakthrough: !!r.jackpot || a !== b, say: co.name + ' course: ' + (cut ? '+' + r.gain + ', cut at ' + letterOfStep(COURSE_CAP_STEP) + ': you gain +' + paid + '. ' : '') + (a === b ? a + (cut ? ' stays' : ', already top grade') : a + ' to ' + b) + (r.jackpot ? ', jackpot' : '') + '.' }; },
+    describe: (r) => { const to = Math.min(COURSE_CAP_STEP, from + r.gain), paid = to - from, a = letterOfStep(from), b = letterOfStep(to), cut = paid < r.gain; return { big: 'Grade steps', from: a, to: b, paid, line: courseLine(r, a, b, paid, cut, letterOfStep(COURSE_CAP_STEP), !!cr0.kindFloor && r.index != null && !!COURSE_SLICES[r.index] && COURSE_SLICES[r.index].value === 1), breakthrough: !!r.jackpot || a !== b, say: co.name + ' course: ' + (cut ? '+' + r.gain + ', cut at ' + letterOfStep(COURSE_CAP_STEP) + ': you gain +' + paid + '. ' : '') + (a === b ? a + (cut ? ' stays' : ', already top grade') : a + ' to ' + b) + (r.jackpot ? ', jackpot' : '') + '.' }; },
     onCollect: () => dispatch('RunCourse', { coachId: id }),
   });
 }

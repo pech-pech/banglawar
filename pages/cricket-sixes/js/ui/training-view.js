@@ -87,7 +87,7 @@ function rowHtml(r) {
 
 function seg(group, label, opts, cur) {
   return '<div class="c-seg t2-seg" role="group" aria-label="' + esc(label) + '">' + opts.map((o) =>
-    '<button type="button" class="c-seg__opt t2-opt" data-act="SetTrainPlan" data-arg=\'{"' + group + '":"' + o.v + '"}\' aria-pressed="' + (cur === o.v) + '" aria-label="' + esc(o.aria) + '">' + deco(o.ico, 20) + '<span class="t2-ol"><span>' + esc(o.w) + '</span>' + (o.sub ? '<small>' + o.sub + '</small>' : '') + '</span></button>').join('') + '</div>';
+    '<button type="button" class="c-seg__opt t2-opt" data-act="SetTrainPlan" data-arg=\'{"' + group + '":"' + o.v + '"}\' aria-pressed="' + (cur === o.v) + '" aria-label="' + esc(o.aria) + '">' + deco(o.ico, 20) + '<span class="t2-ol"><span>' + esc(o.w) + '</span>' + (o.sub ? '<small>' + o.sub + '</small>' : '') + '</span></button>').join('') + '</div><p class="dr-hint">The tick shows where it will land.</p>';
 }
 
 function spotSheet(vm, dispatch, slot) {
@@ -109,7 +109,7 @@ function openSpotlightWheel(dispatch, slot) {
     ['bp', 'bs', 'spd', 'bsk'].map((k) => '<span class="wh-g' + (k === statKey(w.stat) ? ' hit' : '') + '">' + deco(STAT(k).icon, 20) + '<span>' + esc(STAT(k).word) + '</span><b>' + esc(letterOfRaw(rates[k] || 1)) + '</b></span>').join('') + '</div><p class="dr-hint">The tick shows where it will land.</p>';
   const ring = spotRing(w), cur = () => { const sp = two ? latest.raw.twin : latest.raw.spotlight; return sp || {}; };
   openWheel({
-    wheelId: 'spot', spinKey: w.spinKey || undefined, wobKey: w.wobKey || undefined, stored: w.stored || undefined, ring, legend: spotLegend(ring), J: 1.2, plus: 'x', // CONTRACT-A sec 4: engine J 1.2 (phys.J = after Steady); STOP glow always on
+    wheelId: 'spot', spinKey: w.spinKey || undefined, wobKey: w.wobKey || undefined, stored: w.stored || undefined, ring, legend: spotLegend(ring).concat(spotKey(ring, !!w.kindFloor)), J: 1.2, plus: 'x', // CONTRACT-A sec 4: engine J 1.2 (phys.J = after Steady); STOP glow always on
     title: 'Spotlight', sub: 'Week ' + latest.vm.week + (latest.vm.wheel2 ? (two ? ', second spin' : ', first spin') : ''), cardHtml: card, pending: w.pending || null,
     // wheel meta (flag on; empty / null otherwise): guide = Aim Guide tick, tokens = buttons for the waiting result, getTokens = the fresh list after each command, look = craft look
     guide: w.guide, zone: w.zone, chime: w.chime, tokens: w.tokens, getTokens: () => cur().tokens || [], look: w.look, phys: w.phys || undefined, spokeGain: () => cur().spokeGain || 0,
@@ -117,7 +117,7 @@ function openSpotlightWheel(dispatch, slot) {
     onSpin: (stop) => dispatch('Spin', two ? { careful: stop, stop, slot: 2 } : { careful: stop, stop }), getPending: () => cur().pending || null, // the handler records the stop (recordStop) and lands the same slice
     describe: (p) => {
       const g = p.applied != null ? p.applied : Math.min(p.gain, w.room == null ? 99 : w.room), to = raw0 + g, a = letterOfRaw(raw0), b = letterOfRaw(to), moved = stepOfRaw(to) !== stepOfRaw(raw0);
-      return { big: st.word, from: a, to: b, barHtml: moved ? '' : letterBar(to, raw0), breakthrough: !!(p.jackpot || moved),
+      return { big: st.word, from: a, to: b, line: spotLine(p, ring, !!w.kindFloor), barHtml: moved ? '' : letterBar(to, raw0), breakthrough: !!(p.jackpot || moved),
         mult: spotMult(p), say: pr.name + ' ' + st.word + (spotMult(p) ? ' ' + spotMult(p) : '') + ': +' + g + ' steps, ' + (moved ? a + ' to ' + b : a + ', the bar fills') + (p.jackpot ? ', jackpot' : '') + '.' };
     },
     onCollect: () => { if (!two && latest.vm.wheel2) { openSpotlightWheel(dispatch, 2); return; } runPending = true; dispatch('RunNets', {}); setTimeout(() => { const f = document.querySelector('[data-ft="done"], [data-lo="runnets"]'); if (f && f.focus) f.focus(); }, 0); },
@@ -161,6 +161,17 @@ export function spotLegend(ring) {
   const out = (ring || []).filter((s) => s.w < 0.7 && String(s.label).length > 1 && !/^[+-]?[x\d.]+$/.test(String(s.label))).map((s) => ({ ch: String(s.label).charAt(0), text: String(s.label) }));
   (ring || []).forEach((s) => { const l = String(s.label); if (s.w < 0.7 && /^\d+(\.\d+)?$/.test(l) && !out.some((o) => o.ch === l)) out.push({ ch: l, text: 'x' + l + ': the thin slice' }); }); // a bare '1.2' on the thin slice reads as x1.2
   return out;
+}
+/** Tier key rows for the Spotlight legend (host rows win over T1's automatic ones): gold x3.0, triangle x1.5, dot = the floor; with Kind Floor owned, one line says why x1.0 reads x1.2. */
+export function spotKey(ring, kf) {
+  const lo = Math.min(...(ring || []).map((r) => r.value)), lab = (ring || []).filter((r) => r.value === lo)[0], rows = [{ ch: 'gold', text: 'x3.0 gold' }, { ch: 'tri', text: 'x1.5' }, { ch: 'dot', text: kf ? 'x1.2 (Kind Floor)' : 'x' + (lab ? String(lab.label).replace(/^x/, '') : '1.0') }];
+  if (kf) rows.push({ ch: 'KF', text: 'Kind Floor: every x1.0 pays x1.2' });
+  return rows;
+}
+/** Result meaning line under the chip: "Training gain x3.0. Gold slice." plus the Kind Floor note when it lifted the landed piece. */
+export function spotLine(p, ring, kf) {
+  const m = spotMult(p), i = p && p.index, base = i != null && SPOT_SLICES[i] && ring && ring[i] && SPOT_SLICES.length === ring.length ? SPOT_SLICES[i].value : null;
+  return (m ? 'Training gain ' + m + '.' : '') + (p && p.jackpot ? ' Gold slice.' : '') + (kf && base != null && ring[i].value > base ? ' Kind Floor lifted this x' + base.toFixed(1) + ' piece to ' + m + '.' : '');
 }
 /** Result strip multiplier text ('x1.2') from a pending result; '' when unknown. */
 export function spotMult(p) { const v = p && (p.mult != null ? p.mult : p.value != null ? p.value : p.gain); return v != null && isFinite(+v) ? 'x' + String(Math.round(+v * 100) / 100) : ''; }

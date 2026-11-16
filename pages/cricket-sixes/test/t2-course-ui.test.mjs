@@ -16,7 +16,7 @@ test('Course ring: +4 gold slice 12%, thin +2 slice, rim sums 10', () => {
 
 test('startCourse opens on the component (ring, wheelId, legend); old hooks kept', () => {
   assert.match(src, /wheelId: 'course'.*ring: courseRing\(cr0\)/);
-  assert.match(src, /legend: \[\{ ch: '\+2'/);
+  assert.match(src, /legend: courseKey\(cr0\)/);
   assert.match(src, /onSpin: \(stop\) => dispatch\('CourseSpin', \{ coachId: id, careful: stop, stop \}\)/);
   assert.match(src, /spinKey: cr0\.spinKey/); assert.match(src, /stored: cr0\.stored/);
   assert.doesNotMatch(src, /widths: w\.|slices: w\.|COAST|STOP_FROM|wheelStop/);
