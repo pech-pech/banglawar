@@ -6,10 +6,10 @@ import { jobSheetHtml } from './job-sheet.js';
 
 const XP = { nets: XP_NETS, match: XP_MATCH, study: XP_STUDY, scout: XP_SCOUT };
 const EFFECT = {
-  nets: 'Run the nets: +' + XP_NETS + ' XP',
-  match: 'Match coach: +' + XP_MATCH + ' XP',
-  study: 'Study tape: +' + XP_STUDY + ' XP at EndWeek',
-  scout: 'Scout: +' + XP_SCOUT + ' XP and ' + SCOUT_NAMES_PER_JOB + ' scout name',
+  nets: '+' + XP_NETS + ' XP from the nets',
+  match: '+' + XP_MATCH + ' XP on match day',
+  study: '+' + XP_STUDY + ' XP at week end',
+  scout: '+' + XP_SCOUT + ' XP and ' + SCOUT_NAMES_PER_JOB + ' scout name',
 };
 
 export function jobSheetVM(s, coachId) {

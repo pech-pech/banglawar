@@ -31,8 +31,8 @@ test('jobSheetVM rows', () => {
   assert.equal(vm.coachName, 'Coach');
   assert.deepEqual(vm.rows.map((r) => r.job), ['nets', 'match', 'study', 'scout']);
   const by = Object.fromEntries(vm.rows.map((r) => [r.job, r]));
-  assert.equal(by.study.ok, true); assert.equal(by.study.xp, 12); assert.equal(by.study.effect, 'Study tape: +12 XP at EndWeek');
-  assert.equal(by.scout.xp, 8); assert.equal(by.scout.effect, 'Scout: +8 XP and 1 scout name');
+  assert.equal(by.study.ok, true); assert.equal(by.study.xp, 12); assert.equal(by.study.effect, '+12 XP at week end');
+  assert.equal(by.scout.xp, 8); assert.equal(by.scout.effect, '+8 XP and 1 scout name');
   assert.equal(by.nets.ok, false); assert.ok(by.nets.why);
   assert.equal(jobSheetVM(three(), 'nope'), null);
 });

@@ -3,7 +3,7 @@
 .cw-title { margin: 0; font: 700 var(--c-fs-l)/var(--c-lh-l) var(--c-font); }
 .cw-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 2px var(--c-sp-2); min-height: 56px; padding: var(--c-sp-2) var(--c-sp-3); background: var(--cream); border: var(--c-border) solid var(--outline); font: 400 14px/20px var(--c-font); text-align: left; color: inherit; }
 .cw-row.is-focus { border-color: var(--wall2); background: var(--wall1); }
-.cw-row.is-off { opacity: .55; border-style: dashed; }
+.cw-row.is-off { color: #5f5a66; border-style: dashed; background: var(--wall1); }
 .cw-name { font-weight: 700; }
 .cw-xp { font-weight: 700; text-align: right; }
 .cw-eff, .cw-why { grid-column: 1 / -1; }

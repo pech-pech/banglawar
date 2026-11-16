@@ -23,7 +23,8 @@ for (const n of [3, 2, 1, 0]) {
     assert.doesNotThrow(() => { html = coachStripHtml({ coaches: vm.coaches, strip: { slots: 3, scoutOpen: false } }, vm); });
     assert.equal(count(html, /data-cw="job"/g), n, 'one job chip per coach');
     assert.equal(count(html, /data-cw="xp"/g), n, 'one XP bar per coach');
-    assert.equal(count(html, /class="ct-slot ct-empty"/g), 3 - n, 'empty slots fill the rest');
+    assert.equal(count(html, /class="ct-slot ct-empty"/g), n === 0 ? 0 : 3 - n, 'empty slots fill the rest');
+    if (n === 0) { assert.equal(count(html, /class="ct-slot ct-empty ct-none"/g), 1, 'SPEC s10: one No coach slot'); assert.ok(html.includes('No coach')); }
     for (const c of vm.coaches) assert.ok(html.includes('data-coach="' + c.id + '"'));
     if (n === 0) assert.ok(!/cw-chip|cw-xp/.test(html), 'no chip or bar at 0 coaches');
   });

@@ -177,7 +177,8 @@ export function slotClick(e, ctx) {
 export function coachStripHtml(raw, vm) {
   const cs = (raw && raw.coaches) || [], st = (raw && raw.strip) || { slots: 3, scoutOpen: false };
   const free = Math.max(0, (st.slots || 3) - cs.length);
-  const empty = Array.from({ length: free }, () => '<li class="ct-slot ct-empty"><button type="button" class="ct-emptyin" data-ct="scout" aria-label="Empty coach slot: open the Scout list to sign a coach">' + deco('coach', 20) + '<span>Empty slot</span><small>Sign a coach</small></button></li>').join('');
+  const none = !cs.length; // SPEC s10: zero coaches shows one wide "No coach" slot
+  const empty = none ? '<li class="ct-slot ct-empty ct-none" style="grid-column:1/-1"><button type="button" class="ct-emptyin" data-ct="scout" aria-label="No coach: open the Scout list to sign a coach">' + deco('coach', 20) + '<span>No coach</span><small>Sign a coach</small></button></li>' : Array.from({ length: free }, () => '<li class="ct-slot ct-empty"><button type="button" class="ct-emptyin" data-ct="scout" aria-label="Empty coach slot: open the Scout list to sign a coach">' + deco('coach', 20) + '<span>Empty slot</span><small>Sign a coach</small></button></li>').join('');
   // fit: compact strip (2 rows of 56 px taps); the head (All coaches, Scout list) is a narrow column at the right of the slots.
   return '<section class="ct-strip" aria-label="Coaches">' +
     '<ul class="ct-row">' + cs.map((c) => ctCard(c, vm)).join('') + empty + '</ul>' +

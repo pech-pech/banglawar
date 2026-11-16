@@ -53,6 +53,7 @@ if (scout) { await scout.click(); await wait(500); } else notes.push('scout row 
 await shot('03-after-scout-strip');
 await load((d) => { mk(d, 2); setC(d, 0, { xp: 30, job: 'study' }); setC(d, 1, { xp: 8, job: 'scout' }); }); await shot('04-strip-2coach');
 await load((d) => { mk(d, 1); setC(d, 0, { xp: 30, job: 'study' }); }); await shot('05-strip-1coach');
+await load((d) => { mk(d, 3); setC(d, 1, { xp: 30, step: 4 }); const id = d.coaches[0].id; d.training = d.training || {}; d.training.coach_id = id; setC(d, 0, { xp: 20, job: 'nets' }); }); await shot('05b-nets-chip');
 await load((d) => { mk(d, 0); }); await shot('06-strip-0coach');
 await load((d) => { mk(d, 2); setC(d, 0, { away: 1, xp: 10, job: 'study' }); }); await shot('07-away-coach');
 await load((d) => { mk(d, 2); setC(d, 0, { step: 3, xp: 0, job: 'study' }); });

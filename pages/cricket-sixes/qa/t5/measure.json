@@ -145,7 +145,7 @@
      "w": 300,
      "h": 62,
      "minFont": 14,
-     "text": "Study tape+12 XPStudy ta"
+     "text": "Study tape+12 XP+12 XP a"
     },
     {
      "cw": "setjob",
@@ -153,7 +153,7 @@
      "w": 300,
      "h": 62,
      "minFont": 14,
-     "text": "Scout+8 XPScout: +8 XP a"
+     "text": "Scout+8 XP+8 XP and 1 sc"
     },
     {
      "cw": "close",
@@ -289,6 +289,62 @@
    "clientW": 344
   },
   {
+   "shot": "05b-nets-chip",
+   "els": [
+    {
+     "cw": "job",
+     "cls": "cw-chip cw-chip-nets cw-locked",
+     "w": 70.9,
+     "h": 56,
+     "minFont": 14,
+     "text": "Nets"
+    },
+    {
+     "cw": "xp",
+     "cls": "cw-xp",
+     "w": 70.9,
+     "h": 10,
+     "minFont": null,
+     "text": ""
+    },
+    {
+     "cw": "job",
+     "cls": "cw-chip cw-chip-match cw-locked",
+     "w": 70.9,
+     "h": 56,
+     "minFont": 14,
+     "text": "Match"
+    },
+    {
+     "cw": "xp",
+     "cls": "cw-xp",
+     "w": 70.9,
+     "h": 10,
+     "minFont": null,
+     "text": ""
+    },
+    {
+     "cw": "job",
+     "cls": "cw-chip cw-chip-study",
+     "w": 70.9,
+     "h": 56,
+     "minFont": 14,
+     "text": "Study"
+    },
+    {
+     "cw": "xp",
+     "cls": "cw-xp",
+     "w": 70.9,
+     "h": 10,
+     "minFont": null,
+     "text": ""
+    }
+   ],
+   "overflowX": false,
+   "scrollW": 344,
+   "clientW": 344
+  },
+  {
    "shot": "06-strip-0coach",
    "els": [],
    "overflowX": false,
@@ -383,7 +439,7 @@
      "cls": "cw-stepup-ok",
      "w": 272,
      "h": 56,
-     "minFont": 18,
+     "minFont": 24,
      "text": "OK"
     }
    ],
@@ -399,7 +455,7 @@
      "cls": "cw-stepup-ok",
      "w": 272,
      "h": 56,
-     "minFont": 18,
+     "minFont": 24,
      "text": "OK"
     }
    ],
