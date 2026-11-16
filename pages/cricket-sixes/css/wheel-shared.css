@@ -1,0 +1,27 @@
+/* wheel-shared: look for the pulse wheels (A2.2). STOP glow, AIM marker, legend, tier shapes. Static: nothing blinks. */
+.wh-ov .wh-go,
+.wh-ov .wh-tok,
+.wh-ov .wh-help,
+.wh-ov .wh-x { min-width: 56px; min-height: 56px; }
+.wh-ov input[type="range"] { min-height: 56px; }
+.wh-ov input[type="range"]::-webkit-slider-thumb { width: 56px; height: 56px; }
+.wh-ov input[type="range"]::-moz-range-thumb { width: 56px; height: 56px; }
+
+/* STOP glow: on for 3.2-3.8 s of each cycle, one on/off, no animation. The label also changes to "STOP!". */
+.wh-ov .wh-go.is-glow { outline: 4px solid var(--gold, #d2b357); outline-offset: 2px; box-shadow: 0 0 0 6px rgba(210, 179, 87, .45); }
+
+/* AIM marker: gold triangle, ink outline, 12 px bold word with an ink halo. */
+.wk-aim { display: inline-flex; flex-direction: column; align-items: center; pointer-events: none; }
+.wk-aim-tri { fill: var(--gold, #d2b357); stroke: var(--outline, #2a2238); stroke-width: 2.5; }
+.wk-aim-txt { font-size: 12px; font-weight: 700; fill: var(--outline, #2a2238); paint-order: stroke; stroke: var(--cream, #f3ebd3); stroke-width: 2.5px; }
+
+/* Legend for under-7% slices: letter chip + words, wraps, never a fixed height. */
+.wk-legend { display: flex; flex-wrap: wrap; gap: 6px 12px; min-height: 26px; margin: 4px 0; font-size: 12.5px; line-height: 1.3; }
+.wk-legend-row { display: inline-flex; align-items: center; gap: 6px; }
+.wk-legend-ch { display: inline-flex; align-items: center; justify-content: center; min-width: 20px; height: 20px; padding: 0 3px; border: 2px solid var(--outline, #2a2238); background: var(--cream, #f3ebd3); font-size: 12px; font-weight: 700; }
+
+/* Tier shapes: glyph at least 11 px; shape carries the tier, colour only helps. */
+.wk-tier { display: inline-block; width: 12px; height: 12px; flex: none; }
+.wk-tier--top { background: var(--grass2, #7eb261); clip-path: polygon(50% 0, 100% 100%, 0 100%); }
+.wk-tier--mid { background: #e2d0a0; border-radius: 50%; }
+.wk-tier--low { background: #f0e8ce; border-radius: 50%; box-shadow: inset 0 0 0 1px rgba(42, 34, 56, .35); }
