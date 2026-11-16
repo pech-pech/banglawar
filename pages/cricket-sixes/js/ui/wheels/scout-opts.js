@@ -57,10 +57,10 @@ export function scoutLanded(c, value) {
 export function scoutDescribe(p, cardOf) {
   const w = scoutWords(p);
   if (p.extra) return { big: w.big, say: w.say, gold: false };
-  const c = p.card || cardOf(p.sliceId != null ? p.sliceId : p.index | 0), st = p.steps | 0, stw = '+' + st + (st === 1 ? ' step' : ' steps');
+  const c = p.card || cardOf(p.sliceId != null ? p.sliceId : p.index | 0), st = p.steps | 0, stw = st > 0 ? '+' + st + (st === 1 ? '\u00A0step' : '\u00A0steps') : '';
   if (!c || !c.surname) return { big: w.big, say: w.say, gold: !!p.jackpot };
   const who = c.surname + ' (' + c.grade + ')', gold = !!p.jackpot;
-  return { big: (gold ? 'Top name: ' : '') + who + ' joins as your first name, ' + stw, say: (gold ? 'Top name. ' : '') + who + ' joins as your first name, ' + stw.slice(1) + '.', gold };
+  return { big: (gold ? 'Top name: ' : '') + who + ' joins as your first name' + (stw ? ', ' + stw : ''), say: (gold ? 'Top name. ' : '') + who + ' joins as your first name' + (stw ? ', ' + stw.slice(1) : '') + '.', gold };
 }
 
 /**
