@@ -43,3 +43,10 @@ test('stored stop passes through, pure (no mutation of vm)', () => {
   assert.equal(o2.stored.sliceId, 3); assert.notEqual(o2.stored, st);
   assert.equal(vm.ring[0].gold, true); assert.equal(vm.ring[0].label, 'Centre +2');
 });
+
+test('wheel-view: Scout name fit tries shorter cuts down to 3 letters + "." (never one letter); one-char labels sit at the rim with a cream halo', async () => {
+  const { readFileSync } = await import('node:fs');
+  const w = readFileSync(new URL('../js/ui/wheel-view.js', import.meta.url), 'utf8');
+  assert.match(w, /for \(let n = Math\.min\(cs\.length - 1, 5\); n >= 3; n--\)/);
+  assert.match(w, /F\.one = true/); assert.match(w, /ONE_HALO/);
+});
