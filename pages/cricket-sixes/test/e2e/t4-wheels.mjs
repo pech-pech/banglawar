@@ -119,7 +119,14 @@ const WHEELS = {
     },
   },
   scout: {
-    async prep(H) { await H.boot(); const r = await H.advance('train'); need(r === 'train', 'cannot reach train: ' + r); },
+    async prep(H) {
+      await H.boot(); let r = await H.advance('train'); need(r === 'train', 'cannot reach train: ' + r);
+      // Scout rule: PassScout (done by advance at the coach stage) shuts the list until the next match is played; play one, then come back to Training.
+      if (await H.page.evaluate(() => { const s = window.__store.get(); return !(s.scout && s.scout.open) && /opens again|done this season/.test((document.querySelector('[data-ct="scout"]') || { getAttribute: () => '' }).getAttribute('aria-label') || ''); })) {
+        r = await H.advance('hub'); need(r === 'hub', 'cannot reach hub after the first training week: ' + r);
+        r = await H.advance('train'); need(r === 'train', 'cannot reach train after a played match: ' + r);
+      }
+    },
     async trigger(H) {
       if (await H.ov()) return;
       if (!(await H.page.$('[data-scoutspin]'))) {

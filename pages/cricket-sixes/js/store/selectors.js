@@ -7,7 +7,7 @@ import { DRILLS, SKILLS, TRAIN2 } from '../data/training.js';
 import { aiPickSix } from '../core/clubs.js';
 import { tagInfo } from '../core/tags.js';
 import { tableOrder, placeOf, ME, matchPay, gapLetters, koWinner } from '../core/season.js';
-import { planOf, netsPreview, coachList, scoutCandidates, canSign, coachQuality, coachStepInUse, courseCost, courseUsesLicence, canCourse, twinHeld, licenceHeld, effortOdds, meanGain, wheelSlices, courseWheel, EFFORTS, FOCUSES, MAX_COACHES, sixOf, drillRoom, focusRating } from '../core/training.js';
+import { scoutPassed, planOf, netsPreview, coachList, scoutCandidates, canSign, coachQuality, coachStepInUse, courseCost, courseUsesLicence, canCourse, twinHeld, licenceHeld, effortOdds, meanGain, wheelSlices, courseWheel, EFFORTS, FOCUSES, MAX_COACHES, sixOf, drillRoom, focusRating } from '../core/training.js';
 import { netsFacLevel, netsQuality } from '../core/training.js'; // wa1 train
 import { letterOfRaw, letterOfShown, letterOfStep, ticksOfRaw, fillOfRaw, stepOfRaw } from '../core/letters.js';
 import { nodeStatus, treeBoost, treeOf, NODE_COUNT } from '../core/skills.js';
@@ -310,7 +310,7 @@ export function scoutLandedVM(s) {
 export function coachPickVM(s) {
   const open = canSign(s).ok, signed = s.scout && s.scout.n === (s.season && s.season.n) ? s.scout.signed : null;
   const cands = scoutCandidates(s).map((c) => ({ landed: !!c.landed, id: c.id, name: c.name, letter: letterOfStep(c.step), step: c.step, strong: c.strong.slice(), strongWords: strongWords(c.strong) }));
-  return { landed: scoutLandedVM(s), cands, open, full: coachList(s).length >= MAX_COACHES, mine: coachList(s).map((c) => ({ id: c.id, name: c.name, letter: letterOfStep(c.step), strong: c.strong.slice() })), picked: signed, passed: !!(s.scout && s.scout.passed), why: canSign(s).why, spin: open ? spokesOn(scoutSpinVM(s), s, 'scout') : null, look: FLAGS.wheelMeta ? craftLook(s) : null };
+  return { landed: scoutLandedVM(s), cands, open, full: coachList(s).length >= MAX_COACHES, mine: coachList(s).map((c) => ({ id: c.id, name: c.name, letter: letterOfStep(c.step), strong: c.strong.slice() })), picked: signed, passed: scoutPassed(s), why: canSign(s).why, spin: open ? spokesOn(scoutSpinVM(s), s, 'scout') : null, look: FLAGS.wheelMeta ? craftLook(s) : null };
 }
 
 // ---- squad and plan
@@ -424,7 +424,7 @@ export function trainingVM(s) {
     done, result: done ? { lines: T.nets.lines, cost: T.nets.cost, skipped: T.nets.skipped } : null, tips: !T.tipsSeen && !(T.netsRuns > 0),
     canRun: !done && pre.trainIds.length > 0, notice: noticeOf(s),
     // wa1 train (SPEC 2026-11-14 s2/s4): coach strip on the Training tab (3 slots, scout list) + Nets level/quality. Owner: train.
-    strip: { slots: MAX_COACHES, free: Math.max(0, MAX_COACHES - coaches.length), scoutOpen: !!canSign(s).ok }, nets: { level: netsFacLevel(s), q: netsQuality(s) },
+    strip: { slots: MAX_COACHES, free: Math.max(0, MAX_COACHES - coaches.length), scoutOpen: !!canSign(s).ok, scoutPassed: scoutPassed(s) }, nets: { level: netsFacLevel(s), q: netsQuality(s) },
   };
 }
 

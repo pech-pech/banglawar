@@ -109,4 +109,43 @@
 }
 
 /* T8 QA-V2 #11: tall screens: the result box is as tall as the ready box, so the legend and wheel keep their place at the result. */
-@media (min-height: 701px) { .wh-ov.is-ring .wh-res { min-height: 180px; box-sizing: border-box; } }
+@media (min-height: 701px) and (max-width: 559px) { .wh-ov.is-ring .wh-res { min-height: 180px; box-sizing: border-box; } }
+
+/* X6: wide screens (>= 560 px, e.g. 624x912, 704x783): the wheel is centred and fills the room (up to 420 px, set by the view), the legend stays centred under it, and the result box is the compact 120 px one (rows share a line, there is room across), so the wheel is bigger and the idle box is not a big empty block. Same height at idle and at result: the wheel and legend never move. */
+@media (min-width: 560px) {
+  .wh-ov.is-ring .wh-stage { align-items: center; } /* across only: the column keeps flex-start so the wheel never moves down/up */
+  .wh-ov.is-ring .wh-wrap { margin-left: auto; margin-right: auto; flex: none; }
+  .wh-ov.is-ring .wh-card { padding: 4px 10px; gap: 0; }
+  .wh-ov.is-ring .wh-card .dr-hint { margin: 0; line-height: 20px; }
+  .wh-ov.is-ring .wh-msg { height: 120px; min-height: 120px; }
+  .wh-ov.is-ring .wh-res { min-height: 120px; box-sizing: border-box; }
+  .wh-ov.is-ring.has-tok .wh-res { flex-direction: row; flex-wrap: wrap; justify-content: center; align-items: center; align-content: center; gap: 0 10px; min-height: 120px; padding-top: 2px; padding-bottom: 2px; }
+  .wh-ov.is-ring.has-tok .wh-tok { gap: 6px 8px; }
+  .wh-ov.is-ring.has-tok .wh-tknote { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .wh-ov.is-ring .wh-msg:not([hidden]) { display: flex; align-items: center; justify-content: center; }
+}
+
+/* LW: landscape inner (GRID-RULES G0). Two columns: wheel left (as tall as the height allows), message / card, legend, result and the SPIN / STOP / COLLECT button stacked on the right with the button at the bottom. The stage no longer shares height with the foot, so the wheel keeps one size and place from ready to result. */
+@media (min-width: 760px) and (min-height: 500px) and (orientation: landscape) {
+  .wh-ov.is-ring { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); grid-template-rows: auto auto auto minmax(0, 1fr); column-gap: 8px; row-gap: 6px; padding-inline: max(14px, env(safe-area-inset-left)) max(14px, env(safe-area-inset-right)); padding-bottom: max(10px, env(safe-area-inset-bottom)); }
+  .wh-ov.is-ring > .t2-strip { grid-column: 1 / -1; grid-row: 1; margin-inline: calc(-1 * max(14px, env(safe-area-inset-left))) calc(-1 * max(14px, env(safe-area-inset-right))); padding-inline-end: 0; }
+  .wh-ov.is-ring > .wh-stage { grid-column: 1; grid-row: 2 / 5; min-height: 0; margin: 0; justify-content: flex-start; align-items: center; }
+  .wh-ov.is-ring > .wh-card { grid-column: 2; grid-row: 2; margin: 0; }
+  .wh-ov.is-ring > .wk-legend.wh-lgd { grid-column: 2; grid-row: 3; align-self: stretch; flex-direction: row; flex-wrap: wrap; justify-content: center; align-items: center; margin: 0; min-width: 0; }
+  .wh-ov.is-ring > .wh-foot { grid-column: 2; grid-row: 4; display: flex; flex-direction: column; gap: 6px; min-height: 0; padding: 0; }
+  .wh-ov.is-ring .wh-msg, .wh-ov.is-ring .wh-res { height: auto; min-height: 120px; flex: 1 1 auto; }
+  .wh-ov.is-ring .wh-msg:not([hidden]), .wh-ov.is-ring .wh-res:not([hidden]) { overflow: auto; }
+  .wh-ov.is-ring .wh-tok { flex: none; }
+  .wh-ov.is-ring .wh-go { flex: none; margin-top: auto; min-height: 56px; }
+  .wh-ov.is-ring .wh-card .dr-hint { line-height: 20px; }
+}
+
+/* QA-V5 N5 / M1b: portrait inner (>= 560 wide). The idle box holds one line, so it is 64 px (the view reserves the result's extra height in the wheel size, so the wheel keeps one size and place); and at max-height 800 the player card shows its 4 skills in one row so the wheel gets the height. */
+@media (min-width: 560px) and (orientation: portrait) {
+  .wh-ov.is-ring .wh-msg:not([hidden]) { height: 64px; min-height: 64px; }
+}
+@media (min-width: 560px) and (max-height: 800px) and (orientation: portrait) {
+  .wh-ov .wh-card .wh-gr { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px; }
+  .wh-ov .wh-card .wh-g { min-height: 40px; padding: 0 6px; font-size: 14px; }
+  .wh-ov .wh-card .wh-g .t2-strong { font-size: 14px; }
+}

@@ -44,6 +44,7 @@ const pageSince = (page, ts) => page.evaluate((t) => (performance.now() - t) / 1
 function auditInPage() {
   const vis = (e) => { const r = e.getBoundingClientRect(), cs = getComputedStyle(e); return r.width > 0 && r.height > 0 && cs.visibility !== 'hidden' && cs.display !== 'none' && !e.closest('[hidden]'); };
   const out = { targets: [], small: [], hScroll: document.documentElement.scrollWidth > innerWidth + 1 };
+  { const w = document.querySelector('.wh-ov .wh-wrap'); if (w) { const r = w.getBoundingClientRect(); out.wheel = { x: Math.round(r.x), y: Math.round(r.y), w: Math.round(r.width), cxOff: Math.round(r.x + r.width / 2 - innerWidth / 2) }; } } // X6: wheel box + its x-centre offset from the screen centre
   const root = document.querySelector('.wh-ov') || document; // the overlay only: the sandbox's own links sit behind it
   for (const e of root.querySelectorAll('button, [role="button"], a[href], input, summary')) {
     if (!vis(e)) continue; const r = e.getBoundingClientRect();

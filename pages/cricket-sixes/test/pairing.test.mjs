@@ -483,3 +483,23 @@ test('QA D8: the Book line belongs to its row: tucked under the boxes (negative 
   assert.ok(top && below && Number(below[1]) > 4 - Number(top[1]), 'gap below the line is bigger than the gap above it');
   assert.match(css, /\.skin-scorebook \.sb-row\.is-selected:has\(> \.bv-book\) \{ outline: 2px solid/);
 });
+
+test('QA-V5 N1 bowl view: picked row is scrolled into view (instant under reduced motion) and named on the CTA', async () => {
+  const { render } = await import('../js/ui/bowl-view.js');
+  const g = /** @type {any} */ (globalThis); const hadWin = 'window' in g;
+  const run = (rm) => {
+    g.window = { innerHeight: 800, matchMedia: () => ({ matches: rm }) };
+    const calls = []; const { s } = pickState('p6-pick3');
+    const row = { scrollIntoView: (o) => calls.push(o) };
+    const el = { innerHTML: '', querySelector: (q) => (q.includes('is-selected') ? row : null), querySelectorAll: () => [], addEventListener() {} };
+    const vm = sel.bowlVM(s); render(/** @type {any} */ (el), vm, () => {});
+    return { calls, h: el.innerHTML, vm };
+  };
+  try {
+    const a = run(false), b = run(true);
+    assert.equal(a.calls.length, 1); assert.equal(a.calls[0].behavior, 'smooth'); assert.equal(a.calls[0].block, 'nearest');
+    assert.equal(b.calls[0].behavior, 'auto');
+    const picked = a.vm.bowlers.find((x) => x.i === a.vm.call.bowler && x.eligible);
+    if (picked) assert.match(a.h, new RegExp('<small class="name">' + picked.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+  } finally { if (!hadWin) delete g.window; }
+});

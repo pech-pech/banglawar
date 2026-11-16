@@ -27,7 +27,9 @@ function card(c, full) {
 /** The info line over the list: a plain sentence, never a bare why code (vqa2 06). */
 export const FULL_LINE = 'All coach slots are full. Release a coach to sign a new one.';
 const WHY_LINE = { full: FULL_LINE, closed: 'The scout list is shut until next season.', unknown: 'That coach is not on the list.' };
+export const PASS_LINE = 'Scout opens again after your next match.';
 function scoutLine(vm, full) {
+  if (vm.open === false && vm.why === 'closed' && vm.passed && !vm.picked) return PASS_LINE;
   if (vm.open === false && vm.why) return WHY_LINE[vm.why] || String(vm.why);
   if (full) return FULL_LINE;
   return 'Sign one coach, or pass.';

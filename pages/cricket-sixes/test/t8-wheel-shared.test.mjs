@@ -63,3 +63,13 @@ test('short + wide (475x638): legend beside the wheel, 76 px message box, no sta
   assert.match(css, /max-height: 700px\) \{ \.wh-ov\.is-ring \.wh-msg \{ height: 76px; min-height: 76px; \} \}/);
   assert.match(css, /@media \(max-height: 700px\) and \(min-width: 440px\) \{[^@]*grid-template-columns: minmax\(0, 1fr\) auto;[^@]*\.wk-legend\.wh-lgd \{ grid-column: 2; grid-row: 3;[^@]*flex-direction: column/);
 });
+
+test('X6 wide screens (>= 560 px): wheel up to 420 px and centred, upright one-letter rim marks, compact result box, narrow screens untouched', () => {
+  assert.match(view, /ov\.clientWidth >= 560/);
+  assert.match(view, /wide \? 420 : 340/);
+  assert.match(view, /F\.one && ov\.classList\.contains\('is-wide'\)\) \? 0 : radialTurn/);
+  assert.match(view, /ov\.classList\.contains\('is-wide'\) \? 24 : 14/);
+  assert.match(css, /@media \(min-width: 560px\) \{[^@]*\.wh-ov\.is-ring \.wh-stage \{ align-items: center; \}[^@]*\.wh-ov\.is-ring \.wh-msg \{ height: 120px; min-height: 120px; \}[^@]*\.wh-ov\.is-ring\.has-tok \.wh-res \{[^}]*min-height: 120px/);
+  assert.doesNotMatch(css, /wh-stage \{[^}]*justify-content: center[^}]*\}\s*\n\s*\.wh-ov\.is-ring \.wh-wrap/); // vertical stays flex-start: the wheel never moves
+  assert.match(css, /@media \(min-height: 701px\) and \(max-width: 559px\) \{ \.wh-ov\.is-ring \.wh-res \{ min-height: 180px/);
+});

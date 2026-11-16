@@ -354,3 +354,52 @@ canvas.ct-face { width: 18px !important; height: 18px !important; } /* X2 V4 D4:
   .wh-card:has(.wh-who) .dr-hint { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; margin: 0; padding: 0; }
   .wh-card:has(.wh-who) { position: relative; gap: 4px; padding: var(--c-sp-1) var(--c-sp-2); }
 }
+
+/* LW: landscape inner (GRID-RULES G0) - Train (ready state + Nets done). Goes LAST in css/training2.css. */
+@media (min-width: 760px) and (min-height: 500px) and (orientation: landscape) {
+  .t2-screen { height: 100vh; height: 100dvh; min-height: 0; overflow: hidden; margin: 0 -12px; padding: 0 14px calc(var(--bar-h) + 6px + env(safe-area-inset-bottom)); grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: 8px; row-gap: 6px; align-content: stretch; align-items: stretch; }
+  .t2-screen > .tr-top { grid-column: 1 / -1; grid-row: 1; }
+  .t2-screen:has(> .t2-plan) { grid-template-rows: auto auto auto minmax(0, 1fr) auto; }
+  .t2-screen > .ct-strip { grid-column: 1; grid-row: 2 / 5; margin: 0; min-height: 0; }
+  .t2-screen > .t2-pick { grid-column: 1; grid-row: 5; }
+  .t2-screen > .t2-plan { grid-column: 2; grid-row: 2; padding: 0; gap: 6px; }
+  .t2-screen > .t2-cost { grid-column: 2; grid-row: 3; padding: 0 4px; align-self: center; }
+  .t2-screen > .tr-list { grid-column: 2; grid-row: 4 / 6; min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; flex-wrap: nowrap; padding-bottom: 4px; }
+  .t2-screen:has(> .t2-spotring) { grid-template-rows: auto auto auto minmax(0, 1fr) auto auto; }
+  .t2-screen > .t2-spotring { grid-column: 1; grid-row: 6; margin: 0; }
+  .t2-screen:has(> .t2-spotring) > .tr-list { grid-row: 4 / 7; }
+  .t2-screen .ct-row { height: 100%; }
+  .t2-screen .ct-slot { display: flex; flex-direction: column; }
+  .t2-screen .ct-slot > * { flex: 1 1 56px; max-height: 76px; }
+  .t2-screen .ct-slot > .cw-xp { flex: none; }
+  .t2-screen .ct-slot.ct-empty > *, .t2-screen .ct-slot.is-away > .ct-pick { max-height: none; }
+  .t2-screen .ct-head { grid-template-rows: minmax(56px, 76px) minmax(56px, 76px); align-content: start; }
+  .t2-screen > .tr-list > li.tr-row { flex: 1 0 60px; min-height: 60px; max-height: 72px; }
+  .t2-screen:has(> .t2-sum) { grid-template-rows: auto auto minmax(0, 1fr); }
+  .t2-screen > .t2-sum { grid-column: 1 / -1; grid-row: 2; }
+  .t2-screen > .t2-lines { grid-column: 1 / -1; grid-row: 3; padding: 0; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 6px 8px; align-content: start; grid-auto-rows: minmax(56px, auto); min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+}
+/* READY, tall LW (e.g. 882x704): every control in column A in reading order, the whole squad in column B */
+@media (min-width: 760px) and (min-height: 690px) and (orientation: landscape) {
+  .t2-screen:has(> .t2-plan) { grid-template-rows: auto minmax(0, 1fr) auto auto auto; }
+  .t2-screen > .ct-strip { grid-row: 2; }
+  .t2-screen > .t2-plan { grid-column: 1; grid-row: 3; }
+  .t2-screen > .t2-cost { grid-column: 1; grid-row: 4; }
+  .t2-screen > .t2-pick { grid-row: 5; }
+  .t2-screen > .tr-list { grid-row: 2 / 6; }
+  .t2-screen:has(> .t2-spotring) { grid-template-rows: auto minmax(0, 1fr) auto auto auto auto; }
+  .t2-screen:has(> .t2-spotring) > .tr-list { grid-row: 2 / 7; }
+}
+/* N6: narrow-inner portrait (600-680 wide, e.g. 624x912): coach strip across the full width, controls left, squad list right. 344 / 475 / 704 unaffected. */
+@media (min-width: 600px) and (max-width: 680px) and (orientation: portrait) {
+  .t2-screen:has(> .t2-plan) { height: 100vh; height: 100dvh; min-height: 0; overflow: hidden; margin: 0 -12px; padding-bottom: calc(var(--bar-h) + 6px + env(safe-area-inset-bottom)); grid-template-rows: auto auto auto auto minmax(0, 1fr); align-content: stretch; align-items: stretch; }
+  .t2-screen > .tr-top { grid-column: 1 / -1; grid-row: 1; }
+  .t2-screen > .ct-strip { grid-column: 1 / -1; grid-row: 2; margin: 0; }
+  .t2-screen > .t2-plan { grid-column: 1; grid-row: 3; padding: 0; }
+  .t2-screen > .t2-cost { grid-column: 1; grid-row: 4; padding: 0 4px; }
+  .t2-screen > .t2-pick { grid-column: 1; grid-row: 5; align-self: start; }
+  .t2-screen > .tr-list { grid-column: 2; grid-row: 3 / 6; min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; }
+  .t2-screen > .t2-spotring { grid-column: 1; grid-row: 6; }
+  .t2-screen:has(> .t2-spotring) { grid-template-rows: auto auto auto auto minmax(0, 1fr) auto; }
+  .t2-screen:has(> .t2-spotring) > .tr-list { grid-row: 3 / 7; }
+}

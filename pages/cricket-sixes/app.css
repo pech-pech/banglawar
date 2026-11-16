@@ -84,10 +84,14 @@ img { max-width: 100%; image-rendering: pixelated; }
 
 /* sheet (fixed to the viewport; kit .c-sheet--dock is absolute) */
 .sheet-scrim.c-scrim, .c-scrim.sheet-scrim { position: fixed; inset: 0; z-index: 90; }
-.sheet-fixed.c-sheet { position: fixed; left: 0; right: 0; bottom: 0; z-index: 91; display: flex; flex-direction: column; max-height: 80vh; max-height: 80dvh; margin: 0 auto; max-width: 640px; padding-bottom: calc(var(--c-sp-3) + env(safe-area-inset-bottom)); }
+.sheet-fixed.c-sheet { position: fixed; left: 0; right: 0; bottom: 0; z-index: 91; display: flex; flex-direction: column; max-height: calc(100vh - 76px); max-height: min(80dvh, calc(100dvh - 76px)); margin: 0 auto; max-width: 640px; padding-bottom: calc(var(--c-sp-3) + env(safe-area-inset-bottom)); }
 .sheet-fixed .c-sheet__head { flex: none; }
 .sheet-fixed .c-sheet__body { display: block; flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
 .sheet-fixed .c-sheet__body > * + * { margin-top: var(--c-sp-2); }
+/* T8 M3/M4/N9: end padding so the last row clears the scroller edge, and a bottom fade (CSS only, hides at full scroll) that cues more below */
+.sheet-fixed .c-sheet__body { --cue-bg: var(--cream); padding-bottom: var(--c-sp-4); background: linear-gradient(var(--cue-bg), var(--cue-bg)) bottom / 100% 24px no-repeat local, linear-gradient(to top, rgba(31, 42, 68, .28), rgba(31, 42, 68, 0)) bottom / 100% 24px no-repeat scroll; }
+.skin-scorebook .sheet-fixed .c-sheet__body { --cue-bg: var(--sb-plate); }
+.sheet-fixed .c-sheet__body.ts-body { padding-bottom: var(--c-sp-4); }
 .sheet-fixed .c-icon-btn { font-size: 28px; }
 
 /* wide: two columns */
@@ -105,3 +109,8 @@ img { max-width: 100%; image-rendering: pixelated; }
 /* a fixed bar (End week, CTA, hub) must never cover the focused control: the largest bar is 146px (hub) */
 html { scroll-padding-bottom: calc(146px + 16px + env(safe-area-inset-bottom)); }
 .sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+
+/* T8 M4: tall sheets (tr-tall, bk-sheet) keep their top below the 76 px top bar so Save and the strip stay readable; one class more than their own rules so load order does not matter */
+.c-sheet.sheet-fixed.c-sheet--dock:is(.tr-tall, .bk-sheet) { max-height: calc(100vh - 76px); max-height: min(94dvh, calc(100dvh - 76px)); }
+/* T8 N9: the Clinic pick list no longer scrolls inside the sheet body (a nested scroller hid the 8th row and sliced one); the body scrolls it all, with the fade cue above */
+.sheet-fixed .cn-list { max-height: none; overflow: visible; }

@@ -55,8 +55,9 @@ test('lead call 1: signCoach / passScout keep other scout.* keys; old record sha
     assert.deepEqual(signCoach(s, id).scout, { n, signed: id, passed: false });
     assert.deepEqual(signCoach({ ...s, scout: { bonusNames: 2, extraThisSeason: 1 } }, id).scout, { bonusNames: 2, extraThisSeason: 1, n, signed: id, passed: false });
   }
-  assert.deepEqual(passScout(s).scout, { n, signed: null, passed: true });
-  assert.deepEqual(passScout({ ...s, scout: { n: n - 1, signed: 'x', passed: false, bonusNames: 1 } }).scout, { n, signed: null, passed: true, bonusNames: 1 });
+  const pa = (s.season.results || []).length; // pass adds passAt (matches played) + passes: the list reopens after the next match
+  assert.deepEqual(passScout(s).scout, { n, signed: null, passed: true, passAt: pa, passes: 1 });
+  assert.deepEqual(passScout({ ...s, scout: { n: n - 1, signed: 'x', passed: false, bonusNames: 1 } }).scout, { n, signed: null, passed: true, passAt: pa, passes: 1, bonusNames: 1 });
 });
 
 test('lead call 9: pipeHook identity with no listeners, chains listeners, netsOrder listed', (t) => {

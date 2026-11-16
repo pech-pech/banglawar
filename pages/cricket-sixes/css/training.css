@@ -280,3 +280,19 @@
 /* focus: solid ring outside the border plus a fill, so a focused bench row is not a second dashed line (kit ring is dashed, inside) */
 .tr-list > li:has(> .tr-rowbtn:focus-visible) { outline: 3px solid var(--c-focus); outline-offset: 2px; background: var(--wall1); }
 .tr-rowbtn:focus-visible { outline: none; }
+
+/* LW: landscape inner (GRID-RULES G0) */
+@media (min-width: 760px) and (min-height: 500px) and (orientation: landscape) {
+  .tr-week { height: 100vh; height: 100dvh; min-height: 0; overflow: hidden; margin: 0 -12px; padding: 0 14px calc(var(--bar-h) + 6px + env(safe-area-inset-bottom)); grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-rows: auto auto minmax(0, 1fr); column-gap: 8px; row-gap: 6px; align-content: stretch; align-items: stretch; }
+  .tr-week > .tr-top { grid-column: 1 / -1; grid-row: 1; }
+  /* Column A: "N trained" card, full height, its list is the only scroller */
+  .tr-week > .tr-top + .tr-card { grid-column: 1; grid-row: 2 / 4; min-height: 0; grid-template-rows: auto minmax(0, 1fr); padding: 8px; }
+  .tr-week > .tr-top + .tr-card > .t2-lines { min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; padding: 0 4px 0 0; align-content: start; grid-auto-rows: minmax(56px, auto); }
+  /* Column B: club notes (course, grades, nodes) as a plate on top, then "Results this round" filling the rest */
+  .tr-week > .tr-notes { grid-column: 2; grid-row: 2; padding: 8px 12px; gap: 6px; background: var(--wall1); border: var(--c-border) solid var(--outline); }
+  .tr-week > .tr-card ~ .tr-card { grid-column: 2; grid-row: 3; min-height: 0; grid-template-rows: auto minmax(0, 1fr); padding: 8px 12px; }
+  .tr-week:not(:has(> .tr-notes)) > .tr-card ~ .tr-card { grid-row: 2 / 4; }
+  .tr-week .tr-results { min-height: 0; overflow-y: auto; grid-auto-rows: minmax(44px, 72px); align-content: stretch; }
+  .tr-week .tr-rr { align-content: center; padding: 2px 6px; }
+  .tr-week .tr-h > span { font-weight: 700; }
+}

@@ -128,6 +128,9 @@ async function journey(browser, tag) {
   }
   async function shot(name) { if (!shotsOk) return; try { await page.screenshot({ path: `${SHOTS}${tag}-${name}.png` }); shots.push(name); } catch (e) { shotsOk = false; notes.push(`screenshot failed: ${e.message}`); } }
   const settle = (ms = 250) => page.waitForTimeout(ms);
+  // SPIN then STOP exactly `ms` apart on the page's own clock. The wheel lands by tap time (performance.now), so two Node-side clicks with a setTimeout between them
+  // gave a different slice every run (same seed, different match-day / training result). One in-page busy-wait makes the stop time the same every run.
+  const spinStopAt = (ms) => page.evaluate((gap) => { const q = () => document.querySelector('.wh-ov [data-go]'); const g = q(); if (!g) return false; g.click(); const t0 = performance.now(); while (performance.now() - t0 < gap) { /* hold the page: the wheel reads its stop from performance.now, not frames */ } const g2 = q(); if (!g2) return false; g2.click(); return true; }, ms);
   async function closeSheets() { for (let i = 0; i < 4 && (await page.$('.c-sheet')); i++) { await page.keyboard.press('Escape'); await settle(150); } }
   async function clickCta() {
     const b = await page.$('.c-btn--cta:not([disabled])') || await page.$('.m0-ctabar button:not([disabled]), .ctabar button:not([disabled])');
@@ -199,7 +202,7 @@ async function journey(browser, tag) {
       for (const w of ['hype', 'toss', 'pep']) {
         const b = await page.$(`[data-md="${w}"]`);
         if (!b) continue; // already shown, or no pep slot
-        await b.click(); await settle(350); for (let i = 0; i < 12 && (await page.$('.wh-ov')); i++) { const g = await page.$('.wh-ov [data-go]:not([aria-disabled="true"])'); if (g) await g.click(); await settle(i === 0 ? 1600 : 900); } await audit('matchday-after-' + w); await shot('matchday-' + w);
+        await b.click(); await settle(350); for (let i = 0; i < 12 && (await page.$('.wh-ov')); i++) { const g = await page.$('.wh-ov [data-go]:not([aria-disabled="true"])'); if (g) { if (i === 0) await spinStopAt(1600); else await g.click(); } await settle(900); } await audit('matchday-after-' + w); await shot('matchday-' + w);
       }
       const q = await page.$('[data-md="info"]');
       if (q) { await q.click(); await settle(500); await audit('matchday-info-sheet'); await shot('matchday-info'); await closeSheets(); } else bad('matchday: no "?" odds button');
@@ -267,7 +270,7 @@ async function journey(browser, tag) {
         await run.click(); await settle(400);
         if (await page.$('.wh-ov')) { // a Spotlight is set (remembered plan): SPIN, STOP, COLLECT
           await audit('wheel'); await shot('wheel');
-          await (await page.$('.wh-ov [data-go]')).click(); await settle(REDUCE ? 300 : 2800); if (!REDUCE) { await (await page.$('.wh-ov [data-go]')).click(); await settle(1500); }
+          if (REDUCE) { await (await page.$('.wh-ov [data-go]')).click(); await settle(300); } else { await spinStopAt(2800); await settle(1500); }
           await shot('wheel-result'); await (await page.$('.wh-ov [data-go]')).click(); await settle(400);
         }
         if (await page.$('.ns-scene')) { await audit('nets-scene'); await shot('nets-scene'); await (await page.$('.ns-skip')).click(); await settle(200); if (await page.$('.ns-scene')) { await (await page.$('.ns-skip')).click(); await settle(200); } }

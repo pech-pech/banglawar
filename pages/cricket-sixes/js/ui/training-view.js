@@ -234,7 +234,7 @@ export function coachStripHtml(raw, vm) {
   // fit: compact strip (2 rows of 56 px taps); the head (All coaches, Scout list) is a narrow column at the right of the slots.
   return '<section class="ct-strip" aria-label="Coaches">' +
     '<ul class="ct-row">' + cs.map((c) => ctCard(c, vm)).join('') + empty + '</ul>' +
-    '<div class="ct-head"><button type="button" class="c-btn ct-all" data-ct="all" aria-label="All coaches: pick and send on course" aria-haspopup="dialog">' + deco('coach', 20) + '<span>All</span></button><button type="button" class="c-btn ct-scout" data-ct="scout" aria-label="' + esc(st.scoutOpen ? 'Scout list: sign a new coach' : 'Scout list, done this season') + '">' + deco('scout', 20) + '<span>Scout</span>' + (st.scoutOpen ? '<i class="ct-dot" aria-hidden="true"></i>' : '') + '</button></div></section>';
+    '<div class="ct-head"><button type="button" class="c-btn ct-all" data-ct="all" aria-label="All coaches: pick and send on course" aria-haspopup="dialog">' + deco('coach', 20) + '<span>All</span></button><button type="button" class="c-btn ct-scout" data-ct="scout" aria-label="' + esc(st.scoutOpen ? 'Scout list: sign a new coach' : (st.scoutPassed ? 'Scout list, opens again after your next match' : 'Scout list, done this season')) + '">' + deco('scout', 20) + '<span>Scout</span>' + (st.scoutOpen ? '<i class="ct-dot" aria-hidden="true"></i>' : '') + '</button></div></section>';
 }
 /** fixtrain: confirm before Coins are spent (like the Stadium build confirm). Yes -> the course wheel (sheet:coaches {course}). */
 function courseConfirm(raw, id, open) {

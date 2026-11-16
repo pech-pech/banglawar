@@ -174,14 +174,14 @@ function pickHtml(vm) {
     const c = info.crease || [];
     const bats = c.length ? '<p class="wm-cap">Your batters</p><div class="wm-bats">' + c.map((b) => '<div class="wm-bat' + (b.onStrike ? ' is-strike' : '') + '"><b class="name">' + esc(b.name) + '</b><small>' + esc(b.r != null ? b.r + ' (' + b.b + ')' : '') + (b.onStrike ? ' · on strike' : '') + '</small></div>').join('') + '</div>' : '';
     return '<div class="wm wm--pick wm--bat">' + header(vm, { small: vm.target ? 'Chasing ' + vm.target : 'You bat' }) + needBanner(vm, vm.need ? esc(Math.max(0, (vm.need.wkLeft != null ? vm.need.wkLeft : 5 - (vm.score ? vm.score.wk : 0)))) + ' wickets left' : '') +
-      chipRowHtml(info.chips) + roarChipHtml(vm.roar) + '<p class="wm-cap">Their bowler this over</p><p class="wm-their">' + esc(vm.rivalBowler ? vm.rivalBowler.name + (vm.rivalBowler.role ? ' (' + vm.rivalBowler.role + ')' : '') : 'They pick a bowler') + '</p>' + bats + lastHtml(vm) +
+      '<div class="wm-cols">' + chipRowHtml(info.chips) + roarChipHtml(vm.roar) + '<div class="wm-colA"><p class="wm-cap">Their bowler this over</p><p class="wm-their">' + esc(vm.rivalBowler ? vm.rivalBowler.name + (vm.rivalBowler.role ? ' (' + vm.rivalBowler.role + ')' : '') : 'They pick a bowler') + '</p>' + bats + '</div>' + lastHtml(vm) +
       '<p class="wm-exp">' + esc(vm.expectText || '') + '</p>' + autoRow(vm) +
-      '<div class="wm-cta"><button type="button" class="c-btn c-btn--primary c-btn--cta wm-go" data-wm="go"><span>BAT OVER ' + esc(vm.over) + '</span><small>' + esc(batPair(vm) || 'whole over in one spin') + '</small></button></div>' + liveHtml() + '</div>';
+      '<div class="wm-cta"><button type="button" class="c-btn c-btn--primary c-btn--cta wm-go" data-wm="go"><span>BAT OVER ' + esc(vm.over) + '</span><small>' + esc(batPair(vm) || 'whole over in one spin') + '</small></button></div></div>' + liveHtml() + '</div>';
   }
   const b = bowlerOf(vm, pickedBowler(vm));
-  return '<div class="wm wm--pick wm--bowl">' + header(vm, { small: info.phaseName || 'You bowl' }) + chipRowHtml(info.chips) + roarChipHtml(vm.roar) +
-    '<p class="wm-cap">Pick your bowler <small>tap a row</small></p>' + bowlerRows(vm) + lastHtml(vm) + autoRow(vm) +
-    '<div class="wm-cta"><button type="button" class="c-btn c-btn--primary c-btn--cta wm-go" data-wm="go"' + (b ? '' : ' disabled') + '><span>BOWL OVER ' + esc(vm.over) + '</span><small class="name">' + esc(b ? b.name : 'No bowler can bowl') + '</small></button></div>' + liveHtml() + '</div>';
+  return '<div class="wm wm--pick wm--bowl">' + header(vm, { small: info.phaseName || 'You bowl' }) + '<div class="wm-cols">' + chipRowHtml(info.chips) + roarChipHtml(vm.roar) +
+    '<div class="wm-colA"><p class="wm-cap">Pick your bowler <small>tap a row</small></p>' + bowlerRows(vm) + '</div>' + lastHtml(vm) + autoRow(vm) +
+    '<div class="wm-cta"><button type="button" class="c-btn c-btn--primary c-btn--cta wm-go" data-wm="go"' + (b ? '' : ' disabled') + '><span>BOWL OVER ' + esc(vm.over) + '</span><small class="name">' + esc(b ? b.name : 'No bowler can bowl') + '</small></button></div></div>' + liveHtml() + '</div>';
 }
 const liveHtml = () => '<div class="ss-sr wm-live" role="status" aria-live="polite" aria-atomic="true"></div>';
 const legendHtml = () => '<div class="wm-legend" aria-hidden="true"><span><i class="wm-sw wm-sw--good">▲</i>good for us</span><span><i class="wm-sw wm-sw--so">●</i>so-so</span><span><i class="wm-sw wm-sw--bad">▼</i>bad for us</span><span><i class="wm-star">✱</i>= wicket</span></div>';
@@ -196,13 +196,13 @@ function wheelHtml(vm, mode) {
   const go = auto ? '<button type="button" class="c-btn c-btn--primary wm-go wm-stopauto" data-wm="stop-auto"><span>Stop auto</span></button>'
     : '<button type="button" class="c-btn c-btn--primary c-btn--cta wm-go" data-wm="spin"><span>SPIN</span><small>whole over in one spin</small></button>';
   return '<div class="wm wm--wheel wm--' + (vm.side === 'bat' ? 'bat' : 'bowl') + (auto ? ' is-auto' : '') + '">' + header(vm) +
-    needBanner(vm, vm.side === 'bat' ? esc(batPair(vm)) : '') + whoLine(vm, mode === 'ready') +
+    needBanner(vm, vm.side === 'bat' ? esc(batPair(vm)) : '') + '<div class="wm-cols">' + whoLine(vm, mode === 'ready') +
     '<p class="wm-exp">' + esc(vm.expectText || '') + (vm.roar ? ' <span class="wm-roar">' + esc(typeof vm.roar === 'object' && vm.roar.text || 'Crowd roar +5%') + '</span>' : '') + '</p>' +
     (auto ? '<ol class="wm-achips list-flat" aria-label="Overs so far">' + st.chips.map((c) => '<li>' + esc(c) + '</li>').join('') + '</ol>' : '') +
-    '<div class="wm-stage"><div class="wm-wrap"><canvas class="wm-cv" role="img" aria-label="' + esc(segWords(vm.segs)) + '"></canvas><span class="wm-mark" hidden></span></div></div>' + legendHtml() +
+    '<div class="wm-colA"><div class="wm-stage"><div class="wm-wrap"><canvas class="wm-cv" role="img" aria-label="' + esc(segWords(vm.segs)) + '"></canvas><span class="wm-mark" hidden></span></div></div>' + legendHtml() + '</div>' +
     '<div class="wm-row"><div class="wm-now" hidden><span>Stop now:</span><b class="wm-nowv"></b></div><span class="wm-tim" hidden></span>' + ctrlChips(vm.ctrl) + '</div>' +
     '<div class="wm-res" hidden></div>' + (mode === 'ready' ? autoRow(vm, false) : '') +
-    '<div class="wm-cta">' + go + '</div>' + liveHtml() + '</div>';
+    '<div class="wm-cta">' + go + '</div></div>' + liveHtml() + '</div>';
 }
 function segWords(segs) {
   return 'Over wheel: ' + (segs || []).map((g) => labelText(g) + (!g.end && g.stars ? ' with ' + plural(g.stars, 'wicket') : '') + ' ' + Math.round((g.p || 0) * 100) + ' in 100 ' + (TONE[g.tone] || TONE.so)[1]).join(', ');
@@ -222,9 +222,10 @@ function makeWheel(cv, segs, vm) {
   function size() {
     const wrap = cv.parentElement, stage = wrap && wrap.parentElement;
     const w = stage ? stage.clientWidth : 300, h = stage ? stage.clientHeight : 300;
-    W = Math.max(150, Math.floor(Math.min(w, h, 380)));
+    const lw = typeof window !== 'undefined' && window.innerWidth >= 760 && window.innerHeight >= 500 && window.innerWidth > window.innerHeight; // LW: the wheel may grow with the free height
+    W = Math.max(150, Math.floor(Math.min(w, h, lw ? 540 : 380)));
     // QA-V1 H2 (G5): the drawn wheel keeps the size it first had in this over; the result panel takes the room of the hidden hint lines instead of re-sizing it
-    const lk = (vm && vm.over) + ':' + (vm && vm.side);
+    const lk = (vm && vm.side) + ':' + (typeof window !== 'undefined' ? window.innerWidth + 'x' + window.innerHeight : ''); // N8: one size per match (per side and screen), not per over
     if (st.lock && st.lock.key === lk && st.lock.W - W < 8) W = st.lock.W; else st.lock = { key: lk, W };
     for (const c of [cv, ovc]) { c.width = c.height = Math.round(W * k); c.style.width = c.style.height = W + 'px'; }
     if (wrap) { wrap.style.width = wrap.style.height = W + 'px'; }

@@ -150,11 +150,22 @@ export function coachStepInUse(s) { const q = coachQuality(s); return q > 0 ? Ma
 export const MAX_COACHES = CO.slots;
 
 /** @param {any} s @returns {{n:number, signed:string|null, passed:boolean}|null} */
-const scoutRec = (s) => (s.scout && s.scout.n === seasonN(s) ? s.scout : null);
+const scoutRec = (s) => (s.scout && s.scout.n === seasonN(s) && !scoutReopened(s) ? s.scout : null);
+/** Matches/rounds played this season (season.results grows as each round is played). @param {any} s */
+const playedN = (s) => (s && s.season && Array.isArray(s.season.results) ? s.season.results.length : 0);
+/** A pass shuts the list only until the next match is played. Old saves (passed, no passAt) stay shut for the season. @param {any} s */
+function scoutReopened(s) {
+  const r = s.scout;
+  return !!(r && r.passed && !r.signed && Number.isFinite(r.passAt) && playedN(s) > r.passAt);
+}
+/** How many times the list was passed this season (rng salt: a reopened list shows new names). @param {any} s */
+const passesOf = (s) => (s.scout && s.scout.n === seasonN(s) && Number.isFinite(s.scout.passes) ? s.scout.passes : 0);
+/** Closed by a pass and not yet reopened. @param {any} s */
+export const scoutPassed = (s) => { const r = scoutRec(s); return !!(r && r.passed); };
 /** This season's scout list: [{ id, name, step, strong }] (deterministic from seed, season, league). Empty once you signed or passed. */
 export function scoutList(s) {
   if (scoutRec(s)) return [];
-  const L = leagueOfState(s), n = seasonN(s), rng = makeRng(`${s.seed || 'sixes'}|scout|${n}|${L}`);
+  const L = leagueOfState(s), n = seasonN(s), rng = makeRng(`${s.seed || 'sixes'}|scout|${n}|${L}` + (passesOf(s) ? `|p${passesOf(s)}` : ''));
   const sp = s.scoutSpin && s.scoutSpin.n === n ? s.scoutSpin : null; // wheel meta: the Scout wheel's Extra name (+1 candidate) and Top name (+steps to the best)
   const count = CO.scoutSize[L - 1] + (sp ? (sp.extra | 0) : 0) + bonusNamesOf(s), out = []; // Scout-job names (coach-scout.js) are extra loop iterations: same grade-centre rule
   for (let i = 0; i < count; i++) {
@@ -186,11 +197,18 @@ export function signCoach(s, id) {
   if (!canSign(s, id).ok) return s;
   const { landed, ...c } = scoutCandidates(s).find((x) => x.id === id) || /** @type {any} */ ({}); if (!c.id) return s;
   const n = clone(s); n.coaches = (n.coaches || []).concat([{ ...c, away: 0, courseSeason: null }]);
-  n.scout = { ...(n.scout && typeof n.scout === 'object' ? n.scout : {}), n: seasonN(s), signed: id, passed: false }; // lead call 1: scout.* keys kept
+  n.scout = { ...(n.scout && typeof n.scout === 'object' ? n.scout : {}), n: seasonN(s), signed: id, passed: false }; delete n.scout.passAt; // lead call 1: scout.* keys kept
   return n;
 }
-/** Pass on this season's scout list. @param {any} s */
-export function passScout(s) { if (scoutRec(s)) return s; const n = clone(s); n.scout = { ...(n.scout && typeof n.scout === 'object' ? n.scout : {}), n: seasonN(s), signed: null, passed: true }; return n; } // lead call 1: scout.* keys kept
+/** Pass on the scout list: closed until the next match is played, then open again (new spin, list and landed card reset). A hire stays shut all season. @param {any} s */
+export function passScout(s) {
+  if (scoutRec(s)) return s;
+  const n = clone(s), k = String(seasonN(s)), W = n.wheels;
+  n.scout = { ...(n.scout && typeof n.scout === 'object' ? n.scout : {}), n: seasonN(s), signed: null, passed: true, passAt: playedN(s), passes: passesOf(s) + 1 }; // lead call 1: scout.* keys kept
+  delete n.scoutSpin; // the landed card and spin go; the reopened list starts fresh
+  if (W && typeof W === 'object') { if (W.stops && W.stops.scout) delete W.stops.scout[k]; if (W.scoutCards) delete W.scoutCards[k]; }
+  return n;
+}
 /** Release a coach (frees a slot). @param {any} s @param {string} id */
 export function releaseCoach(s, id) {
   if (!coachById(s, id)) return s;

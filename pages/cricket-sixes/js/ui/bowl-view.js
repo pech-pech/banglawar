@@ -155,6 +155,12 @@ export function render(el, vm, dispatch) {
     const a = selRow.getBoundingClientRect(), b = lst.getBoundingClientRect();
     if (a.bottom > b.bottom) lst.scrollTop += a.bottom - b.bottom + 4; else if (a.top < b.top) lst.scrollTop -= b.top - a.top + 4;
   }
+  // QA-V5 N1: #app is the page scroller now, so bring the picked row above the CTA bar (css scroll-margin); no animation under reduced motion
+  if (selRow && typeof selRow.scrollIntoView === 'function') {
+    const w = /** @type {any} */ (typeof window !== 'undefined' ? window : null);
+    const rm = !!(w && w.matchMedia && w.matchMedia('(prefers-reduced-motion: reduce)').matches);
+    selRow.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: rm ? 'auto' : 'smooth' });
+  }
   // the sticky header must never cut a tile: scroll-padding + snap for the finger, and one nudge here so a tile is whole or fully hidden
   const hdr = lst && lst.querySelector('.bv-head');
   const clearHeader = () => {

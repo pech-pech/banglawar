@@ -74,3 +74,18 @@
 .skin-scorebook .hb-cap { margin-top: 4px; }
 .skin-scorebook .hb-strip { height: 76px; }
 @media (max-width: 599px) and (max-height: 700px) { .skin-scorebook .hb-strip { height: auto; } }
+
+/* LW: landscape inner (GRID-RULES G0) - Scorebook skin re-sets that the Home LW block needs undone */
+@media (min-width: 760px) and (min-height: 500px) and (orientation: landscape) {
+  .skin-scorebook .hb-l2 > .hb-chap { background: transparent; border: 0; color: var(--sb-plate); }
+  .skin-scorebook .hb-colB > .hb-strip { height: auto; }
+  .skin-scorebook .hb-band .hb-week { white-space: normal; overflow: visible; text-overflow: clip; text-wrap: balance; padding-left: 8px; padding-right: 8px; }
+}
+/* PW (portrait >= 600): Scorebook serif runs wider; shrink to the 14 px floor or wrap instead of cutting (QA-LW-HOME D2) */
+@media (min-width: 600px) and (orientation: portrait) {
+  .skin-scorebook .hb-goal__a { font-size: 16px; }
+  .skin-scorebook .hb-band .hb-fg .fg-tx { white-space: normal; overflow: visible; text-overflow: clip; line-height: 16px; }
+  .skin-scorebook .hb-dock .hb-plate { font-size: 14px; }
+  .skin-scorebook .hb-colB > .hb-strip { height: auto; }
+  .skin-scorebook .hb-band .hb-week { white-space: normal; overflow: visible; text-overflow: clip; text-wrap: balance; line-height: 16px; padding-left: 8px; padding-right: 8px; }
+}
