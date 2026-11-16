@@ -13,7 +13,7 @@ test('spotlight ring: Kind Floor prints x1.2 on the floor pieces, not owned = x1
 test('result strip text and legend', () => {
   assert.equal(tv.spotMult({ value: 1.2 }), 'x1.2');
   assert.equal(tv.spotMult({}), '');
-  assert.deepEqual(tv.spotLegend(tv.spotRing({ kindFloor: true })), []);
+  assert.deepEqual(tv.spotLegend(tv.spotRing({ kindFloor: true })), [{ ch: '1.2', text: 'x1.2: the thin slice' }]);
 });
 test('slot: empty without a player, strip with one', () => {
   assert.equal(tv.slotSpotlight({}), '');

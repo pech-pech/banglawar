@@ -95,7 +95,7 @@ function spotSheet(vm, dispatch, slot) {
   const rows = (vm.rows || []).filter((r) => r.id !== skipId), cur = two ? vm.plan.spotlight2Id : vm.plan.spotlightId;
   const item = (id, name, sub) => '<button type="button" class="c-btn c-btn--block t2-pickrow" data-sp="' + esc(id == null ? '' : id) + '" aria-pressed="' + (cur === id || (cur == null && id == null)) + '"><span class="t2-pk"><b>' + esc(name) + '</b>' + (sub ? '<small>' + esc(sub) + '</small>' : '') + '</span></button>';
   const close = openSheet(two ? 'Second Spotlight' : 'Spotlight wheel', '<p class="tr-note">' + deco('info', 20) + '<span>' + (two ? 'Twin Spotlight Pass: a second player spins his own wheel. Same cost.' : 'One player spins the wheel instead of his normal roll. Same cost.') + '</span></p>' + item(null, two ? 'No second player' : 'No Spotlight', 'Everyone else rolls as usual') +
-    rows.filter((r) => r.state !== 'skip').map((r) => item(r.id, r.name, strongOf(r))).join(''));
+    rows.filter((r) => r.state !== 'skip').map((r) => item(r.id, r.name, strongOf(r))).join(''), { returnFocus: [two ? '[data-lo="spot2pick"]' : '[data-lo="spotpick"]', '[data-lo="runnets"]'] });
   const body = document.querySelector('.sheet-fixed .c-sheet__body');
   if (body) body.addEventListener('click', (e) => { const b = e.target.closest('[data-sp]'); if (!b) return; const v = b.getAttribute('data-sp'); close(); dispatch('SetTrainPlan', { [key]: v === '' ? null : v }); });
 }
@@ -120,7 +120,8 @@ function openSpotlightWheel(dispatch, slot) {
       return { big: st.word, from: a, to: b, barHtml: moved ? '' : letterBar(to, raw0), breakthrough: !!(p.jackpot || moved),
         mult: spotMult(p), say: pr.name + ' ' + st.word + (spotMult(p) ? ' ' + spotMult(p) : '') + ': +' + g + ' steps, ' + (moved ? a + ' to ' + b : a + ', the bar fills') + (p.jackpot ? ', jackpot' : '') + '.' };
     },
-    onCollect: () => { if (!two && latest.vm.wheel2) { openSpotlightWheel(dispatch, 2); return; } runPending = true; dispatch('RunNets', {}); },
+    onCollect: () => { if (!two && latest.vm.wheel2) { openSpotlightWheel(dispatch, 2); return; } runPending = true; dispatch('RunNets', {}); setTimeout(() => { const f = document.querySelector('[data-ft="done"], [data-lo="runnets"]'); if (f && f.focus) f.focus(); }, 0); },
+    onClose: () => setTimeout(() => { const f = document.querySelector('[data-lo="' + (two ? 'spot2pick' : 'spotpick') + '"], [data-lo="runnets"]'); if (f && f.focus && !document.querySelector('.wh-ov')) f.focus(); }, 0),
   });
 }
 
@@ -156,15 +157,19 @@ export function spotRing(w) {
   return v.map((x, i) => { const same = v.length === ring.length, val = same ? ring[i].value : x; return { id: i, w: ws[i], value: val, label: same ? ring[i].label : 'x' + (Math.round(val * 100) / 100).toFixed(1), tier: val > lo ? 'top' : 'low', gold: golds.includes(i) }; });
 }
 /** Legend for under-7% pieces whose printed label is longer than one char and not a number. */
-export function spotLegend(ring) { return (ring || []).filter((s) => s.w < 0.7 && String(s.label).length > 1 && !/^[+-]?[x\d.]+$/.test(String(s.label))).map((s) => ({ ch: String(s.label).charAt(0), text: String(s.label) })); }
+export function spotLegend(ring) {
+  const out = (ring || []).filter((s) => s.w < 0.7 && String(s.label).length > 1 && !/^[+-]?[x\d.]+$/.test(String(s.label))).map((s) => ({ ch: String(s.label).charAt(0), text: String(s.label) }));
+  (ring || []).forEach((s) => { const l = String(s.label); if (s.w < 0.7 && /^\d+(\.\d+)?$/.test(l) && !out.some((o) => o.ch === l)) out.push({ ch: l, text: 'x' + l + ': the thin slice' }); }); // a bare '1.2' on the thin slice reads as x1.2
+  return out;
+}
 /** Result strip multiplier text ('x1.2') from a pending result; '' when unknown. */
 export function spotMult(p) { const v = p && (p.mult != null ? p.mult : p.value != null ? p.value : p.gain); return v != null && isFinite(+v) ? 'x' + String(Math.round(+v * 100) / 100) : ''; }
 /** Training tab strip: the multipliers on the Spotlight ring (gold first). '' with no Spotlight player. */
 export function slotSpotlight(vm) {
   const w = vm && vm.wheel; if (!w || !w.player) return '';
-  const ring = spotRing(w), by = {}; ring.forEach((s) => { by[s.label] = (by[s.label] || 0) + 1; });
+  const ring = spotRing(w), by = {}; ring.forEach((s) => { const l = /^\d/.test(String(s.label)) ? 'x' + s.label : s.label; by[l] = (by[l] || 0) + 1; });
   const keys = Object.keys(by).sort((a, b) => parseFloat(b.replace('x', '')) - parseFloat(a.replace('x', '')));
-  return '<p class="tr-note t2-spotring" aria-label="' + esc('Spotlight wheel: ' + keys.join(', ')) + '">' + deco('burst', 20) + '<span>' + esc(keys.join('  ')) + '</span></p>';
+  return '<p class="tr-note t2-spotring" role="group" aria-label="' + esc('Spotlight wheel: ' + keys.join(', ')) + '">' + deco('burst', 20) + '<span>' + esc(keys.join('  ')) + '</span></p>';
 }
 /* SLOT:Spotlight end */
 /* SLOT:JobChip start */
@@ -223,7 +228,8 @@ function afterRender(el, vm, dispatch) {
 export function render(el, rawVm, dispatch, open) {
   const vm = adapt(rawVm); latest = { vm, dispatch, raw: rawVm };
   const P = vm.plan, pv = vm.preview || { cost: 0, trainN: 0, skippedN: 0, shortN: 0, hint: null }, costs = vm.costs || { easy: 10, normal: 13, push: 18 };
-  const had = el.contains(document.activeElement) ? document.activeElement : null, key = had && had.getAttribute ? (had.getAttribute('data-act') || '') + (had.getAttribute('data-arg') || '') : '';
+  const had = el.contains(document.activeElement) ? document.activeElement : null, key = had && had.getAttribute ? (had.getAttribute('data-act') || '') + (had.getAttribute('data-arg') || '') + (had.getAttribute('data-ct') ? 'ct:' + had.getAttribute('data-ct') + ':' + (had.getAttribute('data-id') || '') : '') + (had.getAttribute('data-lo') ? 'lo:' + had.getAttribute('data-lo') : '') : '';
+  const keyOf = (n) => (n.getAttribute('data-act') || '') + (n.getAttribute('data-arg') || '') + (n.getAttribute('data-ct') ? 'ct:' + n.getAttribute('data-ct') + ':' + (n.getAttribute('data-id') || '') : '') + (n.getAttribute('data-lo') ? 'lo:' + n.getAttribute('data-lo') : '');
   const nets = vm.nets, rows = vm.rows || [];
   const top = '<div class="c-strip strip tr-top"><span>' + deco('train', 24) + '<span class="tr-wk"><span class="tr-nw">Week ' + esc(vm.week) + '</span></span></span><span class="c-strip__right tr-tpw">' + tp(vm.tp) +
     '<button type="button" class="c-icon-btn tr-help" data-act="sheet:traininghelp" aria-label="Help: how training works" aria-haspopup="dialog">' + deco('why', 24) + '</button></span></div>';
@@ -269,7 +275,7 @@ export function render(el, rawVm, dispatch, open) {
     else if (a === 'all' && open) open('coaches');
   });
   drawFaces(root);
-  if (had && key) { const same = [...el.querySelectorAll('[data-act]')].find((n) => ((n.getAttribute('data-act') || '') + (n.getAttribute('data-arg') || '')) === key && !n.disabled); const b = same || el.querySelector('[data-lo="runnets"], [data-ft="done"]'); if (b) b.focus(); }
+  if (had && key) { const same = [...el.querySelectorAll('[data-act],[data-ct],[data-lo]')].find((n) => keyOf(n) === key && !n.disabled); const b = same || el.querySelector('[data-lo="runnets"], [data-ft="done"]'); if (b) b.focus(); }
   announce(nets ? 'Nets done. ' + nets.lines.length + ' trained.' : 'Cost ' + pv.cost + ' TP' + (pv.skippedN ? ', ' + pv.skippedN + " can't gain" : '') + (pv.hint ? '. ' + pv.hint : ''));
   afterRender(el, vm, dispatch);
 }

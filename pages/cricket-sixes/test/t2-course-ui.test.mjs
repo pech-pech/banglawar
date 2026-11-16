@@ -21,7 +21,8 @@ test('startCourse opens on the component (ring, wheelId, legend); old hooks kept
   assert.match(src, /spinKey: cr0\.spinKey/); assert.match(src, /stored: cr0\.stored/);
   assert.doesNotMatch(src, /widths: w\.|slices: w\.|COAST|STOP_FROM|wheelStop/);
   assert.equal(cs.courseRing({}).length, COURSE_SLICES.length);
-  assert.equal(cs.courseRing({ kindFloor: 1 }).filter((r) => r.label === '+1.2').length, 7);
+  assert.equal(cs.courseRing({ kindFloor: 1 }).filter((r) => r.label === '+1.2').length, 0); // Kind Floor pays +2 (kindFloorGain), never +1.2
+  assert.equal(cs.courseRing({ kindFloor: 1 }).filter((r) => r.label === '+2').length, 9);
   assert.match(src, /The tick shows where it will land\./);
   assert.doesNotMatch(src, /timing: true/);
 });

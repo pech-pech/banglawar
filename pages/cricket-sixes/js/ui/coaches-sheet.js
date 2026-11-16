@@ -10,7 +10,7 @@ import { deco, strongHtml } from './training-view.js';
 import { letterOfStep } from '../core/letters.js';
 import { openWheel } from './wheel-view.js';
 import { scoutBodyHtml, scoutDone, scoutSpinOpen } from './coachpick-view.js';
-import { applyKindFloor } from '../core/perks/kind-floor.js';
+import { kindFloorGain } from '../core/perks/kind-floor.js';
 import { COURSE_SLICES } from '../data/wheel-slices-train.js';
 
 /* Z5 UI slots (SEAMS-S0): fenced, return '' today. Owners: Course T2, job chip + XP bar T5, Clinic button T6. */
@@ -33,7 +33,8 @@ export function slotCourse(vm) {
 } // owner: T2
 /** The Course ring for a coach's course vm: COURSE_SLICES with Kind Floor applied when course.kindFloor is set, or the tree's widths / extra gold (Widener, Extra Gold) when the vm wheel carries them. */
 export function courseRing(cr) {
-  const base = applyKindFloor(COURSE_SLICES, !!(cr && cr.kindFloor)).map((r) => ({ ...r, label: r.label.startsWith('x') ? '+' + r.label.slice(1) : r.label }));
+  const kf = !!(cr && cr.kindFloor), vals = COURSE_SLICES.map((r) => r.value), gi = COURSE_SLICES.map((r, i) => (r.gold ? i : -1)).filter((i) => i >= 0);
+  const base = COURSE_SLICES.map((r, i) => { const val = kf ? kindFloorGain('course', { slices: vals, golds: gi }, i, r.value, true) : r.value; return { ...r, value: val, label: '+' + val }; }); // Kind Floor: the +1 pieces print and pay +2, never +1.2
   const w = cr && cr.wheel, v = w && w.slices, ws = w && w.widths;
   if (!Array.isArray(v) || !Array.isArray(ws) || v.length !== ws.length || !v.length || (v.length === base.length && ws.every((x, i) => Math.abs(x - base[i].w) < 1e-6))) return base;
   const same = v.length === base.length, golds = w.golds && w.golds.length ? w.golds : [w.jackpotIndex || 0];
@@ -64,12 +65,12 @@ function coachHtml(c, vm) {
   const cr = c.course || {};
   const price = cr.free ? 'Free' : cr.cost != null ? cr.cost + ' Coins' : '';
   return '<section class="tr-coach t2-coach' + (c.picked ? ' is-picked' : '') + '" aria-label="Coach ' + esc(c.name) + ', grade ' + esc(c.letter) + '">' +
-    '<div class="tr-coach__head"><span class="tr-coach__ico">' + deco('coach', 36) + '</span><b class="tr-coach__name">' + esc(c.name) + '</b><span class="t2-grade" aria-label="Grade ' + esc(c.letter) + '">' + esc(c.letter) + '</span>' +
+    '<div class="tr-coach__head"><span class="tr-coach__ico">' + deco('coach', 36) + '</span><b class="tr-coach__name">' + esc(c.name) + '</b><span class="t2-grade"><span class="ss-sr">Grade </span>' + esc(c.letter) + '</span>' +
     (c.away ? '<span class="c-tag c-tag--locked">Away this week</span>' : c.picked ? '<span class="c-tag c-tag--done">Picked</span>' : '') + '</div>' +
     '<div class="t2-strong">' + strongHtml(c.strong) + '</div>' +
     '<p class="tr-note">' + deco(fit ? 'done' : 'info', 20) + '<span>' + (fit ? 'Helps this week: strong in the focus.' : 'No coach help this week: not strong in the focus.') + '</span></p>' +
-    '<div class="t2-cbtns"><button type="button" class="c-btn t2-cb" data-pick="' + esc(c.id) + '" aria-pressed="' + !!c.picked + '"' + (c.away ? ' disabled aria-disabled="true"' : '') + '>' + (c.picked ? 'Picked this week' : 'Pick this week') + '</button>' +
-    '<button type="button" class="c-btn t2-cb" data-course="' + esc(c.id) + '"' + (cr.ok ? '' : ' disabled aria-disabled="true"') + ' aria-label="' + esc('Course for ' + c.name + (price ? ', ' + price : '') + (cr.ok ? (cr.licence ? '. Uses your Licence' : '') + '. He is away 1 week' : '. ' + (cr.why || 'Not now'))) + '">' + deco('upgrade', 20) + '<span>Course' + (price ? ': ' + esc(price) : '') + (cr.licence ? ' (2nd, Licence)' : '') + '</span></button></div>' +
+    '<div class="t2-cbtns"><button type="button" class="c-btn t2-cb" data-pick="' + esc(c.id) + '" aria-pressed="' + !!c.picked + '"' + (c.away ? ' aria-disabled="true"' : '') + '>Pick this week</button>' +
+    '<button type="button" class="c-btn t2-cb" data-course="' + esc(c.id) + '"' + (cr.ok ? '' : ' aria-disabled="true"') + ' aria-label="' + esc('Course for ' + c.name + (price ? ', ' + price : '') + (cr.ok ? (cr.licence ? '. Uses your Licence' : '') + '. He is away 1 week' : '. ' + (cr.why || 'Not now'))) + '">' + deco('upgrade', 20) + '<span>Course' + (price ? ': ' + esc(price) : '') + (cr.licence ? ' (2nd, Licence)' : '') + '</span></button></div>' +
     (cr.ok ? '' : '<p class="tr-note t2-why">' + deco('lock', 20) + '<span>' + esc(cr.why || 'Not now') + '</span></p>') + slotJobChip(vm, c) + slotXpBar(vm, c) + slotClinicBtn(vm, c) + '</section>';
 }
 
@@ -79,7 +80,7 @@ export function coachesHtml(vm) {
   return lic + slotCourse(vm) + cs.map((c) => coachHtml(c, vm)).join('') +
     Array.from({ length: free }, () => '<div class="t2-slot" aria-label="Empty coach slot"><span>' + deco('coach', 24) + '</span><span>Empty slot</span></div>').join('') +
     '<button type="button" class="c-btn c-btn--block t2-scout" data-scout="1">' + deco('scout', 20) + '<span>Scout list' + (vm.scout && vm.scout.open ? '' : ' (done this season)') + '</span></button>' +
-    '<button type="button" class="c-btn c-btn--block t2-none" data-pick=""' + (none ? ' aria-pressed="true"' : ' aria-pressed="false"') + '>' + (none ? 'No coach this week (picked)' : 'No coach this week') + '</button>' +
+    '<button type="button" class="c-btn c-btn--block t2-none" data-pick=""' + (none ? ' aria-pressed="true"' : ' aria-pressed="false"') + '>No coach this week</button>' +
     '<p class="tr-note">' + deco('info', 20) + '<span>' + (free ? free + (free === 1 ? ' slot' : ' slots') + ' free.' : 'Full: release one to sign.') + ' A coach helps only when he is strong in this week\'s focus.</span></p>';
 }
 
@@ -96,8 +97,8 @@ export function open(vm, dispatch, openFn, arg, refresh) {
     const sc = e.target.closest('[data-scout]');
     if (sc) { close(); openScout(vm.scout || (refresh && refresh().scout) || {}, dispatch, refresh); return; }
     const p = e.target.closest('[data-pick]'), c = e.target.closest('[data-course]');
-    if (p && !p.disabled) { const id = p.getAttribute('data-pick'); close(); dispatch('PickWeekCoach', { coachId: id === '' ? null : id }); }
-    else if (c && !c.disabled) {
+    if (p && p.getAttribute('aria-disabled') !== 'true') { const id = p.getAttribute('data-pick'); close(); dispatch('PickWeekCoach', { coachId: id === '' ? null : id }); }
+    else if (c && c.getAttribute('aria-disabled') !== 'true') {
       const id = c.getAttribute('data-course'); if (!(vm.coaches || []).some((x) => x.id === id)) return;
       close(); startCourse(vm, id, dispatch, refresh);
     }
@@ -116,7 +117,7 @@ export function startCourse(vm, id, dispatch, refresh) {
     title: 'Course', sub: co.name, cardHtml: card, pending: cr0.pending || null,
     guide: !!cr0.guide, zone: +cr0.zone || 0, chime: !!cr0.chime, tokens: cr0.tokens || [], getTokens: () => cur().tokens || [], look: cr0.look || null, phys: (cr0.wheel && cr0.wheel.phys) || undefined, spokeGain: () => cur().spokeGain || 0, onToken: (kind, careful) => dispatch('UseToken', { wheel: 'course', kind, careful }), // wheel meta: empty when the flag is off
     onSpin: (stop) => dispatch('CourseSpin', { coachId: id, careful: stop, stop }), getPending: () => cur().pending || null, // the handler records the stop (recordStop) and lands the same slice
-    describe: (r) => { const to = Math.min(COURSE_CAP_STEP, from + r.gain), paid = to - from, a = letterOfStep(from), b = letterOfStep(to), cut = paid < r.gain; return { big: 'Grade steps', from: a, to: b, paid, breakthrough: !!r.jackpot || a !== b, say: co.name + ' course: ' + (cut ? '+' + r.gain + ', cut at ' + letterOfStep(COURSE_CAP_STEP) + ': you gain +' + paid + '. ' : '') + (a === b ? a + (cut ? ' stays' : ', already top grade') : a + ' to ' + b) + (r.jackpot ? ', jackpot' : '') + '.' }; },
+    describe: (r) => { const to = Math.min(COURSE_CAP_STEP, from + r.gain), paid = to - from, a = letterOfStep(from), b = letterOfStep(to), cut = paid < r.gain; return { big: 'Grade steps', from: a, to: b, paid, line: cut ? '+' + r.gain + ', cut at ' + letterOfStep(COURSE_CAP_STEP) + ': you gain +' + paid : '', breakthrough: !!r.jackpot || a !== b, say: co.name + ' course: ' + (cut ? '+' + r.gain + ', cut at ' + letterOfStep(COURSE_CAP_STEP) + ': you gain +' + paid + '. ' : '') + (a === b ? a + (cut ? ' stays' : ', already top grade') : a + ' to ' + b) + (r.jackpot ? ', jackpot' : '') + '.' }; },
     onCollect: () => dispatch('RunCourse', { coachId: id }),
   });
 }

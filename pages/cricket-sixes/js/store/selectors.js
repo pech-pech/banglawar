@@ -355,7 +355,7 @@ export const ratesOf = (p) => ({ batPower: p.bp, batSkill: p.bs, bowlSpeed: p.sp
 const boostOf = (s, wid, r) => {
   if (!FLAGS.wheelMeta || !r) return {};
   const X = effective(s)[wid] || {}, boosted = !!r.boosted, hot = wid === 'spot' && !!r.jackpot && !!X.streak && (r.streak0 | 0) >= 1;
-  return { boosted, boostBy: boosted && X.booster ? X.booster.value : 0, hot, hotBy: hot ? Math.min(r.streak0 | 0, WM.STREAK_MAX) : 0 };
+  return { boosted, boostBy: boosted && X.booster ? X.booster.value : 0, hot, hotBy: hot ? Math.round(Math.min(r.streak0 | 0, WM.STREAK_MAX) * WM.UNIT.spot * 1000) / 1000 : 0 };
 };
 /** Course wheel meta extras: course.wheel (tree applied, or the stored wheel while a result waits), guide, tokens, look. */
 const courseMeta = (s, c, used) => { const x = metaExtras(s, 'course', courseWheel(c.step), used ? s.training.coursePending : null, 1); return { wheel: x.wheel, guide: x.guide, zone: x.zone, chime: x.chime, tokens: used ? x.tokens : [], look: x.look, spokeGain: used ? spokeGainOf(s, 'course') : 0 }; };
