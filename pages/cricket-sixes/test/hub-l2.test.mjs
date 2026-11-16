@@ -119,7 +119,7 @@ test('L2 Fans tile shows "!" badge only when an activity is pending', async () =
 test('L2 This week chip: shows fan activity word, opens sheet:week, absent when nothing waits', async () => {
   const h = await html();
   const chip = btnOf(h, 'hb-week');
-  assert.ok(chip, 'chip'); assert.match(chip, /data-act="sheet:week"/); assert.match(text(chip), /Fan activity: pick one, or rest/);
+  assert.ok(chip, 'chip'); assert.match(chip, /data-act="sheet:week"/); assert.match(text(chip), /Fan activity(?!:)/);
   const none = await html({ activities: { picked: null, available: false } });
   assert.ok(!/hb-week/.test(none), 'no chip when nothing waits');
 });

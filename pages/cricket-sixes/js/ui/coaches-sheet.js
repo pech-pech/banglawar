@@ -146,7 +146,7 @@ export function startCourse(vm, id, dispatch, refresh) {
   const co = (vm.coaches || []).find((x) => x.id === id); if (!co || !co.course || !co.course.ok) return;
   const cur = () => { const v = refresh ? refresh() : vm, k = (v.coaches || []).find((x) => x.id === id); return k && k.course ? k.course : co.course; };
   const from = co.step, cr0 = co.course;
-  const card = '<div class="wh-who"><b class="t2-nm">' + esc(co.name) + '</b><span class="c-tag">Course: away 1 week</span></div><div class="wh-gr"><span class="wh-g hit"><span>Grade</span><b>' + esc(co.letter) + '</b></span><span class="wh-g wh-wide"><span>Strong</span><b class="t2-strong">' + strongHtml(co.strong) + '</b></span></div><p class="dr-hint">The tick shows where it will land.</p>';
+  const card = '<div class="wh-who"><b class="t2-nm">' + esc(co.name) + '</b><span class="c-tag">Course: away 1 week</span></div><div class="wh-gr"><span class="wh-g hit"><span>Grade</span><b>' + esc(co.letter) + '</b></span><span class="wh-g wh-wide"><span>Strong</span><b class="t2-strong">' + strongHtml(co.strong) + '</b></span></div><p class="dr-hint">The tick shows the slice under the pointer now.</p>';
   openWheel({
     wheelId: 'course', spinKey: cr0.spinKey || undefined, wobKey: cr0.wobKey || undefined, stored: cr0.stored || undefined, ring: courseRing(cr0), legend: courseKey(cr0), J: 1.2, // CONTRACT-A sec 4: ring + engine J 1.2 (phys.J = after Steady)
     title: 'Course', sub: co.name, cardHtml: card, pending: cr0.pending || null,

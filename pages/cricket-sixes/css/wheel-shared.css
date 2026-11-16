@@ -13,7 +13,7 @@
 /* AIM marker: gold triangle, ink outline, 12 px bold word with an ink halo. */
 .wk-aim { display: inline-flex; flex-direction: column; align-items: center; pointer-events: none; }
 .wk-aim-tri { fill: var(--gold, #d2b357); stroke: var(--outline, #2a2238); stroke-width: 2.5; }
-.wk-aim-txt { font-size: 12px; font-weight: 700; fill: var(--outline, #2a2238); paint-order: stroke; stroke: var(--cream, #f3ebd3); stroke-width: 2.5px; }
+.wk-aim-txt { font-size: 14px; font-weight: 700; fill: var(--outline, #2a2238); paint-order: stroke; stroke: var(--cream, #f3ebd3); stroke-width: 2.5px; }
 
 /* Legend for under-7% slices: letter chip + words, wraps, never a fixed height. */
 .wk-legend { display: flex; flex-wrap: wrap; gap: 6px 12px; min-height: 26px; margin: 4px 0; font-size: 12.5px; line-height: 1.3; }
@@ -70,3 +70,25 @@
 /* T4 QA5 NEW-6: ring wheels hang from the top of the stage and the ready box keeps room for the result, so the wheel does not move when the result card appears */
 .wh-ov.is-ring .wh-stage { align-items: flex-start; }
 .wh-ov.is-ring .wh-msg { min-height: 180px; }
+
+/* ---- T8 helper A ---- */
+/* ONE AIM at the top: upright word fixed above the pointer (never rides the rim). 14 px min, cream on an ink outline. */
+.wh-ov .wh-aimw { left: 50%; top: -46px; transform: translateX(-50%); font-size: 14px; line-height: 16px; }
+/* Ring wheels hang from the top of the stage in every state (spin, result): the wheel never moves, never resizes. */
+.wh-ov.is-ring .wh-stage { justify-content: flex-start; }
+/* Legend: ink plaque so the text contrast does not depend on the skin's grass: #f7f0da on #2a2238 is about 13:1 (>= 4.5:1), 14 px. */
+.wh-ov .wk-legend.wh-lgd { background: var(--outline, #2a2238); color: #f7f0da; padding: 4px 10px; border-radius: 3px; font-size: 14px; line-height: 22px; text-shadow: none; }
+.wh-ov .wk-legend.wh-lgd .wk-tier--top { background: #7fd16f; }
+.wh-ov .wk-legend.wh-lgd .wk-tier--mid { box-shadow: inset 0 0 0 1.5px #f7f0da; }
+.wh-ov .wk-legend.wh-lgd .wk-tier--low { box-shadow: inset 0 0 0 1.5px #f7f0da; }
+.wh-ov .wk-legend.wh-lgd .wk-tier--gold { box-shadow: inset 0 0 0 1.5px #f7f0da; }
+.wh-ov.is-ring .wh-stage { align-items: center; } /* centred across (the old flex-start sent a small wheel to the left edge) */
+@media (max-height: 700px) { .wh-ov.is-ring .wh-msg { height: 76px; min-height: 76px; } } /* short screens: the result box needs ~70 px (T8 N: was 104), give the wheel the rest */
+
+/* T8 N: short AND wide (Fold cover 475x638): the legend sits BESIDE the wheel (a column), so the wheel gets the height the legend row used. Same place in every state. */
+@media (max-height: 700px) and (min-width: 440px) {
+  .wh-ov.is-ring { display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-rows: auto auto minmax(0, 1fr) auto auto; column-gap: 0; row-gap: var(--c-sp-2, 8px); }
+  .wh-ov.is-ring > .t2-strip, .wh-ov.is-ring > .wh-card, .wh-ov.is-ring > .wh-foot, .wh-ov.is-ring > [data-live] { grid-column: 1 / -1; }
+  .wh-ov.is-ring > .wh-stage { grid-column: 1; grid-row: 3; min-height: 0; }
+  .wh-ov.is-ring > .wk-legend.wh-lgd { grid-column: 2; grid-row: 3; align-self: center; flex-direction: column; flex-wrap: nowrap; justify-content: flex-start; align-items: flex-start; gap: 6px; margin: 0 8px 0 0; min-width: 0; }
+}

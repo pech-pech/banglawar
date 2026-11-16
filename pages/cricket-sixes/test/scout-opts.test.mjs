@@ -66,3 +66,9 @@ test('one short name per card: wheel label, Tick-on readout and result chip prin
     assert.equal(rowText(r), r.label); // no renderer pick yet: label
   });
 });
+
+test('T8: Scout legend centre dot is the pale dot the wheel draws (not the sand mid dot)', async () => {
+  const { SCOUT_LEGEND } = await import('../js/ui/wheels/scout-opts.js');
+  const { legendShape } = await import('../js/ui/wheel-look.js');
+  assert.deepEqual(SCOUT_LEGEND.map((l) => legendShape(l.ch)), ['top', 'low', 'gold']);
+});

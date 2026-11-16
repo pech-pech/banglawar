@@ -373,14 +373,25 @@ export function drawBanner(host, opts) {
       const sx = cx - Math.floor(b.w / 2) + 3, sw = b.w - 6, sh = Math.max(4, Math.floor(b.h / 3)), sy = by - sh - 2;
       const tones = [P.white || '#fff', P.red || P.outline, P.sky || P.grass1];
       crowdCells(sx, sy, sw, sh, gate.pct).forEach((c) => ISO.px(ctx, c[0], c[1], 1, 1, tones[c[2]] || tones[0]));
-      // dashed chalk ghost of the next stand
+      // dashed chalk ghost of the next stand; the DOM label "L2 stand" is pinned onto that box
+      let ghost = null;
       if (!gate.hidden && lv < 5) {
         const g = box('stands', lv + 1), gx = Math.min(AW - g.w - 2, cx + Math.ceil(b.w / 2) + 4), gy = by - g.h;
         const ch = P.white || '#fff';
         for (let i = 0; i < g.w; i += 4) { ISO.px(ctx, gx + i, gy, 2, 1, ch); ISO.px(ctx, gx + i, gy + g.h - 1, 2, 1, ch); }
         for (let j = 0; j < g.h; j += 4) { ISO.px(ctx, gx, gy + j, 1, 2, ch); ISO.px(ctx, gx + g.w - 1, gy + j, 1, 2, ch); }
+        ghost = { x: gx * sc, y: gy * sc, w: g.w * sc, h: g.h * sc };
       }
       ISO.flush(ctx);
+      try {
+        const gl = host.querySelector('.hb-ghost'), gbEl = host.querySelector('.hb-gb');
+        if (gl && gbEl && ghost) {
+          const hr = host.getBoundingClientRect(), br = gbEl.getBoundingClientRect();
+          gl.style.left = Math.round(ghost.x + 4 - (br.left - hr.left - (host.clientLeft || 0))) + 'px';
+          gl.style.top = Math.round(ghost.y + 4 - (br.top - hr.top - (host.clientTop || 0))) + 'px';
+          gl.classList.add('is-pinned');
+        } else if (gl) gl.classList.remove('is-pinned');
+      } catch (e) { /* label stays beside the tag */ }
       state.rects = m.keep.map((r) => Object.assign({}, r));
     }
     function redraw() {

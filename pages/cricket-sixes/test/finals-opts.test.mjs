@@ -46,3 +46,11 @@ test('onSpin dispatches FinalsSpin with the stop', () => {
   o.onSpin({ sliceId: 3 });
   assert.deepEqual(calls, [['FinalsSpin', { stop: { sliceId: 3 } }]]);
 });
+
+test('T8: every Finals ring row carries its unit, so the Tick on readout reads "25 TP" not "25"', async () => {
+  const { finalsWheelOpts } = await import('../js/ui/wheels/finals-opts.js');
+  const { rowText } = await import('../js/ui/wheel-look.js');
+  const { FINALS_SLICES } = await import('../js/data/wheels/finals.js');
+  const o = finalsWheelOpts({ ring: FINALS_SLICES.map((s) => ({ id: s.id, w: s.w, value: s.value, label: s.label, tier: s.tier, gold: s.gold })) }, {});
+  for (const r of o.ring) assert.match(rowText(r), /^(M Medal|\d+ (Coins|TP|Fans))$/);
+});

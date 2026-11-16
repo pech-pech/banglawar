@@ -291,7 +291,7 @@ async function groupA() {
   const bad = (body.match(/\b(Attack|Protect|Why\??|grade|Potential)\b/gi) || []);
   step(g, 'bowl screen: no Attack / Protect / Why / grade text', !bad.length, 'found: ' + [...new Set(bad)].join(', '));
   step(g, 'bowl screen: no Auto rest of innings before over 1', !(await findBtn(page, /Auto rest/i)).length, 'shown at over 1');
-  step(g, 'bowl screen: Auto over button', (await findBtn(page, /^Auto over/i)).length === 1, (await buttons(page)).map((b) => b.text).join(' | '));
+  step(g, 'bowl screen: no Auto over button (removed, SPEC 2h)', !(await findBtn(page, /Auto over/i)).length && !/Auto over/i.test(await H.body()), (await buttons(page)).map((b) => b.text).join(' | '));
   step(g, 'no Settings gear on the bowl screen', !(await page.$('.st-gear')), 'gear shown');
   await noHScroll(H, g, 'bowl screen');
 
@@ -430,7 +430,7 @@ async function groupA() {
         } else note(g, 'auto pause before last over', `chase decided before over 10 (stage ${sc.stage}, inn2 over ${sc.inn2 && sc.inn2.over}, result ${sc.result}); pause not exercised`);
       }
     }
-    for (let i = 0; i < 12 && (await H.stage()) === 'chase'; i++) { await clickBtn(page, /^Auto over/i); await H.settle(1500); await finishOver(H); }
+    for (let i = 0; i < 12 && (await H.stage()) === 'chase'; i++) { const hf = await handOver(H, 3.5); if (!hf.ok) break; await finishOver(H); } // no per-over Auto: hand-spin the rest
   }
   const sd = await H.get();
   step(g, 'match reaches the result screen', sd.stage === 'done', 'stage ' + sd.stage);
@@ -511,21 +511,13 @@ async function groupC() {
   await H.settle(500);
   step(g, 'reduced motion: match is wheel', (await H.get()).mode === 'wheel', 'mode ' + (await H.get()).mode);
   await pickBowler(H);
-  await clickBtn(page, /^BOWL OVER\b/i); await H.settle(400);
   const btns = await buttons(page);
-  step(g, 'reduced motion: button reads "Show result"', btns.some((b) => /Show result/i.test(b.text)), btns.map((b) => b.text).join(' | '));
+  step(g, 'reduced motion: no "Show result" path (removed, SPEC 2e)', !btns.some((b) => /Show result/i.test(b.text)), btns.map((b) => b.text).join(' | '));
   await H.shot('reduced-idle');
-  const n0 = logLen(await H.get());
-  const t0 = Date.now();
-  await clickBtn(page, /Show result/i);
-  if ((await findBtn(page, /^SPIN\b/i)).length) step(g, 'reduced motion: no SPIN step', false, 'SPIN button shown');
-  const landed = await waitFor(page, (n) => { const s = window.__store.get(); return (s.wheelLog ? s.wheelLog.length : 0) > n && s.last && s.last.wheel; }, n0, 2500);
-  step(g, 'reduced motion: one tap lands at once (< 1.5 s)', landed && Date.now() - t0 < 1500, `landed=${landed} in ${Date.now() - t0} ms`);
-  await H.settle(400);
-  const live = await page.evaluate(() => [...document.querySelectorAll('[aria-live], [role="status"]')].map((e) => e.textContent.trim()).filter(Boolean).join(' | '));
-  const s = await H.get(); const seg = s.last && s.last.wheel && (s.last.wheel.segs || []).find((x) => x.id === s.last.wheel.segId);
-  step(g, 'reduced motion: result text in a live region', seg && live.includes(String(seg.label)), `label ${seg && seg.label}; live: ${live.slice(0, 200)}`);
-  step(g, 'reduced motion: logged auto/unaimed (no stop time)', !s.last.wheel.t || s.last.wheel.auto, JSON.stringify({ t: s.last.wheel.t, auto: s.last.wheel.auto }));
+  const f = await handOver(H, 3.5);
+  step(g, 'reduced motion: wheel still spins by SPIN then STOP and lands', f.ok, f.why);
+  const s = await H.get();
+  step(g, 'reduced motion: no reduced flag in the wheel record', !!(s.last && s.last.wheel) && !('reduced' in s.last.wheel), JSON.stringify(s.last && s.last.wheel && Object.keys(s.last.wheel)));
   await H.shot('reduced-result');
   await noHScroll(H, g, 'reduced result');
   return H;

@@ -23,7 +23,7 @@ export function spinPep({ get, look, dispatch, onCollect, names }) {
   const p0 = get();
   return openWheel({
     wheelId: 'pep', ring: pepSlices(get().ring, names), spinKey: get().spinKey, J: 1.2, stored: get().stored, wobKey: get().wobKey,
-    title: 'Pep talk', cardHtml: '<p class="dr-hint">You win: a pep talk, +2.5% to +10% on one player. Aim at gold. The tick shows about where it will land.</p>',
+    title: 'Pep talk', cardHtml: '<p class="dr-hint">You win: a pep talk, +2.5% to +10% on one player. Aim at gold. The tick shows the slice under the pointer now.</p>',
     look: dialLook(look), pending: p0.pending,
     ...tokProps(get, dispatch, 'pep', 'Pep'), tokVal: TOKVAL.pep, tokText: (p) => 'Landed on ' + pepLabel(p, names),
     onSpin: (stop) => dispatch('PepSpin', { stop: { sliceId: stop.sliceId, stopT: stop.stopT, cycle: stop.cycle, tInCycle: stop.tInCycle, respin: stop.respin, t: stop.t, phi: stop.phi, e: stop.e } }),

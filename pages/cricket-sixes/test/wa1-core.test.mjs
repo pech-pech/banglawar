@@ -20,7 +20,7 @@ const withTokens = (s, t) => { s.wheelMeta.tokens = { respin: 0, nudge: 0, two: 
 
 test('data: tokens on all 8 wheels, cap rule F, Control and Fortune token scopes widened', () => {
   assert.deepEqual(TOKEN_WHEELS, ['spot', 'course', 'hype', 'toss', 'pep', 'find', 'scout', 'finals']);
-  assert.deepEqual(WM.TOKEN_CAP_WHEEL_SEASON, { spot: 2, course: null, hype: 2, toss: 2, pep: 2, find: 2, scout: 2, finals: 2 });
+  assert.deepEqual(WM.TOKEN_CAP_WHEEL_SEASON, { spot: 2, course: null, hype: 1, toss: 2, pep: 2, find: 2, scout: 2, finals: 2 });
   assert.equal(WM.TOKEN_CAP_MATCH, 1); assert.deepEqual(WM.TOKEN_BELOW, { spot: 3, course: 2, hype: 5, toss: 5, pep: 2, scout: 2, finals: 30 });
   const by = Object.fromEntries(NODES.map((n) => [n.id, n]));
   for (const id of ['c_slow', 'c_steady', 'c_zone', 'c_chime', 'c_guide', 'f_respin', 'f_nudge', 'f_two', 'f_wild', 'f_lift']) assert.equal(by[id].effect.scope.length, 8, id);
@@ -62,7 +62,7 @@ test('PARITY Hype dial, avg careful: none 5.30, full tree 6.84 +-0.1, Nuts about
   assert.ok(f.nuts > 0.35 && f.nuts < 0.45, 'nuts ' + f.nuts); assert.ok(f.pts < 8 && f.nuts < 0.5);
 }));
 
-test('caps: 2 a season per wheel (Course none), 1 a match day across hype/toss/pep, season reset, old spotTokensUsed', () => on(() => {
+test('caps: 2 a season per wheel, Hype 1 (Course none), 1 a match day across hype/toss/pep, season reset, old spotTokensUsed', () => on(() => {
   let s = withTokens(full(), { respin: 9 }); s.wheelMeta.tokSeason = 1;
   const d = dialOf(s), low = { ...dialResult(makeRng('x'), d, { t: 1, phi: 0, e: 0 }), wheel: d };
   const lowP = { wheel: d, ...nonGold(d, 'low') }, ctxA = { matchKey: 'A' }, ctxB = { matchKey: 'B' };
@@ -72,9 +72,9 @@ test('caps: 2 a season per wheel (Course none), 1 a match day across hype/toss/p
   const tw = revealWheel('toss', modsFor(effective(s), 'toss')), sport = { wheel: tw, ...revealOn(tw, 'sport') };
   assert.equal(tokenOptions(r.s, 'toss', sport, ctxA).length, 0, '1 a match day across hype/toss/pep');
   assert.ok(tokenOptions(r.s, 'toss', sport, ctxB).length > 0, 'next match day opens again');
-  r = useToken(r.s, 'hype', 'respin', lowP, makeRng('r2'), true, ctxB); assert.equal(metaOf(r.s).tokUsed.hype, 2);
-  assert.equal(tokenOptions(r.s, 'hype', lowP, { matchKey: 'C' }).length, 0, 'Hype: 2 a season');
-  assert.deepEqual(tokenLeft(r.s, 'hype', { matchKey: 'C' }), { pool: 7, wheelLeft: 0, matchLeft: 1 });
+  assert.equal(tokenOptions(r.s, 'hype', lowP, ctxB).length, 0, 'Hype: 1 a season (T8), a new match day does not reopen it');
+  assert.equal(useToken(r.s, 'hype', 'respin', lowP, makeRng('r2'), true, ctxB).s, r.s, 'useToken refuses a second Hype token');
+  assert.deepEqual(tokenLeft(r.s, 'hype', { matchKey: 'C' }), { pool: 8, wheelLeft: 0, matchLeft: 1 });
   assert.equal(tokenLeft(r.s, 'course').wheelLeft, null); assert.equal(tokenLeft(r.s, 'scout').matchLeft, null);
   const cw = metaWheel(courseWheel(), 'course', s); let c = r.s;
   for (let i = 0; i < 4; i++) { const q = useToken(c, 'course', 'respin', { index: 1, gain: 1, jackpot: false, wheel: cw }, makeRng('c' + i)); assert.notEqual(q.s, c, 'Course uncapped'); c = q.s; }
@@ -178,15 +178,15 @@ test('PARITY rule F season (avg careful, SPEC rings): Spotlight under 3.0x (SPEC
   // its 2.52x needs T2's Spotlight perks in x units (Booster / Hot Streak / Lift still pay old points here).
   assert.ok(F.spot.v < 3.0 && F.spot.v > N.spot.v, 'spot ' + F.spot.v);
   assert.ok(Math.abs(F.course.v - 3.76) <= 0.12, 'course ' + F.course.v);
-  assert.ok(Math.abs(F.hype.v - 7.31) <= 0.2 && F.hype.v < 8 && F.hype.g < 0.5, 'hype ' + F.hype.v);
+  assert.ok(Math.abs(F.hype.v - 7.08) <= 0.2 && F.hype.v < 8 && F.hype.g < 0.5, 'hype ' + F.hype.v);
   assert.ok(Math.abs(F.toss.v - 4.49) <= 0.25, 'toss ' + F.toss.v); // Pep: the game's w2 Pep reel pays 1.70 at full tree with no tokens (sim 1.908: older port gap, not tokens); token gain must be small (sim +1.5%)
   assert.ok(F.pep.v > 1.70 && F.pep.v < 1.80, 'pep ' + F.pep.v);
   assert.ok(Math.abs(F.scout.v - 1.52) <= 0.12, 'scout ' + F.scout.v); assert.ok(Math.abs(F.finals.v - 36.95) <= 2.5, 'finals ' + F.finals.v);
-  for (const w of ['hype', 'toss', 'pep', 'scout', 'finals']) assert.ok(F[w].tok <= (w === 'finals' ? 1 : 2), w + ' cap');
+  for (const w of ['hype', 'toss', 'pep', 'scout', 'finals']) assert.ok(F[w].tok <= (w === 'finals' || w === 'hype' ? 1 : 2), w + ' cap');
 }));
 
 test('metaReport: Control, tokens per wheel this season, match cap, full-tree ratios', () => on(() => {
-  const s = withTokens(full(), { respin: 2 }); s.wheelMeta.tokUsed = { hype: 1, spot: 2 }; s.wheelMeta.matchTokUsed = { key: matchKeyOf(s), n: 1 };
+  const s = withTokens(full(), { respin: 2 }); s.wheelMeta.tokUsed = { toss: 1, spot: 2 }; s.wheelMeta.matchTokUsed = { key: matchKeyOf(s), n: 1 };
   const t = metaReport(s).join('\n');
-  assert.match(t, /Hype dial: speed 8\.8/); assert.match(t, /hype 1\/2/); assert.match(t, /course 0[,;]/); assert.match(t, /match day 1\/1/); assert.match(t, /find x2\.06/);
+  assert.match(t, /Hype dial: speed 8\.8/); assert.match(t, /toss 1\/2/); assert.match(t, /course 0[,;]/); assert.match(t, /match day 1\/1/); assert.match(t, /find x2\.06/);
 }));

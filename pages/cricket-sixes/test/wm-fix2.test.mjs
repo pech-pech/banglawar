@@ -12,6 +12,7 @@ import { emptyWheelMeta } from '../js/core/save-migrate.js';
 import { effective, metaWheel } from '../js/core/wheelmeta.js';
 import { wheelSlices, netsPreview } from '../js/core/training.js';
 import { goldNearPointer, chimeEnters } from '../js/ui/wheel-view.js';
+import { boostText } from '../js/ui/wheel-look.js';
 import { releaseInert, OVERLAYS } from '../js/ui/inert.js';
 import { swapCardHtml } from '../js/ui/swap-offer.js';
 import { render as renderRunEnd } from '../js/ui/runend-view.js';
@@ -131,8 +132,10 @@ test('result card data: Booster and Hot Streak come through the Spotlight and Co
     const row = sel.trainingVM({ ...s, training: { ...s.training, coursePending: cp } }).coaches.find((c) => c.id === cid);
     assert.equal(row.course.pending.boosted, true); assert.equal(row.course.pending.hot, false); assert.equal(row.course.pending.boostBy, 2);
   });
+  assert.equal(boostText('Hot Streak', 'x', Math.round(1 * (1 / 1.5) * 1000) / 1000), 'Hot Streak +0.667x', 'chip text the VM hotBy renders as');
+  assert.equal(boostText('Booster', 'x', 1.5), 'Booster +1.5x');
   const js = read('js/ui/wheel-view.js');
-  assert.match(js, /Booster '/); assert.match(js, /Hot Streak '/); assert.match(js, /wh-chip' \+ \(p\.boosted \|\| p\.hot \? ' is-boost'/);
+  assert.match(js, /boostText\('Booster'/); assert.match(js, /boostText\('Hot Streak'/); assert.match(js, /wh-chip' \+ \(p\.boosted \|\| p\.hot \? ' is-boost'/);
 });
 
 // ---- 6. the spun wheel goes to afterResult

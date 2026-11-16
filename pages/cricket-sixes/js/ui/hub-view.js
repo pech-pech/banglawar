@@ -50,16 +50,18 @@ function dockHtml(vm) {
 }
 
 /* FENCE:BANNER start */
+/* the chip must stay on one line in every skin: the long form lives in the week sheet */
+const shortChip = (c) => (c ? String(c).replace(/: pick one(, or rest)?/, '') : c);
 function bannerHtml(vm) {
-  const g = vm.fansGate, chip = chipWord(weekItems(vm));
+  const g = vm.fansGate, chip = shortChip(chipWord(weekItems(vm)));
   const open = g && !g.hidden;
   const n = Number(vm.econ && vm.econ.stadium) || (g && g.next ? g.next - 1 : 1);
-  const tag = open ? (g.ready ? 'Fans ready: build L' + (n + 1) : fmtN(g.left) + ' fans to L' + (n + 1)) : 'Stadium L' + n;
+  const tag = open ? (g.ready ? 'Fans ready: build L' + (n + 1) : 'Stadium L' + n) : 'Stadium L' + n;
   const aria = 'Stadium, level ' + n + '.' + (open ? (g.ready ? ' Fans ready for level ' + (n + 1) + '.' : ' Fans ' + fmtN(g.fans) + ' of ' + fmtN(g.gate) + ' for level ' + (n + 1) + '.') : '') + ' Opens Stadium.';
   return '<div class="hb-banner"><canvas class="hb-bcv" aria-hidden="true"></canvas>' +
     '<button type="button" class="c-btn hb-gb" data-act="sheet:stadium" aria-label="' + esc(aria) + '"><span class="hb-gtag">' + esc(tag) + '</span>' +
-    (open ? '<span class="hb-ghost">L' + (n + 1) + ' stand</span>' : '') + '</button>' +
-    '<div class="hb-band' + (chip ? ' has-week' : '') + '">' + (open ? fansGateHtml(g, 'hb-fg') : '') +
+    (open ? '<span class="hb-ghost" aria-hidden="true">L' + (n + 1) + ' stand</span>' : '') + '</button>' +
+    '<div class="hb-band' + (chip ? ' has-week' : '') + '">' + (open ? fansGateHtml(g.ready ? g : Object.assign({}, g, { text: 'Fans ' + fmtN(g.fans) + ' / ' + fmtN(g.gate) }), 'hb-fg') : '') +
     (chip ? '<button type="button" class="c-btn hb-week" data-act="sheet:week">' + esc(chip) + '</button>' : '') + '</div></div>';
 }
 /* FENCE:BANNER end */

@@ -80,3 +80,35 @@ export function widen(ring, sliceIds, by, max = SLICE_WIDEN_MAX) {
   const k = (T - base - f * G) / others;
   return Object.freeze(ring.map((s, i) => Object.freeze({ ...s, w: ids.has(i) ? s.w + f * (want[i] - s.w) : s.w * k })));
 }
+
+// ---- Spoke-clear rest (T8 N5). Display only: the stop record, the landed slice and every RNG draw are unchanged.
+// A stop whose rest point ends within SEAM_CLEAR_DEG of a seam (spoke) is nudged into the slice it landed in, so the pointer never sits
+// on a line; a slice narrower than 2 x SEAM_CLEAR_DEG rests at its centre. The stored stop (t, phi, e, sliceId) is never touched.
+export const SEAM_CLEAR_DEG = 3;
+const modC = (x, C) => ((x % C) + C) % C;
+
+/** Slice edges of a ring (cum[0] = 0, cum[N] = total). @param {{w:number}[]} ring */
+export const ringEdges = (ring) => ring.reduce((a, s) => (a.push(a[a.length - 1] + +s.w), a), [0]);
+
+/**
+ * Display rest position (units, same unwrapped turn as `end`) for a stop landed in slice idx. cum = slice edges (cum[N] = C).
+ * Inside idx: clamped to >= clearDeg from both seams (slice narrower than 2 x clearDeg: its centre). `end` outside idx (an older store steered
+ * the ease to its own slice): the centre of idx, by the shortest way. Pure; sliceIndexAt(cum, C, restPos(..)) === idx always.
+ * @param {number[]} cum @param {number} end @param {number} idx @param {number} [clearDeg]
+ */
+export function restPos(cum, end, idx, clearDeg = SEAM_CLEAR_DEG) {
+  const N = cum.length - 1, C = cum[N];
+  if (!(N > 0) || !(C > 0) || !Number.isFinite(end)) return end;
+  const i = Math.max(0, Math.min(N - 1, Math.round(+idx) || 0)), a = cum[i], w = cum[i + 1] - a, m = (Math.max(0, +clearDeg || 0) * C) / 360;
+  const d = modC(end - a, C); // offset into slice i (0..C)
+  let want;
+  if (w < 2 * m) want = w / 2;
+  else if (d < w) want = Math.min(w - m, Math.max(m, d));
+  else want = w / 2;
+  let delta = want - d;
+  if (d >= w) { delta = modC(delta, C); if (delta > C / 2) delta -= C; } // outside: the shortest way to the centre
+  return end + delta;
+}
+
+/** The nudge (units) to add to a rest position `end`: restPos(cum, end, idx) - end. 0 when already clear. @param {number[]} cum @param {number} end @param {number} idx @param {number} [clearDeg] */
+export const restNudge = (cum, end, idx, clearDeg = SEAM_CLEAR_DEG) => restPos(cum, end, idx, clearDeg) - end;

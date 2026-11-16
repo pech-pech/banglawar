@@ -87,12 +87,14 @@ test('H2 Match Plan: data-act sheet:team, tab six when ok, tab overs when plan i
   assert.equal((bad.match(/m0-ctabar/g) || []).length, 1, 'exactly one ctabar');
 });
 
-test('H2 banner: button.hb-gb opens the stadium sheet; 92 fans to L2 at 218/310', async () => {
+test('H2 banner: button.hb-gb opens the stadium sheet; Stadium L1 tag, fans shown once (Fans 218 / 310)', async () => {
   const h = await html();
   const b = gb(h);
   assert.ok(b, 'button.hb-gb');
   assert.match(b, /data-act="sheet:stadium"/);
-  assert.match(text(b), /92 fans to L2/);
+  assert.match(text(b), /Stadium L1/); assert.ok(!/fans to L/.test(text(b)), 'count not in tag');
+  assert.match(text(h), /Fans 218 \/ 310/);
+  assert.equal((text(h).match(/218|92 fans/g) || []).length <= 1, true, 'fans count once');
   assert.match(h, /<canvas[^>]*hb-bcv/);
 });
 

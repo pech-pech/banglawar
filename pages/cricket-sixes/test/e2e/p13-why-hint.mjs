@@ -117,6 +117,7 @@ async function runConfig(browser, cfg) {
   const clickCta = async () => { const b = await page.$('.c-btn--cta:not([disabled])') || await page.$('.m0-ctabar button:not([disabled]), .ctabar button:not([disabled])'); if (!b) return false; await b.click(); await settle(); return true; };
 
   await page.goto(`${ORIGIN}/cricket-sixes/?seed=${SEED}`); await settle(800);
+  await page.waitForFunction(() => window.__store && window.__store.get(), null, { timeout: 15000 }); await page.evaluate(() => window.__store.dispatch('SetMatchMode', { mode: 'classic' })); // PR #60: new games start in Wheel match mode; these scripts drive the Classic flow
   if (cfg.theme) await page.evaluate((t) => window.__store.dispatch('SetTheme', { theme: t }), cfg.theme);
   await page.evaluate(() => { window.__ops = []; new MutationObserver((ms) => { for (const m of ms) for (const n of m.addedNodes) { if (n.nodeType !== 1) continue; const nx = n.matches && n.matches('.op-next') ? n : n.querySelector && n.querySelector('.op-next'); if (nx) { const card = nx.closest('.op-card'); window.__ops.push({ balls: card ? card.querySelectorAll('.op-slot:not(.is-unused)').length : -1, call: !!(card && card.querySelector('.op-call')) }); } } }).observe(document.body, { childList: true, subtree: true }); });
 
@@ -202,7 +203,7 @@ async function runConfig(browser, cfg) {
   while (steps++ < 160 && !quit) {
     const st = await stage();
     if (st === 'freepick') { const c = await page.$('[data-cl-pick="stands"]:not([disabled])') || await page.$('[data-cl-pick]:not([disabled])'); if (c) await c.click(); await settle(150); const t = await page.$('[data-cl-act="TakeFreePick"]:not([disabled])'); if (t) await t.click(); await settle(300); }
-    else if (st === 'matchday') { for (const w of ['hype', 'toss', 'pep']) { const b = await page.$(`[data-md="${w}"]`); if (!b) continue; await b.click(); await settle(350); for (let i = 0; i < 12 && (await page.$('.dr-ov')); i++) { const g = await page.$('.dr-ov [data-go]:not([aria-disabled="true"])'); if (g) await g.click(); await settle(i === 0 ? 1600 : 900); } } const go = await page.$('[data-act="MatchdayGo"]:not([disabled])'); if (go) await go.click(); await settle(400); }
+    else if (st === 'matchday') { for (const w of ['hype', 'toss', 'pep']) { const b = await page.$(`[data-md="${w}"]`); if (!b) continue; await b.click(); await settle(350); for (let i = 0; i < 12 && (await page.$('.wh-ov')); i++) { const g = await page.$('.wh-ov [data-go]:not([aria-disabled="true"])'); if (g) await g.click(); await settle(i === 0 ? 1600 : 900); } } const go = await page.$('[data-act="MatchdayGo"]:not([disabled])'); if (go) await go.click(); await settle(400); }
     else if (st === 'coach') { const p = await page.$('[data-pick]'); if (p) await p.click(); await clickCta(); }
     else if (st === 'hub' || st === 'semi' || st === 'final') { if (!(await clickCta())) { rec('SETUP', false, 'hub: no CTA'); break; } }
     else if (st === 'squad') { for (let k = 0; k < 6; k++) { const b = await page.$('.sq-row--bench'); if (!b) break; await b.click(); await settle(60); } const c = await page.$('[data-confirm]:not([disabled])'); if (c) await c.click(); await settle(); }

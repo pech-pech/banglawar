@@ -125,7 +125,7 @@ export function aimMarker(o) {
   const pts = [[38, 0], [62, 0], [50, 22]].map((p) => Object.freeze([+(p[0] * k).toFixed(2), +(p[1] * k).toFixed(2)]));
   return Object.freeze({
     shape: 'triangle-down', points: Object.freeze(pts), fill: 'var(--gold, #d2b357)', stroke: 'var(--outline, #2a2238)', strokeW: 2.5,
-    text: 'AIM', fontPx: 12, bold: true, textHalo: 2.5, textX: 50 * k, textY: 36 * k,
+    text: 'AIM', fontPx: 14, bold: true, textHalo: 2.5, textX: 50 * k, textY: 36 * k,
   });
 }
 const LEAD_NUM = /^[x×]?\s*([+\-−]?\d+(?:\.\d+)?)(?![\d.])/i;
@@ -216,5 +216,36 @@ export function legendWith(ring, narrow, given) {
   const rows = legendRows((Array.isArray(ring) ? ring : []).map((r, i) => (narrow && narrow[i] && r ? { ...r, w: 0 } : r)));
   const out = [], seen = new Set(), g = Array.isArray(given) ? given : [], gch = new Set(g.map((r) => String(r.ch)));
   for (const r of [...g, ...rows.filter((r) => !gch.has(String(r.ch)))]) { const k = String(r.ch) + '\u0000' + String(r.text); if (seen.has(k)) continue; seen.add(k); out.push(r); } // a host row wins over the automatic row for the same character
+  return out;
+}
+
+/* ---- T8 helper A: Boost chip text, tier key row, short names ("Maxi..") for names that do not fit a slice. Pure. ---- */
+/** Boost chip words: a multiplier unit ('x') prints value then x with a plus ("Hot Streak +0.667x"); any other unit prints as before ("Booster +1"). */
+export function boostText(word, plus, by) {
+  const n = String(by == null || by === '' ? 1 : by).replace(/^\+/, ''), p = typeof plus === 'string' && plus ? plus : '+';
+  return /^[x\u00d7]$/i.test(p) ? word + ' +' + n + 'x' : word + ' ' + p + n;
+}
+/** Tier key rows [{ch, text}] (shape + word per tier) for the tiers a ring uses; ch is a shape word legendShape() draws. A host legend that already has shape rows replaces it. */
+export function tierKeyRows(ring, given) {
+  if (Array.isArray(given) && given.some((r) => r && legendShape(r.ch))) return [];
+  const rows = Array.isArray(ring) ? ring.filter(Boolean) : [], has = (t) => rows.some((r) => !r.gold && r.tier === t), out = [];
+  if (has('top')) out.push(Object.freeze({ ch: 'tri', text: 'high' }));
+  if (has('mid')) out.push(Object.freeze({ ch: 'dot', text: 'middle' }));
+  if (has('low')) out.push(Object.freeze({ ch: 'pale', text: 'lowest' }));
+  if (rows.some((r) => r.gold)) out.push(Object.freeze({ ch: 'gold', text: 'gold' }));
+  return out;
+}
+const NAME_VAL = /^(.*\S)\s+([+\-\u2212]?\d[\d.,]*\s*%?)$/;
+/** "Maximilian +5%" -> {name:'Maximilian', val:'+5%'}; no trailing number -> {name:text, val:''}. */
+export function splitNameValue(text) { const t = String(text == null ? '' : text).trim(), m = NAME_VAL.exec(t); return m ? { name: m[1], val: m[2] } : { name: t, val: '' }; }
+/** Fewest letters (>= 3, <= the name) that tell each name apart from every other different name by its first letters (case blind). */
+export function uniquePrefixLens(names, min) {
+  const ns = (names || []).map((n) => Array.from(String(n == null ? '' : n).trim().toLowerCase())), lo = min == null ? 3 : min;
+  return ns.map((a, i) => { let k = Math.min(lo, a.length); for (; k < a.length; k++) { if (!ns.some((b, j) => j !== i && b.join('') !== a.join('') && b.slice(0, k).join('') === a.slice(0, k).join(''))) break; } return k; });
+}
+/** Short forms of a slice name, longest first, all upright one-liners that end in ".." ("Maxi.. +5%", then "Maxi.." without the value). Never fewer than minK letters (default 3). */
+export function shortNameForms(text, minK) {
+  const { name, val } = splitNameValue(text), cs = Array.from(name), lo = Math.max(3, minK || 3), out = [];
+  for (const withVal of val ? [true, false] : [false]) for (let k = cs.length - 1; k >= lo; k--) out.push(cs.slice(0, k).join('').replace(/[\s\-]+$/, '') + '..' + (withVal ? ' ' + val : ''));
   return out;
 }

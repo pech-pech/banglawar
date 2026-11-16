@@ -43,10 +43,11 @@ import { esc, icoDeco } from './dom.js';
 import { releaseInert } from './inert.js';
 import { wheelWidths, stopExtra, TIMING_WIN, timingBucket, TIMING_LINE } from '../core/training.js';
 import { scoutCuts, scoutShort } from './wheels/scout-opts.js';
-import { matOf, colourOf, normLook, PALETTES, spokeIcon, glowOn, aimMarker, sliceLabel, legendRows, tierShape, LABEL_MIN_W, tierMark, MARK_MIN_RAD, radialFit, radialTurn, legendWith, legendShape, cardOf, rowText } from './wheel-look.js';
+import { matOf, colourOf, normLook, PALETTES, spokeIcon, glowOn, aimMarker, sliceLabel, legendRows, tierShape, LABEL_MIN_W, tierMark, MARK_MIN_RAD, radialFit, radialTurn, legendWith, legendShape, cardOf, rowText, boostText, splitNameValue, tierKeyRows, uniquePrefixLens, shortNameForms } from './wheel-look.js';
 import { tickKind, TICK } from '../core/landtick.js';
 import { WHEEL_ENGINE } from '../data/wheel-engine.js';
 import { pulseW, pulseArc, tickAt, cycleOf, ARC_PER_CYCLE } from '../core/wheel-pulse.js';
+import { restNudge } from '../core/wheel-ring.js';
 import { wheelWobble } from '../core/wheel-wobble.js';
 
 const TAU = Math.PI * 2, E = WHEEL_ENGINE;
@@ -146,14 +147,15 @@ export function openWheel(o) {
   const fillOf = (i) => (GD.includes(i) ? pal.gold : RING ? tierFill(RING[i].tier) : LP ? (VALS[i] <= 1 ? LP.low : VALS[i] === 2 ? LP[2] : VALS[i] === 3 ? LP[3] : LP[4]) : VALS[i] <= 1 ? pal.wall : VALS[i] === 2 ? pal.g2 : VALS[i] === 3 ? pal.acc : pal.b1);
   const fills = VALS.map((_, i) => fillOf(i));
   if (RING) for (let i = 1, run = 0; i < N; i++) { run = !GD.includes(i) && VALS[i] === VALS[i - 1] && !GD.includes(i - 1) ? run + 1 : 0; if (run % 2) fills[i] = dim(fills[i], 0.1); } // equal neighbours (x1.0, +1) in two shades (SPEC 3, T2 QA)
-  let legend = Array.isArray(o.legend) ? o.legend : RING ? legendRows(RING) : [];
+  const keyed = (rows) => (RING ? [...tierKeyRows(RING, o.legend), ...rows] : rows); // T8: the tier key (shape + word per tier) leads every ring legend
+  let legend = Array.isArray(o.legend) ? keyed(o.legend) : RING ? keyed(legendRows(RING)) : [];
   const DIR = ringDir(!!RING), angOf = (u) => screenAngle(u, pos, U, DIR); // ring wheels: clockwise list, the wheel turns anticlockwise (T3 QA D9)
   const ov = document.createElement('section');
   ov.className = 't2-ov wh-ov' + (crys ? ' is-crystal' : '') + (RING ? ' is-ring' : ''); ov.setAttribute('role', 'dialog'); ov.setAttribute('aria-modal', 'true'); ov.setAttribute('aria-label', o.title);
   if (o.wheelId) ov.setAttribute('data-wheel', String(o.wheelId)); if (o.spinKey) ov.setAttribute('data-spin-key', String(o.spinKey));
   const sliceWords = RING ? RING.map((r) => String(r.full != null ? r.full : r.label != null && r.label !== '' ? r.label : r.value) + (r.gold ? ' gold' : '')).join(', ') : o.labels ? o.labels.map((l, i) => l || (GD.includes(i) ? 'gold' : 'blank')).join(', ') : VALS.map((v, i) => '+' + v + (GD.includes(i) ? ' jackpot' : '')).join(', '); /* wa1 find: o.labels = word labels */
-  // AIM rides the moving landing tick on ring wheels, as on the match wheel (T1 QA D6): a gold triangle on the rim pointing in, and the word AIM outside it. Shown while spinning.
-  const am = aimMarker({ size: 24 }), aimSvg = RING ? '<span class="wk-aim wh-aimt" aria-hidden="true" hidden><svg width="24" height="17" viewBox="0 0 24 17" focusable="false"><polygon class="wk-aim-tri" points="2,1.5 22,1.5 12,15.5" stroke-linejoin="round"/></svg></span><span class="wh-aimw" aria-hidden="true" hidden>' + am.text + '</span>' : '';
+  // AIM: one upright word fixed above the top pointer on ring wheels (locked mockup "Fixed AIM marker"; T8). Shown while spinning.
+  const am = aimMarker({ size: 24 }), aimSvg = RING ? '<span class="wh-aimw" aria-hidden="true" hidden>' + am.text + '</span>' : ''; // ONE fixed AIM word above the top pointer (T8 / M pick: one AIM at top); the landing tick still rides the rim
   const legendIn = (rows) => rows.map((r) => { const sh = legendShape(r.ch); // a shape word (tri / dot / pale / gold) draws the shape, never the word (T4 QA 2)
     return '<span class="wk-legend-row">' + (sh ? '<span class="wk-tier wk-tier--' + sh + '" aria-hidden="true"></span><span class="sr-only">' + esc(SHAPE_SAY[sh]) + '</span>' : '<span class="wk-legend-ch">' + esc(r.ch) + '</span>') + (r.icon ? iconHtml(r.icon) : '') + '<span>' + esc(r.text) + '</span></span>'; }).join('');
   const legendHtml = legend.length || RING ? '<div class="wk-legend wh-lgd" data-legend' + (legend.length ? '' : ' hidden') + '>' + legendIn(legend) + '</div>' : ''; // under the wheel, never beside it (T1 QA D1: clipped at x 320-344)
@@ -171,35 +173,40 @@ export function openWheel(o) {
   // wheel state: pos = the wheel coordinate (units) under the pointer; the wheel's turn is rot = pos * U. clock / spinEv / tapT are performance.now() seconds.
   const clk = spinClock(GUARD);
   let state = 'idle', pos = Math.random() * C, phi = pos, speed = 0, curDist = 0, clock = nowMs() / 1000, tapT = 0, stopInfo = null, adj = 0, raf = 0, closed = false, S = 2, size = 100, css = 200, spinEv = 0;
+  if (RING) { const k0 = sliceOf(pos), off = pos - cum[k0], w0 = widths[k0]; if (off < w0 * 0.15 || off > w0 * 0.85) pos = phi = (cum[k0] + cum[k0 + 1]) / 2; } // at rest a seam never sits under the pointer: a start within 15% of a seam turns half a slice to the slice centre
   let landI = -1, fixCss = 0, nowI = -1; // ring: the landed slice (result look), the wheel size kept across states (T6 live QA 4), the slice the "Tick on" readout shows
-  const rfit = RING ? RING.map(() => null) : null, aimT = $('.wh-aimt'), aimW = $('.wh-aimw');
+  const rfit = RING ? RING.map(() => null) : null, aimW = $('.wh-aimw');
   const centreOf = (i) => (cum[i] + cum[i + 1]) / 2;
   // wa1 fixfind: word labels (Find) sit on the whole gold block (a run of gold cells), sized to fit inside the slice and the rim; too thin -> a gold Nothing is skipped, a find block gets a diamond icon
   const WL = !!o.labels && !RING, isG = (i) => GD.includes(i), joinP = (i) => WL && i > 0 && isG(i) && isG(i - 1), joinN = (i) => WL && i < N - 1 && isG(i) && isG(i + 1);
   const plan = WL ? o.labels.map((t, i) => { let s0 = i, s1 = i; if (isG(i)) { while (joinP(s0)) s0--; while (joinN(s1)) s1++; } return { text: t || '', c: (cum[s0] + cum[s1 + 1]) / 2, half: (cum[s1 + 1] - cum[s0]) * U / 2, rl: 0, ico: false }; }) : null;
   /** Ring labels (T3 QA D4): radial, fitted between the hub and the tier mark, one or two lines; a label that does not fit at 12 px prints one character and gets a legend row. */
+  const shorted = new Set();
   function fitRing() { // css px; mockup radii scaled from R 150: tier mark R-22, icon R-37, card chip R-59, card name from r 32 outward
     const RS = (size / 2 - 1) * S, k = RS / 150, rIn = 14 * S, narrow = [], ff = 'px';
     const measure = (lines, f) => { const l = labels[0]; l.style.fontSize = f + ff; l.style.lineHeight = Math.round(f * 1.12) + ff; l.innerHTML = lines.map(esc).join('<br>'); return { w: l.offsetWidth, h: l.offsetHeight }; };
     ov.querySelectorAll('.wh-cg').forEach((e) => e.remove());
+    const rawName = (r) => (r.card && (r.card.fullName || r.card.surname)) || splitNameValue(sliceLabel(r)).name, minLen = uniquePrefixLens(RING.map(rawName)); // short names stay unique: each keeps at least the letters that tell it from the others
     RING.forEach((r, i) => {
+      if (shorted.has(r)) { delete r.short; shorted.delete(r); }
       const own = sliceLabel(r), half = widths[i] * U / 2, short = sliceLabel({ ...r, w: 0 }), card = cardOf(r), ic = iconKey(card ? card.focus : r.icon);
       const GAP = 3.5, markIn = RS - 39 * k - GAP, iconIn = RS - 44 * k - GAP; // T4 QA5 NEW-5: the tier mark spans R-39k..R-23k and the icon R-44k..R-30k; text keeps >= 3 px (css) clear of both
       let chipW = 0, chipEl = null; if (card && card.grade) { chipEl = document.createElement('span'); chipEl.className = 'wh-cg'; chipEl.setAttribute('aria-hidden', 'true'); chipEl.textContent = card.grade; chipEl.dataset.i = String(i); wrap.appendChild(chipEl); chipW = chipEl.offsetWidth; }
       const chipRc = iconIn - chipW / 2, rOut = card ? chipRc - chipW / 2 - GAP : ICON_SVG[ic] ? iconIn : markIn; // the text stops short of the chip / icon / tier mark
       let F = null;
       if (card) { // Scout name (QA3 D2): 14 px; the longest cut that fits the slice, 6 letters + '.' down to 3 letters + '.', never a single letter
-        const cuts = scoutCuts(card.fullName || card.name); // ONE short name per card, shared by the slice, readout, chip and log
+        const keepN = (nm) => Array.from(nm.replace(/\.+$/, '')).length >= minLen[i] || nm === (card.fullName || card.name), cuts = [...scoutCuts(card.fullName || card.name).filter(keepN), ...shortNameForms(card.fullName || card.name, minLen[i]).filter((x) => !/ /.test(x)).slice(-1)]; // ONE short name per card, shared by the slice, readout, chip and log
         for (const nm of cuts) { F = radialFit({ text: nm, ways: [[nm]], half, rIn: Math.max(rIn, 32 * k), rOut, measure, fMax: 14, fMin: 14 }); if (F) { F.rc = Math.max(32 * k, F.rc); r.short = scoutShort(card.grade, nm); break; } }
       }
       else if (own) { const sub = r.sub != null && String(r.sub).trim() ? String(r.sub).trim() : ''; F = radialFit({ text: own, ways: sub ? [[own + ' ' + sub], [own, sub], ...(r.w < LABEL_MIN_W ? [] : [[own]])] : undefined, half, rIn, rOut, measure, rPref: RS * 0.5, fMin: 14 }); } // slice text 14 px or more (T2 / T4 QA)
+      if (!F && !card && own && r.w >= LABEL_MIN_W) { const forms = shortNameForms(own, minLen[i]); if (forms.length) { F = radialFit({ text: forms[0], ways: forms.map((x) => [x]), half, rIn, rOut, measure, rPref: RS * 0.5, fMax: 14, fMin: 14 }); if (F) r.short = F.lines[0], shorted.add(r); } } // 14 px floor: a name that does not fit prints a short form ("Maxi.."), upright, kept unique; the full name stays in aria and the result line
       if (F && !card && r.w < LABEL_MIN_W && Array.from(own).length === 1) F = null; // a one-character label on a thin slice (Find 4% and 2% 'F'): same treatment, rim lane + cream halo, the tier mark sits inboard of it
       if (!F) { narrow[i] = !card && own !== short; const txt = card ? Array.from(card.name)[0] || short : short, one = (lines, f) => measure([txt], f); F = radialFit({ text: txt, ways: [[txt]], half, rIn, rOut, measure: one, rPref: RS * 0.5, fMax: 18, fMin: 14 }) || { f: 14, rc: (rIn + rOut) / 2 }; F.lines = [txt]; if (!card) { F.one = true; F.f = Math.max(14, F.f); F.rc = RS - 17 * k; } } // one character on a thin slice (QA3 D4): out at the rim lane (slice is widest there), not clipped, dark glyph with a cream halo, 14 px or more // one character: 14 px or more (T4 QA 2)
       F.card = card; F.ic = ic; rfit[i] = F;
       if (chipEl) { F.chip = chipEl; F.chipRc = chipRc; }
     });
     labels.forEach((l, i) => { const F = rfit[i]; l.style.fontSize = F.f + 'px'; l.style.lineHeight = Math.round(F.f * 1.12) + 'px'; l.innerHTML = F.lines.map(esc).join('<br>'); });
-    const lg = $('[data-legend]'), rows = legendWith(RING, narrow, Array.isArray(o.legend) ? o.legend : null), html = legendIn(rows);
+    const lg = $('[data-legend]'), rows = keyed(legendWith(RING, narrow, Array.isArray(o.legend) ? o.legend : null)), html = legendIn(rows);
     legend = rows; if (lg && lg.innerHTML !== html) { lg.innerHTML = html; lg.hidden = !rows.length; return true; } // legend changed: the caller sizes once more
     return false;
   }
@@ -224,10 +231,10 @@ export function openWheel(o) {
   }
 
   function layout() { // wheel sized from the free height (stage), never wider than the screen
-    const st = $(".wh-stage"), RES = LK && LK.name && !ov.classList.contains('is-res-compact') ? 34 : LK && (LK.stand || LK.name) ? 14 : 0, AM = RING ? 30 : 0, AMV = RING ? 10 : 0; // RES: room under the rim for the stand / name plate (they hang from the wheel box); AM: room round the rim for the AIM tag
-    const h = st.clientHeight - (RING ? 22 + 2 * AMV : 24 + 22) - RES, /* N2: the AIM word is clamped into the stage, so only the tick (17 px) needs room above and below; the sides keep the full AIM room */ w = st.clientWidth - Math.max(24, 2 * AM) - (RING ? 4 : 0); // the legend sits under the stage, not in it (T1 QA D1)
+    const st = $(".wh-stage"), RES = LK && LK.name && !ov.classList.contains('is-res-compact') ? 34 : LK && (LK.stand || LK.name) ? 14 : 0, AM = 0; // RES: room under the rim for the stand / name plate (they hang from the wheel box); AM: room round the rim for the AIM tag
+    const h = st.clientHeight - (RING ? 22 + 22 + 8 : 24 + 22) - RES, /* ring: stage pad 22 + 22 for the fixed AIM word over the pointer + 8 under */ /* N2: the AIM word is clamped into the stage, so only the tick (17 px) needs room above and below; the sides keep the full AIM room */ w = st.clientWidth - Math.max(24, 2 * AM) - (RING ? 4 : 0); // the legend sits under the stage, not in it (T1 QA D1)
     css = Math.max(160, Math.min(w, h, 340)); if (RING) { if (fixCss) css = Math.min(css, fixCss); fixCss = css; } // ring: one size in every state, it never jumps up at the result (T6 live QA 4)
-    size = Math.floor(css / S / 2) * 2; css = size * S; wrap.style.marginBottom = RES ? RES + 'px' : '';
+    size = Math.floor(css / S / 2) * 2; css = size * S; wrap.style.marginBottom = RES ? RES + 'px' : ''; wrap.style.marginTop = RING ? '22px' : '';
     wrap.style.width = wrap.style.height = css + 'px'; cv.width = cv.height = size; cv.style.width = cv.style.height = css + 'px'; tkc.width = tkc.height = size; tkc.style.cssText = 'position:absolute;left:0;top:0;z-index:2;pointer-events:none;image-rendering:pixelated;width:' + css + 'px;height:' + css + 'px';
     if (fitLabels() === true && !layout.again) { layout.again = true; fixCss = 0; try { layout(); } finally { layout.again = false; } return; } // the legend rows changed the free height: size once more
     draw();
@@ -305,13 +312,7 @@ export function openWheel(o) {
         l.style.color = F.one || lum(fills[i]) > 0.5 ? 'rgb(' + pal.out + ')' : '#fff'; if (F.one) { l.style.overflow = 'visible'; l.style.zIndex = '3'; l.style.textShadow = ONE_HALO; } l.style.opacity = moving && speed > 8 && !GD.includes(i) ? '.55' : landI >= 0 && i !== landI ? '.6' : '1';
         if (F.chip) { const rc = F.chipRc != null ? F.chipRc : (R + 1) * S - 59 * (R + 1) * S / 150; F.chip.style.left = cx * S + Math.cos(b) * rc + 'px'; F.chip.style.top = cy * S + Math.sin(b) * rc + 'px'; F.chip.style.transform = l.style.transform; F.chip.style.opacity = l.style.opacity; } // Scout card grade chip at R-59
       });
-      const showAim = state === 'spin' && !!aimT && !!aimW; if (aimT) aimT.hidden = !showAim; if (aimW) aimW.hidden = !showAim;
-      if (showAim) { // AIM rides the landing tick outside the rim, tip on the rim (as on the match wheel)
-        const ga = -Math.PI / 2 - DIR * curDist * U, RS = (R + 1) * S, c0 = cx * S, up = Math.sin(ga) <= 0;
-        aimT.style.left = c0 + Math.cos(ga) * (RS + 9) + 'px'; aimT.style.top = c0 + Math.sin(ga) * (RS + 9) + 'px'; aimT.style.transform = 'translate(-50%,-50%) rotate(' + (ga + Math.PI / 2).toFixed(4) + 'rad)';
-        { const st = aimW.parentNode.parentNode, ox = wrap.offsetLeft, oy = wrap.offsetTop, sw = st.clientWidth || 9e3, sh = st.clientHeight || 9e3, hw = Math.max(7, aimW.offsetWidth / 2 * Math.abs(Math.cos(ga)) + 7 * Math.abs(Math.sin(ga))), hh = Math.max(7, aimW.offsetWidth / 2 * Math.abs(Math.sin(ga)) + 7 * Math.abs(Math.cos(ga))); // clamp: the word stays inside the stage (never off screen at 3 or 9 o'clock)
-          const ax = Math.min(sw - ox - hw - 2, Math.max(-ox + hw + 2, c0 + Math.cos(ga) * (RS + 24))), ay = Math.min(sh - oy - hh - 2, Math.max(-oy + hh + 2, c0 + Math.sin(ga) * (RS + 24))); aimW.style.left = ax + 'px'; aimW.style.top = ay + 'px'; } aimW.style.transform = 'translate(-50%,-50%) rotate(' + (ga + (up ? Math.PI / 2 : -Math.PI / 2)).toFixed(4) + 'rad)';
-      }
+      if (aimW) aimW.hidden = state !== 'spin'; // fixed at the top pointer (css): never moves, never turns
     }
     else labels.forEach((l, i) => {
       const b = rot - centreOf(i) * U - Math.PI / 2, thin = widths[i] * U < 0.2 || (RING && widths[i] < LABEL_MIN_W), rl = R * (GD.includes(i) ? 0.8 : 0.62); l.style.fontSize = thin ? '14px' : ''; // a thin slice: a smaller label so it stays inside the slice edges
@@ -423,7 +424,7 @@ export function openWheel(o) {
     else if (o.plainResult) res.innerHTML = (p.jackpot ? '<span class="wh-jp">' + icoDeco('burst', 20) + ' ' + esc(o.jpText || 'JACKPOT!') + '</span>' : '') + // wa1 find: a word result (chip + big line + one plain line)
       '<div class="wh-big">' + (d.chip ? '<span class="wh-chip' + (p.boosted ? ' is-boost' : '') + '">' + esc(d.chip) + '</span>' : '') + '<b>' + esc(d.big) + '</b></div>' + (d.line ? '<div class="wh-chg"><span>' + esc(d.line) + '</span></div>' : '') +
       (sg > 0 ? '<div class="wh-sp">' + spokeIcon(20) + '<b>+' + esc(sg) + (Number(sg) === 1 ? ' Spoke' : ' Spokes') + '</b></div>' : '');
-    else res.innerHTML = (!p.jackpot && d.breakthrough && wholeLetter(d.from, d.to) ? '<span class="wh-bt">Breakthrough!</span>' : p.jackpot && !o.jpText ? '<span class="wh-jp">' + icoDeco('burst', 20) + ' JACKPOT!' + (d.breakthrough && wholeLetter(d.from, d.to) ? ' Breakthrough!' : '') + '</span>' : '') + ringResultHtml(p, d, sg) + (p.boosted || p.hot ? '<div class="wh-bst">' + (p.boosted ? '<span class="wh-bst1">Booster ' + esc(o.plus || '+') + esc(p.boostBy || 1) + '</span>' : '') + (p.hot ? '<span class="wh-bst1">Hot Streak ' + esc(o.plus || '+') + esc(p.hotBy || 1) + '</span>' : '') + '</div>' : ''); // production Training / Course / Find / Hype pass `slices`: same block as the ring
+    else res.innerHTML = (!p.jackpot && d.breakthrough && wholeLetter(d.from, d.to) ? '<span class="wh-bt">Breakthrough!</span>' : p.jackpot && !o.jpText ? '<span class="wh-jp">' + icoDeco('burst', 20) + ' JACKPOT!' + (d.breakthrough && wholeLetter(d.from, d.to) ? ' Breakthrough!' : '') + '</span>' : '') + ringResultHtml(p, d, sg) + (p.boosted || p.hot ? '<div class="wh-bst">' + (p.boosted ? '<span class="wh-bst1">' + esc(boostText('Booster', o.plus, p.boostBy || 1)) + '</span>' : '') + (p.hot ? '<span class="wh-bst1">' + esc(boostText('Hot Streak', o.plus, p.hotBy || 1)) + '</span>' : '') + '</div>' : ''); // production Training / Course / Find / Hype pass `slices`: same block as the ring
     const TL = TIMING && timeB && (RING || !o.plainResult); // ring wheels always say Early / Good timing / Late (a stored stop too)
     if (TIMING && timeB && !o.plainResult) res.insertAdjacentHTML('beforeend', '<div class="wh-tim" data-timing="' + timeB + '"><span class="wh-tim--' + timeB + '">' + esc(TIMING_LINE[timeB]) + '</span></div>');
     else if (TL) res.insertAdjacentHTML('beforeend', '<div class="wh-tim" data-timing="' + timeB + '"><span class="wh-tim--' + timeB + '">' + esc(TIMING_LINE[timeB]) + '</span></div>'); // wa2: one timing line (copy only)
@@ -448,6 +449,7 @@ export function openWheel(o) {
     o.onSpin(st); const p = pendingNow(); if (!p) { close(); return; }
     // the store agrees with the landing: the wheel just eases out. If an older store answered with its own slice, steer the ease to that slice so the card never contradicts the wheel.
     const pi = landedIndex(p, st, N); adj = 0; if (pi !== st.sliceId) { const end = R.base + R.dist + e, mid = centreOf(pi); adj = (((mid - end) % C) + C) % C; }
+    if (RING) adj += restNudge(cum, R.base + R.dist + e + adj, pi); // N5: the pointer never rests on a spoke (display only; the stop record and landed slice are unchanged)
     stopInfo = { base: R.base, dist: R.dist, e }; tapT = spinEv + t; state = 'land'; speed = pulseW(st.tInCycle, P); ov.classList.remove('is-turning'); waitLook('Slowing...', 'Slowing down. Please wait'); setMsg('Slowing down...');
   }
   /** The tap's own time (ms, performance.now() clock); a missing or epoch-style timeStamp falls back to now. */

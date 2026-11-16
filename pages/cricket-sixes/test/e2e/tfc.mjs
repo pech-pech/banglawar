@@ -65,6 +65,7 @@ async function open(tag, vp, { reduced = false } = {}) {
     async closeSheets() { for (let i = 0; i < 5 && (await page.$('.c-sheet')); i++) { await page.keyboard.press('Escape'); await page.waitForTimeout(200); } },
     async boot() {
       await page.goto(`${ORIGIN}/cricket-sixes/?seed=${encodeURIComponent(SEED)}`); await page.waitForFunction(() => window.__store && window.__store.get(), null, { timeout: 15000 }); await page.waitForTimeout(600);
+      await page.waitForFunction(() => window.__store && window.__store.get(), null, { timeout: 15000 }); await page.evaluate(() => window.__store.dispatch('SetMatchMode', { mode: 'classic' })); // PR #60: new games start in Wheel match mode; these scripts drive the Classic flow
       const pick = await page.$('[data-cl-pick]'); if (pick) { await pick.click(); await page.waitForTimeout(200); const t = await page.$('[data-cl-act="TakeFreePick"]:not([disabled])'); if (t) { await t.click(); await page.waitForTimeout(400); } }
     },
     advance: (stopAt) => page.evaluate((stops) => {
@@ -114,6 +115,7 @@ async function open(tag, vp, { reduced = false } = {}) {
         localStorage.setItem('cs.save.1', JSON.stringify(m.wrap(s)));
       }, patchSrc);
       await page.goto(`${ORIGIN}/cricket-sixes/?seed=${encodeURIComponent(SEED)}`); await page.waitForFunction(() => window.__store && window.__store.get(), null, { timeout: 15000 }); await page.waitForTimeout(600);
+      await page.waitForFunction(() => window.__store && window.__store.get(), null, { timeout: 15000 }); await page.evaluate(() => window.__store.dispatch('SetMatchMode', { mode: 'classic' })); // PR #60: new games start in Wheel match mode; these scripts drive the Classic flow
     },
   };
   return H;
@@ -240,7 +242,7 @@ async function openAim(H, which) {
     if (!(await tap(H, '[data-md="hype"]'))) return 'no [data-md=hype]';
     await H.settle(500);
   }
-  const ov = which === 'hype' ? '.dr-ov' : '.wh-ov';
+  const ov = '.wh-ov';
   return (await page.$(ov)) ? '' : `no ${ov}`;
 }
 const AIM = { spotlight: ['.wh-ov', 'canvas.wh-cv', false], course: ['.wh-ov', 'canvas.wh-cv', false], find: ['.wh-ov', 'canvas.wh-cv', false], hype: ['.dr-ov', 'canvas.dr-cv', true] };

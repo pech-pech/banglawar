@@ -47,7 +47,7 @@
 .skin-scorebook .hb-bcv { filter: sepia(.45) saturate(.7) contrast(1.05); }
 .skin-scorebook .hb-band { background: var(--sb-ink); color: var(--sb-plate); border-top: 2px solid var(--sb-ink); font-family: var(--font-body); }
 .skin-scorebook .hb-band .hb-fg .fg-bar > i { background: var(--sb-hi); }
-.skin-scorebook .hb-week { display: flex; align-items: center; justify-content: center; text-align: center; line-height: 16px; white-space: normal; overflow: hidden; padding-left: 4px; padding-right: 4px; min-width: 0; }
+.skin-scorebook .hb-week { display: flex; align-items: center; justify-content: center; text-align: center; line-height: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-left: 4px; padding-right: 4px; min-width: 0; }
 .skin-scorebook .hb-week:active { background: var(--sb-plate); box-shadow: none; transform: translate(1px, 2px); }
 .skin-scorebook .hb-week:is(:focus-visible, .is-focus) { outline: 3px dashed var(--sb-blue); outline-offset: 3px; }
 .skin-scorebook .hb-plan { background: var(--sb-plate); color: var(--sb-ink); border: 2px solid var(--sb-ink); border-radius: 4px; box-shadow: var(--sb-lift); font-family: var(--font-body); font-weight: 700; }
@@ -59,7 +59,7 @@
 .skin-scorebook .fg-bar { border-color: var(--sb-ink); }
 .skin-scorebook .fg.is-ready .fg-bar > i { background: var(--sb-green); }
 /* week chip: long labels ("Free facility: pick one") ellipsize inside the 56 px tap, never leave the button */
-.skin-scorebook .hb-week { display: flex; align-items: center; justify-content: center; text-align: center; line-height: 16px; white-space: normal; overflow: hidden; padding-left: 4px; padding-right: 4px; min-width: 0; }
+.skin-scorebook .hb-week { display: flex; align-items: center; justify-content: center; text-align: center; line-height: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-left: 4px; padding-right: 4px; min-width: 0; }
 
 /* tokens: the scorebook red is already dark enough for text on the plate */
 .skin-scorebook .hb-hub { --danger-ink: var(--sb-red); }
@@ -69,8 +69,10 @@
 .skin-scorebook .hb-strip { overflow: hidden; }
 .skin-scorebook .hb-cap, .skin-scorebook .hb-th { white-space: nowrap; overflow: hidden; }
 .skin-scorebook .hb-band .hb-fg .fg-tx { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; }
-.skin-scorebook .hb-week { white-space: normal; }
+.skin-scorebook .hb-week { white-space: nowrap; }
 .skin-scorebook .hb-colB:focus-visible { outline-offset: 0; }
 /* scorebook strip: the plate border takes 4 px, so goal and caption give back 4 px and the key line is whole */
 .skin-scorebook .hb-goal { height: 34px; }
-.skin-scorebook .hb-cap { margin-top: 2px; }
+.skin-scorebook .hb-cap { margin-top: 4px; }
+.skin-scorebook .hb-strip { height: 76px; }
+@media (max-width: 599px) and (max-height: 700px) { .skin-scorebook .hb-strip { height: auto; } }

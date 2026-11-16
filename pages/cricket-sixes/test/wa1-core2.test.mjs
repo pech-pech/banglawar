@@ -33,7 +33,7 @@ test('flag off: every wheel neutral (no Control, no offers, same objects back), 
 
 test('save: old wheelMeta without tokUsed / matchTokUsed reads as 0 (no VERSION bump), old spotTokensUsed still counts', () => on(() => {
   const s = full({ respin: 2 }); assert.ok(!('tokUsed' in s.wheelMeta) && !('matchTokUsed' in s.wheelMeta));
-  for (const w of TOKEN_WHEELS) { const l = tokenLeft(s, w, { matchKey: 'm' }); assert.equal(l.wheelLeft, w === 'course' ? null : 2, w); assert.equal(l.matchLeft, ['hype', 'toss', 'pep'].includes(w) ? 1 : null, w); }
+  for (const w of TOKEN_WHEELS) { const l = tokenLeft(s, w, { matchKey: 'm' }); assert.equal(l.wheelLeft, w === 'course' ? null : w === 'hype' ? 1 : 2, w); assert.equal(l.matchLeft, ['hype', 'toss', 'pep'].includes(w) ? 1 : null, w); }
   const d = hypeDial(ODDS0, modsFor(effective(s), 'hype')), r = useToken(s, 'hype', 'respin', hypeLow(d), makeRng('sv'), true, { matchKey: 'm' });
   assert.equal(metaOf(r.s).tokUsed.hype, 1); assert.deepEqual(metaOf(r.s).matchTokUsed, { key: 'm', n: 1 });
   const old = full({ respin: 2 }); old.wheelMeta.spotTokensUsed = 1; assert.equal(tokenLeft(old, 'spot').wheelLeft, 1);
@@ -47,7 +47,7 @@ test('match cap: 1 token a match day across Hype, Toss and Pep, whichever goes f
   for (const first of ['hype', 'toss', 'pep']) {
     assert.ok(tokenOptions(s, first, P[first], ctx).length > 0, first + ' offered');
     const r = useToken(s, first, 'respin', P[first], makeRng('m' + first), true, ctx); assert.notEqual(r.s, s, first);
-    for (const w of ['hype', 'toss', 'pep']) { assert.equal(tokenOptions(r.s, w, P[w], ctx).length, 0, `${first} then ${w}: same day closed`); assert.ok(tokenOptions(r.s, w, P[w], { matchKey: 'day2' }).length > 0, `${w} next day`); }
+    for (const w of ['hype', 'toss', 'pep']) { assert.equal(tokenOptions(r.s, w, P[w], ctx).length, 0, `${first} then ${w}: same day closed`); assert.equal(tokenOptions(r.s, w, P[w], { matchKey: 'day2' }).length > 0, !(first === 'hype' && w === 'hype'), `${w} next day (Hype is 1 a season)`); }
     const q = useToken(r.s, 'toss', 'respin', P.toss, makeRng('m2'), undefined, ctx); assert.equal(q.s, r.s, 'useToken refuses past the match cap');
   }
   const sw = metaWheel(wheelSlices('normal'), 'spot', s), i = sw.slices.findIndex((v, k) => v < 3 && !sw.golds.includes(k));
@@ -70,20 +70,21 @@ test('guards: Medals never doubled (Prize Pair, re-spin), Lift never above gold 
 }));
 
 test('Copy report: Full shows the wheel lines (ratios, tokens per wheel, match cap, Find check), JSON carries wm', () => on(() => {
-  const s = full({ respin: 2 }); s.wheelMeta.tokUsed = { hype: 2, toss: 1 }; s.wheelMeta.matchTokUsed = { key: '1|league|1|s', n: 1 };
+  const s = full({ respin: 2 }); s.wheelMeta.tokUsed = { hype: 1, toss: 1 }; s.wheelMeta.matchTokUsed = { key: '1|league|1|s', n: 1 };
   const L = wmLines(s), t = L.join('\n');
-  assert.match(t, /Full-tree value vs no tree.*spot x1\.63.*find x2\.06/); assert.match(t, /hype 2\/2, toss 1\/2/); assert.match(t, /match day 1\/1/);
+  assert.match(t, /Full-tree value vs no tree.*spot x1\.63.*find x2\.06/); assert.match(t, /hype 1\/1, toss 1\/2/); assert.match(t, /match day 1\/1/);
   assert.match(t, /Find check \(18% activity, avg careful\): your tree [\d.]+%, full tree [\d.]+%, every node [\d.]+%/); assert.match(t, /Token cap reached this season: hype/);
   const log = createLog({ build: 'x' }), env = { build: 'x', now: 0, vp: 'v', errors: 0, meta: L, wm: wmJson(s) };
   const txt = buildFull(log.data(), env); assert.ok(txt.includes('Find check') && txt.includes('Tokens used this season'));
-  const j = JSON.parse(buildData(log.data(), env)); assert.equal(j.wm.tok.hype, 2); assert.equal(j.wm.md, 1); assert.equal(j.wm.fc.length, 3);
+  const j = JSON.parse(buildData(log.data(), env)); assert.equal(j.wm.tok.hype, 1); assert.equal(j.wm.md, 1); assert.equal(j.wm.fc.length, 3);
   assert.ok(!('wm' in JSON.parse(buildData(log.data(), { build: 'x', now: 0, vp: 'v', errors: 0 }))), 'flag off: no wm key');
 }));
 
-test('Find check (SPEC s5 line 6): no tree ~22.9%, design full tree (Control + Fortune) ~47% and under 55%; bug flag = over 55%', () => on(() => {
+test('Find check (SPEC s5 line 6): no tree ~26.0%, design full tree (Control + Fortune) ~47% and under 55%; bug flag = over 55%', () => on(() => {
   const none = findCareful(fresh(), 6000), design = findCareful(fullTreeOf(fresh(), ['sp_fnd_n', 'sp_fnd_r']), 6000), all = findCareful(fullTreeOf(fresh()), 6000);
   console.log('find check none', none, 'design full', design, 'every node', all);
-  assert.ok(Math.abs(none - 26.0) < 1.5, 'none ' + none); // SPEC s5 18% careful 26.0 (FIND_CHECK.none 22.9 in js/report/wm.js is the old 3-block figure, T8's file)
+  assert.equal(FIND_CHECK.none, 26.0); assert.equal(FIND_CHECK.full, 48.7);
+  assert.ok(Math.abs(none - FIND_CHECK.none) < 1.5, 'none ' + none); // SPEC s5 18% careful 26.0 (FIND_CHECK.none is now 26.0 / full 48.7)
   // design full measures ~42 on the T4 ring (SPEC s5 says ~47): lower bound relaxed 42 -> 40 so seed noise does not fail it; the ~5 pt gap is a T8 check (see t4/BUILD-CHANGES.md).
   assert.ok(design > 40 && design <= FIND_CHECK.bug, 'design full ' + design);
   assert.equal(wmJson(fresh()).bug, all > FIND_CHECK.bug ? 1 : 0, 'bug flag follows the every-node number');

@@ -135,6 +135,7 @@ async function journey(browser, tag) {
   }
 
   await page.goto(`${ORIGIN}/cricket-sixes/?seed=${SEED}`); await settle(800);
+  await page.waitForFunction(() => window.__store && window.__store.get(), null, { timeout: 15000 }); await page.evaluate(() => window.__store.dispatch('SetMatchMode', { mode: 'classic' })); // PR #60: new games start in Wheel match mode; these scripts drive the Classic flow
   const first = await stage();
   if (first !== 'hub' && first !== 'freepick') { await ctx.close(); return { skip: `app boots into stage "${first}", not "freepick" or "hub": the season store/UI is not wired yet` }; } // p7-first: no coach screen before match 1
   let sawFree = false, sawMd = 0;
@@ -198,7 +199,7 @@ async function journey(browser, tag) {
       for (const w of ['hype', 'toss', 'pep']) {
         const b = await page.$(`[data-md="${w}"]`);
         if (!b) continue; // already shown, or no pep slot
-        await b.click(); await settle(350); for (let i = 0; i < 12 && (await page.$('.dr-ov')); i++) { const g = await page.$('.dr-ov [data-go]:not([aria-disabled="true"])'); if (g) await g.click(); await settle(i === 0 ? 1600 : 900); } await audit('matchday-after-' + w); await shot('matchday-' + w);
+        await b.click(); await settle(350); for (let i = 0; i < 12 && (await page.$('.wh-ov')); i++) { const g = await page.$('.wh-ov [data-go]:not([aria-disabled="true"])'); if (g) await g.click(); await settle(i === 0 ? 1600 : 900); } await audit('matchday-after-' + w); await shot('matchday-' + w);
       }
       const q = await page.$('[data-md="info"]');
       if (q) { await q.click(); await settle(500); await audit('matchday-info-sheet'); await shot('matchday-info'); await closeSheets(); } else bad('matchday: no "?" odds button');
@@ -316,6 +317,7 @@ async function p2Screens(browser) {
   const page = await ctx.newPage();
   page.on('pageerror', (e) => problems.push(`[p2] pageerror: ${e.message}`));
   await page.goto(`${ORIGIN}/cricket-sixes/?seed=${SEED}`); await page.waitForTimeout(600);
+  await page.waitForFunction(() => window.__store && window.__store.get(), null, { timeout: 15000 }); await page.evaluate(() => window.__store.dispatch('SetMatchMode', { mode: 'classic' })); // PR #60: new games start in Wheel match mode; these scripts drive the Classic flow
   const hasSel = await page.evaluate(async () => !!(await import('/cricket-sixes/js/store/selectors.js')).runEndVM);
   notes.push(hasSel ? 'p2: sel.runEndVM exists (screens below still use stub view-models)' : 'p2: sel.runEndVM not there yet; screens use stub view-models');
   const cases = [

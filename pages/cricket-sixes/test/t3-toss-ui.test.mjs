@@ -7,7 +7,7 @@ const src = readFileSync(new URL('../js/ui/wheels/toss.js', import.meta.url), 'u
 test('Toss UI source: openWheel options, no dial, no stopOf', () => {
   assert.match(src, /import \{ openWheel \} from '\.\.\/wheel-view\.js'/);
   assert.ok(!/dial-view/.test(src) && !/stopOf|reduced|skip/i.test(src));
-  for (const s of ["wheelId: 'toss'", 'ring: get().ring', 'spinKey: get().spinKey', 'J: 1.2', "'The toss'", 'The tick shows about where it will land.', "tokProps(get, dispatch, 'toss'", "dispatch('TossSpin', { stop:", 'onCollect', 'spokeGain']) assert.ok(src.includes(s), s);
+  for (const s of ["wheelId: 'toss'", 'ring: get().ring', 'spinKey: get().spinKey', 'J: 1.2', "'The toss'", 'The tick shows the slice under the pointer now.', "tokProps(get, dispatch, 'toss'", "dispatch('TossSpin', { stop:", 'onCollect', 'spokeGain']) assert.ok(src.includes(s), s);
   for (const k of ['sliceId', 'stopT', 'cycle', 'tInCycle', 'respin', 't:', 'phi', 'e:']) assert.ok(src.includes(k), k);
 });
 

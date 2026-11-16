@@ -71,9 +71,12 @@ export function scaleRatings(p, x, xBowl = x) {
 
 /**
  * Match coach boost from his strong focuses: { bat, bowl } fractions (0.03 = +3%). Bat -> bat, Bowl -> bowl, Balanced -> balancedPct to both.
- * Per side the best single contribution counts, never a sum (bal+bowl = bowl 3%, bat 1.5%). @param {string[]} strong
+ * Per side the best single contribution counts, never a sum (bal+bowl = bowl 3%, bat 1.5%).
+ * T8: a coach whose job this week is Study or Scout gives no boost (only the 'match' job does); job omitted = the legacy path, boost as before.
+ * @param {string[]} strong @param {string} [job] the idle coach's job this week: 'match' | 'study' | 'scout' | undefined
  */
-export function matchCoachBoost(strong) {
+export function matchCoachBoost(strong, job) {
+  if (job === 'study' || job === 'scout') return { bat: 0, bowl: 0 };
   const st = Array.isArray(strong) ? strong : [];
   const bal = st.includes('bal') ? MATCH_COACH.balancedPct : 0;
   return { bat: Math.max(bal, st.includes('bat') ? MATCH_COACH.pct : 0), bowl: Math.max(bal, st.includes('bowl') ? MATCH_COACH.pct : 0) };

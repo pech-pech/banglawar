@@ -10,7 +10,7 @@ import { SURNAMES } from '../data/names.js';
 import { makeRng } from './rng.js';
 import { aiPickSix } from './clubs.js';
 import { capSum, bandOf, isHidden } from './ability.js';
-import { stepOfRaw } from './letters.js';
+import { stepOfRaw, STEPS } from './letters.js';
 import { matchCoachBoost } from './matchday.js';
 import { fireHook, pipeHook } from './hooks.js';
 import { weekKey, weekKeyOf } from './week-key.js';
@@ -165,17 +165,26 @@ export function scoutList(s) {
   if (sp && sp.steps > 0 && out.length) { const best = out.reduce((b, c) => (c.step > b.step ? c : b), out[0]); best.step = Math.min(CO.maxStep, best.step + sp.steps); }
   return out;
 }
+/** T8: the card the new Scout wheel landed on (stored by the spin in s.scoutSpin.card), as a candidate `sc<n>-c`, or null. Not in scoutList (its length/ids stay as before). @param {any} s */
+export function landedCandidate(s) {
+  const sp = s && s.scoutSpin, n = seasonN(s), c = sp && sp.n === n && Number.isInteger(sp.sliceId) ? sp.card : null;
+  if (!c || !c.surname || scoutRec(s)) return null;
+  const row = STEPS.find((x) => x.letter === c.grade);
+  return { id: `sc${n}-c`, name: c.surname, step: row ? row.step : 1, strong: [c.focus], landed: true };
+}
+/** Everything the player can sign now: the landed card first (when the Scout wheel landed), then scoutList. @param {any} s */
+export const scoutCandidates = (s) => { const l = landedCandidate(s); return l ? [l, ...scoutList(s)] : scoutList(s); };
 /** Can the player still sign someone? { ok, why: ''|'closed'|'full'|'unknown' } @param {any} s @param {string} [id] */
 export function canSign(s, id) {
   if (scoutRec(s)) return { ok: false, why: 'closed' };
   if (coachList(s).length >= CO.slots) return { ok: false, why: 'full' };
-  if (id && !scoutList(s).some((c) => c.id === id)) return { ok: false, why: 'unknown' };
+  if (id && !scoutCandidates(s).some((c) => c.id === id)) return { ok: false, why: 'unknown' };
   return { ok: true, why: '' };
 }
 /** Sign one scouted coach (free). Full slots: release one first. @param {any} s @param {string} id */
 export function signCoach(s, id) {
   if (!canSign(s, id).ok) return s;
-  const c = scoutList(s).find((x) => x.id === id); if (!c) return s;
+  const { landed, ...c } = scoutCandidates(s).find((x) => x.id === id) || /** @type {any} */ ({}); if (!c.id) return s;
   const n = clone(s); n.coaches = (n.coaches || []).concat([{ ...c, away: 0, courseSeason: null }]);
   n.scout = { ...(n.scout && typeof n.scout === 'object' ? n.scout : {}), n: seasonN(s), signed: id, passed: false }; // lead call 1: scout.* keys kept
   return n;
@@ -262,17 +271,21 @@ export function stopLanding(wheel, stop) {
   const { cycle, tInCycle } = cycleOf(t, P), base = phi + (cycle - 1) * ARC_PER_CYCLE(P) + pulseArc(tInCycle, P), dist = pulseW(tInCycle, P) * P.D / 3, pos = base + dist + e;
   return { t, phi, e, base, dist, pos, index: sliceAt(wheel, pos) };
 }
+const FIND_TIE_EPS = 0.05; // s (SPEC s5, FIND_TIE_EPS)
 /** The tap time an average careful player picks (jackpot arrival nearest IDEAL, plus a normal timing error SD). @param {any} wheel @param {number} phi @param {number} g1 @param {number} g2 uniform draws (0,1] */
 export function carefulTapTime(wheel, phi, g1, g2) {
   const w = wheelWidths(wheel), C = w.reduce((x, y) => x + y, 0), P = physOf(wheel);
   const centre = (/** @type {number} */ j) => w.slice(0, j).reduce((x, y) => x + y, 0) + w[j] / 2;
   const cJs = wheel.aims && wheel.aims.length ? wheel.aims : (wheel.golds && wheel.golds.length ? wheel.golds : [wheel.jackpotIndex || 0]).map(centre); // wheel meta: Extra Gold adds a second target; aims = explicit target positions in units (Find: block centres)
   const g = (/** @type {number} */ t) => phi + tickAt(t, P); // the pulse tick (SPEC 2c), monotone in t
-  let best = WS.IDEAL, bd = Infinity;
+  const pieceW = (/** @type {number} */ x) => { let a = 0; const m = ((x % C) + C) % C; for (const v of w) { if (m < a + v) return v; a += v; } return 0; };
+  let best = WS.IDEAL, bd = Infinity, bw = 0;
   for (const cJ of cJs) for (let k = Math.floor(g(TAP_FROM) / C); k <= Math.ceil(g(TAP_TO) / C); k++) {
     const target = cJ + k * C; if (target < g(TAP_FROM) || target > g(TAP_TO)) continue;
     let lo = TAP_FROM, hi = TAP_TO; for (let i = 0; i < 40; i++) { const m = (lo + hi) / 2; if (g(m) < target) lo = m; else hi = m; }
-    if (Math.abs(lo - WS.IDEAL) < bd) { bd = Math.abs(lo - WS.IDEAL); best = lo; }
+    // SPEC s5 tie rule (FIND_TIE_EPS 0.05 s): nearest to IDEAL wins; arrivals within eps of the nearest tie, the WIDER block wins, then the first clockwise (earlier arrival)
+    const d = Math.abs(lo - WS.IDEAL), wd = pieceW(cJ);
+    if (d < bd - FIND_TIE_EPS || (d <= bd + FIND_TIE_EPS && (wd > bw + 1e-9 || (Math.abs(wd - bw) <= 1e-9 && lo < best)))) { if (d < bd) bd = d; bw = wd; best = lo; }
   }
   const z = Math.sqrt(-2 * Math.log(Math.max(1e-12, g1))) * Math.cos(2 * Math.PI * g2);
   return Math.max(TAP_FROM, Math.min(TAP_TO, best + z * P.SD));
@@ -425,8 +438,8 @@ export function seeTips(state) {
   const n = clone(state); n.training.tipsSeen = true; return n;
 }
 
-// DEPRECATED shims (CONTRACT-A RETIRE list: TIMING_WIN, timingBucket, TIMING_LINE go with the old wheel-view (T1) and js/report/log.js (T8)).
-// Kept only so those two files still link until they drop their imports; no COAST, nothing new reads them. DELETE once both imports are gone.
+// DEPRECATED shims (CONTRACT-A RETIRE list). T8 check: js/ui/wheel-view.js still imports all three and js/report/log.js imports timingBucket, so they stay.
+// DELETE once wheel-view.js and report/log.js drop their imports.
 export const TIMING_WIN = Object.freeze({ lo: 3.2, hi: 3.8 });
 export function timingBucket(/** @type {number} */ t) { return !Number.isFinite(t) ? 'o' : t < TIMING_WIN.lo ? 'e' : t <= TIMING_WIN.hi ? 'c' : 'l'; }
 export const TIMING_LINE = Object.freeze({ e: 'Early', c: 'Good timing', l: 'Late', o: 'Coasted' });
@@ -438,6 +451,12 @@ export function idleCoaches(s) {
   const last = lastOf(s), nets = planOf(s).coachId || (last && last.coachId) || null;
   return coachList(s).filter((/** @type {any} */ c) => !(c.away > 0) && c.id !== nets);
 }
+/** T8: the job that gates the +3% match boost, or undefined (legacy: no job field, or 3+ slots where the idle coach is always the Match coach). 2-slot week: study/scout stay as saved, anything else = 'match'. (No coach-jobs import: it calls matchCoachOf.) @param {any} s @param {any} coach */
+function matchBoostJob(s, coach) {
+  const j = coach && coach.job; if (typeof j !== 'string') return undefined;
+  const n = s && s.clinic && s.clinic.slots != null ? Number(s.clinic.slots) : NaN, slots = Number.isFinite(n) && n >= 0 ? Math.trunc(n) : MAX_COACHES;
+  return slots < 3 ? (j === 'scout' ? 'scout' : j === 'match' ? 'match' : 'study') : undefined;
+}
 /**
  * This week's match coach: { coach, idle, boost:{bat,bowl}, chosen } or null when none is idle.
  * Default = highest grade idle coach (ties: slot order). training.matchCoachId (per week) overrides it while he is still idle; missing/stale = default.
@@ -448,7 +467,7 @@ export function matchCoachOf(s) {
   let best = idle[0]; for (const c of idle) if (c.step > best.step) best = c;
   const id = s.training && s.training.matchCoachId, pick = id ? idle.find((/** @type {any} */ c) => c.id === id) : null;
   const coach = pick || best;
-  return { coach, idle, boost: matchCoachBoost(coach.strong), chosen: !!pick, defaultId: best.id };
+  return { coach, idle, boost: matchCoachBoost(coach.strong, matchBoostJob(s, coach)), chosen: !!pick, defaultId: best.id };
 }
 /** Pick this week's match coach (null = back to the default). Not-idle or unknown coaches return the same state. @param {any} s @param {string|null} id */
 export function setMatchCoach(s, id) {

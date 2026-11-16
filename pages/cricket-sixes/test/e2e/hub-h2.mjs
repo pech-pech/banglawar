@@ -108,7 +108,7 @@ async function stubRoutes(ctx, o) {
   const patch = async (re, fn) => ctx.route(re, async (route) => {
     try { const r = await route.fetch(); route.fulfill({ response: r, body: fn(await r.text()), contentType: 'text/javascript' }); } catch (e) { route.continue(); }
   });
-  if (o.clinic != null) await patch(/\/js\/core\/clinic\.js(\?.*)?$/, () => `export function clinicReadyCount(s) { return ${o.clinic | 0}; }\n`);
+  if (o.clinic != null) await patch(/\/js\/core\/clinic\.js(\?.*)?$/, (t) => t.replace('export function clinicReadyCount(', 'export function __realClinicReadyCount(') + `\nexport function clinicReadyCount(s) { return ${o.clinic | 0}; }\n`); // keep the real module's other exports (clinic-pick-sheet imports pickable)
   if (o.book) await patch(/\/js\/ui\/book-badge\.js(\?.*)?$/, (t) => t.replace('let count = 0;', `let count = ${o.book | 0};`));
   if (o.act || o.workshop || o.invalid) {
     await patch(/\/js\/store\/selectors\.js(\?.*)?$/, (t) => {

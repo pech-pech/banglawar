@@ -1,6 +1,6 @@
 // Wheel-ring QA shots over tools/wheel-sandbox.html (all 8 rings). 344x882, deviceScaleFactor 1, Chromium, local server only (other hosts aborted).
 // Run:  node pages/cricket-sixes/tools/qa-shots-wheel.mjs            (all rings + 60 s idle check, about 2 min)
-// Env:  E2E_FAST=1 idle check 6 s instead of 60 s | RINGS=spot,hype subset | GUIDE=1 add &guide=1 | QA_OUT=dir (default t1/qa/wheel/)
+// Env:  LONG=1 long player names on pep (T8: short forms "Maxi..") | EXTRA=rate=26 extra sandbox query (Find 2% F) | OUT=dir (same as QA_OUT) | E2E_FAST=1 idle check 6 s instead of 60 s | RINGS=spot,hype subset | GUIDE=1 add &guide=1 | QA_OUT=dir (default t1/qa/wheel/)
 // Per ring shots: <ring>-1-ready, <ring>-2-spin-1.0s, <ring>-3-glow-3.5s, <ring>-4-result (taken when the result strip shows, waits up to 8 s after STOP). Times are on the page clock from the SPIN click's event.timeStamp (the wheel's own clock).
 // Idle check (ring spot): SPIN, then no tap for 60 s (6 s fast): the wheel must still be spinning (STOP label, no result, no stop logged, still moving).
 // audit.json: per shot tap targets (every visible button / role=button / input under 56 px listed in small), per-check results, console errors. Exit 1 if any check fails.
@@ -12,10 +12,10 @@ import { extname, join, normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = fileURLToPath(new URL('../', import.meta.url));
-const OUT = (process.env.QA_OUT || '/mnt/project-files/games-design/cricket-sixes/2026-11-16-combined-handoff/t1/qa/wheel/').replace(/\/?$/, '/');
+const OUT = (process.env.QA_OUT || process.env.OUT || '/mnt/project-files/games-design/cricket-sixes/2026-11-16-combined-handoff/t1/qa/wheel/').replace(/\/?$/, '/');
 const ALL = ['spot', 'course', 'find', 'hype', 'toss', 'pep', 'scout', 'finals'];
 const RINGS = (process.env.RINGS ? process.env.RINGS.split(',') : ALL).filter((r) => ALL.includes(r));
-const IDLE_S = process.env.E2E_FAST === '1' ? 6 : 60, GUIDE = process.env.GUIDE === '1' ? '&guide=1' : '';
+const IDLE_S = process.env.E2E_FAST === '1' ? 6 : 60, GUIDE = (process.env.GUIDE === '1' ? '&guide=1' : '') + (process.env.EXTRA ? '&' + process.env.EXTRA.replace(/^&/, '') : ''), LONG = process.env.LONG === '1';
 const VIEW = (() => { const m = /^(\d+)x(\d+)$/.exec(process.env.VIEW || ''); return m ? { width: +m[1], height: +m[2] } : { width: 344, height: 882 }; })(); // VIEW=WxH, default 344x882
 const { chromium } = createRequire(import.meta.url)('playwright');
 const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.png': 'image/png', '.woff2': 'font/woff2', '.webmanifest': 'application/json' };
@@ -72,6 +72,7 @@ async function ringRun(ring) {
   try {
     const info = await step(ring, 'sandbox-loads', async () => { await page.waitForSelector('.wh-ov', { timeout: 6000 }); const t = await page.textContent('#sb-info').catch(() => ''); const bad = /SUM BAD/.test(t || ''); check(ring, 'sandbox-loads', true, t); check(ring, 'ring-sums-10', !bad, t); return t; });
     if (!info) return;
+    if (LONG && ring === 'pep') await page.evaluate(() => { const N = ['Maximilian', 'Maxwell', 'Bartholomew', 'Zed', 'Christopher', 'Fitzgerald']; window.__ring.forEach((r, i) => { r.label = N[i % 6] + ' +' + r.value + '%'; r.full = r.label; }); window.__sandbox.open(); });
     await page.waitForTimeout(500);
     await step(ring, 'shot-ready', async () => { const a = await shot(page, ring, '1-ready'); check(ring, 'shot-ready', true); check(ring, 'tap-targets-56-ready', !a.small || !a.small.length, (a.small || []).join('; ')); check(ring, 'no-hscroll-ready', !a.hScroll); });
     const clicked = await step(ring, 'spin-tap', async () => { await page.click('.wh-ov [data-go]'); check(ring, 'spin-tap', true); return true; });
