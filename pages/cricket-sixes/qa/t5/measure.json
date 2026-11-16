@@ -1,0 +1,450 @@
+{
+ "viewport": "344x882@2x (shot 11: 475x638@2x)",
+ "fold475x638": {
+  "viewport": "475x638",
+  "scrollY": 0,
+  "pageScrollH": 638,
+  "strip": {
+   "top": 82,
+   "bottom": 272,
+   "left": 22,
+   "right": 453,
+   "h": 190,
+   "w": 431
+  },
+  "stripHeight": 190,
+  "runNets": {
+   "top": 572,
+   "bottom": 628,
+   "left": 14,
+   "right": 461,
+   "h": 56,
+   "w": 447
+  },
+  "runNetsFullyVisibleNoScroll": true,
+  "runNetsClippedByScroller": false,
+  "coachSlots": 3
+ },
+ "notes": [
+  "stage after load: train",
+  "payout via EndWeek: before [[3,99,0],[6,0,0]] after {\"stage\":\"week\",\"c\":[[4,9,1],[6,0,0]]}",
+  "step-up card auto-shown after payout: false",
+  "NOTE: step-up card is registered as sheet \"stepup\" but nothing opens it automatically; shot 10 opened it by a synthetic data-act=\"sheet:stepup\" click. Card present: false",
+  "fold 475x638: {\"viewport\":\"475x638\",\"scrollY\":0,\"pageScrollH\":638,\"strip\":{\"top\":82,\"bottom\":272,\"left\":22,\"right\":453,\"h\":190,\"w\":431},\"stripHeight\":190,\"runNets\":{\"top\":572,\"bottom\":628,\"left\":14,\"right\":461,\"h\":56,\"w\":447},\"runNetsFullyVisibleNoScroll\":true,\"runNetsClippedByScroller\":false,\"coachSlots\":3}"
+ ],
+ "shots": [
+  {
+   "shot": "01-strip-3coach",
+   "els": [
+    {
+     "cw": "job",
+     "cls": "cw-chip cw-chip-study",
+     "w": 70.9,
+     "h": 56,
+     "minFont": 14,
+     "text": "Study"
+    },
+    {
+     "cw": "xp",
+     "cls": "cw-xp",
+     "w": 70.9,
+     "h": 10,
+     "minFont": null,
+     "text": ""
+    },
+    {
+     "cw": "job",
+     "cls": "cw-chip cw-chip-study",
+     "w": 70.9,
+     "h": 56,
+     "minFont": 14,
+     "text": "Study"
+    },
+    {
+     "cw": "xp",
+     "cls": "cw-xp",
+     "w": 70.9,
+     "h": 10,
+     "minFont": null,
+     "text": ""
+    },
+    {
+     "cw": "job",
+     "cls": "cw-chip cw-chip-study",
+     "w": 70.9,
+     "h": 56,
+     "minFont": 14,
+     "text": "Study"
+    },
+    {
+     "cw": "xp",
+     "cls": "cw-xp",
+     "w": 70.9,
+     "h": 10,
+     "minFont": null,
+     "text": ""
+    }
+   ],
+   "overflowX": false,
+   "scrollW": 344,
+   "clientW": 344
+  },
+  {
+   "shot": "02-job-picker-open",
+   "els": [
+    {
+     "cw": "job",
+     "cls": "cw-chip cw-chip-study",
+     "w": 70.9,
+     "h": 56,
+     "minFont": 14,
+     "text": "Study"
+    },
+    {
+     "cw": "xp",
+     "cls": "cw-xp",
+     "w": 70.9,
+     "h": 10,
+     "minFont": null,
+     "text": ""
+    },
+    {
+     "cw": "job",
+     "cls": "cw-chip cw-chip-study",
+     "w": 70.9,
+     "h": 56,
+     "minFont": 14,
+     "text": "Study"
+    },
+    {
+     "cw": "xp",
+     "cls": "cw-xp",
+     "w": 70.9,
+     "h": 10,
+     "minFont": null,
+     "text": ""
+    },
+    {
+     "cw": "job",
+     "cls": "cw-chip cw-chip-study",
+     "w": 70.9,
+     "h": 56,
+     "minFont": 14,
+     "text": "Study"
+    },
+    {
+     "cw": "xp",
+     "cls": "cw-xp",
+     "w": 70.9,
+     "h": 10,
+     "minFont": null,
+     "text": ""
+    },
+    {
+     "cw": "setjob",
+     "cls": "cw-row is-focus",
+     "w": 300,
+     "h": 62,
+     "minFont": 14,
+     "text": "Study tape+12 XPStudy ta"
+    },
+    {
+     "cw": "setjob",
+     "cls": "cw-row",
+     "w": 300,
+     "h": 62,
+     "minFont": 14,
+     "text": "Scout+8 XPScout: +8 XP a"
+    },
+    {
+     "cw": "close",
+     "cls": "cw-close",
+     "w": 300,
+     "h": 56,
+     "minFont": 24,
+     "text": "Close"
+    }
+   ],
+   "overflowX": false,
+   "scrollW": 344,
+   "clientW": 344
+  },
+  {
+   "shot": "03-after-scout-strip",
+   "els": [
+    {
+     "cw": "job",
+     "cls": "cw-chip cw-chip-study",
+     "w": 70.9,
+     "h": 56,
+     "minFont": 14,
+     "text": "Study"
+    },
+    {
+     "cw": "xp",
+     "cls": "cw-xp",
+     "w": 70.9,
+     "h": 10,
+     "minFont": null,
+     "text": ""
+    },
+    {
+     "cw": "job",
+     "cls": "cw-chip cw-chip-study",
+     "w": 70.9,
+     "h": 56,
+     "minFont": 14,
+     "text": "Study"
+    },
+    {
+     "cw": "xp",
+     "cls": "cw-xp",
+     "w": 70.9,
+     "h": 10,
+     "minFont": null,
+     "text": ""
+    },
+    {
+     "cw": "job",
+     "cls": "cw-chip cw-chip-study",
+     "w": 70.9,
+     "h": 56,
+     "minFont": 14,
+     "text": "Study"
+    },
+    {
+     "cw": "xp",
+     "cls": "cw-xp",
+     "w": 70.9,
+     "h": 10,
+     "minFont": null,
+     "text": ""
+    }
+   ],
+   "overflowX": false,
+   "scrollW": 344,
+   "clientW": 344
+  },
+  {
+   "shot": "04-strip-2coach",
+   "els": [
+    {
+     "cw": "job",
+     "cls": "cw-chip cw-chip-study",
+     "w": 70.9,
+     "h": 56,
+     "minFont": 14,
+     "text": "Study"
+    },
+    {
+     "cw": "xp",
+     "cls": "cw-xp",
+     "w": 70.9,
+     "h": 10,
+     "minFont": null,
+     "text": ""
+    },
+    {
+     "cw": "job",
+     "cls": "cw-chip cw-chip-study",
+     "w": 70.9,
+     "h": 56,
+     "minFont": 14,
+     "text": "Study"
+    },
+    {
+     "cw": "xp",
+     "cls": "cw-xp",
+     "w": 70.9,
+     "h": 10,
+     "minFont": null,
+     "text": ""
+    }
+   ],
+   "overflowX": false,
+   "scrollW": 344,
+   "clientW": 344
+  },
+  {
+   "shot": "05-strip-1coach",
+   "els": [
+    {
+     "cw": "job",
+     "cls": "cw-chip cw-chip-study",
+     "w": 70.9,
+     "h": 56,
+     "minFont": 14,
+     "text": "Study"
+    },
+    {
+     "cw": "xp",
+     "cls": "cw-xp",
+     "w": 70.9,
+     "h": 10,
+     "minFont": null,
+     "text": ""
+    }
+   ],
+   "overflowX": false,
+   "scrollW": 344,
+   "clientW": 344
+  },
+  {
+   "shot": "06-strip-0coach",
+   "els": [],
+   "overflowX": false,
+   "scrollW": 344,
+   "clientW": 344
+  },
+  {
+   "shot": "07-away-coach",
+   "els": [
+    {
+     "cw": "job",
+     "cls": "cw-chip cw-chip-study",
+     "w": 70.9,
+     "h": 56,
+     "minFont": 14,
+     "text": "Study"
+    },
+    {
+     "cw": "xp",
+     "cls": "cw-xp",
+     "w": 70.9,
+     "h": 10,
+     "minFont": null,
+     "text": ""
+    },
+    {
+     "cw": "job",
+     "cls": "cw-chip cw-chip-study",
+     "w": 70.9,
+     "h": 56,
+     "minFont": 14,
+     "text": "Study"
+    },
+    {
+     "cw": "xp",
+     "cls": "cw-xp",
+     "w": 70.9,
+     "h": 10,
+     "minFont": null,
+     "text": ""
+    }
+   ],
+   "overflowX": false,
+   "scrollW": 344,
+   "clientW": 344
+  },
+  {
+   "shot": "08-xp-near-full",
+   "els": [
+    {
+     "cw": "job",
+     "cls": "cw-chip cw-chip-study",
+     "w": 70.9,
+     "h": 56,
+     "minFont": 14,
+     "text": "Study"
+    },
+    {
+     "cw": "xp",
+     "cls": "cw-xp",
+     "w": 70.9,
+     "h": 10,
+     "minFont": null,
+     "text": ""
+    },
+    {
+     "cw": "job",
+     "cls": "cw-chip cw-chip-match cw-locked",
+     "w": 70.9,
+     "h": 56,
+     "minFont": 14,
+     "text": "Match"
+    },
+    {
+     "cw": "xp",
+     "cls": "cw-xp",
+     "w": 70.9,
+     "h": 10,
+     "minFont": null,
+     "text": ""
+    }
+   ],
+   "overflowX": false,
+   "scrollW": 344,
+   "clientW": 344
+  },
+  {
+   "shot": "09-after-payout",
+   "els": [],
+   "overflowX": false,
+   "scrollW": 344,
+   "clientW": 344
+  },
+  {
+   "shot": "10-stepup-card",
+   "els": [],
+   "overflowX": false,
+   "scrollW": 344,
+   "clientW": 344
+  },
+  {
+   "shot": "11-fold-3coach",
+   "els": [
+    {
+     "cw": "job",
+     "cls": "cw-chip cw-chip-study",
+     "w": 114.6,
+     "h": 56,
+     "minFont": 14,
+     "text": "Study"
+    },
+    {
+     "cw": "xp",
+     "cls": "cw-xp",
+     "w": 114.6,
+     "h": 10,
+     "minFont": null,
+     "text": ""
+    },
+    {
+     "cw": "job",
+     "cls": "cw-chip cw-chip-match cw-locked",
+     "w": 114.6,
+     "h": 56,
+     "minFont": 14,
+     "text": "Match"
+    },
+    {
+     "cw": "xp",
+     "cls": "cw-xp",
+     "w": 114.6,
+     "h": 10,
+     "minFont": null,
+     "text": ""
+    },
+    {
+     "cw": "job",
+     "cls": "cw-chip cw-chip-study",
+     "w": 114.6,
+     "h": 56,
+     "minFont": 14,
+     "text": "Study"
+    },
+    {
+     "cw": "xp",
+     "cls": "cw-xp",
+     "w": 114.6,
+     "h": 10,
+     "minFont": null,
+     "text": ""
+    }
+   ],
+   "overflowX": false,
+   "scrollW": 475,
+   "clientW": 475
+  }
+ ]
+}

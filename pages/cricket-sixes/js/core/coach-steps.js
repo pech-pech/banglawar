@@ -56,10 +56,9 @@ export function courseCap(step, gain) {
   return { to, cut: to < raw };
 }
 
-/** A coach at step 19 (S-) or above cannot start a course. @param {any} coach @returns {{ok:boolean, why:string}} */
+/** Any coach may start the club's course (M, 2026-11-16); at step 19+ the result is cut by courseCap, so the course can be wasted. @param {any} coach @returns {{ok:boolean, why:string}} */
 export function canStartCourse(coach) {
   if (!coach || typeof coach !== 'object') return { ok: false, why: 'No coach' };
-  if (int0(coach.step) >= COURSE_MAX_STEP) return { ok: false, why: 'S needs practice, not a course' };
   return { ok: true, why: '' };
 }
 

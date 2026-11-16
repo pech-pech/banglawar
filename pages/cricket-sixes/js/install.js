@@ -5,6 +5,7 @@
 // Spin types registered here are dispatched by the default case of js/store/commands.js. Empty today: nothing changes.
 /* INSTALL:T5 start */
 import './store/spins/coach-job.js';
+import './store/spins/coach-stepup.js';
 import { installCoachHooks } from './core/coach-hooks.js';
 import { installCoachReport } from './report/coach.js';
 installCoachHooks();

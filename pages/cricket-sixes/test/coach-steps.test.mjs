@@ -85,9 +85,9 @@ test('T4.15 course cut at 19', () => {
   assert.equal(courseCap(20, 3).to, 20, 'never lowers a coach');
 });
 
-test('T4.15 coach at 19 or above cannot start a course', () => {
-  assert.deepEqual(canStartCourse(W({ step: 18 })), { ok: true, why: '' });
-  for (const step of [19, 20, 21]) assert.deepEqual(canStartCourse(W({ step })), { ok: false, why: 'S needs practice, not a course' });
+test('T4.15 any coach may start a course; at 19 or above the result is cut and gains nothing', () => {
+  for (const step of [1, 18, 19, 20, 21]) assert.deepEqual(canStartCourse(W({ step })), { ok: true, why: '' });
+  for (const step of [19, 20, 21]) assert.deepEqual(courseCap(step, 3), { to: step, cut: true });
   assert.equal(canStartCourse(null).ok, false);
 });
 

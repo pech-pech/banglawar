@@ -4,6 +4,8 @@ import { createSave } from './platform/save.js';
 import { openSaveSheet } from './ui/save-sheet.js';
 import { FLAGS } from './data/flags.js';
 import { applyTheme, themeOf } from './ui/theme.js';
+import { installStepUpWatcher } from './ui/stepup-sheet.js';
+import { overlayOpen } from './ui/inert.js';
 import './install.js'; // S0 lead call 3a: T5 / T6 listener and command modules (empty today)
 
 const rand = () => Array.from(crypto.getRandomValues(new Uint8Array(8)), (b) => b.toString(16).padStart(2, '0')).join('');
@@ -51,7 +53,11 @@ store.subscribe((s) => { saved = save.save(s); });
 
 window.__store = store;
 window.__save = save;
-mount(document.getElementById('app'), store);
+const ui = mount(document.getElementById('app'), store);
+// T5: auto-open the coach step-up sheet. Needs mount() to return { openByName } (asked of T7); no-op until then.
+if (ui && typeof ui.openByName === 'function') {
+  installStepUpWatcher({ store, openByName: ui.openByName, overlayOpen, wheelOverlay: () => !!document.querySelector('.wh-ov'), netsScene: () => !!document.querySelector('.ns-scene') });
+}
 
 // 4. Save sheet: any element with data-act="sheet:save" opens it.
 document.addEventListener('click', (e) => {
