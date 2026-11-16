@@ -56,7 +56,7 @@ export function openClinicWheel(ctx, deps) {
   const describe = (p) => { const t = clinicResultText(p.sliceId), k = p.kind; return { big: t, chip: '', say: t, gold: k === 'JP' }; };
   const close = deps.openWheel({
     wheelId: CLINIC_WHEEL_ID, spinKey: ctx.spinKey, ring: clinicRing(), J, wobKey,
-    title: 'Clinic', plainResult: true, cardHtml: '<p class="cn-hint">Tap SPIN, then STOP. The tick shows roughly where it lands.</p>', look: ctx.look,
+    title: 'Clinic', plainResult: true, look: ctx.look,
     ...(stored ? { stored } : {}),
     pending: landed, getPending: () => landed, describe,
     onSpin: (stop) => {
