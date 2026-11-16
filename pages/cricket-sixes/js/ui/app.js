@@ -27,7 +27,7 @@ const STAGES = {
   break: [brk, 'breakVM'],
   chase: [chase, 'chaseVM'],
   done: [result, 'resultVM'],
-  train: ['training-view', 'trainingVM'],
+  train: ['training-view', 'trainingVMT2'], /* T2: selectors.js T2 block */
   week: ['week-view', 'weekVM'],
   end: [end, 'endVM'],
   runend: ['runend-view', 'runEndVM'],
@@ -44,7 +44,7 @@ const SHEETS = {
   table: { file: 'table-sheet', vm: ['tableVM', () => []] },
   player: { file: 'player-sheet', vm: ['playerVM', (a) => [idOf(a)]] },
   tree: { file: 'tree-sheet', vm: ['treeVM', (a) => [idOf(a), a && a.side]] },
-  coaches: { file: 'coaches-sheet', vm: ['coachesVM', () => []] },
+  coaches: { file: 'coaches-sheet', vm: ['coachesVMT2', () => []] }, /* T2 */
   traininghelp: { file: 'training-view', fn: 'openHelp', vm: null },
   save: { file: 'save-sheet', vm: null },
   glossary: { file: 'glossary-sheet', fn: 'openGlossary', vm: null },
