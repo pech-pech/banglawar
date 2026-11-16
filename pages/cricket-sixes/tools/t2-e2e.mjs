@@ -23,6 +23,7 @@ for (let i = 0; i < 50; i++) { try { if ((await fetch(ORIGIN + '/index.html')).o
 const { createSave } = await import(new URL('../js/platform/save.js', import.meta.url));
 const fx = JSON.parse(readFileSync(new URL('../test/fixtures/v7-save.json', import.meta.url), 'utf8'));
 const data = JSON.parse(JSON.stringify(fx.data)); data.stage = 'train'; if (data.training) { data.training.nets = null; data.training.tp = Math.max(200, data.training.tp | 0); } // TP so Run nets is open
+if (Array.isArray(data.coaches)) data.coaches.forEach((c) => { if (c && typeof c.step === 'number') c.step = 18; }); // 1 step under S-: a +2 or better lands cut at S-
 let saved = ''; createSave({ getItem: () => null, setItem: (k, v) => { if (!saved) saved = v; }, removeItem() {} }).save(data);
 if (!saved) { console.error('could not wrap the save'); srv.kill(); process.exit(1); }
 
@@ -40,13 +41,15 @@ const shot = async (n) => { await page.screenshot({ path: OUT + n + '.png' }); c
 const tap = (sel) => page.evaluate((s) => { const b = document.querySelector(s); if (b && !b.disabled && b.getAttribute('aria-disabled') !== 'true') { b.click(); return true; } return false; }, sel);
 
 /** SPIN, wait past the glow (3.4 s), STOP; return the result strip text. */
-async function spinStop(tag) {
+async function spinStop(tag, stopAt = 3400) {
   check(await page.$('.wh-ov') != null, tag + ': wheel overlay open');
   check((await page.getAttribute('.wh-ov', 'data-wheel')) === (tag === 'spotlight' ? 'spot' : 'course'), tag + ': wheelId on the overlay');
   await shot(tag + '-1-ready');
   check(await tap('.wh-ov [data-go]'), tag + ': SPIN tapped');
-  const t0 = Date.now(); await settle(1500); await shot(tag + '-2-spinning');
-  await page.waitForTimeout(Math.max(0, 3400 - (Date.now() - t0)));
+  await page.waitForTimeout(120); await shot(tag + '-1b-stop-inactive'); // STOP guard: the button is inactive for the first 0.35 s after SPIN
+  check(await page.evaluate(() => { const b = document.querySelector('.wh-ov [data-go]'); return !!b && (b.getAttribute('aria-disabled') === 'true' || b.classList.contains('is-wait') || b.disabled); }), tag + ': STOP inactive right after SPIN');
+  const t0 = Date.now() - 120; await settle(1380); await shot(tag + '-2-spinning');
+  await page.waitForTimeout(Math.max(0, stopAt - (Date.now() - t0)));
   await shot(tag + '-3-glow');
   check(await tap('.wh-ov [data-go]'), tag + ': STOP tapped');
   await page.waitForSelector('.wh-ov [data-res]:not([hidden])', { timeout: 9000 }).catch(() => {});
@@ -72,9 +75,10 @@ try {
   if (cid) {
     check(await tap('[data-ct="course"][data-id="' + cid + '"]'), 'Course button tapped'); await settle(500);
     check(await tap('[data-cf="yes"]'), 'course confirm tapped'); await settle(900);
-    const cr = await spinStop('course');
+    const cr = await spinStop('course', +(process.env.T2_COURSE_STOP || 3400));
     console.log('  course strip:', cr);
     check(/\+\d/.test(cr), 'course strip shows +N steps: "' + cr + '"');
+    console.log('  course cut (coach at A+, step 18): visible strip "' + cr + '"; the "cut at S-" words live only in the aria-live say (wheel-view does not print them)');
     check(await tap('.wh-ov [data-go]'), 'course COLLECT tapped'); await settle(1200);
     for (let k = 0; k < 6 && (await page.$('.wh-ov, .sheet-fixed')); k++) { await page.keyboard.press('Escape'); await settle(300); }
   }
@@ -92,6 +96,33 @@ try {
   const rec = await page.evaluate(() => { const w = (window.__store.get().wheels || {}).stops || {}; return ['spot', 'course'].map((k) => Object.keys(w[k] || {}).length); });
   check(rec[0] > 0 && rec[1] > 0, 'stops recorded in wheels.stops (spot ' + rec[0] + ', course ' + rec[1] + ')');
 } catch (e) { check(false, 'script threw: ' + (e.stack || e.message || e)); await shot('zz-failure').catch(() => {}); }
+
+// Kind Floor Spotlight: a second session whose save owns the Kind Floor node (f_floor). The selector does not pass the flag to the Spotlight vm yet,
+// so this run patches js/store/selectors.js in flight (kindFloor: mx1.kindFloor) to show the T2 view with the flag set. Shots spotlight-kf-*.
+try {
+  const d2 = JSON.parse(JSON.stringify(data)); d2.wheelMeta = { ...(d2.wheelMeta || {}), owned: { ...((d2.wheelMeta || {}).owned || {}), f_floor: 1 } };
+  let s2 = ''; createSave({ getItem: () => null, setItem: (k, v) => { if (!s2) s2 = v; }, removeItem() {} }).save(d2);
+  const c2 = await browser.newContext({ viewport: VIEW, deviceScaleFactor: 1, serviceWorkers: 'block' });
+  await c2.addInitScript((text) => { try { if (!localStorage.getItem('cs.save.1')) localStorage.setItem('cs.save.1', text); } catch (_) { /* none */ } }, s2);
+  await c2.route('**/js/store/selectors.js', async (r) => { const res = await r.fetch(); const t = (await res.text()).replace('guide: !!fx.guide,', 'kindFloor: fx.kindFloor, guide: !!fx.guide,').replace('guide: mx1.guide,', 'kindFloor: mx1.kindFloor, guide: mx1.guide,'); r.fulfill({ response: res, body: t }); });
+  const pg = await c2.newPage(); pg.setDefaultTimeout(8000);
+  await pg.goto(`${ORIGIN}/index.html?seed=t2e2e`); await pg.waitForFunction(() => window.__store && window.__store.get(), null, { timeout: 15000 }); await pg.waitForTimeout(800);
+  for (let k = 0; k < 4; k++) { const done = await pg.evaluate(() => { const b = [...document.querySelectorAll('button')].find((x) => /^Done$/i.test((x.innerText || '').trim()) && x.getBoundingClientRect().width > 0); if (b) { b.click(); return true; } return false; }); if (!done) break; await pg.waitForTimeout(400); }
+  for (let k = 0; k < 4 && (await pg.$('.c-sheet, .sheet-fixed, .tr-tip')); k++) { const sk = await pg.$('.tr-tip [data-tip="skip"]'); if (sk) await sk.click(); else await pg.keyboard.press('Escape'); await pg.waitForTimeout(250); }
+  await pg.evaluate(() => { const s = window.__store.get(), p = s.clubs[0].squad.find((x) => x.id) || s.clubs[0].squad[0]; window.__store.dispatch('SetTrainPlan', { spotlightId: p.id }); });
+  await pg.waitForTimeout(400);
+  await pg.evaluate(() => { const b = document.querySelector('[data-lo="runnets"]'); if (b) b.click(); }); await pg.waitForTimeout(900);
+  const labels = await pg.evaluate(() => [...document.querySelectorAll('.wh-ov .wh-lab')].map((e) => e.textContent.trim()).filter(Boolean));
+  console.log('  kind floor labels:', labels.join(' '));
+  check(labels.includes('x1.2'), 'Kind Floor: owned x1.0 pieces print x1.2 (labels: ' + labels.join(' ') + ')');
+  await pg.screenshot({ path: OUT + 'spotlight-kf-1-ready.png' });
+  await pg.evaluate(() => document.querySelector('.wh-ov [data-go]').click()); await pg.waitForTimeout(3600);
+  await pg.evaluate(() => document.querySelector('.wh-ov [data-go]').click());
+  await pg.waitForSelector('.wh-ov [data-res]:not([hidden])', { timeout: 9000 }).catch(() => {}); await pg.waitForTimeout(800);
+  await pg.screenshot({ path: OUT + 'spotlight-kf-4-result.png' });
+  console.log('  kind floor strip:', await pg.evaluate(() => { const r = document.querySelector('.wh-ov [data-res]'); return r && !r.hidden ? r.innerText.replace(/\s+/g, ' ').trim() : ''; }));
+  await c2.close();
+} catch (e) { check(false, 'kind floor session threw: ' + (e.stack || e.message || e)); }
 
 check(ERRS.length === 0, 'no console errors' + (ERRS.length ? ': ' + ERRS.slice(0, 4).join(' | ') : ''));
 await browser.close(); srv.kill();
