@@ -3,6 +3,7 @@
 import { DR } from '../../data/dialreel.js';
 import { TOSS_SLICES } from '../../data/wheels/toss.js';
 import { neutralMods } from './common.js';
+import { fitRing } from '../wheel-ring.js';
 
 /** @type {{tweak:(sl:any[], m:any)=>void, boost:(fx:any, v:number, d:number[])=>void, plan:(plan:any, c:any, target:number, sec:number)=>any}} */
 export const REVEAL_KIND = {
@@ -19,20 +20,22 @@ export const REVEAL_KIND = {
 // ---- T3 stop-resolved Toss (SPEC sec 7, 11b). Result is decided at STOP from the landed ring slice; shape = revealResult's.
 /**
  * Toss ring rows (CONTRACT-A sec 5 shape + value/tier/gold). Kind Floor: No-boost rows gain +1% x floor. Good Sport: No-boost rows pay 2.5, label 'Good sport +1 Spoke +2.5%'
- * (cons wins over floor, as the old REVEAL_KIND.tweak). Widths stay 1.0 (sum 10).
- * TODO(T3-after-T1): Coin Weight widens the +5% rows by +5% via wheel-ring.js (needs T1); Toss has no Extra Gold.
+ * (cons wins over floor, as the old REVEAL_KIND.tweak). Widths stay 1.0 (sum 10) unless Coin Weight is owned.
+ * Coin Weight (SPEC 11b, rareAdd rim units, 0.1 a rank): every +5% row gets rareAdd wider, clamped at 13.0%, never re-split; the other rows shrink
+ * pro rata (wheel-ring.js fitRing). Widener (goldAdd) does not widen Toss (2026-11-14 code and the 06 sim: Toss + Widener = 10.00%); no Extra Gold on Toss.
  * @param {any} [mods]
  */
 export function tossRing(mods = neutralMods()) {
-  const m = { ...neutralMods(), ...mods };
-  return TOSS_SLICES.map((s) => {
+  const m = { ...neutralMods(), ...mods }, add = Math.max(0, +m.rareAdd || 0);
+  const rows = TOSS_SLICES.map((s) => {
     let value = s.value, label = s.label;
     if (s.value === 0) {
       if (m.floor) value += m.floor * DR.UNIT.toss;
       if (m.cons) { value = 2.5; label = 'Good sport +1 Spoke +2.5%'; }
     }
-    return { ...s, value, label };
+    return { ...s, value, label, ...(add > 0 && s.value === 5 ? { w: s.w + add } : {}) };
   });
+  return add > 0 ? fitRing(rows, (r) => TOSS_SLICES[r.id].value === 5).map((r) => ({ ...r })) : rows;
 }
 
 /**

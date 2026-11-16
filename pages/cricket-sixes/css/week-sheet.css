@@ -5,3 +5,6 @@
 .c-sheet .wk-txt { flex: 1 1 auto; min-width: 0; display: block; white-space: normal; overflow: visible; overflow-wrap: anywhere; font-size: var(--c-fs-s); line-height: var(--c-lh-s); }
 .c-sheet .wk-txt small { display: block; font-size: var(--c-fs-s); line-height: var(--c-lh-s); }
 .c-sheet .wk-none { font-size: var(--c-fs-s); line-height: var(--c-lh-s); }
+
+/* QA-V4 D5: no lone word on the last line of a row */
+.c-sheet .wk-txt, .c-sheet .wk-none { text-wrap: pretty; }

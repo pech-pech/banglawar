@@ -119,10 +119,24 @@ const WHEELS = {
     },
   },
   scout: {
-    async prep(H) { await H.boot(); const r = await H.advance('train'); need(r === 'train', 'cannot reach train: ' + r); },
+    async prep(H) {
+      await H.boot(); let r = await H.advance('train'); need(r === 'train', 'cannot reach train: ' + r);
+      // Scout rule: PassScout (done by advance at the coach stage) shuts the list until the next match is played; play one, then come back to Training.
+      if (await H.page.evaluate(() => { const s = window.__store.get(); return !(s.scout && s.scout.open) && /opens again|done this season/.test((document.querySelector('[data-ct="scout"]') || { getAttribute: () => '' }).getAttribute('aria-label') || ''); })) {
+        r = await H.advance('hub'); need(r === 'hub', 'cannot reach hub after the first training week: ' + r);
+        r = await H.advance('train'); need(r === 'train', 'cannot reach train after a played match: ' + r);
+      }
+    },
     async trigger(H) {
       if (await H.ov()) return;
-      if (!(await H.page.$('[data-scoutspin]'))) { need(await H.page.$('[data-ct="scout"]'), 'no [data-ct="scout"] on the training screen'); await H.page.click('[data-ct="scout"]'); await H.wait(600); if (await H.ov()) return; }
+      if (!(await H.page.$('[data-scoutspin]'))) {
+        if (await H.page.$('[data-ct="scout"]')) { await H.page.click('[data-ct="scout"]'); await H.wait(600); }
+        else { // joined host: the coaches sheet holds the Scout list button
+          if (!(await H.page.$('.t2-scout[data-scout="1"]'))) { const o = await H.page.$('[data-act="sheet:coaches"], [data-ct="all"], .ct-all, .ct-scout'); need(o, 'no way to the coaches sheet on the training screen (' + (await H.page.evaluate(() => [...document.querySelectorAll('button')].filter((b) => b.offsetParent).map((b) => b.getAttribute('data-act') || b.className).join(' ; ').slice(0, 300))) + ')'); await o.click(); await H.wait(500); }
+          const sb = await H.page.$('.t2-scout[data-scout="1"]'); need(sb, 'no .t2-scout[data-scout="1"] in the coaches sheet'); await sb.click(); await H.wait(600);
+        }
+        if (await H.ov()) return;
+      }
       need(await H.page.$('[data-scoutspin]'), 'no [data-scoutspin] (Ask the scouts) in the scout list'); await H.page.click('[data-scoutspin]'); await H.wait(600);
       need(await H.ov(), 'Scout wheel (.wh-ov) did not open');
     },
@@ -179,7 +193,7 @@ async function runWheel(w) {
     const bw = st && st.res && st.res.match(/\b(false|undefined|null|NaN)\b/i);
     step(w, "result card text has no 'false' / 'undefined' / 'null' / 'NaN'", st && st.res && !bw, bw ? bw[0] + ' in: ' + st.res.replace(/\s+/g, ' ') : 'no result text'); const after = await A.snap();
     step(w, 'STOP shows a result and stores the stop', stopped && st && st.res && after !== before, JSON.stringify(st) + (after === before ? ' (store unchanged)' : ''));
-    if (w === 'scout') { const nm = await A.page.evaluate(() => { const c = document.querySelector('.wh-ov .wh-chip'), t = c && c.textContent.trim(), labs = [...document.querySelectorAll('.wh-ov .wh-rlab')].map((e) => e.textContent.trim()), cg = [...document.querySelectorAll('.wh-ov .wh-cg')].map((e) => e.textContent.trim()); return { chip: t, labs, cg, aria: c && c.getAttribute('aria-label') }; }); step(w, 'result chip = the grade + the same short name printed on a wheel slice (one cut per card); full name in aria-label', nm && nm.chip && nm.labs.some((l, i) => nm.cg[i] + ' ' + l === nm.chip) && nm.aria && nm.aria.length >= nm.chip.length, JSON.stringify(nm)); }
+    if (w === 'scout') { const nm = await A.page.evaluate(() => { const c = document.querySelector('.wh-ov .wh-chip'), t = c && c.textContent.trim(), labs = [...document.querySelectorAll('.wh-ov .wh-rlab')].map((e) => e.textContent.trim()), cg = [...document.querySelectorAll('.wh-ov .wh-cg')].map((e) => e.textContent.trim()); return { chip: t, labs, cg, aria: c && c.getAttribute('aria-label') }; }); step(w, 'result chip = the grade + the same short name printed on a wheel slice (one cut per card); full name in aria-label', nm && nm.chip && nm.labs.some((l, i) => nm.cg[i] + ' ' + l === nm.chip) && (nm.aria ? nm.aria.length >= nm.chip.length : !/\.$/.test(nm.chip)), JSON.stringify(nm)); }
     await A.shot(w + '-result');
     const sliceA = st && st.res;
     await A.reload(); let reopened = true; try { await W.trigger(A); } catch (e) { if (!(e instanceof Setup)) throw e; reopened = false; }

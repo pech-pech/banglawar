@@ -64,7 +64,7 @@ test('flag off: UseToken on the new wheels is refused', () => withFlags({ wheelM
 test('Hype token: kept result written into md (level, perf, fan mult), pool and counters move, then 1-a-match-day stops Toss', () => withFlags(ON, () => {
   const s = seedWith('hype', 'HypeSpin', 'respin'); assert.ok(s, 'a Hype result under 5 with a token offer');
   const vm = sel.matchdayVM(s).wm.hype;
-  assert.ok(vm.tokens.length > 0); assert.equal(vm.tokens[0].left, 2); assert.equal(vm.tokens[0].match, true);
+  assert.ok(vm.tokens.length > 0); assert.equal(vm.tokens[0].left, 1); assert.equal(vm.tokens[0].match, true);
   assert.deepEqual(sel.tokenVM(s, 'hype').options, vm.tokens);
   const a = C(s, 'UseToken', { wheel: 'hype', kind: 'respin' });
   assert.notEqual(a, s); assert.deepEqual(a, C(s, 'UseToken', { wheel: 'hype', kind: 'respin' }), 'seeded');

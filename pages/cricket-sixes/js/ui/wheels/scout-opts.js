@@ -32,14 +32,14 @@ export function scoutRing(vm) {
   const cards = vm.cards || [];
   return (vm.ring || []).map((/** @type {any} */ r, /** @type {number} */ i) => {
     const c = cards[i] || { grade: '', surname: '', focus: 'bal' };
-    return { id: r.id, w: r.w, value: r.value, label: scoutShort(c.grade, cutName(c.surname)), full: c.grade + ' ' + c.surname, tier: r.tier, gold: !!r.gold, tierShape: r.gold ? 'gold' : r.value > 0 ? 'triangle' : 'dot', card: cardParts(c) };
+    return { id: r.id, w: r.w, value: r.value, label: scoutShort(c.grade, cutName(c.surname)), full: c.grade + ' ' + c.surname, tier: r.tier, gold: !!r.gold, tierShape: r.gold ? 'gold' : r.value > 0 ? 'triangle' : 'pale', card: cardParts(c) };
   });
 }
 
 /** Legend under the wheel (QA 7: no empty icon, tiers named in words; the +2 gold swatch). Glyphs are decorative (A11Y: legend glyphs aria-hidden). */
 export const SCOUT_LEGEND = Object.freeze([
   Object.freeze({ ch: 'tri', text: 'triangle = above centre' }),
-  Object.freeze({ ch: 'dot', text: 'dot = centre' }),
+  Object.freeze({ ch: 'pale', text: 'pale dot = centre' }),
   Object.freeze({ ch: 'gold', text: 'gold = +2' }),
 ]);
 

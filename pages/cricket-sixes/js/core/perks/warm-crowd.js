@@ -1,8 +1,9 @@
 // Warm Crowd (SPEC 6, 11): Hype "Big Voice" node becomes "Warm Crowd": a HIGH +6 landing pays +7. Widths never change.
-// Pure module, no imports. HYPE_TOKEN_CAP will live in js/data/wheels/hype.js (not built yet): defined locally as 1 here; swap to an import then.
+// Pure module; the only import is the Hype data constant. HYPE_TOKEN_CAP lives in js/data/wheels/hype.js (re-exported here).
+import { HYPE_TOKEN_CAP } from '../../data/wheels/hype.js';
 export const WARM_CROWD_VALUE = 7;
 export const HYPE_HIGH_VALUE = 6;
-export const HYPE_TOKEN_CAP = 1; // [D] Hype tokens max 1 a season (tokUsed.hype)
+export { HYPE_TOKEN_CAP }; // [D] Hype tokens max 1 a season (tokUsed.hype)
 
 /**
  * applyOrder (doc only): build the Hype ring in this order.

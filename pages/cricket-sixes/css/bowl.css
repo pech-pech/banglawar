@@ -117,3 +117,8 @@ main:has(> .bv-strip) { gap: 2px; }
 .sb-row:has(> .bv-book) { margin-bottom: 7px; }
 .sb-row.is-selected:has(> .bv-book) { outline-offset: 3px; }
 .skin-scorebook .sb-row.is-selected:has(> .bv-book) { outline: 2px solid var(--sb-ink); outline-offset: 3px; }
+/* QA-V5 N2: #app is the only scroller on the bowl and chase screens (html/body no longer scroll, so no overscroll band under the CTA) */
+html:has(#app > .bv-strip), body:has(#app > .bv-strip), html:has(#app > .chase-b), body:has(#app > .chase-b) { height: 100dvh; overflow: hidden; }
+#app:has(> .bv-strip), #app:has(> .chase-b) { position: relative; height: 100vh; height: 100dvh; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
+/* QA-V5 N1: scrollIntoView on the picked row stops clear of the fixed CTA bar */
+.bv-sb > .sb-row[role="radio"] { scroll-margin-bottom: calc(var(--cta-bar, 88px) + 12px); scroll-margin-top: 8px; }

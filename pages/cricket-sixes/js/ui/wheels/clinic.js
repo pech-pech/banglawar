@@ -56,9 +56,13 @@ export function openClinicWheel(ctx, deps) {
   // T1's wheel screen owns the live region (role=status, aria-live=polite, [data-live]): it reads describe().say once at the result, never while the wheel turns (SPEC s6).
   // T1's result box already says "Landed on <slice>" (chip) and its live region reads it: the host line is only the effect, so nothing is said twice.
   const describe = (p) => { const t = EFFECT[p.kind] || '', k = p.kind; return { big: t, chip: '', say: t + '.', gold: k === 'JP' }; };
+  const esc = (x) => String(x).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const nameOf = (list, id) => { try { const a = (Array.isArray(list) ? list : []).find((x) => x && x.id === id); return a && a.name ? String(a.name) : ''; } catch (_) { return ''; } };
+  const coachN = nameOf(s0.coaches, ctx.coachId), plN = nameOf(s0.squad, ctx.playerId) || nameOf(s0.players, ctx.playerId); // T8 V2 #5: the top card was an empty bar
+  const cardHtml = '<p class="dr-hint">' + (coachN && plN ? esc(coachN) + ' coaches ' + esc(plN) + '. Spin for the Clinic prize.' : 'Spin for the Clinic prize.') + '</p>';
   const close = deps.openWheel({
     wheelId: CLINIC_WHEEL_ID, spinKey: ctx.spinKey, ring: clinicRing(), J, wobKey,
-    title: 'Clinic', plainResult: true, look: ctx.look,
+    title: 'Clinic', cardHtml, plainResult: true, look: ctx.look,
     ...(stored ? { stored } : {}),
     pending: landed, getPending: () => landed, describe,
     onSpin: (stop) => {

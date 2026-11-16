@@ -7,7 +7,7 @@ const WS = TRAIN2.wheelStop, sum = (a) => a.reduce((x, y) => x + y, 0);
 const rollMean = (e) => meanGain(effortOdds(e));
 
 test('tuning: Spotlight/Course physics W0 36, D 2, J 1.2 (CONTRACT-A); COAST and STOP_FROM retired; rings from the slice tables, no aim key', () => {
-  assert.equal(WS.W0, 36); assert.equal(WS.J, 1.2); assert.equal(WS.D, 2); assert.equal(WS.STOP_FROM, 0.35, "legacy-only"); assert.ok(WS.COAST > 1e6, "legacy-only, no auto-stop");
+  assert.equal(WS.W0, 36); assert.equal(WS.J, 1.2); assert.equal(WS.D, 2); assert.ok(!('STOP_FROM' in WS) && !('COAST' in WS), 'removed (T8)');
   for (const e of ['easy', 'normal', 'push']) { const w = wheelSlices(e); assert.equal(w.widths[0], 1.2); assert.equal(w.widths.length, 10); assert.equal('aim' in w, false); }
   assert.equal(courseWheel().widths[0], 1.2); assert.equal('aim' in courseWheel(), false);
   const n = wheelSlices('normal'); assert.deepEqual(n.slices, [3, 1, 1, 1.5, 1, 1, 1.2, 1, 1, 1]); assert.ok(Math.abs(n.C - 10) < 1e-9);

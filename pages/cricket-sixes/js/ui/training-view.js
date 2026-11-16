@@ -57,7 +57,7 @@ export function adapt(vm) {
   const wheel = sp && wl ? { slices: wl.slices, jackpotIndex: wl.jackpotIndex, widths: wl.widths, player: { id: sp.id, name: sp.name, rates: sp.rates }, stat: WORD_KEY[sp.stat] || 'bp', pending: vm.spotlight.pending || null, guide: !!vm.spotlight.guide, zone: +vm.spotlight.zone || 0, chime: !!vm.spotlight.chime, tokens: vm.spotlight.tokens || [], look: vm.spotlight.look || null, phys: wl.phys || null, golds: wl.golds || null, kindFloor: kfOf(vm.spotlight, wl), spinKey: vm.spotlight.spinKey || '', wobKey: vm.spotlight.wobKey || '', stored: vm.spotlight.stored || null, room: vm.spotlight.room != null ? vm.spotlight.room : vm.room } : null;
   const tw = rawTwin(vm), sp2 = tw.held > 0 ? rows.find((r) => r.id === P.spotlight2Id) : null, wl2 = tw.wheel;
   const wheel2 = sp2 && wl2 ? { slices: wl2.slices, jackpotIndex: wl2.jackpotIndex, widths: wl2.widths, player: { id: sp2.id, name: sp2.name, rates: sp2.rates }, stat: WORD_KEY[sp2.stat] || 'bp', pending: tw.pending || null, guide: !!tw.guide, zone: +tw.zone || 0, chime: !!tw.chime, tokens: tw.tokens || [], look: tw.look || null, phys: wl2.phys || null, golds: wl2.golds || null, kindFloor: kfOf(tw, wl2) || kfOf(vm.spotlight, wl), spinKey: tw.spinKey || '', wobKey: tw.wobKey || '', stored: tw.stored || null } : null;
-  const nets = vm.done && vm.result ? { id: vm.week, cost: vm.result.cost, lines: vm.result.lines.map((l) => ({ ...l, stat: RK[l.rating] || l.rating || WORD_KEY[l.stat] || 'bp' })), skipped: rows.filter((r) => r.state === 'skip').map((r) => ({ id: r.id, name: r.name, why: "Can't gain" })) } : null;
+  const nets = vm.done && vm.result ? { id: vm.week, cost: vm.result.cost, lines: vm.result.lines.map((l) => ({ ...l, stat: RK[l.rating] || l.rating || WORD_KEY[l.stat] || 'bp' })), skipped: rows.filter((r) => r.state === 'skip' && !vm.result.lines.some((l) => l.id === r.id)).map((r) => ({ id: r.id, name: r.name, why: "Can't gain" })) } : null;
   return { week: vm.week, tp: vm.tp, twin: { held: tw.held, line: tw.line, name: sp2 ? sp2.name : null }, wheel2, plan: { ...P, spotlightName: sp ? sp.name : null }, costs: { easy: 10, normal: 13, push: 18, ...costs }, coach: pc, rows, wheel, nets, canRun: vm.canRun !== false,
     preview: { cost: pv.cost || 0, trainN: pv.trainCount != null ? pv.trainCount : pv.trainN, skippedN: pv.skipCount != null ? pv.skipCount : pv.skippedN || 0, shortN: pv.shortCount != null ? pv.shortCount : pv.shortN || 0, hint: pv.hint || null } };
 }
@@ -90,7 +90,7 @@ function rowHtml(r) {
 
 function seg(group, label, opts, cur) {
   return '<div class="c-seg t2-seg" role="group" aria-label="' + esc(label) + '">' + opts.map((o) =>
-    '<button type="button" class="c-seg__opt t2-opt" data-act="SetTrainPlan" data-arg=\'{"' + group + '":"' + o.v + '"}\' aria-pressed="' + (cur === o.v) + '" aria-label="' + esc(o.aria) + '">' + deco(o.ico, 20) + '<span class="t2-ol"><span>' + esc(o.w) + '</span>' + (o.sub ? '<small>' + o.sub + '</small>' : '') + '</span></button>').join('') + '</div><p class="dr-hint">The tick shows where it will land.</p>';
+    '<button type="button" class="c-seg__opt t2-opt" data-act="SetTrainPlan" data-arg=\'{"' + group + '":"' + o.v + '"}\' aria-pressed="' + (cur === o.v) + '" aria-label="' + esc(o.aria) + '">' + deco(o.ico, 20) + '<span class="t2-ol"><span>' + esc(o.w) + '</span>' + (o.sub ? '<small>' + o.sub + '</small>' : '') + '</span></button>').join('') + '</div>';
 }
 
 function spotSheet(vm, dispatch, slot) {
@@ -109,7 +109,7 @@ function openSpotlightWheel(dispatch, slot) {
   const st = STAT(w.stat), rates = w.player.rates || {}, raw0 = rates[statKey(w.stat)] != null ? rates[statKey(w.stat)] : 1;
   const pr = w.player;
   const card = '<div class="wh-who"><b class="t2-nm">' + esc(pr.name) + '</b><span class="c-tag">Wheel is yours this week</span></div><div class="wh-gr">' +
-    ['bp', 'bs', 'spd', 'bsk'].map((k) => '<span class="wh-g' + (k === statKey(w.stat) ? ' hit' : '') + '">' + deco(STAT(k).icon, 20) + '<span>' + esc(STAT(k).word) + '</span><b>' + esc(letterOfRaw(rates[k] || 1)) + '</b></span>').join('') + '</div><p class="dr-hint">The tick shows where it will land.</p>';
+    ['bp', 'bs', 'spd', 'bsk'].map((k) => '<span class="wh-g' + (k === statKey(w.stat) ? ' hit' : '') + '">' + deco(STAT(k).icon, 20) + '<span>' + esc(STAT(k).word) + '</span><b>' + esc(letterOfRaw(rates[k] || 1)) + '</b></span>').join('') + '</div><p class="dr-hint">The tick shows where the pointer will stop.</p>';
   const ring = spotRing(w), cur = () => { const sp = two ? latest.raw.twin : latest.raw.spotlight; return sp || {}; };
   openWheel({
     wheelId: 'spot', spinKey: w.spinKey || undefined, wobKey: w.wobKey || undefined, stored: w.stored || undefined, ring, legend: spotLegend(ring).concat(spotKey(ring, !!w.kindFloor)), J: 1.2, plus: 'x', // CONTRACT-A sec 4: engine J 1.2 (phys.J = after Steady); STOP glow always on
@@ -177,7 +177,7 @@ export function spotLine(p, ring, kf) {
   return (m ? 'Training gain ' + m + '.' : '') + (p && p.jackpot ? ' Gold slice.' : '') + (kf && base != null && ring[i].value > base ? ' Kind Floor lifted this x' + base.toFixed(1) + ' piece to ' + m + '.' : '');
 }
 /** Result strip multiplier text ('x1.2') from a pending result; '' when unknown. */
-export function spotMult(p) { const v = p && (p.mult != null ? p.mult : p.value != null ? p.value : p.gain); return v != null && isFinite(+v) ? 'x' + String(Math.round(+v * 100) / 100) : ''; }
+export function spotMult(p) { const v = p && (p.mult != null ? p.mult : p.value != null ? p.value : p.gain); return v != null && isFinite(+v) ? 'x' + (Number.isInteger(Math.round(+v * 100) / 100) ? (+v).toFixed(1) : String(Math.round(+v * 100) / 100)) : ''; } // x1.0 not x1 (T2 D5)
 /** Training tab strip: the multipliers on the Spotlight ring (gold first). '' with no Spotlight player. */
 export function slotSpotlight(vm) {
   const w = vm && vm.wheel; if (!w || !w.player) return '';
@@ -234,7 +234,7 @@ export function coachStripHtml(raw, vm) {
   // fit: compact strip (2 rows of 56 px taps); the head (All coaches, Scout list) is a narrow column at the right of the slots.
   return '<section class="ct-strip" aria-label="Coaches">' +
     '<ul class="ct-row">' + cs.map((c) => ctCard(c, vm)).join('') + empty + '</ul>' +
-    '<div class="ct-head"><button type="button" class="c-btn ct-all" data-ct="all" aria-label="All coaches: pick and send on course" aria-haspopup="dialog">' + deco('coach', 20) + '<span>All</span></button><button type="button" class="c-btn ct-scout" data-ct="scout" aria-label="' + esc(st.scoutOpen ? 'Scout list: sign a new coach' : 'Scout list, done this season') + '">' + deco('scout', 20) + '<span>Scout</span>' + (st.scoutOpen ? '<i class="ct-dot" aria-hidden="true"></i>' : '') + '</button></div></section>';
+    '<div class="ct-head"><button type="button" class="c-btn ct-all" data-ct="all" aria-label="All coaches: pick and send on course" aria-haspopup="dialog">' + deco('coach', 20) + '<span>All</span></button><button type="button" class="c-btn ct-scout" data-ct="scout" aria-label="' + esc(st.scoutOpen ? 'Scout list: sign a new coach' : (st.scoutPassed ? 'Scout list, opens again after your next match' : 'Scout list, done this season')) + '">' + deco('scout', 20) + '<span>Scout</span>' + (st.scoutOpen ? '<i class="ct-dot" aria-hidden="true"></i>' : '') + '</button></div></section>';
 }
 /** fixtrain: confirm before Coins are spent (like the Stadium build confirm). Yes -> the course wheel (sheet:coaches {course}). */
 function courseConfirm(raw, id, open) {

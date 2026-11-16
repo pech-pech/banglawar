@@ -23,7 +23,7 @@ test('startCourse opens on the component (ring, wheelId, legend); old hooks kept
   assert.equal(cs.courseRing({}).length, COURSE_SLICES.length);
   assert.equal(cs.courseRing({ kindFloor: 1 }).filter((r) => r.label === '+1.2').length, 0); // Kind Floor pays +2 (kindFloorGain), never +1.2
   assert.equal(cs.courseRing({ kindFloor: 1 }).filter((r) => r.label === '+2').length, 9);
-  assert.match(src, /The tick shows where it will land\./);
+  assert.match(src, /The tick shows where the pointer will stop\./);
   assert.doesNotMatch(src, /timing: true/);
 });
 

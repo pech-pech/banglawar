@@ -277,6 +277,15 @@ export function tokenLeft(s, wheelId, ctx = {}) {
   const pool = ['respin', 'nudge', 'two', 'wild', 'lift'].reduce((a, k) => a + (t[k] | 0), 0);
   return { pool, wheelLeft: cap == null ? null : Math.max(0, cap - usedOn(m, wheelId)), matchLeft: WM.MATCH_WHEELS.includes(wheelId) ? Math.max(0, WM.TOKEN_CAP_MATCH - matchUsed(m, keyOf(s, ctx))) : null };
 }
+/** The wheel a match-day result was spun on. The stop path (T3) stores the RING it landed on and pending.index is an index into that ring, so token rules read the ring
+ * (as a dial / reveal-shaped wheel with .ring = true); null when there is no ring (old path, other wheels) and the pending's own wheel is used. @param {string} w @param {any} p */
+function ringWheel(w, p) {
+  const ring = p && p.ring; if (!Array.isArray(ring) || !ring.length || !(p.index >= 0 && p.index < ring.length) || !['hype', 'toss', 'pep'].includes(w)) return null;
+  const slices = ring.map((/** @type {any} */ r) => w === 'hype' ? { id: r.id, level: r.level, pts: +r.value || 0, gold: !!r.gold }
+    : w === 'toss' ? { id: r.value > 0 ? 'won' : 'sport', label: r.label, fx: { tossb: +r.value || 0 }, gold: !!r.gold }
+      : { id: 'slot' + r.slot, label: r.label, slot: r.slot, fx: { pep: 1 }, boostPct: +r.value || 0, gold: !!r.gold });
+  return { kind: w === 'hype' ? 'dial' : w, ring: true, slices, w: ring.map((/** @type {any} */ r) => +r.w || 0) };
+}
 /** Gold slice indexes of the spun wheel (no token on these, never nudged onto). */
 function goldsOf(/** @type {string} */ w, /** @type {any} */ wheel) {
   if (!wheel) return [];
@@ -312,7 +321,7 @@ const sliceValue = (/** @type {string} */ w, /** @type {any} */ wheel, /** @type
 /** Neighbour slice (one over, never onto gold) that pays more than now, or -1. The Hype half-dial does not wrap; every other wheel does. */
 function nudgeTo(/** @type {string} */ w, /** @type {any} */ wheel, /** @type {any} */ p) {
   const L = wheel.slices.length, golds = goldsOf(w, wheel), v = tokenValue(w, p);
-  const nb = w === 'hype' ? [p.index - 1, p.index + 1].filter((j) => j >= 0 && j < L) : [(p.index - 1 + L) % L, (p.index + 1) % L];
+  const nb = w === 'hype' && wheel.ring !== true ? [p.index - 1, p.index + 1].filter((j) => j >= 0 && j < L) : [(p.index - 1 + L) % L, (p.index + 1) % L];
   const c = nb.filter((j) => !golds.includes(j)).sort((a, b) => sliceValue(w, wheel, b) - sliceValue(w, wheel, a));
   return c.length && sliceValue(w, wheel, c[0]) > v ? c[0] : -1;
 }
@@ -327,7 +336,7 @@ function tokenSource(/** @type {any} */ s, /** @type {string} */ wheelId, /** @t
   if (cap != null && usedOn(m, wheelId) >= cap) return null;
   if (WM.MATCH_WHEELS.includes(wheelId) && matchUsed(m, keyOf(s, ctx)) >= WM.TOKEN_CAP_MATCH) return null;
   const src = (t[kind] | 0) > 0 ? kind : (t.wild | 0) > 0 ? 'wild' : null; if (!src) return null;
-  const wheel = p.wheel || (SKILL.includes(wheelId) ? defaultWheel(s, wheelId) : null); if (!wheel) return null;
+  const wheel = ringWheel(wheelId, p) || p.wheel || (SKILL.includes(wheelId) ? defaultWheel(s, wheelId) : null); if (!wheel) return null;
   if (!SKILL.includes(wheelId) && !shapeOk(wheelId, wheel)) return null; // a pending from another wheel kind: no offer
   if (wheelId === 'find' ? !!p.find : goldsOf(wheelId, wheel).includes(p.index)) return null; // gold (or a find) is never improved
   const v = tokenValue(wheelId, p);
@@ -349,6 +358,7 @@ export function tokenOptions(s, wheelId, pending, ctx = {}) {
 /** One re-spin of the same wheel (core), as a flat pending part. */
 function respinOf(/** @type {any} */ s, /** @type {string} */ w, /** @type {any} */ wheel, /** @type {any} */ p, /** @type {any} */ rng, /** @type {any} */ stop) {
   const st = stop === undefined ? true : stop;
+  if (wheel && wheel.ring === true && Array.isArray(wheel.w)) { let u = rng.random() * wheel.w.reduce((/** @type {number} */ a, /** @type {number} */ b) => a + b, 0), j = 0; while (j < wheel.w.length - 1 && u >= wheel.w[j]) u -= wheel.w[j++]; return nudged(w, wheel, j); } // ring: a weighted pick of one ring slice
   if (w === 'spot' || w === 'course') return decorate(wheel, effective(s)[w], w, p.streak0 | 0, spinResult(rng, wheel, st), rng);
   if (w === 'hype') return dialResult(rng, wheel, st);
   if (w === 'find') { const r = spinResult(rng, wheel, st), f = isFindCell(wheel, r.index); return { ...r, find: f, type: f && wheel.cells && wheel.cells[r.index] ? wheel.cells[r.index].type : null }; }
@@ -361,7 +371,7 @@ function nudged(/** @type {string} */ w, /** @type {any} */ wheel, /** @type {nu
   const c = wheel.slices[j];
   if (w === 'hype') { const li = MD.HYPE_LEVELS.indexOf(c.level); return { index: j, level: c.level, levelIdx: li, pts: c.pts, perf: c.pts / 100, fanMult: MD.HYPE_FAN_MULT[li], boosted: false }; }
   const fx = sliceFx(w, wheel, j);
-  return { index: j, id: c.id, label: c.label, fx, boosted: false, ...(w === 'pep' ? { slot: c.slot || null, slots: c.slot ? [c.slot] : [] } : {}) };
+  return { index: j, id: c.id, label: c.label, fx, boosted: false, ...(w === 'pep' ? { slot: c.slot || null, slots: c.slot ? [c.slot] : [] } : {}), ...(wheel.ring === true && w === 'pep' ? { boostPct: c.boostPct } : {}) };
 }
 /** Lucky Lift on a dial / reveal result: bonus from WM.LIFT_BY, only adds, never above the cap. */
 function lifted(/** @type {string} */ w, /** @type {any} */ p, /** @type {any} */ rng) {
@@ -389,11 +399,11 @@ function lifted(/** @type {string} */ w, /** @type {any} */ p, /** @type {any} *
 export function useToken(s, wheelId, kind, pending, rng, stop, ctx = {}) {
   const src = tokenSource(s, wheelId, kind, pending, ctx); if (!src) return { s, pending };
   pending = flatPending(pending);
-  const wheel = pending.wheel || defaultWheel(s, wheelId), streak0 = pending.streak0 | 0;
-  let p = { ...pending, wheel, used: [...(pending.used || []), kind] };
+  const kept = pending.wheel || defaultWheel(s, wheelId), wheel = ringWheel(wheelId, pending) || kept, streak0 = pending.streak0 | 0;
+  let p = { ...pending, wheel: kept, used: [...(pending.used || []), kind] };
   if (kind === 'respin' || kind === 'two') {
     const r2 = ctx && typeof ctx.spin === 'function' ? flatPending(ctx.spin(rng, stop)) : respinOf(s, wheelId, wheel, p, rng, stop);
-    if (r2 && tokenValue(wheelId, r2) > tokenValue(wheelId, p)) p = { ...p, ...r2, wheel, used: p.used };
+    if (r2 && tokenValue(wheelId, r2) > tokenValue(wheelId, p)) p = { ...p, ...r2, wheel: kept, used: p.used };
   } else if (kind === 'nudge') {
     p = { ...p, ...nudged(wheelId, wheel, nudgeTo(wheelId, wheel, p)) };
   } else if (SKILL.includes(wheelId)) {

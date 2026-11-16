@@ -10,7 +10,7 @@ test('hype.js source: full wheel through openWheel', () => {
   assert.doesNotMatch(src, /reduced-?motion|reducedMotion/i);
   assert.ok(src.includes("dispatch('HypeSpin', { stop:"));
   assert.match(src, /J: 1\.2/);
-  assert.ok(src.includes('The tick shows about where it will land.'));
+  assert.ok(src.includes('The tick shows where the pointer will stop.'));
   assert.ok(src.includes("tokProps(get, dispatch, 'hype', 'Hype')"));
 });
 

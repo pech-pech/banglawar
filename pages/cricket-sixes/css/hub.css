@@ -121,7 +121,7 @@
 
 /* FENCE:STRIP start */
 /* C2.1 strip: goal 36 + caption 22 + key 16 = 74 (cap 76) */
-.hb-strip { box-sizing: border-box; display: flex; flex-direction: column; height: 74px; min-width: 0; overflow: hidden; }
+.hb-strip { box-sizing: border-box; display: flex; flex-direction: column; height: 76px; min-width: 0; overflow: hidden; }
 .hb-goal { flex: none; display: flex; align-items: center; gap: 8px; height: 36px; padding: 0 10px 0 8px; background: var(--outline); color: var(--cream); border-bottom: 2px solid var(--outline); white-space: nowrap; min-width: 0; }
 .hb-goal img, .hb-goal svg { flex: none; width: 24px; height: 24px; }
 .hb-goal__t { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
@@ -134,7 +134,7 @@
 .hb-goal__cx { display: flex; gap: 4px; padding-top: 2px; }
 .hb-goal__cx i { display: block; width: 14px; height: 14px; box-sizing: border-box; border: 2px solid var(--cream); }
 .hb-goal__cx i.on { background: var(--cream); box-shadow: inset 0 0 0 2px var(--outline); }
-.hb-cap { flex: none; display: flex; align-items: center; gap: 4px; height: 20px; margin-top: 4px; padding: 0 8px; font: 16px/16px var(--c-font); white-space: nowrap; position: relative; }
+.hb-cap { flex: none; display: flex; align-items: center; gap: 4px; height: 20px; margin-top: 6px; padding: 0 8px; font: 16px/16px var(--c-font); white-space: nowrap; position: relative; }
 .hb-cap .lt-box { min-width: 28px; min-height: 20px; padding: 0 2px; font: 18px/16px var(--font-head); }
 .hb-cap__v { font: 18px/16px var(--font-head); }
 .hb-cap__v--up { color: var(--grass3); }
@@ -187,11 +187,12 @@
 .hb-banner { min-height: 176px; max-height: 236px; display: flex; flex-direction: column; }
 .hb-gb { flex: 1 1 auto; display: flex; flex-direction: column; align-items: flex-start; justify-content: space-between; min-height: 56px; }
 .hb-gtag { display: inline-block; font-size: var(--c-fs-s, 14px); line-height: 20px; color: var(--cream); background: var(--outline); padding: 2px 8px; }
+.hb-ghost.is-pinned { position: absolute; margin: 0; pointer-events: none; }
 .hb-ghost { display: inline-block; margin-left: 4px; font-size: 14px; line-height: 20px; color: var(--cream); background: var(--outline); padding: 2px 8px; }
 .hb-band { flex: 0 0 56px; height: 56px; display: flex; align-items: center; gap: 8px; padding: 0 6px; box-sizing: border-box; }
 .hb-band .hb-fg { flex: 1 1 50%; min-width: 0; max-width: 50%; }
 .hb-band:not(.has-week) .hb-fg { max-width: none; }
-.hb-band .hb-week { flex: 1 1 50%; min-width: 0; min-height: 56px; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hb-band .hb-week { flex: 1 1 50%; min-width: 0; padding-left: 4px; padding-right: 4px; min-height: 56px; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 /* the banner tap is a transparent hit area over the canvas: .skin-art paints every .c-btn with a filled border-image frame, which hid the canvas */
 .hb-banner > .hb-gb.c-btn, .hb-banner > .hb-gb.c-btn:is(:active, .is-pressed) { border: 0; border-image: none; border-radius: 0; background: transparent; box-shadow: none; transform: none; }
 .hb-banner > .hb-gb.c-btn:focus-visible { outline: 3px solid var(--cream); outline-offset: -3px; }
@@ -212,7 +213,7 @@
   .hb-head .hb-lg::before { content: "\00a0\00b7\00a0"; white-space: pre; }
   .hb-head .hb-sub { margin-left: 8px; }
   .hb-head .hb-lg { color: var(--cream); } /* gold on the plain header was 3.43:1; cream clears 4.5 */
-  .hb-mid { flex-direction: row; align-items: stretch; }
+  .hb-mid { flex-direction: row; align-items: stretch; align-self: stretch; }
   .hb-colA, .hb-colB { flex: 0 0 calc(50% - 3px); width: calc(50% - 3px); }
   .hb-banner { max-height: none; }
   .hb-chap { padding-left: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -221,19 +222,25 @@
 @media (max-width: 599px) and (max-height: 700px) {
   .hb-banner { flex: 0 0 auto; min-height: 96px; }
   /* the banner cannot go under tag row 56 + band 56 (both taps); the room for squad row 1 comes from the chapter band and START instead */
-  .hb-chap { min-height: 22px; padding-top: 1px; padding-bottom: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  /* QA-V4 D2: the chapter line goes at short heights so squad row 1 shows whole (about 26 px); it is still on the 344x882 hub and the 704 hub */
+  .hb-chap { display: none; }
   .hb-mid { padding-top: 4px; }
   .hb-foot { gap: 4px; padding-top: 6px; padding-bottom: calc(6px + env(safe-area-inset-bottom)); }
   .hb-l2 { padding-bottom: 132px; }
   .hb-ghost { display: none; }
+  /* QA-V4 D3: the week chip leaves the fans band for the tag row (right side), so the band only covers the stand base and Fans gets the full width */
+  .hb-band .hb-week { position: absolute; right: 0; bottom: 100%; width: 46%; flex: none; }
+  .hb-banner > .hb-gb { width: calc(54% - 4px); }
+  .hb-band.has-week .hb-fg { max-width: none; flex: 1 1 100%; }
   .hb-mid { flex: 1 1 auto; min-height: 0; }
   .hb-colA { flex: none; }
   .hb-colB { flex: 1 1 auto; overflow: auto; min-height: 0; }
   .hb-colB > * { flex: none; }
   .hb-strip { height: auto; }
-  .hb-strip .hb-cap, .hb-strip .hb-th { display: none; }
+  .hb-strip .hb-th { display: none; }
+  .hb-strip .hb-cap { margin-top: 3px; margin-bottom: 0; }
   /* bottom fade: more squad below */
-  .hb-colB::after { content: ""; display: block; flex: none; position: sticky; bottom: 0; height: 10px; margin-top: -10px; background: linear-gradient(to bottom, transparent, var(--cream)); pointer-events: none; }
+  .hb-colB::after { content: ""; display: block; flex: none; position: sticky; bottom: 0; height: 16px; margin-top: -16px; background: linear-gradient(to bottom, transparent, var(--cream) 90%); pointer-events: none; }
 }
 @media (max-height: 700px) { .hb-ghost { display: none; } }
 .hb-colB:focus-visible { outline: 3px dashed var(--c-focus); outline-offset: 0; }
@@ -241,4 +248,60 @@
   .hb-foot { grid-template-columns: 1fr 1.4fr; align-items: stretch; }
 }
 @media (prefers-reduced-motion: reduce) { .hb-l2 * { animation: none !important; transition: none !important; } }
+/* from 600 px up the header and the chapter band span the full width (app.css sets .screen align-items:start, which shrank them to their text) */
+@media (min-width: 600px) { .hb-l2 { align-items: stretch; } .hb-l2 > .hb-head { margin-left: -14px; margin-right: -14px; } }
 /* FENCE:LAYOUT end */
+
+/* PW: portrait inner / tablet (624x912, 704x783) - QA-LW-HOME D1/D2 (QA-V5 N3/N4). Portrait only, so 344x882, 475x638 (< 600) and 882x344 / LW are untouched. */
+@media (min-width: 600px) and (orientation: portrait) {
+  /* banner capped (it was ~70% empty grass); squad rows and dock rows take the height back */
+  .hb-colA > .hb-banner { flex: 0 1 auto; height: 260px; max-height: 260px; }
+  .hb-colA > .hb-dock { flex: 1 1 auto; grid-auto-rows: minmax(56px, 1fr); max-height: 260px; }
+  .hb-dock .hb-plate { height: auto; min-height: 56px; flex-direction: column; justify-content: center; }
+  .hb-colB > .hb-six { flex: 1 1 auto; min-height: 0; grid-auto-rows: minmax(56px, 1fr); }
+  /* the footer is 74 px here too; the 140 px cover-screen room left a 66 px dead band */
+  .hb-l2 { padding-bottom: 80px; }
+  /* week chip: wrap, never cut (same rule as LW) */
+  .hb-band .hb-week { white-space: normal; overflow: visible; text-overflow: clip; text-wrap: balance; line-height: 16px; padding: 4px 8px; }
+  /* footer split matches the two columns, so "Overs: Suggested" fits */
+  .hb-foot { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 6px; }
+}
+/* the "Your six E trails their six E+" chips are taller than the 20 px line and sat on "Batting order"; give the line its real height (shown only above 700 px tall at >= 600 wide) */
+@media (min-width: 600px) and (min-height: 701px) {
+  .hb-colB > .hb-strip { height: auto; }
+  .hb-strip .hb-cap { height: auto; min-height: 24px; }
+  .hb-strip .hb-th { margin-top: 3px; margin-bottom: 4px; }
+}
+/* LW: landscape inner (GRID-RULES G0) - Home (LOCK-HOME). Placed last; only adds or overrides inside itself. */
+@media (min-width: 760px) and (min-height: 500px) and (orientation: landscape) {
+  /* frame: the dead band was the 140 px footer room of the cover screen; the wide footer is 74 px */
+  .hb-l2 { position: relative; padding-bottom: 80px; }
+  /* header: full-bleed band, title at 14, buttons hard right at 14, chapter line folded in under the title */
+  .hb-l2 > .hb-head { padding-left: 14px; padding-right: 14px; align-items: flex-start; }
+  .hb-l2 > .hb-head .ss-strip { padding-top: 9px; }
+  .hb-l2 > .hb-head > button { align-self: center; }
+  .hb-l2 > .hb-chap { position: absolute; left: 14px; top: 38px; right: 210px; z-index: 1; margin: 0; padding: 0; min-height: 0; background: transparent; border: 0; font-size: 14px; line-height: 18px; color: var(--cream); }
+  /* body: two equal columns, 8 px gutter, both stretch to the footer */
+  .hb-l2 > .hb-mid { margin-left: 0; margin-right: 0; gap: 8px; padding-top: 6px; }
+  .hb-mid > .hb-colA, .hb-mid > .hb-colB { flex: 1 1 0; width: auto; min-height: 0; }
+  /* column A: stats (fixed) / stadium (the one elastic block) / buttons (taller when there is room) */
+  .hb-colA > .hb-banner { flex: 1 1 auto; min-height: 176px; max-height: none; }
+  .hb-colA > .hb-dock { grid-auto-rows: clamp(56px, 10vh, 72px); }
+  .hb-dock .hb-plate { height: auto; min-height: 56px; }
+  /* the next-stand slot keeps its "L2 stand" label (the max-height: 700px rule hid it) */
+  .hb-banner .hb-ghost { display: inline-block; }
+  /* week chip: wrap, never cut */
+  .hb-band .hb-week { flex: 1 1 52%; white-space: normal; overflow: visible; text-overflow: clip; text-wrap: balance; line-height: 16px; padding: 4px 8px; }
+  .hb-band.has-week .hb-fg { flex: 1 1 48%; max-width: none; }
+  /* column B: goal strip (fixed, never collapses) / squad rows share the rest */
+  .hb-colB > .hb-strip { flex: none; height: auto; }
+  .hb-colB > .hb-six { flex: 1 1 auto; min-height: 0; grid-template-rows: none; grid-auto-rows: minmax(56px, 1fr); }
+  .hb-six .hb-p { padding-left: 8px; padding-right: 8px; grid-template-columns: 16px minmax(0, 1fr) 40px 40px; }
+  .hb-six .hb-p .nm, .hb-six .hb-p .hb-n { font-size: 16px; line-height: 18px; }
+  /* footer: same 50/50 split and 8 px gutter as the body, on the same 14 px margins */
+  .hb-foot { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px; }
+}
+@media (min-width: 760px) and (min-height: 500px) and (max-height: 620px) and (orientation: landscape) {
+  /* short LW (816x568): the goal line stays; the "your six" line and the column key return above 620 px tall */
+  .hb-strip .hb-th, .hb-strip .hb-cap { display: none; }
+}

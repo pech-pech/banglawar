@@ -174,14 +174,14 @@ function pickHtml(vm) {
     const c = info.crease || [];
     const bats = c.length ? '<p class="wm-cap">Your batters</p><div class="wm-bats">' + c.map((b) => '<div class="wm-bat' + (b.onStrike ? ' is-strike' : '') + '"><b class="name">' + esc(b.name) + '</b><small>' + esc(b.r != null ? b.r + ' (' + b.b + ')' : '') + (b.onStrike ? ' · on strike' : '') + '</small></div>').join('') + '</div>' : '';
     return '<div class="wm wm--pick wm--bat">' + header(vm, { small: vm.target ? 'Chasing ' + vm.target : 'You bat' }) + needBanner(vm, vm.need ? esc(Math.max(0, (vm.need.wkLeft != null ? vm.need.wkLeft : 5 - (vm.score ? vm.score.wk : 0)))) + ' wickets left' : '') +
-      chipRowHtml(info.chips) + roarChipHtml(vm.roar) + '<p class="wm-cap">Their bowler this over</p><p class="wm-their">' + esc(vm.rivalBowler ? vm.rivalBowler.name + (vm.rivalBowler.role ? ' (' + vm.rivalBowler.role + ')' : '') : 'They pick a bowler') + '</p>' + bats + lastHtml(vm) +
+      '<div class="wm-cols">' + chipRowHtml(info.chips) + roarChipHtml(vm.roar) + '<div class="wm-colA"><p class="wm-cap">Their bowler this over</p><p class="wm-their">' + esc(vm.rivalBowler ? vm.rivalBowler.name + (vm.rivalBowler.role ? ' (' + vm.rivalBowler.role + ')' : '') : 'They pick a bowler') + '</p>' + bats + '</div>' + lastHtml(vm) +
       '<p class="wm-exp">' + esc(vm.expectText || '') + '</p>' + autoRow(vm) +
-      '<div class="wm-cta"><button type="button" class="c-btn c-btn--primary c-btn--cta wm-go" data-wm="go"><span>BAT OVER ' + esc(vm.over) + '</span><small>' + esc(batPair(vm) || 'whole over in one spin') + '</small></button></div>' + liveHtml() + '</div>';
+      '<div class="wm-cta"><button type="button" class="c-btn c-btn--primary c-btn--cta wm-go" data-wm="go"><span>BAT OVER ' + esc(vm.over) + '</span><small>' + esc(batPair(vm) || 'whole over in one spin') + '</small></button></div></div>' + liveHtml() + '</div>';
   }
   const b = bowlerOf(vm, pickedBowler(vm));
-  return '<div class="wm wm--pick wm--bowl">' + header(vm, { small: info.phaseName || 'You bowl' }) + chipRowHtml(info.chips) + roarChipHtml(vm.roar) +
-    '<p class="wm-cap">Pick your bowler <small>tap a row</small></p>' + bowlerRows(vm) + lastHtml(vm) + autoRow(vm) +
-    '<div class="wm-cta"><button type="button" class="c-btn c-btn--primary c-btn--cta wm-go" data-wm="go"' + (b ? '' : ' disabled') + '><span>BOWL OVER ' + esc(vm.over) + '</span><small class="name">' + esc(b ? b.name : 'No bowler can bowl') + '</small></button></div>' + liveHtml() + '</div>';
+  return '<div class="wm wm--pick wm--bowl">' + header(vm, { small: info.phaseName || 'You bowl' }) + '<div class="wm-cols">' + chipRowHtml(info.chips) + roarChipHtml(vm.roar) +
+    '<div class="wm-colA"><p class="wm-cap">Pick your bowler <small>tap a row</small></p>' + bowlerRows(vm) + '</div>' + lastHtml(vm) + autoRow(vm) +
+    '<div class="wm-cta"><button type="button" class="c-btn c-btn--primary c-btn--cta wm-go" data-wm="go"' + (b ? '' : ' disabled') + '><span>BOWL OVER ' + esc(vm.over) + '</span><small class="name">' + esc(b ? b.name : 'No bowler can bowl') + '</small></button></div></div>' + liveHtml() + '</div>';
 }
 const liveHtml = () => '<div class="ss-sr wm-live" role="status" aria-live="polite" aria-atomic="true"></div>';
 const legendHtml = () => '<div class="wm-legend" aria-hidden="true"><span><i class="wm-sw wm-sw--good">▲</i>good for us</span><span><i class="wm-sw wm-sw--so">●</i>so-so</span><span><i class="wm-sw wm-sw--bad">▼</i>bad for us</span><span><i class="wm-star">✱</i>= wicket</span></div>';
@@ -196,13 +196,13 @@ function wheelHtml(vm, mode) {
   const go = auto ? '<button type="button" class="c-btn c-btn--primary wm-go wm-stopauto" data-wm="stop-auto"><span>Stop auto</span></button>'
     : '<button type="button" class="c-btn c-btn--primary c-btn--cta wm-go" data-wm="spin"><span>SPIN</span><small>whole over in one spin</small></button>';
   return '<div class="wm wm--wheel wm--' + (vm.side === 'bat' ? 'bat' : 'bowl') + (auto ? ' is-auto' : '') + '">' + header(vm) +
-    needBanner(vm, vm.side === 'bat' ? esc(batPair(vm)) : '') + whoLine(vm, mode === 'ready') +
+    needBanner(vm, vm.side === 'bat' ? esc(batPair(vm)) : '') + '<div class="wm-cols">' + whoLine(vm, mode === 'ready') +
     '<p class="wm-exp">' + esc(vm.expectText || '') + (vm.roar ? ' <span class="wm-roar">' + esc(typeof vm.roar === 'object' && vm.roar.text || 'Crowd roar +5%') + '</span>' : '') + '</p>' +
     (auto ? '<ol class="wm-achips list-flat" aria-label="Overs so far">' + st.chips.map((c) => '<li>' + esc(c) + '</li>').join('') + '</ol>' : '') +
-    '<div class="wm-stage"><div class="wm-wrap"><canvas class="wm-cv" role="img" aria-label="' + esc(segWords(vm.segs)) + '"></canvas><span class="wm-mark" hidden></span></div></div>' + legendHtml() +
+    '<div class="wm-colA"><div class="wm-stage"><div class="wm-wrap"><canvas class="wm-cv" role="img" aria-label="' + esc(segWords(vm.segs)) + '"></canvas><span class="wm-mark" hidden></span></div></div>' + legendHtml() + '</div>' +
     '<div class="wm-row"><div class="wm-now" hidden><span>Stop now:</span><b class="wm-nowv"></b></div><span class="wm-tim" hidden></span>' + ctrlChips(vm.ctrl) + '</div>' +
     '<div class="wm-res" hidden></div>' + (mode === 'ready' ? autoRow(vm, false) : '') +
-    '<div class="wm-cta">' + go + '</div>' + liveHtml() + '</div>';
+    '<div class="wm-cta">' + go + '</div></div>' + liveHtml() + '</div>';
 }
 function segWords(segs) {
   return 'Over wheel: ' + (segs || []).map((g) => labelText(g) + (!g.end && g.stars ? ' with ' + plural(g.stars, 'wicket') : '') + ' ' + Math.round((g.p || 0) * 100) + ' in 100 ' + (TONE[g.tone] || TONE.so)[1]).join(', ');
@@ -222,7 +222,11 @@ function makeWheel(cv, segs, vm) {
   function size() {
     const wrap = cv.parentElement, stage = wrap && wrap.parentElement;
     const w = stage ? stage.clientWidth : 300, h = stage ? stage.clientHeight : 300;
-    W = Math.max(150, Math.floor(Math.min(w, h, 380)));
+    const lw = typeof window !== 'undefined' && window.innerWidth >= 760 && window.innerHeight >= 500 && window.innerWidth > window.innerHeight; // LW: the wheel may grow with the free height
+    W = Math.max(150, Math.floor(Math.min(w, h, lw ? 540 : 380)));
+    // QA-V1 H2 (G5): the drawn wheel keeps the size it first had in this over; the result panel takes the room of the hidden hint lines instead of re-sizing it
+    const lk = (vm && vm.side) + ':' + (typeof window !== 'undefined' ? window.innerWidth + 'x' + window.innerHeight : ''); // N8: one size per match (per side and screen), not per over
+    if (st.lock && st.lock.key === lk && st.lock.W - W < 8) W = st.lock.W; else st.lock = { key: lk, W };
     for (const c of [cv, ovc]) { c.width = c.height = Math.round(W * k); c.style.width = c.style.height = W + 'px'; }
     if (wrap) { wrap.style.width = wrap.style.height = W + 'px'; }
     M = Math.max(20, Math.round(W * 0.085)); R = W / 2 - M; paint(); lastRot = null;
@@ -265,7 +269,13 @@ function makeWheel(cv, segs, vm) {
       if (f.band > 0) { const b = f.band * U; ctx.beginPath(); ctx.arc(0, 0, rr, a - b - Math.PI / 2, a + b - Math.PI / 2); ctx.lineWidth = 12 * ks; ctx.strokeStyle = pal.hi; ctx.stroke(); ctx.setLineDash([3, 3]); ctx.lineWidth = 1.5; ctx.strokeStyle = pal.ink; ctx.stroke(); ctx.setLineDash([]); }
       ctx.save(); ctx.rotate(a); ctx.beginPath(); ctx.moveTo(0, -(R + 2 * ks)); ctx.lineTo(-7 * ks, -(R + 20 * ks)); ctx.lineTo(7 * ks, -(R + 20 * ks)); ctx.closePath();
       ctx.fillStyle = pal.hi; ctx.fill(); ctx.lineWidth = 2.5 * ks; ctx.strokeStyle = pal.ink; ctx.lineJoin = 'round'; ctx.stroke();
-      ctx.fillStyle = pal.ink; ctx.font = '900 ' + Math.max(9, 11 * ks) + 'px ' + fontFam(); ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; if (Math.cos(a) < 0) { ctx.translate(0, -(R + 28 * ks)); ctx.rotate(Math.PI); ctx.fillText('AIM', 0, 0); } else ctx.fillText('AIM', 0, -(R + 28 * ks)); ctx.restore();
+      ctx.restore(); // QA D2: the TICK word is upright (never turned with the tick), at least 14 px, kept inside the canvas
+      const tf = Math.max(14, 11 * ks); ctx.font = '900 ' + tf + 'px ' + fontFam(); ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      const tw = ctx.measureText('TICK').width, lim = W / 2 - 1, sa = Math.sin(a), ca = Math.cos(a);
+      // D-B1: the word sits clear of the arrow (its box edge 4 px past the arrow base along the tick direction); if the canvas edge stops it, it slides sideways off the arrow
+      const tr = R + 20 * ks + 4 + Math.abs(sa) * tw / 2 + Math.abs(ca) * tf / 2, cx = Math.max(-(lim - tw / 2), Math.min(lim - tw / 2, tr * sa)), cy = Math.max(-(lim - tf / 2), Math.min(lim - tf / 2, -tr * ca));
+      const tx = Math.max(-(lim - tw / 2), Math.min(lim - tw / 2, cy !== -tr * ca ? cx + (sa < 0 ? -1 : 1) * (tw / 2 + 7 * ks + 4) : cx)), ty = cy;
+      ctx.lineJoin = 'round'; ctx.lineWidth = 5; ctx.strokeStyle = pal.cream; ctx.strokeText('TICK', tx, ty); ctx.fillStyle = pal.ink; ctx.fillText('TICK', tx, ty);
     }
     // hub (does not turn): OVER n
     const hr = 27 * ks; ctx.beginPath(); ctx.arc(0, 0, hr, 0, TAU); ctx.fillStyle = pal.ink; ctx.fill();
@@ -278,22 +288,31 @@ function makeWheel(cv, segs, vm) {
     ctx.fillStyle = f.chime ? pal.white : pal.hi; ctx.fill(); ctx.lineWidth = 3 * ks; ctx.strokeStyle = pal.ink; ctx.lineJoin = 'round'; ctx.stroke();
     ctx.restore();
   }
-  /** Labels per frame (QA D2/D3, F16): text is radial but flipped in the lower half so it never reads upside down; tone marks and
-   *  stars are drawn screen-upright, so a good ▲ never turns into ▼. End slices (WIN / ALL OUT) show the word only (F9). */
+  /** Labels per frame (QA D2/D3, F16): numbers and tone marks are drawn screen-upright (never turned); stars turn with the wheel, so a good ▲ never turns into ▼. End slices (WIN / ALL OUT) show the word only (F9). */
   function labels(pos) {
     const ks = R / 146, fam = fontFam();
     (segs || []).forEach((g) => {
       const span = g.width * U, a = ((g.start + g.width / 2) - pos) * U, stars = g.end ? 0 : g.stars || 0, P = labelPlan(span, stars, R);
-      const lower = Math.cos(a) < 0, xy = (r) => [r * Math.sin(a), -r * Math.cos(a)];
+      const xy = (r) => [r * Math.sin(a), -r * Math.cos(a)];
       ctx.fillStyle = pal.ink; ctx.strokeStyle = pal.ink;
-      const txt = labelText(g); let f = P.font, [x, y] = xy(P.numR);
+      const txt = labelText(g); let f = P.font;
       ctx.font = '900 ' + f + 'px ' + fam; let w = ctx.measureText(txt).width;
       if (w > P.maxW) f = f * P.maxW / w;
       let show = txt;
       if (f < 10 && g.end) { const sh = g.end === 'AO' ? 'AO' : 'WIN'; f = P.font; ctx.font = '900 ' + f + 'px ' + fam; w = ctx.measureText(sh).width; if (w > P.maxW) f = f * P.maxW / w; show = sh; }
-      if (f >= 9) { ctx.save(); ctx.translate(x, y); ctx.rotate(lower ? a + Math.PI : a); ctx.font = '900 ' + f + 'px ' + fam; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(show, 0, 1); ctx.restore(); }
-      const c = ctx, at = (r, fn) => { const [gx, gy] = xy(r); c.save(); c.translate(gx, gy); fn(); c.restore(); }; // screen-upright mark
-      at(P.glyphR, () => glyph(c, g.tone, 0, 0, 4 * ks));
+      // QA D3: the number stays upright (6 never reads as 9). Shrink/move it until its box sits inside the slice; if it still does not fit, drop it.
+      const half = span / 2, hubR = 30 * ks, wrapPi = (d) => ((d + Math.PI) % TAU + TAU) % TAU - Math.PI;
+      const fits = (cx, cy, bw, bh) => [[-1, -1], [1, -1], [-1, 1], [1, 1]].every(([sx, sy]) => { const px = cx + sx * bw / 2, py = cy + sy * bh / 2; const r = Math.hypot(px, py); return r <= R - 3 * ks && r >= hubR && Math.abs(wrapPi(Math.atan2(px, -py) - a)) <= half - 0.01; });
+      ctx.font = '900 100px ' + fam; const w100 = ctx.measureText(show).width; let box = null;
+      for (const rr of [P.numR, R * 0.57, R * 0.82, R * 0.66]) {
+        const [cx, cy] = xy(rr); let ff = Math.min(f, P.font);
+        for (; ff >= 9; ff -= 1) { const bw = w100 * ff / 100, bh = ff * 0.78; if (fits(cx, cy + 1, bw, bh)) { box = { cx, cy, ff, bw, bh }; break; } }
+        if (box) break;
+      }
+      if (box) { ctx.font = '900 ' + box.ff + 'px ' + fam; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(show, box.cx, box.cy + 1); }
+      const [gx, gy] = xy(P.glyphR), gs = 4 * ks + 2; // the tier mark yields to the number: hidden if the two boxes would touch
+      const hit = box && Math.abs(gx - box.cx) < gs + box.bw / 2 && Math.abs(gy - (box.cy + 1)) < gs + box.bh / 2;
+      if (!hit) { ctx.save(); ctx.translate(gx, gy); glyph(ctx, g.tone, 0, 0, 4 * ks); ctx.restore(); }
     });
   }
   function land(i) { landed = i; paint(); }
@@ -322,7 +341,7 @@ export function render(el, vm, dispatch, open) {
 }
 function readyHint(el, vm) {
   const n = el.querySelector('.wm-now'); if (!n) return;
-  n.hidden = false; n.classList.add('is-hint'); n.innerHTML = '<span>Spin, then watch the AIM tick: tap STOP when a ▲ slice is at it</span>';
+  n.hidden = false; n.classList.add('is-hint'); n.innerHTML = '<span>Spin, then watch the tick: tap STOP when a ▲ slice is at it</span>';
 }
 function setupWheel(el, segs, vm) {
   const cv = el.querySelector('.wm-cv'); const w = makeWheel(cv, segs || [], vm);
@@ -360,7 +379,7 @@ function onSpin(el, vm, btn, ev) {
   const segAtPos = (p) => { const u = ((p % C) + C) % C; for (let i = 0; i < segs.length; i++) { const g = segs[i]; if (u >= g.start && u < g.start + g.width) return i; } return segs.length ? segs.length - 1 : -1; };
   const waitLook = (on) => { btn.classList.toggle('is-wait', on); if (on) btn.setAttribute('aria-disabled', 'true'); else btn.removeAttribute('aria-disabled'); };
   lab.textContent = 'Wait...'; sub.textContent = 'STOP wakes up in a moment'; waitLook(true); btn.setAttribute('data-wm', 'stop');
-  const back = el.querySelector('[data-wm="back"]'); if (back) back.remove();
+  const back = el.querySelector('[data-wm="back"]'); if (back) { back.disabled = true; back.tabIndex = -1; back.setAttribute('aria-hidden', 'true'); back.style.visibility = 'hidden'; } // keeps its 56 px row so the wheel stays in one place from ready to result
   const ar = el.querySelector('[data-wm="auto-rest"]'); if (ar) { ar.disabled = true; ar.setAttribute('aria-disabled', 'true'); } // SPEC 2h: disabled while the wheel spins
   if (nowBox) { nowBox.classList.remove('is-hint'); nowBox.innerHTML = '<span>Stop now:</span><b class="wm-nowv"></b>'; }
   const nowEl = () => el.querySelector('.wm-nowv');
@@ -375,13 +394,13 @@ function onSpin(el, vm, btn, ev) {
     st.drawPos = pos; st.drawOpts = { over: vm.over, tick, band: guide ? phys.J : 0, zone, chime };
     w.draw(pos, st.drawOpts);
     const ni = segAtPos(tick), ne = ni !== lastNow ? nowEl() : null; if (ne) { lastNow = ni; const g = segs[ni]; if (g) { ne.textContent = sliceText(g); ne.className = 'wm-nowv wm-t--' + (g.tone || 'so'); } }
-    if (t >= GUARD && btn.classList.contains('is-wait')) { waitLook(false); lab.textContent = 'STOP'; sub.textContent = 'tap when your slice is at AIM'; btn.setAttribute('aria-label', 'Stop the wheel'); }
+    if (t >= GUARD && btn.classList.contains('is-wait')) { waitLook(false); lab.textContent = 'STOP'; sub.textContent = 'tap when your slice is at the tick'; btn.setAttribute('aria-label', 'Stop the wheel'); }
     const gl = glowPhase(t); // time only; one shot every cycle
     const gv = gl.on ? (gl.level * 7).toFixed(1) : ''; // DOM writes only on change (PERF fix 5)
     if (gl.on !== lastGlowOn) { lastGlowOn = gl.on; btn.classList.toggle('is-glow', gl.on); }
     if (gv !== lastGlow) { lastGlow = gv; if (gv) btn.style.setProperty('--wm-glow', gv + 'px'); }
     if (gl.on && lab.textContent !== 'STOP!') { lab.textContent = 'STOP!'; sub.textContent = 'Now!'; }
-    else if (!gl.on && lab.textContent === 'STOP!') { lab.textContent = 'STOP'; sub.textContent = 'tap when your slice is at AIM'; }
+    else if (!gl.on && lab.textContent === 'STOP!') { lab.textContent = 'STOP'; sub.textContent = 'tap when your slice is at the tick'; }
     raf = requestAnimationFrame(frame);
   }
   function doStop(t) {
@@ -442,7 +461,8 @@ function showResult(el, vm, r, fresh, keepWheel) {
   const sc = r.score || vm.score; const hs = root.querySelector('.wm-strip .score'); if (hs && sc) { hs.textContent = sc.runs + '/' + sc.wk; hs.setAttribute('aria-label', sc.runs + ' runs for ' + sc.wk + ' wickets'); }
   const hm = root.querySelector('.wm-strip .mid'); if (hm) hm.innerHTML = '<b>Over ' + esc(over) + ' done</b><span>' + esc(r.stage === 'break' ? 'Innings over' : r.stage === 'done' ? 'Match over' : 'Next: over ' + (over + 1) + ' of 10') + '</span>';
   if (r.need && root.querySelector('.wm-need')) root.querySelector('.wm-need b').innerHTML = 'Need <em>' + esc(r.need.runs) + '</em> off <em>' + esc(r.need.balls) + '</em> balls';
-  ['.wm-row', '.wm-legend', '.wm-exp', '.wm-who'].forEach((q) => { const x = root.querySelector(q); if (x) x.hidden = true; });
+  ['.wm-row', '.wm-legend'].forEach((q) => { const x = root.querySelector(q); if (x) x.hidden = true; });
+  ['.wm-exp', '.wm-who'].forEach((q) => { const x = root.querySelector(q); if (x) x.style.visibility = 'hidden'; }); // H2: keep their room so the wheel stays put
   const res = root.querySelector('.wm-res'); res.hidden = false;
   const chip = g ? '<b class="wm-chip wm-t--' + esc(g.tone || 'so') + '">' + esc(toneMark(g.tone) + ' ' + landedText(g, r.wheel)) + '</b>' : '';
   const slots = Array.from({ length: 6 }, (_, i) => '<li class="op-slot' + (i >= balls.length ? ' is-unused' : '') + '" data-i="' + i + '"><span class="op-circle" aria-hidden="true"></span><span class="op-word" aria-hidden="true"></span></li>').join('');

@@ -154,11 +154,14 @@ try {
     }
   }
 
-  /** Wheel meta (w2): a match-day card may open a dial/reel overlay. Tap SPIN, wait, tap STOP/skip, then Collect until it closes. */
+  /** Matchday wheels (T1/T3): a card opens a .wh-ov overlay. SPIN, wait for a live STOP, STOP, wait for the result, then COLLECT (no skip / auto exists). */
   async function driveSpin() {
-    for (let i = 0; i < 12 && (await page.$('.dr-ov')); i++) {
-      const g = await page.$('.dr-ov [data-go]:not([aria-disabled="true"])');
-      if (g) await g.click(); await settle(i === 0 ? 1600 : 900);
+    for (let i = 0; i < 12 && (await page.$('.wh-ov')); i++) {
+      const live = await page.waitForFunction(() => { const g = document.querySelector('.wh-ov [data-go]'); return !g || (g.getAttribute('aria-disabled') !== 'true' && !g.disabled && !g.classList.contains('is-wait')); }, null, { timeout: 6000, polling: 50 }).then(() => true, () => false);
+      const g = await page.$('.wh-ov [data-go]'); if (!g || !live) break;
+      const label = ((await g.textContent()) || '').trim();
+      if (/^STOP/i.test(label)) await settle(250); // let the stop window open on the page clock before the tap
+      await g.click(); await settle(/^SPIN/i.test(label) ? 700 : 900);
     }
   }
 

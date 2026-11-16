@@ -1,4 +1,5 @@
 // @ts-check
+import { HYPE_TOKEN_CAP } from './wheels/hype.js';
 // Wheel meta tree: constants + the 42 nodes (71 ranks, 3,340 Spokes). Source: team-numbers/02-TREE-V2.md sections 3 and 4
 // and sim/wheel_meta_sim_v2.py (TUNE, NODES). Rank k of a node opens at tier >= node.tier + k - 1. Plain data, no logic.
 export const WM = {
@@ -11,7 +12,7 @@ export const WM = {
   UNIT: { spot: 1 / 1.5, course: 1, hype: 1, toss: 1, pep: 0.5, find: 10, scout: 1, finals: 10 },
   LIFT: [1, 1, 1, 2, 3], LIFT_COURSE: [0, 1], STREAK_MAX: 1, RESPIN_BELOW: { spot: 3, course: 2 },
   // wa1 (2026-11-14-wheel-all-spins 02 s5/s6): tokens on all 8 wheels, cap rule F
-  TOKEN_CAP_WHEEL_SEASON: { spot: 2, course: null, hype: 2, toss: 2, pep: 2, find: 2, scout: 2, finals: 2 },
+  TOKEN_CAP_WHEEL_SEASON: { spot: 2, course: null, hype: HYPE_TOKEN_CAP, toss: 2, pep: 2, find: 2, scout: 2, finals: 2 }, // Hype 1 a season (T3/T8; one source: data/wheels/hype.js)
   TOKEN_CAP_MATCH: 1, MATCH_WHEELS: ['hype', 'toss', 'pep'],
   TOKEN_BELOW: { spot: 3, course: 2, hype: 5, toss: 5, pep: 2, scout: 2, finals: 30 }, // offer a re-spin / nudge only under this value (find: when no find)
   LIFT_BY: { hype: [[0, 1, 1, 2], 6], toss: [[0, 1], 4], pep: [[0, 0.5], 1.5], scout: [[0, 1], 1], finals: [[0, 5, 10], 30] }, // [bonus choices, cap]

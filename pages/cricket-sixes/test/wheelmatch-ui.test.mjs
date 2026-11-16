@@ -124,3 +124,10 @@ test('index.html links the wheel match styles; the view is lazy-loaded for wheel
   assert.ok(/s\.mode === 'wheel'/.test(app) && app.includes("'wheelmatch-view'"));
   assert.ok(!/import .*wheelmatch-view/.test(app), 'classic boot never needs the wheel view');
 });
+
+test('QA-V1 H2/M2: wheel size locked per over, result keeps the hint room, tick word is TICK not AIM', async () => {
+  const { readFileSync } = await import('node:fs');
+  const src = readFileSync(new URL('../js/ui/wheelmatch-view.js', import.meta.url), 'utf8');
+  assert.match(src, /st\.lock/); assert.match(src, /style\.visibility = 'hidden'/);
+  assert.match(src, /fillText\('TICK'/); assert.doesNotMatch(src, /fillText\('AIM'/);
+});

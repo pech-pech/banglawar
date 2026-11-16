@@ -66,7 +66,8 @@ export function pickable(s) {
 export function clinicReadyCount(s) {
   try {
     if (!s || !Array.isArray(s.coaches) || !isObj(s.clinic)) return 0; // a state without the clinic block (pre-fill, S0 fixture game()) shows no badge
-    const n = coachList(s).filter((c) => canClinic(s, c.id).ok).length;
+    const at = s.stage === 'train' ? s : { ...s, stage: 'train' }; // the badge counts what the Clinic would allow this week, on any screen (canClinic itself still gates spinning on the train stage)
+    const n = coachList(at).filter((c) => canClinic(at, c.id).ok).length;
     return Math.max(0, Math.min(3, n));
   } catch { return 0; }
 }

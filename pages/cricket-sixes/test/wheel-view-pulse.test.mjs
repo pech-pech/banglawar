@@ -193,11 +193,11 @@ test('stored stop reopens with its Early / Good timing / Late line from timingBu
   assert.equal(typeof timingBucket(3.5), 'string');
 });
 
-test('ring look: labels fitted radially, tier marks drawn, no diamond, legend under the stage, AIM on the tick, Tick on readout, one honest line', () => {
+test('ring look: labels fitted radially, tier marks drawn, no diamond, legend under the stage, one fixed AIM at the top pointer, Tick on readout, one honest line', () => {
   assert.match(src, /radialFit\(/); assert.match(src, /radialTurn\(b\)/);
   assert.match(src, /tierMark\(row\.tier/); assert.match(src, /if \(!RING\) for \(let j = -5/, 'no jackpot diamond on ring wheels');
   assert.match(src, /'<\/div><\/div>' \+ legendHtml \+/, 'legend sits after the stage, not inside it');
-  assert.match(src, /Tick on:/); assert.match(src, /wh-aimt/);
+  assert.match(src, /Tick on:/); assert.match(src, /wh-aimw/); assert.doesNotMatch(src, /aimT\.style/, 'AIM does not ride the rim');
   assert.match(src, /const MSG_GO = 'Turning\. Tap STOP\.'/); assert.doesNotMatch(src, /Tap early and it goes further|near the top/);
   assert.match(src, /fixCss/, 'one wheel size across states');
 });
@@ -222,11 +222,10 @@ test('a11y: focus waits ~150 ms after the live text; the STOP glow window relabe
   assert.match(src, /go\.setAttribute\('aria-label', inW \? 'Stop now' : 'Stop the wheel'\)/);
   assert.match(src, /if \(inW\) live\.textContent = 'Stop now\.'/, 'announced once, when the window opens');
 });
-test('ring layout: vertical room is 10 px (AIM word is clamped into the stage), side room keeps 30 px; tier marks sit inside the Aim lane; STOP glow reads WHEEL_ENGINE.GLOW', () => {
-  assert.match(src, /AMV = RING \? 10 : 0/); assert.match(src, /22 \+ 2 \* AMV/);
+test('ring layout: stage pad 22 + 22 for the fixed AIM word + 8 under, side room 24 px; tier marks sit inside the Aim lane; STOP glow reads WHEEL_ENGINE.GLOW', () => {
+  assert.match(src, /AM = 0;/); assert.match(src, /RING \? 22 \+ 22 \+ 8 : 24 \+ 22/);
   assert.match(src, /mx = cx \+ Math\.cos\(a\) \* \(R - 15\.5 \* kk\)/);
   assert.match(src, /tw0 >= E\.GLOW\[0\] && tw0 <= E\.GLOW\[1\]/); assert.doesNotMatch(src, /TIMING_WIN\.lo/);
-  assert.match(src, /Math\.min\(sw - ox - hw - 2/, 'AIM word clamp');
 });
 test('N8 "+1 Spoke" singular; D10 the tick sentence shows once (the card wins)', () => {
   assert.match(src, /Number\(sg\) === 1 \? ' Spoke' : ' Spokes'/);

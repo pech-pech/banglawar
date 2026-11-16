@@ -80,3 +80,77 @@ export function widen(ring, sliceIds, by, max = SLICE_WIDEN_MAX) {
   const k = (T - base - f * G) / others;
   return Object.freeze(ring.map((s, i) => Object.freeze({ ...s, w: ids.has(i) ? s.w + f * (want[i] - s.w) : s.w * k })));
 }
+
+// ---- Spoke-clear rest (T8 N5). Display only: the stop record, the landed slice and every RNG draw are unchanged.
+// A stop whose rest point ends within the clear angle (REST_CLEAR_DEG, or seamClearDeg(R) from the view) of a seam (spoke) is nudged into the slice it landed in, so the pointer never sits
+// on a line; a slice narrower than 2 x the clear angle rests at its centre. The stored stop (t, phi, e, sliceId) is never touched.
+// QA (V3 D5, V1 L3): the gap is seen from the DRAWN seam, not the seam's centre line. At the result the landed slice lights a gold band
+// bd < SEAM_LINE_PX canvas px each side of its seams (wheel-view draw()), which at the rim eats asin(px / R) of the angle (about 2 deg on a
+// R 74 px wheel, about 4 deg on the smallest). So the clear angle is SEAM_CLEAR_DEG of visible gap past that band: seamClearDeg(R).
+export const SEAM_CLEAR_DEG = 3;
+export const SEAM_LINE_PX = 2.6;
+export const SEAM_REF_R = 74; // canvas px radius of a typical phone wheel (css 300 at 2 css px per canvas px), used when the view gives no radius
+const DEG = 180 / Math.PI;
+/** Clear angle (deg) from a seam's centre line for a wheel of canvas radius rPx: SEAM_CLEAR_DEG of gap past the drawn seam band. @param {number} [rPx] */
+export const seamClearDeg = (rPx = SEAM_REF_R) => SEAM_CLEAR_DEG + DEG * Math.asin(Math.min(1, SEAM_LINE_PX / (+rPx > SEAM_LINE_PX ? +rPx : SEAM_LINE_PX)));
+/** Default clear angle of restPos / restNudge (about 5 deg): seamClearDeg(SEAM_REF_R). */
+export const REST_CLEAR_DEG = seamClearDeg(SEAM_REF_R);
+const modC = (x, C) => ((x % C) + C) % C;
+
+/** Slice edges of a ring (cum[0] = 0, cum[N] = total). @param {{w:number}[]} ring */
+export const ringEdges = (ring) => ring.reduce((a, s) => (a.push(a[a.length - 1] + +s.w), a), [0]);
+
+/**
+ * Display rest position (units, same unwrapped turn as `end`) for a stop landed in slice idx. cum = slice edges (cum[N] = C).
+ * Inside idx: clamped to >= clearDeg from both seams (slice narrower than 2 x clearDeg: its centre). `end` outside idx (an older store steered
+ * the ease to its own slice): the centre of idx, by the shortest way. Pure; sliceIndexAt(cum, C, restPos(..)) === idx always.
+ * @param {number[]} cum @param {number} end @param {number} idx @param {number} [clearDeg]
+ */
+export function restPos(cum, end, idx, clearDeg = REST_CLEAR_DEG) {
+  const N = cum.length - 1, C = cum[N];
+  if (!(N > 0) || !(C > 0) || !Number.isFinite(end)) return end;
+  const i = Math.max(0, Math.min(N - 1, Math.round(+idx) || 0)), a = cum[i], w = cum[i + 1] - a, m = (Math.max(0, +clearDeg || 0) * C) / 360;
+  const d = modC(end - a, C); // offset into slice i (0..C)
+  let want;
+  if (w < 2 * m) want = w / 2;
+  else if (d < w) want = Math.min(w - m, Math.max(m, d));
+  else want = w / 2;
+  let delta = want - d;
+  if (d >= w) { delta = modC(delta, C); if (delta > C / 2) delta -= C; } // outside: the shortest way to the centre
+  return end + delta;
+}
+
+/** The nudge (units) to add to a rest position `end`: restPos(cum, end, idx) - end. 0 when already clear. @param {number[]} cum @param {number} end @param {number} idx @param {number} [clearDeg] */
+export const restNudge = (cum, end, idx, clearDeg = REST_CLEAR_DEG) => restPos(cum, end, idx, clearDeg) - end;
+
+// ---- Tree widening on ring rows (SPEC 11a/11b, T8): Widener / Pep Voice / Coin Weight widths and the Extra Gold piece. Pure.
+/**
+ * Fit a ring back to RING_TOTAL after some rows were widened or inserted. `fixed(row, i)` marks the rows that keep their own width
+ * (clamped at max of the rim, never re-split); every other row shrinks pro rata (SPEC 11b: the extra width comes off the other pieces).
+ * The shrink is bounded like widen(): other rows keep at least MIN_KEEP of their width, else the fixed rows are scaled back.
+ * Ids re-numbered in ring order. @param {any[]} rows @param {(r:any, i:number) => boolean} fixed @param {number} [max]
+ */
+export function fitRing(rows, fixed, max = SLICE_WIDEN_MAX) {
+  const ceil = max * RING_TOTAL, isF = rows.map((r, i) => !!fixed(r, i));
+  const want = rows.map((r, i) => (isF[i] ? Math.min(ceil, Math.max(0, +r.w || 0)) : r.w));
+  const F = want.reduce((a, w, i) => a + (isF[i] ? w : 0), 0), O = want.reduce((a, w, i) => a + (isF[i] ? 0 : w), 0);
+  if (!(O > 0)) return Object.freeze(reId(rows));
+  let k = (RING_TOTAL - F) / O, g = 1;
+  if (k < MIN_KEEP) { k = MIN_KEEP; g = (RING_TOTAL - MIN_KEEP * O) / F; }
+  return Object.freeze(reId(rows.map((r, i) => ({ ...r, w: isF[i] ? want[i] * g : r.w * k }))));
+}
+
+/**
+ * Where an Extra Gold piece goes (SPEC 11a, sim rule): the seam farthest round the ring from the centre of the first gold row, among seams
+ * with no gold row on either side (so it never sits next to gold). Returns b: insert before row b (b = ring.length = after the last row,
+ * next to row 0 across the wrap). A near tie (1e-9) keeps the first seam clockwise. -1 when the ring has no gold row. @param {{w:number,gold?:boolean}[]} ring
+ */
+export function extraGoldAt(ring) {
+  const n = ring.length, g = ring.findIndex((r) => r.gold); if (g < 0 || n < 2) return -1;
+  const cum = ringEdges(ring), C = cum[n], centre = cum[g] + ring[g].w / 2;
+  const seams = []; for (let b = 1; b <= n; b++) if (!ring[b - 1].gold && !ring[b % n].gold) seams.push(b);
+  const pool = seams.length ? seams : Array.from({ length: n }, (_, i) => i + 1);
+  let best = pool[0], bd = -1;
+  for (const b of pool) { const dx = Math.abs(cum[b] - centre), d = Math.min(dx, C - dx); if (d > bd + 1e-9) { bd = d; best = b; } }
+  return best;
+}

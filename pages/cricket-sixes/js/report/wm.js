@@ -8,7 +8,7 @@ import { effective, metaReport, metaOf, matchKeyOf, TOKEN_WHEELS } from '../core
 import { findWheel, findWheelResult, modsFor } from '../core/dialreel.js';
 
 const FIND_SPEC = ['sp_fnd_n', 'sp_fnd_r']; // Sharp Eyes, Second Cheer: not in the SPEC s3a "full tree" column
-export const FIND_CHECK = { rate: 18, n: 3000, bug: 55, none: 22.9, full: 47.1 }; // SPEC s1 + s3a (avg careful at 18%)
+export const FIND_CHECK = { rate: 18, n: 3000, bug: 55, none: 26.0, full: 48.7 }; // wheels-like-match SPEC s5 / s11 parity log: avg careful at 18%, no tree 26.0, full tree + tokens 48.7 (was the old 3-block 22.9 / 47.1)
 
 const memo = new Map(); // same tree -> same number (seeded); a copy calls this twice
 /** Avg careful Find % at an 18% activity for the tree in `s` (seeded, game code). @param {any} s @param {number} [n] */

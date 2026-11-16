@@ -10,7 +10,7 @@ test('Pep UI source: openWheel options, no dial, no stopOf', () => {
   assert.match(src, /import \{ openWheel \} from '\.\.\/wheel-view\.js'/);
   assert.ok(!/dial-view/.test(src) && !/stopOf|reduced|skip/i.test(src));
   assert.match(src, /export const pepSlices/);
-  for (const s of ["wheelId: 'pep'", 'get().ring', 'spinKey: get().spinKey', 'J: 1.2', "'Pep talk'", 'The tick shows about where it will land.', "tokProps(get, dispatch, 'pep'", "dispatch('PepSpin', { stop:", 'pepName']) assert.ok(src.includes(s), s);
+  for (const s of ["wheelId: 'pep'", 'get().ring', 'spinKey: get().spinKey', 'J: 1.2', "'Pep talk'", 'The tick shows where the pointer will stop.', "tokProps(get, dispatch, 'pep'", "dispatch('PepSpin', { stop:", 'pepName']) assert.ok(src.includes(s), s);
 });
 
 test('Pep describe and ring labels', async () => {
@@ -48,7 +48,7 @@ test('describe() with the REAL pending from the store, all three wheels (N1/N2/N
     tr.forEach((row, i) => {
       const p = mdSpinVM(C(s, 'TossSpin', { stop: { sliceId: i } })).toss.pending, d = describeToss(p);
       assert.equal(d.big, '');
-      assert.equal(d.line, row.value > 0 ? 'You won the toss +' + row.value + '%.' : 'No boost. You get +1 Spoke.');
+      assert.equal(d.line, row.value > 0 ? 'You won the toss +' + row.value + '%.' : 'No boost today.');
     });
   } finally { Object.assign(FLAGS, old); }
 });

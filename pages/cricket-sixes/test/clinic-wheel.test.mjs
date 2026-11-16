@@ -1,4 +1,5 @@
 import { test } from 'node:test';
+import { readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
 import { openClinicWheel, clinicResultText, clinicMedian, clinicStopRec, applyClinicStop, loadClinicDeps } from '../js/ui/wheels/clinic.js';
 import { clinicParity } from '../tools/clinic-parity.mjs';
@@ -53,4 +54,9 @@ test('wobble is not drawn twice: stop passes through as the engine gave it', () 
   const { calls, deps, ctx } = mk(); let n = 0; deps.wheelWobble = () => { n++; return 9; }; openClinicWheel(ctx, deps);
   calls.open.onSpin({ stopT: 1, cycle: 1, tInCycle: 1, sliceId: 4 });
   assert.equal(n, 0); assert.ok(!('e' in calls.dispatch[0][1].stop));
+});
+
+test('X2: clinic wheel passes a non-empty card (no blank bar)', () => {
+  const src = readFileSync(new URL('../js/ui/wheels/clinic.js', import.meta.url), 'utf8');
+  assert.match(src, /title: 'Clinic', cardHtml,/);
 });

@@ -101,7 +101,7 @@ try {
         await closeSheets();
         const nets = await page.$('[data-lo="runnets"]:not([disabled])');
         if (!nets) skip('Nets shows the Clinic chip/line', 'no Nets control found on the Training screen to tap');
-        else { await nets.click(); await wait(2500); const body = await get(() => document.body.innerText); step('Nets shows the Clinic chip/line', /Clinic/i.test(body) && /\+\d+%|Extra run/i.test(body), 'no "Clinic +N%" / "Extra run" text after Nets'); await closeSheets(); }
+        else { await nets.click(); let body = ''; for (let i = 0; i < 40; i++) { await wait(250); body = await get(() => document.body.innerText); if (/Clinic/i.test(body) && /\+\d+%|Extra run/i.test(body)) break; } /* poll: the Nets day plays out over time, a fixed 2.5 s wait raced it */ step('Nets shows the Clinic chip/line', /Clinic/i.test(body) && /\+\d+%|Extra run/i.test(body), 'no "Clinic +N%" / "Extra run" text after Nets'); await closeSheets(); }
         await advance('train'); // nets done: a week end moves on, then the new week is Training again
         const st2 = await advance(['matchday', 'hub', 'squad']); await advance('train'); await wait(500);
         const b2 = await page.$(`[data-cn="spin"][data-id="${coachId}"]`);

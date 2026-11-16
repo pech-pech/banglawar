@@ -43,3 +43,21 @@ export function scoutAutoSlice(rng) {
   for (const c of SCOUT_SLICES) { x -= c.w; if (x < 0) return c.id; }
   return SCOUT_SLICES.length - 1;
 }
+
+// ---- Scout tree widths (SPEC 11a/11b, T8). Pure ring builder; the Scout store still reads SCOUT_SLICES by id (not wired here).
+import { neutralMods } from './common.js';
+import { fitRing, extraGoldAt } from '../wheel-ring.js';
+/**
+ * Scout ring rows with the tree widths: Widener + Top Name (goldAdd, rim units) widen the +2 card; Extra Gold (extra) adds a second +2 piece,
+ * EXTRA_W (0.75) x the +2 card, on the seam farthest from it. Gold pieces clamp at 13.0%, never re-split; the rest shrink pro rata (sum 10).
+ * No tree widths owned = SCOUT_SLICES exactly. @param {any} [mods]
+ */
+export function scoutRingFor(mods = neutralMods()) {
+  const m = { ...neutralMods(), ...mods }, add = Math.max(0, +m.goldAdd || 0), nx = Math.max(0, m.extra | 0);
+  /** @type {any[]} */ let rows = SCOUT_SLICES.map((s) => ({ ...s }));
+  if (!(add > 0 || nx > 0)) return rows;
+  rows = rows.map((r) => (r.gold ? { ...r, w: r.w + add } : r));
+  const g = rows.find((r) => r.gold);
+  for (let e = 0; g && e < nx; e++) rows.splice(extraGoldAt(rows), 0, { ...g, w: g.w * DR.EXTRA_W, second: true });
+  return fitRing(rows, (r) => !!r.gold).map((r) => ({ ...r }));
+}

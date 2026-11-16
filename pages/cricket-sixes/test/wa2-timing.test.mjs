@@ -9,11 +9,10 @@ import { TRAIN2 } from '../js/data/training.js';
 const read = (p) => readFileSync(new URL('../' + p, import.meta.url), 'utf8');
 const wheel = read('js/ui/wheel-view.js'), view = read('js/ui/training-view.js'), coaches = read('js/ui/coaches-sheet.js'), find = read('js/ui/wheels/find.js'), t2 = read('css/training2.css'), log = read('js/report/log.js');
 
-test('TIMING_WIN is 3.2-3.8 s, frozen (deprecated shim); COAST and STOP_FROM are legacy-only (kept for the old wheel-view, nothing in the core reads them); Spotlight/Course use W0 36, D 2, J 1.2', () => {
+test('TIMING_WIN is 3.2-3.8 s, frozen (deprecated shim); COAST and STOP_FROM are removed from wheelStop (T8); Spotlight/Course use W0 36, D 2, J 1.2', () => {
   assert.deepEqual({ ...TIMING_WIN }, { lo: 3.2, hi: 3.8 });
   assert.ok(Object.isFrozen(TIMING_WIN));
-  assert.equal(TRAIN2.wheelStop.STOP_FROM, 0.35, 'legacy-only: the old wheel-view reads it');
-  assert.ok(TRAIN2.wheelStop.COAST > 1e6, 'legacy-only: effectively no auto-stop');
+  assert.ok(!('STOP_FROM' in TRAIN2.wheelStop) && !('COAST' in TRAIN2.wheelStop), 'T8: both removed, no reader left');
   assert.deepEqual([TRAIN2.wheelStop.W0, TRAIN2.wheelStop.D, TRAIN2.wheelStop.J], [36, 2, 1.2]);
 });
 

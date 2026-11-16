@@ -53,9 +53,9 @@ test('12 no slice relies on colour alone: tier differs by shape or by pale sand,
   assert.equal(tierShape('nope').tier, 'mid');
 });
 
-test('aim marker spec is a shape plus the word AIM at 12 px', () => {
+test('aim marker spec is a shape plus the word AIM at 14 px', () => {
   const a = aimMarker();
-  assert.equal(a.text, 'AIM'); assert.ok(a.fontPx >= 12); assert.equal(a.points.length, 3);
+  assert.equal(a.text, 'AIM'); assert.ok(a.fontPx >= 14); assert.equal(a.points.length, 3);
   assert.ok(Object.isFrozen(a));
 });
 

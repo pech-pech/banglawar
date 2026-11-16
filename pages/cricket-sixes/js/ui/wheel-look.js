@@ -125,7 +125,7 @@ export function aimMarker(o) {
   const pts = [[38, 0], [62, 0], [50, 22]].map((p) => Object.freeze([+(p[0] * k).toFixed(2), +(p[1] * k).toFixed(2)]));
   return Object.freeze({
     shape: 'triangle-down', points: Object.freeze(pts), fill: 'var(--gold, #d2b357)', stroke: 'var(--outline, #2a2238)', strokeW: 2.5,
-    text: 'AIM', fontPx: 12, bold: true, textHalo: 2.5, textX: 50 * k, textY: 36 * k,
+    text: 'AIM', fontPx: 14, bold: true, textHalo: 2.5, textX: 50 * k, textY: 36 * k,
   });
 }
 const LEAD_NUM = /^[x×]?\s*([+\-−]?\d+(?:\.\d+)?)(?![\d.])/i;
@@ -134,7 +134,7 @@ export function sliceLabel(row) {
   const r = row || {}, raw = r.label == null ? '' : String(r.label).trim();
   if (!(r.w < LABEL_MIN_W)) return raw;
   const m = LEAD_NUM.exec(raw);
-  if (m) return m[1];
+  if (m) { const u = /^\s*(coins?|fans?|tp)\s*$/i.exec(raw.slice(m[0].length)); return u ? m[1] + (/^c/i.test(u[1]) ? 'c' : /^f/i.test(u[1]) ? 'f' : 'TP') : m[1]; } // Finals units stay: "20c", "20f", "10TP", never a bare number
   const ch = Array.from(raw)[0];
   if (ch) return ch;
   return typeof r.value === 'number' ? String(r.value) : '?';
@@ -216,5 +216,60 @@ export function legendWith(ring, narrow, given) {
   const rows = legendRows((Array.isArray(ring) ? ring : []).map((r, i) => (narrow && narrow[i] && r ? { ...r, w: 0 } : r)));
   const out = [], seen = new Set(), g = Array.isArray(given) ? given : [], gch = new Set(g.map((r) => String(r.ch)));
   for (const r of [...g, ...rows.filter((r) => !gch.has(String(r.ch)))]) { const k = String(r.ch) + '\u0000' + String(r.text); if (seen.has(k)) continue; seen.add(k); out.push(r); } // a host row wins over the automatic row for the same character
+  return out;
+}
+
+/* ---- T8 helper A: Boost chip text, tier key row, short names ("Maxi..") for names that do not fit a slice. Pure. ---- */
+/** Boost chip words: a multiplier unit ('x') prints value then x with a plus ("Hot Streak +0.667x"); any other unit prints as before ("Booster +1"). */
+export function boostText(word, plus, by) {
+  const n = String(by == null || by === '' ? 1 : by).replace(/^\+/, ''), p = typeof plus === 'string' && plus ? plus : '+';
+  return /^[x\u00d7]$/i.test(p) ? word + ' +' + n + 'x' : word + ' ' + p + n;
+}
+/** Tier key rows [{ch, text}] (shape + word per tier) for the tiers a ring uses; ch is a shape word legendShape() draws. A host legend that already has shape rows replaces it. */
+export function tierKeyRows(ring, given) {
+  if (Array.isArray(given) && given.some((r) => r && legendShape(r.ch))) return [];
+  const rows = Array.isArray(ring) ? ring.filter(Boolean) : [], has = (t) => rows.some((r) => !r.gold && r.tier === t), out = [];
+  if (has('top')) out.push(Object.freeze({ ch: 'tri', text: 'high' }));
+  if (has('mid')) out.push(Object.freeze({ ch: 'dot', text: 'middle' }));
+  if (has('low')) out.push(Object.freeze({ ch: 'pale', text: 'lowest' }));
+  if (rows.some((r) => r.gold)) out.push(Object.freeze({ ch: 'gold', text: 'gold' }));
+  return out;
+}
+const NAME_VAL = /^(.*\S)\s+([+\-\u2212]?\d[\d.,]*\s*%?)$/;
+/** "Maximilian +5%" -> {name:'Maximilian', val:'+5%'}; no trailing number -> {name:text, val:''}. */
+export function splitNameValue(text) { const t = String(text == null ? '' : text).trim(), m = NAME_VAL.exec(t); return m ? { name: m[1], val: m[2] } : { name: t, val: '' }; }
+const _lc = (n) => Array.from(String(n == null ? '' : n).trim().toLowerCase()), _same = (x, y) => x.length === y.length && x.every((c, i) => c === y[i]), _tailOf = (a, t) => a.slice(a.length - t);
+/** Fewest letters (>= 3, <= the name) that tell each name apart from every other different name by its first letters (case blind). A name that is the start of another ("Maximilian" / "Maximiliano") cannot be told apart by its start alone: it gets the fewest head letters that, with a 1..3 letter tail ("Maxim..n"), differ from every other name (see uniqueTailLens). */
+export function uniquePrefixLens(names, min) {
+  const ns = (names || []).map(_lc), lo = min == null ? 3 : min, pre = (a, b, k) => b.length >= k && b.slice(0, k).every((c, x) => c === a[x]);
+  return ns.map((a, i) => {
+    const others = ns.filter((b, j) => j !== i && !_same(a, b));
+    let k = Math.min(lo, a.length); for (; k < a.length; k++) if (!others.some((b) => pre(a, b, k))) return k;
+    for (let h = Math.max(3, lo); h <= a.length - 2; h++) for (let t = 1; t <= 3 && h + t < a.length; t++) if (!others.some((b) => pre(a, b, h) && _same(_tailOf(a, t), b.length >= t ? _tailOf(b, t) : []))) return h;
+    return k;
+  });
+}
+/** Tail letters (0 = none) a short form needs when its first letters (the lens from uniquePrefixLens) cannot tell it from another name: the fewest last letters (1..3) that, with that head, differ from every other different name. */
+export function uniqueTailLens(names, lens) {
+  const ns = (names || []).map(_lc), ls = lens || uniquePrefixLens(names), pre = (a, b, k) => b.length >= k && b.slice(0, k).every((c, x) => c === a[x]);
+  return ns.map((a, i) => {
+    const others = ns.filter((b, j) => j !== i && !_same(a, b)), h = ls[i];
+    if (!others.some((b) => pre(a, b, h)) || h > a.length - 2) return 0;
+    for (let t = 1; t <= 3 && h + t < a.length; t++) if (!others.some((b) => pre(a, b, h) && _same(_tailOf(a, t), b.length >= t ? _tailOf(b, t) : []))) return t;
+    return 0;
+  });
+}
+/** Short forms of a slice name, longest first, all upright one-liners that end in ".." ("Maxi.. +5%", then "Maxi.." without the value). Never fewer than minK letters (default 3).
+ *  tail > 0 (names that share their whole start): head + ".." + the last `tail` letters ("Maxi..n" / "Maxi..o"), so each stays unique and no name falls back to one letter. */
+export function shortNameForms(text, minK, tail) {
+  const { name, val } = splitNameValue(text), cs = Array.from(name), t = Math.max(0, tail | 0), tl = t ? cs.slice(-t).join('') : '', lo = Math.max(3, t ? Math.min(minK || 3, cs.length - t - 1) : minK || 3), out = [];
+  if (t) { for (const withVal of val ? [true, false] : [false]) for (let k = cs.length - t - 1; k >= lo; k--) out.push(cs.slice(0, k).join('').replace(/[\s\-]+$/, '') + '..' + tl + (withVal ? ' ' + val : '')); return out; }
+  for (const withVal of val ? [true, false] : [false]) for (let k = cs.length - 1; k >= lo; k--) out.push(cs.slice(0, k).join('').replace(/[\s\-]+$/, '') + '..' + (withVal ? ' ' + val : ''));
+  return out;
+}
+/** Scout surname cuts, longest first: the whole name when it is `max` letters or fewer, then every ".." form from one letter short of the name down to the unique head (never one "." and never fewer than 3 letters). The renderer takes the first that fits at 14 px, so a roomy slice gets the most letters. */
+export function scoutNameCuts(name, minK, tail, max) {
+  const n = String(name == null ? '' : name), out = Array.from(n).length <= (max || 6) ? [n] : [];
+  for (const x of shortNameForms(n, minK, tail)) if (!/ /.test(x)) out.push(x);
   return out;
 }

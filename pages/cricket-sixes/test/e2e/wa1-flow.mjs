@@ -61,6 +61,7 @@ async function open(tag) {
     async closeSheets() { for (let i = 0; i < 5 && (await page.$('.c-sheet')); i++) { await page.keyboard.press('Escape'); await page.waitForTimeout(200); } },
     async boot() {
       await page.goto(`${ORIGIN}/cricket-sixes/?seed=${encodeURIComponent(SEED)}`); await page.waitForFunction(() => window.__store && window.__store.get(), null, { timeout: 15000 }); await page.waitForTimeout(600);
+      await page.waitForFunction(() => window.__store && window.__store.get(), null, { timeout: 15000 }); await page.evaluate(() => window.__store.dispatch('SetMatchMode', { mode: 'classic' })); // PR #60: new games start in Wheel match mode; these scripts drive the Classic flow
       const pick = await page.$('[data-cl-pick]'); if (pick) { await pick.click(); await page.waitForTimeout(200); const t = await page.$('[data-cl-act="TakeFreePick"]:not([disabled])'); if (t) { await t.click(); await page.waitForTimeout(400); } }
     },
     /** Drive stages by command until stopAt (or a stage in the list). Returns the stage reached. */
@@ -90,6 +91,7 @@ async function open(tag) {
         localStorage.setItem('cs.save.1', JSON.stringify(m.wrap(s)));
       }, patchSrc);
       await page.goto(`${ORIGIN}/cricket-sixes/?seed=${encodeURIComponent(SEED)}`); await page.waitForFunction(() => window.__store && window.__store.get(), null, { timeout: 15000 }); await page.waitForTimeout(600);
+      await page.waitForFunction(() => window.__store && window.__store.get(), null, { timeout: 15000 }); await page.evaluate(() => window.__store.dispatch('SetMatchMode', { mode: 'classic' })); // PR #60: new games start in Wheel match mode; these scripts drive the Classic flow
     },
     /** Spin overlay (wheel-view / dial-view / reel-view): tap SPIN, tap STOP when it shows, wait for the result. Returns {ok, res, go}. */
     async spinToResult(ovSel = '.wh-ov') {
@@ -172,12 +174,12 @@ try {
     step(1, 'Scout list button on the strip', !!scout, 'no [data-ct=scout]');
     if (scout) {
       await scout.click(); await A.settle(600);
-      const sheet = await p.$('.c-sheet'), reel = await p.$('.dr-ov, .wh-ov');
+      const sheet = await p.$('.c-sheet'), reel = await p.$('.wh-ov, .wh-ov');
       const sheetTxt = sheet ? await A.text('.c-sheet') : '';
       step(1, 'Scout list opens (sheet or scout reel)', !!sheet || !!reel, 'nothing opened');
       if (sheet) step(1, 'Scout sheet says Scout', /scout/i.test(sheetTxt), sheetTxt.slice(0, 80));
       await A.shot('03-scout');
-      if (reel) { await A.spinToResult('.dr-ov, .wh-ov'); await A.collect('.dr-ov, .wh-ov'); }
+      if (reel) { await A.spinToResult('.wh-ov, .wh-ov'); await A.collect('.wh-ov, .wh-ov'); }
       await A.closeSheets();
     }
     // ---- Send on course link (opens the Course big wheel; coach away 1 week after)
@@ -246,7 +248,7 @@ try {
         step(2, '"Yes, do it" enabled', !!yes, 'disabled or missing');
         if (yes) {
           await yes.click(); await A.settle(700);
-          const kind = await A.S(() => { const ov = document.querySelector('.wh-ov, .dr-ov'); if (!ov) return null; return { dr: ov.classList.contains('dr-ov'), cv: !!ov.querySelector('canvas.wh-cv'), reel: !!ov.querySelector('[class*="rl-"], .dr-reel, .rv-cell') }; });
+          const kind = await A.S(() => { const ov = document.querySelector('.wh-ov, .wh-ov'); if (!ov) return null; return { dr: ov.classList.contains('dr-ov'), cv: !!ov.querySelector('canvas.wh-cv'), reel: !!ov.querySelector('[class*="rl-"], .dr-reel, .rv-cell') }; });
           step(2, 'Find opens the big wheel (.wh-ov + canvas.wh-cv)', kind && !kind.dr && kind.cv, `overlay ${JSON.stringify(kind)}`);
           step(2, 'Find is not the old reel', kind && !kind.reel && !kind.dr, `overlay ${JSON.stringify(kind)}`);
           if (kind) {
@@ -256,7 +258,7 @@ try {
             const sm = await smallTaps(p, '.wh-ov'); step(2, 'Find wheel taps >= 44 px', !sm.length, sm.join('; '));
             const t0 = Date.now(); const r = await A.spinToResult('.wh-ov');
             step(2, 'Find wheel resolves (result + COLLECT)', r.ok, `res "${r.res.slice(0, 60)}" go ${r.go}`);
-            step(2, 'Find result says found or nothing', /found|nothing|coins|player|coach/i.test(r.res), r.res.slice(0, 80));
+            step(2, 'Find result says found or nothing', /found|nothing|no find|coins|player|coach/i.test(r.res), r.res.slice(0, 80));
             note(2, 'Find spin-to-result time ms', String(Date.now() - t0));
             const picked = await A.S(() => { const s = window.__store.get(); const h = s.econ && s.econ.act && s.econ.act.hist; return h && h[0] ? h[0].id : null; });
             step(2, 'PickActivity stored after the spin', !!picked && picked !== 'rest', `hist[0] ${picked}`);
@@ -278,12 +280,12 @@ try {
     for (const w of ['hype', 'toss', 'pep']) {
       const b = await p.$(`[data-md="${w}"]`); step(3, `${w}: tap button on match day`, !!b, `no [data-md=${w}]`); if (!b) continue;
       await b.click(); await A.settle(500);
-      const ov = await p.$('.dr-ov'); step(3, `${w}: dial/reel overlay opens`, !!ov, 'no .dr-ov'); if (!ov) continue;
-      if (w === 'hype') { const cv = await p.$('.dr-ov canvas.dr-cv'); step(3, 'hype: half-dial canvas', !!cv, 'no canvas.dr-cv'); }
-      const r = await A.spinToResult('.dr-ov');
+      const ov = await p.$('.wh-ov'); step(3, `${w}: ring wheel overlay opens`, !!ov, 'no .wh-ov'); if (!ov) continue;
+      if (w === 'hype') { const cv = await p.$('.wh-ov canvas.wh-cv'); step(3, 'hype: half-dial canvas', !!cv, 'no canvas.wh-cv'); }
+      const r = await A.spinToResult('.wh-ov');
       step(3, `${w}: resolves (result + COLLECT)`, r.ok, `res "${r.res.slice(0, 60)}" go ${r.go}`);
       await A.shot(`10-md-${w}`);
-      step(3, `${w}: overlay closes on COLLECT`, await A.collect('.dr-ov'), 'overlay still open');
+      step(3, `${w}: overlay closes on COLLECT`, await A.collect('.wh-ov'), 'overlay still open');
     }
     const md = await A.S(() => { const f = window.__store.get().fixture || {}; const m = f.md || {}; return { hype: m.hype, toss: m.toss, pep: m.pepSlots || m.pepSlot || m.pepId || null }; });
     step(3, 'match day state has hype, toss, pep after the taps', md.hype != null && md.toss != null && md.pep != null, JSON.stringify(md));
@@ -309,33 +311,39 @@ try {
   if (st === 'matchday') {
     await B.settle(500);
     let used = null; const seen = {};
+    // Hype lands on a fixed ring slice (HypeSpin {sliceId}, the stop path the wheel itself sends): a low, non-gold slice with a better neighbour, so the offer is deterministic.
+    // The wheel's own stop is timing-driven and Hype can land on NUTS / HIGH (no offer by the rules), which made this check flaky. Toss and Pep still use real taps.
+    const hs = await q.evaluate(async () => { const H = await import('/cricket-sixes/js/core/wheels/hype.js'); const r = H.hypeRing(), L = r.length;
+      const i = r.findIndex((x, k) => !x.gold && x.value < 5 && [(k + 1) % L, (k + L - 1) % L].some((j) => !r[j].gold && r[j].value > x.value));
+      if (i >= 0) window.__store.dispatch('HypeSpin', { stop: { sliceId: r[i].id } }); return i >= 0 ? { id: r[i].id, label: r[i].label } : null; });
+    step(4, 'hype: fixed ring stop injected (low slice with a better neighbour)', !!hs, JSON.stringify(hs)); await B.settle(300);
     for (const w of ['hype', 'toss', 'pep']) {
       const b = await q.$(`[data-md="${w}"]`); if (!b) { step(4, `${w}: tap button`, false, 'missing'); continue; }
       await b.click(); await B.settle(500);
-      if (!(await q.$('.dr-ov'))) { step(4, `${w}: overlay opens`, false, 'no .dr-ov'); continue; }
-      const r = await B.spinToResult('.dr-ov');
+      if (!(await q.$('.wh-ov'))) { step(4, `${w}: overlay opens`, false, 'no .wh-ov'); continue; }
+      const r = await B.spinToResult('.wh-ov');
       step(4, `${w}: resolves with the full tree`, r.ok, `res "${r.res.slice(0, 60)}" go ${r.go}`);
-      const toks = await B.tokens('.dr-ov'); seen[w] = { res: r.res.replace(/\s+/g, ' ').slice(0, 50), toks: toks.map((t) => t.label) };
-      const noteTxt = await B.text('.dr-ov .wh-tknote').catch(() => '');
+      const toks = await B.tokens('.wh-ov'); seen[w] = { res: r.res.replace(/\s+/g, ' ').slice(0, 50), toks: toks.map((t) => t.label) };
+      const noteTxt = await B.text('.wh-ov .wh-tknote').catch(() => '');
       if (noteTxt) seen[w].note = noteTxt;
       if (!used && toks.length) {
         await B.shot(`11-${w}-offer`);
         const pick = toks.find((t) => t.kind === 'lift') || toks[0];
         const before = await B.S(() => { const m = window.__store.get().wheelMeta; return { mt: m.matchTokUsed, tu: m.tokUsed, tok: m.tokens }; });
-        await q.click(`.dr-ov [data-tok] .wh-tk[data-kind="${pick.kind}"]`); await B.settle(400);
-        await q.waitForFunction(() => { const o = document.querySelector('.dr-ov [data-out]'); return o && o.textContent.trim(); }, null, { timeout: 8000 }).catch(() => {});
-        const out = (await B.text('.dr-ov [data-out]').catch(() => '')).trim();
+        await q.click(`.wh-ov [data-tok] .wh-tk[data-kind="${pick.kind}"]`); await B.settle(400);
+        await q.waitForFunction(() => { const o = document.querySelector('.wh-ov [data-out]'); return o && o.textContent.trim(); }, null, { timeout: 8000 }).catch(() => {});
+        const out = (await B.text('.wh-ov [data-out]').catch(() => '')).trim();
         step(4, `${w}: using ${pick.label} shows an outcome line`, !!out, 'no [data-out] text');
         const after = await B.S(() => { const m = window.__store.get().wheelMeta; return { mt: m.matchTokUsed, tu: m.tokUsed, tok: m.tokens }; });
         step(4, `${w}: token spent in the store (matchTokUsed.n 1, tokUsed.${w} 1)`, after.mt && after.mt.n === 1 && after.tu && after.tu[w] === 1, JSON.stringify({ before, after }));
-        const left = await B.tokens('.dr-ov'); step(4, `${w}: no more token buttons after the 1 match-day use`, left.length === 0, left.map((t) => t.label).join(', '));
+        const left = await B.tokens('.wh-ov'); step(4, `${w}: no more token buttons after the 1 match-day use`, left.length === 0, left.map((t) => t.label).join(', '));
         used = { w, kind: pick.kind, out };
         await B.shot(`12-${w}-used`);
-        const r2 = await B.text('.dr-ov [data-res]'); step(4, `${w}: result still shown after the token`, !!r2.trim(), 'empty result');
+        const r2 = await B.text('.wh-ov [data-res]'); step(4, `${w}: result still shown after the token`, !!r2.trim(), 'empty result');
       } else if (used) {
         step(4, `${w}: no token offer after 1 used this match day`, toks.length === 0, toks.map((t) => t.label).join(', '));
       }
-      await B.collect('.dr-ov');
+      await B.collect('.wh-ov');
     }
     step(4, 'a token offer appeared on Hype, Toss or Pep', !!used, `offers ${JSON.stringify(seen)}`);
     note(4, 'offers seen', JSON.stringify(seen).slice(0, 300));
@@ -349,10 +357,10 @@ try {
     st = await B.advance('matchday');
     if (st === 'matchday') {
       await B.settle(400);
-      const b = await q.$('[data-md="hype"]'); if (b) { await b.click(); await B.settle(500); const r = await B.spinToResult('.dr-ov'); const toks = await B.tokens('.dr-ov');
+      const b = await q.$('[data-md="hype"]'); if (b) { await b.click(); await B.settle(500); const r = await B.spinToResult('.wh-ov'); const toks = await B.tokens('.wh-ov');
         const pts = await B.S(() => { const f = window.__store.get().fixture || {}; return f.md && f.md.wm && f.md.wm.hype ? f.md.wm.hype : null; });
         note(4, 'next match day: hype offer', `${r.ok ? 'resolved' : 'not resolved'}; tokens [${toks.map((t) => t.label).join(', ')}]; ${JSON.stringify(pts)}`);
-        await B.collect('.dr-ov'); }
+        await B.collect('.wh-ov'); }
     }
   }
   allErrs.push(...B.errs); await B.ctx.close();

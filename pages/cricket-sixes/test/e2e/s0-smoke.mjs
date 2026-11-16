@@ -86,7 +86,7 @@ try {
   st = await advance('matchday'); step('reached match day', st === 'matchday', st);
   if (st === 'matchday') {
     await wait(500);
-    for (const w of ['hype', 'toss', 'pep']) { const b = await page.$(`[data-md="${w}"]`); if (!b) { step(`${w} button`, false, 'missing'); continue; } await b.click(); await wait(500); step(`${w} spin resolves + collects`, (await page.$('.dr-ov')) && (await spin('.dr-ov')), 'overlay missing or stuck'); }
+    for (const w of ['hype', 'toss', 'pep']) { const b = await page.$(`[data-md="${w}"]`); if (!b) { step(`${w} button`, false, 'missing'); continue; } await b.click(); await wait(500); const OV = '.dr-ov, .wh-ov'; /* ring wheels (Hype/Toss/Pep) now open .wh-ov, reels still .dr-ov */ step(`${w} spin resolves + collects`, (await page.$(OV)) && (await spin(OV)), 'overlay missing or stuck'); }
   }
   st = await advance('week'); step('match played to the end (stage week)', st === 'week', st);
   const w0 = await page.evaluate(() => window.__store.get().week ?? null);

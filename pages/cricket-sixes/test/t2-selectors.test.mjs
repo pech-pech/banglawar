@@ -36,3 +36,18 @@ test('kindFloor 1 when Kind Floor owned (wheelMeta on)', async () => {
     assert.equal(trainingVMT2(s).spotlight.kindFloor, 1); assert.equal(coachesVMT2(s).coaches[0].course.kindFloor, 1);
   } finally { FLAGS.wheelMeta = was; }
 });
+
+// T8: Scout landed card in coachPickVM
+import { scoutLandedVM, coachPickVM as _cpVM } from '../js/store/selectors.js';
+import { scoutBodyHtml } from '../js/ui/coachpick-view.js';
+test('scoutLandedVM: null without a slice spin; card + line after one', () => {
+  assert.equal(scoutLandedVM({ season: { n: 1 } }), null);
+  const s = { season: { n: 1 }, scoutSpin: { n: 1, index: 0, id: 'top2', steps: 2, extra: 0, sliceId: 0, value: 2, card: { grade: 'B', surname: 'Khan', focus: 'bp' } } };
+  const v = scoutLandedVM(s);
+  assert.equal(v.name, 'Khan'); assert.equal(v.gold, true); assert.equal(v.line, 'Top name: Khan (B) joins as your first name, +2 steps.');
+  const vm = _cpVM(game({ coaches: [] }));
+  assert.equal(vm.cands.filter((c) => c.landed).length, 0);
+  const g = game({ coaches: [] }); g.scoutSpin = { ...s.scoutSpin, n: g.season.n };
+  const v2 = _cpVM(g); assert.equal(v2.cands[0].landed, true); assert.equal(v2.cands[0].id, 'sc' + g.season.n + '-c'); assert.equal(v2.cands.filter((c) => c.name === 'Khan').length, 1);
+  const h = scoutBodyHtml(v2); assert.equal((h.match(/Scout pick/g) || []).length, 1); assert.match(h, /SignCoach/);
+});

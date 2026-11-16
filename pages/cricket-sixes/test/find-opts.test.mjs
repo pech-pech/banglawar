@@ -40,7 +40,7 @@ test('tiers: FIND top triangle gold, CHEER mid dot', () => {
 test('kept strings in hint and chance text', () => {
   const o = findWheelOpts(vm(0.18), ctx());
   assert.ok(o.cardHtml.includes('Stop on a gold block to find Coins, a player or a coach.'));
-  assert.ok(o.cardHtml.includes('The tick shows about where it will land.'));
+  assert.ok(o.cardHtml.includes('The tick shows where the pointer will stop.'));
   assert.equal(o.plainResult, true);
   assert.ok(!('timing' in o));
 });
