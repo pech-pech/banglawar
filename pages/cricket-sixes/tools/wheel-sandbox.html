@@ -91,7 +91,8 @@ function open() {
     title: R.title, sub: 'sandbox', wheelId: R.wheelId, spinKey: 'sandbox.' + NAME, ring, J: R.J, wobKey: 'sandbox.' + NAME, legend: R.legend && R.legend.length ? R.legend : undefined,
     cardHtml: '<p>Dev sandbox: ' + NAME + '</p>', pending: null, guide: GUIDE, stored,
     onSpin: (stop) => { pend = { index: stop.sliceId, gain: ring[stop.sliceId].value, jackpot: ring[stop.sliceId].gold }; window.__stops.push(stop); console.log('[wheel-sandbox] stop', JSON.stringify(stop)); },
-    getPending: () => pend, describe: (p) => (p ? ring[p.index].label + (p.jackpot ? ' (gold)' : '') : ''),
+    getPending: () => pend, plainResult: true, // plain layout: the ring's own value text, no Training words (no Breakthrough, no +N chip)
+    describe: (p) => { const r = ring[p.index]; return { big: String(r.label), say: 'Landed on ' + r.label + '.' }; }, // contract object {big, say}, never a string
     onCollect: () => { console.log('[wheel-sandbox] collect'); }, onClose: () => { console.log('[wheel-sandbox] close'); },
     onToken: (k) => console.log('[wheel-sandbox] token', k), tokens: [], getTokens: () => [],
   });
