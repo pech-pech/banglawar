@@ -31,7 +31,7 @@ test('physics: Spotlight is byte-identical (no phys.D = WS.D); a per-wheel phys.
     assert.equal(stopDist(t, { W0: 36, D: 2 }), wheelSpeed(t, { W0: 36 }) * 2 / 3);
   }
   assert.equal(stopExtra(3, 0.2, 0.5), stopExtra(3, 0.2, 0.5, {}));
-  assert.equal(stopExtra(3, 0.2, 1), 3.2); // WS.D = 1: done at 1 s
+  assert.equal(stopExtra(3, 0.2, WS.D), 3.2); // WS.D = 2: done at 2 s
   assert.ok(stopExtra(3, 0.2, 1, { D: 2 }) < 3.2 && Math.abs(stopExtra(3, 0.2, 2, { D: 2 }) - 3.2) < 1e-12); // Find: done at 2 s
   const w = wheelSlices('normal'), a = makeRng('spot'), b = makeRng('spot');
   for (let i = 0; i < 50; i++) { const r = spinResult(a, w, i % 2 === 0); const q = spinResult(b, w, i % 2 === 0); assert.deepEqual(r, q); }
