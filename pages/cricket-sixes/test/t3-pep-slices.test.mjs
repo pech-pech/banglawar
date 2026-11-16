@@ -16,10 +16,10 @@ test('Pep ring: 12 slices, sum 10.000, cap 12%, one gold (the 10)', () => {
   assert.equal(gold[0].tier, 'top');
 });
 
-test('Pep boosts and tiers', () => {
+test('Pep boosts and tiers (median 5: 7.5 and 10 top, 5 mid, 2.5 low)', () => {
   assert.deepEqual(PEP_SLICES.map((s) => s.value), [5, 7.5, 5, 2.5, 2.5, 5, 7.5, 10, 7.5, 5, 2.5, 2.5]);
   for (const s of PEP_SLICES) {
-    assert.equal(s.tier, s.value === 10 ? 'top' : s.value === 2.5 ? 'low' : 'mid');
+    assert.equal(s.tier, s.value > 5 ? 'top' : s.value < 5 ? 'low' : 'mid');
   }
 });
 

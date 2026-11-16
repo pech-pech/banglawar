@@ -5,6 +5,6 @@ const KIND = [NONE, NONE, NONE, '+2.5%', '+5%', '+2.5%', '+2.5%', '+5%', '+5%', 
 
 export const TOSS_SLICES = Object.freeze(KIND.map((label, id) => {
   const value = label === NONE ? 0 : label === '+2.5%' ? 2.5 : 5;
-  const tier = value === 0 ? 'low' : value === 5 ? 'top' : 'mid';
+  const tier = value > 2.5 ? 'top' : value < 2.5 ? 'low' : 'mid'; // SPEC 2f, median 2.5
   return Object.freeze({ id, w: 1.0, value, label, tier, gold: value === 5 });
 }));

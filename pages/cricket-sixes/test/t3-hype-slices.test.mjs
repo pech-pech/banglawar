@@ -34,6 +34,7 @@ test('ids sequential, ring order, row shape, gold on NUTS only, frozen', () => {
     assert.ok(r.w >= 0.7);
     assert.equal(r.gold, HYPE_RING_ORDER[i] === 'NUTS');
     assert.ok(['top', 'mid', 'low'].includes(r.tier));
+    assert.equal(r.tier, r.value > 4 ? 'top' : r.value < 4 ? 'low' : 'mid'); // SPEC 2f, median 4
     assert.ok(Object.isFrozen(r));
   });
   assert.equal(T.length, 9);

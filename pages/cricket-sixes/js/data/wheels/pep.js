@@ -9,7 +9,7 @@ export const PEP_SLICES = Object.freeze(BOOST.map((value, id) => Object.freeze({
   w: value === 10 ? W_GOLD : W_REST,
   value,
   label: '+' + value + '%',
-  tier: value === 10 ? 'top' : value === 2.5 ? 'low' : 'mid',
+  tier: value > 5 ? 'top' : value < 5 ? 'low' : 'mid', // SPEC 2f, median 5: 7.5 and 10 top, 5 mid, 2.5 low
   gold: value === 10,
 })));
 

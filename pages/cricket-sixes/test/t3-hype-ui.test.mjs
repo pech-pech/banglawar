@@ -10,7 +10,7 @@ test('hype.js source: full wheel through openWheel', () => {
   assert.doesNotMatch(src, /reduced-?motion|reducedMotion/i);
   assert.ok(src.includes("dispatch('HypeSpin', { stop:"));
   assert.match(src, /J: 1\.2/);
-  assert.ok(src.includes('The tick shows where it will land.'));
+  assert.ok(src.includes('The tick shows about where it will land.'));
   assert.ok(src.includes("tokProps(get, dispatch, 'hype', 'Hype')"));
 });
 
@@ -23,8 +23,7 @@ test('describe and onSpin via stubbed call (skipped if wheel-view not importable
   const get = () => ({ ring: [], spinKey: 'k', pending: null, tokens: [], spokeGain: 0 });
   try { mod.spinHype({ get, look: {}, dispatch: (...a) => calls.push(a), onCollect() {}, oppName: 'X' }); } catch { /* no DOM */ }
   // describe mapping, checked from source semantics
-  const HYPE_WORD = { low: 'Quiet crowd', med: 'Good crowd', high: 'Big crowd', nuts: 'Wild crowd' };
-  for (const [lv, w] of Object.entries(HYPE_WORD)) assert.ok(src.includes(`${lv}: '${w}'`));
-  assert.ok(src.includes("chip: '+' + p.pts + '%'") && src.includes("gold: lv === 'nuts'"));
+  assert.ok(src.includes("big: ''") && src.includes("' Hype points for the crowd.'") && !src.includes("p.pts + '%'") && src.includes("gold: lv === 'nuts'"));
+  assert.ok(src.includes('You win: 2 to 10 Hype points. Aim at gold NUTS.'));
   void opts;
 });

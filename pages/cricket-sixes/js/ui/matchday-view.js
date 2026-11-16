@@ -19,9 +19,9 @@ const LEVELS = ['low', 'med', 'high', 'nuts'];
 /** Plain word for a hype level. Pure. */
 export function hypeWord(level) { return (HYPE[level] || HYPE.low).line; }
 
-const pct = (x) => Math.round((x - 1) * 100);
+const pct = (x) => Math.round((x - 1) * 1000) / 10; // one decimal: the wheels pay halves (+2.5%), never 2.4999 -> 2
 /**
- * Boost the player has SEEN so far, multiplicative (SPEC s7): team = (1+hype)(1+toss), pep player also x(1+pep). Whole percent. Pure.
+ * Boost the player has SEEN so far, multiplicative (SPEC s7): team = (1+hype)(1+toss), pep player also x(1+pep). One decimal. Pure.
  * @param {any} vm @param {{hype?:boolean,toss?:boolean,pep?:boolean}} shown
  */
 export function boostTotals(vm, shown) {

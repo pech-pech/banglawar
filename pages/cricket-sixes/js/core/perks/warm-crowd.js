@@ -14,11 +14,11 @@ export const applyOrder = ['homeCrowd/kindFloor (LOW -> +4)', 'warmCrowd (HIGH +
 
 /**
  * True when the Hype tree mods carry Warm Crowd. `mods` is modsFor(effective(s), 'hype') output (js/core/wheels/common.js).
- * Reads `mods.warmCrowd`; while the node is still the old Big Voice (rare_width_add on hype -> mods.rareAdd) a positive rareAdd also counts.
+ * Reads `mods.warmCrowd` only (T1 sets it to 1 on Hype when owned).
  * @param {any} mods
  */
 export function warmCrowdOwned(mods) {
-  return !!mods && (!!mods.warmCrowd || +mods.rareAdd > 0);
+  return !!mods && !!mods.warmCrowd;
 }
 
 /**

@@ -91,7 +91,7 @@ test('Spokes chip: every dial / reel result VM carries spokeGain once spun', () 
 test('3, 7-12: view source guards', () => {
   const reel = read('js/ui/reel-view.js'), dial = read('js/ui/dial-view.js'), spins = ['hype', 'toss', 'pep', 'find', 'scout', 'finals'].map((w) => read('js/ui/wheels/' + w + '.js')).join('\n'), res = read('js/ui/result-view.js'), act = read('js/ui/activities-view.js');
   assert.match(reel, /if \(state !== 'result'\) \{ tctx\.fillStyle/, '3: no centre line at a result');
-  for (const t of ['Toss the coin.', 'Who gets the pep talk?', 'Stop on a gold block to find Coins, a player or a coach.' /* wa1 find: Find is a big wheel */, 'What do the scouts bring?', 'Spin for your prize.']) assert.ok(spins.includes(t), '7: ' + t);
+  for (const t of ['You win: a team boost of 0% to 5%.', 'You win: a pep talk, +2.5% to +10% on one player.', 'Stop on a gold block to find Coins, a player or a coach.' /* wa1 find: Find is a big wheel */, 'What do the scouts bring?', 'Spin for your prize.']) assert.ok(spins.includes(t), '7: ' + t);
   assert.match(dial, /coin \|\| \(reveal && kind === 'lights'\) \? ''/, '8: no pointer in lights mode');
   assert.ok(!/Odds are shown/.test(act) && act.includes('Find chance about') && act.includes('Good timing helps'), '9');
   assert.match(dial, /sh\.state === 'result' && o\.onCollect/, '10: close at a result = Collect');

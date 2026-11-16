@@ -1,6 +1,7 @@
 // @ts-check
 // Hype wheel slice table (wheels-like-match SPEC s6, CONTRACT-A s5). Full wheel, 10-unit ring, random mean 4.30 points.
 // Ring clockwise from the pointer: NUTS, MED, LOW, MED, HIGH, LOW, MED, LOW, HIGH. Odds 10 / 20 / 35 / 35 %.
+// Tiers (SPEC 2f, median 4): above = top (HIGH +6, NUTS), at = mid (MED +4), below = low (LOW +2).
 // Only tilt 0 is specified; any other tilt uses table 0 until NUMBERS sims another (SPEC s6, question 5).
 
 /** @typedef {{id:number, w:number, value:number, label:string, tier:'top'|'mid'|'low', gold:boolean, level:'nuts'|'high'|'med'|'low'}} SliceRow */
@@ -20,11 +21,11 @@ export const HYPE_SLICES = Object.freeze({
     row(1, MP, 4, 'MED +4', 'mid', false),
     row(2, MP, 2, 'LOW +2', 'low', false),
     row(3, MP, 4, 'MED +4', 'mid', false),
-    row(4, 1.0, 6, 'HIGH +6', 'mid', false),
+    row(4, 1.0, 6, 'HIGH +6', 'top', false),
     row(5, MP, 2, 'LOW +2', 'low', false),
     row(6, MP, 4, 'MED +4', 'mid', false),
     row(7, MP, 2, 'LOW +2', 'low', false),
-    row(8, 1.0, 6, 'HIGH +6', 'mid', false),
+    row(8, 1.0, 6, 'HIGH +6', 'top', false),
   ]),
 });
 

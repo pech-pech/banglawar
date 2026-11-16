@@ -29,7 +29,7 @@ test('warmCrowdOwned reads mods', () => {
   assert.equal(warmCrowdOwned(null), false);
   assert.equal(warmCrowdOwned({ rareAdd: 0 }), false);
   assert.equal(warmCrowdOwned({ warmCrowd: 1 }), true);
-  assert.equal(warmCrowdOwned({ rareAdd: 0.08 }), true);
+  assert.equal(warmCrowdOwned({ rareAdd: 0.08 }), false);
 });
 test('hypeTokenAllowed cap 1 a season', () => {
   assert.equal(hypeTokenAllowed(0), true); assert.equal(hypeTokenAllowed(1), false); assert.equal(hypeTokenAllowed(2), false);

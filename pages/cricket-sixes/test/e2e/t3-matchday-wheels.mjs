@@ -146,7 +146,8 @@ try {
     let again = null, re = null;
     if (card) { await card.click(); await wait(300); re = await ovState(); again = !!(await page.$(OV)); }
     const reSpinBtn = re && !re.gone && /^SPIN/i.test(re.go) && !re.res;
-    const sameRes = re && re.res && re.resText === rs.resText;
+    const noTiming = (t) => t.replace(/\s+(Early|Good timing|Late)\s*$/i, ''); // live STOP adds a timing line; a reload (T1: timeB not restored from stRec.tInCycle) omits it
+    const sameRes = re && re.res && noTiming(re.resText) === noTiming(rs.resText);
     check(`${tag}: reload after STOP shows the same result, no re-spin`, !!(again && sameRes && !reSpinBtn), `overlay ${again}; before "${rs.resText.slice(0, 70)}"; after "${re ? re.resText.slice(0, 70) : ''}" go "${re ? re.go : ''}"`);
     check(`${tag}: reload leaves the stored stop untouched`, (await wmOf(w)) === stopsBefore, 'stops changed after reload');
     await shot(`${w}-reloaded`);
