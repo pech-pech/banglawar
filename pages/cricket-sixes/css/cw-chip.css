@@ -1,0 +1,16 @@
+/* cw-chip.css: coach weekly job chip. Prefix cw-. Kit variables with fallbacks; 56 px taps, 14 px text, contrast >= 4.5. */
+.cw-chip { display: inline-flex; align-items: center; justify-content: center; gap: var(--c-sp-1, 4px); min-height: 56px; min-width: 56px; padding: 0 var(--c-sp-2, 8px); font: 700 14px/20px var(--c-font, inherit); color: var(--outline, #1b1b1b); background: var(--cream, #fff6e0); border: var(--c-border, 2px) solid var(--outline, #1b1b1b); cursor: pointer; white-space: nowrap; }
+.cw-chip .cw-ico { flex: none; }
+.cw-chip-nets { background: var(--cream, #fff6e0); }
+.cw-chip-match { background: var(--gold, #f2c14e); }
+.cw-chip-study { background: var(--wall1, #e8dcc0); }
+.cw-chip-scout { background: var(--wall2, #d9cba8); }
+.cw-chip-away { background: var(--stone1, #cfc8b8); border-style: dashed; }
+.cw-chip:focus-visible { outline: 3px solid var(--accent, #0b57d0); outline-offset: 2px; }
+.cw-locked { border-style: double; }
+/* 344 px fit: whole word, 14 px, 56 px tap. Icon stacked above the word so "Match" and "On course" never clip. */
+.cw-chip { flex-direction: column; gap: 0; padding: 2px var(--c-sp-1, 4px); min-width: 56px; box-sizing: border-box; line-height: 16px; }
+.cw-chip .cw-ico { width: 18px; height: 18px; }
+.cw-chip .cw-word { font-size: 14px; line-height: 16px; overflow: visible; }
+/* D5: the .ct-l2 row is face 18 + grade + icons in ~64 px inner width; only ~5.5-12 px is left for icons, so .ct-fi (min-width 0) shrank and showed a partial slice. At 360 px and narrower no whole icon fits: hide the icon row (focus stays in the aria-label and the Coaches sheet). */
+@media (max-width: 360px) { .ct-l2 { overflow: hidden; } .ct-fi { display: none; } }
