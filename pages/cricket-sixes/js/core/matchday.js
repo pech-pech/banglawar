@@ -54,7 +54,7 @@ export function teamBoost(md, playerId) {
   let f = 1 + (md.hypePerf != null ? md.hypePerf : MD.HYPE_PERF[md.hype] || 0);
   const tb = md.tossBoost != null ? md.tossBoost : md.toss === 'won' ? MD.TOSS_BOOST : 0;
   if (tb) f *= 1 + tb;
-  if (md.pepId != null && (playerId === md.pepId || (md.pepIds && md.pepIds.includes(playerId)))) f *= 1 + MD.PEP_BOOST;
+  if (md.pepId != null && (playerId === md.pepId || (md.pepIds && md.pepIds.includes(playerId)))) f *= 1 + (Number.isFinite(md.pepBoost) ? md.pepBoost : MD.PEP_BOOST);
   return f - 1;
 }
 
