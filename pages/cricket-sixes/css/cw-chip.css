@@ -1,0 +1,10 @@
+/* cw-chip.css: coach weekly job chip. Prefix cw-. Kit variables with fallbacks; 56 px taps, 14 px text, contrast >= 4.5. */
+.cw-chip { display: inline-flex; align-items: center; justify-content: center; gap: var(--c-sp-1, 4px); min-height: 56px; min-width: 56px; padding: 0 var(--c-sp-2, 8px); font: 700 14px/20px var(--c-font, inherit); color: var(--outline, #1b1b1b); background: var(--cream, #fff6e0); border: var(--c-border, 2px) solid var(--outline, #1b1b1b); cursor: pointer; white-space: nowrap; }
+.cw-chip .cw-ico { flex: none; }
+.cw-chip-nets { background: var(--cream, #fff6e0); }
+.cw-chip-match { background: var(--gold, #f2c14e); }
+.cw-chip-study { background: var(--wall1, #e8dcc0); }
+.cw-chip-scout { background: var(--wall2, #d9cba8); }
+.cw-chip-away { background: var(--stone1, #cfc8b8); border-style: dashed; }
+.cw-chip:focus-visible { outline: 3px solid var(--accent, #0b57d0); outline-offset: 2px; }
+.cw-locked { border-style: double; }

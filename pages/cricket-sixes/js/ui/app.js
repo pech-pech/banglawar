@@ -56,6 +56,7 @@ const SHEETS = {
   freepick: { file: 'freepick-view', fn: 'openFreePick', vm: ['freePickVM', () => []] },
   workshop: { file: 'workshop-view', fn: 'openWorkshop', vm: ['workshopVM', () => []] }, // Wheel meta: from Home, hidden until wheel tier 1
   /* SHEETS:T5 start */
+  job: { file: 'job-sheet-vm', fn: 'openJob', state: true },
   /* SHEETS:T5 end */
   /* SHEETS:T6 start */
   /* SHEETS:T6 end */

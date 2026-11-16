@@ -4,6 +4,9 @@
          coaches[{id,name,letter,strong,picked}], preview{cost,trainCount,shortCount,skipCount,hint}, spotlight{wheel:{slices,jackpotIndex},pending|null},
          done, canRun, result{lines:[{id,name,rating,fromRaw,toRaw,word,wheelGain?,breakthrough}],cost,skipped}.
    Commands: SetTrainPlan {focus|effort|spotlightId|coachId}, Spin {careful}, RunNets {}, EndWeek {}. Taps: a row -> sheet:player; coach strip (wa1) -> SetTrainPlan {coachId}, sheet:coaches {course}|{scout}|none. */
+import { chipHtml } from './coach-job-chip.js';
+import { xpBarHtml, coachWeekly } from './coach-xp-bar.js';
+import { normJob } from '../core/coach-jobs.js';
 import { esc, icoDeco, bindActs, ctaBar } from './dom.js';
 import { openSheet } from './sheet.js';
 import { letterOfRaw, stepOfRaw } from '../core/letters.js';
@@ -146,10 +149,16 @@ function ctCard(c, vm) {
 export function slotSpotlight(vm) { return ''; } // owner: T2
 /* SLOT:Spotlight end */
 /* SLOT:JobChip start */
-export function slotJobChip(vm, coach) { return ''; } // owner: T5
+export function slotJobChip(vm, coach) { // owner: T5
+  if (!coach || !coach.id) return '';
+  return chipHtml({ id: coach.id, job: normJob(coach.job), locked: !!coach.jobLocked, why: coach.why || '' });
+}
 /* SLOT:JobChip end */
 /* SLOT:XpBar start */
-export function slotXpBar(vm, coach) { return ''; } // owner: T5
+export function slotXpBar(vm, coach) { // owner: T5
+  if (!coach || !coach.id) return '';
+  return xpBarHtml(coachWeekly(coach));
+}
 /* SLOT:XpBar end */
 /* SLOT:ClinicBtn start */
 export function slotClinicBtn(vm, coach) { return ''; } // owner: T6
@@ -159,6 +168,8 @@ export function slotClinicBtn(vm, coach) { return ''; } // owner: T6
  *  ctx = { vm, dispatch, open, close?, refresh?, where }. T5 and T6 add their branches inside their own fence. Today: false, nothing handled. */
 export function slotClick(e, ctx) {
   /* SLOT:Click:T5 */
+  const jb = e && e.target && e.target.closest && e.target.closest('[data-cw="job"]'); // T5: job chip opens the job sheet
+  if (jb && ctx && typeof ctx.open === 'function') { if (typeof ctx.close === 'function') ctx.close(); ctx.open('job', { coachId: jb.getAttribute('data-coach') }); return true; }
   /* SLOT:Click:T6 */
   return false;
 }
