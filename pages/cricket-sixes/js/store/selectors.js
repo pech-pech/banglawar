@@ -813,3 +813,25 @@ export function matchModeVM(s) {
   const busy = !!(s && ['bowl', 'break', 'chase', 'done'].includes(s.stage));
   return { value: s && s.matchMode === 'wheel' ? 'wheel' : 'classic', running: s && s.stage && busy ? (s.mode === 'wheel' ? 'wheel' : 'classic') : null, disabled: busy, note: busy ? 'Applies next match' : '' };
 }
+
+/* T2 start */
+// Spotlight / Course wheel fields the views read when present: spinKey, wobKey, stored (reopen shows the result, never re-spins), kindFloor.
+import { spinKeyOf as t2SpinKeyOf, storedStop as t2StoredStop } from '../core/wheel-stops.js';
+import { wobbleKey as t2WobbleKey } from '../core/wheel-wobble.js';
+const t2Wheel = (s, wheelId, ctx, kf) => {
+  const spinKey = t2SpinKeyOf(s, wheelId, ctx);
+  return { spinKey, wobKey: spinKey ? t2WobbleKey(s, wheelId, 0, 0) : '', stored: spinKey ? t2StoredStop(s, wheelId, spinKey) : null, kindFloor: kf ? 1 : 0 };
+};
+/** trainingVM plus the wheel fields on spotlight and twin. */
+export function trainingVMT2(s) {
+  const vm = trainingVM(s), eff = effective(s), kf = eff && eff.spot && eff.spot.kindFloor;
+  return { ...vm,
+    spotlight: { ...vm.spotlight, ...t2Wheel(s, 'spot', { playerId: vm.spotlight.id || '', slot: 1 }, kf) },
+    twin: { ...vm.twin, ...t2Wheel(s, 'spot', { playerId: vm.twin.id || '', slot: 2 }, kf) } };
+}
+/** coachesVM plus the wheel fields on each coach.course (k = 2 when the course spends a Master Licence). */
+export function coachesVMT2(s) {
+  const vm = coachesVM(s), eff = effective(s), kf = eff && eff.course && eff.course.kindFloor;
+  return { ...vm, coaches: vm.coaches.map((c) => ({ ...c, course: { ...c.course, ...t2Wheel(s, 'course', { coachId: c.id, k: c.course.licence ? 2 : 1 }, kf) } })) };
+}
+/* T2 end */
