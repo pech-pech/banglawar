@@ -16,7 +16,7 @@
 //
 // spinKeyOf(s, wheelId, ctx?) -> string  (CONTRACT-A s7): match = matchKeyOf(s)|ball (ctx.ball, default 0); hype / toss / pep =
 //   matchDayIdOf(s); scout = seasonIdOf(s); finals = seasonIdOf(s)|kind|round (semi and final each spin once, as finalsKey);
-//   spot / course / find = occasionIdOf(s, wheelId, ctx); clinic = `${weekKey}:${slot}` (CONTRACT-B s6, ctx.slot default 0).
+//   spot / course / find = occasionIdOf(s, wheelId, ctx); clinic = `${weekKey}:${coachId}` (CONTRACT-B lead call 4), slot fallback when no ctx.coachId (default 0).
 //   '' when the occasion does not exist (no fixture on a match-day wheel).
 // statsOf(s, wheelId) -> {n, careful, early, late, taps}  stored stats with defaults (a fresh copy, never the stored object).
 // storedStop(s, wheelId, spinKey) -> entry | null          the stored {stops, kept, spent} (the live object), null when unspun.
@@ -107,7 +107,7 @@ export function spinKeyOf(s, wheelId, ctx = {}) {
       case 'scout': return seasonIdOf(s);
       case 'finals': return isObj(s) && isObj(s.fixture) ? `${seasonIdOf(s)}|${s.fixture.kind}|${s.fixture.round}` : seasonIdOf(s);
       case 'spot': case 'course': case 'find': return occasionIdOf(s, wheelId, c);
-      case 'clinic': return `${weekKey(s)}:${Math.max(0, int(c.slot, 0))}`;
+      case 'clinic': return (c.coachId != null && c.coachId !== '') ? `${weekKey(s)}:${c.coachId}` : `${weekKey(s)}:${Math.max(0, int(c.slot, 0))}`;
       default: return '';
     }
   } catch { return ''; }

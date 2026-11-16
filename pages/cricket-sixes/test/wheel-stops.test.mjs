@@ -106,6 +106,7 @@ test('spinKeyOf per CONTRACT-A s7', () => {
   assert.equal(spinKeyOf(s, 'find'), roundKey(s));
   assert.equal(spinKeyOf(s, 'clinic', { slot: 1 }), '218:1');
   assert.equal(spinKeyOf(s, 'clinic'), '218:0');
+  assert.equal(spinKeyOf(s, 'clinic', { coachId: 'c3', slot: 1 }), '218:c3');
   const bare = { season: { n: 2 } };
   for (const w of ['match', 'hype', 'toss', 'pep']) assert.equal(spinKeyOf(bare, w), '');
   for (const s2 of [undefined, null, {}, { fixture: 'x' }, { season: 'q', training: null }]) for (const w of [...WHEEL_STOP_IDS, 'zzz']) assert.equal(typeof spinKeyOf(s2, w, /** @type {any} */ (null)), 'string');
