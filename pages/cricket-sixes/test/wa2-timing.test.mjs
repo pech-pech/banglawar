@@ -51,7 +51,7 @@ test('wheel-view: timing option wiring (window class during spin, removed on sto
   // SPEC 2a / CONTRACT-A 4: the glow is always on (o.timing is accepted and ignored); no coast, so no game tap and no "Coasted" bucket
   assert.match(wheel, /const TIMING = true;/, 'glow always on');
   assert.doesNotMatch(wheel, /o\.timing\b/, 'the timing option is never read');
-  assert.match(wheel, /tw0 >= TIMING_WIN\.lo && tw0 <= TIMING_WIN\.hi/);
+  assert.match(wheel, /tw0 >= E\.GLOW\[0\] && tw0 <= E\.GLOW\[1\]/);
   assert.match(wheel, /go\.classList\.toggle\('is-window', inW\)/);
   assert.match(wheel, /if \(TIMING\) \{ const tw0 = clock - spinEv - \(f\.cycle - 1\) \* PERIOD/, 'window on cycle time, every cycle');
   assert.doesNotMatch(wheel, /COAST|coasted|STOP_FROM/, 'no coast and no game tap');

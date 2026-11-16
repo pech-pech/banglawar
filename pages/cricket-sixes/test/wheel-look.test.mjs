@@ -1,7 +1,7 @@
 // A2.2 look helpers: SPEC section 14 test 8 (glow is time only) and test 12 (labels, legend, no colour alone).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { glowOn, sliceLabel, legendRows, tierShape, aimMarker, MATERIALS, tierMark, labelLines, radialFit, radialTurn, legendWith, legendShape, cardOf, MARK_MIN_RAD } from '../js/ui/wheel-look.js';
+import { glowOn, sliceLabel, legendRows, tierShape, aimMarker, MATERIALS, tierMark, labelLines, radialFit, radialTurn, legendWith, legendShape, cardOf, MARK_MIN_RAD, sliceWheelSvg } from '../js/ui/wheel-look.js';
 
 test('8 glow is on for 3.2..3.8 s of every cycle and nothing else', () => {
   for (const t of [3.2, 3.5, 3.8]) assert.equal(glowOn(t), true, 't ' + t);
@@ -125,4 +125,12 @@ test('T4 QA 2: shape words on legend chips map to shapes (never printed); cards 
   assert.deepEqual(cardOf({ card: { g: 'B+', n: 'Okonkwo-Bell', ic: 'Bat' } }), { grade: 'B+', name: 'Okonkw.', focus: 'bat' });
   assert.deepEqual(cardOf({ card: { grade: 'E', name: 'Ito', focus: 'bal' } }), { grade: 'E', name: 'Ito', focus: 'bal' });
   assert.equal(cardOf({ label: 'x1.0' }), null);
+});
+
+test('sliceWheelSvg +v text renders at least 14 px (font units = max(9, 1400/size)); under 100 px the text is dropped, shape only', () => {
+  assert.doesNotMatch(sliceWheelSvg({ mat: 'wood', bars: 4, size: 72 }), /<text/);
+  for (const size of [100, 120, 150, 200]) {
+    const m = /font-size="([\d.]+)"/.exec(sliceWheelSvg({ mat: 'wood', bars: 4, size }));
+    assert.ok(m && +m[1] * size / 100 >= 14 - 0.06 && +m[1] >= 9, 'size ' + size);
+  }
 });
