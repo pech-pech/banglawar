@@ -8,7 +8,7 @@ import { weekKey } from '../js/core/week-key.js';
 import { coachList, runNets, endWeek, netsPreview } from '../js/core/training.js';
 import { makeRng } from '../js/core/rng.js';
 
-const fresh = () => { const s = loadV7(); s.clinic.week = weekKey(s); s.clinic.netsDone = false; s.training.netsWeek = null; s.training.tp = 500; return s; };
+const fresh = () => { const s = loadV7(); s.clinic.week = weekKey(s); s.clinic.netsDone = false; s.training.netsWeek = null; s.training.tp = 500; s.stage = 'train'; return s; };
 const ids = (s) => coachList(s).map((c) => c.id);
 
 test('clinicOf: current week returns the block, stale or missing reads default', () => {

@@ -202,12 +202,12 @@ export function slotXpBar(vm, coach) { // owner: T5
 export function slotClinicBtn(vm, coach) {
   if (!coach || !coach.id) return '';
   const k = (coach.clinic && typeof coach.clinic === 'object') ? coach.clinic : (vm && vm.clinic && vm.clinic[coach.id]) || null;
-  const away = coach.away > 0, st = away ? 'course' : k && ['ready', 'used', 'nets', 'course'].includes(k.state) ? k.state : '';
+  const away = coach.away > 0, st = k && ['ready', 'used', 'nets', 'none', 'course'].includes(k.state) ? k.state : away ? 'course' : '';
   if (!st) return ''; // no Clinic data in the coach row (T7 adds coach.clinic): show nothing rather than guess
   const nm = String(coach.name || 'Coach'), won = st === 'used' ? [k && k.prize, k && k.playerName].filter(Boolean).join(' ') : '';
-  const word = { ready: 'Spin ready', used: won || 'Used', nets: 'Nets done', course: 'On course' }[st];
-  const say = { ready: 'Clinic spin for ' + nm + ', ready. Tap to pick a player', used: 'Clinic spin for ' + nm + ' used' + (won ? ': ' + won : ''), nets: 'Clinic for ' + nm + ': nets already done this week', course: 'Clinic for ' + nm + ': on course' }[st];
-  return '<button type="button" class="c-btn cn-btn ' + { ready: 'cn-btn-ready', used: 'cn-btn-used', nets: 'cn-btn-nets', course: 'cn-btn-course' }[st] + '" data-cn="spin" data-id="' + esc(coach.id) + '"' + (st === 'ready' ? '' : ' aria-disabled="true"') + ' aria-label="' + esc(say) + '">' +
+  const word = { ready: 'Spin ready', used: won || 'Used', nets: 'Nets done', none: 'Nobody can gain', course: 'On course' }[st];
+  const say = { ready: 'Clinic spin for ' + nm + ', ready. Tap to pick a player', used: 'Clinic spin for ' + nm + ' used' + (won ? ': ' + won : ''), nets: 'Clinic for ' + nm + ': nets already done this week', none: 'Clinic for ' + nm + ': nobody can gain this week', course: 'Clinic for ' + nm + ': on course' }[st];
+  return '<button type="button" class="c-btn cn-btn ' + { ready: 'cn-btn-ready', used: 'cn-btn-used', nets: 'cn-btn-nets', none: 'cn-btn-none', course: 'cn-btn-course' }[st] + '" data-cn="spin" data-id="' + esc(coach.id) + '"' + (st === 'ready' ? '' : ' aria-disabled="true"') + ' aria-label="' + esc(say) + '">' +
     '<span class="cn-bw">' + deco('burst', 16) + '<span>Clinic</span></span><small>' + esc(word) + '</small></button>';
 }
 /* SLOT:ClinicBtn end */

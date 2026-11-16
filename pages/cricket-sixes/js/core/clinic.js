@@ -25,7 +25,7 @@ export const clinicSpinKey = (s, coachId) => `${weekKey(s)}:${coachId}`;
 const spinsOf = (/** @type {any} */ c) => (Array.isArray(c.spins) ? c.spins : []);
 
 /**
- * May this coach spin the Clinic now? why: '' | 'unknown' | 'slots' (slot beyond the week's first-day slots) | 'away' | 'used' (this coach already spun this week) | 'nets' (nets already run) | 'nobody' (no one can be picked).
+ * May this coach spin the Clinic now? why: '' | 'unknown' | 'stage' (not the train stage) | 'slots' (slot beyond the week's first-day slots) | 'away' | 'used' (this coach already spun this week) | 'nets' (nets already run) | 'nobody' (no one can be picked).
  * @param {any} s @param {string} coachId @returns {{ok:boolean, why:string}}
  */
 export function canClinic(s, coachId) {
@@ -33,9 +33,10 @@ export function canClinic(s, coachId) {
   const slot = list.findIndex((c) => c.id === coachId);
   if (slot < 0) return { ok: false, why: 'unknown' };
   const c = clinicOf(s), co = list[slot];
+  if (spinsOf(c).some((/** @type {any} */ x) => x && (x.coachId === coachId))) return { ok: false, why: 'used' }; // used reads before away
   if (co.away > 0) return { ok: false, why: 'away' };
+  if (typeof s.stage === 'string' && s.stage !== 'train') return { ok: false, why: 'stage' }; // spins only in the train stage; states without a stage pass (as stageOk in the store)
   if (slot >= (Number.isInteger(c.slots) ? c.slots : MAX_COACHES)) return { ok: false, why: 'slots' };
-  if (spinsOf(c).some((/** @type {any} */ x) => x && (x.coachId === coachId))) return { ok: false, why: 'used' };
   if (spinsOf(c).length >= (Number.isInteger(c.slots) ? c.slots : MAX_COACHES)) return { ok: false, why: 'slots' }; // slot count spent (slot index is only stored, never matched)
   if (c.netsDone || (s.training && s.training.netsWeek != null && s.training.netsWeek === s.training.week)) return { ok: false, why: 'nets' };
   if (!pickable(s).some((p) => p.ok)) return { ok: false, why: 'nobody' };

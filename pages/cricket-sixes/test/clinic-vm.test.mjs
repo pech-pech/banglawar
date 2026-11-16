@@ -8,7 +8,7 @@ import { coachList } from '../js/core/training.js';
 import { clinicSpinKey } from '../js/core/clinic.js';
 import { squadVM } from '../js/store/selectors.js';
 
-const fresh = () => { const s = loadV7(); s.clinic.week = weekKey(s); s.clinic.netsDone = false; s.training.netsWeek = null; s.training.tp = 500; return s; };
+const fresh = () => { const s = loadV7(); s.clinic.week = weekKey(s); s.clinic.netsDone = false; s.training.netsWeek = null; s.training.tp = 500; s.stage = 'train'; return s; };
 const firstPlayer = (s) => s.clubs.find((c) => c.squad.some((p) => p)).squad[0];
 
 test('clinicPrize words per kind', () => {

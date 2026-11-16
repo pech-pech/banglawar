@@ -3,10 +3,10 @@
 .cn-bw { display: inline-flex; align-items: center; gap: var(--c-sp-1); font-weight: 700; }
 .cn-btn small { font-size: 14px; line-height: 1.15; text-align: center; overflow-wrap: anywhere; }
 .cn-btn-ready { background: var(--gold); box-shadow: 0 0 0 2px var(--outline) inset; }
-.cn-btn-used, .cn-btn-nets, .cn-btn-course { opacity: .6; filter: grayscale(1); cursor: default; }
+.cn-btn-used, .cn-btn-nets, .cn-btn-none, .cn-btn-course { opacity: .6; filter: grayscale(1); cursor: default; }
 .cn-btn-used { opacity: .85; }
 .ct-slot > .cn-btn { grid-column: 1 / -1; }
-.cn-btn-ready, .cn-btn-used, .cn-btn-nets, .cn-btn-course { min-height: 56px; }
+.cn-btn-ready, .cn-btn-used, .cn-btn-nets, .cn-btn-none, .cn-btn-course { min-height: 56px; }
 .cn-chips { display: inline-flex; flex-wrap: wrap; gap: var(--c-sp-1); }
 .cn-chip { display: inline-flex; align-items: center; min-height: 24px; padding: 0 var(--c-sp-1); font-size: 14px; font-weight: 700; border: 2px solid var(--outline); background: var(--gold); white-space: nowrap; }
 .cn-chip--gold { border-style: double; }

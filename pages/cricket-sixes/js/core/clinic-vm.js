@@ -14,7 +14,7 @@ export function clinicPrize(sliceId) {
 }
 
 /**
- * The Clinic part of a coach row: state 'ready' (may spin now) | 'used' (spun this week; prize + playerName set) | 'nets' (nets already run) | 'course' (cannot spin now: away, no slot, wrong stage, nobody to pick).
+ * The Clinic part of a coach row: state 'ready' (may spin now) | 'used' (spun this week; prize + playerName set) | 'nets' (nets already run) | 'none' (no slot left, or nobody can gain) | 'course' (coach away on a course).
  * @param {any} s @param {any} coach a coach (or {id}) @returns {{state:'ready'|'used'|'nets'|'course', prize:string, playerName:string}|null}
  */
 export function clinicCoachVM(s, coach) {
@@ -28,7 +28,10 @@ export function clinicCoachVM(s, coach) {
       return { state: 'used', prize: st ? clinicPrize(st.sliceId) : '', playerName: p && p.name ? String(p.name) : '' };
     }
     const r = canClinic(s, coach.id);
-    return { state: r.ok ? 'ready' : r.why === 'nets' ? 'nets' : 'course', prize: '', playerName: '' };
+    if (r.ok) return { state: 'ready', prize: '', playerName: '' };
+    if (r.why === 'unknown' || r.why === 'stage') return null; // no coach row / not the train stage: no button, never "ready" or "On course"
+    const state = r.why === 'nets' ? 'nets' : r.why === 'nobody' || r.why === 'slots' ? 'none' : 'course'; // 'course' = away only
+    return { state, prize: '', playerName: '' };
   } catch { return null; }
 }
 
