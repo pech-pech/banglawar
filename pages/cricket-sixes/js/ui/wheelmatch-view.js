@@ -4,6 +4,7 @@
    guard, STOP glow 3.2-3.8 s of every 6 s cycle; the wheel spins until the player taps STOP) -> glide to the stored landing over D -> 0.40 s beat
    -> ball row (BALL_SPEED) -> NEXT. Clock: elapsed = performance.now() - SPIN time, never integrated from frames; STOP time from the tap's
    event.timeStamp. "Auto rest of innings": WheelOver {auto:true} paced 0.6 / 0.9 s, no ball row, pinned Stop auto; shown disabled while a wheel spins.
+   Ring order: clockwise from the pointer (SPEC); the wheel turns anticlockwise as pos grows (like the other wheels, T3 QA D9).
    The landing tick is core landingPos(phys, {t, phi, e: 0}) every frame (the same function the store lands with). The STOP glow reads time only.
    dispatch('WheelOver', p) returns app.js's hold handle {wheel, balls, score, over, stage, nextLabel, ..., release()} or null when rejected. */
 import { WHEEL_MATCH, BALL_SPEED, AUTO_PACE } from '../data/wheelmatch.js';
@@ -237,18 +238,18 @@ function makeWheel(cv, segs, vm) {
     const c = bctx; c.setTransform(k, 0, 0, k, 0, 0); c.clearRect(0, 0, W, W); c.translate(W / 2, W / 2);
     const fill = (g) => pal[g.tone] || pal.so, ks = R / 146;
     (segs || []).forEach((g, i) => {
-      const a0 = -(g.start + g.width) * U - Math.PI / 2, a1 = -g.start * U - Math.PI / 2;
+      const a0 = g.start * U - Math.PI / 2, a1 = (g.start + g.width) * U - Math.PI / 2;
       c.beginPath(); c.moveTo(0, 0); c.arc(0, 0, R, a0, a1); c.closePath(); c.fillStyle = fill(g); c.fill();
       if (landed >= 0 && i !== landed) { c.fillStyle = 'rgba(31,41,69,.30)'; c.fill(); }
       c.lineWidth = 2.5 * ks; c.strokeStyle = pal.ink; c.stroke();
     });
-    if (landed >= 0 && segs[landed]) { const g = segs[landed], a0 = -(g.start + g.width) * U - Math.PI / 2, a1 = -g.start * U - Math.PI / 2;
+    if (landed >= 0 && segs[landed]) { const g = segs[landed], a0 = g.start * U - Math.PI / 2, a1 = (g.start + g.width) * U - Math.PI / 2;
       c.beginPath(); c.moveTo(0, 0); c.arc(0, 0, R - 2, a0, a1); c.closePath(); c.lineWidth = 7 * ks; c.strokeStyle = pal.hi; c.stroke(); c.lineWidth = 2 * ks; c.strokeStyle = pal.ink; c.stroke(); }
     c.beginPath(); c.arc(0, 0, R + 7 * ks, 0, TAU); c.lineWidth = 12 * ks; c.strokeStyle = pal.ink; c.stroke();
     for (let j = 0; j < 36; j++) { const a = j / 36 * TAU, r = R + 7 * ks, s = 4 * ks; c.fillStyle = j % 2 ? pal.hi : pal.cream; c.fillRect(r * Math.sin(a) - s / 2, -r * Math.cos(a) - s / 2, s, s); }
     (segs || []).forEach((g) => { // wicket stars turn with the wheel (an asterisk reads the same at any angle)
       const stars = g.end ? 0 : g.stars || 0; if (!stars) return;
-      const m = -(g.start + g.width / 2) * U, P = labelPlan(g.width * U, stars, R), sx = P.starR * Math.sin(m), sy = -P.starR * Math.cos(m), tx = Math.cos(m), ty = Math.sin(m);
+      const m = (g.start + g.width / 2) * U, P = labelPlan(g.width * U, stars, R), sx = P.starR * Math.sin(m), sy = -P.starR * Math.cos(m), tx = Math.cos(m), ty = Math.sin(m);
       c.strokeStyle = pal.ink; c.lineWidth = Math.max(1.6, 3.4 * ks * Math.min(1, P.starHalf / (6.5 * ks))); c.lineCap = 'square';
       for (let j = 0; j < stars; j++) { const o = (j - (stars - 1) / 2) * P.gap; star(c, sx + o * tx, sy + o * ty, P.starHalf); }
     });
@@ -256,11 +257,11 @@ function makeWheel(cv, segs, vm) {
   /** One frame. pos = rim units under the pointer; tick = landing units (null = none); band = Aim Guide half-width (units, 0 = none). */
   function draw(pos, f = {}) {
     if (!W) return; const ks = R / 146;
-    const rot = (((pos % C) + C) % C) * U; if (rot !== lastRot) { lastRot = rot; cv.style.transform = 'rotate(' + rot.toFixed(5) + 'rad)'; }
+    const rot = (((pos % C) + C) % C) * U; if (rot !== lastRot) { lastRot = rot; cv.style.transform = 'rotate(-' + rot.toFixed(5) + 'rad)'; }
     ctx.setTransform(k, 0, 0, k, 0, 0); ctx.clearRect(0, 0, W, W); ctx.save(); ctx.translate(W / 2, W / 2);
     labels(pos);
     if (f.tick != null) {
-      const a = (pos - f.tick) * U, rr = R + 7 * ks;
+      const a = (f.tick - pos) * U, rr = R + 7 * ks;
       if (f.band > 0) { const b = f.band * U; ctx.beginPath(); ctx.arc(0, 0, rr, a - b - Math.PI / 2, a + b - Math.PI / 2); ctx.lineWidth = 12 * ks; ctx.strokeStyle = pal.hi; ctx.stroke(); ctx.setLineDash([3, 3]); ctx.lineWidth = 1.5; ctx.strokeStyle = pal.ink; ctx.stroke(); ctx.setLineDash([]); }
       ctx.save(); ctx.rotate(a); ctx.beginPath(); ctx.moveTo(0, -(R + 2 * ks)); ctx.lineTo(-7 * ks, -(R + 20 * ks)); ctx.lineTo(7 * ks, -(R + 20 * ks)); ctx.closePath();
       ctx.fillStyle = pal.hi; ctx.fill(); ctx.lineWidth = 2.5 * ks; ctx.strokeStyle = pal.ink; ctx.lineJoin = 'round'; ctx.stroke();
@@ -282,7 +283,7 @@ function makeWheel(cv, segs, vm) {
   function labels(pos) {
     const ks = R / 146, fam = fontFam();
     (segs || []).forEach((g) => {
-      const span = g.width * U, a = (pos - (g.start + g.width / 2)) * U, stars = g.end ? 0 : g.stars || 0, P = labelPlan(span, stars, R);
+      const span = g.width * U, a = ((g.start + g.width / 2) - pos) * U, stars = g.end ? 0 : g.stars || 0, P = labelPlan(span, stars, R);
       const lower = Math.cos(a) < 0, xy = (r) => [r * Math.sin(a), -r * Math.cos(a)];
       ctx.fillStyle = pal.ink; ctx.strokeStyle = pal.ink;
       const txt = labelText(g); let f = P.font, [x, y] = xy(P.numR);
