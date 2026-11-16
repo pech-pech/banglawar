@@ -56,8 +56,9 @@ test('Easy and Push careful beat random; every slice pays at least +1; course ca
 test('coach lifts slice values only; widths and count unchanged', () => {
   const a = wheelSlices('normal', 0), b = wheelSlices('normal', 21); assert.deepEqual(a.widths, b.widths); assert.equal(b.slices.filter((v) => v === 1).length, 2);
 });
-test('wheel-view: no aim, no natural landing branch, stop timestamp, tick, reduced motion', () => {
+test('wheel-view: no aim, no natural landing branch, stop timestamp, tick, no reduced-motion path (SPEC 2e)', () => {
   const src = fs.readFileSync(new URL('../js/ui/wheel-view.js', import.meta.url), 'utf8');
-  assert.equal(/\.aim\b|natural|WIN0|WIN1|inWin/.test(src), false); assert.ok(/timeStamp/.test(src)); assert.ok(/prefers-reduced-motion/.test(src)); assert.ok(/stopExtra/.test(src)); assert.ok(/stopLanding/.test(src));
+  assert.equal(/\.aim\b|natural|WIN0|WIN1|inWin/.test(src), false); assert.ok(/timeStamp/.test(src)); assert.equal(/prefers-reduced-motion|reducedNow|\breduced\b/.test(src), false); assert.ok(/stopExtra/.test(src));
+  assert.ok(/pulseStop\(P, phi, t, e, cum, C, RESPIN\)/.test(src), 'pulse landing: phi + tickAt(t) + e'); assert.equal(/stopLanding|COAST|STOP_FROM/.test(src), false, 'no old coast landing');
   assert.equal(/[^a-zA-Z]ico\(/.test(src.replace(/icoDeco\(/g, '')), false);
 });

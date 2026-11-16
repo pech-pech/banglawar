@@ -7,6 +7,11 @@ import { makeRng } from '../js/core/rng.js';
 import { FLAGS } from '../js/data/flags.js';
 import { WHEEL_MATCH as WMX, DEV_DEFAULTS, WHEEL_RIVAL_BOOST, CLASSIC_RIVAL_OFF, WHEEL_RIVAL_OFF } from '../js/data/wheelmatch.js';
 import * as W from '../js/core/wheelmatch.js';
+import { readFileSync } from 'node:fs';
+import { WHEEL_ENGINE as WE } from '../js/data/wheel-engine.js';
+import { tickAt, pulseW, cycleOf, ARC_PER_CYCLE } from '../js/core/wheel-pulse.js';
+import { wobbleKey, wheelWobble } from '../js/core/wheel-wobble.js';
+import { landSplit } from '../js/core/landtick.js';
 
 const N = 600; // sample count for most checks (speed); one test runs the full N_SAMP
 const EPS = 1e-9;
@@ -45,11 +50,23 @@ const segsOf = (s, side, bi, n = N) => {
   return { samples, segs: W.buildSegments(samples, ctx) };
 };
 const innOf = (s, side) => (side === 'bowl' ? s.inn1 : s.inn2);
+/** Same rim position (mod 10) within 1e-9, wrap-aware. */
+const near = (a, b) => Math.abs((((a - b + 5) % 10) + 10) % 10 - 5) < 1e-9;
 
 test('constants: contract values', () => {
-  assert.equal(WMX.W0, 36); assert.equal(WMX.J, 1.2); assert.equal(WMX.D, 2.0); assert.equal(WMX.COAST, 6.0); assert.equal(WMX.K_SEG, 10);
+  assert.equal(WMX.W0, 36); assert.equal(WMX.J, 1.2); assert.equal(WMX.D, 2.0); assert.equal(WMX.K_SEG, 10);
   assert.equal(WMX.N_SAMP, 2000); assert.equal(WMX.CIRC, 10); assert.equal(WHEEL_RIVAL_BOOST, CLASSIC_RIVAL_OFF - WHEEL_RIVAL_OFF);
   assert.ok(Object.isFrozen(WMX) && Object.isFrozen(DEV_DEFAULTS));
+});
+
+test('constants: WHEEL_MATCH = { ...MATCH_ONLY, ...WHEEL_ENGINE } (CONTRACT-A sec 8, Lead call 8): engine keys from WHEEL_ENGINE, COAST and STOP_FROM gone', () => {
+  for (const k of Object.keys(WE)) assert.equal(WMX[k], WE[k], k); // shared keys read from the engine (same values, GLOW same frozen array)
+  assert.equal(WMX.GLOW, WE.GLOW); assert.equal(WMX.GLOW_LO, WE.GLOW[0]); assert.equal(WMX.GLOW_HI, WE.GLOW[1]); assert.equal(WMX.GLOW_LO, 3.2); assert.equal(WMX.GLOW_HI, 3.8);
+  assert.ok(!('COAST' in WMX) && !('STOP_FROM' in WMX), 'COAST and STOP_FROM retired');
+  for (const k of ['K_SEG', 'MIN_P', 'RESERVE_MIN', 'N_SAMP', 'HIGH_TAIL_Q', 'WK_VAL_BOWL', 'WK_VAL_BAT_A', 'WK_VAL_BAT_B', 'WK_VAL_LO', 'WK_VAL_HI', 'GLOW_BEAT', 'GLOW_BEATS',
+    'SD_AVG', 'SD_GOOD', 'SD_GUIDE_AVG', 'SD_GUIDE_GOOD', 'SLOW_PER_RANK', 'SLOW_FULL', 'STEADY_FULL', 'STEADY_CAP']) assert.equal(typeof WMX[k], 'number', k);
+  assert.deepEqual({ W0: WMX.W0, TAU: WMX.TAU, D: WMX.D, J: WMX.J, CIRC: WMX.CIRC, SLICE_MAX_P: WMX.SLICE_MAX_P, PULSE_PERIOD: WMX.PULSE_PERIOD, PULSE_FROM: WMX.PULSE_FROM, STOP_GUARD_S: WMX.STOP_GUARD_S },
+    { W0: 36, TAU: 3, D: 2, J: 1.2, CIRC: 10, SLICE_MAX_P: 0.12, PULSE_PERIOD: 6, PULSE_FROM: 3.8, STOP_GUARD_S: 0.35 });
 });
 
 test('matchModeOf: missing = classic', () => {
@@ -213,25 +230,68 @@ test('segAt, isCareful, unaimedPos, expectOf, stopBucket', () => {
   const e = W.expectOf(samples); assert.ok(e.xr > 0 && e.xw >= 0);
   assert.deepEqual(W.expectOf([{ runs: 4, wk: 0 }, { runs: 8, wk: 1 }]), { xr: 6, xw: 0.5 });
   assert.equal(W.stopBucket(3.1), 'e'); assert.equal(W.stopBucket(3.2), 'c'); assert.equal(W.stopBucket(3.8), 'c'); assert.equal(W.stopBucket(3.9), 'l');
-  assert.equal(W.stopBucket(6.0), 'o'); assert.equal(W.stopBucket(2, true), 'o'); assert.equal(W.stopBucket(NaN), 'o');
+  // wheels SPEC 2a/2c: the GLOW is 3.2-3.8 s of EVERY pulse cycle; no 'o' / coasted bucket (COAST retired); the old coasted flag is ignored
+  for (const k of [1, 2, 3, 9]) { const o = 6 * k; assert.equal(W.stopBucket(o + 3.1), 'e'); assert.equal(W.stopBucket(o + 3.5), 'c'); assert.equal(W.stopBucket(o + 3.9), 'l'); assert.equal(W.stopBucket(o + 0.5), 'e'); }
+  assert.equal(W.stopBucket(6.0), 'e', 'cycle 2 starts at 6.0 s'); assert.equal(W.stopBucket(5.99), 'l');
+  assert.equal(W.stopBucket(2, true), 'e', 'no coasted flag'); assert.equal(W.stopBucket(3.5, true), 'c');
+  assert.equal(W.stopBucket(NaN), ''); assert.equal(W.stopBucket(Infinity), '');
+  for (const t of [0, 0.35, 1, 3.5, 6, 60, 300]) assert.notEqual(W.stopBucket(t), 'o');
 });
 
-test('physics: landingPos(e=0) is the honest predicted tick; glide ends on it; wobble shifts by e; coast at 6.0', () => {
+test('physics: landingPos(e=0) = phi + tickAt(t) on the pulse (no coast); glide ends on it; wobble shifts by e', () => {
   const P = W.matchPhys({});
-  assert.deepEqual(P, { W0: 36, TAU: 3, D: 2, J: 1.2, SD: 0.11, COAST: 6, STOP_FROM: 1 });
+  assert.deepEqual({ W0: P.W0, TAU: P.TAU, D: P.D, J: P.J, SD: P.SD }, { W0: 36, TAU: 3, D: 2, J: 1.2, SD: 0.11 });
+  assert.ok(!('COAST' in P) && !('STOP_FROM' in P), 'legacy STOP_FROM / COAST shim dropped (T1 MW): no coast, STOP guard is WHEEL_ENGINE.STOP_GUARD_S');
   const mod = (x) => ((x % 10) + 10) % 10;
-  for (const t of [1, 2.5, 3.5, 4.2, 5.9]) for (const phi of [0, 3.3, 9.9]) {
-    const pred = mod(phi + 36 * 3 * (1 - Math.exp(-t / 3)) + 36 * Math.exp(-t / 3) * 2 / 3);
+  for (const t of [0.35, 1, 2.5, 3.5, 3.8, 4.2, 5.9, 6.0, 7.5, 9.5, 12.4, 60, 300]) for (const phi of [0, 3.3, 9.9]) {
     const L = W.landingPos(P, { t, phi, e: 0 });
-    assert.ok(Math.abs(L - pred) < 1e-9, `t ${t}`);
+    assert.ok(near(L, phi + tickAt(t, P)), `t ${t}`);
     assert.equal(W.glidePos(P, { t, phi, e: 0 }, P.D), L);
     assert.ok(Math.abs(W.glidePos(P, { t, phi, e: 0 }, 0) - W.rimAt(P, t, phi)) < 1e-9, 'glide starts at the pointer');
+    assert.ok(near(W.rimAt(P, t, phi), phi + tickAt(t, P) - pulseW(cycleOf(t).tInCycle, P) * P.D / 3), 'pointer = arc only');
     assert.ok(Math.abs(mod(W.landingPos(P, { t, phi, e: 0.7 }) - L) - 0.7) < 1e-9);
   }
-  assert.equal(W.landingPos(P, { t: 7.5, phi: 1, e: 0 }), W.landingPos(P, { t: 6.0, phi: 1, e: 0 }), 'coast at 6.0');
+  // no coast: a STOP after 6 s lands on the next cycle's tick, not the 6.0 s one
+  assert.notEqual(W.landingPos(P, { t: 7.5, phi: 1, e: 0 }), W.landingPos(P, { t: 6.0, phi: 1, e: 0 }), 'no coast at 6.0');
+  assert.ok(near(W.landingPos(P, { t: 9.5, phi: 1, e: 0 }), W.landingPos(P, { t: 3.5, phi: mod(1 + ARC_PER_CYCLE(P)), e: 0 })), 'cycle 2 = cycle 1 + ARC');
   assert.equal(W.landingPos(P, { t: 6.0, phi: 1, e: 5 }), W.landingPos(P, { t: 6.0, phi: 1, e: 1.2 }), 'wobble clamped to J');
   assert.equal(W.landingPos(P, { t: 6.0, phi: 1 }), W.landingPos(P, { t: 6.0, phi: 1, e: 0 }));
+  // the landing ignores any COAST / STOP_FROM a caller still passes (old phys objects)
+  const old = { ...P, COAST: 6, STOP_FROM: 1 };
+  for (const t of [0.5, 3.5, 7.5]) assert.equal(W.landingPos(old, { t, phi: 2, e: 0 }), W.landingPos(P, { t, phi: 2, e: 0 }));
   const r = W.rimAt(P, 2, 1); assert.ok(r >= 0 && r < 10);
+});
+
+test('SPEC test 13 / W-T-24: coast removed; careful arrival in the decay part lands the same slice as before (J = 0); Slow scales the ramp', () => {
+  const P = W.matchPhys({}), mod = (x) => ((x % 10) + 10) % 10;
+  const oldCoast = (t, phi) => mod(phi + 36 * 3 * (1 - Math.exp(-t / 3)) + 36 * Math.exp(-t / 3) * 2 / 3); // the retired coast landing
+  const rng = makeRng('wt24');
+  for (let i = 0; i < 1000; i++) { const t = 0.35 + rng.random() * 3.45, phi = rng.random() * 10; assert.ok(near(W.landingPos(P, { t, phi, e: 0 }), oldCoast(t, phi)), `t ${t}`); }
+  // no auto-stop: the tick keeps moving (monotonic, unwrapped) through 10, 60 and 300 s; nothing caps it
+  let prev = -Infinity; for (let t = 0; t <= 300; t += 0.01) { const u = landSplit(P, t); const v = u.arc + u.dist; assert.ok(v >= prev - 1e-9); prev = v; }
+  assert.ok(landSplit(P, 300).arc > landSplit(P, 60).arc && landSplit(P, 60).arc > landSplit(P, 10).arc);
+  // Slow 3 ranks (W0 x0.55): same pulse shape, ramp peak scaled
+  const S = { ...P, W0: 36 * 0.55 };
+  assert.ok(Math.abs(landSplit(S, 6).arc - ARC_PER_CYCLE(S)) < 1e-9 && Math.abs(ARC_PER_CYCLE(S) - 0.55 * ARC_PER_CYCLE(P)) < 1e-9);
+  // source: no COAST / STOP_FROM constant or 6.0 s coast timer in the match core or data
+  const core = readFileSync(new URL('../js/core/wheelmatch.js', import.meta.url), 'utf8'), data = readFileSync(new URL('../js/data/wheelmatch.js', import.meta.url), 'utf8');
+  assert.doesNotMatch(core, /WMX\.(COAST|STOP_FROM)/); assert.doesNotMatch(data, /\b(COAST|STOP_FROM)\s*:/);
+  assert.doesNotMatch(core, /\bCOAST:\s*\d/, 'no finite coast');
+});
+
+test('SPEC test 13: match wobble is keyed by the ball number (same key same wobble, respin 0/1 differ), in +-J, never touches the state or ball stream', () => {
+  const s = bowlState('wob', 2).get(), before = JSON.stringify(s), ball = 0 * 10 + s.inn1.over; // matchBallOf(innIdx 0, over)
+  const a = W.matchWobble(s, ball), b = W.matchWobble(s, ball), c = W.matchWobble(s, ball, 1);
+  assert.equal(a, b); assert.notEqual(a, c);
+  assert.ok(Math.abs(a) <= WMX.J && Math.abs(c) <= WMX.J);
+  assert.equal(a, wheelWobble(wobbleKey(s, 'match', ball, 0), W.matchPhys(s).J));
+  assert.equal(JSON.stringify(s), before, 'state (and its ball rng seed) untouched');
+  assert.notEqual(W.matchWobble(s, ball + 1), a, 'next over, next ball number, new wobble');
+  assert.notEqual(W.matchWobble(s, 10 + ball), a, 'innings 2 ball number differs from innings 1');
+  assert.equal(Math.abs(W.matchWobble(s, ball, 0, 0)), 0, 'J = 0: no wobble');
+  // the store's landing uses it: no old `${seed}|wmj|...` stream left
+  const spin = readFileSync(new URL('../js/store/spins/match.js', import.meta.url), 'utf8');
+  assert.doesNotMatch(spin, /\|wmj\|/); assert.match(spin, /matchWobble\(s, matchBallOf\(innIdx, over\)/);
 });
 
 test('devClamp: NaN, strings, negatives, out of range, missing', () => {

@@ -1,0 +1,4 @@
+/* cw-stepup.css: step-up card. Kit variables only. 56 px OK, 14 px text minimum, nothing flashes. */
+.cw-stepup { display: grid; gap: var(--c-sp-3); padding: var(--c-sp-3); background: var(--cream); border: var(--c-border) solid var(--outline); text-align: center; }
+.cw-stepup-t { margin: 0; font-size: var(--c-fs-l); line-height: var(--c-lh-m); font-weight: 700; }
+.cw-stepup-ok { min-width: 56px; min-height: 56px; font: 700 var(--c-fs-l)/var(--c-lh-l) var(--c-font); background: var(--cream); border: var(--c-border) solid var(--outline); color: inherit; }

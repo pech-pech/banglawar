@@ -1,0 +1,7 @@
+/* This week sheet rows: wrap text inside the 56px button, never clip. Kit variables only. */
+.c-sheet .wk-list { display: grid; gap: var(--c-sp-2); }
+.c-sheet .wk-row { box-sizing: border-box; display: flex; align-items: center; gap: var(--c-sp-2); width: 100%; min-width: 0; min-height: 56px; height: auto; max-height: none; padding: var(--c-sp-2) var(--c-sp-3); text-align: left; justify-content: flex-start; font-size: var(--c-fs-s); line-height: var(--c-lh-s); white-space: normal; overflow: visible; overflow-wrap: anywhere; text-transform: none; letter-spacing: 0; }
+.c-sheet .wk-row > svg, .c-sheet .wk-row > .ico, .c-sheet .wk-row > :first-child:not(.wk-txt) { flex: 0 0 24px; width: 24px; height: 24px; }
+.c-sheet .wk-txt { flex: 1 1 auto; min-width: 0; display: block; white-space: normal; overflow: visible; overflow-wrap: anywhere; font-size: var(--c-fs-s); line-height: var(--c-lh-s); }
+.c-sheet .wk-txt small { display: block; font-size: var(--c-fs-s); line-height: var(--c-lh-s); }
+.c-sheet .wk-none { font-size: var(--c-fs-s); line-height: var(--c-lh-s); }

@@ -18,9 +18,9 @@ export const sum = (a) => a.reduce((x, y) => x + y, 0);
 export const gauss = (g1, g2) => Math.sqrt(-2 * Math.log(Math.max(1e-12, g1))) * Math.cos(2 * Math.PI * g2);
 
 // ---------------------------------------------------------------- tree modifiers (adapter)
-/** Neutral per-wheel modifiers. goldAdd/rareAdd in the old wheel units (Widener, Top Name, Trophy Polish / Big Voice, Coin Weight, Pep Voice, Sharp Eyes). */
+/** Neutral per-wheel modifiers. goldAdd/rareAdd in the old wheel units (Widener, Top Name, Trophy Polish / Coin Weight, Pep Voice, Sharp Eyes). warmCrowd 0|1 = Warm Crowd on Hype (HIGH +6 pays +7; no width). */
 // wa1: Control too (w0Mult = Slow Spin speed factor, jMult = Steady Axle wobble factor, guide 0|1 = Aim Guide). hypeDial applies them; reveal wheels ignore them (feel only).
-export const neutralMods = () => ({ goldAdd: 0, rareAdd: 0, extra: 0, floor: 0, hfloor: 0, sfloor: 0, cons: 0, nb: 0, cheer: 0, bch: 0, bval: 1, w0Mult: 1, jMult: 1, guide: 0 });
+export const neutralMods = () => ({ goldAdd: 0, rareAdd: 0, extra: 0, floor: 0, hfloor: 0, sfloor: 0, cons: 0, nb: 0, cheer: 0, bch: 0, bval: 1, w0Mult: 1, jMult: 1, guide: 0 }); // warmCrowd absent (= 0) on purpose: wheels in state carry mods, a 0 key drifts the T19 classic hash
 
 /**
  * Modifiers for one wheel from the sim-style effective(owned) object (E: jw, jw_by, rw_by, bch, bval, extra, floor, hfloor, sfloor, cons, nb, cheer).
@@ -40,16 +40,17 @@ export function modsFromSim(E, wheelId) {
   m.cheer = wheelId === 'find' ? (E.cheer || 0) : 0;
   m.bch = clamp(E.bch || 0, 0, 1); m.bval = E.bval || 1;
   m.w0Mult = E.w0 != null ? E.w0 : 1; m.jMult = E.wob != null ? E.wob : 1; m.guide = E.guide ? 1 : 0;
+  if (wheelId === 'hype' && E.warmCrowd) /** @type {any} */ (m).warmCrowd = 1; // WC Warm Crowd (absent = 0)
   return m;
 }
 
 /** Sim E from owned ranks {nodeId: rank} (sim node ids). Only the keys the dial/reel/reveal wheels read. @param {Record<string,number>} own */
 export function simFromRanks(own) {
   const r = (/** @type {string} */ id) => (own && own[id]) | 0;
-  const E = { jw: 0.02 * r('f_wide'), jw_by: /** @type {any} */ ({ scout: 0.1 * r('sp_sct_n'), finals: 0.1 * r('sp_fin_n') }), rw_by: /** @type {any} */ ({ hype: 0.08 * r('sp_hyp_n'), toss: 0.1 * r('sp_tos_n'), pep: 0.08 * r('sp_pep_n'), find: 0.02 * r('sp_fnd_n') }), // wa1 findtune: Sharp Eyes 0.02 a block a rank
+  const E = { jw: 0.02 * r('f_wide'), jw_by: /** @type {any} */ ({ scout: 0.1 * r('sp_sct_n'), finals: 0.1 * r('sp_fin_n') }), rw_by: /** @type {any} */ ({ toss: 0.1 * r('sp_tos_n'), pep: 0.08 * r('sp_pep_n'), find: 0.02 * r('sp_fnd_n') }), // wa1 findtune: Sharp Eyes 0.02 a block a rank
     bch: Math.min(1, 0.2 * r('f_boost')), bval: 1 + r('f_bigb'), extra: r('f_extra'), floor: r('f_floor'), hfloor: r('sp_hyp_r'), sfloor: r('sp_sct_r'),
     cons: r('sp_tos_r') ? 1 : 0, nb: /** @type {any} */ ({ pep: r('sp_pep_r'), finals: r('sp_fin_r') }), cheer: r('sp_fnd_r') ? 1 : 0,
-    w0: Math.max(0.3, 1 - 0.15 * r('c_slow')), wob: Math.max(0, 1 - 0.15 * r('c_steady')), guide: r('c_guide') ? 1 : 0 };
+    w0: Math.max(0.3, 1 - 0.15 * r('c_slow')), wob: Math.max(0, 1 - 0.15 * r('c_steady')), guide: r('c_guide') ? 1 : 0, warmCrowd: r('sp_hyp_n') ? 1 : 0 }; // WC: sp_hyp_n is Warm Crowd now, no Hype width
   return E;
 }
 
@@ -69,6 +70,7 @@ export function modsFor(eff, wheelId) {
   m.nb = +w.neighbourMult > 1 ? 1 : 0; m.cheer = w.cheer ? 1 : 0;
   m.bch = clamp(+b.chance || 0, 0, 1); m.bval = +(b.count ?? 1) || 1; // count = Booster value in units; the unit per wheel is DR.UNIT here
   m.w0Mult = Number.isFinite(+w.w0Mult) && w.w0Mult != null ? +w.w0Mult : 1; m.jMult = Number.isFinite(+w.jMult) && w.jMult != null ? +w.jMult : 1; m.guide = w.guide ? 1 : 0;
+  if (wheelId === 'hype' && w.warmCrowd) /** @type {any} */ (m).warmCrowd = 1; // WC Warm Crowd (absent = 0)
   return m;
 }
 

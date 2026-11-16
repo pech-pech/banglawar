@@ -67,7 +67,8 @@ test('workshop wheel card: the open branch is marked and long bead rows become a
 });
 test('look helpers: sliceWheelSvg draws a real slice wheel; plain = no rim paint and no studs; wood has no studs', () => {
   const plain = sliceWheelSvg({ mat: 'wood', bars: 4, size: 72, plain: true }), wood = sliceWheelSvg({ mat: 'wood', bars: 4, size: 72 }), brass = sliceWheelSvg({ mat: 'brass', bars: 5, size: 72 });
-  for (const h of [plain, wood, brass]) { assert.equal((h.match(/<path /g) || []).length, 10, 'ten slices'); assert.match(h, />\+5</); }
+  for (const h of [plain, wood, brass]) { assert.equal((h.match(/<path /g) || []).length, 10, 'ten slices'); assert.doesNotMatch(h, />\+5</, 'under 100 px the +v text is dropped (14 px floor)'); }
+  assert.match(sliceWheelSvg({ mat: 'wood', bars: 4, size: 150 }), />\+5</, '+v text at 150 px');
   assert.doesNotMatch(plain, /wk-stud/); assert.doesNotMatch(wood, /wk-stud/); assert.match(brass, /wk-stud/); assert.notEqual(plain, wood);
   assert.match(sliceWheelSvg({ mat: 'crystal', bars: 12, size: 72 }), /M50 44L56 50L50 56L44 50Z/, 'gem cap at Crystal');
 });
@@ -94,7 +95,8 @@ test('look helpers: ranks map to looks, 0 = none, colours parse, wheel svg draws
 test('wheel-view keeps the old behaviour without o.look / o.guide / o.tokens and reads phys', () => {
   const src = read('js/ui/wheel-view.js');
   assert.match(src, /tk !== 'none' && state === 'spin'/); assert.match(src, /guide: !!o.guide/); assert.match(src, /o\.phys/); assert.match(src, /LK = normLook\(o\.look\)/);
-  assert.match(src, /carefulTapTime\(WO, ph, 1 - Math\.random\(\), Math\.random\(\), \.\.\.PX\)/);
+  // SPEC 2e: no reduced-motion tap (no synthetic careful tap); the result always comes from the player's STOP
+  assert.doesNotMatch(src, /carefulTapTime/); assert.match(src, /const t = clk\.tap\(ms\); if \(t == null\) return; stop\(t\)/);
 });
 
 test('tier-up card: names the new rim, lists the nodes that open, shows real slice wheels, says "bars" for the wheel rods; tier 1 compares plain vs wooden', () => {

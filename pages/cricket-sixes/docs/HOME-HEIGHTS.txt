@@ -1,0 +1,44 @@
+HOME HUB HEIGHTS (px, getBoundingClientRect, measured at scroll 0)
+Source: js/ui/hub-view.js render(); fixture test/fixtures/v4-save-10.json injected as cs.save.1; served statically from pages/cricket-sixes.
+Columns: top = document y of the box top, h = box height, bottom = document y of box bottom, n = matches.
+
+== 344x882  (stage: hub body:Season 1 of 12 League 1 Save ? Next chapter: Kickoff Crest (Season 3) 1,300 Coin, console/page errors: 0) ==
+element                             n    top     h         bottom    display / position
+.hb-head (top strip, first)         7    0       66        66        flex / static
+.hb-chap                            1    66      34        100       block / static
+.hb-board                           1    108     60        168       grid / relative
+.hb-ground                          1    100     632       732       flex / relative
+.hb-row--top (plates row 1)         1    194     160       354       grid / relative
+.hb-row--bot (plates row 2 / dock)  1    564     160       724       grid / relative
+.hb-plate (first)                   6    298     56        354       flex / relative
+.hb-more (below fold)               1    732     402       1134      grid / static
+.hb-sixhead                         1    986     24        1010      block / static
+.hb-six (squad block)               1    1018    116       1134      grid / static
+.m0-ctabar (footer, .hb-foot)       1    744     138       882       grid / fixed
+.m0-warn                            0     (absent)
+.hb-plate (all, span)               6    298     426       724       
+viewport: 344x882
+body scrollHeight: 1280   html scrollHeight: 882   scroll overflow beyond viewport: 398 px
+  scroller app: scrollHeight 1280, clientHeight 1280, overflow-y visible
+  scroller screen ss ss-hub hb-hub hb-l2: scrollHeight 1280, clientHeight 1280, overflow-y visible
+
+== 475x638  (stage: hub body:Season 1 of 12 League 1 Save ? Next chapter: Kickoff Crest (Season 3) 1,300 Coin, console/page errors: 0) ==
+element                             n    top     h         bottom    display / position
+.hb-head (top strip, first)         7    0       66        66        flex / static
+.hb-chap                            1    66      34        100       block / static
+.hb-board                           1    108     60        168       grid / relative
+.hb-ground                          1    100     634       734       flex / relative
+.hb-row--top (plates row 1)         1    194     160       354       grid / relative
+.hb-row--bot (plates row 2 / dock)  1    566     160       726       grid / relative
+.hb-plate (first)                   6    298     56        354       flex / relative
+.hb-more (below fold)               1    734     402       1136      grid / static
+.hb-sixhead                         1    988     24        1012      block / static
+.hb-six (squad block)               1    1020    116       1136      grid / static
+.m0-ctabar (footer, .hb-foot)       1    500     138       638       grid / fixed
+.m0-warn                            0     (absent)
+.hb-plate (all, span)               6    298     428       726       
+viewport: 475x638
+body scrollHeight: 1282   html scrollHeight: 638   scroll overflow beyond viewport: 644 px
+  scroller app: scrollHeight 1282, clientHeight 1282, overflow-y visible
+  scroller screen ss ss-hub hb-hub hb-l2: scrollHeight 1282, clientHeight 1282, overflow-y visible
+

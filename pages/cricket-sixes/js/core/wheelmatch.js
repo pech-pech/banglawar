@@ -10,6 +10,9 @@ import { playOver, centreOf } from './match.js';
 import { makeFx } from './skills.js';
 import { rankOf } from './wheelmeta.js';
 import { stopExtra } from './training.js';
+import { cycleOf } from './wheel-pulse.js';
+import { landSplit } from './landtick.js';
+import { wobbleKey, wheelWobble } from './wheel-wobble.js';
 
 const clamp = (/** @type {number} */ x, /** @type {number} */ lo, /** @type {number} */ hi) => Math.max(lo, Math.min(hi, x));
 const modC = (/** @type {number} */ x) => ((x % WMX.CIRC) + WMX.CIRC) % WMX.CIRC;
@@ -55,17 +58,16 @@ export function ctrlOf(s) {
 export function matchPhys(s) {
   const c = ctrlOf(s);
   const slow = 1 - WMX.SLOW_PER_RANK * clamp(c.slowRank, 0, 3), steady = Math.pow(0.85, clamp(c.steadyRank, 0, 2));
-  return { W0: devVal(s, 'matchW0') * slow, TAU: WMX.TAU, D: devVal(s, 'matchD'), J: devVal(s, 'matchJ') * steady, SD: c.guide ? WMX.SD_GUIDE_AVG : WMX.SD_AVG, COAST: WMX.COAST, STOP_FROM: WMX.STOP_FROM };
+  return { W0: devVal(s, 'matchW0') * slow, TAU: WMX.TAU, D: devVal(s, 'matchD'), J: devVal(s, 'matchJ') * steady, SD: c.guide ? WMX.SD_GUIDE_AVG : WMX.SD_AVG };
 }
-/** Arc turned (units, not wrapped) t seconds after SPIN. @param {{W0:number,TAU:number}} phys @param {number} t */
-const arcOf = (phys, t) => phys.W0 * phys.TAU * (1 - Math.exp(-Math.max(0, t) / phys.TAU));
-/** Rim position (0..CIRC) under the pointer at wheel time t with start offset phi. @param {any} phys @param {number} t @param {number} phi */
-export function rimAt(phys, t, phi) { return modC(phi + arcOf(phys, t)); }
-/** Clamped STOP time (STOP_FROM..COAST; >= COAST = coasted at COAST) and wobble (+-J). @param {any} phys @param {{t:number,e?:number}} stop */
+/** Rim position (0..CIRC) under the pointer at wheel time t (seconds since SPIN, pulse arc, never clamped above) with start offset phi.
+ * @param {any} phys @param {number} t @param {number} phi */
+export function rimAt(phys, t, phi) { return modC(phi + landSplit(phys, t).arc); }
+/** STOP time (>= 0, no coast, no clamp above), pulse split (arc turned + glide w(t) x D/3) and wobble (+-J). @param {any} phys @param {{t:number,e?:number}} stop */
 function stopParts(phys, stop) {
-  const t = clamp(Number.isFinite(stop.t) ? stop.t : phys.COAST, phys.STOP_FROM, phys.COAST);
+  const sp = landSplit(phys, stop.t);
   const e = clamp(Number.isFinite(stop.e) ? /** @type {number} */ (stop.e) : 0, -phys.J, phys.J);
-  return { t, e, dist: phys.W0 * Math.exp(-t / phys.TAU) * phys.D / 3 };
+  return { t: sp.t, e, arc: sp.arc, dist: sp.dist };
 }
 /**
  * Rim position (0..CIRC) under the pointer `s` seconds into the glide after a STOP (training.js stopExtra easing over phys.D).
@@ -73,16 +75,26 @@ function stopParts(phys, stop) {
  */
 export function glidePos(phys, stop, s) {
   const p = stopParts(phys, stop);
-  return modC(stop.phi + arcOf(phys, p.t) + stopExtra(p.dist, p.e, s, phys));
+  return modC(stop.phi + p.arc + stopExtra(p.dist, p.e, s, phys));
 }
-/** Where the wheel lands (0..CIRC). Predicted tick = landingPos with e 0; the UI calls this every frame. @param {any} phys @param {{t:number,phi:number,e?:number}} stop */
+/** Where the wheel lands (0..CIRC) = phi + tickAt(t) + wobble, mod CIRC (pulse, no coast). Predicted tick = landingPos with e 0; the UI calls
+ * this every frame. @param {any} phys @param {{t:number,phi:number,e?:number}} stop */
 export function landingPos(phys, stop) { return glidePos(phys, stop, phys.D); }
-/** Auto / skip: an unaimed stop, uniform on the rim (= a pick by width). @param {{random:()=>number}} rng */
+/** Auto: an unaimed stop, uniform on the rim (= a pick by width). @param {{random:()=>number}} rng */
 export const unaimedPos = (rng) => rng.random() * WMX.CIRC;
-/** Timing bucket: 'e' early, 'c' careful (GLOW window), 'l' late, 'o' coasted. @param {number} t @param {boolean} [coasted] */
-export function stopBucket(t, coasted) {
-  if (coasted || !Number.isFinite(t) || t >= WMX.COAST) return 'o';
-  return t < WMX.GLOW_LO ? 'e' : t <= WMX.GLOW_HI ? 'c' : 'l';
+/** Timing bucket by the time in the pulse cycle: 'e' early (before the GLOW), 'c' careful (GLOW 3.2-3.8 s of any cycle), 'l' late (after it).
+ * No 'o' / coasted (retired with COAST); a non-finite t has no bucket (''). The second argument is ignored (old call shape kept).
+ * @param {number} t @param {boolean} [_coasted] */
+export function stopBucket(t, _coasted) {
+  if (typeof t !== 'number' || !Number.isFinite(t)) return '';
+  const u = cycleOf(t).tInCycle;
+  return u < WMX.GLOW_LO ? 'e' : u <= WMX.GLOW_HI ? 'c' : 'l';
+}
+/** Keyed match wobble (wheels SPEC 2a, CONTRACT-A sec 3): wheelWobble(wobbleKey(s, 'match', ball, respin), J) with spinIndex = the match ball
+ * number (store matchBallOf(innIdx, over) = innings x 10 + over, 1..20; Accepted 07:45). J = matchPhys(s).J (dev matchJ x Steady 0.85^rank).
+ * Own stream (wheel-wobble.js); never the ball rng. @param {any} s @param {number} ball @param {number} [respin] @param {number} [J] */
+export function matchWobble(s, ball, respin = 0, J = matchPhys(s).J) {
+  return wheelWobble(wobbleKey(s, 'match', ball, respin), J);
 }
 
 // ---- sampled overs

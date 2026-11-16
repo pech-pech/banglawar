@@ -4,9 +4,11 @@
 // Effect maths is ported from team-numbers/sim/wheel_meta_sim_v2.py (effective, build, one_spin, spin_full, run_once). No DOM, no Math.random.
 //
 // effective(s) -> { spot, course, hype, toss, pep, find, scout, finals, tokens, tier }. Every wheel object has the SAME base keys:
-//   w0Mult    speed multiplier on W0 (Slow Spin; spot, course only, else 1)        jMult   wobble multiplier on J (Steady Axle; spot, course only, else 1)
+//   w0Mult    speed multiplier on W0 (Slow Spin: 1 - 0.15 x rank, 0.55 at 3)      jMult   wobble multiplier on J (Steady Axle: 0.85^rank, 0.7225 at 2); CONTRACT-A sec 2
 //   guide     Aim Guide owned (tap SD x GUIDE_SD_FACTOR; draw the landing tick)     goldAdd width added to the gold slice (Widener + the wheel's own node)
-//   extraGold number of extra gold slices (0|1; never on toss)                      floor   value added to the lowest slices (value units, spot/course/hype/toss, else 0)
+//   extraGold number of extra gold slices (0|1; never on toss)                      floor   value added to the lowest slices (value units, hype/toss only; 0 on spot/course)
+//   kindFloor (spot, course only) 0|1 = Kind Floor owned. FLAG ONLY: wheelmeta pays nothing for it; the pay rule (+0.2x on the lowest tier,
+//             gold skipped, never above the next rung, SPEC 3/11) is js/core/perks/kind-floor.js (T2), which reads effective(s).spot.kindFloor / .course.kindFloor
 //   booster   {chance, value, count, unit}: chance a random non-gold slice shines; value = Booster value x unit (what a landing on it adds)
 //   zone      Aim Zone seconds (spot, course only, else 0): the lane marks glow while the gold slice is within this many seconds of the pointer (a cue, no odds change)
 //   chime     Gold Chime owned (spot, course only, else false): the pointer flashes gold, and onTick gets {chime:true}, each time a gold slice passes under it
@@ -29,10 +31,12 @@ import { courseWheel, wheelSlices, wheelWidths, spinResult } from './training.js
 import { dialResult, revealResult } from './dialreel.js';
 import { MD } from '../data/matchday.js';
 import { devVal } from './wheelmatch.js'; // wheel match Dev: otherMult (1 unless Dev is on)
+import { WHEEL_ENGINE } from '../data/wheel-engine.js';
+import { TRAIN2 } from '../data/training.js';
 
 const clone = (/** @type {any} */ x) => structuredClone(x);
 const BY = Object.fromEntries(NODES.map((n) => [n.id, n]));
-const BASE = { W0: 24, J: 0.6, SD: 0.11 };
+const PLAIN_W0 = TRAIN2.wheelStop.W0; // flag off only: the plain training wheel (W0 24) under Dev otherMult. Flag on: the engine (controlPhys)
 const SKILL = ['spot', 'course'];
 const TOKEN_OF = /** @type {Record<string,string>} */ ({ respin_tokens_per_season: 'respin', nudge_tokens_per_season: 'nudge', pick_two_tokens_per_season: 'two', wild_tokens_per_season: 'wild', lift_tokens_per_season: 'lift' });
 const KINDS = ['respin', 'two', 'nudge', 'lift'];
@@ -112,8 +116,8 @@ export function buyNode(s, id) {
 /** @param {string} w */
 const neutralWheel = (w) => ({
   w0Mult: 1, jMult: 1, guide: false, zone: 0, chime: false, feelOnly: WM.FEEL_ONLY.includes(w), goldAdd: 0, extraGold: 0, floor: 0, booster: { chance: 0, value: 0, count: 0, unit: /** @type {any} */ (WM.UNIT)[w] },
-  ...(w === 'spot' ? { streak: 0 } : {}), ...(w === 'course' ? { bestOfTwo: 0 } : {}),
-  ...(w === 'hype' ? { rareAdd: 0, lowToMedium: 0, dial: { V: 16, Jmult: 1, sdMult: 1 } } : {}), ...(w === 'toss' ? { rareAdd: 0, consolation: 0 } : {}),
+  ...(w === 'spot' ? { streak: 0, kindFloor: 0 } : {}), ...(w === 'course' ? { bestOfTwo: 0, kindFloor: 0 } : {}),
+  ...(w === 'hype' ? { rareAdd: 0, lowToMedium: 0, warmCrowd: 0, dial: { V: 16, Jmult: 1, sdMult: 1 } } : {}), ...(w === 'toss' ? { rareAdd: 0, consolation: 0 } : {}),
   ...(w === 'pep' ? { rareAdd: 0, neighbourMult: 1 } : {}), ...(w === 'find' ? { rareAdd: 0, cheer: 0 } : {}),
   ...(w === 'scout' ? { scoutFloor: 0 } : {}), ...(w === 'finals' ? { neighbourMult: 1 } : {}),
 });
@@ -123,13 +127,13 @@ export function effective(s) {
   const out = /** @type {any} */ (neutral());
   if (!FLAGS.wheelMeta) return out;
   const own = metaOf(s).owned || {}; out.tier = tierNow(s);
-  let w0 = 0, wob = 0, guide = false, jw = 0, bch = 0, bval = 1, extra = 0, floor = 0;
+  let slowR = 0, steadyR = 0, guide = false, jw = 0, bch = 0, bval = 1, extra = 0, floor = 0;
   /** @type {Record<string,number>} */ const jwBy = {}, rwBy = {}, zoneBy = {}; /** @type {Record<string,boolean>} */ const cueBy = {}; const tokens = out.tokens;
   for (const id of Object.keys(own)) {
     const r = own[id] | 0, n = BY[id]; if (!r || !n || n.branch === 'craft') continue;
     const { type, per_rank: p, scope } = n.effect, all = scope.length >= WHEEL_IDS.length;
-    if (type === 'w0_mult') w0 += p * r;
-    else if (type === 'wobble_mult') wob += p * r;
+    if (type === 'w0_mult') slowR += r;
+    else if (type === 'wobble_mult') steadyR += r;
     else if (type === 'preview_mark') guide = true;
     else if (type === 'window_add_s') { for (const w of scope) zoneBy[w] = (zoneBy[w] || 0) + p * r; }
     else if (type === 'aim_cue') { for (const w of scope) cueBy[w] = true; }
@@ -144,29 +148,33 @@ export function effective(s) {
     else if (type === 'consolation') out.toss.consolation = 1;
     else if (type === 'neighbour_half') out[scope[0]].neighbourMult = 1.5;
     else if (type === 'cheer_respin') out.find.cheer = 1;
+    else if (type === 'hype_high_plus') out.hype.warmCrowd = 1; // WC Warm Crowd: HIGH +6 pays +7 (payout in the perk)
     else if (TOKEN_OF[type]) tokens[TOKEN_OF[type]] += r;
   }
+  const ctl = controlPhys({ slow: slowR, steady: steadyR }, { W0: 1, J: 1 }); // Control multipliers (CONTRACT-A sec 2): Slow 1 - 0.15 x rank, Steady 0.85^rank
   for (const w of WHEEL_IDS) {
     const X = out[w];
     X.goldAdd = jw + (jwBy[w] || 0); X.extraGold = w === 'toss' ? 0 : extra;
     X.booster = { chance: Math.min(1, bch), value: bval * /** @type {any} */ (WM.UNIT)[w], count: bval, unit: /** @type {any} */ (WM.UNIT)[w] };
     if ('rareAdd' in X) X.rareAdd = rwBy[w] || 0;
-    X.w0Mult = Math.max(0.3, 1 + w0); X.jMult = Math.max(0, 1 + wob); X.guide = guide; X.zone = zoneBy[w] || 0; X.chime = !!cueBy[w]; // Control on every wheel (wa1)
+    X.w0Mult = ctl.W0; X.jMult = ctl.J; X.guide = guide; X.zone = zoneBy[w] || 0; X.chime = !!cueBy[w]; // Control on every wheel (wa1)
     if (w === 'hype') X.dial = { V: 16 * X.w0Mult, Jmult: X.jMult, sdMult: guide ? WM.GUIDE_SD_FACTOR : 1 };
-    if (['spot', 'course', 'hype', 'toss'].includes(w)) X.floor = floor * /** @type {any} */ (WM.UNIT)[w];
+    if (w === 'hype' || w === 'toss') X.floor = floor * /** @type {any} */ (WM.UNIT)[w];
+    if (SKILL.includes(w)) X.kindFloor = floor > 0 ? 1 : 0; // flag only; pay = T2 perks/kind-floor.js
   }
   return out;
 }
 
 /**
  * A wheel with the tree applied: gold slice wider (Widener + own node), Extra Gold slice inserted (0.75 width, after the first non-gold slice
- * from position 3 that pays 2+), Kind Floor (value-1 slices pay more; spot and course), and phys {W0, J, SD} for training.js.
+ * from position 3 that pays 2+), and phys {W0, J, SD, D} = the engine after Control (controlPhys(controlRanks(s), WHEEL_ENGINE, J): W0 36, D 2,
+ * J 1.2 or the wheel's own J; Slow / Steady per CONTRACT-A sec 2), W0 x Dev otherMult. Kind Floor is NOT applied here (flag in effective().kindFloor).
  * `golds` lists every gold index (spinResult / carefulTapTime read it). Flag off: the input wheel itself (no phys key).
  * @param {{slices:number[], jackpotIndex?:number, widths?:number[], C?:number}} wheel @param {string} wheelId @param {any} s
  */
 export function metaWheel(wheel, wheelId, s) {
   const om = otherMultOf(s);
-  if (!FLAGS.wheelMeta) return om === 1 ? wheel : { ...wheel, phys: { W0: BASE.W0 * om } }; // Dev otherMult on the plain wheel; x1 = the input wheel itself
+  if (!FLAGS.wheelMeta) return om === 1 ? wheel : { ...wheel, phys: { W0: PLAIN_W0 * om } }; // Dev otherMult on the plain wheel; x1 = the input wheel itself
   const X = effective(s)[wheelId] || neutralWheel(wheelId), ji = wheel.jackpotIndex || 0, ws = wheelWidths(wheel);
   let L = wheel.slices.map((v, i) => ({ v, w: ws[i], gold: i === ji }));
   L[ji].w += X.goldAdd;
@@ -176,10 +184,33 @@ export function metaWheel(wheel, wheelId, s) {
     const pos = cand.length ? cand[e % cand.length] + 1 + e : Math.round(L.length * (e + 1) / (X.extraGold + 1)) + e;
     L.splice(pos, 0, { v: g0.v, w: g0.w * WM.EXTRA_W, gold: true });
   }
-  if (X.floor && SKILL.includes(wheelId)) L = L.map((q) => (q.v === 1 && !q.gold ? { ...q, v: q.v + X.floor } : q));
+  const P = controlPhys(controlRanks(s), WHEEL_ENGINE, Number.isFinite(/** @type {any} */ (wheel).J) ? /** @type {any} */ (wheel).J : WHEEL_ENGINE.J);
   const widths = L.map((q) => q.w), C = widths.reduce((a, b) => a + b, 0), golds = L.map((q, i) => (q.gold ? i : -1)).filter((i) => i >= 0);
   return { ...wheel, slices: L.map((q) => q.v), jackpotIndex: L.findIndex((q) => q.gold), widths, C, golds,
-    phys: { W0: BASE.W0 * om * X.w0Mult, J: BASE.J * X.jMult, SD: BASE.SD * (X.guide ? WM.GUIDE_SD_FACTOR : 1) } }; // otherMult before Control (Slow stacks)
+    phys: { W0: P.W0 * om, J: P.J, SD: P.SD, D: WHEEL_ENGINE.D } }; // Dev otherMult x Control (Slow stacks)
+}
+// ---- Control values (A2.3, CONTRACT-A sec 2, SPEC 2a/2b/2g): Slow W0 x (1 - 0.15 x rank), 0.55 at 3; Steady J x 0.85^rank, 0.7225 at 2;
+// Guide draws the J band (view); its tap sd (0.110 -> 0.080 s) is sim only (SPEC 2b), never read by the engine. Pure, all 8 wheels.
+export const CONTROL = Object.freeze({ SLOW_PER_RANK: 0.15, STEADY_BASE: 0.85, SD_AVG: 0.110, SD_GUIDE: 0.080 });
+const ctlMax = (/** @type {string} */ id) => (BY[id] ? BY[id].max_rank : 0);
+const ctlRank = (/** @type {any} */ v, /** @type {string} */ id) => Math.max(0, Math.min(ctlMax(id), Math.floor(+v || 0)));
+/** Owned Control ranks {slow, steady, guide} (0 when the flag is off). @param {any} s */
+export function controlRanks(s) {
+  if (!FLAGS.wheelMeta) return { slow: 0, steady: 0, guide: 0 };
+  return { slow: rankOf(s, 'c_slow'), steady: rankOf(s, 'c_steady'), guide: rankOf(s, 'c_guide') };
+}
+/**
+ * Engine physics after Control. ranks = {slow, steady, guide} (or node ids c_slow, c_steady, c_guide); ranks clamp to 0..max_rank.
+ * J = the wheel's own J (Find 1.5), default base.J. SD = sim tap sd (average, or with Guide); base.SD, when given, scales it.
+ * @param {{slow?:number, steady?:number, guide?:number|boolean, c_slow?:number, c_steady?:number, c_guide?:number}} [ranks]
+ * @param {{W0:number, J:number, SD?:number}} [base] @param {number} [J] per-wheel J override
+ * @returns {{W0:number, J:number, SD:number}}
+ */
+export function controlPhys(ranks = {}, base = WHEEL_ENGINE, J = base.J) {
+  const r = ranks || {}, slow = ctlRank(r.slow ?? r.c_slow, 'c_slow'), steady = ctlRank(r.steady ?? r.c_steady, 'c_steady');
+  const guide = !!(r.guide ?? r.c_guide), C = CONTROL;
+  const sd0 = guide ? C.SD_GUIDE : C.SD_AVG, SD = base.SD == null ? sd0 : base.SD * sd0 / C.SD_AVG;
+  return { W0: base.W0 * (1 - C.SLOW_PER_RANK * slow), J: J * C.STEADY_BASE ** steady, SD };
 }
 /** Wheel match Dev (06-DEV-SPEED rule 7): start speed multiplier for every wheel except the match wheel. 1 unless Dev is on. @param {any} s */
 export const otherMultOf = (s) => devVal(s, 'otherMult');
