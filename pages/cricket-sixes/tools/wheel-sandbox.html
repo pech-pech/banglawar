@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Wheel sandbox (dev)</title>
+<!-- Dev page, not linked from the game. ?ring=spot|course|find|hype|toss|pep|scout|finals  &guide=1 (Aim Guide)  &stored=1 (open on a stored result)  &rate=8|18|26 (find)  &slow=1 (Slow node, W0 scaled) -->
+<link rel="stylesheet" href="../kit/components.css">
+<link rel="stylesheet" href="../kit/skins/retro-green/skin-retro-green.css">
+<link rel="stylesheet" href="../app.css">
+<link rel="stylesheet" href="../css/scoreboard.css">
+<link rel="stylesheet" href="../css/chase.css">
+<link rel="stylesheet" href="../css/bowl.css">
+<link rel="stylesheet" href="../css/over-panel.css">
+<link rel="stylesheet" href="../css/beats.css">
+<link rel="stylesheet" href="../css/break.css">
+<link rel="stylesheet" href="../css/result.css">
+<link rel="stylesheet" href="../css/settings.css">
+<link rel="stylesheet" href="../css/season.css">
+<link rel="stylesheet" href="../css/training.css">
+<link rel="stylesheet" href="../css/training2.css">
+<link rel="stylesheet" href="../css/wheel-shared.css">
+<link rel="stylesheet" href="../css/squad.css">
+<link rel="stylesheet" href="../css/m0.css">
+<link rel="stylesheet" href="../css/run.css">
+<link rel="stylesheet" href="../css/hub.css">
+<link rel="stylesheet" href="../css/first.css">
+<link rel="stylesheet" href="../css/book.css">
+<link rel="stylesheet" href="../css/letters.css">
+<link rel="stylesheet" href="../css/economy.css">
+<link rel="stylesheet" href="../css/club9.css">
+<link rel="stylesheet" href="../css/matchday.css">
+<link rel="stylesheet" href="../css/dialreel.css">
+<link rel="stylesheet" href="../css/wheelmatch.css">
+<link rel="stylesheet" href="../kit/skins/scorebook/skin-scorebook.css">
+<link rel="stylesheet" href="../css/hub-scorebook.css">
+<script src="../kit/palette.js"></script>
+<script src="../kit/iso.js"></script>
+<script src="../kit/sprites.js"></script>
+</head><body class="skin-art skin-retro-green">
+<div id="app"><main style="padding:16px"><h1>Wheel sandbox</h1><p id="sb-info"></p><p id="sb-links"></p><button type="button" class="c-btn c-btn--primary" id="sb-open" style="min-height:56px">Open wheel</button></main></div>
+<script type="module">
+import { openWheel } from '../js/ui/wheel-view.js';
+const Q = new URLSearchParams(location.search);
+const NAME = Q.get('ring') || 'spot', GUIDE = Q.get('guide') === '1', STORED = Q.get('stored') === '1', RATE = +Q.get('rate') || 18;
+const sum = (a) => a.reduce((x, y) => x + y, 0);
+/** SPEC 2f tiers: top = value strictly above the wheel median (one value per slice), low = the lowest value, mid = rest; Find FIND top, CHEER mid. */
+function build(rows, median, opt = {}) {
+  const lo = Math.min(...rows.map((r) => r[2]));
+  return rows.map((r, id) => ({ id, w: r[1] / 10, value: r[2], label: r[0], tier: opt.find ? (r[2] ? 'top' : 'mid') : r[2] > median ? 'top' : r[2] === lo ? 'low' : 'mid', gold: !!r[3] }));
+}
+const rep = (n, row) => Array.from({ length: n }, () => row);
+const X1 = 74 / 7, C1 = 73 / 7 * 1; // percent per x1.0 / +1 piece
+function findRows(rate) {
+  if (rate === 8) { const c = 11.5; return [['FIND', 4, 1, 1], ...rep(4, ['CHEER', c, 0]), ['FIND', 4, 1, 1], ...rep(4, ['CHEER', c, 0])].map((r) => (r[0] === 'FIND' ? ['F', 4, 1, 1] : r)); }
+  if (rate === 26) { const c = 74 / 9; return [['FIND', 12, 1, 1], ...rep(3, ['CHEER', c, 0]), ['FIND', 12, 1, 1], ...rep(3, ['CHEER', c, 0]), ['F', 2, 1, 1], ...rep(3, ['CHEER', c, 0])]; }
+  return [['FIND', 9, 1, 1], ...rep(4, ['CHEER', 10.25, 0]), ['FIND', 9, 1, 1], ...rep(4, ['CHEER', 10.25, 0])];
+}
+const PEP = [5, 7.5, 5, 2.5, 2.5, 5, 7.5, 10, 7.5, 5, 2.5, 2.5];
+const FIN = [['M', 4, 60, 1], ['30 Coins', 96 / 11, 30], ['25 TP', 96 / 11, 25], ['20 Fans', 96 / 11, 20], ['10 Coins', 96 / 11, 10], ['15 TP', 96 / 11, 15], ['20 Fans', 96 / 11, 20], ['20 Coins', 96 / 11, 20], ['10 TP', 96 / 11, 10], ['15 Fans', 96 / 11, 15], ['25 Coins', 96 / 11, 25], ['30 TP', 96 / 11, 30]];
+// SPEC sections 3-10, typed. Each ring: widths in percent (sum 100), value, one gold where the spec says so.
+const RINGS = {
+  spot: { wheelId: 'spot', title: 'Spotlight', median: 1, J: 1.0, legend: [{ ch: '1.2', text: 'x1.2 (printed as 1.2)' }],
+    rows: [['x3.0', 12, 3, 1], ['x1.0', X1, 1], ['x1.0', X1, 1], ['x1.5', 8, 1.5], ['x1.0', X1, 1], ['x1.0', X1, 1], ['1.2', 6, 1.2], ['x1.0', X1, 1], ['x1.0', X1, 1], ['x1.0', X1, 1]] },
+  course: { wheelId: 'course', title: 'Course', median: 1, J: 1.0, legend: [{ ch: '+2', text: '+2 steps' }],
+    rows: [['+4', 12, 4, 1], ['+1', C1, 1], ['+3', 8, 3], ['+1', C1, 1], ['+2', 3.5, 2], ['+1', C1, 1], ['+2', 3.5, 2], ['+1', C1, 1], ['+1', C1, 1], ['+1', C1, 1], ['+1', C1, 1]] },
+  find: { wheelId: 'find', title: 'Find (' + RATE + '%)', median: 0, J: 1.5, find: true, legend: RATE === 18 ? [] : [{ ch: 'F', text: 'FIND' }], rows: findRows(RATE) },
+  hype: { wheelId: 'hype', title: 'Hype', median: 4, J: 1.2,
+    rows: [['NUTS +10', 10, 10, 1], ['MED +4', 35 / 3, 4], ['LOW +2', 35 / 3, 2], ['MED +4', 35 / 3, 4], ['HIGH +6', 10, 6], ['LOW +2', 35 / 3, 2], ['MED +4', 35 / 3, 4], ['LOW +2', 35 / 3, 2], ['HIGH +6', 10, 6]] },
+  toss: { wheelId: 'toss', title: 'Toss', median: 2.5, J: 1.0,
+    rows: [['No boost, +1 Spoke', 10, 0], ['No boost, +1 Spoke', 10, 0], ['No boost, +1 Spoke', 10, 0], ['+2.5%', 10, 2.5], ['+5%', 10, 5, 1], ['+2.5%', 10, 2.5], ['+2.5%', 10, 2.5], ['+5%', 10, 5, 1], ['+5%', 10, 5, 1], ['+2.5%', 10, 2.5]] },
+  pep: { wheelId: 'pep', title: 'Pep', median: 5, J: 1.0,
+    rows: PEP.map((b, i) => [`P${(i % 6) + 1} +${b}%`, b === 10 ? 9.6 : 90.4 / 11, b, b === 10]) },
+  scout: { wheelId: 'scout', title: 'Scout', median: 0.5, J: 1.0,
+    rows: Array.from({ length: 10 }, (_, i) => (i === 0 ? ['Card +2', 10, 2, 1] : i % 2 ? ['Card +0', 10, 0] : ['Card +1', 10, 1])) },
+  finals: { wheelId: 'finals', title: 'Finals', median: 20, J: 1.0, legend: [{ ch: 'M', text: 'Gold Medal' }], rows: FIN },
+};
+const R = RINGS[NAME] || RINGS.spot;
+const ring = build(R.rows, R.median, { find: !!R.find });
+const total = sum(ring.map((r) => r.w));
+const info = document.getElementById('sb-info');
+info.textContent = `ring=${NAME} slices=${ring.length} sum=${total.toFixed(3)} ${Math.abs(total - 10) <= 0.001 ? 'ok' : 'SUM BAD'}${GUIDE ? ' guide' : ''}${STORED ? ' stored' : ''}`;
+document.getElementById('sb-links').innerHTML = Object.keys(RINGS).map((k) => `<a href="?ring=${k}${GUIDE ? '&guide=1' : ''}${STORED ? '&stored=1' : ''}" style="display:inline-block;min-height:44px;padding:10px 6px">${k}</a>`).join(' ');
+window.__stops = window.__stops || [];
+window.__ring = ring; window.__ringName = NAME; window.__sandbox = { open, ring, name: NAME };
+let closeFn = null;
+function open() {
+  if (closeFn) try { closeFn(); } catch (e) { /* already closed */ }
+  const sid = Math.min(ring.length - 1, 1);
+  const stored = STORED ? { stops: [{ stopT: 3500, cycle: 1, tInCycle: 3.5, sliceId: sid, value: ring[sid].value, auto: false, respin: 0 }], kept: 0, spent: false } : undefined;
+  let pend = null;
+  closeFn = openWheel({
+    title: R.title, sub: 'sandbox', wheelId: R.wheelId, spinKey: 'sandbox.' + NAME, ring, J: R.J, wobKey: 'sandbox.' + NAME, legend: R.legend && R.legend.length ? R.legend : undefined,
+    cardHtml: '<p>Dev sandbox: ' + NAME + '</p>', pending: null, guide: GUIDE, stored,
+    onSpin: (stop) => { pend = { index: stop.sliceId, gain: ring[stop.sliceId].value, jackpot: ring[stop.sliceId].gold }; window.__stops.push(stop); console.log('[wheel-sandbox] stop', JSON.stringify(stop)); },
+    getPending: () => pend, plainResult: true, // plain layout: the ring's own value text, no Training words (no Breakthrough, no +N chip)
+    describe: (p) => { const r = ring[p.index]; return { big: String(r.label), say: 'Landed on ' + r.label + '.' }; }, // contract object {big, say}, never a string
+    onCollect: () => { console.log('[wheel-sandbox] collect'); }, onClose: () => { console.log('[wheel-sandbox] close'); },
+    onToken: (k) => console.log('[wheel-sandbox] token', k), tokens: [], getTokens: () => [],
+  });
+}
+document.getElementById('sb-open').addEventListener('click', open);
+if (Q.get('auto') !== '0') open();
+</script>
+</body></html>

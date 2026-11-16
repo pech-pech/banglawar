@@ -135,7 +135,8 @@ test('aimed vs auto: aimed stores the stop, tick and bucket; auto stores none; a
   assert.equal(la.bucket, 'c'); assert.equal(typeof la.careful, 'boolean'); assert.equal(la.auto, false); assert.equal(la.inn, 1); assert.equal(la.over, 1);
   assert.deepEqual(W(s, { bowler: bw, stop: { t: 3.5, phi: 2.25 } }), a); // same stop, same landing
   const late = W(s, { bowler: bw, stop: { t: 9, phi: 0 } });
-  assert.equal(late.wheelLog.at(-1).bucket, 'o'); // coasted
+  assert.equal(late.wheelLog.at(-1).bucket, 'e'); // SPEC 2c: t 9 = cycle 2, tInCycle 3.0 (before the 3.2 s glow) -> early; no 'o' / coast
+  assert.equal(late.wheelLog.at(-1).t, 9); // no upper clamp
   const u = W(s, AUTO);
   assert.equal(u.last.wheel.auto, true); assert.equal(u.last.wheel.tickPos, null); assert.equal(u.last.wheel.t, null);
   assert.equal(u.last.bowler, bw);
@@ -342,10 +343,10 @@ test('F3: memo keys the state playOver reads (same seed/over/score, other crease
   for (const x of [a, b]) { const n = W(x, AUTO); assert.equal(ballsRuns(n.last.balls), n.last.wheel.runs); const seg = segOf(n); if (!seg.end) assert.equal(n.last.wheel.runs, seg.runs); }
 });
 
-test('F5: STOP before STOP_FROM is stored as STOP_FROM (the time the landing used)', () => {
+test('F5: STOP before the guard is stored as STOP_GUARD_S 0.35 (the time the landing used, SPEC 2d)', () => {
   const s = toBowl('wms-f5'), bw = suggestedBowler(s);
-  const a = W(s, { bowler: bw, stop: { t: 0.2, phi: 3 } }), b = W(s, { bowler: bw, stop: { t: 1, phi: 3 } });
-  assert.equal(a.last.wheel.t, 1); assert.equal(a.wheelLog[0].t, 1); assert.equal(a.wheelLog[0].bucket, 'e');
+  const a = W(s, { bowler: bw, stop: { t: 0.2, phi: 3 } }), b = W(s, { bowler: bw, stop: { t: 0.35, phi: 3 } });
+  assert.equal(a.last.wheel.t, 0.35); assert.equal(a.wheelLog[0].t, 0.35); assert.equal(a.wheelLog[0].bucket, 'e');
   assert.equal(a.last.wheel.pos, b.last.wheel.pos);
 });
 

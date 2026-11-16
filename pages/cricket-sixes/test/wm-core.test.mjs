@@ -56,17 +56,18 @@ test('buy rules: tier gate per rank, requires, cost, spokes, max, craft carry', 
 
 test('tree effects ported: Slow, Steady, Guide, gold width, extra gold, floor', () => on(() => {
   const s = full(), E = effective(s);
-  assert.ok(Math.abs(E.spot.w0Mult - 0.55) < 1e-9); assert.ok(Math.abs(E.spot.jMult - 0.7) < 1e-9); assert.equal(E.spot.guide, true);
+  assert.ok(Math.abs(E.spot.w0Mult - 0.55) < 1e-9); assert.ok(Math.abs(E.spot.jMult - 0.7225) < 1e-9); assert.equal(E.spot.guide, true);
   assert.ok(Math.abs(E.spot.goldAdd - (0.06 + 0.04)) < 1e-9); assert.ok(Math.abs(E.course.goldAdd - 0.10) < 1e-9);
-  assert.equal(E.spot.extraGold, 1); assert.equal(E.toss.extraGold, 0); assert.equal(E.spot.floor, 1); assert.equal(E.pep.neighbourMult, 1.5); assert.equal(E.finals.neighbourMult, 1.5);
+  assert.equal(E.spot.extraGold, 1); assert.equal(E.toss.extraGold, 0); assert.equal(E.spot.kindFloor, 1); assert.equal(E.course.kindFloor, 1); assert.equal(E.spot.floor, 0); assert.equal(E.hype.floor, 1); assert.equal(E.pep.neighbourMult, 1.5); assert.equal(E.finals.neighbourMult, 1.5);
   assert.ok(Math.abs(E.spot.booster.chance - 0.6) < 1e-9); assert.equal(E.spot.booster.count, 3); assert.equal(E.pep.booster.value, 1.5);
   assert.deepEqual(E.tokens, { respin: 3, nudge: 1, two: 1, wild: 1, lift: 1 });
   const w = metaWheel(wheelSlices('normal'), 'spot', s);
   assert.equal(w.slices.length, 11); assert.deepEqual(w.golds, [0, 4]); assert.equal(w.slices[4], 5);
   assert.ok(Math.abs(w.widths[0] - 0.45) < 1e-9); assert.ok(Math.abs(w.widths[4] - 0.45 * 0.75) < 1e-9);
-  assert.ok(w.slices.every((v, i) => v >= 2 || w.golds.includes(i)), 'floor: no 1s left'); assert.ok(Math.abs(w.phys.SD - 0.11 * 0.727) < 1e-9);
-  assert.ok(Math.abs(w.phys.W0 - 13.2) < 1e-9); assert.ok(Math.abs(w.phys.J - 0.42) < 1e-9);
-  const n = metaWheel(wheelSlices('normal'), 'spot', fresh()); assert.deepEqual(n.slices, wheelSlices('normal').slices); assert.ok(n.phys);
+  assert.ok(w.slices.some((v, i) => v === 1 && !w.golds.includes(i)), 'Kind Floor pays nothing here (flag only; T2 perks/kind-floor.js pays)'); assert.equal(w.phys.SD, 0.08);
+  assert.ok(Math.abs(w.phys.W0 - 36 * 0.55) < 1e-9); assert.ok(Math.abs(w.phys.J - 1.2 * 0.7225) < 1e-9); assert.equal(w.phys.D, 2); // engine (was W0 13.2 / J 0.42 on W0 24 / J 0.6)
+  const n = metaWheel(wheelSlices('normal'), 'spot', fresh()); assert.deepEqual(n.slices, wheelSlices('normal').slices); assert.deepEqual(n.phys, { W0: 36, J: 1.2, SD: 0.11, D: 2 });
+  const kf = effective({ ...fresh(), wheelMeta: { ...fresh().wheelMeta, owned: { f_floor: 1 } } }); assert.equal(kf.spot.kindFloor, 1); assert.equal(kf.course.kindFloor, 1); assert.equal(effective(fresh()).spot.kindFloor, 0);
 }));
 
 test('physics reads wheel.phys; without it the old numbers hold', () => {
@@ -79,8 +80,8 @@ test('physics reads wheel.phys; without it the old numbers hold', () => {
 
 // A season of tokens the way the sim spends them (spin_full): Pick Two is committed blind on a season's first Spotlight (every Course spin),
 // then Spin Again / Wild (else Nudge) below the sim's limit, Lift on the last two Spotlights. Wild only stands in as Spin Again, as in the sim.
-function play(s, id, n, seed) {
-  const rng = makeRng(seed); const wheel = metaWheel(id === 'spot' ? wheelSlices('normal') : courseWheel(), id, s); let tot = 0, gold = 0;
+function play(s, id, n, seed, ring) {
+  const rng = makeRng(seed); const wheel = metaWheel(ring ? ring() : id === 'spot' ? wheelSlices('normal') : courseWheel(), id, s); let tot = 0, gold = 0;
   const burn = (k) => { s = JSON.parse(JSON.stringify(s)); s.wheelMeta.tokens[k]--; if (id === 'spot') s.wheelMeta.spotTokensUsed++; };
   for (let i = 0; i < n; i++) {
     if (i % 10 === 0) { s = JSON.parse(JSON.stringify(s)); s.season.n = 1 + i / 10; s = seasonTokens(s); }
@@ -95,16 +96,33 @@ function play(s, id, n, seed) {
   return { mean: tot / n, gold: gold / n };
 }
 
-test('PARITY: full tree Spotlight average careful = 2.57x +-0.05 (sim); no tree 1.56x', () => on(() => {
-  const f = play(full(), 'spot', 7000, 'par-a'), z = play(fresh(), 'spot', 7000, 'par-b');
-  console.log('parity spot full', (f.mean / 1.5).toFixed(3), 'gold', f.gold.toFixed(3), '| none', (z.mean / 1.5).toFixed(3), z.gold.toFixed(3));
-  assert.ok(Math.abs(f.mean / 1.5 - 2.57) <= 0.05, `full ${f.mean / 1.5}`); assert.ok(Math.abs(z.mean / 1.5 - 1.56) <= 0.05, `none ${z.mean / 1.5}`);
+// SPEC rings (wheels SPEC 3 / 4; T2 ships them as game data, here they are test fixtures). Slices are the PAY itself: Spotlight x multipliers,
+// Course steps. SPEC rule: ratio = value over that row's own random (no more "/ 1.5" of the old points wheel). Physics = the engine (metaWheel).
+const X1 = 7.4 / 7, P1 = 7.3 / 7;
+const SPOT_RING = () => ({ slices: [3, 1, 1, 1.5, 1, 1, 1.2, 1, 1, 1], jackpotIndex: 0, widths: [1.2, X1, X1, 0.8, X1, X1, 0.6, X1, X1, X1] });
+const COURSE_RING = () => ({ slices: [4, 1, 3, 1, 2, 1, 2, 1, 1, 1, 1], jackpotIndex: 0, widths: [1.2, P1, 0.8, P1, 0.35, P1, 0.35, P1, P1, P1, P1] });
+const ev = (w) => w.slices.reduce((a, v, i) => a + v * w.widths[i], 0) / w.widths.reduce((a, b) => a + b, 0);
+const CTL = { c_slow: 3, c_steady: 2, c_guide: 1 };
+const owning = (o) => { const s = fresh(); s.wheelMeta.owned = { ...o }; s.wheelMeta.tally = 600; return s; };
+const carefulMean = (ring, id, s, n, seed) => { const w = metaWheel(ring(), id, s), rng = makeRng(seed); let t = 0; for (let i = 0; i < n; i++) t += spinResult(rng, w, true).gain; return t / n; };
+
+test('PARITY Spotlight (SPEC 3, x multipliers): random 1.292, careful 1.713, full Control 2.129; full tree under the 3.0x bug line', () => on(() => {
+  const R = ev(SPOT_RING()); assert.ok(Math.abs(R - 1.292) < 1e-9, 'random EV ' + R);
+  const c = carefulMean(SPOT_RING, 'spot', fresh(), 20000, 'sp-c'), k = carefulMean(SPOT_RING, 'spot', owning(CTL), 20000, 'sp-k');
+  const f = play(full(), 'spot', 7000, 'par-a', SPOT_RING), z = play(fresh(), 'spot', 7000, 'par-b', SPOT_RING);
+  console.log('parity spot careful', c.toFixed(3), `(${(c / R).toFixed(2)}x)`, '| full Control', k.toFixed(3), `(${(k / R).toFixed(2)}x)`, '| tokens none', z.mean.toFixed(3), '| full tree', f.mean.toFixed(3), 'gold', f.gold.toFixed(3));
+  // training.js careful tapper (exp decay, IDEAL 3.5) runs a little above the SPEC pulse sim: bands, not +-0.05
+  assert.ok(Math.abs(c - 1.713) <= 0.08, 'careful ' + c); assert.ok(Math.abs(k - 2.129) <= 0.15, 'full Control ' + k);
+  assert.ok(f.mean < 3.0 && f.mean > k, 'full tree ' + f.mean); // SPEC 11c 2.52x without Kind Floor; the gap is Booster / Hot Streak / Lift still in old point units (T2 perks)
 }));
 
-test('PARITY: full tree Course gold 70% +-3 (sim), none about 23%', () => on(() => {
-  const f = play(full(), 'course', 6000, 'par-c'), z = play(fresh(), 'course', 6000, 'par-d');
-  console.log('parity course full gold', f.gold.toFixed(3), 'steps', f.mean.toFixed(3), '| none', z.gold.toFixed(3), z.mean.toFixed(3));
-  assert.ok(Math.abs(f.gold * 100 - 70) <= 3, `gold ${f.gold}`); assert.ok(Math.abs(z.gold * 100 - 22.9) <= 3);
+test('PARITY Course (SPEC 4, steps): random 1.590, careful 2.206, full Control 2.722; full tree above Control, more gold', () => on(() => {
+  const R = ev(COURSE_RING()); assert.ok(Math.abs(R - 1.590) < 1e-9, 'random EV ' + R);
+  const c = carefulMean(COURSE_RING, 'course', fresh(), 20000, 'co-c'), k = carefulMean(COURSE_RING, 'course', owning(CTL), 20000, 'co-k');
+  const f = play(full(), 'course', 6000, 'par-c', COURSE_RING), z = play(fresh(), 'course', 6000, 'par-d', COURSE_RING);
+  console.log('parity course careful', c.toFixed(3), `(${(c / R).toFixed(2)}x)`, '| full Control', k.toFixed(3), '| full tree gold', f.gold.toFixed(3), 'steps', f.mean.toFixed(3), '| none', z.gold.toFixed(3), z.mean.toFixed(3));
+  assert.ok(Math.abs(c - 2.206) <= 0.08, 'careful ' + c); assert.ok(Math.abs(k - 2.722) <= 0.2, 'full Control ' + k);
+  assert.ok(f.mean > k && f.gold > z.gold, 'full tree ' + f.mean); // SPEC 11c 3.76 / 75% gold (needs the step-19 cap and the T2 perks)
 }));
 
 test('tokens: refill from ranks, Spotlight cap 2, Course no cap, guards, Wild, nudge never onto gold, lift never above gold', () => on(() => {

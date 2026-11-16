@@ -1,5 +1,6 @@
 /* wheel-look: shared look helpers for the Wheel meta UI (wheel-view, workshop-view, tierup-card). Pure, no DOM at import time.
    Cosmetics only: nothing here changes a number. Colours are colour-blind safe by use: every slice also carries its number. */
+import { WHEEL_ENGINE } from '../data/wheel-engine.js';
 export const MATERIALS = ['wood', 'brass', 'steel', 'silver', 'gold', 'star', 'crystal'];
 export const MAT_NAME = { wood: 'Wooden', brass: 'Brass', steel: 'Steel', silver: 'Silver', gold: 'Gold', star: 'Star', crystal: 'Crystal' };
 /** rim colour, dark edge, stud colour per material (pixel-style flat tones) */
@@ -88,7 +89,7 @@ export function normLook(l) {
  *  o = { mat, bars, size, plain? } plain = a first wheel with no material yet (unpainted: no rim colour, no studs). Cosmetic only. */
 const SLICE_VALS = [5, 2, 1, 3, 1, 1, 3, 1, 1, 2];
 export function sliceWheelSvg(o) {
-  const m = matOf(o.mat), plain = !!o.plain, size = o.size || 120, n = SLICE_VALS.length, cx = 50, cy = 50, R = 46, bars = Math.max(3, o.bars || 4), crystal = o.mat === 'crystal' && !plain;
+  const m = matOf(o.mat), plain = !!o.plain, size = o.size || 120, n = SLICE_VALS.length, cx = 50, cy = 50, R = 46, bars = Math.max(3, o.bars || 4), fu = Math.max(9, 1400 / size) /* >= 14 px rendered; below 100 px the +v text is dropped (shape only) */, crystal = o.mat === 'crystal' && !plain;
   const fill = (v) => (v === 5 ? 'var(--gold, #d2b357)' : v === 3 ? 'var(--accent, #22625d)' : v === 2 ? 'var(--grass2, #7eb261)' : 'var(--wall1, #e3d8b9)');
   const pt = (a, r) => [cx + Math.cos(a) * r, cy + Math.sin(a) * r];
   const rim = plain ? [196, 186, 160] : m.rim, edge = plain ? [90, 84, 72] : m.edge;
@@ -96,7 +97,7 @@ export function sliceWheelSvg(o) {
   for (let i = 0; i < n; i++) {
     const a0 = -Math.PI / 2 + (i - 0.5) * TAU10, a1 = a0 + TAU10, [x0, y0] = pt(a0, R - 6), [x1, y1] = pt(a1, R - 6), v = SLICE_VALS[i], am = (a0 + a1) / 2, [tx, ty] = pt(am, 28);
     s += '<path d="M50 50L' + x0.toFixed(1) + ' ' + y0.toFixed(1) + 'A' + (R - 6) + ' ' + (R - 6) + ' 0 0 1 ' + x1.toFixed(1) + ' ' + y1.toFixed(1) + 'Z" fill="' + fill(v) + '" stroke="var(--outline, #2a2238)" stroke-width="1"/>' +
-      '<text x="' + tx.toFixed(1) + '" y="' + (ty + 3.4).toFixed(1) + '" text-anchor="middle" font-size="9" font-weight="700" font-family="inherit" fill="' + (v === 3 ? '#fff' : 'var(--outline, #2a2238)') + '">+' + v + '</text>';
+      (size < 100 ? '' : '<text x="' + tx.toFixed(1) + '" y="' + (ty + fu * 0.38).toFixed(1) + '" text-anchor="middle" font-size="' + fu.toFixed(1) + '" font-weight="700" font-family="inherit" fill="' + (v === 3 ? '#fff' : 'var(--outline, #2a2238)') + '">+' + v + '</text>');
   }
   s += '<circle cx="50" cy="50" r="' + (R - 2) + '" fill="none" stroke="' + rgb(rim) + '" stroke-width="6" class="wk-rim"/><circle cx="50" cy="50" r="' + R + '" fill="none" stroke="' + rgb(edge) + '" stroke-width="1.6"/><circle cx="50" cy="50" r="' + (R - 5.2) + '" fill="none" stroke="' + rgb(edge) + '" stroke-width="1"/>';
   if (!plain && o.mat !== 'wood') for (let i = 0; i < 16; i++) { const [sx, sy] = pt(i / 16 * TAU, R - 2); s += '<rect class="wk-stud" x="' + (sx - 1.3).toFixed(1) + '" y="' + (sy - 1.3).toFixed(1) + '" width="2.6" height="2.6" fill="' + rgb(m.stud) + '"/>'; }
@@ -106,3 +107,109 @@ export function sliceWheelSvg(o) {
   return s + '</svg>';
 }
 const TAU = Math.PI * 2, TAU10 = TAU / 10;
+
+/* ---- A2.2: look helpers for the pulse wheels (pure, cosmetic; SPEC 2f, 14 tests 8 and 12). ---- */
+/** STOP glow window in cycle seconds (WHEEL_ENGINE.GLOW). Time only: no slice, tier or ring changes it. */
+export const GLOW_WINDOW = WHEEL_ENGINE.GLOW;
+/** An under-7% slice (rim units: 0.7 of 10) prints one character or a signed number. */
+export const LABEL_MIN_W = 0.7;
+/** true while the STOP glow is lit: tInCycle in [3.2, 3.8] (both ends in). Same for any slice at AIM. */
+export function glowOn(tInCycle) {
+  const t = +tInCycle;
+  return t >= GLOW_WINDOW[0] && t <= GLOW_WINDOW[1];
+}
+/** Draw spec for the AIM marker: a gold up-pointing triangle with an ink outline and the word AIM (shape + text, never colour alone).
+ *  Coordinates are in a 100-unit box, tip pointing down at the wheel from above the rim. */
+export function aimMarker(o) {
+  const size = (o && o.size) || 100, k = size / 100;
+  const pts = [[38, 0], [62, 0], [50, 22]].map((p) => Object.freeze([+(p[0] * k).toFixed(2), +(p[1] * k).toFixed(2)]));
+  return Object.freeze({
+    shape: 'triangle-down', points: Object.freeze(pts), fill: 'var(--gold, #d2b357)', stroke: 'var(--outline, #2a2238)', strokeW: 2.5,
+    text: 'AIM', fontPx: 12, bold: true, textHalo: 2.5, textX: 50 * k, textY: 36 * k,
+  });
+}
+const LEAD_NUM = /^[x×]?\s*([+\-−]?\d+(?:\.\d+)?)(?![\d.])/i;
+/** The text a slice prints. w >= 0.7: the row label. w < 0.7: exactly one character, or a signed number ("+2", "1.2"). */
+export function sliceLabel(row) {
+  const r = row || {}, raw = r.label == null ? '' : String(r.label).trim();
+  if (!(r.w < LABEL_MIN_W)) return raw;
+  const m = LEAD_NUM.exec(raw);
+  if (m) return m[1];
+  const ch = Array.from(raw)[0];
+  if (ch) return ch;
+  return typeof r.value === 'number' ? String(r.value) : '?';
+}
+/** Legend rows [{ch, text}] for every under-7% slice of a ring, one per distinct slice meaning (SPEC 2f).
+ *  Same printed character + same text = one row. Same character with different text = both listed, never merged. */
+export function legendRows(ring) {
+  const out = [], seen = new Set();
+  for (const r of Array.isArray(ring) ? ring : []) {
+    if (!r || !(r.w < LABEL_MIN_W)) continue;
+    const ch = sliceLabel(r);
+    const text = String(r.legend || r.name || (r.label != null && String(r.label).trim()) || (typeof r.value === 'number' ? 'value ' + r.value : ch));
+    const key = ch + '\u0000' + text;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(Object.freeze({ ch, text }));
+  }
+  return out;
+}
+const SAND = [226, 208, 160], PALE_SAND = [240, 232, 206], TIER_GREEN = [126, 178, 97];
+const TIER_SHAPES = {
+  top: Object.freeze({ tier: 'top', shape: 'triangle-up', colour: TIER_GREEN, name: 'high' }),
+  mid: Object.freeze({ tier: 'mid', shape: 'dot', colour: SAND, name: 'middle' }),
+  low: Object.freeze({ tier: 'low', shape: 'dot', colour: PALE_SAND, name: 'lowest' }),
+};
+/** Tier mark: top = green up-triangle, mid = sand dot, low = pale sand dot (a quiet "fine", never rose). Shape differs from colour alone. */
+export function tierShape(tier) { return TIER_SHAPES[tier] || TIER_SHAPES.mid; }
+
+/* ---- QA fixes (T3 QA D4 / D5, T1 QA D2 / D3): radial slice labels and drawn tier marks. Pure. ---- */
+/** Tier mark drawn on every ring slice (SPEC 2f, mockups): gold and top = dark green up-triangle, mid = sand dot, low = pale sand dot. Always upright on screen. */
+const MARKS = {
+  top: Object.freeze({ shape: 'triangle-up', fill: Object.freeze([63, 143, 58]) }),
+  mid: Object.freeze({ shape: 'dot', fill: Object.freeze([205, 181, 114]) }),
+  low: Object.freeze({ shape: 'dot', fill: Object.freeze([255, 250, 240]) }),
+};
+export function tierMark(tier, gold) { return gold ? MARKS.top : MARKS[tier] || MARKS.mid; }
+/** Slices narrower than this (radians, 10 degrees) may drop the tier mark when they carry a letter (SPEC 2f). */
+export const MARK_MIN_RAD = Math.PI / 18;
+/** The ways a label may be set: one line, then two lines (split at ", " if any, else at the space nearest the middle). */
+export function labelLines(text) {
+  const t = String(text == null ? '' : text).trim(), out = [[t]];
+  const c = t.indexOf(', ');
+  if (c > 0) { out.push([t.slice(0, c + 1), t.slice(c + 2)]); return out; }
+  const sp = [...t.matchAll(/ /g)].map((m) => m.index);
+  if (sp.length) { const k = sp.reduce((a, b) => (Math.abs(b - t.length / 2) < Math.abs(a - t.length / 2) ? b : a)); out.push([t.slice(0, k), t.slice(k + 1)]); }
+  return out;
+}
+/** Fit a radial label in its slice (T3 QA D4 option A): the text runs along the slice centre line, between rIn (hub) and rOut (inside the tier mark).
+ *  half = half the slice angle (radians). measure(lines, f) -> {w, h} in px. Largest font from fMax down to fMin, one line before two at the same font.
+ *  The text box (h across) must fit between the slice edges at its inner end: r0 * sin(half) >= h / 2 + pad.
+ *  Returns {f, lines, rc} (rc = radius of the text box centre, kept at rPref when that fits) or null (too long: print sliceLabel + a legend row). */
+export function radialFit(o) {
+  const { text, half, rIn, rOut, measure } = o, fMax = o.fMax || 18, fMin = o.fMin || 12, pad = o.pad == null ? 2 : o.pad;
+  const sa = Math.sin(Math.min(Math.max(half, 1e-6), Math.PI / 2)), ways = Array.isArray(o.ways) && o.ways.length ? o.ways : labelLines(text); // o.ways: the caller's own line sets, tried in order
+  for (let f = fMax; f >= fMin; f--) for (const lines of ways) {
+    const m = measure(lines, f), r0 = Math.max(rIn, (m.h / 2 + pad) / sa);
+    if (r0 + m.w <= rOut) { const lo = r0 + m.w / 2, hi = rOut - m.w / 2, p = o.rPref == null ? lo : o.rPref; return { f, lines, rc: Math.max(lo, Math.min(hi, p)) }; }
+  }
+  return null;
+}
+/** Text rotation (radians) for a radial label whose centre sits at canvas angle a (0 = right, y down): along the radius, never upside down. */
+export function radialTurn(a) { return Math.cos(a) >= -1e-9 ? a : a + Math.PI; }
+/** Legend chip words a host may pass for a tier shape (T4 QA 2: never print them as text); -> the shape key, or '' for a real character. */
+const SHAPE_WORDS = { tri: 'top', triangle: 'top', top: 'top', 'triangle-up': 'top', dot: 'mid', mid: 'mid', pale: 'low', low: 'low', gold: 'gold' };
+export function legendShape(ch) { return SHAPE_WORDS[String(ch == null ? '' : ch).trim().toLowerCase()] || ''; }
+/** A Scout-style card on a ring row ({grade|g, name|n, focus|ic}) -> {grade, name (6 letters, then a dot), focus} or null. Unknown fields are ignored. */
+export function cardOf(row) {
+  const c = row && row.card; if (!c || typeof c !== 'object') return null;
+  const grade = String(c.grade != null ? c.grade : c.g != null ? c.g : '').trim(), full = String(c.name != null ? c.name : c.n != null ? c.n : '').trim(), focus = String(c.focus != null ? c.focus : c.ic != null ? c.ic : c.icon != null ? c.icon : '').trim().toLowerCase();
+  return { grade, name: Array.from(full).length > 7 ? Array.from(full).slice(0, 6).join('') + '.' : full, focus };
+}
+/** Legend rows: the given rows, then one per under-7% slice and per slice in `narrow` (its label did not fit, so it prints one character). One row per meaning. */
+export function legendWith(ring, narrow, given) {
+  const rows = legendRows((Array.isArray(ring) ? ring : []).map((r, i) => (narrow && narrow[i] && r ? { ...r, w: 0 } : r)));
+  const out = [], seen = new Set(), g = Array.isArray(given) ? given : [], gch = new Set(g.map((r) => String(r.ch)));
+  for (const r of [...g, ...rows.filter((r) => !gch.has(String(r.ch)))]) { const k = String(r.ch) + '\u0000' + String(r.text); if (seen.has(k)) continue; seen.add(k); out.push(r); } // a host row wins over the automatic row for the same character
+  return out;
+}
