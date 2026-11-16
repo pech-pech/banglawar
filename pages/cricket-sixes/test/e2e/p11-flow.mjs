@@ -95,8 +95,15 @@ try {
   step(1, 'boots to hub from the v4 save', st0 === 'hub', `stage is ${st0}`);
   const n8 = await page.evaluate(() => { const s = window.__store.get(); return s.clubs[0].squad.length; });
   step(1, 'game shows 8 players', n8 === 8, `${n8} players in the squad`);
-  const hubText = await text();
-  step(1, '"squad is now 8" line on the hub', /squad is now 8/i.test(hubText), 'line not found');
+  // H2: the hub line moved into the "This week" chip; open it and read the notice row (week sheet, data-wk=notice).
+  const chip = await page.$('button.hb-week');
+  step(1, '"This week" chip on the hub', !!chip, 'no button.hb-week');
+  if (chip) {
+    await chip.click(); await settle(400);
+    const wkText = await page.evaluate(() => { const r = document.querySelector('.c-sheet [data-wk="notice"]'); return r ? r.innerText : ''; });
+    step(1, '"squad is now 8" row in the This week sheet', /squad is now 8/i.test(wkText), 'row not found');
+    for (let i = 0; i < 4 && (await page.$('.c-sheet')); i++) { await page.keyboard.press('Escape'); await settle(150); }
+  }
   const keys = await page.evaluate(() => Object.keys(localStorage));
   step(1, 'a .v4bak key exists', keys.some((k) => /\.v4bak$/.test(k)), `keys: ${keys.join(',')}`);
   const bakV = await page.evaluate(() => { const k = Object.keys(localStorage).find((x) => /\.v4bak$/.test(x)); try { return k ? JSON.parse(localStorage.getItem(k)).v : null; } catch (e) { return 'bad'; } });
@@ -118,11 +125,17 @@ try {
       for (let i = 0; i < 4 && (await page.$('.c-sheet')); i++) { await page.keyboard.press('Escape'); await settle(150); }
       const f = await page.evaluate(() => window.__store.get().features);
       step(9, 'store.features is false after the tap', f === false, `features is ${f}`);
-      step(9, 'no free-facility card with features off', !(await page.$('[data-act="sheet:freepick"]')), 'card still shown');
+      step(9, 'no free-facility card with features off', !(await page.$('[data-act="sheet:freepick"]')) && !(await page.$('[data-wk="free"]')), 'card still shown');
     }
   } else {
-    const card = await page.$('[data-act="sheet:freepick"]');
-    step(9, 'hub shows the "Free facility" card on a migrated save', !!card, 'no [data-act="sheet:freepick"]');
+    // H2: the free facility is now a row in the "This week" sheet (chip button.hb-week, row data-wk=free) that opens freepick.
+    const openWeekFree = async () => {
+      const c = await page.$('button.hb-week'); if (!c) return null;
+      await c.click(); await settle(400);
+      return page.$('.c-sheet [data-wk="free"]');
+    };
+    const card = await openWeekFree();
+    step(9, 'This week sheet has the "Free facility" row on a migrated save', !!card, 'no [data-wk="free"] row');
     if (card) {
       await card.click(); await settle(400);
       await audit(9, 'free facility sheet', '.c-sheet'); await shot('09a-freepick-sheet');
@@ -134,7 +147,9 @@ try {
       step(9, 'Take is on after a pick', !!take, 'Take stayed disabled');
       if (take) { await take.click(); await settle(400); }
       for (let i = 0; i < 4 && (await page.$('.c-sheet')); i++) { await page.keyboard.press('Escape'); await settle(150); }
-      step(9, 'card gone after Take, stage hub', !(await page.$('[data-act="sheet:freepick"]')) && (await stage()) === 'hub', `stage ${await stage()}`);
+      const again = await openWeekFree();
+      step(9, 'free row gone after Take, stage hub', !again && (await stage()) === 'hub', `stage ${await stage()}`);
+      for (let i = 0; i < 4 && (await page.$('.c-sheet')); i++) { await page.keyboard.press('Escape'); await settle(150); }
       await shot('09b-hub-after-freepick');
     }
   }

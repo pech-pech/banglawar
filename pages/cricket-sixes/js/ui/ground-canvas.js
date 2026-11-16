@@ -35,6 +35,7 @@ function rectOf(r) { // accepts {x,y,w,h} | {left,top,width,height}
   return { x: num(r.x, num(r.left, 0)), y: num(r.y, num(r.top, 0)), w: num(r.w, num(r.width, 0)), h: num(r.h, num(r.height, 0)) };
 }
 
+/** @deprecated (H2) replaced by drawBanner; kept exported one release for the hub-l2.test pure tests, then deleted. */
 /** Plan the four live field facilities. All maths in art px; field/avoid are css rects, output css rects (x,y,w,h = art * sc).
  *  Returns { items: [{ id, lv, cx, by, art:{x,y,w,h}, tap:{x,y,w,h} }], ok, clean } (art coordinates). */
 export function planField(field, sc, levels, avoidCss, softCss) {
@@ -122,6 +123,7 @@ export function planField(field, sc, levels, avoidCss, softCss) {
   return { items: out, ok, clean, F };
 }
 
+/** @deprecated (H2) replaced by drawBanner; kept exported one release for the hub-l2.test pure tests, then deleted. */
 /** PURE. field = { x, y, w, h } (css px, same space as the result; also accepts left/top/width/height; optional levels {id:0..5}).
  *  sc = css px per art px (whole number). Returns [{ id, x, y, w, h }] css rects for pitch, scout, gym, nets:
  *  each >= 56x56, inside the field, no overlaps, and clear of the bottom 60 css px of the right half (the fan bubble). */
@@ -133,6 +135,7 @@ export function layoutField(field, sc) {
 
 function hash(x, y) { let h = (x * 374761393 + y * 668265263) | 0; h = (h ^ (h >>> 13)) * 1274126177 | 0; return ((h ^ (h >>> 16)) >>> 0) / 4294967296; }
 
+/** @deprecated (H2) replaced by drawBanner; kept exported one release for the hub-l2.test pure tests, then deleted. */
 export function drawGround(host, opts) {
   const w = typeof window !== 'undefined' ? window : null;
   if (!host || !w || !w.SPR || !w.ISO || !w.PAL || typeof document === 'undefined' || typeof host.querySelector !== 'function') return null;
@@ -310,4 +313,95 @@ export function drawGround(host, opts) {
     const f = host.querySelector('.hb-field'); if (f) state.ro.observe(f);
   }
   return api;
+}
+
+/** PURE. Deterministic crowd fill: seats of the w x h art rect at (x0,y0) that hold a fan at pct (0..100).
+ *  A seat is filled when hash(x,y) < pct/100, so the set only grows as pct grows. Returns [[x,y,tone 0..2]]. */
+export function crowdCells(x0, y0, w, h, pct) {
+  const p = Math.max(0, Math.min(100, Number(pct) || 0)) / 100, out = [];
+  for (let y = 0; y < h; y += 2) for (let x = 0; x < w; x += 2) {
+    const q = hash(x0 + x + 7, y0 + y + 3);
+    if (q < p) out.push([x0 + x, y0 + y, Math.floor(hash(x0 + x, y0 + y) * 3)]);
+  }
+  return out;
+}
+
+/** Hub banner (H2): grass + the current stand + a crowd filled to gate.pct + a dashed chalk ghost of the next stand.
+ *  host = .hb-banner. Measures .hb-gb (tag), .hb-band and .hb-week as keep-out rects (like m.bubble before). Still frame, no timers,
+ *  creates NO .hb-fac buttons (the only tap is the DOM button.hb-gb). opts = { stadium, levels, gate: fansGateVM, reducedMotion }.
+ *  returns { redraw(), destroy(), rects } (rects = live keep-out css rects) or null without window/SPR. Never throws. */
+export function drawBanner(host, opts) {
+  try {
+    const w = typeof window !== 'undefined' ? window : null;
+    if (!host || !w || !w.SPR || !w.ISO || !w.PAL || typeof document === 'undefined' || typeof host.querySelector !== 'function') return null;
+    opts = opts || {};
+    if (host.__banner) host.__banner.destroy();
+    const state = { rects: [], ro: null, raf: 0, dead: false, key: '' };
+    const measure = () => {
+      const hr = host.getBoundingClientRect();
+      const rel = (sel) => { const el = host.querySelector(sel); if (!el) return null; const r = el.getBoundingClientRect(); return { x: r.left - hr.left - (host.clientLeft || 0), y: r.top - hr.top - (host.clientTop || 0), w: r.width, h: r.height }; };
+      return { W: host.clientWidth, H: host.clientHeight, keep: ['.hb-gb', '.hb-band', '.hb-week'].map(rel).filter(Boolean) };
+    };
+    function paint() {
+      if (state.dead) return;
+      const m = measure();
+      if (!m.W || !m.H) return;
+      const key = JSON.stringify([m.W, m.H, m.keep, opts.stadium, opts.levels, opts.gate && [opts.gate.pct, opts.gate.hidden]]);
+      if (key === state.key) return;
+      state.key = key;
+      const { SPR, ISO, PAL: P } = w;
+      const sc = m.W >= 600 ? 3 : 2, AW = Math.ceil(m.W / sc), AH = Math.ceil(m.H / sc);
+      let cv = host.querySelector('canvas.hb-bcv');
+      if (!cv) { cv = document.createElement('canvas'); cv.className = 'hb-bcv'; cv.setAttribute('aria-hidden', 'true'); host.insertBefore(cv, host.firstChild); }
+      cv.style.cssText = 'position:absolute;left:0;top:0;z-index:0;pointer-events:none;image-rendering:pixelated;display:block';
+      const scn = ISO.makeScene(cv, { internalW: AW, internalH: AH, scale: sc });
+      const ctx = scn.ctx;
+      scn.clear(P.grass2);
+      for (let y = 0; y < AH; y++) for (let x = 0; x < AW; x++) { const q = hash(x, y); if (q < 0.025) ISO.px(ctx, x, y, 1, 1, P.grass3); else if (q < 0.045) ISO.px(ctx, x, y, 1, 1, P.grass1); }
+      const lv = lvOf(opts.levels, 'stands'), gate = opts.gate || { pct: 0, hidden: true };
+      const b = box('stands', lv);
+      // keep-out in art px; the stands sit on the lowest free baseline, left of centre so the ghost fits on the right
+      const keep = m.keep.map((r) => ({ x: Math.floor(r.x / sc), y: Math.floor(r.y / sc), w: Math.ceil(r.w / sc) + 1, h: Math.ceil(r.h / sc) + 1 }));
+      const bandTop = keep.reduce((t, k) => (k.y > AH / 2 ? Math.min(t, k.y) : t), AH);
+      const by = Math.max(b.h + 2, Math.min(AH - 2, bandTop - 2));
+      const cx = Math.round(Math.max(b.w / 2 + 2, Math.min(AW - b.w / 2 - 2, AW * (gate.hidden ? 0.5 : 0.36))));
+      const ox = Math.round(cx - b.cx), oy = Math.round(by - b.y1);
+      ISO.setOrigin(ox, oy);
+      SPR.building('stands', ctx, 0, 0, lv);
+      ISO.setOrigin(0, 0);
+      // crowd on the lower stand rows, filled to gate.pct
+      const sx = cx - Math.floor(b.w / 2) + 3, sw = b.w - 6, sh = Math.max(4, Math.floor(b.h / 3)), sy = by - sh - 2;
+      const tones = [P.white || '#fff', P.red || P.outline, P.sky || P.grass1];
+      crowdCells(sx, sy, sw, sh, gate.pct).forEach((c) => ISO.px(ctx, c[0], c[1], 1, 1, tones[c[2]] || tones[0]));
+      // dashed chalk ghost of the next stand
+      if (!gate.hidden && lv < 5) {
+        const g = box('stands', lv + 1), gx = Math.min(AW - g.w - 2, cx + Math.ceil(b.w / 2) + 4), gy = by - g.h;
+        const ch = P.white || '#fff';
+        for (let i = 0; i < g.w; i += 4) { ISO.px(ctx, gx + i, gy, 2, 1, ch); ISO.px(ctx, gx + i, gy + g.h - 1, 2, 1, ch); }
+        for (let j = 0; j < g.h; j += 4) { ISO.px(ctx, gx, gy + j, 1, 2, ch); ISO.px(ctx, gx + g.w - 1, gy + j, 1, 2, ch); }
+      }
+      ISO.flush(ctx);
+      state.rects = m.keep.map((r) => Object.assign({}, r));
+    }
+    function redraw() {
+      try { paint(); } catch (e) {
+        state.key = '';
+        if (!state.warned && typeof console !== 'undefined') { state.warned = true; console.warn('ground-canvas: banner skipped', e && e.message); }
+      }
+    }
+    function schedule() {
+      if (state.raf || state.dead) return;
+      const raf = w.requestAnimationFrame || ((fn) => setTimeout(fn, 16));
+      state.raf = raf(() => { state.raf = 0; redraw(); });
+    }
+    const api = {
+      get rects() { return state.rects.slice(); },
+      redraw() { state.key = ''; redraw(); },
+      destroy() { state.dead = true; if (state.ro) state.ro.disconnect(); if (host.__banner === api) host.__banner = null; },
+    };
+    host.__banner = api;
+    redraw();
+    if (typeof w.ResizeObserver === 'function') { state.ro = new w.ResizeObserver(schedule); state.ro.observe(host); }
+    return api;
+  } catch (e) { return null; }
 }

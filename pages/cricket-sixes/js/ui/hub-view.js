@@ -1,49 +1,15 @@
 /* hub-view: the season home. render(el, vm, dispatch). Reads hubVM only. Clicks are handled by app.js (data-act). */
-import { esc, btn, tpChip, icoDeco } from './dom.js';
+import { esc, btn, icoDeco } from './dom.js';
 import { badgeCount, badgeText, badgeAria } from './book-badge.js';
 import { spokeIcon } from './wheel-look.js';
-import { drawHead } from './club-canvas.js';
-import { drawGround } from './ground-canvas.js';
-import { openSheet } from './sheet.js';
-import { trialCardHtml } from './trial-card.js';
-import { pendingCardHtml } from './freepick-view.js';
+import { drawBanner } from './ground-canvas.js';
+import { weekItems, chipWord } from './week-sheet.js';
 import { fansGateHtml } from './table-sheet.js';
+import { shownCell, spoken } from './letters-ui.js';
 
 export function helpBtn(id, label) {
   return '<button type="button" class="c-icon-btn help-btn" data-act="sheet:glossary"' + (id ? ' data-arg="' + esc(JSON.stringify(id)) + '"' : '') +
     ' aria-label="' + esc(label || 'Cricket words (glossary)') + '">?</button>';
-}
-
-let noticeGone = false; // view state: the squad-of-8 line is gone once tapped (the store command, if any, clears it for good)
-function noticeHtml(n) {
-  if (!n || noticeGone) return '';
-  const k = Number(n.moved) || 0;
-  const txt = n.line || 'The squad is now 8.' + (k ? ' ' + k + ' player' + (k === 1 ? '' : 's') + ' moved on.' : '');
-  return '<button type="button" class="hb-notice" data-notice role="status" aria-label="' + esc(txt + ' Tap to dismiss.') + '">' + icoDeco('info', 24) + '<span>' + esc(txt) + '</span><small>Tap to close</small></button>';
-}
-const sayL = (L) => String(L).replace(/\+$/, ' plus').replace(/-$/, ' minus');
-const pairText = (g) => 'Our six <b class="lt-in">' + esc(g.ours) + '</b> · Their six <b class="lt-in">' + esc(g.theirs) + '</b>';
-/* Pre-match letter pair (SPEC s5): our six against theirs, letters not numbers. */
-function pairHtml(g) {
-  if (!g) return '';
-  return '<div class="pm-pair" role="group" aria-label="Our six ' + esc(sayL(g.ours)) + ', their six ' + esc(sayL(g.theirs)) + '"><span>Our six <b class="lt-in">' + esc(g.ours) + '</b></span><span>Their six <b class="lt-in">' + esc(g.theirs) + '</b></span></div>';
-}
-
-const TICK = { ok: 'c-tag--done', later: 'c-tag--locked', todo: '' };
-
-function promoHtml(pr, unlock) {
-  return '<section class="c-card hb-promo" aria-label="Promotion checklist"><h3 class="c-strip c-strip--light"><span>' + esc(pr.title) + '</span><span class="c-strip__right">' + pr.done + ' of ' + pr.total + ' done</span></h3>' +
-    pr.rows.filter((r) => r.state !== 'later' || !r.key || r.key === 'rank').map((r) => '<div class="hb-check">' + icoDeco(r.key === 'rank' ? 'league' : r.key === 'stadium' ? 'home' : 'fan', 24) +
-      '<span>' + esc(r.title) + '<span class="sub">' + esc(r.sub) + '</span></span>' + (r.state === 'todo' ? '<span class="hb-state">' + esc(r.tag) + '</span>' : '<span class="c-tag ' + (TICK[r.state] || '') + '">' + esc(r.tag) + '</span>') + '</div>').join('') +
-    (unlock ? '<div class="hb-next">' + icoDeco('train', 24) + '<span><b class="lb">Next unlock</b>' + esc(unlock.name) + ': ' + unlock.left + ' drill' + (unlock.left > 1 ? 's' : '') + ' to reveal grade</span></div>' : '') + '</section>';
-}
-
-/* Next rival: ONE 56 px chip row, "Next: Club · Tag". A tagged rival opens a small sheet with the hint; an untagged rival shows no chip (layout stays as before). */
-function rivalHtml(next) {
-  const t = next && next.tag;
-  if (!t) return '';
-  return '<button type="button" class="c-btn hb-rival" data-act="sheet:rival" aria-label="Next: ' + esc(next.oppName) + ', ' + esc(t.chip) + '. Tap for the hint.">' + icoDeco('scout', 24) +
-    '<span class="hb-rtx name">Next: ' + esc(next.oppName) + ' · ' + esc(t.chip) + '</span></button>';
 }
 
 const fmtN = (n) => String(Math.round(Number(n) || 0)).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
@@ -54,53 +20,107 @@ function boardHtml(vm) {
   const coins = e ? '<button type="button" class="hb-cell hb-cell--coins" data-act="sheet:money" aria-label="Club money: ' + esc(fmtN(e.coins)) + ' Coins">' + icoDeco('coin', 24) + '<span class="hb-cv2"><b>' + esc(fmtN(e.coins)) + '</b><small>Coins</small></span></button>' : '';
   const tp = '<div class="hb-cell hb-cell--tp hb-tp">' + icoDeco('tp', 24) + '<span class="hb-cv2"><b>' + esc(vm.tp) + '</b><small><span aria-hidden="true">TP</span><span class="ss-sr"> training points</span></small></span></div>';
   const sp = w && w.visible ? '<div class="hb-cell hb-cell--spokes">' + spokeIcon(24) + '<span class="hb-cv2"><b>' + esc(w.spokes) + '</b><small>Spokes</small></span></div>' : '';
-  return '<div class="hb-board" role="group" aria-label="Club scoreboard">' + coins + tp + sp + '</div>' + fansGateHtml(vm.fansGate, 'hb-fg');
+  return '<div class="hb-board" role="group" aria-label="Club scoreboard">' + coins + tp + sp + '</div>';
 }
 
-function slotHtml(slot, plate) {
-  const lk = !plate && slot === 'workshop' ? '<button type="button" class="c-btn hb-plate is-locked" data-plate="workshop" aria-disabled="true" aria-label="Wheel Workshop, opens later">' + icoDeco('lock', 24) + '<span class="hb-pl">Workshop</span><span class="hb-badge" hidden></span></button>' : '';
-  const bt = plate && plate.badge ? badgeText(plate.badge) : ''; // P6: Book plate badge (session count, js/ui/book-badge.js)
-  const aria = bt ? (plate.aria || plate.word) + ', ' + badgeAria(plate.badge) : plate && plate.aria;
-  const p = plate ? '<button type="button" class="c-btn hb-plate" data-plate="' + slot + '" data-act="' + plate.act + '"' + (aria ? ' aria-label="' + esc(aria) + '"' : '') + '>' + plate.icon + '<span class="hb-pl">' + esc(plate.word) + '</span>' +
-    (bt ? '<span class="hb-badge" aria-hidden="true">' + esc(bt) + '</span>' : '<span class="hb-badge" hidden></span>') + '</button>' : lk;
-  return '<div class="hb-slot" data-slot="' + slot + '"' + (plate ? '' : ' data-locked="1"') + '><div class="hb-bld"></div>' + p + '</div>';
+/* dock plate: one 56 px tile, never a wrapper. plate.flag = "!" badge (pending free facility / fan activity), aria stays as before. */
+function plateHtml(slot, plate) {
+  if (!plate) {
+    return '<button type="button" class="c-btn hb-plate is-locked" data-plate="' + slot + '" aria-disabled="true" aria-label="' + (slot === 'workshop' ? 'Wheel Workshop' : 'Fan activity') + ', opens later">' + icoDeco('lock', 24) + '<span class="hb-pl">' + (slot === 'workshop' ? 'Workshop' : 'Fans') + '</span><span class="hb-badge" hidden></span></button>';
+  }
+  const bt = plate.badge ? badgeText(plate.badge) : ''; // P6: Book plate badge (session count, js/ui/book-badge.js)
+  const aria = bt ? (plate.aria || plate.word) + ', ' + badgeAria(plate.badge) : plate.aria;
+  const mark = bt || (plate.flag ? '!' : '');
+  return '<button type="button" class="c-btn hb-plate" data-plate="' + slot + '" data-act="' + plate.act + '"' + (aria ? ' aria-label="' + esc(aria) + '"' : '') + '>' + plate.icon + '<span class="hb-pl">' + esc(plate.word) + '</span>' +
+    (mark ? '<span class="hb-badge" aria-hidden="true">' + esc(mark) + '</span>' : '<span class="hb-badge" hidden></span>') + '</button>';
 }
 
-function groundHtml(vm) {
-  const w = vm.workshop, a = vm.activities;
-  const P = (act, icon, word, aria) => ({ act, icon: icoDeco(icon, 24), word, aria });
-  const top = slotHtml('table', P('sheet:table', 'league', 'Table')) + slotHtml('stadium', P('sheet:stadium', 'home', 'Stadium')) + slotHtml('extras', P('sheet:sinks', 'shop', 'Extras'));
-  const bot = slotHtml('book', { ...P('sheet:book', 'book', 'Book'), badge: badgeCount() }) +
-    slotHtml('workshop', w && w.visible ? { act: 'sheet:workshop', icon: spokeIcon(24), word: 'Wheel Workshop', aria: 'Wheel Workshop, ' + w.spokes + ' Spokes' } : null) +
-    slotHtml('fans', a ? P('sheet:activities', 'pennant', 'Fan activity') : null);
-  const bubble = a && !a.picked && a.available !== false ? '<div class="hb-bubble" role="status">This week: pick one, or rest. <em>Resting is free.</em></div>' : '';
-  return '<div class="hb-ground" aria-label="Your club ground">' + boardHtml(vm) + '<div class="hb-row hb-row--top">' + top + '</div><div class="hb-field"></div>' + bubble + '<div class="hb-row hb-row--bot">' + bot + '</div></div>';
+/* H2 dock: 2 x 3, table, stadium, extras / book, workshop, fans. */
+function dockHtml(vm) {
+  const w = vm.workshop, a = vm.activities, fp = vm.freePick;
+  const P = (act, icon, word, extra) => Object.assign({ act, icon: icoDeco(icon, 24), word }, extra || {});
+  const fanFlag = !!(a && !a.picked && a.available !== false);
+  return '<div class="hb-dock" role="group" aria-label="Club buildings">' +
+    plateHtml('table', P('sheet:table', 'league', 'Table')) +
+    plateHtml('stadium', P('sheet:stadium', 'home', 'Stadium', { flag: !!(fp && fp.pending) })) +
+    plateHtml('extras', P('sheet:sinks', 'shop', 'Extras')) +
+    plateHtml('book', P('sheet:book', 'book', 'Book', { badge: badgeCount() })) +
+    plateHtml('workshop', w && w.visible ? { act: 'sheet:workshop', icon: spokeIcon(24), word: 'Wheel Workshop', aria: 'Wheel Workshop, ' + w.spokes + ' Spokes' } : null) +
+    plateHtml('fans', a ? P('sheet:activities', 'pennant', 'Fan activity', { flag: fanFlag }) : null) + '</div>';
 }
 
-/* r9 club cards (flags off: the VMs are absent or off, so nothing is drawn): free facility pending, trial player, this week's fan activity. */
-function clubCardsHtml(vm) {
-  const h = pendingCardHtml(vm.freePick) + trialCardHtml(vm.trial || (vm.activities && vm.activities.trial));
-  return h ? '<div class="cl-cards">' + h + '</div>' : '';
+/* FENCE:BANNER start */
+function bannerHtml(vm) {
+  const g = vm.fansGate, chip = chipWord(weekItems(vm));
+  const open = g && !g.hidden;
+  const n = Number(vm.econ && vm.econ.stadium) || (g && g.next ? g.next - 1 : 1);
+  const tag = open ? (g.ready ? 'Fans ready: build L' + (n + 1) : fmtN(g.left) + ' fans to L' + (n + 1)) : 'Stadium L' + n;
+  const aria = 'Stadium, level ' + n + '.' + (open ? (g.ready ? ' Fans ready for level ' + (n + 1) + '.' : ' Fans ' + fmtN(g.fans) + ' of ' + fmtN(g.gate) + ' for level ' + (n + 1) + '.') : '') + ' Opens Stadium.';
+  return '<div class="hb-banner"><canvas class="hb-bcv" aria-hidden="true"></canvas>' +
+    '<button type="button" class="c-btn hb-gb" data-act="sheet:stadium" aria-label="' + esc(aria) + '"><span class="hb-gtag">' + esc(tag) + '</span>' +
+    (open ? '<span class="hb-ghost">L' + (n + 1) + ' stand</span>' : '') + '</button>' +
+    '<div class="hb-band' + (chip ? ' has-week' : '') + '">' + (open ? fansGateHtml(g, 'hb-fg') : '') +
+    (chip ? '<button type="button" class="c-btn hb-week" data-act="sheet:week">' + esc(chip) + '</button>' : '') + '</div></div>';
 }
+/* FENCE:BANNER end */
 
-function sixHtml(six, pair) {
-  return '<div class="hb-sixhead">' + (pair || 'Our six') + ' · batting order</div><div class="hb-six" role="group" aria-label="Our six, batting order">' + six.map((p, i) => {
-    const hid = p.grade === '?';
-    return '<button type="button" class="hb-p" data-act="sheet:team" data-arg=\'{"tab":"six"}\' aria-label="' + esc(p.name + ', ' + (hid ? 'grade hidden' : 'grade ' + p.grade) + '. Edit the six') + '">' +
-      '<canvas class="hb-head" data-key="' + esc(p.id) + '" aria-hidden="true"></canvas><span class="nm name">' + esc(p.name) + '</span>' +
-      '<span class="c-tag' + (hid ? ' c-tag--locked' : '') + '" aria-hidden="true">' + (hid ? '?' : esc(p.grade)) + '</span></button>';
+/* FENCE:STRIP start */
+function stripHtml(vm) {
+  vm = vm || {};
+  const pr = vm.promo || null, g = vm.gap || null, rows = pr && Array.isArray(pr.rows) ? pr.rows : [];
+  const r0 = rows[0] || {}, m = /(\d+)/.exec(String(r0.title || ''));
+  const top = m ? m[1] : '2', tag = /^\d+(st|nd|rd|th)\b/.test(String(r0.tag || '')) ? String(r0.tag).split(' ')[0] : '';
+  const wk = vm.club && vm.club.weeksLeft != null && Number.isFinite(Number(vm.club.weeksLeft)) ? Number(vm.club.weeksLeft) : null;
+  const l2 = [tag ? 'You: ' + tag : '', wk === null ? '' : (wk ? wk + ' week' + (wk > 1 ? 's' : '') + ' left' : 'Last week')].filter(Boolean).join(' · ');
+  const tot = pr && Number(pr.total) > 0 ? Math.min(12, Math.floor(Number(pr.total))) : 3, done = pr ? Math.max(0, Math.min(tot, Number(pr.done) || 0)) : 0;
+  let boxes = ''; for (let i = 0; i < tot; i++) boxes += '<i' + (i < done ? ' class="on"' : '') + '></i>';
+  const aria = 'Season goal: finish top ' + top + ' to go up.' + (l2 ? ' ' + l2.replace('You: ', 'You are ') + '.' : '') + ' ' + done + ' of ' + tot + ' goals done.';
+  const rank = (L) => { const s = String(L || ''), i = 'FEDCBAS'.indexOf(s.charAt(0)); return i < 0 ? null : i * 3 + (s.charAt(1) === '+' ? 1 : s.charAt(1) === '-' ? -1 : 0); };
+  const gb = (L) => '<span class="lt-box lt-' + esc(String(L).charAt(0)) + '"><b class="lt-in">' + esc(L) + '</b></span>';
+  let cap = '';
+  if (g && g.ours && g.theirs) {
+    const a = rank(g.ours), b = rank(g.theirs), d = a === null || b === null ? 0 : a - b;
+    const verb = d > 0 ? 'beats' : d < 0 ? 'trails' : 'matches', cls = d > 0 ? ' hb-cap__v--up' : d < 0 ? ' hb-cap__v--dn' : '';
+    cap = '<div class="hb-cap" role="group" aria-label="Your six, grade ' + esc(g.ours) + ', ' + verb + ' their six, grade ' + esc(g.theirs) + '.">' +
+      '<span class="hb-cap__sr">Our six ' + esc(g.ours) + ' Their six ' + esc(g.theirs) + '</span><span aria-hidden="true">Your six</span>' + gb(g.ours) +
+      '<span class="hb-cap__v' + cls + '" aria-hidden="true">' + verb + '</span><span aria-hidden="true">their six</span>' + gb(g.theirs) + '</div>';
+  }
+  const mi = (px, cls) => { const n = px.length; let o = ''; for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) { const c = px[y][x]; if (c !== '.') o += '<rect class="' + cls[c] + '" x="' + x + '" y="' + y + '" width="1" height="1"/>'; } return '<svg class="hb-mi" viewBox="0 0 ' + n + ' ' + n + '" width="' + 2 * n + '" height="' + 2 * n + '" shape-rendering="crispEdges" aria-hidden="true">' + o + '</svg>'; };
+  const bat = mi(['......oo', '.....oo.', '...oooo.', '..oggoo.', '.ogggo..', 'ogggo...', 'oggo....', 'ooo.....'], { o: 'mo', g: 'mg' });
+  const bowl = mi(['..ooo..', '.orrwo.', 'orrrwRo', 'orrwRRo', 'orwRRRo', '.owRRo.', '..ooo..'], { o: 'mo', r: 'mr', w: 'mw', R: 'mR' });
+  return '<div class="hb-strip" role="group" aria-label="Season goals">' +
+    '<div class="hb-goal" role="group" aria-label="' + esc(aria) + '">' + icoDeco('medal', 24) +
+    '<span class="hb-goal__t" aria-hidden="true"><span class="hb-goal__a">Finish <em>top ' + esc(top) + '</em> to go up</span>' + (l2 ? '<span class="hb-goal__b">' + esc(l2) + '</span>' : '') + '</span>' +
+    '<span class="hb-goal__g" aria-hidden="true"><span class="hb-goal__n">Goals <b>' + done + '/' + tot + '</b></span><span class="hb-goal__cx">' + boxes + '</span></span></div>' +
+    cap + '<div class="hb-th" aria-hidden="true"><span>Batting order</span><span class="hb-th__k">Each player:<span>' + bat + 'Bat,</span><span>' + bowl + 'Bowl</span></span></div></div>';
+}
+/* FENCE:STRIP end */
+
+/* FENCE:SIX start */
+function sixHtml(vm) {
+  return '<div class="hb-six" role="group" aria-label="Our six, batting order">' + (vm.six || []).map((p, i) => {
+    const b = shownCell(p.bat), w = shownCell(p.bowl);
+    return '<button type="button" class="hb-p" data-act="sheet:team" data-arg=\'{"tab":"six"}\' aria-label="' +
+      esc((i + 1) + '. ' + p.name + ', batting ' + spoken(b.letter) + ', bowling ' + spoken(w.letter) + '. Edit the six') + '">' +
+      '<span class="hb-n" aria-hidden="true">' + (i + 1) + '</span><span class="nm">' + esc(p.name) + '</span>' + b.html + w.html + '</button>';
   }).join('') + '</div>';
 }
+/* FENCE:SIX end */
 
+/* FENCE:FOOT start */
 function footHtml(vm, cta) {
-  const edits = '<div class="hb-edits"><button type="button" class="c-btn hb-edit" data-act="sheet:team" data-arg=\'{"tab":"six"}\' aria-label="Edit the six: 6 picked">' + icoDeco('team', 24) +
-    '<span class="tx"><span>Six</span><small>6 picked</small></span></button>' +
-    '<button type="button" class="c-btn hb-edit' + (vm.plan.ok ? '' : ' is-warn') + '" data-act="sheet:team" data-arg=\'{"tab":"overs"}\' aria-label="Edit the overs: ' + esc(vm.plan.word.toLowerCase()) + '">' + icoDeco('overs', 24) +
-    '<span class="tx"><span>Overs</span><small>' + (vm.plan.ok ? '' : '! ') + esc(vm.plan.word) + '</small></span></button></div>';
+  const plan = vm.plan || { ok: true, word: '' };
+  const n = (vm.six || []).length, cl = Math.max(0, Math.min(3, ((vm.matchPlan && vm.matchPlan.clinic) | 0))), word = String(plan.word || '');
+  const aria = 'Match plan: ' + n + ' picked, overs ' + word.toLowerCase() + (cl ? ', ' + cl + ' Clinic spin' + (cl === 1 ? '' : 's') + ' left' : '');
+  const why = cta.disabled && cta.reason ? '<span class="hb-why">' + esc(cta.reason) + '</span>' : '';
+  const edits = '<button type="button" class="c-btn hb-edit hb-plan' + (plan.ok ? '' : ' is-warn') + '" data-act="sheet:team" data-arg=\'' + (plan.ok ? '{"tab":"six"}' : '{"tab":"overs"}') + '\' aria-label="' + esc(aria) + '">' + icoDeco('team', 24) +
+    '<span class="tx"><span>Match Plan</span><small class="hb-pl-sub' + (plan.ok ? '' : ' is-red') + '">' + esc(n + ' picked · Overs: ' + word) + '</small>' + why + '</span>' +
+    '<span class="hb-badge" aria-hidden="true"' + (cl ? '' : ' hidden') + '>' + cl + '</span></button>';
   const go = '<button type="button" class="c-btn c-btn--primary c-btn--cta c-btn--block hb-cta" data-act="' + esc(cta.act || 'StartMatch') + '"' + (cta.disabled ? ' disabled aria-disabled="true"' : '') + '>' + icoDeco('match', 24) +
     '<span class="tx"><span>' + esc(cta.label) + '</span>' + (cta.sub ? '<small>' + esc(cta.sub) + '</small>' : '') + '</span></button>';
   return '<div class="m0-ctabar cta hb-foot">' + edits + (cta.disabled && cta.reason ? '<span class="m0-warn" role="note">' + esc(cta.reason) + '</span>' : '') + go + '</div>';
 }
+/* FENCE:FOOT end */
 
 export function render(el, vm, dispatch) {
   const season = vm.season && typeof vm.season === 'object' ? vm.season : { n: vm.season, league: 1 };
@@ -114,21 +134,19 @@ export function render(el, vm, dispatch) {
   const top = '<div class="c-strip strip hb-head"><span class="ss-strip"><b class="rn-head">' + esc(l1) + '</b><b class="hb-lg">' + esc(l2) + '</b>' + (chap ? '' : (sub ? '<small class="hb-sub">' + esc(sub) + '</small>' : '')) + '</span>' +
     '<button type="button" class="c-btn hb-save ss-save" data-act="sheet:save" aria-label="Save">' + icoDeco('save', 24) + '<span>Save</span></button>' + helpBtn('league-table') + '</div>' +
     (chap ? '<div class="hb-chap">Next chapter: <b>' + esc(chap.name) + '</b> (Season ' + esc(chap.season) + ')</div>' : '');
-  try { const old = el.querySelector('.hb-ground'); if (old && old.__ground && old.__ground.destroy) old.__ground.destroy(); } catch (e) { /* ignore */ }
+  try { const old = el.querySelector('.hb-banner'); if (old && old.__banner && old.__banner.destroy) old.__banner.destroy(); } catch (e) { /* ignore */ }
   if (!full) {
     el.innerHTML = '<div class="screen ss ss-hub hb-hub">' + top + '<div class="m0-ctabar cta hb-foot">' + btn(cta.label || 'Pick your six', cta.act || 'OpenSquad', { kind: 'cta', disabled: cta.disabled, reason: cta.reason }) + '</div></div>';
     return;
   }
   el.innerHTML =
-    '<div class="screen ss ss-hub hb-hub hb-l2' + (vm.next && vm.next.tag ? ' hb-hub--rv' : '') + '">' + top +
-    groundHtml(vm) +
-    '<div class="hb-more">' + noticeHtml(vm.notice) + rivalHtml(vm.next) + clubCardsHtml(vm) + promoHtml(vm.promo, vm.unlock) + sixHtml(vm.six, vm.gap ? pairText(vm.gap) : '') + '</div>' +
+    '<div class="screen ss ss-hub hb-hub hb-l2">' + top +
+    '<div class="hb-mid"><div class="hb-colA">' + boardHtml(vm) + bannerHtml(vm) + dockHtml(vm) + '</div>' +
+    '<div class="hb-colB" tabindex="0">' + stripHtml(vm) + sixHtml(vm) + '</div></div>' +
     footHtml(vm, cta) + '</div>';
-  const nb = el.querySelector('[data-notice]');
-  if (nb) nb.addEventListener('click', () => { noticeGone = true; nb.remove(); dispatch('DismissNotice', {}); });
-  const host = el.querySelector('.hb-ground');
-  if (host) try { host.__ground = drawGround(host, { levels: (vm.econ && vm.econ.fac) || {}, locked: { workshop: !(vm.workshop && vm.workshop.visible), fans: !vm.activities }, onTap(id, name, lv) {
-    openSheet(name, '<div class="c-card c-card--inset hb-built">' + icoDeco(lv > 0 ? 'done' : 'lock', 24) + '<span>' + (lv > 0 ? 'Level ' + lv + '. Build more in Stadium.' : 'Not built yet. Build it in Stadium.') + '</span></div>');
-  } }); } catch (e) { /* the ground is decoration: the rest of the hub still works */ }
-  [].forEach.call(el.querySelectorAll('canvas.hb-head'), (cv) => drawHead(cv, cv.getAttribute('data-key')));
+  const bn = el.querySelector('.hb-banner');
+  if (bn) try {
+    const rm = typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    drawBanner(bn, { stadium: (vm.econ && vm.econ.stadium) | 0, levels: (vm.econ && vm.econ.fac) || {}, gate: vm.fansGate, reducedMotion: !!rm });
+  } catch (e) { /* the banner is decoration: the rest of the hub still works */ }
 }
