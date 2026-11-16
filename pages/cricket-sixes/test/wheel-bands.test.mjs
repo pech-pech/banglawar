@@ -36,6 +36,10 @@ const SEED = 'wheel-bands-1';
 const N_RANDOM = 400;   // stratified random tapper: smallest n that holds +-0.1 on every ring (Finals is the widest spread)
 const N_SKILL = 2500;
 const N_FIND = 6000;    // Find rates are Bernoulli, 8% needs more spins for the same ratio noise   // skilled tappers: common random numbers across tappers
+// Careful-band sizing (measured over 4 seeds, ratio minus SPEC value): s.d. of the careful ratio is ~0.015 at n 2500 and ~0.007 at n 12000
+// (non-Find, noisiest ring Scout/Spot). N_BAND 12000 with tol 0.03 is ~4 s.e. and 2x the SPEC +-0.015; the old 0.07 let Spotlight 1.26 pass.
+// Find (Bernoulli 8-26% rates): n 20000 gives s.e. ~0.002 absolute on the careful hit rate, so the SPEC +-1.5 pp is used as is.
+const N_BAND = 12000, TOL_BAND = 0.03, N_BAND_FIND = 20000, TOL_FIND_PP = 0.015;
 const run = (k, who, n) => runTapper(R[k], who, { n, seed: SEED, name: k, J: J_OF(k), minAim: MIN_AIM(k) });
 
 test('fixtures: every SPEC ring sums to 10 and keeps the 12% cap', () => {
@@ -54,11 +58,14 @@ test('test 2: random tapper mean within +-0.1 of SPEC (Find +-0.01 as a rate)', 
   }
 });
 
+test('mutation: the tightened tolerance rejects a Spotlight careful ratio of 1.26', () => {
+  assert.ok(Math.abs(1.26 - CAREFUL.spot) > TOL_BAND);
+});
+
 test('test 2: careful ratio sits in the SPEC band; full Control stays under its cap', () => {
-  const TOL = 0.07;   // small-n noise (Scout is the noisiest: about 3 s.e. at n 2500); the SPEC bands themselves are +-0.015
   for (const k of Object.keys(R)) {
     const find = k.startsWith('find');
-    const n = find ? N_FIND : N_SKILL, tol = find ? (0.02 / RANDOM[k]) : TOL;   // Find: +-2 pp absolute (SPEC tolerance 1.5 pp + small-n)
+    const n = find ? N_BAND_FIND : N_BAND, tol = find ? (TOL_FIND_PP / RANDOM[k]) : TOL_BAND;   // Find: SPEC +-1.5 pp absolute
     const careful = run(k, 'careful', n).ratio, full = run(k, 'full', n).ratio;
     assert.ok(Math.abs(careful - CAREFUL[k]) <= tol, `${k} careful ${careful.toFixed(3)} vs ${CAREFUL[k]}`);
     assert.ok(full <= FULL_MAX[k] + tol, `${k} full ${full.toFixed(3)} vs <= ${FULL_MAX[k]}`);

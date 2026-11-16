@@ -10,9 +10,8 @@ import { tickAt } from '../js/core/wheel-pulse.js';
 import { checkRing } from '../js/core/wheel-ring.js';
 import { makeRng } from '../js/core/rng.js';
 
-// wheelWobble needs js/core/spin-keys.js (written by another helper); same formula as fallback until it lands.
-let wheelWobble = (key, J) => (makeRng(key).random() * 2 - 1) * J;
-try { ({ wheelWobble } = await import('../js/core/wheel-wobble.js')); } catch { /* spin-keys.js not there yet */ }
+// No silent fallback: a broken import of wheel-wobble.js / spin-keys.js must fail this tool loudly.
+import { wheelWobble } from '../js/core/wheel-wobble.js';
 
 // SPEC 2b sim-only numbers (never ported to the game).
 export const SIM = Object.freeze({

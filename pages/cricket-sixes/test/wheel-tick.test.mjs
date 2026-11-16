@@ -4,7 +4,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { WHEEL_ENGINE as E } from '../js/data/wheel-engine.js';
-import { tickAt, pulseArc, pulseW, ARC_PER_CYCLE, cycleOf } from '../js/core/wheel-pulse.js';
+import { tickAt } from '../js/core/wheel-pulse.js';
+import { pulseStop, spinClock } from '../js/ui/wheel-view.js';
 import { wheelWobble, wobbleKey } from '../js/core/wheel-wobble.js';
 import { makeRng } from '../js/core/rng.js';
 import { buildSegments } from '../js/core/wheelmatch.js';
@@ -55,10 +56,35 @@ function sliceBin(starts, pos) {
   while (lo < hi) { const m = (lo + hi + 1) >> 1; if (starts[m] <= u) lo = m; else hi = m - 1; }
   return lo;
 }
-// The tick the view would show for a stop record: cycle + tInCycle (event time), composed from the pulse pieces.
-function tickFromStop(cycle, tIn) { return (cycle - 1) * ARC_PER_CYCLE() + pulseArc(tIn) + pulseW(tIn) * E.D / 3; }
-// What the STOP handler computes: landing slice from phi + tickAt(stopS) + wobble.
-function landed(ws, phi, stopS, wob) { return sliceScan(ws, phi + tickAt(stopS) + wob); }
+// ---- Independent reference (CONTRACT-A sec 3 written out here, nothing imported from wheel-pulse.js) ----
+// speed: t < 3.8: 36 e^(-t/3); else w38 + (36 - w38) s(x), x = (t - 3.8)/2.2, s = x^2 (3 - 2x), w38 = 36 e^(-3.8/3).
+// arc in a cycle: t < 3.8: 36*3 (1 - e^(-t/3)); else decay(3.8) + w38 u + (36 - w38) 2.2 (x^3 - x^4/2), u = t - 3.8.
+// tick = k ARC + arc(t) + speed(t) D/3 with D = 2, k = floor(elapsed/6), ARC = decay(3.8) + 2.2 (w38 + (36 - w38)/2).
+const R_W0 = 36, R_TAU = 3, R_D = 2, R_FROM = 3.8, R_PER = 6, R_RAMP = R_PER - R_FROM;
+const R_W38 = R_W0 * Math.exp(-R_FROM / R_TAU), R_DECAY38 = R_W0 * R_TAU * (1 - Math.exp(-R_FROM / R_TAU));
+const R_ARC = R_DECAY38 + R_RAMP * (R_W38 + (R_W0 - R_W38) / 2);
+const refW = (t) => (t < R_FROM ? R_W0 * Math.exp(-t / R_TAU) : (() => { const x = (t - R_FROM) / R_RAMP; return R_W38 + (R_W0 - R_W38) * x * x * (3 - 2 * x); })());
+const refArc = (t) => (t < R_FROM ? R_W0 * R_TAU * (1 - Math.exp(-t / R_TAU)) : (() => { const u = t - R_FROM, x = u / R_RAMP; return R_DECAY38 + R_W38 * u + (R_W0 - R_W38) * R_RAMP * (x ** 3 - x ** 4 / 2); })());
+const refTick = (el) => { const k = Math.floor(el / R_PER), t = el - k * R_PER; return k * R_ARC + refArc(t) + refW(t) * R_D / 3; };
+// Landing the way the view does it for a tap: spinClock (event time) -> pulseStop (real STOP record), on a ring given by its widths.
+const cumOf = (ws) => { const c = [0]; for (const w of ws) c.push(c[c.length - 1] + w); return c; };
+function realStop(ws, cum, phi, stopS, e = 0) {
+  const clk = spinClock(), spinTs = 1234567.25; // ms, arbitrary event timestamps
+  clk.start(spinTs);
+  const t = clk.tap(spinTs + stopS * 1000);
+  assert.notEqual(t, null);
+  return pulseStop(undefined, phi, t, e, cum, C).stop;
+}
+// Numeric guard that refArc really is the integral of refW (Simpson), so the reference is not a copy-paste of a bug.
+function simpson(f, a, b, n = 4000) { const h = (b - a) / n; let s = f(a) + f(b); for (let i = 1; i < n; i++) s += f(a + i * h) * (i % 2 ? 4 : 2); return s * h / 3; }
+
+test('reference pulse is the true integral of the speed curve and matches the engine constants', () => {
+  assert.equal(R_W0, E.W0); assert.equal(R_TAU, E.TAU); assert.equal(R_D, E.D); assert.equal(R_FROM, E.PULSE_FROM); assert.equal(R_PER, E.PULSE_PERIOD);
+  for (const t of [0.5, 1.7, 3.5, 3.8, 4.4, 5.9, 6]) assert.ok(Math.abs(simpson(refW, 0, t) - refArc(t)) < 1e-6, `arc at ${t}`);
+  assert.ok(Math.abs(simpson(refW, 0, 6) - R_ARC) < 1e-6);
+  assert.ok(Math.abs(R_ARC - 128.327) < 5e-3, `ARC ${R_ARC}`);
+  for (const el of [0.35, 1, 3.5, 6, 9.25, 17.9]) assert.ok(Math.abs(tickAt(el) - refTick(el)) < 1e-9, `tickAt vs reference at ${el}`);
+});
 
 test('rings: 8 SPEC wheels + match ring sum to 10 and fit the width cap', () => {
   for (const [name, ws] of Object.entries(RINGS)) {
@@ -76,18 +102,19 @@ test('J = 0: wobble is exactly zero (the honest-tick precondition)', () => {
 });
 
 for (const [name, ws] of Object.entries(RINGS)) {
-  const starts = startsOf(ws);
+  const starts = startsOf(ws), cum = cumOf(ws);
 
   test(`${name}: ${N_TAPS} taps, slice under the tick at STOP equals the landed slice (J = 0)`, () => {
     const r = makeRng(`wheel-tick|${name}`);
     let bad = 0, wraps = 0;
     for (let i = 0; i < N_TAPS; i++) {
       const phi = r.random() * C, stopS = E.STOP_GUARD_S + r.random() * 24; // up to 4 cycles
-      const { cycle, tInCycle } = cycleOf(stopS);
-      const under = sliceBin(starts, phi + tickFromStop(cycle, tInCycle)); // what the player sees under the tick at STOP
-      const land = landed(ws, phi, stopS, wheelWobble(`wt|${name}|${i}`, 0));
-      if (under !== land) bad++;
-      if (Math.floor((phi + tickAt(stopS)) / C) !== Math.floor((phi + tickAt(stopS - 0.2)) / C)) wraps++;
+      const under = sliceBin(starts, phi + refTick(stopS)); // what the player sees under the tick at STOP (independent maths)
+      const st = realStop(ws, cum, phi, stopS, wheelWobble(`wt|${name}|${i}`, 0));
+      if (under !== st.sliceId) bad++;
+      assert.equal(st.cycle, Math.floor(stopS / R_PER) + 1);
+      assert.ok(Math.abs(st.tInCycle - (stopS - Math.floor(stopS / R_PER) * R_PER)) < 1e-9);
+      if (Math.floor((phi + refTick(stopS)) / C) !== Math.floor((phi + refTick(stopS - 0.2)) / C)) wraps++;
     }
     assert.equal(bad, 0);
     assert.ok(wraps > 100, `ring wrap crossed in the sample (${wraps})`);
@@ -99,17 +126,16 @@ for (const [name, ws] of Object.entries(RINGS)) {
     for (let i = 0; i < 500; i++) {
       const phi = r.random() * C, b = starts[i % starts.length]; // includes boundary 0 = last slice to first
       // find stopS in [0.35, 20] where the unwrapped tick first reaches phi + tick = b + m*C (monotone, bisect)
-      const t0 = E.STOP_GUARD_S, t1 = 20, base = phi + tickAt(t0);
+      const t0 = E.STOP_GUARD_S, t1 = 20, base = phi + refTick(t0);
       const m = Math.ceil((base - b) / C + 1e-9) + Math.floor(r.random() * 3);
       const target = b + m * C;
-      if (target > phi + tickAt(t1)) continue;
+      if (target > phi + refTick(t1)) continue;
       let lo = t0, hi = t1;
-      for (let k = 0; k < 80; k++) { const mid = (lo + hi) / 2; if (phi + tickAt(mid) < target) lo = mid; else hi = mid; }
+      for (let k = 0; k < 80; k++) { const mid = (lo + hi) / 2; if (phi + refTick(mid) < target) lo = mid; else hi = mid; }
       const prev = (sliceBin(starts, b) + ws.length - 1) % ws.length;
       for (const [dt, want] of [[-1e-6, prev], [1e-6, sliceBin(starts, b)]]) {
         const t = hi + dt;
-        assert.equal(landed(ws, phi, t, 0), want, `${name} boundary ${b} dt ${dt} i ${i} t ${t} pos ${mod(phi + tickAt(t))} m ${m}`);
-        assert.equal(landed(ws, phi, t, 0), sliceBin(starts, phi + tickAt(t)));
+        assert.equal(realStop(ws, cum, phi, t, 0).sliceId, want, `${name} boundary ${b} dt ${dt} i ${i} t ${t} pos ${mod(phi + refTick(t))} m ${m}`);
       }
       checked++;
     }
@@ -122,12 +148,10 @@ for (const [name, ws] of Object.entries(RINGS)) {
     for (let i = 0; i < N_TAPS; i++) {
       const phi = r.random() * C, stopS = E.STOP_GUARD_S + r.random() * 18;
       const nextFrame = (Math.floor(stopS / FRAME) + 1) * FRAME, lastFrame = Math.floor(stopS / FRAME) * FRAME;
-      const fromEvent = landed(ws, phi, stopS, 0);
-      // the same landing at 60 fps sampling of the same event time (frame rate is irrelevant to the landing)
-      assert.equal(fromEvent, sliceScan(ws, phi + tickAt(stopS)));
-      assert.equal(fromEvent, sliceBin(starts, phi + tickAt(stopS)));
-      // the frame the player last saw is allowed to be a different slice; the landing must not follow it
-      const shownLast = sliceScan(ws, phi + tickAt(lastFrame)), shownNext = sliceScan(ws, phi + tickAt(nextFrame));
+      const fromEvent = realStop(ws, cum, phi, stopS, 0).sliceId;
+      assert.equal(fromEvent, sliceBin(starts, phi + refTick(stopS)), 'landing = slice under the tick at the event time');
+      // the frame the player last saw (10 fps) is allowed to be a different slice; the landing must not follow it
+      const shownLast = sliceBin(starts, phi + refTick(lastFrame)), shownNext = sliceBin(starts, phi + refTick(nextFrame));
       if (fromEvent !== shownLast || fromEvent !== shownNext) differs++;
     }
     assert.ok(differs > 50, `non-vacuous: frame sampling disagrees with the event slice on ${differs} taps`);
@@ -136,11 +160,11 @@ for (const [name, ws] of Object.entries(RINGS)) {
 
 test('W-T-8 shape: tap at 3.500 s with next frame at 3.540 s lands the slice under the tick at 3.500 s', () => {
   for (const [name, ws] of Object.entries(RINGS)) {
-    const r = makeRng(`wheel-tick|w8|${name}`); let seen = 0;
+    const r = makeRng(`wheel-tick|w8|${name}`), starts = startsOf(ws), cum = cumOf(ws); let seen = 0;
     for (let i = 0; i < 2000; i++) {
       const phi = r.random() * C;
-      const a = sliceScan(ws, phi + tickAt(3.5)), b = sliceScan(ws, phi + tickAt(3.54));
-      assert.equal(landed(ws, phi, 3.5, 0), a);
+      const a = sliceBin(starts, phi + refTick(3.5)), b = sliceBin(starts, phi + refTick(3.54));
+      assert.equal(realStop(ws, cum, phi, 3.5, 0).sliceId, a);
       if (a !== b) seen++;
     }
     assert.ok(seen > 0, `${name}: some phases differ between 3.500 and 3.540`);
