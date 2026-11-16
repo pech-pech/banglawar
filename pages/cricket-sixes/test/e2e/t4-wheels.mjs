@@ -170,8 +170,14 @@ async function runWheel(w) {
     step(w, `${FAST ? '6' : '60'} s ${A.clock ? '(page clock) ' : ''}after SPIN: still spinning, STOP shown, no result, nothing stored`, st && /^STOP/i.test(st.go) && !st.res && (await A.snap()) === before, JSON.stringify(st));
     const sc2 = await scanDom(A);
     step(w, 'spinning DOM: no skip / reduced / auto, taps >= 56 px', sc2 && !sc2.bad.length && !sc2.small.length, sc2 && [...sc2.bad, ...sc2.small].slice(0, 4).join(' | '));
+    const wTop = () => A.page.evaluate(() => { const e = document.querySelector('.wh-ov .wh-wrap'); const r = e && e.getBoundingClientRect(); const q = (c) => { const x = document.querySelector('.wh-ov ' + c); return x && !x.hidden ? Math.round(x.getBoundingClientRect().height) : 0; }; const sg = document.querySelector('.wh-ov .wh-stage').getBoundingClientRect(), cd = document.querySelector('.wh-ov .wh-card'); return r ? { stTop: sg.top, card: cd ? Math.round(cd.getBoundingClientRect().height) : -1, top: r.top, h: r.height, stage: q('.wh-stage'), msg: q('.wh-msg'), res: q('.wh-res'), tok: q('.wh-tok'), lgd: q('.wh-lgd') } : null; });
+    const topSpin = await wTop();
     const stopped = await tapGo(A, 'STOP'); await A.wait(2500);
-    st = await A.ovState(); const after = await A.snap();
+    const topRes = await wTop();
+    step(w, 'wheel does not move between spinning and result (top within 2 px, same size)', topSpin && topRes && Math.abs(topSpin.top - topRes.top) <= 2 && Math.abs(topSpin.h - topRes.h) <= 2, JSON.stringify({ topSpin, topRes }));
+    st = await A.ovState();
+    const bw = st && st.res && st.res.match(/\b(false|undefined|null|NaN)\b/i);
+    step(w, "result card text has no 'false' / 'undefined' / 'null' / 'NaN'", st && st.res && !bw, bw ? bw[0] + ' in: ' + st.res.replace(/\s+/g, ' ') : 'no result text'); const after = await A.snap();
     step(w, 'STOP shows a result and stores the stop', stopped && st && st.res && after !== before, JSON.stringify(st) + (after === before ? ' (store unchanged)' : ''));
     await A.shot(w + '-result');
     const sliceA = st && st.res;
