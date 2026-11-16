@@ -374,7 +374,7 @@ const wheelVM = (w) => ({ slices: w.slices.slice(), jackpotIndex: w.jackpotIndex
 /** Spokes the last spin on this wheel dropped (the tally already counts it: tier before it + base). 0 with the flag off or no spin yet. */
 /** Add spokeGain to a reel VM once it has a stored result. @param {any} vm */
 const spokesOn = (vm, s, wheel) => (vm ? { ...vm, spokeGain: vm.pending ? spokeGainOf(s, wheel) : 0 } : vm);
-export const spokeGainOf = (s, wheel) => { if (!FLAGS.wheelMeta) return 0; const m = metaOf(s), t = m.tally | 0; return t < 1 ? 0 : (WM.SPOKE_BASE[wheel] || 0) + WM.SPOKE_PER_TIER * tierOf(t - 1); };
+export const spokeGainOf = (s, wheel) => { if (!FLAGS.wheelMeta) return 0; const m = metaOf(s), t = m.tally | 0; if (t < 1) return 0; const tw = wheel === 'toss' && s.fixture && s.fixture.md && s.fixture.md.wm && s.fixture.md.wm.toss; return (WM.SPOKE_BASE[wheel] || 0) + WM.SPOKE_PER_TIER * tierOf(t - 1) + (tw && tw.id === 'sport' && !tw.kept ? 1 : 0); }; // QA3 NEW-4: the No-boost slice pays +1 on top (recordSpin sportSlice), so the row shows what the store adds
 /** Wheel meta extras for a wheel open site (flag on only): the wheel with the tree applied (or the stored one while a result waits), guide, tokens, look. */
 const metaExtras = (s, wid, base, pend, slot) => {
   const wheel = wheelVM(pend && pend.wheel ? pend.wheel : metaWheel(base, wid, s));
@@ -653,6 +653,8 @@ export function matchCoachVM(s) {
 const HYPE_WORD = { low: 'Quiet crowd', med: 'Good crowd', high: 'Big crowd', nuts: 'Wild crowd' }; // r9 fix M6: the same words on the Match day screen, its odds table and the Plan chip
 const pct = (x) => Math.round(x * 100);
 const hypePerfOf = (md) => (md.hypePerf != null ? md.hypePerf : MD.HYPE_PERF[md.hype]); // wheel meta writes the real number
+const noBoostText = () => (FLAGS.wheelMeta ? 'No boost. +1 Spoke' : 'No boost today'); // QA3 NEW-3, SPEC 7: never "Rival won the toss"
+const pepPctOf = (md) => Math.round((Number.isFinite(md.pepBoost) ? md.pepBoost : MD.PEP_BOOST) * 1000) / 10; // QA3 NEW-2: the landed slice, one decimal
 const tossBoostOf = (md) => (md.tossBoost != null ? md.tossBoost : md.toss === 'won' ? MD.TOSS_BOOST : 0);
 /** The rolled match day for the fixture on screen (the live match keeps it on s.match.md). Pep follows the slot in the current six. */
 function mdOf(s) {
@@ -670,9 +672,9 @@ export function chipsVM(s) {
   const md = mdOf(s);
   if (!md) return [];
   const chips = [{ key: 'hype', text: `${HYPE_WORD[md.hype]} +${pct(hypePerfOf(md))}%` }];
-  chips.push({ key: 'toss', text: tossBoostOf(md) > 0 ? `${md.toss === 'won' ? 'Won the toss' : 'Good sport'} +${Math.round(tossBoostOf(md) * 1000) / 10}%` : 'Rival won the toss' });
+  chips.push({ key: 'toss', text: tossBoostOf(md) > 0 ? `${md.toss === 'won' ? 'Won the toss' : 'Good sport'} +${Math.round(tossBoostOf(md) * 1000) / 10}%` : noBoostText() });
   const nm = nameOfId(s, md.pepId) || (s.me && s.me.players && md.pepSlot ? '' : '');
-  if (md.pepId != null && nm) chips.push({ key: 'pep', text: `Pep talk: ${nm} +${pct(MD.PEP_BOOST)}%` });
+  if (md.pepId != null && nm) chips.push({ key: 'pep', text: `Pep talk: ${nm} +${pepPctOf(md)}%` });
   const live = s.stage === 'bowl' || s.stage === 'chase' || s.stage === 'break' || s.stage === 'done'; // the coach in play is the one stored with the match; before it starts, today's pick
   const mc = live ? md.mc : (() => { const m = matchCoachOf(s); return m && (m.boost.bat || m.boost.bowl) ? { name: m.coach.name, bat: m.boost.bat, bowl: m.boost.bowl } : null; })();
   if (mc) chips.push({ key: 'coach', text: matchCoachText(mc.name, mc) });
@@ -710,10 +712,10 @@ export function matchdayVM(s) {
     hype: { level: md.hype, idx: md.hypeIdx, word: HYPE_WORD[md.hype], perfPct: pct(hypePerfOf(md)), fanMult: md.hypeFanMult },
     odds,
     roar: { on: !!FLAGS.roar, chancePct: Math.round(md.roarChance * 100), overs: md.roar.filter(Boolean).length },
-    toss: { won: tossBoostOf(md) > 0, boostPct: Math.round(tossBoostOf(md) * 1000) / 10, line: tossBoostOf(md) > 0 ? (md.toss === 'won' ? `You won the toss +${Math.round(tossBoostOf(md) * 1000) / 10}% for the team` : `Good sport +${Math.round(tossBoostOf(md) * 1000) / 10}% for the team`) : 'Rival won the toss. Nothing changes.' },
-    pep: md.pepId != null ? { slot: md.pepSlot, id: md.pepId, name: pepName, boostPct: pct(MD.PEP_BOOST) } : null,
+    toss: { won: tossBoostOf(md) > 0, boostPct: Math.round(tossBoostOf(md) * 1000) / 10, line: tossBoostOf(md) > 0 ? (md.toss === 'won' ? `You won the toss +${Math.round(tossBoostOf(md) * 1000) / 10}% for the team` : `Good sport +${Math.round(tossBoostOf(md) * 1000) / 10}% for the team`) : noBoostText() + '.', noBoost: tossBoostOf(md) <= 0, noBoostLine: noBoostText() + '.' },
+    pep: md.pepId != null ? { slot: md.pepSlot, id: md.pepId, name: pepName, boostPct: pepPctOf(md) } : null,
     six, coach: matchCoachVM(s),
-    boost: { teamPct: pct(team), pepPct: pct(pepB), line: pepName ? `Team +${pct(team)}%, ${pepName} +${pct(pepB)}%` : `Team +${pct(team)}%` },
+    boost: { teamPct: pct(team), pepPct: pct(pepB), line: pct(team) === 0 && pct(pepB) === 0 ? '' : pepName ? `Team +${pct(team)}%, ${pepName} +${pct(pepB)}%` : `Team +${pct(team)}%` },
     wm: withSpokes(s, mdSpinVM(s)), look: FLAGS.wheelMeta ? craftLook(s) : null, // wheel meta: dial / reveal props + stored results (null with the flag off)
     auto: !!s.autoMatchday, forced, next: fx.mdThen === 'start' ? 'Start match' : 'Next: Plan', back: 'Back to squad', // from the hub Go starts the match; from Squad it opens Plan (m1: the label says what the button does)
   };
