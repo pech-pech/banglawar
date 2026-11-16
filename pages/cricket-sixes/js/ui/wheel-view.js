@@ -133,7 +133,7 @@ export function openWheel(o) {
   const cum = [0]; widths.forEach((w, i) => cum.push(cum[i] + w));
   const sliceOf = (pos) => sliceIndexAt(cum, C, pos);
   const ringPending = (i) => { const k = Math.max(0, Math.min(N - 1, i | 0)); return { index: k, gain: VALS[k], jackpot: GD.includes(k) }; };
-  let lastStop = null;
+  let lastStop = null, landedFull = '', landedShort = false;
   const pendingNow = () => (o.getPending && o.getPending()) || (RING && lastStop ? ringPending(lastStop.sliceId) : null) || (stRec ? ringPending(stRec.sliceId) : null);
   const app = document.getElementById('app'), opener = document.activeElement;
   const pal = { cream: tok('--cream', '#F3EBD3'), out: tok('--outline', '#2A2238'), gold: tok('--gold', '#D2B357'), wall: tok('--wall1', '#E3D8B9'), g2: tok('--grass2', '#7EB261'), acc: tok('--accent', '#22625D'), b1: tok('--kitA1', '#3b5ba5') };
@@ -201,19 +201,23 @@ export function openWheel(o) {
     labels.forEach((l, i) => {
       const Q = plan[i]; Q.rl = 0; Q.ico = false; l.classList.remove('is-ico'); l.removeAttribute('style'); l.hidden = !Q.text; if (!Q.text) return; l.textContent = Q.text;
       const sa = Math.sin(Math.min(Q.half, Math.PI / 2));
-      for (let fs = f0; fs >= 12; fs--) { // largest font whose bounding circle fits between the slice edges and inside the rim lane
-        l.style.fontSize = fs + 'px'; l.style.lineHeight = Math.round(fs * 1.1) + 'px';
-        const h = Math.hypot(l.offsetWidth, l.offsetHeight) / 2 + 1, near = Math.max(h / sa, rHub + h), far = rIn - h;
-        if (near <= far) { Q.rl = (near + far) / 2; return; }
+      const full = Q.text, cands = Array.from(full).length > 1 ? [full, Array.from(full)[0]] : [full]; // 14 px floor: shorten to one character before giving up (as the ring does)
+      for (const tx of cands) { l.textContent = tx;
+        for (let fs = f0; fs >= 14; fs--) { // largest font whose bounding circle fits between the slice edges and inside the rim lane
+          l.style.fontSize = fs + 'px'; l.style.lineHeight = Math.round(fs * 1.1) + 'px';
+          const h = Math.hypot(l.offsetWidth, l.offsetHeight) / 2 + 1, near = Math.max(h / sa, rHub + h), far = rIn - h;
+          if (near <= far) { Q.rl = (near + far) / 2; return; }
+        }
       }
+      l.textContent = full;
       if (isG(i)) { Q.ico = true; Q.rl = rIn - 9; l.textContent = ''; l.classList.add('is-ico'); Object.assign(l.style, { fontSize: '', width: '12px', height: '12px', background: 'rgb(' + pal.gold + ')', border: '2px solid rgb(' + pal.out + ')', boxShadow: '0 0 0 1px #fff', transform: 'translate(-50%,-50%) rotate(45deg)' }); return; }
       l.hidden = true; // a Nothing gap too thin for the word: unlabelled (its plain colour says it)
     });
   }
 
   function layout() { // wheel sized from the free height (stage), never wider than the screen
-    const st = $(".wh-stage"), RES = LK && LK.name && !ov.classList.contains('is-res-compact') ? 34 : LK && (LK.stand || LK.name) ? 14 : 0, AM = RING ? 30 : 0; // RES: room under the rim for the stand / name plate (they hang from the wheel box); AM: room round the rim for the AIM tag
-    const h = st.clientHeight - (RING ? 22 + 2 * AM : 24 + 22) - RES, w = st.clientWidth - Math.max(24, 2 * AM) - (RING ? 4 : 0); // the legend sits under the stage, not in it (T1 QA D1)
+    const st = $(".wh-stage"), RES = LK && LK.name && !ov.classList.contains('is-res-compact') ? 34 : LK && (LK.stand || LK.name) ? 14 : 0, AM = RING ? 30 : 0, AMV = RING ? 10 : 0; // RES: room under the rim for the stand / name plate (they hang from the wheel box); AM: room round the rim for the AIM tag
+    const h = st.clientHeight - (RING ? 22 + 2 * AMV : 24 + 22) - RES, /* N2: the AIM word is clamped into the stage, so only the tick (17 px) needs room above and below; the sides keep the full AIM room */ w = st.clientWidth - Math.max(24, 2 * AM) - (RING ? 4 : 0); // the legend sits under the stage, not in it (T1 QA D1)
     css = Math.max(160, Math.min(w, h, 340)); if (RING) { if (fixCss) css = Math.min(css, fixCss); fixCss = css; } // ring: one size in every state, it never jumps up at the result (T6 live QA 4)
     size = Math.floor(css / S / 2) * 2; css = size * S; wrap.style.marginBottom = RES ? RES + 'px' : '';
     wrap.style.width = wrap.style.height = css + 'px'; cv.width = cv.height = size; cv.style.width = cv.style.height = css + 'px'; tkc.width = tkc.height = size; tkc.style.cssText = 'position:absolute;left:0;top:0;z-index:2;pointer-events:none;image-rendering:pixelated;width:' + css + 'px;height:' + css + 'px';
@@ -264,8 +268,8 @@ export function openWheel(o) {
     ctx.putImageData(im, 0, 0); tctx.clearRect(0, 0, w, w); // the landing tick lives on its own canvas above the glass sheen (z 2; the labels sit above it)
     if (RING) RING.forEach((row, i) => { // tier mark on every slice (SPEC 2f, T3 QA D5, T4 QA 1): upright on screen at R-22 (css), outlined; a slice under 10 degrees that prints a letter may drop it
       if (widths[i] * U < MARK_MIN_RAD && widths[i] < LABEL_MIN_W) return;
-      const kk = R / 75, F = rfit && rfit[i], a = angOf(centreOf(i)); if (F && ICON_SVG[F.ic]) drawIcon(F.ic, cx + Math.cos(a) * (R - 20 * kk), cy + Math.sin(a) * (R - 20 * kk), 3.3 * kk); // focus icon at R-37 (css), upright
-      const mk = tierMark(row.tier, GD.includes(i)), mx = cx + Math.cos(a) * (R - 11 * kk), my = cy + Math.sin(a) * (R - 11 * kk), h = 4 * kk;
+      const kk = R / 75, F = rfit && rfit[i], a = angOf(centreOf(i)); if (F && ICON_SVG[F.ic]) drawIcon(F.ic, cx + Math.cos(a) * (R - 18.5 * kk), cy + Math.sin(a) * (R - 18.5 * kk), 3.3 * kk); // focus icon at R-37 (css), upright
+      const mk = tierMark(row.tier, GD.includes(i)), mx = cx + Math.cos(a) * (R - 15.5 * kk), my = cy + Math.sin(a) * (R - 15.5 * kk), h = 4 * kk;
       ctx.beginPath(); if (mk.shape === 'triangle-up') { ctx.moveTo(mx, my - h); ctx.lineTo(mx + h, my + h * 0.78); ctx.lineTo(mx - h, my + h * 0.78); ctx.closePath(); } else ctx.arc(mx, my, h * 0.85, 0, TAU);
       ctx.fillStyle = 'rgb(' + (landI >= 0 && i !== landI ? mk.fill.map((v, k) => Math.round(v * 0.7 + pal.out[k] * 0.3)) : mk.fill) + ')'; ctx.fill(); ctx.lineWidth = 1; ctx.lineJoin = 'round'; ctx.strokeStyle = 'rgb(' + pal.out + ')'; ctx.stroke();
     });
@@ -297,7 +301,8 @@ export function openWheel(o) {
       if (showAim) { // AIM rides the landing tick outside the rim, tip on the rim (as on the match wheel)
         const ga = -Math.PI / 2 - DIR * curDist * U, RS = (R + 1) * S, c0 = cx * S, up = Math.sin(ga) <= 0;
         aimT.style.left = c0 + Math.cos(ga) * (RS + 9) + 'px'; aimT.style.top = c0 + Math.sin(ga) * (RS + 9) + 'px'; aimT.style.transform = 'translate(-50%,-50%) rotate(' + (ga + Math.PI / 2).toFixed(4) + 'rad)';
-        aimW.style.left = c0 + Math.cos(ga) * (RS + 24) + 'px'; aimW.style.top = c0 + Math.sin(ga) * (RS + 24) + 'px'; aimW.style.transform = 'translate(-50%,-50%) rotate(' + (ga + (up ? Math.PI / 2 : -Math.PI / 2)).toFixed(4) + 'rad)';
+        { const st = aimW.parentNode.parentNode, ox = wrap.offsetLeft, oy = wrap.offsetTop, sw = st.clientWidth || 9e3, sh = st.clientHeight || 9e3, hw = Math.max(7, aimW.offsetWidth / 2 * Math.abs(Math.cos(ga)) + 7 * Math.abs(Math.sin(ga))), hh = Math.max(7, aimW.offsetWidth / 2 * Math.abs(Math.sin(ga)) + 7 * Math.abs(Math.cos(ga))); // clamp: the word stays inside the stage (never off screen at 3 or 9 o'clock)
+          const ax = Math.min(sw - ox - hw - 2, Math.max(-ox + hw + 2, c0 + Math.cos(ga) * (RS + 24))), ay = Math.min(sh - oy - hh - 2, Math.max(-oy + hh + 2, c0 + Math.sin(ga) * (RS + 24))); aimW.style.left = ax + 'px'; aimW.style.top = ay + 'px'; } aimW.style.transform = 'translate(-50%,-50%) rotate(' + (ga + (up ? Math.PI / 2 : -Math.PI / 2)).toFixed(4) + 'rad)';
       }
     }
     else labels.forEach((l, i) => {
@@ -319,7 +324,7 @@ export function openWheel(o) {
     if (state === 'spin') {
       const el = clock - spinEv, f = spinFrame(P, phi, el); speed = f.speed; pos = f.pos; curDist = f.dist;
       if (el >= GUARD && go.getAttribute('aria-disabled') === 'true') { go.removeAttribute('aria-disabled'); go.classList.remove('is-wait', 'is-disabled'); go.textContent = 'STOP'; go.setAttribute('aria-label', 'Stop the wheel'); setMsg(MSG_GO); }
-      if (TIMING) { const tw0 = clock - spinEv - (f.cycle - 1) * PERIOD, inW = el >= GUARD && tw0 >= TIMING_WIN.lo && tw0 <= TIMING_WIN.hi; if (inW !== go.classList.contains('is-window')) { go.classList.toggle('is-window', inW); go.classList.toggle('is-glow', inW); go.classList.toggle('c-btn--gold', inW); /* T4 QA 8: the button fills gold in the window (the art skin paints the wash) */ if (el >= GUARD) go.textContent = inW ? 'STOP!' : 'STOP'; } } // STOP glow 3.2-3.8 s of every cycle: time only, never reads a slice
+      if (TIMING) { const tw0 = clock - spinEv - (f.cycle - 1) * PERIOD, inW = el >= GUARD && tw0 >= E.GLOW[0] && tw0 <= E.GLOW[1]; if (inW !== go.classList.contains('is-window')) { go.classList.toggle('is-window', inW); go.classList.toggle('is-glow', inW); go.classList.toggle('c-btn--gold', inW); /* T4 QA 8: the button fills gold in the window (the art skin paints the wash) */ if (el >= GUARD) { go.textContent = inW ? 'STOP!' : 'STOP'; go.setAttribute('aria-label', inW ? 'Stop now' : 'Stop the wheel'); if (inW) live.textContent = 'Stop now.'; } } } // STOP glow 3.2-3.8 s of every cycle: time only, never reads a slice
       tick(was, pos); // no coast, no auto-stop: the wheel turns until the player taps STOP
       if (RING) readout(sliceOf(pos + curDist));
     } else if (state === 'land') {
@@ -341,9 +346,9 @@ export function openWheel(o) {
   }
   const MSG_GO = 'Turning. Tap STOP.'; // one plain line, no promise about where it lands (T6 live QA 2-3)
   let nowAt = 0;
-  /** Ring wheels: "Tick on: <slice>" under the wheel while it turns (T1 QA D5; mockup readout). The slice under the landing tick; DOM writes at most 3 a second. Not announced. */
+  /** Ring wheels: "Tick on: <slice>" under the wheel while it turns (T1 QA D5; mockup readout). The slice under the landing tick; every frame, a DOM write only when the slice changes. Not announced. */
   function readout(i) {
-    if (i === nowI || clock - nowAt < 0.33) return; nowI = i; nowAt = clock; const r = RING[i];
+    if (i === nowI) return; nowI = i; nowAt = clock; const r = RING[i];
     msg.innerHTML = '<span class="wh-now" aria-hidden="true"><span>Tick on:</span><b class="wh-nowv" style="background:rgb(' + fills[i] + ');color:' + (lum(fills[i]) > 0.5 ? 'rgb(' + pal.out + ')' : '#fff') + '">' + esc(String(r.label == null ? r.value : r.label)) + '</b></span><span class="wh-msg2">' + esc(go.getAttribute('aria-disabled') === 'true' ? 'Get ready.' : MSG_GO) + '</span>';
   }
   const TOKNAME = { respin: 'Spin Again', two: 'Pick Two', nudge: 'Nudge', lift: 'Lucky Lift' }, PL = () => o.plus || '+';
@@ -378,7 +383,10 @@ export function openWheel(o) {
     if (kind === 'lift') { const bn = document.createElement('span'), d = q.gain - (before ? before.gain : q.gain); bn.className = 'wh-bonus'; bn.setAttribute('aria-hidden', 'true'); bn.textContent = d > 0 ? '+' + d : '+0'; wrap.appendChild(bn); setTimeout(() => bn.remove(), 900); }
     raf = requestAnimationFrame(frame);
   }
-  function finishToken() { ov.classList.remove('is-turning'); showResult(true, tw && tw.line); const f = tokBox.querySelector('button') || go; f.focus(); tw = null; }
+  let kbd = false; ov.addEventListener('keydown', () => { kbd = true; }, true); ov.addEventListener('pointerdown', () => { kbd = false; }, true);
+  /** N4: the dashed focus ring (:focus-visible) shows only for keyboard use; after a tap or click the sheet itself takes focus, so SPIN / COLLECT carry no ring. */
+  function focusGo(el) { setTimeout(() => { if (closed) return; if (kbd) { el.focus(); return; } ov.tabIndex = -1; ov.style.outline = 'none'; ov.focus({ preventScroll: true }); }, 150); } // a11y: focus moves after the polite live text is set (about 150 ms), so a screen reader does not drop the announcement
+  function finishToken() { ov.classList.remove('is-turning'); showResult(true, tw && tw.line); const f = tokBox.querySelector('button') || go; focusGo(f); tw = null; }
   function burst() { // landing burst (craft look): a few pixel bits fly out once
     if (!LK || !LK.burst) return; const b = document.createElement('span'); b.className = 'wh-burst wh-burst--' + String(LK.burst).replace(/[^a-z]/gi, ''); b.setAttribute('aria-hidden', 'true');
     for (let i = 0; i < 12; i++) { const a = i / 12 * TAU, r = css * 0.46, e = document.createElement('i'); e.style.setProperty('--bx', Math.round(Math.cos(a) * r) + 'px'); e.style.setProperty('--by', Math.round(Math.sin(a) * r) + 'px'); b.appendChild(e); }
@@ -388,13 +396,16 @@ export function openWheel(o) {
     const k = landedIndex(p, lastStop, N), d = o.describe ? o.describe(p) : { big: RING ? String(RING[k].label) : PL() + p.gain, from: '', to: '', say: 'Landed: ' + (RING ? RING[k].label : PL() + p.gain) + '.' };
     return d && typeof d === 'object' ? d : { big: String(d == null ? '' : d), say: String(d == null ? '' : d) };
   };
-  /** Ring result (T3 QA D2): "Landed on [slice]", then the host's big line and one plain line. No lone "+", no letters, no Booster / Breakthrough (Training words). */
+  /** Result block, ring and non-ring alike: "Landed on [slice]", then the host's big line and one plain line (timing is added by showResult). No lone "+", no stay-the-same text. The chip prints the short slice label (sliceLabel: "+2" for "+2 steps" on a narrow slice); the full label is the chip's title / aria-label and the spoken line. */
+  function landedRow(k) { return RING ? RING[k] : { label: o.labels && o.labels[k] ? o.labels[k] : (o.plus || '+') + VALS[k], value: VALS[k], w: widths[k] }; }
   function ringResultHtml(p, d, sg) {
-    const k = landedIndex(p, lastStop, N), lab = String(RING[k].label == null ? RING[k].value : RING[k].label) + (RING[k].sub != null && String(RING[k].sub).trim() ? ' ' + String(RING[k].sub).trim() : ''), chip = lab /* the landed slice's own text (x1.0, not x1) */, big = d.big != null ? String(d.big) : '';
+    const k = landedIndex(p, lastStop, N), row = landedRow(k), lab = String(row.label == null ? row.value : row.label) + (row.sub != null && String(row.sub).trim() ? ' ' + String(row.sub).trim() : ''), short = sliceLabel(row) + (row.sub != null && String(row.sub).trim() && !(row.w < LABEL_MIN_W) ? ' ' + String(row.sub).trim() : ''), chip = short || lab, big = d.big != null ? String(d.big) : '';
+    landedFull = lab; landedShort = chip !== lab;
+    const chg = !RING && ((d.from != null && d.to != null && String(d.from) !== '' && d.from !== d.to) ? '<div class="wh-chg"><span>' + esc(d.from) + '</span><span class="t2-arr" aria-hidden="true"></span><b class="t2-new">' + esc(d.to) + '</b></div>' : d.barHtml ? '<div class="wh-chg">' + d.barHtml + '</div>' : '');
     return (p.jackpot && o.jpText ? '<span class="wh-jp">' + icoDeco('burst', 20) + ' ' + esc(o.jpText) + '</span>' : '') +
-      '<div class="wh-big wh-land"><span>Landed on</span><span class="wh-chip' + (p.boosted ? ' is-boost' : '') + '">' + esc(chip) + '</span></div>' +
-      (big && big !== chip && big !== lab ? '<div class="wh-line"><b>' + esc(big) + '</b></div>' : '') + (d.line ? '<div class="wh-line">' + esc(d.line) + '</div>' : '') +
-      (sg > 0 ? '<div class="wh-sp">' + spokeIcon(20) + '<b>+' + esc(sg) + ' Spokes</b></div>' : '');
+      '<div class="wh-big wh-land"><span>Landed on</span><span class="wh-chip' + (p.boosted || p.hot ? ' is-boost' : '') + '"' + (chip !== lab ? ' title="' + esc(lab) + '" aria-label="' + esc(lab) + '"' : '') + '>' + esc(chip) + '</span></div>' +
+      (big && big !== chip && big !== lab ? '<div class="wh-line"><b>' + esc(big) + '</b></div>' : '') + (d.line ? '<div class="wh-line">' + esc(d.line) + '</div>' : '') + chg +
+      (sg > 0 ? '<div class="wh-sp">' + spokeIcon(20) + '<b>+' + esc(sg) + (Number(sg) === 1 ? ' Spoke' : ' Spokes') + '</b></div>' : '');
   }
   function showResult(again, line) {
     const p = pendingNow(); if (!p) return; const d = describeOf(p), sg = o.spokeGain ? Number(o.spokeGain()) || 0 : 0;
@@ -403,18 +414,14 @@ export function openWheel(o) {
     if (RING) res.innerHTML = ringResultHtml(p, d, sg);
     else if (o.plainResult) res.innerHTML = (p.jackpot ? '<span class="wh-jp">' + icoDeco('burst', 20) + ' ' + esc(o.jpText || 'JACKPOT!') + '</span>' : '') + // wa1 find: a word result (chip + big line + one plain line)
       '<div class="wh-big">' + (d.chip ? '<span class="wh-chip' + (p.boosted ? ' is-boost' : '') + '">' + esc(d.chip) + '</span>' : '') + '<b>' + esc(d.big) + '</b></div>' + (d.line ? '<div class="wh-chg"><span>' + esc(d.line) + '</span></div>' : '') +
-      (sg > 0 ? '<div class="wh-sp">' + spokeIcon(20) + '<b>+' + esc(sg) + ' Spokes</b></div>' : '');
-    else res.innerHTML = (p.jackpot ? '<span class="wh-jp">' + icoDeco('burst', 20) + ' JACKPOT! Breakthrough!</span>' : d.breakthrough && wholeLetter(d.from, d.to) ? '<span class="wh-bt">Breakthrough!</span>' : '') +
-      '<div class="wh-big"><span class="wh-chip' + (p.boosted || p.hot ? ' is-boost' : '') + '">' + esc(o.plus || '+') + esc(p.gain) + '</span><b>' + esc(d.big) + '</b></div>' +
-      (p.boosted || p.hot ? '<div class="wh-bst">' + (p.boosted ? '<span class="wh-bst1">Booster ' + esc(o.plus || '+') + esc(p.boostBy || 1) + '</span>' : '') + (p.hot ? '<span class="wh-bst1">Hot Streak ' + esc(o.plus || '+') + esc(p.hotBy || 1) + '</span>' : '') + '</div>' : '') +
-      '<div class="wh-chg">' + (d.from !== d.to ? '<span>' + esc(d.from) + '</span><span class="t2-arr" aria-hidden="true"></span><b class="t2-new">' + esc(d.to) + '</b>' : d.barHtml ? d.barHtml + '<small>(bar fills)</small>' : '<span>' + esc(d.from) + '</span><small>(same letter)</small>') + '</div>' +
-      (sg > 0 ? '<div class="wh-sp">' + spokeIcon(20) + '<b>+' + esc(sg) + ' Spokes</b></div>' : '');
+      (sg > 0 ? '<div class="wh-sp">' + spokeIcon(20) + '<b>+' + esc(sg) + (Number(sg) === 1 ? ' Spoke' : ' Spokes') + '</b></div>' : '');
+    else res.innerHTML = (!p.jackpot && d.breakthrough && wholeLetter(d.from, d.to) ? '<span class="wh-bt">Breakthrough!</span>' : p.jackpot && !o.jpText ? '<span class="wh-jp">' + icoDeco('burst', 20) + ' JACKPOT!' + (d.breakthrough && wholeLetter(d.from, d.to) ? ' Breakthrough!' : '') + '</span>' : '') + ringResultHtml(p, d, sg) + (p.boosted || p.hot ? '<div class="wh-bst">' + (p.boosted ? '<span class="wh-bst1">Booster ' + esc(o.plus || '+') + esc(p.boostBy || 1) + '</span>' : '') + (p.hot ? '<span class="wh-bst1">Hot Streak ' + esc(o.plus || '+') + esc(p.hotBy || 1) + '</span>' : '') + '</div>' : ''); // production Training / Course / Find / Hype pass `slices`: same block as the ring
     const TL = TIMING && timeB && (RING || !o.plainResult); // ring wheels always say Early / Good timing / Late (a stored stop too)
     if (TIMING && timeB && !o.plainResult) res.insertAdjacentHTML('beforeend', '<div class="wh-tim" data-timing="' + timeB + '"><span class="wh-tim--' + timeB + '">' + esc(TIMING_LINE[timeB]) + '</span></div>');
     else if (TL) res.insertAdjacentHTML('beforeend', '<div class="wh-tim" data-timing="' + timeB + '"><span class="wh-tim--' + timeB + '">' + esc(TIMING_LINE[timeB]) + '</span></div>'); // wa2: one timing line (copy only)
-    live.textContent = (TIMING && timeB && !o.plainResult ? TIMING_LINE[timeB] + '. ' : '') + (TL && o.plainResult ? TIMING_LINE[timeB] + '. ' : '') + (line ? line + '. ' : '') + (d.say || '') + (p.boosted ? ' Booster plus ' + (p.boostBy || 1) + '.' : '') + (p.hot ? ' Hot Streak plus ' + (p.hotBy || 1) + '.' : ''); // read once, politely; nothing is announced while spinning
+    live.textContent = (TIMING && timeB && !o.plainResult ? TIMING_LINE[timeB] + '. ' : '') + (TL && o.plainResult ? TIMING_LINE[timeB] + '. ' : '') + (line ? line + '. ' : '') + (landedShort ? 'Landed on ' + landedFull + '. ' : '') + (d.say || '') + (p.boosted ? ' Booster plus ' + (p.boostBy || 1) + '.' : '') + (p.hot ? ' Hot Streak plus ' + (p.hotBy || 1) + '.' : ''); // read once, politely; nothing is announced while spinning
     showTokens(p, line); if (!again && !o.pending && !stRec) burst();
-    go.textContent = o.collectLabel || 'COLLECT'; go.classList.add('is-collect', 'c-btn--gold'); go.classList.remove('c-btn--primary', 'is-window', 'is-glow'); go.removeAttribute('aria-disabled'); go.classList.remove('is-wait', 'is-disabled'); go.setAttribute('aria-label', o.collectLabel || 'Collect'); xLook(false); go.focus();
+    go.textContent = o.collectLabel || 'COLLECT'; go.classList.add('is-collect', 'c-btn--gold'); go.classList.remove('c-btn--primary', 'is-window', 'is-glow'); go.removeAttribute('aria-disabled'); go.classList.remove('is-wait', 'is-disabled'); go.setAttribute('aria-label', o.collectLabel || 'Collect'); xLook(false); focusGo(go);
     if (o.plainResult) { const cd = $('.wh-card'), pl = $('.wh-plate'); if (cd) cd.style.display = 'none'; res.style.minHeight = '0'; if (pl) pl.hidden = true; ov.classList.add('is-res-compact'); } // wa1 fixfind: Find result: the hint card, the name plate and the result box's empty height make way so the wheel stays big (>= ~240 px at 475x638)
     if (LK || o.plainResult || RING) layout(); // wheel meta only (flag off: unchanged). The foot is taller now (result, tokens, outcome line): size the wheel to the room left so the stand and plate under it are never covered or clipped
     draw();
@@ -458,6 +465,6 @@ export function openWheel(o) {
   if (RING && document.fonts && document.fonts.ready) document.fonts.ready.then(() => { if (!closed) onResize(); }); // ring labels are measured: fit again once the pixel font has loaded
   const pend = o.pending || (stRec ? ringPending(stRec.sliceId) : null); // a stored stop opens on its result and never spins again
   if (pend) { pos = centreOf(landedIndex(pend, stRec, N)); if (stRec && Number.isFinite(+stRec.tInCycle) && stRec.tInCycle !== null) timeB = timingBucket(+stRec.tInCycle); state = 'result'; draw(); showResult(); } // a stored stop keeps its Early / Good timing / Late line
-  else { setMsg('Tap SPIN, then tap STOP. The tick shows where it will land.'); go.focus(); }
+  else { setMsg(/tick shows/i.test(($('.wh-card') || {}).textContent || '') ? 'Tap SPIN, then tap STOP.' : 'Tap SPIN, then tap STOP. The tick shows about where it will land.'); focusGo(go); }
   return close;
 }
