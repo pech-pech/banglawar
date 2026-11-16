@@ -9,20 +9,22 @@ import { TRAIN2 } from '../js/data/training.js';
 const read = (p) => readFileSync(new URL('../' + p, import.meta.url), 'utf8');
 const wheel = read('js/ui/wheel-view.js'), view = read('js/ui/training-view.js'), coaches = read('js/ui/coaches-sheet.js'), find = read('js/ui/wheels/find.js'), t2 = read('css/training2.css'), log = read('js/report/log.js');
 
-test('TIMING_WIN is 3.2-3.8 s, frozen; COAST is 6 s', () => {
+test('TIMING_WIN is 3.2-3.8 s, frozen (deprecated shim); COAST and STOP_FROM are legacy-only (kept for the old wheel-view, nothing in the core reads them); Spotlight/Course use W0 36, D 2, J 1.2', () => {
   assert.deepEqual({ ...TIMING_WIN }, { lo: 3.2, hi: 3.8 });
   assert.ok(Object.isFrozen(TIMING_WIN));
-  assert.equal(TRAIN2.wheelStop.COAST, 6);
+  assert.equal(TRAIN2.wheelStop.STOP_FROM, 0.35, 'legacy-only: the old wheel-view reads it');
+  assert.ok(TRAIN2.wheelStop.COAST > 1e6, 'legacy-only: effectively no auto-stop');
+  assert.deepEqual([TRAIN2.wheelStop.W0, TRAIN2.wheelStop.D, TRAIN2.wheelStop.J], [36, 2, 1.2]);
 });
 
-test('timingBucket edges: early / careful / late / coasted', () => {
-  const cases = [[0, 'e'], [3.199, 'e'], [3.2, 'c'], [3.5, 'c'], [3.8, 'c'], [3.801, 'l'], [5.99, 'l'], [6, 'o'], [7.5, 'o']];
+test('timingBucket edges: early / careful / late; no coast: any finite t past the window is late (shim until log.js drops it)', () => {
+  const cases = [[0, 'e'], [3.199, 'e'], [3.2, 'c'], [3.5, 'c'], [3.8, 'c'], [3.801, 'l'], [5.99, 'l'], [6, 'l'], [7.5, 'l']];
   for (const [t, b] of cases) assert.equal(timingBucket(t), b, 't=' + t);
 });
 
-test('timingBucket: coasted flag wins at any t; NaN / Infinity / non-number = coasted', () => {
-  for (const t of [0, 1, 3.2, 3.5, 3.8, 4, 5.99, 6]) assert.equal(timingBucket(t, true), 'o', 'coasted t=' + t);
-  for (const t of [NaN, Infinity, -Infinity, undefined, null, '3.5']) assert.equal(timingBucket(t), 'o', 'bad t=' + String(t));
+test('timingBucket: no coasted flag any more; NaN / non-number = none', () => {
+  for (const t of [0, 1, 3.2, 3.5, 3.8, 4, 5.99, 6]) assert.equal(timingBucket(t, true), timingBucket(t), 'flag ignored t=' + t);
+  for (const t of [NaN, undefined, null, '3.5']) assert.equal(timingBucket(t), 'o', 'bad t=' + String(t));
   assert.equal(timingBucket(3.5, false), 'c');
 });
 
@@ -32,7 +34,7 @@ test('TIMING_LINE words exactly, frozen', () => {
 });
 
 test('parity with the old report rule over 1..6 step 0.001', () => {
-  const old = (t) => (t >= 6 ? 'o' : t < 3.2 ? 'e' : t <= 3.8 ? 'c' : 'l');
+  const old = (t) => (t < 3.2 ? 'e' : t <= 3.8 ? 'c' : 'l'); // the 'o' (coasted) bucket is retired
   let n = 0;
   for (let i = 1000; i <= 6000; i++) { const t = i / 1000; assert.equal(timingBucket(t), old(t), 't=' + t); n++; }
   assert.equal(n, 5001);
@@ -57,9 +59,9 @@ test('wheel-view: timing option wiring (window class during spin, removed on sto
   assert.match(wheel, /live\.textContent = \(TIMING && timeB && !o\.plainResult \? TIMING_LINE\[timeB\] \+ '\. ' : ''\)/, 'live region starts with the line');
 });
 
-test('Spotlight and Course pass timing: true; Find (wm-spins) does not', () => {
-  assert.match(view, /openWheel\(\{\s*timing: true,/);
-  assert.match(coaches, /openWheel\(\{\s*timing: true,/);
+test('timing option retired (glow always on): Spotlight, Course and Find do not pass timing', () => {
+  assert.doesNotMatch(view, /openWheel\(\{\s*timing: true,/);
+  assert.doesNotMatch(coaches, /openWheel\(\{\s*timing: true,/);
   assert.doesNotMatch(find, /timing\s*:/);
 });
 

@@ -91,7 +91,7 @@ test('T-dev-9 otherMult x2: Find W0 72, Hype V 32, Spotlight / Course W0 48, rev
     const w = metaWheel(wheelSlices('normal'), 'spot', s); assert.equal(w.phys.W0, 48); // plain wheel path
     // the landing follows the faster wheel
     const a = stopLanding(wheelSlices('normal'), { t: 2, phi: 0, e: 0 }), b = stopLanding(w, { t: 2, phi: 0, e: 0 });
-    assert.ok(Math.abs((b.base - 0) - 2 * (a.base - 0)) < 1e-9);
+    assert.ok(Math.abs(b.base - (48 / 36) * a.base) < 1e-9); // plain wheel W0 is now 36 (engine), the dev wheel 48
   });
   assert.equal(revealT(2.5, { speedMult: 2 }), 1.25); assert.equal(revealT(3, { speedMult: 0.5 }), 6);
 });

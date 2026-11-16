@@ -11,10 +11,26 @@ import { letterOfStep } from '../core/letters.js';
 import { openWheel } from './wheel-view.js';
 import { scoutBodyHtml, scoutDone, scoutSpinOpen } from './coachpick-view.js';
 import { courseWheel } from '../core/training.js';
+import { COURSE_SLICES } from '../data/wheel-slices-train.js';
 
 /* Z5 UI slots (SEAMS-S0): fenced, return '' today. Owners: Course T2, job chip + XP bar T5, Clinic button T6. */
 /* SLOT:Course start */
-export function slotCourse(vm) { return ''; } // owner: T2
+/** Course cap (CONTRACT-B COURSE_MAX_STEP 19 = S-, 1 course a season club-wide). Pure text helpers, exported for the test. */
+export const COURSE_CAP_STEP = 19;
+export const courseSeasonWords = () => 'One course a season: this coach has had his.';
+/** The 1-a-season refusal from canCourse (why 'season'). */
+export function courseNote(c) {
+  if (!c) return '';
+  const cr = c.course || {};
+  return !cr.ok && cr.why === 'season' ? courseSeasonWords() : '';
+}
+/** Course ring facts above the coach list: the +4 slice, the +2 thin slice (legend) and any 1-a-season refusal. '' with no coaches. */
+export function slotCourse(vm) {
+  const cs = (vm && vm.coaches) || []; if (!cs.length) return '';
+  const notes = cs.map((c) => { const n = courseNote(c); return n ? '<li>' + esc(c.name) + ': ' + esc(n) + '</li>' : ''; }).join('');
+  return '<section class="tr-note t2-course" aria-label="Course wheel"><span>' + deco('info', 20) + '</span><span>Course wheel: a gold +4 slice (12%), a thin +2 slice, the rest +1 or +3. One course a season.</span>' +
+    (notes ? '<ul class="t2-course-why">' + notes + '</ul>' : '') + '</section>';
+} // owner: T2
 /* SLOT:Course end */
 /* SLOT:JobChip start */
 export function slotJobChip(vm, coach) { return ''; } // owner: T5
@@ -88,11 +104,11 @@ export function startCourse(vm, id, dispatch, refresh) {
   const w = co.course.wheel || courseWheel(co.step), from = co.step;
   const card = '<div class="wh-who"><b class="t2-nm">' + esc(co.name) + '</b><span class="c-tag">Course: away 1 week</span></div><div class="wh-gr"><span class="wh-g hit"><span>Grade</span><b>' + esc(co.letter) + '</b></span><span class="wh-g wh-wide"><span>Strong</span><b class="t2-strong">' + strongHtml(co.strong) + '</b></span></div><p class="dr-hint">The tick shows where it will land.</p>';
   openWheel({
-    timing: true, // wa2: STOP pulse in the careful window + timing line
+    wheelId: 'course', ring: COURSE_SLICES, legend: [{ ch: '+2', text: 'thin slice: +2 steps' }], // CONTRACT-A sec 4: ring replaces slices/widths once T1 merges
     title: 'Course', sub: co.name, cardHtml: card, slices: w.slices, jackpotIndex: w.jackpotIndex, widths: w.widths, aim: w.aim, pending: co.course.pending || null, plus: '+',
     guide: !!co.course.guide, zone: +co.course.zone || 0, chime: !!co.course.chime, tokens: co.course.tokens || [], getTokens: () => cur().tokens || [], look: co.course.look || null, phys: w.phys || null, golds: w.golds || null, spokeGain: () => cur().spokeGain || 0, onToken: (kind, careful) => dispatch('UseToken', { wheel: 'course', kind, careful }), // wheel meta: empty when the flag is off
     onSpin: (careful) => dispatch('CourseSpin', { coachId: id, careful }), getPending: () => cur().pending || null,
-    describe: (r) => { const to = Math.min(21, from + r.gain), a = letterOfStep(from), b = letterOfStep(to); return { big: 'Grade steps', from: a, to: b, breakthrough: !!r.jackpot || a !== b, say: co.name + ' course: ' + a + (a === b ? ', already top grade' : ' to ' + b) + (r.jackpot ? ', jackpot' : '') + '.' }; },
+    describe: (r) => { const to = Math.min(COURSE_CAP_STEP, from + r.gain), paid = to - from, a = letterOfStep(from), b = letterOfStep(to), cut = paid < r.gain; return { big: 'Grade steps', from: a, to: b, paid, breakthrough: !!r.jackpot || a !== b, say: co.name + ' course: ' + (cut ? '+' + r.gain + ', cut at ' + letterOfStep(COURSE_CAP_STEP) + ': you gain +' + paid + '. ' : '') + a + (a === b ? ', already top grade' : ' to ' + b) + (r.jackpot ? ', jackpot' : '') + '.' }; },
     onCollect: () => dispatch('RunCourse', { coachId: id }),
   });
 }

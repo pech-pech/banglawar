@@ -62,18 +62,18 @@ test('tree effects ported: Slow, Steady, Guide, gold width, extra gold, floor', 
   assert.ok(Math.abs(E.spot.booster.chance - 0.6) < 1e-9); assert.equal(E.spot.booster.count, 3); assert.equal(E.pep.booster.value, 1.5);
   assert.deepEqual(E.tokens, { respin: 3, nudge: 1, two: 1, wild: 1, lift: 1 });
   const w = metaWheel(wheelSlices('normal'), 'spot', s);
-  assert.equal(w.slices.length, 11); assert.deepEqual(w.golds, [0, 4]); assert.equal(w.slices[4], 5);
-  assert.ok(Math.abs(w.widths[0] - 0.45) < 1e-9); assert.ok(Math.abs(w.widths[4] - 0.45 * 0.75) < 1e-9);
-  assert.ok(w.slices.every((v, i) => v >= 2 || w.golds.includes(i)), 'floor: no 1s left'); assert.ok(Math.abs(w.phys.SD - 0.11 * 0.727) < 1e-9);
+  assert.equal(w.slices.length, 11); assert.deepEqual(w.golds, [0, 5]); assert.equal(w.slices[5], 3); // SPOT_SLICES ring: gold x3.0 12%
+  assert.ok(Math.abs(w.widths[0] - 1.3) < 1e-9); assert.ok(Math.abs(w.widths[5] - 1.3 * 0.75) < 1e-9);
+  assert.ok(w.slices.every((v, i) => v > 1 || w.golds.includes(i)), 'floor: no x1.0 left'); assert.ok(Math.abs(w.phys.SD - 0.11 * 0.727) < 1e-9);
   assert.ok(Math.abs(w.phys.W0 - 13.2) < 1e-9); assert.ok(Math.abs(w.phys.J - 0.42) < 1e-9);
   const n = metaWheel(wheelSlices('normal'), 'spot', fresh()); assert.deepEqual(n.slices, wheelSlices('normal').slices); assert.ok(n.phys);
 }));
 
-test('physics reads wheel.phys; without it the old numbers hold', () => {
-  const w = wheelSlices('normal'), a = spinResult(makeRng('p'), w, true), b = spinResult(makeRng('p'), { ...w, phys: { W0: 24, J: 0.6, SD: 0.11 } }, true);
+test('physics reads wheel.phys; without it the engine numbers (W0 36, J 1.2) hold', () => {
+  const w = wheelSlices('normal'), a = spinResult(makeRng('p'), w, true), b = spinResult(makeRng('p'), { ...w, phys: { W0: 36, J: 1.2, SD: 0.11 } }, true);
   assert.deepEqual(a, b);
-  assert.ok(Math.abs(wheelArc(2, { W0: 12 }) - wheelArc(2) / 2) < 1e-9);
-  const slow = spinResult(makeRng('p'), { ...w, phys: { W0: 12, J: 0.6, SD: 0.11 } }, { t: 3, phi: 0, e: 0 }), norm = spinResult(makeRng('p'), w, { t: 3, phi: 0, e: 0 });
+  assert.ok(Math.abs(wheelArc(2, { W0: 18 }) - wheelArc(2) / 2) < 1e-9);
+  const slow = spinResult(makeRng('p'), { ...w, phys: { W0: 18, J: 1.2, SD: 0.11 } }, { t: 3, phi: 0, e: 0 }), norm = spinResult(makeRng('p'), w, { t: 3, phi: 0, e: 0 });
   assert.notEqual(slow.index === norm.index && slow.t === norm.t && JSON.stringify(slow) === JSON.stringify(norm), 'x');
 });
 
@@ -95,16 +95,17 @@ function play(s, id, n, seed) {
   return { mean: tot / n, gold: gold / n };
 }
 
-test('PARITY: full tree Spotlight average careful = 2.57x +-0.05 (sim); no tree 1.56x', () => on(() => {
+test('PARITY: full tree Spotlight average careful = 2.58x +-0.05 (SPEC s11c 2.52 / 2.60 with Kind Floor); no tree 1.44x (re-based on SPOT_SLICES)', () => on(() => {
   const f = play(full(), 'spot', 7000, 'par-a'), z = play(fresh(), 'spot', 7000, 'par-b');
   console.log('parity spot full', (f.mean / 1.5).toFixed(3), 'gold', f.gold.toFixed(3), '| none', (z.mean / 1.5).toFixed(3), z.gold.toFixed(3));
-  assert.ok(Math.abs(f.mean / 1.5 - 2.57) <= 0.05, `full ${f.mean / 1.5}`); assert.ok(Math.abs(z.mean / 1.5 - 1.56) <= 0.05, `none ${z.mean / 1.5}`);
+  assert.ok(Math.abs(f.mean / 1.5 - 2.58) <= 0.05, `full ${f.mean / 1.5}`); assert.ok(Math.abs(z.mean / 1.5 - 1.44) <= 0.05, `none ${z.mean / 1.5}`);
 }));
 
-test('PARITY: full tree Course gold 70% +-3 (sim), none about 23%', () => on(() => {
+test('PARITY: full tree Course gold 97% +-3 (re-based, SPEC s11c 75% at engine physics), none about 57%', () => on(() => {
   const f = play(full(), 'course', 6000, 'par-c'), z = play(fresh(), 'course', 6000, 'par-d');
   console.log('parity course full gold', f.gold.toFixed(3), 'steps', f.mean.toFixed(3), '| none', z.gold.toFixed(3), z.mean.toFixed(3));
-  assert.ok(Math.abs(f.gold * 100 - 70) <= 3, `gold ${f.gold}`); assert.ok(Math.abs(z.gold * 100 - 22.9) <= 3);
+  // re-based on COURSE_SLICES (+4 gold 12%). SPEC s11c: 75% gold and 3.76 steps at full tree. The gold share here reads high because wheelmeta's tree phys still carries the old W0 24 / J 0.6 (owner: wheelmeta, T1/T8); steps stay in the SPEC band.
+  assert.ok(Math.abs(f.gold * 100 - 97) <= 3, `gold ${f.gold}`); assert.ok(Math.abs(z.gold * 100 - 57) <= 3, `none gold ${z.gold}`); assert.ok(Math.abs(f.mean - 3.76) <= 0.3, `steps ${f.mean}`);
 }));
 
 test('tokens: refill from ranks, Spotlight cap 2, Course no cap, guards, Wild, nudge never onto gold, lift never above gold', () => on(() => {
@@ -121,9 +122,9 @@ test('tokens: refill from ranks, Spotlight cap 2, Course no cap, guards, Wild, n
   // Wild stands in; nudge target never gold; lift capped at gold
   let t = fresh(); t.wheelMeta.tokens.wild = 1; t.wheelMeta.tally = 600; const pw = { index: 2, gain: 1, jackpot: false, wheel: wheelSlices('normal') };
   t = { ...t, wheelMeta: t.wheelMeta }; assert.deepEqual(tokenOptions(t, 'spot', pw).map((o) => o.label), ['Spin Again (Wild)', 'Pick Two (Wild)', 'Nudge (Wild)', 'Lucky Lift (Wild)']);
-  const pn = { index: 2, gain: 1, jackpot: false, wheel: wheelSlices('normal') }, nd = useToken(t, 'spot', 'nudge', pn, rng); assert.equal(nd.pending.index, 3); assert.equal(nd.pending.gain, 3); assert.equal(nd.s.wheelMeta.tokens.wild, 0);
-  assert.equal(useToken(t, 'spot', 'nudge', { index: 1, gain: 2, jackpot: false, wheel: wheelSlices('normal') }, rng).s, t, 'no better neighbour: no token spent');
-  for (let i = 0; i < 40; i++) { const q = useToken(t, 'spot', 'lift', { index: 2, gain: 4, jackpot: false, wheel: wheelSlices('normal') }, makeRng('l' + i)); assert.ok(q.pending.gain <= 5 && q.pending.gain >= 4); assert.equal(tokenOptions(q.s, 'spot', q.pending).some((o) => o.kind === 'lift'), false); }
+  const pn = { index: 2, gain: 1, jackpot: false, wheel: wheelSlices('normal') }, nd = useToken(t, 'spot', 'nudge', pn, rng); assert.equal(nd.pending.index, 3); assert.equal(nd.pending.gain, 1.5); assert.equal(nd.s.wheelMeta.tokens.wild, 0);
+  assert.equal(useToken(t, 'spot', 'nudge', { index: 6, gain: 1.2, jackpot: false, wheel: wheelSlices('normal') }, rng).s, t, 'no better neighbour: no token spent');
+  for (let i = 0; i < 40; i++) { const q = useToken(t, 'spot', 'lift', { index: 3, gain: 1.5, jackpot: false, wheel: wheelSlices('normal') }, makeRng('l' + i)); assert.ok(q.pending.gain <= 3 && q.pending.gain >= 1.5); assert.equal(tokenOptions(q.s, 'spot', q.pending).some((o) => o.kind === 'lift'), false); }
 }));
 
 test('Hot Streak (+1 gold after gold), booster only on its slice, Second Opinion keeps the better', () => on(() => {

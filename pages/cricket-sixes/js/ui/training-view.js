@@ -10,6 +10,8 @@ import { letterOfRaw, stepOfRaw } from '../core/letters.js';
 import { playNets, lineHtml, skipLine, letterBar, STAT, statKey } from './nets-scene.js';
 import { openWheel } from './wheel-view.js';
 import { drawHead } from './club-canvas.js';
+import { SPOT_SLICES } from '../data/wheel-slices-train.js';
+import { applyKindFloor } from '../core/perks/kind-floor.js';
 
 export const ROLE_ICON = { opener: 'roleOpener', middle: 'roleMiddle', lower: 'roleLower' };
 export const TYPE_ICON = { fast: 'typeFast', medium: 'typeMedium', spin: 'typeSpin' };
@@ -104,7 +106,7 @@ function openSpotlightWheel(dispatch, slot) {
   const card = '<div class="wh-who"><b class="t2-nm">' + esc(pr.name) + '</b><span class="c-tag">Wheel is yours this week</span></div><div class="wh-gr">' +
     ['bp', 'bs', 'spd', 'bsk'].map((k) => '<span class="wh-g' + (k === statKey(w.stat) ? ' hit' : '') + '">' + deco(STAT(k).icon, 20) + '<span>' + esc(STAT(k).word) + '</span><b>' + esc(letterOfRaw(rates[k] || 1)) + '</b></span>').join('') + '</div><p class="dr-hint">The tick shows where it will land.</p>';
   openWheel({
-    timing: true, // wa2: STOP pulse in the careful window + timing line
+    wheelId: 'spot', ring: spotRing(w), legend: spotLegend(spotRing(w)), J: w.phys && w.phys.J != null ? w.phys.J : undefined, // CONTRACT-A sec 4; STOP glow is always on (timing retired)
     title: 'Spotlight', sub: 'Week ' + latest.vm.week + (latest.vm.wheel2 ? (two ? ', second spin' : ', first spin') : ''), cardHtml: card, slices: w.slices, jackpotIndex: w.jackpotIndex, widths: w.widths, aim: w.aim, pending: w.pending || null,
     // wheel meta (flag on; empty / null otherwise): guide = Aim Guide tick, tokens = buttons for the waiting result, getTokens = the fresh list after each command, look = craft look
     guide: w.guide, zone: w.zone, chime: w.chime, tokens: w.tokens, getTokens: () => { const sp = two ? latest.raw.twin : latest.raw.spotlight; return (sp && sp.tokens) || []; }, look: w.look, phys: w.phys, golds: w.golds, spokeGain: () => { const sp = two ? latest.raw.twin : latest.raw.spotlight; return (sp && sp.spokeGain) || 0; },
@@ -113,7 +115,7 @@ function openSpotlightWheel(dispatch, slot) {
     describe: (p) => {
       const g = p.applied != null ? p.applied : Math.min(p.gain, w.room == null ? 99 : w.room), to = raw0 + g, a = letterOfRaw(raw0), b = letterOfRaw(to), moved = stepOfRaw(to) !== stepOfRaw(raw0);
       return { big: st.word, from: a, to: b, barHtml: moved ? '' : letterBar(to, raw0), breakthrough: !!(p.jackpot || moved),
-        say: pr.name + ' ' + st.word + ': wheel plus ' + g + ', ' + (moved ? a + ' to ' + b : a + ', the bar fills') + (p.jackpot ? ', jackpot' : '') + '.' };
+        mult: spotMult(p), say: pr.name + ' ' + st.word + (spotMult(p) ? ' ' + spotMult(p) : '') + ': wheel plus ' + g + ', ' + (moved ? a + ' to ' + b : a + ', the bar fills') + (p.jackpot ? ', jackpot' : '') + '.' };
     },
     onCollect: () => { if (!two && latest.vm.wheel2) { openSpotlightWheel(dispatch, 2); return; } runPending = true; dispatch('RunNets', {}); },
   });
@@ -143,7 +145,19 @@ function ctCard(c, vm) {
 }
 /* Z5 UI slots (SEAMS-S0): fenced, return '' today. Owners: Spotlight T2, job chip + XP bar T5, Clinic button T6. */
 /* SLOT:Spotlight start */
-export function slotSpotlight(vm) { return ''; } // owner: T2
+/** The Spotlight ring for a wheel vm: SPOT_SLICES with Kind Floor applied when owned (the x1.0 pieces print and pay x1.2). */
+export function spotRing(w) { return applyKindFloor(SPOT_SLICES, !!(w && w.kindFloor)); }
+/** Legend for under-7% pieces whose printed label is longer than one char and not a number. */
+export function spotLegend(ring) { return (ring || []).filter((s) => s.w < 0.7 && String(s.label).length > 1 && !/^[+-]?[x\d.]+$/.test(String(s.label))).map((s) => ({ ch: String(s.label).charAt(0), text: String(s.label) })); }
+/** Result strip multiplier text ('x1.2') from a pending result; '' when unknown. */
+export function spotMult(p) { const v = p && (p.mult != null ? p.mult : p.value); return v != null && isFinite(+v) ? 'x' + String(Math.round(+v * 100) / 100) : ''; }
+/** Training tab strip: the multipliers on the Spotlight ring (gold first). '' with no Spotlight player. */
+export function slotSpotlight(vm) {
+  const w = vm && vm.wheel; if (!w || !w.player) return '';
+  const ring = spotRing(w), by = {}; ring.forEach((s) => { by[s.label] = (by[s.label] || 0) + 1; });
+  const keys = Object.keys(by).sort((a, b) => parseFloat(b.replace('x', '')) - parseFloat(a.replace('x', '')));
+  return '<p class="tr-note t2-spotring" aria-label="' + esc('Spotlight wheel: ' + keys.join(', ')) + '">' + deco('burst', 20) + '<span>' + esc(keys.join('  ')) + '</span></p>';
+}
 /* SLOT:Spotlight end */
 /* SLOT:JobChip start */
 export function slotJobChip(vm, coach) { return ''; } // owner: T5

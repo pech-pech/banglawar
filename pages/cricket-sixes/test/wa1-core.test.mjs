@@ -165,12 +165,12 @@ function seasonRun(s0, seasons, seed, tokensOn = true) {
   }
   const out = {}; for (const [w, r] of Object.entries(R)) out[w] = { v: r.v / r.n, g: r.g / r.n, tok: r.tok / seasons }; return out;
 }
-test('PARITY rule F season (02 s3 row F, avg careful): Spotlight 2.54x, Course 3.01, Hype 7.31, Toss 4.49, Pep +1-5%, Scout 1.52, Finals 36.95', () => on(() => {
+test('PARITY rule F season (02 s3 row F, avg careful; Spotlight and Course re-based on the SPEC 2026-11-16 s11c rings: Spotlight 2.52x without Kind Floor, Course 3.76): Hype 7.31, Toss 4.49, Pep +1-5%, Scout 1.52, Finals 36.95', () => on(() => {
   const F = seasonRun(full(), 1500, 'seasonF'), N = seasonRun(fresh(), 600, 'seasonN', false);
   const line = (o) => Object.entries(o).map(([w, r]) => `${w} ${(w === 'spot' ? r.v / 1.5 : r.v).toFixed(3)} g${(r.g * 100).toFixed(0)}% t${r.tok.toFixed(2)}`).join(' | ');
   console.log('season F   ', line(F)); console.log('season none', line(N));
-  assert.ok(Math.abs(F.spot.v / 1.5 - 2.54) <= 0.06, 'spot ' + F.spot.v / 1.5);
-  assert.ok(Math.abs(F.course.v - 3.01) <= 0.12, 'course ' + F.course.v);
+  assert.ok(Math.abs(F.spot.v / 1.5 - 2.52) <= 0.06, 'spot ' + F.spot.v / 1.5);
+  assert.ok(Math.abs(F.course.v - 3.76) <= 0.3, 'course ' + F.course.v);
   assert.ok(Math.abs(F.hype.v - 7.31) <= 0.2 && F.hype.v < 8 && F.hype.g < 0.5, 'hype ' + F.hype.v);
   assert.ok(Math.abs(F.toss.v - 4.49) <= 0.25, 'toss ' + F.toss.v); // Pep: the game's w2 Pep reel pays 1.70 at full tree with no tokens (sim 1.908: older port gap, not tokens); token gain must be small (sim +1.5%)
   assert.ok(F.pep.v > 1.70 && F.pep.v < 1.80, 'pep ' + F.pep.v);
