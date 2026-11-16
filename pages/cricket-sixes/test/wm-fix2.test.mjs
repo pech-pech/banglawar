@@ -68,7 +68,9 @@ test('Gold Chime: only when the pointer enters a gold slice from a non-gold one'
   assert.equal(chimeEnters(3, 4, [0, 4]), true, 'the extra gold chimes too');
   const js = read('js/ui/wheel-view.js');
   assert.match(js, /chime: true/, 'onTick gets {chime:true}'); assert.match(js, /is-chime/, 'the pointer flashes');
-  assert.match(js, /ZONE = !reduced/, 'no zone with reduced motion'); assert.match(js, /CHIME = !reduced/, 'no chime with reduced motion');
+  // SPEC 2e: no reduced-motion path; Aim Zone and Gold Chime always work when owned
+  assert.match(js, /ZONE = \+o\.zone > 0 \? \+o\.zone : 0/, 'zone whenever set'); assert.match(js, /CHIME = !!o\.chime/, 'chime whenever set');
+  assert.doesNotMatch(js, /\breduced\b|prefers-reduced-motion/, 'no reduced-motion branch');
   assert.match(read('css/training2.css'), /\.wh-ov \.wh-ptr\.is-chime/);
 });
 

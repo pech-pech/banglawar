@@ -1,5 +1,6 @@
 /* wheel-look: shared look helpers for the Wheel meta UI (wheel-view, workshop-view, tierup-card). Pure, no DOM at import time.
    Cosmetics only: nothing here changes a number. Colours are colour-blind safe by use: every slice also carries its number. */
+import { WHEEL_ENGINE } from '../data/wheel-engine.js';
 export const MATERIALS = ['wood', 'brass', 'steel', 'silver', 'gold', 'star', 'crystal'];
 export const MAT_NAME = { wood: 'Wooden', brass: 'Brass', steel: 'Steel', silver: 'Silver', gold: 'Gold', star: 'Star', crystal: 'Crystal' };
 /** rim colour, dark edge, stud colour per material (pixel-style flat tones) */
@@ -109,7 +110,7 @@ const TAU = Math.PI * 2, TAU10 = TAU / 10;
 
 /* ---- A2.2: look helpers for the pulse wheels (pure, cosmetic; SPEC 2f, 14 tests 8 and 12). ---- */
 /** STOP glow window in cycle seconds (WHEEL_ENGINE.GLOW). Time only: no slice, tier or ring changes it. */
-export const GLOW_WINDOW = Object.freeze([3.2, 3.8]);
+export const GLOW_WINDOW = WHEEL_ENGINE.GLOW;
 /** An under-7% slice (rim units: 0.7 of 10) prints one character or a signed number. */
 export const LABEL_MIN_W = 0.7;
 /** true while the STOP glow is lit: tInCycle in [3.2, 3.8] (both ends in). Same for any slice at AIM. */
