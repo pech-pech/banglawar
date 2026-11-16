@@ -58,7 +58,9 @@ export function findLanded(row, prize) {
  * @param {{wheelId?:string, spinKey?:string, wobKey?:string, look?:any, title?:string, stored?:any, pick:(stop:any)=>any, useToken?:(kind:string)=>any, onCollect?:()=>void, get?:()=>any}} ctx
  */
 export function findWheelOpts(vm, ctx) {
-  const ring = findRingFor(vm && vm.rate), get = ctx.get || (() => vm);
+  // The ring MUST be the store wheel's own rows (vm.rows): the tree (Widener, Sharp Eyes, Extra Gold) widens / adds FIND blocks, so the base table for the rate
+  // has other slice ids. A stop's sliceId is an index into the drawn ring and the store decides on the wheel's cells, so both must be the same ring.
+  const ring = vm && Array.isArray(vm.rows) && vm.rows.length ? vm.rows.map((r, i) => ({ ...r, id: i })) : findRingFor(vm && vm.rate), get = ctx.get || (() => vm);
   const asWheel = (p) => (p ? { ...p, gain: p.find ? 1 : 0, jackpot: !!p.find } : p);
   const word = (p) => (p && p.find ? (WORD[p.type] || 'something') : 'Nothing');
   const { legend, legendText } = findLegend(ring);

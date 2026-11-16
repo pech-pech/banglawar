@@ -65,3 +65,22 @@ test('Second Cheer label reads cheerDone, not second (second = Extra Gold block)
   assert.ok(d({ find: true, type: 'coins', second: false, cheerDone: true }).line.includes('Second Cheer'), 'a find won by the Cheer shows it');
   assert.ok(d({ find: false, second: false, cheerDone: true }).line.includes('Second Cheer'));
 });
+
+// QA 26% Banner Night: log said FOUND, card said Nothing. The ring drawn must be the store wheel's own rows (tree mods add / widen FIND blocks).
+import { findWheel } from '../js/core/wheels/find.js';
+for (const [pct, mods] of [[26, { extra: 1 }], [26, { goldAdd: 0.3, extra: 1 }], [8, { extra: 1 }], [26, {}]]) {
+  test('Find ring follows the store wheel rows at ' + pct + '% ' + JSON.stringify(mods) + ': landed slice = card = log', () => {
+    const w = findWheel({ find: pct, mix: { coins: 1 } }, mods);
+    const o = findWheelOpts(vm(w.rate, { rows: w.rows }), ctx());
+    assert.equal(o.ring.length, w.cells.length);
+    assert.deepEqual(o.ring.map((r) => r.gold), w.cells.map((c) => c.find));
+    w.cells.forEach((c, i) => {
+      const pend = c.find ? { index: i, find: true, type: 'coins', coins: 500, bonus: 0 } : { index: i, find: false };
+      const p = findWheelOpts(vm(w.rate, { rows: w.rows, pending: pend }), ctx()).getPending();
+      const log = o.aria.landed({ sliceId: i }, pend), card = o.describe(p).big;
+      assert.equal(/^Landed: FIND/.test(log), !!c.find);
+      assert.equal(card.startsWith('Found'), !!c.find, 'card follows slice ' + i);
+      assert.equal(p.jackpot, !!c.find);
+    });
+  });
+}
