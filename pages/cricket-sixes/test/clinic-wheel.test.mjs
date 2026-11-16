@@ -18,7 +18,7 @@ test('ring rows, engine options, no auto or timing', () => {
 });
 test('STOP dispatches ClinicSpin with wobble and result text', () => {
   const { calls, deps, ctx } = mk(); openClinicWheel(ctx, deps);
-  calls.open.onSpin({ t: 3.5, stopT: 3500, cycle: 1, tInCycle: 3.5, sliceId: 4 });
+  calls.open.onSpin({ t: 3.5, stopT: 3500, cycle: 1, tInCycle: 3.5, sliceId: 4, e: 0.25 });
   assert.equal(calls.dispatch[0][0], 'ClinicSpin'); assert.equal(calls.dispatch[0][1].stop.e, 0.25);
   assert.equal(calls.open.getPending().kind, 'L');
   assert.equal(clinicResultText(4), 'Landed: Large, +20%.');
@@ -40,4 +40,20 @@ test('default loader says T1 engine missing', async () => {
 test('parity EV ratios near 1.33 / 1.46 / 1.70', () => {
   const r = clinicParity(20000, 11);
   [1.33, 1.46, 1.70].forEach((x, i) => assert.ok(Math.abs(r[i].ratio - x) < 0.06, r[i].tapper + ' ' + r[i].ratio));
+});
+test('live region exists at open; text only after the glide ends', async () => {
+  const el = () => ({ textContent: '', attrs: {}, setAttribute(k, v) { this.attrs[k] = v; }, remove() {} });
+  const made = []; globalThis.document = { createElement: () => { const e = el(); made.push(e); return e; }, body: { appendChild() {} } };
+  try {
+    const { calls, deps, ctx } = mk(); deps.storedStop = () => ({ stops: [] }); openClinicWheel(ctx, deps);
+    assert.equal(made.length, 1); assert.equal(made[0].attrs['aria-live'], 'polite'); assert.equal(made[0].textContent, '');
+    calls.open.onSpin({ stopT: 3500, cycle: 1, tInCycle: 3.5, sliceId: 4, e: 0.1 });
+    assert.equal(made[0].textContent, '');
+    calls.open.onLand(); assert.equal(made[0].textContent, 'Landed: Large, +20%.');
+  } finally { delete globalThis.document; }
+});
+test('wobble is not drawn twice: stop passes through as the engine gave it', () => {
+  const { calls, deps, ctx } = mk(); let n = 0; deps.wheelWobble = () => { n++; return 9; }; openClinicWheel(ctx, deps);
+  calls.open.onSpin({ stopT: 1, cycle: 1, tInCycle: 1, sliceId: 4 });
+  assert.equal(n, 0); assert.ok(!('e' in calls.dispatch[0][1].stop));
 });

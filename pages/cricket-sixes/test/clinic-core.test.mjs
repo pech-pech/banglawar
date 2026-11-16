@@ -30,7 +30,8 @@ test('canClinic: ok, then each refusal', () => {
   const away = structuredClone(s); away.coaches.find((c) => c.id === a).away = 1; assert.equal(canClinic(away, a).why, 'away');
   const used = structuredClone(s); used.clinic.spins.push({ slot: 0, coachId: a, playerId: 'p', spinKey: clinicSpinKey(s, a), spokePaid: 1 }); assert.equal(canClinic(used, a).why, 'used');
   assert.equal(canClinic(used, b).ok, true, 'other coach unaffected');
-  const slotUsed = structuredClone(s); slotUsed.clinic.spins.push({ slot: 0, coachId: 'gone', playerId: 'p', spinKey: 'k', spokePaid: 1 }); assert.equal(canClinic(slotUsed, a).why, 'used', 'same slot, re-signed coach');
+  const slotUsed = structuredClone(s); slotUsed.clinic.spins.push({ slot: 0, coachId: 'gone', playerId: 'p', spinKey: 'k', spokePaid: 1 }); assert.equal(canClinic(slotUsed, a).ok, true, 'M1: another coach in the same slot index is not refused');
+  const spent = structuredClone(s); spent.clinic.slots = 1; spent.clinic.spins.push({ slot: 0, coachId: 'gone', playerId: 'p', spinKey: 'k', spokePaid: 1 }); assert.equal(canClinic(spent, a).why, 'slots', 'M1: slot count spent');
   const nd = structuredClone(s); nd.clinic.netsDone = true; assert.equal(canClinic(nd, a).why, 'nets');
   const nw = structuredClone(s); nw.training.netsWeek = nw.training.week; assert.equal(canClinic(nw, a).why, 'nets');
   const sl = structuredClone(s); sl.clinic.slots = 1; assert.equal(canClinic(sl, a).ok, true); assert.equal(canClinic(sl, b).why, 'slots');

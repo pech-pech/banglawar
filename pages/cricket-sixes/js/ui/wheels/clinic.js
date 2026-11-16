@@ -50,14 +50,17 @@ export function openClinicWheel(ctx, deps) {
   const s0 = ctx.state ? ctx.state() : {};
   const stored = deps.storedStop ? deps.storedStop(s0, CLINIC_WHEEL_ID, ctx.spinKey) : null;
   const J = ctx.J != null ? ctx.J : 1.2, steady = ctx.steady != null ? ctx.steady : 1;
-  const wobKey = ctx.wobKey || (deps.wobbleKey ? deps.wobbleKey(s0, CLINIC_WHEEL_ID, ctx.slot | 0, 0) : `clinic|${ctx.spinKey}`);
+  const wobKey = ctx.wobKey || (deps.wobbleKey ? deps.wobbleKey(s0, CLINIC_WHEEL_ID, Number.isInteger(ctx.slot) ? ctx.slot : 0, 0) : `clinic|${ctx.spinKey}`);
   let landed = stored && stored.stops && stored.stops[stored.kept | 0] ? clinicPending(stored.stops[stored.kept | 0]) : null;
   let live = null;
   const say = (text) => {
     if (typeof document === 'undefined') return;
-    if (!live) { live = document.createElement('div'); live.className = 'cn-live'; live.setAttribute('aria-live', 'polite'); live.setAttribute('role', 'status'); (ctx.host || document.body).appendChild(live); }
-    live.textContent = text;
+    if (live) live.textContent = text;
   };
+  // The empty live region exists from open, so a later text change is announced (SPEC s6: nothing is read while the wheel turns).
+  if (typeof document !== 'undefined') { live = document.createElement('div'); live.className = 'cn-live sr-only'; live.setAttribute('aria-live', 'polite'); live.setAttribute('role', 'status'); (ctx.host || document.body).appendChild(live); }
+  let accepted = !!landed;
+  const announce = () => { if (accepted && landed) say(clinicResultText(landed.sliceId)); };
   const describe = (p) => { const t = clinicResultText(p.sliceId), k = p.kind; return { big: t, chip: '', say: t, gold: k === 'JP' }; };
   const close = deps.openWheel({
     wheelId: CLINIC_WHEEL_ID, spinKey: ctx.spinKey, ring: clinicRing(), J, wobKey,
@@ -65,15 +68,15 @@ export function openClinicWheel(ctx, deps) {
     ...(stored ? { stored } : {}),
     pending: landed, getPending: () => landed, describe,
     onSpin: (stop) => {
-      const e = Number.isFinite(stop.e) ? stop.e : deps.wheelWobble(wobKey, J * steady);
-      const full = { ...stop, e };
-      landed = clinicPending(full);
-      ctx.dispatch('ClinicSpin', { slot: ctx.slot, coachId: ctx.coachId, playerId: ctx.playerId, spinKey: ctx.spinKey, stop: full });
-      say(clinicResultText(full.sliceId));
+      // CONTRACT-A s3/s7: the engine's stop already carries the wobble (e) and the post-wobble sliceId. Applied once, by the engine.
+      landed = clinicPending(stop);
+      ctx.dispatch('ClinicSpin', { slot: ctx.slot, coachId: ctx.coachId, playerId: ctx.playerId, spinKey: ctx.spinKey, stop });
+      accepted = !(deps.storedStop && ctx.state) || !!deps.storedStop(ctx.state(), CLINIC_WHEEL_ID, ctx.spinKey); // only a stored spin is announced
     },
-    onCollect: () => { if (ctx.onCollect) ctx.onCollect(landed); },
+    onLand: announce,
+    onCollect: () => { announce(); if (ctx.onCollect) ctx.onCollect(landed); },
     onClose: () => { if (live && live.remove) live.remove(); if (ctx.onClose) ctx.onClose(); },
   });
-  if (landed) say(clinicResultText(landed.sliceId));
+  announce();
   return close;
 }

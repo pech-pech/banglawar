@@ -29,10 +29,18 @@ export function letterBar(raw, from) {
 /** QA3 m5: the tag shows only when the line crosses a whole letter (E+ to D-), not on every step. */
 export const bigStep = (l) => !!l && letterOfRaw(l.fromRaw).charAt(0) !== letterOfRaw(l.toRaw).charAt(0);
 
+/** The boost shown on a line: l.boost, or the core's l.clinic {pcts, pct, extra, extraRun} (a skipped extra run shows nothing). */
+export const lineBoost = (l) => {
+  if (!l) return null;
+  if (l.boost) return l.boost;
+  const c = l.clinic; if (!c || typeof c !== 'object') return null;
+  return { pcts: c.pcts, pct: c.pct, extraRun: !!(c.extraRun && !c.extraRun.skipped) };
+};
+
 /** Plain words for one result: `Rafi, Power, C to C+, Good, Breakthrough`. */
 export function lineText(l) {
   const a = letterOfRaw(l.fromRaw), b = letterOfRaw(l.toRaw);
-  const bt = l.boost && boostTotalText(l.boost);
+  const bt = lineBoost(l) && boostTotalText(lineBoost(l));
   return l.name + (bt ? ', ' + bt : '') + ', ' + STAT(l.stat).word + ', ' + (a === b ? a + ', bar fills' : a + ' to ' + b) + ', ' + l.word + (l.wheelGain ? ', wheel plus ' + l.wheelGain : '') + (bigStep(l) ? ', Breakthrough' : '');
 }
 
@@ -45,7 +53,7 @@ export function lineHtml(l, cls) {
     '</span>' +
     '<span class="t2-l2">' + letterBar(l.toRaw, l.fromRaw) +
     (l.wheelGain ? '<span class="t2-wheel">Wheel +' + esc(l.wheelGain) + '</span>' : '') +
-    (bigStep(l) ? '<span class="t2-bt">Breakthrough!</span>' : '') + (l.boost ? boostTotalHtml(l.boost) : '') +
+    (bigStep(l) ? '<span class="t2-bt">Breakthrough!</span>' : '') + boostTotalHtml(lineBoost(l)) +
     '<span class="t2-wd">' + esc(l.word) + '!</span></span></li>'; // QA3 m7: the word sits at the end of row 2, so row 1 has room for the whole name
 }
 

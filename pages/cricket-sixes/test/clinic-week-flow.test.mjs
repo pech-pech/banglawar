@@ -197,3 +197,24 @@ test('install.js imports the Clinic store and hook modules inside the T6 fence',
   assert.match(m[1], /spins\/clinic\.js/);
   assert.match(m[1], /core\/clinic-hooks\.js/);
 });
+
+test('C1 real flow: the sheet payload (no slot) stores the pick and the spin lands', () => {
+  const s0 = base(), pid = firstPlayer(s0);
+  const p = C(s0, 'ClinicPick', { coachId: coachId(s0, 1), playerId: pid });
+  assert.equal(p.clinic.pending.slot, 1);
+  const sp = spin(p, 'L');
+  assert.equal(sp.clinic.spins.length, 1); assert.equal(sp.clinic.spins[0].slot, 1);
+});
+test('M1 real flow: used is by coachId, a coach moved into a spent slot index is not refused', () => {
+  const s0 = base(), a = coachId(s0, 0), b = coachId(s0, 1);
+  const sp = picked(s0, 'S', 0);
+  const moved = { ...sp, coaches: sp.coaches.filter((c) => c.id !== a) }; // A released, B now slot 0
+  assert.equal(canClinic(moved, b).ok, true);
+  assert.equal(canClinic(sp, a).why, 'used');
+});
+test('L3 real flow: no second Spoke after EndWeek before newSeason', () => {
+  const s0 = base(), sp = picked(s0, 'S', 0), spokes = sp.wheelMeta.spokes;
+  const e = { ...sp, stage: 'end' };
+  const again = C(C(e, 'ClinicPick', { coachId: coachId(e, 1), playerId: firstPlayer(s0) }), 'ClinicSpin', stopFor('S'));
+  assert.equal(again.wheelMeta.spokes, spokes);
+});

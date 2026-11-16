@@ -2,8 +2,9 @@
 // STOP = ONE synchronous write: recordStop('clinic', spinKey, rec) + clinic.spins entry + Spoke + boost + stats. Reload after STOP = same slice, no second Spoke.
 import { registerSpin } from '../spin-registry.js';
 import { FLAGS } from '../../data/flags.js';
-import { CLINIC_SLICE_ORDER, CLINIC_PCT, CLINIC_SPOKES_PER_SPIN, CLINIC_WHEEL_ID } from '../../data/clinic.js';
+import { CLINIC_SLICE_ORDER, CLINIC_SLICES, CLINIC_PCT, CLINIC_SPOKES_PER_SPIN, CLINIC_WHEEL_ID } from '../../data/clinic.js';
 import { emptyWheelMeta, weekKey } from '../../core/save-migrate.js';
+import { coachList } from '../../core/training.js';
 import * as CORE from '../../core/clinic.js'; // namespace: canClinic / clinicSpinKey are being written by another helper
 
 const isObj = (x) => !!x && typeof x === 'object' && !Array.isArray(x);
@@ -11,10 +12,13 @@ const int = (x, d = 0) => (Number.isFinite(Number(x)) && x !== null && x !== '' 
 const MEDIAN = 10; // median of the ten rim values (5 5 5 5 10 10 20 20 20 30)
 
 // T1's recordStop (js/core/wheel-stops.js) is not on main yet: loaded lazily, tests inject a fake with setClinicDeps.
-let deps = { recordStop: null, canClinic: null, clinicSpinKey: null };
+let deps = { recordStop: null, canClinic: null, clinicSpinKey: null, pickable: null };
 try { const m = await import('../../core/wheel-stops.js'); if (typeof m.recordStop === 'function') deps.recordStop = m.recordStop; } catch (_) { /* not landed */ }
 /** Test seam: inject {recordStop, canClinic, clinicSpinKey}; pass null to reset a member. */
 export function setClinicDeps(d) { deps = { ...deps, ...d }; }
+const pickableFn = () => deps.pickable || CORE.pickable;
+/** Spins happen in a training-week stage only (L3): between EndWeek and newSeason the stage is 'week'/'end'. States without a stage (unit fixtures) pass. */
+const stageOk = (s) => typeof s.stage !== 'string' || s.stage === 'train';
 const canClinicFn = () => deps.canClinic || CORE.canClinic;
 const keyFn = () => deps.clinicSpinKey || CORE.clinicSpinKey || ((s, coachId) => `${weekKey(s)}:${coachId}`);
 
@@ -44,10 +48,13 @@ function block(n) {
 /** ClinicPick {slot, coachId, playerId}: the pick is kept in clinic.pending (survives reload). Refused when canClinic says no. */
 export function clinicPick(s, a) {
   if (!s || !isObj(a) || a.coachId == null || a.playerId == null) return s;
-  const slot = int(a.slot, -1);
+  if (!stageOk(s)) return s;
+  const slot = (Array.isArray(s.coaches) ? coachList(s) : []).findIndex((c) => c && c.id === a.coachId); // never trust the client's slot (C1)
   if (slot < 0) return s;
   const cc = canClinicFn();
   if (typeof cc === 'function') { const r = cc(s, a.coachId); if (!r || !r.ok) return s; }
+  const pk = pickableFn()(s);
+  if (!Array.isArray(pk) || !pk.some((p) => p.playerId === a.playerId && p.ok)) return s; // only a playerId the pick list offers as ok (M2)
   const n = structuredClone(s);
   const c = block(n);
   if (c.spins.some((x) => x && x.coachId === a.coachId)) return s; // one spin a coach a week
@@ -56,8 +63,9 @@ export function clinicPick(s, a) {
 }
 
 /** ClinicLater: leave the spin ready, clear the pick. */
-export function clinicLater(s) {
+export function clinicLater(s, a) {
   if (!s || !isObj(s.clinic) || !s.clinic.pending) return s;
+  if (isObj(a) && a.coachId != null && s.clinic.pending.coachId !== a.coachId) return s; // only that coach's pick (L6)
   const n = structuredClone(s);
   n.clinic.pending = null;
   return n;
@@ -66,9 +74,10 @@ export function clinicLater(s) {
 /** ClinicSpin {stop:{stopT, cycle, tInCycle, sliceId, value, auto?}}: STOP. One synchronous write, paid once. */
 export function clinicSpin(s, a) {
   if (!s || !isObj(a) || !isObj(a.stop)) return s;
+  if (!stageOk(s)) return s;
   const p = isObj(s.clinic) ? s.clinic.pending : null;
   if (!isObj(p) || p.coachId == null || p.playerId == null) return s;
-  const slot = int(p.slot, -1);
+  const slot = int(p.slot, -1); // stored by clinicPick, derived there
   const key = keyFn()(s, p.coachId);
   if (isObj(s.clinic) && Array.isArray(s.clinic.spins) && s.clinic.spins.some((x) => x && x.spinKey === key)) return s; // reload after STOP: no second Spoke
   const cc = canClinicFn();
@@ -77,7 +86,7 @@ export function clinicSpin(s, a) {
   const kind = CLINIC_SLICE_ORDER[sliceId];
   if (!kind) return s;
   const st = a.stop;
-  const rec = { stopT: int(st.stopT), cycle: int(st.cycle, 1), tInCycle: Number.isFinite(st.tInCycle) ? st.tInCycle : 0, sliceId, value: Number.isFinite(st.value) ? st.value : 0 };
+  const rec = { stopT: int(st.stopT), cycle: int(st.cycle, 1), tInCycle: Number.isFinite(st.tInCycle) ? st.tInCycle : 0, sliceId, value: CLINIC_SLICES[kind].value }; // value from the slice, not the client (M6)
   const n = structuredClone(s);
   const c = block(n);
   if (typeof deps.recordStop === 'function') deps.recordStop(n, CLINIC_WHEEL_ID, key, rec, { median: MEDIAN }); else fallbackRecord(n, CLINIC_WHEEL_ID, key, rec);

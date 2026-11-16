@@ -58,6 +58,7 @@ const SHEETS = {
   /* SHEETS:T5 start */
   /* SHEETS:T5 end */
   /* SHEETS:T6 start */
+  clinicpick: { file: 'clinic-pick-sheet', fn: 'openClinicPick', state: true },
   /* SHEETS:T6 end */
 };
 const mods = {}, loading = {};

@@ -30,6 +30,7 @@ import { WM, NODES } from '../data/wheelmeta.js';
 import { metaOf, rankOf, tierOf, tierNow, canBuy, effective, metaWheel, otherMultOf, tokenOptions, powerDone, nextTierUp } from '../core/wheelmeta.js';
 import { teamBoost, roarAt, resolvePep, matchCoachText } from '../core/matchday.js';
 import { matchCoachOf } from '../core/training.js';
+import { clinicCoachVM, clinicBoostMap } from '../core/clinic-vm.js'; /* VM:T6 */
 import { mdSpinVM, findSpinVM, scoutSpinVM, finalsSpinVM } from './wmstore.js';
 import { wmTokens } from './wmstore.js'; // wa1 wire: token buttons for Hype / Toss / Pep / Scout / Finals
 import { BATS, BOWLS, CELLS, COMBOS, SEEN_BALLS, cellIndex, cellOf, cellName, comboOf, isBook, newBook, winOf, nearestCell } from '../core/pairing.js';
@@ -322,6 +323,7 @@ export function squadVM(s) {
   return {
     title: 'Pick your six', sub: s.fixture ? `Next: ${clubName(s, s.fixture.opp)}. Choose 6 of ${mine(s).squad.length}; first pick bats first.` : undefined,
     players: mine(s).squad.map((p) => ({
+      /* VM:T6 */ boost: clinicBoostMap(s)[p.id] || null,
       id: p.id, name: p.name, role: p.bat, type: p.bowl, bat: shownBat(p), bowl: shownBowl(p), ability: shownAbility(p), ...letterVM(p),
       grade: gradeOf(p) || '?', pips: pipsOf(p), peak: atPeak(p), max: isMax(p), order: six.includes(p.id) ? six.indexOf(p.id) : null,
       benchSlot: (slots.find((x) => x.playerId === p.id) || {}).label || null,
@@ -362,6 +364,7 @@ const courseMeta = (s, c, used) => { const x = metaExtras(s, 'course', courseWhe
 const coachRow = (s, c) => {
   const cc = canCourse(s, c.id), used = s.training.coursePending && s.training.coursePending.coachId === c.id;
   return {
+    /* VM:T6 */ clinic: clinicCoachVM(s, c),
     id: c.id, name: c.name, step: c.step, letter: letterOfStep(c.step), strong: c.strong.slice(), strongWords: strongWords(c.strong),
     here: !(c.away > 0), away: c.away | 0, course: { ok: cc.ok, why: cc.why, licence: cc.ok && courseUsesLicence(s, c.id), cost: courseCost(s, c.id), free: !s.econ, spun: !!used, pending: used ? { index: s.training.coursePending.result.index, gain: s.training.coursePending.result.gain, jackpot: s.training.coursePending.result.jackpot, ...boostOf(s, 'course', s.training.coursePending.result) } : null,
       ...(FLAGS.wheelMeta ? courseMeta(s, c, used) : otherMultOf(s) !== 1 ? { wheel: wheelVM(used && s.training.coursePending.wheel ? s.training.coursePending.wheel : metaWheel(courseWheel(c.step), 'course', s)) } : {}) },

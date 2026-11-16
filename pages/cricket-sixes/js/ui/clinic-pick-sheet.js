@@ -7,7 +7,7 @@ import { openSheet } from './sheet.js';
 import { esc } from './dom.js';
 import { letterOfRaw } from '../core/letters.js';
 import { pickable as corePickable } from '../core/clinic.js';
-import { coachList, focusRating } from '../core/training.js';
+import { coachList, focusRating, planOf } from '../core/training.js';
 import { STAT, statKey } from './nets-scene.js';
 
 const RAT = { batPower: 'bp', batSkill: 'bs', bowlSpeed: 'spd', bowlSkill: 'bsk' };
@@ -17,13 +17,13 @@ const squadOf = (s) => ((s.clubs || []).find((/** @type {any} */ c) => c.id === 
 
 /** Rows for the sheet. @param {any} s @param {{pickable?:Function}} [deps] */
 export function pickRows(s, deps) {
-  const pk = (deps && deps.pickable) || corePickable, sq = squadOf(s), focus = (s.training && s.training.focus) || 'bat';
+  const pk = (deps && deps.pickable) || corePickable, sq = squadOf(s), focus = (planOf(s) || {}).focus || (s.training && s.training.focus) || 'bat';
   let list = []; try { list = pk(s) || []; } catch (_) { list = []; }
   return list.map((/** @type {any} */ r) => {
     const p = sq.find((/** @type {any} */ x) => x.id === r.playerId) || {};
     let word = '', letter = '';
     try { const k = focusRating(p, focus); word = STAT(RAT[k] || statKey(k)).word; letter = letterOfRaw(p[k]); } catch (_) { /* no hint */ }
-    return { playerId: r.playerId, name: p.name || String(r.playerId), word, letter, ok: !!r.ok, why: r.ok ? '' : (r.why === 'At cap' || r.why === 'Skipped, balance' ? 'Rests this week' : String(r.why || 'Cannot gain this week')) };
+    return { playerId: r.playerId, name: p.name || String(r.playerId), word, letter, ok: !!r.ok, why: r.ok ? '' : (r.why === 'Skipped, balance' ? 'Rests this week' : String(r.why || 'Cannot gain this week')) };
   });
 }
 
@@ -32,7 +32,7 @@ export function clinicPickHtml(m) {
   const rows = m.rows || [], any = rows.some((r) => r.ok);
   const li = rows.map((r, i) => {
     const hint = r.word ? esc(r.word) + (r.letter ? ' ' + esc(r.letter) : '') : '';
-    const say = r.name + (hint ? ', ' + r.word + (r.letter ? ' ' + r.letter : '') : '') + (r.ok ? '. Tap to pick.' : '. Cannot pick: ' + r.why);
+    const say = r.name + (hint ? ', ' + r.word + (r.letter ? ' ' + r.letter : '') : '') + (r.ok ? '. Tap to pick.' : '');
     return '<li><button type="button" class="c-btn cn-row' + (r.ok ? '' : ' is-grey') + '" data-cn="pick" data-pid="' + esc(r.playerId) + '"' + (r.ok ? '' : ' aria-disabled="true" aria-describedby="cn-why-' + i + '"') + ' aria-label="' + esc(say) + '">' +
       '<b class="cn-nm">' + esc(r.name) + '</b>' + (hint ? '<span class="cn-hint" aria-hidden="true">' + hint + '</span>' : '') +
       (r.ok ? '' : '<small class="cn-why" id="cn-why-' + i + '">' + esc(r.why) + '</small>') + '</button></li>';

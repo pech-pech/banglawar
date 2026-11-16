@@ -65,3 +65,10 @@ test('click slot: ready opens clinicpick, grey does not, other clicks pass', () 
 });
 
 test('squad-view source carries boost chips', () => { assert.match(read('js/ui/squad-view.js'), /boostChipsHtml/); });
+
+import { lineHtml as __lh, lineText as __lt } from '../js/ui/nets-scene.js';
+test('nets line shows the core line.clinic chip and extra run', () => {
+  const l = { id: 'p', name: 'Rafi', stat: 'bp', fromRaw: 10, toRaw: 12, word: 'Good', clinic: { pcts: [10, 5], pct: 15, extra: 1, extraRun: { gain: 1 } } };
+  assert.match(__lh(l), /Clinic \+15%/); assert.match(__lt(l), /Extra run/);
+  assert.doesNotMatch(__lt({ ...l, clinic: { pcts: [5], pct: 5, extra: 0, extraRun: { skipped: true } } }), /Extra run/);
+});

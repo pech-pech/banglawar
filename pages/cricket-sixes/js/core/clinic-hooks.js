@@ -22,5 +22,5 @@ onHook('netsRun', (n, info) => {
   if (n.clinic.week !== wk) { n.clinic.spins = []; n.clinic.boost = {}; n.clinic.pending = null; n.clinic.week = wk; } // stale block: read as default
   n.clinic.netsDone = true;
   applyBoost(n, info && info.lines);
-  jackpotRun(n);
+  jackpotRun(n, info);
 });
