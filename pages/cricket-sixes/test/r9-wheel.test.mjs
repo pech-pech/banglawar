@@ -2,6 +2,7 @@ import test from 'node:test'; import assert from 'node:assert/strict'; import fs
 import { wheelSlices, courseWheel, spinResult, stopLanding, stopExtra, stopDist, wheelSpeed, wheelArc, sliceAt, wheelWidths, effortOdds, meanGain } from '../js/core/training.js';
 import { TRAIN2 } from '../js/data/training.js';
 import { makeRng } from '../js/core/rng.js';
+import { tickAt } from '../js/core/wheel-pulse.js';
 const WS = TRAIN2.wheelStop, sum = (a) => a.reduce((x, y) => x + y, 0);
 const rollMean = (e) => meanGain(effortOdds(e));
 
@@ -35,8 +36,10 @@ test('deterministic given the rng seed; no upper clamp on STOP time (the wheel s
   assert.deepEqual(wheelWidths({ slices: courseWheel().slices, jackpotIndex: 0 }), courseWheel().widths);
 });
 test('the player decides: early tap goes further than a late tap', () => {
-  const w = wheelSlices('normal'); const a = stopLanding(w, { t: 1.2, phi: 0, e: 0 }), b = stopLanding(w, { t: 5.5, phi: 0, e: 0 });
-  assert.ok(a.dist > b.dist * 3);
+  // SPEC 2c pulse: the wheel slows to 3.8 s, then ramps back to W0 by 6.0 s (5.5 s is fast again, so 'late' = the slow end of the glow, 3.8 s)
+  const w = wheelSlices('normal'); const a = stopLanding(w, { t: 0.35, phi: 0, e: 0 }), b = stopLanding(w, { t: 3.8, phi: 0, e: 0 }), r = stopLanding(w, { t: 5.5, phi: 0, e: 0 });
+  assert.ok(a.dist > b.dist * 3); assert.ok(r.dist > b.dist * 2, 'ramp after 3.8 s');
+  for (const t of [0.35, 2, 3.8, 4.5, 5.9, 6, 9.5]) assert.ok(Math.abs(stopLanding(w, { t, phi: 0.3, e: 0 }).pos - (0.3 + tickAt(t, w.phys))) < 1e-9, 'landing = phi + tickAt(t) at ' + t);
 });
 function mc(w, mode, N, seed) {
   const rng = makeRng(seed); let tot = 0, jp = 0;

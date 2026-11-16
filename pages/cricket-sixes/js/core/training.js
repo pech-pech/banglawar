@@ -15,6 +15,7 @@ import { matchCoachBoost } from './matchday.js';
 import { fireHook, pipeHook } from './hooks.js';
 import { weekKey, weekKeyOf } from './week-key.js';
 import { spinKeyOf } from './wheel-stops.js';
+import { tickAt, cycleOf, ARC_PER_CYCLE, pulseArc, pulseW } from './wheel-pulse.js';
 import * as clinicMod from './clinic.js'; // clinicOf may not exist on this branch: read it off the namespace
 
 export const EFFORTS = ['easy', 'normal', 'push'];
@@ -256,7 +257,8 @@ export function sliceAt(wheel, pos) {
 export function stopLanding(wheel, stop) {
   const w = wheelWidths(wheel), C = w.reduce((x, y) => x + y, 0), P = physOf(wheel);
   const t = Math.max(0, stop.t), e = Math.max(-P.J, Math.min(P.J, stop.e)), phi = ((stop.phi % C) + C) % C;
-  const base = phi + wheelArc(t, P), dist = stopDist(t, P), pos = base + dist + e;
+  // pulse (SPEC 2c, CONTRACT-A sec 3): landing = phi + tickAt(t) + e, the point the view's tick shows. base = phi + arc, dist = w(t) x D/3 (glide)
+  const { cycle, tInCycle } = cycleOf(t, P), base = phi + (cycle - 1) * ARC_PER_CYCLE(P) + pulseArc(tInCycle, P), dist = pulseW(tInCycle, P) * P.D / 3, pos = base + dist + e;
   return { t, phi, e, base, dist, pos, index: sliceAt(wheel, pos) };
 }
 /** The tap time an average careful player picks (jackpot arrival nearest IDEAL, plus a normal timing error SD). @param {any} wheel @param {number} phi @param {number} g1 @param {number} g2 uniform draws (0,1] */
@@ -264,7 +266,7 @@ export function carefulTapTime(wheel, phi, g1, g2) {
   const w = wheelWidths(wheel), C = w.reduce((x, y) => x + y, 0), P = physOf(wheel);
   const centre = (/** @type {number} */ j) => w.slice(0, j).reduce((x, y) => x + y, 0) + w[j] / 2;
   const cJs = wheel.aims && wheel.aims.length ? wheel.aims : (wheel.golds && wheel.golds.length ? wheel.golds : [wheel.jackpotIndex || 0]).map(centre); // wheel meta: Extra Gold adds a second target; aims = explicit target positions in units (Find: block centres)
-  const g = (/** @type {number} */ t) => phi + wheelArc(t, P) + stopDist(t, P); // monotone in t
+  const g = (/** @type {number} */ t) => phi + tickAt(t, P); // the pulse tick (SPEC 2c), monotone in t
   let best = WS.IDEAL, bd = Infinity;
   for (const cJ of cJs) for (let k = Math.floor(g(TAP_FROM) / C); k <= Math.ceil(g(TAP_TO) / C); k++) {
     const target = cJ + k * C; if (target < g(TAP_FROM) || target > g(TAP_TO)) continue;
