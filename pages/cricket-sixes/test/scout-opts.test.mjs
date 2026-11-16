@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { scoutWheelOpts, cutName, scoutLanded, SCOUT_PARTS } from '../js/ui/wheels/scout-opts.js';
+import { scoutWheelOpts, scoutCuts, scoutShort, cutName, scoutLanded, SCOUT_PARTS } from '../js/ui/wheels/scout-opts.js';
 import { SCOUT_SLICES } from '../js/data/wheels/scout.js';
 import { makeScoutCards } from '../js/core/scout-cards.js';
 
@@ -44,9 +44,25 @@ test('stored stop passes through, pure (no mutation of vm)', () => {
   assert.equal(vm.ring[0].gold, true); assert.equal(vm.ring[0].label, 'Centre +2');
 });
 
-test('wheel-view: Scout name fit tries shorter cuts down to 3 letters + "." (never one letter); one-char labels sit at the rim with a cream halo', async () => {
+test('wheel-view: Scout name fit tries shorter cuts down to 4 letters + "." (never one letter); one-char labels sit at the rim with a cream halo', async () => {
   const { readFileSync } = await import('node:fs');
   const w = readFileSync(new URL('../js/ui/wheel-view.js', import.meta.url), 'utf8');
-  assert.match(w, /for \(let n = Math\.min\(cs\.length - 1, 5\); n >= 3; n--\)/);
+  assert.match(w, /scoutCuts\(card\.fullName/);
   assert.match(w, /F\.one = true/); assert.match(w, /ONE_HALO/);
+});
+
+test('one short name per card: wheel label, Tick-on readout and result chip print the same string for all 10 cards; full surname stays in aria', async () => {
+  const { rowText } = await import('../js/ui/wheel-look.js');
+  const ring = scoutWheelOpts(vm, { dispatch() {} }).ring;
+  assert.equal(ring.length, 10);
+  ring.forEach((r, i) => {
+    const sur = cards[i].surname, cuts = scoutCuts(sur);
+    assert.equal(cuts[0], cutName(sur)); assert.ok(cuts.every((c) => c === sur || (/\.$/.test(c) && c.length - 1 >= 4)), sur + ': cuts are the whole name or >= 4 letters + "."');
+    for (const cut of cuts) { // whichever cut the renderer picks at 14 px, it writes it ONCE on the row
+      const row = { ...r, short: scoutShort(cards[i].grade, cut) }, wheel = cut, readout = rowText(row), chip = rowText(row);
+      assert.equal(readout, cards[i].grade + ' ' + wheel); assert.equal(chip, readout);
+    }
+    assert.equal(r.full, cards[i].grade + ' ' + sur); assert.equal(r.card.fullName, sur);
+    assert.equal(rowText(r), r.label); // no renderer pick yet: label
+  });
 });

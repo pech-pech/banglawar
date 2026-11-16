@@ -16,6 +16,11 @@ const focusWord = (/** @type {string} */ f) => FOCUS_WORD[/** @type {'bat'} */ (
 /** Surname cut for the wheel: 6 letters or fewer as is, longer = first 6 + "." (QA defect 2). @param {string} n */
 export const cutName = (n) => { const t = String(n == null ? '' : n); return t.length > SCOUT_PARTS.nameMax ? t.slice(0, SCOUT_PARTS.nameMax) + '.' : t; };
 
+/** Candidate short names, longest first: the 6-letter cut (or the whole name), then down to 4 letters + "." (never fewer than 4, never one letter). The renderer picks the first that fits at 14 px. @param {string} n */
+export const scoutCuts = (n) => { const first = cutName(n), cs = Array.from(first.replace(/\.$/, '')), out = [first]; for (let k = Math.min(cs.length - 1, 5); k >= 4; k--) out.push(cs.slice(0, k).join('') + '.'); return out; };
+/** The ONE short row text for a card: grade + the chosen cut. Wheel slice, "Tick on" readout, result chip and log all print this string. @param {string} grade @param {string} cut */
+export const scoutShort = (grade, cut) => grade + ' ' + cut;
+
 /** One slice's card parts for the wheel drawing. @param {{grade:string,surname:string,focus:string}} c */
 export const cardParts = (c) => ({ grade: c.grade, name6: cutName(c.surname), name: cutName(c.surname), fullName: c.surname, focus: c.focus, icon: FOCUS_ICON[/** @type {'bat'} */ (c.focus)] || 'all', ...SCOUT_PARTS });
 
@@ -27,7 +32,7 @@ export function scoutRing(vm) {
   const cards = vm.cards || [];
   return (vm.ring || []).map((/** @type {any} */ r, /** @type {number} */ i) => {
     const c = cards[i] || { grade: '', surname: '', focus: 'bal' };
-    return { id: r.id, w: r.w, value: r.value, label: c.grade + ' ' + cutName(c.surname), tier: r.tier, gold: !!r.gold, tierShape: r.gold ? 'gold' : r.value > 0 ? 'triangle' : 'dot', card: cardParts(c) };
+    return { id: r.id, w: r.w, value: r.value, label: scoutShort(c.grade, cutName(c.surname)), full: c.grade + ' ' + c.surname, tier: r.tier, gold: !!r.gold, tierShape: r.gold ? 'gold' : r.value > 0 ? 'triangle' : 'dot', card: cardParts(c) };
   });
 }
 

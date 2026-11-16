@@ -42,7 +42,8 @@ export function landedIndex(p, stop, n) {
 import { esc, icoDeco } from './dom.js';
 import { releaseInert } from './inert.js';
 import { wheelWidths, stopExtra, TIMING_WIN, timingBucket, TIMING_LINE } from '../core/training.js';
-import { matOf, colourOf, normLook, PALETTES, spokeIcon, glowOn, aimMarker, sliceLabel, legendRows, tierShape, LABEL_MIN_W, tierMark, MARK_MIN_RAD, radialFit, radialTurn, legendWith, legendShape, cardOf } from './wheel-look.js';
+import { scoutCuts, scoutShort } from './wheels/scout-opts.js';
+import { matOf, colourOf, normLook, PALETTES, spokeIcon, glowOn, aimMarker, sliceLabel, legendRows, tierShape, LABEL_MIN_W, tierMark, MARK_MIN_RAD, radialFit, radialTurn, legendWith, legendShape, cardOf, rowText } from './wheel-look.js';
 import { tickKind, TICK } from '../core/landtick.js';
 import { WHEEL_ENGINE } from '../data/wheel-engine.js';
 import { pulseW, pulseArc, tickAt, cycleOf, ARC_PER_CYCLE } from '../core/wheel-pulse.js';
@@ -150,7 +151,7 @@ export function openWheel(o) {
   const ov = document.createElement('section');
   ov.className = 't2-ov wh-ov' + (crys ? ' is-crystal' : '') + (RING ? ' is-ring' : ''); ov.setAttribute('role', 'dialog'); ov.setAttribute('aria-modal', 'true'); ov.setAttribute('aria-label', o.title);
   if (o.wheelId) ov.setAttribute('data-wheel', String(o.wheelId)); if (o.spinKey) ov.setAttribute('data-spin-key', String(o.spinKey));
-  const sliceWords = RING ? RING.map((r) => String(r.label != null && r.label !== '' ? r.label : r.value) + (r.gold ? ' gold' : '')).join(', ') : o.labels ? o.labels.map((l, i) => l || (GD.includes(i) ? 'gold' : 'blank')).join(', ') : VALS.map((v, i) => '+' + v + (GD.includes(i) ? ' jackpot' : '')).join(', '); /* wa1 find: o.labels = word labels */
+  const sliceWords = RING ? RING.map((r) => String(r.full != null ? r.full : r.label != null && r.label !== '' ? r.label : r.value) + (r.gold ? ' gold' : '')).join(', ') : o.labels ? o.labels.map((l, i) => l || (GD.includes(i) ? 'gold' : 'blank')).join(', ') : VALS.map((v, i) => '+' + v + (GD.includes(i) ? ' jackpot' : '')).join(', '); /* wa1 find: o.labels = word labels */
   // AIM rides the moving landing tick on ring wheels, as on the match wheel (T1 QA D6): a gold triangle on the rim pointing in, and the word AIM outside it. Shown while spinning.
   const am = aimMarker({ size: 24 }), aimSvg = RING ? '<span class="wk-aim wh-aimt" aria-hidden="true" hidden><svg width="24" height="17" viewBox="0 0 24 17" focusable="false"><polygon class="wk-aim-tri" points="2,1.5 22,1.5 12,15.5" stroke-linejoin="round"/></svg></span><span class="wh-aimw" aria-hidden="true" hidden>' + am.text + '</span>' : '';
   const legendIn = (rows) => rows.map((r) => { const sh = legendShape(r.ch); // a shape word (tri / dot / pale / gold) draws the shape, never the word (T4 QA 2)
@@ -188,11 +189,12 @@ export function openWheel(o) {
       const chipRc = iconIn - chipW / 2, rOut = card ? chipRc - chipW / 2 - GAP : ICON_SVG[ic] ? iconIn : markIn; // the text stops short of the chip / icon / tier mark
       let F = null;
       if (card) { // Scout name (QA3 D2): 14 px; the longest cut that fits the slice, 6 letters + '.' down to 3 letters + '.', never a single letter
-        const base = card.name.replace(/\.$/, ''), cs = Array.from(base), cuts = [card.name]; for (let n = Math.min(cs.length - 1, 5); n >= 3; n--) cuts.push(cs.slice(0, n).join('') + '.');
-        for (const nm of cuts) { F = radialFit({ text: nm, ways: [[nm]], half, rIn: Math.max(rIn, 32 * k), rOut, measure, fMax: 14, fMin: 14 }); if (F) { F.rc = Math.max(32 * k, F.rc); break; } }
+        const cuts = scoutCuts(card.fullName || card.name); // ONE short name per card, shared by the slice, readout, chip and log
+        for (const nm of cuts) { F = radialFit({ text: nm, ways: [[nm]], half, rIn: Math.max(rIn, 32 * k), rOut, measure, fMax: 14, fMin: 14 }); if (F) { F.rc = Math.max(32 * k, F.rc); r.short = scoutShort(card.grade, nm); break; } }
       }
       else if (own) { const sub = r.sub != null && String(r.sub).trim() ? String(r.sub).trim() : ''; F = radialFit({ text: own, ways: sub ? [[own + ' ' + sub], [own, sub], ...(r.w < LABEL_MIN_W ? [] : [[own]])] : undefined, half, rIn, rOut, measure, rPref: RS * 0.5, fMin: 14 }); } // slice text 14 px or more (T2 / T4 QA)
-      if (!F) { narrow[i] = !card && own !== short; const txt = card ? Array.from(card.name)[0] || short : short, one = (lines, f) => measure([txt], f); F = radialFit({ text: txt, ways: [[txt]], half, rIn, rOut, measure: one, rPref: RS * 0.5, fMax: 18, fMin: 14 }) || { f: 14, rc: (rIn + rOut) / 2 }; F.lines = [txt]; if (!card) { F.one = true; F.f = Math.max(14, F.f); const cw = measure([txt], F.f), rin = markIn - cw.w / 2; F.rc = RS - 15 * k; if (!ICON_SVG[ic] && rin * Math.sin(Math.min(half, Math.PI / 2)) * 2 >= cw.h + 2 && rin - cw.w / 2 > rIn) F.rc = rin; } } // one character on a thin slice (QA3 D4): out at the rim lane (slice is widest there), not clipped, dark glyph with a cream halo, 14 px or more // one character: 14 px or more (T4 QA 2)
+      if (F && !card && r.w < LABEL_MIN_W && Array.from(own).length === 1) F = null; // a one-character label on a thin slice (Find 4% and 2% 'F'): same treatment, rim lane + cream halo, the tier mark sits inboard of it
+      if (!F) { narrow[i] = !card && own !== short; const txt = card ? Array.from(card.name)[0] || short : short, one = (lines, f) => measure([txt], f); F = radialFit({ text: txt, ways: [[txt]], half, rIn, rOut, measure: one, rPref: RS * 0.5, fMax: 18, fMin: 14 }) || { f: 14, rc: (rIn + rOut) / 2 }; F.lines = [txt]; if (!card) { F.one = true; F.f = Math.max(14, F.f); F.rc = RS - 17 * k; } } // one character on a thin slice (QA3 D4): out at the rim lane (slice is widest there), not clipped, dark glyph with a cream halo, 14 px or more // one character: 14 px or more (T4 QA 2)
       F.card = card; F.ic = ic; rfit[i] = F;
       if (chipEl) { F.chip = chipEl; F.chipRc = chipRc; }
     });
@@ -275,7 +277,7 @@ export function openWheel(o) {
     if (RING) RING.forEach((row, i) => { // tier mark on every slice (SPEC 2f, T3 QA D5, T4 QA 1): upright on screen at R-22 (css), outlined; a slice under 10 degrees that prints a letter may drop it
       if (widths[i] * U < MARK_MIN_RAD && widths[i] < LABEL_MIN_W) return;
       const kk = R / 75, F = rfit && rfit[i], a = angOf(centreOf(i)); if (F && ICON_SVG[F.ic]) drawIcon(F.ic, cx + Math.cos(a) * (R - 18.5 * kk), cy + Math.sin(a) * (R - 18.5 * kk), 3.3 * kk); // focus icon at R-37 (css), upright
-      const mk = tierMark(row.tier, GD.includes(i)), mx = cx + Math.cos(a) * (R - 15.5 * kk), my = cy + Math.sin(a) * (R - 15.5 * kk), h = 4 * kk;
+      const mk = tierMark(row.tier, GD.includes(i)), off = F && F.one ? 3 * kk : 0, mx = cx + Math.cos(a) * (R - 15.5 * kk) - Math.cos(a) * off, my = cy + Math.sin(a) * (R - 15.5 * kk) - Math.sin(a) * off, h = 4 * kk;
       ctx.beginPath(); if (mk.shape === 'triangle-up') { ctx.moveTo(mx, my - h); ctx.lineTo(mx + h, my + h * 0.78); ctx.lineTo(mx - h, my + h * 0.78); ctx.closePath(); } else ctx.arc(mx, my, h * 0.85, 0, TAU);
       ctx.fillStyle = 'rgb(' + (landI >= 0 && i !== landI ? mk.fill.map((v, k) => Math.round(v * 0.7 + pal.out[k] * 0.3)) : mk.fill) + ')'; ctx.fill(); ctx.lineWidth = 1; ctx.lineJoin = 'round'; ctx.strokeStyle = 'rgb(' + pal.out + ')'; ctx.stroke();
     });
@@ -355,7 +357,7 @@ export function openWheel(o) {
   /** Ring wheels: "Tick on: <slice>" under the wheel while it turns (T1 QA D5; mockup readout). The slice under the landing tick; every frame, a DOM write only when the slice changes. Not announced. */
   function readout(i) {
     if (i === nowI) return; nowI = i; nowAt = clock; const r = RING[i];
-    msg.innerHTML = '<span class="wh-now" aria-hidden="true"><span>Tick on:</span><b class="wh-nowv" style="background:rgb(' + fills[i] + ');color:' + (lum(fills[i]) > 0.5 ? 'rgb(' + pal.out + ')' : '#fff') + '">' + esc(String(r.label == null ? r.value : r.label) + (r.sub != null && String(r.sub).trim() ? ' ' + String(r.sub).trim() : '')) + '</b></span><span class="wh-msg2">' + esc(go.getAttribute('aria-disabled') === 'true' ? 'Get ready.' : MSG_GO) + '</span>';
+    msg.innerHTML = '<span class="wh-now" aria-hidden="true"><span>Tick on:</span><b class="wh-nowv" style="background:rgb(' + fills[i] + ');color:' + (lum(fills[i]) > 0.5 ? 'rgb(' + pal.out + ')' : '#fff') + '">' + esc(rowText(r)) + '</b></span><span class="wh-msg2">' + esc(go.getAttribute('aria-disabled') === 'true' ? 'Get ready.' : MSG_GO) + '</span>';
   }
   const TOKNAME = { respin: 'Spin Again', two: 'Pick Two', nudge: 'Nudge', lift: 'Lucky Lift' }, PL = () => o.plus || '+';
   /** One outcome line for a used token: what the wheel now says, whether or not it improved. */
@@ -405,7 +407,7 @@ export function openWheel(o) {
   /** Result block, ring and non-ring alike: "Landed on [slice]", then the host's big line and one plain line (timing is added by showResult). No lone "+", no stay-the-same text. The chip prints the short slice label (sliceLabel: "+2" for "+2 steps" on a narrow slice); the full label is the chip's title / aria-label and the spoken line. */
   function landedRow(k) { return RING ? RING[k] : { label: o.labels && o.labels[k] ? o.labels[k] : (o.plus || '+') + VALS[k], value: VALS[k], w: widths[k] }; }
   function ringResultHtml(p, d, sg) {
-    const k = landedIndex(p, lastStop, N), row = landedRow(k), lab = String(row.label == null ? row.value : row.label) + (row.sub != null && String(row.sub).trim() ? ' ' + String(row.sub).trim() : ''), short = sliceLabel(row) + (row.sub != null && String(row.sub).trim() && !(row.w < LABEL_MIN_W) ? ' ' + String(row.sub).trim() : ''), chip = short || lab, big = d.big != null ? String(d.big) : '';
+    const k = landedIndex(p, lastStop, N), row = landedRow(k), lab = row.full != null ? String(row.full) : String(row.label == null ? row.value : row.label) + (row.sub != null && String(row.sub).trim() ? ' ' + String(row.sub).trim() : ''), short = row.short != null && row.short !== '' ? rowText(row) : sliceLabel(row) + (row.sub != null && String(row.sub).trim() && !(row.w < LABEL_MIN_W) ? ' ' + String(row.sub).trim() : ''), chip = short || lab, big = d.big != null ? String(d.big) : '';
     landedFull = lab; landedShort = chip !== lab;
     const chg = RING ? '' : ((d.from != null && d.to != null && String(d.from) !== '' && d.from !== d.to) ? '<div class="wh-chg"><span>' + esc(d.from) + '</span><span class="t2-arr" aria-hidden="true"></span><b class="t2-new">' + esc(d.to) + '</b></div>' : d.barHtml ? '<div class="wh-chg">' + d.barHtml + '</div>' : '');
     return (p.jackpot && o.jpText ? '<span class="wh-jp">' + icoDeco('burst', 20) + ' ' + esc(o.jpText) + '</span>' : '') +

@@ -179,6 +179,7 @@ async function runWheel(w) {
     const bw = st && st.res && st.res.match(/\b(false|undefined|null|NaN)\b/i);
     step(w, "result card text has no 'false' / 'undefined' / 'null' / 'NaN'", st && st.res && !bw, bw ? bw[0] + ' in: ' + st.res.replace(/\s+/g, ' ') : 'no result text'); const after = await A.snap();
     step(w, 'STOP shows a result and stores the stop', stopped && st && st.res && after !== before, JSON.stringify(st) + (after === before ? ' (store unchanged)' : ''));
+    if (w === 'scout') { const nm = await A.page.evaluate(() => { const c = document.querySelector('.wh-ov .wh-chip'), t = c && c.textContent.trim(), labs = [...document.querySelectorAll('.wh-ov .wh-rlab')].map((e) => e.textContent.trim()), cg = [...document.querySelectorAll('.wh-ov .wh-cg')].map((e) => e.textContent.trim()); return { chip: t, labs, cg, aria: c && c.getAttribute('aria-label') }; }); step(w, 'result chip = the grade + the same short name printed on a wheel slice (one cut per card); full name in aria-label', nm && nm.chip && nm.labs.some((l, i) => nm.cg[i] + ' ' + l === nm.chip) && nm.aria && nm.aria.length >= nm.chip.length, JSON.stringify(nm)); }
     await A.shot(w + '-result');
     const sliceA = st && st.res;
     await A.reload(); let reopened = true; try { await W.trigger(A); } catch (e) { if (!(e instanceof Setup)) throw e; reopened = false; }
