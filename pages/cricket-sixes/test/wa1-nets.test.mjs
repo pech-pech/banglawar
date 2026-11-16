@@ -52,7 +52,8 @@ test('old entry points reach the same coach flows as the Training-tab strip', as
   assert.match(src, /close\(\); startCourse\(vm, id, dispatch, refresh\)/, 'the sheet\'s own Send on course uses the same startCourse');
   assert.match(src, /import \{ scoutBodyHtml, scoutDone, scoutSpinOpen \} from '\.\/coachpick-view\.js'/, 'scout sheet = the scout list screen body');
   const app = read('js/ui/app.js');
-  assert.match(app, /coaches: \{ file: 'coaches-sheet', vm: \['coachesVM'/, 'sheet:coaches still registered');
+  assert.match(app, /coaches: \{ file: 'coaches-sheet', vm: \['coachesVM(T2)?'/, 'sheet:coaches still registered (original or the fenced T2 wrapper)');
+  assert.match(read('js/store/selectors.js'), /export function coachesVM\(s\)/, 'original coachesVM still exported (T2 wraps it)');
   assert.match(app, /coach: \['coachpick-view', 'coachPickVM'\]/, 'scout list screen route kept');
   const tv = read('js/ui/training-view.js');
   assert.match(tv, /open\('coaches', \{ course: id \}\)/); assert.match(tv, /open\('coaches', \{ scout: 1 \}\)/); assert.match(tv, /open\('coaches'\)/);
