@@ -153,7 +153,7 @@ export function spotRing(w) {
   const ring = applyKindFloor(SPOT_SLICES, !!(w && w.kindFloor)), v = w && w.slices, ws = w && w.widths; // old vm fields only size the ring when the tree changed it (Widener, Extra Gold)
   if (!Array.isArray(v) || !Array.isArray(ws) || v.length !== ws.length || !v.length || (v.length === ring.length && ws.every((x, i) => Math.abs(x - ring[i].w) < 1e-6))) return ring;
   const golds = w.golds && w.golds.length ? w.golds : [w.jackpotIndex || 0], lo = Math.min(...ring.map((r) => r.value));
-  return v.map((x, i) => { const val = ring[i] && v.length === ring.length ? ring[i].value : x; return { id: i, w: ws[i], value: val, label: 'x' + String(Math.round(val * 100) / 100), tier: val > lo ? 'top' : 'low', gold: golds.includes(i) }; });
+  return v.map((x, i) => { const same = v.length === ring.length, val = same ? ring[i].value : x; return { id: i, w: ws[i], value: val, label: same ? ring[i].label : 'x' + (Math.round(val * 100) / 100).toFixed(1), tier: val > lo ? 'top' : 'low', gold: golds.includes(i) }; });
 }
 /** Legend for under-7% pieces whose printed label is longer than one char and not a number. */
 export function spotLegend(ring) { return (ring || []).filter((s) => s.w < 0.7 && String(s.label).length > 1 && !/^[+-]?[x\d.]+$/.test(String(s.label))).map((s) => ({ ch: String(s.label).charAt(0), text: String(s.label) })); }
