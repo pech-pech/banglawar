@@ -87,7 +87,7 @@
 
 /* T8 N: short AND wide (Fold cover 475x638): the legend sits BESIDE the wheel (a column), so the wheel gets the height the legend row used. Same place in every state. */
 @media (max-height: 700px) and (min-width: 440px) {
-  .wh-ov.is-ring { display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-rows: auto auto minmax(0, 1fr) auto auto; column-gap: 0; row-gap: var(--c-sp-2, 8px); }
+  .wh-ov.is-ring { display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-rows: auto auto minmax(0, 1fr) auto auto; column-gap: 0; row-gap: 3px; } /* D5: tighter rows: the stage (and so the wheel) takes the freed height; the 120 px result box is unchanged */
   .wh-ov.is-ring > .t2-strip, .wh-ov.is-ring > .wh-card, .wh-ov.is-ring > .wh-foot, .wh-ov.is-ring > [data-live] { grid-column: 1 / -1; }
   .wh-ov.is-ring > .wh-stage { grid-column: 1; grid-row: 3; min-height: 0; }
   .wh-ov.is-ring > .wk-legend.wh-lgd { grid-column: 2; grid-row: 3; align-self: center; flex-direction: column; flex-wrap: nowrap; justify-content: flex-start; align-items: flex-start; gap: 6px; margin: 0 8px 0 0; min-width: 0; }
@@ -149,3 +149,6 @@
   .wh-ov .wh-card .wh-g { min-height: 40px; padding: 0 6px; font-size: 14px; }
   .wh-ov .wh-card .wh-g .t2-strong { font-size: 14px; }
 }
+
+/* T8 QA-LW-JOIN-B D1: the pixel font draws 14 px caps only ~7.5 px tall, so AIM read tiny over a 412 px wheel (816x568). 20 px word (caps ~10.5 px), same bottom edge above the pointer. */
+.wh-ov .wh-aimw { font-size: 20px; line-height: 18px; top: -48px; }

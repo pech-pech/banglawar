@@ -155,27 +155,28 @@ export function render(el, vm, dispatch) {
     const a = selRow.getBoundingClientRect(), b = lst.getBoundingClientRect();
     if (a.bottom > b.bottom) lst.scrollTop += a.bottom - b.bottom + 4; else if (a.top < b.top) lst.scrollTop -= b.top - a.top + 4;
   }
-  // QA-V5 N1: #app is the page scroller now, so bring the picked row above the CTA bar (css scroll-margin); no animation under reduced motion
-  if (selRow && typeof selRow.scrollIntoView === 'function') {
-    const w = /** @type {any} */ (typeof window !== 'undefined' ? window : null);
-    const rm = !!(w && w.matchMedia && w.matchMedia('(prefers-reduced-motion: reduce)').matches);
-    selRow.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: rm ? 'auto' : 'smooth' });
-  }
+  // QA-V5 N1: #app is the page scroller now, so bring the picked row above the CTA bar (css scroll-margin). Always instant: the sticky-header
+  // nudge below measures right away, and a smooth scroll would land mid-tile (so reduced motion is honoured by construction).
+  if (selRow && typeof selRow.scrollIntoView === 'function') selRow.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'auto' });
   // the sticky header must never cut a tile: scroll-padding + snap for the finger, and one nudge here so a tile is whole or fully hidden
   const hdr = lst && lst.querySelector('.bv-head');
   const clearHeader = () => {
     if (!hdr || !hdr.isConnected) return;
     lst.style.setProperty('--bv-hh', (hdr.offsetHeight + 4) + 'px');
-    if (lst.scrollTop <= 0) return;
+    // N2: the page scroller is #app on bowl/chase, so nudge whichever box actually scrolled (list or #app)
+    const app = typeof document !== 'undefined' ? document.getElementById('app') : null;
+    const sc = lst.scrollTop > 0 ? lst : (app && app.scrollTop > 0 ? app : null);
+    if (!sc) return;
     const hb = hdr.getBoundingClientRect().bottom;
     const cut = [...lst.querySelectorAll('.sb-row')].find((r) => { const q = r.getBoundingClientRect(); return q.top < hb - 0.5 && q.bottom > hb + 0.5; });
     if (cut) { // show it whole when the pre-filled row stays in view, else tuck it fully under the header
-      const q = cut.getBoundingClientRect(), up = hb - q.top + 4, lb = lst.getBoundingClientRect().bottom;
+      const ctaEl = sc === lst ? null : el.querySelector('.bv-cta');
+      const q = cut.getBoundingClientRect(), up = hb - q.top + 4, lb = ctaEl ? ctaEl.getBoundingClientRect().top : lst.getBoundingClientRect().bottom;
       const sel = lst.querySelector('.sb-row.is-selected'), sb = sel && sel.getBoundingClientRect();
-      if (!sb || sb.bottom + up <= lb) lst.scrollTop -= up; else {
-        const dn = q.bottom - hb + 1, room = lst.scrollHeight - lst.clientHeight - lst.scrollTop;
-        if (dn > room) lst.style.paddingBottom = (4 + Math.ceil(dn - room)) + 'px'; // end-of-list room so the last tile can still clear the header
-        lst.scrollTop += dn;
+      if (!sb || sb.bottom + up <= lb) sc.scrollTop -= up; else {
+        const dn = q.bottom - hb + 1, room = sc.scrollHeight - sc.clientHeight - sc.scrollTop;
+        if (dn > room) (sc === lst ? lst : el).style.paddingBottom = (4 + Math.ceil(dn - room)) + 'px'; // end room so the last tile can still clear the header
+        sc.scrollTop += dn;
       }
     }
   };

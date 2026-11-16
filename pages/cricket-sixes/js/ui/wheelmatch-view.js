@@ -269,7 +269,10 @@ function makeWheel(cv, segs, vm) {
       if (f.band > 0) { const b = f.band * U; ctx.beginPath(); ctx.arc(0, 0, rr, a - b - Math.PI / 2, a + b - Math.PI / 2); ctx.lineWidth = 12 * ks; ctx.strokeStyle = pal.hi; ctx.stroke(); ctx.setLineDash([3, 3]); ctx.lineWidth = 1.5; ctx.strokeStyle = pal.ink; ctx.stroke(); ctx.setLineDash([]); }
       ctx.save(); ctx.rotate(a); ctx.beginPath(); ctx.moveTo(0, -(R + 2 * ks)); ctx.lineTo(-7 * ks, -(R + 20 * ks)); ctx.lineTo(7 * ks, -(R + 20 * ks)); ctx.closePath();
       ctx.fillStyle = pal.hi; ctx.fill(); ctx.lineWidth = 2.5 * ks; ctx.strokeStyle = pal.ink; ctx.lineJoin = 'round'; ctx.stroke();
-      ctx.fillStyle = pal.ink; ctx.font = '900 ' + Math.max(9, 11 * ks) + 'px ' + fontFam(); ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; if (Math.cos(a) < 0) { ctx.translate(0, -(R + 28 * ks)); ctx.rotate(Math.PI); ctx.fillText('TICK', 0, 0); } else ctx.fillText('TICK', 0, -(R + 28 * ks)); ctx.restore();
+      ctx.restore(); // QA D2: the TICK word is upright (never turned with the tick), at least 14 px, kept inside the canvas
+      const tf = Math.max(14, 11 * ks), tr = R + 28 * ks; ctx.font = '900 ' + tf + 'px ' + fontFam(); ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      const tw = ctx.measureText('TICK').width, lim = W / 2 - 1, tx = Math.max(-(lim - tw / 2), Math.min(lim - tw / 2, tr * Math.sin(a))), ty = Math.max(-(lim - tf / 2), Math.min(lim - tf / 2, -tr * Math.cos(a)));
+      ctx.lineJoin = 'round'; ctx.lineWidth = 3.5; ctx.strokeStyle = pal.cream; ctx.strokeText('TICK', tx, ty); ctx.fillStyle = pal.ink; ctx.fillText('TICK', tx, ty);
     }
     // hub (does not turn): OVER n
     const hr = 27 * ks; ctx.beginPath(); ctx.arc(0, 0, hr, 0, TAU); ctx.fillStyle = pal.ink; ctx.fill();
@@ -282,22 +285,31 @@ function makeWheel(cv, segs, vm) {
     ctx.fillStyle = f.chime ? pal.white : pal.hi; ctx.fill(); ctx.lineWidth = 3 * ks; ctx.strokeStyle = pal.ink; ctx.lineJoin = 'round'; ctx.stroke();
     ctx.restore();
   }
-  /** Labels per frame (QA D2/D3, F16): text is radial but flipped in the lower half so it never reads upside down; tone marks and
-   *  stars are drawn screen-upright, so a good ▲ never turns into ▼. End slices (WIN / ALL OUT) show the word only (F9). */
+  /** Labels per frame (QA D2/D3, F16): numbers and tone marks are drawn screen-upright (never turned); stars turn with the wheel, so a good ▲ never turns into ▼. End slices (WIN / ALL OUT) show the word only (F9). */
   function labels(pos) {
     const ks = R / 146, fam = fontFam();
     (segs || []).forEach((g) => {
       const span = g.width * U, a = ((g.start + g.width / 2) - pos) * U, stars = g.end ? 0 : g.stars || 0, P = labelPlan(span, stars, R);
-      const lower = Math.cos(a) < 0, xy = (r) => [r * Math.sin(a), -r * Math.cos(a)];
+      const xy = (r) => [r * Math.sin(a), -r * Math.cos(a)];
       ctx.fillStyle = pal.ink; ctx.strokeStyle = pal.ink;
-      const txt = labelText(g); let f = P.font, [x, y] = xy(P.numR);
+      const txt = labelText(g); let f = P.font;
       ctx.font = '900 ' + f + 'px ' + fam; let w = ctx.measureText(txt).width;
       if (w > P.maxW) f = f * P.maxW / w;
       let show = txt;
       if (f < 10 && g.end) { const sh = g.end === 'AO' ? 'AO' : 'WIN'; f = P.font; ctx.font = '900 ' + f + 'px ' + fam; w = ctx.measureText(sh).width; if (w > P.maxW) f = f * P.maxW / w; show = sh; }
-      if (f >= 9) { ctx.save(); ctx.translate(x, y); ctx.rotate(lower ? a + Math.PI : a); ctx.font = '900 ' + f + 'px ' + fam; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(show, 0, 1); ctx.restore(); }
-      const c = ctx, at = (r, fn) => { const [gx, gy] = xy(r); c.save(); c.translate(gx, gy); fn(); c.restore(); }; // screen-upright mark
-      at(P.glyphR, () => glyph(c, g.tone, 0, 0, 4 * ks));
+      // QA D3: the number stays upright (6 never reads as 9). Shrink/move it until its box sits inside the slice; if it still does not fit, drop it.
+      const half = span / 2, hubR = 30 * ks, wrapPi = (d) => ((d + Math.PI) % TAU + TAU) % TAU - Math.PI;
+      const fits = (cx, cy, bw, bh) => [[-1, -1], [1, -1], [-1, 1], [1, 1]].every(([sx, sy]) => { const px = cx + sx * bw / 2, py = cy + sy * bh / 2; const r = Math.hypot(px, py); return r <= R - 3 * ks && r >= hubR && Math.abs(wrapPi(Math.atan2(px, -py) - a)) <= half - 0.01; });
+      ctx.font = '900 100px ' + fam; const w100 = ctx.measureText(show).width; let box = null;
+      for (const rr of [P.numR, R * 0.57, R * 0.82, R * 0.66]) {
+        const [cx, cy] = xy(rr); let ff = Math.min(f, P.font);
+        for (; ff >= 9; ff -= 1) { const bw = w100 * ff / 100, bh = ff * 0.78; if (fits(cx, cy + 1, bw, bh)) { box = { cx, cy, ff, bw, bh }; break; } }
+        if (box) break;
+      }
+      if (box) { ctx.font = '900 ' + box.ff + 'px ' + fam; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(show, box.cx, box.cy + 1); }
+      const [gx, gy] = xy(P.glyphR), gs = 4 * ks + 2; // the tier mark yields to the number: hidden if the two boxes would touch
+      const hit = box && Math.abs(gx - box.cx) < gs + box.bw / 2 && Math.abs(gy - (box.cy + 1)) < gs + box.bh / 2;
+      if (!hit) { ctx.save(); ctx.translate(gx, gy); glyph(ctx, g.tone, 0, 0, 4 * ks); ctx.restore(); }
     });
   }
   function land(i) { landed = i; paint(); }

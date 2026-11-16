@@ -311,6 +311,12 @@ try {
   if (st === 'matchday') {
     await B.settle(500);
     let used = null; const seen = {};
+    // Hype lands on a fixed ring slice (HypeSpin {sliceId}, the stop path the wheel itself sends): a low, non-gold slice with a better neighbour, so the offer is deterministic.
+    // The wheel's own stop is timing-driven and Hype can land on NUTS / HIGH (no offer by the rules), which made this check flaky. Toss and Pep still use real taps.
+    const hs = await q.evaluate(async () => { const H = await import('/cricket-sixes/js/core/wheels/hype.js'); const r = H.hypeRing(), L = r.length;
+      const i = r.findIndex((x, k) => !x.gold && x.value < 5 && [(k + 1) % L, (k + L - 1) % L].some((j) => !r[j].gold && r[j].value > x.value));
+      if (i >= 0) window.__store.dispatch('HypeSpin', { stop: { sliceId: r[i].id } }); return i >= 0 ? { id: r[i].id, label: r[i].label } : null; });
+    step(4, 'hype: fixed ring stop injected (low slice with a better neighbour)', !!hs, JSON.stringify(hs)); await B.settle(300);
     for (const w of ['hype', 'toss', 'pep']) {
       const b = await q.$(`[data-md="${w}"]`); if (!b) { step(4, `${w}: tap button`, false, 'missing'); continue; }
       await b.click(); await B.settle(500);

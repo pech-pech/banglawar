@@ -358,7 +358,7 @@ canvas.ct-face { width: 18px !important; height: 18px !important; } /* X2 V4 D4:
 /* LW: landscape inner (GRID-RULES G0) - Train (ready state + Nets done). Goes LAST in css/training2.css. */
 @media (min-width: 760px) and (min-height: 500px) and (orientation: landscape) {
   .t2-screen { height: 100vh; height: 100dvh; min-height: 0; overflow: hidden; margin: 0 -12px; padding: 0 14px calc(var(--bar-h) + 6px + env(safe-area-inset-bottom)); grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: 8px; row-gap: 6px; align-content: stretch; align-items: stretch; }
-  .t2-screen > .tr-top { grid-column: 1 / -1; grid-row: 1; }
+  .t2-screen > .tr-top { grid-column: 1 / -1; grid-row: 1; padding-right: 14px; }
   .t2-screen:has(> .t2-plan) { grid-template-rows: auto auto auto minmax(0, 1fr) auto; }
   .t2-screen > .ct-strip { grid-column: 1; grid-row: 2 / 5; margin: 0; min-height: 0; }
   .t2-screen > .t2-pick { grid-column: 1; grid-row: 5; }
@@ -390,10 +390,10 @@ canvas.ct-face { width: 18px !important; height: 18px !important; } /* X2 V4 D4:
   .t2-screen:has(> .t2-spotring) { grid-template-rows: auto minmax(0, 1fr) auto auto auto auto; }
   .t2-screen:has(> .t2-spotring) > .tr-list { grid-row: 2 / 7; }
 }
-/* N6: narrow-inner portrait (600-680 wide, e.g. 624x912): coach strip across the full width, controls left, squad list right. 344 / 475 / 704 unaffected. */
-@media (min-width: 600px) and (max-width: 680px) and (orientation: portrait) {
+/* N6: inner portrait (600-759 wide, e.g. 624x912, 704x783, 704x823): coach strip across the full width, controls left, squad list right. 344 / 475 unaffected. QA-LW-JOIN-A D1: widened from 680 so 704 no longer leaves the list under the footer and a dead right column. */
+@media (min-width: 600px) and (max-width: 759px) and (orientation: portrait) {
   .t2-screen:has(> .t2-plan) { height: 100vh; height: 100dvh; min-height: 0; overflow: hidden; margin: 0 -12px; padding-bottom: calc(var(--bar-h) + 6px + env(safe-area-inset-bottom)); grid-template-rows: auto auto auto auto minmax(0, 1fr); align-content: stretch; align-items: stretch; }
-  .t2-screen > .tr-top { grid-column: 1 / -1; grid-row: 1; }
+  .t2-screen > .tr-top { grid-column: 1 / -1; grid-row: 1; padding-right: 14px; }
   .t2-screen > .ct-strip { grid-column: 1 / -1; grid-row: 2; margin: 0; }
   .t2-screen > .t2-plan { grid-column: 1; grid-row: 3; padding: 0; }
   .t2-screen > .t2-cost { grid-column: 1; grid-row: 4; padding: 0 4px; }

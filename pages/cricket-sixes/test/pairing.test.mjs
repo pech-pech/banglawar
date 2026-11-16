@@ -497,7 +497,7 @@ test('QA-V5 N1 bowl view: picked row is scrolled into view (instant under reduce
   };
   try {
     const a = run(false), b = run(true);
-    assert.equal(a.calls.length, 1); assert.equal(a.calls[0].behavior, 'smooth'); assert.equal(a.calls[0].block, 'nearest');
+    assert.equal(a.calls.length, 1); assert.equal(a.calls[0].behavior, 'auto'); assert.equal(a.calls[0].block, 'nearest');
     assert.equal(b.calls[0].behavior, 'auto');
     const picked = a.vm.bowlers.find((x) => x.i === a.vm.call.bowler && x.eligible);
     if (picked) assert.match(a.h, new RegExp('<small class="name">' + picked.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));

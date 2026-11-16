@@ -12,8 +12,8 @@ test('training2.css has one LW block, last of the layout rules, with the lock se
 test('tall LW puts Cost under Effort in column A and the whole squad in column B', () => {
   assert.match(css, /@media \(min-width: 760px\) and \(min-height: 690px\) and \(orientation: landscape\) \{[^@]*\.t2-cost \{ grid-column: 1; grid-row: 4; \}[^@]*\.tr-list \{ grid-row: 2 \/ 6; \}/);
 });
-test('N6: 600-680 portrait widens the coach strip to the full row; 344 / 475 / 704 untouched', () => {
-  const m = css.match(/@media \(min-width: 600px\) and \(max-width: 680px\) and \(orientation: portrait\) \{([^@]*)\}\n?$/);
+test('N6: 600-759 portrait (624, 704) widens the coach strip to the full row; 344 / 475 and LW untouched (QA-LW-JOIN-A D1)', () => {
+  const m = css.match(/@media \(min-width: 600px\) and \(max-width: 759px\) and \(orientation: portrait\) \{([^@]*)\}\n?$/);
   assert.ok(m);
   assert.ok(m[1].includes('.ct-strip { grid-column: 1 / -1;'));
   assert.ok(m[1].includes('.tr-list { grid-column: 2;'));
