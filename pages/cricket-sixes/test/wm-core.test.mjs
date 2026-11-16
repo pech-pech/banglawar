@@ -62,9 +62,12 @@ test('tree effects ported: Slow, Steady, Guide, gold width, extra gold, floor', 
   assert.ok(Math.abs(E.spot.booster.chance - 0.6) < 1e-9); assert.equal(E.spot.booster.count, 3); assert.equal(E.pep.booster.value, 1.5);
   assert.deepEqual(E.tokens, { respin: 3, nudge: 1, two: 1, wild: 1, lift: 1 });
   const w = metaWheel(wheelSlices('normal'), 'spot', s);
-  // SPOT_SLICES ring (SPEC 3): gold x3.0 at 1.2 units + 0.10 widening = 1.3; Extra Gold (x0.75) goes farthest from the first gold (SPEC 11a) = index 5
+  // SPOT_SLICES ring (SPEC 3): gold x3.0 at 1.2 units + 0.10 widening = 1.3; Extra Gold (x0.75) goes farthest from the first gold (SPEC 11a) = index 5.
+  // SPEC 11b: the ring still sums 10 (the extra width comes from the other pieces pro rata): gold 13 / 110.75 = 11.74% (06-OPEN-ITEMS item 2)
+  const k = 10 / (10.1 + 1.3 * 0.75);
   assert.equal(w.slices.length, 11); assert.deepEqual(w.golds, [0, 5]); assert.equal(w.slices[5], 3);
-  assert.ok(Math.abs(w.widths[0] - 1.3) < 1e-9); assert.ok(Math.abs(w.widths[5] - 1.3 * 0.75) < 1e-9);
+  assert.ok(Math.abs(w.C - 10) < 1e-9 && Math.abs(w.widths.reduce((a, b) => a + b, 0) - 10) < 1e-9, 'ring sums 10');
+  assert.ok(Math.abs(w.widths[0] - 1.3 * k) < 1e-9); assert.ok(Math.abs(w.widths[5] - 1.3 * 0.75 * k) < 1e-9); assert.ok(Math.abs(w.widths[0] / 10 - 0.1174) < 1e-4);
   assert.ok(w.slices.some((v, i) => v === 1 && !w.golds.includes(i)), 'Kind Floor pays nothing here (flag only; T2 perks/kind-floor.js pays)'); assert.equal(w.phys.SD, 0.08);
   assert.ok(Math.abs(w.phys.W0 - 36 * 0.55) < 1e-9); assert.ok(Math.abs(w.phys.J - 1.2 * 0.7225) < 1e-9); assert.equal(w.phys.D, 2); // engine (was W0 13.2 / J 0.42 on W0 24 / J 0.6)
   const n = metaWheel(wheelSlices('normal'), 'spot', fresh()); assert.deepEqual(n.slices, wheelSlices('normal').slices); assert.deepEqual(n.phys, { W0: 36, J: 1.2, SD: 0.11, D: 2 });
@@ -114,7 +117,7 @@ test('PARITY Spotlight (SPEC 3, x multipliers): random 1.292, careful 1.713, ful
   console.log('parity spot careful', c.toFixed(3), `(${(c / R).toFixed(2)}x)`, '| full Control', k.toFixed(3), `(${(k / R).toFixed(2)}x)`, '| tokens none', z.mean.toFixed(3), '| full tree', f.mean.toFixed(3), 'gold', f.gold.toFixed(3));
   // training.js careful tapper (exp decay, IDEAL 3.5) runs a little above the SPEC pulse sim: bands, not +-0.05
   assert.ok(Math.abs(c - 1.713) <= 0.08, 'careful ' + c); assert.ok(Math.abs(k - 2.129) <= 0.15, 'full Control ' + k);
-  assert.ok(f.mean < 3.0 && f.mean > k, 'full tree ' + f.mean); // SPEC 11c 2.52x without Kind Floor; the gap is Booster / Hot Streak / Lift still in old point units (T2 perks)
+  assert.ok(f.mean < 3.0 && f.mean > k, 'full tree ' + f.mean); // one-wheel token play; the SPEC 11c season (2.60x, 2.52x without Kind Floor, shared pool) is test/t2-fulltree.test.mjs
 }));
 
 test('PARITY Course (SPEC 4, steps): random 1.590, careful 2.206, full Control 2.722; full tree above Control, more gold', () => on(() => {
@@ -123,7 +126,7 @@ test('PARITY Course (SPEC 4, steps): random 1.590, careful 2.206, full Control 2
   const f = play(full(), 'course', 6000, 'par-c', COURSE_RING), z = play(fresh(), 'course', 6000, 'par-d', COURSE_RING);
   console.log('parity course careful', c.toFixed(3), `(${(c / R).toFixed(2)}x)`, '| full Control', k.toFixed(3), '| full tree gold', f.gold.toFixed(3), 'steps', f.mean.toFixed(3), '| none', z.gold.toFixed(3), z.mean.toFixed(3));
   assert.ok(Math.abs(c - 2.206) <= 0.08, 'careful ' + c); assert.ok(Math.abs(k - 2.722) <= 0.2, 'full Control ' + k);
-  assert.ok(f.mean > k && f.gold > z.gold, 'full tree ' + f.mean); // SPEC 11c 3.76 / 75% gold (needs the step-19 cap and the T2 perks)
+  assert.ok(f.mean > k && f.gold > z.gold, 'full tree ' + f.mean); // SPEC 11c 3.76 / 75% gold is the season with the shared token pool: test/t2-fulltree.test.mjs
 }));
 
 test('tokens: refill from ranks, Spotlight cap 2, Course no cap, guards, Wild, nudge never onto gold, lift never above gold', () => on(() => {
@@ -142,16 +145,20 @@ test('tokens: refill from ranks, Spotlight cap 2, Course no cap, guards, Wild, n
   t = { ...t, wheelMeta: t.wheelMeta }; assert.deepEqual(tokenOptions(t, 'spot', pw).map((o) => o.label), ['Spin Again (Wild)', 'Pick Two (Wild)', 'Nudge (Wild)', 'Lucky Lift (Wild)']);
   const pn = { index: 2, gain: 1, jackpot: false, wheel: wheelSlices('normal') }, nd = useToken(t, 'spot', 'nudge', pn, rng); assert.equal(nd.pending.index, 3); assert.equal(nd.pending.gain, 1.5); assert.equal(nd.s.wheelMeta.tokens.wild, 0); // SPOT ring: x1.0 -> x1.5
   assert.equal(useToken(t, 'spot', 'nudge', { index: 6, gain: 1.2, jackpot: false, wheel: wheelSlices('normal') }, rng).s, t, 'no better neighbour: no token spent'); // x1.2 between two x1.0
-  for (let i = 0; i < 40; i++) { const q = useToken(t, 'spot', 'lift', { index: 2, gain: 4, jackpot: false, wheel: wheelSlices('normal') }, makeRng('l' + i)); assert.ok(q.pending.gain <= 5 && q.pending.gain >= 4); assert.equal(tokenOptions(q.s, 'spot', q.pending).some((o) => o.kind === 'lift'), false); }
+  // Lucky Lift on Spotlight: +1/+2/+3 points in x units (1/1.5 x a point), never above the gold x3.0
+  const lifts = new Set();
+  for (let i = 0; i < 40; i++) { const q = useToken(t, 'spot', 'lift', { index: 3, gain: 1.5, jackpot: false, wheel: wheelSlices('normal') }, makeRng('l' + i)); assert.ok(q.pending.gain <= 3 && q.pending.gain > 1.5); lifts.add(+q.pending.gain.toFixed(4)); assert.equal(tokenOptions(q.s, 'spot', q.pending).some((o) => o.kind === 'lift'), false); }
+  assert.deepEqual([...lifts].sort(), [2.1667, 2.8333, 3], 'x1.5 + 0.667 / 1.333 / 2 (capped at 3)');
 }));
 
 test('Hot Streak (+1 gold after gold), booster only on its slice, Second Opinion keeps the better', () => on(() => {
-  const w = metaWheel(wheelSlices('normal'), 'spot', full()), gold = { index: 0, gain: 5, jackpot: true, t: 3, phi: 0, e: 0 };
+  // Spotlight units (SPEC 3, gaps_sim TT): Hot Streak +1 point = +1/1.5 x; Booster 3 points (Booster 3 ranks + Big Boost 2) = +2.0x; Kind Floor x1.0 -> x1.2
+  const w = metaWheel(wheelSlices('normal'), 'spot', full()), gold = { index: 0, gain: 3, jackpot: true, t: 3, phi: 0, e: 0 };
   let s = full(); s.wheelMeta.streak = 0; let a = afterResult(s, 'spot', gold, { random: () => 0.99 }, { wheel: w });
-  assert.equal(a.result.gain, 5); assert.equal(metaOf(a.s).streak, 1); a = afterResult(a.s, 'spot', gold, { random: () => 0.99 }, { wheel: w }); assert.equal(a.result.gain, 6); assert.equal(metaOf(a.s).streak, 2);
-  a = afterResult(a.s, 'spot', { index: 2, gain: 1, jackpot: false }, { random: () => 0.99 }, { wheel: w }); assert.equal(metaOf(a.s).streak, 0);
-  const b = afterResult(s, 'spot', { index: 3, gain: 3, jackpot: false }, { random: () => 0 }, { wheel: w }); // booster fires, shining slice = first non-gold (index 1)
-  assert.equal(b.result.gain, 3); const c = afterResult(s, 'spot', { index: 1, gain: 2, jackpot: false }, { random: () => 0 }, { wheel: w }); assert.equal(c.result.gain, 2 + 3);
+  assert.equal(a.result.gain, 3); assert.equal(metaOf(a.s).streak, 1); a = afterResult(a.s, 'spot', gold, { random: () => 0.99 }, { wheel: w }); assert.ok(Math.abs(a.result.gain - (3 + 1 / 1.5)) < 1e-9); assert.equal(metaOf(a.s).streak, 2);
+  a = afterResult(a.s, 'spot', { index: 2, gain: 1, jackpot: false }, { random: () => 0.99 }, { wheel: w }); assert.equal(metaOf(a.s).streak, 0); assert.equal(a.result.gain, 1.2, 'Kind Floor: x1.0 pays x1.2');
+  const b = afterResult(s, 'spot', { index: 3, gain: 1.5, jackpot: false }, { random: () => 0 }, { wheel: w }); // booster fires, shining slice = first non-gold (index 1)
+  assert.equal(b.result.gain, 1.5); const c = afterResult(s, 'spot', { index: 1, gain: 1, jackpot: false }, { random: () => 0 }, { wheel: w }); assert.ok(Math.abs(c.result.gain - (1.2 + 2)) < 1e-9); assert.equal(c.result.boosted, true);
   const cw = metaWheel(courseWheel(), 'course', full()); let better = 0;
   for (let i = 0; i < 50; i++) { const rng = makeRng('so' + i), r1 = spinResult(rng, cw, false), r = afterResult(full(), 'course', r1, rng, { wheel: cw }).result; assert.ok(r.gain >= r1.gain); better += r.gain > r1.gain; }
   assert.ok(better > 3);
