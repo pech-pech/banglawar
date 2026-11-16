@@ -45,8 +45,8 @@ test('Twin pass: two separate spins, each replaces that player\'s roll, pass use
   assert.equal(C(two, 'Spin', { slot: 2 }), two, 'one spin each');
   const r = C(two, 'RunNets');
   const la = r.training.nets.lines.find((l) => l.id === a), lb = r.training.nets.lines.find((l) => l.id === b);
-  if (la) assert.equal(la.wheelGain, two.training.pending.result.gain);
-  assert.ok(lb, 'second player trained'); assert.equal(lb.wheelGain, two.training.pending2.result.gain);
+  if (la) assert.equal(la.wheelMult, two.training.pending.result.gain);
+  assert.ok(lb, 'second player trained'); assert.equal(lb.wheelMult, two.training.pending2.result.gain); assert.ok(lb.wheelGain >= 1);
   assert.equal(r.econ.sinks.twin_drill, 1, 'one pass used, one kept');
   assert.equal(r.training.pending2, undefined);
   const e = C(r, 'EndWeek'); assert.equal(planOf(e).spotlight2Id, undefined);

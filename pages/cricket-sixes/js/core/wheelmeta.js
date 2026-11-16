@@ -33,6 +33,7 @@ import { MD } from '../data/matchday.js';
 import { devVal } from './wheelmatch.js'; // wheel match Dev: otherMult (1 unless Dev is on)
 import { WHEEL_ENGINE } from '../data/wheel-engine.js';
 import { TRAIN2 } from '../data/training.js';
+import { kindFloorGain } from './perks/kind-floor.js'; // T2 perk: Kind Floor pay (+0.2x Spotlight, +1 step Course) on the landing
 
 const clone = (/** @type {any} */ x) => structuredClone(x);
 const BY = Object.fromEntries(NODES.map((n) => [n.id, n]));
@@ -185,7 +186,8 @@ export function metaWheel(wheel, wheelId, s) {
     L.splice(pos, 0, { v: g0.v, w: g0.w * WM.EXTRA_W, gold: true });
   }
   const P = controlPhys(controlRanks(s), WHEEL_ENGINE, Number.isFinite(/** @type {any} */ (wheel).J) ? /** @type {any} */ (wheel).J : WHEEL_ENGINE.J);
-  const widths = L.map((q) => q.w), C = widths.reduce((a, b) => a + b, 0), golds = L.map((q, i) => (q.gold ? i : -1)).filter((i) => i >= 0);
+  // SPEC 11b: the ring sum stays as it was (10 rim units); widening and Extra Gold take their width from the other pieces pro rata
+  const C0 = ws.reduce((a, b) => a + b, 0), S = L.reduce((a, q) => a + q.w, 0), widths = L.map((q) => q.w * C0 / S), C = widths.reduce((a, b) => a + b, 0), golds = L.map((q, i) => (q.gold ? i : -1)).filter((i) => i >= 0);
   return { ...wheel, slices: L.map((q) => q.v), jackpotIndex: L.findIndex((q) => q.gold), widths, C, golds,
     phys: { W0: P.W0 * om, J: P.J, SD: P.SD, D: WHEEL_ENGINE.D } }; // Dev otherMult x Control (Slow stacks)
 }
@@ -218,14 +220,17 @@ export const otherMultOf = (s) => devVal(s, 'otherMult');
 // ---- results: booster, Hot Streak, Second Opinion
 const defaultWheel = (/** @type {any} */ s, /** @type {string} */ wheelId) => metaWheel(wheelId === 'course' ? courseWheel() : wheelSlices('normal'), wheelId, s);
 /** Booster and Hot Streak on one spin result (the sim's one_spin tail). */
+// Units (SPEC 3 / 11a, gaps_sim TT): Spotlight slices are x on the normal roll, so a Booster / Hot Streak / Lucky Lift point is
+// WM.UNIT.spot = 1/1.5 x (one old point over the Normal roll mean 1.5); Course stays in steps (unit 1). Kind Floor pays here via the T2 perk.
 function decorate(/** @type {any} */ wheel, /** @type {any} */ X, /** @type {string} */ wheelId, /** @type {number} */ streak0, /** @type {any} */ r, /** @type {any} */ rng) {
-  let gain = r.gain, boosted = false; const golds = wheel.golds || [wheel.jackpotIndex || 0];
+  const golds = wheel.golds || [wheel.jackpotIndex || 0];
+  let gain = kindFloorGain(wheelId, wheel, r.index, r.gain, X.kindFloor), boosted = false;
   if (X.booster.chance && rng.random() < X.booster.chance) {
     const c = wheel.slices.map((_v, i) => i).filter((i) => !golds.includes(i)), b = c[Math.floor(rng.random() * c.length)];
     if (b === r.index) { gain += X.booster.value; boosted = true; }
   }
   const gold = golds.includes(r.index);
-  if (gold && wheelId === 'spot' && X.streak) gain += Math.min(streak0, WM.STREAK_MAX);
+  if (gold && wheelId === 'spot' && X.streak) gain += Math.min(streak0, WM.STREAK_MAX) * WM.UNIT.spot; // Hot Streak: +1 point = +0.667x
   return { ...r, gain, jackpot: gold, boosted, streak0 };
 }
 /**
@@ -392,7 +397,7 @@ export function useToken(s, wheelId, kind, pending, rng, stop, ctx = {}) {
   } else if (kind === 'nudge') {
     p = { ...p, ...nudged(wheelId, wheel, nudgeTo(wheelId, wheel, p)) };
   } else if (SKILL.includes(wheelId)) {
-    const cap = wheel.slices[wheel.jackpotIndex || 0], b = wheelId === 'spot' ? WM.LIFT[Math.floor(rng.random() * WM.LIFT.length)] : WM.LIFT_COURSE[Math.floor(rng.random() * WM.LIFT_COURSE.length)];
+    const cap = wheel.slices[wheel.jackpotIndex || 0], b = wheelId === 'spot' ? WM.LIFT[Math.floor(rng.random() * WM.LIFT.length)] * WM.UNIT.spot : WM.LIFT_COURSE[Math.floor(rng.random() * WM.LIFT_COURSE.length)]; // Spotlight points in x units; never above gold
     p = { ...p, gain: Math.max(p.gain, Math.min(p.gain + b, cap)), lifted: true };
   } else p = { ...p, ...lifted(wheelId, p, rng), lifted: true };
   const n = clone(s), m = n.wheelMeta; m.tokens[src] -= 1;

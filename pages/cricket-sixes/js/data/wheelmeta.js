@@ -7,7 +7,8 @@ export const WM = {
   SPOKE_PER_TIER: 1, SPOT_TOKEN_CAP: 2, SWAP_RATE: 2, GUIDE_SD_FACTOR: 0.727, EXTRA_W: 0.75, CONFIRM_AT: 50,
   MATERIALS: ['wood', 'brass', 'steel', 'silver', 'gold', 'star', 'crystal'],
   // sim TUNE values the core reads (not part of the fixed contract)
-  UNIT: { spot: 1, course: 1, hype: 1, toss: 1, pep: 0.5, find: 10, scout: 1, finals: 10 }, // one Booster / Floor unit per wheel
+  // one Booster / Hot Streak / Lift point per wheel. spot: Spotlight slices are x on the normal roll (SPEC 3), so one point = 1/1.5 x (Normal roll mean 1.5; gaps_sim TT.UNIT)
+  UNIT: { spot: 1 / 1.5, course: 1, hype: 1, toss: 1, pep: 0.5, find: 10, scout: 1, finals: 10 },
   LIFT: [1, 1, 1, 2, 3], LIFT_COURSE: [0, 1], STREAK_MAX: 1, RESPIN_BELOW: { spot: 3, course: 2 },
   // wa1 (2026-11-14-wheel-all-spins 02 s5/s6): tokens on all 8 wheels, cap rule F
   TOKEN_CAP_WHEEL_SEASON: { spot: 2, course: null, hype: 2, toss: 2, pep: 2, find: 2, scout: 2, finals: 2 },

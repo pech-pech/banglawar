@@ -47,7 +47,7 @@ test('sign once a season, 3 slots, release to free a slot', () => {
   const pass = passScout(next); assert.deepEqual(scoutList(pass), []);
 });
 
-test('course: price, one per coach per season, away one week, wheel adds steps, cap 21', () => {
+test('course: price, one per club per season, away one week, wheel adds steps, cap 19 (S-), 19+ may still take it', () => {
   const s = game({ coaches: [K({ step: 8 })], league: 4 });
   assert.equal(courseCost(s, 'k1'), Math.round((24 + 48) * 1.95));
   assert.equal(courseCost(game({ coaches: [K({ step: 1 })], league: 1 }), 'k1'), 30); assert.equal(courseCost(game({ coaches: [K({ step: 21 })], league: 1 }), 'k1'), 150);
@@ -59,8 +59,9 @@ test('course: price, one per coach per season, away one week, wheel adds steps, 
   const wk = pickWeekCoach(t, 'k1'); assert.equal(wk, t, 'away coach cannot be picked');
   const e = endWeek(t); assert.equal(coachList(e)[0].away, 0); assert.equal(canCourse(e, 'k1').why, 'season');
   assert.equal(canCourse({ ...e, season: { n: 2, league: 4 } }, 'k1').ok, true);
-  assert.equal(coachList(runCourse(game({ coaches: [K({ step: 20 })] }), makeRng('c'), 'k1', { gain: 3 }))[0].step, 21);
-  assert.equal(canCourse(game({ coaches: [K({ step: 21 })] }), 'k1').why, 'max');
+  assert.equal(coachList(runCourse(game({ coaches: [K({ step: 17 })] }), makeRng('c'), 'k1', { gain: 4 }))[0].step, 19, 'a course result is cut at step 19');
+  for (const st of [19, 21]) assert.equal(canCourse(game({ coaches: [K({ step: st })] }), 'k1').ok, true, 'a coach at 19+ may take the club course (M override)');
+  assert.equal(coachList(runCourse(game({ coaches: [K({ step: 19 })] }), makeRng('c'), 'k1', { gain: 4 }))[0].step, 19, 'at 19 he gains 0');
   assert.equal(runCourse(s, makeRng('c'), 'zz', { gain: 2 }), s);
 });
 
@@ -93,4 +94,15 @@ test('old coach maps to the new shape; skills boost reads it', () => {
   assert.equal(treeBoost([K({ step: 13, strong: ['bat'] })], 'Fast'), 1);
   assert.equal(treeBoost([K({ step: 10, strong: ['bat'] })], 'Opener'), 1);
   assert.equal(treeBoost([K({ step: 21, strong: ['bat'], away: 1 })], 'Opener'), 1);
+});
+
+test('Course cap: courseCap/courseResult cut at 19; stepsCourse counts paid steps; 1 course a season club-wide; courseCut counted', async () => {
+  const { courseCap, courseResult, courseAllowed } = await import('../js/core/training.js');
+  assert.deepEqual(courseCap(17, 4), { to: 19, cut: true }); assert.deepEqual(courseCap(10, 2), { to: 12, cut: false }); assert.deepEqual(courseCap(19, 1), { to: 19, cut: true });
+  assert.deepEqual(courseResult(17, 4), { to: 19, cut: true, paid: 2 }); assert.equal(courseResult(19, 3).paid, 0);
+  const s = { ...game({ coaches: [K({ step: 17 }), K({ id: 'k2', step: 5 })], league: 1 }), report: { jobs: { courseCut: 0 } } };
+  assert.equal(courseAllowed(s), true);
+  const t = runCourse(s, makeRng('c'), 'k1', { gain: 4 });
+  assert.equal(coachList(t)[0].step, 19); assert.equal(t.coaches[0].stepsCourse, 2); assert.equal(t.report.jobs.courseCut, 1);
+  assert.equal(courseAllowed(t), false); assert.equal(canCourse(t, 'k2', false).why, 'season', 'the cap is for the club, not per coach');
 });

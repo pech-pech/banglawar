@@ -13,6 +13,8 @@ import { letterOfRaw, stepOfRaw } from '../core/letters.js';
 import { playNets, lineHtml, skipLine, letterBar, STAT, statKey } from './nets-scene.js';
 import { openWheel } from './wheel-view.js';
 import { drawHead } from './club-canvas.js';
+import { SPOT_SLICES } from '../data/wheel-slices-train.js';
+import { applyKindFloor } from '../core/perks/kind-floor.js';
 
 export const ROLE_ICON = { opener: 'roleOpener', middle: 'roleMiddle', lower: 'roleLower' };
 export const TYPE_ICON = { fast: 'typeFast', medium: 'typeMedium', spin: 'typeSpin' };
@@ -42,6 +44,8 @@ export const strongText = (strong) => (strong || []).map((f) => FOCUS_WORD[f] ||
 const RK = { batPower: 'bp', batSkill: 'bs', bowlSpeed: 'spd', bowlSkill: 'bsk' };
 const WORD_KEY = { Power: 'bp', Technique: 'bs', Pace: 'spd', Craft: 'bsk' };
 const shortRates = (r) => (r && r.bp == null ? { bp: r.batPower, bs: r.batSkill, spd: r.bowlSpeed, bsk: r.bowlSkill } : r || {});
+/** Kind Floor flag from the vm: effective(s).spot.kindFloor as the selector passes it (spotlight.kindFloor), else the wheel's own field; 0 / absent = not owned. */
+const kfOf = (a, w) => !!((a && a.kindFloor) || (w && w.kindFloor));
 const rawTwin = (vm) => vm.twin || { held: 0, line: '', wheel: null, pending: null };
 /** trainingVM -> the small shape this view draws. */
 export function adapt(vm) {
@@ -50,9 +54,9 @@ export function adapt(vm) {
   const costs = {}; (vm.efforts || []).forEach((e) => { costs[e.id] = e.cost; });
   const pc = (vm.coaches || []).find((c) => c.picked) || null, pv = vm.preview || {};
   const wl = vm.spotlight && vm.spotlight.wheel;
-  const wheel = sp && wl ? { slices: wl.slices, jackpotIndex: wl.jackpotIndex, widths: wl.widths, player: { id: sp.id, name: sp.name, rates: sp.rates }, stat: WORD_KEY[sp.stat] || 'bp', pending: vm.spotlight.pending || null, guide: !!vm.spotlight.guide, zone: +vm.spotlight.zone || 0, chime: !!vm.spotlight.chime, tokens: vm.spotlight.tokens || [], look: vm.spotlight.look || null, phys: wl.phys || null, golds: wl.golds || null, room: vm.spotlight.room != null ? vm.spotlight.room : vm.room } : null;
+  const wheel = sp && wl ? { slices: wl.slices, jackpotIndex: wl.jackpotIndex, widths: wl.widths, player: { id: sp.id, name: sp.name, rates: sp.rates }, stat: WORD_KEY[sp.stat] || 'bp', pending: vm.spotlight.pending || null, guide: !!vm.spotlight.guide, zone: +vm.spotlight.zone || 0, chime: !!vm.spotlight.chime, tokens: vm.spotlight.tokens || [], look: vm.spotlight.look || null, phys: wl.phys || null, golds: wl.golds || null, kindFloor: kfOf(vm.spotlight, wl), spinKey: vm.spotlight.spinKey || '', wobKey: vm.spotlight.wobKey || '', stored: vm.spotlight.stored || null, room: vm.spotlight.room != null ? vm.spotlight.room : vm.room } : null;
   const tw = rawTwin(vm), sp2 = tw.held > 0 ? rows.find((r) => r.id === P.spotlight2Id) : null, wl2 = tw.wheel;
-  const wheel2 = sp2 && wl2 ? { slices: wl2.slices, jackpotIndex: wl2.jackpotIndex, widths: wl2.widths, player: { id: sp2.id, name: sp2.name, rates: sp2.rates }, stat: WORD_KEY[sp2.stat] || 'bp', pending: tw.pending || null, guide: !!tw.guide, zone: +tw.zone || 0, chime: !!tw.chime, tokens: tw.tokens || [], look: tw.look || null, phys: wl2.phys || null, golds: wl2.golds || null } : null;
+  const wheel2 = sp2 && wl2 ? { slices: wl2.slices, jackpotIndex: wl2.jackpotIndex, widths: wl2.widths, player: { id: sp2.id, name: sp2.name, rates: sp2.rates }, stat: WORD_KEY[sp2.stat] || 'bp', pending: tw.pending || null, guide: !!tw.guide, zone: +tw.zone || 0, chime: !!tw.chime, tokens: tw.tokens || [], look: tw.look || null, phys: wl2.phys || null, golds: wl2.golds || null, kindFloor: kfOf(tw, wl2) || kfOf(vm.spotlight, wl), spinKey: tw.spinKey || '', wobKey: tw.wobKey || '', stored: tw.stored || null } : null;
   const nets = vm.done && vm.result ? { id: vm.week, cost: vm.result.cost, lines: vm.result.lines.map((l) => ({ ...l, stat: RK[l.rating] || l.rating || WORD_KEY[l.stat] || 'bp' })), skipped: rows.filter((r) => r.state === 'skip').map((r) => ({ id: r.id, name: r.name, why: "Can't gain" })) } : null;
   return { week: vm.week, tp: vm.tp, twin: { held: tw.held, line: tw.line, name: sp2 ? sp2.name : null }, wheel2, plan: { ...P, spotlightName: sp ? sp.name : null }, costs: { easy: 10, normal: 13, push: 18, ...costs }, coach: pc, rows, wheel, nets, canRun: vm.canRun !== false,
     preview: { cost: pv.cost || 0, trainN: pv.trainCount != null ? pv.trainCount : pv.trainN, skippedN: pv.skipCount != null ? pv.skipCount : pv.skippedN || 0, shortN: pv.shortCount != null ? pv.shortCount : pv.shortN || 0, hint: pv.hint || null } };
@@ -86,7 +90,7 @@ function rowHtml(r) {
 
 function seg(group, label, opts, cur) {
   return '<div class="c-seg t2-seg" role="group" aria-label="' + esc(label) + '">' + opts.map((o) =>
-    '<button type="button" class="c-seg__opt t2-opt" data-act="SetTrainPlan" data-arg=\'{"' + group + '":"' + o.v + '"}\' aria-pressed="' + (cur === o.v) + '" aria-label="' + esc(o.aria) + '">' + deco(o.ico, 20) + '<span class="t2-ol"><span>' + esc(o.w) + '</span>' + (o.sub ? '<small>' + o.sub + '</small>' : '') + '</span></button>').join('') + '</div>';
+    '<button type="button" class="c-seg__opt t2-opt" data-act="SetTrainPlan" data-arg=\'{"' + group + '":"' + o.v + '"}\' aria-pressed="' + (cur === o.v) + '" aria-label="' + esc(o.aria) + '">' + deco(o.ico, 20) + '<span class="t2-ol"><span>' + esc(o.w) + '</span>' + (o.sub ? '<small>' + o.sub + '</small>' : '') + '</span></button>').join('') + '</div><p class="dr-hint">The tick shows where it will land.</p>';
 }
 
 function spotSheet(vm, dispatch, slot) {
@@ -94,7 +98,7 @@ function spotSheet(vm, dispatch, slot) {
   const rows = (vm.rows || []).filter((r) => r.id !== skipId), cur = two ? vm.plan.spotlight2Id : vm.plan.spotlightId;
   const item = (id, name, sub) => '<button type="button" class="c-btn c-btn--block t2-pickrow" data-sp="' + esc(id == null ? '' : id) + '" aria-pressed="' + (cur === id || (cur == null && id == null)) + '"><span class="t2-pk"><b>' + esc(name) + '</b>' + (sub ? '<small>' + esc(sub) + '</small>' : '') + '</span></button>';
   const close = openSheet(two ? 'Second Spotlight' : 'Spotlight wheel', '<p class="tr-note">' + deco('info', 20) + '<span>' + (two ? 'Twin Spotlight Pass: a second player spins his own wheel. Same cost.' : 'One player spins the wheel instead of his normal roll. Same cost.') + '</span></p>' + item(null, two ? 'No second player' : 'No Spotlight', 'Everyone else rolls as usual') +
-    rows.filter((r) => r.state !== 'skip').map((r) => item(r.id, r.name, strongOf(r))).join(''));
+    rows.filter((r) => r.state !== 'skip').map((r) => item(r.id, r.name, strongOf(r))).join(''), { returnFocus: [two ? '[data-lo="spot2pick"]' : '[data-lo="spotpick"]', '[data-lo="runnets"]'] });
   const body = document.querySelector('.sheet-fixed .c-sheet__body');
   if (body) body.addEventListener('click', (e) => { const b = e.target.closest('[data-sp]'); if (!b) return; const v = b.getAttribute('data-sp'); close(); dispatch('SetTrainPlan', { [key]: v === '' ? null : v }); });
 }
@@ -106,19 +110,21 @@ function openSpotlightWheel(dispatch, slot) {
   const pr = w.player;
   const card = '<div class="wh-who"><b class="t2-nm">' + esc(pr.name) + '</b><span class="c-tag">Wheel is yours this week</span></div><div class="wh-gr">' +
     ['bp', 'bs', 'spd', 'bsk'].map((k) => '<span class="wh-g' + (k === statKey(w.stat) ? ' hit' : '') + '">' + deco(STAT(k).icon, 20) + '<span>' + esc(STAT(k).word) + '</span><b>' + esc(letterOfRaw(rates[k] || 1)) + '</b></span>').join('') + '</div><p class="dr-hint">The tick shows where it will land.</p>';
+  const ring = spotRing(w), cur = () => { const sp = two ? latest.raw.twin : latest.raw.spotlight; return sp || {}; };
   openWheel({
-    timing: true, // wa2: STOP pulse in the careful window + timing line
-    title: 'Spotlight', sub: 'Week ' + latest.vm.week + (latest.vm.wheel2 ? (two ? ', second spin' : ', first spin') : ''), cardHtml: card, slices: w.slices, jackpotIndex: w.jackpotIndex, widths: w.widths, aim: w.aim, pending: w.pending || null,
+    wheelId: 'spot', spinKey: w.spinKey || undefined, wobKey: w.wobKey || undefined, stored: w.stored || undefined, ring, legend: spotLegend(ring).concat(spotKey(ring, !!w.kindFloor)), J: 1.2, plus: 'x', // CONTRACT-A sec 4: engine J 1.2 (phys.J = after Steady); STOP glow always on
+    title: 'Spotlight', sub: 'Week ' + latest.vm.week + (latest.vm.wheel2 ? (two ? ', second spin' : ', first spin') : ''), cardHtml: card, pending: w.pending || null,
     // wheel meta (flag on; empty / null otherwise): guide = Aim Guide tick, tokens = buttons for the waiting result, getTokens = the fresh list after each command, look = craft look
-    guide: w.guide, zone: w.zone, chime: w.chime, tokens: w.tokens, getTokens: () => { const sp = two ? latest.raw.twin : latest.raw.spotlight; return (sp && sp.tokens) || []; }, look: w.look, phys: w.phys, golds: w.golds, spokeGain: () => { const sp = two ? latest.raw.twin : latest.raw.spotlight; return (sp && sp.spokeGain) || 0; },
+    guide: w.guide, zone: w.zone, chime: w.chime, tokens: w.tokens, getTokens: () => cur().tokens || [], look: w.look, phys: w.phys || undefined, spokeGain: () => cur().spokeGain || 0,
     onToken: (kind, careful) => dispatch('UseToken', two ? { wheel: 'spot', kind, careful, slot: 2 } : { wheel: 'spot', kind, careful }),
-    onSpin: (careful) => dispatch('Spin', two ? { careful, slot: 2 } : { careful }), getPending: () => { const sp = two ? latest.raw.twin : latest.raw.spotlight; return (sp && sp.pending) || null; },
+    onSpin: (stop) => dispatch('Spin', two ? { careful: stop, stop, slot: 2 } : { careful: stop, stop }), getPending: () => cur().pending || null, // the handler records the stop (recordStop) and lands the same slice
     describe: (p) => {
       const g = p.applied != null ? p.applied : Math.min(p.gain, w.room == null ? 99 : w.room), to = raw0 + g, a = letterOfRaw(raw0), b = letterOfRaw(to), moved = stepOfRaw(to) !== stepOfRaw(raw0);
-      return { big: st.word, from: a, to: b, barHtml: moved ? '' : letterBar(to, raw0), breakthrough: !!(p.jackpot || moved),
-        say: pr.name + ' ' + st.word + ': wheel plus ' + g + ', ' + (moved ? a + ' to ' + b : a + ', the bar fills') + (p.jackpot ? ', jackpot' : '') + '.' };
+      return { big: st.word, from: a, to: b, line: spotLine(p, ring, !!w.kindFloor), barHtml: moved ? '' : letterBar(to, raw0), breakthrough: !!(p.jackpot || moved),
+        mult: spotMult(p), say: pr.name + ' ' + st.word + (spotMult(p) ? ' ' + spotMult(p) : '') + ': +' + g + ' steps, ' + (moved ? a + ' to ' + b : a + ', the bar fills') + (p.jackpot ? ', jackpot' : '') + '.' };
     },
-    onCollect: () => { if (!two && latest.vm.wheel2) { openSpotlightWheel(dispatch, 2); return; } runPending = true; dispatch('RunNets', {}); },
+    onCollect: () => { if (!two && latest.vm.wheel2) { openSpotlightWheel(dispatch, 2); return; } runPending = true; dispatch('RunNets', {}); setTimeout(() => { const f = document.querySelector('[data-ft="done"], [data-lo="runnets"]'); if (f && f.focus) f.focus(); }, 0); },
+    onClose: () => setTimeout(() => { const f = document.querySelector('[data-lo="' + (two ? 'spot2pick' : 'spotpick') + '"], [data-lo="runnets"]'); if (f && f.focus && !document.querySelector('.wh-ov')) f.focus(); }, 0),
   });
 }
 
@@ -146,7 +152,39 @@ function ctCard(c, vm) {
 }
 /* Z5 UI slots (SEAMS-S0): fenced, return '' today. Owners: Spotlight T2, job chip + XP bar T5, Clinic button T6. */
 /* SLOT:Spotlight start */
-export function slotSpotlight(vm) { return ''; } // owner: T2
+/** The Spotlight ring for a wheel vm: SPOT_SLICES with Kind Floor applied when owned (the x1.0 pieces print and pay x1.2). */
+export function spotRing(w) {
+  const ring = applyKindFloor(SPOT_SLICES, !!(w && w.kindFloor)), v = w && w.slices, ws = w && w.widths; // old vm fields only size the ring when the tree changed it (Widener, Extra Gold)
+  if (!Array.isArray(v) || !Array.isArray(ws) || v.length !== ws.length || !v.length || (v.length === ring.length && ws.every((x, i) => Math.abs(x - ring[i].w) < 1e-6))) return ring;
+  const golds = w.golds && w.golds.length ? w.golds : [w.jackpotIndex || 0], lo = Math.min(...ring.map((r) => r.value));
+  return v.map((x, i) => { const same = v.length === ring.length, val = same ? ring[i].value : x; return { id: i, w: ws[i], value: val, label: same ? ring[i].label : 'x' + (Math.round(val * 100) / 100).toFixed(1), tier: val > lo ? 'top' : 'low', gold: golds.includes(i) }; });
+}
+/** Legend for under-7% pieces whose printed label is longer than one char and not a number. */
+export function spotLegend(ring) {
+  const out = (ring || []).filter((s) => s.w < 0.7 && String(s.label).length > 1 && !/^[+-]?[x\d.]+$/.test(String(s.label))).map((s) => ({ ch: String(s.label).charAt(0), text: String(s.label) }));
+  (ring || []).forEach((s) => { const l = String(s.label); if (s.w < 0.7 && /^\d+(\.\d+)?$/.test(l) && !out.some((o) => o.ch === l)) out.push({ ch: l, text: 'x' + l + ': the thin slice' }); }); // a bare '1.2' on the thin slice reads as x1.2
+  return out;
+}
+/** Tier key rows for the Spotlight legend (host rows win over T1's automatic ones): gold x3.0, triangle x1.5, dot = the floor; with Kind Floor owned, one line says why x1.0 reads x1.2. */
+export function spotKey(ring, kf) {
+  const lo = Math.min(...(ring || []).map((r) => r.value)), lab = (ring || []).filter((r) => r.value === lo)[0], rows = [{ ch: 'gold', text: 'x3.0 gold' }, { ch: 'tri', text: 'x1.5' }, { ch: 'dot', text: kf ? 'x1.2 (Kind Floor)' : 'x' + (lab ? String(lab.label).replace(/^x/, '') : '1.0') }];
+  if (kf) rows.push({ ch: 'KF', text: 'Kind Floor: every x1.0 pays x1.2' });
+  return rows;
+}
+/** Result meaning line under the chip: "Training gain x3.0. Gold slice." plus the Kind Floor note when it lifted the landed piece. */
+export function spotLine(p, ring, kf) {
+  const m = spotMult(p), i = p && p.index, base = i != null && SPOT_SLICES[i] && ring && ring[i] && SPOT_SLICES.length === ring.length ? SPOT_SLICES[i].value : null;
+  return (m ? 'Training gain ' + m + '.' : '') + (p && p.jackpot ? ' Gold slice.' : '') + (kf && base != null && ring[i].value > base ? ' Kind Floor lifted this x' + base.toFixed(1) + ' piece to ' + m + '.' : '');
+}
+/** Result strip multiplier text ('x1.2') from a pending result; '' when unknown. */
+export function spotMult(p) { const v = p && (p.mult != null ? p.mult : p.value != null ? p.value : p.gain); return v != null && isFinite(+v) ? 'x' + String(Math.round(+v * 100) / 100) : ''; }
+/** Training tab strip: the multipliers on the Spotlight ring (gold first). '' with no Spotlight player. */
+export function slotSpotlight(vm) {
+  const w = vm && vm.wheel; if (!w || !w.player) return '';
+  const ring = spotRing(w), by = {}; ring.forEach((s) => { const l = /^\d/.test(String(s.label)) ? 'x' + s.label : s.label; by[l] = (by[l] || 0) + 1; });
+  const keys = Object.keys(by).sort((a, b) => parseFloat(b.replace('x', '')) - parseFloat(a.replace('x', '')));
+  return '<p class="tr-note t2-spotring" role="group" aria-label="' + esc('Spotlight wheel: ' + keys.join(', ')) + '">' + deco('burst', 20) + '<span>' + esc(keys.join('  ')) + '</span></p>';
+}
 /* SLOT:Spotlight end */
 /* SLOT:JobChip start */
 export function slotJobChip(vm, coach) { // owner: T5
@@ -227,7 +265,8 @@ function afterRender(el, vm, dispatch) {
 export function render(el, rawVm, dispatch, open) {
   const vm = adapt(rawVm); latest = { vm, dispatch, raw: rawVm };
   const P = vm.plan, pv = vm.preview || { cost: 0, trainN: 0, skippedN: 0, shortN: 0, hint: null }, costs = vm.costs || { easy: 10, normal: 13, push: 18 };
-  const had = el.contains(document.activeElement) ? document.activeElement : null, key = had && had.getAttribute ? (had.getAttribute('data-act') || '') + (had.getAttribute('data-arg') || '') : '';
+  const had = el.contains(document.activeElement) ? document.activeElement : null, key = had && had.getAttribute ? (had.getAttribute('data-act') || '') + (had.getAttribute('data-arg') || '') + (had.getAttribute('data-ct') ? 'ct:' + had.getAttribute('data-ct') + ':' + (had.getAttribute('data-id') || '') : '') + (had.getAttribute('data-lo') ? 'lo:' + had.getAttribute('data-lo') : '') : '';
+  const keyOf = (n) => (n.getAttribute('data-act') || '') + (n.getAttribute('data-arg') || '') + (n.getAttribute('data-ct') ? 'ct:' + n.getAttribute('data-ct') + ':' + (n.getAttribute('data-id') || '') : '') + (n.getAttribute('data-lo') ? 'lo:' + n.getAttribute('data-lo') : '');
   const nets = vm.nets, rows = vm.rows || [];
   const top = '<div class="c-strip strip tr-top"><span>' + deco('train', 24) + '<span class="tr-wk"><span class="tr-nw">Week ' + esc(vm.week) + '</span></span></span><span class="c-strip__right tr-tpw">' + tp(vm.tp) +
     '<button type="button" class="c-icon-btn tr-help" data-act="sheet:traininghelp" aria-label="Help: how training works" aria-haspopup="dialog">' + deco('why', 24) + '</button></span></div>';
@@ -273,7 +312,7 @@ export function render(el, rawVm, dispatch, open) {
     else if (a === 'all' && open) open('coaches');
   });
   drawFaces(root);
-  if (had && key) { const same = [...el.querySelectorAll('[data-act]')].find((n) => ((n.getAttribute('data-act') || '') + (n.getAttribute('data-arg') || '')) === key && !n.disabled); const b = same || el.querySelector('[data-lo="runnets"], [data-ft="done"]'); if (b) b.focus(); }
+  if (had && key) { const same = [...el.querySelectorAll('[data-act],[data-ct],[data-lo]')].find((n) => keyOf(n) === key && !n.disabled); const b = same || el.querySelector('[data-lo="runnets"], [data-ft="done"]'); if (b) b.focus(); }
   announce(nets ? 'Nets done. ' + nets.lines.length + ' trained.' : 'Cost ' + pv.cost + ' TP' + (pv.skippedN ? ', ' + pv.skippedN + " can't gain" : '') + (pv.hint ? '. ' + pv.hint : ''));
   afterRender(el, vm, dispatch);
 }

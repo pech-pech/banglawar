@@ -1,7 +1,10 @@
 // Z2: Spin, the Spotlight wheel (owner T2). Old commands.js spin(). ctx: clone, TRAIN_RNG, WM_RNG (commands.js helpers).
 import { FLAGS } from '../../data/flags.js';
 import { planOf, netsPreview, coachStepInUse, wheelSlices, spinResult } from '../../core/training.js';
+import { recordStop, spinKeyOf } from '../../core/wheel-stops.js';
 import { metaWheel, recordSpin, afterResult } from '../../core/wheelmeta.js';
+
+const medianOf = (w) => { const a = (w && w.slices ? w.slices : []).filter((x) => typeof x === 'number').sort((x, y) => x - y); return a.length ? a[a.length >> 1] : undefined; };
 
 /** Tap the wheel (SPIN then STOP): the result waits in training.pending until Run nets. One spin a week, and only with a spotlight player. */
 export function spotSpin(s, p, ctx) {
@@ -18,6 +21,8 @@ export function spotSpin(s, p, ctx) {
     const a = afterResult(n, 'spot', result, WM_RNG(s, two ? 'spot2' : 'spot'), { wheel }); n = clone(a.s); result = a.result;
     n = clone(recordSpin(n, 'spot', { count: 1 })); // each Twin spin counts 1: the pass is 2 spins in all
   }
+  const sk = spinKeyOf(s, 'spot', { slot: two ? 2 : 1, playerId: two ? plan.spotlight2Id : plan.spotlightId }), st = p && p.stop && typeof p.stop === 'object' ? p.stop : {};
+  recordStop(n, 'spot', sk, { stopT: st.stopT, cycle: st.cycle, tInCycle: st.tInCycle, sliceId: result.index, value: result.gain, auto: !!(st.auto || (p && p.auto)), respin: 0 }, { median: medianOf(wheel) }); // persisted at STOP only (CONTRACT-A s6)
   n.training[key] = { week: T.week, careful, wheel, result };
   return n;
 }

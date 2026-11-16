@@ -333,3 +333,17 @@
 .ct-tag--mc { align-self: end; justify-self: start; width: max-content; max-width: 100%; height: 14px; padding: 0 4px 0 2px; box-sizing: border-box; font-weight: 700; line-height: 14px; background: var(--outline); color: var(--cream); } /* QA D6: a small solid badge (icon + "Match") on its own 14 px line: 16+18+14 = 48 px fits the 56 px tap with no overlap, and is short enough for a 344 slot */
 .ct-tag--mc svg, .ct-tag--mc img { width: 14px; height: 14px; }
 /* QA D6b: the picked tag said "This week" and clipped to "This wee" at 344 wide; it now shows "Picked" (full words stay for screen readers) */
+
+/* T2 QA pass 2 (shots2). Fold cover 344x882. D1: the result gets its own fixed-height row (the ready message uses the same height, so the wheel is sized once for both)
+   and its lines wrap in a compact grid instead of spilling over the wheel rim. D7: 16 px side margin, legend under the wheel (column stage). D9: text at or over 11 px cap height in Jersey 10 (about 16 px). */
+.wh-ov .wh-msg, .wh-ov .wh-res { height: 120px; min-height: 120px; box-sizing: border-box; padding: 8px var(--c-sp-2); overflow: hidden; justify-content: center; gap: 2px; }
+.wh-ov .wh-res:not([hidden]) { display: flex; flex-direction: row; flex-wrap: wrap; align-content: center; justify-content: center; gap: 2px var(--c-sp-2); }
+.wh-ov .wh-res .wh-jp, .wh-ov .wh-res .wh-bt, .wh-ov .wh-res .wh-tim, .wh-ov .wh-res .wh-bst { flex: 0 0 100%; justify-content: center; margin: 0; }
+.wh-ov .wh-res .wh-big, .wh-ov .wh-res .wh-chg { flex: 0 0 auto; font-size: var(--c-fs-m); line-height: var(--c-lh-m); }
+.wh-ov .wh-res .wh-sp { flex: 0 0 auto; }
+.wh-ov .wh-stage { flex-direction: column; margin: 0 4px; }
+.wh-ov .wh-stage .wh-wrap { flex: none; }
+.wh-ov .wk-legend { justify-content: center; font-size: 16px; }
+.wh-ov .wh-tok .c-btn { min-height: 56px; }
+.t2-strip small, .wh-chg small, .wh-tim, .wh-tknote, .t2-wheel, .t2-bt { font-size: 16px; line-height: 20px; }
+.tr-chip > span, .c-row .c-row__sub, .t2-prow .c-row__sub, .tr-left { font-size: 16px; }

@@ -359,7 +359,7 @@ export const ratesOf = (p) => ({ batPower: p.bp, batSkill: p.bs, bowlSpeed: p.sp
 const boostOf = (s, wid, r) => {
   if (!FLAGS.wheelMeta || !r) return {};
   const X = effective(s)[wid] || {}, boosted = !!r.boosted, hot = wid === 'spot' && !!r.jackpot && !!X.streak && (r.streak0 | 0) >= 1;
-  return { boosted, boostBy: boosted && X.booster ? X.booster.value : 0, hot, hotBy: hot ? Math.min(r.streak0 | 0, WM.STREAK_MAX) : 0 };
+  return { boosted, boostBy: boosted && X.booster ? X.booster.value : 0, hot, hotBy: hot ? Math.round(Math.min(r.streak0 | 0, WM.STREAK_MAX) * WM.UNIT.spot * 1000) / 1000 : 0 };
 };
 /** Course wheel meta extras: course.wheel (tree applied, or the stored wheel while a result waits), guide, tokens, look. */
 const courseMeta = (s, c, used) => { const x = metaExtras(s, 'course', courseWheel(c.step), used ? s.training.coursePending : null, 1); return { wheel: x.wheel, guide: x.guide, zone: x.zone, chime: x.chime, tokens: used ? x.tokens : [], look: x.look, spokeGain: used ? spokeGainOf(s, 'course') : 0 }; };
@@ -378,7 +378,7 @@ const wheelVM = (w) => ({ slices: w.slices.slice(), jackpotIndex: w.jackpotIndex
 /** Spokes the last spin on this wheel dropped (the tally already counts it: tier before it + base). 0 with the flag off or no spin yet. */
 /** Add spokeGain to a reel VM once it has a stored result. @param {any} vm */
 const spokesOn = (vm, s, wheel) => (vm ? { ...vm, spokeGain: vm.pending ? spokeGainOf(s, wheel) : 0 } : vm);
-export const spokeGainOf = (s, wheel) => { if (!FLAGS.wheelMeta) return 0; const m = metaOf(s), t = m.tally | 0; return t < 1 ? 0 : (WM.SPOKE_BASE[wheel] || 0) + WM.SPOKE_PER_TIER * tierOf(t - 1); };
+export const spokeGainOf = (s, wheel) => { if (!FLAGS.wheelMeta) return 0; const m = metaOf(s), t = m.tally | 0; if (t < 1) return 0; const tw = wheel === 'toss' && s.fixture && s.fixture.md && s.fixture.md.wm && s.fixture.md.wm.toss; return (WM.SPOKE_BASE[wheel] || 0) + WM.SPOKE_PER_TIER * tierOf(t - 1) + (tw && tw.id === 'sport' && !tw.kept ? 1 : 0); }; // QA3 NEW-4: the No-boost slice pays +1 on top (recordSpin sportSlice), so the row shows what the store adds
 /** Wheel meta extras for a wheel open site (flag on only): the wheel with the tree applied (or the stored one while a result waits), guide, tokens, look. */
 const metaExtras = (s, wid, base, pend, slot) => {
   const wheel = wheelVM(pend && pend.wheel ? pend.wheel : metaWheel(base, wid, s));
@@ -657,6 +657,8 @@ export function matchCoachVM(s) {
 const HYPE_WORD = { low: 'Quiet crowd', med: 'Good crowd', high: 'Big crowd', nuts: 'Wild crowd' }; // r9 fix M6: the same words on the Match day screen, its odds table and the Plan chip
 const pct = (x) => Math.round(x * 100);
 const hypePerfOf = (md) => (md.hypePerf != null ? md.hypePerf : MD.HYPE_PERF[md.hype]); // wheel meta writes the real number
+const noBoostText = () => (FLAGS.wheelMeta ? 'No boost. +1 Spoke' : 'No boost today'); // QA3 NEW-3, SPEC 7: never "Rival won the toss"
+const pepPctOf = (md) => Math.round((Number.isFinite(md.pepBoost) ? md.pepBoost : MD.PEP_BOOST) * 1000) / 10; // QA3 NEW-2: the landed slice, one decimal
 const tossBoostOf = (md) => (md.tossBoost != null ? md.tossBoost : md.toss === 'won' ? MD.TOSS_BOOST : 0);
 /** The rolled match day for the fixture on screen (the live match keeps it on s.match.md). Pep follows the slot in the current six. */
 function mdOf(s) {
@@ -674,9 +676,9 @@ export function chipsVM(s) {
   const md = mdOf(s);
   if (!md) return [];
   const chips = [{ key: 'hype', text: `${HYPE_WORD[md.hype]} +${pct(hypePerfOf(md))}%` }];
-  chips.push({ key: 'toss', text: tossBoostOf(md) > 0 ? `${md.toss === 'won' ? 'Won the toss' : 'Good sport'} +${Math.round(tossBoostOf(md) * 1000) / 10}%` : 'Rival won the toss' });
+  chips.push({ key: 'toss', text: tossBoostOf(md) > 0 ? `${md.toss === 'won' ? 'Won the toss' : 'Good sport'} +${Math.round(tossBoostOf(md) * 1000) / 10}%` : noBoostText() });
   const nm = nameOfId(s, md.pepId) || (s.me && s.me.players && md.pepSlot ? '' : '');
-  if (md.pepId != null && nm) chips.push({ key: 'pep', text: `Pep talk: ${nm} +${pct(MD.PEP_BOOST)}%` });
+  if (md.pepId != null && nm) chips.push({ key: 'pep', text: `Pep talk: ${nm} +${pepPctOf(md)}%` });
   const live = s.stage === 'bowl' || s.stage === 'chase' || s.stage === 'break' || s.stage === 'done'; // the coach in play is the one stored with the match; before it starts, today's pick
   const mc = live ? md.mc : (() => { const m = matchCoachOf(s); return m && (m.boost.bat || m.boost.bowl) ? { name: m.coach.name, bat: m.boost.bat, bowl: m.boost.bowl } : null; })();
   if (mc) chips.push({ key: 'coach', text: matchCoachText(mc.name, mc) });
@@ -714,10 +716,10 @@ export function matchdayVM(s) {
     hype: { level: md.hype, idx: md.hypeIdx, word: HYPE_WORD[md.hype], perfPct: pct(hypePerfOf(md)), fanMult: md.hypeFanMult },
     odds,
     roar: { on: !!FLAGS.roar, chancePct: Math.round(md.roarChance * 100), overs: md.roar.filter(Boolean).length },
-    toss: { won: tossBoostOf(md) > 0, boostPct: Math.round(tossBoostOf(md) * 1000) / 10, line: tossBoostOf(md) > 0 ? (md.toss === 'won' ? `You won the toss +${Math.round(tossBoostOf(md) * 1000) / 10}% for the team` : `Good sport +${Math.round(tossBoostOf(md) * 1000) / 10}% for the team`) : 'Rival won the toss. Nothing changes.' },
-    pep: md.pepId != null ? { slot: md.pepSlot, id: md.pepId, name: pepName, boostPct: pct(MD.PEP_BOOST) } : null,
+    toss: { won: tossBoostOf(md) > 0, boostPct: Math.round(tossBoostOf(md) * 1000) / 10, line: tossBoostOf(md) > 0 ? (md.toss === 'won' ? `You won the toss +${Math.round(tossBoostOf(md) * 1000) / 10}% for the team` : `Good sport +${Math.round(tossBoostOf(md) * 1000) / 10}% for the team`) : noBoostText() + '.', noBoost: tossBoostOf(md) <= 0, noBoostLine: noBoostText() + '.' },
+    pep: md.pepId != null ? { slot: md.pepSlot, id: md.pepId, name: pepName, boostPct: pepPctOf(md) } : null,
     six, coach: matchCoachVM(s),
-    boost: { teamPct: pct(team), pepPct: pct(pepB), line: pepName ? `Team +${pct(team)}%, ${pepName} +${pct(pepB)}%` : `Team +${pct(team)}%` },
+    boost: { teamPct: pct(team), pepPct: pct(pepB), line: pct(team) === 0 && pct(pepB) === 0 ? '' : pepName ? `Team +${pct(team)}%, ${pepName} +${pct(pepB)}%` : `Team +${pct(team)}%` },
     wm: withSpokes(s, mdSpinVM(s)), look: FLAGS.wheelMeta ? craftLook(s) : null, // wheel meta: dial / reveal props + stored results (null with the flag off)
     auto: !!s.autoMatchday, forced, next: fx.mdThen === 'start' ? 'Start match' : 'Next: Plan', back: 'Back to squad', // from the hub Go starts the match; from Squad it opens Plan (m1: the label says what the button does)
   };
@@ -826,3 +828,25 @@ export function matchModeVM(s) {
   const busy = !!(s && ['bowl', 'break', 'chase', 'done'].includes(s.stage));
   return { value: s && s.matchMode === 'wheel' ? 'wheel' : 'classic', running: s && s.stage && busy ? (s.mode === 'wheel' ? 'wheel' : 'classic') : null, disabled: busy, note: busy ? 'Applies next match' : '' };
 }
+
+/* T2 start */
+// Spotlight / Course wheel fields the views read when present: spinKey, wobKey, stored (reopen shows the result, never re-spins), kindFloor.
+import { spinKeyOf as t2SpinKeyOf, storedStop as t2StoredStop } from '../core/wheel-stops.js';
+import { wobbleKey as t2WobbleKey } from '../core/wheel-wobble.js';
+const t2Wheel = (s, wheelId, ctx, kf) => {
+  const spinKey = t2SpinKeyOf(s, wheelId, ctx);
+  return { spinKey, wobKey: spinKey ? t2WobbleKey(s, wheelId, 0, 0) : '', stored: spinKey ? t2StoredStop(s, wheelId, spinKey) : null, kindFloor: kf ? 1 : 0 };
+};
+/** trainingVM plus the wheel fields on spotlight and twin. */
+export function trainingVMT2(s) {
+  const vm = trainingVM(s), eff = effective(s), kf = eff && eff.spot && eff.spot.kindFloor;
+  return { ...vm,
+    spotlight: { ...vm.spotlight, ...t2Wheel(s, 'spot', { playerId: vm.spotlight.id || '', slot: 1 }, kf) },
+    twin: { ...vm.twin, ...t2Wheel(s, 'spot', { playerId: vm.twin.id || '', slot: 2 }, kf) } };
+}
+/** coachesVM plus the wheel fields on each coach.course (k = 2 when the course spends a Master Licence). */
+export function coachesVMT2(s) {
+  const vm = coachesVM(s), eff = effective(s), kf = eff && eff.course && eff.course.kindFloor;
+  return { ...vm, coaches: vm.coaches.map((c) => ({ ...c, course: { ...c.course, ...t2Wheel(s, 'course', { coachId: c.id, k: c.course.licence ? 2 : 1 }, kf) } })) };
+}
+/* T2 end */
