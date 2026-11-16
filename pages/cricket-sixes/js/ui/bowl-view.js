@@ -162,7 +162,8 @@ export function render(el, vm, dispatch) {
   const hdr = lst && lst.querySelector('.bv-head');
   const clearHeader = () => {
     if (!hdr || !hdr.isConnected) return;
-    lst.style.setProperty('--bv-hh', (hdr.offsetHeight + 4) + 'px');
+    // the snap line sits just under the sticky header (top -4, list gap 4): a snapped tile starts 3px below it and the tile above ends 1px above it, so none is cut
+    lst.style.setProperty('--bv-hh', (hdr.offsetHeight - 5) + 'px');
     // N2: the page scroller is #app on bowl/chase, so nudge whichever box actually scrolled (list or #app)
     const app = typeof document !== 'undefined' ? document.getElementById('app') : null;
     const sc = lst.scrollTop > 0 ? lst : (app && app.scrollTop > 0 ? app : null);

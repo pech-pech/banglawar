@@ -270,9 +270,12 @@ function makeWheel(cv, segs, vm) {
       ctx.save(); ctx.rotate(a); ctx.beginPath(); ctx.moveTo(0, -(R + 2 * ks)); ctx.lineTo(-7 * ks, -(R + 20 * ks)); ctx.lineTo(7 * ks, -(R + 20 * ks)); ctx.closePath();
       ctx.fillStyle = pal.hi; ctx.fill(); ctx.lineWidth = 2.5 * ks; ctx.strokeStyle = pal.ink; ctx.lineJoin = 'round'; ctx.stroke();
       ctx.restore(); // QA D2: the TICK word is upright (never turned with the tick), at least 14 px, kept inside the canvas
-      const tf = Math.max(14, 11 * ks), tr = R + 28 * ks; ctx.font = '900 ' + tf + 'px ' + fontFam(); ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-      const tw = ctx.measureText('TICK').width, lim = W / 2 - 1, tx = Math.max(-(lim - tw / 2), Math.min(lim - tw / 2, tr * Math.sin(a))), ty = Math.max(-(lim - tf / 2), Math.min(lim - tf / 2, -tr * Math.cos(a)));
-      ctx.lineJoin = 'round'; ctx.lineWidth = 3.5; ctx.strokeStyle = pal.cream; ctx.strokeText('TICK', tx, ty); ctx.fillStyle = pal.ink; ctx.fillText('TICK', tx, ty);
+      const tf = Math.max(14, 11 * ks); ctx.font = '900 ' + tf + 'px ' + fontFam(); ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      const tw = ctx.measureText('TICK').width, lim = W / 2 - 1, sa = Math.sin(a), ca = Math.cos(a);
+      // D-B1: the word sits clear of the arrow (its box edge 4 px past the arrow base along the tick direction); if the canvas edge stops it, it slides sideways off the arrow
+      const tr = R + 20 * ks + 4 + Math.abs(sa) * tw / 2 + Math.abs(ca) * tf / 2, cx = Math.max(-(lim - tw / 2), Math.min(lim - tw / 2, tr * sa)), cy = Math.max(-(lim - tf / 2), Math.min(lim - tf / 2, -tr * ca));
+      const tx = Math.max(-(lim - tw / 2), Math.min(lim - tw / 2, cy !== -tr * ca ? cx + (sa < 0 ? -1 : 1) * (tw / 2 + 7 * ks + 4) : cx)), ty = cy;
+      ctx.lineJoin = 'round'; ctx.lineWidth = 5; ctx.strokeStyle = pal.cream; ctx.strokeText('TICK', tx, ty); ctx.fillStyle = pal.ink; ctx.fillText('TICK', tx, ty);
     }
     // hub (does not turn): OVER n
     const hr = 27 * ks; ctx.beginPath(); ctx.arc(0, 0, hr, 0, TAU); ctx.fillStyle = pal.ink; ctx.fill();
@@ -376,7 +379,7 @@ function onSpin(el, vm, btn, ev) {
   const segAtPos = (p) => { const u = ((p % C) + C) % C; for (let i = 0; i < segs.length; i++) { const g = segs[i]; if (u >= g.start && u < g.start + g.width) return i; } return segs.length ? segs.length - 1 : -1; };
   const waitLook = (on) => { btn.classList.toggle('is-wait', on); if (on) btn.setAttribute('aria-disabled', 'true'); else btn.removeAttribute('aria-disabled'); };
   lab.textContent = 'Wait...'; sub.textContent = 'STOP wakes up in a moment'; waitLook(true); btn.setAttribute('data-wm', 'stop');
-  const back = el.querySelector('[data-wm="back"]'); if (back) back.remove();
+  const back = el.querySelector('[data-wm="back"]'); if (back) { back.disabled = true; back.tabIndex = -1; back.setAttribute('aria-hidden', 'true'); back.style.visibility = 'hidden'; } // keeps its 56 px row so the wheel stays in one place from ready to result
   const ar = el.querySelector('[data-wm="auto-rest"]'); if (ar) { ar.disabled = true; ar.setAttribute('aria-disabled', 'true'); } // SPEC 2h: disabled while the wheel spins
   if (nowBox) { nowBox.classList.remove('is-hint'); nowBox.innerHTML = '<span>Stop now:</span><b class="wm-nowv"></b>'; }
   const nowEl = () => el.querySelector('.wm-nowv');

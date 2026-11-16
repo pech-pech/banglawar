@@ -125,7 +125,7 @@
   .wm .wm-cols > .wm-cta { grid-row: -2 / -1; align-self: end; position: static; }
   .wm .wm-cols > .wm-autos { grid-row: -3 / -2; align-self: end; }
   .wm .wm-colA > * { flex: none; }
-  .wm .wm-colA > .wm-stage { flex: 1 1 auto; min-height: 150px; align-items: center; }
+  .wm .wm-colA > .wm-stage { flex: 1 1 auto; min-height: 150px; align-items: flex-start; } /* the wheel keeps its place when the legend and chips leave at the result */
   .wm .wm-colA .wm-legend { flex: none; }
   .wm .wm-bowlers { display: grid; grid-template-columns: 1fr; grid-auto-rows: minmax(56px, 1fr); }
   .wm .wm-colA > .wm-bowlers { flex: 1 1 auto; }
