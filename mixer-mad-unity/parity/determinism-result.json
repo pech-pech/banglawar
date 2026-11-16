@@ -1,0 +1,111 @@
+{
+ "when": "2026-11-02T04:13:10.597Z",
+ "ok": 13,
+ "bad": 0,
+ "rows": [
+  {
+   "run": "mixer_L1_t0.55-brake",
+   "ticks": 1958,
+   "twoRunsIdentical": true,
+   "matchesStoredTrace": true,
+   "replayIdentical": true,
+   "bytes": 491182
+  },
+  {
+   "run": "mixer_L2_duty0.5",
+   "ticks": 14400,
+   "twoRunsIdentical": true,
+   "matchesStoredTrace": true,
+   "replayIdentical": true,
+   "bytes": 1334167
+  },
+  {
+   "run": "mixer_L3_t0.8-pitch",
+   "ticks": 14400,
+   "twoRunsIdentical": true,
+   "matchesStoredTrace": true,
+   "replayIdentical": true,
+   "bytes": 1469370
+  },
+  {
+   "run": "mixer_L4_t1-none",
+   "ticks": 3669,
+   "twoRunsIdentical": true,
+   "matchesStoredTrace": true,
+   "replayIdentical": true,
+   "bytes": 540184
+  },
+  {
+   "run": "mixer_L5_duty0.85",
+   "ticks": 5062,
+   "twoRunsIdentical": true,
+   "matchesStoredTrace": true,
+   "replayIdentical": true,
+   "bytes": 652702
+  },
+  {
+   "run": "digger_L6_t0.8-none",
+   "ticks": 2311,
+   "twoRunsIdentical": true,
+   "matchesStoredTrace": true,
+   "replayIdentical": true,
+   "bytes": 456766
+  },
+  {
+   "run": "dump_L3_t0.8-pitch",
+   "ticks": 9984,
+   "twoRunsIdentical": true,
+   "matchesStoredTrace": true,
+   "replayIdentical": true,
+   "bytes": 1214138
+  },
+  {
+   "run": "dozer_L8_duty0.85",
+   "ticks": 3504,
+   "twoRunsIdentical": true,
+   "matchesStoredTrace": true,
+   "replayIdentical": true,
+   "bytes": 648037
+  },
+  {
+   "run": "crane_L2_t0.8-none",
+   "ticks": 4313,
+   "twoRunsIdentical": true,
+   "matchesStoredTrace": true,
+   "replayIdentical": true,
+   "bytes": 555734
+  },
+  {
+   "run": "roller_L7_t0.8-pitch",
+   "ticks": 2489,
+   "twoRunsIdentical": true,
+   "matchesStoredTrace": true,
+   "replayIdentical": true,
+   "bytes": 473367
+  },
+  {
+   "run": "mixer_L7_t0.8-none_skin4",
+   "ticks": 2166,
+   "twoRunsIdentical": true,
+   "matchesStoredTrace": true,
+   "replayIdentical": true,
+   "bytes": 445104
+  },
+  {
+   "run": "mixer_L5_t1-pitch_load",
+   "ticks": 1940,
+   "twoRunsIdentical": true,
+   "matchesStoredTrace": true,
+   "replayIdentical": true,
+   "bytes": 422120
+  },
+  {
+   "run": "digger_L1_duty0.7_daily",
+   "ticks": 11667,
+   "twoRunsIdentical": true,
+   "matchesStoredTrace": true,
+   "replayIdentical": true,
+   "bytes": 1255594
+  }
+ ]
+}

@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Pure C# port of the Mixer Mad drive sim. netstandard2.1 + C# 9 so the same folder can be dropped into a Unity 6 project
+       (Assets/MixerMad/Sim). No package references: JSON is read by Core/MiniJson.cs. -->
+  <PropertyGroup>
+    <TargetFramework>netstandard2.1</TargetFramework>
+    <LangVersion>9.0</LangVersion>
+    <RootNamespace>MixerMad.Sim</RootNamespace>
+    <AssemblyName>MixerMad.Sim</AssemblyName>
+    <Nullable>disable</Nullable>
+    <Deterministic>true</Deterministic>
+    <AllowUnsafeBlocks>false</AllowUnsafeBlocks>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="Core/**/*.cs" />
+    <None Include="Data/*.json" CopyToOutputDirectory="PreserveNewest" LinkBase="Data" />
+  </ItemGroup>
+</Project>

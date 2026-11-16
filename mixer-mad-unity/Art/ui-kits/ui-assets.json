@@ -1,0 +1,326 @@
+{
+ "ui1_rubber_gas": {
+  "file": "images/ui1_rubber_gas.webp",
+  "kind": "ui",
+  "source": "B04r1.png",
+  "kit": "ui1_rubber",
+  "status": "ready",
+  "bytes": 14468,
+  "image_px": [
+   173,
+   413
+  ],
+  "ui_scale_raw_to_px": 0.6678,
+  "audit": {
+   "pass": null,
+   "note": "UI piece; touch rect is fixed in code"
+  },
+  "ledger": "sheet cut (round-2 UI sheet / B04r1); B04r1 judged PENDING in LEDGER at last read"
+ },
+ "ui1_rubber_brake": {
+  "file": "images/ui1_rubber_brake.webp",
+  "kind": "ui",
+  "source": "B04r1.png",
+  "kit": "ui1_rubber",
+  "status": "ready",
+  "bytes": 10642,
+  "image_px": [
+   251,
+   192
+  ],
+  "ui_scale_raw_to_px": 0.6678,
+  "audit": {
+   "pass": null,
+   "note": "UI piece; touch rect is fixed in code"
+  },
+  "ledger": "sheet cut (round-2 UI sheet / B04r1); B04r1 judged PENDING in LEDGER at last read"
+ },
+ "ui1_rubber_brake2": {
+  "file": "images/ui1_rubber_brake2.webp",
+  "kind": "ui",
+  "source": "B04r1.png",
+  "kit": "ui1_rubber",
+  "status": "ready",
+  "bytes": 8408,
+  "image_px": [
+   226,
+   192
+  ],
+  "ui_scale_raw_to_px": 0.6678,
+  "audit": {
+   "pass": null,
+   "note": "UI piece; touch rect is fixed in code"
+  },
+  "ledger": "sheet cut (round-2 UI sheet / B04r1); B04r1 judged PENDING in LEDGER at last read"
+ },
+ "ui1_rubber_pour": {
+  "file": "images/ui1_rubber_pour.webp",
+  "kind": "ui",
+  "source": "B04r1.png",
+  "kit": "ui1_rubber",
+  "status": "ready",
+  "bytes": 10000,
+  "image_px": [
+   389,
+   257
+  ],
+  "ui_scale_raw_to_px": 0.6678,
+  "audit": {
+   "pass": null,
+   "note": "UI piece; touch rect is fixed in code"
+  },
+  "ledger": "sheet cut (round-2 UI sheet / B04r1); B04r1 judged PENDING in LEDGER at last read"
+ },
+ "ui1_rubber_star_full": {
+  "file": "images/ui1_rubber_star_full.webp",
+  "kind": "ui",
+  "source": "B04r1.png",
+  "kit": "ui1_rubber",
+  "status": "ready",
+  "bytes": 6376,
+  "image_px": [
+   139,
+   138
+  ],
+  "ui_scale_raw_to_px": 0.6678,
+  "audit": {
+   "pass": null,
+   "note": "UI piece; touch rect is fixed in code"
+  },
+  "ledger": "sheet cut (round-2 UI sheet / B04r1); B04r1 judged PENDING in LEDGER at last read"
+ },
+ "ui1_rubber_star_empty": {
+  "file": "images/ui1_rubber_star_empty.webp",
+  "kind": "ui",
+  "source": "B04r1.png",
+  "kit": "ui1_rubber",
+  "status": "ready",
+  "bytes": 5922,
+  "image_px": [
+   138,
+   137
+  ],
+  "ui_scale_raw_to_px": 0.6678,
+  "audit": {
+   "pass": null,
+   "note": "UI piece; touch rect is fixed in code"
+  },
+  "ledger": "sheet cut (round-2 UI sheet / B04r1); B04r1 judged PENDING in LEDGER at last read"
+ },
+ "ui2_candy_gas": {
+  "file": "images/ui2_candy_gas.webp",
+  "kind": "ui",
+  "source": "ui-sheet.png",
+  "kit": "ui2_candy",
+  "status": "ready",
+  "bytes": 13152,
+  "image_px": [
+   172,
+   407
+  ],
+  "ui_scale_raw_to_px": 0.6678,
+  "audit": {
+   "pass": null,
+   "note": "UI piece; touch rect is fixed in code"
+  },
+  "ledger": "sheet cut (round-2 UI sheet / B04r1); B04r1 judged PENDING in LEDGER at last read"
+ },
+ "ui2_candy_brake": {
+  "file": "images/ui2_candy_brake.webp",
+  "kind": "ui",
+  "source": "ui-sheet.png",
+  "kit": "ui2_candy",
+  "status": "ready",
+  "bytes": 8428,
+  "image_px": [
+   252,
+   185
+  ],
+  "ui_scale_raw_to_px": 0.6678,
+  "audit": {
+   "pass": null,
+   "note": "UI piece; touch rect is fixed in code"
+  },
+  "ledger": "sheet cut (round-2 UI sheet / B04r1); B04r1 judged PENDING in LEDGER at last read"
+ },
+ "ui2_candy_brake2": {
+  "file": "images/ui2_candy_brake2.webp",
+  "kind": "ui",
+  "source": "ui-sheet.png",
+  "kit": "ui2_candy",
+  "status": "ready",
+  "bytes": 8402,
+  "image_px": [
+   230,
+   186
+  ],
+  "ui_scale_raw_to_px": 0.6678,
+  "audit": {
+   "pass": null,
+   "note": "UI piece; touch rect is fixed in code"
+  },
+  "ledger": "sheet cut (round-2 UI sheet / B04r1); B04r1 judged PENDING in LEDGER at last read"
+ },
+ "ui2_candy_pour": {
+  "file": "images/ui2_candy_pour.webp",
+  "kind": "ui",
+  "source": "ui-sheet.png",
+  "kit": "ui2_candy",
+  "status": "ready",
+  "bytes": 10554,
+  "image_px": [
+   389,
+   257
+  ],
+  "ui_scale_raw_to_px": 0.6678,
+  "audit": {
+   "pass": null,
+   "note": "UI piece; touch rect is fixed in code"
+  },
+  "ledger": "sheet cut (round-2 UI sheet / B04r1); B04r1 judged PENDING in LEDGER at last read"
+ },
+ "ui2_candy_star_full": {
+  "file": "images/ui2_candy_star_full.webp",
+  "kind": "ui",
+  "source": "ui-sheet.png",
+  "kit": "ui2_candy",
+  "status": "ready",
+  "bytes": 5970,
+  "image_px": [
+   139,
+   138
+  ],
+  "ui_scale_raw_to_px": 0.6678,
+  "audit": {
+   "pass": null,
+   "note": "UI piece; touch rect is fixed in code"
+  },
+  "ledger": "sheet cut (round-2 UI sheet / B04r1); B04r1 judged PENDING in LEDGER at last read"
+ },
+ "ui2_candy_star_empty": {
+  "file": "images/ui2_candy_star_empty.webp",
+  "kind": "ui",
+  "source": "ui-sheet.png",
+  "kit": "ui2_candy",
+  "status": "ready",
+  "bytes": 5712,
+  "image_px": [
+   138,
+   138
+  ],
+  "ui_scale_raw_to_px": 0.6678,
+  "audit": {
+   "pass": null,
+   "note": "UI piece; touch rect is fixed in code"
+  },
+  "ledger": "sheet cut (round-2 UI sheet / B04r1); B04r1 judged PENDING in LEDGER at last read"
+ },
+ "ui3_metal_gas": {
+  "file": "images/ui3_metal_gas.webp",
+  "kind": "ui",
+  "source": "B04r1.png",
+  "kit": "ui3_metal",
+  "status": "ready",
+  "bytes": 16056,
+  "image_px": [
+   173,
+   415
+  ],
+  "ui_scale_raw_to_px": 0.669,
+  "audit": {
+   "pass": null,
+   "note": "UI piece; touch rect is fixed in code"
+  },
+  "ledger": "sheet cut (round-2 UI sheet / B04r1); B04r1 judged PENDING in LEDGER at last read"
+ },
+ "ui3_metal_brake": {
+  "file": "images/ui3_metal_brake.webp",
+  "kind": "ui",
+  "source": "B04r1.png",
+  "kit": "ui3_metal",
+  "status": "ready",
+  "bytes": 10532,
+  "image_px": [
+   247,
+   193
+  ],
+  "ui_scale_raw_to_px": 0.669,
+  "audit": {
+   "pass": null,
+   "note": "UI piece; touch rect is fixed in code"
+  },
+  "ledger": "sheet cut (round-2 UI sheet / B04r1); B04r1 judged PENDING in LEDGER at last read"
+ },
+ "ui3_metal_brake2": {
+  "file": "images/ui3_metal_brake2.webp",
+  "kind": "ui",
+  "source": "B04r1.png",
+  "kit": "ui3_metal",
+  "status": "ready",
+  "bytes": 10712,
+  "image_px": [
+   227,
+   191
+  ],
+  "ui_scale_raw_to_px": 0.669,
+  "audit": {
+   "pass": null,
+   "note": "UI piece; touch rect is fixed in code"
+  },
+  "ledger": "sheet cut (round-2 UI sheet / B04r1); B04r1 judged PENDING in LEDGER at last read"
+ },
+ "ui3_metal_pour": {
+  "file": "images/ui3_metal_pour.webp",
+  "kind": "ui",
+  "source": "B04r1.png",
+  "kit": "ui3_metal",
+  "status": "ready",
+  "bytes": 15566,
+  "image_px": [
+   389,
+   256
+  ],
+  "ui_scale_raw_to_px": 0.669,
+  "audit": {
+   "pass": null,
+   "note": "UI piece; touch rect is fixed in code"
+  },
+  "ledger": "sheet cut (round-2 UI sheet / B04r1); B04r1 judged PENDING in LEDGER at last read"
+ },
+ "ui3_metal_star_full": {
+  "file": "images/ui3_metal_star_full.webp",
+  "kind": "ui",
+  "source": "B04r1.png",
+  "kit": "ui3_metal",
+  "status": "ready",
+  "bytes": 6512,
+  "image_px": [
+   135,
+   135
+  ],
+  "ui_scale_raw_to_px": 0.669,
+  "audit": {
+   "pass": null,
+   "note": "UI piece; touch rect is fixed in code"
+  },
+  "ledger": "sheet cut (round-2 UI sheet / B04r1); B04r1 judged PENDING in LEDGER at last read"
+ },
+ "ui3_metal_star_empty": {
+  "file": "images/ui3_metal_star_empty.webp",
+  "kind": "ui",
+  "source": "B04r1.png",
+  "kit": "ui3_metal",
+  "status": "ready",
+  "bytes": 5914,
+  "image_px": [
+   134,
+   135
+  ],
+  "ui_scale_raw_to_px": 0.669,
+  "audit": {
+   "pass": null,
+   "note": "UI piece; touch rect is fixed in code"
+  },
+  "ledger": "sheet cut (round-2 UI sheet / B04r1); B04r1 judged PENDING in LEDGER at last read"
+ }
+}
