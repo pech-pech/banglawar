@@ -54,10 +54,11 @@ function hypeAvg(s, n, seed) {
   for (let i = 0; i < n; i++) { const r = dialResult(rng, d, true); pts += r.pts; nuts += r.level === 'nuts' || d.slices[r.index].gold ? 1 : 0; }
   return { pts: pts / n, nuts: nuts / n };
 }
-test('PARITY Hype dial, avg careful: none 5.30, full tree 6.98 +-0.1, Nuts about 40% (bug if > 8.0 or Nuts > 50%)', () => on(() => {
+// WC: Big Voice (Hype width) became Warm Crowd (HIGH +6 pays +7, paid by the Warm Crowd perk, not counted here): full tree 6.98 -> 6.84.
+test('PARITY Hype dial, avg careful: none 5.30, full tree 6.84 +-0.1, Nuts about 37% (bug if > 8.0 or Nuts > 50%)', () => on(() => {
   const z = hypeAvg(fresh(), 40000, 'hz'), f = hypeAvg(full(), 40000, 'hf');
   console.log('parity hype none', z.pts.toFixed(3), (z.nuts * 100).toFixed(1) + '%', '| full', f.pts.toFixed(3), (f.nuts * 100).toFixed(1) + '%');
-  assert.ok(Math.abs(z.pts - 5.30) <= 0.1, 'none ' + z.pts); assert.ok(Math.abs(f.pts - 6.98) <= 0.1, 'full ' + f.pts);
+  assert.ok(Math.abs(z.pts - 5.30) <= 0.1, 'none ' + z.pts); assert.ok(Math.abs(f.pts - 6.84) <= 0.1, 'full ' + f.pts);
   assert.ok(f.nuts > 0.35 && f.nuts < 0.45, 'nuts ' + f.nuts); assert.ok(f.pts < 8 && f.nuts < 0.5);
 }));
 

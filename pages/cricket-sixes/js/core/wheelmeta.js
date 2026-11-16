@@ -29,6 +29,7 @@ import { courseWheel, wheelSlices, wheelWidths, spinResult } from './training.js
 import { dialResult, revealResult } from './dialreel.js';
 import { MD } from '../data/matchday.js';
 import { devVal } from './wheelmatch.js'; // wheel match Dev: otherMult (1 unless Dev is on)
+import { WHEEL_ENGINE } from '../data/wheel-engine.js';
 
 const clone = (/** @type {any} */ x) => structuredClone(x);
 const BY = Object.fromEntries(NODES.map((n) => [n.id, n]));
@@ -113,7 +114,7 @@ export function buyNode(s, id) {
 const neutralWheel = (w) => ({
   w0Mult: 1, jMult: 1, guide: false, zone: 0, chime: false, feelOnly: WM.FEEL_ONLY.includes(w), goldAdd: 0, extraGold: 0, floor: 0, booster: { chance: 0, value: 0, count: 0, unit: /** @type {any} */ (WM.UNIT)[w] },
   ...(w === 'spot' ? { streak: 0 } : {}), ...(w === 'course' ? { bestOfTwo: 0 } : {}),
-  ...(w === 'hype' ? { rareAdd: 0, lowToMedium: 0, dial: { V: 16, Jmult: 1, sdMult: 1 } } : {}), ...(w === 'toss' ? { rareAdd: 0, consolation: 0 } : {}),
+  ...(w === 'hype' ? { rareAdd: 0, lowToMedium: 0, warmCrowd: 0, dial: { V: 16, Jmult: 1, sdMult: 1 } } : {}), ...(w === 'toss' ? { rareAdd: 0, consolation: 0 } : {}),
   ...(w === 'pep' ? { rareAdd: 0, neighbourMult: 1 } : {}), ...(w === 'find' ? { rareAdd: 0, cheer: 0 } : {}),
   ...(w === 'scout' ? { scoutFloor: 0 } : {}), ...(w === 'finals' ? { neighbourMult: 1 } : {}),
 });
@@ -144,6 +145,7 @@ export function effective(s) {
     else if (type === 'consolation') out.toss.consolation = 1;
     else if (type === 'neighbour_half') out[scope[0]].neighbourMult = 1.5;
     else if (type === 'cheer_respin') out.find.cheer = 1;
+    else if (type === 'hype_high_plus') out.hype.warmCrowd = 1; // WC Warm Crowd: HIGH +6 pays +7 (payout in the perk)
     else if (TOKEN_OF[type]) tokens[TOKEN_OF[type]] += r;
   }
   for (const w of WHEEL_IDS) {
@@ -180,6 +182,29 @@ export function metaWheel(wheel, wheelId, s) {
   const widths = L.map((q) => q.w), C = widths.reduce((a, b) => a + b, 0), golds = L.map((q, i) => (q.gold ? i : -1)).filter((i) => i >= 0);
   return { ...wheel, slices: L.map((q) => q.v), jackpotIndex: L.findIndex((q) => q.gold), widths, C, golds,
     phys: { W0: BASE.W0 * om * X.w0Mult, J: BASE.J * X.jMult, SD: BASE.SD * (X.guide ? WM.GUIDE_SD_FACTOR : 1) } }; // otherMult before Control (Slow stacks)
+}
+// ---- Control values (A2.3, CONTRACT-A sec 2, SPEC 2a/2b/2g): Slow W0 x (1 - 0.15 x rank), 0.55 at 3; Steady J x 0.85^rank, 0.7225 at 2;
+// Guide draws the J band (view); its tap sd (0.110 -> 0.080 s) is sim only (SPEC 2b), never read by the engine. Pure, all 8 wheels.
+export const CONTROL = Object.freeze({ SLOW_PER_RANK: 0.15, STEADY_BASE: 0.85, SD_AVG: 0.110, SD_GUIDE: 0.080 });
+const ctlMax = (/** @type {string} */ id) => (BY[id] ? BY[id].max_rank : 0);
+const ctlRank = (/** @type {any} */ v, /** @type {string} */ id) => Math.max(0, Math.min(ctlMax(id), Math.floor(+v || 0)));
+/** Owned Control ranks {slow, steady, guide} (0 when the flag is off). @param {any} s */
+export function controlRanks(s) {
+  if (!FLAGS.wheelMeta) return { slow: 0, steady: 0, guide: 0 };
+  return { slow: rankOf(s, 'c_slow'), steady: rankOf(s, 'c_steady'), guide: rankOf(s, 'c_guide') };
+}
+/**
+ * Engine physics after Control. ranks = {slow, steady, guide} (or node ids c_slow, c_steady, c_guide); ranks clamp to 0..max_rank.
+ * J = the wheel's own J (Find 1.5), default base.J. SD = sim tap sd (average, or with Guide); base.SD, when given, scales it.
+ * @param {{slow?:number, steady?:number, guide?:number|boolean, c_slow?:number, c_steady?:number, c_guide?:number}} [ranks]
+ * @param {{W0:number, J:number, SD?:number}} [base] @param {number} [J] per-wheel J override
+ * @returns {{W0:number, J:number, SD:number}}
+ */
+export function controlPhys(ranks = {}, base = WHEEL_ENGINE, J = base.J) {
+  const r = ranks || {}, slow = ctlRank(r.slow ?? r.c_slow, 'c_slow'), steady = ctlRank(r.steady ?? r.c_steady, 'c_steady');
+  const guide = !!(r.guide ?? r.c_guide), C = CONTROL;
+  const sd0 = guide ? C.SD_GUIDE : C.SD_AVG, SD = base.SD == null ? sd0 : base.SD * sd0 / C.SD_AVG;
+  return { W0: base.W0 * (1 - C.SLOW_PER_RANK * slow), J: J * C.STEADY_BASE ** steady, SD };
 }
 /** Wheel match Dev (06-DEV-SPEED rule 7): start speed multiplier for every wheel except the match wheel. 1 unless Dev is on. @param {any} s */
 export const otherMultOf = (s) => devVal(s, 'otherMult');

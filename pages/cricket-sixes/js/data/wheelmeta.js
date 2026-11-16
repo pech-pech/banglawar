@@ -50,7 +50,7 @@ export const NODES = [
   N('sp_spot_r', 'specialist', 5, 'Hot Streak', [95], 'streak_value', 1, ['spot'], 'Gold right after gold pays one more.'),
   N('sp_crs_n', 'specialist', 2, 'Good Notes', [20, 35], 'jackpot_width_add', 0.02, ['course'], 'The Course gold slice gets wider.'),
   N('sp_crs_r', 'specialist', 5, 'Second Opinion', [70], 'best_of_two', 1, ['course'], 'Every course gets a free second spin. The better one counts.'),
-  N('sp_hyp_n', 'specialist', 3, 'Big Voice', [35, 70], 'rare_width_add', 0.08, ['hype'], 'The biggest Hype slice gets wider.'),
+  N('sp_hyp_n', 'specialist', 3, 'Warm Crowd', [35, 70], 'hype_high_plus', 1, ['hype'], 'A HIGH +6 Hype landing pays +7.'), // WC: replaces Big Voice (SPEC 6, user pick [M]); the +7 payout is the Warm Crowd perk
   N('sp_hyp_r', 'specialist', 5, 'Home Crowd', [105], 'floor_value', 'low_to_medium', ['hype'], 'The smallest Hype slices pay like a medium one.'),
   N('sp_tos_n', 'specialist', 3, 'Coin Weight', [35, 70], 'rare_width_add', 0.1, ['toss'], 'The winning Toss slices get wider.'),
   N('sp_tos_r', 'specialist', 5, 'Good Sport', [90], 'consolation', 2.5, ['toss'], 'The good sport slice also gives a small boost.'),

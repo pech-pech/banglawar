@@ -75,10 +75,10 @@ test('reel: landing formula, cell under the line, pity find only finds, offset f
   const rng = makeRng('pity'); for (let i = 0; i < 200; i++) assert.ok(['coins', 'player', 'coach'].includes(pityFind(rng, r).type));
   const s = sweepAt(r, 5, 2.5, { t: 2, e: -0.3 }); assert.ok(s.done && Math.abs(s.x - L.x) < 1e-9);
 });
-test('tree effects: Big Voice/Widener widen nuts, Home Crowd Low pays Medium, Kind Floor +1, Extra Gold adds a second nuts', () => {
+test('tree effects: Widener widens nuts (Warm Crowd does not, WC), Home Crowd Low pays Medium, Kind Floor +1, Extra Gold adds a second nuts', () => {
   const base = hypeDial(ODDS[0].odds);
-  const full = hypeDial(ODDS[0].odds, modsFromSim(simFromRanks({ sp_hyp_n: 2, f_wide: 3 }), 'hype'));
-  assert.ok(full.slices[2].w > base.slices[2].w * 1.15);
+  const full = hypeDial(ODDS[0].odds, modsFromSim(simFromRanks({ sp_hyp_n: 2, f_wide: 3 }), 'hype')), wide = hypeDial(ODDS[0].odds, modsFromSim(simFromRanks({ f_wide: 3 }), 'hype'));
+  assert.ok(full.slices[2].w > base.slices[2].w); assert.equal(full.slices[2].w, wide.slices[2].w); // WC: Big Voice width gone (was > x1.15 with it)
   const hc = hypeDial(ODDS[0].odds, modsFromSim(simFromRanks({ sp_hyp_r: 1 }), 'hype')); assert.equal(hc.slices[1].pts, 4); assert.equal(hc.slices[1].level, 'med');
   const kf = hypeDial(ODDS[0].odds, modsFromSim(simFromRanks({ f_floor: 1 }), 'hype')); assert.equal(kf.slices[1].pts, 3); assert.equal(kf.slices[1].level, 'low');
   const ex = hypeDial(ODDS[0].odds, modsFromSim(simFromRanks({ f_extra: 1 }), 'hype')); assert.equal(ex.slices.length, 5); assert.equal(ex.slices.filter((s) => s.kind === 'nuts').length, 2);

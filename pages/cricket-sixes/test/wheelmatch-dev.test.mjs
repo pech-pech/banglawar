@@ -154,9 +154,9 @@ test('T-dev-14 (DOM-less) Settings rows: Match mode row, Dev switch, Wheel speed
   assert.ok(sec.indexOf('data-wm-key="matchW0"') < sec.indexOf('<details'));
   assert.equal(devFmt('otherMult', 1), 'x1.00'); assert.equal(devFmt('matchD', 2), '2.0 s'); assert.equal(devFmt('matchJ', 1.2), '1.2');
   for (const k of DEV_KEYS) { const [lo, hi, st] = DEV_RANGE[k]; assert.match(sec, new RegExp(`data-wm-key="${k}" min="${lo}" max="${hi}" step="${st}"`)); }
-  // 44 px touch targets: thumb 44 x 44 (webkit + moz), input 44 px tall, buttons and the fold summary >= 44 px
-  assert.match(WMS_CSS, /-webkit-slider-thumb\{[^}]*width:44px;height:44px/); assert.match(WMS_CSS, /-moz-range-thumb\{[^}]*width:44px;height:44px/);
-  assert.match(WMS_CSS, /\.wms-range\{width:100%;height:44px/); assert.match(WMS_CSS, /\.wms-btn\{min-height:44px/); assert.match(WMS_CSS, /summary\{min-height:44px/);
+  // 56 px touch targets (L-CS-6): thumb 56 x 56 (webkit + moz), input 56 px tall, buttons and the fold summary >= 56 px
+  assert.match(WMS_CSS, /-webkit-slider-thumb\{[^}]*width:56px;height:56px/); assert.match(WMS_CSS, /-moz-range-thumb\{[^}]*width:56px;height:56px/);
+  assert.match(WMS_CSS, /\.wms-range\{width:100%;height:56px/); assert.match(WMS_CSS, /\.wms-btn\{min-height:56px/); assert.match(WMS_CSS, /summary\{min-height:56px/);
   // Fold cover 475 x 638: no fixed width wider than the sheet's 443 px content box, readouts never clip (nowrap, small min width)
   for (const m of WMS_CSS.matchAll(/(?:^|[;{])(?:min-)?width:(\d+)px/g)) assert.ok(+m[1] <= 443, m[0]);
   assert.match(WMS_CSS, /\.wms-val\{[^}]*white-space:nowrap/); assert.match(WMS_CSS, /\.wms-head\{[^}]*flex-wrap:wrap/);
