@@ -1,7 +1,8 @@
 // @ts-check
 /* wheels/scout: split from wm-spins.js (w2 wheel glue). */
-import { openReel } from '../reel-view.js';
-import { dialLook, revealT, tokProps, TOKVAL } from './shared.js';
+import { openWheel } from '../wheel-view.js';
+import { dialLook, tokProps } from './shared.js';
+import { scoutWheelOpts } from './scout-opts.js';
 
 /** wa1: the words for a Scout result. A Lucky Lift can add a step to an Extra name, so both can show. */
 export function scoutWords(p) {
@@ -10,14 +11,10 @@ export function scoutWords(p) {
   if (p.extra) return { big: 'One more name on the list', say: 'The scouts found one more name.', short: 'one more name' };
   return { big: 'Top name ' + stw, say: 'The best name on the list goes up ' + stw.slice(1) + '.', short: stw };
 }
-/** Scout: reveal reel when the list opens. get() -> vm.spin; dispatch('ScoutSpin'). */
-export function spinScout({ get, look, dispatch, onCollect }) {
+/** Scout: the 10-card wheel (openWheel via scoutWheelOpts). get() -> vm.spin (scoutSpinVM); STOP dispatches ScoutSpin {stop} (onSpin in scoutWheelOpts).
+    vm.stored opens on its result and never re-spins. No auto-stop, skip or reduced-motion path. wobKey: vm.wobKey (host) else a key from the spin key (same key, same wobble after a reload). */
+export function spinScout({ get, look, dispatch, onCollect, onClose }) {
   const s = get();
-  return openReel({
-    mode: 'reveal', title: 'The scouts', cardHtml: '<p class="dr-hint">What do the scouts bring?</p>', plan: { total: revealT(3, s) }, cells: s.cells, look: dialLook(look), pending: s.pending,
-    ...tokProps(get, dispatch, 'scout', 'Scout'), tokVal: TOKVAL.scout, tokText: (p) => scoutWords(p).short,
-    onSpin: () => dispatch('ScoutSpin', {}), getPending: () => get().pending,
-    describe: (p) => { const w = scoutWords(p); return { big: w.big, say: w.say, gold: !p.extra && !!p.jackpot }; },
-    onCollect, spokeGain: () => get().spokeGain || 0,
-  });
+  const wobKey = s.wobKey != null ? s.wobKey : 'wob|scout|' + s.spinKey + '|0';
+  return openWheel(scoutWheelOpts(s, { get, dispatch, onCollect, look, dialLook, tokProps, wobKey, onClose }));
 }

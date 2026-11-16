@@ -66,3 +66,7 @@
 .wh-ov .wk-legend-ico:empty { display: none; }
 .wh-ov .wh-go.is-glow, .wh-ov .wh-go.is-glow.c-btn--primary.c-btn--cta { --_bg: var(--gold, #d2b357); --_fg: var(--outline, #2a2238); --_hi: var(--white, #fff); --_wash: var(--gold, #d2b357); background: var(--gold, #d2b357); color: var(--outline, #2a2238); }
 .wh-ov .t2-strip small { font-size: 14px; }
+
+/* T4 QA5 NEW-6: ring wheels hang from the top of the stage and the ready box keeps room for the result, so the wheel does not move when the result card appears */
+.wh-ov.is-ring .wh-stage { align-items: flex-start; }
+.wh-ov.is-ring .wh-msg { min-height: 180px; }

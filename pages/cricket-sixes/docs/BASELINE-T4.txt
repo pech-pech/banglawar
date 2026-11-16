@@ -1,0 +1,20 @@
+BASELINE-T4
+Command: node --test test/*.test.mjs  (cwd pages/cricket-sixes, branch claude/project-thread-ro4620)
+Exit code: 1
+
+Counts (all files):
+  tests:   1054
+  pass:    1051
+  skip:    1
+  fail:    2
+  cancelled: 0  todo: 0
+
+Failures:
+  - test/find-aim.test.mjs: "nearest arrival to 3.5 s wins" (not ok 188)
+  - test/find-aim.test.mjs: "within eps = tied: wider wins, then first clockwise; outside eps nearest wins" (not ok 189)
+  Both failures are in find-aim, which is on the ignore list. No failures outside ignored files.
+
+Vector files (md5):
+  e4325c773b7f8eef076eda7c49a13496  test/ball-vectors.json
+  21cb036ef79bb769c4f7a2f0084e0e6b  test/ball-vectors-pair.json
+  Note: the two vector files differ (different md5 and sizes 171427 and 265509 bytes).

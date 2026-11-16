@@ -139,6 +139,11 @@ export function sliceLabel(row) {
   if (ch) return ch;
   return typeof r.value === 'number' ? String(r.value) : '?';
 }
+/** The one printed text of a slice row outside the wheel face (readout, result chip): the renderer's chosen short name when it set one (Scout cards), else the row label + sub. */
+export function rowText(row) {
+  const r = row || {}; if (r.short != null && r.short !== '') return String(r.short);
+  return String(r.label == null ? r.value : r.label) + (r.sub != null && String(r.sub).trim() ? ' ' + String(r.sub).trim() : '');
+}
 /** Legend rows [{ch, text}] for every under-7% slice of a ring, one per distinct slice meaning (SPEC 2f).
  *  Same printed character + same text = one row. Same character with different text = both listed, never merged. */
 export function legendRows(ring) {

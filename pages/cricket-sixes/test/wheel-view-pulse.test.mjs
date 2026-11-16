@@ -209,7 +209,7 @@ test('non-ring result (Training / Course / Find / Hype pass slices): same block 
   assert.doesNotMatch(src, /\(same letter\)/);
   assert.match(r, /chip = short \|\| lab/, 'chip prints sliceLabel (+2 steps -> +2); the full label is its title and the spoken line');
   assert.equal(sliceLabel({ label: '+2 steps', w: 0.4 }), '+2'); assert.equal(sliceLabel({ label: '+2 steps', w: 1 }), '+2 steps');
-  assert.match(src, /The tick shows about where it will land\./); assert.doesNotMatch(src, /The tick shows where it will land/);
+  assert.doesNotMatch(src, /The tick shows where it will land/); // ring-wheel hint is just 'Tap SPIN, then tap STOP.' (the tick sentence moved out)
 });
 test('result box css keeps every line inside the box at 344 px (column, wraps, no overflow)', () => {
   const css = readFileSync(new URL('../css/wheel-shared.css', import.meta.url), 'utf8');
@@ -230,5 +230,5 @@ test('ring layout: vertical room is 10 px (AIM word is clamped into the stage), 
 });
 test('N8 "+1 Spoke" singular; D10 the tick sentence shows once (the card wins)', () => {
   assert.match(src, /Number\(sg\) === 1 \? ' Spoke' : ' Spokes'/);
-  assert.match(src, /\/tick shows\/i\.test\(\(\$\('\.wh-card'\)/);
+  assert.match(src, /setMsg\('Tap SPIN, then tap STOP\.'\)/);
 });

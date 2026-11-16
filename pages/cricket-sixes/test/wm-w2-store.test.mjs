@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import { FLAGS } from '../js/data/flags.js';
 import { applyCommand as C, mdFor } from '../js/store/commands.js';
 import * as sel from '../js/store/selectors.js';
+import { scoutSpin as oldScoutSpin } from '../js/store/wmstore.js';
 import { metaOf } from '../js/core/wheelmeta.js';
 import { teamBoost } from '../js/core/matchday.js';
 import { scoutList } from '../js/core/training.js';
@@ -118,7 +119,7 @@ test('Scout: one spin a season; Extra name adds a candidate, Top name raises the
   const vm0 = sel.coachPickVM(s); assert.ok(vm0.spin && !vm0.spin.spun);
   let seenExtra = false, seenTop = false;
   for (let i = 0; i < 40 && !(seenExtra && seenTop); i++) {
-    const g = newGame('w2-scout' + i).get(), l0 = scoutList(g), a = C(g, 'ScoutSpin');
+    const g = newGame('w2-scout' + i).get(), l0 = scoutList(g), a = oldScoutSpin(g); // old reveal path (the command now uses the new ring)
     assert.equal(tally(a), 1); assert.equal(spokes(a), 4); assert.equal(C(a, 'ScoutSpin'), a, 'once a season');
     const l1 = scoutList(a), sp = a.scoutSpin;
     assert.equal(l1.length, l0.length + sp.extra);

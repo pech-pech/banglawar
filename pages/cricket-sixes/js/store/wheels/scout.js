@@ -3,7 +3,9 @@
 import { effective, recordSpin } from '../../core/wheelmeta.js';
 import { revealWheel, revealResult } from '../../core/wheels/reveal.js';
 import { modsFor } from '../../core/wheels/common.js';
-import { clone, on, rngFor, seasonN, wmTokensOf } from './common.js';
+import { clone, on, rngFor, seasonN, wmTokensOf, medianOf } from './common.js';
+import { recordStop, storedStop } from '../../core/wheel-stops.js';
+import { seasonIdOf } from '../../core/spin-keys.js';
 import { ctlOf } from './common.js';
 
 /** Command guard for ScoutSpin: flag, the list is still open, not spun this season. @param {any} s @param {()=>any[]} list */
@@ -23,5 +25,94 @@ export function scoutSpinVM(s) {
   const w = revealWheel('scout', modsFor(effective(s), 'scout')), sp = s.scoutSpin && s.scoutSpin.n === seasonN(s) ? s.scoutSpin : null;
   const g = sp && sp.src && sp.src.wheel ? sp.src.wheel : w; // the wheel that was spun (a token re-spins that one)
   return { cells: g.slices.map((/** @type {any} */ c) => ({ label: c.label, w: c.w, tone: c.gold ? 'gold' : 'none', gold: !!c.gold })), spun: !!sp, ...ctlOf(s, 'scout'), tokens: wmTokensOf(s, 'scout'),
-    pending: sp ? { index: sp.index, steps: sp.steps, extra: sp.extra, jackpot: sp.id === 'top2', lifted: !!sp.lifted } : null };
+    pending: sp ? { index: sp.index, steps: sp.steps, extra: sp.extra, jackpot: sp.id === 'top2', lifted: !!sp.lifted } : null,
+    // new wheel (SPEC 9): ring rows, the 10 cards, the stored stop (a reload opens on it, never re-spins). Additive; old fields above unchanged.
+    wheelId: 'scout', spinKey: scoutSeasonId(s), ring: SCOUT_SLICES.map((c) => ({ ...c })), cards: scoutCardsOf(s).map((c) => ({ ...c })),
+    stored: scoutSliceRow(s) ? storedStop(s, 'scout', scoutSeasonId(s)) : null };
+}
+
+// ---------------------------------------------------------------- new Scout wheel (SPEC 9, 11a, 13; T4 wave 2)
+// Cards = makeScoutCards (one per slice), stored in wheels.scoutCards[seasonId]. The result is decided at STOP from SCOUT_SLICES (stop.sliceId, sent by
+// the view) and written at once to s.scoutSpin + wheels.stops.scout[seasonId], so a reload shows the same slice. The old reveal path (no stop.sliceId) is kept.
+import { makeScoutCards } from '../../core/scout-cards.js';
+import { SCOUT_SLICES } from '../../data/wheels/scout.js';
+import { scoutSliceId, scoutIsGold, scoutKeep, scoutNudge, stopConsistent, scoutAutoSlice } from '../../core/wheels/scout.js';
+import { STEPS } from '../../core/letters.js';
+const stepOfLetter = (/** @type {string} */ g) => { const r = STEPS.find((x) => x.letter === g); return r ? r.step : 1; };
+
+export const scoutSeasonId = (/** @type {any} */ s) => seasonIdOf(s); // CONTRACT-A lead call 5: the shared seasonIdOf
+const leagueOf = (/** @type {any} */ s) => Math.min(5, Math.max(1, (s.season && s.season.league) || (s.run && s.run.league) || 1));
+/** This season's 10 cards: the stored ones, else regenerated from the season seed (same generator, so identical). Never writes. @param {any} s */
+export function scoutCardsOf(s) {
+  const st = s && s.wheels && s.wheels.scoutCards && s.wheels.scoutCards[scoutSeasonId(s)];
+  return Array.isArray(st) && st.length === SCOUT_SLICES.length ? st : makeScoutCards(s.seed, seasonN(s), leagueOf(s));
+}
+/** Store this season's cards on the draft `n` if missing (season start / first use). @param {any} n */
+export function ensureScoutCards(n) {
+  const w = n.wheels && typeof n.wheels === 'object' ? n.wheels : (n.wheels = {});
+  const sc = w.scoutCards && typeof w.scoutCards === 'object' ? w.scoutCards : (w.scoutCards = {}), k = scoutSeasonId(n);
+  if (!Array.isArray(sc[k]) || sc[k].length !== SCOUT_SLICES.length) sc[k] = makeScoutCards(n.seed, seasonN(n), leagueOf(n));
+  return sc[k];
+}
+
+// recordStop is the shared one (js/core/wheel-stops.js, CONTRACT-A sec 7); careful = value above the Scout wheel median.
+const SCOUT_MEDIAN = medianOf(SCOUT_SLICES.map((/** @type {any} */ x) => x.value));
+/** @type {(n:any, wheelId:string, spinKey:string, rec:any) => any} */
+const recordStopFn = (n, wheelId, spinKey, rec) => recordStop(n, wheelId, spinKey, rec, { median: SCOUT_MEDIAN });
+/** Old seam, kept so callers compile: the shared recordStop is always used now. @param {any} [_fn] */
+export const setRecordStop = (_fn) => {};
+
+const recOf = (/** @type {any} */ stop, /** @type {number} */ sliceId, /** @type {number} */ respin) => ({
+  stopT: Math.max(0, Math.round(+stop.stopT || 0)), cycle: Math.max(1, stop.cycle | 0 || 1), tInCycle: +stop.tInCycle || 0, sliceId, value: SCOUT_SLICES[sliceId].value, auto: !!stop.auto, respin });
+const rowOfSlice = (/** @type {any} */ s, /** @type {number} */ id, /** @type {any} */ cards, /** @type {any} */ extra) => ({
+  n: seasonN(s), index: id, id: SCOUT_SLICES[id].gold ? 'top2' : 'slice', steps: SCOUT_SLICES[id].value | 0, extra: 0, sliceId: id, value: SCOUT_SLICES[id].value, card: { ...cards[id] }, tokUsed: 0, ...extra });
+
+/** Does the payload carry a new-wheel STOP (a valid sliceId)? @param {any} p */
+export const isSliceStop = (p) => !!(p && p.stop && typeof p.stop === 'object' && scoutSliceId(p.stop.sliceId) >= 0 && stopConsistent(p.stop));
+/** A stop object that is not valid: sliceId given but out of range, or timing that disagrees with itself. Rejected, never turned into a draw. @param {any} p */
+export const isBadStop = (p) => !!(p && p.stop && typeof p.stop === 'object' && ((p.stop.sliceId != null && scoutSliceId(p.stop.sliceId) < 0) || !stopConsistent(p.stop)));
+/** Stop-less ScoutSpin (Auto / leave): a seeded width-weighted draw on SCOUT_SLICES, recorded auto:true. @param {any} s */
+export const scoutAutoStop = (s) => ({ stop: { sliceId: scoutAutoSlice(rngFor(s, 'scout', String(seasonN(s)))), stopT: 0, cycle: 1, tInCycle: 0, auto: true } });
+/**
+ * ScoutSpin on the new wheel: p.stop = {sliceId, stopT, cycle, tInCycle, auto?}. Decided here, stored, recorded. Same s when not allowed (guard is canScoutSpin).
+ * @param {any} s @param {any} p
+ */
+export function scoutSliceSpin(s, p) {
+  if (!isSliceStop(p)) return s;
+  const id = scoutSliceId(p.stop.sliceId), n = clone(recordSpin(s, 'scout')); // one Spoke per spin, as before
+  const cards = ensureScoutCards(n);
+  n.scoutSpin = rowOfSlice(n, id, cards, {});
+  recordStopFn(n, 'scout', scoutSeasonId(n), recOf(p.stop, id, 0));
+  return n;
+}
+/** The stored Scout result row for this season, new wheel only. @param {any} s */
+export const scoutSliceRow = (s) => (s && s.scoutSpin && s.scoutSpin.n === seasonN(s) && scoutSliceId(s.scoutSpin.sliceId) >= 0 ? s.scoutSpin : null);
+
+/**
+ * Token on the landed Scout slice (new wheel): at most 1 per spin, none on a gold result, none after a collected (signed / passed) list.
+ * kind 'again': p.stop = the second STOP (respin 1), the higher value is kept, a tie keeps the first. kind 'nudge': a non-gold neighbour with a strictly higher value.
+ * The shared pool / 2-a-season cap is NOT touched here (CONTRACT unclear: wmUseToken in wmstore.js owns it). Same s when not allowed.
+ * @param {any} s @param {{kind:string, stop?:any}} p
+ */
+export function scoutSliceToken(s, p) {
+  const r = scoutSliceRow(s); if (!r || !p || (r.tokUsed | 0) >= 1 || scoutIsGold(r.sliceId) || (s.scout && s.scout.n === seasonN(s))) return s;
+  const n = clone(s), cards = ensureScoutCards(n);
+  if (p.kind === 'nudge') {
+    const to = scoutNudge(r.sliceId); if (to < 0) return s;
+    n.scoutSpin = rowOfSlice(n, to, cards, { tokUsed: 1, nudged: true });
+    return n;
+  }
+  if (p.kind === 'again' && isSliceStop(p)) {
+    const b = scoutSliceId(p.stop.sliceId), keep = scoutKeep(r.sliceId, b);
+    recordStopFn(n, 'scout', scoutSeasonId(n), { ...recOf(p.stop, b, 1), kept: keep === r.sliceId ? 0 : 1, spent: true });
+    n.scoutSpin = rowOfSlice(n, keep, cards, { tokUsed: 1 });
+    return n;
+  }
+  return s;
+}
+
+/** The landed card added as the first name: scoutList(s) (core/training.js, unchanged) with the card first. id `sc<n>-c`; step from the grade. Empty list stays empty. @param {any} s @param {any[]} list */
+export function withLandedCard(s, list) {
+  const r = scoutSliceRow(s); if (!r || !list.length) return list;
+  return [{ id: `sc${seasonN(s)}-c`, name: r.card.surname, step: stepOfLetter(r.card.grade), strong: [r.card.focus], landed: true }, ...list];
 }

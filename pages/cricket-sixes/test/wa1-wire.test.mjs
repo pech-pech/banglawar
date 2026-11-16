@@ -9,7 +9,7 @@ import { metaOf } from '../js/core/wheelmeta.js';
 import { scoutList } from '../js/core/training.js';
 import { tokenLine, tokenNote, goldNearX, cumOf } from '../js/ui/dial-view.js';
 import { TOKVAL } from '../js/ui/wm-spins.js';
-import { pepSlotsOf, wmTokens } from '../js/store/wmstore.js';
+import { pepSlotsOf, wmTokens, scoutSpin as oldScoutSpin } from '../js/store/wmstore.js';
 import { newGame, step } from './_season-bot.mjs';
 
 const withFlags = (f, fn) => { const old = { ...FLAGS }; Object.assign(FLAGS, f); try { return fn(); } finally { Object.assign(FLAGS, old); } };
@@ -48,11 +48,11 @@ test('view helpers: outcome line, uses-left note, Aim Zone reach', () => {
 });
 
 test('views: dial and reel take the wheel-view token props and replay a short spin; wm-spins passes them for all five wheels', () => {
-  const dial = read('js/ui/dial-view.js'), reel = read('js/ui/reel-view.js'), sp = ['hype', 'toss', 'pep', 'scout', 'finals'].map((w) => read('js/ui/wheels/' + w + '.js')).join('\n');
+  const dial = read('js/ui/dial-view.js'), reel = read('js/ui/reel-view.js'), sp = ['hype', 'toss', 'pep', 'scout', 'finals'].map((w) => read('js/ui/wheels/' + w + '.js') + (w === 'finals' ? read('js/ui/wheels/finals-opts.js') : w === 'scout' ? read('js/ui/wheels/scout-opts.js') : '')).join('\n'); // finals goes through finals-opts (A3.9)
   assert.match(dial, /data-tok/); assert.match(dial, /o\.getTokens \? o\.getTokens\(\)/); assert.match(dial, /o\.onToken\(t\.kind\)/);
   assert.match(dial, /cfg\.replay = replay/); assert.match(reel, /cfg\.replay = replay/);
   assert.match(dial, /reducedNow\(\) \|\| !cfg\.replay/, 'reduced motion: the line only, no replay');
-  for (const w of ['hype', 'toss', 'pep', 'scout', 'finals']) assert.match(sp, new RegExp("tokProps\\(get, dispatch, '" + w + "'"));
+  for (const w of ['hype', 'toss', 'pep', 'scout', 'finals']) assert.match(sp, new RegExp("tokProps\\(get, " + (w === 'scout' ? 'ctx\\.' : '') + "dispatch, '" + w + "'"));
 });
 
 test('flag off: UseToken on the new wheels is refused', () => withFlags({ wheelMeta: false, matchday: true, activities: true }, () => {
@@ -107,7 +107,7 @@ test('Pep tokens: slots, pep ids and the shown pending always agree', () => with
 
 test('Scout token: updates the waiting reveal (list follows); Finals token pays only the difference', () => withFlags(ON, () => {
   let sc = null;
-  for (let i = 0; i < 60 && !sc; i++) { const g = C(withPool(newGame('wa1w-sc' + i).get()), 'ScoutSpin'); if (wmTokens(g, 'scout').length) sc = g; }
+  for (let i = 0; i < 60 && !sc; i++) { const g = oldScoutSpin(withPool(newGame('wa1w-sc' + i).get()));  if (wmTokens(g, 'scout').length) sc = g; }
   assert.ok(sc, 'a Scout token offer');
   const k = wmTokens(sc, 'scout')[0].kind, a = C(sc, 'UseToken', { wheel: 'scout', kind: k });
   assert.notEqual(a, sc); assert.ok(a.scoutSpin.steps + a.scoutSpin.extra >= 0); assert.equal(metaOf(a).tokUsed.scout, 1);

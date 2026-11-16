@@ -12,7 +12,7 @@ import { makeRng } from '../js/core/rng.js';
 import { goldNearLine, chimeEnters } from '../js/ui/reel-view.js';
 import { cumOf } from '../js/ui/dial-view.js';
 import { scoutWords, finalsWords } from '../js/ui/wm-spins.js';
-import { wmTokens, scoutSpinVM } from '../js/store/wmstore.js';
+import { wmTokens, scoutSpinVM, scoutSpin as oldScoutSpin } from '../js/store/wmstore.js';
 import { newGame } from './_season-bot.mjs';
 
 const withFlags = (f, fn) => { const old = { ...FLAGS }; Object.assign(FLAGS, f); try { return fn(); } finally { Object.assign(FLAGS, old); } };
@@ -43,13 +43,13 @@ test('result words: Scout after a Lift shows the extra name and the step; Finals
   assert.equal(finalsWords({ label: '20 TP', coins: 0, tp: 20, fans: 0, medal: 0 }), '20 TP');
   assert.equal(finalsWords({ label: '20 TP', coins: 10, tp: 20, fans: 0, medal: 0 }), '10 Coins + 20 TP', 'a Lift adds Coins to a TP prize');
   assert.equal(finalsWords({ label: '+1 Medal', coins: 0, tp: 0, fans: 0, medal: 1 }), '+1 Medal');
-  assert.match(read('js/ui/wheels/scout.js'), /tokText: \(p\) => scoutWords\(p\)\.short/); assert.match(read('js/ui/wheels/finals.js'), /tokText: finalsWords/);
+  assert.match(read('js/ui/wheels/scout-opts.js'), /tokText: \(p\) => scoutWords\(p\)\.short/); assert.match(read('js/ui/wheels/finals.js'), /tokText: finalsWords/);
   assert.match(read('js/ui/reel-view.js'), /chimeEnters\(a, b, golds\)/);
 });
 
 test('Scout token draws from the separate token stream (seed|wm|tok|scout|...)', () => withFlags(ON, () => {
   let sc = null;
-  for (let i = 0; i < 60 && !sc; i++) { const g = C(withPool(newGame('wa1r-sc' + i).get()), 'ScoutSpin'); if (wmTokens(g, 'scout').some((t) => t.kind === 'respin')) sc = g; }
+  for (let i = 0; i < 60 && !sc; i++) { const g = oldScoutSpin(withPool(newGame('wa1r-sc' + i).get()));  if (wmTokens(g, 'scout').some((t) => t.kind === 'respin')) sc = g; }
   assert.ok(sc, 'a Scout Spin Again offer');
   const a = C(sc, 'UseToken', { wheel: 'scout', kind: 'respin' });
   const want = useToken(sc, 'scout', 'respin', sc.scoutSpin.src, makeRng(`${sc.season.seed}|wm|tok|scout|${sc.scoutSpin.n}|respin|0`), undefined, {});
