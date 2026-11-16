@@ -35,6 +35,18 @@ test('glow: three half-beats of 0.2 s (up, down, up), one shot', () => {
   assert.ok(glowPhase(3.79).level > 0.9, 'beat 2 rises');
   assert.ok(Math.abs(WHEEL_MATCH.GLOW_BEATS * WHEEL_MATCH.GLOW_BEAT - (WHEEL_MATCH.GLOW_HI - WHEEL_MATCH.GLOW_LO)) < 1e-9);
 });
+test('glow lights in EVERY 6 s pulse cycle (wheels SPEC 2a: 3.2-3.8 s of each cycle), never between', () => {
+  for (const k of [1, 2, 5, 10]) {
+    const o = (k - 1) * 6;
+    assert.equal(glowPhase(o + 3.5).on, true, 'cycle ' + k + ' mid-glow');
+    assert.equal(glowPhase(o + 3.1).on, false, 'cycle ' + k + ' before');
+    assert.equal(glowPhase(o + 3.9).on, false, 'cycle ' + k + ' after');
+    assert.equal(glowPhase(o + 0.5).on, false, 'cycle ' + k + ' start');
+    const g = glowPhase(o + 3.45), g1 = glowPhase(3.45);
+    assert.ok(g.on && g.beat === g1.beat && Math.abs(g.level - g1.level) < 1e-9, 'cycle ' + k + ' same beat as cycle 1');
+  }
+  assert.deepEqual([...WHEEL_MATCH.GLOW], [3.2, 3.8]);
+});
 test('glow never reads the segments (time is its only input)', () => {
   assert.equal(glowPhase.length, 1);
   const src = readFileSync(new URL('../js/ui/wheelmatch-view.js', import.meta.url), 'utf8');
@@ -71,17 +83,19 @@ test('auto pace: 0.6 s an over, 0.9 s with a wicket, an innings end or the last 
   assert.equal(autoPace([{ o: 1 }], { lastOver: true }), AUTO_PACE.event);
   assert.equal(AUTO_PACE.over, 0.6); assert.equal(AUTO_PACE.event, 0.9);
 });
-test('auto stop rule: pause before the last over of a live chase only; Auto over spins one', () => {
+test('auto stop rule: pause before the last over of a live chase only; no per-over Auto (wheels SPEC 2h: "Auto over" removed)', () => {
   assert.equal(autoStopWhy({ side: 'bat', autoPauseNow: true }, 'rest', 3), 'pause');
   assert.equal(autoStopWhy({ side: 'bowl', autoPauseNow: false }, 'rest', 3), '');
   assert.equal(autoStopWhy({ side: 'bat', autoPauseNow: false }, 'rest', 0), '');
-  assert.equal(autoStopWhy({ side: 'bowl' }, 'over', 0), ''); assert.equal(autoStopWhy({ side: 'bowl' }, 'over', 1), 'done');
+  // the old 'over' kind no longer ends a run after one over: Auto is only the rest of the innings
+  assert.equal(autoStopWhy({ side: 'bowl' }, 'over', 0), ''); assert.equal(autoStopWhy({ side: 'bowl' }, 'over', 1), '');
   assert.equal(autoStopWhy(null, 'rest', 0), 'end');
 });
 
-test('glide plan ends exactly on the stored landing and starts at the rim under the pointer', () => {
-  const phys = { W0: 36, TAU: 3, D: 2, J: 1.2, COAST: 6, STOP_FROM: 1 }, C = WHEEL_MATCH.CIRC;
-  for (const t of [1, 2.5, 3.5, 5.9, 6]) for (const e of [-1.2, 0, 0.7]) {
+test('glide plan ends exactly on the stored landing and starts at the rim under the pointer (pulse, any cycle, no coast)', () => {
+  const phys = { W0: 36, TAU: 3, D: 2, J: 1.2 }, C = WHEEL_MATCH.CIRC;
+  assert.equal('COAST' in WHEEL_MATCH, false); assert.equal('STOP_FROM' in WHEEL_MATCH, false);
+  for (const t of [0.35, 1, 2.5, 3.5, 5.9, 6, 9.5, 61.3]) for (const e of [-1.2, 0, 0.7]) {
     const stop = { t, phi: 3.3 }, fin = landingPos(phys, { ...stop, e }), p = glidePlan(phys, stop, fin);
     assert.ok(Math.abs(wrapHalf(p.base - rimAt(phys, t, 3.3))) < 1e-9);
     assert.ok(Math.abs(wrapHalf(p.base + p.dist + p.e - fin, C)) < 1e-9, 'lands on the stored pos');
