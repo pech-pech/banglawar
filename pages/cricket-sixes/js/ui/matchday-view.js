@@ -31,6 +31,7 @@ export function boostTotals(vm, shown) {
   return { teamPct: pct(h * t), pepPct: pct(h * t * p) };
 }
 
+const noBoostLine = (vm) => (vm.toss && vm.toss.noBoostLine) || 'No boost. +1 Spoke.'; // QA3 NEW-3, SPEC 7: never "Rival won the toss"
 const ICON = { hype: 'fan', toss: 'medal', pep: 'team', roar: 'fan', coach: 'coach' };
 /** Small row of result chips (Plan, match headers) when the screen was skipped. chips: [{k, text}]. Pure. */
 export function chipRowHtml(chips) {
@@ -83,7 +84,7 @@ export function matchdayHtml(vm, shown) {
     ? '<section class="c-card md-card is-shown" aria-label="Crowd today"><h2 class="md-h">' + icoDeco('fan', 24) + esc(hypeWord(vm.hype.level)) + ' <span class="md-pct">+' + esc(vm.hype.perfPct) + '%</span></h2><ol class="md-steps list-flat" aria-label="Crowd meter, four steps: Quiet, Good, Big, Wild">' + steps + '</ol></section>'
     : '<button type="button" class="c-btn md-tap" data-md="hype">' + icoDeco('fan', 24) + '<span><b>Tap to see the crowd today</b><small>Quiet, good, big or wild</small></span></button>';
   const toss = shown.toss
-    ? '<section class="c-card md-card is-shown" aria-label="Toss"><h2 class="md-h">' + icoDeco('medal', 24) + (vm.toss.won ? 'You won the toss <span class="md-pct">+' + esc(vm.toss.boostPct) + '%</span>' : 'Rival won the toss. Nothing changes.') + '</h2></section>'
+    ? '<section class="c-card md-card is-shown" aria-label="Toss"><h2 class="md-h">' + icoDeco('medal', 24) + (vm.toss.won ? 'You won the toss <span class="md-pct">+' + esc(vm.toss.boostPct) + '%</span>' : esc(noBoostLine(vm))) + '</h2></section>'
     : '<button type="button" class="c-btn md-tap" data-md="toss">' + icoDeco('medal', 24) + '<span><b>Tap to flip the coin</b><small>Win the toss for a boost</small></span></button>';
   const rate = (p) => (p.bat != null ? '<span class="md-rt">' + shownCell(p.bat).html + '</span><span class="md-rt">' + shownCell(p.bowl).html + '</span>' : '');
   const said = (p) => (p.bat != null ? ', batting ' + shownCell(p.bat).letter + ', bowling ' + shownCell(p.bowl).letter : '');
@@ -96,7 +97,7 @@ export function matchdayHtml(vm, shown) {
   const roar = vm.roar && vm.roar.chancePct != null ? '<p class="md-line">' + icoDeco('fan', 20) + 'Crowd roar chance: ' + esc(vm.roar.chancePct) + '% an over</p>' : '';
   const names = shown.pep && vm.pep && b.pepPct !== b.teamPct;
   const total = (shown.hype || shown.toss || shown.pep)
-    ? 'Team +' + b.teamPct + '%' + (names ? ', ' + esc(vm.pep.name) + ' +' + b.pepPct + '%' : '')
+    ? (b.teamPct ? 'Team +' + b.teamPct + '%' : '') + (names ? (b.teamPct ? ', ' : '') + esc(vm.pep.name) + ' +' + b.pepPct + '%' : '') || '\u2014' // QA3 NEW-8: no "Team +0%" before Hype / Toss
     : 'Tap the cards to see your boost.';
   return '<div class="md-root">' +
     '<header class="strip c-dark md-strip"><span class="mid"><b>Match day</b><span>' + esc((vm.kindWord ? vm.kindWord + ' ' : '') + (vm.oppName ? 'vs ' + vm.oppName : 'Before the match')) + '</span></span>' +
@@ -111,7 +112,7 @@ export function matchdayHtml(vm, shown) {
 /** Spoken line for a card the moment it is shown (the live region reads it once). Pure. */
 export function liveLine(vm, which) {
   if (which === 'hype') return hypeWord(vm.hype.level) + ', plus ' + vm.hype.perfPct + ' percent.';
-  if (which === 'toss') return vm.toss.won ? 'You won the toss, plus ' + vm.toss.boostPct + ' percent.' : 'Rival won the toss. Nothing changes.';
+  if (which === 'toss') return vm.toss.won ? 'You won the toss, plus ' + vm.toss.boostPct + ' percent.' : noBoostLine(vm).replace('. +1', '. Plus 1');
   return vm.pep.name + ' got the pep talk, plus ' + vm.pep.boostPct + ' percent.';
 }
 

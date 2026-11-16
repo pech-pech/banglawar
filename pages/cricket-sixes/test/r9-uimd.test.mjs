@@ -37,7 +37,7 @@ test('revealed screen shows results as words and one pep player', () => {
 });
 test('lost toss copy is kind', () => {
   const h = matchdayHtml({ ...vm, toss: { won: false, boostPct: 5 } }, { hype: true, toss: true, pep: false });
-  assert.match(h, /Rival won the toss\. Nothing changes\./);
+  assert.match(h, /No boost\. \+1 Spoke\./);
 });
 test('odds sheet sums to 100 and lists four words', () => {
   const h = oddsHtml(vm);
