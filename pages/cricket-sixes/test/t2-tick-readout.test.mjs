@@ -29,7 +29,7 @@ test('Kind Floor key and result lines', () => {
   assert.ok(courseKey({ kindFloor: true }).some((r) => /Kind Floor/.test(r.text)));
   const ring = spotRing({ kindFloor: true }), i = ring.findIndex((r, j) => r.label === 'x1.2' && SPOT_SLICES[j].value === 1);
   assert.match(spotLine({ index: i, value: 1.2 }, ring, true), /Training gain x1\.2\. Kind Floor lifted this x1\.0 piece to x1\.2\./);
-  assert.equal(spotLine({ index: 0, value: 3, jackpot: true }, spotRing({}), false), 'Training gain x3. Gold slice.');
+  assert.equal(spotLine({ index: 0, value: 3, jackpot: true }, spotRing({}), false), 'Training gain x3.0. Gold slice.');
   assert.equal(courseLine({ gain: 4 }, 'S-', 'S-', 1, true, 'S-', false), '+4, cut at S-: you gain +1. Grade S- (same)');
   assert.equal(courseLine({ gain: 1 }, 'E-', 'E', 1, false, 'S-', false), 'Grade E- > E');
 });

@@ -59,3 +59,11 @@ test('grade reveal: one non-repeating pulse that ends gold, nothing flashes', ()
   assert.match(train, /animation:\s*tr-pulse [^;]* 1 both/);
   assert.match(train, /@media \(prefers-reduced-motion: no-preference\)[^]*tr-pulse/);
 });
+
+import { readFileSync as _rf } from 'node:fs';
+import { test as _t } from 'node:test';
+import _assert from 'node:assert/strict';
+_t('T8 V3 D4: Scout pick tag keeps its own width and never wraps', () => {
+  const src = _rf(new URL('../js/ui/coachpick-view.js', import.meta.url), 'utf8');
+  _assert.match(src, /class="c-tag" style="[^"]*white-space:nowrap[^"]*">Scout pick</);
+});

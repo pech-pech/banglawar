@@ -19,7 +19,7 @@ export const scoutSpinBtn = (vm) => (vm.spin && !vm.spin.spun && vm.open !== fal
 function card(c, full) {
   const label = 'Coach ' + c.name + (c.landed ? ' (scout pick)' : '') + ', grade ' + c.letter + ', strong in ' + strongText(c.strong) + (c.signed ? '. Signed' : full ? '. Slots full: release a coach to sign' : '');
   return '<li class="c-row m0-row t2-cand' + (c.signed ? ' m0-sel' : '') + '"><div class="t2-candtxt" aria-label="' + esc(label) + '">' +
-    '<span class="tr-cand__ico">' + deco('coach', 36) + '</span><span class="t2-who"><b class="name tr-cand__name">' + esc(c.name) + '</b>' + (c.landed ? '<small class="c-tag">Scout pick</small>' : '') + '<span class="t2-strong">' + strongHtml(c.strong) + '</span></span>' +
+    '<span class="tr-cand__ico">' + deco('coach', 36) + '</span><span class="t2-who"><b class="name tr-cand__name">' + esc(c.name) + '</b>' + (c.landed ? '<small class="c-tag" style="align-self:flex-start;width:auto;max-width:none;white-space:nowrap;padding:0 8px">Scout pick</small>' : '') + '<span class="t2-strong">' + strongHtml(c.strong) + '</span></span>' +
     '<span class="t2-grade" aria-hidden="true">' + esc(c.letter) + '</span></div>' +
     (c.signed ? '<span class="c-tag c-tag--done">Signed</span>' : '<button type="button" class="c-btn t2-cb" data-act="SignCoach" data-arg="' + esc(JSON.stringify({ id: c.id, coachId: c.id })) + '"' + (full ? ' disabled aria-disabled="true"' : '') + ' aria-label="Sign ' + esc(c.name) + (full ? '. Slots full' : '') + '">' + (full ? '<span>Sign</span><small class="t2-cb__why">Slots full</small>' : 'Sign') + '</button>') + '</li>';
 }

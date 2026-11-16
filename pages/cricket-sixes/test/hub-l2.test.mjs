@@ -261,3 +261,11 @@ test('drawProp stays inside propSize box around (x, y)', async () => {
     assert.ok(miny >= Y - h - 2 && maxy <= Y + 2, k + t + ' y ' + miny + '..' + maxy + ' vs ' + h);
   }
 });
+
+test('QA-V4 D2/D5: chapter line hidden at short heights; sheet rows avoid a lone last word', async () => {
+  const fs = await import('node:fs');
+  const hub = fs.readFileSync(new URL('../css/hub.css', import.meta.url), 'utf8');
+  const short = hub.slice(hub.indexOf('@media (max-width: 599px) and (max-height: 700px)'));
+  assert.match(short.slice(0, short.indexOf('\n}')), /\.hb-chap \{ display: none; \}/);
+  assert.match(fs.readFileSync(new URL('../css/week-sheet.css', import.meta.url), 'utf8'), /\.wk-txt[^{]*\{ text-wrap: pretty; \}/);
+});

@@ -24,5 +24,10 @@ test('openSpotlightWheel: new call shape, timing retired, hooks kept', () => {
   assert.ok(src.includes("wheelId: 'spot'") && src.includes('ring = spotRing(w)') && src.includes('legend: spotLegend(ring).concat(spotKey(ring, !!w.kindFloor)), J: 1.2'));
   assert.ok(src.includes("onSpin: (stop) => dispatch('Spin'") && src.includes('stored: w.stored'));
   assert.ok(!/COAST|STOP_FROM|wheelStop/.test(src) && !src.includes('wheel plus') && !src.includes('widths: w.widths'));
-  assert.ok(src.includes('The tick shows the slice under the pointer now.'));
+  assert.ok(src.includes('The tick shows where the pointer will stop.'));
+});
+
+test('X2: spotMult keeps one decimal (x1.0, x3.0), T2 D5', async () => {
+  const tv = await import('../js/ui/training-view.js');
+  assert.equal(tv.spotMult({ value: 1 }), 'x1.0'); assert.equal(tv.spotMult({ value: 3 }), 'x3.0'); assert.equal(tv.spotMult({ value: 1.5 }), 'x1.5');
 });

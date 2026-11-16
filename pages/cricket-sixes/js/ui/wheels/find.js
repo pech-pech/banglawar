@@ -4,7 +4,7 @@ import { openWheel } from '../wheel-view.js'; // wa1 find: Find is a big wheel
 import { findWheelOpts } from './find-opts.js';
 
 /** The card hint, kept literal here (tick / wm-w2-fix greps). */
-const FIND_CARD = '<p class="dr-hint">Stop on a gold block to find Coins, a player or a coach. The tick shows the slice under the pointer now.</p>';
+const FIND_CARD = '<p class="dr-hint">Stop on a gold block to find Coins, a player or a coach. The tick shows where the pointer will stop.</p>';
 const FIND_WORD = { coins: 'Coins', player: 'a trial player', coach: 'a trial coach' };
 /** The Find card from what was really paid (a Player / Coach cell can fall back to Coins). */
 export function findLine(p) {

@@ -4,9 +4,11 @@ import assert from 'node:assert/strict';
 import { HYPE_SLICES } from '../js/data/wheels/hype.js';
 import { TOSS_SLICES } from '../js/data/wheels/toss.js';
 import { PEP_SLICES, PEP_SLOT_OF, pepName } from '../js/data/wheels/pep.js';
+import { scoutRingFor } from '../js/core/wheels/scout.js';
+import { LABEL_MIN_W, legendRows, legendWith, sliceLabel } from '../js/ui/wheel-look.js';
 import { hypeRing } from '../js/core/wheels/hype.js';
 import { tossRing } from '../js/core/wheels/toss.js';
-import { pepRing } from '../js/core/wheels/pep.js';
+import { pepRing, pepRingName } from '../js/core/wheels/pep.js';
 import { neutralMods } from '../js/core/wheels/common.js';
 
 const CAP = 1.2;            // 12% of a 10-unit rim
@@ -104,8 +106,68 @@ test('6 neighbours after Home Crowd / Good Sport: rules are silent (reported, no
   assert.equal(neighboursOk(tossVariants['Good Sport'], TOSS_EQ), false);
 });
 
-test('6 widened gold pieces at most 13.0% and clamp', { todo: 'needs T1 wheel-ring.js widening (goldAdd / Extra Gold / Coin Weight / Pep Voice); not in this branch' });
-test('6 neighbours after widening (Hype, Scout) incl. Extra Gold second NUTS', { todo: 'needs T1 wheel-ring.js widening; hypeRing has no goldAdd/extra support yet' });
+// SPEC 11b widening (T8): full-tree ranks from js/data/wheelmeta.js: Widener 0.02 x 3, Coin Weight 0.1 x 2, Pep Voice 0.08 x 2, Top Name 0.1, Extra Gold 1.
+const CEIL = 1.3;           // 13.0% of a 10-unit rim
+const sumW = (ring) => ring.reduce((a, r) => a + r.w, 0);
+const ceilOk = (ring) => ring.every((r) => r.w <= CEIL + EPS);
+const widened = {
+  'hype Widener': hypeRing(mods({ goldAdd: 0.06 })),
+  'hype Extra Gold': hypeRing(mods({ extra: 1 })),
+  'hype Widener + Extra Gold + Warm Crowd': hypeRing(mods({ goldAdd: 0.06, extra: 1, warmCrowd: 1 })),
+  'toss Coin Weight 2': tossRing(mods({ rareAdd: 0.2 })),
+  'toss Coin Weight 2 + Widener + Kind Floor': tossRing(mods({ rareAdd: 0.2, goldAdd: 0.06, floor: 1 })),
+  'pep Widener + Pep Voice 2': pepRing(mods({ goldAdd: 0.06, rareAdd: 0.16 }), 0),
+  'pep full (Extra Gold)': pepRing(mods({ goldAdd: 0.06, rareAdd: 0.16, extra: 1 }), 3),
+  'scout Widener + Top Name': scoutRingFor(mods({ goldAdd: 0.16 })),
+  'scout full (Extra Gold)': scoutRingFor(mods({ goldAdd: 0.16, extra: 1 })),
+};
+
+test('6 widened gold pieces at most 13.0% and clamp', () => {
+  for (const [n, r] of Object.entries(widened)) {
+    assert.ok(Math.abs(sumW(r) - 10) < 1e-9, n + ' sum 10');
+    assert.ok(ceilOk(r), n + ' ceiling 13%');
+    assert.ok(r.every((x) => x.w > 0), n + ' no zero width');
+    assert.deepEqual(r.map((x) => x.id), r.map((_, i) => i), n + ' ids in ring order');
+  }
+  // widened pieces grow by the node, never re-split; the others shrink pro rata
+  const hw = widened['hype Widener'];
+  assert.equal(hw.length, 9); assert.ok(Math.abs(hw[0].w - 1.06) < 1e-9);
+  assert.ok(Math.abs(hw[1].w / HYPE0[1].w - 8.94 / sumW(HYPE0.slice(1))) < 1e-9, 'pro rata');
+  const tw = widened['toss Coin Weight 2'];
+  assert.deepEqual(tw.map((x, i) => (TOSS_SLICES[i].value === 5 ? +x.w.toFixed(9) : 0)).filter(Boolean), [1.2, 1.2, 1.2]);
+  assert.deepEqual(widened['toss Coin Weight 2 + Widener + Kind Floor'].map((x) => x.w), tw.map((x) => x.w), 'Widener does not widen Toss');
+  const pw = widened['pep Widener + Pep Voice 2'];
+  assert.equal(pw.length, 12); assert.ok(Math.abs(pw[7].w - (0.96 + 0.22)) < 1e-9);
+  // clamp: a node that would go above 13.0% stops at 13.0%, one piece
+  for (const r of [hypeRing(mods({ goldAdd: 5 })), tossRing(mods({ rareAdd: 5 })), pepRing(mods({ rareAdd: 5 })), pepRing(mods({ rareAdd: 5, extra: 1 })), scoutRingFor(mods({ goldAdd: 5, extra: 1 }))]) {
+    assert.ok(ceilOk(r) && Math.abs(sumW(r) - 10) < 1e-9);
+    assert.ok(Math.abs(Math.max(...r.map((x) => x.w)) - CEIL) < 1e-9, 'clamped at 13.0%');
+  }
+  // mutation: a 13.1% piece fails the ceiling predicate
+  assert.equal(ceilOk([{ w: 1.31 }]), false); assert.equal(ceilOk([{ w: 1.3 }]), true);
+  // no tree widths owned: the tables exactly (frozen parity)
+  assert.deepEqual(hypeRing(mods({ goldAdd: 0, extra: 0 })).map((x) => x.w), HYPE0.map((x) => x.w));
+  assert.deepEqual(pepRing(neutralMods(), 0).map((x) => x.w), PEP_SLICES.map((x) => x.w));
+});
+
+test('6 neighbours after widening (Hype, Scout) incl. Extra Gold second NUTS', () => {
+  const he = widened['hype Extra Gold'];
+  assert.equal(he.length, 10);
+  assert.deepEqual(he.map((x) => x.value), [10, 4, 2, 4, 6, 10, 2, 4, 2, 6], 'second NUTS on the seam opposite NUTS, between HIGH and LOW');
+  assert.ok(Math.abs(he[5].w - 0.75) < 1e-9 && he[5].gold && he[5].second && he[5].level === 'nuts');
+  for (const n of ['hype Widener', 'hype Extra Gold', 'hype Widener + Extra Gold + Warm Crowd', 'scout Widener + Top Name', 'scout full (Extra Gold)']) assert.ok(neighboursOk(widened[n]), n);
+  assert.deepEqual(widened['scout full (Extra Gold)'].map((x) => x.value), [2, 0, 1, 0, 1, 2, 0, 1, 0, 1, 0]);
+  // Toss keeps its listed equal runs; Pep's 2.5 pairs move one place on with the Extra Gold piece at slice 2
+  assert.ok(neighboursOk(widened['toss Coin Weight 2'], TOSS_EQ));
+  assert.ok(neighboursOk(widened['pep Widener + Pep Voice 2'], PEP_EQ));
+  const pf = widened['pep full (Extra Gold)'];
+  assert.deepEqual(pf.map((x) => x.value), [5, 10, 7.5, 5, 2.5, 2.5, 5, 7.5, 10, 7.5, 5, 2.5, 2.5]);
+  assert.ok(neighboursOk(pf, PEP_EQ.map((i) => i + 1)));
+  assert.notEqual(pf[1].slot, pf[8].slot, 'the second +10 names another player');
+  // mutation: Extra Gold placed next to the first gold would fail
+  const bad = [...HYPE0.slice(0, 1), { ...HYPE0[0], id: 99 }, ...HYPE0.slice(1)];
+  assert.equal(neighboursOk(bad), false);
+});
 
 test('12 labels: no Hype / Toss / Pep slice is under 0.7 rim units, so no legend is needed', () => {
   const all = [...HYPE0, ...TOSS_SLICES, ...PEP_SLICES, ...Object.values(hypeVariants).flat(), ...Object.values(tossVariants).flat(), ...Object.values(pepVariants).flat()];
@@ -142,5 +204,39 @@ test('12 Pep names 4 letters or less above 12 slices: Pep has exactly 12, so the
   assert.deepEqual(slots, [1, 2, 3, 4, 5, 6, 1, 2, 3, 4, 5, 6]);
 });
 
-test('12 Pep names 4 letters or less above 12 slices (a ring of 13-16)', { todo: 'Pep has 12 slices today; a wider ring needs T1 wheel-ring.js and a name-length UI hook that does not exist yet' });
-test('12 legend text present when a slice is under 7% (rim label rendering)', { todo: 'ring-label/legend rendering lives in T1 wheel-ring.js / wheel view; none of Hype/Toss/Pep prints under 7% yet (Hype comment says no legend)' });
+test('12 Pep names 4 letters or less above 12 slices (a ring of 13-16)', () => {
+  const pf = widened['pep full (Extra Gold)'];
+  assert.equal(pf.length, 13, 'Extra Gold makes a 13-slice Pep ring');
+  for (const n of ['Chowdhury Rahman', 'Mohammad Hasan Mia', 'Asif Khan', 'Shakib Al Hasan', 'Al', 'Tenletters']) {
+    for (const len of [13, 16]) assert.ok(Array.from(pepRingName(n, len)).length <= 4 && pepRingName(n, len).length > 0, n + ' @' + len);
+    assert.equal(pepRingName(n, 12), pepName(n), 'up to 12 slices: the pepName rule');
+  }
+  assert.equal(pepRingName('Chowdhury Rahman', 13), 'Rahm');
+  assert.equal(pepRingName('Al', 13), 'Al');
+  assert.equal(pepRingName(null, 13), '');
+});
+
+test('12 legend text present when a slice is under 7% (rim label rendering)', () => {
+  // the tree rings stay at 7% or wider, so they print their text; the narrowest piece is Pep full tree (0.72 units)
+  const rows = Object.values(widened).flat();
+  assert.ok(Math.min(...rows.map((r) => r.w)) >= LABEL_MIN_W);
+  for (const r of Object.values(widened)) assert.deepEqual(legendRows(r), [], 'no narrow slice, no automatic legend row');
+  // any slice a node narrows under 7% prints one character or a signed number and gets a legend row (wheel-look, used by wheel-view)
+  for (const ring of [widened['hype Extra Gold'], widened['pep full (Extra Gold)'], widened['toss Coin Weight 2']]) {
+    const narrow = ring.map((r, i) => (i === 1 ? { ...r, w: 0.5 } : r)), lg = legendRows(narrow), ch = sliceLabel(narrow[1]);
+    assert.ok(labelOk({ w: 0.5, label: ch }), 'printed ' + ch);
+    assert.equal(lg.length, 1); assert.equal(lg[0].ch, ch); assert.ok(lg[0].text.length > 0);
+    assert.ok(legendWith(narrow, [], null).some((l) => l.ch === ch), 'legendWith keeps it');
+  }
+});
+
+test('wheel-ring fitRing / extraGoldAt edge cases', async () => {
+  const { fitRing, extraGoldAt, MIN_KEEP } = await import('../js/core/wheel-ring.js');
+  const mk = (ws, g = -1) => ws.map((w, i) => ({ id: i, w, value: i, gold: i === g }));
+  assert.equal(extraGoldAt(mk([1, 1, 1])), -1, 'no gold, no seam');
+  assert.equal(extraGoldAt(mk([5, 5], 0)), 1, 'only seams beside gold: the farthest one');
+  const r = fitRing(mk([9, 0.5, 0.5], 0), (x) => x.gold); // 9 > ceiling: clamped to 1.3, others grow to fill
+  assert.ok(Math.abs(r[0].w - 1.3) < 1e-9 && Math.abs(r.reduce((a, x) => a + x.w, 0) - 10) < 1e-9);
+  const big = fitRing(mk([1.3, 1.3, 1.3, 1.3, 1.3, 1.3, 1.3, 1.3, 1.3, 0.1], -1).map((x, i) => ({ ...x, gold: i < 9 })), (x) => x.gold);
+  assert.ok(big[9].w >= 0.1 * MIN_KEEP - 1e-12 && Math.abs(big.reduce((a, x) => a + x.w, 0) - 10) < 1e-9, 'others never vanish');
+});

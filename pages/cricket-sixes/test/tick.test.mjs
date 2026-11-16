@@ -34,5 +34,5 @@ test('QA fixes: tick on its own canvas above the sheen, dark core with white hal
   assert.match(w, /wh-tk/); assert.match(w, /\[TICK\.PLAIN_PX \/ 2 \+ 1, '#fff'\], \[TICK\.PLAIN_PX \/ 2, 'rgb\(' \+ pal\.out/);
   assert.match(w, /speed > 8 && !isG\(i\)/); assert.match(w, /speed > 8 && !GD\.includes\(i\)/);
   assert.match(d, /r0 = R - 15/); assert.match(d, /WEDGE_TIP_PX/); assert.doesNotMatch(d, /diamond\(Math\.round\(c\[0\]\)/);
-  assert.match(rd('wheels/find'), /The tick shows the slice under the pointer now\./); for (const f of ['training-view', 'coaches-sheet']) assert.match(rd(f), /The tick shows the slice under the pointer now\./, f);
+  assert.match(rd('wheels/find'), /The tick shows where the pointer will stop\./); for (const f of ['training-view', 'coaches-sheet']) assert.match(rd(f), /The tick shows where the pointer will stop\./, f);
 });

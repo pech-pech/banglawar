@@ -146,3 +146,22 @@ test('coach strip CSS: .ct- block, tokens only, taps >= 56px (e2e audit; contrac
   assert.equal(/#[0-9a-fA-F]{3,6}\b/.test(blk), false);
   for (const c of ['.ct-all, .ct-scout', '.ct-pick', '.ct-course']) assert.match(blk, new RegExp(c.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ' \\{[^}]*min-height: 56px'), c);
 });
+
+test('X2: ct-head column min 56px (Scorebook All/Scout not 49 wide) and seg() has no duplicate tick hint', async () => {
+  const { readFileSync } = await import('node:fs');
+  const css = readFileSync(new URL('../css/training2.css', import.meta.url), 'utf8');
+  assert.match(css, /\.ct-head \{[^}]*grid-template-columns: minmax\(56px, auto\)/);
+  const js = readFileSync(new URL('../js/ui/training-view.js', import.meta.url), 'utf8');
+  const m = js.match(/function seg\([\s\S]*?\n\}/)[0];
+  assert.ok(!m.includes('The tick shows'));
+});
+
+test('X2: canvas coach face is forced to 18 px (inline makeScene size)', () => {
+  assert.match(readFileSync(new URL('../css/training2.css', import.meta.url), 'utf8'), /canvas\.ct-face \{ width: 18px !important/);
+});
+
+test('X2: hint is hidden only on cards with .wh-who (no empty bar on Find/Scout/Finals)', () => {
+  const css = readFileSync(new URL('../css/training2.css', import.meta.url), 'utf8');
+  assert.match(css, /\.wh-card:has\(\.wh-who\) \.dr-hint/);
+  assert.ok(!/^\s*\.wh-card \.dr-hint \{ position/m.test(css));
+});

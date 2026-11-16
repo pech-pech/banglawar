@@ -223,6 +223,9 @@ function makeWheel(cv, segs, vm) {
     const wrap = cv.parentElement, stage = wrap && wrap.parentElement;
     const w = stage ? stage.clientWidth : 300, h = stage ? stage.clientHeight : 300;
     W = Math.max(150, Math.floor(Math.min(w, h, 380)));
+    // QA-V1 H2 (G5): the drawn wheel keeps the size it first had in this over; the result panel takes the room of the hidden hint lines instead of re-sizing it
+    const lk = (vm && vm.over) + ':' + (vm && vm.side);
+    if (st.lock && st.lock.key === lk && st.lock.W - W < 8) W = st.lock.W; else st.lock = { key: lk, W };
     for (const c of [cv, ovc]) { c.width = c.height = Math.round(W * k); c.style.width = c.style.height = W + 'px'; }
     if (wrap) { wrap.style.width = wrap.style.height = W + 'px'; }
     M = Math.max(20, Math.round(W * 0.085)); R = W / 2 - M; paint(); lastRot = null;
@@ -265,7 +268,7 @@ function makeWheel(cv, segs, vm) {
       if (f.band > 0) { const b = f.band * U; ctx.beginPath(); ctx.arc(0, 0, rr, a - b - Math.PI / 2, a + b - Math.PI / 2); ctx.lineWidth = 12 * ks; ctx.strokeStyle = pal.hi; ctx.stroke(); ctx.setLineDash([3, 3]); ctx.lineWidth = 1.5; ctx.strokeStyle = pal.ink; ctx.stroke(); ctx.setLineDash([]); }
       ctx.save(); ctx.rotate(a); ctx.beginPath(); ctx.moveTo(0, -(R + 2 * ks)); ctx.lineTo(-7 * ks, -(R + 20 * ks)); ctx.lineTo(7 * ks, -(R + 20 * ks)); ctx.closePath();
       ctx.fillStyle = pal.hi; ctx.fill(); ctx.lineWidth = 2.5 * ks; ctx.strokeStyle = pal.ink; ctx.lineJoin = 'round'; ctx.stroke();
-      ctx.fillStyle = pal.ink; ctx.font = '900 ' + Math.max(9, 11 * ks) + 'px ' + fontFam(); ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; if (Math.cos(a) < 0) { ctx.translate(0, -(R + 28 * ks)); ctx.rotate(Math.PI); ctx.fillText('AIM', 0, 0); } else ctx.fillText('AIM', 0, -(R + 28 * ks)); ctx.restore();
+      ctx.fillStyle = pal.ink; ctx.font = '900 ' + Math.max(9, 11 * ks) + 'px ' + fontFam(); ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; if (Math.cos(a) < 0) { ctx.translate(0, -(R + 28 * ks)); ctx.rotate(Math.PI); ctx.fillText('TICK', 0, 0); } else ctx.fillText('TICK', 0, -(R + 28 * ks)); ctx.restore();
     }
     // hub (does not turn): OVER n
     const hr = 27 * ks; ctx.beginPath(); ctx.arc(0, 0, hr, 0, TAU); ctx.fillStyle = pal.ink; ctx.fill();
@@ -322,7 +325,7 @@ export function render(el, vm, dispatch, open) {
 }
 function readyHint(el, vm) {
   const n = el.querySelector('.wm-now'); if (!n) return;
-  n.hidden = false; n.classList.add('is-hint'); n.innerHTML = '<span>Spin, then watch the AIM tick: tap STOP when a ▲ slice is at it</span>';
+  n.hidden = false; n.classList.add('is-hint'); n.innerHTML = '<span>Spin, then watch the tick: tap STOP when a ▲ slice is at it</span>';
 }
 function setupWheel(el, segs, vm) {
   const cv = el.querySelector('.wm-cv'); const w = makeWheel(cv, segs || [], vm);
@@ -375,13 +378,13 @@ function onSpin(el, vm, btn, ev) {
     st.drawPos = pos; st.drawOpts = { over: vm.over, tick, band: guide ? phys.J : 0, zone, chime };
     w.draw(pos, st.drawOpts);
     const ni = segAtPos(tick), ne = ni !== lastNow ? nowEl() : null; if (ne) { lastNow = ni; const g = segs[ni]; if (g) { ne.textContent = sliceText(g); ne.className = 'wm-nowv wm-t--' + (g.tone || 'so'); } }
-    if (t >= GUARD && btn.classList.contains('is-wait')) { waitLook(false); lab.textContent = 'STOP'; sub.textContent = 'tap when your slice is at AIM'; btn.setAttribute('aria-label', 'Stop the wheel'); }
+    if (t >= GUARD && btn.classList.contains('is-wait')) { waitLook(false); lab.textContent = 'STOP'; sub.textContent = 'tap when your slice is at the tick'; btn.setAttribute('aria-label', 'Stop the wheel'); }
     const gl = glowPhase(t); // time only; one shot every cycle
     const gv = gl.on ? (gl.level * 7).toFixed(1) : ''; // DOM writes only on change (PERF fix 5)
     if (gl.on !== lastGlowOn) { lastGlowOn = gl.on; btn.classList.toggle('is-glow', gl.on); }
     if (gv !== lastGlow) { lastGlow = gv; if (gv) btn.style.setProperty('--wm-glow', gv + 'px'); }
     if (gl.on && lab.textContent !== 'STOP!') { lab.textContent = 'STOP!'; sub.textContent = 'Now!'; }
-    else if (!gl.on && lab.textContent === 'STOP!') { lab.textContent = 'STOP'; sub.textContent = 'tap when your slice is at AIM'; }
+    else if (!gl.on && lab.textContent === 'STOP!') { lab.textContent = 'STOP'; sub.textContent = 'tap when your slice is at the tick'; }
     raf = requestAnimationFrame(frame);
   }
   function doStop(t) {
@@ -442,7 +445,8 @@ function showResult(el, vm, r, fresh, keepWheel) {
   const sc = r.score || vm.score; const hs = root.querySelector('.wm-strip .score'); if (hs && sc) { hs.textContent = sc.runs + '/' + sc.wk; hs.setAttribute('aria-label', sc.runs + ' runs for ' + sc.wk + ' wickets'); }
   const hm = root.querySelector('.wm-strip .mid'); if (hm) hm.innerHTML = '<b>Over ' + esc(over) + ' done</b><span>' + esc(r.stage === 'break' ? 'Innings over' : r.stage === 'done' ? 'Match over' : 'Next: over ' + (over + 1) + ' of 10') + '</span>';
   if (r.need && root.querySelector('.wm-need')) root.querySelector('.wm-need b').innerHTML = 'Need <em>' + esc(r.need.runs) + '</em> off <em>' + esc(r.need.balls) + '</em> balls';
-  ['.wm-row', '.wm-legend', '.wm-exp', '.wm-who'].forEach((q) => { const x = root.querySelector(q); if (x) x.hidden = true; });
+  ['.wm-row', '.wm-legend'].forEach((q) => { const x = root.querySelector(q); if (x) x.hidden = true; });
+  ['.wm-exp', '.wm-who'].forEach((q) => { const x = root.querySelector(q); if (x) x.style.visibility = 'hidden'; }); // H2: keep their room so the wheel stays put
   const res = root.querySelector('.wm-res'); res.hidden = false;
   const chip = g ? '<b class="wm-chip wm-t--' + esc(g.tone || 'so') + '">' + esc(toneMark(g.tone) + ' ' + landedText(g, r.wheel)) + '</b>' : '';
   const slots = Array.from({ length: 6 }, (_, i) => '<li class="op-slot' + (i >= balls.length ? ' is-unused' : '') + '" data-i="' + i + '"><span class="op-circle" aria-hidden="true"></span><span class="op-word" aria-hidden="true"></span></li>').join('');

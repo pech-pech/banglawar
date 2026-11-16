@@ -2,7 +2,8 @@
 // Pep reveal kind hooks + the Pep light chase timing (S0 Z1, owner T3). Read by the dispatcher in ./reveal.js.
 import { DR } from '../../data/dialreel.js';
 import { clamp, sum, neutralMods } from './common.js';
-import { PEP_SLICES, PEP_SLOT_OF } from '../../data/wheels/pep.js';
+import { PEP_SLICES, PEP_SLOT_OF, pepName } from '../../data/wheels/pep.js';
+import { fitRing, extraGoldAt } from '../wheel-ring.js';
 
 /** Pep light chase: the lit light index (0..5) after each step and the time (s) it lights; n = 6 + target steps, d_i = 0.06 + 0.20 (i/10)^2 rescaled to `seconds`. @param {number} slot0 @param {number} [seconds] */
 export function pepSteps(slot0, seconds = DR.REVEAL.pep.seconds) {
@@ -31,12 +32,34 @@ export const REVEAL_KIND = {
 
 /**
  * Pep ring (CONTRACT-A sec 5 rows): the 12 PEP_SLICES, each also carrying slot = PEP_SLOT_OF(i, offset) (1..6, p1..p6 twice round the ring).
- * TODO(T3-after-T1): Pep Voice widening and Extra Gold need T1's wheel-ring.js; not done here, so mods only matter to pepAtStop.
+ * Tree widths (SPEC 11a/11b): Widener (goldAdd) + Pep Voice (rareAdd, 0.08 a rank) widen the 10 slice; Extra Gold (extra) adds a second +10% piece,
+ * EXTRA_W (0.75) x the 10 slice, on the seam farthest from it (wheel-ring.js extraGoldAt), carrying the slot opposite the first 10's player
+ * (slot + 3 round the six), so a different player can take +10%. Gold pieces clamp at 13.0%, never re-split; the rest shrink pro rata.
+ * With Extra Gold the ring has 13 slices: names go to 4 letters or less (pepRingName). No tree widths owned = the table exactly.
  * @param {any} [mods] @param {number} [offset]
  */
 export function pepRing(mods = neutralMods(), offset = 0) {
-  void mods;
-  return PEP_SLICES.map((s, i) => ({ ...s, slot: PEP_SLOT_OF(i, offset) }));
+  const m = { ...neutralMods(), ...mods }, add = Math.max(0, (+m.goldAdd || 0) + (+m.rareAdd || 0)), nx = Math.max(0, m.extra | 0);
+  /** @type {any[]} */ let rows = PEP_SLICES.map((s, i) => ({ ...s, slot: PEP_SLOT_OF(i, offset) }));
+  if (!(add > 0 || nx > 0)) return rows;
+  rows = rows.map((r) => (r.gold ? { ...r, w: r.w + add } : r));
+  const g = rows.find((r) => r.gold);
+  for (let e = 0; g && e < nx; e++) rows.splice(extraGoldAt(rows), 0, { ...g, w: g.w * DR.EXTRA_W, second: true, slot: ((g.slot - 1 + 3 + e) % 6) + 1 });
+  return fitRing(rows, (r) => !!r.gold).map((r) => ({ ...r }));
+}
+
+/** SPEC 2f: above PEP_NAME_SHORT_ABOVE slices a Pep name prints 4 letters or less. */
+export const PEP_NAME_SHORT_ABOVE = 12;
+export const PEP_NAME_SHORT_MAX = 4;
+/**
+ * The name a Pep slice prints on a ring of ringLen slices: pepName (surname over 10 chars) up to 12 slices; above 12, the surname cut to
+ * 4 letters or less (SPEC 2f "Pep 16 (names 4 letters or less above 12)"). Pure. @param {any} full @param {number} ringLen
+ */
+export function pepRingName(full, ringLen) {
+  const n = pepName(full);
+  if (!(ringLen > PEP_NAME_SHORT_ABOVE)) return n;
+  const parts = n.split(/\s+/).filter(Boolean), last = parts.length ? parts[parts.length - 1] : '';
+  return Array.from(last).slice(0, PEP_NAME_SHORT_MAX).join('');
 }
 
 /**

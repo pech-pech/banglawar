@@ -47,7 +47,7 @@ test('stored stop passes through, pure (no mutation of vm)', () => {
 test('wheel-view: Scout name fit tries shorter cuts down to 4 letters + "." (never one letter); one-char labels sit at the rim with a cream halo', async () => {
   const { readFileSync } = await import('node:fs');
   const w = readFileSync(new URL('../js/ui/wheel-view.js', import.meta.url), 'utf8');
-  assert.match(w, /scoutCuts\(card\.fullName/);
+  assert.match(w, /scoutNameCuts\(card\.fullName/);
   assert.match(w, /F\.one = true/); assert.match(w, /ONE_HALO/);
 });
 

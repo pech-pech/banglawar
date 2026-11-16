@@ -68,9 +68,9 @@ export function dialResult(rng, dial, stop = false) {
 }
 
 // ---- T3 ring API (CONTRACT-A s5/s7): slice-row ring + stop by sliceId. Old dial functions above stay as they are. ----
-// TODO(T3-after-T1): gold widening (goldAdd), Extra Gold second NUTS and ring splitting need T1's wheel-ring.js (not merged); not done here.
 import { hypeSlicesFor } from '../../data/wheels/hype.js';
 import { applyWarmCrowd, warmCrowdOwned } from '../perks/warm-crowd.js';
+import { fitRing, extraGoldAt } from '../wheel-ring.js';
 
 /** Level of a ring row: 'nuts'|'high'|'med'|'low' (row.level, else read from the label). @param {any} row */
 export function HYPE_LEVEL_OF(row) {
@@ -79,10 +79,15 @@ export function HYPE_LEVEL_OF(row) {
   return w === 'nuts' || w === 'high' || w === 'med' || w === 'low' ? w : 'med';
 }
 
-/** Hype ring rows for tilt. Order: Kind Floor / Home Crowd (LOW lifts), then Warm Crowd. @param {any} [mods] @param {number} [tilt] */
+/**
+ * Hype ring rows for tilt. Order: Kind Floor / Home Crowd (LOW lifts), then the tree widths (SPEC 11a/11b): Widener (goldAdd, rim units) on NUTS,
+ * Extra Gold (extra) = a second NUTS piece EXTRA_W (0.75) x the NUTS width on the seam farthest from NUTS (between HIGH and LOW), both clamped at 13.0%,
+ * never re-split; the other pieces shrink pro rata so the rim stays 10. Hype has no own width node (Big Voice retired, so rareAdd is ignored).
+ * Then Warm Crowd. No widening owned = the table widths exactly. @param {any} [mods] @param {number} [tilt]
+ */
 export function hypeRing(mods = neutralMods(), tilt = 0) {
   const m = { ...neutralMods(), ...mods };
-  const rows = hypeSlicesFor(tilt).map((/** @type {any} */ r) => {
+  /** @type {any[]} */ let rows = hypeSlicesFor(tilt).map((/** @type {any} */ r) => {
     const level = HYPE_LEVEL_OF(r);
     if (level !== 'low') return { ...r, level };
     let value = r.value + m.floor * DR.UNIT.hype, lv = 'low', label = r.label;
@@ -90,6 +95,13 @@ export function hypeRing(mods = neutralMods(), tilt = 0) {
     if (value !== r.value) label = '+' + value;
     return { ...r, value, level: lv, label };
   });
+  const add = Math.max(0, +m.goldAdd || 0), nx = Math.max(0, m.extra | 0);
+  if (add > 0 || nx > 0) {
+    rows = rows.map((r) => (r.gold ? { ...r, w: r.w + add } : r));
+    const g = rows.find((r) => r.gold);
+    for (let e = 0; g && e < nx; e++) { const b = extraGoldAt(rows); rows.splice(b, 0, { ...g, w: g.w * DR.EXTRA_W, second: true }); }
+    rows = fitRing(rows, (r) => !!r.gold).map((r) => ({ ...r }));
+  }
   return applyWarmCrowd(rows, warmCrowdOwned(m));
 }
 

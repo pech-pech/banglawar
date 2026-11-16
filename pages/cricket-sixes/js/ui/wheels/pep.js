@@ -3,10 +3,11 @@
 import { openWheel } from '../wheel-view.js';
 import { dialLook, tokProps, TOKVAL } from './shared.js';
 import { pepName } from '../../data/wheels/pep.js';
+import { pepRingName } from '../../core/wheels/pep.js';
 
-/** Pep ring labels = the six's names. Ring row i carries slot (1..6); label = 'name +x%' (SPEC 8), name cut to the surname over 10 chars. No slot or name: keep the row's label. Pure. */
+/** Pep ring labels = the six's names. Ring row i carries slot (1..6); label = 'name +x%' (SPEC 8), name via pepRingName (surname over 10 chars up to 12 slices; 4 letters or less above 12, the renderer adds no second ".."). No slot or name: keep the row's label. Pure. */
 export const pepSlices = (/** @type {any[]} */ ring, /** @type {string[]} */ names) =>
-  (ring || []).map((c) => { const n = names && c && c.slot ? names[c.slot - 1] : ''; const v = c && c.value != null ? c.value : parseFloat(String(c && c.label).replace('%', '')); return { ...c, label: n ? pepName(n) + ' +' + v + '%' : c.label }; });
+  (ring || []).map((c, _i, all) => { const n = names && c && c.slot ? names[c.slot - 1] : ''; const v = c && c.value != null ? c.value : parseFloat(String(c && c.label).replace('%', '')); return { ...c, label: n ? pepRingName(n, all.length) + ' +' + v + '%' : c.label }; });
 
 /** Pep result copy: names from the six (slot or slots), chip = per-slice boost, gold on the 10. Pure. */
 const pepLabel = (p, names) => { const d = describePep(p, names); return d.say.split('. ')[0].replace(/^Landed on /, ''); };
@@ -23,7 +24,7 @@ export function spinPep({ get, look, dispatch, onCollect, names }) {
   const p0 = get();
   return openWheel({
     wheelId: 'pep', ring: pepSlices(get().ring, names), spinKey: get().spinKey, J: 1.2, stored: get().stored, wobKey: get().wobKey,
-    title: 'Pep talk', cardHtml: '<p class="dr-hint">You win: a pep talk, +2.5% to +10% on one player. Aim at gold. The tick shows the slice under the pointer now.</p>',
+    title: 'Pep talk', cardHtml: '<p class="dr-hint">You win: a pep talk, +2.5% to +10% on one player. Aim at gold. The tick shows where the pointer will stop.</p>',
     look: dialLook(look), pending: p0.pending,
     ...tokProps(get, dispatch, 'pep', 'Pep'), tokVal: TOKVAL.pep, tokText: (p) => 'Landed on ' + pepLabel(p, names),
     onSpin: (stop) => dispatch('PepSpin', { stop: { sliceId: stop.sliceId, stopT: stop.stopT, cycle: stop.cycle, tInCycle: stop.tInCycle, respin: stop.respin, t: stop.t, phi: stop.phi, e: stop.e } }),

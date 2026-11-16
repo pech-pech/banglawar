@@ -340,7 +340,7 @@ export function drawBanner(host, opts) {
     const measure = () => {
       const hr = host.getBoundingClientRect();
       const rel = (sel) => { const el = host.querySelector(sel); if (!el) return null; const r = el.getBoundingClientRect(); return { x: r.left - hr.left - (host.clientLeft || 0), y: r.top - hr.top - (host.clientTop || 0), w: r.width, h: r.height }; };
-      return { W: host.clientWidth, H: host.clientHeight, keep: ['.hb-gb', '.hb-band', '.hb-week'].map(rel).filter(Boolean) };
+      return { W: host.clientWidth, H: host.clientHeight, band: rel('.hb-band'), keep: ['.hb-gb', '.hb-band', '.hb-week'].map(rel).filter(Boolean) };
     };
     function paint() {
       if (state.dead) return;
@@ -359,23 +359,47 @@ export function drawBanner(host, opts) {
       scn.clear(P.grass2);
       for (let y = 0; y < AH; y++) for (let x = 0; x < AW; x++) { const q = hash(x, y); if (q < 0.025) ISO.px(ctx, x, y, 1, 1, P.grass3); else if (q < 0.045) ISO.px(ctx, x, y, 1, 1, P.grass1); }
       const lv = lvOf(opts.levels, 'stands'), gate = opts.gate || { pct: 0, hidden: true };
-      const b = box('stands', lv);
+      let b = box('stands', lv);
+      const bb0 = BB.stands[lv - 1], stand0 = b;
       // keep-out in art px; the stands sit on the lowest free baseline, left of centre so the ghost fits on the right
       const keep = m.keep.map((r) => ({ x: Math.floor(r.x / sc), y: Math.floor(r.y / sc), w: Math.ceil(r.w / sc) + 1, h: Math.ceil(r.h / sc) + 1 }));
-      const bandTop = keep.reduce((t, k) => (k.y > AH / 2 ? Math.min(t, k.y) : t), AH);
-      const by = Math.max(b.h + 2, Math.min(AH - 2, bandTop - 2));
-      const cx = Math.round(Math.max(b.w / 2 + 2, Math.min(AW - b.w / 2 - 2, AW * (gate.hidden ? 0.5 : 0.36))));
-      const ox = Math.round(cx - b.cx), oy = Math.round(by - b.y1);
-      ISO.setOrigin(ox, oy);
-      SPR.building('stands', ctx, 0, 0, lv);
-      ISO.setOrigin(0, 0);
+      let bandTop = keep.reduce((t, k) => (k.y > AH / 2 ? Math.min(t, k.y) : t), AH);
+      // short banners: the band may start above the half line (Scorebook 475x638), so take its real top
+      if (m.H < 130 && m.band && m.band.y > 0) bandTop = Math.min(bandTop, Math.floor(m.band.y / sc));
+      // short banners (H < 130): the stand base rests on the band and the roof may rise out of the canvas, instead of the whole stand sinking behind the band
+      const by = m.H < 130 ? Math.min(AH - 2, bandTop - 2) : Math.max(b.h + 2, Math.min(AH - 2, bandTop - 2));
+      // short banner whose stand is taller than the art above the band (Scorebook 475): scale the whole stand down to fit, keeping aspect
+      let fit = 1;
+      if (m.H < 130 && b.h > by - 1) fit = Math.max(0.3, (by - 1) / b.h);
+      const sw0 = fit < 1 ? Math.max(1, Math.round(b.w * fit)) : b.w, sh0 = fit < 1 ? Math.max(1, Math.round(b.h * fit)) : b.h;
+      const cx = Math.round(Math.max(sw0 / 2 + 2, Math.min(AW - sw0 / 2 - 2, AW * (gate.hidden ? 0.5 : 0.36))));
+      let scaled = false;
+      if (fit < 1) {
+        try {
+          const oc = document.createElement('canvas'); oc.width = stand0.w; oc.height = stand0.h;
+          const octx = oc.getContext('2d');
+          ISO.setOrigin(-bb0[0], -bb0[2]);
+          SPR.building('stands', octx, 0, 0, lv);
+          ISO.setOrigin(0, 0);
+          ctx.imageSmoothingEnabled = false;
+          ctx.drawImage(oc, Math.round(cx - sw0 / 2), Math.round(by - sh0), sw0, sh0);
+          scaled = true;
+          b = { w: sw0, h: sh0, cx: b.cx, y1: b.y1 };
+        } catch (e) { ISO.setOrigin(0, 0); fit = 1; }
+      }
+      if (!scaled) {
+        const ox = Math.round(cx - b.cx), oy = Math.round(by - b.y1);
+        ISO.setOrigin(ox, oy);
+        SPR.building('stands', ctx, 0, 0, lv);
+        ISO.setOrigin(0, 0);
+      }
       // crowd on the lower stand rows, filled to gate.pct
       const sx = cx - Math.floor(b.w / 2) + 3, sw = b.w - 6, sh = Math.max(4, Math.floor(b.h / 3)), sy = by - sh - 2;
       const tones = [P.white || '#fff', P.red || P.outline, P.sky || P.grass1];
       crowdCells(sx, sy, sw, sh, gate.pct).forEach((c) => ISO.px(ctx, c[0], c[1], 1, 1, tones[c[2]] || tones[0]));
       // dashed chalk ghost of the next stand; the DOM label "L2 stand" is pinned onto that box
       let ghost = null;
-      if (!gate.hidden && lv < 5) {
+      if (!gate.hidden && lv < 5 && m.H >= 130 && by - box('stands', lv + 1).h >= 2) { // no dashed box that would be cut by the tag row (short banners)
         const g = box('stands', lv + 1), gx = Math.min(AW - g.w - 2, cx + Math.ceil(b.w / 2) + 4), gy = by - g.h;
         const ch = P.white || '#fff';
         for (let i = 0; i < g.w; i += 4) { ISO.px(ctx, gx + i, gy, 2, 1, ch); ISO.px(ctx, gx + i, gy + g.h - 1, 2, 1, ch); }

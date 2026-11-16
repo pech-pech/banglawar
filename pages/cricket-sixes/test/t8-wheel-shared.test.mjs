@@ -35,7 +35,7 @@ test('short names: upright "Maxi.." forms, 3+ letters, unique among slices, neve
   assert.deepEqual(lens, [4, 4, 3], 'Maxi / Maxw / Zed');
   assert.equal(new Set(names.map((n, i) => n.slice(0, lens[i]).toLowerCase())).size, 3, 'short forms differ');
   assert.deepEqual(shortNameForms('Ab'), [], 'a name of 3 letters or fewer has no short form');
-  assert.match(view, /shortNameForms\(own, minLen\[i\]\)/); assert.match(view, /fMax: 14, fMin: 14/);
+  assert.match(view, /shortNameForms\(own, minLen\[i\], tailLen\[i\]\)/); assert.match(view, /fMax: 14, fMin: 14/);
 });
 
 test('AIM: one word fixed at the top pointer, 14 px, upright (no rotate), not riding the rim', () => {

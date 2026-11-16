@@ -285,7 +285,7 @@
 
 /* ---- wa1 coach strip on the Training tab (SPEC 2026-11-14 s2). Owner: train. Tokens only, taps >= 56px (the e2e tap audit). ---- */
 .ct-strip { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--c-sp-2); margin: var(--c-sp-2) 0; }
-.ct-head { display: grid; grid-template-rows: 56px 56px; gap: var(--c-sp-1); }
+.ct-head { display: grid; grid-template-columns: minmax(56px, auto); grid-template-rows: 56px 56px; gap: var(--c-sp-1); }
 .ct-all, .ct-scout { min-height: 56px; min-width: 56px; display: grid; justify-items: center; align-content: center; gap: 0; padding: 0 var(--c-sp-1); font: 700 var(--c-fs-s)/var(--c-lh-s) var(--c-font); position: relative; }
 .ct-dot { position: absolute; top: 4px; right: 4px; width: 10px; height: 10px; background: var(--gold); border: var(--c-border) solid var(--outline); }
 .ct-row { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--c-sp-1); }
@@ -299,6 +299,7 @@
 .ct-l1 { height: 16px; }
 .ct-face { display: inline-flex; flex: none; width: 18px; height: 18px; image-rendering: pixelated; }
 .ct-face img, .ct-face svg { width: 18px; height: 18px; }
+canvas.ct-face { width: 18px !important; height: 18px !important; } /* X2 V4 D4: ISO.makeScene sets an inline 28 px size on the canvas portrait, which overlapped the Match tag */
 .ct-grade { flex: none; padding: 0 3px; font: 700 var(--c-fs-s)/16px var(--c-font); background: var(--cream); border: var(--c-border) solid var(--outline); }
 .ct-name { display: block; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 700 var(--c-fs-s)/16px var(--c-font); }
 .ct-fi { display: flex; gap: 2px; min-width: 0; overflow: hidden; }
@@ -347,3 +348,9 @@
 .wh-ov .wh-tok .c-btn { min-height: 56px; }
 .t2-strip small, .wh-chg small, .wh-tim, .wh-tknote, .t2-wheel, .t2-bt { font-size: 16px; line-height: 20px; }
 .tr-chip > span, .c-row .c-row__sub, .t2-prow .c-row__sub, .tr-left { font-size: 16px; }
+
+/* X2 (T8): the wheel is sized from the free stage height, and at 344x882 the info card above ate it (wheel ~190 px). Compact: the hint line is a duplicate of the readout / legend, so the Spotlight / Course card (the one with .wh-who) drops it on tall-narrow phones; Find / Scout / Finals / ring cards keep theirs, no empty bar (V3 D3) (the text stays in the markup for screen readers). */
+@media (min-height: 701px) {
+  .wh-card:has(.wh-who) .dr-hint { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; margin: 0; padding: 0; }
+  .wh-card:has(.wh-who) { position: relative; gap: 4px; padding: var(--c-sp-1) var(--c-sp-2); }
+}

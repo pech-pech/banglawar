@@ -5,6 +5,6 @@ import { isSliceStop, isBadStop, scoutSliceSpin, scoutAutoStop } from '../wheels
 import { scoutList } from '../../core/training.js';
 
 export const scoutSpin = (s, p) => {
-  if (!canScoutSpin(s, () => scoutList(s)) || isBadStop(p)) return s;
-  return scoutSliceSpin(s, isSliceStop(p) ? p : scoutAutoStop(s));
+  if (!canScoutSpin(s, () => scoutList(s)) || isBadStop(p, s)) return s;
+  return scoutSliceSpin(s, isSliceStop(p, s) ? p : scoutAutoStop(s));
 };

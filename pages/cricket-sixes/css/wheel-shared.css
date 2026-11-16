@@ -92,3 +92,21 @@
   .wh-ov.is-ring > .wh-stage { grid-column: 1; grid-row: 3; min-height: 0; }
   .wh-ov.is-ring > .wk-legend.wh-lgd { grid-column: 2; grid-row: 3; align-self: center; flex-direction: column; flex-wrap: nowrap; justify-content: flex-start; align-items: flex-start; gap: 6px; margin: 0 8px 0 0; min-width: 0; }
 }
+
+/* T8 QA-V1 H3: short screens reserve the tallest result box (3 rows, 120 px) at ready time, and the hint card gives back the same height, so the wheel keeps one size and place from ready to result. */
+@media (max-height: 700px) {
+  .wh-ov.is-ring .wh-card { padding: 4px 10px; gap: 0; }
+  .wh-ov.is-ring .wh-card .dr-hint { margin: 0; line-height: 20px; }
+  .wh-ov.is-ring .wh-msg { height: 120px; min-height: 120px; }
+  .wh-ov.is-ring .wh-res { min-height: 120px; box-sizing: border-box; }
+}
+
+/* T8 QA-V3 D1: Spin Again / Nudge on a short screen: the result lines share ONE row and the token note moves to screen readers, so result + tokens fit the 120 px the ready box reserved and the wheel stays put. */
+@media (max-height: 700px) {
+  .wh-ov.is-ring.has-tok .wh-res { flex-direction: row; flex-wrap: wrap; justify-content: center; align-items: center; align-content: center; gap: 0 10px; min-height: 0; padding-top: 2px; padding-bottom: 2px; }
+  .wh-ov.is-ring.has-tok .wh-tok { gap: 6px 8px; }
+  .wh-ov.is-ring.has-tok .wh-tknote { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+}
+
+/* T8 QA-V2 #11: tall screens: the result box is as tall as the ready box, so the legend and wheel keep their place at the result. */
+@media (min-height: 701px) { .wh-ov.is-ring .wh-res { min-height: 180px; box-sizing: border-box; } }

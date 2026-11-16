@@ -64,7 +64,7 @@
 .wm-achips li { padding: 0 6px; border: 2px solid var(--outline); background: var(--white, #fffdf6); font-size: 14px; line-height: 18px; font-weight: 700; }
 
 /* wheel */
-.wm-stage { flex: 1 1 auto; min-height: 150px; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+.wm-stage { flex: 1 1 auto; min-height: 150px; display: flex; align-items: flex-start; justify-content: center; overflow: hidden; }
 .wm-wrap { position: relative; }
 .wm-cv { display: block; }
 .wm-mark { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%) rotate(-8deg); padding: 4px 14px; font: 28px/32px var(--font-head); letter-spacing: .04em;

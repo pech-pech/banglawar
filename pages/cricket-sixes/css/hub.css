@@ -222,11 +222,16 @@
 @media (max-width: 599px) and (max-height: 700px) {
   .hb-banner { flex: 0 0 auto; min-height: 96px; }
   /* the banner cannot go under tag row 56 + band 56 (both taps); the room for squad row 1 comes from the chapter band and START instead */
-  .hb-chap { min-height: 22px; padding-top: 1px; padding-bottom: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  /* QA-V4 D2: the chapter line goes at short heights so squad row 1 shows whole (about 26 px); it is still on the 344x882 hub and the 704 hub */
+  .hb-chap { display: none; }
   .hb-mid { padding-top: 4px; }
   .hb-foot { gap: 4px; padding-top: 6px; padding-bottom: calc(6px + env(safe-area-inset-bottom)); }
   .hb-l2 { padding-bottom: 132px; }
   .hb-ghost { display: none; }
+  /* QA-V4 D3: the week chip leaves the fans band for the tag row (right side), so the band only covers the stand base and Fans gets the full width */
+  .hb-band .hb-week { position: absolute; right: 0; bottom: 100%; width: 46%; flex: none; }
+  .hb-banner > .hb-gb { width: calc(54% - 4px); }
+  .hb-band.has-week .hb-fg { max-width: none; flex: 1 1 100%; }
   .hb-mid { flex: 1 1 auto; min-height: 0; }
   .hb-colA { flex: none; }
   .hb-colB { flex: 1 1 auto; overflow: auto; min-height: 0; }

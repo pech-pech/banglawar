@@ -11,7 +11,7 @@ export function spinHype({ get, look, dispatch, onCollect, oppName }) {
   return openWheel({
     wheelId: 'hype', ring: h.ring, spinKey: h.spinKey, J: 1.2, stored: get().stored, wobKey: get().wobKey, look,
     title: 'Crowd today', sub: oppName || '',
-    cardHtml: '<p class="dr-hint">You win: 2 to 10 Hype points. Aim at gold NUTS. The tick shows the slice under the pointer now.</p>',
+    cardHtml: '<p class="dr-hint">You win: 2 to 10 Hype points. Aim at gold NUTS. The tick shows where the pointer will stop.</p>',
     ...(h.legend ? { legend: h.legend } : {}),
     ...tokProps(get, dispatch, 'hype', 'Hype'), tokVal: TOKVAL.hype, tokText: (p) => 'Landed on ' + hypeLabel(get().ring, p),
     pending: h.pending, getPending: () => get().pending,

@@ -258,7 +258,7 @@ try {
             const sm = await smallTaps(p, '.wh-ov'); step(2, 'Find wheel taps >= 44 px', !sm.length, sm.join('; '));
             const t0 = Date.now(); const r = await A.spinToResult('.wh-ov');
             step(2, 'Find wheel resolves (result + COLLECT)', r.ok, `res "${r.res.slice(0, 60)}" go ${r.go}`);
-            step(2, 'Find result says found or nothing', /found|nothing|coins|player|coach/i.test(r.res), r.res.slice(0, 80));
+            step(2, 'Find result says found or nothing', /found|nothing|no find|coins|player|coach/i.test(r.res), r.res.slice(0, 80));
             note(2, 'Find spin-to-result time ms', String(Date.now() - t0));
             const picked = await A.S(() => { const s = window.__store.get(); const h = s.econ && s.econ.act && s.econ.act.hist; return h && h[0] ? h[0].id : null; });
             step(2, 'PickActivity stored after the spin', !!picked && picked !== 'rest', `hist[0] ${picked}`);

@@ -5,7 +5,7 @@
 // Wiring (spinFind -> openWheel(findWheelOpts(vm, ctx))) is a later task. vm = findSpinVM(s, id); ctx = host callbacks and keys.
 import { FIND_SLICES, FIND_RATES, FIND_J } from '../../data/wheels/find.js';
 
-export const FIND_HINT = 'Stop on a gold block to find Coins, a player or a coach. The tick shows the slice under the pointer now.';
+export const FIND_HINT = 'Stop on a gold block to find Coins, a player or a coach. The tick shows where the pointer will stop.';
 export const FIND_CHANCE = 'Find chance about ';
 export const FIND_TIMING = 'Good timing helps';
 /** Tier -> shape (SPEC 2f): FIND = green up-triangle, CHEER = sand dot (never rose). */

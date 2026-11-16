@@ -3,7 +3,7 @@
 // Viewports: Fold cover 475x638 (all checks) and 344x882 (layout fit: no horizontal overflow, text >= 14px, fans bar inside the screen).
 // Seeded runs only (?seed=...), saves written with save-migrate.wrap() into cs.save.1 and the page reloaded. No network.
 // A  landing tick: Spotlight (Training), Course (coach strip), Find (activities), Hype (match day) for a save WITHOUT Aim Guide: the canvas
-//    shows a white tick once the wheel spins (pixel diff vs the idle frame); no gold wedge; reduced motion = no spin, no tick.
+//    shows a white tick once the wheel spins (pixel diff vs the idle frame); no gold wedge; reduced motion = same as normal (SPEC: wheels have no reduced-motion option).
 //    Then the same four with Aim Guide owned: a gold wedge (more gold pixels than the plain tick). Node text is the new one.
 // B  Fans gate: hub scoreboard + league table sheet; text "Fans N / M for stadium Lx" with a bar, "Fans ready: build stadium Lx", hidden at L5.
 // C  match coach: row on the match-day screen, default = best idle coach, tap to change, chip text, "No match coach this week", Training strip tag.
@@ -245,7 +245,7 @@ async function openAim(H, which) {
   const ov = '.wh-ov';
   return (await page.$(ov)) ? '' : `no ${ov}`;
 }
-const AIM = { spotlight: ['.wh-ov', 'canvas.wh-cv', false], course: ['.wh-ov', 'canvas.wh-cv', false], find: ['.wh-ov', 'canvas.wh-cv', false], hype: ['.dr-ov', 'canvas.dr-cv', true] };
+const AIM = { spotlight: ['.wh-ov', 'canvas.wh-cv', false], course: ['.wh-ov', 'canvas.wh-cv', false], find: ['.wh-ov', 'canvas.wh-cv', false], hype: ['.wh-ov', 'canvas.wh-cv', false] };
 const NICE = { spotlight: 'Spotlight', course: 'Course', find: 'Find', hype: 'Hype' };
 const COACHES = `[{ id: 'tfcL', name: 'Lee', step: 8, strong: ['bowl'], away: 0, courseSeason: null }, { id: 'tfcM', name: 'Mira', step: 12, strong: ['bat', 'bowl'], away: 0, courseSeason: null }]`;
 const SEEDGAME = (guide) => `(s, { NODES }) => { s.econ.coins = 9000; s.coaches = (s.coaches || []).filter((c) => c.id !== 'tfcL' && c.id !== 'tfcM').concat(${COACHES});` +
@@ -313,8 +313,8 @@ async function groupReduced(vp, key) {
       await tap(H, '.wh-ov [data-go]'); await H.settle(900);
       const after = await H.page.evaluate(canvasCounts, ['canvas.wh-cv', false, '.wh-ov canvas.wh-tk']);
       const goTxt = (await H.text('.wh-ov [data-go]')).trim(); const msg = (await H.text('.wh-ov [data-msg]')).replace(/\s+/g, ' ');
-      step('A', 'reduced motion: SPIN resolves at once (no STOP step)', goTxt !== 'STOP', `button "${goTxt}", msg "${msg.slice(0, 80)}"`);
-      step('A', 'reduced motion: no landing tick on the canvas', after.ink === 0 && after.white - idle.white < 6, `tick ink ${idle.ink} -> ${after.ink}, white ${idle.white} -> ${after.white}`);
+      step('A', 'reduced motion: still SPIN/STOP (SPEC, no reduced-motion option), no "Show result"', goTxt === 'STOP' && !/show result/i.test(goTxt), `button "${goTxt}", msg "${msg.slice(0, 80)}"`);
+      step('A', 'reduced motion: landing tick is still drawn (SPEC)', after.ink > 0, `tick ink ${idle.ink} -> ${after.ink}, white ${idle.white} -> ${after.white}`);
       await finishSpin(H, '.wh-ov'); await clearNets(H);
     }
   } catch (e) { step('A', 'reduced group ran without throwing', false, e.stack || String(e)); }
@@ -345,12 +345,12 @@ async function groupFans(vp, key) {
         step('B', `hub, ${lab}: Fans line hidden at stadium L5`, !got, `found ${got && got.text}`);
         step('B', `hub, ${lab}: fansGateVM hidden`, vmOk && vmOk.hidden === true, JSON.stringify(vmOk));
       } else {
-        step('B', `hub, ${lab}: text is "${c.text}"`, got && got.text === c.text, `got ${got && JSON.stringify(got.text)}`);
+        step('B', `hub, ${lab}: text is "${c.text}"`, got && got.text === (c.ready ? c.text : c.text.replace(/ for stadium L\d$/, '')), `hub shows the short form (T7 hub-view.js); got ${got && JSON.stringify(got.text)}`);
         if (got) {
           step('B', `hub, ${lab}: bar ${c.ready ? 'full' : 'at ' + c.pct + '%'}`, c.ready ? (got.w === '100%' && got.ready) : got.w === c.pct + '%', `width ${got.w} ready ${got.ready}`);
           step('B', `hub, ${lab}: line inside the screen`, got.l >= -1 && got.r <= got.vw + 1 && got.t >= 0 && got.b <= got.vh + 400, JSON.stringify(got));
         }
-        step('B', `hub, ${lab}: fansGateVM text matches the screen`, vmOk && got && vmOk.text === got.text && vmOk.ready === !!c.ready, JSON.stringify(vmOk));
+        step('B', `hub, ${lab}: fansGateVM text matches the screen`, vmOk && got && vmOk.text === c.text && got.text === (c.ready ? vmOk.text : vmOk.text.replace(/ for stadium L\d$/, '')) && vmOk.ready === !!c.ready, JSON.stringify(vmOk));
       }
       const fit = await fitFacts(H.page); step('B', `hub, ${lab}: no sideways overflow, text >= 14px`, !fit.wide.length && !fit.tiny.length && !(await hScroll(H.page)), JSON.stringify(fit));
       if (c.st === 2) await H.shot('fans-hub');

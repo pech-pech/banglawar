@@ -108,7 +108,7 @@ async function stubRoutes(ctx, o) {
   const patch = async (re, fn) => ctx.route(re, async (route) => {
     try { const r = await route.fetch(); route.fulfill({ response: r, body: fn(await r.text()), contentType: 'text/javascript' }); } catch (e) { route.continue(); }
   });
-  if (o.clinic != null) await patch(/\/js\/core\/clinic\.js(\?.*)?$/, (t) => t.replace('export function clinicReadyCount(', 'export function __realClinicReadyCount(') + `\nexport function clinicReadyCount(s) { return ${o.clinic | 0}; }\n`); // keep the real module's other exports (clinic-pick-sheet imports pickable)
+  if (o.clinic != null || o.realClinic !== true) await patch(/\/js\/core\/clinic\.js(\?.*)?$/, (t) => t.replace('export function clinicReadyCount(', 'export function __realClinicReadyCount(') + `\nexport function clinicReadyCount(s) { return ${(o.clinic || 0) | 0}; }\n`); // keep the real module's other exports (clinic-pick-sheet imports pickable)
   if (o.book) await patch(/\/js\/ui\/book-badge\.js(\?.*)?$/, (t) => t.replace('let count = 0;', `let count = ${o.book | 0};`));
   if (o.act || o.workshop || o.invalid) {
     await patch(/\/js\/store\/selectors\.js(\?.*)?$/, (t) => {
@@ -244,6 +244,7 @@ try {
   }
   if (want('704')) await runHub(browser, '704x783', [704, 783], { taps: true });
   if (want('475')) await runHub(browser, '475x638', [475, 638], { taps: true });
+  if (want('475')) await runHub(browser, '475x638 scorebook', [475, 638], { theme: 'scorebook' });
 } finally { await browser.close(); server.close(); }
 
 let bad = 0; let last = '';

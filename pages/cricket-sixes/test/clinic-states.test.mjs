@@ -38,7 +38,7 @@ test('stage: only train spins; no stage string passes', () => {
   assert.equal(canClinic(s, a.id).ok, true);
   for (const st of ['week', 'end']) {
     const n = structuredClone(s); n.stage = st;
-    assert.deepEqual(canClinic(n, a.id), { ok: false, why: 'stage' }); assert.equal(clinicReadyCount(n), 0);
+    assert.deepEqual(canClinic(n, a.id), { ok: false, why: 'stage' }); assert.equal(clinicReadyCount(n), clinicReadyCount(s)); // T8: the badge count ignores the screen
     assert.notEqual(clinicCoachVM(n, a) && clinicCoachVM(n, a).state, 'ready');
   }
   const t = structuredClone(s); t.stage = 'train'; assert.equal(canClinic(t, a.id).ok, true);
