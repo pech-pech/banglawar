@@ -7,9 +7,11 @@
 //   seasonIdOf(s)   String(seasonOf(s)), e.g. "2" (the key scoutSpin.n already uses)
 //   matchDayIdOf(s) matchKeyOf(s) = `season|kind|round|salt`, e.g. "2|league|8|" (the token-cap key); '' when no fixture
 //   occasionIdOf(s, wheelId, ctx?)  the existing occasion of a training / activity wheel:
-//     spot   `${weekKey}|${playerId}` (+ '|2' for the Twin slot): playerId = ctx.playerId, else the plan's Spotlight (slot 2: spotlight2_id)
-//     course `${seasonId}|${coachId}|${k}`: coachId = ctx.coachId; k = ctx.k, else 2 when that coach already took a course this season
-//            (Master Coach Licence 2nd course), else 1
+//     spot   `${weekKey}|${playerId}` (+ '|2' for the Twin slot): playerId = ctx.playerId, else the plan's Spotlight (slot 2: spotlight2_id);
+//            '' with no player
+//     course `${seasonId}|${coachId}|${k}`: coachId = ctx.coachId ('' with none); k = 2 only when ctx.k is 2 (the Master Coach Licence
+//            2nd course: the host reads courseUsesLicence(s, coachId) on the state before the dispatch and passes k), else 1. k never
+//            reads coach.courseSeason / licenceSeason, which runCourse sets in the same dispatch, so the key is the same before and after it.
 //     find   roundKey(s), e.g. "2.20" (one Find a round, the activity guard key)
 //     other wheels: ''
 import { matchKeyOf } from './wheelmeta.js';
@@ -45,12 +47,6 @@ function spotPlayer(s, slot) {
   return slot === 2 ? str(T.spotlight2_id) : str(T.spotlight_id ?? leg.spotlightId);
 }
 
-/** Courses this coach already took this season (0 or 1 by the cap). @param {any} s @param {string} id */
-function courseTaken(s, id) {
-  const c = isObj(s) && Array.isArray(s.coaches) ? s.coaches.find((/** @type {any} */ x) => isObj(x) && x.id === id) : null;
-  return c && int(c.courseSeason, -1) === seasonOf(s) ? 1 : 0;
-}
-
 /**
  * Occasion id of a Spotlight, Course or Find spin (see the top comment); '' for any other wheel.
  * @param {any} s @param {string} wheelId @param {{playerId?:string, slot?:number, coachId?:string, k?:number}} [ctx]
@@ -59,11 +55,11 @@ export function occasionIdOf(s, wheelId, ctx = {}) {
   const c = isObj(ctx) ? ctx : {};
   if (wheelId === 'spot') {
     const slot = int(c.slot, 1) === 2 ? 2 : 1, pid = str(c.playerId) || spotPlayer(s, slot);
-    return `${safe(() => String(weekKey(s)))}|${pid}${slot === 2 ? '|2' : ''}`;
+    return pid ? `${safe(() => String(weekKey(s)))}|${pid}${slot === 2 ? '|2' : ''}` : '';
   }
   if (wheelId === 'course') {
-    const id = str(c.coachId), k = int(c.k, 0) >= 1 ? int(c.k, 1) : courseTaken(s, id) + 1;
-    return `${seasonIdOf(s)}|${id}|${k}`;
+    const id = str(c.coachId), k = int(c.k, 1) === 2 ? 2 : 1;
+    return id ? `${seasonIdOf(s)}|${id}|${k}` : '';
   }
   if (wheelId === 'find') return isObj(s) ? safe(() => roundKey({ ...s, season: { ...(isObj(s.season) ? s.season : {}), n: seasonOf(s) } })) : `${seasonOf(s)}.${(seasonOf(s) - 1) * 12 + 1}`;
   return '';

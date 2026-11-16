@@ -1,33 +1,42 @@
 // @ts-check
-// Stop records and report stats of every wheel (CONTRACT-A s6/s7, Lead calls 6/9; wheels SPEC s13). Owner T1. Pure, no DOM, no rng.
+// Stop records and report stats of every wheel (CONTRACT-A s6/s7, Lead calls 6/9; wheels SPEC s2d/s11a/s13). Owner T1. Pure, no DOM, no rng.
 //
 // recordStop(n, wheelId, spinKey, rec, opts?) -> n   mutates the reducer draft n in place, in the same dispatch as STOP:
 //   - creates n.wheels (and any missing / non-object sub-map, as normWheels: WHEELS_DEFAULT) and the stops[wheelId][spinKey] entry
 //     {stops:[], kept:0, spent:false} when missing;
-//   - appends the cleaned StopRec {stopT:int ms, cycle:int>=1, tInCycle:s, sliceId:int, value, paid? (Finals), auto:bool, respin:0|1};
-//   - kept = rec.kept when it is a valid index (Pick Two), else the index of the highest value, a tie keeps the first;
-//   - spent = true once rec.spent is true (sticky; Spin Again / Pick Two press);
+//   - appends the cleaned StopRec {stopT:int>=0 ms, cycle:int>=1, tInCycle:0..6 s, sliceId:int>=0, value, paid? (Finals), auto:bool, respin:0|1};
+//   - kept: rec.kept when it is a valid index (the player's Pick Two choice; marks the entry keptBy:'pick', and a later stop without
+//     rec.kept leaves that choice alone); otherwise the index of the highest value, a tie keeps the first (Spin Again, SPEC 11a);
+//   - spent = true once rec.spent is true (sticky); markSpent writes it at the Spin Again / Pick Two press, before the next STOP (SPEC 2d);
 //   - stats[wheelId]: n += 1 always; when !rec.auto also careful / early / late and a tap {cycle, tInCycle} (last 200 kept).
-// Careful needs the wheel median, which only the ring knows: pass it as rec.median or opts.median (one value per slice, SPEC s13 table).
-// Find has no median: pass rec.careful or opts.careful (boolean: the tick was on a FIND block), which wins over the median.
-// With neither, careful is not counted. median / careful / kept / spent are never stored on the StopRec.
+// Careful (SPEC s13): value > WHEEL_MEDIAN[wheelId] (spot 1.0, course 1, hype 4, toss 2.5, pep 5, scout 0.5, finals 20); Find: the tick is
+// on a FIND block (value >= FIND = 1). rec.careful / opts.careful (boolean) win, then rec.median / opts.median, then the table. match
+// (wheel-match SPEC 14) and clinic have no table row: their caller passes careful (or median); without one careful is not counted.
+// median / careful / kept / spent are never stored on the StopRec.
 // Early = tInCycle < GLOW[0] (3.2 s), late = tInCycle > GLOW[1] (3.8 s); they may overlap with careful.
 // An empty or non-string spinKey, or an unknown wheelId, records nothing (n returned as is).
 //
-// spinKeyOf(s, wheelId, ctx?) -> string  (CONTRACT-A s7): match = matchKeyOf(s)|ball (ctx.ball, default 0); hype / toss / pep =
-//   matchDayIdOf(s); scout = seasonIdOf(s); finals = seasonIdOf(s)|kind|round (semi and final each spin once, as finalsKey);
-//   spot / course / find = occasionIdOf(s, wheelId, ctx); clinic = `${weekKey}:${coachId}` (CONTRACT-B lead call 4), slot fallback when no ctx.coachId (default 0).
-//   '' when the occasion does not exist (no fixture on a match-day wheel).
+// markSpent(n, wheelId, spinKey) -> n   Spin Again / Pick Two press: the entry (created when missing) gets spent:true; no stop, no stats.
+//
+// spinKeyOf(s, wheelId, ctx?) -> string  (CONTRACT-A s7, T1-PLAN accepted 07:45): '' when the occasion does not exist.
+//   match  = matchDayIdOf(s)|ball, ball = ctx.ball (int >= 0, matchBallOf); '' with no ball or no fixture (quick match records nothing);
+//   hype / toss / pep = matchDayIdOf(s); scout = seasonIdOf(s);
+//   finals = seasonIdOf(s)|kind|round of the semi / final (as finalsKey; ctx.kind / ctx.round override the fixture), '' when the
+//            fixture is not a semi or final with an integer round (never a second key shape for one occasion);
+//   spot / course / find = occasionIdOf(s, wheelId, ctx) ('' with no player / coach);
+//   clinic = `${weekKey}:${coachId}` (CONTRACT-B lead call 4), slot fallback when no ctx.coachId (default 0).
 // statsOf(s, wheelId) -> {n, careful, early, late, taps}  stored stats with defaults (a fresh copy, never the stored object).
 // storedStop(s, wheelId, spinKey) -> entry | null          the stored {stops, kept, spent} (the live object), null when unspun.
 import { WHEEL_ENGINE, WHEEL_STOP_IDS } from '../data/wheel-engine.js';
 import { WHEELS_DEFAULT } from '../data/save-defaults.js';
-import { matchKeyOf } from './wheelmeta.js';
 import { weekKey } from './week-key.js';
 import { seasonIdOf, matchDayIdOf, occasionIdOf } from './spin-keys.js';
 
 export const TAPS_MAX = 200;
 const [EARLY_T, LATE_T] = WHEEL_ENGINE.GLOW;
+/** Report medians, one value per slice (wheels SPEC s13). Find counts FIND blocks (FIND_VALUE); match / clinic: the caller decides. */
+export const WHEEL_MEDIAN = Object.freeze({ spot: 1.0, course: 1, hype: 4, toss: 2.5, pep: 5, scout: 0.5, finals: 20 });
+const FIND_VALUE = 1;
 
 const isObj = (/** @type {any} */ x) => !!x && typeof x === 'object' && !Array.isArray(x);
 const num = (/** @type {any} */ x, /** @type {number} */ d) => (typeof x === 'number' && Number.isFinite(x) ? x : d);
@@ -41,10 +50,32 @@ function wheelsOf(n) {
   return n.wheels;
 }
 
+/** The stops[wheelId][spinKey] entry on the draft, created when missing. @param {any} n @param {string} wheelId @param {string} spinKey */
+function entryOf(n, wheelId, spinKey) {
+  const W = wheelsOf(n);
+  if (!isObj(W.stops[wheelId])) W.stops[wheelId] = {};
+  const byKey = W.stops[wheelId];
+  if (!isObj(byKey[spinKey])) byKey[spinKey] = { stops: [], kept: 0, spent: false };
+  const e = byKey[spinKey];
+  if (!Array.isArray(e.stops)) e.stops = [];
+  return e;
+}
+const okArgs = (/** @type {any} */ n, /** @type {any} */ w, /** @type {any} */ k) => isObj(n) && known(w) && typeof k === 'string' && !!k;
+
+/** Careful of one non-auto stop (see the top comment). @param {string} wheelId @param {any} sr @param {any} r @param {any} o */
+function carefulOf(wheelId, sr, r, o) {
+  const fin = (/** @type {any} */ x) => typeof x === 'number' && Number.isFinite(x);
+  if (typeof r.careful === 'boolean') return r.careful;
+  if (typeof o.careful === 'boolean') return o.careful;
+  const med = fin(r.median) ? r.median : fin(o.median) ? o.median : /** @type {any} */ (WHEEL_MEDIAN)[wheelId];
+  if (fin(med)) return sr.value > med;
+  return wheelId === 'find' ? sr.value >= FIND_VALUE : false;
+}
+
 /** The StopRec as stored (CONTRACT-A s6). @param {any} r */
 function cleanRec(r) {
-  const out = /** @type {any} */ ({ stopT: Math.max(0, int(r.stopT, 0)), cycle: Math.max(1, int(r.cycle, 1)), tInCycle: num(r.tInCycle, 0),
-    sliceId: int(r.sliceId, 0), value: num(r.value, 0) });
+  const out = /** @type {any} */ ({ stopT: Math.max(0, int(r.stopT, 0)), cycle: Math.max(1, int(r.cycle, 1)),
+    tInCycle: Math.min(WHEEL_ENGINE.PULSE_PERIOD, Math.max(0, num(r.tInCycle, 0))), sliceId: Math.max(0, int(r.sliceId, 0)), value: num(r.value, 0) });
   if (typeof r.paid === 'number' && Number.isFinite(r.paid)) out.paid = r.paid;
   out.auto = !!r.auto; out.respin = r.respin ? 1 : 0;
   return out;
@@ -67,24 +98,18 @@ function cleanStats(st) {
  * @param {{median?:number, careful?:boolean}} [opts]
  */
 export function recordStop(n, wheelId, spinKey, rec, opts = {}) {
-  if (!isObj(n) || !known(wheelId) || typeof spinKey !== 'string' || !spinKey) return n;
-  const r = isObj(rec) ? rec : {}, o = isObj(opts) ? opts : {}, W = wheelsOf(n);
-  if (!isObj(W.stops[wheelId])) W.stops[wheelId] = {};
-  const byKey = W.stops[wheelId];
-  if (!isObj(byKey[spinKey])) byKey[spinKey] = { stops: [], kept: 0, spent: false };
-  const e = byKey[spinKey];
-  if (!Array.isArray(e.stops)) e.stops = [];
+  if (!okArgs(n, wheelId, spinKey)) return n;
+  const r = isObj(rec) ? rec : {}, o = isObj(opts) ? opts : {}, W = wheelsOf(n), e = entryOf(n, wheelId, spinKey);
   const sr = cleanRec(r);
   e.stops.push(sr);
   const k = r.kept;
-  e.kept = Number.isInteger(k) && k >= 0 && k < e.stops.length ? k : bestIdx(e.stops);
+  if (Number.isInteger(k) && k >= 0 && k < e.stops.length) { e.kept = k; e.keptBy = 'pick'; }
+  else if (!(e.keptBy === 'pick' && Number.isInteger(e.kept) && e.kept >= 0 && e.kept < e.stops.length)) { e.kept = bestIdx(e.stops); delete e.keptBy; }
   e.spent = e.spent === true || r.spent === true;
   const st = cleanStats(W.stats[wheelId]);
   st.n += 1;
   if (!sr.auto) {
-    const cf = typeof r.careful === 'boolean' ? r.careful : typeof o.careful === 'boolean' ? o.careful : null;
-    const med = typeof r.median === 'number' && Number.isFinite(r.median) ? r.median : typeof o.median === 'number' && Number.isFinite(o.median) ? o.median : null;
-    if (cf != null ? cf : med != null && sr.value > med) st.careful += 1;
+    if (carefulOf(wheelId, sr, r, o)) st.careful += 1;
     if (sr.tInCycle < EARLY_T) st.early += 1;
     if (sr.tInCycle > LATE_T) st.late += 1;
     st.taps.push({ cycle: sr.cycle, tInCycle: sr.tInCycle });
@@ -95,17 +120,30 @@ export function recordStop(n, wheelId, spinKey, rec, opts = {}) {
 }
 
 /**
+ * Spin Again / Pick Two press (SPEC 2d): spent:true at once, before the next STOP. Creates the entry when missing; no stop, no stats.
+ * @param {any} n @param {string} wheelId @param {string} spinKey
+ */
+export function markSpent(n, wheelId, spinKey) {
+  if (!okArgs(n, wheelId, spinKey)) return n;
+  entryOf(n, wheelId, spinKey).spent = true;
+  return n;
+}
+
+/**
  * Spin key of a wheel occasion (see the top comment). Never throws; '' when there is no occasion.
- * @param {any} s @param {string} wheelId @param {{ball?:number, slot?:number, playerId?:string, coachId?:string, k?:number}} [ctx]
+ * @param {any} s @param {string} wheelId @param {{ball?:number, slot?:number, playerId?:string, coachId?:string, k?:number, kind?:string, round?:number}} [ctx]
  */
 export function spinKeyOf(s, wheelId, ctx = {}) {
   const c = isObj(ctx) ? ctx : {};
   try {
     switch (wheelId) {
-      case 'match': { const mk = matchKeyOf(s); return mk ? `${mk}|${Math.max(0, int(c.ball, 0))}` : ''; }
+      case 'match': { const mk = matchDayIdOf(s); return mk && Number.isInteger(c.ball) && c.ball >= 0 ? `${mk}|${c.ball}` : ''; }
       case 'hype': case 'toss': case 'pep': return matchDayIdOf(s);
       case 'scout': return seasonIdOf(s);
-      case 'finals': return isObj(s) && isObj(s.fixture) ? `${seasonIdOf(s)}|${s.fixture.kind}|${s.fixture.round}` : seasonIdOf(s);
+      case 'finals': {
+        const fx = isObj(s) && isObj(s.fixture) ? s.fixture : {}, kind = c.kind ?? fx.kind, round = c.round ?? fx.round;
+        return (kind === 'semi' || kind === 'final') && Number.isInteger(round) ? `${seasonIdOf(s)}|${kind}|${round}` : '';
+      }
       case 'spot': case 'course': case 'find': return occasionIdOf(s, wheelId, c);
       case 'clinic': return (c.coachId != null && c.coachId !== '') ? `${weekKey(s)}:${c.coachId}` : `${weekKey(s)}:${Math.max(0, int(c.slot, 0))}`;
       default: return '';
