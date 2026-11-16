@@ -41,6 +41,8 @@ export const strongText = (strong) => (strong || []).map((f) => FOCUS_WORD[f] ||
 const RK = { batPower: 'bp', batSkill: 'bs', bowlSpeed: 'spd', bowlSkill: 'bsk' };
 const WORD_KEY = { Power: 'bp', Technique: 'bs', Pace: 'spd', Craft: 'bsk' };
 const shortRates = (r) => (r && r.bp == null ? { bp: r.batPower, bs: r.batSkill, spd: r.bowlSpeed, bsk: r.bowlSkill } : r || {});
+/** Kind Floor flag from the vm: effective(s).spot.kindFloor as the selector passes it (spotlight.kindFloor), else the wheel's own field; 0 / absent = not owned. */
+const kfOf = (a, w) => !!((a && a.kindFloor) || (w && w.kindFloor));
 const rawTwin = (vm) => vm.twin || { held: 0, line: '', wheel: null, pending: null };
 /** trainingVM -> the small shape this view draws. */
 export function adapt(vm) {
@@ -49,9 +51,9 @@ export function adapt(vm) {
   const costs = {}; (vm.efforts || []).forEach((e) => { costs[e.id] = e.cost; });
   const pc = (vm.coaches || []).find((c) => c.picked) || null, pv = vm.preview || {};
   const wl = vm.spotlight && vm.spotlight.wheel;
-  const wheel = sp && wl ? { slices: wl.slices, jackpotIndex: wl.jackpotIndex, widths: wl.widths, player: { id: sp.id, name: sp.name, rates: sp.rates }, stat: WORD_KEY[sp.stat] || 'bp', pending: vm.spotlight.pending || null, guide: !!vm.spotlight.guide, zone: +vm.spotlight.zone || 0, chime: !!vm.spotlight.chime, tokens: vm.spotlight.tokens || [], look: vm.spotlight.look || null, phys: wl.phys || null, golds: wl.golds || null, room: vm.spotlight.room != null ? vm.spotlight.room : vm.room } : null;
+  const wheel = sp && wl ? { slices: wl.slices, jackpotIndex: wl.jackpotIndex, widths: wl.widths, player: { id: sp.id, name: sp.name, rates: sp.rates }, stat: WORD_KEY[sp.stat] || 'bp', pending: vm.spotlight.pending || null, guide: !!vm.spotlight.guide, zone: +vm.spotlight.zone || 0, chime: !!vm.spotlight.chime, tokens: vm.spotlight.tokens || [], look: vm.spotlight.look || null, phys: wl.phys || null, golds: wl.golds || null, kindFloor: kfOf(vm.spotlight, wl), spinKey: vm.spotlight.spinKey || '', wobKey: vm.spotlight.wobKey || '', stored: vm.spotlight.stored || null, room: vm.spotlight.room != null ? vm.spotlight.room : vm.room } : null;
   const tw = rawTwin(vm), sp2 = tw.held > 0 ? rows.find((r) => r.id === P.spotlight2Id) : null, wl2 = tw.wheel;
-  const wheel2 = sp2 && wl2 ? { slices: wl2.slices, jackpotIndex: wl2.jackpotIndex, widths: wl2.widths, player: { id: sp2.id, name: sp2.name, rates: sp2.rates }, stat: WORD_KEY[sp2.stat] || 'bp', pending: tw.pending || null, guide: !!tw.guide, zone: +tw.zone || 0, chime: !!tw.chime, tokens: tw.tokens || [], look: tw.look || null, phys: wl2.phys || null, golds: wl2.golds || null } : null;
+  const wheel2 = sp2 && wl2 ? { slices: wl2.slices, jackpotIndex: wl2.jackpotIndex, widths: wl2.widths, player: { id: sp2.id, name: sp2.name, rates: sp2.rates }, stat: WORD_KEY[sp2.stat] || 'bp', pending: tw.pending || null, guide: !!tw.guide, zone: +tw.zone || 0, chime: !!tw.chime, tokens: tw.tokens || [], look: tw.look || null, phys: wl2.phys || null, golds: wl2.golds || null, kindFloor: kfOf(tw, wl2) || kfOf(vm.spotlight, wl), spinKey: tw.spinKey || '', wobKey: tw.wobKey || '', stored: tw.stored || null } : null;
   const nets = vm.done && vm.result ? { id: vm.week, cost: vm.result.cost, lines: vm.result.lines.map((l) => ({ ...l, stat: RK[l.rating] || l.rating || WORD_KEY[l.stat] || 'bp' })), skipped: rows.filter((r) => r.state === 'skip').map((r) => ({ id: r.id, name: r.name, why: "Can't gain" })) } : null;
   return { week: vm.week, tp: vm.tp, twin: { held: tw.held, line: tw.line, name: sp2 ? sp2.name : null }, wheel2, plan: { ...P, spotlightName: sp ? sp.name : null }, costs: { easy: 10, normal: 13, push: 18, ...costs }, coach: pc, rows, wheel, nets, canRun: vm.canRun !== false,
     preview: { cost: pv.cost || 0, trainN: pv.trainCount != null ? pv.trainCount : pv.trainN, skippedN: pv.skipCount != null ? pv.skipCount : pv.skippedN || 0, shortN: pv.shortCount != null ? pv.shortCount : pv.shortN || 0, hint: pv.hint || null } };
@@ -105,17 +107,18 @@ function openSpotlightWheel(dispatch, slot) {
   const pr = w.player;
   const card = '<div class="wh-who"><b class="t2-nm">' + esc(pr.name) + '</b><span class="c-tag">Wheel is yours this week</span></div><div class="wh-gr">' +
     ['bp', 'bs', 'spd', 'bsk'].map((k) => '<span class="wh-g' + (k === statKey(w.stat) ? ' hit' : '') + '">' + deco(STAT(k).icon, 20) + '<span>' + esc(STAT(k).word) + '</span><b>' + esc(letterOfRaw(rates[k] || 1)) + '</b></span>').join('') + '</div><p class="dr-hint">The tick shows where it will land.</p>';
+  const ring = spotRing(w), cur = () => { const sp = two ? latest.raw.twin : latest.raw.spotlight; return sp || {}; };
   openWheel({
-    wheelId: 'spot', ring: spotRing(w), legend: spotLegend(spotRing(w)), J: w.phys && w.phys.J != null ? w.phys.J : undefined, // CONTRACT-A sec 4; STOP glow is always on (timing retired)
-    title: 'Spotlight', sub: 'Week ' + latest.vm.week + (latest.vm.wheel2 ? (two ? ', second spin' : ', first spin') : ''), cardHtml: card, slices: w.slices, jackpotIndex: w.jackpotIndex, widths: w.widths, aim: w.aim, pending: w.pending || null,
+    wheelId: 'spot', spinKey: w.spinKey || undefined, wobKey: w.wobKey || undefined, stored: w.stored || undefined, ring, legend: spotLegend(ring), J: 1.2, plus: 'x', // CONTRACT-A sec 4: engine J 1.2 (phys.J = after Steady); STOP glow always on
+    title: 'Spotlight', sub: 'Week ' + latest.vm.week + (latest.vm.wheel2 ? (two ? ', second spin' : ', first spin') : ''), cardHtml: card, pending: w.pending || null,
     // wheel meta (flag on; empty / null otherwise): guide = Aim Guide tick, tokens = buttons for the waiting result, getTokens = the fresh list after each command, look = craft look
-    guide: w.guide, zone: w.zone, chime: w.chime, tokens: w.tokens, getTokens: () => { const sp = two ? latest.raw.twin : latest.raw.spotlight; return (sp && sp.tokens) || []; }, look: w.look, phys: w.phys, golds: w.golds, spokeGain: () => { const sp = two ? latest.raw.twin : latest.raw.spotlight; return (sp && sp.spokeGain) || 0; },
+    guide: w.guide, zone: w.zone, chime: w.chime, tokens: w.tokens, getTokens: () => cur().tokens || [], look: w.look, phys: w.phys || undefined, spokeGain: () => cur().spokeGain || 0,
     onToken: (kind, careful) => dispatch('UseToken', two ? { wheel: 'spot', kind, careful, slot: 2 } : { wheel: 'spot', kind, careful }),
-    onSpin: (careful) => dispatch('Spin', two ? { careful, slot: 2 } : { careful }), getPending: () => { const sp = two ? latest.raw.twin : latest.raw.spotlight; return (sp && sp.pending) || null; },
+    onSpin: (stop) => dispatch('Spin', two ? { careful: stop, stop, slot: 2 } : { careful: stop, stop }), getPending: () => cur().pending || null, // the handler records the stop (recordStop) and lands the same slice
     describe: (p) => {
       const g = p.applied != null ? p.applied : Math.min(p.gain, w.room == null ? 99 : w.room), to = raw0 + g, a = letterOfRaw(raw0), b = letterOfRaw(to), moved = stepOfRaw(to) !== stepOfRaw(raw0);
       return { big: st.word, from: a, to: b, barHtml: moved ? '' : letterBar(to, raw0), breakthrough: !!(p.jackpot || moved),
-        mult: spotMult(p), say: pr.name + ' ' + st.word + (spotMult(p) ? ' ' + spotMult(p) : '') + ': wheel plus ' + g + ', ' + (moved ? a + ' to ' + b : a + ', the bar fills') + (p.jackpot ? ', jackpot' : '') + '.' };
+        mult: spotMult(p), say: pr.name + ' ' + st.word + (spotMult(p) ? ' ' + spotMult(p) : '') + ': +' + g + ' steps, ' + (moved ? a + ' to ' + b : a + ', the bar fills') + (p.jackpot ? ', jackpot' : '') + '.' };
     },
     onCollect: () => { if (!two && latest.vm.wheel2) { openSpotlightWheel(dispatch, 2); return; } runPending = true; dispatch('RunNets', {}); },
   });
@@ -146,11 +149,16 @@ function ctCard(c, vm) {
 /* Z5 UI slots (SEAMS-S0): fenced, return '' today. Owners: Spotlight T2, job chip + XP bar T5, Clinic button T6. */
 /* SLOT:Spotlight start */
 /** The Spotlight ring for a wheel vm: SPOT_SLICES with Kind Floor applied when owned (the x1.0 pieces print and pay x1.2). */
-export function spotRing(w) { return applyKindFloor(SPOT_SLICES, !!(w && w.kindFloor)); }
+export function spotRing(w) {
+  const ring = applyKindFloor(SPOT_SLICES, !!(w && w.kindFloor)), v = w && w.slices, ws = w && w.widths; // old vm fields only size the ring when the tree changed it (Widener, Extra Gold)
+  if (!Array.isArray(v) || !Array.isArray(ws) || v.length !== ws.length || !v.length || (v.length === ring.length && ws.every((x, i) => Math.abs(x - ring[i].w) < 1e-6))) return ring;
+  const golds = w.golds && w.golds.length ? w.golds : [w.jackpotIndex || 0], lo = Math.min(...ring.map((r) => r.value));
+  return v.map((x, i) => { const val = ring[i] && v.length === ring.length ? ring[i].value : x; return { id: i, w: ws[i], value: val, label: 'x' + String(Math.round(val * 100) / 100), tier: val > lo ? 'top' : 'low', gold: golds.includes(i) }; });
+}
 /** Legend for under-7% pieces whose printed label is longer than one char and not a number. */
 export function spotLegend(ring) { return (ring || []).filter((s) => s.w < 0.7 && String(s.label).length > 1 && !/^[+-]?[x\d.]+$/.test(String(s.label))).map((s) => ({ ch: String(s.label).charAt(0), text: String(s.label) })); }
 /** Result strip multiplier text ('x1.2') from a pending result; '' when unknown. */
-export function spotMult(p) { const v = p && (p.mult != null ? p.mult : p.value); return v != null && isFinite(+v) ? 'x' + String(Math.round(+v * 100) / 100) : ''; }
+export function spotMult(p) { const v = p && (p.mult != null ? p.mult : p.value != null ? p.value : p.gain); return v != null && isFinite(+v) ? 'x' + String(Math.round(+v * 100) / 100) : ''; }
 /** Training tab strip: the multipliers on the Spotlight ring (gold first). '' with no Spotlight player. */
 export function slotSpotlight(vm) {
   const w = vm && vm.wheel; if (!w || !w.player) return '';
