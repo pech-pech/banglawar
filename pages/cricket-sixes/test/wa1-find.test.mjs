@@ -38,29 +38,29 @@ test('physics: Spotlight is byte-identical (no phys.D = WS.D); a per-wheel phys.
   assert.ok(Number.isFinite(carefulTapTime(w, 1.3, 0.5, 0.5)));
 });
 
-test('findWheel: 3 equal blocks, total = rate x 10, evenly spaced, type split by the mix, phys W0 36 / D 2 / J 0.8', () => {
-  for (const f of [8, 14, 18, 26]) {
+test('findWheel (SPEC s5): the find rate picks the ring, 2 blocks (3 at 26%), one slice a block, phys W0 36 / D 2 / J 1.5', () => {
+  const RING = { 8: 0.08, 14: 0.18, 16: 0.18, 18: 0.18, 22: 0.18, 26: 0.26 }; // nearest ring, a tie to the lower
+  for (const f of [8, 14, 16, 18, 22, 26]) {
     const w = findWheel({ find: f, mix: MIX });
-    assert.equal(w.C, 10); assert.ok(Math.abs(w.widths.reduce((a, b) => a + b, 0) - 10) < 1e-9);
-    const blocks = [0, 1, 2].map((b) => w.cells.filter((c) => c.block === b).reduce((a, c) => a + c.w, 0));
-    for (const b of blocks) assert.ok(Math.abs(b - f / 100 * 10 / 3) < 1e-9);
-    const gaps = w.cells.filter((c) => !c.find).map((c) => c.w); assert.equal(gaps.length, 3); for (const g of gaps) assert.ok(Math.abs(g - gaps[0]) < 1e-9);
-    const b0 = w.cells.filter((c) => c.block === 0); assert.deepEqual(b0.map((c) => c.type), ['coach', 'coins', 'player']);
-    assert.ok(Math.abs(b0[1].w / blocks[0] - 0.4) < 1e-9);
-    assert.deepEqual(w.golds, []); assert.equal(w.finds.length, 9); assert.equal(w.aims.length, 3);
-    assert.deepEqual(w.phys, { W0: 36, J: 0.8, D: 2, SD: 0.11 });
+    assert.equal(w.C, 10); assert.equal(w.rate, RING[f]); assert.ok(Math.abs(w.widths.reduce((a, b) => a + b, 0) - 10) < 1e-9);
+    const nb = f === 26 ? 3 : 2; assert.equal(w.finds.length, nb); assert.equal(w.cells.length, nb * (f === 26 ? 4 : 5));
+    assert.deepEqual(w.golds, w.finds); assert.equal(w.aims.length, nb - (f === 26 ? 1 : 0)); // the 2% block is never an aim
+    assert.deepEqual(w.phys, { W0: 36, J: 1.5, D: 2, SD: 0.11 });
+    assert.deepEqual(w.mix.map((x) => x[0]), ['coach', 'coins', 'player']);
+    for (const c of w.cells.filter((c) => c.find)) assert.ok(c.w <= 1.3 + 1e-9);
   }
-  const one = findWheel({ find: 8, mix: { coins: 80, player: 20, coach: 0 } }); assert.equal(one.cells.filter((c) => c.block === 0).length, 2);
-  assert.deepEqual(FIND_WHEEL.W0 + '|' + FIND_WHEEL.D + '|' + FIND_WHEEL.J + '|' + FIND_WHEEL.BLOCKS, '36|2|0.8|3');
+  assert.deepEqual(findWheel({ find: 8, mix: { coins: 80, player: 20, coach: 0 } }).mix.map((x) => x[0]), ['coins', 'player']);
+  assert.deepEqual(FIND_WHEEL.W0 + '|' + FIND_WHEEL.D, '36|2'); // J 1.5 now lives in js/data/wheels/find.js (FIND_J); FIND_WHEEL.J / BLOCKS are unused
 });
 
-test('findWheel tree: Slow / Steady / Guide phys, Widener + Sharp Eyes on each block, Extra Gold = 4th block at 0.75', () => {
+test('findWheel tree: Slow / Steady / Guide phys, Widener + Sharp Eyes on each block, Extra Gold = 3rd block at 0.75, no re-split', () => {
   const w = findWheel({ find: 18, mix: MIX }, { ...neutralMods(), goldAdd: 0.06, rareAdd: 0.06, extra: 1 }, CTL);
-  assert.ok(Math.abs(w.phys.W0 - 19.8) < 1e-9); assert.ok(Math.abs(w.phys.J - 0.56) < 1e-9); assert.equal(w.phys.SD, 0.08); assert.equal(w.phys.D, 2);
-  const bw = (b) => w.cells.filter((c) => c.block === b).reduce((a, c) => a + c.w, 0);
-  for (const b of [0, 1, 2]) assert.ok(Math.abs(bw(b) - (0.6 + 0.12)) < 1e-9);
-  assert.ok(Math.abs(bw(3) - 0.75 * 0.72) < 1e-9); assert.equal(w.aims.length, 4);
+  assert.ok(Math.abs(w.phys.W0 - 19.8) < 1e-9); assert.ok(Math.abs(w.phys.J - 1.05) < 1e-9); assert.equal(w.phys.SD, 0.08); assert.equal(w.phys.D, 2);
+  const f = w.finds.map((i) => w.cells[i]); assert.equal(f.length, 3);
+  for (const c of f.filter((c) => !c.second)) assert.ok(Math.abs(c.w - (0.9 + 0.12)) < 1e-9);
+  assert.ok(Math.abs(f.find((c) => c.second).w - 0.75 * 1.02) < 1e-9); assert.equal(w.aims.length, 3);
   assert.ok(Math.abs(w.widths.reduce((a, b) => a + b, 0) - 10) < 1e-9);
+  const big = findWheel({ find: 26, mix: MIX }, { ...neutralMods(), goldAdd: 0.5 }); assert.ok(Math.max(...big.widths) <= 1.3 + 1e-9, 'ceiling 13.0%'); assert.equal(big.finds.length, 3);
 });
 
 test('findWheelResult: seeded, always 8 draws, explicit stop = landing, pity = sure find', () => {
@@ -68,30 +68,29 @@ test('findWheelResult: seeded, always 8 draws, explicit stop = landing, pity = s
   findWheelResult(a, w, true); findWheelResult(b, w, { t: 2, phi: 1, e: 0 }); assert.equal(a.random(), b.random());
   const r = findWheelResult(makeRng('q'), w, { t: 3, phi: 2, e: 0.1 }), L = stopLanding(w, { t: 3, phi: 2, e: 0.1 });
   assert.equal(r.index, L.index); assert.equal(r.find, w.cells[L.index].find);
-  const p = makeRng('pity'); for (let i = 0; i < 100; i++) assert.ok(w.cells[pityFind(p, w).index].find);
-  // Second Cheer: a Nothing landing can still find; never on a find landing
-  const wc = findWheel({ find: 18, mix: MIX }, { ...neutralMods(), cheer: 1 }), q = makeRng('ch'); let sec = 0;
-  for (let i = 0; i < 2000; i++) { const x = findWheelResult(q, wc, false); if (x.second) { sec++; assert.ok(x.find && !wc.cells[x.index].find); } }
-  assert.ok(sec > 100);
+  const p = makeRng('pity'); for (let i = 0; i < 100; i++) { const x = pityFind(p, w); assert.ok(w.cells[x.index].find); assert.ok(['coins', 'player', 'coach'].includes(x.type)); }
+  // Second Cheer is its own aimed spin now (store FindCheer): the result never re-picks a Nothing landing
+  const wc = findWheel({ find: 18, mix: MIX }, { ...neutralMods(), cheer: 1 }), q = makeRng('ch');
+  for (let i = 0; i < 500; i++) { const x = findWheelResult(q, wc, false); assert.equal(x.find, wc.cells[x.index].find); assert.ok(!x.cheered); assert.equal(x.type !== null, x.find); }
 });
 
-test('parity (SPEC s1 + s3a): random ~ rate, avg careful ~ 1.27x, Control + Widener + Extra Gold ~ 47% at 18%, never > 55%', () => {
+test('parity (SPEC s5): random ~ rate, avg careful 11.7 / 26.0 / 35.1 (1.46 / 1.44 / 1.35x), Control + Widener + Extra Gold under 55% at 18%', () => {
   const r18 = rate(18, false), c18 = rate(18, true), c8 = rate(8, true), c26 = rate(26, true);
   assert.ok(Math.abs(r18 - 18) < 0.8, 'random ' + r18);
-  assert.ok(Math.abs(c18 - 22.9) < 1.2, 'careful 18 ' + c18);
-  assert.ok(Math.abs(c8 - 10.5) < 1.0, 'careful 8 ' + c8);
-  assert.ok(Math.abs(c26 - 32.4) < 1.2, 'careful 26 ' + c26);
-  const ctl = rate(18, true, neutralMods(), CTL); assert.ok(Math.abs(ctl - 43.3) < 2, 'control only ' + ctl);
-  const full = rate(18, true, { ...neutralMods(), goldAdd: 0.06, extra: 1 }, CTL); assert.ok(full > 42 && full < 50 && full <= 55, 'full ' + full);
-  const fr = rate(18, false, { ...neutralMods(), goldAdd: 0.06, extra: 1 }, CTL); assert.ok(Math.abs(fr - 24.7) < 1.2, 'full random ' + fr);
+  assert.ok(Math.abs(c18 - 26.0) < 1.2, 'careful 18 ' + c18);
+  assert.ok(Math.abs(c8 - 11.7) < 1.0, 'careful 8 ' + c8);
+  assert.ok(Math.abs(c26 - 35.1) < 1.5, 'careful 26 ' + c26);
+  const ctl = rate(18, true, neutralMods(), CTL); assert.ok(Math.abs(ctl - 40.2) < 3, 'control only ' + ctl);
+  const full = rate(18, true, { ...neutralMods(), goldAdd: 0.06, extra: 1 }, CTL); assert.ok(full > 40 && full <= 55, 'full ' + full);
+  const fr = rate(18, false, { ...neutralMods(), goldAdd: 0.06, extra: 1 }, CTL); assert.ok(Math.abs(fr - 26.2) < 1.5, 'full random ' + fr);
 });
 
 test('store: flag off = no wheel; flag on = big-wheel VM, PickActivity {stop} is seeded and lands where the stop says', () => {
   withFlags({ wheelMeta: false, matchday: true, activities: true }, () => { const s = newGame('wa1f-off').get(); assert.equal(findSpinVM(s, 'banner'), null); });
   withFlags(ON, () => {
     const st = newGame('wa1f-on'); const s = { ...st.get(), econ: { ...st.get().econ, coins: 5000 } };
-    const vm = findSpinVM(s, 'banner'); assert.equal(vm.slices.length, 12); assert.equal(vm.golds.length, 9); assert.equal(vm.phys.D, 2); assert.equal(vm.pending, null);
-    assert.ok(vm.labels.filter((l) => l === 'Find').length === 3);
+    const vm = findSpinVM(s, 'banner'); assert.equal(vm.slices.length, 12); assert.equal(vm.golds.length, 3); // banner = 26%: 12 / 12 / 2 ring assert.equal(vm.phys.D, 2); assert.equal(vm.pending, null);
+    assert.ok(vm.labels.filter((l) => l === 'FIND').length === 2 && vm.labels.filter((l) => l === 'F').length === 1); assert.ok(vm.rows.every((r) => r.w >= 0.7 || r.label.length === 1));
     const stop = { t: 3.1, phi: 2.2, e: 0.05 }, a = C(s, 'PickActivity', { id: 'banner', stop }), b = C(s, 'PickActivity', { id: 'banner', stop });
     assert.deepEqual(a, b); assert.equal(metaOf(a).tally, 1);
     assert.equal(a.findSpin.index, stopLanding(findWheelOf(s, 'banner'), stop).index);
@@ -131,8 +130,8 @@ test('tokens on Find: offered only on a no-find, a re-spin find replaces the pen
 
 // ---------------------------------------------------------------- wa1 find2: parity at 8 / 18 / 26 %, Nudge guard, flag off
 const FULL = { ...neutralMods(), goldAdd: 0.06, extra: 1 }; // SPEC 3a full tree: Control + Widener + Extra Gold (no Sharp Eyes / Second Cheer)
-test('find2 parity (20k seeds each): random ~ rate at 8/18/26; careful 10.5/22.9/32.4; full tree no tokens 24/47/62; never > 55% at 18%', () => {
-  const want = { 8: [10.5, 24.2], 18: [22.9, 47.1], 26: [32.4, 62.3] };
+test('find2 parity (20k seeds each): random ~ rate at 8/18/26; careful 11.7/26.0/35.1 (SPEC s5); full tree no tokens; never > 55% at 18%', () => {
+  const want = { 8: [11.7, 21.5], 18: [26.0, 43.0], 26: [35.1, 55.2] }; // SPEC s5 careful; full = Control + Widener + Extra Gold on the new rings
   for (const f of [8, 18, 26]) {
     const r = rate(f, false, neutralMods(), {}, 20000, 'f2r'), c = rate(f, true, neutralMods(), {}, 20000, 'f2c'), full = rate(f, true, FULL, CTL, 20000, 'f2f');
     assert.ok(Math.abs(r - f) < 0.9, f + ' random ' + r);
@@ -180,8 +179,8 @@ const allOwned = () => withFlags(ON, () => {
 const realFull = (cheer) => { const { mods, ctl } = allOwned(); return rate(18, true, { ...mods, ...(cheer ? {} : { cheer: 0 }) }, ctl, 20000, 'f2all' + cheer); };
 // wa1 findtune (NUMBERS ruling, SPEC 3a BUILD Q 16:55): Sharp Eyes +0.02 a block a rank; Second Cheer 1 a season (no token, never chains); no Nudge on Find
 const FIND_SPINS_SEASON = 6; // season model for the 1-a-season Second Cheer
-const realSeason = () => { const { mods, ctl } = allOwned(); const wc = findWheel({ find: 18, mix: MIX }, mods, ctl), w = findWheel({ find: 18, mix: MIX }, { ...mods, cheer: 0 }, ctl), r = makeRng('ftseason');
-  let h = 0, n = 0; for (let s = 0; s < 20000 / FIND_SPINS_SEASON; s++) { let used = false; for (let k = 0; k < FIND_SPINS_SEASON; k++) { const x = findWheelResult(r, used ? w : wc, true); if (x.cheered) used = true; h += x.find ? 1 : 0; n++; } } return 100 * h / n; };
+const realSeason = () => { const { mods, ctl } = allOwned(); const w = findWheel({ find: 18, mix: MIX }, { ...mods, cheer: 0 }, ctl), r = makeRng('ftseason');
+  let h = 0, n = 0; for (let s = 0; s < 20000 / FIND_SPINS_SEASON; s++) { let used = false; for (let k = 0; k < FIND_SPINS_SEASON; k++) { let x = findWheelResult(r, w, true); if (!x.find && !used) { used = true; x = findWheelResult(r, w, true); } h += x.find ? 1 : 0; n++; } } return 100 * h / n; }; // Second Cheer = one free aimed re-spin after the first no-find
 test('findtune H2: every node owned (effective -> modsFor) at 18%: ~47% a spin, ~51% with Second Cheer 1 a season, both < 55% (bug line)', () => {
   const { mods } = allOwned(); assert.equal(+mods.rareAdd.toFixed(3), 0.04, 'Sharp Eyes 2 ranks = +0.04 a block');
   const spin = realFull(false), season = realSeason();
@@ -189,16 +188,15 @@ test('findtune H2: every node owned (effective -> modsFor) at 18%: ~47% a spin, 
   assert.ok(spin > 44 && spin < 51, 'full tree a spin ' + spin); assert.ok(season > spin && season < 55, 'with Second Cheer ' + season);
 });
 import { findForce } from '../js/store/wmstore.js';
-test('findtune: Second Cheer fires once a season (wheelMeta.cheerUsed{season}, missing = 0), never on a token spin, no Nudge on Find', () => withFlags(ON, () => {
+test('findtune: Second Cheer is a separate FindCheer spin once a season (wheelMeta.cheerUsed{season}, missing = 0), no token, no Nudge on Find', () => withFlags(ON, () => {
   const s0 = newGame('wa1ft-cheer').get(), wm = { ...metaOf(s0), owned: { sp_fnd_r: 1 }, tokens: { respin: 0, nudge: 2, two: 0, wild: 0, lift: 0 } };
   const s = { ...s0, econ: { ...s0.econ, coins: 5000 }, wheelMeta: wm }, sn = (s.season && s.season.n) || 1; let hits = 0;
   for (let i = 0; i < 60 && hits < 4; i++) {
-    const stop = { t: 1.1 + i * 0.13, phi: i * 0.41, e: 0 }, f = findForce(s, 'banner', { stop }); if (!f || !f.cheered) continue;
-    hits++;
-    const used = { ...s, wheelMeta: { ...wm, cheerUsed: { [sn]: 1 } } }, g = findForce(used, 'banner', { stop });
-    assert.equal(g.cheered, false, 'no second cheer this season'); assert.equal(g.second, false);
-    const a = C(s, 'PickActivity', { id: 'banner', stop }); assert.equal(metaOf(a).cheerUsed[sn], 1, 'cheer marked used');
-    if (!a.findSpin.find) { const vm = findSpinVM(a, 'banner'); assert.ok(!vm.tokens.some((t) => t.kind === 'nudge'), 'no Nudge on Find'); }
+    const stop = { t: 1.1 + i * 0.13, phi: i * 0.41, e: 0 }, a = C(s, 'PickActivity', { id: 'banner', stop }); if (a.findSpin.find) continue;
+    hits++; assert.equal(findForce(s, 'banner', { stop }).second, false); assert.equal(metaOf(a).cheerUsed, undefined, 'the pick alone spends no cheer');
+    const b = C(a, 'FindCheer', { careful: true }); assert.equal(metaOf(b).cheerUsed[sn], 1, 'cheer marked used'); assert.deepEqual(metaOf(b).tokens, wm.tokens, 'no token');
+    assert.equal(C(b, 'FindCheer', { careful: true }), b, 'once');
+    assert.ok(!findSpinVM(a, 'banner').tokens.some((t) => t.kind === 'nudge'), 'no Nudge on Find');
   }
   assert.ok(hits >= 2, 'cheer cases: ' + hits);
   const t = Object.values(findWheelOf(s, 'banner').mods).length; assert.ok(t > 0);

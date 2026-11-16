@@ -3,17 +3,37 @@
 import { ECON as E } from '../../data/economy.js';
 import { DR } from '../../data/dialreel.js';
 import { effective, recordSpin } from '../../core/wheelmeta.js';
-import { revealWheel, revealResult } from '../../core/wheels/reveal.js';
+import { revealResult } from '../../core/wheels/reveal.js';
 import { modsFor } from '../../core/wheels/common.js';
-import { clone, on, rngFor, seasonN, wmTokensOf } from './common.js';
+import { finalsWheel, finalsRing, FINALS_MULT } from '../../core/wheels/finals.js';
+import { clone, on, rngFor, seasonN, wmTokensOf, stopOf } from './common.js';
 import { ctlOf } from './common.js';
+
+/** The Coin / Fans multipliers on the Finals prize: none exist today (the old reel paid fx raw), so x1. One place to change if one is ever added. @param {any} _s */
+export const finalsMult = (_s) => FINALS_MULT;
+/** The 12-slice Finals wheel for this save (tree applied, labels = paid amounts). @param {any} s */
+export const finalsWheelOf = (s) => finalsWheel(modsFor(effective(s), 'finals'), finalsMult(s));
+
+// STOP bookkeeping seam. recordStop / spinKeyOf (CONTRACT-A sec 7, js/core/wheel-stops.js) are built by T1 / S0 and are not in the tree yet, so they are wired in, not imported:
+// wireStops({recordStop, spinKeyOf}). Unwired = nothing is recorded and the key is finalsKey(s) (season|kind|round; the contract's per-season key would collide a semi and a final).
+/** @type {{recordStop:null|((n:any,w:string,k:string,r:any)=>any), spinKeyOf:null|((s:any,w:string,c?:any)=>string)}} */
+const stops = { recordStop: null, spinKeyOf: null };
+/** @param {{recordStop?:any, spinKeyOf?:any}} h */
+export const wireStops = (h) => { Object.assign(stops, h); };
+
+/** The result AT STOP: sliceId (the view's STOP slice) pins the slice, else the seeded width-weighted draw. Same 6 draws as revealResult. @param {{random:()=>number}} rng @param {any} wheel @param {any} [sliceId] */
+export function finalsResultAt(rng, wheel, sliceId) {
+  if (!Number.isInteger(sliceId) || sliceId < 0 || sliceId >= wheel.slices.length) return revealResult(rng, wheel);
+  const c = wheel.slices[sliceId]; let first = true;
+  return revealResult({ random: () => { const v = rng.random(); if (first) { first = false; return ((c.a + c.b) / 2) / wheel.total; } return v; } }, wheel);
+}
 
 export const finalsKey = (/** @type {any} */ s) => `${seasonN(s)}|${s.fixture.kind}|${s.fixture.round}`;
 /** Command guard for FinalsSpin: result screen of a semi or final, not spun for this fixture. @param {any} s */
 export const canFinalsSpin = (s) => on() && !!s.season && !!s.fixture && s.stage === 'done' && (s.fixture.kind === 'semi' || s.fixture.kind === 'final') && !(s.finalsSpin && s.finalsSpin.key === finalsKey(s));
 /** One Finals reel spin: pays Coins / TP / Fans / Medal now (ledger row), keeps s.finalsSpin for a reload, recordSpin. @param {any} s */
-export function finalsSpin(s) {
-  const w = revealWheel('finals', modsFor(effective(s), 'finals')), r = revealResult(rngFor(s, 'finals', finalsKey(s)), w);
+export function finalsSpin(s, p) {
+  const w = finalsWheelOf(s), st = p && p.stop && typeof p.stop === 'object' ? p.stop : null, r = finalsResultAt(rngFor(s, 'finals', finalsKey(s)), w, st ? st.sliceId : undefined);
   const n = clone(recordSpin(s, 'finals')), row = finalsRow(s, { ...r, wheel: w });
   const { coins, tp, fans, medal } = row;
   if (n.econ) {
@@ -23,18 +43,24 @@ export function finalsSpin(s) {
   }
   if (tp && n.training) { n.training.tp += tp; if (n.season) n.season.tpWon += tp; }
   n.finalsSpin = row;
+  if (stops.recordStop) { // synchronous with the result, same dispatch (CONTRACT-A sec 7); stopOf keeps the old careful / random payloads working
+    const o = /** @type {any} */ (stopOf(p)) || {}, c = w.slices[r.index], t = Number.isFinite(o.t) ? o.t : 0;
+    stops.recordStop(n, 'finals', stops.spinKeyOf ? stops.spinKeyOf(s, 'finals', { key: row.key }) : row.key,
+      { stopT: Math.round(Number.isFinite(st && st.stopT) ? st.stopT : t * 1000), cycle: Math.max(1, (st && st.cycle) | 0 || 1), tInCycle: Number.isFinite(st && st.tInCycle) ? st.tInCycle : t,
+        sliceId: r.index, value: c.value, paid: row.paid, auto: !st, respin: st && st.respin ? 1 : 0 });
+  }
   return n;
 }
 /** The stored Finals prize (+ .src for a token). @param {any} s @param {any} r */
 export function finalsRow(s, r) {
-  const fx = r.fx || {};
-  return { key: finalsKey(s), index: r.index, id: r.id, label: r.label, coins: fx.coins | 0, tp: fx.tp | 0, fans: fx.fans | 0, medal: fx.medal | 0, ...(r.used ? { used: r.used.slice() } : {}), ...(r.lifted ? { lifted: true } : {}), src: clone(r) };
+  const fx = r.fx || {}, c = r.wheel && r.wheel.slices && r.wheel.slices[r.index], k = c && c.type ? ({ Coins: 'coins', TP: 'tp', Fans: 'fans', Medal: 'medal' })[/** @type {'Coins'} */ (c.type)] : null;
+  return { key: finalsKey(s), sliceId: r.index, paid: k ? fx[k] | 0 : 0, index: r.index, id: r.id, label: r.label, coins: fx.coins | 0, tp: fx.tp | 0, fans: fx.fans | 0, medal: fx.medal | 0, ...(r.used ? { used: r.used.slice() } : {}), ...(r.lifted ? { lifted: true } : {}), src: clone(r) };
 }
 /** Finals reveal props for the result screen. due = a semi/final result is showing and the prize is not spun. null otherwise. @param {any} s */
 export function finalsSpinVM(s) {
   if (!on() || !s.season || !s.fixture || s.stage !== 'done' || (s.fixture.kind !== 'semi' && s.fixture.kind !== 'final')) return null;
-  const fs = s.finalsSpin && s.finalsSpin.key === finalsKey(s) ? s.finalsSpin : null, w = fs && fs.src && fs.src.wheel ? fs.src.wheel : revealWheel('finals', modsFor(effective(s), 'finals'));
-  return { due: !fs, cells: w.slices.map((/** @type {any} */ c) => ({ label: c.label, w: c.w, tone: c.gold ? 'gold' : 'none', gold: !!c.gold })), ...ctlOf(s, 'finals'), tokens: wmTokensOf(s, 'finals'),
+  const fs = s.finalsSpin && s.finalsSpin.key === finalsKey(s) ? s.finalsSpin : null, w = fs && fs.src && fs.src.wheel ? fs.src.wheel : finalsWheelOf(s);
+  return { due: !fs, ring: w.slices[0] && w.slices[0].type ? finalsRing(w) : null, cells: w.slices.map((/** @type {any} */ c) => ({ label: c.label, w: c.w, tone: c.gold ? 'gold' : 'none', gold: !!c.gold })), ...ctlOf(s, 'finals'), tokens: wmTokensOf(s, 'finals'),
     pending: fs ? { index: fs.index, label: fs.label, coins: fs.coins, tp: fs.tp, fans: fs.fans, medal: fs.medal, jackpot: fs.medal > 0, lifted: !!fs.lifted, ...finalsWhy(fs, w) } : null };
 }
 /** wa1 fixreel (QA V7): why the prize differs from the cell. base = the cell's Coins/TP/Fans (+ Booster Coins) before Prize Pair; pair = Prize Pair owned (x1.5, never Medals);
