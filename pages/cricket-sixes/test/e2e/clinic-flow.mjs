@@ -66,6 +66,7 @@ try {
   // the fixture is mid-match (stage bowl): play it out by command, then the week is a Training week
   const st = await advance('train'); step('reached Training', st === 'train', st);
   await wait(500);
+  for (let i = 0; i < 3 && (await page.$('.tu-ov')); i++) { const bs = await page.$$('.tu-ov button'); if (bs.length) await bs[bs.length - 1].click(); await wait(300); await closeSheets(); } // a tier-up card may wait after the match
   const tip = await page.$('.tr-tip [data-tip="skip"]'); if (tip) { await tip.click(); await wait(200); }
   const btn = await page.$('[data-cn="spin"]');
   if (!btn) {
@@ -91,7 +92,7 @@ try {
           if (!o.dis && /^(SPIN|STOP)/i.test(o.go)) { await page.click('[data-go]'); await wait(/^STOP/i.test(o.go) ? 700 : 300); } else await wait(150);
         }
         step('wheel SPIN then STOP', !!res, 'no result shown within 16 s');
-        const vis = await get(() => { const r = document.querySelector('[data-res]'); return r ? r.innerText.replace(/\s+/g, ' ').trim() : ''; }), live = await get(() => { const l = document.querySelector('.cn-live[aria-live]'); return l ? l.textContent.replace(/\s+/g, ' ').trim() : ''; });
+        const vis = await get(() => { const r = document.querySelector('[data-res]'); return r ? r.innerText.replace(/\s+/g, ' ').trim() : ''; }), live = await get(() => { const l = document.querySelector('[data-live]'); return l ? l.textContent.replace(/\s+/g, ' ').trim() : ''; });
         step('aria-live text equals visible result', !!live && vis.includes(live), `live "${live}" visible "${vis}"`);
         const slice = await get((c) => { const s = window.__store.get(), x = (s.clinic.spins || []).find((q) => q.coachId === c); return x ? JSON.stringify([s.clinic.boost]) : null; }, coachId);
         await wait(700); await load();
