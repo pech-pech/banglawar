@@ -62,6 +62,8 @@ const SHEETS = {
   stepup: { file: 'stepup-sheet', fn: 'openStepUp', state: true },
   /* SHEETS:T5 end */
   /* SHEETS:T6 start */
+  clinicpick: { file: 'clinic-pick-sheet', fn: 'openClinicPick', state: true },
+  clinicwheel: { file: 'clinic-wheel-sheet', fn: 'openClinicWheelSheet', vm: ['clinicWheelVM', (a) => [a]] },
   /* SHEETS:T6 end */
 };
 const mods = {}, loading = {};
