@@ -7,7 +7,7 @@
 html,body{margin:0;height:100%;background:#12202a;color:#eef3f5;font:16px/1.25 system-ui,sans-serif;overscroll-behavior:none}
 body{display:flex;flex-direction:column;height:100dvh;user-select:none;-webkit-user-select:none}
 .row{display:flex;gap:6px;padding:6px}
-.row button{flex:1;min-height:56px;border:2px solid #44606e;background:#1c3340;color:#eef3f5;border-radius:10px;font:600 15px system-ui}
+.row button{flex:1;min-width:0;padding:0 2px;min-height:56px;border:2px solid #44606e;background:#1c3340;color:#eef3f5;border-radius:10px;font:600 15px system-ui}
 .row button.on{background:#e6b422;color:#1a1a1a;border-color:#e6b422}
 #stage{flex:1;min-height:120px;position:relative}
 canvas{position:absolute;inset:0;width:100%;height:100%}
@@ -27,7 +27,7 @@ body.playing .row{display:none}
  <button data-m="A1" class="on">A1 Captain</button><button data-m="A2">A2 Streak</button><button data-m="A3">A3 Read</button>
 </div>
 <div class="row" style="padding-top:0">
- <button id="side">Batting</button><button id="letter">Letter C</button><button id="cal">Calibrate</button><button id="report">Report</button>
+ <button id="side">Batting</button><button id="letter">Letter C</button><button id="wset">Mid ±55</button><button id="cal">Calib</button><button id="report">Report</button>
 </div>
 <div id="stage"><canvas id="cv"></canvas></div>
 <div id="circles"></div>
@@ -50,10 +50,10 @@ function pickOf(r,k,best,val){let s=roll(r);for(let i=1;i<k;i++){const b=roll(r)
 const floorBat=b=>(b==='W'||b===0)?1:b;      // Perfect floor when batting: never dot or wicket
 const floorBowl=b=>(b===4||b===6)?2:b;       // Perfect floor when bowling: never a boundary
 // ---------- state ----------
-const S={mode:'A1',side:'bat',letter:'C',offset:0,phase:'idle',balls:[],i:0,chain:0,overs:[],seedN:1,cal:null};
+const S={mode:'A1',side:'bat',letter:'C',wset:'Mid',offset:0,phase:'idle',balls:[],i:0,chain:0,overs:[],seedN:1,cal:null};
 try{const o=+localStorage.getItem('go.offset');if(isFinite(o))S.offset=o}catch(e){}
-const WIN={F:60,C:80,S:110};
-const win=()=>({p:WIN[S.letter],g:Math.round(WIN[S.letter]*2.125)});
+const WSET={Wide:[80,170],Mid:[55,120],Tight:[40,90]},LMUL={F:.75,C:1,S:1.375};
+const win=()=>({p:Math.round(WSET[S.wset][0]*LMUL[S.letter]),g:Math.round(WSET[S.wset][1]*LMUL[S.letter])});
 const PACE={Fast:550,Medium:800,Spin:1050};
 const $=s=>document.querySelector(s);
 const cv=$('#cv'),cx=cv.getContext('2d'),pad=$('#pad'),line=$('#line');
@@ -99,7 +99,7 @@ function endOver(){
  const taps=bs.reduce((s,b)=>s+(b.grade==='P'?2:b.grade==='G'?1:0),0);
  const errs=bs.filter(b=>b.err!==null).map(b=>b.err);const mean=errs.length?errs.reduce((a,b)=>a+b,0)/errs.length:0;
  const sd=errs.length>1?Math.sqrt(errs.reduce((a,b)=>a+(b-mean)**2,0)/(errs.length-1)):0;
- S.overs.push({mode:S.mode,side:S.side,letter:S.letter,seed:S.seedN,stock:S.stock,runs,wk,taps,mean:Math.round(mean),sd:Math.round(sd),balls:bs.map(b=>({t:b.type[0],e:b.err===null?null:Math.round(b.err),g:b.grade,r:b.res}))});
+ S.overs.push({mode:S.mode,side:S.side,letter:S.letter,ws:S.wset,pw:win().p,seed:S.seedN,stock:S.stock,runs,wk,taps,mean:Math.round(mean),sd:Math.round(sd),balls:bs.map(b=>({t:b.type[0],e:b.err===null?null:Math.round(b.err),g:b.grade,r:b.res}))});
  S.seedN++;S.phase='idle';
  const good=S.side==='bat'?runs>WHEEL_AVG:runs<WHEEL_AVG;
  line.textContent=`Taps ${taps} of 12. ${S.side==='bat'?'You scored':'Rival scored'} ${runs}${wk?' for '+wk:''}. Wheel average ${WHEEL_AVG}. ${good?'Better than wheel.':'Not better than wheel.'} Timing ${Math.abs(Math.round(mean))} ms ${mean<0?'early':'late'}.`;
@@ -127,12 +127,13 @@ document.querySelectorAll('#modes button').forEach(bt=>bt.onclick=()=>{if(S.phas
  line.textContent={A1:'A1: Perfect = best of 3, never dot or wicket. Miss = worst of 2.',A2:'A2: Perfects in a row climb 2, 3, 4 rolls. Miss breaks chain.',A3:'A3: pace changes ball to ball. Read the label and run-up.'}[S.mode]});
 $('#side').onclick=()=>{if(S.phase!=='idle')return;S.side=S.side==='bat'?'bowl':'bat';$('#side').textContent=S.side==='bat'?'Batting':'Bowling'};
 $('#letter').onclick=()=>{if(S.phase!=='idle')return;S.letter={F:'C',C:'S',S:'F'}[S.letter];$('#letter').textContent='Letter '+S.letter};
+$('#wset').onclick=()=>{if(S.phase!=='idle')return;S.wset={Wide:'Mid',Mid:'Tight',Tight:'Wide'}[S.wset];$('#wset').textContent=S.wset+' ±'+WSET[S.wset][0];line.textContent=`Window ${S.wset}: Perfect ±${win().p} ms, Good ±${win().g} ms (letter ${S.letter}).`};
 $('#cal').onclick=()=>{if(S.phase!=='idle')return;if(!ac){try{ac=new (window.AudioContext||window.webkitAudioContext)()}catch(e){}}startCal()};
 function reportText(){const L=[];L.push('GOLDEN OVER PROTO REPORT');L.push(`screen ${innerWidth}x${innerHeight} dpr ${devicePixelRatio} offset ${S.offset} ms`+(S.calStat?` calSpread ${S.calStat.sd} ms (n ${S.calStat.n})`:' (not calibrated)'));
- for(const m of ['A1','A2','A3'])for(const sd of ['bat','bowl']){const o=S.overs.filter(x=>x.mode===m&&x.side===sd);if(!o.length)continue;const avg=k=>(o.reduce((s,x)=>s+x[k],0)/o.length).toFixed(1);
-  L.push(`${m} ${sd}: overs ${o.length}, runs avg ${avg('runs')} (wheel ${WHEEL_AVG}), wkts avg ${avg('wk')}, taps avg ${avg('taps')}/12, spread avg ${avg('sd')} ms`)}
+ for(const m of ['A1','A2','A3'])for(const sd of ['bat','bowl'])for(const ws of ['Wide','Mid','Tight']){const o=S.overs.filter(x=>x.mode===m&&x.side===sd&&x.ws===ws);if(!o.length)continue;const avg=k=>(o.reduce((s,x)=>s+x[k],0)/o.length).toFixed(1);
+  L.push(`${m} ${sd} ${ws}: overs ${o.length}, runs avg ${avg('runs')} (wheel ${WHEEL_AVG}), wkts avg ${avg('wk')}, taps avg ${avg('taps')}/12, spread avg ${avg('sd')} ms`)}
  L.push('--- overs (type error-ms grade result) ---');
- S.overs.forEach((o,i)=>L.push(`${i+1} ${o.mode} ${o.side} ${o.letter} seed${o.seed}: `+o.balls.map(b=>`${b.t}${b.e===null?'x':b.e}${b.g}${b.r}`).join(' ')+` = ${o.runs}/${o.wk} taps${o.taps}`));
+ S.overs.forEach((o,i)=>L.push(`${i+1} ${o.mode} ${o.side} ${o.letter} ${o.ws}±${o.pw} seed${o.seed}: `+o.balls.map(b=>`${b.t}${b.e===null?'x':b.e}${b.g}${b.r}`).join(' ')+` = ${o.runs}/${o.wk} taps${o.taps}`));
  return L.join('\n')}
 $('#report').onclick=()=>{$('#reptxt').value=reportText();$('#rep').style.display='flex'};
 $('#close').onclick=()=>{$('#rep').style.display='none'};
