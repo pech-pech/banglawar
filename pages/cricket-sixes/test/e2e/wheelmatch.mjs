@@ -24,7 +24,7 @@ const ROOT = fileURLToPath(new URL('../../', import.meta.url));
 const SHOTS = (process.env.E2E_SHOTS || '/mnt/project-files/games-design/cricket-sixes/2026-11-15-wheel-match-build/shots/').replace(/\/?$/, '/');
 const SEED = process.env.E2E_SEED || 'wm-e2e';
 const ONLY = (process.env.E2E_ONLY || 'A,B,C').split(',');
-const VP = { width: 475, height: 638 };
+const VP = { width: 475, height: 694 }; // Fold cover; the shrink guard (wheel width equal ready/spin/result, no drop over overs) needs the 694 height
 const req = createRequire(import.meta.url);
 function loadPlaywright() {
   try { return req('playwright'); } catch (e) { /* global install */ }
@@ -169,6 +169,7 @@ async function armGlow(page) {
   });
 }
 /** Start the over (BOWL OVER / BAT OVER, then SPIN if the wheel asks for it). Returns the start text seen. */
+const wheelW = (page) => page.evaluate(() => { const w = document.querySelector('.wm-wrap'); return w ? Math.round(w.getBoundingClientRect().width) : 0; });
 async function startSpin(H) {
   const page = H.page;
   await armGlow(page);
@@ -176,10 +177,12 @@ async function startSpin(H) {
   if (!go) return { ok: false, why: 'no enabled BOWL OVER / BAT OVER button: ' + (await buttons(page)).map((b) => b.text).join(' | ') };
   await page.waitForTimeout(250);
   const ready = await page.evaluate(() => document.body.innerText);
+  const wReady = await wheelW(page);
   const spin = await findBtn(page, /^SPIN\b/i);
   if (spin.length) await clickBtn(page, /^SPIN\b/i);
   const stopSeen = await waitFor(page, () => [...document.querySelectorAll('button')].some((b) => /^STOP/i.test((b.innerText || '').trim()) && !b.disabled), null, 3000);
-  return { ok: stopSeen, why: stopSeen ? '' : 'no STOP button after SPIN: ' + (await buttons(page)).map((b) => b.text).join(' | '), spinBtn: spin.length > 0, ready };
+  const wSpin = await wheelW(page);
+  return { ok: stopSeen, why: stopSeen ? '' : 'no STOP button after SPIN: ' + (await buttons(page)).map((b) => b.text).join(' | '), spinBtn: spin.length > 0, ready, wReady, wSpin };
 }
 /** Tap STOP exactly at secs after t0 (in-page timer). */
 async function stopAt(page, secs) {
@@ -227,6 +230,8 @@ async function handOver(H, secs, { reloadAfterStop = false } = {}) {
     const r = await H.get();
     reloaded = { keep, got: { len: logLen(r), seg: r.last && r.last.wheel && r.last.wheel.segId, inn: JSON.stringify([r.inn1 && r.inn1.runs, r.inn1 && r.inn1.wk, r.inn2 && r.inn2.runs]), stage: r.stage }, body: await H.body(), spinning: !!(await page.$('[data-wm="stop"]')) };
   }
+  const panelUp = await waitFor(page, () => !!document.querySelector('.wm-res:not([hidden]) .op-circles'), null, 4500); const wRes = panelUp && !reloadAfterStop ? await wheelW(page) : 0;
+  (H.widths = H.widths || []).push({ side: stageWas, ready: sp.wReady, spin: sp.wSpin, res: wRes });
   const glow = await page.evaluate(() => { const g = window.__wmGlow || {}; return { on: g.on || [], lag: g.lag || [], frames: g.frames, stopT: g.stopT, maxGap: g.maxGap }; });
   return { ready: sp.ready, ok: stopped && landed, why: !stopped ? 'STOP button gone at tap time' : !landed ? 'no wheelLog entry / s.last.wheel after STOP' : '', before, after, glow, reloaded, stageWas, spinBtn: sp.spinBtn };
 }
@@ -431,6 +436,15 @@ async function groupA() {
       }
     }
     for (let i = 0; i < 12 && (await H.stage()) === 'chase'; i++) { const hf = await handOver(H, 3.5); if (!hf.ok) break; await finishOver(H); } // no per-over Auto: hand-spin the rest
+  }
+  { // SHRINK guard (475x694): one wheel width across ready, spin and result, and no drop across the hand-spun overs, bowl side and bat side
+    for (const side of ['bowl', 'chase']) {
+      const ws = (H.widths || []).filter((x) => x.side === side && x.res);
+      if (!ws.length) { note(g, `shrink guard ${side}`, 'no hand-spun overs with a result sample'); continue; }
+      step(g, `${side}: wheel width equal across ready, spin and result in every hand-spun over`, ws.every((x) => x.ready === x.spin && x.spin === x.res), JSON.stringify(ws));
+      const all = (H.widths || []).filter((x) => x.side === side).map((x) => x.ready);
+      step(g, `${side}: wheel width never drops (more than 6 px of text wrap) from over to over (${all.join(', ')})`, all.every((x, i) => i === 0 || x >= all[i - 1] - 6), all.join(', '));
+    }
   }
   const sd = await H.get();
   step(g, 'match reaches the result screen', sd.stage === 'done', 'stage ' + sd.stage);

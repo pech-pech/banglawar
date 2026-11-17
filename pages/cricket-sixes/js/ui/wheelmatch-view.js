@@ -221,12 +221,27 @@ function makeWheel(cv, segs, vm) {
   const ctx = ovc.getContext('2d');
   function size() {
     const wrap = cv.parentElement, stage = wrap && wrap.parentElement;
-    const w = stage ? stage.clientWidth : 300, h = stage ? stage.clientHeight : 300;
+    const root = cv.closest('.wm'), isRes = !!(root && root.classList.contains('is-result'));
+    const lk = (vm && vm.side) + ':' + (typeof window !== 'undefined' ? window.innerWidth + 'x' + window.innerHeight : '');
     const lw = typeof window !== 'undefined' && window.innerWidth >= 760 && window.innerHeight >= 500 && window.innerWidth > window.innerHeight; // LW: the wheel may grow with the free height
-    W = Math.max(150, Math.floor(Math.min(w, h, lw ? 540 : 380)));
-    // QA-V1 H2 (G5): the drawn wheel keeps the size it first had in this over; the result panel takes the room of the hidden hint lines instead of re-sizing it
-    const lk = (vm && vm.side) + ':' + (typeof window !== 'undefined' ? window.innerWidth + 'x' + window.innerHeight : ''); // N8: one size per match (per side and screen), not per over
-    if (st.lock && st.lock.key === lk && st.lock.W - W < 8) W = st.lock.W; else st.lock = { key: lk, W };
+    const cap = lw ? 540 : 380;
+    // Shrink fix: one size for ready, spin and result. Ready/spin measure the stage as it will be once the result panel is shown (row and legend gone, panel in),
+    // so the result never has to squeeze the wheel; the result reuses that size. A new ready always re-measures (never a smaller locked size).
+    if (isRes && st.lock && st.lock.key === lk) W = st.lock.W;
+    else {
+      let w = stage ? stage.clientWidth : 300, h = stage ? stage.clientHeight : 300;
+      const res = root && root.querySelector('.wm-res');
+      if (!isRes && stage && wrap && res && res.hidden) { // probe: the stage height with the result panel in (restored at once, no paint between)
+        const hid = ['.wm-row', '.wm-legend'].map((q) => root.querySelector(q)).filter((x) => x && !x.hidden), keep = res.innerHTML, wh = wrap.style.height;
+        wrap.style.height = '0px'; w = stage.clientWidth;
+        res.innerHTML = '<div class="wm-resh"><span>Landed on</span><b class="wm-chip">x</b></div><ol class="op-circles wm-balls">' + '<li class="op-slot"><span class="op-circle"></span><span class="op-word">x</span></li>'.repeat(6) + '</ol>';
+        hid.forEach((x) => { x.hidden = true; }); res.hidden = false;
+        h = stage.clientHeight - (root.querySelector('.wm-autos') ? 0 : 60); // over 1 has no Auto row, overs 2+ do (56 px + gap): reserve it so the wheel keeps one size
+        res.hidden = true; res.innerHTML = keep; hid.forEach((x) => { x.hidden = false; }); wrap.style.height = wh;
+      }
+      W = Math.max(150, Math.floor(Math.min(w, h, cap)));
+      st.lock = { key: lk, W };
+    }
     for (const c of [cv, ovc]) { c.width = c.height = Math.round(W * k); c.style.width = c.style.height = W + 'px'; }
     if (wrap) { wrap.style.width = wrap.style.height = W + 'px'; }
     M = Math.max(20, Math.round(W * 0.085)); R = W / 2 - M; paint(); lastRot = null;

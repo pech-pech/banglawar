@@ -52,7 +52,7 @@ test('W line math matches s.wheelLog (careful = log.careful, auto out of the sto
     c: aimed.filter((e) => e.careful).length, e: bk('e'), l: bk('l'), o: bk('o'), dr, dw, guide: L.some((e) => e.guide), adr, adw });
   assert.ok(w.auto > 0 && w.auto < w.n);
   const line = wheelLine(w);
-  assert.match(line, /^Wheel: \d+ spun \(\d+ bowl, \d+ bat\), auto \d+\. Stops careful \d+ \/ early \d+ \/ late \d+ \/ coast \d+\. Landed vs expected [+-]\d+\.\d runs, wickets [+-]\d+\.\d\. Aim Guide (on|off)\. Auto overs landed vs expected [+-]\d+\.\d runs, wickets [+-]\d+\.\d\.$/);
+  assert.match(line, /^Wheel: \d+ spun \(\d+ bowl, \d+ bat\), auto \d+\. Stops careful \d+( \(\d+% of \d+ aimed overs\))? \/ early \d+ \/ late \d+ \/ coast \d+\. Landed vs expected [+-]\d+\.\d runs, wickets [+-]\d+\.\d( \(\+ = good for us\))?\. Aim Guide (on|off)\. Auto overs landed vs expected [+-]\d+\.\d runs, wickets [+-]\d+\.\d\.$/);
   // over rows: runs match the log; no field / intent calls
   for (let i = 0; i < L.length; i++) { assert.equal(m.ov[i].r, L[i].runs); assert.equal(m.ov[i].f, null); assert.equal(m.ov[i].i, null); assert.equal(m.ov[i].wa, L[i].auto ? 1 : 0); }
 });

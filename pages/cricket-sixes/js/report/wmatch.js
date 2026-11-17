@@ -42,7 +42,7 @@ export function wheelStats(ms) {
   return { n: ov.length, b: cnt((o) => o.s === 'b'), a: cnt((o) => o.s === 'c'), auto: auto.length, c: aimed.filter((o) => o.wc).length, e: ac('e'), l: ac('l'), o: ac('o'), dr: DR(aimed), dw: DW(aimed), guide: ov.some((o) => o.wg), adr: DR(auto), adw: DW(auto) };
 }
 /** SPEC s14 W line. @param {ReturnType<typeof wheelStats>} w */
-export const wheelLine = (w) => `Wheel: ${w.n} spun (${w.b} bowl, ${w.a} bat), auto ${w.auto}. Stops careful ${w.c} / early ${w.e} / late ${w.l} / coast ${w.o}. Landed vs expected ${sgn(w.dr)} runs, wickets ${sgn(w.dw)}. Aim Guide ${w.guide ? 'on' : 'off'}.${w.auto ? ` Auto overs landed vs expected ${sgn(w.adr)} runs, wickets ${sgn(w.adw)}.` : ''}`;
+export const wheelLine = (w) => `Wheel: ${w.n} spun (${w.b} bowl, ${w.a} bat), auto ${w.auto}. Stops careful ${w.c}${w.n - w.auto > 0 ? ` (${Math.round(100 * w.c / (w.n - w.auto))}% of ${w.n - w.auto} aimed overs)` : ''} / early ${w.e} / late ${w.l} / coast ${w.o}. Landed vs expected ${sgn(w.dr)} runs, wickets ${sgn(w.dw)} (+ = good for us). Aim Guide ${w.guide ? 'on' : 'off'}.${w.auto ? ` Auto overs landed vs expected ${sgn(w.adr)} runs, wickets ${sgn(w.adw)}.` : ''}`;
 /** Compact JSON / machine form. @param {ReturnType<typeof wheelStats>} w */
 export const wheelArr = (w) => [w.n, w.b, w.a, w.auto, w.c, w.e, w.l, w.o, w.dr, w.dw, w.guide ? 1 : 0, w.adr, w.adw];
 
