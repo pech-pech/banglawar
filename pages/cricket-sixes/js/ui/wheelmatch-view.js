@@ -87,6 +87,32 @@ export function landedText(g, w) {
   const runs = w && w.runs != null ? w.runs : g ? g.runs : 0, wk = w && w.wk != null ? w.wk : g ? g.stars : 0;
   return (g && g.end ? labelText(g) + ' ' : '') + runs + (wk ? ' ' + '✱'.repeat(wk) : '');
 }
+/** Index of the slice under position p on a wheel of circumference C. Pure. */
+export function sliceIdxAt(segs, p, C = WHEEL_MATCH.CIRC) {
+  const u = ((p % C) + C) % C;
+  for (let i = 0; i < (segs || []).length; i++) { const g = segs[i]; if (u >= g.start && u < g.start + g.width) return i; }
+  return segs && segs.length ? segs.length - 1 : -1;
+}
+/** Best slice among the tick's slice and its two neighbours (the slices a slightly different tap reaches): highest g.value, a tie keeps the
+ *  tick's own slice. No randomness; reads the stored slice data only. Returns {tick, best} indices or null. Pure. */
+export function bestNear(segs, tickIdx) {
+  const n = (segs || []).length; if (!n || !(tickIdx >= 0 && tickIdx < n)) return null;
+  let best = tickIdx; const v = (i) => (typeof segs[i].value === 'number' ? segs[i].value : 0);
+  for (const i of [(tickIdx + n - 1) % n, (tickIdx + 1) % n]) if (v(i) > v(best)) best = i;
+  return { tick: tickIdx, best };
+}
+/** Line after landing: "Tick was on ▲ 4, best near slice was ▲ 6 ✱." plus the timing word. '' when the data is missing. Pure. */
+export function tickNoteText(segs, tickPos, bucket, C = WHEEL_MATCH.CIRC) {
+  const r = bestNear(segs, sliceIdxAt(segs, tickPos, C)); if (!r) return '';
+  const a = segs[r.tick], b = segs[r.best];
+  const tail = r.best === r.tick ? ', the best near slice.' : ', best near slice was ' + sliceText(b) + '.';
+  return (TIM_WORD[bucket] ? TIM_WORD[bucket] + ': t' : 'T') + 'ick was on ' + sliceText(a) + tail;
+}
+/** STOP button text for the slow window: label, sub line and aria label. glow false = the normal STOP. Pure. */
+export function stopCue(glow) {
+  return glow ? { label: 'STOP!', sub: 'SLOW: tap now', aria: 'Stop the wheel. The wheel is slow now, tap now' }
+    : { label: 'STOP', sub: 'wait for the glow, then tap', aria: 'Stop the wheel' };
+}
 /** Over end word for the mark: 'WIN' | 'TIE' | 'ALL OUT' | ''. Pure. */
 export function endMark(end, result) {
   if (result === 'tie' || result === 'tied' || end === 'TIE') return 'TIE';
@@ -356,7 +382,7 @@ export function render(el, vm, dispatch, open) {
 }
 function readyHint(el, vm) {
   const n = el.querySelector('.wm-now'); if (!n) return;
-  n.hidden = false; n.classList.add('is-hint'); n.innerHTML = '<span>Spin, then watch the tick: tap STOP when a ▲ slice is at it</span>';
+  n.hidden = false; n.classList.add('is-hint'); n.innerHTML = '<span>Spin, then wait for the glow (the wheel slows), then tap STOP when a ▲ slice is at the tick</span>';
 }
 function setupWheel(el, segs, vm) {
   const cv = el.querySelector('.wm-cv'); const w = makeWheel(cv, segs || [], vm);
@@ -409,13 +435,13 @@ function onSpin(el, vm, btn, ev) {
     st.drawPos = pos; st.drawOpts = { over: vm.over, tick, band: guide ? phys.J : 0, zone, chime };
     w.draw(pos, st.drawOpts);
     const ni = segAtPos(tick), ne = ni !== lastNow ? nowEl() : null; if (ne) { lastNow = ni; const g = segs[ni]; if (g) { ne.textContent = sliceText(g); ne.className = 'wm-nowv wm-t--' + (g.tone || 'so'); } }
-    if (t >= GUARD && btn.classList.contains('is-wait')) { waitLook(false); lab.textContent = 'STOP'; sub.textContent = 'tap when your slice is at the tick'; btn.setAttribute('aria-label', 'Stop the wheel'); }
+    if (t >= GUARD && btn.classList.contains('is-wait')) { waitLook(false); lab.textContent = 'STOP'; sub.textContent = stopCue(false).sub; btn.setAttribute('aria-label', 'Stop the wheel'); }
     const gl = glowPhase(t); // time only; one shot every cycle
     const gv = gl.on ? (gl.level * 7).toFixed(1) : ''; // DOM writes only on change (PERF fix 5)
     if (gl.on !== lastGlowOn) { lastGlowOn = gl.on; btn.classList.toggle('is-glow', gl.on); }
     if (gv !== lastGlow) { lastGlow = gv; if (gv) btn.style.setProperty('--wm-glow', gv + 'px'); }
-    if (gl.on && lab.textContent !== 'STOP!') { lab.textContent = 'STOP!'; sub.textContent = 'Now!'; }
-    else if (!gl.on && lab.textContent === 'STOP!') { lab.textContent = 'STOP'; sub.textContent = 'tap when your slice is at the tick'; }
+    if (gl.on && lab.textContent !== 'STOP!') { lab.textContent = 'STOP!'; sub.textContent = stopCue(true).sub; btn.setAttribute('aria-label', stopCue(true).aria); }
+    else if (!gl.on && lab.textContent === 'STOP!') { lab.textContent = 'STOP'; sub.textContent = stopCue(false).sub; btn.setAttribute('aria-label', 'Stop the wheel'); }
     raf = requestAnimationFrame(frame);
   }
   function doStop(t) {
@@ -427,6 +453,7 @@ function onSpin(el, vm, btn, ev) {
     if (!r) { st.busy = false; st.phase = 'pick'; render(el, st.vm, st.dispatch, st.open); return; }
     const L = r.wheel || {}, plan = glidePlan(phys, stop, L.pos != null ? L.pos : rimAt(phys, stop.t, phi));
     const bucket = stopBucket(stop.t);
+    st.tickNote = tickNoteText(L.segs || vm.segs || segs, landingPos(phys, { t: stop.t, phi, e: 0 }), bucket); // existing slice data, no new randomness
     if (nowBox) nowBox.hidden = true;
     const g0 = performance.now();
     function glide() {
@@ -482,6 +509,7 @@ function showResult(el, vm, r, fresh, keepWheel) {
   const chip = g ? '<b class="wm-chip wm-t--' + esc(g.tone || 'so') + '">' + esc(toneMark(g.tone) + ' ' + landedText(g, r.wheel)) + '</b>' : '';
   const slots = Array.from({ length: 6 }, (_, i) => '<li class="op-slot' + (i >= balls.length ? ' is-unused' : '') + '" data-i="' + i + '"><span class="op-circle" aria-hidden="true"></span><span class="op-word" aria-hidden="true"></span></li>').join('');
   res.innerHTML = '<div class="wm-resh"><span>Landed on</span>' + chip + '<span class="wm-eq">= ' + esc(overWords(t.runs, t.wk)) + '</span></div>' +
+    (st.tickNote ? '<p class="wm-tickline">' + esc(st.tickNote) + '</p>' : '') +
     '<ol class="op-circles wm-balls" aria-label="Balls this over" data-res-tap>' + slots + '</ol><p class="wm-found" hidden></p>';
   if (st.wheel) { st.wheel.size(); st.wheel.draw(st.drawPos != null ? st.drawPos : 0, { over }); } // the panel took room: fit the wheel to what is left
   const nr = root.querySelector('.wm-need span'); if (nr && vm.side === 'bat') nr.textContent = '+' + t.runs + ' this over';
