@@ -169,11 +169,14 @@ export function createLog(o = {}) {
       } else if (cmd === 'EndWeek') {
         const T0 = before.training || {}, ran = T0.netsWeek === T0.week;
         const co = T0.coach_id ? 1 : 0, nr = d.nets.slice().reverse().find((x) => x.wk === T0.week && x.s === s), idle = co && nr && !nr.cs ? 1 : 0; // idle = a coach was set but his strong focus was not the week's (quality 0)
-        ev('weeks', { ...base, wk: T0.week, tpEnd: T0.tp | 0, aff: netsRecordAff(before), nets: ran ? 1 : 0, hint: null, coach: co, cidle: idle });
+        let cj = null, jb = null; // coach jobs this week [nets, match, study, scout] as 0/1 from the report.jobs counters; older saves lack them -> null
+        try { const J = (st) => (st && st.report && st.report.jobs) || {}, g = (j, k) => (Number.isFinite(j[k]) ? j[k] : 0), j1 = J(after), pv = d.weeks.slice().reverse().find((x) => x.s === s && Array.isArray(x.jb)), K = ['nets', 'match', 'study', 'scout'];
+          jb = K.map((k) => g(j1, k)); cj = K.map((k, i) => (k === 'nets' ? (nr && nr.co ? 1 : 0) : (pv ? (jb[i] > pv.jb[i] ? 1 : 0) : (k === 'match' ? g(j1, k) > 0 : g(j1, k) > g(J(before), k)) ? 1 : 0))); } catch (e) { cj = null; jb = null; }
+        ev('weeks', { ...base, wk: T0.week, tpEnd: T0.tp | 0, aff: netsRecordAff(before), nets: ran ? 1 : 0, hint: null, coach: co, cidle: idle, cj, jb });
       } else if (cmd === 'PickActivity' || cmd === 'SignTrial' || cmd === 'DeclineTrial' || cmd === 'TakeFreePick') {
         const a0 = before.econ || {}, a1 = after.econ || {}, h = (a1.act && a1.act.hist) || [], last = h[0], tr = before.trial || null;
         const rec = { ...base, k: cmd === 'PickActivity' ? 'act' : cmd === 'TakeFreePick' ? 'fp' : cmd === 'SignTrial' ? 'sign' : 'decl' };
-        if (cmd === 'PickActivity') Object.assign(rec, { id: payload && payload.id, coins: (a0.coins | 0) - (a1.coins | 0), fans: (a1.fans | 0) - (a0.fans | 0), find: last && last.find ? last.find : null, dry: a1.act ? a1.act.dry | 0 : null });
+        if (cmd === 'PickActivity') Object.assign(rec, { id: payload && payload.id, coins: (a0.coins | 0) - (a1.coins | 0), cost: last && Number.isFinite(last.coins) ? last.coins : null, fans: (a1.fans | 0) - (a0.fans | 0), find: last && last.find ? last.find : null, dry: a1.act ? a1.act.dry | 0 : null });
         else if (cmd === 'TakeFreePick') rec.what = payload && payload.what;
         else rec.who = tr ? { kind: tr.kind || (tr.coach ? 'coach' : 'player'), id: (tr.player || tr.coach || {}).id || null, wage: tr.wage | 0 } : null;
         ev('club', rec);

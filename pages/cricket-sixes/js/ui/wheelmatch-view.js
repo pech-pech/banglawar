@@ -87,6 +87,33 @@ export function landedText(g, w) {
   const runs = w && w.runs != null ? w.runs : g ? g.runs : 0, wk = w && w.wk != null ? w.wk : g ? g.stars : 0;
   return (g && g.end ? labelText(g) + ' ' : '') + runs + (wk ? ' ' + '✱'.repeat(wk) : '');
 }
+/** Index of the slice under position p on a wheel of circumference C. Pure. */
+export function sliceIdxAt(segs, p, C = WHEEL_MATCH.CIRC) {
+  if (!Number.isFinite(p)) return -1;
+  const u = ((p % C) + C) % C;
+  for (let i = 0; i < (segs || []).length; i++) { const g = segs[i]; if (u >= g.start && u < g.start + g.width) return i; }
+  return segs && segs.length ? segs.length - 1 : -1;
+}
+/** Best slice among the tick's slice and its two neighbours (the slices a slightly different tap reaches): highest g.value, a tie keeps the
+ *  tick's own slice. No randomness; reads the stored slice data only. Returns {tick, best} indices or null. Pure. */
+export function bestNear(segs, tickIdx) {
+  const n = (segs || []).length; if (!n || !(tickIdx >= 0 && tickIdx < n)) return null;
+  let best = tickIdx; const v = (i) => (typeof segs[i].value === 'number' ? segs[i].value : 0);
+  for (const i of [(tickIdx + n - 1) % n, (tickIdx + 1) % n]) if (v(i) > v(best)) best = i;
+  return { tick: tickIdx, best };
+}
+/** Line after landing: "Tick was on ▲ 4, best near slice was ▲ 6 ✱." plus the timing word. '' when the data is missing. Pure. */
+export function tickNoteText(segs, tickPos, bucket, C = WHEEL_MATCH.CIRC) {
+  const r = bestNear(segs, sliceIdxAt(segs, tickPos, C)); if (!r) return '';
+  const a = segs[r.tick], b = segs[r.best];
+  const tail = r.best === r.tick ? ', the best near slice.' : ', best near slice was ' + sliceText(b) + '.';
+  return (TIM_WORD[bucket] ? TIM_WORD[bucket] + ': t' : 'T') + 'ick was on ' + sliceText(a) + tail;
+}
+/** STOP button text for the slow window: label, sub line and aria label. glow false = the normal STOP. Pure. */
+export function stopCue(glow) {
+  return glow ? { label: 'STOP!', sub: 'SLOW: tap now', aria: 'Stop the wheel. The wheel is slow now, tap now' }
+    : { label: 'STOP', sub: 'wait for the glow, then tap', aria: 'Stop the wheel' };
+}
 /** Over end word for the mark: 'WIN' | 'TIE' | 'ALL OUT' | ''. Pure. */
 export function endMark(end, result) {
   if (result === 'tie' || result === 'tied' || end === 'TIE') return 'TIE';
@@ -221,12 +248,27 @@ function makeWheel(cv, segs, vm) {
   const ctx = ovc.getContext('2d');
   function size() {
     const wrap = cv.parentElement, stage = wrap && wrap.parentElement;
-    const w = stage ? stage.clientWidth : 300, h = stage ? stage.clientHeight : 300;
+    const root = cv.closest('.wm'), isRes = !!(root && root.classList.contains('is-result'));
+    const lk = (vm && vm.side) + ':' + (typeof window !== 'undefined' ? window.innerWidth + 'x' + window.innerHeight : '');
     const lw = typeof window !== 'undefined' && window.innerWidth >= 760 && window.innerHeight >= 500 && window.innerWidth > window.innerHeight; // LW: the wheel may grow with the free height
-    W = Math.max(150, Math.floor(Math.min(w, h, lw ? 540 : 380)));
-    // QA-V1 H2 (G5): the drawn wheel keeps the size it first had in this over; the result panel takes the room of the hidden hint lines instead of re-sizing it
-    const lk = (vm && vm.side) + ':' + (typeof window !== 'undefined' ? window.innerWidth + 'x' + window.innerHeight : ''); // N8: one size per match (per side and screen), not per over
-    if (st.lock && st.lock.key === lk && st.lock.W - W < 8) W = st.lock.W; else st.lock = { key: lk, W };
+    const cap = lw ? 540 : 380;
+    // Shrink fix: one size for ready, spin and result. Ready/spin measure the stage as it will be once the result panel is shown (row and legend gone, panel in),
+    // so the result never has to squeeze the wheel; the result reuses that size. A new ready always re-measures (never a smaller locked size).
+    if (isRes && st.lock && st.lock.key === lk) W = st.lock.W;
+    else {
+      let w = stage ? stage.clientWidth : 300, h = stage ? stage.clientHeight : 300;
+      const res = root && root.querySelector('.wm-res');
+      if (!isRes && stage && wrap && res && res.hidden) { // probe: the stage height with the result panel in (restored at once, no paint between)
+        const hid = ['.wm-row', '.wm-legend', '.wm-autos'].map((q) => root.querySelector(q)).filter((x) => x && !x.hidden), keep = res.innerHTML, wh = wrap.style.height;
+        wrap.style.height = '0px'; w = stage.clientWidth;
+        res.innerHTML = '<div class="wm-resh"><span>Landed on</span><b class="wm-chip">x</b></div><p class="wm-tickline">x</p><ol class="op-circles wm-balls">' + '<li class="op-slot"><span class="op-circle"></span><span class="op-word">x</span></li>'.repeat(6) + '</ol>';
+        hid.forEach((x) => { x.hidden = true; }); res.hidden = false;
+        h = stage.clientHeight; // the Auto row (overs 2+) leaves at the result like the row and legend, so over 1 and later overs measure the same
+        res.hidden = true; res.innerHTML = keep; hid.forEach((x) => { x.hidden = false; }); wrap.style.height = wh;
+      }
+      W = Math.max(150, Math.floor(Math.min(w, h, cap)));
+      st.lock = { key: lk, W };
+    }
     for (const c of [cv, ovc]) { c.width = c.height = Math.round(W * k); c.style.width = c.style.height = W + 'px'; }
     if (wrap) { wrap.style.width = wrap.style.height = W + 'px'; }
     M = Math.max(20, Math.round(W * 0.085)); R = W / 2 - M; paint(); lastRot = null;
@@ -327,7 +369,7 @@ export function render(el, vm, dispatch, open) {
   st.el = el; st.vm = vm; st.dispatch = dispatch; st.open = open;
   if (st.busy && el.querySelector('.wm')) return; // an animation owns the screen (app.js holds re-renders during a WheelOver)
   const key = (vm.side || '') + '|' + (vm.mode || '');
-  if (key !== st.key) { st.key = key; st.phase = 'pick'; st.bowler = null; st.res = null; if (st.auto) stopAuto(); }
+  if (key !== st.key) { st.key = key; st.phase = 'pick'; st.bowler = null; st.res = null; st.tickNote = ''; if (st.auto) stopAuto(); }
   if (!st.mounted) { // reload mid-over: the stored result shows (no re-spin) until NEXT
     st.mounted = true; const L = vm.last, rk = resKey(vm, L && L.over);
     if (L && L.wheel && !L.wheel.auto && L.over === vm.over - 1 && seenGet() !== rk) st.res = { wheel: L.wheel, balls: L.balls || [], over: L.over, score: vm.score, stage: null, nextLabel: 'Next over', seenKey: rk, reload: true };
@@ -341,7 +383,7 @@ export function render(el, vm, dispatch, open) {
 }
 function readyHint(el, vm) {
   const n = el.querySelector('.wm-now'); if (!n) return;
-  n.hidden = false; n.classList.add('is-hint'); n.innerHTML = '<span>Spin, then watch the tick: tap STOP when a ▲ slice is at it</span>';
+  n.hidden = false; n.classList.add('is-hint'); n.innerHTML = '<span>Spin, then wait for the glow (the wheel slows), then tap STOP when a ▲ slice is at the tick</span>';
 }
 function setupWheel(el, segs, vm) {
   const cv = el.querySelector('.wm-cv'); const w = makeWheel(cv, segs || [], vm);
@@ -357,7 +399,7 @@ function bindView(el) {
     const t = e.target.closest('button, [data-res-tap]'); if (!t || !root.contains(t) || t.disabled) return;
     const vm = st.vm, act = t.getAttribute('data-wm');
     if (t.hasAttribute('data-bowler')) { st.bowler = Number(t.getAttribute('data-bowler')); render(el, vm, st.dispatch, st.open); const f = el.querySelector('[data-bowler="' + st.bowler + '"]'); if (f) f.focus(); return; }
-    if (act === 'go') { if (vm.side === 'bowl' && pickedBowler(vm) == null) return; st.bowler = pickedBowler(vm); st.phase = 'ready'; st.restPos = Math.random() * WHEEL_MATCH.CIRC; render(el, vm, st.dispatch, st.open); }
+    if (act === 'go') { if (vm.side === 'bowl' && pickedBowler(vm) == null) return; st.bowler = pickedBowler(vm); st.tickNote = ''; st.phase = 'ready'; st.restPos = Math.random() * WHEEL_MATCH.CIRC; render(el, vm, st.dispatch, st.open); }
     else if (act === 'back') { st.phase = 'pick'; render(el, vm, st.dispatch, st.open); const f = el.querySelector('[data-wm="go"]'); if (f) f.focus(); }
     else if (act === 'spin') onSpin(el, vm, t, e);
     else if (act === 'auto-rest') startAuto(el, 'rest');
@@ -394,13 +436,13 @@ function onSpin(el, vm, btn, ev) {
     st.drawPos = pos; st.drawOpts = { over: vm.over, tick, band: guide ? phys.J : 0, zone, chime };
     w.draw(pos, st.drawOpts);
     const ni = segAtPos(tick), ne = ni !== lastNow ? nowEl() : null; if (ne) { lastNow = ni; const g = segs[ni]; if (g) { ne.textContent = sliceText(g); ne.className = 'wm-nowv wm-t--' + (g.tone || 'so'); } }
-    if (t >= GUARD && btn.classList.contains('is-wait')) { waitLook(false); lab.textContent = 'STOP'; sub.textContent = 'tap when your slice is at the tick'; btn.setAttribute('aria-label', 'Stop the wheel'); }
+    if (t >= GUARD && btn.classList.contains('is-wait')) { waitLook(false); lab.textContent = 'STOP'; sub.textContent = stopCue(false).sub; btn.setAttribute('aria-label', 'Stop the wheel'); }
     const gl = glowPhase(t); // time only; one shot every cycle
     const gv = gl.on ? (gl.level * 7).toFixed(1) : ''; // DOM writes only on change (PERF fix 5)
     if (gl.on !== lastGlowOn) { lastGlowOn = gl.on; btn.classList.toggle('is-glow', gl.on); }
     if (gv !== lastGlow) { lastGlow = gv; if (gv) btn.style.setProperty('--wm-glow', gv + 'px'); }
-    if (gl.on && lab.textContent !== 'STOP!') { lab.textContent = 'STOP!'; sub.textContent = 'Now!'; }
-    else if (!gl.on && lab.textContent === 'STOP!') { lab.textContent = 'STOP'; sub.textContent = 'tap when your slice is at the tick'; }
+    if (gl.on && lab.textContent !== 'STOP!') { lab.textContent = 'STOP!'; sub.textContent = stopCue(true).sub; btn.setAttribute('aria-label', stopCue(true).aria); }
+    else if (!gl.on && lab.textContent === 'STOP!') { lab.textContent = 'STOP'; sub.textContent = stopCue(false).sub; btn.setAttribute('aria-label', 'Stop the wheel'); }
     raf = requestAnimationFrame(frame);
   }
   function doStop(t) {
@@ -412,6 +454,7 @@ function onSpin(el, vm, btn, ev) {
     if (!r) { st.busy = false; st.phase = 'pick'; render(el, st.vm, st.dispatch, st.open); return; }
     const L = r.wheel || {}, plan = glidePlan(phys, stop, L.pos != null ? L.pos : rimAt(phys, stop.t, phi));
     const bucket = stopBucket(stop.t);
+    st.tickNote = tickNoteText(L.segs || vm.segs || segs, landingPos(phys, { t: stop.t, phi, e: 0 }), bucket); // existing slice data, no new randomness
     if (nowBox) nowBox.hidden = true;
     const g0 = performance.now();
     function glide() {
@@ -448,7 +491,7 @@ function stamp(el, mk) { const m = el.querySelector('.wm-mark'); if (!m) return;
 function showResult(el, vm, r, fresh, keepWheel) {
   const segs = (r.wheel && r.wheel.segs) || vm.segs || [], idx = segs.findIndex((g) => g.id === (r.wheel && r.wheel.segId)), g = segs[idx];
   const balls = (r.balls || []).slice(0, 6), t = overTotals(balls), mk = endMark(r.wheel && r.wheel.end, r.result), over = r.over || vm.over - 1;
-  const say = 'Over ' + over + ': ' + overWords(t.runs, t.wk) + (mk ? '. ' + (mk === 'ALL OUT' ? 'All out' : mk === 'WIN' ? 'Target reached, you win' : 'Scores level, a tie') : '') + '.';
+  const say = 'Over ' + over + ': ' + overWords(t.runs, t.wk) + (mk ? '. ' + (mk === 'ALL OUT' ? 'All out' : mk === 'WIN' ? 'Target reached, you win' : 'Scores level, a tie') : '') + '.' + (fresh && st.tickNote ? ' ' + st.tickNote : '');
   const shell = !keepWheel || !el.querySelector('.wm--wheel');
   if (shell) {
     const v = { ...vm, over, segs };
@@ -461,12 +504,13 @@ function showResult(el, vm, r, fresh, keepWheel) {
   const sc = r.score || vm.score; const hs = root.querySelector('.wm-strip .score'); if (hs && sc) { hs.textContent = sc.runs + '/' + sc.wk; hs.setAttribute('aria-label', sc.runs + ' runs for ' + sc.wk + ' wickets'); }
   const hm = root.querySelector('.wm-strip .mid'); if (hm) hm.innerHTML = '<b>Over ' + esc(over) + ' done</b><span>' + esc(r.stage === 'break' ? 'Innings over' : r.stage === 'done' ? 'Match over' : 'Next: over ' + (over + 1) + ' of 10') + '</span>';
   if (r.need && root.querySelector('.wm-need')) root.querySelector('.wm-need b').innerHTML = 'Need <em>' + esc(r.need.runs) + '</em> off <em>' + esc(r.need.balls) + '</em> balls';
-  ['.wm-row', '.wm-legend'].forEach((q) => { const x = root.querySelector(q); if (x) x.hidden = true; });
+  ['.wm-row', '.wm-legend', '.wm-autos'].forEach((q) => { const x = root.querySelector(q); if (x) x.hidden = true; });
   ['.wm-exp', '.wm-who'].forEach((q) => { const x = root.querySelector(q); if (x) x.style.visibility = 'hidden'; }); // H2: keep their room so the wheel stays put
   const res = root.querySelector('.wm-res'); res.hidden = false;
   const chip = g ? '<b class="wm-chip wm-t--' + esc(g.tone || 'so') + '">' + esc(toneMark(g.tone) + ' ' + landedText(g, r.wheel)) + '</b>' : '';
   const slots = Array.from({ length: 6 }, (_, i) => '<li class="op-slot' + (i >= balls.length ? ' is-unused' : '') + '" data-i="' + i + '"><span class="op-circle" aria-hidden="true"></span><span class="op-word" aria-hidden="true"></span></li>').join('');
   res.innerHTML = '<div class="wm-resh"><span>Landed on</span>' + chip + '<span class="wm-eq">= ' + esc(overWords(t.runs, t.wk)) + '</span></div>' +
+    (st.tickNote ? '<p class="wm-tickline" aria-hidden="true">' + esc(st.tickNote) + '</p>' : '') +
     '<ol class="op-circles wm-balls" aria-label="Balls this over" data-res-tap>' + slots + '</ol><p class="wm-found" hidden></p>';
   if (st.wheel) { st.wheel.size(); st.wheel.draw(st.drawPos != null ? st.drawPos : 0, { over }); } // the panel took room: fit the wheel to what is left
   const nr = root.querySelector('.wm-need span'); if (nr && vm.side === 'bat') nr.textContent = '+' + t.runs + ' this over';
@@ -494,7 +538,7 @@ function showResult(el, vm, r, fresh, keepWheel) {
   function next() {
     if (!finished) { finish(); return; }
     timers.forEach(clearTimeout);
-    seenSet(r.seenKey || resKey(st.vm || vm, over)); st.res = null; st.phase = 'pick'; st.bowler = null; st.restPos = 0;
+    seenSet(r.seenKey || resKey(st.vm || vm, over)); st.res = null; st.tickNote = ''; st.phase = 'pick'; st.bowler = null; st.restPos = 0;
     if (typeof r.release === 'function') r.release(); else render(el, st.vm || vm, st.dispatch, st.open);
   }
   cta.querySelector('[data-wm-next]').addEventListener('click', () => next());
@@ -505,7 +549,7 @@ function showResult(el, vm, r, fresh, keepWheel) {
 // ---------- Auto ----------
 function startAuto(el, kind) {
   if (st.auto || st.busy) return;
-  st.auto = kind; st.autoSpun = 0; st.stopReq = false; st.chips = []; st.focusStop = true;
+  st.auto = kind; st.tickNote = ''; st.autoSpun = 0; st.stopReq = false; st.chips = []; st.focusStop = true;
   st.autoSum = { from: st.vm.over, runs: 0, wk: 0 };
   render(el, st.vm, st.dispatch, st.open);
 }

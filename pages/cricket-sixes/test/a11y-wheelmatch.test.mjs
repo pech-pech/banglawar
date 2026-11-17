@@ -179,7 +179,7 @@ test('after landing: result text goes into the polite live region before any bal
     const fills = log.map((e, i) => (e[0] === 'set' && /\.op-slot\[\d\]\.querySelector\(\)$/.test(e[1]) && e[2] === 'textContent' ? [i, e[1].match(/\[(\d)\]/)[1]] : null)).filter(Boolean);
     const balls = [...new Map(fills.map(([i, k]) => [k, i])).values()];
     assert.ok(liveAt >= 0, 'live text set');
-    assert.equal(log[liveAt][3], 'Over 3: 13 runs, 1 wicket.');
+    assert.ok(log[liveAt][3].startsWith('Over 3: 13 runs, 1 wicket.'), 'live text starts with the over result (the tick line may follow)');
     assert.equal(balls.length, 6, 'six balls filled');
     assert.ok(balls.every((i) => i > liveAt), 'live text before the balls');
     assert.equal(log.slice(0, liveAt).some((e) => e[0] === 'html'), false, 'no rebuild between the landing and the text');

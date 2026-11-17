@@ -251,10 +251,12 @@ function secE(w, env) {
   const gi = (k) => sum(has.map((e) => e[k] | 0));
   const inn = { base: gi('gate'), win: gi('win'), stars: gi('shop') }, out = { wage: gi('wage'), up: gi('up'), bld: sum(B.map((b) => b.price | 0)) };
   const c0 = fin.length ? fin[0].coins0 : null, c1 = fin.length ? fin[fin.length - 1].coins1 : null, net = sum(fin.map((m) => m.coins1 - m.coins0));
-  const oth = has.length === fin.length ? net - (inn.base + inn.win + inn.stars - out.wage - out.up) : null;
+  const fcoin = (a) => { try { return a.find && a.find.type === 'coins' ? Math.max(0, +a.find.coins || 0) : 0; } catch (e) { return 0; } };
+  const num = (v) => (Number.isFinite(v) ? v : 0), actSpend = sum(acts.map((a) => (a.cost != null ? num(a.cost) : num(a.coins) + fcoin(a)))), findCoins = sum(acts.map(fcoin)); // spend is gross: new rows log cost; old rows logged net of a Coins find
+  const oth = has.length === fin.length ? net - (inn.base + inn.win + inn.stars - out.wage - out.up - out.bld - actSpend + findCoins) : null; // start + income - wages - upkeep - buys - activities + finds + other = end
   const income = inn.base + inn.win + inn.stars, f0 = fin.length ? fin[0].fans0 | 0 : 0, f1 = fin.length ? fin[fin.length - 1].fans1 | 0 : 0;
   const h = [];
-  if (fin.length) h.push(`Coins ${c0} -> ${c1}: in ${income} (gate ${inn.base}, win bonus ${inn.win}, shop ${inn.stars}), out ${out.wage + out.up} (wages ${out.wage}, upkeep ${out.up})${oth ? ', other ' + oth : ''}. Buys out ${out.bld}. Fans +${sum(fin.map((m) => (m.fans1 | 0) - (m.fans0 | 0)))} (${f1}). TP pay ${sum(fin.map((m) => (m.pay && m.pay.total) | 0))}. Wages ${income ? Math.round(100 * out.wage / income) : '-'}% of income [sim 32-43%].`);
+  if (fin.length) h.push(`Coins ${c0} -> ${c1}: in ${income} (gate ${inn.base}, win bonus ${inn.win}, shop ${inn.stars}), out ${out.wage + out.up} (wages ${out.wage}, upkeep ${out.up}), buys -${out.bld}, activities -${actSpend}, finds +${findCoins}${oth ? ', other ' + oth : ''}. Fans +${sum(fin.map((m) => (m.fans1 | 0) - (m.fans0 | 0)))} (${f1}). TP pay ${sum(fin.map((m) => (m.pay && m.pay.total) | 0))}. Wages ${income ? Math.round(100 * out.wage / income) : '-'}% of income [sim 32-43%].`);
   const nets = has.map((e, i) => [fin[i].res, e.net | 0]);
   const wn = nets.filter((x) => x[0] === 'won').map((x) => x[1]), ls = nets.filter((x) => x[0] === 'lost').map((x) => x[1]);
   let worst = 0, run = 0; for (const [r, n] of nets) { if (r === 'lost') { run += n; worst = Math.min(worst, run); } else run = 0; }
@@ -263,7 +265,7 @@ function secE(w, env) {
   if (B.length || arrears) {
     const last = B.slice(-2).map((b) => `${b.item} ${b.price} at ${b.c0} Coins (${b.alt == null ? '-' : b.alt} other buys affordable)`).join('; ');
     const warnB = cnt(B, (b) => b.warn);
-    h.push(`Buys ${B.length}${last ? ': ' + last : ''}. Reserve warning, bought while shown ${warnB}. Arrears ${arrears} matches, missed paydays ${sv.missed | 0}. ${verdict(warnB >= 2)}`);
+    h.push(`Buys ${B.length}${last ? ': ' + last : ''}. Reserve warning, bought while shown ${warnB}. Arrears ${arrears} matches, missed paydays ${sv.missed | 0}. ${verdict(warnB >= 1 && (arrears > 0 || (sv.missed | 0) > 0))}`);
   }
   const fnd = (t) => cnt(acts, (a) => a.find && a.find.type === t);
   if (acts.length) h.push(`Activities ${acts.length}: Coins spent ${sum(acts.map((a) => a.coins | 0))}, Fans +${sum(acts.map((a) => a.fans | 0))}, finds ${cnt(acts, (a) => a.find)} (coins ${fnd('coins')}, player ${fnd('player')}, coach ${fnd('coach')}), dry picks ${cnt(acts, (a) => a.dry > 0)}.`);
@@ -279,8 +281,11 @@ function secC(w, env) {
   const tr = (w.club || []).filter((x) => x.k === 'sign' || x.k === 'decl');
   const MM = (w.ms || []).filter((m) => m.md && (m.res || m.ab)), mcUsed = cnt(MM, (m) => Array.isArray(m.mc));
   if (!R.length && !courses.length && !tr.length && !MM.length) return { key: 'C', title, h: ['none in window'], m: 'c:none', j: {}, short: 'COACHES none in window' };
-  const used = cnt(R, (r) => r.co), idle = cnt(W, (x) => x.cidle), weeks = W.length || R.length, c = own[0];
-  const h = [`${c ? 'Coach ' + c[0] + (c[2] ? ' (' + c[2] + ')' : '') + ': ' : 'Coach: '}used ${used} of ${weeks} weeks, idle ${idle}. ${weeks >= 3 ? verdict(used * 2 < weeks) : 'n small'}`];
+  // a week counts when ANY coach job ran (nets, match, study, scout); old weeks rows (no cj) fall back to a nets run with a coach
+  const wkKey = (x) => (x.s == null ? '' : x.s) + ':' + x.wk, jobWks = new Set([...W.filter((x) => Array.isArray(x.cj) && x.cj.some(Boolean)).map(wkKey), ...R.filter((r) => r.co).map(wkKey)]);
+  const jobN = (i) => cnt(W, (x) => Array.isArray(x.cj) && x.cj[i]), netsCo = R.filter((r) => r.co), matched = cnt(netsCo, (r) => r.cs > 0);
+  const used = jobWks.size, idle = cnt(W, (x) => x.cidle), weeks = W.length || R.length, c = own[0];
+  const h = [`${c ? 'Coach ' + c[0] + (c[2] ? ' (' + c[2] + ')' : '') + ': ' : 'Coach: '}any coach job ${used} of ${weeks} weeks (nets ${jobN(0)}, match ${jobN(1)}, study ${jobN(2)}, scout ${jobN(3)}), nets focus matched ${matched} of ${netsCo.length}, idle ${idle}. ${weeks >= 3 ? verdict(used * 2 < weeks) : 'n small'}`];
   const gains = courses.map((b) => b.gn).filter((x) => x != null), best = Math.max(0, ...own.map((x) => x[1] | 0));
   h.push(`Courses bought ${courses.length} (${sum(courses.map((b) => b.price | 0))} Coins)${gains.length ? ', wheel +' + sum(gains) + ' step' : ''}. Best coach step ${best} of 21.`);
   if (MM.length) h.push(`Match coach used ${mcUsed} of ${MM.length} matches.`);

@@ -94,6 +94,9 @@
 .wm .wm-go.is-wait { opacity: .7; border-style: dashed; }
 .wm .wm-go.is-glow { outline: 4px solid var(--gold); outline-offset: 2px; box-shadow: 0 0 0 var(--wm-glow, 0px) var(--gold); }
 .wm .wm-go.is-glow > span { color: #FFE36E; font-size: 28px; } /* A11Y: 5.5:1 on the green CTA, 5.1:1 on the Scorebook red, and large text */
+.wm .wm-go.is-glow { outline-width: 6px; box-shadow: 0 0 0 calc(var(--wm-glow, 0px) + 6px) var(--gold), 0 0 22px 10px rgba(255, 214, 64, .8); }
+.wm .wm-go.is-glow > small { font-size: 18px; line-height: 22px; font-weight: 900; color: #FFE36E; letter-spacing: .04em; }
+.wm-tickline { margin: 2px 0 0; font-size: 14px; line-height: 18px; }
 .wm .wm-stopauto { min-height: 56px; height: 56px; }
 .wm .wm-stopauto > span { font-size: 22px; line-height: 26px; }
 
@@ -133,3 +136,11 @@
   .wm .wm-their { min-height: 56px; display: flex; align-items: center; }
   .wm .wm-their { font-size: 16px; }
 }
+/* slow-window cue: the "Stop now" panel sits above the glow band (cta z-index 3) and spans the row */
+.wm-row { position: relative; z-index: 4; }
+.wm-now { flex: 1 1 100%; justify-content: center; box-sizing: border-box; margin-bottom: 4px; }
+/* D2: the glow never paints above the CTA box (no tint on the Auto button above STOP); sides and bottom keep it */
+.wm-cta { clip-path: inset(0 -24px -24px -24px); }
+/* D1: pixel-font caps read small at 14-15 px: the tick line and the Landed line go to 16 px */
+.wm-tickline { font-size: 16px; line-height: 20px; }
+.wm-resh { font-size: 16px; }
