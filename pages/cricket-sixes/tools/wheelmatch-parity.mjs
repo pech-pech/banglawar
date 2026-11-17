@@ -22,7 +22,7 @@ import { applyCommand } from '../js/store/commands.js';
 import { FLAGS } from '../js/data/flags.js';
 import { makeRng } from '../js/core/rng.js';
 import { WHEEL_MATCH as WMX, WHEEL_RIVAL_BOOST } from '../js/data/wheelmatch.js';
-import { tickAt } from '../js/core/wheel-pulse.js';
+import { landSplit } from '../js/core/landtick.js';
 import { matchPhys, rivalBoostOf, matchOpts, boostedRival } from '../js/core/wheelmatch.js';
 import { centreOf } from '../js/core/match.js';
 import { suggestedBowler, rivalBowler, modelOf } from '../js/store/wheelmatch-store.js';
@@ -39,7 +39,7 @@ const clamp = (x, lo, hi) => Math.max(lo, Math.min(hi, x));
 /** Box-Muller normal (tool only). */
 const gauss = (rng, sd) => { const u = Math.max(1e-12, rng.random()), v = rng.random(); return sd * Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); };
 /** Unwrapped honest landing (e 0) on the pulse: tickAt(t) (core landing = phi + tickAt + wobble, mod CIRC; no coast). */
-const landU = (P, t) => tickAt(t, P);
+const landU = (P, t) => { const q = landSplit(P, t); return q.arc + q.dist; }; // arc + glide (= tickAt without a glide cap; the 60..120 deg cap on match phys)
 const T_HI = WMX.PULSE_PERIOD - 1e-6; // careful taps stay in cycle 1 (t < PULSE_PERIOD)
 const T_LO = Math.max(T_MIN, WMX.STOP_GUARD_S);
 /** Slope of the tick in units/s at t (savvy error model). */

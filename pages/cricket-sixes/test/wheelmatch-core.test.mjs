@@ -11,7 +11,7 @@ import { readFileSync } from 'node:fs';
 import { WHEEL_ENGINE as WE } from '../js/data/wheel-engine.js';
 import { tickAt, pulseW, cycleOf, ARC_PER_CYCLE } from '../js/core/wheel-pulse.js';
 import { wobbleKey, wheelWobble } from '../js/core/wheel-wobble.js';
-import { landSplit } from '../js/core/landtick.js';
+import { landSplit, glideCap } from '../js/core/landtick.js';
 
 const N = 600; // sample count for most checks (speed); one test runs the full N_SAMP
 const EPS = 1e-9;
@@ -238,22 +238,27 @@ test('segAt, isCareful, unaimedPos, expectOf, stopBucket', () => {
   for (const t of [0, 0.35, 1, 3.5, 6, 60, 300]) assert.notEqual(W.stopBucket(t), 'o');
 });
 
-test('physics: landingPos(e=0) = phi + tickAt(t) on the pulse (no coast); glide ends on it; wobble shifts by e', () => {
-  const P = W.matchPhys({});
+test('physics: match landingPos(e=0) = phi + arc + glideCap (60..120 deg window); a phys WITHOUT glideDeg keeps phi + tickAt(t); glide ends on it; wobble shifts by e', () => {
+  const P = W.matchPhys({}), Pn = { ...P, glideDeg: undefined }; // Pn = the other wheels' law (no glideDeg)
+  assert.deepEqual(P.glideDeg, [60, 120]);
   assert.deepEqual({ W0: P.W0, TAU: P.TAU, D: P.D, J: P.J, SD: P.SD }, { W0: 36, TAU: 3, D: 2, J: 1.2, SD: 0.11 });
   assert.ok(!('COAST' in P) && !('STOP_FROM' in P), 'legacy STOP_FROM / COAST shim dropped (T1 MW): no coast, STOP guard is WHEEL_ENGINE.STOP_GUARD_S');
   const mod = (x) => ((x % 10) + 10) % 10;
   for (const t of [0.35, 1, 2.5, 3.5, 3.8, 4.2, 5.9, 6.0, 7.5, 9.5, 12.4, 60, 300]) for (const phi of [0, 3.3, 9.9]) {
     const L = W.landingPos(P, { t, phi, e: 0 });
-    assert.ok(near(L, phi + tickAt(t, P)), `t ${t}`);
+    assert.ok(near(L, phi + landSplit(P, t).arc + glideCap(P, pulseW(cycleOf(t).tInCycle, P))), `t ${t}`);
+    assert.ok(near(W.landingPos(Pn, { t, phi, e: 0 }), phi + tickAt(t, Pn)), `no glideDeg: tickAt identity at t ${t}`);
+    assert.ok(near(W.glidePos(Pn, { t, phi, e: 0 }, Pn.D), W.landingPos(Pn, { t, phi, e: 0 })));
     assert.equal(W.glidePos(P, { t, phi, e: 0 }, P.D), L);
     assert.ok(Math.abs(W.glidePos(P, { t, phi, e: 0 }, 0) - W.rimAt(P, t, phi)) < 1e-9, 'glide starts at the pointer');
     assert.ok(near(W.rimAt(P, t, phi), phi + tickAt(t, P) - pulseW(cycleOf(t).tInCycle, P) * P.D / 3), 'pointer = arc only');
+    assert.ok(near(W.rimAt(Pn, t, phi), phi + tickAt(t, Pn) - pulseW(cycleOf(t).tInCycle, Pn) * Pn.D / 3), 'pointer = arc only (no glideDeg)');
     assert.ok(Math.abs(mod(W.landingPos(P, { t, phi, e: 0.7 }) - L) - 0.7) < 1e-9);
   }
   // no coast: a STOP after 6 s lands on the next cycle's tick, not the 6.0 s one
   assert.notEqual(W.landingPos(P, { t: 7.5, phi: 1, e: 0 }), W.landingPos(P, { t: 6.0, phi: 1, e: 0 }), 'no coast at 6.0');
   assert.ok(near(W.landingPos(P, { t: 9.5, phi: 1, e: 0 }), W.landingPos(P, { t: 3.5, phi: mod(1 + ARC_PER_CYCLE(P)), e: 0 })), 'cycle 2 = cycle 1 + ARC');
+  assert.ok(near(W.landingPos(Pn, { t: 9.5, phi: 1, e: 0 }), W.landingPos(Pn, { t: 3.5, phi: mod(1 + ARC_PER_CYCLE(Pn)), e: 0 })), 'cycle 2 = cycle 1 + ARC (no glideDeg)');
   assert.equal(W.landingPos(P, { t: 6.0, phi: 1, e: 5 }), W.landingPos(P, { t: 6.0, phi: 1, e: 1.2 }), 'wobble clamped to J');
   assert.equal(W.landingPos(P, { t: 6.0, phi: 1 }), W.landingPos(P, { t: 6.0, phi: 1, e: 0 }));
   // the landing ignores any COAST / STOP_FROM a caller still passes (old phys objects)
@@ -266,7 +271,8 @@ test('SPEC test 13 / W-T-24: coast removed; careful arrival in the decay part la
   const P = W.matchPhys({}), mod = (x) => ((x % 10) + 10) % 10;
   const oldCoast = (t, phi) => mod(phi + 36 * 3 * (1 - Math.exp(-t / 3)) + 36 * Math.exp(-t / 3) * 2 / 3); // the retired coast landing
   const rng = makeRng('wt24');
-  for (let i = 0; i < 1000; i++) { const t = 0.35 + rng.random() * 3.45, phi = rng.random() * 10; assert.ok(near(W.landingPos(P, { t, phi, e: 0 }), oldCoast(t, phi)), `t ${t}`); }
+  const Pn = { ...P, glideDeg: undefined }; // a phys without glideDeg (every other wheel) keeps the old identity; match phys now caps the glide
+  for (let i = 0; i < 1000; i++) { const t = 0.35 + rng.random() * 3.45, phi = rng.random() * 10; assert.ok(near(W.landingPos(Pn, { t, phi, e: 0 }), oldCoast(t, phi)), `t ${t}`); const u = landSplit(P, t); assert.ok(near(W.landingPos(P, { t, phi, e: 0 }), phi + u.arc + glideCap(P, pulseW(cycleOf(t).tInCycle, P))), `match law t ${t}`); }
   // no auto-stop: the tick keeps moving (monotonic, unwrapped) through 10, 60 and 300 s; nothing caps it
   let prev = -Infinity; for (let t = 0; t <= 300; t += 0.01) { const u = landSplit(P, t); const v = u.arc + u.dist; assert.ok(v >= prev - 1e-9); prev = v; }
   assert.ok(landSplit(P, 300).arc > landSplit(P, 60).arc && landSplit(P, 60).arc > landSplit(P, 10).arc);

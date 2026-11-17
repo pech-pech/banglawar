@@ -313,10 +313,12 @@ function makeWheel(cv, segs, vm) {
       ctx.fillStyle = pal.hi; ctx.fill(); ctx.lineWidth = 2.5 * ks; ctx.strokeStyle = pal.ink; ctx.lineJoin = 'round'; ctx.stroke();
       ctx.restore(); // QA D2: the TICK word is upright (never turned with the tick), at least 14 px, kept inside the canvas
       const tf = Math.max(14, 11 * ks); ctx.font = '900 ' + tf + 'px ' + fontFam(); ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-      const tw = ctx.measureText('TICK').width, lim = W / 2 - 1, sa = Math.sin(a), ca = Math.cos(a);
-      // D-B1: the word sits clear of the arrow (its box edge 4 px past the arrow base along the tick direction); if the canvas edge stops it, it slides sideways off the arrow
+      const tw = ctx.measureText('TICK').width, lim = W / 2 - 3, sa = Math.sin(a), ca = Math.cos(a); // lim 3: the 5 px cream outline stays inside the canvas
+      // D-B1: the word sits clear of the arrow (its box edge 4 px past the arrow base along the tick direction). If the canvas edge stops it sideways
+      // (the tick is 60..120 deg, so it mostly points right), it moves up or down off the arrow, never onto it (QA tick window: word hid the arrow at ~90 deg).
       const tr = R + 20 * ks + 4 + Math.abs(sa) * tw / 2 + Math.abs(ca) * tf / 2, cx = Math.max(-(lim - tw / 2), Math.min(lim - tw / 2, tr * sa)), cy = Math.max(-(lim - tf / 2), Math.min(lim - tf / 2, -tr * ca));
-      const tx = Math.max(-(lim - tw / 2), Math.min(lim - tw / 2, cy !== -tr * ca ? cx + (sa < 0 ? -1 : 1) * (tw / 2 + 7 * ks + 4) : cx)), ty = cy;
+      let tx = cx, ty = cy;
+      if (cx !== tr * sa) { const ym = -(R + 11 * ks) * ca, dy = 7 * ks + tf / 2 + 4; ty = Math.max(-(lim - tf / 2), Math.min(lim - tf / 2, ca >= 0 ? ym - dy : ym + dy)); }
       ctx.lineJoin = 'round'; ctx.lineWidth = 5; ctx.strokeStyle = pal.cream; ctx.strokeText('TICK', tx, ty); ctx.fillStyle = pal.ink; ctx.fillText('TICK', tx, ty);
     }
     // hub (does not turn): OVER n
