@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<title>Golden Over prototype</title>
+<style>
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;background:#12202a;color:#eef3f5;font:16px/1.25 system-ui,sans-serif;overscroll-behavior:none}
+body{display:flex;flex-direction:column;height:100dvh;user-select:none;-webkit-user-select:none}
+.row{display:flex;gap:6px;padding:6px}
+.row button{flex:1;min-height:56px;border:2px solid #44606e;background:#1c3340;color:#eef3f5;border-radius:10px;font:600 15px system-ui}
+.row button.on{background:#e6b422;color:#1a1a1a;border-color:#e6b422}
+#stage{flex:1;min-height:120px;position:relative}
+canvas{position:absolute;inset:0;width:100%;height:100%}
+#circles{display:flex;justify-content:center;gap:8px;padding:6px}
+.c{width:40px;height:40px;border-radius:50%;border:2px solid #44606e;display:grid;place-items:center;font:700 17px system-ui}
+.c.P{border-color:#5fd38a;background:#173d28}.c.G{border-color:#e6b422;background:#3d3212}.c.M{border-color:#e0685c;background:#3d1a16}
+#line{min-height:40px;padding:2px 10px;text-align:center;font-size:15px}
+body.playing .row{display:none}
+#pad{height:34%;touch-action:none;background:#24495c;border-top:3px solid #e6b422;display:flex;flex-direction:column;align-items:center;justify-content:center;font:800 26px system-ui;letter-spacing:2px;text-align:center}
+@media (min-height:800px){#pad{height:45%}}
+#pad.flash{background:#3a708a}
+#pad small{display:block;font:500 14px system-ui;letter-spacing:0;opacity:.85;margin-top:6px}
+#rep{position:fixed;inset:0;background:#12202af2;display:none;flex-direction:column;padding:12px;gap:8px;z-index:5}
+#rep textarea{flex:1;background:#0c161d;color:#cfe;border:1px solid #44606e;border-radius:8px;font:13px/1.3 ui-monospace,monospace;padding:8px}
+</style></head><body>
+<div class="row" id="modes">
+ <button data-m="A1" class="on">A1 Captain</button><button data-m="A2">A2 Streak</button><button data-m="A3">A3 Read</button>
+</div>
+<div class="row" style="padding-top:0">
+ <button id="side">Batting</button><button id="letter">Letter C</button><button id="cal">Calibrate</button><button id="report">Report</button>
+</div>
+<div id="stage"><canvas id="cv"></canvas></div>
+<div id="circles"></div>
+<div id="line">Pick rule on top. Tap pad to start over. Tap when ball cross gold band.</div>
+<div id="pad">TAP<small>start over</small></div>
+<div id="rep"><textarea id="reptxt" readonly></textarea><div class="row"><button id="copy">Copy report</button><button id="close">Close</button></div></div>
+<script>
+'use strict';
+// ---------- seeded rng (sfc32 from string seed) ----------
+function makeRng(str){let h=1779033703^str.length;for(let i=0;i<str.length;i++){h=Math.imul(h^str.charCodeAt(i),3432918353);h=h<<13|h>>>19}
+ const n=()=>{h=Math.imul(h^h>>>16,2246822507);h=Math.imul(h^h>>>13,3266489909);return(h^=h>>>16)>>>0};
+ let a=n(),b=n(),c=n(),d=n();return()=>{a|=0;b|=0;c|=0;d|=0;let t=(a+b|0)+d|0;d=d+1|0;a=b^b>>>9;b=c+(c<<3)|0;c=c<<21|c>>>11;c=c+t|0;return(t>>>0)/4294967296}}
+// ---------- stand-in ball odds (7.3 runs an over; NOT the real engine) ----------
+const BALL=[[0,.40],[1,.30],[2,.08],[4,.10],[6,.06],['W',.06]];
+const WHEEL_AVG=7.3;
+function roll(r){let x=r(),c=0;for(const[b,p]of BALL){c+=p;if(x<c)return b}return 0}
+// value for US: batting high runs good, W worst. bowling: flipped.
+const valBat=b=>b==='W'?-6:b, valBowl=b=>b==='W'?6:-b;
+function pickOf(r,k,best,val){let s=roll(r);for(let i=1;i<k;i++){const b=roll(r);if(best?val(b)>val(s):val(b)<val(s))s=b}return s}
+const floorBat=b=>(b==='W'||b===0)?1:b;      // Perfect floor when batting: never dot or wicket
+const floorBowl=b=>(b===4||b===6)?2:b;       // Perfect floor when bowling: never a boundary
+// ---------- state ----------
+const S={mode:'A1',side:'bat',letter:'C',offset:0,phase:'idle',balls:[],i:0,chain:0,overs:[],seedN:1,cal:null};
+try{const o=+localStorage.getItem('go.offset');if(isFinite(o))S.offset=o}catch(e){}
+const WIN={F:60,C:80,S:110};
+const win=()=>({p:WIN[S.letter],g:Math.round(WIN[S.letter]*2.125)});
+const PACE={Fast:550,Medium:800,Spin:1050};
+const $=s=>document.querySelector(s);
+const cv=$('#cv'),cx=cv.getContext('2d'),pad=$('#pad'),line=$('#line');
+let ac=null;
+function beep(f,when,dur=.05,vol=.15){if(!ac)return;const o=ac.createOscillator(),g=ac.createGain();o.frequency.value=f;g.gain.value=vol;o.connect(g).connect(ac.destination);const t=ac.currentTime+Math.max(0,when/1000);o.start(t);o.stop(t+dur)}
+function circles(){const el=$('#circles');el.innerHTML='';for(let k=0;k<6;k++){const b=S.balls[k];const d=document.createElement('div');d.className='c'+(b&&b.grade?' '+b.grade:'');d.textContent=b&&b.res!==undefined?b.res:'';el.appendChild(d)}}
+function planOver(){
+ const r=makeRng('go|'+S.mode+'|'+S.side+'|'+S.seedN);S.rng=r;S.balls=[];S.i=0;S.chain=0;
+ let stock='Medium';
+ if(S.mode==='A3'){stock=['Fast','Medium','Spin'][Math.floor(r()*3)];}
+ const others=['Fast','Medium','Spin'].filter(x=>x!==stock);
+ const nChange=S.mode==='A3'?1+Math.floor(r()*2):0;const idx=[0,1,2,3,4,5];
+ for(let k=5;k>0;k--){const j=Math.floor(r()*(k+1));[idx[k],idx[j]]=[idx[j],idx[k]]}
+ const change=new Set(idx.slice(0,nChange));
+ for(let k=0;k<6;k++){const type=change.has(k)?others[Math.floor(r()*2)]:stock;S.balls.push({type,D:PACE[type]})}
+ S.stock=stock;circles();
+}
+function startBall(){
+ const b=S.balls[S.i];const now=performance.now();
+ const lead=900;b.startT=now+lead;b.hitT=b.startT+b.D;b.tapped=false;
+ beep(660,lead);beep(660,lead+b.D/2);
+ S.phase='ball';
+ line.textContent=`Ball ${S.i+1} of 6`+(S.mode==='A3'?` · ${b.type.toUpperCase()}`:'')+(S.mode==='A2'&&S.chain?` · chain ${S.chain}`:'');
+}
+function resolve(err){ // err in ms (null = no tap)
+ const b=S.balls[S.i],w=win(),r=S.rng,bat=S.side==='bat',val=bat?valBat:valBowl,fl=bat?floorBat:floorBowl;
+ const a=err===null?1e9:Math.abs(err);const g=a<=w.p?'P':a<=w.g?'G':'M';
+ let res;
+ if(S.mode==='A2'){
+  if(g==='P'){S.chain++;res=pickOf(r,Math.min(1+S.chain,4),true,val);if(S.chain>=2)res=fl(res)}
+  else if(g==='G'){res=roll(r)}else{S.chain=0;res=pickOf(r,2,false,val)}
+ }else{res=g==='P'?fl(pickOf(r,3,true,val)):g==='G'?roll(r):pickOf(r,2,false,val)}
+ b.err=err;b.grade=g;b.res=res;b.doneT=performance.now();
+ const word={P:'PERFECT',G:'GOOD',M:'MISS'}[g];
+ const ms=err===null?'no tap':(Math.abs(Math.round(err))+' ms '+(err<0?'early':'late'));
+ line.textContent=`${word} · ${ms} · ${res==='W'?'WICKET':res+(res===1?' run':' runs')}`+(S.mode==='A2'?` · chain ${S.chain}`:'');
+ if(g==='P'){beep(990,0,.09,.2);if(navigator.vibrate)try{navigator.vibrate(15)}catch(e){}}else if(g==='G')beep(740,0,.07);else beep(200,0,.12);
+ circles();S.phase='gap';
+ setTimeout(()=>{S.i++;if(S.i<6)startBall();else endOver()},700);
+}
+function endOver(){
+ const bs=S.balls;const runs=bs.reduce((s,b)=>s+(b.res==='W'?0:b.res),0),wk=bs.filter(b=>b.res==='W').length;
+ const taps=bs.reduce((s,b)=>s+(b.grade==='P'?2:b.grade==='G'?1:0),0);
+ const errs=bs.filter(b=>b.err!==null).map(b=>b.err);const mean=errs.length?errs.reduce((a,b)=>a+b,0)/errs.length:0;
+ const sd=errs.length>1?Math.sqrt(errs.reduce((a,b)=>a+(b-mean)**2,0)/(errs.length-1)):0;
+ S.overs.push({mode:S.mode,side:S.side,letter:S.letter,seed:S.seedN,stock:S.stock,runs,wk,taps,mean:Math.round(mean),sd:Math.round(sd),balls:bs.map(b=>({t:b.type[0],e:b.err===null?null:Math.round(b.err),g:b.grade,r:b.res}))});
+ S.seedN++;S.phase='idle';
+ const good=S.side==='bat'?runs>WHEEL_AVG:runs<WHEEL_AVG;
+ line.textContent=`Taps ${taps} of 12. ${S.side==='bat'?'You scored':'Rival scored'} ${runs}${wk?' for '+wk:''}. Wheel average ${WHEEL_AVG}. ${good?'Better than wheel.':'Not better than wheel.'} Timing ${Math.abs(Math.round(mean))} ms ${mean<0?'early':'late'}.`;
+ pad.innerHTML='TAP<small>next over</small>';
+}
+// ---------- calibration: 10 balls on a steady beat, median error becomes the offset ----------
+function startCal(){S.cal={n:0,errs:[]};S.phase='cal';S.balls=[];circles();calBall()}
+function calBall(){const now=performance.now();S.calB={startT:now+500,D:800,hitT:now+1300,type:'Medium'};beep(660,500);beep(660,900);line.textContent=`Calibrate: tap on the band. ${S.cal.n+1} of 10`}
+function calTap(t){const e=t-S.calB.hitT;if(Math.abs(e)<400){S.cal.errs.push(e)}S.cal.n++;S.calB.doneT=performance.now();S.calB.err=e;
+ if(S.cal.n>=10){const a=S.cal.errs.slice().sort((x,y)=>x-y);const med=a.length?a[Math.floor(a.length/2)]:0;S.offset=Math.round(med);try{localStorage.setItem('go.offset',S.offset)}catch(e){}
+  const m=a.reduce((x,y)=>x+y,0)/(a.length||1);const sd=a.length>1?Math.sqrt(a.reduce((x,y)=>x+(y-m)**2,0)/(a.length-1)):0;
+  S.calStat={offset:S.offset,sd:Math.round(sd),n:a.length};S.phase='idle';S.calB=null;line.textContent=`Calibrated. Offset ${S.offset} ms. Your spread ${Math.round(sd)} ms (sim assumed 110). Tap pad to start over.`;pad.innerHTML='TAP<small>start over</small>'}
+ else setTimeout(calBall,350)}
+// ---------- input ----------
+pad.addEventListener('pointerdown',ev=>{ev.preventDefault();
+ if(!ac){try{ac=new (window.AudioContext||window.webkitAudioContext)()}catch(e){}}
+ pad.classList.add('flash');setTimeout(()=>pad.classList.remove('flash'),80);
+ const t=ev.timeStamp>0&&Math.abs(ev.timeStamp-performance.now())<1000?ev.timeStamp:performance.now();
+ if(S.phase==='idle'){planOver();pad.innerHTML='TAP';startBall();return}
+ if(S.phase==='cal'&&S.calB&&!S.calB.doneT&&t>S.calB.startT-200){calTap(t);return}
+ if(S.phase==='ball'){const b=S.balls[S.i];if(t<b.startT-100)return; // too soon to count
+  b.tapped=true;b.tapPos=(t-b.startT)/b.D;resolve(t-b.hitT-S.offset)}
+});
+document.querySelectorAll('#modes button').forEach(bt=>bt.onclick=()=>{if(S.phase!=='idle')return;S.mode=bt.dataset.m;document.querySelectorAll('#modes button').forEach(x=>x.classList.toggle('on',x===bt));
+ line.textContent={A1:'A1: Perfect = best of 3, never dot or wicket. Miss = worst of 2.',A2:'A2: Perfects in a row climb 2, 3, 4 rolls. Miss breaks chain.',A3:'A3: pace changes ball to ball. Read the label and run-up.'}[S.mode]});
+$('#side').onclick=()=>{if(S.phase!=='idle')return;S.side=S.side==='bat'?'bowl':'bat';$('#side').textContent=S.side==='bat'?'Batting':'Bowling'};
+$('#letter').onclick=()=>{if(S.phase!=='idle')return;S.letter={F:'C',C:'S',S:'F'}[S.letter];$('#letter').textContent='Letter '+S.letter};
+$('#cal').onclick=()=>{if(S.phase!=='idle')return;if(!ac){try{ac=new (window.AudioContext||window.webkitAudioContext)()}catch(e){}}startCal()};
+function reportText(){const L=[];L.push('GOLDEN OVER PROTO REPORT');L.push(`screen ${innerWidth}x${innerHeight} dpr ${devicePixelRatio} offset ${S.offset} ms`+(S.calStat?` calSpread ${S.calStat.sd} ms (n ${S.calStat.n})`:' (not calibrated)'));
+ for(const m of ['A1','A2','A3'])for(const sd of ['bat','bowl']){const o=S.overs.filter(x=>x.mode===m&&x.side===sd);if(!o.length)continue;const avg=k=>(o.reduce((s,x)=>s+x[k],0)/o.length).toFixed(1);
+  L.push(`${m} ${sd}: overs ${o.length}, runs avg ${avg('runs')} (wheel ${WHEEL_AVG}), wkts avg ${avg('wk')}, taps avg ${avg('taps')}/12, spread avg ${avg('sd')} ms`)}
+ L.push('--- overs (type error-ms grade result) ---');
+ S.overs.forEach((o,i)=>L.push(`${i+1} ${o.mode} ${o.side} ${o.letter} seed${o.seed}: `+o.balls.map(b=>`${b.t}${b.e===null?'x':b.e}${b.g}${b.r}`).join(' ')+` = ${o.runs}/${o.wk} taps${o.taps}`));
+ return L.join('\n')}
+$('#report').onclick=()=>{$('#reptxt').value=reportText();$('#rep').style.display='flex'};
+$('#close').onclick=()=>{$('#rep').style.display='none'};
+$('#copy').onclick=async()=>{const t=$('#reptxt');try{await navigator.clipboard.writeText(t.value);$('#copy').textContent='Copied'}catch(e){t.select();try{document.execCommand('copy');$('#copy').textContent='Copied'}catch(e2){$('#copy').textContent='Select and copy by hand'}}};
+// ---------- draw ----------
+function fit(){const r=cv.getBoundingClientRect(),d=Math.min(devicePixelRatio||1,3);cv.width=Math.round(r.width*d);cv.height=Math.round(r.height*d);cx.setTransform(d,0,0,d,0,0)}
+addEventListener('resize',fit);fit();new ResizeObserver(fit).observe(cv);
+setInterval(()=>document.body.classList.toggle('playing',S.phase!=='idle'),50);
+const COL={Fast:'#e0685c',Medium:'#e6e6e6',Spin:'#6fb7ff'};
+function posOf(b,u){return b.type==='Spin'&&S.mode==='A3'?(u<1?1-Math.pow(1-u,1.5):1+(u-1)*1.5*0+ (u-1)*0.6):u}
+function draw(){
+ const w=cv.clientWidth,h=cv.clientHeight;cx.clearRect(0,0,w,h);
+ const lx=w/2,lw=Math.min(120,w*.34),y0=8,yL=h*.8,band=24;
+ cx.fillStyle='#2e6b3f';cx.fillRect(lx-lw/2,0,lw,h);cx.fillStyle='#c9b27a';cx.fillRect(lx-lw/4,0,lw/2,h);
+ cx.fillStyle='#e6b422';cx.globalAlpha=.9;cx.fillRect(lx-lw/2-10,yL-band/2,lw+20,band);cx.globalAlpha=1;
+ cx.fillStyle='#fff';for(const dx of[-10,0,10])cx.fillRect(lx+dx-2,yL+band/2+4,4,Math.max(8,h-yL-band/2-8));
+ const now=performance.now();
+ const b=S.phase==='cal'?S.calB:S.balls[Math.min(S.i,5)];
+ if(b&&(S.phase==='ball'||S.phase==='gap'||S.phase==='cal')){
+  const u=(now-b.startT)/b.D;
+  // run-up tell: bar on the left, length by pace
+  if(S.mode==='A3'&&S.phase!=='cal'){cx.fillStyle=COL[b.type];const bl={Fast:.9,Medium:.6,Spin:.3}[b.type]*(h*.5);cx.fillRect(12,y0,14,bl);cx.font='700 16px system-ui';cx.fillText(b.type.toUpperCase(),34,y0+18)}
+  if(u>=0&&u<1.35&&!(b.doneT&&S.phase!=='cal'&&b.tapped)){const p=posOf(b,u);const y=y0+(yL-y0)*p;cx.beginPath();cx.arc(lx,y,11,0,7);cx.fillStyle=S.mode==='A3'?COL[b.type]:'#b3261e';cx.fill();cx.strokeStyle='#fff';cx.lineWidth=2;cx.stroke()}
+  if(b.tapped&&b.tapPos!==undefined){const y=y0+(yL-y0)*posOf(b,b.tapPos);cx.strokeStyle={P:'#5fd38a',G:'#e6b422',M:'#e0685c'}[b.grade]||'#fff';cx.lineWidth=4;cx.beginPath();cx.moveTo(lx-lw/2-14,y);cx.lineTo(lx+lw/2+14,y);cx.stroke()}
+  if(S.phase==='ball'&&!b.tapped&&now>b.hitT+win().g+S.offset+60){resolve(null)}
+  if(S.phase==='cal'&&!b.doneT&&now>b.hitT+450){calTap(b.hitT+9999)}
+ }
+ if(S.mode==='A2'&&S.phase!=='cal'){cx.fillStyle='#eef3f5';cx.font='700 16px system-ui';cx.textAlign='right';cx.fillText('chain '+S.chain,w-10,24);cx.textAlign='left'}
+ requestAnimationFrame(draw)}
+circles();requestAnimationFrame(draw);
+window.__S=S;
+</script></body></html>
