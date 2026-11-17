@@ -42,5 +42,16 @@ test('ready hint teaches the glow; cue CSS adds no animation and keeps 14 px tex
   const css = readFileSync(new URL('../css/wheelmatch.css', import.meta.url), 'utf8');
   assert.match(v, /wait for the glow/);
   assert.doesNotMatch(css, /prefers-reduced-motion|is-glow[^}]*animation/);
-  assert.match(css, /\.wm-tickline \{[^}]*font-size: 14px/);
+  const sizes = [...css.matchAll(/\.wm-tickline \{[^}]*?font-size: (\d+)px/g)].map((m) => +m[1]);
+  assert.ok(sizes.length && sizes[sizes.length - 1] >= 14, 'effective (last) tick line rule is >= 14 px: ' + sizes);
+});
+test('non-finite tick position gives no line', () => {
+  assert.equal(sliceIdxAt(segs, NaN, C), -1); assert.equal(sliceIdxAt(segs, undefined, C), -1);
+  assert.equal(tickNoteText(segs, NaN, 'e', C), ''); assert.equal(tickNoteText(segs, Infinity, 'e', C), '');
+});
+test('stale tick note is cleared at over start, auto start, key change and next over; line is announced via the live region', () => {
+  const v = readFileSync(new URL('../js/ui/wheelmatch-view.js', import.meta.url), 'utf8');
+  assert.equal((v.match(/st\.tickNote = ''/g) || []).length, 4);
+  assert.match(v, /st\.auto = kind; st\.tickNote = ''/);
+  assert.match(v, /fresh && st\.tickNote \? ' ' \+ st\.tickNote/);
 });

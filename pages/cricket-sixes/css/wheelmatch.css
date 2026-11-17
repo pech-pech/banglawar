@@ -136,3 +136,11 @@
   .wm .wm-their { min-height: 56px; display: flex; align-items: center; }
   .wm .wm-their { font-size: 16px; }
 }
+/* slow-window cue: the "Stop now" panel sits above the glow band (cta z-index 3) and spans the row */
+.wm-row { position: relative; z-index: 4; }
+.wm-now { flex: 1 1 100%; justify-content: center; box-sizing: border-box; margin-bottom: 4px; }
+/* D2: the glow never paints above the CTA box (no tint on the Auto button above STOP); sides and bottom keep it */
+.wm-cta { clip-path: inset(0 -24px -24px -24px); }
+/* D1: pixel-font caps read small at 14-15 px: the tick line and the Landed line go to 16 px */
+.wm-tickline { font-size: 16px; line-height: 20px; }
+.wm-resh { font-size: 16px; }

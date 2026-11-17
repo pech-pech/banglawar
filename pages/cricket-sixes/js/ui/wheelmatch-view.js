@@ -89,6 +89,7 @@ export function landedText(g, w) {
 }
 /** Index of the slice under position p on a wheel of circumference C. Pure. */
 export function sliceIdxAt(segs, p, C = WHEEL_MATCH.CIRC) {
+  if (!Number.isFinite(p)) return -1;
   const u = ((p % C) + C) % C;
   for (let i = 0; i < (segs || []).length; i++) { const g = segs[i]; if (u >= g.start && u < g.start + g.width) return i; }
   return segs && segs.length ? segs.length - 1 : -1;
@@ -258,11 +259,11 @@ function makeWheel(cv, segs, vm) {
       let w = stage ? stage.clientWidth : 300, h = stage ? stage.clientHeight : 300;
       const res = root && root.querySelector('.wm-res');
       if (!isRes && stage && wrap && res && res.hidden) { // probe: the stage height with the result panel in (restored at once, no paint between)
-        const hid = ['.wm-row', '.wm-legend'].map((q) => root.querySelector(q)).filter((x) => x && !x.hidden), keep = res.innerHTML, wh = wrap.style.height;
+        const hid = ['.wm-row', '.wm-legend', '.wm-autos'].map((q) => root.querySelector(q)).filter((x) => x && !x.hidden), keep = res.innerHTML, wh = wrap.style.height;
         wrap.style.height = '0px'; w = stage.clientWidth;
-        res.innerHTML = '<div class="wm-resh"><span>Landed on</span><b class="wm-chip">x</b></div><ol class="op-circles wm-balls">' + '<li class="op-slot"><span class="op-circle"></span><span class="op-word">x</span></li>'.repeat(6) + '</ol>';
+        res.innerHTML = '<div class="wm-resh"><span>Landed on</span><b class="wm-chip">x</b></div><p class="wm-tickline">x</p><ol class="op-circles wm-balls">' + '<li class="op-slot"><span class="op-circle"></span><span class="op-word">x</span></li>'.repeat(6) + '</ol>';
         hid.forEach((x) => { x.hidden = true; }); res.hidden = false;
-        h = stage.clientHeight - (root.querySelector('.wm-autos') ? 0 : 60); // over 1 has no Auto row, overs 2+ do (56 px + gap): reserve it so the wheel keeps one size
+        h = stage.clientHeight; // the Auto row (overs 2+) leaves at the result like the row and legend, so over 1 and later overs measure the same
         res.hidden = true; res.innerHTML = keep; hid.forEach((x) => { x.hidden = false; }); wrap.style.height = wh;
       }
       W = Math.max(150, Math.floor(Math.min(w, h, cap)));
@@ -368,7 +369,7 @@ export function render(el, vm, dispatch, open) {
   st.el = el; st.vm = vm; st.dispatch = dispatch; st.open = open;
   if (st.busy && el.querySelector('.wm')) return; // an animation owns the screen (app.js holds re-renders during a WheelOver)
   const key = (vm.side || '') + '|' + (vm.mode || '');
-  if (key !== st.key) { st.key = key; st.phase = 'pick'; st.bowler = null; st.res = null; if (st.auto) stopAuto(); }
+  if (key !== st.key) { st.key = key; st.phase = 'pick'; st.bowler = null; st.res = null; st.tickNote = ''; if (st.auto) stopAuto(); }
   if (!st.mounted) { // reload mid-over: the stored result shows (no re-spin) until NEXT
     st.mounted = true; const L = vm.last, rk = resKey(vm, L && L.over);
     if (L && L.wheel && !L.wheel.auto && L.over === vm.over - 1 && seenGet() !== rk) st.res = { wheel: L.wheel, balls: L.balls || [], over: L.over, score: vm.score, stage: null, nextLabel: 'Next over', seenKey: rk, reload: true };
@@ -398,7 +399,7 @@ function bindView(el) {
     const t = e.target.closest('button, [data-res-tap]'); if (!t || !root.contains(t) || t.disabled) return;
     const vm = st.vm, act = t.getAttribute('data-wm');
     if (t.hasAttribute('data-bowler')) { st.bowler = Number(t.getAttribute('data-bowler')); render(el, vm, st.dispatch, st.open); const f = el.querySelector('[data-bowler="' + st.bowler + '"]'); if (f) f.focus(); return; }
-    if (act === 'go') { if (vm.side === 'bowl' && pickedBowler(vm) == null) return; st.bowler = pickedBowler(vm); st.phase = 'ready'; st.restPos = Math.random() * WHEEL_MATCH.CIRC; render(el, vm, st.dispatch, st.open); }
+    if (act === 'go') { if (vm.side === 'bowl' && pickedBowler(vm) == null) return; st.bowler = pickedBowler(vm); st.tickNote = ''; st.phase = 'ready'; st.restPos = Math.random() * WHEEL_MATCH.CIRC; render(el, vm, st.dispatch, st.open); }
     else if (act === 'back') { st.phase = 'pick'; render(el, vm, st.dispatch, st.open); const f = el.querySelector('[data-wm="go"]'); if (f) f.focus(); }
     else if (act === 'spin') onSpin(el, vm, t, e);
     else if (act === 'auto-rest') startAuto(el, 'rest');
@@ -490,7 +491,7 @@ function stamp(el, mk) { const m = el.querySelector('.wm-mark'); if (!m) return;
 function showResult(el, vm, r, fresh, keepWheel) {
   const segs = (r.wheel && r.wheel.segs) || vm.segs || [], idx = segs.findIndex((g) => g.id === (r.wheel && r.wheel.segId)), g = segs[idx];
   const balls = (r.balls || []).slice(0, 6), t = overTotals(balls), mk = endMark(r.wheel && r.wheel.end, r.result), over = r.over || vm.over - 1;
-  const say = 'Over ' + over + ': ' + overWords(t.runs, t.wk) + (mk ? '. ' + (mk === 'ALL OUT' ? 'All out' : mk === 'WIN' ? 'Target reached, you win' : 'Scores level, a tie') : '') + '.';
+  const say = 'Over ' + over + ': ' + overWords(t.runs, t.wk) + (mk ? '. ' + (mk === 'ALL OUT' ? 'All out' : mk === 'WIN' ? 'Target reached, you win' : 'Scores level, a tie') : '') + '.' + (fresh && st.tickNote ? ' ' + st.tickNote : '');
   const shell = !keepWheel || !el.querySelector('.wm--wheel');
   if (shell) {
     const v = { ...vm, over, segs };
@@ -503,13 +504,13 @@ function showResult(el, vm, r, fresh, keepWheel) {
   const sc = r.score || vm.score; const hs = root.querySelector('.wm-strip .score'); if (hs && sc) { hs.textContent = sc.runs + '/' + sc.wk; hs.setAttribute('aria-label', sc.runs + ' runs for ' + sc.wk + ' wickets'); }
   const hm = root.querySelector('.wm-strip .mid'); if (hm) hm.innerHTML = '<b>Over ' + esc(over) + ' done</b><span>' + esc(r.stage === 'break' ? 'Innings over' : r.stage === 'done' ? 'Match over' : 'Next: over ' + (over + 1) + ' of 10') + '</span>';
   if (r.need && root.querySelector('.wm-need')) root.querySelector('.wm-need b').innerHTML = 'Need <em>' + esc(r.need.runs) + '</em> off <em>' + esc(r.need.balls) + '</em> balls';
-  ['.wm-row', '.wm-legend'].forEach((q) => { const x = root.querySelector(q); if (x) x.hidden = true; });
+  ['.wm-row', '.wm-legend', '.wm-autos'].forEach((q) => { const x = root.querySelector(q); if (x) x.hidden = true; });
   ['.wm-exp', '.wm-who'].forEach((q) => { const x = root.querySelector(q); if (x) x.style.visibility = 'hidden'; }); // H2: keep their room so the wheel stays put
   const res = root.querySelector('.wm-res'); res.hidden = false;
   const chip = g ? '<b class="wm-chip wm-t--' + esc(g.tone || 'so') + '">' + esc(toneMark(g.tone) + ' ' + landedText(g, r.wheel)) + '</b>' : '';
   const slots = Array.from({ length: 6 }, (_, i) => '<li class="op-slot' + (i >= balls.length ? ' is-unused' : '') + '" data-i="' + i + '"><span class="op-circle" aria-hidden="true"></span><span class="op-word" aria-hidden="true"></span></li>').join('');
   res.innerHTML = '<div class="wm-resh"><span>Landed on</span>' + chip + '<span class="wm-eq">= ' + esc(overWords(t.runs, t.wk)) + '</span></div>' +
-    (st.tickNote ? '<p class="wm-tickline">' + esc(st.tickNote) + '</p>' : '') +
+    (st.tickNote ? '<p class="wm-tickline" aria-hidden="true">' + esc(st.tickNote) + '</p>' : '') +
     '<ol class="op-circles wm-balls" aria-label="Balls this over" data-res-tap>' + slots + '</ol><p class="wm-found" hidden></p>';
   if (st.wheel) { st.wheel.size(); st.wheel.draw(st.drawPos != null ? st.drawPos : 0, { over }); } // the panel took room: fit the wheel to what is left
   const nr = root.querySelector('.wm-need span'); if (nr && vm.side === 'bat') nr.textContent = '+' + t.runs + ' this over';
@@ -537,7 +538,7 @@ function showResult(el, vm, r, fresh, keepWheel) {
   function next() {
     if (!finished) { finish(); return; }
     timers.forEach(clearTimeout);
-    seenSet(r.seenKey || resKey(st.vm || vm, over)); st.res = null; st.phase = 'pick'; st.bowler = null; st.restPos = 0;
+    seenSet(r.seenKey || resKey(st.vm || vm, over)); st.res = null; st.tickNote = ''; st.phase = 'pick'; st.bowler = null; st.restPos = 0;
     if (typeof r.release === 'function') r.release(); else render(el, st.vm || vm, st.dispatch, st.open);
   }
   cta.querySelector('[data-wm-next]').addEventListener('click', () => next());
@@ -548,7 +549,7 @@ function showResult(el, vm, r, fresh, keepWheel) {
 // ---------- Auto ----------
 function startAuto(el, kind) {
   if (st.auto || st.busy) return;
-  st.auto = kind; st.autoSpun = 0; st.stopReq = false; st.chips = []; st.focusStop = true;
+  st.auto = kind; st.tickNote = ''; st.autoSpun = 0; st.stopReq = false; st.chips = []; st.focusStop = true;
   st.autoSum = { from: st.vm.over, runs: 0, wk: 0 };
   render(el, st.vm, st.dispatch, st.open);
 }
