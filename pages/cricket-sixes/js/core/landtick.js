@@ -31,5 +31,15 @@ export const stopTime = (t) => (typeof t === 'number' && Number.isFinite(t) && t
  * @param {any} P phys {W0, D, TAU?} @param {number} elapsed @returns {{t:number, cycle:number, tInCycle:number, arc:number, dist:number}} */
 export function landSplit(P, elapsed) {
   const t = stopTime(elapsed), { cycle, tInCycle } = cycleOf(t, P), D = (P && P.D) ?? WHEEL_ENGINE.D;
-  return { t, cycle, tInCycle, arc: (cycle - 1) * ARC_PER_CYCLE(P) + pulseArc(tInCycle, P), dist: pulseW(tInCycle, P) * D / 3 };
+  const w = pulseW(tInCycle, P), arc = (cycle - 1) * ARC_PER_CYCLE(P) + pulseArc(tInCycle, P);
+  return { t, cycle, tInCycle, arc, dist: P && P.glideDeg ? glideCap(P, w) : w * D / 3 };
+}
+
+/** Tick window (2026-11-17, M): when phys.glideDeg = [lo, hi] (degrees), the glide still to come is mapped from the pulse speed range
+ * [w(3.8 s), W0] onto lo..hi degrees, so the tick always sits lo..hi degrees ahead of the pointer (never whips round the wheel). Pure.
+ * @param {any} P phys {W0, glideDeg:[lo,hi]} @param {number} w speed units/s at the STOP's cycle time @returns {number} units */
+export function glideCap(P, w) {
+  const [lo, hi] = P.glideDeg, W0 = P.W0 ?? WHEEL_ENGINE.W0, wMin = pulseW(WHEEL_ENGINE.PULSE_FROM, P);
+  const x = W0 > wMin ? Math.max(0, Math.min(1, (w - wMin) / (W0 - wMin))) : 0, C = WHEEL_ENGINE.CIRC;
+  return (lo + (hi - lo) * x) * C / 360;
 }

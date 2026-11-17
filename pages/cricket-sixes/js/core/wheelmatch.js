@@ -58,7 +58,7 @@ export function ctrlOf(s) {
 export function matchPhys(s) {
   const c = ctrlOf(s);
   const slow = 1 - WMX.SLOW_PER_RANK * clamp(c.slowRank, 0, 3), steady = Math.pow(0.85, clamp(c.steadyRank, 0, 2));
-  return { W0: devVal(s, 'matchW0') * slow, TAU: WMX.TAU, D: devVal(s, 'matchD'), J: devVal(s, 'matchJ') * steady, SD: c.guide ? WMX.SD_GUIDE_AVG : WMX.SD_AVG };
+  return { W0: devVal(s, 'matchW0') * slow, TAU: WMX.TAU, D: devVal(s, 'matchD'), J: devVal(s, 'matchJ') * steady, SD: c.guide ? WMX.SD_GUIDE_AVG : WMX.SD_AVG, glideDeg: WMX.GLIDE_DEG };
 }
 /** Rim position (0..CIRC) under the pointer at wheel time t (seconds since SPIN, pulse arc, never clamped above) with start offset phi.
  * @param {any} phys @param {number} t @param {number} phi */

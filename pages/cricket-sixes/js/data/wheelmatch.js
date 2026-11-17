@@ -6,7 +6,8 @@ import { WHEEL_ENGINE } from './wheel-engine.js';
 const MATCH_ONLY = Object.freeze({ K_SEG: 10, MIN_P: 0.025, RESERVE_MIN: 0.03,
   N_SAMP: 2000, HIGH_TAIL_Q: 0.85, WK_VAL_BOWL: 7, WK_VAL_BAT_A: 14, WK_VAL_BAT_B: 1.2, WK_VAL_LO: 3, WK_VAL_HI: 10,
   GLOW_LO: WHEEL_ENGINE.GLOW[0], GLOW_HI: WHEEL_ENGINE.GLOW[1], GLOW_BEAT: 0.2, GLOW_BEATS: 3,
-  SD_AVG: 0.110, SD_GOOD: 0.070, SD_GUIDE_AVG: 0.080, SD_GUIDE_GOOD: 0.050, SLOW_PER_RANK: 0.15, SLOW_FULL: 0.55, STEADY_FULL: 0.7225, STEADY_CAP: 0.7 });
+  SD_AVG: 0.110, SD_GOOD: 0.070, SD_GUIDE_AVG: 0.080, SD_GUIDE_GOOD: 0.050, SLOW_PER_RANK: 0.15, SLOW_FULL: 0.55, STEADY_FULL: 0.7225, STEADY_CAP: 0.7,
+  GLIDE_DEG: Object.freeze([60, 120]) }); // M 2026-11-17: the landing tick sits 60..120 degrees ahead of the pointer
 // SLICE_MAX_P (engine 0.12): slice width cap (1.2 of CIRC 10 units); wider segments split into equal pieces (numbers thread fix)
 export const WHEEL_MATCH = Object.freeze({ ...MATCH_ONLY, ...WHEEL_ENGINE });
 export const WHEEL_RIVAL_OFF = -9, CLASSIC_RIVAL_OFF = 1.9; // OFF -9 with the slice cap (numbers thread sweep: JS random 36.5, careful 54.5; was -10)
