@@ -28,7 +28,9 @@ const coinMult = (/** @type {any} */ s) => E.COIN_MULT[league(s) - 1];
 const fanMult = (/** @type {any} */ s) => E.FAN_MULT[league(s) - 1];
 const rd = Math.round;
 const note = (/** @type {any} */ e, /** @type {any} */ row) => { e.ledger.push(row); if (e.ledger.length > E.LEDGER_MAX) e.ledger.splice(0, e.ledger.length - E.LEDGER_MAX); };
-const sumLevels = (/** @type {any} */ e) => E.FAC.reduce((a, k) => a + (e.fac[k] || 0), 0);
+/** Pitch is locked (Coming soon): an owned Pitch level is kept in e.fac but costs no upkeep. */
+export const LOCKED_FAC = ['pitch'];
+const sumLevels = (/** @type {any} */ e) => E.FAC.reduce((a, k) => a + (LOCKED_FAC.includes(k) ? 0 : (e.fac[k] || 0)), 0);
 const inArrears = (/** @type {any} */ e) => e.arrears > 0;
 
 // ---- players: wage, fee, transfer value ----
@@ -188,7 +190,7 @@ export function buildOptions(s) {
     const cur = e.fac[k]; if (cur >= 5) continue;
     const L = cur + 1;
     const open = (v2Rules(e) ? E.FAC_OPEN_V2 : E.FAC_OPEN)[k];
-    gate(k, L, facCost(k, L, e), 0, 0, e.stadium < open ? `Needs Stadium ${open}` : L > e.stadium ? `Needs Stadium ${L}` : null);
+    gate(k, L, facCost(k, L, e), 0, 0, LOCKED_FAC.includes(k) ? 'Coming soon' : e.stadium < open ? `Needs Stadium ${open}` : L > e.stadium ? `Needs Stadium ${L}` : null);
   }
   return out;
 }
@@ -302,16 +304,16 @@ const FREE_TEXT = {
 /** True while a free pick is still waiting (flag on, not taken, something still at L0). @param {any} s */
 export function freePickPending(s) {
   const e = econOf(s);
-  return on('freePick') && !!e.freePick && !e.freePick.done && E.FAC.some((k) => (e.fac[k] || 0) === 0);
+  return on('freePick') && !!e.freePick && !e.freePick.done && E.FAC.some((k) => !LOCKED_FAC.includes(k) && (e.fac[k] || 0) === 0);
 }
 /** The seven cards: facilities still at L0 can be picked; the rest show as owned. Recommended Stands; honest notes on no-effect-yet ones. @param {any} s */
 export function freePickOptions(s) {
   const e = econOf(s), open = freePickPending(s);
-  return E.FAC.map((k) => ({ what: k, name: FREE_TEXT[k].name, effect: FREE_TEXT[k].effect, note: FREE_TEXT[k].note || '', recommended: !!FREE_TEXT[k].rec, price: E.FAC_L1_COST[k], owned: (e.fac[k] || 0) >= 1, ok: open && (e.fac[k] || 0) === 0 }));
+  return E.FAC.map((k) => ({ what: k, name: FREE_TEXT[k].name, effect: FREE_TEXT[k].effect, note: FREE_TEXT[k].note || '', recommended: !!FREE_TEXT[k].rec, price: E.FAC_L1_COST[k], owned: (e.fac[k] || 0) >= 1, ok: open && (e.fac[k] || 0) === 0 && !LOCKED_FAC.includes(k) }));
 }
 /** Take the free L1: no charge, no upkeep change beyond the level. Refused when done, owned or flag off. @param {any} s @param {string} what */
 export function takeFreePick(s, what) {
-  if (!freePickPending(s) || !E.FAC.includes(what) || (econOf(s).fac[what] || 0) !== 0) return s;
+  if (!freePickPending(s) || !E.FAC.includes(what) || LOCKED_FAC.includes(what) || (econOf(s).fac[what] || 0) !== 0) return s;
   const e = clone(econOf(s)); e.fac[what] = 1; e.freePick = { done: true, pick: what };
   note(e, { k: 'freepick', what, level: 1, coins: 0 });
   return withEcon(s, e);

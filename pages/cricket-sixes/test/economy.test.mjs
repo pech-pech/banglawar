@@ -224,3 +224,14 @@ test('a tie gives half a win in Fans (finals multiplier as usual; stands not mul
   const hi = mk(8, 40, 3); const m = (X.matchIncome(hi, { win: true }).fans - 5) / 40;
   assert.equal(X.matchIncome(hi, { tie: true }).fans, Math.round(25 * m) + 5);
 });
+
+test('Pitch locked: Coming soon, no buy, owned level kept, no upkeep', () => {
+  const s = mk();
+  const o = X.buildOptions(s).find((b) => b.what === 'pitch');
+  assert.equal(o.ok, false); assert.equal(o.why, 'Coming soon');
+  const rich = ec(ec(s, { coins: 99999, stadium: 5 }), { fac: { ...s.econ.fac, pitch: 0 } });
+  assert.equal(X.startBuild(rich, 'pitch'), rich, 'locked buy rejected');
+  const own = ec(s, { fac: { ...s.econ.fac, pitch: 3 } });
+  assert.equal(own.econ.fac.pitch, 3);
+  assert.equal(X.matchIncome(own, {}).upkeep, X.matchIncome(s, {}).upkeep, 'Pitch upkeep is 0');
+});

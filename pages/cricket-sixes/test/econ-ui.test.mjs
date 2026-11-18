@@ -41,7 +41,7 @@ test('stadium view: tap a slot -> plain confirm; Yes dispatches StartBuild { wha
 test('stadium view: a locked build says why in words and the Yes button is disabled', () => {
   const r = fakeRoot(); renderStadium(r, mk(), () => {});
   r.click({ 'data-econ-pick': 'pitch' });
-  assert.match(r.innerHTML, /Needs Stadium 3/);
+  assert.match(r.innerHTML, /Coming soon/);
   assert.match(r.innerHTML, /data-econ-act="StartBuild"[^>]*disabled/);
 });
 
