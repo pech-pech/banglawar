@@ -9,13 +9,19 @@ body{display:flex;flex-direction:column;height:100dvh;user-select:none;-webkit-u
 .row{display:flex;gap:6px;padding:6px}
 .row button{flex:1;min-width:0;padding:0 2px;min-height:56px;border:2px solid #44606e;background:#1c3340;color:#eef3f5;border-radius:10px;font:600 15px system-ui}
 .row button.on{background:#e6b422;color:#1a1a1a;border-color:#e6b422}
-#stage{flex:1;min-height:120px;position:relative}
+#stage{flex:1;min-height:120px;position:relative;overflow:hidden}
 canvas{position:absolute;inset:0;width:100%;height:100%;image-rendering:pixelated}
 #set{flex-wrap:wrap}#set button{min-width:64px}
-#circles{display:flex;justify-content:center;gap:8px;padding:6px}
+#circles{display:flex;justify-content:center;gap:8px;padding:4px 6px}
 .c{width:40px;height:40px;border-radius:50%;border:2px solid #44606e;display:grid;place-items:center;font:700 17px system-ui}
 .c.P{border-color:#5fd38a;background:#173d28}.c.G{border-color:#e6b422;background:#3d3212}.c.M{border-color:#e0685c;background:#3d1a16}
-#line{min-height:40px;padding:2px 10px;text-align:center;font-size:15px}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 2px #fff,0 0 0 5px #e6b42266}50%{box-shadow:0 0 0 2px #fff,0 0 0 8px #e6b42200}}
+.c.cur{border-color:#fff;background:#24495c;animation:pulse .9s ease-in-out infinite}
+#toast,#panel,#chip{position:absolute;pointer-events:none;background:#0a141cd9;color:#eef3f5;text-align:center;z-index:2}
+#toast{left:50%;top:calc(80% + 20px);transform:translateX(-50%);max-width:92%;padding:5px 12px;border-radius:10px;border:2px solid #44606e;font:700 15px/1.25 system-ui;opacity:0;transition:opacity .25s;white-space:nowrap}
+#toast.show{opacity:1}#toast.P{border-color:#5fd38a}#toast.G{border-color:#e6b422}#toast.M{border-color:#e0685c}
+#panel{display:none;left:50%;top:50%;transform:translate(-50%,-50%);width:min(92%,420px);max-height:94%;overflow:auto;padding:12px 14px;border-radius:12px;border:1px solid #44606e;background:#0a141ce6;font:15px/1.35 system-ui;white-space:pre-line}
+#chip{display:none;left:8px;top:8px;max-width:36%;padding:4px 8px;border-radius:8px;font:600 14px/1.25 system-ui}
 body.playing .row{display:none}
 #pad{height:34%;touch-action:none;background:#24495c;border-top:3px solid #e6b422;display:flex;flex-direction:column;align-items:center;justify-content:center;font:800 26px system-ui;letter-spacing:2px;text-align:center}
 @media (min-height:800px){#pad{height:45%}}
@@ -30,9 +36,8 @@ body.playing .row{display:none}
 <div class="row" id="set" style="padding-top:0">
  <button id="side">Batting</button><button id="letter">Letter C</button><button id="wset">Mid ±55</button><button id="cal">Calib</button><button id="report">Report</button><button id="art">Art: S1</button>
 </div>
-<div id="stage"><canvas id="cv"></canvas></div>
+<div id="stage"><canvas id="cv"></canvas><div id="toast"></div><div id="panel"></div><div id="chip"></div></div>
 <div id="circles"></div>
-<div id="line">Pick rule on top. Tap pad to start over. Tap when ball cross gold band.</div>
 <div id="pad">TAP<small>start over</small></div>
 <div id="rep"><textarea id="reptxt" readonly></textarea><div class="row"><button id="copy">Copy report</button><button id="close">Close</button></div></div>
 <script>
@@ -57,10 +62,17 @@ const WSET={Wide:[80,170],Mid:[55,120],Tight:[40,90]},LMUL={F:.75,C:1,S:1.375};
 const win=()=>({p:Math.round(WSET[S.wset][0]*LMUL[S.letter]),g:Math.round(WSET[S.wset][1]*LMUL[S.letter])});
 const PACE={Fast:550,Medium:800,Spin:1050};
 const $=s=>document.querySelector(s);
-const cv=$('#cv'),cx=cv.getContext('2d'),pad=$('#pad'),line=$('#line');
+const cv=$('#cv'),cx=cv.getContext('2d'),pad=$('#pad');
+// text layer: floats over the stage, reserves no layout space. panel = idle hints and end-of-over summary, toast = per-ball result, chip = calibration progress
+const toastEl=$('#toast'),panelEl=$('#panel'),chipEl=$('#chip');let toastT=0;
+function showPanel(t){chipEl.style.display='none';panelEl.textContent=t;panelEl.style.display=t?'block':'none'}
+function showChip(t){panelEl.style.display='none';chipEl.textContent=t;chipEl.style.display='block'}
+function hideText(){panelEl.style.display='none';chipEl.style.display='none';clearTimeout(toastT);toastEl.className=''}
+function showToast(t,g,delay){clearTimeout(toastT);toastEl.className='';toastT=setTimeout(()=>{toastEl.textContent=t;toastEl.className='show '+g;toastT=setTimeout(()=>{toastEl.className=g},450)},delay||0)}
+showPanel('Pick rule on top. Tap pad to start over.\nTap when ball cross gold band.');
 let ac=null;
 function beep(f,when,dur=.05,vol=.15){if(!ac)return;const o=ac.createOscillator(),g=ac.createGain();o.frequency.value=f;g.gain.value=vol;o.connect(g).connect(ac.destination);const t=ac.currentTime+Math.max(0,when/1000);o.start(t);o.stop(t+dur)}
-function circles(){const el=$('#circles');el.innerHTML='';for(let k=0;k<6;k++){const b=S.balls[k];const d=document.createElement('div');d.className='c'+(b&&b.grade?' '+b.grade:'');d.textContent=b&&b.res!==undefined?b.res:'';el.appendChild(d)}}
+function circles(){const el=$('#circles');el.innerHTML='';let cur=-1;for(let k=0;k<6;k++){const b=S.balls[k];const d=document.createElement('div');d.className='c'+(b&&b.grade?' '+b.grade:'');if(cur<0&&!(b&&b.grade)&&(S.phase==='ball'||S.phase==='gap')){cur=k;d.className+=' cur'}d.textContent=b&&b.res!==undefined?b.res:'';el.appendChild(d)}}
 function planOver(){
  const r=makeRng('go|'+S.mode+'|'+S.side+'|'+S.seedN);S.rng=r;S.balls=[];S.i=0;S.chain=0;
  let stock='Medium';
@@ -76,8 +88,7 @@ function startBall(){
  const b=S.balls[S.i];const now=performance.now();
  const lead=900;b.startT=now+lead;b.hitT=b.startT+b.D;b.tapped=false;
  beep(660,lead);beep(660,lead+b.D/2);
- S.phase='ball';
- line.textContent=`Ball ${S.i+1} of 6`+(S.mode==='A3'?` · ${b.type.toUpperCase()}`:'')+(S.mode==='A2'&&S.chain?` · chain ${S.chain}`:'');
+ S.phase='ball';circles();hideText(); // progress = pulsing ring on the current circle; A2 chain and A3 pace label are drawn in the stage
 }
 function resolve(err){ // err in ms (null = no tap)
  const b=S.balls[S.i],w=win(),r=S.rng,bat=S.side==='bat',val=bat?valBat:valBowl,fl=bat?floorBat:floorBowl;
@@ -90,7 +101,7 @@ function resolve(err){ // err in ms (null = no tap)
  b.err=err;b.grade=g;b.res=res;b.doneT=performance.now();
  const word={P:'PERFECT',G:'GOOD',M:'MISS'}[g];
  const ms=err===null?'no tap':(Math.abs(Math.round(err))+' ms '+(err<0?'early':'late'));
- line.textContent=`${word} · ${ms} · ${res==='W'?'WICKET':res+(res===1?' run':' runs')}`+(S.mode==='A2'?` · chain ${S.chain}`:'');
+ showToast(`${word} · ${ms} · ${res==='W'?'WICKET':res+(res===1?' run':' runs')}`,g,err===null?150:0);
  if(g==='P'){beep(990,0,.09,.2);if(navigator.vibrate)try{navigator.vibrate(15)}catch(e){}}else if(g==='G')beep(740,0,.07);else beep(200,0,.12);
  circles();S.phase='gap';
  setTimeout(()=>{S.i++;if(S.i<6)startBall();else endOver()},700);
@@ -103,32 +114,32 @@ function endOver(){
  S.overs.push({mode:S.mode,side:S.side,letter:S.letter,ws:S.wset,pw:win().p,seed:S.seedN,stock:S.stock,runs,wk,taps,mean:Math.round(mean),sd:Math.round(sd),balls:bs.map(b=>({t:b.type[0],e:b.err===null?null:Math.round(b.err),g:b.grade,r:b.res}))});
  S.seedN++;S.phase='idle';
  const good=S.side==='bat'?runs>WHEEL_AVG:runs<WHEEL_AVG;
- line.textContent=`Taps ${taps} of 12. ${S.side==='bat'?'You scored':'Rival scored'} ${runs}${wk?' for '+wk:''}. Wheel average ${WHEEL_AVG}. ${good?'Better than wheel.':'Not better than wheel.'} Timing ${Math.abs(Math.round(mean))} ms ${mean<0?'early':'late'}.`;
+ showPanel(`Taps ${taps} of 12.\n${S.side==='bat'?'You scored':'Rival scored'} ${runs}${wk?' for '+wk:''}.\nWheel average ${WHEEL_AVG}. ${good?'Better than wheel.':'Not better than wheel.'}\nTiming ${Math.abs(Math.round(mean))} ms ${mean<0?'early':'late'}.`);
  pad.innerHTML='TAP<small>next over</small>';
 }
 // ---------- calibration: 10 balls on a steady beat, median error becomes the offset ----------
-function startCal(){S.cal={n:0,errs:[]};S.phase='cal';S.balls=[];circles();calBall()}
-function calBall(){const now=performance.now();S.calB={startT:now+500,D:800,hitT:now+1300,type:'Medium'};beep(660,500);beep(660,900);line.textContent=`Calibrate: tap on the band. ${S.cal.n+1} of 10`}
+function startCal(){S.cal={n:0,errs:[]};S.phase='cal';S.balls=[];circles();hideText();calBall()}
+function calBall(){const now=performance.now();S.calB={startT:now+500,D:800,hitT:now+1300,type:'Medium'};beep(660,500);beep(660,900);showChip(`Calibrate: tap on the band. ${S.cal.n+1} of 10`)}
 function calTap(t){const e=t-S.calB.hitT;if(Math.abs(e)<400){S.cal.errs.push(e)}S.cal.n++;S.calB.doneT=performance.now();S.calB.err=e;
  if(S.cal.n>=10){const a=S.cal.errs.slice().sort((x,y)=>x-y);const med=a.length?a[Math.floor(a.length/2)]:0;S.offset=Math.round(med);try{localStorage.setItem('go.offset',S.offset)}catch(e){}
   const m=a.reduce((x,y)=>x+y,0)/(a.length||1);const sd=a.length>1?Math.sqrt(a.reduce((x,y)=>x+(y-m)**2,0)/(a.length-1)):0;
-  S.calStat={offset:S.offset,sd:Math.round(sd),n:a.length};S.phase='idle';S.calB=null;line.textContent=`Calibrated. Offset ${S.offset} ms. Your spread ${Math.round(sd)} ms (sim assumed 110). Tap pad to start over.`;pad.innerHTML='TAP<small>start over</small>'}
+  S.calStat={offset:S.offset,sd:Math.round(sd),n:a.length};S.phase='idle';S.calB=null;showPanel(`Calibrated. Offset ${S.offset} ms.\nYour spread ${Math.round(sd)} ms (sim assumed 110).\nTap pad to start over.`);pad.innerHTML='TAP<small>start over</small>'}
  else setTimeout(calBall,350)}
 // ---------- input ----------
 pad.addEventListener('pointerdown',ev=>{ev.preventDefault();
  if(!ac){try{ac=new (window.AudioContext||window.webkitAudioContext)()}catch(e){}}
  pad.classList.add('flash');setTimeout(()=>pad.classList.remove('flash'),80);
  const t=ev.timeStamp>0&&Math.abs(ev.timeStamp-performance.now())<1000?ev.timeStamp:performance.now();
- if(S.phase==='idle'){planOver();pad.innerHTML='TAP';startBall();return}
+ if(S.phase==='idle'){hideText();planOver();pad.innerHTML='TAP';startBall();return}
  if(S.phase==='cal'&&S.calB&&!S.calB.doneT&&t>S.calB.startT-200){calTap(t);return}
  if(S.phase==='ball'){const b=S.balls[S.i];if(t<b.startT-100)return; // too soon to count
   b.tapped=true;b.tapPos=(t-b.startT)/b.D;resolve(t-b.hitT-S.offset)}
 });
 document.querySelectorAll('#modes button').forEach(bt=>bt.onclick=()=>{if(S.phase!=='idle')return;S.mode=bt.dataset.m;document.querySelectorAll('#modes button').forEach(x=>x.classList.toggle('on',x===bt));
- line.textContent={A1:'A1: Perfect = best of 3, never dot or wicket. Miss = worst of 2.',A2:'A2: Perfects in a row climb 2, 3, 4 rolls. Miss breaks chain.',A3:'A3: pace changes ball to ball. Read the label and run-up.'}[S.mode]});
+ showPanel({A1:'A1: Perfect = best of 3, never dot or wicket. Miss = worst of 2.',A2:'A2: Perfects in a row climb 2, 3, 4 rolls. Miss breaks chain.',A3:'A3: pace changes ball to ball. Read the label and run-up.'}[S.mode])});
 $('#side').onclick=()=>{if(S.phase!=='idle')return;S.side=S.side==='bat'?'bowl':'bat';$('#side').textContent=S.side==='bat'?'Batting':'Bowling'};
 $('#letter').onclick=()=>{if(S.phase!=='idle')return;S.letter={F:'C',C:'S',S:'F'}[S.letter];$('#letter').textContent='Letter '+S.letter};
-$('#wset').onclick=()=>{if(S.phase!=='idle')return;S.wset={Wide:'Mid',Mid:'Tight',Tight:'Wide'}[S.wset];$('#wset').textContent=S.wset+' ±'+WSET[S.wset][0];line.textContent=`Window ${S.wset}: Perfect ±${win().p} ms, Good ±${win().g} ms (letter ${S.letter}).`};
+$('#wset').onclick=()=>{if(S.phase!=='idle')return;S.wset={Wide:'Mid',Mid:'Tight',Tight:'Wide'}[S.wset];$('#wset').textContent=S.wset+' ±'+WSET[S.wset][0];showPanel(`Window ${S.wset}: Perfect ±${win().p} ms, Good ±${win().g} ms (letter ${S.letter}).`)};
 $('#cal').onclick=()=>{if(S.phase!=='idle')return;if(!ac){try{ac=new (window.AudioContext||window.webkitAudioContext)()}catch(e){}}startCal()};
 function reportText(){const L=[];L.push('GOLDEN OVER PROTO REPORT');L.push(`screen ${innerWidth}x${innerHeight} dpr ${devicePixelRatio} offset ${S.offset} ms`+(S.calStat?` calSpread ${S.calStat.sd} ms (n ${S.calStat.n})`:' (not calibrated)'));
  for(const m of ['A1','A2','A3'])for(const sd of ['bat','bowl'])for(const ws of ['Wide','Mid','Tight']){const o=S.overs.filter(x=>x.mode===m&&x.side===sd&&x.ws===ws);if(!o.length)continue;const avg=k=>(o.reduce((s,x)=>s+x[k],0)/o.length).toFixed(1);
