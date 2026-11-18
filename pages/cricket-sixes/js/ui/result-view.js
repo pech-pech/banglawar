@@ -28,6 +28,7 @@ export function payCard(pay) {
     (pay.base ? row('Squad base', esc(pay.base)) : '') +
     (pay.win > 0 ? row(pay.winNote === 'a tie' ? 'Tie' : 'Win', '+' + esc(pay.win), pay.winNote && pay.winNote !== 'a tie' ? '(' + pay.winNote + ')' : '') : '') +
     (pay.kind === 'league' || pay.kind == null ? starRow : '') +
+    (pay.gym > 0 ? row('Gym', '+' + esc(pay.gym)) : '') +
     '<div class="pay-row pay-tot" role="status"><span>Total</span><b>' + esc(pay.total) + ' TP</b></div></div>';
 }
 const ovWords = (o) => { const [a, b] = String(o).split('.'); const n = Number(a) || 0, m = Number(b) || 0; return (n === 1 ? '1 over' : n + ' overs') + (m ? ' and ' + (m === 1 ? '1 ball' : m + ' balls') : ''); };

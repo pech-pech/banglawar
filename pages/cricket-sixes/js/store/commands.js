@@ -11,7 +11,7 @@ import { makeSchedule, makeTable, applyResult, placeOf, inTopFour, finalsDraw, f
 import { planOf, setPlan as setTrainPlan, runNets, endWeek, coachList, startCoach as makeStartCoach, passScout, courseUsesLicence, courseCost, signCoach, releaseCoach, pickWeekCoach, canCourse, runCourse, matchCoachOf, setMatchCoach } from '../core/training.js';
 import { unlockNode, makeFx } from '../core/skills.js';
 import { defaultOvers } from '../core/plan.js';
-import { newEconomy, applyMatch, tickBuild, finalsReward, finalsTp, payCourse, useHeld, startBuild, buySink, buyMedal, buyLegacy } from '../core/economy.js';
+import { newEconomy, gymTp, applyMatch, tickBuild, finalsReward, finalsTp, payCourse, useHeld, startBuild, buySink, buyMedal, buyLegacy } from '../core/economy.js';
 import { newRun, closeSeason, remakeRivals, carryOf, applyCarry } from '../core/run.js';
 import { RUN, SQUAD, SKEW } from '../data/run.js';
 import { skewPlayer, squadMax, bowlFloor } from '../core/skew.js';
@@ -331,11 +331,14 @@ function finishMatch(s0) {
   const pay = matchPay(n, { outcome, kind: fx.kind });
   const finKey = fx.kind === 'semi' ? (outcome === 'lost' ? 'semi' : null) : fx.kind === 'final' ? (outcome === 'won' ? 'champ' : 'runner') : null;
   if (finKey) pay.total = finalsTp(finKey);
+  const gym = n.econ ? gymTp(n) : 0; // the Gym pays its own TP line each match
+  if (gym > 0) { pay.gym = gym; pay.total += gym; }
   n.training.tp += pay.total; se.tpWon += pay.total;
   n.pay = { ...pay, outcome, opp: fx.opp, round: fx.round };
   delete n.match; // r9 H2: the match is over; its match-day roll goes with it
   delete n.mode; // the next match reads the Settings mode again (wheelLog stays until the next match starts, for the report)
   Object.assign(n, tickBuild(applyMatch(n, { win: outcome === 'won', tie: outcome === 'tied', ...(FLAGS.matchday && n.fixture.md ? { hypeIdx: n.fixture.md.hypeIdx } : {}) })));
+  if (gym > 0) { n.econ.ledger.push({ k: 'gym', tp: gym }); if (n.econ.ledger.length > 40) n.econ.ledger.splice(0, n.econ.ledger.length - 40); }
   if (finKey) Object.assign(n, finalsReward(n, finKey));
   se.last = { kind: fx.kind, round: fx.round };
   n.fixture = null;

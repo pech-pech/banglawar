@@ -107,7 +107,7 @@ test('L2 prices are x1.4 (L3-L5 unchanged)', () => {
 
 test('gymTp and canPromote', () => {
   assert.equal(X.gymTp(mk()), 0);
-  assert.equal(X.gymTp(ec(mk(), { fac: { ...X.newEconomy().fac, gym: 3 } })), 23);
+  assert.equal(X.gymTp(ec(mk(), { fac: { ...X.newEconomy().fac, gym: 3 } })), 12);
   assert.deepEqual(X.canPromote(mk()), { ok: false, why: 'Build Stadium 2 first' });
   assert.equal(X.canPromote(ec(mk(), { stadium: 2 })).ok, true);
   assert.equal(X.canPromote(ec(mk(8, 40, 3), { stadium: 3 })).ok, false);
@@ -223,4 +223,18 @@ test('a tie gives half a win in Fans (finals multiplier as usual; stands not mul
   assert.equal(X.matchIncome(st, { tie: true }).fans, 25 + 15);
   const hi = mk(8, 40, 3); const m = (X.matchIncome(hi, { win: true }).fans - 5) / 40;
   assert.equal(X.matchIncome(hi, { tie: true }).fans, Math.round(25 * m) + 5);
+});
+
+test('TP ledger gains a Gym line each match (half-rate TP)', async () => {
+  const { newGame, step } = await import('./_season-bot.mjs');
+  const { createStore } = await import('../js/store/store.js');
+  const g0 = newGame('gym-tp').get();
+  const st = createStore({ ...g0, econ: { ...g0.econ, fac: { ...g0.econ.fac, gym: 2 } } });
+  for (let g = 0; st.get().stage !== 'done' && g < 500; g++) step(st);
+  const tp0 = st.get().training.tp;
+  st.dispatch('FinishMatch');
+  const a = st.get(), row = a.econ.ledger.filter((r) => r.k === 'gym').slice(-1)[0];
+  assert.equal(a.pay.gym, 10);
+  assert.deepEqual(row, { k: 'gym', tp: 10 });
+  assert.equal(a.training.tp - tp0, a.pay.total);
 });

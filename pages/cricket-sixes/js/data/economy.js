@@ -20,7 +20,7 @@ export const ECON = {
   FAN_FIN: { semi: 20, runner: 60, champ: 160 },
   MEDALS: { semi: 1, runner: 2, champ: 4 },
   TP_FIN: { semi: 75, runner: 200, champ: 400 },   // TP is not held in s.econ: see finalsTp()
-  GYM_TP: [0, 17, 20, 23, 26, 29],
+  GYM_TP: [0, 9, 10, 12, 13, 15], // half the old 17/20/23/26/29, halves rounded up
   FAC: ['stands', 'shop', 'nets', 'gym', 'pitch', 'academy', 'scout'],
   FAC_COST: {
     stands: [0, 0, 365, 600, 1350, 3000],
