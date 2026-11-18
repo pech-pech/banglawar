@@ -1,30 +1,33 @@
 // camera.js - Plumbline camera (pure, Node-loadable, deterministic).
-// Per frame: (1) scale first (zoom spring, ZOOM_T), (2) look-ahead target,
-// (3) soft room clamp + soft bob band (bob below the HUD, at/above 55% H, led
-// LEAD s along the motion), (4) critically damped spring on the error with the
-// target velocity fed forward, camera acceleration rate-limited to ACC
-// (5 px/frame step change at 60 fps), (5) hard guarantees: room clamp (never
-// moves further out than target/last frame), bob on screen and above 55% H.
-// Horizontal: locked to the room centre while the visible width >= room.w - 8
-// (always for the 336 px room); follows only when zoomed in tighter.
-// Vertical: if the room fits between HUD (120 css px, frame.hudTop) and the
-// strip line at rest scale, it is top-aligned under the HUD; else it scrolls.
-// Measured sight ahead at cap speed 700 px/s, bob at room centre, camera settled
-// (from src/test/camera-test.js; "screen" = to canvas edge, "play" = to the
-// strip line y=0.6H when moving down, else same as screen):
+// FIT-WHOLE-ROOM [AD] (all current 336x500 rooms): scale =
+// min(W/room.w, (H - hudTop - 6)/room.h), room centred horizontally, top edge
+// pinned at hudTop (84 css px + safe-area top view.inset.t; returned as
+// frame.hudTop for draw.js), camera STATIC: no look-ahead, no speed zoom, no
+// smoothing, so no settle crop. The control strip is only a tint over the room.
+//   view     scale   room on screen (y)
+//   344x882  1.024   84..596
+//   475x638  1.096   84..632
+// Sight ahead in fit mode = time to the room edge (whole room visible).
+// SCROLL FALLBACK only when that fit scale < 0.9 (a room too tall, future):
+// (1) zoom spring, (2) look-ahead target, (3) soft room clamp + soft bob band
+// (below HUD, at/above 55% H, led LEAD s along the motion), (4) critically
+// damped spring on the error with target velocity fed forward, camera accel
+// capped at ACC (5 px/frame step change at 60 fps), (5) hard guarantees: room
+// clamp, bob on screen and above 55% H. x locked to room centre while the
+// visible width >= room.w - 8. Snaps (cut) on first frame, room change,
+// state.t < 3 and teleports. Measured (room 336x1000, cap 700 px/s, bob at
+// room centre, settled; play = to strip line 0.6H when moving down):
 //   view     dir    screen s  play s
-//   344x882  up     0.89      0.89
-//   344x882  right  0.34      0.34
-//   344x882  down   1.15      0.44
-//   344x882  left   0.34      0.34
+//   344x882  up     0.71      0.71
+//   344x882  right  0.24      0.24
+//   344x882  down   0.71      0.41
+//   344x882  left   0.24      0.24
 //   475x638  up     0.46      0.46
-//   475x638  right  0.34      0.34
-//   475x638  down   0.63      0.26
-//   475x638  left   0.34      0.34
-// Sideways is bounded by the 336 px room box: with x locked the far wall is
-// always on screen, so right/left is "time to the wall", not a camera limit.
-// Jitter (test/camera-check2.js, falling bob, 60 fps / 120 Hz / 0.1 s hitch):
-// max camera step change 5.0 px/frame (limit 6), was 16.4.
+//   475x638  right  0.24      0.24
+//   475x638  down   0.71      0.35
+//   475x638  left   0.24      0.24
+// (right/left = time to the side wall.) Jitter (test/camera-check2.js, 60 fps
+// / 120 Hz / 0.1 s hitch): max 1.4 px/frame step change (limit 6, was 16.4).
 const PL = (globalThis.PL = globalThis.PL || {});
 
 PL.CAM = {
@@ -35,9 +38,12 @@ PL.CAM = {
   // soft bob band margin (screen px) + blend width (room px); camera accel
   // limit (screen px/s^2): 18000 = 5 px/frame step change at 60 fps.
   SOFT_PAD: 28, SOFT_K: 48, ACC: 18000, LEAD: 0.25,
-  // HUD band at the top (css px); horizontal lock when the view shows the
-  // room width (visible width >= room.w - LOCK_SLACK).
-  HUD: 120, LOCK_SLACK: 8, STRIP_Y: 0.6, ROOM_PAD: 16, TGT_SLACK: 40,
+  // HUD band at the top (css px, + safe-area top = frame.hudTop); horizontal
+  // lock when the view shows the room width (visible >= room.w - LOCK_SLACK).
+  HUD: 84, LOCK_SLACK: 8, STRIP_Y: 0.6, ROOM_PAD: 16, TGT_SLACK: 40,
+  // FIT-WHOLE-ROOM [AD]: bottom margin (css px); fall back to scrolling only
+  // when the fit scale drops below FIT_MIN css px per room px.
+  FIT_GAP: 6, FIT_MIN: 0.9,
 };
 
 // Critically damped smoothing (stable for any dt). s = {v}
@@ -77,7 +83,7 @@ function bobRange(p, s, half, sMin, sMax) {
 // lockX: horizontal is locked, so x only has to stay on screen.
 function bands(view, s, pad, lockX) {
   const K = PL.CAM, rr = K.R * s;
-  const top = pad > 0 ? Math.max(K.BOB_MIN_Y * view.H, K.HUD) : K.BOB_MIN_Y * view.H;
+  const top = pad > 0 ? Math.max(K.BOB_MIN_Y * view.H, hudTop(view)) : K.BOB_MIN_Y * view.H;
   const sp = lockX ? 0 : K.SIDE_PAD;
   return {
     x: lockX ? [rr + 1e-6, view.W - rr - 1e-6] : [sp + rr + pad, view.W - sp - rr - pad],
@@ -144,9 +150,43 @@ function stepAxis(cam, ax, tgt, p, s, half, len, hardBand, dt) {
   cam[c] = x; cam[v] = (x - x0) / dt; cam[tk] = tgt;
 }
 
+// HUD bottom in css px: HUD + safe-area top (view.inset.t when given).
+function hudTop(view) {
+  return PL.CAM.HUD + ((view.inset && view.inset.t) || 0);
+}
+
+// FIT-WHOLE-ROOM: scale so the whole room fits under the HUD; null when the
+// room is too tall for that (scale < FIT_MIN) and the scroll path applies.
+function fitFrame(state, view) {
+  const K = PL.CAM, rd = roomDims(state), ht = hudTop(view);
+  const s = Math.min(view.W / rd.w, (view.H - ht - K.FIT_GAP) / rd.h);
+  if (!(s >= K.FIT_MIN)) return null;
+  // room centred horizontally, top edge pinned at hudTop
+  return { scale: s, cx: rd.w / 2, cy: (view.H / 2 - ht) / s, hudTop: ht, fit: true };
+}
+PL.camFit = fitFrame;
+
 PL.camUpdate = function (cam, state, view, dt) {
   const K = PL.CAM, t = targets(state, view), rd = roomDims(state);
   dt = Math.max(0, Math.min(K.MAX_DT, dt || 0));
+  // Static camera whenever the room fits: no look-ahead, no speed zoom.
+  const fit = fitFrame(state, view);
+  if (fit) {
+    cam.init = true; cam.mode = 'fit'; cam.room = state.room;
+    cam.scale = fit.scale; cam.visW = view.W / fit.scale; cam.cx = fit.cx; cam.cy = fit.cy;
+    cam.vx = cam.vy = 0; cam.sw.v = 0; cam.tx = fit.cx; cam.ty = fit.cy;
+    cam.bx = state.x; cam.by = state.y;
+    return fit;
+  }
+  // Scroll fallback (room taller than fits). Snap (cut, no settle crop) on the
+  // first frame, room change, mode change, room start (state.t < 3) or teleport.
+  // A t<3 snap in the same room keeps the camera's real velocity so the
+  // spring takes over without a kick.
+  let carry = false;
+  if (cam.mode !== 'scroll' || cam.room !== state.room) cam.init = false;
+  else if (typeof state.t === 'number' && state.t < 3) { carry = cam.init && dt > 0; cam.init = false; }
+  const ox = cam.cx, oy = cam.cy;
+  cam.mode = 'scroll'; cam.room = state.room;
   // 1) scale first (slower zoom spring), so every limit below uses this frame's scale
   const jump = cam.init && Math.hypot(state.x - cam.bx, state.y - cam.by) > K.CAP * Math.max(dt, 1 / 60) * 1.5 + 40;
   if (!cam.init || jump) { cam.visW = t.visW; cam.sw.v = 0; }
@@ -157,19 +197,16 @@ PL.camUpdate = function (cam, state, view, dt) {
   // Horizontal: when the view shows the whole room width, lock cx to the room
   // centre (no following); follow only when zoomed in tighter than the room.
   const lockX = view.W / s >= rd.w - K.LOCK_SLACK;
-  // Vertical: if the whole room fits between the HUD and the strip line, lock
-  // it fully visible, top-aligned under the HUD; else scroll (55% rule kept).
-  // (decided at the rest scale W/room.w so zooming out never flips it)
-  const lockY = rd.h * (view.W / K.ROOM_W) <= K.STRIP_Y * view.H - K.HUD;
+  // Vertical: scrolls with the bob, 55% rule kept.
   const soft = bands(view, s, K.SOFT_PAD, lockX), hard = bands(view, s, 0, lockX);
   const tx = lockX ? rd.w / 2 : axisTarget(t.cx, state.x, state.vx || 0, s, view.W / 2, rd.w, soft.x);
-  const ty = axisTarget(lockY ? view.H / 2 / s - K.HUD / s : t.cy, state.y, state.vy || 0, s, view.H / 2, rd.h, soft.y);
+  const ty = axisTarget(t.cy, state.y, state.vy || 0, s, view.H / 2, rd.h, soft.y);
   if (!cam.init || jump) {
     // first frame or teleport (respawn): cut, no motion carried over
     cam.init = true;
     cam.cx = hardAxis(tx, tx, state.x, s, view.W / 2, rd.w, hard.x);
     cam.cy = hardAxis(ty, ty, state.y, s, view.H / 2, rd.h, hard.y);
-    cam.vx = cam.vy = 0;
+    cam.vx = carry ? (cam.cx - ox) / dt : 0; cam.vy = carry ? (cam.cy - oy) / dt : 0;
     cam.tx = tx; cam.ty = ty;
   } else if (dt > 0) {
     // 4) spring + acceleration limit, 5) hard guarantees
@@ -180,11 +217,13 @@ PL.camUpdate = function (cam, state, view, dt) {
     cam.cy = hardAxis(cam.cy, ty, state.y, s, view.H / 2, rd.h, hard.y);
   }
   cam.bx = state.x; cam.by = state.y;
-  return { scale: cam.scale, cx: cam.cx, cy: cam.cy, hudTop: K.HUD };
+  return { scale: cam.scale, cx: cam.cx, cy: cam.cy, hudTop: hudTop(view), fit: false };
 };
 
-// Distance (room px) from bob along velocity to the edge of the screen region
-// [0,W]x[0,yBottom], divided by speed. Infinity when nearly still.
+// Seconds of visible room ahead: distance (room px) from bob along velocity
+// to the nearer of the room edge and the screen region [0,W]x[0,yBottom],
+// divided by speed. In fit mode the whole room is visible, so this is the
+// time to the room edge. Infinity when nearly still.
 function sightTo(frame, state, view, yBottom) {
   const vx = state.vx || 0, vy = state.vy || 0, sp = Math.hypot(vx, vy);
   if (sp < 1) return Infinity;
@@ -197,13 +236,19 @@ function sightTo(frame, state, view, yBottom) {
   if (dx < 0) d = Math.min(d, -x0 / dx);
   if (dy > 0) d = Math.min(d, (yBottom - y0) / dy);
   if (dy < 0) d = Math.min(d, -y0 / dy);
-  return Math.max(0, d) / s / sp;
+  d /= s;
+  const rd = roomDims(state);
+  if (dx > 0) d = Math.min(d, (rd.w - state.x) / dx);
+  if (dx < 0) d = Math.min(d, -state.x / dx);
+  if (dy > 0) d = Math.min(d, (rd.h - state.y) / dy);
+  if (dy < 0) d = Math.min(d, -state.y / dy);
+  return Math.max(0, d) / sp;
 }
 
 PL.sightAhead = function (frame, state, view) {
   return sightTo(frame, state, view, view.H);
 };
-// Same, but stopping at the control strip line (y = 0.6H).
+// Same, but also stopping at the control strip line (y = 0.6H).
 PL.sightAheadPlay = function (frame, state, view) {
   return sightTo(frame, state, view, 0.6 * view.H);
 };

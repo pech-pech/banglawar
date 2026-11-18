@@ -1,7 +1,7 @@
 const PL = (globalThis.PL = globalThis.PL || {});
 (function () {
   'use strict';
-  const C = (PL.C = { DT: 1 / 120, G: 1500, CAP: 700, DIVE_CAP: 900, DIVE_ADD: 250, DIVE_BOOST_T: 0.3, DIVE_CD: 0.5, CHARGES: 2, HALF: 11, FRIC: 900, DRAG: 0.35, DRAG_AFTER: 0.3, BOUNCE_SIDE: 0.15, BUFFER: 0.08, CRUMBLE_T: 0.35, GATE_V: 120, RESPAWN_T: 0.3 });
+  const C = (PL.C = { DT: 1 / 120, G: 1500, CAP: 700, DIVE_CAP: 900, DIVE_ADD: 250, DIVE_BOOST_T: 0.3, DIVE_CD: 0.5, CHARGES: 2, HALF: 11, FRIC: 900, DRAG: 0.35, DRAG_AFTER: 0.3, BOUNCE_SIDE: 0.15, BUFFER: 0.08, CRUMBLE_T: 0.35, GATE_V: 120, RESPAWN_T: 0.3, WALL_RIDE_T: 0.25, COYOTE_T: 0.06 });
   const DIRS = (PL.DIRS = [[0, -1], [1, 0], [0, 1], [-1, 0]]);
   const DT = C.DT, H = C.HALF;
   const CRUMBLE_TICKS = Math.round(C.CRUMBLE_T / DT);
@@ -9,6 +9,8 @@ const PL = (globalThis.PL = globalThis.PL || {});
   const BUFFER_TICKS = Math.round(C.BUFFER / DT); // 10: pending flip survives age<=10 ticks
   const DIVE_CD_TICKS = Math.round(C.DIVE_CD / DT); // 60
   const DIVE_BOOST_TICKS = Math.round(C.DIVE_BOOST_T / DT); // 36
+  const RIDE_TICKS = Math.round(C.WALL_RIDE_T / DT); // 30
+  const COYOTE_TICKS = Math.round(C.COYOTE_T / DT); // 7: flip/dive free for 7 ticks after walking off, denied on the 8th
   const EPS = 1e-6;
 
   PL.newState = function (room) {
@@ -16,6 +18,7 @@ const PL = (globalThis.PL = globalThis.PL || {});
       room, t: 0, x: room.start.x, y: room.start.y, vx: 0, vy: 0, g: room.start.g,
       charges: C.CHARGES, grounded: false, airT: 0, diveCd: 0, diveBoost: 0, pending: null,
       crumbleS: (room.crumbles || []).map(() => ({ st: 0, timer: 0 })),
+      rideT: 0, rideKey: '', rideUsed: [], coyote: 0,
       dead: 0, won: false, flips: 0, lastLandSpeed: 0, events: [],
     };
     // spawn grounded if the start sits on a surface (no spurious 'land' on tick 1)
@@ -34,14 +37,14 @@ const PL = (globalThis.PL = globalThis.PL || {});
   // internal solids: {r, cr (crumble index or -1)}
   function buildSolids(s, vx, vy) {
     const room = s.room, out = [];
-    for (const r of room.walls) out.push({ r, cr: -1 });
-    (room.crumbles || []).forEach((r, i) => { if (s.crumbleS[i].st !== 2) out.push({ r, cr: i }); });
-    for (const g of (room.gates || [])) {
-      if (overlaps(s, g.r)) continue; // latch: a gate never turns solid around a bob already inside it
+    for (const r of room.walls) out.push({ r, cr: -1, key: 'w' + out.length });
+    (room.crumbles || []).forEach((r, i) => { if (s.crumbleS[i].st !== 2) out.push({ r, cr: i, key: 'c' + i }); });
+    (room.gates || []).forEach((g, gi) => {
+      if (overlaps(s, g.r)) return; // latch: a gate never turns solid around a bob already inside it
       const dd = DIRS[g.dir];
-      if (vx * dd[0] + vy * dd[1] < C.GATE_V) out.push({ r: g.r, cr: -1, gate: true });
-    }
-    for (const c of (room.crushers || [])) out.push({ r: crusherRect(c, s.t), cr: -1 });
+      if (vx * dd[0] + vy * dd[1] < C.GATE_V) out.push({ r: g.r, cr: -1, gate: true, key: 'g' + gi });
+    });
+    (room.crushers || []).forEach((c, ci) => out.push({ r: crusherRect(c, s.t), cr: -1, key: 'k' + ci }));
     return out;
   }
   // gate state uses post-gravity velocity, matching PL.step
@@ -85,18 +88,19 @@ const PL = (globalThis.PL = globalThis.PL || {});
   }
 
   function doFlip(s, dir) {
-    s.g = dir; s.flips++; s.events.push('flip'); s.grounded = false;
+    s.g = dir; s.flips++; s.events.push('flip'); s.grounded = false; s.coyote = 0;
   }
 
   function applyInput(s, inp) {
     if (inp.k === 'flip') {
       if (!Number.isInteger(inp.dir) || inp.dir < 0 || inp.dir > 3 || inp.dir === s.g) return;
-      if (s.grounded) doFlip(s, inp.dir);
+      if (s.grounded || s.coyote > 0) doFlip(s, inp.dir);
       else if (s.charges > 0) { s.charges--; doFlip(s, inp.dir); }
       else s.pending = { dir: inp.dir, age: 0 }; // age in ticks
     } else if (inp.k === 'dive') {
       if (s.diveCd > 0) return;
-      if (!s.grounded) { if (s.charges <= 0) return; s.charges--; }
+      if (!s.grounded && s.coyote <= 0) { if (s.charges <= 0) return; s.charges--; }
+      s.coyote = 0;
       const d = DIRS[s.g];
       s.vx += d[0] * C.DIVE_ADD; s.vy += d[1] * C.DIVE_ADD;
       s.diveBoost = DIVE_BOOST_TICKS; s.diveCd = DIVE_CD_TICKS; s.events.push('dive');
@@ -114,6 +118,7 @@ const PL = (globalThis.PL = globalThis.PL || {});
     // timers
     if (s.diveCd > 0) s.diveCd--;
     if (s.diveBoost > 0) s.diveBoost--;
+    if (s.coyote > 0) s.coyote--;
     if (s.pending) { s.pending.age++; if (s.pending.age > BUFFER_TICKS) s.pending = null; }
 
     // forces
@@ -141,13 +146,17 @@ const PL = (globalThis.PL = globalThis.PL || {});
 
     const was = s.grounded;
     s.grounded = hit.ground;
+    if (was && !hit.ground) s.coyote = COYOTE_TICKS; // walked off a ledge (flip/dive already cleared grounded earlier)
     if (hit.ground) {
+      s.coyote = 0; s.rideT = 0; s.rideKey = '';
       if (!was) {
+        s.rideUsed.length = 0;
         s.lastLandSpeed = hit.speed; s.airT = 0; s.events.push('land');
         s.charges = C.CHARGES;
         if (s.pending) { const p = s.pending; s.pending = null; if (p.dir !== s.g) { doFlip(s, p.dir); s.grounded = false; } }
       } else s.charges = C.CHARGES;
     }
+    if (!hit.ground) wallRide(s, solids);
     // decrement first, then trigger: a newly triggered crumble keeps the full CRUMBLE_TICKS
     s.crumbleS.forEach((c) => {
       if (c.st === 1 && --c.timer <= 0) { c.st = 2; c.timer = 0; s.events.push('crumble'); }
@@ -178,6 +187,30 @@ const PL = (globalThis.PL = globalThis.PL || {});
     s.t++;
   };
 
+  // continuous contact with a non-gravity-side solid (probe 0.05 px) for RIDE_TICKS refills +1 charge, once per solid per airborne period
+  function wallRide(s, solids) {
+    let key = '';
+    const ox = s.x, oy = s.y;
+    for (let k = 0; k < 4 && !key; k++) {
+      if (k === s.g) continue;
+      s.x = ox + DIRS[k][0] * 0.05; s.y = oy + DIRS[k][1] * 0.05;
+      for (const o of solids) {
+        if (o.gate) continue;
+        const px = overlapX(s, o.r), py = overlapY(s, o.r);
+        if (px > EPS && py > EPS && (DIRS[k][0] === 0 ? px : py) > 1) { key = o.key; break; }
+      }
+    }
+    s.x = ox; s.y = oy;
+    if (!key) { s.rideT = 0; s.rideKey = ''; return; }
+    if (key !== s.rideKey) { s.rideKey = key; s.rideT = 0; }
+    s.rideT++;
+    if (s.rideT >= RIDE_TICKS && s.rideUsed.indexOf(key) < 0) {
+      s.rideUsed.push(key);
+      if (s.charges < C.CHARGES) s.charges++;
+      s.events.push('ride');
+    }
+  }
+
   function fric(v) {
     const a = C.FRIC * DT;
     return Math.abs(v) <= a ? 0 : v - Math.sign(v) * a;
@@ -186,6 +219,7 @@ const PL = (globalThis.PL = globalThis.PL || {});
   PL.hash = function (s) {
     const a = [s.x, s.y, s.vx, s.vy, s.g, s.charges, s.t, s.flips, s.dead, s.won ? 1 : 0];
     a.push(s.grounded ? 1 : 0, s.diveCd, s.diveBoost, s.airT, s.pending ? s.pending.dir + ':' + s.pending.age : '-');
+    a.push(s.rideT, s.rideKey, s.rideUsed.join('|'), s.coyote);
     for (const c of s.crumbleS) a.push(c.st, c.timer);
     return a.join(',');
   };

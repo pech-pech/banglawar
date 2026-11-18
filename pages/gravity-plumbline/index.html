@@ -22,7 +22,7 @@ html,body{margin:0;padding:0;width:100%;height:100%;background:#000;overflow:hid
 const PL = (globalThis.PL = globalThis.PL || {});
 (function () {
   'use strict';
-  const C = (PL.C = { DT: 1 / 120, G: 1500, CAP: 700, DIVE_CAP: 900, DIVE_ADD: 250, DIVE_BOOST_T: 0.3, DIVE_CD: 0.5, CHARGES: 2, HALF: 11, FRIC: 900, DRAG: 0.35, DRAG_AFTER: 0.3, BOUNCE_SIDE: 0.15, BUFFER: 0.08, CRUMBLE_T: 0.35, GATE_V: 120, RESPAWN_T: 0.3 });
+  const C = (PL.C = { DT: 1 / 120, G: 1500, CAP: 700, DIVE_CAP: 900, DIVE_ADD: 250, DIVE_BOOST_T: 0.3, DIVE_CD: 0.5, CHARGES: 2, HALF: 11, FRIC: 900, DRAG: 0.35, DRAG_AFTER: 0.3, BOUNCE_SIDE: 0.15, BUFFER: 0.08, CRUMBLE_T: 0.35, GATE_V: 120, RESPAWN_T: 0.3, WALL_RIDE_T: 0.25, COYOTE_T: 0.06 });
   const DIRS = (PL.DIRS = [[0, -1], [1, 0], [0, 1], [-1, 0]]);
   const DT = C.DT, H = C.HALF;
   const CRUMBLE_TICKS = Math.round(C.CRUMBLE_T / DT);
@@ -30,6 +30,8 @@ const PL = (globalThis.PL = globalThis.PL || {});
   const BUFFER_TICKS = Math.round(C.BUFFER / DT); // 10: pending flip survives age<=10 ticks
   const DIVE_CD_TICKS = Math.round(C.DIVE_CD / DT); // 60
   const DIVE_BOOST_TICKS = Math.round(C.DIVE_BOOST_T / DT); // 36
+  const RIDE_TICKS = Math.round(C.WALL_RIDE_T / DT); // 30
+  const COYOTE_TICKS = Math.round(C.COYOTE_T / DT); // 7: flip/dive free for 7 ticks after walking off, denied on the 8th
   const EPS = 1e-6;
 
   PL.newState = function (room) {
@@ -37,6 +39,7 @@ const PL = (globalThis.PL = globalThis.PL || {});
       room, t: 0, x: room.start.x, y: room.start.y, vx: 0, vy: 0, g: room.start.g,
       charges: C.CHARGES, grounded: false, airT: 0, diveCd: 0, diveBoost: 0, pending: null,
       crumbleS: (room.crumbles || []).map(() => ({ st: 0, timer: 0 })),
+      rideT: 0, rideKey: '', rideUsed: [], coyote: 0,
       dead: 0, won: false, flips: 0, lastLandSpeed: 0, events: [],
     };
     // spawn grounded if the start sits on a surface (no spurious 'land' on tick 1)
@@ -55,14 +58,14 @@ const PL = (globalThis.PL = globalThis.PL || {});
   // internal solids: {r, cr (crumble index or -1)}
   function buildSolids(s, vx, vy) {
     const room = s.room, out = [];
-    for (const r of room.walls) out.push({ r, cr: -1 });
-    (room.crumbles || []).forEach((r, i) => { if (s.crumbleS[i].st !== 2) out.push({ r, cr: i }); });
-    for (const g of (room.gates || [])) {
-      if (overlaps(s, g.r)) continue; // latch: a gate never turns solid around a bob already inside it
+    for (const r of room.walls) out.push({ r, cr: -1, key: 'w' + out.length });
+    (room.crumbles || []).forEach((r, i) => { if (s.crumbleS[i].st !== 2) out.push({ r, cr: i, key: 'c' + i }); });
+    (room.gates || []).forEach((g, gi) => {
+      if (overlaps(s, g.r)) return; // latch: a gate never turns solid around a bob already inside it
       const dd = DIRS[g.dir];
-      if (vx * dd[0] + vy * dd[1] < C.GATE_V) out.push({ r: g.r, cr: -1, gate: true });
-    }
-    for (const c of (room.crushers || [])) out.push({ r: crusherRect(c, s.t), cr: -1 });
+      if (vx * dd[0] + vy * dd[1] < C.GATE_V) out.push({ r: g.r, cr: -1, gate: true, key: 'g' + gi });
+    });
+    (room.crushers || []).forEach((c, ci) => out.push({ r: crusherRect(c, s.t), cr: -1, key: 'k' + ci }));
     return out;
   }
   // gate state uses post-gravity velocity, matching PL.step
@@ -106,18 +109,19 @@ const PL = (globalThis.PL = globalThis.PL || {});
   }
 
   function doFlip(s, dir) {
-    s.g = dir; s.flips++; s.events.push('flip'); s.grounded = false;
+    s.g = dir; s.flips++; s.events.push('flip'); s.grounded = false; s.coyote = 0;
   }
 
   function applyInput(s, inp) {
     if (inp.k === 'flip') {
       if (!Number.isInteger(inp.dir) || inp.dir < 0 || inp.dir > 3 || inp.dir === s.g) return;
-      if (s.grounded) doFlip(s, inp.dir);
+      if (s.grounded || s.coyote > 0) doFlip(s, inp.dir);
       else if (s.charges > 0) { s.charges--; doFlip(s, inp.dir); }
       else s.pending = { dir: inp.dir, age: 0 }; // age in ticks
     } else if (inp.k === 'dive') {
       if (s.diveCd > 0) return;
-      if (!s.grounded) { if (s.charges <= 0) return; s.charges--; }
+      if (!s.grounded && s.coyote <= 0) { if (s.charges <= 0) return; s.charges--; }
+      s.coyote = 0;
       const d = DIRS[s.g];
       s.vx += d[0] * C.DIVE_ADD; s.vy += d[1] * C.DIVE_ADD;
       s.diveBoost = DIVE_BOOST_TICKS; s.diveCd = DIVE_CD_TICKS; s.events.push('dive');
@@ -135,6 +139,7 @@ const PL = (globalThis.PL = globalThis.PL || {});
     // timers
     if (s.diveCd > 0) s.diveCd--;
     if (s.diveBoost > 0) s.diveBoost--;
+    if (s.coyote > 0) s.coyote--;
     if (s.pending) { s.pending.age++; if (s.pending.age > BUFFER_TICKS) s.pending = null; }
 
     // forces
@@ -162,13 +167,17 @@ const PL = (globalThis.PL = globalThis.PL || {});
 
     const was = s.grounded;
     s.grounded = hit.ground;
+    if (was && !hit.ground) s.coyote = COYOTE_TICKS; // walked off a ledge (flip/dive already cleared grounded earlier)
     if (hit.ground) {
+      s.coyote = 0; s.rideT = 0; s.rideKey = '';
       if (!was) {
+        s.rideUsed.length = 0;
         s.lastLandSpeed = hit.speed; s.airT = 0; s.events.push('land');
         s.charges = C.CHARGES;
         if (s.pending) { const p = s.pending; s.pending = null; if (p.dir !== s.g) { doFlip(s, p.dir); s.grounded = false; } }
       } else s.charges = C.CHARGES;
     }
+    if (!hit.ground) wallRide(s, solids);
     // decrement first, then trigger: a newly triggered crumble keeps the full CRUMBLE_TICKS
     s.crumbleS.forEach((c) => {
       if (c.st === 1 && --c.timer <= 0) { c.st = 2; c.timer = 0; s.events.push('crumble'); }
@@ -199,6 +208,30 @@ const PL = (globalThis.PL = globalThis.PL || {});
     s.t++;
   };
 
+  // continuous contact with a non-gravity-side solid (probe 0.05 px) for RIDE_TICKS refills +1 charge, once per solid per airborne period
+  function wallRide(s, solids) {
+    let key = '';
+    const ox = s.x, oy = s.y;
+    for (let k = 0; k < 4 && !key; k++) {
+      if (k === s.g) continue;
+      s.x = ox + DIRS[k][0] * 0.05; s.y = oy + DIRS[k][1] * 0.05;
+      for (const o of solids) {
+        if (o.gate) continue;
+        const px = overlapX(s, o.r), py = overlapY(s, o.r);
+        if (px > EPS && py > EPS && (DIRS[k][0] === 0 ? px : py) > 1) { key = o.key; break; }
+      }
+    }
+    s.x = ox; s.y = oy;
+    if (!key) { s.rideT = 0; s.rideKey = ''; return; }
+    if (key !== s.rideKey) { s.rideKey = key; s.rideT = 0; }
+    s.rideT++;
+    if (s.rideT >= RIDE_TICKS && s.rideUsed.indexOf(key) < 0) {
+      s.rideUsed.push(key);
+      if (s.charges < C.CHARGES) s.charges++;
+      s.events.push('ride');
+    }
+  }
+
   function fric(v) {
     const a = C.FRIC * DT;
     return Math.abs(v) <= a ? 0 : v - Math.sign(v) * a;
@@ -207,6 +240,7 @@ const PL = (globalThis.PL = globalThis.PL || {});
   PL.hash = function (s) {
     const a = [s.x, s.y, s.vx, s.vy, s.g, s.charges, s.t, s.flips, s.dead, s.won ? 1 : 0];
     a.push(s.grounded ? 1 : 0, s.diveCd, s.diveBoost, s.airT, s.pending ? s.pending.dir + ':' + s.pending.age : '-');
+    a.push(s.rideT, s.rideKey, s.rideUsed.join('|'), s.coyote);
     for (const c of s.crumbleS) a.push(c.st, c.timer);
     return a.join(',');
   };
@@ -235,32 +269,31 @@ const PL = (globalThis.PL = globalThis.PL || {});
 // left<->right (gravity dir 1<->3) and x -> 336 - x. Times are seconds from first input.
 //
 // ROOM 1  "Arc Carry" (teach: flip mid-fall bends a carried speed into an arc)
-//   Start on left pillar (40,109). Pit with floor spikes below the gap; spikes on the right
-//   wall at y 80-120 sit on the lazy line (flip right and hold).
-//   Solution (2 flips, ~1.0 s): t=0.00 swipe RIGHT (free, grounded) -> bob sweeps over the gap;
-//   t=0.31..0.46 swipe DOWN (costs 1 charge; before bob x~185) -> arc lands on the right block
-//   around x 265-313. If landing is past the exit, swipe LEFT (free) to slide back through it.
-//   Too late = right-wall spikes; never flipping right = pit spikes.
+//   Start on left pillar (40,109). Pit (x 102-215) with floor spikes; right-wall spikes y 80-120 sit
+//   on the lazy line (flip right and hold, or flip right + tick-1 Dive: both die on the wall spikes).
+//   Solution (2 flips, ~1.0 s): t=0.00 swipe RIGHT (free, grounded); t~0.31..0.45 swipe DOWN
+//   (1 charge, before bob x~185) -> arc lands on the right block (top y 200, x 215-324) near
+//   x 270-313. If past the exit, swipe LEFT (free) to slide back through it.
 //
 // ROOM 2  "Charge Banking" (teach: landing refills charges; crumble ledge; Dive-tap gate)
-//   Start on top-left ledge (40,79). Wall spikes at y 40-90 on the right wall.
-//   Solution (3 flips + 1 dive, ~3 s): t=0 swipe RIGHT (free); t=0.31..0.45 swipe DOWN
-//   (1 charge) -> land on the crumble ledge (right, y 200, charges refill to 2, it breaks 0.35 s
-//   after landing and below it are floor spikes). Immediately (<0.3 s) swipe LEFT (free) -> bob
-//   flies along the 26 px tall corridor and stops on the plug at its end (x 111). Swipe DOWN (free,
-//   grounded): bob rests on the one-way gate floor (needs 120 px/s down; corridor is too short
-//   to build it). TAP = Dive (+250) -> bob drops through the gate, lands x~111 on the safe left
-//   part of the lower floor (spikes start x 124). Swipe LEFT (free) -> slide into the exit.
+//   Start on top-left ledge (40,79). The left column (x 12-100) is solid to the floor and a wall
+//   under the ledge's right end seals the chamber, so the gate floor is the only way in.
+//   Solution (3 flips + 1 dive, ~3 s): t=0 swipe RIGHT (free); t~0.31..0.45 swipe DOWN (1 charge)
+//   -> land on the crumble ledge (right, y 200, x 256-324; charges refill; it breaks 0.35 s after landing and
+//   below it are floor spikes). Within 0.3 s swipe LEFT (free) -> bob flies the 26 px corridor and
+//   stops at its end (x 111). Swipe DOWN (free, grounded): bob rests on the one-way gate floor (needs
+//   120 px/s down; the corridor is too short to build it, max ~110). TAP = Dive (+250) -> falls into the
+//   sealed chamber (x 100-226). Swipe RIGHT (free) -> slide into the exit (160,439).
 //
 // ROOM 3  "Rhythm Press" (teach: crusher rhythm + Late Flip)
-//   Start on the left ledge (40,119). A press plate (ay, amp 50, period 2.4 s, phase from seed)
-//   closes onto a slab; the 22 px bob fits the gap only while sin(phase_t) < ~0.56 (about 60 %).
-//   Solution (3 flips, ~4-5 s incl. waiting): watch the plate, swipe RIGHT (free) so bob
-//   passes x~117..223 (arrives ~0.33 s after the swipe) while the gap is open; bob hits right wall (grounded);
-//   swipe DOWN (free) and fall along the wall at ~600-700 px/s; at about y 190-230 (t~0.3 s after
-//   the wall) swipe LEFT (1 charge) to carry speed sideways, then LATE swipe DOWN (1 charge) in the
-//   last ~0.2 s so the arc drops onto the left shelf (top y 430, x 12-220). Floor spikes x 220-324
-//   punish the lazy straight fall. Swipe LEFT (free) to slide into the exit.
+//   Start on left ledge (40,119). A press plate (x 128-212, 60 tall, ay amp 50, period 2.4 s, phase from
+//   seed) sits across the flight line y~119: it is clear only while its bottom is above y 108 or its top
+//   below y 130 (about 40 % of the cycle, two windows), so the swipe-right moment differs per seed.
+//   Solution (3 flips, ~3-5 s incl. waiting): time the first swipe RIGHT (free) so the bob arrives ~0.33 s
+//   later while the plate is clear, hits the right wall (grounded); swipe DOWN (free) and fall along the
+//   wall at 600-700 px/s; ~0.3 s later swipe LEFT (1 charge) to carry the speed sideways, then LATE swipe
+//   DOWN (1 charge) in the last ~0.2 s so the arc drops onto the left shelf (top y 430, x 12-220).
+//   Floor spikes x 220-324 punish the straight fall. Swipe LEFT (free) to slide into the exit.
 
 const PL = (globalThis.PL = globalThis.PL || {});
 
@@ -285,8 +318,8 @@ PL.mulberry32 = function (seed) {
         name: 'Arc Carry',
         teach: 'Flip mid-fall: your speed turns into a sideways arc over the gap.',
         start: { x: 40, y: 109, g: 2 },
-        walls: border().concat([[12, 120, 90, 368], [190, 200, 134, 288]]),
-        spikes: [{ r: [102, 472, 88, 16] }, { r: [312, 80, 12, 40] }],
+        walls: border().concat([[12, 120, 90, 368], [215, 200, 109, 288]]),
+        spikes: [{ r: [102, 472, 113, 16] }, { r: [312, 80, 12, 40] }],
         crumbles: [], gates: [], crushers: [],
         exit: { x: 285, y: 189 },
       },
@@ -295,16 +328,17 @@ PL.mulberry32 = function (seed) {
         teach: 'Landing refills charges. The ledge crumbles; tap to Dive through the gate.',
         start: { x: 40, y: 79, g: 2 },
         walls: border().concat([
-          [12, 90, 90, 14],      // start ledge
+          [12, 90, 88, 360],     // start ledge + sealed left column (x 12-100, down to floor)
           [100, 150, 126, 24],   // corridor ceiling
-          [88, 150, 12, 58],     // corridor end plug
+          [226, 200, 30, 12],    // solid strip between ledge and gate (no fall-in at speed from the broken ledge)
+          [226, 212, 12, 238],   // chamber right wall: gate is the ONLY way into the chamber
           [12, 450, 312, 38],    // lower floor
         ]),
-        spikes: [{ r: [312, 40, 12, 50] }, { r: [124, 436, 200, 14] }],
-        crumbles: [[226, 200, 98, 12]],
+        spikes: [{ r: [312, 40, 12, 50] }, { r: [238, 436, 86, 14] }],
+        crumbles: [[256, 200, 68, 12]],
         gates: [{ r: [100, 200, 126, 8], dir: 2 }],
         crushers: [],
-        exit: { x: 40, y: 439 },
+        exit: { x: 160, y: 439 },
       },
       { // Room 3: Rhythm Press
         name: 'Rhythm Press',
@@ -312,12 +346,11 @@ PL.mulberry32 = function (seed) {
         start: { x: 40, y: 119, g: 2 },
         walls: border().concat([
           [12, 130, 100, 14],    // start ledge
-          [128, 132, 84, 14],    // press slab
           [12, 430, 208, 58],    // landing shelf
         ]),
         spikes: [{ r: [220, 472, 104, 16] }],
         crumbles: [], gates: [],
-        crushers: [{ r: [128, 60, 84, 20], ax: 0, ay: 1, amp: 50, phase: 0 }],
+        crushers: [{ r: [128, 85, 84, 60], ax: 0, ay: 1, amp: 50, phase: 0 }],
         exit: { x: 50, y: 419 },
       },
     ];
@@ -349,6 +382,324 @@ PL.mulberry32 = function (seed) {
     }
     return rooms;
   };
+
+  // --- slice additions ---
+  PL.mirrorRoom = function (room) {
+    const r = JSON.parse(JSON.stringify(room));
+    r.start.x = W - r.start.x;
+    if (r.start.g === 1) r.start.g = 3; else if (r.start.g === 3) r.start.g = 1;
+    r.exit.x = W - r.exit.x;
+    r.walls = r.walls.map(mr);
+    r.spikes = r.spikes.map((s) => ({ r: mr(s.r) }));
+    r.crumbles = r.crumbles.map(mr);
+    r.gates = r.gates.map((g) => ({ r: mr(g.r), dir: g.dir === 1 ? 3 : g.dir === 3 ? 1 : g.dir }));
+    r.crushers = r.crushers.map((c) => ({ r: mr(c.r), ax: c.ax, ay: c.ay, amp: c.amp, phase: 0 - c.phase }));
+    r.mirrored = true;
+    return r;
+  };
+
+  PL.TEMPLATES = PL.TEMPLATES || [];
+  [[1, 1], [2, 2], [3, 2]].forEach(([n, tier], i) => {
+    const id = 't0' + n;
+    PL.TEMPLATES.push({
+      id, tier, teach: base()[i].teach,
+      make(rng) {
+        const room = base()[i];
+        const phase = rng() * Math.PI * 2;
+        room.w = W; room.h = H; room.mirrored = false;
+        for (const c of room.crushers) c.phase = phase;
+        return room;
+      },
+    });
+  });
+
+  PL.buildShaft = function (seed, n) {
+    if (n === undefined) n = 7;
+    const rng = PL.mulberry32(seed);
+    const all = PL.TEMPLATES.slice();
+    for (let i = all.length - 1; i > 0; i--) { // Fisher-Yates
+      const j = Math.floor(rng() * (i + 1));
+      const t = all[i]; all[i] = all[j]; all[j] = t;
+    }
+    const pick = all.slice(0, Math.min(n, all.length))
+      .map((t, idx) => ({ t, idx }))
+      .sort((a, b) => a.t.tier - b.t.tier || a.idx - b.idx)
+      .map((o) => o.t);
+    return pick.map((t) => {
+      let room = t.make(rng);
+      if (rng() < 0.5) room = PL.mirrorRoom(room);
+      room.templateId = t.id;
+      return room;
+    });
+  };
+})();
+
+if (typeof module !== 'undefined' && module.exports) module.exports = PL;
+
+})();
+(function(){
+// tpl1.js - Plumbline slice templates t04..t12 (9 rooms, tiers 1-3). Node-loadable, no DOM, rng only for crusher phases.
+// Physics: G 1500, cap 700, bob box 22 (half 11), flip keeps velocity, 12 px border walls. Layouts are UNMIRRORED
+// (mirrorRoom swaps left/right). A ledge with top T rests the bob at y = T - 11. "free" = flip/dive while grounded.
+// Every solution below is machine-checked by src/test/tpl1-solve.js (<=5 inputs, <=25 s, both mirrors, 3 seeds).
+//
+// t04 "Long Carry" (tier 1, Arc Carry): start left pillar. Pit spikes below the gap, spikes on the right wall.
+//     RIGHT (free) -> sweep over the gap; DOWN (1 charge) before the pit edge so the arc lands on the right block.
+// t09 "Gate Floor" (tier 1, Gate Punch): start resting ON a full-width one-way gate (needs 120 px/s down).
+//     TAP (dive, free) punches through; then RIGHT / DOWN flips bend the long drop away from the floor spikes.
+// t05 "Rise and Bend" (tier 2, Arc Carry upward): spiked ceiling and a spiked pillar. UP (free), RIGHT mid-rise
+//     (hump over the pillar), DOWN (brake before the ceiling spikes) onto the right block.
+// t06 "Late Flip" (tier 2): hug the left wall (start g=left). DOWN (free) slides; a spiked baffle shuts the lane
+//     to the right, so go RIGHT below it and DOWN late, so the arc lands past the floor spikes and before the wall spikes.
+// t07 "Stepping Stones" (tier 2, Charge Banking): leg 1 costs both charges (RIGHT free, UP, DOWN over a spiked pillar)
+//     and lands on the stone (refill); leg 2 (RIGHT free, DOWN) needs a charge you only have because you landed.
+// t10 "Side Gate" (tier 2, Gate Punch sideways): wall of one-way gate. RIGHT (free) rests on the gate, TAP punches
+//     through, DOWN (free) rides the far wall to the exit.
+// t08 "Corner Whip" (tier 3): start hugging left wall. DOWN (free) slides in wall contact (WALL_RIDE refills a charge
+//     after 0.25 s, a bonus; not required); whip RIGHT under the spiked baffle and DOWN late onto the safe floor.
+//     Solvable WITHOUT wall-ride (verified); with it the window is more forgiving.
+// t11 "Double Press" (tier 3, crusher rhythm): RIGHT (free) flies the corridor between two slabs and two plates;
+//     wait for both plates to be open at your arrival, then DOWN (free) along the wall onto the floor exit.
+// t12 "Sweeper" (tier 3, crusher + late flip): hug the left wall, wait for the sliding slab to clear the lane,
+//     DOWN (free), then RIGHT and late DOWN to clear the floor spikes.
+
+const PL = (globalThis.PL = globalThis.PL || {});
+PL.TEMPLATES = PL.TEMPLATES || [];
+
+(function () {
+  const W = 336, H = 500, B = 12;
+  const border = () => [[0, 0, W, B], [0, H - B, W, B], [0, 0, B, H], [W - B, 0, B, H]];
+  const room = (name, teach, start, walls, o) => ({
+    name, teach, w: W, h: H, start,
+    walls: border().concat(walls),
+    spikes: (o.spikes || []).map((r) => ({ r })),
+    crumbles: o.crumbles || [], gates: o.gates || [], crushers: o.crushers || [],
+    exit: o.exit, mirrored: false,
+  });
+  const phase = (rng) => rng() * Math.PI * 2;
+
+  PL.TEMPLATES.push({
+    id: 't04', tier: 1, teach: 'Arc Carry: flip right, then flip down mid-air to bend over the pit.',
+    make() {
+      return room('Long Carry', 'Flip right, then flip down mid-air: your speed bends into an arc.',
+        { x: 40, y: 109, g: 2 },
+        [[12, 120, 80, 368], [232, 260, 92, 228]],
+        { spikes: [[92, 472, 140, 16], [312, 60, 12, 150]], exit: { x: 280, y: 249 } });
+    },
+  });
+
+  PL.TEMPLATES.push({
+    id: 't09', tier: 1, teach: 'Gate Punch: tap to dive through the one-way gate, then bend the drop.',
+    make() {
+      return room('Gate Floor', 'You rest on a one-way gate. Tap to dive through it.',
+        { x: 40, y: 89, g: 2 }, [],
+        { gates: [{ r: [12, 100, 312, 8], dir: 2 }], spikes: [[12, 472, 170, 16]], exit: { x: 290, y: 477 } });
+    },
+  });
+
+  PL.TEMPLATES.push({
+    id: 't05', tier: 2, teach: 'Arc Carry upward: rise, bend over the pillar, brake before the ceiling.',
+    make() {
+      return room('Rise and Bend', 'Flip up, bend right over the pillar, flip down before the spikes.',
+        { x: 40, y: 477, g: 2 },
+        [[150, 200, 40, 288], [230, 250, 94, 238]],
+        { spikes: [[12, 12, 312, 14], [150, 184, 40, 16]], exit: { x: 280, y: 239 } });
+    },
+  });
+
+  PL.TEMPLATES.push({
+    id: 't06', tier: 2, teach: 'Late Flip: carry the fall sideways under the baffle, flip down late.',
+    make() {
+      return room('Late Flip', 'Slide the wall, turn under the baffle, flip down late.',
+        { x: 23, y: 60, g: 3 },
+        [],
+        { spikes: [[12, 472, 100, 16], [112, 300, 212, 14], [312, 314, 12, 150]], exit: { x: 290, y: 477 } });
+    },
+  });
+
+  PL.TEMPLATES.push({
+    id: 't07', tier: 2, teach: 'Charge Banking: land on the stone to refill, then spend charges again.',
+    make() {
+      return room('Stepping Stones', 'Land on the stone to refill your charges before the next leg.',
+        { x: 40, y: 289, g: 2 },
+        [[12, 300, 80, 188], [150, 200, 24, 288], [210, 320, 40, 168], [290, 380, 34, 108]],
+        { spikes: [[92, 472, 58, 16], [174, 472, 36, 16], [250, 472, 40, 16], [150, 184, 24, 16], [312, 200, 12, 170]],
+          exit: { x: 300, y: 369 } });
+    },
+  });
+
+  PL.TEMPLATES.push({
+    id: 't10', tier: 2, teach: 'Gate Punch sideways: rest on the gate, tap to dive through.',
+    make() {
+      return room('Side Gate', 'Fly into the gate, tap to punch through, ride the far wall down.',
+        { x: 138, y: 189, g: 2 },
+        [[12, 200, 138, 288], [150, 312, 10, 176]],
+        { gates: [{ r: [150, 12, 10, 300], dir: 1 }], spikes: [[160, 472, 130, 16]], exit: { x: 305, y: 477 } });
+    },
+  });
+
+  PL.TEMPLATES.push({
+    id: 't08', tier: 3, teach: 'Corner Whip: slide the wall, whip under the baffle, flip down late.',
+    make() {
+      return room('Corner Whip', 'Slide the wall, whip right under the baffle, flip down late.',
+        { x: 23, y: 40, g: 3 },
+        [[100, 150, 224, 14]],
+        { spikes: [[100, 164, 224, 12], [12, 472, 170, 16]], exit: { x: 290, y: 477 } });
+    },
+  });
+
+  PL.TEMPLATES.push({
+    id: 't11', tier: 3, teach: 'Crusher rhythm: pass two presses while both are open.',
+    make(rng) {
+      const p = phase(rng);
+      return room('Double Press', 'Two presses. Fly through when both are open.',
+        { x: 40, y: 119, g: 2 },
+        [[12, 130, 70, 358], [100, 132, 70, 14], [200, 132, 70, 14]],
+        { spikes: [[82, 472, 200, 16]],
+          crushers: [{ r: [100, 60, 70, 20], ax: 0, ay: 1, amp: 50, phase: p },
+                     { r: [200, 60, 70, 20], ax: 0, ay: 1, amp: 50, phase: p + Math.PI * 0.5 }],
+          exit: { x: 305, y: 477 } });
+    },
+  });
+
+  PL.TEMPLATES.push({
+    id: 't12', tier: 3, teach: 'Crusher rhythm + Late Flip: wait for the sweeper, then flip late.',
+    make(rng) {
+      const p = phase(rng);
+      return room('Sweeper', 'Wait for the sweeper to clear the lane, then flip late.',
+        { x: 23, y: 60, g: 3 },
+        [],
+        { spikes: [[12, 472, 170, 16]],
+          crushers: [{ r: [60, 260, 200, 16], ax: 1, ay: 0, amp: 56, phase: p }],
+          exit: { x: 290, y: 477 } });
+    },
+  });
+})();
+
+if (typeof module !== 'undefined' && module.exports) module.exports = PL;
+
+})();
+(function(){
+// tpl2.js - Plumbline templates t13..t20 (tiers 2-3, two techniques per room). Node-loadable, no DOM.
+// Same physics notes as rooms.js: G 1500, cap 700, bob box 22, flip keeps velocity, border walls 12 px.
+// A ledge top T puts a grounded bob at y = T-11. Solutions are for the UNMIRRORED layout (mirror swaps L/R).
+// Every template was brute-forced by src/test/tpl2-solve.js (3 seeds x mirror, <=5 inputs, <=25 s).
+//
+// t13 Press & Drop (crusher + Late Flip). Ledge left, press plate over a slab. R (free) when the plate is open ->
+//     bob hits right wall; D (free) fall along wall; L mid-fall (1 charge) carries speed sideways; LATE D (1 charge)
+//     lands on the left shelf; L (free) into exit. Solver: R, D@0.3s, L@0.9s, up@1.6s = 4 inputs, ~1.6 s.
+// t14 Crumble Punch (crumble + gate punch). R, D (flip at x~130) lands on the crumble ledge (refill); at once L (free)
+//     flies left under the start ledge along the gate's top; D rests on the one-way gate; TAP Dive pushes through
+//     to the sealed chamber where the exit sits. Solver found a 5-input variant (R, L, D, dive, up) ~1.8 s.
+// t15 Corner Whip (arc carry). R, D (1 charge) drops on the right of the divider, whip L (1 charge) under the divider
+//     (window y 311..369) and into the left shelf. Solver: R, D@0.26s, L@0.72s = 3 inputs, 1.5 s.
+//     Right wall hug + ride refill (gravity right/left along a floor, see 'ride' events) makes a 4th flip possible.
+// t16 Twin Presses (two crushers + arc). Tunnel with two press plates 0.5 rad apart: R when both are open, hit the
+//     right wall, D free, down to a ledge; L (free) along it, D (free) to the shelf with the exit (4 inputs, 2.9 s).
+// t17 Gate Chute (gate punch + Late Flip). Low ceiling over the one-way gate floor. Solver: R, up, D, L (4 inputs, 1.45 s).
+//     Intended: R, D onto the gate, tap Dive through, then L early and LATE D to the safe left shelf.
+// t18 Crumble Stairs (crumble chain + charge banking). Solver: up, R, D = 3 inputs, 1.0 s (hop crumble 1 -> crumble 2
+//     where the exit is). Linger >0.35 s and you fall onto the spikes. Right-wall spikes on the lazy line.
+// t19 Piston Fall (two sliding crushers + Late Flip). R, D, then L in a window between the sliding bars; floor spikes
+//     right. Solver: R, D, L = 3 inputs, 1.5-2.3 s (bar phase from seed decides the wait).
+// t20 Spike Slalom (arc carry). R, then D@0.26s arcs over the spike column onto the right block, exit there (2 inputs).
+
+const PL = (globalThis.PL = globalThis.PL || {});
+PL.TEMPLATES = PL.TEMPLATES || [];
+(function () {
+  const W = 336, H = 500, B = 12;
+  const border = () => [[0, 0, W, B], [0, H - B, W, B], [0, 0, B, H], [W - B, 0, B, H]];
+  const sp = (...rs) => rs.map((r) => ({ r }));
+  function mk(o) {
+    return Object.assign({ w: W, h: H, mirrored: false, crumbles: [], gates: [], crushers: [], spikes: [] }, o);
+  }
+  function add(id, tier, teach, make) { PL.TEMPLATES.push({ id, tier, teach, make }); }
+
+  add('t13', 2, 'Slip under the press, ride the wall, then flip late to land tight.', (rng) => {
+    const phase = rng() * Math.PI * 2;
+    return mk({
+      name: 'Press & Drop', teach: 'Slip under the press, ride the wall, then flip late to land tight.',
+      start: { x: 40, y: 139, g: 2 },
+      walls: border().concat([[12, 150, 100, 14], [128, 152, 84, 14], [12, 430, 208, 58]]),
+      spikes: sp([220, 472, 104, 16], [312, 290, 12, 60]),
+      crushers: [{ r: [128, 80, 84, 20], ax: 0, ay: 1, amp: 50, phase }],
+      exit: { x: 50, y: 419 },
+    });
+  });
+
+  add('t14', 3, 'Land on the crumbling ledge, then Dive-tap through the gate.', () => mk({
+    name: 'Crumble Punch', teach: 'Land on the crumbling ledge, then Dive-tap through the gate.',
+    start: { x: 40, y: 79, g: 2 },
+    walls: border().concat([[12, 90, 112, 14], [124, 130, 12, 358], [12, 440, 112, 48]]),
+    spikes: sp([312, 40, 12, 70], [136, 472, 188, 16]),
+    crumbles: [[200, 130, 100, 12]],
+    gates: [{ r: [12, 130, 112, 8], dir: 2 }],
+    exit: { x: 30, y: 429 },
+  }));
+
+  add('t15', 3, 'Drop past the divider, then whip back under it.', () => mk({
+    name: 'Corner Whip', teach: 'Drop past the divider, then whip back under it.',
+    start: { x: 40, y: 89, g: 2 },
+    walls: border().concat([[12, 100, 90, 14], [102, 100, 40, 200], [12, 380, 150, 108]]),
+    spikes: sp([312, 230, 12, 50], [162, 472, 162, 16], [12, 230, 12, 90]),
+    exit: { x: 60, y: 369 },
+  }));
+
+  add('t16', 3, 'Two presses, one window: pass, then step down the ledges.', (rng) => {
+    const phase = rng() * Math.PI * 2;
+    return mk({
+      name: 'Twin Presses', teach: 'Two presses, one window: pass, then step down the ledges.',
+      start: { x: 40, y: 139, g: 2 },
+      walls: border().concat([[12, 150, 70, 14], [82, 152, 170, 14], [212, 300, 112, 14], [12, 440, 100, 48]]),
+      spikes: sp([112, 472, 212, 16]),
+      crushers: [
+        { r: [100, 80, 50, 20], ax: 0, ay: 1, amp: 50, phase },
+        { r: [190, 80, 50, 20], ax: 0, ay: 1, amp: 50, phase: phase + 0.5 },
+      ],
+      exit: { x: 30, y: 429 },
+    });
+  });
+
+  add('t17', 2, 'Rest on the one-way gate, Dive-tap through, flip late to land safe.', () => mk({
+    name: 'Gate Chute', teach: 'Rest on the one-way gate, Dive-tap through, flip late to land safe.',
+    start: { x: 40, y: 79, g: 2 },
+    walls: border().concat([[12, 90, 90, 14], [102, 12, 222, 50], [12, 430, 160, 58]]),
+    spikes: sp([172, 472, 152, 16]),
+    gates: [{ r: [102, 90, 222, 8], dir: 2 }],
+    exit: { x: 36, y: 419 },
+  }));
+
+  add('t18', 2, 'Hop the crumbling ledges: each landing refills your flips.', () => mk({
+    name: 'Crumble Stairs', teach: 'Hop the crumbling ledges: each landing refills your flips.',
+    start: { x: 40, y: 89, g: 2 },
+    walls: border().concat([[12, 100, 60, 14]]),
+    spikes: sp([312, 60, 12, 60], [12, 472, 312, 16]),
+    crumbles: [[140, 150, 50, 12], [236, 230, 50, 12]],
+    exit: { x: 262, y: 219 },
+  }));
+
+  add('t19', 3, 'Time the fall past the sliding bars, then flip late.', (rng) => {
+    const phase = rng() * Math.PI * 2;
+    return mk({
+      name: 'Piston Fall', teach: 'Time the fall past the sliding bars, then flip late.',
+      start: { x: 40, y: 89, g: 2 },
+      walls: border().concat([[12, 100, 100, 14], [12, 430, 212, 58]]),
+      spikes: sp([224, 472, 100, 16]),
+      crushers: [
+        { r: [150, 200, 150, 16], ax: 1, ay: 0, amp: 60, phase },
+        { r: [150, 300, 150, 16], ax: 1, ay: 0, amp: 60, phase: phase + 1.6 },
+      ],
+      exit: { x: 36, y: 419 },
+    });
+  });
+
+  add('t20', 2, 'Carry your speed over the spike column: flip down at the right moment.', () => mk({
+    name: 'Spike Slalom', teach: 'Carry your speed over the spike column: flip down at the right moment.',
+    start: { x: 40, y: 99, g: 2 },
+    walls: border().concat([[12, 110, 70, 14], [240, 260, 84, 228]]),
+    spikes: sp([312, 60, 12, 100], [160, 200, 16, 288], [82, 472, 78, 16]),
+    exit: { x: 290, y: 249 },
+  }));
 })();
 
 if (typeof module !== 'undefined' && module.exports) module.exports = PL;
@@ -356,32 +707,35 @@ if (typeof module !== 'undefined' && module.exports) module.exports = PL;
 })();
 (function(){
 // camera.js - Plumbline camera (pure, Node-loadable, deterministic).
-// Per frame: (1) scale first (zoom spring, ZOOM_T), (2) look-ahead target,
-// (3) soft room clamp + soft bob band (bob below the HUD, at/above 55% H, led
-// LEAD s along the motion), (4) critically damped spring on the error with the
-// target velocity fed forward, camera acceleration rate-limited to ACC
-// (5 px/frame step change at 60 fps), (5) hard guarantees: room clamp (never
-// moves further out than target/last frame), bob on screen and above 55% H.
-// Horizontal: locked to the room centre while the visible width >= room.w - 8
-// (always for the 336 px room); follows only when zoomed in tighter.
-// Vertical: if the room fits between HUD (120 css px, frame.hudTop) and the
-// strip line at rest scale, it is top-aligned under the HUD; else it scrolls.
-// Measured sight ahead at cap speed 700 px/s, bob at room centre, camera settled
-// (from src/test/camera-test.js; "screen" = to canvas edge, "play" = to the
-// strip line y=0.6H when moving down, else same as screen):
+// FIT-WHOLE-ROOM [AD] (all current 336x500 rooms): scale =
+// min(W/room.w, (H - hudTop - 6)/room.h), room centred horizontally, top edge
+// pinned at hudTop (84 css px + safe-area top view.inset.t; returned as
+// frame.hudTop for draw.js), camera STATIC: no look-ahead, no speed zoom, no
+// smoothing, so no settle crop. The control strip is only a tint over the room.
+//   view     scale   room on screen (y)
+//   344x882  1.024   84..596
+//   475x638  1.096   84..632
+// Sight ahead in fit mode = time to the room edge (whole room visible).
+// SCROLL FALLBACK only when that fit scale < 0.9 (a room too tall, future):
+// (1) zoom spring, (2) look-ahead target, (3) soft room clamp + soft bob band
+// (below HUD, at/above 55% H, led LEAD s along the motion), (4) critically
+// damped spring on the error with target velocity fed forward, camera accel
+// capped at ACC (5 px/frame step change at 60 fps), (5) hard guarantees: room
+// clamp, bob on screen and above 55% H. x locked to room centre while the
+// visible width >= room.w - 8. Snaps (cut) on first frame, room change,
+// state.t < 3 and teleports. Measured (room 336x1000, cap 700 px/s, bob at
+// room centre, settled; play = to strip line 0.6H when moving down):
 //   view     dir    screen s  play s
-//   344x882  up     0.89      0.89
-//   344x882  right  0.34      0.34
-//   344x882  down   1.15      0.44
-//   344x882  left   0.34      0.34
+//   344x882  up     0.71      0.71
+//   344x882  right  0.24      0.24
+//   344x882  down   0.71      0.41
+//   344x882  left   0.24      0.24
 //   475x638  up     0.46      0.46
-//   475x638  right  0.34      0.34
-//   475x638  down   0.63      0.26
-//   475x638  left   0.34      0.34
-// Sideways is bounded by the 336 px room box: with x locked the far wall is
-// always on screen, so right/left is "time to the wall", not a camera limit.
-// Jitter (test/camera-check2.js, falling bob, 60 fps / 120 Hz / 0.1 s hitch):
-// max camera step change 5.0 px/frame (limit 6), was 16.4.
+//   475x638  right  0.24      0.24
+//   475x638  down   0.71      0.35
+//   475x638  left   0.24      0.24
+// (right/left = time to the side wall.) Jitter (test/camera-check2.js, 60 fps
+// / 120 Hz / 0.1 s hitch): max 1.4 px/frame step change (limit 6, was 16.4).
 const PL = (globalThis.PL = globalThis.PL || {});
 
 PL.CAM = {
@@ -392,9 +746,12 @@ PL.CAM = {
   // soft bob band margin (screen px) + blend width (room px); camera accel
   // limit (screen px/s^2): 18000 = 5 px/frame step change at 60 fps.
   SOFT_PAD: 28, SOFT_K: 48, ACC: 18000, LEAD: 0.25,
-  // HUD band at the top (css px); horizontal lock when the view shows the
-  // room width (visible width >= room.w - LOCK_SLACK).
-  HUD: 120, LOCK_SLACK: 8, STRIP_Y: 0.6, ROOM_PAD: 16, TGT_SLACK: 40,
+  // HUD band at the top (css px, + safe-area top = frame.hudTop); horizontal
+  // lock when the view shows the room width (visible >= room.w - LOCK_SLACK).
+  HUD: 84, LOCK_SLACK: 8, STRIP_Y: 0.6, ROOM_PAD: 16, TGT_SLACK: 40,
+  // FIT-WHOLE-ROOM [AD]: bottom margin (css px); fall back to scrolling only
+  // when the fit scale drops below FIT_MIN css px per room px.
+  FIT_GAP: 6, FIT_MIN: 0.9,
 };
 
 // Critically damped smoothing (stable for any dt). s = {v}
@@ -434,7 +791,7 @@ function bobRange(p, s, half, sMin, sMax) {
 // lockX: horizontal is locked, so x only has to stay on screen.
 function bands(view, s, pad, lockX) {
   const K = PL.CAM, rr = K.R * s;
-  const top = pad > 0 ? Math.max(K.BOB_MIN_Y * view.H, K.HUD) : K.BOB_MIN_Y * view.H;
+  const top = pad > 0 ? Math.max(K.BOB_MIN_Y * view.H, hudTop(view)) : K.BOB_MIN_Y * view.H;
   const sp = lockX ? 0 : K.SIDE_PAD;
   return {
     x: lockX ? [rr + 1e-6, view.W - rr - 1e-6] : [sp + rr + pad, view.W - sp - rr - pad],
@@ -501,9 +858,43 @@ function stepAxis(cam, ax, tgt, p, s, half, len, hardBand, dt) {
   cam[c] = x; cam[v] = (x - x0) / dt; cam[tk] = tgt;
 }
 
+// HUD bottom in css px: HUD + safe-area top (view.inset.t when given).
+function hudTop(view) {
+  return PL.CAM.HUD + ((view.inset && view.inset.t) || 0);
+}
+
+// FIT-WHOLE-ROOM: scale so the whole room fits under the HUD; null when the
+// room is too tall for that (scale < FIT_MIN) and the scroll path applies.
+function fitFrame(state, view) {
+  const K = PL.CAM, rd = roomDims(state), ht = hudTop(view);
+  const s = Math.min(view.W / rd.w, (view.H - ht - K.FIT_GAP) / rd.h);
+  if (!(s >= K.FIT_MIN)) return null;
+  // room centred horizontally, top edge pinned at hudTop
+  return { scale: s, cx: rd.w / 2, cy: (view.H / 2 - ht) / s, hudTop: ht, fit: true };
+}
+PL.camFit = fitFrame;
+
 PL.camUpdate = function (cam, state, view, dt) {
   const K = PL.CAM, t = targets(state, view), rd = roomDims(state);
   dt = Math.max(0, Math.min(K.MAX_DT, dt || 0));
+  // Static camera whenever the room fits: no look-ahead, no speed zoom.
+  const fit = fitFrame(state, view);
+  if (fit) {
+    cam.init = true; cam.mode = 'fit'; cam.room = state.room;
+    cam.scale = fit.scale; cam.visW = view.W / fit.scale; cam.cx = fit.cx; cam.cy = fit.cy;
+    cam.vx = cam.vy = 0; cam.sw.v = 0; cam.tx = fit.cx; cam.ty = fit.cy;
+    cam.bx = state.x; cam.by = state.y;
+    return fit;
+  }
+  // Scroll fallback (room taller than fits). Snap (cut, no settle crop) on the
+  // first frame, room change, mode change, room start (state.t < 3) or teleport.
+  // A t<3 snap in the same room keeps the camera's real velocity so the
+  // spring takes over without a kick.
+  let carry = false;
+  if (cam.mode !== 'scroll' || cam.room !== state.room) cam.init = false;
+  else if (typeof state.t === 'number' && state.t < 3) { carry = cam.init && dt > 0; cam.init = false; }
+  const ox = cam.cx, oy = cam.cy;
+  cam.mode = 'scroll'; cam.room = state.room;
   // 1) scale first (slower zoom spring), so every limit below uses this frame's scale
   const jump = cam.init && Math.hypot(state.x - cam.bx, state.y - cam.by) > K.CAP * Math.max(dt, 1 / 60) * 1.5 + 40;
   if (!cam.init || jump) { cam.visW = t.visW; cam.sw.v = 0; }
@@ -514,19 +905,16 @@ PL.camUpdate = function (cam, state, view, dt) {
   // Horizontal: when the view shows the whole room width, lock cx to the room
   // centre (no following); follow only when zoomed in tighter than the room.
   const lockX = view.W / s >= rd.w - K.LOCK_SLACK;
-  // Vertical: if the whole room fits between the HUD and the strip line, lock
-  // it fully visible, top-aligned under the HUD; else scroll (55% rule kept).
-  // (decided at the rest scale W/room.w so zooming out never flips it)
-  const lockY = rd.h * (view.W / K.ROOM_W) <= K.STRIP_Y * view.H - K.HUD;
+  // Vertical: scrolls with the bob, 55% rule kept.
   const soft = bands(view, s, K.SOFT_PAD, lockX), hard = bands(view, s, 0, lockX);
   const tx = lockX ? rd.w / 2 : axisTarget(t.cx, state.x, state.vx || 0, s, view.W / 2, rd.w, soft.x);
-  const ty = axisTarget(lockY ? view.H / 2 / s - K.HUD / s : t.cy, state.y, state.vy || 0, s, view.H / 2, rd.h, soft.y);
+  const ty = axisTarget(t.cy, state.y, state.vy || 0, s, view.H / 2, rd.h, soft.y);
   if (!cam.init || jump) {
     // first frame or teleport (respawn): cut, no motion carried over
     cam.init = true;
     cam.cx = hardAxis(tx, tx, state.x, s, view.W / 2, rd.w, hard.x);
     cam.cy = hardAxis(ty, ty, state.y, s, view.H / 2, rd.h, hard.y);
-    cam.vx = cam.vy = 0;
+    cam.vx = carry ? (cam.cx - ox) / dt : 0; cam.vy = carry ? (cam.cy - oy) / dt : 0;
     cam.tx = tx; cam.ty = ty;
   } else if (dt > 0) {
     // 4) spring + acceleration limit, 5) hard guarantees
@@ -537,11 +925,13 @@ PL.camUpdate = function (cam, state, view, dt) {
     cam.cy = hardAxis(cam.cy, ty, state.y, s, view.H / 2, rd.h, hard.y);
   }
   cam.bx = state.x; cam.by = state.y;
-  return { scale: cam.scale, cx: cam.cx, cy: cam.cy, hudTop: K.HUD };
+  return { scale: cam.scale, cx: cam.cx, cy: cam.cy, hudTop: hudTop(view), fit: false };
 };
 
-// Distance (room px) from bob along velocity to the edge of the screen region
-// [0,W]x[0,yBottom], divided by speed. Infinity when nearly still.
+// Seconds of visible room ahead: distance (room px) from bob along velocity
+// to the nearer of the room edge and the screen region [0,W]x[0,yBottom],
+// divided by speed. In fit mode the whole room is visible, so this is the
+// time to the room edge. Infinity when nearly still.
 function sightTo(frame, state, view, yBottom) {
   const vx = state.vx || 0, vy = state.vy || 0, sp = Math.hypot(vx, vy);
   if (sp < 1) return Infinity;
@@ -554,13 +944,19 @@ function sightTo(frame, state, view, yBottom) {
   if (dx < 0) d = Math.min(d, -x0 / dx);
   if (dy > 0) d = Math.min(d, (yBottom - y0) / dy);
   if (dy < 0) d = Math.min(d, -y0 / dy);
-  return Math.max(0, d) / s / sp;
+  d /= s;
+  const rd = roomDims(state);
+  if (dx > 0) d = Math.min(d, (rd.w - state.x) / dx);
+  if (dx < 0) d = Math.min(d, -state.x / dx);
+  if (dy > 0) d = Math.min(d, (rd.h - state.y) / dy);
+  if (dy < 0) d = Math.min(d, -state.y / dy);
+  return Math.max(0, d) / sp;
 }
 
 PL.sightAhead = function (frame, state, view) {
   return sightTo(frame, state, view, view.H);
 };
-// Same, but stopping at the control strip line (y = 0.6H).
+// Same, but also stopping at the control strip line (y = 0.6H).
 PL.sightAheadPlay = function (frame, state, view) {
   return sightTo(frame, state, view, 0.6 * view.H);
 };
@@ -585,7 +981,11 @@ const PL = (globalThis.PL = globalThis.PL || {});
     const x = W - i.r - 8 - BTN_SIZE * (idx + 1) - GAP * idx;
     return { x: x, y: i.t + 8, w: BTN_SIZE, h: BTN_SIZE };
   }
-  PL.BTN = { copy: function (view) { return btnRect(view, 1); }, path: function (view) { return btnRect(view, 0); } };
+  PL.BTN = {
+    copy: function (view) { return btnRect(view, 1); },
+    path: function (view) { return btnRect(view, 0); },
+    snd: function (view) { return btnRect(view, 2); }
+  };
 
   const PP = { t: null, room: null, g: null, x: null, y: null, pts: [], scratch: null, cs: [] };
   PL.predictPath = function (state, seconds) {
@@ -607,7 +1007,7 @@ const PL = (globalThis.PL = globalThis.PL || {});
     for (let k = 0; k < n; k++) {
       s.events.length = 0;
       PL.step(s, []);
-      if (k % 6 === 5) pts.push({ x: s.x, y: s.y });
+      if (k % 4 === 3) pts.push({ x: s.x, y: s.y });
       const ev = s.events;
       if (s.dead || s.won || ev.indexOf('death') >= 0 || ev.indexOf('win') >= 0 || (k >= 3 && (ev.indexOf('land') >= 0 || s.grounded))) {
         pts.push({ x: s.x, y: s.y });
@@ -756,12 +1156,21 @@ const PL = (globalThis.PL = globalThis.PL || {});
       }
     }
 
-    // predicted path (dotted)
+    // death replay trail (faded polyline)
+    if (Array.isArray(hud.trail) && hud.trail.length > 1) {
+      const tr = hud.trail, from = Math.max(0, tr.length - 240);
+      ctx.strokeStyle = 'rgba(192,57,43,0.45)'; ctx.lineWidth = 3;
+      ctx.beginPath();
+      for (let i = from; i < tr.length; i++) { if (i === from) ctx.moveTo(sx(tr[i].x), sy(tr[i].y)); else ctx.lineTo(sx(tr[i].x), sy(tr[i].y)); }
+      ctx.stroke();
+    }
+
+    // predicted path (dotted, every 4 ticks)
     if (hud.pathOn && state && !state.dead && !state.won) {
       const pts = PL.predictPath(state, 0.8);
       ctx.fillStyle = BRASS;
       for (let i = 1; i < pts.length; i++) {
-        ctx.beginPath(); ctx.arc(sx(pts[i].x), sy(pts[i].y), 2.5, 0, TAU); ctx.fill();
+        ctx.beginPath(); ctx.arc(sx(pts[i].x), sy(pts[i].y), 3.5, 0, TAU); ctx.fill();
       }
     }
 
@@ -795,7 +1204,6 @@ const PL = (globalThis.PL = globalThis.PL || {});
     ctx.fillRect(0, H * 0.6, W, H * 0.4);
     ctx.strokeStyle = 'rgba(31,36,48,0.25)'; ctx.lineWidth = 1;
     ctx.beginPath(); ctx.moveTo(0, H * 0.6); ctx.lineTo(W, H * 0.6); ctx.stroke();
-    text(ctx, 'swipe = flip   tap = dive   hold = restart', W / 2, H - ins.b - 14, 14, 'rgba(31,36,48,0.55)', 'center');
 
     // restart ring
     if (hud.ring > 0) {
@@ -803,41 +1211,61 @@ const PL = (globalThis.PL = globalThis.PL || {});
       ctx.beginPath(); ctx.arc(W / 2, H * 0.8, 36, -Math.PI / 2, -Math.PI / 2 + TAU * Math.min(1, hud.ring)); ctx.stroke();
     }
 
-    // HUD band: paper under all HUD text so room content never collides
-    const bandH = ins.t + 120;
+    // bottom edge: tiny seed/fps line, and the control hint on the first attempt only,
+    // only when it sits fully below the room box (never over walls)
+    const botY = H - ins.b - 6;
+    text(ctx, 'seed ' + (hud.seed != null ? hud.seed : 1) + (hud.fps ? '  ' + Math.round(hud.fps) + ' fps' : ''), ins.l + 8, botY, 14, 'rgba(31,36,48,0.6)');
+    if (room && (hud.attempt == null || hud.attempt <= 1) && !hud.hideHint) {
+      const hintY = botY - 24, roomBottom = sy(room.h || 500);
+      if (roomBottom + 6 < hintY - 12) text(ctx, 'swipe = flip   tap = dive   hold = restart', W / 2, hintY, 14, 'rgba(31,36,48,0.6)', 'center');
+    }
+
+    // HUD band (compact): paper under all HUD text; hudTop from camera frame when present
+    const bandH = Math.max(frame.hudTop || 0, 84 + ins.t, ins.t + 72);
     ctx.fillStyle = 'rgba(242,236,220,0.92)';
     ctx.fillRect(0, 0, W, bandH);
     ctx.strokeStyle = INK; ctx.lineWidth = 1;
     ctx.beginPath(); ctx.moveTo(0, bandH + 0.5); ctx.lineTo(W, bandH + 0.5); ctx.stroke();
 
-    // HUD text
     const left = ins.l + 12, top = ins.t;
-    const n = hud.roomIdx != null ? hud.roomIdx + 1 : 1;
-    text(ctx, n + '/3 ' + (hud.roomName || ''), left, top + 24, 16, INK, 'left', true);
-    text(ctx, fmtT(hud.timeS) + '  flips ' + (hud.flips || 0) + '  deaths ' + (hud.deaths || 0), left, top + 44, 14, INK);
-    if (hud.teach) {
-      const maxW = W - 136 - ins.r - left - 8;
-      let tt = String(hud.teach);
-      ctx.font = '500 14px ' + FONT;
-      if (ctx.measureText && maxW > 0) {
-        let guard = 200;
-        while (tt.length > 1 && guard-- > 0 && ctx.measureText(tt).width > maxW) tt = tt.slice(0, -2).replace(/\s+$/, '') + '\u2026';
-      }
-      text(ctx, tt, left, top + 64, 14, 'rgba(31,36,48,0.75)');
-    }
-    text(ctx, 'seed ' + (hud.seed != null ? hud.seed : 1) + (hud.fps ? '  ' + Math.round(hud.fps) + ' fps' : ''), left, top + 84, 14, 'rgba(31,36,48,0.6)');
-    // charge pips
+    const n = hud.roomIdx != null ? hud.roomIdx + 1 : 1, nTot = hud.nRooms || 3;
+    text(ctx, n + '/' + nTot + ' ' + (hud.roomName || ''), left, top + 26, 16, INK, 'left', true);
+    text(ctx, fmtT(hud.timeS) + '  flips ' + (hud.flips || 0) + '  deaths ' + (hud.deaths || 0), left, top + 48, 14, INK);
     const ch = state && state.charges != null ? state.charges : 0, maxc = (PL.C && PL.C.CHARGES) || 2;
     for (let i = 0; i < maxc; i++) {
-      const px = left + 8 + i * 22, py = top + 104;
-      ctx.beginPath(); ctx.arc(px, py, 8, 0, TAU);
+      const px = left + 8 + i * 22, py = top + 66;
+      ctx.beginPath(); ctx.arc(px, py, 7, 0, TAU);
       if (i < ch) { ctx.fillStyle = BRASS; ctx.fill(); }
       ctx.strokeStyle = INK; ctx.lineWidth = 2; ctx.stroke();
     }
 
     // buttons
+    button(ctx, PL.BTN.snd(view), hud.muted ? 'Muted' : 'Sound', !!hud.muted);
     button(ctx, PL.BTN.copy(view), 'Copy', false);
     button(ctx, PL.BTN.path(view), 'Path', !!hud.pathOn);
+
+    // teach pill: first 4 s of a room, top of the play area, wrapped (no ellipsis)
+    if (hud.teach && hud.roomAgeS != null && hud.roomAgeS < 4) {
+      const fade = Math.max(0, Math.min(1, (4 - hud.roomAgeS) / 0.5));
+      const maxW = W - ins.l - ins.r - 40;
+      ctx.font = '600 14px ' + FONT;
+      const mw = function (t) { return ctx.measureText ? (ctx.measureText(t).width || t.length * 7) : t.length * 7; };
+      const words = String(hud.teach).split(/\s+/), lines = [];
+      let cur = '';
+      for (let i = 0; i < words.length; i++) {
+        const t = cur ? cur + ' ' + words[i] : words[i];
+        if (cur && mw(t) > maxW) { lines.push(cur); cur = words[i]; } else cur = t;
+      }
+      if (cur) lines.push(cur);
+      let pw = 0;
+      for (let i = 0; i < lines.length; i++) pw = Math.max(pw, mw(lines[i]));
+      pw = Math.min(pw + 24, W - 16);
+      const ph = lines.length * 20 + 12, pxx = W / 2 - pw / 2, pyy = bandH + 10;
+      ctx.globalAlpha = fade;
+      ctx.fillStyle = INK; ctx.fillRect(pxx, pyy, pw, ph);
+      for (let i = 0; i < lines.length; i++) text(ctx, lines[i], W / 2, pyy + 21 + i * 20, 14, PAPER, 'center', true);
+      ctx.globalAlpha = 1;
+    }
 
     // toast
     if (hud.toast) {
@@ -848,20 +1276,221 @@ const PL = (globalThis.PL = globalThis.PL || {});
       text(ctx, hud.toast, W / 2, by + 21, 14, PAPER, 'center', true);
     }
 
+    // tuning panel
+    const tu = hud.tuning;
+    if (tu && tu.open) {
+      const rows = PL.tuningLayout(view, tu.rows || []);
+      const py0 = bandH + 8, last = rows.length ? rows[rows.length - 1].label : { y: py0, h: 0 };
+      ctx.fillStyle = 'rgba(242,236,220,0.97)';
+      ctx.fillRect(8, py0, W - 16, last.y + last.h + 12 - py0);
+      ctx.strokeStyle = INK; ctx.lineWidth = 2;
+      ctx.strokeRect(8, py0, W - 16, last.y + last.h + 12 - py0);
+      text(ctx, 'Tuning', 20, py0 + 22, 16, INK, 'left', true);
+      if (tu.dirty) {
+        ctx.fillStyle = RED; ctx.fillRect(W - 96, py0 + 6, 76, 24);
+        text(ctx, 'TUNED', W - 58, py0 + 23, 14, PAPER, 'center', true);
+      }
+      for (let i = 0; i < rows.length; i++) {
+        const r = rows[i];
+        text(ctx, r.label_text + '  ' + r.value, r.label.x, r.label.y + r.label.h / 2 + 5, 16, INK, 'left', true);
+        button(ctx, r.minus, '-', false);
+        button(ctx, r.plus, '+', false);
+      }
+    }
+
     // complete screen
     const cp = hud.completeScreen;
     if (cp) {
       ctx.fillStyle = 'rgba(242,236,220,0.96)'; ctx.fillRect(0, 0, W, H);
-      const y0 = H * 0.3;
+      const y0 = Math.max(ins.t + 96, H * 0.22);
+      const medal = cp.medal && cp.medal !== 'none' ? String(cp.medal).toUpperCase() : 'NO MEDAL';
       text(ctx, 'Survey complete', W / 2, y0, 28, INK, 'center', true);
-      text(ctx, 'Time ' + fmtT(cp.timeS), W / 2, y0 + 44, 18, INK, 'center');
-      text(ctx, 'Flips ' + (cp.flips || 0) + '   Deaths ' + (cp.deaths || 0), W / 2, y0 + 72, 18, INK, 'center');
-      text(ctx, 'Seed ' + (hud.seed != null ? hud.seed : 1), W / 2, y0 + 100, 14, 'rgba(31,36,48,0.7)', 'center');
-      text(ctx, 'Tap to restart', W / 2, y0 + 140, 18, RED, 'center', true);
+      text(ctx, 'Time ' + fmtT(cp.timeS), W / 2, y0 + 40, 18, INK, 'center');
+      text(ctx, 'Flips ' + (cp.flips || 0) + '   Deaths ' + (cp.deaths || 0), W / 2, y0 + 66, 18, INK, 'center');
+      text(ctx, 'Medal: ' + medal + (cp.flipStar ? '   ★ flip star' : ''), W / 2, y0 + 98, 20, BRASS, 'center', true);
+      let yy = y0 + 124;
+      if (cp.newBest) { text(ctx, 'New best!', W / 2, yy, 18, RED, 'center', true); yy += 26; }
+      if (cp.best) {
+        text(ctx, 'Best ' + fmtT(cp.best.timeS) + '  ' + (cp.best.flips || 0) + ' flips' + (cp.best.medal && cp.best.medal !== 'none' ? '  ' + cp.best.medal : ''), W / 2, yy, 14, 'rgba(31,36,48,0.8)', 'center');
+        yy += 22;
+      }
+      const seed = cp.seed != null ? cp.seed : (hud.seed != null ? hud.seed : 1);
+      text(ctx, (cp.mode ? cp.mode + '  ' : '') + 'seed ' + seed + (cp.nRooms ? '  ' + cp.nRooms + ' rooms' : ''), W / 2, yy, 14, 'rgba(31,36,48,0.7)', 'center');
+      text(ctx, 'tap to continue', W / 2, yy + 36, 18, RED, 'center', true);
       button(ctx, PL.BTN.copy(view), 'Copy', false);
     }
   };
+
+  // ---- menu ----
+  PL.menuLayout = function (view, items) {
+    const W = (view && view.W) || 360, H = (view && view.H) || 640, i = inset(view);
+    items = items || [];
+    const w = Math.min(Math.max(240, Math.min(W - 32, 320)), W - 8), h = 64, gap = 16;
+    const total = items.length * h + Math.max(0, items.length - 1) * gap;
+    let y = i.t + 100;
+    if (y + total > H * 0.6) y = Math.max(i.t + 70, H * 0.6 - total);
+    const x = (W - w) / 2;
+    return items.map(function (it, k) {
+      return Object.assign({}, it, { rect: { x: x, y: y + k * (h + gap), w: w, h: h } });
+    });
+  };
+  PL.drawMenu = function (ctx, view, menu) {
+    view = view || { W: 360, H: 640 }; menu = menu || {};
+    const W = view.W || 360, H = view.H || 640, ins = inset(view);
+    ctx.fillStyle = PAPER; ctx.fillRect(0, 0, W, H);
+    text(ctx, menu.title || 'Plumbline', W / 2, ins.t + 48, 36, INK, 'center', true);
+    if (menu.sub) text(ctx, menu.sub, W / 2, ins.t + 74, 14, 'rgba(31,36,48,0.7)', 'center');
+    const items = PL.menuLayout(view, menu.items || []);
+    for (let k = 0; k < items.length; k++) {
+      const r = items[k].rect;
+      ctx.fillStyle = PAPER2; ctx.strokeStyle = INK; ctx.lineWidth = 2;
+      ctx.fillRect(r.x, r.y, r.w, r.h); ctx.strokeRect(r.x, r.y, r.w, r.h);
+      text(ctx, items[k].label, r.x + r.w / 2, r.y + (items[k].sub ? 28 : r.h / 2 + 6), 18, INK, 'center', true);
+      if (items[k].sub) text(ctx, items[k].sub, r.x + r.w / 2, r.y + 50, 14, 'rgba(31,36,48,0.7)', 'center');
+    }
+    let y = items.length ? items[items.length - 1].rect.y + items[items.length - 1].rect.h + 28 : ins.t + 120;
+    const bl = menu.bestLines || [];
+    for (let k = 0; k < bl.length && y < H - ins.b - 30; k++, y += 20) text(ctx, bl[k], W / 2, y, 14, 'rgba(31,36,48,0.8)', 'center');
+    if (menu.hint) text(ctx, menu.hint, W / 2, H - ins.b - 28, 14, 'rgba(31,36,48,0.6)', 'center');
+    if (menu.seed != null) text(ctx, 'seed ' + menu.seed, ins.l + 8, H - ins.b - 6, 14, 'rgba(31,36,48,0.6)');
+  };
+
+  // ---- tuning panel layout ----
+  PL.tuningLayout = function (view, rows) {
+    const W = (view && view.W) || 360, i = inset(view);
+    rows = rows || [];
+    const bandH = 84 + i.t, px = 16, pw = W - 32, rowH = 64;
+    const plusX = px + pw - 12 - 56, minusX = plusX - 8 - 56;
+    return rows.map(function (r, k) {
+      const y = bandH + 8 + 36 + k * rowH;
+      return Object.assign({}, r, {
+        label_text: r.label,
+        label: { x: px + 12, y: y, w: Math.max(40, minusX - 8 - (px + 12)), h: 56 },
+        minus: { x: minusX, y: y, w: 56, h: 56 },
+        plus: { x: plusX, y: y, w: 56, h: 56 }
+      });
+    });
+  };
 })();
+
+})();
+(function(){
+// meta.js - Plumbline medals, bests, daily seed. DOM-free; localStorage only, always in try/catch.
+const PL = (globalThis.PL = globalThis.PL || {});
+PL.meta = (function () {
+  'use strict';
+  const KEY = 'plumbline.v1';
+  const DT = (PL.C && PL.C.DT) || 1 / 120;
+  const BANDS = { n: 7, bronze: 240, silver: 150, gold: 105, plumb: 75, plumbFlips: 12, flipStar: 15 };
+  const RANK = { none: 0, bronze: 1, silver: 2, gold: 3, plumb: 4 };
+  const k = (n) => (n > 0 ? n : BANDS.n) / BANDS.n;
+
+  function flipStar(flips, nRooms) { return flips <= BANDS.flipStar * k(nRooms); }
+  function medalFor(ticks, flips, nRooms) {
+    const s = ticks * DT, f = k(nRooms);
+    if (s <= BANDS.plumb * f && flips <= BANDS.plumbFlips * f) return 'plumb';
+    if (s <= BANDS.gold * f) return 'gold';
+    if (s <= BANDS.silver * f) return 'silver';
+    if (s <= BANDS.bronze * f) return 'bronze';
+    return 'none';
+  }
+  function dailySeed() {
+    const d = new Date();
+    return d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate();
+  }
+  function keyFor(mode, seed, n) { return mode + ':' + seed + ':' + n; }
+  function load() {
+    try {
+      const o = JSON.parse(localStorage.getItem(KEY));
+      if (o && typeof o === 'object' && !Array.isArray(o)) return o;
+    } catch (e) {}
+    return {};
+  }
+  function save(o) { try { localStorage.setItem(KEY, JSON.stringify(o)); } catch (e) {} }
+  function getBest(key) {
+    const b = load()[key];
+    return b && typeof b.ticks === 'number' ? b : null;
+  }
+  function nOf(key) { const n = parseInt(String(key).split(':')[2], 10); return n > 0 ? n : BANDS.n; }
+  function recordRun(key, run) {
+    const n = nOf(key), ticks = run.ticks, flips = run.flips || 0;
+    const medal = medalFor(ticks, flips, n), star = flipStar(flips, n);
+    const prev = getBest(key);
+    if (run.tuned) return { isBest: false, best: prev, medal, flipStar: star };
+    const better = !prev || (RANK[medal] || 0) > (RANK[prev.medal] || 0) ||
+      ((RANK[medal] || 0) === (RANK[prev.medal] || 0) && ticks < prev.ticks);
+    if (!better) return { isBest: false, best: prev, medal, flipStar: star };
+    const best = { ticks, flips, medal };
+    const o = load(); o[key] = best; save(o);
+    return { isBest: true, best, medal, flipStar: star };
+  }
+  function reset() { try { localStorage.removeItem(KEY); } catch (e) {} }
+  return { BANDS, medalFor, flipStar, dailySeed, keyFor, load, recordRun, getBest, reset };
+})();
+
+})();
+(function(){
+// audio.js - PL.audio: WebAudio synth blips, no files. No-op when AudioContext is absent.
+(function (G) {
+  'use strict';
+  var PL = G.PL = G.PL || {};
+  var MAXG = 0.15, ctx = null, master = null, muted = false, tried = false;
+  function Ctor() { return G.AudioContext || G.webkitAudioContext || null; }
+  function ensure() {
+    if (ctx) return ctx;
+    if (tried) return null;
+    var C = Ctor(); if (!C) return null;
+    tried = true;
+    try {
+      ctx = new C(); master = ctx.createGain();
+      master.gain.value = muted ? 0 : MAXG; master.connect(ctx.destination);
+    } catch (e) { ctx = null; master = null; }
+    return ctx;
+  }
+  function init() {
+    if (!Ctor()) return;
+    var c = ensure();
+    try { if (c && c.state === 'suspended' && c.resume) { var pr = c.resume(); if (pr && pr.catch) pr.catch(function () {}); } } catch (e) {}
+  }
+  // blip: freq sweep f0->f1 over dur seconds, peak volume v (0..1 of master)
+  function blip(type, f0, f1, dur, v) {
+    if (muted || !ctx || !master) return;
+    try {
+      var t = ctx.currentTime, o = ctx.createOscillator(), g = ctx.createGain();
+      o.type = type; o.frequency.setValueAtTime(f0, t);
+      if (f1 !== f0) o.frequency.exponentialRampToValueAtTime(f1, t + dur);
+      g.gain.setValueAtTime(Math.max(0.0001, Math.min(1, v)), t);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+      o.connect(g); g.connect(master); o.start(t); o.stop(t + dur + 0.02);
+    } catch (e) {}
+  }
+  var LAND_MAX = 900;
+  var SND = {
+    flip: function () { blip('square', 330, 660, 0.09, 0.5); },
+    dive: function () { blip('sawtooth', 500, 160, 0.18, 0.45); },
+    land: function (st) {
+      var s = (st && +st.lastLandSpeed) || 0, v = Math.max(0.15, Math.min(1, s / LAND_MAX));
+      blip('triangle', 140, 60, 0.12, v);
+    },
+    death: function () { blip('sawtooth', 300, 40, 0.5, 0.8); },
+    win: function () { blip('square', 523, 523, 0.1, 0.5); blip('square', 659, 659, 0.14, 0.5); blip('square', 784, 1047, 0.25, 0.5); },
+    crumble: function () { blip('sawtooth', 120, 50, 0.2, 0.4); },
+    ride: function () { blip('sine', 220, 260, 0.06, 0.2); }
+  };
+  function nameOf(e) { return typeof e === 'string' ? e : e && (e.type || e.name || e.kind || e.id); }
+  function onEvents(events, state) {
+    if (muted || !events || !events.length || !ctx) return;
+    for (var i = 0; i < events.length; i++) {
+      var f = SND[nameOf(events[i])];
+      if (f) { try { f(state); } catch (e) {} }
+    }
+  }
+  function setMuted(b) {
+    muted = !!b;
+    try { if (master) master.gain.value = muted ? 0 : MAXG; } catch (e) {}
+  }
+  PL.audio = { init: init, onEvents: onEvents, setMuted: setMuted, isMuted: function () { return muted; }, MAX_GAIN: MAXG };
+})(typeof globalThis !== 'undefined' ? globalThis : this);
 
 })();
 (function(){
@@ -891,14 +1520,33 @@ const PL = (globalThis.PL = globalThis.PL || {});
       b: parseFloat(cs.paddingBottom) || 0, l: parseFloat(cs.paddingLeft) || 0 };
     canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
   }
-  window.addEventListener('resize', resize);
-  window.addEventListener('orientationchange', resize);
-  if (window.visualViewport) window.visualViewport.addEventListener('resize', resize);
+  const resizeSafe = () => { if (!overlay) resize(); };
+  window.addEventListener('resize', resizeSafe);
+  window.addEventListener('orientationchange', resizeSafe);
+  if (window.visualViewport) window.visualViewport.addEventListener('resize', resizeSafe);
   resize();
 
   // ---------- run state ----------
-  let seed = 1;
-  { const m = /[?&]seed=(-?\d+)/.exec(location.search); if (m) seed = parseInt(m[1], 10) | 0; }
+  let seed = 1; // seed of the current run
+  let urlSeed = 1;
+  { const m = /[?&]seed=(-?\d+)/.exec(location.search); if (m) urlSeed = seed = parseInt(m[1], 10) | 0; }
+  let scene = 'menu', mode = 'tutorial', nRooms = 3, showBest = false;
+  const DEFAULTS = { G: C.G, CAP: C.CAP, CHARGES: C.CHARGES };
+  const TUNE = [
+    { id: 'G', label: 'Gravity', min: 1200, max: 1900, step: 100 },
+    { id: 'CAP', label: 'Speed cap', min: 500, max: 900, step: 50 },
+    { id: 'CHARGES', label: 'Charges', min: 1, max: 4, step: 1 }
+  ];
+  let tuningOpen = false, runTuned = false, trailBuf = [], trailUntil = 0, trailPts = null, cg = null, tg = null, menuDown = null;
+  function tunedNow() { return TUNE.some(t => C[t.id] !== DEFAULTS[t.id]); }
+  function tunedStr() { return TUNE.map(t => t.id + '=' + C[t.id] + (C[t.id] !== DEFAULTS[t.id] ? '*' : '')).join(' '); }
+  let muted = false;
+  try { muted = localStorage.getItem('plumbline.mute') === '1'; } catch (_) {}
+  if (PL.audio && PL.audio.setMuted) { try { PL.audio.setMuted(muted); } catch (_) {} }
+  function dailySeed() {
+    if (PL.meta && PL.meta.dailySeed) return PL.meta.dailySeed();
+    const d = new Date(); return d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate();
+  }
   let rooms, roomIdx, state, cam, cur, attempts, cleared, inputLog, queue, totalTicks, deaths, flipsTotal;
   let deadHandled, winDelay, complete, completeAt, fx, toast, toastUntil, pathOn = true;
   let fpsFrames = 0, fpsSecs = 0, btn = null, overlay = null;
@@ -907,7 +1555,8 @@ const PL = (globalThis.PL = globalThis.PL || {});
 
   function nowMs() { return performance.now(); }
   function newRun() {
-    rooms = PL.buildRooms(seed);
+    rooms = mode === 'tutorial' ? PL.buildRooms(seed) : PL.buildShaft(seed, nRooms);
+    runTuned = tunedNow(); trailBuf = []; trailPts = null; trailUntil = 0; closeOverlay(); setMenuBtn(false);
     roomIdx = 0; attempts = []; cleared = []; inputLog = []; queue = [];
     totalTicks = 0; deaths = 0; flipsTotal = 0; complete = null; completeAt = 0; fx = [];
     clearGesture();
@@ -917,7 +1566,8 @@ const PL = (globalThis.PL = globalThis.PL || {});
   function startAttempt() {
     state = PL.newState(rooms[roomIdx]);
     const n = attempts.filter(a => a.room === roomIdx + 1).length + 1;
-    cur = { room: roomIdx + 1, attempt: n, ticks: 0, result: null, flips: 0, landSpeeds: [], log: [] };
+    cur = { room: roomIdx + 1, attempt: n, ticks: 0, result: null, flips: 0, landSpeeds: [], log: [], rides: 0 };
+    trailBuf = [];
     deadHandled = false; winDelay = 0;
     queue = [];
     cam = PL.camNew();
@@ -929,17 +1579,54 @@ const PL = (globalThis.PL = globalThis.PL || {});
     flipsTotal += state.flips;
   }
   function restartRoom(result) {
+    trailPts = null;
     finishAttempt(result || 'restart');
     startAttempt();
   }
   function gotoRoom(i) {
+    setMenuBtn(false); trailPts = null;
     roomIdx = Math.max(0, Math.min(rooms.length - 1, i)); complete = null;
     finishAttempt('abandoned'); startAttempt();
   }
+  function startMode(m, s) {
+    mode = m; nRooms = m === 'tutorial' ? 3 : 7; seed = s | 0; scene = 'play'; tuningOpen = false;
+    newRun();
+  }
+  function toMenu() {
+    scene = 'menu'; complete = null; clearGesture(); tuningOpen = false; closeOverlay(); setMenuBtn(false); setResetBtn(false); acc = 0;
+  }
+  let menuBtn = null;
+  function setMenuBtn(on) {
+    if (!menuBtn) {
+      menuBtn = document.createElement('button');
+      menuBtn.textContent = 'Menu';
+      menuBtn.style.cssText = 'position:fixed;left:50%;transform:translateX(-50%);bottom:calc(24px + env(safe-area-inset-bottom));' +
+        'min-width:120px;height:56px;font:600 18px sans-serif;border-radius:12px;border:2px solid #fff;background:#222;color:#fff;z-index:50;display:none';
+      menuBtn.addEventListener('click', toMenu);
+      document.body.appendChild(menuBtn);
+    }
+    menuBtn.style.display = on ? 'block' : 'none';
+  }
+  let resetBtn = null;
+  function setResetBtn(on) {
+    if (!resetBtn) {
+      resetBtn = document.createElement('button');
+      resetBtn.textContent = 'Reset defaults';
+      resetBtn.style.cssText = 'position:fixed;left:50%;transform:translateX(-50%);bottom:calc(24px + env(safe-area-inset-bottom));' +
+        'min-width:160px;height:56px;font:600 18px sans-serif;border-radius:12px;border:2px solid #fff;background:#222;color:#fff;z-index:50;display:none';
+      resetBtn.addEventListener('click', () => { for (const t of TUNE) C[t.id] = DEFAULTS[t.id]; });
+      document.body.appendChild(resetBtn);
+    }
+    resetBtn.style.display = on ? 'block' : 'none';
+  }
+  function audioInit() { if (PL.audio && PL.audio.init) { try { PL.audio.init(); } catch (_) {} } }
+  window.addEventListener('touchend', audioInit, { passive: true });
+  window.addEventListener('pointerup', audioInit, true);
   function showToast(t, ms) { toast = t; toastUntil = nowMs() + (ms || 2000); }
 
   function simTick() {
-    if (complete) return;
+    if (scene !== 'play' || complete) return;
+    const counting = !state.won && !cur.result;
     let inputs = queue.splice(0);
     if (state.dead > 0 || state.won || cur.result) inputs = [];
     for (const i of inputs) {
@@ -948,14 +1635,20 @@ const PL = (globalThis.PL = globalThis.PL || {});
       inputLog.push({ room: cur.room, attempt: cur.attempt, tick: e.tick, k: e.k, dir: e.dir });
     }
     PL.step(state, inputs);
-    totalTicks++;
+    if (counting) totalTicks++;
+    trailBuf.push({ x: state.x, y: state.y }); if (trailBuf.length > 240) trailBuf.shift();
+    if (!runTuned && tunedNow()) runTuned = true;
     const ev = state.events || [];
+    if (PL.audio && PL.audio.onEvents) { try { PL.audio.onEvents(ev, state); } catch (_) {} }
     for (const e of ev) {
       if (e === 'land') {
         cur.landSpeeds.push(Math.round(state.lastLandSpeed || 0));
         if (!reduced) fx.push({ x: state.x, y: state.y, age: 0 });
+      } else if (e === 'ride') {
+        cur.rides++;
       } else if (e === 'death' && !cur.result) {
         deaths++; finishAttempt('death'); deadHandled = true;
+        trailPts = trailBuf.slice(); trailUntil = nowMs() + 1200;
       } else if (e === 'win' && !cur.result) {
         finishAttempt('win');
         cleared[roomIdx] = { log: cur.log.slice(), hash: PL.hash(state), ticks: state.t };
@@ -964,9 +1657,25 @@ const PL = (globalThis.PL = globalThis.PL || {});
     }
     if (deadHandled && state.dead <= 0) { startAttempt(); return; }
     if (winDelay > 0 && --winDelay === 0) {
-      if (roomIdx + 1 >= rooms.length) { complete = { timeS: totalTicks * C.DT, flips: flipsTotal, deaths }; completeAt = nowMs(); clearGesture(); }
+      if (roomIdx + 1 >= rooms.length) { finishRun(); }
       else { roomIdx++; startAttempt(); }
     }
+  }
+
+  function finishRun() {
+    const c = { timeS: totalTicks * C.DT, flips: flipsTotal, deaths, mode, seed, nRooms: rooms.length, tuned: runTuned,
+      medal: 'none', flipStar: false, best: null, newBest: false };
+    if (PL.meta) {
+      try {
+        const key = PL.meta.keyFor(mode, seed, rooms.length);
+        const r = PL.meta.recordRun(key, { ticks: totalTicks, flips: flipsTotal, deaths, tuned: runTuned });
+        if (r) {
+          c.medal = r.medal || 'none'; c.flipStar = !!r.flipStar; c.newBest = !!r.isBest && !runTuned;
+          if (r.best) c.best = { timeS: r.best.ticks * C.DT, flips: r.best.flips, medal: r.best.medal };
+        }
+      } catch (_) {}
+    }
+    complete = c; completeAt = nowMs(); clearGesture(); setMenuBtn(true);
   }
 
   // ---------- input ----------
@@ -979,11 +1688,12 @@ const PL = (globalThis.PL = globalThis.PL || {});
   }
   let g = null; // active gesture
   let ring = 0;
-  function clearGesture() { g = null; ring = 0; btn = null; }
+  function clearGesture() { g = null; ring = 0; btn = null; cg = null; tg = null; menuDown = null; }
   function btnAt(x, y) {
     if (!PL.BTN) return null;
     if (rectHit(PL.BTN.copy(view), x, y)) return 'copy';
     if (!complete && rectHit(PL.BTN.path(view), x, y)) return 'path';
+    if (PL.BTN.snd && rectHit(PL.BTN.snd(view), x, y)) return 'snd';
     return null;
   }
   canvas.style.touchAction = 'none';
@@ -991,12 +1701,17 @@ const PL = (globalThis.PL = globalThis.PL || {});
   canvas.addEventListener('pointerdown', e => {
     if (e.pointerType === 'mouse' && e.button !== 0) return;
     e.preventDefault();
+    if (PL.audio && PL.audio.init) { try { PL.audio.init(); } catch (_) {} }
     if (overlay) return;
     const x = e.clientX, y = e.clientY;
+    if (scene === 'menu') { menuDown = { id: e.pointerId, item: menuItemAt(x, y) }; return; }
+    if (x < 140 && y < 56 && !complete) { tg = { id: e.pointerId, t0: nowMs() }; return; }
     const b = btnAt(x, y);
     if (b) { btn = { id: e.pointerId, w: b }; return; }
+    if (tuningOpen) { tuneTap(x, y); return; }
     if (complete) {
-      if (nowMs() - completeAt > 500) newRun();
+      if (nowMs() - completeAt <= 500) return;
+      cg = { id: e.pointerId, t0: nowMs() };
       return;
     }
     if (g && nowMs() - g.t0 > 3000) g = null; // stale gesture
@@ -1024,16 +1739,35 @@ const PL = (globalThis.PL = globalThis.PL || {});
     g = null; ring = 0;
   }
   canvas.addEventListener('pointerup', e => {
+    if (scene === 'menu') {
+      const d = menuDown; menuDown = null;
+      if (d && d.id === e.pointerId && d.item && menuItemAt(e.clientX, e.clientY) === d.item) menuAct(d.item);
+      return;
+    }
+    if (tg && tg.id === e.pointerId) { tg = null; return; }
+    if (cg && cg.id === e.pointerId) {
+      const held = nowMs() - cg.t0; cg = null; ring = 0;
+      if (complete && held < 600 && nowMs() - completeAt > 500) newRun();
+      return;
+    }
     if (btn && btn.id === e.pointerId) {
       const w = btn.w; btn = null;
       if (overlay || btnAt(e.clientX, e.clientY) !== w) return;
-      if (w === 'copy') copyReport(); else pathOn = !pathOn;
+      if (w === 'copy') copyReport();
+      else if (w === 'snd') {
+        muted = !muted;
+        if (PL.audio && PL.audio.setMuted) { try { PL.audio.setMuted(muted); } catch (_) {} }
+        try { localStorage.setItem('plumbline.mute', muted ? '1' : '0'); } catch (_) {}
+      } else pathOn = !pathOn;
       return;
     }
     endGesture(e, false);
   });
   canvas.addEventListener('pointercancel', e => {
     if (btn && btn.id === e.pointerId) btn = null;
+    if (tg && tg.id === e.pointerId) tg = null;
+    if (cg && cg.id === e.pointerId) { cg = null; ring = 0; }
+    if (menuDown && menuDown.id === e.pointerId) menuDown = null;
     endGesture(e, true);
   });
   canvas.addEventListener('lostpointercapture', e => endGesture(e, true));
@@ -1041,8 +1775,18 @@ const PL = (globalThis.PL = globalThis.PL || {});
   document.addEventListener('visibilitychange', () => { if (document.hidden) clearGesture(); });
   window.addEventListener('keydown', e => {
     if (e.repeat) return;
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
     const k = e.key;
+    audioInit();
     if (overlay) { if (k === 'Escape') closeOverlay(); return; }
+    if (scene === 'menu') {
+      if (k === '1') menuAct('tutorial'); else if (k === '2') menuAct('daily'); else if (k === '3') menuAct('seed');
+      else return;
+      e.preventDefault();
+      return;
+    }
+    if (k === 'm' || k === 'M' || k === 'Escape') { toMenu(); return; }
+    if (k === 't' || k === 'T') { tuningOpen = !tuningOpen; return; }
     if (complete) { if ((k === ' ' || k === 'Enter') && nowMs() - completeAt > 500) newRun(); return; }
     if (k === 'ArrowUp') qFlip(0); else if (k === 'ArrowRight') qFlip(1);
     else if (k === 'ArrowDown') qFlip(2); else if (k === 'ArrowLeft') qFlip(3);
@@ -1051,11 +1795,90 @@ const PL = (globalThis.PL = globalThis.PL || {});
     else return;
     e.preventDefault();
   });
+  // ---------- menu ----------
+  function menuModel() {
+    const items = [
+      { id: 'tutorial', label: 'Tutorial rooms', sub: '3 rooms, seed ' + urlSeed },
+      { id: 'daily', label: 'Shaft: Daily', sub: '7 rooms, seed ' + dailySeed() },
+      { id: 'seed', label: 'Shaft: Seed', sub: '7 rooms, type a number' },
+      { id: 'best', label: 'Best times', sub: showBest ? 'tap to hide' : 'tap to show' }
+    ];
+    const bestLines = [];
+    if (showBest) {
+      const rows = [['Tutorial', 'tutorial', urlSeed, 3], ['Daily ' + dailySeed(), 'daily', dailySeed(), 7]];
+      for (const r of rows) {
+        let b = null;
+        try { b = PL.meta && PL.meta.getBest(PL.meta.keyFor(r[1], r[2], r[3])); } catch (_) {}
+        bestLines.push(r[0] + ': ' + (b ? (b.ticks * C.DT).toFixed(2) + 's, ' + b.flips + ' flips, ' + (b.medal || 'none') : 'no run yet'));
+      }
+    }
+    return { title: 'Plumbline', sub: 'Flip gravity. Reach the exit.', items, seed: urlSeed, hint: 'Tap an option (keys 1-3)', bestLines };
+  }
+  function menuItemAt(x, y) {
+    if (!PL.menuLayout) return null;
+    const lay = PL.menuLayout(view, menuModel().items) || [];
+    for (const it of lay) if (rectHit(it.rect, x, y)) return it.id;
+    return null;
+  }
+  function menuAct(id) {
+    if (id === 'tutorial') startMode('tutorial', urlSeed);
+    else if (id === 'daily') startMode('daily', dailySeed());
+    else if (id === 'seed') seedOverlay();
+    else if (id === 'best') showBest = !showBest;
+  }
+  function seedOverlay() {
+    closeOverlay();
+    const o = document.createElement('div');
+    o.style.cssText = 'position:fixed;left:0;top:0;width:100%;height:100dvh;z-index:99;background:rgba(0,0,0,.85);display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:12px;padding:max(16px,8vh) 16px 16px;box-sizing:border-box;color:#fff;font:18px sans-serif;overflow:hidden';
+    const vv = window.visualViewport;
+    const fit = () => { if (vv) { o.style.top = vv.offsetTop + 'px'; o.style.left = vv.offsetLeft + 'px'; o.style.height = vv.height + 'px'; o.style.width = vv.width + 'px'; } };
+    if (vv) { fit(); vv.addEventListener('resize', fit); vv.addEventListener('scroll', fit); o._cleanup = () => { vv.removeEventListener('resize', fit); vv.removeEventListener('scroll', fit); }; }
+    const lab = document.createElement('div'); lab.textContent = 'Shaft seed (digits only)';
+    const err = document.createElement('div'); err.style.cssText = 'color:#ff7b7b;min-height:22px;font-size:16px';
+    const inp = document.createElement('input');
+    inp.type = 'text'; inp.inputMode = 'numeric'; inp.pattern = '[0-9]*'; inp.maxLength = 9; inp.autocomplete = 'off';
+    inp.style.cssText = 'font:24px monospace;padding:12px;width:240px;text-align:center;box-sizing:border-box';
+    inp.addEventListener('input', () => { inp.value = inp.value.replace(/\D/g, '').slice(0, 9); err.textContent = ''; inp.style.outline = ''; });
+    lab.addEventListener('click', () => inp.focus());
+    const go = () => {
+      if (!inp.value) { err.textContent = 'Enter digits first'; inp.style.outline = '3px solid #ff7b7b'; inp.focus(); return; }
+      const n = parseInt(inp.value, 10) | 0; closeOverlay(); startMode('seed', n);
+    };
+    inp.addEventListener('keydown', ev => { if (ev.key === 'Enter') go(); });
+    const row = document.createElement('div'); row.style.cssText = 'display:flex;gap:12px';
+    const mk = (t, f) => { const b = document.createElement('button'); b.textContent = t; b.style.cssText = 'font:18px sans-serif;min-width:112px;height:56px'; b.addEventListener('click', f); return b; };
+    row.appendChild(mk('Start', go)); row.appendChild(mk('Cancel', closeOverlay));
+    o.appendChild(lab); o.appendChild(inp); o.appendChild(err); o.appendChild(row); document.body.appendChild(o);
+    overlay = o; inp.focus();
+  }
+
+  // ---------- tuning ----------
+  function tuneRows() { return TUNE.map(t => ({ id: t.id, label: t.label, value: C[t.id] })); }
+  function tuneTap(x, y) {
+    if (!PL.tuningLayout) return;
+    const lay = PL.tuningLayout(view, tuneRows()) || [];
+    for (const r of lay) {
+      const t = TUNE.find(q => q.id === r.id); if (!t) continue;
+      let d = 0;
+      if (rectHit(r.minus, x, y)) d = -t.step; else if (rectHit(r.plus, x, y)) d = t.step;
+      if (d) { C[t.id] = Math.max(t.min, Math.min(t.max, C[t.id] + d)); if (tunedNow()) runTuned = true; return; }
+    }
+  }
   function updateHold() {
+    if (tg) {
+      if (nowMs() - tg.t0 >= 800) { tuningOpen = !tuningOpen; tg = null; }
+      ring = 0; return;
+    }
+    if (cg) {
+      const h = nowMs() - cg.t0;
+      ring = Math.max(0, Math.min(1, (h - 250) / 350));
+      if (h >= 600) { cg = null; ring = 0; toMenu(); }
+      return;
+    }
     if (g && !g.fired && !g.moved) {
       const h = nowMs() - g.t0;
       ring = Math.max(0, Math.min(1, (h - 250) / 350));
-      if (h >= 600) { g.held = true; ring = 0; restartRoom('restart'); }
+      if (h >= 600) { g.held = true; ring = 0; if (winDelay <= 0 && !(cur && cur.result === 'win')) restartRoom('restart'); }
     } else ring = 0;
   }
 
@@ -1075,7 +1898,12 @@ const PL = (globalThis.PL = globalThis.PL || {});
     const L = [];
     const fps = avgFps();
     L.push('PLUMBLINE REPORT');
+    L.push('mode: ' + mode + '  rooms: ' + (rooms ? rooms.length : 0));
     L.push('seed: ' + seed);
+    L.push('templates: ' + (rooms || []).map(r => r.templateId || r.name).join(','));
+    L.push('tuned: ' + (runTuned || tunedNow() ? 'YES (not saved as best) ' : 'no ') + tunedStr());
+    if (complete) L.push('result: medal ' + complete.medal + (complete.flipStar ? ' +flipstar' : '') + '  newBest ' + complete.newBest +
+      (complete.best ? '  best ' + complete.best.timeS.toFixed(2) + 's/' + complete.best.flips + ' flips/' + complete.best.medal : ''));
     L.push('build: ' + BUILD);
     L.push('UA: ' + navigator.userAgent);
     L.push('viewport: ' + view.W + 'x' + view.H + ' dpr ' + view.dpr + ' inset t' + view.inset.t + ' b' + view.inset.b);
@@ -1085,7 +1913,8 @@ const PL = (globalThis.PL = globalThis.PL || {});
     L.push('');
     L.push('attempts [room, attempt, ticks, result, flips, landSpeeds]:');
     const all = attempts.concat(cur && !cur.result && !complete ? [Object.assign({}, cur, { ticks: state.t, flips: state.flips, result: 'in-progress' })] : []);
-    for (const a of all) L.push('  ' + JSON.stringify({ room: a.room, attempt: a.attempt, ticks: a.ticks, result: a.result, flips: a.flips, landSpeeds: a.landSpeeds }));
+    for (const a of all) L.push('  ' + JSON.stringify({ room: a.room, attempt: a.attempt, ticks: a.ticks, result: a.result, flips: a.flips, landSpeeds: a.landSpeeds, rides: a.rides || 0 }));
+    L.push('wall-ride count per room: ' + rooms.map((_, i) => all.filter(x => x.room === i + 1).reduce((s2, x) => s2 + (x.rides || 0), 0)).join(' '));
     L.push('');
     L.push('2nd attempt vs 1st per room:');
     for (let r = 1; r <= rooms.length; r++) {
@@ -1101,14 +1930,14 @@ const PL = (globalThis.PL = globalThis.PL || {});
     const rc = replayCheck();
     L.push('determinism check (replay of cleared rooms):');
     for (const l of rc.lines) L.push(l);
-    L.push(!rc.any ? 'determinism: no cleared rooms yet' : rc.ok ? 'determinism OK' : 'determinism FAIL');
+    L.push(runTuned || tunedNow() ? 'determinism: skipped (tuned)' : !rc.any ? 'determinism: no cleared rooms yet' : rc.ok ? 'determinism OK' : 'determinism FAIL');
     L.push('');
     L.push('input log (room, attempt, tick, k, dir):');
     for (const i of inputLog) L.push('  ' + i.room + ' ' + i.attempt + ' ' + i.tick + ' ' + i.k + (i.k === 'flip' ? ' ' + DIRN[i.dir] : ''));
     if (cur && !cur.result) { /* current attempt inputs already in inputLog */ }
     return L.join('\n');
   }
-  function closeOverlay() { if (overlay) { overlay.remove(); overlay = null; } }
+  function closeOverlay() { if (overlay) { if (overlay._cleanup) overlay._cleanup(); overlay.remove(); overlay = null; } }
   function showManual(text) {
     try { console.log(text); } catch (_) {}
     closeOverlay();
@@ -1154,8 +1983,18 @@ const PL = (globalThis.PL = globalThis.PL || {});
     else { fpsFrames++; fpsSecs += dt; }
     acc += dt;
     let n = 0;
-    while (acc >= C.DT && n < 5) { simTick(); acc -= C.DT; n++; }
+    if (scene !== 'play' || tuningOpen) acc = 0;
+    else while (acc >= C.DT && n < 5) { simTick(); acc -= C.DT; n++; }
+    setResetBtn(scene === 'play' && tuningOpen);
     if (acc > C.DT) acc = 0; // drop excess beyond 5 steps
+    if (scene === 'menu') {
+      ctx.setTransform(view.dpr, 0, 0, view.dpr, 0, 0);
+      const mm = menuModel();
+      if (PL.drawMenu && PL.menuLayout) PL.drawMenu(ctx, view, Object.assign({}, mm, { items: PL.menuLayout(view, mm.items) }));
+      else { ctx.fillStyle = '#111'; ctx.fillRect(0, 0, view.W, view.H); ctx.fillStyle = '#fff'; ctx.font = '24px sans-serif'; ctx.fillText('Plumbline', 20, 60); }
+      if (toast && nowMs() > toastUntil) toast = null;
+      return;
+    }
     updateHold();
     for (const f of fx) f.age += dt;
     fx = fx.filter(f => f.age < 0.6);
@@ -1164,29 +2003,37 @@ const PL = (globalThis.PL = globalThis.PL || {});
     const hud = {
       roomIdx: roomIdx, roomN: roomIdx + 1, roomName: rooms[roomIdx].name, teach: rooms[roomIdx].teach,
       timeS: totalTicks * C.DT, flips: curFlips(), deaths, pathOn, seed, toast,
-      ring, completeScreen: complete, fps: avgFps(), fx, reduced
+      ring, completeScreen: complete, fps: avgFps(), fx, reduced,
+      roomTotal: rooms.length, nRooms: rooms.length, attempt: cur ? cur.attempt : 1, mode, roomAgeS: state.t * C.DT, muted,
+      trail: trailPts && nowMs() < trailUntil ? trailPts : null,
+      tuning: { open: tuningOpen, rows: tuneRows(), dirty: runTuned || tunedNow() }
     };
     ctx.setTransform(view.dpr, 0, 0, view.dpr, 0, 0);
     PL.draw(ctx, view, fr, state, hud);
   }
 
-  newRun();
+  newRun(); // scene stays 'menu' until a mode is picked
   requestAnimationFrame(frame);
 
   // ---------- test hook ----------
   window.PL_TEST = {
     getState: () => state,
-    setSeed: n => { seed = n | 0; newRun(); },
+    setSeed: n => { urlSeed = n | 0; seed = urlSeed; scene = 'play'; mode = 'tutorial'; nRooms = 3; newRun(); },
+    startMode: (m, s) => { startMode(m, s === undefined ? (m === 'daily' ? dailySeed() : urlSeed) : s); },
+    menu: () => { toMenu(); },
+    tuning: () => { tuningOpen = !tuningOpen; return tuningOpen; },
+    scene: () => scene,
     inject: arr => { for (const i of (arr || [])) {
       if (!i) continue;
       if (i.k === 'dive') queue.push({ k: 'dive' });
       else if (i.k === 'flip' && Number.isInteger(i.dir) && i.dir >= 0 && i.dir <= 3) queue.push({ k: 'flip', dir: i.dir });
     } },
-    room: n => { gotoRoom((n | 0) - 1); }, // 1-based
+    room: n => { scene = 'play'; gotoRoom((n | 0) - 1); }, // 1-based
     tick: n => { for (let i = 0; i < (n || 1); i++) simTick(); },
     report: buildReport,
     attempts: () => attempts.slice(),
     inputLog: () => inputLog.slice(),
+    getRunStats: () => ({ totalTicks, roomsCleared: cleared.filter(Boolean).length, tuned: runTuned || tunedNow() }),
     isComplete: () => !!complete
   };
   PL.ui = { buildReport };

@@ -22,7 +22,8 @@ for (const [W, H] of [[344, 882], [475, 638]]) {
     const view = { W, H }, cam = PL.camNew();
     const sMin = W / 480 - 1e-6, sMax = W / 336 + 1e-6;
     const sgn = dir === 2 ? 1 : -1;
-    const st = { room: { w: 336, h: 500 }, x: 168, y: dir === 2 ? 20 : 480, vx: 0, vy: 0, g: dir, t: 0, dead: 0, won: false };
+    // room 336x1000: too tall to fit either view, so this exercises the scroll fallback
+    const st = { room: { w: 336, h: 1000 }, x: 168, y: dir === 2 ? 20 : 980, vx: 0, vy: 0, g: dir, t: 0, dead: 0, won: false };
     let prevStepX = null, prevStepY = null, prevCx = null, prevCy = null, prevSc = null, maxJ = 0, minSy = 1e9, maxSy = -1e9;
     let simT = 0, prevDt = 1 / 60;
     for (let f = 0; simT < 10; f++) {
@@ -30,7 +31,8 @@ for (const [W, H] of [[344, 882], [475, 638]]) {
       st.vy = Math.min(700, st.vy + 1500 * dt) * 1; // magnitude
       const spd = st.vy;
       st.y += sgn * spd * dt;
-      if (st.y > 488 || st.y < 12) { st.y = dir === 2 ? 488 : 12; st.vy = 0; }
+      if (st.y > 988 || st.y < 12) { st.y = dir === 2 ? 988 : 12; st.vy = 0; }
+      st.t = f; // ticks-ish; camera snaps while t < 3 (room start)
       const real = { ...st, vy: sgn * st.vy };
       // contract says state.vx/vy; mimic hold at 700 for steady section
       const fr = PL.camUpdate(cam, real, view, dt);
@@ -41,6 +43,7 @@ for (const [W, H] of [[344, 882], [475, 638]]) {
       if (sy + r > 0.55 * H + 1e-6) bad(`${tag} below 55% sy+r=${(sy + r).toFixed(1)}`);
       if (sy + r > 0.6 * H + 0.5) bad(`${tag} in strip sy+r=${(sy + r).toFixed(1)} limit ${0.6 * H}`);
       if (fr.scale < sMin || fr.scale > sMax) bad(`${tag} scale ${fr.scale}`);
+      if (fr.fit !== false) bad(`${tag} expected scroll fallback`);
       if (prevCx !== null) {
         // jitter = frame-to-frame change of the camera's screen-space step (camera "acceleration"), px/frame
         // steps as screen px per 1/60 s so modes compare

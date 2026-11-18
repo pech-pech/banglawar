@@ -3,7 +3,7 @@ import os
 H = os.path.dirname(os.path.abspath(__file__)); OUT = os.path.join(os.path.dirname(H), 'index.html')
 shell = open(os.path.join(H, 'shell.html'), encoding='utf-8').read()
 assert shell.count('<!--PARTS-->') == 1
-js = '\n'.join('(function(){\n' + open(os.path.join(H, 'parts', p + '.js'), encoding='utf-8').read() + '\n})();' for p in 'core rooms camera draw ui'.split())
+js = '\n'.join('(function(){\n' + open(os.path.join(H, 'parts', p + '.js'), encoding='utf-8').read() + '\n})();' for p in 'core rooms tpl1 tpl2 camera draw meta audio ui'.split())
 s = shell.replace('<!--PARTS-->', '<script>\n' + js.replace('</script', '<\\/script') + '\n</script>')
 head = ('<link rel="manifest" href="manifest.webmanifest">\n'
         '<meta name="theme-color" content="#1b1a17">\n'

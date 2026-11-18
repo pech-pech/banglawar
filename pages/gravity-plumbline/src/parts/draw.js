@@ -16,7 +16,11 @@ const PL = (globalThis.PL = globalThis.PL || {});
     const x = W - i.r - 8 - BTN_SIZE * (idx + 1) - GAP * idx;
     return { x: x, y: i.t + 8, w: BTN_SIZE, h: BTN_SIZE };
   }
-  PL.BTN = { copy: function (view) { return btnRect(view, 1); }, path: function (view) { return btnRect(view, 0); } };
+  PL.BTN = {
+    copy: function (view) { return btnRect(view, 1); },
+    path: function (view) { return btnRect(view, 0); },
+    snd: function (view) { return btnRect(view, 2); }
+  };
 
   const PP = { t: null, room: null, g: null, x: null, y: null, pts: [], scratch: null, cs: [] };
   PL.predictPath = function (state, seconds) {
@@ -38,7 +42,7 @@ const PL = (globalThis.PL = globalThis.PL || {});
     for (let k = 0; k < n; k++) {
       s.events.length = 0;
       PL.step(s, []);
-      if (k % 6 === 5) pts.push({ x: s.x, y: s.y });
+      if (k % 4 === 3) pts.push({ x: s.x, y: s.y });
       const ev = s.events;
       if (s.dead || s.won || ev.indexOf('death') >= 0 || ev.indexOf('win') >= 0 || (k >= 3 && (ev.indexOf('land') >= 0 || s.grounded))) {
         pts.push({ x: s.x, y: s.y });
@@ -187,12 +191,21 @@ const PL = (globalThis.PL = globalThis.PL || {});
       }
     }
 
-    // predicted path (dotted)
+    // death replay trail (faded polyline)
+    if (Array.isArray(hud.trail) && hud.trail.length > 1) {
+      const tr = hud.trail, from = Math.max(0, tr.length - 240);
+      ctx.strokeStyle = 'rgba(192,57,43,0.45)'; ctx.lineWidth = 3;
+      ctx.beginPath();
+      for (let i = from; i < tr.length; i++) { if (i === from) ctx.moveTo(sx(tr[i].x), sy(tr[i].y)); else ctx.lineTo(sx(tr[i].x), sy(tr[i].y)); }
+      ctx.stroke();
+    }
+
+    // predicted path (dotted, every 4 ticks)
     if (hud.pathOn && state && !state.dead && !state.won) {
       const pts = PL.predictPath(state, 0.8);
       ctx.fillStyle = BRASS;
       for (let i = 1; i < pts.length; i++) {
-        ctx.beginPath(); ctx.arc(sx(pts[i].x), sy(pts[i].y), 2.5, 0, TAU); ctx.fill();
+        ctx.beginPath(); ctx.arc(sx(pts[i].x), sy(pts[i].y), 3.5, 0, TAU); ctx.fill();
       }
     }
 
@@ -226,7 +239,6 @@ const PL = (globalThis.PL = globalThis.PL || {});
     ctx.fillRect(0, H * 0.6, W, H * 0.4);
     ctx.strokeStyle = 'rgba(31,36,48,0.25)'; ctx.lineWidth = 1;
     ctx.beginPath(); ctx.moveTo(0, H * 0.6); ctx.lineTo(W, H * 0.6); ctx.stroke();
-    text(ctx, 'swipe = flip   tap = dive   hold = restart', W / 2, H - ins.b - 14, 14, 'rgba(31,36,48,0.55)', 'center');
 
     // restart ring
     if (hud.ring > 0) {
@@ -234,41 +246,61 @@ const PL = (globalThis.PL = globalThis.PL || {});
       ctx.beginPath(); ctx.arc(W / 2, H * 0.8, 36, -Math.PI / 2, -Math.PI / 2 + TAU * Math.min(1, hud.ring)); ctx.stroke();
     }
 
-    // HUD band: paper under all HUD text so room content never collides
-    const bandH = ins.t + 120;
+    // bottom edge: tiny seed/fps line, and the control hint on the first attempt only,
+    // only when it sits fully below the room box (never over walls)
+    const botY = H - ins.b - 6;
+    text(ctx, 'seed ' + (hud.seed != null ? hud.seed : 1) + (hud.fps ? '  ' + Math.round(hud.fps) + ' fps' : ''), ins.l + 8, botY, 14, 'rgba(31,36,48,0.6)');
+    if (room && (hud.attempt == null || hud.attempt <= 1) && !hud.hideHint) {
+      const hintY = botY - 24, roomBottom = sy(room.h || 500);
+      if (roomBottom + 6 < hintY - 12) text(ctx, 'swipe = flip   tap = dive   hold = restart', W / 2, hintY, 14, 'rgba(31,36,48,0.6)', 'center');
+    }
+
+    // HUD band (compact): paper under all HUD text; hudTop from camera frame when present
+    const bandH = Math.max(frame.hudTop || 0, 84 + ins.t, ins.t + 72);
     ctx.fillStyle = 'rgba(242,236,220,0.92)';
     ctx.fillRect(0, 0, W, bandH);
     ctx.strokeStyle = INK; ctx.lineWidth = 1;
     ctx.beginPath(); ctx.moveTo(0, bandH + 0.5); ctx.lineTo(W, bandH + 0.5); ctx.stroke();
 
-    // HUD text
     const left = ins.l + 12, top = ins.t;
-    const n = hud.roomIdx != null ? hud.roomIdx + 1 : 1;
-    text(ctx, n + '/3 ' + (hud.roomName || ''), left, top + 24, 16, INK, 'left', true);
-    text(ctx, fmtT(hud.timeS) + '  flips ' + (hud.flips || 0) + '  deaths ' + (hud.deaths || 0), left, top + 44, 14, INK);
-    if (hud.teach) {
-      const maxW = W - 136 - ins.r - left - 8;
-      let tt = String(hud.teach);
-      ctx.font = '500 14px ' + FONT;
-      if (ctx.measureText && maxW > 0) {
-        let guard = 200;
-        while (tt.length > 1 && guard-- > 0 && ctx.measureText(tt).width > maxW) tt = tt.slice(0, -2).replace(/\s+$/, '') + '\u2026';
-      }
-      text(ctx, tt, left, top + 64, 14, 'rgba(31,36,48,0.75)');
-    }
-    text(ctx, 'seed ' + (hud.seed != null ? hud.seed : 1) + (hud.fps ? '  ' + Math.round(hud.fps) + ' fps' : ''), left, top + 84, 14, 'rgba(31,36,48,0.6)');
-    // charge pips
+    const n = hud.roomIdx != null ? hud.roomIdx + 1 : 1, nTot = hud.nRooms || 3;
+    text(ctx, n + '/' + nTot + ' ' + (hud.roomName || ''), left, top + 26, 16, INK, 'left', true);
+    text(ctx, fmtT(hud.timeS) + '  flips ' + (hud.flips || 0) + '  deaths ' + (hud.deaths || 0), left, top + 48, 14, INK);
     const ch = state && state.charges != null ? state.charges : 0, maxc = (PL.C && PL.C.CHARGES) || 2;
     for (let i = 0; i < maxc; i++) {
-      const px = left + 8 + i * 22, py = top + 104;
-      ctx.beginPath(); ctx.arc(px, py, 8, 0, TAU);
+      const px = left + 8 + i * 22, py = top + 66;
+      ctx.beginPath(); ctx.arc(px, py, 7, 0, TAU);
       if (i < ch) { ctx.fillStyle = BRASS; ctx.fill(); }
       ctx.strokeStyle = INK; ctx.lineWidth = 2; ctx.stroke();
     }
 
     // buttons
+    button(ctx, PL.BTN.snd(view), hud.muted ? 'Muted' : 'Sound', !!hud.muted);
     button(ctx, PL.BTN.copy(view), 'Copy', false);
     button(ctx, PL.BTN.path(view), 'Path', !!hud.pathOn);
+
+    // teach pill: first 4 s of a room, top of the play area, wrapped (no ellipsis)
+    if (hud.teach && hud.roomAgeS != null && hud.roomAgeS < 4) {
+      const fade = Math.max(0, Math.min(1, (4 - hud.roomAgeS) / 0.5));
+      const maxW = W - ins.l - ins.r - 40;
+      ctx.font = '600 14px ' + FONT;
+      const mw = function (t) { return ctx.measureText ? (ctx.measureText(t).width || t.length * 7) : t.length * 7; };
+      const words = String(hud.teach).split(/\s+/), lines = [];
+      let cur = '';
+      for (let i = 0; i < words.length; i++) {
+        const t = cur ? cur + ' ' + words[i] : words[i];
+        if (cur && mw(t) > maxW) { lines.push(cur); cur = words[i]; } else cur = t;
+      }
+      if (cur) lines.push(cur);
+      let pw = 0;
+      for (let i = 0; i < lines.length; i++) pw = Math.max(pw, mw(lines[i]));
+      pw = Math.min(pw + 24, W - 16);
+      const ph = lines.length * 20 + 12, pxx = W / 2 - pw / 2, pyy = bandH + 10;
+      ctx.globalAlpha = fade;
+      ctx.fillStyle = INK; ctx.fillRect(pxx, pyy, pw, ph);
+      for (let i = 0; i < lines.length; i++) text(ctx, lines[i], W / 2, pyy + 21 + i * 20, 14, PAPER, 'center', true);
+      ctx.globalAlpha = 1;
+    }
 
     // toast
     if (hud.toast) {
@@ -279,17 +311,99 @@ const PL = (globalThis.PL = globalThis.PL || {});
       text(ctx, hud.toast, W / 2, by + 21, 14, PAPER, 'center', true);
     }
 
+    // tuning panel
+    const tu = hud.tuning;
+    if (tu && tu.open) {
+      const rows = PL.tuningLayout(view, tu.rows || []);
+      const py0 = bandH + 8, last = rows.length ? rows[rows.length - 1].label : { y: py0, h: 0 };
+      ctx.fillStyle = 'rgba(242,236,220,0.97)';
+      ctx.fillRect(8, py0, W - 16, last.y + last.h + 12 - py0);
+      ctx.strokeStyle = INK; ctx.lineWidth = 2;
+      ctx.strokeRect(8, py0, W - 16, last.y + last.h + 12 - py0);
+      text(ctx, 'Tuning', 20, py0 + 22, 16, INK, 'left', true);
+      if (tu.dirty) {
+        ctx.fillStyle = RED; ctx.fillRect(W - 96, py0 + 6, 76, 24);
+        text(ctx, 'TUNED', W - 58, py0 + 23, 14, PAPER, 'center', true);
+      }
+      for (let i = 0; i < rows.length; i++) {
+        const r = rows[i];
+        text(ctx, r.label_text + '  ' + r.value, r.label.x, r.label.y + r.label.h / 2 + 5, 16, INK, 'left', true);
+        button(ctx, r.minus, '-', false);
+        button(ctx, r.plus, '+', false);
+      }
+    }
+
     // complete screen
     const cp = hud.completeScreen;
     if (cp) {
       ctx.fillStyle = 'rgba(242,236,220,0.96)'; ctx.fillRect(0, 0, W, H);
-      const y0 = H * 0.3;
+      const y0 = Math.max(ins.t + 96, H * 0.22);
+      const medal = cp.medal && cp.medal !== 'none' ? String(cp.medal).toUpperCase() : 'NO MEDAL';
       text(ctx, 'Survey complete', W / 2, y0, 28, INK, 'center', true);
-      text(ctx, 'Time ' + fmtT(cp.timeS), W / 2, y0 + 44, 18, INK, 'center');
-      text(ctx, 'Flips ' + (cp.flips || 0) + '   Deaths ' + (cp.deaths || 0), W / 2, y0 + 72, 18, INK, 'center');
-      text(ctx, 'Seed ' + (hud.seed != null ? hud.seed : 1), W / 2, y0 + 100, 14, 'rgba(31,36,48,0.7)', 'center');
-      text(ctx, 'Tap to restart', W / 2, y0 + 140, 18, RED, 'center', true);
+      text(ctx, 'Time ' + fmtT(cp.timeS), W / 2, y0 + 40, 18, INK, 'center');
+      text(ctx, 'Flips ' + (cp.flips || 0) + '   Deaths ' + (cp.deaths || 0), W / 2, y0 + 66, 18, INK, 'center');
+      text(ctx, 'Medal: ' + medal + (cp.flipStar ? '   ★ flip star' : ''), W / 2, y0 + 98, 20, BRASS, 'center', true);
+      let yy = y0 + 124;
+      if (cp.newBest) { text(ctx, 'New best!', W / 2, yy, 18, RED, 'center', true); yy += 26; }
+      if (cp.best) {
+        text(ctx, 'Best ' + fmtT(cp.best.timeS) + '  ' + (cp.best.flips || 0) + ' flips' + (cp.best.medal && cp.best.medal !== 'none' ? '  ' + cp.best.medal : ''), W / 2, yy, 14, 'rgba(31,36,48,0.8)', 'center');
+        yy += 22;
+      }
+      const seed = cp.seed != null ? cp.seed : (hud.seed != null ? hud.seed : 1);
+      text(ctx, (cp.mode ? cp.mode + '  ' : '') + 'seed ' + seed + (cp.nRooms ? '  ' + cp.nRooms + ' rooms' : ''), W / 2, yy, 14, 'rgba(31,36,48,0.7)', 'center');
+      text(ctx, 'tap to continue', W / 2, yy + 36, 18, RED, 'center', true);
       button(ctx, PL.BTN.copy(view), 'Copy', false);
     }
+  };
+
+  // ---- menu ----
+  PL.menuLayout = function (view, items) {
+    const W = (view && view.W) || 360, H = (view && view.H) || 640, i = inset(view);
+    items = items || [];
+    const w = Math.min(Math.max(240, Math.min(W - 32, 320)), W - 8), h = 64, gap = 16;
+    const total = items.length * h + Math.max(0, items.length - 1) * gap;
+    let y = i.t + 100;
+    if (y + total > H * 0.6) y = Math.max(i.t + 70, H * 0.6 - total);
+    const x = (W - w) / 2;
+    return items.map(function (it, k) {
+      return Object.assign({}, it, { rect: { x: x, y: y + k * (h + gap), w: w, h: h } });
+    });
+  };
+  PL.drawMenu = function (ctx, view, menu) {
+    view = view || { W: 360, H: 640 }; menu = menu || {};
+    const W = view.W || 360, H = view.H || 640, ins = inset(view);
+    ctx.fillStyle = PAPER; ctx.fillRect(0, 0, W, H);
+    text(ctx, menu.title || 'Plumbline', W / 2, ins.t + 48, 36, INK, 'center', true);
+    if (menu.sub) text(ctx, menu.sub, W / 2, ins.t + 74, 14, 'rgba(31,36,48,0.7)', 'center');
+    const items = PL.menuLayout(view, menu.items || []);
+    for (let k = 0; k < items.length; k++) {
+      const r = items[k].rect;
+      ctx.fillStyle = PAPER2; ctx.strokeStyle = INK; ctx.lineWidth = 2;
+      ctx.fillRect(r.x, r.y, r.w, r.h); ctx.strokeRect(r.x, r.y, r.w, r.h);
+      text(ctx, items[k].label, r.x + r.w / 2, r.y + (items[k].sub ? 28 : r.h / 2 + 6), 18, INK, 'center', true);
+      if (items[k].sub) text(ctx, items[k].sub, r.x + r.w / 2, r.y + 50, 14, 'rgba(31,36,48,0.7)', 'center');
+    }
+    let y = items.length ? items[items.length - 1].rect.y + items[items.length - 1].rect.h + 28 : ins.t + 120;
+    const bl = menu.bestLines || [];
+    for (let k = 0; k < bl.length && y < H - ins.b - 30; k++, y += 20) text(ctx, bl[k], W / 2, y, 14, 'rgba(31,36,48,0.8)', 'center');
+    if (menu.hint) text(ctx, menu.hint, W / 2, H - ins.b - 28, 14, 'rgba(31,36,48,0.6)', 'center');
+    if (menu.seed != null) text(ctx, 'seed ' + menu.seed, ins.l + 8, H - ins.b - 6, 14, 'rgba(31,36,48,0.6)');
+  };
+
+  // ---- tuning panel layout ----
+  PL.tuningLayout = function (view, rows) {
+    const W = (view && view.W) || 360, i = inset(view);
+    rows = rows || [];
+    const bandH = 84 + i.t, px = 16, pw = W - 32, rowH = 64;
+    const plusX = px + pw - 12 - 56, minusX = plusX - 8 - 56;
+    return rows.map(function (r, k) {
+      const y = bandH + 8 + 36 + k * rowH;
+      return Object.assign({}, r, {
+        label_text: r.label,
+        label: { x: px + 12, y: y, w: Math.max(40, minusX - 8 - (px + 12)), h: 56 },
+        minus: { x: minusX, y: y, w: 56, h: 56 },
+        plus: { x: plusX, y: y, w: 56, h: 56 }
+      });
+    });
   };
 })();
