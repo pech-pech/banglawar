@@ -12,15 +12,16 @@
   function reduced() { return !!(reducedMQ && reducedMQ.matches); }
 
   // ---------- storage ----------
-  var store = { best: {}, attempts: [], set: { assist: true, sound: true, tide: 1 } };
+  var store = { best: Object.create(null), attempts: [], set: { assist: true, sound: true, tide: 1 } };
   try {
     var raw = localStorage.getItem(KEY);
     if (raw) {
       var o = JSON.parse(raw);
       if (o && typeof o === 'object') {
-        if (o.best) store.best = o.best;
+        if (o.best && typeof o.best === 'object') for (var bk in o.best) if (typeof o.best[bk] === 'number') store.best[bk] = o.best[bk];
         if (Array.isArray(o.attempts)) store.attempts = o.attempts.slice(-20);
         if (o.set) for (var k in o.set) store.set[k] = o.set[k];
+        if (store.set.tide !== 0.75 && store.set.tide !== 1 && store.set.tide !== 1.25) store.set.tide = 1;
       }
     }
   } catch (e) {}
@@ -49,8 +50,8 @@
   var s, view, paused = false, overAt = 0, overHandled = false, attemptNo = 0;
   var acc = 0, last = 0, frameTimes = [], simT = 0;
   var down = false, pointerId = null, pdx = 0, pdy = 0, pdt = 0;
-  var pendRev = false, pendCancel = false, ignoreUntilUp = false;
-  var prevMode = 'rim', prevJumps = 0, prevChain = 0, prevSpeed = 0;
+  var pendDown = false, pendRev = false, pendCancel = false, ignoreUntilUp = false;
+  var prevMode = 'rim', prevJumps = 0, prevChain = 0, prevSpeed = 0, prevX = 0, prevY = 0, prevVx = 0, prevVy = 0;
   var W = 0, H = 0, dpr = 1;
 
   function newRun(sd) {
@@ -58,8 +59,8 @@
     s = Moonstep.newRun(seed, { tideScale: store.set.tide });
     attemptNo++;
     overHandled = false; acc = 0; paused = false;
-    prevMode = 'rim'; prevJumps = 0; prevChain = 0; prevSpeed = 0;
-    down = false; pendRev = false; pendCancel = false; ignoreUntilUp = false;
+    prevMode = 'rim'; prevJumps = 0; prevChain = 0; prevSpeed = 0; prevX = 0; prevY = 0; prevVx = 0; prevVy = 0;
+    down = false; pendDown = false; pendRev = false; pendCancel = false; ignoreUntilUp = false;
     hideAll();
     try { var u = new URL(location.href); u.searchParams.set('seed', seed); history.replaceState(null, '', u); } catch (e) {}
     refreshHud();
@@ -74,7 +75,7 @@
     '.mxb{width:56px;height:56px;border-radius:14px;border:1px solid #556;background:rgba(20,26,40,.72);color:#e8ecf4;font:600 13px system-ui,sans-serif;padding:0;touch-action:manipulation}' +
     '.mxb:focus-visible,.mxbtn:focus-visible{outline:3px solid #8cf;outline-offset:2px}' +
     '#mx-hud{left:0;right:0;top:calc(8px + env(safe-area-inset-top));text-align:center;pointer-events:none;text-shadow:0 1px 3px #000}' +
-    '#mx-h{font:700 28px system-ui,sans-serif}#mx-m,#mx-s{opacity:.8;font-size:12px}' +
+    '#mx-h{font:700 28px system-ui,sans-serif}#mx-m,#mx-s,#mx-f{opacity:.8;font-size:12px}' +
     '#mx-chain{width:120px;height:6px;margin:4px auto 0;background:rgba(255,255,255,.18);border-radius:3px;overflow:hidden}' +
     '#mx-cf{height:100%;width:0;background:#7fe0a0}' +
     '.mxo{inset:0;display:none;align-items:center;justify-content:center;background:rgba(5,8,14,.78);z-index:5;padding:calc(16px + env(safe-area-inset-top)) calc(16px + env(safe-area-inset-right)) calc(16px + env(safe-area-inset-bottom)) calc(16px + env(safe-area-inset-left))}' +
@@ -100,7 +101,7 @@
   var hC = el('div', null, hud); hC.id = 'mx-chain';
   var hCf = el('div', null, hC); hCf.id = 'mx-cf';
   var hS = el('div', null, hud); hS.id = 'mx-s';
-  var hCh = el('div', null, hud); hCh.id = 'mx-s';
+  var hCh = el('div', null, hud); hCh.id = 'mx-f';
 
   var bPause = el('button', 'mx mxb', null, 'Pause');
   bPause.setAttribute('aria-label', 'Pause');
@@ -259,7 +260,7 @@
     if (!inZone(e.clientY)) return;
     pointerId = e.pointerId;
     try { canvas.setPointerCapture(e.pointerId); } catch (x) {}
-    down = true; ignoreUntilUp = false;
+    down = true; pendDown = true; ignoreUntilUp = false;
     pdx = e.clientX; pdy = e.clientY; pdt = e.timeStamp;
   });
   canvas.addEventListener('pointermove', function (e) {
@@ -271,7 +272,7 @@
       pdx = e.clientX; pdt = e.timeStamp; // flick window slides; cancel anchor y stays
     }
     if (dy >= 60 && s.runner.charging) {
-      pendCancel = true; down = false; ignoreUntilUp = true;
+      pendCancel = true; pendDown = false; down = false; ignoreUntilUp = true;
     }
   });
   function up(e) {
@@ -299,8 +300,19 @@
 
   // ---------- sim ----------
   var inp = { down: false, reverse: false, cancel: false };
+  // impact 0..1: pre-landing speed along the contact normal; falls back to speed/VMAX if body unknown
+  function landImpact(r) {
+    var b = r.body != null ? r.body : r.bodyId;
+    if (typeof b === 'number') b = s.bodies[b];
+    if (b && typeof b.x === 'number' && typeof b.y === 'number') {
+      var nx = prevX - b.x, ny = prevY - b.y, l = Math.sqrt(nx * nx + ny * ny);
+      if (l > 1e-6) return Math.min(1, Math.abs(prevVx * nx + prevVy * ny) / l / C.VMAX);
+    }
+    return Math.min(1, prevSpeed / C.VMAX);
+  }
   function stepOne() {
-    inp.down = down;
+    inp.down = down || pendDown;
+    pendDown = false;
     inp.reverse = pendRev; inp.cancel = pendCancel;
     pendRev = false; pendCancel = false;
     Moonstep.tick(s, inp);
@@ -308,11 +320,12 @@
     // audio / event detection
     var r = s.runner;
     if (s.jumps > prevJumps) { au('jump'); prevJumps = s.jumps; }
-    if (prevMode === 'air' && r.mode === 'rim') au('land', Math.min(1, prevSpeed / C.VMAX));
+    if (prevMode === 'air' && r.mode === 'rim') au('land', landImpact(r));
     if (s.chain > prevChain) au('chain', s.chain);
     prevChain = s.chain;
     prevMode = r.mode;
     prevSpeed = Math.sqrt(r.vx * r.vx + r.vy * r.vy);
+    prevX = r.x; prevY = r.y; prevVx = r.vx; prevVy = r.vy;
   }
 
   function frame(now) {

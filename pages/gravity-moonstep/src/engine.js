@@ -10,7 +10,7 @@
   var C = {
     DT: 1 / 120, RUN: 90, RUNNER_R: 9, VMAX: 520, JUMP_MIN: 200, JUMP_RANGE: 180, CHARGE_MAX: 0.45,
     STICK_VN: 380, REST: 0.35, CHAIN_WIN: 0.08, CHAIN_BONUS: 1.10, OWN_EXTRA: 0.35, OWN_HYST: 1.15,
-    TIDE0: 22, TIDE_ACC: 0.2, TIDE_MAX: 60, LOST_T: 1.2, G0_BASE: 900, RANGE_K: 3.2, SPIN_MAX: 0.6,
+    TIDE0: 22, TIDE_ACC: 0.2, TIDE_MAX: 60, LOST_T: 1.2, G0_BASE: 900, RANGE_K: 5, SPIN_MAX: 0.6,
     CRUMBLE_T: 1.5, LAND_VT_MAX: 240, VT_DECAY: 200, REPEL_G0: 600, TIDE_START: 260
   };
   var VERSION = 1;
@@ -190,6 +190,7 @@
     r.vt = Math.min(Math.abs(vtan), C.LAND_VT_MAX);
     r.sinceLand = 0; r.bounced = false; r.lostT = 0;
     s.owner = b.id;
+    if (b.kind === 'crumble') b.left = false;
     placeOnRim(r, b);
     var jl = s.jumpLog.length ? s.jumpLog[s.jumpLog.length - 1] : null;
     if (jl && jl.landed === -1) jl.landed = b.id;
@@ -217,7 +218,7 @@
       b = s.bodies[i];
       if (b.dead) continue;
       if (b.spin) b.ang += b.spin * DT;
-      if (b.kind === 'crumble' && b.left) {
+      if (b.kind === 'crumble' && b.left && !(r.mode === 'rim' && r.body === b.id)) {
         b.rem -= (b.r / C.CRUMBLE_T) * DT;
         if (b.rem <= 0) { b.rem = 0; b.dead = true; }
       }
@@ -299,9 +300,11 @@
 
   // ---------- prediction ----------
   var PR = { x: 0, y: 0, vx: 0, vy: 0 };
-  function predictCore(s, chargeSec, maxSteps, wantPts) {
+  function predictCore(s, chargeSec, maxSteps, wantPts, reuse) {
     var r = s.runner, bodies = s.bodies, DT = C.DT, i, b;
-    var pts = wantPts ? [] : null;
+    var pts = wantPts ? (reuse ? PTS : []) : null;
+    var np = 0;
+    if (reuse && wantPts) PTS.length = 0;
     PR.x = r.x; PR.y = r.y;
     var owner = s.owner, bounced = false;
     if (r.mode === 'rim') {
@@ -339,14 +342,22 @@
         PR.vx -= (1 + C.REST) * vn * nx; PR.vy -= (1 + C.REST) * vn * ny;
         bounced = true;
       }
-      if (wantPts && (step % 4 === 0 || hit)) pts.push({ x: PR.x, y: PR.y });
+      if (wantPts && (step % 4 === 0 || hit)) {
+        if (reuse) {
+          var po = STORE[np]; if (!po) po = STORE[np] = { x: 0, y: 0 };
+          po.x = PR.x; po.y = PR.y; np++; pts.push(po);
+        } else pts.push({ x: PR.x, y: PR.y });
+      }
       if (hit) break;
     }
+    if (reuse) { RES.pts = pts; RES.landId = landId; RES.steps = Math.min(step, maxSteps); return RES; }
     return { pts: pts || [], landId: landId, steps: Math.min(step, maxSteps) };
   }
 
-  function predict(s, chargeSec, maxSteps) {
-    return predictCore(s, chargeSec || 0, maxSteps == null ? 60 : maxSteps, true);
+  var PTS = [], STORE = [], RES = { pts: PTS, landId: -1, steps: 0 };
+  // reuse=true: returns a shared result/pts (valid until next reuse call); no per-call allocation.
+  function predict(s, chargeSec, maxSteps, reuse) {
+    return predictCore(s, chargeSec || 0, maxSteps == null ? 60 : maxSteps, true, !!reuse);
   }
 
   // Reachability probe used by gen: runner on prevBody (treated still, spin 0) at thetaDeg, release with charge.
