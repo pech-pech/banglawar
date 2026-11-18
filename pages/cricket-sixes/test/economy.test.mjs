@@ -188,11 +188,11 @@ test('Fans bars', () => {
   assert.equal(X.fansBars(ec(mk(), { stadium: 5, fans: 9999 })).crowd.next, null);
 });
 
-test('transfer value examples; hidden = half the fee', () => {
+test('transfer value: P8 raw examples are capped at 50% of the signing fee', () => {
   const v = (pot) => X.transferValue(P('x', 40, { potential: pot, drillsHere: 1 }));
-  assert.deepEqual([100, 124, 150, 185].map(v), [534, 795, 1236, 1978]);
+  assert.deepEqual([100, 124, 150, 185].map(v), [168, 168, 168, 168]); // raw 534/795/1236/1978, capped by saleBack
   const h = P('h', 40, { drillsHere: 0 });
-  assert.equal(X.transferValue(h), Math.round(0.5 * 6 * 160));
+  assert.equal(X.transferValue(h), X.saleBack(h)); assert.ok(X.transferValue(h) < Math.round(0.5 * 6 * 160));
 });
 
 test('course pay: price, factor, frozen in arrears', () => {
