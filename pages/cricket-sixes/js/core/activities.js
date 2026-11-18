@@ -12,7 +12,7 @@ import { SURNAMES } from '../data/names.js';
 import { makeRng } from './rng.js';
 import { rollPotential } from './ability.js';
 import { skewOn, skewPlayer, squadMax } from './skew.js';
-import { canAfford, reserveLow, wageOf, RESERVE_WARNING } from './economy.js';
+import { signFee, canAfford, reserveLow, wageOf, RESERVE_WARNING } from './economy.js';
 import { coachList, MAX_COACHES } from './training.js';
 
 const rd = Math.round;
@@ -145,6 +145,8 @@ export function signTrial(s) {
   if (t.kind === 'player') {
     const c = n.clubs[0];
     if (c.squad.length >= squadMax(s) || c.squad.some((/** @type {any} */ x) => x.id === t.player.id)) return s;
+    const fee = signFee(t.player); if (e.coins < fee) return s;
+    e.coins -= fee; e.ledger[e.ledger.length - 1].fee = fee;
     c.squad.push(clone(t.player));
   } else {
     if (coachList(s).length >= MAX_COACHES || (s.coaches || []).some((/** @type {any} */ c) => c.id === t.coach.id)) return s; // r9 L4: never two coaches with one id
@@ -164,7 +166,7 @@ export function declineTrial(s) {
 /** Can the waiting trial be signed? { ok, why } for the card (squad full -> release first). @param {any} s */
 export function canSignTrial(s) {
   const t = trialOf(s); if (!t) return { ok: false, why: 'none' };
-  if (t.kind === 'player') return s.clubs[0].squad.length >= squadMax(s) ? { ok: false, why: SQUAD.fullText } : { ok: true, why: '' };
+  if (t.kind === 'player') return s.clubs[0].squad.length >= squadMax(s) ? { ok: false, why: SQUAD.fullText } : s.econ.coins < signFee(t.player) ? { ok: false, why: 'Not enough Coins for the fee' } : { ok: true, why: '' };
   if ((s.coaches || []).some((/** @type {any} */ c) => c.id === t.coach.id)) return { ok: false, why: 'Already on your staff' };
   return coachList(s).length >= MAX_COACHES ? { ok: false, why: 'Coach slots full: release one first' } : { ok: true, why: '' };
 }

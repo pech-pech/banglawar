@@ -1,13 +1,14 @@
 // @ts-check
 // s1 season-end recruits (2026-11-14-squad-skew/SPEC.md; admin reading of M's "the first recruit at the end of the season fills the quota").
 // On the season-end screen of an s1 game: three candidates (one Opener, one Middle, one Lower), skewed, from their own rng stream.
-// Sign one (free, wage applies) or pass; one per season. A full squad names who leaves (free, no refund).
+// Sign one (fee 0.35 x feeOf, wage applies) or pass; one per season. A full squad names who leaves (free, no refund).
 import { SKEW } from '../data/run.js';
 import { SEASON } from '../data/season.js';
 import { leagueOf } from '../data/leagues.js';
 import { SURNAMES } from '../data/names.js';
 import { makeRng } from './rng.js';
 import { rollPotential } from './ability.js';
+import { signFee } from './economy.js';
 import { aiPickSix } from './clubs.js';
 import { skewOn, skewPlayer, squadMax } from './skew.js';
 
@@ -37,8 +38,6 @@ export function recruitList(s) {
   });
 }
 
-/** Signing fee in Coins (SKEW.recruitFee by league; 0 until M's fee card). @param {any} s */
-export const recruitFee = (s) => SKEW.recruitFee[leagueN(s) - 1] || 0;
 /** Sign recruit `id`. Full squad: `leaveId` (in the squad) leaves, free. Same state when refused. @param {any} s @param {{id?:string, leaveId?:string}} p */
 export function recruitSign(s, p) {
   if (!recruitOpen(s) || !p || !p.id) return s;
@@ -46,7 +45,7 @@ export function recruitSign(s, p) {
   const c0 = s.clubs[0];
   if (c0.squad.some((/** @type {any} */ x) => x.id === r.id)) return s;
   const full = c0.squad.length >= squadMax(s);
-  const fee = recruitFee(s);
+  const fee = signFee(r);
   if (fee > 0 && !(s.econ && s.econ.coins >= fee)) return s;
   if (full && !(p.leaveId && c0.squad.some((/** @type {any} */ x) => x.id === p.leaveId))) return s;
   const n = clone(s), c = n.clubs[0];

@@ -20,7 +20,7 @@ export const ECON = {
   FAN_FIN: { semi: 20, runner: 60, champ: 160 },
   MEDALS: { semi: 1, runner: 2, champ: 4 },
   TP_FIN: { semi: 75, runner: 200, champ: 400 },   // TP is not held in s.econ: see finalsTp()
-  GYM_TP: [0, 17, 20, 23, 26, 29],
+  GYM_TP: [0, 9, 10, 12, 13, 15], // half the old 17/20/23/26/29, halves rounded up
   FAC: ['stands', 'shop', 'nets', 'gym', 'pitch', 'academy', 'scout'],
   FAC_COST: {
     stands: [0, 0, 365, 600, 1350, 3000],
@@ -45,15 +45,13 @@ export const ECON = {
   WAGE_FLOOR: 4, WAGE_K: 7.0, WAGE_P: 2.0, WAGE_REF: 50,
   REVEAL_AFTER_DRILLS: 1,
   POT_FACTOR: [[90, 0.85], [105.5, 0.92], [117.5, 1.0], [131.5, 1.25], [150, 1.5], [185, 2.0]],
-  FEE_PER_POINT: 6, RELEASE_REFUND: 0.5, TRANSFER_PCT: 0.5,
+  FEE_PER_POINT: 6, RECRUIT_FEE_PCT: 0.35, SALE_BACK: 0.5, RELEASE_REFUND: 0.5, TRANSFER_PCT: 0.5,
   MIN_SQUAD: 6, MISSED_FOR_SALE: 2,
   RESERVE_PAYDAYS: 5, RESERVE_WAGE_PAYDAYS: 3, // 3 = careful policy wage_paydays (tuning economy.table.TYPES.careful)
   LEDGER_MAX: 40,
   COURSE_FACTOR: [1, 1.25, 1.55, 1.95, 2.5], COURSE_BASE: 24, COURSE_PER_STEP: 6,
   MEDAL_SHOP: [
-    { id: 'trophy_cabinet', name: 'Trophy Cabinet (gold trim on the stadium)', medals: 1, once: true },
     { id: 'twin_drill', name: 'Twin Spotlight Pass (two players get the Spotlight wheel next training week)', medals: 2 },
-    { id: 'clear_sight', name: 'Clear-sight Scout Report (one trip shows exact ratings)', medals: 3 },
     { id: 'wage_holiday', name: 'Wage Holiday (half wages for one season)', medals: 4 },
     { id: 'master_licence', name: 'Master Coach Licence (one coach may take a second course this season)', medals: 6 },
   ],
@@ -66,7 +64,6 @@ export const ECON = {
     { id: 'roof_crest', name: 'Stadium Roof and Crest', coins: 2600, stadium: 5, needs: 'big_screen' },
     { id: 'hall_plaque', name: 'Hall plaque', medals: 3, needs: 'hall_1', repeat: 'retired' },
     { id: 'legends_banner', name: 'Legends Banner', medals: 5, needs: 'hall_2' },
-    { id: 'coach_retreat', name: 'Coach Retreat Week', coins: 500, stadium: 4, repeat: 'season' },
   ],
   LEGACY: { price: { 4: 8000, 5: 13000 }, fans: 500, segmentsPerTier: 10,
     names: ['Riverside Orchard', 'Village Green Pavilion', 'Sunrise Nets Hall', 'Old Oak Scoreboard', 'Harbour Lights Terrace', 'Meadow Practice Wing',

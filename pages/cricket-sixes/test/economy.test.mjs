@@ -107,7 +107,7 @@ test('L2 prices are x1.4 (L3-L5 unchanged)', () => {
 
 test('gymTp and canPromote', () => {
   assert.equal(X.gymTp(mk()), 0);
-  assert.equal(X.gymTp(ec(mk(), { fac: { ...X.newEconomy().fac, gym: 3 } })), 23);
+  assert.equal(X.gymTp(ec(mk(), { fac: { ...X.newEconomy().fac, gym: 3 } })), 12);
   assert.deepEqual(X.canPromote(mk()), { ok: false, why: 'Build Stadium 2 first' });
   assert.equal(X.canPromote(ec(mk(), { stadium: 2 })).ok, true);
   assert.equal(X.canPromote(ec(mk(8, 40, 3), { stadium: 3 })).ok, false);
@@ -146,18 +146,13 @@ test('late sinks: order, gates, reserve rule', () => {
   assert.equal(X.sinkOptions(ec(s, { coins: 1399 })).find((o) => o.id === 'hall_2').ok, false, 'coins still needed');
   assert.equal(X.reserveOk(tight, 1400), false);
   assert.equal(X.reserveOk(ec(s, { coins: 1400 + need }), 1400), true);
-  // retreat once a season
-  s = X.buySink(s, 'coach_retreat'); assert.equal(by('coach_retreat').ok, false);
-  s.season = { league: 4, n: 2 }; assert.equal(by('coach_retreat').ok, true);
 });
 
 test('Medal shop', () => {
   let s = ec(mk(), { medals: 16 });
   const shop = X.medalShop(s);
-  assert.deepEqual(shop.map((m) => m.medals), [1, 2, 3, 4, 6]);
-  s = X.buyMedal(s, 'trophy_cabinet'); assert.equal(s.econ.medals, 15);
-  assert.equal(X.buyMedal(s, 'trophy_cabinet'), s);
-  s = X.buyMedal(s, 'wage_holiday'); assert.equal(s.econ.medals, 11);
+  assert.deepEqual(shop.map((m) => m.medals), [2, 4, 6]);
+  s = X.buyMedal(s, 'wage_holiday'); assert.equal(s.econ.medals, 12);
   assert.equal(X.matchIncome(s, {}).wages, Math.round(X.matchIncome(mk(), {}).wages / 2));
   assert.equal(X.medalShop(s).find((m) => m.id === 'wage_holiday').ok, false);
   assert.equal(X.buyMedal(ec(mk(), { medals: 1 }), 'master_licence').econ.medals, 1);
@@ -193,11 +188,11 @@ test('Fans bars', () => {
   assert.equal(X.fansBars(ec(mk(), { stadium: 5, fans: 9999 })).crowd.next, null);
 });
 
-test('transfer value examples; hidden = half the fee', () => {
+test('transfer value: P8 raw examples are capped at 50% of the signing fee', () => {
   const v = (pot) => X.transferValue(P('x', 40, { potential: pot, drillsHere: 1 }));
-  assert.deepEqual([100, 124, 150, 185].map(v), [534, 795, 1236, 1978]);
+  assert.deepEqual([100, 124, 150, 185].map(v), [168, 168, 168, 168]); // raw 534/795/1236/1978, capped by saleBack
   const h = P('h', 40, { drillsHere: 0 });
-  assert.equal(X.transferValue(h), Math.round(0.5 * 6 * 160));
+  assert.equal(X.transferValue(h), X.saleBack(h)); assert.ok(X.transferValue(h) < Math.round(0.5 * 6 * 160));
 });
 
 test('course pay: price, factor, frozen in arrears', () => {
@@ -223,4 +218,43 @@ test('a tie gives half a win in Fans (finals multiplier as usual; stands not mul
   assert.equal(X.matchIncome(st, { tie: true }).fans, 25 + 15);
   const hi = mk(8, 40, 3); const m = (X.matchIncome(hi, { win: true }).fans - 5) / 40;
   assert.equal(X.matchIncome(hi, { tie: true }).fans, Math.round(25 * m) + 5);
+});
+
+test('TP ledger gains a Gym line each match (half-rate TP)', async () => {
+  const { newGame, step } = await import('./_season-bot.mjs');
+  const { createStore } = await import('../js/store/store.js');
+  const g0 = newGame('gym-tp').get();
+  const st = createStore({ ...g0, econ: { ...g0.econ, fac: { ...g0.econ.fac, gym: 2 } } });
+  for (let g = 0; st.get().stage !== 'done' && g < 500; g++) step(st);
+  const tp0 = st.get().training.tp;
+  st.dispatch('FinishMatch');
+  const a = st.get(), row = a.econ.ledger.filter((r) => r.k === 'gym').slice(-1)[0];
+  assert.equal(a.pay.gym, 10);
+  assert.deepEqual(row, { k: 'gym', tp: 10 });
+  assert.equal(a.training.tp - tp0, a.pay.total);
+});
+
+test('Pitch locked: Coming soon, no buy, owned level kept, no upkeep', () => {
+  const s = mk();
+  const o = X.buildOptions(s).find((b) => b.what === 'pitch');
+  assert.equal(o.ok, false); assert.equal(o.why, 'Coming soon');
+  const rich = ec(ec(s, { coins: 99999, stadium: 5 }), { fac: { ...s.econ.fac, pitch: 0 } });
+  assert.equal(X.startBuild(rich, 'pitch'), rich, 'locked buy rejected');
+  const own = ec(s, { fac: { ...s.econ.fac, pitch: 3 } });
+  assert.equal(own.econ.fac.pitch, 3);
+  assert.equal(X.matchIncome(own, {}).upkeep, X.matchIncome(s, {}).upkeep, 'Pitch upkeep is 0');
+});
+
+test('removed items gone; migrateMedalRefund refunds once', async () => {
+  const ids = [...X.medalShop(mk()).map((m) => m.id), ...X.sinkOptions(mk()).map((m) => m.id)];
+  for (const id of ['trophy_cabinet', 'clear_sight', 'coach_retreat']) assert.ok(!ids.includes(id), id);
+  const s = ec(mk(), { medals: 2, coins: 100, sinks: { trophy_cabinet: 1, clear_sight: 2, coach_retreat: 1, retreatSeason: 3, twin_drill: 1 } });
+  const a = X.migrateMedalRefund(JSON.parse(JSON.stringify(s)));
+  assert.equal(a.econ.medals, 2 + 1 + 6); assert.equal(a.econ.coins, 600);
+  assert.deepEqual(a.econ.sinks, { twin_drill: 1 });
+  const b = X.migrateMedalRefund(JSON.parse(JSON.stringify(a))); assert.deepEqual(b.econ, a.econ);
+  const { migrate } = await import('../js/core/save-migrate.js');
+  const m1 = migrate({ ...JSON.parse(JSON.stringify(s)), v: 8, stage: 'hub' }, 8).state; // runs on load
+  assert.equal(m1.econ.medals, 9); assert.ok(!('trophy_cabinet' in m1.econ.sinks));
+  assert.equal(migrate(m1, m1.v).state.econ.medals, 9);
 });

@@ -17,7 +17,7 @@ import { isWheelMatch, rivalBowler, suggestedBowler, modelOf } from './wheelmatc
 import { planProblem, livePlan, squadFull, canSell, squadMax } from './commands.js';
 import { recruitList, recruitRec, recruitOpen } from '../core/recruit.js';
 import { skewOn } from '../core/skew.js';
-import { wageOf } from '../core/economy.js';
+import { wageOf, signFee } from '../core/economy.js';
 import { RUN, SQUAD } from '../data/run.js';
 import { seasonResult, chapterNames, runScore, carryOf } from '../core/run.js';
 import { PAIRING } from '../data/pairing.js';
@@ -26,7 +26,7 @@ import { FLAGS } from '../data/flags.js';
 import { whyShort, keyBall } from '../ui/why.js';
 import { ACT } from '../data/activities.js';
 import { activityOptions, trialOf, canSignTrial } from '../core/activities.js';
-import { freePickOptions, freePickPending, matchIncome } from '../core/economy.js';
+import { freePickOptions, freePickPending, matchIncome, gymTp } from '../core/economy.js';
 import { MD } from '../data/matchday.js';
 import { ECON as ECON_DATA } from '../data/economy.js';
 const ECON_FANS_GATE = ECON_DATA.STADIUM_FANS;
@@ -167,6 +167,8 @@ export function resultVM(s) {
       outcome = w === ME ? 'won' : 'lost';
     }
     pay = matchPay(s, { outcome, kind: fx.kind });
+    const gym = s.econ ? gymTp(s) : 0; // the Gym's own TP line, same as FinishMatch pays: the result card must show the TP the pool will gain
+    if (gym > 0) { pay.gym = gym; pay.total += gym; }
     tpEarned = pay.total;
   }
   return {
@@ -277,7 +279,7 @@ export function recruitsVM(s) {
   const row = (/** @type {any} */ p) => ({ id: p.id, name: p.name, role: p.bat, type: p.bowl, shown: shownAbility(p), batShown: shownBat(p), bowlShown: shownBowl(p) });
   const full = sq.length >= max;
   return {
-    list: recruitOpen(s) ? recruitList(s).map((p) => ({ ...row(p), wage: wageOf(p) })) : [],
+    list: recruitOpen(s) ? recruitList(s).map((p) => ({ ...row(p), wage: wageOf(p), fee: signFee(p) })) : [],
     full, release: full && recruitOpen(s) ? sq.map(row) : [], size: sq.length, max,
     signed: rec && rec.signed ? String(rec.name || '') : null, left: rec && rec.left ? String(rec.left) : null, passed: !!(rec && rec.passed),
   };
@@ -769,7 +771,7 @@ export function trialVM(s) {
   const full = t.kind === 'player' && squadFull(s);
   // Who can be let go to make room: the existing SellPlayer gate decides (bench only in season, never below the minimum squad).
   const release = full ? mine(s).squad.filter((p) => canSell(s, p.id).ok).map((p) => ({ id: p.id, name: p.name, role: p.bat, type: p.bowl, shown: shownAbility(p), batShown: shownBat(p), bowlShown: shownBowl(p) })) /* QA3 m1: same letters as the trial player */ : [];
-  return { kind: t.kind, player, coach, wage: t.wage, squadFull: full, release, squadSize: mine(s).squad.length, squadMax: squadMax(s), released: t.kind === 'player' && t.released ? String(t.released) : '',
+  return { kind: t.kind, player, coach, wage: t.wage, fee: t.kind === 'player' ? signFee(x) : 0, squadFull: full, release, squadSize: mine(s).squad.length, squadMax: squadMax(s), released: t.kind === 'player' && t.released ? String(t.released) : '',
     canSign: can.ok, why: can.ok ? '' : can.why, sign: 'Sign', decline: 'Decline' };
 }
 /** The one free facility. pending = show the screen / Home card. null with the flag off. */

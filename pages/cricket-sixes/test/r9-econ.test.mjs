@@ -33,7 +33,7 @@ test('flags default off; old start and income unchanged', () => {
   const s = mk(), i = X.matchIncome(s, { win: true });
   assert.equal(i.fans, 45); assert.equal(i.split, undefined);
   const b = X.buildOptions(s);
-  assert.equal(b.find((o) => o.what === 'shop').why, 'Needs Stadium 2'); assert.equal(b.find((o) => o.what === 'pitch').why, 'Needs Stadium 3');
+  assert.equal(b.find((o) => o.what === 'shop').why, 'Needs Stadium 2'); assert.equal(b.find((o) => o.what === 'pitch').why, 'Coming soon');
   assert.equal(b.find((o) => o.what === 'stands').level, 2);
   assert.equal(A.activityOptions(s).open, false); assert.equal(A.pickActivity(s, 'street'), s);
   assert.equal(X.freePickPending(s), false); assert.equal(X.takeFreePick(s, 'stands'), s);
@@ -60,11 +60,11 @@ test('free pick: all L0, one free L1, others cost Coins from round 1, no stadium
   assert.deepEqual(s.econ.fac, { stands: 0, shop: 0, nets: 0, gym: 0, pitch: 0, academy: 0, scout: 0 }); assert.deepEqual(s.econ.freePick, { done: false, pick: null });
   assert.equal(X.freePickPending(s), true);
   const o = X.freePickOptions(s);
-  assert.equal(o.length, 7); assert.ok(o.every((x) => x.ok && x.effect));
+  assert.equal(o.length, 7); assert.ok(o.every((x) => (x.ok || x.what === 'pitch') && x.effect)); assert.equal(o.find((x) => x.what === 'pitch').ok, false);
   assert.equal(o.find((x) => x.what === 'stands').recommended, true);
   assert.match(o.find((x) => x.what === 'academy').note, /sign screen/); assert.match(o.find((x) => x.what === 'scout').note, /sign screen/); assert.match(o.find((x) => x.what === 'pitch').note, /not in matches/);
   const b = X.buildOptions(s);
-  for (const k of E.FAC) { const r = b.find((x) => x.what === k); assert.equal(r.level, 1); assert.equal(r.coins, E.FAC_L1_COST[k]); assert.equal(r.ok, true, k); }
+  for (const k of E.FAC) { const r = b.find((x) => x.what === k); assert.equal(r.level, 1); assert.equal(r.coins, E.FAC_L1_COST[k]); assert.equal(r.ok, k !== 'pitch', k); }
   assert.equal(Object.values(E.FAC_L1_COST).reduce((a, c) => a + c, 0), 560);
   const t = X.takeFreePick(s, 'stands');
   assert.equal(t.econ.fac.stands, 1); assert.equal(t.econ.coins, 1300); assert.deepEqual(t.econ.freePick, { done: true, pick: 'stands' });
@@ -94,9 +94,9 @@ test('v6 migration: each facility mix; nothing owned is removed; no freepick not
   withFlags({ freePick: true }, () => {
     const n = migrate(v5({}), 5).state;
     assert.equal(n.notice, undefined, 'r9 L8: no undismissable freepick notice'); assert.equal(X.freePickPending(n), true);
-    assert.deepEqual(X.freePickOptions(n).filter((x) => x.ok).map((x) => x.what), ['shop', 'gym', 'pitch', 'scout']);
+    assert.deepEqual(X.freePickOptions(n).filter((x) => x.ok).map((x) => x.what), ['shop', 'gym', 'scout']);
     assert.equal(X.freePickOptions(n).find((x) => x.what === 'stands').owned, true);
-    const t = X.takeFreePick(n, 'pitch'); assert.equal(t.econ.fac.pitch, 1); assert.equal(t.econ.coins, n.econ.coins); assert.equal(t.econ.fac.stands, 1);
+    assert.equal(X.takeFreePick(n, 'pitch'), n, 'locked Pitch cannot be the free pick'); const t = X.takeFreePick(n, 'gym'); assert.equal(t.econ.fac.gym, 1); assert.equal(t.econ.coins, n.econ.coins); assert.equal(t.econ.fac.stands, 1);
     const withNotice = migrate({ ...v5({}), notice: 'squad8' }, 5).state; assert.equal(withNotice.notice, 'squad8');
     const all = migrate(v5({ shop: 2, gym: 3, pitch: 1, scout: 5, stands: 4 }), 5).state;
     assert.deepEqual(all.econ.freePick, { done: true, pick: null }); assert.equal(all.notice, undefined); assert.equal(all.econ.fac.scout, 5); assert.equal(all.econ.fac.stands, 4);
@@ -185,7 +185,7 @@ test('trial player: wage shown, Sign adds him free, squad max applies, Decline i
   assert.equal(A.signTrial(t), t, 'full squad: refused, state unchanged');
   const small = { ...t, clubs: [{ ...t.clubs[0], squad: t.clubs[0].squad.slice(0, 7) }] };
   const ok = A.signTrial(small);
-  assert.equal(ok.clubs[0].squad.length, 8); assert.equal(ok.clubs[0].squad.at(-1).id, p.id); assert.equal(ok.trial, undefined); assert.equal(ok.econ.coins, small.econ.coins, 'no fee');
+  assert.equal(ok.clubs[0].squad.length, 8); assert.equal(ok.clubs[0].squad.at(-1).id, p.id); assert.equal(ok.trial, undefined); assert.equal(ok.econ.coins, small.econ.coins - X.signFee(p), 'fee 0.35 x feeOf');
   assert.equal(ok.econ.ledger.at(-1).signed, true);
   const no = A.declineTrial(t); assert.equal(no.trial, undefined); assert.equal(no.clubs[0].squad.length, 8); assert.equal(no.econ.ledger.at(-1).signed, false);
   assert.equal(A.declineTrial(no), no); assert.equal(A.signTrial(no), no);

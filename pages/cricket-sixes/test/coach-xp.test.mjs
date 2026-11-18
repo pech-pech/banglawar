@@ -45,3 +45,19 @@ test('corrupt xp is clamped on read', () => {
   const n = draft({ step: 4, xp: 'x' }); payXp(n, 'k1', 3, 'nets'); assert.equal(n.coaches[0].xp, 3);
   const m = draft({ step: 4, xp: 99999 }); payXp(m, "k1", 1, "nets"); assert.equal(m.coaches[0].step, 5); assert.equal(m.coaches[0].xp, 0); /* clamped to cost-1, then +1 */
 });
+
+test('D1 Balanced: both-strong coach gets 75% quality and 10 nets XP', async () => {
+  const { coachQuality } = await import('../js/core/training.js');
+  const s = game({ coaches: [K({ strong: ['bat', 'bowl'] })], plan: { focus: 'bal', effort: 'normal' } }); s.training.coach_id = 'k1';
+  const full = game({ coaches: [K({ strong: ['bat', 'bowl'] })], plan: { focus: 'bat', effort: 'normal' } }); full.training.coach_id = 'k1';
+  assert.ok(coachQuality(full) > 0);
+  assert.ok(Math.abs(coachQuality(s) - 0.75 * coachQuality(full)) < 1e-9);
+  assert.equal(netsXp(s, 'k1'), 10);
+});
+test('D2 Balanced: single-skill coach unchanged (quality 0, XP 5)', async () => {
+  const { coachQuality } = await import('../js/core/training.js');
+  for (const st of [['bat'], ['bowl']]) {
+    const s = game({ coaches: [K({ strong: st })], plan: { focus: 'bal', effort: 'normal' } }); s.training.coach_id = 'k1';
+    assert.equal(coachQuality(s), 0); assert.equal(netsXp(s, 'k1'), 5);
+  }
+});

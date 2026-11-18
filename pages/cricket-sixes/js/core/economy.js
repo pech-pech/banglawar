@@ -28,7 +28,9 @@ const coinMult = (/** @type {any} */ s) => E.COIN_MULT[league(s) - 1];
 const fanMult = (/** @type {any} */ s) => E.FAN_MULT[league(s) - 1];
 const rd = Math.round;
 const note = (/** @type {any} */ e, /** @type {any} */ row) => { e.ledger.push(row); if (e.ledger.length > E.LEDGER_MAX) e.ledger.splice(0, e.ledger.length - E.LEDGER_MAX); };
-const sumLevels = (/** @type {any} */ e) => E.FAC.reduce((a, k) => a + (e.fac[k] || 0), 0);
+/** Pitch is locked (Coming soon): an owned Pitch level is kept in e.fac but costs no upkeep. */
+export const LOCKED_FAC = ['pitch'];
+const sumLevels = (/** @type {any} */ e) => E.FAC.reduce((a, k) => a + (LOCKED_FAC.includes(k) ? 0 : (e.fac[k] || 0)), 0);
 const inArrears = (/** @type {any} */ e) => e.arrears > 0;
 
 // ---- players: wage, fee, transfer value ----
@@ -48,8 +50,16 @@ export function wageOf(p) {
 }
 /** Signing fee = 6 x shown sum x max(1, avg/50). @param {any} p */
 export const feeOf = (p) => { const sum = p.bp + p.bs + p.spd + p.bsk; return rd(E.FEE_PER_POINT * sum * Math.max(1, sum / 4 / E.WAGE_REF)); };
+/** Fee paid to sign a season-end recruit or a scouted player = 0.35 x feeOf. @param {any} p */
+export const signFee = (p) => rd(E.RECRUIT_FEE_PCT * feeOf(p));
+/** Coins back when a player we signed is sold or released = 50% of the fee paid (always below it, so no arbitrage). @param {any} p */
+export const saleBack = (p) => rd(E.SALE_BACK * signFee(p));
 /** Coins for selling/releasing. Revealed: 50% x 6 x capSum(P) x max(1, capAvg/50). Hidden: 50% of the fee. @param {any} p */
 export function transferValue(p) {
+  const v = rawTransferValue(p);
+  return p.bp != null ? Math.min(v, saleBack(p)) : v; // never above 50% of the signing fee: sign-then-sell can't gain
+}
+function rawTransferValue(/** @type {any} */ p) {
   if (!revealed(p) && p.bp != null) return rd(E.RELEASE_REFUND * feeOf(p));
   const capAvg = 1 + (p.potential - 20) * 98 / 180, capSum = rd(4 * capAvg);
   return rd(E.TRANSFER_PCT * E.FEE_PER_POINT * capSum * Math.max(1, capAvg / E.WAGE_REF));
@@ -188,7 +198,7 @@ export function buildOptions(s) {
     const cur = e.fac[k]; if (cur >= 5) continue;
     const L = cur + 1;
     const open = (v2Rules(e) ? E.FAC_OPEN_V2 : E.FAC_OPEN)[k];
-    gate(k, L, facCost(k, L, e), 0, 0, e.stadium < open ? `Needs Stadium ${open}` : L > e.stadium ? `Needs Stadium ${L}` : null);
+    gate(k, L, facCost(k, L, e), 0, 0, LOCKED_FAC.includes(k) ? 'Coming soon' : e.stadium < open ? `Needs Stadium ${open}` : L > e.stadium ? `Needs Stadium ${L}` : null);
   }
   return out;
 }
@@ -225,7 +235,7 @@ export function sinkOptions(s) {
   return E.SINKS.map((k) => {
     const n = doneCount(e, k.id);
     let why = '';
-    if (k.repeat === 'season' ? e.sinks.retreatSeason === seasonN(s) : !k.repeat && n) why = 'Done';
+    if (!k.repeat && n) why = 'Done';
     if (!why && k.stadium && e.stadium < k.stadium) why = `Needs Stadium ${k.stadium}`;
     if (!why && k.needs && !doneCount(e, k.needs)) why = `Needs ${E.SINKS.find((x) => x.id === k.needs)?.name} first`;
     if (!why && k.repeat === 'retired' && n >= retiredCount(s)) why = 'Needs a retired player';
@@ -238,7 +248,6 @@ export function buySink(/** @type {any} */ s, /** @type {string} */ id) {
   const o = sinkOptions(s).find((x) => x.id === id);
   if (!o || !o.ok) return s;
   const e = clone(econOf(s)); e.coins -= o.coins; e.medals -= o.medals; e.sinks[id] = (e.sinks[id] || 0) + 1;
-  if (id === 'coach_retreat') e.sinks.retreatSeason = seasonN(s);
   note(e, { k: 'sink', id, coins: o.coins, medals: o.medals });
   return withEcon(s, e);
 }
@@ -302,17 +311,30 @@ const FREE_TEXT = {
 /** True while a free pick is still waiting (flag on, not taken, something still at L0). @param {any} s */
 export function freePickPending(s) {
   const e = econOf(s);
-  return on('freePick') && !!e.freePick && !e.freePick.done && E.FAC.some((k) => (e.fac[k] || 0) === 0);
+  return on('freePick') && !!e.freePick && !e.freePick.done && E.FAC.some((k) => !LOCKED_FAC.includes(k) && (e.fac[k] || 0) === 0);
 }
 /** The seven cards: facilities still at L0 can be picked; the rest show as owned. Recommended Stands; honest notes on no-effect-yet ones. @param {any} s */
 export function freePickOptions(s) {
   const e = econOf(s), open = freePickPending(s);
-  return E.FAC.map((k) => ({ what: k, name: FREE_TEXT[k].name, effect: FREE_TEXT[k].effect, note: FREE_TEXT[k].note || '', recommended: !!FREE_TEXT[k].rec, price: E.FAC_L1_COST[k], owned: (e.fac[k] || 0) >= 1, ok: open && (e.fac[k] || 0) === 0 }));
+  return E.FAC.map((k) => ({ what: k, name: FREE_TEXT[k].name, effect: FREE_TEXT[k].effect, note: FREE_TEXT[k].note || '', recommended: !!FREE_TEXT[k].rec, price: E.FAC_L1_COST[k], owned: (e.fac[k] || 0) >= 1, ok: open && (e.fac[k] || 0) === 0 && !LOCKED_FAC.includes(k) }));
 }
 /** Take the free L1: no charge, no upkeep change beyond the level. Refused when done, owned or flag off. @param {any} s @param {string} what */
 export function takeFreePick(s, what) {
-  if (!freePickPending(s) || !E.FAC.includes(what) || (econOf(s).fac[what] || 0) !== 0) return s;
+  if (!freePickPending(s) || !E.FAC.includes(what) || LOCKED_FAC.includes(what) || (econOf(s).fac[what] || 0) !== 0) return s;
   const e = clone(econOf(s)); e.fac[what] = 1; e.freePick = { done: true, pick: what };
   note(e, { k: 'freepick', what, level: 1, coins: 0 });
   return withEcon(s, e);
+}
+
+/** Removed shop items (Trophy Cabinet 1 Medal, Clear-sight Scout Report 3 Medals each, Coach Retreat 500 Coins each): refund what a save paid, once.
+ *  Idempotent: the bought counts are deleted from econ.sinks, so a second call finds nothing. Called on load from save-migrate. No VERSION bump. @param {any} s */
+export function migrateMedalRefund(s) {
+  const k = s && s.econ && s.econ.sinks; if (!k || typeof k !== 'object') return s;
+  const n = (/** @type {string} */ id) => Math.max(0, Math.floor(Number(k[id]) || 0));
+  const medals = n('trophy_cabinet') * 1 + n('clear_sight') * 3, coins = n('coach_retreat') * 500;
+  const had = ['trophy_cabinet', 'clear_sight', 'coach_retreat', 'retreatSeason'].filter((id) => id in k);
+  if (!had.length) return s;
+  for (const id of had) delete k[id];
+  s.econ.medals = (Number(s.econ.medals) || 0) + medals; s.econ.coins = (Number(s.econ.coins) || 0) + coins;
+  return s;
 }

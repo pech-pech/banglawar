@@ -20,7 +20,7 @@ export const EFFECT = {
   stands: ['none', '+5 Fans, seats as built', '+10 Fans, +10% seats', '+15 Fans, +20% seats', '+20 Fans, +30% seats', '+25 Fans, +40% seats'],
   shop: ['none', '+6 Coins', '+12 Coins', '+22 Coins', '+34 Coins', '+50 Coins'],
   nets: ['a few Good and Great drills', 'a bit more Good and Great', 'more Good and Great', 'more Good and Great', 'lots more Good and Great', 'the most Good and Great'], // NETS_Q 3..14 by level (data/training.js)
-  gym: ['none', '+17 TP', '+20 TP', '+23 TP', '+26 TP', '+29 TP'],
+  gym: ['none', '+9 TP', '+10 TP', '+12 TP', '+13 TP', '+15 TP'],
   pitch: ['none', 'helps your bowlers a little', 'helps your bowlers a little', 'helps your bowlers some', 'helps your bowlers some', 'helps your bowlers a lot'],
   academy: ['none', '1 offered', 'better odds', 'choose from 2', 'better odds', 'choose from 3'],
   scout: ['none', 'sees ratings roughly', 'sees ratings fairly well', 'sees ratings quite well', 'sees ratings closely', 'sees ratings almost exactly'],

@@ -31,7 +31,7 @@ function rowInner(r, extra) {
 }
 
 function recruitRow(r) {
-  const wage = Number(r.wage) ? 'Wage: ' + fmt(r.wage) + ' Coins a match' : 'No wage';
+  const wage = (Number(r.fee) ? 'Fee: ' + fmt(r.fee) + ' Coins. ' : '') + (Number(r.wage) ? 'Wage: ' + fmt(r.wage) + ' Coins a match' : 'No wage');
   return '<li class="cl-rc-row"><div class="cl-rc-info" role="group" aria-label="' + esc(r.name + ', ' + said(r) + '. ' + wage) + '">' +
     rowInner(r, '<span class="cl-opt__s" aria-hidden="true"><span class="cl-rel__k">' + icoDeco('coin', 20) + '<span>' + esc(wage) + '</span></span></span>') + '</div>' +
     '<button type="button" class="c-btn c-btn--primary cl-rc-sign" data-rc-sign="' + esc(r.id) + '" aria-label="' + esc('Sign ' + r.name) + '">' + icoDeco('done', 24) + '<span>Sign</span></button></li>';
@@ -76,7 +76,7 @@ function inner(rc, mode) {
       '<div class="cl-actions"><button type="button" class="c-btn" data-rc-cancel="1">' + icoDeco('close', 24) + '<span>Cancel</span></button></div>';
   }
   return '<h3 class="cl-h" tabindex="-1">' + icoDeco('team', 24) + '<span>Recruits</span></h3>' +
-    '<p class="cl-note">' + icoDeco('info', 24) + '<span>' + esc('Sign one for free (wage applies), or pass.' + (sizeWord(rc) ? ' ' + sizeWord(rc) + '.' : '') + (rc.full ? ' Full: one player must leave.' : '')) + '</span></p>' +
+    '<p class="cl-note">' + icoDeco('info', 24) + '<span>' + esc('Sign one (fee and wage apply), or pass.' + (sizeWord(rc) ? ' ' + sizeWord(rc) + '.' : '') + (rc.full ? ' Full: one player must leave.' : '')) + '</span></p>' +
     '<ul class="cl-rc-list">' + list.map(recruitRow).join('') + '</ul>' +
     '<div class="cl-actions"><button type="button" class="c-btn" data-rc-pass="1">' + icoDeco('close', 24) + '<span>Pass</span></button></div>';
 }

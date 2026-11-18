@@ -42,3 +42,13 @@ test('R4 coach line counts any job and nets focus matched', () => {
   assert.ok(l.includes('nets 1, match 2, study 1, scout 1'), l);
   assert.ok(l.includes('nets focus matched 1 of 2'), l);
 });
+
+test('E report training lines: coach used = any job, week-start pool, real node count and TP', () => {
+  const W = [{ s: 1, wk: 1, tp0: 120, tpEnd: 40, aff: 1, nodes: 2, nodeTp: 30, cj: [0, 1, 0, 0] }, { s: 1, wk: 2, tp0: 50, tpEnd: 150, aff: 0, nodes: 0, nodeTp: 0, cj: [0, 0, 0, 0] }];
+  const R = [{ s: 1, wk: 1, eff: 'normal', foc: 'bat', co: 0, r: [1, 0, 0], tp0: 100, tp1: 60 }];
+  const l = sec('T', { weeks: W, nets: R });
+  assert.ok(l.includes('Coach used 1.'), l); // match job, no nets coach
+  assert.ok(l.includes('Nodes bought 2 (30 TP)'), l);
+  assert.ok(l.includes('Push affordable 1 of 2 weeks'), l);
+  assert.ok(l.includes('Pool over 100: 1 of 2'), l); // week-start 120, not end 150
+});
