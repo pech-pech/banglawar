@@ -2,6 +2,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { applyCommand as C } from '../js/store/commands.js';
+import { FLAGS } from '../js/data/flags.js';
 import { feeOf } from '../js/core/economy.js';
 import { recruitList } from '../js/core/recruit.js';
 
@@ -63,6 +64,8 @@ test('cannot sign a recruit you cannot afford; Coins stay put', () => {
 });
 
 test('scout/trial sign costs 0.35 x feeOf, sale pays half of it, poor club refused', () => {
+  const old = FLAGS.activities; FLAGS.activities = true;
+  try {
   const base = endGame('trial', 100000); base.clubs[0].squad.pop();
   const p = { ...recruitList(base)[0], id: 'tr-x', name: 'Zed Trial' };
   const mk = (coins) => { const s = clone(base); s.econ.coins = coins; s.stage = 'squad'; s.trial = { kind: 'player', player: clone(p), wage: 0, from: 'x', key: 'k' }; return s; };
@@ -75,4 +78,5 @@ test('scout/trial sign costs 0.35 x feeOf, sale pays half of it, poor club refus
   near(back, 0.5 * fee); assert.ok(back < fee);
   const poor = C(mk(Math.max(0, fee - 1)), 'SignTrial');
   assert.ok(poor.econ.coins >= 0);
+  } finally { FLAGS.activities = old; }
 });
