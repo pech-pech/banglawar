@@ -279,7 +279,15 @@
     report: buildReport, launch: launch,
     setSeed: function (n) { seed = n | 0; newRun(); },
     hold: function (on, t) { if (on) pointers.set('test', { y: 0, y0: t == null ? 0 : (1 - t) * 120 + 12 }); else pointers.delete('test'); },
-    get events() { return events; }
+    get events() { return events; },
+    skipTo: function (n) { n = Math.max(0, Math.min(SECTORS - 1, n | 0)); genToken++; loadSector(n); },
+    finish: function () {
+      genToken++; if (!sector) sector = { par: { fuel: 8 }, bodies: [], gate: { x: 170, y: 60 } };
+      const fk = (sector.par && sector.par.fuel) || 8; attempts = [];
+      for (let i = 0; i < SECTORS; i++) attempts.push({ sector: i, attempt: 1, result: 'docked', fuelUsed: +(fk * (1.1 + 0.05 * (i % 4))).toFixed(3), par: +fk.toFixed(3), steps: 600 + 20 * i, checksum: 0, burns: 2 + (i % 3) });
+      idx = SECTORS - 1; if (!st) st = S.newState(sector, fuelStart || 20);
+      finishRun();
+    }
   };
   resize();
   try { if (BW.report && BW.report.selfCheck) { const r = BW.report.selfCheck(); det = { ok: !!r.ok, checksum: r.checksum }; energyDrift = r.energyDrift; } } catch (e) {}

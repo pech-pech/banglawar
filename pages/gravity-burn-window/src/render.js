@@ -42,14 +42,17 @@
     font(ctx, px, weight); ctx.fillStyle = color; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(str, x, y);
   }
 
-  function panel(ctx, V, lines, accent) {
-    var cx = V.w / 2, cy = V.oy + H * V.scale * 0.42;
-    var pw = Math.min(V.w - 32, 300), ph = 28 + lines.length * 30;
-    ctx.fillStyle = 'rgba(8,16,18,0.82)'; ctx.fillRect(cx - pw / 2, cy - ph / 2, pw, ph);
-    ctx.lineWidth = 2; ctx.strokeStyle = accent; ctx.strokeRect(cx - pw / 2, cy - ph / 2, pw, ph);
+  // Compact translucent strip placed in the upper or lower free band, whichever is farther from the craft/crash point and gate.
+  function panel(ctx, V, lines, accent, avoid) {
+    var cx = V.w / 2, pw = Math.min(V.w - 32, 300), lh = 22, ph = 14 + lines.length * lh;
+    var top = V.oy + 30, bot = V.oy + H * V.scale - 8 - ph, top2 = top, y = bot;
+    function clr(y0) { var m = 1e9; for (var i = 0; i < (avoid || []).length; i++) { var a = avoid[i][0], pd = avoid[i][1], d = (a < y0 ? y0 - a : (a > y0 + ph ? a - y0 - ph : 0)) - pd; if (d < m) m = d; } return m; }
+    if (avoid && avoid.length) y = clr(top2) > clr(bot) ? top2 : bot;
+    ctx.fillStyle = 'rgba(8,16,18,0.7)'; ctx.fillRect(cx - pw / 2, y, pw, ph);
+    ctx.lineWidth = 2; ctx.strokeStyle = accent; ctx.strokeRect(cx - pw / 2, y, pw, ph);
     for (var i = 0; i < lines.length; i++) {
       var L = lines[i];
-      textCenter(ctx, L.s, cx, cy - ph / 2 + 28 + i * 30, L.px || 16, L.c || INK, L.w);
+      textCenter(ctx, L.s, cx, y + 7 + lh / 2 + i * lh, L.px || 16, L.c || INK, L.w);
     }
   }
 
@@ -136,7 +139,7 @@
       var n = pred.pts.length;
       for (i = 0; i < n; i += 6) {
         var p = pred.pts[i], f = 1 - i / Math.max(1, n);
-        ctx.globalAlpha = 0.25 + 0.75 * f; ctx.fillStyle = plain ? '#ff9a3c' : TEAL;
+        ctx.globalAlpha = 0.35 + 0.65 * f; ctx.fillStyle = plain ? '#ff9a3c' : TEAL;
         circle(ctx, X(p.x), Y(p.y), 2); ctx.fill();
       }
       ctx.globalAlpha = 1;
@@ -149,11 +152,11 @@
     }
 
     // ghost craft
-    if (G.ghost) craft(ctx, X(G.ghost.x), Y(G.ghost.y), G.ghost.hx, G.ghost.hy, Math.max(7, 8 * sc), 'rgba(232,226,207,0.28)', 'rgba(232,226,207,0.4)');
+    if (G.ghost) craft(ctx, X(G.ghost.x), Y(G.ghost.y), G.ghost.hx, G.ghost.hy, Math.max(11, 11 * sc), 'rgba(232,226,207,0.28)', 'rgba(232,226,207,0.4)');
 
     // craft + flame
     if (st && st.status !== 'crashed') {
-      var cx = X(st.x), cy = Y(st.y), size = Math.max(7, 8 * sc), hx = st.hx || 1, hy = st.hy || 0;
+      var cx = X(st.x), cy = Y(st.y), size = Math.max(11, 11 * sc), hx = st.hx || 1, hy = st.hy || 0;
       if (st.active) {
         var th = st.throttle == null ? 1 : st.throttle;
         var fk = reduced ? 1 : 0.85 + 0.15 * Math.sin(t * 90);
@@ -206,15 +209,18 @@
     }
 
     // phase overlays
-    var ph = G.phase;
+    var ph = G.phase, av = [];
+    if (st && ph !== 'end') av.push([Y(st.y), 34]);
+    if (sec && sec.gate) av.push([Y(sec.gate.y), 52]);
+    if (G.ghostLine) for (i = 0; i < G.ghostLine.length; i += 8) av.push([Y(G.ghostLine[i].y), 6]);
     if (ph === 'intro') {
       panel(ctx, V, [{ s: 'SECTOR ' + si + '/' + sn + ' - tap to launch', px: 17, c: BRASS, w: '700' }, { s: 'hold = burn, release = coast', px: 13, c: DIM }], BRASS);
     } else if (ph === 'docked') {
-      panel(ctx, V, [{ s: 'DOCKED', px: 22, c: TEAL, w: '700' }, { s: 'fuel used ' + (st ? st.fuelUsed.toFixed(1) : '') + (G.parFuel != null ? ' / par ' + G.parFuel.toFixed(1) : ''), px: 14 }], TEAL);
+      panel(ctx, V, [{ s: 'DOCKED', px: 22, c: TEAL, w: '700' }, { s: 'fuel used ' + (st ? st.fuelUsed.toFixed(1) : '') + (G.parFuel != null ? ' / par ' + G.parFuel.toFixed(1) : ''), px: 14 }], TEAL, av);
     } else if (ph === 'failed') {
-      panel(ctx, V, [{ s: 'LOST CONTACT', px: 20, c: RED, w: '700' }, { s: G.msg || 'mission failed', px: 14 }, { s: 'tap to retry', px: 13, c: DIM }], RED);
+      panel(ctx, V, [{ s: 'LOST CONTACT', px: 20, c: RED, w: '700' }, { s: G.msg || 'mission failed', px: 14 }, { s: 'tap to retry', px: 13, c: DIM }], RED, av);
     } else if (ph === 'end') {
-      panel(ctx, V, [{ s: 'RUN COMPLETE', px: 22, c: BRASS, w: '700' }, { s: G.msg || (sn + ' sectors flown'), px: 14 }], BRASS);
+      panel(ctx, V, [{ s: 'RUN COMPLETE', px: 22, c: BRASS, w: '700' }, { s: G.msg || (sn + ' sectors flown'), px: 14 }], BRASS, av);
     }
     ctx.restore();
   }
