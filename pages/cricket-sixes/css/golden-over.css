@@ -32,8 +32,8 @@
 .go-fw { font: 30px/34px var(--font-head); letter-spacing: .04em; }
 .go-g-P { color: #5fd38a; } .go-g-G { color: #FFE36E; } .go-g-M { color: #ff8a7d; }
 .go-fr { font: 24px/28px var(--font-head); }
-.go-float small { font-size: 14px; line-height: 18px; opacity: .9; }
-.go-float.is-sum { top: 34%; left: 50%; right: auto; transform: translateX(-50%); width: max-content; max-width: 62%; gap: 6px; padding: 8px 10px; background: rgba(28, 42, 34, .7); } /* narrow plate over the pitch strip, fielders stay visible */
+.go-float small { font-size: 16px; line-height: 20px; opacity: .95; }
+.go-float.is-sum { top: 6px; left: 50%; right: auto; transform: translateX(-50%); width: max-content; max-width: 62%; gap: 6px; padding: 8px 10px; background: rgba(28, 42, 34, .7); } /* narrow plate over the pitch strip, fielders stay visible */
 .go-float { box-sizing: border-box; }
 .go-sumh { font: 26px/30px var(--font-head); color: #D2B357; }
 .go-sumt { font-size: 18px; line-height: 24px; font-weight: 700; }
@@ -49,3 +49,5 @@
   .go-recal { right: auto; left: calc(8px + env(safe-area-inset-left, 0px)); }
 }
 .wm.go-calhold { display: block; padding: 0; overflow-y: auto; background: #14171c; }
+.wm .go-pad:focus:not(:focus-visible) { outline: none; }
+.go-recal { min-height: 56px; }

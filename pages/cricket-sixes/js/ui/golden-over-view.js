@@ -49,18 +49,12 @@ export function summaryText(taps, avg) {
   return 'Taps ' + n + ' of 12. Runs ' + runs + (wk ? ', wickets ' + wk : '') + ', wheel average ' + (avg == null ? '-' : Number(avg).toFixed(1));
 }
 
-// ---------- selectors without an engine import in the view: app.js may pass getVM; else lazy selectors + the page store ----------
-let selMod = null, selP = null;
-export function goldenInfo() { // sync, null until the selectors have loaded (wheelmatch-view re-renders when it is ready)
-  try { const s = window.__store && window.__store.get(); return selMod && s ? selMod.goldenVM(s) : null; } catch (e) { return null; }
-}
-export function whenReady(cb) {
-  if (selMod) return;
-  if (!selP) selP = import('../store/selectors.js').then((m) => { selMod = m; return m; }, () => null);
-  selP.then((m) => { if (m && typeof cb === 'function') cb(); });
-}
-const stageNow = () => { try { return window.__store.get().stage; } catch (e) { return ''; } };
-const lastOver = () => { try { const l = window.__store.get().last; return l && l.golden ? l : null; } catch (e) { return null; } };
+// ---------- selectors: wheelmatch-view hands over vm.goldenVM / vm.goldenState (app.js); no engine import here ----------
+let src = { vm: null, state: null };
+export function setGoldenSource(vm) { src = { vm: vm && typeof vm.goldenVM === 'function' ? vm.goldenVM : null, state: vm && typeof vm.goldenState === 'function' ? vm.goldenState : null }; }
+export function goldenInfo() { try { return src.vm ? src.vm() : null; } catch (e) { return null; } } // sync
+const stageNow = () => { try { return src.state().stage; } catch (e) { return ''; } };
+const lastOver = () => { try { const l = src.state().last; return l && l.golden ? l : null; } catch (e) { return null; } };
 
 /** Mount and play. opts = { dispatch, getVM?, bowler?, onDone(), onCancel?() }. Returns { close }. */
 export function playGolden(el, opts) {

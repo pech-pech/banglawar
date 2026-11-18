@@ -126,6 +126,7 @@ async function run(VP) {
   if (!check(`${tag}: pitch screen shows (canvas + 6 circles + pad)`, onField && (await circles()).length === 6, 'no .go screen')) return ctx.close();
   check(`${tag}: no reserved text row ("Ball 1 of 6" gone)`, !/ball \d of 6/i.test(await S(() => document.querySelector('.go').innerText)), 'text row present');
   const c0 = await circles(); check(`${tag}: ring on the next empty circle`, c0[0].next && !c0.slice(1).some((c) => c.next), JSON.stringify(c0.map((c) => c.next)));
+  const rc = await page.locator('.go-recal').boundingBox(); check(`${tag}: Recalibrate button >= ${MIN_H} px tall`, !!rc && rc.height >= MIN_H && rc.width >= MIN_H, JSON.stringify(rc));
   await shot('ready');
   await pressAt(pad); // starts ball 1
   await tapBalls(0, 3, pad);

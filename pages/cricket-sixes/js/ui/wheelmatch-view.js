@@ -16,7 +16,7 @@ import { glowOn } from './wheel-look.js';
 import { autoRestHtml } from '../store/wheelmatch-store.js';
 import { ballGlyph, ballWord, overTotals, playOverPanel } from './over-panel.js';
 import { chipRowHtml, roarChipHtml } from './matchday-view.js';
-import { playGolden, goldenInfo, whenReady as goldenWhenReady } from './golden-over-view.js';
+import { playGolden, goldenInfo, setGoldenSource } from './golden-over-view.js';
 
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const TAU = Math.PI * 2;
@@ -129,7 +129,6 @@ export function overWords(runs, wk) { return plural(runs, 'run') + ', ' + (wk ? 
 const st = { mounted: false, key: '', over: 0, phase: 'pick', bowler: null, auto: null, autoSpun: 0, autoSum: null, stopReq: false, busy: false, res: null, el: null, vm: null, dispatch: null, open: null, live: '', chips: [] };
 /** A tap's time on the performance.now() clock: event.timeStamp when it is on that clock (a sane DOMHighResTimeStamp), else now. */
 const tapTime = (ev) => { const now = performance.now(), ts = ev && ev.timeStamp; return typeof ts === 'number' && ts > 0 && ts <= now + 50 ? ts : now; };
-let goldenReady = false;
 let seenKey = ''; // in memory only: after a reload the last stored hand-spun result shows once (no re-spin), then NEXT
 const seenGet = () => seenKey;
 const seenSet = (k) => { seenKey = k; };
@@ -374,7 +373,7 @@ function fontFam() { return css('--font-head', '') || 'system-ui, sans-serif'; }
 // ---------- render ----------
 /** @param {HTMLElement} el @param {any} vm @param {(cmd:string, payload?:any)=>any} dispatch @param {any} open */
 export function render(el, vm, dispatch, open) {
-  st.el = el; st.vm = vm; st.dispatch = dispatch; st.open = open;
+  st.el = el; st.vm = vm; st.dispatch = dispatch; st.open = open; setGoldenSource(vm);
   if (st.busy && el.querySelector('.wm')) return; // an animation owns the screen (app.js holds re-renders during a WheelOver)
   const key = (vm.side || '') + '|' + (vm.mode || '');
   if (key !== st.key) { st.key = key; st.phase = 'pick'; st.bowler = null; st.res = null; st.tickNote = ''; if (st.auto) stopAuto(); }
@@ -383,7 +382,6 @@ export function render(el, vm, dispatch, open) {
     if (L && L.wheel && !L.wheel.auto && L.over === vm.over - 1 && seenGet() !== rk) st.res = { wheel: L.wheel, balls: L.balls || [], over: L.over, score: vm.score, stage: null, nextLabel: 'Next over', seenKey: rk, reload: true };
   }
   if (vm.over !== st.over) { st.over = vm.over; if (!st.res) st.phase = st.auto ? 'auto' : 'pick'; }
-  if (!goldenReady) { goldenReady = true; goldenWhenReady(() => { if (st.el && !st.busy && st.vm) render(st.el, st.vm, st.dispatch, st.open); }); }
   { const g = goldenInfo(); if (g && g.active && !st.auto && !st.res) { startGoldenOver(el, vm); return; } } // reload mid-over: the Captain's Over resumes at the next ball
   if (st.res) return showResult(el, vm, st.res, false);
   if (st.auto) { el.innerHTML = wheelHtml(vm, 'auto'); const w = setupWheel(el, vm.segs, vm); w.draw(st.restPos || 0, { over: vm.over }); bindView(el); const b = el.querySelector('[data-wm="stop-auto"]'); if (b && st.focusStop) b.focus(); scheduleAuto(); return; }
@@ -421,29 +419,24 @@ function bindView(el) {
 // ---------- Captain's Over hand-off (golden-over-view.js owns the screen; it reads goldenVM and dispatches Golden*) ----------
 function startGoldenOver(el, vm) {
   if (st.busy) return;
+  const h = st.dispatch('GoldenHold'); // app.js hold handle: the screen is ours until release(); null when something else holds it
+  if (!h) return;
   st.busy = true; // renders from the store's notifications are ignored while the golden screen owns el
-  const back = () => { st.busy = false; st.phase = 'pick'; st.bowler = null; st.res = null; const v = typeof vm.vmFor === 'function' ? vm.vmFor() : null; render(el, v || st.vm || vm, st.dispatch, st.open); };
+  const free = () => { st.busy = false; st.phase = 'pick'; st.bowler = null; st.res = null; h.release(); };
   playGolden(el, {
     dispatch: (c, p) => st.dispatch(c, p), bowler: vm.side === 'bowl' ? pickedBowler(vm) : null,
-    onCancel: back,
-    onDone(handle) { // the over is committed (no n.last.wheel, so no WheelOver hold): hand to the normal over panel, then redraw the next stage
-      const after = () => {
-        st.busy = false; st.phase = 'pick'; st.bowler = null; st.res = null;
-        if (handle && typeof handle.release === 'function') { handle.release(); return; }
-        const v = typeof vm.vmFor === 'function' ? vm.vmFor() : null;
-        if (v) { render(el, v, st.dispatch, st.open); return; }
-        try { location.reload(); } catch (e) { /* stage change without a handle: the saved state resumes on reload */ }
-      };
+    onCancel: free,
+    onDone() { // the over is committed (no n.last.wheel, so no WheelOver hold): the normal over panel, then release() redraws the next stage
       let o = null; try { o = goldenOverInfo(); } catch (e) { o = null; }
-      if (!o) { after(); return; }
-      playOverPanel({ title: 'Over ' + o.over + ", Captain's Over", balls: o.balls, score: o.score, nextLabel: o.nextLabel, batKit: o.first ? 'B' : 'A', roar: o.roar, golden: true, onDone: after });
+      if (!o) { free(); return; }
+      playOverPanel({ title: 'Over ' + o.over + ", Captain's Over", balls: o.balls, score: o.score, nextLabel: o.nextLabel, batKit: o.first ? 'B' : 'A', roar: o.roar, golden: true, onDone: free });
     },
   });
 }
 
 /** The committed golden over for the over panel (names like app.js's BowlOver panel). Reads the page store; null when it is not there. */
 function goldenOverInfo() {
-  const s = window.__store && window.__store.get(); if (!s || !s.last || !s.last.golden) return null;
+  const s = st.vm && typeof st.vm.goldenState === 'function' ? st.vm.goldenState() : null; if (!s || !s.last || !s.last.golden) return null;
   const first = s.stage === 'bowl' || s.stage === 'break' || (s.stage === 'done' && false), L = s.last;
   const bowlSide = s.inn1 && (s.stage === 'bowl' || s.stage === 'break'), inn = bowlSide ? s.inn1 : s.inn2;
   const bats = (bowlSide ? s.rival : s.me).players, bowls = (bowlSide ? s.me : s.rival).players, bw = bowls[L.bowler];

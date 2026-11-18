@@ -190,11 +190,11 @@ function renderDoc(db) {
       const set = rows.filter((r) => r.mode === mode && r.off === off && r.who === who && r.pol !== 'none');
       if (!set.length) continue;
       md += `\n### rival offset ${off}, ${who}${base ? ` (baseline no Captain's Over: ${f1(100 * base.win / base.n)}% +-${f1(ci(base))}, n ${base.n}, our runs ${f1(base.ours / base.n)}, rival ${f1(base.rival / base.n)})` : ''}\n\n`;
-      md += `| Over policy | Tap sd | Win % | +- | vs baseline | Overs used | Runs / C.Over | Wheel avg (same overs) | Wickets / C.Over | P % | G % | M % | secs |\n|---|---|---|---|---|---|---|---|---|---|---|---|---|\n`;
+      md += `| Over policy | Tap sd | n | Win % | +- | vs baseline | Overs used | Runs / C.Over | Wheel avg (same overs) | Wickets / C.Over | P % | G % | M % | secs |\n|---|---|---|---|---|---|---|---|---|---|---|---|---|---|\n`;
       for (const pol of ['ov10', 'ov1']) for (const sd of ['35', '60', '110', 'rand']) {
         const r = set.find((x) => x.pol === pol && x.sd === sd); if (!r) continue;
         const gt = r.grades.P + r.grades.G + r.grades.M || 1;
-        md += `| ${pol} | ${sd} | ${f1(100 * r.win / r.n)} | ${f1(ci(r))} | ${base ? (100 * (r.win - base.win) / r.n >= 0 ? '+' : '') + f1(100 * (r.win - base.win) / r.n) : '-'} | ${r.used} | ${r.used ? f2(r.runs / r.used) : '-'} | ${r.used ? f2(r.wheelAvg / r.used) : '-'} | ${r.used ? f2(r.wk / r.used) : '-'} | ${f1(100 * r.grades.P / gt)} | ${f1(100 * r.grades.G / gt)} | ${f1(100 * r.grades.M / gt)} | ${r.secs} |\n`;
+        md += `| ${pol} | ${sd} | ${r.n} | ${f1(100 * r.win / r.n)} | ${f1(ci(r))} | ${base ? (100 * (r.win - base.win) / r.n >= 0 ? '+' : '') + f1(100 * (r.win - base.win) / r.n) : '-'} | ${r.used} | ${r.used ? f2(r.runs / r.used) : '-'} | ${r.used ? f2(r.wheelAvg / r.used) : '-'} | ${r.used ? f2(r.wk / r.used) : '-'} | ${f1(100 * r.grades.P / gt)} | ${f1(100 * r.grades.G / gt)} | ${f1(100 * r.grades.M / gt)} | ${r.secs} |\n`;
       }
     }
   }
@@ -208,6 +208,7 @@ function renderDoc(db) {
   md += `\n## Gate\n\nPasses 60% (careful, sd 35, offset -9, live rule): ov10 ${pass(sd35)}, ov1 ${pass(sd35b)}.\n`;
   const pz = (m) => { const a = get(m, -9, 'careful', 'ov10', '35'), b = get(m, -9, 'careful', 'ov1', '35'); return a || b ? `ov10 ${a ? pass(a) : 'n/a'}, ov1 ${b ? pass(b) : 'n/a'}` : null; };
   if (rows.some((r) => r.mode === 'prize')) md += `Passes 60% (same, prize variant): ${pz('prize')}.\n`;
+  md += `\nNot run (time): rival offset -10, random wheel play, sd 60 and rand cells not in this file, any cell absent from the tables above.\n`;
   writeFileSync(join(GAME, 'docs/GOLDEN-SIM.md'), md);
   console.log('wrote docs/GOLDEN-SIM.md');
 }
