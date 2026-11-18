@@ -72,17 +72,18 @@
     'html,body{margin:0;height:100%;background:#0b0e14;overflow:hidden;overscroll-behavior:none}' +
     '#c{position:fixed;inset:0;width:100%;height:100%;touch-action:none;display:block;-webkit-user-select:none;user-select:none}' +
     '.mx{position:fixed;font:14px/1.3 system-ui,sans-serif;color:#e8ecf4;-webkit-tap-highlight-color:transparent}' +
-    '.mxb{width:56px;height:56px;border-radius:14px;border:1px solid #556;background:rgba(20,26,40,.72);color:#e8ecf4;font:600 13px system-ui,sans-serif;padding:0;touch-action:manipulation}' +
+    '.mxb{width:56px;height:56px;border-radius:14px;border:1px solid #556;background:#0f1424;color:#e8ecf4;font:600 13px system-ui,sans-serif;padding:0;touch-action:manipulation}' +
     '.mxb:focus-visible,.mxbtn:focus-visible{outline:3px solid #8cf;outline-offset:2px}' +
-    '#mx-hud{left:0;right:0;top:calc(8px + env(safe-area-inset-top));text-align:center;pointer-events:none;text-shadow:0 1px 3px #000}' +
-    '#mx-h{font:700 28px system-ui,sans-serif}#mx-m,#mx-s,#mx-f{opacity:.8;font-size:12px}' +
+    '#mx-hud{left:50%;transform:translateX(-50%);max-width:calc(100% - 144px);box-sizing:border-box;top:calc(8px + env(safe-area-inset-top));text-align:center;pointer-events:none;text-shadow:0 1px 3px #000;background:rgba(10,14,24,.86);border:1px solid rgba(255,255,255,.14);border-radius:14px;padding:4px 12px 6px;color:#fff}' +
+    '#mx-h{font:700 28px system-ui,sans-serif}#mx-m,#mx-s,#mx-f{opacity:1;color:#dfe5f2;font-size:12px}#mx-f:empty{display:none}' +
     '#mx-chain{width:120px;height:6px;margin:4px auto 0;background:rgba(255,255,255,.18);border-radius:3px;overflow:hidden}' +
     '#mx-cf{height:100%;width:0;background:#7fe0a0}' +
     '.mxo{inset:0;display:none;align-items:center;justify-content:center;background:rgba(5,8,14,.78);z-index:5;padding:calc(16px + env(safe-area-inset-top)) calc(16px + env(safe-area-inset-right)) calc(16px + env(safe-area-inset-bottom)) calc(16px + env(safe-area-inset-left))}' +
     '.mxp{background:#161c2c;border:1px solid #445;border-radius:16px;padding:18px;max-width:340px;width:100%;box-sizing:border-box;max-height:100%;overflow:auto}' +
     '.mxp h2{margin:0 0 6px;font-size:22px}.mxp p{margin:4px 0 10px}' +
     '.mxbtn{display:block;width:100%;min-height:56px;margin:8px 0;border-radius:12px;border:1px solid #667;background:#243050;color:#fff;font:600 15px system-ui,sans-serif;touch-action:manipulation}' +
-    '.mxbtn:disabled{opacity:.45}.mxbtn.on{background:#2d6a4a}' +
+    '.mxbtn:disabled{opacity:.45}.mxbtn.on{background:#2d6a4a;border:2px solid #9fe8b8}' +
+    '.mxgo{text-align:center}.mxgo .big{font:700 44px/1.1 system-ui,sans-serif}.mxgo .cause{margin:2px 0 10px;opacity:.9}.mxgo .grid{display:grid;grid-template-columns:1fr 1fr;gap:6px 12px;text-align:left}.mxgo .grid div{background:#0d1220;border-radius:8px;padding:6px 10px}.mxgo .grid b{display:block;font-size:11px;font-weight:600;opacity:.7;text-transform:uppercase}' +
     '.mxrow{display:flex;gap:8px}.mxrow .mxbtn{margin:8px 0}' +
     '.mxp input,.mxp textarea{width:100%;box-sizing:border-box;border-radius:8px;border:1px solid #667;background:#0d1220;color:#fff;font:14px monospace;padding:8px}' +
     '.mxp textarea{height:160px}';
@@ -110,14 +111,19 @@
   bCopy.setAttribute('aria-label', 'Copy report');
   bCopy.style.cssText = 'right:calc(8px + env(safe-area-inset-right));top:calc(8px + env(safe-area-inset-top));z-index:3';
 
-  function overlay() { var o = el('div', 'mx mxo', null); var p = el('div', 'mxp', o); return { o: o, p: p }; }
+  function overlay() { var o = el('div', 'mx mxo', null); var p = el('div', 'mxp', o); var v = { o: o, p: p }; ovs.push(v); return v; }
   function btn(txt, parent, fn) {
     var b = el('button', 'mxbtn', parent, txt);
     b.addEventListener('click', function (ev) { ev.stopPropagation(); fn(b); });
     return b;
   }
-  function show(ov) { ov.o.style.display = 'flex'; }
-  function hide(ov) { ov.o.style.display = 'none'; }
+  var ovs = [];
+  function chrome() {
+    var open = ovs.some(function (v) { return v.o.style.display === 'flex'; });
+    [hud, bCopy].forEach(function (e) { e.style.visibility = open ? 'hidden' : 'visible'; });
+  }
+  function show(ov) { ov.o.style.display = 'flex'; chrome(); }
+  function hide(ov) { ov.o.style.display = 'none'; chrome(); }
 
   // pause overlay
   var pov = overlay();
@@ -142,13 +148,13 @@
     bAssist.className = 'mxbtn' + (store.set.assist ? ' on' : '');
     bSound.textContent = 'Sound: ' + (store.set.sound ? 'ON' : 'OFF');
     bSound.className = 'mxbtn' + (store.set.sound ? ' on' : '');
-    tideBtns.forEach(function (t) { t.b.className = 'mxbtn' + (store.set.tide === t.v ? ' on' : ''); });
+    tideBtns.forEach(function (t) { var on = store.set.tide === t.v; t.b.className = 'mxbtn' + (on ? ' on' : ''); t.b.textContent = (on ? '\u2713 ' : '') + t.v + 'x'; t.b.setAttribute('aria-pressed', on ? 'true' : 'false'); });
   }
 
   // game over overlay
   var gov = overlay();
   var goTitle = el('h2', null, gov.p, 'Run over');
-  var goInfo = el('p', null, gov.p, '');
+  var goInfo = el('div', 'mxgo', gov.p);
   var goVer = el('p', null, gov.p, '');
   var goBtns = [];
   goBtns.push(btn('Retry same seed', gov.p, function () { newRun(seed); }));
@@ -225,9 +231,13 @@
     au('charge', 0);
     var medal = Moonstep.medal(h);
     goTitle.textContent = medal ? medal + ' medal' : 'Run over';
-    goInfo.textContent = h + ' m  |  best ' + store.best[seed] + ' m  |  ' +
-      (s.cause === 'tide' ? 'Swallowed by the tide' : 'Lost in space') +
-      '  |  jumps ' + s.jumps + '  |  chain ' + s.bestChain + '  |  seed ' + seed;
+    goInfo.textContent = '';
+    el('div', 'big', goInfo, h + ' m');
+    el('div', 'cause', goInfo, s.cause === 'tide' ? 'Swallowed by the tide' : 'Lost in space');
+    var gr = el('div', 'grid', goInfo);
+    [['Best', store.best[seed] + ' m'], ['Jumps', s.jumps], ['Chain', s.bestChain], ['Seed', seed]].forEach(function (x) {
+      var d = el('div', null, gr); el('b', null, d, x[0]); d.appendChild(document.createTextNode(String(x[1])));
+    });
     goVer.textContent = '';
     overAt = performance.now();
     goBtns.forEach(function (b) { b.disabled = true; });

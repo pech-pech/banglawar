@@ -21,7 +21,7 @@
     for (var i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619) >>> 0; }
     return h >>> 0;
   }
-  function rangeK() { var m = M(); return (m && m.C && m.C.RANGE_K) || 5; }
+  function rangeK() { var m = M(); return (m && m.C && m.C.RANGE_K) || 4; }
   function mk(id, x, y, r, kind, spin) {
     return { id: id, x: x, y: y, r: r, g0: kind === 'repel' ? 600 : 900 * Math.sqrt(r / 60), R: rangeK() * r, kind: kind,
       spin: spin, ang: 0, rem: r, dead: false, left: false };

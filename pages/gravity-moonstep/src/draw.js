@@ -51,13 +51,23 @@
       // influence ring
       ctx.beginPath(); ctx.arc(sx, sy, R, 0, TAU);
       ctx.setLineDash([]); ctx.lineWidth = 1;
-      ctx.strokeStyle = b.kind === 'repel' ? 'rgba(255,140,120,0.35)' : 'rgba(180,195,230,0.28)';
-      ctx.stroke();
+      var owner = s.runner.mode === 'rim' && s.runner.body === i;
+      var near = Math.hypot(X(s.runner.x) - sx, Y(s.runner.y) - sy) <= R * 1.2;
+      var rc = b.kind === 'repel' ? '255,140,120' : '180,195,230';
+      if (owner) { ctx.lineWidth = 2; ctx.strokeStyle = 'rgba(' + rc + ',0.85)'; ctx.stroke(); }
+      else if (near) { ctx.strokeStyle = 'rgba(' + rc + ',0.3)'; ctx.stroke(); }
+      else { ctx.strokeStyle = 'rgba(' + rc + ',0.08)'; ctx.stroke(); }
+      ctx.lineWidth = 1;
       if (b.kind === 'repel') {
         var ph = reduced ? 0.5 : ((t * 0.8 + b.id * 0.37) % 1);
         ctx.beginPath(); ctx.arc(sx, sy, rr + (R - rr) * ph, 0, TAU);
         ctx.strokeStyle = 'rgba(255,120,100,' + (reduced ? 0.6 : 0.8 * (1 - ph)).toFixed(3) + ')';
         ctx.lineWidth = 2; ctx.stroke();
+      }
+      if (b.kind === 'crumble' && rr < b.r * k - 1) {
+        ctx.beginPath(); ctx.arc(sx, sy, b.r * k, 0, TAU);
+        ctx.lineWidth = 1; ctx.setLineDash([2, 4]);
+        ctx.strokeStyle = 'rgba(223,229,245,0.3)'; ctx.stroke(); ctx.setLineDash([]);
       }
       // body disc
       ctx.beginPath(); ctx.arc(sx, sy, rr, 0, TAU);
@@ -68,11 +78,34 @@
       if (b.kind === 'crumble') ctx.setLineDash([6, 5]);
       ctx.stroke(); ctx.setLineDash([]);
       if (b.kind === 'spin') {
-        var a = b.ang || 0;
-        ctx.beginPath();
-        ctx.moveTo(sx + Math.cos(a) * (rr - 7 * k), sy + Math.sin(a) * (rr - 7 * k));
-        ctx.lineTo(sx + Math.cos(a) * (rr + 4 * k), sy + Math.sin(a) * (rr + 4 * k));
-        ctx.lineWidth = 3; ctx.strokeStyle = '#ffd36b'; ctx.stroke();
+        var a0 = b.ang || 0, sd = (b.spin < 0 || b.dir < 0) ? -1 : 1, n, a;
+        ctx.lineWidth = 3; ctx.strokeStyle = '#ffd36b'; ctx.lineCap = 'round';
+        for (n = 0; n < 3; n++) {
+          a = a0 + n * TAU / 3;
+          ctx.beginPath();
+          ctx.moveTo(sx + Math.cos(a) * (rr - 8 * k), sy + Math.sin(a) * (rr - 8 * k));
+          ctx.lineTo(sx + Math.cos(a) * (rr + 4 * k), sy + Math.sin(a) * (rr + 4 * k));
+          ctx.stroke();
+          // chevron pointing along spin direction, just outside the rim
+          var ca = a + sd * 0.22, cr = rr + 8 * k, tx = -Math.sin(ca) * sd, ty2 = Math.cos(ca) * sd;
+          var px = sx + Math.cos(ca) * cr, py = sy + Math.sin(ca) * cr;
+          ctx.beginPath();
+          ctx.moveTo(px - Math.cos(ca) * 4 * k - tx * 4 * k, py - Math.sin(ca) * 4 * k - ty2 * 4 * k);
+          ctx.lineTo(px + tx * 4 * k, py + ty2 * 4 * k);
+          ctx.lineTo(px + Math.cos(ca) * 4 * k - tx * 4 * k, py + Math.sin(ca) * 4 * k - ty2 * 4 * k);
+          ctx.lineWidth = 2; ctx.stroke(); ctx.lineWidth = 3;
+        }
+        ctx.lineCap = 'butt';
+      }
+      if (b.kind === 'repel') {
+        ctx.lineWidth = 3; ctx.strokeStyle = '#ff9a88';
+        for (var q = 0; q < 4; q++) {
+          var qa = q * TAU / 4 + Math.PI / 4;
+          ctx.beginPath();
+          ctx.moveTo(sx + Math.cos(qa) * (rr + 2 * k), sy + Math.sin(qa) * (rr + 2 * k));
+          ctx.lineTo(sx + Math.cos(qa) * (rr + 9 * k), sy + Math.sin(qa) * (rr + 9 * k));
+          ctx.stroke();
+        }
       }
     }
 
@@ -95,6 +128,11 @@
       for (i = 0; i < p.length; i++) {
         ctx.beginPath(); ctx.arc(X(p[i].x), Y(p[i].y), 2, 0, TAU); ctx.fill();
       }
+      var lp = p[p.length - 1], lands = !!(ui.pred.land || ui.pred.lands || ui.pred.hit || (ui.pred.landId != null && ui.pred.landId >= 0));
+      ctx.beginPath(); ctx.arc(X(lp.x), Y(lp.y), 6 * k, 0, TAU);
+      ctx.lineWidth = 2;
+      if (lands) { ctx.strokeStyle = 'rgba(255,255,255,0.9)'; ctx.stroke(); ctx.fillStyle = 'rgba(255,255,255,0.35)'; ctx.fill(); }
+      else { ctx.setLineDash([3, 3]); ctx.strokeStyle = 'rgba(255,255,255,0.6)'; ctx.stroke(); ctx.setLineDash([]); }
     }
 
     // runner
