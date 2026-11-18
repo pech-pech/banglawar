@@ -1,0 +1,61 @@
+Burn Window bot panel. seeds 1..6 x sectors 0..7; generated 44 sectors, generator threw on 4.
+bot         runs    dock%  meanFuel  ratio/par
+idle          44     0.0%         -          -
+naive         44     0.0%         -          -
+human(3x)    440    69.8%      5.70       1.11
+human/att   1320    39.3%      5.54       1.11
+skilled       44   100.0%      5.73       1.00
+beginner    1760     6.8%      6.68       1.86
+
+L-TD-7 idle never docks: PASS (0 docked)
+L-TD-7 naive docks < 20%: PASS (0.0%)
+L-TD-7 skilled docks 100%: PASS (100.0%)
+
+QUESTION: beginner median dock fuel / par fuel (expert under half of beginner fuel => ratio > 2)
+seed idx type       par   medBeg  ratio  nDock
+1    0   open         8.2       -      -      0
+1    1   open         9.2    23.0   2.51      4
+1    3   dark         2.7     6.5   2.45     12
+1    4   corridor     4.6     6.0   1.32     16
+1    5   dark         3.8     6.1   1.62      3
+1    6   corridor     3.8     4.8   1.27     17
+1    7   gauntlet    10.0    20.4   2.04      2
+2    0   open         2.6     7.0   2.73     94
+2    1   open         2.6     7.0   2.71      9
+2    2   open         6.7     9.2   1.37      5
+2    3   dark         7.2    15.1   2.10     16
+2    4   corridor     6.5    10.2   1.56      2
+2    5   dark         5.3     9.1   1.70      7
+2    6   corridor    15.7    21.0   1.34      2
+2    7   gauntlet     5.1     8.3   1.64     61
+3    0   open         3.7     6.3   1.72     26
+3    1   open         3.1     6.2   2.03     55
+3    2   open         9.2    22.6   2.44      4
+3    3   dark         2.7     5.0   1.87     18
+3    4   corridor     2.8     6.9   2.52     86
+3    5   dark         7.2    17.9   2.50     21
+3    6   corridor     3.4     6.5   1.90     14
+3    7   gauntlet     4.6    10.2   2.22     11
+4    1   open         2.8     6.5   2.31     40
+4    2   open         3.3     3.9   1.18      5
+4    3   dark         3.7     7.0   1.90      8
+4    4   corridor     3.0     5.1   1.69      6
+4    5   dark         3.8     6.7   1.74      1
+4    6   corridor     4.0     8.2   2.04     33
+4    7   gauntlet     7.8    10.5   1.35      6
+5    0   open         3.4     7.5   2.20     25
+5    1   open         6.1     6.7   1.10      1
+5    2   open        13.6    19.7   1.45      3
+5    3   dark         3.3     9.1   2.72     14
+5    4   corridor     2.5     7.4   2.95     26
+5    5   dark         2.8     5.2   1.85     75
+5    7   gauntlet     3.3     5.6   1.73     40
+6    0   open         3.7     5.5   1.50     35
+6    1   open         6.3    16.0   2.53     13
+6    3   dark         2.6     7.8   3.03    109
+6    4   corridor    12.9    14.9   1.15      1
+6    5   dark         5.2     5.7   1.10      3
+6    6   corridor    17.3    24.2   1.40      2
+6    7   gauntlet    10.0    16.8   1.68     18
+overall: mean ratio 1.91, median ratio 1.85, sum(med)/sum(par) 1.79, sectors with ratio>2: 18/43 (sectors with dockFuels)
+expert uses under half of beginner fuel (overall): NO

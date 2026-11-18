@@ -1,0 +1,1070 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#0a1214">
+<title>Burn Window</title>
+<style>html,body{margin:0;overflow:hidden;touch-action:none;background:#0a1214;height:100%}canvas{display:block;width:100vw;height:100vh;touch-action:none}</style>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+</head>
+<body style="margin:0;overflow:hidden;touch-action:none;background:#0a1214">
+<canvas id="c"></canvas>
+<script>
+/* sim.js */
+// Burn Window physics core. Pure, deterministic, no DOM. UMD: node require() or browser global BW.sim.
+// Units px, seconds. Fixed step DT=1/120. Velocity Verlet (kick-drift-kick). Bodies on circular rails (pure function of t).
+(function (root) {
+  'use strict';
+  const C = {
+    DT: 1 / 120, W: 340, H: 486, EPS: 12,
+    THRUST: 20, FUEL_RATE: 10, FUEL0: 60, TICK_STEPS: 10, // 10 steps = 83.3 ms, the smallest whole-step burn >= 80 ms
+    GATE_R: 22, DOCK_V: 90, CRASH_PAD: 3, OUT: 120, V_MIN_HEAD: 5,
+    GM: { small: 90000, medium: 160000, large: 240000 },
+    THROTTLE_MIN: 0.25
+  };
+  function bodyRadius(gm) { return 6 + 0.00006 * gm; }
+  function mulberry32(a) {
+    a = a >>> 0;
+    return function () {
+      a = (a + 0x6D2B79F5) >>> 0;
+      let t = a;
+      t = Math.imul(t ^ (t >>> 15), t | 1);
+      t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+  function hashSeed() { // mix numbers into one uint32 seed
+    let h = 2166136261 >>> 0;
+    for (let i = 0; i < arguments.length; i++) { h ^= (arguments[i] | 0) >>> 0; h = Math.imul(h, 16777619) >>> 0; h ^= h >>> 13; }
+    return h >>> 0;
+  }
+  // body: {id, kind, gm, r, cx, cy, R, w, p, dark}
+  function makeBody(o) {
+    const gm = o.gm || C.GM[o.kind];
+    return { id: o.id, kind: o.kind, gm, r: bodyRadius(gm), cx: o.cx, cy: o.cy, R: o.R || 0, w: o.w || 0, p: o.p || 0, dark: !!o.dark };
+  }
+  function bodyX(b, t) { return b.cx + b.R * Math.cos(b.w * t + b.p); }
+  function bodyY(b, t) { return b.cy + b.R * Math.sin(b.w * t + b.p); }
+  // sector: {id, bodies:[body], gate:{x,y}, start:{x,y,vx,vy}, fuel0}
+  function newState(sector, fuel) {
+    const s = sector.start, sp = Math.hypot(s.vx, s.vy) || 1;
+    return {
+      n: 0, x: s.x, y: s.y, vx: s.vx, vy: s.vy, hx: s.vx / sp, hy: s.vy / sp,
+      fuel: fuel == null ? (sector.fuel0 == null ? C.FUEL0 : sector.fuel0) : fuel, fuelUsed: 0,
+      tickLeft: 0, burning: false, throttle: 1, status: 'flying', minDist: 1e9
+    };
+  }
+  function accel(bodies, x, y, t, skipDark, out) {
+    let ax = 0, ay = 0;
+    for (let i = 0; i < bodies.length; i++) {
+      const b = bodies[i];
+      if (skipDark && b.dark) continue;
+      const dx = bodyX(b, t) - x, dy = bodyY(b, t) - y;
+      const r2 = dx * dx + dy * dy + C.EPS * C.EPS;
+      const k = b.gm / (r2 * Math.sqrt(r2));
+      ax += k * dx; ay += k * dy;
+    }
+    out[0] = ax; out[1] = ay;
+  }
+  const _a = [0, 0];
+  // low-level integrate of one step of length dt starting at time t. thrust = px/s^2 magnitude (already throttled).
+  function integrate(st, bodies, t, dt, thrust, skipDark) {
+    let tx = 0, ty = 0;
+    if (thrust > 0) {
+      const sp = Math.hypot(st.vx, st.vy);
+      if (sp >= C.V_MIN_HEAD) { tx = st.vx / sp * thrust; ty = st.vy / sp * thrust; } else { tx = st.hx * thrust; ty = st.hy * thrust; }
+    }
+    accel(bodies, st.x, st.y, t, skipDark, _a);
+    st.vx += (_a[0] + tx) * dt * 0.5; st.vy += (_a[1] + ty) * dt * 0.5;
+    st.x += st.vx * dt; st.y += st.vy * dt;
+    accel(bodies, st.x, st.y, t + dt, skipDark, _a);
+    st.vx += (_a[0] + tx) * dt * 0.5; st.vy += (_a[1] + ty) * dt * 0.5;
+    const sp = Math.hypot(st.vx, st.vy);
+    if (sp >= C.V_MIN_HEAD) { st.hx = st.vx / sp; st.hy = st.vy / sp; }
+  }
+  // advance exactly one DT. input = {burn:boolean, throttle:0.25..1}. Returns st.status.
+  function step(st, sector, input) {
+    if (st.status !== 'flying') return st.status;
+    const t = st.n * C.DT;
+    const want = !!(input && input.burn);
+    if (want) { st.throttle = Math.max(C.THROTTLE_MIN, Math.min(1, input.throttle == null ? 1 : input.throttle)); }
+    if (want && !st.burning) st.tickLeft = C.TICK_STEPS; // rising edge starts the 80 ms minimum
+    st.burning = want;
+    let on = want || st.tickLeft > 0;
+    if (st.tickLeft > 0) st.tickLeft--;
+    let thrust = 0;
+    if (on && st.fuel > 0) {
+      thrust = C.THRUST * st.throttle;
+      const burn = C.FUEL_RATE * st.throttle * C.DT;
+      const used = Math.min(burn, st.fuel);
+      st.fuel -= used; st.fuelUsed += used;
+      st.active = true;
+    } else st.active = false;
+    integrate(st, sector.bodies, t, C.DT, thrust, false);
+    st.n++;
+    const tn = st.n * C.DT;
+    for (let i = 0; i < sector.bodies.length; i++) {
+      const b = sector.bodies[i];
+      const d = Math.hypot(st.x - bodyX(b, tn), st.y - bodyY(b, tn));
+      if (d < st.minDist) st.minDist = d;
+      if (d < b.r + C.CRASH_PAD) { st.status = 'crashed'; st.crashBody = b.id; return st.status; }
+    }
+    if (st.x < -C.OUT || st.x > C.W + C.OUT || st.y < -C.OUT || st.y > C.H + C.OUT) { st.status = 'lost'; return st.status; }
+    const g = sector.gate;
+    if (Math.hypot(st.x - g.x, st.y - g.y) < C.GATE_R && Math.hypot(st.vx, st.vy) < C.DOCK_V) st.status = 'docked';
+    return st.status;
+  }
+  // Coast preview (burn off). Default 3 s at dt 1/30, two 1/60 sub-steps inside 60 px of a visible body.
+  // Returns {pts:[{x,y,t}], closest:{i,d,body}|null, end:'ok'|'crashed'|'lost'|'docked'}
+  function predict(st, sector, opts) {
+    opts = opts || {};
+    const seconds = opts.seconds || 3, skipDark = opts.includeDark ? false : true, bodies = sector.bodies;
+    const p = { x: st.x, y: st.y, vx: st.vx, vy: st.vy, hx: st.hx, hy: st.hy };
+    let t = st.n * C.DT, tEnd = t + seconds;
+    const pts = [{ x: p.x, y: p.y, t: 0 }];
+    let best = null, end = 'ok';
+    const baseT = t;
+    let k = 0;
+    while (t < tEnd - 1e-9) {
+      let near = 1e9;
+      for (let i = 0; i < bodies.length; i++) { if (skipDark && bodies[i].dark) continue; const d = Math.hypot(p.x - bodyX(bodies[i], t), p.y - bodyY(bodies[i], t)); if (d < near) near = d; }
+      const sub = near < 60 ? 2 : 1, dt = (1 / 30) / sub;
+      for (let s = 0; s < sub; s++) { integrate(p, bodies, t, dt, 0, skipDark); t += dt; }
+      k++;
+      pts.push({ x: p.x, y: p.y, t: t - baseT });
+      for (let i = 0; i < bodies.length; i++) {
+        const b = bodies[i]; if (skipDark && b.dark) continue;
+        const d = Math.hypot(p.x - bodyX(b, t), p.y - bodyY(b, t));
+        if (!best || d - b.r < best.d) best = { i: pts.length - 1, d: d - b.r, body: b.id };
+        if (d < b.r + C.CRASH_PAD) { end = 'crashed'; }
+      }
+      if (end === 'crashed') break;
+      if (p.x < -C.OUT || p.x > C.W + C.OUT || p.y < -C.OUT || p.y > C.H + C.OUT) { end = 'lost'; break; }
+      if (Math.hypot(p.x - sector.gate.x, p.y - sector.gate.y) < C.GATE_R && Math.hypot(p.vx, p.vy) < C.DOCK_V) { end = 'docked'; break; }
+    }
+    return { pts, closest: best, end };
+  }
+  function checksum(st) { // FNV-1a over rounded state, hex string
+    const v = [st.n, Math.round(st.x * 1000), Math.round(st.y * 1000), Math.round(st.vx * 1000), Math.round(st.vy * 1000), Math.round(st.fuel * 1000)];
+    let h = 2166136261 >>> 0;
+    for (let i = 0; i < v.length; i++) { h ^= (v[i] | 0) >>> 0; h = Math.imul(h, 16777619) >>> 0; }
+    return h.toString(16).padStart(8, '0');
+  }
+  // events: [[step, burn(0|1), throttle% (25..100)]] sorted by step. Returns stateful fn(step)->input; call with increasing steps.
+  function inputFromEvents(events) {
+    let i = 0, cur = { burn: false, throttle: 1 };
+    return function (n) {
+      while (i < events.length && events[i][0] <= n) { cur = { burn: !!events[i][1], throttle: (events[i][2] || 100) / 100 }; i++; }
+      return cur;
+    };
+  }
+  // sched: [[tStartSec, durSec, throttle?]] non-overlapping. Returns events array.
+  function schedToEvents(sched) {
+    const ev = [];
+    for (const s of sched) {
+      const a = Math.round(s[0] / C.DT), b = a + Math.max(C.TICK_STEPS, Math.round(s[1] / C.DT)), th = Math.round((s[2] == null ? 1 : s[2]) * 100);
+      ev.push([a, 1, th]); ev.push([b, 0, th]);
+    }
+    ev.sort((p, q) => p[0] - q[0] || p[1] - q[1]);
+    return ev;
+  }
+  // Run a whole schedule headless. Returns {result:'docked'|'crashed'|'lost'|'timeout', fuelUsed, steps, state, checksum}
+  function runSchedule(sector, sched, opts) {
+    opts = opts || {};
+    const maxSteps = Math.round((opts.maxSeconds || 40) / C.DT), st = newState(sector, opts.fuel);
+    const inp = inputFromEvents(schedToEvents(sched));
+    while (st.n < maxSteps && st.status === 'flying') step(st, sector, inp(st.n));
+    return { result: st.status === 'flying' ? 'timeout' : st.status, fuelUsed: st.fuelUsed, steps: st.n, state: st, checksum: checksum(st) };
+  }
+  // specific energy (static-body approximation use only in tests)
+  function energy(st, sector, t) {
+    let u = 0;
+    for (const b of sector.bodies) { const d = Math.hypot(st.x - bodyX(b, t), st.y - bodyY(b, t)); u -= b.gm / Math.sqrt(d * d + C.EPS * C.EPS); }
+    return 0.5 * (st.vx * st.vx + st.vy * st.vy) + u;
+  }
+  const api = { C, bodyRadius, mulberry32, hashSeed, makeBody, bodyX, bodyY, newState, step, predict, checksum, inputFromEvents, schedToEvents, runSchedule, energy, integrate };
+  if (typeof module !== 'undefined' && module.exports) module.exports = api; else { root.BW = root.BW || {}; root.BW.sim = api; }
+})(typeof globalThis !== 'undefined' ? globalThis : this);
+
+</script>
+<script>
+/* gen.js */
+// Burn Window sector generator + best-fuel search. Deterministic from (runSeed, index). UMD: BW.gen.
+(function (root) {
+  'use strict';
+  const S = (typeof require !== 'undefined' && typeof module !== 'undefined') ? require('./sim.js') : root.BW.sim;
+  const C = S.C;
+  // type per sector index 0..7
+  const TYPES = ['open', 'open', 'open', 'dark', 'corridor', 'dark', 'corridor', 'gauntlet'];
+  function randSched(rng, maxStart) {
+    const nb = 1 + Math.floor(rng() * 3), sched = []; let t = 0;
+    for (let i = 0; i < nb; i++) {
+      t += rng() * (maxStart / nb);
+      const q = rng(); let dur = q < 0.3 ? 0.08 + rng() * 0.07 : q < 0.75 ? 0.15 + rng() * 0.45 : 0.6 + rng() * 1.9;
+      sched.push([t, dur]); t += dur + 0.05;
+    }
+    return sched;
+  }
+  function trial(sector, sched, maxSeconds) { const r = S.runSchedule(sector, sched, { maxSeconds: maxSeconds || 35 }); return r; }
+  // Search: random samples then hill climb. Returns {fuel, sched, dockFuels:[...fuel of docking random samples], tried}
+  function searchBest(sector, opts) {
+    opts = opts || {};
+    const rng = S.mulberry32(S.hashSeed(opts.seed || 7, sector.index || 0, 99));
+    const samples = opts.samples || 600, climb = opts.climb == null ? 300 : opts.climb, maxSeconds = opts.maxSeconds || 35;
+    let best = null; const dockFuels = [];
+    if (opts.seedSched) { const r0 = trial(sector, opts.seedSched, maxSeconds); if (r0.result === 'docked') best = { fuel: r0.fuelUsed, sched: opts.seedSched }; }
+    for (let i = 0; i < samples; i++) {
+      const sc = randSched(rng, 14), r = trial(sector, sc, maxSeconds);
+      if (r.result === 'docked') { dockFuels.push(r.fuelUsed); if (!best || r.fuelUsed < best.fuel) best = { fuel: r.fuelUsed, sched: sc }; }
+      if (opts.quick && i >= opts.quick && !best) return { fuel: null, sched: null, dockFuels, tried: i + 1 };
+    }
+    if (best) for (let i = 0; i < climb; i++) {
+      const sc = best.sched.map(b => [Math.max(0, b[0] + (rng() - 0.5) * 0.5), Math.max(C.TICK_STEPS * C.DT, b[1] + (rng() - 0.5) * 0.3)]);
+      sc.sort((a, b) => a[0] - b[0]);
+      let ok = true; for (let k = 1; k < sc.length; k++) if (sc[k][0] < sc[k - 1][0] + sc[k - 1][1]) { sc[k][0] = sc[k - 1][0] + sc[k - 1][1] + 0.02; }
+      const r = trial(sector, sc, maxSeconds);
+      if (r.result === 'docked' && r.fuelUsed < best.fuel - 1e-9) best = { fuel: r.fuelUsed, sched: sc };
+    }
+    return { fuel: best ? best.fuel : null, sched: best ? best.sched : null, dockFuels, tried: samples };
+  }
+  function candidate(runSeed, index, attempt) {
+    const rng = S.mulberry32(S.hashSeed(runSeed, index, attempt)), W = C.W, H = C.H, type = TYPES[index % TYPES.length], bodies = [];
+    const mk = (id, kind, cx, cy, R, w, p, dark) => bodies.push(S.makeBody({ id, kind, cx, cy, R, w, p, dark }));
+    const rw = () => (0.15 + rng() * 0.45) * (rng() < 0.5 ? -1 : 1), rp = () => rng() * Math.PI * 2;
+    if (type === 'corridor') {
+      const y = H * (0.42 + rng() * 0.16), gap = 62 + rng() * 22;
+      mk('A', 'large', W / 2 - gap / 2 - 24, y, 0, 0, 0); mk('B', 'large', W / 2 + gap / 2 + 24, y + (rng() - 0.5) * 30, 0, 0, 0);
+      mk('C', 'small', W / 2, y + 120 * (rng() < 0.5 ? 1 : -1), 40 + rng() * 30, rw(), rp());
+    } else {
+      mk('A', 'large', W * (0.35 + rng() * 0.3), H * (0.35 + rng() * 0.25), rng() * 16, rw() * 0.5, rp());
+      const extra = [2, 2, 3, 3, 3, 4, 4, 4][index % 8] - 1;
+      for (let i = 0; i < extra; i++) mk('BCD'[i], i === 0 ? 'medium' : 'small', 70 + rng() * (W - 140), 110 + rng() * (H - 220), 40 + rng() * 55, rw(), rp());
+      if (type === 'dark' || type === 'gauntlet') bodies[bodies.length - 1].dark = true;
+    }
+    const left = rng() < 0.5, sy = 40 + rng() * 80, gy = H - 40 - rng() * 80;
+    const sx = left ? 30 : W - 30, gx = left ? W - 40 - rng() * 60 : 40 + rng() * 60;
+    const aim = Math.atan2(H * 0.5 - sy, W * 0.5 - sx) + (rng() - 0.5) * 0.9, sp = 40 + rng() * 40;
+    return { index, type, bodies, gate: { x: gx, y: gy }, start: { x: sx, y: sy, vx: Math.cos(aim) * sp, vy: Math.sin(aim) * sp }, fuel0: C.FUEL0 };
+  }
+  function clearance(sec) { // gate and start must keep clear of every body surface for all t in one period
+    for (let t = 0; t < 24; t += 0.4) for (const b of sec.bodies) {
+      const x = S.bodyX(b, t), y = S.bodyY(b, t);
+      if (Math.hypot(x - sec.gate.x, y - sec.gate.y) < b.r + 27) return false;
+      if (t < 6 && Math.hypot(x - sec.start.x, y - sec.start.y) < b.r + 40) return false;
+    }
+    return true;
+  }
+  // Gate placed on a surviving random trajectory (solvable by construction), then best-fuel search sets par.
+  function placeGate(sec, rng) {
+    for (let k = 0; k < 80; k++) {
+      const sc = randSched(rng, 12), st = S.newState(sec), inp = S.inputFromEvents(S.schedToEvents(sc)), maxN = Math.round(30 / C.DT), pts = [];
+      while (st.n < maxN && st.status === 'flying') { S.step(st, sec, inp(st.n)); if (st.n % 60 === 0) pts.push([st.x, st.y, Math.hypot(st.vx, st.vy), st.n * C.DT]); }
+      const cand = pts.filter(p => p[3] > 5 && p[2] < 80 && p[0] > 25 && p[0] < C.W - 25 && p[1] > 25 && p[1] < C.H - 25 && Math.hypot(p[0] - sec.start.x, p[1] - sec.start.y) > 110);
+      if (!cand.length) continue;
+      for (let q = 0; q < cand.length; q++) {
+        const p = cand[(Math.floor(rng() * cand.length) + q) % cand.length]; sec.gate = { x: p[0], y: p[1] };
+        if (clearance(sec)) { sec._seed = sc; return true; }
+      }
+    }
+    return false;
+  }
+  function generateSector(runSeed, index, opts) {
+    opts = opts || {};
+    for (let a = 0; a < 150; a++) {
+      const sec = candidate(runSeed, index, a); sec.index = index;
+      const rng = S.mulberry32(S.hashSeed(runSeed, index, a, 5));
+      sec.gate = { x: -999, y: -999 };
+      if (!placeGate(sec, rng)) continue;
+      if (trial(sec, [], 35).result === 'docked') continue;                 // free coast must not dock
+      const q = searchBest(sec, { seed: runSeed, seedSched: sec._seed, samples: opts.samples || 500, climb: opts.climb == null ? 250 : opts.climb });
+      if (q.fuel == null || q.fuel > 34 || q.fuel < 2.5) continue;            // solvable, not trivial, within budget
+      sec.par = { fuel: q.fuel, sched: q.sched }; sec.dockFuels = q.dockFuels; sec.attempt = a;
+      return sec;
+    }
+    throw new Error('generator failed for seed ' + runSeed + ' sector ' + index);
+  }
+  const api = { TYPES, randSched, searchBest, generateSector, candidate, clearance };
+  if (typeof module !== 'undefined' && module.exports) module.exports = api; else { root.BW = root.BW || {}; root.BW.gen = api; }
+})(typeof globalThis !== 'undefined' ? globalThis : this);
+
+</script>
+<script>
+/* report.js */
+// Burn Window report: self-check, Copy-report builder, clipboard, best-run storage. UMD: BW.report.
+(function (root) {
+  'use strict';
+  const sim = (typeof module !== 'undefined' && module.exports) ? require('./sim.js') : (root.BW && root.BW.sim);
+
+  function scriptedSector() {
+    return {
+      id: 'selfcheck', index: 0,
+      bodies: [
+        sim.makeBody({ id: 'L', kind: 'large', cx: 170, cy: 240 }),
+        sim.makeBody({ id: 'M', kind: 'medium', cx: 170, cy: 240, R: 120, w: 0.5, p: 0.7 })
+      ],
+      gate: { x: 300, y: 420 },
+      start: { x: 170, y: 400, vx: 60, vy: 0 },
+      fuel0: 60
+    };
+  }
+
+  function energyDrift() {
+    const sector = { bodies: [sim.makeBody({ id: 'L', kind: 'large', cx: 170, cy: 240 })], gate: { x: -999, y: -999 }, start: null, fuel0: 60 };
+    const r = 120, v = Math.sqrt(sector.bodies[0].gm * r * r / Math.pow(r * r + sim.C.EPS * sim.C.EPS, 1.5)) * 1.0;
+    // circular speed v^2 = r * a(r) with softened accel; start at (170, 240+r), moving +x
+    sector.start = { x: 170, y: 240 + r, vx: v, vy: 0 };
+    const st = sim.newState(sector, 0);
+    const e0 = sim.energy(st, sector, 0);
+    const steps = Math.round(60 / sim.C.DT);
+    for (let i = 0; i < steps && st.status === 'flying'; i++) sim.step(st, sector, { burn: false, throttle: 1 });
+    const e1 = sim.energy(st, sector, st.n * sim.C.DT);
+    return Math.abs((e1 - e0) / e0);
+  }
+
+  function selfCheck() {
+    let ok = false, checksum = null, drift = null;
+    try {
+      const sector = scriptedSector();
+      const sched = [[1, 0.6, 1], [3, 0.4, 0.5], [6, 0.8, 1]];
+      const a = sim.runSchedule(sector, sched, { maxSeconds: 20 });
+      const b = sim.runSchedule(sector, sched, { maxSeconds: 20 });
+      ok = a.checksum === b.checksum; checksum = a.checksum;
+      drift = energyDrift();
+    } catch (e) { ok = false; }
+    return { ok, checksum, energyDrift: drift };
+  }
+
+  function build(info) {
+    info = info || {};
+    const sc = selfCheck();
+    return {
+      game: 'Burn Window',
+      version: 'bw-0.1',
+      seed: info.seed,
+      renderer: 'Canvas2D',
+      device: info.device || {},
+      fps: info.fps || {},
+      determinism: { ok: sc.ok, checksum: sc.checksum },
+      attempts: info.attempts || [],
+      inputLog: info.inputLog || [],
+      ticks: info.ticks || {},
+      energyDrift: sc.energyDrift,
+      settings: info.settings || {}
+    };
+  }
+
+  function copy(text) {
+    return new Promise(function (resolve) {
+      function fallback() {
+        try {
+          const ta = document.createElement('textarea');
+          ta.value = text; ta.setAttribute('readonly', '');
+          ta.style.cssText = 'position:fixed;left:-9999px;top:0;opacity:0';
+          document.body.appendChild(ta);
+          ta.select(); ta.setSelectionRange(0, ta.value.length);
+          const ok = !!document.execCommand('copy');
+          document.body.removeChild(ta);
+          resolve(ok);
+        } catch (e) { resolve(false); }
+      }
+      try {
+        if (typeof navigator !== 'undefined' && navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(text).then(function () { resolve(true); }, fallback);
+        } else fallback();
+      } catch (e) { fallback(); }
+    });
+  }
+
+  function key(seed, idx) { return 'bw:best:' + seed + ':' + idx; }
+
+  function loadBest(seed, idx) {
+    try {
+      const raw = root.localStorage.getItem(key(seed, idx));
+      if (!raw) return null;
+      const o = JSON.parse(raw);
+      if (o && typeof o.fuel === 'number' && Array.isArray(o.events)) return o;
+    } catch (e) { /* ignore */ }
+    return null;
+  }
+
+  function saveBest(seed, idx, fuel, events) {
+    try {
+      const cur = loadBest(seed, idx);
+      if (cur && cur.fuel <= fuel) return false;
+      root.localStorage.setItem(key(seed, idx), JSON.stringify({ fuel: fuel, events: events }));
+      return true;
+    } catch (e) { return false; }
+  }
+
+  const api = { selfCheck, build, copy, loadBest, saveBest };
+  if (typeof module !== 'undefined' && module.exports) module.exports = api; else { root.BW = root.BW || {}; root.BW.report = api; }
+})(typeof globalThis !== 'undefined' ? globalThis : this);
+
+</script>
+<script>
+/* audio.js */
+/* Gravity Burn Window - BW.audio
+ * free synth, not heard by ear (never auditioned by a human; levels are estimates).
+ * API: init, hum(speed0..160), burn(on,throttle), dock, crash, tick, mute(bool), isMuted
+ */
+(function (root, factory) {
+  if (typeof module === 'object' && module.exports) module.exports = factory();
+  else { root.BW = root.BW || {}; root.BW.audio = factory(); }
+})(typeof self !== 'undefined' ? self : this, function () {
+  'use strict';
+  var CAP = 12, DOCK_CRASH_RESERVE = 3, MASTER = 0.5;
+  var ctx = null, master = null, comp = null, humG = null, humO1 = null, humO2 = null;
+  var burnG = null, burnF = null, burnSrc = null, noiseBuf = null;
+  var muted = false, inited = false, voices = 0, wired = false, burning = false;
+  var seed = 7;
+  function rnd() { // mulberry32, own stream
+    seed = (seed + 0x6D2B79F5) | 0;
+    var t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  }
+  function now() { return ctx ? ctx.currentTime : 0; }
+  function mkNoise() {
+    var n = ctx.sampleRate | 0, b = ctx.createBuffer(1, n, ctx.sampleRate), d = b.getChannelData(0);
+    for (var i = 0; i < n; i++) d[i] = rnd() * 2 - 1;
+    return b;
+  }
+  // priority: 1 = dock/crash may use reserve; 0 = normal voices stop at CAP-reserve
+  function take(pri) {
+    var lim = pri ? CAP : CAP - DOCK_CRASH_RESERVE;
+    if (!ctx || voices >= lim) return false;
+    voices++; return true;
+  }
+  function release() { if (voices > 0) voices--; }
+  function voice(pri, dur, build) {
+    if (!inited || muted || !take(pri)) return;
+    var t = now(), nodes = [], done = false;
+    function end() { if (done) return; done = true; release(); }
+    try {
+      var last = build(t, nodes);
+      last.onended = end;
+      setTimeout(end, (dur + 0.5) * 1000);
+    } catch (e) { end(); }
+  }
+  function env(g, t, a, peak, d) {
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.linearRampToValueAtTime(peak, t + a);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + a + d);
+  }
+  function setup() {
+    if (inited) return;
+    var AC = (typeof window !== 'undefined' && (window.AudioContext || window.webkitAudioContext)) ||
+             (typeof globalThis !== 'undefined' && globalThis.AudioContext);
+    if (!AC) return;
+    try {
+      ctx = new AC();
+      comp = ctx.createDynamicsCompressor();
+      master = ctx.createGain(); master.gain.value = muted ? 0 : MASTER;
+      master.connect(comp); comp.connect(ctx.destination);
+      humG = ctx.createGain(); humG.gain.value = 0.0001;
+      humO1 = ctx.createOscillator(); humO1.type = 'sine'; humO1.frequency.value = 55;
+      humO2 = ctx.createOscillator(); humO2.type = 'triangle'; humO2.frequency.value = 110;
+      humO1.connect(humG); humO2.connect(humG); humG.connect(master);
+      humO1.start(); humO2.start();
+      noiseBuf = mkNoise();
+      burnSrc = ctx.createBufferSource(); burnSrc.buffer = noiseBuf; burnSrc.loop = true;
+      burnF = ctx.createBiquadFilter(); burnF.type = 'bandpass'; burnF.frequency.value = 500; burnF.Q.value = 0.8;
+      burnG = ctx.createGain(); burnG.gain.value = 0;
+      burnSrc.connect(burnF); burnF.connect(burnG); burnG.connect(master);
+      burnSrc.start();
+      inited = true;
+    } catch (e) { inited = false; }
+  }
+  function resume() {
+    if (!ctx || !ctx.resume) return;
+    try {
+      var p = ctx.resume();
+      if (p && p.then) p.then(function () {}, function () {}); // sound dropped only until resume resolves
+    } catch (e) {}
+  }
+  function onGesture() { setup(); resume(); }
+  function wire() {
+    if (wired || typeof document === 'undefined') return;
+    wired = true;
+    document.addEventListener('pointerdown', onGesture, true);
+    document.addEventListener('keydown', onGesture, false);
+    document.addEventListener('visibilitychange', function () {
+      if (!ctx) return;
+      if (document.hidden) { try { ctx.suspend(); } catch (e) {} }
+      else if (inited) resume();
+    });
+  }
+  var api = {
+    init: function () { wire(); },
+    hum: function (speed) {
+      if (!inited) return;
+      var s = Math.max(0, Math.min(160, +speed || 0)) / 160, t = now();
+      humO1.frequency.setTargetAtTime(55 + 110 * s, t, 0.15);
+      humO2.frequency.setTargetAtTime(110 + 220 * s, t, 0.15);
+      humG.gain.setTargetAtTime(muted ? 0.0001 : 0.03 + 0.12 * s, t, 0.2);
+    },
+    burn: function (on, throttle) {
+      if (!inited) return;
+      var th = Math.max(0, Math.min(1, throttle == null ? 1 : +throttle)), t = now();
+      burning = !!on;
+      burnG.gain.setTargetAtTime(on ? 0.05 + 0.2 * th : 0, t, on ? 0.04 : 0.1);
+      burnF.frequency.setTargetAtTime(350 + 900 * th, t, 0.08);
+    },
+    dock: function () {
+      voice(1, 1.2, function (t) {
+        var last;
+        [[392, 0], [587.33, 0.16]].forEach(function (n) {
+          var g = ctx.createGain(), o = ctx.createOscillator(), o2 = ctx.createOscillator();
+          o.type = 'sawtooth'; o2.type = 'triangle';
+          o.frequency.value = n[0]; o2.frequency.value = n[0] * 2;
+          var f = ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 1800;
+          o.connect(f); o2.connect(f); f.connect(g); g.connect(master);
+          env(g, t + n[1], 0.03, 0.12, 0.9);
+          o.start(t + n[1]); o2.start(t + n[1]); o.stop(t + n[1] + 1); o2.stop(t + n[1] + 1);
+          last = o;
+        });
+        return last;
+      });
+    },
+    crash: function () {
+      voice(1, 0.8, function (t) {
+        var s = ctx.createBufferSource(); s.buffer = noiseBuf;
+        s.loopStart = rnd() * 0.5;
+        var f = ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 220;
+        var g = ctx.createGain(); env(g, t, 0.005, 0.5, 0.6);
+        s.connect(f); f.connect(g); g.connect(master);
+        s.start(t, rnd() * 0.5); s.stop(t + 0.7);
+        return s;
+      });
+    },
+    tick: function () {
+      voice(0, 0.05, function (t) {
+        var o = ctx.createOscillator(), g = ctx.createGain();
+        o.type = 'square'; o.frequency.value = 1400 + rnd() * 200;
+        env(g, t, 0.001, 0.04, 0.03);
+        o.connect(g); g.connect(master); o.start(t); o.stop(t + 0.05);
+        return o;
+      });
+    },
+    mute: function (m) {
+      muted = !!m;
+      if (master) master.gain.setTargetAtTime(muted ? 0 : MASTER, now(), 0.02);
+    },
+    isMuted: function () { return muted; },
+    _voices: function () { return voices; },
+    _peakEstimate: function () { // worst case sum of simultaneous sources, pre-compressor, x master
+      return MASTER * (0.15 + 0.25 + 12 * 0.0 + 0.5 * 0.9 + 0.24 * 0.9 + 0.04 * 3);
+    }
+  };
+  return api;
+});
+
+</script>
+<script>
+/* render.js */
+// Burn Window renderer. UMD: BW.render = {draw(ctx,V,G), layout(w,h)}. Pure drawing, ctx only, no DOM.
+// Self-test (node-free): BW.render.layout(475,638) -> {scale:1.0,...}; draw(ctx,V,G) with a stub ctx must not throw.
+// G fields used: sector{bodies,gate,index}, st{x,y,hx,hy,vx,vy,fuel,active,throttle,status}, t, pred{pts,closest,end},
+//   ghostLine[{x,y}]|null, ghost{x,y,hx,hy}|null, phase, warp, throttle, fuelMax, parFuel, msg, reduced,
+//   sectorIndex, sectorCount. Optional: G.look==='plain' selects the plain-shape look.
+(function (root) {
+  'use strict';
+  var BW = root.BW = root.BW || {};
+  var W = 340, H = 486, TOP = 56, REST = 96;
+  var BG = '#0a1214', BRASS = '#c9a24a', TEAL = '#3fb8a8', INK = '#e8e2cf', DIM = '#7d8a86', RED = '#d9694f';
+  var FONT = 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
+  var stars = null;
+
+  function layout(w, h) {
+    var s = Math.min(w / W, (h - TOP - REST) / H);
+    s = Math.max(0.8, Math.min(1.5, s));
+    return { w: w, h: h, dpr: 1, scale: s, ox: (w - W * s) / 2, oy: TOP };
+  }
+  function getStars() {
+    if (stars) return stars;
+    var rnd = (BW.sim && BW.sim.mulberry32) ? BW.sim.mulberry32(42) : function () { return Math.random(); };
+    stars = [];
+    for (var i = 0; i < 90; i++) stars.push({ x: rnd(), y: rnd(), r: 0.6 + rnd() * 1.2, a: 0.15 + rnd() * 0.35 });
+    return stars;
+  }
+  function bx(b, t) { return BW.sim.bodyX(b, t); }
+  function by(b, t) { return BW.sim.bodyY(b, t); }
+  function font(ctx, px, weight) { ctx.font = (weight || '600') + ' ' + Math.max(12, px) + 'px ' + FONT; }
+
+  function circle(ctx, x, y, r) { ctx.beginPath(); ctx.arc(x, y, r, 0, 6.283185307); }
+
+  function craft(ctx, x, y, hx, hy, size, fill, stroke) {
+    var a = Math.atan2(hy, hx);
+    ctx.save(); ctx.translate(x, y); ctx.rotate(a);
+    ctx.beginPath(); ctx.moveTo(size, 0); ctx.lineTo(-size * 0.8, size * 0.65); ctx.lineTo(-size * 0.45, 0); ctx.lineTo(-size * 0.8, -size * 0.65); ctx.closePath();
+    ctx.fillStyle = fill; ctx.fill();
+    if (stroke) { ctx.lineWidth = 2; ctx.strokeStyle = stroke; ctx.stroke(); }
+    ctx.restore();
+  }
+
+  function textCenter(ctx, str, x, y, px, color, weight) {
+    font(ctx, px, weight); ctx.fillStyle = color; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(str, x, y);
+  }
+
+  function panel(ctx, V, lines, accent) {
+    var cx = V.w / 2, cy = V.oy + H * V.scale * 0.42;
+    var pw = Math.min(V.w - 32, 300), ph = 28 + lines.length * 30;
+    ctx.fillStyle = 'rgba(8,16,18,0.82)'; ctx.fillRect(cx - pw / 2, cy - ph / 2, pw, ph);
+    ctx.lineWidth = 2; ctx.strokeStyle = accent; ctx.strokeRect(cx - pw / 2, cy - ph / 2, pw, ph);
+    for (var i = 0; i < lines.length; i++) {
+      var L = lines[i];
+      textCenter(ctx, L.s, cx, cy - ph / 2 + 28 + i * 30, L.px || 16, L.c || INK, L.w);
+    }
+  }
+
+  function draw(ctx, V, G) {
+    var plain = G.look === 'plain', sc = V.scale, ox = V.ox, oy = V.oy;
+    var sec = G.sector, st = G.st, t = G.t || 0, reduced = !!G.reduced;
+    var bodies = (sec && sec.bodies) || [];
+    var lw = Math.max(2, 2 * sc);
+    function X(x) { return ox + x * sc; }
+    function Y(y) { return oy + y * sc; }
+
+    ctx.save();
+    ctx.setLineDash([]); ctx.globalAlpha = 1; ctx.textAlign = 'left';
+    ctx.fillStyle = plain ? '#000' : BG; ctx.fillRect(0, 0, V.w, V.h);
+
+    if (!plain) {
+      var ss = getStars();
+      for (var i = 0; i < ss.length; i++) {
+        ctx.globalAlpha = ss[i].a; ctx.fillStyle = INK;
+        ctx.fillRect(Math.round(ss[i].x * V.w), Math.round(ss[i].y * V.h), ss[i].r + 0.6, ss[i].r + 0.6);
+      }
+      ctx.globalAlpha = 1;
+      // chart-table playfield frame and faint grid
+      ctx.fillStyle = 'rgba(63,184,168,0.04)'; ctx.fillRect(ox, oy, W * sc, H * sc);
+      ctx.lineWidth = 2; ctx.strokeStyle = 'rgba(201,162,74,0.35)'; ctx.strokeRect(ox, oy, W * sc, H * sc);
+      ctx.lineWidth = 1; ctx.strokeStyle = 'rgba(201,162,74,0.07)'; ctx.beginPath();
+      for (var gx = 34; gx < W; gx += 34) { ctx.moveTo(X(gx), oy); ctx.lineTo(X(gx), oy + H * sc); }
+      for (var gy = 48.6; gy < H; gy += 48.6) { ctx.moveTo(ox, Y(gy)); ctx.lineTo(ox + W * sc, Y(gy)); }
+      ctx.stroke();
+      // rest zone pad
+      var py = oy + H * sc + 48;
+      ctx.lineWidth = 2; ctx.strokeStyle = 'rgba(63,184,168,0.12)'; circle(ctx, V.w / 2, py + 30, 34); ctx.stroke();
+    }
+
+    // orbit rings (rail bodies)
+    if (!plain) {
+      ctx.lineWidth = 2; ctx.strokeStyle = 'rgba(201,162,74,0.16)';
+      for (i = 0; i < bodies.length; i++) {
+        var o = bodies[i];
+        if (o.R > 0) { circle(ctx, X(o.cx), Y(o.cy), o.R * sc); ctx.stroke(); }
+      }
+    }
+
+    // gate
+    if (sec && sec.gate) {
+      var gr = Math.max(6, 22 * sc);
+      ctx.lineWidth = 2; ctx.strokeStyle = plain ? '#fff' : TEAL;
+      circle(ctx, X(sec.gate.x), Y(sec.gate.y), gr); ctx.stroke();
+      if (!plain) {
+        ctx.setLineDash([4, 6]); ctx.strokeStyle = 'rgba(63,184,168,0.5)';
+        circle(ctx, X(sec.gate.x), Y(sec.gate.y), gr + 6); ctx.stroke(); ctx.setLineDash([]);
+      }
+    }
+
+    // bodies
+    for (i = 0; i < bodies.length; i++) {
+      var b = bodies[i], px = X(bx(b, t)), pyy = Y(by(b, t)), r = Math.max(6, b.r * sc);
+      if (b.dark) {
+        ctx.lineWidth = 2; ctx.strokeStyle = 'rgba(125,138,134,0.45)'; ctx.setLineDash([3, 5]);
+        circle(ctx, px, pyy, r); ctx.stroke(); ctx.setLineDash([]);
+        continue;
+      }
+      if (plain) { ctx.fillStyle = '#6a7a80'; circle(ctx, px, pyy, r); ctx.fill(); continue; }
+      var gl = ctx.createRadialGradient(px, pyy, r * 0.8, px, pyy, r * 2.2);
+      gl.addColorStop(0, 'rgba(201,162,74,0.22)'); gl.addColorStop(1, 'rgba(201,162,74,0)');
+      ctx.fillStyle = gl; circle(ctx, px, pyy, r * 2.2); ctx.fill();
+      var fl = ctx.createRadialGradient(px - r * 0.35, pyy - r * 0.35, r * 0.1, px, pyy, r);
+      fl.addColorStop(0, '#e6c978'); fl.addColorStop(1, '#8a6c2a');
+      ctx.fillStyle = fl; circle(ctx, px, pyy, r); ctx.fill();
+      ctx.lineWidth = 2; ctx.strokeStyle = 'rgba(10,18,20,0.6)'; circle(ctx, px, pyy, r); ctx.stroke();
+    }
+
+    // ghost line (dashed)
+    if (G.ghostLine && G.ghostLine.length > 1) {
+      ctx.lineWidth = 2; ctx.setLineDash([8, 6]); ctx.strokeStyle = plain ? '#aaa' : 'rgba(201,162,74,0.55)';
+      ctx.beginPath(); ctx.moveTo(X(G.ghostLine[0].x), Y(G.ghostLine[0].y));
+      for (i = 1; i < G.ghostLine.length; i++) ctx.lineTo(X(G.ghostLine[i].x), Y(G.ghostLine[i].y));
+      ctx.stroke(); ctx.setLineDash([]);
+    }
+
+    // predicted path: dots every 6th point fading, closest-approach tick
+    var pred = G.pred, run = G.phase === 'run' || G.phase === 'intro';
+    if (pred && pred.pts && run) {
+      var n = pred.pts.length;
+      for (i = 0; i < n; i += 6) {
+        var p = pred.pts[i], f = 1 - i / Math.max(1, n);
+        ctx.globalAlpha = 0.25 + 0.75 * f; ctx.fillStyle = plain ? '#ff9a3c' : TEAL;
+        circle(ctx, X(p.x), Y(p.y), 2); ctx.fill();
+      }
+      ctx.globalAlpha = 1;
+      if (pred.closest && pred.pts[pred.closest.i]) {
+        var cp = pred.pts[pred.closest.i], pi = Math.max(1, pred.closest.i), q = pred.pts[pi - 1];
+        var dx = cp.x - q.x, dy = cp.y - q.y, dl = Math.hypot(dx, dy) || 1, nx = -dy / dl, ny = dx / dl, tl = 7;
+        ctx.lineWidth = 2; ctx.strokeStyle = pred.end === 'crashed' ? RED : BRASS;
+        ctx.beginPath(); ctx.moveTo(X(cp.x) - nx * tl, Y(cp.y) - ny * tl); ctx.lineTo(X(cp.x) + nx * tl, Y(cp.y) + ny * tl); ctx.stroke();
+      }
+    }
+
+    // ghost craft
+    if (G.ghost) craft(ctx, X(G.ghost.x), Y(G.ghost.y), G.ghost.hx, G.ghost.hy, Math.max(7, 8 * sc), 'rgba(232,226,207,0.28)', 'rgba(232,226,207,0.4)');
+
+    // craft + flame
+    if (st && st.status !== 'crashed') {
+      var cx = X(st.x), cy = Y(st.y), size = Math.max(7, 8 * sc), hx = st.hx || 1, hy = st.hy || 0;
+      if (st.active) {
+        var th = st.throttle == null ? 1 : st.throttle;
+        var fk = reduced ? 1 : 0.85 + 0.15 * Math.sin(t * 90);
+        var fx = cx - hx * size * 0.6, fy = cy - hy * size * 0.6, len = size * (1.2 + 2 * th) * fk;
+        if (!plain) {
+          var gg = ctx.createRadialGradient(fx, fy, 1, fx, fy, len * 1.4);
+          gg.addColorStop(0, 'rgba(255,190,110,0.6)'); gg.addColorStop(0.5, 'rgba(255,140,60,0.2)'); gg.addColorStop(1, 'rgba(255,140,60,0)');
+          ctx.fillStyle = gg; circle(ctx, fx, fy, len * 1.4); ctx.fill();
+        }
+        ctx.lineWidth = Math.max(3, size * 0.5); ctx.lineCap = 'round'; ctx.strokeStyle = plain ? '#ff9a3c' : '#ffc27a';
+        ctx.beginPath(); ctx.moveTo(fx, fy); ctx.lineTo(fx - hx * len, fy - hy * len); ctx.stroke(); ctx.lineCap = 'butt';
+      }
+      craft(ctx, cx, cy, hx, hy, size, plain ? '#fff' : INK, plain ? null : BG);
+    } else if (st) {
+      ctx.lineWidth = 2; ctx.strokeStyle = RED; var kx = X(st.x), ky = Y(st.y);
+      ctx.beginPath(); ctx.moveTo(kx - 9, ky - 9); ctx.lineTo(kx + 9, ky + 9); ctx.moveTo(kx + 9, ky - 9); ctx.lineTo(kx - 9, ky + 9); ctx.stroke();
+    }
+
+    // HUD: sector label (top-left of playfield), fuel bar + speed (below playfield)
+    var si = (G.sectorIndex != null ? G.sectorIndex : (sec && sec.index) || 0) + 1, sn = G.sectorCount || 8;
+    font(ctx, 13, '600'); ctx.textAlign = 'left'; ctx.textBaseline = 'top'; ctx.fillStyle = plain ? '#fff' : BRASS;
+    ctx.fillText('SECTOR ' + si + '/' + sn, ox + 8, oy + 8);
+    if (G.warp === 3) { ctx.textAlign = 'right'; ctx.fillStyle = TEAL; ctx.fillText('WARP x3', ox + W * sc - 8, oy + 8); }
+
+    var barW = Math.min(V.w - 32, 240), barX = 16, barY = oy + H * sc + 14, barH = 14;
+    var fmax = G.fuelMax || 60, fuel = st ? Math.max(0, st.fuel) : 0, frac = Math.max(0, Math.min(1, fuel / fmax));
+    ctx.fillStyle = 'rgba(255,255,255,0.08)'; ctx.fillRect(barX, barY, barW, barH);
+    ctx.fillStyle = plain ? '#ff9a3c' : (frac < 0.2 ? RED : BRASS); ctx.fillRect(barX, barY, barW * frac, barH);
+    ctx.lineWidth = 2; ctx.strokeStyle = plain ? '#888' : 'rgba(201,162,74,0.6)'; ctx.strokeRect(barX, barY, barW, barH);
+    if (G.parFuel != null) {
+      var pm = barX + barW * Math.max(0, Math.min(1, G.parFuel / fmax));
+      ctx.lineWidth = 2; ctx.strokeStyle = plain ? '#fff' : TEAL;
+      ctx.beginPath(); ctx.moveTo(pm, barY - 4); ctx.lineTo(pm, barY + barH + 4); ctx.stroke();
+    }
+    font(ctx, 12, '600'); ctx.textAlign = 'left'; ctx.textBaseline = 'top'; ctx.fillStyle = DIM;
+    ctx.fillText('FUEL ' + fuel.toFixed(1) + (G.parFuel != null ? '  |  PAR ' + G.parFuel.toFixed(1) : ''), barX, barY + barH + 6);
+    if (st) {
+      var spd = Math.hypot(st.vx, st.vy), ok = spd < 90;
+      ctx.textAlign = 'right'; font(ctx, 18, '700'); ctx.fillStyle = ok ? TEAL : BRASS;
+      ctx.fillText(Math.round(spd) + ' px/s', V.w - 16, barY - 2);
+      font(ctx, 12, '600'); ctx.fillStyle = DIM; ctx.fillText('dock < 90', V.w - 16, barY + 20);
+    }
+
+    // phase overlays
+    var ph = G.phase;
+    if (ph === 'intro') {
+      panel(ctx, V, [{ s: 'SECTOR ' + si + '/' + sn + ' - tap to launch', px: 17, c: BRASS, w: '700' }, { s: 'hold = burn, release = coast', px: 13, c: DIM }], BRASS);
+    } else if (ph === 'docked') {
+      panel(ctx, V, [{ s: 'DOCKED', px: 22, c: TEAL, w: '700' }, { s: 'fuel used ' + (st ? st.fuelUsed.toFixed(1) : '') + (G.parFuel != null ? ' / par ' + G.parFuel.toFixed(1) : ''), px: 14 }], TEAL);
+    } else if (ph === 'failed') {
+      panel(ctx, V, [{ s: 'LOST CONTACT', px: 20, c: RED, w: '700' }, { s: G.msg || 'mission failed', px: 14 }, { s: 'tap to retry', px: 13, c: DIM }], RED);
+    } else if (ph === 'end') {
+      panel(ctx, V, [{ s: 'RUN COMPLETE', px: 22, c: BRASS, w: '700' }, { s: G.msg || (sn + ' sectors flown'), px: 14 }], BRASS);
+    }
+    ctx.restore();
+  }
+
+  BW.render = { draw: draw, layout: layout };
+  if (typeof module !== 'undefined' && module.exports) module.exports = BW.render;
+})(typeof globalThis !== 'undefined' ? globalThis : this);
+
+</script>
+<script>
+/* game.js */
+// Burn Window game loop, input, state machine, DOM HUD. Browser IIFE; uses BW.sim, BW.gen, BW.render, BW.audio, BW.report.
+(function () {
+  'use strict';
+  const BW = window.BW = window.BW || {};
+  const S = BW.sim, C = S.C, SECTORS = 8, RESULT_LOCK = 1000;
+  const now = () => (window.performance && performance.now) ? performance.now() : Date.now();
+  const A = () => BW.audio || {};
+  const ac = (f, a, b) => { try { const o = BW.audio; if (o && o[f]) o[f](a, b); } catch (e) {} };
+  const lsGet = k => { try { return localStorage.getItem(k); } catch (e) { return null; } };
+  const lsSet = (k, v) => { try { localStorage.setItem(k, v); } catch (e) {} };
+
+  // ---- seed ----
+  function dailySeed() { const d = new Date(); return d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate(); }
+  function parseSeed() { try { const m = /[?&]seed=(-?\d+)/.exec(location.search); if (m) return parseInt(m[1], 10) | 0; } catch (e) {} return dailySeed(); }
+
+  // ---- state ----
+  let seed = parseSeed(), idx = 0, sector = null, st = null, phase = 'plot', phaseT = now();
+  let fuelStart = 45, leftover = 0, warpOn = false, warpEff = 1, thr = 1, msg = null;
+  let events = [], lastB = 0, lastT = 100, burnStart = null, ghostLine = null, pred = null;
+  let ghostSt = null, ghostInp = null, bestRec = null;
+  let attempts = [], inputLog = [], attemptNo = 0, stranded = false, plotMsg = 'Plotting course...';
+  let physicsSteps = 0, bootT = now(), genToken = 0, frameN = 0, drawErrs = 0;
+  let acc = 0, last = 0, pointers = new Map(), fpsBuf = [], det = { ok: null, checksum: null }, energyDrift = null;
+  const cache = {};
+  const reduced = !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
+  let muted = lsGet('bw_mute') === '1';
+
+  // ---- DOM ----
+  const canvas = document.createElement('canvas');
+  canvas.style.cssText = 'position:fixed;left:0;top:0;display:block;touch-action:none;background:#0a1214';
+  const hud = document.createElement('div');
+  hud.style.cssText = 'position:fixed;left:0;top:0;right:0;height:56px;pointer-events:none;z-index:5;font:600 14px system-ui,sans-serif';
+  document.body.style.cssText += ';margin:0;overflow:hidden;background:#0a1214;touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none';
+  document.body.appendChild(canvas); document.body.appendChild(hud);
+  function mkBtn(label, css, fn, parent) {
+    const b = document.createElement('button');
+    b.setAttribute('data-bw', '1'); b.type = 'button'; b.textContent = label;
+    b.style.cssText = 'position:absolute;pointer-events:auto;min-height:56px;min-width:56px;box-sizing:border-box;border:1px solid #c9a24a;border-radius:8px;background:#102024;color:#e8d9a8;font:600 14px system-ui,sans-serif;touch-action:manipulation;cursor:pointer;padding:0 6px;' + css;
+    b.addEventListener('pointerdown', () => { b._d = now(); });
+    b.addEventListener('click', e => { e.stopPropagation(); fn(b); });
+    (parent || hud).appendChild(b); return b;
+  }
+  const bRetry = mkBtn('Retry', 'left:0;top:0;width:72px;height:56px', () => { ac('tick'); retry(); });
+  const bWarp = mkBtn('Warp x1', 'left:76px;top:0;width:76px;height:56px', b => { ac('tick'); warpOn = !warpOn; b.textContent = 'Warp x' + (warpOn ? 3 : 1); });
+  const bMute = mkBtn(muted ? 'Muted' : 'Sound', 'left:156px;top:0;width:68px;height:56px', b => { muted = !muted; lsSet('bw_mute', muted ? '1' : '0'); ac('mute', muted); b.textContent = muted ? 'Muted' : 'Sound'; });
+  const bCopy = mkBtn('Copy report', 'right:0;top:0;width:96px;height:56px', copyReport);
+  const bNext = mkBtn('Next', 'position:fixed;left:50%;margin-left:-80px;bottom:20px;width:160px;height:56px;display:none;z-index:6;background:#3fb8a8;color:#0a1214;border-color:#3fb8a8;font-size:18px', onNext, document.body);
+  bNext.style.position = 'fixed'; bNext.style.pointerEvents = 'auto';
+  ac('mute', muted);
+
+  // ---- view ----
+  const ctx = canvas.getContext('2d');
+  let V = { w: 0, h: 0, dpr: 1, scale: 1, ox: 0, oy: 56 };
+  function resize() {
+    const w = window.innerWidth, h = window.innerHeight, dpr = Math.min(window.devicePixelRatio || 1, 2);
+    let L = null;
+    try { if (BW.render && BW.render.layout) L = BW.render.layout(w, h); } catch (e) {}
+    if (!L || !L.scale) { const sc = Math.max(0.8, Math.min(1.5, Math.min(w / C.W, (h - 56 - 96) / C.H))); L = { scale: sc, ox: (w - C.W * sc) / 2, oy: 56 }; }
+    V = Object.assign({}, L, { w: w, h: h, dpr: dpr });
+    canvas.width = Math.round(w * dpr); canvas.height = Math.round(h * dpr);
+    canvas.style.width = w + 'px'; canvas.style.height = h + 'px';
+  }
+  window.addEventListener('resize', resize); window.addEventListener('orientationchange', resize);
+
+  // ---- sector flow ----
+  function prepare(i, cb) {
+    const key = seed + ':' + i;
+    if (cache[key]) return cb(cache[key]);
+    setTimeout(function () {
+      if (cache[key]) return cb(cache[key]);
+      let sec = null;
+      for (let k = 0; k < 6 && !sec; k++) { try { sec = BW.gen.generateSector(seed + 1000 * k, i); } catch (e) { sec = null; } }
+      if (sec) cache[key] = sec;
+      cb(sec);
+    }, 40);
+  }
+  function loadSector(i) {
+    idx = i; sector = null; st = null; phase = 'plot'; phaseT = now(); msg = null; ghostLine = null; pred = null; ghostSt = null;
+    plotMsg = 'Plotting course...'; attemptNo = 0;
+    const tok = ++genToken;
+    prepare(i, function (sec) {
+      if (tok !== genToken) return;
+      if (!sec) { plotMsg = 'Course plot failed. Tap Retry.'; return; }
+      sector = sec; fuelStart = Math.min(75, 45 + 0.4 * leftover);
+      resetAttempt(true);
+    });
+  }
+  function resetAttempt(intro) {
+    st = S.newState(sector, fuelStart); acc = 0; events = []; lastB = 0; lastT = 100; burnStart = null; ghostLine = null;
+    stranded = false; thr = 1; msg = null; pointers.clear();
+    let b = null; try { b = BW.report && BW.report.loadBest ? BW.report.loadBest(seed, idx) : null; } catch (e) {}
+    bestRec = b && b.events ? b : null;
+    ghostSt = bestRec ? S.newState(sector, fuelStart) : null; ghostInp = bestRec ? S.inputFromEvents(bestRec.events) : null;
+    phase = intro ? 'intro' : 'run'; phaseT = now();
+    pred = S.predict(st, sector, { seconds: 3 });
+  }
+  function newRun() { attempts = []; inputLog = []; leftover = 0; genToken++; loadSector(0); }
+  function retry() {
+    if (phase === 'end') return newRun();
+    if (!sector) { loadSector(idx); return; }
+    if (st && st.n > 0 && phase === 'run') logAttempt('retry');
+    resetAttempt(false);
+  }
+  function launch() { if (phase === 'intro') { phase = 'run'; phaseT = now(); } }
+  function onNext(b) {
+    if (now() - phaseT < RESULT_LOCK || !(b._d >= phaseT + RESULT_LOCK)) return;
+    ac('tick');
+    if (phase === 'docked') { if (idx + 1 >= SECTORS) finishRun(); else loadSector(idx + 1); }
+    else if (phase === 'end') newRun();
+  }
+  function logAttempt(result) {
+    attemptNo++;
+    attempts.push({ sector: idx, attempt: attemptNo, result: result, fuelUsed: +st.fuelUsed.toFixed(3), par: sector.par ? +sector.par.fuel.toFixed(3) : null, steps: st.n, checksum: S.checksum(st), burns: events.filter(e => e[1]).length });
+    inputLog.push({ sector: idx, attempt: attemptNo, events: events.slice() });
+  }
+  function efficiency() {
+    let par = 0, used = 0;
+    for (const a of attempts) if (a.result === 'docked') { par += a.par || 0; used += a.fuelUsed; }
+    return used > 0 ? par / used : 0;
+  }
+  function medal() {
+    const docked = new Set(attempts.filter(a => a.result === 'docked').map(a => a.sector)).size;
+    if (docked < SECTORS) return 'none';
+    const e = efficiency(); return e >= 0.75 ? 'Gold' : e >= 0.55 ? 'Silver' : 'Bronze';
+  }
+  function finishRun() { phase = 'end'; phaseT = now(); pointers.clear(); msg = 'Run complete: ' + medal() + ' | efficiency ' + Math.round(efficiency() * 100) + '%'; }
+  function endAttempt(result) {
+    if (phase !== 'run') return;
+    logAttempt(result); pointers.clear(); setBurn(false);
+    phaseT = now();
+    if (result === 'docked') {
+      phase = 'docked'; leftover = st.fuel; ac('dock');
+      msg = 'Docked | fuel used ' + st.fuelUsed.toFixed(1) + ' / par ' + sector.par.fuel.toFixed(1);
+      try {
+        const old = BW.report && BW.report.loadBest ? BW.report.loadBest(seed, idx) : null;
+        if (BW.report && BW.report.saveBest && (!old || st.fuelUsed < old.fuel)) BW.report.saveBest(seed, idx, st.fuelUsed, events.slice());
+      } catch (e) {}
+      if (idx + 1 < SECTORS) setTimeout(function () { prepare(idx + 1, function () {}); }, 300);
+    } else {
+      phase = 'failed'; ac('crash');
+      msg = ({ crashed: 'Crashed', lost: 'Lost in space', stranded: 'Stranded: out of fuel', timeout: 'Out of time' }[result] || 'Failed') + ' | tap to retry';
+    }
+  }
+
+  // ---- input ----
+  function curInput() {
+    let b = pointers.size > 0, t = 1;
+    if (b) { let first = null; pointers.forEach(p => { if (!first) first = p; }); const dy = Math.abs(first.y - first.y0); t = Math.max(0.25, Math.min(1, 1 - Math.max(0, dy - 12) / 120)); }
+    return { burn: b, throttle: t };
+  }
+  function onDown(e) {
+    ac('init');
+    if (e.target && e.target.closest && e.target.closest('[data-bw]')) return;
+    e.preventDefault && e.preventDefault();
+    if (phase === 'intro') { launch(); }
+    else if (phase === 'failed') { if (now() - phaseT >= RESULT_LOCK) retry(); return; }
+    else if (phase !== 'run') return;
+    pointers.set(e.pointerId, { y: e.clientY, y0: e.clientY });
+    try { canvas.setPointerCapture && canvas.setPointerCapture(e.pointerId); } catch (x) {}
+  }
+  function onMove(e) { const p = pointers.get(e.pointerId); if (p) p.y = e.clientY; }
+  function onUp(e) { pointers.delete(e.pointerId); }
+  window.addEventListener('pointerdown', onDown, { passive: false });
+  window.addEventListener('pointermove', onMove);
+  window.addEventListener('pointerup', onUp); window.addEventListener('pointercancel', onUp);
+  window.addEventListener('keydown', () => ac('init'), true);
+  window.addEventListener('pointerdown', () => ac('init'), true);
+  window.addEventListener('contextmenu', e => e.preventDefault());
+  function releaseAll() { pointers.clear(); acc = 0; last = 0; }
+  document.addEventListener('visibilitychange', () => { releaseAll(); if (document.hidden) ac('suspend'); else ac('resume'); });
+  window.addEventListener('blur', releaseAll);
+
+  // ---- simulation ----
+  let burnAudio = false;
+  function stepOnce() {
+    const ci = curInput(), b = ci.burn ? 1 : 0, tp = Math.round(ci.throttle * 20) * 5;
+    if (b !== lastB || (b && tp !== lastT)) {
+      events.push([st.n, b, tp]);
+      if (b && !lastB) { burnStart = Object.assign({}, st); ghostLine = null; }
+      if (!b && lastB && burnStart) { try { ghostLine = S.predict(burnStart, sector, { seconds: 3 }).pts; } catch (e) {} }
+      lastB = b; lastT = tp; ac('burn', !!b, tp / 100);
+    }
+    thr = tp / 100;
+    const status = S.step(st, sector, { burn: !!b, throttle: tp / 100 });
+    physicsSteps++;
+    if (ghostSt && ghostSt.status === 'flying') S.step(ghostSt, sector, ghostInp(ghostSt.n));
+    if (status !== 'flying') return endAttempt(status);
+    if (st.n * C.DT > 90) return endAttempt('timeout');
+    if (st.fuel <= 0 && !stranded && !st.tickLeft) {
+      stranded = true;
+      const p = S.predict(st, sector, { seconds: 25, includeDark: true });
+      if (p.end === 'crashed' || p.end === 'lost') return endAttempt('stranded');
+    }
+  }
+  function setBurn(on) { if (!on && lastB && st) { events.push([st.n, 0, lastT]); lastB = 0; ac('burn', false, 1); } }
+  function nearBody() {
+    const t = st.n * C.DT;
+    for (const b of sector.bodies) { if (b.dark) continue; if (Math.hypot(st.x - S.bodyX(b, t), st.y - S.bodyY(b, t)) - b.r < 45) return true; }
+    return false;
+  }
+
+  // ---- report ----
+  function fpsStats() {
+    if (!fpsBuf.length) return { avg: 0, p95ms: 0, gaps50: 0 };
+    const s = fpsBuf.slice().sort((a, b) => a - b), sum = s.reduce((a, b) => a + b, 0);
+    return { avg: +(1000 / (sum / s.length)).toFixed(1), p95ms: +s[Math.min(s.length - 1, Math.floor(s.length * 0.95))].toFixed(1), gaps50: s.filter(x => x > 50).length };
+  }
+  function buildReport() {
+    const info = {
+      seed: seed, device: { w: V.w, h: V.h, dpr: V.dpr, ua: navigator.userAgent, reducedMotion: reduced }, fps: fpsStats(),
+      determinism: det, attempts: attempts, inputLog: inputLog, ticks: { physicsSteps: physicsSteps, elapsedMs: Math.round(now() - bootT) },
+      energyDrift: energyDrift, settings: { muted: muted, warp: warpOn, sectors: SECTORS, medal: medal(), efficiency: +efficiency().toFixed(3) }
+    };
+    try { if (BW.report && BW.report.build) return BW.report.build(info); } catch (e) {}
+    return Object.assign({ game: 'burn-window', version: 1, renderer: 'Canvas2D' }, info);
+  }
+  function copyReport(b) {
+    const text = JSON.stringify(buildReport(), null, 1); window.__bwReportText = text;
+    const done = ok => { b.textContent = ok ? 'Copied' : 'Copy failed'; setTimeout(() => { b.textContent = 'Copy report'; }, 1600); };
+    try { if (BW.report && BW.report.copy) return BW.report.copy(text).then(done, () => done(false)); } catch (e) {}
+    done(false);
+  }
+
+  // ---- frame ----
+  function frame(ts) {
+    requestAnimationFrame(frame);
+    if (!last) last = ts;
+    const ms = ts - last; last = ts;
+    if (ms > 0 && ms < 1000) { fpsBuf.push(ms); if (fpsBuf.length > 4000) fpsBuf.shift(); }
+    const dt = Math.min(ms / 1000, 0.1);
+    frameN++;
+    if (sector && st && phase === 'run') {
+      if (warpOn && nearBody()) { warpOn = false; bWarp.textContent = 'Warp x1'; }
+      warpEff = warpOn ? 3 : 1;
+      const maxSteps = 8 * warpEff;
+      acc += dt * warpEff;
+      let n = 0;
+      while (acc >= C.DT && n < maxSteps && phase === 'run') { stepOnce(); acc -= C.DT; n++; }
+      if (acc > C.DT * 2) acc = 0;
+      if (phase === 'run') ac('hum', Math.hypot(st.vx, st.vy));
+    }
+    if (sector && st && (phase === 'run' || phase === 'intro') && frameN % 3 === 0) pred = S.predict(st, sector, { seconds: 3 });
+    // DOM
+    const showNext = phase === 'docked' || phase === 'end', ready = now() - phaseT >= RESULT_LOCK;
+    bNext.style.display = showNext ? 'block' : 'none'; bNext.style.opacity = ready ? '1' : '0.45';
+    bNext.textContent = phase === 'end' ? 'New run' : (idx + 1 >= SECTORS ? 'Finish' : 'Next');
+    draw();
+  }
+  function draw() {
+    ctx.setTransform(V.dpr, 0, 0, V.dpr, 0, 0);
+    if (!sector || !st) {
+      ctx.fillStyle = '#0a1214'; ctx.fillRect(0, 0, V.w, V.h);
+      ctx.fillStyle = '#c9a24a'; ctx.font = '600 20px system-ui,sans-serif'; ctx.textAlign = 'center';
+      ctx.fillText(plotMsg, V.w / 2, V.h / 2); return;
+    }
+    const G = {
+      sector: sector, st: st, t: st.n * C.DT, pred: pred, ghostLine: ghostLine, ghost: ghostSt, phase: phase, warp: warpEff,
+      throttle: thr, fuelMax: fuelStart, parFuel: sector.par ? sector.par.fuel : 0, msg: msg, reduced: reduced, sectorIndex: idx, sectorCount: SECTORS
+    };
+    try { ctx.clearRect(0, 0, V.w, V.h); if (BW.render && BW.render.draw) BW.render.draw(ctx, V, G); }
+    catch (e) { if (drawErrs++ < 3 && window.console) console.error(e); }
+  }
+
+  // ---- hooks + boot ----
+  window.__bw = {
+    get state() { return st; }, get sector() { return sector; }, get phase() { return phase; },
+    report: buildReport, launch: launch,
+    setSeed: function (n) { seed = n | 0; newRun(); },
+    hold: function (on, t) { if (on) pointers.set('test', { y: 0, y0: t == null ? 0 : (1 - t) * 120 + 12 }); else pointers.delete('test'); },
+    get events() { return events; }
+  };
+  resize();
+  try { if (BW.report && BW.report.selfCheck) { const r = BW.report.selfCheck(); det = { ok: !!r.ok, checksum: r.checksum }; energyDrift = r.energyDrift; } } catch (e) {}
+  newRun();
+  requestAnimationFrame(frame);
+})();
+
+</script>
+
+<script>if('serviceWorker' in navigator&&isSecureContext)addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(e=>console.warn('sw',e)));try{screen.orientation&&screen.orientation.lock&&matchMedia('(display-mode: fullscreen)').matches&&screen.orientation.lock('portrait').catch(()=>{});}catch(_){}</script>
+</body>
+</html>
