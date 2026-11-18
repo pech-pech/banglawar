@@ -26,7 +26,7 @@ import { FLAGS } from '../data/flags.js';
 import { whyShort, keyBall } from '../ui/why.js';
 import { ACT } from '../data/activities.js';
 import { activityOptions, trialOf, canSignTrial } from '../core/activities.js';
-import { freePickOptions, freePickPending, matchIncome } from '../core/economy.js';
+import { freePickOptions, freePickPending, matchIncome, gymTp } from '../core/economy.js';
 import { MD } from '../data/matchday.js';
 import { ECON as ECON_DATA } from '../data/economy.js';
 const ECON_FANS_GATE = ECON_DATA.STADIUM_FANS;
@@ -167,6 +167,8 @@ export function resultVM(s) {
       outcome = w === ME ? 'won' : 'lost';
     }
     pay = matchPay(s, { outcome, kind: fx.kind });
+    const gym = s.econ ? gymTp(s) : 0; // the Gym's own TP line, same as FinishMatch pays: the result card must show the TP the pool will gain
+    if (gym > 0) { pay.gym = gym; pay.total += gym; }
     tpEarned = pay.total;
   }
   return {
