@@ -95,11 +95,11 @@
     return null;
   }
 
-  function saveBest(seed, idx, fuel, events) {
+  function saveBest(seed, idx, fuel, events, fuelStart) {
     try {
       const cur = loadBest(seed, idx);
       if (cur && cur.fuel <= fuel) return false;
-      root.localStorage.setItem(key(seed, idx), JSON.stringify({ fuel: fuel, events: events }));
+      root.localStorage.setItem(key(seed, idx), JSON.stringify(typeof fuelStart === 'number' ? { fuel: fuel, events: events, fuelStart: fuelStart } : { fuel: fuel, events: events }));
       return true;
     } catch (e) { return false; }
   }

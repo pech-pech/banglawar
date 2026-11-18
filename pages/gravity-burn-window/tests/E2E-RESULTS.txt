@@ -1,0 +1,22 @@
+PASS [build] index.html up to date
+PASS [475x638] 1 no console errors in 8s
+PASS [475x638] 2 tap launches intro->run :: intro -> run
+PASS [475x638] 3 tap burns, fuel drops ~0.83 :: fuel drop 0.833 (expected ~0.83)
+PASS [475x638] 9 Retry restarts running :: phase=run n 219 -> 30
+PASS [475x638] 5b report() after Retry: attempts>=1, inputLog non-empty :: attempts=1 inputLog=1
+PASS [475x638] 7 hidden tab: sim steps do not advance, no failure :: steps 56 -> 56 in 1 s hidden, phase=run (game loop does not check document.hidden; real hidden tabs stop rAF)
+PASS [475x638] 6 buttons >=56x56 and clear of playfield :: 5 buttons; playfield {"x":67.5,"y":56,"w":340,"h":486}; 
+PASS [475x638] 4 par schedule -> docked, fuelUsed within 15% of par :: {"phase":"docked","fuelUsed":8.333333333333323,"par":8.24999999999999,"n":2800,"status":"docked","nEv":4,"evDone":4} relErr=1.0%
+PASS [475x638] 5 report() after dock: determinism.ok, attempts>=1, inputLog non-empty :: det={"ok":true,"checksum":"58f44024"} attempts=1 inputLog=1
+PASS [475x638] 8 reduced motion emulation does not throw :: matches=true errs=
+PASS [344x882] 1 no console errors in 8s
+PASS [344x882] 2 tap launches intro->run :: intro -> run
+PASS [344x882] 3 tap burns, fuel drops ~0.83 :: fuel drop 0.833 (expected ~0.83)
+PASS [344x882] 9 Retry restarts running :: phase=run n 214 -> 29
+PASS [344x882] 5b report() after Retry: attempts>=1, inputLog non-empty :: attempts=1 inputLog=1
+PASS [344x882] 7 hidden tab: sim steps do not advance, no failure :: steps 55 -> 55 in 1 s hidden, phase=run (game loop does not check document.hidden; real hidden tabs stop rAF)
+PASS [344x882] 6 buttons >=56x56 and clear of playfield :: 5 buttons; playfield {"x":0,"y":56,"w":344,"h":491.7176470588235}; 
+PASS [344x882] 4 par schedule -> docked, fuelUsed within 15% of par :: {"phase":"docked","fuelUsed":8.24999999999999,"par":8.24999999999999,"n":2757,"status":"docked","nEv":4,"evDone":4} relErr=0.0%
+PASS [344x882] 5 report() after dock: determinism.ok, attempts>=1, inputLog non-empty :: det={"ok":true,"checksum":"58f44024"} attempts=1 inputLog=1
+PASS [344x882] 8 reduced motion emulation does not throw :: matches=true errs=
+RESULT: ALL PASS

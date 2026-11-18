@@ -80,8 +80,8 @@
       for (var gy = 48.6; gy < H; gy += 48.6) { ctx.moveTo(ox, Y(gy)); ctx.lineTo(ox + W * sc, Y(gy)); }
       ctx.stroke();
       // rest zone pad
-      var py = oy + H * sc + 48;
-      ctx.lineWidth = 2; ctx.strokeStyle = 'rgba(63,184,168,0.12)'; circle(ctx, V.w / 2, py + 30, 34); ctx.stroke();
+      var py = oy + H * sc + Math.max(36, (V.h - oy - H * sc) / 2) - 30;
+      ctx.lineWidth = 2; ctx.strokeStyle = 'rgba(63,184,168,0.12)'; circle(ctx, V.w / 2, py + 30, Math.min(34, Math.max(20, (V.h - oy - H * sc) / 2 - 4))); ctx.stroke();
     }
 
     // orbit rings (rail bodies)
@@ -178,13 +178,15 @@
     ctx.fillText('SECTOR ' + si + '/' + sn, ox + 8, oy + 8);
     if (G.warp === 3) { ctx.textAlign = 'right'; ctx.fillStyle = TEAL; ctx.fillText('WARP x3', ox + W * sc - 8, oy + 8); }
 
+    var showBar = G.phase !== 'docked' && G.phase !== 'end';
     var barW = Math.min(V.w - 32, 240), barX = 16, barY = oy + H * sc + 14, barH = 14;
     var fmax = G.fuelMax || 60, fuel = st ? Math.max(0, st.fuel) : 0, frac = Math.max(0, Math.min(1, fuel / fmax));
+    if (showBar) {
     ctx.fillStyle = 'rgba(255,255,255,0.08)'; ctx.fillRect(barX, barY, barW, barH);
     ctx.fillStyle = plain ? '#ff9a3c' : (frac < 0.2 ? RED : BRASS); ctx.fillRect(barX, barY, barW * frac, barH);
     ctx.lineWidth = 2; ctx.strokeStyle = plain ? '#888' : 'rgba(201,162,74,0.6)'; ctx.strokeRect(barX, barY, barW, barH);
     if (G.parFuel != null) {
-      var pm = barX + barW * Math.max(0, Math.min(1, G.parFuel / fmax));
+      var pm = barX + barW * Math.max(0, Math.min(1, (fmax - G.parFuel) / fmax));
       ctx.lineWidth = 2; ctx.strokeStyle = plain ? '#fff' : TEAL;
       ctx.beginPath(); ctx.moveTo(pm, barY - 4); ctx.lineTo(pm, barY + barH + 4); ctx.stroke();
     }
@@ -195,6 +197,12 @@
       ctx.textAlign = 'right'; font(ctx, 18, '700'); ctx.fillStyle = ok ? TEAL : BRASS;
       ctx.fillText(Math.round(spd) + ' px/s', V.w - 16, barY - 2);
       font(ctx, 12, '600'); ctx.fillStyle = DIM; ctx.fillText('dock < 90', V.w - 16, barY + 20);
+    }
+    }
+    if (st && st.active && G.phase === 'run') {
+      var tx = ox + W * sc - 14, ty = oy + 36, th2 = 60 * sc, tv = Math.max(0, Math.min(1, G.throttle == null ? 1 : G.throttle));
+      ctx.fillStyle = 'rgba(255,255,255,0.10)'; ctx.fillRect(tx, ty, 6, th2);
+      ctx.fillStyle = plain ? '#ff9a3c' : '#ffc27a'; ctx.fillRect(tx, ty + th2 * (1 - tv), 6, th2 * tv);
     }
 
     // phase overlays
