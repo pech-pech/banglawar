@@ -53,21 +53,22 @@ const PL = (globalThis.PL = globalThis.PL || {});
     return pts;
   };
 
-  function spikeUp(room, r) {
-    // point away from a wall touching the rect; default up
-    const walls = room.walls || [];
+  // direction spikes point (0 up,1 right,2 down,3 left); base is along the rect's long side
+  function spikeDir(room, r) {
+    const horiz = r[2] >= r[3], walls = room.walls || [];
     for (let i = 0; i < walls.length; i++) {
       const w = walls[i];
-      if (r[0] < w[0] + w[2] && r[0] + r[2] > w[0]) {
-        if (Math.abs(w[1] - (r[1] + r[3])) < 2) return 0;      // wall below -> point up
-        if (Math.abs(w[1] + w[3] - r[1]) < 2) return 2;        // wall above -> point down
+      if (horiz && r[0] < w[0] + w[2] && r[0] + r[2] > w[0]) {
+        if (Math.abs(w[1] - (r[1] + r[3])) < 2) return 0;
+        if (Math.abs(w[1] + w[3] - r[1]) < 2) return 2;
       }
-      if (r[1] < w[1] + w[3] && r[1] + r[3] > w[1]) {
-        if (Math.abs(w[0] - (r[0] + r[2])) < 2) return 3;      // wall right -> point left
-        if (Math.abs(w[0] + w[2] - r[0]) < 2) return 1;        // wall left -> point right
+      if (!horiz && r[1] < w[1] + w[3] && r[1] + r[3] > w[1]) {
+        if (Math.abs(w[0] - (r[0] + r[2])) < 2) return 3;
+        if (Math.abs(w[0] + w[2] - r[0]) < 2) return 1;
       }
     }
-    return 0;
+    if (horiz) return 0;
+    return r[0] + r[2] / 2 < (room.w || 336) / 2 ? 1 : 3;
   }
 
   function text(ctx, s, x, y, px, color, align, bold) {
@@ -85,7 +86,7 @@ const PL = (globalThis.PL = globalThis.PL || {});
   function button(ctx, r, label, on) {
     ctx.fillStyle = on ? INK : PAPER;
     ctx.strokeStyle = INK;
-    ctx.lineWidth = 2;
+    ctx.lineWidth = 3;
     ctx.fillRect(r.x, r.y, r.w, r.h);
     ctx.strokeRect(r.x, r.y, r.w, r.h);
     text(ctx, label, r.x + r.w / 2, r.y + r.h / 2 + 5, 14, on ? PAPER : INK, 'center', true);
@@ -143,12 +144,19 @@ const PL = (globalThis.PL = globalThis.PL || {});
         ctx.fillRect(sx(r[0]), sy(r[1]), r[2] * sc, r[3] * sc);
         ctx.strokeStyle = BRASS; ctx.lineWidth = 2;
         ctx.strokeRect(sx(r[0]), sy(r[1]), r[2] * sc, r[3] * sc);
-        const mx = sx(r[0] + r[2] / 2), my = sy(r[1] + r[3] / 2), a = 9 * sc;
-        ctx.fillStyle = INK; ctx.beginPath();
-        ctx.moveTo(mx + d[0] * a, my + d[1] * a);
-        ctx.lineTo(mx - d[1] * a * 0.7 - d[0] * a * 0.5, my + d[0] * a * 0.7 - d[1] * a * 0.5);
-        ctx.lineTo(mx + d[1] * a * 0.7 - d[0] * a * 0.5, my - d[0] * a * 0.7 - d[1] * a * 0.5);
-        ctx.closePath(); ctx.fill();
+        // direction chevrons along the gate's long axis, pointing the way through
+        const horizG = r[2] >= r[3], longL = horizG ? r[2] : r[3];
+        const cnt = Math.max(1, Math.min(4, Math.round(longL / 22))), stp = longL / cnt, a = 7 * sc;
+        ctx.strokeStyle = INK; ctx.lineWidth = 3; ctx.lineJoin = 'miter';
+        for (let k = 0; k < cnt; k++) {
+          const along = (k + 0.5) * stp;
+          const mx = sx(horizG ? r[0] + along : r[0] + r[2] / 2), my = sy(horizG ? r[1] + r[3] / 2 : r[1] + along);
+          ctx.beginPath();
+          ctx.moveTo(mx - d[1] * a - d[0] * a * 0.6, my + d[0] * a - d[1] * a * 0.6);
+          ctx.lineTo(mx + d[0] * a * 0.6, my + d[1] * a * 0.6);
+          ctx.lineTo(mx + d[1] * a - d[0] * a * 0.6, my - d[0] * a - d[1] * a * 0.6);
+          ctx.stroke();
+        }
       }
       // crushers: track line + body at current time
       const cs = room.crushers || [];
@@ -156,35 +164,37 @@ const PL = (globalThis.PL = globalThis.PL || {});
       for (let i = 0; i < cs.length; i++) {
         const c = cs[i], r = c.r, amp = c.amp || 0;
         const o = Math.sin(TAU * tsec / 2.4 + (c.phase || 0)) * amp;
-        ctx.strokeStyle = INK; ctx.lineWidth = 1; ctx.setLineDash([3, 5]);
+        ctx.strokeStyle = RED; ctx.lineWidth = 2; ctx.setLineDash([3, 5]);
         ctx.beginPath();
         ctx.moveTo(sx(r[0] + r[2] / 2 - (c.ax ? amp : 0)), sy(r[1] + r[3] / 2 - (c.ay ? amp : 0)));
         ctx.lineTo(sx(r[0] + r[2] / 2 + (c.ax ? amp : 0)), sy(r[1] + r[3] / 2 + (c.ay ? amp : 0)));
         ctx.stroke(); ctx.setLineDash([]);
         const x = r[0] + (c.ax ? o : 0), y = r[1] + (c.ay ? o : 0);
-        ctx.fillStyle = '#3b4252';
+        ctx.fillStyle = '#7a2b2b';
         ctx.fillRect(sx(x), sy(y), r[2] * sc, r[3] * sc);
-        ctx.strokeStyle = INK; ctx.lineWidth = 2;
+        ctx.strokeStyle = RED; ctx.lineWidth = 2;
         ctx.strokeRect(sx(x), sy(y), r[2] * sc, r[3] * sc);
       }
       // spikes: triangle row
       const sp = room.spikes || [];
       ctx.fillStyle = RED;
       for (let i = 0; i < sp.length; i++) {
-        const r = sp[i].r, dir = spikeUp(room, r), horiz = dir === 0 || dir === 2;
-        const len = horiz ? r[2] : r[3], cnt = Math.max(1, Math.round(len / 12)), step = len / cnt;
+        const r = sp[i].r, dir = spikeDir(room, r), horiz = dir === 0 || dir === 2;
+        const len = horiz ? r[2] : r[3], hgt = Math.min(horiz ? r[3] : r[2], len);
+        const cnt = Math.max(1, Math.round(len / 12)), step = len / cnt;
         for (let k = 0; k < cnt; k++) {
+          const a0 = k * step, a1 = (k + 1) * step, am = (k + 0.5) * step;
           ctx.beginPath();
-          if (dir === 0) { ctx.moveTo(sx(r[0] + k * step), sy(r[1] + r[3])); ctx.lineTo(sx(r[0] + (k + 0.5) * step), sy(r[1])); ctx.lineTo(sx(r[0] + (k + 1) * step), sy(r[1] + r[3])); }
-          else if (dir === 2) { ctx.moveTo(sx(r[0] + k * step), sy(r[1])); ctx.lineTo(sx(r[0] + (k + 0.5) * step), sy(r[1] + r[3])); ctx.lineTo(sx(r[0] + (k + 1) * step), sy(r[1])); }
-          else if (dir === 1) { ctx.moveTo(sx(r[0]), sy(r[1] + k * step)); ctx.lineTo(sx(r[0] + r[2]), sy(r[1] + (k + 0.5) * step)); ctx.lineTo(sx(r[0]), sy(r[1] + (k + 1) * step)); }
-          else { ctx.moveTo(sx(r[0] + r[2]), sy(r[1] + k * step)); ctx.lineTo(sx(r[0]), sy(r[1] + (k + 0.5) * step)); ctx.lineTo(sx(r[0] + r[2]), sy(r[1] + (k + 1) * step)); }
+          if (dir === 0) { ctx.moveTo(sx(r[0] + a0), sy(r[1] + r[3])); ctx.lineTo(sx(r[0] + am), sy(r[1] + r[3] - hgt)); ctx.lineTo(sx(r[0] + a1), sy(r[1] + r[3])); }
+          else if (dir === 2) { ctx.moveTo(sx(r[0] + a0), sy(r[1])); ctx.lineTo(sx(r[0] + am), sy(r[1] + hgt)); ctx.lineTo(sx(r[0] + a1), sy(r[1])); }
+          else if (dir === 1) { ctx.moveTo(sx(r[0]), sy(r[1] + a0)); ctx.lineTo(sx(r[0] + hgt), sy(r[1] + am)); ctx.lineTo(sx(r[0]), sy(r[1] + a1)); }
+          else { ctx.moveTo(sx(r[0] + r[2]), sy(r[1] + a0)); ctx.lineTo(sx(r[0] + r[2] - hgt), sy(r[1] + am)); ctx.lineTo(sx(r[0] + r[2]), sy(r[1] + a1)); }
           ctx.closePath(); ctx.fill();
         }
       }
       // exit ring
       if (room.exit) {
-        ctx.strokeStyle = INK; ctx.lineWidth = 3;
+        ctx.strokeStyle = INK; ctx.lineWidth = 2;
         ctx.beginPath(); ctx.arc(sx(room.exit.x), sy(room.exit.y), 18 * sc, 0, TAU); ctx.stroke();
         ctx.strokeStyle = BRASS; ctx.lineWidth = 2;
         ctx.beginPath(); ctx.arc(sx(room.exit.x), sy(room.exit.y), 11 * sc, 0, TAU); ctx.stroke();
@@ -249,7 +259,7 @@ const PL = (globalThis.PL = globalThis.PL || {});
     // bottom edge: tiny seed/fps line, and the control hint on the first attempt only,
     // only when it sits fully below the room box (never over walls)
     const botY = H - ins.b - 6;
-    text(ctx, 'seed ' + (hud.seed != null ? hud.seed : 1) + (hud.fps ? '  ' + Math.round(hud.fps) + ' fps' : ''), ins.l + 8, botY, 14, 'rgba(31,36,48,0.6)');
+    if (hud.tuning && hud.tuning.open) text(ctx, 'seed ' + (hud.seed != null ? hud.seed : 1) + (hud.fps ? '  ' + Math.round(hud.fps) + ' fps' : ''), ins.l + 8, botY, 14, 'rgba(31,36,48,0.6)');
     if (room && (hud.attempt == null || hud.attempt <= 1) && !hud.hideHint) {
       const hintY = botY - 24, roomBottom = sy(room.h || 500);
       if (roomBottom + 6 < hintY - 12) text(ctx, 'swipe = flip   tap = dive   hold = restart', W / 2, hintY, 14, 'rgba(31,36,48,0.6)', 'center');
@@ -264,8 +274,19 @@ const PL = (globalThis.PL = globalThis.PL || {});
 
     const left = ins.l + 12, top = ins.t;
     const n = hud.roomIdx != null ? hud.roomIdx + 1 : 1, nTot = hud.nRooms || 3;
-    text(ctx, n + '/' + nTot + ' ' + (hud.roomName || ''), left, top + 26, 16, INK, 'left', true);
-    text(ctx, fmtT(hud.timeS) + '  flips ' + (hud.flips || 0) + '  deaths ' + (hud.deaths || 0), left, top + 48, 14, INK);
+    // reserve the width of the buttons (Snd/Copy/Path): text must stay left of them
+    const maxTxt = Math.max(60, PL.BTN.snd(view).x - 8 - left);
+    const mw = function (t, px, bold) {
+      ctx.font = (bold ? '700 ' : '500 ') + px + 'px ' + FONT;
+      return ctx.measureText ? (ctx.measureText(t).width || t.length * px * 0.55) : t.length * px * 0.55;
+    };
+    let title = n + '/' + nTot + ' ' + (hud.roomName || ''), tpx = 16;
+    if (mw(title, tpx, true) > maxTxt) tpx = 14;
+    while (title.length > 4 && mw(title, tpx, true) > maxTxt) title = title.slice(0, -2).replace(/\s+$/, '') + '\u2026';
+    text(ctx, title, left, top + 26, tpx, INK, 'left', true);
+    let stats = fmtT(hud.timeS) + '  flips ' + (hud.flips || 0) + '  deaths ' + (hud.deaths || 0);
+    if (mw(stats, 14, false) > maxTxt) stats = fmtT(hud.timeS) + '  F' + (hud.flips || 0) + '  D' + (hud.deaths || 0);
+    text(ctx, stats, left, top + 48, 14, INK);
     const ch = state && state.charges != null ? state.charges : 0, maxc = (PL.C && PL.C.CHARGES) || 2;
     for (let i = 0; i < maxc; i++) {
       const px = left + 8 + i * 22, py = top + 66;
@@ -279,24 +300,28 @@ const PL = (globalThis.PL = globalThis.PL || {});
     button(ctx, PL.BTN.copy(view), 'Copy', false);
     button(ctx, PL.BTN.path(view), 'Path', !!hud.pathOn);
 
-    // teach pill: first 4 s of a room, top of the play area, wrapped (no ellipsis)
+    // teach banner: never over the room. Goes below the room box when it fits,
+    // else sits just above the footer line (bottom thumb zone), translucent.
     if (hud.teach && hud.roomAgeS != null && hud.roomAgeS < 4) {
       const fade = Math.max(0, Math.min(1, (4 - hud.roomAgeS) / 0.5));
       const maxW = W - ins.l - ins.r - 40;
       ctx.font = '600 14px ' + FONT;
-      const mw = function (t) { return ctx.measureText ? (ctx.measureText(t).width || t.length * 7) : t.length * 7; };
+      const tw2 = function (t) { return ctx.measureText ? (ctx.measureText(t).width || t.length * 7) : t.length * 7; };
       const words = String(hud.teach).split(/\s+/), lines = [];
       let cur = '';
       for (let i = 0; i < words.length; i++) {
         const t = cur ? cur + ' ' + words[i] : words[i];
-        if (cur && mw(t) > maxW) { lines.push(cur); cur = words[i]; } else cur = t;
+        if (cur && tw2(t) > maxW) { lines.push(cur); cur = words[i]; } else cur = t;
       }
       if (cur) lines.push(cur);
       let pw = 0;
-      for (let i = 0; i < lines.length; i++) pw = Math.max(pw, mw(lines[i]));
+      for (let i = 0; i < lines.length; i++) pw = Math.max(pw, tw2(lines[i]));
       pw = Math.min(pw + 24, W - 16);
-      const ph = lines.length * 20 + 12, pxx = W / 2 - pw / 2, pyy = bandH + 10;
-      ctx.globalAlpha = fade;
+      const ph = lines.length * 20 + 12, pxx = W / 2 - pw / 2;
+      const floorY = H - ins.b - 12, rb = room ? sy(room.h || 500) : 0;
+      let pyy = rb + 10, a = 1;
+      if (pyy + ph > floorY) { pyy = floorY - ph; a = 0.8; }
+      ctx.globalAlpha = fade * a;
       ctx.fillStyle = INK; ctx.fillRect(pxx, pyy, pw, ph);
       for (let i = 0; i < lines.length; i++) text(ctx, lines[i], W / 2, pyy + 21 + i * 20, 14, PAPER, 'center', true);
       ctx.globalAlpha = 1;
@@ -316,7 +341,7 @@ const PL = (globalThis.PL = globalThis.PL || {});
     if (tu && tu.open) {
       const rows = PL.tuningLayout(view, tu.rows || []);
       const py0 = bandH + 8, last = rows.length ? rows[rows.length - 1].label : { y: py0, h: 0 };
-      ctx.fillStyle = 'rgba(242,236,220,0.97)';
+      ctx.fillStyle = PAPER;
       ctx.fillRect(8, py0, W - 16, last.y + last.h + 12 - py0);
       ctx.strokeStyle = INK; ctx.lineWidth = 2;
       ctx.strokeRect(8, py0, W - 16, last.y + last.h + 12 - py0);
@@ -336,7 +361,7 @@ const PL = (globalThis.PL = globalThis.PL || {});
     // complete screen
     const cp = hud.completeScreen;
     if (cp) {
-      ctx.fillStyle = 'rgba(242,236,220,0.96)'; ctx.fillRect(0, 0, W, H);
+      ctx.fillStyle = PAPER; ctx.fillRect(0, 0, W, H);
       const y0 = Math.max(ins.t + 96, H * 0.22);
       const medal = cp.medal && cp.medal !== 'none' ? String(cp.medal).toUpperCase() : 'NO MEDAL';
       text(ctx, 'Survey complete', W / 2, y0, 28, INK, 'center', true);
@@ -363,7 +388,7 @@ const PL = (globalThis.PL = globalThis.PL || {});
     const w = Math.min(Math.max(240, Math.min(W - 32, 320)), W - 8), h = 64, gap = 16;
     const total = items.length * h + Math.max(0, items.length - 1) * gap;
     let y = i.t + 100;
-    if (y + total > H * 0.6) y = Math.max(i.t + 70, H * 0.6 - total);
+    if (y + total > H * 0.6) y = Math.max(i.t + 90, H * 0.6 - total);
     const x = (W - w) / 2;
     return items.map(function (it, k) {
       return Object.assign({}, it, { rect: { x: x, y: y + k * (h + gap), w: w, h: h } });
@@ -374,7 +399,7 @@ const PL = (globalThis.PL = globalThis.PL || {});
     const W = view.W || 360, H = view.H || 640, ins = inset(view);
     ctx.fillStyle = PAPER; ctx.fillRect(0, 0, W, H);
     text(ctx, menu.title || 'Plumbline', W / 2, ins.t + 48, 36, INK, 'center', true);
-    if (menu.sub) text(ctx, menu.sub, W / 2, ins.t + 74, 14, 'rgba(31,36,48,0.7)', 'center');
+    if (menu.sub) text(ctx, menu.sub, W / 2, ins.t + 68, 14, 'rgba(31,36,48,0.7)', 'center');
     const items = PL.menuLayout(view, menu.items || []);
     for (let k = 0; k < items.length; k++) {
       const r = items[k].rect;

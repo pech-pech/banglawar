@@ -105,7 +105,7 @@ const PL = (globalThis.PL = globalThis.PL || {});
       menuBtn = document.createElement('button');
       menuBtn.textContent = 'Menu';
       menuBtn.style.cssText = 'position:fixed;left:50%;transform:translateX(-50%);bottom:calc(24px + env(safe-area-inset-bottom));' +
-        'min-width:120px;height:56px;font:600 18px sans-serif;border-radius:12px;border:2px solid #fff;background:#222;color:#fff;z-index:50;display:none';
+        'min-width:120px;height:56px;font:700 16px system-ui, -apple-system, Segoe UI, sans-serif;border-radius:8px;border:3px solid #1f2430;background:#f2ecdc;color:#1f2430;z-index:50;display:none';
       menuBtn.addEventListener('click', toMenu);
       document.body.appendChild(menuBtn);
     }
@@ -527,6 +527,8 @@ const PL = (globalThis.PL = globalThis.PL || {});
     menu: () => { toMenu(); },
     tuning: () => { tuningOpen = !tuningOpen; return tuningOpen; },
     scene: () => scene,
+    sceneName: () => scene === 'menu' ? 'menu' : complete ? 'complete' : 'play',
+    kill: () => { if (scene === 'play' && !complete && state && !state.dead && !state.won) { state.dead = Math.round(C.RESPAWN_T / C.DT); state.events = (state.events || []).concat(['death']); deaths++; finishAttempt('death'); deadHandled = true; trailPts = trailBuf.slice(); trailUntil = nowMs() + 1200; return true; } return false; },
     inject: arr => { for (const i of (arr || [])) {
       if (!i) continue;
       if (i.k === 'dive') queue.push({ k: 'dive' });
