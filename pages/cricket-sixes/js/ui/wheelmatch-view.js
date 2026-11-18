@@ -1,9 +1,9 @@
 /* wheelmatch-view: Wheel match mode (2026-11-15 SPEC s1-4, 8, 9, 13; wheels SPEC 2a, 2c, 2d, 2e, 2h; CONTRACT-A 2-4). One spin = one whole over.
    render(el, vm, dispatch, open), vm = selectors.wheelMatchVM(s) (+ vm.info from app.js: chips, crease, bowler types; all optional).
    Screens (view state only, never saved): pick (bowler rows / bat info) -> wheel ready (SPIN) -> spin on the pulse (STOP live after the 0.35 s
-   guard, STOP glow 3.2-3.8 s of every 6 s cycle; the wheel spins until the player taps STOP) -> glide to the stored landing over D -> 0.40 s beat
+   guard, STOP glow 3.2-3.8 s of every 6 s cycle by default (Dev cycle length scales both); the wheel spins until the player taps STOP) -> glide to the stored landing over D -> 0.40 s beat
    -> ball row (BALL_SPEED) -> NEXT. Clock: elapsed = performance.now() - SPIN time, never integrated from frames; STOP time from the tap's
-   event.timeStamp. "Auto rest of innings": WheelOver {auto:true} paced 0.6 / 0.9 s, no ball row, pinned Stop auto; shown disabled while a wheel spins.
+   event.timeStamp. "Auto rest of innings": WheelOver {auto:true} paced 0.3 / 0.45 s (AUTO_PACE), no ball row, pinned Stop auto; shown disabled while a wheel spins.
    Ring order: clockwise from the pointer (SPEC); the wheel turns anticlockwise as pos grows (like the other wheels, T3 QA D9).
    The landing tick is core landingPos(phys, {t, phi, e: 0}) every frame (the same function the store lands with). The STOP glow reads time only.
    dispatch('WheelOver', p) returns app.js's hold handle {wheel, balls, score, over, stage, nextLabel, ..., release()} or null when rejected. */
@@ -15,6 +15,7 @@ import { stopExtra } from '../core/training.js';
 import { glowOn } from './wheel-look.js';
 import { autoRestHtml } from '../store/wheelmatch-store.js';
 import { ballGlyph, ballWord, overTotals, playOverPanel } from './over-panel.js';
+import { getTickStyle } from '../report/tick-pref.js';
 import { chipRowHtml, roarChipHtml } from './matchday-view.js';
 import { playGolden, goldenInfo, setGoldenSource } from './golden-over-view.js';
 
@@ -38,11 +39,14 @@ export function ballTimes(balls, over, overs = 10, B = BALL_SPEED) {
 /** STOP glow at wheel time t (s after SPIN), in EVERY pulse cycle: on while the cycle time is in GLOW (3.2-3.8 s, wheel-look glowOn);
  *  GLOW_BEATS half-beats of GLOW_BEAT (up, down, up), one shot a cycle. level 0..1 (the glow ring spread). Reads time only. Pure. */
 export function glowPhase(t, G = WHEEL_MATCH) {
-  const u = cycleOf(t, G).tInCycle;
-  if (!(t >= 0) || !glowOn(u)) return { on: false, beat: -1, level: 0 };
+  const u = cycleOf(t, G).tInCycle, lit = G.GLOW === WHEEL_MATCH.GLOW ? glowOn(u) : u >= G.GLOW[0] && u <= G.GLOW[1]; // Dev cycle length: glowG(phys) scales GLOW
+  if (!(t >= 0) || !lit) return { on: false, beat: -1, level: 0 };
   const x = (u - G.GLOW[0]) / G.GLOW_BEAT, beat = Math.min(G.GLOW_BEATS - 1, Math.floor(x)), v = Math.min(1, x - beat);
   return { on: true, beat, level: beat % 2 === 0 ? v : 1 - v };
 }
+/** The glowPhase table for a match phys: WHEEL_MATCH itself unless a Dev cycle length put PULSE_PERIOD / GLOW / GLOW_BEAT on phys
+ *  (core matchPhys + pulseWindow: 3.2-3.8 of 6 scaled). Pure. */
+export const glowG = (phys) => (phys && phys.GLOW ? { ...WHEEL_MATCH, PULSE_PERIOD: phys.PULSE_PERIOD, GLOW: phys.GLOW, GLOW_BEAT: phys.GLOW_BEAT } : WHEEL_MATCH);
 /** Label layout for one slice (mockups/QA): wide = number outer, stars in a row inside; narrow (the stars do not fit in a row) = number inner,
  *  stars in a row near the rim. span = slice angle (radians), stars = wickets, R = wheel radius (px). Sizes scale from the mockup's R 146. Pure. */
 export function labelPlan(span, stars, R) {
@@ -55,7 +59,7 @@ export function labelPlan(span, stars, R) {
   p.font = Math.max(18, 25 * k); p.maxW = Math.max(10, chord(p.numR) - 6 * k);
   return p;
 }
-/** Seconds one over of "Auto rest of innings" takes on screen (AUTO_PACE): 0.6, or 0.9 with a wicket, an innings end (WIN / ALL OUT) or the last over. Pure. */
+/** Seconds one over of "Auto rest of innings" takes on screen (AUTO_PACE): 0.3, or 0.45 with a wicket, an innings end (WIN / ALL OUT) or the last over. Pure. */
 export function autoPace(balls, opts = {}, P = AUTO_PACE) {
   const wk = (balls || []).some((b) => b.o === 'W');
   return wk || opts.end || opts.lastOver ? P.event : P.over;
@@ -314,16 +318,16 @@ function makeWheel(cv, segs, vm) {
     if (f.tick != null) {
       const a = (f.tick - pos) * U, rr = R + 7 * ks;
       if (f.band > 0) { const b = f.band * U; ctx.beginPath(); ctx.arc(0, 0, rr, a - b - Math.PI / 2, a + b - Math.PI / 2); ctx.lineWidth = 12 * ks; ctx.strokeStyle = pal.hi; ctx.stroke(); ctx.setLineDash([3, 3]); ctx.lineWidth = 1.5; ctx.strokeStyle = pal.ink; ctx.stroke(); ctx.setLineDash([]); }
-      ctx.save(); ctx.rotate(a); ctx.beginPath(); ctx.moveTo(0, -(R + 2 * ks)); ctx.lineTo(-7 * ks, -(R + 20 * ks)); ctx.lineTo(7 * ks, -(R + 20 * ks)); ctx.closePath();
-      ctx.fillStyle = pal.hi; ctx.fill(); ctx.lineWidth = 2.5 * ks; ctx.strokeStyle = pal.ink; ctx.lineJoin = 'round'; ctx.stroke();
+      const AR = getTickStyle().arrow; ctx.save(); ctx.rotate(a); ctx.beginPath(); ctx.moveTo(0, -(R + AR.tip * ks)); ctx.lineTo(-AR.hw * ks, -(R + AR.base * ks)); ctx.lineTo(AR.hw * ks, -(R + AR.base * ks)); ctx.closePath();
+      ctx.fillStyle = pal.hi; ctx.lineJoin = 'round'; if (AR.halo) { ctx.lineWidth = (AR.line + AR.halo) * ks; ctx.strokeStyle = pal.cream; ctx.stroke(); } ctx.fill(); ctx.lineWidth = AR.line * ks; ctx.strokeStyle = pal.ink; ctx.stroke();
       ctx.restore(); // QA D2: the TICK word is upright (never turned with the tick), at least 14 px, kept inside the canvas
       const tf = Math.max(14, 11 * ks); ctx.font = '900 ' + tf + 'px ' + fontFam(); ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
       const tw = ctx.measureText('TICK').width, lim = W / 2 - 3, sa = Math.sin(a), ca = Math.cos(a); // lim 3: the 5 px cream outline stays inside the canvas
       // D-B1: the word sits clear of the arrow (its box edge 4 px past the arrow base along the tick direction). If the canvas edge stops it sideways
-      // (the tick is 60..120 deg, so it mostly points right), it moves up or down off the arrow, never onto it (QA tick window: word hid the arrow at ~90 deg).
-      const tr = R + 20 * ks + 4 + Math.abs(sa) * tw / 2 + Math.abs(ca) * tf / 2, cx = Math.max(-(lim - tw / 2), Math.min(lim - tw / 2, tr * sa)), cy = Math.max(-(lim - tf / 2), Math.min(lim - tf / 2, -tr * ca));
+      // (the tick is 60..120 deg by default (Dev tick lead), so it mostly points right), it moves up or down off the arrow, never onto it (QA tick window: word hid the arrow at ~90 deg).
+      const tr = R + AR.base * ks + 4 + Math.abs(sa) * tw / 2 + Math.abs(ca) * tf / 2, cx = Math.max(-(lim - tw / 2), Math.min(lim - tw / 2, tr * sa)), cy = Math.max(-(lim - tf / 2), Math.min(lim - tf / 2, -tr * ca));
       let tx = cx, ty = cy;
-      if (cx !== tr * sa) { const ym = -(R + 11 * ks) * ca, dy = 7 * ks + tf / 2 + 4; ty = Math.max(-(lim - tf / 2), Math.min(lim - tf / 2, ca >= 0 ? ym - dy : ym + dy)); }
+      if (cx !== tr * sa) { const ym = -(R + 11 * ks) * ca, dy = AR.hw * ks + tf / 2 + 4; ty = Math.max(-(lim - tf / 2), Math.min(lim - tf / 2, ca >= 0 ? ym - dy : ym + dy)); }
       ctx.lineJoin = 'round'; ctx.lineWidth = 5; ctx.strokeStyle = pal.cream; ctx.strokeText('TICK', tx, ty); ctx.fillStyle = pal.ink; ctx.fillText('TICK', tx, ty);
     }
     // hub (does not turn): OVER n
@@ -450,7 +454,7 @@ function onSpin(el, vm, btn, ev) {
   if (st.busy) return;
   st.busy = true;
   const spinTs = tapTime(ev), GUARD = WHEEL_MATCH.STOP_GUARD_S;
-  const phys = vm.phys || WHEEL_MATCH, payloadBowler = vm.side === 'bowl' ? { bowler: pickedBowler(vm) } : {};
+  const phys = vm.phys || WHEEL_MATCH, GG = glowG(phys), payloadBowler = vm.side === 'bowl' ? { bowler: pickedBowler(vm) } : {};
   const C = WHEEL_MATCH.CIRC, phi = st.restPos || 0, w = st.wheel, ctrl = vm.ctrl || {}, guide = !!ctrl.guide, segs = vm.segs || [];
   const nowBox = el.querySelector('.wm-now');
   const sub = btn.querySelector('small'), lab = btn.querySelector('span');
@@ -474,7 +478,7 @@ function onSpin(el, vm, btn, ev) {
     w.draw(pos, st.drawOpts);
     const ni = segAtPos(tick), ne = ni !== lastNow ? nowEl() : null; if (ne) { lastNow = ni; const g = segs[ni]; if (g) { ne.textContent = sliceText(g); ne.className = 'wm-nowv wm-t--' + (g.tone || 'so'); } }
     if (t >= GUARD && btn.classList.contains('is-wait')) { waitLook(false); lab.textContent = 'STOP'; sub.textContent = stopCue(false).sub; btn.setAttribute('aria-label', 'Stop the wheel'); }
-    const gl = glowPhase(t); // time only; one shot every cycle
+    const gl = glowPhase(t, GG); // time only; one shot every cycle
     const gv = gl.on ? (gl.level * 7).toFixed(1) : ''; // DOM writes only on change (PERF fix 5)
     if (gl.on !== lastGlowOn) { lastGlowOn = gl.on; btn.classList.toggle('is-glow', gl.on); }
     if (gv !== lastGlow) { lastGlow = gv; if (gv) btn.style.setProperty('--wm-glow', gv + 'px'); }
@@ -485,12 +489,12 @@ function onSpin(el, vm, btn, ev) {
   function doStop(t) {
     if (stopped) return; stopped = true; cancelAnimationFrame(raf); btn.removeEventListener('click', onTap, true);
     btn.classList.remove('is-glow'); waitLook(true); btn.removeAttribute('aria-label'); lab.textContent = 'Slowing...'; sub.textContent = 'please wait';
-    const stopT = Math.round(t * 1000), c = cycleOf(stopT / 1000);
+    const stopT = Math.round(t * 1000), c = cycleOf(stopT / 1000, phys.PULSE_PERIOD ? phys : undefined); // Dev cycle length: the record follows it
     const stop = { t, phi, stopT, cycle: c.cycle, tInCycle: c.tInCycle }; // the store records it at STOP (recordStop) before the glide
     const r = st.dispatch('WheelOver', { ...payloadBowler, stop });
     if (!r) { st.busy = false; st.phase = 'pick'; render(el, st.vm, st.dispatch, st.open); return; }
     const L = r.wheel || {}, plan = glidePlan(phys, stop, L.pos != null ? L.pos : rimAt(phys, stop.t, phi));
-    const bucket = stopBucket(stop.t);
+    const bucket = stopBucket(stop.t, false, phys);
     st.tickNote = tickNoteText(L.segs || vm.segs || segs, landingPos(phys, { t: stop.t, phi, e: 0 }), bucket); // existing slice data, no new randomness
     if (nowBox) nowBox.hidden = true;
     const g0 = performance.now();

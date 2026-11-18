@@ -20,6 +20,11 @@
 .st-theme { display: flex; flex-direction: column; gap: var(--c-sp-1); }
 .st-theme__lbl { font-size: var(--c-fs-s); line-height: var(--c-lh-s); font-weight: 700; }
 .st-theme__seg .c-seg__opt { white-space: normal; text-align: center; line-height: 18px; }
+/* Tick row (Settings): Normal / Bold, word + small note + (on), 56 px taps, 14 px floor */
+.st-tick { display: flex; flex-direction: column; gap: var(--c-sp-1); }
+.st-tick__seg .c-seg__opt { min-height: 56px; white-space: normal; text-align: center; line-height: 18px; display: flex; flex-direction: column; justify-content: center; }
+.st-tick__seg .tk-opt b { font-size: 16px; }
+.st-tick__seg .tk-opt small { font-size: 14px; }
 /* hub header: title text shrinks and wraps so the gear and the ? (56 px each) stay inside 344 px */
 .strip:has(.st-gear) > span:first-child { flex: 1 1 0; min-width: 0; overflow: hidden; white-space: normal; }
 .strip:has(.st-gear) > .ss-strip { min-width: 0; }

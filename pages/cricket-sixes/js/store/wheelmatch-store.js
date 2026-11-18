@@ -8,7 +8,7 @@ import { makeRng } from '../core/rng.js';
 import { roarAt } from '../core/matchday.js';
 import { MD } from '../data/matchday.js';
 import { FLAGS } from '../data/flags.js';
-import { DEV_DEFAULTS } from '../data/wheelmatch.js';
+import { DEV_DEFAULTS, DEV_RANGE } from '../data/wheelmatch.js';
 import { matchModeOf, devClamp, matchPhys, ctrlOf, wheelOverModel } from '../core/wheelmatch.js';
 import { planProblem } from './commands.js';
 
@@ -94,10 +94,10 @@ export function setDev(s, p) {
   const cur = devClamp(s.dev), next = devClamp({ ...cur, ...patch });
   return JSON.stringify(next) === JSON.stringify(s.dev) ? s : { ...s, dev: next };
 }
-/** DevReset {all?}: matchW0 back to default, or all four tuning keys. Keeps `on`. @param {any} s @param {any} p */
+/** DevReset {all?, key?}: matchW0 (or `key`) back to default, or every DEV_RANGE key with all. Keeps `on`. @param {any} s @param {any} p */
 export function devReset(s, p) {
   const cur = devClamp(s.dev);
-  const keys = p && p.all ? ['matchW0', 'matchJ', 'matchD', 'otherMult'] : ['matchW0'];
+  const keys = p && p.all ? Object.keys(DEV_RANGE) : p && typeof p.key === 'string' && p.key in DEV_RANGE ? [p.key] : ['matchW0']; // all = every Dev tuning key (DEV_RANGE), so a new key is never missed
   const next = { ...cur };
   for (const k of keys) next[k] = /** @type {any} */ (DEV_DEFAULTS)[k];
   return JSON.stringify(next) === JSON.stringify(s.dev) ? s : { ...s, dev: next };

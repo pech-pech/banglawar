@@ -1,6 +1,7 @@
 // Settings sheet: copy report, copy short summary, build stamp, clear data (with confirm). Nothing leaves the phone.
 import { openSheet } from '../ui/sheet.js';
 import { THEMES, themeOf } from '../ui/theme.js';
+import { mountTickRow } from './tick-pref.js';
 
 const two = (n) => (n < 10 ? '0' : '') + n;
 export const stampOf = (t) => { const d = new Date(t); return d.getFullYear() + '-' + two(d.getMonth() + 1) + '-' + two(d.getDate()) + ' ' + two(d.getHours()) + ':' + two(d.getMinutes()) + ':' + two(d.getSeconds()); };
@@ -51,6 +52,7 @@ export function openSettings(rep, look) {
   openSheet('Settings', html);
   const root = document.querySelector('.sheet-fixed .st-body'); if (!root) return;
   const status = root.querySelector('.st-status'), fb = root.querySelector('.st-fallback'), ta = fb.querySelector('textarea');
+  try { mountTickRow(root); } catch (e) { /* settings stay usable */ }
   root.querySelector('.st-stamp').textContent = rep.stamp();
   const say = (t) => { status.textContent = t; try { status.scrollIntoView({ block: 'nearest' }); } catch (e) { /* older browsers */ } }; // m11: the line sits above the copy buttons so it is on screen at 344x780
   const note = () => { try { return pendingNote(rep.window ? rep.window() : null); } catch (e) { return null; } };

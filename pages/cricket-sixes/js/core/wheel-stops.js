@@ -4,7 +4,7 @@
 // recordStop(n, wheelId, spinKey, rec, opts?) -> n   mutates the reducer draft n in place, in the same dispatch as STOP:
 //   - creates n.wheels (and any missing / non-object sub-map, as normWheels: WHEELS_DEFAULT) and the stops[wheelId][spinKey] entry
 //     {stops:[], kept:0, spent:false} when missing;
-//   - appends the cleaned StopRec {stopT:int>=0 ms, cycle:int>=1, tInCycle:0..6 s, sliceId:int>=0, value, paid? (Finals), auto:bool, respin:0|1};
+//   - appends the cleaned StopRec {stopT:int>=0 ms, cycle:int>=1, tInCycle:0..6 s (match wheel: up to the Dev cycle max, 10 s), sliceId:int>=0, value, paid? (Finals), auto:bool, respin:0|1};
 //   - kept: rec.kept when it is a valid index (the player's Pick Two choice; marks the entry keptBy:'pick', and a later stop without
 //     rec.kept leaves that choice alone); otherwise the index of the highest value, a tie keeps the first (Spin Again, SPEC 11a);
 //   - spent = true once rec.spent is true (sticky); markSpent writes it at the Spin Again / Pick Two press, before the next STOP (SPEC 2d);
@@ -28,6 +28,9 @@
 // statsOf(s, wheelId) -> {n, careful, early, late, taps}  stored stats with defaults (a fresh copy, never the stored object).
 // storedStop(s, wheelId, spinKey) -> entry | null          the stored {stops, kept, spent} (the live object), null when unspun.
 import { WHEEL_ENGINE, WHEEL_STOP_IDS } from '../data/wheel-engine.js';
+import { DEV_RANGE } from '../data/wheelmatch.js';
+/** Longest match-wheel cycle a StopRec can hold: the Dev match cycle length max (10 s); every other wheel keeps the engine 6 s. */
+const MATCH_T_IN_MAX = Math.max(WHEEL_ENGINE.PULSE_PERIOD, DEV_RANGE.matchCycle[1]);
 import { WHEELS_DEFAULT } from '../data/save-defaults.js';
 import { weekKey } from './week-key.js';
 import { seasonIdOf, matchDayIdOf, occasionIdOf } from './spin-keys.js';
@@ -73,9 +76,9 @@ function carefulOf(wheelId, sr, r, o) {
 }
 
 /** The StopRec as stored (CONTRACT-A s6). @param {any} r */
-function cleanRec(r) {
+function cleanRec(r, tMax = WHEEL_ENGINE.PULSE_PERIOD) {
   const out = /** @type {any} */ ({ stopT: Math.max(0, int(r.stopT, 0)), cycle: Math.max(1, int(r.cycle, 1)),
-    tInCycle: Math.min(WHEEL_ENGINE.PULSE_PERIOD, Math.max(0, num(r.tInCycle, 0))), sliceId: Math.max(0, int(r.sliceId, 0)), value: num(r.value, 0) });
+    tInCycle: Math.min(tMax, Math.max(0, num(r.tInCycle, 0))), sliceId: Math.max(0, int(r.sliceId, 0)), value: num(r.value, 0) });
   if (typeof r.paid === 'number' && Number.isFinite(r.paid)) out.paid = r.paid;
   out.auto = !!r.auto; out.respin = r.respin ? 1 : 0;
   return out;
@@ -100,7 +103,7 @@ function cleanStats(st) {
 export function recordStop(n, wheelId, spinKey, rec, opts = {}) {
   if (!okArgs(n, wheelId, spinKey)) return n;
   const r = isObj(rec) ? rec : {}, o = isObj(opts) ? opts : {}, W = wheelsOf(n), e = entryOf(n, wheelId, spinKey);
-  const sr = cleanRec(r);
+  const sr = cleanRec(r, wheelId === 'match' ? MATCH_T_IN_MAX : WHEEL_ENGINE.PULSE_PERIOD); // only the match wheel has a Dev cycle length
   e.stops.push(sr);
   const k = r.kept;
   if (Number.isInteger(k) && k >= 0 && k < e.stops.length) { e.kept = k; e.keptBy = 'pick'; }

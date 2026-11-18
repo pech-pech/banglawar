@@ -27,9 +27,9 @@ function keptRec(e) {
 }
 
 /** StopRec timing of a STOP payload: stopT (ms since SPIN), cycle, tInCycle; derived from stop.t (s) when the view did not send them. */
-function stopTiming(stop) {
+export function stopTiming(stop, P) {
   const stopT = Math.max(0, Math.round(isNum(stop.stopT) ? stop.stopT : stop.t * 1000));
-  const c = cycleOf(stopT / 1000);
+  const c = cycleOf(stopT / 1000, P && P.PULSE_PERIOD ? P : undefined); // Dev cycle length (matchPhys); default = the 6 s engine cycle
   const cycle = Number.isInteger(stop.cycle) && stop.cycle >= 1 ? stop.cycle : c.cycle;
   const tInCycle = isNum(stop.tInCycle) && stop.tInCycle >= 0 ? stop.tInCycle : c.tInCycle;
   return { stopT, cycle, tInCycle };
@@ -64,9 +64,9 @@ export function wheelOver(s, p, ctx) {
     const e = matchWobble(s, matchBallOf(innIdx, over), 0, phys.J); // keyed wobble (CONTRACT-A sec 3): spinIndex = ball no., respin 0
     pos = landingPos(phys, { t, phi, e });
     tickPos = landingPos(phys, { t, phi, e: 0 });
-    bucket = stopBucket(t);
+    bucket = stopBucket(t, false, phys);
   } else if (!held) pos = unaimedPos(makeRng(`${s.seed}|wma|${s.stage}|${over}`));
-  else if (!auto) { t = held.stopT / 1000; bucket = stopBucket(t); }
+  else if (!auto) { t = held.stopT / 1000; bucket = stopBucket(t, false, phys); }
   // Land, pick the sample, replay it on a clone. The replay must give the sample's runs/wkts; on a mismatch (stale memo) rebuild uncached once.
   let model, segIdx, seg, sample, n, inn, balls, runs0, wk0;
   for (const fresh of [false, true]) {
@@ -84,7 +84,7 @@ export function wheelOver(s, p, ctx) {
   }
   const careful = auto ? false : isCareful(model.segs, segAt(model.segs, tickPos));
   if (!held && spinKey) { // A2.11m: the STOP record, same dispatch, before the result is drawn
-    const tm = stop ? stopTiming(stop) : { stopT: 0, cycle: 1, tInCycle: 0 };
+    const tm = stop ? stopTiming(stop, phys) : { stopT: 0, cycle: 1, tInCycle: 0 };
     recordStop(n, 'match', spinKey, { ...tm, sliceId: segIdx, value: seg.value, auto, respin: 0 }, { careful });
   }
   const bats = bowlSide ? n.rival.players : n.me.players, bowls = bowlSide ? n.me.players : n.rival.players;
