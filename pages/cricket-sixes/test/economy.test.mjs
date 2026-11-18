@@ -238,3 +238,14 @@ test('TP ledger gains a Gym line each match (half-rate TP)', async () => {
   assert.deepEqual(row, { k: 'gym', tp: 10 });
   assert.equal(a.training.tp - tp0, a.pay.total);
 });
+
+test('Pitch locked: Coming soon, no buy, owned level kept, no upkeep', () => {
+  const s = mk();
+  const o = X.buildOptions(s).find((b) => b.what === 'pitch');
+  assert.equal(o.ok, false); assert.equal(o.why, 'Coming soon');
+  const rich = ec(ec(s, { coins: 99999, stadium: 5 }), { fac: { ...s.econ.fac, pitch: 0 } });
+  assert.equal(X.startBuild(rich, 'pitch'), rich, 'locked buy rejected');
+  const own = ec(s, { fac: { ...s.econ.fac, pitch: 3 } });
+  assert.equal(own.econ.fac.pitch, 3);
+  assert.equal(X.matchIncome(own, {}).upkeep, X.matchIncome(s, {}).upkeep, 'Pitch upkeep is 0');
+});
