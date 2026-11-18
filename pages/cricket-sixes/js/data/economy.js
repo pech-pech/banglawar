@@ -51,9 +51,7 @@ export const ECON = {
   LEDGER_MAX: 40,
   COURSE_FACTOR: [1, 1.25, 1.55, 1.95, 2.5], COURSE_BASE: 24, COURSE_PER_STEP: 6,
   MEDAL_SHOP: [
-    { id: 'trophy_cabinet', name: 'Trophy Cabinet (gold trim on the stadium)', medals: 1, once: true },
     { id: 'twin_drill', name: 'Twin Spotlight Pass (two players get the Spotlight wheel next training week)', medals: 2 },
-    { id: 'clear_sight', name: 'Clear-sight Scout Report (one trip shows exact ratings)', medals: 3 },
     { id: 'wage_holiday', name: 'Wage Holiday (half wages for one season)', medals: 4 },
     { id: 'master_licence', name: 'Master Coach Licence (one coach may take a second course this season)', medals: 6 },
   ],
@@ -66,7 +64,6 @@ export const ECON = {
     { id: 'roof_crest', name: 'Stadium Roof and Crest', coins: 2600, stadium: 5, needs: 'big_screen' },
     { id: 'hall_plaque', name: 'Hall plaque', medals: 3, needs: 'hall_1', repeat: 'retired' },
     { id: 'legends_banner', name: 'Legends Banner', medals: 5, needs: 'hall_2' },
-    { id: 'coach_retreat', name: 'Coach Retreat Week', coins: 500, stadium: 4, repeat: 'season' },
   ],
   LEGACY: { price: { 4: 8000, 5: 13000 }, fans: 500, segmentsPerTier: 10,
     names: ['Riverside Orchard', 'Village Green Pavilion', 'Sunrise Nets Hall', 'Old Oak Scoreboard', 'Harbour Lights Terrace', 'Meadow Practice Wing',
