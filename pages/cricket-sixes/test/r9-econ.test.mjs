@@ -185,7 +185,7 @@ test('trial player: wage shown, Sign adds him free, squad max applies, Decline i
   assert.equal(A.signTrial(t), t, 'full squad: refused, state unchanged');
   const small = { ...t, clubs: [{ ...t.clubs[0], squad: t.clubs[0].squad.slice(0, 7) }] };
   const ok = A.signTrial(small);
-  assert.equal(ok.clubs[0].squad.length, 8); assert.equal(ok.clubs[0].squad.at(-1).id, p.id); assert.equal(ok.trial, undefined); assert.equal(ok.econ.coins, small.econ.coins, 'no fee');
+  assert.equal(ok.clubs[0].squad.length, 8); assert.equal(ok.clubs[0].squad.at(-1).id, p.id); assert.equal(ok.trial, undefined); assert.equal(ok.econ.coins, small.econ.coins - X.signFee(p), 'fee 0.35 x feeOf');
   assert.equal(ok.econ.ledger.at(-1).signed, true);
   const no = A.declineTrial(t); assert.equal(no.trial, undefined); assert.equal(no.clubs[0].squad.length, 8); assert.equal(no.econ.ledger.at(-1).signed, false);
   assert.equal(A.declineTrial(no), no); assert.equal(A.signTrial(no), no);

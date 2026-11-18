@@ -48,6 +48,10 @@ export function wageOf(p) {
 }
 /** Signing fee = 6 x shown sum x max(1, avg/50). @param {any} p */
 export const feeOf = (p) => { const sum = p.bp + p.bs + p.spd + p.bsk; return rd(E.FEE_PER_POINT * sum * Math.max(1, sum / 4 / E.WAGE_REF)); };
+/** Fee paid to sign a season-end recruit or a scouted player = 0.35 x feeOf. @param {any} p */
+export const signFee = (p) => rd(E.RECRUIT_FEE_PCT * feeOf(p));
+/** Coins back when a player we signed is sold or released = 50% of the fee paid (always below it, so no arbitrage). @param {any} p */
+export const saleBack = (p) => rd(E.SALE_BACK * signFee(p));
 /** Coins for selling/releasing. Revealed: 50% x 6 x capSum(P) x max(1, capAvg/50). Hidden: 50% of the fee. @param {any} p */
 export function transferValue(p) {
   if (!revealed(p) && p.bp != null) return rd(E.RELEASE_REFUND * feeOf(p));

@@ -11,7 +11,7 @@ import { makeSchedule, makeTable, applyResult, placeOf, inTopFour, finalsDraw, f
 import { planOf, setPlan as setTrainPlan, runNets, endWeek, coachList, startCoach as makeStartCoach, passScout, courseUsesLicence, courseCost, signCoach, releaseCoach, pickWeekCoach, canCourse, runCourse, matchCoachOf, setMatchCoach } from '../core/training.js';
 import { unlockNode, makeFx } from '../core/skills.js';
 import { defaultOvers } from '../core/plan.js';
-import { newEconomy, applyMatch, tickBuild, finalsReward, finalsTp, payCourse, useHeld, startBuild, buySink, buyMedal, buyLegacy } from '../core/economy.js';
+import { newEconomy, applyMatch, tickBuild, finalsReward, finalsTp, payCourse, useHeld, startBuild, buySink, buyMedal, buyLegacy, saleBack } from '../core/economy.js';
 import { newRun, closeSeason, remakeRivals, carryOf, applyCarry } from '../core/run.js';
 import { RUN, SQUAD, SKEW } from '../data/run.js';
 import { skewPlayer, squadMax, bowlFloor } from '../core/skew.js';
@@ -230,6 +230,7 @@ function sellPlayer(s, p) {
   const gone = c.squad.find((x) => x.id === p.id);
   c.squad = c.squad.filter((x) => x.id !== p.id);
   c.six = aiPickSix(c);
+  if (gone && n.econ) n.econ.coins += saleBack(gone); // P8: 50% of the signing fee comes back
   if (n.trial && n.trial.kind === 'player' && gone) n.trial.released = gone.name; // QA3 m2 / SUP-CLUB #1: saved, so the trial sheet still says who left after close or reload (Sign / Decline drop n.trial)
   n.plan = { ...n.plan, edited: false, key: '' };
   return n;

@@ -108,6 +108,7 @@ export function renderTrial(root, vm, dispatch) {
     (coach ? '<span class="c-tag cl-grade" aria-label="Grade ' + esc(spoken(letterOfStep(p.step))) + '"><span aria-hidden="true">Grade</span><b aria-hidden="true">' + esc(letterOfStep(p.step)) + '</b></span>' : '') + '</h3>' +
     '<ul class="cl-facts">' + facts +
     stats.map((l) => '<li>' + iw('info', l) + '</li>').join('') +
+    (Number(vm.fee) ? '<li>' + icoDeco('coin', 24) + '<span>Fee: ' + fmt(vm.fee) + ' Coins</span></li>' : '') +
     '<li>' + icoDeco('coin', 24) + '<span>' + (Number(vm.wage) ? 'Wage: ' + fmt(vm.wage) + ' Coins a match' : 'No wage') + '</span></li>' +
     '</ul>' +
     (released ? '<p class="cl-note cl-done">' + icoDeco('done', 24) + '<span>' + esc(released + ' released. ' + sizeWord + '.') + '</span></p>' : '') +

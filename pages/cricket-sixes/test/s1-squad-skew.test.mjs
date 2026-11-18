@@ -1,3 +1,4 @@
+import { signFee } from '../js/core/economy.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { applyCommand as C, squadMax, canAddPlayer } from '../js/store/commands.js';
@@ -85,7 +86,7 @@ test('s1 full 9: SignRecruit needs leaveId; that player leaves free', () => {
   const coins = e.econ && e.econ.coins;
   const n = C(e, 'SignRecruit', { id, leaveId: 'x9' });
   assert.equal(n.clubs[0].squad.length, 9); assert.ok(!n.clubs[0].squad.some((p) => p.id === 'x9'));
-  assert.equal(n.recruit.left, 'Ninth'); if (coins != null) assert.equal(n.econ.coins, coins, 'no fee, no refund');
+  assert.equal(n.recruit.left, 'Ninth'); if (coins != null) assert.equal(n.econ.coins, coins - signFee(recruitList(e)[2]), 'fee paid, no refund for the leaver');
   assert.equal(n.clubs[0].six.length, 6);
 });
 
