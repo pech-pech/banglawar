@@ -48,6 +48,7 @@ import { wheelWidths, stopExtra, TIMING_WIN, timingBucket, TIMING_LINE } from '.
 import { scoutShort } from './wheels/scout-opts.js';
 import { matOf, colourOf, normLook, PALETTES, spokeIcon, glowOn, aimMarker, sliceLabel, legendRows, tierShape, LABEL_MIN_W, tierMark, MARK_MIN_RAD, radialFit, radialTurn, legendWith, legendShape, cardOf, rowText, boostText, splitNameValue, tierKeyRows, uniquePrefixLens, uniqueTailLens, shortNameForms, scoutNameCuts } from './wheel-look.js';
 import { tickKind, TICK } from '../core/landtick.js';
+import { getTickStyle } from '../report/tick-pref.js';
 import { WHEEL_ENGINE } from '../data/wheel-engine.js';
 import { pulseW, pulseArc, tickAt, cycleOf, ARC_PER_CYCLE } from '../core/wheel-pulse.js';
 import { restNudge, seamClearDeg } from '../core/wheel-ring.js';
@@ -297,13 +298,13 @@ export function openWheel(o) {
     });
     const tk = tickKind({ guide: !!o.guide });
     if (tk !== 'none' && state === 'spin') { // landing tick (free for everyone): the wheel point that ends under the pointer if STOP is tapped now (phi + tickAt(t), no wobble); Aim Guide = gold wedge + J band
-      const ga = -Math.PI / 2 - DIR * curDist * U, gx = Math.cos(ga), gy = Math.sin(ga), r0 = R - 15, plot = (rr, o, col) => { tctx.fillStyle = col; tctx.fillRect(Math.round(cx + gx * rr - gy * o), Math.round(cy + gy * rr + gx * o), 1, 1); };
+      const ga = -Math.PI / 2 - DIR * curDist * U, gx = Math.cos(ga), gy = Math.sin(ga), r0 = R - 15, TS = getTickStyle(), p0 = R - TS.len, plot = (rr, o, col) => { tctx.fillStyle = col; tctx.fillRect(Math.round(cx + gx * rr - gy * o), Math.round(cy + gy * rr + gx * o), 1, 1); };
       if (o.guide && JE > 0) { tctx.beginPath(); tctx.arc(cx, cy, R - 4, ga - JE * U, ga + JE * U); tctx.lineWidth = 5; tctx.strokeStyle = 'rgba(' + ZONE_COL.join(',') + ',0.9)'; tctx.stroke(); } // Aim Guide: the yellow rim band of the wobble spread (+-J; Steady narrows it)
       if (tk === 'wedge') {
         for (const [grow, col] of [[1.6, 'rgb(' + pal.out + ')'], [0, 'rgb(' + pal.gold + ')']]) for (let rr = r0 - grow; rr <= R - 0.5; rr += 0.5) { const t = Math.max(0, (rr - r0) / (R - r0)), hw = TICK.WEDGE_TIP_PX + t * 3 + grow; for (let o = -hw; o <= hw; o += 0.5) plot(rr, o, col); } // Aim Guide: an outlined gold wedge on the rim, sharp tip inside, wide end at the rim
         for (let rr = r0 + 2; rr <= R - 2; rr += 0.5) plot(rr, 0, '#fff');
-      } else { // plain tick: a dark 2 px bar with a 1 px white halo, 13 px long across the rim band; readable on every slice and skin
-        for (const [hw, col] of [[TICK.PLAIN_PX / 2 + 1, '#fff'], [TICK.PLAIN_PX / 2, 'rgb(' + pal.out + ')']]) for (let rr = r0 - (hw > 1.5 ? 1 : 0); rr <= R - 0.5; rr += 0.5) for (let o = -hw; o <= hw; o += 0.5) plot(rr, o, col);
+      } else { // plain tick: a dark 2 px bar with a 1 px white halo, 15 px long across the rim band; readable on every slice and skin
+        for (const [hw, col, ext] of [[TS.px / 2 + TS.halo, '#fff', TS.halo], [TS.px / 2, 'rgb(' + pal.out + ')', 0]]) for (let rr = p0 - (hw > 1.5 ? ext : 0); rr <= R - 0.5; rr += 0.5) for (let o = -hw; o <= hw; o += 0.5) plot(rr, o, col); // TS = Settings Tick (Normal 2 px / Bold wider, longer, 2 px halo); landing position untouched
       }
     }
     const a = rot - centreOf(JP) * U - Math.PI / 2, ax = Math.round(cx + Math.cos(a) * (R - 3.6)), ay = Math.round(cy + Math.sin(a) * (R - 3.6));

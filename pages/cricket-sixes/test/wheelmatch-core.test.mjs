@@ -302,8 +302,8 @@ test('SPEC test 13: match wobble is keyed by the ball number (same key same wobb
 
 test('devClamp: NaN, strings, negatives, out of range, missing', () => {
   assert.deepEqual(W.devClamp(undefined), { ...DEV_DEFAULTS });
-  assert.deepEqual(W.devClamp({ on: true, matchW0: NaN, matchJ: 'abc', matchD: -3, otherMult: 99 }), { on: true, matchW0: 36, matchJ: 1.2, matchD: 0.5, otherMult: 3 });
-  assert.deepEqual(W.devClamp({ on: 'yes', matchW0: 5, matchJ: 9, matchD: 100, otherMult: -1 }), { on: false, matchW0: 12, matchJ: 3, matchD: 4, otherMult: 0.25 });
+  assert.deepEqual(W.devClamp({ on: true, matchW0: NaN, matchJ: 'abc', matchD: -3, otherMult: 99 }), { ...DEV_DEFAULTS, on: true, matchW0: 36, matchJ: 1.2, matchD: 0.5, otherMult: 3 }); // + the newer Dev keys at their defaults (2026-11-18)
+  assert.deepEqual(W.devClamp({ on: 'yes', matchW0: 5, matchJ: 9, matchD: 100, otherMult: -1 }), { ...DEV_DEFAULTS, on: false, matchW0: 12, matchJ: 3, matchD: 4, otherMult: 0.25 });
   assert.equal(W.devClamp({ matchW0: 1000 }).matchW0, 90); assert.equal(W.devClamp({ matchW0: '50' }).matchW0, 36); assert.equal(W.devClamp({ matchW0: Infinity }).matchW0, 36);
   assert.equal(W.devClamp({ matchJ: 0.73 }).matchJ, 0.7); assert.equal(W.devClamp({ otherMult: 1.37 }).otherMult, 1.35);
 });

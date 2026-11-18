@@ -7,11 +7,12 @@ import { WHEEL_MATCH, BALL_SPEED, AUTO_PACE } from '../js/data/wheelmatch.js';
 import { landingPos, rimAt } from '../js/core/wheelmatch.js';
 import { BALL_MS } from '../js/ui/over-panel.js';
 
-test('ball delay: overs 1-3 full for every ball', () => {
-  for (const over of [1, 2, 3]) for (const o of [0, 1, 2, 4, 6, 'W']) assert.equal(ballDelay(o, over), BALL_SPEED.full);
+test('ball delay: fastFrom is over 1 (M 2026-11-18 item 3, was over 4; updated deliberately): no all-full opening overs', () => {
+  assert.equal(BALL_SPEED.fastFrom, 1);
+  for (const over of [1, 2, 3]) { for (const o of [0, 1, 2]) assert.equal(ballDelay(o, over), BALL_SPEED.plain); for (const o of [4, 6, 'W']) assert.equal(ballDelay(o, over), BALL_SPEED.full); }
 });
-test('ball delay: from over 4 plain balls 0.2 s, 4/6/W 0.4 s', () => {
-  for (const over of [4, 5, 6, 7, 8]) {
+test('ball delay: from over 1 plain balls 0.2 s, 4/6/W 0.4 s', () => {
+  for (const over of [1, 2, 3, 4, 5, 6, 7, 8]) {
     for (const o of [0, 1, 2, 3]) assert.equal(ballDelay(o, over), 0.2, 'plain ' + o + ' over ' + over);
     for (const o of [4, 6, 'W']) assert.equal(ballDelay(o, over), 0.4, 'event ' + o + ' over ' + over);
   }
@@ -76,12 +77,12 @@ test('labels scale with the wheel radius', () => {
   assert.equal(c.font, 18, 'numbers never under 18 px (QA D5)');
 });
 
-test('auto pace: 0.6 s an over, 0.9 s with a wicket, an innings end or the last over', () => {
+test('auto pace: 0.3 s an over, 0.45 s with a wicket, an innings end or the last over', () => {
   assert.equal(autoPace([{ o: 1 }, { o: 4 }]), AUTO_PACE.over);
   assert.equal(autoPace([{ o: 1 }, { o: 'W' }]), AUTO_PACE.event);
   assert.equal(autoPace([{ o: 1 }], { end: true }), AUTO_PACE.event);
   assert.equal(autoPace([{ o: 1 }], { lastOver: true }), AUTO_PACE.event);
-  assert.equal(AUTO_PACE.over, 0.6); assert.equal(AUTO_PACE.event, 0.9);
+  assert.equal(AUTO_PACE.over, 0.3); assert.equal(AUTO_PACE.event, 0.45); // M 2026-11-18 item 2 (was 0.6 / 0.9): updated deliberately
 });
 test('auto stop rule: pause before the last over of a live chase only; no per-over Auto (wheels SPEC 2h: "Auto over" removed)', () => {
   assert.equal(autoStopWhy({ side: 'bat', autoPauseNow: true }, 'rest', 3), 'pause');

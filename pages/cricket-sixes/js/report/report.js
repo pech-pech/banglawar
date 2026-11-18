@@ -100,7 +100,7 @@ export function cleanOf(matches, env) {
 }
 
 export function envOf(env = {}, data = null) {
-  return { trimmed: !!(env.trimmed || (data && data.trimmed)), fixedSeed: !!env.fixedSeed, tuningSha: env.tuningSha, tuningPinned: env.tuningPinned, migrated: !!env.migrated, build: env.build || '?', now: env.now || Date.now(), vp: env.vp || '?', errors: env.errors || 0, lastError: env.lastError || '', flags: env.flags, features: env.features, win: env.win, rid: env.rid, save: env.save || null, matchMode: env.matchMode || null, dev: env.dev || null, state: env.state || null };
+  return { trimmed: !!(env.trimmed || (data && data.trimmed)), fixedSeed: !!env.fixedSeed, tuningSha: env.tuningSha, tuningPinned: env.tuningPinned, migrated: !!env.migrated, build: env.build || '?', now: env.now || Date.now(), vp: env.vp || '?', errors: env.errors || 0, lastError: env.lastError || '', flags: env.flags, features: env.features, win: env.win, rid: env.rid, save: env.save || null, matchMode: env.matchMode || null, dev: env.dev || null, tickMode: env.tickMode === 'bold' ? 'bold' : null, state: env.state || null };
 }
 
 /** Per-word open counts, most opened first (ties by name). */
@@ -362,9 +362,9 @@ export function reportParts(data, env0) {
   const h3 = w.dropped ? `Dropped ${w.dropped.n} records from ${w.dropped.build}` : null;
   const pd = w.pending, h4 = pd ? (pd.res ? `M${pd.id} is on the result screen: not in this report. Leave the result screen, then copy: it comes in whole with its Coins, Fans, pay and feel.` : `M${pd.id} is still in play: it comes in whole in the next report.`) : null; // QA3 B1
   const secs = [secT(w, env), secM(w, env), secE(w, env), secC(w, env), secS(w, env), secF(w, data)];
-  const h5 = devLine(env.dev); // Dev on with changed values only (06-DEV-SPEED)
+  const h5 = devLine(env.dev), h6 = env.tickMode === 'bold' ? 'Tick=Bold (look only)' : null; // Settings Tick // Dev on with changed values only (06-DEV-SPEED)
   const gold = goldLines(w.ms);
-  return { gold, env, w, clean, on, rid, h: [h1, h2, h3, h4, h5].filter(Boolean), secs, drop: w.dropped ? w.dropped.n : 0, mode };
+  return { gold, env, w, clean, on, rid, h: [h1, h2, h3, h4, h5, h6].filter(Boolean), secs, drop: w.dropped ? w.dropped.n : 0, mode };
 }
 
 const LIM = { full: 2500, short: 1000, json: 4000 };
@@ -405,6 +405,7 @@ export function buildData(data, env0) {
   if (sec && sec.wl) out.wl = sec.wl; // W numbers [n, bowl, bat, auto, careful, early, late, coast, runs +-, wkts +-, guide]
   if (p.gold.length) out.go = p.gold; // Captain's Over block
   if (env.dev && Object.keys(env.dev).length) out.dev = env.dev;
+  if (env.tickMode === 'bold') out.tk = 'bold'; // Tick=Bold
   if (env0 && env0.wm) out.wm = env0.wm; // wa1: tokens used per wheel, match-day count, Find check [yours, full, every node], bug flag
   let js = JSON.stringify(out);
   if (js.length > LIM.json) { for (const m of out.M) { delete m.rb; delete m.rc; } js = JSON.stringify(out); } // overflow: runs per over go first

@@ -15,6 +15,7 @@
    Cells 19 px tall (Street Game) still read: icon + text, text size follows the cell. Canvas drawn in code (pixel style), palette from CSS vars (both skins). */
 import { esc, icoDeco } from './dom.js';
 import { tickKind } from '../core/landtick.js';
+import { getTickStyle } from '../report/tick-pref.js';
 import { DR, mountShell, palette, reducedNow, lum, dim, cumOf, sliceAtX, easeOut3, smooth, revealFrac } from './dial-view.js';
 
 export const RL = { C: 12, V: 7, G: 0.5, J: 0.8, REVEAL_T: 3, PX: 100 };
@@ -93,7 +94,7 @@ export function openReel(o) {
     const tk = tickKind({ reveal, guide: !!o.guide, reduced });
     if ((tk === 'wedge' || tk === 'plain') && state === 'spin' && shown >= DR.STOP_FROM) { const gy = cyL + (V * RL.G / 3) * ppu; // landing tick: the cell that will be on the line if STOP is pressed now sits here (free for everyone; Aim Guide = bigger gold marks)
       if (tk === 'wedge') { ctx.fillStyle = 'rgb(' + pal.out + ')'; ctx.fillRect(0, gy - 3, 6, 7); ctx.fillStyle = 'rgb(' + pal.gold + ')'; ctx.fillRect(0, gy - 2, 5, 5); ctx.fillStyle = 'rgb(' + pal.out + ')'; ctx.fillRect(w - 6, gy - 3, 6, 7); ctx.fillStyle = 'rgb(' + pal.gold + ')'; ctx.fillRect(w - 5, gy - 2, 5, 5); }
-      else { ctx.fillStyle = 'rgb(' + pal.out + ')'; ctx.fillRect(0, gy - 2, 5, 5); ctx.fillRect(w - 5, gy - 2, 5, 5); ctx.fillStyle = '#fff'; ctx.fillRect(0, gy - 1, 4, 3); ctx.fillRect(w - 4, gy - 1, 4, 3); } // plain: a small white mark in a 1 px outline, each side
+      else { const RM = getTickStyle().reel, oh = RM.h, ih = oh - 2, il = RM.len - 1; ctx.fillStyle = 'rgb(' + pal.out + ')'; ctx.fillRect(0, gy - (oh >> 1), RM.len, oh); ctx.fillRect(w - RM.len, gy - (oh >> 1), RM.len, oh); ctx.fillStyle = '#fff'; ctx.fillRect(0, gy - (ih >> 1), il, ih); ctx.fillRect(w - il, gy - (ih >> 1), il, ih); } // plain: a small white mark in a 1 px outline, each side
     }
   }
   labBox.style.left = '0'; labBox.style.top = '0';

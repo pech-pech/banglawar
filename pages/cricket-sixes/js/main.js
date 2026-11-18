@@ -4,6 +4,8 @@ import { createSave } from './platform/save.js';
 import { openSaveSheet } from './ui/save-sheet.js';
 import { FLAGS } from './data/flags.js';
 import { applyTheme, themeOf } from './ui/theme.js';
+import { setTickDims } from './report/tick-pref.js';
+import { devVal } from './core/wheelmatch.js';
 import { installStepUpWatcher, makeOpenByName } from './ui/stepup-sheet.js';
 import { overlayOpen } from './ui/inert.js';
 import './install.js'; // S0 lead call 3a: T5 / T6 listener and command modules (empty today)
@@ -45,6 +47,8 @@ store.subscribe((s) => { if (s && s.wheelFeatures !== lastWheel) { lastWheel = s
 
 // 2b. Look: applied before the first render, and live whenever SetTheme changes it.
 applyTheme(themeOf(store.get()));
+const feedTick = (s) => { try { setTickDims(devVal(s, 'tickW'), devVal(s, 'tickL')); } catch (e) { /* defaults */ } }; // Bold tick size: Dev tickW / tickL (defaults when Dev is off)
+feedTick(store.get()); store.subscribe(feedTick);
 store.subscribe((s) => applyTheme(themeOf(s)));
 
 // 3. Autosave after each accepted command (the store only notifies when a command changed the state).
@@ -52,6 +56,7 @@ let saved = save.save(store.get());
 store.subscribe((s) => { saved = save.save(s); });
 
 window.__store = store;
+import('./ui/dev-badge.js').then((m) => m.mountDevBadge(store)).catch(() => {}); // G2: DEV badge on wheel screens while Dev is on
 window.__save = save;
 const ui = mount(document.getElementById('app'), store);
 // T5: auto-open the coach step-up sheet. mount() returns dispatch, so open through a hidden data-act="sheet:stepup" click inside #app.

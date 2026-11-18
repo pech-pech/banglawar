@@ -31,7 +31,7 @@ test('copy report JSON carries tick:1', () => {
 });
 test('QA fixes: tick on its own canvas above the sheen, dark core with white halo; gold labels stay opaque; dial uses the wheel tick size', () => {
   const rd = (f) => readFileSync(new URL('../js/ui/' + f + '.js', import.meta.url), 'utf8'), w = rd('wheel-view'), d = rd('dial-view');
-  assert.match(w, /wh-tk/); assert.match(w, /\[TICK\.PLAIN_PX \/ 2 \+ 1, '#fff'\], \[TICK\.PLAIN_PX \/ 2, 'rgb\(' \+ pal\.out/);
+  assert.match(w, /wh-tk/); assert.match(w, /\[TS\.px \/ 2 \+ TS\.halo, '#fff', TS\.halo\], \[TS\.px \/ 2, 'rgb\(' \+ pal\.out/); // 2026-11-18: size comes from the Tick setting (Normal px = TICK.PLAIN_PX, see tick-bold.test.mjs)
   assert.match(w, /speed > 8 && !isG\(i\)/); assert.match(w, /speed > 8 && !GD\.includes\(i\)/);
   assert.match(d, /r0 = R - 15/); assert.match(d, /WEDGE_TIP_PX/); assert.doesNotMatch(d, /diamond\(Math\.round\(c\[0\]\)/);
   assert.match(rd('wheels/find'), /The tick shows where the pointer will stop\./); for (const f of ['training-view', 'coaches-sheet']) assert.match(rd(f), /The tick shows where the pointer will stop\./, f);

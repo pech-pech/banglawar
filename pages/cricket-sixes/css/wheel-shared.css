@@ -152,3 +152,8 @@
 
 /* T8 QA-LW-JOIN-B D1: the pixel font draws 14 px caps only ~7.5 px tall, so AIM read tiny over a 412 px wheel (816x568). 20 px word (caps ~10.5 px), same bottom edge above the pointer. */
 .wh-ov .wh-aimw { font-size: 20px; line-height: 18px; top: -48px; }
+
+/* G2 DEV badge: fixed over the screen, never in the layout (the wheel is the same size with it on or off); words, 14 px floor, taps pass through. */
+.dev-badge { position: fixed; z-index: 1000; top: calc(2px + env(safe-area-inset-top, 0px)); right: calc(60px + env(safe-area-inset-right, 0px)); padding: 0 6px; font: 800 14px/18px var(--font-body, sans-serif); letter-spacing: .08em; color: #fff; background: var(--outline, #2a2238); border: 2px solid #fff; border-radius: 4px; pointer-events: none; }
+/* Match wheel / Golden Over: the header carries text top-right, so the badge sits in the free strip just under the header, left edge. */
+.dev-badge.is-match { right: auto; top: calc(57px + env(safe-area-inset-top, 0px)); left: calc(8px + env(safe-area-inset-left, 0px)); }

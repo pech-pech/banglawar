@@ -3,8 +3,9 @@
 // One spin = one over. The wheel is built from N_SAMP sampled overs of the REAL engine (playOver) from the live state; a segment is a
 // folded (runs, wkts) outcome with width = probability. Landing a segment picks one sampled over with exactly that outcome; the store
 // replays that sample on the live state with the same rng string, so the 6-ball row and the next state match the label exactly.
-import { WHEEL_MATCH as WMX, DEV_DEFAULTS, DEV_RANGE, WHEEL_TONE, WHEEL_RIVAL_BOOST } from '../data/wheelmatch.js';
+import { WHEEL_MATCH as WMX, DEV_DEFAULTS, DEV_RANGE, DEV_ORDER, WHEEL_TONE, WHEEL_RIVAL_BOOST } from '../data/wheelmatch.js';
 import { FLAGS } from '../data/flags.js';
+import { DEV_POWERS } from '../data/wheelmatch.js'; // Dev power test (own line: parallel edits)
 import { makeRng } from './rng.js';
 import { playOver, centreOf } from './match.js';
 import { makeFx } from './skills.js';
@@ -28,10 +29,14 @@ function devNum(key, v) {
   const [lo, hi, step] = r, x = clamp(v, lo, hi);
   return Number(clamp(lo + Math.round((x - lo) / step) * step, lo, hi).toFixed(6));
 }
-/** Clamp a saved s.dev to DEV_RANGE (missing / bad values -> defaults). @param {any} dev */
+/** Clamp a saved s.dev to DEV_RANGE (missing / bad values -> defaults). Every DEV_RANGE key, in DEV_RANGE order (a new key needs no edit here);
+ * DEV_ORDER pairs: hi is raised to lo when a saved pair is out of order. @param {any} dev */
 export function devClamp(dev) {
   const d = dev && typeof dev === 'object' ? dev : {};
-  return { on: d.on === true, matchW0: devNum('matchW0', d.matchW0), matchJ: devNum('matchJ', d.matchJ), matchD: devNum('matchD', d.matchD), otherMult: devNum('otherMult', d.otherMult) };
+  /** @type {any} */ const out = { on: d.on === true };
+  for (const k of Object.keys(DEV_RANGE)) out[k] = devNum(k, d[k]);
+  for (const [lo, hi] of DEV_ORDER) if (out[hi] < out[lo]) out[hi] = devNum(hi, out[lo]);
+  return out;
 }
 /** DEV_DEFAULTS[key] unless s.dev.on, else the clamped saved value. @param {any} s @param {string} key */
 export function devVal(s, key) {
@@ -51,14 +56,38 @@ export function devChanged(s) {
 // ---- control + physics
 /** Control ranks from the wheel meta tree; all 0/false when FLAGS.wheelMeta is off. @param {any} s */
 export function ctrlOf(s) {
-  if (!FLAGS.wheelMeta) return { slowRank: 0, steadyRank: 0, guide: false, zone: false, chime: false };
-  return { slowRank: rankOf(s, 'c_slow'), steadyRank: rankOf(s, 'c_steady'), guide: rankOf(s, 'c_guide') > 0, zone: rankOf(s, 'c_zone') > 0, chime: rankOf(s, 'c_chime') > 0 };
+  const r = (/** @type {string} */ id) => powRankOf(s, id);
+  return { slowRank: r('c_slow'), steadyRank: r('c_steady'), guide: r('c_guide') > 0, zone: r('c_zone') > 0, chime: r('c_chime') > 0 };
+}
+/** Dev power test (M 2026-11-18 Dev 5/6): {nodeId: forced rank} for every power row not on Auto (-1); {} unless Dev is on. Workshop ranks and
+ * the save are never touched; applies even with FLAGS.wheelMeta off (try any Control power without buying). @param {any} s */
+export function devPowers(s) {
+  /** @type {Record<string, number>} */ const out = {};
+  if (!s || !s.dev || s.dev.on !== true) return out;
+  const c = /** @type {any} */ (devClamp(s.dev));
+  for (const [k, id] of Object.entries(DEV_POWERS)) if (c[k] >= 0) out[id] = c[k];
+  return out;
+}
+/** Control rank as the wheels feel it: the Dev power override when set, else the Workshop rank (0 when FLAGS.wheelMeta is off).
+ * @param {any} s @param {string} id */
+export function powRankOf(s, id) {
+  const d = devPowers(s);
+  return id in d ? d[id] : FLAGS.wheelMeta ? rankOf(s, id) : 0;
 }
 /** Match wheel physics: dev knobs x Control (Slow: 1 - 0.15/rank on W0; Steady: 0.85^rank on J; Aim Guide: tap sd 0.080). @param {any} s */
 export function matchPhys(s) {
   const c = ctrlOf(s);
   const slow = 1 - WMX.SLOW_PER_RANK * clamp(c.slowRank, 0, 3), steady = Math.pow(0.85, clamp(c.steadyRank, 0, 2));
-  return { W0: devVal(s, 'matchW0') * slow, TAU: WMX.TAU, D: devVal(s, 'matchD'), J: devVal(s, 'matchJ') * steady, SD: c.guide ? WMX.SD_GUIDE_AVG : WMX.SD_AVG, glideDeg: WMX.GLIDE_DEG };
+  const lo = devVal(s, 'matchLeadMin'), hi = devVal(s, 'matchLeadMax'), per = devVal(s, 'matchCycle');
+  const glideDeg = lo === WMX.GLIDE_DEG[0] && hi === WMX.GLIDE_DEG[1] ? WMX.GLIDE_DEG : Object.freeze([lo, Math.max(lo, hi)]); // Dev lead sliders (item 4)
+  const P = { W0: devVal(s, 'matchW0') * slow, TAU: WMX.TAU, D: devVal(s, 'matchD'), J: devVal(s, 'matchJ') * steady, SD: c.guide ? WMX.SD_GUIDE_AVG : WMX.SD_AVG, glideDeg };
+  return per === WMX.PULSE_PERIOD ? P : { ...P, ...pulseWindow(per) }; // default: no pulse keys at all (wheel-pulse reads WHEEL_ENGINE), so today's wheel exactly
+}
+/** Pulse keys for a cycle of `per` seconds (Dev matchCycle, item 5): the slow point (PULSE_FROM 3.8 of 6) and the STOP glow (GLOW 3.2-3.8 of 6,
+ * GLOW_BEAT 0.2 of 6) scale with the cycle. per = 6 gives the engine values exactly (k = 1). Pure. @param {number} per seconds */
+export function pulseWindow(per) {
+  const k = per / WMX.PULSE_PERIOD;
+  return { PULSE_PERIOD: per, PULSE_FROM: WMX.PULSE_FROM * k, GLOW: Object.freeze([WMX.GLOW[0] * k, WMX.GLOW[1] * k]), GLOW_BEAT: WMX.GLOW_BEAT * k };
 }
 /** Rim position (0..CIRC) under the pointer at wheel time t (seconds since SPIN, pulse arc, never clamped above) with start offset phi.
  * @param {any} phys @param {number} t @param {number} phi */
@@ -84,11 +113,12 @@ export function landingPos(phys, stop) { return glidePos(phys, stop, phys.D); }
 export const unaimedPos = (rng) => rng.random() * WMX.CIRC;
 /** Timing bucket by the time in the pulse cycle: 'e' early (before the GLOW), 'c' careful (GLOW 3.2-3.8 s of any cycle), 'l' late (after it).
  * No 'o' / coasted (retired with COAST); a non-finite t has no bucket (''). The second argument is ignored (old call shape kept).
- * @param {number} t @param {boolean} [_coasted] */
-export function stopBucket(t, _coasted) {
+ * P = matchPhys (optional): a Dev cycle length (P.PULSE_PERIOD, P.GLOW) scales the window; without those keys it is today's 6 s / 3.2-3.8 s.
+ * @param {number} t @param {boolean} [_coasted] @param {any} [P] */
+export function stopBucket(t, _coasted, P) {
   if (typeof t !== 'number' || !Number.isFinite(t)) return '';
-  const u = cycleOf(t).tInCycle;
-  return u < WMX.GLOW_LO ? 'e' : u <= WMX.GLOW_HI ? 'c' : 'l';
+  const u = cycleOf(t, P && P.PULSE_PERIOD ? P : undefined).tInCycle, G = P && P.GLOW ? P.GLOW : [WMX.GLOW_LO, WMX.GLOW_HI];
+  return u < G[0] ? 'e' : u <= G[1] ? 'c' : 'l';
 }
 /** Keyed match wobble (wheels SPEC 2a, CONTRACT-A sec 3): wheelWobble(wobbleKey(s, 'match', ball, respin), J) with spinIndex = the match ball
  * number (store matchBallOf(innIdx, over) = innings x 10 + over, 1..20; Accepted 07:45). J = matchPhys(s).J (dev matchJ x Steady 0.85^rank).

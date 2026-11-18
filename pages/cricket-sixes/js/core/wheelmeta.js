@@ -31,6 +31,7 @@ import { courseWheel, wheelSlices, wheelWidths, spinResult } from './training.js
 import { dialResult, revealResult } from './dialreel.js';
 import { MD } from '../data/matchday.js';
 import { devVal } from './wheelmatch.js'; // wheel match Dev: otherMult (1 unless Dev is on)
+import { devPowers, powRankOf } from './wheelmatch.js'; // Dev power test: Control overrides while Dev is on (flag-on wheels; save untouched)
 import { WHEEL_ENGINE } from '../data/wheel-engine.js';
 import { TRAIN2 } from '../data/training.js';
 import { kindFloorGain } from './perks/kind-floor.js'; // T2 perk: Kind Floor pay (+0.2x Spotlight, +1 step Course) on the landing
@@ -127,7 +128,7 @@ const neutral = () => ({ ...Object.fromEntries(WHEEL_IDS.map((w) => [w, neutralW
 export function effective(s) {
   const out = /** @type {any} */ (neutral());
   if (!FLAGS.wheelMeta) return out;
-  const own = metaOf(s).owned || {}; out.tier = tierNow(s);
+  const own = { ...(metaOf(s).owned || {}), ...devPowers(s) }; out.tier = tierNow(s); // Dev power test overrides Control ranks ({} unless Dev on)
   let slowR = 0, steadyR = 0, guide = false, jw = 0, bch = 0, bval = 1, extra = 0, floor = 0;
   /** @type {Record<string,number>} */ const jwBy = {}, rwBy = {}, zoneBy = {}; /** @type {Record<string,boolean>} */ const cueBy = {}; const tokens = out.tokens;
   for (const id of Object.keys(own)) {
@@ -199,7 +200,7 @@ const ctlRank = (/** @type {any} */ v, /** @type {string} */ id) => Math.max(0, 
 /** Owned Control ranks {slow, steady, guide} (0 when the flag is off). @param {any} s */
 export function controlRanks(s) {
   if (!FLAGS.wheelMeta) return { slow: 0, steady: 0, guide: 0 };
-  return { slow: rankOf(s, 'c_slow'), steady: rankOf(s, 'c_steady'), guide: rankOf(s, 'c_guide') };
+  return { slow: powRankOf(s, 'c_slow'), steady: powRankOf(s, 'c_steady'), guide: powRankOf(s, 'c_guide') }; // Dev power test override, else rankOf
 }
 /**
  * Engine physics after Control. ranks = {slow, steady, guide} (or node ids c_slow, c_steady, c_guide); ranks clamp to 0..max_rank.
