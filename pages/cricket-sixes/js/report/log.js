@@ -199,7 +199,9 @@ export function createLog(o = {}) {
         let cj = null, jb = null; // coach jobs this week [nets, match, study, scout] as 0/1 from the report.jobs counters; older saves lack them -> null
         try { const J = (st) => (st && st.report && st.report.jobs) || {}, g = (j, k) => (Number.isFinite(j[k]) ? j[k] : 0), j1 = J(after), pv = d.weeks.slice().reverse().find((x) => x.s === s && Array.isArray(x.jb)), K = ['nets', 'match', 'study', 'scout'];
           jb = K.map((k) => g(j1, k)); cj = K.map((k, i) => (k === 'nets' ? (nr && nr.co ? 1 : 0) : (pv ? (jb[i] > pv.jb[i] ? 1 : 0) : (k === 'match' ? g(j1, k) > 0 : g(j1, k) > g(J(before), k)) ? 1 : 0))); } catch (e) { cj = null; jb = null; }
-        ev('weeks', { ...base, wk: T0.week, tpEnd: T0.tp | 0, aff: netsRecordAff(before), nets: ran ? 1 : 0, hint: null, coach: co, cidle: idle, cj, jb });
+        // week START pool (before nodes and nets spent TP): the end-of-week TP plus what this week's nets and node buys took
+        const nl = (T0.weekLog || []).filter((e) => e && e.type === 'NodeUnlocked'), nodeTp = nl.reduce((a, e) => a + (e.cost | 0), 0), netsTp = nr ? Math.max(0, (nr.tp0 | 0) - (nr.tp1 | 0)) : 0, tp0 = (T0.tp | 0) + nodeTp + netsTp;
+        ev('weeks', { ...base, wk: T0.week, tpEnd: T0.tp | 0, tp0, aff: netsRecordAff({ ...before, training: { ...T0, tp: tp0 } }), nodes: nl.length, nodeTp, nets: ran ? 1 : 0, hint: null, coach: co, cidle: idle, cj, jb });
       } else if (cmd === 'PickActivity' || cmd === 'SignTrial' || cmd === 'DeclineTrial' || cmd === 'TakeFreePick') {
         const a0 = before.econ || {}, a1 = after.econ || {}, h = (a1.act && a1.act.hist) || [], last = h[0], tr = before.trial || null;
         const rec = { ...base, k: cmd === 'PickActivity' ? 'act' : cmd === 'TakeFreePick' ? 'fp' : cmd === 'SignTrial' ? 'sign' : 'decl' };

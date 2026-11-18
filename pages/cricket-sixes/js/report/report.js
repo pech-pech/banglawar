@@ -145,11 +145,13 @@ function secT(w, env) {
   const R = w.nets, S = w.spins, W = w.weeks;
   const title = 'TRAINING [W] Q1 Q5';
   if (!R.length && !S.length && !W.length) return { key: 'T', title, h: ['none in window'], m: 't:none', j: {}, short: 'TRAINING none in window' };
-  const eff = (e) => cnt(R, (r) => r.eff === e), foc = (f) => cnt(R, (r) => r.foc === f), co = cnt(R, (r) => r.co);
+  const eff = (e) => cnt(R, (r) => r.eff === e), foc = (f) => cnt(R, (r) => r.foc === f);
+  // coach used = weeks where ANY coach job ran (nets, match, study, scout); old rows without cj fall back to nets runs with a coach
+  const wkKey = (x) => (x.s == null ? '' : x.s) + ':' + x.wk, coJobs = new Set([...W.filter((x) => Array.isArray(x.cj) && x.cj.some(Boolean)).map(wkKey), ...R.filter((r) => r.co).map(wkKey)]).size;
   const rolls = (e) => [0, 1, 2].map((i) => sum(R.filter((r) => r.eff === e).map((r) => (r.r || [])[i] | 0)));
   const rn = rolls('normal'), rp = rolls('push'), cant = sum(R.map((r) => r.cant | 0));
   const nr = sum(rn) + sum(rp);
-  const h = [`${R.length} nets runs: Easy ${eff('easy')} / Normal ${eff('normal')} / Push ${eff('push')}. Focus Bal ${foc('bal')}, Bat ${foc('bat')}, Bowl ${foc('bowl')}. Coach used ${co}.`];
+  const h = [`${R.length} nets runs: Easy ${eff('easy')} / Normal ${eff('normal')} / Push ${eff('push')}. Focus Bal ${foc('bal')}, Bat ${foc('bat')}, Bowl ${foc('bowl')}. Coach used ${coJobs}.`];
   // WATCH: 3+ runs in a row on one focus with cant_gain > 2
   let streak = 0, best = 0, prev = null; for (const r of R) { if (r.foc === prev && (r.cant | 0) > 2) streak++; else streak = (r.cant | 0) > 2 ? 1 : 0; prev = r.foc; best = Math.max(best, streak); }
   h[0] += ' ' + verdict(best >= 3);
@@ -157,15 +159,15 @@ function secT(w, env) {
   const gains = R.map((r) => r.gain).filter((x) => x != null), pl = (env.save && env.save.squad) || 8;
   if (gains.length) h.push(`Six gain ${r1(sum(gains) / gains.length / pl)} pts/player/run (internal) [sim ~1.5 at Normal].`);
   const tpIn = sum(W.map((x) => x.tpIn | 0)), tpOut = sum(R.map((r) => Math.max(0, (r.tp0 | 0) - (r.tp1 | 0)))), pool = W.length ? W[W.length - 1].tpEnd : (R.length ? R[R.length - 1].tp1 : null);
-  const over100 = cnt(W, (x) => x.tpEnd > 100), aff = cnt(W, (x) => x.aff), hint = cnt(W, (x) => x.hint);
-  if (W.length || R.length) h.push(`TP spent ${tpOut}, pool ${pool == null ? '-' : pool}. Push affordable ${aff} of ${W.length} weeks. Pool over 100: ${over100} of ${W.length}. Locked hint shown ${hint}. ${verdict(over100 > 2)}`);
+  const start = (x) => (x.tp0 != null ? x.tp0 : x.tpEnd), over100 = cnt(W, (x) => start(x) > 100), aff = cnt(W, (x) => x.aff), nodes = sum(W.map((x) => x.nodes | 0)), nodeTp = sum(W.map((x) => x.nodeTp | 0)), hint = cnt(W, (x) => x.hint);
+  if (W.length || R.length) h.push(`TP spent ${tpOut}, pool ${pool == null ? '-' : pool}. Nodes bought ${nodes} (${nodeTp} TP). Push affordable ${aff} of ${W.length} weeks (at week start). Pool over 100: ${over100} of ${W.length} (at week start). Locked hint shown ${hint}. ${verdict(over100 > 2)}`);
   const sp = { n: S.length, st: ['c', 'e', 'l', 'o'].map((k) => cnt(S, (x) => x.bk === k)), jp: cnt(S, (x) => x.jp) };
   const cg = S.filter((x) => x.careful).map((x) => x.g), og = S.filter((x) => !x.careful).map((x) => x.g);
   const gx = cg.length && og.length && sum(og) ? r1((sum(cg) / cg.length) / (sum(og) / og.length)) : null, jpPct = pct(sp.jp, sp.n);
   if (S.length) h.push(`Wheel: ${S.length} spins. Stops careful ${sp.st[0]} / early ${sp.st[1]} / late ${sp.st[2]} / coast ${sp.st[3]}. Careful gain ${gx == null ? '-' : gx + 'x of other'}. Jackpot ${jpPct}%.${S.length < 20 ? ' n small' : ' ' + verdict((gx != null && (gx < 1.3 || gx > 1.7)) || jpPct > 25)} [sim careful 1.5x, random 1.3x]`);
   const stops = S.map((x) => (x.ms == null ? null : r1(x.ms / 1000)));
   const m = ['t:' + R.length, [eff('easy'), eff('normal'), eff('push')].join(','), [foc('bal'), foc('bat'), foc('bowl')].join(','), rn.join(',') + ';' + rp.join(','), cant, tpOut, pool, [aff, W.length].join('/'), sp.st.join(','), sp.jp].join('|');
-  const j = { runs: R.map((r) => [EFF[r.eff] || '?', FOC[r.foc] || '?', r.co ? 1 : 0, r.r || [0, 0, 0], r.cant | 0, null, r.gain == null ? null : r.gain]), wk: W.map((x) => [x.tpEnd, x.aff ? 1 : 0, x.hint ? 1 : 0]), tpIn, tpOut, pool, nodes: 0, wh: { n: sp.n, st: sp.st, jp: sp.jp, gx, stops } };
+  const j = { runs: R.map((r) => [EFF[r.eff] || '?', FOC[r.foc] || '?', r.co ? 1 : 0, r.r || [0, 0, 0], r.cant | 0, null, r.gain == null ? null : r.gain]), wk: W.map((x) => [start(x), x.aff ? 1 : 0, x.hint ? 1 : 0]), tpIn, tpOut, pool, nodes, nodeTp, wh: { n: sp.n, st: sp.st, jp: sp.jp, gx, stops } };
   return { key: 'T', title, h, m, j, short: `TRAINING ${R.length} nets runs (N${eff('normal')} P${eff('push')}), ${S.length} spins, pool ${pool == null ? '-' : pool} TP` };
 }
 
