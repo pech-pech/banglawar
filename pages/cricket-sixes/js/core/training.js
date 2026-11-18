@@ -139,11 +139,12 @@ export function coachLevel(coaches, focus) {
 }
 /** Pick this week's coach by hand (null = none). Away or unknown coaches are refused. @param {any} s @param {string|null} id */
 export const pickWeekCoach = (s, id) => setPlan(s, { coachId: id || null });
-/** Quality the picked coach adds this week: 0.95 x step when strong in the focus, else 0. @param {any} s */
+/** Quality the picked coach adds this week: 0.95 x step when strong in the focus, else 0; a coach strong in both Batting and Bowling gives 75% on Balanced. @param {any} s */
 export function coachQuality(s) {
   const p = planOf(s), raw = p.coachId && coachById(s, p.coachId); if (!raw) return 0;
   const c = normCoach(raw);
-  return c.strong.includes(p.focus) ? CO.qualityPerStep * c.step : 0;
+  if (c.strong.includes(p.focus)) return CO.qualityPerStep * c.step;
+  return p.focus === 'bal' && c.strong.includes('bat') && c.strong.includes('bowl') ? 0.75 * CO.qualityPerStep * c.step : 0; // both-strong coach on Balanced: 75% quality
 }
 /** Grade step of the coach helping this week (0 = none). @param {any} s */
 export function coachStepInUse(s) { const q = coachQuality(s); return q > 0 ? Math.round(q / CO.qualityPerStep) : 0; }

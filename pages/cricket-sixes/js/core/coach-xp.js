@@ -10,7 +10,7 @@ export const xpToNext = (step) => (step >= XP_MAX_STEP ? null : XP_PER_STEP[step
 export function netsXp(s, coachId) {
   const c = (s.coaches || []).find((/** @type {any} */ k) => k.id === coachId);
   if (!c || c.away > 0) return 0;
-  const strong = Array.isArray(c.strong) && c.strong.includes(planOf(s).focus);
+  const f = planOf(s).focus, strong = Array.isArray(c.strong) && (c.strong.includes(f) || (f === 'bal' && c.strong.includes('bat') && c.strong.includes('bowl')));
   return strong ? XP_NETS : XP_NETS_WEAK;
 }
 /** Match XP: 6, doubled on a win. @param {boolean} won */
