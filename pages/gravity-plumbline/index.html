@@ -1,0 +1,1199 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#000000">
+<title>Plumbline</title>
+<style>
+html,body{margin:0;padding:0;width:100%;height:100%;background:#000;overflow:hidden;overscroll-behavior:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent}
+#game{position:fixed;left:0;top:0;width:100vw;width:100dvw;height:100vh;height:100dvh;display:block;background:#000;touch-action:none}
+</style>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#1b1a17">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+</head>
+<body>
+<canvas id="game"></canvas>
+<script>
+(function(){
+const PL = (globalThis.PL = globalThis.PL || {});
+(function () {
+  'use strict';
+  const C = (PL.C = { DT: 1 / 120, G: 1500, CAP: 700, DIVE_CAP: 900, DIVE_ADD: 250, DIVE_BOOST_T: 0.3, DIVE_CD: 0.5, CHARGES: 2, HALF: 11, FRIC: 900, DRAG: 0.35, DRAG_AFTER: 0.3, BOUNCE_SIDE: 0.15, BUFFER: 0.08, CRUMBLE_T: 0.35, GATE_V: 120, RESPAWN_T: 0.3 });
+  const DIRS = (PL.DIRS = [[0, -1], [1, 0], [0, 1], [-1, 0]]);
+  const DT = C.DT, H = C.HALF;
+  const CRUMBLE_TICKS = Math.round(C.CRUMBLE_T / DT);
+  const DEAD_TICKS = Math.round(C.RESPAWN_T / DT);
+  const BUFFER_TICKS = Math.round(C.BUFFER / DT); // 10: pending flip survives age<=10 ticks
+  const DIVE_CD_TICKS = Math.round(C.DIVE_CD / DT); // 60
+  const DIVE_BOOST_TICKS = Math.round(C.DIVE_BOOST_T / DT); // 36
+  const EPS = 1e-6;
+
+  PL.newState = function (room) {
+    const s = {
+      room, t: 0, x: room.start.x, y: room.start.y, vx: 0, vy: 0, g: room.start.g,
+      charges: C.CHARGES, grounded: false, airT: 0, diveCd: 0, diveBoost: 0, pending: null,
+      crumbleS: (room.crumbles || []).map(() => ({ st: 0, timer: 0 })),
+      dead: 0, won: false, flips: 0, lastLandSpeed: 0, events: [],
+    };
+    // spawn grounded if the start sits on a surface (no spurious 'land' on tick 1)
+    const d = DIRS[s.g];
+    s.x += d[0]; s.y += d[1];
+    s.grounded = buildSolids(s, 0, 0).some((o) => overlapX(s, o.r) > EPS && overlapY(s, o.r) > EPS);
+    s.x -= d[0]; s.y -= d[1];
+    return s;
+  };
+
+  function crusherRect(c, t) {
+    const s = Math.sin(2 * Math.PI * (t * DT) / 2.4 + c.phase) * c.amp;
+    return [c.r[0] + c.ax * s, c.r[1] + c.ay * s, c.r[2], c.r[3]];
+  }
+
+  // internal solids: {r, cr (crumble index or -1)}
+  function buildSolids(s, vx, vy) {
+    const room = s.room, out = [];
+    for (const r of room.walls) out.push({ r, cr: -1 });
+    (room.crumbles || []).forEach((r, i) => { if (s.crumbleS[i].st !== 2) out.push({ r, cr: i }); });
+    for (const g of (room.gates || [])) {
+      if (overlaps(s, g.r)) continue; // latch: a gate never turns solid around a bob already inside it
+      const dd = DIRS[g.dir];
+      if (vx * dd[0] + vy * dd[1] < C.GATE_V) out.push({ r: g.r, cr: -1, gate: true });
+    }
+    for (const c of (room.crushers || [])) out.push({ r: crusherRect(c, s.t), cr: -1 });
+    return out;
+  }
+  // gate state uses post-gravity velocity, matching PL.step
+  PL.solids = function (s) {
+    const d = DIRS[s.g];
+    return buildSolids(s, s.vx + d[0] * C.G * DT, s.vy + d[1] * C.G * DT).map((o) => o.r);
+  };
+
+  function overlapX(s, r) { return Math.min(s.x + H, r[0] + r[2]) - Math.max(s.x - H, r[0]); }
+  function overlapY(s, r) { return Math.min(s.y + H, r[1] + r[3]) - Math.max(s.y - H, r[1]); }
+  function overlaps(s, r) { return overlapX(s, r) > 0 && overlapY(s, r) > 0; }
+
+  // move one axis (0=x,1=y); returns hit info
+  function moveAxis(s, ax, solids, hit) {
+    if (ax === 0) s.x += s.vx * DT; else s.y += s.vy * DT;
+    for (const o of solids) {
+      const r = o.r;
+      const ox = overlapX(s, r), oy = overlapY(s, r);
+      if (!(ox > EPS && oy > EPS)) continue;
+      // resolve on the axis of least penetration only (x pass yields to y when oy<ox, y pass yields when ox<oy)
+      if (ax === 0 ? oy < ox : ox < oy) continue;
+      const v = ax === 0 ? s.vx : s.vy;
+      const c = ax === 0 ? s.x : s.y;
+      const lo = ax === 0 ? r[0] : r[1], len = ax === 0 ? r[2] : r[3];
+      // push out along the side of minimum penetration (not velocity sign) so moving solids cannot teleport the bob through
+      const pPos = (c + H) - lo, pNeg = (lo + len) - (c - H);
+      const sign = pPos < pNeg ? 1 : pPos > pNeg ? -1 : (v >= 0 ? 1 : -1);
+      const np = sign > 0 ? lo - H : lo + len + H;
+      if (ax === 0) s.x = np; else s.y = np;
+      const gsign = DIRS[s.g][ax];
+      if (gsign === sign) {
+        // landing on gravity side
+        hit.ground = true;
+        hit.speed = Math.max(hit.speed, Math.abs(v));
+        if (ax === 0) s.vx = 0; else s.vy = 0;
+        if (o.cr >= 0) hit.crumbles.push(o.cr);
+      } else if (v !== 0 && Math.sign(v) === sign) {
+        if (ax === 0) s.vx = -C.BOUNCE_SIDE * s.vx; else s.vy = -C.BOUNCE_SIDE * s.vy;
+      }
+    }
+  }
+
+  function doFlip(s, dir) {
+    s.g = dir; s.flips++; s.events.push('flip'); s.grounded = false;
+  }
+
+  function applyInput(s, inp) {
+    if (inp.k === 'flip') {
+      if (!Number.isInteger(inp.dir) || inp.dir < 0 || inp.dir > 3 || inp.dir === s.g) return;
+      if (s.grounded) doFlip(s, inp.dir);
+      else if (s.charges > 0) { s.charges--; doFlip(s, inp.dir); }
+      else s.pending = { dir: inp.dir, age: 0 }; // age in ticks
+    } else if (inp.k === 'dive') {
+      if (s.diveCd > 0) return;
+      if (!s.grounded) { if (s.charges <= 0) return; s.charges--; }
+      const d = DIRS[s.g];
+      s.vx += d[0] * C.DIVE_ADD; s.vy += d[1] * C.DIVE_ADD;
+      s.diveBoost = DIVE_BOOST_TICKS; s.diveCd = DIVE_CD_TICKS; s.events.push('dive');
+    }
+  }
+
+  function die(s) { if (!s.dead) { s.dead = DEAD_TICKS; s.events.push('death'); } }
+
+  PL.step = function (s, inputs) {
+    s.events.length = 0;
+    if (s.won) return;
+    if (s.dead > 0) { s.dead--; s.t++; return; }
+    if (inputs) for (const i of inputs) applyInput(s, i);
+
+    // timers
+    if (s.diveCd > 0) s.diveCd--;
+    if (s.diveBoost > 0) s.diveBoost--;
+    if (s.pending) { s.pending.age++; if (s.pending.age > BUFFER_TICKS) s.pending = null; }
+
+    // forces
+    const d = DIRS[s.g];
+    s.vx += d[0] * C.G * DT; s.vy += d[1] * C.G * DT;
+    if (s.grounded) {
+      s.airT = 0;
+      if (d[0] === 0) s.vx = fric(s.vx); else s.vy = fric(s.vy);
+    } else {
+      s.airT += DT;
+      if (s.airT > C.DRAG_AFTER) {
+        const k = 1 - C.DRAG * DT;
+        if (d[0] === 0) s.vx *= k; else s.vy *= k;
+      }
+    }
+    const cap = s.diveBoost > 0 ? C.DIVE_CAP : C.CAP;
+    s.vx = Math.max(-cap, Math.min(cap, s.vx));
+    s.vy = Math.max(-cap, Math.min(cap, s.vy));
+
+    // move
+    const solids = buildSolids(s, s.vx, s.vy);
+    const hit = { ground: false, speed: 0, crumbles: [] };
+    moveAxis(s, 0, solids, hit);
+    moveAxis(s, 1, solids, hit);
+
+    const was = s.grounded;
+    s.grounded = hit.ground;
+    if (hit.ground) {
+      if (!was) {
+        s.lastLandSpeed = hit.speed; s.airT = 0; s.events.push('land');
+        s.charges = C.CHARGES;
+        if (s.pending) { const p = s.pending; s.pending = null; if (p.dir !== s.g) { doFlip(s, p.dir); s.grounded = false; } }
+      } else s.charges = C.CHARGES;
+    }
+    // decrement first, then trigger: a newly triggered crumble keeps the full CRUMBLE_TICKS
+    s.crumbleS.forEach((c) => {
+      if (c.st === 1 && --c.timer <= 0) { c.st = 2; c.timer = 0; s.events.push('crumble'); }
+    });
+    if (hit.ground) {
+      for (const i of hit.crumbles) if (s.crumbleS[i].st === 0) { s.crumbleS[i].st = 1; s.crumbleS[i].timer = CRUMBLE_TICKS; }
+    }
+
+    // crush check against solids at this tick
+    const now = buildSolids(s, s.vx, s.vy);
+    for (const o of now) {
+      if (o.gate) continue; // gates only block entry, never crush
+      if (overlaps(s, o.r) && Math.min(overlapX(s, o.r), overlapY(s, o.r)) > 1) { die(s); break; }
+    }
+    // spikes
+    if (!s.dead) {
+      const h = H - 3;
+      for (const sp of s.room.spikes || []) {
+        const r = sp.r;
+        if (s.x + h > r[0] && s.x - h < r[0] + r[2] && s.y + h > r[1] && s.y - h < r[1] + r[3]) { die(s); break; }
+      }
+    }
+    if (!s.dead && (s.x < -40 || s.y < -40 || s.x > s.room.w + 40 || s.y > s.room.h + 40)) die(s);
+    if (!s.dead) {
+      const e = s.room.exit;
+      if (Math.hypot(s.x - e.x, s.y - e.y) < 18) { s.won = true; s.events.push('win'); }
+    }
+    s.t++;
+  };
+
+  function fric(v) {
+    const a = C.FRIC * DT;
+    return Math.abs(v) <= a ? 0 : v - Math.sign(v) * a;
+  }
+
+  PL.hash = function (s) {
+    const a = [s.x, s.y, s.vx, s.vy, s.g, s.charges, s.t, s.flips, s.dead, s.won ? 1 : 0];
+    a.push(s.grounded ? 1 : 0, s.diveCd, s.diveBoost, s.airT, s.pending ? s.pending.dir + ':' + s.pending.age : '-');
+    for (const c of s.crumbleS) a.push(c.st, c.timer);
+    return a.join(',');
+  };
+
+  PL.replay = function (room, log) {
+    const s = PL.newState(room);
+    const end = (log.length ? log[log.length - 1].tick : 0) + 600;
+    let i = 0;
+    while (s.t < end && !s.won && !s.dead) {
+      const inp = [];
+      while (i < log.length && log[i].tick <= s.t) { inp.push({ k: log[i].k, dir: log[i].dir }); i++; }
+      PL.step(s, inp);
+    }
+    return { state: s, hash: PL.hash(s) };
+  };
+})();
+
+})();
+(function(){
+// rooms.js - Plumbline: seeded RNG + 3 hardcoded rooms (336x500, border walls 12 px included).
+// Node-loadable, no DOM. Seed only picks per-room x-mirror and crusher phase.
+//
+// Geometry notes: G 1500, cap 700, bob box 22 (half 11), flip keeps velocity.
+// A ledge with top at T puts a grounded bob at y = T - 11. Fly lines use that y.
+// Solutions below are written for the UNMIRRORED layout; when a room is mirrored swap
+// left<->right (gravity dir 1<->3) and x -> 336 - x. Times are seconds from first input.
+//
+// ROOM 1  "Arc Carry" (teach: flip mid-fall bends a carried speed into an arc)
+//   Start on left pillar (40,109). Pit with floor spikes below the gap; spikes on the right
+//   wall at y 80-120 sit on the lazy line (flip right and hold).
+//   Solution (2 flips, ~1.0 s): t=0.00 swipe RIGHT (free, grounded) -> bob sweeps over the gap;
+//   t=0.31..0.46 swipe DOWN (costs 1 charge; before bob x~185) -> arc lands on the right block
+//   around x 265-313. If landing is past the exit, swipe LEFT (free) to slide back through it.
+//   Too late = right-wall spikes; never flipping right = pit spikes.
+//
+// ROOM 2  "Charge Banking" (teach: landing refills charges; crumble ledge; Dive-tap gate)
+//   Start on top-left ledge (40,79). Wall spikes at y 40-90 on the right wall.
+//   Solution (3 flips + 1 dive, ~3 s): t=0 swipe RIGHT (free); t=0.31..0.45 swipe DOWN
+//   (1 charge) -> land on the crumble ledge (right, y 200, charges refill to 2, it breaks 0.35 s
+//   after landing and below it are floor spikes). Immediately (<0.3 s) swipe LEFT (free) -> bob
+//   flies along the 26 px tall corridor and stops on the plug at its end (x 111). Swipe DOWN (free,
+//   grounded): bob rests on the one-way gate floor (needs 120 px/s down; corridor is too short
+//   to build it). TAP = Dive (+250) -> bob drops through the gate, lands x~111 on the safe left
+//   part of the lower floor (spikes start x 124). Swipe LEFT (free) -> slide into the exit.
+//
+// ROOM 3  "Rhythm Press" (teach: crusher rhythm + Late Flip)
+//   Start on the left ledge (40,119). A press plate (ay, amp 50, period 2.4 s, phase from seed)
+//   closes onto a slab; the 22 px bob fits the gap only while sin(phase_t) < ~0.56 (about 60 %).
+//   Solution (3 flips, ~4-5 s incl. waiting): watch the plate, swipe RIGHT (free) so bob
+//   passes x~117..223 (arrives ~0.33 s after the swipe) while the gap is open; bob hits right wall (grounded);
+//   swipe DOWN (free) and fall along the wall at ~600-700 px/s; at about y 190-230 (t~0.3 s after
+//   the wall) swipe LEFT (1 charge) to carry speed sideways, then LATE swipe DOWN (1 charge) in the
+//   last ~0.2 s so the arc drops onto the left shelf (top y 430, x 12-220). Floor spikes x 220-324
+//   punish the lazy straight fall. Swipe LEFT (free) to slide into the exit.
+
+const PL = (globalThis.PL = globalThis.PL || {});
+
+PL.mulberry32 = function (seed) {
+  let a = seed >>> 0;
+  return function () {
+    a = (a + 0x6d2b79f5) >>> 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+};
+
+(function () {
+  const W = 336, H = 500, B = 12;
+  const border = () => [[0, 0, W, B], [0, H - B, W, B], [0, 0, B, H], [W - B, 0, B, H]];
+
+  function base() {
+    return [
+      { // Room 1: Arc Carry
+        name: 'Arc Carry',
+        teach: 'Flip mid-fall: your speed turns into a sideways arc over the gap.',
+        start: { x: 40, y: 109, g: 2 },
+        walls: border().concat([[12, 120, 90, 368], [190, 200, 134, 288]]),
+        spikes: [{ r: [102, 472, 88, 16] }, { r: [312, 80, 12, 40] }],
+        crumbles: [], gates: [], crushers: [],
+        exit: { x: 285, y: 189 },
+      },
+      { // Room 2: Charge Banking
+        name: 'Charge Banking',
+        teach: 'Landing refills charges. The ledge crumbles; tap to Dive through the gate.',
+        start: { x: 40, y: 79, g: 2 },
+        walls: border().concat([
+          [12, 90, 90, 14],      // start ledge
+          [100, 150, 126, 24],   // corridor ceiling
+          [88, 150, 12, 58],     // corridor end plug
+          [12, 450, 312, 38],    // lower floor
+        ]),
+        spikes: [{ r: [312, 40, 12, 50] }, { r: [124, 436, 200, 14] }],
+        crumbles: [[226, 200, 98, 12]],
+        gates: [{ r: [100, 200, 126, 8], dir: 2 }],
+        crushers: [],
+        exit: { x: 40, y: 439 },
+      },
+      { // Room 3: Rhythm Press
+        name: 'Rhythm Press',
+        teach: 'Slip through when the press opens, then flip late to land tight.',
+        start: { x: 40, y: 119, g: 2 },
+        walls: border().concat([
+          [12, 130, 100, 14],    // start ledge
+          [128, 132, 84, 14],    // press slab
+          [12, 430, 208, 58],    // landing shelf
+        ]),
+        spikes: [{ r: [220, 472, 104, 16] }],
+        crumbles: [], gates: [],
+        crushers: [{ r: [128, 60, 84, 20], ax: 0, ay: 1, amp: 50, phase: 0 }],
+        exit: { x: 50, y: 419 },
+      },
+    ];
+  }
+
+  const mr = (r) => [W - r[0] - r[2], r[1], r[2], r[3]];
+
+  function mirror(room) {
+    room.start.x = W - room.start.x;
+    room.exit.x = W - room.exit.x;
+    room.walls = room.walls.map(mr);
+    room.spikes = room.spikes.map((s) => ({ r: mr(s.r) }));
+    room.crumbles = room.crumbles.map(mr);
+    room.gates = room.gates.map((g) => ({ r: mr(g.r), dir: g.dir === 1 ? 3 : g.dir === 3 ? 1 : g.dir }));
+    room.crushers = room.crushers.map((c) => ({ r: mr(c.r), ax: c.ax, ay: c.ay, amp: c.amp, phase: c.phase }));
+    room.mirrored = true;
+  }
+
+  PL.buildRooms = function (seed) {
+    const rng = PL.mulberry32(seed);
+    const rooms = base();
+    for (const room of rooms) {
+      const m = rng() < 0.5;
+      const phase = rng() * Math.PI * 2;
+      room.w = W; room.h = H;
+      room.mirrored = false;
+      for (const c of room.crushers) c.phase = phase;
+      if (m) mirror(room);
+    }
+    return rooms;
+  };
+})();
+
+if (typeof module !== 'undefined' && module.exports) module.exports = PL;
+
+})();
+(function(){
+// camera.js - Plumbline camera (pure, Node-loadable, deterministic).
+// Per frame: (1) scale first (zoom spring, ZOOM_T), (2) look-ahead target,
+// (3) soft room clamp + soft bob band (bob below the HUD, at/above 55% H, led
+// LEAD s along the motion), (4) critically damped spring on the error with the
+// target velocity fed forward, camera acceleration rate-limited to ACC
+// (5 px/frame step change at 60 fps), (5) hard guarantees: room clamp (never
+// moves further out than target/last frame), bob on screen and above 55% H.
+// Horizontal: locked to the room centre while the visible width >= room.w - 8
+// (always for the 336 px room); follows only when zoomed in tighter.
+// Vertical: if the room fits between HUD (120 css px, frame.hudTop) and the
+// strip line at rest scale, it is top-aligned under the HUD; else it scrolls.
+// Measured sight ahead at cap speed 700 px/s, bob at room centre, camera settled
+// (from src/test/camera-test.js; "screen" = to canvas edge, "play" = to the
+// strip line y=0.6H when moving down, else same as screen):
+//   view     dir    screen s  play s
+//   344x882  up     0.89      0.89
+//   344x882  right  0.34      0.34
+//   344x882  down   1.15      0.44
+//   344x882  left   0.34      0.34
+//   475x638  up     0.46      0.46
+//   475x638  right  0.34      0.34
+//   475x638  down   0.63      0.26
+//   475x638  left   0.34      0.34
+// Sideways is bounded by the 336 px room box: with x locked the far wall is
+// always on screen, so right/left is "time to the wall", not a camera limit.
+// Jitter (test/camera-check2.js, falling bob, 60 fps / 120 Hz / 0.1 s hitch):
+// max camera step change 5.0 px/frame (limit 6), was 16.4.
+const PL = (globalThis.PL = globalThis.PL || {});
+
+PL.CAM = {
+  ROOM_W: 336, MAX_W: 480, CAP: 700,
+  LOOK_WIDE: 0.35, LOOK_TALL: 0.25, WIDE_ASPECT: 0.6,
+  BOB_MAX_Y: 0.55, BOB_MIN_Y: 0.12, SIDE_PAD: 16, R: 11,
+  OVER: 40, POS_T: 0.15, ZOOM_T: 0.45, MAX_DT: 0.1,
+  // soft bob band margin (screen px) + blend width (room px); camera accel
+  // limit (screen px/s^2): 18000 = 5 px/frame step change at 60 fps.
+  SOFT_PAD: 28, SOFT_K: 48, ACC: 18000, LEAD: 0.25,
+  // HUD band at the top (css px); horizontal lock when the view shows the
+  // room width (visible width >= room.w - LOCK_SLACK).
+  HUD: 120, LOCK_SLACK: 8, STRIP_Y: 0.6, ROOM_PAD: 16, TGT_SLACK: 40,
+};
+
+// Critically damped smoothing (stable for any dt). s = {v}
+function smooth(cur, target, s, T, dt) {
+  const w = 2 / T, x = w * dt;
+  const e = 1 / (1 + x + 0.48 * x * x + 0.235 * x * x * x);
+  const ch = cur - target, tmp = (s.v + w * ch) * dt;
+  s.v = (s.v - w * tmp) * e;
+  return target + (ch + tmp) * e;
+}
+
+function roomDims(state) {
+  const r = state && state.room;
+  return { w: (r && r.w) || 336, h: (r && r.h) || 500 };
+}
+
+function targets(state, view) {
+  const K = PL.CAM;
+  const sp = Math.min(K.CAP, Math.hypot(state.vx || 0, state.vy || 0));
+  const visW = K.ROOM_W + (K.MAX_W - K.ROOM_W) * (sp / K.CAP);
+  const look = view.W / view.H > K.WIDE_ASPECT ? K.LOOK_WIDE : K.LOOK_TALL;
+  return { visW, cx: state.x + (state.vx || 0) * look, cy: state.y + (state.vy || 0) * look };
+}
+
+// Smooth max/min: continuous, >= max (<= min), off by at most k/2 at the seam.
+function softMax(a, b, k) { return (a + b + Math.sqrt((a - b) * (a - b) + k * k)) / 2; }
+function softMin(a, b, k) { return (a + b - Math.sqrt((a - b) * (a - b) + k * k)) / 2; }
+
+// Per-axis limits for camera centre c given bob p: bob screen pos in [sMin,sMax].
+// screen = (p - c)*s + half  ->  c in [p - (sMax-half)/s, p - (sMin-half)/s]
+function bobRange(p, s, half, sMin, sMax) {
+  return [p - (sMax - half) / s, p - (sMin - half) / s];
+}
+
+// Bob screen bands for this frame's scale (pad = extra soft margin, screen px).
+// Soft band keeps the bob below the HUD; the hard band only below 12% H.
+// lockX: horizontal is locked, so x only has to stay on screen.
+function bands(view, s, pad, lockX) {
+  const K = PL.CAM, rr = K.R * s;
+  const top = pad > 0 ? Math.max(K.BOB_MIN_Y * view.H, K.HUD) : K.BOB_MIN_Y * view.H;
+  const sp = lockX ? 0 : K.SIDE_PAD;
+  return {
+    x: lockX ? [rr + 1e-6, view.W - rr - 1e-6] : [sp + rr + pad, view.W - sp - rr - pad],
+    y: [top + rr + pad, K.BOB_MAX_Y * view.H - rr - pad],
+  };
+}
+
+// Target for one axis, from the FINAL scale: look-ahead -> room clamp ->
+// bob band as a soft limit (bob wins over the room).
+function axisTarget(look, p, v, s, half, len, band) {
+  const K = PL.CAM;
+  // soft room clamp, ROOM_PAD inside the hard one so overshoot never hits it
+  const a = -(K.OVER - K.ROOM_PAD) + half / s, b = len + (K.OVER - K.ROOM_PAD) - half / s;
+  let t = softMax(softMin(look, Math.max(a, b), K.SOFT_K), Math.min(a, b), K.SOFT_K);
+  // lead the band along the motion (bob position LEAD s ahead, kept inside the
+  // room) so the band takes over from the room clamp before the bob reaches it
+  const lim = [K.R, len - K.R];
+  // (lead capped to 80% of the band so the band never empties)
+  const cap = 0.8 * (band[1] - band[0]) / s, d = Math.max(-cap, Math.min(cap, v * K.LEAD));
+  const pLo = Math.max(p, softMin(p + Math.max(0, d), lim[1], K.SOFT_K));
+  const pHi = Math.min(p, softMax(p + Math.min(0, d), lim[0], K.SOFT_K));
+  const r = [bobRange(pLo, s, half, band[0], band[1])[0], bobRange(pHi, s, half, band[0], band[1])[1]];
+  if (r[0] <= r[1]) { t = softMax(t, r[0], K.SOFT_K); t = softMin(t, r[1], K.SOFT_K); }
+  return t;
+}
+
+// Hard limits (last line): room clamp, then bob on screen and above 55%.
+// The room range is widened to the target (the bob needs the camera outside
+// the box) and to the previous camera position `prev` (never moves further
+// out; it eases back in instead of being yanked when the target jumps).
+function hardAxis(c, tgt, p, s, half, len, band, prev) {
+  const K = PL.CAM, hl = half / s;
+  const a = -K.OVER + hl, b = len + K.OVER - hl;
+  const pv = prev === undefined ? tgt : prev;
+  // (TGT_SLACK around the target: room for the spring to overshoot a
+  // decelerating target without being yanked)
+  const lo = Math.min(Math.min(a, b), tgt - K.TGT_SLACK, pv), hi = Math.max(Math.max(a, b), tgt + K.TGT_SLACK, pv);
+  c = c < lo ? lo : c > hi ? hi : c;
+  const r = bobRange(p, s, half, band[0], band[1]);
+  return c < r[0] ? r[0] : c > r[1] ? r[1] : c;
+}
+
+PL.camNew = function () {
+  return { init: false, visW: 336, cx: 0, cy: 0, vx: 0, vy: 0, tx: 0, ty: 0, bx: 0, by: 0,
+    scale: 1, sw: { v: 0 } };
+};
+
+// One axis: track the moving target with a critically damped spring on the
+// error (target velocity fed forward, camera velocity continuous), then
+// rate-limit the camera acceleration, then hard-limit.
+function stepAxis(cam, ax, tgt, p, s, half, len, hardBand, dt) {
+  const K = PL.CAM, c = 'c' + ax, v = 'v' + ax, tk = 't' + ax;
+  const x0 = cam[c], v0 = cam[v];
+  const tv = (tgt - cam[tk]) / dt;
+  const es = { v: v0 - tv };
+  // error measured against LAST frame's target; the target's own motion is
+  // fed forward through es.v, so it is not counted twice
+  const e = smooth(x0 - cam[tk], 0, es, K.POS_T, dt);
+  let vd = (tgt + e - x0) / dt;
+  const dvMax = K.ACC / s * dt;
+  if (vd - v0 > dvMax) vd = v0 + dvMax; else if (vd - v0 < -dvMax) vd = v0 - dvMax;
+  let x = x0 + vd * dt;
+  x = hardAxis(x, tgt, p, s, half, len, hardBand, x0);
+  cam[c] = x; cam[v] = (x - x0) / dt; cam[tk] = tgt;
+}
+
+PL.camUpdate = function (cam, state, view, dt) {
+  const K = PL.CAM, t = targets(state, view), rd = roomDims(state);
+  dt = Math.max(0, Math.min(K.MAX_DT, dt || 0));
+  // 1) scale first (slower zoom spring), so every limit below uses this frame's scale
+  const jump = cam.init && Math.hypot(state.x - cam.bx, state.y - cam.by) > K.CAP * Math.max(dt, 1 / 60) * 1.5 + 40;
+  if (!cam.init || jump) { cam.visW = t.visW; cam.sw.v = 0; }
+  else if (dt > 0) cam.visW = smooth(cam.visW, t.visW, cam.sw, K.ZOOM_T, dt);
+  cam.visW = Math.max(K.ROOM_W, Math.min(K.MAX_W, cam.visW));
+  const s = (cam.scale = view.W / cam.visW);
+  // 2) look-ahead target, 3) room clamp + soft bob band
+  // Horizontal: when the view shows the whole room width, lock cx to the room
+  // centre (no following); follow only when zoomed in tighter than the room.
+  const lockX = view.W / s >= rd.w - K.LOCK_SLACK;
+  // Vertical: if the whole room fits between the HUD and the strip line, lock
+  // it fully visible, top-aligned under the HUD; else scroll (55% rule kept).
+  // (decided at the rest scale W/room.w so zooming out never flips it)
+  const lockY = rd.h * (view.W / K.ROOM_W) <= K.STRIP_Y * view.H - K.HUD;
+  const soft = bands(view, s, K.SOFT_PAD, lockX), hard = bands(view, s, 0, lockX);
+  const tx = lockX ? rd.w / 2 : axisTarget(t.cx, state.x, state.vx || 0, s, view.W / 2, rd.w, soft.x);
+  const ty = axisTarget(lockY ? view.H / 2 / s - K.HUD / s : t.cy, state.y, state.vy || 0, s, view.H / 2, rd.h, soft.y);
+  if (!cam.init || jump) {
+    // first frame or teleport (respawn): cut, no motion carried over
+    cam.init = true;
+    cam.cx = hardAxis(tx, tx, state.x, s, view.W / 2, rd.w, hard.x);
+    cam.cy = hardAxis(ty, ty, state.y, s, view.H / 2, rd.h, hard.y);
+    cam.vx = cam.vy = 0;
+    cam.tx = tx; cam.ty = ty;
+  } else if (dt > 0) {
+    // 4) spring + acceleration limit, 5) hard guarantees
+    stepAxis(cam, 'x', tx, state.x, s, view.W / 2, rd.w, hard.x, dt);
+    stepAxis(cam, 'y', ty, state.y, s, view.H / 2, rd.h, hard.y, dt);
+  } else {
+    cam.cx = hardAxis(cam.cx, tx, state.x, s, view.W / 2, rd.w, hard.x);
+    cam.cy = hardAxis(cam.cy, ty, state.y, s, view.H / 2, rd.h, hard.y);
+  }
+  cam.bx = state.x; cam.by = state.y;
+  return { scale: cam.scale, cx: cam.cx, cy: cam.cy, hudTop: K.HUD };
+};
+
+// Distance (room px) from bob along velocity to the edge of the screen region
+// [0,W]x[0,yBottom], divided by speed. Infinity when nearly still.
+function sightTo(frame, state, view, yBottom) {
+  const vx = state.vx || 0, vy = state.vy || 0, sp = Math.hypot(vx, vy);
+  if (sp < 1) return Infinity;
+  const s = frame.scale;
+  const x0 = (state.x - frame.cx) * s + view.W / 2;
+  const y0 = (state.y - frame.cy) * s + view.H / 2;
+  const dx = vx / sp, dy = vy / sp;
+  let d = Infinity;
+  if (dx > 0) d = Math.min(d, (view.W - x0) / dx);
+  if (dx < 0) d = Math.min(d, -x0 / dx);
+  if (dy > 0) d = Math.min(d, (yBottom - y0) / dy);
+  if (dy < 0) d = Math.min(d, -y0 / dy);
+  return Math.max(0, d) / s / sp;
+}
+
+PL.sightAhead = function (frame, state, view) {
+  return sightTo(frame, state, view, view.H);
+};
+// Same, but stopping at the control strip line (y = 0.6H).
+PL.sightAheadPlay = function (frame, state, view) {
+  return sightTo(frame, state, view, 0.6 * view.H);
+};
+
+})();
+(function(){
+// draw.js - canvas drawing only (no input, no loop). Node-loadable with a fake ctx.
+const PL = (globalThis.PL = globalThis.PL || {});
+
+(function () {
+  const INK = '#1f2430', PAPER = '#f2ecdc', PAPER2 = '#e7dfc8', RED = '#c0392b', BRASS = '#b08d2e',
+        GRID = 'rgba(31,36,48,0.08)', STRIP = 'rgba(31,36,48,0.06)', FONT = 'system-ui, -apple-system, Segoe UI, sans-serif';
+  const TAU = Math.PI * 2, BTN_SIZE = 56, GAP = 8;
+
+  function inset(view) {
+    const i = (view && view.inset) || {};
+    return { t: i.t || 0, b: i.b || 0, l: i.l || 0, r: i.r || 0 };
+  }
+  // hit rects in CSS px, top-right, below the safe-area inset
+  function btnRect(view, idx) {
+    const W = (view && view.W) || 360, i = inset(view);
+    const x = W - i.r - 8 - BTN_SIZE * (idx + 1) - GAP * idx;
+    return { x: x, y: i.t + 8, w: BTN_SIZE, h: BTN_SIZE };
+  }
+  PL.BTN = { copy: function (view) { return btnRect(view, 1); }, path: function (view) { return btnRect(view, 0); } };
+
+  const PP = { t: null, room: null, g: null, x: null, y: null, pts: [], scratch: null, cs: [] };
+  PL.predictPath = function (state, seconds) {
+    if (!state || !state.room || typeof PL.step !== 'function') return [];
+    const secs = seconds || 0.8;
+    if (PP.t === state.t && PP.room === state.room && PP.g === state.g && PP.x === state.x && PP.y === state.y && PP.secs === secs) return PP.pts;
+    const pts = PP.pts; pts.length = 0;
+    const s = PP.scratch || (PP.scratch = {});
+    for (const k in s) delete s[k];
+    Object.assign(s, state);
+    s.events = [];
+    s.pending = null;
+    const src = state.crumbleS || [];
+    s.crumbleS = PP.cs; PP.cs.length = src.length;
+    for (let i = 0; i < src.length; i++) PP.cs[i] = { st: src[i].st, timer: src[i].timer };
+    const DT = (PL.C && PL.C.DT) || 1 / 120;
+    const n = Math.min(Math.max(1, Math.round(secs / DT)), 96);
+    pts.push({ x: s.x, y: s.y });
+    for (let k = 0; k < n; k++) {
+      s.events.length = 0;
+      PL.step(s, []);
+      if (k % 6 === 5) pts.push({ x: s.x, y: s.y });
+      const ev = s.events;
+      if (s.dead || s.won || ev.indexOf('death') >= 0 || ev.indexOf('win') >= 0 || (k >= 3 && (ev.indexOf('land') >= 0 || s.grounded))) {
+        pts.push({ x: s.x, y: s.y });
+        break;
+      }
+    }
+    PP.t = state.t; PP.room = state.room; PP.g = state.g; PP.x = state.x; PP.y = state.y; PP.secs = secs;
+    return pts;
+  };
+
+  function spikeUp(room, r) {
+    // point away from a wall touching the rect; default up
+    const walls = room.walls || [];
+    for (let i = 0; i < walls.length; i++) {
+      const w = walls[i];
+      if (r[0] < w[0] + w[2] && r[0] + r[2] > w[0]) {
+        if (Math.abs(w[1] - (r[1] + r[3])) < 2) return 0;      // wall below -> point up
+        if (Math.abs(w[1] + w[3] - r[1]) < 2) return 2;        // wall above -> point down
+      }
+      if (r[1] < w[1] + w[3] && r[1] + r[3] > w[1]) {
+        if (Math.abs(w[0] - (r[0] + r[2])) < 2) return 3;      // wall right -> point left
+        if (Math.abs(w[0] + w[2] - r[0]) < 2) return 1;        // wall left -> point right
+      }
+    }
+    return 0;
+  }
+
+  function text(ctx, s, x, y, px, color, align, bold) {
+    ctx.font = (bold ? '700 ' : '500 ') + Math.max(14, px) + 'px ' + FONT;
+    ctx.fillStyle = color || INK;
+    ctx.textAlign = align || 'left';
+    ctx.textBaseline = 'alphabetic';
+    ctx.fillText(String(s), x, y);
+  }
+  function fmtT(t) {
+    t = +t || 0;
+    const m = Math.floor(t / 60), s = t - m * 60;
+    return m + ':' + (s < 10 ? '0' : '') + s.toFixed(1);
+  }
+  function button(ctx, r, label, on) {
+    ctx.fillStyle = on ? INK : PAPER;
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = 2;
+    ctx.fillRect(r.x, r.y, r.w, r.h);
+    ctx.strokeRect(r.x, r.y, r.w, r.h);
+    text(ctx, label, r.x + r.w / 2, r.y + r.h / 2 + 5, 14, on ? PAPER : INK, 'center', true);
+  }
+
+  PL.draw = function (ctx, view, frame, state, hud) {
+    view = view || { W: 360, H: 640, dpr: 1 };
+    frame = frame || { scale: 1, cx: 168, cy: 250 };
+    hud = hud || {};
+    const W = view.W || 360, H = view.H || 640, ins = inset(view);
+    const room = (state && state.room) || null;
+    const sc = frame.scale || 1, cx = frame.cx || 0, cy = frame.cy || 0;
+    const sx = function (x) { return (x - cx) * sc + W / 2; };
+    const sy = function (y) { return (y - cy) * sc + H / 2; };
+    const tick = state && state.t || 0;
+
+    // ctx is already scaled by dpr (ui.js); draw in CSS px
+    ctx.fillStyle = PAPER;
+    ctx.fillRect(0, 0, W, H);
+
+    if (room) {
+      const rw = room.w || 336, rh = room.h || 500;
+      // paper under the room + grid ticks
+      ctx.fillStyle = PAPER2;
+      ctx.fillRect(sx(0), sy(0), rw * sc, rh * sc);
+      ctx.strokeStyle = GRID; ctx.lineWidth = 1;
+      ctx.beginPath();
+      for (let gx = 0; gx <= rw; gx += 28) { ctx.moveTo(sx(gx), sy(0)); ctx.lineTo(sx(gx), sy(rh)); }
+      for (let gy = 0; gy <= rh; gy += 28) { ctx.moveTo(sx(0), sy(gy)); ctx.lineTo(sx(rw), sy(gy)); }
+      ctx.stroke();
+
+      // crumbles (dashed)
+      const cr = room.crumbles || [];
+      for (let i = 0; i < cr.length; i++) {
+        const st = state.crumbleS && state.crumbleS[i] ? state.crumbleS[i].st : 0;
+        if (st === 2) continue;
+        const r = cr[i];
+        ctx.strokeStyle = INK; ctx.lineWidth = 2;
+        ctx.fillStyle = st === 1 ? 'rgba(192,57,43,0.25)' : 'rgba(31,36,48,0.18)';
+        ctx.fillRect(sx(r[0]), sy(r[1]), r[2] * sc, r[3] * sc);
+        ctx.setLineDash([6, 4]);
+        ctx.strokeRect(sx(r[0]), sy(r[1]), r[2] * sc, r[3] * sc);
+        ctx.setLineDash([]);
+      }
+      // walls
+      ctx.fillStyle = INK;
+      const ws = room.walls || [];
+      for (let i = 0; i < ws.length; i++) ctx.fillRect(sx(ws[i][0]), sy(ws[i][1]), ws[i][2] * sc, ws[i][3] * sc);
+
+      // gates: thin bar + arrow
+      const gs = room.gates || [];
+      for (let i = 0; i < gs.length; i++) {
+        const g = gs[i], r = g.r, d = (PL.DIRS || [[0, -1], [1, 0], [0, 1], [-1, 0]])[g.dir | 0] || [0, -1];
+        ctx.fillStyle = 'rgba(176,141,46,0.35)';
+        ctx.fillRect(sx(r[0]), sy(r[1]), r[2] * sc, r[3] * sc);
+        ctx.strokeStyle = BRASS; ctx.lineWidth = 2;
+        ctx.strokeRect(sx(r[0]), sy(r[1]), r[2] * sc, r[3] * sc);
+        const mx = sx(r[0] + r[2] / 2), my = sy(r[1] + r[3] / 2), a = 9 * sc;
+        ctx.fillStyle = INK; ctx.beginPath();
+        ctx.moveTo(mx + d[0] * a, my + d[1] * a);
+        ctx.lineTo(mx - d[1] * a * 0.7 - d[0] * a * 0.5, my + d[0] * a * 0.7 - d[1] * a * 0.5);
+        ctx.lineTo(mx + d[1] * a * 0.7 - d[0] * a * 0.5, my - d[0] * a * 0.7 - d[1] * a * 0.5);
+        ctx.closePath(); ctx.fill();
+      }
+      // crushers: track line + body at current time
+      const cs = room.crushers || [];
+      const tsec = tick / 120;
+      for (let i = 0; i < cs.length; i++) {
+        const c = cs[i], r = c.r, amp = c.amp || 0;
+        const o = Math.sin(TAU * tsec / 2.4 + (c.phase || 0)) * amp;
+        ctx.strokeStyle = INK; ctx.lineWidth = 1; ctx.setLineDash([3, 5]);
+        ctx.beginPath();
+        ctx.moveTo(sx(r[0] + r[2] / 2 - (c.ax ? amp : 0)), sy(r[1] + r[3] / 2 - (c.ay ? amp : 0)));
+        ctx.lineTo(sx(r[0] + r[2] / 2 + (c.ax ? amp : 0)), sy(r[1] + r[3] / 2 + (c.ay ? amp : 0)));
+        ctx.stroke(); ctx.setLineDash([]);
+        const x = r[0] + (c.ax ? o : 0), y = r[1] + (c.ay ? o : 0);
+        ctx.fillStyle = '#3b4252';
+        ctx.fillRect(sx(x), sy(y), r[2] * sc, r[3] * sc);
+        ctx.strokeStyle = INK; ctx.lineWidth = 2;
+        ctx.strokeRect(sx(x), sy(y), r[2] * sc, r[3] * sc);
+      }
+      // spikes: triangle row
+      const sp = room.spikes || [];
+      ctx.fillStyle = RED;
+      for (let i = 0; i < sp.length; i++) {
+        const r = sp[i].r, dir = spikeUp(room, r), horiz = dir === 0 || dir === 2;
+        const len = horiz ? r[2] : r[3], cnt = Math.max(1, Math.round(len / 12)), step = len / cnt;
+        for (let k = 0; k < cnt; k++) {
+          ctx.beginPath();
+          if (dir === 0) { ctx.moveTo(sx(r[0] + k * step), sy(r[1] + r[3])); ctx.lineTo(sx(r[0] + (k + 0.5) * step), sy(r[1])); ctx.lineTo(sx(r[0] + (k + 1) * step), sy(r[1] + r[3])); }
+          else if (dir === 2) { ctx.moveTo(sx(r[0] + k * step), sy(r[1])); ctx.lineTo(sx(r[0] + (k + 0.5) * step), sy(r[1] + r[3])); ctx.lineTo(sx(r[0] + (k + 1) * step), sy(r[1])); }
+          else if (dir === 1) { ctx.moveTo(sx(r[0]), sy(r[1] + k * step)); ctx.lineTo(sx(r[0] + r[2]), sy(r[1] + (k + 0.5) * step)); ctx.lineTo(sx(r[0]), sy(r[1] + (k + 1) * step)); }
+          else { ctx.moveTo(sx(r[0] + r[2]), sy(r[1] + k * step)); ctx.lineTo(sx(r[0]), sy(r[1] + (k + 0.5) * step)); ctx.lineTo(sx(r[0] + r[2]), sy(r[1] + (k + 1) * step)); }
+          ctx.closePath(); ctx.fill();
+        }
+      }
+      // exit ring
+      if (room.exit) {
+        ctx.strokeStyle = INK; ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.arc(sx(room.exit.x), sy(room.exit.y), 18 * sc, 0, TAU); ctx.stroke();
+        ctx.strokeStyle = BRASS; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.arc(sx(room.exit.x), sy(room.exit.y), 11 * sc, 0, TAU); ctx.stroke();
+      }
+    }
+
+    // predicted path (dotted)
+    if (hud.pathOn && state && !state.dead && !state.won) {
+      const pts = PL.predictPath(state, 0.8);
+      ctx.fillStyle = BRASS;
+      for (let i = 1; i < pts.length; i++) {
+        ctx.beginPath(); ctx.arc(sx(pts[i].x), sy(pts[i].y), 2.5, 0, TAU); ctx.fill();
+      }
+    }
+
+    // dust
+    const fx = hud.reduced ? [] : (hud.fx || []);
+    for (let i = 0; i < fx.length; i++) {
+      const f = fx[i], a = Math.max(0, 1 - (f.age || 0) / 0.4);
+      if (a <= 0) continue;
+      ctx.fillStyle = 'rgba(31,36,48,' + (0.35 * a).toFixed(3) + ')';
+      for (let k = 0; k < 5; k++) {
+        const ang = k * 1.26, d = (4 + (f.age || 0) * 60) * sc;
+        ctx.beginPath(); ctx.arc(sx(f.x) + Math.cos(ang) * d, sy(f.y) + Math.sin(ang) * d, 2.5 * a * sc + 1, 0, TAU); ctx.fill();
+      }
+    }
+
+    // bob + plumbline
+    if (state) {
+      const bx = sx(state.x || 0), by = sy(state.y || 0), R = 11 * sc;
+      const d = (PL.DIRS || [[0, -1], [1, 0], [0, 1], [-1, 0]])[state.g == null ? 2 : state.g] || [0, 1];
+      const dead = state.dead > 0;
+      ctx.strokeStyle = BRASS; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(bx, by); ctx.lineTo(bx + d[0] * 48 * sc, by + d[1] * 48 * sc); ctx.stroke();
+      ctx.fillStyle = dead ? RED : INK;
+      ctx.beginPath(); ctx.arc(bx, by, R, 0, TAU); ctx.fill();
+      ctx.strokeStyle = BRASS; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(bx, by, R, 0, TAU); ctx.stroke();
+    }
+
+    // bottom 40% control strip tint
+    ctx.fillStyle = STRIP;
+    ctx.fillRect(0, H * 0.6, W, H * 0.4);
+    ctx.strokeStyle = 'rgba(31,36,48,0.25)'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(0, H * 0.6); ctx.lineTo(W, H * 0.6); ctx.stroke();
+    text(ctx, 'swipe = flip   tap = dive   hold = restart', W / 2, H - ins.b - 14, 14, 'rgba(31,36,48,0.55)', 'center');
+
+    // restart ring
+    if (hud.ring > 0) {
+      ctx.strokeStyle = RED; ctx.lineWidth = 6;
+      ctx.beginPath(); ctx.arc(W / 2, H * 0.8, 36, -Math.PI / 2, -Math.PI / 2 + TAU * Math.min(1, hud.ring)); ctx.stroke();
+    }
+
+    // HUD band: paper under all HUD text so room content never collides
+    const bandH = ins.t + 120;
+    ctx.fillStyle = 'rgba(242,236,220,0.92)';
+    ctx.fillRect(0, 0, W, bandH);
+    ctx.strokeStyle = INK; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(0, bandH + 0.5); ctx.lineTo(W, bandH + 0.5); ctx.stroke();
+
+    // HUD text
+    const left = ins.l + 12, top = ins.t;
+    const n = hud.roomIdx != null ? hud.roomIdx + 1 : 1;
+    text(ctx, n + '/3 ' + (hud.roomName || ''), left, top + 24, 16, INK, 'left', true);
+    text(ctx, fmtT(hud.timeS) + '  flips ' + (hud.flips || 0) + '  deaths ' + (hud.deaths || 0), left, top + 44, 14, INK);
+    if (hud.teach) {
+      const maxW = W - 136 - ins.r - left - 8;
+      let tt = String(hud.teach);
+      ctx.font = '500 14px ' + FONT;
+      if (ctx.measureText && maxW > 0) {
+        let guard = 200;
+        while (tt.length > 1 && guard-- > 0 && ctx.measureText(tt).width > maxW) tt = tt.slice(0, -2).replace(/\s+$/, '') + '\u2026';
+      }
+      text(ctx, tt, left, top + 64, 14, 'rgba(31,36,48,0.75)');
+    }
+    text(ctx, 'seed ' + (hud.seed != null ? hud.seed : 1) + (hud.fps ? '  ' + Math.round(hud.fps) + ' fps' : ''), left, top + 84, 14, 'rgba(31,36,48,0.6)');
+    // charge pips
+    const ch = state && state.charges != null ? state.charges : 0, maxc = (PL.C && PL.C.CHARGES) || 2;
+    for (let i = 0; i < maxc; i++) {
+      const px = left + 8 + i * 22, py = top + 104;
+      ctx.beginPath(); ctx.arc(px, py, 8, 0, TAU);
+      if (i < ch) { ctx.fillStyle = BRASS; ctx.fill(); }
+      ctx.strokeStyle = INK; ctx.lineWidth = 2; ctx.stroke();
+    }
+
+    // buttons
+    button(ctx, PL.BTN.copy(view), 'Copy', false);
+    button(ctx, PL.BTN.path(view), 'Path', !!hud.pathOn);
+
+    // toast
+    if (hud.toast) {
+      ctx.font = '700 14px ' + FONT;
+      const tw = ctx.measureText ? (ctx.measureText(hud.toast).width || 120) : 120;
+      const bw = tw + 24, bx = W / 2 - bw / 2, by = H * 0.55 - 20;
+      ctx.fillStyle = INK; ctx.fillRect(bx, by, bw, 32);
+      text(ctx, hud.toast, W / 2, by + 21, 14, PAPER, 'center', true);
+    }
+
+    // complete screen
+    const cp = hud.completeScreen;
+    if (cp) {
+      ctx.fillStyle = 'rgba(242,236,220,0.96)'; ctx.fillRect(0, 0, W, H);
+      const y0 = H * 0.3;
+      text(ctx, 'Survey complete', W / 2, y0, 28, INK, 'center', true);
+      text(ctx, 'Time ' + fmtT(cp.timeS), W / 2, y0 + 44, 18, INK, 'center');
+      text(ctx, 'Flips ' + (cp.flips || 0) + '   Deaths ' + (cp.deaths || 0), W / 2, y0 + 72, 18, INK, 'center');
+      text(ctx, 'Seed ' + (hud.seed != null ? hud.seed : 1), W / 2, y0 + 100, 14, 'rgba(31,36,48,0.7)', 'center');
+      text(ctx, 'Tap to restart', W / 2, y0 + 140, 18, RED, 'center', true);
+      button(ctx, PL.BTN.copy(view), 'Copy', false);
+    }
+  };
+})();
+
+})();
+(function(){
+// ui.js: DOM, input, loop, flow, report. draw.js owns all pixels.
+const PL = (globalThis.PL = globalThis.PL || {});
+(function () {
+  'use strict';
+  const BUILD = 'plumbline-2026-11-18';
+  const C = PL.C;
+  const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d');
+  const reduced = !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
+  const DIRN = ['up', 'right', 'down', 'left'];
+
+  // ---------- viewport ----------
+  const view = { W: 0, H: 0, dpr: 1, inset: { t: 0, b: 0, l: 0, r: 0 } };
+  let probe = document.createElement('div');
+  probe.style.cssText = 'position:fixed;left:0;top:0;width:0;height:0;visibility:hidden;pointer-events:none;' +
+    'padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)';
+  document.body.appendChild(probe);
+  function resize() {
+    const dpr = Math.min(3, window.devicePixelRatio || 1);
+    const W = Math.max(1, Math.round(window.innerWidth)), H = Math.max(1, Math.round(window.innerHeight));
+    const cs = getComputedStyle(probe);
+    view.W = W; view.H = H; view.dpr = dpr;
+    view.inset = { t: parseFloat(cs.paddingTop) || 0, r: parseFloat(cs.paddingRight) || 0,
+      b: parseFloat(cs.paddingBottom) || 0, l: parseFloat(cs.paddingLeft) || 0 };
+    canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
+  }
+  window.addEventListener('resize', resize);
+  window.addEventListener('orientationchange', resize);
+  if (window.visualViewport) window.visualViewport.addEventListener('resize', resize);
+  resize();
+
+  // ---------- run state ----------
+  let seed = 1;
+  { const m = /[?&]seed=(-?\d+)/.exec(location.search); if (m) seed = parseInt(m[1], 10) | 0; }
+  let rooms, roomIdx, state, cam, cur, attempts, cleared, inputLog, queue, totalTicks, deaths, flipsTotal;
+  let deadHandled, winDelay, complete, completeAt, fx, toast, toastUntil, pathOn = true;
+  let fpsFrames = 0, fpsSecs = 0, btn = null, overlay = null;
+  function avgFps() { return fpsSecs > 0 ? fpsFrames / fpsSecs : 0; }
+  function curFlips() { return flipsTotal + (cur && !cur.result && state ? state.flips : 0); }
+
+  function nowMs() { return performance.now(); }
+  function newRun() {
+    rooms = PL.buildRooms(seed);
+    roomIdx = 0; attempts = []; cleared = []; inputLog = []; queue = [];
+    totalTicks = 0; deaths = 0; flipsTotal = 0; complete = null; completeAt = 0; fx = [];
+    clearGesture();
+    cam = PL.camNew();
+    startAttempt();
+  }
+  function startAttempt() {
+    state = PL.newState(rooms[roomIdx]);
+    const n = attempts.filter(a => a.room === roomIdx + 1).length + 1;
+    cur = { room: roomIdx + 1, attempt: n, ticks: 0, result: null, flips: 0, landSpeeds: [], log: [] };
+    deadHandled = false; winDelay = 0;
+    queue = [];
+    cam = PL.camNew();
+  }
+  function finishAttempt(result) {
+    if (!cur || cur.result) return;
+    cur.result = result; cur.ticks = state.t; cur.flips = state.flips;
+    attempts.push(cur);
+    flipsTotal += state.flips;
+  }
+  function restartRoom(result) {
+    finishAttempt(result || 'restart');
+    startAttempt();
+  }
+  function gotoRoom(i) {
+    roomIdx = Math.max(0, Math.min(rooms.length - 1, i)); complete = null;
+    finishAttempt('abandoned'); startAttempt();
+  }
+  function showToast(t, ms) { toast = t; toastUntil = nowMs() + (ms || 2000); }
+
+  function simTick() {
+    if (complete) return;
+    let inputs = queue.splice(0);
+    if (state.dead > 0 || state.won || cur.result) inputs = [];
+    for (const i of inputs) {
+      const e = { tick: state.t, k: i.k }; if (i.k === 'flip') e.dir = i.dir;
+      cur.log.push(e);
+      inputLog.push({ room: cur.room, attempt: cur.attempt, tick: e.tick, k: e.k, dir: e.dir });
+    }
+    PL.step(state, inputs);
+    totalTicks++;
+    const ev = state.events || [];
+    for (const e of ev) {
+      if (e === 'land') {
+        cur.landSpeeds.push(Math.round(state.lastLandSpeed || 0));
+        if (!reduced) fx.push({ x: state.x, y: state.y, age: 0 });
+      } else if (e === 'death' && !cur.result) {
+        deaths++; finishAttempt('death'); deadHandled = true;
+      } else if (e === 'win' && !cur.result) {
+        finishAttempt('win');
+        cleared[roomIdx] = { log: cur.log.slice(), hash: PL.hash(state), ticks: state.t };
+        winDelay = 60;
+      }
+    }
+    if (deadHandled && state.dead <= 0) { startAttempt(); return; }
+    if (winDelay > 0 && --winDelay === 0) {
+      if (roomIdx + 1 >= rooms.length) { complete = { timeS: totalTicks * C.DT, flips: flipsTotal, deaths }; completeAt = nowMs(); clearGesture(); }
+      else { roomIdx++; startAttempt(); }
+    }
+  }
+
+  // ---------- input ----------
+  function qFlip(dir) { queue.push({ k: 'flip', dir }); }
+  function qDive() { queue.push({ k: 'dive' }); }
+  function rectHit(r, x, y) {
+    if (!r) return false;
+    const a = Array.isArray(r) ? r : [r.x, r.y, r.w, r.h];
+    return x >= a[0] && x <= a[0] + a[2] && y >= a[1] && y <= a[1] + a[3];
+  }
+  let g = null; // active gesture
+  let ring = 0;
+  function clearGesture() { g = null; ring = 0; btn = null; }
+  function btnAt(x, y) {
+    if (!PL.BTN) return null;
+    if (rectHit(PL.BTN.copy(view), x, y)) return 'copy';
+    if (!complete && rectHit(PL.BTN.path(view), x, y)) return 'path';
+    return null;
+  }
+  canvas.style.touchAction = 'none';
+  canvas.addEventListener('contextmenu', e => e.preventDefault());
+  canvas.addEventListener('pointerdown', e => {
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    e.preventDefault();
+    if (overlay) return;
+    const x = e.clientX, y = e.clientY;
+    const b = btnAt(x, y);
+    if (b) { btn = { id: e.pointerId, w: b }; return; }
+    if (complete) {
+      if (nowMs() - completeAt > 500) newRun();
+      return;
+    }
+    if (g && nowMs() - g.t0 > 3000) g = null; // stale gesture
+    if (y < 0.6 * view.H || g) return;
+    try { canvas.setPointerCapture(e.pointerId); } catch (_) {}
+    g = { id: e.pointerId, x0: x, y0: y, t0: nowMs(), fired: false, moved: false, held: false };
+  });
+  function tryFlick(x, y) {
+    const dx = x - g.x0, dy = y - g.y0;
+    if (g.fired || Math.hypot(dx, dy) <= 24) return;
+    const ax = Math.abs(dx), ay = Math.abs(dy);
+    if (ax >= 1.25 * ay) { qFlip(dx > 0 ? 1 : 3); g.fired = true; }
+    else if (ay >= 1.25 * ax) { qFlip(dy > 0 ? 2 : 0); g.fired = true; }
+  }
+  canvas.addEventListener('pointermove', e => {
+    if (!g || e.pointerId !== g.id) return;
+    if (Math.hypot(e.clientX - g.x0, e.clientY - g.y0) >= 10) g.moved = true;
+    tryFlick(e.clientX, e.clientY);
+  });
+  function endGesture(e, cancel) {
+    if (!g || e.pointerId !== g.id) return;
+    if (!cancel) tryFlick(e.clientX, e.clientY);
+    const dt = nowMs() - g.t0, d = Math.hypot(e.clientX - g.x0, e.clientY - g.y0);
+    if (!cancel && !g.fired && !g.held && !g.moved && d < 10 && dt < 180) qDive();
+    g = null; ring = 0;
+  }
+  canvas.addEventListener('pointerup', e => {
+    if (btn && btn.id === e.pointerId) {
+      const w = btn.w; btn = null;
+      if (overlay || btnAt(e.clientX, e.clientY) !== w) return;
+      if (w === 'copy') copyReport(); else pathOn = !pathOn;
+      return;
+    }
+    endGesture(e, false);
+  });
+  canvas.addEventListener('pointercancel', e => {
+    if (btn && btn.id === e.pointerId) btn = null;
+    endGesture(e, true);
+  });
+  canvas.addEventListener('lostpointercapture', e => endGesture(e, true));
+  window.addEventListener('blur', clearGesture);
+  document.addEventListener('visibilitychange', () => { if (document.hidden) clearGesture(); });
+  window.addEventListener('keydown', e => {
+    if (e.repeat) return;
+    const k = e.key;
+    if (overlay) { if (k === 'Escape') closeOverlay(); return; }
+    if (complete) { if ((k === ' ' || k === 'Enter') && nowMs() - completeAt > 500) newRun(); return; }
+    if (k === 'ArrowUp') qFlip(0); else if (k === 'ArrowRight') qFlip(1);
+    else if (k === 'ArrowDown') qFlip(2); else if (k === 'ArrowLeft') qFlip(3);
+    else if (k === ' ') qDive(); else if (k === 'r' || k === 'R') restartRoom('restart');
+    else if (k === 'p' || k === 'P') pathOn = !pathOn;
+    else return;
+    e.preventDefault();
+  });
+  function updateHold() {
+    if (g && !g.fired && !g.moved) {
+      const h = nowMs() - g.t0;
+      ring = Math.max(0, Math.min(1, (h - 250) / 350));
+      if (h >= 600) { g.held = true; ring = 0; restartRoom('restart'); }
+    } else ring = 0;
+  }
+
+  // ---------- report ----------
+  function replayCheck() {
+    const lines = []; let ok = true, any = false;
+    for (let i = 0; i < cleared.length; i++) {
+      const c = cleared[i]; if (!c) continue; any = true;
+      let r; try { r = PL.replay(rooms[i], c.log); } catch (e) { r = { hash: 'ERR ' + e.message }; }
+      const same = r.hash === c.hash; if (!same) ok = false;
+      lines.push('  room ' + (i + 1) + ': ' + (same ? 'match' : 'MISMATCH') + ' (' + c.log.length + ' inputs, ' + c.ticks + ' ticks)');
+    }
+    return { ok, any, lines };
+  }
+  function fmt(t) { return t.toFixed(2) + 's'; }
+  function buildReport() {
+    const L = [];
+    const fps = avgFps();
+    L.push('PLUMBLINE REPORT');
+    L.push('seed: ' + seed);
+    L.push('build: ' + BUILD);
+    L.push('UA: ' + navigator.userAgent);
+    L.push('viewport: ' + view.W + 'x' + view.H + ' dpr ' + view.dpr + ' inset t' + view.inset.t + ' b' + view.inset.b);
+    L.push('avg fps: ' + fps.toFixed(1));
+    L.push('run time: ' + fmt(totalTicks * C.DT) + ' (' + totalTicks + ' ticks)  flips ' + curFlips() + '  deaths ' + deaths + (complete ? '  RUN COMPLETE' : '  in progress'));
+    L.push('WebGPU output: NOT seen (canvas 2D)');
+    L.push('');
+    L.push('attempts [room, attempt, ticks, result, flips, landSpeeds]:');
+    const all = attempts.concat(cur && !cur.result && !complete ? [Object.assign({}, cur, { ticks: state.t, flips: state.flips, result: 'in-progress' })] : []);
+    for (const a of all) L.push('  ' + JSON.stringify({ room: a.room, attempt: a.attempt, ticks: a.ticks, result: a.result, flips: a.flips, landSpeeds: a.landSpeeds }));
+    L.push('');
+    L.push('2nd attempt vs 1st per room:');
+    for (let r = 1; r <= rooms.length; r++) {
+      const a = all.filter(x => x.room === r);
+      if (a.length < 2) L.push('  room ' + r + ': n/a (' + a.length + ' attempt' + (a.length === 1 ? '' : 's') + ')');
+      else {
+        const cmp = (a[0].result === 'win' && a[1].result === 'win') ? '' : '  (not like-for-like)';
+        const t1 = a[0].ticks * C.DT, t2 = a[1].ticks * C.DT, d = t2 - t1;
+        L.push('  room ' + r + ': 1st ' + fmt(t1) + ' (' + a[0].result + ')  2nd ' + fmt(t2) + ' (' + a[1].result + ')  delta ' + (d >= 0 ? '+' : '') + d.toFixed(2) + 's' + cmp);
+      }
+    }
+    L.push('');
+    const rc = replayCheck();
+    L.push('determinism check (replay of cleared rooms):');
+    for (const l of rc.lines) L.push(l);
+    L.push(!rc.any ? 'determinism: no cleared rooms yet' : rc.ok ? 'determinism OK' : 'determinism FAIL');
+    L.push('');
+    L.push('input log (room, attempt, tick, k, dir):');
+    for (const i of inputLog) L.push('  ' + i.room + ' ' + i.attempt + ' ' + i.tick + ' ' + i.k + (i.k === 'flip' ? ' ' + DIRN[i.dir] : ''));
+    if (cur && !cur.result) { /* current attempt inputs already in inputLog */ }
+    return L.join('\n');
+  }
+  function closeOverlay() { if (overlay) { overlay.remove(); overlay = null; } }
+  function showManual(text) {
+    try { console.log(text); } catch (_) {}
+    closeOverlay();
+    const o = document.createElement('div');
+    o.style.cssText = 'position:fixed;inset:0;z-index:99;background:rgba(0,0,0,.85);display:flex;flex-direction:column;gap:8px;padding:12px;box-sizing:border-box';
+    const ta = document.createElement('textarea');
+    ta.value = text; ta.readOnly = true;
+    ta.style.cssText = 'flex:1;width:100%;font:16px monospace;box-sizing:border-box';
+    ta.addEventListener('focus', () => { try { ta.select(); ta.setSelectionRange(0, text.length); } catch (_) {} });
+    const bt = document.createElement('button');
+    bt.textContent = 'Close'; bt.style.cssText = 'font:16px sans-serif;padding:12px';
+    bt.addEventListener('click', closeOverlay);
+    o.appendChild(ta); o.appendChild(bt); document.body.appendChild(o);
+    overlay = o; ta.focus();
+  }
+  function copyReport() {
+    const text = buildReport();
+    const fallback = () => {
+      let ok = false;
+      try {
+        const ta = document.createElement('textarea'); ta.value = text; ta.readOnly = true;
+        ta.style.cssText = 'position:fixed;left:0;top:0;opacity:0;font-size:16px';
+        document.body.appendChild(ta); ta.focus(); ta.select(); ta.setSelectionRange(0, text.length);
+        ok = document.execCommand('copy'); ta.remove();
+      } catch (_) { ok = false; }
+      if (ok) showToast('Report copied'); else { showToast('Copy failed'); showManual(text); }
+    };
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(() => showToast('Report copied'), fallback);
+      } else fallback();
+    } catch (_) { fallback(); }
+  }
+
+  // ---------- loop ----------
+  let last = 0, acc = 0;
+  function frame(ts) {
+    requestAnimationFrame(frame);
+    if (!last) last = ts;
+    let dt = (ts - last) / 1000; last = ts;
+    if (dt <= 0) return;
+    if (dt > 0.25) dt = 0.25; // tab was hidden
+    else { fpsFrames++; fpsSecs += dt; }
+    acc += dt;
+    let n = 0;
+    while (acc >= C.DT && n < 5) { simTick(); acc -= C.DT; n++; }
+    if (acc > C.DT) acc = 0; // drop excess beyond 5 steps
+    updateHold();
+    for (const f of fx) f.age += dt;
+    fx = fx.filter(f => f.age < 0.6);
+    if (toast && nowMs() > toastUntil) toast = null;
+    const fr = PL.camUpdate(cam, state, view, dt);
+    const hud = {
+      roomIdx: roomIdx, roomN: roomIdx + 1, roomName: rooms[roomIdx].name, teach: rooms[roomIdx].teach,
+      timeS: totalTicks * C.DT, flips: curFlips(), deaths, pathOn, seed, toast,
+      ring, completeScreen: complete, fps: avgFps(), fx, reduced
+    };
+    ctx.setTransform(view.dpr, 0, 0, view.dpr, 0, 0);
+    PL.draw(ctx, view, fr, state, hud);
+  }
+
+  newRun();
+  requestAnimationFrame(frame);
+
+  // ---------- test hook ----------
+  window.PL_TEST = {
+    getState: () => state,
+    setSeed: n => { seed = n | 0; newRun(); },
+    inject: arr => { for (const i of (arr || [])) {
+      if (!i) continue;
+      if (i.k === 'dive') queue.push({ k: 'dive' });
+      else if (i.k === 'flip' && Number.isInteger(i.dir) && i.dir >= 0 && i.dir <= 3) queue.push({ k: 'flip', dir: i.dir });
+    } },
+    room: n => { gotoRoom((n | 0) - 1); }, // 1-based
+    tick: n => { for (let i = 0; i < (n || 1); i++) simTick(); },
+    report: buildReport,
+    attempts: () => attempts.slice(),
+    inputLog: () => inputLog.slice(),
+    isComplete: () => !!complete
+  };
+  PL.ui = { buildReport };
+})();
+
+})();
+</script>
+<script>if('serviceWorker' in navigator&&isSecureContext)addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(e=>console.warn('sw',e)));try{screen.orientation&&screen.orientation.lock&&matchMedia('(display-mode: fullscreen)').matches&&screen.orientation.lock('portrait').catch(()=>{});}catch(_){}</script>
+</body>
+</html>
