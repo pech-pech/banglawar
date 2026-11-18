@@ -225,7 +225,7 @@ export function sinkOptions(s) {
   return E.SINKS.map((k) => {
     const n = doneCount(e, k.id);
     let why = '';
-    if (k.repeat === 'season' ? e.sinks.retreatSeason === seasonN(s) : !k.repeat && n) why = 'Done';
+    if (!k.repeat && n) why = 'Done';
     if (!why && k.stadium && e.stadium < k.stadium) why = `Needs Stadium ${k.stadium}`;
     if (!why && k.needs && !doneCount(e, k.needs)) why = `Needs ${E.SINKS.find((x) => x.id === k.needs)?.name} first`;
     if (!why && k.repeat === 'retired' && n >= retiredCount(s)) why = 'Needs a retired player';
@@ -238,7 +238,6 @@ export function buySink(/** @type {any} */ s, /** @type {string} */ id) {
   const o = sinkOptions(s).find((x) => x.id === id);
   if (!o || !o.ok) return s;
   const e = clone(econOf(s)); e.coins -= o.coins; e.medals -= o.medals; e.sinks[id] = (e.sinks[id] || 0) + 1;
-  if (id === 'coach_retreat') e.sinks.retreatSeason = seasonN(s);
   note(e, { k: 'sink', id, coins: o.coins, medals: o.medals });
   return withEcon(s, e);
 }
@@ -315,4 +314,17 @@ export function takeFreePick(s, what) {
   const e = clone(econOf(s)); e.fac[what] = 1; e.freePick = { done: true, pick: what };
   note(e, { k: 'freepick', what, level: 1, coins: 0 });
   return withEcon(s, e);
+}
+
+/** Removed shop items (Trophy Cabinet 1 Medal, Clear-sight Scout Report 3 Medals each, Coach Retreat 500 Coins each): refund what a save paid, once.
+ *  Idempotent: the bought counts are deleted from econ.sinks, so a second call finds nothing. Called on load from save-migrate. No VERSION bump. @param {any} s */
+export function migrateMedalRefund(s) {
+  const k = s && s.econ && s.econ.sinks; if (!k || typeof k !== 'object') return s;
+  const n = (/** @type {string} */ id) => Math.max(0, Math.floor(Number(k[id]) || 0));
+  const medals = n('trophy_cabinet') * 1 + n('clear_sight') * 3, coins = n('coach_retreat') * 500;
+  const had = ['trophy_cabinet', 'clear_sight', 'coach_retreat', 'retreatSeason'].filter((id) => id in k);
+  if (!had.length) return s;
+  for (const id of had) delete k[id];
+  s.econ.medals = (Number(s.econ.medals) || 0) + medals; s.econ.coins = (Number(s.econ.coins) || 0) + coins;
+  return s;
 }

@@ -146,18 +146,13 @@ test('late sinks: order, gates, reserve rule', () => {
   assert.equal(X.sinkOptions(ec(s, { coins: 1399 })).find((o) => o.id === 'hall_2').ok, false, 'coins still needed');
   assert.equal(X.reserveOk(tight, 1400), false);
   assert.equal(X.reserveOk(ec(s, { coins: 1400 + need }), 1400), true);
-  // retreat once a season
-  s = X.buySink(s, 'coach_retreat'); assert.equal(by('coach_retreat').ok, false);
-  s.season = { league: 4, n: 2 }; assert.equal(by('coach_retreat').ok, true);
 });
 
 test('Medal shop', () => {
   let s = ec(mk(), { medals: 16 });
   const shop = X.medalShop(s);
-  assert.deepEqual(shop.map((m) => m.medals), [1, 2, 3, 4, 6]);
-  s = X.buyMedal(s, 'trophy_cabinet'); assert.equal(s.econ.medals, 15);
-  assert.equal(X.buyMedal(s, 'trophy_cabinet'), s);
-  s = X.buyMedal(s, 'wage_holiday'); assert.equal(s.econ.medals, 11);
+  assert.deepEqual(shop.map((m) => m.medals), [2, 4, 6]);
+  s = X.buyMedal(s, 'wage_holiday'); assert.equal(s.econ.medals, 12);
   assert.equal(X.matchIncome(s, {}).wages, Math.round(X.matchIncome(mk(), {}).wages / 2));
   assert.equal(X.medalShop(s).find((m) => m.id === 'wage_holiday').ok, false);
   assert.equal(X.buyMedal(ec(mk(), { medals: 1 }), 'master_licence').econ.medals, 1);
@@ -223,4 +218,18 @@ test('a tie gives half a win in Fans (finals multiplier as usual; stands not mul
   assert.equal(X.matchIncome(st, { tie: true }).fans, 25 + 15);
   const hi = mk(8, 40, 3); const m = (X.matchIncome(hi, { win: true }).fans - 5) / 40;
   assert.equal(X.matchIncome(hi, { tie: true }).fans, Math.round(25 * m) + 5);
+});
+
+test('removed items gone; migrateMedalRefund refunds once', async () => {
+  const ids = [...X.medalShop(mk()).map((m) => m.id), ...X.sinkOptions(mk()).map((m) => m.id)];
+  for (const id of ['trophy_cabinet', 'clear_sight', 'coach_retreat']) assert.ok(!ids.includes(id), id);
+  const s = ec(mk(), { medals: 2, coins: 100, sinks: { trophy_cabinet: 1, clear_sight: 2, coach_retreat: 1, retreatSeason: 3, twin_drill: 1 } });
+  const a = X.migrateMedalRefund(JSON.parse(JSON.stringify(s)));
+  assert.equal(a.econ.medals, 2 + 1 + 6); assert.equal(a.econ.coins, 600);
+  assert.deepEqual(a.econ.sinks, { twin_drill: 1 });
+  const b = X.migrateMedalRefund(JSON.parse(JSON.stringify(a))); assert.deepEqual(b.econ, a.econ);
+  const { migrate } = await import('../js/core/save-migrate.js');
+  const m1 = migrate({ ...JSON.parse(JSON.stringify(s)), v: 8, stage: 'hub' }, 8).state; // runs on load
+  assert.equal(m1.econ.medals, 9); assert.ok(!('trophy_cabinet' in m1.econ.sinks));
+  assert.equal(migrate(m1, m1.v).state.econ.medals, 9);
 });

@@ -68,11 +68,11 @@ test('money view: arrears shows a plain warning', () => {
 test('sinks sheet: lists Medal shop, confirm names the cost and dispatches BuyMedal { id }', () => {
   const calls = []; const r = fakeRoot(); const s = finalsReward(mk(), 'champ');
   renderSinks(r, s, (n, a) => calls.push([n, a]));
-  assert.match(r.innerHTML, /Medal shop/); assert.match(r.innerHTML, /Trophy Cabinet/);
-  r.click({ 'data-econ-pick': 'medal:trophy_cabinet' });
-  assert.match(r.innerHTML, /Buy Trophy Cabinet\?/); assert.match(r.innerHTML, /Cost: 1 Medal/);
-  r.click({ 'data-econ-act': 'BuyMedal', 'data-id': 'trophy_cabinet' });
-  assert.deepEqual(calls, [['BuyMedal', { id: 'trophy_cabinet' }]]);
+  assert.match(r.innerHTML, /Medal shop/); assert.match(r.innerHTML, /Twin Spotlight/);
+  r.click({ 'data-econ-pick': 'medal:wage_holiday' });
+  assert.match(r.innerHTML, /Buy Wage Holiday\?/); assert.match(r.innerHTML, /Cost: 4 Medals/);
+  r.click({ 'data-econ-act': 'BuyMedal', 'data-id': 'wage_holiday' });
+  assert.deepEqual(calls, [['BuyMedal', { id: 'wage_holiday' }]]);
 });
 
 test('sinks sheet: coin sinks dispatch BuySink; legacy dispatches BuyLegacy with no id; locked ones cannot be confirmed', () => {
