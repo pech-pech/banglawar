@@ -7,6 +7,33 @@ import { BUILD } from './build.js';
 import { timingBucket } from '../core/training.js'; // wa2: one bucket rule for the report and the wheel
 import { wheelOverRecord } from './wmatch.js'; // wheel match mode (2026-11-15): over rows of a WheelOver
 
+const GKEY = (g) => (g === 'P' || g === 'G' || g === 'M' ? g : 'M');
+const sgnMs = (n) => (n > 0 ? '+' : '') + n;
+/** Captain's Over facts for the log row (`go`): grades, tap errors, window, wheel avg, offset, and the one log line. Reads defensively. */
+export function goldFacts(before, after, t = {}) {
+  const L = after.last || {}, taps = Array.isArray(L.taps) ? L.taps : [], inn = before.stage === 'bowl' ? 'inn1' : 'inn2';
+  const G = (after.golden && after.golden[inn]) || (before.golden && before.golden[inn]) || {};
+  const balls = Array.isArray(L.balls) ? L.balls : [];
+  const runs = balls.reduce((a, b) => a + (typeof b.o === 'number' ? b.o : 0), 0), wk = balls.filter((b) => b.o === 'W').length;
+  const rw = t.win || G.win || null, win = Array.isArray(rw) ? [rw[0], rw[1]] : rw && typeof rw === 'object' ? [rw.p, rw.g] : null;
+  const xr = Number.isFinite(t.xr) ? t.xr : Number.isFinite(G.xr) ? G.xr : null;
+  const cal = after.goldCal || before.goldCal || null, off = cal && Number.isFinite(cal.offset) ? Math.round(cal.offset) : null;
+  const gr = taps.map((x) => GKEY(x && x.g)), es = taps.map((x) => (x && Number.isFinite(x.e) ? Math.round(x.e) : null));
+  const o = { inn: inn === 'inn1' ? 1 : 2, ov: L.over, gr, e: es, r: runs, w: wk, xr: xr == null ? null : Math.round(xr * 10) / 10, off, win: win && win.every(Number.isFinite) ? win.map(Math.round) : null };
+  o.ln = `Captain's Over inn${o.inn} ov${o.ov}: ${gr.join(' ')} | runs ${runs} wk ${wk} | wheel avg ${o.xr == null ? '-' : o.xr.toFixed(1)} | offset ${off == null ? '-' : sgnMs(off) + ' ms'} | win ${o.win ? o.win[0] + '/' + o.win[1] : '-'}`;
+  return o;
+}
+/** Over row for a Captain's Over (after.last.golden): the classic row when the selectors can read it, else the plain facts; plus `go`. */
+export function goldOverRecord(before, after, t = {}) {
+  let rec;
+  try { rec = overRecord(before, after, t); } catch (e) {
+    const L = after.last || {}, balls = L.balls || [];
+    rec = { o: L.over, s: before.stage === 'bowl' ? 'b' : 'c', b: L.bowler, g: null, mu: '?', gb: 0, gm: 0, f: null, i: null, r: balls.reduce((a, b) => a + (typeof b.o === 'number' ? b.o : 0), 0), w: balls.filter((b) => b.o === 'W').length, xr: null, xw: null, rr: null, fit: [null, null, null], th: t.th == null ? null : Math.round(t.th), bm: null, wp: null };
+  }
+  rec.f = null; rec.i = null; rec.go = goldFacts(before, after, t);
+  return rec;
+}
+
 export const KEY = 'sixes.report.v1';
 export const CAPS = { matches: 24, nets: 24, spins: 60, buys: 40, feel: 40, weeks: 24, club: 40, errors: 5, sessions: 8, seasons: 12 }; // [guess] P0-8; per-season aggregates (12 max) live outside these caps
 
@@ -89,7 +116,7 @@ export function createLog(o = {}) {
     /** A BowlOver went from `before` to `after`. t = { th: think ms }. */
     over: safe((before, after, t) => {
       const m = open(); if (!m || !after.last) return;
-      m.ov.push(t && t.wheel ? wheelOverRecord(before, after, t) : overRecord(before, after, t)); m.stage = after.stage; // t.wheel: a WheelOver (wheel match mode)
+      m.ov.push(after.last.golden ? goldOverRecord(before, after, t) : t && t.wheel ? wheelOverRecord(before, after, t) : overRecord(before, after, t)); m.stage = after.stage; // t.wheel: a WheelOver (wheel match mode)
       if (after.stage === 'done') {
         Object.assign(m, matchResult(after)); m.t1 = now();
         const dec = decidedOver(m.ov, after.result); if (dec != null) m.dec = dec; // L4: not "over - 1"; the over after which the winner stayed above 90%

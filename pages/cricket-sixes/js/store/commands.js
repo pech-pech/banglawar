@@ -29,6 +29,7 @@ import { MD } from '../data/matchday.js';
 import { matchModeOf } from '../core/wheelmatch.js';
 import { isWheelMatch, legalBowlers, suggestedBowler, rivalBowler, setMatchMode, setDev, devReset, modelOf } from './wheelmatch-store.js';
 import { spinHandler } from './spin-registry.js';
+import { goldenActive } from './spins/golden.js';
 import { fireHook } from '../core/hooks.js'; // Z3: matchEnd event
 import './spins/index.js'; // Z2: registers the spin handlers (Spin, CourseSpin, HypeSpin, TossSpin, PepSpin, ScoutSpin, FinalsSpin, PickActivity find, WheelOver)
 
@@ -517,10 +518,10 @@ function applyCommandCore(s, cmd, payload) {
     case 'NewSeason': return newSeason(s);
     case 'RunEnd': return runEnd(s);
     case 'NewRun': return newRunFrom(s, payload);
-    case 'MakeCall': return makeCall(s, payload);
-    case 'BowlOver': return bowlOver(s, payload);
+    case 'MakeCall': return goldenActive(s) ? s : makeCall(s, payload);
+    case 'BowlOver': return goldenActive(s) ? s : bowlOver(s, payload);
     case 'StartChase': return startChase(s);
-    case 'WheelOver': return spinHandler('WheelOver')(s, payload, SPIN_CTX); // js/store/spins/match.js
+    case 'WheelOver': return goldenActive(s) ? s : spinHandler('WheelOver')(s, payload, SPIN_CTX); // js/store/spins/match.js
     case 'SetMatchMode': return setMatchMode(s, payload);
     case 'SetDev': return setDev(s, payload);
     case 'DevReset': return devReset(s, payload);

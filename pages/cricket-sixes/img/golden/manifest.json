@@ -1,0 +1,176 @@
+{
+ "ball-0": {
+  "w": 14,
+  "h": 14,
+  "anchor": [
+   0.5,
+   0.5
+  ]
+ },
+ "ball-1": {
+  "w": 14,
+  "h": 14,
+  "anchor": [
+   0.5,
+   0.5
+  ]
+ },
+ "ball-2": {
+  "w": 14,
+  "h": 14,
+  "anchor": [
+   0.5,
+   0.5
+  ]
+ },
+ "ball-3": {
+  "w": 14,
+  "h": 14,
+  "anchor": [
+   0.5,
+   0.5
+  ]
+ },
+ "batter-stance": {
+  "w": 19,
+  "h": 40,
+  "anchor": [
+   0.5,
+   1
+  ]
+ },
+ "batter-backswing": {
+  "w": 25,
+  "h": 46,
+  "anchor": [
+   0.5,
+   1
+  ]
+ },
+ "batter-hit": {
+  "w": 16,
+  "h": 53,
+  "anchor": [
+   0.5,
+   1
+  ]
+ },
+ "batter-miss": {
+  "w": 41,
+  "h": 37,
+  "anchor": [
+   0.5,
+   1
+  ]
+ },
+ "batter-run1": {
+  "w": 38,
+  "h": 42,
+  "anchor": [
+   0.5,
+   1
+  ]
+ },
+ "batter-run2": {
+  "w": 38,
+  "h": 42,
+  "anchor": [
+   0.5,
+   1
+  ]
+ },
+ "bowler-runup1": {
+  "w": 21,
+  "h": 40,
+  "anchor": [
+   0.5,
+   1
+  ]
+ },
+ "bowler-runup2": {
+  "w": 22,
+  "h": 41,
+  "anchor": [
+   0.5,
+   1
+  ]
+ },
+ "bowler-release": {
+  "w": 22,
+  "h": 47,
+  "anchor": [
+   0.5,
+   1
+  ]
+ },
+ "bowler-follow": {
+  "w": 18,
+  "h": 35,
+  "anchor": [
+   0.5,
+   1
+  ]
+ },
+ "fielder-idle": {
+  "w": 20,
+  "h": 35,
+  "anchor": [
+   0.5,
+   1
+  ]
+ },
+ "fielder-crouch": {
+  "w": 20,
+  "h": 24,
+  "anchor": [
+   0.5,
+   1
+  ]
+ },
+ "stumps": {
+  "w": 15,
+  "h": 22,
+  "anchor": [
+   0.5,
+   1
+  ]
+ },
+ "stumps-broken": {
+  "w": 22,
+  "h": 25,
+  "anchor": [
+   0.5,
+   1
+  ]
+ },
+ "dash": {
+  "w": 12,
+  "h": 3,
+  "anchor": [
+   0,
+   0
+  ]
+ },
+ "shadow": {
+  "w": 24,
+  "h": 10
+ },
+ "band": {
+  "w": 77,
+  "h": 24
+ },
+ "ground": {
+  "w": 768,
+  "h": 1024,
+  "anchor": [
+   0.4996,
+   0
+  ]
+ },
+ "scale": {
+  "figures": 1,
+  "note": "spr() draws figures/stumps at natural PNG pixel size (k=1), centred on x with bottom on y; ball drawn 14x14; ground drawn at 1344*s x 1792*s (source aspect, stored downscaled to fit 1024)",
+  "band_note": "proto embeds a 77x24 band, not the -g 100x31 file; stored as the embedded pixels",
+  "variant": "-g set (pixel-identical to proto embeds)"
+ }
+}

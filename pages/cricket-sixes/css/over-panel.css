@@ -31,3 +31,8 @@
 }
 /* P13 QA D2: pixel fonts have no bold weight, so the call word and the "Why:" label also get an underline (a shape, not a colour) */
 .op-call b, .lw b { text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 2px; }
+
+/* Captain's Over: second ring (gold #D2B357) around each result circle once the over is played. box-shadow only, so layout never shifts. Ring = cream gap + gold band; the circle's own dark border keeps contrast on every fill. */
+.op-circles.is-golden .op-slot.is-filled .op-circle { box-shadow: 0 0 0 2px var(--cream), 0 0 0 4px #D2B357; }
+.op-circles.is-golden .op-slot.k-s .op-circle { box-shadow: inset 0 0 0 3px var(--gold), 0 0 0 2px var(--cream), 0 0 0 4px #D2B357; }
+.ball.is-golden { box-shadow: 0 0 0 2px var(--cream), 0 0 0 4px #D2B357; margin: 0 1px; }

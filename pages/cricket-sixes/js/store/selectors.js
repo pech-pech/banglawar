@@ -11,6 +11,9 @@ import { scoutPassed, planOf, netsPreview, coachList, scoutCandidates, canSign, 
 import { netsFacLevel, netsQuality } from '../core/training.js'; // wa1 train
 import { letterOfRaw, letterOfShown, letterOfStep, ticksOfRaw, fillOfRaw, stepOfRaw } from '../core/letters.js';
 import { nodeStatus, treeBoost, treeOf, NODE_COUNT } from '../core/skills.js';
+import { goldSlot, goldenNext } from './spins/golden.js';
+import { windowFor } from '../core/golden-over.js';
+import { isWheelMatch, rivalBowler, suggestedBowler, modelOf } from './wheelmatch-store.js';
 import { planProblem, livePlan, squadFull, canSell, squadMax } from './commands.js';
 import { recruitList, recruitRec, recruitOpen } from '../core/recruit.js';
 import { skewOn } from '../core/skew.js';
@@ -857,3 +860,24 @@ export function coachesVMT2(s) {
   return { ...vm, coaches: vm.coaches.map((c) => ({ ...c, course: { ...c.course, ...t2Wheel(s, 'course', { coachId: c.id, k: c.course.licence ? 2 : 1 }, kf) } })) };
 }
 /* T2 end */
+
+/**
+ * Captain's Over view model (CONTRACT-GO s3). null unless a wheel match is in stage bowl or chase.
+ * {available, active, side, over, bowler, taps:[{g, ball}], win:{p,g}|null, offset, calibrated, needCal, wheelAvg}
+ * available = the pick screen may offer it (unused this innings, not mid-over). win = window of the NEXT tap (striker / bowler letter).
+ * @param {any} s
+ */
+export function goldenVM(s) {
+  if (!isWheelMatch(s) || (s.stage !== 'bowl' && s.stage !== 'chase')) return null;
+  const bat = s.stage === 'chase', side = bat ? 'bat' : 'bowl', inn = bat ? s.inn2 : s.inn1;
+  const slot = goldSlot(s), cal = s.goldCal || null;
+  const active = !!(slot && !slot.done), used = !!slot;
+  let taps = [], win = null, bowler = slot ? slot.bowler : bat ? rivalBowler(s) : suggestedBowler(s), wheelAvg = null;
+  if (active) {
+    const nx = goldenNext(s, slot);
+    taps = slot.taps.map((t, i) => ({ g: t.g, e: t.e, ball: nx.balls[i] ? nx.balls[i].o : null }));
+    win = nx.raw == null ? null : windowFor(nx.raw);
+  }
+  try { if (bowler >= 0) wheelAvg = modelOf(s, side, bowler).expect.xr; } catch (e) { wheelAvg = null; }
+  return { available: !inn.done && !used, active, side, over: inn.over, bowler, taps, win, offset: cal ? cal.offset : 0, calibrated: !!cal, needCal: !cal, wheelAvg };
+}

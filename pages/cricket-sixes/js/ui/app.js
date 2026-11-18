@@ -191,7 +191,7 @@ export function mount(el, store) {
     rep.panelOpen();
     const found = sel.foundVM(s);
     if (found.length) addFinds(found.length); // P6 badge: finds since the Book was last opened
-    playOverPanel({ callHint: hint, title: 'Over ' + s.last.over, balls, score: { runs: inn.runs, wk: inn.wk }, nextLabel, summaryLines, batKit: first ? 'B' : 'A', found, book: found.length ? sel.bookVM(s) : null, roar: s.last.roar || false, onBook: (cell) => openByName('book', { returnFocus: BACK_FOCUS, cell }),
+    playOverPanel({ callHint: hint, title: 'Over ' + s.last.over, balls, score: { runs: inn.runs, wk: inn.wk }, nextLabel, summaryLines, batKit: first ? 'B' : 'A', found, book: found.length ? sel.bookVM(s) : null, roar: s.last.roar || false, golden: s.last.golden === true, onBook: (cell) => openByName('book', { returnFocus: BACK_FOCUS, cell }),
       onDone(info) { rep.panelDone(info); holding = false; render(); } });
   }
   /** Wheel match: apply WheelOver and hold the screen (no re-render) so the wheel view can glide, beat and play the ball row.

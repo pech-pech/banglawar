@@ -10,7 +10,7 @@ import { coachFromOld, startCoach, MAX_COACHES } from './training.js';
 import { WHEELS_DEFAULT, CLINIC_DEFAULT, SCOUT_DEFAULT, COACH_FIELDS_DEFAULT, REPORT_JOBS_DEFAULT } from '../data/save-defaults.js';
 import { weekKey } from './week-key.js';
 export { weekKey, weekKeyOf } from './week-key.js';
-export const VERSION = 7;
+export const VERSION = 8;
 
 /** fnv1a 32-bit of a string, as 8 hex digits. @param {string} str */
 export function fnv1a(str) {
@@ -150,6 +150,8 @@ const STEPS = {
   },
   // v6 -> v7 (wheel meta): the per-run Spokes block and the craft block that carries across runs. Both empty; existing blocks are kept. Idempotent.
   6: (data) => ({ ...data, v: 7, wheelMeta: isObj(data.wheelMeta) ? data.wheelMeta : emptyWheelMeta(), wheelCraft: isObj(data.wheelCraft) ? data.wheelCraft : { owned: {} } }),
+  // v7 -> v8 (Captain's Over): the per-match golden slots and the tap calibration kept across matches. Both null; present values are kept. Idempotent.
+  7: (data) => ({ ...data, v: 8, golden: data.golden !== undefined ? data.golden : null, goldCal: data.goldCal !== undefined ? data.goldCal : null }),
 };
 
 /** r9 L8: strip the retired 'freepick' notice key in place (keeps any other keys; no keys left -> no notice). @param {any} s */

@@ -133,7 +133,7 @@ export function playOver(rng, inn, bat, bowl, bi, intent, field, fx, centre = T.
     const bq = roarOn && opts.ours === 'bat' ? scaleRatings(b, MD.ROAR_BOOST) : b;
     const wq = roarOn && opts.ours === 'bowl' ? scaleRatings(w, MD.ROAR_BOOST) : w;
     const pr = ballProbs(bq, wq, ph, intent, field, ballFx, inn.over, inn.wk, centre, pairing ? pairPoints(b.bat, w.bowl, ph) : 0, faced);
-    let o = outcomeFromX(pr.p, pr.singleRaw, rng.random());
+    let o = outcomeFromX(pr.p, pr.singleRaw, opts && opts.pickX ? opts.pickX(pr, rng) : rng.random());
     inn.balls += 1; b.inn.b += 1;
     const rec = { n: `${inn.over}.${k + 1}`, o, batter: si, bowler: bi, pr, intent, field, ph };
     if (pr.settled !== undefined) rec.faced = faced;

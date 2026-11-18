@@ -14,12 +14,13 @@ const raw = () => JSON.parse(v7Text()).data;
 function oldView(s) {
   const o = structuredClone(s);
   for (const k of NEW_TOP) delete o[k];
+  delete o.golden; delete o.goldCal; o.v = 7; // v7 -> v8 additions
   if (Array.isArray(o.coaches)) for (const c of o.coaches) if (c && !c.candidate) for (const k of Object.keys(COACH_FIELDS_DEFAULT)) delete c[k];
   if (o.scout) { for (const k of Object.keys(SCOUT_DEFAULT)) delete o.scout[k]; }
   return o;
 }
 
-test('VERSION stays 7', () => { assert.equal(VERSION, 7); });
+test('VERSION is 8', () => { assert.equal(VERSION, 8); });
 
 test('weekKey = season.n x 100 + training.week; pure; re-exported from save-migrate', () => {
   assert.equal(weekKeyOf(2, 18), 218);
@@ -32,7 +33,7 @@ test('weekKey = season.n x 100 + training.week; pure; re-exported from save-migr
 
 test('v7 fixture loads; every new key has its default', () => {
   const s = loadV7();
-  assert.equal(s.v, 7);
+  assert.equal(s.v, 8);
   assert.deepEqual(s.wheels, { stops: {}, pepRingOffset: {}, pepSlot: {}, scoutCards: {}, stats: {} });
   assert.deepEqual(s.clinic, { ...structuredClone(CLINIC_DEFAULT), week: 218, slots: MAX_COACHES, netsDone: s.training.netsWeek === s.training.week });
   assert.equal(s.clinic.slots, 3);
@@ -115,7 +116,7 @@ test('the migrate input is never mutated', () => {
 test('v4-save-10.json still migrates to 7 with every new key', () => {
   const env = JSON.parse(readFileSync(new URL('./fixtures/v4-save-10.json', import.meta.url), 'utf8'));
   const r = unwrap(JSON.stringify(env));
-  assert.equal(r.ok, true, r.reason); assert.equal(r.from, 4); assert.equal(r.state.v, 7);
+  assert.equal(r.ok, true, r.reason); assert.equal(r.from, 4); assert.equal(r.state.v, 8);
   const s = r.state;
   assert.deepEqual(s.wheels, { stops: {}, pepRingOffset: {}, pepSlot: {}, scoutCards: {}, stats: {} });
   assert.equal(s.clinic.week, weekKey(s)); assert.deepEqual(s.report.jobs, REPORT_JOBS_DEFAULT);
