@@ -10,3 +10,10 @@ test('recruit fee is 0.35 x feeOf and sale pays 50% of it: no arbitrage', () => 
     assert.equal(saleBack(p), Math.round(0.5 * signFee(p)));
   }
 });
+test('every payout is capped below the fee paid, hidden or revealed grade', () => {
+  for (const v of [5, 30, 60, 95]) for (const pot of [20, 100, 150, 200]) for (const hidden of [true, false]) {
+    const p = { bp: v, bs: v, spd: v, bsk: v, potential: pot, ...(hidden ? {} : { drillsHere: 9 }) };
+    assert.ok(transferValue(p) <= saleBack(p), 'payout <= 50% of fee');
+    assert.ok(transferValue(p) < signFee(p), 'sign then sell never gains');
+  }
+});

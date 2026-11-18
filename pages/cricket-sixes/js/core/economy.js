@@ -54,6 +54,10 @@ export const signFee = (p) => rd(E.RECRUIT_FEE_PCT * feeOf(p));
 export const saleBack = (p) => rd(E.SALE_BACK * signFee(p));
 /** Coins for selling/releasing. Revealed: 50% x 6 x capSum(P) x max(1, capAvg/50). Hidden: 50% of the fee. @param {any} p */
 export function transferValue(p) {
+  const v = rawTransferValue(p);
+  return p.bp != null ? Math.min(v, saleBack(p)) : v; // never above 50% of the signing fee: sign-then-sell can't gain
+}
+function rawTransferValue(/** @type {any} */ p) {
   if (!revealed(p) && p.bp != null) return rd(E.RELEASE_REFUND * feeOf(p));
   const capAvg = 1 + (p.potential - 20) * 98 / 180, capSum = rd(4 * capAvg);
   return rd(E.TRANSFER_PCT * E.FEE_PER_POINT * capSum * Math.max(1, capAvg / E.WAGE_REF));
