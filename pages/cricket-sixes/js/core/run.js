@@ -11,6 +11,7 @@ import { shownAbility, rawAbility, capSum } from './ability.js';
 import { canPromote } from './economy.js';
 import { isBook, seasonTip } from './pairing.js';
 import { fireHook } from './hooks.js';
+import { ECON as E } from '../data/economy.js';
 
 const clamp = (/** @type {number} */ v, /** @type {number} */ lo, /** @type {number} */ hi) => Math.min(hi, Math.max(lo, v));
 const clone = (/** @type {any} */ x) => JSON.parse(JSON.stringify(x));
@@ -54,6 +55,32 @@ function featMet(run, feat) {
   return v >= feat.target;
 }
 
+/** Pay each reached chapter's stored Coins once (coinsPaid) and its Medals once, when the feat has set them (medalsPaid). Mutates a private state. @param {any} n */
+function payChapters(n) {
+  if (!n.run || !n.run.chapters || !n.econ) return n;
+  const e = n.econ;
+  for (const rec of Object.values(n.run.chapters)) {
+    const r = /** @type {any} */ (rec), coins = !r.coinsPaid ? Math.max(0, Number(r.coins) || 0) : 0, medals = !r.medalsPaid ? Math.max(0, Number(r.medals) || 0) : 0;
+    if (!coins && !medals) { if (r.coinsPaid === false) r.coinsPaid = true; continue; }
+    e.coins = (Number(e.coins) || 0) + coins; e.medals = (Number(e.medals) || 0) + medals;
+    if (!Array.isArray(e.ledger)) e.ledger = [];
+    e.ledger.push({ k: 'chapter', season: r.season, name: r.name, coins, medals });
+    if (e.ledger.length > E.LEDGER_MAX) e.ledger.splice(0, e.ledger.length - E.LEDGER_MAX);
+    r.coinsPaid = true; if (r.medals > 0) r.medalsPaid = true;
+  }
+  return n;
+}
+
+/**
+ * Load-time migration: chapters already reached in an older save pay their Coins (and any Medals already won) once. Idempotent by coinsPaid / medalsPaid.
+ * No VERSION bump. Returns a new state (the input is not touched).
+ * @param {any} state
+ */
+export function migrateChapterPay(state) {
+  if (!state || !state.run || !state.run.chapters || !state.econ) return state;
+  return payChapters({ ...state, run: clone(state.run), econ: clone(state.econ) });
+}
+
 /**
  * Close the season on entry to 'end': record it, apply promotion data, fire the chapter, pay its TP, claim any open feat now met.
  * Runs once per season (run.last.n guards it). Returns a new state.
@@ -73,8 +100,8 @@ export function closeSeason(state) {
   let chapter = null;
   const def = RUN.chapters.find((c) => c.season === se.n);
   if (def) {
-    run.chapters[def.season] = { season: def.season, name: def.name, tp: def.tp, coins: def.coins, medals: 0, coinsPaid: false, featDone: false, featSeason: null };
-    n.training.tp += def.tp; // Coins and Medals are logged only: no currency exists yet
+    run.chapters[def.season] = { season: def.season, name: def.name, tp: def.tp, coins: def.coins, medals: 0, coinsPaid: false, medalsPaid: false, featDone: false, featSeason: null };
+    n.training.tp += def.tp;
   }
   const claimed = [];
   for (const c of RUN.chapters) {
@@ -84,7 +111,8 @@ export function closeSeason(state) {
       if (c.season !== se.n) claimed.push(c.name);
     }
   }
-  if (def) chapter = { name: def.name, reward: `TP ${def.tp}`, feat: { text: def.feat.text, done: run.chapters[def.season].featDone } };
+  payChapters(n);
+  if (def) chapter = { name: def.name, reward: `TP ${def.tp}`, coins: def.coins, medals: def.medals, feat: { text: def.feat.text, done: run.chapters[def.season].featDone } };
   let notebook = null; // Coach's notebook (P4): from season 2, the unfound pairing with the most balls is found free
   if (isBook(n.book)) { const t = seasonTip(n.book, se.n); n.book = t.book; notebook = t.cell; }
   run.last = { n: se.n, league: se.league || 1, ...res, champion, finals, chapter, claimed, notebook };
