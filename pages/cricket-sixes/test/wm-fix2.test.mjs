@@ -167,7 +167,7 @@ test('run end: leftover Spokes swap by themselves before the reset and the run-e
   withFlag(true, () => {
     const s = withOwned(atEnd('f2f', RUN.seasons), allPower(), { spokes: 7 });
     const r = C(s, 'RunEnd'); assert.equal(r.stage, 'runend');
-    assert.deepEqual(r.run.spokeSwap, { spokes: 6, coins: 3 }); assert.equal(r.wheelMeta.spokes, 1); assert.equal(r.econ.coins, s.econ.coins + 3);
+    assert.deepEqual(r.run.spokeSwap, { spokes: 6, coins: 3 }); assert.equal(r.wheelMeta.spokes, 1); assert.equal(r.econ.coins, s.econ.coins + 3 + RUN.chapters[3].coins); // RunEnd closes season 12: the last chapter pays its Coins too
     const vm = sel.runEndVM(r); assert.deepEqual(vm.swapped, { spokes: 6, coins: 3 });
     const el = { innerHTML: '' }; renderRunEnd(el, vm, () => {});
     assert.match(el.innerHTML, /Spare Spokes swapped: \+3 Coins/); assert.match(el.innerHTML, /Coins do not carry/);

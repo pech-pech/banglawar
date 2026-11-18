@@ -4,6 +4,7 @@ import { applyTag } from './tags.js';
 import { aiPickSix } from './clubs.js';
 import { rawAbility, isHidden } from './ability.js';
 import { newEconomy, backfillEconomy } from './economy.js';
+import { migrateChapterPay } from './run.js';
 import { ECON as E } from '../data/economy.js';
 import { SQUAD } from '../data/run.js';
 import { coachFromOld, startCoach, MAX_COACHES } from './training.js';
@@ -225,6 +226,7 @@ export function migrate(data, from, deps) {
   if (s.v === VERSION) Object.assign(s, tidyTraining(s));
   if (s.v === VERSION) dropFreepickNotice(s); // r9 L8: saves written before the fix carry an undismissable 'freepick' key
   if (s.v === VERSION && isObj(s.season)) Object.assign(s, backfillNote(s)); // v5 saves written by r6 have an economy but no back-fill
+  if (s.v === VERSION) s = migrateChapterPay(s); // chapters reached before Coins/Medals paid: pay once (coinsPaid flag), no VERSION bump
   if (s.v === VERSION) fillSaveDefaults(s); // new keys, no VERSION bump: defaults for anything missing, present values kept
   return { ok: true, state: s, from };
 }

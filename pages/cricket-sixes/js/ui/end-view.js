@@ -30,7 +30,7 @@ function chapterHtml(c, last) {
   const f = c.feat;
   return '<div class="c-card rn-chapter">' + icoDeco('pennant', 32) +
     '<div class="rn-chapter__body"><span class="rn-tag">Chapter done</span><b class="rn-name">' + esc(c.name) + '</b>' +
-    (c.reward ? '<span class="rn-reward">' + icoDeco('tp', 16) + 'Reward: ' + esc(String(c.reward).replace(/^TP\s*(\d+)/, '$1 TP')) + '</span>' : '') +
+    (c.reward ? '<span class="rn-reward">' + icoDeco('tp', 16) + 'Reward: ' + esc(String(c.reward).replace(/^TP\s*(\d+)/, '$1 TP') + (c.coins ? ', ' + c.coins + ' Coins' : '') + (c.medals && f && f.done ? ', ' + c.medals + (c.medals === 1 ? ' Medal' : ' Medals') : '')) + '</span>' : '') +
     (f ? '<span class="rn-feat' + (f.done ? ' is-done' : '') + '">' + icoDeco(f.done ? 'done' : 'info', 16) + esc((f.done ? 'Feat done: ' : last ? 'Feat missed: ' : 'Feat still open: ') + f.text) + '</span>' : '') +
     '</div></div>';
 }
