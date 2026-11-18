@@ -9,6 +9,7 @@ import { scoutSpin } from './scout.js';
 import { finalsSpin } from './finals.js';
 import { findSpin } from './find.js';
 import { wheelOver } from './match.js';
+import { goldenStart, goldenTap, goldenCal } from './golden.js';
 
 registerSpin('Spin', spotSpin); // T2
 registerSpin('CourseSpin', courseSpin); // T2
@@ -19,3 +20,6 @@ registerSpin('ScoutSpin', scoutSpin); // T4
 registerSpin('FinalsSpin', finalsSpin); // T4
 registerSpin('PickActivity', findSpin); // T4: the Find reel part of PickActivity
 registerSpin('WheelOver', wheelOver); // T1
+registerSpin('GoldenStart', goldenStart);
+registerSpin('GoldenTap', goldenTap);
+registerSpin('GoldenCal', goldenCal);

@@ -14,8 +14,9 @@ import { cycleOf, pulseW } from '../core/wheel-pulse.js';
 import { stopExtra } from '../core/training.js';
 import { glowOn } from './wheel-look.js';
 import { autoRestHtml } from '../store/wheelmatch-store.js';
-import { ballGlyph, ballWord, overTotals } from './over-panel.js';
+import { ballGlyph, ballWord, overTotals, playOverPanel } from './over-panel.js';
 import { chipRowHtml, roarChipHtml } from './matchday-view.js';
+import { playGolden, goldenInfo, setGoldenSource } from './golden-over-view.js';
 
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const TAU = Math.PI * 2;
@@ -156,7 +157,7 @@ function needBanner(vm, right) {
 function lastHtml(vm) {
   const L = vm.last; if (!L || !(L.balls || []).length) return '<p class="wm-last">First over. No balls yet.</p>';
   const t = overTotals(L.balls);
-  return '<p class="wm-last"><span>Last over:</span>' + L.balls.slice(0, 6).map((b) => '<span class="wm-b k-' + kindOf(b.o) + '" role="img" aria-label="' + esc(ballWord(b.o)) + '">' + esc(ballGlyph(b.o)) + '</span>').join('') + '<span class="wm-sum">= ' + esc(overWords(t.runs, t.wk)) + '</span></p>';
+  return '<p class="wm-last"><span>Last over:</span>' + L.balls.slice(0, 6).map((b) => '<span class="wm-b k-' + kindOf(b.o) + (L.golden === true ? ' is-golden' : '') + '" role="img" aria-label="' + esc(ballWord(b.o) + (L.golden === true ? ", Captain's Over" : '')) + '">' + esc(ballGlyph(b.o)) + '</span>').join('') + '<span class="wm-sum">= ' + esc(overWords(t.runs, t.wk)) + '</span></p>';
 }
 const kindOf = (o) => (o === 'W' ? 'w' : o === 6 ? 's' : o === 4 ? 'f' : 'n');
 function ctrlChips(c) {
@@ -195,6 +196,10 @@ function batPair(vm) {
   const c = (vm.info && vm.info.crease) || [];
   return c.length ? c.map((b) => b.name).join(' & ') : '';
 }
+/** Captain's Over (CONTRACT-GO s1): a 56 px button next to Go on the pick screen while the offer stands (once per innings, not while Auto runs). */
+const goldenOn = (vm) => { if (st.auto) return false; const g = goldenInfo(); return !!(g && g.available && !g.active); };
+const goldenCls = (vm) => (goldenOn(vm) ? ' has-golden' : '');
+const goldenBtn = (vm) => (goldenOn(vm) ? '<button type="button" class="c-btn go-btn" data-wm="golden"><span>Captain\'s</span><span>Over</span></button>' : '');
 function pickHtml(vm) {
   const info = vm.info || {};
   if (vm.side === 'bat') {
@@ -203,12 +208,12 @@ function pickHtml(vm) {
     return '<div class="wm wm--pick wm--bat">' + header(vm, { small: vm.target ? 'Chasing ' + vm.target : 'You bat' }) + needBanner(vm, vm.need ? esc(Math.max(0, (vm.need.wkLeft != null ? vm.need.wkLeft : 5 - (vm.score ? vm.score.wk : 0)))) + ' wickets left' : '') +
       '<div class="wm-cols">' + chipRowHtml(info.chips) + roarChipHtml(vm.roar) + '<div class="wm-colA"><p class="wm-cap">Their bowler this over</p><p class="wm-their">' + esc(vm.rivalBowler ? vm.rivalBowler.name + (vm.rivalBowler.role ? ' (' + vm.rivalBowler.role + ')' : '') : 'They pick a bowler') + '</p>' + bats + '</div>' + lastHtml(vm) +
       '<p class="wm-exp">' + esc(vm.expectText || '') + '</p>' + autoRow(vm) +
-      '<div class="wm-cta"><button type="button" class="c-btn c-btn--primary c-btn--cta wm-go" data-wm="go"><span>BAT OVER ' + esc(vm.over) + '</span><small>' + esc(batPair(vm) || 'whole over in one spin') + '</small></button></div></div>' + liveHtml() + '</div>';
+      '<div class="wm-cta' + goldenCls(vm) + '"><button type="button" class="c-btn c-btn--primary c-btn--cta wm-go" data-wm="go"><span>BAT OVER ' + esc(vm.over) + '</span><small>' + esc(batPair(vm) || 'whole over in one spin') + '</small></button>' + goldenBtn(vm) + '</div></div>' + liveHtml() + '</div>';
   }
   const b = bowlerOf(vm, pickedBowler(vm));
   return '<div class="wm wm--pick wm--bowl">' + header(vm, { small: info.phaseName || 'You bowl' }) + '<div class="wm-cols">' + chipRowHtml(info.chips) + roarChipHtml(vm.roar) +
     '<div class="wm-colA"><p class="wm-cap">Pick your bowler <small>tap a row</small></p>' + bowlerRows(vm) + '</div>' + lastHtml(vm) + autoRow(vm) +
-    '<div class="wm-cta"><button type="button" class="c-btn c-btn--primary c-btn--cta wm-go" data-wm="go"' + (b ? '' : ' disabled') + '><span>BOWL OVER ' + esc(vm.over) + '</span><small class="name">' + esc(b ? b.name : 'No bowler can bowl') + '</small></button></div></div>' + liveHtml() + '</div>';
+    '<div class="wm-cta' + goldenCls(vm) + '"><button type="button" class="c-btn c-btn--primary c-btn--cta wm-go" data-wm="go"' + (b ? '' : ' disabled') + '><span>BOWL OVER ' + esc(vm.over) + '</span><small class="name">' + esc(b ? b.name : 'No bowler can bowl') + '</small></button>' + goldenBtn(vm) + '</div></div>' + liveHtml() + '</div>';
 }
 const liveHtml = () => '<div class="ss-sr wm-live" role="status" aria-live="polite" aria-atomic="true"></div>';
 const legendHtml = () => '<div class="wm-legend" aria-hidden="true"><span><i class="wm-sw wm-sw--good">▲</i>good for us</span><span><i class="wm-sw wm-sw--so">●</i>so-so</span><span><i class="wm-sw wm-sw--bad">▼</i>bad for us</span><span><i class="wm-star">✱</i>= wicket</span></div>';
@@ -368,7 +373,7 @@ function fontFam() { return css('--font-head', '') || 'system-ui, sans-serif'; }
 // ---------- render ----------
 /** @param {HTMLElement} el @param {any} vm @param {(cmd:string, payload?:any)=>any} dispatch @param {any} open */
 export function render(el, vm, dispatch, open) {
-  st.el = el; st.vm = vm; st.dispatch = dispatch; st.open = open;
+  st.el = el; st.vm = vm; st.dispatch = dispatch; st.open = open; setGoldenSource(vm);
   if (st.busy && el.querySelector('.wm')) return; // an animation owns the screen (app.js holds re-renders during a WheelOver)
   const key = (vm.side || '') + '|' + (vm.mode || '');
   if (key !== st.key) { st.key = key; st.phase = 'pick'; st.bowler = null; st.res = null; st.tickNote = ''; if (st.auto) stopAuto(); }
@@ -377,6 +382,7 @@ export function render(el, vm, dispatch, open) {
     if (L && L.wheel && !L.wheel.auto && L.over === vm.over - 1 && seenGet() !== rk) st.res = { wheel: L.wheel, balls: L.balls || [], over: L.over, score: vm.score, stage: null, nextLabel: 'Next over', seenKey: rk, reload: true };
   }
   if (vm.over !== st.over) { st.over = vm.over; if (!st.res) st.phase = st.auto ? 'auto' : 'pick'; }
+  { const g = goldenInfo(); if (g && g.active && !st.auto && !st.res) { startGoldenOver(el, vm); return; } } // reload mid-over: the Captain's Over resumes at the next ball
   if (st.res) return showResult(el, vm, st.res, false);
   if (st.auto) { el.innerHTML = wheelHtml(vm, 'auto'); const w = setupWheel(el, vm.segs, vm); w.draw(st.restPos || 0, { over: vm.over }); bindView(el); const b = el.querySelector('[data-wm="stop-auto"]'); if (b && st.focusStop) b.focus(); scheduleAuto(); return; }
   if (st.phase === 'ready') { if (vm.side === 'bowl' && st.bowler != null && st.bowler !== vm.bowler && typeof vm.vmFor === 'function') { const v2 = vm.vmFor(st.bowler); if (v2) { vm = v2; st.vm = vm; } } el.innerHTML = wheelHtml(vm, 'ready'); const w = setupWheel(el, vm.segs, vm); st.restPos = st.restPos || Math.random() * WHEEL_MATCH.CIRC; w.draw(st.restPos, { over: vm.over }); bindView(el); readyHint(el, vm); const g = el.querySelector('[data-wm="spin"]'); if (g) g.focus(); return; }
@@ -402,11 +408,40 @@ function bindView(el) {
     const vm = st.vm, act = t.getAttribute('data-wm');
     if (t.hasAttribute('data-bowler')) { st.bowler = Number(t.getAttribute('data-bowler')); render(el, vm, st.dispatch, st.open); const f = el.querySelector('[data-bowler="' + st.bowler + '"]'); if (f) f.focus(); return; }
     if (act === 'go') { if (vm.side === 'bowl' && pickedBowler(vm) == null) return; st.bowler = pickedBowler(vm); st.tickNote = ''; st.phase = 'ready'; st.restPos = Math.random() * WHEEL_MATCH.CIRC; render(el, vm, st.dispatch, st.open); }
+    else if (act === 'golden') startGoldenOver(el, vm);
     else if (act === 'back') { st.phase = 'pick'; render(el, vm, st.dispatch, st.open); const f = el.querySelector('[data-wm="go"]'); if (f) f.focus(); }
     else if (act === 'spin') onSpin(el, vm, t, e);
     else if (act === 'auto-rest') startAuto(el, 'rest');
     else if (act === 'stop-auto') { st.stopReq = true; t.setAttribute('aria-disabled', 'true'); t.querySelector('span').textContent = 'Stopping after this over'; }
   });
+}
+
+// ---------- Captain's Over hand-off (golden-over-view.js owns the screen; it reads goldenVM and dispatches Golden*) ----------
+function startGoldenOver(el, vm) {
+  if (st.busy) return;
+  const h = st.dispatch('GoldenHold'); // app.js hold handle: the screen is ours until release(); null when something else holds it
+  if (!h) return;
+  st.busy = true; // renders from the store's notifications are ignored while the golden screen owns el
+  const free = () => { st.busy = false; st.phase = 'pick'; st.bowler = null; st.res = null; h.release(); };
+  playGolden(el, {
+    dispatch: (c, p) => st.dispatch(c, p), bowler: vm.side === 'bowl' ? pickedBowler(vm) : null,
+    onCancel: free,
+    onDone() { // the over is committed (no n.last.wheel, so no WheelOver hold): the normal over panel, then release() redraws the next stage
+      let o = null; try { o = goldenOverInfo(); } catch (e) { o = null; }
+      if (!o) { free(); return; }
+      playOverPanel({ title: 'Over ' + o.over + ", Captain's Over", balls: o.balls, score: o.score, nextLabel: o.nextLabel, batKit: o.first ? 'B' : 'A', roar: o.roar, golden: true, onDone: free });
+    },
+  });
+}
+
+/** The committed golden over for the over panel (names like app.js's BowlOver panel). Reads the page store; null when it is not there. */
+function goldenOverInfo() {
+  const s = st.vm && typeof st.vm.goldenState === 'function' ? st.vm.goldenState() : null; if (!s || !s.last || !s.last.golden) return null;
+  const first = s.stage === 'bowl' || s.stage === 'break' || (s.stage === 'done' && false), L = s.last;
+  const bowlSide = s.inn1 && (s.stage === 'bowl' || s.stage === 'break'), inn = bowlSide ? s.inn1 : s.inn2;
+  const bats = (bowlSide ? s.rival : s.me).players, bowls = (bowlSide ? s.me : s.rival).players, bw = bowls[L.bowler];
+  const balls = (L.balls || []).map((b) => ({ ...b, batName: bats[b.batter] ? bats[b.batter].name : 'The batter', bowlName: bw ? bw.name : 'the bowler', bowlType: bw && bw.bowl }));
+  return { over: L.over, balls, score: { runs: inn.runs, wk: inn.wk }, first: !!bowlSide, roar: L.roar || false, nextLabel: s.stage === 'done' ? 'See result' : s.stage === 'break' ? 'Innings break' : bowlSide ? 'Next bowler' : 'Next over' };
 }
 
 // ---------- spin / STOP / glide ----------
@@ -513,7 +548,7 @@ function showResult(el, vm, r, fresh, keepWheel) {
   const slots = Array.from({ length: 6 }, (_, i) => '<li class="op-slot' + (i >= balls.length ? ' is-unused' : '') + '" data-i="' + i + '"><span class="op-circle" aria-hidden="true"></span><span class="op-word" aria-hidden="true"></span></li>').join('');
   res.innerHTML = '<div class="wm-resh"><span>Landed on</span>' + chip + '<span class="wm-eq">= ' + esc(overWords(t.runs, t.wk)) + '</span></div>' +
     (st.tickNote ? '<p class="wm-tickline" aria-hidden="true">' + esc(st.tickNote) + '</p>' : '') +
-    '<ol class="op-circles wm-balls" aria-label="Balls this over" data-res-tap>' + slots + '</ol><p class="wm-found" hidden></p>';
+    '<ol class="op-circles wm-balls' + (r.golden === true ? ' is-golden' : '') + '" aria-label="Balls this over' + (r.golden === true ? ", Captain's Over" : '') + '" data-res-tap>' + slots + '</ol><p class="wm-found" hidden></p>';
   if (st.wheel) { st.wheel.size(); st.wheel.draw(st.drawPos != null ? st.drawPos : 0, { over }); } // the panel took room: fit the wheel to what is left
   const nr = root.querySelector('.wm-need span'); if (nr && vm.side === 'bat') nr.textContent = '+' + t.runs + ' this over';
   const nb = root.querySelector('.wm-need b'); if (nb && r.stage === 'done') nb.textContent = r.result === 'won' ? 'You won the chase!' : r.result === 'tied' ? 'Scores level: a tie' : 'Chase over: they won';

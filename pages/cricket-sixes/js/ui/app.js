@@ -149,6 +149,7 @@ export function mount(el, store) {
       if (view.error) throw view.error;
       if (typeof sel[vmName] !== 'function') throw new Error('No view model yet: ' + vmName);
       const vm = decorate(s, sel[vmName](s));
+      if (entry === WHEEL_STAGE && vm && typeof vm === 'object') { vm.goldenVM = () => (typeof sel.goldenVM === 'function' ? sel.goldenVM(store.get()) : null); vm.golden = vm.goldenVM(); vm.goldenState = () => store.get(); } // Captain's Over: live selector + read-only state for the golden view
       if (entry === WHEEL_STAGE && vm && typeof vm === 'object') { if (!vm.info) vm.info = wheelInfo(s); vm.vmFor = (pick) => { const v = sel.wheelMatchVM(store.get(), pick); if (v) v.info = vm.info; return v; }; } // the wheel for a picked bowler
       view.render(el, vm, (cmd, payload) => dispatch(cmd, payload), openByName); // views: render(el, vm, dispatch, open)
     } catch (err) {
@@ -169,8 +170,15 @@ export function mount(el, store) {
   render();
 
   /** BowlOver: apply it, then show the panel; the next screen draws only when Next is pressed. */
+  let goldHold = false; // Captain's Over: the golden view owns the screen; Golden* commands still run, nothing else re-renders until release()
   function dispatch(cmd, payload) {
-    if (holding) return;
+    if (cmd === 'GoldenHold') { // the golden view asks for the screen; returns a hold handle like wheelOver's (release() redraws whatever stage comes next)
+      if (holding) return null;
+      holding = true; goldHold = true;
+      return { release() { if (!goldHold) return; goldHold = false; holding = false; render(); } };
+    }
+    if (holding && !(goldHold && typeof cmd === 'string' && cmd.indexOf('Golden') === 0)) return;
+    if (goldHold) { const b = store.get(); store.dispatch(cmd, payload); rep.dispatched(cmd, payload, b, store.get()); return; }
     if (cmd === 'WheelOver') return wheelOver(payload);
     if (cmd !== 'BowlOver') { const b = store.get(); store.dispatch(cmd, payload); rep.dispatched(cmd, payload, b, store.get()); return; }
     const before = store.get();
@@ -191,7 +199,7 @@ export function mount(el, store) {
     rep.panelOpen();
     const found = sel.foundVM(s);
     if (found.length) addFinds(found.length); // P6 badge: finds since the Book was last opened
-    playOverPanel({ callHint: hint, title: 'Over ' + s.last.over, balls, score: { runs: inn.runs, wk: inn.wk }, nextLabel, summaryLines, batKit: first ? 'B' : 'A', found, book: found.length ? sel.bookVM(s) : null, roar: s.last.roar || false, onBook: (cell) => openByName('book', { returnFocus: BACK_FOCUS, cell }),
+    playOverPanel({ callHint: hint, title: 'Over ' + s.last.over, balls, score: { runs: inn.runs, wk: inn.wk }, nextLabel, summaryLines, batKit: first ? 'B' : 'A', found, book: found.length ? sel.bookVM(s) : null, roar: s.last.roar || false, golden: s.last.golden === true, onBook: (cell) => openByName('book', { returnFocus: BACK_FOCUS, cell }),
       onDone(info) { rep.panelDone(info); holding = false; render(); } });
   }
   /** Wheel match: apply WheelOver and hold the screen (no re-render) so the wheel view can glide, beat and play the ball row.

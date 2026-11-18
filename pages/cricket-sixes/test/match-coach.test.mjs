@@ -145,7 +145,7 @@ test('save: per-week matchCoachId lives in training, JSON round trip, cleared at
   assert.equal(back.training.matchCoachId, 'a'); assert.equal(matchCoachOf(back).coach.id, 'a');
   assert.equal(matchCoachOf(s).coach.id, 'b', 'missing field = default rule');
   assert.equal(back.v, s.v, 'version unchanged');
-  assert.equal(s.v, 7);
+  assert.equal(s.v, 8);
 });
 
 test('report: mc per match record and the COACHES line', () => {

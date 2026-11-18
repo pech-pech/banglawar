@@ -76,7 +76,7 @@ export function bookBtnHtml(n) {
   return '<button type="button" class="c-btn c-btn--block op-book">' + icoDeco('book', 24) + '<span>Open Book</span>' +
     (t ? '<span class="op-badge" aria-hidden="true">' + t + '</span><span class="ss-sr"> ' + badgeAria(n) + '</span>' : '') + '</button>';
 }
-export function playOverPanel({ title, balls, score, summaryLines = [], nextLabel = 'Next over', batKit, found = [], book = null, onBook, onDone, roar = false, callHint = null }) {
+export function playOverPanel({ title, balls, score, summaryLines = [], nextLabel = 'Next over', batKit, found = [], book = null, onBook, onDone, roar = false, callHint = null, golden = false }) {
   const list = (balls || []).slice(0, 6);
   const root = document.createElement('div');
   root.className = 'op-scrim';
@@ -84,7 +84,7 @@ export function playOverPanel({ title, balls, score, summaryLines = [], nextLabe
   const slots = Array.from({ length: 6 }, (_, i) => `<li class="op-slot${i >= list.length ? ' is-unused' : ''}" data-i="${i}"><span class="op-circle" aria-hidden="true"></span><span class="op-word" aria-hidden="true"></span></li>`).join('');
   root.innerHTML = `<section class="c-card op-card has-beats${hasFound ? ' has-found' : ''}" role="dialog" aria-modal="true" aria-labelledby="op-title">` +
     `<header class="op-head"><h2 id="op-title" class="op-title">${esc(title)}</h2>` +
-    `<button type="button" class="c-icon-btn op-close" aria-label="Close and skip to the end of the over"><span class="c-ico c-ico--x"></span></button></header><div class="bt-slot"></div>${roarChipHtml(roar)}<ol class="op-circles" aria-label="Balls this over">${slots}</ol>` +
+    `<button type="button" class="c-icon-btn op-close" aria-label="Close and skip to the end of the over"><span class="c-ico c-ico--x"></span></button></header><div class="bt-slot"></div>${roarChipHtml(roar)}<ol class="op-circles${golden ? ' is-golden' : ''}" aria-label="${golden ? "Balls this over, Captain's Over" : 'Balls this over'}">${slots}</ol>` +
     `<hr class="op-divider"><div class="op-bottom"><h3 class="op-sub">Results this over</h3><ul class="op-lines" aria-live="polite"></ul></div>` +
     `<div class="ss-sr op-found-live" role="status" aria-live="polite" aria-atomic="true"></div><div class="op-foot"></div></section>`;
   document.body.appendChild(root);
@@ -103,7 +103,7 @@ export function playOverPanel({ title, balls, score, summaryLines = [], nextLabe
     c.textContent = ballGlyph(b.o); slot.classList.add('is-filled', 'k-' + k);
     const w = slot.querySelector('.op-word'), wt = ballWord(b.o), m = /^(\S+) (RUNS?)$/.exec(wt);
     if (m) { w.textContent = m[1]; w.appendChild(document.createElement('br')); w.appendChild(document.createTextNode(m[2])); } else w.textContent = wt;   // run words always read on two lines (1 / RUN, 2 / RUNS, NO / RUN), in every theme
-    slot.setAttribute('aria-label', 'Ball ' + (i + 1) + ': ' + outcomeLabel(b.o));
+    slot.setAttribute('aria-label', 'Ball ' + (i + 1) + ': ' + outcomeLabel(b.o) + (golden ? ", Captain's Over" : ''));
     const why = whyLine(b, b.batName, b.bowlName);
     const li = document.createElement('li');
     li.className = 'op-line op-ball k-' + k;

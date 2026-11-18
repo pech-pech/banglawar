@@ -33,7 +33,7 @@ const GOLDEN = {
 // S0 (M OK 2026-11-16): also drop the S0 default save keys (wheels, clinic, report, per-coach weekly fields, scout extras) so the classic freeze hash still guards classic play only.
 const COACH_NEW = ['xp', 'xpTotal', 'job', 'jobWeek', 'stepUpPending', 'stepsXp', 'stepsCourse'];
 const s0strip = (r) => { const { wheels, clinic, report, ...o } = r; if (Array.isArray(o.coaches)) o.coaches = o.coaches.map((c) => { if (!c || typeof c !== 'object') return c; const k = { ...c }; for (const f of COACH_NEW) delete k[f]; return k; }); if (o.scout && typeof o.scout === 'object') { const { bonusNames, extraThisSeason, ...sc } = o.scout; if (Object.keys(sc).length) o.scout = sc; else delete o.scout; } return o; };
-const strip = (s) => { if (!s || typeof s !== 'object') return s; const { mode, ...r } = s; return s0strip(r); };
+const strip = (s) => { if (!s || typeof s !== 'object') return s; const { mode, golden, goldCal, ...r } = s; if (r.v === 8) r.v = 7; return s0strip(r); }; // v8 (Captain's Over, CONTRACT-GO): drop golden/goldCal and normalise v 8 -> 7 so the freeze still guards classic play only
 function seasonTrace(seed, flagSet, matches, onState) {
   return withFlags(flagSet, () => {
     const a = createStore(null); a.dispatch('NewGame', { seed });
@@ -90,8 +90,8 @@ test('T19 classic freeze: step-0 NewMatch (MakeCall/BowlOver) identical to main,
   assert.equal(quickTrace('wm1-quick', (s) => modes.add(s.mode)), GOLDEN.quick);
   assert.ok(![...modes].includes('wheel'));
 });
-test('T20 no VERSION bump: save version stays 7', () => {
-  assert.equal(VERSION, 7);
+test('T20 no VERSION bump: save version stays 8', () => {
+  assert.equal(VERSION, 8); // bumped to 8 by Captain's Over (CONTRACT-GO)
 });
 
 // ------------------------------------------------------------ helpers for wheel matches
@@ -158,7 +158,7 @@ test('T20 save round trip: a v7 save with no matchMode loads classic; a new whee
   const st = createStore(null);
   withFlags({ wheelMatch: true }, () => st.dispatch('NewGame', { seed: 'wm1-new' })); // main.js turns FLAGS.wheelMatch on; off in tests keeps old suites classic
   assert.equal(st.get().matchMode, 'wheel');
-  assert.equal(st.get().v, 7);
+  assert.equal(st.get().v, 8); // bumped to 8 by Captain's Over (CONTRACT-GO)
   const old = { ...st.get() }; delete old.matchMode;
   assert.equal(WM.matchModeOf(old), 'classic');
   const r = unwrap(JSON.stringify(wrap(old)));

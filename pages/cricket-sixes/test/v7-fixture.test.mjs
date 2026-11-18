@@ -6,9 +6,9 @@ import assert from 'node:assert/strict';
 import { loadV7, v7Text } from './_v7-fixture.mjs';
 import { VERSION, unwrap } from '../js/core/save-migrate.js';
 
-test('v7 fixture: loads through the live path, v===7, no migration needed', () => {
+test('v7 fixture: loads through the live path, migrates v7 -> v8 (golden slots null)', () => {
   const s = loadV7();
-  assert.equal(s.v, 7); assert.equal(VERSION, 7);
+  assert.equal(s.v, 8); assert.equal(VERSION, 8); assert.equal(s.golden, null); assert.equal(s.goldCal, null);
   const r = unwrap(v7Text());
   assert.ok(r.ok); assert.equal(r.from, 7);
 });

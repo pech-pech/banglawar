@@ -97,10 +97,10 @@ function batterName(vm, i) {
   return c ? c.name : 'The batter';
 }
 
-function ballChip(rec) {
-  const cls = rec.o === 'W' ? 'ball w' : rec.o === 6 ? 'ball six' : rec.o === 4 ? 'ball four' : 'ball';
+function ballChip(rec, golden) {
+  const cls = (rec.o === 'W' ? 'ball w' : rec.o === 6 ? 'ball six' : rec.o === 4 ? 'ball four' : 'ball') + (golden ? ' is-golden' : '');
   const txt = rec.o === 'W' ? 'W' : rec.o;
-  return '<span class="' + cls + '" aria-label="' + esc(outWord(rec.o)) + '">' + esc(txt) + '</span>';
+  return '<span class="' + cls + '" aria-label="' + esc(outWord(rec.o) + (golden ? ", Captain's Over" : '')) + '">' + esc(txt) + '</span>';
 }
 
 function lastLine(vm) {
@@ -112,7 +112,7 @@ function lastLine(vm) {
   const wk = last.balls.filter((r) => r.o === 'W').length;
   const sum = runs + (runs === 1 ? ' run' : ' runs') + (wk ? ', ' + wk + ' out' : '');
   const W = vm.lastWhy; // P13: inline why line (flag whyInline); null = flag off, old Why? button
-  const chips = last.balls.slice(0, 6).map((r, i) => (W && W.key === i ? ballChip(r).replace('class="ball', 'class="is-key ball') : ballChip(r))).join('');
+  const chips = last.balls.slice(0, 6).map((r, i) => (W && W.key === i ? ballChip(r, last.golden === true).replace('class="', 'class="is-key ') : ballChip(r, last.golden === true))).join('');
   const head = '<span class="lt"><b>Last over ' + esc(last.over) + '</b>: ' + esc(sum) + '<span class="balls">' + chips + '</span></span>';
   if (W) return '<div class="last-b has-why">' + head + '<p class="lw" aria-hidden="true"><b>Why:</b> ' + esc(W.text) + '</p><span class="ss-sr">Why: ' + esc(W.say) + '</span></div>';
   return '<div class="last-b">' + head + '<button type="button" class="c-btn why-b" id="why">Why?</button></div>';

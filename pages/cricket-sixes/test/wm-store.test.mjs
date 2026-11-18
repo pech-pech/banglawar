@@ -21,8 +21,8 @@ const spotReady = (seed) => { const s0 = untilTrain(seed); return C(s0, 'SetTrai
 const setMeta = (s, patch) => ({ ...s, wheelMeta: { ...emptyWheelMeta(), ...(s.wheelMeta || {}), ...patch } });
 const firstBuyable = () => NODES.find((n) => n.tier <= 1 && n.branch !== 'craft' && !(n.requires || []).length);
 
-test('save: VERSION 7; a new game carries empty wheelMeta and wheelCraft', () => {
-  assert.equal(VERSION, 7);
+test('save: VERSION 8; a new game carries empty wheelMeta and wheelCraft', () => {
+  assert.equal(VERSION, 8);
   const g = C(null, 'NewGame', { seed: 'wm1' });
   assert.deepEqual(g.wheelMeta, emptyWheelMeta()); assert.deepEqual(g.wheelCraft, { owned: {} });
   assert.deepEqual(emptyWheelMeta().tokens, { respin: 0, nudge: 0, two: 0, wild: 0, lift: 0 });
@@ -30,12 +30,12 @@ test('save: VERSION 7; a new game carries empty wheelMeta and wheelCraft', () =>
 
 test('save: v6 -> v7 adds both empty blocks, keeps everything else, is idempotent', () => {
   const g = C(null, 'NewGame', { seed: 'wm2' }); const v6 = clone(g); delete v6.wheelMeta; delete v6.wheelCraft; v6.v = 6;
-  const r = migrate(v6, 6); assert.equal(r.ok, true); assert.equal(r.state.v, 7);
+  const r = migrate(v6, 6); assert.equal(r.ok, true); assert.equal(r.state.v, 8);
   assert.deepEqual(r.state.wheelMeta, emptyWheelMeta()); assert.deepEqual(r.state.wheelCraft, { owned: {} });
-  const { wheelMeta, wheelCraft, v, ...rest } = r.state; const { wheelMeta: a, wheelCraft: b, v: c, ...rest0 } = g; assert.deepEqual(rest, rest0);
+  const { wheelMeta, wheelCraft, v, golden, goldCal, ...rest } = r.state; const { wheelMeta: a, wheelCraft: b, v: c, ...rest0 } = g; assert.deepEqual(rest, rest0);
   assert.deepEqual(migrate(r.state, 6).state, r.state, 'blocks already there are kept');
   const kept = clone(v6); kept.wheelMeta = { ...emptyWheelMeta(), spokes: 9 }; assert.equal(migrate(kept, 6).state.wheelMeta.spokes, 9);
-  const env = unwrap(JSON.stringify({ v: 6, sum: wrap(v6).sum, data: v6 })); assert.equal(env.ok, true); assert.equal(env.state.v, 7);
+  const env = unwrap(JSON.stringify({ v: 6, sum: wrap(v6).sum, data: v6 })); assert.equal(env.ok, true); assert.equal(env.state.v, 8);
 });
 
 test('save: wheelMeta and wheelCraft round trip through the save envelope and storage', () => {

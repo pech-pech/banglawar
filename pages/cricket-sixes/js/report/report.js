@@ -331,6 +331,23 @@ function glossOf(data, ms) {
 }
 
 /** Everything the layout needs: header lines, sections, JSON top level. */
+/** Captain's Over block (window matches): per match taps, mean |err| ms, grade counts, offset; then one count line per over. Empty when none were played. */
+export function goldLines(ms) {
+  const out = [];
+  try {
+    for (const m of ms || []) {
+      const gs = (m.ov || []).map((o) => o && o.go).filter(Boolean);
+      if (!gs.length) continue;
+      const es = gs.flatMap((g) => (g.e || []).filter(Number.isFinite)), n = gs.reduce((a, g) => a + (g.gr || []).length, 0), c = { P: 0, G: 0, M: 0 };
+      for (const g of gs) for (const k of g.gr || []) c[k] = (c[k] || 0) + 1;
+      const mean = es.length ? Math.round(es.reduce((a, e) => a + Math.abs(e), 0) / es.length) : null, off = (gs[gs.length - 1] || {}).off;
+      out.push(`Captain's Over M${m.id}: ${gs.length} overs, ${n} taps, mean |err| ${mean == null ? '-' : mean} ms, P ${c.P} G ${c.G} M ${c.M}, offset ${off == null ? '-' : (off > 0 ? '+' : '') + off + ' ms'}`);
+      for (const g of gs.slice(-6)) { const k = { P: 0, G: 0, M: 0 }; for (const x of g.gr || []) k[x] = (k[x] || 0) + 1; out.push(` inn${g.inn} ov${g.ov}: P${k.P} G${k.G} M${k.M} runs ${g.r} wk ${g.w}`); }
+    }
+  } catch (e) { /* never break the report */ }
+  return out;
+}
+
 export function reportParts(data, env0) {
   const env = envOf(env0, data), w = windowOf(data, env); w.seasons = (data.seasons || []).slice(-12);
   const clean = cleanOf(w.range, { ...env, pending: w.pending }), sv = env.save || {}, fin = w.ms.filter((m) => m.res || m.ab);
@@ -344,7 +361,8 @@ export function reportParts(data, env0) {
   const pd = w.pending, h4 = pd ? (pd.res ? `M${pd.id} is on the result screen: not in this report. Leave the result screen, then copy: it comes in whole with its Coins, Fans, pay and feel.` : `M${pd.id} is still in play: it comes in whole in the next report.`) : null; // QA3 B1
   const secs = [secT(w, env), secM(w, env), secE(w, env), secC(w, env), secS(w, env), secF(w, data)];
   const h5 = devLine(env.dev); // Dev on with changed values only (06-DEV-SPEED)
-  return { env, w, clean, on, rid, h: [h1, h2, h3, h4, h5].filter(Boolean), secs, drop: w.dropped ? w.dropped.n : 0, mode };
+  const gold = goldLines(w.ms);
+  return { gold, env, w, clean, on, rid, h: [h1, h2, h3, h4, h5].filter(Boolean), secs, drop: w.dropped ? w.dropped.n : 0, mode };
 }
 
 const LIM = { full: 2500, short: 1000, json: 4000 };
@@ -358,7 +376,7 @@ export function buildText(data, env) {
       if (s.key === 'M' && foldTo != null && s.nRows > foldTo) { const rows = s.h.slice(0, s.nRows), fold = s.old ? s.old.n + (s.nRows - 1 - foldTo) + 0 : s.nRows - foldTo; return { ...s, h: ['and ' + fold + ' earlier folded (see JSON)'].concat(rows.slice(-foldTo), s.h.slice(s.nRows)) }; } // overflow rule 1: fold older matches
       return s;
     });
-    return P_.h.concat(parts.map((s) => lineOf(s, mach))).join('\n');
+    return P_.h.concat(parts.map((s) => lineOf(s, mach)), P_.gold).join('\n');
   };
   let t = make(true);
   if (t.length > LIM.full) t = make(true, 1);
@@ -383,10 +401,12 @@ export function buildData(data, env0) {
   if (sec && sec.hint) out.hint = sec.hint;
   if (p.mode) out.kind = kindOf(p.mode); // CLEAN build kind: wheel | classic | mixed
   if (sec && sec.wl) out.wl = sec.wl; // W numbers [n, bowl, bat, auto, careful, early, late, coast, runs +-, wkts +-, guide]
+  if (p.gold.length) out.go = p.gold; // Captain's Over block
   if (env.dev && Object.keys(env.dev).length) out.dev = env.dev;
   if (env0 && env0.wm) out.wm = env0.wm; // wa1: tokens used per wheel, match-day count, Find check [yours, full, every node], bug flag
   let js = JSON.stringify(out);
   if (js.length > LIM.json) { for (const m of out.M) { delete m.rb; delete m.rc; } js = JSON.stringify(out); } // overflow: runs per over go first
+  if (js.length > LIM.json) { delete out.go; js = JSON.stringify(out); }
   if (js.length > LIM.json) { for (const m of out.M) { delete m.g; delete m.f; delete m.i; } out.trimmed = 1; js = JSON.stringify(out); }
   return js;
 }

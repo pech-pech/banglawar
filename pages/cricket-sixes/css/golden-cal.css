@@ -1,0 +1,12 @@
+/* Golden Over calibration overlay (S1 pixel look). All rules prefixed .gocal. Text >= 14px, buttons >= 56px. */
+.gocal { display: flex; flex-direction: column; gap: 12px; align-items: stretch; box-sizing: border-box; width: 100%; min-height: 100%; padding: 16px; background: var(--cream, #f4ecd8); color: var(--outline, #1c2a22); font: 16px/22px var(--font-head, system-ui, sans-serif); }
+.gocal .gocal-title { margin: 0; font: 26px/30px var(--font-head, system-ui, sans-serif); letter-spacing: .04em; text-align: center; }
+.gocal .gocal-count { margin: 0; min-height: 22px; font: 18px/22px var(--font-head, system-ui, sans-serif); text-align: center; }
+.gocal .gocal-lane { position: relative; height: 56px; border: 3px solid var(--outline, #1c2a22); background: #2e6b3f; overflow: hidden; image-rendering: pixelated; }
+.gocal .gocal-band { position: absolute; right: 0; top: 0; bottom: 0; width: 8px; background: #D2B357; }
+.gocal .gocal-ball { position: absolute; left: 0; top: 50%; width: 20px; height: 20px; margin: -10px 0 0 -10px; border-radius: 0; background: #fffdf6; border: 2px solid var(--outline, #1c2a22); }
+.gocal .gocal-pad, .gocal .gocal-cancel { box-sizing: border-box; min-width: 56px; min-height: 56px; border: 3px solid #D2B357; border-radius: 0; background: var(--cream, #f4ecd8); color: var(--outline, #1c2a22); font: 18px/22px var(--font-head, system-ui, sans-serif); letter-spacing: .04em; touch-action: none; }
+.gocal .gocal-pad { flex: 1 1 auto; min-height: 120px; font-size: 32px; line-height: 36px; letter-spacing: .06em; }
+.gocal .gocal-cancel { touch-action: manipulation; border-color: var(--outline, #1c2a22); }
+.gocal .gocal-flash { background: #D2B357; }
+@media (prefers-reduced-motion: reduce) { .gocal .gocal-flash { background: var(--cream, #f4ecd8); } .gocal .gocal-ball { transition: none !important; } }
