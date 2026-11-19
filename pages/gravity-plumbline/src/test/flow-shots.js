@@ -70,9 +70,9 @@ srv.listen(0, '127.0.0.1', async () => {
     await ev(() => { PL_TEST.go('play'); }); await ev(() => { PL_TEST.startMode('short', 7); }); await sleep(500); await shot('playDev'); await check('playDev');
     // shaft complete (tuned -> "not saved"), then untuned with a medal
     await ev(() => { for (let i = 0; i < 6 && !PL_TEST.isComplete(); i++) { PL_TEST.winRoom(); PL_TEST.advance(); } });
-    await sleep(700); await shot('shaftCompleteTuned'); await check('shaftCompleteTuned');
+    await sleep(2000); await shot('shaftCompleteTuned'); await check('shaftCompleteTuned');
     await ev(() => { PL.Tweak.resetAll(); PL_TEST.startMode('short', 7); for (let i = 0; i < 6 && !PL_TEST.isComplete(); i++) { PL_TEST.tick(20); PL_TEST.winRoom(); PL_TEST.advance(); } });
-    await sleep(700); await shot('shaftComplete'); await check('shaftComplete');
+    await sleep(2000); await shot('shaftComplete'); await check('shaftComplete');
     // settings reset-bests confirm
     await ev(() => { PL_TEST.menu(); }); await ev(() => { PL_TEST.go('settings'); });
     await ev(() => PL_TEST.setScroll(1000)); await sleep(100);

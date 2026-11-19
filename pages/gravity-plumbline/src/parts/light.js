@@ -64,11 +64,12 @@ const PL = (globalThis.PL = globalThis.PL || {});
     x.fillStyle = hz; x.fillRect(0, 0, 16, 128);
     return c;
   }
+  // light shaft: teal on the left shoulder, violet on the right (tinted so the haze never reads grey)
   function shaftSprite() {
     const c = mk(128, 512), x = c.getContext('2d');
     const hz = x.createLinearGradient(0, 0, 128, 0);
-    hz.addColorStop(0, 'rgba(190,255,240,0)'); hz.addColorStop(0.35, 'rgba(190,255,240,0.8)');
-    hz.addColorStop(0.5, 'rgba(235,255,250,1)'); hz.addColorStop(0.65, 'rgba(190,255,240,0.8)'); hz.addColorStop(1, 'rgba(190,255,240,0)');
+    hz.addColorStop(0, 'rgba(90,230,225,0)'); hz.addColorStop(0.3, 'rgba(90,235,225,0.7)');
+    hz.addColorStop(0.5, 'rgba(185,215,255,1)'); hz.addColorStop(0.7, 'rgba(150,120,255,0.7)'); hz.addColorStop(1, 'rgba(130,100,255,0)');
     x.fillStyle = hz; x.fillRect(0, 0, 128, 512);
     x.globalCompositeOperation = 'destination-in';
     const vt = x.createLinearGradient(0, 0, 0, 512);
@@ -224,16 +225,71 @@ const PL = (globalThis.PL = globalThis.PL || {});
     dome: { cx: 0.5, cy: 0.12, rx: 0.46, ry: 0.145 },
     far: null, near: null, imgFar: null, imgNear: null, backdropKind: 'procedural',
     sp: null, motes: null, sky: null, skyKey: '', skyDirty: true, cel: 0, celT: 0, boost: 0, desat: 0, noise: 0, noiseT: 0, noiseTarget: 0,
-    bloom: null, vign: null, grade: null, cost: 0, auroraT: 0, camx: 0, camy: 0
+    bloom: null, vign: null, grade: null, cost: 0, auroraT: 0, camx: 0, camy: 0,
+    strips: null, domePath: null, scrim: null, rimBaked: false, glowDone: false, frame: 0, bloomAmt: null, shaftAlpha: 0.14
   };
   const MOTES = 24;
+
+  // static far light: the four shafts are baked into the backdrop once (teal/violet, about half the old alpha)
+  const SHAFTS = [[0.3, -0.24, 0], [0.45, -0.08, 1.3], [0.58, 0.1, 2.4], [0.72, 0.27, 3.6]];
+  function shaftGeom(i, W, H, t) {
+    const sh = SHAFTS[i], sway = Math.sin(t / 9 * TAU + sh[2]) * 0.026;
+    return { ox: sh[0] * W, oy: S.dome.cy * H + S.dome.ry * H * 0.55, a: sh[1] + sway, len: H * 0.95, wi: W * (0.2 + 0.03 * (i % 2)) };
+  }
+  function bakeShaftsInto(far, s) {
+    if (!far || !far.canvas || !far.canvas.getContext) return;
+    const x = far.canvas.getContext('2d'); if (!x) return;
+    x.save(); x.setTransform(s, 0, 0, s, far.mx * s, (far.my || 0) * s);
+    x.globalCompositeOperation = 'lighter';
+    for (let i = 0; i < SHAFTS.length; i++) {
+      const g = shaftGeom(i, S.W, S.H, 0);
+      x.save(); x.translate(g.ox, g.oy); x.rotate(g.a); x.globalAlpha = S.shaftAlpha; x.drawImage(S.sp.shaft, -g.wi / 2, 0, g.wi, g.len); x.restore();
+    }
+    x.restore();
+  }
+  // aurora: 3 pre-rendered curtain strips (soft bars + fine streaks); per frame they only slide / breathe / shimmer
+  const AUR = [
+    { sp: 0.11, ph: 0.0, f1: 1.3, f2: 2.7, a1: 0.035, a2: 0.012, y: 0.0, len: 0.17, al: 0.85, col: 0, bars: 46 },
+    { sp: 0.08, ph: 2.1, f1: 1.0, f2: 3.1, a1: 0.04, a2: 0.015, y: 0.035, len: 0.19, al: 0.7, col: 1, bars: 46 },
+    { sp: 0.14, ph: 4.2, f1: 1.7, f2: 2.3, a1: 0.03, a2: 0.01, y: 0.07, len: 0.15, al: 0.6, col: 2, bars: 46 }
+  ];
+  function bakeStrips(W, H) {
+    const q = 0.5, sw = Math.ceil(W * 1.5 * q), sh = Math.ceil(H * 0.3 * q), r = PL.vfxRand(S.seed + 91);
+    S.strips = [];
+    for (let k = 0; k < AUR.length; k++) {
+      const A = AUR[k], c = mk(sw, sh), x = c.getContext('2d'), bar = S.sp.bars[A.col];
+      x.scale(q, q); x.globalCompositeOperation = 'lighter';
+      const SW = W * 1.5, nb = A.bars;
+      for (let i = 0; i < nb; i++) {
+        const u = i / (nb - 1), px = u * SW, bw = SW / (nb - 1) * 1.7;
+        const y = (0.04 + Math.sin(u * A.f1 * TAU + A.ph) * A.a1 * 2 + Math.sin(u * A.f2 * TAU) * A.a2 * 2) * H;
+        const len = A.len * H * (0.75 + 0.25 * Math.sin(u * 9 + A.ph));
+        x.globalAlpha = clamp(A.al * (0.45 + 0.55 * Math.abs(Math.sin(i * 0.9 + A.ph * 3))), 0, 1);
+        x.drawImage(bar, px - bw / 2, y, bw, len);
+      }
+      for (let i = 0; i < 38; i++) { // fine streaks
+        const px = r() * SW, y = (0.03 + r() * 0.07) * H, len = (0.08 + r() * 0.2) * H;
+        x.globalAlpha = 0.25 + r() * 0.35; x.drawImage(bar, px, y, 2 + r() * 3, len);
+      }
+      S.strips.push(c);
+    }
+    if (typeof Path2D === 'function') { try { const p = new Path2D(); p.ellipse(S.dome.cx * W, S.dome.cy * H, S.dome.rx * W, S.dome.ry * H, 0, 0, TAU); S.domePath = p; } catch (e) { S.domePath = null; } } else S.domePath = null;
+  }
+  function bakeScrim() {
+    const c = mk(48, 72), x = c.getContext('2d');
+    x.translate(24, 36); x.scale(1, 1.5);
+    const g = x.createRadialGradient(0, 0, 0, 0, 0, 24);
+    g.addColorStop(0, 'rgba(6,8,28,0.5)'); g.addColorStop(0.55, 'rgba(6,8,28,0.34)'); g.addColorStop(1, 'rgba(6,8,28,0)');
+    x.fillStyle = g; x.fillRect(-24, -36, 48, 72);
+    S.scrim = c;
+  }
 
   function bakeAll() {
     const W = S.W, H = S.H, s = Math.min(S.dpr, 1.5);
     const r = PL.vfxRand(S.seed + 17);
     if (!S.sp) {
       S.sp = {
-        warm: glowSprite(128, 255, 176, 80), gold: glowSprite(160, 255, 226, 150), teal: glowSprite(128, 95, 224, 200),
+        warm: glowSprite(128, 255, 176, 80), gold: glowSprite(160, 255, 226, 150), goldTight: glowSprite(64, 255, 214, 110, true), teal: glowSprite(128, 95, 224, 200),
         mote: glowSprite(24, 220, 255, 245, true),
         bars: [barSprite(70, 255, 170), barSprite(170, 110, 255), barSprite(60, 230, 230)],
         shaft: shaftSprite(), rim: [rimSprite(0), rimSprite(1), rimSprite(2), rimSprite(3)]
@@ -242,23 +298,26 @@ const PL = (globalThis.PL = globalThis.PL || {});
     const sf = s; S.far = S.imgFar ? bakeImage(S.imgFar, W, H, sf, 0.06) : bakeFar(W, H, sf, r, S.dome);
     S.near = S.imgNear ? bakeImage(S.imgNear, W, H, s, 0.1) : (S.imgFar ? null : bakeNear(W, H, s));
     S.backdropKind = S.imgFar ? 'image' : 'procedural';
+    bakeShaftsInto(S.far, sf);
+    bakeStrips(W, H);
+    bakeScrim();
     // vignette (half res, drawn stretched)
     const vw = Math.ceil(W / 2), vh = Math.ceil(H / 2);
     S.vign = mk(vw, vh);
     let x = S.vign.getContext('2d');
     x.translate(vw / 2, vh / 2); x.scale(1, vh / vw);
     let g = x.createRadialGradient(0, 0, vw * 0.38, 0, 0, vw * 0.95);
-    g.addColorStop(0, 'rgba(10,12,34,0)'); g.addColorStop(0.65, 'rgba(10,12,34,0.28)'); g.addColorStop(1, 'rgba(10,12,34,0.62)');
+    g.addColorStop(0, 'rgba(10,12,34,0)'); g.addColorStop(0.65, 'rgba(10,12,34,0.2)'); g.addColorStop(1, 'rgba(10,12,34,0.5)');
     x.fillStyle = g; x.fillRect(-vw, -vw * (vh / vw) * 1.6, vw * 2, vw * 3.2);
     // dusk grade folded into the same overlay (one source-over full-screen draw instead of vignette + soft-light)
     const tint = x.createLinearGradient(0, -vh / 2, 0, vh / 2);
     tint.addColorStop(0, 'rgba(70,110,255,0.10)'); tint.addColorStop(0.55, 'rgba(150,110,200,0.02)'); tint.addColorStop(1, 'rgba(255,150,90,0.12)');
     x.fillStyle = tint; x.fillRect(-vw, -vh, vw * 2, vh * 2);
     S.skyDirty = true;
-    // bloom buffers: 1/4 and 1/8 of the css-px canvas, independent of dpr
-    S.bloom = { w4: Math.max(8, Math.ceil(W / 4)), h4: Math.max(8, Math.ceil(H / 4)) };
+    // bloom buffers: 1/6 and 1/12 of the css-px canvas (independent of dpr), refreshed every 2nd frame
+    S.bloom = { w4: Math.max(8, Math.ceil(W / 6)), h4: Math.max(8, Math.ceil(H / 6)) };
     S.bloom.c4 = mk(S.bloom.w4, S.bloom.h4); S.bloom.x4 = S.bloom.c4.getContext('2d');
-    S.bloom.w8 = Math.max(4, Math.ceil(W / 8)); S.bloom.h8 = Math.max(4, Math.ceil(H / 8));
+    S.bloom.w8 = Math.max(4, Math.ceil(W / 12)); S.bloom.h8 = Math.max(4, Math.ceil(H / 12));
     S.bloom.c8 = mk(S.bloom.w8, S.bloom.h8); S.bloom.x8 = S.bloom.c8.getContext('2d');
   }
 
@@ -290,8 +349,9 @@ const PL = (globalThis.PL = globalThis.PL || {});
   };
   L.setQuality = function (q) { if (q === 'full' || q === 'lite' || q === 'off') { S.q = q; S.skyDirty = true; } };
   L.setReduced = function (b) { S.reduced = !!b; S.skyDirty = true; };
-  L.setBackdrop = function (far, near) {
+  L.setBackdrop = function (far, near, opts) {
     S.imgFar = far || null; S.imgNear = near || null;
+    if (opts && opts.dome) S.dome = opts.dome;   // dome ellipse in screen fractions, applied before the bake
     if (S.inited) bakeAll();
   };
   L.setLanterns = function (list) { S.lanterns = (list || []).slice(0, 6).map(function (l, i) { return { x: fin(l.x, 0), y: fin(l.y, 0), ph: fin(l.ph, i * 1.7) }; }); };
@@ -392,7 +452,6 @@ L.setHazards = function (rects) { S.hazExtra = Array.isArray(rects) ? rects : []
     }
   };
 
-  function auroraTime() { return S.reduced ? 2.3 : (S.q === 'full' ? S.t : 2.3 + Math.sin(S.t * 0.05)); }
 
   function hazardClip(ctx, W, H, f) {
     // clip = whole canvas minus hazard hitboxes (+6 px). evenodd. returns true if a clip was set.
@@ -411,22 +470,6 @@ L.setHazards = function (rects) { S.hazExtra = Array.isArray(rects) ? rects : []
     ctx.rect(x, y, r[2] * f.sc, r[3] * f.sc);
   }
 
-  // soft hole punch for big glow buffers: stepped feather so there is no hard box edge
-  function punch(x, f) {
-    const lists = [S.hazards, S.dyn || S.swept, S.hazExtra];
-    x.globalCompositeOperation = 'destination-out';
-    const steps = [[10, 0.3], [5, 0.4], [0, 1]];
-    for (let s = 0; s < steps.length; s++) {
-      x.globalAlpha = steps[s][1]; const e = steps[s][0];
-      x.beginPath();
-      for (let l = 0; l < 3; l++) for (let i = 0; i < lists[l].length; i++) {
-        const r = lists[l][i], px = (r[0] - f.cx) * f.sc + f.W / 2 - e, py = (r[1] - f.cy) * f.sc + f.H / 2 - e;
-        x.rect(px, py, r[2] * f.sc + e * 2, r[3] * f.sc + e * 2);
-      }
-      x.fill();
-    }
-    x.globalAlpha = 1; x.globalCompositeOperation = 'source-over';
-  }
   // ---------- drawBack: backdrop, parallax, aurora, shafts, motes ----------
   function drawBackdrop(ctx, f) {
     const W = f.W, H = f.H, rw = (S.room && S.room.w) || 336, rh = (S.room && S.room.h) || 500;
@@ -446,46 +489,6 @@ L.setHazards = function (rects) { S.hazExtra = Array.isArray(rects) ? rects : []
     ctx.drawImage(nr.canvas, -nr.mx - px, 0, W + nr.mx * 2, H);
   }
 
-  const AUR = [
-    { sp: 0.11, ph: 0.0, f1: 1.3, f2: 2.7, a1: 0.035, a2: 0.012, y: 0.045, len: 0.17, al: 0.95 },
-    { sp: 0.08, ph: 2.1, f1: 1.0, f2: 3.1, a1: 0.04, a2: 0.015, y: 0.085, len: 0.19, al: 0.8 },
-    { sp: 0.14, ph: 4.2, f1: 1.7, f2: 2.3, a1: 0.03, a2: 0.01, y: 0.12, len: 0.15, al: 0.7 }
-  ];
-  function drawAurora(ctx, W, H, k, gain) {
-    const dm = S.dome, nb = Math.min(60, Math.ceil(W / 9) + 1), bw = W / (nb - 1) * 1.5;
-    ctx.save();
-    ctx.beginPath(); ctx.ellipse(dm.cx * W, dm.cy * H, dm.rx * W, dm.ry * H, 0, 0, TAU); ctx.clip();
-    ctx.globalCompositeOperation = 'lighter';
-    for (let r = 0; r < 3; r++) {
-      const A = AUR[r], bar = S.sp.bars[r];
-      for (let i = 0; i < nb; i++) {
-        const u = i / (nb - 1), x = u * W;
-        const y = (A.y + Math.sin(u * A.f1 * TAU + k * A.sp * TAU + A.ph) * A.a1 + Math.sin(u * A.f2 * TAU - k * A.sp * 1.7 * TAU) * A.a2) * H;
-        const len = A.len * H * (0.75 + 0.25 * Math.sin(u * 9 + k * 0.9 + A.ph));
-        const env = Math.sin(clamp(u, 0, 1) * Math.PI) * 0.7 + 0.3;
-        const fl = 0.45 + 0.55 * Math.abs(Math.sin(i * 0.9 + k * 1.1 + A.ph * 3));
-        ctx.globalAlpha = clamp(A.al * env * fl * gain, 0, 1);
-        ctx.drawImage(bar, x - bw / 2, y, bw, len);
-      }
-    }
-    ctx.restore();
-  }
-  const SHAFTS = [[0.3, -0.24, 0], [0.45, -0.08, 1.3], [0.58, 0.1, 2.4], [0.72, 0.27, 3.6]];
-  function shaftGeom(i, W, H, t) {
-    const sh = SHAFTS[i], sway = Math.sin(t / 9 * TAU + sh[2]) * 0.026;
-    return { ox: sh[0] * W, oy: S.dome.cy * H + S.dome.ry * H * 0.55, a: sh[1] + sway, len: H * 0.95, wi: W * (0.2 + 0.03 * (i % 2)) };
-  }
-  function drawShafts(ctx, W, H, t, gain) {
-    ctx.save(); ctx.globalCompositeOperation = 'lighter';
-    for (let i = 0; i < SHAFTS.length; i++) {
-      const g = shaftGeom(i, W, H, t);
-      ctx.save(); ctx.translate(g.ox, g.oy); ctx.rotate(g.a);
-      ctx.globalAlpha = gain * (0.27 + 0.07 * Math.sin(t * 0.5 + i * 1.7));
-      ctx.drawImage(S.sp.shaft, -g.wi / 2, 0, g.wi, g.len);
-      ctx.restore();
-    }
-    ctx.restore();
-  }
   function drawMotes(ctx, W, H, t) {
     ctx.save(); ctx.globalCompositeOperation = 'lighter';
     for (let i = 0; i < S.motes.length; i++) {
@@ -506,20 +509,35 @@ L.setHazards = function (rects) { S.hazExtra = Array.isArray(rects) ? rects : []
     ctx.restore();
   }
 
-  // aurora + shafts rendered at half res into one buffer (redrawn per frame only when animated), then one additive blit
-  function renderSky(force) {
-    const w = Math.ceil(S.W / 2), h = Math.ceil(S.H / 2);
-    if (!S.sky || S.sky.w !== w || S.sky.h !== h) { const c = mk(w, h); S.sky = { c: c, x: c.getContext('2d'), w: w, h: h }; force = true; }
-    const animated = S.q === 'full' && !S.reduced, key = S.q + (S.reduced ? 'r' : '') + (S.cel > 0.01 ? 'c' : '');
-    if (!force && !animated && !S.skyDirty && S.skyKey === key) return;
-    S.skyKey = key; S.skyDirty = false;
-    const x = S.sky.x;
-    x.setTransform(1, 0, 0, 1, 0, 0); x.globalAlpha = 1; x.globalCompositeOperation = 'source-over';
-    x.clearRect(0, 0, w, h);
-    x.save(); x.scale(w / S.W, h / S.H);
-    drawAurora(x, S.W, S.H, auroraTime(), 1 + 0.2 * S.cel);
-    drawShafts(x, S.W, S.H, S.reduced || S.q !== 'full' ? 1.0 : S.t, S.q === 'full' ? 1 + 0.35 * S.cel : 0.7);
-    x.restore();
+  function auroraTime() { return S.reduced ? 2.3 : (S.q === 'full' ? S.t : 2.3 + Math.sin(S.t * 0.05)); }
+  // three slow additive strips (pre-rendered): slide, breathe and shimmer. Clipped to the dome ellipse.
+  function drawAuroraStrips(ctx, f) {
+    if (!S.strips) return;
+    const W = f.W, H = f.H, k = auroraTime(), gain = 1 + 0.2 * S.cel, dm = S.dome;
+    ctx.save();
+    if (S.domePath && f.W === S.W && f.H === S.H) ctx.clip(S.domePath);
+    else { ctx.beginPath(); ctx.ellipse(dm.cx * W, dm.cy * H, dm.rx * W, dm.ry * H, 0, 0, TAU); ctx.clip(); }
+    ctx.globalCompositeOperation = 'lighter';
+    const top = (dm.cy - dm.ry * 0.92) * H, sw = W * 1.5, sh = H * 0.3;
+    for (let r = 0; r < S.strips.length; r++) {
+      const A = AUR[r], ox = -W * 0.25 + Math.sin(k * A.sp * TAU + A.ph) * W * 0.22;
+      const br = 1 + 0.1 * Math.sin(k * (0.9 + r * 0.35) + A.ph), y = top + A.y * H * 2 + Math.sin(k * A.sp * 3 + A.ph) * H * 0.012;
+      ctx.globalAlpha = clamp(0.62 * gain * (0.78 + 0.22 * Math.sin(k * 1.3 + A.ph * 2)), 0, 1);
+      ctx.drawImage(S.strips[r], ox, y, sw, sh * br);
+    }
+    ctx.restore();
+  }
+  // two live shafts sway on top of the baked ones (full quality only)
+  function drawLiveShafts(ctx, W, H, t) {
+    ctx.save(); ctx.globalCompositeOperation = 'lighter';
+    for (let i = 1; i <= 2; i++) {
+      const g = shaftGeom(i, W, H, t);
+      ctx.save(); ctx.translate(g.ox, g.oy); ctx.rotate(g.a);
+      ctx.globalAlpha = 0.045 + 0.02 * Math.sin(t * 0.5 + i * 1.7);
+      ctx.drawImage(S.sp.shaft, -g.wi / 2, 0, g.wi, g.len);
+      ctx.restore();
+    }
+    ctx.restore();
   }
 
   L.drawBack = function (ctx, cam) {
@@ -529,14 +547,16 @@ L.setHazards = function (rects) { S.hazExtra = Array.isArray(rects) ? rects : []
     ctx.save();
     ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
     drawBackdrop(ctx, f);
+    drawNear(ctx, f);
     if (S.q !== 'off') {
-      drawNear(ctx, f);
-      renderSky(false);
-      ctx.globalCompositeOperation = 'lighter'; ctx.imageSmoothingEnabled = true;
-      ctx.drawImage(S.sky.c, 0, 0, W, H);
-      ctx.globalCompositeOperation = 'source-over';
-      if (S.q === 'full' && !S.reduced) drawMotes(ctx, W, H, S.t);
-    } else drawNear(ctx, f);
+      // play-area scrim: the room centre stays darker than the platforms and hazards that sit on it
+      if (S.scrim && S.room) {
+        const rw = S.room.w || 336, rh = S.room.h || 500, x0 = (0 - f.cx) * f.sc + W / 2, y0 = (0 - f.cy) * f.sc + H / 2;
+        ctx.drawImage(S.scrim, x0 - rw * f.sc * 0.12, y0 - rh * f.sc * 0.1, rw * f.sc * 1.24, rh * f.sc * 1.2);
+      }
+      drawAuroraStrips(ctx, f);
+      if (S.q === 'full' && !S.reduced) { drawLiveShafts(ctx, W, H, S.t); drawMotes(ctx, W, H, S.t); }
+    }
     ctx.restore();
     S.cost += (now() - t0 - S.cost) * 0.1;
   };
@@ -578,62 +598,34 @@ L.setHazards = function (rects) { S.hazExtra = Array.isArray(rects) ? rects : []
       }
     }
   }
-  function drawLanterns(ctx, f, k) {
+  // glow sprites are drawn at world positions; lantern pools follow the eased gravity drift so they hang with the body
+  function drawLanternPools(ctx, f, k) {
     const ls = S.lanterns, calm = S.q !== 'full' || S.reduced;
     for (let i = 0; i < ls.length; i++) {
       const l = ls[i];
-      const sw = calm ? 0 : S.swing * Math.sin(S.t * 9 + l.ph) * 3;
-      const lx = ((l.x + sw * (S.driftTarget.x || 0)) - f.cx) * f.sc + f.W / 2, ly = (l.y - f.cy) * f.sc + f.H / 2;
+      const lx = (l.x + S.drift.x * 12 - f.cx) * f.sc + f.W / 2, ly = (l.y + S.drift.y * 12 - f.cy) * f.sc + f.H / 2;
       let fl = 1;
       if (!calm) fl = 1 - 0.12 * (0.5 + 0.5 * (0.5 * Math.sin(S.t * TAU * 5 + l.ph) + 0.3 * Math.sin(S.t * TAU * 7.3 + l.ph * 2) + 0.2 * S.noise));
-      const sz = 190 * f.sc * (0.95 + 0.05 * fl);
-      ctx.globalAlpha = clamp(0.8 * fl * k, 0, 1);
+      const sz = 170 * f.sc * (0.95 + 0.05 * fl);
+      ctx.globalAlpha = clamp(0.7 * fl * k, 0, 1);
       ctx.drawImage(S.sp.warm, lx - sz / 2, ly - sz / 2, sz, sz);
-      const cz = 30 * f.sc;
-      ctx.globalAlpha = clamp(0.8 * fl * k, 0, 1);
-      ctx.drawImage(S.sp.gold, lx - cz / 2, ly - cz / 2, cz, cz);
     }
   }
-  function drawHeroLight(ctx, f, k) {
+  function drawHeroGlow(ctx, f, k) {
     const h = S.hero;
     if (!h.has || h.dead) return;
     const hx = (h.x - f.cx) * f.sc + f.W / 2, hy = (h.y - f.cy) * f.sc + f.H / 2;
-    const sz = 170 * f.sc, pulse = S.reduced ? 1 : 0.94 + 0.06 * Math.sin(S.t * 3);
-    ctx.globalAlpha = clamp(0.26 * k * pulse, 0, 1);
+    const pulse = S.reduced ? 1 : 0.94 + 0.06 * Math.sin(S.t * 3);
+    let sz = 150 * f.sc;
+    ctx.globalAlpha = clamp(0.22 * k * pulse, 0, 1);
     ctx.drawImage(S.sp.gold, hx - sz / 2, hy - sz / 2, sz, sz);
-    if (S.q === 'full') {
-      const d = DIRS[S.hero.g] || DIRS[2], tz = 80 * f.sc, tx = hx - d[0] * 14 * f.sc, ty = hy - d[1] * 14 * f.sc;
-      ctx.globalAlpha = clamp(0.3 * k, 0, 1);
-      ctx.drawImage(S.sp.teal, tx - tz / 2, ty - tz / 2, tz, tz);
-    }
+    sz = 64 * f.sc;   // the soft gold disc right behind the body
+    ctx.globalAlpha = clamp(0.62 * k * pulse, 0, 1);
+    ctx.drawImage(S.sp.goldTight, hx - sz / 2, hy - sz / 2, sz, sz);
   }
 
-  function lightLayers(ctx, f, hook, bloomPass, soft) {
-    ctx.globalCompositeOperation = 'lighter';
-    const k = 1;
-    if (soft !== 2) drawRim(ctx, f, S.q === 'full' ? k : 0.75);
-    if (soft !== 1) { drawLanterns(ctx, f, k); drawHeroLight(ctx, f, k); }
-    ctx.globalAlpha = 1;
-    if (hook && soft !== 2) hook(ctx, f, bloomPass);
-    ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
-  }
-  // lantern + hero glows go through a half-res buffer so hazard exclusion is feathered, not a hard box
-  function drawSoftLights(ctx, f) {
-    const w = Math.ceil(f.W / 2), h = Math.ceil(f.H / 2);
-    if (!S.lb || S.lb.w !== w || S.lb.h !== h) { const c = mk(w, h); S.lb = { c: c, x: c.getContext('2d'), w: w, h: h }; }
-    const x = S.lb.x;
-    x.setTransform(1, 0, 0, 1, 0, 0); x.globalAlpha = 1; x.globalCompositeOperation = 'source-over';
-    x.clearRect(0, 0, w, h);
-    x.save(); x.scale(w / f.W, h / f.H);
-    lightLayers(x, f, null, false, 2);
-    punch(x, f);
-    x.restore();
-    ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = 1; ctx.imageSmoothingEnabled = true;
-    ctx.drawImage(S.lb.c, 0, 0, f.W, f.H);
-    ctx.restore();
-  }
-
-  function drawBloom(ctx, f, hook) {
+  // bloom: 1/6 res, rebuilt every 2nd frame from the glow sprites and the glowing particles, two shrink/grow round trips
+  function bakeBloom(ctx, f, hook) {
     const B = S.bloom, x4 = B.x4, x8 = B.x8;
     if (!x4 || !x8) return;
     x4.setTransform(1, 0, 0, 1, 0, 0);
@@ -642,40 +634,51 @@ L.setHazards = function (rects) { S.hazExtra = Array.isArray(rects) ? rects : []
     x4.save();
     x4.scale(B.w4 / f.W, B.h4 / f.H);
     x4.globalCompositeOperation = 'lighter';
-    if (S.q === 'full' && S.sky) { x4.globalAlpha = 0.8; x4.drawImage(S.sky.c, 0, 0, f.W, f.H); x4.globalAlpha = 1; }
-    x4.globalCompositeOperation = 'lighter';
-    lightLayers(x4, f, hook, true, 0);
-    punch(x4, f);
+    drawLanternPools(x4, f, 1); drawHeroGlow(x4, f, 1);
+    if (hook) hook(x4, f, true);
     x4.restore();
-    for (let p = 0; p < 2; p++) {
-      x8.globalCompositeOperation = 'copy'; x8.imageSmoothingEnabled = true;
-      x8.drawImage(B.c4, 0, 0, B.w8, B.h8);
-      x4.globalCompositeOperation = 'copy'; x4.imageSmoothingEnabled = true;
-      x4.drawImage(B.c8, 0, 0, B.w4, B.h4);
-    }
-    x4.globalCompositeOperation = 'source-over';
-    ctx.save();
-    hazardClip(ctx, f.W, f.H, f);
-    ctx.globalCompositeOperation = 'lighter';
-    ctx.imageSmoothingEnabled = true;
-    ctx.globalAlpha = clamp(0.3 + S.boost * 0.8, 0, 0.45) * (S.bloomAmt == null ? 1 : S.bloomAmt);
-    ctx.drawImage(B.c4, 0, 0, f.W, f.H);
-    ctx.restore();
+    x8.globalCompositeOperation = 'copy'; x8.imageSmoothingEnabled = true; x8.drawImage(B.c4, 0, 0, B.w8, B.h8);
+    x4.globalCompositeOperation = 'copy'; x4.imageSmoothingEnabled = true; x4.drawImage(B.c8, 0, 0, B.w4, B.h4);
+    x4.globalCompositeOperation = 'source-over'; x4.globalAlpha = 1;
   }
 
+  // lantern pools, hero light disc and bloom. Draw BEFORE the hazards so additive light never washes a hazard out.
+  L.drawGlow = function (ctx, cam) {
+    if (!S.inited || !ctx || S.q === 'off') return;
+    const t0 = now(), f = frame(cam);
+    S.glowDone = true;
+    ctx.save();
+    if (!S.rimBaked) { ctx.save(); hazardClip(ctx, f.W, f.H, f); ctx.globalCompositeOperation = 'lighter'; drawRim(ctx, f, S.q === 'full' ? 1 : 0.75); ctx.restore(); }
+    ctx.globalCompositeOperation = 'lighter'; ctx.imageSmoothingEnabled = true;
+    drawLanternPools(ctx, f, 1);
+    drawHeroGlow(ctx, f, 1);
+    if (S.q === 'full') {
+      ctx.globalAlpha = clamp(0.3 + S.boost * 0.8, 0, 0.45) * (S.bloomAmt == null ? 1 : S.bloomAmt);
+      ctx.drawImage(S.bloom.c4, 0, 0, f.W, f.H);
+    }
+    ctx.restore();
+    S.cost += (now() - t0 - S.cost) * 0.1;
+  };
+
+  // particles (inside the hazard clip), bloom refresh, vignette, desaturate
   L.drawFront = function (ctx, cam, hook) {
     if (!S.inited || !ctx) return;
     const t0 = now();
     const f = frame(cam), W = f.W, H = f.H;
-    if (S.q === 'off') return;
+    if (S.q === 'off') { S.glowDone = false; return; }
+    if (!S.glowDone) L.drawGlow(ctx, cam);
+    S.glowDone = false;
     ctx.save();
-    // additive lights and particles never touch hazards (+6 px)
-    ctx.save();
-    hazardClip(ctx, W, H, f);
-    lightLayers(ctx, f, hook, false, 1);
-    ctx.restore();
-    drawSoftLights(ctx, f);
-    if (S.q === 'full') drawBloom(ctx, f, hook);
+    if (hook) {
+      ctx.save();
+      hazardClip(ctx, W, H, f);
+      ctx.globalCompositeOperation = 'lighter';
+      hook(ctx, f, false);
+      ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
+      ctx.restore();
+    }
+    S.frame++;
+    if (S.q === 'full' && (S.frame & 1) === 0) bakeBloom(ctx, f, hook);
     ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1;
     ctx.drawImage(S.vign, 0, 0, W, H);
     if (S.desat > 0.01) {
@@ -685,6 +688,14 @@ L.setHazards = function (rects) { S.hazExtra = Array.isArray(rects) ? rects : []
     ctx.restore();
     S.cost += (now() - t0 - S.cost) * 0.1;
   };
+
+  // ---- public options replacing the skin's old private pokes ----
+  L.clipHazards = function (ctx, cam) { if (!S.inited || !ctx) return false; const f = frame(cam); return hazardClip(ctx, f.W, f.H, f); };
+  L.setDome = function (d) { if (d && isFinite(d.cx) && isFinite(d.cy) && isFinite(d.rx) && isFinite(d.ry)) { S.dome = { cx: d.cx, cy: d.cy, rx: d.rx, ry: d.ry }; if (S.inited) bakeAll(); } };
+  L.setBloom = function (a) { S.bloomAmt = clamp(fin(a, 1), 0, 1.5); };
+  L.setRimBaked = function (b) { S.rimBaked = !!b; };   // true when the skin bakes the static rim light into its own plate
+  L.setShaftAlpha = function (a) { S.shaftAlpha = clamp(fin(a, 0.14), 0, 0.5); if (S.inited) bakeAll(); };
+  L.driftVec = function () { return { x: S.drift.x, y: S.drift.y }; };   // eased gravity direction (for hanging things)
 
   function now() { return (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now(); }
 

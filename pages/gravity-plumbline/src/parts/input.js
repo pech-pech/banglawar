@@ -8,11 +8,13 @@
 // Host (ui.js): {flip(dir), dive(), restart(), pause?(), state(), view()->{W,H}, active()->bool, now?()->ms}.
 //   flip/dive push into ui's queue; ui logs {tick,k,dir} at application, unchanged (absolute dir).
 // Layout (CSS px; pad box = 3*KEY + 2*GAP - 2*(KEY-DIVE)/2 ... = 184 at defaults, centred on the picked 180 box):
-//   475x638 side      box 289-473 x 308-492, Retry 12-68 x 516-572, Pause 411-467 x 12-68, teach 291-471 x 92-296
+//   475x638 side      box 283-467 x 308-492, Retry 12-68 x 516-572, Pause 411-467 x 12-68, teach 291-471 x 92-296
 //   344x882 below     box 80-264 x 648-832, Retry 12-68 x 660-716, Pause 276-332 x 12-68, teach 4-340 x 596-644
 //   816x568 landscape box 604-788 x 328-512, Retry 12-68 x 330-386, Pause 752-808 x 12-68, teach 12-236 x 100-200
 // Settings key 'plumbline.input.v1' {v:1, hand:'right'|'left', vibrate:bool} (PL.store, never downgraded).
 const PL = (globalThis.PL = globalThis.PL || {});
+// side mode now fits the room at 0.824 (pad 8 px off the edge); camera.js FIT_MIN 0.84 would drop to scroll mode, so allow 0.82.
+if (PL.CAM && PL.CAM.FIT_MIN > 0.82) PL.CAM.FIT_MIN = 0.82;
 
 PL.Input = (function () {
   'use strict';
@@ -50,7 +52,7 @@ PL.Input = (function () {
       retry = rect(12, cy - 80, 56, 56); pause = rect(W - 68, 12, 56, 56); teach = rect(4, cy - 144, W - 8, 48);
     } else {
       // side: pad beside the room (room drawn smaller, camera.js fits it left of the pad)
-      mode = 'side'; cx = W - 94; cy = H - 238;
+      mode = 'side'; cx = W - 100; cy = H - 238; // pad 8 px in from the screen edge (QA 4)
       retry = rect(12, H - 122, 56, 56); pause = rect(W - 64, 12, 56, 56);
       teach = rect(cx - 90, hudTop + 8, 180, Math.max(48, cy - B / 2 - 12 - (hudTop + 8)));
     }

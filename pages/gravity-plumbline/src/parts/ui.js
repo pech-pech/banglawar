@@ -146,6 +146,7 @@ const PL = (globalThis.PL = globalThis.PL || {});
   let attempts = [], cleared = [], inputLog = [], queue = [], totalTicks = 0, deaths = 0, flipsTotal = 0, runTuned = false;
   let clearInfo = null, complete = null, death = null, causeRun = { kind: '', n: 0 }, retryAt = -1e9, frameEvents = [];
   let trailBuf = [], fx = [], toast = null, lastFrame = null;
+  let tutP = {}, roomDeaths = {}, aidRooms = {}, nudge = false, nudgeAt = 0, nudgeShown = {}; // teach progress, 5-death nudge, per-room aim arc
   let fpsFrames = 0, fpsSecs = 0;
   const avgFps = () => (fpsSecs > 0 ? fpsFrames / fpsSecs : 0);
   const curFlips = () => flipsTotal + (cur && !cur.result && state ? state.flips : 0);
@@ -168,6 +169,7 @@ const PL = (globalThis.PL = globalThis.PL || {});
     runTuned = !!(TW && TW.isDirty());
     roomIdx = 0; attempts = []; cleared = []; inputLog = []; queue = []; totalTicks = 0; deaths = 0; flipsTotal = 0;
     complete = null; clearInfo = null; death = null; causeRun = { kind: '', n: 0 }; fx = []; trailBuf = [];
+    tutP = {}; roomDeaths = {}; aidRooms = {}; nudge = false; nudgeAt = 0; nudgeShown = {};
     if (PL.Input) PL.Input.clear();
     startAttempt();
   }
@@ -198,7 +200,7 @@ const PL = (globalThis.PL = globalThis.PL || {});
     if (PL.Vfx && PL.Vfx.wipe && vfxReady && !reducedNow()) { try { PL.Vfx.wipe('open'); } catch (_) {} }
   }
   function go(name) {
-    scr = name; pauseConfirm = false; press = null; drag = null;
+    scr = name; pauseConfirm = false; nudge = false; nudgeAt = 0; press = null; drag = null;
     if (PL.Input) PL.Input.clear();
     if (name === 'menu' || name === 'shaftPick') setMusic('menu');
     else if (name === 'settings' || name === 'tweak') { if (settingsFrom === 'menu') setMusic('settings'); }
@@ -211,7 +213,7 @@ const PL = (globalThis.PL = globalThis.PL || {});
     if (PL.audio && PL.audio.duck) { try { PL.audio.duck(0.5, 3600, 0.2); } catch (_) {} } // about -6 dB while paused
   }
   function resume() {
-    scr = 'play'; pauseConfirm = false; acc = 0;
+    scr = 'play'; pauseConfirm = false; nudge = false; acc = 0;
     if (PL.audio && PL.audio.duck) { try { PL.audio.duck(1, 0, 0.15); } catch (_) {} }
   }
   function openSettings(from) { settingsFrom = from; settingsScroll = 0; go('settings'); }
@@ -236,6 +238,8 @@ const PL = (globalThis.PL = globalThis.PL || {});
   }
   function onDeath() {
     deaths++; finishAttempt('death');
+    roomDeaths[roomIdx] = (roomDeaths[roomIdx] || 0) + 1;
+    if (!isTut() && roomDeaths[roomIdx] >= 5 && !aidRooms[roomIdx] && !nudgeShown[roomIdx]) { nudgeShown[roomIdx] = true; nudgeAt = nowMs() + 1800; } // offer once per room
     const kind = CAUSE[state.cause] || 'edge';
     causeRun = causeRun.kind === kind ? { kind, n: causeRun.n + 1 } : { kind, n: 1 };
     death = { at: nowMs(), drawnAt: 0, kind, text: S.death[kind], iconOnly: causeRun.n >= 3, killer: killerOf(state), x: state.x, y: state.y, trail: trailBuf.slice() };
@@ -298,6 +302,7 @@ const PL = (globalThis.PL = globalThis.PL || {});
     for (const e of ev) {
       if (e === 'land') { cur.landSpeeds.push(Math.round(state.lastLandSpeed || 0)); if (!reducedNow()) fx.push({ x: state.x, y: state.y, age: 0 }); }
       else if (e === 'ride') cur.rides++;
+      else if (e === 'dive' && isTut()) (tutP[roomIdx] = tutP[roomIdx] || {}).dived = true;
       else if (e === 'death' && !cur.result) onDeath();
       else if (e === 'win' && !cur.result) onWin();
     }
@@ -326,7 +331,7 @@ const PL = (globalThis.PL = globalThis.PL || {});
   }
   // which PL.Screens screen takes taps now
   function hitScreen() {
-    if (scr === 'pause') return pauseConfirm ? 'confirm' : 'pause';
+    if (scr === 'pause') return pauseConfirm || nudge ? 'confirm' : 'pause';
     if (scr === 'confirm') return 'confirm';
     if (scr === 'play') return playName();
     return scr;
@@ -334,7 +339,7 @@ const PL = (globalThis.PL = globalThis.PL || {});
   function maxScroll(name) {
     const L = SC.layout(view.W, view.H, false, { scroll: 0, tweakRows: tweakRowsCache.length || 6 })[name], list = L.rects.list;
     const n = name === 'tweak' ? tweakRowsCache.length : L.rowIds ? L.rowIds.length : SC.layout(view.W, view.H, false).settings.rowIds.length;
-    return Math.max(0, n * 60 - list.h + 8);
+    return Math.max(0, n * 66 - list.h + 8);
   }
 
   // slider value from a pointer x inside a row's control zone
@@ -431,6 +436,7 @@ const PL = (globalThis.PL = globalThis.PL || {});
       return;
     }
     if (name === 'confirm') {
+      if (scr === 'pause' && nudge) { if (tgt === 'stay') { aidRooms[roomIdx] = true; sfx('ui'); } resume(); return; }
       if (scr === 'pause') { if (tgt === 'stay') pauseConfirm = false; else if (tgt === 'leave') { resume(); finishAttempt('abandoned'); toMenu(); } return; }
       if (confirmKind === 'reset') { if (tgt === 'leave') { if (PL.meta) PL.meta.reset(); showToast(S.settings.erase); } go('settings'); }
       return;
@@ -574,7 +580,7 @@ const PL = (globalThis.PL = globalThis.PL || {});
       else if (clearInfo) advance();
       else if (k === 'Escape' || k === 'p' || k === 'P') goPause();
       else if (!(PL.Input && PL.Input.key(k))) used = false;
-    } else if (scr === 'pause') { if (k === 'Escape' || enter) { if (pauseConfirm) pauseConfirm = false; else resume(); } else used = false; }
+    } else if (scr === 'pause') { if (nudge && (k === 'Escape' || enter)) { if (enter) aidRooms[roomIdx] = true; resume(); } else if (k === 'Escape' || enter) { if (pauseConfirm) pauseConfirm = false; else resume(); } else used = false; }
     else if (scr === 'menu') { if (enter) go('shaftPick'); else used = false; }
     else if (scr === 'shaftPick') {
       if (enter) startMode(['short', 'long', 'daily'][pickSel]);
@@ -659,9 +665,60 @@ const PL = (globalThis.PL = globalThis.PL || {});
     ctx.save(); ctx.beginPath(); ctx.rect(r.x, r.y, r.w, r.h); ctx.clip();
     ctx.drawImage(img, r.x + (r.w - w) / 2, r.y + (r.h - h) * 0.35, w, h); ctx.restore();
   }
-  function drawKeyArt(c, r) {
+  // Key art composition (720x1280 source: star centre ~(420,890), star bottom y~1035, flame head ~y560 to the upper left,
+  // empty dark dome in the top ~250 px). f {bottom, top, t, reduced}: cover-fit, then slide the art so the star's bottom edge
+  // lands on f.bottom (clear of the buttons); whatever is left above is the title zone, whatever is left below fades to night.
+  // 8 colours along the art's bottom row and right column (darkened toward night); null if the canvas is tainted
+  let edgeCache = null;
+  function edgeColors(img) {
+    if (edgeCache && edgeCache.img === img) return edgeCache.v;
+    let v = null;
+    try {
+      const cv = document.createElement('canvas'); cv.width = 8; cv.height = 8; const x = cv.getContext('2d'); x.imageSmoothingQuality = 'high'; x.drawImage(img, 0, 0, 8, 8);
+      const d = x.getImageData(0, 0, 8, 8).data, px = (i, j) => { const o = (j * 8 + i) * 4, m = 0.5, n = [21, 26, 61]; return 'rgb(' + [0, 1, 2].map((q) => Math.round(d[o + q] * m + n[q] * (1 - m))).join(',') + ')'; };
+      v = { bottom: [], right: [] }; for (let i = 0; i < 8; i++) { v.bottom.push(px(i, 7)); v.right.push(px(7, i)); }
+    } catch (_) { v = null; }
+    edgeCache = { img, v }; return v;
+  }
+  const ART = { w: 720, h: 1280, fx: 330, starBottom: 1040, sx: 420, sy: 890 };
+  function drawKeyArt(c, r, f) {
+    f = f || {};
     const img = PL.Assets && PL.Assets.get ? PL.Assets.get('keyart') : null;
-    if (img) { coverImage(img, r); const g = c.createLinearGradient(0, r.y, 0, r.y + r.h); g.addColorStop(0, U.alpha(U.C.night, 0.55)); g.addColorStop(0.3, U.alpha(U.C.night, 0)); g.addColorStop(0.7, U.alpha(U.C.night, 0)); g.addColorStop(1, U.alpha(U.C.night, 0.6)); c.fillStyle = g; c.fillRect(r.x, r.y, r.w, r.h); return; }
+    if (img) {
+      const iw = img.naturalWidth || img.width, ih = img.naturalHeight || img.height;
+      if (iw && ih) {
+        const k = Math.max(r.w / iw, r.h / ih), t = f.t || 0, breathe = f.reduced ? 1 : 1.01 + 0.01 * Math.sin(t * 0.55), sk = iw / ART.w;
+        const bottom = f.bottom == null ? r.y + r.h : f.bottom;
+        const x0 = Math.max(0, Math.min(iw - r.w / k, ART.fx * sk - r.w / (2 * k)));
+        const oy = Math.min(0, bottom - r.y - ART.starBottom * sk * k); // art top offset (<= 0): never leaves a gap above
+        const px = r.x - x0 * k, py = r.y + oy;
+        c.save(); c.beginPath(); c.rect(r.x, r.y, r.w, r.h); c.clip();
+        c.fillStyle = U.C.night; c.fillRect(r.x, r.y, r.w, r.h);
+        const ax = px + ART.sx * sk * k, ay = py + ART.sy * sk * k; // breathe about the star
+        c.translate(ax, ay); c.scale(breathe, breathe); c.translate(-ax, -ay);
+        c.drawImage(img, px, py, iw * k, ih * k); c.restore();
+        // extend the art with colours sampled from its own edge (no flat bands): below it (portrait) and right of it (landscape panel)
+        const E = edgeColors(img), vb = ay + (py + ih * k - ay) * breathe, rx = ax + (px + iw * k - ax) * breathe; // art bottom / right edge after breathing
+        c.save(); c.beginPath(); c.rect(r.x, r.y, r.w, r.h); c.clip();
+        if (E && vb < r.y + r.h) for (let i = 0; i < 8; i++) { const x0 = r.x + i * r.w / 8, g2 = c.createLinearGradient(0, vb - 2, 0, r.y + r.h);
+          g2.addColorStop(0, E.bottom[i]); g2.addColorStop(1, U.alpha(U.C.night, 1)); c.fillStyle = g2; c.fillRect(x0 - 0.5, vb - 2, r.w / 8 + 1, r.y + r.h - vb + 2); }
+        c.restore();
+        c.save(); c.beginPath(); c.rect(r.x, r.y, r.w, r.h); c.clip();
+        const g = c.createLinearGradient(0, r.y, 0, r.y + r.h), top = f.top == null ? r.y : f.top;
+        g.addColorStop(0, U.alpha(U.C.night, 0.78)); g.addColorStop(Math.max(0.01, Math.min(0.5, (top + 40 - r.y) / r.h)), U.alpha(U.C.night, 0));
+        const fs = Math.min(0.99, Math.max(0.2, (bottom - r.y + 6) / r.h)); g.addColorStop(fs, U.alpha(U.C.night, 0));
+        g.addColorStop(Math.min(1, fs + Math.max(0.04, 70 / r.h)), U.alpha(U.C.night, 0.94)); g.addColorStop(1, U.alpha(U.C.night, 0.96));
+        c.fillStyle = g; c.fillRect(r.x, r.y, r.w, r.h); c.restore();
+        if (r.w < view.W * 0.9) { // landscape panel: seam fade, then the rest of the screen filled from the art's right edge colours
+          const x1 = r.x + r.w, sw = 80, ex = view.W;
+          for (let i = 0; i < 8; i++) { const y0 = r.y + i * r.h / 8, col = E ? E.right[i] : U.C.night;
+            const g3 = c.createLinearGradient(x1 - sw, 0, x1, 0); g3.addColorStop(0, U.alpha(U.C.night, 0)); g3.addColorStop(1, col);
+            c.fillStyle = g3; c.fillRect(x1 - sw, y0 - 0.5, sw, r.h / 8 + 1);
+            const g4 = c.createLinearGradient(x1, 0, ex, 0); g4.addColorStop(0, col); g4.addColorStop(1, U.C.night); c.fillStyle = g4; c.fillRect(x1 - 0.5, y0 - 0.5, ex - x1 + 0.5, r.h / 8 + 1); }
+        }
+        c.restore(); return;
+      }
+    }
     // code fallback: dusk sky, aurora band, hero star
     const t = nowMs() / 1000;
     c.save(); c.beginPath(); c.rect(r.x, r.y, r.w, r.h); c.clip();
@@ -672,7 +729,22 @@ const PL = (globalThis.PL = globalThis.PL || {});
   }
   function chipVm() {
     const miss = artMissing().length > 0;
-    return { devTuned: !!(TW && TW.isDirty()), artFallback: miss, tweakOn: miss, inset: view.inset, textScale: TEXT_SCALE[settings.textIdx] };
+    return { reduced: reducedNow(), devTuned: !!(TW && TW.isDirty()), artFallback: miss, tweakOn: miss, inset: view.inset, textScale: TEXT_SCALE[settings.textIdx] };
+  }
+  // Teach hint: shows the first line until she does the taught action, then the next line for ~3 s (or until she lands in
+  // room 2), then nothing. Progress is kept per room, so a retry never brings a finished hint back.
+  function teachHint() {
+    const T = S.tutorial, p = (tutP[roomIdx] = tutP[roomIdx] || {}), s = state, now = nowMs();
+    const A = [[T.t1a, T.t1b], [T.t2a, T.t2b], [T.t3a, T.t3b]][roomIdx]; if (!A) return null;
+    if (roomIdx === 1 && padEmpty() && !p.end) return { lines: [T.t2zero], alpha: 1 };
+    if (!p.done) {
+      const did = roomIdx === 0 ? s.flips >= 1 : roomIdx === 1 ? s.flips >= 2 : !!p.dived;
+      if (did) { p.done = true; p.at = now; } else return { lines: [A[0]], alpha: clamp((now - (p.first = p.first || now)) / 250, 0, 1) };
+    }
+    if (p.end) return null;
+    const age = (now - p.at) / 1000;
+    if (age > 3 || (roomIdx === 1 && s.grounded && age > 0.8)) { p.end = true; return null; }
+    return { lines: [A[1]], alpha: Math.min(clamp(age / 0.2, 0, 1), clamp((3 - age) / 0.4, 0, 1)) };
   }
   function playVm(fr, t) {
     const pm = PL.Input ? PL.Input.view() : { pressed: {}, shake: null };
@@ -688,10 +760,7 @@ const PL = (globalThis.PL = globalThis.PL || {});
       showSkip: isTut()
     });
     if (toast && nowMs() < toast.until) vm.toast = { text: toast.text, kind: toast.kind };
-    if (isTut()) {
-      const T = S.tutorial, lines = [[T.t1a, T.t1b], [T.t2a, T.t2b], [T.t3a, T.t3b]][roomIdx] || [];
-      vm.teach = { lines: roomIdx === 1 && padEmpty() ? [T.t2zero] : lines };
-    }
+    if (isTut()) { const h = teachHint(); if (h) vm.teach = h; }
     return vm;
   }
   // PL.drawPad: HUD + arrow pad + Retry/Pause + teach + chips, all PL.UI components fed by PL.Input.view()
@@ -720,7 +789,7 @@ const PL = (globalThis.PL = globalThis.PL || {});
       chrome: 'ui', events: live ? frameEvents.slice() : [], reduced: reducedNow(), quality: vfxQuality(),
       roomIdx, roomN: roomIdx + 1, roomName: rooms[roomIdx].name, nRooms: rooms.length, roomTotal: rooms.length, mode, seed,
       timeS: totalTicks * C.DT, flips: curFlips(), deaths, attempt: cur ? cur.attempt : 1, roomAgeS: state.t * C.DT,
-      pathOn: isTut(), aimArc: isTut(), fx, fps: avgFps(), hideHint: true, muted: settings.mute, ring: 0,
+      pathOn: isTut() || !!aidRooms[roomIdx], aimArc: isTut() || !!aidRooms[roomIdx], fx, fps: avgFps(), hideHint: true, muted: settings.mute, ring: 0,
       trail: death && nowMs() - death.at < 1200 ? death.trail : null,
       deathCause: state.dead > 0 ? state.cause : '', killer: death && nowMs() - death.at < 900 ? death.killer : null,
       pad: PL.Input ? PL.Input.view() : null, completeScreen: null, tuning: null, toast: null, teach: null
@@ -770,6 +839,7 @@ const PL = (globalThis.PL = globalThis.PL || {});
     else while (acc >= C.DT && n < 5) { simTick(); acc -= C.DT; n++; }
     if (acc > C.DT) acc = 0;
     if (scr !== lastScr) { lastScr = scr; if (scr === 'tweak') rebuildTweakRows(); }
+    if (nudgeAt && scr === 'play' && !clearInfo && !complete && !domOverlay && nowMs() >= nudgeAt) { nudgeAt = 0; goPause(); nudge = true; }
     render(dt, live);
   }
   function render(dt, live) {
@@ -778,18 +848,19 @@ const PL = (globalThis.PL = globalThis.PL || {});
     const pr = (n) => (press && press.tgt === n ? n : null);
     const under = () => { if (state && rooms && (settingsFrom === 'pause' || scr === 'pause' || scr === 'shaftComplete')) { renderPlay(0, false); U.scrim(ctx, W, H, 0.6); } else drawBackdrop('dim'); };
     if (scr === 'play' && state) { renderPlay(dt, live); }
-    else if (scr === 'firstOpen') { drawKeyArt(ctx, { x: 0, y: 0, w: W, h: H }); SC.draw.firstOpen(ctx, W, H, Object.assign({}, base, { pressed: pr('start') }), t); }
+    else if (scr === 'firstOpen') { drawBackdrop(); SC.draw.firstOpen(ctx, W, H, Object.assign({}, base, { drawArt: drawKeyArt, pressed: pr('start') }), t); }
     else if (scr === 'menu') { drawBackdrop(); SC.draw.menu(ctx, W, H, Object.assign({}, base, { drawArt: drawKeyArt, pressed: press && press.tgt }), t); }
     else if (scr === 'shaftPick') {
       drawBackdrop('dim');
       const best = ['short', 'long', 'daily'].map((m) => { let b = null; try { b = PL.meta && PL.meta.getBest(bestKey(m)); } catch (_) {} return b ? { time: fmtTotal(b.ticks * C.DT), tier: b.medal === 'plumb' ? 'gold' : b.medal } : null; });
       SC.draw.shaftPick(ctx, W, H, Object.assign({}, base, { selected: pickSel, best, dailyNote: true, pressed: press && press.tgt }), t);
-    } else if (scr === 'pause') { renderPlay(0, false); SC.draw.pause(ctx, W, H, Object.assign({}, base, { confirm: pauseConfirm, pressed: press && press.tgt, leftHand: leftHand() }), t); }
+    } else if (scr === 'pause' && nudge) { renderPlay(0, false); U.scrim(ctx, W, H, 0.6); SC.draw.confirm(ctx, W, H, { text: S.nudge.msg, no: S.nudge.show, yes: S.nudge.no, danger: false, pressed: press && press.tgt, textScale: sca }, t); }
+    else if (scr === 'pause') { renderPlay(0, false); SC.draw.pause(ctx, W, H, Object.assign({}, base, { confirm: pauseConfirm, pressed: press && press.tgt, leftHand: leftHand() }), t); }
     else if (scr === 'shaftComplete' && complete) {
       renderPlay(0, false);
-      const c = complete, drop = reducedNow() ? 1 : clamp((nowMs() - c.at) / 500, 0, 1);
-      SC.draw.shaftComplete(ctx, W, H, Object.assign({}, base, { tier: c.medal === 'plumb' ? 'gold' : c.medal, isNew: c.newBest, total: fmtTotal(c.timeS),
-        roomTimes: c.roomS.map((x) => fmtClock(x)), tuned: c.tuned, drop, pressed: press && press.tgt, focus: 'again' }), t);
+      const c = complete, age = reducedNow() ? 99 : Math.max(0, (nowMs() - c.at) / 1000);
+      SC.draw.shaftComplete(ctx, W, H, Object.assign({}, base, { tier: c.medal === 'plumb' ? 'gold' : c.medal, isNew: c.newBest, total: fmtClock(c.timeS), totalS: c.timeS, fmt: fmtClock, age,
+        roomTimes: c.roomS.map((x) => fmtClock(x)), tuned: c.tuned, pressed: press && press.tgt, focus: 'again' }), t);
     } else if (scr === 'settings' || scr === 'tweak' || scr === 'confirm') {
       under();
       const values = { music: settings.music, sounds: settings.sounds, mute: settings.mute, vibration: PL.Input ? PL.Input.getVibrate() : true, left: leftHand(), motion: settings.motion, textIdx: settings.textIdx, qualityIdx: settings.qualityIdx };
@@ -834,6 +905,8 @@ const PL = (globalThis.PL = globalThis.PL || {});
     getRunStats: () => ({ totalTicks, roomsCleared: cleared.filter(Boolean).length, tuned: runTuned || !!(TW && TW.isDirty()), mode, seed, rooms: rooms ? rooms.length : 0 }),
     pad: () => (PL.Input ? PL.Input.view() : null),
     isComplete: () => !!complete,
+    aid: () => Object.assign({}, aidRooms),
+    nudging: () => nudge,
     complete: () => (complete ? Object.assign({}, complete) : null),
     settings: () => Object.assign({}, settings, { hand: PL.Input && PL.Input.getHand(), vibrate: PL.Input && PL.Input.getVibrate() }),
     tweakRows: () => tweakRowsCache.map((r, i) => ({ i, kind: r.kind, id: r.id, group: r.group, label: r.label, btns: r.btns && r.btns.map((b) => b.id), weights: r.btns && r.btns.map((b) => b.weight || 1) })),

@@ -71,7 +71,8 @@ function runTemplate(t) {
     let first = 0, retry = 0; const times = [];
     for (let k = 0; k < NS; k++) {
       const rt = ok[k % ok.length];
-      const lead = rt.v.room.crushers.length ? 288 : 48;
+      const f0 = rt.b.log[0].tick; // lead-in removed from the reported time: crusher rooms keep the 0-2.4 s phase wait, others start 0.2 s before the first input
+      const lead = rt.v.room.crushers.length ? Math.floor(f0 / 288) * 288 : Math.max(0, f0 - 24);
       const rng = PL.mulberry32(k * 104729 + hs);
       const t1 = attempt(rt.v.room, rt.b.log, rng, jMs, lead);
       if (t1 !== null) { first++; retry++; times.push(t1); } else if (attempt(rt.v.room, rt.b.log, rng, jMs, lead) !== null) retry++;
@@ -84,7 +85,22 @@ function runTemplate(t) {
   res.features = [...feat];
   return res;
 }
-module.exports = { featureIssues, runTemplate, noisy };
+// Medal bands: bot median clear time per template (plan run) summed over the rooms of seeded shafts (seeds 1..400).
+// env BANDS=a.json,b.json (files written by JSON=...). Prints median/p10/p90 bot total per shaft length and the proposed bands.
+function bands(rows) {
+  const med = {}; for (const r of rows) if (r.plan && r.plan.medianS != null) med[r.id] = r.plan.medianS;
+  const PER_ROOM_OVERHEAD = 4; // seconds per room a human spends reading the room before the first input (ASSUMPTION, no human data)
+  const MULT = { top: 1.0, gold: 1.5, silver: 2.2, bronze: 3.5 }; // multipliers on (bot total + overhead): ASSUMPTIONS, to retune on a real playtest
+  for (const n of [5, 7]) {
+    const tot = [];
+    for (let sd = 1; sd <= 400; sd++) tot.push(PL.buildShaft(sd, n).reduce((a, r) => a + (med[r.templateId] ?? 0), 0));
+    tot.sort((a, b) => a - b);
+    const q = (p) => tot[Math.floor(p * (tot.length - 1))];
+    const base = q(0.5) + n * PER_ROOM_OVERHEAD;
+    console.log(`n=${n}: bot median total ${q(0.5).toFixed(1)} s (p10 ${q(0.1).toFixed(1)}, p90 ${q(0.9).toFixed(1)}); + ${PER_ROOM_OVERHEAD} s x ${n} rooms = base ${base.toFixed(1)} s; bands top ${Math.round(base * MULT.top)} gold ${Math.round(base * MULT.gold)} silver ${Math.round(base * MULT.silver)} bronze ${Math.round(base * MULT.bronze)}`);
+  }
+}
+module.exports = { featureIssues, runTemplate, noisy, bands };
 
 if (require.main === module) {
   const only = process.argv.slice(2);
@@ -97,4 +113,5 @@ if (require.main === module) {
     console.log(`${t.id.padEnd(5)}${String(t.tier).padEnd(5)}${String(r.minWindow ?? '-').padEnd(7)}${String(r.inputs ?? '-').padEnd(7)}| ${r.plan ? f(r.plan.first) + ' ' + f(r.plan.retry) + ' ' + (r.plan.medianS ?? 0).toFixed(2) + 's' : 'UNSOLVED'} | ${r.noplan ? f(r.noplan.first) + ' ' + f(r.noplan.retry) : ''} | ${r.features ? (r.features.length ? r.features.join('; ') : 'ok') : ''}${r.unsolved ? ' UNSOLVED variants ' + r.unsolved : ''}`);
   }
   if (process.env.JSON) fs.writeFileSync(process.env.JSON, JSON.stringify(rows, null, 1));
+  if (process.env.BANDS) bands(process.env.BANDS.split(',').flatMap((f) => JSON.parse(fs.readFileSync(f, 'utf8'))));
 }

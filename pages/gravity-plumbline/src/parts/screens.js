@@ -34,7 +34,7 @@ const PL = (globalThis.PL = globalThis.PL || {});
     } else if (k === 'B') {
       r.room = R(4, 84, w - 8, 510);
       r.retry = R(12, h - 222, 56, 56); r.pause = R(w - 68, 12, 56, 56);
-      r.hudRoom = R(12, 16, 98, 32); r.hudTime = R(120, 16, 100, 32); r.pips = null;
+      r.hudRoom = R(12, 16, 98, 32); r.hudTime = R(120, 16, 100, 32); r.pips = R(w - 68 - 52, 16, 48, 32);
       r.teach = R(12, r.room.y + r.room.h + 4, w - 24, 48); r.skip = R(w - 74, h - 222, 68, 56);
     } else {
       r.room = R(pad.box.x - 8 - 351, 20, 351, h - 40); r.retry = R(12, pad.box.y, 56, 56); r.pause = R(w - 68, 8, 56, 56);
@@ -66,14 +66,25 @@ const PL = (globalThis.PL = globalThis.PL || {});
 
   function centred(w, h, cw, ch, dy) { return R(Math.round((w - cw) / 2), Math.round((h - ch) / 2 + (dy || 0)), cw, ch); }
 
+  // menu geometry. Portrait: stack at the bottom (Play 64-72, others 56, 8 gaps, 220 wide); art star bottom sits 10 px above it.
+  // Landscape: art on the left half, title + stack centred in the right column.
+  function menuGeo(w, h, k, home) {
+    if (k === 'C') {
+      const cx = Math.round(w * 0.72), stack = 72 + 8 + 56 + 8 + 56, y0 = Math.round((h - (72 + 22 + stack)) / 2), py = y0 + 94;
+      return { art: R(0, 0, Math.round(w * 0.58), h), title: R(cx - 150, y0, 300, 72), play: R(cx - 110, py, 220, 72), practice: R(cx - 110, py + 80, 220, 56), settings: R(cx - 110, py + 144, 220, 56), starBottom: h - 20 };
+    }
+    const ph = h >= 760 ? 72 : 64, stack = ph + 8 + 56 + 8 + 56, top = h - home - 8 - stack, x = Math.round((w - 220) / 2), ty = h >= 760 ? 44 : 16;
+    return { art: R(0, 0, w, h), title: R(Math.round(w / 2) - 150, ty, 300, 72), play: R(x, top, 220, ph), practice: R(x, top + ph + 8, 220, 56), settings: R(x, top + ph + 72, 220, 56), starBottom: top - 12 };
+  }
+
   function layout(w, h, left, opts) {
     opts = opts || {}; const k = cls(w, h), out = {};
     const def = (name, rects, targets, containers, overlays) => { for (const n in rects) if (!rects[n]) delete rects[n]; out[name] = { rects, targets: (targets || []).filter(n => rects[n]), containers: containers || [], overlays: overlays || [] }; };
     const home = k === 'C' ? 8 : 32; // keep clear of Android home-swipe band (portrait)
 
-    // first open: whole screen is the tap target
-    { const cw = Math.min(w - 32, 340), c = centred(w, h, cw, 300, -10);
-      def('firstOpen', { screen: R(0, 0, w, h), card: c, title: R(c.x + 16, c.y + 24, cw - 32, 56), sub: R(c.x + 16, c.y + 96, cw - 32, 28), start: R(c.x + (cw - 240) / 2, c.y + 300 - 24 - 80, 240, 80) }, ['start', 'screen'], ['screen', 'card']); }
+    // menu + first open share one composition: art (cover-fit) with the star clear above the button stack, title in the top zone
+    const mg = menuGeo(w, h, k, home);
+    def('firstOpen', { screen: R(0, 0, w, h), art: mg.art, title: mg.title, start: mg.play }, ['start', 'screen'], ['screen', 'art']);
 
     const pr = playRects(w, h, left, false, opts), tr = playRects(w, h, left, true, opts);
     def('play', pr, PLAY_TARGETS, PLAY_CONT, PLAY_OVER);
@@ -85,12 +96,7 @@ const PL = (globalThis.PL = globalThis.PL || {});
       o.clearNew = R(c.x + 16, c.y + 110, cw - 32, 26); o.clearNext = R(c.x + 16, c.y + 222 - 16 - 56, cw - 32, 56);
       def('roomClear', o, PLAY_TARGETS.concat('clearNext'), PLAY_CONT.concat('clearCard'), PLAY_OVER); }
 
-    // menu
-    { let r;
-      if (k === 'C') { const x = Math.round(w * 0.72) - 120, y0 = Math.round((h - 296) / 2);
-        r = { art: R(0, 0, Math.round(w * 0.5), h), title: R(x - 20, y0, 280, 56), play: R(x, y0 + 80, 240, 80), practice: R(x, y0 + 172, 240, 56), settings: R(x, y0 + 240, 240, 56) }; }
-      else { const x = Math.round((w - 240) / 2), y = h - home - 216 - 24; r = { art: R(0, 0, w, h), title: R(Math.round(w / 2) - 140, 64, 280, 56), play: R(x, y, 240, 80), practice: R(x, y + 92, 240, 56), settings: R(x, y + 160, 240, 56) }; }
-      def('menu', r, ['play', 'practice', 'settings'], ['art']); }
+    def('menu', { art: mg.art, title: mg.title, play: mg.play, practice: mg.practice, settings: mg.settings }, ['play', 'practice', 'settings'], ['art']);
 
     // shaft pick
     { const tw = Math.min(w - 24, 340), x = Math.round((w - tw) / 2), y0 = k === 'C' ? 76 : 124, r = { back: R(8, 8, 88, 56), title: R(Math.round(w / 2) - 140, k === 'C' ? 12 : 72, 280, 40) };
@@ -107,16 +113,16 @@ const PL = (globalThis.PL = globalThis.PL || {});
       def('confirm', { card: c2, msg: R(c2.x + 16, c2.y + 16, cw - 32, 72), stay: R(c2.x + 16, c2.y + 200 - 72, bw, 56), leave: R(c2.x + 16 + bw + 12, c2.y + 200 - 72, bw, 56) }, ['stay', 'leave'], ['card']); }
 
     // shaft complete
-    { const cw = cardW(w), c = centred(w, h, cw, 360), bw = Math.floor((cw - 32 - 12) / 2);
+    { const cw = cardW(w), c = centred(w, h, cw, 380), bw = Math.floor((cw - 32 - 12) / 2);
       def('shaftComplete', { card: c, medal: R(Math.round(w / 2) - 36, c.y + 16, 72, 72), head: R(c.x + 16, c.y + 96, cw - 32, 32), total: R(c.x + 16, c.y + 130, cw - 32, 26),
-        times: R(c.x + 16, c.y + 160, cw - 32, 100), note: R(c.x + 16, c.y + 264, cw - 32, 20), again: R(c.x + 16, c.y + 288, bw, 56), menu: R(c.x + 16 + bw + 12, c.y + 288, bw, 56) }, ['again', 'menu'], ['card']); }
+        times: R(c.x + 16, c.y + 162, cw - 32, 112), note: R(c.x + 16, c.y + 278, cw - 32, 20), again: R(c.x + 16, c.y + 308, bw, 56), menu: R(c.x + 16 + bw + 12, c.y + 308, bw, 56) }, ['again', 'menu'], ['card']); }
 
     // settings / tweak: header + scrolling rows
     const rowsScreen = (name, ids, hdr) => {
       const rw = Math.min(w - 16, 400), x = Math.round((w - rw) / 2), ly = 72, lb = h - (k === 'C' ? 8 : home), sc = opts.scroll || 0;
       const r = { back: R(8, 8, hdr.backW, 56), title: R(8 + hdr.backW + 8, 8, w - 16 - (hdr.backW + 8) * 2 - (hdr.badge ? 0 : 0), 56), list: R(0, ly, w, lb - ly) };
       if (hdr.badge) { r.title = R(8 + hdr.backW + 8, 8, w - 16 - hdr.backW - 8 - 64, 56); r.dev = R(w - 64, 24, 56, 24); }
-      const vis = []; ids.forEach((id, i) => { const rr = R(x, ly + i * 60 - sc, rw, 56); if (rr.y >= ly && rr.y + 56 <= lb) { r[id] = rr; vis.push(id); } });
+      const vis = []; ids.forEach((id, i) => { const rr = R(x, ly + i * 66 - sc, rw, 60); if (rr.y >= ly && rr.y + 60 <= lb) { r[id] = rr; vis.push(id); } });
       def(name, r, ['back'].concat(vis), ['list']);
     };
     const SIDS = ['music', 'sounds', 'mute', 'vibration', 'hand', 'motion', 'textSize', 'quality', 'reset', 'tweak'];
@@ -159,15 +165,15 @@ const PL = (globalThis.PL = globalThis.PL || {});
     U.hudText(ctx, r.hudRoom, { text: L2.room(vm.room || 1, vm.rooms || 5), vw: w, scale: sca }, t);
     U.hudText(ctx, r.hudTime, { text: vm.time || '0:00', glow: vm.newBest, vw: w, scale: sca }, t);
     const moves = vm.moves == null ? 2 : vm.moves, max = vm.maxMoves || 2;
-    if (r.pips) U.pips(ctx, r.pips, { n: moves, max, pop: vm.pop }, t);
-    else if (vm.hero) U.pips(ctx, R(vm.hero.x - 30, vm.hero.y + 30, 60, 20), { n: moves, max, pop: vm.pop, size: 18 }, t);
+    if (r.pips) U.pips(ctx, r.pips, { n: moves, max, pop: vm.pop, size: r.pips.w < 60 ? 14 : 18 }, t);
     U.pauseKey(ctx, r.pause, { pressed: press(vm, 'pause'), focus: foc(vm, 'pause') }, t);
     U.retryKey(ctx, r.retry, { pressed: press(vm, 'retry'), label: L2.retry, spin: vm.retrySpin, focus: foc(vm, 'retry') }, t);
     const zero = moves <= 0;
     for (const d of ['up', 'left', 'right', 'down']) U.arrowKey(ctx, r[d], { dir: d, lit: vm.lit === d, pressed: press(vm, d), dim: zero, focus: foc(vm, d) }, t);
     U.diveKey(ctx, r.dive, { pressed: press(vm, 'dive'), cooldown: vm.cooldown || 0, disabled: zero && vm.air, airCost: vm.air && !zero }, t);
     if (vm.toast) U.toast(ctx, r.toast, Object.assign({ vw: w }, vm.toast), t);
-    if (vm.teach && vm.teach.lines) U.teachSlot(ctx, r.teach, { lines: vm.teach.lines, alpha: vm.teach.alpha, vw: w, scale: sca }, t);
+    if (vm.teach && vm.teach.lines) { const tf = U.font('teach', w, sca), lh = Math.round(U.size('teach', w, sca) * 1.3); let nl = 0; for (const ln of vm.teach.lines) nl += U.wrap(ctx, ln, r.teach.w - 30, tf).length;
+      const th = Math.min(r.teach.h, nl * lh + 24); U.teachSlot(ctx, R(r.teach.x, r.teach.y, r.teach.w, th), { lines: vm.teach.lines, alpha: vm.teach.alpha, vw: w, scale: sca }, t); }
     if (r.skip && vm.showSkip) { // narrow slot (344 wide, 68 px): first word only ("Skip"); the teach slot above says it is the tutorial
       const sp = S.tutorial.skip.indexOf(' '), two = r.skip.w < 120 && sp > 0;
       U.button(ctx, r.skip, { label: two ? S.tutorial.skip.slice(0, sp) : S.tutorial.skip, sub: null, vw: w, scale: sca, pressed: press(vm, 'skip') }, t);
@@ -183,14 +189,21 @@ const PL = (globalThis.PL = globalThis.PL || {});
   }
   function backdropRoom(ctx, vm, L) { if (vm.drawRoom) vm.drawRoom(ctx, L.rects.room); }
 
+  // key art with the star + flame clear of the title and the buttons; a few motes drift over it
+  function drawMenuArt(ctx, r, mg, vm, t) {
+    const a = r.art, tb = r.title.y + r.title.h;
+    if (vm.drawArt) vm.drawArt(ctx, a, { bottom: mg.starBottom, top: tb, t, reduced: !!vm.reduced }); else U.scrim(ctx, a.w, a.h, 0.0);
+    U.motes(ctx, R(a.x, tb, a.w, Math.max(40, mg.starBottom - tb)), t, { reduced: vm.reduced });
+  }
+
   const draw = {
     firstOpen(ctx, w, h, vm, t) {
-      const L = layout(w, h, false).firstOpen, r = L.rects;
-      U.scrim(ctx, w, h, 0.25);
-      U.card(ctx, r.card, {}, t);
-      U.text(ctx, S.menu.title, r.title.x + r.title.w / 2, r.title.y + 28, { font: U.font('title', w), color: C.brass, align: 'center', maxW: r.title.w });
+      const L = layout(w, h, false).firstOpen, r = L.rects, k = cls(w, h), mg = menuGeo(w, h, k, k === 'C' ? 8 : 32);
+      drawMenuArt(ctx, r, mg, vm, t);
+      U.titleArt(ctx, r.title, { text: S.menu.title, vw: w, reduced: vm.reduced }, t);
+      const pulse = vm.reduced ? 0 : 0.5 + 0.5 * Math.sin(t * 3), g = 4 + 3 * pulse;
       U.button(ctx, r.start, { label: S.cover.start, kind: 'primary', vw: w, pressed: press(vm, 'start') }, t);
-      const pulse = 0.5 + 0.5 * Math.sin(t * 3); U.sticker(ctx, R(r.start.x - 6, r.start.y - 6, r.start.w + 12, r.start.h + 12), { fill: 'rgba(0,0,0,0)', edge: C.teal, radius: 22, shadow: false, disabled: true }); void pulse;
+      U.sticker(ctx, R(r.start.x - g, r.start.y - g, r.start.w + 2 * g, r.start.h + 2 * g), { fill: 'rgba(0,0,0,0)', edge: C.teal, radius: 16 + g, shadow: false, disabled: true });
     },
     play(ctx, w, h, vm, t) { const L = layout(w, h, vm.leftHand, { roomRect: vm.roomRect }).play; backdropRoom(ctx, vm, L); drawHud(ctx, L, vm, t, w); },
     tutorial(ctx, w, h, vm, t) { const L = layout(w, h, vm.leftHand, { roomRect: vm.roomRect }).tutorial; backdropRoom(ctx, vm, L); drawHud(ctx, L, Object.assign({ showSkip: true }, vm), t, w); },
@@ -212,9 +225,9 @@ const PL = (globalThis.PL = globalThis.PL || {});
       U.button(ctx, r.clearNext, { label: S.clear.next, kind: 'primary', vw: w, scale: sca, pressed: press(vm, 'clearNext') }, t);
     },
     menu(ctx, w, h, vm, t) {
-      const r = layout(w, h, false).menu.rects;
-      if (vm.drawArt) vm.drawArt(ctx, r.art); else U.scrim(ctx, r.art.w, r.art.h, 0.0);
-      U.text(ctx, S.menu.title, r.title.x + r.title.w / 2, r.title.y + 28, { font: U.font('title', w), color: C.cream, align: 'center', maxW: r.title.w });
+      const r = layout(w, h, false).menu.rects, k = cls(w, h), mg = menuGeo(w, h, k, k === 'C' ? 8 : 32);
+      drawMenuArt(ctx, r, mg, vm, t);
+      U.titleArt(ctx, r.title, { text: S.menu.title, vw: w, reduced: vm.reduced }, t);
       U.button(ctx, r.play, { label: S.menu.play, kind: 'primary', vw: w, pressed: press(vm, 'play'), focus: foc(vm, 'play') }, t);
       U.button(ctx, r.practice, { label: S.menu.practice, vw: w, scale: sc(vm), pressed: press(vm, 'practice') }, t);
       U.button(ctx, r.settings, { label: S.menu.settings, vw: w, scale: sc(vm), pressed: press(vm, 'settings') }, t);
@@ -253,17 +266,26 @@ const PL = (globalThis.PL = globalThis.PL || {});
     },
     shaftComplete(ctx, w, h, vm, t) {
       const r = layout(w, h, false).shaftComplete.rects, sca = sc(vm); U.scrim(ctx, w, h, 0.5);
+      const age = vm.age == null ? 99 : vm.age, clamp01 = (x) => Math.max(0, Math.min(1, x));
       U.card(ctx, r.card, {}, t);
-      U.medal(ctx, r.medal, { tier: vm.tier || 'gold', isNew: vm.isNew, drop: vm.drop }, t);
+      // medal reveal: scale pop (overshoot), two sparkle rings, total counts up from 0
+      const mx = r.medal.x + r.medal.w / 2, my = r.medal.y + r.medal.h / 2, pop = age < 0.55 ? U.easeOutBack(age / 0.55) : 1;
+      ctx.save(); ctx.translate(mx, my); ctx.scale(Math.max(0.01, pop), Math.max(0.01, pop)); ctx.translate(-mx, -my);
+      U.medal(ctx, r.medal, { tier: vm.tier || 'gold', isNew: vm.isNew && age > 0.6, drop: 1 }, t); ctx.restore();
+      if (age < 1.5) { U.sparkRing(ctx, mx, my, age - 0.2, 34, 92, 10); U.sparkRing(ctx, mx, my, age - 0.45, 30, 66, 8); }
       const lab = { gold: S.complete.gold, silver: S.complete.silver, bronze: S.complete.bronzeHint, none: S.complete.none }[vm.tier || 'gold'];
       U.text(ctx, S.complete.title, r.head.x + r.head.w / 2, r.head.y + 16, { font: U.font('h2', w), color: C.brass, align: 'center', maxW: r.head.w });
-      U.text(ctx, S.complete.total(vm.total || '3:41') + '  ·  ' + lab, r.total.x + r.total.w / 2, r.total.y + 13, { font: U.font('body', w, sca), color: C.cream, align: 'center', maxW: r.total.w });
-      const ts = vm.roomTimes || [], rowH = 24, colW = r.times.w / 2, per = Math.min(4, Math.ceil(ts.length / 2));
-      ts.forEach((tm, i) => { const col = Math.floor(i / per), row = i % per; const x = r.times.x + col * colW + 6, y = r.times.y + row * rowH + 12;
-        U.text(ctx, (i + 1) + '', x + 8, y, { font: U.fontPx(15, 800), color: C.brass, align: 'center' });
-        U.text(ctx, tm, x + 26, y, { font: U.font('small', w, sca), color: C.cream, maxW: colW - 40 }); });
+      const k = clamp01((age - 0.3) / 1.1), ease = 1 - Math.pow(1 - k, 3), shown = vm.totalS != null ? vm.totalS * ease : null, fmt = vm.fmt || ((x) => String(x));
+      const totalTxt = shown != null ? fmt(shown) : vm.total || '3:41';
+      U.text(ctx, S.complete.total(totalTxt) + '  ·  ' + lab, r.total.x + r.total.w / 2, r.total.y + 13, { font: U.font('body', w, sca), color: C.cream, align: 'center', maxW: r.total.w });
+      // per-room list: two columns, 16 px type, 28 px rows (readable at 344 wide), rows fade in one after another
+      const ts = vm.roomTimes || [], rowH = 28, colW = r.times.w / 2, per = Math.min(4, Math.ceil(ts.length / 2));
+      ts.forEach((tm, i) => { const col = Math.floor(i / per), row = i % per, x = r.times.x + col * colW + 4, y = r.times.y + row * rowH + 14, a = clamp01((age - 0.5 - i * 0.09) / 0.25);
+        if (a <= 0) return; ctx.save(); ctx.globalAlpha = a;
+        U.text(ctx, (i + 1) + '', x + 10, y, { font: U.fontPx(16, 800), color: C.brass, align: 'center' });
+        U.text(ctx, tm, x + 30, y, { font: U.font('body', w, sca), color: C.cream, maxW: colW - 40 }); ctx.restore(); });
       if (vm.tuned) U.text(ctx, PL.Strings.dev.notSaved, r.note.x + r.note.w / 2, r.note.y + 10, { font: U.fontPx(14, 700), color: C.brass, align: 'center' });
-      else if (vm.isNew) U.text(ctx, S.complete.newBest, r.note.x + r.note.w / 2, r.note.y + 10, { font: U.fontPx(15, 800), color: C.teal, align: 'center' });
+      else if (vm.isNew && age > 0.6) U.text(ctx, S.complete.newBest, r.note.x + r.note.w / 2, r.note.y + 10, { font: U.fontPx(15, 800), color: C.teal, align: 'center' });
       U.button(ctx, r.again, { label: S.complete.again, kind: 'primary', vw: w, scale: sca, pressed: press(vm, 'again'), focus: vm.focus === 'again' }, t);
       U.button(ctx, r.menu, { label: S.complete.menu, vw: w, scale: sca, pressed: press(vm, 'menu') }, t);
     },
@@ -278,15 +300,15 @@ const PL = (globalThis.PL = globalThis.PL || {});
         const row = r[id]; if (!row) continue;
         U.sticker(ctx, row, { fill: vm.pressed === id ? C.plumPress : C.plum, edge: C.brass, radius: 16, shadow: false });
         const p = rowParts(row, kd);
-        U.text(ctx, lb, p.label.x, row.y + 28, { font: U.font('body', w, sca), color: id === 'tweak' ? C.muted : C.cream, maxW: p.label.w });
+        U.text(ctx, lb, p.label.x, row.y + 30, { font: U.font('body', w, sca), color: id === 'tweak' ? C.muted : C.cream, maxW: p.label.w });
         if (kd === 'slider') U.slider(ctx, p.control, { value: v[id] == null ? 0.7 : v[id], drag: vm.drag === id }, t);
         else if (kd === 'toggle') U.toggle(ctx, p.control, { on: !!v[id] }, t);
         else if (kd === 'seg') {
           const opts = id === 'hand' ? ['R', 'L'] : id === 'quality' ? st.qualityOpts : ['1.0', '1.15', '1.3'], cur = id === 'hand' ? (v.left ? 1 : 0) : id === 'quality' ? (v.qualityIdx || 0) : (v.textIdx || 0), n = opts.length, bw = (p.control.w - 4) / n;
-          opts.forEach((o, i) => { const b = R(p.control.x + i * bw + 2, row.y + 8, bw - 2, 40); U.rr(ctx, b.x, b.y, b.w, b.h, 10); ctx.fillStyle = i === cur ? C.brass : C.night; ctx.fill();
+          opts.forEach((o, i) => { const b = R(p.control.x + i * bw + 2, row.y + 10, bw - 2, 40); U.rr(ctx, b.x, b.y, b.w, b.h, 10); ctx.fillStyle = i === cur ? C.brass : C.night; ctx.fill();
             U.text(ctx, o, b.x + b.w / 2, b.y + 21, { font: U.fontPx(14, 800), color: i === cur ? C.ink : C.cream, align: 'center' }); });
-        } else if (id === 'reset') U.chevron(ctx, row.x + row.w - 28, row.y + 28, 16, 'right', C.muted);
-        else U.chevron(ctx, row.x + row.w - 28, row.y + 28, 16, 'right', C.muted);
+        } else if (id === 'reset') U.chevron(ctx, row.x + row.w - 28, row.y + 30, 16, 'right', C.muted);
+        else U.chevron(ctx, row.x + row.w - 28, row.y + 30, 16, 'right', C.muted);
       }
     },
     tweak(ctx, w, h, vm, t) {
@@ -299,8 +321,8 @@ const PL = (globalThis.PL = globalThis.PL || {});
         const rr = r['t' + i]; if (!rr) return;
         if (row.kind === 'head') { // group heading: tap opens / closes the group
           U.sticker(ctx, rr, { fill: vm.pressed === 't' + i ? C.plumPress : C.night, edge: C.brass, radius: 16, shadow: false });
-          U.text(ctx, row.label, rr.x + 16, rr.y + 28, { font: U.font('body', w, sca), color: C.brass, maxW: rr.w - 64 });
-          U.chevron(ctx, rr.x + rr.w - 28, rr.y + 28, 16, row.open ? 'down' : 'right', C.muted); return;
+          U.text(ctx, row.label, rr.x + 16, rr.y + 30, { font: U.font('body', w, sca), color: C.brass, maxW: rr.w - 64 });
+          U.chevron(ctx, rr.x + rr.w - 28, rr.y + 30, 16, row.open ? 'down' : 'right', C.muted); return;
         }
         if (row.kind === 'btns') { // a row of buttons (Reset all / Copy report / presets)
           const bs = rowButtons(rr, row.btns.length, row.btns.map((b) => b.weight || 1));
@@ -309,7 +331,10 @@ const PL = (globalThis.PL = globalThis.PL || {});
         }
         U.sticker(ctx, rr, { fill: C.plum, edge: row.dirty ? C.teal : C.brass, radius: 16, shadow: false });
         const p = rowParts(rr, 'slider');
-        U.text(ctx, row.label + '  ' + row.valueText, p.label.x, rr.y + 28, { font: U.font('body', w, sca), color: row.dirty ? C.teal : C.cream, maxW: p.label.w });
+        if (rr.w < 400) { // narrow: label on line 1, value on line 2 so neither is cut
+          U.text(ctx, row.label, p.label.x, rr.y + 20, { font: U.font('body', w, sca), color: row.dirty ? C.teal : C.cream, maxW: p.label.w });
+          U.text(ctx, row.valueText, p.label.x, rr.y + 42, { font: U.fontPx(14, 700), color: row.dirty ? C.teal : C.muted, maxW: p.label.w });
+        } else U.text(ctx, row.label + '  ' + row.valueText, p.label.x, rr.y + 30, { font: U.font('body', w, sca), color: row.dirty ? C.teal : C.cream, maxW: p.label.w });
         U.slider(ctx, p.control, { value: row.value, drag: vm.drag === 't' + i }, t);
       });
     }

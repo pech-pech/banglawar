@@ -127,11 +127,11 @@ PL.TEMPLATES = PL.TEMPLATES || [];
   const M = {
     t04: { family: 'arc', inputs: 3, rest: true }, t09: { family: 'gate', inputs: 3 },
     t05: { family: 'arc', inputs: 4 }, t06: { family: 'wall', inputs: 3, rest: true }, t07: { family: 'bank', inputs: 4 },
-    t10: { family: 'gate', inputs: 3 }, t08: { family: 'wall', inputs: 3 }, t11: { family: 'crusher', inputs: 2 },
+    t10: { family: 'gate', inputs: 4 }, t08: { family: 'wall', inputs: 3 }, t11: { family: 'crusher', inputs: 2 },
     t12: { family: 'crusher', inputs: 3 },
-    t13: { family: 'crusher', inputs: 5, hard: true }, t14: { family: 'crumble', inputs: 4, hard: true },
-    t15: { family: 'wall', inputs: 3 }, t16: { family: 'crusher', inputs: 4, hard: true },
-    t17: { family: 'gate', inputs: 4, hard: true }, t18: { family: 'crumble', inputs: 3, rest: true },
+    t13: { family: 'crusher', inputs: 5, hard: true }, t14: { family: 'crumble', inputs: 4, hard: true, retired: true }, // RETIRED: one fix attempt (ledge up 20, crumble wider) got window 8 but the jitter bot cleared only 60%
+    t15: { family: 'wall', inputs: 4 }, t16: { family: 'crusher', inputs: 5, hard: true },
+    t17: { family: 'gate', inputs: 5, hard: true }, t18: { family: 'crumble', inputs: 3, rest: true },
     t19: { family: 'crusher', inputs: 3, hard: true }, t20: { family: 'arc', inputs: 3, rest: true },
   };
   PL.TEMPLATES.forEach((t) => { if (M[t.id]) Object.assign(t, M[t.id]); });

@@ -1,5 +1,5 @@
 // node src/test/perf-probe.js [W,H] : JS time per PL.draw call (performance.now around the call) under 4x CDP CPU throttle.
-// 300 frames at 475x638, dpr 2, per quality (full, lite, off). Reports median and p95. Headless SOFTWARE canvas, NOT a phone number:
+// FLUSH=1 adds the software-raster flush to the timed region. 300 frames at 475x638, dpr 2, per quality (full, lite, off). Reports median and p95. Headless SOFTWARE canvas, NOT a phone number:
 // this measures command-recording cost; raster/composite cost is not included (GPU canvas on a device moves that off the JS thread).
 const http = require('http'), fs = require('fs'), path = require('path');
 let chromium; try { chromium = require('playwright').chromium; } catch (e) { chromium = require('/opt/node22/lib/node_modules/playwright').chromium; }
@@ -16,17 +16,18 @@ const FRAMES = +process.env.FRAMES || 300;
   await new Promise((r) => srv.listen(0, '127.0.0.1', r));
   const port = srv.address().port, browser = await chromium.launch();
   const rows = [];
-  for (const [W, H] of sizes) for (const q of ['full', 'lite', 'off']) {
+  for (const [W, H] of sizes) for (const room of ['lab', 'tut']) for (const q of ['full', 'lite', 'off']) {
     const ctx = await browser.newContext({ viewport: { width: W, height: H }, deviceScaleFactor: 2 });
     const page = await ctx.newPage();
     await page.goto(`http://127.0.0.1:${port}/src/test/skin-harness.html`);
     await page.evaluate(() => H_.ready);
     const cdp = await ctx.newCDPSession(page);
     await cdp.send('Emulation.setCPUThrottlingRate', { rate: 4 });
-    const res = await page.evaluate(([q, n]) => {
-      const R = H_.rooms(), all = R.tut.concat(R.shaft);
-      const ri = all.findIndex((r, i) => i >= 3 && (r.crushers || []).length && (r.spikes || []).length);
-      H_.setup(all[ri < 0 ? 0 : ri], [[20, { k: 'flip', dir: 3 }], [90, { k: 'flip', dir: 1 }], [160, { k: 'dive' }], [240, { k: 'flip', dir: 2 }]], 0, { hud: { quality: q } });
+    const res = await page.evaluate(([q, n, room, flush]) => {
+      const R = H_.rooms(), all = R.tut.concat(R.shaft, R.synth || []);
+      // 'lab' = synthetic room with 2 crushers, gate, crumble, 3 spike rows, 3 lanterns (worst case); 'tut' = first tutorial room
+      const ri = room === 'lab' ? all.length - 1 : 0;
+      H_.setup(all[ri], [[20, { k: 'flip', dir: 3 }], [90, { k: 'flip', dir: 1 }], [160, { k: 'dive' }], [240, { k: 'flip', dir: 2 }]], 0, { hud: { quality: q } });
       const cv = document.getElementById('c'), ctx = cv.getContext('2d'), dpr = H_.view.dpr, ts = [];
       for (let i = 0; i < n + 20; i++) {
         H_.run(2);
@@ -34,16 +35,17 @@ const FRAMES = +process.env.FRAMES || 300;
         ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
         const a = performance.now();
         PL.draw(ctx, H_.view, fr, H_.st, { seed: 1, quality: q });
-        const b = performance.now();
+        let b = performance.now();
+        if (flush) { ctx.getImageData(0, 0, 1, 1); b = performance.now(); }   // FLUSH=1: include the software raster of the frame (headless only, not a GPU number)
         if (i >= 20) ts.push(b - a);
-        if (i % 6 === 0) ctx.getImageData(0, 0, 1, 1); // drain the software raster queue outside the timed region
+        if (!flush && i % 6 === 0) ctx.getImageData(0, 0, 1, 1); // drain the software raster queue outside the timed region
       }
       ts.sort((x, y) => x - y);
       return { med: ts[ts.length >> 1], p95: ts[Math.floor(ts.length * 0.95)], avg: ts.reduce((s, v) => s + v, 0) / ts.length, errs: PL.Skin.stats().errors };
-    }, [q, FRAMES]);
-    rows.push(`| ${W}x${H} | ${q} | ${res.med.toFixed(2)} | ${res.p95.toFixed(2)} | ${res.avg.toFixed(2)} | ${res.errs} |`);
+    }, [q, FRAMES, room, !!process.env.FLUSH]);
+    rows.push(`| ${W}x${H} | ${room} | ${q} | ${res.med.toFixed(2)} | ${res.p95.toFixed(2)} | ${res.avg.toFixed(2)} | ${res.errs} |`);
     await ctx.close();
   }
-  console.log('| size | quality | median ms | p95 ms | avg ms | draw errors |\n|---|---|---|---|---|---|\n' + rows.join('\n'));
+  console.log('| size | room | quality | median ms | p95 ms | avg ms | draw errors |\n|---|---|---|---|---|---|---|\n' + rows.join('\n'));
   await browser.close(); srv.close();
 })();

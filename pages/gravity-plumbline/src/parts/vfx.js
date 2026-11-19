@@ -121,7 +121,9 @@ const PL = (globalThis.PL = globalThis.PL || {});
     antic: 0, landT: 9, landAmp: 0.15, smoothS: 1, blinkT: 3, blink: 0, bobT: 0, vanish: -1, vanishFrom: null,
     trailAcc: 0, suckAcc: 0, celT: 0,
     wipeKind: 'idle', wipeT: 0, wipeDur: 0.32, wipeCb: null, wipeFade: false,
-    sprites: null, costMs: 0, trailRate: 0, frame: 0
+    sprites: null, costMs: 0, trailRate: 0, frame: 0,
+    skinGates: false, spikeScale: 1,
+    th: new Float32Array(32), thN: 0, thAcc: 0, thLen: 0   // hero position history for the flame ribbon (x,y pairs, newest first)
   };
   const COL = [[255, 214, 110], [95, 224, 200], [244, 239, 224], [150, 150, 200], [139, 108, 255]]; // gold teal cream dust violet
   const CAP_TRAIL = 0.55;
@@ -247,11 +249,13 @@ const PL = (globalThis.PL = globalThis.PL || {});
       const x = fin(o && o.x, V.hero.x), y = fin(o && o.y, V.hero.y), nx = fin(o && o.nx, 0), ny = fin(o && o.ny, 1);
       if (!V.reduced && V.level < 2) { V.shakeAmp = (V.level === 0 ? 5 : 2) * V.shakeScale; V.shakeT = 0; }
       V.busyT = 0.4;
-      if (V.level !== 0) return;
-      for (let k = 0; k < 10; k++) {
-        const a = Math.atan2(ny, nx) + (k / 9 - 0.5) * 2.4, sp = 50 + R() * 60;
-        emit(1, 3, x, y, Math.cos(a) * sp, Math.sin(a) * sp, 0.5 + R() * 0.2, 4, 12, 0.4, { prio: true, drag: 2.5 });
+      if (V.level > 1) return;
+      const nd = V.level === 0 ? 16 : 5;
+      for (let k = 0; k < nd; k++) {
+        const a = Math.atan2(ny, nx) + (k / (nd - 1) - 0.5) * 2.6, sp = 45 + R() * 85;
+        emit(1, 3, x, y, Math.cos(a) * sp, Math.sin(a) * sp, 0.55 + R() * 0.3, 5, 15, 0.5, { prio: true, drag: 2.3 });
       }
+      if (V.level === 0) for (let k = 0; k < 5; k++) emit(0, 0, x, y, (R() - 0.5) * 120 + nx * 30, (R() - 0.5) * 120 + ny * 30, 0.35, 5, 1, 0.7, { prio: true, drag: 2 });
     },
     death: function (o) {
       const h = V.hero, x = fin(o && o.x, h.x), y = fin(o && o.y, h.y);
@@ -287,7 +291,8 @@ const PL = (globalThis.PL = globalThis.PL || {});
     V.blinkT = 3; V.blink = 0; V.bobT = 0; V.antic = 0; V.trailAcc = 0; V.suckAcc = 0; V.celT = 0; V.shx = 0; V.shy = 0; V.busyT = 0; V.prevO = []; V.hero.vx = 0; V.hero.vy = 0; V.frame = 0;
     if (typeof matchMedia === 'function') { try { V.reduced = !!matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) { /* ignore */ } }
     if (!V.sprites) bakeSprites();
-    if (PL.Light) { PL.Light.init(V.W, V.H, V.dpr, { seed: V.seed, dome: opts.dome }); PL.Light.setReduced(V.reduced); PL.Light.setQuality('full'); }
+    V.thN = 0; V.thAcc = 0;
+    if (PL.Light) { PL.Light.init(V.W, V.H, V.dpr, { seed: V.seed, dome: opts.dome }); PL.Light.setReduced(V.reduced); PL.Light.setQuality('full'); if (opts.bloom != null) PL.Light.setBloom(opts.bloom); }
     V.inited = true;
   };
   V_API.resize = function (w, h, dpr) {
@@ -296,6 +301,8 @@ const PL = (globalThis.PL = globalThis.PL || {});
     if (PL.Light) PL.Light.resize(V.W, V.H, V.dpr);
   };
   // dpr cap for the skin's canvas backing store: 2 in full, 1.5 in lite/off
+  V_API.quality = function () { return LEVELS[V.level]; };   // current level: 'full' | 'lite' | 'off'
+  V_API.clock = function () { return V.t; };                  // Vfx clock in seconds (frame-time sum)
   V_API.dprFor = function (deviceDpr) { return Math.min(fin(deviceDpr, 1), V.level === 0 ? 2 : 1.5); };
   V_API.setQuality = function (q) {
     if (q === 'auto') { V.auto = true; V.forced = null; return; }
@@ -322,16 +329,22 @@ const PL = (globalThis.PL = globalThis.PL || {});
     if (V.reduced) { V.shake = 0; V.shakeAmp = 0; V.shx = 0; V.shy = 0; trim(cap()); }
   };
   V_API.setShakeScale = function (k) { V.shakeScale = clamp(fin(k, 1), 0, 1); };
-  V_API.setBackdrop = function (far, near) { if (PL.Light) PL.Light.setBackdrop(far, near); };
+  // opts.dome = {cx,cy,rx,ry} in screen fractions (where the art's dome is; the procedural aurora follows it)
+  V_API.setBackdrop = function (far, near, opts) { if (PL.Light) PL.Light.setBackdrop(far, near, opts); };
+  V_API.setDome = function (d) { if (PL.Light) PL.Light.setDome(d); };
+  V_API.setBloom = function (a) { if (PL.Light) PL.Light.setBloom(a); };      // 0..1.5, default 1
+  V_API.setRimBaked = function (b) { if (PL.Light) PL.Light.setRimBaked(b); };  // skin bakes the static rim light itself
   V_API.setHazards = function (r) { if (PL.Light) PL.Light.setHazards(r); };
-  V_API.setRoom = function (room) {
+  // opts: {skinGates:true} = the skin draws the gates (Vfx skips its own); {spikeScale:1.6} = drawn crystal height / hit-rect height (glints follow)
+  V_API.setRoom = function (room, opts) {
+    opts = opts || {}; V.skinGates = !!opts.skinGates; V.spikeScale = clamp(fin(opts.spikeScale, 1), 1, 3); V.thN = 0; V.thAcc = 0;
     V.room = room || null; V.tips = []; V.prevO = []; V.exit = room && room.exit ? room.exit : null;
     if (PL.Light) PL.Light.setRoom(room);
     V.alive.fill(0); V.count = 0; V.trailCount = 0; V.hero.has = false;
     if (!room) return;
     (room.spikes || []).forEach(function (s, idx) {
       const r = s.r, dir = PL.Light ? PL.Light.spikeDir(room, r) : 0, horiz = dir === 0 || dir === 2;
-      const len = horiz ? r[2] : r[3], hgt = Math.min(horiz ? r[3] : r[2], len), cnt = Math.max(1, Math.round(len / 12)), step = len / cnt, tips = [];
+      const len = horiz ? r[2] : r[3], hgt = Math.min(horiz ? r[3] : r[2], len) * V.spikeScale, cnt = Math.max(1, Math.round(len / 12)), step = len / cnt, tips = [];
       for (let k = 0; k < cnt; k++) {
         const am = (k + 0.5) * step;
         if (dir === 0) tips.push([r[0] + am, r[1] + r[3] - hgt]);
@@ -378,6 +391,7 @@ const PL = (globalThis.PL = globalThis.PL || {});
     }
     if (g != null && g >= 0 && g <= 3) h.g = g | 0;
     else if (hero && hero.g != null) h.g = hero.g | 0;
+    if (h.has) recordTrail(dt, h);
     if (PL.Light) PL.Light.update(raw, events, hero, h.g);
     // events (strings or {type,x,y})
     if (events && events.length) {
@@ -423,6 +437,22 @@ const PL = (globalThis.PL = globalThis.PL || {});
         if (!near) V.shakeAmp = sv;
       }
     }
+  }
+
+  // ring of the last 15 hero positions, newest first; sampled slower when fast so the ribbon is longer when falling
+  function recordTrail(dt, h) {
+    const T = V.th, sp = Math.hypot(h.vx, h.vy);
+    if (V.thN && Math.hypot(h.x - T[0], h.y - T[1]) > 160) V.thN = 0;   // teleport / room change
+    if (h.dead) { V.thN = 0; return; }
+    if (!V.thN) { T[0] = h.x; T[1] = h.y; V.thN = 1; V.thAcc = 0; return; }
+    V.thAcc += dt;
+    const step = (1 / 60) * (1 + clamp(sp / 260, 0, 0.5));
+    if (V.thAcc >= step) {
+      V.thAcc = 0;
+      const n = Math.min(V.thN + 1, 15);
+      for (let i = n - 1; i > 0; i--) { T[i * 2] = T[i * 2 - 2]; T[i * 2 + 1] = T[i * 2 - 1]; }
+      T[0] = h.x; T[1] = h.y; V.thN = n;
+    } else { T[0] = h.x; T[1] = h.y; }
   }
 
   function spawnAmbient(dt, h) {
@@ -545,6 +575,60 @@ const PL = (globalThis.PL = globalThis.PL || {});
     return { sc: (cam && cam.scale) || 1, cx: fin(cam && cam.cx, 168), cy: fin(cam && cam.cy, 250), W: (cam && cam.W) || V.W, H: (cam && cam.H) || V.H };
   }
   V_API.drawBack = function (ctx, cam) { if (V.inited && PL.Light) PL.Light.drawBack(ctx, cam); };
+  // lantern pools + hero light disc + bloom. Call after the platforms and BEFORE hazards/hero (drawFront then skips them).
+  V_API.drawGlow = function (ctx, cam) { if (V.inited && PL.Light && ctx) PL.Light.drawGlow(ctx, cam); };
+
+  // tapered teal flame ribbon behind the hero (additive: halo, body, pale core), built from the last ~14 positions.
+  // Idle it is a short flame rising against gravity; moving it streams opposite to motion and grows with speed. Call before the hero body.
+  V_API.drawHeroTrail = function (ctx, cam) {
+    const h = V.hero;
+    if (!V.inited || !ctx || V.level > 1 || !h.has || h.dead || V.vanish >= 0 || V.thN < 1) return;
+    const f = frame(cam), sc = f.sc, d = DIRS[h.g] || DIRS[2], sp = Math.hypot(h.vx, h.vy), mv = clamp(sp / 220, 0, 1);
+    const calm = V.reduced, N = 14;
+    let n = calm ? Math.min(V.thN, 7) : V.thN;
+    const T = V.th, PX = TRX, PY = TRY, WW = TRW;
+    for (let i = 0; i < n; i++) {
+      const u = i / (N - 1);
+      let wx = T[i * 2], wy = T[i * 2 + 1];
+      const rise = 24 * u * (1 - mv * 0.85) * (calm ? 0.6 : 1), wob = calm ? 0 : Math.sin(V.t * 9 + i * 0.75) * u * (2.6 + 3 * mv);
+      wx += -d[0] * rise - d[1] * wob; wy += -d[1] * rise + d[0] * wob;
+      PX[i] = (wx - f.cx) * sc + f.W / 2; PY[i] = (wy - f.cy) * sc + f.H / 2;
+    }
+    // cap the ribbon length (longer when falling fast, never a laser beam): truncate where the path exceeds maxL
+    const maxL = (46 + 62 * mv) * sc * (calm ? 0.6 : 1);
+    let cum = 0, nn = n;
+    for (let i = 1; i < n; i++) {
+      const sl = Math.hypot(PX[i] - PX[i - 1], PY[i] - PY[i - 1]);
+      if (cum + sl > maxL) { const q = sl > 0 ? (maxL - cum) / sl : 0; PX[i] = PX[i - 1] + (PX[i] - PX[i - 1]) * q; PY[i] = PY[i - 1] + (PY[i] - PY[i - 1]) * q; nn = i + 1; break; }
+      cum += sl;
+    }
+    n = nn;
+    // taper over the real length n (last point is a tip)
+    for (let i = 0; i < n; i++) { const u = n > 1 ? i / (n - 1) : 0; WW[i] = 11 * sc * Math.pow(1 - u, 0.62) * (i === 0 ? 0.8 : 1) * (1 + 0.08 * Math.sin(V.t * 14 + i)); }
+    if (n < 2) return;
+    ctx.save();
+    if (PL.Light && PL.Light.clipHazards) PL.Light.clipHazards(ctx, cam);
+    ctx.globalCompositeOperation = 'lighter';
+    const passes = V.level === 0 ? 3 : 2;
+    for (let ps = 0; ps < passes; ps++) {
+      const k = ps === 0 ? 1.9 : ps === 1 ? 1 : 0.42;
+      ctx.globalAlpha = 1;
+      ctx.fillStyle = ps === 0 ? 'rgba(40,190,175,0.2)' : ps === 1 ? 'rgba(95,224,200,0.42)' : 'rgba(205,255,245,0.6)';
+      ctx.beginPath();
+      for (let i = 0; i < n; i++) {
+        const a = i > 0 ? i - 1 : 0, b = i < n - 1 ? i + 1 : i, tx = PX[b] - PX[a], ty = PY[b] - PY[a], l = Math.hypot(tx, ty) || 1;
+        const nx = -ty / l * WW[i] * k, ny = tx / l * WW[i] * k;
+        if (i) ctx.lineTo(PX[i] + nx, PY[i] + ny); else ctx.moveTo(PX[i] + nx, PY[i] + ny);
+      }
+      for (let i = n - 1; i >= 0; i--) {
+        const a = i > 0 ? i - 1 : 0, b = i < n - 1 ? i + 1 : i, tx = PX[b] - PX[a], ty = PY[b] - PY[a], l = Math.hypot(tx, ty) || 1;
+        ctx.lineTo(PX[i] - (-ty / l * WW[i] * k), PY[i] - (tx / l * WW[i] * k));
+      }
+      ctx.closePath(); ctx.fill();
+    }
+    ctx.restore();
+  };
+  const TRX = new Float32Array(16), TRY = new Float32Array(16), TRW = new Float32Array(16);
 
   function star(ctx, x, y, r, rot) {
     ctx.beginPath();
@@ -598,7 +682,7 @@ const PL = (globalThis.PL = globalThis.PL || {});
 
   function drawGates(ctx, f) {
     const gs = V.room && V.room.gates;
-    if (!gs || !gs.length) return;
+    if (!gs || !gs.length || V.skinGates) return;
     const t = V.reduced ? 0 : V.t, sc = f.sc, full = V.level === 0;
     for (let i = 0; i < gs.length; i++) {
       const g = gs[i], r = g.r, d = DIRS[g.dir | 0] || DIRS[0];
@@ -620,16 +704,17 @@ const PL = (globalThis.PL = globalThis.PL || {});
         }
         ctx.stroke();
       }
-      // chevrons slide in flow direction (still slide in lite)
-      const tt = (V.t * 0.5) % 1, cnt = Math.max(2, Math.round(along / (26 * sc)));
-      ctx.globalAlpha = 0.5; ctx.strokeStyle = '#e8fffa'; ctx.lineWidth = Math.max(1.5, 2.2 * sc);
+      // chevrons point the way through (d) and slide along d across the thin ribbon: the pass direction, not the long axis
+      const cnt = Math.max(2, Math.min(12, Math.round(along / (30 * sc)))), size = clamp(across * 0.9 + 3, 6, 11 * sc), cyc = V.reduced ? 0.5 : (V.t * 0.7) % 1;
+      ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.strokeStyle = '#e8fffa'; ctx.lineWidth = Math.max(1.5, 2 * sc);
       for (let k = 0; k < cnt; k++) {
-        let u = ((k + tt) / cnt); if (dirSign < 0) u = 1 - u;
-        const a = 5 * sc, cxp = horiz ? x + u * along : x + across / 2, cyp = horiz ? y + across / 2 : y + u * along;
-        const edge = Math.sin(Math.PI * clamp(u, 0, 1)); ctx.globalAlpha = 0.55 * edge;
+        const u = (k + 0.5) / cnt, ccx = horiz ? x + u * along : x + w / 2, ccy = horiz ? y + h / 2 : y + u * along;
+        const ph = cyc, off = (ph - 0.5) * size * 2.6, px = ccx + d[0] * off, py = ccy + d[1] * off, a = size * 0.55;
+        ctx.globalAlpha = 0.7 * Math.sin(Math.PI * ph);
         ctx.beginPath();
-        if (horiz) { const sg = dirSign; ctx.moveTo(cxp - sg * a, cyp - a); ctx.lineTo(cxp + sg * a * 0.6, cyp); ctx.lineTo(cxp - sg * a, cyp + a); }
-        else { const sg = dirSign; ctx.moveTo(cxp - a, cyp - sg * a); ctx.lineTo(cxp, cyp + sg * a * 0.6); ctx.lineTo(cxp + a, cyp - sg * a); }
+        ctx.moveTo(px - d[1] * a - d[0] * a * 0.7, py + d[0] * a - d[1] * a * 0.7);
+        ctx.lineTo(px + d[0] * a * 0.7, py + d[1] * a * 0.7);
+        ctx.lineTo(px + d[1] * a - d[0] * a * 0.7, py - d[0] * a - d[1] * a * 0.7);
         ctx.stroke();
       }
       ctx.restore();

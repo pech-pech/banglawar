@@ -8,7 +8,7 @@ const PL = (globalThis.PL = globalThis.PL || {});
     menu: { title: 'Starfall', play: 'Play', practice: 'Practice', settings: 'Settings' },
     pick: {
       short: 'Short climb (5 rooms)', long: 'Long climb (7 rooms)', daily: 'Daily climb',
-      dailySub: 'Same rooms for everyone today', notPlayed: 'Not played yet', best: 'Best', play: 'Play', back: 'Back'
+      dailySub: 'Same rooms for all today', notPlayed: 'Not played yet', best: 'Best', play: 'Play', back: 'Back'
     },
     tutorial: {
       t1a: 'Tap an arrow. That way is down.', t1b: 'You keep your speed.',
@@ -19,6 +19,7 @@ const PL = (globalThis.PL = globalThis.PL || {});
     hud: { room: (n, of) => 'Room ' + n + ' of ' + of, pause: 'Pause', retry: 'Retry', dive: 'Dive', moves: 'moves', oneMove: '1 move' },
     pause: { title: 'Paused', resume: 'Resume', retry: 'Retry room', settings: 'Settings', leave: 'Leave climb',
       confirm: 'Leave? Your best is kept.', stay: 'Stay', leaveYes: 'Leave' },
+    nudge: { msg: 'Tough room. Want a guide line here?', show: 'Show the line', no: 'No thanks' },
     death: { spikes: 'Spikes', crusher: 'Crusher', crystal: 'Crystal fell', edge: 'Edge', slow: 'Too slow' },
     clear: { title: 'Room clear', newBest: 'New best!', next: 'Next', time: 'Time', best: 'Best' },
     complete: { title: 'Climb done', gold: 'Gold', silver: 'Silver', bronze: 'Bronze', none: 'No medal yet',

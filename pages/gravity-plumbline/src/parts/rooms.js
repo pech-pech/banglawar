@@ -230,6 +230,8 @@ PL.mulberry32 = function (seed) {
       if (mir) room = PL.mirrorRoom(room);
       mir = !mir;
       room.templateId = t.id;
+      room.tier = t.tier;
+      room.family = t.family;
       room.slot = p.slots[i];
       return room;
     });

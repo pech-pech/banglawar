@@ -68,7 +68,8 @@ function centre(room, log0, rounds = 6) {
     let moved = false;
     for (let i = 0; i < log.length; i++) {
       const { lo, hi } = windowOf(room, log, i);
-      const sh = Math.floor((hi - lo) / 2);
+      // capped side = "any time on that side works": only make sure the other side has >= 12 ticks, never drift
+      const sh = hi >= CAP && lo >= CAP ? 0 : hi >= CAP ? Math.max(0, 12 - lo) : lo >= CAP ? -Math.max(0, 12 - hi) : Math.floor((hi - lo) / 2);
       if (sh) { log[i].tick += sh; moved = true; }
     }
     if (!moved) break;
@@ -107,7 +108,7 @@ function guided(room, sig, { maxWait = 300, levelCap = 600, win = 300 } = {}) {
     const next = [], seen = new Set();
     for (const nd of level) {
       if (winners.length >= 800) return winners;
-      let s = nd.s;
+      let s = nd.s, nw = 0;
       for (let w = 0; w * SLOT <= maxWait; w++) {
         const c = sc.clone(s), t0 = c.t;
         if (!(a.k === 'flip' && a.dir === c.g)) {
@@ -116,13 +117,13 @@ function guided(room, sig, { maxWait = 300, levelCap = 600, win = 300 } = {}) {
           for (let i = 1; i < SLOT && ok && !c.won; i++) { PL.step(c, []); if (c.dead > 0) ok = false; }
           if (ok) {
             const log = nd.log.concat([{ tick: t0, k: a.k, dir: a.dir }]);
-            if (c.won) winners.push({ log, t: c.t, n: k + 1 });
+            if (c.won) { if (nw++ % 5 === 0) winners.push({ log, t: c.t, n: k + 1 }); }
             else if (k === sig.length - 1) {
               const kk = key(c, k + 1);
               if (!seen.has(kk)) {
                 seen.add(kk);
                 for (let i = 0; i < win && !c.won && !c.dead; i++) PL.step(c, []);
-                if (c.won && !c.dead) winners.push({ log, t: c.t, n: k + 1 });
+                if (c.won && !c.dead && nw++ % 5 === 0) winners.push({ log, t: c.t, n: k + 1 }); // keep every 5th wait of a node: spread over nodes
               }
             } else {
               const kk = key(c, k + 1);
@@ -191,7 +192,7 @@ function bestRoute0(room, { maxCand = 24 } = {}) {
   if (!r) return null;
   const lead = room.crushers.length ? PERIOD : 48;
   let best = null;
-  for (const c of pickCandidates(all, room.crushers.length ? Math.min(maxCand, 10) : maxCand)) {
+  for (const c of pickCandidates(all, room.crushers.length ? Math.min(maxCand, 6) : maxCand)) {
     const full = c.log.map((e) => ({ tick: e.tick + lead, k: e.k, dir: e.dir }));
     if (!wins(room, full)) continue;
     let pruned = full;

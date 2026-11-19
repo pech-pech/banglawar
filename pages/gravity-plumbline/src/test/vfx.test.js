@@ -164,4 +164,20 @@ t('dpr cap 2 (1.5 in lite/off)', () => {
 t('draw never allocates particles: pool arrays are fixed typed arrays', () => {
   fresh(); assert(V._V.x instanceof Float32Array && V._V.x.length === 160);
 });
+t('public options: setDome / setBloom / setBackdrop opts / setRoom opts / drawGlow / drawHeroTrail / quality / clock', () => {
+  fresh();
+  V.setDome({ cx: 0.5, cy: 0.1, rx: 0.4, ry: 0.12 }); assert.strictEqual(L._S.dome.rx, 0.4);
+  V.setBackdrop(null, null, { dome: { cx: 0.4, cy: 0.2, rx: 0.3, ry: 0.1 } }); assert.strictEqual(L._S.dome.cx, 0.4);
+  V.setBloom(0.55); assert.strictEqual(L._S.bloomAmt, 0.55);
+  V.setRoom(room, { skinGates: true, spikeScale: 1.6 }); assert.strictEqual(V._V.skinGates, true); assert.strictEqual(V._V.spikeScale, 1.6);
+  const horiz = V._V.tips[0].tips[0]; assert(horiz[1] < 458, 'spike glint tip follows the 1.6x crystal height: ' + horiz[1]);
+  V.setRoom(room); assert.strictEqual(V._V.skinGates, false);
+  assert.strictEqual(V.quality(), 'full'); assert.strictEqual(typeof V.clock(), 'number');
+  const h = Object.assign({}, hero); for (let i = 0; i < 40; i++) { h.x += 3; V.update(1 / 60, [], h, 2); }
+  assert(V._V.thN >= 8 && V._V.thN <= 15, 'trail history ' + V._V.thN);
+  const ctx = fakeCtx(); V.drawBack(ctx, cam); V.drawGlow(ctx, cam); V.drawHeroTrail(ctx, cam); V.drawFront(ctx, cam);
+  V.setReduced(true); V.drawHeroTrail(ctx, cam); V.setQuality('off'); V.drawGlow(ctx, cam); V.drawHeroTrail(ctx, cam); V.drawFront(ctx, cam);
+  V.setReduced(false); V.setQuality('full');
+  V.update(1 / 60, [], Object.assign({}, h, { dead: 5 }), 2); assert.strictEqual(V._V.thN, 0, 'no trail while dead');
+});
 console.log('vfx tests passed:', pass);

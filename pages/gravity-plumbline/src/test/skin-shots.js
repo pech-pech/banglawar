@@ -27,7 +27,7 @@ const VIEWS = [[475, 638], [344, 882], [816, 568]];
     const missing = await page.evaluate(() => H_.ready);
     ok(missing.length === 0, `${W}x${H} art loaded (missing: ${missing.join(',') || 'none'})`);
     const pick = await page.evaluate(() => {
-      const R = H_.rooms(), all = R.tut.concat(R.shaft), feat = (r) => ({ c: (r.crushers || []).length, k: (r.crumbles || []).length, g: (r.gates || []).length, s: (r.spikes || []).length });
+      const R = H_.rooms(), all = R.tut.concat(R.shaft, R.synth), feat = (r) => ({ c: (r.crushers || []).length, k: (r.crumbles || []).length, g: (r.gates || []).length, s: (r.spikes || []).length });
       return { n: all.length, f: all.map(feat), names: all.map((r) => r.name) };
     });
     // scenes: [label, room index, script, run ticks before shot]
@@ -43,7 +43,7 @@ const VIEWS = [[475, 638], [344, 882], [816, 568]];
       const [label, ri, script, run] = scenes[n];
       const hudOpt = process.env.SKIN_Q ? { quality: process.env.SKIN_Q } : {};
       const ms = await page.evaluate(([ri, script, run, hudOpt]) => {
-        const R = H_.rooms(), all = R.tut.concat(R.shaft);
+        const R = H_.rooms(), all = R.tut.concat(R.shaft, R.synth);
         H_.setup(all[ri], script, run, { path: true, hud: hudOpt });
         H_.draw(Math.max(1, Math.round(run / 2)));  // frames up to the shot moment (2 sim ticks per drawn frame)
         return H_.draw(30);                          // 30 more frames: mean draw ms
@@ -53,7 +53,7 @@ const VIEWS = [[475, 638], [344, 882], [816, 568]];
     }
     // hero close-up: idle on the first ledge, 2x crop of 120x120 css px around the hero
     for (const [label, ri, script, run] of [['hero-idle', 0, [], 200], ['hero-fall', 0, [[10, { k: 'flip', dir: 1 }]], 40], ['hero-flip', 0, [[10, { k: 'flip', dir: 3 }]], 34]]) {
-      const p0 = await page.evaluate(([ri, script, run]) => { const R = H_.rooms(), all = R.tut.concat(R.shaft); H_.setup(all[ri], script, run, {}); H_.draw(Math.round(run / 2)); return H_.heroPx(); }, [ri, script, run]);
+      const p0 = await page.evaluate(([ri, script, run]) => { const R = H_.rooms(), all = R.tut.concat(R.shaft, R.synth); H_.setup(all[ri], script, run, {}); H_.draw(Math.round(run / 2)); return H_.heroPx(); }, [ri, script, run]);
       const c = { x: Math.max(0, Math.min(W - 120, p0.x - 60)), y: Math.max(0, Math.min(H - 120, p0.y - 60)), width: 120, height: 120 };
       await page.screenshot({ path: path.join(OUT, `skin-${W}x${H}-${label}.png`), clip: c });
     }

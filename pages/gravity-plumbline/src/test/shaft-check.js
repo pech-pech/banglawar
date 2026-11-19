@@ -59,7 +59,7 @@ const hasCr=t=>t.make(PL.mulberry32(1)).crushers.length>0;
 const TP=process.env.TPLS?process.env.TPLS.split(','):null;const MERGE=process.env.MERGE;
 const RF=id=>path.join(__dirname,'..','review','.rows-'+id+'.json');
 for(const tpl of PL.TEMPLATES){
-  if(tpl.retired)continue;
+  if(tpl.retired||process.env.SHAFTONLY)continue; // SHAFTONLY=1: skip the per-template beam runs, check shafts only
   if(MERGE){rows.push(JSON.parse(fs.readFileSync(RF(tpl.id),'utf8')).row);for(const x of JSON.parse(fs.readFileSync(RF(tpl.id),'utf8')).probs)probs.push(x);continue}
   if(TP&&!TP.includes(tpl.id))continue;const probs0=probs.length;
   const cr=hasCr(tpl);const seeds=cr?[1,2,3,4,5]:[1];

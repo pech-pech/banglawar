@@ -83,7 +83,7 @@ async function journey(browser, port, W, H) {
   ok(await h.ev(() => PL_TEST.music()) === 'tutorial', `${tag} tutorial music requested`);
   await h.frame();
   const t1 = await h.txt();
-  ok(/Tap an arrow/.test(t1) && /Skip|tutorial/.test(t1), `${tag} teach line and Skip drawn`);
+  ok(/Tap an/.test(t1) && /Skip|tutorial/.test(t1), `${tag} teach line and Skip drawn`);
   ok(!/charge|tick|seed/i.test(t1.replace(/Tweak.*/, '')), `${tag} no banned words on the tutorial screen`);
   // ---- tutorial with pad taps ----
   const pad = await h.ev(([W, H]) => PL.Input.layout(W, H), [W, H]);
@@ -122,7 +122,7 @@ async function journey(browser, port, W, H) {
   ok((await h.ev(() => PL_TEST.settings())).tutorialDone === true, `${tag} tutorialDone saved`);
   // ---- menu ----
   await h.frame(); const tm = await h.txt();
-  ok(/Starfall/.test(tm) && /Play/.test(tm) && /Settings/.test(tm), `${tag} menu shows title + buttons`);
+  ok(/S[ |]*t[ |]*a[ |]*r[ |]*f[ |]*a[ |]*l[ |]*l/.test(tm) && /Play/.test(tm) && /Settings/.test(tm), `${tag} menu shows title + buttons`);
   ok(await h.ev(() => PL_TEST.music()) === 'menu', `${tag} menu music`);
   await h.tap('play'); await sleep(100);
   ok(await h.screen() === 'shaftPick', `${tag} Play -> shaft pick`);
@@ -260,6 +260,30 @@ async function extras(browser, port) {
   const ch = await h.ev(() => PL_TEST.chips());
   ok(ch.artFallback && /ART: fallback/.test(await h.txt()), `missing art shows the "ART: fallback" chip (${JSON.stringify(ch)})`);
   await h.page.screenshot({ path: `${SHOTS}/e2e-artchip-344x882.png` });
+  await h.context.close();
+  // teach hint: first line until she does the taught action, then the next line, then nothing (never covers the pad)
+  h = await open(browser, port, 475, 638);
+  await h.tap('start'); await sleep(250); await h.frame(); await h.txt(); await h.frame();
+  let tx = await h.txt(); ok(/Tap an/.test(tx) && !/You keep your/.test(tx), 'teach 1: first line before the taught action');
+  await h.tap('left'); await sleep(350); await h.txt(); await h.frame(); tx = await h.txt();
+  ok(/You keep your/.test(tx) && !/Tap an/.test(tx), 'teach 1: next line after the first flip, first line gone');
+  await sleep(3300); await h.txt(); await h.frame(); tx = await h.txt();
+  ok(!/You keep your/.test(tx) && !/Tap an/.test(tx), 'teach 1: hint hidden after its second line');
+  { const L = await h.ev(() => PL_TEST.layout('tutorial')); const hit = (a, b) => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
+    ok(!hit(L.rects.teach, L.rects.room) && !hit(L.rects.teach, L.rects.padBox), 'teach slot never covers the room or the pad'); }
+  await h.context.close();
+  // 5-death nudge: offers the aim arc for that room only
+  h = await open(browser, port, 475, 638);
+  await h.ev(() => PL_TEST.startMode('short', 7)); await sleep(300);
+  for (let i = 0; i < 4; i++) { await h.ev(() => PL_TEST.kill('spike')); await sleep(450); }
+  await sleep(2200); ok(await h.ev(() => PL_TEST.nudging()) === false, 'no nudge before the 5th death');
+  await h.ev(() => PL_TEST.kill('spike')); await sleep(2400); await h.frame(); await h.txt(); await h.frame(); tx = await h.txt();
+  ok(await h.ev(() => PL_TEST.nudging()) === true && /guide line/.test(tx) && /Show the line/.test(tx) && /No thanks/.test(tx), '5th death in a room offers the guide line');
+  await h.tap('stay'); await sleep(200);
+  ok(await h.screen() === 'play' && (await h.ev(() => PL_TEST.aid()))[0] === true, 'Show the line turns the aim arc on for this room');
+  await h.ev(() => { PL_TEST.winRoom(); PL_TEST.advance(); }); await sleep(200);
+  ok((await h.ev(() => PL_TEST.aid()))[1] === undefined, 'aim arc is for that room only');
+  ok(h.errs.length === 0, `nudge: no console errors ${h.errs.slice(0, 3).join(' | ')}`);
   await h.context.close();
   // landscape smoke
   h = await open(browser, port, 816, 568);

@@ -176,8 +176,7 @@ const PL = (globalThis.PL = globalThis.PL || {});
     ctx.beginPath(); ctx.arc(0, 0, R, 0, 7); ctx.fillStyle = st.pressed > 0.5 ? C.plumPress : C.plum; ctx.fill();
     ctx.beginPath(); ctx.arc(0, 0, R - 3, 0, 7); ctx.lineWidth = 2; ctx.strokeStyle = C.brass; ctx.stroke();
     if (st.focus) { ctx.beginPath(); ctx.arc(0, 0, R + 6, 0, 7); ctx.lineWidth = 3; ctx.strokeStyle = C.teal; ctx.stroke(); }
-    retryIcon(ctx, 0, -8, 30, C.cream, (st.spin || 0) * Math.PI);
-    ctx.font = fontPx(14, 700); ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = C.cream; ctx.fillText(st.label || 'Retry', 0, 15);
+    retryIcon(ctx, 0, 0, 32, C.cream, (st.spin || 0) * Math.PI); // icon only; the word Retry lives in the Pause menu
     ctx.restore();
   }
   function pauseKey(ctx, r, st, t) {
@@ -299,7 +298,53 @@ const PL = (globalThis.PL = globalThis.PL || {});
     text(ctx, PL.Strings.dev.artFallback, cx(b), cy(b) + 1, { font: fontPx(14, 600), color: C.cream, align: 'center', maxW: b.w - 8 });
   }
 
-  PL.UI = { T, C, lum, contrast, alpha, size, font, fontPx, text, wrap, rr, starPath, sticker, scrim, easeOutBack,
+  // Title lettering "sticker": cream fill, brass edge, cream die-cut border, soft glow, gentle arc + tilt. Drawn per letter in
+  // three passes (border, brass edge, fill) so neighbours never cover each other. st {text, vw, reduced}. rect = title zone.
+  function titleArt(ctx, r, st, t) {
+    const str = String(st.text), reduced = !!st.reduced, pulse = reduced ? 0.5 : 0.5 + 0.5 * Math.sin(t * 1.6);
+    let px = Math.min(Math.round(r.h * 0.82), 64);
+    const mk = (p) => '800 ' + p + 'px ' + T.stack;
+    ctx.save(); ctx.font = mk(px);
+    while (px > 24 && ctx.measureText(str).width > r.w - px * 0.5) { px -= 2; ctx.font = mk(px); }
+    const ws = [...str].map((ch) => ctx.measureText(ch).width), total = ws.reduce((a, b) => a + b, 0), R = Math.max(total * 2.4, 260);
+    const cxm = cx(r), base = cy(r) + px * 0.1;
+    ctx.translate(cxm, base); ctx.rotate(-0.045); ctx.translate(-cxm, -base);
+    ctx.font = mk(px); ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+    // arc: letters sit on a circle of radius R whose top is at base; y offset = R(1-cos th) is a drop, so centre letters are highest
+    const place = (fn) => { let a = -total / 2; [...str].forEach((ch, i) => { const th = (a + ws[i] / 2) / R;
+      ctx.save(); ctx.translate(cxm + Math.sin(th) * R, base + (1 - Math.cos(th)) * R); ctx.rotate(th); fn(ch); ctx.restore(); a += ws[i]; }); };
+    ctx.save(); ctx.translate(0, 4); ctx.lineWidth = px * 0.3; ctx.strokeStyle = alpha(C.night, 0.55); place((ch) => ctx.strokeText(ch, 0, 0)); ctx.restore();
+    ctx.save(); ctx.shadowColor = alpha(C.brass, 0.35 + 0.35 * pulse); ctx.shadowBlur = 18 + 14 * pulse; ctx.lineWidth = px * 0.3; ctx.strokeStyle = C.cream;
+    place((ch) => ctx.strokeText(ch, 0, 0)); ctx.restore();
+    ctx.lineWidth = px * 0.17; ctx.strokeStyle = C.brass; place((ch) => ctx.strokeText(ch, 0, 0));
+    ctx.fillStyle = C.cream; place((ch) => ctx.fillText(ch, 0, 0));
+    ctx.restore();
+  }
+
+  // ring of sparkles that bursts out of a point once. age seconds since the burst; r0 start radius, r1 end radius.
+  function sparkRing(ctx, x, y, age, r0, r1, n) {
+    const d = age / 0.9; if (d <= 0 || d >= 1) return;
+    const e = 1 - Math.pow(1 - d, 3), rad = r0 + (r1 - r0) * e;
+    ctx.save(); ctx.globalAlpha = Math.min(1, (1 - d) * 1.6);
+    for (let i = 0; i < n; i++) { const a = (i / n) * Math.PI * 2 + 0.3, big = i % 2 ? 5 : 7.5;
+      starPath(ctx, x + Math.cos(a) * rad, y + Math.sin(a) * rad, big * (1 - d * 0.4), big * 0.4 * (1 - d * 0.4)); ctx.fillStyle = i % 3 === 0 ? C.teal : i % 3 === 1 ? C.brass : C.cream; ctx.fill(); }
+    ctx.lineWidth = 3 * (1 - d); ctx.strokeStyle = alpha(C.brass, 0.8); ctx.beginPath(); ctx.arc(x, y, rad * 0.8, 0, Math.PI * 2); ctx.stroke();
+    ctx.restore();
+  }
+
+  // a few star motes drifting upward inside rect r (not drawn when st.reduced)
+  function motes(ctx, r, t, st) {
+    if (st && st.reduced) return;
+    ctx.save(); ctx.beginPath(); ctx.rect(r.x, r.y, r.w, r.h); ctx.clip();
+    for (let i = 0; i < 9; i++) {
+      const sp = 6 + (i % 4) * 2.5, ph = (i * 0.618) % 1, yy = r.y + r.h - ((t * sp + ph * (r.h + 40)) % (r.h + 40)) + 20;
+      const xx = r.x + r.w * ((i * 0.37 + 0.08) % 1) + Math.sin(t * 0.5 + i * 2) * 10, tw = 0.5 + 0.5 * Math.sin(t * 1.7 + i * 1.3);
+      ctx.globalAlpha = 0.25 + 0.55 * tw; starPath(ctx, xx, yy, 3.5 + (i % 3), 1.4); ctx.fillStyle = i % 2 ? C.cream : C.brass; ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  PL.UI = { T, C, lum, contrast, alpha, size, font, fontPx, text, wrap, rr, starPath, sticker, scrim, easeOutBack, titleArt, sparkRing, motes,
     button, arrowKey, diveKey, retryKey, pauseKey, pips, hudText, teachSlot, causeTag, card, slider, toggle, tab, medal, toast, devBadge, artChip,
     chevron, causeIcon };
 })();
