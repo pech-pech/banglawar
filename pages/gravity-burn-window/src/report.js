@@ -47,7 +47,7 @@
     const sc = selfCheck();
     return {
       game: 'Burn Window',
-      version: 'bw-0.1',
+      version: 'bw-0.2',
       seed: info.seed,
       renderer: 'Canvas2D',
       device: info.device || {},
@@ -83,7 +83,7 @@
     });
   }
 
-  function key(seed, idx) { return 'bw:best:' + seed + ':' + idx; }
+  function key(seed, idx) { return 'bw:best2:' + seed + ':' + idx; }
 
   function loadBest(seed, idx) {
     try {

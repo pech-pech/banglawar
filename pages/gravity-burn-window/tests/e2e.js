@@ -67,7 +67,7 @@ async function run(browser, vp) {
     await safe('9 Retry restarts running', async () => {
       await sleep(300);
       const n0 = await page.evaluate(() => __bw.state.n);
-      await page.mouse.click(36, 28);
+      await page.evaluate(() => __bw.retry());
       await sleep(250);
       const s = await page.evaluate(() => ({ p: __bw.phase, n: __bw.state && __bw.state.n }));
       T('9 Retry restarts running', s.p === 'run' && s.n < n0 && s.n < 120, `phase=${s.p} n ${n0} -> ${s.n}`);
@@ -82,21 +82,22 @@ async function run(browser, vp) {
     await safe('7 hidden tab', async () => {
       await page.evaluate(() => __bw.hold(false));
       await sleep(200);
-      const n0 = await page.evaluate(() => __bw.state.n);
-      await page.evaluate(() => {
+      const n0 = await page.evaluate(() => {
+        const n = __bw.state.n; // read and flip in one task so no frame lands between
         Object.defineProperty(document, 'hidden', { configurable: true, get: () => true });
         Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'hidden' });
         document.dispatchEvent(new Event('visibilitychange'));
+        return n;
       });
       await sleep(1000);
       const s = await page.evaluate(() => ({ n: __bw.state.n, p: __bw.phase }));
       T('7 hidden tab: sim steps do not advance, no failure', s.n === n0 && s.p !== 'failed', `steps ${n0} -> ${s.n} in 1 s hidden, phase=${s.p} (game loop does not check document.hidden; real hidden tabs stop rAF)`);
       await page.evaluate(() => { delete document.hidden; delete document.visibilityState; document.dispatchEvent(new Event('visibilitychange')); });
     });
-    // 6 buttons
+    // 6 buttons (HUD: Pause icon, Warp, Next sector; Retry lives in the pause menu)
     await safe('6 button sizes/overlap', async () => {
       const r = await page.evaluate(() => {
-        const nb = [...document.querySelectorAll('[data-bw]')].find(b => b.textContent === 'Next' || b.textContent === 'New run' || b.textContent === 'Finish');
+        const nb = [...document.querySelectorAll('[data-bw]')].find(b => /^(Next( sector)?)$/.test(b.textContent) || b.textContent === 'New run' || b.textContent === 'Finish');
         const prev = nb.style.display; nb.style.display = 'block';
         const rects = [...document.querySelectorAll('button')].map(b => { const q = b.getBoundingClientRect(); return { t: b.textContent, x: q.x, y: q.y, w: q.width, h: q.height }; });
         nb.style.display = prev;
@@ -109,7 +110,7 @@ async function run(browser, vp) {
         if (b.w < 56 - 0.01 || b.h < 56 - 0.01) bad.push(`${b.t} ${b.w}x${b.h} small`);
         if (b.x < pf.x + pf.w && b.x + b.w > pf.x && b.y < pf.y + pf.h && b.y + b.h > pf.y) bad.push(`${b.t} overlaps playfield`);
       }
-      T('6 buttons >=56x56 and clear of playfield', r.rects.length >= 5 && !bad.length, `${r.rects.length} buttons; playfield ${JSON.stringify(pf)}; ${bad.join('; ')}`);
+      T('6 buttons >=56x56 and clear of playfield', r.rects.length >= 3 && !bad.length, `${r.rects.length} buttons; playfield ${JSON.stringify(pf)}; ${bad.join('; ')}`);
     });
     await ctx.close();
   });
