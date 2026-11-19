@@ -4,7 +4,7 @@ Usage: python3 src/build.py [--allow-missing]"""
 import sys, os, hashlib
 HERE = os.path.dirname(os.path.abspath(__file__))
 OUT = os.path.join(HERE, '..', 'index.html')
-FILES = ['sim.js', 'gen.js', 'report.js', 'audio.js', 'render.js', 'game.js']
+FILES = ['sim.js', 'gen.js', 'report.js', 'audio.js', 'render.js', 'ui.js', 'game.js']
 allow = '--allow-missing' in sys.argv
 s = open(os.path.join(HERE, 'index.src.html'), encoding='utf-8').read()
 parts = []

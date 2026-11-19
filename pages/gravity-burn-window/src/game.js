@@ -11,6 +11,8 @@
 
   // ---- seed ----
   function dailySeed() { const d = new Date(); return d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate(); }
+  function hasSeedParam() { try { return /[?&]seed=(-?\d+)/.test(location.search); } catch (e) { return false; } }
+  function skipTitle() { try { return /[?&]skip=1/.test(location.search) || (hasSeedParam() && !/[?&]menu=1/.test(location.search)); } catch (e) { return false; } }
   function parseSeed() { try { const m = /[?&]seed=(-?\d+)/.exec(location.search); if (m) return parseInt(m[1], 10) | 0; } catch (e) {} return dailySeed(); }
 
   // ---- state ----
@@ -21,10 +23,57 @@
   let attempts = [], inputLog = [], attemptNo = 0, stranded = false, plotMsg = 'Plotting course...';
   let physicsSteps = 0, bootT = now(), genToken = 0, frameN = 0, drawErrs = 0;
   let tapPending = false, predN = -1, nextShown = null, nextOp = null, nextTxt = null;
+  let lowFuelDone = false;
   let acc = 0, last = 0, pointers = new Map(), fpsBuf = [], det = { ok: null, checksum: null }, energyDrift = null;
   const cache = {};
-  const reduced = !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
+  const UI = BW.ui || { settings: { reduced: false, haptics: true, drag: true, warp: true }, host: {}, blocking: () => false, open: () => false, show: () => {}, closeAll: () => {}, sectorHide: () => {}, sector: () => {}, set: () => {}, is: () => false };
+  const sysReduced = !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
+  let reduced = sysReduced || !!UI.settings.reduced, autoLaunch = false;
   let muted = lsGet('bw_mute') === '1';
+
+  // ---- fx (feel + juice; render reads G.fx, never touches sim) ----
+  const fx = { shake: { x: 0, y: 0 }, parts: [], flash: 0, trail: [], burnPulse: 0 };
+  const fxRng = S.mulberry32(0x5eed1e);
+  let crashAmp = 0, tapUntil = 0;
+  const PART_CAP = 160, TRAIL_MAX = 60;
+  function fxSpawn(kind, x, y, vx, vy, max, size) {
+    if (reduced) return;
+    if (fx.parts.length >= PART_CAP) fx.parts.shift();
+    fx.parts.push({ x: x, y: y, vx: vx, vy: vy, life: max, max: max, kind: kind, size: size });
+  }
+  function fxBurst(kind, x, y, n, speed, max, size) {
+    for (let i = 0; i < n; i++) {
+      const a = fxRng() * 6.2832, s = speed * (0.35 + fxRng() * 0.65);
+      fxSpawn(kind, x, y, Math.cos(a) * s, Math.sin(a) * s, max * (0.6 + fxRng() * 0.4), size * (0.7 + fxRng() * 0.6));
+    }
+  }
+  function fxReset() { fx.parts.length = 0; fx.trail.length = 0; fx.flash = 0; fx.burnPulse = 0; crashAmp = 0; fx.shake.x = 0; fx.shake.y = 0; }
+  function fxUpdate(dt) {
+    if (reduced) { fx.shake.x = fx.shake.y = 0; fx.parts.length = 0; fx.flash = 0; return; }
+    const burning = !!(st && phase === 'run' && st.active);
+    fx.burnPulse = burning ? Math.min(1, fx.burnPulse + dt * 8) : Math.max(0, fx.burnPulse - dt * 5);
+    if (burning) {
+      const hx = st.hx || 0, hy = st.hy || -1, th = thr || 1;
+      let n = Math.round(th * 2 + fxRng());
+      while (n-- > 0) {
+        const sp = 40 + fxRng() * 50 * th, j = (fxRng() - 0.5) * 0.5;
+        const c = Math.cos(j), s = Math.sin(j), dx = -hx * c + hy * s, dy = -hy * c - hx * s;
+        fxSpawn('flame', st.x + dx * 6, st.y + dy * 6, dx * sp + (st.vx || 0) * 0.3, dy * sp + (st.vy || 0) * 0.3, 0.25 + fxRng() * 0.2, (1.4 + fxRng() * 1.4) * (0.6 + 0.4 * th));
+      }
+    }
+    for (let i = fx.parts.length - 1; i >= 0; i--) {
+      const p = fx.parts[i];
+      p.life -= dt;
+      if (p.life <= 0) { fx.parts.splice(i, 1); continue; }
+      p.x += p.vx * dt; p.y += p.vy * dt;
+      const d = p.kind === 'dust' ? 0.9 : 0.96; p.vx *= d; p.vy *= d;
+    }
+    fx.flash = Math.max(0, fx.flash - dt * 2.5);
+    crashAmp = Math.max(0, crashAmp - dt * 24);
+    const amp = Math.max(crashAmp, burning && thr >= 1 ? 1 : 0);
+    fx.shake.x = amp ? (fxRng() * 2 - 1) * amp : 0; fx.shake.y = amp ? (fxRng() * 2 - 1) * amp : 0;
+  }
+  function vib(ms) { if (reduced || !UI.settings.haptics) return; try { if (navigator.vibrate) navigator.vibrate(ms); } catch (e) {} }
 
   // ---- DOM ----
   const canvas = document.createElement('canvas');
@@ -41,16 +90,33 @@
     b.addEventListener('click', e => { e.stopPropagation(); fn(b, e); });
     (parent || hud).appendChild(b); return b;
   }
-  const bRetry = mkBtn('Retry', 'left:0;top:0;width:72px;height:56px', (b, e) => { if (phase === 'end' && !pressOk(b, e)) return; ac('tick'); retry(); });
-  const bWarp = mkBtn('Warp x1', 'left:76px;top:0;width:76px;height:56px', b => { ac('tick'); setWarp(!warpOn); });
-  const bMute = mkBtn(muted ? 'Muted' : 'Sound', 'left:156px;top:0;width:68px;height:56px', b => { muted = !muted; lsSet('bw_mute', muted ? '1' : '0'); ac('mute', muted); b.textContent = muted ? 'Muted' : 'Sound'; });
-  const bCopy = mkBtn('Copy report', 'right:0;top:0;width:96px;height:56px', copyReport);
-  const bNext = mkBtn('Next', 'position:fixed;left:50%;margin-left:-80px;bottom:20px;width:160px;height:56px;display:none;z-index:6;background:#3fb8a8;color:#0a1214;border-color:#3fb8a8;font-size:18px', onNext, document.body);
+  const bPause = mkBtn('', 'left:12px;top:env(safe-area-inset-top,0px);width:56px;height:56px;padding:0', () => { ac('tick'); openPause(); });
+  bPause.setAttribute('aria-label', 'Pause');
+  bPause.innerHTML = '<svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true"><rect x="4" y="3" width="5" height="16" rx="1" fill="#e8d9a8"/><rect x="13" y="3" width="5" height="16" rx="1" fill="#e8d9a8"/></svg>';
+  const bWarp = mkBtn('x1', 'right:12px;top:env(safe-area-inset-top,0px);width:56px;height:56px;padding:0;color:#3fb8a8;font-size:16px', b => { ac('tick'); setWarp(!warpOn); });
+  bWarp.setAttribute('aria-label', 'Warp');
+  const pips = document.createElement('div');
+  pips.style.cssText = 'position:absolute;left:80px;right:80px;top:0;height:56px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;pointer-events:none';
+  const pipLbl = document.createElement('div'); pipLbl.style.cssText = 'font:700 13px system-ui,sans-serif;color:#c9a24a;letter-spacing:.08em';
+  const pipRow = document.createElement('div'); pipRow.style.cssText = 'display:flex;gap:6px';
+  pips.appendChild(pipLbl); pips.appendChild(pipRow); hud.appendChild(pips);
+  let pipKey = '';
+  function updPips() {
+    const k = idx + ':' + SECTORS; if (k === pipKey) return; pipKey = k;
+    pipLbl.textContent = 'SECTOR ' + (idx + 1) + ' / ' + SECTORS; pipRow.textContent = '';
+    for (let i = 0; i < SECTORS; i++) { const d = document.createElement('span'); d.style.cssText = 'width:12px;height:12px;border-radius:50%;box-sizing:border-box;border:1.5px solid ' + (i < idx ? '#3fb8a8;background:#3fb8a8' : i === idx ? '#c9a24a;background:#c9a24a' : 'rgba(201,162,74,.35)'); pipRow.appendChild(d); }
+  }
+  updPips();
+  const bNext = mkBtn('Next sector', 'position:fixed;right:22px;bottom:22px;width:150px;height:56px;display:none;z-index:40;background:#3fb8a8;color:#0a1214;border-color:#3fb8a8;font-size:18px', onNext, document.body);
   bNext.style.position = 'fixed'; bNext.style.pointerEvents = 'auto';
   ac('mute', muted);
 
-  function setWarp(on) { warpOn = on; bWarp.textContent = 'Warp x' + (on ? 3 : 1); }
-  function pressOk(b, e) { return now() - phaseT >= RESULT_LOCK && ((e && e.detail === 0) || b._d >= phaseT + RESULT_LOCK); }
+  function setWarp(on) { warpOn = !!on && !!UI.settings.warp; bWarp.textContent = 'x' + (warpOn ? 3 : 1); }
+  function applyWarpVis() { bWarp.style.display = UI.settings.warp ? 'block' : 'none'; if (!UI.settings.warp) setWarp(false); }
+  applyWarpVis();
+  function openPause() { if (UI.open() || !sector || !st || (phase !== 'run' && phase !== 'intro')) return; releaseAll(); UI.show('pause'); }
+  function pressOk(b, e) {
+    b = b || {}; return now() - phaseT >= RESULT_LOCK && ((e && e.detail === 0) || b._d >= phaseT + RESULT_LOCK); }
 
   // ---- view ----
   const ctx = canvas.getContext('2d');
@@ -79,7 +145,7 @@
     }, 40);
   }
   function loadSector(i) {
-    idx = i; sector = null; st = null; phase = 'plot'; phaseT = now(); msg = null; ghostLine = null; pred = null; ghostSt = null; setWarp(false); warpEff = 1;
+    UI.sectorHide(); idx = i; sector = null; st = null; phase = 'plot'; phaseT = now(); msg = null; ghostLine = null; pred = null; ghostSt = null; setWarp(false); warpEff = 1;
     plotMsg = 'Plotting course...'; attemptNo = 0;
     const tok = ++genToken;
     prepare(i, function (sec) {
@@ -93,12 +159,16 @@
     st = S.newState(sector, fuelStart); acc = 0; events = []; lastB = 0; lastT = 100; burnStart = null; ghostLine = null;
     stranded = false; thr = 1; msg = null; pointers.clear(); tapPending = false; predN = -1;
     let b = null; try { b = BW.report && BW.report.loadBest ? BW.report.loadBest(seed, idx) : null; } catch (e) {}
-    bestRec = b && b.events ? b : null;
+    bestRec = b && b.events && ghostOn(idx) ? b : null;
     ghostSt = bestRec ? S.newState(sector, typeof bestRec.fuelStart === 'number' ? bestRec.fuelStart : fuelStart) : null; ghostInp = bestRec ? S.inputFromEvents(bestRec.events) : null;
+    UI.sectorHide(); if (intro && autoLaunch) { intro = false; autoLaunch = false; }
     phase = intro ? 'intro' : 'run'; phaseT = now();
     pred = S.predict(st, sector, { seconds: 3 });
+    fxReset(); lowFuelDone = false;
+    if (!intro) for (let i = 0; i < 14; i++) { const a = fxRng() * 6.2832; fxSpawn('dust', st.x + Math.cos(a) * 12, st.y + Math.sin(a) * 12, Math.cos(a) * 28, Math.sin(a) * 28, 0.5 + fxRng() * 0.3, 1.5 + fxRng()); }
   }
-  function newRun() { attempts = []; inputLog = []; leftover = 0; genToken++; loadSector(0); }
+  function ghostOn(i) { return lsGet('bw:ghost2:' + seed + ':' + i) !== '0'; }
+  function newRun() { UI.sectorHide(); attempts = []; inputLog = []; leftover = 0; genToken++; loadSector(0); }
   function retry() {
     if (phase === 'end') { if (now() - phaseT < RESULT_LOCK) return; return newRun(); }
     if (!sector) { loadSector(idx); return; }
@@ -106,11 +176,13 @@
     resetAttempt(false);
   }
   function launch() { if (phase === 'intro') { phase = 'run'; phaseT = now(); } }
+  function titleLaunch() { if (phase === 'intro') launch(); else if (phase === 'plot') autoLaunch = true; }
+  function quitToTitle() { releaseAll(); autoLaunch = false; newRun(); UI.show('title'); }
   function onNext(b, e) {
     if (!pressOk(b, e)) return;
     ac('tick');
     if (phase === 'docked') { if (idx + 1 >= SECTORS) finishRun(); else loadSector(idx + 1); }
-    else if (phase === 'end') newRun();
+    else if (phase === 'end') { UI.closeAll(); newRun(); }
   }
   function logAttempt(result) {
     attemptNo++;
@@ -128,39 +200,48 @@
     if (docked < SECTORS) return 'none';
     const e = efficiency(); return e >= 0.75 ? 'Gold' : e >= 0.55 ? 'Silver' : 'Bronze';
   }
-  function finishRun() { phase = 'end'; phaseT = now(); pointers.clear(); msg = 'Run complete: ' + medal() + ' | efficiency ' + Math.round(efficiency() * 100) + '%'; }
+  function finishRun() { UI.sectorHide(); phase = 'end'; phaseT = now(); pointers.clear(); msg = 'Run complete: ' + medal() + ' | efficiency ' + Math.round(efficiency() * 100) + '%';
+    const m = medal(), lvl = m === 'Gold' ? 3 : m === 'Silver' ? 2 : m === 'Bronze' ? 1 : 0; if (lvl) ac('medal', lvl); UI.show('runend'); }
   function endAttempt(result) {
     if (phase !== 'run') return;
     logAttempt(result); pointers.clear(); setBurn(false);
     phaseT = now();
     if (result === 'docked') {
       phase = 'docked'; leftover = st.fuel; ac('dock');
+      fx.flash = 1; fxBurst('dock', sector.gate.x, sector.gate.y, 36, 90, 0.8, 2); fxBurst('spark', sector.gate.x, sector.gate.y, 20, 140, 0.5, 1.4); vib(12);
       msg = 'Docked | fuel used ' + st.fuelUsed.toFixed(1) + ' / par ' + (sector.par ? sector.par.fuel : 0).toFixed(1);
+      let isBest = false;
       try {
         const old = BW.report && BW.report.loadBest ? BW.report.loadBest(seed, idx) : null;
-        if (BW.report && BW.report.saveBest && (!old || st.fuelUsed < old.fuel)) BW.report.saveBest(seed, idx, st.fuelUsed, events.slice(), fuelStart);
+        if (BW.report && BW.report.saveBest && (!old || st.fuelUsed < old.fuel)) { BW.report.saveBest(seed, idx, st.fuelUsed, events.slice(), fuelStart); isBest = true; lsSet('bw:par2:' + seed + ':' + idx, String(sector.par ? sector.par.fuel : 0)); }
       } catch (e) {}
+      const parF = sector.par ? sector.par.fuel : 0;
+      UI.sector('docked', { used: st.fuelUsed, par: parF, eff: st.fuelUsed > 0 ? parF / st.fuelUsed : 0, best: isBest });
       if (idx + 1 < SECTORS) setTimeout(function () { prepare(idx + 1, function () {}); }, 300);
     } else {
       phase = 'failed'; ac('crash');
+      if (!reduced) { crashAmp = 6; fxBurst('crash', st.x, st.y, 40, 110, 0.9, 2.2); vib(30); }
       msg = ({ crashed: 'Crashed', lost: 'Lost in space', stranded: 'Stranded: out of fuel', timeout: 'Out of time' }[result] || 'Failed');
+      const FT = { crashed: ['CRASHED', 'Hit a body at speed.'], lost: ['LOST', 'Drifted past the chart edge.'], stranded: ['STRANDED', 'Fuel empty before the gate.'], timeout: ['OUT OF TIME', 'The 90 s window closed.'] }[result] || ['FAILED', 'Mission failed.'];
+      UI.sector('failed', { title: FT[0], text: FT[1], place: 'bottom' });
     }
   }
 
   // ---- input ----
   function curInput() {
-    let b = pointers.size > 0 || tapPending, t = 1;
-    if (pointers.size > 0) { let first = null; pointers.forEach(p => { if (!first) first = p; }); const dy = Math.abs(first.y - first.y0); t = Math.max(0.25, Math.min(1, 1 - Math.max(0, dy - 12) / 120)); }
+    let b = pointers.size > 0 || tapPending || now() < tapUntil, t = 1; /* tap-to-burn: min ~90 ms feel */
+    if (pointers.size > 0 && UI.settings.drag) { let first = null; pointers.forEach(p => { if (!first) first = p; }); const dy = Math.abs(first.y - first.y0); t = Math.max(0.25, Math.min(1, 1 - Math.max(0, dy - 12) / 120)); }
     return { burn: b, throttle: t };
   }
   function onDown(e) {
     ac('init');
+    if (UI.blocking() || UI.is('runend')) return;
     if (e.target && e.target.closest && e.target.closest('[data-bw]')) return;
     e.preventDefault && e.preventDefault();
     if (phase === 'intro') { launch(); return; }
     else if (phase === 'failed') { if (now() - phaseT >= RESULT_LOCK) retry(); return; }
     else if (phase !== 'run') return;
-    tapPending = true;
+    tapPending = true; tapUntil = now() + 90;
     pointers.set(e.pointerId, { y: e.clientY, y0: e.clientY });
     try { canvas.setPointerCapture && canvas.setPointerCapture(e.pointerId); } catch (x) {}
   }
@@ -172,8 +253,8 @@
   window.addEventListener('keydown', () => ac('init'), true);
   window.addEventListener('pointerdown', () => ac('init'), true);
   window.addEventListener('contextmenu', e => e.preventDefault());
-  function releaseAll() { pointers.clear(); tapPending = false; acc = 0; last = 0; }
-  document.addEventListener('visibilitychange', () => { releaseAll(); if (document.hidden) ac('suspend'); else ac('resume'); });
+  function releaseAll() { pointers.clear(); tapPending = false; tapUntil = 0; acc = 0; last = 0; }
+  document.addEventListener('visibilitychange', () => { releaseAll(); if (document.hidden) { ac('suspend'); if (!navigator.webdriver) openPause(); } else ac('resume'); });
   window.addEventListener('blur', releaseAll);
 
   // ---- simulation ----
@@ -189,6 +270,8 @@
     thr = tp / 100;
     const status = S.step(st, sector, { burn: !!b, throttle: tp / 100 });
     physicsSteps++; tapPending = false;
+    if (!lowFuelDone && st.fuel < 0.2 * fuelStart) { lowFuelDone = true; ac('low_fuel'); }
+    if (!reduced && st.n % 3 === 0) { fx.trail.push({ x: st.x, y: st.y, a: 1 }); if (fx.trail.length > TRAIL_MAX) fx.trail.shift(); for (let i = 0; i < fx.trail.length; i++) fx.trail[i].a = (i + 1) / fx.trail.length; }
     if (ghostSt && ghostSt.status === 'flying') S.step(ghostSt, sector, ghostInp(ghostSt.n));
     if (status !== 'flying') return endAttempt(status);
     if (st.n * C.DT > 90) return endAttempt('timeout');
@@ -205,6 +288,12 @@
     return false;
   }
 
+  function nearness() {
+    const t = st.n * C.DT; let m = 1e9;
+    for (const b of sector.bodies) { if (b.dark) continue; m = Math.min(m, Math.hypot(st.x - S.bodyX(b, t), st.y - S.bodyY(b, t)) - b.r); }
+    return Math.max(0, Math.min(1, (110 - m) / 65));
+  }
+
   // ---- report ----
   function fpsStats() {
     if (!fpsBuf.length) return { avg: 0, p95ms: 0, gaps50: 0 };
@@ -215,14 +304,15 @@
     const info = {
       seed: seed, device: { w: V.w, h: V.h, dpr: V.dpr, ua: navigator.userAgent, reducedMotion: reduced }, fps: fpsStats(),
       determinism: det, attempts: attempts, inputLog: inputLog, ticks: { physicsSteps: physicsSteps, elapsedMs: Math.round(now() - bootT) },
-      energyDrift: energyDrift, settings: { muted: muted, warp: warpOn, sectors: SECTORS, medal: medal(), efficiency: +efficiency().toFixed(3) }
+      energyDrift: energyDrift, settings: { muted: muted, reducedOverride: !!UI.settings.reduced, haptics: !!UI.settings.haptics, drag: !!UI.settings.drag, warpButton: !!UI.settings.warp, warp: warpOn, sectors: SECTORS, medal: medal(), efficiency: +efficiency().toFixed(3) }
     };
     try { if (BW.report && BW.report.build) return BW.report.build(info); } catch (e) {}
     return Object.assign({ game: 'burn-window', version: 1, renderer: 'Canvas2D' }, info);
   }
   function copyReport(b) {
     const text = JSON.stringify(buildReport(), null, 1); window.__bwReportText = text;
-    const done = ok => { b.textContent = ok ? 'Copied' : 'Copy failed'; setTimeout(() => { b.textContent = 'Copy report'; }, 1600); };
+    const old = b.textContent;
+    const done = ok => { b.textContent = ok ? 'Copied' : 'Copy failed'; setTimeout(() => { b.textContent = old; }, 1600); };
     try { if (BW.report && BW.report.copy) return BW.report.copy(text).then(done, () => done(false)); } catch (e) {}
     done(false);
   }
@@ -230,12 +320,13 @@
   // ---- frame ----
   function frame(ts) {
     requestAnimationFrame(frame);
-    if (document.hidden) { acc = 0; last = 0; return; }
+    if (document.hidden) { acc = 0; last = ts; pointers.clear(); tapPending = false; tapUntil = 0; return; }
     if (!last) last = ts;
     const ms = ts - last; last = ts;
     if (ms > 0 && ms < 1000) { fpsBuf.push(ms); if (fpsBuf.length > 4000) fpsBuf.shift(); }
     const dt = Math.min(ms / 1000, 0.1);
     frameN++;
+    if (UI.blocking()) { acc = 0; draw(); return; }
     if (sector && st && phase === 'run') {
       if (warpOn && nearBody()) setWarp(false);
       warpEff = warpOn ? 3 : 1;
@@ -247,15 +338,19 @@
         stepOnce(); acc -= C.DT; n++;
       }
       if (acc > C.DT * 2) acc = 0;
-      if (phase === 'run') ac('hum', Math.hypot(st.vx, st.vy));
+      if (phase === 'run') ac('hum', Math.hypot(st.vx, st.vy), nearness());
     }
     if (sector && st && (phase === 'run' || phase === 'intro') && frameN % 3 === 0 && st.n !== predN) { predN = st.n; pred = S.predict(st, sector, { seconds: 3 }); }
     // DOM
     const showNext = phase === 'docked' || phase === 'end', ready = now() - phaseT >= RESULT_LOCK;
-    const nd = showNext ? 'block' : 'none', no = ready ? '1' : '0.45', nt = phase === 'end' ? 'New run' : (idx + 1 >= SECTORS ? 'Finish' : 'Next');
+    updPips();
+    if (phase === 'end') { bNext.style.left = '12px'; bNext.style.right = '12px'; bNext.style.width = 'auto'; bNext.style.bottom = '78px'; }
+    else { bNext.style.left = 'auto'; bNext.style.right = '22px'; bNext.style.width = '150px'; bNext.style.bottom = '22px'; }
+    const nd = showNext ? 'block' : 'none', no = '1', nt = phase === 'end' ? 'New run' : (idx + 1 >= SECTORS ? 'Finish' : 'Next sector');
     if (nd !== nextShown) { nextShown = nd; bNext.style.display = nd; }
     if (no !== nextOp) { nextOp = no; bNext.style.opacity = no; }
     if (nt !== nextTxt) { nextTxt = nt; bNext.textContent = nt; }
+    fxUpdate(dt);
     draw();
   }
   function draw() {
@@ -266,20 +361,27 @@
       ctx.fillText(plotMsg, V.w / 2, V.h / 2); return;
     }
     const G = {
-      sector: sector, st: st, t: st.n * C.DT, pred: pred, ghostLine: ghostLine, ghost: ghostSt, phase: phase, warp: phase === 'run' ? warpEff : 1,
-      throttle: thr, fuelMax: fuelStart, parFuel: sector.par ? sector.par.fuel : 0, msg: msg, reduced: reduced, sectorIndex: idx, sectorCount: SECTORS
+      sector: sector, st: st, t: st.n * C.DT, pred: pred, ghostLine: ghostLine, ghost: ghostSt, phase: (phase === 'docked' || phase === 'failed' || phase === 'end') ? 'ui_' + phase : phase, warp: phase === 'run' ? warpEff : 1,
+      throttle: thr, fuelMax: fuelStart, parFuel: sector.par ? sector.par.fuel : 0, msg: msg, reduced: reduced, sectorIndex: idx, sectorCount: SECTORS, fx: fx
     };
-    try { ctx.clearRect(0, 0, V.w, V.h); if (BW.render && BW.render.draw) BW.render.draw(ctx, V, G); }
+    ctx.save();
+    try {
+      ctx.clearRect(0, 0, V.w, V.h);
+      if (!reduced && (fx.shake.x || fx.shake.y)) ctx.translate(fx.shake.x, fx.shake.y);
+      if (BW.render && BW.render.draw) BW.render.draw(ctx, V, G);
+    }
     catch (e) { if (drawErrs++ < 3 && window.console) console.error(e); }
+    try { for (let i = 0; i < 40; i++) ctx.restore(); } catch (e) {}
+    ctx.setTransform(V.dpr, 0, 0, V.dpr, 0, 0);
   }
 
   // ---- hooks + boot ----
   window.__bw = {
     get state() { return st; }, get sector() { return sector; }, get phase() { return phase; },
-    report: buildReport, launch: launch,
+    report: buildReport, retry: function () { retry(); }, launch: function () { UI.closeAll(); launch(); },
     setSeed: function (n) { seed = n | 0; newRun(); },
     hold: function (on, t) { if (on) pointers.set('test', { y: 0, y0: t == null ? 0 : (1 - t) * 120 + 12 }); else pointers.delete('test'); },
-    get events() { return events; },
+    get events() { return events; }, get fx() { return fx; },
     skipTo: function (n) { n = Math.max(0, Math.min(SECTORS - 1, n | 0)); genToken++; loadSector(n); },
     finish: function () {
       genToken++; if (!sector) sector = { par: { fuel: 8 }, bodies: [], gate: { x: 170, y: 60 } };
@@ -289,8 +391,34 @@
       finishRun();
     }
   };
+  // ---- UI host wiring ----
+  const H = UI.host;
+  H.seed = () => seed; H.daily = dailySeed; H.isDaily = () => !hasSeedParam();
+  H.launch = titleLaunch; H.quit = quitToTitle; H.tick = () => ac('tick');
+  H.retry = (b, e) => { ac('tick'); retry(); }; H.pressOk = pressOk;
+  H.copy = copyReport;
+  H.getMuted = () => muted;
+  H.setMuted = m => { muted = !!m; lsSet('bw_mute', muted ? '1' : '0'); ac('mute', muted); };
+  H.getWarp = () => warpOn; H.setWarp = on => { setWarp(on); };
+  H.status = () => ({ sector: idx + 1, count: SECTORS, fuel: st ? Math.max(0, st.fuel) : 0, par: sector && sector.par ? sector.par.fuel : 0 });
+  H.runSummary = () => {
+    const best = {}; for (const a of attempts) if (a.result === 'docked' && (!best[a.sector] || a.fuelUsed < best[a.sector].fuelUsed)) best[a.sector] = a;
+    const rows = []; for (let i = 0; i < SECTORS; i++) rows.push(best[i] ? { used: best[i].fuelUsed, par: best[i].par || 0 } : { used: null, par: 0 });
+    return { medal: medal() === 'none' ? 'Bronze' : medal(), eff: efficiency(), seed: seed, rows: rows };
+  };
+  H.bestList = () => { const out = []; for (let i = 0; i < SECTORS; i++) { let b = null; try { b = BW.report.loadBest(seed, i); } catch (e) {} const p = parseFloat(lsGet('bw:par2:' + seed + ':' + i)); const c = cache[seed + ':' + i]; out.push({ i: i, fuel: b ? b.fuel : null, par: isFinite(p) ? p : (c && c.par ? c.par.fuel : null) }); } return out; };
+  H.ghostOn = ghostOn;
+  H.setGhost = (i, on) => { lsSet('bw:ghost2:' + seed + ':' + i, on ? '1' : '0'); };
+  H.eraseSaves = () => { try { const del = []; for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (k && /^bw:(best|ghost|par)2?:/.test(k)) del.push(k); } del.forEach(k => localStorage.removeItem(k)); } catch (e) {} bestRec = null; ghostSt = null; ghostInp = null; };
+  H.onSettings = (k, v) => {
+    if (k === 'reduced') { reduced = sysReduced || !!v; if (reduced) fxReset(); }
+    if (k === 'warp') applyWarpVis();
+  };
+  H.onUi = () => { if (UI.blocking()) { releaseAll(); } };
+  window.__bwSkipTitle = skipTitle;
   resize();
   try { if (BW.report && BW.report.selfCheck) { const r = BW.report.selfCheck(); det = { ok: !!r.ok, checksum: r.checksum }; energyDrift = r.energyDrift; } } catch (e) {}
   newRun();
+  if (!skipTitle()) UI.show('title');
   requestAnimationFrame(frame);
 })();
