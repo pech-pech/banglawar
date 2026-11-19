@@ -6860,7 +6860,7 @@ const PL = (globalThis.PL = globalThis.PL || {});
           for (let i = 0; i < 8; i++) gv.addColorStop((i + 0.5) / 8, E ? E.right[i] : U.C.night);
           c.fillStyle = gv; c.fillRect(x1 - 0.5, r.y, ex - x1 + 0.5, r.h);
           const g4 = c.createLinearGradient(x1, 0, ex, 0); g4.addColorStop(0, U.alpha(U.C.night, 0)); g4.addColorStop(1, U.alpha(U.C.night, 1)); c.fillStyle = g4; c.fillRect(x1 - 0.5, r.y, ex - x1 + 0.5, r.h);
-          c.fillStyle = gv; c.save(); const sl = 20; for (let i = 0; i < sl; i++) { c.globalAlpha = (i + 1) / sl; c.fillRect(x1 - sw + i * sw / sl, r.y, sw / sl + 0.5, r.h); } c.restore(); // seam fade over the art
+          c.fillStyle = gv; c.save(); const sl = 40; for (let i = 0; i < sl; i++) { c.globalAlpha = (i + 1) / sl; c.fillRect(x1 - sw + i * 2, r.y, 2, r.h); } /* exact 2 px slices: no overlap, so no hairlines */ c.restore(); // seam fade over the art
         }
         c.restore(); return;
       }
