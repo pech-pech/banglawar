@@ -7,6 +7,7 @@ const PL = (globalThis.PL = globalThis.PL || {});
   const R = (x, y, w, h) => ({ x, y, w, h });
   const mir = (r, w) => R(w - r.x - r.w, r.y, r.w, r.h);
   const cls = (w, h) => (w > h * 1.15 ? 'C' : w < 400 ? 'B' : 'A');
+  const HINT_H = 28; // strip under a scrolling list that holds the scroll chevron
   const cardW = (w) => (w < 400 ? 300 : 340);
 
   // ---- pad: boxes from review-ux s2 (A 291-471 x 310-490, B 82-262 x 650-830, C 606-786 x 330-510). SWAP POINT. ----
@@ -91,10 +92,13 @@ const PL = (globalThis.PL = globalThis.PL || {});
     def('tutorial', tr, PLAY_TARGETS, PLAY_CONT, PLAY_OVER);
     { const o = Object.assign({}, pr); const tw = 200; o.tag = R(Math.round(pr.room.x + (pr.room.w - tw) / 2), pr.room.y + 120, tw, 36);
       def('death', o, PLAY_TARGETS, PLAY_CONT, PLAY_OVER.concat('tag')); }
-    { const o = Object.assign({}, pr), rm = pr.room, cw = Math.min(rm.w - 24, 260), c = R(Math.round(rm.x + (rm.w - cw) / 2), Math.round(rm.y + (rm.h - 222) / 2), cw, 222);
-      o.clearCard = c; o.clearHead = R(c.x + 16, c.y + 16, cw - 32, 32); o.clearTime = R(c.x + 16, c.y + 54, cw - 32, 26); o.clearBest = R(c.x + 16, c.y + 82, cw - 32, 26);
-      o.clearNew = R(c.x + 16, c.y + 110, cw - 32, 26); o.clearNext = R(c.x + 16, c.y + 222 - 16 - 56, cw - 32, 56);
-      def('roomClear', o, PLAY_TARGETS.concat('clearNext'), PLAY_CONT.concat('clearCard'), PLAY_OVER); }
+    { // room clear: card centred in the viewport like pause / shaft complete (not on the room column). The pad and HUD are hidden under it, so only the card is laid out.
+      // opts.clearRows {best, isNew}: the Best row is left out when there is no best, and the card closes up. Default = both rows (tallest card).
+      const cr = opts.clearRows || { best: true, isNew: true }, extra = (cr.best ? 1 : 0) + (cr.isNew ? 1 : 0), ch = 82 + 28 * extra + 12 + 56 + 16, cw = Math.min(w - 24, 260), c = centred(w, h, cw, ch), o = { room: pr.room };
+      o.clearCard = c; o.clearHead = R(c.x + 16, c.y + 16, cw - 32, 32); o.clearTime = R(c.x + 16, c.y + 54, cw - 32, 26);
+      let ry = c.y + 82; if (cr.best) { o.clearBest = R(c.x + 16, ry, cw - 32, 26); ry += 28; } if (cr.isNew) { o.clearNew = R(c.x + 16, ry, cw - 32, 26); }
+      o.clearNext = R(c.x + 16, c.y + ch - 16 - 56, cw - 32, 56);
+      def('roomClear', o, ['clearNext'], ['room', 'clearCard']); }
 
     def('menu', { art: mg.art, title: mg.title, play: mg.play, practice: mg.practice, settings: mg.settings }, ['play', 'practice', 'settings'], ['art']);
 
@@ -119,7 +123,7 @@ const PL = (globalThis.PL = globalThis.PL || {});
 
     // settings / tweak: header + scrolling rows
     const rowsScreen = (name, ids, hdr) => {
-      const rw = Math.min(w - 16, 400), x = Math.round((w - rw) / 2), ly = 72, lb = h - (k === 'C' ? 8 : home), sc = opts.scroll || 0;
+      const rw = Math.min(w - 16, 400), x = Math.round((w - rw) / 2), ly = 72, lb = h - (k === 'C' ? 8 : home) - HINT_H, sc = opts.scroll || 0;
       const r = { back: R(8, 8, hdr.backW, 56), title: R(8 + hdr.backW + 8, 8, w - 16 - (hdr.backW + 8) * 2 - (hdr.badge ? 0 : 0), 56), list: R(0, ly, w, lb - ly) };
       if (hdr.badge) { r.title = R(8 + hdr.backW + 8, 8, w - 16 - hdr.backW - 8 - 64, 56); r.dev = R(w - 64, 24, 56, 24); }
       const vis = []; ids.forEach((id, i) => { const rr = R(x, ly + i * 66 - sc, rw, 60); if (rr.y >= ly && rr.y + 60 <= lb) { r[id] = rr; vis.push(id); } });
@@ -196,6 +200,12 @@ const PL = (globalThis.PL = globalThis.PL || {});
     U.motes(ctx, R(a.x, tb, a.w, Math.max(40, mg.starBottom - tb)), t, { reduced: vm.reduced });
   }
 
+  // scroll hint for settings / tweak: fade + chevron in the strip under the list (down while more rows are below, up at the end)
+  function scrollHere(ctx, sc0, n, sc) {
+    const list = sc0.rects.list, strip = R(list.x, list.y + list.h, list.w, HINT_H), max = Math.max(0, n * 66 - list.h + 8);
+    U.scrollHint(ctx, list, strip, { more: sc < max - 4, less: max > 0 && sc >= max - 4 });
+  }
+
   const draw = {
     firstOpen(ctx, w, h, vm, t) {
       const L = layout(w, h, false).firstOpen, r = L.rects, k = cls(w, h), mg = menuGeo(w, h, k, k === 'C' ? 8 : 32);
@@ -215,13 +225,13 @@ const PL = (globalThis.PL = globalThis.PL || {});
       U.causeTag(ctx, R(x - tw / 2, y - 18, tw, 36), { kind: c.kind || 'spikes', text: c.text || S.death.spikes, age: c.age == null ? 400 : c.age, iconOnly: c.iconOnly }, t);
     },
     roomClear(ctx, w, h, vm, t) {
-      const L = layout(w, h, vm.leftHand, { roomRect: vm.roomRect }).roomClear, r = L.rects; backdropRoom(ctx, vm, L); if (!vm.noHud) drawHud(ctx, L, vm, t, w);
+      const hasBest = vm.best != null && vm.best !== '-' && vm.best !== '', L = layout(w, h, vm.leftHand, { roomRect: vm.roomRect, clearRows: { best: hasBest, isNew: !!vm.isNewBest } }).roomClear, r = L.rects; backdropRoom(ctx, vm, L);
       U.card(ctx, r.clearCard, { anim: 1 }, t);
       const sca = sc(vm), f = U.font('body', w, sca), cx0 = r.clearCard.x + r.clearCard.w / 2;
       U.text(ctx, S.clear.title, cx0, r.clearHead.y + 16, { font: U.font('h2', w), color: C.brass, align: 'center', maxW: r.clearHead.w });
       U.text(ctx, S.clear.time + ' ' + (vm.time || '0:12'), cx0, r.clearTime.y + 13, { font: f, color: C.cream, align: 'center', maxW: r.clearTime.w });
-      U.text(ctx, S.clear.best + ' ' + (vm.best || '0:14'), cx0, r.clearBest.y + 13, { font: f, color: C.muted, align: 'center', maxW: r.clearBest.w });
-      if (vm.isNewBest) U.text(ctx, S.clear.newBest, cx0, r.clearNew.y + 13, { font: U.font('body', w, sca), color: C.teal, align: 'center', maxW: r.clearNew.w });
+      if (r.clearBest) U.text(ctx, S.clear.best + ' ' + vm.best, cx0, r.clearBest.y + 13, { font: f, color: C.muted, align: 'center', maxW: r.clearBest.w });
+      if (r.clearNew) U.text(ctx, S.clear.newBest, cx0, r.clearNew.y + 13, { font: U.font('body', w, sca), color: C.teal, align: 'center', maxW: r.clearNew.w });
       U.button(ctx, r.clearNext, { label: S.clear.next, kind: 'primary', vw: w, scale: sca, pressed: press(vm, 'clearNext') }, t);
     },
     menu(ctx, w, h, vm, t) {
@@ -249,7 +259,7 @@ const PL = (globalThis.PL = globalThis.PL || {});
       U.button(ctx, r.play, { label: S.pick.play, kind: 'primary', vw: w, pressed: press(vm, 'play') }, t);
     },
     pause(ctx, w, h, vm, t) {
-      const Ls = layout(w, h, vm.leftHand); U.scrim(ctx, w, h, 0.7);
+      const Ls = layout(w, h, vm.leftHand); // scrim: drawn once by the caller (ui.js renderPlay) with U.overlayScrim
       if (vm.confirm) return draw.confirm(ctx, w, h, { text: S.pause.confirm, no: S.pause.stay, yes: S.pause.leaveYes, danger: false, pressed: vm.pressed, textScale: vm.textScale }, t);
       const r = Ls.pause.rects, sca = sc(vm);
       U.card(ctx, r.card, { anim: vm.anim }, t);
@@ -265,7 +275,7 @@ const PL = (globalThis.PL = globalThis.PL || {});
       U.button(ctx, r.leave, { label: vm.yes, kind: vm.danger ? 'danger' : 'plain', vw: w, scale: sca, pressed: press(vm, 'leave') }, t);
     },
     shaftComplete(ctx, w, h, vm, t) {
-      const r = layout(w, h, false).shaftComplete.rects, sca = sc(vm); U.scrim(ctx, w, h, 0.5);
+      const r = layout(w, h, false).shaftComplete.rects, sca = sc(vm); // scrim: drawn once by the caller (ui.js renderPlay)
       const age = vm.age == null ? 99 : vm.age, clamp01 = (x) => Math.max(0, Math.min(1, x));
       U.card(ctx, r.card, {}, t);
       // medal reveal: scale pop (overshoot), two sparkle rings, total counts up from 0
@@ -291,7 +301,7 @@ const PL = (globalThis.PL = globalThis.PL || {});
     },
     settings(ctx, w, h, vm, t) {
       const Ls = layout(w, h, false, { scroll: vm.scroll }), r = Ls.settings.rects, sca = sc(vm), st = S.settings, v = vm.values || {};
-      U.scrim(ctx, w, h, 0.85);
+      if (!vm.scrimmed) U.overlayScrim(ctx, w, h);
       U.button(ctx, r.back, { label: st.back, vw: w, scale: sca, pressed: press(vm, 'back') }, t);
       U.text(ctx, st.title, r.title.x + r.title.w / 2, r.title.y + 28, { font: U.font('h2', w), color: C.cream, align: 'center', maxW: r.title.w });
       const rows = [['music', st.music, 'slider'], ['sounds', st.sounds, 'slider'], ['mute', st.mute, 'toggle'], ['vibration', st.vibration, 'toggle'], ['hand', st.hand(!!v.left), 'seg'],
@@ -310,6 +320,7 @@ const PL = (globalThis.PL = globalThis.PL || {});
         } else if (id === 'reset') U.chevron(ctx, row.x + row.w - 28, row.y + 30, 16, 'right', C.muted);
         else U.chevron(ctx, row.x + row.w - 28, row.y + 30, 16, 'right', C.muted);
       }
+      scrollHere(ctx, Ls.settings, rows.length, vm.scroll || 0);
     },
     tweak(ctx, w, h, vm, t) {
       const Ls = layout(w, h, false, { tweakRows: (vm.rows || []).length || 6, scroll: vm.scroll }), r = Ls.tweak.rects, sca = sc(vm);
@@ -337,6 +348,7 @@ const PL = (globalThis.PL = globalThis.PL || {});
         } else U.text(ctx, row.label + '  ' + row.valueText, p.label.x, rr.y + 30, { font: U.font('body', w, sca), color: row.dirty ? C.teal : C.cream, maxW: p.label.w });
         U.slider(ctx, p.control, { value: row.value, drag: vm.drag === 't' + i }, t);
       });
+      scrollHere(ctx, Ls.tweak, (vm.rows || []).length || 6, vm.scroll || 0);
     }
   };
 

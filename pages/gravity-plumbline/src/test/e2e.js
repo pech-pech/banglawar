@@ -297,7 +297,7 @@ async function extras(browser, port) {
   ok(await h.screen() === 'menu', 'tapping the Display problem chip returns to the menu');
   await h.context.close();
   // V13 overlays: no pad / HUD pills through the scrim, pad hit-testing off; V15 wipe + juice
-  for (const [W, H] of [[475, 638], [344, 882]]) {
+  for (const [W, H] of [[475, 638], [344, 882], [816, 568]]) {
     const tg = `overlay ${W}x${H}`;
     h = await open(browser, port, W, H);
     await h.ev(() => PL_TEST.startMode('short', 7)); await h.ev(() => PL.Vfx.setQuality('full')); await sleep(700); await h.frame(); await h.txt(); await h.frame();
@@ -307,9 +307,34 @@ async function extras(browser, port) {
     // pad press: ripple spawns, then flip spends a move -> pip spark
     await h.ev((k) => { PL.Input.down(k.x + k.w / 2, k.y + k.h / 2, 5); PL.Input.up && PL.Input.up(5); }, key);
     const J1 = await h.ev(() => PL_TEST.juice()); ok(J1 > J0, `${tg}: pad key press spawns a ripple`);
-    await h.ev(() => PL_TEST.tick(3)); ok(await h.ev(() => PL_TEST.juice()) > J1, `${tg}: spending a move sparks at the pip`);
+    { const r = await h.ev(() => { const c0 = PL_TEST.getState().charges; let n = 0; const J2 = PL_TEST.juice(); while (PL_TEST.getState().charges >= c0 && n++ < 80) { if (n % 6 === 1) PL_TEST.inject([{ k: 'flip', dir: (PL_TEST.getState().g + 1) % 4 }]); PL_TEST.tick(1); } return { spent: PL_TEST.getState().charges < c0, up: PL_TEST.juice() > J2 }; }); // first flip leaves the floor free; a later one in the air spends a move
+      ok(r.spent && r.up, `${tg}: spending a move sparks at the pip`); }
+    // pip pop: gaining a move sets vm.pop to 0.001, then it runs to 1 and back to 0 (0.22 s)
+    { await h.ev(() => PL_TEST.room(1)); const r = await h.ev(() => { const c0 = PL_TEST.getState().charges; PL_TEST.inject([{ k: 'flip', dir: (PL_TEST.getState().g + 1) % 4 }]); PL_TEST.tick(4); PL_TEST.inject([{ k: 'flip', dir: (PL_TEST.getState().g + 1) % 4 }]); let n = 0; while (PL_TEST.getState().charges >= c0 && n++ < 60) PL_TEST.tick(1); const spent = PL_TEST.getState().charges; while (PL_TEST.getState().charges <= spent && n++ < 900) PL_TEST.tick(1); return { spent, now: PL_TEST.getState().charges, pop: PL_TEST.pipPop(), n }; });
+      ok(r.now > r.spent && Math.abs(r.pop - 0.001) < 1e-9, `${tg}: pip pop starts at 0.001 when a move is refilled (moves ${r.spent} -> ${r.now}, pop ${r.pop}, ${r.n} ticks)`);
+      await sleep(400); ok(await h.ev(() => PL_TEST.pipPop()) === 0, `${tg}: pip pop returns to 0`); }
     // overlays: pause, nudge
-    const noPad = async (label) => {
+    // Shared-scrim pixel check: find the brightest play-field pixel (outside the centred card zone, pad and HUD), then require the same spot to be scrim-dark under every overlay.
+    const findSpot = async () => { await h.frame(); await h.frame(); return h.ev(([W, H]) => {
+      const c = document.querySelector('canvas'), x = c.getContext('2d'), d = c.width / window.innerWidth, L = PL_TEST.layout('play').rects, r = L.room, pb = L.padBox;
+      let best = null; const x0 = Math.round(r.x * d), y0 = Math.round(r.y * d), w = Math.round(r.w * d), h = Math.round(r.h * d), im = x.getImageData(x0, y0, w, h).data;
+      for (let j = 4; j < h - 4; j += 3) for (let i = 4; i < w - 4; i += 3) {
+        const px = (x0 + i) / d, py = (y0 + j) / d; if (Math.abs(px - W / 2) < 190 && Math.abs(py - H / 2) < 200) continue; if (px > pb.x - 4 && px < pb.x + pb.w + 4 && py > pb.y - 4 && py < pb.y + pb.h + 4) continue;
+        const o = (j * w + i) * 4, v = im[o] + im[o + 1] + im[o + 2]; if (!best || v > best.v) best = { v, x: px, y: py };
+      } return best; }, [W, H]); };
+    const spotDark = async (spot, label) => {
+      if (!spot) { ok(false, `${tg}: ${label} found a bright play-field spot to test`); return; }
+      if (label === 'Settings from Pause') { // a settings row (opaque sticker) can sit on the spot: then the scrim cannot be sampled there, skip with a note
+        const cov = await h.ev((s) => { const R = PL_TEST.layout('settings').rects; return Object.keys(R).some((k) => k !== 'list' && k !== 'title' && s.x >= R[k].x && s.x < R[k].x + R[k].w && s.y >= R[k].y && s.y < R[k].y + R[k].h); }, spot);
+        if (cov) { ok(true, `${tg}: ${label} spot sits under an opaque settings row, scrim sample skipped (shared scrim code path, see uikit test)`); return; }
+      }
+      await h.frame(); await h.frame();
+      const m = await h.ev((s) => { const c = document.querySelector('canvas'), x = c.getContext('2d'), d = c.width / window.innerWidth, v = x.getImageData(Math.round(s.x * d) - 3, Math.round(s.y * d) - 3, 7, 7).data; let a = [0, 0, 0]; for (let i = 0; i < v.length; i += 4) for (let k = 0; k < 3; k++) a[k] += v[i + k]; return a.map((q) => Math.round(q / (v.length / 4))); }, spot);
+      ok(spot.v >= 450, `${tg}: ${label} spot (${Math.round(spot.x)},${Math.round(spot.y)}) is bright in play (sum ${spot.v})`);
+      ok(m[0] <= 110 && m[1] <= 110 && m[2] <= 135, `${tg}: ${label} bright play-field spot is scrim-dark under the overlay (rgb ${m}; 85% dusk over a bright pixel is about 66,72,105)`);
+    };
+    const noPad = async (label, spot) => {
+      if (spot !== undefined) await spotDark(spot, label);
       await h.frame(); await h.txt(); await h.frame();
       const t = await h.txt(), before = await h.ev(() => PL_TEST.pops());
       ok(!/Room \d of \d/.test(t), `${tg}: ${label} shows no HUD pill text through the scrim`);
@@ -318,15 +343,21 @@ async function extras(browser, port) {
       const px = await h.ev((k) => { const c = document.querySelector('canvas'), x = c.getContext('2d'), d = window.devicePixelRatio || 1, v = x.getImageData(Math.round((k.x + k.w / 2) * d), Math.round((k.y + k.h / 2) * d), 1, 1).data; return [v[0], v[1], v[2]]; }, key);
       ok(px[0] < 90 && px[1] < 90 && px[2] < 130, `${tg}: ${label} pad area is scrim-dark (rgb ${px})`);
     };
-    await h.tap('pause'); await sleep(80); await noPad('Pause');
-    await h.tap('settings'); await sleep(80); await noPad('Settings from Pause');
+    { const sp0 = await findSpot(); await h.tap('pause'); await sleep(80); await noPad('Pause', sp0);
+    await h.tap('settings'); await sleep(80); await noPad('Settings from Pause', sp0); }
     await h.tap('back'); await h.tap('resume'); await sleep(80);
+    const spN = await findSpot();
     for (let i = 0; i < 5; i++) { await h.ev(() => PL_TEST.kill('spike')); await sleep(450); }
-    await sleep(2300); ok(await h.ev(() => PL_TEST.nudging()), `${tg}: 5-death nudge is open`); await noPad('5-death nudge');
+    await sleep(2300); ok(await h.ev(() => PL_TEST.nudging()), `${tg}: 5-death nudge is open`); await noPad('5-death nudge', spN);
     await h.tap('stay'); await sleep(80);
     // room clear card, then a real star wipe
-    await h.ev(() => { PL_TEST.room(1); PL_TEST.winRoom(); }); await sleep(100);
-    ok(await h.screen() === 'roomClear', `${tg}: room clear open`); await noPad('Room clear');
+    await h.ev(() => { PL_TEST.room(1); }); await sleep(150); const spC = await findSpot();
+    await h.ev(() => { PL_TEST.winRoom(); }); await sleep(100);
+    ok(await h.screen() === 'roomClear', `${tg}: room clear open`); await noPad('Room clear', spC);
+    { const rc = await h.ev(() => PL_TEST.layout('roomClear').rects.clearCard);
+      ok(Math.abs(rc.x + rc.w / 2 - W / 2) <= 1 && Math.abs(rc.y + rc.h / 2 - H / 2) <= 1, `${tg}: room clear card centred on the viewport (${rc.x},${rc.y} ${rc.w}x${rc.h})`);
+      const pc = await h.ev(() => PL_TEST.layout('pause').rects.card);
+      ok(Math.abs(rc.x + rc.w / 2 - (pc.x + pc.w / 2)) <= 1, `${tg}: room clear card x matches the pause card`); }
     const t0 = await h.ev(() => PL_TEST.getRunStats().totalTicks);
     await h.ev(() => { window.__w0 = performance.now(); PL_TEST.advanceWipe(); });
     ok(await h.ev(() => PL_TEST.wiping()), `${tg}: wipe starts and locks input`);
@@ -337,9 +368,10 @@ async function extras(browser, port) {
     ok(t1 === t0 && await h.ev(() => PL_TEST.getState().flips) === 0, `${tg}: run clock paused and pad input dropped during the wipe`);
     ok(await h.ev(() => PL_TEST.screen()) === 'play' && (await h.ev(() => PL_TEST.getRunStats().roomsCleared)) >= 1, `${tg}: wipe lands in the next room`);
     // medal reveal: confetti
-    await h.ev(() => { for (let i = 0; i < 8 && PL_TEST.screen() !== 'shaftComplete'; i++) { PL_TEST.tick(30); PL_TEST.winRoom(); PL_TEST.advance(); } });
+    let spS = null;
+    for (let i = 0; i < 8 && await h.screen() !== 'shaftComplete'; i++) { await h.ev(() => PL_TEST.tick(30)); await h.frame(); spS = await findSpot() || spS; await h.ev(() => { PL_TEST.winRoom(); PL_TEST.advance(); }); }
     ok(await h.screen() === 'shaftComplete' && await h.ev(() => PL_TEST.juice()) >= 8, `${tg}: medal reveal throws confetti`);
-    await noPad('Shaft complete');
+    await noPad('Shaft complete', spS);
     ok(h.errs.length === 0, `${tg}: no console errors ${h.errs.slice(0, 3).join(' | ')}`);
     await h.context.close();
   }

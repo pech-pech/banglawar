@@ -235,6 +235,14 @@ const PL = (globalThis.PL = globalThis.PL || {});
     ctx.restore();
   }
   function scrim(ctx, w, h, a, col) { ctx.save(); ctx.fillStyle = alpha(col || C.night, a); ctx.fillRect(0, 0, w, h); ctx.restore(); }
+  // the one scrim every overlay uses (pause, settings, room clear, shaft complete, 5-death nudge): 85% dusk, drawn once, over the field only
+  const SCRIM_A = 0.85;
+  function overlayScrim(ctx, w, h) { scrim(ctx, w, h, SCRIM_A, C.dusk); }
+  // scroll hint for a clipped list: fade over the bottom of the list + a chevron in the strip r below it. st {more, less}
+  function scrollHint(ctx, list, strip, st) {
+    if (st.more) { ctx.save(); const g = ctx.createLinearGradient(0, list.y + list.h - 30, 0, list.y + list.h); g.addColorStop(0, alpha(C.dusk, 0)); g.addColorStop(1, alpha(C.dusk, 0.92)); ctx.fillStyle = g; ctx.fillRect(list.x, list.y + list.h - 30, list.w, 30); ctx.restore(); }
+    if (st.more || st.less) chevron(ctx, cx(strip), cy(strip) + (st.more ? -3 : 3), 18, st.more ? 'down' : 'up', C.brass);
+  }
 
   // Slider (rect = control zone). st {value 0..1, drag, disabled}
   function slider(ctx, r, st, t) {
@@ -344,7 +352,7 @@ const PL = (globalThis.PL = globalThis.PL || {});
     ctx.restore();
   }
 
-  PL.UI = { T, C, lum, contrast, alpha, size, font, fontPx, text, wrap, rr, starPath, sticker, scrim, easeOutBack, titleArt, sparkRing, motes,
+  PL.UI = { T, C, lum, contrast, alpha, size, font, fontPx, text, wrap, rr, starPath, sticker, scrim, SCRIM_A, overlayScrim, scrollHint, easeOutBack, titleArt, sparkRing, motes,
     button, arrowKey, diveKey, retryKey, pauseKey, pips, hudText, teachSlot, causeTag, card, slider, toggle, tab, medal, toast, devBadge, artChip,
     chevron, causeIcon };
 })();

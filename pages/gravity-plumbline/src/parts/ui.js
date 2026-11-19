@@ -147,6 +147,7 @@ const PL = (globalThis.PL = globalThis.PL || {});
   let clearInfo = null, complete = null, death = null, causeRun = { kind: '', n: 0 }, retryAt = -1e9, frameEvents = [];
   let trailBuf = [], fx = [], toast = null, lastFrame = null;
   let wiping = false, wipeGuard = 0, pops = [], popMoves = -1; // room wipe lock (input + sim paused), screen-space ripples/sparks/confetti
+  let pipPop = 0; // 0 = idle; 0.001 when a move pip is gained, then grows to 1 over 0.22 s and returns to 0 (vm.pop)
   let tutP = {}, roomDeaths = {}, aidRooms = {}, nudge = false, nudgeAt = 0, nudgeShown = {}; // teach progress, 5-death nudge, per-room aim arc
   let fpsFrames = 0, fpsSecs = 0;
   const avgFps = () => (fpsSecs > 0 ? fpsFrames / fpsSecs : 0);
@@ -178,7 +179,7 @@ const PL = (globalThis.PL = globalThis.PL || {});
     state = PL.newState(rooms[roomIdx]);
     const n = attempts.filter((a) => a.room === roomIdx + 1).length + 1;
     cur = { room: roomIdx + 1, attempt: n, ticks: 0, result: null, flips: 0, landSpeeds: [], log: [], rides: 0, cause: '', snap: state.K && state.K.snap };
-    trailBuf = []; queue = []; clearInfo = null; popMoves = -1;
+    trailBuf = []; queue = []; clearInfo = null; popMoves = -1; pipPop = 0;
     cam = PL.camNew();
     if (scr === 'play') setMusic(isTut() ? 'tutorial' : 'tier' + clamp(tierOf(rooms[roomIdx]), 1, 3));
   }
@@ -305,6 +306,7 @@ const PL = (globalThis.PL = globalThis.PL || {});
     }
     PL.step(state, inputs);
     if (popMoves >= 0 && state.charges < popMoves) pipSpark(state.charges, state.K ? state.K.CHARGES : C.CHARGES);
+    if (popMoves >= 0 && state.charges > popMoves && !reducedNow()) pipPop = 0.001;
     popMoves = state.charges;
     if (counting) totalTicks++;
     trailBuf.push({ x: state.x, y: state.y }); if (trailBuf.length > 240) trailBuf.shift();
@@ -340,7 +342,8 @@ const PL = (globalThis.PL = globalThis.PL || {});
   function playName() { if (isTut()) return 'tutorial'; return 'play'; }
   function layoutFor(name) {
     const rr = lastFrame && lastFrame.roomRect;
-    return SC.layout(view.W, view.H, leftHand(), { scroll: name === 'tweak' ? tweakScroll : settingsScroll, tweakRows: tweakRowsCache.length || 6, roomRect: rr });
+    return SC.layout(view.W, view.H, leftHand(), { scroll: name === 'tweak' ? tweakScroll : settingsScroll, tweakRows: tweakRowsCache.length || 6, roomRect: rr,
+      clearRows: clearInfo ? { best: clearInfo.best != null, isNew: !!clearInfo.isNew } : undefined });
   }
   // which PL.Screens screen takes taps now
   function hitScreen() {
@@ -729,11 +732,12 @@ const PL = (globalThis.PL = globalThis.PL || {});
         g.addColorStop(Math.min(1, fs + Math.max(0.04, 70 / r.h)), U.alpha(U.C.night, 0.94)); g.addColorStop(1, U.alpha(U.C.night, 0.96));
         c.fillStyle = g; c.fillRect(r.x, r.y, r.w, r.h); c.restore();
         if (r.w < view.W * 0.9) { // landscape panel: seam fade, then the rest of the screen filled from the art's right edge colours
-          const x1 = r.x + r.w, sw = 80, ex = view.W;
-          for (let i = 0; i < 8; i++) { const y0 = r.y + i * r.h / 8, col = E ? E.right[i] : U.C.night;
-            const g3 = c.createLinearGradient(x1 - sw, 0, x1, 0); g3.addColorStop(0, U.alpha(U.C.night, 0)); g3.addColorStop(1, col);
-            c.fillStyle = g3; c.fillRect(x1 - sw, y0 - 0.5, sw, r.h / 8 + 1);
-            const g4 = c.createLinearGradient(x1, 0, ex, 0); g4.addColorStop(0, col); g4.addColorStop(1, U.C.night); c.fillStyle = g4; c.fillRect(x1 - 0.5, y0 - 0.5, ex - x1 + 0.5, r.h / 8 + 1); }
+          // one vertical gradient through the 8 sampled colours (no per-band rects: those drew hard horizontal stripes), then a horizontal fade to night
+          const x1 = r.x + r.w, sw = 80, ex = view.W, gv = c.createLinearGradient(0, r.y, 0, r.y + r.h);
+          for (let i = 0; i < 8; i++) gv.addColorStop((i + 0.5) / 8, E ? E.right[i] : U.C.night);
+          c.fillStyle = gv; c.fillRect(x1 - 0.5, r.y, ex - x1 + 0.5, r.h);
+          const g4 = c.createLinearGradient(x1, 0, ex, 0); g4.addColorStop(0, U.alpha(U.C.night, 0)); g4.addColorStop(1, U.alpha(U.C.night, 1)); c.fillStyle = g4; c.fillRect(x1 - 0.5, r.y, ex - x1 + 0.5, r.h);
+          c.fillStyle = gv; c.save(); const sl = 20; for (let i = 0; i < sl; i++) { c.globalAlpha = (i + 1) / sl; c.fillRect(x1 - sw + i * sw / sl, r.y, sw / sl + 0.5, r.h); } c.restore(); // seam fade over the art
         }
         c.restore(); return;
       }
@@ -776,21 +780,22 @@ const PL = (globalThis.PL = globalThis.PL || {});
       moves: s.charges, maxMoves: s.K ? s.K.CHARGES : C.CHARGES, air, lit: DIRN[s.g], pressed,
       cooldown: s.K && s.K.DIVE_CD_TICKS ? clamp(s.diveCd / s.K.DIVE_CD_TICKS, 0, 1) : 0,
       retrySpin: clamp((nowMs() - retryAt) / 200, 0, 1) < 1 ? clamp((nowMs() - retryAt) / 200, 0, 1) : 0, hero: h,
-      showSkip: isTut()
+      showSkip: isTut(), pop: pipPop
     });
     if (toast && nowMs() < toast.until) vm.toast = { text: toast.text, kind: toast.kind };
     if (isTut()) { const h = teachHint(); if (h) vm.teach = h; }
     return vm;
   }
   // ---------- screen-space juice (own layer, drawn above the HUD, below the Vfx wipe): pad ripple, pip sparks, medal confetti ----------
-  // PL.Vfx.fire has no ripple / pip / confetti names today and its flip/win bursts live in room space (draw.js already fires them from hud.events),
-  // so these are small 2D particles here. Skipped in reduced motion. Capped at 80.
+  // ---------- screen-space juice (own layer, drawn above the HUD, below the Vfx wipe): pad ripple, pip sparks, medal confetti ----------
+  // Fallback 2D particles for when PL.Vfx makes none (see vfxFire). Skipped in reduced motion. Capped at 80.
   function popRect(name) { try { const L = layoutFor('play').play; return L && L.rects && L.rects[name]; } catch (_) { return null; } }
-  // PL.Vfx.fire(name,{x,y}) (screen px; names ripple / pipSpend / medal per review/patches/V15-calls.md). Returns true when Vfx made particles
-  // (or is off), so the local fallback below only draws while that vfx patch is not in the build. Every call is guarded.
+  // PL.Vfx.fire(name,{x,y}) (screen px; names ripple / pipSpend / medal). Vfx contract: these three add particles in full, lite and reduced
+  // and 0 only when quality is OFF. Returns true when Vfx made particles; the local 2D fallback below draws only when it did not, i.e. quality OFF
+  // (or the vfx build does not have the names yet: the guard keeps a missing function from ever throwing). Reduced motion: addPop still skips it.
   function vfxFire(name, x, y) {
-    const V = PL.Vfx; if (!vfxReady || !V || typeof V.fire !== 'function') return false;
-    try { const n0 = V.stats ? V.stats().particles : 0; V.fire(name, { x, y }); const st = V.stats ? V.stats() : null; return !!st && (st.quality === 'off' || st.particles > n0); } catch (_) { return false; }
+    const V = PL.Vfx; if (!vfxReady || !V || typeof V.fire !== 'function' || typeof V.stats !== 'function') return false;
+    try { const n0 = V.stats().particles; V.fire(name, { x, y }); return V.stats().particles > n0; } catch (_) { return false; }
   }
   function addPop(o) { if (reducedNow() || pops.length > 80) return; pops.push(o); }
   function ripple(name) { const r = popRect(name); if (r && !vfxFire('ripple', r.x + r.w / 2, r.y + r.h / 2)) addPop({ k: 'ripple', x: r.x + r.w / 2, y: r.y + r.h / 2, r0: Math.min(r.w, r.h) * 0.3, r1: Math.min(r.w, r.h) * 0.95, age: 0, life: 0.35 }); }
@@ -847,6 +852,7 @@ const PL = (globalThis.PL = globalThis.PL || {});
   // over = an overlay (pause, nudge, medal, settings from pause) sits on top: field only, 85% dusk scrim, no pad / HUD pills
   function renderPlay(dt, live, over) {
     const W = view.W, H = view.H;
+    if (pipPop > 0) { pipPop += dt / 0.22; if (pipPop >= 1) pipPop = 0; }
     const fr = PL.camUpdate(cam, state, view, live ? dt : 0);
     lastFrame = fr;
     for (const f of fx) f.age += live ? dt : 0;
@@ -863,8 +869,8 @@ const PL = (globalThis.PL = globalThis.PL || {});
     ctx.setTransform(view.dpr, 0, 0, view.dpr, 0, 0);
     try { PL.draw(ctx, view, fr, state, hud); } catch (e) { ctx.fillStyle = U.C.dusk; ctx.fillRect(0, 0, W, H); if (!renderPlay.warned) { renderPlay.warned = 1; console.warn('draw', e); } }
     ctx.setTransform(view.dpr, 0, 0, view.dpr, 0, 0);
-    if (over) {
-      U.scrim(ctx, W, H, 0.85, U.C.dusk);
+    if (over) { // over === 'bare': the caller (Settings from Pause) draws the shared scrim itself
+      if (over !== 'bare') U.overlayScrim(ctx, W, H);
       if (vfxReady && PL.Vfx && PL.Vfx.drawOverlay) { try { PL.Vfx.drawOverlay(ctx, fr); } catch (_) {} }
       frameEvents.length = 0; return null;
     }
@@ -881,10 +887,10 @@ const PL = (globalThis.PL = globalThis.PL || {});
     }
     if (name === 'roomClear') {
       const ci = clearInfo;
-      vm.time = fmtClock(ci.time); vm.best = ci.best != null ? fmtClock(ci.best) : '-'; vm.isNewBest = ci.isNew;
+      vm.time = fmtClock(ci.time); vm.best = ci.best != null ? fmtClock(ci.best) : null; vm.isNewBest = ci.isNew;
     }
     hud.vm = vm; hud.screenName = name;
-    if (name === 'roomClear') { U.scrim(ctx, W, H, 0.85, U.C.dusk); vm.noHud = true; } // no pad / HUD pills through the card
+    if (name === 'roomClear') { U.overlayScrim(ctx, W, H); vm.noHud = true; } // no pad / HUD pills through the card
     if (name === 'death' && isTut()) { // tutorial keeps teach + Skip under the tag
       SC.draw.tutorial(ctx, W, H, vm, t);
       const L = SC.layout(W, H, vm.leftHand, { roomRect: vm.roomRect }).death, c0 = vm.cause, rm = L.rects.room, tw2 = c0.iconOnly ? 44 : 220;
@@ -935,7 +941,7 @@ const PL = (globalThis.PL = globalThis.PL || {});
     const W = view.W, H = view.H, t = nowMs() / 1000, base = chipVm(), sca = TEXT_SCALE[settings.textIdx];
     ctx.setTransform(view.dpr, 0, 0, view.dpr, 0, 0);
     const pr = (n) => (press && press.tgt === n ? n : null);
-    const under = () => { if (state && rooms && (settingsFrom === 'pause' || scr === 'pause' || scr === 'shaftComplete')) { renderPlay(0, false, true); } else drawBackdrop('dim'); };
+    const under = () => { if (state && rooms && (settingsFrom === 'pause' || scr === 'pause' || scr === 'shaftComplete')) { renderPlay(0, false, 'bare'); } else drawBackdrop('dim'); };
     if (scr === 'play' && state) { renderPlay(dt, live); }
     else if (scr === 'firstOpen') { drawBackdrop(); SC.draw.firstOpen(ctx, W, H, Object.assign({}, base, { drawArt: drawKeyArt, pressed: pr('start') }), t); }
     else if (scr === 'menu') { drawBackdrop(); SC.draw.menu(ctx, W, H, Object.assign({}, base, { drawArt: drawKeyArt, pressed: press && press.tgt }), t); }
@@ -995,6 +1001,7 @@ const PL = (globalThis.PL = globalThis.PL || {});
     advanceWipe: () => advance(),
     wiping: () => wiping,
     pops: () => pops.length,
+    pipPop: () => pipPop,
     juice: () => pops.length + (PL.Vfx && PL.Vfx.stats ? (PL.Vfx.stats().particles || 0) : 0),
     report: buildReport,
     attempts: () => attempts.slice(),
