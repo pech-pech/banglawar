@@ -1,0 +1,778 @@
+{
+ "hand:1a": {
+  "checksum": "587ba043",
+  "steps": 915,
+  "fuelUsed": "7.000000",
+  "fuel": "53.000000",
+  "result": "lost",
+  "hash": "8ead5005"
+ },
+ "1:0:par": {
+  "checksum": "bb9e6e74",
+  "steps": 2491,
+  "fuelUsed": "2.776667",
+  "fuel": "57.223333",
+  "result": "docked",
+  "hash": "9cbadf70"
+ },
+ "1:0:fixed": {
+  "checksum": "7eb656a3",
+  "steps": 1332,
+  "fuelUsed": "7.000000",
+  "fuel": "53.000000",
+  "result": "lost",
+  "hash": "eb9a100e"
+ },
+ "1:0:idle": {
+  "checksum": "d94a51fb",
+  "steps": 2417,
+  "fuelUsed": "0.000000",
+  "fuel": "60.000000",
+  "result": "crashed",
+  "hash": "10e55f2b"
+ },
+ "1:1:par": {
+  "checksum": "99a6408a",
+  "steps": 1044,
+  "fuelUsed": "3.083333",
+  "fuel": "56.916667",
+  "result": "docked",
+  "hash": "185e548f"
+ },
+ "1:1:fixed": {
+  "checksum": "f78be073",
+  "steps": 1668,
+  "fuelUsed": "7.000000",
+  "fuel": "53.000000",
+  "result": "lost",
+  "hash": "d4e3cc2f"
+ },
+ "1:1:idle": {
+  "checksum": "fcfc55cf",
+  "steps": 1565,
+  "fuelUsed": "0.000000",
+  "fuel": "60.000000",
+  "result": "lost",
+  "hash": "df3d83c3"
+ },
+ "1:2:par": {
+  "checksum": "a4ad4acd",
+  "steps": 3356,
+  "fuelUsed": "5.833333",
+  "fuel": "54.166667",
+  "result": "docked",
+  "hash": "ef088cf7"
+ },
+ "1:2:fixed": {
+  "checksum": "994dbda2",
+  "steps": 1073,
+  "fuelUsed": "7.000000",
+  "fuel": "53.000000",
+  "result": "lost",
+  "hash": "27fdbc24"
+ },
+ "1:2:idle": {
+  "checksum": "e289837e",
+  "steps": 1499,
+  "fuelUsed": "0.000000",
+  "fuel": "60.000000",
+  "result": "crashed",
+  "hash": "f1e1dd49"
+ },
+ "1:3:par": {
+  "checksum": "f1ed79ff",
+  "steps": 792,
+  "fuelUsed": "3.083333",
+  "fuel": "56.916667",
+  "result": "docked",
+  "hash": "0605f60e"
+ },
+ "1:3:fixed": {
+  "checksum": "fb4ebfa1",
+  "steps": 782,
+  "fuelUsed": "7.000000",
+  "fuel": "53.000000",
+  "result": "docked",
+  "hash": "21cad5e8"
+ },
+ "1:3:idle": {
+  "checksum": "ddbbec20",
+  "steps": 2264,
+  "fuelUsed": "0.000000",
+  "fuel": "60.000000",
+  "result": "lost",
+  "hash": "46994207"
+ },
+ "1:4:par": {
+  "checksum": "d1dac21d",
+  "steps": 808,
+  "fuelUsed": "4.790000",
+  "fuel": "55.210000",
+  "result": "docked",
+  "hash": "b0fd578a"
+ },
+ "1:4:fixed": {
+  "checksum": "0d563b39",
+  "steps": 757,
+  "fuelUsed": "7.000000",
+  "fuel": "53.000000",
+  "result": "docked",
+  "hash": "ef46e8a7"
+ },
+ "1:4:idle": {
+  "checksum": "633a4194",
+  "steps": 3124,
+  "fuelUsed": "0.000000",
+  "fuel": "60.000000",
+  "result": "crashed",
+  "hash": "4f38b04e"
+ },
+ "1:5:par": {
+  "checksum": "fd4ca677",
+  "steps": 856,
+  "fuelUsed": "3.083333",
+  "fuel": "56.916667",
+  "result": "docked",
+  "hash": "5c82ffd9"
+ },
+ "1:5:fixed": {
+  "checksum": "7065f0b6",
+  "steps": 789,
+  "fuelUsed": "7.000000",
+  "fuel": "53.000000",
+  "result": "docked",
+  "hash": "ceba578a"
+ },
+ "1:5:idle": {
+  "checksum": "dc06d2aa",
+  "steps": 1745,
+  "fuelUsed": "0.000000",
+  "fuel": "60.000000",
+  "result": "lost",
+  "hash": "3cc88d8b"
+ },
+ "1:6:par": {
+  "checksum": "c2359def",
+  "steps": 1011,
+  "fuelUsed": "3.475833",
+  "fuel": "56.524167",
+  "result": "docked",
+  "hash": "592cb048"
+ },
+ "1:6:fixed": {
+  "checksum": "bc87f15f",
+  "steps": 731,
+  "fuelUsed": "7.000000",
+  "fuel": "53.000000",
+  "result": "crashed",
+  "hash": "506bde41"
+ },
+ "1:6:idle": {
+  "checksum": "de257451",
+  "steps": 4200,
+  "fuelUsed": "0.000000",
+  "fuel": "60.000000",
+  "result": "timeout",
+  "hash": "9a6afa15"
+ },
+ "1:7:par": {
+  "checksum": "6968f67c",
+  "steps": 3044,
+  "fuelUsed": "2.988333",
+  "fuel": "57.011667",
+  "result": "docked",
+  "hash": "6c006aac"
+ },
+ "1:7:fixed": {
+  "checksum": "10e2cdeb",
+  "steps": 930,
+  "fuelUsed": "7.000000",
+  "fuel": "53.000000",
+  "result": "crashed",
+  "hash": "5d98f244"
+ },
+ "1:7:idle": {
+  "checksum": "b89e3730",
+  "steps": 1762,
+  "fuelUsed": "0.000000",
+  "fuel": "60.000000",
+  "result": "lost",
+  "hash": "b1b41a2a"
+ },
+ "2:0:par": {
+  "checksum": "6bf09df3",
+  "steps": 973,
+  "fuelUsed": "2.583333",
+  "fuel": "57.416667",
+  "result": "docked",
+  "hash": "cb899469"
+ },
+ "2:0:fixed": {
+  "checksum": "21d443cd",
+  "steps": 1415,
+  "fuelUsed": "7.000000",
+  "fuel": "53.000000",
+  "result": "lost",
+  "hash": "3aa30e8c"
+ },
+ "2:0:idle": {
+  "checksum": "66a0e557",
+  "steps": 1537,
+  "fuelUsed": "0.000000",
+  "fuel": "60.000000",
+  "result": "lost",
+  "hash": "cfd36de4"
+ },
+ "2:1:par": {
+  "checksum": "ecb34851",
+  "steps": 2199,
+  "fuelUsed": "8.833333",
+  "fuel": "51.166667",
+  "result": "docked",
+  "hash": "c19970a2"
+ },
+ "2:1:fixed": {
+  "checksum": "8b4fdfc0",
+  "steps": 1136,
+  "fuelUsed": "7.000000",
+  "fuel": "53.000000",
+  "result": "lost",
+  "hash": "73782092"
+ },
+ "2:1:idle": {
+  "checksum": "03b419dd",
+  "steps": 4200,
+  "fuelUsed": "0.000000",
+  "fuel": "60.000000",
+  "result": "timeout",
+  "hash": "1644fb47"
+ },
+ "2:2:par": {
+  "checksum": "a49efc5a",
+  "steps": 1091,
+  "fuelUsed": "3.185000",
+  "fuel": "56.815000",
+  "result": "docked",
+  "hash": "0b4f3cb2"
+ },
+ "2:2:fixed": {
+  "checksum": "2e317d25",
+  "steps": 1571,
+  "fuelUsed": "7.000000",
+  "fuel": "53.000000",
+  "result": "lost",
+  "hash": "68a980d1"
+ },
+ "2:2:idle": {
+  "checksum": "bbd2be19",
+  "steps": 3887,
+  "fuelUsed": "0.000000",
+  "fuel": "60.000000",
+  "result": "lost",
+  "hash": "bfd8ba74"
+ },
+ "2:3:par": {
+  "checksum": "a4c27dad",
+  "steps": 1123,
+  "fuelUsed": "2.833333",
+  "fuel": "57.166667",
+  "result": "docked",
+  "hash": "284b731f"
+ },
+ "2:3:fixed": {
+  "checksum": "55d9fba7",
+  "steps": 1546,
+  "fuelUsed": "7.000000",
+  "fuel": "53.000000",
+  "result": "lost",
+  "hash": "54f9f2fd"
+ },
+ "2:3:idle": {
+  "checksum": "8d258557",
+  "steps": 1914,
+  "fuelUsed": "0.000000",
+  "fuel": "60.000000",
+  "result": "lost",
+  "hash": "4230ca46"
+ },
+ "2:4:par": {
+  "checksum": "d3ac70ea",
+  "steps": 842,
+  "fuelUsed": "2.990833",
+  "fuel": "57.009167",
+  "result": "docked",
+  "hash": "a312c620"
+ },
+ "2:4:fixed": {
+  "checksum": "01bec47c",
+  "steps": 701,
+  "fuelUsed": "7.000000",
+  "fuel": "53.000000",
+  "result": "docked",
+  "hash": "88bacbdf"
+ },
+ "2:4:idle": {
+  "checksum": "44d8923e",
+  "steps": 1252,
+  "fuelUsed": "0.000000",
+  "fuel": "60.000000",
+  "result": "crashed",
+  "hash": "e0c06fc2"
+ },
+ "2:5:par": {
+  "checksum": "f0c8eae4",
+  "steps": 800,
+  "fuelUsed": "2.916667",
+  "fuel": "57.083333",
+  "result": "docked",
+  "hash": "08466a7a"
+ },
+ "2:5:fixed": {
+  "checksum": "b8d0dfb0",
+  "steps": 728,
+  "fuelUsed": "7.000000",
+  "fuel": "53.000000",
+  "result": "docked",
+  "hash": "ea21f7bd"
+ },
+ "2:5:idle": {
+  "checksum": "51c66368",
+  "steps": 1778,
+  "fuelUsed": "0.000000",
+  "fuel": "60.000000",
+  "result": "lost",
+  "hash": "d2450d3e"
+ },
+ "2:6:par": {
+  "checksum": "594e82fb",
+  "steps": 2613,
+  "fuelUsed": "5.750000",
+  "fuel": "54.250000",
+  "result": "docked",
+  "hash": "de6cb387"
+ },
+ "2:6:fixed": {
+  "checksum": "a3e7a39c",
+  "steps": 1518,
+  "fuelUsed": "7.000000",
+  "fuel": "53.000000",
+  "result": "lost",
+  "hash": "42955a07"
+ },
+ "2:6:idle": {
+  "checksum": "f3e2f4f1",
+  "steps": 1486,
+  "fuelUsed": "0.000000",
+  "fuel": "60.000000",
+  "result": "crashed",
+  "hash": "6151fadf"
+ },
+ "2:7:par": {
+  "checksum": "22182345",
+  "steps": 937,
+  "fuelUsed": "3.666667",
+  "fuel": "56.333333",
+  "result": "docked",
+  "hash": "5b4965c4"
+ },
+ "2:7:fixed": {
+  "checksum": "71cb3b47",
+  "steps": 935,
+  "fuelUsed": "7.000000",
+  "fuel": "53.000000",
+  "result": "docked",
+  "hash": "1146fd4c"
+ },
+ "2:7:idle": {
+  "checksum": "f04f2fa8",
+  "steps": 1463,
+  "fuelUsed": "0.000000",
+  "fuel": "60.000000",
+  "result": "lost",
+  "hash": "69b658cc"
+ },
+ "3:0:par": {
+  "checksum": "dd6d2218",
+  "steps": 1064,
+  "fuelUsed": "2.583333",
+  "fuel": "57.416667",
+  "result": "docked",
+  "hash": "289f3970"
+ },
+ "3:0:fixed": {
+  "checksum": "aa96c1fb",
+  "steps": 1483,
+  "fuelUsed": "7.000000",
+  "fuel": "53.000000",
+  "result": "lost",
+  "hash": "2424cc19"
+ },
+ "3:0:idle": {
+  "checksum": "1df60e28",
+  "steps": 2028,
+  "fuelUsed": "0.000000",
+  "fuel": "60.000000",
+  "result": "lost",
+  "hash": "f39f51e7"
+ },
+ "3:1:par": {
+  "checksum": "32c5c75b",
+  "steps": 1165,
+  "fuelUsed": "3.250000",
+  "fuel": "56.750000",
+  "result": "docked",
+  "hash": "7356f055"
+ },
+ "3:1:fixed": {
+  "checksum": "72be71b4",
+  "steps": 1630,
+  "fuelUsed": "7.000000",
+  "fuel": "53.000000",
+  "result": "lost",
+  "hash": "affcc16e"
+ },
+ "3:1:idle": {
+  "checksum": "305f210a",
+  "steps": 2212,
+  "fuelUsed": "0.000000",
+  "fuel": "60.000000",
+  "result": "lost",
+  "hash": "dd4f7baa"
+ },
+ "3:2:par": {
+  "checksum": "0950e85c",
+  "steps": 2554,
+  "fuelUsed": "6.006667",
+  "fuel": "53.993333",
+  "result": "docked",
+  "hash": "c073b01f"
+ },
+ "3:2:fixed": {
+  "checksum": "4d1450c3",
+  "steps": 582,
+  "fuelUsed": "7.000000",
+  "fuel": "53.000000",
+  "result": "crashed",
+  "hash": "e3be94bb"
+ },
+ "3:2:idle": {
+  "checksum": "6b36ccd3",
+  "steps": 1381,
+  "fuelUsed": "0.000000",
+  "fuel": "60.000000",
+  "result": "crashed",
+  "hash": "2d13d228"
+ },
+ "3:3:par": {
+  "checksum": "e3f9c03c",
+  "steps": 2211,
+  "fuelUsed": "2.776667",
+  "fuel": "57.223333",
+  "result": "docked",
+  "hash": "71cc38f6"
+ },
+ "3:3:fixed": {
+  "checksum": "4d93ecc4",
+  "steps": 1151,
+  "fuelUsed": "7.000000",
+  "fuel": "53.000000",
+  "result": "lost",
+  "hash": "68e4faeb"
+ },
+ "3:3:idle": {
+  "checksum": "433d5fe7",
+  "steps": 1935,
+  "fuelUsed": "0.000000",
+  "fuel": "60.000000",
+  "result": "crashed",
+  "hash": "6b3656ba"
+ },
+ "3:4:par": {
+  "checksum": "5132c2e9",
+  "steps": 4085,
+  "fuelUsed": "2.877500",
+  "fuel": "57.122500",
+  "result": "docked",
+  "hash": "dc0a6ed1"
+ },
+ "3:4:fixed": {
+  "checksum": "8a3adc5f",
+  "steps": 1309,
+  "fuelUsed": "7.000000",
+  "fuel": "53.000000",
+  "result": "lost",
+  "hash": "6820b54e"
+ },
+ "3:4:idle": {
+  "checksum": "edfcf810",
+  "steps": 1535,
+  "fuelUsed": "0.000000",
+  "fuel": "60.000000",
+  "result": "crashed",
+  "hash": "b49b590a"
+ },
+ "3:5:par": {
+  "checksum": "03ba51a7",
+  "steps": 1099,
+  "fuelUsed": "2.695000",
+  "fuel": "57.305000",
+  "result": "docked",
+  "hash": "1a7599ec"
+ },
+ "3:5:fixed": {
+  "checksum": "08632c4f",
+  "steps": 1662,
+  "fuelUsed": "7.000000",
+  "fuel": "53.000000",
+  "result": "lost",
+  "hash": "d04a6b59"
+ },
+ "3:5:idle": {
+  "checksum": "673270e3",
+  "steps": 2193,
+  "fuelUsed": "0.000000",
+  "fuel": "60.000000",
+  "result": "lost",
+  "hash": "c83f1b2b"
+ },
+ "3:6:par": {
+  "checksum": "c341f403",
+  "steps": 1010,
+  "fuelUsed": "3.833333",
+  "fuel": "56.166667",
+  "result": "docked",
+  "hash": "6f0abb94"
+ },
+ "3:6:fixed": {
+  "checksum": "b34ddf09",
+  "steps": 1412,
+  "fuelUsed": "7.000000",
+  "fuel": "53.000000",
+  "result": "lost",
+  "hash": "3b1a9dfc"
+ },
+ "3:6:idle": {
+  "checksum": "dfc972e7",
+  "steps": 1565,
+  "fuelUsed": "0.000000",
+  "fuel": "60.000000",
+  "result": "lost",
+  "hash": "84bfb72f"
+ },
+ "3:7:par": {
+  "checksum": "b3e65b49",
+  "steps": 2210,
+  "fuelUsed": "3.382500",
+  "fuel": "56.617500",
+  "result": "docked",
+  "hash": "25ec5967"
+ },
+ "3:7:fixed": {
+  "checksum": "111eebaa",
+  "steps": 990,
+  "fuelUsed": "7.000000",
+  "fuel": "53.000000",
+  "result": "crashed",
+  "hash": "bf989be5"
+ },
+ "3:7:idle": {
+  "checksum": "25f35dbc",
+  "steps": 1457,
+  "fuelUsed": "0.000000",
+  "fuel": "60.000000",
+  "result": "crashed",
+  "hash": "e2c3f908"
+ },
+ "4:0:par": {
+  "checksum": "891dcd72",
+  "steps": 1221,
+  "fuelUsed": "3.008333",
+  "fuel": "56.991667",
+  "result": "docked",
+  "hash": "eedd6bbc"
+ },
+ "4:0:fixed": {
+  "checksum": "cd5fce6a",
+  "steps": 1107,
+  "fuelUsed": "7.000000",
+  "fuel": "53.000000",
+  "result": "lost",
+  "hash": "836587b2"
+ },
+ "4:0:idle": {
+  "checksum": "8f42679a",
+  "steps": 1608,
+  "fuelUsed": "0.000000",
+  "fuel": "60.000000",
+  "result": "crashed",
+  "hash": "0995c23d"
+ },
+ "4:1:par": {
+  "checksum": "fe0ddd7d",
+  "steps": 754,
+  "fuelUsed": "4.833333",
+  "fuel": "55.166667",
+  "result": "docked",
+  "hash": "df824a12"
+ },
+ "4:1:fixed": {
+  "checksum": "6a7342f0",
+  "steps": 990,
+  "fuelUsed": "7.000000",
+  "fuel": "53.000000",
+  "result": "crashed",
+  "hash": "63c9cf23"
+ },
+ "4:1:idle": {
+  "checksum": "346226c4",
+  "steps": 4200,
+  "fuelUsed": "0.000000",
+  "fuel": "60.000000",
+  "result": "timeout",
+  "hash": "bc8cadac"
+ },
+ "4:2:par": {
+  "checksum": "57b68809",
+  "steps": 809,
+  "fuelUsed": "2.829167",
+  "fuel": "57.170833",
+  "result": "docked",
+  "hash": "46c1bee2"
+ },
+ "4:2:fixed": {
+  "checksum": "d2f4b3fe",
+  "steps": 1226,
+  "fuelUsed": "7.000000",
+  "fuel": "53.000000",
+  "result": "lost",
+  "hash": "6ca4f835"
+ },
+ "4:2:idle": {
+  "checksum": "4ce2a46d",
+  "steps": 4200,
+  "fuelUsed": "0.000000",
+  "fuel": "60.000000",
+  "result": "timeout",
+  "hash": "f5d3c20b"
+ },
+ "4:3:par": {
+  "checksum": "39950d37",
+  "steps": 1442,
+  "fuelUsed": "3.333333",
+  "fuel": "56.666667",
+  "result": "docked",
+  "hash": "e084c133"
+ },
+ "4:3:fixed": {
+  "checksum": "7bb1af39",
+  "steps": 272,
+  "fuelUsed": "4.333333",
+  "fuel": "55.666667",
+  "result": "crashed",
+  "hash": "76f1a8aa"
+ },
+ "4:3:idle": {
+  "checksum": "80be7ba2",
+  "steps": 2658,
+  "fuelUsed": "0.000000",
+  "fuel": "60.000000",
+  "result": "crashed",
+  "hash": "b14d7325"
+ },
+ "4:4:par": {
+  "checksum": "4a7f4839",
+  "steps": 1224,
+  "fuelUsed": "3.033333",
+  "fuel": "56.966667",
+  "result": "docked",
+  "hash": "c88d4311"
+ },
+ "4:4:fixed": {
+  "checksum": "e69740eb",
+  "steps": 1737,
+  "fuelUsed": "7.000000",
+  "fuel": "53.000000",
+  "result": "lost",
+  "hash": "7030c60e"
+ },
+ "4:4:idle": {
+  "checksum": "df2bf3cf",
+  "steps": 4200,
+  "fuelUsed": "0.000000",
+  "fuel": "60.000000",
+  "result": "timeout",
+  "hash": "03160160"
+ },
+ "4:5:par": {
+  "checksum": "619575c6",
+  "steps": 3849,
+  "fuelUsed": "2.640000",
+  "fuel": "57.360000",
+  "result": "docked",
+  "hash": "ddd3f1e2"
+ },
+ "4:5:fixed": {
+  "checksum": "453cf024",
+  "steps": 1086,
+  "fuelUsed": "7.000000",
+  "fuel": "53.000000",
+  "result": "lost",
+  "hash": "62686afe"
+ },
+ "4:5:idle": {
+  "checksum": "4d158aa3",
+  "steps": 3011,
+  "fuelUsed": "0.000000",
+  "fuel": "60.000000",
+  "result": "crashed",
+  "hash": "c7ee7033"
+ },
+ "4:6:par": {
+  "checksum": "542a74c1",
+  "steps": 931,
+  "fuelUsed": "3.133333",
+  "fuel": "56.866667",
+  "result": "docked",
+  "hash": "10298582"
+ },
+ "4:6:fixed": {
+  "checksum": "6ffa8a1b",
+  "steps": 1464,
+  "fuelUsed": "7.000000",
+  "fuel": "53.000000",
+  "result": "lost",
+  "hash": "802988a6"
+ },
+ "4:6:idle": {
+  "checksum": "4ac2399e",
+  "steps": 1815,
+  "fuelUsed": "0.000000",
+  "fuel": "60.000000",
+  "result": "lost",
+  "hash": "18893708"
+ },
+ "4:7:par": {
+  "checksum": "098d937b",
+  "steps": 2688,
+  "fuelUsed": "4.416667",
+  "fuel": "55.583333",
+  "result": "docked",
+  "hash": "e84a14c0"
+ },
+ "4:7:fixed": {
+  "checksum": "ea3d2eec",
+  "steps": 1596,
+  "fuelUsed": "7.000000",
+  "fuel": "53.000000",
+  "result": "crashed",
+  "hash": "6b6252a5"
+ },
+ "4:7:idle": {
+  "checksum": "9e92f8b4",
+  "steps": 1321,
+  "fuelUsed": "0.000000",
+  "fuel": "60.000000",
+  "result": "crashed",
+  "hash": "291be40f"
+ }
+}

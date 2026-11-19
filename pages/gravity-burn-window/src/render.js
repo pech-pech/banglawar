@@ -361,6 +361,18 @@
       font(ctx, 12, '700'); ctx.fillStyle = DIM; ctx.textAlign = 'center'; ctx.textBaseline = 'bottom'; ctx.fillText('THRUST', tx + 3, ty - 3);
     }
 
+    // CLOSE PASS tag (1 s, set by game.js). Reduced motion: static text, full alpha, fixed position; otherwise fades and drifts up. No flash/shake.
+    var cpass = G.closePass;
+    if (cpass && cpass.k > 0 && G.phase === 'run') {
+      var cpx = Math.max(ox + 44, Math.min(ox + pw - 44, X(cpass.x))), cpy = Y(cpass.y) - 26 - (reduced ? 0 : (1 - cpass.k) * 12);
+      cpy = Math.max(oy + 14, Math.min(oy + ph - 14, cpy));
+      ctx.globalAlpha = reduced ? 1 : Math.min(1, cpass.k * 2.5);
+      font(ctx, 13, '700'); ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillStyle = 'rgba(8,16,18,0.7)'; ctx.fillRect(cpx - 43, cpy - 10, 86, 20);
+      ctx.fillStyle = plain ? '#fff' : BRASS; ctx.fillText('CLOSE PASS', cpx, cpy);
+      ctx.globalAlpha = 1;
+    }
+
     // flash overlay
     if (fx && fx.flash > 0 && !reduced) {
       ctx.globalAlpha = Math.min(1, fx.flash) * 0.3; ctx.fillStyle = (bph === 'failed') ? '#ffffff' : TEAL;

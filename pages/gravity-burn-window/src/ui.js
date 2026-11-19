@@ -198,6 +198,15 @@
     return screen([t, sc, h('div', 'bot', null, [btn('Back', 'p', () => ui.back())])]);
   };
   function dailySeedText() { const s = String(ui.host.daily ? ui.host.daily() : ''); return s.length === 8 ? s.slice(0, 4) + '-' + s.slice(4, 6) + '-' + s.slice(6) : s; }
+  const isN = v => typeof v === 'number' && isFinite(v);
+  // brass star string: n filled of 3 (spans), undefined n -> null
+  function starRow(n, size) {
+    if (!isN(n)) return null;
+    n = Math.max(0, Math.min(3, Math.round(n)));
+    const e = h('span', null, null, [h('span', 'brass', '\u2605'.repeat(n)), h('span', null, '\u2606'.repeat(3 - n))]);
+    e.lastChild.style.color = '#7d8a86'; e.style.cssText = 'letter-spacing:1px;white-space:nowrap;font-size:' + (size || 20) + 'px'; e.setAttribute('aria-label', n + ' of 3 stars');
+    return e;
+  }
   function medalOf(par, fuel) { const e = fuel > 0 ? par / fuel : 0; return e >= 0.75 ? 'Gold' : e >= 0.55 ? 'Silver' : 'Bronze'; }
   SCREENS.besttimes = function () {
     const H = ui.host, list = H.bestList(), rows = h('div'); let tf = 0, tp = 0, cnt = 0;
@@ -231,10 +240,14 @@
     const nm = h('div', null, R.medal.toUpperCase()); nm.style.cssText = 'font-size:22px;font-weight:700;color:' + mc[0];
     const pc = h('div', null, Math.round(R.eff * 100) + '%'); pc.style.cssText = 'font-size:30px;font-weight:700';
     const hd = h('div', null, null, [h('h2', null, 'Run complete'), h('span', 'sub', 'Seed ' + R.seed)]); hd.style.cssText = 'display:flex;justify-content:space-between;align-items:baseline';
-    const medalP = panel([svg, h('div', null, null, [nm, pc, h('div', 'sub', 'overall efficiency')])], 'display:flex;align-items:center;gap:14px;padding:8px 12px');
+    let tot = isN(R.totalStars) ? R.totalStars : isN(R.stars) ? R.stars : null;
+    if (tot == null && R.rows.some(r => isN(r.stars))) tot = R.rows.reduce((a, r) => a + (isN(r.stars) ? r.stars : 0), 0);
+    const starTotal = tot == null ? null : h('div', null, null, [h('span', 'brass', '\u2605 ' + tot), h('span', 'sub', ' / ' + (isN(R.maxStars) ? R.maxStars : 24) + ' stars')]);
+    if (starTotal) starTotal.style.cssText = 'font-size:20px;font-weight:700;margin-top:2px;white-space:nowrap';
+    const medalP = panel([svg, h('div', null, null, [nm, pc, h('div', 'sub', 'overall efficiency'), starTotal])], 'display:flex;align-items:center;gap:14px;padding:8px 12px');
     const rule = h('div', 'sub', 'Gold needs 75% · Silver 55% · Bronze = finish'); rule.style.textAlign = 'center';
     const rows = h('div'); { const x = h('div', null, null, [h('span', 'lbl', 'Sector'), h('span', 'lbl', 'Fuel used / par')]); x.style.cssText = 'display:flex;justify-content:space-between;height:24px;align-items:center'; rows.appendChild(x); }
-    R.rows.forEach((r, i) => { const x = h('div', null, null, [h('span', 'sub', 'Sector ' + (i + 1)), h('span', null, r.used != null ? r.used.toFixed(1) + ' / ' + r.par.toFixed(1) : '--')]); x.style.cssText = 'display:flex;justify-content:space-between;height:28px;align-items:center;font-size:15px'; rows.appendChild(x); });
+    R.rows.forEach((r, i) => { const x = h('div', null, null, [h('span', 'sub', 'Sector ' + (i + 1)), starRow(r.stars, 14), h('span', null, r.used != null ? r.used.toFixed(1) + ' / ' + r.par.toFixed(1) : '--')]); x.style.cssText = 'display:flex;justify-content:space-between;height:28px;align-items:center;font-size:15px'; rows.appendChild(x); });
     const sc = h('div', 'scroll', null, [medalP, rule, panel([rows], 'padding:4px 12px 10px')]); sc.style.padding = '8px 8px 12px';
     // "New run" (primary) is game.js's persistent Next button, stacked above this bottom row.
     const bot = h('div', 'bot', null, [h('div', null), h('div', 'row', null, [btn('Copy report', '', b => H.copy(b)), btn('Title', '', (b, e) => { if (!H.pressOk(b, e)) return; ui.closeAll(); H.quit(); })])]);
@@ -250,17 +263,25 @@
     // Sits in the free band under the playfield (bottom 96 px at 475x638); Next (game.js bNext) overlays the right 150 px.
     const w = h('div', 'bwsec'); w.setAttribute('data-bw', '1'); w.style.bottom = '0'; w.style.padding = '8px 12px 12px';
     let left;
+    const closestTxt = o => isN(o.closest) ? 'Closest ' + Math.round(o.closest) + ' px' + (isN(o.bestClosest) ? ' (best ' + Math.round(o.bestClosest) + ')' : '') : null;
     if (kind === 'docked') {
-      left = h('div', null, null, [h('div', null, null, [h('b', 'teal', 'DOCKED'), o.best ? h('span', 'chip', 'New best') : null]),
-        h('div', null, null, [h('span', null, o.used.toFixed(1) + ' / ' + o.par.toFixed(1)), h('span', 'dim', ' fuel \u00b7 '), h('span', 'brass', Math.round(o.eff * 100) + '%')])]);
-      left.firstChild.style.cssText = 'display:flex;gap:8px;align-items:center;font-size:20px';
-      if (o.best) left.firstChild.lastChild.style.cssText = 'position:absolute;top:-13px;left:12px;height:22px;font-size:12px;padding:0 8px;color:#3fb8a8;border-color:#3fb8a8;background:#102024';
-      left.lastChild.style.cssText = 'font-size:16px;margin-top:2px;white-space:nowrap';
-      w.appendChild(panel([left], 'display:flex;align-items:center;justify-content:space-between;min-height:76px;padding:8px'));
-      left.style.flex = '1';
+      const ratio = isN(o.parRatio) ? o.parRatio : (o.par > 0 ? o.used / o.par : null);
+      const t1 = h('div', null, null, [h('b', 'teal', 'DOCKED'), starRow(o.stars, 20), o.best ? h('span', 'chip', 'New best') : null]);
+      t1.style.cssText = 'display:flex;gap:8px;align-items:center;font-size:20px;white-space:nowrap';
+      if (o.best) t1.lastChild.style.cssText = 'position:absolute;top:-13px;left:12px;height:22px;font-size:12px;padding:0 8px;color:#3fb8a8;border-color:#3fb8a8;background:#102024';
+      const t2 = h('div', null, null, [h('span', null, o.used.toFixed(1) + ' / ' + o.par.toFixed(1)), h('span', 'dim', ' \u00b7 '), h('span', 'brass', Math.round(o.eff * 100) + '%')]);
+      t2.style.cssText = 'font-size:16px;margin-top:2px;white-space:nowrap';
+      const bits = []; if (ratio != null) bits.push(ratio.toFixed(1) + 'x par'); if (isN(o.bestStars)) bits.push('best ' + '\u2605'.repeat(Math.max(0, Math.min(3, Math.round(o.bestStars)))) + '\u2606'.repeat(3 - Math.max(0, Math.min(3, Math.round(o.bestStars)))));
+      const ct = closestTxt(o); if (ct && !bits.length) bits.push(ct);
+      const t3 = bits.length ? h('div', 'dim', bits.join(' \u00b7 ')) : null;
+      if (t3) t3.style.cssText = 'font-size:13px;white-space:nowrap';
+      left = h('div', null, null, [t1, t2, t3]); left.style.flex = '1';
+      // right 150 px belongs to game.js Next button: keep text clear of it
+      w.appendChild(panel([left], 'display:flex;align-items:center;min-height:76px;padding:8px 158px 8px 8px'));
     } else {
-      left = h('div', null, null, [h('b', 'red', o.title), h('div', 'dim', o.text)]); left.firstChild.style.fontSize = '20px'; left.style.flex = '1';
-      const rb = btn('Retry', 'p', (b, e) => { if (ui.host.pressOk(b, e)) ui.host.retry(b, e); }); rb.style.cssText = 'width:150px;flex:none';
+      const ct = closestTxt(o), cl = ct ? h('div', 'dim', ct) : null; if (cl) cl.style.cssText = 'font-size:14px;margin-top:2px';
+      left = h('div', null, null, [h('b', 'red', o.title), h('div', 'dim', o.text), cl]); left.firstChild.style.fontSize = '20px'; left.style.cssText = 'flex:1;min-width:0';
+      const rb = btn('RETRY', 'p', (b, e) => { if (ui.host.pressOk(b, e)) ui.host.retry(b, e); }); rb.style.cssText = 'width:150px;height:64px;min-height:64px;flex:none;font-size:20px;letter-spacing:.06em';
       w.appendChild(panel([left, rb], 'display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:76px;padding:8px'));
     }
     document.body.appendChild(w); curSec = w;

@@ -24,6 +24,9 @@
   let physicsSteps = 0, bootT = now(), genToken = 0, frameN = 0, drawErrs = 0;
   let tapPending = false, predN = -1, nextShown = null, nextOp = null, nextTxt = null;
   let lowFuelDone = false;
+  // near-miss / closest-approach tracking (display + saves only; never feeds the sim)
+  const NEAR_MISS_PX = 40, CLOSE_TAG_MS = 1000;
+  let closest = 1e9, nearMisses = 0, bodyMin = [], bodyDone = [], closeUntil = 0, closeX = 0, closeY = 0;
   let acc = 0, last = 0, pointers = new Map(), fpsBuf = [], det = { ok: null, checksum: null }, energyDrift = null;
   const cache = {};
   const UI = BW.ui || { settings: { reduced: false, haptics: true, drag: true, warp: true }, host: {}, blocking: () => false, open: () => false, show: () => {}, closeAll: () => {}, sectorHide: () => {}, sector: () => {}, set: () => {}, is: () => false };
@@ -174,6 +177,7 @@
     phase = intro ? 'intro' : 'run'; phaseT = now();
     pred = S.predict(st, sector, { seconds: 3 });
     fxReset(); lowFuelDone = false;
+    closest = 1e9; nearMisses = 0; bodyMin = []; bodyDone = []; closeUntil = 0;
     if (!intro) for (let i = 0; i < 14; i++) { const a = fxRng() * 6.2832; fxSpawn('dust', st.x + Math.cos(a) * 12, st.y + Math.sin(a) * 12, Math.cos(a) * 28, Math.sin(a) * 28, 0.5 + fxRng() * 0.3, 1.5 + fxRng()); }
   }
   function ghostOn(i) { return lsGet('bw:ghost2:' + seed + ':' + i) !== '0'; }
@@ -211,6 +215,30 @@
   }
   function finishRun() { UI.sectorHide(); phase = 'end'; phaseT = now(); pointers.clear(); msg = 'Run complete: ' + medal() + ' | efficiency ' + Math.round(efficiency() * 100) + '%';
     const m = medal(), lvl = m === 'Gold' ? 3 : m === 'Silver' ? 2 : m === 'Bronze' ? 1 : 0; if (lvl) ac('medal', lvl); UI.show('runend'); }
+  // closest approach to the gate this attempt (sim px) + saved best (min across attempts); saves guarded for M1 availability
+  function closestInfo() {
+    const rp = BW.report || {}, c = closest < 1e8 ? +closest.toFixed(1) : null;
+    let best = c;
+    try {
+      if (typeof rp.loadClosest === 'function') { const o = rp.loadClosest(seed, idx); if (typeof o === 'number' && isFinite(o) && (best === null || o < best)) best = o; }
+      if (c !== null && typeof rp.saveClosest === 'function') rp.saveClosest(seed, idx, c);
+    } catch (e) {}
+    return { closest: c, bestClosest: best };
+  }
+  function trackApproach() {
+    const t = st.n * C.DT, g = sector.gate;
+    if (g) { const d = Math.hypot(st.x - g.x, st.y - g.y); if (d < closest) closest = d; }
+    if (Math.hypot(st.vx || 0, st.vy || 0) < 5) return;
+    for (let i = 0; i < sector.bodies.length; i++) {
+      const b = sector.bodies[i]; if (b.dark || bodyDone[i]) continue;
+      const d = Math.hypot(st.x - S.bodyX(b, t), st.y - S.bodyY(b, t)) - b.r, m = bodyMin[i];
+      if (m === undefined || d < m) bodyMin[i] = d;
+      else if (d > m + 0.5 && m > 0 && m < NEAR_MISS_PX) { /* periapsis passed inside the band */
+        bodyDone[i] = true; nearMisses++; closeUntil = now() + CLOSE_TAG_MS; closeX = st.x; closeY = st.y;
+        if (!reduced) fxBurst('spark', st.x, st.y, 6, 60, 0.4, 1.2);
+      }
+    }
+  }
   function endAttempt(result) {
     if (phase !== 'run') return;
     logAttempt(result); pointers.clear(); setBurn(false);
@@ -225,14 +253,23 @@
         if (BW.report && BW.report.saveBest && (!old || st.fuelUsed < old.fuel)) { BW.report.saveBest(seed, idx, st.fuelUsed, events.slice(), fuelStart); isBest = true; lsSet('bw:par2:' + seed + ':' + idx, String(sector.par ? sector.par.fuel : 0)); }
       } catch (e) {}
       const parF = sector.par ? sector.par.fuel : 0;
-      UI.sector('docked', { used: st.fuelUsed, par: parF, eff: st.fuelUsed > 0 ? parF / st.fuelUsed : 0, best: isBest });
+      const rp = BW.report || {}, stars = (typeof rp.starsFor === 'function') ? rp.starsFor(parF, st.fuelUsed) : 0;
+      let bestStars = stars;
+      try {
+        if (typeof rp.loadStars === 'function') { const o = rp.loadStars(seed, idx); if (typeof o === 'number' && o > bestStars) bestStars = o; }
+        if (typeof rp.saveStars === 'function') rp.saveStars(seed, idx, stars);
+      } catch (e) {}
+      const cl = closestInfo();
+      UI.sector('docked', { used: st.fuelUsed, par: parF, eff: st.fuelUsed > 0 ? parF / st.fuelUsed : 0, best: isBest,
+        stars: stars, parRatio: parF > 0 ? st.fuelUsed / parF : 0, bestStars: bestStars, closest: cl.closest, bestClosest: cl.bestClosest, nearMisses: nearMisses });
       if (idx + 1 < SECTORS) setTimeout(function () { prepare(idx + 1, function () {}); }, 300);
     } else {
       phase = 'failed'; ac('crash');
       if (!reduced) { crashAmp = 6; fxBurst('crash', st.x, st.y, 40, 110, 0.9, 2.2); vib(30); }
       msg = ({ crashed: 'Crashed', lost: 'Lost in space', stranded: 'Stranded: out of fuel', timeout: 'Out of time' }[result] || 'Failed');
       const FT = { crashed: ['CRASHED', 'Hit a body at speed.'], lost: ['LOST', 'Drifted past the chart edge.'], stranded: ['STRANDED', 'Fuel empty before the gate.'], timeout: ['OUT OF TIME', 'The 90 s window closed.'] }[result] || ['FAILED', 'Mission failed.'];
-      UI.sector('failed', { title: FT[0], text: FT[1], place: 'bottom' });
+      const cl = closestInfo();
+      UI.sector('failed', { title: FT[0], text: FT[1], place: 'bottom', closest: cl.closest, bestClosest: cl.bestClosest, nearMisses: nearMisses });
     }
   }
 
@@ -279,6 +316,7 @@
     thr = tp / 100;
     const status = S.step(st, sector, { burn: !!b, throttle: tp / 100 });
     physicsSteps++; tapPending = false;
+    try { trackApproach(); } catch (e) {}
     if (!lowFuelDone && st.fuel < 0.2 * fuelStart) { lowFuelDone = true; ac('low_fuel'); }
     if (!reduced && st.n % 3 === 0) { fx.trail.push({ x: st.x, y: st.y, a: 1 }); if (fx.trail.length > TRAIL_MAX) fx.trail.shift(); for (let i = 0; i < fx.trail.length; i++) fx.trail[i].a = (i + 1) / fx.trail.length; }
     if (ghostSt && ghostSt.status === 'flying') S.step(ghostSt, sector, ghostInp(ghostSt.n));
@@ -371,7 +409,8 @@
     }
     const G = {
       sector: sector, st: st, t: st.n * C.DT, pred: pred, ghostLine: ghostLine, ghost: ghostSt, phase: (phase === 'docked' || phase === 'failed' || phase === 'end') ? 'ui_' + phase : phase, warp: phase === 'run' ? warpEff : 1,
-      throttle: thr, fuelMax: fuelStart, parFuel: sector.par ? sector.par.fuel : 0, msg: msg, reduced: reduced, sectorIndex: idx, sectorCount: SECTORS, fx: fx
+      throttle: thr, fuelMax: fuelStart, parFuel: sector.par ? sector.par.fuel : 0, msg: msg, reduced: reduced, sectorIndex: idx, sectorCount: SECTORS, fx: fx,
+      closePass: phase === 'run' && now() < closeUntil ? { k: (closeUntil - now()) / CLOSE_TAG_MS, x: closeX, y: closeY } : null
     };
     ctx.save();
     try {
@@ -412,13 +451,19 @@
   H.status = () => ({ sector: idx + 1, count: SECTORS, fuel: st ? Math.max(0, st.fuel) : 0, par: sector && sector.par ? sector.par.fuel : 0 });
   H.runSummary = () => {
     const best = {}; for (const a of attempts) if (a.result === 'docked' && (!best[a.sector] || a.fuelUsed < best[a.sector].fuelUsed)) best[a.sector] = a;
-    const rows = []; for (let i = 0; i < SECTORS; i++) rows.push(best[i] ? { used: best[i].fuelUsed, par: best[i].par || 0 } : { used: null, par: 0 });
-    return { medal: medal() === 'none' ? 'Bronze' : medal(), eff: efficiency(), seed: seed, rows: rows };
+    const sf = (BW.report && BW.report.starsFor) || null;
+    const rows = []; let totalStars = 0;
+    for (let i = 0; i < SECTORS; i++) {
+      let s = 0; if (best[i] && sf) { try { s = sf(best[i].par || 0, best[i].fuelUsed); } catch (e) { s = 1; } }
+      totalStars += s;
+      rows.push(best[i] ? { used: best[i].fuelUsed, par: best[i].par || 0, stars: s } : { used: null, par: 0, stars: 0 });
+    }
+    return { medal: medal() === 'none' ? 'Bronze' : medal(), eff: efficiency(), seed: seed, rows: rows, totalStars: totalStars, maxStars: SECTORS * 3 };
   };
   H.bestList = () => { const out = []; for (let i = 0; i < SECTORS; i++) { let b = null; try { b = BW.report.loadBest(seed, i); } catch (e) {} const p = parseFloat(lsGet('bw:par2:' + seed + ':' + i)); const c = cache[seed + ':' + i]; out.push({ i: i, fuel: b ? b.fuel : null, par: isFinite(p) ? p : (c && c.par ? c.par.fuel : null) }); } return out; };
   H.ghostOn = ghostOn;
   H.setGhost = (i, on) => { lsSet('bw:ghost2:' + seed + ':' + i, on ? '1' : '0'); };
-  H.eraseSaves = () => { try { const del = []; for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (k && /^bw:(best|ghost|par)2?:/.test(k)) del.push(k); } del.forEach(k => localStorage.removeItem(k)); } catch (e) {} bestRec = null; ghostSt = null; ghostInp = null; };
+  H.eraseSaves = () => { try { const del = []; for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (k && /^bw:(best|ghost|par|stars|miss)2?:/.test(k)) del.push(k); } del.forEach(k => localStorage.removeItem(k)); } catch (e) {} bestRec = null; ghostSt = null; ghostInp = null; };
   H.onSettings = (k, v) => {
     if (k === 'reduced') { reduced = sysReduced || !!v; if (reduced) fxReset(); }
     if (k === 'warp') applyWarpVis();
