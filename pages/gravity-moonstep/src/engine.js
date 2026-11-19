@@ -10,10 +10,12 @@
   var C = {
     DT: 1 / 120, RUN: 90, RUNNER_R: 9, VMAX: 520, JUMP_MIN: 200, JUMP_RANGE: 180, CHARGE_MAX: 0.45,
     STICK_VN: 380, REST: 0.35, CHAIN_WIN: 0.08, CHAIN_BONUS: 1.10, OWN_EXTRA: 0.35, OWN_HYST: 1.15,
-    TIDE0: 22, TIDE_ACC: 0.2, TIDE_MAX: 60, LOST_T: 1.2, G0_BASE: 900, RANGE_K: 4, SPIN_MAX: 0.6,
-    CRUMBLE_T: 1.5, LAND_VT_MAX: 240, VT_DECAY: 200, REPEL_G0: 600, TIDE_START: 260
+    TIDE0: 22, TIDE_ACC: 0.2, TIDE_MAX: 75, LOST_T: 1.2, G0_BASE: 900, RANGE_K: 4, SPIN_MAX: 0.6,
+    CRUMBLE_T: 1.5, LAND_VT_MAX: 240, VT_DECAY: 200, REPEL_G0: 600, TIDE_START: 360
   };
-  var VERSION = 1;
+  var VERSION = 2; // v2: tide cap 75, medal bands, generator patterns (rest/cluster/long)
+  // Medal bands, ascending [minHeight m, name]. Admin default (balance slice C 2026-11-19); game HUD should read these.
+  var BANDS = [[150, 'Bronze'], [1000, 'Silver'], [3800, 'Gold'], [6000, 'Moon']];
 
   function getGen() {
     if (root.MoonGen) return root.MoonGen;
@@ -361,15 +363,24 @@
   }
 
   // Reachability probe used by gen: runner on prevBody (treated still, spin 0) at thetaDeg, release with charge.
-  function probe(prevBody, candBody, thetaDeg, charge, maxSteps) {
+  // others (optional): extra static bodies to include, e.g. a repel hazard placed between prev and cand (v2 fix:
+  // v1 ignored them, so a repel could wall off the only route up and soft-lock the run).
+  function probe(prevBody, candBody, thetaDeg, charge, maxSteps, others) {
     var pb = { id: prevBody.id, x: prevBody.x, y: prevBody.y, r: prevBody.r, g0: prevBody.g0, R: prevBody.R,
       kind: 'still', spin: 0, ang: 0, rem: prevBody.r, dead: false, left: false };
     var cb = { id: candBody.id, x: candBody.x, y: candBody.y, r: candBody.r, g0: candBody.g0, R: candBody.R,
       kind: candBody.kind === 'crumble' ? 'still' : candBody.kind, spin: 0, ang: 0, rem: candBody.r, dead: false, left: false };
     var th = thetaDeg * Math.PI / 180;
     var rr = pb.r + C.RUNNER_R;
+    var bl = [pb, cb];
+    if (others) for (var i = 0; i < others.length; i++) {
+      var o = others[i];
+      if (!o || o.id === pb.id || o.id === cb.id) continue;
+      bl.push({ id: o.id, x: o.x, y: o.y, r: o.r, g0: o.g0, R: o.R, kind: o.kind === 'crumble' ? 'still' : o.kind, spin: 0,
+        ang: 0, rem: o.r, dead: false, left: false });
+    }
     var tmp = {
-      bodies: [pb, cb], owner: pb.id,
+      bodies: bl, owner: pb.id,
       runner: { x: pb.x + rr * Math.cos(th), y: pb.y + rr * Math.sin(th), vx: 0, vy: 0, mode: 'rim', body: pb.id,
         theta: th, dir: 1, vt: C.RUN, sinceLand: 1, bounced: false }
     };
@@ -405,7 +416,7 @@
       aimedHit: hit, aimedTotal: tot, hash: hash(s), inputLog: logString(s.log), extra: extra == null ? null : extra };
   }
   function replay(seedStr, log, opts, maxTicks) {
-    if (maxTicks == null) maxTicks = 240 * 120;
+    if (maxTicks == null) maxTicks = 3600 * 120; // v1 used 240 s: runs longer than 4 min failed Verify replay
     var ev = parseLog(log).sort(function (a, b) { return a[0] - b[0]; });
     var s = newRun(seedStr, opts), k = 0, held = false;
     var inp = { down: false, reverse: false, cancel: false };
@@ -425,12 +436,13 @@
   }
 
   function medal(h) {
-    return h >= 1500 ? 'Moon' : h >= 800 ? 'Gold' : h >= 400 ? 'Silver' : h >= 150 ? 'Bronze' : '';
+    for (var i = BANDS.length - 1; i >= 0; i--) if (h >= BANDS[i][0]) return BANDS[i][1];
+    return '';
   }
   function dailySeed(ymd) { return 'D' + String(ymd); }
 
   return {
-    C: C, VERSION: VERSION, hashSeed: hashSeed, rng: rng, newRun: newRun, tick: tick, predict: predict, probe: probe,
+    C: C, VERSION: VERSION, BANDS: BANDS, hashSeed: hashSeed, rng: rng, newRun: newRun, tick: tick, predict: predict, probe: probe,
     report: report, hash: hash, replay: replay, medal: medal, dailySeed: dailySeed,
     pullMag: pullMag, logString: logString
   };

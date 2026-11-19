@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Moonstep - Settings</title>
+<style>
+:root{--paper:#f8f1dd;--paper2:#f0e7d1;--edge:#d9cfb8;--ink:#15171f;--ink2:#0d0f16;--moon:#bcd0ee;--moon2:#a9bcdc;--ochre:#8a5a14;--verm:#8e2a1c;--halo:0 0 0 4px rgba(188,208,240,.95),0 0 16px 6px rgba(169,188,220,.75)}
+@media (prefers-reduced-motion:no-preference){.pulse{animation:pl 1.6s ease-in-out infinite}@keyframes pl{50%{opacity:.55}}}
+*{box-sizing:border-box;margin:0;-webkit-tap-highlight-color:transparent}
+html,body{width:344px;height:882px;overflow:hidden;background:var(--edge);font-family:Georgia,'Times New Roman',serif;color:var(--ink)}
+.num{font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;font-variant-numeric:tabular-nums}
+.screen{position:relative;width:344px;height:882px;overflow:hidden;background:radial-gradient(ellipse at 50% 45%,#fbf5e3 0,var(--paper2) 55%,#e2d6b8 100%)}
+.screen::after{content:"";position:absolute;inset:0;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' seed='4'/><feColorMatrix values='0 0 0 0 .42 0 0 0 0 .34 0 0 0 0 .2 0 0 0 .55 0'/></filter><rect width='200' height='200' filter='url(%23n)'/></svg>");opacity:.45;mix-blend-mode:multiply;pointer-events:none;z-index:50}
+.vig{position:absolute;inset:0;background:radial-gradient(ellipse at 50% 50%,rgba(60,40,20,0) 55%,rgba(60,40,20,.2) 100%);pointer-events:none;z-index:49}
+button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer}
+.dbl{position:relative;--r:14px;border-radius:var(--r);background:var(--paper)}
+.dbl::before{content:"";position:absolute;inset:0;border:2px solid var(--ink);border-radius:var(--r);filter:url(#wob);pointer-events:none}
+.dbl::after{content:"";position:absolute;inset:-4px;border:1px solid rgba(21,23,31,.5);border-radius:calc(var(--r) + 4px);filter:url(#wob2);pointer-events:none}
+.dbl.ink{background:var(--ink)}.dbl.ink::before{border-color:var(--ink2)}
+.focus{box-shadow:var(--halo)}
+.dots{border-top:2px dotted rgba(21,23,31,.45);height:0}
+.seal{width:26px;height:26px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff,var(--moon2));border:2px solid var(--ink);display:grid;place-items:center;font:700 9px Georgia,serif}
+.t-title{font-weight:700;font-size:30px;letter-spacing:.02em}
+.t-lab{font-style:italic;font-size:14px;color:rgba(21,23,31,.72)}
+.t-btn{font-weight:700;font-size:18px}
+/* planets (scene) */
+.pl-b{position:absolute;border-radius:50%;border:2.4px solid var(--ink);background:radial-gradient(circle at 32% 30%,#e2e8f4,#8e98b0 55%,#343a4e);box-shadow:0 0 0 2px rgba(248,241,221,.7),0 0 0 3px rgba(21,23,31,.5),0 0 40px 10px rgba(170,196,238,.5)}
+.pl-b.v{background:radial-gradient(circle at 32% 30%,#eed6c8,#b0786a 55%,#542222);box-shadow:0 0 0 2px rgba(248,241,221,.7),0 0 0 3px rgba(142,42,28,.6)}
+.ringd{position:absolute;border-radius:50%;border:1.3px dotted rgba(21,23,31,.4)}
+.tide{position:absolute;left:0;right:0;bottom:0;z-index:5}
+.runner{position:absolute;width:20px;height:20px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff,var(--moon));border:2.2px solid var(--ink);box-shadow:0 0 14px 5px rgba(170,196,238,.7)}
+.runner::after{content:"";position:absolute;inset:-7px;border-radius:50%;border:2px solid rgba(138,90,20,.75)}
+/* controls */
+.icon-btn{width:56px;height:56px;--r:50%;display:grid;place-items:center}
+.row{position:relative;display:flex;align-items:center;justify-content:space-between;min-height:60px;padding:0 16px;--r:14px}
+.row .nm{font-weight:700;font-size:18px;line-height:1.1}.row .ds{font-style:italic;font-size:13px;color:rgba(21,23,31,.66);margin-top:3px}
+.tog{position:relative;width:64px;height:36px;border-radius:18px;border:2px solid var(--ink);background:var(--paper2);flex:none}
+.tog i{position:absolute;top:3px;left:3px;width:26px;height:26px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff,var(--moon2));border:2px solid var(--ink)}
+.tog.on{background:var(--ink)}.tog.on i{left:31px}
+.seg{display:flex;gap:10px}.seg button{flex:1;height:56px;--r:14px;display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1.15}
+.seg button b{font-size:19px}.seg button small{font-style:italic;font-size:12px;opacity:.7}
+.seg button.sel{background:var(--ink);color:var(--paper)}.seg button.sel::before{border-color:var(--ink2)}
+.btn{position:relative;display:flex;align-items:center;justify-content:center;height:56px;--r:28px;gap:8px}
+.btn.primary{height:64px;background:var(--ink);color:var(--paper);--r:32px}
+.btn.primary::before{border-color:var(--ink2)}
+.btn.danger{color:var(--verm)}.btn.danger::before{border-color:var(--verm)}.btn.danger::after{border-color:rgba(142,42,28,.5)}
+.btn.danger.fill{background:var(--verm);color:var(--paper)}
+.btn.quiet::before,.btn.quiet::after{display:none}.btn.quiet{background:none;text-decoration:underline dotted;text-underline-offset:5px}
+svg.ic{width:24px;height:24px;stroke:var(--ink);fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+.btn.primary svg.ic{stroke:var(--paper)}
+</style></head>
+<body><svg width="0" height="0" style="position:absolute"><defs><filter id="wob" x="-5%" y="-5%" width="110%" height="110%"><feTurbulence type="fractalNoise" baseFrequency=".035" numOctaves="2" seed="3"/><feDisplacementMap in="SourceGraphic" scale="2.6"/></filter><filter id="wob2" x="-5%" y="-5%" width="110%" height="110%"><feTurbulence type="fractalNoise" baseFrequency=".05" numOctaves="2" seed="9"/><feDisplacementMap in="SourceGraphic" scale="2"/></filter></defs></svg><div class="screen">
+<div style="position:absolute;left:14px;top:14px;z-index:5" class="dbl icon-btn"><button aria-label="Back" style="width:100%;height:100%;display:grid;place-items:center"><svg class="ic" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button></div>
+<div style="position:absolute;left:0;right:0;top:20px;text-align:center"><div class="t-title">Settings</div><div class="dots" style="margin:8px 96px 0"></div></div>
+<div style="position:absolute;left:16px;right:16px;top:88px;display:flex;flex-direction:column;gap:14px">
+ <div class="dbl row" style="min-height:72px"><div><div class="nm">Sound</div><div class="ds">chimes, tide, medals</div></div><span class="tog on" role="switch" aria-checked="true"><i></i></span></div>
+ <div class="dbl row" style="min-height:72px"><div><div class="nm">Assist arc</div><div class="ds">dotted line to where you land</div></div><span class="tog on" role="switch" aria-checked="true"><i></i></span></div>
+ <div class="dbl" style="padding:14px 14px 14px;--r:14px"><div class="nm" style="font-weight:700;font-size:18px">Tide speed</div><div class="ds" style="font-style:italic;font-size:13px;color:rgba(21,23,31,.66);margin:3px 0 10px">how fast the dark rises</div>
+  <div class="seg"><button class="dbl"><b class="num">0.75</b><small>calm</small></button><button class="dbl sel"><b class="num">1</b><small>steady</small></button><button class="dbl"><b class="num">1.25</b><small>swift</small></button></div></div>
+ <div class="dbl row" style="min-height:72px"><div><div class="nm">Reduce motion</div><div class="ds">no pulses, no ripples</div></div><span class="tog " role="switch" aria-checked="false"><i></i></span></div>
+ <div style="margin-top:6px"><div class="t-lab" style="margin:0 2px 8px">Danger</div>
+  <button class="dbl btn danger" style="width:100%;--r:14px"><span class="t-btn" style="font-size:16px">Reset best scores and history</span></button></div>
+</div>
+<div style="position:absolute;left:16px;right:16px;bottom:28px"><button class="dbl btn primary" style="width:100%"><span class="t-btn" style="font-size:21px">Done</span></button></div>
+
+<div class="vig"></div></div></body></html>

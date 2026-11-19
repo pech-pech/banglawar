@@ -1,7 +1,7 @@
 // Offline cache for Moonstep. Bump CACHE on every release so phones pick up the new build.
-const CACHE = 'moonstep-v2';
+const CACHE = 'moonstep-v7';
 const FILES = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png', './icon-maskable-512.png',
-  './src/audio.js', './src/engine.js', './src/gen.js', './src/draw.js', './src/game.js'];
+  './src/audio.js', './src/engine.js', './src/gen.js', './src/fx.js', './src/draw.js', './src/ui.js', './src/ui.css', './src/game.js'];
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES)).then(() => self.skipWaiting()));
 });

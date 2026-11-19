@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Moonstep - In-play HUD</title>
+<style>
+:root{--paper:#f8f1dd;--paper2:#f0e7d1;--edge:#d9cfb8;--ink:#15171f;--ink2:#0d0f16;--moon:#bcd0ee;--moon2:#a9bcdc;--ochre:#8a5a14;--verm:#8e2a1c;--halo:0 0 0 4px rgba(188,208,240,.95),0 0 16px 6px rgba(169,188,220,.75)}
+@media (prefers-reduced-motion:no-preference){.pulse{animation:pl 1.6s ease-in-out infinite}@keyframes pl{50%{opacity:.55}}}
+*{box-sizing:border-box;margin:0;-webkit-tap-highlight-color:transparent}
+html,body{width:344px;height:882px;overflow:hidden;background:var(--edge);font-family:Georgia,'Times New Roman',serif;color:var(--ink)}
+.num{font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;font-variant-numeric:tabular-nums}
+.screen{position:relative;width:344px;height:882px;overflow:hidden;background:radial-gradient(ellipse at 50% 45%,#fbf5e3 0,var(--paper2) 55%,#e2d6b8 100%)}
+.screen::after{content:"";position:absolute;inset:0;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' seed='4'/><feColorMatrix values='0 0 0 0 .42 0 0 0 0 .34 0 0 0 0 .2 0 0 0 .55 0'/></filter><rect width='200' height='200' filter='url(%23n)'/></svg>");opacity:.45;mix-blend-mode:multiply;pointer-events:none;z-index:50}
+.vig{position:absolute;inset:0;background:radial-gradient(ellipse at 50% 50%,rgba(60,40,20,0) 55%,rgba(60,40,20,.2) 100%);pointer-events:none;z-index:49}
+button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer}
+.dbl{position:relative;--r:14px;border-radius:var(--r);background:var(--paper)}
+.dbl::before{content:"";position:absolute;inset:0;border:2px solid var(--ink);border-radius:var(--r);filter:url(#wob);pointer-events:none}
+.dbl::after{content:"";position:absolute;inset:-4px;border:1px solid rgba(21,23,31,.5);border-radius:calc(var(--r) + 4px);filter:url(#wob2);pointer-events:none}
+.dbl.ink{background:var(--ink)}.dbl.ink::before{border-color:var(--ink2)}
+.focus{box-shadow:var(--halo)}
+.dots{border-top:2px dotted rgba(21,23,31,.45);height:0}
+.seal{width:26px;height:26px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff,var(--moon2));border:2px solid var(--ink);display:grid;place-items:center;font:700 9px Georgia,serif}
+.t-title{font-weight:700;font-size:30px;letter-spacing:.02em}
+.t-lab{font-style:italic;font-size:14px;color:rgba(21,23,31,.72)}
+.t-btn{font-weight:700;font-size:18px}
+/* planets (scene) */
+.pl-b{position:absolute;border-radius:50%;border:2.4px solid var(--ink);background:radial-gradient(circle at 32% 30%,#e2e8f4,#8e98b0 55%,#343a4e);box-shadow:0 0 0 2px rgba(248,241,221,.7),0 0 0 3px rgba(21,23,31,.5),0 0 40px 10px rgba(170,196,238,.5)}
+.pl-b.v{background:radial-gradient(circle at 32% 30%,#eed6c8,#b0786a 55%,#542222);box-shadow:0 0 0 2px rgba(248,241,221,.7),0 0 0 3px rgba(142,42,28,.6)}
+.ringd{position:absolute;border-radius:50%;border:1.3px dotted rgba(21,23,31,.4)}
+.tide{position:absolute;left:0;right:0;bottom:0;z-index:5}
+.runner{position:absolute;width:20px;height:20px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff,var(--moon));border:2.2px solid var(--ink);box-shadow:0 0 14px 5px rgba(170,196,238,.7)}
+.runner::after{content:"";position:absolute;inset:-7px;border-radius:50%;border:2px solid rgba(138,90,20,.75)}
+/* controls */
+.icon-btn{width:56px;height:56px;--r:50%;display:grid;place-items:center}
+.row{position:relative;display:flex;align-items:center;justify-content:space-between;min-height:60px;padding:0 16px;--r:14px}
+.row .nm{font-weight:700;font-size:18px;line-height:1.1}.row .ds{font-style:italic;font-size:13px;color:rgba(21,23,31,.66);margin-top:3px}
+.tog{position:relative;width:64px;height:36px;border-radius:18px;border:2px solid var(--ink);background:var(--paper2);flex:none}
+.tog i{position:absolute;top:3px;left:3px;width:26px;height:26px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff,var(--moon2));border:2px solid var(--ink)}
+.tog.on{background:var(--ink)}.tog.on i{left:31px}
+.seg{display:flex;gap:10px}.seg button{flex:1;height:56px;--r:14px;display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1.15}
+.seg button b{font-size:19px}.seg button small{font-style:italic;font-size:12px;opacity:.7}
+.seg button.sel{background:var(--ink);color:var(--paper)}.seg button.sel::before{border-color:var(--ink2)}
+.btn{position:relative;display:flex;align-items:center;justify-content:center;height:56px;--r:28px;gap:8px}
+.btn.primary{height:64px;background:var(--ink);color:var(--paper);--r:32px}
+.btn.primary::before{border-color:var(--ink2)}
+.btn.danger{color:var(--verm)}.btn.danger::before{border-color:var(--verm)}.btn.danger::after{border-color:rgba(142,42,28,.5)}
+.btn.danger.fill{background:var(--verm);color:var(--paper)}
+.btn.quiet::before,.btn.quiet::after{display:none}.btn.quiet{background:none;text-decoration:underline dotted;text-underline-offset:5px}
+svg.ic{width:24px;height:24px;stroke:var(--ink);fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+.btn.primary svg.ic{stroke:var(--paper)}
+</style></head>
+<body><svg width="0" height="0" style="position:absolute"><defs><filter id="wob" x="-5%" y="-5%" width="110%" height="110%"><feTurbulence type="fractalNoise" baseFrequency=".035" numOctaves="2" seed="3"/><feDisplacementMap in="SourceGraphic" scale="2.6"/></filter><filter id="wob2" x="-5%" y="-5%" width="110%" height="110%"><feTurbulence type="fractalNoise" baseFrequency=".05" numOctaves="2" seed="9"/><feDisplacementMap in="SourceGraphic" scale="2"/></filter></defs></svg><div class="screen">
+
+<div class="ringd" style="left:48px;top:560px;width:184px;height:184px"></div><div class="ringd" style="left:136px;top:350px;width:168px;height:168px"></div><div class="ringd" style="left:8px;top:240px;width:156px;height:156px"></div>
+<div class="pl-b" style="left:110px;top:620px;width:80px;height:80px"></div><div class="pl-b" style="left:214px;top:438px;width:64px;height:64px"></div><div class="pl-b" style="left:58px;top:290px;width:52px;height:52px"></div><div class="pl-b v" style="left:206px;top:200px;width:60px;height:60px"></div>
+<div class="runner" style="left:176px;top:540px"></div>
+<svg class="tide" style="top:736px;height:146px" viewBox="0 736 344 146" width="344"><defs><linearGradient id="bl" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="rgba(21,23,31,0)"/><stop offset="1" stop-color="rgba(21,23,31,.25)"/></linearGradient></defs><rect x="0" y="736" width="344" height="30" fill="url(#bl)"/><path d="M0 882 L0 766 L0 768.2 L4 770.6 L8 770.8 L12 769.3 L16 768.3 L20 768.7 L24 769.4 L28 769.0 L32 768.0 L36 768.3 L40 770.5 L44 772.7 L48 773.2 L52 771.7 L56 770.1 L60 769.4 L64 768.6 L68 766.3 L72 763.0 L76 760.8 L80 761.0 L84 762.4 L88 763.0 L92 762.5 L96 762.2 L100 763.2 L104 764.3 L108 763.7 L112 761.5 L116 759.5 L120 759.5 L124 761.0 L128 762.2 L132 762.6 L136 763.6 L140 766.3 L144 769.7 L148 771.5 L152 771.1 L156 769.9 L160 769.7 L164 770.3 L168 770.0 L172 768.5 L176 767.4 L180 768.3 L184 770.6 L188 772.1 L192 771.7 L196 770.3 L200 769.7 L204 769.5 L208 768.1 L212 765.0 L216 761.7 L220 760.2 L224 760.8 L228 761.7 L232 761.5 L236 761.1 L240 761.9 L244 763.8 L248 764.8 L252 763.6 L256 761.5 L260 760.5 L264 761.2 L268 762.3 L272 762.4 L276 762.6 L280 764.3 L284 767.7 L288 770.8 L292 771.9 L296 771.2 L300 770.8 L304 771.3 L308 771.4 L312 770.0 L316 767.9 L320 767.1 L324 768.4 L328 770.3 L332 770.8 L336 769.9 L340 769.2 L344 769.5 L344 882Z" fill="#0d0f16"/><rect x="28" y="764" width="3" height="6" fill="#0d0f16"/><circle cx="29.5" cy="770" r="2.4" fill="#0d0f16"/><rect x="77" y="764" width="3" height="13" fill="#0d0f16"/><circle cx="78.5" cy="777" r="2.4" fill="#0d0f16"/><rect x="121" y="764" width="3" height="6" fill="#0d0f16"/><circle cx="122.5" cy="770" r="2.4" fill="#0d0f16"/><rect x="170" y="764" width="3" height="13" fill="#0d0f16"/><circle cx="171.5" cy="777" r="2.4" fill="#0d0f16"/><rect x="214" y="764" width="3" height="6" fill="#0d0f16"/><circle cx="215.5" cy="770" r="2.4" fill="#0d0f16"/><rect x="262" y="764" width="3" height="13" fill="#0d0f16"/><circle cx="263.5" cy="777" r="2.4" fill="#0d0f16"/><rect x="305" y="764" width="3" height="6" fill="#0d0f16"/><circle cx="306.5" cy="770" r="2.4" fill="#0d0f16"/><g stroke="rgba(160,186,230,.35)" stroke-width="1" stroke-linecap="round"><path d="M50 788h40M200 802h50M110 816h30"/></g></svg>
+<div class="dbl icon-btn" style="position:absolute;left:14px;top:14px;z-index:10"><button aria-label="Pause" style="width:100%;height:100%;display:grid;place-items:center"><svg class="ic" viewBox="0 0 24 24"><path d="M9 6v12M15 6v12" stroke-width="3"/></svg></button></div>
+<div class="dbl" style="position:absolute;left:50%;top:18px;transform:translateX(-50%);width:148px;height:48px;--r:24px;z-index:10;display:flex;align-items:center;justify-content:center;gap:6px;box-shadow:0 3px 7px rgba(21,23,31,.28)"><span class="num" style="font-weight:800;font-size:22px">1,284</span><span style="font-style:italic;font-size:13px;opacity:.7;margin-top:5px">m</span><span style="margin-left:4px"><div class="seal" style="width:28px;height:28px">II</div></span></div>
+<div class="dbl icon-btn" style="position:absolute;right:14px;top:14px;z-index:10"><button aria-label="Copy report" style="width:100%;height:100%;display:grid;place-items:center"><svg class="ic" viewBox="0 0 24 24"><rect x="8" y="8" width="11" height="12" rx="2"/><path d="M5 15V6a2 2 0 0 1 2-2h8"/></svg></button></div>
+<div style="position:absolute;left:84px;right:84px;top:76px;text-align:center;z-index:10">
+ <div style="font-style:italic;font-size:13px;color:rgba(21,23,31,.78)">next · <b style="font-style:normal">Gold</b> <span class="num" style="font-style:normal">800 m</span> · <span class="num" style="font-style:normal">+126 m</span></div>
+ <div style="margin:7px auto 0;width:140px;height:6px;border-radius:3px;border:1.5px solid var(--ink);background:var(--paper);position:relative"><i style="position:absolute;left:0;top:0;bottom:0;width:64%;background:var(--ink);border-radius:2px"></i><i style="position:absolute;left:64%;top:-4px;width:2px;height:12px;background:var(--ochre)"></i></div>
+</div>
+<div style="position:absolute;left:16px;top:122px;z-index:10;display:flex;align-items:center;gap:7px"><span style="font-style:italic;font-size:12px;color:rgba(21,23,31,.75)">chain</span>
+ <span style="display:flex;gap:4px"><i style="width:12px;height:12px;border-radius:50%;border:1.8px solid var(--ink);background:var(--ochre)"></i><i style="width:12px;height:12px;border-radius:50%;border:1.8px solid var(--ink);background:var(--ochre)"></i><i style="width:12px;height:12px;border-radius:50%;border:1.8px solid var(--ink);background:var(--ochre)"></i><i style="width:12px;height:12px;border-radius:50%;border:1.8px solid var(--ink);background:transparent"></i><i style="width:12px;height:12px;border-radius:50%;border:1.8px solid var(--ink);background:transparent"></i></span><span class="num" style="font-weight:800;font-size:14px;color:var(--ochre)">×3</span></div>
+<div style="position:absolute;right:16px;top:122px;z-index:10;font-size:12px;color:rgba(21,23,31,.75)"><span style="font-style:italic">seed</span> <span class="num" style="font-weight:700;letter-spacing:.06em">MN-7K3Q</span></div>
+<div class="dbl " style="position:absolute;left:50%;transform:translateX(-50%);top:708px;z-index:10;height:36px;padding:0 14px;--r:18px;display:flex;align-items:center;gap:8px;white-space:nowrap;">
+ <svg class="ic" viewBox="0 0 24 24" style="width:18px;height:18px;stroke:var(--verm)"><path d="M12 4v13M6 12l6 7 6-7"/></svg>
+ <span style="font-style:italic;font-size:14px;color:var(--verm);font-weight:700">Tide rising</span><span class="num" style="font-size:13px;font-weight:800;color:var(--verm)">94 m</span></div>
+
+<div style="position:absolute;left:0;right:0;top:784px;text-align:center;z-index:11;font-style:italic;font-size:12px;color:rgba(205,220,245,.75)">hold  ·  aim  ·  release</div>
+<div style="position:absolute;left:127px;top:798px;width:90px;height:68px;z-index:11;border-radius:50%;border:1.6px dotted rgba(188,208,240,.65)"></div>
+<div style="position:absolute;left:169px;top:829px;width:6px;height:6px;border-radius:50%;background:rgba(205,220,245,.6);z-index:11"></div>
+<div class="vig"></div></div></body></html>

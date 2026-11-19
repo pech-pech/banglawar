@@ -1,0 +1,86 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Moonstep - Best by seed</title><style>
+:root{--paper:#f8f1dd;--paper2:#f0e7d1;--edge:#d9cfb8;--ink:#15171f;--ink2:#0d0f16;--moon:#bcd0ee;--moon2:#a9bcdc;--ochre:#8a5a14;--verm:#8e2a1c;
+--t-bronze:"150";--t-silver:"400";--t-gold:"800";--t-moon:"1,500";
+--serif:Georgia,'Times New Roman',serif;--sans:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--edge)}
+body{width:344px;min-height:882px;position:relative;overflow:hidden;font-family:var(--sans);color:var(--ink);
+background:radial-gradient(ellipse at 50% 45%,rgba(255,250,232,.6),rgba(176,150,104,.3) 100%),var(--paper2)}
+body::before{content:"";position:absolute;inset:0;pointer-events:none;opacity:.5;mix-blend-mode:multiply;
+background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' seed='4'/><feColorMatrix values='0 0 0 0 .45  0 0 0 0 .35  0 0 0 0 .2  0 0 0 .22 0'/></filter><rect width='160' height='160' filter='url(%23n)'/></svg>")}
+.wrap{position:relative;min-height:882px;padding:18px 16px 20px;display:flex;flex-direction:column}
+h1,h2,.serif{font-family:var(--serif);margin:0}
+.eyebrow{font:italic 12px var(--serif);color:rgba(21,23,31,.65);text-align:center}
+.top{display:flex;align-items:center;justify-content:space-between;height:56px}
+.back{width:56px;height:56px;display:grid;place-items:center;background:none;border:0;font:700 22px var(--serif);color:var(--ink)}
+.title{font:700 22px var(--serif);letter-spacing:.2px}
+.ptr{width:56px}
+/* double ink frame with wobble */
+.frame{position:relative;background:var(--paper);padding:14px}
+.frame::before,.frame::after{content:"";position:absolute;pointer-events:none;border-radius:14px;filter:url(#wob)}
+.frame::before{inset:0;border:2px solid var(--ink)}
+.frame::after{inset:4px;border:1px solid rgba(21,23,31,.55)}
+.frame{border-radius:14px;box-shadow:0 2px 6px rgba(21,23,31,.22)}
+.dots{border:0;border-top:2px dotted rgba(21,23,31,.5);margin:10px 0}
+/* buttons */
+.btn{position:relative;display:flex;align-items:center;justify-content:center;gap:8px;min-height:56px;width:100%;padding:0 16px;background:var(--paper);color:var(--ink);
+font:700 17px var(--serif);border:0;border-radius:28px;cursor:pointer}
+.btn::before,.btn::after{content:"";position:absolute;pointer-events:none;border-radius:28px;filter:url(#wob)}
+.btn::before{inset:0;border:2px solid var(--ink)}
+.btn::after{inset:4px;border:1px solid rgba(21,23,31,.5);border-radius:24px}
+.btn.primary{background:var(--ink);color:var(--paper)}
+.btn.primary::after{border-color:rgba(188,208,240,.6)}
+.btn:focus-visible,.row:focus-visible,.tab:focus-visible{outline:0;box-shadow:0 0 0 3px var(--moon),0 0 14px 4px rgba(169,188,220,.9)}
+.btn:active{transform:translateY(1px)}
+.btn small{font:italic 12px var(--serif);opacity:.75}
+.btnrow{display:flex;gap:10px}.btnrow .btn{font-size:15px}
+/* seals */
+.seal{position:relative;width:var(--s,64px);height:var(--s,64px);border-radius:50%;border:2px solid var(--ink);display:grid;place-items:center;
+font:700 calc(var(--s,64px)*.34) var(--serif);color:var(--ink);flex:none;
+box-shadow:0 0 0 3px var(--paper),0 0 0 4px rgba(21,23,31,.55),0 0 var(--h,0px) calc(var(--h,0px)/3) rgba(169,188,220,.8)}
+.seal.none{background:transparent;border-style:dashed;color:rgba(21,23,31,.45);box-shadow:none}
+.seal.bronze{background:radial-gradient(circle at 35% 30%,#f2c9a0,#b0713a 60%,#6d4220)}
+.seal.silver{background:radial-gradient(circle at 35% 30%,#fff,#bcd0ee 55%,#a9bcdc)}
+.seal.gold{background:radial-gradient(circle at 35% 30%,#fff1c0,#d6a23c 55%,var(--ochre))}
+.seal.moon{background:radial-gradient(circle at 35% 30%,#fff,#dbe6f7 45%,#a9bcdc);color:var(--ink)}
+.seal.moon::after{content:"";position:absolute;width:62%;height:62%;right:8%;top:19%;border-radius:50%;box-shadow:inset -4px 0 0 0 rgba(21,23,31,.8);}
+.seal.locked{filter:grayscale(1);opacity:.45}
+/* progress */
+.bar{position:relative;height:14px;border-radius:7px;border:2px solid var(--ink);background:rgba(21,23,31,.06);overflow:hidden}
+.bar i{position:absolute;inset:0 auto 0 0;background:repeating-linear-gradient(135deg,var(--ink) 0 2px,transparent 2px 5px);opacity:.85}
+.mono{font-variant-numeric:tabular-nums}
+.stamp{display:inline-block;font:700 13px var(--serif);letter-spacing:2px;text-transform:uppercase;color:var(--verm);border:2px solid var(--verm);padding:3px 10px;border-radius:4px;transform:rotate(-4deg);filter:url(#wob)}
+.cause{font:italic 15px var(--serif);text-align:center;color:rgba(21,23,31,.8)}
+.tide{color:var(--ink)}.lost{color:var(--verm)}
+.hero{font:700 64px/1 var(--serif);text-align:center}.hero small{font:italic 18px var(--serif);margin-left:4px;opacity:.7}
+.ok{color:#2c5a3a;font-weight:700}.fail{color:var(--verm);font-weight:700}
+.chip{white-space:nowrap;display:inline-flex;align-items:center;gap:6px;min-height:28px;padding:0 10px;border:1.5px solid var(--ink);border-radius:14px;font:600 13px var(--sans);background:var(--paper)}
+.seedbox{font:600 14px ui-monospace,Menlo,monospace;letter-spacing:1px}
+.spacer{flex:1}
+.t-bronze::before{content:var(--t-bronze)}.t-silver::before{content:var(--t-silver)}.t-gold::before{content:var(--t-gold)}.t-moon::before{content:var(--t-moon)}
+/* rows */
+.list{display:flex;flex-direction:column}
+.row{position:relative;display:flex;align-items:center;gap:10px;min-height:56px;padding:0 4px;border-bottom:2px dotted rgba(21,23,31,.35);background:none;border-left:0;border-right:0;border-top:0;text-align:left;font:inherit;color:inherit}
+.row .n{width:22px;font:italic 12px var(--serif);opacity:.6;text-align:right}
+.row .h{font:700 18px var(--serif);min-width:70px}.row .h small{font:italic 11px var(--serif);opacity:.7}
+.row .meta{flex:1;min-width:0;font-size:12px;line-height:1.3;opacity:.8}
+.row .meta b{font-family:ui-monospace,Menlo,monospace;font-weight:600;font-size:12px}
+.row.best{background:rgba(188,208,240,.35)}
+.tag{font:700 10px var(--sans);letter-spacing:1px;text-transform:uppercase;padding:2px 6px;border-radius:3px;border:1.5px solid}
+.tag.t{color:var(--ink);border-color:var(--ink)}.tag.l{color:var(--verm);border-color:var(--verm)}
+.tabs{display:flex;gap:8px;margin:2px 0 10px}
+.tab{flex:1;min-height:44px;border:0;background:none;font:700 14px var(--serif);position:relative;color:var(--ink);border-radius:22px}
+.tab[aria-selected=true]{background:var(--ink);color:var(--paper)}
+.tide-ink{position:absolute;left:0;right:0;bottom:0;height:90px;background:var(--ink2);pointer-events:none;
+clip-path:polygon(0 18%,8% 12%,17% 20%,26% 10%,38% 18%,50% 8%,62% 16%,74% 9%,86% 17%,100% 10%,100% 100%,0 100%)}
+.tide-ink.sm{height:64px}
+.lowthird{margin-top:auto;display:flex;flex-direction:column;gap:10px;position:relative}
+.copy{font:italic 13px var(--serif);text-align:center;opacity:.75}
+@media (prefers-reduced-motion:no-preference){.stamp{animation:stampin .35s ease-out both}}
+@keyframes stampin{from{transform:rotate(-4deg) scale(1.6);opacity:0}to{transform:rotate(-4deg) scale(1);opacity:1}}
+@media (min-width:460px) and (max-height:700px){.hero{font-size:52px}.wrap{min-height:638px}}
+</style></head><body><svg width="0" height="0" style="position:absolute" aria-hidden="true"><filter id="wob"><feTurbulence type="fractalNoise" baseFrequency=".04" numOctaves="2" seed="3"/><feDisplacementMap in="SourceGraphic" scale="3"/></filter></svg><main class="wrap"><div class="top"><button class="back" aria-label="Back">&lsaquo;</button><h1 class="title">Best by seed</h1><span class="ptr"></span></div>
+<div class="tabs" role="tablist"><button class="tab" role="tab" aria-selected="true">Best by seed</button><button class="tab" role="tab" aria-selected="false">Attempts</button></div>
+<section class="frame" style="padding:6px 10px"><div class="list"><button class="row best"><span class="seal silver" style="--s:40px" role="img" aria-label="silver medal">II</span><span class="h mono">418<small> m</small></span><span class="meta"><b>QX7-4M2</b><br>12 attempts</span><span aria-hidden="true">&rsaquo;</span></button><button class="row "><span class="seal gold" style="--s:40px" role="img" aria-label="gold medal">III</span><span class="h mono">906<small> m</small></span><span class="meta"><b>DAILY 19-11</b><br>5 attempts &middot; daily</span><span aria-hidden="true">&rsaquo;</span></button><button class="row "><span class="seal bronze" style="--s:40px" role="img" aria-label="bronze medal">I</span><span class="h mono">231<small> m</small></span><span class="meta"><b>K3N-9PA</b><br>3 attempts</span><span aria-hidden="true">&rsaquo;</span></button><button class="row "><span class="seal moon" style="--s:40px" role="img" aria-label="moon medal"></span><span class="h mono">1,612<small> m</small></span><span class="meta"><b>MOON-01</b><br>9 attempts</span><span aria-hidden="true">&rsaquo;</span></button><button class="row "><span class="seal none" style="--s:40px" role="img" aria-label="none medal"></span><span class="h mono">112<small> m</small></span><span class="meta"><b>7T2-LL8</b><br>1 attempts</span><span aria-hidden="true">&rsaquo;</span></button><button class="row "><span class="seal bronze" style="--s:40px" role="img" aria-label="bronze medal">I</span><span class="h mono">177<small> m</small></span><span class="meta"><b>R5D-0ZW</b><br>2 attempts</span><span aria-hidden="true">&rsaquo;</span></button></div></section>
+<div class="copy" style="margin-top:10px">Tap a seed to play it again</div>
+<div class="lowthird" style="padding-bottom:70px"><button class="btn primary">Play daily seed</button></div><div class="tide-ink sm"></div></main></body></html>
