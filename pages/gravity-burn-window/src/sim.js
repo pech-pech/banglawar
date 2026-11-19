@@ -34,7 +34,7 @@
   function bodyY(b, t) { return b.cy + b.R * Math.sin(b.w * t + b.p); }
   // sector: {id, bodies:[body], gate:{x,y}, start:{x,y,vx,vy}, fuel0}
   function newState(sector, fuel) {
-    const s = sector.start, sp = Math.hypot(s.vx, s.vy) || 1;
+    const s = sector.start, sp = Math.sqrt(s.vx * s.vx + s.vy * s.vy) || 1;
     return {
       n: 0, x: s.x, y: s.y, vx: s.vx, vy: s.vy, hx: s.vx / sp, hy: s.vy / sp,
       fuel: fuel == null ? (sector.fuel0 == null ? C.FUEL0 : sector.fuel0) : fuel, fuelUsed: 0,
@@ -58,7 +58,7 @@
   function integrate(st, bodies, t, dt, thrust, skipDark) {
     let tx = 0, ty = 0;
     if (thrust > 0) {
-      const sp = Math.hypot(st.vx, st.vy);
+      const sp = Math.sqrt(st.vx * st.vx + st.vy * st.vy);
       if (sp >= C.V_MIN_HEAD) { tx = st.vx / sp * thrust; ty = st.vy / sp * thrust; } else { tx = st.hx * thrust; ty = st.hy * thrust; }
     }
     accel(bodies, st.x, st.y, t, skipDark, _a);
@@ -66,7 +66,7 @@
     st.x += st.vx * dt; st.y += st.vy * dt;
     accel(bodies, st.x, st.y, t + dt, skipDark, _a);
     st.vx += (_a[0] + tx) * dt * 0.5; st.vy += (_a[1] + ty) * dt * 0.5;
-    const sp = Math.hypot(st.vx, st.vy);
+    const sp = Math.sqrt(st.vx * st.vx + st.vy * st.vy);
     if (sp >= C.V_MIN_HEAD) { st.hx = st.vx / sp; st.hy = st.vy / sp; }
   }
   // advance exactly one DT. input = {burn:boolean, throttle:0.25..1}. Returns st.status.
@@ -92,13 +92,13 @@
     const tn = st.n * C.DT;
     for (let i = 0; i < sector.bodies.length; i++) {
       const b = sector.bodies[i];
-      const d = Math.hypot(st.x - bodyX(b, tn), st.y - bodyY(b, tn));
+      const d = Math.sqrt((st.x - bodyX(b, tn)) * (st.x - bodyX(b, tn)) + (st.y - bodyY(b, tn)) * (st.y - bodyY(b, tn)));
       if (d < st.minDist) st.minDist = d;
       if (d < b.r + C.CRASH_PAD) { st.status = 'crashed'; st.crashBody = b.id; return st.status; }
     }
     if (st.x < -C.OUT || st.x > C.W + C.OUT || st.y < -C.OUT || st.y > C.H + C.OUT) { st.status = 'lost'; return st.status; }
     const g = sector.gate;
-    if (Math.hypot(st.x - g.x, st.y - g.y) < C.GATE_R && Math.hypot(st.vx, st.vy) < C.DOCK_V) st.status = 'docked';
+    if (Math.sqrt((st.x - g.x) * (st.x - g.x) + (st.y - g.y) * (st.y - g.y)) < C.GATE_R && Math.sqrt(st.vx * st.vx + st.vy * st.vy) < C.DOCK_V) st.status = 'docked';
     return st.status;
   }
   // Coast preview (burn off). Default 3 s at dt 1/30, two 1/60 sub-steps inside 60 px of a visible body.
@@ -114,20 +114,20 @@
     let k = 0;
     while (t < tEnd - 1e-9) {
       let near = 1e9;
-      for (let i = 0; i < bodies.length; i++) { if (skipDark && bodies[i].dark) continue; const d = Math.hypot(p.x - bodyX(bodies[i], t), p.y - bodyY(bodies[i], t)); if (d < near) near = d; }
+      for (let i = 0; i < bodies.length; i++) { if (skipDark && bodies[i].dark) continue; const d = Math.sqrt((p.x - bodyX(bodies[i], t)) * (p.x - bodyX(bodies[i], t)) + (p.y - bodyY(bodies[i], t)) * (p.y - bodyY(bodies[i], t))); if (d < near) near = d; }
       const sub = near < 60 ? 2 : 1, dt = (1 / 30) / sub;
       for (let s = 0; s < sub; s++) { integrate(p, bodies, t, dt, 0, skipDark); t += dt; }
       k++;
       pts.push({ x: p.x, y: p.y, t: t - baseT });
       for (let i = 0; i < bodies.length; i++) {
         const b = bodies[i]; if (skipDark && b.dark) continue;
-        const d = Math.hypot(p.x - bodyX(b, t), p.y - bodyY(b, t));
+        const d = Math.sqrt((p.x - bodyX(b, t)) * (p.x - bodyX(b, t)) + (p.y - bodyY(b, t)) * (p.y - bodyY(b, t)));
         if (!best || d - b.r < best.d) best = { i: pts.length - 1, d: d - b.r, body: b.id };
         if (d < b.r + C.CRASH_PAD) { end = 'crashed'; }
       }
       if (end === 'crashed') break;
       if (p.x < -C.OUT || p.x > C.W + C.OUT || p.y < -C.OUT || p.y > C.H + C.OUT) { end = 'lost'; break; }
-      if (Math.hypot(p.x - sector.gate.x, p.y - sector.gate.y) < C.GATE_R && Math.hypot(p.vx, p.vy) < C.DOCK_V) { end = 'docked'; break; }
+      if (Math.sqrt((p.x - sector.gate.x) * (p.x - sector.gate.x) + (p.y - sector.gate.y) * (p.y - sector.gate.y)) < C.GATE_R && Math.sqrt(p.vx * p.vx + p.vy * p.vy) < C.DOCK_V) { end = 'docked'; break; }
     }
     return { pts, closest: best, end };
   }
@@ -139,9 +139,15 @@
   }
   // events: [[step, burn(0|1), throttle% (25..100)]] sorted by step. Returns stateful fn(step)->input; call with increasing steps.
   function inputFromEvents(events) {
+    events = Array.isArray(events) ? events : [];
     let i = 0, cur = { burn: false, throttle: 1 };
     return function (n) {
-      while (i < events.length && events[i][0] <= n) { cur = { burn: !!events[i][1], throttle: (events[i][2] || 100) / 100 }; i++; }
+      while (i < events.length) {
+        const e = events[i];
+        if (!Array.isArray(e) || typeof e[0] !== 'number') { i++; continue; } // skip malformed event
+        if (e[0] > n) break;
+        cur = { burn: !!e[1], throttle: (e[2] || 100) / 100 }; i++;
+      }
       return cur;
     };
   }
@@ -166,7 +172,7 @@
   // specific energy (static-body approximation use only in tests)
   function energy(st, sector, t) {
     let u = 0;
-    for (const b of sector.bodies) { const d = Math.hypot(st.x - bodyX(b, t), st.y - bodyY(b, t)); u -= b.gm / Math.sqrt(d * d + C.EPS * C.EPS); }
+    for (const b of sector.bodies) { const d = Math.sqrt((st.x - bodyX(b, t)) * (st.x - bodyX(b, t)) + (st.y - bodyY(b, t)) * (st.y - bodyY(b, t))); u -= b.gm / Math.sqrt(d * d + C.EPS * C.EPS); }
     return 0.5 * (st.vx * st.vx + st.vy * st.vy) + u;
   }
   const api = { C, bodyRadius, mulberry32, hashSeed, makeBody, bodyX, bodyY, newState, step, predict, checksum, inputFromEvents, schedToEvents, runSchedule, energy, integrate };

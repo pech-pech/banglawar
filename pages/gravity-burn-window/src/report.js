@@ -47,7 +47,7 @@
     const sc = selfCheck();
     return {
       game: 'Burn Window',
-      version: 'bw-0.2',
+      version: 'bw-0.2.2',
       seed: info.seed,
       renderer: 'Canvas2D',
       device: info.device || {},
@@ -57,7 +57,8 @@
       inputLog: info.inputLog || [],
       ticks: info.ticks || {},
       energyDrift: sc.energyDrift,
-      settings: info.settings || {}
+      settings: info.settings || {},
+      tweaks: info.tweaks || {}
     };
   }
 
@@ -85,12 +86,25 @@
 
   function key(seed, idx) { return 'bw:best2:' + seed + ':' + idx; }
 
+  function validEvents(ev) { // [[step, 0|1, throttle]] sorted by step, sane length
+    if (!Array.isArray(ev) || ev.length > 5000) return false;
+    let prev = -1;
+    for (let i = 0; i < ev.length; i++) {
+      const e = ev[i];
+      if (!Array.isArray(e) || typeof e[0] !== 'number' || !isFinite(e[0]) || e[0] < prev) return false;
+      if (e[1] !== 0 && e[1] !== 1 && e[1] !== true && e[1] !== false) return false;
+      if (typeof e[2] !== 'number' || !isFinite(e[2])) return false;
+      prev = e[0];
+    }
+    return true;
+  }
+
   function loadBest(seed, idx) {
     try {
       const raw = root.localStorage.getItem(key(seed, idx));
       if (!raw) return null;
       const o = JSON.parse(raw);
-      if (o && typeof o.fuel === 'number' && Array.isArray(o.events)) return o;
+      if (o && typeof o.fuel === 'number' && isFinite(o.fuel) && validEvents(o.events)) return o;
     } catch (e) { /* ignore */ }
     return null;
   }
@@ -104,6 +118,59 @@
     } catch (e) { return false; }
   }
 
-  const api = { selfCheck, build, copy, loadBest, saveBest };
+  // Stars for a docked run: efficiency = par / fuelUsed. >=0.75 gold (3), >=0.55 silver (2), else docked (1).
+  function starsFor(par, fuelUsed) {
+    par = Number(par); fuelUsed = Number(fuelUsed);
+    if (!isFinite(par) || par <= 0 || !isFinite(fuelUsed) || fuelUsed < 0) return 1;
+    if (fuelUsed === 0) return 3; // efficiency is unbounded
+    const eff = par / fuelUsed;
+    if (eff >= 0.75 - 1e-9) return 3;
+    if (eff >= 0.55 - 1e-9) return 2;
+    return 1;
+  }
+
+  function starsKey(seed, idx) { return 'bw:stars2:' + seed + ':' + idx; }
+  function missKey(seed, idx) { return 'bw:miss2:' + seed + ':' + idx; }
+
+  function loadStars(seed, idx) {
+    try {
+      const n = parseInt(root.localStorage.getItem(starsKey(seed, idx)), 10);
+      if (n >= 1 && n <= 3) return n;
+    } catch (e) { /* ignore */ }
+    return 0;
+  }
+
+  function saveStars(seed, idx, stars) { // never downgrade; returns true if stored
+    try {
+      stars = Math.floor(Number(stars));
+      if (!(stars >= 1 && stars <= 3)) return false;
+      if (loadStars(seed, idx) >= stars) return false;
+      root.localStorage.setItem(starsKey(seed, idx), String(stars));
+      return true;
+    } catch (e) { return false; }
+  }
+
+  function loadClosest(seed, idx) { // best (smallest) closest approach in sim px, or null
+    try {
+      const raw = root.localStorage.getItem(missKey(seed, idx));
+      if (raw === null || raw === '') return null;
+      const v = parseFloat(raw);
+      if (isFinite(v) && v >= 0) return v;
+    } catch (e) { /* ignore */ }
+    return null;
+  }
+
+  function saveClosest(seed, idx, closest) { // keep minimum; returns true if stored
+    try {
+      closest = Number(closest);
+      if (!isFinite(closest) || closest < 0) return false;
+      const cur = loadClosest(seed, idx);
+      if (cur !== null && cur <= closest) return false;
+      root.localStorage.setItem(missKey(seed, idx), String(Math.round(closest * 10) / 10));
+      return true;
+    } catch (e) { return false; }
+  }
+
+  const api = { selfCheck, build, copy, loadBest, saveBest, starsFor, saveStars, loadStars, saveClosest, loadClosest };
   if (typeof module !== 'undefined' && module.exports) module.exports = api; else { root.BW = root.BW || {}; root.BW.report = api; }
 })(typeof globalThis !== 'undefined' ? globalThis : this);

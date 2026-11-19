@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
-<meta name="theme-color" content="#0a1214">
+<meta name="theme-color" content="#c9a24a">
 <title>Burn Window</title>
 <style>html,body{margin:0;overflow:hidden;touch-action:none;background:#0a1214;height:100%}canvas{display:block;width:100vw;height:100vh;touch-action:none}</style>
 <link rel="manifest" href="manifest.webmanifest">
@@ -51,7 +51,7 @@
   function bodyY(b, t) { return b.cy + b.R * Math.sin(b.w * t + b.p); }
   // sector: {id, bodies:[body], gate:{x,y}, start:{x,y,vx,vy}, fuel0}
   function newState(sector, fuel) {
-    const s = sector.start, sp = Math.hypot(s.vx, s.vy) || 1;
+    const s = sector.start, sp = Math.sqrt(s.vx * s.vx + s.vy * s.vy) || 1;
     return {
       n: 0, x: s.x, y: s.y, vx: s.vx, vy: s.vy, hx: s.vx / sp, hy: s.vy / sp,
       fuel: fuel == null ? (sector.fuel0 == null ? C.FUEL0 : sector.fuel0) : fuel, fuelUsed: 0,
@@ -75,7 +75,7 @@
   function integrate(st, bodies, t, dt, thrust, skipDark) {
     let tx = 0, ty = 0;
     if (thrust > 0) {
-      const sp = Math.hypot(st.vx, st.vy);
+      const sp = Math.sqrt(st.vx * st.vx + st.vy * st.vy);
       if (sp >= C.V_MIN_HEAD) { tx = st.vx / sp * thrust; ty = st.vy / sp * thrust; } else { tx = st.hx * thrust; ty = st.hy * thrust; }
     }
     accel(bodies, st.x, st.y, t, skipDark, _a);
@@ -83,7 +83,7 @@
     st.x += st.vx * dt; st.y += st.vy * dt;
     accel(bodies, st.x, st.y, t + dt, skipDark, _a);
     st.vx += (_a[0] + tx) * dt * 0.5; st.vy += (_a[1] + ty) * dt * 0.5;
-    const sp = Math.hypot(st.vx, st.vy);
+    const sp = Math.sqrt(st.vx * st.vx + st.vy * st.vy);
     if (sp >= C.V_MIN_HEAD) { st.hx = st.vx / sp; st.hy = st.vy / sp; }
   }
   // advance exactly one DT. input = {burn:boolean, throttle:0.25..1}. Returns st.status.
@@ -109,13 +109,13 @@
     const tn = st.n * C.DT;
     for (let i = 0; i < sector.bodies.length; i++) {
       const b = sector.bodies[i];
-      const d = Math.hypot(st.x - bodyX(b, tn), st.y - bodyY(b, tn));
+      const d = Math.sqrt((st.x - bodyX(b, tn)) * (st.x - bodyX(b, tn)) + (st.y - bodyY(b, tn)) * (st.y - bodyY(b, tn)));
       if (d < st.minDist) st.minDist = d;
       if (d < b.r + C.CRASH_PAD) { st.status = 'crashed'; st.crashBody = b.id; return st.status; }
     }
     if (st.x < -C.OUT || st.x > C.W + C.OUT || st.y < -C.OUT || st.y > C.H + C.OUT) { st.status = 'lost'; return st.status; }
     const g = sector.gate;
-    if (Math.hypot(st.x - g.x, st.y - g.y) < C.GATE_R && Math.hypot(st.vx, st.vy) < C.DOCK_V) st.status = 'docked';
+    if (Math.sqrt((st.x - g.x) * (st.x - g.x) + (st.y - g.y) * (st.y - g.y)) < C.GATE_R && Math.sqrt(st.vx * st.vx + st.vy * st.vy) < C.DOCK_V) st.status = 'docked';
     return st.status;
   }
   // Coast preview (burn off). Default 3 s at dt 1/30, two 1/60 sub-steps inside 60 px of a visible body.
@@ -131,20 +131,20 @@
     let k = 0;
     while (t < tEnd - 1e-9) {
       let near = 1e9;
-      for (let i = 0; i < bodies.length; i++) { if (skipDark && bodies[i].dark) continue; const d = Math.hypot(p.x - bodyX(bodies[i], t), p.y - bodyY(bodies[i], t)); if (d < near) near = d; }
+      for (let i = 0; i < bodies.length; i++) { if (skipDark && bodies[i].dark) continue; const d = Math.sqrt((p.x - bodyX(bodies[i], t)) * (p.x - bodyX(bodies[i], t)) + (p.y - bodyY(bodies[i], t)) * (p.y - bodyY(bodies[i], t))); if (d < near) near = d; }
       const sub = near < 60 ? 2 : 1, dt = (1 / 30) / sub;
       for (let s = 0; s < sub; s++) { integrate(p, bodies, t, dt, 0, skipDark); t += dt; }
       k++;
       pts.push({ x: p.x, y: p.y, t: t - baseT });
       for (let i = 0; i < bodies.length; i++) {
         const b = bodies[i]; if (skipDark && b.dark) continue;
-        const d = Math.hypot(p.x - bodyX(b, t), p.y - bodyY(b, t));
+        const d = Math.sqrt((p.x - bodyX(b, t)) * (p.x - bodyX(b, t)) + (p.y - bodyY(b, t)) * (p.y - bodyY(b, t)));
         if (!best || d - b.r < best.d) best = { i: pts.length - 1, d: d - b.r, body: b.id };
         if (d < b.r + C.CRASH_PAD) { end = 'crashed'; }
       }
       if (end === 'crashed') break;
       if (p.x < -C.OUT || p.x > C.W + C.OUT || p.y < -C.OUT || p.y > C.H + C.OUT) { end = 'lost'; break; }
-      if (Math.hypot(p.x - sector.gate.x, p.y - sector.gate.y) < C.GATE_R && Math.hypot(p.vx, p.vy) < C.DOCK_V) { end = 'docked'; break; }
+      if (Math.sqrt((p.x - sector.gate.x) * (p.x - sector.gate.x) + (p.y - sector.gate.y) * (p.y - sector.gate.y)) < C.GATE_R && Math.sqrt(p.vx * p.vx + p.vy * p.vy) < C.DOCK_V) { end = 'docked'; break; }
     }
     return { pts, closest: best, end };
   }
@@ -156,9 +156,15 @@
   }
   // events: [[step, burn(0|1), throttle% (25..100)]] sorted by step. Returns stateful fn(step)->input; call with increasing steps.
   function inputFromEvents(events) {
+    events = Array.isArray(events) ? events : [];
     let i = 0, cur = { burn: false, throttle: 1 };
     return function (n) {
-      while (i < events.length && events[i][0] <= n) { cur = { burn: !!events[i][1], throttle: (events[i][2] || 100) / 100 }; i++; }
+      while (i < events.length) {
+        const e = events[i];
+        if (!Array.isArray(e) || typeof e[0] !== 'number') { i++; continue; } // skip malformed event
+        if (e[0] > n) break;
+        cur = { burn: !!e[1], throttle: (e[2] || 100) / 100 }; i++;
+      }
       return cur;
     };
   }
@@ -183,7 +189,7 @@
   // specific energy (static-body approximation use only in tests)
   function energy(st, sector, t) {
     let u = 0;
-    for (const b of sector.bodies) { const d = Math.hypot(st.x - bodyX(b, t), st.y - bodyY(b, t)); u -= b.gm / Math.sqrt(d * d + C.EPS * C.EPS); }
+    for (const b of sector.bodies) { const d = Math.sqrt((st.x - bodyX(b, t)) * (st.x - bodyX(b, t)) + (st.y - bodyY(b, t)) * (st.y - bodyY(b, t))); u -= b.gm / Math.sqrt(d * d + C.EPS * C.EPS); }
     return 0.5 * (st.vx * st.vx + st.vy * st.vy) + u;
   }
   const api = { C, bodyRadius, mulberry32, hashSeed, makeBody, bodyX, bodyY, newState, step, predict, checksum, inputFromEvents, schedToEvents, runSchedule, energy, integrate };
@@ -298,13 +304,13 @@
   function clearance(sec) { // gate and start must keep clear of every body surface for all t in one period
     for (let t = 0; t < 24; t += 0.4) for (const b of sec.bodies) {
       const x = S.bodyX(b, t), y = S.bodyY(b, t);
-      if (Math.hypot(x - sec.gate.x, y - sec.gate.y) < b.r + 27) return false;
-      if (t < 6 && Math.hypot(x - sec.start.x, y - sec.start.y) < b.r + 40) return false;
+      if (Math.sqrt((x - sec.gate.x) * (x - sec.gate.x) + (y - sec.gate.y) * (y - sec.gate.y)) < b.r + 27) return false;
+      if (t < 6 && Math.sqrt((x - sec.start.x) * (x - sec.start.x) + (y - sec.start.y) * (y - sec.start.y)) < b.r + 40) return false;
     }
     return true;
   }
   function startClear(sec) {
-    for (let t = 0; t < 6; t += 0.4) for (const b of sec.bodies) if (Math.hypot(S.bodyX(b, t) - sec.start.x, S.bodyY(b, t) - sec.start.y) < b.r + 40) return false;
+    for (let t = 0; t < 6; t += 0.4) for (const b of sec.bodies) if (Math.sqrt((S.bodyX(b, t) - sec.start.x) * (S.bodyX(b, t) - sec.start.x) + (S.bodyY(b, t) - sec.start.y) * (S.bodyY(b, t) - sec.start.y)) < b.r + 40) return false;
     return true;
   }
   // Gate placed on a surviving random trajectory (solvable by construction), then best-fuel search sets par.
@@ -314,7 +320,7 @@
     // free-coast path: a gate within 45 px of it docks for free or for < 2.5 fuel (was ~45% of rejected attempts)
     const cst = S.newState(sec), coast = [];
     while (cst.n < 35 / C.DT && cst.status === 'flying') { S.step(cst, sec, null); if (cst.n % 6 === 0) coast.push(cst.x, cst.y); }
-    const farFromCoast = (x, y) => { for (let i = 0; i < coast.length; i += 2) if (Math.abs(coast[i] - x) < 45 && Math.hypot(coast[i] - x, coast[i + 1] - y) < 45) return false; return true; };
+    const farFromCoast = (x, y) => { for (let i = 0; i < coast.length; i += 2) if (Math.abs(coast[i] - x) < 45 && Math.sqrt((coast[i] - x) * (coast[i] - x) + (coast[i + 1] - y) * (coast[i + 1] - y)) < 45) return false; return true; };
     let found = 0;
     for (let k = 0; k < 60; k++) {
       if (k >= 12 && !found) return false; // bimodal: a launch that yields nothing in 12 runs is a dead layout
@@ -322,10 +328,10 @@
       let flyby = !moon;
       while (st.n < maxN && st.status === 'flying') {
         S.step(st, sec, inp(st.n));
-        if (moon && !flyby && Math.hypot(st.x - S.bodyX(moon, st.n * C.DT), st.y - S.bodyY(moon, st.n * C.DT)) < moon.r + 30) flyby = true;
-        if (flyby && st.n % 60 === 0) pts.push([st.x, st.y, Math.hypot(st.vx, st.vy), st.n * C.DT]);
+        if (moon && !flyby && Math.sqrt((st.x - S.bodyX(moon, st.n * C.DT)) * (st.x - S.bodyX(moon, st.n * C.DT)) + (st.y - S.bodyY(moon, st.n * C.DT)) * (st.y - S.bodyY(moon, st.n * C.DT))) < moon.r + 30) flyby = true;
+        if (flyby && st.n % 60 === 0) pts.push([st.x, st.y, Math.sqrt(st.vx * st.vx + st.vy * st.vy), st.n * C.DT]);
       }
-      const cand = pts.filter(p => p[3] > 5 && p[2] < 80 && p[0] > 25 && p[0] < C.W - 25 && p[1] > 25 && p[1] < C.H - 25 && Math.hypot(p[0] - sec.start.x, p[1] - sec.start.y) > 110 && farFromCoast(p[0], p[1]));
+      const cand = pts.filter(p => p[3] > 5 && p[2] < 80 && p[0] > 25 && p[0] < C.W - 25 && p[1] > 25 && p[1] < C.H - 25 && Math.sqrt((p[0] - sec.start.x) * (p[0] - sec.start.x) + (p[1] - sec.start.y) * (p[1] - sec.start.y)) > 110 && farFromCoast(p[0], p[1]));
       if (!cand.length) continue;
       found++;
       for (let q = 0; q < cand.length; q++) {
@@ -338,7 +344,7 @@
   // min distance from the par path to body b's surface (slingshot check)
   function pathMinDist(sec, sched, b) {
     const st = S.newState(sec), inp = S.inputFromEvents(S.schedToEvents(sched)); let d = 1e9;
-    while (st.n < 35 / C.DT && st.status === 'flying') { S.step(st, sec, inp(st.n)); const t = st.n * C.DT; d = Math.min(d, Math.hypot(st.x - S.bodyX(b, t), st.y - S.bodyY(b, t)) - b.r); }
+    while (st.n < 35 / C.DT && st.status === 'flying') { S.step(st, sec, inp(st.n)); const t = st.n * C.DT; d = Math.min(d, Math.sqrt((st.x - S.bodyX(b, t)) * (st.x - S.bodyX(b, t)) + (st.y - S.bodyY(b, t)) * (st.y - S.bodyY(b, t))) - b.r); }
     return d;
   }
   function tryAttempt(runSeed, index, a, opts) {
@@ -419,7 +425,7 @@
     const sc = selfCheck();
     return {
       game: 'Burn Window',
-      version: 'bw-0.2',
+      version: 'bw-0.2.2',
       seed: info.seed,
       renderer: 'Canvas2D',
       device: info.device || {},
@@ -429,7 +435,8 @@
       inputLog: info.inputLog || [],
       ticks: info.ticks || {},
       energyDrift: sc.energyDrift,
-      settings: info.settings || {}
+      settings: info.settings || {},
+      tweaks: info.tweaks || {}
     };
   }
 
@@ -457,12 +464,25 @@
 
   function key(seed, idx) { return 'bw:best2:' + seed + ':' + idx; }
 
+  function validEvents(ev) { // [[step, 0|1, throttle]] sorted by step, sane length
+    if (!Array.isArray(ev) || ev.length > 5000) return false;
+    let prev = -1;
+    for (let i = 0; i < ev.length; i++) {
+      const e = ev[i];
+      if (!Array.isArray(e) || typeof e[0] !== 'number' || !isFinite(e[0]) || e[0] < prev) return false;
+      if (e[1] !== 0 && e[1] !== 1 && e[1] !== true && e[1] !== false) return false;
+      if (typeof e[2] !== 'number' || !isFinite(e[2])) return false;
+      prev = e[0];
+    }
+    return true;
+  }
+
   function loadBest(seed, idx) {
     try {
       const raw = root.localStorage.getItem(key(seed, idx));
       if (!raw) return null;
       const o = JSON.parse(raw);
-      if (o && typeof o.fuel === 'number' && Array.isArray(o.events)) return o;
+      if (o && typeof o.fuel === 'number' && isFinite(o.fuel) && validEvents(o.events)) return o;
     } catch (e) { /* ignore */ }
     return null;
   }
@@ -476,9 +496,136 @@
     } catch (e) { return false; }
   }
 
-  const api = { selfCheck, build, copy, loadBest, saveBest };
+  // Stars for a docked run: efficiency = par / fuelUsed. >=0.75 gold (3), >=0.55 silver (2), else docked (1).
+  function starsFor(par, fuelUsed) {
+    par = Number(par); fuelUsed = Number(fuelUsed);
+    if (!isFinite(par) || par <= 0 || !isFinite(fuelUsed) || fuelUsed < 0) return 1;
+    if (fuelUsed === 0) return 3; // efficiency is unbounded
+    const eff = par / fuelUsed;
+    if (eff >= 0.75 - 1e-9) return 3;
+    if (eff >= 0.55 - 1e-9) return 2;
+    return 1;
+  }
+
+  function starsKey(seed, idx) { return 'bw:stars2:' + seed + ':' + idx; }
+  function missKey(seed, idx) { return 'bw:miss2:' + seed + ':' + idx; }
+
+  function loadStars(seed, idx) {
+    try {
+      const n = parseInt(root.localStorage.getItem(starsKey(seed, idx)), 10);
+      if (n >= 1 && n <= 3) return n;
+    } catch (e) { /* ignore */ }
+    return 0;
+  }
+
+  function saveStars(seed, idx, stars) { // never downgrade; returns true if stored
+    try {
+      stars = Math.floor(Number(stars));
+      if (!(stars >= 1 && stars <= 3)) return false;
+      if (loadStars(seed, idx) >= stars) return false;
+      root.localStorage.setItem(starsKey(seed, idx), String(stars));
+      return true;
+    } catch (e) { return false; }
+  }
+
+  function loadClosest(seed, idx) { // best (smallest) closest approach in sim px, or null
+    try {
+      const raw = root.localStorage.getItem(missKey(seed, idx));
+      if (raw === null || raw === '') return null;
+      const v = parseFloat(raw);
+      if (isFinite(v) && v >= 0) return v;
+    } catch (e) { /* ignore */ }
+    return null;
+  }
+
+  function saveClosest(seed, idx, closest) { // keep minimum; returns true if stored
+    try {
+      closest = Number(closest);
+      if (!isFinite(closest) || closest < 0) return false;
+      const cur = loadClosest(seed, idx);
+      if (cur !== null && cur <= closest) return false;
+      root.localStorage.setItem(missKey(seed, idx), String(Math.round(closest * 10) / 10));
+      return true;
+    } catch (e) { return false; }
+  }
+
+  const api = { selfCheck, build, copy, loadBest, saveBest, starsFor, saveStars, loadStars, saveClosest, loadClosest };
   if (typeof module !== 'undefined' && module.exports) module.exports = api; else { root.BW = root.BW || {}; root.BW.report = api; }
 })(typeof globalThis !== 'undefined' ? globalThis : this);
+
+</script>
+<script>
+/* tweak.js */
+// Burn Window TWEAK: live gameplay-value overrides for testing. BW.tweak. Mutates BW.sim.C in place (browser only).
+// Defaults are snapshotted at load, before anything is changed. Persists changed values in localStorage (bw:tweaks).
+(function (root) {
+  'use strict';
+  const BW = root.BW = root.BW || {};
+  const sim = (typeof module !== 'undefined' && module.exports) ? require('./sim.js') : BW.sim;
+  if (!sim || !sim.C) return;
+  const C = sim.C, KEY = 'bw:tweaks', PKEY = 'bw:tweakpresets';
+  const lsGet = k => { try { return localStorage.getItem(k); } catch (e) { return null; } };
+  const lsSet = (k, v) => { try { localStorage.setItem(k, v); } catch (e) {} };
+  const ROWS = [
+    ['THRUST', 'Thrust'], ['FUEL_RATE', 'Fuel burn rate'], ['FUEL0', 'Base fuel'], ['GATE_R', 'Gate radius'],
+    ['DOCK_V', 'Dock speed limit'], ['CRASH_PAD', 'Crash margin'], ['THROTTLE_MIN', 'Min throttle'],
+    ['GM.small', 'Gravity, small'], ['GM.medium', 'Gravity, medium'], ['GM.large', 'Gravity, large']
+  ].map(r => ({ k: r[0], label: r[1] }));
+  const rd = k => k.indexOf('GM.') === 0 ? C.GM[k.slice(3)] : C[k];
+  const wr = (k, v) => { if (k.indexOf('GM.') === 0) C.GM[k.slice(3)] = v; else C[k] = v; };
+  const DEF = {}; ROWS.forEach(r => { DEF[r.k] = rd(r.k); });
+  const known = k => Object.prototype.hasOwnProperty.call(DEF, k);
+  function range(k) {
+    const d = DEF[k], step = Math.pow(10, Math.floor(Math.log10(d * 0.02)));
+    let max = d * 2; if (k === 'THROTTLE_MIN') max = 1;
+    return { min: d * 0.5, max: max, step: step };
+  }
+  function clamp(k, v) {
+    const r = range(k); v = +v; if (!isFinite(v)) return DEF[k];
+    v = Math.max(r.min, Math.min(r.max, v));
+    const dec = Math.max(0, -Math.floor(Math.log10(r.step)));
+    v = +(Math.round(v / r.step) * r.step).toFixed(dec);
+    return Math.abs(v - DEF[k]) < r.step / 2 ? DEF[k] : v;
+  }
+  const api = { ROWS, onChange: null };
+  api.range = range;
+  api.def = k => DEF[k];
+  api.get = k => known(k) ? rd(k) : undefined;
+  function persist() { lsSet(KEY, JSON.stringify(api.diff())); }
+  function note() { try { api.onChange && api.onChange(); } catch (e) {} }
+  api.set = function (k, v) { if (!known(k)) return; wr(k, clamp(k, v)); persist(); note(); };
+  api.reset = function (k) { if (!known(k)) return; wr(k, DEF[k]); persist(); note(); };
+  api.resetAll = function () { ROWS.forEach(r => wr(r.k, DEF[r.k])); persist(); note(); };
+  api.diff = function () { const o = {}; ROWS.forEach(r => { if (rd(r.k) !== DEF[r.k]) o[r.k] = rd(r.k); }); return o; };
+  // replace all tweaks with obj (unknown keys ignored, values clamped); keys absent go back to default
+  api.apply = function (obj, quiet) {
+    ROWS.forEach(r => wr(r.k, obj && typeof obj === 'object' && known(r.k) && Object.prototype.hasOwnProperty.call(obj, r.k) ? clamp(r.k, obj[r.k]) : DEF[r.k]));
+    persist(); if (!quiet) note();
+  };
+  api.encode = function () { try { return btoa(JSON.stringify({ v: 1, tweaks: api.diff() })); } catch (e) { return ''; } };
+  api.decode = function (code) {
+    try { const o = JSON.parse(atob(String(code).trim())); if (o && o.v === 1 && o.tweaks && typeof o.tweaks === 'object') { const t = {}; for (const k in o.tweaks) if (known(k) && isFinite(+o.tweaks[k])) t[k] = clamp(k, o.tweaks[k]); return t; } } catch (e) {}
+    return null;
+  };
+  api.format = function (k, v) { const r = range(k), dec = Math.max(0, -Math.floor(Math.log10(r.step))); return v >= 10000 ? String(Math.round(v)) : v.toFixed(dec); };
+  function plist() { try { const a = JSON.parse(lsGet(PKEY) || '[]'); return Array.isArray(a) ? a.filter(p => p && typeof p.name === 'string' && p.tweaks && typeof p.tweaks === 'object') : []; } catch (e) { return []; } }
+  api.presets = {
+    list: () => plist(),
+    save: function (name) {
+      name = String(name || '').trim().slice(0, 24); const a = plist();
+      if (!name) { let n = 1; while (a.some(p => p.name === 'Preset ' + n)) n++; name = 'Preset ' + n; }
+      const e = { name: name, tweaks: api.diff() }, i = a.findIndex(p => p.name === name);
+      if (i >= 0) a[i] = e; else a.push(e);
+      lsSet(PKEY, JSON.stringify(a)); return name;
+    },
+    load: function (name) { const p = plist().find(q => q.name === name); if (!p) return false; api.apply(api.decode(btoa(JSON.stringify({ v: 1, tweaks: p.tweaks }))) || {}); return true; },
+    remove: function (name) { lsSet(PKEY, JSON.stringify(plist().filter(p => p.name !== name))); }
+  };
+  // reapply saved tweaks at startup, before the first sector is generated
+  try { const o = JSON.parse(lsGet(KEY) || 'null'); if (o && typeof o === 'object') api.apply(o, true); } catch (e) {}
+  BW.tweak = api;
+  if (typeof module !== 'undefined' && module.exports) module.exports = api;
+})(typeof window !== 'undefined' ? window : globalThis);
 
 </script>
 <script>
@@ -763,10 +910,11 @@
   var FONT = 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
   var stars = null;
 
-  function layout(w, h) {
-    var s = Math.min(w / W, (h - TOP - REST) / H);
+  function layout(w, h, inset) {
+    var top = TOP + (inset > 0 ? inset : 0);
+    var s = Math.min(w / W, (h - top - REST) / H);
     s = Math.max(0.8, Math.min(1.5, s));
-    return { w: w, h: h, dpr: 1, scale: s, ox: (w - W * s) / 2, oy: TOP };
+    return { w: w, h: h, dpr: 1, scale: s, ox: (w - W * s) / 2, oy: top };
   }
   function getStars() {
     if (stars) return stars;
@@ -1069,7 +1217,7 @@
 
     var bph = G.phase ? String(G.phase).replace(/^ui_/, '') : G.phase;
     var showBar = bph !== 'docked' && bph !== 'end' && bph !== 'failed' || bph === 'failed' && G.phase === 'failed';
-    var barW = Math.min(V.w - 32, 240), barX = 16, barY = oy + ph + 14, barH = 12;
+    var barW = Math.min(V.w - 32, V.w < 400 ? 224 : 240), barX = 16, barY = oy + ph + 14, barH = 12;
     var fmax = G.fuelMax || 60, fuel = st ? Math.max(0, st.fuel) : 0, frac = Math.max(0, Math.min(1, fuel / fmax));
     if (showBar) {
       ctx.fillStyle = 'rgba(255,255,255,0.07)'; ctx.fillRect(barX, barY, barW, barH);
@@ -1110,6 +1258,18 @@
       ctx.fillStyle = 'rgba(255,255,255,0.10)'; ctx.fillRect(tx, ty, 6, th2);
       ctx.fillStyle = plain ? '#ff9a3c' : '#ffc27a'; ctx.fillRect(tx, ty + th2 * (1 - tv), 6, th2 * tv);
       font(ctx, 12, '700'); ctx.fillStyle = DIM; ctx.textAlign = 'center'; ctx.textBaseline = 'bottom'; ctx.fillText('THRUST', tx + 3, ty - 3);
+    }
+
+    // CLOSE PASS tag (1 s, set by game.js). Reduced motion: static text, full alpha, fixed position; otherwise fades and drifts up. No flash/shake.
+    var cpass = G.closePass;
+    if (cpass && cpass.k > 0 && G.phase === 'run') {
+      var cpx = Math.max(ox + 44, Math.min(ox + pw - 44, X(cpass.x))), cpy = Y(cpass.y) - 26 - (reduced ? 0 : (1 - cpass.k) * 12);
+      cpy = Math.max(oy + 14, Math.min(oy + ph - 14, cpy));
+      ctx.globalAlpha = reduced ? 1 : Math.min(1, cpass.k * 2.5);
+      font(ctx, 13, '700'); ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillStyle = 'rgba(8,16,18,0.7)'; ctx.fillRect(cpx - 43, cpy - 10, 86, 20);
+      ctx.fillStyle = plain ? '#fff' : BRASS; ctx.fillText('CLOSE PASS', cpx, cpy);
+      ctx.globalAlpha = 1;
     }
 
     // flash overlay
@@ -1337,11 +1497,78 @@
       toggle('Warp button', 'Show time-warp', () => settings.warp, v => { setSetting('warp', v); }),
       panel([h('div', 'lbl', 'Seed'), (() => { const g = h('div', 'seg', null, [bD, bC]); g.style.margin = '8px 0'; return g; })(), dailyTxt, fld, msgEl, (() => { const a = apply; a.style.marginTop = '8px'; return a; })()]),
       h('div', 'row', null, [btn('Reset saves', 'd', () => { confirm.style.display = 'flex'; erased.textContent = ''; }), btn('Copy report', '', b => H.copy(b))]),
-      confirm, erased]);
+      confirm, erased, BW.tweak ? btn('Tweak', '', () => ui.show('tweak')) : null]);
     const t = h('h2', null, 'Settings'); t.style.cssText = 'text-align:center;padding-top:4px';
     return screen([t, sc, h('div', 'bot', null, [btn('Back', 'p', () => ui.back())])]);
   };
+  SCREENS.tweak = function () {
+    const H = ui.host, T = BW.tweak, st = 'min-width:0;overflow-wrap:anywhere;';
+    const reload = () => { try { H.reloadSector && H.reloadSector(); } catch (e) {} };
+    const info = h('div', 'sub', 'Changes apply when the sector reloads.'); info.style.cssText = 'text-align:center;min-height:0';
+    const refs = {};
+    const upd = k => { const r = refs[k], v = T.get(k), ch = v !== T.def(k); r.sl.value = v; r.cur.textContent = 'now ' + T.format(k, v); r.cur.style.color = ch ? '#3fb8a8' : '#7d8a86'; r.rs.disabled = !ch; };
+    const rows = T.ROWS.map(row => {
+      const k = row.k, rg = T.range(k), sl = h('input'); sl.type = 'range'; sl.min = rg.min; sl.max = rg.max; sl.step = rg.step; sl.value = T.get(k); sl.setAttribute('data-bw', '1'); sl.setAttribute('aria-label', row.label);
+      sl.style.cssText = 'height:56px;border:0;background:transparent;padding:0;letter-spacing:0;accent-color:#3fb8a8;flex:1;min-width:0;touch-action:pan-y';
+      const cur = h('span', 'sub'), rs = btn('Reset', '', () => { T.reset(k); upd(k); reload(); });
+      rs.style.cssText = 'width:72px;flex:none;padding:0 4px;font-size:14px';
+      sl.addEventListener('input', () => { T.set(k, sl.value); upd(k); });
+      sl.addEventListener('change', () => { reload(); });
+      sl.addEventListener('pointerdown', e => e.stopPropagation());
+      refs[k] = { sl, cur, rs };
+      const head = h('div', null, null, [h('span', null, row.label), h('span', 'sub', 'default ' + T.format(k, T.def(k))), cur]);
+      head.style.cssText = 'display:flex;flex-wrap:wrap;gap:2px 10px;align-items:baseline';
+      const ctl = h('div', null, null, [sl, rs]); ctl.style.cssText = 'display:flex;align-items:center;gap:8px';
+      const p = panel([head, ctl]); p.style.padding = '8px 12px'; upd(k); return p;
+    });
+    const sync = () => { T.ROWS.forEach(r => upd(r.k)); };
+    const msg = h('div', 'sub', ''); msg.style.cssText = 'text-align:center;min-height:0;' + st;
+    const say = t => { msg.textContent = t; };
+    const list = h('div'); list.style.cssText = 'display:flex;flex-direction:column;gap:8px';
+    const nameFld = h('input'); nameFld.type = 'text'; nameFld.maxLength = 24; nameFld.placeholder = 'Preset name'; nameFld.setAttribute('autocomplete', 'off'); nameFld.setAttribute('data-bw', '1');
+    nameFld.style.cssText = 'font-size:16px;letter-spacing:0';
+    const codeFld = h('input'); codeFld.type = 'text'; codeFld.placeholder = 'Preset code'; codeFld.setAttribute('autocomplete', 'off'); codeFld.setAttribute('data-bw', '1');
+    codeFld.style.cssText = 'font-size:14px;letter-spacing:0';
+    const fill = () => {
+      list.textContent = '';
+      T.presets.list().forEach(p => {
+        const n = h('div', null, p.name); n.style.cssText = 'flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
+        const ld = btn('Load', '', () => { T.presets.load(p.name); sync(); reload(); say('Loaded ' + p.name); }), dl = btn('Delete', 'd', () => { T.presets.remove(p.name); fill(); });
+        ld.style.cssText = 'width:76px;flex:none;padding:0 4px;font-size:14px'; dl.style.cssText = 'width:76px;flex:none;padding:0 4px;font-size:14px';
+        const r = h('div', null, null, [n, ld, dl]); r.style.cssText = 'display:flex;align-items:center;gap:8px'; list.appendChild(r);
+      });
+      if (!list.firstChild) { const e = h('div', 'sub', 'No saved presets.'); list.appendChild(e); }
+    };
+    fill();
+    const loadCode = txt => {
+      const t = T.decode(txt); if (!t) { say('Not a valid preset code.'); return; }
+      T.apply(t); sync(); reload(); say('Preset code loaded.');
+    };
+    const presets = panel([h('div', 'lbl', 'Presets'), (() => { const r = h('div', 'row', null, [nameFld, btn('Save preset', '', () => { say('Saved ' + T.presets.save(nameFld.value)); nameFld.value = ''; fill(); })]); r.style.margin = '8px 0'; return r; })(), list,
+      (() => { const r = h('div', 'row', null, [btn('Copy preset code', '', b => {
+        const code = T.encode(), old = b.textContent; codeFld.value = code;
+        const done = ok => { b.textContent = ok ? 'Copied' : 'Copy failed'; setTimeout(() => { b.textContent = old; }, 1600); };
+        try { if (BW.report && BW.report.copy) return BW.report.copy(code).then(done, () => done(false)); } catch (e) {}
+        done(false);
+      }), btn('Paste code', '', () => {
+        if (codeFld.value.trim()) return loadCode(codeFld.value);
+        try { navigator.clipboard.readText().then(t => { codeFld.value = t; loadCode(t); }, () => say('Paste the code into the field, then tap Paste code.')); } catch (e) { say('Paste the code into the field, then tap Paste code.'); }
+      })]); r.style.margin = '10px 0 8px'; return r; })(), codeFld]);
+    const sc = h('div', 'scroll', null, [info].concat(rows, [h('div', 'row', null, [btn('Reset all', 'd', () => { T.resetAll(); sync(); reload(); say('All values reset to defaults.'); }), btn('Copy report', '', b => H.copy(b))]), presets, msg]));
+    Array.prototype.forEach.call(sc.children, c => { c.style.flexShrink = '0'; });
+    const t = h('h2', null, 'Tweak'); t.style.cssText = 'text-align:center;padding-top:4px';
+    return screen([t, sc, h('div', 'bot', null, [btn('Back', 'p', () => ui.back())])]);
+  };
   function dailySeedText() { const s = String(ui.host.daily ? ui.host.daily() : ''); return s.length === 8 ? s.slice(0, 4) + '-' + s.slice(4, 6) + '-' + s.slice(6) : s; }
+  const isN = v => typeof v === 'number' && isFinite(v);
+  // brass star string: n filled of 3 (spans), undefined n -> null
+  function starRow(n, size) {
+    if (!isN(n)) return null;
+    n = Math.max(0, Math.min(3, Math.round(n)));
+    const e = h('span', null, null, [h('span', 'brass', '\u2605'.repeat(n)), h('span', null, '\u2606'.repeat(3 - n))]);
+    e.lastChild.style.color = '#7d8a86'; e.style.cssText = 'letter-spacing:1px;white-space:nowrap;font-size:' + (size || 20) + 'px'; e.setAttribute('aria-label', n + ' of 3 stars');
+    return e;
+  }
   function medalOf(par, fuel) { const e = fuel > 0 ? par / fuel : 0; return e >= 0.75 ? 'Gold' : e >= 0.55 ? 'Silver' : 'Bronze'; }
   SCREENS.besttimes = function () {
     const H = ui.host, list = H.bestList(), rows = h('div'); let tf = 0, tp = 0, cnt = 0;
@@ -1375,10 +1602,14 @@
     const nm = h('div', null, R.medal.toUpperCase()); nm.style.cssText = 'font-size:22px;font-weight:700;color:' + mc[0];
     const pc = h('div', null, Math.round(R.eff * 100) + '%'); pc.style.cssText = 'font-size:30px;font-weight:700';
     const hd = h('div', null, null, [h('h2', null, 'Run complete'), h('span', 'sub', 'Seed ' + R.seed)]); hd.style.cssText = 'display:flex;justify-content:space-between;align-items:baseline';
-    const medalP = panel([svg, h('div', null, null, [nm, pc, h('div', 'sub', 'overall efficiency')])], 'display:flex;align-items:center;gap:14px;padding:8px 12px');
-    const rule = h('div', 'sub', 'Gold needs 75% · Silver 55% · Bronze = finish'); rule.style.textAlign = 'center';
+    let tot = isN(R.totalStars) ? R.totalStars : isN(R.stars) ? R.stars : null;
+    if (tot == null && R.rows.some(r => isN(r.stars))) tot = R.rows.reduce((a, r) => a + (isN(r.stars) ? r.stars : 0), 0);
+    const starTotal = tot == null ? null : h('div', null, null, [h('span', 'brass', '\u2605 ' + tot), h('span', 'sub', ' / ' + (isN(R.maxStars) ? R.maxStars : 24) + ' stars')]);
+    if (starTotal) starTotal.style.cssText = 'font-size:20px;font-weight:700;margin-top:2px;white-space:nowrap';
+    const medalP = panel([svg, h('div', null, null, [nm, pc, h('div', 'sub', 'overall efficiency'), starTotal])], 'display:flex;align-items:center;gap:14px;padding:8px 12px');
+    const rule = h('div', 'sub', 'Gold 75% · Silver 55% · Bronze finish'); rule.style.textAlign = 'center';
     const rows = h('div'); { const x = h('div', null, null, [h('span', 'lbl', 'Sector'), h('span', 'lbl', 'Fuel used / par')]); x.style.cssText = 'display:flex;justify-content:space-between;height:24px;align-items:center'; rows.appendChild(x); }
-    R.rows.forEach((r, i) => { const x = h('div', null, null, [h('span', 'sub', 'Sector ' + (i + 1)), h('span', null, r.used != null ? r.used.toFixed(1) + ' / ' + r.par.toFixed(1) : '--')]); x.style.cssText = 'display:flex;justify-content:space-between;height:28px;align-items:center;font-size:15px'; rows.appendChild(x); });
+    R.rows.forEach((r, i) => { const x = h('div', null, null, [h('span', 'sub', 'Sector ' + (i + 1)), starRow(r.stars, 14), h('span', null, r.used != null ? r.used.toFixed(1) + ' / ' + r.par.toFixed(1) : '--')]); x.style.cssText = 'display:flex;justify-content:space-between;height:28px;align-items:center;font-size:15px'; rows.appendChild(x); });
     const sc = h('div', 'scroll', null, [medalP, rule, panel([rows], 'padding:4px 12px 10px')]); sc.style.padding = '8px 8px 12px';
     // "New run" (primary) is game.js's persistent Next button, stacked above this bottom row.
     const bot = h('div', 'bot', null, [h('div', null), h('div', 'row', null, [btn('Copy report', '', b => H.copy(b)), btn('Title', '', (b, e) => { if (!H.pressOk(b, e)) return; ui.closeAll(); H.quit(); })])]);
@@ -1394,17 +1625,26 @@
     // Sits in the free band under the playfield (bottom 96 px at 475x638); Next (game.js bNext) overlays the right 150 px.
     const w = h('div', 'bwsec'); w.setAttribute('data-bw', '1'); w.style.bottom = '0'; w.style.padding = '8px 12px 12px';
     let left;
+    const narrow = window.innerWidth < 400;
+    const closestTxt = o => isN(o.closest) ? 'Closest ' + Math.round(o.closest) + (narrow ? '' : ' px') + (isN(o.bestClosest) ? (narrow ? ' \u00b7 best ' : ' (best ') + Math.round(o.bestClosest) + (narrow ? '' : ')') : '') : null;
     if (kind === 'docked') {
-      left = h('div', null, null, [h('div', null, null, [h('b', 'teal', 'DOCKED'), o.best ? h('span', 'chip', 'New best') : null]),
-        h('div', null, null, [h('span', null, o.used.toFixed(1) + ' / ' + o.par.toFixed(1)), h('span', 'dim', ' fuel \u00b7 '), h('span', 'brass', Math.round(o.eff * 100) + '%')])]);
-      left.firstChild.style.cssText = 'display:flex;gap:8px;align-items:center;font-size:20px';
-      if (o.best) left.firstChild.lastChild.style.cssText = 'height:22px;font-size:12px;padding:0 8px;color:#3fb8a8;border-color:#3fb8a8';
-      left.lastChild.style.cssText = 'font-size:16px;margin-top:2px;white-space:nowrap';
-      w.appendChild(panel([left], 'display:flex;align-items:center;justify-content:space-between;min-height:76px;padding:8px'));
-      left.style.flex = '1';
+      const ratio = isN(o.parRatio) ? o.parRatio : (o.par > 0 ? o.used / o.par : null);
+      const t1 = h('div', null, null, [h('b', 'teal', 'DOCKED'), starRow(o.stars, narrow ? 15 : 20), o.best ? h('span', 'chip', 'New best') : null]);
+      t1.style.cssText = 'display:flex;gap:' + (narrow ? 6 : 8) + 'px;align-items:center;font-size:20px;white-space:nowrap';
+      if (o.best) t1.lastChild.style.cssText = 'position:absolute;top:-15px;left:12px;height:22px;font-size:12px;padding:0 8px;color:#3fb8a8;border-color:#3fb8a8;background:#102024';
+      const t2 = h('div', null, null, [h('span', null, o.used.toFixed(1) + ' / ' + o.par.toFixed(1)), h('span', 'dim', ' \u00b7 '), h('span', 'brass', Math.round(o.eff * 100) + '%')]);
+      t2.style.cssText = 'font-size:16px;margin-top:2px;white-space:nowrap';
+      const bits = []; if (ratio != null) bits.push(ratio.toFixed(1) + 'x par'); if (isN(o.bestStars)) bits.push('best ' + '\u2605'.repeat(Math.max(0, Math.min(3, Math.round(o.bestStars)))) + '\u2606'.repeat(3 - Math.max(0, Math.min(3, Math.round(o.bestStars)))));
+      const ct = closestTxt(o); if (ct && !bits.length) bits.push(ct);
+      const t3 = bits.length ? h('div', 'dim', bits.join(' \u00b7 ')) : null;
+      if (t3) t3.style.cssText = 'font-size:13px;white-space:nowrap';
+      left = h('div', null, null, [t1, t2, t3]); left.style.flex = '1';
+      // right 150 px belongs to game.js Next button: keep text clear of it
+      w.appendChild(panel([left], 'display:flex;align-items:center;min-height:76px;padding:8px 158px 8px 8px'));
     } else {
-      left = h('div', null, null, [h('b', 'red', o.title), h('div', 'dim', o.text)]); left.firstChild.style.fontSize = '20px'; left.style.flex = '1';
-      const rb = btn('Retry', 'p', (b, e) => { if (ui.host.pressOk(b, e)) ui.host.retry(b, e); }); rb.style.cssText = 'width:150px;flex:none';
+      const ct = closestTxt(o), cl = ct ? h('div', 'dim', ct) : null; if (cl) cl.style.cssText = 'font-size:' + (narrow ? 13 : 14) + 'px;margin-top:2px;white-space:nowrap';
+      left = h('div', null, null, [h('b', 'red', o.title), h('div', 'dim', o.text), cl]); left.firstChild.style.fontSize = '20px'; left.style.cssText = 'flex:1;min-width:0';
+      const rb = btn('RETRY', 'p', (b, e) => { if (ui.host.pressOk(b, e)) ui.host.retry(b, e); }); rb.style.cssText = 'width:150px;height:64px;min-height:64px;flex:none;font-size:20px;letter-spacing:.06em';
       w.appendChild(panel([left, rb], 'display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:76px;padding:8px'));
     }
     document.body.appendChild(w); curSec = w;
@@ -1444,6 +1684,9 @@
   let physicsSteps = 0, bootT = now(), genToken = 0, frameN = 0, drawErrs = 0;
   let tapPending = false, predN = -1, nextShown = null, nextOp = null, nextTxt = null;
   let lowFuelDone = false;
+  // near-miss / closest-approach tracking (display + saves only; never feeds the sim)
+  const NEAR_MISS_PX = 40, CLOSE_TAG_MS = 1000;
+  let closest = 1e9, nearMisses = 0, bodyMin = [], bodyDone = [], closeUntil = 0, closeX = 0, closeY = 0;
   let acc = 0, last = 0, pointers = new Map(), fpsBuf = [], det = { ok: null, checksum: null }, energyDrift = null;
   const cache = {};
   const UI = BW.ui || { settings: { reduced: false, haptics: true, drag: true, warp: true }, host: {}, blocking: () => false, open: () => false, show: () => {}, closeAll: () => {}, sectorHide: () => {}, sector: () => {}, set: () => {}, is: () => false };
@@ -1516,7 +1759,7 @@
   const bWarp = mkBtn('x1', 'right:12px;top:env(safe-area-inset-top,0px);width:56px;height:56px;padding:0;color:#3fb8a8;font-size:16px', b => { ac('tick'); setWarp(!warpOn); });
   bWarp.setAttribute('aria-label', 'Warp');
   const pips = document.createElement('div');
-  pips.style.cssText = 'position:absolute;left:80px;right:80px;top:0;height:56px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;pointer-events:none';
+  pips.style.cssText = 'position:absolute;left:80px;right:80px;top:env(safe-area-inset-top,0px);height:56px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;pointer-events:none';
   const pipLbl = document.createElement('div'); pipLbl.style.cssText = 'font:700 13px system-ui,sans-serif;color:#c9a24a;letter-spacing:.08em';
   const pipRow = document.createElement('div'); pipRow.style.cssText = 'display:flex;gap:6px';
   pips.appendChild(pipLbl); pips.appendChild(pipRow); hud.appendChild(pips);
@@ -1527,6 +1770,12 @@
     for (let i = 0; i < SECTORS; i++) { const d = document.createElement('span'); d.style.cssText = 'width:12px;height:12px;border-radius:50%;box-sizing:border-box;border:1.5px solid ' + (i < idx ? '#3fb8a8;background:#3fb8a8' : i === idx ? '#c9a24a;background:#c9a24a' : 'rgba(201,162,74,.35)'); pipRow.appendChild(d); }
   }
   updPips();
+  const devBadge = document.createElement('div'); devBadge.setAttribute('data-bw', 'dev'); devBadge.textContent = 'DEV';
+  devBadge.style.cssText = 'position:absolute;left:12px;top:calc(env(safe-area-inset-top,0px) + 60px);pointer-events:none;display:none;padding:2px 6px;border:1px solid #d9694f;border-radius:4px;background:rgba(16,32,36,.85);color:#d9694f;font:700 12px system-ui,sans-serif;letter-spacing:.08em';
+  hud.appendChild(devBadge);
+  function updDev() { let n = 0; try { n = Object.keys(BW.tweak.diff()).length; } catch (e) {} devBadge.style.display = n ? 'block' : 'none'; }
+  if (BW.tweak) BW.tweak.onChange = updDev;
+  updDev();
   const bNext = mkBtn('Next sector', 'position:fixed;right:22px;bottom:22px;width:150px;height:56px;display:none;z-index:40;background:#3fb8a8;color:#0a1214;border-color:#3fb8a8;font-size:18px', onNext, document.body);
   bNext.style.position = 'fixed'; bNext.style.pointerEvents = 'auto';
   ac('mute', muted);
@@ -1541,11 +1790,20 @@
   // ---- view ----
   const ctx = canvas.getContext('2d');
   let V = { w: 0, h: 0, dpr: 1, scale: 1, ox: 0, oy: 56 };
+  function safeTop() {
+    try {
+      const p = document.createElement('div');
+      p.style.cssText = 'position:absolute;visibility:hidden;pointer-events:none;height:0;padding-top:env(safe-area-inset-top,0px)';
+      document.body.appendChild(p);
+      const v = parseFloat(getComputedStyle(p).paddingTop) || 0;
+      document.body.removeChild(p); return v > 0 ? v : 0;
+    } catch (e) { return 0; }
+  }
   function resize() {
-    const w = window.innerWidth, h = window.innerHeight, dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const w = window.innerWidth, h = window.innerHeight, dpr = Math.min(window.devicePixelRatio || 1, 2), inset = safeTop();
     let L = null;
-    try { if (BW.render && BW.render.layout) L = BW.render.layout(w, h); } catch (e) {}
-    if (!L || !L.scale) { const sc = Math.max(0.8, Math.min(1.5, Math.min(w / C.W, (h - 56 - 96) / C.H))); L = { scale: sc, ox: (w - C.W * sc) / 2, oy: 56 }; }
+    try { if (BW.render && BW.render.layout) L = BW.render.layout(w, h, inset); } catch (e) {}
+    if (!L || !L.scale) { const sc = Math.max(0.8, Math.min(1.5, Math.min(w / C.W, (h - 56 - inset - 96) / C.H))); L = { scale: sc, ox: (w - C.W * sc) / 2, oy: 56 + inset }; }
     V = Object.assign({}, L, { w: w, h: h, dpr: dpr });
     canvas.width = Math.round(w * dpr); canvas.height = Math.round(h * dpr);
     canvas.style.width = w + 'px'; canvas.style.height = h + 'px';
@@ -1585,6 +1843,7 @@
     phase = intro ? 'intro' : 'run'; phaseT = now();
     pred = S.predict(st, sector, { seconds: 3 });
     fxReset(); lowFuelDone = false;
+    closest = 1e9; nearMisses = 0; bodyMin = []; bodyDone = []; closeUntil = 0;
     if (!intro) for (let i = 0; i < 14; i++) { const a = fxRng() * 6.2832; fxSpawn('dust', st.x + Math.cos(a) * 12, st.y + Math.sin(a) * 12, Math.cos(a) * 28, Math.sin(a) * 28, 0.5 + fxRng() * 0.3, 1.5 + fxRng()); }
   }
   function ghostOn(i) { return lsGet('bw:ghost2:' + seed + ':' + i) !== '0'; }
@@ -1622,6 +1881,30 @@
   }
   function finishRun() { UI.sectorHide(); phase = 'end'; phaseT = now(); pointers.clear(); msg = 'Run complete: ' + medal() + ' | efficiency ' + Math.round(efficiency() * 100) + '%';
     const m = medal(), lvl = m === 'Gold' ? 3 : m === 'Silver' ? 2 : m === 'Bronze' ? 1 : 0; if (lvl) ac('medal', lvl); UI.show('runend'); }
+  // closest approach to the gate this attempt (sim px) + saved best (min across attempts); saves guarded for M1 availability
+  function closestInfo() {
+    const rp = BW.report || {}, c = closest < 1e8 ? +closest.toFixed(1) : null;
+    let best = c;
+    try {
+      if (typeof rp.loadClosest === 'function') { const o = rp.loadClosest(seed, idx); if (typeof o === 'number' && isFinite(o) && (best === null || o < best)) best = o; }
+      if (c !== null && typeof rp.saveClosest === 'function') rp.saveClosest(seed, idx, c);
+    } catch (e) {}
+    return { closest: c, bestClosest: best };
+  }
+  function trackApproach() {
+    const t = st.n * C.DT, g = sector.gate;
+    if (g) { const d = Math.hypot(st.x - g.x, st.y - g.y); if (d < closest) closest = d; }
+    if (Math.hypot(st.vx || 0, st.vy || 0) < 5) return;
+    for (let i = 0; i < sector.bodies.length; i++) {
+      const b = sector.bodies[i]; if (b.dark || bodyDone[i]) continue;
+      const d = Math.hypot(st.x - S.bodyX(b, t), st.y - S.bodyY(b, t)) - b.r, m = bodyMin[i];
+      if (m === undefined || d < m) bodyMin[i] = d;
+      else if (d > m + 0.5 && m > 0 && m < NEAR_MISS_PX) { /* periapsis passed inside the band */
+        bodyDone[i] = true; nearMisses++; closeUntil = now() + CLOSE_TAG_MS; closeX = st.x; closeY = st.y;
+        if (!reduced) fxBurst('spark', st.x, st.y, 6, 60, 0.4, 1.2);
+      }
+    }
+  }
   function endAttempt(result) {
     if (phase !== 'run') return;
     logAttempt(result); pointers.clear(); setBurn(false);
@@ -1636,14 +1919,23 @@
         if (BW.report && BW.report.saveBest && (!old || st.fuelUsed < old.fuel)) { BW.report.saveBest(seed, idx, st.fuelUsed, events.slice(), fuelStart); isBest = true; lsSet('bw:par2:' + seed + ':' + idx, String(sector.par ? sector.par.fuel : 0)); }
       } catch (e) {}
       const parF = sector.par ? sector.par.fuel : 0;
-      UI.sector('docked', { used: st.fuelUsed, par: parF, eff: st.fuelUsed > 0 ? parF / st.fuelUsed : 0, best: isBest });
+      const rp = BW.report || {}, stars = (typeof rp.starsFor === 'function') ? rp.starsFor(parF, st.fuelUsed) : 0;
+      let bestStars = stars;
+      try {
+        if (typeof rp.loadStars === 'function') { const o = rp.loadStars(seed, idx); if (typeof o === 'number' && o > bestStars) bestStars = o; }
+        if (typeof rp.saveStars === 'function') rp.saveStars(seed, idx, stars);
+      } catch (e) {}
+      const cl = closestInfo();
+      UI.sector('docked', { used: st.fuelUsed, par: parF, eff: st.fuelUsed > 0 ? parF / st.fuelUsed : 0, best: isBest,
+        stars: stars, parRatio: parF > 0 ? st.fuelUsed / parF : 0, bestStars: bestStars, closest: cl.closest, bestClosest: cl.bestClosest, nearMisses: nearMisses });
       if (idx + 1 < SECTORS) setTimeout(function () { prepare(idx + 1, function () {}); }, 300);
     } else {
       phase = 'failed'; ac('crash');
       if (!reduced) { crashAmp = 6; fxBurst('crash', st.x, st.y, 40, 110, 0.9, 2.2); vib(30); }
       msg = ({ crashed: 'Crashed', lost: 'Lost in space', stranded: 'Stranded: out of fuel', timeout: 'Out of time' }[result] || 'Failed');
       const FT = { crashed: ['CRASHED', 'Hit a body at speed.'], lost: ['LOST', 'Drifted past the chart edge.'], stranded: ['STRANDED', 'Fuel empty before the gate.'], timeout: ['OUT OF TIME', 'The 90 s window closed.'] }[result] || ['FAILED', 'Mission failed.'];
-      UI.sector('failed', { title: FT[0], text: FT[1], place: 'bottom' });
+      const cl = closestInfo();
+      UI.sector('failed', { title: FT[0], text: FT[1], place: 'bottom', closest: cl.closest, bestClosest: cl.bestClosest, nearMisses: nearMisses });
     }
   }
 
@@ -1690,6 +1982,7 @@
     thr = tp / 100;
     const status = S.step(st, sector, { burn: !!b, throttle: tp / 100 });
     physicsSteps++; tapPending = false;
+    try { trackApproach(); } catch (e) {}
     if (!lowFuelDone && st.fuel < 0.2 * fuelStart) { lowFuelDone = true; ac('low_fuel'); }
     if (!reduced && st.n % 3 === 0) { fx.trail.push({ x: st.x, y: st.y, a: 1 }); if (fx.trail.length > TRAIL_MAX) fx.trail.shift(); for (let i = 0; i < fx.trail.length; i++) fx.trail[i].a = (i + 1) / fx.trail.length; }
     if (ghostSt && ghostSt.status === 'flying') S.step(ghostSt, sector, ghostInp(ghostSt.n));
@@ -1724,7 +2017,7 @@
     const info = {
       seed: seed, device: { w: V.w, h: V.h, dpr: V.dpr, ua: navigator.userAgent, reducedMotion: reduced }, fps: fpsStats(),
       determinism: det, attempts: attempts, inputLog: inputLog, ticks: { physicsSteps: physicsSteps, elapsedMs: Math.round(now() - bootT) },
-      energyDrift: energyDrift, settings: { muted: muted, reducedOverride: !!UI.settings.reduced, haptics: !!UI.settings.haptics, drag: !!UI.settings.drag, warpButton: !!UI.settings.warp, warp: warpOn, sectors: SECTORS, medal: medal(), efficiency: +efficiency().toFixed(3) }
+      energyDrift: energyDrift, tweaks: (BW.tweak ? BW.tweak.diff() : {}), settings: { muted: muted, reducedOverride: !!UI.settings.reduced, haptics: !!UI.settings.haptics, drag: !!UI.settings.drag, warpButton: !!UI.settings.warp, warp: warpOn, sectors: SECTORS, medal: medal(), efficiency: +efficiency().toFixed(3) }
     };
     try { if (BW.report && BW.report.build) return BW.report.build(info); } catch (e) {}
     return Object.assign({ game: 'burn-window', version: 1, renderer: 'Canvas2D' }, info);
@@ -1746,7 +2039,7 @@
     if (ms > 0 && ms < 1000) { fpsBuf.push(ms); if (fpsBuf.length > 4000) fpsBuf.shift(); }
     const dt = Math.min(ms / 1000, 0.1);
     frameN++;
-    if (UI.blocking()) { acc = 0; draw(); return; }
+    if (UI.blocking()) { acc = 0; if (nextShown !== 'none') { nextShown = 'none'; bNext.style.display = 'none'; } draw(); return; }
     if (sector && st && phase === 'run') {
       if (warpOn && nearBody()) setWarp(false);
       warpEff = warpOn ? 3 : 1;
@@ -1782,7 +2075,8 @@
     }
     const G = {
       sector: sector, st: st, t: st.n * C.DT, pred: pred, ghostLine: ghostLine, ghost: ghostSt, phase: (phase === 'docked' || phase === 'failed' || phase === 'end') ? 'ui_' + phase : phase, warp: phase === 'run' ? warpEff : 1,
-      throttle: thr, fuelMax: fuelStart, parFuel: sector.par ? sector.par.fuel : 0, msg: msg, reduced: reduced, sectorIndex: idx, sectorCount: SECTORS, fx: fx
+      throttle: thr, fuelMax: fuelStart, parFuel: sector.par ? sector.par.fuel : 0, msg: msg, reduced: reduced, sectorIndex: idx, sectorCount: SECTORS, fx: fx,
+      closePass: phase === 'run' && now() < closeUntil ? { k: (closeUntil - now()) / CLOSE_TAG_MS, x: closeX, y: closeY } : null
     };
     ctx.save();
     try {
@@ -1817,19 +2111,26 @@
   H.launch = titleLaunch; H.quit = quitToTitle; H.tick = () => ac('tick');
   H.retry = (b, e) => { ac('tick'); retry(); }; H.pressOk = pressOk;
   H.copy = copyReport;
+  H.reloadSector = () => { for (const k in cache) delete cache[k]; updDev(); if (phase === 'end') return; genToken++; loadSector(idx); };
   H.getMuted = () => muted;
   H.setMuted = m => { muted = !!m; lsSet('bw_mute', muted ? '1' : '0'); ac('mute', muted); };
   H.getWarp = () => warpOn; H.setWarp = on => { setWarp(on); };
   H.status = () => ({ sector: idx + 1, count: SECTORS, fuel: st ? Math.max(0, st.fuel) : 0, par: sector && sector.par ? sector.par.fuel : 0 });
   H.runSummary = () => {
     const best = {}; for (const a of attempts) if (a.result === 'docked' && (!best[a.sector] || a.fuelUsed < best[a.sector].fuelUsed)) best[a.sector] = a;
-    const rows = []; for (let i = 0; i < SECTORS; i++) rows.push(best[i] ? { used: best[i].fuelUsed, par: best[i].par || 0 } : { used: null, par: 0 });
-    return { medal: medal() === 'none' ? 'Bronze' : medal(), eff: efficiency(), seed: seed, rows: rows };
+    const sf = (BW.report && BW.report.starsFor) || null;
+    const rows = []; let totalStars = 0;
+    for (let i = 0; i < SECTORS; i++) {
+      let s = 0; if (best[i] && sf) { try { s = sf(best[i].par || 0, best[i].fuelUsed); } catch (e) { s = 1; } }
+      totalStars += s;
+      rows.push(best[i] ? { used: best[i].fuelUsed, par: best[i].par || 0, stars: s } : { used: null, par: 0, stars: 0 });
+    }
+    return { medal: medal() === 'none' ? 'Bronze' : medal(), eff: efficiency(), seed: seed, rows: rows, totalStars: totalStars, maxStars: SECTORS * 3 };
   };
   H.bestList = () => { const out = []; for (let i = 0; i < SECTORS; i++) { let b = null; try { b = BW.report.loadBest(seed, i); } catch (e) {} const p = parseFloat(lsGet('bw:par2:' + seed + ':' + i)); const c = cache[seed + ':' + i]; out.push({ i: i, fuel: b ? b.fuel : null, par: isFinite(p) ? p : (c && c.par ? c.par.fuel : null) }); } return out; };
   H.ghostOn = ghostOn;
   H.setGhost = (i, on) => { lsSet('bw:ghost2:' + seed + ':' + i, on ? '1' : '0'); };
-  H.eraseSaves = () => { try { const del = []; for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (k && /^bw:(best|ghost|par)2?:/.test(k)) del.push(k); } del.forEach(k => localStorage.removeItem(k)); } catch (e) {} bestRec = null; ghostSt = null; ghostInp = null; };
+  H.eraseSaves = () => { try { const del = []; for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (k && /^bw:(best|ghost|par|stars|miss)2?:/.test(k)) del.push(k); } del.forEach(k => localStorage.removeItem(k)); } catch (e) {} bestRec = null; ghostSt = null; ghostInp = null; };
   H.onSettings = (k, v) => {
     if (k === 'reduced') { reduced = sysReduced || !!v; if (reduced) fxReset(); }
     if (k === 'warp') applyWarpVis();
@@ -1845,6 +2146,6 @@
 
 </script>
 
-<script>if('serviceWorker' in navigator&&isSecureContext)addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(e=>console.warn('sw',e)));try{screen.orientation&&screen.orientation.lock&&matchMedia('(display-mode: fullscreen)').matches&&screen.orientation.lock('portrait').catch(()=>{});}catch(_){}</script>
+<script>if('serviceWorker' in navigator&&isSecureContext)addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(e=>console.warn('sw',e)));try{screen.orientation&&screen.orientation.lock&&(matchMedia('(display-mode: fullscreen)').matches||matchMedia('(display-mode: standalone)').matches)&&screen.orientation.lock('portrait').catch(()=>{});}catch(_){}</script>
 </body>
 </html>

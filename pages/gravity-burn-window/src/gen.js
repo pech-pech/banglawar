@@ -103,13 +103,13 @@
   function clearance(sec) { // gate and start must keep clear of every body surface for all t in one period
     for (let t = 0; t < 24; t += 0.4) for (const b of sec.bodies) {
       const x = S.bodyX(b, t), y = S.bodyY(b, t);
-      if (Math.hypot(x - sec.gate.x, y - sec.gate.y) < b.r + 27) return false;
-      if (t < 6 && Math.hypot(x - sec.start.x, y - sec.start.y) < b.r + 40) return false;
+      if (Math.sqrt((x - sec.gate.x) * (x - sec.gate.x) + (y - sec.gate.y) * (y - sec.gate.y)) < b.r + 27) return false;
+      if (t < 6 && Math.sqrt((x - sec.start.x) * (x - sec.start.x) + (y - sec.start.y) * (y - sec.start.y)) < b.r + 40) return false;
     }
     return true;
   }
   function startClear(sec) {
-    for (let t = 0; t < 6; t += 0.4) for (const b of sec.bodies) if (Math.hypot(S.bodyX(b, t) - sec.start.x, S.bodyY(b, t) - sec.start.y) < b.r + 40) return false;
+    for (let t = 0; t < 6; t += 0.4) for (const b of sec.bodies) if (Math.sqrt((S.bodyX(b, t) - sec.start.x) * (S.bodyX(b, t) - sec.start.x) + (S.bodyY(b, t) - sec.start.y) * (S.bodyY(b, t) - sec.start.y)) < b.r + 40) return false;
     return true;
   }
   // Gate placed on a surviving random trajectory (solvable by construction), then best-fuel search sets par.
@@ -119,7 +119,7 @@
     // free-coast path: a gate within 45 px of it docks for free or for < 2.5 fuel (was ~45% of rejected attempts)
     const cst = S.newState(sec), coast = [];
     while (cst.n < 35 / C.DT && cst.status === 'flying') { S.step(cst, sec, null); if (cst.n % 6 === 0) coast.push(cst.x, cst.y); }
-    const farFromCoast = (x, y) => { for (let i = 0; i < coast.length; i += 2) if (Math.abs(coast[i] - x) < 45 && Math.hypot(coast[i] - x, coast[i + 1] - y) < 45) return false; return true; };
+    const farFromCoast = (x, y) => { for (let i = 0; i < coast.length; i += 2) if (Math.abs(coast[i] - x) < 45 && Math.sqrt((coast[i] - x) * (coast[i] - x) + (coast[i + 1] - y) * (coast[i + 1] - y)) < 45) return false; return true; };
     let found = 0;
     for (let k = 0; k < 60; k++) {
       if (k >= 12 && !found) return false; // bimodal: a launch that yields nothing in 12 runs is a dead layout
@@ -127,10 +127,10 @@
       let flyby = !moon;
       while (st.n < maxN && st.status === 'flying') {
         S.step(st, sec, inp(st.n));
-        if (moon && !flyby && Math.hypot(st.x - S.bodyX(moon, st.n * C.DT), st.y - S.bodyY(moon, st.n * C.DT)) < moon.r + 30) flyby = true;
-        if (flyby && st.n % 60 === 0) pts.push([st.x, st.y, Math.hypot(st.vx, st.vy), st.n * C.DT]);
+        if (moon && !flyby && Math.sqrt((st.x - S.bodyX(moon, st.n * C.DT)) * (st.x - S.bodyX(moon, st.n * C.DT)) + (st.y - S.bodyY(moon, st.n * C.DT)) * (st.y - S.bodyY(moon, st.n * C.DT))) < moon.r + 30) flyby = true;
+        if (flyby && st.n % 60 === 0) pts.push([st.x, st.y, Math.sqrt(st.vx * st.vx + st.vy * st.vy), st.n * C.DT]);
       }
-      const cand = pts.filter(p => p[3] > 5 && p[2] < 80 && p[0] > 25 && p[0] < C.W - 25 && p[1] > 25 && p[1] < C.H - 25 && Math.hypot(p[0] - sec.start.x, p[1] - sec.start.y) > 110 && farFromCoast(p[0], p[1]));
+      const cand = pts.filter(p => p[3] > 5 && p[2] < 80 && p[0] > 25 && p[0] < C.W - 25 && p[1] > 25 && p[1] < C.H - 25 && Math.sqrt((p[0] - sec.start.x) * (p[0] - sec.start.x) + (p[1] - sec.start.y) * (p[1] - sec.start.y)) > 110 && farFromCoast(p[0], p[1]));
       if (!cand.length) continue;
       found++;
       for (let q = 0; q < cand.length; q++) {
@@ -143,7 +143,7 @@
   // min distance from the par path to body b's surface (slingshot check)
   function pathMinDist(sec, sched, b) {
     const st = S.newState(sec), inp = S.inputFromEvents(S.schedToEvents(sched)); let d = 1e9;
-    while (st.n < 35 / C.DT && st.status === 'flying') { S.step(st, sec, inp(st.n)); const t = st.n * C.DT; d = Math.min(d, Math.hypot(st.x - S.bodyX(b, t), st.y - S.bodyY(b, t)) - b.r); }
+    while (st.n < 35 / C.DT && st.status === 'flying') { S.step(st, sec, inp(st.n)); const t = st.n * C.DT; d = Math.min(d, Math.sqrt((st.x - S.bodyX(b, t)) * (st.x - S.bodyX(b, t)) + (st.y - S.bodyY(b, t)) * (st.y - S.bodyY(b, t))) - b.r); }
     return d;
   }
   function tryAttempt(runSeed, index, a, opts) {

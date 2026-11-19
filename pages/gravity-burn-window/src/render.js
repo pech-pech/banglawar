@@ -11,10 +11,11 @@
   var FONT = 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
   var stars = null;
 
-  function layout(w, h) {
-    var s = Math.min(w / W, (h - TOP - REST) / H);
+  function layout(w, h, inset) {
+    var top = TOP + (inset > 0 ? inset : 0);
+    var s = Math.min(w / W, (h - top - REST) / H);
     s = Math.max(0.8, Math.min(1.5, s));
-    return { w: w, h: h, dpr: 1, scale: s, ox: (w - W * s) / 2, oy: TOP };
+    return { w: w, h: h, dpr: 1, scale: s, ox: (w - W * s) / 2, oy: top };
   }
   function getStars() {
     if (stars) return stars;
@@ -317,7 +318,7 @@
 
     var bph = G.phase ? String(G.phase).replace(/^ui_/, '') : G.phase;
     var showBar = bph !== 'docked' && bph !== 'end' && bph !== 'failed' || bph === 'failed' && G.phase === 'failed';
-    var barW = Math.min(V.w - 32, 240), barX = 16, barY = oy + ph + 14, barH = 12;
+    var barW = Math.min(V.w - 32, V.w < 400 ? 224 : 240), barX = 16, barY = oy + ph + 14, barH = 12;
     var fmax = G.fuelMax || 60, fuel = st ? Math.max(0, st.fuel) : 0, frac = Math.max(0, Math.min(1, fuel / fmax));
     if (showBar) {
       ctx.fillStyle = 'rgba(255,255,255,0.07)'; ctx.fillRect(barX, barY, barW, barH);
@@ -358,6 +359,18 @@
       ctx.fillStyle = 'rgba(255,255,255,0.10)'; ctx.fillRect(tx, ty, 6, th2);
       ctx.fillStyle = plain ? '#ff9a3c' : '#ffc27a'; ctx.fillRect(tx, ty + th2 * (1 - tv), 6, th2 * tv);
       font(ctx, 12, '700'); ctx.fillStyle = DIM; ctx.textAlign = 'center'; ctx.textBaseline = 'bottom'; ctx.fillText('THRUST', tx + 3, ty - 3);
+    }
+
+    // CLOSE PASS tag (1 s, set by game.js). Reduced motion: static text, full alpha, fixed position; otherwise fades and drifts up. No flash/shake.
+    var cpass = G.closePass;
+    if (cpass && cpass.k > 0 && G.phase === 'run') {
+      var cpx = Math.max(ox + 44, Math.min(ox + pw - 44, X(cpass.x))), cpy = Y(cpass.y) - 26 - (reduced ? 0 : (1 - cpass.k) * 12);
+      cpy = Math.max(oy + 14, Math.min(oy + ph - 14, cpy));
+      ctx.globalAlpha = reduced ? 1 : Math.min(1, cpass.k * 2.5);
+      font(ctx, 13, '700'); ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillStyle = 'rgba(8,16,18,0.7)'; ctx.fillRect(cpx - 43, cpy - 10, 86, 20);
+      ctx.fillStyle = plain ? '#fff' : BRASS; ctx.fillText('CLOSE PASS', cpx, cpy);
+      ctx.globalAlpha = 1;
     }
 
     // flash overlay
