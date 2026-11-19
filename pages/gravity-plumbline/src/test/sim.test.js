@@ -36,9 +36,12 @@ function run(room, sc, opts = {}) {
 t('same seed -> deep-equal rooms', () => {
   for (const seed of [1, 2, 7, 12345]) assert.deepStrictEqual(PL.buildRooms(seed), PL.buildRooms(seed));
 });
-t('different seeds differ somewhere', () => {
-  const a = JSON.stringify(PL.buildRooms(1)), b = JSON.stringify(PL.buildRooms(2)), c = JSON.stringify(PL.buildRooms(3));
-  assert(a !== b || a !== c, 'seed has no effect');
+t('tutorial rooms ignore the seed and are never mirrored (3 rooms: Flip, Arc Carry, Dive Gate)', () => {
+  const a = PL.buildRooms(1), b = PL.buildRooms(2), c = PL.buildRooms(3);
+  assert.strictEqual(a.length, 3);
+  assert.deepStrictEqual(a, b); assert.deepStrictEqual(a, c);
+  assert(a.every((r) => r.mirrored === false));
+  assert.strictEqual(a.map((r) => r.name).join(','), 'Flip,Arc Carry,Dive Gate');
 });
 t('100 scripted runs per room give identical hash', () => {
   const rooms = PL.buildRooms(1);

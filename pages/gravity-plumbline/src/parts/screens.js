@@ -22,8 +22,11 @@ const PL = (globalThis.PL = globalThis.PL || {});
   }
 
   // ---- play-family rects (play, tutorial, death, roomClear share these) ----
-  function playRects(w, h, left, tutorial) {
-    const k = cls(w, h), pad = padRects(w, h, false), r = {};
+  // join-beta glue: PL.Screens.padRects is the runtime swap point (ui.js points it at PL.Input.layout, which also
+  // returns retry/pause/teach). opts.roomRect = the camera's fitted room rect (screen px) when the game knows it.
+  function playRects(w, h, left, tutorial, opts) {
+    const PR = (PL.Screens && PL.Screens.padRects) || padRects;
+    const k = cls(w, h), pad = PR(w, h, false), r = {};
     if (k === 'A') {
       r.room = R(4, 84, pad.box.x - 9, h - 218); r.retry = R(12, r.room.y + r.room.h + 12, 56, 56); r.pause = R(w - 64, 8, 56, 56);
       r.hudRoom = R(8, 20, 112, 32); r.hudTime = R(130, 20, 120, 32); r.pips = R(260, 20, 140, 32);
@@ -38,11 +41,22 @@ const PL = (globalThis.PL = globalThis.PL || {});
       r.hudRoom = R(12, 14, 223, 28); r.hudTime = R(12, 46, 223, 28); r.pips = R(12, 78, 223, 22);
       r.teach = R(12, 108, 223, 92); r.skip = R(12, 210, 156, 56);
     }
-    const tw = Math.min(r.room.w - 16, 300);
-    r.toast = R(r.room.x + (r.room.w - tw) / 2, r.room.y + 8, tw, 40);
+    // DEV / ART chips: below the HUD strip, never on HUD text or Pause (CHECK #10)
+    r.chips = k === 'A' ? R(8, 56, 170, 24) : k === 'B' ? R(12, 54, 170, 24) : R(12, 274, 170, 24);
     if (!tutorial) { delete r.skip; }
     if (left) for (const n in r) if (r[n]) r[n] = mir(r[n], w);
-    const pl = left ? padRects(w, h, true) : pad;
+    const pl = left ? PR(w, h, true) : pad;
+    if (pl.retry) { // pad source also owns Retry, Pause and the teach slot (already mirrored for the left hand)
+      r.retry = pl.retry; r.pause = pl.pause;
+      if (pl.teach) {
+        const t = pl.teach;
+        if (tutorial && k === 'A') { r.teach = R(t.x, t.y, t.w, Math.max(48, t.h - 64)); r.skip = R(t.x, r.teach.y + r.teach.h + 8, t.w, 56); }
+        else r.teach = R(t.x, t.y, t.w, t.h);
+      }
+    }
+    if (opts && opts.roomRect) { const q = opts.roomRect; r.room = R(q.x, q.y, q.w, q.h); }
+    const tw = Math.min(r.room.w - 16, 300);
+    r.toast = R(r.room.x + (r.room.w - tw) / 2, r.room.y + 8, tw, 40);
     const out = Object.assign({}, r, { up: pl.up, left: pl.left, dive: pl.dive, right: pl.right, down: pl.down, padBox: pl.box });
     return out;
   }
@@ -61,7 +75,7 @@ const PL = (globalThis.PL = globalThis.PL || {});
     { const cw = Math.min(w - 32, 340), c = centred(w, h, cw, 300, -10);
       def('firstOpen', { screen: R(0, 0, w, h), card: c, title: R(c.x + 16, c.y + 24, cw - 32, 56), sub: R(c.x + 16, c.y + 96, cw - 32, 28), start: R(c.x + (cw - 240) / 2, c.y + 300 - 24 - 80, 240, 80) }, ['start', 'screen'], ['screen', 'card']); }
 
-    const pr = playRects(w, h, left, false), tr = playRects(w, h, left, true);
+    const pr = playRects(w, h, left, false, opts), tr = playRects(w, h, left, true, opts);
     def('play', pr, PLAY_TARGETS, PLAY_CONT, PLAY_OVER);
     def('tutorial', tr, PLAY_TARGETS, PLAY_CONT, PLAY_OVER);
     { const o = Object.assign({}, pr); const tw = 200; o.tag = R(Math.round(pr.room.x + (pr.room.w - tw) / 2), pr.room.y + 120, tw, 36);
@@ -105,8 +119,9 @@ const PL = (globalThis.PL = globalThis.PL || {});
       const vis = []; ids.forEach((id, i) => { const rr = R(x, ly + i * 60 - sc, rw, 56); if (rr.y >= ly && rr.y + 56 <= lb) { r[id] = rr; vis.push(id); } });
       def(name, r, ['back'].concat(vis), ['list']);
     };
-    rowsScreen('settings', ['music', 'sounds', 'mute', 'vibration', 'hand', 'motion', 'textSize', 'reset', 'tweak'], { backW: 88 });
-    out.settings.rowIds = ['music', 'sounds', 'mute', 'vibration', 'hand', 'motion', 'textSize', 'reset', 'tweak'];
+    const SIDS = ['music', 'sounds', 'mute', 'vibration', 'hand', 'motion', 'textSize', 'quality', 'reset', 'tweak'];
+    rowsScreen('settings', SIDS, { backW: 88 });
+    out.settings.rowIds = SIDS;
     const nT = opts.tweakRows || 6, tids = []; for (let i = 0; i < nT; i++) tids.push('t' + i);
     rowsScreen('tweak', tids, { backW: 88, badge: true });
     // second-level confirm for settings reset reuses 'confirm'
@@ -118,6 +133,13 @@ const PL = (globalThis.PL = globalThis.PL || {});
   function rowParts(row, kind) {
     const cw = kind === 'slider' ? Math.round(row.w * 0.5) : kind === 'toggle' ? 72 : kind === 'seg' ? 150 : 0;
     return { label: R(row.x + 16, row.y, row.w - 32 - cw, row.h), control: R(row.x + row.w - 8 - cw, row.y, cw, row.h) };
+  }
+
+  // join-beta glue: split a row into n buttons (weights optional), 6 px gaps; each stays >= 56 tall (row height)
+  function rowButtons(row, n, weights) {
+    const wt = weights || Array(n).fill(1), tot = wt.reduce((a, b) => a + b, 0), gap = 6, inner = row.w - gap * (n - 1), out = [];
+    let x = row.x; for (let i = 0; i < n; i++) { const bw = Math.round(inner * wt[i] / tot); out.push(R(x, row.y, i === n - 1 ? row.x + row.w - x : bw, row.h)); x += bw + gap; }
+    return out;
   }
 
   function hit(lay, name, x, y) {
@@ -146,12 +168,15 @@ const PL = (globalThis.PL = globalThis.PL || {});
     U.diveKey(ctx, r.dive, { pressed: press(vm, 'dive'), cooldown: vm.cooldown || 0, disabled: zero && vm.air, airCost: vm.air && !zero }, t);
     if (vm.toast) U.toast(ctx, r.toast, Object.assign({ vw: w }, vm.toast), t);
     if (vm.teach && vm.teach.lines) U.teachSlot(ctx, r.teach, { lines: vm.teach.lines, alpha: vm.teach.alpha, vw: w, scale: sca }, t);
-    if (r.skip && vm.showSkip) U.button(ctx, r.skip, { label: S.tutorial.skip, vw: w, scale: sca, pressed: press(vm, 'skip'), sub: null }, t);
-    drawChips(ctx, vm, w);
+    if (r.skip && vm.showSkip) { // narrow slot (344 wide, 68 px): first word only ("Skip"); the teach slot above says it is the tutorial
+      const sp = S.tutorial.skip.indexOf(' '), two = r.skip.w < 120 && sp > 0;
+      U.button(ctx, r.skip, { label: two ? S.tutorial.skip.slice(0, sp) : S.tutorial.skip, sub: null, vw: w, scale: sca, pressed: press(vm, 'skip') }, t);
+    }
+    drawChips(ctx, vm, w, r.chips);
   }
-  function drawChips(ctx, vm, w) {
+  function drawChips(ctx, vm, w, at) {
     const ins = vm.inset || { t: 0, l: 0 };
-    let x = 8 + (ins.l || 0), y = 4 + (ins.t || 0);
+    let x = at ? at.x : 8 + (ins.l || 0), y = at ? at.y : 4 + (ins.t || 0);
     // top-left, inside safe area; below HUD text (y 4 keeps clear of Pause on the right)
     if (vm.devTuned) { U.devBadge(ctx, R(x, y, 56, 24), { label: PL.Strings.dev.badge }, 0); x += 62; }
     if (vm.artFallback && vm.tweakOn) U.artChip(ctx, R(x, y, 100, 24), {}, 0);
@@ -167,17 +192,17 @@ const PL = (globalThis.PL = globalThis.PL || {});
       U.button(ctx, r.start, { label: S.cover.start, kind: 'primary', vw: w, pressed: press(vm, 'start') }, t);
       const pulse = 0.5 + 0.5 * Math.sin(t * 3); U.sticker(ctx, R(r.start.x - 6, r.start.y - 6, r.start.w + 12, r.start.h + 12), { fill: 'rgba(0,0,0,0)', edge: C.teal, radius: 22, shadow: false, disabled: true }); void pulse;
     },
-    play(ctx, w, h, vm, t) { const L = layout(w, h, vm.leftHand, { }).play; backdropRoom(ctx, vm, L); drawHud(ctx, L, vm, t, w); },
-    tutorial(ctx, w, h, vm, t) { const L = layout(w, h, vm.leftHand).tutorial; backdropRoom(ctx, vm, L); drawHud(ctx, L, Object.assign({ showSkip: true }, vm), t, w); },
+    play(ctx, w, h, vm, t) { const L = layout(w, h, vm.leftHand, { roomRect: vm.roomRect }).play; backdropRoom(ctx, vm, L); drawHud(ctx, L, vm, t, w); },
+    tutorial(ctx, w, h, vm, t) { const L = layout(w, h, vm.leftHand, { roomRect: vm.roomRect }).tutorial; backdropRoom(ctx, vm, L); drawHud(ctx, L, Object.assign({ showSkip: true }, vm), t, w); },
     death(ctx, w, h, vm, t) {
-      const L = layout(w, h, vm.leftHand).death; backdropRoom(ctx, vm, L); drawHud(ctx, L, vm, t, w);
+      const L = layout(w, h, vm.leftHand, { roomRect: vm.roomRect }).death; backdropRoom(ctx, vm, L); drawHud(ctx, L, vm, t, w);
       const c = vm.cause || {}, rm = L.rects.room, tw = c.iconOnly ? 44 : 220;
       const hx = c.x == null ? rm.x + rm.w / 2 : c.x, hy = c.y == null ? rm.y + 140 : c.y;
       const x = Math.max(rm.x + 6 + tw / 2, Math.min(rm.x + rm.w - 6 - tw / 2, hx)), y = Math.max(rm.y + 24, Math.min(rm.y + rm.h - 24, hy - 44));
       U.causeTag(ctx, R(x - tw / 2, y - 18, tw, 36), { kind: c.kind || 'spikes', text: c.text || S.death.spikes, age: c.age == null ? 400 : c.age, iconOnly: c.iconOnly }, t);
     },
     roomClear(ctx, w, h, vm, t) {
-      const L = layout(w, h, vm.leftHand).roomClear, r = L.rects; backdropRoom(ctx, vm, L); drawHud(ctx, L, vm, t, w);
+      const L = layout(w, h, vm.leftHand, { roomRect: vm.roomRect }).roomClear, r = L.rects; backdropRoom(ctx, vm, L); drawHud(ctx, L, vm, t, w);
       U.card(ctx, r.clearCard, { anim: 1 }, t);
       const sca = sc(vm), f = U.font('body', w, sca), cx0 = r.clearCard.x + r.clearCard.w / 2;
       U.text(ctx, S.clear.title, cx0, r.clearHead.y + 16, { font: U.font('h2', w), color: C.brass, align: 'center', maxW: r.clearHead.w });
@@ -204,8 +229,8 @@ const PL = (globalThis.PL = globalThis.PL || {});
         const tr = r['tile' + i], b = (vm.best || [])[i], on = i === sel;
         U.card(ctx, tr, {}, t);
         if (on) { U.sticker(ctx, R(tr.x - 5, tr.y - 5, tr.w + 10, tr.h + 10), { fill: 'rgba(0,0,0,0)', edge: C.brass, radius: 24, shadow: false, disabled: true }); }
-        U.text(ctx, names[i], tr.x + 18, tr.y + 30, { font: U.font('body', w, sca), color: C.cream, maxW: tr.w - 130 });
-        U.text(ctx, b ? S.pick.best + ' ' + b.time : (i === 2 && vm.dailyNote ? subs[2] : S.pick.notPlayed), tr.x + 18, tr.y + 64, { font: U.font('small', w, sca), color: C.muted, maxW: tr.w - 130 });
+        U.text(ctx, names[i], tr.x + 18, tr.y + 30, { font: U.font('body', w, sca), color: C.cream, maxW: tr.w - 108 });
+        U.text(ctx, b ? S.pick.best + ' ' + b.time : (i === 2 && vm.dailyNote ? subs[2] : S.pick.notPlayed), tr.x + 18, tr.y + 64, { font: U.font('small', w, sca), color: C.muted, maxW: tr.w - 108 });
         U.medal(ctx, R(tr.x + tr.w - 18 - 64, tr.y + 16, 64, 64), { tier: b ? b.tier : 'none' }, t);
       }
       U.button(ctx, r.play, { label: S.pick.play, kind: 'primary', vw: w, pressed: press(vm, 'play') }, t);
@@ -248,7 +273,7 @@ const PL = (globalThis.PL = globalThis.PL || {});
       U.button(ctx, r.back, { label: st.back, vw: w, scale: sca, pressed: press(vm, 'back') }, t);
       U.text(ctx, st.title, r.title.x + r.title.w / 2, r.title.y + 28, { font: U.font('h2', w), color: C.cream, align: 'center', maxW: r.title.w });
       const rows = [['music', st.music, 'slider'], ['sounds', st.sounds, 'slider'], ['mute', st.mute, 'toggle'], ['vibration', st.vibration, 'toggle'], ['hand', st.hand(!!v.left), 'seg'],
-        ['motion', st.motion, 'toggle'], ['textSize', st.textSize, 'seg'], ['reset', st.reset, 'link'], ['tweak', st.tweak, 'link']];
+        ['motion', st.motion, 'toggle'], ['textSize', st.textSize, 'seg'], ['quality', st.quality, 'seg'], ['reset', st.reset, 'link'], ['tweak', st.tweak, 'link']];
       for (const [id, lb, kd] of rows) {
         const row = r[id]; if (!row) continue;
         U.sticker(ctx, row, { fill: vm.pressed === id ? C.plumPress : C.plum, edge: C.brass, radius: 16, shadow: false });
@@ -257,7 +282,7 @@ const PL = (globalThis.PL = globalThis.PL || {});
         if (kd === 'slider') U.slider(ctx, p.control, { value: v[id] == null ? 0.7 : v[id], drag: vm.drag === id }, t);
         else if (kd === 'toggle') U.toggle(ctx, p.control, { on: !!v[id] }, t);
         else if (kd === 'seg') {
-          const opts = id === 'hand' ? ['R', 'L'] : ['1.0', '1.15', '1.3'], cur = id === 'hand' ? (v.left ? 1 : 0) : (v.textIdx || 0), n = opts.length, bw = (p.control.w - 4) / n;
+          const opts = id === 'hand' ? ['R', 'L'] : id === 'quality' ? st.qualityOpts : ['1.0', '1.15', '1.3'], cur = id === 'hand' ? (v.left ? 1 : 0) : id === 'quality' ? (v.qualityIdx || 0) : (v.textIdx || 0), n = opts.length, bw = (p.control.w - 4) / n;
           opts.forEach((o, i) => { const b = R(p.control.x + i * bw + 2, row.y + 8, bw - 2, 40); U.rr(ctx, b.x, b.y, b.w, b.h, 10); ctx.fillStyle = i === cur ? C.brass : C.night; ctx.fill();
             U.text(ctx, o, b.x + b.w / 2, b.y + 21, { font: U.fontPx(14, 800), color: i === cur ? C.ink : C.cream, align: 'center' }); });
         } else if (id === 'reset') U.chevron(ctx, row.x + row.w - 28, row.y + 28, 16, 'right', C.muted);
@@ -265,16 +290,27 @@ const PL = (globalThis.PL = globalThis.PL || {});
       }
     },
     tweak(ctx, w, h, vm, t) {
-      const Ls = layout(w, h, false, { tweakRows: (vm.rows || []).length || 6 }), r = Ls.tweak.rects, sca = sc(vm);
+      const Ls = layout(w, h, false, { tweakRows: (vm.rows || []).length || 6, scroll: vm.scroll }), r = Ls.tweak.rects, sca = sc(vm);
       U.scrim(ctx, w, h, 0.92);
       U.button(ctx, r.back, { label: S.settings.back, vw: w, scale: sca, pressed: press(vm, 'back') }, t);
       U.text(ctx, S.tweak.title, r.title.x + r.title.w / 2, r.title.y + 28, { font: U.font('h2', w), color: C.cream, align: 'center', maxW: r.title.w });
       U.devBadge(ctx, r.dev, { label: PL.Strings.dev.badge }, t);
       (vm.rows || []).forEach((row, i) => {
-        const rr = r['t' + i]; if (!rr) return; U.sticker(ctx, rr, { fill: C.plum, edge: C.brass, radius: 16, shadow: false });
+        const rr = r['t' + i]; if (!rr) return;
+        if (row.kind === 'head') { // group heading: tap opens / closes the group
+          U.sticker(ctx, rr, { fill: vm.pressed === 't' + i ? C.plumPress : C.night, edge: C.brass, radius: 16, shadow: false });
+          U.text(ctx, row.label, rr.x + 16, rr.y + 28, { font: U.font('body', w, sca), color: C.brass, maxW: rr.w - 64 });
+          U.chevron(ctx, rr.x + rr.w - 28, rr.y + 28, 16, row.open ? 'down' : 'right', C.muted); return;
+        }
+        if (row.kind === 'btns') { // a row of buttons (Reset all / Copy report / presets)
+          const bs = rowButtons(rr, row.btns.length, row.btns.map((b) => b.weight || 1));
+          row.btns.forEach((b, j) => U.button(ctx, bs[j], { label: b.label, kind: b.kind, vw: w, scale: sca, pressed: vm.pressed === b.id ? 1 : 0 }, t));
+          return;
+        }
+        U.sticker(ctx, rr, { fill: C.plum, edge: row.dirty ? C.teal : C.brass, radius: 16, shadow: false });
         const p = rowParts(rr, 'slider');
-        U.text(ctx, row.label + '  ' + row.valueText, p.label.x, rr.y + 28, { font: U.font('body', w, sca), color: C.cream, maxW: p.label.w });
-        U.slider(ctx, p.control, { value: row.value }, t);
+        U.text(ctx, row.label + '  ' + row.valueText, p.label.x, rr.y + 28, { font: U.font('body', w, sca), color: row.dirty ? C.teal : C.cream, maxW: p.label.w });
+        U.slider(ctx, p.control, { value: row.value, drag: vm.drag === 't' + i }, t);
       });
     }
   };
@@ -300,5 +336,5 @@ const PL = (globalThis.PL = globalThis.PL || {});
     y += 84; U.toast(ctx, R(12, y, 300, 40), { text: 'Saved', vw: w }, t); U.devBadge(ctx, R(324, y + 8, 56, 24), {}, t); U.artChip(ctx, R(388, y + 8, 100, 24), {}, t);
   };
 
-  PL.Screens = { layout, padRects, rowParts, hit, draw, cls, NAMES: ['firstOpen', 'tutorial', 'menu', 'shaftPick', 'play', 'pause', 'confirm', 'death', 'roomClear', 'shaftComplete', 'settings', 'tweak'] };
+  PL.Screens = { layout, padRects, rowParts, rowButtons, hit, draw, cls, NAMES: ['firstOpen', 'tutorial', 'menu', 'shaftPick', 'play', 'pause', 'confirm', 'death', 'roomClear', 'shaftComplete', 'settings', 'tweak'] };
 })();

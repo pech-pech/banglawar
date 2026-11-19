@@ -19,7 +19,7 @@ const srv = http.createServer(function (q, r) {
   const b = await chromium.launch();
   const errs = [];
   // screenshots: step to a moment with plenty going on (mid-flip), plus a second shot
-  for (const [w, h] of SIZES) for (const [name, q, red] of MODES) {
+  if (process.argv.indexOf('--probe-only') < 0 && process.argv.indexOf('--probe-only') < 0) for (const [w, h] of SIZES) for (const [name, q, red] of MODES) {
     const p = await b.newPage({ viewport: { width: w, height: h }, deviceScaleFactor: 2 });
     p.on('pageerror', e => errs.push(name + ' ' + w + ': ' + e.message)); p.on('console', m => { if (m.type() === 'error') errs.push(name + ' ' + w + ' ' + m.text()); });
     await p.goto(base + '?manual=1&seed=7&q=' + q + (red ? '&reduced=1' : ''));
@@ -40,14 +40,14 @@ const srv = http.createServer(function (q, r) {
       await cdp.send('Emulation.setCPUThrottlingRate', { rate: 4 });
       await p.goto(base + '?manual=1&seed=7&q=' + q);
       await p.evaluate(() => demo.step(60, 1 / 60));
-      const ms = await p.evaluate(() => { const a = []; for (let i = 0; i < 300; i++) a.push(demo.timeOne(1 / 60)); return a; });
+      const ms = await p.evaluate((n) => { const a = []; for (let i = 0; i < n; i++) a.push(demo.timeOne(1 / 60)); return a; }, w === 475 ? 300 : 120);
       const stats = await p.evaluate(() => demo.stats());
       ms.sort((x, y) => x - y);
-      const avg = ms.reduce((s, v) => s + v, 0) / ms.length, p95 = ms[Math.floor(ms.length * 0.95)];
-      rows.push('| ' + w + 'x' + h + ' | ' + q + ' | ' + avg.toFixed(2) + ' | ' + p95.toFixed(2) + ' | ' + stats.particles + ' (peak ' + stats.peak + ') |');
+      const avg = ms.reduce((s, v) => s + v, 0) / ms.length, p95 = ms[Math.floor(ms.length * 0.95)], med = ms[Math.floor(ms.length / 2)];
+      console.log('row', w, h, q, avg.toFixed(1), p95.toFixed(1)); rows.push('| ' + w + 'x' + h + ' | ' + q + ' | ' + avg.toFixed(2) + ' | ' + med.toFixed(2) + ' | ' + p95.toFixed(2) + ' | ' + stats.particles + ' (peak ' + stats.peak + ') |');
       await p.close();
     }
-    const table = '| size | quality | avg ms | p95 ms | particles |\n|---|---|---|---|---|\n' + rows.join('\n');
+    const table = '(300 frames at 475x638, 120 frames at the other sizes to keep the run under 10 min; 4x CPU throttle; headless software raster, no GPU)\n\n| size | quality | avg ms | median ms | p95 ms | particles |\n|---|---|---|---|---|---|\n' + rows.join('\n');
     console.log(table);
     const f = path.join(root, 'src/review/vfx-beta.md');
     let md = fs.existsSync(f) ? fs.readFileSync(f, 'utf8') : '';

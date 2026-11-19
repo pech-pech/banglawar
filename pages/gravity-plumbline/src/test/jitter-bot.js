@@ -9,7 +9,7 @@
 // Usage: node jitter-bot.js [ids...] ; env SEEDS=200 N override; env JSON=path writes machine-readable results.
 const fs = require('fs');
 const wp = require('./window-probe.js');
-const { PL, bestRoute, variants } = wp;
+const { PL, routesFor, variants } = wp;
 const NS = +(process.env.NSEEDS || 200);
 const MIN_FEATURE = 10 / 0.84; // 11.9 room units
 
@@ -58,8 +58,7 @@ function attempt(room, log, rng, jMs, lead) {
 }
 function runTemplate(t) {
   const vs = variants(t);
-  const routes = [];
-  for (const v of vs) { const b = bestRoute(v.room); routes.push(b ? { v, b } : null); }
+  const routes = routesFor(t).map(({ v, b }) => (b ? { v, b } : null));
   const res = { id: t.id, tier: t.tier, nVar: vs.length, unsolved: routes.filter((x) => !x).length };
   const ok = routes.filter(Boolean);
   if (!ok.length) return res;

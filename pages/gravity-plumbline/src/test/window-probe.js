@@ -19,19 +19,49 @@ const wins = (room, log) => {
   const r = PL.replay(room, log.slice().sort((a, b) => a.tick - b.tick));
   return r.state.won && !r.state.dead;
 };
-function windowOf(room, log, i) {
+// Snapshot every 6 ticks of the base run so a one-input shift only re-simulates from just before that input.
+function snapshots(room, log) {
+  const L = log.slice().sort((a, b) => a.tick - b.tick), snaps = [];
+  const s = PL.newState(room);
+  let i = 0;
+  const end = (L.length ? L[L.length - 1].tick : 0) + 600;
+  while (s.t < end && !s.won && !s.dead) {
+    if (s.t % 6 === 0) snaps.push(sc.clone(s));
+    const inp = [];
+    while (i < L.length && L[i].tick <= s.t) { inp.push({ k: L[i].k, dir: L[i].dir }); i++; }
+    PL.step(s, inp);
+  }
+  return snaps;
+}
+function winsShift(room, log, snaps, i, nt) {
+  const minT = Math.min(log[i].tick, nt);
+  let sn = snaps[0];
+  for (const q of snaps) { if (q.t <= minT) sn = q; else break; }
+  const s = sc.clone(sn);
+  const L = log.map((x, j) => (j === i ? { ...x, tick: nt } : x)).sort((a, b) => a.tick - b.tick);
+  const end = L[L.length - 1].tick + 600;
+  let k = 0;
+  while (k < L.length && L[k].tick < s.t) k++;
+  while (s.t < end && !s.won && !s.dead) {
+    const inp = [];
+    while (k < L.length && L[k].tick <= s.t) { inp.push({ k: L[k].k, dir: L[k].dir }); k++; }
+    PL.step(s, inp);
+  }
+  return s.won && !s.dead;
+}
+function windowOf(room, log, i, snaps = snapshots(room, log)) {
   let lo = 0, hi = 0;
   for (let d = 1; d <= CAP; d++) {
     const t = log[i].tick - d;
     if (t < 0) break;
-    if (wins(room, log.map((x, j) => (j === i ? { ...x, tick: t } : x)))) lo = d; else break;
+    if (winsShift(room, log, snaps, i, t)) lo = d; else break;
   }
   for (let d = 1; d <= CAP; d++) {
-    if (wins(room, log.map((x, j) => (j === i ? { ...x, tick: x.tick + d } : x)))) hi = d; else break;
+    if (winsShift(room, log, snaps, i, log[i].tick + d)) hi = d; else break;
   }
   return { lo, hi, w: lo + hi + 1 };
 }
-function windows(room, log) { return log.map((_, i) => windowOf(room, log, i).w); }
+function windows(room, log) { const sn = snapshots(room, log); return log.map((_, i) => windowOf(room, log, i, sn).w); }
 function centre(room, log0, rounds = 6) {
   let log = log0.map((e) => ({ ...e }));
   for (let r = 0; r < rounds; r++) {
@@ -63,7 +93,7 @@ function pickCandidates(all, max = 24) {
 // dedupes on the state modulo the crusher period (288 ticks); returns ALL winning logs (capped, stride-sampled per level).
 const SLOT = 3, PERIOD = 288;
 const ACT = (a) => (a === 'D' ? { k: 'dive' } : { k: 'flip', dir: a });
-function guided(room, sig, { maxWait = 300, levelCap = 6000, win = 400 } = {}) {
+function guided(room, sig, { maxWait = 300, levelCap = 600, win = 300 } = {}) {
   const hasCr = room.crushers.length > 0;
   const key = (s, k) => {
     const r = (v, q) => Math.round(v / q);
@@ -76,6 +106,7 @@ function guided(room, sig, { maxWait = 300, levelCap = 6000, win = 400 } = {}) {
     const a = ACT(sig[k]);
     const next = [], seen = new Set();
     for (const nd of level) {
+      if (winners.length >= 800) return winners;
       let s = nd.s;
       for (let w = 0; w * SLOT <= maxWait; w++) {
         const c = sc.clone(s), t0 = c.t;
@@ -87,8 +118,12 @@ function guided(room, sig, { maxWait = 300, levelCap = 6000, win = 400 } = {}) {
             const log = nd.log.concat([{ tick: t0, k: a.k, dir: a.dir }]);
             if (c.won) winners.push({ log, t: c.t, n: k + 1 });
             else if (k === sig.length - 1) {
-              for (let i = 0; i < win && !c.won && !c.dead; i++) PL.step(c, []);
-              if (c.won && !c.dead) winners.push({ log, t: c.t, n: k + 1 });
+              const kk = key(c, k + 1);
+              if (!seen.has(kk)) {
+                seen.add(kk);
+                for (let i = 0; i < win && !c.won && !c.dead; i++) PL.step(c, []);
+                if (c.won && !c.dead) winners.push({ log, t: c.t, n: k + 1 });
+              }
             } else {
               const kk = key(c, k + 1);
               if (!seen.has(kk)) { seen.add(kk); next.push({ s: c, log }); }
@@ -124,7 +159,27 @@ function fromGuided(room) {
   return all;
 }
 
-function bestRoute(room, { maxCand = 24 } = {}) {
+const crypto = require('crypto'), fsx = require('fs');
+let CACHE = null;
+function cacheGet(room) {
+  if (!process.env.ROUTECACHE) return undefined;
+  if (!CACHE) { try { CACHE = JSON.parse(fsx.readFileSync(process.env.ROUTECACHE, 'utf8')); } catch (e) { CACHE = {}; } }
+  return CACHE[crypto.createHash('md5').update(JSON.stringify(room)).digest('hex')];
+}
+function cachePut(room, v) {
+  if (!process.env.ROUTECACHE) return;
+  cacheGet(room);
+  CACHE[crypto.createHash('md5').update(JSON.stringify(room)).digest('hex')] = v;
+  fsx.writeFileSync(process.env.ROUTECACHE, JSON.stringify(CACHE));
+}
+function bestRoute(room, o) { // optional disk cache (env ROUTECACHE=file) keyed by the exact room geometry
+  const c = cacheGet(room);
+  if (c !== undefined) return c;
+  const b = bestRoute0(room, o);
+  cachePut(room, b);
+  return b;
+}
+function bestRoute0(room, { maxCand = 24 } = {}) {
   const all = [];
   let r = null;
   if (room.crushers.length && SIGS[room.templateId]) {
@@ -136,13 +191,21 @@ function bestRoute(room, { maxCand = 24 } = {}) {
   if (!r) return null;
   const lead = room.crushers.length ? PERIOD : 48;
   let best = null;
-  for (const c of pickCandidates(all, maxCand)) {
-    const base = c.log.map((e) => ({ tick: e.tick + lead, k: e.k, dir: e.dir }));
-    if (!wins(room, base)) continue;
-    const log = centre(room, base);
-    const w = windows(room, log);
-    const score = Math.min(...w) * 1000 + w.reduce((a, b) => a + Math.min(b, 40), 0);
-    if (!best || score > best.score) best = { log, w, score, min: Math.min(...w), n: log.length, t: c.t + lead, fast: r };
+  for (const c of pickCandidates(all, room.crushers.length ? Math.min(maxCand, 10) : maxCand)) {
+    const full = c.log.map((e) => ({ tick: e.tick + lead, k: e.k, dir: e.dir }));
+    if (!wins(room, full)) continue;
+    let pruned = full;
+    for (let i = pruned.length - 1; i >= 0; i--) { // drop inputs the route does not need
+      const l2 = pruned.filter((_, j) => j !== i);
+      if (l2.length && wins(room, l2)) pruned = l2;
+    }
+    // a recovery input (e.g. slide back into the exit) can widen earlier windows: score pruned AND full routes
+    for (const base of pruned.length === full.length ? [full] : [pruned, full]) {
+      const log = centre(room, base);
+      const w = windows(room, log);
+      const score = Math.min(...w) * 1000 - log.length * 100 + w.reduce((a, b) => a + Math.min(b, 40), 0) / 10;
+      if (!best || score > best.score) best = { log, w, score, min: Math.min(...w), n: log.length, t: c.t + lead, fast: r };
+    }
   }
   return best;
 }
@@ -158,8 +221,25 @@ function variants(tpl) {
   }
   return out;
 }
+// Routes for every variant. A non-crusher room's mirrored variant is the exact mirror image of the unmirrored one, so the
+// mirrored variant also gets the unmirrored best route with flips 1<->3 swapped (the beam search is not symmetric).
+function routesFor(tpl) {
+  const vs = variants(tpl);
+  const raw = vs.map((v) => ({ v, b: bestRoute(v.room) }));
+  if (vs[0] && !vs[0].room.crushers.length) {
+    const ev = (room, log) => (wins(room, log) ? windows(room, log) : null);
+    const swap = (log) => log.map((e) => ({ tick: e.tick, k: e.k, dir: e.k === 'flip' ? swapDir(e.dir) : e.dir }));
+    const [U, M] = raw;
+    if (U && M && U.b && M.b && U.b.min !== M.b.min) {
+      const hi = U.b.min > M.b.min ? U : M, lo = hi === U ? M : U;
+      const log = swap(hi.b.log), w = ev(lo.v.room, log);
+      if (w && Math.min(...w) > lo.b.min) lo.b = { ...hi.b, log, w, min: Math.min(...w), n: log.length };
+    }
+  }
+  return raw;
+}
 const fmt = (log) => log.map((e) => e.tick + ':' + (e.k === 'dive' ? 'D' : 'f' + e.dir)).join(' ');
-module.exports = { guided, PL, bestRoute, variants, windows, wins, BANDS, fmt, search };
+module.exports = { routesFor, guided, PL, bestRoute, variants, windows, wins, BANDS, fmt, search };
 
 if (require.main === module) {
   const only = process.argv.slice(2);
@@ -167,8 +247,7 @@ if (require.main === module) {
   for (const t of PL.TEMPLATES) {
     if (only.length && !only.includes(t.id)) continue;
     let worst = null, nf = 0;
-    for (const v of variants(t)) {
-      const b = bestRoute(v.room);
+    for (const { v, b } of routesFor(t)) {
       if (!b) { nf++; console.log(t.id, v.mir ? 'M' : 'U', 's' + v.sd, 'NOT FOUND'); continue; }
       console.log(t.id, v.mir ? 'M' : 'U', 's' + v.sd, `n=${b.n} min=${b.min}t (${(b.min * 1000 / 120).toFixed(0)}ms) w=${b.w.join(',')} log=${fmt(b.log)}`);
       if (!worst || b.min < worst.min) worst = { min: b.min, w: b.w, v };

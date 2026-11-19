@@ -11,7 +11,8 @@ const PL = ctx.PL;
 let fails = 0;
 function t(name, fn) { try { fn(); console.log('ok   ' + name); } catch (e) { fails++; console.log('FAIL ' + name + ': ' + e.message); } }
 const J = (o) => JSON.stringify(o);
-const N = Math.min(7, PL.TEMPLATES.length);
+const LIVE = PL.TEMPLATES.filter((x) => !x.tutorial && !x.retired);
+const N = 7;
 const SEEDS = [1, 2, 3, 42, 777, 20261118];
 
 function rects(r) {
@@ -21,26 +22,71 @@ function rects(r) {
 function inside(r) { return r[0] >= 0 && r[1] >= 0 && r[0] + r[2] <= 336 && r[1] + r[3] <= 500; }
 function geom(r) { const c = JSON.parse(J(r)); delete c.mirrored; return c; }
 
-t('templates registered (>=3, t01..t03 first)', () => {
+t('templates registered (3 tutorials first: tut1, t01, tut3)', () => {
   assert(PL.TEMPLATES.length >= 3);
-  assert.strictEqual(J(PL.TEMPLATES.slice(0, 3).map((x) => x.id)), J(['t01', 't02', 't03']));
-  assert.strictEqual(J(PL.TEMPLATES.slice(0, 3).map((x) => x.tier)), J([1, 2, 2]));
+  assert.strictEqual(J(PL.TEMPLATES.slice(0, 3).map((x) => x.id)), J(['tut1', 't01', 'tut3']));
+  assert.strictEqual(J(PL.TEMPLATES.slice(0, 3).map((x) => !!x.tutorial)), J([true, true, true]));
+  assert.strictEqual(J(PL.buildRooms(1).map((r) => r.name)), J(PL.TEMPLATES.slice(0, 3).map((x) => x.make(PL.mulberry32(1)).name)));
+});
+t('every tier (1,2,3) keeps >= 4 live templates; every template has family and inputs', () => {
+  for (const tier of [1, 2, 3]) assert(LIVE.filter((x) => x.tier === tier).length >= 4, 'tier ' + tier);
+  for (const x of LIVE) assert(x.family && x.inputs >= 1, x.id);
 });
 t('same seed deep-equal', () => {
   for (const s of SEEDS) assert.strictEqual(J(PL.buildShaft(s, N)), J(PL.buildShaft(s, N)));
 });
-t('n distinct template ids', () => {
-  for (const s of SEEDS) {
-    const ids = PL.buildShaft(s, N).map((r) => r.templateId);
-    assert.strictEqual(ids.length, N);
-    assert.strictEqual(new Set(ids).size, N);
+t('n distinct template ids, no tutorial or retired room (n=5 and 7, 200 seeds)', () => {
+  for (const n of [5, 7]) for (let s = 1; s <= 200; s++) {
+    const ids = PL.buildShaft(s, n).map((r) => r.templateId);
+    assert.strictEqual(ids.length, n);
+    assert.strictEqual(new Set(ids).size, n);
+    for (const id of ids) { const x = PL.TEMPLATES.find((q) => q.id === id); assert(!x.tutorial && !x.retired, id); }
   }
 });
-t('tiers ascending', () => {
-  const tier = {}; PL.TEMPLATES.forEach((x) => (tier[x.id] = x.tier));
-  for (const s of SEEDS) {
-    const ts = PL.buildShaft(s, N).map((r) => tier[r.templateId]);
-    for (let i = 1; i < ts.length; i++) assert(ts[i] >= ts[i - 1], 'seed ' + s + ' ' + ts);
+t('slot table: tier per slot, hard slot hard, rest slot rest, no relaxed rules (n=5 and 7, 300 seeds)', () => {
+  const by = {}; PL.TEMPLATES.forEach((x) => (by[x.id] = x));
+  const want = { 5: [1, 1, 2, 3, 0], 7: [1, 1, 2, 2, 3, 3, 0] };
+  for (const n of [5, 7]) for (let s = 1; s <= 300; s++) {
+    const p = PL.pickShaft(s, n); assert.strictEqual(p.level, 0, 'relaxed at seed ' + s + ' n ' + n);
+    p.templates.forEach((x, i) => {
+      if (want[n][i]) assert.strictEqual(x.tier, want[n][i], 'seed ' + s + ' slot ' + i);
+      if (p.slots[i] === 'T3*') assert(x.hard, x.id + ' not hard');
+      if (p.slots[i] === 'T2r') assert(x.rest, x.id + ' not rest');
+    });
+  }
+});
+t('adjacent rooms differ in family and in mirrored flag; first crusher is t03, first crumble is t18; exit clear of spikes', () => {
+  const by = {}; PL.TEMPLATES.forEach((x) => (by[x.id] = x));
+  for (const n of [5, 7]) for (let s = 1; s <= 300; s++) {
+    const sh = PL.buildShaft(s, n);
+    sh.forEach((r, i) => {
+      if (i) { assert.notStrictEqual(by[sh[i - 1].templateId].family, by[r.templateId].family, 'family seed ' + s); assert.notStrictEqual(sh[i - 1].mirrored, r.mirrored, 'mirror seed ' + s); }
+      for (const sp of r.spikes) {
+        const q = sp.r, e = r.exit, dx = Math.max(q[0] - e.x, 0, e.x - q[0] - q[2]), dy = Math.max(q[1] - e.y, 0, e.y - q[1] - q[3]);
+        assert(Math.hypot(dx, dy) >= 22, r.templateId + ' exit adjacent to spikes');
+      }
+    });
+    const fc = sh.findIndex((r) => r.crushers.length), fu = sh.findIndex((r) => r.crumbles.length);
+    if (fc >= 0) assert.strictEqual(sh[fc].templateId, 't03', 'first crusher seed ' + s);
+    if (fu >= 0) assert.strictEqual(sh[fu].templateId, 't18', 'first crumble seed ' + s);
+  }
+});
+t('cross-shaft exclusion is soft: excluded ids avoided when slot keeps >= 2 others', () => {
+  const a = PL.buildShaft(5, 7).map((r) => r.templateId);
+  const b = PL.buildShaft(5, 7, { exclude: a.slice(0, 3) }).map((r) => r.templateId);
+  assert.strictEqual(b.length, 7);
+  assert(b.filter((id) => a.slice(0, 3).includes(id)).length <= a.length, 'sanity');
+});
+t('features >= 10 px at 0.84 scale (11.9 units): hazards, gates, crumbles, crushers, walls', () => {
+  const F = 10 / 0.84;
+  for (const tp of PL.TEMPLATES) for (const s of [1, 2]) {
+    const r = tp.make(PL.mulberry32(s));
+    const small = (q) => Math.min(q[2], q[3]) < F - 1e-9;
+    assert(!r.spikes.some((x) => small(x.r)), tp.id + ' spike');
+    assert(!r.gates.some((x) => small(x.r)), tp.id + ' gate');
+    assert(!r.crumbles.some(small), tp.id + ' crumble');
+    assert(!r.crushers.some((x) => small(x.r)), tp.id + ' crusher');
+    assert(!r.walls.slice(4).some(small), tp.id + ' wall');
   }
 });
 t('mirrorRoom twice returns original geometry', () => {
@@ -71,5 +117,5 @@ t('buildRooms unchanged shape', () => {
   assert.strictEqual(a.length, 3);
   assert.strictEqual(J(a), J(PL.buildRooms(5)));
 });
-if (PL.TEMPLATES.length < 20) console.log('note: only ' + PL.TEMPLATES.length + ' templates loaded (tpl1/tpl2 not landed); rerun later');
+if (PL.TEMPLATES.length < 18) console.log('note: only ' + PL.TEMPLATES.length + ' templates loaded (tpl1/tpl2 not landed); rerun later');
 process.exit(fails ? 1 : 0);

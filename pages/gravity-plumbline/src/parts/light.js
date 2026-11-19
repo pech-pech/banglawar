@@ -223,7 +223,7 @@ const PL = (globalThis.PL = globalThis.PL || {});
     room: null, hazards: [], swept: [], dyn: null, hazExtra: [], lb: null, lanterns: [], swing: 0,
     dome: { cx: 0.5, cy: 0.12, rx: 0.46, ry: 0.145 },
     far: null, near: null, imgFar: null, imgNear: null, backdropKind: 'procedural',
-    sp: null, motes: null, cel: 0, celT: 0, boost: 0, desat: 0, noise: 0, noiseT: 0, noiseTarget: 0,
+    sp: null, motes: null, sky: null, skyKey: '', skyDirty: true, cel: 0, celT: 0, boost: 0, desat: 0, noise: 0, noiseT: 0, noiseTarget: 0,
     bloom: null, vign: null, grade: null, cost: 0, auroraT: 0, camx: 0, camy: 0
   };
   const MOTES = 24;
@@ -239,7 +239,7 @@ const PL = (globalThis.PL = globalThis.PL || {});
         shaft: shaftSprite(), rim: [rimSprite(0), rimSprite(1), rimSprite(2), rimSprite(3)]
       };
     }
-    S.far = S.imgFar ? bakeImage(S.imgFar, W, H, s, 0.06) : bakeFar(W, H, s, r, S.dome);
+    const sf = s; S.far = S.imgFar ? bakeImage(S.imgFar, W, H, sf, 0.06) : bakeFar(W, H, sf, r, S.dome);
     S.near = S.imgNear ? bakeImage(S.imgNear, W, H, s, 0.1) : (S.imgFar ? null : bakeNear(W, H, s));
     S.backdropKind = S.imgFar ? 'image' : 'procedural';
     // vignette (half res, drawn stretched)
@@ -250,12 +250,11 @@ const PL = (globalThis.PL = globalThis.PL || {});
     let g = x.createRadialGradient(0, 0, vw * 0.38, 0, 0, vw * 0.95);
     g.addColorStop(0, 'rgba(10,12,34,0)'); g.addColorStop(0.65, 'rgba(10,12,34,0.28)'); g.addColorStop(1, 'rgba(10,12,34,0.62)');
     x.fillStyle = g; x.fillRect(-vw, -vw * (vh / vw) * 1.6, vw * 2, vw * 3.2);
-    // dusk grade: cool top, warm bottom
-    S.grade = mk(8, 64);
-    x = S.grade.getContext('2d');
-    g = x.createLinearGradient(0, 0, 0, 64);
-    g.addColorStop(0, 'rgba(70,110,255,0.55)'); g.addColorStop(0.55, 'rgba(150,110,200,0.15)'); g.addColorStop(1, 'rgba(255,150,90,0.55)');
-    x.fillStyle = g; x.fillRect(0, 0, 8, 64);
+    // dusk grade folded into the same overlay (one source-over full-screen draw instead of vignette + soft-light)
+    const tint = x.createLinearGradient(0, -vh / 2, 0, vh / 2);
+    tint.addColorStop(0, 'rgba(70,110,255,0.10)'); tint.addColorStop(0.55, 'rgba(150,110,200,0.02)'); tint.addColorStop(1, 'rgba(255,150,90,0.12)');
+    x.fillStyle = tint; x.fillRect(-vw, -vh, vw * 2, vh * 2);
+    S.skyDirty = true;
     // bloom buffers: 1/4 and 1/8 of the css-px canvas, independent of dpr
     S.bloom = { w4: Math.max(8, Math.ceil(W / 4)), h4: Math.max(8, Math.ceil(H / 4)) };
     S.bloom.c4 = mk(S.bloom.w4, S.bloom.h4); S.bloom.x4 = S.bloom.c4.getContext('2d');
@@ -289,8 +288,8 @@ const PL = (globalThis.PL = globalThis.PL || {});
     S.dpr = clamp(fin(dpr, S.dpr), 1, 2);
     bakeAll();
   };
-  L.setQuality = function (q) { if (q === 'full' || q === 'lite' || q === 'off') S.q = q; };
-  L.setReduced = function (b) { S.reduced = !!b; };
+  L.setQuality = function (q) { if (q === 'full' || q === 'lite' || q === 'off') { S.q = q; S.skyDirty = true; } };
+  L.setReduced = function (b) { S.reduced = !!b; S.skyDirty = true; };
   L.setBackdrop = function (far, near) {
     S.imgFar = far || null; S.imgNear = near || null;
     if (S.inited) bakeAll();
@@ -507,6 +506,22 @@ L.setHazards = function (rects) { S.hazExtra = Array.isArray(rects) ? rects : []
     ctx.restore();
   }
 
+  // aurora + shafts rendered at half res into one buffer (redrawn per frame only when animated), then one additive blit
+  function renderSky(force) {
+    const w = Math.ceil(S.W / 2), h = Math.ceil(S.H / 2);
+    if (!S.sky || S.sky.w !== w || S.sky.h !== h) { const c = mk(w, h); S.sky = { c: c, x: c.getContext('2d'), w: w, h: h }; force = true; }
+    const animated = S.q === 'full' && !S.reduced, key = S.q + (S.reduced ? 'r' : '') + (S.cel > 0.01 ? 'c' : '');
+    if (!force && !animated && !S.skyDirty && S.skyKey === key) return;
+    S.skyKey = key; S.skyDirty = false;
+    const x = S.sky.x;
+    x.setTransform(1, 0, 0, 1, 0, 0); x.globalAlpha = 1; x.globalCompositeOperation = 'source-over';
+    x.clearRect(0, 0, w, h);
+    x.save(); x.scale(w / S.W, h / S.H);
+    drawAurora(x, S.W, S.H, auroraTime(), 1 + 0.2 * S.cel);
+    drawShafts(x, S.W, S.H, S.reduced || S.q !== 'full' ? 1.0 : S.t, S.q === 'full' ? 1 + 0.35 * S.cel : 0.7);
+    x.restore();
+  }
+
   L.drawBack = function (ctx, cam) {
     if (!S.inited || !ctx) return;
     const t0 = now();
@@ -515,13 +530,12 @@ L.setHazards = function (rects) { S.hazExtra = Array.isArray(rects) ? rects : []
     ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
     drawBackdrop(ctx, f);
     if (S.q !== 'off') {
-      const gain = 1 + 0.2 * S.cel;
-      drawAurora(ctx, W, H, auroraTime() + S.cel * 0, gain);
       drawNear(ctx, f);
-      if (S.q === 'full') {
-        drawShafts(ctx, W, H, S.reduced ? 1.0 : S.t, 1 + 0.35 * S.cel);
-        if (!S.reduced) drawMotes(ctx, W, H, S.t);
-      } else drawShafts(ctx, W, H, 1.0, 0.7);
+      renderSky(false);
+      ctx.globalCompositeOperation = 'lighter'; ctx.imageSmoothingEnabled = true;
+      ctx.drawImage(S.sky.c, 0, 0, W, H);
+      ctx.globalCompositeOperation = 'source-over';
+      if (S.q === 'full' && !S.reduced) drawMotes(ctx, W, H, S.t);
     } else drawNear(ctx, f);
     ctx.restore();
     S.cost += (now() - t0 - S.cost) * 0.1;
@@ -628,10 +642,7 @@ L.setHazards = function (rects) { S.hazExtra = Array.isArray(rects) ? rects : []
     x4.save();
     x4.scale(B.w4 / f.W, B.h4 / f.H);
     x4.globalCompositeOperation = 'lighter';
-    if (S.q === 'full') {
-      drawAurora(x4, f.W, f.H, auroraTime(), 0.8 * (1 + 0.2 * S.cel));
-      drawShafts(x4, f.W, f.H, S.reduced ? 1.0 : S.t, 0.8);
-    }
+    if (S.q === 'full' && S.sky) { x4.globalAlpha = 0.8; x4.drawImage(S.sky.c, 0, 0, f.W, f.H); x4.globalAlpha = 1; }
     x4.globalCompositeOperation = 'lighter';
     lightLayers(x4, f, hook, true, 0);
     punch(x4, f);
@@ -645,9 +656,9 @@ L.setHazards = function (rects) { S.hazExtra = Array.isArray(rects) ? rects : []
     x4.globalCompositeOperation = 'source-over';
     ctx.save();
     hazardClip(ctx, f.W, f.H, f);
-    ctx.globalCompositeOperation = 'screen';
+    ctx.globalCompositeOperation = 'lighter';
     ctx.imageSmoothingEnabled = true;
-    ctx.globalAlpha = clamp(0.35 + S.boost * 0.8, 0, 0.5) * (S.bloomAmt == null ? 1 : S.bloomAmt);
+    ctx.globalAlpha = clamp(0.3 + S.boost * 0.8, 0, 0.45) * (S.bloomAmt == null ? 1 : S.bloomAmt);
     ctx.drawImage(B.c4, 0, 0, f.W, f.H);
     ctx.restore();
   }
@@ -667,10 +678,6 @@ L.setHazards = function (rects) { S.hazExtra = Array.isArray(rects) ? rects : []
     if (S.q === 'full') drawBloom(ctx, f, hook);
     ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1;
     ctx.drawImage(S.vign, 0, 0, W, H);
-    // dusk grade (soft-light where supported, else a faint multiply)
-    ctx.globalCompositeOperation = 'soft-light';
-    ctx.globalAlpha = 0.3;
-    ctx.drawImage(S.grade, 0, 0, W, H);
     if (S.desat > 0.01) {
       ctx.globalCompositeOperation = 'saturation'; ctx.globalAlpha = clamp(S.desat, 0, 0.6);
       ctx.fillStyle = '#808080'; ctx.fillRect(0, 0, W, H);

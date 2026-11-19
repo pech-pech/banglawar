@@ -62,7 +62,7 @@ PL.mulberry32 = function (seed) {
         start: { x: 168, y: 89, g: 2 },
         walls: border(),
         spikes: [], crumbles: [],
-        gates: [{ r: [12, 100, 312, 8], dir: 2 }],
+        gates: [{ r: [12, 100, 312, 12], dir: 2 }],
         crushers: [],
         exit: { x: 168, y: 477 },
       },
@@ -72,18 +72,17 @@ PL.mulberry32 = function (seed) {
 
   const T2 = () => ({ // Charge Banking (shaft tier 2)
     name: 'Charge Banking',
-    teach: 'Landing refills your moves. The ledge breaks 0.35 s after you land: dive through the gate.',
+    teach: 'Landing refills your moves. The ledge breaks 0.35 s after you land: ride the corridor, then drop through the gate.',
     start: { x: 40, y: 79, g: 2 },
     walls: border().concat([
       [12, 90, 88, 360],     // start ledge + sealed left column (x 12-100, down to floor)
-      [100, 150, 126, 24],   // corridor ceiling
-      [226, 200, 30, 12],    // solid strip between ledge and gate
+      [100, 130, 126, 24],   // corridor ceiling (raised 20 px: lane 46 px tall, was 26)
       [226, 212, 12, 238],   // chamber right wall: the gate is the ONLY way into the chamber
       [12, 450, 312, 38],    // lower floor
     ]),
-    spikes: [{ r: [312, 40, 12, 50] }, { r: [238, 436, 86, 14] }],
-    crumbles: [[256, 200, 68, 12]],
-    gates: [{ r: [100, 200, 126, 8], dir: 2 }],
+    spikes: [{ r: [312, 40, 12, 30] }, { r: [238, 436, 86, 14] }],
+    crumbles: [[226, 200, 98, 12]],
+    gates: [{ r: [100, 200, 126, 12], dir: 2 }],
     crushers: [],
     exit: { x: 160, y: 439 },
   });
@@ -198,7 +197,7 @@ PL.mulberry32 = function (seed) {
           if (m.crumble && t.id !== 't18' && !used.some((u) => u.id === 't18')) return false;
         }
         if (level < 1 && prev && (info(prev).crusher || prev.inputs >= 5)) {
-          if (info(t).crusher || t.inputs > 3) return false;
+          if (info(t).crusher || (t.inputs > 3 && slots[i] !== 'T3*')) return false; // the hardest slot may exceed 3 inputs (else t11/t12 never appear)
         }
         return true;
       };
