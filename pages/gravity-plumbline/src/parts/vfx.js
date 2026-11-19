@@ -108,7 +108,7 @@ const PL = (globalThis.PL = globalThis.PL || {});
     level: 0, auto: true, forced: null, reduced: false, t: 0, busyT: 0,
     gov: new Governor(), flash: new FlashLimiter(MAXRATE_FLASH),
     // particle pool (typed, fixed)
-    alive: new Uint8Array(MAXP), kind: new Uint8Array(MAXP), col: new Uint8Array(MAXP), trailF: new Uint8Array(MAXP),
+    alive: new Uint8Array(MAXP), kind: new Uint8Array(MAXP), col: new Uint8Array(MAXP), trailF: new Uint8Array(MAXP), scr: new Uint8Array(MAXP),
     x: new Float32Array(MAXP), y: new Float32Array(MAXP), vx: new Float32Array(MAXP), vy: new Float32Array(MAXP),
     ax: new Float32Array(MAXP), ay: new Float32Array(MAXP), drag: new Float32Array(MAXP),
     life: new Float32Array(MAXP), max: new Float32Array(MAXP), s0: new Float32Array(MAXP), s1: new Float32Array(MAXP),
@@ -119,8 +119,8 @@ const PL = (globalThis.PL = globalThis.PL || {});
     shake: 0, shakeAmp: 0, shakeT: 1, shx: 0, shy: 0, shakeScale: 1,
     flipT: 9, flipDir: 2, tiltAmp: 0.021, zoomAmp: 0.015,
     antic: 0, landT: 9, landAmp: 0.15, smoothS: 1, blinkT: 3, blink: 0, bobT: 0, vanish: -1, vanishFrom: null,
-    trailAcc: 0, suckAcc: 0, celT: 0,
-    wipeKind: 'idle', wipeT: 0, wipeDur: 0.32, wipeCb: null, wipeFade: false,
+    trailAcc: 0, emberAcc: 0, sparkAcc: 0, suckAcc: 0, celT: 0, slow: 0, oldG: 2, anticG: 2,
+    wipeKind: 'idle', wipeT: 0, wipeDur: 0.24, wipeCb: null, wipeFade: false,
     sprites: null, costMs: 0, trailRate: 0, frame: 0,
     skinGates: false, spikeScale: 1,
     th: new Float32Array(32), thN: 0, thAcc: 0, thLen: 0   // hero position history for the flame ribbon (x,y pairs, newest first)
@@ -133,7 +133,7 @@ const PL = (globalThis.PL = globalThis.PL || {});
     for (let i = 0; i < COL.length; i++) {
       const c = mk(32, 32), x = c.getContext('2d'), r = COL[i];
       const g = x.createRadialGradient(16, 16, 0, 16, 16, 16);
-      g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(0.22, 'rgba(' + r[0] + ',' + r[1] + ',' + r[2] + ',0.9)');
+      g.addColorStop(0, 'rgba(' + (r[0] + ((255 - r[0]) * 0.4 | 0)) + ',' + (r[1] + ((255 - r[1]) * 0.4 | 0)) + ',' + (r[2] + ((255 - r[2]) * 0.4 | 0)) + ',1)'); g.addColorStop(0.22, 'rgba(' + r[0] + ',' + r[1] + ',' + r[2] + ',0.9)');
       g.addColorStop(0.55, 'rgba(' + r[0] + ',' + r[1] + ',' + r[2] + ',0.25)'); g.addColorStop(1, 'rgba(' + r[0] + ',' + r[1] + ',' + r[2] + ',0)');
       x.fillStyle = g; x.fillRect(0, 0, 32, 32);
       sp.push(c);
@@ -142,6 +142,28 @@ const PL = (globalThis.PL = globalThis.PL || {});
     dg.addColorStop(0, 'rgba(210,200,235,0.9)'); dg.addColorStop(0.6, 'rgba(190,180,225,0.4)'); dg.addColorStop(1, 'rgba(190,180,225,0)');
     dx.fillStyle = dg; dx.fillRect(0, 0, 32, 32);
     V.sprites = { glow: sp, dust: dust };
+    // flame-alpha texture, baked ONCE: head at the left, tip at the right; wide soft base, 3 licking tongues, feathered edges.
+    // Colour along the length: gold-white head (first ~15%), teal body (~60%), violet only in the last ~25% fading to zero alpha.
+    const FW = 160, FH = 64, fc = mk(FW, FH), fx = fc.getContext('2d');
+    if (fx) {
+      const tongue = function (len, wid, bend, a) {
+        for (let k = 0; k < 7; k++) {
+          const e = 1 + k * 0.1 - 0.3, w = wid * e;
+          fx.globalAlpha = a; fx.beginPath(); fx.moveTo(0, FH / 2 - w * 0.5);
+          fx.bezierCurveTo(len * 0.25, FH / 2 - w * 0.62, len * 0.55, FH / 2 + bend - w * 0.25, len * (0.9 + k * 0.02), FH / 2 + bend);
+          fx.bezierCurveTo(len * 0.55, FH / 2 + bend + w * 0.25, len * 0.25, FH / 2 + w * 0.62, 0, FH / 2 + w * 0.5); fx.closePath(); fx.fill();
+        }
+      };
+      fx.fillStyle = '#fff';
+      tongue(FW, 40, 0, 0.16); tongue(FW * 0.72, 26, -13, 0.12); tongue(FW * 0.62, 24, 12, 0.12); tongue(FW * 0.8, 16, 4, 0.2);
+      fx.globalAlpha = 1; fx.globalCompositeOperation = 'source-in';
+      const cg = fx.createLinearGradient(0, 0, FW, 0);
+      cg.addColorStop(0, 'rgba(255,240,190,1)'); cg.addColorStop(0.15, 'rgba(120,236,214,1)'); cg.addColorStop(0.45, 'rgba(53,214,200,1)');
+      cg.addColorStop(0.75, 'rgba(53,190,205,0.8)'); cg.addColorStop(0.88, 'rgba(139,108,255,0.45)'); cg.addColorStop(1, 'rgba(139,108,255,0)');
+      fx.fillStyle = cg; fx.fillRect(0, 0, FW, FH);
+    }
+    V.sprites.flame = fc;
+
   }
 
   function cap() {
@@ -171,14 +193,14 @@ const PL = (globalThis.PL = globalThis.PL || {});
   function take(i, isTrail) { V.alive[i] = 1; V.count++; V.trailF[i] = isTrail ? 1 : 0; if (isTrail) V.trailCount++; if (V.count > V.peak) V.peak = V.count; }
   function free(i) { V.alive[i] = 0; V.count--; if (V.trailF[i]) V.trailCount--; }
 
-  // kinds: 0 glow dot, 1 dust, 2 shard, 3 star, 4 streak
+  // kinds: 0 glow dot, 1 dust, 2 shard, 3 star, 4 streak, 5 4-point sparkle, 6 ring (expanding stroke). o.scr = x,y in screen px (drawn in drawOverlay)
   function emit(kind, col, x, y, vx, vy, life, s0, s1, al, o) {
     const i = alloc(o && o.prio, o && o.trail);
     if (i < 0) return -1;
     V.kind[i] = kind; V.col[i] = col; V.x[i] = x; V.y[i] = y; V.vx[i] = vx; V.vy[i] = vy;
     V.life[i] = life; V.max[i] = life; V.s0[i] = Math.min(24, s0); V.s1[i] = Math.min(24, s1); V.al[i] = Math.min(0.8, al);
     V.ax[i] = o && o.ax || 0; V.ay[i] = o && o.ay || 0; V.drag[i] = o && o.drag || 0;
-    V.rot[i] = o && o.rot || 0; V.vr[i] = o && o.vr || 0;
+    V.rot[i] = o && o.rot || 0; V.vr[i] = o && o.vr || 0; V.scr[i] = o && o.scr ? 1 : 0;
     return i;
   }
   function R() { return V.rng(); }
@@ -202,9 +224,9 @@ const PL = (globalThis.PL = globalThis.PL || {});
   const FX = {
     flip: function (o) {
       const h = V.hero, d = DIRS[h.g] || DIRS[2], x = fin(o && o.x, h.x), y = fin(o && o.y, h.y);
-      V.flipT = 0; V.flipDir = h.g; V.antic = 0.06; V.busyT = 0.6;
+      V.flipT = 0; V.flipDir = h.g; V.antic = 0.06; V.anticG = V.oldG; V.busyT = 0.6;
       if (!allowed()) return;
-      burstStars(x, y, n(12), 60, 150, 0.5, [0, 2, 1]);
+      burstStars(x, y, n(8), 60, 140, 0.5, [0, 1, 0]);
       dustToward(x, y, d, n(8), 1.6, 70);
       if (V.flash.try(V.t) && !V.reduced) PL.Light.pulse(0.06);
     },
@@ -222,11 +244,11 @@ const PL = (globalThis.PL = globalThis.PL || {});
       V.landT = 0;
       if (!allowed()) return;
       const px = -d[1], py = d[0];
+      // soft moonstone dust hugging the surface: slides along it, barely lifts, low alpha (never white, never over the hero)
       for (let k = 0; k < n(6); k++) {
-        const s = (k % 2 ? 1 : -1) * (20 + R() * 40);
-        emit(1, 3, x, y, px * s - d[0] * 10, py * s - d[1] * 10, 0.4 + R() * 0.2, 3 + R() * 2, 8 + R() * 3, 0.4, { prio: true, drag: 3 });
+        const s = (k % 2 ? 1 : -1) * (16 + R() * 34), lift = 4 + R() * 8;
+        emit(1, 3, x - d[0] * 2 + px * (R() - 0.5) * 8, y - d[1] * 2 + py * (R() - 0.5) * 8, px * s - d[0] * lift, py * s - d[1] * lift, 0.4 + R() * 0.2, 3 + R() * 1.5, 7 + R() * 3, 0.5, { prio: true, drag: 3.2 });
       }
-      for (let k = 0; k < n(3); k++) emit(0, 1, x, y, -d[0] * (30 + R() * 30) + (R() - 0.5) * 50, -d[1] * (30 + R() * 30) + (R() - 0.5) * 50, 0.35, 5, 1, 0.7, { prio: true, drag: 2 });
     },
     crumble: function (o) {
       const h = V.hero, d = DIRS[h.g] || DIRS[2];
@@ -258,11 +280,32 @@ const PL = (globalThis.PL = globalThis.PL || {});
       if (V.level === 0) for (let k = 0; k < 5; k++) emit(0, 0, x, y, (R() - 0.5) * 120 + nx * 30, (R() - 0.5) * 120 + ny * 30, 0.35, 5, 1, 0.7, { prio: true, drag: 2 });
     },
     death: function (o) {
-      const h = V.hero, x = fin(o && o.x, h.x), y = fin(o && o.y, h.y);
+      const h = V.hero, d = DIRS[h.g] || DIRS[2];
+      // hazards clip particles, and the hero dies ON a hazard: start the burst a little off the surface (against gravity) and fan it away
+      const x = fin(o && o.x, h.x) - d[0] * 14, y = fin(o && o.y, h.y) - d[1] * 14;
       V.vanish = -1;
       if (!allowed()) return;
-      burstStars(x, y, n(10), 70, 190, 0.6, [0, 0, 2]);
+      V.slow = V.reduced ? 0 : 0.07;   // visual-only hit-stop: particles and squash crawl at 15% for 70 ms; physics and Retry untouched
+      const cnt = n(10), base = Math.atan2(-d[1], -d[0]);
+      for (let k = 0; k < cnt; k++) {
+        const a = base + ((k + 0.5) / cnt - 0.5) * 3.4 + (R() - 0.5) * 0.3, sp = 110 + R() * 140;
+        emit(3, k % 3 === 2 ? 2 : 0, x, y, Math.cos(a) * sp, Math.sin(a) * sp, 0.8 + R() * 0.2, 13 + R() * 5, 2, 0.8, { prio: true, drag: 1.8, rot: R() * TAU, vr: (R() - 0.5) * 8 });
+      }
+      for (let k = 0; k < n(5); k++) { const a = base + (k / 4 - 0.5) * 2.4; emit(4, 0, x, y, Math.cos(a) * 200, Math.sin(a) * 200, 0.3, 16, 2, 0.7, { prio: true, drag: 3 }); }
+      emit(6, 0, x, y, 0, 0, 0.4, 6, 30, 0.6, { prio: true });
       if (V.flash.try(V.t)) PL.Light.desaturate(0.4);
+    },
+    // screen-space effects for the UI (x,y in CSS px of the canvas): ui.js / screens.js call PL.Vfx.fire(name,{x,y})
+    pipSpend: function (o) {
+      if (!allowed() || !o) return;
+      const x = fin(o.x, 0), y = fin(o.y, 0);
+      for (let k = 0; k < 4; k++) { const a = k / 4 * TAU + R() * 0.6, sp = 50 + R() * 40; emit(5, 0, x, y, Math.cos(a) * sp, Math.sin(a) * sp, 0.35, 6, 1, 0.9, { prio: true, drag: 3, scr: true }); }
+    },
+    ripple: function (o) { if (!allowed() || !o) return; emit(6, 1, fin(o.x, 0), fin(o.y, 0), 0, 0, 0.3, 6, 26, 0.5, { prio: true, scr: true }); },
+    medal: function (o) {
+      if (!allowed() || !o) return;
+      const x = fin(o.x, V.W / 2), y = fin(o.y, V.H / 3), c = V.level === 0 && !V.reduced ? 20 : 8;
+      for (let k = 0; k < c; k++) { const a = -Math.PI / 2 + (R() - 0.5) * 2.6, sp = 90 + R() * 170; emit(k % 3 ? 3 : 5, k % 3 === 1 ? 1 : 0, x, y, Math.cos(a) * sp, Math.sin(a) * sp, 0.9 + R() * 0.5, 7 + R() * 4, 2, 0.85, { prio: true, drag: 1.2, ay: 260, rot: R() * TAU, vr: (R() - 0.5) * 8, scr: true }); }
     },
     win: function (o) {
       const h = V.hero, x = fin(o && o.x, h.x), y = fin(o && o.y, h.y);
@@ -288,7 +331,7 @@ const PL = (globalThis.PL = globalThis.PL || {});
     V.gov = new Governor(opts.governor); V.flash = new FlashLimiter(MAXRATE_FLASH);
     V.level = 0; V.auto = true; V.forced = null; V.shake = 0; V.shakeT = 1; V.shakeAmp = 0; V.flipT = 9; V.landT = 9;
     V.wipeKind = 'idle'; V.vanish = -1; V.hero.has = false;
-    V.blinkT = 3; V.blink = 0; V.bobT = 0; V.antic = 0; V.trailAcc = 0; V.suckAcc = 0; V.celT = 0; V.shx = 0; V.shy = 0; V.busyT = 0; V.prevO = []; V.hero.vx = 0; V.hero.vy = 0; V.frame = 0;
+    V.blinkT = 3; V.blink = 0; V.bobT = 0; V.antic = 0; V.trailAcc = 0; V.emberAcc = 0; V.sparkAcc = 0; V.slow = 0; V.oldG = 2; V.anticG = 2; V.suckAcc = 0; V.celT = 0; V.shx = 0; V.shy = 0; V.busyT = 0; V.prevO = []; V.hero.vx = 0; V.hero.vy = 0; V.frame = 0;
     if (typeof matchMedia === 'function') { try { V.reduced = !!matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) { /* ignore */ } }
     if (!V.sprites) bakeSprites();
     V.thN = 0; V.thAcc = 0;
@@ -360,7 +403,7 @@ const PL = (globalThis.PL = globalThis.PL || {});
     if (kind !== 'close' && kind !== 'open') return;
     V.wipeKind = kind === 'close' ? 'closing' : 'opening'; V.wipeT = 0; V.wipeCb = typeof cb === 'function' ? cb : null;
     V.wipeFade = V.reduced || V.level > 0;
-    V.wipeDur = V.wipeFade ? 0.15 : 0.32;
+    V.wipeDur = V.wipeFade ? 0.15 : 0.24;
   };
   V_API.wipeState = function () { return V.wipeKind === 'closing' ? 'closing' : V.wipeKind === 'opening' ? 'opening' : V.wipeKind === 'closed' ? 'closed' : 'idle'; };
 
@@ -389,6 +432,7 @@ const PL = (globalThis.PL = globalThis.PL || {});
       h.x = hero.x; h.y = hero.y; h.has = true; h.dead = hero.dead > 0;
       h.grounded = hero.grounded !== false; h.t = fin(hero.t, h.t);
     }
+    V.oldG = h.g;
     if (g != null && g >= 0 && g <= 3) h.g = g | 0;
     else if (hero && hero.g != null) h.g = hero.g | 0;
     if (h.has) recordTrail(dt, h);
@@ -401,9 +445,11 @@ const PL = (globalThis.PL = globalThis.PL || {});
       }
     }
     if (hero && hero.t != null) { if (!V.reduced) slamScan(h); dynHazards(h); }
+    const sdt = V.slow > 0 ? dt * 0.15 : dt;
+    if (V.slow > 0) V.slow = Math.max(0, V.slow - dt);
     spawnAmbient(dt, h);
-    stepParticles(dt, h);
-    stepAnim(dt, h);
+    stepParticles(sdt, h);
+    stepAnim(sdt, h);
     V.costMs += ((now() - t0) - V.costMs) * 0.1;
   };
 
@@ -458,23 +504,20 @@ const PL = (globalThis.PL = globalThis.PL || {});
   function spawnAmbient(dt, h) {
     if (!allowed() || !h.has || h.dead) { V.trailAcc = 0; return; }
     const d = DIRS[h.g] || DIRS[2], sp = Math.hypot(h.vx, h.vy);
-    // hero teal flame trail: streams opposite to motion; idle flame rises opposite gravity
-    const full = V.level === 0 && !V.reduced;
-    const rate = (full ? 90 : V.level === 0 ? 20 : 30) * (sp > 40 ? clamp(sp / 160, 0.3, 1) : 0.16);
-    V.trailRate = rate;
-    V.trailAcc += rate * dt;
-    const life = V.reduced ? 0.22 : 0.45;
-    while (V.trailAcc >= 1) {
-      V.trailAcc -= 1;
-      const inv = sp > 1 ? 1 / sp : 0;
-      const bx = -h.vx * inv, by = -h.vy * inv; // opposite motion
-      const mv = clamp(sp / 200, 0, 1);
-      const ux = -d[0] * (1 - mv) + bx * mv, uy = -d[1] * (1 - mv) + by * mv;
-      // origin: the tail (opposite gravity side of the hero) so the flame reads as the tail flame
-      const ox = h.x - d[0] * 10 + (R() - 0.5) * 5, oy = h.y - d[1] * 10 + (R() - 0.5) * 5;
-      const v = 30 + R() * 40;
-      emit(0, R() < 0.25 ? 2 : 1, ox, oy, ux * v + (R() - 0.5) * 24, uy * v + (R() - 0.5) * 24, life * (0.7 + R() * 0.4), 7 + R() * 3, 1, 0.75, { trail: true, drag: 1.2 });
-    }
+    // The ribbon (drawHeroTrail) is the flame. Particles are only a few shed teal embers and 1-2 tiny gold sparkles; LITE and reduced: none.
+    if (V.level === 0 && !V.reduced && V.thN > 3) {
+      const mvg = sp > 40 ? clamp(sp / 160, 0.3, 1) : 0, T = V.th;
+      V.trailRate = 0; V.emberAcc += (4 + 12 * mvg) * dt; V.sparkAcc += (0.9 + 1.2 * mvg) * dt;
+      while (V.emberAcc >= 1 || V.sparkAcc >= 1) {
+        const spark = V.sparkAcc >= 1; if (spark) V.sparkAcc -= 1; else V.emberAcc -= 1;
+        const ix = 2 + ((R() * Math.min(7, V.thN - 3)) | 0), px = T[ix * 2], py = T[ix * 2 + 1];
+        const ox = px - d[1] * (R() - 0.5) * 8, oy = py + d[0] * (R() - 0.5) * 8;
+        const ux = -d[0] * 0.5 * (1 - mvg), uy = -d[1] * 0.5 * (1 - mvg);
+        const v = 14 + R() * 24;
+        if (spark) emit(5, 0, ox, oy, ux * v * 0.5 + (R() - 0.5) * 14, uy * v * 0.5 + (R() - 0.5) * 14, 0.6 + R() * 0.3, 4.5, 1, 0.9, { trail: true, drag: 1.6, rot: 0, vr: 0 });
+        else emit(0, 1, ox, oy, ux * v + (R() - 0.5) * 16, uy * v + (R() - 0.5) * 16, 0.45 + R() * 0.25, 2.6 + R() * 1.2, 0.6, 0.7, { trail: true, drag: 1.4, ax: -d[0] * 30, ay: -d[1] * 30 });
+      }
+    } else V.trailRate = 0;
     // portal suction
     const ex = V.exit;
     if (ex && !V.reduced && V.level === 0 && Math.hypot(h.x - ex.x, h.y - ex.y) < 80) {
@@ -482,7 +525,7 @@ const PL = (globalThis.PL = globalThis.PL || {});
       while (V.suckAcc >= 1) {
         V.suckAcc -= 1;
         const a = R() * TAU, rr = 40 + R() * 36;
-        emit(3, R() < 0.5 ? 0 : 2, ex.x + Math.cos(a) * rr, ex.y + Math.sin(a) * rr, -Math.cos(a) * rr * 2.2, -Math.sin(a) * rr * 2.2, 0.45, 5, 1, 0.8, { rot: R() * TAU, vr: 6 });
+        emit(3, R() < 0.5 ? 0 : 2, ex.x + Math.cos(a) * rr, ex.y + Math.sin(a) * rr, -Math.cos(a) * rr * 2.2 - Math.sin(a) * rr * 1.3, -Math.sin(a) * rr * 2.2 + Math.cos(a) * rr * 1.3, 0.45, 5, 1, 0.8, { rot: R() * TAU, vr: 6 });
       }
     }
   }
@@ -546,11 +589,16 @@ const PL = (globalThis.PL = globalThis.PL || {});
     const h = V.hero, sp = Math.hypot(h.vx, h.vy), d = DIRS[h.g] || DIRS[2];
     let sx = 1, sy = 1, ang = sp > 1 ? Math.atan2(h.vy, h.vx) : Math.atan2(d[1], d[0]);
     if (V.level === 2) return { sx: 1, sy: 1, ang: ang, bobX: 0, bobY: 0, blink: false, vanish: 0, dx: 0, dy: 0, alpha: 1 };
-    if (V.antic > 0) { // anticipation: squash along old down (visual only)
+    const od = DIRS[V.anticG] || d;
+    if (V.antic > 0) { // anticipation: squash along the OLD down (the surface it leaves), visual only
       const k = V.level === 0 ? 0.12 : 0.06, p = 1 - V.antic / 0.06;
-      ang = Math.atan2(d[1], d[0]); sx = 1 - k * ei(p); sy = 1 + k * 0.6 * ei(p);
-    } else if (V.landT < 0.14) {
-      const k = V.level === 0 ? 0.15 : 0.08, p = V.landT / 0.14, a = k * (1 - eb(p) + 1) * (1 - p);
+      ang = Math.atan2(od[1], od[0]); sx = 1 - k * ei(p); sy = 1 + k * 0.6 * ei(p);
+    } else if (V.flipT < 0.18 && V.flipT >= 0.06) { // release: ease-out-back from squash into the stretch
+      const k = V.level === 0 ? 0.12 : 0.06, a = k * (1 - eb((V.flipT - 0.06) / 0.12));
+      sx = 1 - a; sy = 1 + a * 0.6;
+      if (sp > 30) { const s2 = clamp(sp / 420, 0, 1) * 0.18; sx *= 1 + s2; sy *= 1 - s2 * 0.55; }
+    } else if (V.landT < 0.14) { // land: 15% squash at impact, ease-out-back back to 1 (small rebound stretch), 140 ms
+      const k = V.level === 0 ? 0.15 : 0.08, a = k * (1 - eb(V.landT / 0.14));
       ang = Math.atan2(d[1], d[0]); sx = 1 - a; sy = 1 + a * 0.7;
     } else if (sp > 30) {
       const s = clamp(sp / 420, 0, 1) * 0.18; sx = 1 + s; sy = 1 - s * 0.55;
@@ -582,53 +630,27 @@ const PL = (globalThis.PL = globalThis.PL || {});
   // Idle it is a short flame rising against gravity; moving it streams opposite to motion and grows with speed. Call before the hero body.
   V_API.drawHeroTrail = function (ctx, cam) {
     const h = V.hero;
-    if (!V.inited || !ctx || V.level > 1 || !h.has || h.dead || V.vanish >= 0 || V.thN < 1) return;
+    if (!V.inited || !ctx || V.level > 1 || !h.has || h.dead || V.vanish >= 0 || !V.sprites || !V.sprites.flame) return;
     const f = frame(cam), sc = f.sc, d = DIRS[h.g] || DIRS[2], sp = Math.hypot(h.vx, h.vy), mv = clamp(sp / 220, 0, 1);
-    const calm = V.reduced, N = 14;
-    let n = calm ? Math.min(V.thN, 7) : V.thN;
-    const T = V.th, PX = TRX, PY = TRY, WW = TRW;
-    for (let i = 0; i < n; i++) {
-      const u = i / (N - 1);
-      let wx = T[i * 2], wy = T[i * 2 + 1];
-      const rise = 24 * u * (1 - mv * 0.85) * (calm ? 0.6 : 1), wob = calm ? 0 : Math.sin(V.t * 9 + i * 0.75) * u * (2.6 + 3 * mv);
-      wx += -d[0] * rise - d[1] * wob; wy += -d[1] * rise + d[0] * wob;
-      PX[i] = (wx - f.cx) * sc + f.W / 2; PY[i] = (wy - f.cy) * sc + f.H / 2;
-    }
-    // cap the ribbon length (longer when falling fast, never a laser beam): truncate where the path exceeds maxL
-    const maxL = (46 + 62 * mv) * sc * (calm ? 0.6 : 1);
-    let cum = 0, nn = n;
-    for (let i = 1; i < n; i++) {
-      const sl = Math.hypot(PX[i] - PX[i - 1], PY[i] - PY[i - 1]);
-      if (cum + sl > maxL) { const q = sl > 0 ? (maxL - cum) / sl : 0; PX[i] = PX[i - 1] + (PX[i] - PX[i - 1]) * q; PY[i] = PY[i - 1] + (PY[i] - PY[i - 1]) * q; nn = i + 1; break; }
-      cum += sl;
-    }
-    n = nn;
-    // taper over the real length n (last point is a tip)
-    for (let i = 0; i < n; i++) { const u = n > 1 ? i / (n - 1) : 0; WW[i] = 11 * sc * Math.pow(1 - u, 0.62) * (i === 0 ? 0.8 : 1) * (1 + 0.08 * Math.sin(V.t * 14 + i)); }
-    if (n < 2) return;
+    const calm = V.reduced, full = V.level === 0 && !calm, fl = V.sprites.flame;
+    // direction: opposite to motion when moving, against the fall direction when still
+    const inv = sp > 1 ? 1 / sp : 0, ux = -d[0] * (1 - mv) - h.vx * inv * mv, uy = -d[1] * (1 - mv) - h.vy * inv * mv, ul = Math.hypot(ux, uy) || 1;
+    const ang = Math.atan2(uy / ul, ux / ul), hx = (h.x - f.cx) * sc + f.W / 2, hy = (h.y - f.cy) * sc + f.H / 2;
+    const len0 = (30 + 78 * mv) * sc * (calm ? 0.6 : V.level === 1 ? 0.8 : 1), wd = 24 * sc;   // wd = texture height on screen (widest part ~80% of it)
     ctx.save();
     if (PL.Light && PL.Light.clipHazards) PL.Light.clipHazards(ctx, cam);
     ctx.globalCompositeOperation = 'lighter';
-    const passes = V.level === 0 ? 3 : 2;
-    for (let ps = 0; ps < passes; ps++) {
-      const k = ps === 0 ? 1.9 : ps === 1 ? 1 : 0.42;
-      ctx.globalAlpha = 1;
-      ctx.fillStyle = ps === 0 ? 'rgba(40,190,175,0.2)' : ps === 1 ? 'rgba(95,224,200,0.42)' : 'rgba(205,255,245,0.6)';
-      ctx.beginPath();
-      for (let i = 0; i < n; i++) {
-        const a = i > 0 ? i - 1 : 0, b = i < n - 1 ? i + 1 : i, tx = PX[b] - PX[a], ty = PY[b] - PY[a], l = Math.hypot(tx, ty) || 1;
-        const nx = -ty / l * WW[i] * k, ny = tx / l * WW[i] * k;
-        if (i) ctx.lineTo(PX[i] + nx, PY[i] + ny); else ctx.moveTo(PX[i] + nx, PY[i] + ny);
-      }
-      for (let i = n - 1; i >= 0; i--) {
-        const a = i > 0 ? i - 1 : 0, b = i < n - 1 ? i + 1 : i, tx = PX[b] - PX[a], ty = PY[b] - PY[a], l = Math.hypot(tx, ty) || 1;
-        ctx.lineTo(PX[i] - (-ty / l * WW[i] * k), PY[i] - (tx / l * WW[i] * k));
-      }
-      ctx.closePath(); ctx.fill();
+    ctx.translate(hx, hy); ctx.rotate(ang);
+    const layers = full ? 2 : 1;
+    for (let ly = 0; ly < layers; ly++) {
+      const ph = ly * 2.1, lm = ly ? 1.14 : 1, flick = full ? 1 + 0.08 * Math.sin(V.t * (6 + ly * 1.7) + ph) : 1, side = full ? Math.sin(V.t * 7.3 + ph) * 3 * sc : 0;
+      const L = len0 * lm * flick, Hh = wd * (ly ? 0.85 : 1);
+      ctx.globalAlpha = ly ? 0.55 : 0.85;
+      ctx.drawImage(fl, -L * 0.06, -Hh / 2 + side, L, Hh);
     }
     ctx.restore();
   };
-  const TRX = new Float32Array(16), TRY = new Float32Array(16), TRW = new Float32Array(16);
+
 
   function star(ctx, x, y, r, rot) {
     ctx.beginPath();
@@ -644,22 +666,25 @@ const PL = (globalThis.PL = globalThis.PL || {});
   }
 
   // particles: called by Light.drawFront inside the hazard clip. bloomPass draws only glowing kinds.
-  function drawParticles(ctx, f, bloomPass) {
+  function drawParticles(ctx, f, bloomPass, scrPass) {
     if (!V.count) return;
     const sc = f.sc, sp = V.sprites;
     for (let pass = 0; pass < 2; pass++) {
-      if (pass === 0 && bloomPass) continue;
+      if (pass === 0 && bloomPass && !scrPass) continue;
       ctx.globalCompositeOperation = pass === 0 ? 'source-over' : 'lighter';
       for (let i = 0; i < MAXP; i++) {
         if (!V.alive[i]) continue;
-        const k = V.kind[i], isNormal = k === 1 || k === 2;
+        if ((V.scr[i] === 1) !== !!scrPass) continue;
+        const k = V.kind[i], isNormal = k === 1 || k === 2 || k === 3 || k === 5;   // stars/sparkles in source-over: additive gold on a light wall blows out to white spikes
         if ((pass === 0) !== isNormal) continue;
-        const p = 1 - V.life[i] / V.max[i], x = (V.x[i] - f.cx) * sc + f.W / 2, y = (V.y[i] - f.cy) * sc + f.H / 2;
+        const p = 1 - V.life[i] / V.max[i], x = scrPass ? V.x[i] : (V.x[i] - f.cx) * sc + f.W / 2, y = scrPass ? V.y[i] : (V.y[i] - f.cy) * sc + f.H / 2;
         if (x < -30 || x > f.W + 30 || y < -30 || y > f.H + 30) continue;
-        const size = (V.s0[i] + (V.s1[i] - V.s0[i]) * p) * sc, a = V.al[i] * (k === 1 ? Math.sin(Math.PI * Math.min(1, p * 1.2 + 0.0)) * 1 : 1 - p * p);
+        const size = (V.s0[i] + (V.s1[i] - V.s0[i]) * p) * (scrPass ? 1 : sc), a = V.al[i] * (k === 1 ? Math.sin(Math.PI * Math.min(1, p * 1.2 + 0.0)) * 1 : 1 - p * p);
         if (a <= 0.01) continue;
         ctx.globalAlpha = Math.min(0.8, a);
         if (k === 0) ctx.drawImage(sp.glow[V.col[i]], x - size, y - size, size * 2, size * 2);
+        else if (k === 5) { const c = COL[V.col[i]]; ctx.fillStyle = 'rgb(' + c[0] + ',' + c[1] + ',' + c[2] + ')'; spark4(ctx, x, y, size * (0.8 + 0.2 * Math.sin(V.life[i] * 30))); ctx.fill(); }
+        else if (k === 6) { const c = COL[V.col[i]]; ctx.strokeStyle = 'rgb(' + c[0] + ',' + c[1] + ',' + c[2] + ')'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(x, y, size, 0, TAU); ctx.stroke(); }
         else if (k === 1) ctx.drawImage(sp.dust, x - size, y - size, size * 2, size * 2);
         else if (k === 2) {
           const c = Math.cos(V.rot[i]) * size, s = Math.sin(V.rot[i]) * size;
@@ -785,7 +810,9 @@ const PL = (globalThis.PL = globalThis.PL || {});
 
   // star-iris wipe (full) or short fade (lite/off/reduced). Draw above HUD.
   V_API.drawOverlay = function (ctx, cam) {
-    if (!V.inited || !ctx || V.wipeKind === 'idle') return;
+    if (!V.inited || !ctx) return;
+    if (V.count && V.level < 2) { ctx.save(); drawParticles(ctx, frame(cam), false, true); ctx.restore(); }
+    if (V.wipeKind === 'idle') return;
     const W = V.W, H = V.H, closing = V.wipeKind === 'closing' || V.wipeKind === 'closed', p = clamp(V.wipeT, 0, 1);
     ctx.save();
     ctx.fillStyle = '#151a3d';
