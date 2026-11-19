@@ -144,7 +144,7 @@ PL.mulberry32 = function (seed) {
   reg('t03', 2, T3, { family: 'crusher', inputs: 3 });
 
   // ---- buildShaft: slot table, seeded and deterministic ----
-  // Slot kinds: T1/T2/T3 = tier pools, T3* = hardest slot (hard templates), T2r = rest room (few inputs, no crusher).
+  // Slot kinds: T1/T2/T3 = tier pools, T3* = last tier-3 slot (all tier-3 rooms; see review/shaft-pick-beta.md), T2r = rest room (few inputs, no crusher).
   PL.SLOTS = {
     5: ['T1', 'T1', 'T2', 'T3*', 'T2r'],
     7: ['T1', 'T1', 'T2', 'T2', 'T3', 'T3*', 'T2r'],
@@ -172,7 +172,7 @@ PL.mulberry32 = function (seed) {
   }
   const inPool = (kind, t) => !t.tutorial && !t.retired && (
     kind === 'T1' ? t.tier === 1 : kind === 'T2' ? t.tier === 2 : kind === 'T3' ? t.tier === 3
-      : kind === 'T3*' ? t.tier === 3 && !!t.hard : !!t.rest);
+      : kind === 'T3*' ? t.tier === 3 : !!t.rest);
 
   // Returns the chosen templates for a shaft (no rooms built). Rules (relaxed in order only if no placement exists):
   //  L0 all rules; L1 drops "after a crusher / 5-input room: no crusher, <=3 inputs"; L2 also drops first-meet rules;
@@ -205,6 +205,11 @@ PL.mulberry32 = function (seed) {
         if (i === slots.length) return true;
         let c = (level >= 4 ? all : all.filter((t) => inPool(slots[i], t))).filter((t) => !used.includes(t));
         for (let k = c.length - 1; k > 0; k--) { const j = Math.floor(rng() * (k + 1)); const x = c[k]; c[k] = c[j]; c[j] = x; }
+        // T3* prefers the hard set: if no hard room is used yet in a 7+ shaft and one is eligible here, only hard rooms are drawn.
+        if (slots[i] === 'T3*' && i > 0 && slots.includes('T3') && !used.some((u) => u.hard)) {
+          const h = c.filter((t) => t.hard && ok(t, i));
+          if (h.length) c = h;
+        }
         const fresh = c.filter((t) => !excl.has(t.id));
         if (fresh.length >= 2) c = fresh.concat(c.filter((t) => excl.has(t.id)));
         for (const t of c) {

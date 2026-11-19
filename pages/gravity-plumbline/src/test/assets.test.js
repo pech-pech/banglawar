@@ -17,7 +17,8 @@ function webpSize(f) {
 t('manifest files exist and match declared size', () => {
   assert.ok(A.manifest.length >= 20);
   for (const m of A.manifest) {
-    const f = path.join(AD, m.file); assert.ok(fs.existsSync(f), 'missing ' + m.file);
+    const f = path.join(AD, m.file); if (m.opt && !fs.existsSync(f)) continue;   // optional art may be absent
+    assert.ok(fs.existsSync(f), 'missing ' + m.file);
     const [w, h] = webpSize(f); assert.deepEqual([w, h], [m.w, m.h], m.file + ' is ' + w + 'x' + h);
   }
 });
@@ -34,6 +35,11 @@ t('total budget < 800 KB', () => {
 t('backdrop cover-fit maths and fallback', () => {
   const p = A.coverPlan(720, 1280, 400, 300); assert.ok(p.w >= 400 && p.h >= 300 && Math.abs(p.x + p.w / 2 - 200) < 1e-9);
   A._reset(); assert.equal(A.drawBackdrop(fakeCtx(), 400, 300), false);
+});
+t('optional art (lantern, stoneTile, corbel) never counts as missing', () => {
+  A._reset(); for (const m of A.manifest) if (!m.opt) A._inject(m.name, { w: m.w, h: m.h });
+  assert.deepEqual(A.missing(), []); assert.deepEqual(A.missingOptional().sort(), ['corbel', 'lantern', 'stoneTile']);
+  for (const n of ['lantern', 'stoneTile', 'corbel']) assert.ok(A.byName[n] && A.byName[n].opt, n);
 });
 t('ledge >= 18 px tall at 100 px wide', () => { const m = A.byName.ledge; assert.ok(m.h * 100 / m.w >= 18); });
 t('platform plan: short block, tiles + caps fill width exactly', () => {
@@ -52,7 +58,7 @@ t('spike plan for 4 sides', () => {
   const r = { x: 0, y: 0, w: 140, h: 24 };
   assert.deepEqual([A.spikePlan(r, 'up').vert, A.spikePlan(r, 'down').vert], [false, false]);
   const v = A.spikePlan({ x: 0, y: 0, w: 24, h: 140 }, 'left'); assert.ok(v.vert); assert.equal(v.len, 140); assert.equal(v.th, 24);
-  assert.equal(A.spikePlan(r, 'up').n, Math.round(140 / (24 * 70 / 48)));
+  const sm = A.manifest.find(m => m.name === 'spikes'); assert.equal(A.spikePlan(r, 'up').n, Math.round(140 / (24 * sm.w / sm.h)));
   assert.equal(A.dirAngle('up'), 0); assert.equal(A.dirAngle('down'), Math.PI); assert.equal(A.dirAngle('right'), Math.PI / 2); assert.equal(A.dirAngle('left'), -Math.PI / 2);
 });
 // fake canvas context recording draw calls
@@ -61,7 +67,7 @@ function fakeCtx() {
   return c;
 }
 t('nothing loaded: get() null, missing() lists all, draws return false, no throw', () => {
-  A._reset(); assert.equal(A.get('platMid'), null); assert.equal(A.missing().length, A.manifest.length);
+  A._reset(); assert.equal(A.get('platMid'), null); assert.equal(A.missing().length, A.manifest.filter(m => !m.opt).length); assert.equal(A.missingOptional().length, A.manifest.filter(m => m.opt).length);
   const c = fakeCtx(); const r = { x: 0, y: 0, w: 50, h: 30 };
   assert.equal(A.drawPlatform(c, 0, 0, 100, 30), false); assert.equal(A.drawSpikes(c, r, 'up'), false);
   assert.equal(A.drawCrusher(c, r), false); assert.equal(A.drawLedge(c, 0, 0, 100), false); assert.equal(A.drawGate(c, r), false);
@@ -85,10 +91,10 @@ t('draw never throws when ctx is broken', () => {
   const mk = (mode) => () => { const im = {}; setTimeout(() => { if (mode === 'ok') im.onload && im.onload(); else if (mode === 'err') im.onerror && im.onerror(); }, 5); Object.defineProperty(im, 'src', { set() {} }); return im; };
   let n = 0; const m1 = await A.load({ timeout: 40, makeImage: () => mk(['ok', 'err', 'hang'][n++ % 3])() });
   try {
-    assert.ok(m1.length > 0 && m1.length < A.manifest.length); const why = Object.values(A.reasons());
+    assert.ok(m1.length > 0 && m1.length < A.manifest.filter(m => !m.opt).length); const why = Object.values(A.reasons());
     assert.ok(why.includes('error') && why.includes('timeout')); console.log('ok   loader settles (ok/error/timeout): missing ' + m1.length);
   } catch (e) { fails++; console.log('FAIL loader: ' + e.message); }
   A._reset(); const m2 = await A.load({ makeImage: () => { throw new Error('boom'); } });
-  try { assert.equal(m2.length, A.manifest.length); console.log('ok   loader survives throwing Image()'); } catch (e) { fails++; console.log('FAIL ' + e.message); }
+  try { assert.equal(m2.length, A.manifest.filter(m => !m.opt).length); console.log('ok   loader survives throwing Image()'); } catch (e) { fails++; console.log('FAIL ' + e.message); }
   console.log(fails ? fails + ' FAILED' : 'all assets tests passed'); process.exit(fails ? 1 : 0);
 })();

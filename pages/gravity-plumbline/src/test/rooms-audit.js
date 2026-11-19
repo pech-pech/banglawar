@@ -26,7 +26,9 @@ function checkShaft(label, seed, n) {
     if (t.tutorial || t.retired) bad(label + ' tutorial/retired in shaft ' + r.templateId);
     if (i && ids[i] === ids[i - 1]) bad(label + ' back to back ' + ids[i]);
     if (i && sh[i - 1].family === r.family) { slotTierViol.family = (slotTierViol.family || 0) + 1; }
-    const want = SLOTTIER[n] && SLOTTIER[n][i];
+    // Last slot = rest room: design review-levels.md line 51 pool is t18, t20, t06, t04 (tier 1 and 2 mix), so it is not tier-checked.
+    const want = i === n - 1 ? 0 : SLOTTIER[n] && SLOTTIER[n][i];
+    if (i === n - 1 && !['t18', 't20', 't06', 't04'].includes(r.templateId)) bad(label + ' rest slot not in design pool: ' + r.templateId);
     if (want && r.tier !== want) { const k = n + ':slot' + i + ' wants T' + want + ' got ' + r.templateId + '(T' + r.tier + ')'; slotTierViol[k] = (slotTierViol[k] || 0) + 1; }
     for (const s of r.spikes) {
       const e = r.exit, q = s.r, dx = Math.max(q[0] - e.x, 0, e.x - (q[0] + q[2])), dy = Math.max(q[1] - e.y, 0, e.y - (q[1] + q[3]));

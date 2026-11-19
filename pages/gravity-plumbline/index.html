@@ -435,7 +435,7 @@ PL.mulberry32 = function (seed) {
   reg('t03', 2, T3, { family: 'crusher', inputs: 3 });
 
   // ---- buildShaft: slot table, seeded and deterministic ----
-  // Slot kinds: T1/T2/T3 = tier pools, T3* = hardest slot (hard templates), T2r = rest room (few inputs, no crusher).
+  // Slot kinds: T1/T2/T3 = tier pools, T3* = last tier-3 slot (all tier-3 rooms; see review/shaft-pick-beta.md), T2r = rest room (few inputs, no crusher).
   PL.SLOTS = {
     5: ['T1', 'T1', 'T2', 'T3*', 'T2r'],
     7: ['T1', 'T1', 'T2', 'T2', 'T3', 'T3*', 'T2r'],
@@ -463,7 +463,7 @@ PL.mulberry32 = function (seed) {
   }
   const inPool = (kind, t) => !t.tutorial && !t.retired && (
     kind === 'T1' ? t.tier === 1 : kind === 'T2' ? t.tier === 2 : kind === 'T3' ? t.tier === 3
-      : kind === 'T3*' ? t.tier === 3 && !!t.hard : !!t.rest);
+      : kind === 'T3*' ? t.tier === 3 : !!t.rest);
 
   // Returns the chosen templates for a shaft (no rooms built). Rules (relaxed in order only if no placement exists):
   //  L0 all rules; L1 drops "after a crusher / 5-input room: no crusher, <=3 inputs"; L2 also drops first-meet rules;
@@ -496,6 +496,11 @@ PL.mulberry32 = function (seed) {
         if (i === slots.length) return true;
         let c = (level >= 4 ? all : all.filter((t) => inPool(slots[i], t))).filter((t) => !used.includes(t));
         for (let k = c.length - 1; k > 0; k--) { const j = Math.floor(rng() * (k + 1)); const x = c[k]; c[k] = c[j]; c[j] = x; }
+        // T3* prefers the hard set: if no hard room is used yet in a 7+ shaft and one is eligible here, only hard rooms are drawn.
+        if (slots[i] === 'T3*' && i > 0 && slots.includes('T3') && !used.some((u) => u.hard)) {
+          const h = c.filter((t) => t.hard && ok(t, i));
+          if (h.length) c = h;
+        }
         const fresh = c.filter((t) => !excl.has(t.id));
         if (fresh.length >= 2) c = fresh.concat(c.filter((t) => excl.has(t.id)));
         for (const t of c) {
@@ -1553,8 +1558,8 @@ const PL = (globalThis.PL = globalThis.PL || {});
     ['platCapR', 'platform-capR.webp', 47, 96, 0, 0],
     ['platFull', 'platform-full.webp', 293, 96, 0, 0],
     ['ledge', 'ledge-crumble.webp', 160, 30, 0, 0],
-    ['spikes', 'spikes-row4.webp', 70, 48, 0, 0],
-    ['crusher', 'crusher-head.webp', 160, 233, 0.5, 0],
+    ['spikes', 'spikes-row4.webp', 101, 48, 0, 0],
+    ['crusher', 'crusher-head.webp', 160, 143, 0.5, 0],
     ['gate', 'gate-aurora.webp', 95, 200, 0, 0],
     ['portal', 'portal-moon.webp', 103, 128, 0.5, 0.5],
     ['pipFull', 'pip-full.webp', 50, 48, 0.5, 0.5],
@@ -1569,8 +1574,12 @@ const PL = (globalThis.PL = globalThis.PL || {});
     ['heroWin', 'hero-win.webp', 174, 192, 0.5, 0.5],
     // full-flame menu art
     ['heroIdleFlame', 'hero-idle-flame.webp', 256, 256, 0.5, 0.5],
-    ['heroWinFlame', 'hero-win-flame.webp', 256, 256, 0.5, 0.5]
-  ].map(function (r) { return { name: r[0], file: r[1], w: r[2], h: r[3], ax: r[4], ay: r[5] }; });
+    ['heroWinFlame', 'hero-win-flame.webp', 256, 256, 0.5, 0.5],
+    // OPTIONAL art (r[6] = 1): a missing file is not an error: no 'ART: fallback' chip, missing() skips it, callers just get null from get()
+    ['lantern', 'lantern.webp', 64, 128, 0.5, 0, 1],      // hangs from the top edge (chain cut at the top)
+    ['stoneTile', 'stone-tile.webp', 128, 128, 0, 0, 1],  // seamless 128 px brick tile (draw.js looks up stoneTile)
+    ['corbel', 'corbel.webp', 23, 40, 0, 0, 1]            // decor bracket, nothing draws it yet
+  ].map(function (r) { return { name: r[0], file: r[1], w: r[2], h: r[3], ax: r[4], ay: r[5], opt: !!r[6] }; });
 
   const byName = {};
   M.forEach(function (m) { byName[m.name] = m; });
@@ -1581,8 +1590,9 @@ const PL = (globalThis.PL = globalThis.PL || {});
   const S = {
     TILE_H: 36,               // on-screen height of a full platform course (96 art px) in game px
     TOP_SRC: 40,              // art rows used as the top course of a tall block (gold bar + first brick row)
-    STONE: '#ddd0d6',         // flat moonstone fill under the top course (mean of platform-mid)
-    LINE: 'rgba(118,100,128,0.30)',
+    STONE: '#b0a6c2',         // moonstone base for platforms (luma ~0.66: below hero gold ~0.76 and gold edge ~0.89)
+    WALL: '#8b82a3',          // room outer walls: a little darker so platforms pop
+    LINE: 'rgba(60,48,84,0.40)',   // mortar
     LIGHT: 'rgba(255,255,255,0.22)'
   };
 
@@ -1619,7 +1629,9 @@ const PL = (globalThis.PL = globalThis.PL || {});
     get: function (name) { return imgs[name] || null; },
     has: function (name) { return !!imgs[name]; },
     // names not available (before load(): everything). UI shows an "ART: fallback" chip when length > 0.
-    missing: function () { return M.filter(function (m) { return !imgs[m.name]; }).map(function (m) { return m.name; }); },
+    // optional pieces (opt) are never listed here, so a missing optional file shows no chip; see missingOptional().
+    missing: function () { return M.filter(function (m) { return !m.opt && !imgs[m.name]; }).map(function (m) { return m.name; }); },
+    missingOptional: function () { return M.filter(function (m) { return m.opt && !imgs[m.name]; }).map(function (m) { return m.name; }); },
     reasons: function () { return failed; },
     attempted: function () { return attempted; },
     _reset: function () { for (const k in imgs) delete imgs[k]; for (const k in failed) delete failed[k]; attempted = false; },
@@ -1650,10 +1662,15 @@ const PL = (globalThis.PL = globalThis.PL || {});
       default: return 0;
     }
   };
+  // natural pixel size of a loaded piece (falls back to the manifest size; injected test art uses {w,h})
+  api.natSize = function (name) {
+    const im = imgs[name], m = byName[name] || { w: 1, h: 1 };
+    return { w: (im && (im.naturalWidth || im.width || im.w)) || m.w, h: (im && (im.naturalHeight || im.height || im.h)) || m.h };
+  };
   api.spikePlan = function (rect, dir) {
     const vert = (dir === 'left' || dir === 'right' || dir === 1 || dir === 3);
     const len = vert ? rect.h : rect.w, th = vert ? rect.w : rect.h;
-    const unit = th * 70 / 48;
+    const ns = api.natSize('spikes'), unit = th * ns.w / ns.h;
     const n = Math.max(1, Math.round(len / unit));
     return { vert: vert, len: len, th: th, n: n, cell: len / n };
   };
@@ -1746,7 +1763,7 @@ const PL = (globalThis.PL = globalThis.PL || {});
     });
   };
 
-  // crusher: head faces `dir` (default 'down'); piston stem stretches to fill the rect.
+  // crusher: head faces `dir` (default 'down'); whole image is the head (collar on top), drawn at its natural aspect.
   api.drawCrusher = function (ctx, rect, dir) {
     const im = imgs.crusher; if (!im || !rect) return false;
     return safe(function () {
@@ -1755,10 +1772,8 @@ const PL = (globalThis.PL = globalThis.PL || {});
       const across = vert ? rect.h : rect.w, along = vert ? rect.w : rect.h;
       const ang = { up: Math.PI, right: -Math.PI / 2, left: Math.PI / 2, down: 0, 0: Math.PI, 1: -Math.PI / 2, 2: 0, 3: Math.PI / 2 }[dir == null ? 'down' : dir] || 0;
       ctx.save(); ctx.translate(rect.x + rect.w / 2, rect.y + rect.h / 2); ctx.rotate(ang);
-      const HEAD = 62, headH = Math.min(along, across * (233 - HEAD) / 160), stemH = along - headH;
-      const x0 = -across / 2, y0 = -along / 2;
-      if (stemH > 0.5) ctx.drawImage(im, 0, 0, 160, 40, x0, y0, across, stemH + 1);
-      ctx.drawImage(im, 0, HEAD, 160, 233 - HEAD, x0, y0 + stemH, across, headH);
+      const ns = api.natSize('crusher'), headH = across * ns.h / ns.w;   // natural aspect; front face flush, overhang goes backwards
+      ctx.drawImage(im, 0, 0, ns.w, ns.h, -across / 2, along / 2 - headH, across, headH);
       ctx.restore(); return true;
     });
   };
@@ -3526,7 +3541,7 @@ const PL = (globalThis.PL = globalThis.PL || {});
       if (red !== SK.red) { SK.red = red; V.setReduced(red); }
       if (room && room !== SK.room) {
         SK.room = room; SK.heroReady = false; SK.plates = null; SK.rods = null;
-        V.setRoom(room, { skinGates: true, spikeScale: SPIKE_K });   // skin draws the gates (pass-direction chevrons) and 1.6x spike crystals; glints follow
+        V.setRoom(room, { skinGates: true, spikeScale: SPIKE_K });   // skin draws the gates (pass-direction chevrons) and the spike crystals; glints follow
         SK.lanterns = pickLanterns(room);
         if (PL.Light && PL.Light.setLanterns) PL.Light.setLanterns(SK.lanterns);   // Light's auto pick sits on ledge tops (on top of the hero start)
       }
@@ -3670,41 +3685,104 @@ const PL = (globalThis.PL = globalThis.PL || {});
     c2.fillStyle = '#fff0b0'; c2.fillRect(hx, sy > 0 ? hy : hy, arm, 1); c2.fillRect(vx, vy, 1, arm);
     c2.fillStyle = '#6b4a14'; c2.beginPath(); c2.arc(sx > 0 ? X - t3 / 2 + ov : X + t3 / 2 - ov, sy > 0 ? Y - t3 / 2 + ov : Y + t3 / 2 - ov, 1, 0, TAU); c2.fill();
   }
+  // ---- moonstone plates: one material for ledges, tall blocks and room walls (outer walls: darker, bigger bricks) ----
+  function stoneRng(s) {   // local mulberry32: fixed seed, never the game RNG
+    let a = s >>> 0;
+    return function () { a = (a + 0x6D2B79F5) >>> 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+  }
+  const WARM = [186, 172, 160], COOL = [156, 152, 184];   // cream <-> lilac-grey moonstone (luma ~0.67 / 0.62: below hero gold 0.76)
+  function stoneTile() { const A = PL.Assets; return A && A.get ? (A.get('stoneTile') || A.get('stone-tile') || null) : null; }   // optional seamless 128 px tile
+  function paintStone(c2, x, y, w, h, outer, seed, set) {
+    const BH = outer ? 11 : 9, BW = outer ? 27 : 20, rng = stoneRng(seed * 7919 + 17), n = Math.max(1, Math.round(h / BH)), bh = h / n, dk = outer ? 0.84 : 1, bricks = [];
+    c2.save(); c2.beginPath(); c2.rect(x, y, w, h); c2.clip();
+    c2.fillStyle = outer ? (set.WALL || '#8b82a3') : (set.STONE || '#b0a6c2'); c2.fillRect(x, y, w, h);
+    for (let r = 0; r < n; r++) {
+      const yy = Math.round(y + r * bh), yh = Math.round(y + (r + 1) * bh) - yy, off = (r & 1) ? BW / 2 : 0;
+      for (let bx = x - off - Math.floor(rng() * 3); bx < x + w; bx += BW) {
+        const t = rng(), v = (1 + (rng() - 0.5) * 0.14) * dk, X = Math.round(bx);   // warm<->cool mix, +-7% value
+        const cr = Math.round((WARM[0] + (COOL[0] - WARM[0]) * t) * v), cg = Math.round((WARM[1] + (COOL[1] - WARM[1]) * t) * v), cb = Math.round((WARM[2] + (COOL[2] - WARM[2]) * t) * v);
+        c2.fillStyle = 'rgb(' + cr + ',' + cg + ',' + cb + ')'; c2.fillRect(X, yy, BW, yh);
+        bricks.push(X, yy, yh);
+      }
+    }
+    const tl = stoneTile();   // real texture when an art tile is present: soft-light over the brick tones at native scale
+    if (tl) { try { const pt = c2.createPattern(tl, 'repeat'); if (pt) { c2.save(); c2.globalCompositeOperation = 'soft-light'; c2.globalAlpha = 0.55; c2.fillStyle = pt; c2.fillRect(x, y, w, h); c2.restore(); } } catch (e) { /* procedural only */ } }
+    for (let k = 0; k < bricks.length; k += 3) {   // per-brick bevel: light top-left, dark bottom-right (the dark edge doubles as the mortar joint)
+      const X = bricks[k], yy = bricks[k + 1], yh = bricks[k + 2];
+      c2.fillStyle = 'rgba(255,250,240,0.26)'; c2.fillRect(X, yy, BW, 1); c2.fillRect(X, yy, 1, yh);
+      c2.fillStyle = 'rgba(34,24,60,0.5)'; c2.fillRect(X, yy + yh - 1, BW, 1); c2.fillRect(X + BW - 1, yy, 1, yh);
+    }
+    const g = c2.createLinearGradient(0, y, 0, y + h);   // soft vertical shade: tall blocks darken toward the bottom
+    g.addColorStop(0, 'rgba(30,20,64,0)'); g.addColorStop(0.35, 'rgba(30,20,64,0.04)'); g.addColorStop(1, 'rgba(30,20,64,' + (outer ? 0.42 : 0.34) + ')');
+    c2.fillStyle = g; c2.fillRect(x, y, w, h);
+    c2.restore();
+  }
+  // decor corbel under the free end of a thin ledge: curved brass console hanging 9 px below the rect (d = distance inboard from the end)
+  function corbel(c2, xe, yb, dir) {
+    const X = function (d) { return xe - dir * d; };
+    c2.save(); c2.beginPath();
+    c2.moveTo(X(2), yb - 0.5); c2.lineTo(X(2), yb + 9); c2.lineTo(X(5.5), yb + 9); c2.lineTo(X(5.5), yb + 6.5); c2.quadraticCurveTo(X(7), yb + 2.5, X(16), yb - 0.5); c2.closePath();
+    c2.lineJoin = 'round'; c2.strokeStyle = '#3a2808'; c2.lineWidth = 2.4; c2.stroke();
+    c2.fillStyle = '#d6a843'; c2.fill();
+    c2.strokeStyle = '#fff0b0'; c2.lineWidth = 1; c2.beginPath(); c2.moveTo(X(3), yb + 1); c2.lineTo(X(3), yb + 8); c2.stroke();
+    c2.fillStyle = '#6b4a14'; c2.beginPath(); c2.arc(X(3.8), yb + 3, 0.9, 0, TAU); c2.fill();
+    c2.restore();
+  }
+  // brass end cap on a thin ledge's free end (inside the rect)
+  function endCap(c2, xe, y, h, dir) {
+    const x = dir > 0 ? xe - 4 : xe;
+    c2.fillStyle = '#3a2808'; c2.fillRect(x, y, 4, h); c2.fillStyle = '#d6a843'; c2.fillRect(x + (dir > 0 ? 0 : 1), y + 1, 3, h - 2);
+    c2.fillStyle = '#fff0b0'; c2.fillRect(x + (dir > 0 ? 0 : 1), y + 1, 1, h - 2);
+    c2.fillStyle = '#6b4a14'; c2.beginPath(); c2.arc(x + 2, y + h / 2, 0.9, 0, TAU); c2.fill();
+  }
   function paintWalls(c2, room, sc, only) {
-    const A = PL.Assets, ws = room.walls || [], set = A && A.settings, oL = set && set.LINE, oH = set && set.LIGHT;
-    if (set) { set.LINE = 'rgba(118,100,128,0.13)'; set.LIGHT = 'rgba(255,255,255,0.1)'; }   // inner brick lines stay subtle
+    const A = PL.Assets, ws = room.walls || [], set = (A && A.settings) || {}, rw = room.w || 336, rh = room.h || 500;
     const lo = only == null ? 0 : only, hi = only == null ? ws.length : only + 1;
+    const isOuter = function (w) { return w[0] <= 0.5 || w[1] <= 0.5 || w[0] + w[2] >= rw - 0.5 || w[1] + w[3] >= rh - 0.5; };
+    const isFloor = function (w) { return w[1] + w[3] >= rh - 0.5 && w[2] > rw * 0.5; };
     for (let i = lo; i < hi; i++) {
       const w = ws[i], x0 = R(w[0] * sc), y0 = R(w[1] * sc), x1 = R((w[0] + w[2]) * sc), y1 = R((w[1] + w[3]) * sc);
-      if (A && A.drawPlatform && A.drawPlatform(c2, x0, y0, x1 - x0, y1 - y0)) {
-        c2.save(); c2.globalCompositeOperation = 'multiply'; c2.fillStyle = '#b8aed0'; c2.fillRect(x0, y0, x1 - x0, y1 - y0); c2.restore();
-      } else fbPlatform(c2, x0, y0, x1 - x0, y1 - y0);
+      paintStone(c2, x0, y0, x1 - x0, y1 - y0, isOuter(w), i + 1, set);
     }
-    if (set) { set.LINE = oL; set.LIGHT = oH; }
-    // crisp gold edges + soft rim light on every exposed face; brass brackets on exposed outer corners
-    const STEP = 6, th = Math.max(5, 7 * sc);
+    // gold only on walkable tops (4 px band + highlight + dark line + 8 px warm glow); 2 px brass trim on exposed sides/bottoms of inner blocks
+    const STEP = 6, th = 8;
     for (let i = lo; i < hi; i++) {
-      const w = ws[i];
+      const w = ws[i], outer = isOuter(w), thin = !outer && w[3] * sc <= 30 && w[2] * sc >= 40;
+      if (outer) {   // inner edge shadow: 12 px gradient onto the interior from the faces that look into the room (baked once)
+        const ax = w[0] * sc, ay = w[1] * sc, bx = (w[0] + w[2]) * sc, by = (w[1] + w[3]) * sc, d = 12;
+        const side = isFloor(w) ? 0 : (w[1] <= 0.5 && w[2] > rw * 0.5) ? 2 : (w[0] <= 0.5 ? 1 : 3);
+        let gr;
+        if (side === 1) gr = c2.createLinearGradient(bx, 0, bx + d, 0); else if (side === 3) gr = c2.createLinearGradient(ax, 0, ax - d, 0);
+        else if (side === 2) gr = c2.createLinearGradient(0, by, 0, by + d); else gr = c2.createLinearGradient(0, ay, 0, ay - d);
+        gr.addColorStop(0, 'rgba(10,6,34,0.55)'); gr.addColorStop(1, 'rgba(10,6,34,0)');
+        c2.fillStyle = gr;
+        if (side === 1) c2.fillRect(bx, ay, d, by - ay); else if (side === 3) c2.fillRect(ax - d, ay, d, by - ay);
+        else if (side === 2) c2.fillRect(ax, by, bx - ax, d); else c2.fillRect(ax, ay - d, bx - ax, d);
+      }
       for (let f = 0; f < 4; f++) {
+        if (outer && !(f === 0 && isFloor(w))) continue;   // room frame: masonry only, no gold outline
         const horiz = f === 0 || f === 2, len = horiz ? w[2] : w[3], nx = f === 1 ? 1 : f === 3 ? -1 : 0, ny = f === 2 ? 1 : f === 0 ? -1 : 0;
         const fx = f === 1 ? w[0] + w[2] : w[0], fy = f === 2 ? w[1] + w[3] : w[1];
         let run = -1;
         const flush = function (end) {
           if (run < 0) return;
           const a0 = run * STEP, a1 = Math.min(len, end * STEP), X = (horiz ? fx + a0 : fx) * sc, Y = (horiz ? fy : fy + a0) * sc, L = (a1 - a0) * sc;
-          const top = f === 0, ga = top ? 0.34 : 0.17;
-          if (!nearHazRun) {
-            let gr;
-            if (f === 0) gr = c2.createLinearGradient(0, Y - th, 0, Y); else if (f === 2) gr = c2.createLinearGradient(0, Y + th, 0, Y);
-            else if (f === 1) gr = c2.createLinearGradient(X + th, 0, X, 0); else gr = c2.createLinearGradient(X - th, 0, X, 0);
-            gr.addColorStop(0, 'rgba(255,196,90,0)'); gr.addColorStop(1, 'rgba(255,196,90,' + ga + ')');
-            c2.fillStyle = gr;
-            if (f === 0) c2.fillRect(X, Y - th, L, th); else if (f === 2) c2.fillRect(X, Y, L, th); else if (f === 1) c2.fillRect(X, Y, th, L); else c2.fillRect(X - th, Y, th, L);
+          const top = f === 0;
+          if (top && !nearHazRun) {   // warm glow above the walkable top
+            const gr = c2.createLinearGradient(0, Y - th, 0, Y); gr.addColorStop(0, 'rgba(255,196,90,0)'); gr.addColorStop(1, 'rgba(255,196,90,0.42)');
+            c2.fillStyle = gr; c2.fillRect(X, Y - th, L, th);
           }
-          c2.fillStyle = top ? '#ffe08a' : 'rgba(255,214,120,0.8)';
-          const lw = top ? 2 : 1.5;
-          if (f === 0) c2.fillRect(X, Y - lw * 0.5 - 0.5, L, lw); else if (f === 2) c2.fillRect(X, Y - lw * 0.5 + 0.5, L, lw);
-          else if (f === 1) c2.fillRect(X - lw * 0.5 + 0.5, Y, lw, L); else c2.fillRect(X - lw * 0.5 - 0.5, Y, lw, L);
+          if (top) {
+            c2.fillStyle = '#d9a63e'; c2.fillRect(X, Y, L, 4); c2.fillStyle = '#f0c860'; c2.fillRect(X, Y + 1, L, 1.5); c2.fillStyle = '#fff4c0'; c2.fillRect(X, Y, L, 1);
+            c2.fillStyle = '#5e4010'; c2.fillRect(X, Y + 4, L, 1);
+          } else {     // 2 px brass trim inside the rect, with a darker inner line
+            c2.fillStyle = '#cf9f3c';
+            if (f === 2) c2.fillRect(X, Y - 2, L, 2); else if (f === 1) c2.fillRect(X - 2, Y, 2, L); else c2.fillRect(X, Y, 2, L);
+            c2.fillStyle = 'rgba(255,230,150,0.75)';
+            if (f === 2) c2.fillRect(X, Y - 2, L, 1); else if (f === 1) c2.fillRect(X - 2, Y, 1, L); else c2.fillRect(X + 1, Y, 1, L);
+            c2.fillStyle = 'rgba(70,48,10,0.6)';
+            if (f === 2) c2.fillRect(X, Y, L, 1); else if (f === 1) c2.fillRect(X - 3, Y, 1, L); else c2.fillRect(X + 2, Y, 1, L);
+          }
           run = -1;
         };
         let nearHazRun = false;
@@ -3716,52 +3794,116 @@ const PL = (globalThis.PL = globalThis.PL || {});
         }
         flush(Math.ceil(len / STEP));
       }
-      // brass corner brackets on outer corners
-      for (let q = 0; q < 4; q++) {
+      if (outer) continue;
+      if (thin) {   // brass end caps + decor corbel under each free end (not near hazards or other walls)
+        for (let e = 0; e < 2; e++) {
+          const wx = e ? w[0] + w[2] : w[0], dir = e ? 1 : -1, by = w[1] + w[3];
+          if (inWall(room, wx + dir * 2, w[1] + w[3] / 2, i)) continue;
+          endCap(c2, wx * sc, w[1] * sc + 1, w[3] * sc - 1, dir);
+          if (!inWall(room, wx - dir * 8, by + 6, i) && !nearHaz(room, wx - dir * 6, by + 4)) corbel(c2, wx * sc, by * sc, dir);
+        }
+        continue;
+      }
+      for (let q = 0; q < 4; q++) {   // brass corner brackets on tall blocks
         const sx = q & 1 ? 1 : -1, sy = q & 2 ? 1 : -1, cx = (q & 1 ? w[0] + w[2] : w[0]), cy = (q & 2 ? w[1] + w[3] : w[1]);
         if (inWall(room, cx + sx * 2.5, cy + sy * 2.5, i) || inWall(room, cx + sx * 2.5, cy - sy * 2.5, i) || inWall(room, cx - sx * 2.5, cy + sy * 2.5, i)) continue;
         bracket(c2, cx * sc, cy * sc, sx, sy, Math.min(w[2], w[3]) * sc * 0.42);
       }
     }
   }
-  // spikes: crystal art up to SPIKE_K x the hit rect height, growing away from the wall (hit rect unchanged; see debug overlay)
-  const SPIKE_K = 1.6;
+  // spikes: chunky coral crystals drawn in code inside the hit rect (+2 px at the tips only); hit rect unchanged (see debug overlay)
+  const SPIKE_K = 1;   // glint scale handed to Vfx: art no longer exceeds the hit rect by more than SPIKE_EXT
+  const SPIKE_EXT = 4, SPIKE_WIDEN = 1.0;
+  const SPIKE_H = [1, 0.6, 0.84, 0.5, 0.94, 0.68, 0.56, 0.88];   // fixed tall/short pattern (no RNG)
   function spikeArt(room, s, sc, k) {
-    const r = s.r, dir = dirOfSpike(room, r); let x = r[0] * sc, y = r[1] * sc, w = r[2] * sc, h = r[3] * sc;
-    if (dir === 0) { y -= h * (k - 1); h *= k; } else if (dir === 2) h *= k; else if (dir === 1) w *= k; else { x -= w * (k - 1); w *= k; }
+    const r = s.r, dir = dirOfSpike(room, r), e = SPIKE_EXT * sc; let x = r[0] * sc, y = r[1] * sc, w = r[2] * sc, h = r[3] * sc;
+    if (dir === 0) { y -= e; h += e; } else if (dir === 2) h += e; else if (dir === 1) w += e; else { x -= e; w += e; }
     return { x: x, y: y, w: w, h: h, dir: dir };
   }
   function paintSpikes(c2, room, sc, only) {
-    const A = PL.Assets, sp = room.spikes || [];
+    const sp = room.spikes || [], ANG = [0, Math.PI / 2, Math.PI, -Math.PI / 2];
     for (let i = only == null ? 0 : only, hi = only == null ? sp.length : only + 1; i < hi; i++) {
-      const a = spikeArt(room, sp[i], sc, SPIKE_K), out = 9, x = a.x, y = a.y, w = a.w, h = a.h;
-      // tight coral glow (soft ellipse hugging the crystals, not a box): the crystal outline stays crisp
-      const sg = spr().coral;
-      if (sg) {
-        const horiz = a.dir === 0 || a.dir === 2, len = horiz ? w : h, th = horiz ? h : w, gw = horiz ? len * 1.12 : th * 1.5 + out, gh = horiz ? th * 1.5 + out : len * 1.12;
-        const cx = x + w / 2 + (a.dir === 1 ? -th * 0.15 : a.dir === 3 ? th * 0.15 : 0), cy = y + h / 2 + (a.dir === 2 ? -th * 0.15 : a.dir === 0 ? th * 0.15 : 0);
-        c2.save(); c2.globalAlpha = 0.5; c2.drawImage(sg, cx - gw / 2, cy - gh / 2, gw, gh); c2.restore();
+      const a = spikeArt(room, sp[i], sc, SPIKE_K), horiz = a.dir === 0 || a.dir === 2, L = horiz ? a.w : a.h, T = horiz ? a.h : a.w;
+      const bar = Math.max(2 * sc, Math.min(4 * sc, T * 0.24)), pitch0 = Math.max(6.5 * sc, Math.min(12 * sc, T * 0.72));
+      const n = Math.max(1, Math.round(L / pitch0)), pitch = L / n, bw = pitch * 1.06;
+      c2.save(); c2.translate(a.x + a.w / 2, a.y + a.h / 2); c2.rotate(ANG[a.dir]);   // local: tips toward -y, wall (base) at +y, length along x
+      const im = PL.Assets && PL.Assets.get && PL.Assets.get('spikes');
+      if (im && im.width > 0) {
+        // shipped art, natural size read from the image, stretched along the row (SPIKE_WIDEN) into a whole number of tiles: fewer, chunkier crystals
+        const asp = im.width / im.height, cw0 = T * asp * SPIKE_WIDEN, nt = Math.max(1, Math.round(L / cw0)), cw = L / nt;
+        for (let k = 0; k < nt; k++) c2.drawImage(im, -L / 2 + k * cw, -T / 2, cw, T);
+        c2.fillStyle = '#5a3f14'; c2.fillRect(-L / 2, T / 2 - Math.max(1.5, 1.6 * sc), L, Math.max(1.5, 1.6 * sc));   // mounting edge line (the art carries its own brass base)
+        c2.restore(); continue;
       }
-      if (!(A && A.drawSpikes && A.drawSpikes(c2, { x: x, y: y, w: w, h: h }, a.dir))) fbSpikes(c2, x, y, w, h, a.dir);
+      const yb = T / 2 - bar * 0.7;   // crystal feet sink slightly into the bar
+      c2.lineJoin = 'round';
+      for (let k = 0; k < n; k++) {
+        const cx = -L / 2 + (k + 0.5) * pitch, ht = (T - bar * 0.7 - 0.5 * sc) * SPIKE_H[(k + i * 3) % SPIKE_H.length], tip = yb - ht;
+        const sh = ht * 0.42;
+        c2.beginPath(); c2.moveTo(cx - bw / 2, yb); c2.lineTo(cx - bw * 0.4, yb - sh); c2.lineTo(cx, tip); c2.lineTo(cx + bw * 0.4, yb - sh); c2.lineTo(cx + bw / 2, yb); c2.closePath();
+        c2.fillStyle = '#ff7f70'; c2.fill();
+        c2.beginPath(); c2.moveTo(cx, tip); c2.lineTo(cx + bw * 0.4, yb - sh); c2.lineTo(cx + bw / 2, yb); c2.lineTo(cx, yb); c2.closePath();
+        c2.fillStyle = '#c52f40'; c2.fill();
+        c2.beginPath(); c2.moveTo(cx - bw * 0.12, yb - ht * 0.3); c2.lineTo(cx - bw * 0.02, tip + ht * 0.28); c2.lineTo(cx - bw * 0.02, yb - ht * 0.3); c2.closePath();
+        c2.fillStyle = 'rgba(255,225,205,0.75)'; c2.fill();
+        c2.beginPath(); c2.moveTo(cx - bw / 2, yb); c2.lineTo(cx - bw * 0.4, yb - sh); c2.lineTo(cx, tip); c2.lineTo(cx + bw * 0.4, yb - sh); c2.lineTo(cx + bw / 2, yb);
+        c2.strokeStyle = 'rgba(122,26,44,0.7)'; c2.lineWidth = Math.max(0.7, 0.7 * sc); c2.stroke();
+      }
+      // brass base bar (wider than the crystal feet, sits on the wall face)
+      const bg = c2.createLinearGradient(0, T / 2 - bar, 0, T / 2); bg.addColorStop(0, '#f2d27c'); bg.addColorStop(1, '#8a6420');
+      c2.fillStyle = bg; c2.fillRect(-L / 2, T / 2 - bar, L, bar);
+      c2.fillStyle = '#4a3512'; c2.fillRect(-L / 2, T / 2 - bar, L, Math.max(0.6, 0.8 * sc));
+      c2.restore();
     }
   }
   function paintGateBodies(c2, room, sc, only) {
     const gs = room.gates || [];
     for (let i = only == null ? 0 : only, hi = only == null ? gs.length : only + 1; i < hi; i++) {
-      const r = gs[i].r, x = r[0] * sc, y = r[1] * sc, w = r[2] * sc, h = r[3] * sc, horiz = r[2] >= r[3];
-      const gr = horiz ? c2.createLinearGradient(0, y, 0, y + h) : c2.createLinearGradient(x, 0, x + w, 0);
-      gr.addColorStop(0, 'rgba(120,235,225,0.5)'); gr.addColorStop(0.5, 'rgba(225,255,250,0.85)'); gr.addColorStop(1, 'rgba(120,235,225,0.5)');
-      c2.fillStyle = gr; c2.fillRect(x, y, w, h);
-      c2.strokeStyle = 'rgba(235,255,252,0.95)'; c2.lineWidth = 1.5; c2.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1);
-      // brass four-point star caps at both ends
-      for (let e = 0; e < 2; e++) {
-        const ex = horiz ? (e ? x + w : x) : x + w / 2, ey = horiz ? y + h / 2 : (e ? y + h : y), rr = Math.max(5, Math.min(w, h) * 0.55 + 3);
-        c2.fillStyle = '#e8bd5a'; c2.strokeStyle = '#5a3f14'; c2.lineWidth = 1;
+      const r = gs[i].r, x = r[0] * sc, y = r[1] * sc, w = r[2] * sc, h = r[3] * sc, horiz = r[2] >= r[3], L = horiz ? w : h, A = horiz ? h : w;
+      c2.save(); c2.translate(x + w / 2, y + h / 2); if (!horiz) c2.rotate(Math.PI / 2);   // local: ribbon along x, orbs toward -y
+      // aurora ribbon: dark teal underlay (so chevrons read on any backdrop), bright teal core, static wavy streaks
+      c2.fillStyle = 'rgba(6,44,66,0.55)'; c2.fillRect(-L / 2, -A / 2, L, A);
+      const gr = c2.createLinearGradient(0, -A / 2, 0, A / 2);
+      gr.addColorStop(0, 'rgba(60,190,200,0.30)'); gr.addColorStop(0.5, 'rgba(120,245,225,0.72)'); gr.addColorStop(1, 'rgba(60,190,200,0.30)');
+      c2.fillStyle = gr; c2.fillRect(-L / 2, -A / 2, L, A);
+      c2.save(); c2.beginPath(); c2.rect(-L / 2, -A / 2, L, A); c2.clip();
+      const nseg = Math.max(8, Math.round(L / 4));
+      for (let l = 0; l < 3; l++) {
         c2.beginPath();
-        for (let k = 0; k < 8; k++) { const a = k * Math.PI / 4 - Math.PI / 2, q = k % 2 ? rr * 0.32 : rr; if (k) c2.lineTo(ex + Math.cos(a) * q, ey + Math.sin(a) * q); else c2.moveTo(ex + Math.cos(a) * q, ey + Math.sin(a) * q); }
-        c2.closePath(); c2.fill(); c2.stroke();
+        for (let k = 0; k <= nseg; k++) { const u = k / nseg, yy = (l - 1) * A * 0.24 + Math.sin((u * 6 + l * 0.37) * Math.PI) * A * 0.12; if (k) c2.lineTo(-L / 2 + u * L, yy); else c2.moveTo(-L / 2, yy); }
+        c2.strokeStyle = l === 1 ? 'rgba(210,255,246,0.45)' : 'rgba(170,255,235,0.28)'; c2.lineWidth = Math.max(1, 1.3 * sc); c2.stroke();
       }
+      c2.restore();
+      c2.fillStyle = 'rgba(150,240,230,0.6)'; c2.fillRect(-L / 2, -A / 2, L, Math.max(0.8, 0.9 * sc)); c2.fillRect(-L / 2, A / 2 - Math.max(0.8, 0.9 * sc), L, Math.max(0.8, 0.9 * sc));
+      // two slim brass posts with teal-white glass orb caps (never gold stars)
+      const pw = Math.max(5 * sc, A * 0.4), ov = 3.5 * sc, orb = Math.max(4.6 * sc, A * 0.4);
+      for (let e = 0; e < 2; e++) {
+        const px = e ? L / 2 - pw : -L / 2;
+        const bgd = c2.createLinearGradient(px, 0, px + pw, 0); bgd.addColorStop(0, '#6a4b18'); bgd.addColorStop(0.35, '#f2d27c'); bgd.addColorStop(0.65, '#c9993a'); bgd.addColorStop(1, '#5a3f14');
+        c2.fillStyle = bgd; c2.fillRect(px, -A / 2 - ov, pw, A + ov * 2);
+        c2.fillStyle = '#4a3512'; c2.fillRect(px - 0.5 * sc, A / 2 + ov - 1.4 * sc, pw + 1 * sc, 1.4 * sc);   // foot
+        const ox = px + pw / 2, oy = -A / 2 - ov - orb * 0.55;
+        c2.fillStyle = '#8a6420'; c2.fillRect(ox - pw * 0.62, -A / 2 - ov - 1.2 * sc, pw * 1.24, 1.6 * sc);   // collar
+        const og = c2.createRadialGradient(ox - orb * 0.3, oy - orb * 0.3, orb * 0.1, ox, oy, orb);
+        og.addColorStop(0, '#ffffff'); og.addColorStop(0.45, '#b6f6ee'); og.addColorStop(1, '#3fb0b8');
+        c2.fillStyle = og; c2.beginPath(); c2.arc(ox, oy, orb, 0, TAU); c2.fill();
+        c2.strokeStyle = 'rgba(30,90,110,0.9)'; c2.lineWidth = Math.max(0.8, 0.8 * sc); c2.stroke();
+      }
+      c2.restore();
     }
+  }
+  // crusher danger lane (baked): coral gradient strongest at the slam end, solid landing bar there, faint brass guide rails on the sides
+  function paintLane(c2, x, y, w, h, face, sc) {
+    const horiz = face === 1 || face === 3, end = face === 1 || face === 2 ? 1 : 0;   // end: slam end is at the high-coordinate side
+    const g = horiz ? c2.createLinearGradient(x, 0, x + w, 0) : c2.createLinearGradient(0, y, 0, y + h);
+    g.addColorStop(0, 'rgba(255,120,110,' + (end ? 0 : 0.35) + ')'); g.addColorStop(1, 'rgba(255,120,110,' + (end ? 0.35 : 0) + ')');
+    c2.fillStyle = g; c2.fillRect(x, y, w, h);
+    const rl = Math.max(1, sc);
+    c2.fillStyle = 'rgba(214,172,80,0.5)';
+    if (horiz) { c2.fillRect(x, y, w, rl); c2.fillRect(x, y + h - rl, w, rl); } else { c2.fillRect(x, y, rl, h); c2.fillRect(x + w - rl, y, rl, h); }
+    const bt = Math.max(3, 3 * sc);
+    c2.fillStyle = '#ff6b5e';
+    if (horiz) c2.fillRect(end ? x + w - bt : x, y, bt, h); else c2.fillRect(x, end ? y + h - bt : y, w, bt);
   }
 
   // ---------- room plates: everything static baked once per room + camera scale ----------
@@ -3779,6 +3921,11 @@ const PL = (globalThis.PL = globalThis.PL || {});
     for (let i = 0; i < ws.length; i++) { const w = ws[i], t = tile([w[0] * sc, w[1] * sc, w[2] * sc, w[3] * sc], sc, pr, function (x) { paintWalls(x, room, sc, i); }); if (!t) return null; back.push(t); }
     for (let i = 0; i < sp.length; i++) { const a = spikeArt(room, sp[i], sc, SPIKE_K), t = tile([a.x, a.y, a.w, a.h], sc, pr, function (x) { paintSpikes(x, room, sc, i); }); if (!t) return null; front.push(t); }
     for (let i = 0; i < gs.length; i++) { const r = gs[i].r, t = tile([r[0] * sc, r[1] * sc, r[2] * sc, r[3] * sc], sc, pr, function (x) { paintGateBodies(x, room, sc, i); }); if (!t) return null; front.push(t); }
+    (room.crushers || []).forEach(function (c) {
+      const am = c.amp || 0; if (am <= 0) return;
+      const lx = (c.r[0] - (c.ax ? am : 0)) * sc, ly = (c.r[1] - (c.ay ? am : 0)) * sc, lw = (c.r[2] + (c.ax ? am * 2 : 0)) * sc, lh = (c.r[3] + (c.ay ? am * 2 : 0)) * sc, fc = crusherFace(room, c);
+      const t = tile([lx, ly, lw, lh], sc, pr, function (x) { paintLane(x, lx, ly, lw, lh, fc, sc); }); if (t) back.push(t);
+    });
     const P = { room: room, sc: sc, pr: pr, back: back, front: front, refl: null, w: Math.ceil(rw * sc + PAD * 2), h: Math.ceil(rh * sc + PAD * 2), rebuild: 0 };
     // soft floor reflection of the lowest REFL px of the room, faded; fills the band under the room on tall screens
     const tmp = cvs(P.w * pr, P.h * pr), rf = cvs(P.w * pr, REFL * pr);
@@ -3875,8 +4022,9 @@ const PL = (globalThis.PL = globalThis.PL || {});
       ctx.fillStyle = '#8a6a2a'; ctx.fillRect(Math.min(x, wallX), y - 1.2 * k, Math.abs(wallX - x), 2.4 * k);
       ctx.fillStyle = '#e8bd5a'; ctx.fillRect(wallX - 1.5 * k, y - 4 * k, 3 * k, 8 * k);
       ctx.save(); ctx.translate(x, y); ctx.rotate(SK.lAng + sway); ctx.scale(k * 1.15, k * 1.15);
-      if (sp.lantern) ctx.drawImage(sp.lantern, -10, 0, 20, 34);
-      if (sp.warm) { ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = 0.85 * fl; ctx.drawImage(sp.warm, -13, 6, 26, 26); }
+      const la = PL.Assets && PL.Assets.get && PL.Assets.get('lantern'), lh = la ? 20 * la.height / la.width : 34, fy = la ? lh * 0.55 : 18.5;   // art: 64x128 hung from the chain at top centre; flame ~60% down
+      if (la) ctx.drawImage(la, -10, 0, 20, lh); else if (sp.lantern) ctx.drawImage(sp.lantern, -10, 0, 20, 34);
+      if (sp.warm) { ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = 0.85 * fl; ctx.drawImage(sp.warm, -13, fy - 13, 26, 26); }
       ctx.restore();
     }
   }
@@ -3891,7 +4039,8 @@ const PL = (globalThis.PL = globalThis.PL || {});
       if (x + w < -8 || x > S.W + 8) continue;
       ctx.save();
       const alpha = 1 - 0.4 * p;
-      if (!(A && A.drawLedge && A.drawLedge(ctx, x, y, w, h, alpha))) {
+      const ins = Math.min(R(2 * S.sc), Math.floor(w / 4));   // art sits inside the hit rect (inset, never past it)
+      if (!(A && A.drawLedge && A.drawLedge(ctx, x + ins, y, w - 2 * ins, h, alpha))) {
         ctx.globalAlpha = alpha; ctx.fillStyle = P.cream; ctx.fillRect(x, y, w, h);
         ctx.fillStyle = '#9fe6dc'; ctx.fillRect(x, y + h - 3, w, 3);
         ctx.strokeStyle = '#6fb7c8'; ctx.lineWidth = 1.5; ctx.setLineDash([5, 3]); ctx.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1); ctx.setLineDash([]);
@@ -3904,10 +4053,10 @@ const PL = (globalThis.PL = globalThis.PL || {});
           const pts = crackPts(i * 7 + c, 5 + stage * 2), ox = x + w * (0.2 + 0.3 * c), span = w * (0.5 / (c + 1));
           ctx.beginPath();
           for (let k = 0; k < pts.length; k++) { const px = ox + (pts[k][0] - 0.5) * span, py = y + pts[k][1] * h; if (k) ctx.lineTo(px, py); else ctx.moveTo(px, py); }
-          ctx.strokeStyle = 'rgba(30,40,90,0.85)'; ctx.lineWidth = 1.6; ctx.stroke();
-          ctx.strokeStyle = 'rgba(255,255,255,0.8)'; ctx.lineWidth = 0.7; ctx.stroke();
+          ctx.strokeStyle = 'rgba(30,40,90,0.85)'; ctx.lineWidth = 1.6 + 1.4 * p; ctx.stroke();
+          ctx.strokeStyle = 'rgba(255,255,255,0.8)'; ctx.lineWidth = 0.7 + 0.5 * p; ctx.stroke();
         }
-        if (stage === 3 && !S.reduced) { ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = 'rgba(210,255,248,' + (0.25 * (0.5 + 0.5 * Math.sin(t * 40))).toFixed(3) + ')'; ctx.fillRect(x, y, w, h); }
+        if (stage === 3 && !S.reduced) { ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = 'rgba(210,255,248,' + (0.25 * (0.5 + 0.5 * Math.sin(t * 12.57))).toFixed(3) + ')'; ctx.fillRect(x, y, w, h); }
       }
       ctx.restore();
     }
@@ -3919,14 +4068,14 @@ const PL = (globalThis.PL = globalThis.PL || {});
       const x = S.sx(r[0]), y = S.sy(r[1]), w = r[2] * S.sc, h = r[3] * S.sc;
       if (x + w < -20 || x > S.W + 20 || y + h < -20 || y > S.H + 20) continue;
       const horiz = r[2] >= r[3], along = horiz ? w : h, across = horiz ? h : w;
-      // waves slide along the ribbon (body + gold caps are in the front plate)
+      // soft parallel waves slide along the ribbon (body + posts are in the front plate); normal blend, never crossing
       ctx.save(); ctx.beginPath(); ctx.rect(x, y, w, h); ctx.clip();
-      ctx.globalCompositeOperation = 'lighter'; ctx.strokeStyle = 'rgba(160,255,240,0.55)'; ctx.lineWidth = 1.2;
+      ctx.strokeStyle = 'rgba(205,255,246,0.34)'; ctx.lineWidth = Math.max(1, 1.3 * S.sc);
+      const n = Math.max(12, Math.min(90, Math.round(along / 4)));
       for (let l = 0; l < 2; l++) {
         ctx.beginPath();
-        const n = Math.max(6, Math.min(16, Math.round(along / 9)));
         for (let s = 0; s <= n; s++) {
-          const u = s / n, wv = Math.sin((u * 5 + (quiet ? 0 : t * 0.9) + l * 0.5) * Math.PI) * across * 0.28;
+          const u = s / n, wv = Math.sin((u * 6 + (quiet ? 0 : t * 0.9)) * Math.PI) * across * 0.12 + (l ? 0.3 : -0.3) * across * 0.5 * 0.9;
           const px = horiz ? x + u * along : x + w / 2 + wv, py = horiz ? y + h / 2 + wv : y + u * along;
           if (s) ctx.lineTo(px, py); else ctx.moveTo(px, py);
         }
@@ -3935,7 +4084,7 @@ const PL = (globalThis.PL = globalThis.PL || {});
       ctx.restore();
       // chevrons point the way through (d) and flow along d across the line; they spill past the thin ribbon so they read
       if (sp.chev) {
-        const cnt = Math.max(2, Math.min(12, Math.round(along / 34))), size = clamp(across * 0.9 + 3, 6, 11) * (S.sc > 0.7 ? 1 : 0.85), cyc = (quiet ? 0.5 : (t * 0.7) % 1), ang = Math.atan2(d[1], d[0]);
+        const cnt = Math.max(2, Math.min(12, Math.round(along / 34))), size = clamp(across * 1.05 + 4, 8, 14) * (S.sc > 0.7 ? 1 : 0.85), cyc = (quiet ? 0.5 : (t * 0.7) % 1), ang = Math.atan2(d[1], d[0]);
         const q = size * 1.7;
         for (let k = 0; k < cnt; k++) {
           const u = (k + 0.5) / cnt, cx = horiz ? x + u * along : x + w / 2, cy = horiz ? y + h / 2 : y + u * along;
@@ -3946,14 +4095,6 @@ const PL = (globalThis.PL = globalThis.PL || {});
           }
         }
         ctx.globalAlpha = 1;
-      }
-      // end orbs (pulse)
-      if (sp.teal) {
-        ctx.save(); ctx.globalCompositeOperation = 'lighter';
-        const pu = 0.65 + (quiet ? 0.3 : 0.3 * Math.sin(t * 2.4 + i)), rr = Math.max(5, across * 1.1 + 3) * 4.4;
-        ctx.globalAlpha = 0.8 * pu;
-        for (let e = 0; e < 2; e++) { const ex = horiz ? (e ? x + w : x) : x + w / 2, ey = horiz ? y + h / 2 : (e ? y + h : y); ctx.drawImage(sp.teal, ex - rr / 2, ey - rr / 2, rr, rr); }
-        ctx.restore();
       }
     }
   }
@@ -3988,6 +4129,34 @@ const PL = (globalThis.PL = globalThis.PL || {});
     }
     return best;
   }
+  // head at its natural aspect, rotated to face the travel direction; front face flush with the hit rect, any extra length overhangs backwards along the rod.
+  // body width factor is measured once from the image's opaque (non-white-sticker) pixels, cached; 1.03 if the pixels cannot be read.
+  function headFactor(im) {
+    if (SK.headK && SK.headKim === im) return SK.headK;
+    let k = 1.03;
+    try {
+      const w = im.naturalWidth || im.width, h = im.naturalHeight || im.height, c = cvs(w, h);
+      if (c) {
+        const x = c.getContext('2d'); x.drawImage(im, 0, 0); const d = x.getImageData(0, 0, w, h).data; let lo = w, hi = -1;
+        for (let yy = Math.floor(h * 0.3); yy < h; yy++) for (let xx = 0; xx < w; xx++) {
+          const o = (yy * w + xx) * 4; if (d[o + 3] < 128 || (d[o] > 235 && d[o + 1] > 235 && d[o + 2] > 235)) continue;
+          if (xx < lo) lo = xx; if (xx > hi) hi = xx;
+        }
+        if (hi > lo) k = w / (hi - lo + 1);
+      }
+    } catch (e) { /* tainted or no canvas: keep the default */ }
+    SK.headK = k; SK.headKim = im; return k;
+  }
+  function drawCrusherHead(ctx, A, x, y, w, h, face, sp) {
+    const im = A && A.get && A.get('crusher'); if (!im) return false;
+    const iw = im.naturalWidth || im.width, ih = im.naturalHeight || im.height; if (!iw || !ih) return false;
+    const vert = face === 1 || face === 3, across = vert ? h : w, along = vert ? w : h, ang = [Math.PI, -Math.PI / 2, 0, Math.PI / 2][face];
+    const hw = across * headFactor(im), headH = hw * ih / iw, fy = along / 2;   // art points down: front edge at +along/2
+    ctx.save(); ctx.translate(x + w / 2, y + h / 2); ctx.rotate(ang);
+    if (headH < along - 0.5 && sp && sp.rod) { const rw = hw * 0.3; ctx.drawImage(sp.rod, -rw / 2, -fy, rw, along - headH + 1); }   // rod fills the rest of the rect behind the head
+    ctx.drawImage(im, 0, 0, iw, ih, -hw / 2, fy - headH, hw, headH);
+    ctx.restore(); return true;
+  }
   function drawCrushers(ctx, room, state, S, t) {
     const A = PL.Assets, cs = room.crushers || [], sp = spr();
     if (!SK.rods) SK.rods = cs.map(function (c) { return rodMount(room, c, crusherFace(room, c)); });
@@ -4002,8 +4171,9 @@ const PL = (globalThis.PL = globalThis.PL || {});
       if (hot > 0.93 && !S.reduced) { const q = (hot - 0.93) / 0.07; jx = Math.sin(t * 95 + i) * 1.6 * q * S.sc; jy = Math.cos(t * 83 + i) * 1.6 * q * S.sc; }   // slam shudder
       const x = S.sx(r[0]) + jx, y = S.sy(r[1]) + jy, w = r[2] * S.sc, h = r[3] * S.sc;
       ctx.save();
-      ctx.fillStyle = 'rgba(255,107,94,' + (0.05 + 0.15 * hot).toFixed(3) + ')'; ctx.fillRect(lx, ly, lw, lh);
-      ctx.strokeStyle = 'rgba(255,150,130,' + (0.4 + 0.5 * hot).toFixed(3) + ')'; ctx.lineWidth = 1.5; ctx.setLineDash([5, 5]); ctx.strokeRect(lx + 0.5, ly + 0.5, lw - 1, lh - 1); ctx.setLineDash([]);
+      if (amp > 0) {
+        if (!SK.plates) paintLane(ctx, lx, ly, lw, lh, face, S.sc);   // baked tile normally; direct only if the bake failed
+      }
       ctx.restore();
       // brass piston rod from the wall to the head, with a flange collar at the wall
       const wl = SK.rods[i], rodW = clamp((c.ay ? r[2] : r[3]) * 0.2, 7, 13) * S.sc;
@@ -4016,15 +4186,8 @@ const PL = (globalThis.PL = globalThis.PL || {});
         ctx.save(); ctx.translate((x0 + x1) / 2, (y0 + y1) / 2); ctx.rotate(ra); ctx.drawImage(sp.rod, -rodW / 2, -len / 2, rodW, len); ctx.restore();
         if (sp.flange) { const fw = rodW * 2.3; ctx.save(); ctx.translate(x0, y0); ctx.rotate(ra); ctx.drawImage(sp.flange, -fw / 2, -1, fw, fw * 0.32); ctx.restore(); }
       }
-      // glow around the block itself (baked sprite, no per-frame gradient)
-      if (sp.coral) {
-        ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = 0.2 + 0.32 * hot;
-        const gw = w * 1.5 + (14 + 14 * hot) * S.sc, gh = h * 1.5 + (14 + 14 * hot) * S.sc;
-        ctx.drawImage(sp.coral, x + w / 2 - gw / 2, y + h / 2 - gh / 2, gw, gh); ctx.restore();
-      }
-      const ok = A && A.drawCrusher && A.drawCrusher(ctx, { x: x, y: y, w: w, h: h }, face);
+      const ok = drawCrusherHead(ctx, A, x, y, w, h, face, sp);
       if (!ok) fbCrusher(ctx, x, y, w, h);
-      if (hot > 0.55 && !S.reduced) { ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.strokeStyle = 'rgba(255,120,100,' + (hot * 0.9).toFixed(3) + ')'; ctx.lineWidth = 2; ctx.strokeRect(x - 1, y - 1, w + 2, h + 2); ctx.restore(); }
     }
   }
 
@@ -4349,14 +4512,23 @@ PL.meta = (function () {
   const BANDS = { n: 7, bronze: 240, silver: 150, gold: 105, plumb: 75, plumbFlips: 12, flipStar: 15 };
   const RANK = { none: 0, bronze: 1, silver: 2, gold: 3, plumb: 4 };
   const k = (n) => (n > 0 ? n : BANDS.n) / BANDS.n;
+  // Medal seconds per shaft length: one source of truth. 5 and 7 are set from bot medians + 4 s reading time
+  // per room (src/review/medal-bands-beta.md); other lengths scale the 7-room row. Medals are recomputed from
+  // stored seconds, so these numbers may be loosened later but never tightened.
+  const BY_N = { 5: { bronze: 170, silver: 105, gold: 75, plumb: 55 }, 7: { bronze: BANDS.bronze, silver: BANDS.silver, gold: BANDS.gold, plumb: BANDS.plumb } };
+  function bandsFor(n) {
+    if (BY_N[n]) return BY_N[n];
+    const f = k(n);
+    return { bronze: BANDS.bronze * f, silver: BANDS.silver * f, gold: BANDS.gold * f, plumb: BANDS.plumb * f };
+  }
 
   function flipStar(flips, nRooms) { return flips <= BANDS.flipStar * k(nRooms); }
   function medalFor(ticks, flips, nRooms) {
-    const s = ticks * DT, f = k(nRooms);
-    if (s <= BANDS.plumb * f && flips <= BANDS.plumbFlips * f) return 'plumb';
-    if (s <= BANDS.gold * f) return 'gold';
-    if (s <= BANDS.silver * f) return 'silver';
-    if (s <= BANDS.bronze * f) return 'bronze';
+    const s = ticks * DT, f = k(nRooms), b = bandsFor(nRooms > 0 ? nRooms : BANDS.n);
+    if (s <= b.plumb && flips <= BANDS.plumbFlips * f) return 'plumb';
+    if (s <= b.gold) return 'gold';
+    if (s <= b.silver) return 'silver';
+    if (s <= b.bronze) return 'bronze';
     return 'none';
   }
   function dailySeed() {
@@ -4428,7 +4600,7 @@ PL.meta = (function () {
       ', ' + r.attempts + ' att, ' + r.deaths + ' deaths' + (r.deaths ? ' (' + Object.keys(r.causes).map((k) => k + ' ' + r.causes[k]).join(', ') + ')' : '')));
   }
   function reset() { try { localStorage.removeItem(KEY); } catch (e) {} }
-  return { BANDS, VER, medalFor, flipStar, dailySeed, keyFor, load, recordRun, getBest, reset, roomSummary, reportLines,
+  return { BANDS, bandsFor, VER, medalFor, flipStar, dailySeed, keyFor, load, recordRun, getBest, reset, roomSummary, reportLines,
     isReadOnly: () => { load(); return readOnly; } };
 })();
 

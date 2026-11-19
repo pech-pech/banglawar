@@ -13,14 +13,23 @@ PL.meta = (function () {
   const BANDS = { n: 7, bronze: 240, silver: 150, gold: 105, plumb: 75, plumbFlips: 12, flipStar: 15 };
   const RANK = { none: 0, bronze: 1, silver: 2, gold: 3, plumb: 4 };
   const k = (n) => (n > 0 ? n : BANDS.n) / BANDS.n;
+  // Medal seconds per shaft length: one source of truth. 5 and 7 are set from bot medians + 4 s reading time
+  // per room (src/review/medal-bands-beta.md); other lengths scale the 7-room row. Medals are recomputed from
+  // stored seconds, so these numbers may be loosened later but never tightened.
+  const BY_N = { 5: { bronze: 170, silver: 105, gold: 75, plumb: 55 }, 7: { bronze: BANDS.bronze, silver: BANDS.silver, gold: BANDS.gold, plumb: BANDS.plumb } };
+  function bandsFor(n) {
+    if (BY_N[n]) return BY_N[n];
+    const f = k(n);
+    return { bronze: BANDS.bronze * f, silver: BANDS.silver * f, gold: BANDS.gold * f, plumb: BANDS.plumb * f };
+  }
 
   function flipStar(flips, nRooms) { return flips <= BANDS.flipStar * k(nRooms); }
   function medalFor(ticks, flips, nRooms) {
-    const s = ticks * DT, f = k(nRooms);
-    if (s <= BANDS.plumb * f && flips <= BANDS.plumbFlips * f) return 'plumb';
-    if (s <= BANDS.gold * f) return 'gold';
-    if (s <= BANDS.silver * f) return 'silver';
-    if (s <= BANDS.bronze * f) return 'bronze';
+    const s = ticks * DT, f = k(nRooms), b = bandsFor(nRooms > 0 ? nRooms : BANDS.n);
+    if (s <= b.plumb && flips <= BANDS.plumbFlips * f) return 'plumb';
+    if (s <= b.gold) return 'gold';
+    if (s <= b.silver) return 'silver';
+    if (s <= b.bronze) return 'bronze';
     return 'none';
   }
   function dailySeed() {
@@ -92,6 +101,6 @@ PL.meta = (function () {
       ', ' + r.attempts + ' att, ' + r.deaths + ' deaths' + (r.deaths ? ' (' + Object.keys(r.causes).map((k) => k + ' ' + r.causes[k]).join(', ') + ')' : '')));
   }
   function reset() { try { localStorage.removeItem(KEY); } catch (e) {} }
-  return { BANDS, VER, medalFor, flipStar, dailySeed, keyFor, load, recordRun, getBest, reset, roomSummary, reportLines,
+  return { BANDS, bandsFor, VER, medalFor, flipStar, dailySeed, keyFor, load, recordRun, getBest, reset, roomSummary, reportLines,
     isReadOnly: () => { load(); return readOnly; } };
 })();

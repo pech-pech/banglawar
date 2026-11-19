@@ -92,24 +92,32 @@ const playAll = (page, logs) => page.evaluate((logs) => {
   ok(errs.length === 0, 'run 1: no console/page errors ' + errs.slice(0, 2).join('||'));
   await ctx.close();
 
-  // ===== 2. Tweak changed -> DEV, no best =====
+  // ===== 2. Tweaks: a non-sim Tweak shows DEV but still saves a best; a sim Tweak = tuned, no best =====
   ({ ctx, page, errs } = await fresh(browser, base));
-  const bestBefore = await page.evaluate(() => localStorage.getItem('plumbline.v1'));
-  await page.evaluate(() => PL.Tweak.set('AUD_MUSIC_GAIN', 0.8)); // non-sim tweak: the solution still wins, but the run is tuned
-  ok(await page.evaluate(() => PL.Tweak.isDirty()), 'Tweak.set marks isDirty');
+  await page.evaluate(() => PL.Tweak.set('AUD_MUSIC_GAIN', 0.8)); // non-sim tweak: cannot change the run, so it must not block a best
+  ok(await page.evaluate(() => PL.Tweak.isDirty()) && !(await page.evaluate(() => PL.Tweak.isDirty('sim'))), 'non-sim Tweak: isDirty() true, isDirty("sim") false');
+  const NS_ = await playAll(page, logs);
+  const chipN = await page.evaluate(() => PL_TEST.chips());
+  ok(NS_.complete && chipN.devTuned === true, `non-sim Tweak run completes with the DEV badge on (devTuned ${chipN.devTuned})`);
+  const bestN = await page.evaluate(() => localStorage.getItem('plumbline.v1'));
+  ok(NS_.complete && NS_.complete.newBest === true && !NS_.stats.tuned && /short:/.test(bestN || ''), `non-sim Tweak run is not tuned and saves a best (newBest ${NS_.complete && NS_.complete.newBest}, ${bestN})`);
+  ok(/tuned: no/.test(await page.evaluate(() => PL_TEST.report())), 'non-sim Tweak run: report says tuned: no');
+  // sim tweak that cannot change a deathless run (respawn time): the solution still wins, but the run is tuned
+  await page.evaluate(() => { PL.Tweak.resetAll(); const d = PL.Tweak.get('RESPAWN_T'); PL.Tweak.set('RESPAWN_T', d > 0.5 ? 0.2 : 0.9); });
+  ok(await page.evaluate(() => PL.Tweak.isDirty('sim')), 'sim Tweak marks isDirty("sim")');
   const T = await playAll(page, logs);
   const chip = await page.evaluate(() => PL_TEST.chips());
   ok(T.complete && chip.devTuned === true, `tuned run completes with the DEV badge on (devTuned ${chip.devTuned})`);
   ok(T.complete && T.complete.newBest === false && T.stats.tuned, `tuned run: newBest false (${T.complete && T.complete.newBest}), run flagged tuned`);
   const bestAfter = await page.evaluate(() => localStorage.getItem('plumbline.v1'));
-  ok(bestAfter === bestBefore || !/short:/.test(bestAfter || ''), `no best saved by the tuned run (plumbline.v1 ${bestBefore} -> ${bestAfter})`);
+  ok(bestAfter === bestN, `tuned run leaves the saved best untouched (${bestN} -> ${bestAfter})`);
   ok(/tuned: YES/.test(await page.evaluate(() => PL_TEST.report())), 'report says tuned: YES');
-  // reset -> DEV off, an untuned run saves a best (control)
+  // reset -> DEV off, an untuned run is not tuned and the best is still there (control)
   await page.evaluate(() => PL.Tweak.resetAll && PL.Tweak.resetAll());
   ok(!(await page.evaluate(() => PL.Tweak.isDirty())) && (await page.evaluate(() => PL_TEST.chips())).devTuned === false, 'Reset all: DEV badge off');
   const C = await playAll(page, logs);
   const bestC = await page.evaluate(() => localStorage.getItem('plumbline.v1'));
-  ok(C.complete && C.complete.newBest === true && /short:/.test(bestC || ''), `control: untuned run saves a best (${bestC})`);
+  ok(C.complete && !C.stats.tuned && /short:/.test(bestC || ''), `control: untuned run completes, not tuned, best kept (${bestC})`);
   // sim-changing tweak: replay uses the attempt snapshot
   await page.evaluate(() => { PL.Tweak.set('G', 1700); PL_TEST.startMode('short', 4242); });
   const sim = await page.evaluate(() => { PL_TEST.tick(30); const r = PL_TEST.report(); return { tuned: /tuned: YES/.test(r), hash: 1 }; });

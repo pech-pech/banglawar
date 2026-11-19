@@ -12,8 +12,8 @@ const PL = (globalThis.PL = globalThis.PL || {});
     ['platCapR', 'platform-capR.webp', 47, 96, 0, 0],
     ['platFull', 'platform-full.webp', 293, 96, 0, 0],
     ['ledge', 'ledge-crumble.webp', 160, 30, 0, 0],
-    ['spikes', 'spikes-row4.webp', 70, 48, 0, 0],
-    ['crusher', 'crusher-head.webp', 160, 233, 0.5, 0],
+    ['spikes', 'spikes-row4.webp', 101, 48, 0, 0],
+    ['crusher', 'crusher-head.webp', 160, 143, 0.5, 0],
     ['gate', 'gate-aurora.webp', 95, 200, 0, 0],
     ['portal', 'portal-moon.webp', 103, 128, 0.5, 0.5],
     ['pipFull', 'pip-full.webp', 50, 48, 0.5, 0.5],
@@ -28,8 +28,12 @@ const PL = (globalThis.PL = globalThis.PL || {});
     ['heroWin', 'hero-win.webp', 174, 192, 0.5, 0.5],
     // full-flame menu art
     ['heroIdleFlame', 'hero-idle-flame.webp', 256, 256, 0.5, 0.5],
-    ['heroWinFlame', 'hero-win-flame.webp', 256, 256, 0.5, 0.5]
-  ].map(function (r) { return { name: r[0], file: r[1], w: r[2], h: r[3], ax: r[4], ay: r[5] }; });
+    ['heroWinFlame', 'hero-win-flame.webp', 256, 256, 0.5, 0.5],
+    // OPTIONAL art (r[6] = 1): a missing file is not an error: no 'ART: fallback' chip, missing() skips it, callers just get null from get()
+    ['lantern', 'lantern.webp', 64, 128, 0.5, 0, 1],      // hangs from the top edge (chain cut at the top)
+    ['stoneTile', 'stone-tile.webp', 128, 128, 0, 0, 1],  // seamless 128 px brick tile (draw.js looks up stoneTile)
+    ['corbel', 'corbel.webp', 23, 40, 0, 0, 1]            // decor bracket, nothing draws it yet
+  ].map(function (r) { return { name: r[0], file: r[1], w: r[2], h: r[3], ax: r[4], ay: r[5], opt: !!r[6] }; });
 
   const byName = {};
   M.forEach(function (m) { byName[m.name] = m; });
@@ -40,8 +44,9 @@ const PL = (globalThis.PL = globalThis.PL || {});
   const S = {
     TILE_H: 36,               // on-screen height of a full platform course (96 art px) in game px
     TOP_SRC: 40,              // art rows used as the top course of a tall block (gold bar + first brick row)
-    STONE: '#ddd0d6',         // flat moonstone fill under the top course (mean of platform-mid)
-    LINE: 'rgba(118,100,128,0.30)',
+    STONE: '#b0a6c2',         // moonstone base for platforms (luma ~0.66: below hero gold ~0.76 and gold edge ~0.89)
+    WALL: '#8b82a3',          // room outer walls: a little darker so platforms pop
+    LINE: 'rgba(60,48,84,0.40)',   // mortar
     LIGHT: 'rgba(255,255,255,0.22)'
   };
 
@@ -78,7 +83,9 @@ const PL = (globalThis.PL = globalThis.PL || {});
     get: function (name) { return imgs[name] || null; },
     has: function (name) { return !!imgs[name]; },
     // names not available (before load(): everything). UI shows an "ART: fallback" chip when length > 0.
-    missing: function () { return M.filter(function (m) { return !imgs[m.name]; }).map(function (m) { return m.name; }); },
+    // optional pieces (opt) are never listed here, so a missing optional file shows no chip; see missingOptional().
+    missing: function () { return M.filter(function (m) { return !m.opt && !imgs[m.name]; }).map(function (m) { return m.name; }); },
+    missingOptional: function () { return M.filter(function (m) { return m.opt && !imgs[m.name]; }).map(function (m) { return m.name; }); },
     reasons: function () { return failed; },
     attempted: function () { return attempted; },
     _reset: function () { for (const k in imgs) delete imgs[k]; for (const k in failed) delete failed[k]; attempted = false; },
@@ -109,10 +116,15 @@ const PL = (globalThis.PL = globalThis.PL || {});
       default: return 0;
     }
   };
+  // natural pixel size of a loaded piece (falls back to the manifest size; injected test art uses {w,h})
+  api.natSize = function (name) {
+    const im = imgs[name], m = byName[name] || { w: 1, h: 1 };
+    return { w: (im && (im.naturalWidth || im.width || im.w)) || m.w, h: (im && (im.naturalHeight || im.height || im.h)) || m.h };
+  };
   api.spikePlan = function (rect, dir) {
     const vert = (dir === 'left' || dir === 'right' || dir === 1 || dir === 3);
     const len = vert ? rect.h : rect.w, th = vert ? rect.w : rect.h;
-    const unit = th * 70 / 48;
+    const ns = api.natSize('spikes'), unit = th * ns.w / ns.h;
     const n = Math.max(1, Math.round(len / unit));
     return { vert: vert, len: len, th: th, n: n, cell: len / n };
   };
@@ -205,7 +217,7 @@ const PL = (globalThis.PL = globalThis.PL || {});
     });
   };
 
-  // crusher: head faces `dir` (default 'down'); piston stem stretches to fill the rect.
+  // crusher: head faces `dir` (default 'down'); whole image is the head (collar on top), drawn at its natural aspect.
   api.drawCrusher = function (ctx, rect, dir) {
     const im = imgs.crusher; if (!im || !rect) return false;
     return safe(function () {
@@ -214,10 +226,8 @@ const PL = (globalThis.PL = globalThis.PL || {});
       const across = vert ? rect.h : rect.w, along = vert ? rect.w : rect.h;
       const ang = { up: Math.PI, right: -Math.PI / 2, left: Math.PI / 2, down: 0, 0: Math.PI, 1: -Math.PI / 2, 2: 0, 3: Math.PI / 2 }[dir == null ? 'down' : dir] || 0;
       ctx.save(); ctx.translate(rect.x + rect.w / 2, rect.y + rect.h / 2); ctx.rotate(ang);
-      const HEAD = 62, headH = Math.min(along, across * (233 - HEAD) / 160), stemH = along - headH;
-      const x0 = -across / 2, y0 = -along / 2;
-      if (stemH > 0.5) ctx.drawImage(im, 0, 0, 160, 40, x0, y0, across, stemH + 1);
-      ctx.drawImage(im, 0, HEAD, 160, 233 - HEAD, x0, y0 + stemH, across, headH);
+      const ns = api.natSize('crusher'), headH = across * ns.h / ns.w;   // natural aspect; front face flush, overhang goes backwards
+      ctx.drawImage(im, 0, 0, ns.w, ns.h, -across / 2, along / 2 - headH, across, headH);
       ctx.restore(); return true;
     });
   };

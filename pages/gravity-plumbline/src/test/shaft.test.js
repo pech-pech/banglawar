@@ -50,9 +50,10 @@ t('slot table: tier per slot, hard slot hard, rest slot rest, no relaxed rules (
     const p = PL.pickShaft(s, n); assert.strictEqual(p.level, 0, 'relaxed at seed ' + s + ' n ' + n);
     p.templates.forEach((x, i) => {
       if (want[n][i]) assert.strictEqual(x.tier, want[n][i], 'seed ' + s + ' slot ' + i);
-      if (p.slots[i] === 'T3*') assert(x.hard, x.id + ' not hard');
+      // new rule (review/shaft-pick-beta.md): T3* is any tier-3 room; 7-room shafts must hold at least one hard room
       if (p.slots[i] === 'T2r') assert(x.rest, x.id + ' not rest');
     });
+    if (n === 7) assert(p.templates.some((x) => x.hard), 'no hard room, seed ' + s);
   }
 });
 t('adjacent rooms differ in family and in mirrored flag; first crusher is t03, first crumble is t18; exit clear of spikes', () => {
