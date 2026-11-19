@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<title>Wellhand</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#070b14">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="icon" href="icon-192.png"><link rel="apple-touch-icon" href="icon-192.png">
+<style>
+html,body{margin:0;height:100%;background:#070b14;color:#dff;font-family:system-ui,sans-serif;overflow:hidden;overscroll-behavior:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+#c{position:fixed;inset:0;width:100%;height:100%;touch-action:none;display:block}
+.tb{position:fixed;top:4px;width:64px;height:48px;border:1px solid #3a5a7a;border-radius:10px;background:rgba(20,34,52,.85);color:#bfe6ff;font:700 15px system-ui,sans-serif;touch-action:manipulation}
+#btnCopy{left:4px}#btnPause{right:4px}
+#ov{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(5,8,16,.88);overflow:auto;z-index:5}
+#ov.on{display:flex}
+#ov .card{width:min(92vw,420px);max-height:96vh;overflow:auto;padding:16px;box-sizing:border-box}
+#ov h1{margin:0 0 6px;font-size:28px;letter-spacing:.08em;color:#9fd0ff}
+#ov p,#ov li,#ov label{font-size:14px;line-height:1.35;color:#c8dcee}
+#ov button,#ov input,#ov textarea{font:600 16px system-ui,sans-serif;min-height:48px;min-width:56px;border-radius:10px;border:1px solid #3a5a7a;background:#14243a;color:#dff;padding:6px 12px;margin:4px 4px 4px 0;box-sizing:border-box}
+#ov button.pri{background:#1f6f8a;border-color:#5ef0d0}
+#ov input{width:100%}#ov textarea{width:100%;min-height:80px;font:11px monospace}
+#ov .row{display:grid;grid-template-columns:1fr 1fr;gap:0 8px}
+#toast{position:fixed;left:50%;bottom:14%;transform:translateX(-50%);background:#14243a;border:1px solid #5ef0d0;color:#dff;padding:10px 16px;border-radius:10px;font-size:15px;display:none;z-index:9}
+</style></head>
+<body>
+<canvas id="c"></canvas>
+<button id="btnCopy" class="tb" aria-label="Copy report">Copy</button>
+<button id="btnPause" class="tb" aria-label="Pause">II</button>
+<div id="ov"></div><div id="toast"></div>
+<script src="sim.js"></script>
+<script src="render.js"></script>
+<script src="tests.js"></script>
+<script src="app.js"></script>
+<script>if('serviceWorker' in navigator&&isSecureContext)addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(e=>console.warn('sw',e)));</script>
+</body></html>
