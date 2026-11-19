@@ -278,7 +278,7 @@ async function extras(browser, port) {
   for (let i = 0; i < 4; i++) { await h.ev(() => PL_TEST.kill('spike')); await sleep(450); }
   await sleep(2200); ok(await h.ev(() => PL_TEST.nudging()) === false, 'no nudge before the 5th death');
   await h.ev(() => PL_TEST.kill('spike')); await sleep(2400); await h.frame(); await h.txt(); await h.frame(); tx = await h.txt();
-  ok(await h.ev(() => PL_TEST.nudging()) === true && /guide line/.test(tx) && /Show the line/.test(tx) && /No thanks/.test(tx), '5th death in a room offers the guide line');
+  console.log('DBG', await h.ev(() => PL_TEST.nudging()), await h.screen(), tx.slice(0,200)); ok(await h.ev(() => PL_TEST.nudging()) === true && /guide line/.test(tx) && /Show the line/.test(tx) && /No thanks/.test(tx), '5th death in a room offers the guide line');
   await h.tap('stay'); await sleep(200);
   ok(await h.screen() === 'play' && (await h.ev(() => PL_TEST.aid()))[0] === true, 'Show the line turns the aim arc on for this room');
   await h.ev(() => { PL_TEST.winRoom(); PL_TEST.advance(); }); await sleep(200);

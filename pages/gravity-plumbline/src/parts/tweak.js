@@ -31,13 +31,15 @@ PL.store = (function () {
     return setRaw(key, JSON.stringify(Object.assign({ v: ver }, data)));
   }
   function remove(key) { try { const s = ls(); if (s) s.removeItem(key); } catch (e) {} }
-  return { get, getRaw, setRaw, load, save, remove };
+  function has() { return !!ls(); }
+  return { get, getRaw, setRaw, load, save, remove, has };
 })();
 
 PL.Tweak = (function () {
   'use strict';
   const KEY = 'plumbline.tweaks.v1', PKEY = 'plumbline.presets.v1', VER = 1, PVER = 1, MAXP = 12, NAMEMAX = 24;
-  const defs = {}, order = [], vals = {}, listeners = [];
+  const defs = Object.create(null), order = [], vals = Object.create(null), listeners = [], MAXCODE = 8192;
+  const own = (o, k) => !!o && Object.prototype.hasOwnProperty.call(o, k);
   let readOnly = false, loading = false, mem = null, presetsMem = [];
 
   function round(v) { return Number((+v).toFixed(6)); }
@@ -67,7 +69,7 @@ PL.Tweak = (function () {
     defs[id] = d;
     const had = Object.prototype.hasOwnProperty.call(vals, id) ? clamp(d, vals[id]) : undefined;
     vals[id] = had !== undefined ? had : d.def;
-    if (mem && mem[id] !== undefined) { const v = clamp(d, mem[id]); if (v !== undefined) vals[id] = v; }
+    if (mem && own(mem, id)) { const v = clamp(d, mem[id]); if (v !== undefined) vals[id] = v; }
     push(id, vals[id]);
     return d;
   }
@@ -93,14 +95,14 @@ PL.Tweak = (function () {
   function isDirty(only) { return Object.keys(diff(only)).length > 0; }
   function apply(obj) {
     let n = 0;
-    for (const id in obj || {}) if (defs[id]) { set(id, obj[id]); n++; }
+    for (const id in obj || {}) if (own(obj, id) && defs[id] && clamp(defs[id], obj[id]) !== undefined) { set(id, obj[id]); n++; }
     return n;
   }
   function persist() {
     if (loading) return;
     // keep stored values of ids not registered yet (a later part may register them)
     const keep = {};
-    for (const id in mem || {}) if (!defs[id]) keep[id] = mem[id];
+    for (const id in mem || {}) if (own(mem, id) && !defs[id] && id !== '__proto__') keep[id] = mem[id];
     mem = Object.assign(keep, diff());
     if (!readOnly) PL.store.save(KEY, VER, { t: mem });
   }
@@ -110,19 +112,20 @@ PL.Tweak = (function () {
     if (!r.data || r.readOnly || !r.data.t || typeof r.data.t !== 'object') { mem = null; return; }
     mem = r.data.t;
     loading = true;
-    try { for (const id in mem) if (defs[id]) set(id, mem[id]); } finally { loading = false; }
+    try { for (const id in mem) if (own(mem, id) && defs[id]) set(id, mem[id]); } finally { loading = false; }
   }
   // ---- codes ----
   function b64e(s) { return typeof btoa === 'function' ? btoa(unescape(encodeURIComponent(s))) : Buffer.from(s, 'utf8').toString('base64'); }
   function b64d(s) { return typeof atob === 'function' ? decodeURIComponent(escape(atob(s))) : Buffer.from(s, 'base64').toString('utf8'); }
   function clean(t) {
     const o = {};
-    for (const id in t || {}) if (defs[id]) { const v = clamp(defs[id], t[id]); if (v !== undefined) o[id] = v; }
+    for (const id in t || {}) if (own(t, id) && defs[id]) { const v = clamp(defs[id], t[id]); if (v !== undefined) o[id] = v; }
     return o;
   }
   function encode(t) { return 'PLT1:' + b64e(JSON.stringify({ v: 1, t: clean(t || diff()) })); }
   function decode(code) {
     try {
+      if (typeof code === 'string' && code.length > MAXCODE) return null;
       const m = /^\s*PLT1:([A-Za-z0-9+/=]+)\s*$/.exec(String(code || ''));
       if (!m) return null;
       const o = JSON.parse(b64d(m[1]));
@@ -134,7 +137,7 @@ PL.Tweak = (function () {
   // replaces current values: ids not in the code go back to default. Returns ids applied, -1 if invalid.
   function importCode(code) {
     const t = decode(code); if (!t) return -1;
-    for (const id of order) if (!(id in t)) reset(id);
+    for (const id of order) if (!own(t, id)) reset(id);
     return apply(t);
   }
   // ---- presets ----
@@ -146,27 +149,37 @@ PL.Tweak = (function () {
     }
     return presetsMem;
   }
-  function writePresets() { PL.store.save(PKEY, PVER, { list: presetsMem }); }
+  // true when written (or when there is no localStorage at all: presets then live in memory only)
+  function writePresets(list) {
+    const ok = PL.store.has() ? PL.store.save(PKEY, PVER, { list }) : true;
+    if (ok) presetsMem = list;
+    return ok;
+  }
   function nameOf(n) { return String(n == null ? '' : n).trim().slice(0, NAMEMAX); }
   function listPresets() { return readPresets().map((p) => ({ name: p.name, t: clean(p.t) })); }
-  function savePreset(name, t) {
-    const nm = nameOf(name); if (!nm) return false;
-    const list = readPresets(), i = list.findIndex((p) => p.name === nm);
+  const R = (ok, reason) => ({ ok, reason: ok ? null : reason });
+  // -> {ok, reason}; reason 'blank' | 'full' | 'storage' (write failed or the stored copy is newer = read-only)
+  function savePresetR(name, t) {
+    const nm = nameOf(name); if (!nm) return R(false, 'blank');
+    const list = readPresets().slice(), i = list.findIndex((p) => p.name === nm);
     const entry = { name: nm, t: clean(t || diff()) };
     if (i >= 0) list[i] = entry;
-    else { if (list.length >= MAXP) return false; list.push(entry); }
-    writePresets(); return true;
+    else { if (list.length >= MAXP) return R(false, 'full'); list.push(entry); }
+    return R(writePresets(list), 'storage');
   }
+  function savePreset(name, t) { return savePresetR(name, t).ok; }
   function loadPreset(name) {
     const p = readPresets().find((q) => q.name === nameOf(name)); if (!p) return false;
     const t = clean(p.t);
-    for (const id of order) if (!(id in t)) reset(id);
+    for (const id of order) if (!own(t, id)) reset(id);
     apply(t); return true;
   }
-  function deletePreset(name) {
-    const list = readPresets(), i = list.findIndex((p) => p.name === nameOf(name)); if (i < 0) return false;
-    list.splice(i, 1); writePresets(); return true;
+  // -> {ok, reason}; reason 'missing' (no such preset) | 'storage'
+  function deletePresetR(name) {
+    const list = readPresets().slice(), i = list.findIndex((p) => p.name === nameOf(name)); if (i < 0) return R(false, 'missing');
+    list.splice(i, 1); return R(writePresets(list), 'storage');
   }
+  function deletePreset(name) { return deletePresetR(name).ok; }
   function ids() { return order.slice(); }
   function def(id) { return defs[id] ? Object.assign({}, defs[id]) : undefined; }
   // rows for a Settings/Tweak screen: [{group, ids:[...]}] in registration order
@@ -182,7 +195,7 @@ PL.Tweak = (function () {
     return ids2.map((id) => id + '=' + vals[id] + (id in d ? '*' : '')).join(' ') || 'none';
   }
   return { register, has, get, set, reset, resetAll, diff, isDirty, apply, encode, decode, exportCode, importCode,
-    savePreset, loadPreset, deletePreset, listPresets, ids, def, groups, onChange, reportLine, load,
+    savePreset, savePresetR, loadPreset, deletePreset, deletePresetR, listPresets, ids, def, groups, onChange, reportLine, load,
     readOnly: () => readOnly, MAX_PRESETS: MAXP, NAME_MAX: NAMEMAX };
 })();
 

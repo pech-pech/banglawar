@@ -2,8 +2,8 @@
 'use strict';
 const fs = require('fs'), path = require('path'), vm = require('vm'), assert = require('assert');
 const P = path.join(__dirname, '..', 'parts');
-function boot(store, extra) {
-  const ls = store ? { getItem: (k) => (k in store ? store[k] : null), setItem: (k, v) => { store[k] = String(v); }, removeItem: (k) => { delete store[k]; } } : undefined;
+function boot(store, extra, customLs) {
+  const ls = customLs || (store ? { getItem: (k) => (k in store ? store[k] : null), setItem: (k, v) => { store[k] = String(v); }, removeItem: (k) => { delete store[k]; } } : undefined);
   const ctx = vm.createContext({ console, Math, JSON, localStorage: ls, btoa: globalThis.btoa, atob: globalThis.atob, Buffer });
   ctx.globalThis = ctx;
   if (!store) delete ctx.localStorage;
@@ -96,6 +96,59 @@ t('presets: save/load/delete/list, max 12, name <= 24 chars, persisted', () => {
   assert(T.deletePreset('Heavy')); assert(!T.loadPreset('Heavy'));
   const s = JSON.parse(store['plumbline.presets.v1']); assert.strictEqual(s.v, 1); assert(Array.isArray(s.list));
   PL = boot(store); assert.strictEqual(PL.Tweak.listPresets().length, 11);
+});
+t('savePresetR/deletePresetR report the real write result and a reason code', () => {
+  const store = {}; const PL = boot(store), T = PL.Tweak;
+  assert.deepStrictEqual(J(T.savePresetR('a')), { ok: true, reason: null });
+  assert.deepStrictEqual(J(T.savePresetR('  ')), { ok: false, reason: 'blank' });
+  for (let i = 0; i < 12; i++) T.savePresetR('p' + i);
+  assert.deepStrictEqual(J(T.savePresetR('brand new')), { ok: false, reason: 'full' });
+  assert.strictEqual(T.savePreset('brand new'), false);
+  assert.deepStrictEqual(J(T.deletePresetR('a')), { ok: true, reason: null });
+  assert.strictEqual(T.deletePresetR('nope').ok, false);
+});
+t('preset storage failure -> false/"storage", no phantom preset; read-only newer save -> false/"storage"', () => {
+  const store = {}; const PL = boot(store), T = PL.Tweak;
+  T.savePreset('keep');
+  const ctxStore = { getItem: (k) => (k in store ? store[k] : null), setItem: () => { throw new Error('quota'); }, removeItem() {} };
+  const PL2 = boot(store, [], ctxStore), T2 = PL2.Tweak;
+  assert.deepStrictEqual(J(T2.savePresetR('x')), { ok: false, reason: 'storage' });
+  assert.strictEqual(T2.savePreset('x'), false);
+  assert.deepStrictEqual(T2.listPresets().map((p) => p.name), ['keep']);
+  assert.deepStrictEqual(J(T2.deletePresetR('keep')), { ok: false, reason: 'storage' });
+  assert.deepStrictEqual(T2.listPresets().map((p) => p.name), ['keep']);
+  const st = { 'plumbline.presets.v1': JSON.stringify({ v: 9, list: [] }) }, T3 = boot(st).Tweak;
+  assert.deepStrictEqual(J(T3.savePresetR('y')), { ok: false, reason: 'storage' });
+  assert.strictEqual(st['plumbline.presets.v1'], JSON.stringify({ v: 9, list: [] }));
+});
+t('inherited keys in codes/stores are ignored (constructor, toString, __proto__)', () => {
+  const T = boot({}).Tweak;
+  for (const k of ['constructor', 'toString', 'hasOwnProperty', 'valueOf']) assert.strictEqual(T.has(k), false, k);
+  const mk = (txt) => 'PLT1:' + Buffer.from(txt).toString('base64');
+  const code = mk('{"v":1,"t":{"constructor":5,"toString":1,"__proto__":{"G":1700},"valueOf":2}}');
+  assert.deepStrictEqual(J(T.decode(code)), {});
+  assert.strictEqual(T.importCode(code), 0); assert(!T.isDirty());
+  assert.strictEqual(T.apply(JSON.parse('{"constructor":1,"__proto__":{"G":1700}}')), 0);
+  assert.strictEqual(T.get('constructor'), undefined); assert.strictEqual(T.set('toString', 1), undefined);
+  const st = { 'plumbline.tweaks.v1': '{"v":1,"t":{"constructor":3,"__proto__":{"G":2000}}}' };
+  assert(!boot(st).Tweak.isDirty());
+});
+t('import code: clamp, snap, non-finite rejected, over 8 KB rejected', () => {
+  const T = boot({}).Tweak, mk = (o) => 'PLT1:' + Buffer.from(JSON.stringify({ v: 1, t: o })).toString('base64');
+  assert.strictEqual(T.importCode(mk({ G: 99999, CAP: 612 })), 2);
+  assert.strictEqual(T.get('G'), 2400); assert.strictEqual(T.get('CAP'), 600);
+  assert.deepStrictEqual(J(T.decode(mk({ G: null, CAP: '700', DRAG: 1e999 }))), {});
+  const big = mk({ G: 1700, pad: 'x'.repeat(9000) });
+  assert(big.length > 8192); assert.strictEqual(T.decode(big), null); assert.strictEqual(T.importCode(big), -1);
+});
+t('isDirty(sim): only physics/rooms/timing ids; input/camera/preview never count', () => {
+  const T = boot({}).Tweak;
+  const nonSim = ['PAD_KEY', 'PAD_DIVE', 'PAD_GAP', 'HAPTIC_MS', 'PATH_S', 'LOOK_WIDE', 'LOOK_TALL', 'MAX_W', 'POS_T', 'ZOOM_T', 'BOB_MAX_Y', 'FIT_MIN'];
+  for (const id of nonSim) { const d = T.def(id); T.set(id, d.max === d.def ? d.min : d.max); }
+  assert(T.isDirty()); assert.strictEqual(T.isDirty('sim'), false); T.resetAll();
+  const sim = T.ids().filter((id) => T.def(id).sim); assert.strictEqual(sim.length, 23);
+  for (const id of sim) { const d = T.def(id); T.set(id, d.max === d.def ? d.min : d.max); assert(T.isDirty('sim'), id); T.reset(id); assert(!T.isDirty('sim'), id); }
+  assert(sim.includes('SHAFT_N') && sim.includes('G') && sim.includes('CRUSHER_PERIOD'));
 });
 t('tweaks persist across reload (versioned key), corrupt store -> defaults', () => {
   const store = {}; let PL = boot(store);
