@@ -313,6 +313,14 @@ async function extras(browser, port) {
     { await h.ev(() => PL_TEST.room(1)); const r = await h.ev(() => { const c0 = PL_TEST.getState().charges; PL_TEST.inject([{ k: 'flip', dir: (PL_TEST.getState().g + 1) % 4 }]); PL_TEST.tick(4); PL_TEST.inject([{ k: 'flip', dir: (PL_TEST.getState().g + 1) % 4 }]); let n = 0; while (PL_TEST.getState().charges >= c0 && n++ < 60) PL_TEST.tick(1); const spent = PL_TEST.getState().charges; while (PL_TEST.getState().charges <= spent && n++ < 900) PL_TEST.tick(1); return { spent, now: PL_TEST.getState().charges, pop: PL_TEST.pipPop(), n }; });
       ok(r.now > r.spent && Math.abs(r.pop - 0.001) < 1e-9, `${tg}: pip pop starts at 0.001 when a move is refilled (moves ${r.spent} -> ${r.now}, pop ${r.pop}, ${r.n} ticks)`);
       await sleep(400); ok(await h.ev(() => PL_TEST.pipPop()) === 0, `${tg}: pip pop returns to 0`); }
+    // particle fallback contract: Vfx draws ripple / pipSpend / medal in full, lite and reduced (local pops stay 0); only quality OFF uses the local fallback
+    for (const q of ['full', 'lite', 'off']) {
+      const r = await h.ev((a) => { const [q, k] = a; PL.Vfx.setQuality(q); PL_TEST.room(1); const p0 = PL_TEST.pops(), v0 = PL.Vfx.stats().particles; PL.Input.down(k.x + k.w / 2, k.y + k.h / 2, 9); PL.Input.up && PL.Input.up(9); return { q: PL.Vfx.stats().quality, dp: PL_TEST.pops() - p0, dv: PL.Vfx.stats().particles - v0 }; }, [q, key]);
+      if (q === 'off') ok(r.dp > 0 && r.dv === 0, `${tg}: quality ${r.q}: ripple uses the local fallback (local +${r.dp}, vfx +${r.dv})`);
+      else ok(r.dp === 0 && (q === 'lite' || r.dv > 0), // lite: a full pool evicts a trail particle, so the count may stay level; the point is no local double draw
+         `${tg}: quality ${r.q}: ripple comes from Vfx only, no double draw (local +${r.dp}, vfx +${r.dv})`);
+    }
+    await h.ev(() => PL.Vfx.setQuality('full')); await sleep(300);
     // overlays: pause, nudge
     // Shared-scrim pixel check: find the brightest play-field pixel (outside the centred card zone, pad and HUD), then require the same spot to be scrim-dark under every overlay.
     const findSpot = async () => { await h.frame(); await h.frame(); return h.ev(([W, H]) => {

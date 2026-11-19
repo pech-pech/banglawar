@@ -793,9 +793,15 @@ const PL = (globalThis.PL = globalThis.PL || {});
   // PL.Vfx.fire(name,{x,y}) (screen px; names ripple / pipSpend / medal). Vfx contract: these three add particles in full, lite and reduced
   // and 0 only when quality is OFF. Returns true when Vfx made particles; the local 2D fallback below draws only when it did not, i.e. quality OFF
   // (or the vfx build does not have the names yet: the guard keeps a missing function from ever throwing). Reduced motion: addPop still skips it.
+  const vfxSeen = {}; // names that have produced particles at least once (so they exist in this vfx build)
   function vfxFire(name, x, y) {
     const V = PL.Vfx; if (!vfxReady || !V || typeof V.fire !== 'function' || typeof V.stats !== 'function') return false;
-    try { const n0 = V.stats().particles; V.fire(name, { x, y }); return V.stats().particles > n0; } catch (_) { return false; }
+    try {
+      const n0 = V.stats().particles; V.fire(name, { x, y }); const st = V.stats();
+      if (st.particles > n0) { vfxSeen[name] = true; return true; }
+      // a full pool evicts an old particle for the new one (count does not rise): once a name has proven it exists, trust it unless quality is OFF
+      return !!vfxSeen[name] && st.quality !== 'off';
+    } catch (_) { return false; }
   }
   function addPop(o) { if (reducedNow() || pops.length > 80) return; pops.push(o); }
   function ripple(name) { const r = popRect(name); if (r && !vfxFire('ripple', r.x + r.w / 2, r.y + r.h / 2)) addPop({ k: 'ripple', x: r.x + r.w / 2, y: r.y + r.h / 2, r0: Math.min(r.w, r.h) * 0.3, r1: Math.min(r.w, r.h) * 0.95, age: 0, life: 0.35 }); }
