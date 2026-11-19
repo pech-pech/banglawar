@@ -1,0 +1,102 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Moonstep - Title</title><style>
+:root{--paper:#f8f1dd;--paper2:#f0e7d1;--edge:#d9cfb8;--ink:#15171f;--ink2:#0d0f16;--moon:#bcd0ee;--moon2:#a9bcdc;--ochre:#8a5a14;--verm:#8e2a1c;
+--serif:Georgia,'Times New Roman',serif;--sans:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+--best-medal:'Silver';--tap:56px}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--edge)}
+.screen{position:relative;width:344px;height:882px;overflow:hidden;background:
+ radial-gradient(ellipse at 50% 45%,rgba(255,250,232,.6),rgba(176,150,104,.3) 100%),var(--paper2);font-family:var(--serif);color:var(--ink)}
+.screen::before{content:"";position:absolute;inset:0;background:url("data:image/svg+xml;utf8,%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20width%3D'220'%20height%3D'220'%3E%3Cfilter%20id%3D'n'%3E%3CfeTurbulence%20type%3D'fractalNoise'%20baseFrequency%3D'.9'%20numOctaves%3D'2'%20seed%3D'4'%2F%3E%3CfeColorMatrix%20values%3D'0%200%200%200%20.45%20%200%200%200%200%20.35%20%200%200%200%200%20.2%20%200%200%200%20.22%200'%2F%3E%3C%2Ffilter%3E%3Crect%20width%3D'220'%20height%3D'220'%20filter%3D'url(%23n)'%2F%3E%3C%2Fsvg%3E");pointer-events:none;z-index:50;mix-blend-mode:multiply}
+.screen::after{content:"";position:absolute;inset:0;background:radial-gradient(ellipse at 50% 50%,rgba(60,40,20,0) 55%,rgba(60,40,20,.2));pointer-events:none;z-index:51}
+svg.defs{position:absolute;width:0;height:0}
+.abs{position:absolute}
+/* buttons */
+.btn{position:relative;display:flex;align-items:center;justify-content:center;gap:10px;height:var(--tap);min-width:var(--tap);padding:0 20px;border:0;background:none;font:700 19px/1 var(--serif);color:var(--ink);letter-spacing:.02em;cursor:pointer;-webkit-tap-highlight-color:transparent;text-decoration:none}
+.btn::before{content:"";position:absolute;inset:0;border:2px solid var(--ink);border-radius:15px;background:var(--paper);filter:url(#wob);box-shadow:0 3px 6px rgba(21,23,31,.22)}
+.btn::after{content:"";position:absolute;inset:4px;border:1px solid rgba(21,23,31,.5);border-radius:11px;filter:url(#wob2)}
+.btn>*{position:relative;z-index:1}
+.btn.primary{height:68px;font-size:25px;color:var(--paper)}
+.btn.primary::before{background:var(--ink2)}
+.btn.primary::after{border-color:rgba(248,241,221,.5)}
+.btn.primary .ico{stroke:var(--moon)}
+.btn.ghost::before{background:transparent;box-shadow:none;border-style:dashed;border-width:1.5px}
+.btn.ghost::after{display:none}
+.btn small{font:italic 12px var(--serif);opacity:.65;font-weight:400}
+.btn:focus-visible{outline:none}
+.btn:focus-visible::before{box-shadow:0 0 0 3px rgba(188,208,240,.95),0 0 14px 5px rgba(169,188,220,.9)}
+.btn:active::before{transform:translateY(1px)}
+.ico{width:24px;height:24px;fill:none;stroke:var(--ink);stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.num{font-family:var(--sans);font-variant-numeric:tabular-nums}
+.cap{font:italic 13px var(--serif);color:rgba(21,23,31,.7)}
+.dotline{height:0;border-top:1.5px dotted rgba(21,23,31,.55)}
+/* tide */
+.tide{position:absolute;left:0;right:0;bottom:0;background:var(--ink2);z-index:5}
+.tide::before{content:"";position:absolute;left:0;right:0;top:-12px;height:14px;background:var(--ink2);filter:url(#wob3)}
+.tide .txt{position:absolute;left:0;right:0;text-align:center;font:italic 12px var(--serif);color:rgba(205,220,245,.7)}
+.halo{animation:glow 4.5s ease-in-out infinite}
+@keyframes glow{50%{opacity:.7}}
+@media (prefers-reduced-motion:reduce){.halo{animation:none}}
+.sheet{position:absolute;left:12px;right:12px;z-index:20}
+.sheet .frame{position:absolute;inset:0;background:var(--paper);border:2px solid var(--ink);border-radius:20px;filter:url(#wob);box-shadow:0 -6px 24px rgba(21,23,31,.35)}
+.sheet .frame2{position:absolute;inset:5px;border:1px solid rgba(21,23,31,.5);border-radius:16px;filter:url(#wob2)}
+.sheet .in{position:relative;padding:22px 20px}
+</style></head><body><svg class="defs" aria-hidden="true"><defs>
+<filter id="wob" x="-5%" y="-5%" width="110%" height="110%"><feTurbulence type="fractalNoise" baseFrequency=".035" numOctaves="2" seed="3"/><feDisplacementMap in="SourceGraphic" scale="3.2"/></filter>
+<filter id="wob2" x="-5%" y="-5%" width="110%" height="110%"><feTurbulence type="fractalNoise" baseFrequency=".05" numOctaves="2" seed="9"/><feDisplacementMap in="SourceGraphic" scale="2.4"/></filter>
+<filter id="wob3" x="-2%" y="-100%" width="104%" height="300%"><feTurbulence type="fractalNoise" baseFrequency=".03 .12" numOctaves="3" seed="5"/><feDisplacementMap in="SourceGraphic" scale="14"/></filter>
+<filter id="wobs" x="-10%" y="-10%" width="120%" height="120%"><feTurbulence type="fractalNoise" baseFrequency=".04" numOctaves="2" seed="2"/><feDisplacementMap in="SourceGraphic" scale="2.6"/></filter>
+<radialGradient id="pearl" cx=".35" cy=".35" r=".7"><stop offset="0" stop-color="#fff"/><stop offset="1" stop-color="#bcd0ee"/></radialGradient>
+<radialGradient id="glow"><stop offset="0" stop-color="#aac4ee" stop-opacity=".6"/><stop offset=".5" stop-color="#bed0ee" stop-opacity=".22"/><stop offset="1" stop-color="#c8d7f0" stop-opacity="0"/></radialGradient>
+<radialGradient id="wash" cx=".35" cy=".3" r=".9"><stop offset="0" stop-color="#e2e8f4"/><stop offset=".55" stop-color="#8e98b0"/><stop offset="1" stop-color="#343a4e"/></radialGradient>
+<pattern id="hatch" width="3" height="3" patternUnits="userSpaceOnUse" patternTransform="rotate(-40)"><line x1="0" y1="0" x2="0" y2="3" stroke="#15171f" stroke-width=".8" opacity=".6"/></pattern>
+</defs></svg><div class="screen" id="title">
+<!-- sky art -->
+<svg class="abs" style="left:0;top:0" width="344" height="560" viewBox="0 0 344 560" aria-hidden="true">
+ <g fill="none" stroke="#15171f" stroke-opacity=".38" stroke-width="1.3" stroke-dasharray="1 6" stroke-linecap="round" filter="url(#wobs)">
+  <circle cx="172" cy="300" r="150"/><circle cx="172" cy="300" r="112" stroke-opacity=".25"/></g>
+ <g filter="url(#wobs)"><circle cx="172" cy="300" r="165.6" fill="url(#glow)" class="halo"/>
+<circle cx="172" cy="300" r="72" fill="url(#wash)" stroke="#15171f" stroke-width="2.4"/>
+<circle cx="172" cy="300" r="75" fill="none" stroke="#15171f" stroke-opacity=".5" stroke-width=".8"/>
+<ellipse cx="146.8" cy="292.8" rx="20.160000000000004" ry="16.560000000000002" fill="url(#hatch)" stroke="#15171f" stroke-width="1.1"/>
+<ellipse cx="193.6" cy="325.2" rx="15.84" ry="12.959999999999999" fill="url(#hatch)" stroke="#15171f" stroke-width="1.1"/>
+<ellipse cx="179.2" cy="264" rx="10.799999999999999" ry="8.64" fill="url(#hatch)" stroke="#15171f" stroke-width="1"/></g>
+ <path d="M92 472 Q 70 410 112 372" fill="none" stroke="#15171f" stroke-width="2.2" stroke-dasharray="1 8" stroke-linecap="round" opacity=".85"/>
+ <g transform="translate(112 372) scale(1)"><circle r="30" fill="url(#glow)"/><circle r="9" fill="url(#pearl)" stroke="#15171f" stroke-width="2.2"/><circle r="15" fill="none" stroke="#8a5a14" stroke-opacity=".75" stroke-width="2"/></g>
+ <g filter="url(#wobs)"><circle cx="296" cy="430" r="14" fill="url(#wash)" stroke="#15171f" stroke-width="1.8"/><circle cx="296" cy="430" r="17" fill="none" stroke="#15171f" stroke-opacity=".45" stroke-width=".7"/></g>
+ <g stroke="#8a5a14" stroke-width="3" stroke-linecap="round"><path d="M172 222v-12M232 262l9-7M112 262l-9-7"/></g>
+</svg>
+<div class="abs" style="top:46px;left:0;right:0;text-align:center">
+ <div class="cap" style="letter-spacing:.3em;text-transform:uppercase;font-size:11px;font-style:normal">a climb by moonlight</div>
+ <h1 style="margin:10px 0 0;font:700 54px/1 var(--serif);letter-spacing:.01em;text-shadow:1px 1px 0 rgba(21,23,31,.18)">Moonstep</h1>
+ <div style="width:140px;margin:12px auto 0" class="dotline"></div>
+ 
+</div>
+<!-- best chip -->
+<div class="abs" style="top:152px;left:0;right:0;display:flex;justify-content:center">
+ <div style="position:relative;padding:8px 18px 8px 10px;display:flex;align-items:center;gap:10px;min-height:44px">
+  <div style="position:absolute;inset:0;border:2px solid var(--ink);border-radius:22px;background:var(--paper);filter:url(#wob2)"></div>
+  <svg width="26" height="26" viewBox="-13 -13 26 26" style="position:relative"><circle r="11" fill="url(#pearl)" stroke="#15171f" stroke-width="2"/><text y="4" text-anchor="middle" font-family="Georgia,serif" font-weight="700" font-size="11" fill="#15171f">II</text></svg>
+  <span style="position:relative;display:flex;align-items:baseline;gap:6px"><span class="cap" style="font-size:12px">best</span><b class="num" style="font-size:19px">1,284</b><i style="font-size:12px">m</i><span class="cap" style="font-size:12px">· Silver</span></span>
+ </div>
+</div>
+<!-- menu, lower third -->
+<div class="abs" style="left:24px;right:24px;top:550px;display:flex;flex-direction:column;gap:12px">
+ <!-- seed row -->
+ <div style="display:flex;gap:10px;align-items:center">
+  <label class="cap" style="width:36px;font-size:12px">seed</label>
+  <div style="position:relative;flex:1;height:56px;display:flex;align-items:center;padding:0 16px">
+   <div style="position:absolute;inset:0;border:2px solid var(--ink);border-radius:14px;background:rgba(248,241,221,.7);filter:url(#wob2)"></div>
+   <input value="moon-4821" aria-label="Seed" spellcheck="false" style="position:relative;width:100%;border:0;background:none;outline:none;font:600 17px var(--sans);letter-spacing:.04em;color:var(--ink)">
+  </div>
+  <button class="btn" style="width:56px;padding:0" aria-label="New random seed"><svg class="ico" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="3"/><circle cx="9" cy="9" r="1"/><circle cx="15" cy="15" r="1"/><circle cx="15" cy="9" r="1"/><circle cx="9" cy="15" r="1"/></svg></button>
+ </div>
+ <button class="btn primary"><svg class="ico" style="fill:#bcd0ee;stroke:none" viewBox="0 0 24 24"><path d="M7 4l12 8-12 8z" fill="currentColor"/></svg><span>Climb</span></button>
+ <div style="display:flex;gap:12px">
+  <button class="btn" style="flex:1;flex-direction:column;gap:2px;height:60px"><span>Daily seed</span><small class="num">19 Nov</small></button>
+  <button class="btn" style="flex:1;flex-direction:column;gap:2px;height:60px"><span>Records</span><small>last 20</small></button>
+ </div>
+ <a class="btn ghost" style="font-size:17px"><svg class="ico" viewBox="0 0 24 24"><path d="M4 5c3-1 6-1 8 1 2-2 5-2 8-1v13c-3-1-6-1-8 1-2-2-5-2-8-1z"/><path d="M12 6v13"/></svg><span>How to play</span></a>
+</div>
+<div class="tide" style="height:30px"><div class="txt" style="top:7px"><span class="num">v0.1</span> &nbsp;·&nbsp; ?seed= shares a climb</div></div>
+
+</div></body></html>

@@ -4,15 +4,14 @@
   var C = Moonstep.C;
   var DT = C.DT;
   var KEY = 'moonstep.v1';
-  var BANDS = [[150, 'Bronze'], [400, 'Silver'], [800, 'Gold'], [1500, 'Moon']];
 
   var canvas = document.getElementById('c');
   var ctx = canvas.getContext('2d');
   var reducedMQ = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : null;
-  function reduced() { return !!(reducedMQ && reducedMQ.matches); }
+  function reduced() { return !!(reducedMQ && reducedMQ.matches) || !!store.set.reduce; }
 
   // ---------- storage ----------
-  var store = { best: Object.create(null), attempts: [], set: { assist: true, sound: true, tide: 1 } };
+  var store = { best: Object.create(null), attempts: [], set: { assist: true, sound: true, tide: 1, reduce: false }, flags: Object.create(null), cnt: Object.create(null), medals: Object.create(null) };
   try {
     var raw = localStorage.getItem(KEY);
     if (raw) {
@@ -20,12 +19,35 @@
       if (o && typeof o === 'object') {
         if (o.best && typeof o.best === 'object') for (var bk in o.best) if (typeof o.best[bk] === 'number') store.best[bk] = o.best[bk];
         if (Array.isArray(o.attempts)) store.attempts = o.attempts.slice(-20);
-        if (o.set) for (var k in o.set) store.set[k] = o.set[k];
+        if (o.set) for (var k in o.set) if (k !== '__proto__') store.set[k] = o.set[k];
+        ['flags', 'cnt', 'medals'].forEach(function (f) { if (o[f] && typeof o[f] === 'object') for (var q in o[f]) if (f === 'flags' || typeof o[f][q] === 'number') store[f][q] = o[f][q]; });
         if (store.set.tide !== 0.75 && store.set.tide !== 1 && store.set.tide !== 1.25) store.set.tide = 1;
       }
     }
   } catch (e) {}
-  function save() { try { localStorage.setItem(KEY, JSON.stringify(store)); } catch (e) {} }
+  function mergeFrom(raw) {
+    try {
+      var o = JSON.parse(raw);
+      if (!o || typeof o !== 'object') return;
+      if (o.best && typeof o.best === 'object') for (var bk in o.best) if (typeof o.best[bk] === 'number' && !(o.best[bk] <= (store.best[bk] || 0))) store.best[bk] = o.best[bk];
+      ['cnt', 'medals'].forEach(function (f) { if (o[f] && typeof o[f] === 'object') for (var q in o[f]) if (typeof o[f][q] === 'number' && !(o[f][q] <= (store[f][q] || 0))) store[f][q] = o[f][q]; });
+      if (Array.isArray(o.attempts)) {
+        var seen = {}; store.attempts.forEach(function (a) { seen[a && a.ts] = 1; });
+        o.attempts.forEach(function (a) { if (a && typeof a === 'object' && !seen[a.ts]) { store.attempts.push(a); seen[a.ts] = 1; } });
+        store.attempts.sort(function (a, b) { return (a.ts || 0) - (b.ts || 0); });
+        store.attempts = store.attempts.slice(-20);
+      }
+    } catch (e) {}
+  }
+  function save(noMerge) {
+    try {
+      if (!noMerge) { var cur = localStorage.getItem(KEY); if (cur) mergeFrom(cur); }
+      localStorage.setItem(KEY, JSON.stringify(store));
+    } catch (e) {}
+  }
+  window.addEventListener('storage', function (e) {
+    if (e.key === KEY && e.newValue) { mergeFrom(e.newValue); try { if (typeof ui !== 'undefined' && ui && ui.refresh) ui.refresh(); } catch (x) {} }
+  });
 
   // ---------- audio helper ----------
   function au(fn) {
@@ -33,6 +55,17 @@
     if (!a || typeof a[fn] !== 'function') return;
     try { a[fn].apply(a, Array.prototype.slice.call(arguments, 1)); } catch (e) {}
   }
+
+  // ---------- fx ----------
+  var fx = (typeof MoonFX !== 'undefined') ? MoonFX.make({ reduced: reduced() }) : null;
+  if (reducedMQ && reducedMQ.addEventListener && typeof MoonFX !== 'undefined') {
+    reducedMQ.addEventListener('change', function () { fx = MoonFX.make({ reduced: reduced() }); });
+  }
+  if (reducedMQ && reducedMQ.addEventListener) {
+    reducedMQ.addEventListener('change', function () { try { ui.setReduced(reduced()); } catch (e) {} });
+  }
+  function fxe(name, d) { if (fx) { try { fx.event(name, d); } catch (e) {} } }
+  function w2s(x, y) { return [view.w / 2 + x * view.scale, (y - view.camY) * view.scale]; }
 
   // ---------- seed ----------
   function pad(n) { return (n < 10 ? '0' : '') + n; }
@@ -51,133 +84,51 @@
   var acc = 0, last = 0, frameTimes = [], simT = 0;
   var down = false, pointerId = null, pdx = 0, pdy = 0, pdt = 0;
   var pendDown = false, pendRev = false, pendCancel = false, ignoreUntilUp = false;
-  var prevMode = 'rim', prevJumps = 0, prevChain = 0, prevSpeed = 0, prevX = 0, prevY = 0, prevVx = 0, prevVy = 0;
+  var prevMode = 'rim', prevJumps = 0, prevChain = 0, prevSpeed = 0, prevX = 0, prevY = 0, prevVx = 0, prevVy = 0, prevBounced = false, prevMilestone = 0, prevNear = false, prevDead = 0;
   var W = 0, H = 0, dpr = 1;
 
   function newRun(sd) {
     seed = sd;
     s = Moonstep.newRun(seed, { tideScale: store.set.tide });
-    attemptNo++;
     overHandled = false; acc = 0; paused = false;
+    prevBounced = false; prevMilestone = 0; prevNear = false; prevDead = 0;
+    if (fx) { fx.clearTrail(); fx = MoonFX.make({ reduced: reduced() }); }
     prevMode = 'rim'; prevJumps = 0; prevChain = 0; prevSpeed = 0; prevX = 0; prevY = 0; prevVx = 0; prevVy = 0;
     down = false; pendDown = false; pendRev = false; pendCancel = false; ignoreUntilUp = false;
-    hideAll();
+    if (ui) ui.closeAll();
     try { var u = new URL(location.href); u.searchParams.set('seed', seed); history.replaceState(null, '', u); } catch (e) {}
-    refreshHud();
+    if (ui) refreshHud();
   }
 
-  // ---------- DOM ----------
-  var css = document.createElement('style');
-  css.textContent =
-    'html,body{margin:0;height:100%;background:#0b0e14;overflow:hidden;overscroll-behavior:none}' +
-    '#c{position:fixed;inset:0;width:100%;height:100%;touch-action:none;display:block;-webkit-user-select:none;user-select:none}' +
-    '.mx{position:fixed;font:14px/1.3 system-ui,sans-serif;color:#e8ecf4;-webkit-tap-highlight-color:transparent}' +
-    '.mxb{width:56px;height:56px;border-radius:14px;border:1px solid #556;background:#0f1424;color:#e8ecf4;font:600 13px system-ui,sans-serif;padding:0;touch-action:manipulation}' +
-    '.mxb:focus-visible,.mxbtn:focus-visible{outline:3px solid #8cf;outline-offset:2px}' +
-    '#mx-hud{left:50%;transform:translateX(-50%);max-width:calc(100% - 144px);box-sizing:border-box;top:calc(8px + env(safe-area-inset-top));text-align:center;pointer-events:none;text-shadow:0 1px 3px #000;background:rgba(10,14,24,.86);border:1px solid rgba(255,255,255,.14);border-radius:14px;padding:4px 12px 6px;color:#fff}' +
-    '#mx-h{font:700 28px system-ui,sans-serif}#mx-m,#mx-s,#mx-f{opacity:1;color:#dfe5f2;font-size:12px}#mx-f:empty{display:none}' +
-    '#mx-chain{width:120px;height:6px;margin:4px auto 0;background:rgba(255,255,255,.18);border-radius:3px;overflow:hidden}' +
-    '#mx-cf{height:100%;width:0;background:#7fe0a0}' +
-    '.mxo{inset:0;display:none;align-items:center;justify-content:center;background:rgba(5,8,14,.78);z-index:5;padding:calc(16px + env(safe-area-inset-top)) calc(16px + env(safe-area-inset-right)) calc(16px + env(safe-area-inset-bottom)) calc(16px + env(safe-area-inset-left))}' +
-    '.mxp{background:#161c2c;border:1px solid #445;border-radius:16px;padding:18px;max-width:340px;width:100%;box-sizing:border-box;max-height:100%;overflow:auto}' +
-    '.mxp h2{margin:0 0 6px;font-size:22px}.mxp p{margin:4px 0 10px}' +
-    '.mxbtn{display:block;width:100%;min-height:56px;margin:8px 0;border-radius:12px;border:1px solid #667;background:#243050;color:#fff;font:600 15px system-ui,sans-serif;touch-action:manipulation}' +
-    '.mxbtn:disabled{opacity:.45}.mxbtn.on{background:#2d6a4a;border:2px solid #9fe8b8}' +
-    '.mxgo{text-align:center}.mxgo .big{font:700 44px/1.1 system-ui,sans-serif}.mxgo .cause{margin:2px 0 10px;opacity:.9}.mxgo .grid{display:grid;grid-template-columns:1fr 1fr;gap:6px 12px;text-align:left}.mxgo .grid div{background:#0d1220;border-radius:8px;padding:6px 10px}.mxgo .grid b{display:block;font-size:11px;font-weight:600;opacity:.7;text-transform:uppercase}' +
-    '.mxrow{display:flex;gap:8px}.mxrow .mxbtn{margin:8px 0}' +
-    '.mxp input,.mxp textarea{width:100%;box-sizing:border-box;border-radius:8px;border:1px solid #667;background:#0d1220;color:#fff;font:14px monospace;padding:8px}' +
-    '.mxp textarea{height:160px}';
-  document.head.appendChild(css);
-
-  function el(tag, cls, parent, txt) {
-    var e = document.createElement(tag);
-    if (cls) e.className = cls;
-    if (txt != null) e.textContent = txt;
-    (parent || document.body).appendChild(e);
-    return e;
+  // ---------- medal bands: read from the engine at runtime (never typed here) ----------
+  var _bands = null;
+  function bands() {
+    if (_bands) return _bands;
+    var out = [], prev = '';
+    for (var hh = 0; hh <= 100000; hh++) {
+      var m = Moonstep.medal(hh);
+      if (m !== prev) { if (m) out.push({ name: m, min: hh }); prev = m; }
+    }
+    _bands = out; return out;
   }
-  var hud = el('div', 'mx', null); hud.id = 'mx-hud';
-  var hH = el('div', null, hud); hH.id = 'mx-h';
-  var hM = el('div', null, hud); hM.id = 'mx-m';
-  var hC = el('div', null, hud); hC.id = 'mx-chain';
-  var hCf = el('div', null, hC); hCf.id = 'mx-cf';
-  var hS = el('div', null, hud); hS.id = 'mx-s';
-  var hCh = el('div', null, hud); hCh.id = 'mx-f';
-
-  var bPause = el('button', 'mx mxb', null, 'Pause');
-  bPause.setAttribute('aria-label', 'Pause');
-  bPause.style.cssText = 'left:calc(8px + env(safe-area-inset-left));top:calc(8px + env(safe-area-inset-top));z-index:3';
-  var bCopy = el('button', 'mx mxb', null, 'Copy');
-  bCopy.setAttribute('aria-label', 'Copy report');
-  bCopy.style.cssText = 'right:calc(8px + env(safe-area-inset-right));top:calc(8px + env(safe-area-inset-top));z-index:3';
-
-  function overlay() { var o = el('div', 'mx mxo', null); var p = el('div', 'mxp', o); var v = { o: o, p: p }; ovs.push(v); return v; }
-  function btn(txt, parent, fn) {
-    var b = el('button', 'mxbtn', parent, txt);
-    b.addEventListener('click', function (ev) { ev.stopPropagation(); fn(b); });
-    return b;
+  function nextBand(h) { var b = bands(); for (var i = 0; i < b.length; i++) if (h < b[i].min) return b[i]; return null; }
+  function bestOverall() {
+    var mx = 0; for (var k in store.best) if (store.best[k] > mx) mx = store.best[k];
+    return { h: mx, medal: Moonstep.medal(mx) };
   }
-  var ovs = [];
-  function chrome() {
-    var open = ovs.some(function (v) { return v.o.style.display === 'flex'; });
-    [hud, bCopy].forEach(function (e) { e.style.visibility = open ? 'hidden' : 'visible'; });
+  function dailyInfo() { var sd = Moonstep.dailySeed(today()); return { seed: sd, done: store.best[sd] > 0 ? store.best[sd] : null }; }
+
+  // ---------- install ----------
+  var deferredPrompt = null;
+  window.addEventListener('beforeinstallprompt', function (e) { e.preventDefault(); deferredPrompt = e; if (ui && ui.current() === 'title') ui.refresh(); });
+  function standalone() { try { return (window.matchMedia && matchMedia('(display-mode: standalone)').matches) || navigator.standalone === true; } catch (e) { return false; } }
+  function installState() {
+    if (standalone()) return null;
+    if (deferredPrompt) return 'prompt';
+    var ua = navigator.userAgent || '';
+    if (/iPad|iPhone|iPod/.test(ua)) return 'ios';
+    return null;
   }
-  function show(ov) { ov.o.style.display = 'flex'; chrome(); }
-  function hide(ov) { ov.o.style.display = 'none'; chrome(); }
-
-  // pause overlay
-  var pov = overlay();
-  el('h2', null, pov.p, 'Paused');
-  var bAssist = btn('', pov.p, function () { store.set.assist = !store.set.assist; save(); syncMenu(); });
-  var bSound = btn('', pov.p, function () { store.set.sound = !store.set.sound; au('setEnabled', store.set.sound); save(); syncMenu(); });
-  el('p', null, pov.p, 'Tide speed (next run)');
-  var tideRow = el('div', 'mxrow', pov.p), tideBtns = [];
-  [0.75, 1, 1.25].forEach(function (v) {
-    tideBtns.push({ v: v, b: btn(v + 'x', tideRow, function () { store.set.tide = v; save(); syncMenu(); }) });
-  });
-  el('p', null, pov.p, 'Seed');
-  var seedIn = el('input', null, pov.p); seedIn.maxLength = 24; seedIn.setAttribute('aria-label', 'Seed');
-  btn('Start this seed', pov.p, function () {
-    var v = (seedIn.value || '').trim().slice(0, 24);
-    newRun(v || randSeed());
-  });
-  btn('Daily seed', pov.p, function () { newRun(Moonstep.dailySeed(today())); });
-  btn('Resume', pov.p, function () { setPaused(false); });
-  function syncMenu() {
-    bAssist.textContent = 'Assist arc: ' + (store.set.assist ? 'ON' : 'OFF');
-    bAssist.className = 'mxbtn' + (store.set.assist ? ' on' : '');
-    bSound.textContent = 'Sound: ' + (store.set.sound ? 'ON' : 'OFF');
-    bSound.className = 'mxbtn' + (store.set.sound ? ' on' : '');
-    tideBtns.forEach(function (t) { var on = store.set.tide === t.v; t.b.className = 'mxbtn' + (on ? ' on' : ''); t.b.textContent = (on ? '\u2713 ' : '') + t.v + 'x'; t.b.setAttribute('aria-pressed', on ? 'true' : 'false'); });
-  }
-
-  // game over overlay
-  var gov = overlay();
-  var goTitle = el('h2', null, gov.p, 'Run over');
-  var goInfo = el('div', 'mxgo', gov.p);
-  var goVer = el('p', null, gov.p, '');
-  var goBtns = [];
-  goBtns.push(btn('Retry same seed', gov.p, function () { newRun(seed); }));
-  goBtns.push(btn('New seed', gov.p, function () { newRun(randSeed()); }));
-  goBtns.push(btn('Copy report', gov.p, function () { copyReport(); }));
-  goBtns.push(btn('Verify replay', gov.p, function () { verify(); }));
-
-  // text fallback overlay
-  var tov = overlay();
-  el('h2', null, tov.p, 'Report');
-  el('p', null, tov.p, 'Clipboard blocked. Select all and copy.');
-  var ta = el('textarea', null, tov.p); ta.readOnly = true;
-  btn('Close', tov.p, function () { hide(tov); });
-
-  function hideAll() { hide(pov); hide(gov); hide(tov); goVer.textContent = ''; }
-  function setPaused(p) {
-    if (s.over) return;
-    paused = p;
-    if (p) { seedIn.value = seed; syncMenu(); show(pov); down = false; au('charge', 0); }
-    else { hide(pov); last = 0; }
-  }
-  bPause.addEventListener('click', function (e) { e.stopPropagation(); setPaused(!paused); });
-  bCopy.addEventListener('click', function (e) { e.stopPropagation(); copyReport(); });
 
   // ---------- report ----------
   function pct(a, p) {
@@ -194,71 +145,84 @@
       renderer: 'canvas2d',
       webgpu: 'WebGPU output: NOT seen',
       frameMs: { p50: pct(frameTimes, 0.5), p95: pct(frameTimes, 0.95), n: frameTimes.length },
-      settings: store.set,
-      inputLog: Moonstep.report(s, {}).inputLog
+      settings: store.set
     };
-    var r = Moonstep.report(s, extra);
-    return JSON.stringify(r, null, 1);
+    return JSON.stringify(Moonstep.report(s, extra), null, 1);
   }
-  function copyReport() {
+  function copyText(txt, done, fail) {
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(txt).then(function () { if (done) done(); }, function () { if (fail) fail(); }); return; }
+    } catch (e) {}
+    if (fail) fail();
+  }
+  function copyReport(cb) {
     var txt = buildReport();
-    function fallback() { ta.value = txt; show(tov); setTimeout(function () { ta.focus(); ta.select(); }, 0); }
-    try {
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(txt).then(function () { flash('Copied'); }, fallback);
-      } else fallback();
-    } catch (e) { fallback(); }
+    copyText(txt, cb, function () { ui.showReport(txt); });
   }
-  var flashT = 0;
-  function flash(msg) { hCh.textContent = msg; clearTimeout(flashT); flashT = setTimeout(function () { hCh.textContent = ''; }, 1500); }
   function verify() {
+    if (!s.over) return null; // nothing to verify until the run has ended
     try {
-      var r = Moonstep.replay(seed, s.log, s.opts || { tideScale: store.set.tide });
-      goVer.textContent = Moonstep.hash(r) === Moonstep.hash(s) ? 'Replay: OK' : 'Replay: FAIL';
-    } catch (e) { goVer.textContent = 'Replay: FAIL (' + e.message + ')'; }
+      var r = Moonstep.replay(seed, s.log, s.opts);
+      return Moonstep.hash(r) === Moonstep.hash(s) ? 'OK' : 'FAIL';
+    } catch (e) { return 'FAIL'; }
   }
+
+  // ---------- UI host ----------
+  var ui = null;
+  var host = {
+    store: store, save: save, bands: bands, bestOverall: bestOverall, dailyInfo: dailyInfo,
+    medalOf: function (h) { return Moonstep.medal(h); },
+    randSeed: randSeed, seed: function () { return seed; },
+    start: function (sd) { newRun(sd); },
+    retry: function () { newRun(seed); },
+    pause: function () { if (!s.over && !ui.blocking()) { ui.open('pause'); } },
+    resume: function () { ui.closeAll(); },
+    quit: function () { newRun(seed); ui.openRoot('title'); },
+    runInfo: function () { var h = Math.floor(s.height); return { h: h, medal: Moonstep.medal(h) }; },
+    setSet: function (k, v) {
+      store.set[k] = v; save();
+      if (k === 'sound') au('setEnabled', v);
+      if (k === 'reduce') { ui.setReduced(reduced()); fx = (typeof MoonFX !== 'undefined') ? MoonFX.make({ reduced: reduced() }) : null; }
+    },
+    reset: function () { store.best = Object.create(null); store.attempts = []; store.cnt = Object.create(null); store.medals = Object.create(null); save(true); ui.refresh(); },
+    copyText: function (t) { copyText(t); },
+    copyReport: copyReport, verify: verify,
+    installState: installState,
+    install: function () { if (!deferredPrompt) return; try { deferredPrompt.prompt(); deferredPrompt = null; } catch (e) {} },
+    onBlock: function (b) {
+      paused = b;
+      if (b) { down = false; pointerId = null; au('charge', 0); } else { last = 0; }
+    }
+  };
 
   // ---------- game over ----------
   function onOver() {
-    overHandled = true;
+    overHandled = true; attemptNo++;
     var h = Math.floor(s.height);
     var prev = store.best[seed] || 0;
     if (h > prev) store.best[seed] = h; // never downgrade
-    store.attempts.push({ seed: seed, height: h, jumps: s.jumps, chain: s.bestChain, cause: s.cause });
+    store.cnt[seed] = (store.cnt[seed] || 0) + 1;
+    store.attempts.push({ seed: seed, height: h, jumps: s.jumps, chain: s.bestChain, cause: s.cause, ts: Date.now() });
     if (store.attempts.length > 20) store.attempts = store.attempts.slice(-20);
+    var medal = Moonstep.medal(h);
+    if (medal) store.medals[medal] = (store.medals[medal] || 0) + 1;
     save();
     au('over');
+    fxe('over', { x: s.runner.x, y: s.runner.y, cause: s.cause });
     au('charge', 0);
-    var medal = Moonstep.medal(h);
-    goTitle.textContent = medal ? medal + ' medal' : 'Run over';
-    goInfo.textContent = '';
-    el('div', 'big', goInfo, h + ' m');
-    el('div', 'cause', goInfo, s.cause === 'tide' ? 'Swallowed by the tide' : 'Lost in space');
-    var gr = el('div', 'grid', goInfo);
-    [['Best', store.best[seed] + ' m'], ['Jumps', s.jumps], ['Chain', s.bestChain], ['Seed', seed]].forEach(function (x) {
-      var d = el('div', null, gr); el('b', null, d, x[0]); d.appendChild(document.createTextNode(String(x[1])));
-    });
-    goVer.textContent = '';
+    if (medal) setTimeout(function () { au('medal', String(medal).toLowerCase()); }, 350);
     overAt = performance.now();
-    goBtns.forEach(function (b) { b.disabled = true; });
-    show(gov);
-    setTimeout(function () { goBtns.forEach(function (b) { b.disabled = false; }); }, 600);
+    ui.open('results', { h: h, medal: medal, cause: s.cause, newBest: h > prev, prev: prev, best: store.best[seed] || 0, seed: seed, next: nextBand(h), overAt: overAt });
   }
 
   // ---------- HUD ----------
-  var hudKey = '';
   function refreshHud() {
-    var h = Math.floor(s.height), nb = null;
-    for (var i = 0; i < BANDS.length; i++) if (h < BANDS[i][0]) { nb = BANDS[i]; break; }
-    var cur = Moonstep.medal(h);
-    var key = h + '|' + s.chain + '|' + seed + '|' + cur;
-    if (key === hudKey) return;
-    hudKey = key;
-    hH.textContent = h + ' m';
-    hM.textContent = (cur ? cur + '  ' : '') + (nb ? 'next ' + nb[1] + ' ' + nb[0] + ' m' : 'max medal') +
-      '  |  best ' + (store.best[seed] || 0);
-    hCf.style.width = Math.min(100, s.chain / 10 * 100) + '%';
-    hS.textContent = 'seed ' + seed + (s.chain > 1 ? '  |  chain x' + s.chain : '');
+    var r = s.runner, h = Math.floor(s.height);
+    ui.hud({
+      h: h, medal: Moonstep.medal(h), next: nextBand(h), chain: s.chain, seed: seed,
+      gap: (s.tideY - r.y) / 10, tideScreenY: w2s(0, s.tideY)[1], viewH: H,
+      hint: store.attempts.length < 3 && s.jumps < 1
+    });
   }
 
   // ---------- input ----------
@@ -293,9 +257,13 @@
   canvas.addEventListener('pointercancel', up);
   canvas.addEventListener('contextmenu', function (e) { e.preventDefault(); });
   window.addEventListener('keydown', function (e) {
-    if (e.key === 'Escape' || e.key === 'p') setPaused(!paused);
+    if (e.key !== 'Escape' && e.key !== 'p') return;
+    var c = ui.current();
+    if (c === 'pause') host.resume();
+    else if (ui.blocking()) { if (e.key === 'Escape' && ui.hasBack()) ui.back(); }
+    else host.pause();
   });
-  document.addEventListener('visibilitychange', function () { if (document.hidden && !s.over) setPaused(true); });
+  document.addEventListener('visibilitychange', function () { if (document.hidden && !s.over && !ui.blocking()) host.pause(); });
 
   // ---------- resize ----------
   function resize() {
@@ -327,12 +295,38 @@
     pendRev = false; pendCancel = false;
     Moonstep.tick(s, inp);
     simT += DT;
-    // audio / event detection
-    var r = s.runner;
-    if (s.jumps > prevJumps) { au('jump'); prevJumps = s.jumps; }
-    if (prevMode === 'air' && r.mode === 'rim') au('land', landImpact(r));
-    if (s.chain > prevChain) au('chain', s.chain);
+    // audio / fx event detection from state diffs
+    var r = s.runner, i, b;
+    if (s.jumps > prevJumps) {
+      var jl = s.jumpLog[s.jumpLog.length - 1];
+      au('jump');
+      fxe('jump', { x: prevX, y: prevY, charge01: jl && typeof jl.charge === 'number' ? Math.min(1, jl.charge / C.CHARGE_MAX) : 0 });
+      prevJumps = s.jumps;
+    }
+    if (prevMode === 'air' && r.mode === 'rim') {
+      var imp = landImpact(r);
+      au('land', imp * C.VMAX);
+      fxe('land', { x: r.x, y: r.y, vn: imp * C.VMAX, body: r.body });
+      if (fx) fx.clearTrail();
+    }
+    if (r.mode === 'air' && r.bounced && !prevBounced) { au('bounce'); fxe('bounce', { x: r.x, y: r.y }); }
+    prevBounced = r.mode === 'air' && r.bounced;
+    if (s.chain > prevChain) { au('chain', s.chain); fxe('chain', { x: r.x, y: r.y, n: s.chain }); }
     prevChain = s.chain;
+    var dead = 0, nearNow = false;
+    for (i = 0; i < s.bodies.length; i++) {
+      b = s.bodies[i];
+      if (b.kind === 'crumble' && b.dead) { dead++; if (dead > prevDead) { au('crumble'); fxe('crumble', { x: b.x, y: b.y }); } }
+      if (r.mode === 'air' && !b.dead && b.id !== s.owner) {
+        var ddx = r.x - b.x, ddy = r.y - b.y, dd = Math.sqrt(ddx * ddx + ddy * ddy) - b.r - C.RUNNER_R;
+        if (dd < 14) nearNow = true;
+      }
+    }
+    prevDead = dead;
+    if (nearNow && !prevNear) au('near');
+    prevNear = nearNow;
+    var ms = Math.floor(s.height / 100);
+    if (ms > prevMilestone) { au('tick'); prevMilestone = ms; }
     prevMode = r.mode;
     prevSpeed = Math.sqrt(r.vx * r.vx + r.vy * r.vy);
     prevX = r.x; prevY = r.y; prevVx = r.vx; prevVy = r.vy;
@@ -348,12 +342,13 @@
       if (frameTimes.length > 300) frameTimes.shift();
     }
     if (!paused && !s.over) {
-      acc += dt;
+      if (!(fx && fx.pause() > 0)) acc += dt;
       var n = 0;
-      while (acc >= DT && n < 30 && !s.over) { stepOne(); acc -= DT; n++; }
+      while (acc >= DT && n < 30 && !s.over && !(fx && fx.pause() > 0)) { stepOne(); acc -= DT; n++; }
       if (acc > DT * 30) acc = 0;
       if (s.over && !overHandled) onOver();
     }
+    if (fx) fx.update(dt);
     // audio per frame
     var r = s.runner;
     var ch01 = r.charging ? Math.min(1, r.charge / C.CHARGE_MAX) : 0;
@@ -367,14 +362,27 @@
     view.camY = MoonDraw.camera(s, view);
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     MoonDraw.frame(ctx, s, view, { pred: pred, charge01: ch01, reduced: reduced(), t: simT });
+    if (fx) {
+      if (r.mode === 'air' && !s.over && !paused && dt > 0) fx.trail(r.x, r.y);
+      ctx.setTransform(view.dpr || 1, 0, 0, view.dpr || 1, 0, 0);
+      fx.draw(ctx, view, w2s);
+      var sh = fx.shake();
+      canvas.style.transform = (sh.x || sh.y) ? 'translate(' + sh.x.toFixed(1) + 'px,' + sh.y.toFixed(1) + 'px)' : '';
+    }
     refreshHud();
   }
 
   // ---------- boot ----------
   au('setEnabled', store.set.sound);
+  document.documentElement.classList.toggle('u-rm', reduced());
   resize();
   newRun(seed);
+  ui = MoonUI.create(host);
+  ui.setReduced(reduced());
+  ui.openRoot('title');
   window.__moon = {
+    screen: function () { return ui.current(); },
+    ui: function () { return ui; },
     state: function () { return s; },
     step: function (n, i) {
       n = n || 1;

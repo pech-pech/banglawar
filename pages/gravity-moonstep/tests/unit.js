@@ -115,6 +115,7 @@ test('predict landId equals actual landed body (30 random releases)', () => {
     let g = 0;
     while (!s.over && s.runner.mode === 'air' && g++ < 1200) M.tick(s, { down: false });
     if (s.over && s.cause === 'tide') { skipped++; continue; }
+    if (g > 900) { skipped++; continue; } // flight longer than predict's 900-step horizon (5r early range)
     const landed = s.runner.mode === 'rim' ? s.runner.body : -1;
     const jl = s.jumpLog[0];
     checked++;
@@ -159,7 +160,8 @@ test('crumble: shrinks to dead in 1.5 s after runner leaves', () => {
   near(halfRem, b.r / 2, 0.5, 'rem at 0.75 s');
 });
 
-test('tide: 22 px/s at t=0, accelerates, capped 60, tideScale multiplies', () => {
+test('tide: 22 px/s at t=0, accelerates, capped TIDE_MAX (75), tideScale multiplies', () => {
+  eq(C.TIDE_MAX, 75, 'TIDE_MAX admin default');
   let s = M.newRun('TD');
   const y0 = s.tideY; M.tick(s, { down: false });
   near((y0 - s.tideY) / DT, 22, 0.1, 'initial rate');
@@ -168,7 +170,10 @@ test('tide: 22 px/s at t=0, accelerates, capped 60, tideScale multiplies', () =>
   near((y - s.tideY) / DT, 42, 0.1, 'rate at t=100');
   s = M.newRun('TD');
   s.tick = 240 * 120 - 1; y = s.tideY; M.tick(s, { down: false });
-  near((y - s.tideY) / DT, 60, 1e-6, 'capped rate');
+  near((y - s.tideY) / DT, 70, 0.1, 'rate at t=240 (not yet capped)');
+  s = M.newRun('TD');
+  s.tick = 400 * 120 - 1; y = s.tideY; M.tick(s, { down: false });
+  near((y - s.tideY) / DT, 75, 1e-6, 'capped rate');
   s = M.newRun('TD', { tideScale: 1.25 });
   y = s.tideY; M.tick(s, { down: false });
   near((y - s.tideY) / DT, 22 * 1.25, 0.2, 'tideScale 1.25');
@@ -187,12 +192,66 @@ test('lost: fires after 1.2 s outside every attractor range', () => {
   near(n * DT, 1.2, 2 * DT, 'time to lost');
 });
 
-test('medal bands', () => {
-  const cases = [[0, ''], [149.9, ''], [150, 'Bronze'], [399.9, 'Bronze'], [400, 'Silver'], [799.9, 'Silver'],
-    [800, 'Gold'], [1499.9, 'Gold'], [1500, 'Moon'], [5000, 'Moon']];
+test('medal bands (Moonstep.BANDS drives medal())', () => {
+  const B = M.BANDS;
+  eq(B.map(b => b[1]).join(','), 'Bronze,Silver,Gold,Moon', 'band names');
+  for (let i = 1; i < B.length; i++) ok(B[i][0] > B[i - 1][0], 'bands ascending');
+  const cases = [[0, ''], [B[0][0] - 0.1, ''], [99999, 'Moon']];
+  for (const [h, n] of B) { cases.push([h, n]); }
+  for (let i = 1; i < B.length; i++) cases.push([B[i][0] - 0.1, B[i - 1][1]]);
   for (const [h, m] of cases) eq(M.medal(h), m, 'medal(' + h + ')');
   eq(M.dailySeed('20261118'), 'D20261118', 'dailySeed');
 });
+
+// deep generation for pattern checks (several seeds)
+const deeps = ['V0', 'V1', 'V2', 'V3'].map(sd => { const s = M.newRun(sd); s.runner.y = -20000; global.MoonGen.ensure(s); return s; });
+
+test('generator patterns: rest every <= 180 m (<= 330 m past 1000 m), clusters and long hops appear', () => {
+  for (const s of deeps) {
+    const rest = s.bodies.filter(b => b.pat === 'rest');
+    ok(rest.length >= 10, s.seed + ' rest count ' + rest.length);
+    for (const b of rest) { eq(b.kind, 'still', 'rest kind'); ok(b.r >= 85 && b.r <= 95, 'rest r ' + b.r); }
+    for (let i = 1; i < rest.length; i++) ok(rest[i - 1].y - rest[i].y <= (rest[i - 1].y > -10000 ? 1800 : 3300), s.seed + ' rest spacing ' + (rest[i - 1].y - rest[i].y).toFixed(0));
+    const cl = s.bodies.filter(b => b.pat === 'cluster'), lg = s.bodies.filter(b => b.pat === 'long');
+    ok(cl.length >= 10, s.seed + ' clusters ' + cl.length);
+    ok(lg.length >= 3, s.seed + ' long hops ' + lg.length);
+    for (const b of cl) ok(b.r <= 52 && b.kind !== 'repel', 'cluster body ' + b.id);
+    for (const b of lg) ok(b.kind === 'still' || b.kind === 'spin', 'long kind ' + b.kind);
+    for (const b of s.bodies) ok(b.x >= -150 && b.x <= 150, 'x ' + b.x);
+    for (let i = 1; i < s.bodies.length; i++) {
+      const a = s.bodies[i - 1], b = s.bodies[i];
+      ok(Math.hypot(a.x - b.x, a.y - b.y) - a.r - b.r >= 20 - 1e-6, s.seed + ' gap ' + i);
+    }
+  }
+});
+
+test('generator reachability: >= 99% of non-repel bodies reachable from previous one, live repels in the way included', () => {
+  const ths = []; for (let t = 0; t < 360; t += 15) ths.push(t);
+  let tot = 0, okc = 0, misses = [];
+  for (const s of deeps.slice(0, 2)) {
+    let prev = s.bodies[0], hz = [];
+    for (let i = 1; i < Math.min(s.bodies.length, 120); i++) {
+      const b = s.bodies[i];
+      if (b.kind === 'repel') { if (!b.dead) hz.push(b); continue; }
+      tot++;
+      let hit = false;
+      for (const ch of [0, 0.1, 0.2, 0.3, 0.45]) { for (const th of ths) if (M.probe(prev, b, th, ch, 600, hz).hit) { hit = true; break; } if (hit) break; }
+      if (hit) okc++; else misses.push(s.seed + '#' + b.id);
+      prev = b; hz = [];
+    }
+  }
+  ok(okc / tot >= 0.99, okc + '/' + tot + ' miss ' + misses.slice(0, 6).join(' '));
+});
+
+test('probe: a repel wall between prev and cand blocks the straight-up route', () => {
+  const pb = { id: 0, x: 0, y: 0, r: 80, g0: 900 * Math.sqrt(80 / 60), R: 320, kind: 'still' };
+  const cb = { id: 2, x: 0, y: -330, r: 60, g0: 900, R: 240, kind: 'still' };
+  const rp = { id: 1, x: 0, y: -175, r: 50, g0: 600, R: 200, kind: 'repel' };
+  const a = M.probe(pb, cb, -90, 0.2, 600), b = M.probe(pb, cb, -90, 0.2, 600, [rp]);
+  eq(a.landId, 2, 'open route lands'); ok(b.landId !== 2, 'walled route should not land straight up');
+});
+
+test('report carries engine VERSION 2', () => { eq(M.report(M.newRun('R')).v, 2, 'v'); });
 
 function jumpSpeed(sinceLand, charge) {
   const s = M.newRun('CH');

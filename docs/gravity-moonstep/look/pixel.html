@@ -1,0 +1,157 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Moonstep - Chunky Pixel</title>
+<style>
+html,body{margin:0;height:100%;background:#0b0e1a}
+body{display:flex;align-items:center;justify-content:center}
+canvas{width:344px;height:882px;image-rendering:pixelated;image-rendering:crisp-edges;display:block}
+</style></head><body>
+<canvas id="c" width="86" height="220"></canvas>
+<script>
+(function(){
+var W=86,H=220,TAU=Math.PI*2;
+// 16-colour palette
+var PAL=['#0b0e1a','#151a30','#232b4d','#3a4570','#6b7494','#9aa3bd','#dfe5f5','#ffffff',
+         '#ffd36b','#e0902f','#ff9a88','#b8504a','#5a4a52','#ff6fa8','#7a2a62','#3a1240'];
+var BG=0,NAVY=1,INDIGO=2,SLATE=3,GREY=4,MIST=5,PALE=6,WHITE=7,GOLD=8,AMBER=9,CORAL=10,RUST=11,MAUVE=12,PINK=13,PLUM=14,DEEP=15;
+var px=new Uint8Array(W*H);
+var B4=[[0,8,2,10],[12,4,14,6],[3,11,1,9],[15,7,13,5]];
+function put(x,y,c){x|=0;y|=0;if(x<0||y<0||x>=W||y>=H)return;px[y*W+x]=c;}
+function get(x,y){return(x<0||y<0||x>=W||y>=H)?0:px[y*W+x];}
+function dither(x,y,t){return (B4[y&3][x&3]+0.5)/16<t;} // true => use upper colour
+function rect(x,y,w,h,c){for(var j=0;j<h;j++)for(var i=0;i<w;i++)put(x+i,y+j,c);}
+function disc(cx,cy,r,fn){for(var y=Math.floor(cy-r);y<=cy+r;y++)for(var x=Math.floor(cx-r);x<=cx+r;x++){var dx=x+0.5-cx,dy=y+0.5-cy,d=Math.sqrt(dx*dx+dy*dy);if(d<=r)put(x,y,fn(x,y,dx,dy,d));}}
+function ring(cx,cy,r,c,step,w){w=w||0.7;var n=Math.max(8,Math.round(TAU*r*2));for(var i=0;i<n;i++){if(step&&(i%(step*2))>=step)continue;var a=i/n*TAU;put(cx+Math.cos(a)*r,cy+Math.sin(a)*r,c);}}
+function line(x0,y0,x1,y1,c){x0|=0;y0|=0;x1|=0;y1|=0;var dx=Math.abs(x1-x0),dy=-Math.abs(y1-y0),sx=x0<x1?1:-1,sy=y0<y1?1:-1,e=dx+dy;for(;;){put(x0,y0,c);if(x0==x1&&y0==y1)break;var e2=2*e;if(e2>=dy){e+=dy;x0+=sx;}if(e2<=dx){e+=dx;y0+=sy;}}}
+
+// seeded star RNG (visual only)
+var seed=7;function rnd(){seed=(seed*1664525+1013904223)>>>0;return seed/4294967296;}
+
+// ---- background: dithered vertical gradient + stars
+for(var y=0;y<H;y++)for(var x=0;x<W;x++){
+  var t=y/H; // 0 top .. 1 bottom
+  var c;
+  if(t<0.45) c=dither(x,y,t/0.45)?NAVY:BG;
+  else c=dither(x,y,(t-0.45)/0.55)?INDIGO:NAVY;
+  put(x,y,c);
+}
+for(var i=0;i<70;i++){var sx=Math.floor(rnd()*W),sy=Math.floor(rnd()*190),k=rnd();
+  put(sx,sy,k<0.55?SLATE:k<0.85?MIST:WHITE);
+  if(k>0.95){put(sx-1,sy,SLATE);put(sx+1,sy,SLATE);put(sx,sy-1,SLATE);put(sx,sy+1,SLATE);}}
+
+// ---- bodies
+var LIGHT=[-0.6,-0.7];
+function shade(dx,dy,r,hi,mid,lo,sh){ // dithered sphere shading
+  var l=(dx*LIGHT[0]+dy*LIGHT[1])/r; // -1..1 ; 1 = lit
+  return l;
+}
+function body(cx,cy,r,R,tones,ringCol,owner){
+  ring(cx,cy,R,ringCol,owner?99:2);
+  disc(cx,cy,r,function(x,y,dx,dy,d){
+    var l=(dx*LIGHT[0]+dy*LIGHT[1])/r*0.5+0.5; // 0..1
+    if(d>r-1) return tones[0]; // outline
+    var v=l*3; // 0..3 over tones[1..3]
+    var lo=Math.floor(v),f=v-lo;
+    var a=tones[1+Math.min(2,lo)],b=tones[1+Math.min(2,lo+1)];
+    return dither(x,y,f)?b:a;
+  });
+  // craters
+  put(cx-r*0.3,cy+r*0.3,tones[1]);put(cx+r*0.35,cy+r*0.1,tones[1]);
+}
+// start body
+body(43,176,12,22,[SLATE,MAUVE,GREY,MIST],SLATE,true);
+rect(0,0,0,0,0);
+// normal body D
+body(26,38,8,17,[SLATE,SLATE,GREY,MIST],INDIGO);
+// crumble B: gap outline + dashed ring
+ring(20,112,9,MIST,2);
+body(20,112,7,16,[SLATE,SLATE,GREY,MIST],INDIGO);
+// cracks
+line(17,109,20,112,SLATE);line(20,112,22,116,SLATE);line(20,112,24,111,SLATE);
+// repel C
+(function(){var cx=62,cy,r=8;cy=74;
+  ring(cx,cy,19,RUST,3);ring(cx,cy,14,CORAL,2);
+  body(cx,cy,r,19,[RUST,MAUVE,RUST,CORAL],RUST);
+  for(var q=0;q<4;q++){var a=q*TAU/4+Math.PI/4;
+    for(var d=r+2;d<=r+5;d++)put(cx+Math.cos(a)*d,cy+Math.sin(a)*d,CORAL);}
+})();
+// spin A
+(function(){var cx=64,cy=140,r=8,a0=0.5;
+  body(cx,cy,r,18,[SLATE,SLATE,GREY,MIST],INDIGO);
+  for(var n=0;n<3;n++){var a=a0+n*TAU/3;
+    for(var d=r-2;d<=r+3;d++){put(cx+Math.cos(a)*d,cy+Math.sin(a)*d,GOLD);put(cx+Math.cos(a)*d+0.9,cy+Math.sin(a)*d,AMBER);}
+    // chevron
+    var ca=a+0.35,cr=r+6,mx=cx+Math.cos(ca)*cr,my=cy+Math.sin(ca)*cr,tx=-Math.sin(ca),ty=Math.cos(ca);
+    put(mx+tx*2,my+ty*2,GOLD);put(mx+tx,my+ty,GOLD);put(mx,my,GOLD);
+    put(mx-Math.cos(ca)*1+tx,my-Math.sin(ca)*1+ty,GOLD);put(mx+Math.cos(ca)*1+tx,my+Math.sin(ca)*1+ty,GOLD);}
+})();
+
+// ---- assist arc: dotted, from runner to landing ring at body D
+var RX=40,RY=96;
+(function(){var x0=RX,y0=RY,x1=30,y1=52,n=9;
+  for(var i=1;i<=n;i++){var t=i/n;var x=x0+(x1-x0)*t-Math.sin(t*Math.PI)*7,y=y0+(y1-y0)*t;
+    if(i<n){put(x,y,WHITE);put(x+1,y,PALE);}}
+  ring(30,50,5,WHITE,0);
+})();
+
+// ---- runner: trail + body
+for(var i=1;i<=6;i++){put(RX+i*0.7,RY+i*2.2,i<3?PALE:i<5?MIST:SLATE);put(RX+i*0.7+1,RY+i*2.2,i<3?PALE:SLATE);}
+disc(RX,RY,4,function(x,y,dx,dy,d){return d>3?PALE:(dx<0&&dy<0&&d<2.2)?WHITE:PALE;});
+put(RX-1,RY-2,WHITE);put(RX,RY-2,WHITE);
+ring(RX,RY,7,GOLD,2); // charge halo
+
+// ---- tide: dithered band
+var TY=202;
+for(var y=TY-9;y<H;y++)for(var x=0;x<W;x++){
+  var wave=Math.round(Math.sin(x*0.45)*1);
+  var yy=y+wave;
+  if(yy<TY-9)continue;
+  var c;
+  if(yy<TY){ // fading haze above
+    if(dither(x,y,(yy-(TY-9))/9)) c=PLUM; else continue;
+  } else if(yy<TY+1) c=PINK;
+  else if(yy<TY+4) c=dither(x,y,0.5)?PINK:PLUM;
+  else if(yy<TY+9) c=dither(x,y,(yy-TY-4)/5)?DEEP:PLUM;
+  else c=DEEP;
+  put(x,y,c);
+}
+// bubbles
+[[12,210],[33,214],[58,208],[74,216]].forEach(function(p){put(p[0],p[1],PINK);put(p[0]+1,p[1]-1,PLUM);});
+
+// ---- thumb zone hint (bottom 30%): dashed rounded box over tide
+(function(){var x0=6,x1=79,y0=156,y1=214;
+  for(var x=x0+3;x<=x1-3;x+=2){put(x,y0,MIST);put(x,y1,MIST);}
+  for(var y=y0+3;y<=y1-3;y+=2){put(x0,y,MIST);put(x1,y,MIST);}
+  put(x0+1,y0+1,MIST);put(x1-1,y0+1,MIST);put(x0+1,y1-1,MIST);put(x1-1,y1-1,MIST);
+})();
+// hold hint: finger dot + chevrons
+rect(41,190,3,3,WHITE);ring(42,191,5,MIST,2);
+
+// ---- HUD pill
+var FONT={ // 3x5
+'0':'111101101101111','1':'010110010010111','2':'111001111100111','3':'111001111001111','4':'101101111001001',
+'5':'111100111001111','6':'111100111101111','7':'111001001001001','8':'111101111101111','9':'111101111001111',
+'M':'101111111101101','G':'111100101101111','O':'111101101101111','L':'100100100100111','D':'110101101101110',' ':'000000000000000'};
+function text(s,x,y,c){for(var i=0;i<s.length;i++){var g=FONT[s[i]];if(!g)continue;
+  for(var j=0;j<15;j++)if(g[j]=='1')put(x+i*4+(j%3),y+Math.floor(j/3),c);}}
+var px0=14,pw=58,py0=5,ph=11;
+rect(px0+1,py0,pw-2,ph,INDIGO);rect(px0,py0+1,pw,ph-2,INDIGO);
+rect(px0+2,py0+1,pw-4,ph-2,NAVY);rect(px0+1,py0+2,pw-2,ph-4,NAVY);
+// pill outline
+for(var x=px0+2;x<px0+pw-2;x++){put(x,py0,SLATE);put(x,py0+ph-1,SLATE);}
+for(var y=py0+2;y<py0+ph-2;y++){put(px0,y,SLATE);put(px0+pw-1,y,SLATE);}
+put(px0+1,py0+1,SLATE);put(px0+pw-2,py0+1,SLATE);put(px0+1,py0+ph-2,SLATE);put(px0+pw-2,py0+ph-2,SLATE);
+text('1240M',px0+5,py0+3,WHITE);
+// medal coin
+disc(px0+pw-20,py0+5.5,3.5,function(x,y,dx,dy,d){return d>2.6?AMBER:(dx<0&&dy<0)?PALE:GOLD;});
+text('GOLD',px0+pw-14,py0+3,GOLD);
+// tide-distance tick on left edge
+for(var y=186;y<TY;y+=3)put(1,y,PINK);
+
+// ---- blit
+var cv=document.getElementById('c'),ctx=cv.getContext('2d');
+var img=ctx.createImageData(W,H),rgb=PAL.map(function(h){return[parseInt(h.slice(1,3),16),parseInt(h.slice(3,5),16),parseInt(h.slice(5,7),16)];});
+for(var i=0;i<W*H;i++){var c=rgb[px[i]];img.data[i*4]=c[0];img.data[i*4+1]=c[1];img.data[i*4+2]=c[2];img.data[i*4+3]=255;}
+ctx.putImageData(img,0,0);
+})();
+</script></body></html>

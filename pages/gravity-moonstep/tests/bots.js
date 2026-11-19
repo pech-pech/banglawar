@@ -1,10 +1,16 @@
-/* Bot balance harness. Run: node tests/bots.js [seeds=200]  -> writes docs/gravity-moonstep/BOT-REPORT.md */
+/* Bot balance harness. Run: node tests/bots.js [seeds=200] [--jobs N] [--src dir] [--out file] [--tide 1]
+   -> writes docs/gravity-moonstep/BOT-REPORT.md. Seeds are split across worker processes (default 4); results are
+   identical to a single-process run because every run depends only on seed + bot kind. */
 'use strict';
-var path = require('path'), fs = require('fs');
-var M = require('../src/engine.js');
-global.Moonstep = M; global.MoonGen = require('../src/gen.js');
-var C = M.C, DT = C.DT, MAXT = 240 * 120;
-var NSEEDS = +(process.argv[2] || 200);
+var path = require('path'), fs = require('fs'), cp = require('child_process');
+function arg(name, def) { var i = process.argv.indexOf('--' + name); return i > 0 ? process.argv[i + 1] : def; }
+var SRC = path.resolve(arg('src', path.join(__dirname, '..', 'src')));
+var M = require(path.join(SRC, 'engine.js'));
+global.Moonstep = M; global.MoonGen = require(path.join(SRC, 'gen.js'));
+var C = M.C, DT = C.DT, CAP_S = +arg('cap', 420), MAXT = CAP_S * 120;
+var NSEEDS = +(process.argv[2] && process.argv[2][0] !== '-' ? process.argv[2] : 200);
+var TIDE = +arg('tide', 1);
+var BANDS = M.BANDS || [[150, 'Bronze'], [400, 'Silver'], [800, 'Gold'], [1500, 'Moon']];
 
 function body(s, id) { for (var i = 0; i < s.bodies.length; i++) if (s.bodies[i].id === id) return s.bodies[i]; return null; }
 
@@ -83,36 +89,73 @@ function mkBot(kind, seed) {
 }
 
 function run(seed, kind) {
-  var s = M.newRun(seed, {}), pol = mkBot(kind, seed), n = 0;
+  var s = M.newRun(seed, { tideScale: TIDE }), pol = mkBot(kind, seed), n = 0;
   while (!s.over && n < MAXT) { M.tick(s, pol(s, n)); n++; }
   if (!s.over) s.cause = s.cause || 'timeout';
   return s;
 }
 function pct(a, p) { a = a.slice().sort(function (x, y) { return x - y; }); return a[Math.min(a.length - 1, Math.floor(p * a.length))]; }
 
-var kinds = ['idle', 'naive', 'rote', 'skilled', 'human'], rows = [], t0 = Date.now();
-kinds.forEach(function (kind) {
-  var H = [], J = [], BC = [], cause = { tide: 0, lost: 0, timeout: 0 }, ah = 0, at = 0, sec = [];
-  var med = { Bronze: 0, Silver: 0, Gold: 0, Moon: 0 };
-  for (var i = 0; i < NSEEDS; i++) {
-    var s = run('B' + i, kind), rp = M.report(s);
-    H.push(rp.height); J.push(rp.jumps); BC.push(rp.bestChain); sec.push(rp.seconds);
-    cause[s.cause] = (cause[s.cause] || 0) + 1; ah += rp.aimedHit; at += rp.aimedTotal;
-    if (rp.height >= 150) med.Bronze++; if (rp.height >= 400) med.Silver++;
-    if (rp.height >= 800) med.Gold++; if (rp.height >= 1500) med.Moon++;
+// ---- worker mode: node bots.js --worker kind from to  -> JSON lines on stdout ----
+if (arg('worker')) {
+  var wk = arg('worker'), from = +process.argv[process.argv.indexOf('--worker') + 2], to = +process.argv[process.argv.indexOf('--worker') + 3];
+  var outRows = [];
+  for (var wi = from; wi < to; wi++) {
+    var ws = run('B' + wi, wk), rp = M.report(ws);
+    outRows.push({ i: wi, h: rp.height, j: rp.jumps, bc: rp.bestChain, c: ws.cause, ah: rp.aimedHit, at: rp.aimedTotal, sec: rp.seconds });
   }
+  process.stdout.write(JSON.stringify(outRows));
+  return;
+}
+
+var kinds = String(arg('kinds', 'idle,naive,rote,skilled,human')).split(','), t0 = Date.now();
+var JOBS = +arg('jobs', Math.max(1, Math.min(4, require('os').cpus().length)));
+var CHUNK = Math.max(1, Math.ceil(NSEEDS / (JOBS * 3)));
+var queue = [], res = {};
+kinds.forEach(function (k) { res[k] = []; var heavy = k === 'skilled' || k === 'human';
+  var ch = heavy ? CHUNK : NSEEDS; for (var a = 0; a < NSEEDS; a += ch) queue.push([k, a, Math.min(NSEEDS, a + ch)]); });
+// heavy jobs first so the tail is short
+queue.sort(function (a, b) { return (b[0] === 'skilled' || b[0] === 'human') - (a[0] === 'skilled' || a[0] === 'human'); });
+var active = 0;
+function pump() {
+  while (active < JOBS && queue.length) {
+    var job = queue.shift(); active++;
+    (function (job) {
+      var args = [__filename, String(NSEEDS), '--src', SRC, '--tide', String(TIDE), '--cap', String(CAP_S), '--worker', job[0], String(job[1]), String(job[2])];
+      cp.execFile(process.execPath, args, { maxBuffer: 1 << 26 }, function (err, out) {
+        if (err) { console.error(err); process.exit(1); }
+        res[job[0]] = res[job[0]].concat(JSON.parse(out)); active--;
+        if (!queue.length && !active) finish(); else pump();
+      });
+    })(job);
+  }
+}
+pump();
+
+function finish() {
+var rows = [];
+kinds.forEach(function (kind) {
+  var list = res[kind].sort(function (a, b) { return a.i - b.i; });
+  var H = [], J = [], BC = [], cause = { tide: 0, lost: 0, timeout: 0 }, ah = 0, at = 0, sec = [], med = BANDS.map(function () { return 0; });
+  list.forEach(function (x) {
+    H.push(x.h); J.push(x.j); BC.push(x.bc); sec.push(x.sec); cause[x.c] = (cause[x.c] || 0) + 1; ah += x.ah; at += x.at;
+    BANDS.forEach(function (b, k) { if (x.h >= b[0]) med[k]++; });
+  });
   rows.push({ kind: kind, H: H, J: J, BC: BC, cause: cause, ah: ah, at: at, med: med, sec: sec });
-  console.log(kind, 'median', pct(H, .5), 'p90', pct(H, .9), (Date.now() - t0) / 1000 + 's');
+  console.log(kind, 'median', pct(H, .5), 'p90', pct(H, .9));
 });
+console.log('elapsed', (Date.now() - t0) / 1000 + 's');
+if (arg('json')) fs.writeFileSync(arg('json'), JSON.stringify(res));
 
 var f1 = function (x) { return (100 * x / NSEEDS).toFixed(0) + '%'; };
-var md = '# Moonstep bot report\n\nGenerated by `tests/bots.js` (' + NSEEDS + ' seeds B0..B' + (NSEEDS - 1) + ', cap 240 s sim = ' + MAXT + ' ticks, tideScale 1).\n\n';
-md += '| bot | height med | p10 | p90 | tide | lost | cap | jumps med | best chain med (max) | aimed hit / total | Bronze 150 | Silver 400 | Gold 800 | Moon 1500 |\n|---|---|---|---|---|---|---|---|---|---|---|---|---|---|\n';
+var md = '# Moonstep bot report\n\nGenerated by `tests/bots.js` (' + NSEEDS + ' seeds B0..B' + (NSEEDS - 1) + ', cap ' + CAP_S + ' s sim = ' + MAXT + ' ticks, tideScale ' + TIDE + ', tide cap ' + C.TIDE_MAX + ' px/s, range ' + C.RANGE_K + 'r).\n\n';
+md += '| bot | height med | p10 | p90 | tide | lost | cap | jumps med | best chain med (max) | aimed hit / total | ' + BANDS.map(function (b) { return b[1] + ' ' + b[0]; }).join(' | ') + ' |\n|---|---|---|---|---|---|---|---|---|---|' + BANDS.map(function () { return '---|'; }).join('') + '\n';
 rows.forEach(function (r) {
   md += '| ' + r.kind + ' | ' + pct(r.H, .5) + ' | ' + pct(r.H, .1) + ' | ' + pct(r.H, .9) + ' | ' + f1(r.cause.tide) + ' | ' + f1(r.cause.lost) + ' | ' + f1(r.cause.timeout || 0) +
     ' | ' + pct(r.J, .5) + ' | ' + pct(r.BC, .5) + ' (' + Math.max.apply(null, r.BC) + ') | ' + r.ah + ' / ' + r.at + ' (' + (r.at ? (100 * r.ah / r.at).toFixed(0) : '-') + '%) | ' +
-    f1(r.med.Bronze) + ' | ' + f1(r.med.Silver) + ' | ' + f1(r.med.Gold) + ' | ' + f1(r.med.Moon) + ' |\n';
+    r.med.map(f1).join(' | ') + ' |\n';
 });
-md += '\nBots: idle = never presses; naive = hold 40 of every 90 ticks; rote = fixed pattern (20 on, 60 off, 48 on, 72 off); skilled = each 2nd rim tick searches charges 1..54 ticks (step 3) with `Moonstep.predict` and holds the one landing on the highest non-repel body at least 15 px above; human = skilled with 120-250 ms reaction delay (planned with a 22-tick lead) and 20% mistakes (extra delay 60-300 ms or charge error up to +-18 ticks).\n';
-var out = path.join(__dirname, '..', '..', '..', 'docs', 'gravity-moonstep', 'BOT-REPORT.md');
+md += '\nBots: idle = never presses; naive = hold 40 of every 90 ticks; rote = fixed pattern (20 on, 60 off, 48 on, 72 off); skilled = every 4th rim tick searches charges 1..54 ticks (step 4) with `Moonstep.predict` and holds the one landing on the highest non-repel body at least 15 px above; human = skilled with 120-250 ms reaction delay (planned with a 22-tick lead) and 20% mistakes (extra delay 60-300 ms or charge error up to +-18 ticks).\n';
+var out = arg('out', path.join(__dirname, '..', '..', '..', 'docs', 'gravity-moonstep', 'BOT-REPORT.md'));
 fs.writeFileSync(out, md); console.log(md);
+}

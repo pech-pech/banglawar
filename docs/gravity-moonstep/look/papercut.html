@@ -1,0 +1,147 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Moonstep - Paper Cut Moons</title>
+<style>html,body{margin:0;background:#2a1b3d}canvas{display:block;width:344px;height:882px}</style></head>
+<body><canvas id="c"></canvas>
+<script>
+(function(){
+var W=344,H=882,dpr=window.devicePixelRatio||1,TAU=Math.PI*2;
+var c=document.getElementById('c');c.width=W*dpr;c.height=H*dpr;
+var g=c.getContext('2d');g.setTransform(dpr,0,0,dpr,0,0);
+function rnd(seed){return function(){seed=(seed*16807)%2147483647;return seed/2147483647;};}
+function shadow(a,blur,dy){g.shadowColor='rgba(60,25,70,'+a+')';g.shadowBlur=blur;g.shadowOffsetX=0;g.shadowOffsetY=dy;}
+function noShadow(){g.shadowColor='transparent';g.shadowBlur=0;g.shadowOffsetX=0;g.shadowOffsetY=0;}
+// warm dusk gradient
+var bg=g.createLinearGradient(0,0,0,H);
+bg.addColorStop(0,'#4b3a7a');bg.addColorStop(.35,'#8d5f9c');bg.addColorStop(.65,'#e49a9a');bg.addColorStop(1,'#f7c99a');
+g.fillStyle=bg;g.fillRect(0,0,W,H);
+// paper grain
+var r=rnd(7);
+for(var i=0;i<500;i++){g.fillStyle='rgba(255,255,255,'+(r()*.05).toFixed(3)+')';g.fillRect(r()*W,r()*H,1.5,1.5);}
+// layered paper hills/clouds (far to near)
+function layer(y,amp,col,seed,a){var q=rnd(seed);g.beginPath();g.moveTo(0,H);g.lineTo(0,y);
+ var p1=q()*6,p2=q()*6;for(var x=0;x<=W;x+=6)g.lineTo(x,y+Math.sin(x*.018+p1)*amp+Math.sin(x*.047+p2)*amp*.4);
+ g.lineTo(W,H);g.closePath();shadow(a,14,-4);g.fillStyle=col;g.fill();noShadow();}
+function cloud(x,y,s,col){shadow(.18,8,3);g.fillStyle=col;g.beginPath();
+ g.arc(x,y,12*s,Math.PI,0);g.arc(x+16*s,y-4*s,15*s,Math.PI,0);g.arc(x+36*s,y,11*s,Math.PI,0);g.lineTo(x+47*s,y+8*s);g.lineTo(x-12*s,y+8*s);g.closePath();g.fill();noShadow();}
+// stars as paper dots
+for(i=0;i<26;i++){g.fillStyle='rgba(255,247,225,'+(.5+r()*.4).toFixed(2)+')';g.beginPath();g.arc(r()*W,r()*300,1+r()*1.4,0,TAU);g.fill();}
+cloud(18,170,1,'#b88bb8');cloud(220,330,1.1,'#d9a0ad');cloud(60,520,1.3,'#efb0a5');cloud(250,640,1,'#f6c0a0');
+layer(690,10,'rgba(236,150,150,.55)',3,.15);
+layer(740,12,'rgba(210,120,140,.6)',5,.2);
+
+// moon
+var PAL={
+ base:['#f4e3c6','#e6d3b8','#d9c4aa'],
+ spin:['#ffe29a','#f7cd7a','#e9b862'],
+ repel:['#ffb3b0','#f48f98','#e07a8a'],
+ crumble:['#d8cdf0','#c5b8e6','#b3a4d9']};
+function craters(x,y,R,dark,seed){var q=rnd(seed);
+ for(var k=0;k<5;k++){var a=q()*TAU,d=q()*R*.6,cr=R*(.1+q()*.12),cx=x+Math.cos(a)*d,cy=y+Math.sin(a)*d;
+  g.fillStyle=dark;g.beginPath();g.arc(cx,cy,cr,0,TAU);g.fill();
+  g.fillStyle='rgba(255,255,255,.35)';g.beginPath();g.arc(cx-cr*.15,cy-cr*.2,cr*.8,.9*Math.PI,1.9*Math.PI);g.arc(cx,cy,cr,1.9*Math.PI,.9*Math.PI,true);g.fill();}}
+function moon(x,y,R,pal,seed,opt){opt=opt||{};
+ // influence ring: cut paper outline
+ g.save();g.setLineDash([2,6]);g.lineCap='round';g.lineWidth=2;g.strokeStyle=opt.ring||'rgba(255,255,255,.4)';
+ g.beginPath();g.arc(x,y,opt.R||R*2.2,0,TAU);g.stroke();g.restore();
+ // 3 stacked paper discs
+ shadow(.3,12,6);g.fillStyle=pal[2];g.beginPath();g.arc(x,y,R,0,TAU);g.fill();
+ shadow(.25,6,3);g.fillStyle=pal[1];g.beginPath();g.arc(x,y-1,R*.88,0,TAU);g.fill();noShadow();
+ g.fillStyle=pal[0];g.beginPath();g.arc(x,y-2,R*.74,0,TAU);g.fill();
+ craters(x,y-2,R*.74,'rgba(150,100,110,.28)',seed);
+ return;}
+// influence-ring radius per body drawn with each
+// 1 start body
+var START={x:172,y:712,R:40};
+// 2 crumble
+var CR={x:90,y:590,R:30};
+// 3 spin
+var SP={x:244,y:430,R:34};
+// 4 repel
+var RP={x:110,y:262,R:32};
+
+// tide drawn behind bodies? tide in front at bottom: draw after bodies but start body sits above it
+function drawBodies(){
+ moon(START.x,START.y,START.R,PAL.base,11,{R:92});
+ moon(CR.x,CR.y,CR.R,PAL.crumble,23,{R:70,ring:'rgba(255,255,255,.28)'});
+ // crumble cracks + torn chips
+ g.save();g.strokeStyle='rgba(110,90,160,.55)';g.lineWidth=1.5;g.lineCap='round';
+ g.beginPath();g.moveTo(CR.x+8,CR.y-22);g.lineTo(CR.x+2,CR.y-8);g.lineTo(CR.x+10,CR.y+2);g.lineTo(CR.x+3,CR.y+16);g.stroke();g.restore();
+ var ch=[[CR.x+36,CR.y+10,5],[CR.x+30,CR.y+26,3.5],[CR.x-34,CR.y+22,4]];
+ ch.forEach(function(p){shadow(.3,5,3);g.fillStyle='#c5b8e6';g.beginPath();g.moveTo(p[0],p[1]-p[2]);g.lineTo(p[0]+p[2],p[1]+p[2]*.6);g.lineTo(p[0]-p[2]*.8,p[1]+p[2]);g.closePath();g.fill();noShadow();});
+ moon(SP.x,SP.y,SP.R,PAL.spin,31,{R:76});
+ // spin: paper pinwheel blades + arrow chevrons
+ for(var n=0;n<3;n++){var a=.5+n*TAU/3;
+  shadow(.3,6,3);g.fillStyle='#ff9e5e';g.beginPath();
+  g.moveTo(SP.x+Math.cos(a)*(SP.R-6),SP.y+Math.sin(a)*(SP.R-6));
+  g.lineTo(SP.x+Math.cos(a-.2)*(SP.R+12),SP.y+Math.sin(a-.2)*(SP.R+12));
+  g.lineTo(SP.x+Math.cos(a+.3)*(SP.R+6),SP.y+Math.sin(a+.3)*(SP.R+6));g.closePath();g.fill();noShadow();}
+ g.save();g.strokeStyle='#fff';g.lineWidth=3;g.lineCap='round';g.lineJoin='round';
+ g.beginPath();g.arc(SP.x,SP.y,SP.R+22,-.9,.6);g.stroke();
+ var ea=.6;g.beginPath();g.moveTo(SP.x+Math.cos(ea)*(SP.R+22)-6,SP.y+Math.sin(ea)*(SP.R+22)-8);
+ g.lineTo(SP.x+Math.cos(ea)*(SP.R+22)+2,SP.y+Math.sin(ea)*(SP.R+22)+3);
+ g.lineTo(SP.x+Math.cos(ea)*(SP.R+22)-9,SP.y+Math.sin(ea)*(SP.R+22)+4);g.stroke();g.restore();
+ moon(RP.x,RP.y,RP.R,PAL.repel,47,{R:80,ring:'rgba(255,200,200,.55)'});
+ // repel: paper petals pushing out
+ for(n=0;n<4;n++){var b=n*TAU/4+Math.PI/4,cx=RP.x+Math.cos(b)*(RP.R+14),cy=RP.y+Math.sin(b)*(RP.R+14);
+  shadow(.28,5,2);g.fillStyle='#ff6f86';g.save();g.translate(cx,cy);g.rotate(b);
+  g.beginPath();g.moveTo(-7,0);g.lineTo(5,-6);g.lineTo(5,6);g.closePath();g.fill();g.restore();noShadow();}
+}
+drawBodies();
+
+// paper-wave tide
+var tideY=772;
+var cols=[["a",0,0],["b",22,0],["c",44,0]];
+cols.forEach(function(L,idx){var y=tideY+L[1]+idx*2;
+ g.beginPath();g.moveTo(0,H);g.lineTo(0,y);
+ for(var x=0;x<=W;x+=4){var s=Math.sin(x*.045+idx*1.7)*5+Math.sin(x*.11+idx)*2;g.lineTo(x,y+s);}
+ g.lineTo(W,H);g.closePath();shadow(.35,12,-3);g.fillStyle=['#f08a8f','#c4568f','#7d3f85'][idx];g.fill();noShadow();
+ // scalloped crest highlight
+ g.strokeStyle='rgba(255,230,230,.55)';g.lineWidth=1.5;g.beginPath();
+ for(x=0;x<=W;x+=4){s=Math.sin(x*.045+idx*1.7)*5+Math.sin(x*.11+idx)*2;x?g.lineTo(x,y+s):g.moveTo(x,y+s);}
+ g.stroke();});
+
+// repaint a layer so the dark base is under waves: simple deep strip
+var dg=g.createLinearGradient(0,tideY+30,0,H);dg.addColorStop(0,'rgba(70,30,80,0)');dg.addColorStop(1,'rgba(50,20,70,.95)');
+g.fillStyle=dg;g.fillRect(0,tideY+30,W,H-tideY-30);
+
+// runner arc (dotted) from start body to spin moon, runner mid-jump
+var A={x:START.x+24,y:START.y-36},B={x:SP.x-26,y:SP.y+24},Cc={x:150,y:470};
+function qb(t){return{x:(1-t)*(1-t)*A.x+2*(1-t)*t*Cc.x+t*t*B.x,y:(1-t)*(1-t)*A.y+2*(1-t)*t*Cc.y+t*t*B.y};}
+for(i=0;i<=16;i++){var p=qb(i/16);if(i/16<.42)continue;
+ shadow(.2,3,1);g.fillStyle='rgba(255,255,255,'+(.95-i*.03).toFixed(2)+')';g.beginPath();g.arc(p.x,p.y,3.2-i*.08,0,TAU);g.fill();noShadow();}
+var lp=qb(1);g.save();g.lineWidth=2.5;g.strokeStyle='#fff';g.beginPath();g.arc(lp.x,lp.y,8,0,TAU);g.stroke();g.restore();
+// trail ribbon (paper confetti)
+var rp=qb(.36);
+for(i=1;i<=6;i++){var tp=qb(.36-i*.05);shadow(.15,3,1);g.fillStyle='rgba(255,246,230,'+(.7-i*.1).toFixed(2)+')';
+ g.beginPath();g.arc(tp.x,tp.y,7-i*.9,0,TAU);g.fill();noShadow();}
+// runner: paper circle with face-less highlight, charge ring
+shadow(.4,8,4);g.fillStyle='#fffaf0';g.beginPath();g.arc(rp.x,rp.y,10,0,TAU);g.fill();noShadow();
+g.fillStyle='#ffd9a8';g.beginPath();g.arc(rp.x,rp.y+1,6.5,0,TAU);g.fill();
+g.fillStyle='#fffaf0';g.beginPath();g.arc(rp.x-1.5,rp.y-1.5,4,0,TAU);g.fill();
+g.strokeStyle='rgba(255,196,90,.9)';g.lineWidth=2.5;g.beginPath();g.arc(rp.x,rp.y,15,-1.2,2.4);g.stroke();
+
+// HUD pill
+function pill(x,y,w,h,col){g.beginPath();var r=h/2;g.moveTo(x+r,y);g.arcTo(x+w,y,x+w,y+h,r);g.arcTo(x+w,y+h,x,y+h,r);g.arcTo(x,y+h,x,y,r);g.arcTo(x,y,x+w,y,r);g.closePath();g.fillStyle=col;g.fill();}
+shadow(.35,10,4);pill(92,18,160,40,'#fff3e0');noShadow();
+// medal: layered paper rosette
+var mx=116,my=38;
+shadow(.3,4,2);g.fillStyle='#e8a94f';g.beginPath();g.arc(mx,my,13,0,TAU);g.fill();
+g.fillStyle='#f6c868';g.beginPath();g.arc(mx,my-1,10,0,TAU);g.fill();noShadow();
+g.fillStyle='#fff0c0';g.beginPath();g.arc(mx-2,my-3,3.5,0,TAU);g.fill();
+g.fillStyle='#6b3d6e';g.font='700 22px "Trebuchet MS",system-ui,sans-serif';g.textBaseline='middle';
+g.fillText('1,284',140,39);g.font='600 11px "Trebuchet MS",system-ui,sans-serif';g.fillStyle='#a86f8c';g.fillText('m  GOLD',200,40);
+// best marker ticks on side
+shadow(.25,6,2);pill(W-58,18,42,28,'rgba(255,243,224,.92)');noShadow();
+g.fillStyle='#6b3d6e';g.font='700 13px "Trebuchet MS",system-ui,sans-serif';g.textAlign='center';g.fillText('II',W-37,33);g.textAlign='left';
+
+// thumb zone: translucent paper tab at bottom
+shadow(.3,12,-2);g.fillStyle='rgba(255,243,224,.2)';
+g.beginPath();g.moveTo(0,H);g.lineTo(0,H-120);g.quadraticCurveTo(W/2,H-150,W,H-120);g.lineTo(W,H);g.closePath();g.fill();noShadow();
+g.strokeStyle='rgba(255,243,224,.55)';g.lineWidth=2;g.setLineDash([3,7]);g.lineCap='round';
+g.beginPath();g.moveTo(0,H-120);g.quadraticCurveTo(W/2,H-150,W,H-120);g.stroke();g.setLineDash([]);
+// hold-ring hint
+shadow(.25,8,3);g.fillStyle='rgba(255,243,224,.85)';g.beginPath();g.arc(W/2,H-62,26,0,TAU);g.fill();noShadow();
+g.fillStyle='rgba(224,122,138,.9)';g.beginPath();g.arc(W/2,H-62,17,0,TAU);g.fill();
+g.fillStyle='#fff3e0';g.font='700 10px "Trebuchet MS",system-ui,sans-serif';g.textAlign='center';g.fillText('HOLD',W/2,H-61);g.textAlign='left';
+})();
+</script></body></html>
