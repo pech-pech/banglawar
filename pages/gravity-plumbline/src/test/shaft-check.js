@@ -7,12 +7,12 @@ const PL=globalThis.PL, C=PL.C;
 function clone(s){const o=Object.assign({},s);o.pending=s.pending?{...s.pending}:null;o.crumbleS=s.crumbleS.map(c=>({...c}));
   for(const k in s){const v=s[k];if(Array.isArray(v)&&k!=='crumbleS'&&k!=='room')o[k]=v.slice();}o.events=[];return o;}
 const ACTS=[null,{k:'flip',dir:0},{k:'flip',dir:1},{k:'flip',dir:2},{k:'flip',dir:3},{k:'dive'}];
-const SLOT=+(process.env.SLOT||3), MAXT=25*120;
+const SLOT=+(process.env.SLOT||3), MAXT=25*120, MAXWAIT=+(process.env.MAXWAIT||300); // crusher rooms repeat every 288 ticks: waiting longer than ~300 ticks between inputs adds nothing
 function key(s,n){const r=(v,q)=>Math.round(v/q);return [r(s.x,4),r(s.y,4),r(s.vx,25),r(s.vy,25),s.g,s.charges,s.grounded?1:0,n,s.crumbleS.map(c=>c.st).join('')].join(',')}
 // Layered search: level n = states reached with n inputs. From each node coast with no input in 3-tick slots;
 // every coasting state is a branch point where each action (flip x4, dive) may be applied. Dedupe by quantised key;
 // frontier per level capped (FCAP) by distance-to-exit with random-free tie-break => "beam over input count".
-function search(room,{maxIn=5,W=250,stopFirst=true,fm=+(process.env.FM||12)}={}){
+function search(room,{maxIn=5,W=250,stopFirst=true,fm=+(process.env.FM||12),collect=null}={}){
   search.md=0;const FCAP=W*fm, hasCr=room.crushers.length>0;
   const k2=(s,n)=>{const r=(v,q)=>Math.round(v/q);return [r(s.x,4),r(s.y,4),r(s.vx,40),r(s.vy,40),s.g,s.charges,s.grounded?1:0,s.diveCd>0?1:0,s.pending?1:0,hasCr?Math.round(s.t/SLOT):'',s.crumbleS.map(c=>c.st+':'+(c.timer>0?1:0)).join('')].join(',')};
   let level=[{s:PL.newState(room),log:[]}];let best=null;const seen=new Set();
@@ -20,7 +20,7 @@ function search(room,{maxIn=5,W=250,stopFirst=true,fm=+(process.env.FM||12)}={})
     const nxt=[];
     for(const nd of level){
       let s=nd.s;
-      for(let slot=0;slot*SLOT+s.t<MAXT;slot++){
+      for(let slot=0;slot*SLOT+s.t<MAXT&&(!hasCr||slot*SLOT<=MAXWAIT);slot++){
         { const ck='c'+k2(s,n)+'|'+n; if(slot>0&&seen.has(ck))break; seen.add(ck); }
         // branch here
         if(n<maxIn)for(const a of ACTS){ if(!a)continue; if(a.k==='flip'&&a.dir===s.g)continue;
@@ -28,7 +28,7 @@ function search(room,{maxIn=5,W=250,stopFirst=true,fm=+(process.env.FM||12)}={})
           if(ok){for(let i=1;i<SLOT&&ok;i++){PL.step(c,[]);if(c.dead>0)ok=false;if(c.won)break}}
           if(!ok)continue;
           const log=nd.log.concat([{tick:t0,k:a.k,dir:a.dir}]);
-          if(c.won){if(!best||c.t<best.t)best={t:c.t,log,n:n+1};continue}
+          if(c.won){if(!best||c.t<best.t)best={t:c.t,log,n:n+1};if(collect&&collect.length<600)collect.push({t:c.t,log,n:n+1});continue}
           const kk=k2(c,n+1)+'|'+(n+1);if(seen.has(kk))continue;seen.add(kk);
           if(!search.md||Math.hypot(c.x-room.exit.x,c.y-room.exit.y)<search.md){search.md=Math.hypot(c.x-room.exit.x,c.y-room.exit.y);search.mdl=log;search.mdp=[c.x|0,c.y|0]}
           nxt.push({s:c,log,sc:Math.hypot(c.x-room.exit.x,c.y-room.exit.y)});
@@ -36,7 +36,7 @@ function search(room,{maxIn=5,W=250,stopFirst=true,fm=+(process.env.FM||12)}={})
         // coast one slot
         const c=clone(s);let ok=true;for(let i=0;i<SLOT;i++){PL.step(c,[]);if(c.dead>0){ok=false;break}if(c.won)break}
         if(!ok)break;
-        if(c.won){if(!best||c.t<best.t)best={t:c.t,log:nd.log,n};break}
+        if(c.won){if(!best||c.t<best.t)best={t:c.t,log:nd.log,n};if(collect&&collect.length<600)collect.push({t:c.t,log:nd.log,n});break}
         s=c;
       }
     }

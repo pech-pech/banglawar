@@ -1,0 +1,57 @@
+<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Starfall UI kit demo</title>
+<style>html,body{margin:0;background:#151a3d;overflow:hidden}canvas{display:block}</style>
+<canvas id="c"></canvas>
+<script>
+// Serve src/ over http (ui-shots.js does this). Parts are wrapped in an IIFE exactly like inline.py does.
+window.ready = (async () => {
+  for (const p of ['strings', 'uikit', 'screens']) {
+    const src = await (await fetch('../parts/' + p + '.js')).text();
+    (0, eval)('(function(){\n' + src + '\n})();\n//# sourceURL=' + p + '.js');
+  }
+})();
+// dusk backdrop + stand-in room (the real game draws these; the kit only draws chrome)
+function bg(ctx, w, h) {
+  const g = ctx.createLinearGradient(0, 0, 0, h); g.addColorStop(0, '#3a3f86'); g.addColorStop(0.6, '#5b4a8f'); g.addColorStop(1, '#c98a8a');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
+  ctx.fillStyle = 'rgba(255,255,255,.7)'; for (let i = 0; i < 40; i++) ctx.fillRect((i * 97) % w, (i * 53) % (h * 0.5), 2, 2);
+}
+function room(ctx, r) {
+  ctx.save(); ctx.fillStyle = 'rgba(21,26,61,.55)'; ctx.fillRect(r.x, r.y, r.w, r.h);
+  ctx.fillStyle = '#e8bd5a'; ctx.fillRect(r.x, r.y, 4, r.h); ctx.fillStyle = '#6a5aa8';
+  ctx.fillRect(r.x + 20, r.y + r.h * 0.7, r.w * 0.5, 14); ctx.fillRect(r.x + r.w * 0.4, r.y + r.h * 0.4, r.w * 0.5, 14);
+  ctx.fillStyle = '#ff7a6b'; ctx.beginPath(); for (let i = 0; i < 5; i++) { ctx.moveTo(r.x + r.w * 0.45 + i * 16, r.y + r.h * 0.4); ctx.lineTo(r.x + r.w * 0.45 + i * 16 + 8, r.y + r.h * 0.4 - 16); ctx.lineTo(r.x + r.w * 0.45 + i * 16 + 16, r.y + r.h * 0.4); } ctx.fill();
+  ctx.fillStyle = '#f4efe0'; ctx.beginPath(); ctx.arc(r.x + r.w * 0.3, r.y + r.h * 0.7 - 14, 14, 0, 7); ctx.fill(); ctx.restore();
+}
+function art(ctx, r) { // stand-in key art
+  ctx.save(); ctx.fillStyle = 'rgba(21,26,61,.35)'; ctx.fillRect(r.x, r.y, r.w, r.h); ctx.fillStyle = '#f4efe0'; ctx.beginPath(); ctx.arc(r.x + r.w * 0.5, r.y + r.h * 0.4, Math.min(r.w, r.h) * 0.12, 0, 7); ctx.fill(); ctx.restore();
+}
+const VMS = {
+  firstOpen: {},
+  tutorial: { room: 1, rooms: 3, time: '0:08', moves: 2, lit: 'down', hero: null, teach: { lines: ['Tap an arrow. That way is down.', 'You keep your speed.'] }, toast: null },
+  menu: {},
+  shaftPick: { selected: 0, best: [{ time: '1:12', tier: 'gold' }, null, null], dailyNote: true },
+  play: { room: 3, rooms: 5, time: '1:12', moves: 1, maxMoves: 2, lit: 'left', air: true, cooldown: 0.4, toast: { text: 'New best time', kind: 'info' } },
+  playZero: { room: 3, rooms: 5, time: '1:12', moves: 0, maxMoves: 2, air: true, pressed: 'up', toast: { text: 'Out of moves. Land first.', kind: 'info' } },
+  pause: {}, pauseConfirm: { confirm: true },
+  death: { room: 3, rooms: 5, time: '1:12', moves: 2, cause: { kind: 'spikes', text: 'Spikes', age: 400 } },
+  roomClear: { room: 3, rooms: 5, time: '0:21', best: '0:24', isNewBest: true, moves: 2 },
+  shaftComplete: { tier: 'gold', isNew: true, total: '3:41', roomTimes: ['0:41', '0:38', '0:52', '0:47', '1:03'] },
+  settings: { values: { music: 0.7, sounds: 0.5, mute: false, vibration: true, left: false, motion: false, textIdx: 0 } },
+  tweak: { rows: [{ label: 'Gravity', valueText: '1500', value: 0.5 }, { label: 'Speed cap', valueText: '700', value: 0.6 }, { label: 'Moves', valueText: '2', value: 0.33 }], devTuned: true },
+  kit: {}
+};
+const SCREEN_OF = { playZero: 'play', pauseConfirm: 'pause' };
+window.render = function (name, w, h, extra) {
+  const cv = document.getElementById('c'), dpr = window.devicePixelRatio || 1;
+  cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr); cv.style.width = w + 'px'; cv.style.height = h + 'px';
+  const ctx = cv.getContext('2d'); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); bg(ctx, w, h);
+  const vm = Object.assign({ drawRoom: room, drawArt: art, w, h }, VMS[name], extra || {});
+  const scr = SCREEN_OF[name] || name;
+  if (['pause', 'shaftComplete', 'confirm'].includes(scr)) { room(ctx, PL.Screens.layout(w, h, false).play.rects.room); PL.Screens.draw.play(ctx, w, h, Object.assign({}, VMS.play, { leftHand: vm.leftHand }), 0); }
+  if (name === 'death' || name === 'play' || name === 'playZero') vm.hero = { x: w / 2, y: h * 0.45 };
+  if (name === 'death') vm.cause.x = w * 0.4, vm.cause.y = h * 0.45;
+  if (name === 'play' && w < 400) vm.hero = { x: w * 0.4, y: h * 0.5 };
+  PL.Screens.draw[scr](ctx, w, h, vm, 1.3);
+};
+</script>

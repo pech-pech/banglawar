@@ -74,17 +74,30 @@ async function suite(browser, port, W, H) {
   await h.menuTap('tutorial');
   ok(await h.scene() === 'play', `${tag} Tutorial reachable by tap`);
   await sleep(300);
+  // S1: arrow pad replaces swipe strip / tap-Dive / hold-restart (steps updated to use the pad)
+  const pad = await h.page.evaluate(([W, H]) => PL.Input.layout(W, H), [W, H]);
+  const mid = r => [r.x + r.w / 2, r.y + r.h / 2];
   let a = await h.st();
-  await h.swipe(cx, stripY, 90, 0);
+  await h.tap(...mid(pad.keys[1]));
   let b = await h.st();
-  ok(b.g === 1 && b.flips > a.flips, `${tag} swipe in strip flips gravity (g=${b.g})`);
+  ok(b.g === 1 && b.flips > a.flips, `${tag} Right arrow key flips gravity (g=${b.g})`);
   await h.page.screenshot({ path: `/tmp/pl-shots/mid-${tag}.png` });
   await h.page.evaluate(() => PL_TEST.room(1)); await sleep(200); a = await h.st();
-  await h.swipe(cx, topY, 90, 0); b = await h.st();
-  ok(b.g === a.g && b.flips === a.flips, `${tag} swipe in top 60% does NOT flip`);
+  await h.swipe(cx, topY, 90, 0); await h.tap(cx, topY); b = await h.st();
+  ok(b.g === a.g && b.flips === a.flips && b.diveCd === 0, `${tag} swipe/tap on the room does nothing (no swipe, no tap-Dive)`);
   await h.page.evaluate(() => PL_TEST.room(1)); await sleep(200); a = await h.st();
-  await h.tap(cx, stripY); b = await h.st();
-  ok(b.diveCd > 0 || b.vy !== a.vy || b.vx !== a.vx, `${tag} tap dives (diveCd=${b.diveCd})`);
+  await h.ptr('pointerdown', ...mid(pad.dive), 3); await sleep(30); b = await h.st(); await h.ptr('pointerup', ...mid(pad.dive), 3);
+  ok(b.diveCd > 0 || b.vy !== a.vy || b.vx !== a.vx, `${tag} Dive key dives on touch-down (diveCd=${b.diveCd})`);
+  await h.page.evaluate(() => PL_TEST.room(1)); await sleep(200);
+  await h.ptr('pointerdown', ...mid(pad.keys[0]), 4); await h.ptr('pointerdown', ...mid(pad.keys[1]), 5); await sleep(40);
+  const mt = await h.page.evaluate(() => PL_TEST.inputLog().slice(-2).map(i => i.k + i.dir));
+  await h.ptr('pointerup', ...mid(pad.keys[0]), 4); await h.ptr('pointerup', ...mid(pad.keys[1]), 5);
+  ok(mt.join() === 'flip0,flip1', `${tag} two fingers: both keys fire, logged as {k,dir} (${mt})`);
+  const nAtt = (await h.page.evaluate(() => PL_TEST.attempts())).length;
+  await h.tap(...mid(pad.retry));
+  ok((await h.page.evaluate(() => PL_TEST.attempts())).length === nAtt + 1, `${tag} Retry button restarts the room in one tap`);
+  await h.hold(cx, topY, 900);
+  ok((await h.page.evaluate(() => PL_TEST.attempts())).length === nAtt + 1, `${tag} hold does not restart (hold-restart removed)`);
   // copy button + determinism after really clearing room 1
   const rc = await h.clearTutorial(true);
   ok(rc.solved, `${tag} room 1 cleared with real inputs (flip1@0, dive@1, flip2@20)`);

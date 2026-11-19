@@ -22,25 +22,48 @@ html,body{margin:0;padding:0;width:100%;height:100%;background:#000;overflow:hid
 const PL = (globalThis.PL = globalThis.PL || {});
 (function () {
   'use strict';
-  const C = (PL.C = { DT: 1 / 120, G: 1500, CAP: 700, DIVE_CAP: 900, DIVE_ADD: 250, DIVE_BOOST_T: 0.3, DIVE_CD: 0.5, CHARGES: 2, HALF: 11, FRIC: 900, DRAG: 0.35, DRAG_AFTER: 0.3, BOUNCE_SIDE: 0.15, BUFFER: 0.08, CRUMBLE_T: 0.35, GATE_V: 120, RESPAWN_T: 0.3, WALL_RIDE_T: 0.25, COYOTE_T: 0.06 });
+  const C = (PL.C = { DT: 1 / 120, G: 1500, CAP: 700, DIVE_CAP: 900, DIVE_ADD: 250, DIVE_BOOST_T: 0.3, DIVE_CD: 0.5, CHARGES: 2, HALF: 11, FRIC: 900, DRAG: 0.35, DRAG_AFTER: 0.3, BOUNCE_SIDE: 0.15, BUFFER: 0.08, CRUMBLE_T: 0.35, GATE_V: 120, RESPAWN_T: 0.3, WALL_RIDE_T: 0.25, COYOTE_T: 0.06,
+    // S1 (F2): former literals, now tunable
+    CRUSHER_PERIOD: 2.4, SPIKE_SHRINK: 3, EXIT_R: 18, CRUSH_OVERLAP: 1 });
   const DIRS = (PL.DIRS = [[0, -1], [1, 0], [0, 1], [-1, 0]]);
-  const DT = C.DT, H = C.HALF;
-  const CRUMBLE_TICKS = Math.round(C.CRUMBLE_T / DT);
-  const DEAD_TICKS = Math.round(C.RESPAWN_T / DT);
-  const BUFFER_TICKS = Math.round(C.BUFFER / DT); // 10: pending flip survives age<=10 ticks
-  const DIVE_CD_TICKS = Math.round(C.DIVE_CD / DT); // 60
-  const DIVE_BOOST_TICKS = Math.round(C.DIVE_BOOST_T / DT); // 36
-  const RIDE_TICKS = Math.round(C.WALL_RIDE_T / DT); // 30
-  const COYOTE_TICKS = Math.round(C.COYOTE_T / DT); // 7: flip/dive free for 7 ticks after walking off, denied on the 8th
+  const DT = C.DT; // 1/120 is the determinism base: never tunable
+  // S1 (F1): nothing is frozen at load. Every tunable is read from PL.C once per
+  // attempt (PL.newState) into state.K, so a mid-attempt change never alters a
+  // running attempt and each attempt replays from its own snapshot (K.snap).
+  const SIM_IDS = (PL.SIM_IDS = ['G', 'CAP', 'DIVE_CAP', 'DIVE_ADD', 'DIVE_BOOST_T', 'DIVE_CD', 'CHARGES', 'HALF', 'FRIC', 'DRAG', 'DRAG_AFTER', 'BOUNCE_SIDE', 'BUFFER', 'CRUMBLE_T', 'GATE_V', 'RESPAWN_T', 'WALL_RIDE_T', 'COYOTE_T', 'CRUSHER_PERIOD', 'SPIKE_SHRINK', 'EXIT_R', 'CRUSH_OVERLAP']);
+  // copy of the sim-affecting values of PL.C (or of src); missing ids fall back to PL.C
+  PL.simSnapshot = function (src) {
+    const o = {};
+    for (const id of SIM_IDS) o[id] = src && typeof src[id] === 'number' ? src[id] : C[id];
+    return Object.freeze(o);
+  };
+  // per-attempt constants: snapshot values + tick counts (same rounding as the old load-time consts)
+  PL.deriveK = function (snap) {
+    const v = snap && Object.isFrozen(snap) && SIM_IDS.every((id) => typeof snap[id] === 'number') ? snap : PL.simSnapshot(snap);
+    const K = Object.assign({}, v);
+    K.snap = v;
+    K.CRUMBLE_TICKS = Math.round(v.CRUMBLE_T / DT); // 42
+    K.DEAD_TICKS = Math.round(v.RESPAWN_T / DT); // 36
+    K.BUFFER_TICKS = Math.round(v.BUFFER / DT); // 10: pending flip survives age<=10 ticks
+    K.DIVE_CD_TICKS = Math.round(v.DIVE_CD / DT); // 60
+    K.DIVE_BOOST_TICKS = Math.round(v.DIVE_BOOST_T / DT); // 36
+    K.RIDE_TICKS = Math.round(v.WALL_RIDE_T / DT); // 30
+    K.COYOTE_TICKS = Math.round(v.COYOTE_T / DT); // 7: flip/dive free for 7 ticks after walking off, denied on the 8th
+    return K;
+  };
+  // state without K (hand-built in a test): derive once from PL.C and keep it
+  function KOf(s) { return s.K || (s.K = PL.deriveK()); }
   const EPS = 1e-6;
 
-  PL.newState = function (room) {
+  // snap (optional): values from PL.simSnapshot / K.snap; default = PL.C now (attempt start)
+  PL.newState = function (room, snap) {
+    const K = PL.deriveK(snap);
     const s = {
-      room, t: 0, x: room.start.x, y: room.start.y, vx: 0, vy: 0, g: room.start.g,
-      charges: C.CHARGES, grounded: false, airT: 0, diveCd: 0, diveBoost: 0, pending: null,
+      K, room, t: 0, x: room.start.x, y: room.start.y, vx: 0, vy: 0, g: room.start.g,
+      charges: K.CHARGES, grounded: false, airT: 0, diveCd: 0, diveBoost: 0, pending: null,
       crumbleS: (room.crumbles || []).map(() => ({ st: 0, timer: 0 })),
       rideT: 0, rideKey: '', rideUsed: [], coyote: 0,
-      dead: 0, won: false, flips: 0, lastLandSpeed: 0, events: [],
+      dead: 0, cause: '', won: false, flips: 0, lastLandSpeed: 0, events: [],
     };
     // spawn grounded if the start sits on a surface (no spurious 'land' on tick 1)
     const d = DIRS[s.g];
@@ -50,36 +73,40 @@ const PL = (globalThis.PL = globalThis.PL || {});
     return s;
   };
 
-  function crusherRect(c, t) {
-    const s = Math.sin(2 * Math.PI * (t * DT) / 2.4 + c.phase) * c.amp;
+  // crusher rect at tick t; K = state.K (period CRUSHER_PERIOD); draw.js can call PL.crusherRect(c, state.t, state.K)
+  function crusherRect(c, t, K) {
+    const s = Math.sin(2 * Math.PI * (t * DT) / (K || C).CRUSHER_PERIOD + c.phase) * c.amp;
     return [c.r[0] + c.ax * s, c.r[1] + c.ay * s, c.r[2], c.r[3]];
   }
+  PL.crusherRect = crusherRect;
 
   // internal solids: {r, cr (crumble index or -1)}
   function buildSolids(s, vx, vy) {
-    const room = s.room, out = [];
+    const room = s.room, out = [], K = KOf(s);
     for (const r of room.walls) out.push({ r, cr: -1, key: 'w' + out.length });
     (room.crumbles || []).forEach((r, i) => { if (s.crumbleS[i].st !== 2) out.push({ r, cr: i, key: 'c' + i }); });
     (room.gates || []).forEach((g, gi) => {
       if (overlaps(s, g.r)) return; // latch: a gate never turns solid around a bob already inside it
       const dd = DIRS[g.dir];
-      if (vx * dd[0] + vy * dd[1] < C.GATE_V) out.push({ r: g.r, cr: -1, gate: true, key: 'g' + gi });
+      if (vx * dd[0] + vy * dd[1] < K.GATE_V) out.push({ r: g.r, cr: -1, gate: true, key: 'g' + gi });
     });
-    (room.crushers || []).forEach((c, ci) => out.push({ r: crusherRect(c, s.t), cr: -1, key: 'k' + ci }));
+    (room.crushers || []).forEach((c, ci) => out.push({ r: crusherRect(c, s.t, K), cr: -1, key: 'k' + ci }));
     return out;
   }
   // gate state uses post-gravity velocity, matching PL.step
   PL.solids = function (s) {
     const d = DIRS[s.g];
-    return buildSolids(s, s.vx + d[0] * C.G * DT, s.vy + d[1] * C.G * DT).map((o) => o.r);
+    const K = KOf(s);
+    return buildSolids(s, s.vx + d[0] * K.G * DT, s.vy + d[1] * K.G * DT).map((o) => o.r);
   };
 
-  function overlapX(s, r) { return Math.min(s.x + H, r[0] + r[2]) - Math.max(s.x - H, r[0]); }
-  function overlapY(s, r) { return Math.min(s.y + H, r[1] + r[3]) - Math.max(s.y - H, r[1]); }
+  function overlapX(s, r) { const H = KOf(s).HALF; return Math.min(s.x + H, r[0] + r[2]) - Math.max(s.x - H, r[0]); }
+  function overlapY(s, r) { const H = KOf(s).HALF; return Math.min(s.y + H, r[1] + r[3]) - Math.max(s.y - H, r[1]); }
   function overlaps(s, r) { return overlapX(s, r) > 0 && overlapY(s, r) > 0; }
 
   // move one axis (0=x,1=y); returns hit info
   function moveAxis(s, ax, solids, hit) {
+    const K = s.K, H = K.HALF;
     if (ax === 0) s.x += s.vx * DT; else s.y += s.vy * DT;
     for (const o of solids) {
       const r = o.r;
@@ -103,7 +130,7 @@ const PL = (globalThis.PL = globalThis.PL || {});
         if (ax === 0) s.vx = 0; else s.vy = 0;
         if (o.cr >= 0) hit.crumbles.push(o.cr);
       } else if (v !== 0 && Math.sign(v) === sign) {
-        if (ax === 0) s.vx = -C.BOUNCE_SIDE * s.vx; else s.vy = -C.BOUNCE_SIDE * s.vy;
+        if (ax === 0) s.vx = -K.BOUNCE_SIDE * s.vx; else s.vy = -K.BOUNCE_SIDE * s.vy;
       }
     }
   }
@@ -123,15 +150,17 @@ const PL = (globalThis.PL = globalThis.PL || {});
       if (!s.grounded && s.coyote <= 0) { if (s.charges <= 0) return; s.charges--; }
       s.coyote = 0;
       const d = DIRS[s.g];
-      s.vx += d[0] * C.DIVE_ADD; s.vy += d[1] * C.DIVE_ADD;
-      s.diveBoost = DIVE_BOOST_TICKS; s.diveCd = DIVE_CD_TICKS; s.events.push('dive');
+      s.vx += d[0] * s.K.DIVE_ADD; s.vy += d[1] * s.K.DIVE_ADD;
+      s.diveBoost = s.K.DIVE_BOOST_TICKS; s.diveCd = s.K.DIVE_CD_TICKS; s.events.push('dive');
     }
   }
 
-  function die(s) { if (!s.dead) { s.dead = DEAD_TICKS; s.events.push('death'); } }
+  // cause: 'spike' | 'crush' | 'edge' (not hashed; for the death tag and Copy report)
+  function die(s, cause) { if (!s.dead) { s.dead = s.K.DEAD_TICKS; s.cause = cause; s.events.push('death'); } }
 
   PL.step = function (s, inputs) {
     s.events.length = 0;
+    const K = KOf(s);
     if (s.won) return;
     if (s.dead > 0) { s.dead--; s.t++; return; }
     if (inputs) for (const i of inputs) applyInput(s, i);
@@ -140,22 +169,22 @@ const PL = (globalThis.PL = globalThis.PL || {});
     if (s.diveCd > 0) s.diveCd--;
     if (s.diveBoost > 0) s.diveBoost--;
     if (s.coyote > 0) s.coyote--;
-    if (s.pending) { s.pending.age++; if (s.pending.age > BUFFER_TICKS) s.pending = null; }
+    if (s.pending) { s.pending.age++; if (s.pending.age > K.BUFFER_TICKS) s.pending = null; }
 
     // forces
     const d = DIRS[s.g];
-    s.vx += d[0] * C.G * DT; s.vy += d[1] * C.G * DT;
+    s.vx += d[0] * K.G * DT; s.vy += d[1] * K.G * DT;
     if (s.grounded) {
       s.airT = 0;
-      if (d[0] === 0) s.vx = fric(s.vx); else s.vy = fric(s.vy);
+      if (d[0] === 0) s.vx = fric(s.vx, K); else s.vy = fric(s.vy, K);
     } else {
       s.airT += DT;
-      if (s.airT > C.DRAG_AFTER) {
-        const k = 1 - C.DRAG * DT;
+      if (s.airT > K.DRAG_AFTER) {
+        const k = 1 - K.DRAG * DT;
         if (d[0] === 0) s.vx *= k; else s.vy *= k;
       }
     }
-    const cap = s.diveBoost > 0 ? C.DIVE_CAP : C.CAP;
+    const cap = s.diveBoost > 0 ? K.DIVE_CAP : K.CAP;
     s.vx = Math.max(-cap, Math.min(cap, s.vx));
     s.vy = Math.max(-cap, Math.min(cap, s.vy));
 
@@ -167,15 +196,15 @@ const PL = (globalThis.PL = globalThis.PL || {});
 
     const was = s.grounded;
     s.grounded = hit.ground;
-    if (was && !hit.ground) s.coyote = COYOTE_TICKS; // walked off a ledge (flip/dive already cleared grounded earlier)
+    if (was && !hit.ground) s.coyote = K.COYOTE_TICKS; // walked off a ledge (flip/dive already cleared grounded earlier)
     if (hit.ground) {
       s.coyote = 0; s.rideT = 0; s.rideKey = '';
       if (!was) {
         s.rideUsed.length = 0;
         s.lastLandSpeed = hit.speed; s.airT = 0; s.events.push('land');
-        s.charges = C.CHARGES;
+        s.charges = K.CHARGES;
         if (s.pending) { const p = s.pending; s.pending = null; if (p.dir !== s.g) { doFlip(s, p.dir); s.grounded = false; } }
-      } else s.charges = C.CHARGES;
+      } else s.charges = K.CHARGES;
     }
     if (!hit.ground) wallRide(s, solids);
     // decrement first, then trigger: a newly triggered crumble keeps the full CRUMBLE_TICKS
@@ -183,27 +212,27 @@ const PL = (globalThis.PL = globalThis.PL || {});
       if (c.st === 1 && --c.timer <= 0) { c.st = 2; c.timer = 0; s.events.push('crumble'); }
     });
     if (hit.ground) {
-      for (const i of hit.crumbles) if (s.crumbleS[i].st === 0) { s.crumbleS[i].st = 1; s.crumbleS[i].timer = CRUMBLE_TICKS; }
+      for (const i of hit.crumbles) if (s.crumbleS[i].st === 0) { s.crumbleS[i].st = 1; s.crumbleS[i].timer = K.CRUMBLE_TICKS; }
     }
 
     // crush check against solids at this tick
     const now = buildSolids(s, s.vx, s.vy);
     for (const o of now) {
       if (o.gate) continue; // gates only block entry, never crush
-      if (overlaps(s, o.r) && Math.min(overlapX(s, o.r), overlapY(s, o.r)) > 1) { die(s); break; }
+      if (overlaps(s, o.r) && Math.min(overlapX(s, o.r), overlapY(s, o.r)) > K.CRUSH_OVERLAP) { die(s, 'crush'); break; }
     }
     // spikes
     if (!s.dead) {
-      const h = H - 3;
+      const h = K.HALF - K.SPIKE_SHRINK;
       for (const sp of s.room.spikes || []) {
         const r = sp.r;
-        if (s.x + h > r[0] && s.x - h < r[0] + r[2] && s.y + h > r[1] && s.y - h < r[1] + r[3]) { die(s); break; }
+        if (s.x + h > r[0] && s.x - h < r[0] + r[2] && s.y + h > r[1] && s.y - h < r[1] + r[3]) { die(s, 'spike'); break; }
       }
     }
-    if (!s.dead && (s.x < -40 || s.y < -40 || s.x > s.room.w + 40 || s.y > s.room.h + 40)) die(s);
+    if (!s.dead && (s.x < -40 || s.y < -40 || s.x > s.room.w + 40 || s.y > s.room.h + 40)) die(s, 'edge');
     if (!s.dead) {
       const e = s.room.exit;
-      if (Math.hypot(s.x - e.x, s.y - e.y) < 18) { s.won = true; s.events.push('win'); }
+      if (Math.hypot(s.x - e.x, s.y - e.y) < K.EXIT_R) { s.won = true; s.events.push('win'); }
     }
     s.t++;
   };
@@ -225,15 +254,15 @@ const PL = (globalThis.PL = globalThis.PL || {});
     if (!key) { s.rideT = 0; s.rideKey = ''; return; }
     if (key !== s.rideKey) { s.rideKey = key; s.rideT = 0; }
     s.rideT++;
-    if (s.rideT >= RIDE_TICKS && s.rideUsed.indexOf(key) < 0) {
+    if (s.rideT >= s.K.RIDE_TICKS && s.rideUsed.indexOf(key) < 0) {
       s.rideUsed.push(key);
-      if (s.charges < C.CHARGES) s.charges++;
+      if (s.charges < s.K.CHARGES) s.charges++;
       s.events.push('ride');
     }
   }
 
-  function fric(v) {
-    const a = C.FRIC * DT;
+  function fric(v, K) {
+    const a = K.FRIC * DT;
     return Math.abs(v) <= a ? 0 : v - Math.sign(v) * a;
   }
 
@@ -245,8 +274,9 @@ const PL = (globalThis.PL = globalThis.PL || {});
     return a.join(',');
   };
 
-  PL.replay = function (room, log) {
-    const s = PL.newState(room);
+  // snap (optional): the attempt's K.snap, so a tuned attempt replays with its own values
+  PL.replay = function (room, log, snap) {
+    const s = PL.newState(room, snap);
     const end = (log.length ? log[log.length - 1].tick : 0) + 600;
     let i = 0;
     while (s.t < end && !s.won && !s.dead) {
@@ -260,40 +290,26 @@ const PL = (globalThis.PL = globalThis.PL || {});
 
 })();
 (function(){
-// rooms.js - Plumbline: seeded RNG + 3 hardcoded rooms (336x500, border walls 12 px included).
-// Node-loadable, no DOM. Seed only picks per-room x-mirror and crusher phase.
+// rooms.js - Plumbline: seeded RNG, the 3 tutorial rooms, templates t02/t03 and buildShaft (slot table).
+// Node-loadable, no DOM. Rooms are 336x500 with 12 px border walls included.
 //
 // Geometry notes: G 1500, cap 700, bob box 22 (half 11), flip keeps velocity.
 // A ledge with top at T puts a grounded bob at y = T - 11. Fly lines use that y.
-// Solutions below are written for the UNMIRRORED layout; when a room is mirrored swap
-// left<->right (gravity dir 1<->3) and x -> 336 - x. Times are seconds from first input.
+// Solutions are written for the UNMIRRORED layout; mirrored rooms swap left<->right and x -> 336 - x.
 //
-// ROOM 1  "Arc Carry" (teach: flip mid-fall bends a carried speed into an arc)
-//   Start on left pillar (40,109). Pit (x 102-215) with floor spikes; right-wall spikes y 80-120 sit
-//   on the lazy line (flip right and hold, or flip right + tick-1 Dive: both die on the wall spikes).
-//   Solution (2 flips, ~1.0 s): t=0.00 swipe RIGHT (free, grounded); t~0.31..0.45 swipe DOWN
-//   (1 charge, before bob x~185) -> arc lands on the right block (top y 200, x 215-324) near
-//   x 270-313. If past the exit, swipe LEFT (free) to slide back through it.
+// TUTORIALS (PL.buildRooms(seed) returns these 3, never mirrored, seed has no effect; never in shafts):
+//   tut1 "Flip"      start (40,109) on a pillar, nothing else. RIGHT (free) flies to the wall, DOWN (free) drops to the
+//                    exit. Two free flips, every window is huge, no spikes.
+//   t01  "Arc Carry" (tutorial 2) flip mid-fall bends a carried speed into an arc over the pit: RIGHT (free), DOWN
+//                    (1 charge) before bob x~185, land on the right block. Teaches "2 moves in the air".
+//   tut3 "Dive Gate" rest on a full-width one-way gate; Dive (free on the ground) punches through and falls to the exit.
 //
-// ROOM 2  "Charge Banking" (teach: landing refills charges; crumble ledge; Dive-tap gate)
-//   Start on top-left ledge (40,79). The left column (x 12-100) is solid to the floor and a wall
-//   under the ledge's right end seals the chamber, so the gate floor is the only way in.
-//   Solution (3 flips + 1 dive, ~3 s): t=0 swipe RIGHT (free); t~0.31..0.45 swipe DOWN (1 charge)
-//   -> land on the crumble ledge (right, y 200, x 256-324; charges refill; it breaks 0.35 s after landing and
-//   below it are floor spikes). Within 0.3 s swipe LEFT (free) -> bob flies the 26 px corridor and
-//   stops at its end (x 111). Swipe DOWN (free, grounded): bob rests on the one-way gate floor (needs
-//   120 px/s down; the corridor is too short to build it, max ~110). TAP = Dive (+250) -> falls into the
-//   sealed chamber (x 100-226). Swipe RIGHT (free) -> slide into the exit (160,439).
-//
-// ROOM 3  "Rhythm Press" (teach: crusher rhythm + Late Flip)
-//   Start on left ledge (40,119). A press plate (x 128-212, 60 tall, ay amp 50, period 2.4 s, phase from
-//   seed) sits across the flight line y~119: it is clear only while its bottom is above y 108 or its top
-//   below y 130 (about 40 % of the cycle, two windows), so the swipe-right moment differs per seed.
-//   Solution (3 flips, ~3-5 s incl. waiting): time the first swipe RIGHT (free) so the bob arrives ~0.33 s
-//   later while the plate is clear, hits the right wall (grounded); swipe DOWN (free) and fall along the
-//   wall at 600-700 px/s; ~0.3 s later swipe LEFT (1 charge) to carry the speed sideways, then LATE swipe
-//   DOWN (1 charge) in the last ~0.2 s so the arc drops onto the left shelf (top y 430, x 12-220).
-//   Floor spikes x 220-324 punish the straight fall. Swipe LEFT (free) to slide into the exit.
+// SHAFT TEMPLATES in this file:
+//   t02  "Charge Banking" (tier 2, family gate): RIGHT, DOWN (1 charge) onto the crumble ledge (refills); LEFT (free)
+//        through the corridor; DOWN (free) on the gate; Dive; RIGHT into the exit.
+//   t03  "Rhythm Press" (tier 2, family crusher, FIRST crusher a player meets, crusher alone): wait for the press to rise,
+//        RIGHT (free) hits the right wall, DOWN (free) drops onto the safe stub, LEFT (free) flies over the shelf into the
+//        exit. All free. Late Flip (LEFT mid-fall, DOWN late) stays as an optional faster line.
 
 const PL = (globalThis.PL = globalThis.PL || {});
 
@@ -308,82 +324,85 @@ PL.mulberry32 = function (seed) {
   };
 };
 
+
 (function () {
   const W = 336, H = 500, B = 12;
   const border = () => [[0, 0, W, B], [0, H - B, W, B], [0, 0, B, H], [W - B, 0, B, H]];
 
   function base() {
     return [
-      { // Room 1: Arc Carry
+      { // Tutorial 1: Flip (flip alone, no hazards)
+        name: 'Flip',
+        teach: 'Flip right to fly across, then flip down to drop to the exit. On the ground flips are free.',
+        start: { x: 40, y: 109, g: 2 },
+        walls: border().concat([[12, 120, 90, 368]]),
+        spikes: [], crumbles: [], gates: [], crushers: [],
+        exit: { x: 300, y: 477 },
+      },
+      { // Tutorial 2 (t01): Arc Carry
         name: 'Arc Carry',
-        teach: 'Flip mid-fall: your speed turns into a sideways arc over the gap.',
+        teach: 'Flip mid-fall: your speed turns into a sideways arc. You have 2 moves in the air.',
         start: { x: 40, y: 109, g: 2 },
         walls: border().concat([[12, 120, 90, 368], [215, 200, 109, 288]]),
         spikes: [{ r: [102, 472, 113, 16] }, { r: [312, 80, 12, 40] }],
         crumbles: [], gates: [], crushers: [],
         exit: { x: 285, y: 189 },
       },
-      { // Room 2: Charge Banking
-        name: 'Charge Banking',
-        teach: 'Landing refills charges. The ledge crumbles; tap to Dive through the gate.',
-        start: { x: 40, y: 79, g: 2 },
-        walls: border().concat([
-          [12, 90, 88, 360],     // start ledge + sealed left column (x 12-100, down to floor)
-          [100, 150, 126, 24],   // corridor ceiling
-          [226, 200, 30, 12],    // solid strip between ledge and gate (no fall-in at speed from the broken ledge)
-          [226, 212, 12, 238],   // chamber right wall: gate is the ONLY way into the chamber
-          [12, 450, 312, 38],    // lower floor
-        ]),
-        spikes: [{ r: [312, 40, 12, 50] }, { r: [238, 436, 86, 14] }],
-        crumbles: [[256, 200, 68, 12]],
-        gates: [{ r: [100, 200, 126, 8], dir: 2 }],
+      { // Tutorial 3: Dive through the gate
+        name: 'Dive Gate',
+        teach: 'You rest on a one-way gate. On the ground Dive is free. In the air it uses a move.',
+        start: { x: 168, y: 89, g: 2 },
+        walls: border(),
+        spikes: [], crumbles: [],
+        gates: [{ r: [12, 100, 312, 8], dir: 2 }],
         crushers: [],
-        exit: { x: 160, y: 439 },
-      },
-      { // Room 3: Rhythm Press
-        name: 'Rhythm Press',
-        teach: 'Slip through when the press opens, then flip late to land tight.',
-        start: { x: 40, y: 119, g: 2 },
-        walls: border().concat([
-          [12, 130, 100, 14],    // start ledge
-          [12, 430, 208, 58],    // landing shelf
-        ]),
-        spikes: [{ r: [220, 472, 104, 16] }],
-        crumbles: [], gates: [],
-        crushers: [{ r: [128, 85, 84, 60], ax: 0, ay: 1, amp: 50, phase: 0 }],
-        exit: { x: 50, y: 419 },
+        exit: { x: 168, y: 477 },
       },
     ];
   }
+  PL.tutorialRooms = base;
+
+  const T2 = () => ({ // Charge Banking (shaft tier 2)
+    name: 'Charge Banking',
+    teach: 'Landing refills your moves. The ledge breaks 0.35 s after you land: dive through the gate.',
+    start: { x: 40, y: 79, g: 2 },
+    walls: border().concat([
+      [12, 90, 88, 360],     // start ledge + sealed left column (x 12-100, down to floor)
+      [100, 150, 126, 24],   // corridor ceiling
+      [226, 200, 30, 12],    // solid strip between ledge and gate
+      [226, 212, 12, 238],   // chamber right wall: the gate is the ONLY way into the chamber
+      [12, 450, 312, 38],    // lower floor
+    ]),
+    spikes: [{ r: [312, 40, 12, 50] }, { r: [238, 436, 86, 14] }],
+    crumbles: [[256, 200, 68, 12]],
+    gates: [{ r: [100, 200, 126, 8], dir: 2 }],
+    crushers: [],
+    exit: { x: 160, y: 439 },
+  });
+  const T3 = () => ({ // Rhythm Press: the crusher met alone
+    name: 'Rhythm Press',
+    teach: 'Wait for the press to rise, slip under it, drop down the wall onto the stub, then fly left to the exit.',
+    start: { x: 40, y: 119, g: 2 },
+    walls: border().concat([
+      [12, 130, 100, 14],    // start ledge
+      [12, 430, 208, 58],    // landing shelf
+      [284, 430, 40, 58],    // safe stub (right)
+    ]),
+    spikes: [{ r: [220, 472, 64, 16] }],
+    crumbles: [], gates: [],
+    crushers: [{ r: [142, 85, 84, 60], ax: 0, ay: 1, amp: 50, phase: 0 }],
+    exit: { x: 50, y: 419 },
+  });
 
   const mr = (r) => [W - r[0] - r[2], r[1], r[2], r[3]];
 
-  function mirror(room) {
-    room.start.x = W - room.start.x;
-    room.exit.x = W - room.exit.x;
-    room.walls = room.walls.map(mr);
-    room.spikes = room.spikes.map((s) => ({ r: mr(s.r) }));
-    room.crumbles = room.crumbles.map(mr);
-    room.gates = room.gates.map((g) => ({ r: mr(g.r), dir: g.dir === 1 ? 3 : g.dir === 3 ? 1 : g.dir }));
-    room.crushers = room.crushers.map((c) => ({ r: mr(c.r), ax: c.ax, ay: c.ay, amp: c.amp, phase: c.phase }));
-    room.mirrored = true;
-  }
-
+  // PL.buildRooms(seed): the 3 tutorial rooms. Never mirrored; seed has no effect (kept in the signature for callers).
   PL.buildRooms = function (seed) {
-    const rng = PL.mulberry32(seed);
     const rooms = base();
-    for (const room of rooms) {
-      const m = rng() < 0.5;
-      const phase = rng() * Math.PI * 2;
-      room.w = W; room.h = H;
-      room.mirrored = false;
-      for (const c of room.crushers) c.phase = phase;
-      if (m) mirror(room);
-    }
+    for (const room of rooms) { room.w = W; room.h = H; room.mirrored = false; }
     return rooms;
   };
 
-  // --- slice additions ---
   PL.mirrorRoom = function (room) {
     const r = JSON.parse(JSON.stringify(room));
     r.start.x = W - r.start.x;
@@ -399,36 +418,112 @@ PL.mulberry32 = function (seed) {
   };
 
   PL.TEMPLATES = PL.TEMPLATES || [];
-  [[1, 1], [2, 2], [3, 2]].forEach(([n, tier], i) => {
-    const id = 't0' + n;
-    PL.TEMPLATES.push({
-      id, tier, teach: base()[i].teach,
-      make(rng) {
-        const room = base()[i];
-        const phase = rng() * Math.PI * 2;
-        room.w = W; room.h = H; room.mirrored = false;
-        for (const c of room.crushers) c.phase = phase;
-        return room;
-      },
-    });
-  });
+  // meta: tier (0 = tutorial only), family (adjacent shaft rooms differ), inputs (needed inputs on the loosest route),
+  // rest (may fill the rest slot), hard (may fill the hardest slot), tutorial (never in a shaft), retired (never in a shaft).
+  function reg(id, tier, mk, meta) {
+    const t = Object.assign({ id, tier, teach: mk().teach, make(rng) {
+      const room = mk(); room.w = W; room.h = H; room.mirrored = false;
+      const phase = rng() * Math.PI * 2;
+      for (const c of room.crushers) c.phase = phase;
+      return room;
+    } }, meta);
+    PL.TEMPLATES.push(t);
+  }
+  const tut = (i) => () => base()[i];
+  reg('tut1', 0, tut(0), { family: 'tutorial', inputs: 2, tutorial: true });
+  reg('t01', 1, tut(1), { family: 'arc', inputs: 3, tutorial: true });
+  reg('tut3', 0, tut(2), { family: 'tutorial', inputs: 1, tutorial: true });
+  reg('t02', 2, T2, { family: 'gate', inputs: 5 });
+  reg('t03', 2, T3, { family: 'crusher', inputs: 3 });
 
-  PL.buildShaft = function (seed, n) {
-    if (n === undefined) n = 7;
-    const rng = PL.mulberry32(seed);
-    const all = PL.TEMPLATES.slice();
-    for (let i = all.length - 1; i > 0; i--) { // Fisher-Yates
-      const j = Math.floor(rng() * (i + 1));
-      const t = all[i]; all[i] = all[j]; all[j] = t;
+  // ---- buildShaft: slot table, seeded and deterministic ----
+  // Slot kinds: T1/T2/T3 = tier pools, T3* = hardest slot (hard templates), T2r = rest room (few inputs, no crusher).
+  PL.SLOTS = {
+    5: ['T1', 'T1', 'T2', 'T3*', 'T2r'],
+    7: ['T1', 'T1', 'T2', 'T2', 'T3', 'T3*', 'T2r'],
+  };
+  function slotsFor(n) {
+    if (PL.SLOTS[n]) return PL.SLOTS[n];
+    if (n <= 1) return ['T1'];
+    if (n === 2) return ['T1', 'T2r'];
+    if (n === 3) return ['T1', 'T2', 'T2r'];
+    if (n === 4) return ['T1', 'T2', 'T3*', 'T2r'];
+    if (n === 6) return ['T1', 'T1', 'T2', 'T3', 'T3*', 'T2r'];
+    const mid = []; // n >= 8: 7-slot table with extra T2/T3 rooms in the middle
+    for (let i = 0; i < n - 5; i++) mid.push(i % 2 ? 'T3' : 'T2');
+    return ['T1', 'T1'].concat(mid, ['T3*', 'T2r'].slice(0, 2));
+  }
+  const meta = new Map();
+  function info(t) {
+    let m = meta.get(t.id);
+    if (!m) {
+      const r = t.make(PL.mulberry32(1));
+      m = { crusher: r.crushers.length > 0, crumble: r.crumbles.length > 0 };
+      meta.set(t.id, m);
     }
-    const pick = all.slice(0, Math.min(n, all.length))
-      .map((t, idx) => ({ t, idx }))
-      .sort((a, b) => a.t.tier - b.t.tier || a.idx - b.idx)
-      .map((o) => o.t);
-    return pick.map((t) => {
-      let room = t.make(rng);
-      if (rng() < 0.5) room = PL.mirrorRoom(room);
+    return m;
+  }
+  const inPool = (kind, t) => !t.tutorial && !t.retired && (
+    kind === 'T1' ? t.tier === 1 : kind === 'T2' ? t.tier === 2 : kind === 'T3' ? t.tier === 3
+      : kind === 'T3*' ? t.tier === 3 && !!t.hard : !!t.rest);
+
+  // Returns the chosen templates for a shaft (no rooms built). Rules (relaxed in order only if no placement exists):
+  //  L0 all rules; L1 drops "after a crusher / 5-input room: no crusher, <=3 inputs"; L2 also drops first-meet rules;
+  //  L3 also drops the family rule; L4 any unused template (never happens with the shipped pool, asserted by tests).
+  // Rules: no template twice; adjacent rooms differ in family; the first crusher met is t03 and the first crumble is t18;
+  // opts.exclude = ids played recently (soft: skipped while the slot keeps >= 2 other candidates).
+  PL.pickShaft = function (seed, n, opts) {
+    if (n === undefined) n = 7;
+    const slots = slotsFor(n);
+    const excl = new Set((opts && opts.exclude) || []);
+    const all = PL.TEMPLATES.filter((t) => !t.tutorial && !t.retired);
+    for (let level = 0; level <= 4; level++) {
+      const rng = PL.mulberry32((seed >>> 0) ^ 0x5bd1e995);
+      const used = [];
+      const ok = (t, i) => {
+        if (level >= 4) return true;
+        const prev = used[i - 1];
+        if (level < 3 && prev && prev.family === t.family) return false;
+        if (level < 2) {
+          const m = info(t);
+          if (m.crusher && t.id !== 't03' && !used.some((u) => u.id === 't03')) return false;
+          if (m.crumble && t.id !== 't18' && !used.some((u) => u.id === 't18')) return false;
+        }
+        if (level < 1 && prev && (info(prev).crusher || prev.inputs >= 5)) {
+          if (info(t).crusher || t.inputs > 3) return false;
+        }
+        return true;
+      };
+      const dfs = (i) => {
+        if (i === slots.length) return true;
+        let c = (level >= 4 ? all : all.filter((t) => inPool(slots[i], t))).filter((t) => !used.includes(t));
+        for (let k = c.length - 1; k > 0; k--) { const j = Math.floor(rng() * (k + 1)); const x = c[k]; c[k] = c[j]; c[j] = x; }
+        const fresh = c.filter((t) => !excl.has(t.id));
+        if (fresh.length >= 2) c = fresh.concat(c.filter((t) => excl.has(t.id)));
+        for (const t of c) {
+          if (!ok(t, i)) continue;
+          used[i] = t;
+          if (dfs(i + 1)) return true;
+          used.length = i;
+        }
+        return false;
+      };
+      if (dfs(0)) return { level, templates: used.slice(), slots };
+    }
+    return { level: 5, templates: all.slice(0, n), slots };
+  };
+
+  PL.buildShaft = function (seed, n, opts) {
+    if (n === undefined) n = 7;
+    const p = PL.pickShaft(seed, n, opts);
+    const mrng = PL.mulberry32(((seed >>> 0) ^ 0x2545f491) + 17);
+    let mir = mrng() < 0.5; // adjacent rooms alternate mirrored flag, start side from the seed
+    return p.templates.map((t, i) => {
+      let room = t.make(PL.mulberry32(((seed >>> 0) * 31 + i * 7919 + 101) >>> 0));
+      if (mir) room = PL.mirrorRoom(room);
+      mir = !mir;
       room.templateId = t.id;
+      room.slot = p.slots[i];
       return room;
     });
   };
@@ -714,7 +809,16 @@ if (typeof module !== 'undefined' && module.exports) module.exports = PL;
 // smoothing, so no settle crop. The control strip is only a tint over the room.
 //   view     scale   room on screen (y)
 //   344x882  1.024   84..596
-//   475x638  1.096   84..632
+//   475x638  1.096   84..632   (no arrow pad: view.pad null / PL.Input absent)
+// S1 ARROW PAD: the fit avoids the pad box (PL.Input.layout(W,H).box, or view.pad
+// when given; null = no pad). If the centred room would touch the pad, the room
+// is fitted into the larger free area left of / right of / above the pad, PAD_GAP
+// px clear of it, EDGE px from the screen side. FIT_MIN 0.9 -> 0.84.
+//   view            scale   room x         room y      pad box x
+//   475x638 right   0.8423  4.0..287.0     84..505.1   289..473
+//   475x638 left    0.8423  188.0..471.0   84..505.1   2..186
+//   344x882 either  1.0238  0..344         84..596     80..264 (y 648..832)
+//   816x568 right   0.9560  247.4..568.6   84..562     604..788
 // Sight ahead in fit mode = time to the room edge (whole room visible).
 // SCROLL FALLBACK only when that fit scale < 0.9 (a room too tall, future):
 // (1) zoom spring, (2) look-ahead target, (3) soft room clamp + soft bob band
@@ -751,7 +855,9 @@ PL.CAM = {
   HUD: 84, LOCK_SLACK: 8, STRIP_Y: 0.6, ROOM_PAD: 16, TGT_SLACK: 40,
   // FIT-WHOLE-ROOM [AD]: bottom margin (css px); fall back to scrolling only
   // when the fit scale drops below FIT_MIN css px per room px.
-  FIT_GAP: 6, FIT_MIN: 0.9,
+  FIT_GAP: 6, FIT_MIN: 0.84,
+  // S1 arrow pad: clearance room<->pad box and room<->screen side when fitted beside the pad
+  PAD_GAP: 2, EDGE: 4,
 };
 
 // Critically damped smoothing (stable for any dt). s = {v}
@@ -863,14 +969,48 @@ function hudTop(view) {
   return PL.CAM.HUD + ((view.inset && view.inset.t) || 0);
 }
 
-// FIT-WHOLE-ROOM: scale so the whole room fits under the HUD; null when the
-// room is too tall for that (scale < FIT_MIN) and the scroll path applies.
+// Pad box to keep the room clear of: view.pad when the caller gives it (null = no
+// pad), else the arrow pad from PL.Input (input.js), else none (Node tests).
+function padBox(view) {
+  if (view.pad !== undefined) return view.pad;
+  if (PL.Input && PL.Input.layout) { try { return PL.Input.layout(view.W, view.H).box; } catch (e) { return null; } }
+  return null;
+}
+function hits(a, b, g) {
+  return a.x < b.x + b.w + g && b.x - g < a.x + a.w && a.y < b.y + b.h + g && b.y - g < a.y + a.h;
+}
+
+// FIT-WHOLE-ROOM: scale so the whole room fits under the HUD (and clear of the
+// arrow pad); null when the room is too tall for that (scale < FIT_MIN) and the
+// scroll path applies.
 function fitFrame(state, view) {
-  const K = PL.CAM, rd = roomDims(state), ht = hudTop(view);
-  const s = Math.min(view.W / rd.w, (view.H - ht - K.FIT_GAP) / rd.h);
+  const K = PL.CAM, rd = roomDims(state), ht = hudTop(view), pad = padBox(view);
+  const yMax = view.H - K.FIT_GAP;
+  // area {x0,x1,y1}: room top pinned at ht, centred in [x0,x1]
+  const place = (a) => {
+    const s = Math.min((a.x1 - a.x0) / rd.w, (a.y1 - ht) / rd.h);
+    const w = rd.w * s;
+    return { s, r: { x: (a.x0 + a.x1) / 2 - w / 2, y: ht, w, h: rd.h * s } };
+  };
+  let best = place({ x0: 0, x1: view.W, y1: yMax });
+  if (pad && hits(best.r, pad, K.PAD_GAP)) {
+    const cands = [
+      { x0: K.EDGE, x1: pad.x - K.PAD_GAP, y1: yMax },
+      { x0: pad.x + pad.w + K.PAD_GAP, x1: view.W - K.EDGE, y1: yMax },
+      { x0: 0, x1: view.W, y1: Math.min(yMax, pad.y - K.PAD_GAP) },
+    ];
+    best = null;
+    for (const a of cands) {
+      if (!(a.x1 > a.x0 && a.y1 > ht)) continue;
+      const c = place(a);
+      if (!hits(c.r, pad, K.PAD_GAP - 1e-6) && (!best || c.s > best.s)) best = c;
+    }
+    if (!best) return null;
+  }
+  const s = best.s;
   if (!(s >= K.FIT_MIN)) return null;
-  // room centred horizontally, top edge pinned at hudTop
-  return { scale: s, cx: rd.w / 2, cy: (view.H / 2 - ht) / s, hudTop: ht, fit: true };
+  // screen x of room x=0 is best.r.x: (0 - cx)*s + W/2 = r.x
+  return { scale: s, cx: (view.W / 2 - best.r.x) / s, cy: (view.H / 2 - ht) / s, hudTop: ht, fit: true, roomRect: best.r };
 }
 PL.camFit = fitFrame;
 
@@ -960,6 +1100,411 @@ PL.sightAhead = function (frame, state, view) {
 PL.sightAheadPlay = function (frame, state, view) {
   return sightTo(frame, state, view, 0.6 * view.H);
 };
+
+})();
+(function(){
+// tweak.js - S1: PL.store (versioned localStorage helper) + PL.Tweak registry. DOM-free, Node-loadable.
+// Loads after core.js and camera.js (needs PL.C, PL.CAM), before input/draw/meta/ui.
+// Rules (parts/tweak-tech.md sections 1 and 4):
+// - Every PL.C value except DT is registered; defaults are read from code at registration.
+// - set() clamps to [min,max] and snaps to the step grid; ids with target 'C' / 'CAM' write PL.C / PL.CAM at once.
+//   core.js reads PL.C only at attempt start (PL.newState), so sim edits apply from the next attempt.
+// - isDirty() = any non-default value (DEV badge; run is tuned, never saved as a best). isDirty('sim') = sim ids only.
+// - Tweaks persist in 'plumbline.tweaks.v1' {v:1,t:{id:val}} (admin default: Q4 option a). Presets in
+//   'plumbline.presets.v1' {v:1,list:[{name,t}]}, max 12, name <= 24 chars. Codes: 'PLT1:' + base64 of {v:1,t}.
+// - Stored v newer than this code = read-only: never applied, never overwritten (no downgrade).
+const PL = (globalThis.PL = globalThis.PL || {});
+
+PL.store = (function () {
+  'use strict';
+  function ls() { try { return typeof localStorage !== 'undefined' && localStorage ? localStorage : null; } catch (e) { return null; } }
+  function getRaw(key) { try { const s = ls(); return s ? s.getItem(key) : null; } catch (e) { return null; } }
+  function setRaw(key, str) { try { const s = ls(); if (!s) return false; s.setItem(key, str); return true; } catch (e) { return false; } }
+  function get(key) {
+    try { const o = JSON.parse(getRaw(key)); return o && typeof o === 'object' && !Array.isArray(o) ? o : null; } catch (e) { return null; }
+  }
+  // -> {v, data, readOnly}; v 0 when missing or corrupt; readOnly when the stored v is newer than ver
+  function load(key, ver) {
+    const o = get(key);
+    if (!o) return { v: 0, data: null, readOnly: false };
+    const v = typeof o.v === 'number' ? o.v : 1;
+    return { v, data: o, readOnly: v > ver };
+  }
+  // writes {v:ver, ...data}; refuses (false) when the stored copy is newer
+  function save(key, ver, data) {
+    if (load(key, ver).readOnly) return false;
+    return setRaw(key, JSON.stringify(Object.assign({ v: ver }, data)));
+  }
+  function remove(key) { try { const s = ls(); if (s) s.removeItem(key); } catch (e) {} }
+  return { get, getRaw, setRaw, load, save, remove };
+})();
+
+PL.Tweak = (function () {
+  'use strict';
+  const KEY = 'plumbline.tweaks.v1', PKEY = 'plumbline.presets.v1', VER = 1, PVER = 1, MAXP = 12, NAMEMAX = 24;
+  const defs = {}, order = [], vals = {}, listeners = [];
+  let readOnly = false, loading = false, mem = null, presetsMem = [];
+
+  function round(v) { return Number((+v).toFixed(6)); }
+  function clamp(d, v) {
+    if (d.list) return d.list.indexOf(v) >= 0 ? v : undefined;
+    if (typeof v !== 'number' || !isFinite(v)) return undefined;
+    v = Math.max(d.min, Math.min(d.max, v));
+    if (d.step > 0) v = d.min + Math.round((v - d.min) / d.step) * d.step;
+    return round(Math.max(d.min, Math.min(d.max, v)));
+  }
+  function push(id, v) {
+    const d = defs[id];
+    if (d.target === 'C' && PL.C) PL.C[d.key] = v;
+    else if (d.target === 'CAM' && PL.CAM) PL.CAM[d.key] = v;
+  }
+  // def: {group, label, def, min, max, step, sim?, target? ('C'|'CAM'|null), key?, list?, help?}
+  function register(id, def) {
+    if (!def || (!def.list && !(typeof def.min === 'number' && typeof def.max === 'number'))) throw new Error('Tweak.register ' + id + ': needs min/max (or list)');
+    const target = def.target !== undefined ? def.target : null;
+    const key = def.key || id;
+    let dv = def.def;
+    if (target === 'C' && PL.C && PL.C[key] !== undefined) dv = PL.C[key];
+    if (target === 'CAM' && PL.CAM && PL.CAM[key] !== undefined) dv = PL.CAM[key];
+    const d = { id, group: def.group || 'Other', label: def.label || id, def: dv, min: def.min, max: def.max, step: def.step || 0,
+      list: def.list || null, sim: !!def.sim, target, key, help: def.help || '' };
+    if (!defs[id]) order.push(id);
+    defs[id] = d;
+    const had = Object.prototype.hasOwnProperty.call(vals, id) ? clamp(d, vals[id]) : undefined;
+    vals[id] = had !== undefined ? had : d.def;
+    if (mem && mem[id] !== undefined) { const v = clamp(d, mem[id]); if (v !== undefined) vals[id] = v; }
+    push(id, vals[id]);
+    return d;
+  }
+  function has(id) { return !!defs[id]; }
+  function get(id) { return defs[id] ? vals[id] : undefined; }
+  function set(id, v) {
+    const d = defs[id]; if (!d) return undefined;
+    const c = clamp(d, v);
+    if (c === undefined) return vals[id];
+    if (c !== vals[id]) {
+      vals[id] = c; push(id, c); persist();
+      for (const f of listeners) { try { f(id, c); } catch (e) {} }
+    }
+    return c;
+  }
+  function reset(id) { return defs[id] ? set(id, defs[id].def) : undefined; }
+  function resetAll() { for (const id of order) reset(id); }
+  function diff(only) {
+    const o = {};
+    for (const id of order) if (vals[id] !== defs[id].def && (only !== 'sim' || defs[id].sim)) o[id] = vals[id];
+    return o;
+  }
+  function isDirty(only) { return Object.keys(diff(only)).length > 0; }
+  function apply(obj) {
+    let n = 0;
+    for (const id in obj || {}) if (defs[id]) { set(id, obj[id]); n++; }
+    return n;
+  }
+  function persist() {
+    if (loading) return;
+    // keep stored values of ids not registered yet (a later part may register them)
+    const keep = {};
+    for (const id in mem || {}) if (!defs[id]) keep[id] = mem[id];
+    mem = Object.assign(keep, diff());
+    if (!readOnly) PL.store.save(KEY, VER, { t: mem });
+  }
+  function load() {
+    const r = PL.store.load(KEY, VER);
+    readOnly = r.readOnly;
+    if (!r.data || r.readOnly || !r.data.t || typeof r.data.t !== 'object') { mem = null; return; }
+    mem = r.data.t;
+    loading = true;
+    try { for (const id in mem) if (defs[id]) set(id, mem[id]); } finally { loading = false; }
+  }
+  // ---- codes ----
+  function b64e(s) { return typeof btoa === 'function' ? btoa(unescape(encodeURIComponent(s))) : Buffer.from(s, 'utf8').toString('base64'); }
+  function b64d(s) { return typeof atob === 'function' ? decodeURIComponent(escape(atob(s))) : Buffer.from(s, 'base64').toString('utf8'); }
+  function clean(t) {
+    const o = {};
+    for (const id in t || {}) if (defs[id]) { const v = clamp(defs[id], t[id]); if (v !== undefined) o[id] = v; }
+    return o;
+  }
+  function encode(t) { return 'PLT1:' + b64e(JSON.stringify({ v: 1, t: clean(t || diff()) })); }
+  function decode(code) {
+    try {
+      const m = /^\s*PLT1:([A-Za-z0-9+/=]+)\s*$/.exec(String(code || ''));
+      if (!m) return null;
+      const o = JSON.parse(b64d(m[1]));
+      if (!o || typeof o !== 'object' || Array.isArray(o) || o.v !== 1 || !o.t || typeof o.t !== 'object') return null;
+      return clean(o.t);
+    } catch (e) { return null; }
+  }
+  function exportCode() { return encode(diff()); }
+  // replaces current values: ids not in the code go back to default. Returns ids applied, -1 if invalid.
+  function importCode(code) {
+    const t = decode(code); if (!t) return -1;
+    for (const id of order) if (!(id in t)) reset(id);
+    return apply(t);
+  }
+  // ---- presets ----
+  function readPresets() {
+    const r = PL.store.load(PKEY, PVER);
+    if (r.data && !r.readOnly && Array.isArray(r.data.list)) {
+      presetsMem = r.data.list.filter((p) => p && typeof p.name === 'string' && p.t && typeof p.t === 'object').slice(0, MAXP)
+        .map((p) => ({ name: p.name.slice(0, NAMEMAX), t: p.t }));
+    }
+    return presetsMem;
+  }
+  function writePresets() { PL.store.save(PKEY, PVER, { list: presetsMem }); }
+  function nameOf(n) { return String(n == null ? '' : n).trim().slice(0, NAMEMAX); }
+  function listPresets() { return readPresets().map((p) => ({ name: p.name, t: clean(p.t) })); }
+  function savePreset(name, t) {
+    const nm = nameOf(name); if (!nm) return false;
+    const list = readPresets(), i = list.findIndex((p) => p.name === nm);
+    const entry = { name: nm, t: clean(t || diff()) };
+    if (i >= 0) list[i] = entry;
+    else { if (list.length >= MAXP) return false; list.push(entry); }
+    writePresets(); return true;
+  }
+  function loadPreset(name) {
+    const p = readPresets().find((q) => q.name === nameOf(name)); if (!p) return false;
+    const t = clean(p.t);
+    for (const id of order) if (!(id in t)) reset(id);
+    apply(t); return true;
+  }
+  function deletePreset(name) {
+    const list = readPresets(), i = list.findIndex((p) => p.name === nameOf(name)); if (i < 0) return false;
+    list.splice(i, 1); writePresets(); return true;
+  }
+  function ids() { return order.slice(); }
+  function def(id) { return defs[id] ? Object.assign({}, defs[id]) : undefined; }
+  // rows for a Settings/Tweak screen: [{group, ids:[...]}] in registration order
+  function groups() {
+    const g = [];
+    for (const id of order) { const gr = defs[id].group; let e = g.find((x) => x.group === gr); if (!e) g.push(e = { group: gr, ids: [] }); e.ids.push(id); }
+    return g;
+  }
+  function onChange(fn) { if (typeof fn === 'function') listeners.push(fn); }
+  // Copy report line: "G=1600* CAP=700 ..." (* = non-default), only dirty ids when short=true
+  function reportLine(short) {
+    const d = diff(); const ids2 = short ? Object.keys(d) : order;
+    return ids2.map((id) => id + '=' + vals[id] + (id in d ? '*' : '')).join(' ') || 'none';
+  }
+  return { register, has, get, set, reset, resetAll, diff, isDirty, apply, encode, decode, exportCode, importCode,
+    savePreset, loadPreset, deletePreset, listPresets, ids, def, groups, onChange, reportLine, load,
+    readOnly: () => readOnly, MAX_PRESETS: MAXP, NAME_MAX: NAMEMAX };
+})();
+
+// ---- built-in ids (defaults come from PL.C / PL.CAM; ranges from tweak-tech.md section 1, U for feel) ----
+(function () {
+  'use strict';
+  const T = PL.Tweak;
+  const C = (id, group, label, min, max, step) => T.register(id, { group, label, min, max, step, sim: true, target: 'C' });
+  C('G', 'Physics', 'Gravity', 800, 2400, 100);
+  C('CAP', 'Physics', 'Speed cap', 400, 1000, 50);
+  C('DIVE_CAP', 'Physics', 'Dive speed cap', 600, 1300, 50);
+  C('DIVE_ADD', 'Physics', 'Dive push', 0, 500, 25);
+  C('DIVE_BOOST_T', 'Physics', 'Dive boost time s', 0.1, 0.6, 0.05);
+  C('DIVE_CD', 'Physics', 'Dive cooldown s', 0.2, 1.0, 0.05);
+  C('FRIC', 'Physics', 'Ground friction', 200, 2000, 100);
+  C('DRAG', 'Physics', 'Air drag /s', 0, 1, 0.05);
+  C('DRAG_AFTER', 'Physics', 'Drag after s', 0, 1, 0.05);
+  C('BOUNCE_SIDE', 'Physics', 'Side bounce', 0, 0.6, 0.05);
+  C('HALF', 'Physics', 'Hero half size px', 8, 14, 1);
+  C('GATE_V', 'Physics', 'Gate speed', 0, 300, 20);
+  C('CHARGES', 'Assists', 'Moves in the air', 1, 5, 1);
+  C('BUFFER', 'Assists', 'Flip buffer s', 0, 0.25, 0.01);
+  C('COYOTE_T', 'Assists', 'Coyote time s', 0, 0.2, 0.01);
+  C('WALL_RIDE_T', 'Assists', 'Wall-ride refill s', 0.1, 0.6, 0.05);
+  C('CRUMBLE_T', 'Hazards', 'Crumble delay s', 0.1, 1.0, 0.05);
+  C('CRUSHER_PERIOD', 'Hazards', 'Crusher period s', 1.2, 4.0, 0.2);
+  C('SPIKE_SHRINK', 'Hazards', 'Spike forgiveness px', 0, 6, 1);
+  C('EXIT_R', 'Hazards', 'Exit radius px', 12, 32, 2);
+  C('CRUSH_OVERLAP', 'Hazards', 'Crush overlap px', 0, 4, 1);
+  C('RESPAWN_T', 'Hazards', 'Respawn s', 0.1, 1.0, 0.1);
+  const K = (id, label, min, max, step) => T.register(id, { group: 'Camera', label, min, max, step, target: 'CAM' });
+  K('LOOK_WIDE', 'Look-ahead wide s', 0, 0.8, 0.05);
+  K('LOOK_TALL', 'Look-ahead tall s', 0, 0.8, 0.05);
+  K('MAX_W', 'Max visible width', 336, 600, 12);
+  K('POS_T', 'Follow smoothing s', 0.05, 1.0, 0.05);
+  K('ZOOM_T', 'Zoom smoothing s', 0.05, 1.0, 0.05);
+  K('BOB_MAX_Y', 'Hero max screen y', 0.4, 0.7, 0.05);
+  K('FIT_MIN', 'Fit floor (scale)', 0.6, 1.0, 0.02);
+  // read by input.js (PL.Input.layout); no sim effect
+  T.register('PAD_KEY', { group: 'Input', label: 'Arrow key px', def: 60, min: 48, max: 80, step: 4 });
+  T.register('PAD_DIVE', { group: 'Input', label: 'Dive key px', def: 56, min: 40, max: 72, step: 4 });
+  T.register('PAD_GAP', { group: 'Input', label: 'Dive gap px', def: 4, min: 0, max: 12, step: 2 });
+  T.register('HAPTIC_MS', { group: 'Input', label: 'Key buzz ms', def: 8, min: 0, max: 30, step: 2 });
+  // read by draw.js / ui.js (other slices); 0 SHAFT_N = use the mode's 5 or 7
+  T.register('PATH_S', { group: 'Assists', label: 'Path preview s', def: 0.8, min: 0.2, max: 1.6, step: 0.2 });
+  T.register('SHAFT_N', { group: 'Session', label: 'Shaft rooms (0 = mode)', def: 0, min: 0, max: 12, step: 1, sim: true });
+  T.load();
+})();
+
+})();
+(function(){
+// input.js - S1: arrow pad adapter (controls.md scheme B; PICKS 4). DOM-free logic, Node-loadable.
+// 4 arrow keys (PAD_KEY 60 px) in a diamond, Dive (PAD_DIVE 56 px) in the centre with PAD_GAP 4 px to each arrow
+// (lead ruling: a near-miss must not spend a move). Keys fire on touch-down, every pointer on its own (multi-touch
+// safe, no capture). Lit key = current down (state.g). Keys dim at 0 moves in the air. A press at 0 moves sets a
+// shake flag for the UI and buzzes 30-40-30; the flip/dive is still passed on (core buffers a flip for BUFFER s and
+// applies it on landing; an air Dive at 0 is refused by core) so the replay log is exactly what the old input logged.
+// One-tap Retry, Pause. Left-hand mirror. Keyboard: arrows, Space = Dive, R = Retry.
+// Host (ui.js): {flip(dir), dive(), restart(), pause?(), state(), view()->{W,H}, active()->bool, now?()->ms}.
+//   flip/dive push into ui's queue; ui logs {tick,k,dir} at application, unchanged (absolute dir).
+// Layout (CSS px; pad box = 3*KEY + 2*GAP - 2*(KEY-DIVE)/2 ... = 184 at defaults, centred on the picked 180 box):
+//   475x638 side      box 289-473 x 308-492, Retry 12-68 x 516-572, Pause 411-467 x 12-68, teach 291-471 x 92-296
+//   344x882 below     box 80-264 x 648-832, Retry 12-68 x 660-716, Pause 276-332 x 12-68, teach 4-340 x 596-644
+//   816x568 landscape box 604-788 x 328-512, Retry 12-68 x 330-386, Pause 752-808 x 12-68, teach 12-236 x 100-200
+// Settings key 'plumbline.input.v1' {v:1, hand:'right'|'left', vibrate:bool} (PL.store, never downgraded).
+const PL = (globalThis.PL = globalThis.PL || {});
+
+PL.Input = (function () {
+  'use strict';
+  const KEY = 'plumbline.input.v1', VER = 1;
+  const SHAKE_MS = 300;
+  const settings = { hand: 'right', vibrate: true };
+  let readOnly = false;
+  (function load() {
+    if (!PL.store) return;
+    const r = PL.store.load(KEY, VER);
+    readOnly = r.readOnly;
+    const d = r.data; if (!d) return;
+    if (d.hand === 'left' || d.hand === 'right') settings.hand = d.hand;
+    if (typeof d.vibrate === 'boolean') settings.vibrate = d.vibrate;
+  })();
+  function save() { if (PL.store && !readOnly) PL.store.save(KEY, VER, { hand: settings.hand, vibrate: settings.vibrate }); }
+  function tw(id, d) { const v = PL.Tweak && PL.Tweak.get(id); return typeof v === 'number' ? v : d; }
+
+  function rect(x, y, w, h) { return { x, y, w, h }; }
+  function mirror(r, W) { return rect(W - r.x - r.w, r.y, r.w, r.h); }
+  // -> {mode, hand, box, keys:[up,right,down,left] (index = gravity dir), dive, retry, pause, teach}
+  function layout(W, H, opts) {
+    const hand = (opts && opts.hand) || settings.hand;
+    const KEYP = tw('PAD_KEY', 60), DIVEP = tw('PAD_DIVE', 56), GAP = tw('PAD_GAP', 4);
+    const B = 2 * KEYP + DIVEP + 2 * GAP; // 184 at defaults
+    const hudTop = (PL.CAM && PL.CAM.HUD) || 84;
+    let mode, cx, cy, retry, pause, teach;
+    if (W > H) {
+      // landscape: pad in the right gutter (admin default), Retry and teach on the left
+      mode = 'landscape'; cx = W - 120; cy = H - 148;
+      retry = rect(12, cy - 90, 56, 56); pause = rect(W - 64, 12, 56, 56); teach = rect(12, 100, 224, 100);
+    } else if (hudTop + 500 * (W / 336) + 6 + 2 <= H - 232) {
+      // tall: room keeps its full-width fit, pad centred below it
+      mode = 'below'; cx = W / 2; cy = H - 142;
+      retry = rect(12, cy - 80, 56, 56); pause = rect(W - 68, 12, 56, 56); teach = rect(4, cy - 144, W - 8, 48);
+    } else {
+      // side: pad beside the room (room drawn smaller, camera.js fits it left of the pad)
+      mode = 'side'; cx = W - 94; cy = H - 238;
+      retry = rect(12, H - 122, 56, 56); pause = rect(W - 64, 12, 56, 56);
+      teach = rect(cx - 90, hudTop + 8, 180, Math.max(48, cy - B / 2 - 12 - (hudTop + 8)));
+    }
+    const box = rect(cx - B / 2, cy - B / 2, B, B);
+    const off = (B - KEYP) / 2;
+    let keys = [rect(box.x + off, box.y, KEYP, KEYP), rect(box.x + B - KEYP, box.y + off, KEYP, KEYP),
+      rect(box.x + off, box.y + B - KEYP, KEYP, KEYP), rect(box.x, box.y + off, KEYP, KEYP)];
+    let dive = rect(cx - DIVEP / 2, cy - DIVEP / 2, DIVEP, DIVEP);
+    let L = { mode, hand, box, keys, dive, retry, pause, teach };
+    if (hand === 'left') {
+      const m = (r) => mirror(r, W);
+      const bx = m(box), dx = bx.x - box.x;
+      keys = keys.map((k) => rect(k.x + dx, k.y, k.w, k.h)); // arrows keep their meaning, pad moves as a whole
+      L = { mode, hand, box: bx, keys, dive: rect(dive.x + dx, dive.y, dive.w, dive.h), retry: m(retry), pause: m(pause), teach: m(teach) };
+    }
+    return L;
+  }
+
+  let host = null;
+  const pressed = {}; // pointerId -> target id ('k0'..'k3','dive','retry','pause','pad')
+  let shake = null; // {id, at}
+  function now() { return host && host.now ? host.now() : (typeof performance !== 'undefined' ? performance.now() : Date.now()); }
+  function hit(r, x, y) { return x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h; }
+  function targetAt(x, y, L) {
+    for (let i = 0; i < 4; i++) if (hit(L.keys[i], x, y)) return 'k' + i;
+    if (hit(L.dive, x, y)) return 'dive';
+    if (hit(L.retry, x, y)) return 'retry';
+    if (hit(L.pause, x, y)) return 'pause';
+    if (hit(L.box, x, y)) return 'pad'; // gap inside the pad: swallowed, no action
+    return null;
+  }
+  function empty() {
+    const s = host && host.state && host.state();
+    return !!(s && s.charges <= 0 && !s.grounded && !(s.coyote > 0));
+  }
+  function haptic(p) {
+    if (!settings.vibrate) return;
+    try { if (typeof navigator !== 'undefined' && navigator && typeof navigator.vibrate === 'function') navigator.vibrate(p); } catch (e) {}
+  }
+  function fire(id) {
+    if (id === 'retry') { haptic(tw('HAPTIC_MS', 8)); host.restart(); return; }
+    if (id === 'pause') { if (host.pause) host.pause(); return; }
+    if (id === 'pad') return;
+    const s = host.state && host.state();
+    if (empty() && !(id !== 'dive' && s && +id.slice(1) === s.g)) { shake = { id, at: now() }; haptic([30, 40, 30]); }
+    else haptic(tw('HAPTIC_MS', 8));
+    if (id === 'dive') host.dive(); else host.flip(+id.slice(1));
+  }
+  function attach(h) { host = h; clear(); }
+  function detach() { host = null; clear(); }
+  function clear() { for (const k in pressed) delete pressed[k]; shake = null; }
+  // pointer down (CSS px). true = handled by the pad (caller stops); false = not a pad target or inactive.
+  function down(x, y, id) {
+    if (!host || !host.active()) return false;
+    const v = host.view(), tgt = targetAt(x, y, layout(v.W, v.H));
+    if (!tgt) return false;
+    pressed[id] = tgt;
+    fire(tgt);
+    return true;
+  }
+  function up(id) { delete pressed[id]; }
+  function cancel(id) { delete pressed[id]; }
+  const KEYS = { ArrowUp: 'k0', ArrowRight: 'k1', ArrowDown: 'k2', ArrowLeft: 'k3', ' ': 'dive', r: 'retry', R: 'retry' };
+  function key(k) {
+    if (!host || !host.active() || !KEYS[k]) return false;
+    fire(KEYS[k]);
+    return true;
+  }
+  // draw model for the UI agent (PL.drawPad(ctx, view, model)) and the fallback below
+  function view() {
+    const v = host ? host.view() : { W: 0, H: 0 }, s = host && host.state ? host.state() : null;
+    const p = {}; for (const k in pressed) p[pressed[k]] = true;
+    const t = now();
+    if (shake && t - shake.at > SHAKE_MS) shake = null;
+    return { layout: layout(v.W, v.H), lit: s ? s.g : -1, dim: empty(), pressed: p,
+      shake: shake ? { id: shake.id, age: (t - shake.at) / SHAKE_MS } : null, hand: settings.hand };
+  }
+  // plain fallback drawing (used only until draw.js provides PL.drawPad). Canvas 2D, CSS px transform already set.
+  const ARROW = [[0, -1], [1, 0], [0, 1], [-1, 0]];
+  function drawFallback(ctx, m) {
+    const L = m.layout;
+    const box = (r, fill, stroke) => { ctx.fillStyle = fill; ctx.fillRect(r.x, r.y, r.w, r.h); ctx.lineWidth = 2; ctx.strokeStyle = stroke; ctx.strokeRect(r.x + 1, r.y + 1, r.w - 2, r.h - 2); };
+    for (let i = 0; i < 4; i++) {
+      const k = L.keys[i], lit = m.lit === i, on = m.pressed['k' + i];
+      const dx = m.shake && m.shake.id === 'k' + i ? Math.sin(m.shake.age * 30) * 2 : 0;
+      ctx.save(); ctx.translate(dx, 0); ctx.globalAlpha = m.dim ? 0.4 : 1;
+      box(k, on ? '#ffd76a' : lit ? '#e8b64a' : 'rgba(20,24,40,0.55)', lit ? '#fff3c4' : 'rgba(255,255,255,0.7)');
+      const cx = k.x + k.w / 2, cy = k.y + k.h / 2, a = ARROW[i], s = k.w * 0.22;
+      ctx.fillStyle = lit || on ? '#1b1a17' : '#ffffff';
+      ctx.beginPath(); ctx.moveTo(cx + a[0] * s, cy + a[1] * s);
+      ctx.lineTo(cx - a[0] * s * 0.6 - a[1] * s, cy - a[1] * s * 0.6 + a[0] * s);
+      ctx.lineTo(cx - a[0] * s * 0.6 + a[1] * s, cy - a[1] * s * 0.6 - a[0] * s); ctx.closePath(); ctx.fill();
+      ctx.restore();
+    }
+    ctx.save(); ctx.globalAlpha = m.dim ? 0.4 : 1;
+    const dsh = m.shake && m.shake.id === 'dive' ? Math.sin(m.shake.age * 30) * 2 : 0;
+    ctx.translate(dsh, 0);
+    box(L.dive, m.pressed.dive ? '#ffd76a' : 'rgba(20,24,40,0.55)', 'rgba(255,255,255,0.7)');
+    ctx.fillStyle = m.pressed.dive ? '#1b1a17' : '#fff'; ctx.font = '700 14px system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('Dive', L.dive.x + L.dive.w / 2, L.dive.y + L.dive.h / 2);
+    ctx.restore();
+    box(L.retry, m.pressed.retry ? '#ffd76a' : 'rgba(20,24,40,0.55)', 'rgba(255,255,255,0.7)');
+    ctx.fillStyle = m.pressed.retry ? '#1b1a17' : '#fff'; ctx.font = '700 14px system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('Retry', L.retry.x + L.retry.w / 2, L.retry.y + L.retry.h / 2);
+    ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+  }
+  return {
+    layout, attach, detach, down, up, cancel, clear, key, view, drawFallback, haptic,
+    getHand: () => settings.hand, setHand: (h) => { if (h === 'left' || h === 'right') { settings.hand = h; save(); } return settings.hand; },
+    getVibrate: () => settings.vibrate, setVibrate: (b) => { settings.vibrate = !!b; save(); return settings.vibrate; },
+    scheme: 'B-arrow-pad',
+  };
+})();
 
 })();
 (function(){
@@ -1401,10 +1946,16 @@ const PL = (globalThis.PL = globalThis.PL || {});
 })();
 (function(){
 // meta.js - Plumbline medals, bests, daily seed. DOM-free; localStorage only, always in try/catch.
+// S1: save versioning. Key stays 'plumbline.v1' (old builds keep reading it); the object gains '_v' (2).
+// Stored _v newer than VER = read-only: bests shown, never written (no downgrade). Old data (no _v) = 1, kept.
+// Bests are per keyFor(mode, seed, n): 5-room and 7-room climbs never share a best. A run is never saved as a
+// best when run.tuned or any Tweak is non-default (PL.Tweak.isDirty()). Per-room seconds: best.rooms (when
+// given) and roomSummary()/reportLines() for the Copy report.
 const PL = (globalThis.PL = globalThis.PL || {});
 PL.meta = (function () {
   'use strict';
-  const KEY = 'plumbline.v1';
+  const KEY = 'plumbline.v1', VER = 2;
+  let readOnly = false;
   const DT = (PL.C && PL.C.DT) || 1 / 120;
   const BANDS = { n: 7, bronze: 240, silver: 150, gold: 105, plumb: 75, plumbFlips: 12, flipStar: 15 };
   const RANK = { none: 0, bronze: 1, silver: 2, gold: 3, plumb: 4 };
@@ -1424,14 +1975,30 @@ PL.meta = (function () {
     return d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate();
   }
   function keyFor(mode, seed, n) { return mode + ':' + seed + ':' + n; }
-  function load() {
+  function raw() {
     try {
       const o = JSON.parse(localStorage.getItem(KEY));
       if (o && typeof o === 'object' && !Array.isArray(o)) return o;
     } catch (e) {}
     return {};
   }
-  function save(o) { try { localStorage.setItem(KEY, JSON.stringify(o)); } catch (e) {} }
+  // bests only (the '_v' marker is stripped)
+  function load() {
+    const o = raw(), v = typeof o._v === 'number' ? o._v : 1;
+    readOnly = v > VER;
+    const out = {};
+    for (const k in o) if (k !== '_v') out[k] = o[k];
+    return out;
+  }
+  function save(o) {
+    const cur = raw();
+    if (typeof cur._v === 'number' && cur._v > VER) { readOnly = true; return false; }
+    try { localStorage.setItem(KEY, JSON.stringify(Object.assign({ _v: VER }, o))); return true; } catch (e) { return false; }
+  }
+  function isTuned(run) {
+    if (run && run.tuned) return true;
+    try { return !!(PL.Tweak && PL.Tweak.isDirty()); } catch (e) { return false; }
+  }
   function getBest(key) {
     const b = load()[key];
     return b && typeof b.ticks === 'number' ? b : null;
@@ -1441,25 +2008,61 @@ PL.meta = (function () {
     const n = nOf(key), ticks = run.ticks, flips = run.flips || 0;
     const medal = medalFor(ticks, flips, n), star = flipStar(flips, n);
     const prev = getBest(key);
-    if (run.tuned) return { isBest: false, best: prev, medal, flipStar: star };
+    if (isTuned(run)) return { isBest: false, best: prev, medal, flipStar: star, tuned: true };
     const better = !prev || (RANK[medal] || 0) > (RANK[prev.medal] || 0) ||
       ((RANK[medal] || 0) === (RANK[prev.medal] || 0) && ticks < prev.ticks);
     if (!better) return { isBest: false, best: prev, medal, flipStar: star };
     const best = { ticks, flips, medal };
-    const o = load(); o[key] = best; save(o);
+    if (Array.isArray(run.rooms)) best.rooms = run.rooms.map((x) => Math.round(x * 100) / 100);
+    const o = load(); o[key] = best;
+    if (!save(o)) return { isBest: false, best: prev, medal, flipStar: star, readOnly: true };
     return { isBest: true, best, medal, flipStar: star };
   }
+  // attempts: [{room (1-based), ticks, result ('win'|'death'|'restart'|...), cause?}] ->
+  // [{room, seconds (all attempts in that room), clearS (winning attempt, null if not cleared), attempts, deaths, causes:{cause:n}}]
+  function roomSummary(attempts, nRooms) {
+    const out = [];
+    for (let r = 1; r <= nRooms; r++) {
+      const a = (attempts || []).filter((x) => x.room === r);
+      const win = a.find((x) => x.result === 'win');
+      const causes = {};
+      for (const x of a) if (x.result === 'death') causes[x.cause || '?'] = (causes[x.cause || '?'] || 0) + 1;
+      out.push({ room: r, seconds: Math.round(a.reduce((t, x) => t + (x.ticks || 0), 0) * DT * 100) / 100,
+        clearS: win ? Math.round(win.ticks * DT * 100) / 100 : null, attempts: a.length,
+        deaths: a.filter((x) => x.result === 'death').length, causes });
+    }
+    return out;
+  }
+  function reportLines(attempts, nRooms) {
+    return ['per-room seconds [room: total s, clear s, attempts, deaths, causes]:'].concat(roomSummary(attempts, nRooms).map((r) =>
+      '  room ' + r.room + ': ' + r.seconds.toFixed(2) + 's, clear ' + (r.clearS == null ? '-' : r.clearS.toFixed(2) + 's') +
+      ', ' + r.attempts + ' att, ' + r.deaths + ' deaths' + (r.deaths ? ' (' + Object.keys(r.causes).map((k) => k + ' ' + r.causes[k]).join(', ') + ')' : '')));
+  }
   function reset() { try { localStorage.removeItem(KEY); } catch (e) {} }
-  return { BANDS, medalFor, flipStar, dailySeed, keyFor, load, recordRun, getBest, reset };
+  return { BANDS, VER, medalFor, flipStar, dailySeed, keyFor, load, recordRun, getBest, reset, roomSummary, reportLines,
+    isReadOnly: () => { load(); return readOnly; } };
 })();
 
 })();
 (function(){
-// audio.js - PL.audio: WebAudio synth blips, no files. No-op when AudioContext is absent.
+// audio.js - PL.audio: WebAudio SFX synth + buses (master -> sfxBus | duck -> musicBus). No files, no network.
+// Music engine lives in music.js (PL.music); this file delegates playMusic/sting to it. No-op when AudioContext is absent.
 (function (G) {
   'use strict';
   var PL = G.PL = G.PL || {};
-  var MAXG = 0.15, ctx = null, master = null, muted = false, tried = false;
+  var MAXG = 0.15, MAXV = 8, FLOOR = 0.0001;
+  var ctx = null, master = null, sfxBus = null, musicBus = null, musicDuck = null, noiseBuf = null;
+  var muted = false, unlocked = false, tried = false, hidden = false, visHooked = false;
+  var sfxGain = 0.8, musicGain = 0.5, musicOn = true, pitchVar = 0.04, duckDb = 8, vibOn = true;
+  var voices = [], lastRide = -1, seedv = 0x5eed1234;
+  // own deterministic RNG (mulberry32); never Math.random, never the game RNG
+  function rnd() {
+    seedv = (seedv + 0x6d2b79f5) | 0;
+    var t = Math.imul(seedv ^ (seedv >>> 15), 1 | seedv);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  }
+  function clamp(v, a, b) { v = +v; if (!(v === v)) v = a; return v < a ? a : v > b ? b : v; }
   function Ctor() { return G.AudioContext || G.webkitAudioContext || null; }
   function ensure() {
     if (ctx) return ctx;
@@ -1467,54 +2070,186 @@ PL.meta = (function () {
     var C = Ctor(); if (!C) return null;
     tried = true;
     try {
-      ctx = new C(); master = ctx.createGain();
-      master.gain.value = muted ? 0 : MAXG; master.connect(ctx.destination);
-    } catch (e) { ctx = null; master = null; }
+      ctx = new C(); master = ctx.createGain(); sfxBus = ctx.createGain(); musicBus = ctx.createGain(); musicDuck = ctx.createGain();
+      master.gain.value = muted ? 0 : MAXG; sfxBus.gain.value = sfxGain; musicBus.gain.value = musicOn ? musicGain : 0; musicDuck.gain.value = 1;
+      sfxBus.connect(master); musicDuck.connect(musicBus); musicBus.connect(master); master.connect(ctx.destination);
+    } catch (e) { ctx = master = sfxBus = musicBus = musicDuck = null; }
     return ctx;
   }
-  function init() {
-    if (!Ctor()) return;
-    var c = ensure();
-    try { if (c && c.state === 'suspended' && c.resume) { var pr = c.resume(); if (pr && pr.catch) pr.catch(function () {}); } } catch (e) {}
+  function resume() {
+    try { if (ctx && ctx.state === 'suspended' && ctx.resume) { var pr = ctx.resume(); if (pr && pr.catch) pr.catch(function () {}); } } catch (e) {}
   }
-  // blip: freq sweep f0->f1 over dur seconds, peak volume v (0..1 of master)
-  function blip(type, f0, f1, dur, v) {
-    if (muted || !ctx || !master) return;
+  // unlock: call on the first touchstart/pointerdown/keydown. Safe to call every time.
+  function unlock() {
+    if (!Ctor()) return;
+    if (!ensure()) return;
+    unlocked = true;
+    if (!hidden) resume();
+    if (!visHooked && G.document && G.document.addEventListener) {
+      visHooked = true;
+      try { G.document.addEventListener('visibilitychange', function () { onVisibility(!!G.document.hidden); }); } catch (e) {}
+    }
+    if (PL.music && PL.music.onUnlock) { try { PL.music.onUnlock(); } catch (e) {} }
+  }
+  function onVisibility(h) {
+    hidden = !!h;
+    if (!ctx || !unlocked) return;
     try {
-      var t = ctx.currentTime, o = ctx.createOscillator(), g = ctx.createGain();
-      o.type = type; o.frequency.setValueAtTime(f0, t);
-      if (f1 !== f0) o.frequency.exponentialRampToValueAtTime(f1, t + dur);
-      g.gain.setValueAtTime(Math.max(0.0001, Math.min(1, v)), t);
-      g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-      o.connect(g); g.connect(master); o.start(t); o.stop(t + dur + 0.02);
+      if (hidden) { if (ctx.suspend) { var p = ctx.suspend(); if (p && p.catch) p.catch(function () {}); } } else resume();
     } catch (e) {}
   }
-  var LAND_MAX = 900;
-  var SND = {
-    flip: function () { blip('square', 330, 660, 0.09, 0.5); },
-    dive: function () { blip('sawtooth', 500, 160, 0.18, 0.45); },
-    land: function (st) {
-      var s = (st && +st.lastLandSpeed) || 0, v = Math.max(0.15, Math.min(1, s / LAND_MAX));
-      blip('triangle', 140, 60, 0.12, v);
-    },
-    death: function () { blip('sawtooth', 300, 40, 0.5, 0.8); },
-    win: function () { blip('square', 523, 523, 0.1, 0.5); blip('square', 659, 659, 0.14, 0.5); blip('square', 784, 1047, 0.25, 0.5); },
-    crumble: function () { blip('sawtooth', 120, 50, 0.2, 0.4); },
-    ride: function () { blip('sine', 220, 260, 0.06, 0.2); }
+  function live() { return !!(ctx && unlocked && !muted && sfxGain > 0); }
+  function canMusic() { return !!(ctx && unlocked && !muted && musicOn && musicGain > 0); }
+  function getNoise() {
+    if (noiseBuf || !ctx) return noiseBuf;
+    var n = Math.floor(ctx.sampleRate * 0.5) || 22050, b = ctx.createBuffer(1, n, ctx.sampleRate || 44100), d = b.getChannelData(0);
+    for (var i = 0; i < n; i++) d[i] = rnd() * 2 - 1;
+    noiseBuf = b; return b;
+  }
+  // ---- voices: cap 8, priority 1 (keep) .. 3 (drop first)
+  function admit(pri, dur) {
+    var t = ctx.currentTime, i, a = [];
+    for (i = 0; i < voices.length; i++) if (voices[i].end > t) a.push(voices[i]);
+    voices = a;
+    if (pri >= 3 && a.length > 6) return null;
+    if (a.length >= MAXV) {
+      var vi = -1;
+      for (i = 0; i < a.length; i++) if (vi < 0 || a[i].pri > a[vi].pri || (a[i].pri === a[vi].pri && a[i].t0 < a[vi].t0)) vi = i;
+      if (a[vi].pri < pri) return null;
+      kill(a[vi]); voices.splice(voices.indexOf(a[vi]), 1);
+    }
+    var v = { pri: pri, t0: t, end: t + dur + 0.05, nodes: [] };
+    voices.push(v); return v;
+  }
+  function kill(v) { for (var i = 0; i < v.nodes.length; i++) { try { v.nodes[i].stop(); } catch (e) {} } v.end = 0; }
+  function envg(t, dur, pk, att) {
+    var g = ctx.createGain(), p = g.gain;
+    pk = Math.max(FLOOR * 2, Math.min(1, pk)); att = att || 0.003;
+    p.setValueAtTime(FLOOR, t); p.exponentialRampToValueAtTime(pk, t + att); p.exponentialRampToValueAtTime(FLOOR, t + dur);
+    return g;
+  }
+  function route(src, mid, g, o) {
+    var n = src; if (mid) { n.connect(mid); n = mid; }
+    n.connect(g); n = g;
+    if (o && o.pan && ctx.createStereoPanner) { var pn = ctx.createStereoPanner(); pn.pan.value = o.pan; n.connect(pn); n = pn; }
+    n.connect(sfxBus);
+  }
+  // tone: f0 -> f1 over dur at start time t. o: {att, lp, pan, det}
+  function tone(v, type, f0, f1, t, dur, pk, o) {
+    o = o || {};
+    var s = ctx.createOscillator(), g = envg(t, dur, pk, o.att), f = null;
+    s.type = type; s.frequency.setValueAtTime(f0, t);
+    if (f1 !== f0) s.frequency.exponentialRampToValueAtTime(f1, t + dur);
+    if (o.det) s.detune.value = o.det;
+    if (o.lp) { f = ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = o.lp; }
+    route(s, f, g, o); s.start(t); s.stop(t + dur + 0.03); v.nodes.push(s);
+  }
+  // burst: filtered noise. ft: filter type, q ignored when absent
+  function burst(v, ft, f0, f1, t, dur, pk, o) {
+    o = o || {};
+    var s = ctx.createBufferSource(), f = ctx.createBiquadFilter(), g = envg(t, dur, pk, o.att);
+    s.buffer = getNoise(); s.loop = true; f.type = ft; f.Q.value = o.q || 1;
+    f.frequency.setValueAtTime(f0, t); if (f1 !== f0) f.frequency.exponentialRampToValueAtTime(f1, t + dur);
+    route(s, f, g, o); s.start(t); s.stop(t + dur + 0.03); v.nodes.push(s);
+  }
+  function pv() { return 1 + (rnd() * 2 - 1) * pitchVar; }
+  var DIRF = { 0: 'flipUp', 1: 'flipRight', 2: 'flipDown', 3: 'flipLeft' };
+  var STING = { clear: 'clear', medalBronze: 'bronze', medalSilver: 'silver', medalGold: 'gold', medalPlumb: 'plumb' };
+  // recipes: [priority, duration, fn(voice, t, state)]
+  var R = {
+    flipUp: [1, 0.16, function (v, t) { var p = pv(); burst(v, 'bandpass', 400 * p, 2400 * p, t, 0.14, 0.6, { q: 1.5 }); tone(v, 'sine', 1568 * p, 1568 * p, t + 0.02, 0.11, 0.22); }],
+    flipDown: [1, 0.16, function (v, t) { var p = pv(); burst(v, 'bandpass', 2400 * p, 400 * p, t, 0.14, 0.6, { q: 1.5 }); tone(v, 'sine', 1175 * p, 1175 * p, t + 0.02, 0.11, 0.22); }],
+    flipLeft: [1, 0.14, function (v, t) { var p = pv(); burst(v, 'bandpass', 800 * p, 1600 * p, t, 0.12, 0.6, { q: 1.5, pan: -0.4 }); tone(v, 'sine', 1318 * p, 1318 * p, t + 0.02, 0.1, 0.22, { pan: -0.4 }); }],
+    flipRight: [1, 0.14, function (v, t) { var p = pv(); burst(v, 'bandpass', 800 * p, 1600 * p, t, 0.12, 0.6, { q: 1.5, pan: 0.4 }); tone(v, 'sine', 1318 * p, 1318 * p, t + 0.02, 0.1, 0.22, { pan: 0.4 }); }],
+    dive: [1, 0.22, function (v, t) { tone(v, 'sine', 900, 180, t, 0.2, 0.4); burst(v, 'lowpass', 300, 300, t, 0.08, 0.5); }],
+    land: [2, 0.14, function (v, t, st) {
+      var s = (st && +st.lastLandSpeed) || 0, k = Math.max(0.15, Math.min(1, s / 900)), p = pv();
+      tone(v, 'triangle', 140 * p, 60 * p, t, 0.12, k); burst(v, 'highpass', 1200, 1200, t, 0.005, 0.5 * k);
+    }],
+    ride: [3, 0.08, function (v, t) { var p = pv(); tone(v, 'sine', 220 * p, 260 * p, t, 0.06, 0.2); }],
+    charge: [2, 0.1, function (v, t) { tone(v, 'sine', 1319, 880, t, 0.08, 0.35); }],
+    noCharge: [2, 0.12, function (v, t) { tone(v, 'triangle', 180, 120, t, 0.1, 0.5, { lp: 600 }); }],
+    refill: [2, 0.27, function (v, t) { tone(v, 'sine', 1047, 1047, t, 0.2, 0.3); tone(v, 'sine', 1568, 1568, t + 0.04, 0.2, 0.3); }],
+    crumble: [2, 0.32, function (v, t) {
+      burst(v, 'highpass', 3000, 3000, t, 0.12, 0.5);
+      for (var i = 0; i < 3; i++) { var f = 2000 + rnd() * 2000; tone(v, 'sine', f, f, t + 0.04 + i * 0.05, 0.14, 0.15); }
+    }],
+    gate: [2, 0.27, function (v, t) { tone(v, 'sine', 660, 1320, t, 0.25, 0.2, { att: 0.05 }); tone(v, 'sine', 664, 1328, t, 0.25, 0.2, { att: 0.05 }); }],
+    gateBlocked: [2, 0.14, function (v, t) { tone(v, 'sine', 110, 110, t, 0.12, 0.5, { lp: 300 }); tone(v, 'sine', 55, 55, t, 0.12, 0.5, { lp: 300 }); }],
+    warn: [1, 0.17, function (v, t) { tone(v, 'square', 880, 880, t, 0.03, 0.25, { lp: 2000 }); tone(v, 'square', 880, 880, t + 0.075, 0.03, 0.25, { lp: 2000 }); }],
+    slam: [1, 0.27, function (v, t) { tone(v, 'sine', 90, 40, t, 0.25, 0.8); burst(v, 'lowpass', 400, 400, t, 0.2, 0.6); }],
+    death: [1, 0.52, function (v, t) {
+      burst(v, 'highpass', 2500, 2500, t, 0.2, 0.5);
+      tone(v, 'sine', 523, 523, t + 0.15, 0.17, 0.35); tone(v, 'sine', 392, 392, t + 0.32, 0.2, 0.35);
+    }],
+    respawn: [1, 0.32, function (v, t) { var f = [523.25, 659.25, 783.99, 1046.5]; for (var i = 0; i < 4; i++) tone(v, 'sine', f[i], f[i], t + i * 0.05, 0.12, 0.3); }],
+    portal: [1, 0.52, function (v, t) { tone(v, 'sine', 220, 440, t, 0.5, 0.3, { att: 0.25 }); tone(v, 'sine', 223, 446, t, 0.5, 0.3, { att: 0.25 }); }],
+    win: [1, 0.4, function (v, t) { tone(v, 'square', 523, 523, t, 0.1, 0.4); tone(v, 'square', 659, 659, t + 0.1, 0.14, 0.4); tone(v, 'square', 784, 1047, t + 0.24, 0.25, 0.4); }],
+    ui: [3, 0.06, function (v, t) { tone(v, 'sine', 1200, 1200, t, 0.04, 0.2); }],
+    padUp: [3, 0.06, function (v, t) { tone(v, 'sine', 1320, 1320, t, 0.04, 0.15); }],
+    padLeft: [3, 0.06, function (v, t) { tone(v, 'sine', 1100, 1100, t, 0.04, 0.15); }],
+    padRight: [3, 0.06, function (v, t) { tone(v, 'sine', 1250, 1250, t, 0.04, 0.15); }],
+    padDown: [3, 0.06, function (v, t) { tone(v, 'sine', 990, 990, t, 0.04, 0.15); }]
   };
+  var VIB = { death: 25, slam: 15, padUp: 8, padLeft: 8, padRight: 8, padDown: 8 };
+  function vibrate(ms) { try { if (vibOn && G.navigator && G.navigator.vibrate) G.navigator.vibrate(ms); } catch (e) {} }
+  // duck the music bus (not the sfx): level 0..1 for hold seconds then release over rel seconds
+  function duck(level, hold, rel) {
+    if (!musicDuck) return;
+    try {
+      var t = ctx.currentTime, p = musicDuck.gain, cur = p.value;
+      if (p.cancelScheduledValues) p.cancelScheduledValues(t);
+      p.setValueAtTime(cur, t); p.linearRampToValueAtTime(level, t + 0.05);
+      p.setValueAtTime(level, t + hold); p.linearRampToValueAtTime(1, t + hold + rel);
+    } catch (e) {}
+  }
+  function duckLevel() { return Math.pow(10, -duckDb / 20); }
+  function play(name, state) {
+    var key = name;
+    if (name === 'flip') key = DIRF[state && state.g] || 'flipUp';
+    if (Object.prototype.hasOwnProperty.call(STING, name) || (name === 'win' && PL.music && PL.music.sting)) {
+      if (PL.music && PL.music.sting) { PL.music.sting(STING[name] || 'clear'); return; }
+      key = 'win';
+    }
+    var r = Object.prototype.hasOwnProperty.call(R, key) ? R[key] : null; if (!r) return;
+    if (key === 'ride') { var tn = ctx.currentTime; if (lastRide >= 0 && tn - lastRide < 0.09 && tn >= lastRide) return; lastRide = tn; }
+    var v = admit(r[0], r[1]); if (!v) return;
+    r[2](v, ctx.currentTime, state || {});
+    if (key === 'death') duck(0.15, 0.6, 0.4);
+  }
   function nameOf(e) { return typeof e === 'string' ? e : e && (e.type || e.name || e.kind || e.id); }
   function onEvents(events, state) {
-    if (muted || !events || !events.length || !ctx) return;
+    if (!events || !events.length) return;
     for (var i = 0; i < events.length; i++) {
-      var f = SND[nameOf(events[i])];
-      if (f) { try { f(state); } catch (e) {} }
+      var n = nameOf(events[i]); if (!n) continue;
+      var key = n === 'flip' ? 'flip' : n;
+      if (VIB[key]) vibrate(VIB[key]);
+      if (!live()) continue;
+      if (Object.prototype.hasOwnProperty.call(R, n) || n === 'flip' || Object.prototype.hasOwnProperty.call(STING, n)) { try { play(n, state); } catch (e) {} }
     }
   }
   function setMuted(b) {
     muted = !!b;
     try { if (master) master.gain.value = muted ? 0 : MAXG; } catch (e) {}
   }
-  PL.audio = { init: init, onEvents: onEvents, setMuted: setMuted, isMuted: function () { return muted; }, MAX_GAIN: MAXG };
+  function setSfxGain(v) { sfxGain = clamp(v, 0, 1); try { if (sfxBus) sfxBus.gain.value = sfxGain; } catch (e) {} }
+  function setMusicGain(v) { musicGain = clamp(v, 0, 1); applyMusic(); }
+  function setMusicOn(b) { musicOn = !!b; applyMusic(); if (!musicOn && PL.music && PL.music.stop) PL.music.stop(0.3); }
+  function applyMusic() { try { if (musicBus) musicBus.gain.value = musicOn ? musicGain : 0; } catch (e) {} }
+  PL.audio = {
+    init: unlock, unlock: unlock, onEvents: onEvents, setMuted: setMuted, isMuted: function () { return muted; }, MAX_GAIN: MAXG,
+    setMusicGain: setMusicGain, setSfxGain: setSfxGain, setMusicOn: setMusicOn, onVisibility: onVisibility,
+    setDuckDb: function (v) { duckDb = clamp(v, 0, 18); }, setPitchVar: function (v) { pitchVar = clamp(v, 0, 0.06); },
+    setVibration: function (b) { vibOn = !!b; }, seed: function (n) { seedv = n | 0; },
+    playMusic: function (m) { return PL.music && PL.music.play ? PL.music.play(m) : null; },
+    stopMusic: function (s) { if (PL.music && PL.music.stop) PL.music.stop(s); },
+    sting: function (id) { if (live() && PL.music && PL.music.sting) PL.music.sting(id); },
+    duck: duck, duckLevel: duckLevel, canMusic: canMusic, isUnlocked: function () { return unlocked; },
+    voiceCount: function () { var t = ctx ? ctx.currentTime : 0, n = 0; for (var i = 0; i < voices.length; i++) if (voices[i].end > t) n++; return n; },
+    events: Object.keys(R).concat(['flip']).concat(Object.keys(STING)),
+    // internals for music.js
+    core: function () { return ctx ? { ctx: ctx, sfxBus: sfxBus, musicDuck: musicDuck, musicBus: musicBus, noise: getNoise, rnd: rnd, live: live } : null; }
+  };
 })(typeof globalThis !== 'undefined' ? globalThis : this);
 
 })();
@@ -1563,8 +2298,10 @@ const PL = (globalThis.PL = globalThis.PL || {});
     { id: 'CHARGES', label: 'Charges', min: 1, max: 4, step: 1 }
   ];
   let tuningOpen = false, runTuned = false, trailBuf = [], trailUntil = 0, trailPts = null, cg = null, tg = null, menuDown = null;
-  function tunedNow() { return TUNE.some(t => C[t.id] !== DEFAULTS[t.id]); }
-  function tunedStr() { return TUNE.map(t => t.id + '=' + C[t.id] + (C[t.id] !== DEFAULTS[t.id] ? '*' : '')).join(' '); }
+  // S1: tuned = any non-default PL.Tweak value (DEV); old TUNE rows kept for the old panel until Settings lands
+  function tunedNow() { return PL.Tweak ? PL.Tweak.isDirty() : TUNE.some(t => C[t.id] !== DEFAULTS[t.id]); }
+  function tunedStr() { return PL.Tweak ? PL.Tweak.reportLine(true) : TUNE.map(t => t.id + '=' + C[t.id] + (C[t.id] !== DEFAULTS[t.id] ? '*' : '')).join(' '); }
+  function tuneSet(id, v) { if (PL.Tweak && PL.Tweak.has(id)) PL.Tweak.set(id, v); else C[id] = v; }
   let muted = false;
   try { muted = localStorage.getItem('plumbline.mute') === '1'; } catch (_) {}
   if (PL.audio && PL.audio.setMuted) { try { PL.audio.setMuted(muted); } catch (_) {} }
@@ -1591,7 +2328,7 @@ const PL = (globalThis.PL = globalThis.PL || {});
   function startAttempt() {
     state = PL.newState(rooms[roomIdx]);
     const n = attempts.filter(a => a.room === roomIdx + 1).length + 1;
-    cur = { room: roomIdx + 1, attempt: n, ticks: 0, result: null, flips: 0, landSpeeds: [], log: [], rides: 0 };
+    cur = { room: roomIdx + 1, attempt: n, ticks: 0, result: null, flips: 0, landSpeeds: [], log: [], rides: 0, cause: '', snap: state.K && state.K.snap };
     trailBuf = [];
     deadHandled = false; winDelay = 0;
     queue = [];
@@ -1600,6 +2337,7 @@ const PL = (globalThis.PL = globalThis.PL || {});
   function finishAttempt(result) {
     if (!cur || cur.result) return;
     cur.result = result; cur.ticks = state.t; cur.flips = state.flips;
+    if (result === 'death') cur.cause = state.cause || '?';
     attempts.push(cur);
     flipsTotal += state.flips;
   }
@@ -1639,7 +2377,7 @@ const PL = (globalThis.PL = globalThis.PL || {});
       resetBtn.textContent = 'Reset defaults';
       resetBtn.style.cssText = 'position:fixed;left:50%;transform:translateX(-50%);bottom:calc(24px + env(safe-area-inset-bottom));' +
         'min-width:160px;height:56px;font:600 18px sans-serif;border-radius:12px;border:2px solid #fff;background:#222;color:#fff;z-index:50;display:none';
-      resetBtn.addEventListener('click', () => { for (const t of TUNE) C[t.id] = DEFAULTS[t.id]; });
+      resetBtn.addEventListener('click', () => { if (PL.Tweak) PL.Tweak.resetAll(); else for (const t of TUNE) C[t.id] = DEFAULTS[t.id]; });
       document.body.appendChild(resetBtn);
     }
     resetBtn.style.display = on ? 'block' : 'none';
@@ -1676,7 +2414,7 @@ const PL = (globalThis.PL = globalThis.PL || {});
         trailPts = trailBuf.slice(); trailUntil = nowMs() + 1200;
       } else if (e === 'win' && !cur.result) {
         finishAttempt('win');
-        cleared[roomIdx] = { log: cur.log.slice(), hash: PL.hash(state), ticks: state.t };
+        cleared[roomIdx] = { log: cur.log.slice(), hash: PL.hash(state), ticks: state.t, snap: cur.snap };
         winDelay = 60;
       }
     }
@@ -1693,7 +2431,8 @@ const PL = (globalThis.PL = globalThis.PL || {});
     if (PL.meta) {
       try {
         const key = PL.meta.keyFor(mode, seed, rooms.length);
-        const r = PL.meta.recordRun(key, { ticks: totalTicks, flips: flipsTotal, deaths, tuned: runTuned });
+        const roomS = PL.meta.roomSummary ? PL.meta.roomSummary(attempts, rooms.length).map(x => x.clearS || 0) : undefined;
+        const r = PL.meta.recordRun(key, { ticks: totalTicks, flips: flipsTotal, deaths, tuned: runTuned, rooms: roomS });
         if (r) {
           c.medal = r.medal || 'none'; c.flipStar = !!r.flipStar; c.newBest = !!r.isBest && !runTuned;
           if (r.best) c.best = { timeS: r.best.ticks * C.DT, flips: r.best.flips, medal: r.best.medal };
@@ -1711,9 +2450,16 @@ const PL = (globalThis.PL = globalThis.PL || {});
     const a = Array.isArray(r) ? r : [r.x, r.y, r.w, r.h];
     return x >= a[0] && x <= a[0] + a[2] && y >= a[1] && y <= a[1] + a[3];
   }
-  let g = null; // active gesture
+  // S1: play input = arrow pad adapter (input.js). Swipe strip, tap-Dive and hold-restart removed.
   let ring = 0;
-  function clearGesture() { g = null; ring = 0; btn = null; cg = null; tg = null; menuDown = null; }
+  function clearGesture() { ring = 0; btn = null; cg = null; tg = null; menuDown = null; if (PL.Input) PL.Input.clear(); }
+  function retryRoom() { if (winDelay <= 0 && !(cur && cur.result === 'win')) restartRoom('restart'); }
+  if (PL.Input) PL.Input.attach({
+    flip: qFlip, dive: qDive, restart: retryRoom,
+    pause: () => { if (PL.ui && typeof PL.ui.onPause === 'function') PL.ui.onPause(); }, // hook for the UI slice
+    state: () => state, view: () => view, now: nowMs,
+    active: () => scene === 'play' && !complete && !tuningOpen && !overlay && !!state
+  });
   function btnAt(x, y) {
     if (!PL.BTN) return null;
     if (rectHit(PL.BTN.copy(view), x, y)) return 'copy';
@@ -1739,30 +2485,10 @@ const PL = (globalThis.PL = globalThis.PL || {});
       cg = { id: e.pointerId, t0: nowMs() };
       return;
     }
-    if (g && nowMs() - g.t0 > 3000) g = null; // stale gesture
-    if (y < 0.6 * view.H || g) return;
-    try { canvas.setPointerCapture(e.pointerId); } catch (_) {}
-    g = { id: e.pointerId, x0: x, y0: y, t0: nowMs(), fired: false, moved: false, held: false };
+    // arrow pad: fires on touch-down, each pointer on its own (multi-touch)
+    if (PL.Input) PL.Input.down(x, y, e.pointerId);
   });
-  function tryFlick(x, y) {
-    const dx = x - g.x0, dy = y - g.y0;
-    if (g.fired || Math.hypot(dx, dy) <= 24) return;
-    const ax = Math.abs(dx), ay = Math.abs(dy);
-    if (ax >= 1.25 * ay) { qFlip(dx > 0 ? 1 : 3); g.fired = true; }
-    else if (ay >= 1.25 * ax) { qFlip(dy > 0 ? 2 : 0); g.fired = true; }
-  }
-  canvas.addEventListener('pointermove', e => {
-    if (!g || e.pointerId !== g.id) return;
-    if (Math.hypot(e.clientX - g.x0, e.clientY - g.y0) >= 10) g.moved = true;
-    tryFlick(e.clientX, e.clientY);
-  });
-  function endGesture(e, cancel) {
-    if (!g || e.pointerId !== g.id) return;
-    if (!cancel) tryFlick(e.clientX, e.clientY);
-    const dt = nowMs() - g.t0, d = Math.hypot(e.clientX - g.x0, e.clientY - g.y0);
-    if (!cancel && !g.fired && !g.held && !g.moved && d < 10 && dt < 180) qDive();
-    g = null; ring = 0;
-  }
+  function endGesture(e) { if (PL.Input) PL.Input.up(e.pointerId); }
   canvas.addEventListener('pointerup', e => {
     if (scene === 'menu') {
       const d = menuDown; menuDown = null;
@@ -1786,16 +2512,15 @@ const PL = (globalThis.PL = globalThis.PL || {});
       } else pathOn = !pathOn;
       return;
     }
-    endGesture(e, false);
+    endGesture(e);
   });
   canvas.addEventListener('pointercancel', e => {
     if (btn && btn.id === e.pointerId) btn = null;
     if (tg && tg.id === e.pointerId) tg = null;
     if (cg && cg.id === e.pointerId) { cg = null; ring = 0; }
     if (menuDown && menuDown.id === e.pointerId) menuDown = null;
-    endGesture(e, true);
+    if (PL.Input) PL.Input.cancel(e.pointerId);
   });
-  canvas.addEventListener('lostpointercapture', e => endGesture(e, true));
   window.addEventListener('blur', clearGesture);
   document.addEventListener('visibilitychange', () => { if (document.hidden) clearGesture(); });
   window.addEventListener('keydown', e => {
@@ -1813,9 +2538,7 @@ const PL = (globalThis.PL = globalThis.PL || {});
     if (k === 'm' || k === 'M' || k === 'Escape') { toMenu(); return; }
     if (k === 't' || k === 'T') { tuningOpen = !tuningOpen; return; }
     if (complete) { if ((k === ' ' || k === 'Enter') && nowMs() - completeAt > 500) newRun(); return; }
-    if (k === 'ArrowUp') qFlip(0); else if (k === 'ArrowRight') qFlip(1);
-    else if (k === 'ArrowDown') qFlip(2); else if (k === 'ArrowLeft') qFlip(3);
-    else if (k === ' ') qDive(); else if (k === 'r' || k === 'R') restartRoom('restart');
+    if (PL.Input && PL.Input.key(k)) { /* arrows, Space = Dive, R = Retry (input.js) */ }
     else if (k === 'p' || k === 'P') pathOn = !pathOn;
     else return;
     e.preventDefault();
@@ -1886,7 +2609,7 @@ const PL = (globalThis.PL = globalThis.PL || {});
       const t = TUNE.find(q => q.id === r.id); if (!t) continue;
       let d = 0;
       if (rectHit(r.minus, x, y)) d = -t.step; else if (rectHit(r.plus, x, y)) d = t.step;
-      if (d) { C[t.id] = Math.max(t.min, Math.min(t.max, C[t.id] + d)); if (tunedNow()) runTuned = true; return; }
+      if (d) { tuneSet(t.id, Math.max(t.min, Math.min(t.max, C[t.id] + d))); if (tunedNow()) runTuned = true; return; }
     }
   }
   function updateHold() {
@@ -1900,11 +2623,7 @@ const PL = (globalThis.PL = globalThis.PL || {});
       if (h >= 600) { cg = null; ring = 0; toMenu(); }
       return;
     }
-    if (g && !g.fired && !g.moved) {
-      const h = nowMs() - g.t0;
-      ring = Math.max(0, Math.min(1, (h - 250) / 350));
-      if (h >= 600) { g.held = true; ring = 0; if (winDelay <= 0 && !(cur && cur.result === 'win')) restartRoom('restart'); }
-    } else ring = 0;
+    ring = 0; // hold-restart removed (S1): Retry is a visible one-tap button
   }
 
   // ---------- report ----------
@@ -1912,7 +2631,7 @@ const PL = (globalThis.PL = globalThis.PL || {});
     const lines = []; let ok = true, any = false;
     for (let i = 0; i < cleared.length; i++) {
       const c = cleared[i]; if (!c) continue; any = true;
-      let r; try { r = PL.replay(rooms[i], c.log); } catch (e) { r = { hash: 'ERR ' + e.message }; }
+      let r; try { r = PL.replay(rooms[i], c.log, c.snap); } catch (e) { r = { hash: 'ERR ' + e.message }; }
       const same = r.hash === c.hash; if (!same) ok = false;
       lines.push('  room ' + (i + 1) + ': ' + (same ? 'match' : 'MISMATCH') + ' (' + c.log.length + ' inputs, ' + c.ticks + ' ticks)');
     }
@@ -1935,10 +2654,12 @@ const PL = (globalThis.PL = globalThis.PL || {});
     L.push('avg fps: ' + fps.toFixed(1));
     L.push('run time: ' + fmt(totalTicks * C.DT) + ' (' + totalTicks + ' ticks)  flips ' + curFlips() + '  deaths ' + deaths + (complete ? '  RUN COMPLETE' : '  in progress'));
     L.push('WebGPU output: NOT seen (canvas 2D)');
+    if (PL.Input) L.push('controls: ' + PL.Input.scheme + '  hand ' + PL.Input.getHand() + '  vibrate ' + (PL.Input.getVibrate() ? 'on' : 'off'));
     L.push('');
     L.push('attempts [room, attempt, ticks, result, flips, landSpeeds]:');
     const all = attempts.concat(cur && !cur.result && !complete ? [Object.assign({}, cur, { ticks: state.t, flips: state.flips, result: 'in-progress' })] : []);
-    for (const a of all) L.push('  ' + JSON.stringify({ room: a.room, attempt: a.attempt, ticks: a.ticks, result: a.result, flips: a.flips, landSpeeds: a.landSpeeds, rides: a.rides || 0 }));
+    for (const a of all) L.push('  ' + JSON.stringify({ room: a.room, attempt: a.attempt, ticks: a.ticks, s: +(a.ticks * C.DT).toFixed(2), result: a.result, cause: a.cause || undefined, flips: a.flips, landSpeeds: a.landSpeeds, rides: a.rides || 0, inputTicks: (a.log || []).map(x => x.tick) }));
+    if (PL.meta && PL.meta.reportLines) for (const l of PL.meta.reportLines(all, rooms.length)) L.push(l);
     L.push('wall-ride count per room: ' + rooms.map((_, i) => all.filter(x => x.room === i + 1).reduce((s2, x) => s2 + (x.rides || 0), 0)).join(' '));
     L.push('');
     L.push('2nd attempt vs 1st per room:');
@@ -1955,7 +2676,8 @@ const PL = (globalThis.PL = globalThis.PL || {});
     const rc = replayCheck();
     L.push('determinism check (replay of cleared rooms):');
     for (const l of rc.lines) L.push(l);
-    L.push(runTuned || tunedNow() ? 'determinism: skipped (tuned)' : !rc.any ? 'determinism: no cleared rooms yet' : rc.ok ? 'determinism OK' : 'determinism FAIL');
+    // S1: each attempt replays with its own tweak snapshot, so tuned runs are checked too
+    L.push((!rc.any ? 'determinism: no cleared rooms yet' : rc.ok ? 'determinism OK' : 'determinism FAIL') + (runTuned || tunedNow() ? ' (tuned, replayed with attempt snapshots)' : ''));
     L.push('');
     L.push('input log (room, attempt, tick, k, dir):');
     for (const i of inputLog) L.push('  ' + i.room + ' ' + i.attempt + ' ' + i.tick + ' ' + i.k + (i.k === 'flip' ? ' ' + DIRN[i.dir] : ''));
@@ -2031,10 +2753,14 @@ const PL = (globalThis.PL = globalThis.PL || {});
       ring, completeScreen: complete, fps: avgFps(), fx, reduced,
       roomTotal: rooms.length, nRooms: rooms.length, attempt: cur ? cur.attempt : 1, mode, roomAgeS: state.t * C.DT, muted,
       trail: trailPts && nowMs() < trailUntil ? trailPts : null,
-      tuning: { open: tuningOpen, rows: tuneRows(), dirty: runTuned || tunedNow() }
+      tuning: { open: tuningOpen, rows: tuneRows(), dirty: runTuned || tunedNow() },
+      // S1 hooks for the UI slice: pad draw model (PL.Input.view()) and death cause tag source
+      pad: PL.Input ? PL.Input.view() : null, deathCause: state.dead > 0 ? state.cause : ''
     };
     ctx.setTransform(view.dpr, 0, 0, view.dpr, 0, 0);
     PL.draw(ctx, view, fr, state, hud);
+    // arrow pad: PL.drawPad(ctx, view, padModel, hud) when draw.js provides it, else the plain fallback
+    if (hud.pad && !complete) { if (PL.drawPad) PL.drawPad(ctx, view, hud.pad, hud); else PL.Input.drawFallback(ctx, hud.pad); }
   }
 
   newRun(); // scene stays 'menu' until a mode is picked
@@ -2061,9 +2787,10 @@ const PL = (globalThis.PL = globalThis.PL || {});
     attempts: () => attempts.slice(),
     inputLog: () => inputLog.slice(),
     getRunStats: () => ({ totalTicks, roomsCleared: cleared.filter(Boolean).length, tuned: runTuned || tunedNow() }),
+    pad: () => (PL.Input ? PL.Input.view() : null),
     isComplete: () => !!complete
   };
-  PL.ui = { buildReport };
+  PL.ui = Object.assign(PL.ui || {}, { buildReport, retryRoom });
 })();
 
 })();

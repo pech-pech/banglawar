@@ -42,8 +42,10 @@ const PL = (globalThis.PL = globalThis.PL || {});
     { id: 'CHARGES', label: 'Charges', min: 1, max: 4, step: 1 }
   ];
   let tuningOpen = false, runTuned = false, trailBuf = [], trailUntil = 0, trailPts = null, cg = null, tg = null, menuDown = null;
-  function tunedNow() { return TUNE.some(t => C[t.id] !== DEFAULTS[t.id]); }
-  function tunedStr() { return TUNE.map(t => t.id + '=' + C[t.id] + (C[t.id] !== DEFAULTS[t.id] ? '*' : '')).join(' '); }
+  // S1: tuned = any non-default PL.Tweak value (DEV); old TUNE rows kept for the old panel until Settings lands
+  function tunedNow() { return PL.Tweak ? PL.Tweak.isDirty() : TUNE.some(t => C[t.id] !== DEFAULTS[t.id]); }
+  function tunedStr() { return PL.Tweak ? PL.Tweak.reportLine(true) : TUNE.map(t => t.id + '=' + C[t.id] + (C[t.id] !== DEFAULTS[t.id] ? '*' : '')).join(' '); }
+  function tuneSet(id, v) { if (PL.Tweak && PL.Tweak.has(id)) PL.Tweak.set(id, v); else C[id] = v; }
   let muted = false;
   try { muted = localStorage.getItem('plumbline.mute') === '1'; } catch (_) {}
   if (PL.audio && PL.audio.setMuted) { try { PL.audio.setMuted(muted); } catch (_) {} }
@@ -70,7 +72,7 @@ const PL = (globalThis.PL = globalThis.PL || {});
   function startAttempt() {
     state = PL.newState(rooms[roomIdx]);
     const n = attempts.filter(a => a.room === roomIdx + 1).length + 1;
-    cur = { room: roomIdx + 1, attempt: n, ticks: 0, result: null, flips: 0, landSpeeds: [], log: [], rides: 0 };
+    cur = { room: roomIdx + 1, attempt: n, ticks: 0, result: null, flips: 0, landSpeeds: [], log: [], rides: 0, cause: '', snap: state.K && state.K.snap };
     trailBuf = [];
     deadHandled = false; winDelay = 0;
     queue = [];
@@ -79,6 +81,7 @@ const PL = (globalThis.PL = globalThis.PL || {});
   function finishAttempt(result) {
     if (!cur || cur.result) return;
     cur.result = result; cur.ticks = state.t; cur.flips = state.flips;
+    if (result === 'death') cur.cause = state.cause || '?';
     attempts.push(cur);
     flipsTotal += state.flips;
   }
@@ -118,7 +121,7 @@ const PL = (globalThis.PL = globalThis.PL || {});
       resetBtn.textContent = 'Reset defaults';
       resetBtn.style.cssText = 'position:fixed;left:50%;transform:translateX(-50%);bottom:calc(24px + env(safe-area-inset-bottom));' +
         'min-width:160px;height:56px;font:600 18px sans-serif;border-radius:12px;border:2px solid #fff;background:#222;color:#fff;z-index:50;display:none';
-      resetBtn.addEventListener('click', () => { for (const t of TUNE) C[t.id] = DEFAULTS[t.id]; });
+      resetBtn.addEventListener('click', () => { if (PL.Tweak) PL.Tweak.resetAll(); else for (const t of TUNE) C[t.id] = DEFAULTS[t.id]; });
       document.body.appendChild(resetBtn);
     }
     resetBtn.style.display = on ? 'block' : 'none';
@@ -155,7 +158,7 @@ const PL = (globalThis.PL = globalThis.PL || {});
         trailPts = trailBuf.slice(); trailUntil = nowMs() + 1200;
       } else if (e === 'win' && !cur.result) {
         finishAttempt('win');
-        cleared[roomIdx] = { log: cur.log.slice(), hash: PL.hash(state), ticks: state.t };
+        cleared[roomIdx] = { log: cur.log.slice(), hash: PL.hash(state), ticks: state.t, snap: cur.snap };
         winDelay = 60;
       }
     }
@@ -172,7 +175,8 @@ const PL = (globalThis.PL = globalThis.PL || {});
     if (PL.meta) {
       try {
         const key = PL.meta.keyFor(mode, seed, rooms.length);
-        const r = PL.meta.recordRun(key, { ticks: totalTicks, flips: flipsTotal, deaths, tuned: runTuned });
+        const roomS = PL.meta.roomSummary ? PL.meta.roomSummary(attempts, rooms.length).map(x => x.clearS || 0) : undefined;
+        const r = PL.meta.recordRun(key, { ticks: totalTicks, flips: flipsTotal, deaths, tuned: runTuned, rooms: roomS });
         if (r) {
           c.medal = r.medal || 'none'; c.flipStar = !!r.flipStar; c.newBest = !!r.isBest && !runTuned;
           if (r.best) c.best = { timeS: r.best.ticks * C.DT, flips: r.best.flips, medal: r.best.medal };
@@ -190,9 +194,16 @@ const PL = (globalThis.PL = globalThis.PL || {});
     const a = Array.isArray(r) ? r : [r.x, r.y, r.w, r.h];
     return x >= a[0] && x <= a[0] + a[2] && y >= a[1] && y <= a[1] + a[3];
   }
-  let g = null; // active gesture
+  // S1: play input = arrow pad adapter (input.js). Swipe strip, tap-Dive and hold-restart removed.
   let ring = 0;
-  function clearGesture() { g = null; ring = 0; btn = null; cg = null; tg = null; menuDown = null; }
+  function clearGesture() { ring = 0; btn = null; cg = null; tg = null; menuDown = null; if (PL.Input) PL.Input.clear(); }
+  function retryRoom() { if (winDelay <= 0 && !(cur && cur.result === 'win')) restartRoom('restart'); }
+  if (PL.Input) PL.Input.attach({
+    flip: qFlip, dive: qDive, restart: retryRoom,
+    pause: () => { if (PL.ui && typeof PL.ui.onPause === 'function') PL.ui.onPause(); }, // hook for the UI slice
+    state: () => state, view: () => view, now: nowMs,
+    active: () => scene === 'play' && !complete && !tuningOpen && !overlay && !!state
+  });
   function btnAt(x, y) {
     if (!PL.BTN) return null;
     if (rectHit(PL.BTN.copy(view), x, y)) return 'copy';
@@ -218,30 +229,10 @@ const PL = (globalThis.PL = globalThis.PL || {});
       cg = { id: e.pointerId, t0: nowMs() };
       return;
     }
-    if (g && nowMs() - g.t0 > 3000) g = null; // stale gesture
-    if (y < 0.6 * view.H || g) return;
-    try { canvas.setPointerCapture(e.pointerId); } catch (_) {}
-    g = { id: e.pointerId, x0: x, y0: y, t0: nowMs(), fired: false, moved: false, held: false };
+    // arrow pad: fires on touch-down, each pointer on its own (multi-touch)
+    if (PL.Input) PL.Input.down(x, y, e.pointerId);
   });
-  function tryFlick(x, y) {
-    const dx = x - g.x0, dy = y - g.y0;
-    if (g.fired || Math.hypot(dx, dy) <= 24) return;
-    const ax = Math.abs(dx), ay = Math.abs(dy);
-    if (ax >= 1.25 * ay) { qFlip(dx > 0 ? 1 : 3); g.fired = true; }
-    else if (ay >= 1.25 * ax) { qFlip(dy > 0 ? 2 : 0); g.fired = true; }
-  }
-  canvas.addEventListener('pointermove', e => {
-    if (!g || e.pointerId !== g.id) return;
-    if (Math.hypot(e.clientX - g.x0, e.clientY - g.y0) >= 10) g.moved = true;
-    tryFlick(e.clientX, e.clientY);
-  });
-  function endGesture(e, cancel) {
-    if (!g || e.pointerId !== g.id) return;
-    if (!cancel) tryFlick(e.clientX, e.clientY);
-    const dt = nowMs() - g.t0, d = Math.hypot(e.clientX - g.x0, e.clientY - g.y0);
-    if (!cancel && !g.fired && !g.held && !g.moved && d < 10 && dt < 180) qDive();
-    g = null; ring = 0;
-  }
+  function endGesture(e) { if (PL.Input) PL.Input.up(e.pointerId); }
   canvas.addEventListener('pointerup', e => {
     if (scene === 'menu') {
       const d = menuDown; menuDown = null;
@@ -265,16 +256,15 @@ const PL = (globalThis.PL = globalThis.PL || {});
       } else pathOn = !pathOn;
       return;
     }
-    endGesture(e, false);
+    endGesture(e);
   });
   canvas.addEventListener('pointercancel', e => {
     if (btn && btn.id === e.pointerId) btn = null;
     if (tg && tg.id === e.pointerId) tg = null;
     if (cg && cg.id === e.pointerId) { cg = null; ring = 0; }
     if (menuDown && menuDown.id === e.pointerId) menuDown = null;
-    endGesture(e, true);
+    if (PL.Input) PL.Input.cancel(e.pointerId);
   });
-  canvas.addEventListener('lostpointercapture', e => endGesture(e, true));
   window.addEventListener('blur', clearGesture);
   document.addEventListener('visibilitychange', () => { if (document.hidden) clearGesture(); });
   window.addEventListener('keydown', e => {
@@ -292,9 +282,7 @@ const PL = (globalThis.PL = globalThis.PL || {});
     if (k === 'm' || k === 'M' || k === 'Escape') { toMenu(); return; }
     if (k === 't' || k === 'T') { tuningOpen = !tuningOpen; return; }
     if (complete) { if ((k === ' ' || k === 'Enter') && nowMs() - completeAt > 500) newRun(); return; }
-    if (k === 'ArrowUp') qFlip(0); else if (k === 'ArrowRight') qFlip(1);
-    else if (k === 'ArrowDown') qFlip(2); else if (k === 'ArrowLeft') qFlip(3);
-    else if (k === ' ') qDive(); else if (k === 'r' || k === 'R') restartRoom('restart');
+    if (PL.Input && PL.Input.key(k)) { /* arrows, Space = Dive, R = Retry (input.js) */ }
     else if (k === 'p' || k === 'P') pathOn = !pathOn;
     else return;
     e.preventDefault();
@@ -365,7 +353,7 @@ const PL = (globalThis.PL = globalThis.PL || {});
       const t = TUNE.find(q => q.id === r.id); if (!t) continue;
       let d = 0;
       if (rectHit(r.minus, x, y)) d = -t.step; else if (rectHit(r.plus, x, y)) d = t.step;
-      if (d) { C[t.id] = Math.max(t.min, Math.min(t.max, C[t.id] + d)); if (tunedNow()) runTuned = true; return; }
+      if (d) { tuneSet(t.id, Math.max(t.min, Math.min(t.max, C[t.id] + d))); if (tunedNow()) runTuned = true; return; }
     }
   }
   function updateHold() {
@@ -379,11 +367,7 @@ const PL = (globalThis.PL = globalThis.PL || {});
       if (h >= 600) { cg = null; ring = 0; toMenu(); }
       return;
     }
-    if (g && !g.fired && !g.moved) {
-      const h = nowMs() - g.t0;
-      ring = Math.max(0, Math.min(1, (h - 250) / 350));
-      if (h >= 600) { g.held = true; ring = 0; if (winDelay <= 0 && !(cur && cur.result === 'win')) restartRoom('restart'); }
-    } else ring = 0;
+    ring = 0; // hold-restart removed (S1): Retry is a visible one-tap button
   }
 
   // ---------- report ----------
@@ -391,7 +375,7 @@ const PL = (globalThis.PL = globalThis.PL || {});
     const lines = []; let ok = true, any = false;
     for (let i = 0; i < cleared.length; i++) {
       const c = cleared[i]; if (!c) continue; any = true;
-      let r; try { r = PL.replay(rooms[i], c.log); } catch (e) { r = { hash: 'ERR ' + e.message }; }
+      let r; try { r = PL.replay(rooms[i], c.log, c.snap); } catch (e) { r = { hash: 'ERR ' + e.message }; }
       const same = r.hash === c.hash; if (!same) ok = false;
       lines.push('  room ' + (i + 1) + ': ' + (same ? 'match' : 'MISMATCH') + ' (' + c.log.length + ' inputs, ' + c.ticks + ' ticks)');
     }
@@ -414,10 +398,12 @@ const PL = (globalThis.PL = globalThis.PL || {});
     L.push('avg fps: ' + fps.toFixed(1));
     L.push('run time: ' + fmt(totalTicks * C.DT) + ' (' + totalTicks + ' ticks)  flips ' + curFlips() + '  deaths ' + deaths + (complete ? '  RUN COMPLETE' : '  in progress'));
     L.push('WebGPU output: NOT seen (canvas 2D)');
+    if (PL.Input) L.push('controls: ' + PL.Input.scheme + '  hand ' + PL.Input.getHand() + '  vibrate ' + (PL.Input.getVibrate() ? 'on' : 'off'));
     L.push('');
     L.push('attempts [room, attempt, ticks, result, flips, landSpeeds]:');
     const all = attempts.concat(cur && !cur.result && !complete ? [Object.assign({}, cur, { ticks: state.t, flips: state.flips, result: 'in-progress' })] : []);
-    for (const a of all) L.push('  ' + JSON.stringify({ room: a.room, attempt: a.attempt, ticks: a.ticks, result: a.result, flips: a.flips, landSpeeds: a.landSpeeds, rides: a.rides || 0 }));
+    for (const a of all) L.push('  ' + JSON.stringify({ room: a.room, attempt: a.attempt, ticks: a.ticks, s: +(a.ticks * C.DT).toFixed(2), result: a.result, cause: a.cause || undefined, flips: a.flips, landSpeeds: a.landSpeeds, rides: a.rides || 0, inputTicks: (a.log || []).map(x => x.tick) }));
+    if (PL.meta && PL.meta.reportLines) for (const l of PL.meta.reportLines(all, rooms.length)) L.push(l);
     L.push('wall-ride count per room: ' + rooms.map((_, i) => all.filter(x => x.room === i + 1).reduce((s2, x) => s2 + (x.rides || 0), 0)).join(' '));
     L.push('');
     L.push('2nd attempt vs 1st per room:');
@@ -434,7 +420,8 @@ const PL = (globalThis.PL = globalThis.PL || {});
     const rc = replayCheck();
     L.push('determinism check (replay of cleared rooms):');
     for (const l of rc.lines) L.push(l);
-    L.push(runTuned || tunedNow() ? 'determinism: skipped (tuned)' : !rc.any ? 'determinism: no cleared rooms yet' : rc.ok ? 'determinism OK' : 'determinism FAIL');
+    // S1: each attempt replays with its own tweak snapshot, so tuned runs are checked too
+    L.push((!rc.any ? 'determinism: no cleared rooms yet' : rc.ok ? 'determinism OK' : 'determinism FAIL') + (runTuned || tunedNow() ? ' (tuned, replayed with attempt snapshots)' : ''));
     L.push('');
     L.push('input log (room, attempt, tick, k, dir):');
     for (const i of inputLog) L.push('  ' + i.room + ' ' + i.attempt + ' ' + i.tick + ' ' + i.k + (i.k === 'flip' ? ' ' + DIRN[i.dir] : ''));
@@ -510,10 +497,14 @@ const PL = (globalThis.PL = globalThis.PL || {});
       ring, completeScreen: complete, fps: avgFps(), fx, reduced,
       roomTotal: rooms.length, nRooms: rooms.length, attempt: cur ? cur.attempt : 1, mode, roomAgeS: state.t * C.DT, muted,
       trail: trailPts && nowMs() < trailUntil ? trailPts : null,
-      tuning: { open: tuningOpen, rows: tuneRows(), dirty: runTuned || tunedNow() }
+      tuning: { open: tuningOpen, rows: tuneRows(), dirty: runTuned || tunedNow() },
+      // S1 hooks for the UI slice: pad draw model (PL.Input.view()) and death cause tag source
+      pad: PL.Input ? PL.Input.view() : null, deathCause: state.dead > 0 ? state.cause : ''
     };
     ctx.setTransform(view.dpr, 0, 0, view.dpr, 0, 0);
     PL.draw(ctx, view, fr, state, hud);
+    // arrow pad: PL.drawPad(ctx, view, padModel, hud) when draw.js provides it, else the plain fallback
+    if (hud.pad && !complete) { if (PL.drawPad) PL.drawPad(ctx, view, hud.pad, hud); else PL.Input.drawFallback(ctx, hud.pad); }
   }
 
   newRun(); // scene stays 'menu' until a mode is picked
@@ -540,7 +531,8 @@ const PL = (globalThis.PL = globalThis.PL || {});
     attempts: () => attempts.slice(),
     inputLog: () => inputLog.slice(),
     getRunStats: () => ({ totalTicks, roomsCleared: cleared.filter(Boolean).length, tuned: runTuned || tunedNow() }),
+    pad: () => (PL.Input ? PL.Input.view() : null),
     isComplete: () => !!complete
   };
-  PL.ui = { buildReport };
+  PL.ui = Object.assign(PL.ui || {}, { buildReport, retryRoom });
 })();
