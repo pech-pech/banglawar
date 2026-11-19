@@ -11,10 +11,11 @@
   var FONT = 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
   var stars = null;
 
-  function layout(w, h) {
-    var s = Math.min(w / W, (h - TOP - REST) / H);
+  function layout(w, h, inset) {
+    var top = TOP + (inset > 0 ? inset : 0);
+    var s = Math.min(w / W, (h - top - REST) / H);
     s = Math.max(0.8, Math.min(1.5, s));
-    return { w: w, h: h, dpr: 1, scale: s, ox: (w - W * s) / 2, oy: TOP };
+    return { w: w, h: h, dpr: 1, scale: s, ox: (w - W * s) / 2, oy: top };
   }
   function getStars() {
     if (stars) return stars;

@@ -96,7 +96,7 @@
   const bWarp = mkBtn('x1', 'right:12px;top:env(safe-area-inset-top,0px);width:56px;height:56px;padding:0;color:#3fb8a8;font-size:16px', b => { ac('tick'); setWarp(!warpOn); });
   bWarp.setAttribute('aria-label', 'Warp');
   const pips = document.createElement('div');
-  pips.style.cssText = 'position:absolute;left:80px;right:80px;top:0;height:56px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;pointer-events:none';
+  pips.style.cssText = 'position:absolute;left:80px;right:80px;top:env(safe-area-inset-top,0px);height:56px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;pointer-events:none';
   const pipLbl = document.createElement('div'); pipLbl.style.cssText = 'font:700 13px system-ui,sans-serif;color:#c9a24a;letter-spacing:.08em';
   const pipRow = document.createElement('div'); pipRow.style.cssText = 'display:flex;gap:6px';
   pips.appendChild(pipLbl); pips.appendChild(pipRow); hud.appendChild(pips);
@@ -121,11 +121,20 @@
   // ---- view ----
   const ctx = canvas.getContext('2d');
   let V = { w: 0, h: 0, dpr: 1, scale: 1, ox: 0, oy: 56 };
+  function safeTop() {
+    try {
+      const p = document.createElement('div');
+      p.style.cssText = 'position:absolute;visibility:hidden;pointer-events:none;height:0;padding-top:env(safe-area-inset-top,0px)';
+      document.body.appendChild(p);
+      const v = parseFloat(getComputedStyle(p).paddingTop) || 0;
+      document.body.removeChild(p); return v > 0 ? v : 0;
+    } catch (e) { return 0; }
+  }
   function resize() {
-    const w = window.innerWidth, h = window.innerHeight, dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const w = window.innerWidth, h = window.innerHeight, dpr = Math.min(window.devicePixelRatio || 1, 2), inset = safeTop();
     let L = null;
-    try { if (BW.render && BW.render.layout) L = BW.render.layout(w, h); } catch (e) {}
-    if (!L || !L.scale) { const sc = Math.max(0.8, Math.min(1.5, Math.min(w / C.W, (h - 56 - 96) / C.H))); L = { scale: sc, ox: (w - C.W * sc) / 2, oy: 56 }; }
+    try { if (BW.render && BW.render.layout) L = BW.render.layout(w, h, inset); } catch (e) {}
+    if (!L || !L.scale) { const sc = Math.max(0.8, Math.min(1.5, Math.min(w / C.W, (h - 56 - inset - 96) / C.H))); L = { scale: sc, ox: (w - C.W * sc) / 2, oy: 56 + inset }; }
     V = Object.assign({}, L, { w: w, h: h, dpr: dpr });
     canvas.width = Math.round(w * dpr); canvas.height = Math.round(h * dpr);
     canvas.style.width = w + 'px'; canvas.style.height = h + 'px';
@@ -326,7 +335,7 @@
     if (ms > 0 && ms < 1000) { fpsBuf.push(ms); if (fpsBuf.length > 4000) fpsBuf.shift(); }
     const dt = Math.min(ms / 1000, 0.1);
     frameN++;
-    if (UI.blocking()) { acc = 0; draw(); return; }
+    if (UI.blocking()) { acc = 0; if (nextShown !== 'none') { nextShown = 'none'; bNext.style.display = 'none'; } draw(); return; }
     if (sector && st && phase === 'run') {
       if (warpOn && nearBody()) setWarp(false);
       warpEff = warpOn ? 3 : 1;

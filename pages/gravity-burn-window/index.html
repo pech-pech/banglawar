@@ -51,7 +51,7 @@
   function bodyY(b, t) { return b.cy + b.R * Math.sin(b.w * t + b.p); }
   // sector: {id, bodies:[body], gate:{x,y}, start:{x,y,vx,vy}, fuel0}
   function newState(sector, fuel) {
-    const s = sector.start, sp = Math.hypot(s.vx, s.vy) || 1;
+    const s = sector.start, sp = Math.sqrt(s.vx * s.vx + s.vy * s.vy) || 1;
     return {
       n: 0, x: s.x, y: s.y, vx: s.vx, vy: s.vy, hx: s.vx / sp, hy: s.vy / sp,
       fuel: fuel == null ? (sector.fuel0 == null ? C.FUEL0 : sector.fuel0) : fuel, fuelUsed: 0,
@@ -75,7 +75,7 @@
   function integrate(st, bodies, t, dt, thrust, skipDark) {
     let tx = 0, ty = 0;
     if (thrust > 0) {
-      const sp = Math.hypot(st.vx, st.vy);
+      const sp = Math.sqrt(st.vx * st.vx + st.vy * st.vy);
       if (sp >= C.V_MIN_HEAD) { tx = st.vx / sp * thrust; ty = st.vy / sp * thrust; } else { tx = st.hx * thrust; ty = st.hy * thrust; }
     }
     accel(bodies, st.x, st.y, t, skipDark, _a);
@@ -83,7 +83,7 @@
     st.x += st.vx * dt; st.y += st.vy * dt;
     accel(bodies, st.x, st.y, t + dt, skipDark, _a);
     st.vx += (_a[0] + tx) * dt * 0.5; st.vy += (_a[1] + ty) * dt * 0.5;
-    const sp = Math.hypot(st.vx, st.vy);
+    const sp = Math.sqrt(st.vx * st.vx + st.vy * st.vy);
     if (sp >= C.V_MIN_HEAD) { st.hx = st.vx / sp; st.hy = st.vy / sp; }
   }
   // advance exactly one DT. input = {burn:boolean, throttle:0.25..1}. Returns st.status.
@@ -109,13 +109,13 @@
     const tn = st.n * C.DT;
     for (let i = 0; i < sector.bodies.length; i++) {
       const b = sector.bodies[i];
-      const d = Math.hypot(st.x - bodyX(b, tn), st.y - bodyY(b, tn));
+      const d = Math.sqrt((st.x - bodyX(b, tn)) * (st.x - bodyX(b, tn)) + (st.y - bodyY(b, tn)) * (st.y - bodyY(b, tn)));
       if (d < st.minDist) st.minDist = d;
       if (d < b.r + C.CRASH_PAD) { st.status = 'crashed'; st.crashBody = b.id; return st.status; }
     }
     if (st.x < -C.OUT || st.x > C.W + C.OUT || st.y < -C.OUT || st.y > C.H + C.OUT) { st.status = 'lost'; return st.status; }
     const g = sector.gate;
-    if (Math.hypot(st.x - g.x, st.y - g.y) < C.GATE_R && Math.hypot(st.vx, st.vy) < C.DOCK_V) st.status = 'docked';
+    if (Math.sqrt((st.x - g.x) * (st.x - g.x) + (st.y - g.y) * (st.y - g.y)) < C.GATE_R && Math.sqrt(st.vx * st.vx + st.vy * st.vy) < C.DOCK_V) st.status = 'docked';
     return st.status;
   }
   // Coast preview (burn off). Default 3 s at dt 1/30, two 1/60 sub-steps inside 60 px of a visible body.
@@ -131,20 +131,20 @@
     let k = 0;
     while (t < tEnd - 1e-9) {
       let near = 1e9;
-      for (let i = 0; i < bodies.length; i++) { if (skipDark && bodies[i].dark) continue; const d = Math.hypot(p.x - bodyX(bodies[i], t), p.y - bodyY(bodies[i], t)); if (d < near) near = d; }
+      for (let i = 0; i < bodies.length; i++) { if (skipDark && bodies[i].dark) continue; const d = Math.sqrt((p.x - bodyX(bodies[i], t)) * (p.x - bodyX(bodies[i], t)) + (p.y - bodyY(bodies[i], t)) * (p.y - bodyY(bodies[i], t))); if (d < near) near = d; }
       const sub = near < 60 ? 2 : 1, dt = (1 / 30) / sub;
       for (let s = 0; s < sub; s++) { integrate(p, bodies, t, dt, 0, skipDark); t += dt; }
       k++;
       pts.push({ x: p.x, y: p.y, t: t - baseT });
       for (let i = 0; i < bodies.length; i++) {
         const b = bodies[i]; if (skipDark && b.dark) continue;
-        const d = Math.hypot(p.x - bodyX(b, t), p.y - bodyY(b, t));
+        const d = Math.sqrt((p.x - bodyX(b, t)) * (p.x - bodyX(b, t)) + (p.y - bodyY(b, t)) * (p.y - bodyY(b, t)));
         if (!best || d - b.r < best.d) best = { i: pts.length - 1, d: d - b.r, body: b.id };
         if (d < b.r + C.CRASH_PAD) { end = 'crashed'; }
       }
       if (end === 'crashed') break;
       if (p.x < -C.OUT || p.x > C.W + C.OUT || p.y < -C.OUT || p.y > C.H + C.OUT) { end = 'lost'; break; }
-      if (Math.hypot(p.x - sector.gate.x, p.y - sector.gate.y) < C.GATE_R && Math.hypot(p.vx, p.vy) < C.DOCK_V) { end = 'docked'; break; }
+      if (Math.sqrt((p.x - sector.gate.x) * (p.x - sector.gate.x) + (p.y - sector.gate.y) * (p.y - sector.gate.y)) < C.GATE_R && Math.sqrt(p.vx * p.vx + p.vy * p.vy) < C.DOCK_V) { end = 'docked'; break; }
     }
     return { pts, closest: best, end };
   }
@@ -156,9 +156,15 @@
   }
   // events: [[step, burn(0|1), throttle% (25..100)]] sorted by step. Returns stateful fn(step)->input; call with increasing steps.
   function inputFromEvents(events) {
+    events = Array.isArray(events) ? events : [];
     let i = 0, cur = { burn: false, throttle: 1 };
     return function (n) {
-      while (i < events.length && events[i][0] <= n) { cur = { burn: !!events[i][1], throttle: (events[i][2] || 100) / 100 }; i++; }
+      while (i < events.length) {
+        const e = events[i];
+        if (!Array.isArray(e) || typeof e[0] !== 'number') { i++; continue; } // skip malformed event
+        if (e[0] > n) break;
+        cur = { burn: !!e[1], throttle: (e[2] || 100) / 100 }; i++;
+      }
       return cur;
     };
   }
@@ -183,7 +189,7 @@
   // specific energy (static-body approximation use only in tests)
   function energy(st, sector, t) {
     let u = 0;
-    for (const b of sector.bodies) { const d = Math.hypot(st.x - bodyX(b, t), st.y - bodyY(b, t)); u -= b.gm / Math.sqrt(d * d + C.EPS * C.EPS); }
+    for (const b of sector.bodies) { const d = Math.sqrt((st.x - bodyX(b, t)) * (st.x - bodyX(b, t)) + (st.y - bodyY(b, t)) * (st.y - bodyY(b, t))); u -= b.gm / Math.sqrt(d * d + C.EPS * C.EPS); }
     return 0.5 * (st.vx * st.vx + st.vy * st.vy) + u;
   }
   const api = { C, bodyRadius, mulberry32, hashSeed, makeBody, bodyX, bodyY, newState, step, predict, checksum, inputFromEvents, schedToEvents, runSchedule, energy, integrate };
@@ -298,13 +304,13 @@
   function clearance(sec) { // gate and start must keep clear of every body surface for all t in one period
     for (let t = 0; t < 24; t += 0.4) for (const b of sec.bodies) {
       const x = S.bodyX(b, t), y = S.bodyY(b, t);
-      if (Math.hypot(x - sec.gate.x, y - sec.gate.y) < b.r + 27) return false;
-      if (t < 6 && Math.hypot(x - sec.start.x, y - sec.start.y) < b.r + 40) return false;
+      if (Math.sqrt((x - sec.gate.x) * (x - sec.gate.x) + (y - sec.gate.y) * (y - sec.gate.y)) < b.r + 27) return false;
+      if (t < 6 && Math.sqrt((x - sec.start.x) * (x - sec.start.x) + (y - sec.start.y) * (y - sec.start.y)) < b.r + 40) return false;
     }
     return true;
   }
   function startClear(sec) {
-    for (let t = 0; t < 6; t += 0.4) for (const b of sec.bodies) if (Math.hypot(S.bodyX(b, t) - sec.start.x, S.bodyY(b, t) - sec.start.y) < b.r + 40) return false;
+    for (let t = 0; t < 6; t += 0.4) for (const b of sec.bodies) if (Math.sqrt((S.bodyX(b, t) - sec.start.x) * (S.bodyX(b, t) - sec.start.x) + (S.bodyY(b, t) - sec.start.y) * (S.bodyY(b, t) - sec.start.y)) < b.r + 40) return false;
     return true;
   }
   // Gate placed on a surviving random trajectory (solvable by construction), then best-fuel search sets par.
@@ -314,7 +320,7 @@
     // free-coast path: a gate within 45 px of it docks for free or for < 2.5 fuel (was ~45% of rejected attempts)
     const cst = S.newState(sec), coast = [];
     while (cst.n < 35 / C.DT && cst.status === 'flying') { S.step(cst, sec, null); if (cst.n % 6 === 0) coast.push(cst.x, cst.y); }
-    const farFromCoast = (x, y) => { for (let i = 0; i < coast.length; i += 2) if (Math.abs(coast[i] - x) < 45 && Math.hypot(coast[i] - x, coast[i + 1] - y) < 45) return false; return true; };
+    const farFromCoast = (x, y) => { for (let i = 0; i < coast.length; i += 2) if (Math.abs(coast[i] - x) < 45 && Math.sqrt((coast[i] - x) * (coast[i] - x) + (coast[i + 1] - y) * (coast[i + 1] - y)) < 45) return false; return true; };
     let found = 0;
     for (let k = 0; k < 60; k++) {
       if (k >= 12 && !found) return false; // bimodal: a launch that yields nothing in 12 runs is a dead layout
@@ -322,10 +328,10 @@
       let flyby = !moon;
       while (st.n < maxN && st.status === 'flying') {
         S.step(st, sec, inp(st.n));
-        if (moon && !flyby && Math.hypot(st.x - S.bodyX(moon, st.n * C.DT), st.y - S.bodyY(moon, st.n * C.DT)) < moon.r + 30) flyby = true;
-        if (flyby && st.n % 60 === 0) pts.push([st.x, st.y, Math.hypot(st.vx, st.vy), st.n * C.DT]);
+        if (moon && !flyby && Math.sqrt((st.x - S.bodyX(moon, st.n * C.DT)) * (st.x - S.bodyX(moon, st.n * C.DT)) + (st.y - S.bodyY(moon, st.n * C.DT)) * (st.y - S.bodyY(moon, st.n * C.DT))) < moon.r + 30) flyby = true;
+        if (flyby && st.n % 60 === 0) pts.push([st.x, st.y, Math.sqrt(st.vx * st.vx + st.vy * st.vy), st.n * C.DT]);
       }
-      const cand = pts.filter(p => p[3] > 5 && p[2] < 80 && p[0] > 25 && p[0] < C.W - 25 && p[1] > 25 && p[1] < C.H - 25 && Math.hypot(p[0] - sec.start.x, p[1] - sec.start.y) > 110 && farFromCoast(p[0], p[1]));
+      const cand = pts.filter(p => p[3] > 5 && p[2] < 80 && p[0] > 25 && p[0] < C.W - 25 && p[1] > 25 && p[1] < C.H - 25 && Math.sqrt((p[0] - sec.start.x) * (p[0] - sec.start.x) + (p[1] - sec.start.y) * (p[1] - sec.start.y)) > 110 && farFromCoast(p[0], p[1]));
       if (!cand.length) continue;
       found++;
       for (let q = 0; q < cand.length; q++) {
@@ -338,7 +344,7 @@
   // min distance from the par path to body b's surface (slingshot check)
   function pathMinDist(sec, sched, b) {
     const st = S.newState(sec), inp = S.inputFromEvents(S.schedToEvents(sched)); let d = 1e9;
-    while (st.n < 35 / C.DT && st.status === 'flying') { S.step(st, sec, inp(st.n)); const t = st.n * C.DT; d = Math.min(d, Math.hypot(st.x - S.bodyX(b, t), st.y - S.bodyY(b, t)) - b.r); }
+    while (st.n < 35 / C.DT && st.status === 'flying') { S.step(st, sec, inp(st.n)); const t = st.n * C.DT; d = Math.min(d, Math.sqrt((st.x - S.bodyX(b, t)) * (st.x - S.bodyX(b, t)) + (st.y - S.bodyY(b, t)) * (st.y - S.bodyY(b, t))) - b.r); }
     return d;
   }
   function tryAttempt(runSeed, index, a, opts) {
@@ -419,7 +425,7 @@
     const sc = selfCheck();
     return {
       game: 'Burn Window',
-      version: 'bw-0.2',
+      version: 'bw-0.2.1',
       seed: info.seed,
       renderer: 'Canvas2D',
       device: info.device || {},
@@ -457,12 +463,25 @@
 
   function key(seed, idx) { return 'bw:best2:' + seed + ':' + idx; }
 
+  function validEvents(ev) { // [[step, 0|1, throttle]] sorted by step, sane length
+    if (!Array.isArray(ev) || ev.length > 5000) return false;
+    let prev = -1;
+    for (let i = 0; i < ev.length; i++) {
+      const e = ev[i];
+      if (!Array.isArray(e) || typeof e[0] !== 'number' || !isFinite(e[0]) || e[0] < prev) return false;
+      if (e[1] !== 0 && e[1] !== 1 && e[1] !== true && e[1] !== false) return false;
+      if (typeof e[2] !== 'number' || !isFinite(e[2])) return false;
+      prev = e[0];
+    }
+    return true;
+  }
+
   function loadBest(seed, idx) {
     try {
       const raw = root.localStorage.getItem(key(seed, idx));
       if (!raw) return null;
       const o = JSON.parse(raw);
-      if (o && typeof o.fuel === 'number' && Array.isArray(o.events)) return o;
+      if (o && typeof o.fuel === 'number' && isFinite(o.fuel) && validEvents(o.events)) return o;
     } catch (e) { /* ignore */ }
     return null;
   }
@@ -763,10 +782,11 @@
   var FONT = 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
   var stars = null;
 
-  function layout(w, h) {
-    var s = Math.min(w / W, (h - TOP - REST) / H);
+  function layout(w, h, inset) {
+    var top = TOP + (inset > 0 ? inset : 0);
+    var s = Math.min(w / W, (h - top - REST) / H);
     s = Math.max(0.8, Math.min(1.5, s));
-    return { w: w, h: h, dpr: 1, scale: s, ox: (w - W * s) / 2, oy: TOP };
+    return { w: w, h: h, dpr: 1, scale: s, ox: (w - W * s) / 2, oy: top };
   }
   function getStars() {
     if (stars) return stars;
@@ -1398,7 +1418,7 @@
       left = h('div', null, null, [h('div', null, null, [h('b', 'teal', 'DOCKED'), o.best ? h('span', 'chip', 'New best') : null]),
         h('div', null, null, [h('span', null, o.used.toFixed(1) + ' / ' + o.par.toFixed(1)), h('span', 'dim', ' fuel \u00b7 '), h('span', 'brass', Math.round(o.eff * 100) + '%')])]);
       left.firstChild.style.cssText = 'display:flex;gap:8px;align-items:center;font-size:20px';
-      if (o.best) left.firstChild.lastChild.style.cssText = 'height:22px;font-size:12px;padding:0 8px;color:#3fb8a8;border-color:#3fb8a8';
+      if (o.best) left.firstChild.lastChild.style.cssText = 'position:absolute;top:-13px;left:12px;height:22px;font-size:12px;padding:0 8px;color:#3fb8a8;border-color:#3fb8a8;background:#102024';
       left.lastChild.style.cssText = 'font-size:16px;margin-top:2px;white-space:nowrap';
       w.appendChild(panel([left], 'display:flex;align-items:center;justify-content:space-between;min-height:76px;padding:8px'));
       left.style.flex = '1';
@@ -1516,7 +1536,7 @@
   const bWarp = mkBtn('x1', 'right:12px;top:env(safe-area-inset-top,0px);width:56px;height:56px;padding:0;color:#3fb8a8;font-size:16px', b => { ac('tick'); setWarp(!warpOn); });
   bWarp.setAttribute('aria-label', 'Warp');
   const pips = document.createElement('div');
-  pips.style.cssText = 'position:absolute;left:80px;right:80px;top:0;height:56px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;pointer-events:none';
+  pips.style.cssText = 'position:absolute;left:80px;right:80px;top:env(safe-area-inset-top,0px);height:56px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;pointer-events:none';
   const pipLbl = document.createElement('div'); pipLbl.style.cssText = 'font:700 13px system-ui,sans-serif;color:#c9a24a;letter-spacing:.08em';
   const pipRow = document.createElement('div'); pipRow.style.cssText = 'display:flex;gap:6px';
   pips.appendChild(pipLbl); pips.appendChild(pipRow); hud.appendChild(pips);
@@ -1541,11 +1561,20 @@
   // ---- view ----
   const ctx = canvas.getContext('2d');
   let V = { w: 0, h: 0, dpr: 1, scale: 1, ox: 0, oy: 56 };
+  function safeTop() {
+    try {
+      const p = document.createElement('div');
+      p.style.cssText = 'position:absolute;visibility:hidden;pointer-events:none;height:0;padding-top:env(safe-area-inset-top,0px)';
+      document.body.appendChild(p);
+      const v = parseFloat(getComputedStyle(p).paddingTop) || 0;
+      document.body.removeChild(p); return v > 0 ? v : 0;
+    } catch (e) { return 0; }
+  }
   function resize() {
-    const w = window.innerWidth, h = window.innerHeight, dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const w = window.innerWidth, h = window.innerHeight, dpr = Math.min(window.devicePixelRatio || 1, 2), inset = safeTop();
     let L = null;
-    try { if (BW.render && BW.render.layout) L = BW.render.layout(w, h); } catch (e) {}
-    if (!L || !L.scale) { const sc = Math.max(0.8, Math.min(1.5, Math.min(w / C.W, (h - 56 - 96) / C.H))); L = { scale: sc, ox: (w - C.W * sc) / 2, oy: 56 }; }
+    try { if (BW.render && BW.render.layout) L = BW.render.layout(w, h, inset); } catch (e) {}
+    if (!L || !L.scale) { const sc = Math.max(0.8, Math.min(1.5, Math.min(w / C.W, (h - 56 - inset - 96) / C.H))); L = { scale: sc, ox: (w - C.W * sc) / 2, oy: 56 + inset }; }
     V = Object.assign({}, L, { w: w, h: h, dpr: dpr });
     canvas.width = Math.round(w * dpr); canvas.height = Math.round(h * dpr);
     canvas.style.width = w + 'px'; canvas.style.height = h + 'px';
@@ -1746,7 +1775,7 @@
     if (ms > 0 && ms < 1000) { fpsBuf.push(ms); if (fpsBuf.length > 4000) fpsBuf.shift(); }
     const dt = Math.min(ms / 1000, 0.1);
     frameN++;
-    if (UI.blocking()) { acc = 0; draw(); return; }
+    if (UI.blocking()) { acc = 0; if (nextShown !== 'none') { nextShown = 'none'; bNext.style.display = 'none'; } draw(); return; }
     if (sector && st && phase === 'run') {
       if (warpOn && nearBody()) setWarp(false);
       warpEff = warpOn ? 3 : 1;

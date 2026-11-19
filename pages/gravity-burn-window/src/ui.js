@@ -254,7 +254,7 @@
       left = h('div', null, null, [h('div', null, null, [h('b', 'teal', 'DOCKED'), o.best ? h('span', 'chip', 'New best') : null]),
         h('div', null, null, [h('span', null, o.used.toFixed(1) + ' / ' + o.par.toFixed(1)), h('span', 'dim', ' fuel \u00b7 '), h('span', 'brass', Math.round(o.eff * 100) + '%')])]);
       left.firstChild.style.cssText = 'display:flex;gap:8px;align-items:center;font-size:20px';
-      if (o.best) left.firstChild.lastChild.style.cssText = 'height:22px;font-size:12px;padding:0 8px;color:#3fb8a8;border-color:#3fb8a8';
+      if (o.best) left.firstChild.lastChild.style.cssText = 'position:absolute;top:-13px;left:12px;height:22px;font-size:12px;padding:0 8px;color:#3fb8a8;border-color:#3fb8a8;background:#102024';
       left.lastChild.style.cssText = 'font-size:16px;margin-top:2px;white-space:nowrap';
       w.appendChild(panel([left], 'display:flex;align-items:center;justify-content:space-between;min-height:76px;padding:8px'));
       left.style.flex = '1';

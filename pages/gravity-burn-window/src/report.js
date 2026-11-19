@@ -47,7 +47,7 @@
     const sc = selfCheck();
     return {
       game: 'Burn Window',
-      version: 'bw-0.2',
+      version: 'bw-0.2.1',
       seed: info.seed,
       renderer: 'Canvas2D',
       device: info.device || {},
@@ -85,12 +85,25 @@
 
   function key(seed, idx) { return 'bw:best2:' + seed + ':' + idx; }
 
+  function validEvents(ev) { // [[step, 0|1, throttle]] sorted by step, sane length
+    if (!Array.isArray(ev) || ev.length > 5000) return false;
+    let prev = -1;
+    for (let i = 0; i < ev.length; i++) {
+      const e = ev[i];
+      if (!Array.isArray(e) || typeof e[0] !== 'number' || !isFinite(e[0]) || e[0] < prev) return false;
+      if (e[1] !== 0 && e[1] !== 1 && e[1] !== true && e[1] !== false) return false;
+      if (typeof e[2] !== 'number' || !isFinite(e[2])) return false;
+      prev = e[0];
+    }
+    return true;
+  }
+
   function loadBest(seed, idx) {
     try {
       const raw = root.localStorage.getItem(key(seed, idx));
       if (!raw) return null;
       const o = JSON.parse(raw);
-      if (o && typeof o.fuel === 'number' && Array.isArray(o.events)) return o;
+      if (o && typeof o.fuel === 'number' && isFinite(o.fuel) && validEvents(o.events)) return o;
     } catch (e) { /* ignore */ }
     return null;
   }
