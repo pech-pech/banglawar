@@ -9,11 +9,11 @@
 
   var C = {
     DT: 1 / 120, RUN: 90, RUNNER_R: 9, VMAX: 520, JUMP_MIN: 200, JUMP_RANGE: 180, CHARGE_MAX: 0.45,
-    STICK_VN: 380, REST: 0.35, CHAIN_WIN: 0.08, CHAIN_BONUS: 1.10, OWN_EXTRA: 0.35, OWN_HYST: 1.15,
+    STICK_VN: 380, REST: 0.35, CHAIN_WIN: 0.22, CHAIN_BONUS: 1.10, OWN_EXTRA: 0.35, OWN_HYST: 1.15,
     TIDE0: 22, TIDE_ACC: 0.2, TIDE_MAX: 75, LOST_T: 1.2, G0_BASE: 900, RANGE_K: 4, SPIN_MAX: 0.6,
     CRUMBLE_T: 1.5, LAND_VT_MAX: 240, VT_DECAY: 200, REPEL_G0: 600, TIDE_START: 360
   };
-  var VERSION = 2; // v2: tide cap 75, medal bands, generator patterns (rest/cluster/long)
+  var VERSION = 3; // v3: chain window 0.22 s (v2 replays/hashes no longer verify); v2: tide cap 75, medal bands, generator patterns (rest/cluster/long)
   // Medal bands, ascending [minHeight m, name]. Admin default (balance slice C 2026-11-19); game HUD should read these.
   var BANDS = [[150, 'Bronze'], [1000, 'Silver'], [3800, 'Gold'], [6000, 'Moon']];
 

@@ -251,7 +251,7 @@ test('probe: a repel wall between prev and cand blocks the straight-up route', (
   eq(a.landId, 2, 'open route lands'); ok(b.landId !== 2, 'walled route should not land straight up');
 });
 
-test('report carries engine VERSION 2', () => { eq(M.report(M.newRun('R')).v, 2, 'v'); });
+test('report carries engine VERSION 3', () => { eq(M.report(M.newRun('R')).v, 3, 'v'); });
 
 function jumpSpeed(sinceLand, charge) {
   const s = M.newRun('CH');
@@ -261,18 +261,53 @@ function jumpSpeed(sinceLand, charge) {
   eq(s.jumps, 1, 'jump happened');
   return { sp: Math.hypot(r.vx, r.vy), jl: s.jumpLog[0], s };
 }
-test('chain bonus x1.10 inside 0.08 s window only', () => {
+test('chain bonus x1.10 inside 0.22 s window only', () => {
   const ch = 0.2, v = 200 + (ch / 0.45) * 180;
-  const a = jumpSpeed(0.05, ch), n = jumpSpeed(1, ch), edge = jumpSpeed(0.08, ch), out = jumpSpeed(0.09, ch);
+  const a = jumpSpeed(0.05, ch), n = jumpSpeed(1, ch), edge = jumpSpeed(0.22, ch), out = jumpSpeed(0.23, ch);
   ok(a.jl.chain, 'chain flag inside window'); eq(a.s.chain, 1, 's.chain');
-  ok(!n.jl.chain, 'no chain flag far'); ok(!out.jl.chain, 'chain flag at 0.09 s');
-  ok(edge.jl.chain, 'edge 0.08 should chain');
+  ok(!n.jl.chain, 'no chain flag far'); ok(!out.jl.chain, 'chain flag at 0.23 s');
+  ok(edge.jl.chain, 'edge 0.22 should chain');
   near(a.sp - n.sp, 0.10 * v, 0.5, 'speed delta (want 10% of ' + v.toFixed(1) + ')');
   near(out.sp, n.sp, 0.5, 'outside window speed unchanged');
   // v range: min and max charge
   const lo = jumpSpeed(1, 0), hi = jumpSpeed(1, 0.45), over = jumpSpeed(1, 0.45);
   near(hi.sp - lo.sp, 180, 2, 'JUMP_RANGE');
   near(over.sp, hi.sp, 1e-9, 'determinism');
+});
+
+// Natural flow: jump, keep finger down through flight and landing, release `holdTicks` after landing.
+function naturalChain(seed, holdTicks) {
+  const s = M.newRun(seed);
+  for (let i = 0; i < 20; i++) M.tick(s, { down: true });
+  M.tick(s, { down: false });
+  let g = 0;
+  while (s.runner.mode !== 'rim' && !s.over && g++ < 6000) M.tick(s, { down: true });
+  if (s.over || s.runner.mode !== 'rim') return null;
+  for (let i = 0; i < holdTicks; i++) M.tick(s, { down: true });
+  const before = s.jumps, bc = s.bestChain, chargeAt = s.runner.charge;
+  M.tick(s, { down: false });
+  if (s.jumps !== before + 1) return null;
+  return { s, jl: s.jumpLog[s.jumpLog.length - 1], bc, chargeAt };
+}
+test('natural chain: hold through landing, release ~0.15/0.21 s chains, ~0.25 s does not; replay == live', () => {
+  const seeds = ['NC1', 'NC2', 'NC3', 'NC4', 'NC5', 'NC6'];
+  let done = 0;
+  for (const sd of seeds) {
+    const a = naturalChain(sd, 18), b = naturalChain(sd, 25), c = naturalChain(sd, 30);
+    if (!a || !b || !c) continue;
+    done++;
+    near(a.chargeAt, 0.15, 0.02, 'charge ~0.15'); near(b.chargeAt, 0.21, 0.02, 'charge ~0.21');
+    ok(a.jl.chain, 'chain at 0.15 s'); ok(b.jl.chain, 'chain at 0.21 s'); ok(!c.jl.chain, 'no chain at 0.25 s');
+    ok(a.s.bestChain >= 1 && a.s.bestChain === a.bc + 1, 'bestChain increments');
+    eq(c.s.chain, 0, 'chain reset when missed');
+    const v = 200 + (a.jl.charge / 0.45) * 180, sp = Math.hypot(a.s.runner.vx, a.s.runner.vy);
+    ok(sp > v * 1.05, 'launch speed boosted ~x1.10 (' + sp.toFixed(1) + ' vs base ' + v.toFixed(1) + ')');
+    for (const x of [a, b]) {
+      const r = M.replay(sd, x.s.log, {}, x.s.tick);
+      eq(M.hash(r), M.hash(x.s), 'replay == live');
+    }
+  }
+  ok(done >= 2, 'at least 2 seeds exercised natural flow, got ' + done);
 });
 
 test('pause while charging: cancel tick, no jump on resume, replay equals live', () => {
