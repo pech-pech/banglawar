@@ -215,7 +215,7 @@ const PL = (globalThis.PL = globalThis.PL || {});
       U.causeTag(ctx, R(x - tw / 2, y - 18, tw, 36), { kind: c.kind || 'spikes', text: c.text || S.death.spikes, age: c.age == null ? 400 : c.age, iconOnly: c.iconOnly }, t);
     },
     roomClear(ctx, w, h, vm, t) {
-      const L = layout(w, h, vm.leftHand, { roomRect: vm.roomRect }).roomClear, r = L.rects; backdropRoom(ctx, vm, L); drawHud(ctx, L, vm, t, w);
+      const L = layout(w, h, vm.leftHand, { roomRect: vm.roomRect }).roomClear, r = L.rects; backdropRoom(ctx, vm, L); if (!vm.noHud) drawHud(ctx, L, vm, t, w);
       U.card(ctx, r.clearCard, { anim: 1 }, t);
       const sca = sc(vm), f = U.font('body', w, sca), cx0 = r.clearCard.x + r.clearCard.w / 2;
       U.text(ctx, S.clear.title, cx0, r.clearHead.y + 16, { font: U.font('h2', w), color: C.brass, align: 'center', maxW: r.clearHead.w });

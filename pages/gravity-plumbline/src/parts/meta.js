@@ -50,7 +50,7 @@ PL.meta = (function () {
   }
   function isTuned(run) {
     if (run && run.tuned) return true;
-    try { return !!(PL.Tweak && PL.Tweak.isDirty()); } catch (e) { return false; }
+    try { return !!(PL.Tweak && PL.Tweak.isDirty('sim')); } catch (e) { return false; }
   }
   function getBest(key) {
     const b = load()[key];

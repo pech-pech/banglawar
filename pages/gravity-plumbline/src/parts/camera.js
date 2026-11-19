@@ -52,7 +52,7 @@ PL.CAM = {
   HUD: 84, LOCK_SLACK: 8, STRIP_Y: 0.6, ROOM_PAD: 16, TGT_SLACK: 40,
   // FIT-WHOLE-ROOM [AD]: bottom margin (css px); fall back to scrolling only
   // when the fit scale drops below FIT_MIN css px per room px.
-  FIT_GAP: 6, FIT_MIN: 0.84,
+  FIT_GAP: 6, FIT_MIN: 0.82,
   // S1 arrow pad: clearance room<->pad box and room<->screen side when fitted beside the pad
   PAD_GAP: 2, EDGE: 4,
 };

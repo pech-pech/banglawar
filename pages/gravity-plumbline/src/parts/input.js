@@ -14,7 +14,6 @@
 // Settings key 'plumbline.input.v1' {v:1, hand:'right'|'left', vibrate:bool} (PL.store, never downgraded).
 const PL = (globalThis.PL = globalThis.PL || {});
 // side mode now fits the room at 0.824 (pad 8 px off the edge); camera.js FIT_MIN 0.84 would drop to scroll mode, so allow 0.82.
-if (PL.CAM && PL.CAM.FIT_MIN > 0.82) PL.CAM.FIT_MIN = 0.82;
 
 PL.Input = (function () {
   'use strict';

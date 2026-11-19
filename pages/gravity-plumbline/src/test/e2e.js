@@ -114,7 +114,7 @@ async function journey(browser, port, W, H) {
   if (sol) await h.ev((sol) => { PL_TEST.room(1); PL_TEST.inject([{ k: 'flip', dir: sol.d1 }]); PL_TEST.tick(sol.k); PL_TEST.inject([{ k: 'flip', dir: 2 }]); for (let i = 0; i < 900 && PL_TEST.screen() !== 'roomClear'; i++) PL_TEST.tick(1); }, sol);
   ok(!!sol && await h.screen() === 'roomClear', `${tag} tutorial room 1 cleared with real inputs ${JSON.stringify(sol)} -> Room clear card`);
   await h.frame(); ok(/Room clear/.test(await h.txt()), `${tag} "Room clear" drawn`);
-  await sleep(250); await h.tapXY(W / 2, H / 2);
+  await sleep(250); await h.tapXY(W / 2, H / 2); await sleep(800); // star wipe (close + open) runs first
   ok(await h.ev(() => PL_TEST.getState().room === PL.buildRooms(1)[1].name || PL_TEST.getRunStats().roomsCleared === 1) && await h.screen() === 'tutorial', `${tag} tap on the card goes to tutorial room 2`);
   await h.frame(); ok(/2 moves in the air/.test(await h.txt()), `${tag} tutorial 2 teach line`);
   await h.tap('skip'); await sleep(150);
@@ -278,12 +278,78 @@ async function extras(browser, port) {
   for (let i = 0; i < 4; i++) { await h.ev(() => PL_TEST.kill('spike')); await sleep(450); }
   await sleep(2200); ok(await h.ev(() => PL_TEST.nudging()) === false, 'no nudge before the 5th death');
   await h.ev(() => PL_TEST.kill('spike')); await sleep(2400); await h.frame(); await h.txt(); await h.frame(); tx = await h.txt();
-  console.log('DBG', await h.ev(() => PL_TEST.nudging()), await h.screen(), tx.slice(0,200)); ok(await h.ev(() => PL_TEST.nudging()) === true && /guide line/.test(tx) && /Show the line/.test(tx) && /No thanks/.test(tx), '5th death in a room offers the guide line');
+  ok(await h.ev(() => PL_TEST.nudging()) === true && /guide line/.test(tx) && /Show the line/.test(tx) && /No thanks/.test(tx), '5th death in a room offers the guide line');
   await h.tap('stay'); await sleep(200);
   ok(await h.screen() === 'play' && (await h.ev(() => PL_TEST.aid()))[0] === true, 'Show the line turns the aim arc on for this room');
   await h.ev(() => { PL_TEST.winRoom(); PL_TEST.advance(); }); await sleep(200);
   ok((await h.ev(() => PL_TEST.aid()))[1] === undefined, 'aim arc is for that room only');
   ok(h.errs.length === 0, `nudge: no console errors ${h.errs.slice(0, 3).join(' | ')}`);
+  await h.context.close();
+  // tuned latch uses sim ids only; render errors show a visible chip, tap returns to the menu
+  h = await open(browser, port, 475, 638);
+  await h.ev(() => { PL_TEST.startMode('short', 7); PL.Tweak.set('PAD_KEY', 64); PL_TEST.tick(10); });
+  ok(await h.ev(() => PL_TEST.getRunStats().tuned) === false && (await h.ev(() => PL_TEST.chips())).devTuned === true, 'pad size change shows DEV but does not mark the run tuned');
+  await h.ev(() => { PL.Tweak.resetAll(); PL.Tweak.set('G', 1700); PL_TEST.tick(10); });
+  ok(await h.ev(() => PL_TEST.getRunStats().tuned) === true, 'a physics change marks the run tuned');
+  await h.ev(() => PL_TEST.breakRender(true)); await sleep(400); await h.txt(); await sleep(100); tx = await h.txt();
+  ok(/Display problem\. Tap to restart/.test(tx), 'after 3 render errors a visible "Display problem" chip shows');
+  await h.ev(() => PL_TEST.breakRender(false)); await h.tapXY(237, 319); await sleep(300);
+  ok(await h.screen() === 'menu', 'tapping the Display problem chip returns to the menu');
+  await h.context.close();
+  // V13 overlays: no pad / HUD pills through the scrim, pad hit-testing off; V15 wipe + juice
+  for (const [W, H] of [[475, 638], [344, 882]]) {
+    const tg = `overlay ${W}x${H}`;
+    h = await open(browser, port, W, H);
+    await h.ev(() => PL_TEST.startMode('short', 7)); await h.ev(() => PL.Vfx.setQuality('full')); await sleep(700); await h.frame(); await h.txt(); await h.frame();
+    ok(/Room \d of \d/.test(await h.txt()), `${tg}: HUD pill text is drawn while playing (control)`);
+    const key = await h.rect('right');
+    const J0 = await h.ev(() => PL_TEST.juice());
+    // pad press: ripple spawns, then flip spends a move -> pip spark
+    await h.ev((k) => { PL.Input.down(k.x + k.w / 2, k.y + k.h / 2, 5); PL.Input.up && PL.Input.up(5); }, key);
+    const J1 = await h.ev(() => PL_TEST.juice()); ok(J1 > J0, `${tg}: pad key press spawns a ripple`);
+    await h.ev(() => PL_TEST.tick(3)); ok(await h.ev(() => PL_TEST.juice()) > J1, `${tg}: spending a move sparks at the pip`);
+    // overlays: pause, nudge
+    const noPad = async (label) => {
+      await h.frame(); await h.txt(); await h.frame();
+      const t = await h.txt(), before = await h.ev(() => PL_TEST.pops());
+      ok(!/Room \d of \d/.test(t), `${tg}: ${label} shows no HUD pill text through the scrim`);
+      const used = await h.ev((k) => { const r = PL.Input.down(k.x + k.w / 2, k.y + k.h / 2, 6); PL.Input.up && PL.Input.up(6); return r; }, key);
+      ok(!used && await h.ev(() => PL_TEST.pops()) <= before, `${tg}: ${label} pad hit-testing is off`);
+      const px = await h.ev((k) => { const c = document.querySelector('canvas'), x = c.getContext('2d'), d = window.devicePixelRatio || 1, v = x.getImageData(Math.round((k.x + k.w / 2) * d), Math.round((k.y + k.h / 2) * d), 1, 1).data; return [v[0], v[1], v[2]]; }, key);
+      ok(px[0] < 90 && px[1] < 90 && px[2] < 130, `${tg}: ${label} pad area is scrim-dark (rgb ${px})`);
+    };
+    await h.tap('pause'); await sleep(80); await noPad('Pause');
+    await h.tap('settings'); await sleep(80); await noPad('Settings from Pause');
+    await h.tap('back'); await h.tap('resume'); await sleep(80);
+    for (let i = 0; i < 5; i++) { await h.ev(() => PL_TEST.kill('spike')); await sleep(450); }
+    await sleep(2300); ok(await h.ev(() => PL_TEST.nudging()), `${tg}: 5-death nudge is open`); await noPad('5-death nudge');
+    await h.tap('stay'); await sleep(80);
+    // room clear card, then a real star wipe
+    await h.ev(() => { PL_TEST.room(1); PL_TEST.winRoom(); }); await sleep(100);
+    ok(await h.screen() === 'roomClear', `${tg}: room clear open`); await noPad('Room clear');
+    const t0 = await h.ev(() => PL_TEST.getRunStats().totalTicks);
+    await h.ev(() => { window.__w0 = performance.now(); PL_TEST.advanceWipe(); });
+    ok(await h.ev(() => PL_TEST.wiping()), `${tg}: wipe starts and locks input`);
+    await h.ev((k) => { PL.Input.down(k.x + k.w / 2, k.y + k.h / 2, 7); PL.Input.up && PL.Input.up(7); }, key);
+    let dur = -1, t1 = t0; for (let i = 0; i < 60; i++) { await sleep(20); const r = await h.ev(() => [PL_TEST.wiping(), performance.now() - window.__w0, PL_TEST.getRunStats().totalTicks, PL_TEST.getState().flips]); if (!r[0]) { dur = r[1]; t1 = r[2]; break; } }
+    console.log(`     ${tg}: wipe took ${Math.round(dur)} ms (headless runs the 0.15 s fade wipe; full quality is 0.32 s close + 0.32 s open)`);
+    ok(dur > 100 && dur < 900, `${tg}: wipe finishes (${Math.round(dur)} ms), input locked until then`);
+    ok(t1 === t0 && await h.ev(() => PL_TEST.getState().flips) === 0, `${tg}: run clock paused and pad input dropped during the wipe`);
+    ok(await h.ev(() => PL_TEST.screen()) === 'play' && (await h.ev(() => PL_TEST.getRunStats().roomsCleared)) >= 1, `${tg}: wipe lands in the next room`);
+    // medal reveal: confetti
+    await h.ev(() => { for (let i = 0; i < 8 && PL_TEST.screen() !== 'shaftComplete'; i++) { PL_TEST.tick(30); PL_TEST.winRoom(); PL_TEST.advance(); } });
+    ok(await h.screen() === 'shaftComplete' && await h.ev(() => PL_TEST.juice()) >= 8, `${tg}: medal reveal throws confetti`);
+    await noPad('Shaft complete');
+    ok(h.errs.length === 0, `${tg}: no console errors ${h.errs.slice(0, 3).join(' | ')}`);
+    await h.context.close();
+  }
+  // reduced motion: no wipe, no juice
+  h = await open(browser, port, 475, 638);
+  await h.page.emulateMedia({ reducedMotion: 'reduce' }); await sleep(200);
+  await h.ev(() => PL_TEST.startMode('short', 7)); await sleep(300);
+  await h.ev(() => { PL_TEST.winRoom(); PL_TEST.advanceWipe(); });
+  ok(!(await h.ev(() => PL_TEST.wiping())) && await h.screen() === 'play', 'reduced motion: room change has no wipe');
+  await h.ev(() => { PL_TEST.inject([{ k: 'flip', dir: 1 }]); PL_TEST.tick(3); }); ok(await h.ev(() => PL_TEST.pops()) === 0, 'reduced motion: no pip sparks');
   await h.context.close();
   // landscape smoke
   h = await open(browser, port, 816, 568);

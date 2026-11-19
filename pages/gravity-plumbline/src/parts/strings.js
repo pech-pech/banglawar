@@ -28,6 +28,7 @@ const PL = (globalThis.PL = globalThis.PL || {});
       hand: (left) => 'Hand: ' + (left ? 'Left' : 'Right'), motion: 'Less motion', textSize: 'Text size',
       quality: 'Picture', qualityOpts: ['Auto', 'High', 'Low'],
       reset: 'Reset my bests', eraseQ: 'Erase all bests?', keep: 'Keep', erase: 'Erase', tweak: 'Tweak (for testing)' },
+    problem: { text: 'Display problem. Tap to restart' },
     tweak: { title: 'Tweak', back: 'Back to Settings' }
   };
   // dev strings: Tweak screen only (technical words allowed here)
@@ -35,7 +36,7 @@ const PL = (globalThis.PL = globalThis.PL || {});
     resetAll: 'Reset all', copyReport: 'Copy report', savePreset: 'Save preset', copyCode: 'Copy code', pasteCode: 'Paste code',
     presets: 'Presets', del: 'Delete', copied: 'Copied', copyFailed: 'Copy failed: text shown', codeBad: 'Code not valid',
     codeApplied: 'Code applied', saved: 'Preset saved', full: 'Presets full (12)', loaded: 'Preset loaded', deleted: 'Preset deleted',
-    namePrompt: 'Preset name', pastePrompt: 'Paste a preset code', ok: 'OK', cancel: 'Cancel', close: 'Close', resetDone: 'All tweaks reset' };
+    namePrompt: 'Preset name', pastePrompt: 'Paste a preset code', ok: 'OK', cancel: 'Cancel', close: 'Close', resetDone: 'All tweaks reset', blankName: 'Give the preset a name', storageProblem: 'Could not save (storage problem)' };
   // flatten every static string (functions are called with sample args)
   function flat(o, out) {
     for (const k in o) {

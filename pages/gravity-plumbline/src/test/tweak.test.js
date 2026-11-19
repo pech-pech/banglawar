@@ -198,12 +198,14 @@ t('meta: 5-room and 7-room bests kept apart; per-room seconds stored', () => {
   assert.strictEqual(JSON.parse(store['plumbline.v1'])._v, 2);
   assert.deepStrictEqual(Object.keys(M.load()).sort(), [k5, k7].sort(), 'load() strips _v');
 });
-t('meta: any dirty Tweak = never saved as best, even without run.tuned', () => {
+t('meta: a dirty SIM Tweak = never saved as best, even without run.tuned; a pad-size tweak does not block a best', () => {
   const store = {}; const PL = boot(store, ['meta']);
-  PL.Tweak.set('PAD_KEY', 64);
+  PL.Tweak.set('G', PL.Tweak.get('G') + 100);
   const r = PL.meta.recordRun('seed:1:5', { ticks: 100, flips: 1 });
   assert(!r.isBest && r.tuned); assert.strictEqual(PL.meta.getBest('seed:1:5'), null);
-  PL.Tweak.resetAll(); assert(PL.meta.recordRun('seed:1:5', { ticks: 100, flips: 1 }).isBest);
+  PL.Tweak.resetAll();
+  PL.Tweak.set('PAD_KEY', 64);
+  assert(PL.meta.recordRun('seed:1:5', { ticks: 100, flips: 1 }).isBest);
 });
 t('meta: old v1 data kept and upgraded in place; newer _v is read-only (never downgraded)', () => {
   const store = { 'plumbline.v1': JSON.stringify({ 'tutorial:1:3': { ticks: 900, flips: 3, medal: 'gold' } }) };

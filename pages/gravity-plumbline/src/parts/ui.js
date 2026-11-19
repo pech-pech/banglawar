@@ -146,6 +146,7 @@ const PL = (globalThis.PL = globalThis.PL || {});
   let attempts = [], cleared = [], inputLog = [], queue = [], totalTicks = 0, deaths = 0, flipsTotal = 0, runTuned = false;
   let clearInfo = null, complete = null, death = null, causeRun = { kind: '', n: 0 }, retryAt = -1e9, frameEvents = [];
   let trailBuf = [], fx = [], toast = null, lastFrame = null;
+  let wiping = false, wipeGuard = 0, pops = [], popMoves = -1; // room wipe lock (input + sim paused), screen-space ripples/sparks/confetti
   let tutP = {}, roomDeaths = {}, aidRooms = {}, nudge = false, nudgeAt = 0, nudgeShown = {}; // teach progress, 5-death nudge, per-room aim arc
   let fpsFrames = 0, fpsSecs = 0;
   const avgFps = () => (fpsSecs > 0 ? fpsFrames / fpsSecs : 0);
@@ -166,7 +167,7 @@ const PL = (globalThis.PL = globalThis.PL || {});
   function newRun() {
     const n0 = MODES[mode] || 5, nTw = tw('SHAFT_N', 0) | 0, n = !isTut() && nTw > 0 ? nTw : n0;
     rooms = isTut() ? PL.buildRooms(seed) : PL.buildShaft(seed, n);
-    runTuned = !!(TW && TW.isDirty());
+    runTuned = !!(TW && TW.isDirty('sim'));
     roomIdx = 0; attempts = []; cleared = []; inputLog = []; queue = []; totalTicks = 0; deaths = 0; flipsTotal = 0;
     complete = null; clearInfo = null; death = null; causeRun = { kind: '', n: 0 }; fx = []; trailBuf = [];
     tutP = {}; roomDeaths = {}; aidRooms = {}; nudge = false; nudgeAt = 0; nudgeShown = {};
@@ -177,7 +178,7 @@ const PL = (globalThis.PL = globalThis.PL || {});
     state = PL.newState(rooms[roomIdx]);
     const n = attempts.filter((a) => a.room === roomIdx + 1).length + 1;
     cur = { room: roomIdx + 1, attempt: n, ticks: 0, result: null, flips: 0, landSpeeds: [], log: [], rides: 0, cause: '', snap: state.K && state.K.snap };
-    trailBuf = []; queue = []; clearInfo = null;
+    trailBuf = []; queue = []; clearInfo = null; popMoves = -1;
     cam = PL.camNew();
     if (scr === 'play') setMusic(isTut() ? 'tutorial' : 'tier' + clamp(tierOf(rooms[roomIdx]), 1, 3));
   }
@@ -188,19 +189,19 @@ const PL = (globalThis.PL = globalThis.PL || {});
     attempts.push(cur); flipsTotal += state.flips;
   }
   function retryRoom() {
-    if (scr !== 'play' || clearInfo || complete) return;
+    if (scr !== 'play' || clearInfo || complete || wiping) return;
     retryAt = nowMs(); finishAttempt('restart'); startAttempt();
   }
   function startMode(m, s) {
     mode = MODES[m] ? m : 'short';
     seed = s != null ? s | 0 : mode === 'daily' ? dailySeed() : isTut() ? 1 : freshSeed();
-    scr = 'play'; pauseConfirm = false;
+    scr = 'play'; pauseConfirm = false; wiping = false; pops = [];
     newRun();
     setMusic(isTut() ? 'tutorial' : 'tier' + clamp(tierOf(rooms[0]), 1, 3));
     if (PL.Vfx && PL.Vfx.wipe && vfxReady && !reducedNow()) { try { PL.Vfx.wipe('open'); } catch (_) {} }
   }
   function go(name) {
-    scr = name; pauseConfirm = false; nudge = false; nudgeAt = 0; press = null; drag = null;
+    scr = name; pauseConfirm = false; nudge = false; nudgeAt = 0; press = null; drag = null; wiping = false; if (name !== 'pause') pops = [];
     if (PL.Input) PL.Input.clear();
     if (name === 'menu' || name === 'shaftPick') setMusic('menu');
     else if (name === 'settings' || name === 'tweak') { if (settingsFrom === 'menu') setMusic('settings'); }
@@ -208,7 +209,7 @@ const PL = (globalThis.PL = globalThis.PL || {});
   }
   function toMenu() { complete = null; clearInfo = null; go('menu'); }
   function goPause() {
-    if (scr !== 'play' || complete) return;
+    if (scr !== 'play' || complete || wiping) return;
     scr = 'pause'; pauseConfirm = false; if (PL.Input) PL.Input.clear();
     if (PL.audio && PL.audio.duck) { try { PL.audio.duck(0.5, 3600, 0.2); } catch (_) {} } // about -6 dB while paused
   }
@@ -255,18 +256,27 @@ const PL = (globalThis.PL = globalThis.PL || {});
     const b = bestRun(), bs = b && Array.isArray(b.rooms) ? b.rooms[roomIdx] : null, tS = state.t * C.DT;
     clearInfo = { t: 0, time: tS, best: bs, isNew: bs != null && tS < bs - 1e-9 && !runTuned };
   }
-  function advance() {
-    if (!clearInfo) return;
+  function canWipe() { return !!(PL.Vfx && PL.Vfx.wipe && PL.Vfx.wipeState && vfxReady && !reducedNow()); }
+  function nextRoom() { roomIdx++; startAttempt(); }
+  // star wipe close -> swap room -> open. Input + sim are locked for the whole wipe (so the run clock does not tick); a guard timer frees them if Vfx never reports back.
+  function advance(instant) {
+    if (!clearInfo || wiping) return;
     if (roomIdx + 1 >= rooms.length) { clearInfo = null; finishRun(); return; }
-    roomIdx++; startAttempt();
-    if (PL.Vfx && PL.Vfx.wipe && vfxReady && !reducedNow()) { try { PL.Vfx.wipe('open'); } catch (_) {} }
+    if (instant || !canWipe()) { nextRoom(); return; }
+    wiping = true; wipeGuard = nowMs() + 900; if (PL.Input) PL.Input.clear();
+    const done = () => { wiping = false; };
+    try {
+      PL.Vfx.wipe('close', () => {
+        try { nextRoom(); PL.Vfx.wipe('open', done); } catch (_) { done(); }
+      });
+    } catch (_) { wiping = false; nextRoom(); }
   }
   function finishRun() {
     if (isTut()) {
       settings.tutorialDone = true; saveSettings();
       complete = null; toMenu(); return;
     }
-    const tuned = runTuned || !!(TW && TW.isDirty());
+    const tuned = runTuned || !!(TW && TW.isDirty('sim'));
     const c = { timeS: totalTicks * C.DT, flips: flipsTotal, deaths, mode, seed, nRooms: rooms.length, tuned, medal: 'none', newBest: false, best: null, at: nowMs(), roomS: [] };
     if (PL.meta) {
       try {
@@ -275,14 +285,15 @@ const PL = (globalThis.PL = globalThis.PL || {});
         if (r) { c.medal = r.medal || 'none'; c.newBest = !!r.isBest && !tuned; c.flipStar = !!r.flipStar; if (r.best) c.best = r.best; }
       } catch (_) {}
     }
-    complete = c; scr = 'shaftComplete';
+    complete = c; scr = 'shaftComplete'; pops = []; confetti();
     const st = { plumb: 'plumb', gold: 'gold', silver: 'silver', bronze: 'bronze' }[c.medal] || 'complete';
     if (PL.audio && PL.audio.sting) { try { PL.audio.sting(st); } catch (_) {} }
   }
 
   // ---------- sim ----------
-  function simTick() {
-    if (scr !== 'play' || complete || !state) return;
+  function simTick() { try { simTickInner(); } catch (e) { fail(e); } }
+  function simTickInner() {
+    if (scr !== 'play' || complete || !state || wiping) return;
     if (clearInfo) { if (++clearInfo.t >= CLEAR_TICKS) advance(); return; }
     const counting = !state.won && !cur.result;
     let inputs = queue.splice(0);
@@ -293,9 +304,11 @@ const PL = (globalThis.PL = globalThis.PL || {});
       inputLog.push({ room: cur.room, attempt: cur.attempt, tick: e.tick, k: e.k, dir: e.dir });
     }
     PL.step(state, inputs);
+    if (popMoves >= 0 && state.charges < popMoves) pipSpark(state.charges, state.K ? state.K.CHARGES : C.CHARGES);
+    popMoves = state.charges;
     if (counting) totalTicks++;
     trailBuf.push({ x: state.x, y: state.y }); if (trailBuf.length > 240) trailBuf.shift();
-    if (!runTuned && TW && TW.isDirty()) runTuned = true;
+    if (!runTuned && TW && TW.isDirty('sim')) runTuned = true;
     const ev = state.events || [];
     if (ev.length) for (const e of ev) frameEvents.push(e);
     if (PL.audio && PL.audio.onEvents) { try { PL.audio.onEvents(ev, state); } catch (_) {} }
@@ -313,13 +326,13 @@ const PL = (globalThis.PL = globalThis.PL || {});
   function padEmpty() { return !!(state && state.charges <= 0 && !state.grounded && !(state.coyote > 0)); }
   function qFlip(dir) {
     sfx(padEmpty() && state.g !== dir ? 'noCharge' : 'pad' + ['Up', 'Right', 'Down', 'Left'][dir]);
-    queue.push({ k: 'flip', dir });
+    queue.push({ k: 'flip', dir }); ripple(['up', 'right', 'down', 'left'][dir]);
   }
-  function qDive() { queue.push({ k: 'dive' }); }
+  function qDive() { queue.push({ k: 'dive' }); ripple('dive'); }
   if (PL.Input) PL.Input.attach({
     flip: qFlip, dive: qDive, restart: retryRoom, pause: () => { if (PL.ui && typeof PL.ui.onPause === 'function') PL.ui.onPause(); },
     state: () => state, view: () => view, now: nowMs,
-    active: () => scr === 'play' && !complete && !clearInfo && !domOverlay && !!state
+    active: () => scr === 'play' && !complete && !clearInfo && !wiping && !domOverlay && !!state
   });
 
   const leftHand = () => !!(PL.Input && PL.Input.getHand() === 'left');
@@ -359,10 +372,13 @@ const PL = (globalThis.PL = globalThis.PL || {});
   canvas.addEventListener('pointerdown', (e) => {
     if (e.pointerType === 'mouse' && e.button !== 0) return;
     e.preventDefault(); unlockAudio();
+    if (problem) { problem = null; errRun = 0; try { clearAll(); state = null; complete = null; clearInfo = null; go('menu'); } catch (_) {} return; }
+    try { canvas.setPointerCapture(e.pointerId); } catch (_) {}
     if (domOverlay) return;
     const x = e.clientX, y = e.clientY;
     if (scr === 'play') {
       if (complete) return;
+      if (wiping) return;
       if (clearInfo) { if (clearInfo.t > 24) advance(); return; } // any tap moves on (after 0.2 s)
       if (PL.Input && PL.Input.down(x, y, e.pointerId)) return;
       const L = layoutFor(playName());
@@ -408,6 +424,9 @@ const PL = (globalThis.PL = globalThis.PL || {});
   }
   canvas.addEventListener('pointerup', (e) => endPointer(e, false));
   canvas.addEventListener('pointercancel', (e) => endPointer(e, true));
+  // a pointer that is lost (capture dropped, leaves the page) must never leave a pad key lit
+  const lost = (e) => { if (PL.Input && PL.Input.cancel) PL.Input.cancel(e.pointerId); if (drag && drag.id === e.pointerId) drag = null; if (press && press.id === e.pointerId && press.scr === 'play') press = null; };
+  canvas.addEventListener('lostpointercapture', lost); canvas.addEventListener('pointerleave', lost);
   function clearAll() { press = null; drag = null; if (PL.Input) PL.Input.clear(); }
   window.addEventListener('blur', clearAll);
   document.addEventListener('visibilitychange', () => { if (document.hidden) { clearAll(); if (scr === 'play' && !clearInfo) goPause(); } });
@@ -512,14 +531,14 @@ const PL = (globalThis.PL = globalThis.PL || {});
     else if (id === 'copyReport') copyText(buildReport());
     else if (id === 'copyCode') copyText(TW.exportCode());
     else if (id === 'pasteCode') askText(SD.pastePrompt, '', true, (code) => { const n = TW.importCode(code); showToast(n < 0 ? SD.codeBad : SD.codeApplied, n < 0 ? 'error' : 'info'); rebuildTweakRows(); });
-    else if (id === 'savePreset') askText(SD.namePrompt, 'Preset ' + (TW.listPresets().length + 1), false, (nm) => { showToast(TW.savePreset(nm) ? SD.saved : SD.full); rebuildTweakRows(); });
+    else if (id === 'savePreset') askText(SD.namePrompt, 'Preset ' + (TW.listPresets().length + 1), false, (nm) => { const r = TW.savePresetR(nm); showToast(r.ok ? SD.saved : r.reason === 'blank' ? SD.blankName : r.reason === 'full' ? SD.full : SD.storageProblem, r.ok ? 'info' : 'error'); rebuildTweakRows(); });
     else if (id.indexOf('load:') === 0) { if (TW.loadPreset(id.slice(5))) showToast(SD.loaded); }
-    else if (id.indexOf('del:') === 0) { if (TW.deletePreset(id.slice(4))) showToast(SD.deleted); }
+    else if (id.indexOf('del:') === 0) { const r = TW.deletePresetR(id.slice(4)); showToast(r.ok ? SD.deleted : r.reason === 'storage' ? SD.storageProblem : SD.blankName, r.ok ? 'info' : 'error'); }
     rebuildTweakRows();
   }
 
   // ---------- DOM text overlay (text entry / paste / manual copy only), styled with tokens ----------
-  function closeDom() { if (domOverlay) { if (domOverlay._cleanup) domOverlay._cleanup(); domOverlay.remove(); domOverlay = null; } }
+  function closeDom() { if (domOverlay) { if (domOverlay._cleanup) domOverlay._cleanup(); domOverlay.remove(); domOverlay = null; } resize(); }
   function domShell() {
     closeDom();
     const o = document.createElement('div');
@@ -576,7 +595,7 @@ const PL = (globalThis.PL = globalThis.PL || {});
     let used = true;
     if (scr === 'firstOpen') { if (enter) startJourney(); else used = false; }
     else if (scr === 'play') {
-      if (complete) used = false;
+      if (complete || wiping) used = false;
       else if (clearInfo) advance();
       else if (k === 'Escape' || k === 'p' || k === 'P') goPause();
       else if (!(PL.Input && PL.Input.key(k))) used = false;
@@ -608,7 +627,7 @@ const PL = (globalThis.PL = globalThis.PL || {});
   }
   const fmtS = (t) => t.toFixed(2) + 's';
   function buildReport() {
-    const L = [], tuned = runTuned || !!(TW && TW.isDirty());
+    const L = [], tuned = runTuned || !!(TW && TW.isDirty('sim'));
     L.push('STARFALL REPORT (working name; plumbline build)');
     L.push('mode: ' + mode + '  rooms: ' + (rooms ? rooms.length : 0) + '  screen: ' + scr);
     L.push('seed: ' + seed);
@@ -763,6 +782,52 @@ const PL = (globalThis.PL = globalThis.PL || {});
     if (isTut()) { const h = teachHint(); if (h) vm.teach = h; }
     return vm;
   }
+  // ---------- screen-space juice (own layer, drawn above the HUD, below the Vfx wipe): pad ripple, pip sparks, medal confetti ----------
+  // PL.Vfx.fire has no ripple / pip / confetti names today and its flip/win bursts live in room space (draw.js already fires them from hud.events),
+  // so these are small 2D particles here. Skipped in reduced motion. Capped at 80.
+  function popRect(name) { try { const L = layoutFor('play').play; return L && L.rects && L.rects[name]; } catch (_) { return null; } }
+  // PL.Vfx.fire(name,{x,y}) (screen px; names ripple / pipSpend / medal per review/patches/V15-calls.md). Returns true when Vfx made particles
+  // (or is off), so the local fallback below only draws while that vfx patch is not in the build. Every call is guarded.
+  function vfxFire(name, x, y) {
+    const V = PL.Vfx; if (!vfxReady || !V || typeof V.fire !== 'function') return false;
+    try { const n0 = V.stats ? V.stats().particles : 0; V.fire(name, { x, y }); const st = V.stats ? V.stats() : null; return !!st && (st.quality === 'off' || st.particles > n0); } catch (_) { return false; }
+  }
+  function addPop(o) { if (reducedNow() || pops.length > 80) return; pops.push(o); }
+  function ripple(name) { const r = popRect(name); if (r && !vfxFire('ripple', r.x + r.w / 2, r.y + r.h / 2)) addPop({ k: 'ripple', x: r.x + r.w / 2, y: r.y + r.h / 2, r0: Math.min(r.w, r.h) * 0.3, r1: Math.min(r.w, r.h) * 0.95, age: 0, life: 0.35 }); }
+  function pipSpark(left, max) {
+    const r = popRect('pips'); if (!r) return;
+    const x = r.x + r.w * (Math.max(0, left) + 0.5) / Math.max(1, max), y = r.y + r.h / 2;
+    if (vfxFire('pipSpend', x, y)) return;
+    for (let i = 0; i < 9; i++) { const a = i / 9 * 6.283 + 0.3, v = 50 + (i % 3) * 25; addPop({ k: 'spark', x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, age: 0, life: 0.45, s: 3 + (i % 2) * 2 }); }
+  }
+  function confetti() {
+    if (reducedNow()) return;
+    const L0 = layoutFor('shaftComplete').shaftComplete, m0 = L0 && L0.rects && L0.rects.medal;
+    if (m0 && vfxFire('medal', m0.x + m0.w / 2, m0.y + m0.h / 2)) return;
+    const cols = [U.C.brass, U.C.teal, U.C.coral, U.C.cream];
+    for (let i = 0; i < 46; i++) { const x = view.W * (0.1 + 0.8 * ((i * 37) % 46) / 46), side = i % 2 ? 1 : -1;
+      addPop({ k: 'conf', x, y: -10 - (i % 7) * 14, vx: side * (20 + (i * 13) % 50), vy: 120 + (i * 29) % 140, rot: i, vr: side * (3 + i % 4), age: 0, life: 1.8 + (i % 5) * 0.12, col: cols[i % 4], s: 5 + i % 4 }); }
+    const L = layoutFor('shaftComplete').shaftComplete, m = L && L.rects && L.rects.medal;
+    if (m) for (let i = 0; i < 12; i++) { const a = i / 12 * 6.283; addPop({ k: 'star', x: m.x + m.w / 2, y: m.y + m.h / 2, vx: Math.cos(a) * 170, vy: Math.sin(a) * 170, age: 0, life: 0.8, s: 9 }); }
+  }
+  function stepPops(dt) {
+    if (!(dt > 0)) return;
+    for (const q of pops) { q.age += dt; if (q.vx != null) { q.x += q.vx * dt; q.y += q.vy * dt; if (q.k === 'conf') { q.vy += 90 * dt; q.rot += q.vr * dt; } else { q.vx *= 0.94; q.vy *= 0.94; } } }
+    pops = pops.filter((q) => q.age < q.life);
+  }
+  function drawPops(c) {
+    if (!pops.length) return;
+    c.save();
+    for (const q of pops) {
+      const k = q.age / q.life;
+      if (q.k === 'ripple') { c.globalAlpha = 0.7 * (1 - k); c.lineWidth = 3; c.strokeStyle = U.C.teal; c.beginPath(); c.arc(q.x, q.y, q.r0 + (q.r1 - q.r0) * k, 0, 6.283); c.stroke(); }
+      else if (q.k === 'spark') { c.globalAlpha = 1 - k; c.fillStyle = U.C.brass; c.beginPath(); c.arc(q.x, q.y, q.s * (1 - 0.5 * k), 0, 6.283); c.fill(); }
+      else if (q.k === 'star') { c.globalAlpha = 1 - k; c.fillStyle = U.C.brass; U.starPath(c, q.x, q.y, q.s * (1 + k), q.s * 0.45 * (1 + k)); c.fill(); }
+      else if (q.k === 'conf') { c.globalAlpha = Math.min(1, (1 - k) * 2); c.fillStyle = q.col; c.save(); c.translate(q.x, q.y); c.rotate(q.rot); c.scale(1, Math.abs(Math.sin(q.rot * 1.7)) * 0.8 + 0.2); c.fillRect(-q.s / 2, -q.s, q.s, q.s * 2); c.restore(); }
+    }
+    c.restore();
+  }
+
   // PL.drawPad: HUD + arrow pad + Retry/Pause + teach + chips, all PL.UI components fed by PL.Input.view()
   PL.drawPad = function (c, v, padModel, hud) {
     const vm = hud && hud.vm; if (!vm) return;
@@ -779,7 +844,8 @@ const PL = (globalThis.PL = globalThis.PL || {});
     ctx.lineWidth = 1.5; ctx.strokeStyle = U.alpha(U.C.cream, 0.8 * pulse); U.rr(ctx, a.x - 6, a.y - 6, b.x - a.x + 12, b.y - a.y + 12, 6); ctx.stroke();
     ctx.restore();
   }
-  function renderPlay(dt, live) {
+  // over = an overlay (pause, nudge, medal, settings from pause) sits on top: field only, 85% dusk scrim, no pad / HUD pills
+  function renderPlay(dt, live, over) {
     const W = view.W, H = view.H;
     const fr = PL.camUpdate(cam, state, view, live ? dt : 0);
     lastFrame = fr;
@@ -797,6 +863,11 @@ const PL = (globalThis.PL = globalThis.PL || {});
     ctx.setTransform(view.dpr, 0, 0, view.dpr, 0, 0);
     try { PL.draw(ctx, view, fr, state, hud); } catch (e) { ctx.fillStyle = U.C.dusk; ctx.fillRect(0, 0, W, H); if (!renderPlay.warned) { renderPlay.warned = 1; console.warn('draw', e); } }
     ctx.setTransform(view.dpr, 0, 0, view.dpr, 0, 0);
+    if (over) {
+      U.scrim(ctx, W, H, 0.85, U.C.dusk);
+      if (vfxReady && PL.Vfx && PL.Vfx.drawOverlay) { try { PL.Vfx.drawOverlay(ctx, fr); } catch (_) {} }
+      frameEvents.length = 0; return null;
+    }
     drawKiller(fr);
     const t = nowMs() / 1000, vm = playVm(fr, t);
     let name = playName();
@@ -813,12 +884,14 @@ const PL = (globalThis.PL = globalThis.PL || {});
       vm.time = fmtClock(ci.time); vm.best = ci.best != null ? fmtClock(ci.best) : '-'; vm.isNewBest = ci.isNew;
     }
     hud.vm = vm; hud.screenName = name;
+    if (name === 'roomClear') { U.scrim(ctx, W, H, 0.85, U.C.dusk); vm.noHud = true; } // no pad / HUD pills through the card
     if (name === 'death' && isTut()) { // tutorial keeps teach + Skip under the tag
       SC.draw.tutorial(ctx, W, H, vm, t);
       const L = SC.layout(W, H, vm.leftHand, { roomRect: vm.roomRect }).death, c0 = vm.cause, rm = L.rects.room, tw2 = c0.iconOnly ? 44 : 220;
       const x = Math.max(rm.x + 6 + tw2 / 2, Math.min(rm.x + rm.w - 6 - tw2 / 2, c0.x)), y = Math.max(rm.y + 24, Math.min(rm.y + rm.h - 24, c0.y - 44));
       U.causeTag(ctx, { x: x - tw2 / 2, y: y - 18, w: tw2, h: 36 }, { kind: c0.kind, text: c0.text, age: c0.age, iconOnly: c0.iconOnly }, t);
     } else PL.drawPad(ctx, view, hud.pad, hud);
+    stepPops(live ? dt : 0); drawPops(ctx);
     if (vfxReady && PL.Vfx && PL.Vfx.drawOverlay) { try { PL.Vfx.drawOverlay(ctx, fr); } catch (_) {} }
     frameEvents.length = 0;
     return vm;
@@ -832,6 +905,7 @@ const PL = (globalThis.PL = globalThis.PL || {});
     let dt = (ts - last) / 1000; last = ts;
     if (dt <= 0) return;
     if (dt > 0.25) dt = 0.25; else { fpsFrames++; fpsSecs += dt; }
+    if (wiping && nowMs() > wipeGuard) wiping = false;
     const live = scr === 'play' && !domOverlay;
     acc += dt;
     let n = 0;
@@ -842,11 +916,26 @@ const PL = (globalThis.PL = globalThis.PL || {});
     if (nudgeAt && scr === 'play' && !clearInfo && !complete && !domOverlay && nowMs() >= nudgeAt) { nudgeAt = 0; goPause(); nudge = true; }
     render(dt, live);
   }
+  // render / sim errors: count them; after 3 in a row show a visible chip instead of a silent flat screen (tap = back to the menu)
+  let breakRender = false, errRun = 0, errTotal = 0, errWarned = false, problem = null;
+  function fail(e) { errRun++; errTotal++; if (!errWarned) { errWarned = true; console.warn('Starfall error', e); } }
+  function drawProblem() {
+    try {
+      const W = view.W, H = view.H, cw = Math.min(W - 24, 320), r = { x: Math.round((W - cw) / 2), y: Math.round(H / 2 - 40), w: cw, h: 80 };
+      ctx.setTransform(view.dpr, 0, 0, view.dpr, 0, 0); U.scrim(ctx, W, H, 0.9);
+      U.button(ctx, r, { label: S.problem.text, kind: 'primary', vw: W }, 0); problem = r;
+    } catch (_) { problem = { x: 0, y: 0, w: view.W, h: view.H }; }
+  }
   function render(dt, live) {
+    try { renderInner(dt, live); errRun = 0; problem = null; } catch (e) { fail(e); }
+    if (errRun >= 3) drawProblem();
+  }
+  function renderInner(dt, live) {
+    if (breakRender) throw new Error('test break');
     const W = view.W, H = view.H, t = nowMs() / 1000, base = chipVm(), sca = TEXT_SCALE[settings.textIdx];
     ctx.setTransform(view.dpr, 0, 0, view.dpr, 0, 0);
     const pr = (n) => (press && press.tgt === n ? n : null);
-    const under = () => { if (state && rooms && (settingsFrom === 'pause' || scr === 'pause' || scr === 'shaftComplete')) { renderPlay(0, false); U.scrim(ctx, W, H, 0.6); } else drawBackdrop('dim'); };
+    const under = () => { if (state && rooms && (settingsFrom === 'pause' || scr === 'pause' || scr === 'shaftComplete')) { renderPlay(0, false, true); } else drawBackdrop('dim'); };
     if (scr === 'play' && state) { renderPlay(dt, live); }
     else if (scr === 'firstOpen') { drawBackdrop(); SC.draw.firstOpen(ctx, W, H, Object.assign({}, base, { drawArt: drawKeyArt, pressed: pr('start') }), t); }
     else if (scr === 'menu') { drawBackdrop(); SC.draw.menu(ctx, W, H, Object.assign({}, base, { drawArt: drawKeyArt, pressed: press && press.tgt }), t); }
@@ -854,13 +943,15 @@ const PL = (globalThis.PL = globalThis.PL || {});
       drawBackdrop('dim');
       const best = ['short', 'long', 'daily'].map((m) => { let b = null; try { b = PL.meta && PL.meta.getBest(bestKey(m)); } catch (_) {} return b ? { time: fmtTotal(b.ticks * C.DT), tier: b.medal === 'plumb' ? 'gold' : b.medal } : null; });
       SC.draw.shaftPick(ctx, W, H, Object.assign({}, base, { selected: pickSel, best, dailyNote: true, pressed: press && press.tgt }), t);
-    } else if (scr === 'pause' && nudge) { renderPlay(0, false); U.scrim(ctx, W, H, 0.6); SC.draw.confirm(ctx, W, H, { text: S.nudge.msg, no: S.nudge.show, yes: S.nudge.no, danger: false, pressed: press && press.tgt, textScale: sca }, t); }
-    else if (scr === 'pause') { renderPlay(0, false); SC.draw.pause(ctx, W, H, Object.assign({}, base, { confirm: pauseConfirm, pressed: press && press.tgt, leftHand: leftHand() }), t); }
+    } else if (scr === 'pause' && nudge) { renderPlay(0, false, true); SC.draw.confirm(ctx, W, H, { text: S.nudge.msg, no: S.nudge.show, yes: S.nudge.no, danger: false, pressed: press && press.tgt, textScale: sca }, t); }
+    else if (scr === 'pause') { renderPlay(0, false, true); SC.draw.pause(ctx, W, H, Object.assign({}, base, { confirm: pauseConfirm, pressed: press && press.tgt, leftHand: leftHand() }), t); }
     else if (scr === 'shaftComplete' && complete) {
-      renderPlay(0, false);
+      renderPlay(0, false, true);
       const c = complete, age = reducedNow() ? 99 : Math.max(0, (nowMs() - c.at) / 1000);
       SC.draw.shaftComplete(ctx, W, H, Object.assign({}, base, { tier: c.medal === 'plumb' ? 'gold' : c.medal, isNew: c.newBest, total: fmtClock(c.timeS), totalS: c.timeS, fmt: fmtClock, age,
         roomTimes: c.roomS.map((x) => fmtClock(x)), tuned: c.tuned, pressed: press && press.tgt, focus: 'again' }), t);
+      stepPops(Math.min(dt, 0.05)); drawPops(ctx);
+      if (vfxReady && PL.Vfx && PL.Vfx.drawOverlay) { try { PL.Vfx.drawOverlay(ctx, lastFrame); } catch (_) {} }
     } else if (scr === 'settings' || scr === 'tweak' || scr === 'confirm') {
       under();
       const values = { music: settings.music, sounds: settings.sounds, mute: settings.mute, vibration: PL.Input ? PL.Input.getVibrate() : true, left: leftHand(), motion: settings.motion, textIdx: settings.textIdx, qualityIdx: settings.qualityIdx };
@@ -881,6 +972,8 @@ const PL = (globalThis.PL = globalThis.PL || {});
     return scr;
   }
   window.PL_TEST = {
+    breakRender: (on) => { breakRender = !!on; },
+    errRun: () => errRun,
     getState: () => state,
     screen: screenName,
     scene: () => (scr === 'play' ? 'play' : scr === 'menu' ? 'menu' : scr),
@@ -898,11 +991,15 @@ const PL = (globalThis.PL = globalThis.PL || {});
     room: (n) => { scr = 'play'; complete = null; clearInfo = null; finishAttempt('abandoned'); roomIdx = clamp((n | 0) - 1, 0, rooms.length - 1); startAttempt(); },
     tick: (n) => { for (let i = 0; i < (n || 1); i++) simTick(); },
     winRoom: () => { if (scr !== 'play' || !state || clearInfo) return false; state.x = state.room.exit.x; state.y = state.room.exit.y; for (let i = 0; i < 3 && !clearInfo; i++) simTick(); return !!clearInfo; },
-    advance: () => advance(),
+    advance: () => advance(true),
+    advanceWipe: () => advance(),
+    wiping: () => wiping,
+    pops: () => pops.length,
+    juice: () => pops.length + (PL.Vfx && PL.Vfx.stats ? (PL.Vfx.stats().particles || 0) : 0),
     report: buildReport,
     attempts: () => attempts.slice(),
     inputLog: () => inputLog.slice(),
-    getRunStats: () => ({ totalTicks, roomsCleared: cleared.filter(Boolean).length, tuned: runTuned || !!(TW && TW.isDirty()), mode, seed, rooms: rooms ? rooms.length : 0 }),
+    getRunStats: () => ({ totalTicks, roomsCleared: cleared.filter(Boolean).length, tuned: runTuned || !!(TW && TW.isDirty('sim')), mode, seed, rooms: rooms ? rooms.length : 0 }),
     pad: () => (PL.Input ? PL.Input.view() : null),
     isComplete: () => !!complete,
     aid: () => Object.assign({}, aidRooms),
