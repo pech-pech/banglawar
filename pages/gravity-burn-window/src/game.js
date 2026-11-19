@@ -110,6 +110,12 @@
     for (let i = 0; i < SECTORS; i++) { const d = document.createElement('span'); d.style.cssText = 'width:12px;height:12px;border-radius:50%;box-sizing:border-box;border:1.5px solid ' + (i < idx ? '#3fb8a8;background:#3fb8a8' : i === idx ? '#c9a24a;background:#c9a24a' : 'rgba(201,162,74,.35)'); pipRow.appendChild(d); }
   }
   updPips();
+  const devBadge = document.createElement('div'); devBadge.setAttribute('data-bw', 'dev'); devBadge.textContent = 'DEV';
+  devBadge.style.cssText = 'position:absolute;left:12px;top:calc(env(safe-area-inset-top,0px) + 60px);pointer-events:none;display:none;padding:2px 6px;border:1px solid #d9694f;border-radius:4px;background:rgba(16,32,36,.85);color:#d9694f;font:700 12px system-ui,sans-serif;letter-spacing:.08em';
+  hud.appendChild(devBadge);
+  function updDev() { let n = 0; try { n = Object.keys(BW.tweak.diff()).length; } catch (e) {} devBadge.style.display = n ? 'block' : 'none'; }
+  if (BW.tweak) BW.tweak.onChange = updDev;
+  updDev();
   const bNext = mkBtn('Next sector', 'position:fixed;right:22px;bottom:22px;width:150px;height:56px;display:none;z-index:40;background:#3fb8a8;color:#0a1214;border-color:#3fb8a8;font-size:18px', onNext, document.body);
   bNext.style.position = 'fixed'; bNext.style.pointerEvents = 'auto';
   ac('mute', muted);
@@ -351,7 +357,7 @@
     const info = {
       seed: seed, device: { w: V.w, h: V.h, dpr: V.dpr, ua: navigator.userAgent, reducedMotion: reduced }, fps: fpsStats(),
       determinism: det, attempts: attempts, inputLog: inputLog, ticks: { physicsSteps: physicsSteps, elapsedMs: Math.round(now() - bootT) },
-      energyDrift: energyDrift, settings: { muted: muted, reducedOverride: !!UI.settings.reduced, haptics: !!UI.settings.haptics, drag: !!UI.settings.drag, warpButton: !!UI.settings.warp, warp: warpOn, sectors: SECTORS, medal: medal(), efficiency: +efficiency().toFixed(3) }
+      energyDrift: energyDrift, tweaks: (BW.tweak ? BW.tweak.diff() : {}), settings: { muted: muted, reducedOverride: !!UI.settings.reduced, haptics: !!UI.settings.haptics, drag: !!UI.settings.drag, warpButton: !!UI.settings.warp, warp: warpOn, sectors: SECTORS, medal: medal(), efficiency: +efficiency().toFixed(3) }
     };
     try { if (BW.report && BW.report.build) return BW.report.build(info); } catch (e) {}
     return Object.assign({ game: 'burn-window', version: 1, renderer: 'Canvas2D' }, info);
@@ -445,6 +451,7 @@
   H.launch = titleLaunch; H.quit = quitToTitle; H.tick = () => ac('tick');
   H.retry = (b, e) => { ac('tick'); retry(); }; H.pressOk = pressOk;
   H.copy = copyReport;
+  H.reloadSector = () => { for (const k in cache) delete cache[k]; updDev(); if (phase === 'end') return; genToken++; loadSector(idx); };
   H.getMuted = () => muted;
   H.setMuted = m => { muted = !!m; lsSet('bw_mute', muted ? '1' : '0'); ac('mute', muted); };
   H.getWarp = () => warpOn; H.setWarp = on => { setWarp(on); };

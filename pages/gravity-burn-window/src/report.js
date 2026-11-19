@@ -47,7 +47,7 @@
     const sc = selfCheck();
     return {
       game: 'Burn Window',
-      version: 'bw-0.2.1',
+      version: 'bw-0.2.2',
       seed: info.seed,
       renderer: 'Canvas2D',
       device: info.device || {},
@@ -57,7 +57,8 @@
       inputLog: info.inputLog || [],
       ticks: info.ticks || {},
       energyDrift: sc.energyDrift,
-      settings: info.settings || {}
+      settings: info.settings || {},
+      tweaks: info.tweaks || {}
     };
   }
 

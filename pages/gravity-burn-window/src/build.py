@@ -4,7 +4,7 @@ Usage: python3 src/build.py [--allow-missing]"""
 import sys, os, hashlib
 HERE = os.path.dirname(os.path.abspath(__file__))
 OUT = os.path.join(HERE, '..', 'index.html')
-FILES = ['sim.js', 'gen.js', 'report.js', 'audio.js', 'render.js', 'ui.js', 'game.js']
+FILES = ['sim.js', 'gen.js', 'report.js', 'tweak.js', 'audio.js', 'render.js', 'ui.js', 'game.js']
 allow = '--allow-missing' in sys.argv
 s = open(os.path.join(HERE, 'index.src.html'), encoding='utf-8').read()
 parts = []
@@ -23,7 +23,7 @@ head = ('<link rel="manifest" href="manifest.webmanifest">\n'
         '<link rel="icon" href="icon-192.png">\n<link rel="apple-touch-icon" href="icon-192.png">\n')
 reg = ("<script>if('serviceWorker' in navigator&&isSecureContext)"
        "addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(e=>console.warn('sw',e)));"
-       "try{screen.orientation&&screen.orientation.lock&&matchMedia('(display-mode: fullscreen)').matches&&screen.orientation.lock('portrait').catch(()=>{});}catch(_){}</script>\n")
+       "try{screen.orientation&&screen.orientation.lock&&(matchMedia('(display-mode: fullscreen)').matches||matchMedia('(display-mode: standalone)').matches)&&screen.orientation.lock('portrait').catch(()=>{});}catch(_){}</script>\n")
 s = s.replace('<!--SRC-->', ''.join(parts)).replace('</head>', head + '</head>').replace('</body>', reg + '</body>')
 open(OUT, 'w', encoding='utf-8').write(s)
 b = s.encode()

@@ -193,8 +193,66 @@
       toggle('Warp button', 'Show time-warp', () => settings.warp, v => { setSetting('warp', v); }),
       panel([h('div', 'lbl', 'Seed'), (() => { const g = h('div', 'seg', null, [bD, bC]); g.style.margin = '8px 0'; return g; })(), dailyTxt, fld, msgEl, (() => { const a = apply; a.style.marginTop = '8px'; return a; })()]),
       h('div', 'row', null, [btn('Reset saves', 'd', () => { confirm.style.display = 'flex'; erased.textContent = ''; }), btn('Copy report', '', b => H.copy(b))]),
-      confirm, erased]);
+      confirm, erased, BW.tweak ? btn('Tweak', '', () => ui.show('tweak')) : null]);
     const t = h('h2', null, 'Settings'); t.style.cssText = 'text-align:center;padding-top:4px';
+    return screen([t, sc, h('div', 'bot', null, [btn('Back', 'p', () => ui.back())])]);
+  };
+  SCREENS.tweak = function () {
+    const H = ui.host, T = BW.tweak, st = 'min-width:0;overflow-wrap:anywhere;';
+    const reload = () => { try { H.reloadSector && H.reloadSector(); } catch (e) {} };
+    const info = h('div', 'sub', 'Changes apply when the sector reloads.'); info.style.cssText = 'text-align:center;min-height:0';
+    const refs = {};
+    const upd = k => { const r = refs[k], v = T.get(k), ch = v !== T.def(k); r.sl.value = v; r.cur.textContent = 'now ' + T.format(k, v); r.cur.style.color = ch ? '#3fb8a8' : '#7d8a86'; r.rs.disabled = !ch; };
+    const rows = T.ROWS.map(row => {
+      const k = row.k, rg = T.range(k), sl = h('input'); sl.type = 'range'; sl.min = rg.min; sl.max = rg.max; sl.step = rg.step; sl.value = T.get(k); sl.setAttribute('data-bw', '1'); sl.setAttribute('aria-label', row.label);
+      sl.style.cssText = 'height:56px;border:0;background:transparent;padding:0;letter-spacing:0;accent-color:#3fb8a8;flex:1;min-width:0;touch-action:pan-y';
+      const cur = h('span', 'sub'), rs = btn('Reset', '', () => { T.reset(k); upd(k); reload(); });
+      rs.style.cssText = 'width:72px;flex:none;padding:0 4px;font-size:14px';
+      sl.addEventListener('input', () => { T.set(k, sl.value); upd(k); });
+      sl.addEventListener('change', () => { reload(); });
+      sl.addEventListener('pointerdown', e => e.stopPropagation());
+      refs[k] = { sl, cur, rs };
+      const head = h('div', null, null, [h('span', null, row.label), h('span', 'sub', 'default ' + T.format(k, T.def(k))), cur]);
+      head.style.cssText = 'display:flex;flex-wrap:wrap;gap:2px 10px;align-items:baseline';
+      const ctl = h('div', null, null, [sl, rs]); ctl.style.cssText = 'display:flex;align-items:center;gap:8px';
+      const p = panel([head, ctl]); p.style.padding = '8px 12px'; upd(k); return p;
+    });
+    const sync = () => { T.ROWS.forEach(r => upd(r.k)); };
+    const msg = h('div', 'sub', ''); msg.style.cssText = 'text-align:center;min-height:0;' + st;
+    const say = t => { msg.textContent = t; };
+    const list = h('div'); list.style.cssText = 'display:flex;flex-direction:column;gap:8px';
+    const nameFld = h('input'); nameFld.type = 'text'; nameFld.maxLength = 24; nameFld.placeholder = 'Preset name'; nameFld.setAttribute('autocomplete', 'off'); nameFld.setAttribute('data-bw', '1');
+    nameFld.style.cssText = 'font-size:16px;letter-spacing:0';
+    const codeFld = h('input'); codeFld.type = 'text'; codeFld.placeholder = 'Preset code'; codeFld.setAttribute('autocomplete', 'off'); codeFld.setAttribute('data-bw', '1');
+    codeFld.style.cssText = 'font-size:14px;letter-spacing:0';
+    const fill = () => {
+      list.textContent = '';
+      T.presets.list().forEach(p => {
+        const n = h('div', null, p.name); n.style.cssText = 'flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
+        const ld = btn('Load', '', () => { T.presets.load(p.name); sync(); reload(); say('Loaded ' + p.name); }), dl = btn('Delete', 'd', () => { T.presets.remove(p.name); fill(); });
+        ld.style.cssText = 'width:76px;flex:none;padding:0 4px;font-size:14px'; dl.style.cssText = 'width:76px;flex:none;padding:0 4px;font-size:14px';
+        const r = h('div', null, null, [n, ld, dl]); r.style.cssText = 'display:flex;align-items:center;gap:8px'; list.appendChild(r);
+      });
+      if (!list.firstChild) { const e = h('div', 'sub', 'No saved presets.'); list.appendChild(e); }
+    };
+    fill();
+    const loadCode = txt => {
+      const t = T.decode(txt); if (!t) { say('Not a valid preset code.'); return; }
+      T.apply(t); sync(); reload(); say('Preset code loaded.');
+    };
+    const presets = panel([h('div', 'lbl', 'Presets'), (() => { const r = h('div', 'row', null, [nameFld, btn('Save preset', '', () => { say('Saved ' + T.presets.save(nameFld.value)); nameFld.value = ''; fill(); })]); r.style.margin = '8px 0'; return r; })(), list,
+      (() => { const r = h('div', 'row', null, [btn('Copy preset code', '', b => {
+        const code = T.encode(), old = b.textContent; codeFld.value = code;
+        const done = ok => { b.textContent = ok ? 'Copied' : 'Copy failed'; setTimeout(() => { b.textContent = old; }, 1600); };
+        try { if (BW.report && BW.report.copy) return BW.report.copy(code).then(done, () => done(false)); } catch (e) {}
+        done(false);
+      }), btn('Paste code', '', () => {
+        if (codeFld.value.trim()) return loadCode(codeFld.value);
+        try { navigator.clipboard.readText().then(t => { codeFld.value = t; loadCode(t); }, () => say('Paste the code into the field, then tap Paste code.')); } catch (e) { say('Paste the code into the field, then tap Paste code.'); }
+      })]); r.style.margin = '10px 0 8px'; return r; })(), codeFld]);
+    const sc = h('div', 'scroll', null, [info].concat(rows, [h('div', 'row', null, [btn('Reset all', 'd', () => { T.resetAll(); sync(); reload(); say('All values reset to defaults.'); }), btn('Copy report', '', b => H.copy(b))]), presets, msg]));
+    Array.prototype.forEach.call(sc.children, c => { c.style.flexShrink = '0'; });
+    const t = h('h2', null, 'Tweak'); t.style.cssText = 'text-align:center;padding-top:4px';
     return screen([t, sc, h('div', 'bot', null, [btn('Back', 'p', () => ui.back())])]);
   };
   function dailySeedText() { const s = String(ui.host.daily ? ui.host.daily() : ''); return s.length === 8 ? s.slice(0, 4) + '-' + s.slice(4, 6) + '-' + s.slice(6) : s; }
@@ -245,7 +303,7 @@
     const starTotal = tot == null ? null : h('div', null, null, [h('span', 'brass', '\u2605 ' + tot), h('span', 'sub', ' / ' + (isN(R.maxStars) ? R.maxStars : 24) + ' stars')]);
     if (starTotal) starTotal.style.cssText = 'font-size:20px;font-weight:700;margin-top:2px;white-space:nowrap';
     const medalP = panel([svg, h('div', null, null, [nm, pc, h('div', 'sub', 'overall efficiency'), starTotal])], 'display:flex;align-items:center;gap:14px;padding:8px 12px');
-    const rule = h('div', 'sub', 'Gold needs 75% · Silver 55% · Bronze = finish'); rule.style.textAlign = 'center';
+    const rule = h('div', 'sub', 'Gold 75% · Silver 55% · Bronze finish'); rule.style.textAlign = 'center';
     const rows = h('div'); { const x = h('div', null, null, [h('span', 'lbl', 'Sector'), h('span', 'lbl', 'Fuel used / par')]); x.style.cssText = 'display:flex;justify-content:space-between;height:24px;align-items:center'; rows.appendChild(x); }
     R.rows.forEach((r, i) => { const x = h('div', null, null, [h('span', 'sub', 'Sector ' + (i + 1)), starRow(r.stars, 14), h('span', null, r.used != null ? r.used.toFixed(1) + ' / ' + r.par.toFixed(1) : '--')]); x.style.cssText = 'display:flex;justify-content:space-between;height:28px;align-items:center;font-size:15px'; rows.appendChild(x); });
     const sc = h('div', 'scroll', null, [medalP, rule, panel([rows], 'padding:4px 12px 10px')]); sc.style.padding = '8px 8px 12px';
@@ -263,12 +321,13 @@
     // Sits in the free band under the playfield (bottom 96 px at 475x638); Next (game.js bNext) overlays the right 150 px.
     const w = h('div', 'bwsec'); w.setAttribute('data-bw', '1'); w.style.bottom = '0'; w.style.padding = '8px 12px 12px';
     let left;
-    const closestTxt = o => isN(o.closest) ? 'Closest ' + Math.round(o.closest) + ' px' + (isN(o.bestClosest) ? ' (best ' + Math.round(o.bestClosest) + ')' : '') : null;
+    const narrow = window.innerWidth < 400;
+    const closestTxt = o => isN(o.closest) ? 'Closest ' + Math.round(o.closest) + (narrow ? '' : ' px') + (isN(o.bestClosest) ? (narrow ? ' \u00b7 best ' : ' (best ') + Math.round(o.bestClosest) + (narrow ? '' : ')') : '') : null;
     if (kind === 'docked') {
       const ratio = isN(o.parRatio) ? o.parRatio : (o.par > 0 ? o.used / o.par : null);
-      const t1 = h('div', null, null, [h('b', 'teal', 'DOCKED'), starRow(o.stars, 20), o.best ? h('span', 'chip', 'New best') : null]);
-      t1.style.cssText = 'display:flex;gap:8px;align-items:center;font-size:20px;white-space:nowrap';
-      if (o.best) t1.lastChild.style.cssText = 'position:absolute;top:-13px;left:12px;height:22px;font-size:12px;padding:0 8px;color:#3fb8a8;border-color:#3fb8a8;background:#102024';
+      const t1 = h('div', null, null, [h('b', 'teal', 'DOCKED'), starRow(o.stars, narrow ? 15 : 20), o.best ? h('span', 'chip', 'New best') : null]);
+      t1.style.cssText = 'display:flex;gap:' + (narrow ? 6 : 8) + 'px;align-items:center;font-size:20px;white-space:nowrap';
+      if (o.best) t1.lastChild.style.cssText = 'position:absolute;top:-15px;left:12px;height:22px;font-size:12px;padding:0 8px;color:#3fb8a8;border-color:#3fb8a8;background:#102024';
       const t2 = h('div', null, null, [h('span', null, o.used.toFixed(1) + ' / ' + o.par.toFixed(1)), h('span', 'dim', ' \u00b7 '), h('span', 'brass', Math.round(o.eff * 100) + '%')]);
       t2.style.cssText = 'font-size:16px;margin-top:2px;white-space:nowrap';
       const bits = []; if (ratio != null) bits.push(ratio.toFixed(1) + 'x par'); if (isN(o.bestStars)) bits.push('best ' + '\u2605'.repeat(Math.max(0, Math.min(3, Math.round(o.bestStars)))) + '\u2606'.repeat(3 - Math.max(0, Math.min(3, Math.round(o.bestStars)))));
@@ -279,7 +338,7 @@
       // right 150 px belongs to game.js Next button: keep text clear of it
       w.appendChild(panel([left], 'display:flex;align-items:center;min-height:76px;padding:8px 158px 8px 8px'));
     } else {
-      const ct = closestTxt(o), cl = ct ? h('div', 'dim', ct) : null; if (cl) cl.style.cssText = 'font-size:14px;margin-top:2px';
+      const ct = closestTxt(o), cl = ct ? h('div', 'dim', ct) : null; if (cl) cl.style.cssText = 'font-size:' + (narrow ? 13 : 14) + 'px;margin-top:2px;white-space:nowrap';
       left = h('div', null, null, [h('b', 'red', o.title), h('div', 'dim', o.text), cl]); left.firstChild.style.fontSize = '20px'; left.style.cssText = 'flex:1;min-width:0';
       const rb = btn('RETRY', 'p', (b, e) => { if (ui.host.pressOk(b, e)) ui.host.retry(b, e); }); rb.style.cssText = 'width:150px;height:64px;min-height:64px;flex:none;font-size:20px;letter-spacing:.06em';
       w.appendChild(panel([left, rb], 'display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:76px;padding:8px'));

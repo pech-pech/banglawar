@@ -318,7 +318,7 @@
 
     var bph = G.phase ? String(G.phase).replace(/^ui_/, '') : G.phase;
     var showBar = bph !== 'docked' && bph !== 'end' && bph !== 'failed' || bph === 'failed' && G.phase === 'failed';
-    var barW = Math.min(V.w - 32, 240), barX = 16, barY = oy + ph + 14, barH = 12;
+    var barW = Math.min(V.w - 32, V.w < 400 ? 224 : 240), barX = 16, barY = oy + ph + 14, barH = 12;
     var fmax = G.fuelMax || 60, fuel = st ? Math.max(0, st.fuel) : 0, frac = Math.max(0, Math.min(1, fuel / fmax));
     if (showBar) {
       ctx.fillStyle = 'rgba(255,255,255,0.07)'; ctx.fillRect(barX, barY, barW, barH);

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
-<meta name="theme-color" content="#0a1214">
+<meta name="theme-color" content="#c9a24a">
 <title>Burn Window</title>
 <style>html,body{margin:0;overflow:hidden;touch-action:none;background:#0a1214;height:100%}canvas{display:block;width:100vw;height:100vh;touch-action:none}</style>
 <link rel="manifest" href="manifest.webmanifest">
@@ -425,7 +425,7 @@
     const sc = selfCheck();
     return {
       game: 'Burn Window',
-      version: 'bw-0.2.1',
+      version: 'bw-0.2.2',
       seed: info.seed,
       renderer: 'Canvas2D',
       device: info.device || {},
@@ -435,7 +435,8 @@
       inputLog: info.inputLog || [],
       ticks: info.ticks || {},
       energyDrift: sc.energyDrift,
-      settings: info.settings || {}
+      settings: info.settings || {},
+      tweaks: info.tweaks || {}
     };
   }
 
@@ -551,6 +552,80 @@
   const api = { selfCheck, build, copy, loadBest, saveBest, starsFor, saveStars, loadStars, saveClosest, loadClosest };
   if (typeof module !== 'undefined' && module.exports) module.exports = api; else { root.BW = root.BW || {}; root.BW.report = api; }
 })(typeof globalThis !== 'undefined' ? globalThis : this);
+
+</script>
+<script>
+/* tweak.js */
+// Burn Window TWEAK: live gameplay-value overrides for testing. BW.tweak. Mutates BW.sim.C in place (browser only).
+// Defaults are snapshotted at load, before anything is changed. Persists changed values in localStorage (bw:tweaks).
+(function (root) {
+  'use strict';
+  const BW = root.BW = root.BW || {};
+  const sim = (typeof module !== 'undefined' && module.exports) ? require('./sim.js') : BW.sim;
+  if (!sim || !sim.C) return;
+  const C = sim.C, KEY = 'bw:tweaks', PKEY = 'bw:tweakpresets';
+  const lsGet = k => { try { return localStorage.getItem(k); } catch (e) { return null; } };
+  const lsSet = (k, v) => { try { localStorage.setItem(k, v); } catch (e) {} };
+  const ROWS = [
+    ['THRUST', 'Thrust'], ['FUEL_RATE', 'Fuel burn rate'], ['FUEL0', 'Base fuel'], ['GATE_R', 'Gate radius'],
+    ['DOCK_V', 'Dock speed limit'], ['CRASH_PAD', 'Crash margin'], ['THROTTLE_MIN', 'Min throttle'],
+    ['GM.small', 'Gravity, small'], ['GM.medium', 'Gravity, medium'], ['GM.large', 'Gravity, large']
+  ].map(r => ({ k: r[0], label: r[1] }));
+  const rd = k => k.indexOf('GM.') === 0 ? C.GM[k.slice(3)] : C[k];
+  const wr = (k, v) => { if (k.indexOf('GM.') === 0) C.GM[k.slice(3)] = v; else C[k] = v; };
+  const DEF = {}; ROWS.forEach(r => { DEF[r.k] = rd(r.k); });
+  const known = k => Object.prototype.hasOwnProperty.call(DEF, k);
+  function range(k) {
+    const d = DEF[k], step = Math.pow(10, Math.floor(Math.log10(d * 0.02)));
+    let max = d * 2; if (k === 'THROTTLE_MIN') max = 1;
+    return { min: d * 0.5, max: max, step: step };
+  }
+  function clamp(k, v) {
+    const r = range(k); v = +v; if (!isFinite(v)) return DEF[k];
+    v = Math.max(r.min, Math.min(r.max, v));
+    const dec = Math.max(0, -Math.floor(Math.log10(r.step)));
+    v = +(Math.round(v / r.step) * r.step).toFixed(dec);
+    return Math.abs(v - DEF[k]) < r.step / 2 ? DEF[k] : v;
+  }
+  const api = { ROWS, onChange: null };
+  api.range = range;
+  api.def = k => DEF[k];
+  api.get = k => known(k) ? rd(k) : undefined;
+  function persist() { lsSet(KEY, JSON.stringify(api.diff())); }
+  function note() { try { api.onChange && api.onChange(); } catch (e) {} }
+  api.set = function (k, v) { if (!known(k)) return; wr(k, clamp(k, v)); persist(); note(); };
+  api.reset = function (k) { if (!known(k)) return; wr(k, DEF[k]); persist(); note(); };
+  api.resetAll = function () { ROWS.forEach(r => wr(r.k, DEF[r.k])); persist(); note(); };
+  api.diff = function () { const o = {}; ROWS.forEach(r => { if (rd(r.k) !== DEF[r.k]) o[r.k] = rd(r.k); }); return o; };
+  // replace all tweaks with obj (unknown keys ignored, values clamped); keys absent go back to default
+  api.apply = function (obj, quiet) {
+    ROWS.forEach(r => wr(r.k, obj && typeof obj === 'object' && known(r.k) && Object.prototype.hasOwnProperty.call(obj, r.k) ? clamp(r.k, obj[r.k]) : DEF[r.k]));
+    persist(); if (!quiet) note();
+  };
+  api.encode = function () { try { return btoa(JSON.stringify({ v: 1, tweaks: api.diff() })); } catch (e) { return ''; } };
+  api.decode = function (code) {
+    try { const o = JSON.parse(atob(String(code).trim())); if (o && o.v === 1 && o.tweaks && typeof o.tweaks === 'object') { const t = {}; for (const k in o.tweaks) if (known(k) && isFinite(+o.tweaks[k])) t[k] = clamp(k, o.tweaks[k]); return t; } } catch (e) {}
+    return null;
+  };
+  api.format = function (k, v) { const r = range(k), dec = Math.max(0, -Math.floor(Math.log10(r.step))); return v >= 10000 ? String(Math.round(v)) : v.toFixed(dec); };
+  function plist() { try { const a = JSON.parse(lsGet(PKEY) || '[]'); return Array.isArray(a) ? a.filter(p => p && typeof p.name === 'string' && p.tweaks && typeof p.tweaks === 'object') : []; } catch (e) { return []; } }
+  api.presets = {
+    list: () => plist(),
+    save: function (name) {
+      name = String(name || '').trim().slice(0, 24); const a = plist();
+      if (!name) { let n = 1; while (a.some(p => p.name === 'Preset ' + n)) n++; name = 'Preset ' + n; }
+      const e = { name: name, tweaks: api.diff() }, i = a.findIndex(p => p.name === name);
+      if (i >= 0) a[i] = e; else a.push(e);
+      lsSet(PKEY, JSON.stringify(a)); return name;
+    },
+    load: function (name) { const p = plist().find(q => q.name === name); if (!p) return false; api.apply(api.decode(btoa(JSON.stringify({ v: 1, tweaks: p.tweaks }))) || {}); return true; },
+    remove: function (name) { lsSet(PKEY, JSON.stringify(plist().filter(p => p.name !== name))); }
+  };
+  // reapply saved tweaks at startup, before the first sector is generated
+  try { const o = JSON.parse(lsGet(KEY) || 'null'); if (o && typeof o === 'object') api.apply(o, true); } catch (e) {}
+  BW.tweak = api;
+  if (typeof module !== 'undefined' && module.exports) module.exports = api;
+})(typeof window !== 'undefined' ? window : globalThis);
 
 </script>
 <script>
@@ -1142,7 +1217,7 @@
 
     var bph = G.phase ? String(G.phase).replace(/^ui_/, '') : G.phase;
     var showBar = bph !== 'docked' && bph !== 'end' && bph !== 'failed' || bph === 'failed' && G.phase === 'failed';
-    var barW = Math.min(V.w - 32, 240), barX = 16, barY = oy + ph + 14, barH = 12;
+    var barW = Math.min(V.w - 32, V.w < 400 ? 224 : 240), barX = 16, barY = oy + ph + 14, barH = 12;
     var fmax = G.fuelMax || 60, fuel = st ? Math.max(0, st.fuel) : 0, frac = Math.max(0, Math.min(1, fuel / fmax));
     if (showBar) {
       ctx.fillStyle = 'rgba(255,255,255,0.07)'; ctx.fillRect(barX, barY, barW, barH);
@@ -1422,8 +1497,66 @@
       toggle('Warp button', 'Show time-warp', () => settings.warp, v => { setSetting('warp', v); }),
       panel([h('div', 'lbl', 'Seed'), (() => { const g = h('div', 'seg', null, [bD, bC]); g.style.margin = '8px 0'; return g; })(), dailyTxt, fld, msgEl, (() => { const a = apply; a.style.marginTop = '8px'; return a; })()]),
       h('div', 'row', null, [btn('Reset saves', 'd', () => { confirm.style.display = 'flex'; erased.textContent = ''; }), btn('Copy report', '', b => H.copy(b))]),
-      confirm, erased]);
+      confirm, erased, BW.tweak ? btn('Tweak', '', () => ui.show('tweak')) : null]);
     const t = h('h2', null, 'Settings'); t.style.cssText = 'text-align:center;padding-top:4px';
+    return screen([t, sc, h('div', 'bot', null, [btn('Back', 'p', () => ui.back())])]);
+  };
+  SCREENS.tweak = function () {
+    const H = ui.host, T = BW.tweak, st = 'min-width:0;overflow-wrap:anywhere;';
+    const reload = () => { try { H.reloadSector && H.reloadSector(); } catch (e) {} };
+    const info = h('div', 'sub', 'Changes apply when the sector reloads.'); info.style.cssText = 'text-align:center;min-height:0';
+    const refs = {};
+    const upd = k => { const r = refs[k], v = T.get(k), ch = v !== T.def(k); r.sl.value = v; r.cur.textContent = 'now ' + T.format(k, v); r.cur.style.color = ch ? '#3fb8a8' : '#7d8a86'; r.rs.disabled = !ch; };
+    const rows = T.ROWS.map(row => {
+      const k = row.k, rg = T.range(k), sl = h('input'); sl.type = 'range'; sl.min = rg.min; sl.max = rg.max; sl.step = rg.step; sl.value = T.get(k); sl.setAttribute('data-bw', '1'); sl.setAttribute('aria-label', row.label);
+      sl.style.cssText = 'height:56px;border:0;background:transparent;padding:0;letter-spacing:0;accent-color:#3fb8a8;flex:1;min-width:0;touch-action:pan-y';
+      const cur = h('span', 'sub'), rs = btn('Reset', '', () => { T.reset(k); upd(k); reload(); });
+      rs.style.cssText = 'width:72px;flex:none;padding:0 4px;font-size:14px';
+      sl.addEventListener('input', () => { T.set(k, sl.value); upd(k); });
+      sl.addEventListener('change', () => { reload(); });
+      sl.addEventListener('pointerdown', e => e.stopPropagation());
+      refs[k] = { sl, cur, rs };
+      const head = h('div', null, null, [h('span', null, row.label), h('span', 'sub', 'default ' + T.format(k, T.def(k))), cur]);
+      head.style.cssText = 'display:flex;flex-wrap:wrap;gap:2px 10px;align-items:baseline';
+      const ctl = h('div', null, null, [sl, rs]); ctl.style.cssText = 'display:flex;align-items:center;gap:8px';
+      const p = panel([head, ctl]); p.style.padding = '8px 12px'; upd(k); return p;
+    });
+    const sync = () => { T.ROWS.forEach(r => upd(r.k)); };
+    const msg = h('div', 'sub', ''); msg.style.cssText = 'text-align:center;min-height:0;' + st;
+    const say = t => { msg.textContent = t; };
+    const list = h('div'); list.style.cssText = 'display:flex;flex-direction:column;gap:8px';
+    const nameFld = h('input'); nameFld.type = 'text'; nameFld.maxLength = 24; nameFld.placeholder = 'Preset name'; nameFld.setAttribute('autocomplete', 'off'); nameFld.setAttribute('data-bw', '1');
+    nameFld.style.cssText = 'font-size:16px;letter-spacing:0';
+    const codeFld = h('input'); codeFld.type = 'text'; codeFld.placeholder = 'Preset code'; codeFld.setAttribute('autocomplete', 'off'); codeFld.setAttribute('data-bw', '1');
+    codeFld.style.cssText = 'font-size:14px;letter-spacing:0';
+    const fill = () => {
+      list.textContent = '';
+      T.presets.list().forEach(p => {
+        const n = h('div', null, p.name); n.style.cssText = 'flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
+        const ld = btn('Load', '', () => { T.presets.load(p.name); sync(); reload(); say('Loaded ' + p.name); }), dl = btn('Delete', 'd', () => { T.presets.remove(p.name); fill(); });
+        ld.style.cssText = 'width:76px;flex:none;padding:0 4px;font-size:14px'; dl.style.cssText = 'width:76px;flex:none;padding:0 4px;font-size:14px';
+        const r = h('div', null, null, [n, ld, dl]); r.style.cssText = 'display:flex;align-items:center;gap:8px'; list.appendChild(r);
+      });
+      if (!list.firstChild) { const e = h('div', 'sub', 'No saved presets.'); list.appendChild(e); }
+    };
+    fill();
+    const loadCode = txt => {
+      const t = T.decode(txt); if (!t) { say('Not a valid preset code.'); return; }
+      T.apply(t); sync(); reload(); say('Preset code loaded.');
+    };
+    const presets = panel([h('div', 'lbl', 'Presets'), (() => { const r = h('div', 'row', null, [nameFld, btn('Save preset', '', () => { say('Saved ' + T.presets.save(nameFld.value)); nameFld.value = ''; fill(); })]); r.style.margin = '8px 0'; return r; })(), list,
+      (() => { const r = h('div', 'row', null, [btn('Copy preset code', '', b => {
+        const code = T.encode(), old = b.textContent; codeFld.value = code;
+        const done = ok => { b.textContent = ok ? 'Copied' : 'Copy failed'; setTimeout(() => { b.textContent = old; }, 1600); };
+        try { if (BW.report && BW.report.copy) return BW.report.copy(code).then(done, () => done(false)); } catch (e) {}
+        done(false);
+      }), btn('Paste code', '', () => {
+        if (codeFld.value.trim()) return loadCode(codeFld.value);
+        try { navigator.clipboard.readText().then(t => { codeFld.value = t; loadCode(t); }, () => say('Paste the code into the field, then tap Paste code.')); } catch (e) { say('Paste the code into the field, then tap Paste code.'); }
+      })]); r.style.margin = '10px 0 8px'; return r; })(), codeFld]);
+    const sc = h('div', 'scroll', null, [info].concat(rows, [h('div', 'row', null, [btn('Reset all', 'd', () => { T.resetAll(); sync(); reload(); say('All values reset to defaults.'); }), btn('Copy report', '', b => H.copy(b))]), presets, msg]));
+    Array.prototype.forEach.call(sc.children, c => { c.style.flexShrink = '0'; });
+    const t = h('h2', null, 'Tweak'); t.style.cssText = 'text-align:center;padding-top:4px';
     return screen([t, sc, h('div', 'bot', null, [btn('Back', 'p', () => ui.back())])]);
   };
   function dailySeedText() { const s = String(ui.host.daily ? ui.host.daily() : ''); return s.length === 8 ? s.slice(0, 4) + '-' + s.slice(4, 6) + '-' + s.slice(6) : s; }
@@ -1474,7 +1607,7 @@
     const starTotal = tot == null ? null : h('div', null, null, [h('span', 'brass', '\u2605 ' + tot), h('span', 'sub', ' / ' + (isN(R.maxStars) ? R.maxStars : 24) + ' stars')]);
     if (starTotal) starTotal.style.cssText = 'font-size:20px;font-weight:700;margin-top:2px;white-space:nowrap';
     const medalP = panel([svg, h('div', null, null, [nm, pc, h('div', 'sub', 'overall efficiency'), starTotal])], 'display:flex;align-items:center;gap:14px;padding:8px 12px');
-    const rule = h('div', 'sub', 'Gold needs 75% · Silver 55% · Bronze = finish'); rule.style.textAlign = 'center';
+    const rule = h('div', 'sub', 'Gold 75% · Silver 55% · Bronze finish'); rule.style.textAlign = 'center';
     const rows = h('div'); { const x = h('div', null, null, [h('span', 'lbl', 'Sector'), h('span', 'lbl', 'Fuel used / par')]); x.style.cssText = 'display:flex;justify-content:space-between;height:24px;align-items:center'; rows.appendChild(x); }
     R.rows.forEach((r, i) => { const x = h('div', null, null, [h('span', 'sub', 'Sector ' + (i + 1)), starRow(r.stars, 14), h('span', null, r.used != null ? r.used.toFixed(1) + ' / ' + r.par.toFixed(1) : '--')]); x.style.cssText = 'display:flex;justify-content:space-between;height:28px;align-items:center;font-size:15px'; rows.appendChild(x); });
     const sc = h('div', 'scroll', null, [medalP, rule, panel([rows], 'padding:4px 12px 10px')]); sc.style.padding = '8px 8px 12px';
@@ -1492,12 +1625,13 @@
     // Sits in the free band under the playfield (bottom 96 px at 475x638); Next (game.js bNext) overlays the right 150 px.
     const w = h('div', 'bwsec'); w.setAttribute('data-bw', '1'); w.style.bottom = '0'; w.style.padding = '8px 12px 12px';
     let left;
-    const closestTxt = o => isN(o.closest) ? 'Closest ' + Math.round(o.closest) + ' px' + (isN(o.bestClosest) ? ' (best ' + Math.round(o.bestClosest) + ')' : '') : null;
+    const narrow = window.innerWidth < 400;
+    const closestTxt = o => isN(o.closest) ? 'Closest ' + Math.round(o.closest) + (narrow ? '' : ' px') + (isN(o.bestClosest) ? (narrow ? ' \u00b7 best ' : ' (best ') + Math.round(o.bestClosest) + (narrow ? '' : ')') : '') : null;
     if (kind === 'docked') {
       const ratio = isN(o.parRatio) ? o.parRatio : (o.par > 0 ? o.used / o.par : null);
-      const t1 = h('div', null, null, [h('b', 'teal', 'DOCKED'), starRow(o.stars, 20), o.best ? h('span', 'chip', 'New best') : null]);
-      t1.style.cssText = 'display:flex;gap:8px;align-items:center;font-size:20px;white-space:nowrap';
-      if (o.best) t1.lastChild.style.cssText = 'position:absolute;top:-13px;left:12px;height:22px;font-size:12px;padding:0 8px;color:#3fb8a8;border-color:#3fb8a8;background:#102024';
+      const t1 = h('div', null, null, [h('b', 'teal', 'DOCKED'), starRow(o.stars, narrow ? 15 : 20), o.best ? h('span', 'chip', 'New best') : null]);
+      t1.style.cssText = 'display:flex;gap:' + (narrow ? 6 : 8) + 'px;align-items:center;font-size:20px;white-space:nowrap';
+      if (o.best) t1.lastChild.style.cssText = 'position:absolute;top:-15px;left:12px;height:22px;font-size:12px;padding:0 8px;color:#3fb8a8;border-color:#3fb8a8;background:#102024';
       const t2 = h('div', null, null, [h('span', null, o.used.toFixed(1) + ' / ' + o.par.toFixed(1)), h('span', 'dim', ' \u00b7 '), h('span', 'brass', Math.round(o.eff * 100) + '%')]);
       t2.style.cssText = 'font-size:16px;margin-top:2px;white-space:nowrap';
       const bits = []; if (ratio != null) bits.push(ratio.toFixed(1) + 'x par'); if (isN(o.bestStars)) bits.push('best ' + '\u2605'.repeat(Math.max(0, Math.min(3, Math.round(o.bestStars)))) + '\u2606'.repeat(3 - Math.max(0, Math.min(3, Math.round(o.bestStars)))));
@@ -1508,7 +1642,7 @@
       // right 150 px belongs to game.js Next button: keep text clear of it
       w.appendChild(panel([left], 'display:flex;align-items:center;min-height:76px;padding:8px 158px 8px 8px'));
     } else {
-      const ct = closestTxt(o), cl = ct ? h('div', 'dim', ct) : null; if (cl) cl.style.cssText = 'font-size:14px;margin-top:2px';
+      const ct = closestTxt(o), cl = ct ? h('div', 'dim', ct) : null; if (cl) cl.style.cssText = 'font-size:' + (narrow ? 13 : 14) + 'px;margin-top:2px;white-space:nowrap';
       left = h('div', null, null, [h('b', 'red', o.title), h('div', 'dim', o.text), cl]); left.firstChild.style.fontSize = '20px'; left.style.cssText = 'flex:1;min-width:0';
       const rb = btn('RETRY', 'p', (b, e) => { if (ui.host.pressOk(b, e)) ui.host.retry(b, e); }); rb.style.cssText = 'width:150px;height:64px;min-height:64px;flex:none;font-size:20px;letter-spacing:.06em';
       w.appendChild(panel([left, rb], 'display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:76px;padding:8px'));
@@ -1636,6 +1770,12 @@
     for (let i = 0; i < SECTORS; i++) { const d = document.createElement('span'); d.style.cssText = 'width:12px;height:12px;border-radius:50%;box-sizing:border-box;border:1.5px solid ' + (i < idx ? '#3fb8a8;background:#3fb8a8' : i === idx ? '#c9a24a;background:#c9a24a' : 'rgba(201,162,74,.35)'); pipRow.appendChild(d); }
   }
   updPips();
+  const devBadge = document.createElement('div'); devBadge.setAttribute('data-bw', 'dev'); devBadge.textContent = 'DEV';
+  devBadge.style.cssText = 'position:absolute;left:12px;top:calc(env(safe-area-inset-top,0px) + 60px);pointer-events:none;display:none;padding:2px 6px;border:1px solid #d9694f;border-radius:4px;background:rgba(16,32,36,.85);color:#d9694f;font:700 12px system-ui,sans-serif;letter-spacing:.08em';
+  hud.appendChild(devBadge);
+  function updDev() { let n = 0; try { n = Object.keys(BW.tweak.diff()).length; } catch (e) {} devBadge.style.display = n ? 'block' : 'none'; }
+  if (BW.tweak) BW.tweak.onChange = updDev;
+  updDev();
   const bNext = mkBtn('Next sector', 'position:fixed;right:22px;bottom:22px;width:150px;height:56px;display:none;z-index:40;background:#3fb8a8;color:#0a1214;border-color:#3fb8a8;font-size:18px', onNext, document.body);
   bNext.style.position = 'fixed'; bNext.style.pointerEvents = 'auto';
   ac('mute', muted);
@@ -1877,7 +2017,7 @@
     const info = {
       seed: seed, device: { w: V.w, h: V.h, dpr: V.dpr, ua: navigator.userAgent, reducedMotion: reduced }, fps: fpsStats(),
       determinism: det, attempts: attempts, inputLog: inputLog, ticks: { physicsSteps: physicsSteps, elapsedMs: Math.round(now() - bootT) },
-      energyDrift: energyDrift, settings: { muted: muted, reducedOverride: !!UI.settings.reduced, haptics: !!UI.settings.haptics, drag: !!UI.settings.drag, warpButton: !!UI.settings.warp, warp: warpOn, sectors: SECTORS, medal: medal(), efficiency: +efficiency().toFixed(3) }
+      energyDrift: energyDrift, tweaks: (BW.tweak ? BW.tweak.diff() : {}), settings: { muted: muted, reducedOverride: !!UI.settings.reduced, haptics: !!UI.settings.haptics, drag: !!UI.settings.drag, warpButton: !!UI.settings.warp, warp: warpOn, sectors: SECTORS, medal: medal(), efficiency: +efficiency().toFixed(3) }
     };
     try { if (BW.report && BW.report.build) return BW.report.build(info); } catch (e) {}
     return Object.assign({ game: 'burn-window', version: 1, renderer: 'Canvas2D' }, info);
@@ -1971,6 +2111,7 @@
   H.launch = titleLaunch; H.quit = quitToTitle; H.tick = () => ac('tick');
   H.retry = (b, e) => { ac('tick'); retry(); }; H.pressOk = pressOk;
   H.copy = copyReport;
+  H.reloadSector = () => { for (const k in cache) delete cache[k]; updDev(); if (phase === 'end') return; genToken++; loadSector(idx); };
   H.getMuted = () => muted;
   H.setMuted = m => { muted = !!m; lsSet('bw_mute', muted ? '1' : '0'); ac('mute', muted); };
   H.getWarp = () => warpOn; H.setWarp = on => { setWarp(on); };
@@ -2005,6 +2146,6 @@
 
 </script>
 
-<script>if('serviceWorker' in navigator&&isSecureContext)addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(e=>console.warn('sw',e)));try{screen.orientation&&screen.orientation.lock&&matchMedia('(display-mode: fullscreen)').matches&&screen.orientation.lock('portrait').catch(()=>{});}catch(_){}</script>
+<script>if('serviceWorker' in navigator&&isSecureContext)addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(e=>console.warn('sw',e)));try{screen.orientation&&screen.orientation.lock&&(matchMedia('(display-mode: fullscreen)').matches||matchMedia('(display-mode: standalone)').matches)&&screen.orientation.lock('portrait').catch(()=>{});}catch(_){}</script>
 </body>
 </html>
