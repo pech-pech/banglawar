@@ -104,6 +104,8 @@
       h('span', 'u-sp', hd);
       return hd;
     }
+    function unlockAudio() { try { if (typeof MoonAudio !== 'undefined' && MoonAudio.unlock) MoonAudio.unlock(); } catch (e) {} }
+    function soundOn(v) { try { if (v && typeof MoonAudio !== 'undefined' && MoonAudio.preview) MoonAudio.preview(); else unlockAudio(); } catch (e) {} }
     function row(parent, title, sub, on, fn) {
       var r = h('button', 'u-row', parent); r.type = 'button';
       r.setAttribute('role', 'switch'); r.setAttribute('aria-checked', on ? 'true' : 'false');
@@ -172,7 +174,7 @@
       var r1 = h('div', 'u-rule', body); h('b', null, r1, 'Flick'); r1.appendChild(document.createTextNode('Quick flick reverses your orbit direction.'));
       var r2 = h('div', 'u-rule v', body); h('b', null, r2, 'Drag down'); r2.appendChild(document.createTextNode('Drag back below your thumb to cancel the shot.'));
       var f = h('div', 'u-foot', s);
-      var g = btn(f, 'Got it', 'primary', done); g.setAttribute('data-focus', '1');
+      var g = btn(f, 'Got it', 'primary', function () { unlockAudio(); done(); }); g.setAttribute('data-focus', '1');
       h('div', 'u-tide', s, 'hold · aim · release');
     };
 
@@ -210,7 +212,7 @@
       var inp = h('input', null, fld); inp.id = 'u-seed'; inp.maxLength = 24; inp.value = host.seed(); inp.spellcheck = false; inp.autocomplete = 'off';
       inp.setAttribute('aria-label', 'Seed');
       btn(sr, '', 'circ', function () { inp.value = host.randSeed(); }, { icon: 'dice', aria: 'New random seed' });
-      function go() { var v = (inp.value || '').trim().slice(0, 24); host.setLastSeed && host.setLastSeed(v); api.startFlow(v || host.randSeed()); }
+      function go() { unlockAudio(); var v = (inp.value || '').trim().slice(0, 24); host.setLastSeed && host.setLastSeed(v); api.startFlow(v || host.randSeed()); }
       inp.addEventListener('keydown', function (e) { if (e.key === 'Enter') go(); e.stopPropagation(); });
       var cl = btn(m, 'Climb', 'primary', go, { icon: 'play' });
       var pr = h('div', 'u-pair', m);
@@ -238,7 +240,7 @@
       if (st === 'ios') h('p', null, sh, 'Tap Share, then Add to Home Screen.');
       else h('p', null, sh, 'Android or desktop: use the button below.');
       if (st !== 'ios') btn(sh, 'Install', 'primary', function () { closeModal(imodal); host.install(); });
-      btn(sh, st === 'ios' ? 'Got it' : 'Not now', 'ghost', function () { closeModal(imodal); if (st === 'ios') { store.flags.installDismissed = true; host.save(); } if (stack.length && stack[stack.length - 1].name === 'title') builders.title(); });
+      btn(sh, st === 'ios' ? 'Got it' : 'Not now', 'ghost', function () { unlockAudio(); closeModal(imodal); if (st === 'ios') { store.flags.installDismissed = true; host.save(); } if (stack.length && stack[stack.length - 1].name === 'title') builders.title(); });
       openModal(imodal);
     }
     imodal.addEventListener('click', function (e) { if (e.target === imodal) closeModal(imodal); });
@@ -250,7 +252,7 @@
       var s = clear(screens.settings);
       head(s, 'Settings', function () { api.back(); });
       var body = h('div', 'u-body', s);
-      row(body, 'Sound', 'chimes, tide, medals', store.set.sound, function (v) { host.setSet('sound', v); });
+      row(body, 'Sound', 'chimes, tide, medals', store.set.sound, function (v) { host.setSet('sound', v); soundOn(v); });
       row(body, 'Assist arc', 'dotted line to where you land', store.set.assist, function (v) { host.setSet('assist', v); });
       var tc = h('div', 'u-card', body);
       h('b', null, tc, 'Tide speed'); var sb = h('div', 'u-cap', tc, 'how fast the dark rises (next run)'); sb.style.margin = '2px 0 8px';
@@ -284,7 +286,7 @@
       var at = h('div', 'at', card); h('i', null, at, 'at '); h('b', null, at, fmt(st.h)); at.appendChild(document.createTextNode(' m' + (st.medal ? ' · ' + st.medal : '')));
       var body = h('div', 'u-body', card);
       row(body, 'Assist arc', 'dotted aim line', store.set.assist, function (v) { host.setSet('assist', v); });
-      row(body, 'Sound', 'chimes and tide', store.set.sound, function (v) { host.setSet('sound', v); });
+      row(body, 'Sound', 'chimes and tide', store.set.sound, function (v) { host.setSet('sound', v); soundOn(v); });
       h('div', 'u-lab', body, 'Tide speed (next run)');
       seg(body, store.set.tide, function (v) { host.setSet('tide', v); });
       h('div', 'u-lab', body, 'Seed');
