@@ -275,6 +275,44 @@ test('chain bonus x1.10 inside 0.08 s window only', () => {
   near(over.sp, hi.sp, 1e-9, 'determinism');
 });
 
+test('pause while charging: cancel tick, no jump on resume, replay equals live', () => {
+  const s = M.newRun('PZ1', {});
+  let n = 0;
+  while (n < 30) { M.tick(s, { down: true }); n++; }
+  ok(s.runner.charging, 'charging before pause');
+  // game.js onBlock(true): down=false + cancel tick, same tick
+  M.tick(s, { down: false, reverse: false, cancel: true });
+  ok(!s.runner.charging, 'charge cancelled');
+  for (let i = 0; i < 60; i++) M.tick(s, { down: false }); // resume, idle
+  eq(s.jumps, 0, 'no jump on resume');
+  ok(s.log.some(e => e[1] === 3), 'cancel logged');
+  const r = M.replay('PZ1', s.log, {}, s.tick);
+  eq(M.hash(r), M.hash(s), 'replay == live');
+  // control: without cancel the old bug fires a jump
+  const b = M.newRun('PZ1', {});
+  for (let i = 0; i < 30; i++) M.tick(b, { down: true });
+  M.tick(b, { down: false });
+  eq(b.jumps, 1, 'control: uncancelled release jumps');
+});
+
+test('predict 400 steps lands a long hop that 60 steps misses', () => {
+  let found = null;
+  for (let k = 0; k < 30 && !found; k++) {
+    const s = M.newRun('PL' + k, {}), r = s.runner;
+    const b = s.bodies.find(x => x.id === r.body), rr = b.r + C.RUNNER_R;
+    for (let th = 0; th < 6.3 && !found; th += 0.2) {
+      r.theta = th; r.x = b.x + rr * Math.cos(th); r.y = b.y + rr * Math.sin(th);
+      for (let c = 0; c <= C.CHARGE_MAX && !found; c += 0.05) {
+        const a = M.predict(s, c, 60), l = M.predict(s, c, 400);
+        if (a.landId < 0 && l.landId >= 0 && l.steps > 60) found = { a, l };
+      }
+    }
+  }
+  ok(found, 'no hop with flight >60 steps found');
+  eq(found.a.landId, -1, '60 steps misses');
+  ok(found.l.landId >= 0 && found.l.steps > 60, '400 steps finds landing');
+});
+
 const fails = results.filter(r => !r[1]);
 console.log('\n' + (results.length - fails.length) + '/' + results.length + ' passed');
 process.exit(fails.length ? 1 : 0);

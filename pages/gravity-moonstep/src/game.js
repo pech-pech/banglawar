@@ -190,8 +190,13 @@
     installState: installState,
     install: function () { if (!deferredPrompt) return; try { deferredPrompt.prompt(); deferredPrompt = null; } catch (e) {} },
     onBlock: function (b) {
+      if (b && s && !s.over && s.runner.charging) {
+        // cancel a live charge (engine code 3, logged) so resume cannot fire a blind jump
+        down = false; pendDown = false; pendCancel = true; stepOne();
+        if (s.over && !overHandled) onOver();
+      }
       paused = b;
-      if (b) { down = false; pointerId = null; au('charge', 0); } else { last = 0; }
+      if (b) { down = false; pointerId = null; pendDown = false; pendCancel = false; au('charge', 0); } else { last = 0; }
     }
   };
 
@@ -357,7 +362,7 @@
     // draw
     var pred = null;
     if (store.set.assist && r.charging && r.mode === 'rim' && !paused && !s.over) {
-      pred = Moonstep.predict(s, r.charge, 60);
+      pred = Moonstep.predict(s, r.charge, 400, true);
     }
     view.camY = MoonDraw.camera(s, view);
     ctx.setTransform(1, 0, 0, 1, 0, 0);

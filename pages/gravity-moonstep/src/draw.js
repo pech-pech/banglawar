@@ -6,7 +6,7 @@
   'use strict';
   // Look: Ink and Moonlight. Paper + body textures + tide texture are pre-rendered once (seeded RNG),
   // per-frame work is drawImage + a few strokes. No per-frame stipple.
-  var TAU = Math.PI * 2, RUNNER_R = 9, VMAX = 520;
+  var TAU = Math.PI * 2, RUNNER_R = 9, RUNNER_DRAW = 1.5, VMAX = 520;
   var INK = '#15171f', INK2 = 'rgba(21,23,31,', VERM = '#8e2a1c', OCHRE = '#8a5a14', TIDE_INK = '#0d0f16';
   var GLOW_K = 2.3;
   var REPEL_RC = 'rgba(150,50,36,';
@@ -256,17 +256,23 @@
       // influence ring: dotted ink; stronger when near, solid-ish when owner
       var owner = run.mode === 'rim' && run.body === i;
       var near = Math.hypot(rpx - sx, rpy - sy) <= R * 1.2;
-      ctx.beginPath(); ctx.arc(sx, sy, R, 0, TAU);
+      // drawn radius capped (Ink mockup); ring only for current + target body
+      var tgt = ui.pred && ui.pred.landId === i;
+      var Rd = Math.max(full + 6, Math.min(R, 100, 2.5 * full));
+      var showRing = owner || tgt;
+      if (showRing) ctx.beginPath(); if (showRing) ctx.arc(sx, sy, Rd, 0, TAU);
       ctx.lineCap = 'round';
-      if (owner) { ctx.setLineDash([]); ctx.lineWidth = 2; ctx.strokeStyle = rc === INK2 ? A_INK_85 : A_REP_85; }
+      if (!showRing) { /* no ring */ }
+      else if (owner) { ctx.setLineDash([1, 5]); ctx.lineWidth = 1.6; ctx.strokeStyle = rc === INK2 ? A_INK_65 : A_REP_65; }
       else if (near) { ctx.setLineDash([1, 5]); ctx.lineWidth = 1.6; ctx.strokeStyle = rc === INK2 ? A_INK_65 : A_REP_65; }
       else { ctx.setLineDash([1, 6]); ctx.lineWidth = 1.3; ctx.strokeStyle = rc === INK2 ? A_INK_30 : A_REP_30; }
-      ctx.stroke(); ctx.setLineDash([]); ctx.lineCap = 'butt';
+      if (showRing) ctx.stroke();
+      ctx.beginPath(); ctx.setLineDash([]); ctx.lineCap = 'butt';
 
       // repel pulse rings (static mid-phase when reduced motion)
       if (repel) {
         var ph = reduced ? 0.5 : ((t * 0.8 + (b.id | 0) * 0.37) % 1);
-        ctx.beginPath(); ctx.arc(sx, sy, rr + (R - rr) * ph, 0, TAU);
+        ctx.beginPath(); ctx.arc(sx, sy, rr + (Rd - rr) * ph, 0, TAU);
         ctx.strokeStyle = reduced ? A_PULSE_RED : PULSE[Math.min(PULSE_N, Math.round(0.8 * (1 - ph) * PULSE_N / 0.8))];
         ctx.lineWidth = 2; ctx.stroke();
         ctx.beginPath(); ctx.arc(sx, sy, rr + 8 * k, 0, TAU);
@@ -336,7 +342,8 @@
     if (ui.pred && ui.pred.pts && ui.pred.pts.length) {
       var p = ui.pred.pts;
       ctx.fillStyle = INK2 + '.8)';
-      for (i = 0; i < p.length; i++) {
+      var nDraw = Math.min(p.length, 90);
+      for (i = 0; i < nDraw; i++) {
         ctx.beginPath(); ctx.arc(X(p[i].x), Y(p[i].y), 2.1, 0, TAU); ctx.fill();
       }
       var lp = p[p.length - 1], lands = !!(ui.pred.land || ui.pred.lands || ui.pred.hit || (ui.pred.landId != null && ui.pred.landId >= 0));
@@ -369,10 +376,10 @@
     ctx.beginPath(); ctx.moveTo(rpx, rpy); ctx.lineTo(rpx - dx * 24 * k, rpy - dy * 24 * k);
     ctx.lineWidth = 2.6; ctx.strokeStyle = INK2 + '.6)'; ctx.stroke();
     ctx.lineCap = 'butt';
-    if (cache.pearl) { var ph2 = 30 * k; ctx.drawImage(cache.pearl, rpx - ph2, rpy - ph2, ph2 * 2, ph2 * 2); }
-    else { ctx.beginPath(); ctx.arc(rpx, rpy, RUNNER_R * k, 0, TAU); ctx.fillStyle = '#fff'; ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = INK; ctx.stroke(); }
+    if (cache.pearl) { var ph2 = 30 * k * RUNNER_DRAW; ctx.drawImage(cache.pearl, rpx - ph2, rpy - ph2, ph2 * 2, ph2 * 2); }
+    else { ctx.beginPath(); ctx.arc(rpx, rpy, RUNNER_R * RUNNER_DRAW * k, 0, TAU); ctx.fillStyle = '#fff'; ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = INK; ctx.stroke(); }
     if (ui.charge01 > 0) {
-      ctx.beginPath(); ctx.arc(rpx, rpy, (RUNNER_R + 4 + 4 * ui.charge01) * k, 0, TAU);
+      ctx.beginPath(); ctx.arc(rpx, rpy, (RUNNER_R * RUNNER_DRAW + 4 + 4 * ui.charge01) * k, 0, TAU);
       ctx.lineWidth = 2; ctx.strokeStyle = 'rgba(138,90,20,' + (0.5 + 0.45 * ui.charge01).toFixed(2) + ')';
       ctx.stroke();
     }

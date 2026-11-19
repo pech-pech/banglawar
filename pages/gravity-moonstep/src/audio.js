@@ -7,13 +7,33 @@
   var ctx = null, master = null, enabled = true, chargeOsc = null, chargeGain = null, chargeOsc2 = null;
   var tideOsc = null, tideOsc2 = null, tideGain = null, tideFilt = null, tideLfo = null, lastCharge = -1, lastTide = -1, lastLfo = -1;
   var noiseBuf = null, lastNear = -9, lastTick = -9, lastBounce = -9;
-  var MASTER = 0.15;
+  var MASTER = 0.7;
+  var comp = null, shaper = null, wantRun = false, hiddenSusp = false, unlockOn = false;
+  var UNLOCK_EVENTS = ['pointerup', 'touchend', 'click', 'keydown'];
   var LAND_VN = 400; // shared land normal-speed normaliser (fx uses the same value)
   function live() { return ctx && (typeof ctx.state !== 'string' || ctx.state === 'running'); }
+  function isHidden() { return typeof document !== 'undefined' && document.visibilityState === 'hidden'; }
 
   function now() { return ctx ? ctx.currentTime : 0; }
   function num(v, d) { v = +v; return isFinite(v) ? v : d; }
   function clamp(v, a, b) { return v < a ? a : v > b ? b : v; }
+
+  function softClipCurve() {
+    var n = 1024, c = new Float32Array(n);
+    for (var i = 0; i < n; i++) { var x = i / (n - 1) * 2 - 1; c[i] = Math.tanh(x * 1.1) * 0.93; }
+    return c;
+  }
+
+  // Resume when the context is suspended (autoplay policy, our own hidden suspend) or iOS 'interrupted'.
+  function resume() {
+    try {
+      if (!ctx || isHidden()) return;
+      if ((ctx.state === 'suspended' || ctx.state === 'interrupted') && ctx.resume) {
+        var p = ctx.resume(); if (p && p.then) p.then(onRunning, function () {});
+      } else onRunning();
+    } catch (e) {}
+  }
+  function onRunning() { if (ctx && ctx.state === 'running') detachUnlock(); }
 
   function init() {
     try {
@@ -24,11 +44,80 @@
         ctx = new C();
         master = ctx.createGain();
         master.gain.value = enabled ? MASTER : 0;
-        master.connect(ctx.destination);
+        if (ctx.createDynamicsCompressor) {
+          comp = ctx.createDynamicsCompressor();
+          comp.threshold.value = -12; comp.knee.value = 6; comp.ratio.value = 6;
+          comp.attack.value = 0.003; comp.release.value = 0.25;
+          master.connect(comp);
+          if (ctx.createWaveShaper) {
+            shaper = ctx.createWaveShaper(); shaper.curve = softClipCurve();
+            comp.connect(shaper); shaper.connect(ctx.destination);
+          } else comp.connect(ctx.destination);
+        } else master.connect(ctx.destination);
+        try { ctx.onstatechange = function () { if (ctx.state === 'running') onRunning(); else if (!hiddenSusp) { resume(); attachUnlock(); } }; } catch (e) {}
       }
-      if (ctx.state === 'suspended' && ctx.resume) { var p = ctx.resume(); if (p && p.catch) p.catch(function () {}); }
+      resume();
       return true;
-    } catch (e) { ctx = null; master = null; return false; }
+    } catch (e) { ctx = null; master = null; comp = null; shaper = null; return false; }
+  }
+
+  // Called from user gestures: create the context and resume it; a silent blip finishes the iOS unlock.
+  function unlock() {
+    try {
+      wantRun = true;
+      if (!init()) return false;
+      if (ctx.state !== 'running' && ctx.createBuffer && ctx.createBufferSource) {
+        var b = ctx.createBuffer(1, 1, 22050), s = ctx.createBufferSource();
+        s.buffer = b; s.connect(ctx.destination); s.start(0);
+      }
+      return true;
+    } catch (e) { return false; }
+  }
+
+  // Sound-toggle preview: wake the context, then a short tick once it runs.
+  function preview() {
+    try {
+      if (!unlock()) return;
+      if (live()) { tick(); return; }
+      if (ctx.resume) { var p = ctx.resume(); if (p && p.then) p.then(function () { tick(); }, function () {}); }
+    } catch (e) {}
+  }
+
+  function onGesture() { unlock(); }
+  function attachUnlock() {
+    if (unlockOn || typeof document === 'undefined' || !document.addEventListener) return;
+    unlockOn = true;
+    UNLOCK_EVENTS.forEach(function (n) { document.addEventListener(n, onGesture, true); });
+  }
+  function detachUnlock() {
+    if (!unlockOn) return;
+    unlockOn = false;
+    UNLOCK_EVENTS.forEach(function (n) { document.removeEventListener(n, onGesture, true); });
+  }
+
+  // Background: silence the tide and suspend; resume on return.
+  function onHide() {
+    try {
+      if (tideGain) tideGain.gain.value = 0;
+      lastTide = -1;
+      stopCharge();
+      if (ctx && ctx.state === 'running' && ctx.suspend) { hiddenSusp = true; var p = ctx.suspend(); if (p && p.catch) p.catch(function () {}); }
+    } catch (e) {}
+  }
+  function onShow() {
+    hiddenSusp = false;
+    if (!ctx || !wantRun) return;
+    if (ctx.state !== 'running') attachUnlock(); // a gesture can rescue it if resume() is refused
+    resume();
+  }
+  function onVis() { if (isHidden()) onHide(); else onShow(); }
+  if (typeof document !== 'undefined' && document.addEventListener) {
+    document.addEventListener('visibilitychange', onVis);
+    attachUnlock();
+  }
+  if (typeof window !== 'undefined' && window.addEventListener) {
+    window.addEventListener('pageshow', function () { if (!isHidden()) onShow(); });
+    window.addEventListener('focus', function () { if (!isHidden()) onShow(); });
   }
 
   function setEnabled(on) {
@@ -129,9 +218,9 @@
   function jump() {
     try {
       stopCharge();
-      tone(300, 0.14, 'square', 0.2, 700, 0, 2400);
+      tone(300, 0.14, 'square', 0.3, 700, 0, 2400);
       tone(150, 0.16, 'sine', 0.22, 360);
-      noise(0.12, 0.12, 'bandpass', 600, 2400, 0, 1.2);
+      noise(0.12, 0.2, 'bandpass', 600, 2400, 0, 1.2);
     } catch (e) {}
   }
 
@@ -141,7 +230,8 @@
       var v = clamp(Math.abs(num(vn, 0)), 0, LAND_VN) / LAND_VN;
       tone(120 - v * 55, 0.12 + v * 0.22, 'sine', 0.3 + v * 0.7, 36);
       tone(220, 0.05, 'triangle', 0.1 + v * 0.2, 90);
-      noise(0.05 + v * 0.14, 0.08 + v * 0.35, 'lowpass', 900 + v * 700, 120, 0, 0.7);
+      tone(320, 0.09 + v * 0.1, 'triangle', 0.18 + v * 0.2, 180, 0, 1500); // mid thump for phone speakers
+      noise(0.05 + v * 0.14, 0.12 + v * 0.35, 'bandpass', 700 + v * 500, 200, 0, 0.8);
       if (v > 0.6) tone(62, 0.35, 'sine', (v - 0.6) * 1.2, 30, 0.02); // sub boom on hard hits
     } catch (e) {}
   }
@@ -174,7 +264,7 @@
         tideGain = ctx.createGain(); tideFilt = ctx.createBiquadFilter();
         tideOsc.type = 'sawtooth'; tideOsc.frequency.value = 46;
         tideOsc2.type = 'sawtooth'; tideOsc2.frequency.value = 47.6;
-        tideFilt.type = 'lowpass'; tideFilt.frequency.value = 120; tideFilt.Q.value = 2;
+        tideFilt.type = 'lowpass'; tideFilt.frequency.value = 300; tideFilt.Q.value = 2;
         tideGain.gain.value = 0;
         tideOsc.connect(tideFilt); tideOsc2.connect(tideFilt);
         tideFilt.connect(tideGain); tideGain.connect(master);
@@ -182,7 +272,7 @@
         try {
           tideLfo = ctx.createOscillator();
           var lg = ctx.createGain();
-          tideLfo.frequency.value = 0.35; lg.gain.value = 40;
+          tideLfo.frequency.value = 0.35; lg.gain.value = 120;
           tideLfo.connect(lg); lg.connect(tideFilt.frequency);
           tideLfo.start();
         } catch (e) { tideLfo = null; }
@@ -192,11 +282,11 @@
       lastTide = q; level = q;
       var t = now();
       if (tideGain.gain.setTargetAtTime) {
-        tideGain.gain.setTargetAtTime(level * 0.28, t, 0.1);
-        tideFilt.frequency.setTargetAtTime(110 + level * 260, t, 0.2);
+        tideGain.gain.setTargetAtTime(level * 0.2, t, 0.1);
+        tideFilt.frequency.setTargetAtTime(320 + level * 700, t, 0.2);
         var lfo = 0.3 + level * 1.4;
         if (tideLfo && lfo !== lastLfo) { lastLfo = lfo; tideLfo.frequency.setTargetAtTime(lfo, t, 0.3); }
-      } else { tideGain.gain.value = level * 0.28; }
+      } else { tideGain.gain.value = level * 0.2; }
     } catch (e) {}
   }
 
@@ -247,8 +337,8 @@
       var t = now();
       if (t - lastNear < 0.15) return;
       lastNear = t;
-      noise(0.2, 0.14, 'bandpass', 500, 2600, 0, 2);
-      tone(900, 0.14, 'sine', 0.08, 1500);
+      noise(0.2, 1.4, 'bandpass', 500, 2600, 0, 2);
+      tone(900, 0.14, 'sine', 0.5, 1500);
     } catch (e) {}
   }
 
@@ -259,7 +349,7 @@
       var t = now();
       if (t - lastBounce < 0.05) return;
       lastBounce = t;
-      tone(220, 0.22, 'sine', 0.34, 620);
+      tone(220, 0.22, 'sine', 0.4, 620);
       tone(440, 0.16, 'triangle', 0.14, 1000, 0.03, 3000);
       noise(0.05, 0.1, 'lowpass', 1200, 300);
     } catch (e) {}
@@ -269,10 +359,11 @@
   function crumble() {
     try {
       if (!ctx || !enabled) return;
-      noise(0.22, 0.22, 'bandpass', 1400, 400, 0, 1.5);
-      noise(0.16, 0.18, 'bandpass', 1000, 300, 0.09, 1.5);
-      noise(0.2, 0.14, 'bandpass', 800, 200, 0.2, 1.5);
-      tone(90, 0.3, 'sawtooth', 0.14, 45, 0, 400);
+      noise(0.22, 1.0, 'bandpass', 1400, 400, 0, 1.5);
+      noise(0.16, 0.8, 'bandpass', 1000, 300, 0.09, 1.5);
+      noise(0.2, 0.65, 'bandpass', 800, 250, 0.2, 1.5);
+      tone(240, 0.25, 'sawtooth', 0.3, 120, 0, 1200); // mid crunch
+      tone(90, 0.3, 'sawtooth', 0.2, 45, 0, 500);
     } catch (e) {}
   }
 
@@ -283,12 +374,12 @@
       var t = now();
       if (t - lastTick < 0.04) return;
       lastTick = t;
-      tone(1500, 0.04, 'square', 0.1, 1100, 0, 4000);
+      tone(1500, 0.04, 'square', 0.6, 1100, 0, 4000);
     } catch (e) {}
   }
 
   return {
-    init: init, setEnabled: setEnabled, charge: charge, jump: jump, land: land, chain: chain,
+    init: init, unlock: unlock, preview: preview, setEnabled: setEnabled, charge: charge, jump: jump, land: land, chain: chain,
     tideLevel: tideLevel, LAND_VN: LAND_VN, over: over, medal: medal, near: near, bounce: bounce, crumble: crumble, tick: tick
   };
 });
