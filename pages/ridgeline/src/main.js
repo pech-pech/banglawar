@@ -7,12 +7,31 @@ import { createHud } from './hud.js';
 import { getThemeId, setThemeId, createThemePicker } from './themeui.js';
 import { THEMES } from './themes.js';
 import { createTelemetry, deviceInfo } from './telemetry.js';
-import { createTweak, buildReport, copyText } from './tweak.js';
+import { createTweak, buildReport, copyText, getVisualPrefs, onVisualPrefs, isVisualDefault } from './tweak.js';
 
-const BUILD = 'ridgeline-proto-4';
+const BUILD = 'ridgeline-proto-5';
 const BEST_KEY = 'ridgeline.best.v1';
 const COUNTER_KEY = 'ridgeline.counter.v1';
 const MAX_STEPS = 8;
+// look-still hook (?still=1): deterministic frame, sim frozen once gate 2 is the next gate. Not a shipped path.
+const STILL = new URLSearchParams(location.search).get('still') === '1';
+let stillState = 0; // 0 pending, 1 frozen
+function stillAdvance() {
+  const run = (n, drawEvery) => {
+    for (let i = 0; i < n && !state.crashed && !state.finished; i++) {
+      stepSled(state, course, { steer: 0, fire: false }, cfg);
+      if (drawEvery && i % drawEvery === 0 && view) view.draw(state, state.t);
+    }
+  };
+  let n = 0;
+  while (state.nextGate < 2 && n < 60000 && !state.crashed) { stepSled(state, course, { steer: 0, fire: false }, cfg); n++; }
+  const total = n;
+  state = createSled(course);
+  run(Math.max(0, total - 120), 0);
+  run(120, 2);
+  window.__stillInfo = { steps: total, nextGate: state.nextGate, z: state.z, crashed: !!state.crashed };
+  stillState = 1;
+}
 const tele = createTelemetry();
 let gpuStr = null;
 function gpuName() {
@@ -95,7 +114,7 @@ function size() {
 function buildCourse() {
   if (view) { try { view.dispose(); } catch (e) { /* ignore */ } view = null; }
   course = createCourse(seedInt, cfg);
-  view = createView(canvas, course, cfg, getThemeId());
+  view = createView(canvas, course, cfg, getThemeId(), { ...getVisualPrefs(), still: STILL });
   const [w, h] = size();
   view.resize(w, h);
   builtCfg = JSON.stringify(cfg);
@@ -113,7 +132,7 @@ function begin(m, seedString) {
   tele.reset(performance.now());
   phase = 'run';
   hud.showRun();
-  hud.setDev(!isDefault());
+  hud.setDev(!isDefault() || !isVisualDefault());
 }
 
 function startMode(m) { begin(m, pickSeed(m)); }
@@ -127,7 +146,7 @@ function retry() {
   tele.reset(performance.now());
   phase = 'run';
   hud.showRun();
-  hud.setDev(!isDefault());
+  hud.setDev(!isDefault() || !isVisualDefault());
 }
 
 function endRun() {
@@ -195,7 +214,7 @@ function applyTheme(id) {
   hud.setThemeLabel(t.name || id);
   if (view) {
     if (typeof view.setTheme === 'function') view.setTheme(id);
-    else { try { view.dispose(); } catch (e) { /* ignore */ } view = createView(canvas, course, cfg, id); const [w, h] = size(); view.resize(w, h); }
+    else { try { view.dispose(); } catch (e) { /* ignore */ } view = createView(canvas, course, cfg, id, { ...getVisualPrefs(), still: STILL }); const [w, h] = size(); view.resize(w, h); }
   }
   for (const p of pickers) p.refresh();
   return true;
@@ -203,11 +222,18 @@ function applyTheme(id) {
 const startPicker = createThemePicker(hud.themeMount, { onChange: (id) => applyTheme(id) });
 const settingsPicker = createThemePicker(null, { onChange: (id) => applyTheme(id) });
 pickers.push(startPicker, settingsPicker);
-const tweak = createTweak(ui, { themeEl: settingsPicker.el, onChange() { hud.setDev(!isDefault()); } });
+const tweak = createTweak(ui, { themeEl: settingsPicker.el, onChange() { hud.setDev(!isDefault() || !isVisualDefault()); } });
 applyTheme(getThemeId());
+onVisualPrefs(() => {
+  hud.setDev(!isDefault() || !isVisualDefault());
+  if (!view) return;
+  try { view.dispose(); } catch (e) { /* ignore */ }
+  view = createView(canvas, course, cfg, getThemeId(), { ...getVisualPrefs(), still: STILL });
+  const [w, h] = size(); view.resize(w, h);
+});
 
 hud.showStart({ build: BUILD, dailySeed: dailySeedString(new Date()), best: bestFor('daily:' + dailySeedString(new Date())) });
-hud.setDev(!isDefault());
+hud.setDev(!isDefault() || !isVisualDefault());
 
 // ---- input ----
 function clamp(v, a, b) { return v < a ? a : v > b ? b : v; }
@@ -292,6 +318,12 @@ function frame(now) {
     if (phase === 'run') { fpsSum += inst; fpsN++; fpsAvg = fpsSum / fpsN; }
   }
   if (phase !== 'run' || !state) return;
+  if (STILL) {
+    if (!stillState) stillAdvance();
+    if (view) view.draw(state, state.t);
+    hud.update(state, fpsNow);
+    return;
+  }
   if (tweak.isOpen()) { hud.update(state, fpsNow); return; }
 
   acc += Math.min(dt, 0.25);
