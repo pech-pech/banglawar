@@ -82,9 +82,10 @@ export const THEME_LOOKS = {
     sun: sun('#fff5d6', '#ffe2b4'),
     ranges: ranges(['#dc9f84', '#b8736a', '#9a5a5c'], '#fff6dc', { stepped: true }),
     fogColor: '#fff0c9',
+    contour: { every: 1.5, frac: 0.12, dark: 0 }, // QA fix1: stepped terrain already bands the sand; no contour lines on top
     bankLit: '#2a9d8f', bankShade: '#1e8478',
     poles: poles('#2f5f73', '#ffffff'),
-    blob: blob('#8a7a52', 0.6),
+    blob: blob('#b8a878', 0.45),
     trail: '#fff8e6', trailCore: '#7dffb0', spray: '#fff8e6',
     outline: '#17525e', rockOutline: '#8a6a9a', rockColor: null,
     suitC: '#1f6f7a', wing: '#fff8e6',
@@ -96,7 +97,8 @@ export const THEME_LOOKS = {
     sky: bands('#fdf2dc', '#b9daf6', '#74aef0', '#3a74d0'),
     sun: sun('#fff8e1', '#d6e9fb'),
     ranges: ranges(['#d9e8ff', '#b3cdf6', '#a3c2f4'], '#ffffff'),
-    fogColor: '#fdf2dc',
+    fogColor: '#fdf2dc', fogMul: 0.3, // QA fix1: theme fog is 1.6x, so thin it until the next gate reads
+    flakes: { n: 12, nLow: 6 }, // fewer mist puffs (size left to the theme)
     bankLit: '#9cbdee', bankShade: '#8fb4f0',
     poles: poles('#2f6fd0', '#ffffff'),
     blob: blob('#6f8fc8', 0.6),
@@ -108,15 +110,16 @@ export const THEME_LOOKS = {
 
   // Inkfall point of difference under C: brush-edge ranges, grey-wash keylines (not black), only hazards pure black,
   // red on gates only (no red / orange / blue in sky, sun or trail), sled glow moved off orange to ink-blue via sledC.
-  ink: {
-    sky: bands('#f7f1e1', '#ece2ca', '#d9cdb0', '#bfb497'),
-    sun: sun('#d2c6a8', '#e0d6bc'),
-    ranges: ranges(['#a9a598', '#7d7b74', '#5f5d57'], '#f7f1e1', { brush: true }),
+  ink: { trailW: 0.13,
+    sky: bands('#f7f1e1', '#f4eddb', '#efe7d2', '#e9e0c8'),
+    sun: sun('#ddd2b6', '#ebe2ca'),
+    ranges: ranges(['#d9d3c2', '#c6c0ae', '#b1ab99'], '#f7f1e1', { brush: true }),
     fogColor: '#f7f1e1',
-    bankLit: '#b5a885', bankShade: '#a09474',
+    flakes: { n: 40, size: 0.08, nLow: 20 }, // QA fix1: few tiny specks, not smudges
+    bankLit: '#cdc2a2', bankShade: '#bbb08f',
     poles: poles('#5f5f58', '#f7f1e1'),
     blob: blob('#6f6a5c', 0.6),
-    trail: '#6e6e66', trailCore: '#4a4a46', spray: '#8a8a80',
+    trail: '#d6cdb4', trailCore: '#8f8a7c', spray: '#b8b2a0',
     outline: '#77736a', rockOutline: '#8f8c84', rockColor: null,
     suitC: '#55554f', wing: '#f7f1e1',
     sledC: { sled: 0x1b3a8c, glow: 0x4f7fe0 },
@@ -124,7 +127,7 @@ export const THEME_LOOKS = {
   },
 
   // Sunscorch Dunes: rust mesas lighter than basalt; cactus-green poles; sky paler than the teal / royal gates; no orange.
-  dune: {
+  dune: { trailW: 0.13,
     sky: bands('#fbeed0', '#a8d8f0', '#62b4e6', '#3390d6'),
     sun: sun('#fff8dc', '#d3ecf8'),
     ranges: ranges(['#d49a66', '#b06c3c', '#8f5228'], '#fbe6b8'),
@@ -132,7 +135,7 @@ export const THEME_LOOKS = {
     bankLit: '#c47a45', bankShade: '#b06a38',
     poles: poles('#256b43', '#ffffff'),
     blob: blob('#9a6a3a', 0.65),
-    trail: '#fff3d6', trailCore: '#00e5ff', spray: '#fff3d6',
+    trail: '#f6dfae', trailCore: '#7fdcec', spray: '#fff3d6',
     outline: '#7a4420', rockOutline: '#a8643a', rockColor: null,
     suitC: '#4a2f6a', wing: '#fff6e0',
     vignette: vig(90, 46, 18, 0.10),
@@ -141,7 +144,7 @@ export const THEME_LOOKS = {
   // Night Geode (DARK ground): the "sun" is a violet moon; ranges, caps, poles, trail violet and dimmer than the ice hazards.
   geode: {
     sky: bands('#33206e', '#22155a', '#160c3c', '#0b0620'),
-    sun: sun('#ccb6ff', '#7a62d8'),
+    sun: { ...sun('#8f7ad6', '#4a3a9a'), dir: [-0.2, -0.05, 0.98], size: 7 }, // QA fix1: dimmer, smaller moon moved off the gate line
     ranges: ranges(['#3d2c8a', '#281a60', '#1c1248'], '#6a54c8'),
     fogColor: '#33206e',
     bankLit: '#0d0820', bankShade: '#080414',

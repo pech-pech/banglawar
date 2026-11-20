@@ -95,7 +95,10 @@ body.rl-paper .rlh .rlh-top .rlh-panel{background:${p.bg};border:2px solid ${p.i
 body.rl-paper .rlh .rlh-top .rlh-panel:nth-child(3){transform:rotate(-2deg)}
 body.rl-paper .rlh .rlh-k{color:${p.accent};opacity:1;font-weight:800}
 body.rl-paper .rlh .rlh-v{color:${p.ink};font-weight:900}
-body.rl-paper .rlh .rlh-track{align-self:flex-start;width:calc(100% - var(--rl-flow-slot,64px));height:6px;border:0;border-radius:0;overflow:visible;background:repeating-linear-gradient(90deg,${p.ink} 0 12px,transparent 12px 18px)}
+body.rl-paper .rlh .rlh-bar{left:12px;right:12px;gap:4px}
+body.rl-paper .rlh .rlh-bar::before{content:'BOOST';align-self:flex-start;font:900 11px system-ui,sans-serif;letter-spacing:.1em;color:${p.ink};background:${p.bg};border:2px solid ${p.ink};border-radius:8px;padding:1px 7px;order:1}
+body.rl-paper .rlh .rlh-hint{order:0;align-self:flex-start}
+body.rl-paper .rlh .rlh-track{order:2;align-self:flex-start;width:calc(100% - var(--rl-flow-slot,64px) - 8px);height:14px;border:3px solid ${p.ink};border-radius:9px;overflow:visible;background:${p.bg};box-shadow:2px 2px 0 ${p.ink};box-sizing:border-box}
 body.rl-paper .rlh .rlh-fill{position:relative;background:transparent!important}
 body.rl-paper .rlh .rlh-fill::after{content:'';position:absolute;right:-10px;top:50%;width:20px;height:20px;margin-top:-10px;border-radius:50%;background:${p.knob};border:3px solid ${p.ink};box-sizing:border-box}`;
 }
@@ -614,7 +617,7 @@ export function createView(canvas, course, cfg, themeId, opts) {
         else if (id < nextGate) _c.copy(COL_GATE_DONE); else _c.copy(COL_GATE);
         let k = (isNext ? (paper ? 2.0 : 1.6) + 0.12 * pulse : 1) * fade;
         const bannerCol = _c2.copy(_c);
-        if (fp !== undefined && t - fp < FLASH_PASS) { const u = 1 - (t - fp) / FLASH_PASS; _c.lerp(COL_WHITE, u); bannerCol.copy(_c); k *= 1 + 0.15 * u; }
+        if (fp !== undefined && t - fp < FLASH_PASS) { const u = 1 - (t - fp) / FLASH_PASS; _c.lerp(COL_WHITE, u); bannerCol.copy(_c); if (!reduced) k *= 1 + 0.15 * u; }
         else if (fm !== undefined && t - fm < FLASH_MISS) bannerCol.copy(COL_MISS);
         const gw = gW[i] * fade; // the whole gate squeezes in as it fades, not just its height
         _q.identity();
@@ -755,7 +758,7 @@ export function createView(canvas, course, cfg, themeId, opts) {
     const COL_BOOST = new THREE.Color(theme.boostFlare);
 
     // S8 trail ribbons and spray (skid tails); spray off with reduced motion or spray: null
-    const trail = LOOK.trail ? makeTrail(LOOK.trail, paper ? { width: 0.22, interval: LOOK.trailInterval } : undefined) : null;
+    const trail = LOOK.trail ? makeTrail(LOOK.trail, paper ? { width: LOOK.trailW || 0.22, interval: LOOK.trailInterval } : undefined) : null;
     const trail2 = LOOK.trailCore ? makeTrail(LOOK.trailCore, { width: 0.06, interval: LOOK.trailInterval }) : null;
     const spray = !reduced && LOOK.spray ? makeSpray(LOOK.spray, paper ? { n: 12, size: 0.3, life: 0.3 } : undefined) : null;
     if (trail2) { trail2.mesh.renderOrder = 3; scene.add(trail2.mesh); }
@@ -797,6 +800,10 @@ export function createView(canvas, course, cfg, themeId, opts) {
           g.fillStyle = '#ffffff'; g.fill(); g.lineWidth = 5; g.strokeStyle = fl.edge || '#a9d2ee'; g.stroke();
           const tx = track(new THREE.CanvasTexture(cv)); tx.colorSpace = THREE.SRGBColorSpace;
           particles.object3D.material.map = tx; particles.object3D.material.opacity = 1; particles.object3D.material.needsUpdate = true;
+          // clamp flake size and shrink near-camera flakes so none reads as a big UI diamond
+          patchShader(particles.object3D.material, 'flakeClamp', (sh) => {
+            sh.vertexShader = sh.vertexShader.replace('#include <fog_vertex>', '#include <fog_vertex>\n gl_PointSize = min(gl_PointSize, 22.0) * smoothstep(3.0, 9.0, -mvPosition.z);');
+          });
         } catch (e) { /* keep default sprite */ }
       }
     } else if (particles.object3D.isPoints && LOW) {
@@ -865,7 +872,7 @@ export function createView(canvas, course, cfg, themeId, opts) {
       if (blobs) {
         const hov = Math.max(0, sy - HOVER - gy);
         const fadeK = clamp(1 - hov / 4, 0.25, 1);
-        _p.set(state.x + BOFF[0], vis(state.x, z) + 0.05, z + BOFF[1]);
+        _p.set(state.x, vis(state.x, z) + 0.05, z); // sled blob stays centred under the sled
         groundQuat(state.x, z, _q);
         _qa.setFromAxisAngle(Y_AXIS, sled.rotation.y);
         _q.multiply(_qa);

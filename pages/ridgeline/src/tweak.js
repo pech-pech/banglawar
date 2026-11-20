@@ -234,13 +234,22 @@ export function createTweak(rootEl, opts) {
   const visBtns = [];
   function visRow(label, key, opts) {
     const row = el('div', 'row');
-    row.appendChild(el('div', 'top', label));
+    const topEl = el('div', 'top', label);
+    row.appendChild(topEl);
+    const locked = key === 'quality' && !!vQuery();
+    if (locked) {
+      const n = el('span', 'val', ' set by link');
+      n.style.cssText = 'font-size:11px;opacity:.7;margin-left:8px;font-weight:600';
+      topEl.appendChild(n);
+      row.style.opacity = '0.6';
+    }
     const seg = el('div', 'seg');
     for (const [text, val] of opts) {
       const b = el('button', '', text);
       b.type = 'button';
       b.dataset.act = key + '-' + text.toLowerCase();
-      b.addEventListener('click', () => { setVisual({ [key]: val }); onChange(); refreshVisual(); });
+      if (locked) { b.disabled = true; b.setAttribute('aria-disabled', 'true'); b.style.pointerEvents = 'none'; }
+      b.addEventListener('click', () => { if (locked) return; setVisual({ [key]: val }); onChange(); refreshVisual(); });
       seg.appendChild(b);
       visBtns.push({ b, key, val, row });
     }
