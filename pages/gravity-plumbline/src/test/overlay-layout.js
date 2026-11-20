@@ -65,45 +65,52 @@ const fresh = async (page) => { await page.evaluate(() => { window.__hero.n = 0;
     let s = await fresh(page);
     ok(s.screen === 'play', t + 'in play (screen=' + s.screen + ')');
     ok(s.L.mode === 'overlay', t + "Input.layout mode 'overlay' (got " + s.L.mode + ')');
-    ok(Math.abs(W - (s.L.box.x + s.L.box.w) - 8) < 0.5, t + 'pad right edge 8 px from screen edge (gap ' + (W - s.L.box.x - s.L.box.w) + ')');
+    ok(Math.abs(s.L.box.x + s.L.box.w / 2 - W / 2) < 0.5, t + 'pad centred horizontally (centre ' + (s.L.box.x + s.L.box.w / 2) + ')');
     ok(Math.abs(H - (s.L.box.y + s.L.box.h) - 8) < 0.5, t + 'pad bottom edge 8 px from screen edge (gap ' + (H - s.L.box.y - s.L.box.h) + ')');
     ok(s.room && s.room.h >= 560, t + 'room rect height >= 560 (got ' + (s.room && s.room.h) + ')');
     const sc = s.room ? s.room.w / s.roomW : 0;
     ok(sc >= 1.12, t + 'camera scale >= 1.12 (got ' + sc.toFixed(3) + ')');
     ok(s.hero >= 33, t + 'hero drawn bbox >= 33 px (got ' + s.hero.toFixed(1) + ')');
     ok(s.tw.a === 0.45, t + 'PAD_ALPHA tweak default 0.45 (got ' + s.tw.a + ')');
-    ok(s.alpha != null && Math.abs(s.alpha - 0.45) < 0.01, t + 'pad drawn at alpha 0.45 at rest (drawn ' + s.alpha + ')');
+    ok(s.alpha != null && (Math.abs(s.alpha - 0.45) < 0.01 || Math.abs(s.alpha - 0.2) < 0.01), t + 'pad drawn at 0.45 (0.2 where a key sits over danger) at rest (drawn ' + s.alpha + ')');
     { // room 1 (tutorial Flip: exit ring at room 300,477 sits under the Down key) -> 0.2; Up is clear -> 0.45
       await page.evaluate(() => PL_TEST.startMode('tutorial', 1)); await sleep(900);
       const z = await fresh(page);
       ok(await page.evaluate(() => PL.Tweak.get('PAD_HAZ_ALPHA')) === 0.2, t + 'PAD_HAZ_ALPHA default 0.2');
-      ok(z.alphaDown != null && Math.abs(z.alphaDown - 0.2) < 0.01, t + 'room 1 Down key over exit/spikes drawn at 0.2 (drawn ' + z.alphaDown + ')');
+      ok(z.alphaDown != null && Math.abs(z.alphaDown - 0.45) < 0.01, t + 'room 1 centre pad: Down key clear of the exit, 0.45 (drawn ' + z.alphaDown + ')');
+      await page.evaluate(() => PL.Tweak.set('PAD_SIDE', 0)); const zr = await fresh(page); await page.evaluate(() => PL.Tweak.set('PAD_SIDE', 2));
+      ok(zr.alphaDown != null && Math.abs(zr.alphaDown - 0.2) < 0.01, t + 'room 1 right pad: Down key over exit/spikes drawn at 0.2 (drawn ' + zr.alphaDown + ')');
       ok(z.alpha != null && Math.abs(z.alpha - 0.45) < 0.01, t + 'room 1 clear Up key still 0.45 (drawn ' + z.alpha + ')');
       await page.evaluate(() => PL_TEST.startMode('short', 7)); await sleep(900); s = await fresh(page);
     }
-    ok(s.rects && s.rects.retry && s.rects.retry.w === 60 && s.rects.retry.h === 60, t + 'Retry 60x60 (' + JSON.stringify(s.rects && s.rects.retry) + ')');
+    ok(s.rects && s.rects.retry && s.rects.retry.w === 56 && s.rects.retry.h === 56 && s.rects.retry.y < 10 && s.rects.retry.x + 56 + 8 <= s.rects.pause.x + 0.5 && s.rects.retry.x + 64 >= s.rects.pause.x - 0.5, t + 'Retry 56x56 top, next to Pause (' + JSON.stringify(s.rects && s.rects.retry) + ')');
     ok(!hit(s.rects.retry, s.L.box), t + 'Retry does not overlap pad');
     const baseRetry = s.rects.retry, baseBox = s.L.box;
 
+    // PAD_SIDE = 0 (right)
+    await page.evaluate(() => PL.Tweak.set('PAD_SIDE', 0));
+    s = await fresh(page);
+    ok(Math.abs(W - (s.L.box.x + s.L.box.w) - 8) < 0.5, t + 'PAD_SIDE=0 pad right edge 8 px from screen edge');
+    ok(!hit(s.rects.retry, s.L.box), t + 'PAD_SIDE=0 Retry does not overlap pad');
     // PAD_SIDE = 1
     await page.evaluate(() => PL.Tweak.set('PAD_SIDE', 1));
     s = await fresh(page);
     ok(Math.abs(s.L.box.x - 8) < 0.5, t + 'PAD_SIDE=1 pad box left at x=8 (got ' + s.L.box.x + ')');
     ok(!hit(s.rects.retry, s.L.box), t + 'PAD_SIDE=1 Retry does not overlap pad');
-    await page.evaluate(() => PL.Tweak.set('PAD_SIDE', 0));
+    await page.evaluate(() => PL.Tweak.set('PAD_SIDE', 2));
 
     // left-hand mirror
     await page.evaluate(() => PL.Input.setHand('left'));
     s = await fresh(page);
-    ok(Math.abs(s.L.box.x - 8) < 0.5 && s.L.box.x < baseBox.x, t + 'left hand: pad moves to left edge (x=' + s.L.box.x + ')');
-    ok(s.rects.retry.x > baseRetry.x, t + 'left hand: Retry moves to the right (x ' + baseRetry.x + ' -> ' + s.rects.retry.x + ')');
+    ok(Math.abs(s.L.box.x - baseBox.x) < 0.5, t + 'left hand: centre pad stays centred (x=' + s.L.box.x + ')');
+    ok(s.rects.retry.x < baseRetry.x && s.rects.pause.x < 20, t + 'left hand: Retry + Pause move to the top-left (x ' + baseRetry.x + ' -> ' + s.rects.retry.x + ')');
     ok(!hit(s.rects.retry, s.L.box), t + 'left hand: Retry does not overlap pad');
     await page.evaluate(() => PL.Input.setHand('right'));
 
     // DEV badge
     s = await fresh(page);
     ok(!/DEV/.test(s.txt), t + 'no DEV badge at defaults');
-    await page.evaluate(() => PL.Tweak.set('PAD_ALPHA', 0.6));
+    await page.evaluate(() => { PL.Tweak.set('PAD_ALPHA', 0.6); PL.Tweak.set('PAD_HAZ_ALPHA', 0.6); });
     s = await fresh(page);
     ok(/DEV/.test(s.txt), t + 'DEV badge visible with PAD_ALPHA=0.6');
     ok(s.alpha != null && Math.abs(s.alpha - 0.6) < 0.01, t + 'pad drawn at alpha 0.6 after tweak (drawn ' + s.alpha + ')');

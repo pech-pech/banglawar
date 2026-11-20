@@ -231,11 +231,11 @@ t('meta: roomSummary / reportLines give per-room seconds, deaths, causes', () =>
 });
 t('pad ids: PAD_ALPHA/PAD_SIDE defaults, group Pad, clamp, dirty, preset round trip', () => {
   const store = {}, T = boot(store).Tweak;
-  assert.strictEqual(T.get('PAD_ALPHA'), 0.45); assert.strictEqual(T.get('PAD_SIDE'), 0);
+  assert.strictEqual(T.get('PAD_ALPHA'), 0.45); assert.strictEqual(T.get('PAD_SIDE'), 2);
   for (const id of ['PAD_ALPHA', 'PAD_SIDE', 'PAD_KEY', 'PAD_DIVE', 'PAD_GAP']) assert.strictEqual(T.def(id).group, 'Pad', id);
   assert.strictEqual(T.def('PAD_KEY').label, 'Arrow key size'); assert.strictEqual(T.def('PAD_DIVE').label, 'Dive key size');
   assert.strictEqual(T.set('PAD_ALPHA', 5), 1); assert.strictEqual(T.set('PAD_ALPHA', 0), 0.2); assert.strictEqual(T.set('PAD_ALPHA', 0.52), 0.5);
-  assert.strictEqual(T.set('PAD_SIDE', 2), 0); assert.strictEqual(T.get('PAD_SIDE'), 0);
+  assert.strictEqual(T.set('PAD_SIDE', 5), 2); assert.strictEqual(T.set('PAD_SIDE', 0), 0); assert.strictEqual(T.get('PAD_SIDE'), 0);
   T.resetAll(); assert.strictEqual(T.isDirty(), false);
   T.set('PAD_ALPHA', 0.7); assert(T.isDirty()); T.reset('PAD_ALPHA'); assert(!T.isDirty());
   T.set('PAD_SIDE', 1); assert(T.isDirty()); assert.strictEqual(T.diff().PAD_SIDE, 1);

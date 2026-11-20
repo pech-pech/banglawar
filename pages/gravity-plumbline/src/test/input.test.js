@@ -26,28 +26,31 @@ function mkHost(W, H, st) {
 const ctr = (r) => [r.x + r.w / 2, r.y + r.h / 2];
 const VIEWS = [[475, 638], [344, 882], [816, 568]];
 
-t('475x638 overlay (was side): pad box bottom-right 8 px from the edges, keys 60, Dive 56, Retry 60 bottom-left, teach over the room top', () => {
+t('475x638 overlay: pad centred low (8 px from bottom), keys 60, Dive 56, Retry top-right left of Pause, teach over the room top', () => {
   const L = J(boot({}).Input.layout(475, 638));
-  assert.deepStrictEqual(R(L.box), [283, 446, 467, 630]);
-  assert.deepStrictEqual(L.keys.map(R), [[345, 446, 405, 506], [407, 508, 467, 568], [345, 570, 405, 630], [283, 508, 343, 568]]);
-  assert.deepStrictEqual(R(L.dive), [347, 510, 403, 566]);
-  assert.deepStrictEqual(R(L.retry), [8, 556, 68, 616]);
+  assert.deepStrictEqual(L.box, { x: 145.5, y: 446, w: 184, h: 184 });
+  assert.deepStrictEqual(L.keys.map(R), [[207.5, 446, 267.5, 506], [269.5, 508, 329.5, 568], [207.5, 570, 267.5, 630], [145.5, 508, 205.5, 568]]);
+  assert.deepStrictEqual(R(L.dive), [209.5, 510, 265.5, 566]);
+  assert.deepStrictEqual(R(L.retry), [347, 0, 403, 56]);
   assert.deepStrictEqual(R(L.pause), [411, 0, 467, 56]);
   assert.deepStrictEqual(R(L.teach), [4, 88, 471, 140]);
   assert.strictEqual(L.mode, 'overlay');
 });
-t('overlay: safe-area insets push the pad in; PAD_SIDE=1 puts pad + Retry on opposite sides, Pause stays', () => {
+t('overlay: safe-area insets push pad up and Retry/Pause in; PAD_SIDE 0 right, 1 left, 2 centre, Retry stays next to Pause', () => {
   const PL = boot({});
   const I = PL.Input.layout(475, 638, { inset: { l: 0, r: 10, t: 0, b: 20 } });
-  assert.deepStrictEqual(R(I.box), [273, 426, 457, 610]);
-  PL.Tweak.set && PL.Tweak.set('PAD_SIDE', 1);
-  if (PL.Tweak.get('PAD_SIDE') === 1) {
-    const S = J(PL.Input.layout(475, 638));
-    assert.deepStrictEqual(R(S.box), [8, 446, 192, 630]);
-    assert.deepStrictEqual(R(S.retry), [407, 556, 467, 616]);
-    assert.deepStrictEqual(R(S.pause), [411, 0, 467, 56]);
-    assert(S.keys[1].x > S.keys[3].x);
-  } else console.log('     (PAD_SIDE not registered yet: side swap not exercised)');
+  assert.deepStrictEqual([I.box.x, I.box.y], [145.5, 426]);
+  assert.deepStrictEqual(R(I.retry), [337, 0, 393, 56]);
+  PL.Tweak.set('PAD_SIDE', 1);
+  assert.strictEqual(PL.Tweak.get('PAD_SIDE'), 1);
+  const S = J(PL.Input.layout(475, 638));
+  assert.deepStrictEqual(R(S.box), [8, 446, 192, 630]);
+  assert.deepStrictEqual(R(S.retry), [347, 0, 403, 56]);
+  assert(S.keys[1].x > S.keys[3].x);
+  PL.Tweak.set('PAD_SIDE', 0);
+  const T = J(PL.Input.layout(475, 638));
+  assert.deepStrictEqual(R(T.box), [283, 446, 467, 630]);
+  assert.deepStrictEqual(R(T.retry), [347, 0, 403, 56]);
 });
 t('344x882: pad box spec (82-262, 650-830) +2, Retry 12-68 x 660-716, teach y 596-644 full width', () => {
   const L = J(boot({}).Input.layout(344, 882));
@@ -71,20 +74,23 @@ t('left-hand mirror: x -> W - x - w for pad, Retry, Pause, teach; arrows keep th
     for (const k of ['box', 'retry', 'pause', 'teach', 'dive']) assert.strictEqual(b[k].x, W - a[k].x - a[k].w, W + ' ' + k);
     assert(b.keys[1].x > b.keys[3].x, 'right key still right of left key');
   }
-  assert.deepStrictEqual(R(J(PL.Input.layout(475, 638, { hand: 'left' })).box), [8, 446, 192, 630]);
+  assert.deepStrictEqual(R(J(PL.Input.layout(475, 638, { hand: 'left' })).box), [145.5, 446, 329.5, 630]); // centre pad maps to itself
+  PL.Tweak.set('PAD_SIDE', 0); assert.deepStrictEqual(R(J(PL.Input.layout(475, 638, { hand: 'left' })).box), [8, 446, 192, 630]); PL.Tweak.set('PAD_SIDE', 2);
   assert.deepStrictEqual(R(J(PL.Input.layout(344, 882, { hand: 'left' })).retry), [276, 660, 332, 716]);
 });
-t('overlay asymmetric insets: every element uses the inset of the edge it sits on (hand=left, PAD_SIDE=1)', () => {
+t('overlay asymmetric insets: every element uses the inset of the edge it sits on (hand=left, PAD_SIDE 0/1)', () => {
   const PL = boot({}), ins = { l: 30, r: 10, t: 20, b: 16 };
   const a = J(PL.Input.layout(475, 638, { inset: ins }));
-  assert.strictEqual(a.box.x + a.box.w, 475 - 8 - 10); assert.strictEqual(a.retry.x, 8 + 30); assert.strictEqual(a.pause.x + a.pause.w, 475 - 8 - 10);
+  assert.strictEqual(a.pause.x + a.pause.w, 475 - 8 - 10); assert.strictEqual(a.retry.x + a.retry.w, a.pause.x - 8);
   const h = J(PL.Input.layout(475, 638, { inset: ins, hand: 'left' }));
-  assert.strictEqual(h.box.x, 8 + 30); assert.strictEqual(h.pause.x, 8 + 30); assert.strictEqual(h.retry.x + h.retry.w, 475 - 8 - 10);
-  if (PL.Tweak.set) { PL.Tweak.set('PAD_SIDE', 1);
-    if (PL.Tweak.get('PAD_SIDE') === 1) { const s = J(PL.Input.layout(475, 638, { inset: ins }));
-      assert.strictEqual(s.box.x, 8 + 30); assert.strictEqual(s.retry.x + s.retry.w, 475 - 8 - 10); assert.strictEqual(s.pause.x + s.pause.w, 475 - 8 - 10);
-      const b = J(PL.Input.layout(475, 638, { inset: ins, hand: 'left' }));
-      assert.strictEqual(b.box.x + b.box.w, 475 - 8 - 10); assert.strictEqual(b.retry.x, 8 + 30); assert.strictEqual(b.pause.x, 8 + 30); } }
+  assert.strictEqual(h.pause.x, 8 + 30); assert.strictEqual(h.retry.x, h.pause.x + h.pause.w + 8);
+  PL.Tweak.set('PAD_SIDE', 0);
+  assert.strictEqual(J(PL.Input.layout(475, 638, { inset: ins })).box.x + 184, 475 - 8 - 10);
+  PL.Tweak.set('PAD_SIDE', 1);
+  const s = J(PL.Input.layout(475, 638, { inset: ins }));
+  assert.strictEqual(s.box.x, 8 + 30); assert.strictEqual(s.pause.x + s.pause.w, 475 - 8 - 10);
+  const b = J(PL.Input.layout(475, 638, { inset: ins, hand: 'left' }));
+  assert.strictEqual(b.box.x + b.box.w, 475 - 8 - 10); assert.strictEqual(b.pause.x, 8 + 30);
 });
 t('all views, both hands: on screen, no overlaps, targets >= 56, Dive gap >= 4 to each arrow', () => {
   const PL = boot({});
@@ -105,7 +111,7 @@ t('fires on touch-down: each key, Dive, Retry, Pause; gap inside pad is swallowe
   L.keys.forEach((k, i) => assert(PL.Input.down(...ctr(k), 10 + i)));
   assert(PL.Input.down(...ctr(L.dive), 20)); assert(PL.Input.down(...ctr(L.retry), 21)); assert(PL.Input.down(...ctr(L.pause), 22));
   assert.deepStrictEqual(h.calls, ['flip0', 'flip1', 'flip2', 'flip3', 'dive', 'restart', 'pause']);
-  assert.strictEqual(PL.Input.down(351, 508, 30), true, 'corner gap in pad box swallowed');
+  assert.strictEqual(PL.Input.down(213.5, 508, 30), true, 'corner gap in pad box swallowed');
   assert.strictEqual(h.calls.length, 7);
   assert.strictEqual(PL.Input.down(100, 200, 31), false, 'room area not handled');
   PL.Input.up(10); PL.Input.up(99);
@@ -164,13 +170,13 @@ t('settings persist versioned: hand + vibrate in plumbline.input.v1; layout foll
   assert.strictEqual(PL.Input.getHand(), 'right'); assert.strictEqual(PL.Input.getVibrate(), true);
   PL.Input.setHand('left'); PL.Input.setVibrate(false); PL.Input.setHand('bogus');
   assert.deepStrictEqual(JSON.parse(store['plumbline.input.v1']), { v: 1, hand: 'left', vibrate: false });
-  PL = boot(store); assert.strictEqual(PL.Input.getHand(), 'left'); assert.strictEqual(PL.Input.layout(475, 638).box.x, 8);
+  PL = boot(store); assert.strictEqual(PL.Input.getHand(), 'left'); assert.strictEqual(PL.Input.layout(475, 638).pause.x, 8);
   store['plumbline.input.v1'] = JSON.stringify({ v: 5, hand: 'left' }); PL = boot(store);
   PL.Input.setHand('right'); assert.strictEqual(JSON.parse(store['plumbline.input.v1']).v, 5, 'newer version never overwritten');
 });
 t('PAD tweak ids resize the pad around the same centre', () => {
   const PL = boot({}); PL.Tweak.set('PAD_KEY', 64);
-  const L = PL.Input.layout(475, 638); assert.strictEqual(L.keys[0].w, 64); assert.strictEqual(L.box.x + L.box.w, 467); // right edge fixed in overlay mode, grows to the left/up
+  const L = PL.Input.layout(475, 638); assert.strictEqual(L.keys[0].w, 64); assert.strictEqual(L.box.x + L.box.w / 2, 237.5); assert.strictEqual(L.box.y + L.box.h, 630); // centred, bottom edge fixed in overlay mode, grows up
 });
 t('camera fit: below/landscape keep the room clear of pad, Retry, Pause; overlay (475x638) ignores the pad and fills the height under the 52 px HUD; scale >= 0.82, both hands', () => {
   const PL = boot({});
