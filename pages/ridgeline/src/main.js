@@ -8,7 +8,7 @@ import { getThemeId, setThemeId, createThemePicker } from './themeui.js';
 import { THEMES } from './themes.js';
 import { createTweak, buildReport, copyText } from './tweak.js';
 
-const BUILD = 'ridgeline-proto-1';
+const BUILD = 'ridgeline-proto-2';
 const BEST_KEY = 'ridgeline.best.v1';
 const COUNTER_KEY = 'ridgeline.counter.v1';
 const MAX_STEPS = 8;
@@ -187,15 +187,20 @@ hud.setDev(!isDefault());
 // ---- input ----
 function clamp(v, a, b) { return v < a ? a : v > b ? b : v; }
 
-canvas.addEventListener('pointerdown', (e) => {
-  if (phase !== 'run' || pointerId !== null) return;
+// Listen on window: the HUD root sits over the canvas full-screen and takes the
+// touches (#ui > * gets pointer-events:auto), so canvas listeners never fired on phones.
+function isControl(t) {
+  return !!(t && t.closest && t.closest('button, input, select, textarea, a, label'));
+}
+window.addEventListener('pointerdown', (e) => {
+  if (phase !== 'run' || pointerId !== null || isControl(e.target) || tweak.isOpen()) return;
   pointerId = e.pointerId;
   startX = e.clientX;
   input.steer = 0;
-  try { canvas.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
+  try { e.target.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
   e.preventDefault();
 });
-canvas.addEventListener('pointermove', (e) => {
+window.addEventListener('pointermove', (e) => {
   if (e.pointerId !== pointerId) return;
   input.steer = clamp((e.clientX - startX) / 80, -1, 1);
   e.preventDefault();
@@ -206,10 +211,10 @@ function release(e, fire) {
   input.steer = 0;
   if (fire && phase === 'run') fireNext = true;
 }
-canvas.addEventListener('pointerup', (e) => release(e, true));
-canvas.addEventListener('pointercancel', (e) => release(e, false));
+window.addEventListener('pointerup', (e) => release(e, true));
+window.addEventListener('pointercancel', (e) => release(e, false));
 for (const ev of ['touchstart', 'touchmove', 'gesturestart', 'contextmenu', 'selectstart', 'dragstart']) {
-  document.addEventListener(ev, (e) => { if (e.target === canvas || ev !== 'touchstart') e.preventDefault(); }, { passive: false });
+  document.addEventListener(ev, (e) => { if (ev !== 'touchstart' || (phase === 'run' && !isControl(e.target))) e.preventDefault(); }, { passive: false });
 }
 
 window.addEventListener('keydown', (e) => {
