@@ -26,15 +26,28 @@ function mkHost(W, H, st) {
 const ctr = (r) => [r.x + r.w / 2, r.y + r.h / 2];
 const VIEWS = [[475, 638], [344, 882], [816, 568]];
 
-t('475x638 right hand: pad box spec (285-465 teach, box 283-467, 8 px from the edge) +2 px for the 4 px Dive gap, keys 60, Dive 56', () => {
+t('475x638 overlay (was side): pad box bottom-right 8 px from the edges, keys 60, Dive 56, Retry 60 bottom-left, teach over the room top', () => {
   const L = J(boot({}).Input.layout(475, 638));
-  assert.deepStrictEqual(R(L.box), [283, 308, 467, 492]);
-  assert.deepStrictEqual(L.keys.map(R), [[345, 308, 405, 368], [407, 370, 467, 430], [345, 432, 405, 492], [283, 370, 343, 430]]);
-  assert.deepStrictEqual(R(L.dive), [347, 372, 403, 428]);
-  assert.deepStrictEqual(R(L.retry), [12, 516, 68, 572]);
-  assert.deepStrictEqual(R(L.pause), [411, 12, 467, 68]);
-  assert.deepStrictEqual(R(L.teach), [285, 92, 465, 296]);
-  assert.strictEqual(L.mode, 'side');
+  assert.deepStrictEqual(R(L.box), [283, 446, 467, 630]);
+  assert.deepStrictEqual(L.keys.map(R), [[345, 446, 405, 506], [407, 508, 467, 568], [345, 570, 405, 630], [283, 508, 343, 568]]);
+  assert.deepStrictEqual(R(L.dive), [347, 510, 403, 566]);
+  assert.deepStrictEqual(R(L.retry), [8, 556, 68, 616]);
+  assert.deepStrictEqual(R(L.pause), [411, 0, 467, 56]);
+  assert.deepStrictEqual(R(L.teach), [4, 88, 471, 140]);
+  assert.strictEqual(L.mode, 'overlay');
+});
+t('overlay: safe-area insets push the pad in; PAD_SIDE=1 puts pad + Retry on opposite sides, Pause stays', () => {
+  const PL = boot({});
+  const I = PL.Input.layout(475, 638, { inset: { l: 0, r: 10, t: 0, b: 20 } });
+  assert.deepStrictEqual(R(I.box), [273, 426, 457, 610]);
+  PL.Tweak.set && PL.Tweak.set('PAD_SIDE', 1);
+  if (PL.Tweak.get('PAD_SIDE') === 1) {
+    const S = J(PL.Input.layout(475, 638));
+    assert.deepStrictEqual(R(S.box), [8, 446, 192, 630]);
+    assert.deepStrictEqual(R(S.retry), [407, 556, 467, 616]);
+    assert.deepStrictEqual(R(S.pause), [411, 0, 467, 56]);
+    assert(S.keys[1].x > S.keys[3].x);
+  } else console.log('     (PAD_SIDE not registered yet: side swap not exercised)');
 });
 t('344x882: pad box spec (82-262, 650-830) +2, Retry 12-68 x 660-716, teach y 596-644 full width', () => {
   const L = J(boot({}).Input.layout(344, 882));
@@ -58,8 +71,20 @@ t('left-hand mirror: x -> W - x - w for pad, Retry, Pause, teach; arrows keep th
     for (const k of ['box', 'retry', 'pause', 'teach', 'dive']) assert.strictEqual(b[k].x, W - a[k].x - a[k].w, W + ' ' + k);
     assert(b.keys[1].x > b.keys[3].x, 'right key still right of left key');
   }
-  assert.deepStrictEqual(R(J(PL.Input.layout(475, 638, { hand: 'left' })).box), [8, 308, 192, 492]);
+  assert.deepStrictEqual(R(J(PL.Input.layout(475, 638, { hand: 'left' })).box), [8, 446, 192, 630]);
   assert.deepStrictEqual(R(J(PL.Input.layout(344, 882, { hand: 'left' })).retry), [276, 660, 332, 716]);
+});
+t('overlay asymmetric insets: every element uses the inset of the edge it sits on (hand=left, PAD_SIDE=1)', () => {
+  const PL = boot({}), ins = { l: 30, r: 10, t: 20, b: 16 };
+  const a = J(PL.Input.layout(475, 638, { inset: ins }));
+  assert.strictEqual(a.box.x + a.box.w, 475 - 8 - 10); assert.strictEqual(a.retry.x, 8 + 30); assert.strictEqual(a.pause.x + a.pause.w, 475 - 8 - 10);
+  const h = J(PL.Input.layout(475, 638, { inset: ins, hand: 'left' }));
+  assert.strictEqual(h.box.x, 8 + 30); assert.strictEqual(h.pause.x, 8 + 30); assert.strictEqual(h.retry.x + h.retry.w, 475 - 8 - 10);
+  if (PL.Tweak.set) { PL.Tweak.set('PAD_SIDE', 1);
+    if (PL.Tweak.get('PAD_SIDE') === 1) { const s = J(PL.Input.layout(475, 638, { inset: ins }));
+      assert.strictEqual(s.box.x, 8 + 30); assert.strictEqual(s.retry.x + s.retry.w, 475 - 8 - 10); assert.strictEqual(s.pause.x + s.pause.w, 475 - 8 - 10);
+      const b = J(PL.Input.layout(475, 638, { inset: ins, hand: 'left' }));
+      assert.strictEqual(b.box.x + b.box.w, 475 - 8 - 10); assert.strictEqual(b.retry.x, 8 + 30); assert.strictEqual(b.pause.x, 8 + 30); } }
 });
 t('all views, both hands: on screen, no overlaps, targets >= 56, Dive gap >= 4 to each arrow', () => {
   const PL = boot({});
@@ -67,11 +92,11 @@ t('all views, both hands: on screen, no overlaps, targets >= 56, Dive gap >= 4 t
     const L = PL.Input.layout(W, H, { hand });
     const all = L.keys.concat([L.dive, L.retry, L.pause]);
     for (const r of all.concat([L.box, L.teach])) assert(r.x >= 0 && r.y >= 0 && r.x + r.w <= W && r.y + r.h <= H, W + 'x' + H + ' ' + hand + ' off screen ' + JSON.stringify(r));
-    for (const r of all) assert(r.w >= 56 && r.h >= 56, 'target < 56');
+    for (const r of all) assert(r.w >= 56 && r.h >= 56, "target < 56");
     for (const k of L.keys) assert(gap(k, L.dive) >= 4, 'dive gap ' + gap(k, L.dive));
     for (let i = 0; i < all.length; i++) for (let j = i + 1; j < all.length; j++) assert(!inter(all[i], all[j]), W + ' overlap ' + i + ',' + j);
     assert(!inter(L.teach, L.box) && !inter(L.teach, L.retry) && !inter(L.teach, L.pause), 'teach overlaps');
-    assert(L.box.y + L.box.h <= H - 32, 'pad clear of the bottom 32 px (home swipe)');
+    assert(L.mode === 'overlay' ? L.box.y + L.box.h <= H - 8 : L.box.y + L.box.h <= H - 32, 'pad clear of the bottom edge (overlay 8 px, others 32 px home swipe)');
   }
 });
 t('fires on touch-down: each key, Dive, Retry, Pause; gap inside pad is swallowed; outside returns false', () => {
@@ -80,7 +105,7 @@ t('fires on touch-down: each key, Dive, Retry, Pause; gap inside pad is swallowe
   L.keys.forEach((k, i) => assert(PL.Input.down(...ctr(k), 10 + i)));
   assert(PL.Input.down(...ctr(L.dive), 20)); assert(PL.Input.down(...ctr(L.retry), 21)); assert(PL.Input.down(...ctr(L.pause), 22));
   assert.deepStrictEqual(h.calls, ['flip0', 'flip1', 'flip2', 'flip3', 'dive', 'restart', 'pause']);
-  assert.strictEqual(PL.Input.down(351, 370, 30), true, 'corner gap in pad box swallowed');
+  assert.strictEqual(PL.Input.down(351, 508, 30), true, 'corner gap in pad box swallowed');
   assert.strictEqual(h.calls.length, 7);
   assert.strictEqual(PL.Input.down(100, 200, 31), false, 'room area not handled');
   PL.Input.up(10); PL.Input.up(99);
@@ -145,12 +170,12 @@ t('settings persist versioned: hand + vibrate in plumbline.input.v1; layout foll
 });
 t('PAD tweak ids resize the pad around the same centre', () => {
   const PL = boot({}); PL.Tweak.set('PAD_KEY', 64);
-  const L = PL.Input.layout(475, 638); assert.strictEqual(L.keys[0].w, 64); assert.strictEqual(L.box.x + L.box.w / 2, 375);
+  const L = PL.Input.layout(475, 638); assert.strictEqual(L.keys[0].w, 64); assert.strictEqual(L.box.x + L.box.w, 467); // right edge fixed in overlay mode, grows to the left/up
 });
-t('camera fit: room never under pad, Retry or Pause; scale >= 0.82 on all 3 views, both hands', () => {
+t('camera fit: below/landscape keep the room clear of pad, Retry, Pause; overlay (475x638) ignores the pad and fills the height under the 52 px HUD; scale >= 0.82, both hands', () => {
   const PL = boot({});
   assert.strictEqual(PL.CAM.FIT_MIN, 0.82); // lowered by input.js for the 8 px edge inset
-  const want = { '475x638': 0.8244, '344x882': 1.024, '816x568': 0.956 };
+  const want = { '475x638': 1.16, '344x882': 1.024, '816x568': 0.956 };
   for (const [W, H] of VIEWS) for (const hand of ['right', 'left']) {
     PL.Input.setHand(hand);
     const view = { W, H, inset: { t: 0, r: 0, b: 0, l: 0 } }, state = { room: { w: 336, h: 500 }, x: 168, y: 250, vx: 0, vy: 0 };
@@ -158,8 +183,9 @@ t('camera fit: room never under pad, Retry or Pause; scale >= 0.82 on all 3 view
     assert(f.fit, W + ' fit mode');
     const room = { x: (0 - f.cx) * f.scale + W / 2, y: (0 - f.cy) * f.scale + H / 2, w: 336 * f.scale, h: 500 * f.scale };
     const L = PL.Input.layout(W, H);
-    for (const k of ['box', 'retry', 'pause']) assert(!inter(room, L[k]), W + 'x' + H + ' ' + hand + ' room under ' + k + ' ' + JSON.stringify(room));
-    assert(room.x >= 0 && room.x + room.w <= W + 1e-9 && room.y >= 84 - 1e-9 && room.y + room.h <= H, 'room on screen');
+    if (L.mode === 'overlay') { assert.strictEqual(f.hudTop, 52); assert(Math.abs(room.h - (H - 52 - 6)) < 1e-6, 'fills height'); assert(Math.abs(room.x + room.w / 2 - W / 2) < 1e-6, 'centred'); }
+    else for (const k of ['box', 'retry', 'pause']) assert(!inter(room, L[k]), W + 'x' + H + ' ' + hand + ' room under ' + k + ' ' + JSON.stringify(room));
+    assert(room.x >= 0 && room.x + room.w <= W + 1e-9 && room.y >= f.hudTop - 1e-9 && room.y + room.h <= H, 'room on screen');
     assert(f.scale >= 0.82, 'scale ' + f.scale);
     assert(Math.abs(f.scale - want[W + 'x' + H]) < 0.001, W + ' scale ' + f.scale.toFixed(4));
     console.log('     ' + W + 'x' + H + ' ' + hand + ': scale ' + f.scale.toFixed(4) + ' room x ' + room.x.toFixed(1) + '-' + (room.x + room.w).toFixed(1) + ' y ' + room.y.toFixed(1) + '-' + (room.y + room.h).toFixed(1) + ' pad x ' + L.box.x + '-' + (L.box.x + L.box.w));

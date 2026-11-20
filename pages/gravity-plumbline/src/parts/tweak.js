@@ -235,9 +235,13 @@ PL.Tweak = (function () {
   K('BOB_MAX_Y', 'Hero max screen y', 0.4, 0.7, 0.05);
   K('FIT_MIN', 'Fit floor (scale)', 0.6, 1.0, 0.02);
   // read by input.js (PL.Input.layout); no sim effect
-  T.register('PAD_KEY', { group: 'Input', label: 'Arrow key px', def: 60, min: 48, max: 80, step: 4 });
-  T.register('PAD_DIVE', { group: 'Input', label: 'Dive key px', def: 56, min: 40, max: 72, step: 4 });
-  T.register('PAD_GAP', { group: 'Input', label: 'Dive gap px', def: 4, min: 0, max: 12, step: 2 });
+  // pad group (overlay build): PAD_ALPHA/PAD_SIDE are read by input.js + the pad drawing (L2) and camera/screens (L1)
+  T.register('PAD_ALPHA', { group: 'Pad', label: 'Pad opacity', def: 0.45, min: 0.2, max: 1, step: 0.05 });
+  T.register('PAD_HAZ_ALPHA', { group: 'Pad', label: 'Key over danger', def: 0.2, min: 0.05, max: 1, step: 0.05 }); // overlay keys that sit over spikes / crusher travel / exit
+  T.register('PAD_SIDE', { group: 'Pad', label: 'Pad side', def: 0, min: 0, max: 1, step: 1, list: [0, 1], help: '0 right, 1 left' });
+  T.register('PAD_KEY', { group: 'Pad', label: 'Arrow key size', def: 60, min: 48, max: 80, step: 4 });
+  T.register('PAD_DIVE', { group: 'Pad', label: 'Dive key size', def: 56, min: 40, max: 72, step: 4 });
+  T.register('PAD_GAP', { group: 'Pad', label: 'Key gap', def: 4, min: 0, max: 12, step: 2 });
   T.register('HAPTIC_MS', { group: 'Input', label: 'Key buzz ms', def: 8, min: 0, max: 30, step: 2 });
   // read by draw.js / ui.js (other slices); 0 SHAFT_N = use the mode's 5 or 7
   T.register('PATH_S', { group: 'Assists', label: 'Path preview s', def: 0.8, min: 0.2, max: 1.6, step: 0.2 });

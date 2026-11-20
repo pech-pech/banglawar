@@ -831,16 +831,17 @@ if (typeof module !== 'undefined' && module.exports) module.exports = PL;
 // smoothing, so no settle crop. The control strip is only a tint over the room.
 //   view     scale   room on screen (y)
 //   344x882  1.024   84..596
-//   475x638  1.096   84..632   (no arrow pad: view.pad null / PL.Input absent)
-// S1 ARROW PAD: the fit avoids the pad box (PL.Input.layout(W,H).box, or view.pad
-// when given; null = no pad). If the centred room would touch the pad, the room
-// is fitted into the larger free area left of / right of / above the pad, PAD_GAP
-// px clear of it, EDGE px from the screen side. FIT_MIN 0.9 -> 0.84.
-//   view            scale   room x         room y      pad box x
-//   475x638 right   0.8423  4.0..287.0     84..505.1   289..473
-//   475x638 left    0.8423  188.0..471.0   84..505.1   2..186
-//   344x882 either  1.0238  0..344         84..596     80..264 (y 648..832)
-//   816x568 right   0.9560  247.4..568.6   84..562     604..788
+//   475x638  1.096   84..632   (no pad / no mode: view.pad null / PL.Input absent)
+// OVERLAY (Input.layout mode 'overlay', portrait views where room + pad do not
+// stack): the pad floats over the room's bottom corner, so the fit IGNORES it:
+// HUD pills float over the backdrop (hudTop = HUD_OVERLAY 52 + safe-area top),
+// room fills the height under them, centred, EDGE px from the screen sides.
+//   475x638 overlay 1.16    room 390x580 at x 42.5, y 52..632
+// BELOW (344x882) keeps the 84 px HUD and the full-width fit, pad in the free
+// band under the room; LANDSCAPE fits the room beside the pad (PAD_GAP clear).
+//   344x882 below   1.0238  0..344      84..596
+//   816x568 right   0.9560  247.4..568.6   84..562   pad x 604..788
+// (rooms keep the overlay dead zone, the pad box over the room, clear of hazards.)
 // Sight ahead in fit mode = time to the room edge (whole room visible).
 // SCROLL FALLBACK only when that fit scale < 0.9 (a room too tall, future):
 // (1) zoom spring, (2) look-ahead target, (3) soft room clamp + soft bob band
@@ -874,11 +875,11 @@ PL.CAM = {
   SOFT_PAD: 28, SOFT_K: 48, ACC: 18000, LEAD: 0.25,
   // HUD band at the top (css px, + safe-area top = frame.hudTop); horizontal
   // lock when the view shows the room width (visible >= room.w - LOCK_SLACK).
-  HUD: 84, LOCK_SLACK: 8, STRIP_Y: 0.6, ROOM_PAD: 16, TGT_SLACK: 40,
+  HUD: 84, HUD_OVERLAY: 52, LOCK_SLACK: 8, STRIP_Y: 0.6, ROOM_PAD: 16, TGT_SLACK: 40,
   // FIT-WHOLE-ROOM [AD]: bottom margin (css px); fall back to scrolling only
   // when the fit scale drops below FIT_MIN css px per room px.
   FIT_GAP: 6, FIT_MIN: 0.82,
-  // S1 arrow pad: clearance room<->pad box and room<->screen side when fitted beside the pad
+  // landscape: clearance room<->pad box and room<->screen side when fitted beside the pad
   PAD_GAP: 2, EDGE: 4,
 };
 
@@ -986,14 +987,27 @@ function stepAxis(cam, ax, tgt, p, s, half, len, hardBand, dt) {
   cam[c] = x; cam[v] = (x - x0) / dt; cam[tk] = tgt;
 }
 
-// HUD bottom in css px: HUD + safe-area top (view.inset.t when given).
+// Layout mode for this view: view.mode when the caller gives it, else
+// PL.Input.layout(W,H).mode ('overlay' | 'below' | 'landscape'; the pre-overlay
+// name 'side' is treated as 'overlay'), else null (Node tests, no pad).
+function layoutMode(view) {
+  let m = view.mode;
+  if (m === undefined && view.pad === undefined && PL.Input && PL.Input.layout) { try { m = PL.Input.layout(view.W, view.H).mode; } catch (e) { m = null; } }
+  return m === 'side' ? 'overlay' : (m || null);
+}
+
+// HUD bottom in css px: HUD (84, or HUD_OVERLAY 52 in overlay mode, where the
+// pills float over the backdrop) + safe-area top (view.inset.t when given).
 function hudTop(view) {
-  return PL.CAM.HUD + ((view.inset && view.inset.t) || 0);
+  return (layoutMode(view) === 'overlay' ? PL.CAM.HUD_OVERLAY : PL.CAM.HUD) + ((view.inset && view.inset.t) || 0);
 }
 
 // Pad box to keep the room clear of: view.pad when the caller gives it (null = no
 // pad), else the arrow pad from PL.Input (input.js), else none (Node tests).
+// Overlay mode: the pad floats over the room (its dead zone is the rooms' job),
+// so the fit ignores it.
 function padBox(view) {
+  if (layoutMode(view) === 'overlay') return null;
   if (view.pad !== undefined) return view.pad;
   if (PL.Input && PL.Input.layout) { try { return PL.Input.layout(view.W, view.H).box; } catch (e) { return null; } }
   return null;
@@ -1002,9 +1016,11 @@ function hits(a, b, g) {
   return a.x < b.x + b.w + g && b.x - g < a.x + a.w && a.y < b.y + b.h + g && b.y - g < a.y + a.h;
 }
 
-// FIT-WHOLE-ROOM: scale so the whole room fits under the HUD (and clear of the
-// arrow pad); null when the room is too tall for that (scale < FIT_MIN) and the
-// scroll path applies.
+// FIT-WHOLE-ROOM: scale so the whole room fits under the HUD; null when the
+// room is too tall for that (scale < FIT_MIN) and the scroll path applies.
+// Overlay: room fills the height under the HUD, centred, pad ignored.
+// 'below': room full width, pad sits in the free band under it. 'landscape':
+// the room is fitted beside the pad (PAD_GAP clear) when it would touch it.
 function fitFrame(state, view) {
   const K = PL.CAM, rd = roomDims(state), ht = hudTop(view), pad = padBox(view);
   const yMax = view.H - K.FIT_GAP;
@@ -1014,7 +1030,8 @@ function fitFrame(state, view) {
     const w = rd.w * s;
     return { s, r: { x: (a.x0 + a.x1) / 2 - w / 2, y: ht, w, h: rd.h * s } };
   };
-  let best = place({ x0: 0, x1: view.W, y1: yMax });
+  const ov = layoutMode(view) === 'overlay', ins = view.inset || {};
+  let best = ov ? place({ x0: K.EDGE + (ins.l || 0), x1: view.W - K.EDGE - (ins.r || 0), y1: yMax - (ins.b || 0) }) : place({ x0: 0, x1: view.W, y1: yMax });
   if (pad && hits(best.r, pad, K.PAD_GAP)) {
     const cands = [
       { x0: K.EDGE, x1: pad.x - K.PAD_GAP, y1: yMax },
@@ -1362,9 +1379,13 @@ PL.Tweak = (function () {
   K('BOB_MAX_Y', 'Hero max screen y', 0.4, 0.7, 0.05);
   K('FIT_MIN', 'Fit floor (scale)', 0.6, 1.0, 0.02);
   // read by input.js (PL.Input.layout); no sim effect
-  T.register('PAD_KEY', { group: 'Input', label: 'Arrow key px', def: 60, min: 48, max: 80, step: 4 });
-  T.register('PAD_DIVE', { group: 'Input', label: 'Dive key px', def: 56, min: 40, max: 72, step: 4 });
-  T.register('PAD_GAP', { group: 'Input', label: 'Dive gap px', def: 4, min: 0, max: 12, step: 2 });
+  // pad group (overlay build): PAD_ALPHA/PAD_SIDE are read by input.js + the pad drawing (L2) and camera/screens (L1)
+  T.register('PAD_ALPHA', { group: 'Pad', label: 'Pad opacity', def: 0.45, min: 0.2, max: 1, step: 0.05 });
+  T.register('PAD_HAZ_ALPHA', { group: 'Pad', label: 'Key over danger', def: 0.2, min: 0.05, max: 1, step: 0.05 }); // overlay keys that sit over spikes / crusher travel / exit
+  T.register('PAD_SIDE', { group: 'Pad', label: 'Pad side', def: 0, min: 0, max: 1, step: 1, list: [0, 1], help: '0 right, 1 left' });
+  T.register('PAD_KEY', { group: 'Pad', label: 'Arrow key size', def: 60, min: 48, max: 80, step: 4 });
+  T.register('PAD_DIVE', { group: 'Pad', label: 'Dive key size', def: 56, min: 40, max: 72, step: 4 });
+  T.register('PAD_GAP', { group: 'Pad', label: 'Key gap', def: 4, min: 0, max: 12, step: 2 });
   T.register('HAPTIC_MS', { group: 'Input', label: 'Key buzz ms', def: 8, min: 0, max: 30, step: 2 });
   // read by draw.js / ui.js (other slices); 0 SHAFT_N = use the mode's 5 or 7
   T.register('PATH_S', { group: 'Assists', label: 'Path preview s', def: 0.8, min: 0.2, max: 1.6, step: 0.2 });
@@ -1384,12 +1405,12 @@ PL.Tweak = (function () {
 // Host (ui.js): {flip(dir), dive(), restart(), pause?(), state(), view()->{W,H}, active()->bool, now?()->ms}.
 //   flip/dive push into ui's queue; ui logs {tick,k,dir} at application, unchanged (absolute dir).
 // Layout (CSS px; pad box = 3*KEY + 2*GAP - 2*(KEY-DIVE)/2 ... = 184 at defaults, centred on the picked 180 box):
-//   475x638 side      box 283-467 x 308-492, Retry 12-68 x 516-572, Pause 411-467 x 12-68, teach 291-471 x 92-296
+//   475x638 overlay   box 283-467 x 446-630 (8 px from edges + safe inset), Retry 8-68 x 556-616 (caption below), Pause 419-467 x 2-50, teach 4-471 x 88-140
+//   PAD_SIDE=1 (overlay only): pad bottom-left, Retry bottom-right; hand=left mirrors everything
 //   344x882 below     box 80-264 x 648-832, Retry 12-68 x 660-716, Pause 276-332 x 12-68, teach 4-340 x 596-644
 //   816x568 landscape box 604-788 x 328-512, Retry 12-68 x 330-386, Pause 752-808 x 12-68, teach 12-236 x 100-200
 // Settings key 'plumbline.input.v1' {v:1, hand:'right'|'left', vibrate:bool} (PL.store, never downgraded).
 const PL = (globalThis.PL = globalThis.PL || {});
-// side mode now fits the room at 0.824 (pad 8 px off the edge); camera.js FIT_MIN 0.84 would drop to scroll mode, so allow 0.82.
 
 PL.Input = (function () {
   'use strict';
@@ -1416,6 +1437,9 @@ PL.Input = (function () {
     const KEYP = tw('PAD_KEY', 60), DIVEP = tw('PAD_DIVE', 56), GAP = tw('PAD_GAP', 4);
     const B = 2 * KEYP + DIVEP + 2 * GAP; // 184 at defaults
     const hudTop = (PL.CAM && PL.CAM.HUD) || 84;
+    const vi = (opts && opts.inset) || (host && host.view && (host.view() || {}).inset) || {};
+    const ins = { l: vi.l || 0, r: vi.r || 0, t: vi.t || 0, b: vi.b || 0 };
+    if (hand === 'left') { const q = ins.l; ins.l = ins.r; ins.r = q; } // whole layout is mirrored at the end: build with swapped side insets so each element ends up using the inset of the edge it sits on
     let mode, cx, cy, retry, pause, teach;
     if (W > H) {
       // landscape: pad in the right gutter (admin default), Retry and teach on the left
@@ -1426,10 +1450,10 @@ PL.Input = (function () {
       mode = 'below'; cx = W / 2; cy = H - 142;
       retry = rect(12, cy - 80, 56, 56); pause = rect(W - 68, 12, 56, 56); teach = rect(4, cy - 144, W - 8, 48);
     } else {
-      // side: pad beside the room (room drawn smaller, camera.js fits it left of the pad)
-      mode = 'side'; cx = W - 100; cy = H - 238; // pad 8 px in from the screen edge (QA 4)
-      retry = rect(12, H - 122, 56, 56); pause = rect(W - 64, 12, 56, 56);
-      teach = rect(cx - 90, hudTop + 8, 180, Math.max(48, cy - B / 2 - 12 - (hudTop + 8)));
+      // overlay: pad floats over the room's bottom-right corner (room is fitted ignoring it), Retry bottom-left
+      mode = 'overlay'; cx = W - 8 - ins.r - B / 2; cy = H - 8 - ins.b - B / 2;
+      retry = rect(8 + ins.l, H - 8 - ins.b - 14 - 60, 60, 60); pause = rect(W - 8 - ins.r - 56, ins.t, 56, 56); // caption (14 px) sits under the ring; Pause 56 (touch rule) may overlap the room top wall by 4 px
+      teach = rect(4, hudTop + 4, W - 8, 52);
     }
     const box = rect(cx - B / 2, cy - B / 2, B, B);
     const off = (B - KEYP) / 2;
@@ -1437,11 +1461,18 @@ PL.Input = (function () {
       rect(box.x + off, box.y + B - KEYP, KEYP, KEYP), rect(box.x, box.y + off, KEYP, KEYP)];
     let dive = rect(cx - DIVEP / 2, cy - DIVEP / 2, DIVEP, DIVEP);
     let L = { mode, hand, box, keys, dive, retry, pause, teach };
+    if (mode === 'overlay' && tw('PAD_SIDE', 0) === 1) {
+      // pad (and its teach slot + Retry) on the left; Pause stays top-right. Left edge 8 px + inset.l
+      const nx = 8 + ins.l, dx0 = nx - box.x, mv = (r) => rect(r.x + dx0, r.y, r.w, r.h);
+      const rr = rect(W - 8 - ins.r - 60, retry.y, 60, 60);
+      keys = keys.map(mv);
+      L = { mode, hand, box: mv(box), keys, dive: mv(dive), retry: rr, pause, teach };
+    }
     if (hand === 'left') {
       const m = (r) => mirror(r, W);
-      const bx = m(box), dx = bx.x - box.x;
-      keys = keys.map((k) => rect(k.x + dx, k.y, k.w, k.h)); // arrows keep their meaning, pad moves as a whole
-      L = { mode, hand, box: bx, keys, dive: rect(dive.x + dx, dive.y, dive.w, dive.h), retry: m(retry), pause: m(pause), teach: m(teach) };
+      const bx = m(L.box), dx = bx.x - L.box.x;
+      keys = L.keys.map((k) => rect(k.x + dx, k.y, k.w, k.h)); // arrows keep their meaning, pad moves as a whole
+      L = { mode, hand, box: bx, keys, dive: rect(L.dive.x + dx, L.dive.y, L.dive.w, L.dive.h), retry: m(L.retry), pause: m(L.pause), teach: m(L.teach) };
     }
     return L;
   }
@@ -1482,7 +1513,7 @@ PL.Input = (function () {
   // pointer down (CSS px). true = handled by the pad (caller stops); false = not a pad target or inactive.
   function down(x, y, id) {
     if (!host || !host.active()) return false;
-    const v = host.view(), tgt = targetAt(x, y, layout(v.W, v.H));
+    const v = host.view(), tgt = targetAt(x, y, layout(v.W, v.H, { inset: v.inset }));
     if (!tgt) return false;
     pressed[id] = tgt;
     fire(tgt);
@@ -1502,7 +1533,7 @@ PL.Input = (function () {
     const p = {}; for (const k in pressed) p[pressed[k]] = true;
     const t = now();
     if (shake && t - shake.at > SHAKE_MS) shake = null;
-    return { layout: layout(v.W, v.H), lit: s ? s.g : -1, dim: empty(), pressed: p,
+    return { layout: layout(v.W, v.H, { inset: v.inset }), lit: s ? s.g : -1, dim: empty(), pressed: p,
       shake: shake ? { id: shake.id, age: (t - shake.at) / SHAKE_MS } : null, hand: settings.hand };
   }
   // plain fallback drawing (used only until draw.js provides PL.drawPad). Canvas 2D, CSS px transform already set.
@@ -2638,10 +2669,21 @@ L.setHazards = function (rects) { S.hazExtra = Array.isArray(rects) ? rects : []
     }
   }
   // hero light rolls along the platform edge standing against gravity: gold hotspot, brightest right under the hero, fades by ~120 px
+  // The hotspot is clipped to the face of the solid the hero stands on (never past its ends), stopped short of any neighbouring
+  // wall that touches the 12 px light band, kept inside the room, and the cut ends fade out (no hard bar). Works for all 4 gravities.
+  function rimScratch(w, h) {
+    let c = S.rimTmp;
+    if (!c || c.width < w || c.height < h) { c = S.rimTmp = mk(Math.max(w, c ? c.width : 0, 64), Math.max(h, c ? c.height : 0, 16)); }
+    return c;
+  }
   function drawHeroRim(ctx, f) {
     const room = S.room, h = S.hero;
     if (!room || !room.walls || !h.has || h.dead) return;
     const ws = room.walls, face = ((S.hero.g | 0) + 2) & 3, sc = f.sc, th = 12 * sc, len = 120 * sc, spr = S.sp.hot[face], n = DIRS[face];
+    const hv = face === 0 || face === 2, cw = (room.w || 336), ch = (room.h || 500);
+    // room interior in screen space
+    const rx0 = (0 - f.cx) * sc + f.W / 2, ry0 = (0 - f.cy) * sc + f.H / 2, rx1 = (cw - f.cx) * sc + f.W / 2, ry1 = (ch - f.cy) * sc + f.H / 2;
+    const hp = hv ? (h.x - f.cx) * sc + f.W / 2 : (h.y - f.cy) * sc + f.H / 2;
     for (let i = 0; i < ws.length && i < 40; i++) {
       const w = ws[i], nx = clamp(h.x, w[0], w[0] + w[2]), ny = clamp(h.y, w[1], w[1] + w[3]);
       const d = Math.hypot(h.x - nx, h.y - ny);
@@ -2650,12 +2692,44 @@ L.setHazards = function (rects) { S.hazExtra = Array.isArray(rects) ? rects : []
       const a = (1 - d / 120) * hzFade(nx, ny);
       if (a < 0.02) continue;
       const x = (w[0] - f.cx) * sc + f.W / 2, y = (w[1] - f.cy) * sc + f.H / 2, ww = w[2] * sc, hh = w[3] * sc;
-      const px = (nx - f.cx) * sc + f.W / 2, py = (ny - f.cy) * sc + f.H / 2;
+      // light band (perpendicular) and the face run (along), screen px
+      let b0, b1, lo, hi;
+      if (face === 0) { b0 = y - th; b1 = y; } else if (face === 2) { b0 = y + hh; b1 = y + hh + th; } else if (face === 1) { b0 = x + ww; b1 = x + ww + th; } else { b0 = x - th; b1 = x; }
+      if (hv) { lo = x; hi = x + ww; } else { lo = y; hi = y + hh; }
+      const cut = [false, false];   // [low end clipped, high end clipped]
+      // stay inside the room
+      const rlo = hv ? rx0 : ry0, rhi = hv ? rx1 : ry1;
+      if (lo < rlo) { lo = rlo; cut[0] = true; } if (hi > rhi) { hi = rhi; cut[1] = true; }
+      // stop at neighbouring solids that touch the band
+      for (let j = 0; j < ws.length && j < 40; j++) {
+        if (j === i) continue;
+        const o = ws[j], ox = (o[0] - f.cx) * sc + f.W / 2, oy = (o[1] - f.cy) * sc + f.H / 2, ow = o[2] * sc, oh = o[3] * sc;
+        const p0 = hv ? oy : ox, p1 = hv ? oy + oh : ox + ow, q0 = hv ? ox : oy, q1 = hv ? ox + ow : oy + oh;
+        if (p1 <= b0 + 0.5 || p0 >= b1 - 0.5) continue;     // misses the band
+        if (q1 <= lo || q0 >= hi) continue;                 // misses the run
+        if (q0 <= hp && q1 >= hp) { hi = lo; break; }       // swallows the hero column: nothing to light
+        if (q0 > hp) { if (q0 < hi) { hi = q0; cut[1] = true; } } else if (q1 > lo) { lo = q1; cut[0] = true; }
+      }
+      const s0 = hp - len / 2, e0 = Math.max(lo, s0), e1 = Math.min(hi, s0 + len);
+      if (e1 - e0 < 1) continue;
+      const span = e1 - e0, F = Math.min(14 * sc, span / 2);
+      const cl = cut[0] || s0 < lo - 0.5 || false, ch2 = cut[1] || s0 + len > hi + 0.5;
       ctx.globalAlpha = clamp(0.95 * a * a * 0.5 + 0.5 * a, 0, 1);
-      if (face === 0) ctx.drawImage(spr, clamp(px - len / 2, x - len / 2, x + ww - len / 2), y - th, len, th);
-      else if (face === 2) ctx.drawImage(spr, clamp(px - len / 2, x - len / 2, x + ww - len / 2), y + hh, len, th);
-      else if (face === 1) ctx.drawImage(spr, x + ww, clamp(py - len / 2, y - len / 2, y + hh - len / 2), th, len);
-      else ctx.drawImage(spr, x - th, clamp(py - len / 2, y - len / 2, y + hh - len / 2), th, len);
+      if (!cl && !ch2) {   // the whole sprite fits on the face: unchanged look
+        if (hv) ctx.drawImage(spr, s0, b0, len, th); else ctx.drawImage(spr, b0, s0, th, len);
+        continue;
+      }
+      // clipped: draw the visible part through a scratch with the cut ends faded out
+      const sw = Math.ceil(hv ? span : th), sh = Math.ceil(hv ? th : span);
+      const tc = rimScratch(sw, sh), tx = tc.getContext('2d');
+      tx.setTransform(1, 0, 0, 1, 0, 0); tx.globalCompositeOperation = 'source-over'; tx.globalAlpha = 1; tx.clearRect(0, 0, tc.width, tc.height);
+      if (hv) tx.drawImage(spr, s0 - e0, 0, len, th); else tx.drawImage(spr, 0, s0 - e0, th, len);
+      tx.globalCompositeOperation = 'destination-in';
+      const g = hv ? tx.createLinearGradient(0, 0, span, 0) : tx.createLinearGradient(0, 0, 0, span), u = F / span;
+      g.addColorStop(0, 'rgba(0,0,0,' + (cl ? 0 : 1) + ')'); g.addColorStop(cl ? u : 0, 'rgba(0,0,0,1)');
+      g.addColorStop(ch2 ? 1 - u : 1, 'rgba(0,0,0,1)'); g.addColorStop(1, 'rgba(0,0,0,' + (ch2 ? 0 : 1) + ')');
+      tx.fillStyle = g; tx.fillRect(0, 0, hv ? span : th, hv ? th : span);
+      if (hv) ctx.drawImage(tc, 0, 0, sw, sh, e0, b0, sw, sh); else ctx.drawImage(tc, 0, 0, sw, sh, b0, e0, sw, sh);
     }
   }
   function drawHeroGlow(ctx, f, k) {
@@ -3139,6 +3213,7 @@ const PL = (globalThis.PL = globalThis.PL || {});
     V.room = room || null; V.tips = []; V.prevO = []; V.exit = room && room.exit ? room.exit : null;
     if (PL.Light) PL.Light.setRoom(room);
     V.alive.fill(0); V.count = 0; V.trailCount = 0; V.hero.has = false;
+    V.vanish = -1; V.vanishFrom = null; V.celT = 0;   // win-spiral state must not leak into the next room (hero was drawn at scale 0)
     if (!room) return;
     (room.spikes || []).forEach(function (s, idx) {
       const r = s.r, dir = PL.Light ? PL.Light.spikeDir(room, r) : 0, horiz = dir === 0 || dir === 2;
@@ -3177,6 +3252,8 @@ const PL = (globalThis.PL = globalThis.PL || {});
       if (st !== 0) setLevel(V.level + st);
     }
     const h = V.hero;
+    // new attempt without a new room object (Retry / replay): the hero left the win spot, so drop the win spiral
+    if (V.vanish >= 0 && V.vanishFrom && hero && isFinite(hero.x) && isFinite(hero.y) && Math.hypot(hero.x - V.vanishFrom.x, hero.y - V.vanishFrom.y) > 40) { V.vanish = -1; V.vanishFrom = null; V.celT = 0; }
     if (hero && isFinite(hero.x) && isFinite(hero.y)) {
       if (h.has) {
         let vx = (hero.x - h.x) / dt, vy = (hero.y - h.y) / dt;
@@ -4154,20 +4231,20 @@ const PL = (globalThis.PL = globalThis.PL || {});
     const rw = room.w || 336, rh = room.h || 500, ws = room.walls || [], sp = room.spikes || [], gs = room.gates || [];
     const back = [], front = [];
     for (let i = 0; i < ws.length; i++) { const w = ws[i], t = tile([w[0] * sc, w[1] * sc, w[2] * sc, w[3] * sc], sc, pr, function (x) { paintWalls(x, room, sc, i); }); if (!t) return null; back.push(t); }
-    for (let i = 0; i < sp.length; i++) { const a = spikeArt(room, sp[i], sc, SPIKE_K), t = tile([a.x, a.y, a.w, a.h], sc, pr, function (x) { paintSpikes(x, room, sc, i); }); if (!t) return null; front.push(t); }
+    for (let i = 0; i < sp.length; i++) { const a = spikeArt(room, sp[i], sc, SPIKE_K), t = tile([a.x, a.y, a.w, a.h], sc, pr, function (x) { paintSpikes(x, room, sc, i); }); if (!t) return null; t.haz = 1; front.push(t); }
     for (let i = 0; i < gs.length; i++) { const r = gs[i].r, t = tile([r[0] * sc, r[1] * sc, r[2] * sc, r[3] * sc], sc, pr, function (x) { paintGateBodies(x, room, sc, i); }); if (!t) return null; front.push(t); }
     (room.crushers || []).forEach(function (c) {
       const am = c.amp || 0; if (am <= 0) return;
       const lx = (c.r[0] - (c.ax ? am : 0)) * sc, ly = (c.r[1] - (c.ay ? am : 0)) * sc, lw = (c.r[2] + (c.ax ? am * 2 : 0)) * sc, lh = (c.r[3] + (c.ay ? am * 2 : 0)) * sc, fc = crusherFace(room, c);
-      const t = tile([lx, ly, lw, lh], sc, pr, function (x) { paintLane(x, lx, ly, lw, lh, fc, sc); }); if (t) back.push(t);
+      const t = tile([lx, ly, lw, lh], sc, pr, function (x) { paintLane(x, lx, ly, lw, lh, fc, sc); }); if (t) { t.haz = 1; back.push(t); }
     });
     const P = { room: room, sc: sc, pr: pr, back: back, front: front, refl: null, w: Math.ceil(rw * sc + PAD * 2), h: Math.ceil(rh * sc + PAD * 2), rebuild: 0 };
-    // soft floor reflection of the lowest REFL px of the room, faded; fills the band under the room on tall screens
+    // soft floor reflection of the lowest REFL px of the room, faded; hazards (spikes, crusher lanes: t.haz) are left out so coral stays only on real danger; fills the band under the room on tall screens
     const tmp = cvs(P.w * pr, P.h * pr), rf = cvs(P.w * pr, REFL * pr);
     if (tmp && rf) {
       const tx = tmp.getContext('2d'); tx.scale(pr, pr);
-      for (let i = 0; i < back.length; i++) tx.drawImage(back[i].c, back[i].x + PAD, back[i].y + PAD, back[i].w, back[i].h);
-      for (let i = 0; i < front.length; i++) tx.drawImage(front[i].c, front[i].x + PAD, front[i].y + PAD, front[i].w, front[i].h);
+      for (let i = 0; i < back.length; i++) if (!back[i].haz) tx.drawImage(back[i].c, back[i].x + PAD, back[i].y + PAD, back[i].w, back[i].h);
+      for (let i = 0; i < front.length; i++) if (!front[i].haz) tx.drawImage(front[i].c, front[i].x + PAD, front[i].y + PAD, front[i].w, front[i].h);
       const x = rf.getContext('2d'), srcH = Math.min(REFL, rh * sc) * pr, srcY = (PAD + rh * sc) * pr - srcH;
       x.save(); x.translate(0, REFL * pr); x.scale(1, -1); x.drawImage(tmp, 0, srcY, tmp.width, srcH, 0, 0, tmp.width, srcH); x.restore();
       x.globalCompositeOperation = 'source-atop'; x.fillStyle = 'rgba(70,60,150,0.5)'; x.fillRect(0, 0, rf.width, rf.height);
@@ -5364,7 +5441,7 @@ const PL = (globalThis.PL = globalThis.PL || {});
     resetAll: 'Reset all', copyReport: 'Copy report', savePreset: 'Save preset', copyCode: 'Copy code', pasteCode: 'Paste code',
     presets: 'Presets', del: 'Delete', copied: 'Copied', copyFailed: 'Copy failed: text shown', codeBad: 'Code not valid',
     codeApplied: 'Code applied', saved: 'Preset saved', full: 'Presets full (12)', loaded: 'Preset loaded', deleted: 'Preset deleted',
-    namePrompt: 'Preset name', pastePrompt: 'Paste a preset code', ok: 'OK', cancel: 'Cancel', close: 'Close', resetDone: 'All tweaks reset', blankName: 'Give the preset a name', storageProblem: 'Could not save (storage problem)' };
+    sideNames: ['Right', 'Left'], mirror: 'Left-hand mirror', handNames: ['Off', 'On'], namePrompt: 'Preset name', pastePrompt: 'Paste a preset code', ok: 'OK', cancel: 'Cancel', close: 'Close', resetDone: 'All tweaks reset', blankName: 'Give the preset a name', storageProblem: 'Could not save (storage problem)' };
   // flatten every static string (functions are called with sample args)
   function flat(o, out) {
     for (const k in o) {
@@ -5768,6 +5845,23 @@ const PL = (globalThis.PL = globalThis.PL || {});
   // ---- play-family rects (play, tutorial, death, roomClear share these) ----
   // join-beta glue: PL.Screens.padRects is the runtime swap point (ui.js points it at PL.Input.layout, which also
   // returns retry/pause/teach). opts.roomRect = the camera's fitted room rect (screen px) when the game knows it.
+  // Overlay layout (Layout A, 475x638): the room fills the height under a floating HUD row (pills at y 10, 32 tall, room top 52),
+  // the pad floats over the room's bottom corner (pl.box), Retry (pl.retry, 60 ring) bottom-left in the room, Pause top-right.
+  // Teach strip = top of the room (tutorial only has text); Skip sits beside Retry, on the side away from the pad.
+  function overlayRects(r, pl, w, h, tutorial, opts) {
+    const hudTop = (PL.CAM && PL.CAM.HUD_OVERLAY) || 52, ins = (opts && opts.inset) || {}, it = ins.t || 0;
+    const padRight = pl.box.x + pl.box.w / 2 > w / 2, pauseRight = pl.pause.x + pl.pause.w / 2 > w / 2;
+    if (!(opts && opts.roomRect)) { const rw = w - 8, rh = h - hudTop - it - 6; r.room = R(4, hudTop + it, rw, rh); } // no camera frame yet: whole width/height under the HUD
+    r.retry = pl.retry; r.pause = pl.pause;
+    const y = 10 + it, row = [R(0, y, 112, 32), R(0, y, 104, 32), R(0, y, 56, 32)];
+    let x = 8 + (ins.l || 0); for (const q of row) { q.x = x; x += q.w + 8; }
+    r.hudRoom = row[0]; r.hudTime = row[1]; r.pips = row[2];
+    r.chips = R(x, y + 4, 170, 24);
+    if (!pauseRight) for (const n of ['hudRoom', 'hudTime', 'pips', 'chips']) r[n] = mir(r[n], w);
+    const rm = r.room; r.teach = R(rm.x + 8, rm.y + 8, rm.w - 16, 72);
+    if (tutorial) r.skip = padRight === (pl.retry.x < w / 2) ? R(pl.retry.x + (pl.retry.x < w / 2 ? pl.retry.w + 8 : -8 - 68), pl.retry.y + pl.retry.h - 56, 68, 56) : R(pl.retry.x, pl.retry.y - 64, 68, 56);
+    else delete r.skip;
+  }
   function playRects(w, h, left, tutorial, opts) {
     const PR = (PL.Screens && PL.Screens.padRects) || padRects;
     const k = cls(w, h), pad = PR(w, h, false), r = {};
@@ -5799,9 +5893,11 @@ const PL = (globalThis.PL = globalThis.PL || {});
       }
     }
     if (opts && opts.roomRect) { const q = opts.roomRect; r.room = R(q.x, q.y, q.w, q.h); }
+    const ov = pl.mode === 'overlay' || pl.mode === 'side'; // 'side' = pre-overlay name of the same layout
+    if (ov) overlayRects(r, pl, w, h, tutorial, opts);
     const tw = Math.min(r.room.w - 16, 300);
-    r.toast = R(r.room.x + (r.room.w - tw) / 2, r.room.y + 8, tw, 40);
-    const out = Object.assign({}, r, { up: pl.up, left: pl.left, dive: pl.dive, right: pl.right, down: pl.down, padBox: pl.box });
+    r.toast = R(r.room.x + (r.room.w - tw) / 2, r.room.y + 8 + (ov && tutorial ? r.teach.h + 8 : 0), tw, 40);
+    const out = Object.assign({}, r, { up: pl.up, left: pl.left, dive: pl.dive, right: pl.right, down: pl.down, padBox: pl.box, mode: pl.mode });
     return out;
   }
   const PLAY_TARGETS = ['pause', 'retry', 'up', 'left', 'dive', 'right', 'down', 'skip'];
@@ -5907,6 +6003,23 @@ const PL = (globalThis.PL = globalThis.PL || {});
     const press = (vm, n) => (vm.pressed === n ? 1 : 0);
   const foc = (vm, n) => vm.focus === n;
 
+  // overlay pad: which keys sit over a spike / crusher full travel / exit ring (screen space). Cached per room object + W,H + layout + camera.
+  let hazCache = { key: '', v: null }, hazRoom = null;
+  function padHazKeys(r, h) {
+    if (!h || !h.room) return null;
+    const keys = ['up', 'left', 'right', 'down', 'dive'], key = h.W + 'x' + h.H + '|' + h.cx + ',' + h.cy + ',' + h.scale + '|' + keys.map((k) => { const q = r[k]; return q ? q.x + ',' + q.y + ',' + q.w + ',' + q.h : '-'; }).join(';');
+    if (hazRoom === h.room && hazCache.key === key) return hazCache.v;
+    const rm = h.room, sx = (x) => (x - h.cx) * h.scale + h.W / 2, sy = (y) => (y - h.cy) * h.scale + h.H / 2, hs = [];
+    const add = (x, y, w, hh) => hs.push({ x: sx(x), y: sy(y), w: w * h.scale, h: hh * h.scale });
+    (rm.spikes || []).forEach((q) => add(q.r[0], q.r[1], q.r[2], q.r[3]));
+    (rm.crushers || []).forEach((c) => { const a = c.amp || 0; add(c.r[0] - (c.ax ? a : 0), c.r[1] - (c.ay ? a : 0), c.r[2] + (c.ax ? 2 * a : 0), c.r[3] + (c.ay ? 2 * a : 0)); });
+    const ex = rm.exit; if (ex) add(ex.x - 18, ex.y - 18, 36, 36); // ring bbox (circle test below)
+    const v = {};
+    for (const k of keys) { const q = r[k]; v[k] = !!q && hs.some((z, i) => {
+      if (ex && i === hs.length - 1) { const cx = Math.max(q.x, Math.min(z.x + z.w / 2, q.x + q.w)), cy = Math.max(q.y, Math.min(z.y + z.h / 2, q.y + q.h)); return Math.hypot(cx - (z.x + z.w / 2), cy - (z.y + z.h / 2)) < z.w / 2; }
+      return q.x < z.x + z.w && z.x < q.x + q.w && q.y < z.y + z.h && z.y < q.y + q.h; }); }
+    hazRoom = h.room; hazCache = { key, v }; return v;
+  }
   function drawHud(ctx, L, vm, t, w) {
     const r = L.rects, sca = sc(vm), L2 = S.hud;
     U.hudText(ctx, r.hudRoom, { text: L2.room(vm.room || 1, vm.rooms || 5), vw: w, scale: sca }, t);
@@ -5915,9 +6028,16 @@ const PL = (globalThis.PL = globalThis.PL || {});
     if (r.pips) U.pips(ctx, r.pips, { n: moves, max, pop: vm.pop, size: r.pips.w < 60 ? 14 : 18 }, t);
     U.pauseKey(ctx, r.pause, { pressed: press(vm, 'pause'), focus: foc(vm, 'pause') }, t);
     U.retryKey(ctx, r.retry, { pressed: press(vm, 'retry'), label: L2.retry, spin: vm.retrySpin, focus: foc(vm, 'retry') }, t);
+    if (r.retry) U.text(ctx, L2.retry, r.retry.x + r.retry.w / 2, r.retry.y + r.retry.h + 4, { font: U.fontPx(14, 700), color: U.C.cream, align: 'center', maxW: 64 }); // caption under the ring
     const zero = moves <= 0;
-    for (const d of ['up', 'left', 'right', 'down']) U.arrowKey(ctx, r[d], { dir: d, lit: vm.lit === d, pressed: press(vm, d), dim: zero, focus: foc(vm, d) }, t);
-    U.diveKey(ctx, r.dive, { pressed: press(vm, 'dive'), cooldown: vm.cooldown || 0, disabled: zero && vm.air, airCost: vm.air && !zero }, t);
+    // overlay mode: pad drawn translucent over the room (PAD_ALPHA); a pressed key goes to max(0.9, alpha)
+    const ov = r.mode === 'overlay', ta = PL.Tweak && PL.Tweak.get && PL.Tweak.get('PAD_ALPHA'), pa = ov ? (typeof ta === 'number' ? ta : 0.45) : 1;
+    const hz = ov ? padHazKeys(r, vm.padHaz) : null, th = PL.Tweak && PL.Tweak.get && PL.Tweak.get('PAD_HAZ_ALPHA'), ha = Math.min(pa, typeof th === 'number' ? th : 0.2);
+    const padAlpha = (n) => { const a = hz && hz[n] ? ha : pa; ctx.globalAlpha = press(vm, n) ? Math.max(0.9, a) : a; };
+    ctx.save();
+    for (const d of ['up', 'left', 'right', 'down']) { padAlpha(d); U.arrowKey(ctx, r[d], { dir: d, lit: vm.lit === d, pressed: press(vm, d), dim: zero, focus: foc(vm, d) }, t); }
+    padAlpha('dive'); U.diveKey(ctx, r.dive, { pressed: press(vm, 'dive'), cooldown: vm.cooldown || 0, disabled: zero && vm.air, airCost: vm.air && !zero }, t);
+    ctx.restore();
     if (vm.toast) U.toast(ctx, r.toast, Object.assign({ vw: w }, vm.toast), t);
     if (vm.teach && vm.teach.lines) { const tf = U.font('teach', w, sca), lh = Math.round(U.size('teach', w, sca) * 1.3); let nl = 0; for (const ln of vm.teach.lines) nl += U.wrap(ctx, ln, r.teach.w - 30, tf).length;
       const th = Math.min(r.teach.h, nl * lh + 24); U.teachSlot(ctx, R(r.teach.x, r.teach.y, r.teach.w, th), { lines: vm.teach.lines, alpha: vm.teach.alpha, vw: w, scale: sca }, t); }
@@ -6133,7 +6253,7 @@ const PL = (globalThis.PL = globalThis.PL || {});
 const PL = (globalThis.PL = globalThis.PL || {});
 (function () {
   'use strict';
-  const BUILD = 'starfall-beta-1 (2026-11-19)';
+  const BUILD = 'starfall-beta-2 (2026-11-20)';
   const C = PL.C, U = PL.UI, SC = PL.Screens, S = PL.Strings.player, SD = PL.Strings.dev, TW = PL.Tweak;
   const canvas = document.getElementById('game');
   const ctx = canvas.getContext('2d');
@@ -6488,6 +6608,7 @@ const PL = (globalThis.PL = globalThis.PL || {});
   function setSettingSlider(id, f) { settings[id] = Math.round(f * 20) / 20; applyAudio(); }
   function setTweakSlider(rowIdx, f) {
     const row = tweakRowsCache[rowIdx]; if (!row || row.kind !== 'slider') return;
+    if (row.id === '@mirror') { if (PL.Input) PL.Input.setHand(f >= 0.5 ? 'left' : 'right'); rebuildTweakRows(); return; } // player setting, same value as Settings, never DEV-dirty
     const d = TW.def(row.id); if (!d) return;
     if (d.list) TW.set(row.id, d.list[Math.round(f * (d.list.length - 1))]);
     else TW.set(row.id, d.min + f * (d.max - d.min));
@@ -6633,18 +6754,19 @@ const PL = (globalThis.PL = globalThis.PL || {});
   }
   function rebuildTweakRows() {
     const rows = [];
-    rows.push({ kind: 'btns', btns: [{ id: 'resetAll', label: SD.resetAll }, { id: 'copyReport', label: SD.copyReport, kind: 'primary' }] });
-    rows.push({ kind: 'btns', btns: [{ id: 'savePreset', label: SD.savePreset, weight: 1.2 }, { id: 'copyCode', label: SD.copyCode }, { id: 'pasteCode', label: SD.pasteCode }] });
+    rows.push({ kind: 'btns', btns: [{ id: 'copyReport', label: SD.copyReport, kind: 'primary' }, { id: 'savePreset', label: SD.savePreset }] });
+    rows.push({ kind: 'btns', btns: [{ id: 'resetAll', label: SD.resetAll }, { id: 'copyCode', label: SD.copyCode }, { id: 'pasteCode', label: SD.pasteCode }] });
     if (TW) {
       for (const p of TW.listPresets()) rows.push({ kind: 'btns', btns: [{ id: 'load:' + p.name, label: p.name, weight: 2 }, { id: 'del:' + p.name, label: SD.del, kind: 'danger', weight: 1 }] });
       const diff = TW.diff();
       for (const g of TW.groups()) {
         const nd = g.ids.filter((id) => id in diff).length;
         rows.push({ kind: 'head', group: g.group, open: !!tweakOpen[g.group], label: g.group + (nd ? '  (' + nd + ' changed)' : '') });
+        if (tweakOpen[g.group] && g.group === 'Pad' && PL.Input) { const lh = leftHand(); rows.push({ kind: 'slider', id: '@mirror', label: SD.mirror, valueText: SD.handNames[lh ? 1 : 0], value: lh ? 1 : 0, dirty: false }); }
         if (tweakOpen[g.group]) for (const id of g.ids) {
           const d = TW.def(id), v = TW.get(id);
           const f = d.list ? d.list.indexOf(v) / Math.max(1, d.list.length - 1) : (v - d.min) / ((d.max - d.min) || 1);
-          rows.push({ kind: 'slider', id, label: d.label, valueText: fmtVal(d, v) + (id in diff ? ' *' : ''), value: f, dirty: id in diff });
+          rows.push({ kind: 'slider', id, label: d.label, valueText: (id === 'PAD_SIDE' ? SD.sideNames[v] : fmtVal(d, v)) + (id in diff ? ' *' : ''), value: f, dirty: id in diff });
         }
       }
     }
@@ -6903,7 +7025,7 @@ const PL = (globalThis.PL = globalThis.PL || {});
       moves: s.charges, maxMoves: s.K ? s.K.CHARGES : C.CHARGES, air, lit: DIRN[s.g], pressed,
       cooldown: s.K && s.K.DIVE_CD_TICKS ? clamp(s.diveCd / s.K.DIVE_CD_TICKS, 0, 1) : 0,
       retrySpin: clamp((nowMs() - retryAt) / 200, 0, 1) < 1 ? clamp((nowMs() - retryAt) / 200, 0, 1) : 0, hero: h,
-      showSkip: isTut(), pop: pipPop
+      showSkip: isTut(), pop: pipPop, padHaz: { room: s.room, W: view.W, H: view.H, cx: fr.cx, cy: fr.cy, scale: fr.scale }
     });
     if (toast && nowMs() < toast.until) vm.toast = { text: toast.text, kind: toast.kind };
     if (isTut()) { const h = teachHint(); if (h) vm.teach = h; }

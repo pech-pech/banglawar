@@ -33,7 +33,8 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     const inter = (a, b) => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
     const { room, L, f } = res;
     ok(f.fit && f.scale >= 0.84, `${tag} fit scale ${f.scale.toFixed(4)} >= 0.84`);
-    for (const k of ['box', 'retry', 'pause']) ok(!inter(room, L[k]), `${tag} room x ${room.x.toFixed(1)}-${(room.x + room.w).toFixed(1)} y ${room.y.toFixed(1)}-${(room.y + room.h).toFixed(1)} clear of ${k}`);
+    if (L.mode === 'overlay') ok(Math.abs(f.scale - (H - 52 - 6) / 500) < 1e-3 && Math.abs(room.y - 52) < 1e-6, `${tag} overlay fills height under 52 px HUD (scale ${f.scale.toFixed(4)})`);
+    if (L.mode !== 'overlay') for (const k of ['box', 'retry', 'pause']) ok(!inter(room, L[k]), `${tag} room x ${room.x.toFixed(1)}-${(room.x + room.w).toFixed(1)} y ${room.y.toFixed(1)}-${(room.y + room.h).toFixed(1)} clear of ${k}`);
     // tap each key: gravity follows (room 1 starts grounded, so flips are free)
     const got = [];
     for (const d of [1, 0, 3, 2]) {

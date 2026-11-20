@@ -800,10 +800,21 @@ L.setHazards = function (rects) { S.hazExtra = Array.isArray(rects) ? rects : []
     }
   }
   // hero light rolls along the platform edge standing against gravity: gold hotspot, brightest right under the hero, fades by ~120 px
+  // The hotspot is clipped to the face of the solid the hero stands on (never past its ends), stopped short of any neighbouring
+  // wall that touches the 12 px light band, kept inside the room, and the cut ends fade out (no hard bar). Works for all 4 gravities.
+  function rimScratch(w, h) {
+    let c = S.rimTmp;
+    if (!c || c.width < w || c.height < h) { c = S.rimTmp = mk(Math.max(w, c ? c.width : 0, 64), Math.max(h, c ? c.height : 0, 16)); }
+    return c;
+  }
   function drawHeroRim(ctx, f) {
     const room = S.room, h = S.hero;
     if (!room || !room.walls || !h.has || h.dead) return;
     const ws = room.walls, face = ((S.hero.g | 0) + 2) & 3, sc = f.sc, th = 12 * sc, len = 120 * sc, spr = S.sp.hot[face], n = DIRS[face];
+    const hv = face === 0 || face === 2, cw = (room.w || 336), ch = (room.h || 500);
+    // room interior in screen space
+    const rx0 = (0 - f.cx) * sc + f.W / 2, ry0 = (0 - f.cy) * sc + f.H / 2, rx1 = (cw - f.cx) * sc + f.W / 2, ry1 = (ch - f.cy) * sc + f.H / 2;
+    const hp = hv ? (h.x - f.cx) * sc + f.W / 2 : (h.y - f.cy) * sc + f.H / 2;
     for (let i = 0; i < ws.length && i < 40; i++) {
       const w = ws[i], nx = clamp(h.x, w[0], w[0] + w[2]), ny = clamp(h.y, w[1], w[1] + w[3]);
       const d = Math.hypot(h.x - nx, h.y - ny);
@@ -812,12 +823,44 @@ L.setHazards = function (rects) { S.hazExtra = Array.isArray(rects) ? rects : []
       const a = (1 - d / 120) * hzFade(nx, ny);
       if (a < 0.02) continue;
       const x = (w[0] - f.cx) * sc + f.W / 2, y = (w[1] - f.cy) * sc + f.H / 2, ww = w[2] * sc, hh = w[3] * sc;
-      const px = (nx - f.cx) * sc + f.W / 2, py = (ny - f.cy) * sc + f.H / 2;
+      // light band (perpendicular) and the face run (along), screen px
+      let b0, b1, lo, hi;
+      if (face === 0) { b0 = y - th; b1 = y; } else if (face === 2) { b0 = y + hh; b1 = y + hh + th; } else if (face === 1) { b0 = x + ww; b1 = x + ww + th; } else { b0 = x - th; b1 = x; }
+      if (hv) { lo = x; hi = x + ww; } else { lo = y; hi = y + hh; }
+      const cut = [false, false];   // [low end clipped, high end clipped]
+      // stay inside the room
+      const rlo = hv ? rx0 : ry0, rhi = hv ? rx1 : ry1;
+      if (lo < rlo) { lo = rlo; cut[0] = true; } if (hi > rhi) { hi = rhi; cut[1] = true; }
+      // stop at neighbouring solids that touch the band
+      for (let j = 0; j < ws.length && j < 40; j++) {
+        if (j === i) continue;
+        const o = ws[j], ox = (o[0] - f.cx) * sc + f.W / 2, oy = (o[1] - f.cy) * sc + f.H / 2, ow = o[2] * sc, oh = o[3] * sc;
+        const p0 = hv ? oy : ox, p1 = hv ? oy + oh : ox + ow, q0 = hv ? ox : oy, q1 = hv ? ox + ow : oy + oh;
+        if (p1 <= b0 + 0.5 || p0 >= b1 - 0.5) continue;     // misses the band
+        if (q1 <= lo || q0 >= hi) continue;                 // misses the run
+        if (q0 <= hp && q1 >= hp) { hi = lo; break; }       // swallows the hero column: nothing to light
+        if (q0 > hp) { if (q0 < hi) { hi = q0; cut[1] = true; } } else if (q1 > lo) { lo = q1; cut[0] = true; }
+      }
+      const s0 = hp - len / 2, e0 = Math.max(lo, s0), e1 = Math.min(hi, s0 + len);
+      if (e1 - e0 < 1) continue;
+      const span = e1 - e0, F = Math.min(14 * sc, span / 2);
+      const cl = cut[0] || s0 < lo - 0.5 || false, ch2 = cut[1] || s0 + len > hi + 0.5;
       ctx.globalAlpha = clamp(0.95 * a * a * 0.5 + 0.5 * a, 0, 1);
-      if (face === 0) ctx.drawImage(spr, clamp(px - len / 2, x - len / 2, x + ww - len / 2), y - th, len, th);
-      else if (face === 2) ctx.drawImage(spr, clamp(px - len / 2, x - len / 2, x + ww - len / 2), y + hh, len, th);
-      else if (face === 1) ctx.drawImage(spr, x + ww, clamp(py - len / 2, y - len / 2, y + hh - len / 2), th, len);
-      else ctx.drawImage(spr, x - th, clamp(py - len / 2, y - len / 2, y + hh - len / 2), th, len);
+      if (!cl && !ch2) {   // the whole sprite fits on the face: unchanged look
+        if (hv) ctx.drawImage(spr, s0, b0, len, th); else ctx.drawImage(spr, b0, s0, th, len);
+        continue;
+      }
+      // clipped: draw the visible part through a scratch with the cut ends faded out
+      const sw = Math.ceil(hv ? span : th), sh = Math.ceil(hv ? th : span);
+      const tc = rimScratch(sw, sh), tx = tc.getContext('2d');
+      tx.setTransform(1, 0, 0, 1, 0, 0); tx.globalCompositeOperation = 'source-over'; tx.globalAlpha = 1; tx.clearRect(0, 0, tc.width, tc.height);
+      if (hv) tx.drawImage(spr, s0 - e0, 0, len, th); else tx.drawImage(spr, 0, s0 - e0, th, len);
+      tx.globalCompositeOperation = 'destination-in';
+      const g = hv ? tx.createLinearGradient(0, 0, span, 0) : tx.createLinearGradient(0, 0, 0, span), u = F / span;
+      g.addColorStop(0, 'rgba(0,0,0,' + (cl ? 0 : 1) + ')'); g.addColorStop(cl ? u : 0, 'rgba(0,0,0,1)');
+      g.addColorStop(ch2 ? 1 - u : 1, 'rgba(0,0,0,1)'); g.addColorStop(1, 'rgba(0,0,0,' + (ch2 ? 0 : 1) + ')');
+      tx.fillStyle = g; tx.fillRect(0, 0, hv ? span : th, hv ? th : span);
+      if (hv) ctx.drawImage(tc, 0, 0, sw, sh, e0, b0, sw, sh); else ctx.drawImage(tc, 0, 0, sw, sh, b0, e0, sw, sh);
     }
   }
   function drawHeroGlow(ctx, f, k) {

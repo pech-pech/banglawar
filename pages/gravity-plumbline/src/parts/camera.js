@@ -6,16 +6,17 @@
 // smoothing, so no settle crop. The control strip is only a tint over the room.
 //   view     scale   room on screen (y)
 //   344x882  1.024   84..596
-//   475x638  1.096   84..632   (no arrow pad: view.pad null / PL.Input absent)
-// S1 ARROW PAD: the fit avoids the pad box (PL.Input.layout(W,H).box, or view.pad
-// when given; null = no pad). If the centred room would touch the pad, the room
-// is fitted into the larger free area left of / right of / above the pad, PAD_GAP
-// px clear of it, EDGE px from the screen side. FIT_MIN 0.9 -> 0.84.
-//   view            scale   room x         room y      pad box x
-//   475x638 right   0.8423  4.0..287.0     84..505.1   289..473
-//   475x638 left    0.8423  188.0..471.0   84..505.1   2..186
-//   344x882 either  1.0238  0..344         84..596     80..264 (y 648..832)
-//   816x568 right   0.9560  247.4..568.6   84..562     604..788
+//   475x638  1.096   84..632   (no pad / no mode: view.pad null / PL.Input absent)
+// OVERLAY (Input.layout mode 'overlay', portrait views where room + pad do not
+// stack): the pad floats over the room's bottom corner, so the fit IGNORES it:
+// HUD pills float over the backdrop (hudTop = HUD_OVERLAY 52 + safe-area top),
+// room fills the height under them, centred, EDGE px from the screen sides.
+//   475x638 overlay 1.16    room 390x580 at x 42.5, y 52..632
+// BELOW (344x882) keeps the 84 px HUD and the full-width fit, pad in the free
+// band under the room; LANDSCAPE fits the room beside the pad (PAD_GAP clear).
+//   344x882 below   1.0238  0..344      84..596
+//   816x568 right   0.9560  247.4..568.6   84..562   pad x 604..788
+// (rooms keep the overlay dead zone, the pad box over the room, clear of hazards.)
 // Sight ahead in fit mode = time to the room edge (whole room visible).
 // SCROLL FALLBACK only when that fit scale < 0.9 (a room too tall, future):
 // (1) zoom spring, (2) look-ahead target, (3) soft room clamp + soft bob band
@@ -49,11 +50,11 @@ PL.CAM = {
   SOFT_PAD: 28, SOFT_K: 48, ACC: 18000, LEAD: 0.25,
   // HUD band at the top (css px, + safe-area top = frame.hudTop); horizontal
   // lock when the view shows the room width (visible >= room.w - LOCK_SLACK).
-  HUD: 84, LOCK_SLACK: 8, STRIP_Y: 0.6, ROOM_PAD: 16, TGT_SLACK: 40,
+  HUD: 84, HUD_OVERLAY: 52, LOCK_SLACK: 8, STRIP_Y: 0.6, ROOM_PAD: 16, TGT_SLACK: 40,
   // FIT-WHOLE-ROOM [AD]: bottom margin (css px); fall back to scrolling only
   // when the fit scale drops below FIT_MIN css px per room px.
   FIT_GAP: 6, FIT_MIN: 0.82,
-  // S1 arrow pad: clearance room<->pad box and room<->screen side when fitted beside the pad
+  // landscape: clearance room<->pad box and room<->screen side when fitted beside the pad
   PAD_GAP: 2, EDGE: 4,
 };
 
@@ -161,14 +162,27 @@ function stepAxis(cam, ax, tgt, p, s, half, len, hardBand, dt) {
   cam[c] = x; cam[v] = (x - x0) / dt; cam[tk] = tgt;
 }
 
-// HUD bottom in css px: HUD + safe-area top (view.inset.t when given).
+// Layout mode for this view: view.mode when the caller gives it, else
+// PL.Input.layout(W,H).mode ('overlay' | 'below' | 'landscape'; the pre-overlay
+// name 'side' is treated as 'overlay'), else null (Node tests, no pad).
+function layoutMode(view) {
+  let m = view.mode;
+  if (m === undefined && view.pad === undefined && PL.Input && PL.Input.layout) { try { m = PL.Input.layout(view.W, view.H).mode; } catch (e) { m = null; } }
+  return m === 'side' ? 'overlay' : (m || null);
+}
+
+// HUD bottom in css px: HUD (84, or HUD_OVERLAY 52 in overlay mode, where the
+// pills float over the backdrop) + safe-area top (view.inset.t when given).
 function hudTop(view) {
-  return PL.CAM.HUD + ((view.inset && view.inset.t) || 0);
+  return (layoutMode(view) === 'overlay' ? PL.CAM.HUD_OVERLAY : PL.CAM.HUD) + ((view.inset && view.inset.t) || 0);
 }
 
 // Pad box to keep the room clear of: view.pad when the caller gives it (null = no
 // pad), else the arrow pad from PL.Input (input.js), else none (Node tests).
+// Overlay mode: the pad floats over the room (its dead zone is the rooms' job),
+// so the fit ignores it.
 function padBox(view) {
+  if (layoutMode(view) === 'overlay') return null;
   if (view.pad !== undefined) return view.pad;
   if (PL.Input && PL.Input.layout) { try { return PL.Input.layout(view.W, view.H).box; } catch (e) { return null; } }
   return null;
@@ -177,9 +191,11 @@ function hits(a, b, g) {
   return a.x < b.x + b.w + g && b.x - g < a.x + a.w && a.y < b.y + b.h + g && b.y - g < a.y + a.h;
 }
 
-// FIT-WHOLE-ROOM: scale so the whole room fits under the HUD (and clear of the
-// arrow pad); null when the room is too tall for that (scale < FIT_MIN) and the
-// scroll path applies.
+// FIT-WHOLE-ROOM: scale so the whole room fits under the HUD; null when the
+// room is too tall for that (scale < FIT_MIN) and the scroll path applies.
+// Overlay: room fills the height under the HUD, centred, pad ignored.
+// 'below': room full width, pad sits in the free band under it. 'landscape':
+// the room is fitted beside the pad (PAD_GAP clear) when it would touch it.
 function fitFrame(state, view) {
   const K = PL.CAM, rd = roomDims(state), ht = hudTop(view), pad = padBox(view);
   const yMax = view.H - K.FIT_GAP;
@@ -189,7 +205,8 @@ function fitFrame(state, view) {
     const w = rd.w * s;
     return { s, r: { x: (a.x0 + a.x1) / 2 - w / 2, y: ht, w, h: rd.h * s } };
   };
-  let best = place({ x0: 0, x1: view.W, y1: yMax });
+  const ov = layoutMode(view) === 'overlay', ins = view.inset || {};
+  let best = ov ? place({ x0: K.EDGE + (ins.l || 0), x1: view.W - K.EDGE - (ins.r || 0), y1: yMax - (ins.b || 0) }) : place({ x0: 0, x1: view.W, y1: yMax });
   if (pad && hits(best.r, pad, K.PAD_GAP)) {
     const cands = [
       { x0: K.EDGE, x1: pad.x - K.PAD_GAP, y1: yMax },

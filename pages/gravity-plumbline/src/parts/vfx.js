@@ -384,6 +384,7 @@ const PL = (globalThis.PL = globalThis.PL || {});
     V.room = room || null; V.tips = []; V.prevO = []; V.exit = room && room.exit ? room.exit : null;
     if (PL.Light) PL.Light.setRoom(room);
     V.alive.fill(0); V.count = 0; V.trailCount = 0; V.hero.has = false;
+    V.vanish = -1; V.vanishFrom = null; V.celT = 0;   // win-spiral state must not leak into the next room (hero was drawn at scale 0)
     if (!room) return;
     (room.spikes || []).forEach(function (s, idx) {
       const r = s.r, dir = PL.Light ? PL.Light.spikeDir(room, r) : 0, horiz = dir === 0 || dir === 2;
@@ -422,6 +423,8 @@ const PL = (globalThis.PL = globalThis.PL || {});
       if (st !== 0) setLevel(V.level + st);
     }
     const h = V.hero;
+    // new attempt without a new room object (Retry / replay): the hero left the win spot, so drop the win spiral
+    if (V.vanish >= 0 && V.vanishFrom && hero && isFinite(hero.x) && isFinite(hero.y) && Math.hypot(hero.x - V.vanishFrom.x, hero.y - V.vanishFrom.y) > 40) { V.vanish = -1; V.vanishFrom = null; V.celT = 0; }
     if (hero && isFinite(hero.x) && isFinite(hero.y)) {
       if (h.has) {
         let vx = (hero.x - h.x) / dt, vy = (hero.y - h.y) / dt;

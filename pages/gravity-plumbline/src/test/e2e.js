@@ -270,7 +270,9 @@ async function extras(browser, port) {
   await sleep(3300); await h.txt(); await h.frame(); tx = await h.txt();
   ok(!/You keep your/.test(tx) && !/Tap an/.test(tx), 'teach 1: hint hidden after its second line');
   { const L = await h.ev(() => PL_TEST.layout('tutorial')); const hit = (a, b) => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
-    ok(!hit(L.rects.teach, L.rects.room) && !hit(L.rects.teach, L.rects.padBox), 'teach slot never covers the room or the pad'); }
+    const T = L.rects.teach, R = L.rects.room, ov = L.rects.teach && R && (await h.ev(() => PL.Input.layout(475, 638).mode)) === 'overlay';
+    // layout A (overlay): the room fills the height, so the teach strip may sit on the room's top band (<= 72 px), never on the pad
+    ok(!hit(T, L.rects.padBox) && (ov ? (T.y >= R.y - 1 && T.y + T.h <= R.y + 81) : !hit(T, R)), "teach slot never covers the pad, and the room only on its top 80 px band (overlay)"); }
   await h.context.close();
   // 5-death nudge: offers the aim arc for that room only
   h = await open(browser, port, 475, 638);
