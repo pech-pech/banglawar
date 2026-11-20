@@ -8,7 +8,7 @@ import { getThemeId, setThemeId, createThemePicker } from './themeui.js';
 import { THEMES } from './themes.js';
 import { createTweak, buildReport, copyText } from './tweak.js';
 
-const BUILD = 'ridgeline-proto-2';
+const BUILD = 'ridgeline-proto-3';
 const BEST_KEY = 'ridgeline.best.v1';
 const COUNTER_KEY = 'ridgeline.counter.v1';
 const MAX_STEPS = 8;
