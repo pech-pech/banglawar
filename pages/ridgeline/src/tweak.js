@@ -128,6 +128,9 @@ export function buildReport(info) {
     'cfg diff: ' + (keys.length ? '' : '(defaults)')
   ];
   for (const k of keys) lines.push(`  ${k}: ${diff[k]} (default ${DEFAULTS[k]})`);
+  const fl = info.flow, md = info.medal;
+  lines.push('Flow: ' + (fl ? `peak ${fmt(fl.peak)}, links ${fmt(fl.links)}, razor ${fmt(fl.razors)}, inner ${fmt(fl.inners)}, centred gates ${fmt(fl.centred)}, boost links ${fmt(fl.boostLinks)}, flow5 ${num(fl.flow5T, 1)} s` : '-'));
+  lines.push('Medal: ' + (!md ? '-' : md.hidden ? 'off (DEV)' : `${md.name || 'none'} (gold ${num(md.gold, 1)} s, summit ${num(md.summit, 1)} s)`));
   if (info.tele) lines.push(...formatTelemetry(info.tele, info.device));
   return lines.join('\n');
 }

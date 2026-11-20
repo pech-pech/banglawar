@@ -100,7 +100,14 @@ body.rl-paper .rlh .rlh-bar::before{content:'BOOST';align-self:flex-start;font:9
 body.rl-paper .rlh .rlh-hint{order:0;align-self:flex-start}
 body.rl-paper .rlh .rlh-track{order:2;align-self:flex-start;width:calc(100% - var(--rl-flow-slot,64px) - 8px);height:14px;border:3px solid ${p.ink};border-radius:9px;overflow:visible;background:${p.bg};box-shadow:2px 2px 0 ${p.ink};box-sizing:border-box}
 body.rl-paper .rlh .rlh-fill{position:relative;background:transparent!important}
-body.rl-paper .rlh .rlh-fill::after{content:'';position:absolute;right:-10px;top:50%;width:20px;height:20px;margin-top:-10px;border-radius:50%;background:${p.knob};border:3px solid ${p.ink};box-sizing:border-box}`;
+body.rl-paper .rlh .rlh-fill::after{content:'';position:absolute;right:-10px;top:50%;width:20px;height:20px;margin-top:-10px;border-radius:50%;background:${p.knob};border:3px solid ${p.ink};box-sizing:border-box}
+body.rl-paper .rlh .rlh-flow{color:${p.ink};text-shadow:none}
+body.rl-paper .rlh .rlh-flow-k{color:${p.ink};opacity:1;font-weight:900}
+body.rl-paper .rlh .rlh-pip{background:${p.bg};border:2px solid ${p.ink};box-shadow:1px 1px 0 ${p.ink}}
+body.rl-paper .rlh .rlh-pip.lit{background:${p.knob || p.accent};border-color:${p.ink}}
+body.rl-paper .rlh .rlh-fbar{background:${p.bg};border:2px solid ${p.ink};box-shadow:1px 1px 0 ${p.ink}}
+body.rl-paper .rlh .rlh-fbar>i{background:${p.accent}}
+body.rl-paper .rlh .rlh-razor{color:${p.ink};background:${p.bg};border:3px solid ${p.ink};box-shadow:3px 3px 0 ${p.ink};text-shadow:none}`;
 }
 
 export function createView(canvas, course, cfg, themeId, opts) {
@@ -817,6 +824,22 @@ export function createView(canvas, course, cfg, themeId, opts) {
     let lastT = -1;
     let fpsAcc = 0, fpsFrames = 0;
 
+    // flow fx: sled events from main.js (no allocation, reuses spray pool and glow materials)
+    let fxX = 0, fxZ = 0, fxNow = 0, fxGlowUntil = -1;
+    const _fx = new THREE.Vector3();
+    function fx(ev) {
+      if (!ev || reduced) return;
+      if (ev.type === 'graze' && spray) {
+        const razor = ev.tier === 'razor';
+        const side = ev.x < fxX ? -1 : 1; // sled side nearest the rock
+        _fx.set(fxX + side * 0.5, sled.position.y - 0.2, fxZ);
+        spray.emit(_fx, razor ? 8 : 3);
+        if (razor && star) { starT = fxNow; star.position.x = side * 0.6; }
+      } else if (ev.type === 'flowUp' && ev.level >= 5) {
+        fxGlowUntil = fxNow + 1;
+      }
+    }
+
     function resize() {
       camera.aspect = w / h;
       camera.updateProjectionMatrix();
@@ -824,6 +847,7 @@ export function createView(canvas, course, cfg, themeId, opts) {
 
     function draw(state, timeSec) {
       const z = state.z;
+      fxX = state.x; fxZ = z; fxNow = timeSec;
       scene.fog.density = cfg.fogDensity * theme.fogDensity * (LOOK.fogMul || 1);
       const dt = lastT < 0 ? 0 : clamp(timeSec - lastT, 0, 0.1);
       lastT = timeSec;
@@ -855,13 +879,15 @@ export function createView(canvas, course, cfg, themeId, opts) {
       sled.rotation.z = roll;
       sledModel.setLean(roll);
       const boosting = state.boostT > 0;
-      const gcol = boosting ? COL_BOOST : (state.charging ? _c.copy(COL_IDLE).lerp(COL_CHARGE, 0.5 + 0.5 * Math.sin(timeSec * 30)) : COL_IDLE);
+      let gcol = boosting ? COL_BOOST : (state.charging ? _c.copy(COL_IDLE).lerp(COL_CHARGE, 0.5 + 0.5 * Math.sin(timeSec * 30)) : COL_IDLE);
+      if (!reduced && timeSec < fxGlowUntil && !boosting) gcol = _c.copy(gcol).lerp(COL_BOOST, Math.min(1, fxGlowUntil - timeSec) * 0.8); // flow 5 accent
       for (const m of sledModel.glowMats) m.color.copy(gcol);
       flare.visible = boosting;
       if (star) {
         if (boosting && !wasBoost) starT = timeSec;
         wasBoost = boosting;
         star.visible = timeSec - starT < 0.2;
+        if (!star.visible) star.position.x = 0;
       }
       if (boosting) {
         const f = 0.8 + 0.4 * Math.sin(timeSec * 50);
@@ -956,7 +982,7 @@ export function createView(canvas, course, cfg, themeId, opts) {
     }
 
     resize();
-    return { draw, dispose, resize, camera };
+    return { draw, dispose, resize, camera, fx };
   }
 
   function resize(nw, nh) {
@@ -967,6 +993,7 @@ export function createView(canvas, course, cfg, themeId, opts) {
   }
 
   function draw(state, timeSec) { world.draw(state, timeSec); }
+  function fx(ev) { if (world && world.fx) world.fx(ev); }
 
   function stats() {
     const r = renderer.info.render;
@@ -987,7 +1014,7 @@ export function createView(canvas, course, cfg, themeId, opts) {
   world = buildWorld(themeId);
   resize(canvas.clientWidth || 475, canvas.clientHeight || 638);
   return {
-    resize, draw, stats, dispose, setTheme,
+    resize, draw, fx, stats, dispose, setTheme,
     get camera() { return world ? world.camera : null; },
   };
 }

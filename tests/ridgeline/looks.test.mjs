@@ -84,6 +84,6 @@ test('every src module in the main.js import graph is in sw.js FILES', () => {
     const rel = './' + path.relative(base, f).split(path.sep).join('/');
     assert.ok(sw.includes("'" + rel + "'"), 'sw.js FILES missing ' + rel);
   }
-  assert.match(sw, /VERSION = 'rl-proto-7'/);
+  assert.match(sw, /VERSION = 'rl-proto-8'/);
   for (const f of ['./src/looks.js', './src/lookparts.js']) assert.ok(sw.includes("'" + f + "'"), 'sw.js missing ' + f);
 });

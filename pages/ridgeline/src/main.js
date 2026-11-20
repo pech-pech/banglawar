@@ -2,6 +2,7 @@ import { hashSeed, dailySeedString } from './rng.js';
 import { cfg, isDefault, diffFromDefault } from './config.js';
 import { createCourse } from './terrain.js';
 import { FIXED_DT, createSled, stepSled } from './sled.js';
+import { medalTimes, medalFor, MEDALS } from './medals.js';
 import { createView } from './render.js';
 import { createHud } from './hud.js';
 import { getThemeId, setThemeId, createThemePicker } from './themeui.js';
@@ -9,7 +10,7 @@ import { THEMES } from './themes.js';
 import { createTelemetry, deviceInfo } from './telemetry.js';
 import { createTweak, buildReport, copyText, getVisualPrefs, onVisualPrefs, isVisualDefault } from './tweak.js';
 
-const BUILD = 'ridgeline-proto-5';
+const BUILD = 'ridgeline-proto-6';
 const BEST_KEY = 'ridgeline.best.v1';
 const COUNTER_KEY = 'ridgeline.counter.v1';
 const MAX_STEPS = 8;
@@ -149,6 +150,24 @@ function retry() {
   hud.setDev(!isDefault() || !isVisualDefault());
 }
 
+const MEDAL_KEY = 'ridgeline.medal.v1';
+function saveMedal(key, name) {
+  if (!name) return;
+  try {
+    let all = {};
+    try { all = JSON.parse(lsGet(MEDAL_KEY)) || {}; } catch (e) { all = {}; }
+    const old = MEDALS.indexOf(all[key]);
+    if (old < 0 || MEDALS.indexOf(name) < old) { all[key] = name; lsSet(MEDAL_KEY, JSON.stringify(all)); }
+  } catch (e) { /* ignore */ }
+}
+function flowInfo() {
+  const s = state || {};
+  return {
+    peak: s.flowPeak || 0, links: s.links || 0, razors: s.razors || 0, inners: s.inners || 0,
+    centred: s.centred || 0, boostLinks: s.boostLinks || 0, flow5T: Math.round((s.flow5T || 0) * 10) / 10,
+  };
+}
+
 function endRun() {
   phase = 'end';
   const finished = !!state.finished;
@@ -158,11 +177,22 @@ function endRun() {
   const key = mode + ':' + seedStr;
   if (finished) saveBest(key, state.t);
   const result = finished ? 'finish' : (crashed ? 'crash' : 'end');
+  const hidden = !isDefault() || !isVisualDefault();
+  const times = medalTimes(course, cfg);
+  let medal = { name: null, next: null, gap: null, hidden };
+  if (finished && !hidden) {
+    medal = Object.assign(medalFor(state.t, times), { hidden: false });
+    saveMedal(key, medal.name);
+  }
+  const r1 = (v) => Math.round(v * 10) / 10;
   lastResult = {
     result, time: state.t, gatesPassed: state.gatesPassed, gatesMissed: state.gatesMissed,
+    flow: flowInfo(),
+    medal: { name: medal.name, gold: r1(times.gold), summit: r1(times.summit), hidden },
   };
   hud.showEnd({
-    finished, crashed, time: state.t,
+    medal, flowPeak: state.flowPeak || 0,
+    finished, crashed, time: state.t, z: state.z,
     gatesPassed: state.gatesPassed, gatesMissed: state.gatesMissed,
     best: bestFor(key),
   });
@@ -176,6 +206,8 @@ function buildInfo() {
     gatesPassed: lastResult ? lastResult.gatesPassed : (state ? state.gatesPassed : 0),
     gatesMissed: lastResult ? lastResult.gatesMissed : (state ? state.gatesMissed : 0),
     crashZ,
+    flow: lastResult ? lastResult.flow : flowInfo(),
+    medal: lastResult ? lastResult.medal : null,
     fpsAvg: fpsN ? fpsSum / fpsN : fpsAvg,
     stats: view ? view.stats() : { calls: 0, triangles: 0 },
     diff: diffFromDefault(),
@@ -337,6 +369,8 @@ function frame(now) {
     tele.step(FIXED_DT, input.steer, state.speed, state.charging, Math.abs(state.x - course.centerX(state.z)) > course.halfWidth(state.z));
     for (let i = 0; i < evs.length; i++) {
       const ev = evs[i];
+      if (typeof hud !== 'undefined' && hud && typeof hud.event === 'function') hud.event(ev);
+      if (view && typeof view.fx === 'function') view.fx(ev);
       if (ev.type === 'boost') tele.boost(ev.amount);
       else if (ev.type === 'crash') {
         let rk = null;
@@ -359,8 +393,10 @@ window.__ridgeline = {
   get course() { return course; },
   cfg,
   get view() { return view; },
+  get hud() { return hud; },
   setTheme(id) { return applyTheme(id); },
   start(m) { startMode(m === 'random' ? 'random' : 'daily'); },
   stats() { return view ? view.stats() : null; },
+  medals() { return medalTimes(course, cfg); },
   report() { return buildReport(buildInfo()); },
 };
