@@ -1,4 +1,5 @@
 // Ridgeline tweak panel (slice 6). DOM only.
+import { formatTelemetry } from './telemetry.js';
 import { DEFAULTS, cfg, META, setCfg, resetCfg, isDefault, diffFromDefault, applyPreset } from './config.js';
 
 const KEY = 'ridgeline.presets.v1';
@@ -87,6 +88,7 @@ export function buildReport(info) {
     'cfg diff: ' + (keys.length ? '' : '(defaults)')
   ];
   for (const k of keys) lines.push(`  ${k}: ${diff[k]} (default ${DEFAULTS[k]})`);
+  if (info.tele) lines.push(...formatTelemetry(info.tele, info.device));
   return lines.join('\n');
 }
 

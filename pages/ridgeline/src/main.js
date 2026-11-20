@@ -6,12 +6,28 @@ import { createView } from './render.js';
 import { createHud } from './hud.js';
 import { getThemeId, setThemeId, createThemePicker } from './themeui.js';
 import { THEMES } from './themes.js';
+import { createTelemetry, deviceInfo } from './telemetry.js';
 import { createTweak, buildReport, copyText } from './tweak.js';
 
-const BUILD = 'ridgeline-proto-3';
+const BUILD = 'ridgeline-proto-4';
 const BEST_KEY = 'ridgeline.best.v1';
 const COUNTER_KEY = 'ridgeline.counter.v1';
 const MAX_STEPS = 8;
+const tele = createTelemetry();
+let gpuStr = null;
+function gpuName() {
+  if (gpuStr !== null) return gpuStr;
+  gpuStr = '';
+  try {
+    const c = document.createElement('canvas');
+    const gl = c.getContext('webgl2') || c.getContext('webgl');
+    const x = gl && gl.getExtension('WEBGL_debug_renderer_info');
+    if (x) gpuStr = String(gl.getParameter(x.UNMASKED_VENDOR_WEBGL)) + ' / ' + String(gl.getParameter(x.UNMASKED_RENDERER_WEBGL));
+    const l = gl && gl.getExtension('WEBGL_lose_context');
+    if (l) l.loseContext();
+  } catch (e) { /* ignore */ }
+  return gpuStr;
+}
 
 const canvas = document.getElementById('game');
 const ui = document.getElementById('ui');
@@ -94,6 +110,7 @@ function begin(m, seedString) {
   state = createSled(course);
   input.steer = 0; input.fire = false; fireNext = false;
   acc = 0; last = 0; fpsSum = 0; fpsN = 0; fpsAvg = 0; crashZ = null;
+  tele.reset(performance.now());
   phase = 'run';
   hud.showRun();
   hud.setDev(!isDefault());
@@ -107,6 +124,7 @@ function retry() {
   state = createSled(course);
   input.steer = 0; input.fire = false; fireNext = false;
   acc = 0; last = 0; fpsSum = 0; fpsN = 0; fpsAvg = 0; crashZ = null;
+  tele.reset(performance.now());
   phase = 'run';
   hud.showRun();
   hud.setDev(!isDefault());
@@ -117,6 +135,7 @@ function endRun() {
   const finished = !!state.finished;
   const crashed = !!state.crashed;
   if (crashed) crashZ = state.z;
+  if (finished) tele.finish();
   const key = mode + ':' + seedStr;
   if (finished) saveBest(key, state.t);
   const result = finished ? 'finish' : (crashed ? 'crash' : 'end');
@@ -130,8 +149,8 @@ function endRun() {
   });
 }
 
-function copyReport() {
-  const info = {
+function buildInfo() {
+  return {
     build: BUILD, seed: seedStr, mode,
     result: lastResult ? lastResult.result : (phase === 'run' ? 'running' : 'none'),
     time: lastResult ? lastResult.time : (state ? state.t : 0),
@@ -142,7 +161,13 @@ function copyReport() {
     stats: view ? view.stats() : { calls: 0, triangles: 0 },
     diff: diffFromDefault(),
     theme: getThemeId(),
+    tele: tele.snapshot(),
+    device: deviceInfo(null, gpuName()),
   };
+}
+
+function copyReport() {
+  const info = buildInfo();
   Promise.resolve(copyText(buildReport(info))).then((ok) => {
     hud.toast(ok ? 'Report copied' : 'Copy failed');
   }, () => hud.toast('Copy failed'));
@@ -193,7 +218,12 @@ function isControl(t) {
   return !!(t && t.closest && t.closest('button, input, select, textarea, a, label'));
 }
 window.addEventListener('pointerdown', (e) => {
+  if (phase === 'run' && !tweak.isOpen()) {
+    if (isControl(e.target)) tele.touchIgnored(performance.now(), true);
+    else if (pointerId !== null) tele.touchIgnored(performance.now(), false);
+  }
   if (phase !== 'run' || pointerId !== null || isControl(e.target) || tweak.isOpen()) return;
+  tele.touchDown(performance.now(), e.clientX, e.clientY);
   pointerId = e.pointerId;
   startX = e.clientX;
   input.steer = 0;
@@ -202,11 +232,13 @@ window.addEventListener('pointerdown', (e) => {
 });
 window.addEventListener('pointermove', (e) => {
   if (e.pointerId !== pointerId) return;
+  tele.touchMove(e.clientX, e.clientY);
   input.steer = clamp((e.clientX - startX) / 80, -1, 1);
   e.preventDefault();
 });
 function release(e, fire) {
   if (e.pointerId !== pointerId) return;
+  tele.touchUp(performance.now(), state ? state.boost : 0, !!(fire && phase === 'run'));
   pointerId = null;
   input.steer = 0;
   if (fire && phase === 'run') fireNext = true;
@@ -218,6 +250,7 @@ for (const ev of ['touchstart', 'touchmove', 'gesturestart', 'contextmenu', 'sel
 }
 
 window.addEventListener('keydown', (e) => {
+  if (phase === 'run' && (e.code === 'ArrowLeft' || e.code === 'ArrowRight' || e.code === 'Space')) tele.key();
   if (e.code === 'ArrowLeft') { keys.left = true; e.preventDefault(); }
   else if (e.code === 'ArrowRight') { keys.right = true; e.preventDefault(); }
   else if (e.code === 'Space') { if (phase === 'run' && !e.repeat) fireNext = true; e.preventDefault(); }
@@ -255,6 +288,7 @@ function frame(now) {
     if (fpsWin.length > 30) fpsWin.shift();
     let s = 0; for (const v of fpsWin) s += v;
     fpsNow = s / fpsWin.length;
+    if (phase === 'run' && !tweak.isOpen()) tele.frame(dt * 1000);
     if (phase === 'run') { fpsSum += inst; fpsN++; fpsAvg = fpsSum / fpsN; }
   }
   if (phase !== 'run' || !state) return;
@@ -267,7 +301,17 @@ function frame(now) {
     const fire = fireNext;
     fireNext = false;
     const inp = { steer: input.steer, fire };
-    stepSled(state, course, inp, cfg);
+    const evs = stepSled(state, course, inp, cfg);
+    tele.step(FIXED_DT, input.steer, state.speed, state.charging, Math.abs(state.x - course.centerX(state.z)) > course.halfWidth(state.z));
+    for (let i = 0; i < evs.length; i++) {
+      const ev = evs[i];
+      if (ev.type === 'boost') tele.boost(ev.amount);
+      else if (ev.type === 'crash') {
+        let rk = null;
+        for (const r of state._rocks) if (r.id === ev.rockId) { rk = r; break; }
+        tele.crash({ rockId: ev.rockId, rockX: rk ? rk.x : NaN, rockZ: rk ? rk.z : NaN, sledX: ev.x, vx: state.vx });
+      }
+    }
     acc -= FIXED_DT;
     steps++;
     if (state.crashed || state.finished) { endRun(); break; }
@@ -286,4 +330,5 @@ window.__ridgeline = {
   setTheme(id) { return applyTheme(id); },
   start(m) { startMode(m === 'random' ? 'random' : 'daily'); },
   stats() { return view ? view.stats() : null; },
+  report() { return buildReport(buildInfo()); },
 };

@@ -1,8 +1,8 @@
 // Offline cache for Ridgeline. Bump VERSION on every release so phones pick up the new build.
-const VERSION = 'rl-proto-5';
+const VERSION = 'rl-proto-6';
 const FILES = [
   './', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png', './icon-maskable-512.png',
-  './src/rng.js', './src/config.js', './src/terrain.js', './src/sled.js', './src/render.js', './src/hud.js', './src/tweak.js', './src/themes.js', './src/themeui.js', './src/shapes.js', './src/particles.js', './src/main.js',
+  './src/rng.js', './src/config.js', './src/terrain.js', './src/sled.js', './src/render.js', './src/hud.js', './src/tweak.js', './src/themes.js', './src/themeui.js', './src/shapes.js', './src/particles.js', './src/telemetry.js', './src/main.js',
   './vendor/three.module.js', './vendor/three.core.js'
 ];
 self.addEventListener('install', e => {
