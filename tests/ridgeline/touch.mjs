@@ -48,6 +48,11 @@ try {
   console.log(`steer right moved ${right.toFixed(2)} m, left moved ${left.toFixed(2)} m`);
   if (!(right > 1)) { console.log('FAIL: right drag did not steer'); ok = false; }
   if (!(left < -1)) { console.log('FAIL: left drag did not steer'); ok = false; }
+  const rep = await page.evaluate(() => window.__ridgeline.report());
+  console.log('--- sample report ---\n' + rep + '\n---');
+  const tm = /^\s*touches: (\d+)/m.exec(rep), dm = /^\s*drags: (\d+)/m.exec(rep);
+  if (!tm || +tm[1] < 2) { console.log('FAIL: report touches'); ok = false; }
+  if (!dm || +dm[1] < 2) { console.log('FAIL: report drags'); ok = false; }
 } finally { await browser.close(); server.close(); }
 console.log(ok ? 'TOUCH PASS' : 'TOUCH FAIL');
 process.exit(ok ? 0 : 1);
