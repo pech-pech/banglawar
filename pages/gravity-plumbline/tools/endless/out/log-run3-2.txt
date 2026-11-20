@@ -1,0 +1,12 @@
+[2] seed 2 d1 rerolls=0
+[2] seed 2 d8 rerolls=0
+[2] seed 2 d15 rerolls=1
+[2] seed 2 d30 rerolls=0
+[2] seed 6 d1 rerolls=0
+[2] seed 6 d8 rerolls=1
+[2] seed 6 d15 rerolls=5
+[2] seed 6 d30 rerolls=0
+[2] seed 10 d1 rerolls=1
+[2] seed 10 d8 rerolls=2
+[2] seed 10 d15 rerolls=1
+[2] seed 10 d30 rerolls=0

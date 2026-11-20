@@ -2,6 +2,7 @@
 const assert = require('assert');
 const { CHUNKS, PAD_CELLS, isPadClean, LEGEND } = require('./chunks.js');
 
+process.env.PADRULE = 'on'; // zone unit tests below exercise the old keep-out; default-off is checked explicitly
 const count = (rows, ch) => rows.join('').split(ch).length - 1;
 const ids = new Set();
 let n = 0;
@@ -26,12 +27,7 @@ for (const c of CHUNKS) {
     assert.strictEqual(count(c.rows, 'S'), c.kind === 'entry' ? 1 : 0, c.id + ' S');
     assert.strictEqual(count(c.rows, 'E'), c.kind === 'exit' ? 1 : 0, c.id + ' E');
     if (c.kind === 'entry') assert(c.rows.slice(0, 2).join('').includes('S'), c.id + ' S not at top');
-    if (c.kind === 'exit') assert(c.rows.slice(-3).join('').includes('E'), c.id + ' E not near bottom');
-  });
-  if (c.kind === 'exit') t(() => {
-    const room = Array(15).fill('.............').concat(c.rows);
-    assert.strictEqual(room.length, 20);
-    assert(isPadClean(room), c.id + ' breaks pad keep-out');
+    if (c.kind === 'exit') assert(c.rows.slice(-4).join('').includes('E'), c.id + ' E not near bottom');
   });
 }
 
@@ -54,23 +50,20 @@ t(() => {
   assert(isPadClean(Array(15).fill(B).concat(['.....#.......', B, '.......E.....', B, '#############'].slice(0, 5))));
 });
 
-// Placement rules against the real zone, both orientations.
+// Default (PADRULE unset/off): nothing is a pad break, any chunk placement is legal, crushers may be last, exits may mirror.
 t(() => {
+  delete process.env.PADRULE;
+  assert(isPadClean(Array(17).fill(B).concat(['E............', B, '#############'])));
+  assert(isPadClean(Array(17).fill(B).concat([B, '.........^...', '#############'])));
+  assert(isPadClean(['...........S.'].concat(Array(19).fill(B))));
   for (const c of CHUNKS) {
-    for (const mir of [0, 1]) {
-      const f = (rows) => (mir && c.kind !== 'exit' ? flipRows(rows) : rows);
-      if (c.kind === 'entry') assert(isPadClean(f(c.rows).concat(Array(15).fill(B))), c.id + ' entry dirty mir=' + mir);
-      if (c.kind === 'exit') assert(isPadClean(Array(15).fill(B).concat(c.rows)), c.id + ' exit dirty');
-      if (c.kind === 'mid') {
-        const room = Array(15 - c.h).fill(B).concat(c.rows, Array(5).fill(B));
-        assert.strictEqual(isPadClean(mir ? flipRows(room) : room), !c.notLast, c.id + ' as last mid, notLast=' + !!c.notLast + ' mir=' + mir);
-        assert(isPadClean(Array(5).fill(B).concat(c.rows, Array(15 - c.h).fill(B))), c.id + ' mid at rows 5+');
-      }
-    }
-    if (c.kind === 'exit') assert(c.rows.join('').indexOf('E') % 13 === 7, c.id + ' E not in col 7');
-    if (c.kind === 'exit') assert(c.noMirror, c.id + ' noMirror');
-    if (c.kind === 'entry') { const col = c.rows.join('').length && c.rows.map((r) => r.indexOf('S')).find((x) => x >= 0); assert(col >= 3 && col <= 9, c.id + ' S col ' + col); }
+    assert(!c.notLast, c.id + ' notLast');
+    assert(!c.noMirror, c.id + ' noMirror');
+    if (c.kind === 'entry') { const col = c.rows.map((r) => r.indexOf('S')).find((x) => x >= 0); assert(col >= 3 && col <= 9, c.id + ' S col ' + col); }
   }
+  assert(CHUNKS.some((c) => c.kind === 'exit' && !c.rows.join('').includes('E') === false && c.rows.join('').indexOf('E') % 13 !== 7), 'an exit with E off col 7');
+  assert(CHUNKS.some((c) => c.id === 'm8-crusher-pair') && CHUNKS.some((c) => c.id === 'x3-spike-guard'));
+  process.env.PADRULE = 'on';
 });
 
 const K = (k) => CHUNKS.filter((c) => c.kind === k);

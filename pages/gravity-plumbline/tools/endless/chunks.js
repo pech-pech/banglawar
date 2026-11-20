@@ -2,7 +2,8 @@
 // Starfall endless-mode chunk library (13 cols, legend per MAP-FORMAT.md v1).
 // Room = entry(5) + mid(5)+mid(5) | mid(10) + exit(5) = 20 rows. Engine adds the border.
 // Crushers: X blocks are 2x2 placed in the top 2 rows of a chunk (amp 48 = 2 cells of travel).
-// Pad zone (see padzone.js / isPadClean): bottom rows 13-19 except col 7, plus cols 10-12 of rows 0-1 -> hazards, S and E live outside it.
+// Pad zone (padzone.js): by default NOT a keep-out (M's pick 2026-11-20: hazards ok, the live game fades pad keys over danger).
+// PADRULE=on restores the old keep-out: isPadClean rejects rooms with hazards/S/E in the zone, stitch re-rolls them.
 // Every chunk keeps at least one clear vertical fall lane; openTop/openBottom are derived from rows.
 
 const COLS = 13;
@@ -24,7 +25,9 @@ function PAD_CELLS() {
   return zoneCells;
 }
 // The zone may hold only plain empty ('.') or wall ('#') cells, and no crusher may sweep into it.
+const padRuleOn = () => process.env.PADRULE === 'on';
 function isPadClean(rows20) {
+  if (!padRuleOn()) return true;
   const z = PAD_CELLS(), inZ = new Set(z.map(([c, r]) => c + ',' + r));
   for (const [c, r] of z) { const ch = rows20[r] && rows20[r][c]; if (ch !== undefined && ch !== '.' && ch !== '#') return false; }
   for (let r = 0; r < rows20.length; r++) for (let c = 0; c < rows20[r].length; c++) {
@@ -68,9 +71,9 @@ const raw = [
     rows: ['~~~..........', '.....~~~.....', '.........~~~.', '.............', '.............'] },
   { id: 'm7-baffle', tier: 2, kind: 'mid', note: 'Spiked baffle on the left, spike strip on the right.',
     rows: ['.............', '####.....^^^^', 'vvvv.....####', '.............', '.............'] },
-  { id: 'm8-crusher-pair', tier: 3, kind: 'mid', notLast: true, note: 'Two crushers, three lanes.',
+  { id: 'm8-crusher-pair', tier: 3, kind: 'mid', note: 'Two crushers, three lanes.',
     rows: ['.............', '...XX...XX...', '...XX...XX...', '.............', '.............'] },
-  { id: 'm9-crusher-ledge', tier: 3, kind: 'mid', notLast: true, note: 'Crusher beside a ledge.',
+  { id: 'm9-crusher-ledge', tier: 3, kind: 'mid', note: 'Crusher beside a ledge.',
     rows: ['.............', '#####..XX....', '#####..XX....', '#####........', '.............'] },
   { id: 'm10-gate-shelf', tier: 3, kind: 'mid', note: 'Gate shelf: dive through it.',
     rows: ['.............', '####.........', '....=========', '.............', '#####........'] },
@@ -85,25 +88,25 @@ const raw = [
     rows: ['.............', '.............', '.............', '.......E.....', '#############'] },
   { id: 'x2-high-ledge', tier: 1, kind: 'exit', note: 'Ledge beside the drop to the exit.',
     rows: ['.............', '....###......', '.............', '.......E.....', '#############'] },
-  { id: 'x3-spike-guard', tier: 2, kind: 'exit', note: 'Exit in a 3-wide wall slot (was spike guard; hazards are not allowed in the pad zone).',
-    rows: ['.............', '.............', '.....#...#...', '.....#.E.#...', '#############'] },
-  { id: 'x4-crumble-roof', tier: 2, kind: 'exit', note: 'Wall roof over the exit, enter from the right (was crumble roof).',
-    rows: ['.............', '.............', '.....####....', '.....#.E.....', '#############'] },
-  { id: 'x5-gate-roof', tier: 2, kind: 'exit', note: 'Two wall shelves leave a 5-wide drop to the exit (was gate roof).',
-    rows: ['.............', '###.....#####', '.............', '.......E.....', '#############'] },
-  { id: 'x6-crusher-guard', tier: 3, kind: 'exit', note: 'Low wall step beside the exit (was crusher guard).',
-    rows: ['.............', '.............', '.............', '.####..E.....', '#############'] },
-  { id: 'x7-baffle', tier: 3, kind: 'exit', note: 'Wall block at upper left, exit under open sky (was spiked baffle).',
-    rows: ['#####........', '#####........', '.............', '.......E.....', '#############'] },
+  { id: 'x3-spike-guard', tier: 2, kind: 'exit', note: 'Spike strip on the floor between the drop and the exit.',
+    rows: ['.............', '.............', '.............', '..E...^^^^...', '#############'] },
+  { id: 'x4-crumble-roof', tier: 2, kind: 'exit', note: 'Crumble roof over the exit: it gives way under the hero.',
+    rows: ['.............', '....~~~~~....', '.............', '.....E.......', '#############'] },
+  { id: 'x5-gate-roof', tier: 2, kind: 'exit', note: 'Gate roof over the exit: dive through it.',
+    rows: ['.............', '...=======...', '.............', '.E...........', '#############'] },
+  { id: 'x6-crusher-guard', tier: 3, kind: 'exit', note: 'Crusher above an exit on the right.',
+    rows: ['..XX.........', '..XX.........', '.............', '..........E..', '#############'] },
+  { id: 'x7-baffle', tier: 3, kind: 'exit', note: 'Spiked baffle at upper left, exit under open sky.',
+    rows: ['#####........', 'vvvvv........', '.............', '.......E.....', '#############'] },
   { id: 'x8-nook', tier: 3, kind: 'exit', note: 'Exit tucked under an overhang, enter from the right.',
     rows: ['.............', '.............', '......###....', '......#E.....', '#############'] },
 ];
 
 const CHUNKS = raw.map((c) => ({
   id: c.id, tier: c.tier, kind: c.kind, rows: c.rows, h: c.rows.length,
-  notLast: !!c.notLast, // crusher sweep (+-2 cells) would reach the pad zone if this were the last mid
-  noMirror: c.kind === 'exit', // E sits in col 7, the only pad-free column, so the exit rows never mirror
+  notLast: !!c.notLast, // optional flag: mid may not be the last one (unused now that the pad zone is not a keep-out)
+  noMirror: !!c.noMirror, // optional flag: keep orientation when the room mirrors
   openTop: open(c.rows[0]), openBottom: open(c.rows[c.rows.length - 1]), note: c.note,
 }));
 
-module.exports = { CHUNKS, PAD_CELLS, isPadClean, LEGEND, COLS };
+module.exports = { CHUNKS, PAD_CELLS, isPadClean, padRuleOn, LEGEND, COLS };

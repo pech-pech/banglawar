@@ -121,12 +121,12 @@ function stitchOnce(rng, depth, opts) {
       if (!ok) return null;
     }
   }
-  if (!isPadClean(rows)) return null;
+  if (!isPadClean(rows)) return null; // no-op unless PADRULE=on (or a custom isPadClean is passed)
 
   return { rows, chunkIds: seq.map((c) => c.id), mirrored, tierPicked };
 }
 
-// A pad break (or a seam broken by mirroring) is a re-roll reason for the stitch itself: draw again from the same rng stream.
+// With PADRULE=on a pad break (or a seam broken by mirroring) is a re-roll reason for the stitch itself: draw again from the same rng stream.
 const STITCH_TRIES = 24;
 function stitchRoom(seed, depth, opts) {
   const rng = mulberry32((seed * 1000003 + depth) >>> 0);

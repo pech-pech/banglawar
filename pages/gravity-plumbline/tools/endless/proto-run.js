@@ -95,7 +95,7 @@ function merge(nSh) {
   const okRate = tot.filter((r) => !r.fallback).length / (tot.length || 1);
   const stitchMax = max(tot.flatMap((r) => r.genMs)), stitchMean = mean(tot.flatMap((r) => r.genMs));
   const pads = tot.reduce((a, r) => a + r.padBreaks, 0);
-  lines.push(`- 95%+ within ${MAXTRY} re-rolls: ${(100 * okRate).toFixed(1)}% -> ${okRate >= 0.95 ? 'PASS' : 'FAIL'}`, `- 0 pad breaks: ${pads} -> ${pads === 0 ? 'PASS' : 'FAIL'}`, `- stitch < 30 ms: mean ${stitchMean.toFixed(2)}, max ${stitchMax.toFixed(2)} -> ${stitchMax < 30 ? 'PASS' : 'FAIL'}`, '- verify is offline (seconds per room), reported separately above.', '');
+  lines.push(`- 95%+ within ${MAXTRY} re-rolls: ${(100 * okRate).toFixed(1)}% -> ${okRate >= 0.95 ? 'PASS' : 'FAIL'}`, `- pad-zone overlaps (INFO only, not a pass/fail since PADRULE=off): ${pads}`, `- stitch < 30 ms: mean ${stitchMean.toFixed(2)}, max ${stitchMax.toFixed(2)} -> ${stitchMax < 30 ? 'PASS' : 'FAIL'}`, '- verify is offline (seconds per room), reported separately above.', '');
   for (const tr of [1, 2, 3]) {
     const r = all.find((x) => x.tier === tr && x.accepted);
     if (!r) { lines.push(`## Sample tier ${tr}: none accepted`, ''); continue; }

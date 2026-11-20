@@ -105,6 +105,18 @@ test('pad break re-rolls the stitch itself', () => {
   assert.ok(r && r.stitchRerolls === 2, 'rerolls ' + (r && r.stitchRerolls));
 });
 
+test('PADRULE off (default) does not reject on the real pad check; on does', () => {
+  const real = require('./chunks.js');
+  delete process.env.PADRULE;
+  for (let s = 1; s <= 20; s++) assert.ok(stitchRoom(s, 20), 'off, seed ' + s);
+  process.env.PADRULE = 'on';
+  const xSp = mk('xs', 1, 'exit', [BLANK, BLANK, BLANK, '.^^^^^^^^^^^.', '#############']);
+  const dirty = { chunks: [e1, m1, m2, m3, m4, xSp], isPadClean: real.isPadClean };
+  assert.strictEqual(stitchRoom(1, DEPTH, dirty), null);
+  delete process.env.PADRULE;
+  assert.ok(stitchRoom(1, DEPTH, dirty), 'off accepts the same chunks');
+});
+
 let failed = 0;
 for (const t of tests) {
   try {
