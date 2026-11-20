@@ -1,0 +1,8 @@
+[3] seed 3 d1 rerolls=1
+[3] seed 3 d8 rerolls=1
+[3] seed 3 d15 rerolls=1
+[3] seed 3 d30 rerolls=3
+[3] seed 7 d1 rerolls=2
+[3] seed 7 d8 rerolls=0
+[3] seed 7 d15 rerolls=0
+[3] seed 7 d30 rerolls=0

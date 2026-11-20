@@ -12,13 +12,14 @@ function key(s,n){const r=(v,q)=>Math.round(v/q);return [r(s.x,4),r(s.y,4),r(s.v
 // Layered search: level n = states reached with n inputs. From each node coast with no input in 3-tick slots;
 // every coasting state is a branch point where each action (flip x4, dive) may be applied. Dedupe by quantised key;
 // frontier per level capped (FCAP) by distance-to-exit with random-free tie-break => "beam over input count".
-function search(room,{maxIn=5,W=250,stopFirst=true,fm=+(process.env.FM||12),collect=null}={}){
+function search(room,{maxIn=Math.min(8,+(process.env.MAXDEPTH||5)),W=+(process.env.BEAMW||250),stopFirst=true,fm=+(process.env.FM||12),collect=null}={}){
   search.md=0;const FCAP=W*fm, hasCr=room.crushers.length>0;
   const k2=(s,n)=>{const r=(v,q)=>Math.round(v/q);return [r(s.x,4),r(s.y,4),r(s.vx,40),r(s.vy,40),s.g,s.charges,s.grounded?1:0,s.diveCd>0?1:0,s.pending?1:0,hasCr?Math.round(s.t/SLOT):'',s.crumbleS.map(c=>c.st+':'+(c.timer>0?1:0)).join('')].join(',')};
   let level=[{s:PL.newState(room),log:[]}];let best=null;const seen=new Set();
   for(let n=0;n<=maxIn&&level.length;n++){
     const nxt=[];
     for(const nd of level){
+      if(search.deadline&&Date.now()>search.deadline){search.timedOut=true;return best}
       let s=nd.s;
       for(let slot=0;slot*SLOT+s.t<MAXT&&(!hasCr||slot*SLOT<=MAXWAIT);slot++){
         { const ck='c'+k2(s,n)+'|'+n; if(slot>0&&seen.has(ck))break; seen.add(ck); }

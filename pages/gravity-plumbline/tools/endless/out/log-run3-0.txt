@@ -1,0 +1,8 @@
+[0] seed 4 d1 rerolls=0
+[0] seed 4 d8 rerolls=0
+[0] seed 4 d15 rerolls=0
+[0] seed 4 d30 rerolls=1
+[0] seed 8 d1 rerolls=1
+[0] seed 8 d8 rerolls=1
+[0] seed 8 d15 rerolls=3
+[0] seed 8 d30 rerolls=1
