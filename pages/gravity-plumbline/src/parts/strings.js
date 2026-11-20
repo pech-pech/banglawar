@@ -36,7 +36,7 @@ const PL = (globalThis.PL = globalThis.PL || {});
     resetAll: 'Reset all', copyReport: 'Copy report', savePreset: 'Save preset', copyCode: 'Copy code', pasteCode: 'Paste code',
     presets: 'Presets', del: 'Delete', copied: 'Copied', copyFailed: 'Copy failed: text shown', codeBad: 'Code not valid',
     codeApplied: 'Code applied', saved: 'Preset saved', full: 'Presets full (12)', loaded: 'Preset loaded', deleted: 'Preset deleted',
-    namePrompt: 'Preset name', pastePrompt: 'Paste a preset code', ok: 'OK', cancel: 'Cancel', close: 'Close', resetDone: 'All tweaks reset', blankName: 'Give the preset a name', storageProblem: 'Could not save (storage problem)' };
+    sideNames: ['Right', 'Left'], mirror: 'Left-hand mirror', handNames: ['Off', 'On'], namePrompt: 'Preset name', pastePrompt: 'Paste a preset code', ok: 'OK', cancel: 'Cancel', close: 'Close', resetDone: 'All tweaks reset', blankName: 'Give the preset a name', storageProblem: 'Could not save (storage problem)' };
   // flatten every static string (functions are called with sample args)
   function flat(o, out) {
     for (const k in o) {

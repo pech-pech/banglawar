@@ -1,7 +1,7 @@
 // Offline cache for Starfall (working name; folder stays gravity-plumbline). Bump VERSION on every release.
 // Install: every file is cached on its own inside Promise.allSettled, so one missing file never fails the install
 // (the game draws code fallbacks and shows an "ART: fallback" chip for missing art).
-const VERSION = 'pl-beta-3';
+const VERSION = 'pl-beta-4';
 const CORE = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png', './icon-maskable-512.png'];
 const ASSETS = [
   'bg-landscape-1280x720.webp', 'bg-portrait-720x1280.webp', 'corbel.webp', 'crusher-head.webp', 'gate-aurora.webp',

@@ -25,6 +25,23 @@ const PL = (globalThis.PL = globalThis.PL || {});
   // ---- play-family rects (play, tutorial, death, roomClear share these) ----
   // join-beta glue: PL.Screens.padRects is the runtime swap point (ui.js points it at PL.Input.layout, which also
   // returns retry/pause/teach). opts.roomRect = the camera's fitted room rect (screen px) when the game knows it.
+  // Overlay layout (Layout A, 475x638): the room fills the height under a floating HUD row (pills at y 10, 32 tall, room top 52),
+  // the pad floats over the room's bottom corner (pl.box), Retry (pl.retry, 60 ring) bottom-left in the room, Pause top-right.
+  // Teach strip = top of the room (tutorial only has text); Skip sits beside Retry, on the side away from the pad.
+  function overlayRects(r, pl, w, h, tutorial, opts) {
+    const hudTop = (PL.CAM && PL.CAM.HUD_OVERLAY) || 52, ins = (opts && opts.inset) || {}, it = ins.t || 0;
+    const padRight = pl.box.x + pl.box.w / 2 > w / 2, pauseRight = pl.pause.x + pl.pause.w / 2 > w / 2;
+    if (!(opts && opts.roomRect)) { const rw = w - 8, rh = h - hudTop - it - 6; r.room = R(4, hudTop + it, rw, rh); } // no camera frame yet: whole width/height under the HUD
+    r.retry = pl.retry; r.pause = pl.pause;
+    const y = 10 + it, row = [R(0, y, 112, 32), R(0, y, 104, 32), R(0, y, 56, 32)];
+    let x = 8 + (ins.l || 0); for (const q of row) { q.x = x; x += q.w + 8; }
+    r.hudRoom = row[0]; r.hudTime = row[1]; r.pips = row[2];
+    r.chips = R(x, y + 4, 170, 24);
+    if (!pauseRight) for (const n of ['hudRoom', 'hudTime', 'pips', 'chips']) r[n] = mir(r[n], w);
+    const rm = r.room; r.teach = R(rm.x + 8, rm.y + 8, rm.w - 16, 72);
+    if (tutorial) r.skip = padRight === (pl.retry.x < w / 2) ? R(pl.retry.x + (pl.retry.x < w / 2 ? pl.retry.w + 8 : -8 - 68), pl.retry.y + pl.retry.h - 56, 68, 56) : R(pl.retry.x, pl.retry.y - 64, 68, 56);
+    else delete r.skip;
+  }
   function playRects(w, h, left, tutorial, opts) {
     const PR = (PL.Screens && PL.Screens.padRects) || padRects;
     const k = cls(w, h), pad = PR(w, h, false), r = {};
@@ -56,9 +73,11 @@ const PL = (globalThis.PL = globalThis.PL || {});
       }
     }
     if (opts && opts.roomRect) { const q = opts.roomRect; r.room = R(q.x, q.y, q.w, q.h); }
+    const ov = pl.mode === 'overlay' || pl.mode === 'side'; // 'side' = pre-overlay name of the same layout
+    if (ov) overlayRects(r, pl, w, h, tutorial, opts);
     const tw = Math.min(r.room.w - 16, 300);
-    r.toast = R(r.room.x + (r.room.w - tw) / 2, r.room.y + 8, tw, 40);
-    const out = Object.assign({}, r, { up: pl.up, left: pl.left, dive: pl.dive, right: pl.right, down: pl.down, padBox: pl.box });
+    r.toast = R(r.room.x + (r.room.w - tw) / 2, r.room.y + 8 + (ov && tutorial ? r.teach.h + 8 : 0), tw, 40);
+    const out = Object.assign({}, r, { up: pl.up, left: pl.left, dive: pl.dive, right: pl.right, down: pl.down, padBox: pl.box, mode: pl.mode });
     return out;
   }
   const PLAY_TARGETS = ['pause', 'retry', 'up', 'left', 'dive', 'right', 'down', 'skip'];
@@ -172,9 +191,15 @@ const PL = (globalThis.PL = globalThis.PL || {});
     if (r.pips) U.pips(ctx, r.pips, { n: moves, max, pop: vm.pop, size: r.pips.w < 60 ? 14 : 18 }, t);
     U.pauseKey(ctx, r.pause, { pressed: press(vm, 'pause'), focus: foc(vm, 'pause') }, t);
     U.retryKey(ctx, r.retry, { pressed: press(vm, 'retry'), label: L2.retry, spin: vm.retrySpin, focus: foc(vm, 'retry') }, t);
+    if (r.retry) U.text(ctx, L2.retry, r.retry.x + r.retry.w / 2, r.retry.y + r.retry.h + 4, { font: U.fontPx(14, 700), color: U.C.cream, align: 'center', maxW: 64 }); // caption under the ring
     const zero = moves <= 0;
-    for (const d of ['up', 'left', 'right', 'down']) U.arrowKey(ctx, r[d], { dir: d, lit: vm.lit === d, pressed: press(vm, d), dim: zero, focus: foc(vm, d) }, t);
-    U.diveKey(ctx, r.dive, { pressed: press(vm, 'dive'), cooldown: vm.cooldown || 0, disabled: zero && vm.air, airCost: vm.air && !zero }, t);
+    // overlay mode: pad drawn translucent over the room (PAD_ALPHA); a pressed key goes to max(0.9, alpha)
+    const ov = r.mode === 'overlay', ta = PL.Tweak && PL.Tweak.get && PL.Tweak.get('PAD_ALPHA'), pa = ov ? (typeof ta === 'number' ? ta : 0.45) : 1;
+    const padAlpha = (n) => ctx.globalAlpha = press(vm, n) ? Math.max(0.9, pa) : pa;
+    ctx.save();
+    for (const d of ['up', 'left', 'right', 'down']) { padAlpha(d); U.arrowKey(ctx, r[d], { dir: d, lit: vm.lit === d, pressed: press(vm, d), dim: zero, focus: foc(vm, d) }, t); }
+    padAlpha('dive'); U.diveKey(ctx, r.dive, { pressed: press(vm, 'dive'), cooldown: vm.cooldown || 0, disabled: zero && vm.air, airCost: vm.air && !zero }, t);
+    ctx.restore();
     if (vm.toast) U.toast(ctx, r.toast, Object.assign({ vw: w }, vm.toast), t);
     if (vm.teach && vm.teach.lines) { const tf = U.font('teach', w, sca), lh = Math.round(U.size('teach', w, sca) * 1.3); let nl = 0; for (const ln of vm.teach.lines) nl += U.wrap(ctx, ln, r.teach.w - 30, tf).length;
       const th = Math.min(r.teach.h, nl * lh + 24); U.teachSlot(ctx, R(r.teach.x, r.teach.y, r.teach.w, th), { lines: vm.teach.lines, alpha: vm.teach.alpha, vw: w, scale: sca }, t); }

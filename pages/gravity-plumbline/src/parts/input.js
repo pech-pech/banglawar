@@ -8,12 +8,12 @@
 // Host (ui.js): {flip(dir), dive(), restart(), pause?(), state(), view()->{W,H}, active()->bool, now?()->ms}.
 //   flip/dive push into ui's queue; ui logs {tick,k,dir} at application, unchanged (absolute dir).
 // Layout (CSS px; pad box = 3*KEY + 2*GAP - 2*(KEY-DIVE)/2 ... = 184 at defaults, centred on the picked 180 box):
-//   475x638 side      box 283-467 x 308-492, Retry 12-68 x 516-572, Pause 411-467 x 12-68, teach 291-471 x 92-296
+//   475x638 overlay   box 283-467 x 446-630 (8 px from edges + safe inset), Retry 8-68 x 556-616 (caption below), Pause 419-467 x 2-50, teach 4-471 x 88-140
+//   PAD_SIDE=1 (overlay only): pad bottom-left, Retry bottom-right; hand=left mirrors everything
 //   344x882 below     box 80-264 x 648-832, Retry 12-68 x 660-716, Pause 276-332 x 12-68, teach 4-340 x 596-644
 //   816x568 landscape box 604-788 x 328-512, Retry 12-68 x 330-386, Pause 752-808 x 12-68, teach 12-236 x 100-200
 // Settings key 'plumbline.input.v1' {v:1, hand:'right'|'left', vibrate:bool} (PL.store, never downgraded).
 const PL = (globalThis.PL = globalThis.PL || {});
-// side mode now fits the room at 0.824 (pad 8 px off the edge); camera.js FIT_MIN 0.84 would drop to scroll mode, so allow 0.82.
 
 PL.Input = (function () {
   'use strict';
@@ -40,6 +40,9 @@ PL.Input = (function () {
     const KEYP = tw('PAD_KEY', 60), DIVEP = tw('PAD_DIVE', 56), GAP = tw('PAD_GAP', 4);
     const B = 2 * KEYP + DIVEP + 2 * GAP; // 184 at defaults
     const hudTop = (PL.CAM && PL.CAM.HUD) || 84;
+    const vi = (opts && opts.inset) || (host && host.view && (host.view() || {}).inset) || {};
+    const ins = { l: vi.l || 0, r: vi.r || 0, t: vi.t || 0, b: vi.b || 0 };
+    if (hand === 'left') { const q = ins.l; ins.l = ins.r; ins.r = q; } // whole layout is mirrored at the end: build with swapped side insets so each element ends up using the inset of the edge it sits on
     let mode, cx, cy, retry, pause, teach;
     if (W > H) {
       // landscape: pad in the right gutter (admin default), Retry and teach on the left
@@ -50,10 +53,10 @@ PL.Input = (function () {
       mode = 'below'; cx = W / 2; cy = H - 142;
       retry = rect(12, cy - 80, 56, 56); pause = rect(W - 68, 12, 56, 56); teach = rect(4, cy - 144, W - 8, 48);
     } else {
-      // side: pad beside the room (room drawn smaller, camera.js fits it left of the pad)
-      mode = 'side'; cx = W - 100; cy = H - 238; // pad 8 px in from the screen edge (QA 4)
-      retry = rect(12, H - 122, 56, 56); pause = rect(W - 64, 12, 56, 56);
-      teach = rect(cx - 90, hudTop + 8, 180, Math.max(48, cy - B / 2 - 12 - (hudTop + 8)));
+      // overlay: pad floats over the room's bottom-right corner (room is fitted ignoring it), Retry bottom-left
+      mode = 'overlay'; cx = W - 8 - ins.r - B / 2; cy = H - 8 - ins.b - B / 2;
+      retry = rect(8 + ins.l, H - 8 - ins.b - 14 - 60, 60, 60); pause = rect(W - 8 - ins.r - 56, ins.t, 56, 56); // caption (14 px) sits under the ring; Pause 56 (touch rule) may overlap the room top wall by 4 px
+      teach = rect(4, hudTop + 4, W - 8, 52);
     }
     const box = rect(cx - B / 2, cy - B / 2, B, B);
     const off = (B - KEYP) / 2;
@@ -61,11 +64,18 @@ PL.Input = (function () {
       rect(box.x + off, box.y + B - KEYP, KEYP, KEYP), rect(box.x, box.y + off, KEYP, KEYP)];
     let dive = rect(cx - DIVEP / 2, cy - DIVEP / 2, DIVEP, DIVEP);
     let L = { mode, hand, box, keys, dive, retry, pause, teach };
+    if (mode === 'overlay' && tw('PAD_SIDE', 0) === 1) {
+      // pad (and its teach slot + Retry) on the left; Pause stays top-right. Left edge 8 px + inset.l
+      const nx = 8 + ins.l, dx0 = nx - box.x, mv = (r) => rect(r.x + dx0, r.y, r.w, r.h);
+      const rr = rect(W - 8 - ins.r - 60, retry.y, 60, 60);
+      keys = keys.map(mv);
+      L = { mode, hand, box: mv(box), keys, dive: mv(dive), retry: rr, pause, teach };
+    }
     if (hand === 'left') {
       const m = (r) => mirror(r, W);
-      const bx = m(box), dx = bx.x - box.x;
-      keys = keys.map((k) => rect(k.x + dx, k.y, k.w, k.h)); // arrows keep their meaning, pad moves as a whole
-      L = { mode, hand, box: bx, keys, dive: rect(dive.x + dx, dive.y, dive.w, dive.h), retry: m(retry), pause: m(pause), teach: m(teach) };
+      const bx = m(L.box), dx = bx.x - L.box.x;
+      keys = L.keys.map((k) => rect(k.x + dx, k.y, k.w, k.h)); // arrows keep their meaning, pad moves as a whole
+      L = { mode, hand, box: bx, keys, dive: rect(L.dive.x + dx, L.dive.y, L.dive.w, L.dive.h), retry: m(L.retry), pause: m(L.pause), teach: m(L.teach) };
     }
     return L;
   }
@@ -106,7 +116,7 @@ PL.Input = (function () {
   // pointer down (CSS px). true = handled by the pad (caller stops); false = not a pad target or inactive.
   function down(x, y, id) {
     if (!host || !host.active()) return false;
-    const v = host.view(), tgt = targetAt(x, y, layout(v.W, v.H));
+    const v = host.view(), tgt = targetAt(x, y, layout(v.W, v.H, { inset: v.inset }));
     if (!tgt) return false;
     pressed[id] = tgt;
     fire(tgt);
@@ -126,7 +136,7 @@ PL.Input = (function () {
     const p = {}; for (const k in pressed) p[pressed[k]] = true;
     const t = now();
     if (shake && t - shake.at > SHAKE_MS) shake = null;
-    return { layout: layout(v.W, v.H), lit: s ? s.g : -1, dim: empty(), pressed: p,
+    return { layout: layout(v.W, v.H, { inset: v.inset }), lit: s ? s.g : -1, dim: empty(), pressed: p,
       shake: shake ? { id: shake.id, age: (t - shake.at) / SHAKE_MS } : null, hand: settings.hand };
   }
   // plain fallback drawing (used only until draw.js provides PL.drawPad). Canvas 2D, CSS px transform already set.

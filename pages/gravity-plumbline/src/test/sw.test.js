@@ -28,41 +28,41 @@ let n = 0, fails = 0;
 async function t(name, fn) { try { await fn(); n++; console.log('ok   ' + name); } catch (e) { fails++; console.log('FAIL ' + name + ': ' + (e.stack || e.message).split('\n').slice(0, 2).join(' ')); } }
 const OK = (body, type) => ({ ok: true, type: type || 'basic', body });
 (async () => {
-  await t('VERSION is pl-beta-3', () => assert(/VERSION = 'pl-beta-3'/.test(SRC)));
+  await t('VERSION is pl-beta-4', () => assert(/VERSION = 'pl-beta-4'/.test(SRC)));
   await t('install with one missing file still caches the rest and skips waiting', async () => {
     const net = {}; for (const f of ['./', './index.html', './manifest.webmanifest', './icon-192.png']) net[f] = OK(f);
     net['./assets/hero-idle.webp'] = OK('h'); // everything else missing
     const s = boot(net), e = s.ev({}); s.L.install(e); await Promise.all(s.waits);
-    const c = s.stores['pl-beta-3'];
+    const c = s.stores['pl-beta-4'];
     assert(c && c.has('./index.html') && c.has('./assets/hero-idle.webp') && !c.has('./assets/gate-aurora.webp'));
   });
   await t('navigation 404 keeps the old cached index and serves it', async () => {
     const s = boot({ '/p': { ok: false, type: 'basic', body: '404' } });
-    s.stores['pl-beta-3'] = new Map([['./index.html', OK('old')]]);
+    s.stores['pl-beta-4'] = new Map([['./index.html', OK('old')]]);
     const e = s.ev({ request: { method: 'GET', mode: 'navigate', url: '/p' } }); s.L.fetch(e);
     const r = await e.p; await Promise.all(s.waits);
-    assert.strictEqual(r.body, 'old'); assert.strictEqual(s.stores['pl-beta-3'].get('./index.html').body, 'old');
+    assert.strictEqual(r.body, 'old'); assert.strictEqual(s.stores['pl-beta-4'].get('./index.html').body, 'old');
   });
   await t('navigation ok basic is cached via waitUntil and served', async () => {
     const s = boot({ '/p': OK('new') });
     const e = s.ev({ request: { method: 'GET', mode: 'navigate', url: '/p' } }); s.L.fetch(e);
     const r = await e.p; assert.strictEqual(r.body, 'new'); assert(s.waits.length >= 1);
-    await Promise.all(s.waits); assert.strictEqual(s.stores['pl-beta-3'].get('./index.html').body, 'new');
+    await Promise.all(s.waits); assert.strictEqual(s.stores['pl-beta-4'].get('./index.html').body, 'new');
   });
   await t('navigation opaque/non-basic response is not cached', async () => {
     const s = boot({ '/p': OK('x', 'cors') });
-    s.stores['pl-beta-3'] = new Map([['./index.html', OK('old')]]);
+    s.stores['pl-beta-4'] = new Map([['./index.html', OK('old')]]);
     const e = s.ev({ request: { method: 'GET', mode: 'navigate', url: '/p' } }); s.L.fetch(e);
-    await e.p; await Promise.all(s.waits); assert.strictEqual(s.stores['pl-beta-3'].get('./index.html').body, 'old');
+    await e.p; await Promise.all(s.waits); assert.strictEqual(s.stores['pl-beta-4'].get('./index.html').body, 'old');
   });
   await t('offline navigation serves the cached index', async () => {
     const s = boot({ '/p': 'throw' });
-    s.stores['pl-beta-3'] = new Map([['./index.html', OK('old')]]);
+    s.stores['pl-beta-4'] = new Map([['./index.html', OK('old')]]);
     const e = s.ev({ request: { method: 'GET', mode: 'navigate', url: '/p' } }); s.L.fetch(e);
     assert.strictEqual((await e.p).body, 'old');
   });
   await t('asset hit comes from the versioned cache (no global caches.match)', async () => {
-    const s = boot({}); s.stores['pl-beta-3'] = new Map([['/a.webp', OK('cached')]]);
+    const s = boot({}); s.stores['pl-beta-4'] = new Map([['/a.webp', OK('cached')]]);
     const e = s.ev({ request: { method: 'GET', mode: 'no-cors', url: '/a.webp' } }); s.L.fetch(e);
     assert.strictEqual((await e.p).body, 'cached');
   });
@@ -70,13 +70,13 @@ const OK = (body, type) => ({ ok: true, type: type || 'basic', body });
     const s = boot({ '/b.webp': OK('net') });
     const e = s.ev({ request: { method: 'GET', mode: 'no-cors', url: '/b.webp' } }); s.L.fetch(e);
     assert.strictEqual((await e.p).body, 'net'); await Promise.all(s.waits);
-    assert.strictEqual(s.stores['pl-beta-3'].get('/b.webp').body, 'net');
+    assert.strictEqual(s.stores['pl-beta-4'].get('/b.webp').body, 'net');
   });
   await t('asset miss with a 404 is returned but not cached', async () => {
     const s = boot({ '/c.webp': { ok: false, type: 'basic', body: '404' } });
     const e = s.ev({ request: { method: 'GET', mode: 'no-cors', url: '/c.webp' } }); s.L.fetch(e);
     assert.strictEqual((await e.p).body, '404'); await Promise.all(s.waits);
-    assert(!s.stores['pl-beta-3'].has('/c.webp'));
+    assert(!s.stores['pl-beta-4'].has('/c.webp'));
   });
   console.log(n + ' passed, ' + fails + ' failed'); process.exit(fails ? 1 : 0);
 })();

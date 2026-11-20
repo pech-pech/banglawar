@@ -10,7 +10,7 @@
 const PL = (globalThis.PL = globalThis.PL || {});
 (function () {
   'use strict';
-  const BUILD = 'starfall-beta-1 (2026-11-19)';
+  const BUILD = 'starfall-beta-2 (2026-11-20)';
   const C = PL.C, U = PL.UI, SC = PL.Screens, S = PL.Strings.player, SD = PL.Strings.dev, TW = PL.Tweak;
   const canvas = document.getElementById('game');
   const ctx = canvas.getContext('2d');
@@ -365,6 +365,7 @@ const PL = (globalThis.PL = globalThis.PL || {});
   function setSettingSlider(id, f) { settings[id] = Math.round(f * 20) / 20; applyAudio(); }
   function setTweakSlider(rowIdx, f) {
     const row = tweakRowsCache[rowIdx]; if (!row || row.kind !== 'slider') return;
+    if (row.id === '@mirror') { if (PL.Input) PL.Input.setHand(f >= 0.5 ? 'left' : 'right'); rebuildTweakRows(); return; } // player setting, same value as Settings, never DEV-dirty
     const d = TW.def(row.id); if (!d) return;
     if (d.list) TW.set(row.id, d.list[Math.round(f * (d.list.length - 1))]);
     else TW.set(row.id, d.min + f * (d.max - d.min));
@@ -510,18 +511,19 @@ const PL = (globalThis.PL = globalThis.PL || {});
   }
   function rebuildTweakRows() {
     const rows = [];
-    rows.push({ kind: 'btns', btns: [{ id: 'resetAll', label: SD.resetAll }, { id: 'copyReport', label: SD.copyReport, kind: 'primary' }] });
-    rows.push({ kind: 'btns', btns: [{ id: 'savePreset', label: SD.savePreset, weight: 1.2 }, { id: 'copyCode', label: SD.copyCode }, { id: 'pasteCode', label: SD.pasteCode }] });
+    rows.push({ kind: 'btns', btns: [{ id: 'copyReport', label: SD.copyReport, kind: 'primary' }, { id: 'savePreset', label: SD.savePreset }] });
+    rows.push({ kind: 'btns', btns: [{ id: 'resetAll', label: SD.resetAll }, { id: 'copyCode', label: SD.copyCode }, { id: 'pasteCode', label: SD.pasteCode }] });
     if (TW) {
       for (const p of TW.listPresets()) rows.push({ kind: 'btns', btns: [{ id: 'load:' + p.name, label: p.name, weight: 2 }, { id: 'del:' + p.name, label: SD.del, kind: 'danger', weight: 1 }] });
       const diff = TW.diff();
       for (const g of TW.groups()) {
         const nd = g.ids.filter((id) => id in diff).length;
         rows.push({ kind: 'head', group: g.group, open: !!tweakOpen[g.group], label: g.group + (nd ? '  (' + nd + ' changed)' : '') });
+        if (tweakOpen[g.group] && g.group === 'Pad' && PL.Input) { const lh = leftHand(); rows.push({ kind: 'slider', id: '@mirror', label: SD.mirror, valueText: SD.handNames[lh ? 1 : 0], value: lh ? 1 : 0, dirty: false }); }
         if (tweakOpen[g.group]) for (const id of g.ids) {
           const d = TW.def(id), v = TW.get(id);
           const f = d.list ? d.list.indexOf(v) / Math.max(1, d.list.length - 1) : (v - d.min) / ((d.max - d.min) || 1);
-          rows.push({ kind: 'slider', id, label: d.label, valueText: fmtVal(d, v) + (id in diff ? ' *' : ''), value: f, dirty: id in diff });
+          rows.push({ kind: 'slider', id, label: d.label, valueText: (id === 'PAD_SIDE' ? SD.sideNames[v] : fmtVal(d, v)) + (id in diff ? ' *' : ''), value: f, dirty: id in diff });
         }
       }
     }

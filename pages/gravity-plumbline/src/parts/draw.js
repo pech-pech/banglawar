@@ -545,20 +545,20 @@ const PL = (globalThis.PL = globalThis.PL || {});
     const rw = room.w || 336, rh = room.h || 500, ws = room.walls || [], sp = room.spikes || [], gs = room.gates || [];
     const back = [], front = [];
     for (let i = 0; i < ws.length; i++) { const w = ws[i], t = tile([w[0] * sc, w[1] * sc, w[2] * sc, w[3] * sc], sc, pr, function (x) { paintWalls(x, room, sc, i); }); if (!t) return null; back.push(t); }
-    for (let i = 0; i < sp.length; i++) { const a = spikeArt(room, sp[i], sc, SPIKE_K), t = tile([a.x, a.y, a.w, a.h], sc, pr, function (x) { paintSpikes(x, room, sc, i); }); if (!t) return null; front.push(t); }
+    for (let i = 0; i < sp.length; i++) { const a = spikeArt(room, sp[i], sc, SPIKE_K), t = tile([a.x, a.y, a.w, a.h], sc, pr, function (x) { paintSpikes(x, room, sc, i); }); if (!t) return null; t.haz = 1; front.push(t); }
     for (let i = 0; i < gs.length; i++) { const r = gs[i].r, t = tile([r[0] * sc, r[1] * sc, r[2] * sc, r[3] * sc], sc, pr, function (x) { paintGateBodies(x, room, sc, i); }); if (!t) return null; front.push(t); }
     (room.crushers || []).forEach(function (c) {
       const am = c.amp || 0; if (am <= 0) return;
       const lx = (c.r[0] - (c.ax ? am : 0)) * sc, ly = (c.r[1] - (c.ay ? am : 0)) * sc, lw = (c.r[2] + (c.ax ? am * 2 : 0)) * sc, lh = (c.r[3] + (c.ay ? am * 2 : 0)) * sc, fc = crusherFace(room, c);
-      const t = tile([lx, ly, lw, lh], sc, pr, function (x) { paintLane(x, lx, ly, lw, lh, fc, sc); }); if (t) back.push(t);
+      const t = tile([lx, ly, lw, lh], sc, pr, function (x) { paintLane(x, lx, ly, lw, lh, fc, sc); }); if (t) { t.haz = 1; back.push(t); }
     });
     const P = { room: room, sc: sc, pr: pr, back: back, front: front, refl: null, w: Math.ceil(rw * sc + PAD * 2), h: Math.ceil(rh * sc + PAD * 2), rebuild: 0 };
-    // soft floor reflection of the lowest REFL px of the room, faded; fills the band under the room on tall screens
+    // soft floor reflection of the lowest REFL px of the room, faded; hazards (spikes, crusher lanes: t.haz) are left out so coral stays only on real danger; fills the band under the room on tall screens
     const tmp = cvs(P.w * pr, P.h * pr), rf = cvs(P.w * pr, REFL * pr);
     if (tmp && rf) {
       const tx = tmp.getContext('2d'); tx.scale(pr, pr);
-      for (let i = 0; i < back.length; i++) tx.drawImage(back[i].c, back[i].x + PAD, back[i].y + PAD, back[i].w, back[i].h);
-      for (let i = 0; i < front.length; i++) tx.drawImage(front[i].c, front[i].x + PAD, front[i].y + PAD, front[i].w, front[i].h);
+      for (let i = 0; i < back.length; i++) if (!back[i].haz) tx.drawImage(back[i].c, back[i].x + PAD, back[i].y + PAD, back[i].w, back[i].h);
+      for (let i = 0; i < front.length; i++) if (!front[i].haz) tx.drawImage(front[i].c, front[i].x + PAD, front[i].y + PAD, front[i].w, front[i].h);
       const x = rf.getContext('2d'), srcH = Math.min(REFL, rh * sc) * pr, srcY = (PAD + rh * sc) * pr - srcH;
       x.save(); x.translate(0, REFL * pr); x.scale(1, -1); x.drawImage(tmp, 0, srcY, tmp.width, srcH, 0, 0, tmp.width, srcH); x.restore();
       x.globalCompositeOperation = 'source-atop'; x.fillStyle = 'rgba(70,60,150,0.5)'; x.fillRect(0, 0, rf.width, rf.height);
