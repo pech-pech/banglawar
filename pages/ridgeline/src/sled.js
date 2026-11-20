@@ -18,10 +18,13 @@ export function createSled(course) {
     gatesPassed: 0, gatesMissed: 0, nextGate: 0,
     crashed: false, finished: false, charging: false,
     heading: 0,
+    flow: 0, flowT: 0, flowWin: 0, grazeTier: '',
+    links: 0, razors: 0, inners: 0, centred: 0, boostLinks: 0, flowPeak: 0, flow5T: 0,
     // internals
     boostBonus: 0,
     _gate: null, _gateSearchZ: 0, _gatesDone: false,
     _rocks: [], _rz0: 0, _rz1: -1,
+    _graze: new Map(),
   };
 }
 
@@ -41,6 +44,23 @@ function findGate(s, course) {
   else s._gateSearchZ = s.z + GATE_LOOKAHEAD - 1;
 }
 
+function flowWindow(cfg, level) {
+  return cfg.flowWindow1 + (cfg.flowWindow5 - cfg.flowWindow1) * (level - 1) / 4;
+}
+
+// One flow link: +1 level (cap 5) and refresh the window.
+function addLink(s, cfg, events, cap = 5) {
+  if (s.flow >= cap) return; // capped source (centred gate above flowGateCap) pays nothing
+  s.links++;
+  if (s.flow < 5) {
+    s.flow++;
+    events.push({ type: 'flowUp', level: s.flow });
+    if (s.flow > s.flowPeak) s.flowPeak = s.flow;
+  }
+  s.flowWin = flowWindow(cfg, s.flow);
+  s.flowT = s.flowWin;
+}
+
 export function stepSled(s, course, input, cfg) {
   const events = [];
   if (s.crashed || s.finished) return events;
@@ -54,6 +74,7 @@ export function stepSled(s, course, input, cfg) {
     s.boostBonus = cfg.boostPower * s.boost;
     s.boostT = cfg.boostTime;
     events.push({ type: 'boost', amount: s.boost, bonus: s.boostBonus });
+    if (s.boost >= cfg.flowBoostMin) { s.boostLinks++; addLink(s, cfg, events); }
     s.boost = 0;
   }
   if (s.boostT > 0) {
@@ -63,7 +84,7 @@ export function stepSled(s, course, input, cfg) {
 
   // Forward speed: ease toward target, which grows slowly with progress
   const prog = Math.min(1, s.z / Math.max(1, course.length));
-  const target = cfg.baseSpeed + (cfg.maxSpeed - cfg.baseSpeed) * prog + s.boostBonus;
+  const target = (cfg.baseSpeed + (cfg.maxSpeed - cfg.baseSpeed) * prog) * (1 + cfg.flowStep * s.flow) + s.boostBonus;
   const dv = target - s.speed;
   const step = cfg.accel * dt * (s.boostT > 0 ? 4 : 1);
   s.speed += Math.abs(dv) <= step ? dv : Math.sign(dv) * step;
@@ -92,12 +113,13 @@ export function stepSled(s, course, input, cfg) {
 
   // Rocks: crash on touch, charge when close
   if (s.z > s._rz1 - ROCK_REFRESH || s.z < s._rz0) refreshRocks(s, course);
-  let near = false;
+  const outerR = Math.max(cfg.chargeRange, cfg.grazeInner);
+  let tier = 0; // 0 none, 1 outer, 2 inner, 3 razor
   const rocks = s._rocks;
   for (let i = 0; i < rocks.length; i++) {
     const r = rocks[i];
     const dz = r.z - s.z;
-    const reach = r.r + SLED_R + cfg.chargeRange;
+    const reach = r.r + SLED_R + outerR;
     if (dz > reach || dz < -reach) continue;
     const dx = r.x - s.x;
     const d = Math.sqrt(dx * dx + dz * dz) - r.r - SLED_R;
@@ -107,10 +129,33 @@ export function stepSled(s, course, input, cfg) {
       events.push({ type: 'crash', z: s.z, x: s.x, rockId: r.id });
       return events;
     }
-    if (d <= cfg.chargeRange) near = true;
+    if (d <= outerR) {
+      let t = 1;
+      if (d <= cfg.grazeRazor) t = 3;
+      else if (d <= cfg.grazeInner) t = 2;
+      if (t > tier) tier = t;
+      if (t >= 2) {
+        const paid = s._graze.get(r.id) || 0;
+        if (t === 3 && paid < 2) {
+          s._graze.set(r.id, 2);
+          s.razors++;
+          events.push({ type: 'graze', tier: 'razor', rockId: r.id, x: s.x, z: s.z });
+          for (let k = paid; k < 2; k++) addLink(s, cfg, events);
+        } else if (t === 2 && paid < 1) {
+          s._graze.set(r.id, 1);
+          s.inners++;
+          events.push({ type: 'graze', tier: 'inner', rockId: r.id, x: s.x, z: s.z });
+          addLink(s, cfg, events);
+        }
+      }
+    }
   }
-  s.charging = near;
-  if (near) s.boost = Math.min(1, s.boost + cfg.chargeRate * dt);
+  s.charging = tier > 0;
+  s.grazeTier = tier === 3 ? 'razor' : tier === 2 ? 'inner' : tier === 1 ? 'outer' : '';
+  if (tier > 0) {
+    const mul = tier === 3 ? cfg.grazeRazorMul : tier === 2 ? cfg.grazeInnerMul : cfg.grazeOuterMul;
+    s.boost = Math.min(1, s.boost + cfg.chargeRate * mul * dt);
+  }
 
   // Gates
   findGate(s, course);
@@ -118,14 +163,32 @@ export function stepSled(s, course, input, cfg) {
   if (g && prevZ < g.z && s.z >= g.z) {
     if (Math.abs(s.x - g.x) <= g.width / 2) {
       s.gatesPassed++;
-      events.push({ type: 'gate', id: g.id, z: g.z, x: s.x });
+      const centred = Math.abs(s.x - g.x) <= g.width * cfg.gateCentreFrac;
+      events.push({ type: 'gate', id: g.id, z: g.z, x: s.x, centred });
+      if (centred) { s.centred++; addLink(s, cfg, events, cfg.flowGateCap); }
     } else {
       s.gatesMissed++;
       s.t += cfg.missPenalty;
       events.push({ type: 'miss', id: g.id, z: g.z, x: s.x, penalty: cfg.missPenalty });
+      if (s.flow > 0) {
+        s.flow = 0; s.flowT = 0; s.flowWin = 0;
+        events.push({ type: 'flowDrop', level: 0 });
+      }
     }
     s.nextGate = g.id + 1;
     s._gate = null;
+  }
+
+  // Flow window decay
+  if (s.flow > 0) {
+    if (s.flow === 5) s.flow5T += dt;
+    s.flowT -= dt;
+    if (s.flowT <= 0) {
+      s.flow--;
+      events.push({ type: 'flowDrop', level: s.flow });
+      if (s.flow > 0) { s.flowWin = flowWindow(cfg, s.flow); s.flowT = s.flowWin; }
+      else { s.flowT = 0; s.flowWin = 0; }
+    }
   }
 
   // Finish

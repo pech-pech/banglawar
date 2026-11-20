@@ -24,9 +24,29 @@ export function createHud(rootEl, handlers) {
 .rlh-k{font-size:11px;opacity:.8;letter-spacing:.06em;text-transform:uppercase}
 .rlh-v{font-size:20px;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap}
 .rlh-bar{position:absolute;left:12px;right:12px;bottom:calc(16px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:6px;align-items:center}
-.rlh-track{width:100%;height:16px;border-radius:8px;background:rgba(8,14,28,.72);border:2px solid rgba(255,255,255,.85);overflow:hidden}
+.rlh-track{width:calc(100% - var(--rl-flow-slot,64px) - 8px);align-self:flex-start;height:16px;border-radius:8px;background:rgba(8,14,28,.72);border:2px solid rgba(255,255,255,.85);overflow:hidden}
 .rlh-fill{height:100%;width:0;background:#7fd4ff;transition:none}
 .rlh-fill.ready{background:var(--rl-accent,#ff8a1f)}
+.rlh-flow{position:absolute;right:0;bottom:0;width:var(--rl-flow-slot,64px);display:flex;flex-direction:column;align-items:center;gap:2px;pointer-events:none;text-shadow:0 1px 2px rgba(0,0,0,.6)}
+.rlh-flow-k{font:800 9px/1 system-ui,sans-serif;letter-spacing:.1em;opacity:.85}
+.rlh-pips{display:flex;gap:3px}
+.rlh-pip{width:8px;height:8px;border-radius:2px;border:1.5px solid rgba(255,255,255,.85);background:rgba(8,14,28,.72)}
+.rlh-pip.lit{background:var(--rl-accent,#ff8a1f)}
+.rlh-pips.pulse{animation:rlhpulse .3s ease-out}
+.rlh-fbar{width:52px;height:4px;border-radius:2px;border:1px solid rgba(255,255,255,.85);background:rgba(8,14,28,.72);overflow:hidden}
+.rlh-fbar>i{display:block;height:100%;width:0;background:var(--rl-accent,#ff8a1f)}
+body.rl-paper .rlh .rlh-flow{text-shadow:none;color:#24406e}
+body.rl-paper .rlh .rlh-flow-k{opacity:1;font-weight:900}
+body.rl-paper .rlh .rlh-pip{border:2px solid #24406e;background:#fff;border-radius:3px;box-shadow:1px 1px 0 #24406e}
+body.rl-paper .rlh .rlh-pip.lit{background:var(--rl-accent,#1f6fd0)}
+body.rl-paper .rlh .rlh-fbar{border:2px solid #24406e;background:#fff;box-shadow:1px 1px 0 #24406e}
+body.rl-paper .rlh .rlh-fbar>i{background:var(--rl-accent,#1f6fd0)}
+.rlh-razor{position:absolute;left:50%;top:38%;transform:translate(-50%,-50%);font-size:clamp(26px,9vw,40px);font-weight:900;letter-spacing:.14em;color:#fff;text-shadow:0 2px 6px rgba(0,0,0,.7),0 0 12px var(--rl-accent,#ff8a1f);opacity:0;pointer-events:none;white-space:nowrap}
+.rlh-razor.on{opacity:1;animation:rlhrazor .6s ease-out}
+body.rl-paper .rlh .rlh-razor{color:#24406e;text-shadow:none;-webkit-text-stroke:0;background:#fff;border:3px solid #24406e;border-radius:12px;padding:2px 12px;box-shadow:3px 3px 0 #24406e}
+@keyframes rlhpulse{0%{transform:scale(1.35)}100%{transform:scale(1)}}
+@keyframes rlhrazor{0%{transform:translate(-50%,-50%) scale(.7);opacity:0}20%{transform:translate(-50%,-50%) scale(1.15);opacity:1}100%{transform:translate(-50%,-70%) scale(1);opacity:0}}
+@media (prefers-reduced-motion:reduce){.rlh-pips.pulse,.rlh-razor.on{animation:none}}
 .rlh-box>*{flex-shrink:0}
 .rlh-box>.rlh-theme{flex:0 1 auto;min-height:0}
 .rlh-box>.rlh-theme.open{flex:1 1 auto}
@@ -104,6 +124,13 @@ export function createHud(rootEl, handlers) {
   hint.hidden = true;
   const track = el('div', 'rlh-track', bar);
   const fill = el('div', 'rlh-fill', track);
+  const flowEl = el('div', 'rlh-flow', bar);
+  el('div', 'rlh-flow-k', flowEl, 'FLOW');
+  const pipsEl = el('div', 'rlh-pips', flowEl);
+  const pips = [0, 1, 2, 3, 4].map(() => el('div', 'rlh-pip', pipsEl));
+  const fbar = el('div', 'rlh-fbar', flowEl);
+  const fbarFill = el('i', '', fbar);
+  const razorEl = el('div', 'rlh-razor', run, 'RAZOR');
   const toastEl = el('div', 'rlh-toast', run, '');
 
   // End screen
@@ -112,6 +139,7 @@ export function createHud(rootEl, handlers) {
   const resEl = el('h2', 'rlh-res', eb, '');
   const stats = el('div', 'rlh-stats rlh-panel', eb);
   const sTime = el('div', '', stats), sGates = el('div', '', stats), sExtra = el('div', '', stats);
+  const sMedal = el('div', '', stats), sFlow = el('div', '', stats);
   let endAt = 0;
   const gated = (fn) => () => { if (performance.now() - endAt >= 600) fn(); };
   btn('Retry', '', eb, gated(() => call('onRetry')));
@@ -119,8 +147,8 @@ export function createHud(rootEl, handlers) {
   btn('Menu', 'alt', r2, gated(() => showStart(lastInfo)));
   btn('Copy report', 'alt', r2, gated(() => call('onCopyReport')));
 
-  let lastInfo = null, devOn = false, toastT = 0;
-  const cache = { t: '', s: '', g: '', f: '', w: -1, rdy: null, fps: '' };
+  let lastInfo = null, devOn = false, toastT = 0, razorT = 0;
+  const cache = { t: '', s: '', g: '', f: '', w: -1, rdy: null, fps: '', fl: -1, fw: -1 };
 
   function mode(m) {
     start.hidden = m !== 'start';
@@ -138,8 +166,9 @@ export function createHud(rootEl, handlers) {
     mode('start');
   }
   function showRun() {
-    cache.t = cache.s = cache.g = cache.fps = ''; cache.w = -1; cache.rdy = null;
+    cache.t = cache.s = cache.g = cache.fps = ''; cache.w = -1; cache.rdy = null; cache.fl = -1; cache.fw = -1;
     hint.hidden = true;
+    clearTimeout(razorT); razorEl.classList.remove('on'); pipsEl.classList.remove('pulse');
     mode('run');
   }
   function update(state, fps) {
@@ -155,16 +184,39 @@ export function createHud(rootEl, handlers) {
     if (w !== cache.w) { cache.w = w; fill.style.width = w + '%'; }
     const rdy = b >= 0.25;
     if (rdy !== cache.rdy) { cache.rdy = rdy; hint.hidden = !rdy; fill.classList.toggle('ready', rdy); }
+    const fl = Math.max(0, Math.min(5, state.flow | 0));
+    if (fl !== cache.fl) { cache.fl = fl; for (let i = 0; i < 5; i++) pips[i].classList.toggle('lit', i < fl); }
+    const fw = fl > 0 && state.flowWin > 0 ? Math.round(Math.max(0, Math.min(1, (state.flowT || 0) / state.flowWin)) * 50) : 0;
+    if (fw !== cache.fw) { cache.fw = fw; fbarFill.style.width = fw * 2 + '%'; }
     const f = fps ? Math.round(fps) + ' fps' : '';
     if (f !== cache.fps) { cache.fps = f; fpsEl.textContent = f; }
+  }
+  function event(ev) {
+    if (!ev || run.hidden) return;
+    if (ev.type === 'graze' && ev.tier === 'razor') {
+      razorEl.classList.remove('on'); void razorEl.offsetWidth; razorEl.classList.add('on');
+      clearTimeout(razorT);
+      razorT = setTimeout(() => razorEl.classList.remove('on'), 600);
+    } else if (ev.type === 'flowUp' || ev.type === 'flowDrop') {
+      pipsEl.classList.remove('pulse'); void pipsEl.offsetWidth; pipsEl.classList.add('pulse');
+    }
   }
   function showEnd(result) {
     const r = result || {};
     resEl.textContent = r.crashed ? 'CRASHED' : (r.finished === false ? 'RUN OVER' : 'FINISHED');
-    sTime.textContent = 'Time: ' + (r.t != null ? Number(r.t).toFixed(2) + ' s' : '-');
+    sTime.textContent = 'Time: ' + ((r.time ?? r.t) != null ? Number(r.time ?? r.t).toFixed(2) + ' s' : '-');
     sGates.textContent = 'Gates: ' + (r.gatesPassed | 0) + ' passed, ' + (r.gatesMissed | 0) + ' missed';
     if (r.crashed && r.z != null) { sExtra.hidden = false; sExtra.textContent = 'Crashed at ' + Math.round(r.z) + ' m'; }
     else sExtra.hidden = true;
+    const m = r.medal;
+    if (!m || r.crashed) sMedal.hidden = true;
+    else {
+      sMedal.hidden = false;
+      const g = m.gap != null && m.next ? ' - ' + Number(m.gap).toFixed(1) + ' s to ' + m.next : '';
+      sMedal.textContent = m.hidden ? 'Medal: off (DEV)' : m.name ? 'Medal: ' + m.name + g : 'No medal' + g;
+    }
+    if (r.flowPeak != null) { sFlow.hidden = false; sFlow.textContent = 'Flow peak ' + (r.flowPeak | 0); }
+    else sFlow.hidden = true;
     endAt = performance.now();
     mode('end');
   }
@@ -177,5 +229,5 @@ export function createHud(rootEl, handlers) {
   }
 
   showStart(null);
-  return { showStart, showRun, update, showEnd, setDev, toast, themeMount, setThemeLabel };
+  return { showStart, showRun, update, event, showEnd, setDev, toast, themeMount, setThemeLabel };
 }
