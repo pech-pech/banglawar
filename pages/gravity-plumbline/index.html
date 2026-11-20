@@ -1382,7 +1382,7 @@ PL.Tweak = (function () {
   // pad group (overlay build): PAD_ALPHA/PAD_SIDE are read by input.js + the pad drawing (L2) and camera/screens (L1)
   T.register('PAD_ALPHA', { group: 'Pad', label: 'Pad opacity', def: 0.45, min: 0.2, max: 1, step: 0.05 });
   T.register('PAD_HAZ_ALPHA', { group: 'Pad', label: 'Key over danger', def: 0.2, min: 0.05, max: 1, step: 0.05 }); // overlay keys that sit over spikes / crusher travel / exit
-  T.register('PAD_SIDE', { group: 'Pad', label: 'Pad side', def: 0, min: 0, max: 1, step: 1, list: [0, 1], help: '0 right, 1 left' });
+  T.register('PAD_SIDE', { group: 'Pad', label: 'Pad side', def: 2, min: 0, max: 2, step: 1, list: [0, 1, 2], help: '0 right, 1 left, 2 centre' });
   T.register('PAD_KEY', { group: 'Pad', label: 'Arrow key size', def: 60, min: 48, max: 80, step: 4 });
   T.register('PAD_DIVE', { group: 'Pad', label: 'Dive key size', def: 56, min: 40, max: 72, step: 4 });
   T.register('PAD_GAP', { group: 'Pad', label: 'Key gap', def: 4, min: 0, max: 12, step: 2 });
@@ -1405,8 +1405,8 @@ PL.Tweak = (function () {
 // Host (ui.js): {flip(dir), dive(), restart(), pause?(), state(), view()->{W,H}, active()->bool, now?()->ms}.
 //   flip/dive push into ui's queue; ui logs {tick,k,dir} at application, unchanged (absolute dir).
 // Layout (CSS px; pad box = 3*KEY + 2*GAP - 2*(KEY-DIVE)/2 ... = 184 at defaults, centred on the picked 180 box):
-//   475x638 overlay   box 283-467 x 446-630 (8 px from edges + safe inset), Retry 8-68 x 556-616 (caption below), Pause 419-467 x 2-50, teach 4-471 x 88-140
-//   PAD_SIDE=1 (overlay only): pad bottom-left, Retry bottom-right; hand=left mirrors everything
+//   475x638 overlay   box 145.5-329.5 x 446-630 (centred, 8 px from bottom + safe inset), Retry 347-403 x 0-56, Pause 411-467 x 0-56, teach 4-471 x 88-140
+//   PAD_SIDE (overlay only): 2 centre (default), 0 bottom-right, 1 bottom-left; Retry sits left of Pause on top; hand=left mirrors everything
 //   344x882 below     box 80-264 x 648-832, Retry 12-68 x 660-716, Pause 276-332 x 12-68, teach 4-340 x 596-644
 //   816x568 landscape box 604-788 x 328-512, Retry 12-68 x 330-386, Pause 752-808 x 12-68, teach 12-236 x 100-200
 // Settings key 'plumbline.input.v1' {v:1, hand:'right'|'left', vibrate:bool} (PL.store, never downgraded).
@@ -1450,9 +1450,10 @@ PL.Input = (function () {
       mode = 'below'; cx = W / 2; cy = H - 142;
       retry = rect(12, cy - 80, 56, 56); pause = rect(W - 68, 12, 56, 56); teach = rect(4, cy - 144, W - 8, 48);
     } else {
-      // overlay: pad floats over the room's bottom-right corner (room is fitted ignoring it), Retry bottom-left
-      mode = 'overlay'; cx = W - 8 - ins.r - B / 2; cy = H - 8 - ins.b - B / 2;
-      retry = rect(8 + ins.l, H - 8 - ins.b - 14 - 60, 60, 60); pause = rect(W - 8 - ins.r - 56, ins.t, 56, 56); // caption (14 px) sits under the ring; Pause 56 (touch rule) may overlap the room top wall by 4 px
+      // overlay: pad floats low over the room, centred (PAD_SIDE 2, default; 0 right, 1 left; room is fitted ignoring it). Retry sits top-right, left of Pause
+      mode = 'overlay'; cx = W / 2; cy = H - 8 - ins.b - B / 2;
+      pause = rect(W - 8 - ins.r - 56, ins.t, 56, 56); retry = rect(pause.x - 8 - 56, ins.t, 56, 56); // Pause and Retry 56 (touch rule) may overlap the room top wall by 4 px; no caption at the top
+      if (tw('PAD_SIDE', 2) === 0) cx = W - 8 - ins.r - B / 2;
       teach = rect(4, hudTop + 4, W - 8, 52);
     }
     const box = rect(cx - B / 2, cy - B / 2, B, B);
@@ -1461,12 +1462,11 @@ PL.Input = (function () {
       rect(box.x + off, box.y + B - KEYP, KEYP, KEYP), rect(box.x, box.y + off, KEYP, KEYP)];
     let dive = rect(cx - DIVEP / 2, cy - DIVEP / 2, DIVEP, DIVEP);
     let L = { mode, hand, box, keys, dive, retry, pause, teach };
-    if (mode === 'overlay' && tw('PAD_SIDE', 0) === 1) {
-      // pad (and its teach slot + Retry) on the left; Pause stays top-right. Left edge 8 px + inset.l
+    if (mode === 'overlay' && tw('PAD_SIDE', 2) === 1) {
+      // pad on the left; Retry and Pause stay top-right. Left edge 8 px + inset.l
       const nx = 8 + ins.l, dx0 = nx - box.x, mv = (r) => rect(r.x + dx0, r.y, r.w, r.h);
-      const rr = rect(W - 8 - ins.r - 60, retry.y, 60, 60);
       keys = keys.map(mv);
-      L = { mode, hand, box: mv(box), keys, dive: mv(dive), retry: rr, pause, teach };
+      L = { mode, hand, box: mv(box), keys, dive: mv(dive), retry, pause, teach };
     }
     if (hand === 'left') {
       const m = (r) => mirror(r, W);
@@ -5441,7 +5441,7 @@ const PL = (globalThis.PL = globalThis.PL || {});
     resetAll: 'Reset all', copyReport: 'Copy report', savePreset: 'Save preset', copyCode: 'Copy code', pasteCode: 'Paste code',
     presets: 'Presets', del: 'Delete', copied: 'Copied', copyFailed: 'Copy failed: text shown', codeBad: 'Code not valid',
     codeApplied: 'Code applied', saved: 'Preset saved', full: 'Presets full (12)', loaded: 'Preset loaded', deleted: 'Preset deleted',
-    sideNames: ['Right', 'Left'], mirror: 'Left-hand mirror', handNames: ['Off', 'On'], namePrompt: 'Preset name', pastePrompt: 'Paste a preset code', ok: 'OK', cancel: 'Cancel', close: 'Close', resetDone: 'All tweaks reset', blankName: 'Give the preset a name', storageProblem: 'Could not save (storage problem)' };
+    sideNames: ['Right', 'Left', 'Centre'], mirror: 'Left-hand mirror', handNames: ['Off', 'On'], namePrompt: 'Preset name', pastePrompt: 'Paste a preset code', ok: 'OK', cancel: 'Cancel', close: 'Close', resetDone: 'All tweaks reset', blankName: 'Give the preset a name', storageProblem: 'Could not save (storage problem)' };
   // flatten every static string (functions are called with sample args)
   function flat(o, out) {
     for (const k in o) {
@@ -5846,8 +5846,8 @@ const PL = (globalThis.PL = globalThis.PL || {});
   // join-beta glue: PL.Screens.padRects is the runtime swap point (ui.js points it at PL.Input.layout, which also
   // returns retry/pause/teach). opts.roomRect = the camera's fitted room rect (screen px) when the game knows it.
   // Overlay layout (Layout A, 475x638): the room fills the height under a floating HUD row (pills at y 10, 32 tall, room top 52),
-  // the pad floats over the room's bottom corner (pl.box), Retry (pl.retry, 60 ring) bottom-left in the room, Pause top-right.
-  // Teach strip = top of the room (tutorial only has text); Skip sits beside Retry, on the side away from the pad.
+  // the pad floats low over the room (pl.box, centred by default), Retry (pl.retry, 56 ring) sits left of Pause top-right.
+  // Teach strip = top of the room (tutorial only has text); Skip sits in the bottom corner away from the pad.
   function overlayRects(r, pl, w, h, tutorial, opts) {
     const hudTop = (PL.CAM && PL.CAM.HUD_OVERLAY) || 52, ins = (opts && opts.inset) || {}, it = ins.t || 0;
     const padRight = pl.box.x + pl.box.w / 2 > w / 2, pauseRight = pl.pause.x + pl.pause.w / 2 > w / 2;
@@ -5856,10 +5856,13 @@ const PL = (globalThis.PL = globalThis.PL || {});
     const y = 10 + it, row = [R(0, y, 112, 32), R(0, y, 104, 32), R(0, y, 56, 32)];
     let x = 8 + (ins.l || 0); for (const q of row) { q.x = x; x += q.w + 8; }
     r.hudRoom = row[0]; r.hudTime = row[1]; r.pips = row[2];
-    r.chips = R(x, y + 4, 170, 24);
+    r.chips = R(8 + (ins.l || 0), y + 36, 170, 24); // under the pill row: Retry + Pause now own the top-right
     if (!pauseRight) for (const n of ['hudRoom', 'hudTime', 'pips', 'chips']) r[n] = mir(r[n], w);
     const rm = r.room; r.teach = R(rm.x + 8, rm.y + 8, rm.w - 16, 72);
-    if (tutorial) r.skip = padRight === (pl.retry.x < w / 2) ? R(pl.retry.x + (pl.retry.x < w / 2 ? pl.retry.w + 8 : -8 - 68), pl.retry.y + pl.retry.h - 56, 68, 56) : R(pl.retry.x, pl.retry.y - 64, 68, 56);
+    if (tutorial) { // bottom corner away from the pad (centre pad: the Pause side's opposite, bottom-left unmirrored)
+      const sx = pauseRight ? 8 + (ins.l || 0) : w - 8 - (ins.r || 0) - 68, edge = pl.box.x + pl.box.w / 2;
+      r.skip = R(Math.abs(edge - w / 2) < 1 ? sx : (padRight ? 8 + (ins.l || 0) : w - 8 - (ins.r || 0) - 68), h - 8 - (ins.b || 0) - 56, 68, 56);
+    }
     else delete r.skip;
   }
   function playRects(w, h, left, tutorial, opts) {
@@ -6028,7 +6031,7 @@ const PL = (globalThis.PL = globalThis.PL || {});
     if (r.pips) U.pips(ctx, r.pips, { n: moves, max, pop: vm.pop, size: r.pips.w < 60 ? 14 : 18 }, t);
     U.pauseKey(ctx, r.pause, { pressed: press(vm, 'pause'), focus: foc(vm, 'pause') }, t);
     U.retryKey(ctx, r.retry, { pressed: press(vm, 'retry'), label: L2.retry, spin: vm.retrySpin, focus: foc(vm, 'retry') }, t);
-    if (r.retry) U.text(ctx, L2.retry, r.retry.x + r.retry.w / 2, r.retry.y + r.retry.h + 4, { font: U.fontPx(14, 700), color: U.C.cream, align: 'center', maxW: 64 }); // caption under the ring
+    if (r.retry && r.retry.y > 100) U.text(ctx, L2.retry, r.retry.x + r.retry.w / 2, r.retry.y + r.retry.h + 4, { font: U.fontPx(14, 700), color: U.C.cream, align: 'center', maxW: 64 }); // caption under the ring
     const zero = moves <= 0;
     // overlay mode: pad drawn translucent over the room (PAD_ALPHA); a pressed key goes to max(0.9, alpha)
     const ov = r.mode === 'overlay', ta = PL.Tweak && PL.Tweak.get && PL.Tweak.get('PAD_ALPHA'), pa = ov ? (typeof ta === 'number' ? ta : 0.45) : 1;
@@ -6253,7 +6256,7 @@ const PL = (globalThis.PL = globalThis.PL || {});
 const PL = (globalThis.PL = globalThis.PL || {});
 (function () {
   'use strict';
-  const BUILD = 'starfall-beta-2 (2026-11-20)';
+  const BUILD = 'starfall-beta-3 (2026-11-20)';
   const C = PL.C, U = PL.UI, SC = PL.Screens, S = PL.Strings.player, SD = PL.Strings.dev, TW = PL.Tweak;
   const canvas = document.getElementById('game');
   const ctx = canvas.getContext('2d');

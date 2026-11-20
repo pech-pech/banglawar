@@ -18,10 +18,10 @@ function liveZones() {
   const toRoom = (r) => { const x0 = (r.x - rr.x) / sc, y0 = (r.y - rr.y) / sc; return [Math.max(0, x0), Math.max(0, y0), r.w / sc, r.h / sc].map((v, i) => i < 2 ? v : v); };
   const clip = (z) => { const x1 = Math.min(336, z[0] + z[2]), y1 = Math.min(500, z[1] + z[3]); return [z[0], z[1], x1 - z[0], y1 - z[1]]; };
   const out = {};
-  for (const [side, ps] of [['R', 0], ['L', 1]]) {
+  for (const [side, ps] of [['R', 0], ['L', 1], ['C', 2]]) {
     PL.Tweak = { get: (id) => (id === 'PAD_SIDE' ? ps : undefined) };
     const L = PL.Input.layout(VW, VH, { hand: 'right' });
-    const cap = { x: L.retry.x, y: L.retry.y, w: L.retry.w, h: L.retry.h + 16 };
+    const cap = { x: L.retry.x, y: L.retry.y, w: L.retry.w, h: L.retry.h }; // Retry now top-right (no caption)
     out[side] = { pad: clip(toRoom(L.box)), retry: clip(toRoom(cap)), keys: [...L.keys, L.dive].map((k) => clip(toRoom(k))) };
   }
   PL.Tweak = undefined;
@@ -30,7 +30,7 @@ function liveZones() {
 const LZ = liveZones();
 // KEYS=1: only the 4 arrow keys + Dive (the drawn buttons) instead of the whole pad box (corners between keys are empty glass).
 const zs = (z) => (process.env.KEYS ? z.keys : [z.pad]).concat([z.retry]);
-const ZONES = { R: zs(LZ.zones.R), L: zs(LZ.zones.L) };
+const ZONES = { R: zs(LZ.zones.R), L: zs(LZ.zones.L), C: zs(LZ.zones.C) };
 const ov = (a, b) => a[0] < b[0] + b[2] && b[0] < a[0] + a[2] && a[1] < b[1] + b[3] && b[1] < a[1] + a[3];
 const inPt = (x, y, z) => x >= z[0] && x <= z[0] + z[2] && y >= z[1] && y <= z[1] + z[3];
 const WARN = 15;

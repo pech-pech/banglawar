@@ -8,8 +8,8 @@
 // Host (ui.js): {flip(dir), dive(), restart(), pause?(), state(), view()->{W,H}, active()->bool, now?()->ms}.
 //   flip/dive push into ui's queue; ui logs {tick,k,dir} at application, unchanged (absolute dir).
 // Layout (CSS px; pad box = 3*KEY + 2*GAP - 2*(KEY-DIVE)/2 ... = 184 at defaults, centred on the picked 180 box):
-//   475x638 overlay   box 283-467 x 446-630 (8 px from edges + safe inset), Retry 8-68 x 556-616 (caption below), Pause 419-467 x 2-50, teach 4-471 x 88-140
-//   PAD_SIDE=1 (overlay only): pad bottom-left, Retry bottom-right; hand=left mirrors everything
+//   475x638 overlay   box 145.5-329.5 x 446-630 (centred, 8 px from bottom + safe inset), Retry 347-403 x 0-56, Pause 411-467 x 0-56, teach 4-471 x 88-140
+//   PAD_SIDE (overlay only): 2 centre (default), 0 bottom-right, 1 bottom-left; Retry sits left of Pause on top; hand=left mirrors everything
 //   344x882 below     box 80-264 x 648-832, Retry 12-68 x 660-716, Pause 276-332 x 12-68, teach 4-340 x 596-644
 //   816x568 landscape box 604-788 x 328-512, Retry 12-68 x 330-386, Pause 752-808 x 12-68, teach 12-236 x 100-200
 // Settings key 'plumbline.input.v1' {v:1, hand:'right'|'left', vibrate:bool} (PL.store, never downgraded).
@@ -53,9 +53,10 @@ PL.Input = (function () {
       mode = 'below'; cx = W / 2; cy = H - 142;
       retry = rect(12, cy - 80, 56, 56); pause = rect(W - 68, 12, 56, 56); teach = rect(4, cy - 144, W - 8, 48);
     } else {
-      // overlay: pad floats over the room's bottom-right corner (room is fitted ignoring it), Retry bottom-left
-      mode = 'overlay'; cx = W - 8 - ins.r - B / 2; cy = H - 8 - ins.b - B / 2;
-      retry = rect(8 + ins.l, H - 8 - ins.b - 14 - 60, 60, 60); pause = rect(W - 8 - ins.r - 56, ins.t, 56, 56); // caption (14 px) sits under the ring; Pause 56 (touch rule) may overlap the room top wall by 4 px
+      // overlay: pad floats low over the room, centred (PAD_SIDE 2, default; 0 right, 1 left; room is fitted ignoring it). Retry sits top-right, left of Pause
+      mode = 'overlay'; cx = W / 2; cy = H - 8 - ins.b - B / 2;
+      pause = rect(W - 8 - ins.r - 56, ins.t, 56, 56); retry = rect(pause.x - 8 - 56, ins.t, 56, 56); // Pause and Retry 56 (touch rule) may overlap the room top wall by 4 px; no caption at the top
+      if (tw('PAD_SIDE', 2) === 0) cx = W - 8 - ins.r - B / 2;
       teach = rect(4, hudTop + 4, W - 8, 52);
     }
     const box = rect(cx - B / 2, cy - B / 2, B, B);
@@ -64,12 +65,11 @@ PL.Input = (function () {
       rect(box.x + off, box.y + B - KEYP, KEYP, KEYP), rect(box.x, box.y + off, KEYP, KEYP)];
     let dive = rect(cx - DIVEP / 2, cy - DIVEP / 2, DIVEP, DIVEP);
     let L = { mode, hand, box, keys, dive, retry, pause, teach };
-    if (mode === 'overlay' && tw('PAD_SIDE', 0) === 1) {
-      // pad (and its teach slot + Retry) on the left; Pause stays top-right. Left edge 8 px + inset.l
+    if (mode === 'overlay' && tw('PAD_SIDE', 2) === 1) {
+      // pad on the left; Retry and Pause stay top-right. Left edge 8 px + inset.l
       const nx = 8 + ins.l, dx0 = nx - box.x, mv = (r) => rect(r.x + dx0, r.y, r.w, r.h);
-      const rr = rect(W - 8 - ins.r - 60, retry.y, 60, 60);
       keys = keys.map(mv);
-      L = { mode, hand, box: mv(box), keys, dive: mv(dive), retry: rr, pause, teach };
+      L = { mode, hand, box: mv(box), keys, dive: mv(dive), retry, pause, teach };
     }
     if (hand === 'left') {
       const m = (r) => mirror(r, W);

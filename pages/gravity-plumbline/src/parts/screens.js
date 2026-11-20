@@ -26,8 +26,8 @@ const PL = (globalThis.PL = globalThis.PL || {});
   // join-beta glue: PL.Screens.padRects is the runtime swap point (ui.js points it at PL.Input.layout, which also
   // returns retry/pause/teach). opts.roomRect = the camera's fitted room rect (screen px) when the game knows it.
   // Overlay layout (Layout A, 475x638): the room fills the height under a floating HUD row (pills at y 10, 32 tall, room top 52),
-  // the pad floats over the room's bottom corner (pl.box), Retry (pl.retry, 60 ring) bottom-left in the room, Pause top-right.
-  // Teach strip = top of the room (tutorial only has text); Skip sits beside Retry, on the side away from the pad.
+  // the pad floats low over the room (pl.box, centred by default), Retry (pl.retry, 56 ring) sits left of Pause top-right.
+  // Teach strip = top of the room (tutorial only has text); Skip sits in the bottom corner away from the pad.
   function overlayRects(r, pl, w, h, tutorial, opts) {
     const hudTop = (PL.CAM && PL.CAM.HUD_OVERLAY) || 52, ins = (opts && opts.inset) || {}, it = ins.t || 0;
     const padRight = pl.box.x + pl.box.w / 2 > w / 2, pauseRight = pl.pause.x + pl.pause.w / 2 > w / 2;
@@ -36,10 +36,13 @@ const PL = (globalThis.PL = globalThis.PL || {});
     const y = 10 + it, row = [R(0, y, 112, 32), R(0, y, 104, 32), R(0, y, 56, 32)];
     let x = 8 + (ins.l || 0); for (const q of row) { q.x = x; x += q.w + 8; }
     r.hudRoom = row[0]; r.hudTime = row[1]; r.pips = row[2];
-    r.chips = R(x, y + 4, 170, 24);
+    r.chips = R(8 + (ins.l || 0), y + 36, 170, 24); // under the pill row: Retry + Pause now own the top-right
     if (!pauseRight) for (const n of ['hudRoom', 'hudTime', 'pips', 'chips']) r[n] = mir(r[n], w);
     const rm = r.room; r.teach = R(rm.x + 8, rm.y + 8, rm.w - 16, 72);
-    if (tutorial) r.skip = padRight === (pl.retry.x < w / 2) ? R(pl.retry.x + (pl.retry.x < w / 2 ? pl.retry.w + 8 : -8 - 68), pl.retry.y + pl.retry.h - 56, 68, 56) : R(pl.retry.x, pl.retry.y - 64, 68, 56);
+    if (tutorial) { // bottom corner away from the pad (centre pad: the Pause side's opposite, bottom-left unmirrored)
+      const sx = pauseRight ? 8 + (ins.l || 0) : w - 8 - (ins.r || 0) - 68, edge = pl.box.x + pl.box.w / 2;
+      r.skip = R(Math.abs(edge - w / 2) < 1 ? sx : (padRight ? 8 + (ins.l || 0) : w - 8 - (ins.r || 0) - 68), h - 8 - (ins.b || 0) - 56, 68, 56);
+    }
     else delete r.skip;
   }
   function playRects(w, h, left, tutorial, opts) {
@@ -208,7 +211,7 @@ const PL = (globalThis.PL = globalThis.PL || {});
     if (r.pips) U.pips(ctx, r.pips, { n: moves, max, pop: vm.pop, size: r.pips.w < 60 ? 14 : 18 }, t);
     U.pauseKey(ctx, r.pause, { pressed: press(vm, 'pause'), focus: foc(vm, 'pause') }, t);
     U.retryKey(ctx, r.retry, { pressed: press(vm, 'retry'), label: L2.retry, spin: vm.retrySpin, focus: foc(vm, 'retry') }, t);
-    if (r.retry) U.text(ctx, L2.retry, r.retry.x + r.retry.w / 2, r.retry.y + r.retry.h + 4, { font: U.fontPx(14, 700), color: U.C.cream, align: 'center', maxW: 64 }); // caption under the ring
+    if (r.retry && r.retry.y > 100) U.text(ctx, L2.retry, r.retry.x + r.retry.w / 2, r.retry.y + r.retry.h + 4, { font: U.fontPx(14, 700), color: U.C.cream, align: 'center', maxW: 64 }); // caption under the ring
     const zero = moves <= 0;
     // overlay mode: pad drawn translucent over the room (PAD_ALPHA); a pressed key goes to max(0.9, alpha)
     const ov = r.mode === 'overlay', ta = PL.Tweak && PL.Tweak.get && PL.Tweak.get('PAD_ALPHA'), pa = ov ? (typeof ta === 'number' ? ta : 0.45) : 1;

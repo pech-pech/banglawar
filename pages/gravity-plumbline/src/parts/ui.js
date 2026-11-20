@@ -10,7 +10,7 @@
 const PL = (globalThis.PL = globalThis.PL || {});
 (function () {
   'use strict';
-  const BUILD = 'starfall-beta-2 (2026-11-20)';
+  const BUILD = 'starfall-beta-3 (2026-11-20)';
   const C = PL.C, U = PL.UI, SC = PL.Screens, S = PL.Strings.player, SD = PL.Strings.dev, TW = PL.Tweak;
   const canvas = document.getElementById('game');
   const ctx = canvas.getContext('2d');
