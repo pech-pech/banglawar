@@ -26,7 +26,12 @@
 <script>
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', function () {
-      navigator.serviceWorker.register('sw.js').catch(function () {});
+      navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then(function (reg) { reg.update(); }).catch(function () {});
+      // A new worker took over: reload once so the fresh build runs now, not on the next open.
+      var hadCtl = !!navigator.serviceWorker.controller, reloaded = false;
+      navigator.serviceWorker.addEventListener('controllerchange', function () {
+        if (!hadCtl || reloaded) return; reloaded = true; location.reload();
+      });
     });
   }
 </script>

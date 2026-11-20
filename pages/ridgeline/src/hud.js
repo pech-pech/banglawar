@@ -68,6 +68,8 @@ export function createHud(rootEl, handlers) {
   el('h1', 'rlh-title', sb, 'RIDGELINE');
   el('p', 'rlh-how rlh-panel', sb, 'Drag to carve. Ride close to rocks to charge. Lift to boost.');
   const bestEl = el('p', 'rlh-best rlh-panel', sb, '');
+  const verEl = el('p', 'rlh-ver', sb, '');
+  verEl.style.cssText = 'margin:6px 0 0;font-size:12px;opacity:.7;text-align:center';
   btn('Daily run', '', sb, () => call('onStart', 'daily'));
   btn('Random run', 'alt', sb, () => call('onStart', 'random'));
   btn('Settings', 'alt', sb, () => call('onSettings'));
@@ -132,6 +134,7 @@ export function createHud(rootEl, handlers) {
       bestEl.hidden = false;
       bestEl.textContent = 'Best: ' + (typeof b === 'number' ? b.toFixed(2) + ' s' : String(b));
     } else bestEl.hidden = true;
+    if (info && info.build) verEl.textContent = 'build ' + info.build;
     mode('start');
   }
   function showRun() {
