@@ -183,6 +183,23 @@ const PL = (globalThis.PL = globalThis.PL || {});
     const press = (vm, n) => (vm.pressed === n ? 1 : 0);
   const foc = (vm, n) => vm.focus === n;
 
+  // overlay pad: which keys sit over a spike / crusher full travel / exit ring (screen space). Cached per room object + W,H + layout + camera.
+  let hazCache = { key: '', v: null }, hazRoom = null;
+  function padHazKeys(r, h) {
+    if (!h || !h.room) return null;
+    const keys = ['up', 'left', 'right', 'down', 'dive'], key = h.W + 'x' + h.H + '|' + h.cx + ',' + h.cy + ',' + h.scale + '|' + keys.map((k) => { const q = r[k]; return q ? q.x + ',' + q.y + ',' + q.w + ',' + q.h : '-'; }).join(';');
+    if (hazRoom === h.room && hazCache.key === key) return hazCache.v;
+    const rm = h.room, sx = (x) => (x - h.cx) * h.scale + h.W / 2, sy = (y) => (y - h.cy) * h.scale + h.H / 2, hs = [];
+    const add = (x, y, w, hh) => hs.push({ x: sx(x), y: sy(y), w: w * h.scale, h: hh * h.scale });
+    (rm.spikes || []).forEach((q) => add(q.r[0], q.r[1], q.r[2], q.r[3]));
+    (rm.crushers || []).forEach((c) => { const a = c.amp || 0; add(c.r[0] - (c.ax ? a : 0), c.r[1] - (c.ay ? a : 0), c.r[2] + (c.ax ? 2 * a : 0), c.r[3] + (c.ay ? 2 * a : 0)); });
+    const ex = rm.exit; if (ex) add(ex.x - 18, ex.y - 18, 36, 36); // ring bbox (circle test below)
+    const v = {};
+    for (const k of keys) { const q = r[k]; v[k] = !!q && hs.some((z, i) => {
+      if (ex && i === hs.length - 1) { const cx = Math.max(q.x, Math.min(z.x + z.w / 2, q.x + q.w)), cy = Math.max(q.y, Math.min(z.y + z.h / 2, q.y + q.h)); return Math.hypot(cx - (z.x + z.w / 2), cy - (z.y + z.h / 2)) < z.w / 2; }
+      return q.x < z.x + z.w && z.x < q.x + q.w && q.y < z.y + z.h && z.y < q.y + q.h; }); }
+    hazRoom = h.room; hazCache = { key, v }; return v;
+  }
   function drawHud(ctx, L, vm, t, w) {
     const r = L.rects, sca = sc(vm), L2 = S.hud;
     U.hudText(ctx, r.hudRoom, { text: L2.room(vm.room || 1, vm.rooms || 5), vw: w, scale: sca }, t);
@@ -195,7 +212,8 @@ const PL = (globalThis.PL = globalThis.PL || {});
     const zero = moves <= 0;
     // overlay mode: pad drawn translucent over the room (PAD_ALPHA); a pressed key goes to max(0.9, alpha)
     const ov = r.mode === 'overlay', ta = PL.Tweak && PL.Tweak.get && PL.Tweak.get('PAD_ALPHA'), pa = ov ? (typeof ta === 'number' ? ta : 0.45) : 1;
-    const padAlpha = (n) => ctx.globalAlpha = press(vm, n) ? Math.max(0.9, pa) : pa;
+    const hz = ov ? padHazKeys(r, vm.padHaz) : null, th = PL.Tweak && PL.Tweak.get && PL.Tweak.get('PAD_HAZ_ALPHA'), ha = Math.min(pa, typeof th === 'number' ? th : 0.2);
+    const padAlpha = (n) => { const a = hz && hz[n] ? ha : pa; ctx.globalAlpha = press(vm, n) ? Math.max(0.9, a) : a; };
     ctx.save();
     for (const d of ['up', 'left', 'right', 'down']) { padAlpha(d); U.arrowKey(ctx, r[d], { dir: d, lit: vm.lit === d, pressed: press(vm, d), dim: zero, focus: foc(vm, d) }, t); }
     padAlpha('dive'); U.diveKey(ctx, r.dive, { pressed: press(vm, 'dive'), cooldown: vm.cooldown || 0, disabled: zero && vm.air, airCost: vm.air && !zero }, t);

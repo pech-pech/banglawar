@@ -30,7 +30,7 @@ async function open(browser, port, W, H) {
   await page.goto(`http://127.0.0.1:${port}/index.html?seed=7`);
   await page.waitForFunction(() => window.PL_TEST && window.PL_TEST.screen && window.PL && window.PL.Assets && window.PL.UI, null, { timeout: 8000 });
   await page.evaluate(() => {
-    window.__hero = { n: 0, px: 0 }; window.__pa = { up: null };
+    window.__hero = { n: 0, px: 0 }; window.__pa = { up: null, down: null };
     const o = PL.Assets.drawHero;
     PL.Assets.drawHero = function (ctx, pose, x, y, h, opt) {
       const m = ctx.getTransform(), det = Math.abs(m.a * m.d - m.b * m.c);
@@ -38,7 +38,7 @@ async function open(browser, port, W, H) {
       return o.apply(this, arguments);
     };
     const ak = PL.UI.arrowKey;
-    PL.UI.arrowKey = function (ctx, r, st) { if (st && st.dir === 'up' && !st.pressed) window.__pa.up = ctx.globalAlpha; return ak.apply(this, arguments); };
+    PL.UI.arrowKey = function (ctx, r, st) { if (st && !st.pressed && (st.dir === 'up' || st.dir === 'down')) window.__pa[st.dir] = ctx.globalAlpha; return ak.apply(this, arguments); };
   });
   await page.evaluate(() => { PL_TEST.startMode('short', 7); });
   await sleep(1200);
@@ -48,10 +48,10 @@ async function open(browser, port, W, H) {
 const snap = (page) => page.evaluate(() => {
   const L = PL_TEST.pad().layout, R = PL_TEST.rects(), st = PL_TEST.getState();
   return { screen: PL_TEST.screen(), L, rects: R.rects, room: PL_TEST.roomRect(), roomW: st && st.room ? st.room.w : 336,
-    Wv: innerWidth, Hv: innerHeight, hero: window.__hero.n ? window.__hero.px : 0, alpha: window.__pa.up,
+    Wv: innerWidth, Hv: innerHeight, hero: window.__hero.n ? window.__hero.px : 0, alpha: window.__pa.up, alphaDown: window.__pa.down,
     tw: { a: PL.Tweak.get('PAD_ALPHA'), s: PL.Tweak.get('PAD_SIDE') }, txt: window.__txt.join('|'), hand: PL.Input.getHand() };
 });
-const fresh = async (page) => { await page.evaluate(() => { window.__hero.n = 0; window.__txt = []; window.__pa.up = null; }); await sleep(350); return snap(page); };
+const fresh = async (page) => { await page.evaluate(() => { window.__hero.n = 0; window.__txt = []; window.__pa.up = null; window.__pa.down = null; }); await sleep(350); return snap(page); };
 
 (async () => {
   await new Promise((r) => srv.listen(0, '127.0.0.1', r));
@@ -73,6 +73,14 @@ const fresh = async (page) => { await page.evaluate(() => { window.__hero.n = 0;
     ok(s.hero >= 33, t + 'hero drawn bbox >= 33 px (got ' + s.hero.toFixed(1) + ')');
     ok(s.tw.a === 0.45, t + 'PAD_ALPHA tweak default 0.45 (got ' + s.tw.a + ')');
     ok(s.alpha != null && Math.abs(s.alpha - 0.45) < 0.01, t + 'pad drawn at alpha 0.45 at rest (drawn ' + s.alpha + ')');
+    { // room 1 (tutorial Flip: exit ring at room 300,477 sits under the Down key) -> 0.2; Up is clear -> 0.45
+      await page.evaluate(() => PL_TEST.startMode('tutorial', 1)); await sleep(900);
+      const z = await fresh(page);
+      ok(await page.evaluate(() => PL.Tweak.get('PAD_HAZ_ALPHA')) === 0.2, t + 'PAD_HAZ_ALPHA default 0.2');
+      ok(z.alphaDown != null && Math.abs(z.alphaDown - 0.2) < 0.01, t + 'room 1 Down key over exit/spikes drawn at 0.2 (drawn ' + z.alphaDown + ')');
+      ok(z.alpha != null && Math.abs(z.alpha - 0.45) < 0.01, t + 'room 1 clear Up key still 0.45 (drawn ' + z.alpha + ')');
+      await page.evaluate(() => PL_TEST.startMode('short', 7)); await sleep(900); s = await fresh(page);
+    }
     ok(s.rects && s.rects.retry && s.rects.retry.w === 60 && s.rects.retry.h === 60, t + 'Retry 60x60 (' + JSON.stringify(s.rects && s.rects.retry) + ')');
     ok(!hit(s.rects.retry, s.L.box), t + 'Retry does not overlap pad');
     const baseRetry = s.rects.retry, baseBox = s.L.box;

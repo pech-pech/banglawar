@@ -782,7 +782,7 @@ const PL = (globalThis.PL = globalThis.PL || {});
       moves: s.charges, maxMoves: s.K ? s.K.CHARGES : C.CHARGES, air, lit: DIRN[s.g], pressed,
       cooldown: s.K && s.K.DIVE_CD_TICKS ? clamp(s.diveCd / s.K.DIVE_CD_TICKS, 0, 1) : 0,
       retrySpin: clamp((nowMs() - retryAt) / 200, 0, 1) < 1 ? clamp((nowMs() - retryAt) / 200, 0, 1) : 0, hero: h,
-      showSkip: isTut(), pop: pipPop
+      showSkip: isTut(), pop: pipPop, padHaz: { room: s.room, W: view.W, H: view.H, cx: fr.cx, cy: fr.cy, scale: fr.scale }
     });
     if (toast && nowMs() < toast.until) vm.toast = { text: toast.text, kind: toast.kind };
     if (isTut()) { const h = teachHint(); if (h) vm.teach = h; }
