@@ -3,6 +3,41 @@ import { formatTelemetry } from './telemetry.js';
 import { DEFAULTS, cfg, META, setCfg, resetCfg, isDefault, diffFromDefault, applyPreset } from './config.js';
 
 const KEY = 'ridgeline.presets.v1';
+const VKEY = 'rl-visual';
+const VDEF = { quality: 'high', post: true };
+const vListeners = [];
+function vLoad() {
+  const o = { ...VDEF };
+  try {
+    const j = JSON.parse(localStorage.getItem(VKEY) || '{}');
+    if (j && (j.quality === 'low' || j.quality === 'high')) o.quality = j.quality;
+    if (j && typeof j.post === 'boolean') o.post = j.post;
+  } catch (e) { /* ignore */ }
+  return o;
+}
+let vPrefs = vLoad();
+function vSave() { try { localStorage.setItem(VKEY, JSON.stringify(vPrefs)); } catch (e) { /* ignore */ } }
+function vQuery() {
+  try {
+    const q = new URLSearchParams(location.search).get('q');
+    return q === 'low' || q === 'high' ? q : null;
+  } catch (e) { return null; }
+}
+export function getVisualPrefs() {
+  return { quality: vQuery() || vPrefs.quality, post: vPrefs.post };
+}
+export function isVisualDefault() {
+  const p = getVisualPrefs();
+  return p.quality === VDEF.quality && p.post === VDEF.post;
+}
+export function onVisualPrefs(fn) {
+  if (typeof fn === 'function') vListeners.push(fn);
+}
+function setVisual(patch) {
+  vPrefs = { ...vPrefs, ...patch };
+  vSave();
+  for (const f of vListeners) { try { f(getVisualPrefs()); } catch (e) { /* ignore */ } }
+}
 const CSS = `
 .rlt{position:fixed;inset:0;z-index:50;background:#0b1220;color:#e8f0ff;font:15px/1.3 system-ui,sans-serif;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:max(10px,env(safe-area-inset-top)) max(10px,env(safe-area-inset-right)) max(16px,env(safe-area-inset-bottom)) max(10px,env(safe-area-inset-left));box-sizing:border-box;display:none}
 .rlt.open{display:block}
@@ -27,6 +62,9 @@ const CSS = `
 .rlt input[type=range]::-moz-range-thumb{width:26px;height:26px;border-radius:50%;background:#e8731f;border:2px solid #fff}
 .rlt input[type=text],.rlt textarea{width:100%;min-height:56px;padding:0 10px;border-radius:10px;border:1px solid #37528a;background:#101b33;color:#fff;font:15px system-ui,sans-serif}
 .rlt textarea{padding:8px 10px;min-height:84px;font:12px monospace}
+.rlt .seg{display:flex;gap:8px;margin:4px 0}
+.rlt .seg button{flex:1;min-height:48px}
+.rlt .seg button.on{background:#e8731f}
 .rlt .msg{min-height:22px;margin:6px 0;font-weight:600}
 .rlt .msg.err{color:#ff7b7b}.rlt .msg.ok{color:#8be28b}
 .rlt .pr{display:flex;align-items:center;gap:8px;margin:6px 0}
@@ -83,6 +121,8 @@ export function buildReport(info) {
     'time: ' + num(info.time, 2) + ' s',
     'gates: ' + gates,
     'crash z: ' + (info.crashZ === undefined || info.crashZ === null ? '-' : num(info.crashZ, 1)),
+    'quality: ' + getVisualPrefs().quality,
+    'post: ' + (getVisualPrefs().post ? 'on' : 'off'),
     'fps avg: ' + num(info.fpsAvg !== undefined ? info.fpsAvg : info.fps, 1),
     'renderer: calls ' + fmt(st.calls) + ', triangles ' + fmt(st.triangles),
     'cfg diff: ' + (keys.length ? '' : '(defaults)')
@@ -189,6 +229,36 @@ export function createTweak(rootEl, opts) {
     sliders.appendChild(row);
     rows[k] = { row, input, val };
   }
+
+  const visBox = el('div', 'visual');
+  const visBtns = [];
+  function visRow(label, key, opts) {
+    const row = el('div', 'row');
+    row.appendChild(el('div', 'top', label));
+    const seg = el('div', 'seg');
+    for (const [text, val] of opts) {
+      const b = el('button', '', text);
+      b.type = 'button';
+      b.dataset.act = key + '-' + text.toLowerCase();
+      b.addEventListener('click', () => { setVisual({ [key]: val }); onChange(); refreshVisual(); });
+      seg.appendChild(b);
+      visBtns.push({ b, key, val, row });
+    }
+    row.appendChild(seg);
+    visBox.appendChild(row);
+  }
+  visRow('Quality', 'quality', [['Low', 'low'], ['High', 'high']]);
+  visRow('Post', 'post', [['On', true], ['Off', false]]);
+  function refreshVisual() {
+    const p = getVisualPrefs();
+    for (const x of visBtns) {
+      const on = p[x.key] === x.val;
+      x.b.classList.toggle('on', on);
+      x.b.setAttribute('aria-pressed', on ? 'true' : 'false');
+      x.row.classList.toggle('chg', p[x.key] !== VDEF[x.key]);
+    }
+  }
+  refreshVisual();
 
   function btn(text, cls, fn) {
     const b = el('button', cls || '', text);
@@ -302,6 +372,7 @@ export function createTweak(rootEl, opts) {
     ...(opts.themeEl ? [opts.themeEl] : []),
     el('h3', '', 'Presets'), nameInput, saveRow, presetBox,
     el('h3', '', 'Share'), codeArea, codeRow,
+    el('h3', '', 'Look'), visBox,
     el('h3', '', 'Values'), sliders
   );
   const bClose2 = btn('Close', 'pri', () => api.close());
@@ -312,7 +383,7 @@ export function createTweak(rootEl, opts) {
   renderPresets();
 
   const api = {
-    open() { refreshAll(); renderPresets(); panel.classList.add('open'); panel.scrollTop = 0; },
+    open() { refreshAll(); refreshVisual(); renderPresets(); panel.classList.add('open'); panel.scrollTop = 0; },
     close() { panel.classList.remove('open'); },
     isOpen() { return panel.classList.contains('open'); }
   };

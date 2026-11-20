@@ -190,10 +190,12 @@ export function makeRange(seed, radius, baseY, peakH, colTop, colBase, opts) {
 
 // ---------------------------------------------------------------- C paper range layer
 // Flat single-colour paper layer: base shadow band (shadowH m, colour x shadowK), body, white top edge (edgeH m). Hard seams
-// (duplicate vertices), rounded jags (low-frequency smooth noise). opts { edge, edgeH, shadowH, shadowK, seg }. fog:false, 1 draw call.
+// (duplicate vertices), rounded jags (low-frequency smooth noise). opts { edge, edgeH, shadowH, shadowK, seg, stepped, blockSeg, steps, brush }. fog:false, 1 draw call.
+// stepped: blocky mesa look (flat plateaus, vertical walls). brush: ink look (ragged, bristly top edge). Colours come from args; no theme literals.
 export function makePaperRange(seed, radius, baseY, peakH, color, opts) {
   const o = opts || {};
-  const SEG = o.seg || 96;
+  const stepped = !!o.stepped, brush = !!o.brush;
+  const SEG = o.seg || (brush ? 160 : 96);
   const rnd = mulberry32(seed);
   const lat = [];
   for (let i = 0; i < 96; i++) lat.push(rnd());
@@ -205,19 +207,50 @@ export function makePaperRange(seed, radius, baseY, peakH, color, opts) {
   const cShadow = cBody.clone().multiplyScalar(o.shadowK || 0.96);
   const cEdge = new THREE.Color(o.edge || '#ffffff');
   const edgeH = o.edgeH || 1, shH = o.shadowH || 3;
+  const heightAt = (u) => {
+    const n = 0.65 * vn(u * 7 + seed) + 0.35 * vn(u * 16 + 3 + seed);
+    return peakH * (0.25 + 0.75 * Math.min(1, n * 1.3)) - baseY; // tops stay at peakH-relative height whatever baseY is
+  };
+  // columns: { u, h }. Smooth = SEG+1 columns. Stepped = flat plateaus (blocks of o.blockSeg segments, heights quantised to
+  // o.steps levels) with vertical walls; the wall columns duplicate u so there is no slanted edge. Brush = ragged top edge.
+  const cols = [];
+  if (stepped) {
+    const blk = Math.max(1, o.blockSeg || 5), levels = Math.max(2, o.steps || 6);
+    const nb = Math.ceil(SEG / blk);
+    for (let k = 0; k < nb; k++) {
+      const u0 = k / nb, u1 = (k + 1) / nb;
+      const hs = heightAt((u0 + u1) / 2);
+      const q = peakH / levels;
+      const h = Math.max(q, Math.round(hs / q) * q);
+      cols.push({ u: u0, h }, { u: u1, h });
+    }
+  } else {
+    for (let i = 0; i <= SEG; i++) {
+      const u = i / SEG;
+      let h = heightAt(u);
+      if (brush) {
+        // bristle jitter, plus an occasional dry-brush dip; deterministic from seed + column index
+        const j = hashInt(i * 7 + seed * 131) - 0.5;
+        const dip = hashInt(i * 13 + seed * 17 + 5) > 0.9 ? 0.1 : 0;
+        h = h * (1 + 0.07 * j - dip) + 0.6 * (vn(u * 90 + seed) - 0.5);
+      }
+      cols.push({ u, h: Math.max(shH + edgeH + 0.1, h) });
+    }
+  }
   const pos = [], col = [], idx = [];
   const push = (x, y, z, c) => { pos.push(x, y, z); col.push(c.r, c.g, c.b); };
-  for (let i = 0; i <= SEG; i++) {
-    const u = i / SEG;
-    const a = (u - 0.5) * 120 * DEG;
-    const x = Math.sin(a) * radius, z = Math.cos(a) * radius;
-    const n = 0.65 * vn(u * 7 + seed) + 0.35 * vn(u * 16 + 3 + seed);
-    const h = peakH * (0.25 + 0.75 * Math.min(1, n * 1.3)) - baseY; // tops stay at peakH-relative height whatever baseY is
+  for (const cl of cols) {
+    const a = (cl.u - 0.5) * 120 * DEG;
+    const x = Math.sin(a) * radius, z = Math.cos(a) * radius, h = cl.h;
     push(x, baseY, z, cShadow); push(x, baseY + shH, z, cShadow);
     push(x, baseY + shH, z, cBody); push(x, baseY + h - edgeH, z, cBody);
     push(x, baseY + h - edgeH, z, cEdge); push(x, baseY + h, z, cEdge);
   }
-  for (let i = 0; i < SEG; i++) {
+  for (let i = 0; i < cols.length - 1; i++) {
+    if (stepped && cols[i].u === cols[i + 1].u) { // wall between blocks: join the two heights with a vertical quad
+      // same x,z: no area to draw
+      continue;
+    }
     for (const r of [0, 2, 4]) {
       const a = i * 6 + r, b = (i + 1) * 6 + r;
       idx.push(a, b, a + 1, b, b + 1, a + 1);
@@ -322,13 +355,13 @@ function mergeG(list) {
 // Draw calls: 7 (hull, skids and struts and bar, wing and posts, glow, suit, helmet, helmet stripe). No outline hulls.
 export function makeSledModel(colors) {
   const cs = colors || {};
-  const cSled = new THREE.Color(cs.sled != null ? cs.sled : 0xd81e3a);
+  const cSled = new THREE.Color(cs.sled != null ? cs.sled : 0x8a8f98);
   const cSkid = cSled.clone().multiplyScalar(0.75);
   const hullMat = new THREE.MeshStandardMaterial({ color: cSled, flatShading: true, roughness: 0.5, metalness: 0.1 });
   const skidMat = new THREE.MeshStandardMaterial({ color: cSkid, flatShading: true, roughness: 0.6, metalness: 0.1 });
-  const wingMat = new THREE.MeshLambertMaterial({ color: cs.wing != null ? cs.wing : 0xf4f7fb, flatShading: true });
-  const glowMat = new THREE.MeshBasicMaterial({ color: cs.glow != null ? cs.glow : 0x35e0ff, fog: false });
-  const suitMat = new THREE.MeshLambertMaterial({ color: cs.suit != null ? cs.suit : 0x24406e, flatShading: true });
+  const wingMat = new THREE.MeshLambertMaterial({ color: cs.wing != null ? cs.wing : 0xdddddd, flatShading: true });
+  const glowMat = new THREE.MeshBasicMaterial({ color: cs.glow != null ? cs.glow : 0xffffff, fog: false });
+  const suitMat = new THREE.MeshLambertMaterial({ color: cs.suit != null ? cs.suit : 0x444a55, flatShading: true });
   const helmMat = new THREE.MeshLambertMaterial({ color: 0xffffff, flatShading: true });
   const stripeMat = new THREE.MeshLambertMaterial({ color: cSled, flatShading: true });
 
