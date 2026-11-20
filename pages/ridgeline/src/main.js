@@ -31,6 +31,7 @@ function stillAdvance() {
   run(120, 2);
   window.__stillInfo = { steps: total, nextGate: state.nextGate, z: state.z, crashed: !!state.crashed };
   stillState = 1;
+}
 const tele = createTelemetry();
 let gpuStr = null;
 function gpuName() {
