@@ -1,37 +1,23 @@
-// rooms.js - Plumbline: seeded RNG + 3 hardcoded rooms (336x500, border walls 12 px included).
-// Node-loadable, no DOM. Seed only picks per-room x-mirror and crusher phase.
+// rooms.js - Plumbline: seeded RNG, the 3 tutorial rooms, templates t02/t03 and buildShaft (slot table).
+// Node-loadable, no DOM. Rooms are 336x500 with 12 px border walls included.
 //
 // Geometry notes: G 1500, cap 700, bob box 22 (half 11), flip keeps velocity.
 // A ledge with top at T puts a grounded bob at y = T - 11. Fly lines use that y.
-// Solutions below are written for the UNMIRRORED layout; when a room is mirrored swap
-// left<->right (gravity dir 1<->3) and x -> 336 - x. Times are seconds from first input.
+// Solutions are written for the UNMIRRORED layout; mirrored rooms swap left<->right and x -> 336 - x.
 //
-// ROOM 1  "Arc Carry" (teach: flip mid-fall bends a carried speed into an arc)
-//   Start on left pillar (40,109). Pit (x 102-215) with floor spikes; right-wall spikes y 80-120 sit
-//   on the lazy line (flip right and hold, or flip right + tick-1 Dive: both die on the wall spikes).
-//   Solution (2 flips, ~1.0 s): t=0.00 swipe RIGHT (free, grounded); t~0.31..0.45 swipe DOWN
-//   (1 charge, before bob x~185) -> arc lands on the right block (top y 200, x 215-324) near
-//   x 270-313. If past the exit, swipe LEFT (free) to slide back through it.
+// TUTORIALS (PL.buildRooms(seed) returns these 3, never mirrored, seed has no effect; never in shafts):
+//   tut1 "Flip"      start (40,109) on a pillar, nothing else. RIGHT (free) flies to the wall, DOWN (free) drops to the
+//                    exit. Two free flips, every window is huge, no spikes.
+//   t01  "Arc Carry" (tutorial 2) flip mid-fall bends a carried speed into an arc over the pit: RIGHT (free), DOWN
+//                    (1 charge) before bob x~185, land on the right block. Teaches "2 moves in the air".
+//   tut3 "Dive Gate" rest on a full-width one-way gate; Dive (free on the ground) punches through and falls to the exit.
 //
-// ROOM 2  "Charge Banking" (teach: landing refills charges; crumble ledge; Dive-tap gate)
-//   Start on top-left ledge (40,79). The left column (x 12-100) is solid to the floor and a wall
-//   under the ledge's right end seals the chamber, so the gate floor is the only way in.
-//   Solution (3 flips + 1 dive, ~3 s): t=0 swipe RIGHT (free); t~0.31..0.45 swipe DOWN (1 charge)
-//   -> land on the crumble ledge (right, y 200, x 256-324; charges refill; it breaks 0.35 s after landing and
-//   below it are floor spikes). Within 0.3 s swipe LEFT (free) -> bob flies the 26 px corridor and
-//   stops at its end (x 111). Swipe DOWN (free, grounded): bob rests on the one-way gate floor (needs
-//   120 px/s down; the corridor is too short to build it, max ~110). TAP = Dive (+250) -> falls into the
-//   sealed chamber (x 100-226). Swipe RIGHT (free) -> slide into the exit (160,439).
-//
-// ROOM 3  "Rhythm Press" (teach: crusher rhythm + Late Flip)
-//   Start on left ledge (40,119). A press plate (x 128-212, 60 tall, ay amp 50, period 2.4 s, phase from
-//   seed) sits across the flight line y~119: it is clear only while its bottom is above y 108 or its top
-//   below y 130 (about 40 % of the cycle, two windows), so the swipe-right moment differs per seed.
-//   Solution (3 flips, ~3-5 s incl. waiting): time the first swipe RIGHT (free) so the bob arrives ~0.33 s
-//   later while the plate is clear, hits the right wall (grounded); swipe DOWN (free) and fall along the
-//   wall at 600-700 px/s; ~0.3 s later swipe LEFT (1 charge) to carry the speed sideways, then LATE swipe
-//   DOWN (1 charge) in the last ~0.2 s so the arc drops onto the left shelf (top y 430, x 12-220).
-//   Floor spikes x 220-324 punish the straight fall. Swipe LEFT (free) to slide into the exit.
+// SHAFT TEMPLATES in this file:
+//   t02  "Charge Banking" (tier 2, family gate): RIGHT, DOWN (1 charge) onto the crumble ledge (refills); LEFT (free)
+//        through the corridor; DOWN (free) on the gate; Dive; RIGHT into the exit.
+//   t03  "Rhythm Press" (tier 2, family crusher, FIRST crusher a player meets, crusher alone): wait for the press to rise,
+//        RIGHT (free) hits the right wall, DOWN (free) drops onto the safe stub, LEFT (free) flies over the shelf into the
+//        exit. All free. Late Flip (LEFT mid-fall, DOWN late) stays as an optional faster line.
 
 const PL = (globalThis.PL = globalThis.PL || {});
 
@@ -46,82 +32,84 @@ PL.mulberry32 = function (seed) {
   };
 };
 
+
 (function () {
   const W = 336, H = 500, B = 12;
   const border = () => [[0, 0, W, B], [0, H - B, W, B], [0, 0, B, H], [W - B, 0, B, H]];
 
   function base() {
     return [
-      { // Room 1: Arc Carry
+      { // Tutorial 1: Flip (flip alone, no hazards)
+        name: 'Flip',
+        teach: 'Flip right to fly across, then flip down to drop to the exit. On the ground flips are free.',
+        start: { x: 40, y: 109, g: 2 },
+        walls: border().concat([[12, 120, 90, 368]]),
+        spikes: [], crumbles: [], gates: [], crushers: [],
+        exit: { x: 300, y: 477 },
+      },
+      { // Tutorial 2 (t01): Arc Carry
         name: 'Arc Carry',
-        teach: 'Flip mid-fall: your speed turns into a sideways arc over the gap.',
+        teach: 'Flip mid-fall: your speed turns into a sideways arc. You have 2 moves in the air.',
         start: { x: 40, y: 109, g: 2 },
         walls: border().concat([[12, 120, 90, 368], [215, 200, 109, 288]]),
         spikes: [{ r: [102, 472, 113, 16] }, { r: [312, 80, 12, 40] }],
         crumbles: [], gates: [], crushers: [],
         exit: { x: 285, y: 189 },
       },
-      { // Room 2: Charge Banking
-        name: 'Charge Banking',
-        teach: 'Landing refills charges. The ledge crumbles; tap to Dive through the gate.',
-        start: { x: 40, y: 79, g: 2 },
-        walls: border().concat([
-          [12, 90, 88, 360],     // start ledge + sealed left column (x 12-100, down to floor)
-          [100, 150, 126, 24],   // corridor ceiling
-          [226, 200, 30, 12],    // solid strip between ledge and gate (no fall-in at speed from the broken ledge)
-          [226, 212, 12, 238],   // chamber right wall: gate is the ONLY way into the chamber
-          [12, 450, 312, 38],    // lower floor
-        ]),
-        spikes: [{ r: [312, 40, 12, 50] }, { r: [238, 436, 86, 14] }],
-        crumbles: [[256, 200, 68, 12]],
-        gates: [{ r: [100, 200, 126, 8], dir: 2 }],
+      { // Tutorial 3: Dive through the gate
+        name: 'Dive Gate',
+        teach: 'You rest on a one-way gate. On the ground Dive is free. In the air it uses a move.',
+        start: { x: 168, y: 89, g: 2 },
+        walls: border(),
+        spikes: [], crumbles: [],
+        gates: [{ r: [12, 100, 312, 12], dir: 2 }],
         crushers: [],
-        exit: { x: 160, y: 439 },
-      },
-      { // Room 3: Rhythm Press
-        name: 'Rhythm Press',
-        teach: 'Slip through when the press opens, then flip late to land tight.',
-        start: { x: 40, y: 119, g: 2 },
-        walls: border().concat([
-          [12, 130, 100, 14],    // start ledge
-          [12, 430, 208, 58],    // landing shelf
-        ]),
-        spikes: [{ r: [220, 472, 104, 16] }],
-        crumbles: [], gates: [],
-        crushers: [{ r: [128, 85, 84, 60], ax: 0, ay: 1, amp: 50, phase: 0 }],
-        exit: { x: 50, y: 419 },
+        exit: { x: 168, y: 477 },
       },
     ];
   }
+  PL.tutorialRooms = base;
+
+  const T2 = () => ({ // Charge Banking (shaft tier 2)
+    name: 'Charge Banking',
+    teach: 'Landing refills your moves. The ledge breaks 0.35 s after you land: ride the corridor, then drop through the gate.',
+    start: { x: 40, y: 79, g: 2 },
+    walls: border().concat([
+      [12, 90, 88, 360],     // start ledge + sealed left column (x 12-100, down to floor)
+      [100, 130, 126, 24],   // corridor ceiling (raised 20 px: lane 46 px tall, was 26)
+      [226, 212, 12, 238],   // chamber right wall: the gate is the ONLY way into the chamber
+      [12, 450, 312, 38],    // lower floor
+    ]),
+    spikes: [{ r: [312, 40, 12, 30] }, { r: [238, 436, 86, 14] }],
+    crumbles: [[226, 200, 98, 12]],
+    gates: [{ r: [100, 200, 126, 12], dir: 2 }],
+    crushers: [],
+    exit: { x: 160, y: 439 },
+  });
+  const T3 = () => ({ // Rhythm Press: the crusher met alone
+    name: 'Rhythm Press',
+    teach: 'Wait for the press to rise, slip under it, drop down the wall onto the stub, then fly left to the exit.',
+    start: { x: 40, y: 119, g: 2 },
+    walls: border().concat([
+      [12, 130, 100, 14],    // start ledge
+      [12, 430, 208, 58],    // landing shelf
+      [284, 430, 40, 58],    // safe stub (right)
+    ]),
+    spikes: [{ r: [220, 472, 64, 16] }],
+    crumbles: [], gates: [],
+    crushers: [{ r: [142, 85, 84, 60], ax: 0, ay: 1, amp: 50, phase: 0 }],
+    exit: { x: 50, y: 419 },
+  });
 
   const mr = (r) => [W - r[0] - r[2], r[1], r[2], r[3]];
 
-  function mirror(room) {
-    room.start.x = W - room.start.x;
-    room.exit.x = W - room.exit.x;
-    room.walls = room.walls.map(mr);
-    room.spikes = room.spikes.map((s) => ({ r: mr(s.r) }));
-    room.crumbles = room.crumbles.map(mr);
-    room.gates = room.gates.map((g) => ({ r: mr(g.r), dir: g.dir === 1 ? 3 : g.dir === 3 ? 1 : g.dir }));
-    room.crushers = room.crushers.map((c) => ({ r: mr(c.r), ax: c.ax, ay: c.ay, amp: c.amp, phase: c.phase }));
-    room.mirrored = true;
-  }
-
+  // PL.buildRooms(seed): the 3 tutorial rooms. Never mirrored; seed has no effect (kept in the signature for callers).
   PL.buildRooms = function (seed) {
-    const rng = PL.mulberry32(seed);
     const rooms = base();
-    for (const room of rooms) {
-      const m = rng() < 0.5;
-      const phase = rng() * Math.PI * 2;
-      room.w = W; room.h = H;
-      room.mirrored = false;
-      for (const c of room.crushers) c.phase = phase;
-      if (m) mirror(room);
-    }
+    for (const room of rooms) { room.w = W; room.h = H; room.mirrored = false; }
     return rooms;
   };
 
-  // --- slice additions ---
   PL.mirrorRoom = function (room) {
     const r = JSON.parse(JSON.stringify(room));
     r.start.x = W - r.start.x;
@@ -137,36 +125,119 @@ PL.mulberry32 = function (seed) {
   };
 
   PL.TEMPLATES = PL.TEMPLATES || [];
-  [[1, 1], [2, 2], [3, 2]].forEach(([n, tier], i) => {
-    const id = 't0' + n;
-    PL.TEMPLATES.push({
-      id, tier, teach: base()[i].teach,
-      make(rng) {
-        const room = base()[i];
-        const phase = rng() * Math.PI * 2;
-        room.w = W; room.h = H; room.mirrored = false;
-        for (const c of room.crushers) c.phase = phase;
-        return room;
-      },
-    });
-  });
+  // meta: tier (0 = tutorial only), family (adjacent shaft rooms differ), inputs (needed inputs on the loosest route),
+  // rest (may fill the rest slot), hard (may fill the hardest slot), tutorial (never in a shaft), retired (never in a shaft).
+  function reg(id, tier, mk, meta) {
+    const t = Object.assign({ id, tier, teach: mk().teach, make(rng) {
+      const room = mk(); room.w = W; room.h = H; room.mirrored = false;
+      const phase = rng() * Math.PI * 2;
+      for (const c of room.crushers) c.phase = phase;
+      return room;
+    } }, meta);
+    PL.TEMPLATES.push(t);
+  }
+  const tut = (i) => () => base()[i];
+  reg('tut1', 0, tut(0), { family: 'tutorial', inputs: 2, tutorial: true });
+  reg('t01', 1, tut(1), { family: 'arc', inputs: 3, tutorial: true });
+  reg('tut3', 0, tut(2), { family: 'tutorial', inputs: 1, tutorial: true });
+  reg('t02', 2, T2, { family: 'gate', inputs: 5 });
+  reg('t03', 2, T3, { family: 'crusher', inputs: 3 });
 
-  PL.buildShaft = function (seed, n) {
-    if (n === undefined) n = 7;
-    const rng = PL.mulberry32(seed);
-    const all = PL.TEMPLATES.slice();
-    for (let i = all.length - 1; i > 0; i--) { // Fisher-Yates
-      const j = Math.floor(rng() * (i + 1));
-      const t = all[i]; all[i] = all[j]; all[j] = t;
+  // ---- buildShaft: slot table, seeded and deterministic ----
+  // Slot kinds: T1/T2/T3 = tier pools, T3* = last tier-3 slot (all tier-3 rooms; see review/shaft-pick-beta.md), T2r = rest room (few inputs, no crusher).
+  PL.SLOTS = {
+    5: ['T1', 'T1', 'T2', 'T3*', 'T2r'],
+    7: ['T1', 'T1', 'T2', 'T2', 'T3', 'T3*', 'T2r'],
+  };
+  function slotsFor(n) {
+    if (PL.SLOTS[n]) return PL.SLOTS[n];
+    if (n <= 1) return ['T1'];
+    if (n === 2) return ['T1', 'T2r'];
+    if (n === 3) return ['T1', 'T2', 'T2r'];
+    if (n === 4) return ['T1', 'T2', 'T3*', 'T2r'];
+    if (n === 6) return ['T1', 'T1', 'T2', 'T3', 'T3*', 'T2r'];
+    const mid = []; // n >= 8: 7-slot table with extra T2/T3 rooms in the middle
+    for (let i = 0; i < n - 5; i++) mid.push(i % 2 ? 'T3' : 'T2');
+    return ['T1', 'T1'].concat(mid, ['T3*', 'T2r'].slice(0, 2));
+  }
+  const meta = new Map();
+  function info(t) {
+    let m = meta.get(t.id);
+    if (!m) {
+      const r = t.make(PL.mulberry32(1));
+      m = { crusher: r.crushers.length > 0, crumble: r.crumbles.length > 0 };
+      meta.set(t.id, m);
     }
-    const pick = all.slice(0, Math.min(n, all.length))
-      .map((t, idx) => ({ t, idx }))
-      .sort((a, b) => a.t.tier - b.t.tier || a.idx - b.idx)
-      .map((o) => o.t);
-    return pick.map((t) => {
-      let room = t.make(rng);
-      if (rng() < 0.5) room = PL.mirrorRoom(room);
+    return m;
+  }
+  const inPool = (kind, t) => !t.tutorial && !t.retired && (
+    kind === 'T1' ? t.tier === 1 : kind === 'T2' ? t.tier === 2 : kind === 'T3' ? t.tier === 3
+      : kind === 'T3*' ? t.tier === 3 : !!t.rest);
+
+  // Returns the chosen templates for a shaft (no rooms built). Rules (relaxed in order only if no placement exists):
+  //  L0 all rules; L1 drops "after a crusher / 5-input room: no crusher, <=3 inputs"; L2 also drops first-meet rules;
+  //  L3 also drops the family rule; L4 any unused template (never happens with the shipped pool, asserted by tests).
+  // Rules: no template twice; adjacent rooms differ in family; the first crusher met is t03 and the first crumble is t18;
+  // opts.exclude = ids played recently (soft: skipped while the slot keeps >= 2 other candidates).
+  PL.pickShaft = function (seed, n, opts) {
+    if (n === undefined) n = 7;
+    const slots = slotsFor(n);
+    const excl = new Set((opts && opts.exclude) || []);
+    const all = PL.TEMPLATES.filter((t) => !t.tutorial && !t.retired);
+    for (let level = 0; level <= 4; level++) {
+      const rng = PL.mulberry32((seed >>> 0) ^ 0x5bd1e995);
+      const used = [];
+      const ok = (t, i) => {
+        if (level >= 4) return true;
+        const prev = used[i - 1];
+        if (level < 3 && prev && prev.family === t.family) return false;
+        if (level < 2) {
+          const m = info(t);
+          if (m.crusher && t.id !== 't03' && !used.some((u) => u.id === 't03')) return false;
+          if (m.crumble && t.id !== 't18' && !used.some((u) => u.id === 't18')) return false;
+        }
+        if (level < 1 && prev && (info(prev).crusher || prev.inputs >= 5)) {
+          if (info(t).crusher || (t.inputs > 3 && slots[i] !== 'T3*')) return false; // the hardest slot may exceed 3 inputs (else t11/t12 never appear)
+        }
+        return true;
+      };
+      const dfs = (i) => {
+        if (i === slots.length) return true;
+        let c = (level >= 4 ? all : all.filter((t) => inPool(slots[i], t))).filter((t) => !used.includes(t));
+        for (let k = c.length - 1; k > 0; k--) { const j = Math.floor(rng() * (k + 1)); const x = c[k]; c[k] = c[j]; c[j] = x; }
+        // T3* prefers the hard set: if no hard room is used yet in a 7+ shaft and one is eligible here, only hard rooms are drawn.
+        if (slots[i] === 'T3*' && i > 0 && slots.includes('T3') && !used.some((u) => u.hard)) {
+          const h = c.filter((t) => t.hard && ok(t, i));
+          if (h.length) c = h;
+        }
+        const fresh = c.filter((t) => !excl.has(t.id));
+        if (fresh.length >= 2) c = fresh.concat(c.filter((t) => excl.has(t.id)));
+        for (const t of c) {
+          if (!ok(t, i)) continue;
+          used[i] = t;
+          if (dfs(i + 1)) return true;
+          used.length = i;
+        }
+        return false;
+      };
+      if (dfs(0)) return { level, templates: used.slice(), slots };
+    }
+    return { level: 5, templates: all.slice(0, n), slots };
+  };
+
+  PL.buildShaft = function (seed, n, opts) {
+    if (n === undefined) n = 7;
+    const p = PL.pickShaft(seed, n, opts);
+    const mrng = PL.mulberry32(((seed >>> 0) ^ 0x2545f491) + 17);
+    let mir = mrng() < 0.5; // adjacent rooms alternate mirrored flag, start side from the seed
+    return p.templates.map((t, i) => {
+      let room = t.make(PL.mulberry32(((seed >>> 0) * 31 + i * 7919 + 101) >>> 0));
+      if (mir) room = PL.mirrorRoom(room);
+      mir = !mir;
       room.templateId = t.id;
+      room.tier = t.tier;
+      room.family = t.family;
+      room.slot = p.slots[i];
       return room;
     });
   };

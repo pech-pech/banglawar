@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Plumbline VFX demo (S8)</title>
+<style>html,body{margin:0;height:100%;background:#151a3d;overflow:hidden}canvas{display:block;touch-action:none}</style>
+</head><body><canvas id="c"></canvas>
+<script>
+// load parts the way inline.py does: each wrapped in an IIFE sharing the global PL
+['light', 'vfx'].forEach(function (n) {
+  const x = new XMLHttpRequest(); x.open('GET', '../parts/' + n + '.js', false); x.send();
+  const s = document.createElement('script'); s.textContent = '(function(){\n' + x.responseText + '\n})();'; document.head.appendChild(s);
+});
+</script>
+<script>
+// Standalone fake room + fake "skin" so the lighting and effects can be judged without the game.
+// URL: ?q=auto|full|lite|off &reduced=1 &manual=1 (no rAF; drive with demo.step) &seed=N &img=path (backdrop image)
+(function () {
+  const P = new URLSearchParams(location.search), TAU = Math.PI * 2;
+  const cv = document.getElementById('c'), ctx = cv.getContext('2d');
+  let W = innerWidth, H = innerHeight, dpr = 1;
+  const room = {
+    w: 336, h: 500,
+    walls: [[0, 470, 336, 30], [0, 0, 16, 500], [320, 0, 16, 500], [0, 0, 336, 16], [130, 250, 40, 220], [200, 380, 120, 16], [16, 150, 70, 14]],
+    crumbles: [[24, 330, 96, 12]],
+    spikes: [{ r: [34, 458, 92, 12] }, { r: [308, 190, 12, 90] }, { r: [172, 458, 120, 12] }],
+    crushers: [{ r: [150, 40, 64, 30], ay: 1, amp: 50, phase: 0 }],
+    gates: [{ r: [236, 286, 16, 84], dir: 1 }],
+    exit: { x: 290, y: 440 },
+    lanterns: [{ x: 44, y: 126, ph: 0 }, { x: 292, y: 356, ph: 2 }, { x: 150, y: 228, ph: 4 }]
+  };
+  const st = { x: 60, y: 455, g: 2, t: 0, dead: 0, events: [], grounded: true };
+  // legs: [duration, x, y, g, eventAtStart, eventAtEnd, rest]
+  const legs = [
+    [0.9, 60, 455, 2, '', '', 1], [1.3, 309, 300, 1, 'flip', 'land'], [1.1, 250, 27, 0, 'flip', 'land'],
+    [0.9, 120, 27, 0, 'dive', ''], [1.2, 27, 200, 3, 'flip', 'land'], [0.8, 60, 319, 2, 'flip', 'land'],
+    [0.9, 60, 319, 2, '', 'crumble', 1], [0.8, 100, 455, 2, '', 'land']
+  ];
+  let legI = 0, legT = 0, loop = 0, px = 60, py = 455, fired = false, tt = 0, wipeBusy = false, endT = 0;
+  function evs(e) { if (e) { const a = e.split(','); for (let i = 0; i < a.length; i++) st.events.push(a[i]); } }
+  function ease(t) { return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2; }
+  function advance(dt) {
+    st.events.length = 0; tt += dt; st.t += Math.round(dt * 120);
+    if (endT > 0) { // end of loop: win or death, then wipe and restart
+      endT -= dt;
+      if (endT <= 0 && !wipeBusy) {
+        wipeBusy = true;
+        PL.Vfx.wipe('close', function () { restart(); PL.Vfx.wipe('open', function () { wipeBusy = false; }); });
+      }
+      return;
+    }
+    const L = legs[legI]; legT += dt;
+    if (!fired) { evs(L[4]); if (L[3] !== st.g) st.g = L[3]; fired = true; if (L[4] === 'dive') st.diveFlag = 1; }
+    const d = L[2 + 0] !== undefined ? L : L;
+    const prev = legI ? legs[legI - 1] : [0, 60, 455];
+    const ax = legI ? legs[legI - 1][1] : 60, ay = legI ? legs[legI - 1][2] : 455;
+    if (L[6]) { st.grounded = true; px = L[1]; py = L[2]; }
+    else {
+      const p = Math.min(1, legT / L[0]), e = ease(p);
+      px = ax + (L[1] - ax) * e; py = ay + (L[2] - ay) * e + (L[4] === 'flip' ? -Math.sin(p * Math.PI) * 14 : 0);
+      st.grounded = p >= 1;
+    }
+    void d; void prev;
+    st.x = px; st.y = py;
+    if (legT >= L[0]) {
+      evs(L[5]); legI++; legT = 0; fired = false;
+      if (legI >= legs.length) {
+        if (loop % 2 === 0) { // run to the portal, win
+          st.g = 2; st.events.push('flip'); setTimeout(function () {}, 0);
+          legs.push([0.9, 290, 440, 2, 'flip', 'win']); legs.push([0, 0, 0, 2, '', '', 1]);
+        } else { legs.push([0.7, 70, 464, 2, 'flip', 'death']); legs.push([0, 0, 0, 2, '', '', 1]); }
+        legI = legs.length - 2;
+      } else if (L[5] === 'win' || L[5] === 'death') { /* handled below */ }
+      if (L[5] === 'win') { endT = 1.6; }
+      if (L[5] === 'death') { st.dead = 40; endT = 0.9; }
+    }
+  }
+  function restart() {
+    while (legs.length > 8) legs.pop();
+    legI = 0; legT = 0; fired = false; st.dead = 0; st.x = px = 60; st.y = py = 455; st.g = 2; loop++;
+    PL.Vfx.setRoom(room);
+  }
+
+  // ---------- fake skin: flat-ish art in the art-bible palette (what the real skin will replace) ----------
+  let sc = 1, cam = { scale: 1, cx: 168, cy: 250, W: 0, H: 0 };
+  function fit() {
+    cam.W = W; cam.H = H; cam.scale = Math.min(W / (room.w + 8), (H - 8) / (room.h + 8)); cam.cx = room.w / 2; cam.cy = room.h / 2; sc = cam.scale;
+  }
+  const X = function (x) { return (x - cam.cx) * sc + W / 2; }, Y = function (y) { return (y - cam.cy) * sc + H / 2; };
+  function stoneRect(r) {
+    const x = X(r[0]), y = Y(r[1]), w = r[2] * sc, h = r[3] * sc;
+    const g = ctx.createLinearGradient(0, y, 0, y + h);
+    g.addColorStop(0, '#b9bde0'); g.addColorStop(1, '#8e92c4');
+    ctx.fillStyle = g; ctx.fillRect(x, y, w, h);
+    ctx.strokeStyle = 'rgba(60,64,120,0.35)'; ctx.lineWidth = 1; ctx.beginPath();
+    for (let yy = 0, row = 0; yy < h; yy += 11 * sc, row++) { ctx.moveTo(x, y + yy); ctx.lineTo(x + w, y + yy); for (let xx = (row % 2) * 12 * sc; xx < w; xx += 24 * sc) { ctx.moveTo(x + xx, y + yy); ctx.lineTo(x + xx, y + yy + 11 * sc); } }
+    ctx.stroke();
+    ctx.strokeStyle = '#e8bd5a'; ctx.lineWidth = 2.5; ctx.strokeRect(x + 1, y + 1, w - 2, h - 2);
+  }
+  function drawWorld() {
+    for (let i = 0; i < room.walls.length; i++) stoneRect(room.walls[i]);
+    // crumble
+    const cs = room.crumbles[0], cst = st.crumbled ? 2 : 0;
+    if (!cst) {
+      const x = X(cs[0]), y = Y(cs[1]), w = cs[2] * sc, h = cs[3] * sc;
+      ctx.fillStyle = '#9fd3f0'; ctx.fillRect(x, y, w, h); ctx.strokeStyle = '#e8fbff'; ctx.lineWidth = 2; ctx.strokeRect(x, y, w, h);
+      ctx.beginPath(); ctx.moveTo(x + w * 0.3, y); ctx.lineTo(x + w * 0.38, y + h * 0.6); ctx.lineTo(x + w * 0.33, y + h); ctx.stroke();
+    }
+    // lanterns (art; glow is Light's job)
+    for (let i = 0; i < room.lanterns.length; i++) {
+      const l = room.lanterns[i], x = X(l.x), y = Y(l.y);
+      ctx.fillStyle = '#7a5a20'; ctx.fillRect(x - 4 * sc, y - 9 * sc, 8 * sc, 3 * sc);
+      ctx.fillStyle = '#ffe3a0'; ctx.fillRect(x - 3 * sc, y - 6 * sc, 6 * sc, 11 * sc);
+      ctx.strokeStyle = '#b08d2e'; ctx.lineWidth = 1.5; ctx.strokeRect(x - 3.5 * sc, y - 6 * sc, 7 * sc, 11 * sc);
+    }
+    // gate
+    const g = room.gates[0].r, gx = X(g[0]), gy = Y(g[1]), gw = g[2] * sc, gh = g[3] * sc;
+    ctx.fillStyle = 'rgba(95,224,200,0.28)'; ctx.fillRect(gx, gy, gw, gh);
+    ctx.strokeStyle = '#5fe0c8'; ctx.lineWidth = 2; ctx.strokeRect(gx, gy, gw, gh);
+    ctx.fillStyle = '#e8bd5a'; ctx.fillRect(gx - 5 * sc, gy - 3 * sc, gw + 10 * sc, 5 * sc); ctx.fillRect(gx - 5 * sc, gy + gh - 2 * sc, gw + 10 * sc, 5 * sc);
+    // crusher
+    const c = room.crushers[0], o = Math.sin(TAU * (st.t / 120) / 2.4 + c.phase) * c.amp, cy2 = Y(c.r[1] + o), cx2 = X(c.r[0]), cw = c.r[2] * sc, ch = c.r[3] * sc;
+    ctx.strokeStyle = '#8a6a22'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(cx2 + cw / 2, Y(0)); ctx.lineTo(cx2 + cw / 2, cy2); ctx.stroke();
+    ctx.fillStyle = '#b08d2e'; ctx.fillRect(cx2, cy2, cw, ch);
+    ctx.fillStyle = '#ff7a6b'; ctx.fillRect(cx2 + 3, cy2 + ch * 0.3, cw - 6, ch * 0.4);
+    ctx.strokeStyle = '#6a4a14'; ctx.lineWidth = 2; ctx.strokeRect(cx2, cy2, cw, ch);
+    // spikes (coral crystals)
+    function crystals(r, dir) {
+      const horiz = dir === 0, len = horiz ? r[2] : r[3], cnt = Math.max(1, Math.round(len / 12)), step = len / cnt, hgt = horiz ? r[3] : r[2];
+      for (let k = 0; k < cnt; k++) {
+        const a0 = k * step, a1 = (k + 1) * step, am = (k + 0.5) * step;
+        ctx.beginPath();
+        if (horiz) { ctx.moveTo(X(r[0] + a0), Y(r[1] + r[3])); ctx.lineTo(X(r[0] + am), Y(r[1] + r[3] - hgt)); ctx.lineTo(X(r[0] + a1), Y(r[1] + r[3])); }
+        else { ctx.moveTo(X(r[0] + r[2]), Y(r[1] + a0)); ctx.lineTo(X(r[0] + r[2] - hgt), Y(r[1] + am)); ctx.lineTo(X(r[0] + r[2]), Y(r[1] + a1)); }
+        ctx.closePath(); ctx.fillStyle = '#ff7a6b'; ctx.fill(); ctx.strokeStyle = '#9c2f3a'; ctx.lineWidth = 1.5; ctx.stroke();
+      }
+    }
+    crystals(room.spikes[0].r, 0); crystals(room.spikes[2].r, 0); crystals(room.spikes[1].r, 3);
+    // portal
+    const e = room.exit, ex = X(e.x), ey = Y(e.y);
+    ctx.fillStyle = '#1a2158'; ctx.beginPath(); ctx.arc(ex, ey, 18 * sc, 0, TAU); ctx.fill();
+    ctx.strokeStyle = '#e8bd5a'; ctx.lineWidth = 3; ctx.stroke();
+    ctx.fillStyle = '#fff3c0'; ctx.beginPath(); ctx.arc(ex, ey, 9 * sc, 0.5, TAU - 0.5); ctx.arc(ex + 4 * sc, ey, 8 * sc, TAU - 0.9, 0.9, true); ctx.fill();
+  }
+  function drawHero() {
+    if (st.dead) return;
+    const df = PL.Vfx.heroDeform();
+    const x = X(st.x + df.dx) + df.bobX * sc, y = Y(st.y + df.dy) + df.bobY * sc;
+    if (df.alpha <= 0.02) return;
+    ctx.save(); ctx.globalAlpha = df.alpha; ctx.translate(x, y); ctx.rotate(df.ang); ctx.scale(df.sx, df.sy); ctx.rotate(-df.ang);
+    const R = 12 * sc;
+    ctx.beginPath();
+    for (let k = 0; k < 10; k++) { const a = k * Math.PI / 5 - Math.PI / 2, r = k % 2 ? R * 0.55 : R; if (k) ctx.lineTo(Math.cos(a) * r, Math.sin(a) * r); else ctx.moveTo(Math.cos(a) * r, Math.sin(a) * r); }
+    ctx.closePath(); ctx.fillStyle = '#ffd24a'; ctx.fill(); ctx.lineWidth = 2.5; ctx.strokeStyle = '#f4efe0'; ctx.lineJoin = 'round'; ctx.stroke();
+    ctx.fillStyle = '#1c2048';
+    ctx.fillRect(-4 * sc, -1 * sc, 2.5 * sc, df.blink ? 0.8 * sc : 2.6 * sc); ctx.fillRect(1.8 * sc, -1 * sc, 2.5 * sc, df.blink ? 0.8 * sc : 2.6 * sc);
+    ctx.restore();
+  }
+  function hud() {
+    ctx.fillStyle = 'rgba(21,26,61,0.8)'; ctx.fillRect(0, 0, W, 30);
+    ctx.fillStyle = '#f4efe0'; ctx.font = '600 14px system-ui,sans-serif'; ctx.textBaseline = 'middle';
+    const s = PL.Vfx.stats();
+    ctx.fillText('Room 1 of 3   q=' + s.quality + (s.reduced ? ' reduced' : '') + '  p=' + s.particles, 10, 15);
+  }
+
+  function frameDraw() {
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const fx = PL.Vfx.cameraFx();
+    ctx.save();
+    ctx.translate(W / 2, H / 2); ctx.rotate(fx.tilt); ctx.scale(fx.zoom, fx.zoom); ctx.translate(-W / 2 + fx.shx, -H / 2 + fx.shy);
+    PL.Vfx.drawBack(ctx, cam);
+    drawWorld(); drawHero();
+    PL.Vfx.drawFront(ctx, cam);
+    ctx.restore();
+    hud();
+    PL.Vfx.drawOverlay(ctx, cam);
+  }
+  function simStep(dt) {
+    advance(dt);
+    if (st.events.indexOf('crumble') >= 0) st.crumbled = true;
+    PL.Vfx.update(dt, st.events, st, st.g);
+  }
+  function setup() {
+    W = +P.get('w') || innerWidth; H = +P.get('h') || innerHeight;
+    dpr = Math.min(window.devicePixelRatio || 1, 2);
+    PL.Vfx.init(W, H, dpr, { seed: +P.get('seed') || 7 });
+    dpr = PL.Vfx.dprFor(window.devicePixelRatio || 1);
+    cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); cv.style.width = W + 'px'; cv.style.height = H + 'px';
+    const q = P.get('q') || 'auto'; PL.Vfx.setQuality(q);
+    PL.Vfx.setReduced(P.get('reduced') === '1');
+    PL.Vfx.setRoom(room); fit();
+    const img = P.get('img');
+    if (img) { const i = new Image(); i.onload = function () { PL.Vfx.setBackdrop(i); }; i.src = img; }
+  }
+  setup();
+  window.demo = {
+    step: function (n, dt) { dt = dt || 1 / 60; for (let i = 0; i < n; i++) simStep(dt); frameDraw(); },
+    timeOne: function (dt) { const t0 = performance.now(); simStep(dt || 1 / 60); frameDraw(); return performance.now() - t0; },
+    draw: frameDraw, stats: function () { return PL.Vfx.stats(); }, st: st, room: room, cam: cam
+  };
+  if (P.get('manual') !== '1') {
+    let last = performance.now();
+    (function loop(ts) { const dt = Math.min(0.1, (ts - last) / 1000); last = ts; if (dt > 0) simStep(dt); frameDraw(); requestAnimationFrame(loop); })(last);
+  } else frameDraw();
+  addEventListener('resize', function () { if (P.get('w')) return; W = innerWidth; H = innerHeight; PL.Vfx.resize(W, H, dpr); cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); fit(); });
+})();
+</script></body></html>

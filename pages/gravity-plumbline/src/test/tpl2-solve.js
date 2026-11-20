@@ -83,7 +83,7 @@ function solveHint(room, seq, mirrored) {
 
 const overlap = (a, b) => a[0] < b[0] + b[2] && b[0] < a[0] + a[2] && a[1] < b[1] + b[3] && b[1] < a[1] + a[3];
 const issues = [];
-const tpls = PL.TEMPLATES.filter((t) => /^t(1[3-9]|20)$/.test(t.id) && (!ONLY || t.id === ONLY));
+const tpls = PL.TEMPLATES.filter((t) => /^t(1[3-9]|20)$/.test(t.id) && !t.retired && (!ONLY || t.id === ONLY));
 console.log('templates:', tpls.map((t) => t.id).join(' '));
 for (const t of tpls) {
   for (const seed of [1, 2, 3]) {

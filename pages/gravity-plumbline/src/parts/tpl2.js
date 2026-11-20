@@ -33,7 +33,7 @@ PL.TEMPLATES = PL.TEMPLATES || [];
   }
   function add(id, tier, teach, make) { PL.TEMPLATES.push({ id, tier, teach, make }); }
 
-  add('t13', 2, 'Slip under the press, ride the wall, then flip late to land tight.', (rng) => {
+  add('t13', 3, 'Slip under the press, ride the wall, then flip late to land tight.', (rng) => {
     const phase = rng() * Math.PI * 2;
     return mk({
       name: 'Press & Drop', teach: 'Slip under the press, ride the wall, then flip late to land tight.',
@@ -47,16 +47,16 @@ PL.TEMPLATES = PL.TEMPLATES || [];
 
   add('t14', 3, 'Land on the crumbling ledge, then Dive-tap through the gate.', () => mk({
     name: 'Crumble Punch', teach: 'Land on the crumbling ledge, then Dive-tap through the gate.',
-    start: { x: 40, y: 79, g: 2 },
-    walls: border().concat([[12, 90, 112, 14], [124, 130, 12, 358], [12, 440, 112, 48]]),
+    start: { x: 40, y: 59, g: 2 },
+    walls: border().concat([[12, 70, 112, 14], [124, 130, 12, 358], [12, 440, 112, 48]]),
     spikes: sp([312, 40, 12, 70], [136, 472, 188, 16]),
-    crumbles: [[200, 130, 100, 12]],
-    gates: [{ r: [12, 130, 112, 8], dir: 2 }],
+    crumbles: [[176, 130, 148, 12]],
+    gates: [{ r: [12, 130, 112, 12], dir: 2 }],
     exit: { x: 30, y: 429 },
   }));
 
   add('t15', 3, 'Drop past the divider, then whip back under it.', () => mk({
-    name: 'Corner Whip', teach: 'Drop past the divider, then whip back under it.',
+    name: 'Under the Divider', teach: 'Drop past the divider, then whip back under it.',
     start: { x: 40, y: 89, g: 2 },
     walls: border().concat([[12, 100, 90, 14], [102, 100, 40, 200], [12, 380, 150, 108]]),
     spikes: sp([312, 230, 12, 50], [162, 472, 162, 16], [12, 230, 12, 90]),
@@ -78,22 +78,22 @@ PL.TEMPLATES = PL.TEMPLATES || [];
     });
   });
 
-  add('t17', 2, 'Rest on the one-way gate, Dive-tap through, flip late to land safe.', () => mk({
+  add('t17', 3, 'Rest on the one-way gate, Dive-tap through, flip late to land safe.', () => mk({
     name: 'Gate Chute', teach: 'Rest on the one-way gate, Dive-tap through, flip late to land safe.',
     start: { x: 40, y: 79, g: 2 },
     walls: border().concat([[12, 90, 90, 14], [102, 12, 222, 50], [12, 430, 160, 58]]),
     spikes: sp([172, 472, 152, 16]),
-    gates: [{ r: [102, 90, 222, 8], dir: 2 }],
+    gates: [{ r: [102, 90, 222, 12], dir: 2 }],
     exit: { x: 36, y: 419 },
   }));
 
-  add('t18', 2, 'Hop the crumbling ledges: each landing refills your flips.', () => mk({
+  add('t18', 1, 'Hop the crumbling ledges: each landing refills your flips.', () => mk({
     name: 'Crumble Stairs', teach: 'Hop the crumbling ledges: each landing refills your flips.',
     start: { x: 40, y: 89, g: 2 },
     walls: border().concat([[12, 100, 60, 14]]),
     spikes: sp([312, 60, 12, 60], [12, 472, 312, 16]),
-    crumbles: [[140, 150, 50, 12], [236, 230, 50, 12]],
-    exit: { x: 262, y: 219 },
+    crumbles: [[140, 150, 50, 12], [210, 230, 114, 12]],
+    exit: { x: 290, y: 219 },
   }));
 
   add('t19', 3, 'Time the fall past the sliding bars, then flip late.', (rng) => {
@@ -111,13 +111,30 @@ PL.TEMPLATES = PL.TEMPLATES || [];
     });
   });
 
-  add('t20', 2, 'Carry your speed over the spike column: flip down at the right moment.', () => mk({
+  add('t20', 1, 'Carry your speed over the spike column: flip down at the right moment.', () => mk({
     name: 'Spike Slalom', teach: 'Carry your speed over the spike column: flip down at the right moment.',
     start: { x: 40, y: 99, g: 2 },
     walls: border().concat([[12, 110, 70, 14], [240, 260, 84, 228]]),
     spikes: sp([312, 60, 12, 100], [160, 200, 16, 288], [82, 472, 78, 16]),
     exit: { x: 290, y: 249 },
   }));
+})();
+
+// Shaft metadata (rooms.js buildShaft reads it): family = adjacent rooms must differ; inputs = inputs on the loosest route
+// (src/test/window-probe.js); rest = may fill the rest slot (<=3 inputs, no crusher); hard = may fill the hardest slot.
+// Tiers after retier (REVIEW-MERGE row 2): t13, t17 -> 3; t18, t20 -> 1. Retired templates stay here for the record.
+(function () {
+  const M = {
+    t04: { family: 'arc', inputs: 3, rest: true }, t09: { family: 'gate', inputs: 3 },
+    t05: { family: 'arc', inputs: 4 }, t06: { family: 'wall', inputs: 3, rest: true }, t07: { family: 'bank', inputs: 4 },
+    t10: { family: 'gate', inputs: 4 }, t08: { family: 'wall', inputs: 3 }, t11: { family: 'crusher', inputs: 2 },
+    t12: { family: 'crusher', inputs: 3 },
+    t13: { family: 'crusher', inputs: 5, hard: true }, t14: { family: 'crumble', inputs: 4, hard: true, retired: true }, // RETIRED: one fix attempt (ledge up 20, crumble wider) got window 8 but the jitter bot cleared only 60%
+    t15: { family: 'wall', inputs: 4 }, t16: { family: 'crusher', inputs: 5, hard: true },
+    t17: { family: 'gate', inputs: 5, hard: true }, t18: { family: 'crumble', inputs: 3, rest: true },
+    t19: { family: 'crusher', inputs: 3, hard: true }, t20: { family: 'arc', inputs: 3, rest: true },
+  };
+  PL.TEMPLATES.forEach((t) => { if (M[t.id]) Object.assign(t, M[t.id]); });
 })();
 
 if (typeof module !== 'undefined' && module.exports) module.exports = PL;

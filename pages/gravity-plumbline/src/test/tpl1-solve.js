@@ -63,7 +63,7 @@ function solve(room, maxIn) {
 
 const overlap = (a, b) => a[0] < b[0] + b[2] && b[0] < a[0] + a[2] && a[1] < b[1] + b[3] && b[1] < a[1] + a[3];
 const issues = [];
-const ids = PL.TEMPLATES.filter((t) => /^t(0[4-9]|1[0-2])$/.test(t.id) && (!ONLY || t.id === ONLY));
+const ids = PL.TEMPLATES.filter((t) => /^t(0[4-9]|1[0-2])$/.test(t.id) && !t.retired && (!ONLY || t.id === ONLY));
 for (const t of ids) {
   let worst = null, fail = 0, total = 0, maxIn = 0;
   for (let seed = 1; seed <= (+process.argv[5] || 3); seed++) {

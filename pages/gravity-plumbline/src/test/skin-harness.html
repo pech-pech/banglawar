@@ -1,0 +1,52 @@
+<!doctype html><meta charset="utf-8"><title>skin harness</title>
+<style>html,body{margin:0;background:#000;overflow:hidden}canvas{display:block}</style>
+<canvas id="c"></canvas>
+<!-- standalone: loads the parts in order, no ui.js. Serve the game folder: /src/test/skin-harness.html -->
+<script>
+// parts are plain scripts each starting with `const PL = ...`: wrap each in an IIFE like inline.py does
+['core','rooms','tpl1','tpl2','camera','tweak','uikit','assets','light','vfx','draw'].forEach(function (n) {
+  const x = new XMLHttpRequest(); x.open('GET', '../parts/' + n + '.js', false); x.send();
+  const el = document.createElement('script'); el.textContent = '(function(){\n' + x.responseText + '\n})();\n//# sourceURL=' + n + '.js'; document.head.appendChild(el);
+});
+</script>
+<script>
+(function () {
+  const q = new URLSearchParams(location.search), W = innerWidth, H = innerHeight, dpr = devicePixelRatio || 1;
+  const cv = document.getElementById('c'); cv.width = W * dpr; cv.height = H * dpr; cv.style.width = W + 'px'; cv.style.height = H + 'px';
+  const ctx = cv.getContext('2d');
+  window.H_ = {
+    view: { W: W, H: H, dpr: dpr, inset: { t: 0, b: 0, l: 0, r: 0 } },
+    ready: PL.Assets.load({ base: '../../assets/' }),
+    rooms: function () {
+      const out = { tut: PL.buildRooms(1) }; out.shaft = PL.buildShaft ? PL.buildShaft(3, 7) : [];
+      // synthetic rooms so crusher / crumble / gate looks stay testable whatever the room generator currently emits
+      const base = JSON.parse(JSON.stringify(out.shaft[4] || out.tut[0]));
+      const lab = Object.assign({}, base, { name: 'lab crusher', crushers: [{ r: [142, 85, 84, 60], ax: 0, ay: 1, amp: 50, phase: 0 }, { r: [100, 330, 50, 40], ax: 1, ay: 0, amp: 40, phase: 1.2 }],
+        crumbles: [[150, 400, 90, 12]], gates: [{ r: [200, 250, 16, 120], dir: 1 }], spikes: [{ r: [12, 300, 12, 100] }, { r: [82, 472, 78, 16] }, { r: [300, 40, 24, 12] }],
+        walls: [[0, 0, 336, 12], [0, 488, 336, 12], [0, 0, 12, 500], [324, 0, 12, 500], [12, 200, 90, 14], [240, 260, 84, 228]], start: { x: 40, y: 180, g: 2 }, exit: { x: 290, y: 240 } });
+      out.synth = [lab]; return out;
+    },
+    // set up room, run sim: script = [[tick, {k:'flip',dir}|{k:'dive'}], ...], stop at `ticks`
+    setup: function (room, script, ticks, opts) {
+      opts = opts || {};
+      const st = PL.newState(room); H_.st = st; H_.cam = PL.camNew(); H_.frames = 0;
+      let k = 0; script = script || [];
+      H_.run = function (n) { for (let i = 0; i < n; i++) { const inp = []; while (k < script.length && script[k][0] <= st.t) inp.push(script[k++][1]); PL.step(st, inp); } };
+      H_.opts = opts; H_.drawn = false;
+    },
+    heroPx: function () { const st = H_.st, f = PL.camUpdate(H_.cam, st, H_.view, 1 / 60); return { x: (st.x - f.cx) * f.scale + H_.view.W / 2, y: (st.y - f.cy) * f.scale + H_.view.H / 2 }; },
+    draw: function (n) {
+      const st = H_.st; let t0 = performance.now(), ms = 0;
+      for (let i = 0; i < (n || 1); i++) {
+        H_.run(2);
+        const fr = PL.camUpdate(H_.cam, st, H_.view, 1 / 60);
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        const a = performance.now();
+        PL.draw(ctx, H_.view, fr, st, Object.assign({ seed: 1, pathOn: !!(H_.opts && H_.opts.path) }, H_.opts && H_.opts.hud));
+        ms += performance.now() - a;
+      }
+      return ms / (n || 1);
+    }
+  };
+})();
+</script>

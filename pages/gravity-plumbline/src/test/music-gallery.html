@@ -1,0 +1,19 @@
+<!doctype html><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1">
+<title>Starfall music gallery</title>
+<style>body{font:18px sans-serif;margin:12px}button{display:block;width:100%;margin:6px 0;padding:14px;font-size:18px}label{display:block;margin:8px 0}</style>
+<h2>Starfall music gallery</h2>
+<label>Music volume <input id=mv type=range min=0 max=1 step=0.05 value=0.5></label>
+<label>Sfx volume <input id=sv type=range min=0 max=1 step=0.05 value=0.8></label>
+<div id=b></div>
+<script src="../parts/audio.js"></script><script src="../parts/music-data.js"></script><script src="../parts/music.js"></script>
+<script>
+var A=PL.audio,MD=PL.musicData,box=document.getElementById('b');
+function add(t,f){var e=document.createElement('button');e.textContent=t;e.onclick=function(){A.unlock();f();};box.appendChild(e);}
+add('Stop music',function(){A.stopMusic(0.3);});
+Object.keys(MD.pieces).forEach(function(id){var p=MD.pieces[id];add('Music: '+p.name+' ('+p.key+', conf '+p.conf+')',function(){A.playMusic(id);});});
+Object.keys(MD.moments).forEach(function(m){add('Moment: '+m+' -> '+MD.moments[m],function(){A.playMusic(m);});});
+Object.keys(MD.stings).forEach(function(id){add('Sting: '+id,function(){A.sting(id);});});
+A.events.forEach(function(n){if(!MD.stings[n]&&n.indexOf('medal')!==0)add('Sfx: '+n,function(){A.onEvents([n],{lastLandSpeed:600});});});
+document.getElementById('mv').oninput=function(){A.setMusicGain(this.value);};
+document.getElementById('sv').oninput=function(){A.setSfxGain(this.value);};
+</script>

@@ -43,8 +43,8 @@ PL.TEMPLATES = PL.TEMPLATES || [];
     make() {
       return room('Long Carry', 'Flip right, then flip down mid-air: your speed bends into an arc.',
         { x: 40, y: 109, g: 2 },
-        [[12, 120, 80, 368], [232, 260, 92, 228]],
-        { spikes: [[92, 472, 140, 16], [312, 60, 12, 150]], exit: { x: 280, y: 249 } });
+        [[12, 120, 80, 368], [215, 260, 109, 228]],
+        { spikes: [[92, 472, 123, 16], [312, 60, 12, 110]], exit: { x: 280, y: 249 } });
     },
   });
 
@@ -53,7 +53,7 @@ PL.TEMPLATES = PL.TEMPLATES || [];
     make() {
       return room('Gate Floor', 'You rest on a one-way gate. Tap to dive through it.',
         { x: 40, y: 89, g: 2 }, [],
-        { gates: [{ r: [12, 100, 312, 8], dir: 2 }], spikes: [[12, 472, 170, 16]], exit: { x: 290, y: 477 } });
+        { gates: [{ r: [12, 100, 312, 12], dir: 2 }], spikes: [[12, 472, 170, 16]], exit: { x: 300, y: 477 } });
     },
   });
 
@@ -63,7 +63,7 @@ PL.TEMPLATES = PL.TEMPLATES || [];
       return room('Rise and Bend', 'Flip up, bend right over the pillar, flip down before the spikes.',
         { x: 40, y: 477, g: 2 },
         [[150, 200, 40, 288], [230, 250, 94, 238]],
-        { spikes: [[12, 12, 312, 14], [150, 184, 40, 16]], exit: { x: 280, y: 239 } });
+        { spikes: [[150, 12, 174, 14], [150, 184, 40, 16]], exit: { x: 280, y: 239 } });
     },
   });
 
@@ -82,8 +82,8 @@ PL.TEMPLATES = PL.TEMPLATES || [];
     make() {
       return room('Stepping Stones', 'Land on the stone to refill your charges before the next leg.',
         { x: 40, y: 289, g: 2 },
-        [[12, 300, 80, 188], [150, 200, 24, 288], [210, 320, 40, 168], [290, 380, 34, 108]],
-        { spikes: [[92, 472, 58, 16], [174, 472, 36, 16], [250, 472, 40, 16], [150, 184, 24, 16], [312, 200, 12, 170]],
+        [[12, 300, 80, 188], [150, 200, 24, 288], [210, 320, 40, 168], [262, 380, 62, 108]],
+        { spikes: [[92, 472, 58, 16], [174, 472, 36, 16], [250, 472, 12, 16], [150, 184, 24, 16], [312, 200, 12, 140]],
           exit: { x: 300, y: 369 } });
     },
   });
@@ -93,15 +93,15 @@ PL.TEMPLATES = PL.TEMPLATES || [];
     make() {
       return room('Side Gate', 'Fly into the gate, tap to punch through, ride the far wall down.',
         { x: 138, y: 189, g: 2 },
-        [[12, 200, 138, 288], [150, 312, 10, 176]],
-        { gates: [{ r: [150, 12, 10, 300], dir: 1 }], spikes: [[160, 472, 130, 16]], exit: { x: 305, y: 477 } });
+        [[12, 200, 138, 288], [150, 312, 12, 176]],
+        { gates: [{ r: [150, 12, 12, 300], dir: 1 }], spikes: [[174, 472, 108, 16]], exit: { x: 305, y: 477 } });
     },
   });
 
   PL.TEMPLATES.push({
-    id: 't08', tier: 3, teach: 'Corner Whip: slide the wall, whip under the baffle, flip down late.',
+    id: 't08', tier: 3, teach: 'Under the Baffle: slide the wall, whip under the baffle, flip down late.',
     make() {
-      return room('Corner Whip', 'Slide the wall, whip right under the baffle, flip down late.',
+      return room('Under the Baffle', 'Slide the wall, whip right under the baffle, flip down late.',
         { x: 23, y: 40, g: 3 },
         [[100, 150, 224, 14]],
         { spikes: [[100, 164, 224, 12], [12, 472, 170, 16]], exit: { x: 290, y: 477 } });

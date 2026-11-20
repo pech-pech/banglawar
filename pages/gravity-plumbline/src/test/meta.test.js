@@ -18,6 +18,17 @@ t('bands n=7', () => {
   assert.equal(M.medalFor(T(241), 5, 7), 'none');
   assert.equal(M.flipStar(15, 7), true); assert.equal(M.flipStar(16, 7), false);
 });
+t('bands n=5 table (own row, not 5/7 of the 7-room row)', () => {
+  assert.deepEqual(M.bandsFor(5), { bronze: 170, silver: 105, gold: 75, plumb: 55 });
+  assert.equal(M.medalFor(T(55), 8, 5), 'plumb');
+  assert.equal(M.medalFor(T(56), 1, 5), 'gold');
+  assert.equal(M.medalFor(T(75), 1, 5), 'gold');
+  assert.equal(M.medalFor(T(76), 1, 5), 'silver');
+  assert.equal(M.medalFor(T(105), 1, 5), 'silver');
+  assert.equal(M.medalFor(T(106), 1, 5), 'bronze');
+  assert.equal(M.medalFor(T(170), 1, 5), 'bronze');
+  assert.equal(M.medalFor(T(171), 1, 5), 'none');
+});
 t('bands n=3 scaled', () => {
   const f = 3 / 7;
   assert.equal(M.medalFor(T(75 * f), 12 * f, 3), 'plumb');

@@ -6,7 +6,16 @@
 // smoothing, so no settle crop. The control strip is only a tint over the room.
 //   view     scale   room on screen (y)
 //   344x882  1.024   84..596
-//   475x638  1.096   84..632
+//   475x638  1.096   84..632   (no arrow pad: view.pad null / PL.Input absent)
+// S1 ARROW PAD: the fit avoids the pad box (PL.Input.layout(W,H).box, or view.pad
+// when given; null = no pad). If the centred room would touch the pad, the room
+// is fitted into the larger free area left of / right of / above the pad, PAD_GAP
+// px clear of it, EDGE px from the screen side. FIT_MIN 0.9 -> 0.84.
+//   view            scale   room x         room y      pad box x
+//   475x638 right   0.8423  4.0..287.0     84..505.1   289..473
+//   475x638 left    0.8423  188.0..471.0   84..505.1   2..186
+//   344x882 either  1.0238  0..344         84..596     80..264 (y 648..832)
+//   816x568 right   0.9560  247.4..568.6   84..562     604..788
 // Sight ahead in fit mode = time to the room edge (whole room visible).
 // SCROLL FALLBACK only when that fit scale < 0.9 (a room too tall, future):
 // (1) zoom spring, (2) look-ahead target, (3) soft room clamp + soft bob band
@@ -43,7 +52,9 @@ PL.CAM = {
   HUD: 84, LOCK_SLACK: 8, STRIP_Y: 0.6, ROOM_PAD: 16, TGT_SLACK: 40,
   // FIT-WHOLE-ROOM [AD]: bottom margin (css px); fall back to scrolling only
   // when the fit scale drops below FIT_MIN css px per room px.
-  FIT_GAP: 6, FIT_MIN: 0.9,
+  FIT_GAP: 6, FIT_MIN: 0.82,
+  // S1 arrow pad: clearance room<->pad box and room<->screen side when fitted beside the pad
+  PAD_GAP: 2, EDGE: 4,
 };
 
 // Critically damped smoothing (stable for any dt). s = {v}
@@ -155,14 +166,48 @@ function hudTop(view) {
   return PL.CAM.HUD + ((view.inset && view.inset.t) || 0);
 }
 
-// FIT-WHOLE-ROOM: scale so the whole room fits under the HUD; null when the
-// room is too tall for that (scale < FIT_MIN) and the scroll path applies.
+// Pad box to keep the room clear of: view.pad when the caller gives it (null = no
+// pad), else the arrow pad from PL.Input (input.js), else none (Node tests).
+function padBox(view) {
+  if (view.pad !== undefined) return view.pad;
+  if (PL.Input && PL.Input.layout) { try { return PL.Input.layout(view.W, view.H).box; } catch (e) { return null; } }
+  return null;
+}
+function hits(a, b, g) {
+  return a.x < b.x + b.w + g && b.x - g < a.x + a.w && a.y < b.y + b.h + g && b.y - g < a.y + a.h;
+}
+
+// FIT-WHOLE-ROOM: scale so the whole room fits under the HUD (and clear of the
+// arrow pad); null when the room is too tall for that (scale < FIT_MIN) and the
+// scroll path applies.
 function fitFrame(state, view) {
-  const K = PL.CAM, rd = roomDims(state), ht = hudTop(view);
-  const s = Math.min(view.W / rd.w, (view.H - ht - K.FIT_GAP) / rd.h);
+  const K = PL.CAM, rd = roomDims(state), ht = hudTop(view), pad = padBox(view);
+  const yMax = view.H - K.FIT_GAP;
+  // area {x0,x1,y1}: room top pinned at ht, centred in [x0,x1]
+  const place = (a) => {
+    const s = Math.min((a.x1 - a.x0) / rd.w, (a.y1 - ht) / rd.h);
+    const w = rd.w * s;
+    return { s, r: { x: (a.x0 + a.x1) / 2 - w / 2, y: ht, w, h: rd.h * s } };
+  };
+  let best = place({ x0: 0, x1: view.W, y1: yMax });
+  if (pad && hits(best.r, pad, K.PAD_GAP)) {
+    const cands = [
+      { x0: K.EDGE, x1: pad.x - K.PAD_GAP, y1: yMax },
+      { x0: pad.x + pad.w + K.PAD_GAP, x1: view.W - K.EDGE, y1: yMax },
+      { x0: 0, x1: view.W, y1: Math.min(yMax, pad.y - K.PAD_GAP) },
+    ];
+    best = null;
+    for (const a of cands) {
+      if (!(a.x1 > a.x0 && a.y1 > ht)) continue;
+      const c = place(a);
+      if (!hits(c.r, pad, K.PAD_GAP - 1e-6) && (!best || c.s > best.s)) best = c;
+    }
+    if (!best) return null;
+  }
+  const s = best.s;
   if (!(s >= K.FIT_MIN)) return null;
-  // room centred horizontally, top edge pinned at hudTop
-  return { scale: s, cx: rd.w / 2, cy: (view.H / 2 - ht) / s, hudTop: ht, fit: true };
+  // screen x of room x=0 is best.r.x: (0 - cx)*s + W/2 = r.x
+  return { scale: s, cx: (view.W / 2 - best.r.x) / s, cy: (view.H / 2 - ht) / s, hudTop: ht, fit: true, roomRect: best.r };
 }
 PL.camFit = fitFrame;
 
