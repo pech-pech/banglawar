@@ -13,7 +13,7 @@ const { createCourse } = await import(src + '/terrain.js');
 const { FIXED_DT, createSled, stepSled } = await import(src + '/sled.js');
 
 const seeds = Array.from({ length: 20 }, (_, i) => hashSeed('bot-seed-' + i));
-const mk = (s) => { resetCfg(); return createCourse(s, cfg); };
+const mk = (s) => { resetCfg(); cfg.endless = 0; return createCourse(s, cfg); };
 const J = JSON.stringify;
 
 test('rng repeatable', () => {
@@ -127,7 +127,7 @@ const rows = [];
 const MAX = 120 * 240;
 
 // ---- Safe lane ----
-const mkD = (s, density) => { resetCfg(); if (density != null) cfg.rockDensity = density; return createCourse(s, cfg); };
+const mkD = (s, density) => { resetCfg(); cfg.endless = 0; if (density != null) cfg.rockDensity = density; return createCourse(s, cfg); };
 
 test('safe lane: clearance >= 2.4 m from every rock, slope <= 0.22, inside course', () => {
   for (const density of [null, 2.0]) {
@@ -171,8 +171,15 @@ test('no rock before z=90 (default and rockDensity 2.0)', () => {
 });
 
 // Lane bot: steer proportional to safeX(z + lookahead) - x. No rock avoidance, no boost.
+// B1: flights reach 43-47 m/s and air steer is weak (airSteerMul 0.45). A fixed 12 m look-ahead landed seed 3 (crest 14,
+// z 1473, lee to 1513) 1.6 m off the lane, and ground steer (accel 60 / damp 6 = ~10 m/s lateral) cannot close it before the
+// rock at z 1521 (7.7 m past the lee end, so a bot lag, not a terrain bug). The bot now steers to where the lane will be at
+// touchdown (0.6 s ahead in the air) and 0.3 s ahead on the ground (min 12 m).
 function laneBot(course, lookahead = 12, kp = 0.5) {
-  return (i, s) => ({ steer: Math.max(-1, Math.min(1, kp * (course.safeX(s.z + lookahead) - s.x))), fire: false });
+  return (i, s) => {
+    const la = s.mode === 'air' ? Math.max(lookahead, 0.6 * s.speed) : Math.max(lookahead, 0.3 * s.speed);
+    return { steer: Math.max(-1, Math.min(1, kp * (course.safeX(s.z + la) - s.x))), fire: false };
+  };
 }
 // Flow links give up to +20% top speed (flowStep 0.04 x flow 5). Measured: with flow on, lane@2.0 crashes on 4 seeds
 // (idx 3,4,5,18) at 53-57 m/s, above the 48 m/s the bot's 12 m lookahead was built for; with flowStep 0 it is 20/20 again.

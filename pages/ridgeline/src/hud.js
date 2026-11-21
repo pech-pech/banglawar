@@ -1,4 +1,5 @@
-// Ridgeline HUD (slice 5). DOM only, no imports.
+// Ridgeline HUD (slice 5). DOM only; imports pure marks table.
+import { MARKS } from "./marks.js";
 export function createHud(rootEl, handlers) {
   const h = handlers || {};
   const CSS = `
@@ -54,8 +55,15 @@ body.rl-paper .rlh .rlh-razor{color:#24406e;text-shadow:none;-webkit-text-stroke
 .rlh-themebody{flex:1 1 auto;min-height:120px;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch}
 .rlh-box.pick .rlh-how,.rlh-box.pick .rlh-best{display:none}
 .rlh-hint{font-size:20px;font-weight:800;letter-spacing:.06em;padding:6px 14px;background:rgba(8,14,28,.8);border:1px solid rgba(255,255,255,.35);border-radius:12px;color:#ffb35a;max-width:100%;text-align:center}
-.rlh-fps{position:absolute;left:10px;top:calc(76px + env(safe-area-inset-top,0px));font-size:11px;opacity:.85;padding:2px 6px;background:rgba(8,14,28,.6);border:1px solid rgba(255,255,255,.35);border-radius:6px;font-variant-numeric:tabular-nums}
-.rlh-dev{position:absolute;right:10px;top:calc(76px + env(safe-area-inset-top,0px));font-size:12px;font-weight:800;padding:2px 8px;background:#c0262d;border-radius:6px;letter-spacing:.08em}
+.rlh-bar>.rlh-hint:not(.rlh-lift){position:absolute;left:50%;transform:translateX(-50%);bottom:calc(122px + env(safe-area-inset-bottom,0px));white-space:nowrap}
+.rlh-chip{display:block;font-size:11px;font-weight:700;opacity:.85;margin-top:2px;font-variant-numeric:tabular-nums}
+.rlh-fps{position:absolute;left:10px;top:calc(76px + env(safe-area-inset-top,0px));font-size:10px;opacity:.6;padding:1px 5px;background:rgba(58,35,80,.45);color:#fff4df;border-radius:6px;font-variant-numeric:tabular-nums}
+.rlh-dev{position:absolute;right:10px;top:calc(76px + env(safe-area-inset-top,0px));font-size:10px;font-weight:800;padding:1px 7px;background:rgba(255,207,138,.92);color:#3a2350;border-radius:6px;letter-spacing:.08em;box-shadow:0 1px 0 rgba(58,35,80,.3)}
+.rlh-word{position:absolute;left:50%;top:30%;transform:translate(-50%,-50%);font-size:clamp(24px,8vw,36px);font-weight:900;letter-spacing:.12em;color:#fff;text-shadow:0 2px 6px rgba(0,0,0,.7),0 0 12px var(--rl-accent,#ff8a1f);opacity:0;pointer-events:none;white-space:nowrap}
+.rlh-word.on{opacity:1;animation:rlhrazor .9s ease-out}
+.rlh-lift{position:absolute;left:50%;top:44%;transform:translate(-50%,-50%);opacity:0;pointer-events:none;white-space:nowrap;transition:opacity .15s}
+.rlh-lift.on{opacity:1}
+body.rl-paper .rlh .rlh-word{color:#24406e;text-shadow:none;background:#fff;border:3px solid #24406e;border-radius:12px;padding:2px 12px;box-shadow:3px 3px 0 #24406e}
 .rlh-toast{position:absolute;left:50%;top:calc(120px + env(safe-area-inset-top,0px));transform:translateX(-50%);max-width:calc(100% - 24px);padding:8px 14px;border-radius:12px;background:rgba(8,14,28,.88);border:1px solid rgba(255,255,255,.35);font-size:15px;text-align:center;opacity:0;transition:opacity .2s;pointer-events:none}
 .rlh-toast.on{opacity:1}
 .rlh-res{font-size:clamp(26px,9vw,38px);font-weight:800;margin:0}
@@ -90,8 +98,18 @@ body.rl-paper .rlh .rlh-razor{color:#24406e;text-shadow:none;-webkit-text-stroke
   const bestEl = el('p', 'rlh-best rlh-panel', sb, '');
   const verEl = el('p', 'rlh-ver', sb, '');
   verEl.style.cssText = 'margin:6px 0 0;font-size:12px;opacity:.7;text-align:center';
-  btn('Daily run', '', sb, () => call('onStart', 'daily'));
-  btn('Random run', 'alt', sb, () => call('onStart', 'random'));
+  const loadEl = el('p', 'rlh-best rlh-panel', sb, 'Loading physics...');
+  const dailyBtn = btn('Daily run', '', sb, () => call('onStart', 'daily'));
+  const randBtn = btn('Random run', 'alt', sb, () => call('onStart', 'random'));
+  const hullBtn = btn('Hull: Wren', 'alt', sb, () => call('onHull')); // B3 minimal hull cycle, B4 replaces
+  hullBtn.hidden = true;
+  function setLoading(state, msg) { // 'loading' | 'ready' | 'error'
+    const off = state !== 'ready';
+    dailyBtn.disabled = off; randBtn.disabled = off;
+    dailyBtn.style.opacity = randBtn.style.opacity = off ? '.5' : '';
+    loadEl.hidden = state === 'ready';
+    loadEl.textContent = state === 'error' ? 'Physics failed to load: ' + (msg || 'unknown error') : 'Loading physics...';
+  }
   btn('Settings', 'alt', sb, () => call('onSettings'));
   const themeWrap = el('div', 'rlh-theme', sb);
   const themeBtn = btn('Theme', 'alt', themeWrap, () => {
@@ -116,7 +134,16 @@ body.rl-paper .rlh .rlh-razor{color:#24406e;text-shadow:none;-webkit-text-stroke
     return el('div', 'rlh-v', p, '');
   };
   const vTime = mk('Time'), vSpeed = mk('Speed'), vGates = mk('Gates');
+  // Endless mode (B2): detected per frame as state.dist != null (the sled reports max z there; finite runs never set it).
+  // The Time + Gates panels hide and one wide panel shows 'NNNN m' top centre; speed stays.
+  const pTime = vTime.parentNode, pGates = vGates.parentNode, pSpeed = vSpeed.parentNode;
+  const pDist = el('div', 'rlh-panel', top); pDist.hidden = true; pDist.style.cssText = 'flex:0 1 60%;margin:0 auto';
+  const kDist = el('div', 'rlh-k', pDist, 'Distance');
+  const vDist = el('div', 'rlh-v', pDist, '');
+  const chipEl = el('span', 'rlh-chip', pDist, '');
+  pTime.parentNode.insertBefore(pDist, pTime);
   const fpsEl = el('div', 'rlh-fps', run, '');
+  const showFps = /[?&]debug\b/.test(location.search); fpsEl.hidden = !showFps;
   const devEl = el('div', 'rlh-dev', run, 'DEV');
   devEl.hidden = true;
   const bar = el('div', 'rlh-bar', run);
@@ -132,6 +159,9 @@ body.rl-paper .rlh .rlh-razor{color:#24406e;text-shadow:none;-webkit-text-stroke
   const fbarFill = el('i', '', fbar);
   const razorEl = el('div', 'rlh-razor', run, 'RAZOR');
   const toastEl = el('div', 'rlh-toast', run, '');
+  const wordEl = el('div', 'rlh-word', run, '');
+  const liftEl = el('div', 'rlh-hint rlh-lift', run, 'LIFT TO DIVE');
+  let wordT = 0, liftT = 0, flights = 0;
 
   // End screen
   const end = el('div', 'rlh-screen', root);
@@ -148,37 +178,43 @@ body.rl-paper .rlh .rlh-razor{color:#24406e;text-shadow:none;-webkit-text-stroke
   btn('Copy report', 'alt', r2, gated(() => call('onCopyReport')));
 
   let lastInfo = null, devOn = false, toastT = 0, razorT = 0;
-  const cache = { t: '', s: '', g: '', f: '', w: -1, rdy: null, fps: '', fl: -1, fw: -1 };
+  const cache = { ks: '', d: '', en: null, t: '', s: '', g: '', f: '', w: -1, rdy: null, fps: '', fl: -1, fw: -1 };
 
   function mode(m) {
     start.hidden = m !== 'start';
     run.hidden = m !== 'run';
     end.hidden = m !== 'end';
   }
-  function showStart(info) {
+  function setStartInfo(info) { paintStart(info); }
+  function showStart(info) { paintStart(info); mode('start'); }
+  function paintStart(info) {
     lastInfo = info || null;
     const b = info && info.best;
     if (b != null && b !== '') {
       bestEl.hidden = false;
-      bestEl.textContent = 'Best: ' + (typeof b === 'number' ? b.toFixed(2) + ' s' : String(b));
+      bestEl.textContent = typeof b === 'number' ? 'Best: ' + b.toFixed(2) + ' s' : (/^best\b/i.test(String(b)) ? String(b) : 'Best: ' + String(b));
     } else bestEl.hidden = true;
+    if (info && info.hull) { hullBtn.hidden = !(info.unlockedCount > 1); hullBtn.textContent = 'Hull: ' + info.hull; }
     if (info && info.build) verEl.textContent = 'build ' + info.build;
-    mode('start');
   }
   function showRun() {
-    cache.t = cache.s = cache.g = cache.fps = ''; cache.w = -1; cache.rdy = null; cache.fl = -1; cache.fw = -1;
+    cache.t = cache.s = cache.g = cache.fps = cache.d = ''; cache.en = null; cache.w = -1; cache.rdy = null; cache.fl = -1; cache.fw = -1;
     hint.hidden = true;
+    clearTimeout(wordT); wordEl.classList.remove('on'); liftEl.classList.remove('on');
     clearTimeout(razorT); razorEl.classList.remove('on'); pipsEl.classList.remove('pulse');
     mode('run');
   }
   function update(state, fps) {
     if (!state || run.hidden) return;
+    const en = state.dist != null;
+    if (en !== cache.en) { cache.en = en; pDist.hidden = !en; pTime.hidden = pGates.hidden = pSpeed.hidden = en; }
+    if (en) { const d = Math.max(0, Math.floor(state.dist)) + ' m'; if (d !== cache.d) { cache.d = d; vDist.textContent = d; } const sp = Math.round(state.speed || 0) + ' m/s'; if (sp !== cache.ks) { cache.ks = sp; chipEl.textContent = sp; } }
     const t = (state.t || 0).toFixed(1) + ' s';
-    if (t !== cache.t) { cache.t = t; vTime.textContent = t; }
+    if (!en && t !== cache.t) { cache.t = t; vTime.textContent = t; }
     const s = Math.round(state.speed || 0) + ' m/s';
     if (s !== cache.s) { cache.s = s; vSpeed.textContent = s; }
     const g = (state.gatesPassed | 0) + ' / ' + (state.gatesMissed | 0) + ' miss';
-    if (g !== cache.g) { cache.g = g; vGates.textContent = g; }
+    if (!en && g !== cache.g) { cache.g = g; vGates.textContent = g; }
     const b = Math.max(0, Math.min(1, state.boost || 0));
     const w = Math.round(b * 100);
     if (w !== cache.w) { cache.w = w; fill.style.width = w + '%'; }
@@ -197,16 +233,55 @@ body.rl-paper .rlh .rlh-razor{color:#24406e;text-shadow:none;-webkit-text-stroke
       razorEl.classList.remove('on'); void razorEl.offsetWidth; razorEl.classList.add('on');
       clearTimeout(razorT);
       razorT = setTimeout(() => razorEl.classList.remove('on'), 600);
+    } else if (ev.type === 'launch') {
+      if (flights++ < 3) {
+        liftEl.classList.add('on'); clearTimeout(liftT);
+        liftT = setTimeout(() => liftEl.classList.remove('on'), 1600);
+      }
+    } else if (ev.type === 'dive_start' || (ev.type === 'land' && !ev.hop)) {
+      liftEl.classList.remove('on');
+      if (ev.type === 'land') {
+        const g = ev.grade;
+        const w = g === 'wreck' ? 'WIPEOUT' : g === 'slam' ? 'THUD' : g === 'rough' ? 'SCUFF' : (g === 'clean' ? (ev.dive ? 'PERFECT DROP' : 'STUCK') : '');
+        if (w) {
+          wordEl.textContent = w;
+          wordEl.classList.remove('on'); void wordEl.offsetWidth; wordEl.classList.add('on');
+          clearTimeout(wordT);
+          wordT = setTimeout(() => wordEl.classList.remove('on'), 900);
+        }
+      }
     } else if (ev.type === 'flowUp' || ev.type === 'flowDrop') {
       pipsEl.classList.remove('pulse'); void pipsEl.offsetWidth; pipsEl.classList.add('pulse');
     }
   }
   function showEnd(result) {
     const r = result || {};
+    if (r.endless) { // endless: distance result, no time / gates / medal rows
+      const night = r.cause === 'night';
+      resEl.textContent = night ? 'CAUGHT BY NIGHT' : (r.cause === 'rock' || r.crashed ? 'CRASHED' : 'RUN OVER');
+      sTime.hidden = false; sTime.textContent = 'Distance ' + Math.round(r.distance || 0) + ' m';
+      const bd = r.bestDistance != null ? r.bestDistance : r.best;
+      sGates.hidden = bd == null;
+      const prevBest = r.newBest && r.delta != null ? (bd || 0) - r.delta : null;
+      let dl = '';
+      if (r.newBest) { if (r.delta > 0 && prevBest > 0) dl = ' (+' + Math.round(r.delta) + ' m new)'; else dl = ' new'; }
+      else if (r.delta != null && r.delta < 0) dl = ' (' + Math.round(-r.delta) + ' m short)';
+      sGates.textContent = 'Best ' + Math.round(bd || 0) + ' m' + dl;
+      const goal = r.nextGoal && r.nextGoal.text ? r.nextGoal.text : '';
+      const nm = r.newMarks && r.newMarks.length ? 'New: ' + r.newMarks.map(id => { const k = MARKS.find(x => x.id === id); return k ? k.name + (k.hull ? ' (opens ' + k.hull[0].toUpperCase() + k.hull.slice(1) + ')' : '') : String(id).replace(/_/g, ' '); }).join(', ') : '';
+      const ex = [nm, goal ? 'Next: ' + goal : ''].filter(Boolean).join('\n');
+      sExtra.hidden = !ex; sExtra.textContent = ex; sExtra.style.whiteSpace = 'pre-line';
+      sMedal.hidden = true;
+      if (r.flowPeak != null) { sFlow.hidden = false; sFlow.textContent = 'Flow peak ' + (r.flowPeak | 0); }
+      else if (r.stats && r.stats.maxFlow != null) { sFlow.hidden = false; sFlow.textContent = 'Flow peak ' + (r.stats.maxFlow | 0); }
+      else sFlow.hidden = true;
+      endAt = performance.now(); mode('end'); return;
+    }
+    sTime.hidden = sGates.hidden = false;
     resEl.textContent = r.crashed ? 'CRASHED' : (r.finished === false ? 'RUN OVER' : 'FINISHED');
     sTime.textContent = 'Time: ' + ((r.time ?? r.t) != null ? Number(r.time ?? r.t).toFixed(2) + ' s' : '-');
     sGates.textContent = 'Gates: ' + (r.gatesPassed | 0) + ' passed, ' + (r.gatesMissed | 0) + ' missed';
-    if (r.crashed && r.z != null) { sExtra.hidden = false; sExtra.textContent = 'Crashed at ' + Math.round(r.z) + ' m'; }
+    if (r.crashed && r.z != null) { sExtra.hidden = false; sExtra.style.whiteSpace = ''; sExtra.textContent = 'Crashed at ' + Math.round(r.z) + ' m'; }
     else sExtra.hidden = true;
     const m = r.medal;
     if (!m || r.crashed) sMedal.hidden = true;
@@ -220,7 +295,9 @@ body.rl-paper .rlh .rlh-razor{color:#24406e;text-shadow:none;-webkit-text-stroke
     endAt = performance.now();
     mode('end');
   }
-  function setDev(on) { devOn = !!on; devEl.hidden = !devOn; }
+  let qdev = false; try { qdev = /[?&]dev=1/.test(location.search); } catch (e) { /* none */ }
+  function setDev(on) { devOn = !!on; devEl.hidden = !devOn; fpsEl.style.display = (devOn || qdev) ? '' : 'none'; }
+  fpsEl.style.display = qdev ? '' : 'none';
   function toast(text) {
     toastEl.textContent = text;
     toastEl.classList.add('on');
@@ -228,6 +305,21 @@ body.rl-paper .rlh .rlh-razor{color:#24406e;text-shadow:none;-webkit-text-stroke
     toastT = setTimeout(() => toastEl.classList.remove('on'), 1800);
   }
 
+  // B4 VIS begin: spring HUD (body.b4-hud) replaces the top cards / boost bar / flow; landing words, hints, toast stay.
+  // b4(m): 'home' | 'garage' hide every old screen; 'end' keeps the run layer for the toast (spring end card is the end screen).
+  try {
+    if (!document.getElementById('rlh-b4')) {
+      const st = document.createElement('style'); st.id = 'rlh-b4';
+      st.textContent = 'body.b4-end .rlh.rlh{display:block!important}body.b4-end .rlh-top,body.b4-end .rlh-bar,body.b4-end .rlh-word,body.b4-end .rlh-lift,body.b4-end .rlh-razor,body.b4-end .rlh-fps{display:none!important}.rlh-toast{z-index:40}';
+      document.head.appendChild(st);
+    }
+  } catch (e) { /* ignore */ }
+  function b4(m) {
+    start.hidden = true; end.hidden = true;
+    run.hidden = !(m === 'run' || m === 'end');
+    try { document.body.classList.add('b4-hud'); } catch (e) { /* ignore */ }
+  }
+  // B4 VIS end
   showStart(null);
-  return { showStart, showRun, update, event, showEnd, setDev, toast, themeMount, setThemeLabel };
+  return { showStart, setStartInfo, showRun, update, event, showEnd, setDev, toast, setLoading, themeMount, setThemeLabel, b4 };
 }

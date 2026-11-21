@@ -9,7 +9,7 @@ const require = createRequire(import.meta.url);
 const { chromium } = require('playwright');
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, '../../pages');
-const types = { '.html': 'text/html', '.js': 'text/javascript', '.json': 'application/json', '.webmanifest': 'application/manifest+json', '.png': 'image/png' };
+const types = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.wasm': 'application/wasm', '.json': 'application/json', '.webmanifest': 'application/manifest+json', '.png': 'image/png' };
 const server = http.createServer((req, res) => {
   let p = decodeURIComponent(req.url.split('?')[0]); if (p.endsWith('/')) p += 'index.html';
   const f = path.join(root, p);
@@ -23,10 +23,10 @@ try {
   const ctx = await browser.newContext({ viewport: { width: 475, height: 638 }, hasTouch: true, isMobile: true, deviceScaleFactor: 1 });
   const page = await ctx.newPage();
   await page.goto(`http://127.0.0.1:${server.address().port}/ridgeline/`, { waitUntil: 'load' });
-  await page.waitForFunction(() => window.__ridgeline);
+  await page.waitForFunction(() => window.__ridgeline && window.__ridgeline.ready, null, { timeout: 20000 });
   await page.waitForTimeout(400);
   // tap the first start button like a finger would
-  const btn = page.locator('button', { hasText: /daily|start|ride|go/i }).first();
+  const btn = page.locator('button:visible', { hasText: /daily|start|ride|go/i }).first();
   await btn.tap();
   await page.waitForTimeout(800);
   const phaseOk = await page.evaluate(() => window.__ridgeline.state && window.__ridgeline.state.z > 0);

@@ -35,7 +35,7 @@ function hold(s, k, gap) {
 const types = (ev) => ev.map((e) => e.type + (e.tier ? ':' + e.tier : '') + (e.level !== undefined ? ':' + e.level : ''));
 
 test('graze tier charge multipliers (outer 0.35x, inner 1x, razor 2x of chargeRate)', () => {
-  resetCfg();
+  resetCfg(); cfg.endless = 0; // finite course
   const k = flat({ rocks: [ROCK] });
   const got = {};
   for (const [name, gap] of [['outer', 2.5], ['inner', 1.2], ['razor', 0.5], ['none', 3.4]]) {
@@ -52,7 +52,7 @@ test('graze tier charge multipliers (outer 0.35x, inner 1x, razor 2x of chargeRa
 });
 
 test('grazeTier state reports the max tier this step', () => {
-  resetCfg();
+  resetCfg(); cfg.endless = 0; // finite course
   const k = flat({ rocks: [ROCK] });
   for (const [gap, tier] of [[2.5, 'outer'], [1.2, 'inner'], [0.5, 'razor'], [3.5, '']]) {
     const s = createSled(k); hold(s, k, gap);
@@ -61,7 +61,7 @@ test('grazeTier state reports the max tier this step', () => {
 });
 
 test('one rock never pays more than 2 links', () => {
-  resetCfg();
+  resetCfg(); cfg.endless = 0; // finite course
   // direct razor, then keep grazing for a long time
   let k = flat({ rocks: [ROCK] });
   let s = createSled(k);
@@ -85,7 +85,7 @@ test('one rock never pays more than 2 links', () => {
 });
 
 test('inner then razor event order: graze inner, flowUp 1, graze razor, flowUp 2', () => {
-  resetCfg();
+  resetCfg(); cfg.endless = 0; // finite course
   const k = flat({ rocks: [ROCK] });
   const s = createSled(k);
   const ev = [];
@@ -102,7 +102,7 @@ test('inner then razor event order: graze inner, flowUp 1, graze razor, flowUp 2
 });
 
 test('window decay drops one level and restarts; last level empties flow', () => {
-  resetCfg();
+  resetCfg(); cfg.endless = 0; // finite course
   const k = flat();
   const s = createSled(k);
   s.flow = 3; s.flowWin = cfg.flowWindow1 + (cfg.flowWindow5 - cfg.flowWindow1) * 2 / 4; s.flowT = s.flowWin;
@@ -123,7 +123,7 @@ test('window decay drops one level and restarts; last level empties flow', () =>
 });
 
 test('flow 5 time accumulates only at flow 5', () => {
-  resetCfg();
+  resetCfg(); cfg.endless = 0; // finite course
   const k = flat();
   const s = createSled(k);
   s.flow = 5; s.flowWin = cfg.flowWindow5; s.flowT = s.flowWin;
@@ -133,7 +133,7 @@ test('flow 5 time accumulates only at flow 5', () => {
 
 const GATE = { id: 0, z: 100, x: 0, width: 7 };
 function gateStep(x, flow) {
-  resetCfg();
+  resetCfg(); cfg.endless = 0; // finite course
   const k = flat({ gates: [GATE] });
   const s = createSled(k);
   s.x = x; s.vx = 0; s.z = GATE.z - 0.05; s.flow = flow;
@@ -166,7 +166,7 @@ test('centred gate: link + gate event centred:true; off-centre pass gives no lin
 });
 
 test('boost link only when charge >= flowBoostMin', () => {
-  resetCfg();
+  resetCfg(); cfg.endless = 0; // finite course
   const k = flat();
   for (const [charge, link] of [[0.49, false], [0.3, false], [0.5, true], [0.9, true]]) {
     const s = createSled(k); s.boost = charge;
@@ -183,7 +183,7 @@ test('boost link only when charge >= flowBoostMin', () => {
 
 test('flowStep raises top speed (flow 5 vs 0, +20% at 0.04)', () => {
   const run = (flow, step) => {
-    resetCfg(); cfg.flowStep = step; cfg.flowWindow1 = 1e9; cfg.flowWindow5 = 1e9;
+    resetCfg(); cfg.endless = 0; cfg.flowStep = step; cfg.slopeGravityMul = 0; cfg.flowWindow1 = 1e9; cfg.flowWindow5 = 1e9;
     const k = flat(); const s = createSled(k);
     s.flow = flow; s.flowWin = 1e9; s.flowT = 1e9;
     for (let i = 0; i < 120 * 25; i++) stepSled(s, k, {}, cfg);
@@ -193,7 +193,7 @@ test('flowStep raises top speed (flow 5 vs 0, +20% at 0.04)', () => {
   assert.ok(v5 > v0 + 3, `flow 5 ${v5} vs ${v0}`);
   assert.ok(Math.abs(v5 / v0 - 1.2) < 0.01, 'ratio ' + v5 / v0);
   assert.ok(Math.abs(v5off - v0) < 1e-6, 'flowStep 0 -> no bonus');
-  resetCfg();
+  resetCfg(); cfg.endless = 0; // finite course
 });
 
 function snapshot(s) {
@@ -204,7 +204,7 @@ function snapshot(s) {
 test('determinism: same seed + input script -> identical final state and events', () => {
   const script = (i, s) => ({ steer: Math.sin(i / 70) * 0.9, fire: s.boost >= 0.6 });
   const go = () => {
-    resetCfg();
+    resetCfg(); cfg.endless = 0; // finite course
     const k = createCourse(hashSeed('flow-det'), cfg);
     const s = createSled(k); const all = [];
     for (let i = 0; i < 9000 && !s.crashed && !s.finished; i++) all.push(...stepSled(s, k, script(i, s), cfg));
@@ -236,7 +236,7 @@ test('medalFor edges', () => {
 });
 
 test('medalTimes: gold = length / pace + gates x gateSec, factors applied', () => {
-  resetCfg();
+  resetCfg(); cfg.endless = 0; // finite course
   const k = createCourse(seeds[0], cfg);
   const n = k.gatesInRange(-1, k.length + 1).length;
   let t = medalTimes(k, cfg);
@@ -246,7 +246,7 @@ test('medalTimes: gold = length / pace + gates x gateSec, factors applied', () =
   cfg.medalGateSec = 0.5;
   t = medalTimes(k, cfg);
   assert.ok(Math.abs(t.gold - (k.length / cfg.medalPace + n * 0.5)) < 1e-9);
-  resetCfg();
+  resetCfg(); cfg.endless = 0; // finite course
 });
 
 // ================= Bots: cautious (~2 m gap) vs brave (~0.3 m gap) =================
@@ -320,7 +320,7 @@ const mean = (a) => (a.length ? a.reduce((x, y) => x + y, 0) / a.length : NaN);
 test('bot table: cautious vs brave on 20 seeds (logged), both finish >= 10/20', () => {
   const res = {};
   for (const [name, make] of [['cautious', cautiousBot], ['brave', braveBot]]) {
-    const runs = seeds.map((sd) => { resetCfg(); const k = createCourse(sd, cfg); return { sd, ...runBot(k, make(k)) }; });
+    const runs = seeds.map((sd) => { resetCfg(); cfg.endless = 0; const k = createCourse(sd, cfg); return { sd, ...runBot(k, make(k)) }; });
     res[name] = runs;
   }
   const stat = (runs) => {
@@ -340,7 +340,7 @@ test('bot table: cautious vs brave on 20 seeds (logged), both finish >= 10/20', 
   const fasterPaired = mean(pair.map(([c, b]) => (c.s.t - b.s.t) / c.s.t * 100));
 
   // medal fit: gold = median brave, summit edge = best brave, silver/bronze border = median cautious
-  resetCfg();
+  resetCfg(); cfg.endless = 0; // finite course
   const L = cfg.runLength;
   const pace = L / B.medT;
   const fSummit = B.bestT / B.medT, fSilver = C.medT / B.medT, fBronze = C.p90T / B.medT;
@@ -375,7 +375,7 @@ test('bot table: cautious vs brave on 20 seeds (logged), both finish >= 10/20', 
   fs.mkdirSync(path.join(here, 'out'), { recursive: true });
   fs.writeFileSync(path.join(here, 'out/flow-bots.txt'), txt);
   console.log(txt);
-  resetCfg();
+  resetCfg(); cfg.endless = 0; // finite course
   assert.ok(C.fin >= 10, `cautious finished ${C.fin}/20`);
   assert.ok(B.fin >= 10, `brave finished ${B.fin}/20`);
 });

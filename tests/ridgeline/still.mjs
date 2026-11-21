@@ -7,7 +7,7 @@ const require = createRequire(import.meta.url);
 const { chromium } = require('playwright');
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, '../../pages');
-const types = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.json': 'application/json', '.webmanifest': 'application/manifest+json', '.png': 'image/png', '.css': 'text/css' };
+const types = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.wasm': 'application/wasm', '.json': 'application/json', '.webmanifest': 'application/manifest+json', '.png': 'image/png', '.css': 'text/css' };
 const server = http.createServer((req, res) => {
   let p = decodeURIComponent(req.url.split('?')[0]);
   if (p.endsWith('/')) p += 'index.html';
@@ -26,9 +26,9 @@ try {
   page.on('pageerror', (e) => errors.push('pageerror: ' + e.message));
   // shipped default: no ?still
   await page.goto(`http://127.0.0.1:${port}/ridgeline/`, { waitUntil: 'load' });
-  await page.waitForFunction(() => window.__ridgeline, null, { timeout: 10000 });
+  await page.waitForFunction(() => window.__ridgeline && window.__ridgeline.ready, null, { timeout: 20000 });
   await page.evaluate(() => window.__ridgeline.start && window.__ridgeline.start('daily'));
-  await page.waitForTimeout(2000);
+  await page.waitForFunction(() => typeof window.__ridgeline.fps === 'number', null, { timeout: 15000 }).catch(() => {});
   const r = await page.evaluate(() => ({ still: typeof window.__stillInfo, fps: window.__ridgeline.fps }));
   console.log('default', JSON.stringify(r));
   if (r.still !== 'undefined') { failed = true; console.error('FAIL __stillInfo defined without ?still'); }
