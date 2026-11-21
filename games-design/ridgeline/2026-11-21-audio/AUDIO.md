@@ -14,7 +14,7 @@ Updated for M's endless-descent picks (dive only, knockable props reed/flag/post
 import { RidgelineAudio } from './audio.js';
 const au = new RidgelineAudio({ bgmBase: './audio/' });   // copy bgm/*.mp3 there
 // first tap: au.unlock();   menu: au.bgm('menu');   run start: au.bgm('run');
-// every frame: au.setState({ speed, grounded, airborne, airT, diving, tumbling, tumbleSpeed, boost })
+// every frame: au.setState({ speed, grounded, airborne, airT, diving, tumbling, tumbleSpeed, boost, gap })   // speed 22-62 m/s, gap = night distance in m
 // sim events: au.event('land', { grade, impact }) ... names exactly as CONTRACT.md
 // Tweak rows: au.setLevels({ master, sfx, amb, bgm, muted })  (0..1, defaults .8/.9/.7/.5)
 // end of run / pause: au.silenceLoops()
@@ -37,7 +37,11 @@ SW: add `./src/audio.js` (+ mp3s) to FILES; keep network-first. Impact must be n
 | miss | gateMiss | dull low thud |
 | flow_up{level} / flow_drop | flowUp / flowDrop | two-note rise (higher per level) / falling blip |
 | boost | boost | rising noise sweep + saw |
-| night_stage{stage,gap} | nightStage + state | stage far/near/heels (or 0/1/2): dark detuned drone fades in and throbs faster, BGM low-pass 18k/6.5k/2.8 kHz, swell sting on each worsening stage |
+| per-step `gap` (setState) | continuous | far >= 130 m quiet; near 60-130: drone fades in, pitch rises, BGM low-pass closes; heels < 60: pulse 1.5 to 3 Hz, sled hum and sand duck 50% |
+| night_stage{stage,gap} | nightStage | swell sting when stage worsens (stage also works as fallback if gap not passed) |
+| gap_hit | gapHit | dull thud + falling tone (missed gate costs 20 m) |
+| run_over | (silence loops) | |
+| hull_unlock | hullUnlock | five-note rise |
 | caught | caught | sub drop + noise wash, BGM ducked, loops silenced |
 | zone_enter{zone,lap} | zoneEnter | soft rising chord, higher per lap, brief BGM duck |
 | milestone{id} | milestone | bright two-note chime, pitch by id |

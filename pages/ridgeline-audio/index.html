@@ -18,6 +18,7 @@ button:active,button.on{background:var(--acc);color:#1d1420;border-color:var(--a
 <h2>Ambience (drive by hand)</h2>
 <div class="row"><label>speed</label><input id="sp" type="range" min="0" max="68" value="0"></div>
 <div class="row"><label>air time</label><input id="at" type="range" min="0" max="3" step="0.1" value="0"></div>
+<div class="row"><label>night gap m</label><input id="gp" type="range" min="0" max="200" value="200"></div>
 <div class="grid"><button id="tg" data-flag="grounded">Grounded</button><button data-flag="airborne">Airborne</button><button data-flag="diving">Dive</button><button data-flag="tumbling">Tumble</button><button id="bo">Boost glow</button></div>
 <h2>Gate chain (climbs with flow)</h2><div class="grid" id="chain"></div>
 <h2>One-shots</h2><div class="grid" id="cues"></div>
@@ -31,7 +32,7 @@ const lv = $('#lv'); for (const k of ['master', 'sfx', 'amb', 'bgm']) { const r 
 const m = document.createElement('button'); m.textContent = 'Mute'; m.onclick = () => { au.unlock(); au.setLevels({ muted: !au.lv.muted }); m.classList.toggle('on', au.lv.muted); }; lv.append(m);
 document.querySelectorAll('[data-bgm]').forEach(b => b.onclick = () => { au.unlock(); au.bgm(b.dataset.bgm || null); });
 const S = { speed: 0, airT: 0, grounded: true, airborne: false, diving: false, tumbling: false, boost: 0 }, push = () => au.setState(S);
-$('#sp').oninput = e => { au.unlock(); S.speed = +e.target.value; push(); }; $('#at').oninput = e => { au.unlock(); S.airT = +e.target.value; push(); };
+$('#sp').oninput = e => { au.unlock(); S.speed = +e.target.value; push(); }; $('#gp').oninput = e => { au.unlock(); S.gap = +e.target.value; push(); }; $('#at').oninput = e => { au.unlock(); S.airT = +e.target.value; push(); };
 document.querySelectorAll('[data-flag]').forEach(b => b.onclick = () => { au.unlock(); const f = b.dataset.flag; if (f === 'grounded') { S.grounded = true; S.airborne = false; } else if (f === 'airborne') { S.airborne = !S.airborne; S.grounded = !S.airborne; } else S[f] = !S[f]; b.classList.toggle('on', !!S[f]); push(); });
 $('#bo').onclick = e => { au.unlock(); S.boost = S.boost ? 0 : 1; e.target.classList.toggle('on', !!S.boost); push(); };
 for (let i = 0; i < 12; i++) mk($('#chain'), 'link ' + (i + 1), () => au.play('gate', { link: i }));

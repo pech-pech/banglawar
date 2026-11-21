@@ -9,11 +9,11 @@
 // All randomness here is audio-only (Math.random is fine: it never touches the seeded sim).
 export const CUES = ['uiTap', 'uiToggle', 'countBeep', 'go', 'gate', 'gateCentred', 'gateMiss', 'graze', 'boost', 'flowUp', 'flowDrop',
   'launch', 'diveStart', 'diveEnd', 'land', 'tumbleStart', 'tumbleRest', 'recoverStart', 'recoverEnd', 'propHit', 'crash',
-  'nightStage', 'caught', 'zoneEnter', 'milestone'];
+  'nightStage', 'gapHit', 'hullUnlock', 'caught', 'zoneEnter', 'milestone'];
 // Endless-descent contract events -> cues. Call au.event(name, payload) from the sim event stream.
 // launch{speed}, air{t}(ignored: use setState airT), dive_start, dive_end, land{grade,impact}, tumble_start{cause}, tumble_rest,
 // recover_start, recover_end, prop_hit{kind: post|flag|reed, impulse}, graze{tier}, gate{centred}, miss, flow_up{level}, flow_drop, boost,
-// night_stage{stage: far|near|heels or 0|1|2, gap}, caught, zone_enter{zone, lap}, milestone{id}
+// night_stage{stage, gap}, gap_hit, caught, run_over, hull_unlock, zone_enter{zone, lap}, milestone{id}
 const STAGE = { far: 0, near: 1, heels: 2, 0: 0, 1: 1, 2: 2 };
 export const EVENT_MAP = {
   launch: (a, e) => a.play('launch', { power: Math.min(1, (e.speed || 30) / 55) }),
@@ -28,6 +28,7 @@ export const EVENT_MAP = {
   miss: a => a.play('gateMiss'), flow_up: (a, e) => { a._link = e.level || 0; a.play('flowUp', { tier: (e.level || 1) - 1 }); },
   flow_drop: a => { a._link = 0; a.play('flowDrop'); }, boost: a => a.play('boost'),
   night_stage: (a, e) => { const n = STAGE[e.stage] ?? 0, up = n > (a.st.night | 0); a.setState({ night: n }); if (up) a.play('nightStage', { stage: n }); },
+  gap_hit: a => a.play('gapHit'), hull_unlock: a => a.play('hullUnlock'), run_over: a => a.silenceLoops(),
   caught: a => { a.play('caught'); a.silenceLoops(); },
   zone_enter: (a, e) => a.play('zoneEnter', { lap: e.lap || 1 }), milestone: (a, e) => a.play('milestone', { id: e.id | 0 })
 };
@@ -39,7 +40,7 @@ export class RidgelineAudio {
     this.bgmBase = o.bgmBase || './audio/';
     this.tracks = { run: 'bgm-wanderlust.mp3', menu: 'bgm-pink-navy.mp3' };
     this.lv = { master: 0.8, sfx: 0.9, amb: 0.7, bgm: 0.5, muted: false };
-    this.ctx = null; this.st = { speed: 0, grounded: true, boost: 0, airborne: false, airT: 0, diving: false, tumbling: false, tumbleSpeed: 0, night: 0 };
+    this.ctx = null; this.st = { speed: 0, grounded: true, boost: 0, airborne: false, airT: 0, diving: false, tumbling: false, tumbleSpeed: 0, night: 0, gap: NaN };
     this._bgmName = null; this._bgmEl = null; this._bgmGain = null; this._last = {};
   }
   unlock() {
@@ -90,23 +91,28 @@ export class RidgelineAudio {
   // per-frame drive. speed in m/s (about 20-50), boost 0..1
   setState(s) {
     Object.assign(this.st, s); if (!this.ctx) return; const t = this.ctx.currentTime, k = 0.08;
-    const v = Math.min(1, this.st.speed / 50), air = this.st.airborne ? Math.min(1, 0.4 + (this.st.airT || 0) / 2) : 0, gr = this.st.grounded && !air ? 1 : 0, b = this.st.boost || 0;
+    const v = Math.min(1, Math.max(0, (this.st.speed - 15) / 47)), air = this.st.airborne ? Math.min(1, 0.4 + (this.st.airT || 0) / 2) : 0, gr = this.st.grounded && !air ? 1 : 0, b = this.st.boost || 0;
     const dv = this.st.diving ? 0.25 : 0;
     this.wind.g.gain.setTargetAtTime(0.05 + 0.35 * v * v + 0.15 * b + 0.2 * air + dv, t, k);
     this.wind.fl.frequency.setTargetAtTime(300 + 1700 * v + 900 * b + 1200 * air + 1500 * dv, t, k);
     const tu = this.st.tumbling ? 1 : 0, ts = Math.min(1, (this.st.tumbleSpeed || v * 50) / 40);
     this.roll.g.gain.setTargetAtTime(tu * (0.1 + 0.4 * ts), t, 0.06); this.roll.fl.frequency.setTargetAtTime(250 + 700 * ts, t, 0.08);
-    this.sand.g.gain.setTargetAtTime(gr * (0.02 + 0.22 * v), t, k * 1.5);
+    this.sand.g.gain.setTargetAtTime(gr * (0.02 + 0.22 * v) * (this.sledDuck || 1), t, k * 1.5);
     this.sand.fl.frequency.setTargetAtTime(2200 + 2500 * v, t, k);
     this.hum.o.frequency.setTargetAtTime(55 + 70 * v + 40 * b, t, 0.1); this.hum.o2.frequency.setTargetAtTime(110 + 140 * v + 60 * b, t, 0.1);
     this.hum.fl.frequency.setTargetAtTime(300 + 900 * v + 1200 * b, t, 0.1);
-    const nt = this.st.night | 0, ng = [0, 0.07, 0.16][nt] || 0;
-    this.night.g.gain.setTargetAtTime(ng, t, 0.8); this.night.lg.gain.setTargetAtTime(ng * 0.6, t, 0.8); this.night.lfo.frequency.setTargetAtTime([0.6, 1.1, 2.2][nt] || 0.6, t, 0.8);
-    this.night.fl.frequency.setTargetAtTime([140, 190, 260][nt] || 140, t, 0.8);
-    this.bgmFx.frequency.setTargetAtTime([18000, 6500, 2800][nt] || 18000, t, 1.2);
-    this.hum.g.gain.setTargetAtTime(this.st.speed > 0.5 && !tu ? 0.05 + 0.05 * v : 0, t, 0.15);
+    // night chase, driven per step by gap (m): far >= 130 (quiet), near 60-130 (drone fades in, pitch rises), heels < 60 (pulse 1.5 -> 3 Hz, sled ducks)
+    let gap = this.st.gap; if (!(gap >= 0)) gap = [Infinity, 100, 30][this.st.night | 0] ?? Infinity; // fallback: discrete stage
+    const cl = Math.max(0, Math.min(1, (130 - gap) / 130)), heels = gap < 60 ? 1 - gap / 60 : 0, ng = gap >= 130 ? 0 : 0.03 + 0.15 * cl;
+    this.night.g.gain.setTargetAtTime(ng, t, 0.5); this.night.lg.gain.setTargetAtTime(ng * 0.6 * (gap < 60 ? 1 : 0.3), t, 0.5);
+    this.night.lfo.frequency.setTargetAtTime(gap < 60 ? 1.5 + 1.5 * heels : 0.5 + 0.6 * cl, t, 0.3);
+    this.night.a.frequency.setTargetAtTime(41 + 30 * cl, t, 0.5); this.night.b.frequency.setTargetAtTime(41.8 + 30 * cl, t, 0.5);
+    this.night.fl.frequency.setTargetAtTime(140 + 200 * cl, t, 0.5);
+    this.bgmFx.frequency.setTargetAtTime(18000 - 15200 * Math.pow(cl, 0.8), t, 1.2);
+    this.sledDuck = 1 - 0.5 * heels;
+    this.hum.g.gain.setTargetAtTime(this.st.speed > 0.5 && !tu ? (0.05 + 0.05 * v) * this.sledDuck : 0, t, 0.15);
   }
-  silenceLoops() { if (this.ctx) this.setState({ speed: 0, boost: 0, airborne: false, airT: 0, diving: false, tumbling: false, night: 0 }); }
+  silenceLoops() { if (this.ctx) this.setState({ speed: 0, boost: 0, airborne: false, airT: 0, diving: false, tumbling: false, night: 0, gap: NaN }); }
   event(name, e = {}) { const f = EVENT_MAP[name]; if (f) f(this, e); }
   // BGM: streamed <audio> element through the bgm bus, crossfaded; loops. null fades out.
   bgm(name) {
@@ -185,6 +191,8 @@ export class RidgelineAudio {
   _recoverEnd(t) { this._tone(t, mtof(72), 0.3, { gain: 0.14 }); this._tone(t + 0.08, mtof(79), 0.4, { gain: 0.14 }); }
   // night: swell stinger when it closes a stage (o.stage 1 near, 2 heels); caught = sub drop + noise wash, BGM ducked hard
   _nightStage(t, o) { const s2 = o.stage | 0; this._tone(t, 55, 1.4, { type: 'sawtooth', gain: 0.1 + 0.06 * s2, a: 0.5, f2: 48 }); this._burst(t, 1.2, { f: 200, f2: 700, gain: 0.12 + 0.05 * s2, a: 0.6 }); }
+  _gapHit(t) { this._thud(t, 100, 0.35, 0.3); this._tone(t, 220, 0.4, { type: 'triangle', gain: 0.15, f2: 110 }); }
+  _hullUnlock(t) { [0, 4, 7, 12, 16].forEach((s, k) => this._tone(t + k * 0.09, mtof(72 + s), 0.7, { gain: 0.14 })); this.duck(0.5, 1.5); }
   _caught(t) { this._thud(t, 60, 1.2, 0.8); this._tone(t, 110, 1.6, { type: 'sawtooth', gain: 0.25, f2: 30, a: 0.02 }); this._burst(t, 1.8, { f: 1500, f2: 100, gain: 0.45, a: 0.05 }); this.duck(0.1, 3); }
   _zoneEnter(t, o) { const r = 57 + 2 * Math.min(4, (o.lap | 0) - 1 || 0); [0, 7, 14].forEach((s, k) => this._tone(t + k * 0.18, mtof(r + s + 12), 1.4, { gain: 0.1, a: 0.15 })); this.duck(0.6, 2); }
   _milestone(t, o) { const m = 76 + PENTA[(o.id | 0) % 5]; this._tone(t, mtof(m), 0.6, { gain: 0.16 }); this._tone(t + 0.1, mtof(m + 7), 0.8, { gain: 0.14 }); this._tone(t + 0.1, mtof(m + 19), 0.4, { gain: 0.04 }); }
