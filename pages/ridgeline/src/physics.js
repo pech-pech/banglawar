@@ -12,6 +12,7 @@ const G_TERRAIN = 0x0001;
 const G_ROCKS = 0x0002;
 const G_TUMBLE = 0x0004;
 const G_QUERY = 0x0008;
+const G_PROP = 0x0010;
 const pack = (mem, filter) => ((mem << 16) | filter) >>> 0;
 
 const now = () => (typeof performance !== 'undefined' ? performance.now() : Date.now());
@@ -43,6 +44,7 @@ export function createPhysics(R, course, cfg) {
   const cell = g('hfCell', 0.5);
   const width = g('hfWidth', 64);
   const rayLen = g('hoverRayLen', 2.0);
+  const shiftAt = g('originShift', 2000);
   const nrows = Math.round(SLAB_LEN / cell);
   const ncols = Math.round(width / cell);
 
@@ -56,10 +58,12 @@ export function createPhysics(R, course, cfg) {
   let tumble = null; // {body, collider}
   let disposed = false;
 
-  const terrainGroups = pack(G_TERRAIN, G_TUMBLE | G_QUERY);
+  const terrainGroups = pack(G_TERRAIN, G_TUMBLE | G_QUERY | G_PROP);
   const rockGroups = pack(G_ROCKS, G_TUMBLE);
   const tumbleGroups = pack(G_TUMBLE, G_TERRAIN | G_ROCKS);
   const queryGroups = pack(G_QUERY, G_TERRAIN);
+  const origin = { z: 0, y: 0, count: 0 };
+  const shifters = [];
 
   const rowsPerStep = Math.max(1, Math.floor(g('hfRowsPerStep', 5)));
   let pending = null; // {k, xo, xl, heights, row}
@@ -75,7 +79,7 @@ export function createPhysics(R, course, cfg) {
     const end = Math.min(nrows + 1, P.row + max);
     for (let r = P.row; r < end; r++) {
       const z = z0 + r * cell;
-      for (let c = 0; c <= ncols; c++) P.heights[c * (nrows + 1) + r] = Math.fround(course.height(P.xl + c * cell, z));
+      for (let c = 0; c <= ncols; c++) P.heights[c * (nrows + 1) + r] = Math.fround(course.height(P.xl + c * cell, z) - origin.y);
     }
     P.row = end;
   }
@@ -85,7 +89,7 @@ export function createPhysics(R, course, cfg) {
     const { k, xo, heights } = pending;
     pending = null;
     const z0 = k * SLAB_LEN;
-    const body = world.createRigidBody(R.RigidBodyDesc.fixed().setTranslation(xo, 0, z0 + SLAB_LEN / 2));
+    const body = world.createRigidBody(R.RigidBodyDesc.fixed().setTranslation(xo, 0, z0 + SLAB_LEN / 2 - origin.z));
     const desc = R.ColliderDesc.heightfield(nrows, ncols, heights, { x: width, y: 1, z: SLAB_LEN },
       R.HeightFieldFlags.FIX_INTERNAL_EDGES)
       .setFriction(g('tumbleFriction', 0.5)).setRestitution(g('tumbleRestitution', 0.2))
@@ -95,7 +99,7 @@ export function createPhysics(R, course, cfg) {
     for (const rk of course.rocksInRange(z0, z0 + SLAB_LEN)) {
       const rr = rk.r ?? rk.s ?? 1;
       const rd = R.ColliderDesc.ball(rr)
-        .setTranslation(rk.x, course.height(rk.x, rk.z) + rr * 0.5, rk.z)
+        .setTranslation(rk.x, course.height(rk.x, rk.z) + rr * 0.5 - origin.y, rk.z - origin.z)
         .setFriction(g('tumbleFriction', 0.5)).setRestitution(g('tumbleRestitution', 0.2))
         .setCollisionGroups(rockGroups).setSolverGroups(rockGroups);
       rocks.push(world.createCollider(rd));
@@ -117,13 +121,45 @@ export function createPhysics(R, course, cfg) {
     slabs.delete(k);
   }
 
+  // floating origin: move everything by (-dz,-dy) in one step, no slab rebuild
+  function shiftOrigin() {
+    const nz = origin.z + shiftAt;
+    const ny = Math.round(-g('slope', 0.28) * nz);
+    const dz = nz - origin.z, dy = ny - origin.y;
+    origin.z = nz; origin.y = ny; origin.count++;
+    pending = null; // sampled against the old origin; restart
+    for (const s of slabs.values()) {
+      const t = s.body.translation();
+      s.body.setTranslation({ x: t.x, y: t.y - dy, z: t.z - dz }, true);
+      for (const c of s.rocks) { const r = c.translation(); c.setTranslation({ x: r.x, y: r.y - dy, z: r.z - dz }); }
+    }
+    if (tumble) {
+      const t = tumble.body.translation();
+      tumble.body.setTranslation({ x: t.x, y: t.y - dy, z: t.z - dz }, true);
+    }
+    for (const f of shifters) f(dz, dy);
+  }
+
   const phys = {
     world,
     stats,
+    origin,
+    G: { TERRAIN: G_TERRAIN, ROCKS: G_ROCKS, TUMBLE: G_TUMBLE, QUERY: G_QUERY, PROP: G_PROP },
+    pack,
+    toLocal(p) { return { x: p.x, y: p.y - origin.y, z: p.z - origin.z }; },
+    toAbs(p) { return { x: p.x, y: p.y + origin.y, z: p.z + origin.z }; },
+    onShift(fn) { shifters.push(fn); return () => { const i = shifters.indexOf(fn); if (i >= 0) shifters.splice(i, 1); }; },
     update(z) {
       const t0 = now();
-      const kLo = Math.floor((z - BEHIND) / SLAB_LEN);
-      const kHi = Math.floor((z + AHEAD) / SLAB_LEN);
+      while (z - origin.z > shiftAt) shiftOrigin();
+      // the tumble body may be far from the sled: keep slabs under it too
+      let zLo = z, zHi = z;
+      if (tumble) {
+        const tz = tumble.body.translation().z + origin.z;
+        if (tz < zLo) zLo = tz; else if (tz > zHi) zHi = tz;
+      }
+      const kLo = Math.floor((zLo - BEHIND) / SLAB_LEN);
+      const kHi = Math.floor((zHi + AHEAD) / SLAB_LEN);
       for (const k of [...slabs.keys()]) if (k < kLo || k > kHi) removeSlab(k);
       if (pending && (pending.k < kLo || pending.k > kHi)) pending = null;
       const first = !filled;
@@ -134,7 +170,7 @@ export function createPhysics(R, course, cfg) {
         stats.fillMs = now() - t0;
       } else {
         // safety: coverage must reach z+60 (cadence depends only on z)
-        const kSafe = Math.floor((z + 60) / SLAB_LEN);
+        const kSafe = Math.floor((zHi + 60) / SLAB_LEN);
         for (let k = kLo; k <= kSafe; k++) {
           if (!slabs.has(k)) { buildSlab(k); stats.syncBuilds++; }
         }
@@ -156,20 +192,20 @@ export function createPhysics(R, course, cfg) {
       }
     },
     // true when [z-BEHIND, z+AHEAD] is fully covered
-    covered(z, ahead = AHEAD) {
+    covered(z, ahead = AHEAD) { // z absolute
       const kLo = Math.floor((z - BEHIND) / SLAB_LEN), kHi = Math.floor((z + ahead) / SLAB_LEN);
       for (let k = kLo; k <= kHi; k++) if (!slabs.has(k)) return false;
       return true;
     },
     groundDist(x, y, z) {
-      const ray = new R.Ray({ x, y, z }, { x: 0, y: -1, z: 0 });
+      const ray = new R.Ray({ x, y: y - origin.y, z: z - origin.z }, { x: 0, y: -1, z: 0 });
       const hit = world.castRay(ray, rayLen, true, undefined, queryGroups);
       return hit ? hit.timeOfImpact ?? hit.toi : Infinity;
     },
     startTumble(p, q, v, w) {
       if (tumble) this.endTumble();
       const bd = R.RigidBodyDesc.dynamic()
-        .setTranslation(p.x, p.y, p.z).setRotation({ x: q.x, y: q.y, z: q.z, w: q.w })
+        .setTranslation(p.x, p.y - origin.y, p.z - origin.z).setRotation({ x: q.x, y: q.y, z: q.z, w: q.w })
         .setLinvel(v.x, v.y, v.z).setAngvel({ x: w.x, y: w.y, z: w.z })
         .setLinearDamping(g('tumbleLinDamp', 0.15)).setAngularDamping(g('tumbleAngDamp', 0.5))
         .setGravityScale(1).setCcdEnabled(g('tumbleCcd', false) === true);
@@ -184,7 +220,7 @@ export function createPhysics(R, course, cfg) {
       if (!tumble) return null;
       const b = tumble.body, p = b.translation(), q = b.rotation(), v = b.linvel(), w = b.angvel();
       return {
-        p: { x: p.x, y: p.y, z: p.z }, q: { x: q.x, y: q.y, z: q.z, w: q.w },
+        p: { x: p.x, y: p.y + origin.y, z: p.z + origin.z }, q: { x: q.x, y: q.y, z: q.z, w: q.w },
         v: { x: v.x, y: v.y, z: v.z }, w: { x: w.x, y: w.y, z: w.z },
       };
     },
@@ -204,6 +240,7 @@ export function createPhysics(R, course, cfg) {
       let h = 0x811c9dc5;
       for (let i = 0; i < snap.length; i++) { h ^= snap[i]; h = Math.imul(h, 0x01000193); }
       h ^= slabs.size; h = Math.imul(h, 0x01000193);
+      h ^= origin.count; h = Math.imul(h, 0x01000193);
       return h >>> 0;
     },
     dispose() {
@@ -211,6 +248,7 @@ export function createPhysics(R, course, cfg) {
       disposed = true;
       tumble = null;
       slabs.clear();
+      shifters.length = 0;
       world.free();
     },
   };
