@@ -10,7 +10,7 @@ import { THEMES } from './themes.js';
 import { createTelemetry, deviceInfo } from './telemetry.js';
 import { createTweak, buildReport, copyText, getVisualPrefs, onVisualPrefs, isVisualDefault } from './tweak.js';
 
-const BUILD = 'ridgeline-proto-7';
+const BUILD = 'ridgeline-proto-8';
 const BEST_KEY = 'ridgeline.best.v1';
 const COUNTER_KEY = 'ridgeline.counter.v1';
 const MAX_STEPS = 8;
@@ -319,7 +319,11 @@ function release(e, fire) {
 window.addEventListener('pointerup', (e) => release(e, true));
 window.addEventListener('pointercancel', (e) => release(e, false));
 for (const ev of ['touchstart', 'touchmove', 'gesturestart', 'contextmenu', 'selectstart', 'dragstart']) {
-  document.addEventListener(ev, (e) => { if (ev !== 'touchstart' || (phase === 'run' && !isControl(e.target))) e.preventDefault(); }, { passive: false });
+  document.addEventListener(ev, (e) => {
+    // touchmove inside a scrollable panel (Settings/Tweak, theme list, menus) must scroll natively: never block it there
+    if (ev === 'touchmove' && e.target && e.target.closest && e.target.closest('.rlt, .rlh-themebody, .rlh-screen')) return;
+    if (ev !== 'touchstart' || (phase === 'run' && !isControl(e.target))) e.preventDefault();
+  }, { passive: false });
 }
 
 window.addEventListener('keydown', (e) => {
