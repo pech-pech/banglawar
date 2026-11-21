@@ -22,7 +22,7 @@ const TAU = Math.PI * 2;
 export function fovFor(speed, aspect, boosting, cfg) {
   const g = (k) => (cfg && cfg[k] !== undefined ? cfg[k] : KEYS[k].def);
   const base = aspect < 1 ? 68 : 58;
-  const b = cfg && cfg.baseSpeed !== undefined ? cfg.baseSpeed : 22;
+  const b = cfg && cfg.baseSpeed !== undefined ? cfg.baseSpeed : 30;
   const cap = g('lookCamFovCap');
   const k = clamp((Math.min(speed, cap) - b) / Math.max(1, cap - b), 0, 1);
   return base + g('lookCamFov') * k + (boosting ? g('lookCamBoostFov') : 0);
@@ -72,8 +72,8 @@ export function createCamRig(ctx) {
   function update(dt, vs, camera) {
     dt = clamp(dt || 0, 0, 0.1);
     const reduced = reducedOf(vs);
-    const camBack = cfg().camBack !== undefined ? cfg().camBack : 9;
-    const camHeight = cfg().camHeight !== undefined ? cfg().camHeight : 4.5;
+    const camBack = cfg().camBack !== undefined ? cfg().camBack : 11.5;
+    const camHeight = cfg().camHeight !== undefined ? cfg().camHeight : 6.5;
     if (!S.init) { S.camX = vs.x; S.tx = vs.x; S.ty = vs.y; S.tz = vs.z; S.fov = fovFor(vs.speed, camera.aspect, vs.boostT > 0, cfg()); S.init = true; }
 
     // lateral follow: exponential spring (0.12 per 60 Hz frame ~ rate 7.7/s at the old default)
