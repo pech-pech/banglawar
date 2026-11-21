@@ -2,7 +2,7 @@
 const VERSION = 'rl-proto-13';
 const FILES = [
   './', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png', './icon-maskable-512.png',
-  './src/rng.js', './src/config.js', './src/terrain.js', './src/sled.js', './src/render.js', './src/hud.js', './src/tweak.js', './src/themes.js', './src/looks.js', './src/lookparts.js', './src/themeui.js', './src/shapes.js', './src/particles.js', './src/telemetry.js', './src/medals.js', './src/main.js', './src/duneatlas.js', './src/dunefx.js', './src/physics.js', './src/dunes.js', './vendor/rapier.mjs', './assets/dune-atlas.webp',
+  './src/rng.js', './src/config.js', './src/terrain.js', './src/sled.js', './src/render.js', './src/hud.js', './src/tweak.js', './src/themes.js', './src/looks.js', './src/lookparts.js', './src/themeui.js', './src/shapes.js', './src/particles.js', './src/telemetry.js', './src/medals.js', './src/main.js', './src/duneatlas.js', './src/dunefx.js', './src/physics.js', './src/dunes.js', './src/endless.js', './src/props.js', './vendor/rapier.mjs', './assets/dune-atlas.webp',
   './vendor/three.module.js', './vendor/three.core.js',
   // B4 VIS begin
   './src/vis/camrig.js', './src/vis/endcard.js', './src/vis/frontdoor.js', './src/vis/garage.js', './src/vis/hudspring.js', './src/vis/index.js', './src/vis/markers.js', './src/vis/moments.js', './src/vis/postfx.js', './src/vis/quality.js', './src/vis/sandtracks.js', './src/vis/sky.js', './src/vis/sledrig.js',

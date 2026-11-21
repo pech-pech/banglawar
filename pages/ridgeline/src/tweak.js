@@ -142,6 +142,9 @@ export function buildReport(info) {
   lines.push('dune: theme ' + fmt(info.theme) + ', atlas ' + (atlas === 'ok' ? 'loaded yes' : atlas === 'fail' ? 'loaded no' : atlas === 'pending' ? 'pending' : 'n/a') + ', calls ' + fmt(st.calls) + ', tris ' + fmt(st.triangles) + ', tweaks ' + (dn.length ? dn.join(', ') : '(defaults)'));
   const ps = info.phys;
   lines.push('Phys: ' + (ps ? physText(ps) : '-'));
+  const en = info.endless;
+  lines.push('Endless: ' + (en ? `dist ${fmt(en.dist)} m, zone ${fmt(en.zone)} lap ${fmt(en.lap)}, features ${fmt(en.features)}, rocks ${fmt(en.rocks)} live, origin shifts ${fmt(en.shifts)}` : '-'));
+  lines.push('Props: ' + (en ? `live ${fmt(en.propsLive)}/${fmt(en.propsMax)}, hits ${fmt(en.hits)}, frozen ${fmt(en.frozen)}` : '-'));
   // B4 VIS begin
   lines.push(info.visLine || 'Vis: off');
   lines.push('WebGPU output: ' + (info.webgpu ? 'seen' : 'NOT seen') + (info.rendererType ? ' (' + info.rendererType + ')' : ''));
@@ -230,7 +233,7 @@ export function createTweak(rootEl, opts) {
   }
   function refreshAll() { for (const k of Object.keys(rows)) refreshRow(k); }
 
-  const GROUPS = ['Ground', 'Launch', 'Air', 'Grade', 'Tumble', 'Physics', 'Look FX']; // B4 VIS: Look FX group
+  const GROUPS = ['Ground', 'Launch', 'Air', 'Grade', 'Tumble', 'Physics', 'Endless speed', 'Endless course', 'Props', 'Look FX']; // B4 VIS: Look FX group last
   const groupBox = {};
   for (const k of Object.keys(META)) {
     const m = META[k];

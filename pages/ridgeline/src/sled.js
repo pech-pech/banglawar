@@ -4,6 +4,7 @@
 // slope, normal and curvature come from course.height (central differences), never from ray normals.
 // Without a phys adapter (createSled(course)), ground distance is analytic and tumbles resolve instantly.
 import { mulberry32 } from './rng.js';
+import { baseSpeed, zoneAt, zoneWind, zoneSand } from './endless.js';
 
 export const FIXED_DT = 1 / 120;
 
@@ -13,6 +14,8 @@ const GATE_LOOKAHEAD = 300;
 const ROCK_BEHIND = 10;
 const ROCK_AHEAD = 70;
 const ROCK_REFRESH = 30;   // refresh when sled is within this of window end
+const MEAN_W = 60;        // endless: half-window for the course mean slope (m)
+const SLOPE_NET_CAP = 3;  // endless: max net slope contribution to the speed target (m/s)
 const NORM_D = 1.0;        // central difference half-step for slope / normal (m)
 const LOST_STEPS = 3;      // ground-lost steps before going to air
 const RECOVER_SCAN = 30;   // m forward scan for a safe recover spot
@@ -20,6 +23,8 @@ const RECOVER_CLEAR = 3;   // m from any rock surface
 const RECOVER_EDGE = 2.5;  // m inside the course edge
 const ROLL_TAU = 0.15;     // visual lean follow (s)
 
+// Endless rules apply only when asked for AND the course really is endless (finite courses keep B1 behaviour).
+const endlessOn = (course, cfg) => !!cfg.endless && course.length === Infinity;
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 
 export function createSled(course, phys = null, rng = null) {
@@ -32,7 +37,7 @@ export function createSled(course, phys = null, rng = null) {
     boost: 0, boostT: 0, t: 0,
     gatesPassed: 0, gatesMissed: 0, nextGate: 0,
     crashed: false, finished: false, charging: false,
-    heading: 0,
+    heading: 0, dist: 0, physZ: 0, zone: 0, lap: 0, _zoneKey: -1, _wind: 1,
     flow: 0, flowT: 0, flowWin: 0, grazeTier: '',
     links: 0, razors: 0, inners: 0, centred: 0, boostLinks: 0, flowPeak: 0, flow5T: 0,
     // B1 stats
@@ -110,7 +115,7 @@ function findGate(s, course) {
   for (let i = 0; i < list.length; i++) {
     if (list[i].id >= s.nextGate) { s._gate = list[i]; return; }
   }
-  if (s.z + GATE_LOOKAHEAD >= course.length) s._gatesDone = true;
+  if (course.length !== Infinity && s.z + GATE_LOOKAHEAD >= course.length) s._gatesDone = true;
   else s._gateSearchZ = s.z + GATE_LOOKAHEAD - 1;
 }
 
@@ -140,9 +145,13 @@ function setFlow(s, cfg, events, level) {
 }
 
 function baseTarget(s, course, cfg) {
+  if (endlessOn(course, cfg)) return baseSpeed(Math.max(0, s.dist), cfg); // flow-0 base by distance (max z)
   const prog = Math.min(1, Math.max(0, s.z) / Math.max(1, course.length));
   return cfg.baseSpeed + (cfg.maxSpeed - cfg.baseSpeed) * prog;
 }
+
+// Wind blows one way per flight, chosen deterministically from the launching feature id.
+function windSign(id) { return (Math.imul(id | 0, 2654435761) >>> 16) & 1 ? 1 : -1; }
 
 // ---------- mode changes ----------
 function launch(s, course, cfg, events) {
@@ -155,6 +164,7 @@ function launch(s, course, cfg, events) {
   s._dive = 0; s._diveT = 0; s._wasDiving = false; s.diving = false;
   s._lost = 0; s._hold = 0; s._hov = 0; s._hovV = 0; s.comp = 0;
   s._crestKey = crest ? 'c' + crest.id : 'l' + s.launches;
+  s._wind = windSign(crest ? crest.id : s.launches);
   s.launches++;
   events.push({
     type: 'launch', speed: s.speed, crestId: crest ? crest.id : null,
@@ -168,6 +178,7 @@ function goAir(s) { // ground lost: air without a launch event
   s._lost = 0; s._hold = 0; s._hov = 0; s._hovV = 0; s.comp = 0;
   s._lostN = (s._lostN || 0) + 1;
   s._crestKey = 'g' + s._lostN;
+  s._wind = windSign(1000 + s._lostN);
 }
 
 function startTumble(s, course, cfg, cause, events, rock) {
@@ -254,6 +265,9 @@ export function stepSled(s, course, input, cfg) {
     s._phys.step();
     if (s.mode === 'tumble' && !s.crashed) readTumble(s, course, cfg, events);
   }
+  // physZ: absolute z the physics world must stream for (tumble body while tumbling, else the sled)
+  const ts = s.mode === 'tumble' && s._phys && s._phys.tumbleState ? s._phys.tumbleState() : null;
+  s.physZ = ts ? ts.p.z : s.z;
   return events;
 }
 
@@ -321,7 +335,7 @@ function core(s, course, input, cfg, events) {
 
   const prevZ = s.z;
   const wob = s.wobbleT > 0 ? 0.5 : 1;
-  const target = baseTarget(s, course, cfg) * (1 + cfg.flowStep * s.flow) + s.boostBonus + s.kick;
+  const target = Math.min(cfg.speedHardCap, baseTarget(s, course, cfg) * (1 + cfg.flowStep * s.flow) + s.boostBonus + s.kick);
 
   if (s.mode === 'ground') {
     const [hx, hz] = headingDir(s);
@@ -329,8 +343,26 @@ function core(s, course, input, cfg, events) {
     const sinTh = -sl / Math.sqrt(1 + sl * sl);
     const sinTh0 = cfg.slope / Math.sqrt(1 + cfg.slope * cfg.slope);
     const ek = cfg.easeK * (s.boostT > 0 ? cfg.boostEaseMul : 1) * wob;
-    const a = ek * (target - s.speed) + cfg.slopeGravityMul * 9.8 * (sinTh - sinTh0);
+    let a;
+    if (endlessOn(course, cfg)) {
+      // Endless: gravity acts on the local slope minus the course's long-run trend at this z (mean over +-MEAN_W m),
+      // and its net effect on the speed target is clamped to +-SLOPE_NET_CAP m/s, so the speed table holds at any depth.
+      const zc = s.z, W = MEAN_W;
+      const mean = (course.height(s.x, zc - W) - course.height(s.x, zc + W)) / (2 * W); // downhill = +z
+      const sinM = mean / Math.sqrt(1 + mean * mean);
+      const dv = ek > 0 ? clamp(cfg.slopeGravityMul * 9.8 * (sinTh - sinM) / ek, -SLOPE_NET_CAP, SLOPE_NET_CAP) : 0;
+      a = ek * (target + dv - s.speed);
+    } else {
+      a = ek * (target - s.speed) + cfg.slopeGravityMul * 9.8 * (sinTh - sinTh0);
+    }
     s.speed = clamp(s.speed + a * dt, 1, cfg.speedHardCap);
+    if (endlessOn(course, cfg) && cfg.sandDrag > 0) { // zone sand drag: ground on bowl floors and gap pits only
+      const sd = zoneSand(s.z, cfg);
+      if (sd > 0) {
+        const f = course.featureAt ? course.featureAt(s.z) : null;
+        if (f && (f.type === 'bowl' || f.type === 'gap')) s.speed = Math.max(1, s.speed * (1 - sd * dt));
+      }
+    }
     s.vx += steerIn * cfg.steerAccel * wob * dt;
     s.vx -= s.vx * cfg.steerDamp * dt;
   } else {
@@ -350,6 +382,7 @@ function core(s, course, input, cfg, events) {
     s.vy += (-g - cfg.airDrag * vm * s.vy) * dt;
     s.speed += -cfg.airDrag * vm * s.speed * dt;
     s.vx += steerIn * cfg.steerAccel * cfg.airSteerMul * dt;
+    if (endlessOn(course, cfg)) s.vx += s._wind * zoneWind(s.z, cfg) * dt; // zone wind, airborne lateral push
     s.vx -= s.vx * cfg.steerDamp * cfg.airSteerDampMul * dt;
   }
 
@@ -368,12 +401,31 @@ function core(s, course, input, cfg, events) {
   const prevY = s.y;
   s.x += s.vx * dt;
   s.z += s.speed * dt;
+  if (s.z > s.dist) s.dist = s.z;
   s.heading = Math.atan2(s.vx, Math.max(1, s.speed));
   s.roll += (clamp(-s.vx * 0.035, -0.6, 0.6) - s.roll) * Math.min(1, dt / ROLL_TAU);
 
   if (s.mode === 'ground') groundAfterMove(s, course, cfg, events, prevY, dt);
   else airAfterMove(s, course, cfg, events, dt);
   if (s.mode === 'tumble') return; // wreck landing
+
+  // zone crossing
+  if (endlessOn(course, cfg)) {
+    const zi = course.zoneAt ? course.zoneAt(s.z) : zoneAt(s.z, cfg);
+    const key = zi.lap * 8 + zi.zone;
+    if (s._zoneKey < 0) { s._zoneKey = key; s.zone = zi.zone; s.lap = zi.lap; }
+    else if (key !== s._zoneKey) {
+      s._zoneKey = key; s.zone = zi.zone; s.lap = zi.lap;
+      events.push({ type: 'zone_enter', zone: zi.zone, lap: zi.lap });
+    }
+  }
+
+  // Knockable props (set by main): clip, loss, events
+  if (s._props) {
+    const pe = s._props.clip(s);
+    if (pe && pe.length) for (let i = 0; i < pe.length; i++) events.push(pe[i]);
+    if (s._props.lastLoss > 0) s.speed *= 1 - s._props.lastLoss;
+  }
 
   if (!s.grounded && s.tAir > s.longestAir) s.longestAir = s.tAir;
 
@@ -446,7 +498,7 @@ function core(s, course, input, cfg, events) {
   flowDecay(s, cfg, events, dt);
 
   // Finish
-  if (s.z >= course.length) {
+  if (s.z >= course.length && course.length !== Infinity) {
     s.finished = true;
     s.charging = false;
     events.push({ type: 'finish', t: s.t, z: s.z });
@@ -531,7 +583,10 @@ function airAfterMove(s, course, cfg, events, dt) {
 function touchdown(s, course, cfg, events, n, vn, h) {
   const impact = Math.max(0, -vn);
   // read impact, then remove the normal velocity
+  const sp0 = s.speed;
   s.vx -= vn * n.x; s.vy -= vn * n.y; s.speed -= vn * n.z;
+  // Endless: a steep face must not convert fall speed into forward speed beyond the slope cap (keeps the speed table).
+  if (endlessOn(course, cfg)) s.speed = Math.min(s.speed, sp0 + SLOPE_NET_CAP);
   s.vx = clamp(s.vx, -cfg.maxLateral, cfg.maxLateral);
   s.y = h; s.bodyY = h + cfg.hoverHeight;
   const [hx, hz] = headingDir(s);

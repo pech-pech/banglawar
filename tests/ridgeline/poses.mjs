@@ -77,7 +77,7 @@ const hold = async (page) => { await page.mouse.move(237, 400); await page.mouse
 const release = async (page) => { await page.mouse.up(); };
 const audits = {};
 async function audit(page, name) { audits[name] = await page.evaluate(() => window.__A); }
-const FLY = { baseSpeed: 45, maxSpeed: 48, rockDensity: 0 };
+const FLY = { baseSpeed: 45, maxSpeed: 48, rockDensity: 0, vBase0: 45, vBaseGain: 0 }; // B2 endless: base speed comes from vBase0 + vBaseGain (endless.js baseSpeed)
 const rectOf = (page, sel) => page.evaluate((q) => { const e = document.querySelector(q); const r = e.getBoundingClientRect(); return { text: e.textContent, on: e.classList.contains('on'), top: Math.round(r.top), bottom: Math.round(r.bottom), left: Math.round(r.left), right: Math.round(r.right), fs: getComputedStyle(e).fontSize, op: getComputedStyle(e).opacity }; }, sel);
 
 try {

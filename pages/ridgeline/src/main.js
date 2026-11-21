@@ -2,6 +2,7 @@ import { hashSeed, dailySeedString, mulberry32 } from './rng.js';
 import { loadRapier, createPhysics } from './physics.js';
 import { cfg, isDefault, diffFromDefault } from './config.js';
 import { createCourse } from './terrain.js';
+import { createProps } from './props.js';
 import { FIXED_DT, createSled, stepSled } from './sled.js';
 import { medalTimes, medalFor, MEDALS } from './medals.js';
 import { createView } from './render.js';
@@ -17,13 +18,17 @@ import { HULLS, hullUnlocked } from './vis/index.js';
 const BUILD = 'ridgeline-proto-11';
 const BEST_KEY = 'ridgeline.best.v1';
 const COUNTER_KEY = 'ridgeline.counter.v1';
+const BESTDIST_KEY = 'ridgeline.bestdist.v1';
 const MAX_STEPS = 8;
 // look-still hook (?still=1): deterministic frame, sim frozen once gate 2 is the next gate. Not a shipped path.
 const STILL = new URLSearchParams(location.search).get('still') === '1';
+// the still hook needs a finite, deterministic course: it runs on a local cfg copy with endless off (DEFAULTS untouched)
+const STILL_CFG = STILL ? { ...cfg, endless: 0 } : null;
+const rc = () => (STILL ? STILL_CFG : cfg);
+const isEndless = () => !!course && !Number.isFinite(course.length);
 let stillState = 0; // 0 pending, 1 frozen
 // B4 VIS begin: visual showcase on unless ?vis=0 (or the still path). Home -> run -> end card flow lives in the vis block below.
 const VIS_ON = !STILL && new URLSearchParams(location.search).get('vis') !== '0';
-const BEST_DIST_KEY = 'ridgeline.bestdist.v1';
 const HULL_KEY = 'ridgeline.hull.v1';
 let runTop = 0, runLandings = 0;
 // B4 VIS end
@@ -38,7 +43,7 @@ function stillAdvance() {
   let n = 0;
   const SG = +(new URLSearchParams(location.search).get('stillgate')) || 2; // still-only: freeze when gate SG is next
   const IN0 = { steer: 0, fire: false, down: false };
-  const stepP = (inp) => { phys.update(state.z); return stepSled(state, course, inp, cfg); };
+  const stepP = (inp) => { phys.update(state.physZ ?? state.z); return stepSled(state, course, inp, rc()); };
   while (state.nextGate < SG && n < 60000 && !state.crashed) { stepP(IN0); n++; }
   const total = n;
   newSled();
@@ -91,6 +96,7 @@ let lastResult = null;
 let crashZ = null;
 let R = null; // rapier module once loaded
 let phys = null;
+let props = null;
 let physErr = null;
 let startAfterLoad = null;
 const physPromise = loadRapier().then((m) => { R = m; return m; });
@@ -121,6 +127,14 @@ function bestFor(key) {
   const b = loadBest()[key];
   return typeof b === 'number' ? b : null;
 }
+function bestDist() {
+  const n = parseFloat(lsGet(BESTDIST_KEY));
+  return Number.isFinite(n) ? n : null;
+}
+function saveBestDist(d) {
+  const old = bestDist();
+  if (old === null || d > old) lsSet(BESTDIST_KEY, String(d));
+}
 function saveBest(key, time) {
   try {
     const all = loadBest();
@@ -147,8 +161,8 @@ function size() {
 function viewOpts() { return { ...getVisualPrefs(), still: STILL, vis: VIS_ON ? visHooks : false }; } // B4 VIS: vis hooks
 function buildCourse() {
   if (view) { try { view.dispose(); } catch (e) { /* ignore */ } view = null; }
-  course = createCourse(seedInt, cfg);
-  view = createView(canvas, course, cfg, getThemeId(), viewOpts());
+  course = createCourse(seedInt, rc());
+  view = createView(canvas, course, rc(), getThemeId(), viewOpts());
   const [w, h] = size();
   view.resize(w, h);
   builtCfg = JSON.stringify(cfg);
@@ -156,9 +170,12 @@ function buildCourse() {
 
 function newSled() {
   if (phys) { try { phys.dispose(); } catch (e) { /* ignore */ } phys = null; }
-  phys = createPhysics(R, course, cfg);
+  phys = createPhysics(R, course, rc());
   phys.update(0);
+  if (props) { try { props.dispose(); } catch (e) { /* ignore */ } props = null; }
+  if (!STILL) props = createProps(R, phys, course, cfg);
   state = createSled(course, phys, mulberry32((seedInt ^ 0x5bd1e995) >>> 0));
+  state._props = props;
 }
 
 function begin(m, seedString) {
@@ -220,6 +237,23 @@ function endRun() {
   if (crashed) crashZ = state.z;
   if (finished) tele.finish();
   const key = mode + ':' + seedStr;
+  if (isEndless()) {
+    const distance = Math.floor(state.dist || state.z || 0);
+    const prevBest = bestDist();
+    saveBestDist(distance);
+    lastResult = {
+      result: crashed ? 'crash' : 'end', time: state.t, distance, gatesPassed: state.gatesPassed, gatesMissed: state.gatesMissed,
+      flow: flowInfo(), medal: null,
+    };
+    hud.showEnd({
+      endless: true, distance, crashed, finished: false, time: state.t, z: state.z, medal: null, flowPeak: state.flowPeak || 0,
+      gatesPassed: state.gatesPassed, gatesMissed: state.gatesMissed, best: bestDist(), bestDistance: bestDist(),
+      newBest: prevBest !== null && distance > prevBest,
+    });
+    if (VIS_ON) lastVisEnd = { finished: false, crashed }; // B4 VIS
+    visEnd(distance, prevBest ?? 0); // B4 VIS: spring end card, endless distance from B2
+    return;
+  }
   if (finished) saveBest(key, state.t);
   const result = finished ? 'finish' : (crashed ? 'crash' : 'end');
   const hidden = !isDefault() || !isVisualDefault();
@@ -254,9 +288,24 @@ function physLine() {
   return physErr ? 'Phys: load failed' : p ? 'Phys: ' + physText(p) : R ? 'Phys: loaded, no run yet' : 'Phys: loading...';
 }
 
+function endlessInfo() {
+  if (!course || !state || Number.isFinite(course.length)) return null;
+  let zn = '-', lap = '-';
+  try { const zi = course.zoneAt(state.z); zn = zi.name || zi.zone; lap = zi.lap; } catch (e) { /* ignore */ }
+  const ps = props && props.stats ? props.stats : {};
+  return {
+    dist: Math.floor(state.dist || 0), zone: zn, lap,
+    features: course.features ? course.features.length : 0,
+    rocks: state._rocks ? state._rocks.length : 0,
+    shifts: phys && phys.origin ? phys.origin.count : 0,
+    propsLive: props ? props.live() : 0, propsMax: cfg.propMaxDynamic ?? 16, hits: ps.hits || 0, frozen: ps.frozen || 0,
+  };
+}
+
 function buildInfo() {
   return {
     phys: physInfo(),
+    endless: endlessInfo(),
     build: BUILD, seed: seedStr, mode,
     result: lastResult ? lastResult.result : (phase === 'run' ? 'running' : 'none'),
     time: lastResult ? lastResult.time : (state ? state.t : 0),
@@ -308,7 +357,7 @@ function applyTheme(id) {
   hud.setThemeLabel(t.name || id);
   if (view) {
     if (typeof view.setTheme === 'function') view.setTheme(id);
-    else { try { view.dispose(); } catch (e) { /* ignore */ } view = createView(canvas, course, cfg, id, viewOpts()); const [w, h] = size(); view.resize(w, h); }
+    else { try { view.dispose(); } catch (e) { /* ignore */ } view = createView(canvas, course, rc(), id, viewOpts()); const [w, h] = size(); view.resize(w, h); }
   }
   for (const p of pickers) p.refresh();
   return true;
@@ -322,7 +371,7 @@ onVisualPrefs(() => {
   hud.setDev(!isDefault() || !isVisualDefault());
   if (!view) return;
   try { view.dispose(); } catch (e) { /* ignore */ }
-  view = createView(canvas, course, cfg, getThemeId(), viewOpts());
+  view = createView(canvas, course, rc(), getThemeId(), viewOpts());
   const [w, h] = size(); view.resize(w, h);
 });
 
@@ -337,10 +386,10 @@ hud.setDev(!isDefault() || !isVisualDefault());
 
 // B4 VIS begin: front door, garage, run start / end events, end card, photo
 let lastVisEnd = null;
-function bestDist() { const v = parseFloat(lsGet(BEST_DIST_KEY) || '0'); return Number.isFinite(v) ? v : 0; }
+const bestM = () => bestDist() ?? 0; // B2's bestDist() is null when there is no best yet
 function savedHull() {
   const h = lsGet(HULL_KEY) || 'wren';
-  return HULLS[h] && hullUnlocked(h, bestDist()) ? h : 'wren';
+  return HULLS[h] && hullUnlocked(h, bestM()) ? h : 'wren';
 }
 function peekSeed() {
   let n = parseInt(lsGet(COUNTER_KEY) || '0', 10);
@@ -356,7 +405,7 @@ function parkedState(c) {
 const visHooks = {
   getPhase: () => (phase === 'menu' ? 'home' : phase),
   hull: savedHull,
-  bestM: bestDist,
+  bestM,
   onRun: () => startMode('random'),
   onDaily: () => startMode('daily'),
   onGarage: () => { if (phase === 'home') phase = 'garage'; },
@@ -366,6 +415,7 @@ const visHooks = {
 };
 function goHome() {
   if (!VIS_ON) return;
+  if (props) { try { props.dispose(); } catch (e) { /* ignore */ } props = null; } // B2 props live in phys' world: free first
   if (phys) { try { phys.dispose(); } catch (e) { /* ignore */ } phys = null; }
   phase = 'home';
   lastResult = null; lastVisEnd = null;
@@ -384,12 +434,14 @@ function visRunStart() {
   view.vis.attachPhys(phys);
   view.vis.fx({ type: 'run_start' });
 }
-function visEnd() {
+// endless runs pass B2's distance + the best before this run (endRun already saved it); finite runs compute + save here
+function visEnd(endDist, endPrev) {
   if (!VIS_ON || !view || !view.vis || !state) return;
   const v = view.vis;
-  const dist = typeof state.dist === 'number' ? state.dist : Math.max(0, state.z);
-  const prev = bestDist();
-  if (dist > prev) lsSet(BEST_DIST_KEY, String(Math.round(dist)));
+  const fromEndless = typeof endDist === 'number';
+  const dist = fromEndless ? endDist : (typeof state.dist === 'number' ? state.dist : Math.max(0, state.z));
+  const prev = fromEndless ? endPrev : bestM();
+  if (!fromEndless && dist > prev) lsSet(BESTDIST_KEY, String(Math.round(dist)));
   const caught = !!state.caught;
   v.fx({ type: caught ? 'caught' : 'run_over' });
   const cause = caught ? 'caught' : lastVisEnd && lastVisEnd.finished ? 'finish' : 'run_over';
@@ -537,8 +589,9 @@ function frame(now) {
     fireNext = false;
     const inp = { steer: input.steer, fire, down: currentDown() };
     if (view && view.vis) view.vis.setInput(input.steer); // B4 VIS: steer for fins / lean
-    phys.update(state.z);
-    const evs = stepSled(state, course, inp, cfg);
+    phys.update(state.physZ ?? state.z);
+    if (props) props.update(state.z);
+    const evs = stepSled(state, course, inp, rc());
     tele.step(FIXED_DT, input.steer, state.speed, state.charging, Math.abs(state.x - course.centerX(state.z)) > course.halfWidth(state.z));
     for (let i = 0; i < evs.length; i++) {
       const ev = evs[i];
@@ -558,6 +611,7 @@ function frame(now) {
     if (state.crashed || state.finished) { endRun(); break; }
   }
   if (steps >= MAX_STEPS) acc = 0;
+  if (props && view && view.setProps) view.setProps(props.poses());
   if (view) view.draw(state, now / 1000);
   hud.update(state, fpsNow);
 }
@@ -574,7 +628,9 @@ window.__ridgeline = {
   get ready() { return !!R; },
   start(m) { startMode(m === 'random' ? 'random' : 'daily'); },
   stats() { return view ? view.stats() : null; },
-  medals() { return medalTimes(course, cfg); },
+  get props() { return props; },
+  get fps() { return fpsNow; },
+  medals() { return isEndless() ? null : medalTimes(course, cfg); },
   report() { return buildReport(buildInfo()); },
   // B4 VIS begin
   get phase() { return phase; },

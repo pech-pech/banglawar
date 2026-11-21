@@ -13,7 +13,7 @@ const { createCourse } = await import(src + '/terrain.js');
 const { FIXED_DT, createSled, stepSled } = await import(src + '/sled.js');
 
 const seeds = Array.from({ length: 20 }, (_, i) => hashSeed('bot-seed-' + i));
-const mk = (s) => { resetCfg(); return createCourse(s, cfg); };
+const mk = (s) => { resetCfg(); cfg.endless = 0; return createCourse(s, cfg); };
 const J = JSON.stringify;
 
 test('rng repeatable', () => {
@@ -127,7 +127,7 @@ const rows = [];
 const MAX = 120 * 240;
 
 // ---- Safe lane ----
-const mkD = (s, density) => { resetCfg(); if (density != null) cfg.rockDensity = density; return createCourse(s, cfg); };
+const mkD = (s, density) => { resetCfg(); cfg.endless = 0; if (density != null) cfg.rockDensity = density; return createCourse(s, cfg); };
 
 test('safe lane: clearance >= 2.4 m from every rock, slope <= 0.22, inside course', () => {
   for (const density of [null, 2.0]) {

@@ -32,6 +32,7 @@ function scriptedInput(seed) {
 }
 
 function runOnce(seed) {
+  cfg.endless = 0; // finite course (DEFAULTS.endless is 1)
   const course = createCourse(seed, cfg);
   const phys = createPhysics(R, course, cfg);
   try {

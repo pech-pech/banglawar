@@ -6,6 +6,7 @@ import assert from 'node:assert/strict';
 import * as THREE from '../../pages/ridgeline/vendor/three.module.js';
 import { loadRapier, createPhysics } from '../../pages/ridgeline/src/physics.js';
 import { createCourse } from '../../pages/ridgeline/src/terrain.js';
+import { createProps } from '../../pages/ridgeline/src/props.js';
 import { createSled, stepSled, FIXED_DT } from '../../pages/ridgeline/src/sled.js';
 import { cfg, DEFAULTS, META } from '../../pages/ridgeline/src/config.js';
 import { mulberry32 } from '../../pages/ridgeline/src/rng.js';
@@ -31,10 +32,12 @@ function input(seed) {
 function run(seed, withVis) {
   const course = createCourse(seed, cfg);
   const phys = createPhysics(R, course, cfg);
-  let vis = null;
+  let vis = null, props = null;
   try {
     phys.update(0);
+    props = createProps(R, phys, course, cfg); // B2: mirror main.js newSled + loop (props, physZ)
     const s = createSled(course, phys, mulberry32((seed ^ 0x5bd1e995) >>> 0));
+    s._props = props;
     if (withVis) {
       const scene = new THREE.Scene(); scene.fog = new THREE.FogExp2(0xffb070, 0.01); scene.background = new THREE.Color(0xffb070);
       const camera = new THREE.PerspectiveCamera(66, 475 / 638, 0.5, 300);
@@ -46,7 +49,8 @@ function run(seed, withVis) {
     const inp = input(seed), events = [];
     let i = 0;
     while (i < STEPS && !s.crashed && !s.finished) {
-      phys.update(s.z);
+      phys.update(s.physZ ?? s.z);
+      props.update(s.z);
       const ip = inp(i);
       const evs = stepSled(s, course, ip, cfg);
       for (const ev of evs) { events.push(ev); if (vis) vis.fx(ev); }
@@ -54,8 +58,8 @@ function run(seed, withVis) {
       i++;
     }
     if (vis) vis.fx({ type: 'run_over' });
-    return JSON.stringify({ events, hash: phys.hash(), x: s.x, y: s.y, z: s.z, speed: s.speed, steps: i }, round);
-  } finally { if (vis) vis.dispose(); phys.dispose(); }
+    return JSON.stringify({ events, hash: phys.hash(), x: s.x, y: s.y, z: s.z, dist: s.dist, speed: s.speed, steps: i, shifts: phys.origin ? phys.origin.count : 0, props: props.stats }, round);
+  } finally { if (vis) vis.dispose(); if (props) props.dispose(); phys.dispose(); }
 }
 
 test('replay hash + event log identical with vis ON vs OFF', () => {
@@ -73,4 +77,14 @@ test('config.js look keys match every vis module KEYS (Look FX group)', () => {
     if (k !== 'lookReducedMotion') assert.equal(DEFAULTS[k], v.def, k);
     assert.equal(META[k].min, v.min, k); assert.equal(META[k].max, v.max, k); assert.equal(META[k].step, v.step, k);
   }
+});
+
+test('replay identical with vis ON vs OFF across B2 floating-origin shifts (vis.attachPhys fan-out)', () => {
+  const old = cfg.originShift;
+  cfg.originShift = 100; // shift every 100 m so a 25 s run crosses several
+  try {
+    const off = run(2024, false), on = run(2024, true);
+    assert.ok(JSON.parse(off).shifts >= 2, 'expected origin shifts');
+    assert.equal(on, off);
+  } finally { cfg.originShift = old; }
 });
