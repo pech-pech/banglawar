@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Ridgeline Audio</title>
+<style>
+:root{--bg:#1d1420;--fg:#f4e6d4;--mut:#b9a48f;--acc:#ff9a5c;--card:#2a1d2c}
+@media (prefers-color-scheme:light){:root{--bg:#fbf1e3;--fg:#2b1d22;--mut:#7a6558;--acc:#d2551c;--card:#f1e2cc}}
+*{box-sizing:border-box}body{margin:0;padding:16px;background:var(--bg);color:var(--fg);font:16px/1.4 system-ui,sans-serif;max-width:640px;margin-inline:auto}
+h1{font-size:22px;margin:0 0 4px}h2{font-size:15px;color:var(--mut);margin:22px 0 8px;text-transform:uppercase;letter-spacing:.06em}
+p{color:var(--mut);margin:4px 0 12px;font-size:14px}.grid{display:flex;flex-wrap:wrap;gap:8px}
+button{font:inherit;color:var(--fg);background:var(--card);border:1px solid var(--mut);border-radius:10px;padding:10px 14px;min-height:44px}
+button:active,button.on{background:var(--acc);color:#1d1420;border-color:var(--acc)}
+.row{display:flex;align-items:center;gap:10px;margin:6px 0}.row label{width:90px;font-size:14px}.row input{flex:1}
+</style></head><body>
+<h1>Ridgeline audio</h1><p>Procedural SFX + free CC0 music. Tap once to unlock sound.</p>
+<button id="unlock">Unlock audio</button>
+<h2>Levels</h2><div id="lv"></div>
+<h2>Music</h2><div class="grid"><button data-bgm="run">Run: Against Wanderlust</button><button data-bgm="menu">Menu: Desert Pink and Navy Blue</button><button data-bgm="">Stop</button></div>
+<h2>Ambience (drive by hand)</h2>
+<div class="row"><label>speed</label><input id="sp" type="range" min="0" max="68" value="0"></div>
+<div class="row"><label>air time</label><input id="at" type="range" min="0" max="3" step="0.1" value="0"></div>
+<div class="grid"><button id="tg" data-flag="grounded">Grounded</button><button data-flag="airborne">Airborne</button><button data-flag="diving">Dive</button><button data-flag="tumbling">Tumble</button><button id="bo">Boost glow</button></div>
+<h2>Gate chain (climbs with flow)</h2><div class="grid" id="chain"></div>
+<h2>One-shots</h2><div class="grid" id="cues"></div>
+<h2>Landings and props</h2><div class="grid" id="ev"></div>
+<script type="module">
+import { RidgelineAudio, CUES } from './audio.js';
+const au = new RidgelineAudio({ bgmBase: './bgm/' });
+const $ = s => document.querySelector(s), mk = (p, t, f) => { const b = document.createElement('button'); b.textContent = t; b.onclick = () => { au.unlock(); f(b); }; p.append(b); };
+$('#unlock').onclick = () => au.unlock();
+const lv = $('#lv'); for (const k of ['master', 'sfx', 'amb', 'bgm']) { const r = document.createElement('div'); r.className = 'row'; r.innerHTML = `<label>${k}</label><input type=range min=0 max=1 step=.05 value=${au.lv[k]}>`; r.querySelector('input').oninput = e => { au.unlock(); au.setLevels({ [k]: +e.target.value }); }; lv.append(r); }
+const m = document.createElement('button'); m.textContent = 'Mute'; m.onclick = () => { au.unlock(); au.setLevels({ muted: !au.lv.muted }); m.classList.toggle('on', au.lv.muted); }; lv.append(m);
+document.querySelectorAll('[data-bgm]').forEach(b => b.onclick = () => { au.unlock(); au.bgm(b.dataset.bgm || null); });
+const S = { speed: 0, airT: 0, grounded: true, airborne: false, diving: false, tumbling: false, boost: 0 }, push = () => au.setState(S);
+$('#sp').oninput = e => { au.unlock(); S.speed = +e.target.value; push(); }; $('#at').oninput = e => { au.unlock(); S.airT = +e.target.value; push(); };
+document.querySelectorAll('[data-flag]').forEach(b => b.onclick = () => { au.unlock(); const f = b.dataset.flag; if (f === 'grounded') { S.grounded = true; S.airborne = false; } else if (f === 'airborne') { S.airborne = !S.airborne; S.grounded = !S.airborne; } else S[f] = !S[f]; b.classList.toggle('on', !!S[f]); push(); });
+$('#bo').onclick = e => { au.unlock(); S.boost = S.boost ? 0 : 1; e.target.classList.toggle('on', !!S.boost); push(); };
+for (let i = 0; i < 12; i++) mk($('#chain'), 'link ' + (i + 1), () => au.play('gate', { link: i }));
+for (const c of CUES) mk($('#cues'), c, () => au.play(c, { tier: 'inner', link: 2, kind: 'post', impulse: .6, grade: 'rough', impact: .6, on: true }));
+for (const g of ['clean', 'rough', 'slam', 'wreck']) for (const i of [.2, .9]) mk($('#ev'), `land ${g} ${i < .5 ? 'soft' : 'hard'}`, () => au.event('land', { grade: g, impact: i }));
+for (const k of ['post', 'flag', 'cairn', 'boulder']) for (const i of [.2, 1]) mk($('#ev'), `${k} ${i < .5 ? 'tap' : 'smash'}`, () => au.event('prop_hit', { kind: k, impulse: i }));
+for (const t of ['outer', 'inner', 'razor']) mk($('#ev'), 'graze ' + t, () => au.event('graze', { tier: t }));
+mk($('#ev'), 'launch', () => au.event('launch', { speed: 45 })); mk($('#ev'), 'tumble start', () => au.event('tumble_start', { cause: 'rock' })); mk($('#ev'), 'tumble rest', () => au.event('tumble_rest', {}));
+</script></body></html>
