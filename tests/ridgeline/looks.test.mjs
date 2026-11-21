@@ -84,6 +84,8 @@ test('every src module in the main.js import graph is in sw.js FILES', () => {
     const rel = './' + path.relative(base, f).split(path.sep).join('/');
     assert.ok(sw.includes("'" + rel + "'"), 'sw.js FILES missing ' + rel);
   }
-  assert.match(sw, /VERSION = 'rl-proto-8'/);
-  for (const f of ['./src/looks.js', './src/lookparts.js']) assert.ok(sw.includes("'" + f + "'"), 'sw.js missing ' + f);
+  for (const f of ['./src/duneatlas.js', './src/dunefx.js']) assert.ok(seen.has(path.join(src, f.slice(6))), f + ' is in the main.js import graph');
+  assert.ok(fs.existsSync(path.resolve(src, '../assets/dune-atlas.webp')), 'atlas webp exists on disk');
+  assert.match(sw, /VERSION = 'rl-proto-9'/);
+  for (const f of ['./src/looks.js', './src/lookparts.js', './src/duneatlas.js', './src/dunefx.js', './assets/dune-atlas.webp']) assert.ok(sw.includes("'" + f + "'"), 'sw.js missing ' + f);
 });

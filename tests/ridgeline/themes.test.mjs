@@ -11,9 +11,9 @@ const { DEFAULT_THEME, THEME_ORDER, THEMES } = await import(pathToFileURL(themes
 const REQUIRED = ['snow', 'candy', 'jurassic', 'blocky', 'cloud', 'ink'];
 const COLOR_KEYS = ['sky', 'groundLow', 'groundHigh', 'bank', 'rock', 'treeTrunk', 'treeLeaf',
   'gate', 'gateNext', 'sled', 'sledGlow', 'boostFlare', 'sun', 'hemiSky', 'hemiGround'];
-const TREE = ['cone', 'lollipop', 'fern', 'cube', 'puff', 'brush', 'crystal', 'cactus'];
+const TREE = ['cone', 'lollipop', 'fern', 'cube', 'puff', 'brush', 'crystal', 'cactus', 'windharp'];
 const ROCK = ['boulder', 'gumdrop', 'bone', 'cube', 'cloud', 'blot', 'crystal'];
-const PART = ['snow', 'sprinkles', 'spores', 'none', 'mist', 'ink', 'embers', 'sand'];
+const PART = ['snow', 'sprinkles', 'spores', 'none', 'mist', 'ink', 'embers', 'sand', 'dust'];
 const isColor = (n) => Number.isInteger(n) && n >= 0 && n <= 0xFFFFFF;
 
 const rgb = (n) => [(n >> 16) & 255, (n >> 8) & 255, n & 255];
@@ -85,14 +85,18 @@ const fmt = (x) => x.toFixed(2);
 for (const id of ids) {
   const t = get(id);
   if (!t || !isColor(t.rock)) continue;
+  // Soft-look themes (dune) use groundLow 0 / groundHigh white as a vertex-colour ramp driver, not visible
+  // colours; the visible ground there is the hemiSky dusk tone, so gate/sled readability is measured against it.
+  const ramp = t.groundLow === 0x000000 && t.groundHigh === 0xffffff;
+  const gh = ramp ? t.hemiSky : t.groundHigh;
   rows.push({
     id,
     rockLow: contrast(t.rock, t.groundLow),
     rockHigh: contrast(t.rock, t.groundHigh),
-    gateCr: contrast(t.gate, t.groundHigh),
-    gateHue: hueDiff(t.gate, t.groundHigh),
-    sledCr: contrast(t.sled, t.groundHigh),
-    sledHue: hueDiff(t.sled, t.groundHigh),
+    gateCr: contrast(t.gate, gh),
+    gateHue: hueDiff(t.gate, gh),
+    sledCr: contrast(t.sled, gh),
+    sledHue: hueDiff(t.sled, gh),
   });
 }
 
@@ -102,7 +106,9 @@ test('readability', async (tt) => {
       const t = get(id);
       const r = rows.find((x) => x.id === id);
       assert.ok(r, 'measured');
-      assert.ok(r.rockLow >= 2.0, `rock vs groundLow ${fmt(r.rockLow)} < 2.0`);
+      // dune's groundLow is 0x000000: a vertex-colour ramp driver (soft look maps it to hollows lit by the
+      // sky/haze palette), not a visible ground colour, so rock-vs-groundLow contrast is meaningless there.
+      if (t.groundLow !== 0x000000) assert.ok(r.rockLow >= 2.0, `rock vs groundLow ${fmt(r.rockLow)} < 2.0`);
       assert.ok(r.rockHigh >= 2.0, `rock vs groundHigh ${fmt(r.rockHigh)} < 2.0`);
       assert.ok(r.gateCr >= 1.6 || r.gateHue >= 60, `gate vs groundHigh contrast ${fmt(r.gateCr)}, hue diff ${r.gateHue.toFixed(0)}`);
       assert.notEqual(t.gateNext, t.gate, 'gateNext must differ from gate');
@@ -123,4 +129,18 @@ test('write contrast table', () => {
   const outDir = path.join(here, 'out');
   fs.mkdirSync(outDir, { recursive: true });
   fs.writeFileSync(path.join(outDir, 'theme-contrast.txt'), text);
+});
+
+test('saved snow migrates to dune once, then the player pick is respected', async () => {
+  const store = { 'ridgeline.theme.v1': 'snow' };
+  globalThis.localStorage = { getItem: (k) => (k in store ? store[k] : null), setItem: (k, v) => { store[k] = String(v); } };
+  globalThis.location = { search: '' };
+  const uiPath = path.resolve(here, '../../pages/ridgeline/src/themeui.js');
+  const ui = await import(pathToFileURL(uiPath).href + '?mig');
+  assert.equal(ui.getThemeId(), 'dune');
+  assert.equal(store['rl-dune-default-v1'], '1');
+  ui.setThemeId('ink');
+  assert.equal(ui.migrateDefaultTheme(), false);
+  assert.equal(ui.getThemeId(), 'ink');
+  delete globalThis.localStorage; delete globalThis.location;
 });

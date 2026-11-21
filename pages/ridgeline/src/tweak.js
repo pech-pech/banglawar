@@ -1,6 +1,6 @@
 // Ridgeline tweak panel (slice 6). DOM only.
 import { formatTelemetry } from './telemetry.js';
-import { DEFAULTS, cfg, META, setCfg, resetCfg, isDefault, diffFromDefault, applyPreset } from './config.js';
+import { DEFAULTS, cfg, META, setCfg, resetCfg, isDefault, diffFromDefault, applyPreset, DUNE_KEYS } from './config.js';
 
 const KEY = 'ridgeline.presets.v1';
 const VKEY = 'rl-visual';
@@ -109,7 +109,10 @@ export function buildReport(info) {
   const num = (v, d) => (typeof v === 'number' && isFinite(v) ? v.toFixed(d) : fmt(v));
   const gp = info.gatesPassed, gm = info.gatesMissed;
   const gates = info.gates !== undefined ? fmt(info.gates) : (gp !== undefined || gm !== undefined ? `${fmt(gp)} passed / ${fmt(gm)} missed` : '-');
-  const diff = diffFromDefault();
+  const allDiff = diffFromDefault();
+  const duneKeys = Object.values(DUNE_KEYS);
+  const diff = {};
+  for (const k of Object.keys(allDiff)) if (!duneKeys.includes(k)) diff[k] = allDiff[k];
   const keys = Object.keys(diff);
   const lines = [
     'Ridgeline report',
@@ -128,6 +131,10 @@ export function buildReport(info) {
     'cfg diff: ' + (keys.length ? '' : '(defaults)')
   ];
   for (const k of keys) lines.push(`  ${k}: ${diff[k]} (default ${DEFAULTS[k]})`);
+  const dn = [];
+  for (const [name, k] of Object.entries(DUNE_KEYS)) if (allDiff[k] !== undefined) dn.push(`${name} ${allDiff[k]} (default ${DEFAULTS[k]})`);
+  const atlas = typeof window !== 'undefined' && window.__duneAtlas ? String(window.__duneAtlas) : 'n/a';
+  lines.push('dune: theme ' + fmt(info.theme) + ', atlas ' + (atlas === 'ok' ? 'loaded yes' : atlas === 'fail' ? 'loaded no' : atlas === 'pending' ? 'pending' : 'n/a') + ', calls ' + fmt(st.calls) + ', tris ' + fmt(st.triangles) + ', tweaks ' + (dn.length ? dn.join(', ') : '(defaults)'));
   const fl = info.flow, md = info.medal;
   lines.push('Flow: ' + (fl ? `peak ${fmt(fl.peak)}, links ${fmt(fl.links)}, razor ${fmt(fl.razors)}, inner ${fmt(fl.inners)}, centred gates ${fmt(fl.centred)}, boost links ${fmt(fl.boostLinks)}, flow5 ${num(fl.flow5T, 1)} s` : '-'));
   lines.push('Medal: ' + (!md ? '-' : md.hidden ? 'off (DEV)' : `${md.name || 'none'} (gold ${num(md.gold, 1)} s, summit ${num(md.summit, 1)} s)`));

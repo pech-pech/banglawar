@@ -41,6 +41,14 @@ export const DEFAULTS = Object.freeze({
   medalSummit: 0.95,
   medalSilver: 1.12,
   medalBronze: 1.28,
+  // Sunset Dunes look values the renderer reads via cfg.look.dune (see the accessor view below).
+  duneGateBright: 1.0,
+  duneFlagBright: 1.0,
+  duneNextGlow: 1.0,
+  duneNearFade: 6,
+  duneFogFar: 1.0,
+  duneHaze: 1.0,
+  duneGlints: 1,
 });
 
 // Slider metadata for the Tweak menu. Each range brackets its default.
@@ -84,9 +92,36 @@ export const META = Object.freeze({
   medalSummit:     { min: 0.8,  max: 1,    step: 0.005, label: 'Summit x gold' },
   medalSilver:     { min: 1,    max: 1.3,  step: 0.005, label: 'Silver x gold' },
   medalBronze:     { min: 1,    max: 1.6,  step: 0.01,  label: 'Bronze x gold' },
+  duneGateBright:  { min: 0.4,  max: 2,    step: 0.05,  label: 'Dune: gate tint brightness x' },
+  duneFlagBright:  { min: 0.4,  max: 2,    step: 0.05,  label: 'Dune: pennant / flag brightness x' },
+  duneNextGlow:    { min: 0,    max: 3,    step: 0.05,  label: 'Dune: next-gate glow x' },
+  duneNearFade:    { min: 0,    max: 30,   step: 0.5,   label: 'Dune: billboard near-fade distance (m)' },
+  duneFogFar:      { min: 0,    max: 2,    step: 0.05,  label: 'Dune: far fog strength x' },
+  duneHaze:        { min: 0,    max: 2,    step: 0.05,  label: 'Dune: haze / sun strength x' },
+  duneGlints:      { min: 0,    max: 1,    step: 1,     label: 'Dune: glints (0 off, 1 on)' },
 });
 
 export const cfg = { ...DEFAULTS };
+
+// cfg.look.dune: live view of the dune look values under short names. Properties read and write the flat cfg keys
+// (so Tweak sliders, presets, Reset all, the DEV badge and the report diff all cover them). glints is a boolean here.
+// Non-enumerable so spreading or serialising cfg is unchanged.
+export const DUNE_KEYS = Object.freeze({
+  gateBright: 'duneGateBright', flagBright: 'duneFlagBright', nextGlow: 'duneNextGlow',
+  nearFade: 'duneNearFade', fogFar: 'duneFogFar', haze: 'duneHaze', glints: 'duneGlints',
+});
+{
+  const dune = {};
+  for (const name of Object.keys(DUNE_KEYS)) {
+    const key = DUNE_KEYS[name];
+    Object.defineProperty(dune, name, {
+      enumerable: true,
+      get: () => (name === 'glints' ? cfg[key] >= 0.5 : cfg[key]),
+      set: (v) => { cfg[key] = name === 'glints' ? (v ? 1 : 0) : v; },
+    });
+  }
+  Object.defineProperty(cfg, 'look', { enumerable: false, value: { dune } });
+}
 
 const has = (key) => Object.prototype.hasOwnProperty.call(DEFAULTS, key);
 

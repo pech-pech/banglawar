@@ -4,6 +4,18 @@ import { DEFAULT_THEME, THEME_ORDER, THEMES } from './themes.js';
 const KEY = 'ridgeline.theme.v1';
 const STYLE_ID = 'rl-themepicker-style';
 
+// One-time migration: phones with 'snow' (or any older pick) saved move to the new default look once, then the pick is theirs.
+const MIGRATE_FLAG = 'rl-dune-default-v1';
+export function migrateDefaultTheme() {
+  try {
+    if (localStorage.getItem(MIGRATE_FLAG)) return false;
+    localStorage.setItem(KEY, 'dune');
+    localStorage.setItem(MIGRATE_FLAG, '1');
+    return true;
+  } catch (e) { return false; /* storage unavailable: DEFAULT_THEME applies */ }
+}
+migrateDefaultTheme();
+
 export function getThemeId() {
   try { const q = new URLSearchParams(location.search); if (q.get('still') === '1') { const t = q.get('theme'); if (t && Object.prototype.hasOwnProperty.call(THEMES, t)) return t; } } catch (e) { /* ignore */ }
   try {

@@ -3,7 +3,13 @@
 // Rules: scenery colours sit 60+ RGB units from each theme's rock / gate / gateNext; dark ground (jurassic, geode) gets no
 // tint lighter than groundHigh. lookFor() is a SHALLOW merge: a theme overrides a nested object whole, never one field of it.
 
+// Round-2 colours that used to be hardcoded (scarf/flag in lookparts.js makeSledModel, tuft + chip colours in render.js).
+// Per-theme data: every non-dune theme spreads this (same values as before, so output is unchanged); a theme can override any key.
+// render.js still hardcodes the tuft/chip colours (cTuftA/B, cChipA/B); it should read LOOK.tuftCol / LOOK.chipCol.
+const ROUND2 = { scarf: '#ffc933', tuftCol: ['#cfe0f3', '#86abda'], chipCol: ['#b6cfea', '#ffffff'] };
+
 export const LOOK_BASE = {
+  ...ROUND2,
   name: 'Cut-Paper Pop', paper: true,
   // t = elevation / 90 deg. 4 hard bands (equal t on two stops = seam), compressed because portrait framing sees about 0-25 deg of sky.
   sky: [[0, '#fbf0d9'], [0.025, '#fbf0d9'], [0.025, '#a9d2ee'], [0.05, '#a9d2ee'], [0.05, '#6fa3e0'], [0.075, '#6fa3e0'], [0.075, '#3b6fc4'], [1, '#3b6fc4']],
@@ -52,10 +58,11 @@ const blob = (col, alpha) => ({ ...LOOK_BASE.blob, col, alpha });
 const vig = (r, g, b, a) => `radial-gradient(ellipse at 50% 45%, rgba(${r},${g},${b},0) 55%, rgba(${r},${g},${b},${a.toFixed(2)}) 100%)`;
 
 export const THEME_LOOKS = {
-  snow: {},
+  snow: { ...ROUND2 },
 
   // Sugar Summit: gumdrops the only dark shapes; banks mint in both tones; teal poles; red/orange on gates only.
   candy: {
+    ...ROUND2,
     sky: bands('#fff6da', '#ffd3e8', '#f3a8d6', '#b48ae0'),
     sun: sun('#fffbe6', '#ffe9f4'),
     ranges: ranges(['#f0a6cc', '#d77fb5', '#c0629f'], '#ffffff'),
@@ -72,6 +79,7 @@ export const THEME_LOOKS = {
   // Fern Caldera (DARK ground): pale amber haze kept; bones stay the lightest course objects; plain ridges.
   // If M picks dusk: swap sky stop 0 + fogColor to '#8a6a4a'.
   jurassic: {
+    ...ROUND2,
     sky: bands('#ecca94', '#d8b486', '#b3977f', '#77808a'),
     sun: sun('#ffd596', '#f0cf96'),
     ranges: ranges(['#8f9a66', '#5f7044', '#45562f'], '#c9cf9c'),
@@ -87,6 +95,7 @@ export const THEME_LOOKS = {
 
   // Block Peak: stepped mesas, flat colour per face; plum cubes darkest on cream.
   blocky: {
+    ...ROUND2,
     sky: bands('#fff0c9', '#f9c08f', '#e59a8d', '#8a86c9'),
     sun: sun('#fff5d6', '#ffe2b4'),
     ranges: ranges(['#dc9f84', '#b8736a', '#9a5a5c'], '#fff6dc', { stepped: true }),
@@ -103,6 +112,7 @@ export const THEME_LOOKS = {
 
   // Cloudcrest: ranges are pale cloud banks, never slate; hazards the one dark value.
   cloud: {
+    ...ROUND2,
     sky: bands('#fdf2dc', '#b9daf6', '#74aef0', '#3a74d0'),
     sun: sun('#fff8e1', '#d6e9fb'),
     ranges: ranges(['#d9e8ff', '#b3cdf6', '#a3c2f4'], '#ffffff'),
@@ -119,7 +129,7 @@ export const THEME_LOOKS = {
 
   // Inkfall point of difference under C: brush-edge ranges, grey-wash keylines (not black), only hazards pure black,
   // red on gates only (no red / orange / blue in sky, sun or trail), sled glow moved off orange to ink-blue via sledC.
-  ink: { trailW: 0.13,
+  ink: { ...ROUND2, trailW: 0.13,
     sky: bands('#f7f1e1', '#f4eddb', '#efe7d2', '#e9e0c8'),
     sun: sun('#ddd2b6', '#ebe2ca'),
     ranges: ranges(['#d9d3c2', '#c6c0ae', '#b1ab99'], '#f7f1e1', { brush: true }),
@@ -173,6 +183,7 @@ export const THEME_LOOKS = {
 
   // Night Geode (DARK ground): the "sun" is a violet moon; ranges, caps, poles, trail violet and dimmer than the ice hazards.
   geode: {
+    ...ROUND2,
     sky: bands('#33206e', '#22155a', '#160c3c', '#0b0620'),
     sun: { ...sun('#8f7ad6', '#4a3a9a'), dir: [-0.2, -0.05, 0.98], size: 7 }, // QA fix1: dimmer, smaller moon moved off the gate line
     ranges: ranges(['#3d2c8a', '#281a60', '#1c1248'], '#6a54c8'),
