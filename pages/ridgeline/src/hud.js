@@ -54,6 +54,8 @@ body.rl-paper .rlh .rlh-razor{color:#24406e;text-shadow:none;-webkit-text-stroke
 .rlh-themebody{flex:1 1 auto;min-height:120px;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch}
 .rlh-box.pick .rlh-how,.rlh-box.pick .rlh-best{display:none}
 .rlh-hint{font-size:20px;font-weight:800;letter-spacing:.06em;padding:6px 14px;background:rgba(8,14,28,.8);border:1px solid rgba(255,255,255,.35);border-radius:12px;color:#ffb35a;max-width:100%;text-align:center}
+.rlh-bar>.rlh-hint:not(.rlh-lift){position:absolute;left:50%;transform:translateX(-50%);bottom:calc(122px + env(safe-area-inset-bottom,0px));white-space:nowrap}
+.rlh-chip{display:block;font-size:11px;font-weight:700;opacity:.85;margin-top:2px;font-variant-numeric:tabular-nums}
 .rlh-fps{position:absolute;left:10px;top:calc(76px + env(safe-area-inset-top,0px));font-size:11px;opacity:.85;padding:2px 6px;background:rgba(8,14,28,.6);border:1px solid rgba(255,255,255,.35);border-radius:6px;font-variant-numeric:tabular-nums}
 .rlh-dev{position:absolute;right:10px;top:calc(76px + env(safe-area-inset-top,0px));font-size:12px;font-weight:800;padding:2px 8px;background:#c0262d;border-radius:6px;letter-spacing:.08em}
 .rlh-word{position:absolute;left:50%;top:30%;transform:translate(-50%,-50%);font-size:clamp(24px,8vw,36px);font-weight:900;letter-spacing:.12em;color:#fff;text-shadow:0 2px 6px rgba(0,0,0,.7),0 0 12px var(--rl-accent,#ff8a1f);opacity:0;pointer-events:none;white-space:nowrap}
@@ -129,7 +131,16 @@ body.rl-paper .rlh .rlh-word{color:#24406e;text-shadow:none;background:#fff;bord
     return el('div', 'rlh-v', p, '');
   };
   const vTime = mk('Time'), vSpeed = mk('Speed'), vGates = mk('Gates');
+  // Endless mode (B2): detected per frame as state.dist != null (the sled reports max z there; finite runs never set it).
+  // The Time + Gates panels hide and one wide panel shows 'NNNN m' top centre; speed stays.
+  const pTime = vTime.parentNode, pGates = vGates.parentNode, pSpeed = vSpeed.parentNode;
+  const pDist = el('div', 'rlh-panel', top); pDist.hidden = true; pDist.style.cssText = 'flex:0 1 60%;margin:0 auto';
+  const kDist = el('div', 'rlh-k', pDist, 'Distance');
+  const vDist = el('div', 'rlh-v', pDist, '');
+  const chipEl = el('span', 'rlh-chip', pDist, '');
+  pTime.parentNode.insertBefore(pDist, pTime);
   const fpsEl = el('div', 'rlh-fps', run, '');
+  const showFps = /[?&]debug\b/.test(location.search); fpsEl.hidden = !showFps;
   const devEl = el('div', 'rlh-dev', run, 'DEV');
   devEl.hidden = true;
   const bar = el('div', 'rlh-bar', run);
@@ -164,7 +175,7 @@ body.rl-paper .rlh .rlh-word{color:#24406e;text-shadow:none;background:#fff;bord
   btn('Copy report', 'alt', r2, gated(() => call('onCopyReport')));
 
   let lastInfo = null, devOn = false, toastT = 0, razorT = 0;
-  const cache = { t: '', s: '', g: '', f: '', w: -1, rdy: null, fps: '', fl: -1, fw: -1 };
+  const cache = { ks: '', d: '', en: null, t: '', s: '', g: '', f: '', w: -1, rdy: null, fps: '', fl: -1, fw: -1 };
 
   function mode(m) {
     start.hidden = m !== 'start';
@@ -182,7 +193,7 @@ body.rl-paper .rlh .rlh-word{color:#24406e;text-shadow:none;background:#fff;bord
     mode('start');
   }
   function showRun() {
-    cache.t = cache.s = cache.g = cache.fps = ''; cache.w = -1; cache.rdy = null; cache.fl = -1; cache.fw = -1;
+    cache.t = cache.s = cache.g = cache.fps = cache.d = ''; cache.en = null; cache.w = -1; cache.rdy = null; cache.fl = -1; cache.fw = -1;
     hint.hidden = true;
     clearTimeout(wordT); wordEl.classList.remove('on'); liftEl.classList.remove('on');
     clearTimeout(razorT); razorEl.classList.remove('on'); pipsEl.classList.remove('pulse');
@@ -190,12 +201,15 @@ body.rl-paper .rlh .rlh-word{color:#24406e;text-shadow:none;background:#fff;bord
   }
   function update(state, fps) {
     if (!state || run.hidden) return;
+    const en = state.dist != null;
+    if (en !== cache.en) { cache.en = en; pDist.hidden = !en; pTime.hidden = pGates.hidden = pSpeed.hidden = en; }
+    if (en) { const d = Math.max(0, Math.floor(state.dist)) + ' m'; if (d !== cache.d) { cache.d = d; vDist.textContent = d; } const sp = Math.round(state.speed || 0) + ' m/s'; if (sp !== cache.ks) { cache.ks = sp; chipEl.textContent = sp; } }
     const t = (state.t || 0).toFixed(1) + ' s';
-    if (t !== cache.t) { cache.t = t; vTime.textContent = t; }
+    if (!en && t !== cache.t) { cache.t = t; vTime.textContent = t; }
     const s = Math.round(state.speed || 0) + ' m/s';
     if (s !== cache.s) { cache.s = s; vSpeed.textContent = s; }
     const g = (state.gatesPassed | 0) + ' / ' + (state.gatesMissed | 0) + ' miss';
-    if (g !== cache.g) { cache.g = g; vGates.textContent = g; }
+    if (!en && g !== cache.g) { cache.g = g; vGates.textContent = g; }
     const b = Math.max(0, Math.min(1, state.boost || 0));
     const w = Math.round(b * 100);
     if (w !== cache.w) { cache.w = w; fill.style.width = w + '%'; }
@@ -237,6 +251,15 @@ body.rl-paper .rlh .rlh-word{color:#24406e;text-shadow:none;background:#fff;bord
   }
   function showEnd(result) {
     const r = result || {};
+    if (r.endless) { // endless: distance result, no time / gates / medal rows
+      resEl.textContent = r.crashed ? 'CRASHED' : 'RUN OVER';
+      sTime.hidden = false; sTime.textContent = 'Distance ' + Math.round(r.distance || 0) + ' m';
+      sGates.hidden = r.best == null; sGates.textContent = 'Best ' + Math.round(r.best || 0) + ' m' + (r.newBest ? ' (new)' : '');
+      sExtra.hidden = true; sMedal.hidden = true;
+      if (r.flowPeak != null) { sFlow.hidden = false; sFlow.textContent = 'Flow peak ' + (r.flowPeak | 0); } else sFlow.hidden = true;
+      endAt = performance.now(); mode('end'); return;
+    }
+    sTime.hidden = sGates.hidden = false;
     resEl.textContent = r.crashed ? 'CRASHED' : (r.finished === false ? 'RUN OVER' : 'FINISHED');
     sTime.textContent = 'Time: ' + ((r.time ?? r.t) != null ? Number(r.time ?? r.t).toFixed(2) + ' s' : '-');
     sGates.textContent = 'Gates: ' + (r.gatesPassed | 0) + ' passed, ' + (r.gatesMissed | 0) + ' missed';

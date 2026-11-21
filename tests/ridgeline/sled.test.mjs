@@ -82,7 +82,7 @@ const CRESTS = [
   { z: 680, H: 1.5, L: 44 }, { z: 850, H: 3, L: 64 }, { z: 1030, H: 2, L: 48 },
 ];
 
-function mkCfg(over = {}) { return { ...DEFAULTS, ...over }; }
+function mkCfg(over = {}) { return { ...DEFAULTS, endless: 0, ...over }; } // finite course; DEFAULTS.endless is 1
 
 // Ride a course; script(i, s) -> input. Returns {s, ev, phys, under}.
 function ride(course, cfg, script, { steps = 120 * 60, setup, stopWhen, keepPhys = false } = {}) {

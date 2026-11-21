@@ -1010,6 +1010,73 @@ export function createView(canvas, course, cfg, themeId, opts) {
       lastNext = nextGate;
     }
 
+    // ---- B2 PROPS: drawProps (posts+flags and reeds from physics bodies; 2 extra draw calls, no per-frame allocation) ----
+    const propUp = new Map(); // gateId -> min post up-axis y (1 upright, 0 fallen): fades the ground strip
+    const propGate = new Map(); // gateId -> bit0 side0 prop, bit1 side1 prop, bit2 fallen (filled by drawProps, read by updateGates)
+    const PROP_POST_CAP = GATE_CAP * 2, PROP_REED_CAP = 24;
+    const mergeGeos = (parts) => {
+      let nv = 0, ni = 0;
+      for (const p of parts) { nv += p.attributes.position.count; ni += p.index.count; }
+      const pos = new Float32Array(nv * 3), nor = new Float32Array(nv * 3), idx = new Uint16Array(ni);
+      let vo = 0, io = 0;
+      for (const p of parts) {
+        pos.set(p.attributes.position.array, vo * 3); nor.set(p.attributes.normal.array, vo * 3);
+        for (let i = 0; i < p.index.count; i++) idx[io + i] = p.index.array[i] + vo;
+        vo += p.attributes.position.count; io += p.index.count; p.dispose();
+      }
+      const g = new THREE.BufferGeometry();
+      g.setAttribute('position', new THREE.BufferAttribute(pos, 3)); g.setAttribute('normal', new THREE.BufferAttribute(nor, 3)); g.setIndex(new THREE.BufferAttribute(idx, 1));
+      return track(g);
+    };
+    const ppGeo = (() => { // matches the physics post: cylinder 2.4 x r0.16 centred on the body, flag cuboid welded near the top
+      const c = new THREE.CylinderGeometry(0.16, 0.2, 2.4, 6);
+      const f = new THREE.BoxGeometry(0.9, 0.5, 0.04); f.translate(0.45 + 0.16, 1.2 - 0.35, 0);
+      return mergeGeos([c, f]);
+    })();
+    const prGeo = (() => { // 3-blade reed tuft, centred on the 0.9 m body
+      const parts = [];
+      for (let b = 0; b < 3; b++) {
+        const c = new THREE.ConeGeometry(0.07, 0.9, 4, 1); c.translate(0, 0, 0);
+        c.rotateZ((b - 1) * 0.22); c.rotateY(b * 2.1); c.translate(Math.sin(b * 2.1) * 0.08, 0, Math.cos(b * 2.1) * 0.08);
+        parts.push(c);
+      }
+      return mergeGeos(parts);
+    })();
+    const ppMat = track(new THREE.MeshBasicMaterial({ color: 0xffffff })); limitFog(ppMat, GFK, FOG_STEPS);
+    const prMat = track(new THREE.MeshLambertMaterial({ color: 0xffffff, flatShading: true })); stepFog(prMat, FOG_STEPS);
+    const propPosts = track(new THREE.InstancedMesh(ppGeo, ppMat, PROP_POST_CAP));
+    const propReeds = track(new THREE.InstancedMesh(prGeo, prMat, PROP_REED_CAP));
+    for (const im of [propPosts, propReeds]) { im.frustumCulled = false; im.count = 0; im.setColorAt(0, new THREE.Color(0xffffff)); scene.add(im); }
+    const _pq = new THREE.Quaternion();
+    function drawProps(camZ, nextGate) {
+      propGate.clear(); propUp.clear();
+      const list = propList;
+      let np = 0, nr = 0;
+      if (list) for (let i = 0; i < list.length; i++) {
+        const it = list[i];
+        if (it.kind === 'post') {
+          const id = it.id; // 'post:<gate>:<side>' parsed without allocating
+          let a = 5, gid = 0;
+          while (a < id.length) { const ch = id.charCodeAt(a++); if (ch === 58) break; gid = gid * 10 + ch - 48; }
+          const side = id.charCodeAt(id.length - 1) === 49 ? 2 : 1;
+          propGate.set(gid, (propGate.get(gid) | 0) | side | (it.fallen ? 4 : 0));
+          { const up = 1 - 2 * (it.qx * it.qx + it.qz * it.qz), pu = propUp.get(gid); if (pu === undefined || up < pu) propUp.set(gid, up); }
+          if (np >= PROP_POST_CAP || it.z < camZ + 2) continue;
+          const fade = it.fallen ? 1 : clamp((it.z - camZ - 8) / 6, 0, 1);
+          if (fade <= 0) continue;
+          if (gid === nextGate) _c.copy(COL_GATE_NEXT); else if (gid < nextGate) _c.copy(COL_GATE_DONE); else _c.copy(COL_GATE);
+          _p.set(it.x, it.y, it.z); _pq.set(it.qx, it.qy, it.qz, it.qw); _s.set(fade, fade, fade);
+          _m.compose(_p, _pq, _s); propPosts.setMatrixAt(np, _m); propPosts.setColorAt(np, _c); np++;
+        } else if (nr < PROP_REED_CAP && it.z > camZ + 2) {
+          _p.set(it.x, it.y, it.z); _pq.set(it.qx, it.qy, it.qz, it.qw); _s.set(1, 1, 1);
+          _m.compose(_p, _pq, _s); propReeds.setMatrixAt(nr, _m); propReeds.setColorAt(nr, (nr & 1) ? cTuftA : cTuftB); nr++;
+        }
+      }
+      propPosts.count = np; propReeds.count = nr;
+      propPosts.instanceMatrix.needsUpdate = propReeds.instanceMatrix.needsUpdate = true;
+      propPosts.instanceColor.needsUpdate = propReeds.instanceColor.needsUpdate = true;
+    }
+
     // per frame (cheap, <= GATE_CAP gates): gates shrink away inside 8 to 14 m of the camera and vanish once the sled has passed
     const FLASH_PASS = 0.15, FLASH_MISS = 0.4;
     let rn = 0;
@@ -1036,7 +1103,8 @@ export function createView(canvas, course, cfg, themeId, opts) {
         else if (fm !== undefined && t - fm < FLASH_MISS) bannerCol.copy(COL_MISS);
         const gw = gW[i] * fade; // the whole gate squeezes in as it fades, not just its height
         _q.identity();
-        if (boards) { // ONE gateFrame billboard: inner opening between the art's posts = gate width; vertical stretch clamped to +-20%
+        const pg = propGate.get(id) | 0, pk0 = (pg & 3) ? 0 : 1; // B2: bit0/1 = post prop exists (static posts scale to 0), bit2 = a post has fallen
+        if (boards && !(pg & 4)) { // ONE gateFrame billboard: inner opening between the art's posts = gate width; vertical stretch clamped to +-20%
           const bwq = gw * GATE.w / GATE.openW, nat = bwq * GATE.h / GATE.w, hh0 = Math.min(Math.max(3.2 * k, nat * 0.8), nat * 1.2);
           const vL = vis(gX[i] - 0.5 * gw, gz), vR = vis(gX[i] + 0.5 * gw, gz);
           _c3.copy(bannerCol).multiplyScalar((isNext ? 2.6 * dv('nextGlow', 1) : 2.1) * dv('gateBright', 1)); // the art is neutral grey: strong gain so far gates read periwinkle (not grey); the next gate stays the brightest
@@ -1045,7 +1113,7 @@ export function createView(canvas, course, cfg, themeId, opts) {
         for (let side = 0; side < 2 && !boards; side++) {
           const px = gX[i] + (side ? 0.5 : -0.5) * gw;
           _p.set(px, vis(px, gz), gz);
-          _s.set(k, k, k);
+          _s.set(k * pk0, k * pk0, k * pk0);
           _m.compose(_p, _q, _s);
           posts.setMatrixAt(n * 2 + side, _m); posts.setColorAt(n * 2 + side, _c);
           feet.setMatrixAt(n * 2 + side, _m); feet.setColorAt(n * 2 + side, _c);
@@ -1074,10 +1142,10 @@ export function createView(canvas, course, cfg, themeId, opts) {
             const px = gX[i] + (side ? 0.5 : -0.5) * gw;
             const py = vis(px, gz);
             const oi = n * 2 + side;
-            _p.set(px, py, gz); _s.set(k * sxz, k * 1.02, k * sxz);
+            _p.set(px, py, gz); _s.set(k * sxz * pk0, k * 1.02 * pk0, k * sxz * pk0);
             if (postsO) _m.compose(_p, _q, _s), postsO.setMatrixAt(oi, _m), postsO.setColorAt(oi, key);
             if (candy) for (let b = 0; b < 2; b++) {
-              _p.set(px, py + (0.9 + 1.2 * b) * k, gz); _s.set(k, k, k);
+              _p.set(px, py + (0.9 + 1.2 * b) * k, gz); _s.set(k * pk0, k * pk0, k * pk0);
               _m.compose(_p, _q, _s); candy.setMatrixAt(n * 4 + side * 2 + b, _m); candy.setColorAt(n * 4 + side * 2 + b, COL_WHITE);
             }
           }
@@ -1111,7 +1179,7 @@ export function createView(canvas, course, cfg, themeId, opts) {
           const gy2 = vis(gX[i], gz);
           for (let side = 0; side < 2; side++) {
             const px = gX[i] + (side ? 0.5 : -0.5) * gw;
-            _p.set(px - 0.15 * k, vis(px, gz) + 1.5 * k, gz - 0.2 * k); _s.set(0.075 * k, 2.8 * k, 0.05 * k);
+            _p.set(px - 0.15 * k, vis(px, gz) + 1.5 * k, gz - 0.2 * k); _s.set(0.075 * k * pk0, 2.8 * k * pk0, 0.05 * k * pk0);
             _m.compose(_p, _q, _s); rimS.setMatrixAt(rn++, _m);
           }
           _p.set(gX[i], gy2 + 3.2 * k - 0.02 * k, gz - 0.1 * k); _s.set(gw, 0.05 * k, 0.05 * k);
@@ -1121,7 +1189,8 @@ export function createView(canvas, course, cfg, themeId, opts) {
           stripe.visible = true;
           stripe.position.set(gX[i], gy + 0.06, gz);
           groundQuat(gX[i], gz, stripe.quaternion);
-          stripe.scale.set(gw * (paper ? 1.2 : 1), 1, paper ? 2.4 : 1.2);
+          const sf = clamp(((propUp.has(id) ? propUp.get(id) : 1) - 0.3) / 0.65, 0, 1); // fades with the post tilt
+          stripe.scale.set(gw * (paper ? 1.2 : 1) * sf, 1, (paper ? 2.4 : 1.2) * sf); if (sf <= 0) stripe.visible = false;
         }
         n++;
       }
@@ -1577,6 +1646,7 @@ export function createView(canvas, course, cfg, themeId, opts) {
         }
         veils.instanceMatrix.needsUpdate = true;
       }
+      drawProps(z - cfg.camBack, state.nextGate); // B2: must run before updateGates (fills propGate)
       updateGates(z - cfg.camBack, z, state.nextGate, timeSec);
       particles.update(camera.position, dt, state.speed);
       renderer.render(scene, camera);
@@ -1615,6 +1685,9 @@ export function createView(canvas, course, cfg, themeId, opts) {
     world.resize();
   }
 
+  // B2 props: poses from props.poses() (physics bodies); read by the world each frame
+  let propList = null;
+  function setProps(list) { propList = list || null; }
   function draw(state, timeSec) { world.draw(state, timeSec); }
   function fx(ev) { if (world && world.fx) world.fx(ev); }
 
@@ -1637,7 +1710,7 @@ export function createView(canvas, course, cfg, themeId, opts) {
   world = buildWorld(themeId);
   resize(canvas.clientWidth || 475, canvas.clientHeight || 638);
   return {
-    resize, draw, fx, stats, dispose, setTheme,
+    resize, draw, fx, stats, dispose, setTheme, setProps,
     get camera() { return world ? world.camera : null; },
     get sled() { return world ? world.sled : null; }, // QA hook (poses.mjs)
   };

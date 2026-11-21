@@ -58,6 +58,8 @@ const bladeG = hump(1.6, 26.5, 26.5);
 const clampX = (x, c) => (x < -c ? -c : x > c ? c : x);
 // bowl envelopes: shift out over s 0..50, hold to 60, return over 60..110
 const BOWL_OUT = 50, BOWL_HOLD = 60, BOWL_END = 110;
+const BOWL_SHIFT_MAX = 0.12 * 2 * BOWL_OUT / PI; // 3.82 m
+const BOWL_WALL = 1.0; // outer bank height (m)
 const sq = (v) => v * v;
 export function bowlU(s) { // 0..1 lateral fraction of the centre-line shift
   if (s <= 0 || s >= BOWL_END) return 0;
@@ -73,11 +75,11 @@ function bowlWall(s, dx, hw, f) {
   if (s < BOWL_OUT) {
     const e = sq(psin(PI * s / BOWL_OUT));
     const out = -sd * dx;
-    v = e * 1.6 * smooth((out - 0.3 * hw) / (0.7 * hw));
+    v = e * BOWL_WALL * smooth((out - 0.2 * hw) / (0.8 * hw));
   } else if (s > BOWL_HOLD) {
     const e = sq(psin(PI * (s - BOWL_HOLD) / BOWL_OUT));
     const out = sd * dx;
-    v = e * 1.6 * smooth((out - 0.3 * hw) / (0.7 * hw));
+    v = e * BOWL_WALL * smooth((out - 0.2 * hw) / (0.8 * hw));
   }
   return v;
 }
@@ -94,10 +96,10 @@ export const SHAPES = {
   crestL:   { g: hump(2.0, 28, 28), lead: 28, end: 28, lee: 55, H: 2.0, wEdge: 0.55, hard: true },
   // step: spec 20 m ramp has raw d2h/dz2 0.0271 > cap 0.0255; 22 m ramp gives 0.0224.
   step:     { g: () => 0, drop: stepDrop, lead: 10, end: 22, lee: 40, H: 2.2, wEdge: 0.7 },
-  // not picked by the B1 layout. kicker: H 3.0 gave raw curvature 0.0257 > cap; 2.97 gives 0.0254.
-  kicker:   { g: hump(2.97, 24, 24), lead: 24, end: 24, lee: 87, H: 2.97, wEdge: 0.55, hard: true },
-  double:   { g: (s) => hump(1.5, 20, 18)(s) + hump(1.4, 17, 28)(s - 44), lead: 20, end: 72, lee: 50, H: 1.5, wEdge: 0.7, hard: true },
-  tabletop: { g: knots([[-17, 0], [0, 1.4], [14, 2.2], [35, 0]]), lead: 17, end: 35, lee: 60, H: 2.2, wEdge: 0.7, hard: true },
+  // not picked by the B1 layout. kicker: H 3.0 gave raw curvature 0.0257 > cap; 2.94 holds the cap on the safe lane too.
+  kicker:   { g: hump(2.94, 24, 24), lead: 24, end: 24, lee: 87, H: 2.94, wEdge: 1.0, hard: true },
+  double:   { g: (s) => hump(1.5, 20, 18)(s) + hump(1.4, 17, 28)(s - 44), lead: 20, end: 72, lee: 50, H: 1.5, wEdge: 1.0, hard: true },
+  tabletop: { g: knots([[-17, 0], [0, 1.4], [14, 2.2], [35, 0]]), lead: 17, end: 35, lee: 60, H: 2.2, wEdge: 1.0, hard: true },
   gap:      { g: (s) => gapAll(s) - gapDrop(s), drop: gapDrop, lead: 22, end: 46, lee: 40, H: 2.4, wEdge: 1.0, hard: true },
   // blade ridge: crest M with s' = s - x tan(phi) (x clamped to the half width stored on the record).
   // lead/end/lee here are for tan(phi)*hw = 0; the fold widens them by hw*|tan(phi)| per record.
@@ -208,7 +210,8 @@ export function createFold(seed, cfg = {}) {
         const sh = hw * Math.abs(tanPhi);
         lead += sh; end += sh; lee += sh;
       } else {
-        shift = side * Math.min(9, Math.max(0, hw - 3.6));
+        // peak |d shift/dz| = |shift| * pi / (2 * BOWL_OUT) <= 0.12 (lane follows at 0.2) and |shift| <= 0.45 hw
+        shift = side * Math.min(BOWL_SHIFT_MAX, 0.45 * hw);
       }
     }
     if (lee > leeCap) lee = leeCap;

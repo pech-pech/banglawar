@@ -211,7 +211,7 @@ export function createCourse(seedInt, cfg) {
     const zBase = c * CHUNK;
     const r = mulberry32(mix(seed, 30, c));
     const dens = rockDensityAt(zBase + CHUNK / 2, cfg) * zoneRockX(zBase + CHUNK / 2, cfg) * (cfg.rockLeeComp ?? 1);
-    const n = Math.floor(dens * 5 + r());
+    const n = Math.floor(dens * (CHUNK / 9.5) + r());
     for (let k = 0; k < n; k++) {
       const z = zBase + r() * CHUNK;
       const u = r(), rad = 0.8 + r() * 1.4;

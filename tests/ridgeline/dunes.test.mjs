@@ -10,7 +10,8 @@ const { halfWidthAt } = await import(src + '/endless.js');
 const { createCourse } = await import(src + '/terrain.js');
 const { cfg, resetCfg } = await import(src + '/config.js');
 
-const mk = (seed) => { resetCfg(); return createCourse(seed, cfg); };
+// finite-by-nature tests (B1 layout, fixed run length): DEFAULTS.endless is 1, so force endless 0 here
+const mk = (seed) => { resetCfg(); return createCourse(seed, { ...cfg, endless: 0 }); };
 const seeds20 = Array.from({ length: 20 }, (_, i) => 1000 + i * 7919);
 const seeds50 = Array.from({ length: 50 }, (_, i) => 77 + i * 104729);
 
@@ -244,6 +245,27 @@ test('fold: curvature cap 0.0255 for all types, 20 seeds x 30 km at 0.25 m, x li
   assert.ok(worst <= 0.0255, `${worst} at ${where}`);
 });
 
+test('endless course: curvature cap on centre, safe lane and edge lines, 20 seeds x 30 km', () => {
+  resetCfg();
+  let worst = 0, where = '', laneOut = 0;
+  for (const s of seeds20e) {
+    const k = createCourse(s, { ...cfg, endless: 1 });
+    for (const line of ['c', 'l', 'e', '-e']) {
+      for (let z = 5; z <= 30000; z += 0.5) {
+        const hw = k.halfWidth(z);
+        const x0 = line === 'c' ? k.centerX(z) : line === 'l' ? k.safeX(z) : line === 'e' ? k.centerX(z) + hw - 1 : k.centerX(z) - hw + 1;
+        const h = (zz) => k.height(x0, zz);
+        const a = Math.abs(h(z + 1) - 2 * h(z) + h(z - 1));
+        if (a > worst) { worst = a; where = `seed ${s} line ${line} z ${z}`; }
+        if (line === 'l') laneOut = Math.max(laneOut, Math.abs(x0 - k.centerX(z)) - hw);
+      }
+    }
+  }
+  console.log('endless max |d2h/dz2| (centre, lane, edges)', worst.toFixed(5), where, 'lane beyond edge', laneOut.toFixed(2));
+  assert.ok(worst <= 0.0256, `${worst} at ${where}`);
+  assert.ok(laneOut <= 0, 'safe lane leaves the course ' + laneOut);
+});
+
 test('blade: peak moves with x (s - x tan phi); bowl: lane shift out and back, wall on outer side', () => {
   const c = mkc();
   const fold = createFold(555, c).extend(30000);
@@ -257,7 +279,10 @@ test('blade: peak moves with x (s - x tan phi); bowl: lane shift out and back, w
   assert.ok(Math.abs(fold.laneShift(bowl.z)) < 1e-9);
   assert.ok(Math.abs(fold.laneShift(bowl.z + 55) - bowl.shift) < 1e-9);
   assert.ok(Math.abs(fold.laneShift(bowl.z + 110)) < 1e-9);
-  assert.ok(Math.abs(bowl.shift) <= 9);
+  assert.ok(Math.abs(bowl.shift) <= 0.45 * bowl.xClamp + 1e-9);
+  let maxSlope = 0;
+  for (let z = bowl.z; z <= bowl.z + 110; z += 0.25) maxSlope = Math.max(maxSlope, Math.abs(fold.laneShift(z + 0.25) - fold.laneShift(z)) / 0.25);
+  assert.ok(maxSlope <= 0.12 + 1e-6, 'bowl shift slope ' + maxSlope);
   // wall rises on the outer side only
   const s = bowl.z + 25, o = -bowl.side;
   assert.ok(duneField(fold, s, o * 11, 12) > 0.3);

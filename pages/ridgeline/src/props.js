@@ -11,6 +11,7 @@ const POST_H = 2.4, POST_R = 0.16, POST_MASS = 10;
 const REED_H = 0.9, REED_R = 0.3, REED_MASS = 1.5;
 const SLED_HALF_W = 0.7, SLED_HALF_L = 1.0, SLED_MASS = 120;
 const DT = 1 / 120;
+const IDENT = { x: 0, y: 0, z: 0, w: 1 };
 
 export function createProps(R, phys, course, cfg) {
   const g = (k, d) => cfg[k] ?? d;
@@ -32,13 +33,13 @@ export function createProps(R, phys, course, cfg) {
   const gateHit = new Set(); // gate ids whose post speed loss was paid
   const spent = new Set(); // ids despawned after being knocked (do not respawn upright)
   const stats = { spawned: 0, despawned: 0, frozen: 0, hits: 0, maxLive: 0 };
-  let seq = 0, step = 0, reedBudget = reedLoss, disposed = false;
+  let lastScanZ = null, seq = 0, step = 0, reedBudget = reedLoss, disposed = false;
   const props = { lastLoss: 0, stats };
 
   function mkBody(id, kind, gateId, x, y, z, r) {
     const p = toLocal({ x, y, z });
-    const body = world.createRigidBody(R.RigidBodyDesc.dynamic().setTranslation(p.x, p.y, p.z)
-      .setLinearDamping(0.05).setAngularDamping(0.3));
+    const body = world.createRigidBody(R.RigidBodyDesc.fixed().setTranslation(p.x, p.y, p.z)
+      .setLinearDamping(0.05).setAngularDamping(0.3).setCanSleep(true));
     const addCol = (cd) => world.createCollider(cd.setFriction(0.6).setRestitution(0.15)
       .setCollisionGroups(groups).setSolverGroups(groups), body);
     if (kind === 'post') {
@@ -48,8 +49,7 @@ export function createProps(R, phys, course, cfg) {
     } else {
       addCol(R.ColliderDesc.cylinder(REED_H / 2, REED_R * 0.6).setMass(REED_MASS));
     }
-    body.sleep();
-    return body;
+    return body; // fixed until clipped: zero solver/broadphase-wake cost, becomes dynamic on first hit
   }
 
   function spawnPost(gate, side) {
@@ -58,7 +58,7 @@ export function createProps(R, phys, course, cfg) {
     const x = gate.x + (side ? 1 : -1) * gate.width / 2;
     const y = course.height(x, gate.z) + POST_H / 2;
     const body = mkBody(id, 'post', gate.id, x, y, gate.z);
-    items.set(id, { id, kind: 'post', gateId: gate.id, body, r: POST_R + 0.05, hit: false, frozen: false, order: seq++, z0: gate.z, hitSeq: -1 });
+    items.set(id, { id, kind: 'post', gateId: gate.id, body, r: POST_R + 0.05, hit: false, dyn: false, frozen: false, order: seq++, z0: gate.z, hitSeq: -1, cx: x, cy: y, cz: gate.z });
     stats.spawned++;
   }
   function spawnReed(rd) {
@@ -66,7 +66,7 @@ export function createProps(R, phys, course, cfg) {
     if (items.has(id) || spent.has(id)) return;
     const y = course.height(rd.x, rd.z) + REED_H / 2;
     const body = mkBody(id, 'reed', -1, rd.x, y, rd.z);
-    items.set(id, { id, kind: 'reed', gateId: -1, body, r: REED_R, hit: false, frozen: false, order: seq++, z0: rd.z, hitSeq: -1 });
+    items.set(id, { id, kind: 'reed', gateId: -1, body, r: REED_R, hit: false, dyn: false, frozen: false, order: seq++, z0: rd.z, hitSeq: -1, cx: rd.x, cy: y, cz: rd.z });
     stats.spawned++;
   }
 
@@ -84,7 +84,12 @@ export function createProps(R, phys, course, cfg) {
     return n;
   }
   function freeze(it) {
-    it.body.setBodyType(R.RigidBodyType.Fixed, true);
+    if (it.dyn) {
+      const p = toAbs(it.body.translation());
+      it.cx = p.x; it.cy = p.y; it.cz = p.z; it.q = it.body.rotation();
+      it.body.setBodyType(R.RigidBodyType.Fixed, true);
+      it.dyn = false;
+    }
     it.frozen = true;
     stats.frozen++;
   }
@@ -94,7 +99,7 @@ export function createProps(R, phys, course, cfg) {
     while (dynCount() > maxDyn && guard-- > 0) {
       let pick = null;
       for (const it of items.values()) {
-        if (it.frozen || it.body.isSleeping()) continue;
+        if (!it.dyn || it.body.isSleeping()) continue;
         if (!pick || it.hitSeq < pick.hitSeq) pick = it;
       }
       if (!pick) for (const it of items.values()) if (!it.frozen && (!pick || it.order < pick.order)) pick = it;
@@ -102,14 +107,19 @@ export function createProps(R, phys, course, cfg) {
       freeze(pick);
     }
   }
-  function curZ(it) { return toAbs(it.body.translation()).z; }
+  function curZ(it) { return it.dyn ? toAbs(it.body.translation()).z : it.cz; }
 
   props.update = function update(z) {
     if (disposed) return;
     // despawn behind (by current body z: knocked posts may have slid)
-    for (const it of [...items.values()]) if (curZ(it) < z - behind) remove(it);
+    let gone = null;
+    for (const it of items.values()) if (curZ(it) < z - behind) (gone || (gone = [])).push(it);
+    if (gone) for (const it of gone) remove(it);
     // prune bounded memory
     if (spent.size > 256) for (const id of [...spent]) { const zz = +id.split(':')[1]; if (!(zz >= z - behind)) spent.delete(id); }
+    // course range queries only after the window moved >= 2 m (or went back / items were removed)
+    if (!gone && lastScanZ !== null && z >= lastScanZ && z - lastScanZ < 2) { const n0 = dynCount(); if (n0 > stats.maxLive) stats.maxLive = n0; return; }
+    lastScanZ = z;
     // gate posts in window, sorted by (z, id, side)
     const gates = course.gatesInRange(z - behind, z + ahead);
     for (const gt of gates) {
@@ -151,8 +161,8 @@ export function createProps(R, phys, course, cfg) {
     let loss = 0;
     for (const it of items.values()) {
       if (it.hit) continue;
-      const t = toAbs(it.body.translation());
-      if (Math.abs(t.z - s.z) > 4) continue;
+      if (Math.abs(it.cz - s.z) > 4) continue; // JS-side broadphase on cached pose (unhit props never move)
+      const t = { x: it.cx, y: it.cy, z: it.cz };
       const dx = t.x - s.x, dz = t.z - s.z;
       const along = dx * sh + dz * ch, across = dx * ch - dz * sh;
       if (Math.abs(along) > SLED_HALF_L + it.r || Math.abs(across) > SLED_HALF_W + it.r) continue;
@@ -172,6 +182,8 @@ export function createProps(R, phys, course, cfg) {
       const imp = { x: dirx / dl * mag, y: 0.3 * mag, z: dirz / dl * mag };
       const b = it.body;
       if (!it.frozen) {
+        b.setBodyType(R.RigidBodyType.Dynamic, true);
+        it.dyn = true;
         b.wakeUp();
         const pos = b.translation();
         b.applyImpulseAtPoint(imp, { x: pos.x, y: pos.y + (it.kind === 'post' ? 0.9 : 0.3), z: pos.z }, true);
@@ -195,7 +207,9 @@ export function createProps(R, phys, course, cfg) {
   props.poses = function poses() {
     const out = [];
     for (const it of items.values()) {
-      const b = it.body, p = toAbs(b.translation()), q = b.rotation();
+      const b = it.body, live = it.dyn;
+      const p = live ? toAbs(b.translation()) : { x: it.cx, y: it.cy, z: it.cz };
+      const q = live ? b.rotation() : (it.q || IDENT);
       out.push({ id: it.id, kind: it.kind, x: p.x, y: p.y, z: p.z, qx: q.x, qy: q.y, qz: q.z, qw: q.w, fallen: it.hit });
     }
     return out;

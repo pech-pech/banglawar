@@ -45,8 +45,10 @@ test('ray groundDist matches course.height within 1 cm (heightfield layout proof
 });
 
 test('streaming over full course: coverage, slab cap, one build per call', () => {
-  const course = createCourse(4242, cfg);
-  const phys = createPhysics(R, course, cfg);
+  const fcfg = { ...cfg, endless: 0 };
+  const course = createCourse(4242, fcfg);
+  assert.ok(Number.isFinite(course.length), 'finite course');
+  const phys = createPhysics(R, course, fcfg);
   let maxSlabs = 0;
   let steps = 0;
   for (let z = 0; z <= course.length; z += 0.5) {

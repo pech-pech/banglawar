@@ -256,3 +256,23 @@ test('poses are absolute: z matches gate z while origin shifted', () => {
   assert.ok(q.z > 2000 && q.z < 2300, 'abs z ' + q.z);
   props.dispose(); phys.dispose();
 });
+
+test('slope: untouched posts and reeds stay exactly upright and in place over 120 steps (no clip)', () => {
+  const course = fakeCourse();
+  course.height = (x, z) => 0.35 * x + 0.2 * z; // steep cross and down slope, no ground collider on purpose
+  const phys = createPhysics(R, course, cfg);
+  const props = createProps(R, phys, course, cfg);
+  props.update(100);
+  const before = props.poses();
+  assert.ok(before.some((q) => q.kind === 'post'));
+  for (let i = 0; i < 120; i++) { props.update(100); phys.step(); }
+  const after = props.poses();
+  assert.equal(after.length, before.length);
+  for (const b of before) {
+    const a = after.find((q) => q.id === b.id);
+    assert.ok(Math.hypot(a.x - b.x, a.y - b.y, a.z - b.z) < 1e-3, `moved ${b.id}`);
+    assert.ok(Math.abs(a.qw) > 0.999999 && Math.abs(a.qx) + Math.abs(a.qy) + Math.abs(a.qz) < 1e-5, `tilted ${b.id}`);
+    assert.equal(a.fallen, false);
+  }
+  props.dispose(); phys.dispose();
+});

@@ -14,6 +14,8 @@ const GATE_LOOKAHEAD = 300;
 const ROCK_BEHIND = 10;
 const ROCK_AHEAD = 70;
 const ROCK_REFRESH = 30;   // refresh when sled is within this of window end
+const MEAN_W = 60;        // endless: half-window for the course mean slope (m)
+const SLOPE_NET_CAP = 3;  // endless: max net slope contribution to the speed target (m/s)
 const NORM_D = 1.0;        // central difference half-step for slope / normal (m)
 const LOST_STEPS = 3;      // ground-lost steps before going to air
 const RECOVER_SCAN = 30;   // m forward scan for a safe recover spot
@@ -341,7 +343,18 @@ function core(s, course, input, cfg, events) {
     const sinTh = -sl / Math.sqrt(1 + sl * sl);
     const sinTh0 = cfg.slope / Math.sqrt(1 + cfg.slope * cfg.slope);
     const ek = cfg.easeK * (s.boostT > 0 ? cfg.boostEaseMul : 1) * wob;
-    const a = ek * (target - s.speed) + cfg.slopeGravityMul * 9.8 * (sinTh - sinTh0);
+    let a;
+    if (endlessOn(course, cfg)) {
+      // Endless: gravity acts on the local slope minus the course's long-run trend at this z (mean over +-MEAN_W m),
+      // and its net effect on the speed target is clamped to +-SLOPE_NET_CAP m/s, so the speed table holds at any depth.
+      const zc = s.z, W = MEAN_W;
+      const mean = (course.height(s.x, zc - W) - course.height(s.x, zc + W)) / (2 * W); // downhill = +z
+      const sinM = mean / Math.sqrt(1 + mean * mean);
+      const dv = ek > 0 ? clamp(cfg.slopeGravityMul * 9.8 * (sinTh - sinM) / ek, -SLOPE_NET_CAP, SLOPE_NET_CAP) : 0;
+      a = ek * (target + dv - s.speed);
+    } else {
+      a = ek * (target - s.speed) + cfg.slopeGravityMul * 9.8 * (sinTh - sinTh0);
+    }
     s.speed = clamp(s.speed + a * dt, 1, cfg.speedHardCap);
     if (endlessOn(course, cfg) && cfg.sandDrag > 0) { // zone sand drag: ground on bowl floors and gap pits only
       const sd = zoneSand(s.z, cfg);
@@ -570,7 +583,10 @@ function airAfterMove(s, course, cfg, events, dt) {
 function touchdown(s, course, cfg, events, n, vn, h) {
   const impact = Math.max(0, -vn);
   // read impact, then remove the normal velocity
+  const sp0 = s.speed;
   s.vx -= vn * n.x; s.vy -= vn * n.y; s.speed -= vn * n.z;
+  // Endless: a steep face must not convert fall speed into forward speed beyond the slope cap (keeps the speed table).
+  if (endlessOn(course, cfg)) s.speed = Math.min(s.speed, sp0 + SLOPE_NET_CAP);
   s.vx = clamp(s.vx, -cfg.maxLateral, cfg.maxLateral);
   s.y = h; s.bodyY = h + cfg.hoverHeight;
   const [hx, hz] = headingDir(s);

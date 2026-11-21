@@ -144,7 +144,7 @@ export const DEFAULTS = Object.freeze({
   rockStart: 0.3,
   rockEnd: 0.7,
   rockTau: 5000,
-  rockLeeComp: 1.5,
+  rockLeeComp: 2.0,
   rockDiveEvery: 3,
   gateSecs: 2.4,
   gateMin: 52,

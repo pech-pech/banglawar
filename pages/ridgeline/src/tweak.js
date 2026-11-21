@@ -142,6 +142,9 @@ export function buildReport(info) {
   lines.push('dune: theme ' + fmt(info.theme) + ', atlas ' + (atlas === 'ok' ? 'loaded yes' : atlas === 'fail' ? 'loaded no' : atlas === 'pending' ? 'pending' : 'n/a') + ', calls ' + fmt(st.calls) + ', tris ' + fmt(st.triangles) + ', tweaks ' + (dn.length ? dn.join(', ') : '(defaults)'));
   const ps = info.phys;
   lines.push('Phys: ' + (ps ? physText(ps) : '-'));
+  const en = info.endless;
+  lines.push('Endless: ' + (en ? `dist ${fmt(en.dist)} m, zone ${fmt(en.zone)} lap ${fmt(en.lap)}, features ${fmt(en.features)}, rocks ${fmt(en.rocks)} live, origin shifts ${fmt(en.shifts)}` : '-'));
+  lines.push('Props: ' + (en ? `live ${fmt(en.propsLive)}/${fmt(en.propsMax)}, hits ${fmt(en.hits)}, frozen ${fmt(en.frozen)}` : '-'));
   const fl = info.flow, md = info.medal;
   lines.push('Flow: ' + (fl ? `peak ${fmt(fl.peak)}, links ${fmt(fl.links)}, razor ${fmt(fl.razors)}, inner ${fmt(fl.inners)}, centred gates ${fmt(fl.centred)}, boost links ${fmt(fl.boostLinks)}, flow5 ${num(fl.flow5T, 1)} s` : '-'));
   lines.push('Medal: ' + (!md ? '-' : md.hidden ? 'off (DEV)' : `${md.name || 'none'} (gold ${num(md.gold, 1)} s, summit ${num(md.summit, 1)} s)`));
@@ -226,7 +229,7 @@ export function createTweak(rootEl, opts) {
   }
   function refreshAll() { for (const k of Object.keys(rows)) refreshRow(k); }
 
-  const GROUPS = ['Ground', 'Launch', 'Air', 'Grade', 'Tumble', 'Physics'];
+  const GROUPS = ['Ground', 'Launch', 'Air', 'Grade', 'Tumble', 'Physics', 'Endless speed', 'Endless course', 'Props'];
   const groupBox = {};
   for (const k of Object.keys(META)) {
     const m = META[k];
