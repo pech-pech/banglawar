@@ -37,7 +37,9 @@ $('#bo').onclick = e => { au.unlock(); S.boost = S.boost ? 0 : 1; e.target.class
 for (let i = 0; i < 12; i++) mk($('#chain'), 'link ' + (i + 1), () => au.play('gate', { link: i }));
 for (const c of CUES) mk($('#cues'), c, () => au.play(c, { tier: 'inner', link: 2, kind: 'post', impulse: .6, grade: 'rough', impact: .6, on: true }));
 for (const g of ['clean', 'rough', 'slam', 'wreck']) for (const i of [.2, .9]) mk($('#ev'), `land ${g} ${i < .5 ? 'soft' : 'hard'}`, () => au.event('land', { grade: g, impact: i }));
-for (const k of ['post', 'flag', 'cairn', 'boulder']) for (const i of [.2, 1]) mk($('#ev'), `${k} ${i < .5 ? 'tap' : 'smash'}`, () => au.event('prop_hit', { kind: k, impulse: i }));
+for (const k of ['post', 'flag', 'reed']) for (const i of [.2, 1]) mk($('#ev'), `${k} ${i < .5 ? 'tap' : 'smash'}`, () => au.event('prop_hit', { kind: k, impulse: i }));
 for (const t of ['outer', 'inner', 'razor']) mk($('#ev'), 'graze ' + t, () => au.event('graze', { tier: t }));
+for (const [n, st] of [['night far', 'far'], ['night near', 'near'], ['night on heels', 'heels']]) mk($('#ev'), n, () => au.event('night_stage', { stage: st, gap: 0 }));
+mk($('#ev'), 'caught', () => au.event('caught', {})); mk($('#ev'), 'zone enter', () => au.event('zone_enter', { zone: 2, lap: 1 })); mk($('#ev'), 'milestone', () => au.event('milestone', { id: 1 })); mk($('#ev'), 'recover start', () => au.event('recover_start', {})); mk($('#ev'), 'recover end', () => au.event('recover_end', {}));
 mk($('#ev'), 'launch', () => au.event('launch', { speed: 45 })); mk($('#ev'), 'tumble start', () => au.event('tumble_start', { cause: 'rock' })); mk($('#ev'), 'tumble rest', () => au.event('tumble_rest', {}));
 </script></body></html>

@@ -8,23 +8,28 @@
 //   au.setLevels({ master, sfx, amb, bgm, muted });      // 0..1 each; persisted by the caller (Tweak rows)
 // All randomness here is audio-only (Math.random is fine: it never touches the seeded sim).
 export const CUES = ['uiTap', 'uiToggle', 'countBeep', 'go', 'gate', 'gateCentred', 'gateMiss', 'graze', 'boost', 'flowUp', 'flowDrop',
-  'launch', 'diveStart', 'diveEnd', 'land', 'tumbleStart', 'tumbleRest', 'propHit', 'crash', 'finish',
-  'medalBronze', 'medalSilver', 'medalGold', 'medalSummit'];
-// Rapier CONTRACT.md events -> cues. Call au.event(name, payload) straight from the sim event stream.
+  'launch', 'diveStart', 'diveEnd', 'land', 'tumbleStart', 'tumbleRest', 'recoverStart', 'recoverEnd', 'propHit', 'crash',
+  'nightStage', 'caught', 'zoneEnter', 'milestone'];
+// Endless-descent contract events -> cues. Call au.event(name, payload) from the sim event stream.
 // launch{speed}, air{t}(ignored: use setState airT), dive_start, dive_end, land{grade,impact}, tumble_start{cause}, tumble_rest,
-// prop_hit{kind,impulse}, graze{tier}, gate{centred}, miss, flow_up{level}, flow_drop, boost, finish, medal{tier}
+// recover_start, recover_end, prop_hit{kind: post|flag|reed, impulse}, graze{tier}, gate{centred}, miss, flow_up{level}, flow_drop, boost,
+// night_stage{stage: far|near|heels or 0|1|2, gap}, caught, zone_enter{zone, lap}, milestone{id}
+const STAGE = { far: 0, near: 1, heels: 2, 0: 0, 1: 1, 2: 2 };
 export const EVENT_MAP = {
   launch: (a, e) => a.play('launch', { power: Math.min(1, (e.speed || 30) / 55) }),
   dive_start: a => a.play('diveStart'), dive_end: a => a.play('diveEnd'),
   land: (a, e) => a.play('land', { grade: e.grade, impact: e.impact }),
   tumble_start: a => { a.play('crash'); a.setState({ tumbling: true }); },
   tumble_rest: a => { a.setState({ tumbling: false }); a.play('tumbleRest'); },
+  recover_start: a => { a.setState({ tumbling: false }); a.play('recoverStart'); }, recover_end: a => a.play('recoverEnd'),
   prop_hit: (a, e) => a.play('propHit', { kind: e.kind, impulse: e.impulse }),
   graze: (a, e) => a.play('graze', { tier: e.tier }),
   gate: (a, e) => a.play(e.centred ? 'gateCentred' : 'gate', { link: a._link || 0 }),
   miss: a => a.play('gateMiss'), flow_up: (a, e) => { a._link = e.level || 0; a.play('flowUp', { tier: (e.level || 1) - 1 }); },
-  flow_drop: a => { a._link = 0; a.play('flowDrop'); }, boost: a => a.play('boost'), finish: a => a.play('finish'),
-  medal: (a, e) => a.play('medal' + ({ bronze: 'Bronze', silver: 'Silver', gold: 'Gold', summit: 'Summit' }[String(e.tier).toLowerCase()] || 'Bronze'))
+  flow_drop: a => { a._link = 0; a.play('flowDrop'); }, boost: a => a.play('boost'),
+  night_stage: (a, e) => { const n = STAGE[e.stage] ?? 0, up = n > (a.st.night | 0); a.setState({ night: n }); if (up) a.play('nightStage', { stage: n }); },
+  caught: a => { a.play('caught'); a.silenceLoops(); },
+  zone_enter: (a, e) => a.play('zoneEnter', { lap: e.lap || 1 }), milestone: (a, e) => a.play('milestone', { id: e.id | 0 })
 };
 const PENTA = [0, 2, 4, 7, 9]; // major pentatonic: gate chain climbs and never sounds sour
 const mtof = m => 440 * Math.pow(2, (m - 69) / 12);
@@ -34,7 +39,7 @@ export class RidgelineAudio {
     this.bgmBase = o.bgmBase || './audio/';
     this.tracks = { run: 'bgm-wanderlust.mp3', menu: 'bgm-pink-navy.mp3' };
     this.lv = { master: 0.8, sfx: 0.9, amb: 0.7, bgm: 0.5, muted: false };
-    this.ctx = null; this.st = { speed: 0, grounded: true, boost: 0, airborne: false, airT: 0, diving: false, tumbling: false, tumbleSpeed: 0 };
+    this.ctx = null; this.st = { speed: 0, grounded: true, boost: 0, airborne: false, airT: 0, diving: false, tumbling: false, tumbleSpeed: 0, night: 0 };
     this._bgmName = null; this._bgmEl = null; this._bgmGain = null; this._last = {};
   }
   unlock() {
@@ -49,6 +54,7 @@ export class RidgelineAudio {
     const c = this.ctx;
     this.master = c.createGain(); this.sfxBus = c.createGain(); this.ambBus = c.createGain(); this.bgmBus = c.createGain();
     const comp = c.createDynamicsCompressor(); comp.threshold.value = -14; comp.ratio.value = 4; comp.attack.value = 0.005; comp.release.value = 0.2;
+    this.bgmFx = c.createBiquadFilter(); this.bgmFx.type = 'lowpass'; this.bgmFx.frequency.value = 18000; this.bgmFx.connect(this.bgmBus);
     this.sfxBus.connect(this.master); this.ambBus.connect(this.master); this.bgmBus.connect(this.master);
     this.master.connect(comp); comp.connect(c.destination);
     // shared noise buffer (2 s white) for wind, sand, impacts
@@ -68,6 +74,11 @@ export class RidgelineAudio {
     this.hum.o.type = 'sawtooth'; this.hum.o2.type = 'sine'; this.hum.fl.type = 'lowpass'; this.hum.fl.frequency.value = 500; this.hum.g.gain.value = 0;
     this.hum.o.connect(this.hum.fl); this.hum.o2.connect(this.hum.fl); this.hum.fl.connect(this.hum.g); this.hum.g.connect(this.ambBus);
     this.hum.o.start(); this.hum.o2.start();
+    // nightfall drone: dark detuned pair, throbbing faster as it closes in (rate set in setState)
+    const nd = { a: c.createOscillator(), b: c.createOscillator(), g: c.createGain(), lfo: c.createOscillator(), lg: c.createGain(), fl: c.createBiquadFilter() };
+    nd.a.type = 'sawtooth'; nd.b.type = 'sawtooth'; nd.a.frequency.value = 41; nd.b.frequency.value = 41.8; nd.fl.type = 'lowpass'; nd.fl.frequency.value = 160;
+    nd.lfo.frequency.value = 1; nd.lg.gain.value = 0; nd.g.gain.value = 0; nd.lfo.connect(nd.lg); nd.lg.connect(nd.g.gain);
+    nd.a.connect(nd.fl); nd.b.connect(nd.fl); nd.fl.connect(nd.g); nd.g.connect(this.ambBus); [nd.a, nd.b, nd.lfo].forEach(o => o.start()); this.night = nd;
     this.setLevels({});
   }
   setLevels(l) {
@@ -89,9 +100,13 @@ export class RidgelineAudio {
     this.sand.fl.frequency.setTargetAtTime(2200 + 2500 * v, t, k);
     this.hum.o.frequency.setTargetAtTime(55 + 70 * v + 40 * b, t, 0.1); this.hum.o2.frequency.setTargetAtTime(110 + 140 * v + 60 * b, t, 0.1);
     this.hum.fl.frequency.setTargetAtTime(300 + 900 * v + 1200 * b, t, 0.1);
+    const nt = this.st.night | 0, ng = [0, 0.07, 0.16][nt] || 0;
+    this.night.g.gain.setTargetAtTime(ng, t, 0.8); this.night.lg.gain.setTargetAtTime(ng * 0.6, t, 0.8); this.night.lfo.frequency.setTargetAtTime([0.6, 1.1, 2.2][nt] || 0.6, t, 0.8);
+    this.night.fl.frequency.setTargetAtTime([140, 190, 260][nt] || 140, t, 0.8);
+    this.bgmFx.frequency.setTargetAtTime([18000, 6500, 2800][nt] || 18000, t, 1.2);
     this.hum.g.gain.setTargetAtTime(this.st.speed > 0.5 && !tu ? 0.05 + 0.05 * v : 0, t, 0.15);
   }
-  silenceLoops() { if (this.ctx) this.setState({ speed: 0, boost: 0, airborne: false, airT: 0, diving: false, tumbling: false }); }
+  silenceLoops() { if (this.ctx) this.setState({ speed: 0, boost: 0, airborne: false, airT: 0, diving: false, tumbling: false, night: 0 }); }
   event(name, e = {}) { const f = EVENT_MAP[name]; if (f) f(this, e); }
   // BGM: streamed <audio> element through the bgm bus, crossfaded; loops. null fades out.
   bgm(name) {
@@ -101,7 +116,7 @@ export class RidgelineAudio {
     this._bgmEl = this._bgmGain = null; if (!name || !this.tracks[name]) return;
     const el = new Audio(this.bgmBase + this.tracks[name]); el.loop = true; el.preload = 'auto'; el.crossOrigin = 'anonymous';
     const g = c.createGain(); g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(1, t + 2.5);
-    c.createMediaElementSource(el).connect(g); g.connect(this.bgmBus); el.play().catch(() => {});
+    c.createMediaElementSource(el).connect(g); g.connect(this.bgmFx); el.play().catch(() => {});
     this._bgmEl = el; this._bgmGain = g;
   }
   duck(amount = 0.35, dur = 0.8) { if (!this.ctx) return; const t = this.ctx.currentTime, p = this.bgmBus.gain; const base = this.lv.bgm * 0.8; p.cancelScheduledValues(t); p.setValueAtTime(p.value, t); p.linearRampToValueAtTime(base * amount, t + 0.05); p.linearRampToValueAtTime(base, t + dur); }
@@ -159,27 +174,23 @@ export class RidgelineAudio {
   }
   _tumbleStart(t, o) { this._crash(t, o); }
   _tumbleRest(t) { this._thud(t, 85, 0.3, 0.25); this._burst(t, 0.5, { f: 900, f2: 200, gain: 0.15 }); }
-  // props: kind post | flag | cairn | boulder. o.impulse ~0..1+ (normalised by the sim); louder + lower when harder
+  // props (knockables only): post | flag | reed. o.impulse ~0..1+ (normalised by the sim); louder when harder
   _propHit(t, o) {
     const k = Math.max(0.1, Math.min(1.2, o.impulse == null ? 0.5 : o.impulse)), kind = o.kind || 'post';
     if (kind === 'flag') { this._burst(t, 0.18, { type: 'bandpass', f: 1800, f2: 900, q: 1, gain: 0.25 * k }); return; }
-    if (kind === 'post') { this._tone(t, 260, 0.18, { type: 'triangle', gain: 0.3 * k, f2: 150 }); this._burst(t, 0.05, { type: 'highpass', f: 2500, gain: 0.2 * k }); return; }
-    if (kind === 'cairn') { for (let i = 0; i < 4; i++) { const d = i * 0.05 + Math.random() * 0.03; this._tone(t + d, 600 + Math.random() * 900, 0.08, { type: 'square', gain: 0.06 * k }); this._burst(t + d, 0.06, { type: 'bandpass', f: 1500, q: 3, gain: 0.15 * k }); } this._thud(t, 110, 0.2, 0.25 * k); return; }
-    this._thud(t, 65, 0.45, 0.55 * k); this._burst(t, 0.35, { f: 900, f2: 180, gain: 0.3 * k }); // boulder
+    if (kind === 'reed') { this._burst(t, 0.3, { type: 'bandpass', f: 3200, f2: 1500, q: 0.8, gain: 0.22 * k, a: 0.04 }); this._burst(t + 0.05, 0.2, { type: 'highpass', f: 4500, gain: 0.08 * k }); return; }
+    this._tone(t, 260, 0.18, { type: 'triangle', gain: 0.3 * k, f2: 150 }); this._burst(t, 0.05, { type: 'highpass', f: 2500, gain: 0.2 * k });
   }
+  _recoverStart(t) { this._burst(t, 0.4, { type: 'bandpass', f: 400, f2: 1600, q: 1, gain: 0.25, a: 0.1 }); this._tone(t, 140, 0.4, { gain: 0.12, f2: 280 }); }
+  _recoverEnd(t) { this._tone(t, mtof(72), 0.3, { gain: 0.14 }); this._tone(t + 0.08, mtof(79), 0.4, { gain: 0.14 }); }
+  // night: swell stinger when it closes a stage (o.stage 1 near, 2 heels); caught = sub drop + noise wash, BGM ducked hard
+  _nightStage(t, o) { const s2 = o.stage | 0; this._tone(t, 55, 1.4, { type: 'sawtooth', gain: 0.1 + 0.06 * s2, a: 0.5, f2: 48 }); this._burst(t, 1.2, { f: 200, f2: 700, gain: 0.12 + 0.05 * s2, a: 0.6 }); }
+  _caught(t) { this._thud(t, 60, 1.2, 0.8); this._tone(t, 110, 1.6, { type: 'sawtooth', gain: 0.25, f2: 30, a: 0.02 }); this._burst(t, 1.8, { f: 1500, f2: 100, gain: 0.45, a: 0.05 }); this.duck(0.1, 3); }
+  _zoneEnter(t, o) { const r = 57 + 2 * Math.min(4, (o.lap | 0) - 1 || 0); [0, 7, 14].forEach((s, k) => this._tone(t + k * 0.18, mtof(r + s + 12), 1.4, { gain: 0.1, a: 0.15 })); this.duck(0.6, 2); }
+  _milestone(t, o) { const m = 76 + PENTA[(o.id | 0) % 5]; this._tone(t, mtof(m), 0.6, { gain: 0.16 }); this._tone(t + 0.1, mtof(m + 7), 0.8, { gain: 0.14 }); this._tone(t + 0.1, mtof(m + 19), 0.4, { gain: 0.04 }); }
   _crash(t) {
     this._thud(t, 70, 0.6, 0.7); this._burst(t, 0.12, { type: 'highpass', f: 2500, gain: 0.5 }); this._burst(t, 0.7, { f: 1200, f2: 150, gain: 0.5 });
     for (let i = 0; i < 5; i++) this._tone(t + 0.04 + i * 0.05 + Math.random() * 0.03, 220 + Math.random() * 500, 0.06, { type: 'square', gain: 0.06 }); // debris ticks
     this.duck(0.3, 1.4);
   }
-  _finish(t) { [0, 4, 7, 12].forEach((s, k) => this._tone(t + k * 0.1, mtof(60 + s), 0.9, { gain: 0.2 })); }
-  _medal(t, notes, shine) {
-    notes.forEach((s, k) => { this._tone(t + k * 0.13, mtof(67 + s), 0.8, { gain: 0.22 }); this._tone(t + k * 0.13, mtof(79 + s), 0.5, { gain: 0.06, type: 'triangle' }); });
-    if (shine) for (let i = 0; i < 6; i++) this._tone(t + 0.5 + i * 0.07, mtof(91 + PENTA[i % 5]), 0.3, { gain: 0.05 });
-    this.duck(0.4, 1.8);
-  }
-  _medalBronze(t) { this._medal(t, [0, 4], false); }
-  _medalSilver(t) { this._medal(t, [0, 4, 7], false); }
-  _medalGold(t) { this._medal(t, [0, 4, 7, 12], true); }
-  _medalSummit(t) { this._medal(t, [0, 4, 7, 12, 16, 19], true); }
 }

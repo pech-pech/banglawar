@@ -1,7 +1,7 @@
 # Ridgeline audio pack (2026-11-21)
 
 Live listen page: https://pech-pech.github.io/banglawar/ridgeline-audio/ (after the PR merges). Code and files: `pages/ridgeline-audio/`.
-Status: pack done and tested offline. NOT wired into the game (per M: the Opus build thread wires it).
+Updated for M's endless-descent picks (dive only, knockable props reed/flag/post, night chase, no finish or medals; medal and finish sounds removed). Status: pack done and tested offline. NOT wired into the game (per M: the Opus build thread wires it).
 
 ## What is in it
 - `audio.js` (16 KB): class `RidgelineAudio`. Procedural Web Audio SFX + ambience (0 KB samples) + BGM streaming with crossfade.
@@ -30,14 +30,17 @@ SW: add `./src/audio.js` (+ mp3s) to FILES; keep network-first. Impact must be n
 | land{grade,impact} | land | clean = soft sand puff + chime; rough = thump; slam = deep thud + ducks BGM; wreck = crash |
 | tumble_start{cause} | crash | thud, crack, debris ticks; BGM duck; tumble rumble loop on (setState tumbling) |
 | tumble_rest | tumbleRest | settling thump + dust |
-| prop_hit{kind,impulse} | propHit | post = tonk, flag = cloth rustle, cairn = stone clatter, boulder = heavy boom; scaled by impulse |
+| recover_start / recover_end | recoverStart / recoverEnd | righting whoosh / two-note rise (also clears tumble loop) |
+| prop_hit{kind,impulse} | propHit | post = tonk, flag = cloth rustle, reed = dry swish; scaled by impulse |
 | graze{tier} | graze | outer = air tick, inner = ping, razor = glass zing |
 | gate{centred} | gate / gateCentred | bell pair; pitch climbs a pentatonic with flow link (never sour); centred adds sparkle |
 | miss | gateMiss | dull low thud |
 | flow_up{level} / flow_drop | flowUp / flowDrop | two-note rise (higher per level) / falling blip |
 | boost | boost | rising noise sweep + saw |
-| finish | finish | major arpeggio |
-| medal{tier} | medalBronze..Summit | 2/3/4/6 note fanfare, gold+ add shimmer; BGM ducks |
+| night_stage{stage,gap} | nightStage + state | stage far/near/heels (or 0/1/2): dark detuned drone fades in and throbs faster, BGM low-pass 18k/6.5k/2.8 kHz, swell sting on each worsening stage |
+| caught | caught | sub drop + noise wash, BGM ducked, loops silenced |
+| zone_enter{zone,lap} | zoneEnter | soft rising chord, higher per lap, brief BGM duck |
+| milestone{id} | milestone | bright two-note chime, pitch by id |
 | UI | uiTap, uiToggle, countBeep, go | short soft tones |
 Loops (always on after unlock, driven by `setState`): wind (speed, boost, air, dive), sand hiss (grounded only), hover hum (pitch by speed, off while tumbling), tumble rumble.
 
