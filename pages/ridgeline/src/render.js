@@ -6,7 +6,7 @@ import { treeGeometry, rockGeometry } from './shapes.js';
 import { createParticles } from './particles.js';
 import { makeSkyDome, makeRange, makePaperRange, makeBlobTexture, makeSledModel, makeTrail, makeSpray, makeRibbon, makeShards, makeBoostFan, makeClouds, makeSoftRange } from './lookparts.js';
 import { lookFor, THEME_LOOKS } from './looks.js';
-import { ATLAS_IMAGE, ATLAS_SIZE, CELLS, GATE, FX_CELLS } from './duneatlas.js';
+import { loadAtlas, ATLAS_SIZE, CELLS, GATE, FX_CELLS } from './duneatlas.js';
 import { createDuneFx } from './dunefx.js';
 import { mulberry32 } from './rng.js';
 
@@ -67,23 +67,27 @@ function makeBoards(img, cap, aa) {
   const aFog = new THREE.InstancedBufferAttribute(new Float32Array(cap), 1).setUsage(THREE.DynamicDrawUsage);
   geo.setAttribute('aRect', aRect); geo.setAttribute('aFogK', aFog);
   const mat = new THREE.MeshBasicMaterial({ map: tex, alphaTest: 0.5, alphaToCoverage: !!aa, side: THREE.DoubleSide });
+  const U = { uCap: { value: 0.6 }, uFogMul: { value: 1 } };
   patchShader(mat, 'atlasBoard', (sh) => {
-    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nattribute vec4 aRect;\nattribute float aFogK;\nvarying float vFogK;')
+    sh.uniforms.uCap = U.uCap; sh.uniforms.uFogMul = U.uFogMul;
+    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nattribute vec4 aRect;\nattribute float aFogK;\nvarying float vFogK;\nuniform float uCap;')
       .replace('#include <uv_vertex>', '#include <uv_vertex>\n#ifdef USE_MAP\n vMapUv = aRect.xy + uv * aRect.zw;\n#endif\n vFogK = aFogK;')
       .replace('#include <project_vertex>', `vec3 bbP = instanceMatrix[3].xyz;
  vec2 bbD = cameraPosition.xz - bbP.xz;
  vec3 bbR = vec3( bbD.y, 0.0, - bbD.x ) / max( length( bbD ), 1e-4 );
- vec3 bbW = bbP + bbR * ( position.x * instanceMatrix[0].x ) + vec3( 0.0, position.y * instanceMatrix[1].y, 0.0 );
+ float bbDepth = max( - ( viewMatrix * vec4( bbP, 1.0 ) ).z, 0.3 );
+ float bbCap = min( 1.0, uCap * bbDepth / max( instanceMatrix[1].y * projectionMatrix[1][1], 1e-4 ) ); // never taller than ~30% of the screen: shrink toward the foot
+ vec3 bbW = bbP + bbR * ( position.x * instanceMatrix[0].x * bbCap ) + vec3( 0.0, position.y * instanceMatrix[1].y * bbCap, 0.0 );
  vec4 mvPosition = viewMatrix * vec4( bbW, 1.0 );
  gl_Position = projectionMatrix * mvPosition;`);
-    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying float vFogK;')
-      .replace('#include <fog_fragment>', '#ifdef USE_FOG\n float fogF = 1.0 - exp( - fogDensity * fogDensity * vFogDepth * vFogDepth );\n gl_FragColor.rgb = mix( gl_FragColor.rgb, fogColor, fogF * vFogK );\n#endif');
+    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying float vFogK;\nuniform float uFogMul;')
+      .replace('#include <fog_fragment>', '#ifdef USE_FOG\n float fogF = 1.0 - exp( - fogDensity * fogDensity * vFogDepth * vFogDepth );\n gl_FragColor.rgb = mix( gl_FragColor.rgb, fogColor, fogF * min( vFogK * uFogMul, 1.0 ) );\n#endif');
   });
   const mesh = new THREE.InstancedMesh(geo, mat, cap);
   mesh.frustumCulled = false; mesh.count = 0; mesh.setColorAt(0, new THREE.Color(1, 1, 1));
   const _bm = new THREE.Matrix4(), _bq = new THREE.Quaternion(), _bp = new THREE.Vector3(), _bs = new THREE.Vector3();
   const B = {
-    tex, geo, mat, mesh, cap, n: 0, nProps: 0,
+    tex, geo, mat, mesh, cap, U, n: 0, nProps: 0,
     // x, y, z = bottom centre; w, h in metres; cell = CELLS key; fogK 0..1; tint THREE.Color or null
     add(cell, x, y, z, w, h, mirror, fogK, tint) {
       if (B.n >= cap) return -1;
@@ -575,10 +579,21 @@ export function createView(canvas, course, cfg, themeId, opts) {
     const rocks = makeInst(rGeo, rockMat, ROCK_CAP);
     if (SOFT) { addRim(rockMat); } // warm sun-side rim light on hazards (the only edge treatment; no keylines)
     // dune atlas: billboards replace the code-built harps / arches / reeds / rocks / gates / edge flags (falls back to the geometry if the atlas did not load)
-    const boards = SOFT && ATLAS_IMAGE ? makeBoards(ATLAS_IMAGE, TREE_CAP + ROCK_CAP + POLE_CAP + GATE_CAP + 8, !!((renderer.getContext().getContextAttributes() || {}).antialias)) : null;
-    if (boards) { track(boards.tex); track(boards.mat); track(boards.geo); scene.add(boards.mesh); boards.mesh.renderOrder = 2; }
-    const duneFx = boards && !LOW ? createDuneFx(THREE, { texture: boards.tex, cells: FX_CELLS, rand: mulberry32(7719) }) : null;
-    if (duneFx) scene.add(duneFx.group);
+    // Loaded lazily (dune view only): until the atlas arrives (or if it fails) the code geometry is drawn; on arrival boards are built and the props refilled.
+    let boards = null, duneFx = null, worldDead = false;
+    function attachBoards(img) {
+      if (boards || worldDead || !img) return;
+      boards = makeBoards(img, TREE_CAP + ROCK_CAP + POLE_CAP + GATE_CAP + 8, !!((renderer.getContext().getContextAttributes() || {}).antialias));
+      track(boards.tex); track(boards.mat); track(boards.geo); scene.add(boards.mesh); boards.mesh.renderOrder = 2;
+      duneFx = !LOW ? createDuneFx(THREE, { texture: boards.tex, cells: FX_CELLS, rand: mulberry32(7719) }) : null;
+      if (duneFx) scene.add(duneFx.group);
+      lastFillZ = -1e9; // force a prop refill (counts of the code meshes drop to 0 there)
+    }
+    const DT = () => (cfg.look && cfg.look.dune) || {};
+    const dv = (k, d) => { const v = DT()[k]; return typeof v === 'number' && isFinite(v) ? v : d; };
+    try { window.__duneAtlas = 'pending'; } catch (e) { /* ignore */ }
+    if (SOFT) loadAtlas().then((img) => { try { window.__duneAtlas = img ? 'ok' : 'fail'; } catch (e) { /* ignore */ } attachBoards(img); }, () => { try { window.__duneAtlas = 'fail'; } catch (e) { /* ignore */ } });
+    else { try { delete window.__duneAtlas; } catch (e) { /* ignore */ } }
     // scenery set: leaves = wind harp, plus half-buried ring arches and reed clusters sharing the material
     const scArch = tr.extra ? makeInst(track(tr.extra.arch), leafMat, TREE_CAP) : null;
     const scReed = tr.extra ? makeInst(track(tr.extra.reed), leafMat, TREE_CAP) : null;
@@ -828,7 +843,7 @@ export function createView(canvas, course, cfg, themeId, opts) {
       chips = track(new THREE.InstancedMesh(cg, cm, CHIP_CAP));
       for (const im of [tufts, chips]) { im.frustumCulled = false; im.count = 0; im.setColorAt(0, new THREE.Color(0xffffff)); scene.add(im); }
     }
-    const cTuftA = new THREE.Color('#cfe0f3'), cTuftB = new THREE.Color('#86abda'), cChipA = new THREE.Color('#b6cfea'), cChipB = new THREE.Color('#ffffff');
+    const cTuftA = new THREE.Color((LOOK.tuftCol && LOOK.tuftCol[0]) || '#cfe0f3'), cTuftB = new THREE.Color((LOOK.tuftCol && LOOK.tuftCol[1]) || '#86abda'), cChipA = new THREE.Color((LOOK.chipCol && LOOK.chipCol[0]) || '#b6cfea'), cChipB = new THREE.Color((LOOK.chipCol && LOOK.chipCol[1]) || '#ffffff');
     const hsh = (k, s2) => { let h = (Math.imul(k + 1013, 0x9e3779b1) ^ Math.imul(s2 + 77, 0x85ebca6b)) >>> 0; h = Math.imul(h ^ (h >>> 15), 0x2c1b3c6d) >>> 0; return ((h ^ (h >>> 12)) >>> 0) / 4294967296; };
     function fillDecor(z) {
       if (!tufts) return;
@@ -969,7 +984,7 @@ export function createView(canvas, course, cfg, themeId, opts) {
             _p.set(px, vis(px, pz), pz);
             if (boards) { // edge flag billboard, tinted with the same alternating colours
               const fc = _pc ? _pc[Math.round(pz / ev) & 1] : COL_WHITE, fk = hsh(Math.round(pz / ev), 80 + sd) < 0.5 ? 'flagA' : 'flagB', fh = PL.h * 1.3;
-              boards.add(fk, px, _p.y - 0.03, pz, fh * CELLS[fk][2] / CELLS[fk][3], fh, sd === 1, 0.3, fc.clone().multiplyScalar(1.5)); pn++; continue;
+              boards.add(fk, px, _p.y - 0.03, pz, fh * CELLS[fk][2] / CELLS[fk][3], fh, sd === 1, 0.3, fc.clone().multiplyScalar(2.2 * dv('flagBright', 1))); pn++; continue;
             }
             _m.compose(_p, _q.identity(), _s.set(1, 1, 1));
             poles.setMatrixAt(pn, _m); bands.setMatrixAt(pn, _m);
@@ -1024,7 +1039,7 @@ export function createView(canvas, course, cfg, themeId, opts) {
         if (boards) { // ONE gateFrame billboard: inner opening between the art's posts = gate width; vertical stretch clamped to +-20%
           const bwq = gw * GATE.w / GATE.openW, nat = bwq * GATE.h / GATE.w, hh0 = Math.min(Math.max(3.2 * k, nat * 0.8), nat * 1.2);
           const vL = vis(gX[i] - 0.5 * gw, gz), vR = vis(gX[i] + 0.5 * gw, gz);
-          _c3.copy(bannerCol).multiplyScalar(isNext ? 1.3 : 1.2); // the art is neutral grey/white, a little gain keeps the tint saturated
+          _c3.copy(bannerCol).multiplyScalar((isNext ? 2.6 * dv('nextGlow', 1) : 2.1) * dv('gateBright', 1)); // the art is neutral grey: strong gain so far gates read periwinkle (not grey); the next gate stays the brightest
           boards.add('gateFrame', gX[i], Math.min(vL, vR) - 0.05, gz, bwq, hh0, (id & 1) === 1, 0, _c3);
         }
         for (let side = 0; side < 2 && !boards; side++) {
@@ -1453,6 +1468,8 @@ export function createView(canvas, course, cfg, themeId, opts) {
       dome.update(camera);
       for (const r of ranges) r.mesh.position.set(camera.position.x * (r.par != null ? r.par : 1), camera.position.y + r.dy, camera.position.z);
       if (clouds) clouds.update(reduced ? 0 : timeSec, camera);
+      if (boards) { boards.U.uCap.value = dv('nearFade', 6) > 0 ? dv('nearFade', 6) * 0.1 : 1e3; boards.U.uFogMul.value = dv('fogFar', 1); }
+      if (duneFx) { duneFx.group.visible = DT().glints !== false; }
       if (duneFx) duneFx.update(camera.position, reduced ? 0 : timeSec, 0.5);
       rimU.uSunV.value.copy(SUNV).transformDirection(camera.matrixWorldInverse);
 
@@ -1551,6 +1568,7 @@ export function createView(canvas, course, cfg, themeId, opts) {
     }
 
     function dispose() {
+      worldDead = true;
       for (const m of chunks.values()) { scene.remove(m); m.geometry.dispose(); }
       for (const m of pool) { scene.remove(m); m.geometry.dispose(); }
       chunks.clear(); pool.length = 0;
