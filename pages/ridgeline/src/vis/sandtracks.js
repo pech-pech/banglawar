@@ -133,7 +133,10 @@ export const BODY = `
    vec3 base = col;
    base *= mix( vec3( 1.0 ), vec3( 0.9, 0.8, 0.92 ), amb * 0.6 );
    base = mix( base, base * vec3( 0.4, 0.25, 0.43 ) + uTrkCol * 0.05, min( 1.0, grv * 1.1 ) * 0.92 );
-   base = mix( base, max( base, uTrkRim * ( 0.98 * ( 1.0 - 0.6 * uTrkN ) ) ), min( 1.0, brm * 1.2 ) * ( 1.0 - grv ) * 0.7 );
+   // QA D4: berm applied after the night grade; at night it replaces (not max-es with) the plum floor so it stays warm cream, never grey-mauve
+   // Night: warm amber target (never cool) so the berm reads gold, not rose-grey; day keeps uTrkRim.
+   vec3 brmT = mix( uTrkRim, vec3( 1.0, 0.78, 0.52 ), uTrkN ) * ( 0.98 * ( 1.0 - 0.35 * uTrkN ) );
+   base = mix( base, mix( max( base, brmT ), brmT, uTrkN ), min( 1.0, brm * 1.2 ) * ( 1.0 - grv ) * mix( 0.7, 0.92, uTrkN ) );
    float glow = smoothstep( 0.08, 0.5, T.a ) * grv * uTrkGlow;
    base = mix( base, vec3( 1.0, 0.86, 0.5 ), clamp( glow * 0.9, 0.0, 0.9 ) );
    base += vec3( 1.0, 0.8, 0.4 ) * glow * ( 0.2 + 0.5 * brm );

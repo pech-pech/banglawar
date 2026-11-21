@@ -1126,6 +1126,12 @@ export function createView(canvas, course, cfg, themeId, opts) {
           const bwq = gw * GATE.w / GATE.openW, nat = bwq * GATE.h / GATE.w, hh0 = Math.min(Math.max(3.2 * k, nat * 0.8), nat * 1.2);
           const vL = vis(gX[i] - 0.5 * gw, gz), vR = vis(gX[i] + 0.5 * gw, gz);
           _c3.copy(bannerCol).multiplyScalar((isNext ? 2.6 * dv('nextGlow', 1) : 2.1) * dv('gateBright', 1)); // the art is neutral grey: strong gain so far gates read periwinkle (not grey); the next gate stays the brightest
+          { // B4 VIS N1: fade the gate gain by camera distance (full >= 25 m, ~35% <= 8 m) and cap the peak channel so bloom never floods the screen white
+            const dd = clamp((gz - camZ - 8) / 17, 0, 1), sm = dd * dd * (3 - 2 * dd), gk = 0.35 + 0.65 * sm;
+            _c3.multiplyScalar(gk);
+            const pk = Math.max(_c3.r, _c3.g, _c3.b), cap = 0.55 + 1.05 * sm;
+            if (pk > cap) _c3.multiplyScalar(cap / pk);
+          }
           boards.add('gateFrame', gX[i], Math.min(vL, vR) - 0.05, gz, bwq, hh0, (id & 1) === 1, 0, _c3);
         }
         for (let side = 0; side < 2 && !boards; side++) {
@@ -1390,7 +1396,7 @@ export function createView(canvas, course, cfg, themeId, opts) {
       STREAK_N = LOW && ST.nLow ? Math.min(ST.nLow, ST.n) : ST.n;
       streaks.frustumCulled = false;
       streaks.count = 0;
-      if (LOOK.chunky) for (let i = 0; i < ST.n; i++) streaks.setColorAt(i, _c.set(['#ffffff', '#ffffff', '#9fe8ff', '#fff1b8'][i % 4]));
+      if (LOOK.chunky) for (let i = 0; i < ST.n; i++) streaks.setColorAt(i, _c.set(['#ffffff', '#ffffff', '#fff1b8', '#fff1b8'][i % 4])); // B4 VIS N2: was pale cyan (stray cool sliver beside gates); gates are the only cool brights
       camera.add(streaks);
     }
 
@@ -1585,6 +1591,9 @@ export function createView(canvas, course, cfg, themeId, opts) {
       // sky, ranges follow the camera
       dome.update(camera);
       if (V) for (const t of tintMats) t[0].color.copy(t[1]).multiply(V.skyTint); // B4 VIS: night grade on dome / ranges (darken + plum only)
+      // B4 VIS begin: RECHECK-A N1, sky dome goes plum/indigo (extra darken + indigo lean by n) so the stars show; afterglow stays low on the ranges
+      if (V && V.sky && V.sky.n > 0.02) { const dn = Math.min(1, V.sky.n), dk = 1 - 0.7 * Math.pow(dn, 1.2); dome.group.children[0].material.color.multiplyScalar(dk).multiply(_tc.setRGB(1 - 0.1 * dn, 1 - 0.2 * dn, 1 + 0.0 * dn)); }
+      // B4 VIS end
       for (const r of ranges) r.mesh.position.set(camera.position.x * (r.par != null ? r.par : 1), camera.position.y + r.dy, camera.position.z);
       if (clouds) clouds.update(reduced ? 0 : timeSec, camera);
       if (boards) { boards.U.uCap.value = dv('nearFade', 6) > 0 ? dv('nearFade', 6) * 0.1 : 1e3; boards.U.uFogMul.value = dv('fogFar', 1); }
@@ -1683,6 +1692,7 @@ export function createView(canvas, course, cfg, themeId, opts) {
       }
       drawProps(z - cfg.camBack, state.nextGate); // B2: must run before updateGates (fills propGate)
       updateGates(z - cfg.camBack, z, state.nextGate, timeSec);
+      if (state.crashed) stripe.visible = false; // B4 VIS N2: no stray cyan ground quad while the end card shows
       particles.update(camera.position, dt, state.speed);
       if (V) V.render(scene, camera); else renderer.render(scene, camera); // B4 VIS: post chain
     }

@@ -89,22 +89,24 @@ const kvSafe = 1;
 // ---- stars: pure layout (testable). count entries into typed arrays. Sharp 1-2 px, ~8% 3 px.
 export const STAR_MAX = 400;
 export function starLayout(count, rnd, sunAzDeg, out) {
-  const DEG = Math.PI / 180, R = 275;
+  // B4 D8: unit-radius dome in CAMERA-LOCAL space (+z = camera heading). Biased to the sky window the portrait chase cam sees above the rim:
+  // elevation 5-32 deg, azimuth +-31 deg. createSky scales it to 0.92 * camera.far and keeps it on the camera, so it sits behind every range.
+  const DEG = Math.PI / 180;
   out = out || { pos: new Float32Array(STAR_MAX * 3), sz: new Float32Array(STAR_MAX), ph: new Float32Array(STAR_MAX), el: new Float32Array(STAR_MAX), k: new Float32Array(STAR_MAX) };
   for (let i = 0; i < count; i++) {
-    let az, elD, tries = 0;
-    do { az = sunAzDeg + (rnd() < 0.7 ? (rnd() - 0.5) * 110 : rnd() * 360 - 180); elD = 8 + 72 * Math.pow(rnd(), 1.15); tries++; } // QA D8: 70% in the ~110 deg window the portrait camera sees, above the canyon rim
-    while (tries < 6 && Math.hypot(((az - sunAzDeg + 540) % 360) - 180, elD - 2) < 14); // keep the sun halo clear
+    const az = (rnd() + rnd() - 1) * 28 + (rnd() - 0.5) * 6, elD = 5 + 27 * Math.pow(rnd(), 0.9);
     const a = az * DEG, e = elD * DEG;
-    out.pos[i * 3] = Math.sin(a) * Math.cos(e) * R; out.pos[i * 3 + 1] = Math.sin(e) * R; out.pos[i * 3 + 2] = Math.cos(a) * Math.cos(e) * R;
+    out.pos[i * 3] = Math.sin(a) * Math.cos(e); out.pos[i * 3 + 1] = Math.sin(e); out.pos[i * 3 + 2] = Math.cos(a) * Math.cos(e);
     const r = rnd();
-    out.sz[i] = r < 0.08 ? 3 : r < 0.45 ? 2 : 1;
-    out.ph[i] = rnd(); out.el[i] = elD; out.k[i] = 0.55 + 0.45 * rnd();
+    out.sz[i] = r < 0.08 ? 3 : r < 0.5 ? 2 : 1;
+    out.ph[i] = rnd(); out.el[i] = elD; out.k[i] = 0.7 + 0.3 * rnd();
   }
   return out;
 }
 // zenith-down reveal: elevation (deg) below which stars are still hidden, as a function of n. All on at n 0.85.
-export function starCeil(n) { return lerp(90, 0, sm(0.12, 0.85, n)); }
+export function starCeil(n) { return lerp(90, 0, sm(0.1, 0.7, n)); }
+// RECHECK-A N1: sun disc + glow sprite fade by n^1.2 (n .88 -> ~14%); returns the opacity multiplier
+export function sunFade(n) { return clamp(1 - Math.pow(clamp(n, 0, 1), 1.2), 0, 1); }
 
 // ---- ground shader chunk. `vW` (vec3 world pos) and `col` (vec3) must be in scope; `vFogDepth` optional via #ifdef-free use (declared by render.js).
 export function groundChunk() {
@@ -154,7 +156,7 @@ varying float vA; varying float vS;
 void main() {
  gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
  float tw = 1.0 - uTw * 0.35 * ( 0.5 + 0.5 * sin( uTime * ( 1.3 + aPh * 1.7 ) + aPh * 40.0 ) );
- vA = aK * tw * clamp( ( aEl - uCeil ) / 6.0, 0.0, 1.0 ) * uOp;
+ vA = clamp( aK * tw * clamp( ( aEl - uCeil ) / 6.0, 0.0, 1.0 ) * uOp * 1.25, 0.0, 1.0 );
  vS = aSz; gl_PointSize = aSz * uPx;
 }`;
 const STAR_FS = `varying float vA; varying float vS;
@@ -162,7 +164,7 @@ void main() {
  vec2 q = abs( gl_PointCoord - 0.5 );
  float m = 1.0;
  if ( vS > 2.5 ) m = step( min( q.x, q.y ), 0.17 ); // 3 px: a tiny sharp cross, never a round dot
- gl_FragColor = vec4( 1.0, 0.95, 0.86, vA * m );
+ gl_FragColor = vec4( vec3( 1.0, 0.95, 0.86 ) * vA * m * 1.6, 1.0 );
 }`;
 
 const NL = 32;
@@ -185,9 +187,9 @@ export function createSky(ctx) {
   geo.setAttribute('aEl', new THREE.BufferAttribute(lay.el, 1));
   geo.setAttribute('aK', new THREE.BufferAttribute(lay.k, 1));
   const starU = { uCeil: { value: 90 }, uTime: { value: 0 }, uTw: { value: 1 }, uPx: { value: 1 }, uOp: { value: 1 } };
-  const starMat = new THREE.ShaderMaterial({ uniforms: starU, vertexShader: STAR_VS, fragmentShader: STAR_FS, transparent: true, depthWrite: false, depthTest: false, fog: false });
+  const starMat = new THREE.ShaderMaterial({ uniforms: starU, vertexShader: STAR_VS, fragmentShader: STAR_FS, transparent: true, depthWrite: false, depthTest: true, blending: THREE.AdditiveBlending, fog: false });
   const stars = new THREE.Points(geo, starMat);
-  stars.frustumCulled = false; stars.renderOrder = -8; stars.visible = false;
+  stars.frustumCulled = false; stars.renderOrder = -7; stars.visible = false; // after dome -10, sun disc/glow sprite -9
   scene.add(stars);
   function layoutStars(count) {
     const sd = ctx.sunDir, sunAz = sd ? Math.atan2(sd.x, sd.z) * 180 / Math.PI : 0;
@@ -219,7 +221,7 @@ export function createSky(ctx) {
   lanMesh.frustumCulled = false; lanMesh.renderOrder = 4; lanMesh.count = 0; lanMesh.visible = false;
   scene.add(lanMesh);
   const _m = new THREE.Matrix4(), _p = new THREE.Vector3(), _q = new THREE.Quaternion(), _s = new THREE.Vector3(), _c = new THREE.Color(), lanC = new THREE.Color('#ffc46a');
-  let lanK = 0, lanSource = null;
+  let lanK = 0, lanSource = null, sunSpr = null;
   function emit(x, y, z, size, k) {
     if (S.lanN >= NL || lanK <= 0) return;
     const i = S.lanN++, fl = S.reduced ? 1 : 0.9 + 0.1 * Math.sin(S.now * 2.3 + i * 7.1) * Math.sin(S.now * 1.1 + i * 3.3);
@@ -250,11 +252,15 @@ export function createSky(ctx) {
     // stars
     const want = Math.round(clamp(kv(cfg(), 'lookStarCount'), 0, STAR_MAX));
     if (want !== S.starCount) layoutStars(want);
-    const ceil = starCeil(n);
+    const ceil = 3 + starCeil(n) * (30 / 90); // zenith-down reveal mapped onto the 5-32 deg star band (33 at n 0 -> 3 at n .85)
     starU.uCeil.value = ceil; starU.uTime.value = S.now; starU.uTw.value = S.reduced ? 0 : kv(cfg(), 'lookStarTwinkle');
     starU.uPx.value = ctx.renderer && ctx.renderer.getPixelRatio ? ctx.renderer.getPixelRatio() : 1;
     starU.uOp.value = S.tier === 'lean' ? 0.8 : 1;
-    stars.visible = want > 0 && n > 0.12; stars.position.copy(camera.position);
+    stars.visible = want > 0 && n > 0.12;
+    if (!sunSpr) { scene.traverse((o) => { if (o.isSprite && o.renderOrder === -9 && !sunSpr) sunSpr = o; }); }
+    if (sunSpr) { const f = sunFade(n); sunSpr.material.opacity = f; sunSpr.visible = f > 0.01; } 
+    stars.position.copy(camera.position); stars.scale.setScalar(0.92 * (camera.far || 300));
+    { const e = camera.matrixWorld.elements, fx = -e[8], fz = -e[10]; if (fx * fx + fz * fz > 1e-4) stars.rotation.y = Math.atan2(fx, fz); stars.updateMatrix(); }
     // lanterns
     lanK = Math.max(sm(0.4, 0.8, n), 0) * kv(cfg(), 'lookLanternBright') * (S.tier === 'lean' ? 0.8 : 1);
     S.lanN = 0;
