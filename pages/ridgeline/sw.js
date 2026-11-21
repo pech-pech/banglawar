@@ -1,5 +1,5 @@
 // Offline cache for Ridgeline. Bump VERSION on every release so phones pick up the new build.
-const VERSION = 'rl-proto-16';
+const VERSION = 'rl-proto-17';
 const FILES = [
   './', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png', './icon-maskable-512.png',
   './src/rng.js', './src/config.js', './src/terrain.js', './src/sled.js', './src/render.js', './src/hud.js', './src/tweak.js', './src/themes.js', './src/looks.js', './src/lookparts.js', './src/themeui.js', './src/shapes.js', './src/particles.js', './src/telemetry.js', './src/medals.js', './src/main.js', './src/duneatlas.js', './src/dunefx.js', './src/physics.js', './src/dunes.js', './src/endless.js', './src/props.js', './src/night.js', './src/marks.js', './src/hulls.js', './src/save2.js', './src/daily.js', './src/audio.js', './src/audioglue.js', './vendor/rapier.mjs', './assets/dune-atlas.webp',
@@ -7,7 +7,7 @@ const FILES = [
   // B4 VIS begin
   './src/vis/camrig.js', './src/vis/endcard.js', './src/vis/frontdoor.js', './src/vis/garage.js', './src/vis/hudspring.js', './src/vis/index.js', './src/vis/markers.js', './src/vis/moments.js', './src/vis/postfx.js', './src/vis/quality.js', './src/vis/sandtracks.js', './src/vis/sky.js', './src/vis/sledrig.js',
   // B4 VIS end
-  './audio/bgm-wanderlust.mp3', './audio/bgm-pink-navy.mp3',
+  './audio/bgm-beethoven5.mp3', './audio/bgm-william-tell.mp3',
 ];
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(VERSION).then(c => c.addAll(FILES.map(f => new Request(f, { cache: 'reload' })))).then(() => self.skipWaiting()));
