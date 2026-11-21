@@ -1,4 +1,5 @@
-// Ridgeline HUD (slice 5). DOM only, no imports.
+// Ridgeline HUD (slice 5). DOM only; imports pure marks table.
+import { MARKS } from "./marks.js";
 export function createHud(rootEl, handlers) {
   const h = handlers || {};
   const CSS = `
@@ -191,7 +192,7 @@ body.rl-paper .rlh .rlh-word{color:#24406e;text-shadow:none;background:#fff;bord
     const b = info && info.best;
     if (b != null && b !== '') {
       bestEl.hidden = false;
-      bestEl.textContent = 'Best: ' + (typeof b === 'number' ? b.toFixed(2) + ' s' : String(b));
+      bestEl.textContent = typeof b === 'number' ? 'Best: ' + b.toFixed(2) + ' s' : (/^best\b/i.test(String(b)) ? String(b) : 'Best: ' + String(b));
     } else bestEl.hidden = true;
     if (info && info.hull) { hullBtn.hidden = !(info.unlockedCount > 1); hullBtn.textContent = 'Hull: ' + info.hull; }
     if (info && info.build) verEl.textContent = 'build ' + info.build;
@@ -261,12 +262,15 @@ body.rl-paper .rlh .rlh-word{color:#24406e;text-shadow:none;background:#fff;bord
       sTime.hidden = false; sTime.textContent = 'Distance ' + Math.round(r.distance || 0) + ' m';
       const bd = r.bestDistance != null ? r.bestDistance : r.best;
       sGates.hidden = bd == null;
-      const dl = r.delta != null && r.delta !== 0 ? ' (' + (r.delta > 0 ? '+' : '') + Math.round(r.delta) + ' m)' : '';
-      sGates.textContent = 'Best ' + Math.round(bd || 0) + ' m' + dl + (r.newBest ? ' new' : '');
+      const prevBest = r.newBest && r.delta != null ? (bd || 0) - r.delta : null;
+      let dl = '';
+      if (r.newBest) { if (r.delta > 0 && prevBest > 0) dl = ' (+' + Math.round(r.delta) + ' m new)'; else dl = ' new'; }
+      else if (r.delta != null && r.delta < 0) dl = ' (' + Math.round(-r.delta) + ' m short)';
+      sGates.textContent = 'Best ' + Math.round(bd || 0) + ' m' + dl;
       const goal = r.nextGoal && r.nextGoal.text ? r.nextGoal.text : '';
-      const nm = r.newMarks && r.newMarks.length ? 'New: ' + r.newMarks.join(', ').replace(/_/g, ' ') : '';
-      const ex = [nm, goal].filter(Boolean).join(' | ');
-      sExtra.hidden = !ex; sExtra.textContent = ex;
+      const nm = r.newMarks && r.newMarks.length ? 'New: ' + r.newMarks.map(id => { const k = MARKS.find(x => x.id === id); return k ? k.name + (k.hull ? ' (opens ' + k.hull[0].toUpperCase() + k.hull.slice(1) + ')' : '') : String(id).replace(/_/g, ' '); }).join(', ') : '';
+      const ex = [nm, goal ? 'Next: ' + goal : ''].filter(Boolean).join('\n');
+      sExtra.hidden = !ex; sExtra.textContent = ex; sExtra.style.whiteSpace = 'pre-line';
       sMedal.hidden = true;
       if (r.flowPeak != null) { sFlow.hidden = false; sFlow.textContent = 'Flow peak ' + (r.flowPeak | 0); }
       else if (r.stats && r.stats.maxFlow != null) { sFlow.hidden = false; sFlow.textContent = 'Flow peak ' + (r.stats.maxFlow | 0); }
@@ -277,7 +281,7 @@ body.rl-paper .rlh .rlh-word{color:#24406e;text-shadow:none;background:#fff;bord
     resEl.textContent = r.crashed ? 'CRASHED' : (r.finished === false ? 'RUN OVER' : 'FINISHED');
     sTime.textContent = 'Time: ' + ((r.time ?? r.t) != null ? Number(r.time ?? r.t).toFixed(2) + ' s' : '-');
     sGates.textContent = 'Gates: ' + (r.gatesPassed | 0) + ' passed, ' + (r.gatesMissed | 0) + ' missed';
-    if (r.crashed && r.z != null) { sExtra.hidden = false; sExtra.textContent = 'Crashed at ' + Math.round(r.z) + ' m'; }
+    if (r.crashed && r.z != null) { sExtra.hidden = false; sExtra.style.whiteSpace = ''; sExtra.textContent = 'Crashed at ' + Math.round(r.z) + ' m'; }
     else sExtra.hidden = true;
     const m = r.medal;
     if (!m || r.crashed) sMedal.hidden = true;
