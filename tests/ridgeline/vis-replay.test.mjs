@@ -88,3 +88,14 @@ test('replay identical with vis ON vs OFF across B2 floating-origin shifts (vis.
     assert.equal(on, off);
   } finally { cfg.originShift = old; }
 });
+
+test('zone banner: longest name fits the plate via fitFont', async () => {
+  const { fitFont, zoneLines } = await import('../../pages/ridgeline/src/vis/markers.js');
+  const { ZONE_NAMES } = await import('../../pages/ridgeline/src/endless.js');
+  const measure = (t, px) => t.length * px * 0.8;
+  for (const n of ZONE_NAMES) {
+    const lines = zoneLines(n), px = fitFont(measure, lines, 114, 40);
+    assert.ok(px >= 6 && lines.every((t) => measure(t, px) <= 114 || px === 6), n);
+  }
+  assert.ok(fitFont(measure, ['BRASSWIND REACH'], 114, 40) < 10);
+});

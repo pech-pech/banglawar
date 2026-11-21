@@ -7,7 +7,7 @@ import { endModel } from '../../pages/ridgeline/src/vis/endcard.js';
 import { createQuality, pixelRatioFor } from '../../pages/ridgeline/src/vis/quality.js';
 import { createPlanner } from '../../pages/ridgeline/src/vis/sandtracks.js';
 import { createMarkers } from '../../pages/ridgeline/src/vis/markers.js';
-import { createVis } from '../../pages/ridgeline/src/vis/index.js';
+import { createVis, RENDER_LOCAL, _test } from '../../pages/ridgeline/src/vis/index.js';
 import { createCourse } from '../../pages/ridgeline/src/terrain.js';
 import { cfg } from '../../pages/ridgeline/src/config.js';
 
@@ -72,22 +72,57 @@ test('quality tier drives renderer pixel ratio via vis (max 2 -> showcase 1.5 ->
   } finally { vis.dispose(); }
 });
 
-test('phys.onShift(2000, -560) -> every module shift(-2000, 560); sandtracks / markers / sky keep absolute positions', () => {
+function mkVis() {
   const course = createCourse(7, cfg);
-  let cb = null;
   const vis = createVis({ THREE, scene: new THREE.Scene(), camera: new THREE.PerspectiveCamera(66, 475 / 638, 0.5, 300), renderer: stubRenderer(), cfg, look: {},
     sunDir: new THREE.Vector3(0, 1, 0), root: null, groundY: (x, z) => course.height(x, z), course, seed: 7, hooks: { getPhase: () => 'run' } });
+  return vis;
+}
+function spyShifts(vis) {
+  const seen = new Map();
+  for (const m of vis.mods) { const orig = m.shift.bind(m); m.shift = (dz, dy) => { seen.set(m, [dz, dy]); return orig(dz, dy); }; }
+  const fr = vis.front, origF = fr.shift.bind(fr); const f = { args: null }; fr.shift = (dz, dy) => { f.args = [dz, dy]; return origF(dz, dy); };
+  return { seen, f };
+}
+
+test('RENDER_LOCAL is false; render absolute: onShift(2000, -560) leaves modules untouched and records the shift', () => {
+  assert.equal(RENDER_LOCAL, false);
+  _test.renderLocal = null;
+  let cb = null;
+  const vis = mkVis();
   try {
     vis.attachPhys({ onShift(f) { cb = f; } });
     assert.equal(typeof cb, 'function');
-    const seen = new Map();
-    for (const m of vis.mods) { const orig = m.shift.bind(m); m.shift = (dz, dy) => { seen.set(m, [dz, dy]); return orig(dz, dy); }; }
-    const fr = vis.front, origF = fr.shift.bind(fr); let frontArgs = null; fr.shift = (dz, dy) => { frontArgs = [dz, dy]; return origF(dz, dy); };
+    const { seen, f } = spyShifts(vis);
+    const sky0 = vis.sky.stats();
+    cb(2000, -560);
+    assert.equal(seen.size, 0, 'no module shift() calls');
+    assert.equal(f.args, null);
+    assert.deepEqual(vis.sky.stats(), sky0);
+    assert.deepEqual(vis.shiftInfo(), { n: 1, z: 2000, y: -560 });
+    cb(2000, 0);
+    assert.deepEqual(vis.shiftInfo(), { n: 2, z: 4000, y: -560 });
+  } finally { vis.dispose(); }
+});
+
+test('RENDER_LOCAL forced on via _test hook: every module shift(-2000, 560), frontdoor gets the raw move', () => {
+  _test.renderLocal = true;
+  let cb = null;
+  const vis = mkVis();
+  try {
+    vis.attachPhys({ onShift(f) { cb = f; } });
+    const { seen, f } = spyShifts(vis);
     cb(2000, -560);
     assert.equal(seen.size, vis.mods.length);
     for (const [m, a] of seen) assert.deepEqual(a, [-2000, 560], 'module ' + vis.mods.indexOf(m));
-    assert.deepEqual(frontArgs, [2000, -560], 'frontdoor gets the raw origin move (it subtracts)');
-  } finally { vis.dispose(); }
+    assert.deepEqual(f.args, [2000, -560], 'frontdoor gets the raw origin move (it subtracts)');
+    assert.equal(vis.shiftInfo().n, 1);
+  } finally { _test.renderLocal = null; vis.dispose(); }
+
+  // absolute-render markers: milestone posts keyed by absolute distance stay put with no shift call
+  const mk0 = createMarkers({ THREE, scene: new THREE.Scene(), cfg: { ...cfg }, crng: mkRng(), groundY: () => 0 });
+  mk0.update(1 / 60, { t: 0, dt: 1 / 60, x: 0, y: 1, z: 1990, speed: 30, dist: 1990, boostT: 0, mode: 'ground', n: 0, reduced: false }, null);
+  assert.equal(mk0.state().zOff || 0, 0);
 
   // sandtracks: the same ground maps to the same texel before and after the shift
   const p = createPlanner(), before = p.texel(3, 1990, 512);

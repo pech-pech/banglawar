@@ -261,6 +261,7 @@ export function createSledRig(ctx, opts) {
   const dp = new Float32Array(NP * 3), dq = new Float32Array(NP * 3);
   const lb = { p: V(0, 0, 0), v: V(0, 0, 0), spin: 0, rest: false };
   const lastV = V(0, 0, 0);
+  let attachT = 1; // reattach fade-in progress, 0..1 (1 = done)
 
   function setScarf(i, x, y, z, hw, cx, cy) { const j = i * 6; sp[j] = x - cx * hw; sp[j + 1] = y - cy * hw; sp[j + 2] = z; sp[j + 3] = x + cx * hw; sp[j + 4] = y + cy * hw; sp[j + 5] = z; }
   function scarfAttached(dt, vs, red, spd) {
@@ -325,6 +326,7 @@ export function createSledRig(ctx, opts) {
     lantern.getWorldPosition(lb.p); root.remove(lantern); (ctx.scene || group).add(lantern);
     lantern.position.copy(lb.p); lantern.rotation.set(0, 0, 0);
     lb.v.copy(lastV).multiplyScalar(0.8); lb.v.x += (crng() - 0.5) * 3; lb.v.y += 2 + crng() * 2; lb.spin = (crng() - 0.5) * 8; lb.rest = false;
+    attachT = 1; scarfMesh.scale.setScalar(1); lantern.scale.setScalar(0.75);
   }
   function attach() {
     if (!tumbled) return; tumbled = false;
@@ -369,6 +371,10 @@ export function createSledRig(ctx, opts) {
     // boost: stern glow warms to gold
     boostGlow += ((vs.boostT > 0 ? 1 : 0) - boostGlow) * K; glowMat.color.copy(gcool).lerp(ggold, boostGlow);
     if (tumbled) scarfFree(dt); else scarfAttached(dt, vs, red, spd);
+    if (attachT < 1) { // reattach: scale in over 0.3 s (instant when reduced)
+      attachT = red ? 1 : Math.min(1, attachT + dt / 0.3);
+      const e = 1 - Math.pow(1 - attachT, 3); scarfMesh.scale.setScalar(e); lantern.scale.setScalar(0.75 * e);
+    }
     lastWave = red ? 0 : 0.2 + 0.4 * spd;
     // blob shadow: shrinks and fades with height, aligned to heading
     const gy = ctx.groundY ? ctx.groundY(vs.x, vs.z) : vs.y - 0.5, hgt = Math.max(0, vs.y - gy), sh = 1 - 0.55 * clamp(hgt / 5, 0, 1);
@@ -383,6 +389,7 @@ export function createSledRig(ctx, opts) {
     switch (ev.type || ev.name || ev.kind) {
       case 'land': kick = Math.max(kick, clamp((ev.impact || 0) / cfgv('lookSledImpactRef'), 0, 1)); lwp -= kick * 6; break;
       case 'tumble_start': detach(); break;
+      case 'recover_start': if (tumbled) { attach(); attachT = 0; } break; // back on the rig for the recover hold
       case 'recover_end': case 'run_start': attach(); kick = 0; break;
       default: break;
     }

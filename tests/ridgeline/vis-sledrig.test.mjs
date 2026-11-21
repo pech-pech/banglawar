@@ -104,6 +104,24 @@ test('tumble detaches scarf+lantern as free bodies, recover_end re-attaches', ()
 });
 function NPOINTS(r) { return scarfPos(r).length; }
 
+test('recover_start re-attaches scarf+lantern during the hold, with a 0.3 s scale-in', () => {
+  const ctx = mkctx(); const r = M.createSledRig(ctx); run(r, 30, vsBase({ vy: 5, speed: 30 }));
+  r.fx({ type: 'tumble_start' }); run(r, 30, vsBase({ mode: 'tumble', grounded: false, y: 1 }));
+  r.fx({ type: 'recover_start' }); assert.equal(r.stats().detached, false);
+  assert.ok(r.group.getObjectById(r.parts.lantern.id)); assert.ok(r.group.getObjectById(r.parts.scarf.id));
+  assert.notEqual(r.parts.scarf.parent, ctx.scene); // back under the rig root, not the scene
+  run(r, 3, vsBase({ mode: 'tumble', grounded: false, y: 1 })); assert.ok(r.parts.lantern.scale.x < 0.75 * 0.9, 'starts small');
+  run(r, 20, vsBase({ mode: 'tumble', grounded: false, y: 1 })); assert.ok(Math.abs(r.parts.lantern.scale.x - 0.75) < 1e-9, 'full size after 0.3 s');
+  assert.equal(r.parts.scarf.scale.x, 1);
+  r.fx({ type: 'recover_end' }); assert.equal(r.stats().detached, false);
+});
+
+test('recover_start with reduced motion re-attaches at full size immediately', () => {
+  const r = M.createSledRig(mkctx({ lookReducedMotion: 1 })); run(r, 10, vsBase());
+  r.fx({ type: 'tumble_start' }); r.fx({ type: 'recover_start' }); run(r, 1, vsBase({ reduced: true }));
+  assert.equal(r.stats().detached, false); assert.ok(Math.abs(r.parts.lantern.scale.x - 0.75) < 1e-9); assert.equal(r.parts.scarf.scale.x, 1);
+});
+
 test('shift moves detached bodies only', () => {
   const r = M.createSledRig(mkctx()); r.shift(-100, 0); r.fx({ type: 'tumble_start' }); run(r, 5, vsBase({ mode: 'tumble' }));
   const z = r.parts.lantern.position.z; r.shift(-50, 0); assert.ok(Math.abs(r.parts.lantern.position.z - (z - 50)) < 1e-6);

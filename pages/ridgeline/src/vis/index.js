@@ -29,6 +29,10 @@ const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
  * o = { THREE, scene, camera, renderer, cfg, look, sunDir, root, groundY(x,z), course, seed, sledGroup,
  *       hooks: { getPhase(), hull(), bestM(), onRun(mode), onDaily(), onGarage(), onSettings(), onRide(hull), onGarageClose() } }
  */
+// Flip to true only if the render world ever goes local (shifts with the physics origin): enables the module shift fan-out.
+export const RENDER_LOCAL = false;
+export const _test = { renderLocal: null }; // test hook: set _test.renderLocal = true/false to override RENDER_LOCAL
+
 export function createVis(o) {
   const { THREE, scene, camera, renderer, cfg } = o;
   const hooks = o.hooks || {};
@@ -109,7 +113,7 @@ export function createVis(o) {
   const vs = { t: 0, dt: 0, x: 0, y: 0, z: 0, speed: 0, vx: 0, vy: 0, mode: 'ground', grounded: true, pitch: 0, roll: 0, quat: null, heading: 0,
     diving: false, comp: 0, steer: 0, latAcc: 0, boostT: 0, boost: 0, flow: 0, dist: 0, zone: 0, lap: 0, gap: Infinity, n: 0, tumbleP: null, home: true, reduced: false };
   const tumbleP = { x: 0, y: 0, z: 0 };
-  let frontHidden = false, steerIn = 0, prevVx = 0, latS = 0, shiftZ = 0, phase = 'home', inited = false, lastReal = 0, endOpen = false;
+  let frontHidden = false, steerIn = 0, prevVx = 0, latS = 0, shiftZ = 0, phase = 'home', inited = false, lastReal = 0, endOpen = false, shiftN = 0, shiftDy = 0;
   const runPose = { position: new THREE.Vector3(), quaternion: new THREE.Quaternion(), fov: 58 };
   const sledPos = new THREE.Vector3();
 
@@ -201,7 +205,10 @@ export function createVis(o) {
   function attachPhys(phys) {
     if (!phys || typeof phys.onShift !== 'function') return;
     phys.onShift((dz, dy) => {
-      shiftZ += dz || 0;
+      const renderLocal = _test.renderLocal == null ? RENDER_LOCAL : _test.renderLocal;
+      shiftZ += dz || 0; shiftN++; shiftDy += dy || 0;
+      // Render world stays ABSOLUTE across the floating-origin shift (only the Rapier world shifts): world modules keep absolute coords.
+      if (!renderLocal) return;
       for (const m of mods) { try { m.shift(-(dz || 0), -(dy || 0)); } catch (e) { /* ignore */ } }
       front.shift(dz || 0, dy || 0);
     });
@@ -220,7 +227,7 @@ export function createVis(o) {
   setPhase(typeof hooks.getPhase === 'function' ? hooks.getPhase() : 'home');
 
   return {
-    frame, render, fx, setPhase, attachPhys, patchGround, stats,
+    frame, render, fx, setPhase, attachPhys, shiftInfo: () => ({ n: shiftN, z: shiftZ, y: shiftDy }), patchGround, stats,
     resize(w, h) { post.resize(w, h); },
     pixelRatio,
     get mods() { return mods; },
