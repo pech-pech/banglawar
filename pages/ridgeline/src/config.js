@@ -1,5 +1,19 @@
 // Tunable run/render/physics settings for Ridgeline.
 // DEFAULTS is frozen; cfg is the live mutable copy that other modules read.
+// B3 LOOP begin
+import { KEYS as NIGHT_KEYS } from './night.js';
+import { KEYS as MARK_KEYS } from './marks.js';
+import { KEYS as HULL_KEYS } from './hulls.js';
+import { KEYS as SLED_KEYS } from './sled.js';
+const LOOP_KEYS = { ...NIGHT_KEYS, ...MARK_KEYS, ...HULL_KEYS, ...SLED_KEYS };
+const LOOP_DEF = {};
+const LOOP_META = {};
+for (const k of Object.keys(LOOP_KEYS)) {
+  const { def, ...m } = LOOP_KEYS[k];
+  LOOP_DEF[k] = def;
+  LOOP_META[k] = m;
+}
+// B3 LOOP end
 
 export const DEFAULTS = Object.freeze({
   baseSpeed: 22,
@@ -162,6 +176,9 @@ export const DEFAULTS = Object.freeze({
   hfCell: 0.5,
   hfWidth: 64,
   hoverRayLen: 2.0,
+  // B3 LOOP begin
+  ...LOOP_DEF,
+  // B3 LOOP end
 });
 
 // Slider metadata for the Tweak menu. Each range brackets its default.
@@ -324,6 +341,9 @@ export const META = Object.freeze({
   hfCell:          { min: 0.25, max: 1, step: 0.25, label: 'Heightfield cell (m)', group: 'Physics' },
   hfWidth:         { min: 32, max: 128, step: 4, label: 'Heightfield width (m)', group: 'Physics' },
   hoverRayLen:     { min: 1, max: 4, step: 0.1, label: 'Hover ray length (m)', group: 'Physics' },
+  // B3 LOOP begin
+  ...LOOP_META,
+  // B3 LOOP end
 });
 
 export const cfg = { ...DEFAULTS };

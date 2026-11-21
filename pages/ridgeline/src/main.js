@@ -1,4 +1,4 @@
-import { hashSeed, dailySeedString, mulberry32 } from './rng.js';
+import { hashSeed, mulberry32 } from './rng.js';
 import { loadRapier, createPhysics } from './physics.js';
 import { cfg, isDefault, diffFromDefault } from './config.js';
 import { createCourse } from './terrain.js';
@@ -10,12 +10,16 @@ import { createHud } from './hud.js';
 import { getThemeId, setThemeId, createThemePicker } from './themeui.js';
 import { THEMES } from './themes.js';
 import { createTelemetry, deviceInfo } from './telemetry.js';
+import { createSave } from './save2.js';
+import { dailySeed, dailyDate, dailyCopyText } from './daily.js';
+import { HULLS, HULL_IDS } from './hulls.js';
+import { createMarks } from './marks.js';
 import { createTweak, buildReport, physText, copyText, getVisualPrefs, onVisualPrefs, isVisualDefault } from './tweak.js';
 
-const BUILD = 'ridgeline-proto-10';
+const BUILD = 'ridgeline-proto-12';
+const RULES_VERSION = 1;
 const BEST_KEY = 'ridgeline.best.v1';
 const COUNTER_KEY = 'ridgeline.counter.v1';
-const BESTDIST_KEY = 'ridgeline.bestdist.v1';
 const MAX_STEPS = 8;
 // look-still hook (?still=1): deterministic frame, sim frozen once gate 2 is the next gate. Not a shipped path.
 const STILL = new URLSearchParams(location.search).get('still') === '1';
@@ -112,20 +116,43 @@ let fpsNow = 0;
 function lsGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
 function lsSet(k, v) { try { localStorage.setItem(k, v); } catch (e) { /* ignore */ } }
 
+// ---- B3 LOOP: save v2, hulls, daily ----
+// DEV (any non-default tweak, ignoring the first-run mercy flag main sets itself) never writes bests or marks.
+function devNow() { const d = diffFromDefault(); delete d.firstRunMercy; return Object.keys(d).length > 0; }
+const isDev = () => devNow() || !isVisualDefault();
+const save = createSave({
+  storage: { get: (k) => localStorage.getItem(k), set: (k, v) => localStorage.setItem(k, v) },
+  rulesVersion: RULES_VERSION,
+  today: () => dailyDate(Date.now()),
+  dev: devNow,
+});
+const saveLoad = save.load();
+let hullId = (() => { const h = save.get().hull; return HULLS[h] && save.get().hulls.includes(h) ? h : 'wren'; })();
+let runReached = new Set(), runNew = [], runWrecks = 0, runOverEv = null, runCaught = 0, runZoneKey = '';
+const unlockedList = () => (devNow() ? HULL_IDS.slice() : HULL_IDS.filter((h) => save.get().hulls.includes(h) || sessionUnlocked.has(h)));
+const sessionUnlocked = new Set();
+const bestDist = () => { const b = save.get().best; return b && b.rules === RULES_VERSION ? b.dist : 0; };
+function nextGoalFor(dist) {
+  return createMarks({ reached: new Set(save.get().marks) }, cfg).nextGoal(dist, unlockedList());
+}
+function setHullId(id) {
+  if (!HULLS[id] || !unlockedList().includes(id)) return false;
+  hullId = id; save.setHull(id);
+  return true;
+}
+function startInfo() {
+  const b = bestDist();
+  return { build: BUILD, dailySeed: dailySeed(dailyDate(Date.now()), RULES_VERSION), best: b ? 'Best ' + b + ' m' : null, hull: HULLS[hullId].name, unlockedCount: unlockedList().length };
+}
+function dailyInfo() { const d = save.dailyToday(); return { seed: dailySeed(dailyDate(Date.now()), RULES_VERSION), best: d.best || 0 }; }
+function applyMercy() { cfg.firstRunMercy = save.get().stats.wrecks < 2 ? 1 : 0; }
+
 function loadBest() {
   try { return JSON.parse(lsGet(BEST_KEY)) || {}; } catch (e) { return {}; }
 }
 function bestFor(key) {
   const b = loadBest()[key];
   return typeof b === 'number' ? b : null;
-}
-function bestDist() {
-  const n = parseFloat(lsGet(BESTDIST_KEY));
-  return Number.isFinite(n) ? n : null;
-}
-function saveBestDist(d) {
-  const old = bestDist();
-  if (old === null || d > old) lsSet(BESTDIST_KEY, String(d));
 }
 function saveBest(key, time) {
   try {
@@ -138,7 +165,7 @@ function saveBest(key, time) {
 }
 
 function pickSeed(m) {
-  if (m === 'daily') return dailySeedString(new Date());
+  if (m === 'daily') return dailySeed(dailyDate(Date.now()), RULES_VERSION);
   let n = parseInt(lsGet(COUNTER_KEY) || '0', 10);
   if (!Number.isFinite(n)) n = 0;
   n += 1;
@@ -165,7 +192,8 @@ function newSled() {
   phys.update(0);
   if (props) { try { props.dispose(); } catch (e) { /* ignore */ } props = null; }
   if (!STILL) props = createProps(R, phys, course, cfg);
-  state = createSled(course, phys, mulberry32((seedInt ^ 0x5bd1e995) >>> 0));
+  runReached = new Set(save.get().marks); runNew = []; runWrecks = 0; runOverEv = null; runCaught = 0; runZoneKey = '';
+  state = createSled(course, phys, mulberry32((seedInt ^ 0x5bd1e995) >>> 0), { hull: hullId, reached: runReached, seed: seedStr, daily: mode === 'daily' });
   state._props = props;
 }
 
@@ -173,6 +201,7 @@ function begin(m, seedString) {
   if (!R) { startAfterLoad = () => begin(m, seedString); return; }
   mode = m;
   seedStr = seedString;
+  applyMercy();
   seedInt = hashSeed(seedStr);
   // rebuild always: new seed or changed cfg; disposing the old view first
   buildCourse();
@@ -182,12 +211,13 @@ function begin(m, seedString) {
   tele.reset(performance.now());
   phase = 'run';
   hud.showRun();
-  hud.setDev(!isDefault() || !isVisualDefault());
+  hud.setDev(isDev());
 }
 
 function startMode(m) { begin(m, pickSeed(m)); }
 
 function retry() {
+  applyMercy();
   // same seed; rebuild only if cfg changed, else reuse course
   if (!course || JSON.stringify(cfg) !== builtCfg) { begin(mode, seedStr); return; }
   newSled();
@@ -196,7 +226,7 @@ function retry() {
   tele.reset(performance.now());
   phase = 'run';
   hud.showRun();
-  hud.setDev(!isDefault() || !isVisualDefault());
+  hud.setDev(isDev());
 }
 
 const MEDAL_KEY = 'ridgeline.medal.v1';
@@ -225,16 +255,37 @@ function endRun() {
   if (finished) tele.finish();
   const key = mode + ':' + seedStr;
   if (isEndless()) {
-    const distance = Math.floor(state.dist || state.z || 0);
-    saveBestDist(distance);
+    const cause = state.runOverCause || 'rock';
+    const distance = Math.floor(runOverEv && runOverEv.dist != null ? runOverEv.dist : (state.dist || state.z || 0));
+    const daily = mode === 'daily';
+    const rec = save.recordRun({
+      dist: distance, hull: hullId, zone: state.zone, lap: state.lap, seed: seedStr, cause, wrecks: runWrecks,
+      clean: state.cleans || 0, longestFlightS: state.longestAir || 0, daily, flow: state.flowPeak || 0, landings: state.landings || 0,
+    });
+    const bestDistance = bestDist();
+    let zoneName = '';
+    try { const zi = course.zoneAt(state.z); zoneName = zi.name || String(zi.zone); } catch (e) { /* ignore */ }
+    const stats = {
+      flights: state.launches || 0, cleanLands: state.cleans || 0, grazes: (state.razors || 0) + (state.inners || 0),
+      gates: state.gatesPassed || 0, maxFlow: state.flowPeak || 0,
+    };
     lastResult = {
-      result: crashed ? 'crash' : 'end', time: state.t, distance, gatesPassed: state.gatesPassed, gatesMissed: state.gatesMissed,
+      result: cause === 'night' ? 'night' : 'crash', cause, time: state.t, distance, gatesPassed: state.gatesPassed, gatesMissed: state.gatesMissed,
       flow: flowInfo(), medal: null,
     };
-    hud.showEnd({
-      endless: true, distance, crashed, finished: false, time: state.t, z: state.z, medal: null, flowPeak: state.flowPeak || 0,
-      gatesPassed: state.gatesPassed, gatesMissed: state.gatesMissed, best: null, bestDistance: bestDist(),
-    });
+    const payload = {
+      endless: true, distance, bestDistance, delta: rec.delta, newBest: !!rec.newBest, cause, zone: state.zone, zoneName, lap: state.lap, hull: hullId,
+      nextGoal: nextGoalFor(Math.max(distance, bestDistance)), stats, newMarks: runNew.slice(), dev: devNow(), daily,
+      // old keys, still callable
+      crashed: true, finished: false, time: state.t, z: state.z, medal: null, flowPeak: state.flowPeak || 0,
+      gatesPassed: state.gatesPassed, gatesMissed: state.gatesMissed, best: bestDistance,
+    };
+    if (daily) {
+      payload.dailyBest = !!rec.dailyBest;
+      payload.dailyCopy = dailyCopyText({ date: dailyDate(Date.now()), dist: distance, hull: hullId, zone: state.zone, lap: state.lap, flow: state.flowPeak || 0, clean: state.cleans || 0, landings: state.landings || 0, cause });
+    }
+    hud.showEnd(payload);
+    hud.setStartInfo(startInfo());
     return;
   }
   if (finished) saveBest(key, state.t);
@@ -283,6 +334,21 @@ function endlessInfo() {
   };
 }
 
+function nightInfo() {
+  if (!state || !state._night) return null;
+  const n = state._night.state();
+  return { gap: state.gap, vf: state.vf, stage: state.nightStage, caught: runCaught, caughtTotal: save.get().stats.night, minGap: n.minGap, hits: n.hitTotal };
+}
+function recoverInfo() {
+  if (!state || !state._night) return null;
+  const n = state._night.state();
+  return { wrecks: runWrecks, floorUsed: n.floorUsed, mercy: cfg.firstRunMercy ? 1 : 0, mercied: state.mercied || 0, wrecksSaved: save.get().stats.wrecks };
+}
+function speedInfo() {
+  if (!state) return null;
+  return { speed: state.speed, flow: state.flow, flowPeak: state.flowPeak || 0, hull: hullId, daily: mode === 'daily' ? 1 : 0, seed: seedStr };
+}
+
 function buildInfo() {
   return {
     phys: physInfo(),
@@ -292,6 +358,7 @@ function buildInfo() {
     time: lastResult ? lastResult.time : (state ? state.t : 0),
     gatesPassed: lastResult ? lastResult.gatesPassed : (state ? state.gatesPassed : 0),
     gatesMissed: lastResult ? lastResult.gatesMissed : (state ? state.gatesMissed : 0),
+    night: nightInfo(), recover: recoverInfo(), speed: speedInfo(),
     crashZ,
     flow: lastResult ? lastResult.flow : flowInfo(),
     medal: lastResult ? lastResult.medal : null,
@@ -316,6 +383,7 @@ const hud = createHud(ui, {
   onRetry: retry,
   onMenu() { phase = 'menu'; },
   onSettings() { tweak.open(); },
+  onHull() { const l = unlockedList(); setHullId(l[(l.indexOf(hullId) + 1) % l.length]); hud.setStartInfo(startInfo()); },
   onCopyReport: copyReport,
 });
 const pickers = [];
@@ -341,10 +409,10 @@ function applyTheme(id) {
 const startPicker = createThemePicker(hud.themeMount, { onChange: (id) => applyTheme(id) });
 const settingsPicker = createThemePicker(null, { onChange: (id) => applyTheme(id) });
 pickers.push(startPicker, settingsPicker);
-const tweak = createTweak(ui, { themeEl: settingsPicker.el, physLine, onChange() { hud.setDev(!isDefault() || !isVisualDefault()); } });
+const tweak = createTweak(ui, { themeEl: settingsPicker.el, physLine, onChange() { hud.setDev(isDev()); } });
 applyTheme(getThemeId());
 onVisualPrefs(() => {
-  hud.setDev(!isDefault() || !isVisualDefault());
+  hud.setDev(isDev());
   if (!view) return;
   try { view.dispose(); } catch (e) { /* ignore */ }
   view = createView(canvas, course, rc(), getThemeId(), { ...getVisualPrefs(), still: STILL });
@@ -357,8 +425,9 @@ physPromise.then(() => {
   if (startAfterLoad) { const f = startAfterLoad; startAfterLoad = null; f(); }
 }, (e) => { physErr = e; hud.setLoading('error', e && e.message ? e.message : String(e)); });
 
-hud.showStart({ build: BUILD, dailySeed: dailySeedString(new Date()), best: bestFor('daily:' + dailySeedString(new Date())) });
-hud.setDev(!isDefault() || !isVisualDefault());
+hud.showStart(startInfo());
+if (saveLoad.toast) hud.toast(saveLoad.toast);
+hud.setDev(isDev());
 
 // ---- input ----
 function clamp(v, a, b) { return v < a ? a : v > b ? b : v; }
@@ -474,6 +543,17 @@ function frame(now) {
       const ev = evs[i];
       if (typeof hud !== 'undefined' && hud && typeof hud.event === 'function') hud.event(ev);
       if (view && typeof view.fx === 'function') view.fx(ev);
+      if (ev.type === 'run_start') { if (ev.daily) save.addDailyRun(seedStr); }
+      else if (ev.type === 'recover_start') runWrecks++;
+      else if (ev.type === 'caught') runCaught++;
+      else if (ev.type === 'run_over') runOverEv = ev;
+      else if (ev.type === 'milestone') {
+        if (!ev.repeat) { runNew.push(ev.id); save.unlockMark(ev.id); hud.toast('Mark: ' + String(ev.id).replace(/_/g, ' ')); }
+      } else if (ev.type === 'hull_unlock') {
+        sessionUnlocked.add(ev.hull); save.unlockHull(ev.hull);
+        if (HULLS[ev.hull]) hud.toast(HULLS[ev.hull].name + ' unlocked');
+        hud.setStartInfo(startInfo());
+      }
       if (ev.type === 'boost') tele.boost(ev.amount);
       else if (ev.type === 'crash') {
         let rk = null;
@@ -481,6 +561,8 @@ function frame(now) {
         tele.crash({ rockId: ev.rockId, rockX: rk ? rk.x : NaN, rockZ: rk ? rk.z : NaN, sledX: ev.x, vx: state.vx });
       }
     }
+    const zk = state.zone + '.' + state.lap;
+    if (zk !== runZoneKey) { runZoneKey = zk; save.noteZone(state.zone, state.lap); }
     acc -= FIXED_DT;
     steps++;
     if (state.crashed || state.finished) { endRun(); break; }
@@ -507,4 +589,18 @@ window.__ridgeline = {
   get fps() { return fpsNow; },
   medals() { return isEndless() ? null : medalTimes(course, cfg); },
   report() { return buildReport(buildInfo()); },
+};
+
+// B3 LOOP: game API for B4 (home, garage, end card)
+window.__rl = window.__rl || {};
+window.__rl.game = {
+  get hull() { return hullId; },
+  hulls: HULLS,
+  get unlocked() { return unlockedList(); },
+  get best() { return bestDist(); },
+  get marks() { return save.get().marks.slice(); },
+  nextGoal: (dist) => nextGoalFor(dist == null ? bestDist() : dist),
+  setHull(id) { const ok = setHullId(id); if (ok) hud.setStartInfo(startInfo()); return ok; },
+  startRun(o) { startMode(o && o.daily ? 'daily' : 'random'); return true; },
+  get daily() { return dailyInfo(); },
 };

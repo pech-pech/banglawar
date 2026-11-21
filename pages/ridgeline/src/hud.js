@@ -100,6 +100,8 @@ body.rl-paper .rlh .rlh-word{color:#24406e;text-shadow:none;background:#fff;bord
   const loadEl = el('p', 'rlh-best rlh-panel', sb, 'Loading physics...');
   const dailyBtn = btn('Daily run', '', sb, () => call('onStart', 'daily'));
   const randBtn = btn('Random run', 'alt', sb, () => call('onStart', 'random'));
+  const hullBtn = btn('Hull: Wren', 'alt', sb, () => call('onHull')); // B3 minimal hull cycle, B4 replaces
+  hullBtn.hidden = true;
   function setLoading(state, msg) { // 'loading' | 'ready' | 'error'
     const off = state !== 'ready';
     dailyBtn.disabled = off; randBtn.disabled = off;
@@ -182,15 +184,17 @@ body.rl-paper .rlh .rlh-word{color:#24406e;text-shadow:none;background:#fff;bord
     run.hidden = m !== 'run';
     end.hidden = m !== 'end';
   }
-  function showStart(info) {
+  function setStartInfo(info) { paintStart(info); }
+  function showStart(info) { paintStart(info); mode('start'); }
+  function paintStart(info) {
     lastInfo = info || null;
     const b = info && info.best;
     if (b != null && b !== '') {
       bestEl.hidden = false;
       bestEl.textContent = 'Best: ' + (typeof b === 'number' ? b.toFixed(2) + ' s' : String(b));
     } else bestEl.hidden = true;
+    if (info && info.hull) { hullBtn.hidden = !(info.unlockedCount > 1); hullBtn.textContent = 'Hull: ' + info.hull; }
     if (info && info.build) verEl.textContent = 'build ' + info.build;
-    mode('start');
   }
   function showRun() {
     cache.t = cache.s = cache.g = cache.fps = cache.d = ''; cache.en = null; cache.w = -1; cache.rdy = null; cache.fl = -1; cache.fw = -1;
@@ -252,11 +256,21 @@ body.rl-paper .rlh .rlh-word{color:#24406e;text-shadow:none;background:#fff;bord
   function showEnd(result) {
     const r = result || {};
     if (r.endless) { // endless: distance result, no time / gates / medal rows
-      resEl.textContent = r.crashed ? 'CRASHED' : 'RUN OVER';
+      const night = r.cause === 'night';
+      resEl.textContent = night ? 'CAUGHT BY NIGHT' : (r.cause === 'rock' || r.crashed ? 'CRASHED' : 'RUN OVER');
       sTime.hidden = false; sTime.textContent = 'Distance ' + Math.round(r.distance || 0) + ' m';
-      sGates.hidden = r.best == null; sGates.textContent = 'Best ' + Math.round(r.best || 0) + ' m' + (r.newBest ? ' (new)' : '');
-      sExtra.hidden = true; sMedal.hidden = true;
-      if (r.flowPeak != null) { sFlow.hidden = false; sFlow.textContent = 'Flow peak ' + (r.flowPeak | 0); } else sFlow.hidden = true;
+      const bd = r.bestDistance != null ? r.bestDistance : r.best;
+      sGates.hidden = bd == null;
+      const dl = r.delta != null && r.delta !== 0 ? ' (' + (r.delta > 0 ? '+' : '') + Math.round(r.delta) + ' m)' : '';
+      sGates.textContent = 'Best ' + Math.round(bd || 0) + ' m' + dl + (r.newBest ? ' new' : '');
+      const goal = r.nextGoal && r.nextGoal.text ? r.nextGoal.text : '';
+      const nm = r.newMarks && r.newMarks.length ? 'New: ' + r.newMarks.join(', ').replace(/_/g, ' ') : '';
+      const ex = [nm, goal].filter(Boolean).join(' | ');
+      sExtra.hidden = !ex; sExtra.textContent = ex;
+      sMedal.hidden = true;
+      if (r.flowPeak != null) { sFlow.hidden = false; sFlow.textContent = 'Flow peak ' + (r.flowPeak | 0); }
+      else if (r.stats && r.stats.maxFlow != null) { sFlow.hidden = false; sFlow.textContent = 'Flow peak ' + (r.stats.maxFlow | 0); }
+      else sFlow.hidden = true;
       endAt = performance.now(); mode('end'); return;
     }
     sTime.hidden = sGates.hidden = false;
@@ -286,5 +300,5 @@ body.rl-paper .rlh .rlh-word{color:#24406e;text-shadow:none;background:#fff;bord
   }
 
   showStart(null);
-  return { showStart, showRun, update, event, showEnd, setDev, toast, setLoading, themeMount, setThemeLabel };
+  return { showStart, setStartInfo, showRun, update, event, showEnd, setDev, toast, setLoading, themeMount, setThemeLabel };
 }
