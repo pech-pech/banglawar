@@ -7,26 +7,35 @@ export const LOOK_BASE = {
   name: 'Cut-Paper Pop', paper: true,
   // t = elevation / 90 deg. 4 hard bands (equal t on two stops = seam), compressed because portrait framing sees about 0-25 deg of sky.
   sky: [[0, '#fbf0d9'], [0.025, '#fbf0d9'], [0.025, '#a9d2ee'], [0.05, '#a9d2ee'], [0.05, '#6fa3e0'], [0.075, '#6fa3e0'], [0.075, '#3b6fc4'], [1, '#3b6fc4']],
-  sun: { dir: [-0.035, -0.03, 0.99], color: '#fff8e1', size: 10, ringColor: '#bcdcf6', rings: [{ deg: 16, alpha: 0.50 }, { deg: 22, alpha: 0.32 }] },
+  sun: { dir: [0.02, -0.03, 0.99], color: '#fff8e1', size: 10, ringColor: '#bcdcf6', rings: [{ deg: 16, alpha: 0.50 }, { deg: 22, alpha: 0.32 }] },
   ranges: [
     { paper: true, seed: 11, r: 270, dy: -52, base: -70, peak: 60, top: '#8fb4dc', edge: '#ffffff', edgeH: 1.0 },
     { paper: true, seed: 23, r: 250, dy: -50, base: -70, peak: 40, top: '#6d94c8', edge: '#ffffff', edgeH: 1.0 },
     { paper: true, seed: 37, r: 230, dy: -48, base: -70, peak: 24, top: '#5d84bc', edge: '#ffffff', edgeH: 1.0 },
   ],
+  // C light pack: ONE sun. light.dir points toward the sun (matches sun.dir azimuth); drives ground / bank two-tone, toon lights and cast shadows.
+  light: { dir: [0.3, 0.42, 0.86], color: '#fff0d0' },
+  litTint: '#fdfaf0', groundShade: null, // warm lit paper, cool shade seams on drift lee sides
+  shadow: { col: '#86a7da', len: 1.5 },                                  // flat projected paper shadows (trees, rocks, gates, sled)
+  rim: { col: '#fff3cf', w: 0.78, minSun: 0.15 },                         // hard rim strip on sled, trees, gates
+  midRange: { seed: 61, r: 165, dy: -47, base: -70, peak: 18, edge: '#ffffff', par: 0.7, k: 0.9 },
+  clouds: { n: 7, lit: '#ffffff', shade: '#cfe0f2', elMin: 0.004, elMax: 0.026 },
   fogColor: '#e9f1f6', fogMul: 0.6, fogSteps: 4,
   shadeTint: '#c3d8ee', bandMul: 1, edgeBlend: 0.001,
-  bankLit: '#ffffff', bankShade: '#a6c6ea', litThreshold: 0.9,
+  bankLit: '#f1f2ee', bankShade: '#92b4e4', litThreshold: 0.3,
   contour: { every: 1.5, frac: 0.12, dark: 0.04 },
+  // A "Paper ground": hard drift layers (tones cycle), shadow strip on the lower layer, lit lip on each cut, carved edge groove
+  ground: { period: 1.1, tones: ['#ffffff', '#f0f6fc', '#e4eff9'], seam: '#9dbde3', lip: '#ffffff', key: '#7a9fd0', tufts: 1, groove: { col: '#a3c0e4', w: 0.14 } },
   poles: { w: 0.07, h: 1.3, col: '#24406e', band: '#ffffff', bandH: 0.25, every: 20, pennant: true, cols: ['#1f6fd0', '#ffffff'] },
-  blob: { col: '#8fb0dc', alpha: 0.6, edge: 0.92, off: [0.27, 0.13], tree: 1.2, rock: 1.3, foot: 0.5, sledW: 1.3, sledL: 2.4 },
+  blob: { col: '#8fb0dc', alpha: 0.6, edge: 0.92, off: [0.27, 0.13], tree: 1.2, rock: 1.3, foot: 0.5, sledW: 1.7, sledL: 3.0 },
   stripe: null,
   gate: { chevrons: false, pulse: 0, pennants: true },
   flakes: { n: 90, size: 0.3, nLow: 45 },
-  streaks: { n: 20, minSpeed: 34, nLow: 10, taper: true, w: 0.05, len: 4 },
-  trail: '#ffffff', trailCore: '#35e0ff', trailInterval: 1 / 120, spray: '#ffffff',
-  outline: '#33456b', rockOutline: '#6a86b8', rockColor: 0x2a2e34,
+  streaks: { n: 8, minSpeed: 24, nLow: 10, taper: true, w: 0.09, len: 5 },
+  trail: '#3b6fc4', trailCore: '#35e0ff', trailAlt: '#ffffff', chunky: true, trailInterval: 1 / 100, spray: '#ffffff',
+  outline: '#33456b', rockOutline: '#2a3d66', rockColor: 0x2a2e34,
   suit: '#24406e', suitC: '#3a68b8', wing: '#f4f7fb',
-  outlineK: 1.08, sledOutline: 0.05, helm: 1.25, hullRough: 0.5,
+  outlineK: 1.08, rockK: 1.16, sledScale: 1.15, sledOutline: 0.055, helm: 1.5, hullRough: 0.5,
   sledC: null, // null = theme sled / sledGlow
   vignette: 'radial-gradient(ellipse at 50% 45%, rgba(36,64,110,0) 55%, rgba(36,64,110,0.10) 100%)',
   hudCss: true,
@@ -126,19 +135,40 @@ export const THEME_LOOKS = {
     vignette: vig(58, 52, 38, 0.10),
   },
 
-  // Sunscorch Dunes: rust mesas lighter than basalt; cactus-green poles; sky paler than the teal / royal gates; no orange.
-  dune: { trailW: 0.13,
-    sky: bands('#fbeed0', '#a8d8f0', '#62b4e6', '#3390d6'),
-    sun: sun('#fff8dc', '#d3ecf8'),
-    ranges: ranges(['#d49a66', '#b06c3c', '#8f5228'], '#fbe6b8'),
-    fogColor: '#fbeed0',
-    bankLit: '#c47a45', bankShade: '#b06a38',
-    poles: poles('#256b43', '#ffffff'),
-    blob: blob('#9a6a3a', 0.65),
-    trail: '#f6dfae', trailCore: '#7fdcec', spray: '#fff3d6',
-    outline: '#7a4420', rockOutline: '#a8643a', rockColor: null,
-    suitC: '#4a2f6a', wing: '#fff6e0',
-    vignette: vig(90, 46, 18, 0.10),
+  // Longlight Haze (sunset dunes, look type 2): soft:true switches on the smooth-gradient pipeline (see render.js SOFT).
+  // Sun dead ahead and low; everything backlit; cool colours belong to the gates only.
+  dune: { soft: { lit: '#ffb070', shade: '#8a4a72', bank: '#5c2e62', bankRim: '#ff9a5c', haze: '#ffb070', rim: 0.85, ripple: 0.07, hollow: 0.28 },
+    name: 'Longlight Haze',
+    // 5 un-doubled stops (smooth). t = elevation / 90 deg
+    sky: [[0, '#ffd27a'], [0.03, '#ff9a5c'], [0.07, '#e0607a'], [0.14, '#6b3f8f'], [1, '#3a2f6a']],
+    sun: { dir: [0, -0.02, 1], color: '#fff6d8', size: 12, glow: 58, glowAlpha: 0.42, soft: true, ringColor: '#ffc46a', rings: [{ deg: 14, alpha: 0.35 }, { deg: 26, alpha: 0.15 }] },
+    // far / mid / near tops; each fades to the haze colour at its base; crest rim = thin warm glow
+    ranges: [
+      { dune: true, seed: 11, r: 270, dy: -16, base: -70, peak: 22, top: '#e88a6a', fade: '#ffb070', rim: '#ffd89a', rimH: 0.6, fadeH: 30, towers: 7, soften: 0.55 },
+      { dune: true, seed: 23, r: 250, dy: -32, base: -70, peak: 34, top: '#a8527a', fade: '#ffb070', rim: '#ffcf8a', rimH: 0.8, fadeH: 26 },
+      { dune: true, seed: 37, r: 230, dy: -44, base: -70, peak: 38, top: '#5a2f66', fade: '#ffb070', rim: '#ffcf8a', rimH: 0.7, fadeH: 22 },
+    ],
+    midRange: null,
+    light: { dir: [0, 0.12, 0.99], color: '#ffc890' },
+    litTint: '#ffffff', groundShade: null,
+    shadow: { col: '#5c2e62', len: 2.6, soft: true, alpha: 0.62 },
+    rim: { col: '#ffcf8a', w: 0.72, minSun: 0.05 },
+    clouds: { streak: true, n: 3, seed: 7, lit: '#ffb070', shade: '#e0607a', elMin: 0.17, elMax: 0.3 },
+    fogColor: '#ffb070', fogMul: 0.6, fogSteps: 0,
+    bankLit: '#ff9a5c', bankShade: '#5c2e62',
+    contour: { every: 1.5, frac: 0.12, dark: 0 },
+    ground: null, tufts: 0,
+    poles: { w: 0.07, h: 1.5, col: '#3a2350', band: '#ff9a5c', bandH: 0.25, every: 20, pennant: true, cols: ['#ff9a5c', '#ffd27a'] },
+    blob: null,
+    gate: { chevrons: false, pulse: 0.5, pennants: true },
+    flakes: { n: 40, size: 0.16, nLow: 20 },
+    streaks: { n: 6, minSpeed: 24, nLow: 6, taper: true, w: 0.07, len: 5, col: '#ffe2a8' },
+    trail: '#ffd27a', trailTo: '#e0607a', trailCore: '#ffd890', chunky: false, trailW: 0.2, trailInterval: 1 / 55, spray: '#ffe2a8',
+    outline: '#160d22', rockOutline: '#160d22', rockColor: null,
+    suitC: '#ff5a4a', scarf: '#ff5a4a', wing: '#fff3dc',
+    outlineK: 1, rockK: 1, sledScale: 1.15, sledOutline: 0, helm: 1.5, hullRough: 0.7,
+    hudCss: { bg: '#fff3dc', ink: '#3a2f6a', accent: '#c8452f', knob: '#ff5a4a' },
+    vignette: vig(58, 30, 70, 0.30),
   },
 
   // Night Geode (DARK ground): the "sun" is a violet moon; ranges, caps, poles, trail violet and dimmer than the ice hazards.

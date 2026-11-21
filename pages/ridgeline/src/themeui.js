@@ -5,6 +5,7 @@ const KEY = 'ridgeline.theme.v1';
 const STYLE_ID = 'rl-themepicker-style';
 
 export function getThemeId() {
+  try { const q = new URLSearchParams(location.search); if (q.get('still') === '1') { const t = q.get('theme'); if (t && Object.prototype.hasOwnProperty.call(THEMES, t)) return t; } } catch (e) { /* ignore */ }
   try {
     const v = localStorage.getItem(KEY);
     if (v && Object.prototype.hasOwnProperty.call(THEMES, v)) return v;

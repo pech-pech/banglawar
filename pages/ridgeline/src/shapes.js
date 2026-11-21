@@ -4,7 +4,7 @@
 import * as THREE from '../vendor/three.module.js';
 
 export const SHAPE_IDS = {
-  tree: ['cone', 'lollipop', 'fern', 'cube', 'puff', 'brush', 'crystal', 'cactus'],
+  tree: ['cone', 'lollipop', 'fern', 'cube', 'puff', 'brush', 'crystal', 'cactus', 'windharp'],
   rock: ['boulder', 'gumdrop', 'bone', 'cube', 'cloud', 'blot', 'crystal'],
 };
 
@@ -200,6 +200,35 @@ function buildTree(shape) {
       ];
       return { trunk: null, leaf: merge(parts) };
     }
+    case 'windharp': {
+      // Longlight Haze scenery set (unit height 1): leaf = wind harp (bent mast, crossbar, 3 taut strings);
+      // extra.arch = half-buried ring arch; extra.reed = cluster of thin reed stalks. One material, three instanced meshes.
+      const rng = mulberry32(777);
+      const parts = [];
+      const N = 5, bend = 0.2, pts = [];
+      for (let i = 0; i <= N; i++) { const t = i / N; pts.push([bend * t * t, t * 1.05]); }
+      for (let i = 0; i < N; i++) {
+        const [x0, y0] = pts[i], [x1, y1] = pts[i + 1];
+        const len = Math.hypot(x1 - x0, y1 - y0), ang = Math.atan2(x1 - x0, y1 - y0);
+        const r0 = 0.05 * (1 - i / N * 0.7), r1 = 0.05 * (1 - (i + 1) / N * 0.7);
+        parts.push(place(cyl(r1, r0, len * 1.04, 5, false), { pos: [x0, y0, 0], rot: [0, 0, -ang] }));
+      }
+      const [tx, ty] = pts[N];
+      parts.push(place(box(0.5, 0.035, 0.035), { pos: [tx - 0.12, ty - 0.08, 0] }));
+      parts.push(place(cone(0.05, 0.12, 5, false), { pos: [tx, ty, 0] }));
+      for (let k = 0; k < 3; k++) { // strings from the crossbar down to the mast
+        const xa = tx - 0.14 - 0.1 * k, ya = ty - 0.08, xb = bend * 0.16 + 0.02, yb = 0.32 + 0.05 * k;
+        const len = Math.hypot(xb - xa, yb - ya), ang = Math.atan2(xb - xa, yb - ya) ;
+        parts.push(place(cyl(0.02, 0.02, len, 3, false), { pos: [xa, ya, 0], rot: [0, 0, -ang] }));
+      }
+      const arch = merge([place(new THREE.TorusGeometry(0.42, 0.07, 5, 16), { pos: [0, 0.14, 0] })]);
+      const rp = [];
+      for (let i = 0; i < 8; i++) {
+        const a = rng() * 6.28, d = 0.03 + rng() * 0.12, h = 0.45 + rng() * 0.5;
+        rp.push(place(cone(0.022, h, 3, false), { pos: [Math.cos(a) * d, 0, Math.sin(a) * d], rot: [(rng() - 0.5) * 0.5, 0, (rng() - 0.5) * 0.5] }));
+      }
+      return { trunk: null, leaf: merge(parts), extra: { arch, reed: merge(rp) } };
+    }
     case 'cactus': {
       const parts = [
         place(cyl(0.085, 0.1, 0.9, 5, false)),
@@ -215,12 +244,24 @@ function buildTree(shape) {
     }
     case 'cone':
     default: {
+      // D: 2-tone paper tiers. Each tier = lit upper cone (x1.0) over a darker skirt band (x0.62) with a slight ledge.
       const trunk = merge([place(cyl(0.035, 0.05, 0.22, 6, false))]);
-      const leaf = merge([
-        place(cone(0.25, 0.42, 7, false), { pos: [0, 0.15, 0] }),
-        place(cone(0.19, 0.4, 7, false), { pos: [0, 0.4, 0], rot: [0, 0.4, 0] }),
-        place(cone(0.13, 0.35, 7, false), { pos: [0, 0.65, 0], rot: [0, 0.8, 0] }),
-      ]);
+      const parts = [], cols = [];
+      const tier = (r, h, y, rot) => {
+        const kBand = 0.38, rMid = r * (1 - kBand);
+        const skirt = place(cyl(rMid * 1.0, r, h * kBand, 7, false), { pos: [0, y, 0], rot: [0, rot, 0] });
+        const top = place(cone(rMid, h * (1 - kBand), 7, false), { pos: [0, y + h * kBand, 0], rot: [0, rot, 0] });
+        parts.push(skirt, top);
+        cols.push([0.4, 0.5, 0.45, skirt.attributes.position.count], [1.7, 2.0, 1.35, top.attributes.position.count]);
+      };
+      tier(0.27, 0.4, 0.14, 0);
+      tier(0.2, 0.38, 0.38, 0.4);
+      tier(0.14, 0.34, 0.62, 0.8);
+      const leaf = merge(parts);
+      const col = new Float32Array(leaf.attributes.position.count * 3);
+      let o = 0;
+      for (const [r, g, b, n] of cols) for (let i = 0; i < n; i++, o += 3) { col[o] = r; col[o + 1] = g; col[o + 2] = b; }
+      leaf.setAttribute('color', new THREE.BufferAttribute(col, 3));
       return { trunk, leaf };
     }
   }
@@ -293,8 +334,27 @@ function buildRock(shape) {
     }
     case 'boulder':
     default: {
-      const g = jitter(flat(new THREE.IcosahedronGeometry(1, 1)), 0.18, 71, 0.12);
-      return fitRock(merge([place(g, { scale: [1, 0.65, 1] })]));
+      // D: faceted paper boulder. Icosahedron detail 1, strong jitter, flattened crown plateau; vertex colour
+      // multipliers: lit top facets x2.6 (cool), side facets x1.0, low skirt x0.8. Multipliers apply on rockColor.
+      const g = jitter(flat(new THREE.IcosahedronGeometry(1, 1)), 0.26, 71, 0.18);
+      const p0 = g.attributes.position;
+      for (let i = 0; i < p0.count; i++) { // pull the crown into a plateau so the top reads as one facet
+        const y = p0.getY(i);
+        if (y > 0.55) p0.setY(i, 0.55 + (y - 0.55) * 0.25);
+      }
+      const geo = fitRock(merge([place(g, { scale: [1, 0.95, 1] })]));
+      const pos = geo.attributes.position, nrm = geo.attributes.normal;
+      const col = new Float32Array(pos.count * 3);
+      for (let i = 0; i < pos.count; i++) {
+        const ny = nrm.getY(i), y = pos.getY(i);
+        let r = 1, gg = 1, b = 1.05;
+        if (ny > 0.55) { r = 4.6; gg = 5.4; b = 6.6; }
+        else if (ny > 0.2) { r = 1.5; gg = 1.65; b = 2.0; }
+        else if (y < 0.18) { r = gg = b = 0.8; }
+        col[i * 3] = r; col[i * 3 + 1] = gg; col[i * 3 + 2] = b;
+      }
+      geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+      return geo;
     }
   }
 }
