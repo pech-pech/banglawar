@@ -20,7 +20,7 @@ import { UNLOCK_M } from './vis/index.js';
 import { createAudioGlue, isAudioKey } from './audioglue.js'; // B5 AUDIO
 // B4 VIS end
 
-const BUILD = 'ridgeline-proto-13';
+const BUILD = 'ridgeline-proto-14';
 const RULES_VERSION = 1;
 const BEST_KEY = 'ridgeline.best.v1';
 const COUNTER_KEY = 'ridgeline.counter.v1';
@@ -207,10 +207,34 @@ function newSled() {
   state._props = props;
 }
 
+// ---- pause (MENU button, Esc / P) ----
+// Pausing only stops the fixed-step loop from advancing: no sim step, no RNG draw, no physics update, so a paused-and-resumed
+// run replays exactly like an unpaused one. Audio clock is suspended; the telemetry frame clock is skipped.
+let paused = false;
+function clearPause() {
+  if (!paused) return;
+  paused = false; hud.hidePause(); ag.pause(false); last = 0; acc = 0;
+}
+function setPaused(on) {
+  if (on === paused) return;
+  if (on) {
+    if (phase !== 'run' || !state || tweak.isOpen()) return;
+    if (pointerId !== null) { tele.touchUp(performance.now(), state.boost, false); pointerId = null; } // drop a held steer without firing boost
+    input.steer = 0; input.down = false; fireNext = false; keys.left = keys.right = keys.space = false;
+    paused = true; hud.showPause(); ag.pause(true);
+  } else clearPause();
+}
+function quitToTitle() {
+  clearPause();
+  if (VIS_ON) { goHome(); return; }
+  phase = 'menu'; ag.silence(); ag.bgm('menu'); hud.showStart(startInfo());
+}
+
 function begin(m, seedString) {
   if (!R) { startAfterLoad = () => begin(m, seedString); return; }
   // B4 VIS: keep the home world when it already is this seed + cfg (camera blends from the title, no cut)
   const keep = VIS_ON && course && view && seedString === seedStr && JSON.stringify(cfg) === builtCfg;
+  clearPause();
   mode = m;
   seedStr = seedString;
   applyMercy();
@@ -231,6 +255,7 @@ function begin(m, seedString) {
 function startMode(m) { begin(m, pickSeed(m)); }
 
 function retry() {
+  clearPause();
   applyMercy();
   // same seed; rebuild only if cfg changed, else reuse course
   if (!course || JSON.stringify(cfg) !== builtCfg) { begin(mode, seedStr); return; }
@@ -410,6 +435,10 @@ const hud = createHud(ui, {
   onStart: startMode,
   onRetry: retry,
   onMenu() { phase = 'menu'; },
+  onPause: () => setPaused(true),
+  onResume: () => setPaused(false),
+  onRestart: retry,
+  onQuit: () => quitToTitle(),
   onSettings() { tweak.open(); },
   onHull() { const l = unlockedList(); setHullId(l[(l.indexOf(hullId) + 1) % l.length]); hud.setStartInfo(startInfo()); },
   onCopyReport: copyReport,
@@ -488,6 +517,7 @@ const visHooks = {
 };
 function goHome() {
   if (!VIS_ON) return;
+  clearPause();
   if (props) { try { props.dispose(); } catch (e) { /* ignore */ } props = null; } // B2 props live in phys' world: free first
   if (phys) { try { phys.dispose(); } catch (e) { /* ignore */ } phys = null; }
   phase = 'home';
@@ -550,11 +580,11 @@ function isControl(t) {
   return !!(t && t.closest && t.closest('button, input, select, textarea, a, label'));
 }
 window.addEventListener('pointerdown', (e) => {
-  if (phase === 'run' && !tweak.isOpen()) {
+  if (phase === 'run' && !tweak.isOpen() && !paused) {
     if (isControl(e.target)) tele.touchIgnored(performance.now(), true);
     else if (pointerId !== null) tele.touchIgnored(performance.now(), false);
   }
-  if (phase !== 'run' || pointerId !== null || isControl(e.target) || tweak.isOpen()) return;
+  if (phase !== 'run' || paused || pointerId !== null || isControl(e.target) || tweak.isOpen()) return;
   tele.touchDown(performance.now(), e.clientX, e.clientY);
   pointerId = e.pointerId;
   input.down = true;
@@ -590,12 +620,13 @@ window.addEventListener('pointercancel', (e) => release(e, false));
 for (const ev of ['touchstart', 'touchmove', 'gesturestart', 'contextmenu', 'selectstart', 'dragstart']) {
   document.addEventListener(ev, (e) => {
     // touchmove inside a scrollable panel (Settings/Tweak, theme list, menus) must scroll natively: never block it there
-    if (ev === 'touchmove' && e.target && e.target.closest && e.target.closest('.rlt, .rlh-themebody, .rlh-screen')) return;
+    if (ev === 'touchmove' && e.target && e.target.closest && e.target.closest('.rlt, .rlh-themebody, .rlh-screen, .rlh-pause')) return;
     if (ev !== 'touchstart' || (phase === 'run' && !isControl(e.target))) e.preventDefault();
   }, { passive: false });
 }
 
 window.addEventListener('keydown', (e) => {
+  if ((e.code === 'Escape' || e.code === 'KeyP') && !e.repeat && !tweak.isOpen()) { if (paused) { setPaused(false); e.preventDefault(); return; } if (phase === 'run') { setPaused(true); e.preventDefault(); return; } }
   if (phase === 'run' && (e.code === 'ArrowLeft' || e.code === 'ArrowRight' || e.code === 'Space')) tele.key();
   if (e.code === 'ArrowLeft') { keys.left = true; e.preventDefault(); }
   else if (e.code === 'ArrowRight') { keys.right = true; e.preventDefault(); }
@@ -637,8 +668,8 @@ function frame(now) {
     if (fpsWin.length > 30) fpsWin.shift();
     let s = 0; for (const v of fpsWin) s += v;
     fpsNow = s / fpsWin.length;
-    if (phase === 'run' && !tweak.isOpen()) tele.frame(dt * 1000);
-    if (phase === 'run') { fpsSum += inst; fpsN++; fpsAvg = fpsSum / fpsN; }
+    if (phase === 'run' && !tweak.isOpen() && !paused) tele.frame(dt * 1000);
+    if (phase === 'run' && !paused) { fpsSum += inst; fpsN++; fpsAvg = fpsSum / fpsN; }
   }
   // B4 VIS begin: home / garage / end keep drawing (title, garage camera, end pull-back)
   if (VIS_ON && phase !== 'run' && phase !== 'menu' && state && view) {
@@ -647,6 +678,7 @@ function frame(now) {
   }
   // B4 VIS end
   if (phase !== 'run' || !state) return;
+  if (paused) { if (view) view.draw(state, now / 1000); hud.update(state, fpsNow); return; } // paused: no sim step, audio suspended
   if (STILL) {
     if (!stillState) stillAdvance();
     if (view) view.draw(state, state.t);

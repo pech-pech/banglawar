@@ -25,17 +25,19 @@ export function audioState(s) {
 }
 
 export function createAudioGlue(getCfg, opts = {}) {
-  let au = null, mode = null, wanted = null;
+  let au = null, mode = null, wanted = null, paused = false;
   const make = () => { if (!au) { try { au = new RidgelineAudio({ bgmBase: opts.base || './audio/' }); } catch (e) { au = null; } } return au; };
   const levels = () => { const c = getCfg(); return { master: c.audioMaster, sfx: c.audioSfx, amb: c.audioAmb, bgm: c.audioBgm, muted: !!c.audioMute }; };
   return {
     // first user gesture (pointerdown / key): browsers block audio before this
-    unlock() { const a = make(); if (!a) return false; try { const ok = a.unlock(); a.setLevels(levels()); if (wanted) a.bgm(wanted); return ok; } catch (e) { return false; } },
+    unlock() { if (paused) return !!au; const a = make(); if (!a) return false; try { const ok = a.unlock(); a.setLevels(levels()); if (wanted) a.bgm(wanted); return ok; } catch (e) { return false; } },
     applyLevels() { if (au) try { au.setLevels(levels()); } catch (e) { /* ignore */ } },
     bgm(name) { wanted = name; if (au && mode !== name) { mode = name; try { au.bgm(name); } catch (e) { /* ignore */ } } },
     step(s) { if (au) try { au.setState(audioState(s)); } catch (e) { /* ignore */ } },
     event(ev) { if (au) try { au.event(ev.type, ev); } catch (e) { /* ignore */ } },
     silence() { if (au) try { au.silenceLoops(); } catch (e) { /* ignore */ } },
+    // pause menu: freeze / thaw the whole audio clock (loops, bgm, one-shots); unlock() stays out while paused
+    pause(on) { paused = !!on; if (au && au.ctx) try { if (paused) au.ctx.suspend(); else au.ctx.resume(); } catch (e) { /* ignore */ } },
     ui() { if (au) try { au.play('uiTap'); } catch (e) { /* ignore */ } },
     get audio() { return au; },
   };
