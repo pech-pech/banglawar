@@ -1,0 +1,1295 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<title>Candle Duel</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#16130f">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>
+:root{
+  --stone:#16130f; --gold:#d9a441; --gold-d:#a67a25; --parch:#efe2c2; --parch-d:#d9c79b;
+  --ink:#2a1d10; --seal:#8e1b1b; --seal-d:#5c0f0f; --good:#7d9a2e; --bad:#8a1c1c;
+  --sat:env(safe-area-inset-top,0px); --sab:env(safe-area-inset-bottom,0px);
+  --sal:env(safe-area-inset-left,0px); --sar:env(safe-area-inset-right,0px);
+  --font:Georgia,'Times New Roman',serif;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%}
+body{
+  background:var(--stone) radial-gradient(ellipse at 50% 18%,rgba(255,190,90,.22),rgba(22,19,15,0) 60%);
+  background-attachment:fixed;
+  color:var(--parch);font-family:var(--font);font-size:16px;line-height:1.3;
+  overflow-x:hidden;-webkit-text-size-adjust:100%;
+}
+#app{position:relative;width:100%;height:100%;max-width:560px;margin:0 auto}
+button,input{font-family:inherit;font-size:inherit;color:inherit}
+h1,h2,h3,p{margin:0}
+h1{font-size:30px;color:var(--gold);text-align:center;letter-spacing:1px;text-shadow:0 0 14px rgba(217,164,65,.5)}
+h2{font-size:22px;color:var(--gold)}
+
+.screen{
+  display:none;position:absolute;inset:0;overflow-y:auto;overflow-x:hidden;
+  padding:calc(10px + var(--sat)) calc(14px + var(--sar)) calc(10px + var(--sab)) calc(14px + var(--sal));
+  flex-direction:column;gap:10px;
+}
+.screen.active{display:flex}
+
+.row{display:flex;flex-direction:row;align-items:center;gap:8px}
+.col{display:flex;flex-direction:column;gap:8px}
+.grow{flex:1 1 auto;min-width:0}
+.small{font-size:14px}
+.muted{opacity:.82}
+.gold{color:var(--gold)}
+
+.card{
+  background:linear-gradient(180deg,#f4e9cb,var(--parch) 60%,var(--parch-d));
+  color:var(--ink);border-radius:10px;padding:12px 14px;
+  border:1px solid var(--gold-d);box-shadow:0 2px 10px rgba(0,0,0,.55),inset 0 0 18px rgba(120,80,20,.18);
+}
+.chip{
+  display:inline-flex;align-items:center;gap:4px;padding:2px 9px;border-radius:999px;
+  background:rgba(0,0,0,.45);border:1px solid var(--gold-d);color:var(--parch);font-size:13px;white-space:nowrap;
+}
+.card .chip{background:rgba(42,29,16,.12);color:var(--ink)}
+
+.btn{
+  min-height:56px;padding:10px 16px;border-radius:10px;cursor:pointer;
+  background:linear-gradient(180deg,#3a2c1a,#241a0e);border:1.5px solid var(--gold);color:var(--parch);
+  font-weight:bold;text-align:center;touch-action:manipulation;
+}
+.btn:active{transform:translateY(1px);filter:brightness(1.15)}
+.btn:disabled{opacity:.45;cursor:default}
+.btn-seal{
+  width:64px;height:64px;min-height:56px;padding:0;border-radius:50%;flex:none;
+  background:radial-gradient(circle at 35% 30%,#c13a3a,var(--seal) 45%,var(--seal-d));
+  border:3px solid var(--gold);color:#f6e7c0;box-shadow:0 3px 8px rgba(0,0,0,.6),inset 0 0 8px rgba(0,0,0,.45);
+  display:inline-flex;align-items:center;justify-content:center;font-size:20px;
+}
+#btn-play.btn-seal,#btn-rematch.btn-seal,#btn-wager-go.btn-seal{width:auto;min-width:160px;height:56px;border-radius:999px;padding:0 28px;font-size:22px}
+#btn-rematch.btn-seal,#btn-wager-go.btn-seal{align-self:stretch;width:100%}
+#btn-play.btn-seal{align-self:center;margin:2px 0}
+#btn-settings.btn-seal{width:56px;height:56px;font-size:22px}
+#scr-wager,#scr-result{justify-content:safe center}
+
+.btn-ans{
+  display:block;width:100%;min-height:56px;padding:8px 14px;border-radius:8px;cursor:pointer;
+  background:linear-gradient(180deg,#f4e9cb,var(--parch-d));color:var(--ink);
+  border:1.5px solid var(--gold-d);font-size:17px;text-align:left;font-weight:normal;
+  box-shadow:0 2px 5px rgba(0,0,0,.5);touch-action:manipulation;
+}
+.btn-ans:active{filter:brightness(.95)}
+.btn-ans.ans-right{background:linear-gradient(180deg,#e6f08a,#b4d03c);border:2.5px solid #fff3c0;color:#142002;font-weight:bold;box-shadow:0 0 14px rgba(240,200,98,.95)}
+.btn-ans.ans-right::before{content:'\2713  ';font-weight:bold}
+.btn-ans.ans-wrong{background:linear-gradient(180deg,#c43a3a,#8a1c1c);border-color:#2b0505;color:#fff;font-weight:bold}
+.btn-ans.ans-wrong::before{content:'\2717  ';font-weight:bold}
+.btn-ans.ans-dim{opacity:.55;filter:saturate(.6)}
+
+.topbar{display:flex;align-items:center;justify-content:space-between;gap:8px;flex:none}
+.topbar .chip{font-size:15px}
+#p-score,#r-score{font-size:22px;font-weight:bold;color:var(--gold)}
+#q-num{font-size:15px;color:var(--parch);opacity:.85}
+#timer-bar{
+  flex:none;height:8px;border-radius:4px;background:rgba(255,255,255,.12);
+  border:1px solid var(--gold-d);overflow:hidden;position:relative;
+}
+#timer-fill{display:block;height:100%;width:100%;background:linear-gradient(90deg,var(--gold),#f0c862)}
+
+/* duel screen: no scroll at 475x638 */
+#scr-duel{overflow:hidden;gap:8px}
+#scr-duel .card#q-text,#q-text{
+  flex:0 1 auto;font-size:19px;line-height:1.28;min-height:0;display:flex;align-items:center;
+  max-height:30%;overflow:hidden;
+}
+#chips-row{min-height:30px;flex:none}
+#top-r .rname{font-size:14px;color:var(--parch)}
+#scr-duel #ans-wrap{display:flex;flex-direction:column;gap:8px;flex:0 0 auto}
+#q-fact{
+  font-size:14px;line-height:1.25;padding:8px 12px;max-height:84px;overflow:hidden;flex:0 1 auto;
+}
+#q-fact:empty,#q-fact[hidden]{display:none}
+#btn-next,#btn-next.btn-seal{flex:none;min-height:56px;height:56px;width:auto;border-radius:999px;padding:0 24px;font-size:18px;align-self:center}
+.chip.pop{position:static;font-size:15px;animation:none}
+#btn-next[hidden]{display:none}
+
+.pop{
+  position:absolute;pointer-events:none;font-weight:bold;font-size:22px;color:var(--gold);
+  text-shadow:0 1px 3px #000;animation:floatup 1.1s ease-out forwards;
+}
+.pop.neg{color:#e86a6a}
+@keyframes floatup{0%{opacity:0;transform:translateY(8px)}15%{opacity:1}100%{opacity:0;transform:translateY(-44px)}}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(217,164,65,.55)}50%{box-shadow:0 0 0 8px rgba(217,164,65,0)}}
+#btn-play,.btn-next-pulse,.chip.pulse{animation:pulse 2s infinite}
+
+.banner-win,.banner-loss,.banner-draw{
+  text-align:center;font-size:26px;font-weight:bold;padding:14px 10px;border-radius:10px;
+  border:2px solid var(--gold);letter-spacing:1px;
+}
+.banner-win{background:linear-gradient(180deg,#e9c766,var(--gold-d));color:#2a1d10;box-shadow:0 0 18px rgba(217,164,65,.6)}
+.banner-loss{background:linear-gradient(180deg,#5a1616,#3a0c0c);color:#f1d6c0}
+.banner-draw{background:linear-gradient(180deg,#5b5340,#3d372a);color:var(--parch)}
+
+.swatch{
+  width:56px;height:56px;border-radius:50%;border:3px solid rgba(239,226,194,.35);cursor:pointer;padding:0;
+  box-shadow:inset 0 0 6px rgba(0,0,0,.5),0 2px 4px rgba(0,0,0,.5);flex:none;
+}
+.swatch.sel,.topic-tile.sel,.btn.sel{border-color:var(--gold);box-shadow:0 0 0 3px var(--gold),0 0 12px rgba(217,164,65,.7)}
+.btn.sel{background:linear-gradient(180deg,#f8eac0,#e8c97a);color:var(--ink)}
+
+.topic-tile,.btn-topic{
+  flex:1 1 0;min-width:0;min-height:72px;padding:8px 6px;border-radius:10px;cursor:pointer;
+  background:linear-gradient(180deg,#f4e9cb,var(--parch-d));color:var(--ink);
+  border:2px solid var(--gold-d);text-align:center;font-weight:bold;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:2px;box-shadow:0 2px 6px rgba(0,0,0,.5);
+}
+.topic-tile.sel,.btn-topic.sel{border-color:var(--gold);background:linear-gradient(180deg,#f8eac0,#e8c97a)}
+
+input[type=text],input[type=number],input:not([type]){
+  min-height:44px;padding:6px 10px;border-radius:8px;background:#fbf3dc;color:var(--ink);
+  border:1.5px solid var(--gold-d);min-width:0;
+}
+
+.tweak-panel{
+  background:rgba(0,0,0,.35);border:1px solid var(--gold-d);border-radius:10px;padding:8px;
+  display:flex;flex-direction:column;gap:6px;
+}
+.tweak-row{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:14px;min-height:40px}
+.tweak-row input{width:84px;min-height:36px;flex:none}
+.tweak-panel .btn{min-height:48px;font-size:14px;padding:6px 10px}
+
+#dev-badge{
+  position:fixed;bottom:calc(4px + var(--sab));left:calc(4px + var(--sal));z-index:99;
+  width:22px;height:22px;border-radius:50%;display:none;align-items:center;justify-content:center;
+  background:radial-gradient(circle at 35% 30%,#d24545,var(--seal-d));border:1.5px solid var(--gold);
+  color:#f6e7c0;font-size:10px;font-weight:bold;pointer-events:none;box-shadow:0 1px 4px rgba(0,0,0,.7);
+}
+#dev-badge.on{display:flex}
+
+canvas{display:block;border-radius:50%;flex:none}
+
+#scr-home{gap:8px}
+#scr-home .card{padding:8px 12px}
+#scr-home .topic-tile{min-height:60px}
+#scr-home h1{font-size:28px}
+#btn-readto-minus,#btn-readto-plus{min-width:56px;padding:0}
+#in-readto{width:56px}
+#home-rival-name{font-size:17px;font-weight:bold;color:var(--ink);border-bottom:2px solid var(--gold);align-self:flex-start}
+#home-warn:empty{display:none}
+#scr-settings .foot{position:sticky;bottom:0;background:var(--stone);padding:6px 0;margin-top:auto;z-index:5}
+@media (max-width:360px){
+  h1{font-size:24px}
+  .btn-ans{font-size:16px;padding:6px 10px}
+  #q-text{font-size:18px}
+  .btn-seal{width:56px;height:56px}
+}
+@media (max-height:660px){
+  .screen{gap:7px}
+  #scr-duel .btn-ans{padding-top:6px;padding-bottom:6px}
+}
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation:none!important;transition:none!important}
+  .pop{opacity:1}
+}
+
+</style>
+</head><body><div id="app"></div>
+<script>
+var TD = (typeof window !== 'undefined' ? (window.TD = window.TD || {}) : (global.TD = global.TD || {}));
+(function () {
+  var LIST = [
+    { id: 'sp01', topic: 'spells', tier: 'e', q: 'Which spell makes an object rise and float in the air?',
+      a: ['Wingardium Leviosa', 'Locomotor Mortis', 'Reparo', 'Descendo'],
+      fact: 'Wingardium Leviosa is the Levitation Charm that first-years practise in Charms class.', book: 1, ch: null, filmKnown: true },
+    { id: 'sp02', topic: 'spells', tier: 'e', q: 'Which spell unlocks a locked door?',
+      a: ['Alohomora', 'Colloportus', 'Reducto', 'Incendio'],
+      fact: 'Alohomora is the Unlocking Charm. Hermione uses it on a locked door in the first book.', book: 1, ch: null, filmKnown: true },
+    { id: 'sp03', topic: 'spells', tier: 'e', q: 'Which incantation conjures a Patronus to drive off Dementors?',
+      a: ['Expecto Patronum', 'Expelliarmus', 'Riddikulus', 'Protego'],
+      fact: 'Expecto Patronum calls up a silvery guardian. It needs one very happy memory to work.', book: 3, ch: null, filmKnown: true },
+    { id: 'sp04', topic: 'spells', tier: 'm', q: 'Which spell did Hermione cast on the train to mend Harry\'s broken glasses?',
+      a: ['Oculus Reparo', 'Wingardium Leviosa', 'Lumos', 'Finite Incantatem'],
+      fact: 'Hermione mended Harry\'s taped-up glasses with Oculus Reparo on the Hogwarts Express.', book: 1, ch: null, filmKnown: false },
+    { id: 'sp05', topic: 'spells', tier: 'm', q: 'Which spell did Hermione use to lock Neville\'s body stiff and rigid?',
+      a: ['Petrificus Totalus', 'Impedimenta', 'Stupefy', 'Incarcerous'],
+      fact: 'Petrificus Totalus is the Full Body-Bind Curse. Hermione used it on Neville when he blocked the way.', book: 1, ch: null, filmKnown: true },
+    { id: 'sp06', topic: 'spells', tier: 'm', q: 'Which spell did Draco use at the duelling club to make a snake appear?',
+      a: ['Serpensortia', 'Anguis Vipera', 'Reptilio', 'Draconifors'],
+      fact: 'Serpensortia conjures a snake from the tip of the wand. Harry then spoke to it in Parseltongue.', book: 2, ch: null, filmKnown: true },
+    { id: 'sp07', topic: 'spells', tier: 'm', q: 'Which spell forces a Boggart to turn into something funny?',
+      a: ['Riddikulus', 'Obliviate', 'Impervius', 'Silencio'],
+      fact: 'Riddikulus works when you imagine your fear looking comical and laugh at it.', book: 3, ch: null, filmKnown: true },
+    { id: 'sp08', topic: 'spells', tier: 'h', q: 'Which charm makes a wizard\'s voice louder so a whole stadium can hear?',
+      a: ['Sonorus', 'Quietus', 'Silencio', 'Amplificus'],
+      fact: 'Sonorus magnifies the voice. Quietus is the counter-charm that returns it to normal.', book: 4, ch: null, filmKnown: false },
+    { id: 'sp09', topic: 'spells', tier: 'h', q: 'What is the name of the effect that makes a wand replay its most recent spells?',
+      a: ['Priori Incantatem', 'Prior Reversus', 'Finite Incantatem', 'Reparifarge'],
+      fact: 'Priori Incantatem shows echoes of a wand\'s last spells, most recent first.', book: 4, ch: null, filmKnown: false },
+    { id: 'sp10', topic: 'spells', tier: 'h', q: 'Which Unforgivable Curse takes over the victim\'s will so they obey the caster?',
+      a: ['Imperius Curse', 'Cruciatus Curse', 'Confundus Charm', 'Killing Curse'],
+      fact: 'The Imperius Curse controls the target\'s actions. Moody demonstrated it on spiders in class.', book: 4, ch: null, filmKnown: false }
+  ];
+  TD.QUESTIONS = (TD.QUESTIONS || []).concat(LIST);
+  if (typeof module !== 'undefined') module.exports = LIST;
+})();
+
+</script>
+<script>
+var TD = (typeof window !== 'undefined' ? (window.TD = window.TD || {}) : (global.TD = global.TD || {}));
+(function () {
+  var LIST = [
+    { id: 'cr01', topic: 'creatures', tier: 'e', q: 'What is the name of the huge three-headed dog guarding the trapdoor?',
+      a: ['Fluffy', 'Fang', 'Norbert', 'Buckbeak'], fact: 'Fluffy belongs to Hagrid and guards the trapdoor to the hidden stone.', book: 1, ch: null, filmKnown: true },
+    { id: 'cr02', topic: 'creatures', tier: 'e', q: 'Buckbeak is what kind of magical creature?',
+      a: ['Hippogriff', 'Griffin', 'Thestral', 'Phoenix'], fact: 'A hippogriff has a horse body and the head and wings of a giant eagle.', book: 3, ch: null, filmKnown: true },
+    { id: 'cr03', topic: 'creatures', tier: 'e', q: 'What kind of magical bird is Fawkes, Dumbledore\'s pet?',
+      a: ['Phoenix', 'Owl', 'Eagle', 'Raven'], fact: 'Fawkes bursts into flame and is reborn, and his tears can heal wounds.', book: 2, ch: null, filmKnown: true },
+    { id: 'cr04', topic: 'creatures', tier: 'm', q: 'Which breed of dragon was Hagrid\'s baby Norbert?',
+      a: ['Norwegian Ridgeback', 'Hungarian Horntail', 'Chinese Fireball', 'Welsh Green'], fact: 'Hagrid won the egg in a card game and raised Norbert in his hut.', book: 1, ch: null, filmKnown: false },
+    { id: 'cr05', topic: 'creatures', tier: 'm', q: 'Which kind of creature is Ron most afraid of?',
+      a: ['Spiders', 'Snakes', 'Bats', 'Rats'], fact: 'Ron\'s fear of spiders makes the trip into the Forbidden Forest very hard for him.', book: 2, ch: null, filmKnown: true },
+    { id: 'cr06', topic: 'creatures', tier: 'm', q: 'Which winged horse-like creatures can only be seen by people who have witnessed death?',
+      a: ['Thestrals', 'Hippogriffs', 'Abraxan horses', 'Unicorns'], fact: 'Harry first sees thestrals pulling the carriages after he watches a death.', book: 5, ch: null, filmKnown: true },
+    { id: 'cr07', topic: 'creatures', tier: 'm', q: 'Which centaur rescues Harry from the hooded figure in the Forbidden Forest?',
+      a: ['Firenze', 'Bane', 'Ronan', 'Magorian'], fact: 'Firenze is a palomino centaur who lets Harry climb onto his back and carries him to safety.', book: 1, ch: null, filmKnown: true },
+    { id: 'cr08', topic: 'creatures', tier: 'h', q: 'What breed of dog is Hagrid\'s pet Fang?',
+      a: ['Boarhound', 'Bloodhound', 'Wolfhound', 'Great Dane'], fact: 'Fang is a huge black boarhound, but he is a coward who is all bark and no bite.', book: 1, ch: null, filmKnown: false },
+    { id: 'cr09', topic: 'creatures', tier: 'h', q: 'What is the name of Hagrid\'s giant half-brother?',
+      a: ['Grawp', 'Karkus', 'Golgomath', 'Hagger'], fact: 'Hagrid brings Grawp back from the mountains and hides him in the Forbidden Forest.', book: 5, ch: null, filmKnown: false },
+    { id: 'cr10', topic: 'creatures', tier: 'h', q: 'What was the name of the female acromantula who was Aragog\'s mate?',
+      a: ['Mosag', 'Morag', 'Mosina', 'Magda'], fact: 'Mosag is the mate of Aragog, the giant spider Hagrid raised from an egg.', book: 2, ch: null, filmKnown: false }
+  ];
+  TD.QUESTIONS = (TD.QUESTIONS || []).concat(LIST);
+  if (typeof module !== 'undefined') module.exports = LIST;
+})();
+
+</script>
+<script>
+var TD = (typeof window !== 'undefined' ? (window.TD = window.TD || {}) : (global.TD = global.TD || {}));
+(function () {
+  var LIST = [
+    { id: 'pl01', topic: 'places', tier: 'e', q: 'On which street do the Dursleys live in Little Whinging?',
+      a: ['Privet Drive', 'Magnolia Crescent', 'Grimmauld Place', 'Acacia Road'],
+      fact: 'Number four, Privet Drive is where Harry grows up with his aunt, uncle and cousin.', book: 1, ch: 1, filmKnown: true },
+    { id: 'pl02', topic: 'places', tier: 'e', q: 'Which goblin-run institution stores wizard gold deep under London?',
+      a: ['Gringotts', 'Borgin and Burkes', 'Eeylops', 'Gambol and Japes'],
+      fact: 'Gringotts is the wizarding bank, reached from Diagon Alley and guarded by goblins.', book: 1, ch: 5, filmKnown: true },
+    { id: 'pl03', topic: 'places', tier: 'e', q: 'Which platform at King’s Cross does the Hogwarts Express leave from?',
+      a: ['Nine and three-quarters', 'Seven and a half', 'Ten and a quarter', 'Eleven'],
+      fact: 'Students reach it by walking straight through the barrier between platforms nine and ten.', book: 1, ch: 6, filmKnown: true },
+    { id: 'pl04', topic: 'places', tier: 'm', q: 'Where did Harry sleep at the Dursleys’ before his Hogwarts letters came?',
+      a: ['A cupboard under the stairs', 'The attic', 'A garden shed', 'Dudley’s spare room'],
+      fact: 'Harry’s tiny bedroom under the stairs was filled with spiders, and he stayed there for years.', book: 1, ch: null, filmKnown: true },
+    { id: 'pl05', topic: 'places', tier: 'm', q: 'What is the name of the home of the Weasley family?',
+      a: ['The Burrow', 'The Hollow', 'Hawthorn Lodge', 'Fox Court'],
+      fact: 'The Burrow is a crooked, ramshackle house that has been added to by magic over the years.', book: 2, ch: null, filmKnown: true },
+    { id: 'pl06', topic: 'places', tier: 'm', q: 'Where in the castle is the entrance to the Chamber of Secrets hidden?',
+      a: ['A second-floor girls’ toilet', 'Dumbledore’s office', 'The Restricted Section', 'The Great Hall cellars'],
+      fact: 'The entrance is concealed behind a sink in the bathroom haunted by Moaning Myrtle.', book: 2, ch: null, filmKnown: true },
+    { id: 'pl07', topic: 'places', tier: 'm', q: 'Which all-wizard village do Hogwarts students visit from their third year?',
+      a: ['Hogsmeade', 'Godric’s Hollow', 'Little Whinging', 'Diagon Alley'],
+      fact: 'Hogsmeade has Honeydukes, Zonko’s and the Three Broomsticks, and lies near the school.', book: 3, ch: null, filmKnown: true },
+    { id: 'pl08', topic: 'places', tier: 'h', q: 'In which Ministry office does Arthur Weasley work?',
+      a: ['Misuse of Muggle Artefacts', 'Improper Use of Magic', 'Goblin Liaison Office', 'Auror Office'],
+      fact: 'He deals with Muggle objects that have been enchanted, and he adores Muggle gadgets.', book: 2, ch: null, filmKnown: false },
+    { id: 'pl09', topic: 'places', tier: 'h', q: 'Near which village in Devon does the Weasley family home stand?',
+      a: ['Ottery St Catchpole', 'Little Whinging', 'Hogsmeade', 'Great Hangleton'],
+      fact: 'The Weasleys live on the outskirts of Ottery St Catchpole in the south-west of England.', book: 2, ch: null, filmKnown: false },
+    { id: 'pl10', topic: 'places', tier: 'h', q: 'Which run-down London department store hides the entrance to the wizarding hospital?',
+      a: ['Purge and Dowse Ltd', 'Slug and Jiggers', 'Flourish and Blotts', 'Madam Malkin’s'],
+      fact: 'Visitors lean on the window beside a dummy and step through into the hospital reception.', book: 5, ch: 22, filmKnown: false }
+  ];
+  TD.QUESTIONS = (TD.QUESTIONS || []).concat(LIST);
+  if (typeof module !== 'undefined') module.exports = LIST;
+})();
+
+</script>
+<script>
+var TD = (typeof window !== 'undefined' ? (window.TD = window.TD || {}) : (global.TD = global.TD || {}));
+(function () {
+  TD.BUILD = 'td-proto-1';
+  TD.DEFAULTS = {
+    timerSec: 15, basePts: 60, speedPts: 20,
+    readCps: 18, readBaseSec: 1.0,
+    graceOn: 1,
+    q7Hard: 1,
+    wagerMissCost: 50,
+    wagerMult: 2,
+    rivalWagers: 0,
+    rivalStep: 1,
+    acc1: 0.72, acc2: 0.73, acc3: 0.74, acc4: 0.80, acc5: 0.85,
+    time1: 6.2, time2: 6.2, time3: 6.3, time4: 5.5, time5: 4.5,
+    tierAccE: 0.10, tierAccH: -0.15,
+    rivalTimeSpread: 1.5,
+    rivalReadFloor: 1,
+    pickedPerDuel: 4,
+    xpWin: 30, xpLoss: 15, xpDraw: 20, xpPerLevel: 100
+  };
+  TD.RIVALS = [
+    { step: 1, name: 'Neville Longbottom', look: { hair: '#5a3b22', hairStyle: 'short', face: 'round', glasses: 0, freckles: 0, hat: 0, robe: '#2b2b33' } },
+    { step: 2, name: 'Ron Weasley', look: { hair: '#c4511f', hairStyle: 'short', face: 'long', glasses: 0, freckles: 1, hat: 0, robe: '#2b2b33' } },
+    { step: 3, name: 'Ginny Weasley', look: { hair: '#c4511f', hairStyle: 'long', face: 'oval', glasses: 0, freckles: 1, hat: 0, robe: '#2b2b33' } },
+    { step: 4, name: 'Hermione Granger', look: { hair: '#6b4426', hairStyle: 'bushy', face: 'oval', glasses: 0, freckles: 0, hat: 0, robe: '#2b2b33' } },
+    { step: 5, name: 'Professor McGonagall', look: { hair: '#1c1c1c', hairStyle: 'bun', face: 'long', glasses: 'square', freckles: 0, hat: 'pointed', robe: '#1f4a2e' } }
+  ];
+  TD.TOPICS = [{ id: 'spells', label: 'Spells' }, { id: 'creatures', label: 'Creatures' }, { id: 'places', label: 'Places' }];
+
+  var engine = {};
+
+  engine.rng = function (seed) {
+    var a = seed | 0;
+    return function () {
+      a = (a + 0x6D2B79F5) | 0;
+      var t = Math.imul(a ^ (a >>> 15), 1 | a);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  };
+
+  engine.readTime = function (q, cfg) {
+    var n = q.q.length;
+    for (var i = 0; i < q.a.length; i++) n += q.a[i].length;
+    return cfg.readBaseSec + n / cfg.readCps;
+  };
+
+  engine.pool = function (questions, o) {
+    o = o || {};
+    var up = o.readUpTo == null ? 7 : o.readUpTo;
+    return questions.filter(function (q) {
+      if (o.mode === 'movie' && !q.filmKnown) return false;
+      return q.book <= up;
+    });
+  };
+
+  engine.newMemory = function () { return { seen: {}, missed: {} }; };
+
+  function shuffle(arr, rnd) {
+    for (var i = arr.length - 1; i > 0; i--) {
+      var j = Math.floor(rnd() * (i + 1));
+      var t = arr[i]; arr[i] = arr[j]; arr[j] = t;
+    }
+    return arr;
+  }
+  function pickOne(list, rnd) { return list[Math.floor(rnd() * list.length)]; }
+
+  engine.drawQuestion = function (pool, topic, tier, memory, rnd, excludeIds) {
+    var ex = excludeIds || new Set();
+    var avail = pool.filter(function (q) { return !ex.has(q.id); });
+    if (!avail.length) return null;
+    var cands = avail.filter(function (q) { return q.topic === topic; });
+    var unseen = cands.filter(function (q) { return !memory.seen[q.id]; });
+    var set;
+    if (cands.length && !unseen.length) {
+      pool.forEach(function (q) { if (q.topic === topic) delete memory.seen[q.id]; });
+      var missed = cands.filter(function (q) { return memory.missed[q.id]; });
+      var mt = missed.filter(function (q) { return q.tier === tier; });
+      var ct = cands.filter(function (q) { return q.tier === tier; });
+      set = mt.length ? mt : missed.length ? missed : ct.length ? ct : cands;
+      return pickOne(set, rnd);
+    }
+    if (cands.length) {
+      var t = unseen.filter(function (q) { return q.tier === tier; });
+      return pickOne(t.length ? t : unseen, rnd);
+    }
+    var other = avail;
+    var ou = other.filter(function (q) { return !memory.seen[q.id]; });
+    var base = ou.length ? ou : other;
+    var bt = base.filter(function (q) { return q.tier === tier; });
+    return pickOne(bt.length ? bt : base, rnd);
+  };
+
+  engine.planDuel = function (pool, pickedTopic, memory, rnd, cfg) {
+    var tiers = shuffle(['e', 'e', 'm', 'm', 'm', 'h'], rnd);
+    var others = TD.TOPICS.map(function (t) { return t.id; }).filter(function (id) { return id !== pickedTopic; });
+    var np = Math.max(0, Math.min(6, cfg.pickedPerDuel));
+    var topics = [], i;
+    for (i = 0; i < np; i++) topics.push(pickedTopic);
+    for (i = 0; i < 6 - np; i++) topics.push(others[i % others.length]);
+    shuffle(topics, rnd);
+    var ex = new Set(), out = [];
+    for (i = 0; i < 6; i++) {
+      var q = engine.drawQuestion(pool, topics[i], tiers[i], memory, rnd, ex);
+      if (q) { out.push(q); ex.add(q.id); }
+    }
+    return out;
+  };
+
+  engine.drawQ7 = function (pool, wagerTopic, memory, rnd, cfg, excludeIds) {
+    return engine.drawQuestion(pool, wagerTopic, cfg.q7Hard ? 'h' : 'm', memory, rnd, excludeIds);
+  };
+
+  engine.shuffleAnswers = function (q, rnd) {
+    var order = shuffle([0, 1, 2, 3], rnd);
+    return { order: order, correctPos: order.indexOf(0) };
+  };
+
+  engine.scoreAnswer = function (correct, tSec, q, cfg, mult, isQ7) {
+    if (!correct) return (isQ7 && mult > 1) ? -cfg.wagerMissCost : 0;
+    var g = cfg.graceOn ? Math.min(engine.readTime(q, cfg), cfg.timerSec - 1) : 0;
+    var f = 1 - (tSec - g) / (cfg.timerSec - g);
+    f = f < 0 ? 0 : f > 1 ? 1 : f;
+    return Math.round((cfg.basePts + cfg.speedPts * f) * mult);
+  };
+
+  engine.rivalAnswer = function (q, cfg, rnd) {
+    var r1 = rnd(), r2 = rnd();
+    var s = cfg.rivalStep;
+    var acc = cfg['acc' + s] + (q.tier === 'e' ? cfg.tierAccE : q.tier === 'h' ? cfg.tierAccH : 0);
+    acc = Math.max(0.05, Math.min(0.98, acc));
+    var correct = r1 < acc;
+    var t = cfg['time' + s] + (r2 * 2 - 1) * cfg.rivalTimeSpread;
+    if (cfg.rivalReadFloor) t = Math.max(t, engine.readTime(q, cfg));
+    if (t >= cfg.timerSec) { correct = false; t = cfg.timerSec; }
+    return { correct: correct, tSec: t };
+  };
+
+  engine.rivalWager = function (playerScore, rivalScore, cfg) {
+    return (cfg.rivalWagers && rivalScore < playerScore) ? cfg.wagerMult : 1;
+  };
+
+  engine.applyScore = function (total, pts) { return Math.max(0, total + pts); };
+
+  engine.result = function (p, r) { return p > r ? 'win' : p < r ? 'loss' : 'draw'; };
+
+  engine.xpFor = function (res, cfg) {
+    return res === 'win' ? cfg.xpWin : res === 'loss' ? cfg.xpLoss : cfg.xpDraw;
+  };
+  engine.levelOf = function (xp, cfg) { return 1 + Math.floor(xp / cfg.xpPerLevel); };
+
+  engine.markAnswered = function (memory, q, correct) {
+    memory.seen[q.id] = true;
+    if (correct) delete memory.missed[q.id]; else memory.missed[q.id] = true;
+  };
+
+  engine.simDuel = function (opts) {
+    var cfg = opts.cfg || TD.DEFAULTS;
+    var seed = opts.seed | 0;
+    var rnd = engine.rng(seed);
+    var prnd = engine.rng(seed ^ 0x9e3779b9);
+    var memory = opts.memory || engine.newMemory();
+    var pl = opts.player || { acc: 0.7, tSec: 6, tSpread: 2, wager: 'x1' };
+    var pool = engine.pool(opts.questions, { mode: opts.mode, readUpTo: opts.readUpTo });
+    var topic = opts.pickedTopic;
+    var plan = engine.planDuel(pool, topic, memory, rnd, cfg);
+    var ex = new Set(plan.map(function (q) { return q.id; }));
+    var pScore = 0, rScore = 0, pRight = 0, log = [], ids = [];
+    var n = plan.length;
+    for (var i = 0; i <= n; i++) {
+      var isQ7 = i === n, q;
+      if (isQ7) {
+        q = engine.drawQ7(pool, topic, memory, rnd, cfg, ex);
+        if (!q) break;
+        ex.add(q.id);
+      } else q = plan[i];
+      engine.shuffleAnswers(q, rnd);
+      var ra = engine.rivalAnswer(q, cfg, rnd);
+      var c1 = prnd(), c2 = prnd();
+      var pOk = c1 < pl.acc;
+      var pT = pl.tSec + (c2 * 2 - 1) * pl.tSpread;
+      pT = Math.max(0.5, pT);
+      if (pT >= cfg.timerSec) { pOk = false; pT = cfg.timerSec; }
+      var pM = 1, rM = 1;
+      if (isQ7) {
+        var w = pl.wager;
+        if (w === 'x2' || (w === 'smart' && pScore <= rScore)) pM = cfg.wagerMult;
+        rM = engine.rivalWager(pScore, rScore, cfg);
+      }
+      var pPts = engine.scoreAnswer(pOk, pT, q, cfg, pM, isQ7);
+      var rPts = engine.scoreAnswer(ra.correct, ra.tSec, q, cfg, rM, isQ7);
+      pScore = engine.applyScore(pScore, pPts);
+      rScore = engine.applyScore(rScore, rPts);
+      if (pOk) pRight++;
+      engine.markAnswered(memory, q, pOk);
+      ids.push(q.id);
+      log.push({ n: i + 1, id: q.id, tier: q.tier, topic: q.topic, pRight: pOk, pT: pT, pPts: pPts,
+        rRight: ra.correct, rT: ra.tSec, rPts: rPts, pMult: pM, rMult: rM });
+    }
+    return { pScore: pScore, rScore: rScore, result: engine.result(pScore, rScore), pRight: pRight, log: log, ids: ids };
+  };
+
+  TD.engine = engine;
+  if (typeof module !== 'undefined') module.exports = engine;
+})();
+
+</script>
+<script>
+var TD = (typeof window !== 'undefined' ? (window.TD = window.TD || {}) : (global.TD = global.TD || {}));
+
+var tweak = (function () {
+  var CFG_KEY = 'td.cfg', PRE_KEY = 'td.presets';
+
+  function defaults() { return TD.DEFAULTS || {}; }
+  function ls() { try { return (typeof localStorage !== 'undefined') ? localStorage : null; } catch (e) { return null; } }
+  function load(key, fallback) {
+    try { var s = ls(); var raw = s && s.getItem(key); return raw ? JSON.parse(raw) : fallback; } catch (e) { return fallback; }
+  }
+  function save(key, val) { try { var s = ls(); if (s) s.setItem(key, JSON.stringify(val)); } catch (e) {} }
+
+  var cfg = {};
+  (function init() {
+    var d = defaults(), k;
+    for (k in d) cfg[k] = d[k];
+    var saved = load(CFG_KEY, {});
+    if (saved && typeof saved === 'object') {
+      for (k in saved) if (k in d && typeof saved[k] === 'number' && isFinite(saved[k])) cfg[k] = saved[k];
+    }
+  })();
+
+  function diffs() {
+    var d = defaults(), out = {}, k;
+    for (k in d) if (cfg[k] !== d[k]) out[k] = cfg[k];
+    return out;
+  }
+  function isDev() { return Object.keys(diffs()).length > 0; }
+
+  function refreshBadge() {
+    try {
+      if (typeof document === 'undefined') return;
+      var b = document.getElementById('dev-badge');
+      if (b) { b.style.display = ''; b.classList.toggle('on', isDev()); }
+    } catch (e) {}
+  }
+
+  function set(key, value) {
+    var v = Number(value);
+    if (!isFinite(v)) return;
+    cfg[key] = v;
+    save(CFG_KEY, diffs());
+    refreshBadge();
+  }
+
+  function report(state) {
+    state = state || {};
+    var rivals = TD.RIVALS || [];
+    var step = state.rivalStep, rname = '?';
+    for (var i = 0; i < rivals.length; i++) if (rivals[i].step === step) rname = rivals[i].name;
+    var df = diffs(), dk = Object.keys(df);
+    var lines = [];
+    lines.push('Build: ' + (TD.BUILD || '?'));
+    lines.push('Seed: ' + state.seed + '  Mode: ' + state.mode + '  ReadUpTo: ' + state.readUpTo);
+    lines.push('Picked topic: ' + state.pickedTopic + '  Wager topic: ' + state.wagerTopic);
+    lines.push('Rival: step ' + step + ' ' + rname);
+    lines.push('Cfg diffs: ' + (dk.length ? dk.map(function (k) { return k + '=' + df[k]; }).join(', ') : 'none'));
+    (state.log || []).forEach(function (e) {
+      lines.push('Q' + e.n + ' ' + e.id + ' ' + e.tier + '/' + e.topic +
+        ' | you ' + (e.pRight ? 'R' : 'W') + ' ' + fmt(e.pT) + 's ' + e.pPts +
+        ' | rival ' + (e.rRight ? 'R' : 'W') + ' ' + fmt(e.rT) + 's ' + e.rPts);
+    });
+    lines.push('Mults: player x' + state.pMult + ', rival x' + state.rMult);
+    lines.push('Scores: you ' + state.pScore + ', rival ' + state.rScore + ' -> ' + state.result);
+    var ua = (typeof navigator !== 'undefined' && navigator.userAgent) || 'n/a';
+    var sz = (typeof window !== 'undefined' && window.innerWidth) ? (window.innerWidth + 'x' + window.innerHeight) : 'n/a';
+    lines.push('UA: ' + ua);
+    lines.push('Viewport: ' + sz);
+    return lines.join('\n');
+  }
+  function fmt(t) { return (typeof t === 'number') ? t.toFixed(1) : String(t); }
+
+  function copy(text) {
+    function fallback() {
+      return new Promise(function (resolve, reject) {
+        try {
+          var ta = document.createElement('textarea');
+          ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+          document.body.appendChild(ta); ta.select();
+          var ok = document.execCommand('copy');
+          document.body.removeChild(ta);
+          ok ? resolve() : reject(new Error('copy failed'));
+        } catch (e) { reject(e); }
+      });
+    }
+    try {
+      if (typeof navigator !== 'undefined' && navigator.clipboard && navigator.clipboard.writeText) {
+        return navigator.clipboard.writeText(text).catch(fallback);
+      }
+    } catch (e) {}
+    return fallback();
+  }
+
+  function encode(obj) {
+    var json = JSON.stringify(obj);
+    if (typeof btoa === 'function') return btoa(unescape(encodeURIComponent(json)));
+    return Buffer.from(json, 'utf8').toString('base64');
+  }
+  function decode(code) {
+    var json = (typeof atob === 'function') ? decodeURIComponent(escape(atob(code.trim()))) : Buffer.from(code.trim(), 'base64').toString('utf8');
+    return JSON.parse(json);
+  }
+
+  function open(container, onChange) {
+    if (typeof document === 'undefined' || !container) return;
+    var d = defaults();
+    var presets = load(PRE_KEY, {});
+    function changed() { refreshBadge(); if (typeof onChange === 'function') onChange(cfg); }
+    function el(tag, cls, text) {
+      var e = document.createElement(tag);
+      if (cls) e.className = cls;
+      if (text != null) e.textContent = text;
+      return e;
+    }
+    function btn(label, fn) {
+      var b = el('button', 'btn small', label);
+      b.type = 'button';
+      b.addEventListener('click', fn);
+      return b;
+    }
+    function flash(b, msg) {
+      var old = b.textContent; b.textContent = msg;
+      setTimeout(function () { b.textContent = old; }, 1200);
+    }
+    function applyDiffs(df) {
+      var k;
+      for (k in d) cfg[k] = d[k];
+      for (k in df) if (k in d && typeof df[k] === 'number' && isFinite(df[k])) cfg[k] = df[k];
+      save(CFG_KEY, diffs());
+    }
+
+    function render() {
+      container.innerHTML = '';
+      var panel = el('div', 'tweak-panel');
+
+      Object.keys(d).forEach(function (k) {
+        var row = el('div', 'tweak-row');
+        var lab = el('label', 'grow small', k);
+        var inp = document.createElement('input');
+        inp.type = 'number';
+        inp.step = Math.abs(d[k]) < 1 ? '0.01' : (Number.isInteger(d[k]) ? '1' : '0.5');
+        inp.value = cfg[k];
+        inp.setAttribute('inputmode', 'decimal');
+        inp.addEventListener('change', function () {
+          if (inp.value === '' || !isFinite(Number(inp.value))) { inp.value = cfg[k]; return; }
+          set(k, inp.value);
+          changed();
+        });
+        row.appendChild(lab); row.appendChild(inp);
+        panel.appendChild(row);
+      });
+
+      panel.appendChild(btn('Reset all', function () {
+        applyDiffs({}); changed(); render();
+      }));
+
+      var nameIn = document.createElement('input');
+      nameIn.type = 'text'; nameIn.placeholder = 'Preset name'; nameIn.maxLength = 24;
+      var r1 = el('div', 'tweak-row'); r1.appendChild(nameIn); panel.appendChild(r1);
+
+      var r2 = el('div', 'tweak-row');
+      r2.appendChild(btn('Save preset', function () {
+        var n = nameIn.value.trim();
+        if (!n) return;
+        presets[n] = diffs(); save(PRE_KEY, presets); render();
+      }));
+      var cb = btn('Copy report', function () {
+        copy(report(tweak.lastState)).then(function () { flash(cb, 'Copied'); }, function () { flash(cb, 'Failed'); });
+      });
+      r2.appendChild(cb);
+      panel.appendChild(r2);
+
+      Object.keys(presets).forEach(function (n) {
+        var r = el('div', 'tweak-row');
+        r.appendChild(el('span', 'grow small', n));
+        r.appendChild(btn('Load', function () { applyDiffs(presets[n]); changed(); render(); }));
+        r.appendChild(btn('Delete', function () { delete presets[n]; save(PRE_KEY, presets); render(); }));
+        panel.appendChild(r);
+      });
+
+      var cc = btn('Copy preset code', function () {
+        copy(encode(diffs())).then(function () { flash(cc, 'Copied'); }, function () { flash(cc, 'Failed'); });
+      });
+      panel.appendChild(cc);
+
+      var ta = document.createElement('textarea');
+      ta.rows = 2; ta.placeholder = 'Paste preset code';
+      panel.appendChild(ta);
+      var ap = btn('Apply code', function () {
+        try { applyDiffs(decode(ta.value)); changed(); render(); } catch (e) { flash(ap, 'Bad code'); }
+      });
+      panel.appendChild(ap);
+
+      container.appendChild(panel);
+    }
+    render();
+  }
+
+  return {
+    cfg: cfg,
+    isDev: isDev,
+    set: set,
+    open: open,
+    diffs: diffs,
+    lastState: null,
+    report: report,
+    copy: copy
+  };
+})();
+
+TD.tweak = tweak;
+if (typeof module !== 'undefined') module.exports = tweak;
+
+</script>
+<script>
+var TD = (typeof window !== 'undefined' ? (window.TD = window.TD || {}) : (global.TD = global.TD || {}));
+(function () {
+  'use strict';
+  var ui = {};
+  var SEALS = ['#8e1b1b', '#1f4a2e', '#1f3a6b', '#5b2a6b'];
+  var save = null;
+  var D = null; // current duel
+  var inputLockUntil = 0;
+  var rafId = 0, autoT = 0;
+
+  function $(id) { return document.getElementById(id); }
+  function h(tag, attrs, kids) {
+    var e = document.createElement(tag);
+    if (attrs) for (var k in attrs) {
+      if (k === 'text') e.textContent = attrs[k];
+      else if (k === 'class') e.className = attrs[k];
+      else if (k.indexOf('data-') === 0 || k === 'type' || k === 'id' || k === 'maxlength' || k === 'placeholder' || k === 'inputmode' || k === 'title') e.setAttribute(k, attrs[k]);
+      else e[k] = attrs[k];
+    }
+    (kids || []).forEach(function (c) { if (c) e.appendChild(typeof c === 'string' ? document.createTextNode(c) : c); });
+    return e;
+  }
+  function cfg() { return TD.tweak ? TD.tweak.cfg : TD.DEFAULTS; }
+  function rivalOf(step) { return TD.RIVALS[Math.max(1, Math.min(5, step)) - 1]; }
+  function topicLabel(id) { var t = TD.TOPICS.filter(function (x) { return x.id === id; })[0]; return t ? t.label : id; }
+
+  // ---------- save ----------
+  function defSave() {
+    return { v: 1, name: '', seal: 0, mode: 'movie', readUpTo: 7, topicXp: { spells: 0, creatures: 0, places: 0 },
+      memory: TD.engine.newMemory(), rivalStep: 1, picked: 'spells' };
+  }
+  function loadSave() {
+    var s = defSave();
+    try {
+      var raw = localStorage.getItem('td.save');
+      if (raw) {
+        var o = JSON.parse(raw);
+        if (o && typeof o === 'object' && !(o.v > 1)) {
+          for (var k in s) if (o[k] !== undefined) s[k] = o[k];
+          s.topicXp = Object.assign({ spells: 0, creatures: 0, places: 0 }, o.topicXp || {});
+          if (!s.memory || !s.memory.seen) s.memory = TD.engine.newMemory();
+          s.v = 1;
+        }
+      }
+    } catch (e) {}
+    return s;
+  }
+  function persist() {
+    try { localStorage.setItem('td.save', JSON.stringify(save)); } catch (e) {}
+  }
+
+  // ---------- portrait ----------
+  function drawPortrait(canvas, look, sizePx) {
+    var dpr = (typeof window !== 'undefined' && window.devicePixelRatio) || 1;
+    canvas.width = canvas.height = Math.round(sizePx * dpr);
+    canvas.style.width = canvas.style.height = sizePx + 'px';
+    var c = canvas.getContext('2d');
+    if (!c) return;
+    c.setTransform(canvas.width / 100, 0, 0, canvas.height / 100, 0, 0);
+    c.clearRect(0, 0, 100, 100);
+    look = look || {};
+    var skin = '#e8c7a2', hair = look.hair || '#4a3020', robe = look.robe || '#2b2b33';
+    c.save();
+    c.beginPath(); c.arc(50, 50, 47, 0, 7); c.clip();
+    c.fillStyle = '#15110c'; c.fillRect(0, 0, 100, 100);
+    var g = c.createRadialGradient(50, 40, 5, 50, 50, 55);
+    g.addColorStop(0, 'rgba(217,164,65,0.28)'); g.addColorStop(1, 'rgba(0,0,0,0)');
+    c.fillStyle = g; c.fillRect(0, 0, 100, 100);
+    var st = look.hairStyle;
+    var fw = look.face === 'round' ? 20 : look.face === 'long' ? 17 : 18.5;
+    var fh = look.face === 'round' ? 20 : look.face === 'long' ? 25 : 22;
+    var fy = 50;
+    // back hair
+    c.fillStyle = hair;
+    if (st === 'long') { c.beginPath(); c.ellipse(50, 56, fw + 6, 34, 0, 0, 7); c.fill(); }
+    if (st === 'bushy') { c.beginPath(); c.ellipse(50, 48, fw + 11, 31, 0, 0, 7); c.fill(); }
+    if (st === 'bun') { c.beginPath(); c.arc(50, 18, 9, 0, 7); c.fill(); }
+    // robe
+    c.fillStyle = robe; c.beginPath(); c.ellipse(50, 104, 40, 26, 0, 0, 7); c.fill();
+    c.fillStyle = skin; c.fillRect(44, 66, 12, 14);
+    // face
+    c.beginPath(); c.ellipse(50, fy, fw, fh, 0, 0, 7); c.fill();
+    // front hair
+    c.fillStyle = hair;
+    c.beginPath(); c.ellipse(50, fy - 3, fw + 1.5, fh - 2, 0, Math.PI, 0); c.fill();
+    if (st === 'short') { c.fillStyle = skin; c.beginPath(); c.ellipse(50, fy + 1, fw - 3, fh - 12, 0, Math.PI, 0); c.fill(); c.fillStyle = hair; c.fillRect(fw > 0 ? 50 - fw - 1 : 0, fy - 4, 3, 8); c.fillRect(50 + fw - 2, fy - 4, 3, 8); }
+    else if (st === 'long' || st === 'bun') { c.fillStyle = skin; c.beginPath(); c.ellipse(50, fy + 1, fw - 3.5, fh - 11, 0, Math.PI, 0); c.fill(); }
+    else if (st === 'bushy') { c.fillStyle = skin; c.beginPath(); c.ellipse(50, fy + 2, fw - 2.5, fh - 9, 0, Math.PI, 0); c.fill(); }
+    // hat
+    if (look.hat === 'pointed') {
+      c.fillStyle = '#16140f';
+      c.beginPath(); c.moveTo(30, 34); c.lineTo(52, -6); c.lineTo(70, 34); c.closePath(); c.fill();
+      c.beginPath(); c.ellipse(50, 34, 28, 5, 0, 0, 7); c.fill();
+    }
+    // eyes, brows, mouth
+    c.fillStyle = '#2a1d10';
+    c.beginPath(); c.arc(43, fy + 1, 1.8, 0, 7); c.fill();
+    c.beginPath(); c.arc(57, fy + 1, 1.8, 0, 7); c.fill();
+    c.strokeStyle = '#2a1d10'; c.lineWidth = 1.2;
+    c.beginPath(); c.moveTo(40, fy - 4); c.lineTo(46, fy - 4.5); c.moveTo(54, fy - 4.5); c.lineTo(60, fy - 4); c.stroke();
+    c.strokeStyle = '#8a3a2a'; c.lineWidth = 1.4;
+    c.beginPath(); c.arc(50, fy + 10, 5, 0.2, Math.PI - 0.2); c.stroke();
+    if (look.freckles) {
+      c.fillStyle = 'rgba(140,80,40,0.7)';
+      [[41, 8], [44, 10], [39, 11], [56, 10], [59, 8], [61, 11], [47, 7], [53, 7]].forEach(function (p) {
+        c.beginPath(); c.arc(p[0], fy + p[1] - 2, 0.9, 0, 7); c.fill();
+      });
+    }
+    if (look.glasses) {
+      c.strokeStyle = '#d9a441'; c.lineWidth = 1.4;
+      c.strokeRect(36.5, fy - 4, 11, 9); c.strokeRect(52.5, fy - 4, 11, 9);
+      c.beginPath(); c.moveTo(47.5, fy); c.lineTo(52.5, fy); c.stroke();
+    }
+    c.restore();
+    c.lineWidth = 3.2; c.strokeStyle = '#d9a441';
+    c.beginPath(); c.arc(50, 50, 47, 0, 7); c.stroke();
+  }
+  ui.drawPortrait = drawPortrait;
+
+  // ---------- screens ----------
+  function show(id) {
+    var list = document.querySelectorAll('.screen');
+    for (var i = 0; i < list.length; i++) list[i].classList.remove('active');
+    $(id).classList.add('active');
+    if (id === 'scr-result') inputLockUntil = Date.now() + 400;
+    window.scrollTo && window.scrollTo(0, 0);
+  }
+  function refreshBadge() {
+    var b = $('dev-badge');
+    if (b) { b.style.display = ''; b.classList.toggle('on', !!(TD.tweak && TD.tweak.isDev())); }
+  }
+  ui.refreshBadge = refreshBadge;
+
+  function poolFor() {
+    return TD.engine.pool(TD.QUESTIONS || [], { mode: save.mode, readUpTo: save.readUpTo });
+  }
+  function sealDot(cls) {
+    var d = h('div', { class: 'chip ' + (cls || '') });
+    d.style.background = SEALS[save.seal] || SEALS[0];
+    d.style.borderRadius = '50%'; d.style.width = '34px'; d.style.height = '34px';
+    d.style.display = 'inline-flex'; d.style.alignItems = 'center'; d.style.justifyContent = 'center';
+    d.textContent = (save.name || 'Y').charAt(0).toUpperCase();
+    return d;
+  }
+
+  function buildHome() {
+    var s = $('scr-home');
+    s.innerHTML = '';
+    s.appendChild(h('div', { class: 'row' }, [
+      h('h1', { class: 'gold grow', text: 'Candle Duel' }),
+      h('button', { class: 'btn btn-seal', id: 'btn-settings', title: 'Settings', text: '⚙' })
+    ]));
+    var inName = h('input', { id: 'in-name', type: 'text', maxlength: '14', placeholder: 'Your name' });
+    inName.value = save.name || '';
+    inName.addEventListener('input', function () { save.name = inName.value.slice(0, 14); persist(); });
+    var sw = h('div', { class: 'row' });
+    SEALS.forEach(function (col, i) {
+      var b = h('div', { class: 'swatch' + (i === save.seal ? ' sel' : ''), 'data-i': String(i) });
+      b.style.background = col;
+      b.addEventListener('click', function () {
+        save.seal = i; persist();
+        var all = sw.querySelectorAll('.swatch');
+        for (var j = 0; j < all.length; j++) all[j].classList.toggle('sel', j === i);
+      });
+      sw.appendChild(b);
+    });
+    s.appendChild(h('div', { class: 'card col' }, [inName, h('div', { class: 'row' }, [h('span', { class: 'small muted', text: 'Seal' }), sw])]));
+
+    var bm = h('button', { class: 'btn grow', id: 'btn-mode-movie', text: 'Movie fan' });
+    var bb = h('button', { class: 'btn grow', id: 'btn-mode-book', text: 'Book reader' });
+    var minus = h('button', { class: 'btn', id: 'btn-readto-minus', text: '−' });
+    var plus = h('button', { class: 'btn', id: 'btn-readto-plus', text: '+' });
+    var rt = h('input', { id: 'in-readto', type: 'text', inputmode: 'numeric', maxlength: '1' });
+    rt.readOnly = true; rt.style.width = '56px'; rt.style.textAlign = 'center';
+    function setMode(m) { save.mode = m; persist(); refreshHome(); }
+    function setRt(v) { save.readUpTo = Math.max(1, Math.min(7, v)); persist(); refreshHome(); }
+    bm.addEventListener('click', function () { setMode('movie'); });
+    bb.addEventListener('click', function () { setMode('book'); });
+    minus.addEventListener('click', function () { setRt(save.readUpTo - 1); });
+    plus.addEventListener('click', function () { setRt(save.readUpTo + 1); });
+    s.appendChild(h('div', { class: 'card col' }, [
+      h('div', { class: 'row' }, [bm, bb]),
+      h('div', { class: 'row' }, [h('span', { class: 'grow small', text: 'Read up to book' }), minus, rt, plus])
+    ]));
+
+    var tiles = h('div', { class: 'row', id: 'topic-row' });
+    TD.TOPICS.forEach(function (t) {
+      var b = h('button', { class: 'btn topic-tile btn-topic grow', 'data-topic': t.id });
+      b.addEventListener('click', function () { save.picked = t.id; persist(); refreshHome(); });
+      tiles.appendChild(b);
+    });
+    s.appendChild(tiles);
+
+    var cv = h('canvas', { id: 'home-rival-cv' });
+    s.appendChild(h('div', { class: 'card row' }, [cv, h('div', { class: 'col grow', style: 'gap:2px' }, [
+      h('div', { class: 'small muted', text: 'Your rival' }),
+      h('div', { id: 'home-rival-name' }),
+      h('div', { id: 'home-rival-step', class: 'small' }),
+      h('div', { id: 'home-warn', class: 'small' })
+    ])]));
+    s.appendChild(h('button', { class: 'btn btn-seal', id: 'btn-play', text: 'Duel' }));
+    s.appendChild(h('div', { class: 'small muted', id: 'home-build' }));
+    $('btn-play').addEventListener('click', startDuel);
+    $('btn-settings').addEventListener('click', openSettings);
+  }
+
+  function refreshHome() {
+    var q = $('btn-mode-movie'), b = $('btn-mode-book');
+    q.classList.toggle('sel', save.mode === 'movie');
+    b.classList.toggle('sel', save.mode === 'book');
+    $('in-readto').value = String(save.readUpTo);
+    var book = save.mode === 'book';
+    $('in-readto').parentNode.style.opacity = '1';
+    var tiles = document.querySelectorAll('.btn-topic');
+    for (var i = 0; i < tiles.length; i++) {
+      var id = tiles[i].getAttribute('data-topic');
+      var xp = save.topicXp[id] || 0, c = cfg();
+      var lv = TD.engine.levelOf(xp, c);
+      tiles[i].textContent = '';
+      tiles[i].appendChild(h('div', { text: topicLabel(id) }));
+      tiles[i].appendChild(h('div', { class: 'small', text: 'Lv ' + lv + ' · ' + xp + ' XP' }));
+      tiles[i].classList.toggle('sel', id === save.picked);
+    }
+    var rv = rivalOf(save.rivalStep);
+    drawPortrait($('home-rival-cv'), rv.look, 60);
+    $('home-rival-name').textContent = rv.name;
+    $('home-rival-step').textContent = 'Rival ' + rv.step + '/5';
+    var pool = poolFor();
+    var n = pool.filter(function (x) { return x.topic === save.picked; }).length;
+    $('home-warn').textContent = n < 7 ? ('Only ' + n + ' ' + topicLabel(save.picked) + ' questions here. Duel will mix topics.') : '';
+    $('home-build').textContent = 'build ' + TD.BUILD + (book ? '' : '');
+    refreshBadge();
+  }
+
+  function buildDuel() {
+    var s = $('scr-duel');
+    s.innerHTML = '';
+    s.appendChild(h('div', { class: 'topbar row' }, [
+      h('div', { class: 'row', id: 'top-p' }),
+      h('div', { class: 'grow', style: '' }, [h('div', { id: 'q-num', class: 'gold', text: 'Q 1/7' })]),
+      h('div', { class: 'row', id: 'top-r' })
+    ]));
+    $('q-num').parentNode.style.textAlign = 'center';
+    var bar = h('div', { id: 'timer-bar' }, [h('div', { id: 'timer-fill' })]);
+    s.appendChild(bar);
+    s.appendChild(h('div', { class: 'row', id: 'chips-row' }));
+    s.appendChild(h('div', { class: 'card', id: 'q-text' }));
+    var ans = h('div', { class: 'col', id: 'ans-wrap' });
+    for (var i = 0; i < 4; i++) {
+      (function (pos) {
+        var b = h('button', { class: 'btn btn-ans', 'data-pos': String(pos) });
+        b.addEventListener('click', function () { onAnswer(pos); });
+        ans.appendChild(b);
+      })(i);
+    }
+    s.appendChild(ans);
+    s.appendChild(h('div', { class: 'small', id: 'q-fact' }));
+    var nx = h('button', { class: 'btn btn-seal', id: 'btn-next', text: 'Next' });
+    nx.addEventListener('click', goNext);
+    s.appendChild(nx);
+  }
+
+  function buildWager() {
+    var s = $('scr-wager');
+    s.innerHTML = '';
+    s.appendChild(h('h2', { class: 'gold', text: 'Final question' }));
+    s.appendChild(h('div', { class: 'small', id: 'wager-scores' }));
+    s.appendChild(h('div', { class: 'small muted', text: 'Pick the topic for question 7' }));
+    var row = h('div', { class: 'row' });
+    TD.TOPICS.forEach(function (t) {
+      var b = h('button', { class: 'btn topic-tile grow', 'data-wt': t.id, text: t.label });
+      b.addEventListener('click', function () { D.wagerTopic = t.id; refreshWager(); });
+      row.appendChild(b);
+    });
+    s.appendChild(row);
+    var x1 = h('button', { class: 'btn grow', id: 'btn-x1', text: 'x1 safe' });
+    var x2 = h('button', { class: 'btn grow', id: 'btn-x2', text: 'x2 wager' });
+    x1.addEventListener('click', function () { D.pMult = 1; refreshWager(); });
+    x2.addEventListener('click', function () { D.pMult = cfg().wagerMult; refreshWager(); });
+    s.appendChild(h('div', { class: 'row' }, [x1, x2]));
+    s.appendChild(h('div', { class: 'small', id: 'wager-note' }));
+    var go = h('button', { class: 'btn btn-seal', id: 'btn-wager-go', text: 'Go' });
+    go.addEventListener('click', startQ7);
+    s.appendChild(go);
+  }
+  function refreshWager() {
+    var c = cfg();
+    $('wager-scores').textContent = 'You ' + D.pScore + '  ·  ' + rivalOf(D.rivalStep).name + ' ' + D.rScore;
+    var t = document.querySelectorAll('#scr-wager [data-wt]');
+    for (var i = 0; i < t.length; i++) t[i].classList.toggle('sel', t[i].getAttribute('data-wt') === D.wagerTopic);
+    $('btn-x1').classList.toggle('sel', D.pMult === 1);
+    $('btn-x2').classList.toggle('sel', D.pMult !== 1);
+    $('wager-note').textContent = 'Right on x' + c.wagerMult + ' scores double. Miss on x' + c.wagerMult + ' loses ' + c.wagerMissCost + ' points.';
+  }
+
+  function buildResult() {
+    var s = $('scr-result');
+    s.innerHTML = '';
+    s.appendChild(h('h2', { class: 'gold', id: 'res-k' }));
+    s.appendChild(h('div', { id: 'res-banner', class: 'card' }));
+    s.appendChild(h('div', { id: 'res-scores' }));
+    s.appendChild(h('div', { id: 'res-xp', class: 'small' }));
+    s.appendChild(h('div', { id: 'res-lv', class: 'small' }));
+    s.appendChild(h('div', { id: 'res-seed', class: 'small muted' }));
+    var rm = h('button', { class: 'btn btn-seal', id: 'btn-rematch', text: 'Rematch' });
+    var hm = h('button', { class: 'btn', id: 'btn-home', text: 'Home' });
+    var rp = h('button', { class: 'btn', id: 'btn-report', text: 'Copy report' });
+    rm.addEventListener('click', function () { if (Date.now() < inputLockUntil) return; startDuel(); });
+    hm.addEventListener('click', function () { if (Date.now() < inputLockUntil) return; goHome(); });
+    rp.addEventListener('click', function () {
+      if (Date.now() < inputLockUntil) return;
+      try {
+        TD.tweak.copy(TD.tweak.report(TD.tweak.lastState)).then(function () { rp.textContent = 'Copied'; }, function () { rp.textContent = 'Copy failed'; });
+      } catch (e) { rp.textContent = 'Copy failed'; }
+    });
+    s.appendChild(h('div', { class: 'col' }, [rm, hm, rp]));
+  }
+
+  function buildSettings() {
+    var s = $('scr-settings');
+    s.innerHTML = '';
+    s.appendChild(h('h2', { class: 'gold', text: 'Settings' }));
+    s.appendChild(h('div', { class: 'row' }, [h('span', { class: 'small grow', text: 'Seed (blank = random)' }),
+      h('input', { id: 'in-seed', type: 'text', inputmode: 'numeric', placeholder: 'random' })]));
+    s.appendChild(h('div', { id: 'tweak-root' }));
+    s.appendChild(h('div', { class: 'row foot' }, [
+      h('button', { class: 'btn', id: 'btn-reset-progress', text: 'Reset progress' }),
+      h('button', { class: 'btn btn-seal', id: 'btn-back', text: 'Back' })
+    ]));
+    $('btn-back').addEventListener('click', goHome);
+    $('btn-reset-progress').addEventListener('click', function () {
+      var ok = true;
+      try { ok = window.confirm('Reset all progress?'); } catch (e) {}
+      if (!ok) return;
+      var keep = { mode: save.mode, readUpTo: save.readUpTo };
+      save = defSave(); save.mode = keep.mode; save.readUpTo = keep.readUpTo;
+      try { TD.tweak.set('rivalStep', 1); } catch (e) {}
+      persist(); buildHome(); refreshHome();
+    });
+  }
+  function openSettings() {
+    show('scr-settings');
+    var root = $('tweak-root');
+    root.innerHTML = '';
+    try { TD.tweak.open(root, function () { refreshBadge(); }); } catch (e) { root.textContent = 'Tweak panel unavailable'; }
+  }
+  function goHome() {
+    stopTimers();
+    // pick up any rivalStep tweak edits
+    var rs = Math.max(1, Math.min(5, Math.round(+cfg().rivalStep || 1)));
+    save.rivalStep = rs; persist();
+    refreshHome();
+    show('scr-home');
+  }
+
+  // ---------- duel ----------
+  function stopTimers() {
+    if (rafId) { cancelAnimationFrame(rafId); rafId = 0; }
+    if (autoT) { clearTimeout(autoT); autoT = 0; }
+  }
+
+  function startDuel() {
+    stopTimers();
+    var c = cfg(), E = TD.engine;
+    var seedStr = ($('in-seed') && $('in-seed').value || '').trim();
+    var seed = seedStr !== '' && isFinite(+seedStr) ? (Math.floor(+seedStr) >>> 0) : (Date.now() % 1e9);
+    var step = Math.max(1, Math.min(5, Math.round(+c.rivalStep || save.rivalStep || 1)));
+    var pool = poolFor();
+    var rnd = E.rng(seed);
+    var plan = E.planDuel(pool, save.picked, save.memory, rnd, c);
+    D = {
+      seed: seed, mode: save.mode, readUpTo: save.readUpTo, pickedTopic: save.picked, wagerTopic: save.picked,
+      pMult: 1, rMult: 1, rivalStep: step, log: [], pScore: 0, rScore: 0, result: null,
+      pool: pool, rnd: rnd, plan: plan, n: 0, q: null, ex: null
+    };
+    D.exclude = new Set(plan.map(function (q) { return q.id; }));
+    // topbar
+    var tp = $('top-p'), tr = $('top-r');
+    tp.innerHTML = ''; tr.innerHTML = '';
+    tp.appendChild(sealDot()); tp.appendChild(h('span', { id: 'p-score', class: 'gold', text: '0' }));
+    var mc = h('canvas', {});
+    drawPortrait(mc, rivalOf(step).look, 44);
+    tr.appendChild(mc); tr.appendChild(h('span', { class: 'rname', text: rivalOf(step).name.split(' ').pop() })); tr.appendChild(h('span', { id: 'r-score', class: 'gold', text: '0' }));
+    nextQuestion();
+    show('scr-duel');
+  }
+
+  function nextQuestion() {
+    var E = TD.engine, c = cfg();
+    D.n++;
+    var isQ7 = D.n === 7;
+    var q;
+    if (isQ7) {
+      q = E.drawQ7(D.pool, D.wagerTopic, save.memory, D.rnd, c, D.exclude);
+      D.rMult = E.rivalWager(D.pScore, D.rScore, c);
+    } else q = D.plan[D.n - 1];
+    D.q = q;
+    D.sh = E.shuffleAnswers(q, D.rnd);
+    D.rv = E.rivalAnswer(q, c, D.rnd);
+    D.locked = false;
+    D.rvShown = false;
+    $('q-num').textContent = 'Q ' + D.n + '/7';
+    $('q-text').textContent = q.q;
+    var btns = document.querySelectorAll('#scr-duel .btn-ans');
+    for (var i = 0; i < 4; i++) {
+      btns[i].textContent = q.a[D.sh.order[i]];
+      btns[i].className = 'btn btn-ans';
+      btns[i].disabled = false;
+    }
+    $('q-fact').textContent = '';
+    $('chips-row').innerHTML = '';
+    $('btn-next').style.display = 'none';
+    $('timer-fill').style.width = '100%';
+    $('p-score').textContent = D.pScore;
+    $('r-score').textContent = D.rScore;
+    D.t0 = performance.now();
+    if (rafId) cancelAnimationFrame(rafId);
+    rafId = requestAnimationFrame(tick);
+  }
+
+  function tick() {
+    if (!D || D.locked) return;
+    var c = cfg();
+    var el = (performance.now() - D.t0) / 1000;
+    var left = Math.max(0, 1 - el / c.timerSec);
+    $('timer-fill').style.width = (left * 100).toFixed(1) + '%';
+    if (!D.rvShown && el >= D.rv.tSec) {
+      D.rvShown = true;
+      var chip = h('span', { class: 'chip', id: 'chip-rival-ans', text: rivalOf(D.rivalStep).name.split(' ').pop() + ' answered' });
+      $('chips-row').appendChild(chip);
+    }
+    if (el >= c.timerSec) { resolve(-1, c.timerSec); return; }
+    rafId = requestAnimationFrame(tick);
+  }
+
+  function onAnswer(pos) {
+    if (!D || D.locked || D.q == null) return;
+    var el = (performance.now() - D.t0) / 1000;
+    resolve(pos, Math.min(el, cfg().timerSec));
+  }
+
+  function resolve(pos, tSec) {
+    var E = TD.engine, c = cfg(), q = D.q;
+    D.locked = true;
+    if (rafId) { cancelAnimationFrame(rafId); rafId = 0; }
+    var isQ7 = D.n === 7;
+    var pRight = pos >= 0 && pos === D.sh.correctPos;
+    var pT = pos < 0 ? c.timerSec : tSec;
+    var pm = isQ7 ? D.pMult : 1, rm = isQ7 ? D.rMult : 1;
+    var pPts = E.scoreAnswer(pRight, pT, q, c, pm, isQ7);
+    var rPts = E.scoreAnswer(D.rv.correct, D.rv.tSec, q, c, rm, isQ7);
+    D.pScore = E.applyScore(D.pScore, pPts);
+    D.rScore = E.applyScore(D.rScore, rPts);
+    E.markAnswered(save.memory, q, pRight);
+    persist();
+    D.log.push({ n: D.n, id: q.id, tier: q.tier, topic: q.topic, pRight: pRight, pT: +pT.toFixed(2),
+      pPts: pPts, rRight: D.rv.correct, rT: +D.rv.tSec.toFixed(2), rPts: rPts });
+    var btns = document.querySelectorAll('#scr-duel .btn-ans');
+    for (var i = 0; i < 4; i++) {
+      btns[i].disabled = true;
+      if (i === D.sh.correctPos) btns[i].classList.add('ans-right');
+      else if (i === pos) btns[i].classList.add('ans-wrong');
+      else btns[i].classList.add('ans-dim');
+    }
+    var row = $('chips-row'); row.innerHTML = '';
+    var rn = rivalOf(D.rivalStep).name.split(' ').pop();
+    row.appendChild(h('span', { class: 'chip', text: 'You ' + (pos < 0 ? 'timed out' : pT.toFixed(1) + 's') }));
+    row.appendChild(h('span', { class: 'chip', text: rn + ' ' + (D.rv.correct ? 'right' : 'wrong') + ' ' + D.rv.tSec.toFixed(1) + 's' }));
+    row.appendChild(h('span', { class: 'chip pop', text: (pPts >= 0 ? '+' : '') + pPts }));
+    if (rPts) row.appendChild(h('span', { class: 'chip pop', text: rn + ' +' + rPts }));
+    $('p-score').textContent = D.pScore;
+    $('r-score').textContent = D.rScore;
+    if (!pRight) $('q-fact').textContent = q.fact;
+    var nx = $('btn-next');
+    nx.style.display = '';
+    nx.textContent = D.n === 7 ? 'Result' : (D.n === 6 ? 'To the wager' : 'Next');
+    if (pRight) {
+      var myN = D.n;
+      autoT = setTimeout(function () { autoT = 0; if (D && D.n === myN && D.locked) goNext(); }, 2500);
+    }
+  }
+
+  function goNext() {
+    if (!D || !D.locked) return;
+    if (autoT) { clearTimeout(autoT); autoT = 0; }
+    D.locked = false; // prevent double advance
+    D.q = null;
+    if (D.n < 6) { nextQuestion(); }
+    else if (D.n === 6) { buildWagerAndShow(); }
+    else finish();
+  }
+
+  function buildWagerAndShow() {
+    D.pMult = 1;
+    refreshWager();
+    show('scr-wager');
+  }
+  function startQ7() {
+    if (!D) return;
+    nextQuestion();
+    show('scr-duel');
+  }
+
+  function finish() {
+    var E = TD.engine, c = cfg();
+    D.result = E.result(D.pScore, D.rScore);
+    var xp = E.xpFor(D.result, c);
+    var before = save.topicXp[D.pickedTopic] || 0;
+    save.topicXp[D.pickedTopic] = before + xp;
+    var step = D.rivalStep;
+    if (D.result === 'win') step = Math.min(5, step + 1);
+    save.rivalStep = step;
+    try { TD.tweak.set('rivalStep', step); } catch (e) {}
+    persist();
+    var state = { seed: D.seed, mode: D.mode, readUpTo: D.readUpTo, pickedTopic: D.pickedTopic, wagerTopic: D.wagerTopic,
+      pMult: D.pMult, rMult: D.rMult, rivalStep: D.rivalStep, log: D.log, pScore: D.pScore, rScore: D.rScore, result: D.result };
+    try { TD.tweak.lastState = state; } catch (e) {}
+    var k = D.log.filter(function (l) { return l.pRight; }).length;
+    $('res-k').textContent = 'You got ' + k + ' of 7';
+    var b = $('res-banner');
+    b.className = 'card ' + (D.result === 'win' ? 'banner-win' : D.result === 'loss' ? 'banner-loss' : 'banner-draw');
+    b.textContent = D.result === 'win' ? 'Victory!' : D.result === 'loss' ? 'Defeated' : 'A draw';
+    $('res-scores').textContent = 'You ' + D.pScore + '  ·  ' + rivalOf(D.rivalStep).name + ' ' + D.rScore;
+    $('res-xp').textContent = '+' + xp + ' XP in ' + topicLabel(D.pickedTopic) + (D.result === 'win' && step > D.rivalStep ? ' · Next rival unlocked' : '');
+    var tot = save.topicXp[D.pickedTopic];
+    $('res-lv').textContent = topicLabel(D.pickedTopic) + ' level ' + E.levelOf(tot, c) + ' (' + (tot % c.xpPerLevel) + '/' + c.xpPerLevel + ' XP)';
+    $('res-seed').textContent = 'Seed ' + D.seed;
+    $('btn-report').textContent = 'Copy report';
+    refreshBadge();
+    show('scr-result');
+  }
+
+  // ---------- start ----------
+  function start() {
+    var app = $('app');
+    if (!app) return;
+    app.innerHTML = '';
+    ['home', 'duel', 'wager', 'result', 'settings'].forEach(function (n) {
+      app.appendChild(h('section', { class: 'screen', id: 'scr-' + n }));
+    });
+    var badge = h('div', { id: 'dev-badge', text: 'DEV' });
+    badge.style.display = 'none';
+    document.body.appendChild(badge);
+    save = loadSave();
+    try {
+      if (TD.tweak && TD.tweak.set && save.rivalStep !== TD.tweak.cfg.rivalStep) TD.tweak.set('rivalStep', save.rivalStep);
+    } catch (e) {}
+    buildHome(); buildDuel(); buildWager(); buildResult(); buildSettings();
+    refreshHome();
+    show('scr-home');
+    refreshBadge();
+  }
+  ui.start = start;
+
+  TD.ui = ui;
+  if (typeof document !== 'undefined' && typeof window !== 'undefined') {
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start);
+    else start();
+  }
+  if (typeof module !== 'undefined') module.exports = ui;
+})();
+
+</script>
+<script>if("serviceWorker"in navigator)addEventListener("load",function(){navigator.serviceWorker.register("sw.js").catch(function(){})});</script>
+
+</body></html>
