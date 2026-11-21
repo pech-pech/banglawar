@@ -30,7 +30,7 @@ export const DEFAULTS = Object.freeze({
   grazeOuterMul: 0.35,
   grazeInnerMul: 1.0,
   grazeRazorMul: 2.0,
-  flowStep: 0.015,
+  flowStep: 0.025,
   flowWindow1: 2.5,
   flowWindow5: 1.2,
   flowBoostMin: 0.5,

@@ -31,6 +31,8 @@ const idleBot = () => ({ steer: 0, fire: false });
 // physics only (tumble body) for `tail` steps, sampling the tumble body against the surface.
 function ride(seed, bot, { stopAt = Infinity, tail = 0 } = {}) {
   resetCfg(); cfg.endless = 1;
+  // B3: the night would catch a no-flow lane bot near 1.2-2 km; these tests are about physics robustness, so park the front.
+  cfg.gapStart = cfg.gapSoft = cfg.gapMax = 1e6;
   const course = createCourse(seed, cfg);
   const phys = createPhysics(R, course, cfg);
   try {

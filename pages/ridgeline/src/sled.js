@@ -5,6 +5,17 @@
 // Without a phys adapter (createSled(course)), ground distance is analytic and tumbles resolve instantly.
 import { mulberry32 } from './rng.js';
 import { baseSpeed, zoneAt, zoneWind, zoneSand } from './endless.js';
+import { createNight, KEYS as NIGHT_KEYS } from './night.js';
+import { createMarks } from './marks.js';
+import { hullCfg } from './hulls.js';
+
+// B3 loop keys read by the sled (fallbacks here; the integrator may mirror them into config.js).
+export const KEYS = {
+  caughtGlide: { def: 1.0, min: 0.3, max: 3, step: 0.1, label: 'Caught: glide time (s)', group: 'Nightfall' },
+  endDelay:    { def: 1.4, min: 0.5, max: 4, step: 0.1, label: 'Caught: run over after (s)', group: 'Nightfall' },
+  firstRunMercy: { def: 0, min: 0, max: 1, step: 1, label: 'First wrecks grade slam at worst (0/1)', group: 'Grade' },
+};
+const kv = (cfg, k) => (cfg[k] !== undefined ? cfg[k] : KEYS[k].def);
 
 export const FIXED_DT = 1 / 120;
 
@@ -27,7 +38,8 @@ const ROLL_TAU = 0.15;     // visual lean follow (s)
 const endlessOn = (course, cfg) => !!cfg.endless && course.length === Infinity;
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 
-export function createSled(course, phys = null, rng = null) {
+// opts: { hull: 'wren'|..., reached: Set (marks already reached, mutated), seed, daily }
+export function createSled(course, phys = null, rng = null, opts = {}) {
   const x = course.centerX(0);
   const y = course.height(x, 0);
   return {
@@ -39,6 +51,10 @@ export function createSled(course, phys = null, rng = null) {
     crashed: false, finished: false, charging: false,
     heading: 0, dist: 0, physZ: 0, zone: 0, lap: 0, _zoneKey: -1, _wind: 1,
     flow: 0, flowT: 0, flowWin: 0, grazeTier: '',
+    // B3 loop: night gap, hull, run over
+    gap: NIGHT_KEYS.gapStart.def, vf: NIGHT_KEYS.frontV0.def, nightStage: 'far', hull: opts.hull || null,
+    runOver: false, runOverCause: '', caughtT: -1, caughtDist: 0, mercied: 0, runStarted: false,
+    _opts: opts, _night: null, _marks: null, _caughtV: 0,
     links: 0, razors: 0, inners: 0, centred: 0, boostLinks: 0, flowPeak: 0, flow5T: 0,
     // B1 stats
     launches: 0, landings: 0, cleans: 0, roughs: 0, slams: 0, wrecks: 0, hops: 0, longestAir: 0,
@@ -186,10 +202,11 @@ function startTumble(s, course, cfg, cause, events, rock) {
   const r1 = rng(), r2 = rng(), r3 = rng(), r4 = rng(); // always 4 draws, fixed order
   const spin = cfg.tumbleSpin;
   const w = { x: spin * (0.4 + 0.6 * r1), y: spin * 0.4 * (2 * r3 - 1), z: spin * 0.8 * (2 * r2 - 1) };
-  const pop = cfg.tumblePop * (0.5 + r4);
-  const c = cfg.tumbleCarry;
+  const mass = cfg.hullMass > 0 ? cfg.hullMass : 1;   // hull weight: heavy hulls carry more momentum, pop less
+  const pop = cfg.tumblePop * (0.5 + r4) / mass;
+  const c = cfg.tumbleCarry * Math.sqrt(mass);
   const v = { x: s.vx * c, y: s.vy * c + pop, z: s.speed * c };
-  if (rock) v.x += (s.x >= rock.x ? 1 : -1) * cfg.tumbleRockKick;
+  if (rock) v.x += (s.x >= rock.x ? 1 : -1) * cfg.tumbleRockKick / mass;
   const vm = Math.hypot(v.x, v.y, v.z);
   if (vm > cfg.tumbleMaxSpeed) { const f = cfg.tumbleMaxSpeed / vm; v.x *= f; v.y *= f; v.z *= f; }
   const h = course.height(s.x, s.z);
@@ -203,7 +220,8 @@ function startTumble(s, course, cfg, cause, events, rock) {
   if (cause === 'wreck') {
     s.wrecks++;
     s._wreckZ = s.z; s._wreckT = s.t;
-    events.push({ type: 'recover_start' });
+    if (s._night) s._night.onWreckStart(s.dist);
+    events.push({ type: 'recover_start', gap: s._night ? s._night.gap : s.gap });
     setFlow(s, cfg, events, 0);
     s.boost = 0; s.boostT = 0; s.boostBonus = 0; s.kick = 0; s.wobbleT = 0;
   }
@@ -216,6 +234,8 @@ function endTumble(s, course, cfg, events) {
   if (s._phys) s._phys.endTumble();
   if (s.tumbleCause === 'rock') {
     s.crashed = true; s.charging = false;
+    s.runOver = true; s.runOverCause = 'rock';
+    events.push({ type: 'run_over', cause: 'rock', dist: s.dist });
     return;
   }
   // Wreck: put back on course, hold so the total time lost is about recoverLostT.
@@ -258,8 +278,20 @@ function recoverSpot(s, course) {
 }
 
 // ---------- the step ----------
-export function stepSled(s, course, input, cfg) {
+export function stepSled(s, course, input, cfg0) {
   const events = [];
+  let cfg = cfg0;
+  if (!s.hull) s.hull = cfg0.hull || 'wren';
+  if (s.hull !== 'wren' && cfg0.hull !== s.hull) cfg = hullCfg(cfg0, s.hull); // hull overlay (returns a new object)
+  const nightOn = endlessOn(course, cfg);
+  if (nightOn && !s._night) {
+    s._night = createNight(cfg0);
+    s._marks = createMarks({ reached: s._opts.reached || new Set() }, cfg0);
+  }
+  if (nightOn && !s.runStarted) { // endless only: finite event streams stay as in B1
+    s.runStarted = true;
+    events.push({ type: 'run_start', seed: s._opts.seed !== undefined ? s._opts.seed : course.seed, hull: s.hull, daily: !!s._opts.daily });
+  }
   if (!(s.crashed || s.finished)) core(s, course, input, cfg, events);
   if (s._phys) {
     s._phys.step();
@@ -268,7 +300,37 @@ export function stepSled(s, course, input, cfg) {
   // physZ: absolute z the physics world must stream for (tumble body while tumbling, else the sled)
   const ts = s.mode === 'tumble' && s._phys && s._phys.tumbleState ? s._phys.tumbleState() : null;
   s.physZ = ts ? ts.p.z : s.z;
+  if (nightOn && !s.runOver) nightStep(s, cfg0, events);
   return events;
+}
+
+// Night, caught glide, run_over (night) and marks, once per fixed step after the sled moved.
+function nightStep(s, cfg, events) {
+  const n = s._night;
+  if (s.caughtT >= 0) {
+    s.caughtT += FIXED_DT;
+    if (s.caughtT >= kv(cfg, 'endDelay') - 1e-9) {
+      s.runOver = true; s.runOverCause = 'night'; s.crashed = true; s.charging = false;
+      if (s.mode === 'tumble' && s._phys) s._phys.endTumble();
+      events.push({ type: 'run_over', cause: 'night', dist: s.caughtDist });
+    }
+    return;
+  }
+  if (s.crashed || s.finished || (s.mode === 'tumble' && s.tumbleCause === 'rock')) return; // rock = run over by rock
+  const ev = n.step(FIXED_DT, s.dist, { speed: s.speed, air: s.mode === 'air', recovering: s.mode === 'recover' || (s.mode === 'tumble' && s.tumbleCause === 'wreck'), lap: s.lap });
+  s.gap = n.gap; s.vf = n.vf; s.nightStage = n.stage;
+  for (let i = 0; i < ev.length; i++) {
+    events.push(ev[i]);
+    if (ev[i].type === 'caught') {
+      s.caughtT = 0; s.caughtDist = ev[i].dist; s._caughtV = Math.max(0, s.speed);
+      s.boost = 0; s.boostT = 0; s.boostBonus = 0; s.charging = false;
+    }
+  }
+  const me = s._marks.step(s.dist);
+  for (let i = 0; i < me.length; i++) {
+    const m = me[i];
+    events.push(m.type === 'hull_unlock' ? { type: 'hull_unlock', hull: m.hull, id: m.hull } : m);
+  }
 }
 
 function readTumble(s, course, cfg, events) {
@@ -276,6 +338,7 @@ function readTumble(s, course, cfg, events) {
   const dt = FIXED_DT;
   if (st) {
     s.x = st.p.x; s.z = st.p.z; s.bodyY = st.p.y; s.y = st.p.y - cfg.hoverHeight;
+    if (s.tumbleCause === 'wreck' && s.z > s.dist) s.dist = s.z;
     s.quat = { x: st.q.x, y: st.q.y, z: st.q.z, w: st.q.w };
     s.vx = st.v.x; s.vy = st.v.y; s.speed = st.v.z;
     const lin = Math.hypot(st.v.x, st.v.y, st.v.z), ang = Math.hypot(st.w.x, st.w.y, st.w.z);
@@ -289,8 +352,9 @@ function readTumble(s, course, cfg, events) {
 
 function core(s, course, input, cfg, events) {
   const dt = FIXED_DT;
-  const steerIn = clamp((input && input.steer) || 0, -1, 1);
-  const fire = !!(input && input.fire);
+  const caught = s.caughtT >= 0;
+  const steerIn = caught ? 0 : clamp((input && input.steer) || 0, -1, 1);
+  const fire = !caught && !!(input && input.fire);
   const down = !input || input.down === undefined ? true : !!input.down;
 
   if (s.mode === 'tumble') {
@@ -306,10 +370,11 @@ function core(s, course, input, cfg, events) {
     s._holdT += dt;
     if (s._holdT >= s._holdLeft) {
       s.mode = 'ground'; s.grounded = true;
-      s.speed = cfg.recoverSpeedMul * baseTarget(s, course, cfg);
+      s.speed = s.caughtT >= 0 ? 0 : cfg.recoverSpeedMul * baseTarget(s, course, cfg);
       s.graceT = cfg.recoverGrace;
+      if (s._night) { s._night.onWreckEnd(); s.gap = s._night.gap; }
       s._armed = false; s._resetSeen = false; s._touchT = s.t; s._ks = 0; s._hold = 0;
-      events.push({ type: 'recover_end', speed: s.speed });
+      events.push({ type: 'recover_end', gap: s.gap, speed: s.speed });
     }
     flowDecay(s, cfg, events, dt);
     return;
@@ -386,6 +451,8 @@ function core(s, course, input, cfg, events) {
     s.vx -= s.vx * cfg.steerDamp * cfg.airSteerDampMul * dt;
   }
 
+  if (caught && s.mode === 'ground') s.speed = s._caughtV * clamp(1 - s.caughtT / kv(cfg, 'caughtGlide'), 0, 1);
+
   // Course edge: hard slowdown and push back
   const cx = course.centerX(s.z);
   const hw = course.halfWidth(s.z);
@@ -433,7 +500,7 @@ function core(s, course, input, cfg, events) {
   if (s.z > s._rz1 - ROCK_REFRESH || s.z < s._rz0) refreshRocks(s, course);
   const outerR = Math.max(cfg.chargeRange, cfg.grazeInner);
   let tier = 0; // 0 none, 1 outer, 2 inner, 3 razor
-  const rocks = s.graceT > 0 ? [] : s._rocks;
+  const rocks = s.graceT > 0 || caught ? [] : s._rocks;
   for (let i = 0; i < rocks.length; i++) {
     const r = rocks[i];
     const dz = r.z - s.z;
@@ -476,7 +543,7 @@ function core(s, course, input, cfg, events) {
   // Gates (2D x/z)
   findGate(s, course);
   const g = s._gate;
-  if (g && prevZ < g.z && s.z >= g.z) {
+  if (g && !caught && prevZ < g.z && s.z >= g.z) {
     if (Math.abs(s.x - g.x) <= g.width / 2) {
       s.gatesPassed++;
       const centred = Math.abs(s.x - g.x) <= g.width * cfg.gateCentreFrac;
@@ -484,11 +551,20 @@ function core(s, course, input, cfg, events) {
       if (centred) { s.centred++; addLink(s, cfg, events, cfg.flowGateCap); }
     } else {
       s.gatesMissed++;
+      const night = endlessOn(course, cfg) ? s._night : null;
+      if (night) { // endless: the dark pays for it (gap hit, Flow -1), no clock penalty
+        events.push({ type: 'miss', id: g.id, z: g.z, x: s.x, penalty: 0 });
+        const gh = night.hitGap(cfg.missGap !== undefined ? cfg.missGap : NIGHT_KEYS.missGap.def, 'miss');
+        for (let i = 0; i < gh.length; i++) events.push(gh[i]);
+        s.gap = night.gap;
+        setFlow(s, cfg, events, s.flow - 1);
+      } else {
       s.t += cfg.missPenalty;
       events.push({ type: 'miss', id: g.id, z: g.z, x: s.x, penalty: cfg.missPenalty });
       if (s.flow > 0) {
         s.flow = 0; s.flowT = 0; s.flowWin = 0;
         events.push({ type: 'flowDrop', level: 0 });
+      }
       }
     }
     s.nextGate = g.id + 1;
@@ -616,6 +692,7 @@ function touchdown(s, course, cfg, events, n, vn, h) {
   else if (B >= cfg.gradeRough) grade = 'slam';
   else if (B >= cfg.gradeClean) grade = 'rough';
   else grade = 'clean';
+  if (grade === 'wreck' && kv(cfg, 'firstRunMercy') && s.mercied < 2) { grade = 'slam'; s.mercied++; } // first two wrecks of a new save
   events.push({ type: 'land', grade, hop: false, impact, slopeMatch, B, point, normal, flight, dive: dived });
   s.tAir = 0;
   const floor = cfg.speedFloor * cfg.baseSpeed;
