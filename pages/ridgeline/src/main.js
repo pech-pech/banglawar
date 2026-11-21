@@ -15,8 +15,12 @@ import { dailySeed, dailyDate, dailyCopyText } from './daily.js';
 import { HULLS, HULL_IDS } from './hulls.js';
 import { createMarks } from './marks.js';
 import { createTweak, buildReport, physText, copyText, getVisualPrefs, onVisualPrefs, isVisualDefault } from './tweak.js';
+// B4 VIS begin
+import { UNLOCK_M } from './vis/index.js';
+import { createAudioGlue, isAudioKey } from './audioglue.js'; // B5 AUDIO
+// B4 VIS end
 
-const BUILD = 'ridgeline-proto-12';
+const BUILD = 'ridgeline-proto-13';
 const RULES_VERSION = 1;
 const BEST_KEY = 'ridgeline.best.v1';
 const COUNTER_KEY = 'ridgeline.counter.v1';
@@ -28,6 +32,10 @@ const STILL_CFG = STILL ? { ...cfg, endless: 0 } : null;
 const rc = () => (STILL ? STILL_CFG : cfg);
 const isEndless = () => !!course && !Number.isFinite(course.length);
 let stillState = 0; // 0 pending, 1 frozen
+// B4 VIS begin: visual showcase on unless ?vis=0 (or the still path). Home -> run -> end card flow lives in the vis block below.
+const VIS_ON = !STILL && new URLSearchParams(location.search).get('vis') !== '0';
+let runTop = 0, runLandings = 0;
+// B4 VIS end
 const STILLFX = STILL ? new URLSearchParams(location.search).get('stillfx') : null; // still-only: 1 = mid-boost carving, 2 = crash shred burst
 function stillAdvance() {
   const run = (n, drawEvery, inp) => {
@@ -87,7 +95,7 @@ let builtCfg = '';
 let mode = 'daily';
 let seedStr = '';
 let seedInt = 0;
-let phase = 'menu'; // menu | run | end
+let phase = 'menu'; // menu | run | end (B4 VIS: + home | garage)
 let lastResult = null;
 let crashZ = null;
 let R = null; // rapier module once loaded
@@ -118,7 +126,8 @@ function lsSet(k, v) { try { localStorage.setItem(k, v); } catch (e) { /* ignore
 
 // ---- B3 LOOP: save v2, hulls, daily ----
 // DEV (any non-default tweak, ignoring the first-run mercy flag main sets itself) never writes bests or marks.
-function devNow() { const d = diffFromDefault(); delete d.firstRunMercy; return Object.keys(d).length > 0; }
+const ag = createAudioGlue(() => cfg); // B5 AUDIO: levels are cfg.audio*, never DEV
+function devNow() { const d = diffFromDefault(); delete d.firstRunMercy; for (const k of Object.keys(d)) if (isAudioKey(k)) delete d[k]; return Object.keys(d).length > 0; }
 const isDev = () => devNow() || !isVisualDefault();
 const save = createSave({
   storage: { get: (k) => localStorage.getItem(k), set: (k, v) => localStorage.setItem(k, v) },
@@ -177,10 +186,11 @@ function size() {
   return [Math.max(1, window.innerWidth), Math.max(1, window.innerHeight)];
 }
 
+function viewOpts() { return { ...getVisualPrefs(), still: STILL, vis: VIS_ON ? visHooks : false }; } // B4 VIS: vis hooks
 function buildCourse() {
   if (view) { try { view.dispose(); } catch (e) { /* ignore */ } view = null; }
   course = createCourse(seedInt, rc());
-  view = createView(canvas, course, rc(), getThemeId(), { ...getVisualPrefs(), still: STILL });
+  view = createView(canvas, course, rc(), getThemeId(), viewOpts());
   const [w, h] = size();
   view.resize(w, h);
   builtCfg = JSON.stringify(cfg);
@@ -199,12 +209,14 @@ function newSled() {
 
 function begin(m, seedString) {
   if (!R) { startAfterLoad = () => begin(m, seedString); return; }
+  // B4 VIS: keep the home world when it already is this seed + cfg (camera blends from the title, no cut)
+  const keep = VIS_ON && course && view && seedString === seedStr && JSON.stringify(cfg) === builtCfg;
   mode = m;
   seedStr = seedString;
   applyMercy();
   seedInt = hashSeed(seedStr);
   // rebuild always: new seed or changed cfg; disposing the old view first
-  buildCourse();
+  if (!keep) buildCourse();
   newSled();
   input.steer = 0; input.fire = false; fireNext = false;
   acc = 0; last = 0; fpsSum = 0; fpsN = 0; fpsAvg = 0; crashZ = null;
@@ -212,6 +224,8 @@ function begin(m, seedString) {
   phase = 'run';
   hud.showRun();
   hud.setDev(isDev());
+  visRunStart(); // B4 VIS
+  ag.bgm('run'); // B5 AUDIO
 }
 
 function startMode(m) { begin(m, pickSeed(m)); }
@@ -227,6 +241,8 @@ function retry() {
   phase = 'run';
   hud.showRun();
   hud.setDev(isDev());
+  visRunStart(); // B4 VIS
+  ag.bgm('run'); // B5 AUDIO
 }
 
 const MEDAL_KEY = 'ridgeline.medal.v1';
@@ -258,6 +274,7 @@ function endRun() {
     const cause = state.runOverCause || 'rock';
     const distance = Math.floor(runOverEv && runOverEv.dist != null ? runOverEv.dist : (state.dist || state.z || 0));
     const daily = mode === 'daily';
+    const prevBest = bestDist();
     const rec = save.recordRun({
       dist: distance, hull: hullId, zone: state.zone, lap: state.lap, seed: seedStr, cause, wrecks: runWrecks,
       clean: state.cleans || 0, longestFlightS: state.longestAir || 0, daily, flow: state.flowPeak || 0, landings: state.landings || 0,
@@ -285,7 +302,11 @@ function endRun() {
       payload.dailyCopy = dailyCopyText({ date: dailyDate(Date.now()), dist: distance, hull: hullId, zone: state.zone, lap: state.lap, flow: state.flowPeak || 0, clean: state.cleans || 0, landings: state.landings || 0, cause });
     }
     hud.showEnd(payload);
+    ag.silence(); ag.bgm('menu'); // B5 AUDIO
+    lastGoal = payload.nextGoal; // B5: end card progress line
     hud.setStartInfo(startInfo());
+    if (VIS_ON) lastVisEnd = { finished: false, crashed }; // B4 VIS
+    visEnd(distance, prevBest || 0); // B4 VIS: spring end card
     return;
   }
   if (finished) saveBest(key, state.t);
@@ -297,6 +318,7 @@ function endRun() {
     medal = Object.assign(medalFor(state.t, times), { hidden: false });
     saveMedal(key, medal.name);
   }
+  if (VIS_ON) lastVisEnd = { finished, crashed }; // B4 VIS
   const r1 = (v) => Math.round(v * 10) / 10;
   lastResult = {
     result, time: state.t, gatesPassed: state.gatesPassed, gatesMissed: state.gatesMissed,
@@ -309,6 +331,7 @@ function endRun() {
     gatesPassed: state.gatesPassed, gatesMissed: state.gatesMissed,
     best: bestFor(key),
   });
+  visEnd(); // B4 VIS: spring end card over the old (hidden) end screen
 }
 
 function physInfo() {
@@ -368,6 +391,11 @@ function buildInfo() {
     theme: getThemeId(),
     tele: tele.snapshot(),
     device: deviceInfo(null, gpuName()),
+    // B4 VIS begin
+    visLine: view && view.vis ? view.vis.probeLine() : (VIS_ON ? 'Vis: no view' : 'Vis: off (?vis=0)'),
+    webgpu: !!(view && view.renderer && view.renderer.isWebGPURenderer),
+    rendererType: view && view.renderer ? (view.renderer.isWebGPURenderer ? 'WebGPURenderer' : 'WebGLRenderer, ' + (view.renderer.capabilities && view.renderer.capabilities.isWebGL2 ? 'WebGL2' : 'WebGL1')) : '',
+    // B4 VIS end
   };
 }
 
@@ -401,7 +429,7 @@ function applyTheme(id) {
   hud.setThemeLabel(t.name || id);
   if (view) {
     if (typeof view.setTheme === 'function') view.setTheme(id);
-    else { try { view.dispose(); } catch (e) { /* ignore */ } view = createView(canvas, course, rc(), id, { ...getVisualPrefs(), still: STILL }); const [w, h] = size(); view.resize(w, h); }
+    else { try { view.dispose(); } catch (e) { /* ignore */ } view = createView(canvas, course, rc(), id, viewOpts()); const [w, h] = size(); view.resize(w, h); }
   }
   for (const p of pickers) p.refresh();
   return true;
@@ -409,13 +437,13 @@ function applyTheme(id) {
 const startPicker = createThemePicker(hud.themeMount, { onChange: (id) => applyTheme(id) });
 const settingsPicker = createThemePicker(null, { onChange: (id) => applyTheme(id) });
 pickers.push(startPicker, settingsPicker);
-const tweak = createTweak(ui, { themeEl: settingsPicker.el, physLine, onChange() { hud.setDev(isDev()); } });
+const tweak = createTweak(ui, { themeEl: settingsPicker.el, physLine, onChange() { hud.setDev(isDev()); ag.applyLevels(); } });
 applyTheme(getThemeId());
 onVisualPrefs(() => {
   hud.setDev(isDev());
   if (!view) return;
   try { view.dispose(); } catch (e) { /* ignore */ }
-  view = createView(canvas, course, rc(), getThemeId(), { ...getVisualPrefs(), still: STILL });
+  view = createView(canvas, course, rc(), getThemeId(), viewOpts());
   const [w, h] = size(); view.resize(w, h);
 });
 
@@ -428,6 +456,90 @@ physPromise.then(() => {
 hud.showStart(startInfo());
 if (saveLoad.toast) hud.toast(saveLoad.toast);
 hud.setDev(isDev());
+
+// B4 VIS begin: front door, garage, run start / end events, end card, photo
+let lastVisEnd = null, lastGoal = null;
+const bestM = () => bestDist() ?? 0; // B2's bestDist() is null when there is no best yet
+function savedHull() {
+  return hullId; // B5: B3 save owns the chosen hull
+}
+function peekSeed() {
+  let n = parseInt(lsGet(COUNTER_KEY) || '0', 10);
+  if (!Number.isFinite(n)) n = 0;
+  return 'random-' + (n + 1);
+}
+// parked sled pose for the home / garage world (no physics needed: Rapier may still be loading)
+function parkedState(c) {
+  const x = c.centerX(0), y = c.height(x, 0);
+  return { x, y, z: 0, vx: 0, vy: 0, speed: 0, mode: 'ground', grounded: true, pitch: 0, roll: 0, quat: null, bodyY: y + 0.5,
+    diving: false, comp: 0.35, boost: 0, boostT: 0, t: 0, flow: 0, gatesPassed: 0, gatesMissed: 0, nextGate: 0, crashed: false, finished: false, charging: false, heading: 0 };
+}
+const visHooks = {
+  getPhase: () => (phase === 'menu' ? 'home' : phase),
+  hull: savedHull,
+  bestM,
+  onRun: () => startMode('random'),
+  onDaily: () => startMode('daily'),
+  onGarage: () => { if (phase === 'home') phase = 'garage'; },
+  onSettings: () => tweak.open(),
+  unlockM: () => unlockedList().reduce((m, id) => Math.max(m, UNLOCK_M[id] || 0), devNow() ? 1e9 : 0), // B5: garage locks follow B3 unlocks
+  onRide: (id) => { window.__rl.game.setHull(id); window.__rl.game.startRun(); },
+  onGarageClose: () => { if (phase === 'garage') phase = 'home'; },
+};
+function goHome() {
+  if (!VIS_ON) return;
+  if (props) { try { props.dispose(); } catch (e) { /* ignore */ } props = null; } // B2 props live in phys' world: free first
+  if (phys) { try { phys.dispose(); } catch (e) { /* ignore */ } phys = null; }
+  phase = 'home';
+  ag.silence(); ag.bgm('menu'); // B5 AUDIO
+  lastResult = null; lastVisEnd = null;
+  hud.b4('home');
+  mode = 'random';
+  seedStr = peekSeed();
+  seedInt = hashSeed(seedStr);
+  buildCourse();
+  state = parkedState(course);
+  last = 0;
+}
+function visRunStart() {
+  runTop = 0; runLandings = 0;
+  if (!view || !view.vis) return;
+  view.vis.hideEnd();
+  view.vis.attachPhys(phys);
+  view.vis.fx({ type: 'run_start' });
+}
+// endless runs pass B2's distance + the best before this run (endRun already saved it); finite runs compute + save here
+function visEnd(endDist, endPrev) {
+  if (!VIS_ON || !view || !view.vis || !state) return;
+  const v = view.vis;
+  const fromEndless = typeof endDist === 'number';
+  const dist = fromEndless ? endDist : (typeof state.dist === 'number' ? state.dist : Math.max(0, state.z));
+  const prev = fromEndless ? endPrev : bestM();
+  if (!fromEndless && dist > prev) lsSet(BESTDIST_KEY, String(Math.round(dist)));
+  const caught = !!state.caught;
+  v.fx({ type: caught ? 'caught' : 'run_over' });
+  const cause = caught ? 'caught' : lastVisEnd && lastVisEnd.finished ? 'finish' : 'run_over';
+  v.endCard({ cause, dist, best: prev, top: runTop, landings: runLandings, newBest: prev > 0 && dist > prev, goal: lastGoal }, {
+    onRideAgain: retry, onHome: goHome, onPhoto: photo, onCopyReport: copyReport,
+  });
+  hud.b4('end');
+}
+function photo() {
+  try {
+    if (view && state) view.draw(state, performance.now() / 1000); // fresh frame in this task (no preserveDrawingBuffer)
+    canvas.toBlob((b) => {
+      if (!b) { hud.toast('Photo failed'); return; }
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(b);
+      a.download = 'ridgeline-' + Math.round(state ? Math.max(0, state.z) : 0) + 'm.png';
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+      hud.toast('Photo saved');
+    }, 'image/png');
+  } catch (e) { hud.toast('Photo failed'); }
+}
+if (VIS_ON) goHome(); // boot into the world title + drawer
+// B4 VIS end
 
 // ---- input ----
 function clamp(v, a, b) { return v < a ? a : v > b ? b : v; }
@@ -466,6 +578,14 @@ function release(e, fire) {
   if (fire && phase === 'run') fireNext = true;
 }
 window.addEventListener('pointerup', (e) => release(e, true));
+// B4 VIS begin: tap the world at home = ride (buttons and open panels keep their own taps)
+window.addEventListener('pointerup', (e) => {
+  if (phase !== 'home' || !view || !view.vis || tweak.isOpen()) return;
+  const t = e.target;
+  if (isControl(t) || (t && t.closest && t.closest('.fd-sheet, .gr, .rlt, .b4ec'))) return;
+  view.vis.tapWorld();
+});
+// B4 VIS end
 window.addEventListener('pointercancel', (e) => release(e, false));
 for (const ev of ['touchstart', 'touchmove', 'gesturestart', 'contextmenu', 'selectstart', 'dragstart']) {
   document.addEventListener(ev, (e) => {
@@ -480,6 +600,7 @@ window.addEventListener('keydown', (e) => {
   if (e.code === 'ArrowLeft') { keys.left = true; e.preventDefault(); }
   else if (e.code === 'ArrowRight') { keys.right = true; e.preventDefault(); }
   else if (e.code === 'Space') { keys.space = true; if (phase === 'run' && !e.repeat) fireNext = true; e.preventDefault(); }
+  if (phase === 'home' && (e.code === 'Space' || e.code === 'Enter') && !e.repeat && view && view.vis && !tweak.isOpen()) view.vis.tapWorld(); // B4 VIS
 });
 window.addEventListener('keyup', (e) => {
   if (e.code === 'ArrowLeft') keys.left = false;
@@ -519,6 +640,12 @@ function frame(now) {
     if (phase === 'run' && !tweak.isOpen()) tele.frame(dt * 1000);
     if (phase === 'run') { fpsSum += inst; fpsN++; fpsAvg = fpsSum / fpsN; }
   }
+  // B4 VIS begin: home / garage / end keep drawing (title, garage camera, end pull-back)
+  if (VIS_ON && phase !== 'run' && phase !== 'menu' && state && view) {
+    if (!tweak.isOpen() || phase !== 'end') view.draw(state, now / 1000);
+    return;
+  }
+  // B4 VIS end
   if (phase !== 'run' || !state) return;
   if (STILL) {
     if (!stillState) stillAdvance();
@@ -535,14 +662,17 @@ function frame(now) {
     const fire = fireNext;
     fireNext = false;
     const inp = { steer: input.steer, fire, down: currentDown() };
+    if (view && view.vis) view.vis.setInput(input.steer); // B4 VIS: steer for fins / lean
     phys.update(state.physZ ?? state.z);
     if (props) props.update(state.z);
     const evs = stepSled(state, course, inp, rc());
+    ag.step(state); // B5 AUDIO: gap every step
     tele.step(FIXED_DT, input.steer, state.speed, state.charging, Math.abs(state.x - course.centerX(state.z)) > course.halfWidth(state.z));
     for (let i = 0; i < evs.length; i++) {
       const ev = evs[i];
       if (typeof hud !== 'undefined' && hud && typeof hud.event === 'function') hud.event(ev);
       if (view && typeof view.fx === 'function') view.fx(ev);
+      ag.event(ev); // B5 AUDIO
       if (ev.type === 'run_start') { if (ev.daily) save.addDailyRun(seedStr); }
       else if (ev.type === 'recover_start') runWrecks++;
       else if (ev.type === 'caught') runCaught++;
@@ -554,6 +684,7 @@ function frame(now) {
         if (HULLS[ev.hull]) hud.toast(HULLS[ev.hull].name + ' unlocked');
         hud.setStartInfo(startInfo());
       }
+      if (ev.type === 'land' && ev.grade === 'clean' && !ev.hop) runLandings++; // B4 VIS end-card stat
       if (ev.type === 'boost') tele.boost(ev.amount);
       else if (ev.type === 'crash') {
         let rk = null;
@@ -565,6 +696,7 @@ function frame(now) {
     if (zk !== runZoneKey) { runZoneKey = zk; save.noteZone(state.zone, state.lap); }
     acc -= FIXED_DT;
     steps++;
+    if (state.speed > runTop) runTop = state.speed; // B4 VIS
     if (state.crashed || state.finished) { endRun(); break; }
   }
   if (steps >= MAX_STEPS) acc = 0;
@@ -589,10 +721,17 @@ window.__ridgeline = {
   get fps() { return fpsNow; },
   medals() { return isEndless() ? null : medalTimes(course, cfg); },
   report() { return buildReport(buildInfo()); },
+  // B4 VIS begin
+  get phase() { return phase; },
+  get vis() { return view ? view.vis : null; },
+  home() { goHome(); },
+  // B4 VIS end
 };
 
 // B3 LOOP: game API for B4 (home, garage, end card)
 window.__rl = window.__rl || {};
+window.__rl.audio = ag; // B5 AUDIO (QA hook)
+for (const t of ['pointerdown', 'keydown']) window.addEventListener(t, () => ag.unlock(), { once: false, passive: true, capture: true });
 window.__rl.game = {
   get hull() { return hullId; },
   hulls: HULLS,

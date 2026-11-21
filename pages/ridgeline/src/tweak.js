@@ -149,6 +149,14 @@ export function buildReport(info) {
   lines.push('Recover: ' + (rc ? `wrecks ${fmt(rc.wrecks)} this run / ${fmt(rc.wrecksSaved)} saved, floor used ${fmt(rc.floorUsed)}, first-run mercy ${rc.mercy ? 'on' : 'off'} (${fmt(rc.mercied)} graded slam)` : '-'));
   lines.push('Speed: ' + (sp ? `${num(sp.speed, 1)} m/s, flow ${fmt(sp.flow)} (peak ${fmt(sp.flowPeak)}), hull ${fmt(sp.hull)}, ${sp.daily ? 'daily' : 'random'} ${fmt(sp.seed)}` : '-'));
   lines.push('Props: ' + (en ? `live ${fmt(en.propsLive)}/${fmt(en.propsMax)}, hits ${fmt(en.hits)}, frozen ${fmt(en.frozen)}` : '-'));
+  // B5 AUDIO begin
+  { const au = typeof window !== 'undefined' && window.__rl && window.__rl.audio && window.__rl.audio.audio; const c = au && au.ctx;
+    lines.push('Audio: master ' + num(cfg.audioMaster, 2) + ', sfx ' + num(cfg.audioSfx, 2) + ', amb ' + num(cfg.audioAmb, 2) + ', bgm ' + num(cfg.audioBgm, 2) + ', muted ' + (cfg.audioMute ? 'yes' : 'no') + ', ctx ' + (c ? c.state : 'locked') + (au && au._bgmName ? ', bgm ' + au._bgmName : '')); }
+  // B5 AUDIO end
+  // B4 VIS begin
+  lines.push(info.visLine || 'Vis: off');
+  lines.push('WebGPU output: ' + (info.webgpu ? 'seen' : 'NOT seen') + (info.rendererType ? ' (' + info.rendererType + ')' : ''));
+  // B4 VIS end
   const fl = info.flow, md = info.medal;
   lines.push('Flow: ' + (fl ? `peak ${fmt(fl.peak)}, links ${fmt(fl.links)}, razor ${fmt(fl.razors)}, inner ${fmt(fl.inners)}, centred gates ${fmt(fl.centred)}, boost links ${fmt(fl.boostLinks)}, flow5 ${num(fl.flow5T, 1)} s` : '-'));
   lines.push('Medal: ' + (!md ? '-' : md.hidden ? 'off (DEV)' : `${md.name || 'none'} (gold ${num(md.gold, 1)} s, summit ${num(md.summit, 1)} s)`));
@@ -233,7 +241,7 @@ export function createTweak(rootEl, opts) {
   }
   function refreshAll() { for (const k of Object.keys(rows)) refreshRow(k); }
 
-  const GROUPS = ['Ground', 'Launch', 'Air', 'Grade', 'Tumble', 'Physics', 'Endless speed', 'Endless course', 'Nightfall', 'Recover', 'Marks', 'Hulls', 'Props'];
+  const GROUPS = ['Ground', 'Launch', 'Air', 'Grade', 'Tumble', 'Physics', 'Endless speed', 'Endless course', 'Nightfall', 'Recover', 'Marks', 'Hulls', 'Props', 'Audio', 'Look FX']; // B4 VIS: Look FX group last
   const groupBox = {};
   for (const k of Object.keys(META)) {
     const m = META[k];
