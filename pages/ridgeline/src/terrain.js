@@ -1,5 +1,6 @@
 // Ridgeline terrain: pure, deterministic, no THREE. Slice 2.
 import { mulberry32 } from './rng.js';
+import { psin, mix, layoutDunes, baseOffset, duneField } from './dunes.js';
 
 const CHUNK = 20; // metres of z per hash chunk
 const ROCK_START = 90;
@@ -9,12 +10,6 @@ const LANE_SLOPE = 0.2;    // max |dx/dz| of safeX (limit 0.22)
 const LANE_CLEAR = 2.4;    // min rock surface distance from safeX
 const FIRST_GATE = 80;
 
-function mix(a, b, c) {
-  let h = (a ^ Math.imul(b + 0x9e3779b9, 0x85ebca6b) ^ Math.imul(c + 0x7f4a7c15, 0xc2b2ae35)) >>> 0;
-  h = Math.imul(h ^ (h >>> 16), 0x45d9f3b) >>> 0;
-  h = Math.imul(h ^ (h >>> 16), 0x45d9f3b) >>> 0;
-  return (h ^ (h >>> 16)) >>> 0;
-}
 const clamp01 = (v) => (v < 0 ? 0 : v > 1 ? 1 : v);
 
 export function createCourse(seedInt, cfg) {
@@ -29,7 +24,7 @@ export function createCourse(seedInt, cfg) {
   function centerX(z) {
     // ramp amplitude in so the start is near x=0
     const a = Math.min(1, z / 120);
-    return a * (9 * Math.sin(z * 0.011 + P[0]) + 4 * Math.sin(z * 0.027 + P[1]) + 1.5 * Math.sin(z * 0.06 + P[2]));
+    return a * (9 * psin(z * 0.011 + P[0]) + 4 * psin(z * 0.027 + P[1]) + 1.5 * psin(z * 0.06 + P[2]));
   }
   function halfWidth(z) {
     return baseHW * (1 - 0.35 * clamp01(z / length));
@@ -43,7 +38,7 @@ export function createCourse(seedInt, cfg) {
     for (let i = 1; i < laneN; i++) {
       const z = i * LANE_STEP;
       const ramp = Math.min(1, z / 80);
-      const weave = ramp * (2.6 * Math.sin(z * 0.045 + P[7]) + 1.1 * Math.sin(z * 0.097 + P[8]));
+      const weave = ramp * (2.6 * psin(z * 0.045 + P[7]) + 1.1 * psin(z * 0.097 + P[8]));
       const c = centerX(z), room = Math.max(0, halfWidth(z) - 3.6);
       let t = c + weave;
       t = t < c - room ? c - room : t > c + room ? c + room : t;
@@ -57,13 +52,26 @@ export function createCourse(seedInt, cfg) {
     const u = Math.min(1, f - i);
     return lane[i] + (lane[i + 1] - lane[i]) * u;
   }
+  const features = layoutDunes(seed, length, cfg);
+  function featureAt(z) {
+    for (const f of features) {
+      if (z < f.z - f.lead) break;
+      if (z <= f.z + f.end) return f;
+    }
+    return null;
+  }
+  function crestAt(z) {
+    const f = featureAt(z);
+    return f && f.type !== 'roller' ? { id: f.id, lipZ: f.z } : null;
+  }
   function height(x, z) {
     const dx = x - centerX(z);
     const out = Math.abs(dx) - halfWidth(z);
     const bank = out > 0 ? 0.12 * out * out + 0.5 * out : 0;
-    const bumps = 0.5 * Math.sin(x * 0.21 + z * 0.13 + P[3]) + 0.35 * Math.sin(z * 0.31 + P[4] - x * 0.07)
-      + 0.2 * Math.sin(x * 0.5 + P[5]) * Math.sin(z * 0.23 + P[6]);
-    return -slope * z + bumps + bank;
+    // gentle texture only: z-frequencies kept low so |d2h/dz2| < 0.0015
+    const bumps = 0.5 * psin(x * 0.21 + z * 0.02 + P[3]) + 0.35 * psin(z * 0.04 + P[4] - x * 0.07)
+      + 0.2 * psin(x * 0.5 + P[5]) * psin(z * 0.05 + P[6]);
+    return -slope * z + baseOffset(features, z) + bumps + duneField(features, z, dx, halfWidth(z)) + bank;
   }
 
   function gateAt(id) {
@@ -100,6 +108,15 @@ export function createCourse(seedInt, cfg) {
     return false;
   }
 
+  // lee zone [origin, origin+lee] and 3 m before an up-face start (origin - lead) stay rock-free
+  function rockBlocked(z, rad) {
+    for (const f of features) {
+      if (z + rad < f.z - f.lead - 3) break;
+      if (z - rad <= f.z + f.lee && z + rad >= f.z) return true;
+      if (z - rad <= f.z - f.lead && z + rad >= f.z - f.lead - 3) return true;
+    }
+    return false;
+  }
   const rockCache = new Map();
   function rockChunk(c) {
     let arr = rockCache.get(c);
@@ -114,6 +131,7 @@ export function createCourse(seedInt, cfg) {
       const u = r(), rad = 0.8 + r() * 1.4;
       const keep = r(), sideR = r(), extra = r() * 1.5;
       if (z < ROCK_START || z >= length) continue;
+      if (rockBlocked(z, rad)) continue;
       if (z < ROCK_FULL) {
         const t = (z - ROCK_START) / (ROCK_FULL - ROCK_START);
         if (keep >= 0.12 + 0.88 * t * t) continue;
@@ -175,5 +193,5 @@ export function createCourse(seedInt, cfg) {
     return out;
   }
 
-  return { seed, length, centerX, safeX, halfWidth, height, gatesInRange, rocksInRange, treesInRange };
+  return { seed, length, features, featureAt, crestAt, centerX, safeX, halfWidth, height, gatesInRange, rocksInRange, treesInRange };
 }

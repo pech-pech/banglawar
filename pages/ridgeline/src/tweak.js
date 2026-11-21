@@ -102,6 +102,11 @@ export function decodeCode(str) {
   } catch (e) { return { ok: false, error: 'Not a valid code' }; }
 }
 
+export function physText(ps) {
+  const f = (v) => (typeof v === 'number' && isFinite(v) ? v.toFixed(1) : '-');
+  return `init ${f(ps.initMs)} ms, first step ${f(ps.firstStepMs)} ms, max step ${f(ps.maxStepMs)} ms, max slab swap ${f(ps.maxSwapMs)} ms, slabs ${ps.slabs === undefined ? '-' : ps.slabs}`;
+}
+
 export function buildReport(info) {
   info = info || {};
   const st = info.stats || info.renderer || {};
@@ -135,6 +140,8 @@ export function buildReport(info) {
   for (const [name, k] of Object.entries(DUNE_KEYS)) if (allDiff[k] !== undefined) dn.push(`${name} ${allDiff[k]} (default ${DEFAULTS[k]})`);
   const atlas = typeof window !== 'undefined' && window.__duneAtlas ? String(window.__duneAtlas) : 'n/a';
   lines.push('dune: theme ' + fmt(info.theme) + ', atlas ' + (atlas === 'ok' ? 'loaded yes' : atlas === 'fail' ? 'loaded no' : atlas === 'pending' ? 'pending' : 'n/a') + ', calls ' + fmt(st.calls) + ', tris ' + fmt(st.triangles) + ', tweaks ' + (dn.length ? dn.join(', ') : '(defaults)'));
+  const ps = info.phys;
+  lines.push('Phys: ' + (ps ? physText(ps) : '-'));
   const fl = info.flow, md = info.medal;
   lines.push('Flow: ' + (fl ? `peak ${fmt(fl.peak)}, links ${fmt(fl.links)}, razor ${fmt(fl.razors)}, inner ${fmt(fl.inners)}, centred gates ${fmt(fl.centred)}, boost links ${fmt(fl.boostLinks)}, flow5 ${num(fl.flow5T, 1)} s` : '-'));
   lines.push('Medal: ' + (!md ? '-' : md.hidden ? 'off (DEV)' : `${md.name || 'none'} (gold ${num(md.gold, 1)} s, summit ${num(md.summit, 1)} s)`));
@@ -219,6 +226,8 @@ export function createTweak(rootEl, opts) {
   }
   function refreshAll() { for (const k of Object.keys(rows)) refreshRow(k); }
 
+  const GROUPS = ['Ground', 'Launch', 'Air', 'Grade', 'Tumble', 'Physics'];
+  const groupBox = {};
   for (const k of Object.keys(META)) {
     const m = META[k];
     const row = el('div', 'row');
@@ -236,9 +245,15 @@ export function createTweak(rootEl, opts) {
       onChange();
     });
     row.append(top, input);
-    sliders.appendChild(row);
+    const g = m.group && GROUPS.includes(m.group) ? m.group : (m.group || '');
+    if (g && !groupBox[g]) { groupBox[g] = el('div', 'grp'); groupBox[g].appendChild(el('h3', '', g)); }
+    (g ? groupBox[g] : sliders).appendChild(row);
     rows[k] = { row, input, val };
   }
+  for (const g of GROUPS.concat(Object.keys(groupBox).filter(x => !GROUPS.includes(x)))) if (groupBox[g]) sliders.appendChild(groupBox[g]);
+  const physLine = el('div', 'physline', 'Phys: not loaded');
+  physLine.style.cssText = 'font-size:11px;opacity:.8;margin:6px 0;font-variant-numeric:tabular-nums';
+  function refreshPhys() { const f = typeof opts.physLine === 'function' ? opts.physLine() : ''; physLine.textContent = f || 'Phys: not loaded'; }
 
   const visBox = el('div', 'visual');
   const visBtns = [];
@@ -392,6 +407,7 @@ export function createTweak(rootEl, opts) {
     el('h3', '', 'Presets'), nameInput, saveRow, presetBox,
     el('h3', '', 'Share'), codeArea, codeRow,
     el('h3', '', 'Look'), visBox,
+    el('h3', '', 'Physics timing'), physLine,
     el('h3', '', 'Values'), sliders
   );
   const bClose2 = btn('Close', 'pri', () => api.close());
@@ -402,7 +418,7 @@ export function createTweak(rootEl, opts) {
   renderPresets();
 
   const api = {
-    open() { refreshAll(); refreshVisual(); renderPresets(); panel.classList.add('open'); panel.scrollTop = 0; },
+    open() { refreshPhys(); refreshAll(); refreshVisual(); renderPresets(); panel.classList.add('open'); panel.scrollTop = 0; },
     close() { panel.classList.remove('open'); },
     isOpen() { return panel.classList.contains('open'); }
   };

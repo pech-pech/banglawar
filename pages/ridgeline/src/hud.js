@@ -56,6 +56,11 @@ body.rl-paper .rlh .rlh-razor{color:#24406e;text-shadow:none;-webkit-text-stroke
 .rlh-hint{font-size:20px;font-weight:800;letter-spacing:.06em;padding:6px 14px;background:rgba(8,14,28,.8);border:1px solid rgba(255,255,255,.35);border-radius:12px;color:#ffb35a;max-width:100%;text-align:center}
 .rlh-fps{position:absolute;left:10px;top:calc(76px + env(safe-area-inset-top,0px));font-size:11px;opacity:.85;padding:2px 6px;background:rgba(8,14,28,.6);border:1px solid rgba(255,255,255,.35);border-radius:6px;font-variant-numeric:tabular-nums}
 .rlh-dev{position:absolute;right:10px;top:calc(76px + env(safe-area-inset-top,0px));font-size:12px;font-weight:800;padding:2px 8px;background:#c0262d;border-radius:6px;letter-spacing:.08em}
+.rlh-word{position:absolute;left:50%;top:30%;transform:translate(-50%,-50%);font-size:clamp(24px,8vw,36px);font-weight:900;letter-spacing:.12em;color:#fff;text-shadow:0 2px 6px rgba(0,0,0,.7),0 0 12px var(--rl-accent,#ff8a1f);opacity:0;pointer-events:none;white-space:nowrap}
+.rlh-word.on{opacity:1;animation:rlhrazor .9s ease-out}
+.rlh-lift{position:absolute;left:50%;top:44%;transform:translate(-50%,-50%);opacity:0;pointer-events:none;white-space:nowrap;transition:opacity .15s}
+.rlh-lift.on{opacity:1}
+body.rl-paper .rlh .rlh-word{color:#24406e;text-shadow:none;background:#fff;border:3px solid #24406e;border-radius:12px;padding:2px 12px;box-shadow:3px 3px 0 #24406e}
 .rlh-toast{position:absolute;left:50%;top:calc(120px + env(safe-area-inset-top,0px));transform:translateX(-50%);max-width:calc(100% - 24px);padding:8px 14px;border-radius:12px;background:rgba(8,14,28,.88);border:1px solid rgba(255,255,255,.35);font-size:15px;text-align:center;opacity:0;transition:opacity .2s;pointer-events:none}
 .rlh-toast.on{opacity:1}
 .rlh-res{font-size:clamp(26px,9vw,38px);font-weight:800;margin:0}
@@ -90,8 +95,16 @@ body.rl-paper .rlh .rlh-razor{color:#24406e;text-shadow:none;-webkit-text-stroke
   const bestEl = el('p', 'rlh-best rlh-panel', sb, '');
   const verEl = el('p', 'rlh-ver', sb, '');
   verEl.style.cssText = 'margin:6px 0 0;font-size:12px;opacity:.7;text-align:center';
-  btn('Daily run', '', sb, () => call('onStart', 'daily'));
-  btn('Random run', 'alt', sb, () => call('onStart', 'random'));
+  const loadEl = el('p', 'rlh-best rlh-panel', sb, 'Loading physics...');
+  const dailyBtn = btn('Daily run', '', sb, () => call('onStart', 'daily'));
+  const randBtn = btn('Random run', 'alt', sb, () => call('onStart', 'random'));
+  function setLoading(state, msg) { // 'loading' | 'ready' | 'error'
+    const off = state !== 'ready';
+    dailyBtn.disabled = off; randBtn.disabled = off;
+    dailyBtn.style.opacity = randBtn.style.opacity = off ? '.5' : '';
+    loadEl.hidden = state === 'ready';
+    loadEl.textContent = state === 'error' ? 'Physics failed to load: ' + (msg || 'unknown error') : 'Loading physics...';
+  }
   btn('Settings', 'alt', sb, () => call('onSettings'));
   const themeWrap = el('div', 'rlh-theme', sb);
   const themeBtn = btn('Theme', 'alt', themeWrap, () => {
@@ -132,6 +145,9 @@ body.rl-paper .rlh .rlh-razor{color:#24406e;text-shadow:none;-webkit-text-stroke
   const fbarFill = el('i', '', fbar);
   const razorEl = el('div', 'rlh-razor', run, 'RAZOR');
   const toastEl = el('div', 'rlh-toast', run, '');
+  const wordEl = el('div', 'rlh-word', run, '');
+  const liftEl = el('div', 'rlh-hint rlh-lift', run, 'LIFT TO DIVE');
+  let wordT = 0, liftT = 0, flights = 0;
 
   // End screen
   const end = el('div', 'rlh-screen', root);
@@ -168,6 +184,7 @@ body.rl-paper .rlh .rlh-razor{color:#24406e;text-shadow:none;-webkit-text-stroke
   function showRun() {
     cache.t = cache.s = cache.g = cache.fps = ''; cache.w = -1; cache.rdy = null; cache.fl = -1; cache.fw = -1;
     hint.hidden = true;
+    clearTimeout(wordT); wordEl.classList.remove('on'); liftEl.classList.remove('on');
     clearTimeout(razorT); razorEl.classList.remove('on'); pipsEl.classList.remove('pulse');
     mode('run');
   }
@@ -197,6 +214,23 @@ body.rl-paper .rlh .rlh-razor{color:#24406e;text-shadow:none;-webkit-text-stroke
       razorEl.classList.remove('on'); void razorEl.offsetWidth; razorEl.classList.add('on');
       clearTimeout(razorT);
       razorT = setTimeout(() => razorEl.classList.remove('on'), 600);
+    } else if (ev.type === 'launch') {
+      if (flights++ < 3) {
+        liftEl.classList.add('on'); clearTimeout(liftT);
+        liftT = setTimeout(() => liftEl.classList.remove('on'), 1600);
+      }
+    } else if (ev.type === 'dive_start' || (ev.type === 'land' && !ev.hop)) {
+      liftEl.classList.remove('on');
+      if (ev.type === 'land') {
+        const g = ev.grade;
+        const w = g === 'wreck' ? 'WIPEOUT' : g === 'slam' ? 'THUD' : g === 'rough' ? 'SCUFF' : (g === 'clean' ? (ev.dive ? 'PERFECT DROP' : 'STUCK') : '');
+        if (w) {
+          wordEl.textContent = w;
+          wordEl.classList.remove('on'); void wordEl.offsetWidth; wordEl.classList.add('on');
+          clearTimeout(wordT);
+          wordT = setTimeout(() => wordEl.classList.remove('on'), 900);
+        }
+      }
     } else if (ev.type === 'flowUp' || ev.type === 'flowDrop') {
       pipsEl.classList.remove('pulse'); void pipsEl.offsetWidth; pipsEl.classList.add('pulse');
     }
@@ -229,5 +263,5 @@ body.rl-paper .rlh .rlh-razor{color:#24406e;text-shadow:none;-webkit-text-stroke
   }
 
   showStart(null);
-  return { showStart, showRun, update, event, showEnd, setDev, toast, themeMount, setThemeLabel };
+  return { showStart, showRun, update, event, showEnd, setDev, toast, setLoading, themeMount, setThemeLabel };
 }

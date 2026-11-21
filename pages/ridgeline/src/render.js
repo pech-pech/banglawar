@@ -1148,9 +1148,13 @@ export function createView(canvas, course, cfg, themeId, opts) {
     const sled = new THREE.Group();
     sled.rotation.order = 'YXZ';
     const sledModel = makeSledModel({ sled: SC.sled, glow: SC.glow, suit: LOOK.suitC || LOOK.suit, wing: LOOK.wing, scarf: LOOK.scarf });
-    sledModel.group.position.y = -(HOVER - 0.25); // skids hover just above the snow
+    // skid underside = model y -0.22. The sled group scales about its origin, so the offset is scale-aware: skids sit
+    // SKID_CLEAR above the ride base when the sled origin is HOVER above it (before, scale 1.15 pushed them 0.08 into the sand).
+    const SLED_SCALE = LOOK.sledScale || 1, SKID_CLEAR = 0.06;
+    const GROUP_Y = 0.22 - (HOVER - SKID_CLEAR) / SLED_SCALE;
+    sledModel.group.position.y = GROUP_Y;
     sled.add(sledModel.group);
-    sled.scale.setScalar(LOOK.sledScale || 1); // D: visual only
+    sled.scale.setScalar(SLED_SCALE); // D: visual only
     // C: toon sled (3-step ramp) with a normal-extruded keyline shell per part, oversize helmet
     if (paper) {
       const ramp3 = track(makeRamp([90, 170, 255, 255]));
@@ -1410,13 +1414,24 @@ export function createView(canvas, course, cfg, themeId, opts) {
 
       // sled
       const gy = course.height(state.x, z);
-      const sy = Math.max(state.y, gy) + HOVER + step * 0.5 + 0.08 * Math.sin(timeSec * 6);
-      sled.position.set(state.x, sy, z);
-      const ahead = course.height(state.x, z + 3);
-      sled.rotation.x = Math.atan2(sy - HOVER - ahead, 3) * 0.9;
-      sled.rotation.y = clamp(state.heading || 0, -0.6, 0.6);
-      const roll = clamp(-state.vx * 0.035, -0.6, 0.6);
-      sled.rotation.z = roll;
+      const tumbling = state.mode === 'tumble' && state.quat;
+      const airborne = state.mode === 'air';
+      // grounded wobble is non-negative (0..0.08) so the skids never dip below the surface
+      const sy = airborne || tumbling ? state.y + HOVER : Math.max(state.y, gy) + HOVER + step * 0.5 + 0.04 * (1 + Math.sin(timeSec * 6));
+      // tumble: the physics body centre is the pivot (hull centre), so the mesh turns about it exactly as state.quat does
+      sledModel.group.position.y = tumbling ? 0 : GROUP_Y;
+      sled.position.set(state.x, tumbling && typeof state.bodyY === 'number' ? state.bodyY : sy, z);
+      let roll = clamp(-state.vx * 0.035, -0.6, 0.6);
+      if (tumbling) {
+        sled.quaternion.set(state.quat.x, state.quat.y, state.quat.z, state.quat.w);
+        roll = 0;
+      } else {
+        const ahead = course.height(state.x, z + 3);
+        sled.rotation.x = typeof state.pitch === 'number' ? -state.pitch : Math.atan2(sy - HOVER - ahead, 3) * 0.9;
+        sled.rotation.y = clamp(state.heading || 0, -0.6, 0.6);
+        if (typeof state.roll === 'number') roll = clamp(state.roll, -0.6, 0.6);
+        sled.rotation.z = roll;
+      }
       sledModel.setLean(roll);
       const boosting = state.boostT > 0;
       let gcol = boosting ? COL_BOOST : (state.charging ? _c.copy(COL_IDLE).lerp(COL_CHARGE, 0.5 + 0.5 * Math.sin(timeSec * 30)) : COL_IDLE);
@@ -1590,7 +1605,7 @@ export function createView(canvas, course, cfg, themeId, opts) {
     }
 
     resize();
-    return { draw, dispose, resize, camera, fx };
+    return { draw, dispose, resize, camera, fx, sled };
   }
 
   function resize(nw, nh) {
@@ -1624,5 +1639,6 @@ export function createView(canvas, course, cfg, themeId, opts) {
   return {
     resize, draw, fx, stats, dispose, setTheme,
     get camera() { return world ? world.camera : null; },
+    get sled() { return world ? world.sled : null; }, // QA hook (poses.mjs)
   };
 }

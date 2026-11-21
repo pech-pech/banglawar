@@ -1,4 +1,5 @@
-import { hashSeed, dailySeedString } from './rng.js';
+import { hashSeed, dailySeedString, mulberry32 } from './rng.js';
+import { loadRapier, createPhysics } from './physics.js';
 import { cfg, isDefault, diffFromDefault } from './config.js';
 import { createCourse } from './terrain.js';
 import { FIXED_DT, createSled, stepSled } from './sled.js';
@@ -8,9 +9,9 @@ import { createHud } from './hud.js';
 import { getThemeId, setThemeId, createThemePicker } from './themeui.js';
 import { THEMES } from './themes.js';
 import { createTelemetry, deviceInfo } from './telemetry.js';
-import { createTweak, buildReport, copyText, getVisualPrefs, onVisualPrefs, isVisualDefault } from './tweak.js';
+import { createTweak, buildReport, physText, copyText, getVisualPrefs, onVisualPrefs, isVisualDefault } from './tweak.js';
 
-const BUILD = 'ridgeline-proto-8';
+const BUILD = 'ridgeline-proto-9';
 const BEST_KEY = 'ridgeline.best.v1';
 const COUNTER_KEY = 'ridgeline.counter.v1';
 const MAX_STEPS = 8;
@@ -21,25 +22,27 @@ const STILLFX = STILL ? new URLSearchParams(location.search).get('stillfx') : nu
 function stillAdvance() {
   const run = (n, drawEvery, inp) => {
     for (let i = 0; i < n && !state.crashed && !state.finished; i++) {
-      stepSled(state, course, inp || { steer: 0, fire: false }, cfg);
+      stepP(inp || IN0);
       if (drawEvery && i % drawEvery === 0 && view) view.draw(state, state.t);
     }
   };
   let n = 0;
   const SG = +(new URLSearchParams(location.search).get('stillgate')) || 2; // still-only: freeze when gate SG is next
-  while (state.nextGate < SG && n < 60000 && !state.crashed) { stepSled(state, course, { steer: 0, fire: false }, cfg); n++; }
+  const IN0 = { steer: 0, fire: false, down: false };
+  const stepP = (inp) => { phys.update(state.z); return stepSled(state, course, inp, cfg); };
+  while (state.nextGate < SG && n < 60000 && !state.crashed) { stepP(IN0); n++; }
   const total = n;
-  state = createSled(course);
+  newSled();
   if (STILLFX === '1') {
     // pose: from step s0 fire a boost, then carve (steer) until gate 1 is passed, freeze a little after the pass
     const s0 = Math.max(0, total - 330);
     run(s0, 0);
     state.boost = 1;
-    const plan = (k) => ({ steer: k > 150 ? 0.7 : 0, fire: k === 170 });
+    const plan = (k) => ({ steer: k > 150 ? 0.7 : 0, fire: k === 170, down: false });
     let k = 0, pass = -1;
-    while (k < 600 && !state.crashed && pass < 0 + 0) { stepSled(state, course, plan(k), cfg); if (k > 150 && k % 2 === 0 && view) view.draw(state, state.t); if (state.nextGate >= 2) pass = k; k++; }
+    while (k < 600 && !state.crashed && pass < 0 + 0) { stepP(plan(k)); if (k > 150 && k % 2 === 0 && view) view.draw(state, state.t); if (state.nextGate >= 2) pass = k; k++; }
     window.__pass = pass;
-    for (let j = 0; j < 4; j++) { stepSled(state, course, plan(k + j), cfg); if (j % 2 === 0 && view) view.draw(state, state.t); }
+    for (let j = 0; j < 4; j++) { stepP(plan(k + j)); if (j % 2 === 0 && view) view.draw(state, state.t); }
   } else {
     run(Math.max(0, total - 120), 0);
     run(120, 2);
@@ -77,13 +80,18 @@ let seedInt = 0;
 let phase = 'menu'; // menu | run | end
 let lastResult = null;
 let crashZ = null;
+let R = null; // rapier module once loaded
+let phys = null;
+let physErr = null;
+let startAfterLoad = null;
+const physPromise = loadRapier().then((m) => { R = m; return m; });
 
 // input
-const input = { steer: 0, fire: false };
+const input = { steer: 0, fire: false, down: false };
 let fireNext = false;
 let pointerId = null;
 let startX = 0;
-const keys = { left: false, right: false };
+const keys = { left: false, right: false, space: false };
 
 // timing
 let last = 0;
@@ -136,13 +144,21 @@ function buildCourse() {
   builtCfg = JSON.stringify(cfg);
 }
 
+function newSled() {
+  if (phys) { try { phys.dispose(); } catch (e) { /* ignore */ } phys = null; }
+  phys = createPhysics(R, course, cfg);
+  phys.update(0);
+  state = createSled(course, phys, mulberry32((seedInt ^ 0x5bd1e995) >>> 0));
+}
+
 function begin(m, seedString) {
+  if (!R) { startAfterLoad = () => begin(m, seedString); return; }
   mode = m;
   seedStr = seedString;
   seedInt = hashSeed(seedStr);
   // rebuild always: new seed or changed cfg; disposing the old view first
   buildCourse();
-  state = createSled(course);
+  newSled();
   input.steer = 0; input.fire = false; fireNext = false;
   acc = 0; last = 0; fpsSum = 0; fpsN = 0; fpsAvg = 0; crashZ = null;
   tele.reset(performance.now());
@@ -156,7 +172,7 @@ function startMode(m) { begin(m, pickSeed(m)); }
 function retry() {
   // same seed; rebuild only if cfg changed, else reuse course
   if (!course || JSON.stringify(cfg) !== builtCfg) { begin(mode, seedStr); return; }
-  state = createSled(course);
+  newSled();
   input.steer = 0; input.fire = false; fireNext = false;
   acc = 0; last = 0; fpsSum = 0; fpsN = 0; fpsAvg = 0; crashZ = null;
   tele.reset(performance.now());
@@ -213,8 +229,18 @@ function endRun() {
   });
 }
 
+function physInfo() {
+  if (!phys || !phys.stats) return null;
+  return phys.stats;
+}
+function physLine() {
+  const p = physInfo();
+  return physErr ? 'Phys: load failed' : p ? 'Phys: ' + physText(p) : R ? 'Phys: loaded, no run yet' : 'Phys: loading...';
+}
+
 function buildInfo() {
   return {
+    phys: physInfo(),
     build: BUILD, seed: seedStr, mode,
     result: lastResult ? lastResult.result : (phase === 'run' ? 'running' : 'none'),
     time: lastResult ? lastResult.time : (state ? state.t : 0),
@@ -269,7 +295,7 @@ function applyTheme(id) {
 const startPicker = createThemePicker(hud.themeMount, { onChange: (id) => applyTheme(id) });
 const settingsPicker = createThemePicker(null, { onChange: (id) => applyTheme(id) });
 pickers.push(startPicker, settingsPicker);
-const tweak = createTweak(ui, { themeEl: settingsPicker.el, onChange() { hud.setDev(!isDefault() || !isVisualDefault()); } });
+const tweak = createTweak(ui, { themeEl: settingsPicker.el, physLine, onChange() { hud.setDev(!isDefault() || !isVisualDefault()); } });
 applyTheme(getThemeId());
 onVisualPrefs(() => {
   hud.setDev(!isDefault() || !isVisualDefault());
@@ -278,6 +304,12 @@ onVisualPrefs(() => {
   view = createView(canvas, course, cfg, getThemeId(), { ...getVisualPrefs(), still: STILL });
   const [w, h] = size(); view.resize(w, h);
 });
+
+hud.setLoading('loading');
+physPromise.then(() => {
+  hud.setLoading('ready');
+  if (startAfterLoad) { const f = startAfterLoad; startAfterLoad = null; f(); }
+}, (e) => { physErr = e; hud.setLoading('error', e && e.message ? e.message : String(e)); });
 
 hud.showStart({ build: BUILD, dailySeed: dailySeedString(new Date()), best: bestFor('daily:' + dailySeedString(new Date())) });
 hud.setDev(!isDefault() || !isVisualDefault());
@@ -298,6 +330,7 @@ window.addEventListener('pointerdown', (e) => {
   if (phase !== 'run' || pointerId !== null || isControl(e.target) || tweak.isOpen()) return;
   tele.touchDown(performance.now(), e.clientX, e.clientY);
   pointerId = e.pointerId;
+  input.down = true;
   startX = e.clientX;
   input.steer = 0;
   try { e.target.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
@@ -314,6 +347,7 @@ function release(e, fire) {
   tele.touchUp(performance.now(), state ? state.boost : 0, !!(fire && phase === 'run'));
   pointerId = null;
   input.steer = 0;
+  input.down = false;
   if (fire && phase === 'run') fireNext = true;
 }
 window.addEventListener('pointerup', (e) => release(e, true));
@@ -330,12 +364,14 @@ window.addEventListener('keydown', (e) => {
   if (phase === 'run' && (e.code === 'ArrowLeft' || e.code === 'ArrowRight' || e.code === 'Space')) tele.key();
   if (e.code === 'ArrowLeft') { keys.left = true; e.preventDefault(); }
   else if (e.code === 'ArrowRight') { keys.right = true; e.preventDefault(); }
-  else if (e.code === 'Space') { if (phase === 'run' && !e.repeat) fireNext = true; e.preventDefault(); }
+  else if (e.code === 'Space') { keys.space = true; if (phase === 'run' && !e.repeat) fireNext = true; e.preventDefault(); }
 });
 window.addEventListener('keyup', (e) => {
   if (e.code === 'ArrowLeft') keys.left = false;
   else if (e.code === 'ArrowRight') keys.right = false;
+  else if (e.code === 'Space') keys.space = false;
 });
+function currentDown() { return pointerId !== null || keys.left || keys.right || keys.space; }
 
 function currentSteer() {
   if (pointerId !== null) return input.steer;
@@ -383,7 +419,8 @@ function frame(now) {
     input.steer = currentSteer();
     const fire = fireNext;
     fireNext = false;
-    const inp = { steer: input.steer, fire };
+    const inp = { steer: input.steer, fire, down: currentDown() };
+    phys.update(state.z);
     const evs = stepSled(state, course, inp, cfg);
     tele.step(FIXED_DT, input.steer, state.speed, state.charging, Math.abs(state.x - course.centerX(state.z)) > course.halfWidth(state.z));
     for (let i = 0; i < evs.length; i++) {
@@ -393,7 +430,7 @@ function frame(now) {
       if (ev.type === 'boost') tele.boost(ev.amount);
       else if (ev.type === 'crash') {
         let rk = null;
-        for (const r of state._rocks) if (r.id === ev.rockId) { rk = r; break; }
+        for (const r of (state._rocks || [])) if (r.id === ev.rockId) { rk = r; break; }
         tele.crash({ rockId: ev.rockId, rockX: rk ? rk.x : NaN, rockZ: rk ? rk.z : NaN, sledX: ev.x, vx: state.vx });
       }
     }
@@ -412,8 +449,10 @@ window.__ridgeline = {
   get course() { return course; },
   cfg,
   get view() { return view; },
+  get phys() { return phys; },
   get hud() { return hud; },
   setTheme(id) { return applyTheme(id); },
+  get ready() { return !!R; },
   start(m) { startMode(m === 'random' ? 'random' : 'daily'); },
   stats() { return view ? view.stats() : null; },
   medals() { return medalTimes(course, cfg); },

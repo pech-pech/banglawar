@@ -183,7 +183,7 @@ test('boost link only when charge >= flowBoostMin', () => {
 
 test('flowStep raises top speed (flow 5 vs 0, +20% at 0.04)', () => {
   const run = (flow, step) => {
-    resetCfg(); cfg.flowStep = step; cfg.flowWindow1 = 1e9; cfg.flowWindow5 = 1e9;
+    resetCfg(); cfg.flowStep = step; cfg.slopeGravityMul = 0; cfg.flowWindow1 = 1e9; cfg.flowWindow5 = 1e9;
     const k = flat(); const s = createSled(k);
     s.flow = flow; s.flowWin = 1e9; s.flowT = 1e9;
     for (let i = 0; i < 120 * 25; i++) stepSled(s, k, {}, cfg);
