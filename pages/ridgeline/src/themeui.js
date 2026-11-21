@@ -9,8 +9,8 @@ const MIGRATE_FLAG = 'rl-dune-default-v1';
 export function migrateDefaultTheme() {
   try {
     if (localStorage.getItem(MIGRATE_FLAG)) return false;
+    localStorage.setItem(MIGRATE_FLAG, '1'); // flag first: a failed second write must never re-run this and override a later pick
     localStorage.setItem(KEY, 'dune');
-    localStorage.setItem(MIGRATE_FLAG, '1');
     return true;
   } catch (e) { return false; /* storage unavailable: DEFAULT_THEME applies */ }
 }
