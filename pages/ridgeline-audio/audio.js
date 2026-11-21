@@ -18,7 +18,7 @@ const STAGE = { far: 0, near: 1, heels: 2, 0: 0, 1: 1, 2: 2 };
 export const EVENT_MAP = {
   launch: (a, e) => a.play('launch', { power: Math.min(1, (e.speed || 30) / 55) }),
   dive_start: a => a.play('diveStart'), dive_end: a => a.play('diveEnd'),
-  land: (a, e) => a.play('land', { grade: e.grade, impact: e.impact }),
+  land: (a, e) => a.play('land', { grade: e.grade, impact: e.impact, perfect: e.perfect || (e.grade === 'clean' && a.st.diving) }), // PERFECT DROP = clean landing while diving
   tumble_start: a => { a.play('crash'); a.setState({ tumbling: true }); },
   tumble_rest: a => { a.setState({ tumbling: false }); a.play('tumbleRest'); },
   recover_start: a => { a.setState({ tumbling: false }); a.play('recoverStart'); }, recover_end: a => a.play('recoverEnd'),
@@ -173,7 +173,7 @@ export class RidgelineAudio {
   // landing by grade. o.grade clean|rough|slam|wreck, o.impact 0..1 (normalised by the sim)
   _land(t, o) {
     const g = o.grade || 'rough', k = Math.max(0.05, Math.min(1, o.impact == null ? 0.5 : o.impact));
-    if (g === 'clean') { this._burst(t, 0.3, { f: 1500, f2: 500, gain: 0.12 + 0.1 * k }); this._thud(t, 120, 0.15, 0.1 + 0.15 * k); this._tone(t + 0.03, mtof(79), 0.35, { gain: 0.07 }); return; }
+    if (g === 'clean') { if (o.perfect) [0, 4, 9].forEach((x, i) => this._tone(t + 0.04 + i * 0.06, mtof(84 + x), 0.4, { gain: 0.08 })); this._burst(t, 0.3, { f: 1500, f2: 500, gain: 0.12 + 0.1 * k }); this._thud(t, 120, 0.15, 0.1 + 0.15 * k); this._tone(t + 0.03, mtof(79), 0.35, { gain: 0.07 }); return; }
     if (g === 'rough') { this._thud(t, 100, 0.25, 0.25 + 0.3 * k); this._burst(t, 0.4, { f: 1800, f2: 350, gain: 0.2 + 0.25 * k }); return; }
     if (g === 'slam') { this._thud(t, 75, 0.5, 0.45 + 0.35 * k); this._burst(t, 0.55, { f: 1400, f2: 200, gain: 0.35 + 0.2 * k }); this._tone(t, 160, 0.4, { type: 'square', gain: 0.05, f2: 70 }); this.duck(0.55, 0.8); return; }
     this._crash(t); // wreck
