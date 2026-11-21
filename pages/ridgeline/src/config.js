@@ -20,7 +20,7 @@ for (const k of Object.keys(LOOP_KEYS)) {
 const REDUCED_DEF = (() => { try { return typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches ? 1 : 0; } catch (e) { return 0; } })();
 // B4 VIS end
 export const DEFAULTS = Object.freeze({
-  baseSpeed: 22,
+  baseSpeed: 30,
   maxSpeed: 48,
   accel: 6,
   steerAccel: 90,
@@ -37,10 +37,10 @@ export const DEFAULTS = Object.freeze({
   treeDensity: 1.0,
   runLength: 1800,
   slope: 0.28,
-  viewDist: 220,
+  viewDist: 230,
   fogDensity: 0.012,
-  camBack: 9,
-  camHeight: 4.5,
+  camBack: 11.5,
+  camHeight: 6.5,
   pixelRatioCap: 2,
   missPenalty: 2.0,
   grazeInner: 1.5,

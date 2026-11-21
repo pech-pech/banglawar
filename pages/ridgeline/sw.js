@@ -1,5 +1,5 @@
 // Offline cache for Ridgeline. Bump VERSION on every release so phones pick up the new build.
-const VERSION = 'rl-proto-16';
+const VERSION = 'rl-proto-17';
 const FILES = [
   './', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png', './icon-maskable-512.png',
   './src/rng.js', './src/config.js', './src/terrain.js', './src/sled.js', './src/render.js', './src/hud.js', './src/tweak.js', './src/themes.js', './src/looks.js', './src/lookparts.js', './src/themeui.js', './src/shapes.js', './src/particles.js', './src/telemetry.js', './src/medals.js', './src/main.js', './src/duneatlas.js', './src/dunefx.js', './src/physics.js', './src/dunes.js', './src/endless.js', './src/props.js', './src/night.js', './src/marks.js', './src/hulls.js', './src/save2.js', './src/daily.js', './src/audio.js', './src/audioglue.js', './vendor/rapier.mjs', './assets/dune-atlas.webp',

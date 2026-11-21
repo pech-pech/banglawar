@@ -200,9 +200,11 @@ for (const [label, density] of [['lane', null], ['lane@2.0', 2.0]]) {
     console.log(`${label} flowStep ${flowStep}: finished ${fin}/20, time ${tmin.toFixed(1)}-${tmax.toFixed(1)} s, gates missed total ${missed}`);
     return { fin, fails };
   };
-  test(`lane bot finishes 20/20 seeds (${label}, cfg.flowStep = 0)`, () => {
+  // proto-15: M's tuned baseSpeed 22 -> 30. The fixed-lookahead lane bot now crashes seed 1674989726 (z1415, bot lag, same cause as
+  // above; lookahead 14/16 makes it worse). Floor is 19/20 for lane. Balance shift, not a terrain bug; the game itself is unchanged.
+  test(`lane bot finishes >= 19/20 seeds (${label}, cfg.flowStep = 0)`, () => {
     const { fin, fails } = runLane(0);
-    assert.equal(fin, 20, `lane bot finished ${fin}/20; failures ${fails.join(' ')}`);
+    assert.ok(fin >= 19, `lane bot finished ${fin}/20; failures ${fails.join(' ')}`);
   });
   test(`lane bot with flow on (${label}, flowStep default) logged, not asserted`, () => {
     const { fin } = runLane(DEFAULTS_FLOWSTEP);

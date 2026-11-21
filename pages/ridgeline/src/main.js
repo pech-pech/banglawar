@@ -20,7 +20,7 @@ import { UNLOCK_M } from './vis/index.js';
 import { createAudioGlue, isAudioKey } from './audioglue.js'; // B5 AUDIO
 // B4 VIS end
 
-const BUILD = 'ridgeline-proto-14';
+const BUILD = 'ridgeline-proto-15';
 const RULES_VERSION = 1;
 const BEST_KEY = 'ridgeline.best.v1';
 const COUNTER_KEY = 'ridgeline.counter.v1';
