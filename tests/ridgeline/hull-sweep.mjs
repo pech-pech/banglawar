@@ -84,9 +84,9 @@ if (!isMainThread && workerData && workerData.sweep) {
 }
 
 // Same seed i for every hull (paired comparison). Jobs interleaved across workers.
-export async function runSweep({ runs = 40, hulls = HULLS, bots = ['mid'], workers = os.cpus().length, onProgress } = {}) {
+export async function runSweep({ runs = 40, hulls = HULLS, bots = ['mid'], workers = os.cpus().length, onProgress, prefix = 'hull-sweep-' } = {}) {
   const jobs = [];
-  for (let i = 0; i < runs; i++) for (const bot of bots) for (const hull of hulls) jobs.push({ hull, bot, i, seed: hashSeed('hull-sweep-' + i) });
+  for (let i = 0; i < runs; i++) for (const bot of bots) for (const hull of hulls) jobs.push({ hull, bot, i, seed: hashSeed(prefix + i) });
   const W = Math.max(1, Math.min(workers, jobs.length));
   const parts = Array.from({ length: W }, (_, w) => jobs.filter((_, k) => k % W === w));
   const res = await Promise.all(parts.map((p) => new Promise((ok, bad) => {
@@ -121,7 +121,7 @@ if (isMainThread && process.argv[1] && import.meta.url === pathToFileURL(process
   const runs = +arg('runs', 100), hulls = arg('hulls', HULLS.join(',')).split(','), bots = arg('bots', 'mid').split(',');
   const workers = +arg('workers', os.cpus().length), jsonOut = arg('json', '');
   const t0 = Date.now();
-  const rows = await runSweep({ runs, hulls, bots, workers });
+  const rows = await runSweep({ runs, hulls, bots, workers, prefix: arg('prefix', 'hull-sweep-') });
   const sum = summarise(rows, hulls, bots);
   for (const bot of bots) {
     console.log(`bot ${bot} (${runs} runs/hull, ${((Date.now() - t0) / 1000).toFixed(0)} s)`);

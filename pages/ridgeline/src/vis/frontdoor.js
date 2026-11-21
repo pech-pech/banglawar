@@ -79,8 +79,8 @@ const CSS = `
 .fd *{box-sizing:border-box}.fd[hidden]{display:none}
 .fd-sheet{position:absolute;left:0;right:0;bottom:0;margin:0 auto;max-width:520px;pointer-events:auto;touch-action:manipulation;padding:6px max(16px,env(safe-area-inset-right,0px)) calc(14px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));border-radius:26px 26px 0 0;background:linear-gradient(180deg,#fffaf0,var(--cream));box-shadow:0 -10px 30px rgba(92,46,98,.38),0 -1px 0 rgba(58,35,80,.25);transition:transform .5s cubic-bezier(.34,1.45,.5,1)}
 .fd.riding .fd-sheet{transform:translateY(110%);transition:transform .5s cubic-bezier(.5,0,.9,.4)}
-.fd-grab{display:block;width:100%;height:36px;border:0;background:none;padding:0;cursor:pointer;position:relative}
-.fd-grab::before{content:"";position:absolute;left:50%;top:14px;width:44px;height:5px;margin-left:-22px;border-radius:3px;background:rgba(58,35,80,.32)}
+.fd-grab{display:block;width:100%;height:44px;border:0;background:none;padding:0;cursor:pointer;position:relative}
+.fd-grab::before{content:"";position:absolute;left:50%;top:18px;width:44px;height:5px;margin-left:-22px;border-radius:3px;background:rgba(58,35,80,.32)}
 .fd-body{max-height:220px;overflow:hidden;transition:max-height .45s cubic-bezier(.34,1.3,.5,1),opacity .25s}
 .fd.closed .fd-body{max-height:0;opacity:0;pointer-events:none}
 .fd-tap{display:none;width:100%;min-height:44px;border:0;background:none;cursor:pointer;font:inherit;color:inherit;text-align:center;font-size:14px;font-weight:900;letter-spacing:.16em;padding:0 0 4px;-webkit-tap-highlight-color:transparent}.fd.closed .fd-tap{display:block}
