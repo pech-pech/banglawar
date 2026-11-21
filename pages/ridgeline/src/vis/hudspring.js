@@ -68,7 +68,7 @@ export const boostColor = (b) => { // coral -> gold
 const CSS = `
 .b4h{position:absolute;inset:0;pointer-events:none;z-index:20;font-family:ui-rounded,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:${PALETTE.ink}}
 body.b4-hud .rlh-top,body.b4-hud .rlh-track,body.b4-hud .rlh-flow{display:none!important}
-.b4h-top{position:absolute;left:calc(8px + env(safe-area-inset-left,0px));right:calc(8px + env(safe-area-inset-right,0px));top:calc(8px + env(safe-area-inset-top,0px));display:flex;gap:8px}
+.b4h-top{position:absolute;left:calc(8px + env(safe-area-inset-left,0px));right:calc(72px + env(safe-area-inset-right,0px)); /* 56 px MENU button slot */top:calc(8px + env(safe-area-inset-top,0px));display:flex;gap:8px}
 .b4h-card{flex:1 1 0;min-width:56px;min-height:56px;padding:6px 8px;border-radius:14px;text-align:center;background:rgba(255,244,223,.94);box-shadow:0 3px 0 rgba(58,35,80,.25);will-change:transform,opacity;transform-origin:50% 50%}
 .b4h-k{font-size:11px;letter-spacing:.06em;text-transform:uppercase;font-weight:800;color:#c8452f}
 .b4h-v{font-size:22px;font-weight:900;font-variant-numeric:tabular-nums;white-space:nowrap}

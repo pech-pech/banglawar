@@ -20,7 +20,7 @@ export function createHud(rootEl, handlers) {
 .rlh-row{display:flex;gap:10px}
 .rlh-row .rlh-btn{flex:1 1 0;min-width:0}
 .rlh-run{position:absolute;inset:0;pointer-events:none}
-.rlh-top{position:absolute;left:8px;right:8px;top:calc(8px + env(safe-area-inset-top,0px));display:flex;gap:8px;justify-content:space-between;align-items:stretch}
+.rlh-top{position:absolute;left:8px;right:calc(72px + env(safe-area-inset-right,0px));top:calc(8px + env(safe-area-inset-top,0px));display:flex;gap:8px;justify-content:space-between;align-items:stretch}
 .rlh-top .rlh-panel{flex:1 1 0;min-width:0;text-align:center;padding:6px 8px}
 .rlh-k{font-size:11px;opacity:.8;letter-spacing:.06em;text-transform:uppercase}
 .rlh-v{font-size:20px;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap}
@@ -48,6 +48,12 @@ body.rl-paper .rlh .rlh-razor{color:#24406e;text-shadow:none;-webkit-text-stroke
 @keyframes rlhpulse{0%{transform:scale(1.35)}100%{transform:scale(1)}}
 @keyframes rlhrazor{0%{transform:translate(-50%,-50%) scale(.7);opacity:0}20%{transform:translate(-50%,-50%) scale(1.15);opacity:1}100%{transform:translate(-50%,-70%) scale(1);opacity:0}}
 @media (prefers-reduced-motion:reduce){.rlh-pips.pulse,.rlh-razor.on{animation:none}}
+.rlh-menubtn{position:absolute;right:calc(8px + env(safe-area-inset-right,0px));top:calc(8px + env(safe-area-inset-top,0px));width:56px;height:56px;min-width:56px;min-height:56px;padding:0;z-index:25;pointer-events:auto;cursor:pointer;touch-action:manipulation;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;
+ border:1px solid rgba(255,255,255,.45);border-radius:14px;background:rgba(8,14,28,.72);color:#fff;font:800 9px/1 system-ui,sans-serif;letter-spacing:.1em}
+.rlh-menubtn b{font-size:22px;line-height:22px;font-weight:700;letter-spacing:0}
+body.b4-hud .rlh-menubtn{background:rgba(255,244,223,.94);color:#3a2350;border:0;box-shadow:0 3px 0 rgba(58,35,80,.25)}
+.rlh-menubtn:active{filter:brightness(.85)}
+.rlh-pause{position:absolute;inset:0;z-index:45;display:flex;align-items:center;justify-content:center;padding:16px;padding-top:calc(16px + env(safe-area-inset-top,0px));padding-bottom:calc(16px + env(safe-area-inset-bottom,0px));pointer-events:auto;background:rgba(6,10,20,.6);touch-action:manipulation;overflow-y:auto}
 .rlh-box>*{flex-shrink:0}
 .rlh-box>.rlh-theme{flex:0 1 auto;min-height:0}
 .rlh-box>.rlh-theme.open{flex:1 1 auto}
@@ -161,7 +167,23 @@ body.rl-paper .rlh .rlh-word{color:#24406e;text-shadow:none;background:#fff;bord
   const toastEl = el('div', 'rlh-toast', run, '');
   const wordEl = el('div', 'rlh-word', run, '');
   const liftEl = el('div', 'rlh-hint rlh-lift', run, 'LIFT TO DIVE');
+  const menuBtn = el('button', 'rlh-menubtn', run);
+  menuBtn.type = 'button'; menuBtn.setAttribute('aria-label', 'Pause menu');
+  el('b', '', menuBtn, '\u2630'); el('span', '', menuBtn, 'MENU');
+  menuBtn.addEventListener('click', (ev) => { ev.stopPropagation(); call('onPause'); });
   let wordT = 0, liftT = 0, flights = 0;
+
+  // Pause menu (opened by the MENU button or Esc / P); the sim, audio and replay clock are frozen by main.js while it shows
+  const pauseEl = el('div', 'rlh-pause', root);
+  pauseEl.hidden = true;
+  const pb = el('div', 'rlh-box', pauseEl);
+  el('h2', 'rlh-res', pb, 'PAUSED');
+  btn('Resume', '', pb, () => call('onResume'));
+  btn('Restart', 'alt', pb, () => call('onRestart'));
+  btn('Settings', 'alt', pb, () => call('onSettings'));
+  btn('Quit to title', 'alt', pb, () => call('onQuit'));
+  function showPause() { pauseEl.hidden = false; }
+  function hidePause() { pauseEl.hidden = true; }
 
   // End screen
   const end = el('div', 'rlh-screen', root);
@@ -182,6 +204,7 @@ body.rl-paper .rlh .rlh-word{color:#24406e;text-shadow:none;background:#fff;bord
 
   function mode(m) {
     start.hidden = m !== 'start';
+    pauseEl.hidden = true;
     run.hidden = m !== 'run';
     end.hidden = m !== 'end';
   }
@@ -310,16 +333,16 @@ body.rl-paper .rlh .rlh-word{color:#24406e;text-shadow:none;background:#fff;bord
   try {
     if (!document.getElementById('rlh-b4')) {
       const st = document.createElement('style'); st.id = 'rlh-b4';
-      st.textContent = 'body.b4-end .rlh.rlh{display:block!important}body.b4-end .rlh-top,body.b4-end .rlh-bar,body.b4-end .rlh-word,body.b4-end .rlh-lift,body.b4-end .rlh-razor,body.b4-end .rlh-fps{display:none!important}.rlh-toast{z-index:40}';
+      st.textContent = 'body.b4-end .rlh.rlh{display:block!important}body.b4-end .rlh-top,body.b4-end .rlh-menubtn,body.b4-end .rlh-bar,body.b4-end .rlh-word,body.b4-end .rlh-lift,body.b4-end .rlh-razor,body.b4-end .rlh-fps{display:none!important}.rlh-toast{z-index:40}';
       document.head.appendChild(st);
     }
   } catch (e) { /* ignore */ }
   function b4(m) {
-    start.hidden = true; end.hidden = true;
+    start.hidden = true; end.hidden = true; pauseEl.hidden = true;
     run.hidden = !(m === 'run' || m === 'end');
     try { document.body.classList.add('b4-hud'); } catch (e) { /* ignore */ }
   }
   // B4 VIS end
   showStart(null);
-  return { showStart, setStartInfo, showRun, update, event, showEnd, setDev, toast, setLoading, themeMount, setThemeLabel, b4 };
+  return { showPause, hidePause, showStart, setStartInfo, showRun, update, event, showEnd, setDev, toast, setLoading, themeMount, setThemeLabel, b4 };
 }
