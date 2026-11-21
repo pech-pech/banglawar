@@ -1377,7 +1377,7 @@ export function createView(canvas, course, cfg, themeId, opts) {
     function draw(state, timeSec) {
       const z = state.z;
       fxX = state.x; fxZ = z; fxNow = timeSec;
-      scene.fog.density = cfg.fogDensity * theme.fogDensity * (LOOK.fogMul || 1);
+      scene.fog.density = cfg.fogDensity * theme.fogDensity * (LOOK.fogMul || 1) * (SOFT ? dv('haze', 1) : 1); // Tweak 'Dune: haze' scales the sunset haze live
       const dt = lastT < 0 ? 0 : clamp(timeSec - lastT, 0, 0.1);
       lastT = timeSec;
       camera.far = cfg.viewDist + 80;
