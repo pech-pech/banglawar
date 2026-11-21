@@ -93,6 +93,6 @@ test('sw.js FILES lists audio sources and mp3s, all exist', () => {
   const m = sw.match(/const FILES = \[([\s\S]*?)\n\];/);
   assert.ok(m, 'FILES found');
   const files = [...m[1].replace(/\/\/.*$/gm, '').matchAll(/'([^']+)'/g)].map(x => x[1]);
-  for (const f of ['./src/audio.js', './src/audioglue.js', './audio/bgm-wanderlust.mp3', './audio/bgm-pink-navy.mp3']) assert.ok(files.includes(f), f);
+  for (const f of ['./src/audio.js', './src/audioglue.js', './audio/bgm-beethoven5.mp3', './audio/bgm-william-tell.mp3']) assert.ok(files.includes(f), f);
   for (const f of files) if (f !== './') assert.ok(fs.existsSync(path.join(root, f)), `exists ${f}`);
 });

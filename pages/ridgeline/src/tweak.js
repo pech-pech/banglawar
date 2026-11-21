@@ -416,6 +416,7 @@ export function createTweak(rootEl, opts) {
   const codeRow = el('div', 'bar');
   codeRow.append(bCode, bApply);
 
+  const musicCredits = el('p', 'note', 'Run: Beethoven, Symphony No. 5 (I), Musopen recording, public domain (Public Domain Mark). Menu: Rossini, William Tell overture, Arthur Pryor\'s Band 1924, Library of Congress, public domain. Edited: trimmed, looped, normalised.');
   panel.append(
     head, bar, msg,
     ...(opts.themeEl ? [opts.themeEl] : []),
@@ -423,7 +424,8 @@ export function createTweak(rootEl, opts) {
     el('h3', '', 'Share'), codeArea, codeRow,
     el('h3', '', 'Look'), visBox,
     el('h3', '', 'Physics timing'), physLine,
-    el('h3', '', 'Values'), sliders
+    el('h3', '', 'Values'), sliders,
+    el('h3', '', 'Music credits'), musicCredits
   );
   const bClose2 = btn('Close', 'pri', () => api.close());
   bClose2.style.cssText = 'width:100%;margin-top:14px';

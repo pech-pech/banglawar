@@ -7,7 +7,7 @@ const FILES = [
   // B4 VIS begin
   './src/vis/camrig.js', './src/vis/endcard.js', './src/vis/frontdoor.js', './src/vis/garage.js', './src/vis/hudspring.js', './src/vis/index.js', './src/vis/markers.js', './src/vis/moments.js', './src/vis/postfx.js', './src/vis/quality.js', './src/vis/sandtracks.js', './src/vis/sky.js', './src/vis/sledrig.js',
   // B4 VIS end
-  './audio/bgm-wanderlust.mp3', './audio/bgm-pink-navy.mp3',
+  './audio/bgm-beethoven5.mp3', './audio/bgm-william-tell.mp3',
 ];
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(VERSION).then(c => c.addAll(FILES.map(f => new Request(f, { cache: 'reload' })))).then(() => self.skipWaiting()));

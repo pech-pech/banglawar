@@ -38,7 +38,7 @@ const mtof = m => 440 * Math.pow(2, (m - 69) / 12);
 export class RidgelineAudio {
   constructor(o = {}) {
     this.bgmBase = o.bgmBase || './audio/';
-    this.tracks = { run: 'bgm-wanderlust.mp3', menu: 'bgm-pink-navy.mp3' };
+    this.tracks = { run: 'bgm-beethoven5.mp3', menu: 'bgm-william-tell.mp3' };
     this.lv = { master: 0.8, sfx: 0.9, amb: 0.7, bgm: 0.5, muted: false };
     this.ctx = null; this.st = { speed: 0, grounded: true, boost: 0, airborne: false, airT: 0, diving: false, tumbling: false, tumbleSpeed: 0, night: 0, gap: NaN };
     this._bgmName = null; this._bgmEl = null; this._bgmGain = null; this._last = {};
