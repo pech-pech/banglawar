@@ -895,7 +895,7 @@ export function createView(canvas, course, cfg, themeId, opts) {
           let cell, bw, bh;
           if (kind === 1) { cell = hk < 0.28 ? 'archBroken' : 'arch'; bw = W; bh = bw * CELLS[cell][3] / CELLS[cell][2]; }
           else if (kind === 2) { cell = hk < 0.34 ? 'reed1' : hk < 0.67 ? 'reed2' : 'reed3'; bh = H; bw = bh * CELLS[cell][2] / CELLS[cell][3]; }
-          else { cell = hk < 0.5 ? 'harpA' : 'harpB'; bh = H; bw = bh * CELLS[cell][2] / CELLS[cell][3]; }
+          else { cell = hk < 0.34 ? 'harpC' : hk < 0.67 ? 'harpD' : 'harpE'; bh = H; bw = bh * CELLS[cell][2] / CELLS[cell][3]; }
           boards.add(cell, t.x, by - 0.05 * bh * (kind === 1 ? 1 : 0.3), t.z, bw, bh, hsh(Math.floor(t.z * 100), 66) < 0.5, 0.3, null);
         } else if (kind === 1) scArch.setMatrixAt(nA++, _m); else if (kind === 2) scReed.setMatrixAt(nR++, _m); else leaves.setMatrixAt(nH++, _m);
         if (trunks) trunks.setMatrixAt(i, _m);
