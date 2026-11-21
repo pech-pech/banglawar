@@ -122,7 +122,7 @@ try {
     await p.evaluate(() => document.getAnimations().forEach((a) => { a.pause(); a.currentTime = 180; }));
     await shot(p, 'e-rock-tumble');
     await resume(p);
-    await p.getByText('CRASHED').first().waitFor({ state: 'visible', timeout: 60000 });
+    await p.locator('.rlh-res:visible, .b4ec-run:visible').first().waitFor({ state: 'visible', timeout: 60000 }); // B4: spring end card replaces the old CRASHED screen
     await p.waitForTimeout(600);
     await shot(p, 'g-end-screen'); await audit(p, 'eg'); await release(p); await p.context().close(); }
   // (f) wreck recover: force with a low wreck threshold and a hard flight

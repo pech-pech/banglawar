@@ -262,6 +262,21 @@ body.rl-paper .rlh .rlh-word{color:#24406e;text-shadow:none;background:#fff;bord
     toastT = setTimeout(() => toastEl.classList.remove('on'), 1800);
   }
 
+  // B4 VIS begin: spring HUD (body.b4-hud) replaces the top cards / boost bar / flow; landing words, hints, toast stay.
+  // b4(m): 'home' | 'garage' hide every old screen; 'end' keeps the run layer for the toast (spring end card is the end screen).
+  try {
+    if (!document.getElementById('rlh-b4')) {
+      const st = document.createElement('style'); st.id = 'rlh-b4';
+      st.textContent = 'body.b4-end .rlh.rlh{display:block!important}body.b4-end .rlh-top,body.b4-end .rlh-bar,body.b4-end .rlh-word,body.b4-end .rlh-lift,body.b4-end .rlh-razor,body.b4-end .rlh-fps{display:none!important}.rlh-toast{z-index:40}';
+      document.head.appendChild(st);
+    }
+  } catch (e) { /* ignore */ }
+  function b4(m) {
+    start.hidden = true; end.hidden = true;
+    run.hidden = !(m === 'run' || m === 'end');
+    try { document.body.classList.add('b4-hud'); } catch (e) { /* ignore */ }
+  }
+  // B4 VIS end
   showStart(null);
-  return { showStart, showRun, update, event, showEnd, setDev, toast, setLoading, themeMount, setThemeLabel };
+  return { showStart, showRun, update, event, showEnd, setDev, toast, setLoading, themeMount, setThemeLabel, b4 };
 }

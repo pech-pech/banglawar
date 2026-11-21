@@ -142,6 +142,10 @@ export function buildReport(info) {
   lines.push('dune: theme ' + fmt(info.theme) + ', atlas ' + (atlas === 'ok' ? 'loaded yes' : atlas === 'fail' ? 'loaded no' : atlas === 'pending' ? 'pending' : 'n/a') + ', calls ' + fmt(st.calls) + ', tris ' + fmt(st.triangles) + ', tweaks ' + (dn.length ? dn.join(', ') : '(defaults)'));
   const ps = info.phys;
   lines.push('Phys: ' + (ps ? physText(ps) : '-'));
+  // B4 VIS begin
+  lines.push(info.visLine || 'Vis: off');
+  lines.push('WebGPU output: ' + (info.webgpu ? 'seen' : 'NOT seen') + (info.rendererType ? ' (' + info.rendererType + ')' : ''));
+  // B4 VIS end
   const fl = info.flow, md = info.medal;
   lines.push('Flow: ' + (fl ? `peak ${fmt(fl.peak)}, links ${fmt(fl.links)}, razor ${fmt(fl.razors)}, inner ${fmt(fl.inners)}, centred gates ${fmt(fl.centred)}, boost links ${fmt(fl.boostLinks)}, flow5 ${num(fl.flow5T, 1)} s` : '-'));
   lines.push('Medal: ' + (!md ? '-' : md.hidden ? 'off (DEV)' : `${md.name || 'none'} (gold ${num(md.gold, 1)} s, summit ${num(md.summit, 1)} s)`));
@@ -226,7 +230,7 @@ export function createTweak(rootEl, opts) {
   }
   function refreshAll() { for (const k of Object.keys(rows)) refreshRow(k); }
 
-  const GROUPS = ['Ground', 'Launch', 'Air', 'Grade', 'Tumble', 'Physics'];
+  const GROUPS = ['Ground', 'Launch', 'Air', 'Grade', 'Tumble', 'Physics', 'Look FX']; // B4 VIS: Look FX group
   const groupBox = {};
   for (const k of Object.keys(META)) {
     const m = META[k];

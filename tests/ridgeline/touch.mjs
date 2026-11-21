@@ -26,7 +26,7 @@ try {
   await page.waitForFunction(() => window.__ridgeline && window.__ridgeline.ready, null, { timeout: 20000 });
   await page.waitForTimeout(400);
   // tap the first start button like a finger would
-  const btn = page.locator('button', { hasText: /daily|start|ride|go/i }).first();
+  const btn = page.locator('button:visible', { hasText: /daily|start|ride|go/i }).first();
   await btn.tap();
   await page.waitForTimeout(800);
   const phaseOk = await page.evaluate(() => window.__ridgeline.state && window.__ridgeline.state.z > 0);

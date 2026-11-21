@@ -9,6 +9,9 @@ import { lookFor, THEME_LOOKS } from './looks.js';
 import { loadAtlas, ATLAS_SIZE, CELLS, GATE, FX_CELLS } from './duneatlas.js';
 import { createDuneFx } from './dunefx.js';
 import { mulberry32 } from './rng.js';
+// B4 VIS begin
+import { createVis } from './vis/index.js';
+// B4 VIS end
 
 const CHUNK_Z = 40;       // metres along z per terrain chunk
 const CELL = 2;           // grid cell size
@@ -172,6 +175,9 @@ export function createView(canvas, course, cfg, themeId, opts) {
   const LOW = o.quality === 'low' || QS.get('q') === 'low';
   const POST = o.post !== false;
   const STILL = !!o.still;
+  // B4 VIS begin
+  const VIS = !!o.vis && !STILL; // o.vis = hooks from main.js; ?vis=0 or the still path keeps the old visuals
+  // B4 VIS end
   const reduced = (() => {
     try { return typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) { return false; }
   })();
@@ -214,6 +220,9 @@ export function createView(canvas, course, cfg, themeId, opts) {
       });
     }
     const PL = LOOK.poles || null;
+    // B4 VIS begin
+    let V = null; // vis integrator for this world (created once the sled exists)
+    // B4 VIS end
 
     const disposables = [];
     const track = (x) => { disposables.push(x); return x; };
@@ -265,11 +274,19 @@ export function createView(canvas, course, cfg, themeId, opts) {
     // C: drifting cut-out clouds
     const clouds = LOOK.clouds && !LOW ? makeClouds(LOOK.clouds) : null;
     if (clouds) scene.add(clouds.mesh);
+    // B4 VIS begin: materials the night grade tints (dome, sun, far ranges): [material, original colour]
+    const tintMats = [];
+    if (VIS) {
+      const addT = (m) => { if (m && m.color && m.color.isColor && !tintMats.some((t) => t[0] === m)) tintMats.push([m, m.color.clone()]); };
+      dome.group.traverse((x) => { if (x.material) addT(x.material); });
+      for (const r of ranges) addT(r.mesh.material);
+    }
+    // B4 VIS end
 
     // S10 vignette: CSS div between canvas and #ui (Post only)
     let vignette = null;
     try { const old = document.getElementById('rl-vignette'); if (old) old.remove(); } catch (e) { /* ignore */ }
-    if (POST && LOOK.vignette) {
+    if (POST && LOOK.vignette && !VIS) { // B4 VIS: postfx owns the vignette
       try {
         vignette = document.createElement('div');
         vignette.id = 'rl-vignette';
@@ -323,7 +340,7 @@ export function createView(canvas, course, cfg, themeId, opts) {
       // Longlight Haze ground: shade -> lit by sun-facing slope, wind ripples, crest rim, hollows pool haze; banks plum with a warm rim.
       terrainMat = new THREE.MeshBasicMaterial({ vertexColors: true });
       const v3 = (h) => { const c = new THREE.Color(h); return new THREE.Vector3(c.r, c.g, c.b); };
-      patchShader(terrainMat, 'softTerrain', (sh) => {
+      patchShader(terrainMat, 'softTerrain' + (VIS ? 'V' : ''), (sh) => { // B4 VIS: own program key
         sh.uniforms.uLit = { value: v3(SOFT.lit) }; sh.uniforms.uShadeG = { value: v3(SOFT.shade) };
         sh.uniforms.uBank = { value: v3(SOFT.bank) }; sh.uniforms.uBankRim = { value: v3(SOFT.bankRim) };
         sh.uniforms.uHaze = { value: v3(SOFT.haze) }; sh.uniforms.uL = { value: SUNV.clone() };
@@ -357,7 +374,7 @@ export function createView(canvas, course, cfg, themeId, opts) {
  // wind-crest bands across the floor: soft dark lee body, thin amber sun-facing edge
  float bs = vW.z * 0.17 + 0.9 * sin( vW.x * 0.07 + vW.z * 0.02 ) + 0.5 * sin( vW.x * 0.19 );
  float bf = fract( bs ); float bw = fwidth( bs ) * 1.5 + 0.002;
- float bandFade = ( 1.0 - bankK ) * ( 1.0 - smoothstep( 40.0, 110.0, vFogDepth ) ) * ( 1.0 - smoothstep( 0.4, 1.2, fwidth( bs ) * 8.0 ) );
+ float bandFade = ( 1.0 - bankK ) * ( 1.0 - smoothstep( 40.0, 110.0, vFogDepth ) ) * ( 1.0 - smoothstep( 0.4, 1.2, fwidth( bs ) * 8.0 ) ) * smoothstep( 12.0, 25.0, length( vW.xz - cameraPosition.xz ) );   // B4 VIS QA-4: 0 inside 12 m, full at 25 m of the camera
  float bEdge = smoothstep( 0.0, bw, bf ) * ( 1.0 - smoothstep( 0.05, 0.05 + 0.09 + bw, bf ) );
  col = mix( col, col * 0.78, smoothstep( 0.12, 0.9, bf ) * 0.55 * bandFade );
  col = mix( col, vec3( 1.0, 0.72, 0.38 ), bEdge * 0.55 * bandFade );
@@ -366,6 +383,7 @@ export function createView(canvas, course, cfg, themeId, opts) {
  col = mix( col, uHaze, hol * uK.z * smoothstep( 8.0, 70.0, vFogDepth ) );
  diffuseColor.rgb = col;
 `);
+        if (V) V.patchGround(sh); // B4 VIS: sand tracks + night grade after `diffuseColor.rgb = col;`
       });
     } else if (paper) {
       // C: unlit two-tone ground; shade flag rides in vertex alpha, hard threshold + contour lines in the fragment shader
@@ -1153,6 +1171,14 @@ export function createView(canvas, course, cfg, themeId, opts) {
     const SLED_SCALE = LOOK.sledScale || 1, SKID_CLEAR = 0.06;
     const GROUP_Y = 0.22 - (HOVER - SKID_CLEAR) / SLED_SCALE;
     sledModel.group.position.y = GROUP_Y;
+    // B4 VIS begin: the hero rig replaces the old sled mesh (same pose/placement math and GROUP_Y offset)
+    if (VIS) {
+      V = createVis({ THREE, scene, camera, renderer, cfg, look: LOOK, sunDir: SUNV, root: (typeof document !== 'undefined' && document.getElementById('ui')) || null,
+        groundY: vis, course, seed: course.seed >>> 0, hooks: o.vis });
+      V.rig.group.position.y = GROUP_Y;
+      sled.add(V.rig.group);
+    } else
+    // B4 VIS end
     sled.add(sledModel.group);
     sled.scale.setScalar(SLED_SCALE); // D: visual only
     // C: toon sled (3-step ramp) with a normal-extruded keyline shell per part, oversize helmet
@@ -1376,6 +1402,7 @@ export function createView(canvas, course, cfg, themeId, opts) {
     function resize() {
       camera.aspect = w / h;
       camera.updateProjectionMatrix();
+      if (V) V.resize(w, h); // B4 VIS
     }
 
     function draw(state, timeSec) {
@@ -1420,6 +1447,7 @@ export function createView(canvas, course, cfg, themeId, opts) {
       const sy = airborne || tumbling ? state.y + HOVER : Math.max(state.y, gy) + HOVER + step * 0.5 + 0.04 * (1 + Math.sin(timeSec * 6));
       // tumble: the physics body centre is the pivot (hull centre), so the mesh turns about it exactly as state.quat does
       sledModel.group.position.y = tumbling ? 0 : GROUP_Y;
+      if (V) V.rig.group.position.y = tumbling ? 0 : GROUP_Y; // B4 VIS
       sled.position.set(state.x, tumbling && typeof state.bodyY === 'number' ? state.bodyY : sy, z);
       let roll = clamp(-state.vx * 0.035, -0.6, 0.6);
       if (tumbling) {
@@ -1459,13 +1487,17 @@ export function createView(canvas, course, cfg, themeId, opts) {
         _q.multiply(_qa);
         _s.set(BL.sledW * fadeK, 1, BL.sledL * fadeK);
         _m.compose(_p, _q, _s);
-        if (SH) _m.makeScale(0, 0, 0);
+        if (SH || V) _m.makeScale(0, 0, 0); // B4 VIS: rig owns the soft blob shadow
         blobs.setMatrixAt(0, _m);
         blobs.instanceMatrix.needsUpdate = true;
       }
 
       // camera: behind (-z) and above, looking ahead downhill; fov widens with speed
       camX += (state.x - camX) * 0.12;
+      // B4 VIS begin: camrig / home / garage camera, vs snapshot and every vis module update
+      if (V) V.frame(state, dt, sled);
+      else {
+      // B4 VIS end
       const cy = sy + cfg.camHeight;
       camera.position.set(camX, cy, z - cfg.camBack);
       const lz = z + 16;
@@ -1478,9 +1510,11 @@ export function createView(canvas, course, cfg, themeId, opts) {
       const target = baseFov + (reduced ? 0 : 12 * k + (boosting ? 5 : 0));
       fov += (target - fov) * 0.1;
       if (Math.abs(camera.fov - fov) > 0.01) { camera.fov = fov; camera.updateProjectionMatrix(); }
+      } // B4 VIS: end of old camera block
 
       // sky, ranges follow the camera
       dome.update(camera);
+      if (V) for (const t of tintMats) t[0].color.copy(t[1]).multiply(V.skyTint); // B4 VIS: night grade on dome / ranges (darken + plum only)
       for (const r of ranges) r.mesh.position.set(camera.position.x * (r.par != null ? r.par : 1), camera.position.y + r.dy, camera.position.z);
       if (clouds) clouds.update(reduced ? 0 : timeSec, camera);
       if (boards) { boards.U.uCap.value = dv('nearFade', 6) > 0 ? dv('nearFade', 6) * 0.1 : 1e3; boards.U.uFogMul.value = dv('fogFar', 1); }
@@ -1490,7 +1524,7 @@ export function createView(canvas, course, cfg, themeId, opts) {
 
       // S8 trail and spray from the skid tails
       sled.updateMatrixWorld(true);
-      if (ribbon) {
+      if (ribbon && !V) { // B4 VIS: old chunky ribbon off
         sledModel.group.localToWorld(_tl.set(-0.5, -0.2, -0.3));
         sledModel.group.localToWorld(_tr.set(0.5, -0.2, -0.3));
         ribbon.update(_tl, _tr, dt);
@@ -1520,13 +1554,13 @@ export function createView(canvas, course, cfg, themeId, opts) {
           fan.mesh.scale.set(f * 2.6, f * 2.6, f * 2.6);
         }
       }
-      if (groove) {
+      if (groove && !V) { // B4 VIS: old grooves off
         _gl.copy(_tl); _gr.copy(_tr);
         _gl.y = vis(_gl.x, _gl.z) + 0.06; _gr.y = vis(_gr.x, _gr.z) + 0.06;
         groove.update(_gl, _gr, dt);
         if (groove2) { _gl.x += 0.16; _gr.x += 0.16; groove2.update(_gl, _gr, dt); }
       }
-      if (trail || trail2 || spray) {
+      if ((trail || trail2 || spray) && !V) { // B4 VIS: old ribbon trail + spray hidden (sand tracks + moments replace them)
         sledModel.group.localToWorld(_tl.set(-0.5, -0.2, -0.95));
         sledModel.group.localToWorld(_tr.set(0.5, -0.2, -0.95));
         if (trail) trail.update(_tl, _tr, dt);
@@ -1558,7 +1592,7 @@ export function createView(canvas, course, cfg, themeId, opts) {
         streaks.count = sn;
       }
 
-      if (shD) { // sled cast shadow: footprint (shifted by hover height) swept up along the sun vector
+      if (shD && !V) { // B4 VIS (rig blob) - sled cast shadow: footprint (shifted by hover height) swept up along the sun vector
         shD.n = 0;
         const hov = Math.min(1.6, Math.max(0, sy - HOVER - gy) * 0.15 + HOVER * 0.35), sh = SOFT ? 1.5 : 0.45, cy = Math.cos(sled.rotation.y), sy2 = Math.sin(sled.rotation.y);
         const hwS = 0.62, hl = 0.95;
@@ -1579,7 +1613,7 @@ export function createView(canvas, course, cfg, themeId, opts) {
       }
       updateGates(z - cfg.camBack, z, state.nextGate, timeSec);
       particles.update(camera.position, dt, state.speed);
-      renderer.render(scene, camera);
+      if (V) V.render(scene, camera); else renderer.render(scene, camera); // B4 VIS: post chain
     }
 
     function dispose() {
@@ -1596,6 +1630,7 @@ export function createView(canvas, course, cfg, themeId, opts) {
       if (typeof dome.dispose === 'function') dome.dispose();
       for (const r of ranges) { scene.remove(r.mesh); r.mesh.geometry.dispose(); r.mesh.material.dispose(); }
       if (typeof sledModel.dispose === 'function') sledModel.dispose();
+      if (V) { V.dispose(); V = null; } // B4 VIS
       scene.remove(particles.object3D); particles.dispose();
       if (vignette) vignette.remove();
       if (hudStyle) hudStyle.remove();
@@ -1605,18 +1640,18 @@ export function createView(canvas, course, cfg, themeId, opts) {
     }
 
     resize();
-    return { draw, dispose, resize, camera, fx, sled };
+    return { draw, dispose, resize, camera, fx, sled, get vis() { return V; } }; // B4 VIS: vis getter
   }
 
   function resize(nw, nh) {
     w = Math.max(1, nw | 0); h = Math.max(1, nh | 0);
-    renderer.setPixelRatio(dprCap());
+    renderer.setPixelRatio(world.vis ? world.vis.pixelRatio(dprCap()) : dprCap()); // B4 VIS: tier-aware pixel ratio
     renderer.setSize(w, h, false);
     world.resize();
   }
 
   function draw(state, timeSec) { world.draw(state, timeSec); }
-  function fx(ev) { if (world && world.fx) world.fx(ev); }
+  function fx(ev) { if (world && world.fx) world.fx(ev); if (world && world.vis) world.vis.fx(ev); } // B4 VIS: sim events fan out to vis
 
   function stats() {
     const r = renderer.info.render;
@@ -1640,5 +1675,7 @@ export function createView(canvas, course, cfg, themeId, opts) {
     resize, draw, fx, stats, dispose, setTheme,
     get camera() { return world ? world.camera : null; },
     get sled() { return world ? world.sled : null; }, // QA hook (poses.mjs)
+    get vis() { return world ? world.vis : null; }, // B4 VIS
+    get renderer() { return renderer; }, // B4 VIS: photo + report
   };
 }
