@@ -53,6 +53,24 @@ test('night grade never raises luminance, never drops contrast, shifts toward pl
   const a = [1, 0.69, 0.44]; assert.deepEqual(S.gradeColor(a, 0), a.map((v) => v)); // n 0 untouched
 });
 
+test('QA-Q1 D1: ground grade only darkens, goes plum/indigo ~(82,49,108) at full strength, n .5 clearly darker', () => {
+  const enc = (x) => Math.round(255 * (x <= 0.0031308 ? 12.92 * x : 1.055 * Math.pow(x, 1 / 2.4) - 0.055));
+  const dec = (v) => { const x = v / 255; return x <= 0.04045 ? x / 12.92 : Math.pow((x + 0.055) / 1.055, 2.4); };
+  const golden = [239, 155, 99].map(dec);
+  const g1 = S.gradeColor(golden, 1, null, true).map(enc);
+  assert.ok(g1[0] > 60 && g1[0] < 105 && g1[1] > 30 && g1[1] < 70 && g1[2] > 85 && g1[2] < 130, 'plum at n .85: ' + g1);
+  assert.ok(g1[2] > g1[0] && g1[0] > g1[1], 'blue > red > green = plum hue');
+  const k5 = S.gradeStrength(0.5, {}), k63 = S.gradeStrength(0.63, {});
+  const lg = S.lum(golden), l5 = S.lum(S.gradeColor(golden, k5, null, true)), l63 = S.lum(S.gradeColor(golden, k63, null, true));
+  assert.ok(l5 < 0.7 * lg && l63 < l5 && S.lum(S.gradeColor(golden, 1, null, true)) < l63, 'monotone, n .5 clearly darker');
+  for (const c of SAND) for (const k of [0.2, 0.45, 0.7, 1]) {
+    const g = S.gradeColor(c, k, null, true); assert.ok(S.lum(g) <= S.lum(c) + 1e-12);
+    for (const a of SAND) { if (S.lum(a) <= S.lum(c)) continue; assert.ok(S.lum(S.gradeColor(a, k, null, true)) / S.lum(g) >= S.lum(a) / S.lum(c) - 1e-9, 'ratio kept'); }
+  }
+  const dd = (k) => S.lum(golden) - S.lum(S.gradeColor(golden, k, null, true));
+  assert.ok(Math.abs(dd(k5) - 0.45 * dd(1)) < 1e-9);
+});
+
 test('n 0.5 grade strength is 45% of n 0.85', () => {
   assert.ok(Math.abs(S.gradeStrength(0.5, {}) - 0.45 * S.gradeStrength(0.85, {})) < 1e-12);
   assert.equal(S.gradeStrength(0.85, {}), 1); assert.equal(S.gradeStrength(0, {}), 0);

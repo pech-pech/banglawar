@@ -82,7 +82,8 @@ export function createVis(o) {
     Object.assign(sh.uniforms, tChunk.uniforms, sChunk.uniforms);
     sh.fragmentShader = sh.fragmentShader
       .replace('#include <common>', '#include <common>\n' + tChunk.fragDecl + '\n' + sChunk.fragDecl)
-      .replace('diffuseColor.rgb = col;', 'diffuseColor.rgb = col;\n' + tChunk.fragBody + '\n' + sChunk.fragBody + '\n diffuseColor.rgb = col;');
+      // QA-Q1 D4: night grade FIRST, then sand tracks, so the warm berm lip is added over the plum ground (not graded away with it)
+      .replace('diffuseColor.rgb = col;', 'diffuseColor.rgb = col;\n' + sChunk.fragBody + '\n diffuseColor.rgb = col;\n' + tChunk.fragBody + '\n diffuseColor.rgb = col;');
   }
 
   // ---- sky / fog colours
@@ -146,7 +147,8 @@ export function createVis(o) {
     if (!inited) { inited = true; front.init({ x: sledPos.x, y: vs.y, z: vs.z }); }
     if (phase !== 'home' && front.mode === 'hold' && !frontHidden) { frontHidden = true; front.show(false); }
     for (const m of mods) if (m !== cam) m.update(dt, vs);
-    sky.groundChunk().uniforms.uSkG.value.x = gradeStrength(sky.n, cfg) * 0.85; // whole-view grade (lead note: n 0.5 = 45% everywhere)
+    tChunk.uniforms.uTrkN.value = Math.min(1, gradeStrength(sky.n, cfg));
+    sky.groundChunk().uniforms.uSkG.value.x = gradeStrength(sky.n, cfg); // whole-view grade (full strength: ground plum, QA-Q1 D1) (lead note: n 0.5 = 45% everywhere)
     // camera
     if (phase === 'garage' && garage) garage.garageCam(camera, sledPos, vs.heading, o.groundY);
     else {

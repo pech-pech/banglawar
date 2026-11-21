@@ -1119,7 +1119,8 @@ export function createView(canvas, course, cfg, themeId, opts) {
             chevs.setMatrixAt(cn++, _m);
           }
         }
-        if (shD) { // gate shadow: two short post strips + thin beam bar (no pennant teeth)
+        if (shD && !V) { // B4 VIS QA-D2: no flat plum slabs beside gates under vis
+          // gate shadow: two short post strips + thin beam bar (no pennant teeth)
           const ks = Math.min(k, 1.15), hh = 3.2 * ks * 0.55, pxL = gX[i] - 0.5 * gw, pxR = gX[i] + 0.5 * gw, wP = 0.22 * ks;
           for (const px of [pxL, pxR]) shQuad(shD, px - SPx * wP, gz - SPz * wP, px + SPx * wP, gz + SPz * wP, px + SPx * wP + SVx * hh, gz + SPz * wP + SVz * hh, px - SPx * wP + SVx * hh, gz - SPz * wP + SVz * hh);
           const bw = 0.1 * ks;
@@ -1574,7 +1575,7 @@ export function createView(canvas, course, cfg, themeId, opts) {
       // speed streaks
       if (streaks) {
         let sn = 0;
-        if (state.speed > ST.minSpeed) {
+        if (state.speed > ST.minSpeed && !V) { // B4 VIS QA-D2: old white speed shards off under vis
           const ramp = LOOK.chunky ? clamp((state.speed - ST.minSpeed) / 10 + (boosting ? 0.6 : 0) + 0.3, 0.3, 1) : 1;
           const NN = Math.max(1, Math.min(8, Math.round(STREAK_N * ramp))), LS = LOOK.chunky ? 0.8 + 0.3 * ramp : 1;
           for (let i = 0; i < NN; i++) {

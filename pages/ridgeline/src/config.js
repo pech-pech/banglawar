@@ -152,7 +152,7 @@ export const DEFAULTS = Object.freeze({
   lookMomImpactRef: 8,
   lookNightRamp: 1,
   lookNightStrength: 1,
-  lookStarCount: 180,
+  lookStarCount: 320,
   lookStarTwinkle: 1,
   lookLanternBright: 1,
   lookBloom: 0.5,

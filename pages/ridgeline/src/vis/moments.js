@@ -139,7 +139,7 @@ export function createMoments(ctx) {
   dGeo.setAttribute('aP', aP); dGeo.setAttribute('aQ', aQ);
   const dMat = new THREE.ShaderMaterial({
     vertexShader: DUST_VS, fragmentShader: DUST_FS, transparent: true, depthWrite: false, fog: false,
-    uniforms: { uSun: { value: SUNV }, uGlow: { value: C('#ffcf8a') }, uMid: { value: C('#ecbe8a') }, uCore: { value: C('#7a4466') }, uBounce: { value: C('#e08a4c') } },
+    uniforms: { uSun: { value: SUNV }, uGlow: { value: C('#ffdca0') }, uMid: { value: C('#ffcf8a') }, uCore: { value: C('#4e2656') }, uBounce: { value: C('#b8607a') } }, // B4 QA-D9: backlit - sun side #ffcf8a, plum core
   });
   const dust = new THREE.InstancedMesh(dGeo, dMat, ND);
   dust.frustumCulled = false; dust.renderOrder = 6; dust.count = 0; dust.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
@@ -188,7 +188,7 @@ export function createMoments(ctx) {
     if (lean || kv('lookMomPebbles') <= 0) return;
     const i = pCur; pCur = (pCur + 1) % NP;
     px[i] = x; py[i] = y; pz[i] = z; pvx[i] = reduced ? 0 : vx; pvy[i] = reduced ? 0 : vy; pvz[i] = reduced ? 0 : vz;
-    pS[i] = s; pLife[i] = life; pAge[i] = 0; pCi[i] = (rnd() * 4) | 0; pRx[i] = rnd() * 6.28; pRy[i] = rnd() * 6.28;
+    pS[i] = s * 0.6; pLife[i] = life; pAge[i] = 0; /* B4 QA-D9: smaller pebbles */ pCi[i] = (rnd() * 4) | 0; pRx[i] = rnd() * 6.28; pRy[i] = rnd() * 6.28;
   }
   function pennant(x, z, gate) {
     if (lean || kv('lookMomPennant') <= 0) return;

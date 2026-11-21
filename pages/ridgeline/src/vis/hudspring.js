@@ -78,12 +78,15 @@ body.b4-hud .rlh-top,body.b4-hud .rlh-track,body.b4-hud .rlh-flow{display:none!i
 .b4h-card.hidden{visibility:hidden}
 .b4h-card.flash{box-shadow:0 0 0 3px ${PALETTE.gold},0 0 18px ${PALETTE.gold}}
 .b4h-bar{position:absolute;left:calc(12px + env(safe-area-inset-left,0px));right:calc(12px + env(safe-area-inset-right,0px));bottom:calc(16px + env(safe-area-inset-bottom,0px));display:flex;gap:8px;align-items:center;will-change:transform,opacity}
+.b4h-tw{position:relative;flex:1;display:flex}
+.b4h-lab{position:absolute;left:4px;top:50%;transform:translateY(-50%);z-index:2;font:900 10px/1 system-ui,sans-serif;letter-spacing:.1em;color:#3a2350;background:rgba(255,244,223,.94);border-radius:6px;padding:2px 6px;pointer-events:none}
+body.b4-hud .rlh-bar::before{display:none!important}
 .b4h-track{flex:1;height:16px;border-radius:8px;background:rgba(58,35,80,.55);overflow:hidden}
 .b4h-fill{height:100%;width:0}
 .b4h-flow{display:flex;gap:3px;min-width:56px;justify-content:center;will-change:transform}
 .b4h-pip{width:9px;height:9px;border-radius:2px;background:rgba(58,35,80,.5)}
 .b4h-pip.lit{background:${PALETTE.coral}}
-.b4h-dusk{position:absolute;left:0;right:0;bottom:0;height:4px;background:rgba(42,35,88,.45)}
+.b4h-dusk{position:absolute;left:0;right:0;bottom:0;height:4px;background:rgba(58,35,80,.45)}
 .b4h-dusk i{position:absolute;left:0;top:0;bottom:0;background:${PALETTE.sand}}
 .b4h-dusk u{position:absolute;top:-3px;width:10px;height:10px;margin-left:-5px;border-radius:50%;background:${PALETTE.gold};box-shadow:0 0 8px ${PALETTE.gold}}
 .b4h.min .b4h-top .b4h-card:not(:first-child){display:none}
@@ -110,7 +113,7 @@ export function createHud(ctx = {}) {
     host = ctx.root;
     el = doc.createElement('div'); el.className = 'b4h';
     el.innerHTML = '<div class="b4h-top"><div class="b4h-card"><div class="b4h-k">Distance</div><div class="b4h-v">0 m</div></div><div class="b4h-card"><div class="b4h-k">Speed</div><div class="b4h-v">0 m/s</div></div><div class="b4h-card hidden"><div class="b4h-k">Gap</div><div class="b4h-v">-</div></div></div>' +
-      '<div class="b4h-bar"><div class="b4h-track"><div class="b4h-fill"></div></div><div class="b4h-flow">' + '<i class="b4h-pip"></i>'.repeat(5) + '</div></div><div class="b4h-dusk" hidden><i></i><u></u></div>';
+      '<div class="b4h-bar"><div class="b4h-tw"><div class="b4h-track"><div class="b4h-fill"></div></div><span class="b4h-lab">BOOST</span></div><div class="b4h-flow">' + '<i class="b4h-pip"></i>'.repeat(5) + '</div></div><div class="b4h-dusk" hidden><i></i><u></u></div>';
     host.appendChild(el);
     const cs = el.querySelectorAll('.b4h-card');
     cards[0].el = cs[0]; cards[1].el = cs[1]; cards[2].el = cs[2]; cards[3].el = el.querySelector('.b4h-bar'); cards[4].el = el.querySelector('.b4h-flow');

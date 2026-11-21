@@ -62,7 +62,7 @@ export function rowWidth(word, gap = 1.0) { let t = 0; for (const ch of word) t 
 
 // ---------------------------------------------------------------- shaders (plum slab letters + warm top light; smooth sand skirt)
 const LV = 'varying vec3 vN;varying float vT;varying float vD;attribute float aT;void main(){vN=normalize(mat3(modelMatrix)*normal);vT=aT;vec4 mv=viewMatrix*modelMatrix*vec4(position,1.);vD=length(mv.xyz);gl_Position=projectionMatrix*mv;}';
-const LF = 'uniform vec3 uHaze;uniform float uFog;uniform float uLift;uniform vec3 uWarm;uniform vec3 uLo;uniform vec3 uHi;uniform vec3 uBounce;uniform float uAlpha;varying vec3 vN;varying float vT;varying float vD;void main(){vec3 n=normalize(vN);vec3 c=mix(uLo,uHi,smoothstep(.05,.95,vT));c=mix(c,uBounce,(1.-smoothstep(0.,.5,vT))*.7);float t=smoothstep(.45,.8,n.y),s=smoothstep(.2,.7,n.x);float fr=smoothstep(.3,.9,-n.z)*smoothstep(-.1,.9,vT);c=mix(c,uWarm,fr*.2);c=mix(c,uWarm,clamp(max(t,s*.9),0.,1.));float f=1.-exp(-vD*vD*uFog*uFog);c=mix(c,uHaze,clamp(f+uLift,0.,1.));gl_FragColor=vec4(c,uAlpha);\n#include <colorspace_fragment>\n}';
+const LF = 'uniform vec3 uHaze;uniform float uFog;uniform float uLift;uniform vec3 uWarm;uniform vec3 uLo;uniform vec3 uHi;uniform vec3 uBounce;uniform float uAlpha;varying vec3 vN;varying float vT;varying float vD;void main(){vec3 n=normalize(vN);vec3 c=mix(uLo,uHi,smoothstep(.05,.95,vT));c=mix(c,uBounce,(1.-smoothstep(0.,.5,vT))*.7);float t=smoothstep(.3,.7,n.y),s=smoothstep(.1,.6,n.x);float fr=smoothstep(.3,.9,-n.z)*smoothstep(-.1,.9,vT);c=mix(c,uWarm,fr*.35);c=mix(c,uWarm,clamp(max(t,s*.9),0.,1.));float f=1.-exp(-vD*vD*uFog*uFog);c=mix(c,uHaze,clamp(f+uLift,0.,1.));gl_FragColor=vec4(c,uAlpha);\n#include <colorspace_fragment>\n}';
 const DV = 'varying vec3 vN;varying float vD;varying vec2 vP;void main(){vN=normalize(mat3(modelMatrix)*normal);vec4 wp=modelMatrix*vec4(position,1.);vP=wp.xz;vec4 mv=viewMatrix*wp;vD=length(mv.xyz);gl_Position=projectionMatrix*mv;}';
 const DF = 'uniform vec3 uHaze;uniform float uFog;uniform float uLift;uniform vec3 uGold;uniform vec3 uCoral;uniform vec3 uPlum;uniform float uAlpha;varying vec3 vN;varying float vD;varying vec2 vP;void main(){vec3 n=normalize(vN);float d=dot(n,normalize(vec3(-.18,.57,.8)));vec3 c=mix(uPlum,uCoral,smoothstep(-.05,.28,d));c=mix(c,uGold,smoothstep(.1,.4,d));float f=1.-exp(-vD*vD*uFog*uFog);c=mix(c,uHaze,clamp(f+uLift,0.,1.));gl_FragColor=vec4(c,uAlpha);\n#include <colorspace_fragment>\n}';
 
@@ -155,7 +155,7 @@ export function createFrontDoor(ctx, cbs = {}) {
     const common = { uHaze: { value: new THREE.Color('#ffb070') }, uFog: { value: 0.0006 }, uLift: { value: 1 }, uAlpha: { value: 1 } };
     const lg = new THREE.BufferGeometry();
     lg.setAttribute('position', new THREE.Float32BufferAttribute(lp, 3)); lg.setAttribute('normal', new THREE.Float32BufferAttribute(ln, 3)); lg.setAttribute('aT', new THREE.Float32BufferAttribute(la, 1));
-    const lm = new THREE.ShaderMaterial({ vertexShader: LV, fragmentShader: LF, side: THREE.DoubleSide, uniforms: { ...common, uWarm: { value: new THREE.Color('#ffcf8a') }, uLo: { value: new THREE.Color('#4a1f48') }, uHi: { value: new THREE.Color('#a8485e') }, uBounce: { value: new THREE.Color('#e8806c') } } });
+    const lm = new THREE.ShaderMaterial({ vertexShader: LV, fragmentShader: LF, side: THREE.DoubleSide, uniforms: { ...common, uWarm: { value: new THREE.Color('#ffcf8a') }, uLo: { value: new THREE.Color('#4a1f48') }, uHi: { value: new THREE.Color('#d9705e') }, uBounce: { value: new THREE.Color('#f0906c') } } });
     const dg = new THREE.BufferGeometry();
     dg.setAttribute('position', new THREE.Float32BufferAttribute(dp, 3)); dg.setIndex(idx); dg.computeVertexNormals();
     const nn = dg.attributes.normal; for (let i = 0; i < nn.count; i++) if (nn.getY(i) < 0) nn.setXYZ(i, -nn.getX(i), -nn.getY(i), -nn.getZ(i));
@@ -168,7 +168,7 @@ export function createFrontDoor(ctx, cbs = {}) {
 
   // title fades (alpha) and sinks into the dune over the blend, so nothing pops when it hides at u = 1
   function fadeTitle(u, red) {
-    const a = 1 - smooth(Math.min(1, u / 0.85)), sink = red ? 0 : FADE_SINK * (1 - a) * (1 - a);
+    const a = 1 - smooth(Math.min(1, u / 0.4)), sink = red ? 0 : FADE_SINK * (1 - a) * (1 - a);
     for (const m of mats) { m.uniforms.uAlpha.value = a; const tr = a < 0.999; if (m.transparent !== tr) { m.transparent = tr; m.needsUpdate = true; } }
     for (const m of meshes) { m.position.y += sinkApplied - sink; m.visible = a > 0.003; }
     sinkApplied = sink;

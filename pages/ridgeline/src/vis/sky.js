@@ -12,7 +12,7 @@ const clamp = (x, a, b) => Math.min(b, Math.max(a, x));
 export const KEYS = {
   lookNightRamp: { def: 1, min: 0.5, max: 2, step: 0.05, label: 'Night ramp (gap to n) scale' },
   lookNightStrength: { def: 1, min: 0, max: 1.5, step: 0.05, label: 'Night grade strength' },
-  lookStarCount: { def: 180, min: 0, max: 400, step: 10, label: 'Star count' },
+  lookStarCount: { def: 320, min: 0, max: 400, step: 10, label: 'Star count' },
   lookStarTwinkle: { def: 1, min: 0, max: 1, step: 0.05, label: 'Star twinkle' },
   lookLanternBright: { def: 1, min: 0, max: 2, step: 0.05, label: 'Lantern brightness' },
 };
@@ -50,11 +50,17 @@ export const GRADE = { D: 0.62, H: 0.55, W: [0.2126, 0.7152, 0.0722], PLUM: [0.4
 const _pl = GRADE.PLUM[0] * GRADE.W[0] + GRADE.PLUM[1] * GRADE.W[1] + GRADE.PLUM[2] * GRADE.W[2];
 export const PLUM_DIR = [GRADE.PLUM[0] / _pl, GRADE.PLUM[1] / _pl, GRADE.PLUM[2] / _pl]; // luminance 1
 export const lum = (c) => c[0] * GRADE.W[0] + c[1] * GRADE.W[1] + c[2] * GRADE.W[2];
-export function gradeColor(c, k, out) {
+// QA-Q1 D1: the GROUND takes a deeper, bluer plum than the sky/fog (same operator, different constants). Linear-light maths:
+// golden sand lum .43 -> ~.05 at k 1 (sRGB ~(82,49,108), hue ~270, like reference still 13); k .45 (n 0.5) = 45% of that. Never lifts, never drops contrast.
+export const GROUND_GRADE = { D: 0.88, H: 0.85, PLUM: [0.57, 0.21, 1.0] };
+const _gl = GROUND_GRADE.PLUM[0] * GRADE.W[0] + GROUND_GRADE.PLUM[1] * GRADE.W[1] + GROUND_GRADE.PLUM[2] * GRADE.W[2];
+export const GROUND_PLUM_DIR = [GROUND_GRADE.PLUM[0] / _gl, GROUND_GRADE.PLUM[1] / _gl, GROUND_GRADE.PLUM[2] / _gl]; // luminance 1
+export function gradeColor(c, k, out, ground) {
   out = out || [0, 0, 0];
-  const d = 1 - GRADE.D * k, h = clamp(GRADE.H * k, 0, 1);
+  const G = ground ? GROUND_GRADE : GRADE, P = ground ? GROUND_PLUM_DIR : PLUM_DIR;
+  const d = 1 - G.D * k, h = clamp(G.H * k, 0, 1);
   const r = c[0] * d, g = c[1] * d, b = c[2] * d, L = lum([r, g, b]);
-  out[0] = r + (PLUM_DIR[0] * L - r) * h; out[1] = g + (PLUM_DIR[1] * L - g) * h; out[2] = b + (PLUM_DIR[2] * L - b) * h;
+  out[0] = r + (P[0] * L - r) * h; out[1] = g + (P[1] * L - g) * h; out[2] = b + (P[2] * L - b) * h;
   return out;
 }
 // afterglow lip hugging the front edge. dz = metres past the front (negative = inside the night). Zero away from the edge, so mid-range never lifts.
@@ -87,7 +93,7 @@ export function starLayout(count, rnd, sunAzDeg, out) {
   out = out || { pos: new Float32Array(STAR_MAX * 3), sz: new Float32Array(STAR_MAX), ph: new Float32Array(STAR_MAX), el: new Float32Array(STAR_MAX), k: new Float32Array(STAR_MAX) };
   for (let i = 0; i < count; i++) {
     let az, elD, tries = 0;
-    do { az = rnd() * 360 - 180; elD = 2 + 78 * Math.pow(rnd(), 1.4); tries++; }
+    do { az = sunAzDeg + (rnd() < 0.7 ? (rnd() - 0.5) * 110 : rnd() * 360 - 180); elD = 8 + 72 * Math.pow(rnd(), 1.15); tries++; } // QA D8: 70% in the ~110 deg window the portrait camera sees, above the canyon rim
     while (tries < 6 && Math.hypot(((az - sunAzDeg + 540) % 360) - 180, elD - 2) < 14); // keep the sun halo clear
     const a = az * DEG, e = elD * DEG;
     out.pos[i * 3] = Math.sin(a) * Math.cos(e) * R; out.pos[i * 3 + 1] = Math.sin(e) * R; out.pos[i * 3 + 2] = Math.cos(a) * Math.cos(e) * R;
@@ -106,8 +112,8 @@ export function groundChunk() {
     uniforms: {
       uSkF: { value: { x: -1e6, y: 3, z: 0.16, w: 0 } },        // front z at the sled x, feather, curve, terminator strength
       uSkS: { value: { x: 0, y: 0, z: 0, w: 0 } },              // sled x, y, z, unused
-      uSkG: { value: { x: 0, y: GRADE.D, z: GRADE.H, w: 0 } },  // global (ahead) strength, darken D, hue H, lip strength
-      uSkP: { value: { x: PLUM_DIR[0], y: PLUM_DIR[1], z: PLUM_DIR[2] } },
+      uSkG: { value: { x: 0, y: GROUND_GRADE.D, z: GROUND_GRADE.H, w: 0 } },  // global (ahead) strength, darken D, hue H, lip strength
+      uSkP: { value: { x: GROUND_PLUM_DIR[0], y: GROUND_PLUM_DIR[1], z: GROUND_PLUM_DIR[2] } },
     },
     fragDecl: `uniform vec4 uSkF; uniform vec4 uSkS; uniform vec4 uSkG; uniform vec3 uSkP;`,
     fragBody: `
@@ -229,7 +235,7 @@ export function createSky(ctx) {
     S.frontZ = vs.z - d;
     U.uSkF.value.x = S.frontZ; U.uSkF.value.y = frontFeather(d); U.uSkF.value.w = k > 0 ? Math.min(1, k) : 0;
     U.uSkS.value.x = vs.x; U.uSkS.value.y = vs.y; U.uSkS.value.z = vs.z;
-    U.uSkG.value.x = k * sm(0.45, 1, n) * 0.85;  // the ground AHEAD of the front starts to dim only in the late stages
+    U.uSkG.value.x = k * sm(0.45, 1, n);  // the ground AHEAD of the front starts to dim only in the late stages
     U.uSkG.value.w = sm(0.05, 0.3, n) * (1 - 0.6 * sm(0.85, 1, n));
   }
 

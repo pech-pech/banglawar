@@ -54,8 +54,8 @@ body.rl-paper .rlh .rlh-razor{color:#24406e;text-shadow:none;-webkit-text-stroke
 .rlh-themebody{flex:1 1 auto;min-height:120px;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch}
 .rlh-box.pick .rlh-how,.rlh-box.pick .rlh-best{display:none}
 .rlh-hint{font-size:20px;font-weight:800;letter-spacing:.06em;padding:6px 14px;background:rgba(8,14,28,.8);border:1px solid rgba(255,255,255,.35);border-radius:12px;color:#ffb35a;max-width:100%;text-align:center}
-.rlh-fps{position:absolute;left:10px;top:calc(76px + env(safe-area-inset-top,0px));font-size:11px;opacity:.85;padding:2px 6px;background:rgba(8,14,28,.6);border:1px solid rgba(255,255,255,.35);border-radius:6px;font-variant-numeric:tabular-nums}
-.rlh-dev{position:absolute;right:10px;top:calc(76px + env(safe-area-inset-top,0px));font-size:12px;font-weight:800;padding:2px 8px;background:#c0262d;border-radius:6px;letter-spacing:.08em}
+.rlh-fps{position:absolute;left:10px;top:calc(76px + env(safe-area-inset-top,0px));font-size:10px;opacity:.6;padding:1px 5px;background:rgba(58,35,80,.45);color:#fff4df;border-radius:6px;font-variant-numeric:tabular-nums}
+.rlh-dev{position:absolute;right:10px;top:calc(76px + env(safe-area-inset-top,0px));font-size:10px;font-weight:800;padding:1px 7px;background:rgba(255,207,138,.92);color:#3a2350;border-radius:6px;letter-spacing:.08em;box-shadow:0 1px 0 rgba(58,35,80,.3)}
 .rlh-word{position:absolute;left:50%;top:30%;transform:translate(-50%,-50%);font-size:clamp(24px,8vw,36px);font-weight:900;letter-spacing:.12em;color:#fff;text-shadow:0 2px 6px rgba(0,0,0,.7),0 0 12px var(--rl-accent,#ff8a1f);opacity:0;pointer-events:none;white-space:nowrap}
 .rlh-word.on{opacity:1;animation:rlhrazor .9s ease-out}
 .rlh-lift{position:absolute;left:50%;top:44%;transform:translate(-50%,-50%);opacity:0;pointer-events:none;white-space:nowrap;transition:opacity .15s}
@@ -254,7 +254,9 @@ body.rl-paper .rlh .rlh-word{color:#24406e;text-shadow:none;background:#fff;bord
     endAt = performance.now();
     mode('end');
   }
-  function setDev(on) { devOn = !!on; devEl.hidden = !devOn; }
+  let qdev = false; try { qdev = /[?&]dev=1/.test(location.search); } catch (e) { /* none */ }
+  function setDev(on) { devOn = !!on; devEl.hidden = !devOn; fpsEl.style.display = (devOn || qdev) ? '' : 'none'; }
+  fpsEl.style.display = qdev ? '' : 'none';
   function toast(text) {
     toastEl.textContent = text;
     toastEl.classList.add('on');
