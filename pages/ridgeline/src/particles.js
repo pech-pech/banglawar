@@ -11,6 +11,7 @@ const CFG = {
   mist:      { n: 36,  size: 14,   opacity: 0.16, vel: [0.8, 0.05, 0],  jit: 0.4, wob: 0.2, vc: false },
   ink:       { n: 300, size: 0.20, opacity: 0.85, vel: [0, 1.6, 0],     jit: 0.5, wob: 0.3, vc: true },
   embers:    { n: 240, size: 0.20, opacity: 1.0,  vel: [0, 2.2, 0],     jit: 0.8, wob: 0.9, vc: true },
+  dust:      { n: 60,  size: 0.22, opacity: 0.8,  vel: [-0.5, 0.08, 0.3], jit: 0.6, wob: 0.4, vc: false },
   sand:      { n: 400, size: 0.16, opacity: 0.7,  vel: [-26, -0.2, 0],  jit: 3.0, wob: 0.1, vc: false },
 };
 
@@ -108,7 +109,7 @@ export function createParticles(kind, colorHex = 0xffffff) {
     map: tex,
     vertexColors: !!col,
     color: col ? 0xffffff : colorHex,
-    blending: kind === 'embers' ? THREE.AdditiveBlending : THREE.NormalBlending,
+    blending: kind === 'embers' || kind === 'dust' ? THREE.AdditiveBlending : THREE.NormalBlending,
   });
 
   const points = new THREE.Points(geo, mat);

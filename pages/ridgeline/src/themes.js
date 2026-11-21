@@ -1,7 +1,7 @@
 // Ridgeline themes: data only. Look rules live in games-design/ridgeline/THEMES.md.
 // Every theme fills every key. Colours are 0xRRGGBB; uiAccent is a CSS hex string.
 
-export const DEFAULT_THEME = 'snow';
+export const DEFAULT_THEME = 'dune';
 
 export const THEME_ORDER = ['snow', 'candy', 'jurassic', 'blocky', 'cloud', 'ink', 'dune', 'geode'];
 
@@ -121,22 +121,23 @@ export const THEMES = {
   },
 
   dune: {
-    name: 'Sunscorch Dunes',
-    sky: 0x3fa0d8,
-    fogDensity: 0.7,
-    groundLow: 0xecc58a, groundHigh: 0xfbe6b8,
-    bank: 0xc47a45,
-    rock: 0x3b1612, treeTrunk: 0x2f7d4f, treeLeaf: 0x2f7d4f,
-    gate: 0x00707f, gateNext: 0x0033cc,
-    sled: 0xb0006e, sledGlow: 0x00e5ff, boostFlare: 0xffffff,
-    sun: 0xfff1cc, sunIntensity: 1.4, hemiSky: 0xbfe2ff, hemiGround: 0xc4894f, hemiIntensity: 0.6,
-    treeShape: 'cactus',
+    name: 'Sunset Dunes',
+    sky: 0xffb070,
+    fogDensity: 1.0,
+    groundLow: 0x000000, groundHigh: 0xffffff, // soft look reads vertex red as hollow-to-crest height
+    bank: 0x5c2e62,
+    rock: 0x160d22, treeTrunk: 0x4a2a5a, treeLeaf: 0x4a2a5a,
+    // gateNext colours the gate the player must hit next (render.js isNext): it takes the brightest cool tone
+    gate: 0x8f9bff, gateNext: 0x3dfff0,
+    sled: 0xf6efff, sledGlow: 0xffd27a, boostFlare: 0xffb050,
+    sun: 0xffc890, sunIntensity: 1.0, hemiSky: 0x6b3f8f, hemiGround: 0xffb070, hemiIntensity: 0.9,
+    treeShape: 'windharp',
     rockShape: 'boulder',
     terrainStep: 0,
     flatShading: true,
     outline: false,
-    particles: 'sand',
-    uiAccent: '#35d0e0'
+    particles: 'dust',
+    uiAccent: '#ff9a5c'
   },
 
   geode: {

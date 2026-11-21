@@ -10,27 +10,42 @@ import { THEMES } from './themes.js';
 import { createTelemetry, deviceInfo } from './telemetry.js';
 import { createTweak, buildReport, copyText, getVisualPrefs, onVisualPrefs, isVisualDefault } from './tweak.js';
 
-const BUILD = 'ridgeline-proto-6';
+const BUILD = 'ridgeline-proto-7';
 const BEST_KEY = 'ridgeline.best.v1';
 const COUNTER_KEY = 'ridgeline.counter.v1';
 const MAX_STEPS = 8;
 // look-still hook (?still=1): deterministic frame, sim frozen once gate 2 is the next gate. Not a shipped path.
 const STILL = new URLSearchParams(location.search).get('still') === '1';
 let stillState = 0; // 0 pending, 1 frozen
+const STILLFX = STILL ? new URLSearchParams(location.search).get('stillfx') : null; // still-only: 1 = mid-boost carving, 2 = crash shred burst
 function stillAdvance() {
-  const run = (n, drawEvery) => {
+  const run = (n, drawEvery, inp) => {
     for (let i = 0; i < n && !state.crashed && !state.finished; i++) {
-      stepSled(state, course, { steer: 0, fire: false }, cfg);
+      stepSled(state, course, inp || { steer: 0, fire: false }, cfg);
       if (drawEvery && i % drawEvery === 0 && view) view.draw(state, state.t);
     }
   };
   let n = 0;
-  while (state.nextGate < 2 && n < 60000 && !state.crashed) { stepSled(state, course, { steer: 0, fire: false }, cfg); n++; }
+  const SG = +(new URLSearchParams(location.search).get('stillgate')) || 2; // still-only: freeze when gate SG is next
+  while (state.nextGate < SG && n < 60000 && !state.crashed) { stepSled(state, course, { steer: 0, fire: false }, cfg); n++; }
   const total = n;
   state = createSled(course);
-  run(Math.max(0, total - 120), 0);
-  run(120, 2);
-  window.__stillInfo = { steps: total, nextGate: state.nextGate, z: state.z, crashed: !!state.crashed };
+  if (STILLFX === '1') {
+    // pose: from step s0 fire a boost, then carve (steer) until gate 1 is passed, freeze a little after the pass
+    const s0 = Math.max(0, total - 330);
+    run(s0, 0);
+    state.boost = 1;
+    const plan = (k) => ({ steer: k > 150 ? 0.7 : 0, fire: k === 170 });
+    let k = 0, pass = -1;
+    while (k < 600 && !state.crashed && pass < 0 + 0) { stepSled(state, course, plan(k), cfg); if (k > 150 && k % 2 === 0 && view) view.draw(state, state.t); if (state.nextGate >= 2) pass = k; k++; }
+    window.__pass = pass;
+    for (let j = 0; j < 4; j++) { stepSled(state, course, plan(k + j), cfg); if (j % 2 === 0 && view) view.draw(state, state.t); }
+  } else {
+    run(Math.max(0, total - 120), 0);
+    run(120, 2);
+    if (STILLFX === '2' && view) view.fx({ type: 'crash', x: state.x, rockId: -1 });
+  }
+  window.__stillInfo = { steps: total, nextGate: state.nextGate, z: state.z, crashed: !!state.crashed, speed: state.speed, vx: state.vx, boostT: state.boostT, stats: view && view.stats ? view.stats() : null };
   stillState = 1;
 }
 const tele = createTelemetry();
