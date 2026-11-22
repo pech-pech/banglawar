@@ -22,6 +22,7 @@ var TD = (typeof window !== 'undefined' ? (window.TD = window.TD || {}) : (globa
   function lastName(n) { var p = String(n || '').split(' '); return p[p.length - 1]; }
   function topicLabel(id) {
     if (ui.topicLabel) return ui.topicLabel(id);
+    if (id === 'general') return 'General';
     var t = TD.TOPICS.filter(function (x) { return x.id === id; })[0];
     return t ? t.label : id;
   }

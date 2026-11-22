@@ -24,7 +24,7 @@ var TD = (typeof window !== 'undefined' ? (window.TD = window.TD || {}) : (globa
   }
   function cfg() { return TD.tweak ? TD.tweak.cfg : TD.DEFAULTS; }
   function rivalOf(step) { return TD.RIVALS[Math.max(1, Math.min(5, step)) - 1]; }
-  function topicLabel(id) { var t = TD.TOPICS.filter(function (x) { return x.id === id; })[0]; return t ? t.label : id; }
+  function topicLabel(id) { if (id === 'general') return 'General'; var t = TD.TOPICS.filter(function (x) { return x.id === id; })[0]; return t ? t.label : id; }
   function reduced() {
     try { return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches); } catch (e) { return false; }
   }
@@ -33,8 +33,9 @@ var TD = (typeof window !== 'undefined' ? (window.TD = window.TD || {}) : (globa
   }
 
   // ---------- save ----------
+  function topicXpDefaults() { var x = {}; TD.TOPICS.forEach(function (t) { x[t.id] = 0; }); return x; }
   function defSave() {
-    return { v: 1, name: '', seal: 0, mode: 'movie', readUpTo: 7, topicXp: { spells: 0, creatures: 0, places: 0 },
+    return { v: 1, name: '', seal: 0, mode: 'movie', readUpTo: 7, topicXp: topicXpDefaults(),
       memory: TD.engine.newMemory(), rivalStep: 1, picked: 'spells' };
   }
   function loadSave() {
@@ -45,7 +46,7 @@ var TD = (typeof window !== 'undefined' ? (window.TD = window.TD || {}) : (globa
         var o = JSON.parse(raw);
         if (o && typeof o === 'object' && !(o.v > 1)) {
           for (var k in s) if (o[k] !== undefined) s[k] = o[k];
-          s.topicXp = Object.assign({ spells: 0, creatures: 0, places: 0 }, o.topicXp || {});
+          s.topicXp = Object.assign(topicXpDefaults(), o.topicXp || {});
           if (!s.memory || !s.memory.seen) s.memory = TD.engine.newMemory();
           s.v = 1;
         }

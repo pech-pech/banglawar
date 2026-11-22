@@ -138,10 +138,10 @@ var TD = (typeof window!=='undefined'?(window.TD=window.TD||{}):(global.TD=globa
       var xp = (save.topicXp && save.topicXp[id]) || 0;
       var lv = TD.engine.levelOf(xp, c);
       tiles[i].textContent = '';
-      if (TD.avatar && TD.avatar.topic) tiles[i].appendChild(TD.avatar.topic(id, 44));
-      var nm = el('div', { text: label(id) }); nm.style.fontSize = '15px';
+      if (TD.avatar && TD.avatar.topic) tiles[i].appendChild(TD.avatar.topic(id, 26));
+      var nm = el('div', { text: label(id) }); nm.style.fontSize = '13px';
       var sub = el('div', { class: 'small', text: 'Lv ' + lv + ' · ' + xp + ' XP' });
-      sub.style.cssText = 'font-size:12px;font-weight:700;color:#6d5bd0';
+      sub.style.cssText = 'font-size:11px;white-space:nowrap;font-weight:700;color:#6d5bd0';
       tiles[i].appendChild(nm); tiles[i].appendChild(sub);
       var sel = id === save.picked;
       tiles[i].classList.toggle('sel', sel);

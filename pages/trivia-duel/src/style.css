@@ -77,7 +77,7 @@ textarea{width:100%;font-size:14px;font-weight:600}
 canvas{display:block;border-radius:50%;flex:none}
 
 /* ---------- home ---------- */
-#scr-home{gap:8px}
+#scr-home{gap:5px}
 #scr-home .card{padding:8px 12px}
 #scr-home h1{font-size:28px}
 #home-build{font-size:11px;opacity:.55;text-align:center}
@@ -85,7 +85,9 @@ canvas{display:block;border-radius:50%;flex:none}
 #home-warn:empty{display:none}
 #home-rival-name{font-size:17px;font-weight:900;color:var(--ink)}
 #home-rival-step{font-size:13px;font-weight:800;color:var(--accent)}
-#topic-row{display:flex;gap:8px}
+#topic-row{display:flex;gap:8px;flex-wrap:wrap!important}
+#topic-row .btn-topic{flex:1 1 20%!important;min-height:58px;padding:4px 2px!important;gap:0!important;line-height:1.15}
+#topic-row .btn-topic>div{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
 .swatch{width:52px;height:52px;border-radius:50%;border:4px solid #fff;cursor:pointer;padding:0;flex:none;box-shadow:var(--shadow)}
 .swatch.sel{box-shadow:0 0 0 4px var(--gold),var(--shadow)}
 .topic-tile,.btn-topic{
@@ -302,6 +304,8 @@ canvas{display:block;border-radius:50%;flex:none}
 .wager-title{font-size:26px;font-weight:900;text-align:center;color:var(--gold);text-shadow:0 3px 0 rgba(0,0,0,.25)}
 .wager-lbl{font-size:12px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--lav);text-align:center}
 .wager-topics,.wager-mult{display:flex;gap:8px}
+.wager-topics{flex-wrap:wrap}
+.wager-topics .btn-wtopic{flex:1 1 20%}
 .btn-mult{flex:1 1 0;min-height:60px;font-size:24px;font-weight:900}
 .btn-mult.sel{outline:4px solid var(--gold);outline-offset:-4px}
 .wager-note{background:rgba(0,0,0,.28);border-radius:14px;padding:8px 12px;text-align:center;font-weight:700;font-size:15px}
