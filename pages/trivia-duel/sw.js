@@ -1,5 +1,5 @@
 // Candle Duel offline cache. Bump VERSION on every release.
-const VERSION = 'td-proto-1';
+const VERSION = 'td-proto-2';
 const CORE = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png', './icon-maskable-512.png'];
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(VERSION).then(c => Promise.allSettled(CORE.map(f => c.add(f)))).then(() => self.skipWaiting()));
