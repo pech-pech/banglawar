@@ -1,0 +1,17 @@
+.ch-hd{display:flex;align-items:center;gap:6px;min-height:56px}
+.ch-ib{flex:none;width:48px;height:48px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;padding:0;border-radius:var(--r);border:1px solid var(--line);background:var(--surface);color:var(--text);font:600 11px var(--sans)}
+.ch-ib svg{width:18px;height:18px;stroke:var(--text);stroke-width:2.2;fill:none;stroke-linecap:round;stroke-linejoin:round}
+.ch-ttl{flex:1;min-width:0;padding-left:4px}
+.ch-l1{display:flex;align-items:baseline;gap:10px;font-size:22px;font-weight:700;line-height:26px;white-space:nowrap}
+.ch-l2{font-size:14px;line-height:18px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ch-chips{display:flex;flex-wrap:wrap;gap:6px;min-height:28px;align-items:center}
+.ch-chips .chip{height:26px;padding:0 10px;white-space:nowrap}
+.ch-col{display:flex;flex-direction:column;gap:8px;min-width:0}
+.ch-cols{display:flex;gap:10px;align-items:flex-start}
+.ch-pf{padding:0;overflow:hidden}
+.ch-pf svg{display:block}
+.ch-ev{padding:9px 12px 10px;border-top:1px solid var(--line);font-size:14px;line-height:1.35;color:var(--dim)}
+.ch-ev b{color:var(--text);font-weight:600}
+.ch-ev .ok{color:var(--accent)} .ch-ev .warn{color:var(--warn)}
+#main{min-width:0}
+.ch-held{font-size:12px;font-weight:600;padding:0 4px;white-space:nowrap}

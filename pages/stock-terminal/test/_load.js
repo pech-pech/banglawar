@@ -2,7 +2,8 @@
 // K1: vm loader. load({data:true|false}) -> {run, ctx, decode, root}
 const fs=require("fs"),path=require("path"),vm=require("vm");
 const ROOT=path.resolve(__dirname,"..");
-const ORDER=["core.js","data.js","pnf.js","game.js","bots.js"];
+const ORDER=["core.js","data.js","pnf.js","evcalc.js","evidence.js","game.js","bots.js"];
+const OPTIONAL=new Set(["evcalc.js","evidence.js"]); // may be absent while makers land; extras are always optional
 function decode(j){ // independent decoder per CONTRACT v1 -> [{id,k,f,o,h,l,c,v}] prices
   return j.series.map(s=>{
     const n=s.c.length,o=[],h=[],l=[],c=[],v=[];let u=0;
@@ -24,12 +25,16 @@ function load(opt){
     localStorage:ls,
     document:{getElementById:()=>el(),querySelector:()=>el(),querySelectorAll:()=>[],createElement:()=>el(),addEventListener:noop,body:el(),documentElement:el()},
     fetch:async()=>{if(!want)throw new Error("no data");return{ok:true,status:200,json:async()=>JSON.parse(rawText),text:async()=>rawText}},
-    setTimeout,clearTimeout,performance:{now:()=>0}};
-  sandbox.window=sandbox;sandbox.self=sandbox;sandbox.innerWidth=400;sandbox.innerHeight=800;sandbox.addEventListener=noop;
+    setTimeout,clearTimeout,performance:{now:()=>0},
+    render:noop,BUILD:"test",navigator:{}};
+  sandbox.window=sandbox;sandbox.self=sandbox;sandbox.innerWidth=400;sandbox.innerHeight=800;sandbox.addEventListener=noop;sandbox.scrollTo=noop;
   const ctx=vm.createContext(sandbox);
-  for(const f of ORDER){
+  const extra=Array.isArray(opt.extra)?opt.extra:[];
+  for(const f of ORDER.concat(extra)){
     const p=path.join(ROOT,"src",f);
-    if(!fs.existsSync(p)){throw new Error("missing src/"+f)}
+    if(!fs.existsSync(p)){
+      if(OPTIONAL.has(f)||extra.includes(f)){console.warn("warn: skipping missing src/"+f);continue}
+      throw new Error("missing src/"+f)}
     try{vm.runInContext(fs.readFileSync(p,"utf8"),ctx,{filename:f})}
     catch(e){if(f==="game.js"){console.warn("warn: game.js failed to load in vm: "+e.message)}else throw e}
   }

@@ -26,5 +26,14 @@ function baseline(){
       sells.forEach(sell);buys.forEach(k=>buy(k,eq/6))}))res.signal++}
   const p=x=>Math.round(100*x/n);
   return{n,src,cash:p(res.cash),rand:p(res.rand),lock:p(res.lock),signal:p(res.signal)}}
+const _baseMem={};
+function baselineCached(){
+  let key;try{key="st.base."+JSON.stringify(T)+"|"+(typeof dataSource==="function"?dataSource():"")}catch(e){return baseline()}
+  if(_baseMem[key])return _baseMem[key];
+  try{const s=localStorage.getItem(key);if(s){const o=JSON.parse(s);if(o&&o.n){_baseMem[key]=o;return o}}}catch(e){}
+  const r=baseline();_baseMem[key]=r;
+  try{localStorage.setItem(key,JSON.stringify(r))}catch(e){}
+  return r}
 function baselineHTML(b){
+  if(!b)return `<div class="dim">Baseline: pending, computing…</div>`;
   return `<div class="dim">No-read strategies meet the mandate: idle cash ${b.cash}%, random buys ${b.rand}%, copy benchmark ${b.lock}%; simple P&amp;F signal reader ${b.signal}% of ${b.n} ${b.src==="real"?"real history":"stand-in"} windows.</div>`}

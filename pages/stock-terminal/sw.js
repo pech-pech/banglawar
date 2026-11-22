@@ -1,5 +1,5 @@
 // Stock Terminal offline cache. VERSION must equal BUILD in src/main.js. Network-first for every GET.
-const VERSION = 'st-slice-1';
+const VERSION = 'st-ui2-1';
 const CORE = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png', './icon-maskable-512.png', './data/weekly.json'];
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(VERSION).then(c => Promise.allSettled(CORE.map(f => c.add(f)))).then(() => self.skipWaiting()));

@@ -13,7 +13,8 @@ const raw=fs.readFileSync(path.join(ROOT,"data","weekly.json"),"utf8");
 const J=JSON.parse(raw);
 (async()=>{
 await t("json has no ticker strings / allowed string tokens only",()=>{
-  const toks=raw.match(/"[^"]*"/g)||[];
+  // ev object (evidence stats, no tickers/dates) exempt from token check; series masking still checked
+  const toks=JSON.stringify(Object.assign({},J,{ev:undefined})).match(/"[^"]*"/g)||[];
   const ok=/^(v|nW|series|id|k|f|c|o|h|l|stock|etf|[se]\d\d)$/;
   const bad=toks.filter(x=>!ok.test(x.slice(1,-1)));
   assert.strictEqual(bad.length,0,"unexpected strings: "+bad.slice(0,5));

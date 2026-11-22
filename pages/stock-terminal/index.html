@@ -1,80 +1,348 @@
 <!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#0e1319">
+<meta name="theme-color" content="#0b0e14">
 <title>Stock Terminal</title>
 <link rel="manifest" href="manifest.webmanifest">
-<meta name="theme-color" content="#0e1319">
+<meta name="theme-color" content="#0b0e14">
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
 <style>
-:root{--bg:#0e1319;--panel:#151c24;--line:#2a3542;--text:#e8eef5;--dim:#8b98a8;--x:#4da3ff;--o:#ff9f43;--accent:#7ee0c3;--warn:#ffd24d;--bad:#ff6b6b;--btn:#1f2a36;--btn-on:#2d4a6b}
-*{box-sizing:border-box;margin:0;padding:0}
-html,body{background:var(--bg);color:var(--text);font:14px/18px ui-monospace,"DejaVu Sans Mono","Liberation Mono",Menlo,Consolas,monospace;-webkit-font-smoothing:antialiased}
-html{overflow-x:clip;-webkit-text-size-adjust:100%}
-body{min-height:100vh;min-height:100dvh;display:flex;flex-direction:column;max-width:1000px;width:100%;margin:0 auto;overflow-x:clip;padding-left:env(safe-area-inset-left);padding-right:env(safe-area-inset-right)}
-.dim{color:var(--dim)}.x{color:var(--x)}.o{color:var(--o)}.acc{color:var(--accent)}.warn{color:var(--warn)}.bad{color:var(--bad)}.b{font-weight:700}
-.num{text-align:right;font-variant-numeric:tabular-nums}
-.status{padding-top:calc(4px + env(safe-area-inset-top));display:flex;flex-wrap:wrap;justify-content:space-between;gap:2px 10px;padding:4px 8px;background:var(--panel);border-bottom:1px solid var(--line);white-space:nowrap;position:sticky;top:0;z-index:6}
-.status .s1,.status .s2{display:flex;justify-content:space-between;gap:10px;width:100%}
-.status .s2 .dim{font-size:14px}
-.dev{border:1px solid var(--warn);color:var(--warn);border-radius:4px;padding:0 4px;font-size:14px;cursor:pointer}
-.panel{background:var(--panel);border:1px solid var(--line);border-radius:6px;margin:4px 8px;padding:6px 8px}
-.hd{color:var(--dim);font-size:12px;letter-spacing:.08em;text-transform:uppercase}
-pre{font:inherit;white-space:pre;overflow:hidden;max-width:100%}
-.panel,main>div,.main2>div{min-width:0}
-.tl{color:var(--dim)}
-.sig.trap{border-color:var(--warn);color:var(--warn)}
-.trapr{color:var(--warn)}
-.new{background:var(--text);color:var(--bg)}
-.btn{min-height:56px;min-width:56px;display:flex;align-items:center;justify-content:center;background:var(--btn);border:1px solid var(--line);border-radius:8px;color:var(--text);font:inherit;font-weight:700;padding:0 8px;cursor:pointer;user-select:none;text-align:center}
-.btn.go{background:var(--accent);color:#06231b;border-color:var(--accent)}
-.bar{display:flex;gap:6px;padding:6px 8px;background:var(--panel);border-top:1px solid var(--line);margin-top:auto;position:sticky;bottom:0;z-index:5;padding-bottom:calc(6px + env(safe-area-inset-bottom))}
-.bar .btn{flex:1;min-width:0;white-space:nowrap;padding:0 8px}
-main{flex:1}
-table{width:100%;border-collapse:collapse}
-th{color:var(--dim);font-size:14px;font-weight:400;text-transform:uppercase;letter-spacing:0;text-align:right;padding:2px 2px;border-bottom:1px solid var(--line)}
-th:first-child,td:first-child{text-align:left}
-td{padding:6px 2px;border-bottom:1px solid var(--line);text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
-tr.rowlink td{cursor:pointer;height:48px}
-.sig{border:1px solid var(--accent);color:var(--accent);border-radius:4px;padding:0 4px;font-weight:700;font-size:14px;white-space:nowrap}
-.sig.s{border-color:var(--o);color:var(--o)}
-.tick{display:flex;justify-content:space-between;align-items:center;gap:6px;padding:4px 8px}
-.tc{display:flex;flex-wrap:wrap;justify-content:center;gap:2px 8px;text-align:center}
-.pane{display:grid;grid-template-columns:66px 1fr 66px;gap:0 6px;align-items:center;padding:3px 8px}
-.pane .l{color:var(--dim);font-size:14px;line-height:14px;text-transform:uppercase}.pane .l b{display:block;color:var(--text)}
-.pane .cv{height:56px}.pane.vp .cv{height:20px}
-.pane svg{display:block;width:100%;height:100%}
-.pane .v{text-align:right;font-variant-numeric:tabular-nums}
-.pane .v i{font-style:normal;font-size:14px;margin-right:3px}
-.oh{display:flex;justify-content:space-between;align-items:baseline;gap:6px}.leg{display:flex;flex-wrap:wrap;gap:0 12px;font-size:14px;color:var(--dim)}.leg svg{vertical-align:middle}
-.ind1{color:var(--dim);display:flex;flex-wrap:wrap;gap:0 10px;margin-top:2px}.ind1 b{color:var(--text);font-weight:400}
-.seg{display:flex;flex:1}
-.seg .btn{flex:1;border-radius:0;margin-left:-1px;padding:0 2px}
-.seg .btn:first-child{border-radius:8px 0 0 8px;margin-left:0}.seg .btn:last-child{border-radius:0 8px 8px 0}
-.seg .btn.sel{background:var(--btn-on);border:2px solid var(--text);z-index:1}
-.fr{display:flex;align-items:center;gap:6px;margin:4px 0}.fr>.k{width:40px;flex:none}
-.qty{flex:1;text-align:center;font-weight:700;font-size:18px;border-bottom:1px solid var(--line);line-height:30px}
-.tbl>div{display:flex;justify-content:space-between;gap:8px;padding:3px 0;border-bottom:1px solid var(--line)}
-.tbl .vv{text-align:right;white-space:nowrap}
-.msg{padding:4px 8px;min-height:22px}
-.modal{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;z-index:20;overflow:auto}
-.modal.on{display:block}
-.modal .panel{max-width:520px;margin:16px auto}
-.tw{display:grid;grid-template-columns:1fr 90px;gap:4px 8px;align-items:center}
-.tw input{background:var(--bg);color:var(--text);border:1px solid var(--line);border-radius:4px;font:inherit;padding:6px;width:100%;text-align:right}
-.tw input.chg{border-color:var(--warn)}
-.row{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}.row .btn{flex:1}
-@media (min-width:640px){.main2{display:grid;grid-template-columns:5fr 4fr;align-items:start}.status .s1,.status .s2{width:auto;flex:1}.status{flex-wrap:nowrap}}
+/* Stock Terminal UI v2: pro trading app look. Shared tokens. Makers: link this, do NOT edit. */
+:root{
+  --bg:#0b0e14; --surface:#131722; --surface2:#1c2230; --line:#2a3040; --grid:#1d2330;
+  --text:#e6e9ef; --dim:#8a93a6; --faint:#5c667a;
+  --x:#3d8bfd; --o:#f59f3a;            /* X / rising = blue, O / falling = orange. Never red vs green. */
+  --accent:#5ad1b3; --warn:#f5c542; --bad:#ef6b6b;
+  --r:10px; --pad:12px; --btn:52px;
+  --sans:system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans",sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--text);font:14px/1.35 var(--sans);-webkit-text-size-adjust:100%}
+.num{font-variant-numeric:tabular-nums;font-feature-settings:"tnum"}
+.dim{color:var(--dim)} .faint{color:var(--faint)} .up{color:var(--x)} .down{color:var(--o)} .ok{color:var(--accent)} .warn{color:var(--warn)}
+.cap{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--dim)}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:var(--pad)}
+.btn{height:var(--btn);border-radius:var(--r);border:1px solid var(--line);background:var(--surface2);color:var(--text);font:600 15px var(--sans);padding:0 14px;white-space:nowrap}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#06241d}
+.chip{display:inline-flex;align-items:center;gap:4px;height:22px;padding:0 8px;border-radius:11px;font-size:12px;font-weight:600;background:var(--surface2);border:1px solid var(--line)}
+.chip.fresh{border-color:var(--text);color:var(--text)} .chip.fresh.buy{border-color:var(--x);color:var(--x)} .chip.fresh.sell{border-color:var(--o);color:var(--o)} .chip.stale{color:var(--dim)}
+/* fresh chips: ring by direction (buy blue, sell orange) plus the word 'this week'; mint is reserved for the primary button and OK checks */
+.chip{font-size:12px}
+.seg{display:flex;border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+.seg>button{flex:1;height:48px;background:var(--surface);color:var(--text);border:0;border-right:1px solid var(--line);font:600 14px var(--sans)}
+.seg>button:last-child{border-right:0}
+.seg>button.on{background:var(--surface2);box-shadow:inset 0 0 0 2px var(--text)}
+.row{display:flex;justify-content:space-between;align-items:baseline;gap:8px;padding:7px 0;border-bottom:1px solid var(--line)}
+.row:last-child{border-bottom:0}
+.bar{position:sticky;bottom:0;display:flex;gap:8px;padding:10px 12px;background:linear-gradient(to top,var(--bg) 70%,transparent);z-index:5}
+.dev{font-size:11px;color:var(--warn);border:1px solid var(--warn);border-radius:6px;padding:1px 6px}
+.sheet{background:var(--surface);border-top:1px solid var(--line);border-radius:16px 16px 0 0;padding:14px 12px}
+.sheet .grab{width:40px;height:4px;border-radius:2px;background:var(--line);margin:0 auto 10px}
 
-@media (max-width:420px){.status{white-space:normal;padding-left:6px;padding-right:6px}.status .s1,.status .s2{gap:2px 6px;flex-wrap:wrap}.sig{padding:0 2px}.panel{margin:4px 6px;padding:6px}tr.rowlink td{height:56px}.tick .btn{min-width:48px}}
+/* base.css: layout shared by all screens (owner U). Tokens come from pro.css. */
+html,body{overflow-x:clip;max-width:100%}
+body{background:var(--bg);margin:0}
+button{font-family:inherit;color:inherit}
+#app{padding:0 calc(12px + env(safe-area-inset-right)) 0 calc(12px + env(safe-area-inset-left));max-width:900px;margin:0 auto;min-height:100dvh;display:flex;flex-direction:column}
+#main{display:flex;flex-direction:column;gap:10px;flex:1;min-width:0}
+#top{flex:none}
+.top{display:flex;align-items:center;gap:8px;height:44px;min-width:0}
+.top h1{margin:0;font-size:18px;font-weight:700;white-space:nowrap}
+.top .sub{color:var(--dim);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.top .top-r{margin-left:auto;display:flex;align-items:center;gap:8px;flex:none}
+.top .dev{background:none;font-family:var(--sans)}
+.bar{margin:0 calc(-12px - env(safe-area-inset-left)) 0 calc(-12px - env(safe-area-inset-right));padding:10px calc(12px + env(safe-area-inset-right)) calc(10px + env(safe-area-inset-bottom)) calc(12px + env(safe-area-inset-left));gap:8px;background:var(--bg);border-top:1px solid var(--line)}
+.bar>.btn,.bar>button{flex:1;min-width:0;height:52px;display:grid;place-items:center;text-decoration:none}
+.bar>.btn.primary{flex:1.4}
+.btn.outline{background:transparent;border-color:var(--line)}
+.btn{cursor:pointer;font-family:var(--sans)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.grid2>*,.grid3>*{min-width:0}
+/* sheet */
+#scrim{position:fixed;inset:0;background:rgba(5,7,12,.55);z-index:20;opacity:0;visibility:hidden;transition:opacity 180ms}
+.sheet{position:fixed;left:0;right:0;bottom:0;max-height:92dvh;overflow-y:auto;overscroll-behavior:contain;z-index:30;padding:14px 12px 0;box-shadow:0 -12px 32px rgba(0,0,0,.5);transform:translateY(105%);visibility:hidden;transition:transform 180ms ease-out,visibility 0s linear 180ms}
+.sheet .bar{position:sticky;bottom:0;margin:0 -12px;padding:10px 12px calc(12px + env(safe-area-inset-bottom));background:var(--surface);border-top:0}
+body.sheet-on #scrim{opacity:1;visibility:visible}
+body.sheet-on .sheet{transform:none;visibility:visible;transition:transform 180ms ease-out,visibility 0s}
+body.sheet-on{overflow:hidden}
+@media (prefers-reduced-motion:reduce){#scrim,.sheet,body.sheet-on .sheet{transition:none}}
+/* wide: order = right panel, week = centred */
+body[data-layout=wide].sheet-order #scrim{display:none}
+body[data-layout=wide].sheet-order .sheet{left:auto;right:0;top:0;bottom:0;width:360px;max-height:none;border-radius:0;border-top:0;border-left:1px solid var(--line);box-shadow:-12px 0 32px rgba(0,0,0,.5);padding-top:10px}
+body[data-layout=wide].sheet-order .sheet .grab{display:none}
+body[data-layout=wide].sheet-order #app{padding-right:372px}
+body[data-layout=wide].sheet-order{overflow:auto}
+body[data-layout=wide].sheet-week .sheet{left:50%;right:auto;bottom:auto;top:50%;width:min(560px,calc(100vw - 24px));max-height:92dvh;border-radius:16px;border:1px solid var(--line);transform:translate(-50%,-46%);opacity:0}
+body[data-layout=wide].sheet-week.sheet-on .sheet{transform:translate(-50%,-50%);opacity:1}
+/* modal */
+.modal{position:fixed;inset:0;background:rgba(5,7,12,.7);z-index:50;display:none;overflow-y:auto;padding:16px calc(12px + env(safe-area-inset-right)) 16px calc(12px + env(safe-area-inset-left))}
+.modal.on{display:block}
+.modal .panel{max-width:560px;margin:0 auto;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:var(--pad)}
+/* toast */
+#toast{position:fixed;left:50%;bottom:calc(84px + env(safe-area-inset-bottom));transform:translateX(-50%);max-width:calc(100vw - 32px);z-index:60;background:var(--surface2);border:1px solid var(--line);border-radius:20px;padding:8px 14px;font-size:14px;font-weight:600;opacity:0;visibility:hidden;pointer-events:none;transition:opacity 160ms}
+#toast.on{opacity:1;visibility:visible}
+@media (prefers-reduced-motion:reduce){#toast{transition:none}}
+body.sheet-on #toast{z-index:70}
+body.sheet-on:not([data-layout=wide]) #toast{bottom:auto;top:calc(12px + env(safe-area-inset-top))}
+
+/* pf- : point and figure drawing + signal chips */
+.chip.pf-trap{border-color:var(--warn);color:var(--warn)}
+.chip.pf-trap::before{content:"\26A0";font-size:11px}
+.chip.fresh.buy::before{content:"\25B2";font-size:9px}
+.chip.fresh.sell::before{content:"\25BC";font-size:9px}
+#pf,.pf-svg{display:block;max-width:100%;font-variant-numeric:tabular-nums}
+
+/* panes.css [C2]: pn- classes */
+.pn-card{padding:6px 12px 5px}
+.pn-h{display:flex;justify-content:space-between;align-items:baseline;font-size:14px;height:20px}
+.pn-t{font-weight:600}
+.pn-t i{font-style:normal;font-weight:400;color:var(--dim);margin-left:4px}
+.pn-v{font-weight:700}
+.pn-v .dim{font-weight:400}
+.pn-svg{display:block;max-width:100%;overflow:visible}
+.pn-svg text,.pn-mini text{font:11px var(--sans);fill:var(--dim);font-variant-numeric:tabular-nums}
+.pn-svg .pn-halo{paint-order:stroke;stroke:var(--surface);stroke-width:3px}
+.pn-mini{display:inline-block;vertical-align:middle}
+.pn-ax{display:flex;justify-content:space-between;align-items:center;gap:6px;font-size:11px;color:var(--dim);height:16px;margin-top:1px;white-space:nowrap}
+.pn-lg{display:inline-flex;gap:10px;font-size:11px;min-width:0}
+.pn-k{display:inline-flex;align-items:center;gap:4px;white-space:nowrap}
+.pn-k::before{content:"";width:12px;height:0;border-top:2px solid var(--dim);display:inline-block}
+.pn-kx::before{border-color:var(--x)}
+.pn-ko::before{border-color:var(--o);border-top-style:dashed}
+.pn-ka::before{border-color:var(--accent);border-top-width:2.5px}
+.pn-kd::before{border-top-style:dashed}
+.pn-ko2::before{border-color:var(--o);border-top-width:1.5px}
+.pn-lgd{display:flex;flex-wrap:wrap;gap:2px 12px;font-size:12px;color:var(--dim);margin-bottom:4px}
+.pn-eq{max-width:100%}
+
+/* Home (S1): d- classes */
+.d-home{display:grid;gap:10px}
+.d-side{display:grid;gap:10px;align-content:start}
+.d-note{display:flex;align-items:center;gap:12px;font-size:14px}
+.d-note span{flex:1}.d-note .btn{height:48px;flex:none}
+.d-acct{padding:11px 12px;display:grid;gap:10px}
+.d-eq{display:flex;justify-content:space-between;align-items:flex-end;gap:8px}
+.d-eq .cap{margin-bottom:6px}
+.d-big{font-size:34px;font-weight:700;line-height:1;letter-spacing:-.01em}
+.d-r{text-align:right;display:flex;flex-direction:column;gap:2px;font-size:12px}
+.d-r b{font-size:18px}
+.d-lab{white-space:nowrap;display:flex;justify-content:space-between;align-items:baseline;font-size:12px;color:var(--dim);margin-bottom:6px}
+.d-lab b{color:var(--text);font-weight:600}.d-lab b.d-bad{color:var(--bad)}
+.d-track{position:relative;height:8px;border-radius:4px;background:var(--surface2)}
+.d-fill{position:absolute;left:0;top:0;bottom:0;border-radius:4px;background:var(--x)}
+.d-warnz{position:absolute;left:0;top:0;bottom:0;background:var(--warn);opacity:.28;border-radius:4px 0 0 4px}
+.d-wt{position:absolute;top:-3px;bottom:-3px;width:2px;margin-left:-1px;background:var(--warn)}
+.d-mk{position:absolute;top:-4px;width:16px;height:16px;margin-left:-8px;border-radius:50%;background:var(--text);border:3px solid var(--surface)}
+.d-mk.bad{background:var(--bad)}
+.d-ends{position:relative;height:16px;margin-top:6px;font-size:12px;color:var(--dim)}
+.d-ends span{position:absolute;top:0;white-space:nowrap}
+.d-wn{color:var(--warn);margin-left:6px}.d-hi{right:0}
+.d-cash{display:grid;grid-template-columns:1fr 1fr;gap:16px;border-top:1px solid var(--line);padding-top:8px}
+.d-cash div{display:flex;justify-content:space-between;align-items:baseline;color:var(--dim)}
+.d-cash b{color:var(--text);font-size:15px;margin-left:6px}
+.d-strip{padding:8px 12px 0}
+.d-strip .cap{margin-bottom:2px}
+.d-al{display:flex;align-items:center;gap:10px;min-height:48px;width:100%;padding:0;margin:0;background:none;border:0;border-bottom:1px solid var(--line);color:inherit;font:inherit;text-align:left}
+.d-al:last-child{border-bottom:0}
+.d-more{color:var(--dim)}.d-more b{color:var(--text)}
+.d-ic{width:22px;height:22px;border-radius:6px;display:grid;place-items:center;font-size:11px;background:var(--surface2);flex:none}
+.d-ic.b{color:var(--x)}.d-ic.s{color:var(--o)}.d-ic.k{color:var(--accent)}.d-ic.w{color:var(--warn)}.d-ic.n{color:var(--dim)}
+.d-tx{flex:1;min-width:0;line-height:1.25}.d-tx b{font-weight:700}
+.d-tg{font-size:14px;color:var(--dim);white-space:nowrap}
+.d-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;min-width:0}
+.d-card{display:grid;grid-template-columns:auto 1fr;grid-template-areas:"hd hd" "ch ind" "sg sg";gap:5px 8px;padding:9px 10px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);color:var(--text);font:inherit;text-align:left;min-width:0;width:100%;align-items:start}
+.d-card.hot.buy{border-color:color-mix(in srgb,var(--x) 60%,var(--line))}
+.d-card.hot.sell{border-color:color-mix(in srgb,var(--o) 60%,var(--line))}
+.d-hd{grid-area:hd;display:flex;justify-content:space-between;align-items:flex-start;gap:6px}
+.d-l1{display:flex;align-items:center;gap:6px}.d-code{font-size:16px}
+.d-held{font-size:11px;font-weight:600;border:1px solid var(--dim);border-radius:6px;padding:0 5px;line-height:17px;white-space:nowrap}
+.d-l2{display:flex;flex-direction:column;align-items:flex-end;line-height:1.2}
+.d-last{font-size:17px}.d-chg{font-size:12px;font-weight:600;white-space:nowrap}
+.d-ch{grid-area:ch;line-height:0;align-self:center}.d-ch svg{display:block}
+.d-ind{grid-area:ind;display:flex;flex-direction:column;justify-content:center;min-width:0}
+.d-ir{line-height:16px;display:flex;justify-content:space-between;align-items:baseline;font-size:14px}
+.d-il{font-size:11px;color:var(--dim)}
+.d-sp{display:block;height:14px;margin-bottom:3px;line-height:0}
+.d-sp svg{display:block;width:100%;height:14px}
+.d-sg{grid-area:sg;display:flex;flex-wrap:wrap;gap:2px 6px;align-items:center;min-width:0}
+.d-sg .chip{height:auto;min-height:22px;padding:2px 8px;white-space:normal;line-height:1.2}
+.d-foot{font-size:12px;text-align:center;padding:12px 0 4px}
+@media(max-width:380px){.d-sg .chip{padding:2px 6px}}
+body[data-layout=wide] .d-home{grid-template-columns:236px 1fr;align-items:stretch}
+body[data-layout=wide] .d-side{grid-template-rows:auto 1fr;gap:8px}
+body[data-layout=wide] .d-acct{gap:8px;padding:8px 12px}
+body[data-layout=wide] .d-eq{flex-direction:column;align-items:flex-start;gap:4px}
+body[data-layout=wide] .d-eq .cap{margin-bottom:3px}
+body[data-layout=wide] .d-big{font-size:28px}
+body[data-layout=wide] .d-r{flex-direction:row;gap:10px;align-items:baseline}
+body[data-layout=wide] .d-r b{font-size:15px}
+body[data-layout=wide] .d-cash{grid-template-columns:1fr;gap:2px;padding-top:6px}
+body[data-layout=wide] .d-strip{padding:6px 12px 0}
+body[data-layout=wide] .d-grid{grid-template-columns:repeat(3,1fr);grid-template-rows:1fr 1fr;gap:8px}
+body[data-layout=wide] .d-card{padding:8px 10px;align-content:start}
+body[data-layout=wide] .d-foot{padding:6px 0 0}
+body[data-layout=wide] .d-note{padding:6px 12px;font-size:13px}
+body[data-layout=wide] .d-note .btn{height:48px}
+
+.ch-hd{display:flex;align-items:center;gap:6px;min-height:56px}
+.ch-ib{flex:none;width:48px;height:48px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;padding:0;border-radius:var(--r);border:1px solid var(--line);background:var(--surface);color:var(--text);font:600 11px var(--sans)}
+.ch-ib svg{width:18px;height:18px;stroke:var(--text);stroke-width:2.2;fill:none;stroke-linecap:round;stroke-linejoin:round}
+.ch-ttl{flex:1;min-width:0;padding-left:4px}
+.ch-l1{display:flex;align-items:baseline;gap:10px;font-size:22px;font-weight:700;line-height:26px;white-space:nowrap}
+.ch-l2{font-size:14px;line-height:18px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ch-chips{display:flex;flex-wrap:wrap;gap:6px;min-height:28px;align-items:center}
+.ch-chips .chip{height:26px;padding:0 10px;white-space:nowrap}
+.ch-col{display:flex;flex-direction:column;gap:8px;min-width:0}
+.ch-cols{display:flex;gap:10px;align-items:flex-start}
+.ch-pf{padding:0;overflow:hidden}
+.ch-pf svg{display:block}
+.ch-ev{padding:9px 12px 10px;border-top:1px solid var(--line);font-size:14px;line-height:1.35;color:var(--dim)}
+.ch-ev b{color:var(--text);font-weight:600}
+.ch-ev .ok{color:var(--accent)} .ch-ev .warn{color:var(--warn)}
+#main{min-width:0}
+.ch-held{font-size:12px;font-weight:600;padding:0 4px;white-space:nowrap}
+
+/* order sheet (od-). Placement lives in base.css. */
+.od-wrap{display:flex;flex-direction:column;min-height:100%}
+.od-body{flex:1;display:flex;flex-direction:column;gap:6px;min-height:0}
+.od-title{font-size:16px;line-height:24px}
+.od-fr{display:flex;align-items:center;gap:8px}
+.od-k{flex:none;width:34px;font-size:12px;color:var(--dim)}
+.od-fr>.seg,.od-stp,.od-chips{flex:1;min-width:0}
+.od-wrap .seg>button{height:48px;white-space:nowrap;padding:0 2px;font-size:14px}
+.od-wrap .seg>button.on{background:rgba(61,139,253,.16);box-shadow:inset 0 0 0 1px var(--x)}
+.od-line{font-size:12px;line-height:16px}
+.od-line.ok{color:var(--accent)} .od-line.warn{color:var(--warn)}
+.od-sm{font-size:11px}
+.od-stp{display:flex;gap:8px}
+.od-stp .btn{flex:none;width:56px;height:48px;padding:0;font-size:22px;line-height:1}
+.od-qty{flex:1;text-align:center;font-size:20px;font-weight:700;height:48px;line-height:46px;border:1px solid var(--line);border-radius:var(--r);background:var(--bg)}
+.od-chips{display:flex;gap:8px}
+.od-chips button{flex:1;height:48px;border-radius:var(--r);border:1px solid var(--line);background:var(--surface2);color:var(--text);font:600 14px var(--sans)}
+.od-est .row{padding:0;min-height:30px;align-items:center;font-size:14px}
+.od-msg{flex:0 0 100%;font-size:13px;font-weight:600}
+.od-msg:empty{display:none}
+.od-bar{flex-wrap:wrap;position:sticky;bottom:0;margin:6px -12px -12px;padding:8px 12px 12px;background:var(--surface)}
+.od-bar .btn{height:52px}
+.od-bar .btn.outline,.od-bar .btn.primary{flex:1}
+/* integrator: wide side panel at 568 tall must show every row above the sticky bar */
+body[data-layout=wide] .od-body{gap:4px}
+body[data-layout=wide] .od-title{font-size:15px;line-height:20px}
+body[data-layout=wide] .od-est .row{min-height:22px;font-size:13px}
+body[data-layout=wide] .od-line{font-size:11px;line-height:14px}
+body[data-layout=wide] .od-bar{margin-top:4px;padding-top:6px;padding-bottom:8px}
+
+/* week.css [S3] */
+.sheet.wk-on,body.sheet-week .sheet{display:flex;flex-direction:column;padding:0}
+.wk-body{display:flex;flex-direction:column;gap:10px;padding:10px 12px 4px}
+.wk-head{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.wk-head h1{font-size:20px;margin:0;font-weight:700}
+.wk-h{margin:0 0 6px;font:600 11px var(--sans);letter-spacing:.06em;text-transform:uppercase;color:var(--dim)}
+.wk-eqrow{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+.wk-big{font-size:26px;font-weight:700}
+.wk-d{margin-left:auto;font-weight:600;text-align:right}
+.wk-kv{display:flex;justify-content:space-between;gap:8px;font-size:13px;margin-top:6px}
+.wk-kv:first-of-type{margin-top:8px}
+.wk-track{position:relative;height:6px;border-radius:3px;background:var(--surface2);margin:8px 0 2px;overflow:hidden}
+.wk-track i{position:absolute;left:0;top:0;bottom:0;background:var(--x);border-radius:3px}
+.wk-flag{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-top:8px;padding:8px 10px;border-radius:8px;font-size:13px;border:1px solid}
+.wk-flag.warn{color:var(--warn);border-color:var(--warn)}
+.wk-flag.bad{color:var(--bad);border-color:var(--bad)}
+.wk-mv{display:grid;grid-template-columns:1fr auto;gap:2px 8px;padding:9px 0;border-bottom:1px solid var(--line)}
+.wk-mv:last-child{border-bottom:0}
+.wk-l1{display:flex;align-items:baseline;gap:8px;min-width:0}
+.wk-code{font-weight:700;font-size:15px;min-width:42px}
+.wk-r1{text-align:right}
+.wk-l2{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:4px 12px;font-size:12px;color:var(--dim);align-items:center}
+.wk-l2 .num{white-space:nowrap}
+.wk-sig{margin-left:auto;white-space:nowrap}
+.wk-bx{font-weight:700;font-size:13px;white-space:nowrap}
+.wk-bx.x{color:var(--x)}.wk-bx.o{color:var(--o)}
+.wk-res{display:grid;grid-template-columns:auto 1fr auto;gap:2px 10px;padding:8px 0;border-bottom:1px solid var(--line);align-items:baseline;font-size:14px}
+.wk-res:last-child{border-bottom:0}
+.wk-tag{font-size:12px;font-weight:600;white-space:nowrap}
+.wk-tag.ok{color:var(--accent)}.wk-tag.wrong{color:var(--o)}
+.wk-none{font-size:13px}
+.wk-period{font-size:13px;line-height:1.5}
+.wk-bar{position:sticky;bottom:0;margin:0;padding:10px 12px calc(10px + env(safe-area-inset-bottom));background:linear-gradient(to top,var(--surface) 75%,transparent);display:flex;gap:8px}
+.wk-bar .btn{flex:1;min-width:0}
+@media(min-width:600px){.wk-body{padding:14px 20px 4px}.wk-bar{padding:10px 20px 14px}}
+body.sheet-week .sheet .wk-bar{margin:0;padding-left:12px;padding-right:12px}
+@media(min-width:600px){body.sheet-week .sheet .wk-bar{padding-left:20px;padding-right:20px}}
+
+.rv-tabs{display:flex;border-bottom:1px solid var(--line);margin:0 0 2px}
+.rv-tabs button{flex:1;height:48px;background:none;border:0;border-bottom:3px solid transparent;margin-bottom:-1px;color:var(--dim);font:600 14px var(--sans)}
+.rv-tabs button.on{color:var(--text);border-bottom-color:var(--text)}
+.rv-pane{display:flex;flex-direction:column;gap:10px}
+.rv-grid{display:flex;flex-direction:column;gap:10px}
+.rv-card h2{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--dim);margin:0 0 6px;font-weight:600}
+.rv-card .row .v{font-weight:600;text-align:right}
+.rv-card table{width:100%;border-collapse:collapse;font-size:13px;margin-top:8px}
+.rv-card th{font-size:11px;font-weight:600;color:var(--dim);text-transform:uppercase;letter-spacing:.04em;text-align:right;padding:6px 0 6px 6px;border-bottom:1px solid var(--line)}
+.rv-card td{padding:9px 0 9px 6px;text-align:right;border-bottom:1px solid var(--line);white-space:nowrap}
+.rv-card tr:last-child td{border-bottom:0}
+.rv-card th:first-child,.rv-card td:first-child{text-align:left;padding-left:0;white-space:normal}
+.rv-card td.dim{color:var(--dim)} .rv-card td.ok{color:var(--accent)} .rv-card td.warn{color:var(--warn)}
+.rv-hl{font-size:15px;font-weight:600;line-height:1.4}
+.rv-sub{font-size:12px;color:var(--dim);margin-top:2px;line-height:1.4}
+.rv-note{color:var(--dim);font-size:13px;line-height:1.45;margin:6px 0 0}
+.rv-fine{font-size:12px}
+.rv-bad{color:var(--bad)}
+.rv-chart svg{display:block;width:100%;height:auto;max-width:560px;margin:0 auto}
+.rv-fee{margin-top:8px;padding-top:8px;border-top:1px solid var(--line)}
+.rv-feeL{font-weight:600;margin-top:2px}
+.rv-s{display:none}
+body[data-layout=cover] .rv-l{display:none}
+body[data-layout=cover] .rv-s{display:inline}
+body[data-layout=cover] #bar button{min-width:0;padding:0 6px;font-size:14px}
+body[data-layout=wide] .rv-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;align-items:start}
+
+.jn-grid{display:flex;flex-direction:column;gap:10px}
+.jn-card{padding:var(--pad)}
+.jn-h{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--dim);margin:0 0 6px;font-weight:600}
+.jn-hl{font-size:15px;font-weight:600;line-height:1.4}
+.jn-hl small{display:block;font-size:12px;font-weight:400;color:var(--dim);margin-top:2px}
+.jn-chart{margin-top:8px}
+.jn-chart svg{display:block;width:100%;height:auto;max-width:560px;margin:0 auto}
+.jn-vrow{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:8px}
+.jn-verdict{display:inline-flex;align-items:center;min-height:26px;padding:2px 10px;border:1px solid var(--dim);border-radius:13px;font-weight:700;font-size:13px;color:var(--text)}
+.jn-bandtxt{font-size:12px}
+.jn-t{width:100%;border-collapse:collapse;font-size:13px}
+.jn-t th{font-size:11px;font-weight:600;color:var(--dim);text-transform:uppercase;letter-spacing:.04em;text-align:right;padding:6px 0 6px 6px;border-bottom:1px solid var(--line)}
+.jn-t td{padding:9px 0 9px 6px;text-align:right;border-bottom:1px solid var(--line);white-space:nowrap}
+.jn-t tr:last-child td{border-bottom:0}
+.jn-t th:first-child,.jn-t td:first-child{text-align:left;padding-left:0;white-space:normal}
+.jn-note{color:var(--dim);font-size:13px;line-height:1.45;margin:0}
+.jn-sub{color:var(--dim);font-size:12px;margin:6px 0 0}
+.jn-reset{display:flex;justify-content:flex-start;margin:10px 0}
+.jn-reset .btn{padding:0 18px;height:48px;font-size:14px}
+@media(min-width:760px){
+  .jn-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;align-items:start}
+  .jn-grid>.jn-card:first-child{grid-column:1/-1}
+}
+
+.tw-wrap{display:flex;flex-direction:column;gap:10px}
+.tw-hd{font:700 16px var(--sans)} .tw-h2{margin-top:6px;font-size:14px}
+.tw-sub{font-size:12px}
+.tw-grid{display:grid;grid-template-columns:1fr;gap:8px}
+body[data-layout=wide] .tw-grid,body[data-layout=tall] .tw-grid{grid-template-columns:1fr 1fr}
+.tw-f{display:flex;flex-direction:column;gap:3px;font-size:12px;color:var(--dim)}
+.tw-f input,.tw-name{height:48px;border-radius:var(--r);border:1px solid var(--line);background:var(--surface2);color:var(--text);font:600 15px var(--sans);padding:0 12px;width:100%;min-width:0}
+.tw-f.chg .tw-l{color:var(--warn)}
+.tw-f input.chg{border-color:var(--warn);box-shadow:inset 0 0 0 1px var(--warn)}
+.tw-row{display:flex;gap:8px}
+.tw-row>.btn{flex:1;min-width:0;padding:0 8px}
+.tw-row>.tw-name{flex:2}
+.tw-prow{display:flex;align-items:center;gap:8px}
+.tw-prow>.tw-pn{flex:2;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tw-prow>.btn{flex:1;height:48px;padding:0 8px}
 
 </style>
 </head><body>
-<div class="status" id="status"></div>
-<main id="main"></main>
-<div class="bar" id="bar"></div>
-<div class="modal" id="modal"><div class="panel" id="modalBody"></div></div>
-<script>
+<div id="app"><header id="top"></header><main id="main"></main><nav class="bar" id="bar"></nav></div>
+<div id="scrim"></div><section id="sheet" class="sheet" role="dialog"></section><div id="toast"></div>
+<div class="modal" id="modal"><div class="panel" id="modalBody"></div></div><script>
 "use strict";
 /* ---------- seeded RNG ---------- */
 function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
@@ -130,7 +398,7 @@ async function loadData(){
       }
       series.push({id:s.id,k:s.k,f:s.f,bars});
     }
-    DATA={nW:j.nW,series};_covN=-1;_covS=null;
+    DATA={nW:j.nW,series,ev:j.ev||null};_covN=-1;_covS=null;
   }catch(e){DATA=null}
 }
 function dataSource(){return(T.dataSrc===1&&DATA)?"real":"standin"}
@@ -239,19 +507,202 @@ function pfText(i,opt){
     if(W>=k1.length)out+="\n"+fit(k1);else if(W>=k2.length)out+="\n"+fit(k2);
     else out+="\n"+fit("BT=bull trap")+"\n"+fit("bt=bear trap")}
   return out}
+/* ---------- signal info (UI v2) ---------- */
+function sigInfo(cols){ // {name|null,buy,dir,col,age,fresh,reversed,trap}
+  const none={name:null,buy:false,dir:0,col:null,age:null,fresh:false,reversed:false,trap:null};
+  if(!cols||!cols.length)return none;
+  const s=pnfSignal(cols);if(!s)return none;
+  const n=cols.length,age=n-1-s.col,ref=cols[s.col-2];let reversed=false;
+  for(let j=s.col+1;j<n;j++){const c=cols[j];
+    if(s.buy&&c.d===-1&&ref&&c.lo<=ref.hi)reversed=true;
+    if(!s.buy&&c.d===1&&ref&&c.hi>=ref.lo)reversed=true}
+  const t=pnfTraps(cols).find(x=>x.col===s.col),trap=t?t.kind:null;
+  return{name:s.name,buy:s.buy,dir:s.buy?1:-1,col:s.col,age,fresh:age<=1&&!reversed,reversed,trap}}
+function sigLabel(name){
+  if(!name)return"No signal";
+  const t=String(name).toLowerCase().replace(/-/g," ");return t.charAt(0).toUpperCase()+t.slice(1)}
+
+</script>
+<script>
+"use strict";
+/* ---------- evidence calculator (hit shares of P&F patterns / indicator states vs same-direction base) ---------- */
+let EV=null;
+const EV_PAT=[["DOUBLE-TOP BUY",1],["TRIPLE-TOP BUY",1],["DOUBLE-BOTTOM SELL",-1],["TRIPLE-BOTTOM SELL",-1],["BULL TRAP",-1],["BEAR TRAP",1]];
+const EV_IND=[["RSI >60",1],["RSI <40",-1],["MACD h +",1],["MACD h -",-1],["Above 10wk MA",1],["Below 10wk MA",-1],["RS rising",1],["RS falling",-1]];
+function _evR(x,d){const m=Math.pow(10,d);return Math.round(x*m)/m}
+function _evWilson(h,n){ // 95% Wilson band
+  if(!n)return[0,1];
+  const z=1.96,z2=z*z,p=h/n,den=1+z2/n,ce=(p+z2/(2*n))/den,hf=z*Math.sqrt(p*(1-p)/n+z2/(4*n*n))/den;
+  return[Math.max(0,ce-hf),Math.min(1,ce+hf)]}
+// list: [bars[]]; start: first counted week index (default 50); offs: optional first global week of each series (for RS alignment; default all 0)
+function computeEvidence(list,start,offs){
+  start=start==null?50:start;
+  const R=T.reversal,S_=list.length;
+  const acc={};
+  EV_PAT.concat(EV_IND).forEach(a=>{acc[a[0]]={seen:0,n:0,hit:0}});
+  let bullR=0,bearR=0;
+  // equal-weight 4wk return per global week (RS reference)
+  let maxG=0;for(let s=0;s<S_;s++){const f=offs?offs[s]|0:0;maxG=Math.max(maxG,f+list[s].length)}
+  const gsum=new Float64Array(maxG+1),gcnt=new Int32Array(maxG+1);
+  for(let s=0;s<S_;s++){const b=list[s],f=offs?offs[s]|0:0;
+    for(let i=4;i<b.length;i++){gsum[f+i]+=b[i].c/b[i-4].c-1;gcnt[f+i]++}}
+  const tally=(name,dir,m)=>{const a=acc[name];a.seen++;if(m!==0){a.n++;if(m===dir)a.hit++}};
+  for(let s=0;s<S_;s++){
+    const bars=list[s],n=bars.length,f=offs?offs[s]|0:0;
+    if(n<=start)continue;
+    const hb=new Int32Array(n),lb=new Int32Array(n),cb=new Int32Array(n),cl=new Array(n);
+    for(let i=0;i<n;i++){const b=bars[i];hb[i]=boxOf(b.h);lb[i]=boxUp(b.l);cb[i]=boxOf(b.c);cl[i]=b.c}
+    // call outcome per week: 1 up first, -1 down first, 0 open (game resolveCalls rule)
+    const mv=new Int8Array(n);
+    for(let i=start;i<n-1;i++){const box=cb[i],U=box+R,D=box-R;
+      for(let j=i+1;j<n;j++){const up=hb[j]>=U,dn=lb[j]<=D;
+        if(up||dn){mv[i]=up&&dn?(bars[j].c>=bars[j].o?1:-1):(up?1:-1);break}}}
+    const rs=rsi(cl),mc=macd(cl).h,sm=sma(cl,10);
+    const CD=[],CLO=[],CHI=[];let fired=false;
+    for(let i=0;i<n;i++){
+      let created=false,ch=false,trap=-1,sig=-1;
+      const m=CD.length;
+      if(m===0){const b=bars[i];let lo=lb[i],hi=hb[i];if(lo>hi)lo=hi;CD.push(b.c>=b.o?1:-1);CLO.push(lo);CHI.push(hi);fired=false;created=true}
+      else{const k=m-1;
+        if(CD[k]===1){
+          if(hb[i]>CHI[k]){CHI[k]=hb[i];ch=true}
+          else if(lb[i]<=CHI[k]-R){CD.push(-1);CLO.push(lb[i]);CHI.push(CHI[k]-1);fired=false;created=true}
+        }else{
+          if(lb[i]<CLO[k]){CLO[k]=lb[i];ch=true}
+          else if(hb[i]>=CLO[k]+R){CD.push(1);CLO.push(CLO[k]+1);CHI.push(hb[i]);fired=false;created=true}
+        }
+        if(created&&k>=2){
+          if(CD[k]===1&&CHI[k]-CHI[k-2]===1)trap=4;       // BULL TRAP (index in EV_PAT)
+          else if(CD[k]===-1&&CLO[k-2]-CLO[k]===1)trap=5; // BEAR TRAP
+        }
+      }
+      if((created||ch)&&!fired){const j=CD.length-1;
+        if(j>=2){
+          if(CD[j]===1&&CHI[j]>CHI[j-2]){fired=true;sig=(j>=4&&CHI[j-4]===CHI[j-2])?1:0}
+          else if(CD[j]===-1&&CLO[j]<CLO[j-2]){fired=true;sig=(j>=4&&CLO[j-4]===CLO[j-2])?3:2}
+        }}
+      if(i<start)continue;
+      const w=mv[i];
+      if(w===1)bullR++;else if(w===-1)bearR++;
+      if(sig>=0)tally(EV_PAT[sig][0],EV_PAT[sig][1],w);
+      if(trap>=0)tally(EV_PAT[trap][0],EV_PAT[trap][1],w);
+      const r=rs[i];
+      if(r>60)tally("RSI >60",1,w);else if(r<40)tally("RSI <40",-1,w);
+      if(mc[i]>0)tally("MACD h +",1,w);else tally("MACD h -",-1,w);
+      if(cl[i]>sm[i])tally("Above 10wk MA",1,w);else if(cl[i]<sm[i])tally("Below 10wk MA",-1,w);
+      if(i>=4){const g=f+i,mean=gcnt[g]?gsum[g]/gcnt[g]:0,own=cl[i]/cl[i-4]-1;
+        if(own>mean)tally("RS rising",1,w);else if(own<mean)tally("RS falling",-1,w)}
+    }
+  }
+  const N=bullR+bearR,bull=N?_evR(bullR/N,4):0.5,bear=_evR(1-bull,4);
+  const mk=(name,dir)=>{const a=acc[name],b=dir===1?bull:bear,ft=a.n?a.hit/a.n:b,bd=_evWilson(a.hit,a.n),ftr=_evR(ft,4);
+    return{dir,seen:a.seen,ft:ftr,lift:_evR((ftr-b)*100,1),lo:_evR(bd[0],4),hi:_evR(bd[1],4)}};
+  const pat={},ind={};
+  EV_PAT.forEach(a=>{pat[a[0]]=mk(a[0],a[1])});
+  EV_IND.forEach(a=>{ind[a[0]]=mk(a[0],a[1])});
+  return{v:1,src:"standin",base:{bull,bear,n:N},pat,ind};
+}
+let _evKey=null,_evCache=null;
+function evNow(){
+  try{
+    if(typeof DATA!=="undefined"&&DATA&&DATA.ev&&dataSource()==="real")return DATA.ev;
+    const key=(typeof S!=="undefined"&&S&&S.W)?String(S.seed)+"|"+T.preWeeks+"|"+dataSource():null;
+    if(key&&_evCache&&_evKey===key)return _evCache;
+    if(key){
+      const list=S.W.bars.concat(S.W.hidden).map(b=>b.slice(0,T.preWeeks));
+      const ev=computeEvidence(list,14);ev.src="standin";
+      if(ev.base.n>0){_evKey=key;_evCache=ev;EV=ev;return ev}
+    }
+  }catch(e){}
+  return{src:"none",base:{bull:0.5,bear:0.5,n:0},pat:{},ind:{}};
+}
+
+</script>
+<script>
+"use strict";
+/* Evidence lab: base rates, call record vs base, journal (lifetime, localStorage). Runs after evcalc.js. */
+const JOURNAL_KEY="st.journal.v1";
+let _jmem=null;
+function _ev(){try{return typeof evNow==="function"?evNow():null}catch(e){return null}}
+function baseFor(dir){
+  const e=_ev(),b=e&&e.base;
+  const v=b?(dir>0?b.bull:b.bear):null;
+  return typeof v==="number"&&isFinite(v)?v:0.5; // admin default: 0.5 when no evidence
+}
+function _closed(calls){return(calls||[]).filter(c=>c&&(c.res==="right"||c.res==="wrong")&&(c.view===1||c.view===-1))}
+function callStats(calls,nLife){
+  const cl=_closed(calls),n=cl.length;
+  let right=0,exp=0,v=0;
+  for(const c of cl){
+    const b=typeof c.base==="number"?c.base:baseFor(c.view);
+    if(c.res==="right")right++;
+    exp+=b;v+=b*(1-b);
+  }
+  const edge=right-exp,sd=Math.sqrt(v),life=typeof nLife==="number"?nLife:n;
+  const band=life>=30?[edge-1.96*sd,edge+1.96*sd]:null;
+  let verdict="too few to tell";
+  if(band)verdict=band[0]>0?"above base":band[1]<0?"below base":"at base";
+  return{closed:n,right,exp,edge,sd,band,verdict};
+}
+function splitStats(calls,nLife){
+  const cl=_closed(calls),pick=f=>callStats(cl.filter(f),nLife);
+  return{with:pick(c=>c.withSig===true),against:pick(c=>c.withSig===false),none:pick(c=>c.withSig!==true&&c.withSig!==false)};
+}
+function freshStats(calls,nLife){
+  const cl=_closed(calls).filter(c=>c.withSig===true||c.withSig===false);
+  return{fresh:callStats(cl.filter(c=>!!c.fresh),nLife),stale:callStats(cl.filter(c=>!c.fresh),nLife)};
+}
+function liftCls(p){
+  if(!p||typeof p.lo!=="number"||typeof p.hi!=="number")return"dim";
+  const b=baseFor(p.dir||1),ex=p.lo>b||p.hi<b;
+  if(!ex)return"dim";
+  return p.lift>0?"ok":p.lift<0?"warn":"dim";
+}
+function liftTxt(x){
+  const r=Math.round((+x||0)*10)/10;
+  if(r===0)return"0 pts";
+  return(r>0?"+":"-")+Math.abs(r).toFixed(1)+" pts";
+}
+function pctTxt(p){return Math.round((+p||0)*100)+"%"}
+function journalLoad(){
+  try{
+    const a=JSON.parse(localStorage.getItem(JOURNAL_KEY)||"[]");
+    if(Array.isArray(a)){_jmem=a;return a.slice()}
+  }catch(e){}
+  return _jmem?_jmem.slice():[];
+}
+function _jsave(a){_jmem=a;try{localStorage.setItem(JOURNAL_KEY,JSON.stringify(a))}catch(e){}}
+function journalAdd(call){
+  if(!call||call.id==null)return false;
+  const a=journalLoad();
+  if(a.some(c=>c.id===call.id))return false;
+  a.push(call);_jsave(a);return true;
+}
+function journalReset(){_jmem=[];try{localStorage.removeItem(JOURNAL_KEY)}catch(e){}}
+function journalStats(){
+  const a=_closed(journalLoad()),n=a.length,byPat={};
+  for(const c of a){const k=c.sig||"No signal";(byPat[k]=byPat[k]||[]).push(c)}
+  for(const k in byPat)byPat[k]=callStats(byPat[k],n);
+  return{n,all:callStats(a,n),bull:callStats(a.filter(c=>c.view===1),n),bear:callStats(a.filter(c=>c.view===-1),n),
+    byPat,split:splitStats(a,n),fresh:freshStats(a,n)};
+}
 
 </script>
 <script>
 "use strict";
 /* ---------- game state ---------- */
 let S;
+const _rnd=()=>{if(typeof render==="function")render()};
+const _top=()=>{if(typeof window!=="undefined"&&window.scrollTo)try{window.scrollTo(0,0)}catch(e){}};
 function newPeriod(seed){
   const W=loadWindow(seed);
-  S={seed,W,week:0,cash:T.startCash,pos:[0,0,0,0,0,0],views:[null,null,null,null,null,null],calls:[],orders:[],fees:0,
-     eqHist:[],benchHist:[],sel:0,screen:"watch",side:1,qty:0,minEq:T.startCash,failed:false,report:null,lastMsg:"",base:null};
+  S={seed,W,week:0,cash:T.startCash,pos:[0,0,0,0,0,0],views:[null,null,null,null,null,null],calls:[],neutrals:[],orders:[],fired:[],fees:0,
+     eqHist:[],benchHist:[],sel:0,screen:"home",sheet:null,tab:"period",side:1,qty:0,minEq:T.startCash,failed:false,report:null,lastMsg:"",base:null};
   const i0=T.preWeeks-1;S.benchSh=W.bars.map(b=>T.startCash/6/b[i0].c);
   S.eqHist.push(T.startCash);S.benchHist.push(T.startCash);
-  render()}
+  const mine=S;
+  setTimeout(()=>{if(S!==mine)return;try{S.base=baselineCached()}catch(e){S.base=null}_rnd()},30);
+  _rnd()}
 const vis=k=>S.W.bars[k].slice(0,T.preWeeks+S.week);
 const closeNow=k=>{const b=vis(k);return b[b.length-1].c};
 function equity(){return S.cash+S.pos.reduce((s,q,k)=>s+q*closeNow(k),0)}
@@ -264,47 +715,74 @@ function stockInfo(k){
   const eqIdx=[0,1,2,3,4,5].map(j=>vis(j).map(x=>x.c)),idx=c.map((_,i)=>eqIdx.reduce((s,a)=>s+a[i]/a[0],0)/6);
   const rs=c.map((x,i)=>x/c[0]/idx[i]),rsUp=rs[rs.length-1]>=rs[rs.length-5];
   const v=b.map(x=>x.v),vAvg=v.slice(-11,-1).reduce((s,x)=>s+x,0)/10;
-  return{b,c,cols,r,m,ma,sig,bull,rsUp,vol:v,vRatio:v[v.length-1]/vAvg,vc:vcount(cols)}}
+  const si=typeof sigInfo==="function"?sigInfo(cols):(sig?{name:sig.name,buy:!!sig.buy,dir:sig.buy?1:-1,col:sig.col,age:cols.length-1-sig.col,fresh:cols.length-1-sig.col<=1,reversed:false,trap:null}:{name:null,buy:false,dir:0,col:null,age:null,fresh:false,reversed:false,trap:null});
+  return{b,c,cols,r,m,ma,sig,si,bull,rsUp,vol:v,vRatio:v[v.length-1]/vAvg,vc:vcount(cols)}}
 
 /* ---------- calls (judged apart from P&L) ---------- */
 function resolveCalls(){
   S.calls.forEach(cl=>{if(cl.res)return;const b=vis(cl.k);
     for(let i=cl.at+1;i<b.length;i++){const up=boxOf(b[i].h)>=cl.box+T.reversal,dn=boxUp(b[i].l)<=cl.box-T.reversal;
-      if(up||dn){const mv=up&&dn?(b[i].c>=b[i].o?1:-1):(up?1:-1);cl.res=(mv===cl.dir)?"right":"wrong";cl.resWk=S.week;break}}})}
+      if(up||dn){const mv=up&&dn?(b[i].c>=b[i].o?1:-1):(up?1:-1);cl.res=(mv===cl.view)?"right":"wrong";cl.resWk=S.week;
+        if(typeof journalAdd==="function")try{journalAdd(cl)}catch(e){}
+        break}}})}
 
 /* ---------- actions ---------- */
-function setView(v){S.views[S.sel]=v;S.lastMsg="";render()}
+function setView(v){S.views[S.sel]=(S.views[S.sel]===v)?null:v;S.lastMsg="";_rnd()}
 function place(){
-  const k=S.sel,px=closeNow(k),q=S.qty;if(q<=0){S.lastMsg="Qty 0";return render()}
+  const k=S.sel,px=closeNow(k),q=S.qty;
+  const rej=m=>{S.lastMsg="Rejected: "+m;_rnd()};
+  if(q<=0){S.lastMsg="Rejected: qty 0";return _rnd()}
   const eq=equity();
   if(S.side===1){const cost=q*px,fee=cost*T.feePct/100;
-    if(cost+fee>S.cash+1e-6){S.lastMsg="Rejected: cash "+fmt(S.cash);return render()}
-    if((S.pos[k]+q)*px>eq*T.capPct/100+1e-6){S.lastMsg="Rejected: over "+T.capPct+"% cap";return render()}
+    if(cost+fee>S.cash+1e-6)return rej("cash "+fmt(S.cash));
+    if((S.pos[k]+q)*px>eq*T.capPct/100+1e-6)return rej("over "+T.capPct+"% cap");
     S.cash-=cost+fee;S.fees+=fee;S.pos[k]+=q}
-  else{if(q>S.pos[k]){S.lastMsg="Rejected: hold "+S.pos[k];return render()}
+  else{if(q>S.pos[k])return rej("hold "+S.pos[k]);
     const pr=q*px,fee=pr*T.feePct/100;S.pos[k]-=q;S.cash+=pr-fee;S.fees+=fee}
-  S.orders.push({wk:S.week,s:S.W.codes[k],side:S.side===1?"BUY":"SELL",q,px:+px.toFixed(2),view:S.views[k]});
-  S.lastMsg="Filled "+(S.side===1?"BUY ":"SELL ")+q+" "+S.W.codes[k]+" @ "+px.toFixed(2);S.qty=0;render()}
+  const v=S.views[k];
+  S.orders.push({wk:S.week,s:S.W.codes[k],side:S.side===1?"BUY":"SELL",q,px:+px.toFixed(2),view:(v===1||v===-1||v===0)?v:null});
+  S.lastMsg="Filled "+(S.side===1?"BUY ":"SELL ")+q+" "+S.W.codes[k]+" @ "+px.toFixed(2);S.qty=0;S.sheet=null;_rnd()}
 function advance(){
   if(S.week>=T.weeks||S.failed)return;
-  const before=[0,1,2,3,4,5].map(k=>{const i=stockInfo(k);return{c:i.c[i.c.length-1],r:i.r[i.r.length-1],h:i.m.h[i.m.h.length-1],sig:i.sig?i.sig.name+":"+i.sig.col:""}});
-  S.views.forEach((v,k)=>{if(v===1||v===-1){const st=stockInfo(k);
-    S.calls.push({k,dir:v,wk:S.week,at:vis(k).length-1,box:boxOf(closeNow(k)),pat:st.sig?st.sig.name:"No signal",rsi:Math.round(st.r[st.r.length-1]),mh:st.m.h[st.m.h.length-1]>0?"MACD h +":"MACD h -"})}});
+  const idx=[0,1,2,3,4,5];
+  const before=idx.map(k=>{const i=stockInfo(k);return{c:i.c[i.c.length-1],r:i.r[i.r.length-1],h:i.m.h[i.m.h.length-1],sig:i.sig?i.sig.name+":"+i.sig.col:""}});
+  S.views.forEach((v,k)=>{
+    if(v===0){S.neutrals.push({k,s:S.W.codes[k],wk:S.week});return}
+    if(v===1||v===-1){const st=stockInfo(k),si=st.si,sig=si.name||null,box=boxOf(closeNow(k));
+      const withSig=si.dir===0?null:si.dir===v;
+      let base=0.5;if(typeof baseFor==="function")try{base=baseFor(v)}catch(e){}
+      S.calls.push({id:S.seed+":"+S.week+":"+k,seed:S.seed,k,s:S.W.codes[k],wk:S.week,at:vis(k).length-1,box,view:v,dir:v,
+        sig,pat:sig||"No signal",sigDir:si.dir,sigAge:si.age==null?null:si.age,fresh:!!si.fresh,withSig,
+        rsi:Math.round(st.r[st.r.length-1]),mh:st.m.h[st.m.h.length-1]>0?"MACD h +":"MACD h -",base})}});
+  const wkNeutrals=S.neutrals.filter(n=>n.wk===S.week);
   S.views=[null,null,null,null,null,null];
   const eq0=equity(),b0=bench();
   S.week++;resolveCalls();
   const eq=equity(),bn=bench();S.eqHist.push(eq);S.benchHist.push(bn);S.minEq=Math.min(S.minEq,eq);
-  const rows=[0,1,2,3,4,5].map(k=>{const i=stockInfo(k),c=i.c[i.c.length-1],last=i.cols[i.cols.length-1];
+  const rows=idx.map(k=>{const i=stockInfo(k),c=i.c[i.c.length-1],last=i.cols[i.cols.length-1];
     const newBoxes=Object.values(last.wk).filter(w=>w===i.b.length-1).length;
     const now=i.sig?i.sig.name+":"+i.sig.col:"",fired=now&&now!==before[k].sig?i.sig.name:"";
+    if(fired)S.fired.push({wk:S.week,k,s:S.W.codes[k],name:fired,dir:i.sig.buy?1:-1});
     return{k,chg:pct(c,before[k].c),newBoxes,dir:last.d,fired,r0:before[k].r,r1:i.r[i.r.length-1],h0:before[k].h,h1:i.m.h[i.m.h.length-1]}});
   const resolved=S.calls.filter(c=>c.resWk===S.week);
   if(pct(eq,T.startCash)<=-T.floorPct)S.failed=true;
-  S.report={wk:S.week,eq0,eq,b0,bn,rows,resolved};S.screen="report";S.lastMsg="";render();window.scrollTo(0,0)}
+  S.report={wk:S.week,eq0,eq,b0,bn,rows,resolved,neutrals:wkNeutrals,open:S.calls.filter(c=>!c.res),end:periodEnded()};
+  S.screen="home";S.sheet="week";S.lastMsg="";_rnd();_top()}
 function step(){return Math.max(1,Math.round(equity()*0.05/closeNow(S.sel)))}
 function maxQty(){const px=closeNow(S.sel);if(S.side===-1)return S.pos[S.sel];const eq=equity();
   return Math.max(0,Math.floor(Math.min(S.cash/(px*(1+T.feePct/100)),eq*T.capPct/100/px-S.pos[S.sel])))}
-function openChart(k){S.sel=k;S.screen="chart";S.qty=0;S.lastMsg="";render();window.scrollTo(0,0)}
+
+/* ---------- navigation ---------- */
+function openChart(k){S.sel=k;S.screen="chart";S.sheet=null;S.qty=0;S.lastMsg="";_rnd();_top()}
+function go(screen){const ch=S.screen!==screen;S.screen=screen;S.sheet=null;S.lastMsg="";_rnd();if(ch)_top()}
+function openSheet(name){S.sheet=name;if(name==="order"){S.qty=0;S.side=1}S.lastMsg="";_rnd()}
+function closeSheet(){S.sheet=null;_rnd()}
+function periodEnded(){return !!S.failed||S.week>=T.weeks}
+function noCallCount(){return S.orders.filter(o=>o.view==null).length}
+function periodStats(){
+  if(typeof callStats!=="function")return null;
+  const n=typeof journalLoad==="function"?journalLoad().length:undefined;
+  return callStats(S.calls,n)}
 
 </script>
 <script>
@@ -336,7 +814,16 @@ function baseline(){
       sells.forEach(sell);buys.forEach(k=>buy(k,eq/6))}))res.signal++}
   const p=x=>Math.round(100*x/n);
   return{n,src,cash:p(res.cash),rand:p(res.rand),lock:p(res.lock),signal:p(res.signal)}}
+const _baseMem={};
+function baselineCached(){
+  let key;try{key="st.base."+JSON.stringify(T)+"|"+(typeof dataSource==="function"?dataSource():"")}catch(e){return baseline()}
+  if(_baseMem[key])return _baseMem[key];
+  try{const s=localStorage.getItem(key);if(s){const o=JSON.parse(s);if(o&&o.n){_baseMem[key]=o;return o}}}catch(e){}
+  const r=baseline();_baseMem[key]=r;
+  try{localStorage.setItem(key,JSON.stringify(r))}catch(e){}
+  return r}
 function baselineHTML(b){
+  if(!b)return `<div class="dim">Baseline: pending, computing…</div>`;
   return `<div class="dim">No-read strategies meet the mandate: idle cash ${b.cash}%, random buys ${b.rand}%, copy benchmark ${b.lock}%; simple P&amp;F signal reader ${b.signal}% of ${b.n} ${b.src==="real"?"real history":"stand-in"} windows.</div>`}
 
 </script>
@@ -348,130 +835,738 @@ const sg=x=>(x>=0?"+":"")+x.toFixed(1);
 const sg2=x=>(x>=0?"+":"")+x.toFixed(2);
 const $=id=>document.getElementById(id);
 function pathOf(a,w,h,lo,hi){const d=hi-lo||1;return a.map((v,i)=>(i?"L":"M")+(i*w/(a.length-1||1)).toFixed(1)+" "+(h-(v-lo)/d*h+2).toFixed(1)).join(" ")}
-function trapOf(i){ // admin default: trap = latest signal column is flagged by pnfTraps
-  if(typeof pnfTraps!=="function"||!i.sig)return null;
-  try{const t=pnfTraps(i.cols).find(x=>x.col===i.sig.col);return t?t.kind:null}catch(e){return null}}
-function trapChip(i,short){const t=trapOf(i);return t?` <span class="sig trap">${short?"TRAP":t==="bull"?"BULL TRAP":"BEAR TRAP"}</span>`:""}
-function chartFit(){ // admin default: 2 chars per P&F column, 6 char axis; line 18px
-  const W=Math.min(window.innerWidth,1000),two=window.innerWidth>=640;
-  const sp=document.createElement("span");sp.style.cssText="position:absolute;visibility:hidden;white-space:pre;font:inherit";sp.textContent="XXXXXXXXXXXXXXXXXXXX";
-  const host=document.querySelector("main pre")||document.body;host.appendChild(sp);
-  const cw=sp.getBoundingClientRect().width/20||8.4;host.removeChild(sp);
-  const panelW=(two?W*5/9:W)-16-16-2-8;
-  const cols=Math.max(6,Math.min(40,Math.floor((panelW-6*cw)/(2*cw))));
-  const sb=$("status").offsetHeight||46,bb=$("bar").offsetHeight||72;
-  const avail=window.innerHeight-sb-bb-64-(two?60:0)-(two?0:140);
-  const rows=Math.max(9,Math.min(two?31:22,Math.floor(avail/18)-2));
-  return{cols,rows}}
-function statusBar(){
-  const eq=equity(),bn=bench(),r=pct(eq,T.startCash),br=pct(bn,T.startCash),ex=r-br,dd=r<=-T.warnPct;
-  $("status").innerHTML=`<div class="s1"><span><span class="b">WK ${S.week}/${T.weeks}</span>&nbsp; EQ <span class="num">${fmt(eq)}</span> <span class="${r>=0?"acc":"bad"}">${sg(r)}%</span>${dd?' <span class="warn b">FLOOR WARN</span>':""}</span><span class="dev" onclick="openTweaks()">${tweaked()?"DEV* ":"DEV "}${S.seed}</span></div>
-  <div class="s2"><span><span class="dim">BENCH</span> ${sg(br)}%</span><span><span class="dim">EXCESS</span> <span class="${ex>=T.mandate?"acc":""} b">${sg(ex)}</span></span><span><span class="dim">mandate</span> +${(+T.mandate).toFixed(1)}</span></div>`}
-function panes(i){
-  const N=26,r=i.r.slice(-N),mh=i.m.h.slice(-N),mm=i.m.m.slice(-N),ms=i.m.sg.slice(-N),v=i.vol.slice(-N);
-  const mx=Math.max(...mm.map(Math.abs),...ms.map(Math.abs),...mh.map(Math.abs))||1,z=32;
-  const bars=mh.map((x,j)=>{const hgt=Math.abs(x)/mx*28;return`<rect x="${(j*10+1.8).toFixed(1)}" y="${(x>=0?z-hgt:z).toFixed(1)}" width="6.4" height="${hgt.toFixed(1)}" fill="${x>=0?"var(--accent)":"var(--dim)"}"/>`}).join("");
-  const line=(a,col)=>`<path fill="none" stroke="${col}" stroke-width="1.6" vector-effect="non-scaling-stroke" d="${a.map((x,j)=>(j?"L":"M")+(j*10+5)+" "+(z-x/mx*28).toFixed(1)).join(" ")}"/>`;
-  const vm=Math.max(...v);const vb=v.map((x,j)=>`<rect x="${j*10+1.8}" y="${(20-x/vm*20).toFixed(1)}" width="6.4" height="${(x/vm*20).toFixed(1)}" fill="${j===N-1?"var(--text)":"var(--dim)"}"/>`).join("");
-  const dash=y=>`<line x1="0" y1="${y}" x2="260" y2="${y}" stroke="var(--dim)" stroke-dasharray="3 3" vector-effect="non-scaling-stroke"/>`;
-  return `<div class="panel pane"><div class="l">RSI<b>14</b></div><div class="cv"><svg viewBox="0 0 260 64" preserveAspectRatio="none">${dash(19.2)}${dash(44.8)}<path fill="none" stroke="var(--text)" stroke-width="1.6" vector-effect="non-scaling-stroke" d="${r.map((x,j)=>(j?"L":"M")+(j*10+5)+" "+(64-x/100*64).toFixed(1)).join(" ")}"/></svg></div><div class="v b">${Math.round(r[r.length-1])}</div></div>
-  <div class="panel pane"><div class="l">MACD<b>12,26,9</b></div><div class="cv"><svg viewBox="0 0 260 64" preserveAspectRatio="none"><line x1="0" y1="${z}" x2="260" y2="${z}" stroke="var(--dim)" vector-effect="non-scaling-stroke"/>${bars}${line(ms,"var(--o)")}${line(mm,"var(--x)")}</svg></div><div class="v" style="line-height:16px"><div><i class="x">M</i>${sg2(mm[N-1])}</div><div><i class="o">S</i>${sg2(ms[N-1])}</div><div><i class="acc">H</i>${sg2(mh[N-1])}</div></div></div>
-  <div class="panel pane vp"><div class="l">Vol</div><div class="cv"><svg viewBox="0 0 260 20" preserveAspectRatio="none">${vb}</svg></div><div class="v">${i.vRatio.toFixed(1)}x</div></div>`}
+function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
 
-/* ---------- screens ---------- */
+const SCREENS={}, SHEETS={};
+
+function devBadge(){
+  const t=(typeof tweaked==="function"&&tweaked())?"DEV* ":"DEV ";
+  return `<button class="dev num" id="devBadge" onclick="openTweaks()">${t}${esc(typeof S!=="undefined"?S.seed:"")}</button>`}
+function topBar(title,sub,right){
+  return `<div class="top"><h1>${esc(title)}</h1>${sub?`<span class="sub">${esc(sub)}</span>`:""}<span class="top-r">${right||""}${/id="devBadge"/.test(right||"")?"":devBadge()}</span></div>`}
+function layout(){
+  const w=window.innerWidth,h=window.innerHeight;
+  if(w<600)return"cover";
+  if(w>=760&&w>h)return"wide";
+  return"tall"}
+
+let _lastToast=null,_toastT=0;
+function showToast(){
+  const t=$("toast");if(!t)return;
+  const m=S.lastMsg;
+  if(m===_lastToast)return;
+  _lastToast=m;
+  if(!m){t.classList.remove("on");return}
+  t.textContent=m;t.classList.add("on");
+  clearTimeout(_toastT);_toastT=setTimeout(()=>t.classList.remove("on"),2500)}
+
+function fallback(kind,name){return`<div class="card dim">${kind} "${esc(name)}" is not available.</div>`}
 function render(){
-  statusBar();const m=$("main"),bar=$("bar");
-  if(S.screen==="watch"){
-    m.innerHTML=`<div class="panel"><div class="hd">Watchlist · masked · ${S.W.src==="real"?"real weekly history":"stand-in data"}</div><table><tr><th>Sym</th><th>Last</th><th>Wk%</th><th>P&amp;F</th><th>RSI</th><th>MACD h</th><th>Pos</th></tr>
-    ${[0,1,2,3,4,5].map(k=>{const i=stockInfo(k),c=i.c,last=i.cols[i.cols.length-1],chg=pct(c[c.length-1],c[c.length-2]),h=i.m.h[i.m.h.length-1];
-      return`<tr class="rowlink" onclick="openChart(${k})"><td class="b">${S.W.codes[k]}</td><td>${c[c.length-1].toFixed(2)}</td><td class="${chg>=0?"acc":"bad"}">${sg(chg)}</td><td><span class="${last.d===1?"x":"o"}">${last.d===1?"X":"O"}</span> ${i.sig?`<span class="sig ${i.sig.buy?"":"s"}">${i.sig.buy?"BUY":"SELL"}</span>`:""}${trapChip(i,1)}</td><td>${Math.round(i.r[i.r.length-1])}</td><td class="${h>=0?"acc":"dim"}">${sg2(h)}</td><td>${S.pos[k]||"-"}</td></tr>`}).join("")}</table></div>
-    <div class="panel"><div class="tbl"><div><span class="dim">Cash</span><span class="vv">${fmt(S.cash)}</span></div><div><span class="dim">Fees paid</span><span class="vv">${fmt(S.fees)}</span></div><div><span class="dim">Floor</span><span class="vv">${fmt(T.startCash*(1-T.floorPct/100))} (warn ${fmt(T.startCash*(1-T.warnPct/100))})</span></div></div></div>
-    <div class="msg dim">Tap a row to open chart. Orders fill at week close. Build ${BUILD}.</div>`;
-    bar.innerHTML=`<div class="btn" onclick="openTweaks()">SETTINGS</div><div class="btn" onclick="copyReport()">COPY</div><div class="btn go" onclick="advance()">ADVANCE</div>`}
-  else if(S.screen==="chart"){
-    const k=S.sel,i=stockInfo(k),px=closeNow(k),eq=equity(),vc=i.vc,last=i.cols[i.cols.length-1];
-    const view=S.views[k],tgt=view===-1?vc.dn:vc.up;
-    const cost=S.qty*px,fee=cost*T.feePct/100,after=S.pos[k]+(S.side===1?S.qty:-S.qty),capUse=after*px/eq*100;
-    m.innerHTML=`<div class="main2"><div>
-    <div class="tick"><div class="btn" onclick="openChart(${(k+5)%6})">&lt;</div><span class="tc"><span class="b">${S.W.codes[k]} ${px.toFixed(2)}</span> <span class="${last.d===1?"x":"o"} b">${last.d===1?"X":"O"}-col</span>${i.sig?` <span class="sig ${i.sig.buy?"":"s"}">${i.sig.name}</span>`:""}${trapChip(i)}</span><div class="btn" onclick="openChart(${(k+1)%6})">&gt;</div></div>
-    <div class="panel"><pre id="pf">${pfText(i,chartFit())}</pre><div class="ind1"><span>${i.rsUp?'<span class="acc">&#9650;</span> RS up':'<span class="bad">&#9660;</span> RS down'}</span><span>Bull% <b>${i.bull}</b></span><span>${px>=i.ma[i.ma.length-1]?'<span class="acc">&#9650;</span> &gt;':'<span class="bad">&#9660;</span> &lt;'}10wk MA <b>${i.ma[i.ma.length-1].toFixed(1)}</b></span><span>box ${T.boxPct}% · ${T.reversal}-box rev</span></div></div>
-    ${panes(i)}</div><div>
-    <div class="panel"><div class="oh"><span class="hd">Order ticket</span><span class="b">${S.W.codes[k]} <span class="dim">held ${S.pos[k]} sh</span></span></div>
-    <div class="fr"><span class="k dim">Side</span><div class="seg"><div class="btn ${S.side===1?"sel":""}" onclick="S.side=1;S.qty=0;render()">${S.side===1?"&#10003; ":""}BUY</div><div class="btn ${S.side===-1?"sel":""}" onclick="S.side=-1;S.qty=0;render()">${S.side===-1?"&#10003; ":""}SELL</div></div></div>
-    <div class="fr"><span class="k dim">View</span><div class="seg">${[[1,"Bullish"],[-1,"Bearish"],[0,"Neutral"]].map(([v,l])=>`<div class="btn ${view===v?"sel":""}" onclick="setView(${v})">${view===v?"&#10003; ":""}${l}</div>`).join("")}</div></div>
-    <div class="fr"><span class="k dim">Qty</span><div class="btn" onclick="S.qty=Math.max(0,S.qty-step());render()">&minus;</div><span class="qty">${S.qty}</span><div class="btn" onclick="S.qty+=step();render()">+</div><div class="btn" onclick="S.qty=maxQty();render()">MAX</div></div>
-    <div class="tbl">
-    <div><span>Est. price (week close)</span><span class="vv">${px.toFixed(2)}</span></div>
-    <div><span>Est. ${S.side===1?"cost":"proceeds"}</span><span class="vv">${fmt(cost)}</span></div>
-    <div><span>Fee ${T.feePct}%</span><span class="vv">${fmt(fee)}</span></div>
-    <div><span>Position after</span><span class="vv">${after} sh = ${fmt(after*px)}</span></div>
-    <div><span>Limit check</span><span class="vv ${capUse>T.capPct?"bad":""}">${capUse.toFixed(1)}% of ${T.capPct}% cap ${capUse>T.capPct?"OVER":"OK"}</span></div>
-    <div><span>Risk check</span><span class="vv">eq ${fmt(eq)} / floor ${fmt(T.startCash*(1-T.floorPct/100))}</span></div></div>
-    <div class="dim" style="margin-top:4px">${tgt?`Target ${priceOf(tgt.tgt).toFixed(1)} (vertical count: ${tgt.n} boxes x ${T.reversal} ${view===-1?"below":"above"} ${priceOf(tgt.base).toFixed(1)})`:"Target: no count yet"}</div>
-    </div><div class="msg ${S.lastMsg.startsWith("Rej")?"bad":"acc"}">${S.lastMsg}</div></div></div>`;
-    bar.innerHTML=`<div class="btn" onclick="S.screen='watch';S.lastMsg='';render()">WATCHLIST</div><div class="btn go" onclick="place()">PLACE</div><div class="btn" onclick="advance()">ADVANCE</div>`}
-  else if(S.screen==="report"){
-    const R=S.report,r=pct(R.eq,R.eq0),br=pct(R.bn,R.b0);
-    m.innerHTML=`<div class="panel"><div class="hd">Week ${R.wk} close statement</div><div class="tbl">
-    <div><span>Equity</span><span class="vv">${fmt(R.eq0)} &gt; ${fmt(R.eq)} (${sg(r)}%)</span></div><div><span>Benchmark wk</span><span class="vv">${sg(br)}%</span></div>
-    ${S.failed?`<div><span class="bad b">Floor breached</span><span class="vv bad">period ends, mandate failed</span></div>`:pct(R.eq,T.startCash)<=-T.warnPct?`<div><span class="warn">Floor warning</span><span class="vv warn">${sg(pct(R.eq,T.startCash))}% from start</span></div>`:""}</div></div>
-    <div class="panel"><div class="hd">Tape</div><table><tr><th>Sym</th><th>Wk%</th><th>Boxes</th><th>RSI</th><th>MACD h</th></tr>
-    ${R.rows.map(x=>`<tr><td class="b">${S.W.codes[x.k]}</td><td class="${x.chg>=0?"acc":"bad"}">${sg(x.chg)}</td><td>${x.newBoxes?`+${x.newBoxes} <span class="${x.dir===1?"x":"o"}">${x.dir===1?"X":"O"}</span>`:"-"}</td><td>${Math.round(x.r0)}&gt;${Math.round(x.r1)}</td><td>${sg2(x.h0)}&gt;${sg2(x.h1)}</td></tr>${x.fired?`<tr><td></td><td colspan="4" style="text-align:left"><span class="sig ${x.fired.includes("BUY")?"":"s"}">${x.fired}</span> fired</td></tr>`:""}`).join("")}</table></div>
-    <div class="panel"><div class="hd">Calls resolved this week</div>${R.resolved.length?R.resolved.map(c=>`<div>${S.W.codes[c.k]} ${c.dir===1?"Bullish":"Bearish"} (wk ${c.wk}, ${c.pat}) <span class="${c.res==="right"?"acc":"bad"} b">${c.res}</span></div>`).join(""):'<div class="dim">none</div>'}<div class="dim" style="margin-top:4px">Call right = ${T.reversal} boxes the called way before ${T.reversal} against.</div></div>`;
-    const end=S.failed||S.week>=T.weeks;
-    bar.innerHTML=end?`<div class="btn go" onclick="S.screen='review';render();window.scrollTo(0,0)">PERIOD REVIEW</div>`:`<div class="btn" onclick="S.screen='watch';render()">WATCHLIST</div><div class="btn go" onclick="openChart(S.sel)">CHARTS</div>`}
-  else if(S.screen==="review"){
-    if(!S.base)S.base=baseline();
-    const eq=equity(),r=pct(eq,T.startCash),br=pct(bench(),T.startCash),ex=r-br,met=!S.failed&&ex>=T.mandate;
-    const cl=S.calls,right=cl.filter(c=>c.res==="right").length,wrong=cl.filter(c=>c.res==="wrong").length,open=cl.length-right-wrong,n=right+wrong;
-    const by=key=>{const g={};cl.filter(c=>c.res).forEach(c=>{const kk=key(c);g[kk]=g[kk]||[0,0];g[kk][1]++;if(c.res==="right")g[kk][0]++});return g};
-    const tbl=g=>Object.entries(g).map(([kk,[a,b]])=>`<div><span>${kk}</span><span class="vv">${a} of ${b}</span></div>`).join("")||'<div class="dim">none resolved</div>';
-    const eh=S.eqHist,bh=S.benchHist,lo=Math.min(...eh,...bh),hi=Math.max(...eh,...bh);
-    m.innerHTML=`<div class="panel"><div class="hd">Period review · ${S.week} weeks</div><div class="tbl">
-    <div><span>Return</span><span class="vv">${sg(r)}%</span></div><div><span>Benchmark (equal-weight watchlist)</span><span class="vv">${sg(br)}%</span></div>
-    <div><span>Excess</span><span class="vv b">${sg(ex)} pts (mandate +${(+T.mandate).toFixed(1)})</span></div>
-    <div><span>Result</span><span class="vv ${met?"acc":"bad"}">${S.failed?"Floor breached, mandate failed":met?"Mandate met":"Mandate not met"}</span></div>
-    <div><span>Max drawdown</span><span class="vv">${(()=>{const d=Math.min(0,pct(S.minEq,T.startCash));return d<0?sg(d):"0.0"})()}%</span></div><div><span>Orders / fees</span><span class="vv">${S.orders.length} / ${fmt(S.fees)}</span></div></div>
-    <svg viewBox="0 0 260 60" preserveAspectRatio="none" style="width:100%;height:60px;margin-top:6px"><path fill="none" stroke="var(--dim)" stroke-width="1.6" stroke-dasharray="5 4" vector-effect="non-scaling-stroke" d="${pathOf(bh,260,56,lo,hi)}"/><path fill="none" stroke="var(--accent)" stroke-width="1.8" vector-effect="non-scaling-stroke" d="${pathOf(eh,260,56,lo,hi)}"/></svg>
-    <div class="leg"><span><svg width="26" height="8"><line x1="0" y1="4" x2="26" y2="4" stroke="var(--accent)" stroke-width="2.4"/></svg> equity, solid</span><span><svg width="26" height="8"><line x1="0" y1="4" x2="26" y2="4" stroke="var(--dim)" stroke-width="2" stroke-dasharray="5 4"/></svg> benchmark, dashed</span></div></div>
-    <div class="panel"><div class="hd">Call record</div><div>${right} right / ${wrong} wrong / ${open} open · hit rate ${n?Math.round(100*right/n)+"%":"-"} (n=${n}${n<20?", small sample":""})</div>
-    <div class="hd" style="margin-top:6px">By pattern</div><div class="tbl">${tbl(by(c=>c.pat))}</div>
-    <div class="hd" style="margin-top:6px">By indicator</div><div class="tbl">${tbl(by(c=>(c.rsi>60?"RSI >60":c.rsi<40?"RSI <40":"RSI 40-60")))}${tbl(by(c=>c.mh))}</div></div>
-    <div class="panel"><div class="hd">Baseline</div>${typeof baselineHTML==="function"?baselineHTML(S.base):`<div>No-read strategies meet the mandate: idle cash ${S.base.cash}%, random buys ${S.base.rand}% of ${S.base.n} stand-in windows.</div>`}</div>`;
-    bar.innerHTML=`<div class="btn" onclick="newPeriod(S.seed)">RERUN</div><div class="btn" onclick="copyReport()">COPY</div><div class="btn go" onclick="newPeriod((Math.random()*90000|0)+10000)">NEXT</div>`}
+  if(typeof S==="undefined"||!S)return;
+  const b=document.body;
+  b.dataset.layout=layout();
+  let sc=null,sh=null;
+  try{const f=SCREENS[S.screen];sc=f?f():{top:topBar("Stock Terminal"),main:fallback("Screen",S.screen),bar:""}}
+  catch(e){sc={top:topBar("Stock Terminal"),main:`<div class="card warn">Screen error: ${esc(e&&e.message)}</div>`,bar:""}}
+  $("top").innerHTML=sc.top||"";$("main").innerHTML=sc.main||"";$("bar").innerHTML=sc.bar||"";
+  const names=["order","week"];
+  names.forEach(n=>b.classList.remove("sheet-"+n));
+  if(S.sheet){
+    try{const f=SHEETS[S.sheet];sh=f?f():{html:fallback("Sheet",S.sheet)}}
+    catch(e){sh={html:`<div class="card warn">Sheet error: ${esc(e&&e.message)}</div>`}}
+    const sheetEl=$("sheet"),prev=sheetEl.scrollTop;
+    sheetEl.innerHTML=sh.html||"";sheetEl.scrollTop=prev;
+    b.classList.add("sheet-on","sheet-"+S.sheet)}
+  else{b.classList.remove("sheet-on");$("sheet").innerHTML=""}
+  showToast()}
+
+</script>
+<script>
+"use strict";
+/* ---------- drawn point-and-figure (SVG) ---------- */
+let _pfUid=0;
+const _pfn=v=>+(+v).toFixed(1);
+function _pfPrice(p,dp){ // fixed precision, thousands comma
+  const s=p.toFixed(dp);if(p<1000)return s;
+  const a=s.split(".");a[0]=a[0].replace(/\B(?=(\d{3})+(?!\d))/g,",");return a.join(".")}
+function _pfDp(p){return p<10?2:p<100?1:0}
+// choose which columns/rows to show: last K columns whose box range fits, compress factor f
+function _pfFit(all,maxC,rows){
+  const L=all.length;if(!L)return null;
+  let f=1;const last=all[L-1],n=last.hi-last.lo+1;
+  while(Math.floor((n-1)/f)+1>rows)f++;
+  const run=f=>{let K=0,lo=Infinity,hi=-Infinity;
+    for(let k=L-1;k>=0&&K<maxC;k--){const l=Math.min(lo,all[k].lo),h=Math.max(hi,all[k].hi);
+      if(Math.floor((h-l)/f)+1>rows)break;lo=l;hi=h;K++}
+    return{K,lo,hi}};
+  let r=run(f);
+  // admin default: too few columns fit -> compress up to 1:3 so the chart keeps context
+  const want=Math.min(maxC,L,5);
+  while(r.K<want&&f<3){f++;r=run(f)}
+  const K=r.K,lo=r.lo,hi=r.hi,used=Math.floor((hi-lo)/f)+1,free=Math.max(0,rows-used);
+  return{f,K,off:L-K,lo,hi,used,above:Math.ceil(free/2),below:Math.floor(free/2)}}
+function _pfXO(c,x,y,cs,isNew,mini){
+  const ins=mini?1:3,sw=mini?1.2:1.8,col=c.d===1?"var(--x)":"var(--o)";let s="";
+  if(isNew)s+=`<rect x="${_pfn(x+.5)}" y="${_pfn(y+.5)}" width="${cs-1}" height="${cs-1}" fill="${col}" fill-opacity=".22" stroke="${col}" stroke-width="1"/>`;
+  if(c.d===1)s+=`<path d="M${_pfn(x+ins)} ${_pfn(y+ins)}L${_pfn(x+cs-ins)} ${_pfn(y+cs-ins)}M${_pfn(x+cs-ins)} ${_pfn(y+ins)}L${_pfn(x+ins)} ${_pfn(y+cs-ins)}" stroke="${col}" stroke-width="${sw}" stroke-linecap="round" fill="none"/>`;
+  else s+=`<circle cx="${_pfn(x+cs/2)}" cy="${_pfn(y+cs/2)}" r="${_pfn((cs-2*ins)/2)}" stroke="${col}" stroke-width="${sw}" fill="none"/>`;
+  return s}
+// grid + columns; returns svg fragments. g={x0,y0,cs,rows,K,off,f,topBox,all,lastBar}
+function _pfBody(g,mini){
+  const{x0,y0,cs,rows,K,off,f,topBox,all,lastBar}=g,first=g.first||0,gw=K*cs,gh=rows*cs;let s="",gp="";
+  for(let r=0;r<=rows;r++)gp+=`M${x0} ${_pfn(y0+r*cs)}H${x0+gw}`;
+  for(let c=0;c<=K;c++)gp+=`M${_pfn(x0+c*cs)} ${y0}V${y0+gh}`;
+  s+=`<path d="${gp}" stroke="var(--grid)" stroke-width="1" fill="none"/>`;
+  for(let j=0;j<K;j++){const c=all[off+j];if(!c||off+j<first)continue;
+    const r0=Math.floor((topBox-c.hi)/f),r1=Math.floor((topBox-c.lo)/f);
+    for(let r=Math.max(0,r0);r<=Math.min(rows-1,r1);r++){
+      let nw=false;const bt=topBox-r*f;
+      for(let b=bt-f+1;b<=bt;b++)if(b>=c.lo&&b<=c.hi&&c.wk[b]===lastBar)nw=true;
+      s+=_pfXO(c,x0+j*cs,y0+r*cs,cs,nw,mini)}}
+  return s}
+
+function pfSVG(i,opt){
+  opt=opt||{};const w=Math.max(120,Math.round(opt.w||320)),h=Math.max(100,Math.round(opt.h||280));
+  const cs=opt.cell||(w<600?15:14),axisW=46,axH=18,chipH=22;
+  const all=(i&&i.cols)||[],si=(i&&i.si)||sigInfo(all);
+  const uid="pf"+(++_pfUid);
+  const px=i&&i.c&&i.c.length?i.c[i.c.length-1]:(i&&i.b&&i.b.length?i.b[i.b.length-1].c:null);
+  const lastBar=i&&i.b?i.b.length-1:-1;
+  const tgt=opt.tgt>0?+opt.tgt:null;
+  const aria=`Point and figure chart, ${all.length} columns`;
+  const head=`<svg id="pf" xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" role="img" aria-label="${aria}" font-family="var(--sans)" style="display:block;font-variant-numeric:tabular-nums">`;
+  if(!all.length)return head+`<text x="${w/2}" y="${h/2}" text-anchor="middle" font-size="11" fill="var(--dim)">No data</text></svg>`;
+  const maxC=Math.max(1,Math.floor((w-axisW)/cs));
+  const layout=(top,bot)=>{const rows=Math.max(3,Math.floor((h-top-axH-bot)/cs));return{rows,top,bot,fit:_pfFit(all,maxC,Math.max(1,rows-2))}};
+  const onScale=(L)=>{ // is target inside the visible rows?
+    if(tgt==null)return null;const f=L.fit,topBox=f.hi+f.above*f.f,u=Math.log(tgt)/LB();
+    const y=(topBox+1-u)/f.f;return y>=0&&y<=L.rows?true:(y<0?"up":"down")};
+  let L=layout(2,0),os=onScale(L);
+  if(os==="up")L=layout(chipH+2,0);else if(os==="down")L=layout(2,chipH);
+  os=onScale(L);
+  const F=L.fit,f=F.f,rows=L.rows,K=F.K,off0=F.off,off=all.length-maxC,topBox=F.hi+F.above*f; // integrator: right-align columns to the axis
+  const x0=0,y0=L.top,gw=maxC*cs,gh=rows*cs,K0=K;
+  const g={x0,y0,cs,rows,K:maxC,off,first:off0,f,topBox,all,lastBar};
+  let s=head;
+  s+=`<defs><clipPath id="${uid}c"><rect x="${x0}" y="${y0}" width="${gw}" height="${gh}"/></clipPath></defs>`;
+  s+=_pfBody(g,false);
+  const yOfU=u=>y0+(topBox+1-u)/f*cs;
+  const rowOf=b=>Math.floor((topBox-b)/f);
+  const halo=`stroke="var(--surface)" stroke-width="3" paint-order="stroke" stroke-linejoin="round"`;
+  // trend line (only through empty cells)
+  const tr=pnfTrend(all);
+  if(tr&&tr.col+0<all.length){
+    const sup=tr.kind==="support";let d="",cnt=0,lastPt=null;
+    for(let gi=Math.max(tr.col,off0);gi<all.length;gi++){
+      const c=all[gi],b=sup?tr.box+(gi-tr.col):tr.box-(gi-tr.col),j=gi-off;
+      const r=rowOf(b);if(r<0||r>=rows)continue;
+      if(b>=c.lo&&b<=c.hi)continue; // occupied
+      if(f>1){const bt=topBox-r*f;if(!(c.hi<bt-f+1||c.lo>bt))continue}
+      const xl=x0+j*cs,xr=xl+cs,yb=yOfU(b),yt=yOfU(b+1);
+      d+=sup?`M${_pfn(xl)} ${_pfn(yb)}L${_pfn(xr)} ${_pfn(yt)}`:`M${_pfn(xl)} ${_pfn(yt)}L${_pfn(xr)} ${_pfn(yb)}`;
+      cnt++;lastPt={x:(xl+xr)/2,y:(yb+yt)/2}}
+    if(d){
+      s+=`<g clip-path="url(#${uid}c)"><path d="${d}" fill="none" stroke="${sup?"var(--accent)":"var(--o)"}" stroke-width="1.5" stroke-linecap="round"${sup?"":' stroke-dasharray="4 3"'}/></g>`;
+      if(cnt>=4&&lastPt&&f===1){
+        const nx=0.707,ny=sup?0.707:-0.707;
+        // label sits on the empty side of the line, a few cells before the end
+        const bx=lastPt.x-cs*0.5+nx*9,by=lastPt.y+(sup?cs*0.5:-cs*0.5)+ny*9;
+        s+=`<text transform="translate(${_pfn(bx)} ${_pfn(by)}) rotate(${sup?-45:45})" text-anchor="end" font-size="11" fill="${sup?"var(--accent)":"var(--o)"}" ${halo}>${sup?"support":"resistance"}</text>`}}}
+  // target
+  if(tgt!=null){
+    const tp=_pfPrice(tgt,_pfDp(tgt)),txt="Target "+tp;
+    if(os===true){const y=_pfn(yOfU(Math.log(tgt)/LB()));
+      s+=`<path d="M${x0} ${y}H${x0+gw}" stroke="var(--dim)" stroke-width="1.2" stroke-dasharray="5 4" fill="none"/>`;
+      const ty=Math.max(y0+11,Math.min(y0+gh-3,+y-3));
+      s+=`<text x="${x0+gw-3}" y="${ty}" text-anchor="end" font-size="11" fill="var(--dim)" ${halo}>${txt}</text>`}
+    else{const up=os==="up",cw=txt.length*6.2+30,cx=x0+gw-cw+axisW-6,cy=up?1:y0+gh+axH+1;
+      const cxx=Math.max(2,Math.min(w-cw-2,cx));
+      s+=`<rect x="${_pfn(cxx)}" y="${cy}" width="${_pfn(cw)}" height="${chipH-4}" rx="${(chipH-4)/2}" fill="var(--surface2)" stroke="var(--dim)" stroke-dasharray="3 2"/>`;
+      s+=`<text x="${_pfn(cxx+cw/2)}" y="${cy+(chipH-4)/2+4}" text-anchor="middle" font-size="11" fill="var(--dim)">${txt} ${up?"▲":"▼"}</text>`}}
+  // signal triangle
+  if(si&&si.name&&si.col!=null&&si.col>=off0){
+    const c=all[si.col],j=si.col-off,cx=x0+(j+.5)*cs,col=si.buy?"var(--x)":"var(--o)";
+    if(si.buy){const r=rowOf(c.hi)-1;if(r>=0){const ty=y0+r*cs+cs/2;
+      s+=`<path d="M${_pfn(cx)} ${_pfn(ty-5)}L${_pfn(cx+5)} ${_pfn(ty+4)}L${_pfn(cx-5)} ${_pfn(ty+4)}Z" fill="${col}"/>`;
+      s+=`<text x="${_pfn(j<2?cx+8:cx-8)}" y="${_pfn(ty+4)}" text-anchor="${j<2?"start":"end"}" font-size="11" font-weight="600" fill="${col}" ${halo}>Buy</text>`}}
+    else{const r=rowOf(c.lo)+1;if(r<rows){const ty=y0+r*cs+cs/2;
+      s+=`<path d="M${_pfn(cx)} ${_pfn(ty+5)}L${_pfn(cx+5)} ${_pfn(ty-4)}L${_pfn(cx-5)} ${_pfn(ty-4)}Z" fill="${col}"/>`;
+      s+=`<text x="${_pfn(j<2?cx+8:cx-8)}" y="${_pfn(ty+4)}" text-anchor="${j<2?"start":"end"}" font-size="11" font-weight="600" fill="${col}" ${halo}>Sell</text>`}}}
+  // trap labels
+  pnfTraps(all).forEach(t=>{if(t.col<off0)return;const c=all[t.col],j=t.col-off;
+    const r=rowOf(c.lo)+1,y=Math.min(y0+gh-2,y0+(r+1)*cs-3),cx=Math.max(x0+10,Math.min(x0+gw-10,x0+(j+.5)*cs));
+    s+=`<text x="${_pfn(cx)}" y="${_pfn(y)}" text-anchor="middle" font-size="10" font-weight="600" fill="var(--warn)" ${halo}>trap</text>`});
+  // right price axis
+  const dp=_pfDp(priceOf(topBox)),pdp=px!=null&&px<100?2:0,ax=x0+gw;
+  let py=null;if(px!=null)py=Math.max(y0+7,Math.min(y0+gh-7,yOfU(Math.log(px)/LB())));
+  const aa=[];
+  for(let r=0;r<rows;r++){const b=topBox-r*f,on=f===1?(((b%2)+2)%2===0):(r%2===0);if(!on)continue;
+    const cy=y0+(r+.5)*cs;if(py!=null&&Math.abs(cy-py)<11)continue;
+    aa.push(`<text x="${ax+6}" y="${_pfn(cy+4)}" font-size="11" fill="var(--dim)">${_pfPrice(priceOf(b),dp)}</text>`)}
+  s+=aa.join("");
+  if(py!=null){const pw=w-ax-4,pt=_pfPrice(px,pdp);
+    s+=`<path d="M${ax} ${_pfn(py)}h3" stroke="var(--text)" stroke-width="1"/><rect x="${ax+3}" y="${_pfn(py-8)}" width="${pw}" height="16" rx="4" fill="var(--text)"/><text x="${_pfn(ax+3+pw/2)}" y="${_pfn(py+4)}" text-anchor="middle" font-size="11" font-weight="700" fill="var(--bg)">${pt}</text>`}
+  // column axis
+  const yb=y0+gh;
+  let tk=`M${x0} ${yb}H${ax}`,lb="";
+  for(let j=0;j<maxC;j++){const n=off+j+1;if(n<1||n%5!==0||j<2)continue;const cx=_pfn(x0+(j+1)*cs-cs/2);
+    tk+=`M${cx} ${yb}v4`;lb+=`<text x="${cx}" y="${yb+15}" text-anchor="middle" font-size="11" fill="var(--dim)">${n}</text>`}
+  s+=`<path d="${tk}" stroke="var(--line)" stroke-width="1" fill="none"/>`;
+  s+=`<text x="${x0+2}" y="${yb+15}" font-size="11" fill="var(--dim)">col</text>`+lb;
+  if(f>1)s+=`<text x="${ax+6}" y="${yb+15}" font-size="11" fill="var(--warn)">1:${f}</text>`;
+  return s+"</svg>"}
+
+function pfMini(i,opt){
+  opt=opt||{};const w=Math.max(30,Math.round(opt.w||60)),h=Math.max(20,Math.round(opt.h||40)),cs=opt.cell||6;
+  const all=(i&&i.cols)||[],lastBar=i&&i.b?i.b.length-1:-1;
+  const head=`<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" role="img" aria-label="Mini point and figure chart" style="display:block">`;
+  if(!all.length)return head+"</svg>";
+  const rows=Math.max(2,Math.floor(h/cs)),maxC=Math.max(1,Math.min(8,Math.floor(w/cs)));
+  const F=_pfFit(all,maxC,rows),f=F.f,topBox=F.hi+F.above*f;
+  const x0=Math.floor((w-F.K*cs)/2),y0=Math.floor((h-rows*cs)/2);
+  return head+_pfBody({x0,y0,cs,rows,K:F.K,off:F.off,f,topBox,all,lastBar},true)+"</svg>"}
+
+function sigChip(si){
+  si=si||{name:null};
+  const lab=si.name?sigLabel(si.name):"",age=si.age==null?0:si.age;
+  let h;
+  if(!si.name)h=`<span class="chip stale">No signal</span>`;
+  else if(si.fresh)h=`<span class="chip fresh ${si.buy?"buy":"sell"}">${lab} · ${age<=0?"this week":"last col"}</span>`;
+  else h=`<span class="chip stale">${lab} · ${age} col${age===1?"":"s"} ago</span>`;
+  if(si.trap)h+=` <span class="chip pf-trap">${si.trap==="bull"?"Bull":"Bear"} trap?</span>`;
+  return h}
+
+</script>
+<script>
+"use strict";
+/* panes.js [C2]: indicator panes + small charts. Pure functions returning HTML strings.
+   opt.w = SVG width in px (card inner width); opt.h = SVG height in px; opt.id = card id.
+   Card height at defaults (344 wide): RSI 100 px, MACD 100 px, volume 86 px. */
+const PN_AX=36;               // right axis column width, px
+const PN_N=26;                // weeks shown
+function pnEsc(s){return String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]))}
+function pnF(x){return (Math.round(x*10)/10).toString()}
+function pnS(x,d){const v=+x.toFixed(d);return(v>0?"+":"")+v.toFixed(d)}
+function pnCom(x){return Math.round(x).toString().replace(/\B(?=(\d{3})+(?!\d))/g,",")}
+function pnNice(x){if(!(x>0))return 1;const e=Math.pow(10,Math.floor(Math.log10(x))),f=x/e;
+  return(f<=1?1:f<=1.5?1.5:f<=2?2:f<=3?3:f<=4?4:f<=5?5:f<=6?6:f<=8?8:10)*e}
+function pnDec(step){return step>=10?0:step>=1?1:step>=0.1?2:3}
+function pnLast(a,n){a=Array.isArray(a)?a.filter(v=>typeof v==="number"&&isFinite(v)):[];return a.slice(-n)}
+function pnPts(a,x,y,off){return a.map((v,j)=>x(j+off).toFixed(1)+","+y(v).toFixed(1)).join(" ")}
+function pnPill(pw,W,y,H,txt,fill,ink){
+  const h=15,yy=Math.max(h/2,Math.min(H-h/2,y));
+  return`<rect x="${pw+3}" y="${(yy-h/2).toFixed(1)}" width="${W-pw-3}" height="${h}" rx="7.5" fill="${fill}"/>`
+   +`<text x="${(pw+3+(W-pw-3)/2).toFixed(1)}" y="${yy.toFixed(1)}" text-anchor="middle" dominant-baseline="central" style="fill:${ink};font-weight:700">${pnEsc(txt)}</text>`}
+function pnLab(pw,y,t){return`<text x="${pw+6}" y="${y.toFixed(1)}" dominant-baseline="central">${pnEsc(t)}</text>`}
+function pnCard(id,head,val,svg,mid,W){
+  return`<div class="card pn-card" id="${pnEsc(id)}"><div class="pn-h"><span class="pn-t">${head}</span><span class="pn-v num">${val}</span></div>`
+   +`<svg class="pn-svg" width="${W}" height="${svg.h}" viewBox="0 0 ${W} ${svg.h}" role="img" aria-label="${pnEsc(svg.aria)}">${svg.body}</svg>`
+   +`<div class="pn-ax num" style="padding-right:${PN_AX}px"><span>${PN_N} wks</span>${mid||""}<span>now</span></div></div>`}
+
+function rsiPane(i,opt){
+  opt=opt||{};const W=Math.max(120,Math.round(opt.w||296)),H=Math.round(opt.h||54),pw=W-PN_AX;
+  const a=pnLast(i&&i.r,PN_N),off=PN_N-a.length,lo=20,hi=80,pad=6;
+  const y=v=>pad+(hi-v)/(hi-lo)*(H-2*pad),x=j=>6+j*(pw-12)/(PN_N-1);
+  const lastV=a.length?a[a.length-1]:null,ly=lastV==null?-99:y(lastV);
+  let s=`<rect x="0" y="${y(70).toFixed(1)}" width="${pw}" height="${(y(30)-y(70)).toFixed(1)}" fill="var(--surface2)" fill-opacity=".55"/>`;
+  [70,50,30].forEach(v=>{s+=`<line x1="0" x2="${pw}" y1="${y(v).toFixed(1)}" y2="${y(v).toFixed(1)}" stroke="var(--faint)" stroke-dasharray="${v===50?"1 4":"3 3"}"/>`;
+    if(Math.abs(y(v)-ly)>=10)s+=pnLab(pw,y(v),v)});
+  if(a.length>1)s+=`<polyline points="${pnPts(a,x,y,off)}" fill="none" stroke="var(--text)" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"/>`;
+  if(lastV!=null){s+=`<circle cx="${x(PN_N-1).toFixed(1)}" cy="${ly.toFixed(1)}" r="3" fill="var(--text)"/>`+pnPill(pw,W,ly,H,Math.round(lastV),"var(--text)","var(--bg)")}
+  return pnCard(opt.id||"rsiCard",`RSI <i>14</i>`,lastV==null?"-":Math.round(lastV),{h:H,body:s,aria:"RSI 14, last "+(lastV==null?"n/a":Math.round(lastV))},"",W)}
+
+function macdPane(i,opt){
+  opt=opt||{};const W=Math.max(120,Math.round(opt.w||296)),H=Math.round(opt.h||54),pw=W-PN_AX;
+  const m=(i&&i.m)||{},M=pnLast(m.m,PN_N),G=pnLast(m.sg,PN_N),Hh=pnLast(m.h,PN_N),n=Math.min(M.length,G.length,Hh.length);
+  const mm=M.slice(-n),gg=G.slice(-n),hh=Hh.slice(-n),off=PN_N-n,pad=7;
+  const mx=pnNice(Math.max(1e-6,...mm.map(Math.abs),...gg.map(Math.abs),...hh.map(Math.abs))*1.05);
+  const y=v=>pad+(mx-v)/(2*mx)*(H-2*pad),x=j=>6+j*(pw-12)/(PN_N-1),y0=y(0);
+  const lastH=n?hh[n-1]:0,dec=pnDec(mx),bw=Math.max(2,(pw-12)/(PN_N-1)*.55);
+  // value pill: never sits on the "0" label; nudge it clear on the side of the value's sign
+  let py=y(lastH);if(Math.abs(py-y0)<14)py=y0+(lastH>=0?-14:14);
+  py=Math.max(7.5,Math.min(H-7.5,py));
+  let s="";
+  [mx,-mx].forEach(v=>{s+=`<line x1="0" x2="${pw}" y1="${y(v).toFixed(1)}" y2="${y(v).toFixed(1)}" stroke="var(--faint)" stroke-dasharray="1 4"/>`;
+    if(Math.abs(y(v)-py)>=12)s+=pnLab(pw,y(v),pnS(v,dec))});
+  s+=`<line x1="0" x2="${pw}" y1="${y0.toFixed(1)}" y2="${y0.toFixed(1)}" stroke="var(--faint)"/>`+pnLab(pw,y0,"0");
+  hh.forEach((v,j)=>{const a=y0,b=y(v);s+=`<rect x="${(x(j+off)-bw/2).toFixed(1)}" y="${Math.min(a,b).toFixed(1)}" width="${bw.toFixed(1)}" height="${Math.max(1,Math.abs(b-a)).toFixed(1)}" fill="${v>=0?"var(--accent)":"var(--faint)"}" fill-opacity="${v>=0?.55:1}"/>`});
+  if(n>1){s+=`<polyline points="${pnPts(gg,x,y,off)}" fill="none" stroke="var(--o)" stroke-width="1.6" stroke-dasharray="4 2.5" stroke-linejoin="round"/>`
+    +`<polyline points="${pnPts(mm,x,y,off)}" fill="none" stroke="var(--x)" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"/>`}
+  s+=pnPill(pw,W,py,H,pnS(lastH,2),"var(--surface2)","var(--text)");
+  const lg=n?`<span class="pn-lg num"><span class="pn-k pn-kx">MACD ${pnS(mm[n-1],2)}</span><span class="pn-k pn-ko">Signal ${pnS(gg[n-1],2)}</span></span>`:"";
+  return pnCard(opt.id||"macdCard",`MACD <i>12,26,9</i>`,n?pnS(lastH,2):"-",{h:H,body:s,aria:"MACD histogram "+pnS(lastH,2)},lg,W)}
+
+function volPane(i,opt){
+  opt=opt||{};const W=Math.max(120,Math.round(opt.w||296)),H=Math.round(opt.h||40),pw=W-PN_AX;
+  const a=pnLast(i&&i.vol,PN_N),off=PN_N-a.length,r=i&&isFinite(i.vRatio)?i.vRatio:null,top=5;
+  const avg=r&&a.length?a[a.length-1]/r:(a.length?a.reduce((p,c)=>p+c,0)/a.length:1);
+  const mx=Math.max(avg*1.6,...a,1e-9)*1.03,y=v=>H-v/mx*(H-top),x=j=>6+j*(pw-12)/(PN_N-1),bw=Math.max(2,(pw-12)/(PN_N-1)*.5);
+  let s=a.map((v,j)=>`<rect x="${(x(j+off)-bw/2).toFixed(1)}" y="${y(v).toFixed(1)}" width="${bw.toFixed(1)}" height="${(H-y(v)).toFixed(1)}" fill="${j===a.length-1?"var(--text)":"var(--faint)"}"/>`).join("");
+  s+=`<line x1="0" x2="${pw}" y1="${y(avg).toFixed(1)}" y2="${y(avg).toFixed(1)}" stroke="var(--dim)" stroke-dasharray="2 3"/>`
+   +`<text x="4" y="${Math.max(7,y(avg)-7).toFixed(1)}" dominant-baseline="central" class="pn-halo">1x avg</text>`;
+  if(r!=null)s+=pnPill(pw,W,y(a[a.length-1]),H,pnF(r)+"x","var(--text)","var(--bg)");
+  return pnCard(opt.id||"volCard","Volume",r==null?"-":pnF(r)+"x <span class=\"dim\">avg</span>",{h:H,body:s,aria:"Volume "+(r==null?"n/a":pnF(r)+" times average")},"",W)}
+
+function spark(arr,o){
+  o=o||{};const W=o.w||56,H=o.h||18,a=pnLast(arr,PN_N);if(a.length<2)return`<svg class="pn-mini" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}"></svg>`;
+  const lo=Math.min(...a),hi=Math.max(...a),sp=hi-lo||1,x=j=>2+j*(W-4)/(a.length-1),y=v=>H-2-(v-lo)/sp*(H-4);
+  return`<svg class="pn-mini" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" aria-hidden="true"><polyline points="${pnPts(a,x,y,0)}" fill="none" stroke="var(--dim)" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/>`
+   +`<circle cx="${x(a.length-1).toFixed(1)}" cy="${y(a[a.length-1]).toFixed(1)}" r="2" fill="var(--text)"/></svg>`}
+
+function miniBars(arr,o){
+  o=o||{};const W=o.w||56,H=o.h||18,a=pnLast(arr,12);if(!a.length)return`<svg class="pn-mini" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}"></svg>`;
+  const mx=Math.max(1e-9,...a.map(Math.abs)),mid=H/2,slot=W/a.length,bw=Math.max(1.5,slot*.6);
+  let s=`<line x1="0" x2="${W}" y1="${mid}" y2="${mid}" stroke="var(--faint)"/>`;
+  a.forEach((v,j)=>{const h=Math.max(1,Math.abs(v)/mx*(mid-1));s+=`<rect x="${(j*slot+(slot-bw)/2).toFixed(1)}" y="${(v>=0?mid-h:mid).toFixed(1)}" width="${bw.toFixed(1)}" height="${h.toFixed(1)}" fill="${v>=0?"var(--x)":"var(--o)"}"/>`});
+  return`<svg class="pn-mini" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" aria-hidden="true">${s}</svg>`}
+
+function eqChart(eh,bh,floorEq,o){
+  o=o||{};const W=Math.max(200,Math.round(o.w||296)),H=Math.round(o.h||190);
+  eh=pnLast(eh,999);bh=pnLast(bh,999);const n=Math.max(eh.length,bh.length,2);
+  const L=44,R=50,t=10,b=H-28,pw=W-L-R;
+  const all=eh.concat(bh,[floorEq]),vmin=Math.min(...all),vmax=Math.max(...all),span=(vmax-vmin)||1;
+  const step=pnNice(span/3.5),lo=Math.floor((vmin-span*.04)/step)*step,hi=Math.ceil((vmax+span*.06)/step)*step;
+  const y=v=>b-(v-lo)/(hi-lo)*(b-t),x=j=>L+j*pw/(n-1);
+  let s="";
+  for(let v=lo;v<=hi+1e-9;v+=step){if(Math.abs(y(v)-y(floorEq))<9)continue;
+    s+=`<line x1="${L}" x2="${L+pw}" y1="${y(v).toFixed(1)}" y2="${y(v).toFixed(1)}" stroke="var(--grid)"/><text x="${L-6}" y="${y(v).toFixed(1)}" text-anchor="end" dominant-baseline="central">${pnCom(v)}</text>`}
+  const fy=y(floorEq);
+  s+=`<line x1="${L}" x2="${L+pw}" y1="${fy.toFixed(1)}" y2="${fy.toFixed(1)}" stroke="var(--o)" stroke-width="1.4"/>`
+   +`<text x="${L-6}" y="${fy.toFixed(1)}" text-anchor="end" dominant-baseline="central" style="fill:var(--o)">${pnCom(floorEq)}</text>`
+   +`<text x="${L+4}" y="${(fy-7).toFixed(1)}" style="fill:var(--o)">floor ${pnCom(floorEq)}</text>`;
+  const step2=n>8?2:1;for(let j=0;j<n;j+=step2)s+=`<text x="${x(j).toFixed(1)}" y="${H-6}" text-anchor="middle">${j===0?"wk 0":j}</text>`;
+  if((n-1)%step2)s+=`<text x="${x(n-1).toFixed(1)}" y="${H-6}" text-anchor="middle">${n-1}</text>`;
+  const pl=a=>a.map((v,j)=>(j?"L":"M")+x(j).toFixed(1)+" "+y(v).toFixed(1)).join("");
+  if(bh.length>1)s+=`<path d="${pl(bh)}" fill="none" stroke="var(--dim)" stroke-width="2" stroke-dasharray="5 4" stroke-linecap="round" stroke-linejoin="round"/>`;
+  if(eh.length>1)s+=`<path d="${pl(eh)}" fill="none" stroke="var(--accent)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>`;
+  const s0=eh[0]||bh[0]||1,pc=v=>pnS((v/s0-1)*100,1)+"%";
+  let ey=eh.length?y(eh[eh.length-1]):-99,by=bh.length?y(bh[bh.length-1]):-99;
+  let ety=ey,bty=by;if(Math.abs(ety-bty)<13){const mid=(ety+bty)/2,d=ety<=bty?-1:1;ety=mid+d*6.5;bty=mid-d*6.5}
+  if(eh.length)s+=`<circle cx="${x(eh.length-1).toFixed(1)}" cy="${ey.toFixed(1)}" r="3.5" fill="var(--accent)"/><text x="${(x(eh.length-1)+8).toFixed(1)}" y="${ety.toFixed(1)}" dominant-baseline="central" style="fill:var(--accent);font-weight:700">${pc(eh[eh.length-1])}</text>`;
+  if(bh.length)s+=`<circle cx="${x(bh.length-1).toFixed(1)}" cy="${by.toFixed(1)}" r="3" fill="var(--bg)" stroke="var(--dim)" stroke-width="1.6"/><text x="${(x(bh.length-1)+8).toFixed(1)}" y="${bty.toFixed(1)}" dominant-baseline="central" style="font-weight:700">${pc(bh[bh.length-1])}</text>`;
+  const lg=`<div class="pn-lgd"><span class="pn-k pn-ka">Equity</span><span class="pn-k pn-kd">Benchmark</span><span class="pn-k pn-ko2">Floor</span></div>`;
+  return`<div class="pn-eq">${lg}<svg class="pn-svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" role="img" aria-label="Equity ${eh.length?pc(eh[eh.length-1]):""} vs benchmark ${bh.length?pc(bh[bh.length-1]):""}, floor ${pnCom(floorEq)}">${s}</svg></div>`}
+
+function intervalChart(edge,lo,hi,verdict,o){
+  o=o||{};const W=Math.max(200,Math.round(o.w||296)),H=Math.round(o.h||112),m=14,hasB=lo!=null&&hi!=null;
+  const mxv=Math.max(5,Math.abs(edge||0),hasB?Math.abs(lo):0,hasB?Math.abs(hi):0)*1.12,R=pnNice(mxv)<mxv?pnNice(mxv*1.01):pnNice(mxv);
+  const X=c=>W/2+(W/2-m)*c/R,ay=H*.58,by=H*.36;
+  const sg=v=>pnS(v,1);
+  let s=`<line x1="${X(-R)}" x2="${X(R)}" y1="${ay}" y2="${ay}" stroke="var(--line)"/>`;
+  [-R,-R/2,0,R/2,R].forEach((c,k)=>{s+=`<line x1="${X(c).toFixed(1)}" x2="${X(c).toFixed(1)}" y1="${ay}" y2="${ay+5}" stroke="var(--faint)"/><text x="${X(c).toFixed(1)}" y="${ay+16}" text-anchor="${k===0?"start":k===4?"end":"middle"}">${c>0?"+":""}${pnF(c)}</text>`});
+  s+=`<line x1="${X(0)}" x2="${X(0)}" y1="${by-12}" y2="${ay}" stroke="var(--text)" stroke-width="1.4" stroke-dasharray="3 3"/>`
+   +`<text x="${X(0)-4}" y="9" text-anchor="end" style="fill:var(--text);font-weight:700">base</text>`;
+  if(hasB){s+=`<rect x="${X(lo).toFixed(1)}" y="${by-7}" width="${Math.max(2,X(hi)-X(lo)).toFixed(1)}" height="14" rx="7" fill="var(--x)" fill-opacity=".3" stroke="var(--x)" stroke-width="1.4"/>`
+    +`<text x="${X(lo).toFixed(1)}" y="${by-14}" text-anchor="middle">${sg(lo)}</text><text x="${X(hi).toFixed(1)}" y="${by-14}" text-anchor="middle">${sg(hi)}</text>`}
+  const ex=Math.max(X(-R),Math.min(X(R),X(edge||0)));
+  s+=`<circle cx="${ex.toFixed(1)}" cy="${by}" r="7" fill="var(--text)" stroke="var(--bg)" stroke-width="2"/>`;
+  s+=`<text x="${W/2}" y="${H-3}" text-anchor="middle" style="fill:var(--text);font-weight:700">edge ${sg(edge||0)} calls · ${pnEsc(verdict||"")}</text>`;
+  return`<svg class="pn-svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" role="img" aria-label="Edge ${sg(edge||0)} calls${hasB?", band "+sg(lo)+" to "+sg(hi):""}: ${pnEsc(verdict||"")}">${s}</svg>`}
+
+</script>
+<script>
+"use strict";
+/* Home screen (S1). Contract: CONTRACT-ui2.md */
+function dashNoteSeen(){try{return localStorage.getItem("st.note1")==="1"}catch(e){return false}}
+function dashNoteDismiss(){try{localStorage.setItem("st.note1","1")}catch(e){}
+  const n=document.getElementById("dNote");if(n)n.remove()}
+function dashAlerts(){
+  const out=[],r=S.report;
+  if(!r||S.week===0){
+    out.push({ic:"n",g:"•",tx:"Start of period: "+T.weeks+" weeks. Mandate +"+T.mandate+" pts over the benchmark, floor "+fmt(T.startCash*(1-T.floorPct/100))+".",on:""});
+    return out}
+  r.rows.forEach(w=>{if(!w.fired)return;const k=w.k,i=stockInfo(k),d=i.si?i.si.dir:0;
+    out.push({ic:d>0?"b":"s",g:d>0?"▲":"▼",tx:"<b>"+esc(S.W.codes[k])+"</b> "+esc(w.fired.toLowerCase())+" fired",tg:S.pos[k]>0?"held":"",on:"openChart("+k+")"})});
+  (r.resolved||[]).forEach(c=>{
+    out.push({ic:c.res==="right"?"k":"n",g:c.res==="right"?"✓":"✗",tx:"Call resolved: <b>"+esc(c.s)+"</b> "+(c.view>0?"bullish":"bearish")+", "+c.res,on:'S.tab="journal";go("review")'})});
+  const pe=pct(equity(),T.startCash);
+  if(pe<=-T.warnPct)out.push({ic:"w",g:"!",tx:S.failed?"Equity is below the floor":"Equity is in the warn zone near the floor",on:""});
+  if(!out.length)out.push({ic:"n",g:"•",tx:"Quiet week: no new signals and no calls resolved.",on:""});
+  return out}
+function dashAlertHTML(a){
+  const inner=`<span class="d-ic ${a.ic}" aria-hidden="true">${a.g}</span><span class="d-tx">${a.tx}</span>${a.tg?`<span class="d-tg">${a.tg}</span>`:""}`;
+  return a.on?`<button class="d-al" onclick='${a.on}'>${inner}</button>`:`<div class="d-al">${inner}</div>`}
+function dashAcct(){
+  const eq=equity(),bn=bench(),ret=pct(eq,T.startCash),bret=pct(bn,T.startCash),ex=ret-bret;
+  const fl=T.startCash*(1-T.floorPct/100),wn=T.startCash*(1-T.warnPct/100),hi=T.startCash*(1+T.floorPct/100);
+  const cl=v=>Math.max(0,Math.min(100,v)),pos=cl((eq-fl)/(hi-fl)*100),wp=cl((wn-fl)/(hi-fl)*100);
+  const exp=cl(ex/T.mandate*100),inv=eq-S.cash,bad=eq<=fl;
+  return `<section class="card d-acct" aria-label="Account">
+  <div class="d-eq"><div><div class="cap">Week ${S.week} of ${T.weeks} · Equity</div><div class="d-big num">${fmt(eq)}</div></div>
+   <div class="d-r"><b class="num ${ret>0.05?"up":ret<-0.05?"down":"dim"}">${ret>0.05?"▲":ret<-0.05?"▼":"■"} ${sg(ret)}%</b><span class="dim num">Benchmark ${sg(bret)}%</span></div></div>
+  <div class="d-mt d-exc"><div class="d-lab"><span>Excess vs mandate</span><b class="num">${sg(ex)} of +${T.mandate.toFixed(1)} pts</b></div>
+   <div class="d-track" role="img" aria-label="Excess ${sg(ex)} of ${T.mandate} points"><div class="d-fill" style="width:${exp}%"></div></div></div>
+  <div class="d-mt d-fl"><div class="d-lab"><span>Floor ${fmt(fl)}</span><b class="num${bad?" d-bad":""}">${eq>=fl?fmt(eq-fl)+" above":fmt(fl-eq)+" below"}</b></div>
+   <div class="d-track" role="img" aria-label="Equity ${fmt(eq)} between floor ${fmt(fl)} and ${fmt(hi)}"><div class="d-warnz" style="width:${wp}%"></div><div class="d-wt" style="left:${wp}%"></div><div class="d-mk${bad?" bad":""}" style="left:${pos}%"></div></div>
+   <div class="d-ends num"><span class="d-wn" style="left:${wp}%">warn ${fmt(wn)}</span><span class="d-hi">${fmt(hi)}</span></div></div>
+  <div class="d-cash num"><div>Cash <b>${fmt(S.cash)}</b></div><div>Invested <b>${fmt(inv)}</b></div></div>
+ </section>`}
+function dashCard(k){
+  const i=stockInfo(k),n=i.c.length,last=i.c[n-1],prev=i.c[n-2]||last,ch=pct(last,prev),si=i.si||{};
+  const cc=ch>0.05?"up":ch<-0.05?"down":"dim",ca=ch>0.05?"▲":ch<-0.05?"▼":"■";
+  const hot=si.fresh&&si.dir?(si.dir>0?" hot buy":" hot sell"):"";
+  const r=i.r[i.r.length-1],h=i.m.h[i.m.h.length-1],sh=S.pos[k];
+  const nm=i.sig?i.sig.name:"No signal";
+  return `<button class="d-card${hot}" id="card-${k}" onclick="openChart(${k})" aria-label="${esc(S.W.codes[k])}, last ${fmt(last)}, ${sg(ch)}%, ${esc(nm)}">
+ <span class="d-hd"><span class="d-l1"><b class="d-code">${esc(S.W.codes[k])}</b>${sh>0?`<span class="d-held">${sh} sh</span>`:""}</span><span class="d-l2"><b class="num d-last">${fmt(last)}</b><span class="num d-chg ${cc}">${ca} ${sg(ch)}%</span></span></span>
+ <span class="d-ch">${pfMini(i,{w:48,h:66,cell:6})}</span>
+ <span class="d-ind"><span class="d-ir"><span class="d-il">RSI</span><b class="num">${Math.round(r)}</b></span><span class="d-sp">${spark(i.r.slice(-11),{w:70,h:14})}</span>
+  <span class="d-ir"><span class="d-il">MACD</span><b class="num">${h>=0?"+":"−"}${Math.abs(h).toFixed(2)}</b></span><span class="d-sp">${miniBars(i.m.h.slice(-8),{w:70,h:14})}</span></span>
+ <span class="d-sg">${sigChip(i.si)}</span>
+</button>`}
+SCREENS.home=function(){
+  const al=dashAlerts(),max=(typeof layout==="function"&&layout()==="wide")?2:3,shown=al.slice(0,max),more=al.length-shown.length;
+  const note=dashNoteSeen()?"":`<div class="card d-note" id="dNote"><span>These stocks mostly rose. A bullish call is right about ${pctTxt(baseFor(1))} of the time with no chart at all. Your record is compared with that.</span><button class="btn" id="noteDismiss" onclick="dashNoteDismiss()">Got it</button></div>`;
+  const strip=`<section class="card d-strip" aria-label="This week"><div class="cap">${S.week===0?"Start":"This week"}</div>${shown.map(dashAlertHTML).join("")}${more>0?`<div class="d-al d-more"><span class="d-tx"><b>${more} more</b> this week</span></div>`:""}</section>`;
+  const cards=[0,1,2,3,4,5].map(dashCard).join("");
+  const main=`${note}<div class="d-home"><div class="d-side">${dashAcct()}${strip}</div><div class="d-grid">${cards}</div></div>
+<div class="d-foot dim" id="buildId">Build ${esc(BUILD)} · data ${esc(dataSource())}</div>`;
+  const bar=`<button class="btn outline" id="btnJournal" onclick='S.tab="journal";go("review")'>Journal</button>`+
+    (periodEnded()?`<button class="btn primary" id="btnReview" onclick='go("review")'>Period review</button>`
+      :`<button class="btn primary" id="btnAdvance" onclick="advance()">Advance week</button>`);
+  return{top:topBar("Home","Stock Terminal",devBadge()),main,bar}};
+
+</script>
+<script>
+"use strict";
+/* Chart screen (S2a). Needs: stockInfo closeNow equity S T layout topBar devBadge fmt esc pfSVG rsiPane macdPane volPane sigChip evNow baseFor liftCls liftTxt pctTxt priceOf sigLabel go openChart openSheet */
+function chAvgCost(k){ // admin default: average-cost method over S.orders; null when it cannot be derived
+  const code=S.W.codes[k];let q=0,cost=0;
+  (S.orders||[]).forEach(o=>{if(o.s!==code)return;
+    if(o.side==="BUY"){q+=o.q;cost+=o.q*o.px}
+    else if(q>0){const a=cost/q,n=Math.min(q,o.q);q-=n;cost-=a*n}});
+  return q>0&&S.pos[k]>0?cost/q:null}
+function chEvLine(i){
+  let ev=null;try{ev=evNow()}catch(e){}
+  const si=i.si||{},pats=(ev&&ev.pat)||{};
+  const key=si.name||(si.trap==="bull"?"BULL TRAP":si.trap==="bear"?"BEAR TRAP":null);
+  const p=key&&pats[key];
+  if(p&&p.seen){
+    const label=si.name?sigLabel(si.name):(si.trap==="bull"?"Bull trap":"Bear trap"),dir=p.dir===-1?"bearish":"bullish";
+    const cls=liftCls(p);
+    return `<b>${esc(label)}:</b> followed through ${pctTxt(p.ft)} of ${p.seen.toLocaleString("en-US")} seen &middot; lift <span class="${cls==="dim"?"":cls}">${liftTxt(p.lift)}</span> vs ${dir} base ${pctTxt(baseFor(p.dir))}`}
+  return `Base rate: bullish calls right ${pctTxt(baseFor(1))}, bearish ${pctTxt(baseFor(-1))} (this market)`}
+SCREENS.chart=function(){
+  const k=S.sel,i=stockInfo(k),code=S.W.codes[k],px=closeNow(k),c=i.c,prev=c[c.length-2]||c[c.length-1];
+  const chg=(px/prev-1)*100,view=S.views[k],vc=i.vc||{},tg=(view===-1||(!view&&i.si&&i.si.dir<0))?vc.dn:vc.up; // integrator: no view -> follow signal direction
+  let tgt=null;try{if(tg&&tg.tgt!=null)tgt=priceOf(tg.tgt)}catch(e){}
+  const lay=layout(),W0=window.innerWidth,H0=window.innerHeight;
+  const sheetOn=lay==="wide"&&S.sheet==="order";
+  const total=W0-24-(sheetOn?372:0);
+  const two=lay==="wide"&&total>=640;
+  let pw,paneW,pfH,hr,hm,hv;
+  if(lay==="cover"){hr=62;hm=66;hv=34}else if(lay==="tall"){hr=84;hm=92;hv=44}else{hr=50;hm=56;hv=30}
+  const chrome=44+(lay==="wide"?52:56)+38+72+24, evH=56;
+  if(two){const l=Math.floor((total-10)*0.56);pw=l;paneW=total-10-l;
+    pfH=Math.max(160,Math.min(320,H0-chrome-evH))}
+  else{pw=paneW=total;pfH=Math.max(160,Math.min(lay==="tall"?380:246,H0-chrome-evH-(hr+40)-(hm+40)-8))}
+  const cw=pw-2;paneW=paneW-(two?0:0);
+  const cell=lay==="cover"?15:14;
+  const held=S.pos[k]>0,ac=held?chAvgCost(k):null;
+  const up=chg>=0,sq=(k+5)%6,nx=(k+1)%6;
+  const chev=d=>`<svg viewBox="0 0 24 24" aria-hidden="true"><path d="${d}"/></svg>`;
+  const top=topBar("Chart",`Week ${S.week} of ${T.weeks} · Equity ${fmt(equity())}`,devBadge());
+  const head=`<div class="ch-hd">
+    <button class="ch-ib" id="btnBack" aria-label="Back to home" onclick="go('home')">${chev("M15 5l-7 7 7 7")}</button>
+    <div class="ch-ttl"><div class="ch-l1"><span>${esc(code)}</span><span class="num" id="chPx">${px.toFixed(2)}</span></div>
+    <div class="ch-l2 num ${up?"up":"down"}">${up?"&#9650;":"&#9660;"} ${up?"+":""}${chg.toFixed(1)}% <span class="dim">this week</span>${held?` <span class="dim ch-held">&middot; held ${S.pos[k]} sh${ac?` @ ${ac.toFixed(0)}`:""}</span>`:""}</div></div>
+    <button class="ch-ib" id="btnPrev" aria-label="Previous instrument ${esc(S.W.codes[sq])}" onclick="openChart(${sq})">${chev("M6 15l6-6 6 6")}<span>${esc(S.W.codes[sq])}</span></button>
+    <button class="ch-ib" id="btnNext" aria-label="Next instrument ${esc(S.W.codes[nx])}" onclick="openChart(${nx})">${chev("M6 9l6 6 6-6")}<span>${esc(S.W.codes[nx])}</span></button></div>`;
+  const chips=`<div class="ch-chips">${sigChip(i.si)}${held?`<span class="ch-held dim">Held ${S.pos[k]} sh${ac?` @ ${ac.toFixed(0)}`:""}</span>`:""}</div>`;
+  const pf=`<div class="card ch-pf" id="pfCard">${pfSVG(i,{w:cw,h:pfH,cell,tgt})}<div class="ch-ev" id="evLine">${chEvLine(i)}</div></div>`;
+  const panes=rsiPane(i,{w:paneW,h:hr,id:"rsiCard"})+macdPane(i,{w:paneW,h:hm,id:"macdCard"})+volPane(i,{w:paneW,h:hv,id:"volCard"});
+  const main=`${head}${chips}`+(two?`<div class="ch-cols"><div class="ch-col" style="width:${pw}px">${pf}</div><div class="ch-col" style="width:${paneW}px">${panes}</div></div>`
+    :`<div class="ch-col">${pf}${panes}</div>`);
+  const bar=`<button class="btn outline" id="btnHome" onclick="go('home')">Home</button><button class="btn primary" id="btnTrade" onclick="openSheet('order')">Trade</button>`;
+  return{top,main,bar}};
+
+</script>
+<script>
+"use strict";
+/* Order sheet (S2b). SHEETS.order() -> {html}. Classes od-*. */
+SHEETS.order=function(){
+  const k=S.sel,px=closeNow(k),eq=equity(),buy=S.side===1,q=S.qty;
+  const view=S.views[k],code=S.W.codes[k],held=S.pos[k];
+  const cost=q*px,fee=cost*T.feePct/100;
+  const after=held+(buy?q:-q),capUse=eq>0?after*px/eq*100:0;
+  const capOk=!buy||capUse<=T.capPct+1e-6; // admin default: cap only judged on buys
+  const floorEq=T.startCash*(1-T.floorPct/100),floorOk=eq>floorEq;
+  let si=null;try{si=stockInfo(k).si||null}catch(e){}
+  let patLine="";
+  if(si&&si.name){
+    let p=null;try{p=evNow().pat[si.name]}catch(e){}
+    const nm=si.name.replace(/ (BUY|SELL)$/,"");const lbl=nm.charAt(0)+nm.slice(1).toLowerCase();
+    if(p)patLine=`<div class="od-line ${liftCls(p)}" id="patLine">${esc(lbl)}: followed through ${pctTxt(p.ft)} of ${Number(p.seen).toLocaleString("en-US")} seen, lift ${liftTxt(p.lift)} vs base</div>`;
+  }
+  let tgtTxt="No count yet";
+  try{const vc=stockInfo(k).vc,t=view===-1?vc.dn:vc.up;
+    if(t)tgtTxt=`${priceOf(t.tgt).toFixed(0)} <span class="dim od-sm">(${t.n} boxes × ${T.reversal} ${view===-1?"below":"above"} ${priceOf(t.base).toFixed(0)})</span>`}catch(e){}
+  const seg=(id,on,fn,label)=>`<button id="${id}" class="${on?"on":""}" aria-pressed="${on}" onclick="${fn}">${label}${on?" &#10003;":""}</button>`;
+  const vb=(id,v,l)=>seg(id,view===v,`setView(${v})`,l);
+  const msg=S.lastMsg&&S.lastMsg.indexOf("Rejected")===0?S.lastMsg:"";
+  const row=(l,v)=>`<div class="row"><span class="dim">${l}</span><span>${v}</span></div>`;
+  const chk=(id,ok,txt,bad)=>`<div class="row od-chk" id="${id}"><span><span class="${ok?"ok":bad}">${ok?"&#10003;":"&#10007;"}</span> ${txt}</span><span class="${ok?"ok":bad}">${ok?"OK":"OVER"}</span></div>`;
+  const html=`<div class="od-wrap"><div class="grab"></div>
+  <div class="od-body">
+  <div class="od-title"><b>Order · ${esc(code)} · held ${held} sh</b></div>
+  <div class="od-fr"><span class="od-k">Side</span><div class="seg">${seg("sideBuy",buy,"S.side=1;S.qty=0;render()","Buy")}${seg("sideSell",!buy,"S.side=-1;S.qty=0;render()","Sell")}</div></div>
+  <div class="od-fr"><span class="od-k">View</span><div class="seg">${vb("viewBull",1,"Bullish")}${vb("viewBear",-1,"Bearish")}${vb("viewNeut",0,"Neutral")}</div></div>
+  <div class="od-line dim" id="baseLine">Base rate: bullish calls right ${pctTxt(baseFor(1))}, bearish ${pctTxt(baseFor(-1))} (this market)</div>
+  ${patLine}${view==null?`<div class="od-line dim" id="noViewLine">No view logged for this order</div>`:""}
+  <div class="od-fr"><span class="od-k">Qty</span><div class="od-stp"><button class="btn" id="qtyMinus" aria-label="Decrease" onclick="S.qty=Math.max(0,S.qty-step());render()">&minus;</button><span class="od-qty num" id="qtyVal">${q}</span><button class="btn" id="qtyPlus" aria-label="Increase" onclick="S.qty=Math.min(maxQty(),S.qty+step());render()">+</button></div></div>
+  <div class="od-fr"><span class="od-k"></span><div class="od-chips"><button id="qty25" onclick="od_pct(.25)">25%</button><button id="qty50" onclick="od_pct(.5)">50%</button><button id="qtyMax" onclick="od_pct(1)">Max</button></div></div>
+  <div class="od-est num">
+   ${row("Est. price (week close)",px.toFixed(2))}
+   ${row(buy?"Est. cost":"Est. proceeds",fmt(cost))}
+   ${row("Fee "+T.feePct+"%",fmt(fee))}
+   ${row("Position after",after+" sh = "+fmt(after*px))}
+   ${chk("capCheck",capOk,`Cap ${capUse.toFixed(1)}% of ${T.capPct}%`,"warn")}
+   ${chk("floorCheck",floorOk,`Floor: equity ${fmt(eq)}, floor ${fmt(floorEq)}`,"bad")}
+   ${row("Target",tgtTxt)}
+  </div>
+  </div>
+  <div class="bar od-bar"><div class="od-msg warn" id="orderMsg">${esc(msg)}</div><button class="btn outline" id="btnCancel" onclick="closeSheet()">Cancel</button><button class="btn primary" id="btnPlace" onclick="place()">Place order</button></div></div>`;
+  return{html}};
+function od_pct(f){const m=maxQty();S.qty=m>0?Math.max(1,Math.floor(m*f)):0;render()}
+
+</script>
+<script>
+"use strict";
+/* week.js [S3]: week-close sheet */
+SHEETS.week=function(){
+  const R=S.report;if(!R)return{html:""};
+  const code=k=>S.W.codes[k];
+  const r=pct(R.eq,R.eq0),br=pct(R.bn,R.b0),cum=pct(R.eq,T.startCash),ex=cum-pct(R.bn,T.startCash);
+  const prog=Math.max(0,Math.min(1,ex/T.mandate));
+  const end=periodEnded();
+  const floorRow=S.failed?`<div class="wk-flag bad" role="alert"><b>Floor breached, period ends</b><span class="num">${sg(cum)}% from start</span></div>`
+    :cum<=-T.warnPct?`<div class="wk-flag warn"><b>Floor warning</b><span class="num">${sg(cum)}% from start, floor -${T.floorPct}%</span></div>`:"";
+  const sigLbl=n=>typeof sigLabel==="function"?sigLabel(n):n;
+  const moves=R.rows.map(x=>{
+    const up=x.chg>0.005,dn=x.chg<-0.005,cls=up?"up":dn?"down":"dim",arrow=up?"▲":dn?"▼":"■";
+    const bx=x.newBoxes?`<span class="wk-bx ${x.dir===1?"x":"o"} num">${x.dir===1?"+":"-"}${x.newBoxes} ${x.dir===1?"X":"O"}</span>`:`<span class="wk-bx dim num">0 boxes</span>`;
+    const sig=x.fired?`<span class="wk-sig chip fresh ${/BUY/.test(x.fired)?"buy":"sell"}">${esc(sigLbl(x.fired))}</span>`:`<span class="wk-sig dim">no signal</span>`;
+    return `<div class="wk-mv"><div class="wk-l1"><span class="wk-code">${code(x.k)}</span><span class="num">${fmt(closeNow(x.k))}</span></div>
+<div class="wk-r1"><span class="num ${cls}">${arrow} ${sg(x.chg)}%</span></div>
+<div class="wk-l2">${bx}<span class="num">RSI ${Math.round(x.r0)} › ${Math.round(x.r1)}</span><span class="num">MACD h ${sg2(x.h0)} › ${sg2(x.h1)}</span>${sig}</div></div>`}).join("");
+  const sigTxt=c=>c.withSig===true?"with signal":c.withSig===false?"against signal":"no signal";
+  const res=[];
+  (R.resolved||[]).forEach(c=>{
+    const ok=c.res==="right";
+    res.push(`<div class="wk-res"><b>${code(c.k)}</b><span>${c.view===1||c.dir===1?"Bullish":"Bearish"} ${ok?"right":"wrong"} <span class="dim">· base ${typeof c.base==="number"?Math.round(c.base*100)+"%":"n/a"} · ${sigTxt(c)}</span></span><span class="wk-tag ${ok?"ok":"wrong"}">${ok?"✓ Right":"✕ Wrong"}</span></div>`)});
+  (R.neutrals||[]).forEach(n=>res.push(`<div class="wk-res"><b>${n.s||code(n.k)}</b><span>Neutral</span><span class="wk-tag dim">Not scored</span></div>`));
+  (R.open||[]).forEach(c=>{
+    let t="";try{const vc=vcount(stockInfo(c.k).cols),g=(c.view||c.dir)===-1?vc.dn:vc.up;if(g)t=` · target ${priceOf(g.tgt).toFixed(0)}`}catch(e){}
+    res.push(`<div class="wk-res"><b>${code(c.k)}</b><span>${(c.view||c.dir)===1?"Bullish":"Bearish"} open<span class="dim">${t}</span></span><span class="wk-tag up">Open</span></div>`)});
+  let ps="";
+  try{const p=periodStats();
+    ps=`${p.closed} closed, ${p.right} right, expected ${p.exp.toFixed(1)}, edge ${sg(p.edge)}, <span class="dim">${p.verdict}</span>`}catch(e){ps='<span class="dim">no closed calls yet</span>'}
+  const html=`<div class="grab"></div>
+<div class="wk-body">
+<div class="wk-head"><h1 id="wkTitle">Week ${R.wk} close</h1></div>
+<div class="card wk-eq">
+  <div class="wk-eqrow"><span class="wk-big num">${fmt(R.eq)}</span><span class="dim num">from ${fmt(R.eq0)}</span><span class="wk-d num ${r>=0?"up":"down"}">${r>=0?"▲":"▼"} ${r>=0?"+":"-"}${fmt(Math.abs(R.eq-R.eq0))} · ${sg(r)}%</span></div>
+  <div class="wk-kv"><span class="dim">Benchmark</span><b class="num">${sg(br)}%</b></div>
+  <div class="wk-kv"><span class="dim">Excess vs mandate</span><b class="num">${sg(ex)} of +${(+T.mandate).toFixed(1)} pts</b></div>
+  <div class="wk-track" role="img" aria-label="Excess ${sg(ex)} of ${T.mandate}"><i style="width:${(prog*100).toFixed(0)}%"></i></div>
+  ${floorRow}
+</div>
+<div class="card"><h2 class="wk-h">Moves this week</h2>${moves}</div>
+<div class="card"><h2 class="wk-h">Calls resolved</h2>${res.length?res.join(""):'<div class="dim wk-none">No calls resolved or open</div>'}</div>
+<div class="card wk-period"><h2 class="wk-h">Period so far</h2><span class="num">${ps}</span></div>
+</div>
+<div class="bar wk-bar"><button class="btn outline" id="btnCopy" onclick="copyReport()">Copy report</button><button class="btn primary" id="btnContinue" onclick="${end?"closeSheet();go('review')":"closeSheet()"}">${end?"Period review":"Continue"}</button></div>`;
+  return{html}};
+
+</script>
+<script>
+"use strict";
+/* Period review screen (S4a). Journal tab body comes from journalTabHTML() (journal.js). */
+function rvSg(x,d){d=d==null?1:d;const v=+x.toFixed(d);return(v>0?"+":v<0?"−":"")+Math.abs(v).toFixed(d)}
+function rvTabs(){
+  const p=S.tab!=="journal";
+  return `<nav class="rv-tabs" role="tablist"><button id="tabPeriod" role="tab" aria-selected="${p}" class="${p?"on":""}" onclick="S.tab='period';render()">This period</button><button id="tabJournal" role="tab" aria-selected="${!p}" class="${p?"":"on"}" onclick="S.tab='journal';render()">Journal</button></nav>`}
+function rvSplitRow(label,s){
+  return `<tr><td>${label}</td><td class="num">${s.closed}</td><td class="num">${s.right}</td><td class="num">${s.exp.toFixed(1)}</td><td class="num">${rvSg(s.edge)}</td></tr>`}
+function rvSignals(){
+  const ev=evNow(),pat=(ev&&ev.pat)||{},g={},order=[];
+  (S.fired||[]).forEach(f=>{if(!g[f.name]){g[f.name]=0;order.push(f.name)}g[f.name]++});
+  const body=order.length?`<table><thead><tr><th>Pattern</th><th>Fired</th><th>Seen</th><th>Followed</th><th>Lift</th></tr></thead><tbody>${order.map(n=>{
+    const p=pat[n],label=typeof sigLabel==="function"?sigLabel(n):n;
+    if(!p)return `<tr><td>${esc(label)}</td><td class="num">${g[n]}</td><td class="num dim">-</td><td class="num dim">-</td><td class="num dim">-</td></tr>`;
+    return `<tr><td>${esc(label)}</td><td class="num">${g[n]}</td><td class="num">${(+p.seen).toLocaleString("en-US")}</td><td class="num">${pctTxt(p.ft)}</td><td class="num ${liftCls(p)}">${liftTxt(p.lift)}</td></tr>`}).join("")}</tbody></table>
+    <p class="rv-note">Followed = followed through. Lift is measured against the base rate (bullish ${pctTxt(ev.base.bull)}, bearish ${pctTxt(ev.base.bear)}).</p>`
+    :`<p class="rv-note">No signals fired this period.</p>`;
+  return `<section class="card rv-card"><h2>Signals this period</h2><div class="rv-sub">All instruments, whole history</div>${body}</section>`}
+function rvBaseline(){
+  const b=S.base,ev=evNow(),bull=ev&&ev.base?pctTxt(ev.base.bull):"-";
+  let f1;
+  if(!b)f1=`<p class="rv-note">Baseline: pending, computing…</p>`;
+  else{const best=Math.max(b.cash,b.rand,b.lock);
+    f1=`<p class="rv-note">No-read strategies meet the mandate in <b class="num">${best}%</b> of windows.</p><p class="rv-note rv-fine">Idle cash ${b.cash}%, random buys ${b.rand}%, copy benchmark ${b.lock}% (${b.n} ${b.src==="real"?"real":"stand-in"} windows).</p>`}
+  return `<section class="card rv-card"><h2>Baseline</h2>${f1}<p class="rv-note">Bullish base rate <b class="num">${bull}</b>.</p></section>`}
+function rvPeriodHTML(){
+  const lay=layout(),eq=equity(),r=pct(eq,T.startCash),br=pct(bench(),T.startCash),ex=r-br;
+  const met=!S.failed&&ex>=T.mandate,dd=Math.min(0,pct(S.minEq,T.startCash));
+  const floorEq=T.startCash*(1-T.floorPct/100);
+  const fees=S.fees||0,feePts=fees/T.startCash*100,exPre=ex+feePts;
+  const st=periodStats(),sp=splitStats(S.calls,journalLoad().length),nn=noCallCount();
+  const verdict=st.verdict||"too few to tell";
+  const band=st.band?`, band ${rvSg(st.band[0])} to ${rvSg(st.band[1])} calls`:"";
+  const res=S.failed?`<span class="v num rv-bad">✖ floor breached</span>`:met?`<span class="v num ok">✓ met</span>`:`<span class="v num warn">not met</span>`;
+  const w=lay==="cover"?320:lay==="tall"?560:400,h=lay==="cover"?190:lay==="tall"?240:230;
+  const perf=`<section class="card rv-card"><h2>Performance</h2>
+    <div class="row"><span class="l dim">Return</span><span class="v num">${rvSg(r)}%</span></div>
+    <div class="row"><span class="l dim">Benchmark</span><span class="v num">${rvSg(br)}%</span></div>
+    <div class="row"><span class="l dim">Excess vs benchmark</span><span class="v num">${rvSg(ex)} pts</span></div>
+    <div class="row"><span class="l dim">Mandate +${(+T.mandate).toFixed(1)} pts</span>${res}</div>
+    <div class="row"><span class="l dim">Max drawdown</span><span class="v num${S.failed?" rv-bad":""}">${rvSg(dd)}%</span></div>
+    <div class="row"><span class="l dim">Orders</span><span class="v num">${S.orders.length}</span></div>
+    <div class="row"><span class="l dim">End equity</span><span class="v num">${fmt(eq)}</span></div></section>`;
+  const chart=`<section class="card rv-card"><h2>Equity vs benchmark, % since start</h2><div class="rv-chart">${eqChart(S.eqHist,S.benchHist,floorEq,{w,h})}</div>
+    <div class="rv-fee"><span class="cap">Fee drag</span><div class="num rv-feeL">Fees ${fmt(fees)} = ${feePts.toFixed(1)} pts of start equity</div><div class="num rv-feeL">Excess before fees ${rvSg(exPre)} pts</div></div></section>`;
+  const rec=`<section class="card rv-card"><h2>Call record vs base</h2>
+    <div class="rv-hl">${st.right} right of ${st.closed} closed</div>
+    <div class="rv-sub">Expected from base rate alone: ${st.exp.toFixed(1)}. Edge ${rvSg(st.edge)} calls (n=${st.closed}, ${verdict}${band})</div>
+    <table><thead><tr><th>Calls</th><th>Closed</th><th>Right</th><th>Exp</th><th>Edge</th></tr></thead><tbody>${rvSplitRow("With signal",sp.with)}${rvSplitRow("Against signal",sp.against)}${rvSplitRow("No signal",sp.none)}</tbody></table>
+    <div class="row"><span class="l dim">Neutral views (not scored)</span><span class="v num">${S.neutrals.length}</span></div>
+    <div class="row"><span class="l dim">Orders without a call</span><span class="v num">${nn}</span></div></section>`;
+  return `<div class="rv-grid">${perf}${chart}${rec}${rvSignals()}${rvBaseline()}</div>`}
+SCREENS.review=function(){
+  const ended=periodEnded(),jn=S.tab==="journal";
+  const top=topBar("Period review","Weeks 1 to "+S.week+(ended?" · end of period":" · so far"),devBadge());
+  const main=rvTabs()+(jn?`<div class="rv-pane">${journalTabHTML()}</div>`:`<div class="rv-pane">${rvPeriodHTML()}</div>`);
+  const bar=ended
+    ?`<button class="btn outline" id="btnRerun" onclick="newPeriod(S.seed)"><span class="rv-l">Rerun window</span><span class="rv-s">Rerun</span></button><button class="btn outline" id="btnCopy" onclick="copyReport()">Copy report</button><button class="btn primary" id="btnNextPeriod" onclick="newPeriod((Math.random()*90000|0)+10000)">Next period</button>`
+    :`<button class="btn primary" id="btnHome" onclick="go('home')">Home</button><button class="btn outline" id="btnCopy" onclick="copyReport()">Copy report</button>`;
+  return{top,main,bar}};
+
+</script>
+<script>
+"use strict";
+// Journal tab (lifetime call record). Owner S4b.
+let _jnTimer=null,_jnArmed=false;
+
+function jnRows(list){
+  // list: [[label, statsObj, bold?]]
+  const body=list.map(([lab,s,b])=>{
+    s=s||{closed:0,right:0,exp:0,edge:0};
+    const e=s.closed?sg2(s.edge,1):"-";
+    const L=b?"<b>"+esc(lab)+"</b>":esc(lab);
+    return `<tr><td>${L}</td><td class="num">${s.closed}</td><td class="num">${s.closed?s.right:"-"}</td><td class="num">${s.closed?s.exp.toFixed(1):"-"}</td><td class="num">${e}</td></tr>`;
+  }).join("");
+  return body;
+}
+function jnTable(first,list){
+  return `<table class="jn-t"><thead><tr><th>${esc(first)}</th><th>Closed</th><th>Right</th><th>Exp</th><th>Edge</th></tr></thead><tbody>${jnRows(list)}</tbody></table>`;
+}
+function jnSg(x){ // signed one decimal with real minus
+  const v=Math.round(x*10)/10;
+  return (v>0?"+":v<0?"−":"")+Math.abs(v).toFixed(1);
+}
+
+function journalTabHTML(){
+  let J=null;
+  try{J=journalStats();}catch(e){J=null;}
+  if(!J||!J.n){
+    return `<div class="card jn-card"><h2 class="jn-h">Lifetime call record</h2>
+      <p class="jn-note">No closed calls yet. Set Bullish or Bearish on a stock, then advance weeks. Each call that resolves is saved here and compared with the base rate.</p></div>`+
+      jnNote()+jnReset();
+  }
+  const A=J.all, wide=(typeof window!=="undefined"&&window.innerWidth>=600);
+  const w=Math.max(240,Math.min((typeof window!=="undefined"?window.innerWidth:344)-48,520));
+  const h=Math.min(150,Math.round(w*0.4));
+  let chart="",vtxt;
+  if(A.band){
+    chart=intervalChart(A.edge,A.band[0],A.band[1],A.verdict,{w,h});
+    vtxt=`<span class="jn-verdict">${esc(A.verdict)}</span><span class="dim jn-bandtxt">Band ${jnSg(A.band[0])} to ${jnSg(A.band[1])} calls${A.verdict==="at base"?" includes 0 (base)":""}.</span>`;
+  }else{
+    const need=Math.max(0,30-J.n);
+    vtxt=`<span class="jn-verdict">too few to tell (n=${J.n})</span><span class="dim jn-bandtxt">${need} more closed call${need===1?"":"s"} needed to reach 30 before a band is shown.</span>`;
+  }
+  const head=`<div class="card jn-card"><h2 class="jn-h">Lifetime call record</h2>
+    <div class="jn-hl">${A.right} right of ${A.closed} closed<small>expected from base ${A.exp.toFixed(1)} &middot; edge ${jnSg(A.edge)}</small></div>
+    ${chart?`<div class="jn-chart">${chart}</div>`:""}
+    <div class="jn-vrow">${vtxt}</div></div>`;
+  const dir=`<div class="card jn-card"><h2 class="jn-h">By direction</h2>${jnTable("Call",[["▲ Bullish",J.bull],["▼ Bearish",J.bear],["All calls",A,1]])}</div>`;
+  const names=Object.keys(J.byPat||{}).sort((a,b)=>J.byPat[b].closed-J.byPat[a].closed);
+  const pat=`<div class="card jn-card"><h2 class="jn-h">By pattern called on</h2>${jnTable("Pattern",names.map(n=>[sigLabel(n==="No signal"?null:n),J.byPat[n]]).concat([["All",A,1]]))}</div>`;
+  const fr=`<div class="card jn-card"><h2 class="jn-h">Fresh vs stale signal</h2>${jnTable("Signal",[["Fresh (age 0-1)",J.fresh.fresh],["Stale (2+ cols)",J.fresh.stale]])}
+    <p class="jn-sub">Calls made with a chart signal showing.</p></div>`;
+  const sp=`<div class="card jn-card"><h2 class="jn-h">With vs against signal</h2>${jnTable("Call",[["With signal",J.split.with],["Against signal",J.split.against],["No signal",J.split.none]])}</div>`;
+  return `<div class="jn-grid">${head}${dir}${pat}${fr}${sp}${jnNote()}</div>`+jnReset();
+}
+function jnNote(){
+  let y="most";try{y=pctTxt(baseFor(1));}catch(e){} // integrator: computed, never hard-coded
+  return `<div class="card jn-card"><h2 class="jn-h">How to read this</h2><p class="jn-note">These stocks mostly rose. A bullish call is right about ${y} of the time with no chart at all. Your record is compared with that.</p></div>`;
+}
+function jnReset(){
+  return `<div class="jn-reset"><button class="btn sm outline" id="btnResetJournal" onclick="jnResetTap()">Reset journal</button></div>`;
+}
+function jnResetTap(){
+  const b=document.getElementById("btnResetJournal");
+  if(!_jnArmed){
+    _jnArmed=true;
+    if(b)b.textContent="Tap again to reset";
+    clearTimeout(_jnTimer);
+    _jnTimer=setTimeout(()=>{_jnArmed=false;const c=document.getElementById("btnResetJournal");if(c)c.textContent="Reset journal";},3000);
+    return;
+  }
+  clearTimeout(_jnTimer);_jnArmed=false;
+  journalReset();
+  render();
 }
 
 </script>
 <script>
 "use strict";
 /* ---------- copy report ---------- */
-function reportText(){const eq=equity();return JSON.stringify({build:BUILD,src:dataSource(),seed:S.seed,week:S.week,tweaked:tweaked(),tweaks:T,equity:Math.round(eq),ret:+pct(eq,T.startCash).toFixed(2),bench:+pct(bench(),T.startCash).toFixed(2),failed:S.failed,fees:Math.round(S.fees),orders:S.orders,calls:S.calls.map(c=>({s:S.W.codes[c.k],d:c.dir,wk:c.wk,pat:c.pat,res:c.res||"open"})),baseline:S.base})}
+function reportText(){
+  const g=(f,d)=>{try{return typeof f==="function"?f():d}catch(e){return d}};
+  const eq=g(equity,0),bn=g(bench,0),r=+pct(eq,T.startCash).toFixed(2),b=+pct(bn,T.startCash).toFixed(2);
+  const per=S.calls||[];
+  const calls=per.map(c=>({s:c.s||(S.W&&S.W.codes?S.W.codes[c.k]:null),wk:c.wk,view:c.view!=null?c.view:c.dir,d:c.dir,sig:c.sig||null,pat:c.pat||null,sigDir:c.sigDir!=null?c.sigDir:null,sigAge:c.sigAge!=null?c.sigAge:null,fresh:c.fresh!=null?c.fresh:null,withSig:c.withSig!=null?c.withSig:null,base:c.base!=null?c.base:null,res:c.res||"open"}));
+  const lc=g(()=>journalLoad().length,0);
+  const js=g(()=>journalStats(),null)||{};
+  const jall=js.all||{};
+  const ev=g(()=>evNow(),null)||{};
+  const eb=ev.base||{};
+  const o={build:BUILD,src:g(dataSource,"?"),seed:S.seed,week:S.week,tweaked:g(tweaked,false),tweaks:T,
+    equity:Math.round(eq),ret:r,bench:b,excess:+(r-b).toFixed(2),failed:!!S.failed,fees:Math.round(S.fees||0),
+    feePts:+(100*(S.fees||0)/(T.startCash||1)).toFixed(2),orders:S.orders||[],
+    noCall:g(noCallCount,0),calls:calls,neutrals:(S.neutrals||[]).length,
+    record:g(()=>callStats(per,lc),null),split:g(()=>splitStats(per,lc),null),
+    journal:{n:js.n||0,edge:jall.edge!=null?jall.edge:null,verdict:jall.verdict||null},
+    ev:{src:ev.src||"none",bull:eb.bull!=null?eb.bull:null,bear:eb.bear!=null?eb.bear:null,n:eb.n||0},
+    baseline:S.base||"pending"};
+  return JSON.stringify(o)}
 function copyReport(){const t=reportText();(navigator.clipboard?navigator.clipboard.writeText(t):Promise.reject()).then(()=>{S.lastMsg="Report copied";render()},()=>{prompt("Copy report",t)})}
 
 /* ---------- tweak menu + presets ---------- */
 function presets(){try{return JSON.parse(localStorage.getItem("pfdesk.presets")||"{}")}catch(e){return{}}}
-const esc=s=>String(s).replace(/[&<>"']/g,c=>"&#"+c.charCodeAt(0)+";");
-function openTweaks(){const P=presets();
-  $("modalBody").innerHTML=`<div class="hd">Settings · Tweak (testing)</div><div class="dim" style="margin:4px 0">Build ${BUILD} · data ${dataSource()} · seed ${S.seed}. Apply starts a new period.</div>
-  <div class="tw">${Object.keys(DEFAULTS).map(k=>`<label for="tw_${k}">${TWEAK_LABELS[k]} <span class="dim">(${DEFAULTS[k]})</span></label><input id="tw_${k}" type="number" step="any" value="${T[k]}" class="${+T[k]!==DEFAULTS[k]?"chg":""}">`).join("")}
-  <label for="tw_seed">Seed</label><input id="tw_seed" type="number" value="${S.seed}"></div>
-  <div class="row"><div class="btn go" onclick="applyTweaks()">APPLY + NEW PERIOD</div><div class="btn" onclick="T=Object.assign({},DEFAULTS);openTweaks()">DEFAULTS</div></div>
-  <div class="hd" style="margin-top:8px">Presets</div>
-  <div class="row"><div class="btn" onclick="savePreset()">SAVE PRESET</div><div class="btn" onclick="copyPreset()">COPY PRESET CODE</div><div class="btn" onclick="copyReport()">COPY REPORT</div></div>
-  ${Object.keys(P).map((n,ix)=>`<div class="row"><span style="flex:2;align-self:center">${esc(n)}</span><div class="btn" onclick="loadPreset(${ix})">LOAD</div><div class="btn" onclick="delPreset(${ix})">DELETE</div></div>`).join("")}
-  <div class="row"><div class="btn" onclick="$('modal').classList.remove('on')">CLOSE</div></div>`;
+function openTweaks(){const P=presets(),keep=($("tw_pname")||{}).value||"";
+  $("modalBody").innerHTML=`<div class="tw-wrap"><div class="tw-hd">Settings · Tweak (testing)</div>
+  <div class="tw-sub dim">Build ${BUILD} · data ${dataSource()} · seed ${S.seed}. Apply starts a new period.</div>
+  <div class="tw-grid">${Object.keys(DEFAULTS).map(k=>`<label class="tw-f${+T[k]!==DEFAULTS[k]?" chg":""}" for="tw_${k}"><span class="tw-l">${TWEAK_LABELS[k]} <span class="faint">(${DEFAULTS[k]})</span></span><input id="tw_${k}" class="num${+T[k]!==DEFAULTS[k]?" chg":""}" type="number" inputmode="decimal" step="any" value="${T[k]}"></label>`).join("")}
+  <label class="tw-f" for="tw_seed"><span class="tw-l">Seed</span><input id="tw_seed" class="num" type="number" inputmode="numeric" value="${S.seed}"></label></div>
+  <div class="tw-row"><button class="btn primary" id="twApply" onclick="applyTweaks()">Apply + new period</button><button class="btn" id="twDefaults" onclick="T=Object.assign({},DEFAULTS);openTweaks()">Defaults</button></div>
+  <div class="tw-hd tw-h2">Presets</div>
+  <div class="tw-row"><input id="tw_pname" class="tw-name" type="text" maxlength="40" placeholder="Preset name" value="${esc(keep)}"><button class="btn" id="twSave" onclick="savePreset()">Save preset</button></div>
+  <div class="tw-row"><button class="btn" id="twCopyPreset" onclick="copyPreset()">Copy preset code</button><button class="btn" id="twCopyReport" onclick="copyReport()">Copy report</button></div>
+  ${Object.keys(P).map((n,ix)=>`<div class="tw-prow"><span class="tw-pn">${esc(n)}</span><button class="btn" onclick="loadPreset(${ix})">Load</button><button class="btn" onclick="delPreset(${ix})">Delete</button></div>`).join("")}
+  <div class="tw-row"><button class="btn outline" id="twClose" onclick="$('modal').classList.remove('on')">Close</button></div></div>`;
   $("modal").classList.add("on")}
 function readTweaks(){const o={};Object.keys(DEFAULTS).forEach(k=>{const v=parseFloat($("tw_"+k).value);o[k]=isNaN(v)?DEFAULTS[k]:v});o.weeks=Math.max(1,Math.round(o.weeks));o.preWeeks=Math.max(30,Math.round(o.preWeeks));o.reversal=Math.max(1,Math.round(o.reversal));o.boxPct=Math.max(0.25,o.boxPct);return o}
 function applyTweaks(){T=readTweaks();try{localStorage.setItem("pfdesk.tweaks",JSON.stringify(T))}catch(e){}const sd=parseInt($("tw_seed").value)||S.seed;$("modal").classList.remove("on");newPeriod(sd)}
-function savePreset(){const n=prompt("Preset name");if(!n)return;const P=presets();P[n]=readTweaks();try{localStorage.setItem("pfdesk.presets",JSON.stringify(P))}catch(e){}openTweaks()}
+function savePreset(){const n=(($("tw_pname")||{}).value||"").trim();if(!n){const e=$("tw_pname");if(e)e.focus();return}const P=presets();P[n]=readTweaks();try{localStorage.setItem("pfdesk.presets",JSON.stringify(P))}catch(e){}openTweaks()}
 function loadPreset(ix){const P=presets(),n=Object.keys(P)[ix];T=Object.assign({},DEFAULTS,P[n]);openTweaks()}
 function delPreset(ix){const P=presets(),n=Object.keys(P)[ix];delete P[n];try{localStorage.setItem("pfdesk.presets",JSON.stringify(P))}catch(e){}openTweaks()}
-function copyPreset(){const t="PFDESK-PRESET:"+btoa(JSON.stringify(readTweaks()));(navigator.clipboard?navigator.clipboard.writeText(t):Promise.reject()).catch(()=>prompt("Preset code",t))}
+function copyPreset(){const t="PFDESK-PRESET:"+btoa(JSON.stringify(readTweaks()));(navigator.clipboard?navigator.clipboard.writeText(t):Promise.reject()).then(()=>{S.lastMsg="Preset code copied";render()},()=>prompt("Preset code",t))}
 
 </script>
 <script>
 "use strict";
-const BUILD="st-slice-1";
+const BUILD="st-ui2-1";
 window.addEventListener("resize",()=>render());
 loadData().then(()=>newPeriod(48213));
 
