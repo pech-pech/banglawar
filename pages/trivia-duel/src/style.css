@@ -302,6 +302,8 @@ canvas{display:block;border-radius:50%;flex:none}
 .wager-title{font-size:26px;font-weight:900;text-align:center;color:var(--gold);text-shadow:0 3px 0 rgba(0,0,0,.25)}
 .wager-lbl{font-size:12px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--lav);text-align:center}
 .wager-topics,.wager-mult{display:flex;gap:8px}
+.wager-topics{flex-wrap:wrap}
+.wager-topics .btn-wtopic{flex:1 1 20%}
 .btn-mult{flex:1 1 0;min-height:60px;font-size:24px;font-weight:900}
 .btn-mult.sel{outline:4px solid var(--gold);outline-offset:-4px}
 .wager-note{background:rgba(0,0,0,.28);border-radius:14px;padding:8px 12px;text-align:center;font-weight:700;font-size:15px}

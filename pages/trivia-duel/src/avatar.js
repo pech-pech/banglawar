@@ -9,7 +9,7 @@ var TD = (typeof window!=='undefined'?(window.TD=window.TD||{}):(global.TD=globa
   };
   // admin default colours (look A guess)
   var PLAYER_COL = ['#2f7bff', '#19b5a5', '#8a4fe0', '#33b84f'];
-  var TOPIC_COL = { spells: '#7b4fe0', creatures: '#33b84f', places: '#19b5a5' };
+  var TOPIC_COL = { spells: '#7b4fe0', creatures: '#33b84f', places: '#19b5a5', people: '#e0574f', objects: '#e09a1f', school: '#3f7be0', plot: '#c44fd0', general: '#8a7fd6' };
   var ORANGE = '#ff8a1f';
 
   function el(tag, cls) { var e = document.createElement(tag); if (cls) e.className = cls; return e; }
@@ -113,7 +113,7 @@ var TD = (typeof window!=='undefined'?(window.TD=window.TD||{}):(global.TD=globa
       var src = TD.ART && TD.ART.topic && TD.ART.topic[id];
       var fb = function (img) {
         var f = el('div', 'topic-fb');
-        f.style.cssText = 'width:' + px + 'px;height:' + px + 'px;border-radius:' + Math.round(px * 0.25) + 'px;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:' + Math.round(px * 0.55) + 'px;background:' + (TOPIC_COL[id] || '#7b4fe0');
+        f.style.cssText = 'width:' + px + 'px;height:' + px + 'px;border-radius:' + Math.round(px * 0.25) + 'px;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:' + Math.round(px * 0.55) + 'px;background:' + (TOPIC_COL[id] || '#8a7fd6');
         f.textContent = String(id || '?').charAt(0).toUpperCase();
         if (img && img.parentNode) img.parentNode.replaceChild(f, img);
         return f;

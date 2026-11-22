@@ -8,11 +8,14 @@ Build: `src/inline.py` concatenates into one `pages/trivia-duel/index.html` in t
 Target screen: Galaxy Fold cover portrait 475x638 CSS px (must not break at 344x882). Touch targets >= 56 px tall.
 Build id: `TD.BUILD = 'td-proto-1'` (defined in engine.js).
 
-## 1. Question data (q-spells.js, q-creatures.js, q-places.js)
-Each file: `TD.QUESTIONS = (TD.QUESTIONS || []).concat(LIST);` and exports LIST (its own 10).
+## 1. Question data (7 topics x 60, one file per topic)
+See /mnt/project-files/games-design/trivia/2026-11-22-question-bank/CONTRACT.md. Topics: spells, creatures, places, people, objects, school, plot
+(files q-spells.js, q-creatures.js, q-places.js, q-people.js, q-objects.js, q-school.js, q-plot.js; ids prefix sp/cr/pl/pe/ob/sc/pt).
+`TD.GENERAL` ('general') is an engine-only pseudo topic, not in TD.TOPICS.
+Each file: `TD.QUESTIONS = (TD.QUESTIONS || []).concat(LIST);` and exports LIST.
 ```
-{ id: 'sp01',            // prefix sp / cr / pl + 2 digits
-  topic: 'spells',       // 'spells' | 'creatures' | 'places'
+{ id: 'sp01',            // prefix sp / cr / pl / pe / ob / sc / pt + 2 digits
+  topic: 'spells',       // one of the 7 topic ids
   tier: 'e',             // 'e' easy | 'm' medium | 'h' hard
   q: 'Question text?',   // <= 110 chars, own words, no quoted book text
   a: ['Right', 'Wrong1', 'Wrong2', 'Wrong3'], // a[0] is ALWAYS the right answer; each <= 28 chars; plausible wrongs, same type

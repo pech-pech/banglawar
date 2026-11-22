@@ -1,9 +1,11 @@
 'use strict';
 // node sim.test.js  -- hard checks exit 1; tuning table never fails.
 global.TD = global.TD || {};
-require('../q-spells.js'); require('../q-creatures.js'); require('../q-places.js'); require('../engine.js');
+var QDIR = process.env.TD_QDIR || '..';
+['spells', 'creatures', 'places', 'people', 'objects', 'school', 'plot'].forEach(function (n) { require(QDIR + '/q-' + n + '.js'); });
+require('../engine.js');
 var TD = global.TD, E = TD.engine, Q = TD.QUESTIONS;
-var TOPICS = ['spells', 'creatures', 'places'];
+var TOPICS = ['spells', 'creatures', 'places', 'people', 'objects', 'school', 'plot'];
 var byId = {}; Q.forEach(function (q) { byId[q.id] = q; });
 var fails = [];
 function check(ok, msg) { if (!ok) { fails.push(msg); if (fails.length <= 25) console.log('FAIL: ' + msg); } }
@@ -15,7 +17,7 @@ function sim(seed, topic, mem, pl, cfg, mode, up) {
 }
 
 // ---- pool sizes
-console.log('Pool sizes (mode/readUpTo: spells creatures places):');
+console.log('Pool sizes (mode/readUpTo: ' + TOPICS.join(' ') + '):');
 ['movie', 'book'].forEach(function (m) {
   for (var u = 1; u <= 7; u++) {
     var p = E.pool(Q, { mode: m, readUpTo: u });
@@ -24,12 +26,29 @@ console.log('Pool sizes (mode/readUpTo: spells creatures places):');
 });
 
 // ---- hard checks
+var N_PER = 60;
+check(Q.length === TOPICS.length * N_PER, 'total questions ' + Q.length + ' (want ' + TOPICS.length * N_PER + ')');
+check(Object.keys(byId).length === Q.length, 'question ids not unique');
+TOPICS.forEach(function (t) {
+  var n = Q.filter(function (q) { return q.topic === t; }).length;
+  check(n === N_PER, 'topic ' + t + ' has ' + n + ' questions (want ' + N_PER + ')');
+});
+Q.forEach(function (q) {
+  var ok = q && typeof q.id === 'string' && TOPICS.indexOf(q.topic) >= 0 && ['e', 'm', 'h'].indexOf(q.tier) >= 0 &&
+    typeof q.q === 'string' && q.q.length > 0 && q.q.length <= 110 && /\?$/.test(q.q) &&
+    Array.isArray(q.a) && q.a.length === 4 && new Set(q.a).size === 4 &&
+    q.a.every(function (x) { return typeof x === 'string' && x.length > 0 && x.length <= 28; }) &&
+    typeof q.fact === 'string' && q.fact.length > 0 && q.fact.length <= 120 &&
+    Number.isInteger(q.book) && q.book >= 1 && q.book <= 7 &&
+    (q.ch === null || q.ch === undefined || (Number.isInteger(q.ch) && q.ch >= 1 && q.ch <= 40)) && typeof q.filmKnown === 'boolean';
+  check(ok, 'shape rules fail: ' + (q && q.id));
+});
 var CAREERS = 20, DUELS = 20; // 400 duels
 var cfg0 = cfgWith();
 // (a)(b)
 var aBad = 0, bBad = 0;
 for (var s = 1; s <= 400; s++) {
-  var t = TOPICS[s % 3];
+  var t = TOPICS[s % TOPICS.length];
   var r1 = sim(s, t, E.newMemory(), player(), cfg0), r2 = sim(s, t, E.newMemory(), player(), cfg0);
   if (JSON.stringify(r1) !== JSON.stringify(r2)) aBad++;
   var r3 = sim(s, t, E.newMemory(), player({ acc: 0.3, tSec: 11, wager: 'x1' }), cfg0);
@@ -40,10 +59,48 @@ for (var s = 1; s <= 400; s++) {
 check(aBad === 0, '(a) determinism: ' + aBad + '/400 seeds differ');
 check(bBad === 0, '(b) rival independent of player: ' + bBad + '/400 seeds differ');
 
+// (g) off-topic spread
+var offSet = {}, offAll = 0;
+for (var s3 = 1; s3 <= 400; s3++) {
+  var tp = TOPICS[s3 % TOPICS.length];
+  sim(70000 + s3, tp, E.newMemory(), player(), cfg0).log.forEach(function (l) { if (l.topic !== tp) { offSet[l.topic] = 1; offAll++; } });
+}
+check(Object.keys(offSet).length >= 5, '(g) off-topic questions came from only ' + Object.keys(offSet).length + ' other topics');
+// (h) general
+var gBad = 0, gDup = 0, gTopics = {}, gThrow = 0;
+for (var s4 = 1; s4 <= 400; s4++) {
+  try {
+    var g1 = sim(80000 + s4, 'general', E.newMemory(), player(), cfg0), g2 = sim(80000 + s4, 'general', E.newMemory(), player(), cfg0);
+    if (JSON.stringify(g1) !== JSON.stringify(g2)) gBad++;
+    if (new Set(g1.ids).size !== g1.ids.length) gDup++;
+    g1.log.forEach(function (l) { gTopics[l.topic] = 1; });
+  } catch (e) { gThrow++; }
+}
+check(gThrow === 0, '(h) general threw ' + gThrow);
+check(gBad === 0, '(h) general determinism ' + gBad);
+check(gDup === 0, '(h) general duplicate ids ' + gDup);
+check(Object.keys(gTopics).length === TOPICS.length, '(h) general drew from ' + Object.keys(gTopics).length + ' of ' + TOPICS.length + ' topics');
+[['movie', 7], ['book', 2]].forEach(function (mu) {
+  var bad = 0;
+  for (var s5 = 0; s5 < 400; s5++) {
+    var rg = sim(85000 + s5, 'general', E.newMemory(), player(), cfg0, mu[0], mu[1]);
+    rg.ids.forEach(function (id) { var q = byId[id]; if ((mu[0] === 'movie' && !q.filmKnown) || (mu[0] === 'book' && q.book > mu[1])) bad++; });
+  }
+  check(bad === 0, '(h) general ' + mu[0] + ' up' + mu[1] + ' drew ' + bad + ' disallowed');
+});
+var wgBad = 0, wgTopics = {};
+for (var s6 = 1; s6 <= 400; s6++) {
+  var rw = E.simDuel({ questions: Q, cfg: cfg0, seed: 90500 + s6, mode: 'book', readUpTo: 7, pickedTopic: 'spells', wagerTopic: 'general', memory: E.newMemory(), player: player() });
+  if (rw.log.length !== 7) wgBad++;
+  wgTopics[rw.log[rw.log.length - 1].topic] = 1;
+}
+check(wgBad === 0, '(h) wagerTopic general: ' + wgBad + ' duels without 7 questions');
+check(Object.keys(wgTopics).length === TOPICS.length, '(h) wagerTopic general Q7 drew from ' + Object.keys(wgTopics).length + ' topics');
+
 // (c)(d)(e)(f)
 var minGap = Infinity, dupBad = 0, negBad = 0, thrown = 0, gapBad = 0, filmBad = 0, bookBad = 0;
 for (var c = 0; c < CAREERS; c++) {
-  var topic = TOPICS[c % 3], mem = E.newMemory(), last = {};
+  var topic = TOPICS[c % TOPICS.length], mem = E.newMemory(), last = {};
   for (var d = 0; d < DUELS; d++) {
     var poolT = E.pool(Q, { mode: 'book', readUpTo: 7 }).filter(function (q) { return q.topic === topic; });
     var unseen = poolT.filter(function (q) { return !mem.seen[q.id]; }).length;
@@ -70,7 +127,7 @@ check(gapBad === 0, '(d) picked-topic id repeated in consecutive duels with unse
   var th = 0, bad = 0, n = 0;
   for (var s2 = 0; s2 < 400; s2++) {
     try {
-      var r = sim(50000 + s2, TOPICS[s2 % 3], E.newMemory(), player(), cfg0, mu[0], mu[1]); n++;
+      var r = sim(50000 + s2, TOPICS[s2 % TOPICS.length], E.newMemory(), player(), cfg0, mu[0], mu[1]); n++;
       r.ids.forEach(function (id) {
         var q = byId[id];
         if (!q || (mu[0] === 'movie' && !q.filmKnown) || (mu[0] === 'book' && q.book > mu[1])) bad++;
@@ -88,7 +145,7 @@ function run(over, pl, n) {
   for (var i = 0; i < n; i++) {
     if (i % DUELS === 0) mem = E.newMemory();
     var r;
-    try { r = sim(90000 + i, TOPICS[Math.floor(i / DUELS) % 3], mem, pl, cfg); } catch (e) { continue; }
+    try { r = sim(90000 + i, TOPICS[Math.floor(i / DUELS) % TOPICS.length], mem, pl, cfg); } catch (e) { continue; }
     k++; if (r.result === 'win') w++;
     var ts = 0; (r.log || []).forEach(function (l) { ts += E.readTime(byId[l.id], cfg) + (l.pT != null ? l.pT : pl.tSec) + 2.5; });
     secs += ts;
