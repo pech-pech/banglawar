@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0e1319">
+<title>Stock Terminal</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#0e1319">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>
+:root{--bg:#0e1319;--panel:#151c24;--line:#2a3542;--text:#e8eef5;--dim:#8b98a8;--x:#4da3ff;--o:#ff9f43;--accent:#7ee0c3;--warn:#ffd24d;--bad:#ff6b6b;--btn:#1f2a36;--btn-on:#2d4a6b}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:var(--bg);color:var(--text);font:14px/18px ui-monospace,"DejaVu Sans Mono","Liberation Mono",Menlo,Consolas,monospace;-webkit-font-smoothing:antialiased}
+html{overflow-x:clip;-webkit-text-size-adjust:100%}
+body{min-height:100vh;min-height:100dvh;display:flex;flex-direction:column;max-width:1000px;width:100%;margin:0 auto;overflow-x:clip;padding-left:env(safe-area-inset-left);padding-right:env(safe-area-inset-right)}
+.dim{color:var(--dim)}.x{color:var(--x)}.o{color:var(--o)}.acc{color:var(--accent)}.warn{color:var(--warn)}.bad{color:var(--bad)}.b{font-weight:700}
+.num{text-align:right;font-variant-numeric:tabular-nums}
+.status{padding-top:calc(4px + env(safe-area-inset-top));display:flex;flex-wrap:wrap;justify-content:space-between;gap:2px 10px;padding:4px 8px;background:var(--panel);border-bottom:1px solid var(--line);white-space:nowrap;position:sticky;top:0;z-index:6}
+.status .s1,.status .s2{display:flex;justify-content:space-between;gap:10px;width:100%}
+.status .s2 .dim{font-size:14px}
+.dev{border:1px solid var(--warn);color:var(--warn);border-radius:4px;padding:0 4px;font-size:14px;cursor:pointer}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:6px;margin:4px 8px;padding:6px 8px}
+.hd{color:var(--dim);font-size:12px;letter-spacing:.08em;text-transform:uppercase}
+pre{font:inherit;white-space:pre;overflow:hidden;max-width:100%}
+.panel,main>div,.main2>div{min-width:0}
+.tl{color:var(--dim)}
+.sig.trap{border-color:var(--warn);color:var(--warn)}
+.trapr{color:var(--warn)}
+.new{background:var(--text);color:var(--bg)}
+.btn{min-height:56px;min-width:56px;display:flex;align-items:center;justify-content:center;background:var(--btn);border:1px solid var(--line);border-radius:8px;color:var(--text);font:inherit;font-weight:700;padding:0 8px;cursor:pointer;user-select:none;text-align:center}
+.btn.go{background:var(--accent);color:#06231b;border-color:var(--accent)}
+.bar{display:flex;gap:6px;padding:6px 8px;background:var(--panel);border-top:1px solid var(--line);margin-top:auto;position:sticky;bottom:0;z-index:5;padding-bottom:calc(6px + env(safe-area-inset-bottom))}
+.bar .btn{flex:1;min-width:0;white-space:nowrap;padding:0 8px}
+main{flex:1}
+table{width:100%;border-collapse:collapse}
+th{color:var(--dim);font-size:14px;font-weight:400;text-transform:uppercase;letter-spacing:0;text-align:right;padding:2px 2px;border-bottom:1px solid var(--line)}
+th:first-child,td:first-child{text-align:left}
+td{padding:6px 2px;border-bottom:1px solid var(--line);text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+tr.rowlink td{cursor:pointer;height:48px}
+.sig{border:1px solid var(--accent);color:var(--accent);border-radius:4px;padding:0 4px;font-weight:700;font-size:14px;white-space:nowrap}
+.sig.s{border-color:var(--o);color:var(--o)}
+.tick{display:flex;justify-content:space-between;align-items:center;gap:6px;padding:4px 8px}
+.tc{display:flex;flex-wrap:wrap;justify-content:center;gap:2px 8px;text-align:center}
+.pane{display:grid;grid-template-columns:66px 1fr 66px;gap:0 6px;align-items:center;padding:3px 8px}
+.pane .l{color:var(--dim);font-size:14px;line-height:14px;text-transform:uppercase}.pane .l b{display:block;color:var(--text)}
+.pane .cv{height:56px}.pane.vp .cv{height:20px}
+.pane svg{display:block;width:100%;height:100%}
+.pane .v{text-align:right;font-variant-numeric:tabular-nums}
+.pane .v i{font-style:normal;font-size:14px;margin-right:3px}
+.oh{display:flex;justify-content:space-between;align-items:baseline;gap:6px}.leg{display:flex;flex-wrap:wrap;gap:0 12px;font-size:14px;color:var(--dim)}.leg svg{vertical-align:middle}
+.ind1{color:var(--dim);display:flex;flex-wrap:wrap;gap:0 10px;margin-top:2px}.ind1 b{color:var(--text);font-weight:400}
+.seg{display:flex;flex:1}
+.seg .btn{flex:1;border-radius:0;margin-left:-1px;padding:0 2px}
+.seg .btn:first-child{border-radius:8px 0 0 8px;margin-left:0}.seg .btn:last-child{border-radius:0 8px 8px 0}
+.seg .btn.sel{background:var(--btn-on);border:2px solid var(--text);z-index:1}
+.fr{display:flex;align-items:center;gap:6px;margin:4px 0}.fr>.k{width:40px;flex:none}
+.qty{flex:1;text-align:center;font-weight:700;font-size:18px;border-bottom:1px solid var(--line);line-height:30px}
+.tbl>div{display:flex;justify-content:space-between;gap:8px;padding:3px 0;border-bottom:1px solid var(--line)}
+.tbl .vv{text-align:right;white-space:nowrap}
+.msg{padding:4px 8px;min-height:22px}
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;z-index:20;overflow:auto}
+.modal.on{display:block}
+.modal .panel{max-width:520px;margin:16px auto}
+.tw{display:grid;grid-template-columns:1fr 90px;gap:4px 8px;align-items:center}
+.tw input{background:var(--bg);color:var(--text);border:1px solid var(--line);border-radius:4px;font:inherit;padding:6px;width:100%;text-align:right}
+.tw input.chg{border-color:var(--warn)}
+.row{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}.row .btn{flex:1}
+@media (min-width:640px){.main2{display:grid;grid-template-columns:5fr 4fr;align-items:start}.status .s1,.status .s2{width:auto;flex:1}.status{flex-wrap:nowrap}}
+
+@media (max-width:420px){.status{white-space:normal;padding-left:6px;padding-right:6px}.status .s1,.status .s2{gap:2px 6px;flex-wrap:wrap}.sig{padding:0 2px}.panel{margin:4px 6px;padding:6px}tr.rowlink td{height:56px}.tick .btn{min-width:48px}}
+
+</style>
+</head><body>
+<div class="status" id="status"></div>
+<main id="main"></main>
+<div class="bar" id="bar"></div>
+<div class="modal" id="modal"><div class="panel" id="modalBody"></div></div>
+<script>
+"use strict";
+/* ---------- seeded RNG ---------- */
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+function gauss(r){let u=0,v=0;while(!u)u=r();v=r();return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v)}
+
+/* ---------- tweaks ---------- */
+const DEFAULTS={startCash:10000,weeks:10,preWeeks:50,mandate:3,floorPct:10,warnPct:7,capPct:50,feePct:0.5,boxPct:2,reversal:3,volMin:2.5,volMax:6,driftSpread:0.6,mktWeight:0.5,baselineWindows:200,dataSrc:1};
+const TWEAK_LABELS={startCash:"Start cash",weeks:"Weeks per period",preWeeks:"Pre-history weeks",mandate:"Mandate (pts over bench)",floorPct:"Floor (% down)",warnPct:"Warn (% down)",capPct:"Per-stock cap %",feePct:"Fee % per side",boxPct:"Box size %",reversal:"Reversal boxes",volMin:"Weekly vol min %",volMax:"Weekly vol max %",driftSpread:"Drift spread %/wk",mktWeight:"Market factor weight",baselineWindows:"Baseline windows",dataSrc:"Data (1 real, 0 stand-in)"};
+let T=Object.assign({},DEFAULTS);
+try{const s=localStorage.getItem("pfdesk.tweaks");if(s)Object.assign(T,JSON.parse(s))}catch(e){}
+function tweaked(){return Object.keys(DEFAULTS).some(k=>+T[k]!==DEFAULTS[k])}
+/* ---------- indicators ---------- */
+function ema(a,n){const k=2/(n+1);let e=a[0],o=[];for(const x of a){e=x*k+e*(1-k);o.push(e)}return o}
+function rsi(c,n=14){const o=[50];let ag=0,al=0;for(let i=1;i<c.length;i++){const d=c[i]-c[i-1],g=Math.max(d,0),l=Math.max(-d,0);
+  if(i<=n){ag+=g/n;al+=l/n}else{ag=(ag*(n-1)+g)/n;al=(al*(n-1)+l)/n}o.push(al===0?100:100-100/(1+ag/al))}return o}
+function macd(c){const f=ema(c,12),s=ema(c,26),m=f.map((x,i)=>x-s[i]),sg=ema(m,9);return{m,sg,h:m.map((x,i)=>x-sg[i])}}
+function sma(c,n){return c.map((_,i)=>{const a=c.slice(Math.max(0,i-n+1),i+1);return a.reduce((s,x)=>s+x,0)/a.length})}
+
+</script>
+<script>
+"use strict";
+/* ---------- data layer (stand-in seeded market) ---------- */
+// load(window) -> {codes, bars:[[{o,h,l,c,v}]], hidden:[[bars]]}. Swap source here for real data.
+function genSeries(r,n,mkt,startPrice){
+  const vol=(T.volMin+(T.volMax-T.volMin)*r())/100, drift=(r()*2-1)*T.driftSpread/100+0.001, w=T.mktWeight;
+  let p=startPrice,bars=[],vb=1e5*(0.5+r()*2);
+  for(let i=0;i<n;i++){const ret=drift+vol*(w*mkt[i]+Math.sqrt(1-w*w)*gauss(r));const o=p,c=Math.max(0.5,p*Math.exp(ret));
+    const h=Math.max(o,c)*(1+Math.abs(gauss(r))*vol*0.45),l=Math.min(o,c)*(1-Math.abs(gauss(r))*vol*0.45);
+    const v=vb*(1+Math.abs(ret)*12)*Math.exp(gauss(r)*0.25);bars.push({o,h,l,c,v});p=c}
+  return bars}
+function codeFor(r,used){const A="ABCDEFGHJKLMNPRSTUVWXYZ";let c;do{c=A[r()*23|0]+A[r()*23|0]+A[r()*23|0]}while(used.has(c));used.add(c);return c}
+function standinWindow(seed){
+  const r=mulberry32(seed),n=T.preWeeks+T.weeks,mkt=[];for(let i=0;i<n;i++)mkt.push(gauss(r));
+  const used=new Set(),codes=[],bars=[],hidden=[];
+  for(let i=0;i<6;i++){codes.push(codeFor(r,used));bars.push(genSeries(r,n,mkt,20+r()*180))}
+  for(let i=0;i<30;i++)hidden.push(genSeries(r,n,mkt,20+r()*180));
+  return{codes,bars,hidden,src:"standin"}}
+
+/* ---------- real history (data/weekly.json v1) ---------- */
+let DATA=null,_covN=-1,_covS=null;
+async function loadData(){
+  try{
+    const res=await fetch("data/weekly.json");if(!res.ok)return;
+    const j=await res.json();if(!j||j.v!==1||!Array.isArray(j.series))return;
+    const series=[];
+    for(const s of j.series){
+      const len=s.c.length;let u=0;const bars=new Array(len);
+      for(let i=0;i<len;i++){
+        u+=s.c[i];const c=Math.exp(u/2000);
+        let o=Math.exp((u+s.o[i])/2000),h=Math.exp((u+s.h[i])/2000),l=Math.exp((u+s.l[i])/2000);
+        if(!(c>0&&o>0&&h>0&&l>0))throw 0;
+        bars[i]={o,h:Math.max(h,o,c),l:Math.min(l,o,c),c,v:Math.exp(s.v[i]/100)-1};
+      }
+      series.push({id:s.id,k:s.k,f:s.f,bars});
+    }
+    DATA={nW:j.nW,series};_covN=-1;_covS=null;
+  }catch(e){DATA=null}
+}
+function dataSource(){return(T.dataSrc===1&&DATA)?"real":"standin"}
+// per window length n: stock series indices usable per start week + list of start weeks with >=36 covering (cached; admin default)
+function _coverage(n){
+  if(_covN===n&&_covS)return _covS;
+  const cnt=new Int32Array(DATA.nW+2),st=[];
+  DATA.series.forEach((s,i)=>{if(s.k!=="stock")return;st.push(i);const a=s.f,b=s.f+s.bars.length-n;if(b>=a){cnt[a]++;cnt[b+1]--}});
+  const starts=[];let run=0;
+  for(let w=0;w<DATA.nW;w++){run+=cnt[w];if(run>=36)starts.push(w)}
+  _covN=n;_covS={starts,st};return _covS}
+function _median(a){const b=a.slice().sort((x,y)=>x-y);return b[b.length>>1]}
+function realWindow(seed){
+  const n=T.preWeeks+T.weeks,cv=_coverage(n);
+  if(!cv.starts.length)return null;
+  const r=mulberry32(seed),s=cv.starts[r()*cv.starts.length|0];
+  const pool=cv.st.filter(i=>{const d=DATA.series[i];return d.f<=s&&s+n<=d.f+d.bars.length});
+  for(let i=pool.length-1;i>0;i--){const j=r()*(i+1)|0,t=pool[i];pool[i]=pool[j];pool[j]=t}
+  const pick=pool.slice(0,36),out=[];
+  for(const idx of pick){
+    const d=DATA.series[idx],src=d.bars.slice(s-d.f,s-d.f+n);
+    const pf=(20+r()*180)/src[T.preWeeks-1].c,vm=_median(src.map(b=>b.v)),vf=1e5*(0.5+r()*2)/(vm>0?vm:1);
+    out.push(src.map(b=>({o:b.o*pf,h:b.h*pf,l:b.l*pf,c:b.c*pf,v:b.v*vf})));
+  }
+  const used=new Set(),codes=[];for(let i=0;i<6;i++)codes.push(codeFor(r,used));
+  const bars=out.slice(0,6),hidden=out.slice(6);
+  if(hidden.length<30){const mkt=[];for(let i=0;i<n;i++)mkt.push(gauss(r));
+    while(bars.length<6)bars.push(genSeries(r,n,mkt,20+r()*180));
+    while(hidden.length<30)hidden.push(genSeries(r,n,mkt,20+r()*180))}
+  return{codes,bars,hidden,src:"real"}}
+function loadWindow(seed){
+  if(dataSource()==="real"){try{const w=realWindow(seed);if(w)return w}catch(e){}}
+  return standinWindow(seed)}
+
+</script>
+<script>
+"use strict";
+/* ---------- point and figure (percent box, high/low, N-box reversal) ---------- */
+const LB=()=>Math.log(1+T.boxPct/100);
+const boxOf=p=>Math.floor(Math.log(p)/LB()+1e-9), boxUp=p=>Math.ceil(Math.log(p)/LB()-1e-9);
+const priceOf=b=>Math.exp(b*LB());
+function pnf(bars){ // columns [{d:1|-1,lo,hi,wk:{box:barIndex}}]
+  const R=T.reversal,cols=[];let c=null;
+  bars.forEach((b,i)=>{const hb=boxOf(b.h),lb=boxUp(b.l);
+    if(!c){const d=b.c>=b.o?1:-1;c={d,lo:boxUp(b.l),hi:boxOf(b.h),wk:{}};if(c.lo>c.hi)c.lo=c.hi;for(let k=c.lo;k<=c.hi;k++)c.wk[k]=i;cols.push(c);return}
+    if(c.d===1){ if(hb>c.hi){for(let k=c.hi+1;k<=hb;k++)c.wk[k]=i;c.hi=hb}
+      else if(lb<=c.hi-R){c={d:-1,hi:c.hi-1,lo:lb,wk:{}};for(let k=c.lo;k<=c.hi;k++)c.wk[k]=i;cols.push(c)} }
+    else { if(lb<c.lo){for(let k=lb;k<c.lo;k++)c.wk[k]=i;c.lo=lb}
+      else if(hb>=c.lo+R){c={d:1,lo:c.lo+1,hi:hb,wk:{}};for(let k=c.lo;k<=c.hi;k++)c.wk[k]=i;cols.push(c)} }
+  });return cols}
+function pnfSignal(cols){ // last signal + pattern name
+  let sig=null;
+  for(let i=2;i<cols.length;i++){const c=cols[i],p=cols[i-2],pp=cols[i-4];
+    if(c.d===1&&c.hi>p.hi)sig={buy:true,name:(pp&&pp.hi===p.hi)?"TRIPLE-TOP BUY":"DOUBLE-TOP BUY",col:i};
+    if(c.d===-1&&c.lo<p.lo)sig={buy:false,name:(pp&&pp.lo===p.lo)?"TRIPLE-BOTTOM SELL":"DOUBLE-BOTTOM SELL",col:i}}
+  return sig}
+function vcount(cols){ // vertical count from latest X column (up) / O column (down)
+  let bx=null,bo=null;for(let i=cols.length-1;i>=0;i--){if(!bx&&cols[i].d===1)bx=cols[i];if(!bo&&cols[i].d===-1)bo=cols[i]}
+  return{up:bx?{n:bx.hi-bx.lo+1,base:bx.lo,tgt:bx.lo+(bx.hi-bx.lo+1)*T.reversal}:null,
+         dn:bo?{n:bo.hi-bo.lo+1,base:bo.hi,tgt:bo.hi-(bo.hi-bo.lo+1)*T.reversal}:null}}
+function pnfTrend(cols){ // Dorsey 45-degree line: {kind,col,box}|null  (box = start box at col)
+  const n=cols.length;if(!n)return null;const st=Math.max(0,n-20);
+  let oc=-1,xc=-1;
+  for(let k=st;k<n;k++){const c=cols[k];
+    if(c.d===-1&&(oc<0||c.lo<=cols[oc].lo))oc=k; // lowest O, latest on ties
+    if(c.d===1&&(xc<0||c.hi>=cols[xc].hi))xc=k}  // highest X, latest on ties
+  if(oc<0)return null;
+  const b0=cols[oc].lo-1;let broken=false;
+  for(let k=oc+1;k<n;k++)if(cols[k].lo<b0+(k-oc)){broken=true;break}
+  if(!broken)return{kind:"support",col:oc,box:b0};
+  if(xc<0)return null;
+  return{kind:"resist",col:xc,box:cols[xc].hi+1}}
+function pnfTraps(cols){ // [{col,kind:"bull"|"bear"}] 1-box breakout, next column reverses
+  const out=[];
+  for(let i=2;i<cols.length-1;i++){const c=cols[i],p=cols[i-2],nx=cols[i+1];
+    if(c.d===1&&c.hi-p.hi===1&&nx.d===-1)out.push({col:i,kind:"bull"});
+    else if(c.d===-1&&p.lo-c.lo===1&&nx.d===1)out.push({col:i,kind:"bear"})}
+  return out}
+function pfText(i,opt){
+  opt=opt||{};const all=i.cols,lastBar=i.b.length-1;
+  const inH=typeof window!=="undefined"?window.innerHeight:800;
+  const maxC=Math.max(1,opt.cols||15),rows=Math.max(3,opt.rows||(inH<700?13:17));
+  // most recent K<=maxC columns whose full box range fits in rows (admin default: min 1 column)
+  let K=0,lo=Infinity,hi=-Infinity;
+  for(let k=all.length-1;k>=0&&K<maxC;k--){const l=Math.min(lo,all[k].lo),h=Math.max(hi,all[k].hi);
+    if(h-l+1>rows)break;lo=l;hi=h;K++}
+  let f=1;
+  if(K===0){const c=all[all.length-1];K=1;lo=c.lo;hi=c.hi;f=Math.ceil((hi-lo+1)/rows)} // compress: every f-th box
+  const off=all.length-K,show=all.slice(off);
+  const tr=pnfTrend(all),traps=pnfTraps(all).filter(t=>t.col>=off);
+  let out="",r=0;const dp=priceOf(hi)<100?1:0; // one label precision per chart
+  for(let b=hi;b>=lo;b-=f,r++){
+    const p=priceOf(b),lab=((f>1?r%2===0:b%2===0)?p.toFixed(dp):"").padStart(5);let line=lab+"|";
+    show.forEach((c,j)=>{const g=off+j;let ch=" ";
+      if(b>=c.lo&&b<=c.hi){const s=c.d===1?"X":"O";
+        ch=c.wk[b]===lastBar?`<span class="new">${s}</span>`:`<span class="${c.d===1?"x":"o"}">${s}</span>`}
+      else if(tr&&g>=tr.col){const lb=tr.kind==="support"?tr.box+(g-tr.col):tr.box-(g-tr.col);
+        if(lb===b||(f>1&&lb<b&&lb>b-f))ch='<span class="tl">+</span>'}
+      line+=" "+ch});
+    out+=line+"\n"}
+  out+=(f>1?("1:"+f).padStart(5):"     ")+"+"+"-".repeat(show.length*2);
+  if(traps.length){let row="      ";
+    show.forEach((c,j)=>{const t=traps.find(x=>x.col===off+j);row+=t?(t.kind==="bull"?"BT":"bt"):"  "});
+    out+="\n"+row;
+    const W=6+show.length*2,fit=t=>t.slice(0,W).padEnd(W),k1="BT bull trap  bt bear trap",k2="BT=bull trap bt=bear trap";
+    if(W>=k1.length)out+="\n"+fit(k1);else if(W>=k2.length)out+="\n"+fit(k2);
+    else out+="\n"+fit("BT=bull trap")+"\n"+fit("bt=bear trap")}
+  return out}
+
+</script>
+<script>
+"use strict";
+/* ---------- game state ---------- */
+let S;
+function newPeriod(seed){
+  const W=loadWindow(seed);
+  S={seed,W,week:0,cash:T.startCash,pos:[0,0,0,0,0,0],views:[null,null,null,null,null,null],calls:[],orders:[],fees:0,
+     eqHist:[],benchHist:[],sel:0,screen:"watch",side:1,qty:0,minEq:T.startCash,failed:false,report:null,lastMsg:"",base:null};
+  const i0=T.preWeeks-1;S.benchSh=W.bars.map(b=>T.startCash/6/b[i0].c);
+  S.eqHist.push(T.startCash);S.benchHist.push(T.startCash);
+  render()}
+const vis=k=>S.W.bars[k].slice(0,T.preWeeks+S.week);
+const closeNow=k=>{const b=vis(k);return b[b.length-1].c};
+function equity(){return S.cash+S.pos.reduce((s,q,k)=>s+q*closeNow(k),0)}
+function bench(){return S.benchSh.reduce((s,q,k)=>s+q*closeNow(k),0)}
+function pct(a,b){return (a/b-1)*100}
+function stockInfo(k){
+  const b=vis(k),c=b.map(x=>x.c),cols=pnf(b),r=rsi(c),m=macd(c),ma=sma(c,10),sig=pnfSignal(cols);
+  const all=S.W.hidden.map(h=>h.slice(0,T.preWeeks+S.week)).concat([0,1,2,3,4,5].map(vis)).map(x=>pnfSignal(pnf(x)));
+  const bull=Math.round(100*all.filter(s=>s&&s.buy).length/all.length);
+  const eqIdx=[0,1,2,3,4,5].map(j=>vis(j).map(x=>x.c)),idx=c.map((_,i)=>eqIdx.reduce((s,a)=>s+a[i]/a[0],0)/6);
+  const rs=c.map((x,i)=>x/c[0]/idx[i]),rsUp=rs[rs.length-1]>=rs[rs.length-5];
+  const v=b.map(x=>x.v),vAvg=v.slice(-11,-1).reduce((s,x)=>s+x,0)/10;
+  return{b,c,cols,r,m,ma,sig,bull,rsUp,vol:v,vRatio:v[v.length-1]/vAvg,vc:vcount(cols)}}
+
+/* ---------- calls (judged apart from P&L) ---------- */
+function resolveCalls(){
+  S.calls.forEach(cl=>{if(cl.res)return;const b=vis(cl.k);
+    for(let i=cl.at+1;i<b.length;i++){const up=boxOf(b[i].h)>=cl.box+T.reversal,dn=boxUp(b[i].l)<=cl.box-T.reversal;
+      if(up||dn){const mv=up&&dn?(b[i].c>=b[i].o?1:-1):(up?1:-1);cl.res=(mv===cl.dir)?"right":"wrong";cl.resWk=S.week;break}}})}
+
+/* ---------- actions ---------- */
+function setView(v){S.views[S.sel]=v;S.lastMsg="";render()}
+function place(){
+  const k=S.sel,px=closeNow(k),q=S.qty;if(q<=0){S.lastMsg="Qty 0";return render()}
+  const eq=equity();
+  if(S.side===1){const cost=q*px,fee=cost*T.feePct/100;
+    if(cost+fee>S.cash+1e-6){S.lastMsg="Rejected: cash "+fmt(S.cash);return render()}
+    if((S.pos[k]+q)*px>eq*T.capPct/100+1e-6){S.lastMsg="Rejected: over "+T.capPct+"% cap";return render()}
+    S.cash-=cost+fee;S.fees+=fee;S.pos[k]+=q}
+  else{if(q>S.pos[k]){S.lastMsg="Rejected: hold "+S.pos[k];return render()}
+    const pr=q*px,fee=pr*T.feePct/100;S.pos[k]-=q;S.cash+=pr-fee;S.fees+=fee}
+  S.orders.push({wk:S.week,s:S.W.codes[k],side:S.side===1?"BUY":"SELL",q,px:+px.toFixed(2),view:S.views[k]});
+  S.lastMsg="Filled "+(S.side===1?"BUY ":"SELL ")+q+" "+S.W.codes[k]+" @ "+px.toFixed(2);S.qty=0;render()}
+function advance(){
+  if(S.week>=T.weeks||S.failed)return;
+  const before=[0,1,2,3,4,5].map(k=>{const i=stockInfo(k);return{c:i.c[i.c.length-1],r:i.r[i.r.length-1],h:i.m.h[i.m.h.length-1],sig:i.sig?i.sig.name+":"+i.sig.col:""}});
+  S.views.forEach((v,k)=>{if(v===1||v===-1){const st=stockInfo(k);
+    S.calls.push({k,dir:v,wk:S.week,at:vis(k).length-1,box:boxOf(closeNow(k)),pat:st.sig?st.sig.name:"No signal",rsi:Math.round(st.r[st.r.length-1]),mh:st.m.h[st.m.h.length-1]>0?"MACD h +":"MACD h -"})}});
+  S.views=[null,null,null,null,null,null];
+  const eq0=equity(),b0=bench();
+  S.week++;resolveCalls();
+  const eq=equity(),bn=bench();S.eqHist.push(eq);S.benchHist.push(bn);S.minEq=Math.min(S.minEq,eq);
+  const rows=[0,1,2,3,4,5].map(k=>{const i=stockInfo(k),c=i.c[i.c.length-1],last=i.cols[i.cols.length-1];
+    const newBoxes=Object.values(last.wk).filter(w=>w===i.b.length-1).length;
+    const now=i.sig?i.sig.name+":"+i.sig.col:"",fired=now&&now!==before[k].sig?i.sig.name:"";
+    return{k,chg:pct(c,before[k].c),newBoxes,dir:last.d,fired,r0:before[k].r,r1:i.r[i.r.length-1],h0:before[k].h,h1:i.m.h[i.m.h.length-1]}});
+  const resolved=S.calls.filter(c=>c.resWk===S.week);
+  if(pct(eq,T.startCash)<=-T.floorPct)S.failed=true;
+  S.report={wk:S.week,eq0,eq,b0,bn,rows,resolved};S.screen="report";S.lastMsg="";render();window.scrollTo(0,0)}
+function step(){return Math.max(1,Math.round(equity()*0.05/closeNow(S.sel)))}
+function maxQty(){const px=closeNow(S.sel);if(S.side===-1)return S.pos[S.sel];const eq=equity();
+  return Math.max(0,Math.floor(Math.min(S.cash/(px*(1+T.feePct/100)),eq*T.capPct/100/px-S.pos[S.sel])))}
+function openChart(k){S.sel=k;S.screen="chart";S.qty=0;S.lastMsg="";render();window.scrollTo(0,0)}
+
+</script>
+<script>
+"use strict";
+/* ---------- baseline: no-read bots over locked seeded windows ---------- */
+// score = mandate met (excess over benchmark >= T.mandate) and floor never hit. Windows: loadWindow(1e6+w*7919).
+function baseline(){
+  const n=T.baselineWindows,res={cash:0,rand:0,lock:0,signal:0},i0=T.preWeeks-1,iN=T.preWeeks+T.weeks-1;let src="standin";
+  const pc=(a,b)=>(a/b-1)*100;
+  for(let w=0;w<n;w++){const W=loadWindow(1e6+w*7919);src=W.src||src;const B=W.bars;
+    const bRet=B.reduce((s,b)=>s+b[iN].c/b[i0].c,0)/6*100-100;
+    // cash: idle, never hits floor, excess = -bench
+    if(0-bRet>=T.mandate)res.cash++;
+    // lock: equal-weight copy of benchmark, 0 excess, fails mandate by construction (admin default: 0>=mandate only if mandate<=0)
+    if(0>=T.mandate)res.lock++;
+    const run=(pick)=>{let cash=T.startCash;const pos=[0,0,0,0,0,0];
+      for(let i=i0;i<iN;i++){const eq=cash+pos.reduce((s,q,k)=>s+q*B[k][i].c,0);
+        if(eq<=T.startCash*(1-T.floorPct/100))return false;
+        pick(i,eq,(k,amt)=>{const px=B[k][i].c;amt=Math.min(amt,cash/(1+T.feePct/100),eq*T.capPct/100-pos[k]*px);
+          if(amt>50){pos[k]+=amt/px;cash-=amt*(1+T.feePct/100)}},
+          k=>{const px=B[k][i].c;if(pos[k]>0){cash+=pos[k]*px*(1-T.feePct/100);pos[k]=0}})}
+      const eqN=cash+pos.reduce((s,q,k)=>s+q*B[k][iN].c,0);
+      return pc(eqN,T.startCash)-bRet>=T.mandate};
+    const r=mulberry32(w+17);
+    if(run((i,eq,buy)=>{if(r()<0.5){const k=r()*6|0;buy(k,eq/6)}}))res.rand++;
+    const sigAt=(k,i)=>{const cols=pnf(B[k].slice(0,i+1));const s=pnfSignal(cols);return s&&s.col===cols.length-1?s.name+":"+s.col+":"+(s.buy?1:0):""};
+    if(run((i,eq,buy,sell)=>{const sells=[],buys=[];
+      for(let k=0;k<6;k++){const now=sigAt(k,i),prev=i>0?sigAt(k,i-1):"";if(now&&now!==prev){if(now.endsWith(":1"))buys.push(k);else sells.push(k)}}
+      sells.forEach(sell);buys.forEach(k=>buy(k,eq/6))}))res.signal++}
+  const p=x=>Math.round(100*x/n);
+  return{n,src,cash:p(res.cash),rand:p(res.rand),lock:p(res.lock),signal:p(res.signal)}}
+function baselineHTML(b){
+  return `<div class="dim">No-read strategies meet the mandate: idle cash ${b.cash}%, random buys ${b.rand}%, copy benchmark ${b.lock}%; simple P&amp;F signal reader ${b.signal}% of ${b.n} ${b.src==="real"?"real history":"stand-in"} windows.</div>`}
+
+</script>
+<script>
+"use strict";
+/* ---------- render helpers ---------- */
+const fmt=x=>Math.round(x).toLocaleString("en-US");
+const sg=x=>(x>=0?"+":"")+x.toFixed(1);
+const sg2=x=>(x>=0?"+":"")+x.toFixed(2);
+const $=id=>document.getElementById(id);
+function pathOf(a,w,h,lo,hi){const d=hi-lo||1;return a.map((v,i)=>(i?"L":"M")+(i*w/(a.length-1||1)).toFixed(1)+" "+(h-(v-lo)/d*h+2).toFixed(1)).join(" ")}
+function trapOf(i){ // admin default: trap = latest signal column is flagged by pnfTraps
+  if(typeof pnfTraps!=="function"||!i.sig)return null;
+  try{const t=pnfTraps(i.cols).find(x=>x.col===i.sig.col);return t?t.kind:null}catch(e){return null}}
+function trapChip(i,short){const t=trapOf(i);return t?` <span class="sig trap">${short?"TRAP":t==="bull"?"BULL TRAP":"BEAR TRAP"}</span>`:""}
+function chartFit(){ // admin default: 2 chars per P&F column, 6 char axis; line 18px
+  const W=Math.min(window.innerWidth,1000),two=window.innerWidth>=640;
+  const sp=document.createElement("span");sp.style.cssText="position:absolute;visibility:hidden;white-space:pre;font:inherit";sp.textContent="XXXXXXXXXXXXXXXXXXXX";
+  const host=document.querySelector("main pre")||document.body;host.appendChild(sp);
+  const cw=sp.getBoundingClientRect().width/20||8.4;host.removeChild(sp);
+  const panelW=(two?W*5/9:W)-16-16-2-8;
+  const cols=Math.max(6,Math.min(40,Math.floor((panelW-6*cw)/(2*cw))));
+  const sb=$("status").offsetHeight||46,bb=$("bar").offsetHeight||72;
+  const avail=window.innerHeight-sb-bb-64-(two?60:0)-(two?0:140);
+  const rows=Math.max(9,Math.min(two?31:22,Math.floor(avail/18)-2));
+  return{cols,rows}}
+function statusBar(){
+  const eq=equity(),bn=bench(),r=pct(eq,T.startCash),br=pct(bn,T.startCash),ex=r-br,dd=r<=-T.warnPct;
+  $("status").innerHTML=`<div class="s1"><span><span class="b">WK ${S.week}/${T.weeks}</span>&nbsp; EQ <span class="num">${fmt(eq)}</span> <span class="${r>=0?"acc":"bad"}">${sg(r)}%</span>${dd?' <span class="warn b">FLOOR WARN</span>':""}</span><span class="dev" onclick="openTweaks()">${tweaked()?"DEV* ":"DEV "}${S.seed}</span></div>
+  <div class="s2"><span><span class="dim">BENCH</span> ${sg(br)}%</span><span><span class="dim">EXCESS</span> <span class="${ex>=T.mandate?"acc":""} b">${sg(ex)}</span></span><span><span class="dim">mandate</span> +${(+T.mandate).toFixed(1)}</span></div>`}
+function panes(i){
+  const N=26,r=i.r.slice(-N),mh=i.m.h.slice(-N),mm=i.m.m.slice(-N),ms=i.m.sg.slice(-N),v=i.vol.slice(-N);
+  const mx=Math.max(...mm.map(Math.abs),...ms.map(Math.abs),...mh.map(Math.abs))||1,z=32;
+  const bars=mh.map((x,j)=>{const hgt=Math.abs(x)/mx*28;return`<rect x="${(j*10+1.8).toFixed(1)}" y="${(x>=0?z-hgt:z).toFixed(1)}" width="6.4" height="${hgt.toFixed(1)}" fill="${x>=0?"var(--accent)":"var(--dim)"}"/>`}).join("");
+  const line=(a,col)=>`<path fill="none" stroke="${col}" stroke-width="1.6" vector-effect="non-scaling-stroke" d="${a.map((x,j)=>(j?"L":"M")+(j*10+5)+" "+(z-x/mx*28).toFixed(1)).join(" ")}"/>`;
+  const vm=Math.max(...v);const vb=v.map((x,j)=>`<rect x="${j*10+1.8}" y="${(20-x/vm*20).toFixed(1)}" width="6.4" height="${(x/vm*20).toFixed(1)}" fill="${j===N-1?"var(--text)":"var(--dim)"}"/>`).join("");
+  const dash=y=>`<line x1="0" y1="${y}" x2="260" y2="${y}" stroke="var(--dim)" stroke-dasharray="3 3" vector-effect="non-scaling-stroke"/>`;
+  return `<div class="panel pane"><div class="l">RSI<b>14</b></div><div class="cv"><svg viewBox="0 0 260 64" preserveAspectRatio="none">${dash(19.2)}${dash(44.8)}<path fill="none" stroke="var(--text)" stroke-width="1.6" vector-effect="non-scaling-stroke" d="${r.map((x,j)=>(j?"L":"M")+(j*10+5)+" "+(64-x/100*64).toFixed(1)).join(" ")}"/></svg></div><div class="v b">${Math.round(r[r.length-1])}</div></div>
+  <div class="panel pane"><div class="l">MACD<b>12,26,9</b></div><div class="cv"><svg viewBox="0 0 260 64" preserveAspectRatio="none"><line x1="0" y1="${z}" x2="260" y2="${z}" stroke="var(--dim)" vector-effect="non-scaling-stroke"/>${bars}${line(ms,"var(--o)")}${line(mm,"var(--x)")}</svg></div><div class="v" style="line-height:16px"><div><i class="x">M</i>${sg2(mm[N-1])}</div><div><i class="o">S</i>${sg2(ms[N-1])}</div><div><i class="acc">H</i>${sg2(mh[N-1])}</div></div></div>
+  <div class="panel pane vp"><div class="l">Vol</div><div class="cv"><svg viewBox="0 0 260 20" preserveAspectRatio="none">${vb}</svg></div><div class="v">${i.vRatio.toFixed(1)}x</div></div>`}
+
+/* ---------- screens ---------- */
+function render(){
+  statusBar();const m=$("main"),bar=$("bar");
+  if(S.screen==="watch"){
+    m.innerHTML=`<div class="panel"><div class="hd">Watchlist · masked · ${S.W.src==="real"?"real weekly history":"stand-in data"}</div><table><tr><th>Sym</th><th>Last</th><th>Wk%</th><th>P&amp;F</th><th>RSI</th><th>MACD h</th><th>Pos</th></tr>
+    ${[0,1,2,3,4,5].map(k=>{const i=stockInfo(k),c=i.c,last=i.cols[i.cols.length-1],chg=pct(c[c.length-1],c[c.length-2]),h=i.m.h[i.m.h.length-1];
+      return`<tr class="rowlink" onclick="openChart(${k})"><td class="b">${S.W.codes[k]}</td><td>${c[c.length-1].toFixed(2)}</td><td class="${chg>=0?"acc":"bad"}">${sg(chg)}</td><td><span class="${last.d===1?"x":"o"}">${last.d===1?"X":"O"}</span> ${i.sig?`<span class="sig ${i.sig.buy?"":"s"}">${i.sig.buy?"BUY":"SELL"}</span>`:""}${trapChip(i,1)}</td><td>${Math.round(i.r[i.r.length-1])}</td><td class="${h>=0?"acc":"dim"}">${sg2(h)}</td><td>${S.pos[k]||"-"}</td></tr>`}).join("")}</table></div>
+    <div class="panel"><div class="tbl"><div><span class="dim">Cash</span><span class="vv">${fmt(S.cash)}</span></div><div><span class="dim">Fees paid</span><span class="vv">${fmt(S.fees)}</span></div><div><span class="dim">Floor</span><span class="vv">${fmt(T.startCash*(1-T.floorPct/100))} (warn ${fmt(T.startCash*(1-T.warnPct/100))})</span></div></div></div>
+    <div class="msg dim">Tap a row to open chart. Orders fill at week close. Build ${BUILD}.</div>`;
+    bar.innerHTML=`<div class="btn" onclick="openTweaks()">SETTINGS</div><div class="btn" onclick="copyReport()">COPY</div><div class="btn go" onclick="advance()">ADVANCE</div>`}
+  else if(S.screen==="chart"){
+    const k=S.sel,i=stockInfo(k),px=closeNow(k),eq=equity(),vc=i.vc,last=i.cols[i.cols.length-1];
+    const view=S.views[k],tgt=view===-1?vc.dn:vc.up;
+    const cost=S.qty*px,fee=cost*T.feePct/100,after=S.pos[k]+(S.side===1?S.qty:-S.qty),capUse=after*px/eq*100;
+    m.innerHTML=`<div class="main2"><div>
+    <div class="tick"><div class="btn" onclick="openChart(${(k+5)%6})">&lt;</div><span class="tc"><span class="b">${S.W.codes[k]} ${px.toFixed(2)}</span> <span class="${last.d===1?"x":"o"} b">${last.d===1?"X":"O"}-col</span>${i.sig?` <span class="sig ${i.sig.buy?"":"s"}">${i.sig.name}</span>`:""}${trapChip(i)}</span><div class="btn" onclick="openChart(${(k+1)%6})">&gt;</div></div>
+    <div class="panel"><pre id="pf">${pfText(i,chartFit())}</pre><div class="ind1"><span>${i.rsUp?'<span class="acc">&#9650;</span> RS up':'<span class="bad">&#9660;</span> RS down'}</span><span>Bull% <b>${i.bull}</b></span><span>${px>=i.ma[i.ma.length-1]?'<span class="acc">&#9650;</span> &gt;':'<span class="bad">&#9660;</span> &lt;'}10wk MA <b>${i.ma[i.ma.length-1].toFixed(1)}</b></span><span>box ${T.boxPct}% · ${T.reversal}-box rev</span></div></div>
+    ${panes(i)}</div><div>
+    <div class="panel"><div class="oh"><span class="hd">Order ticket</span><span class="b">${S.W.codes[k]} <span class="dim">held ${S.pos[k]} sh</span></span></div>
+    <div class="fr"><span class="k dim">Side</span><div class="seg"><div class="btn ${S.side===1?"sel":""}" onclick="S.side=1;S.qty=0;render()">${S.side===1?"&#10003; ":""}BUY</div><div class="btn ${S.side===-1?"sel":""}" onclick="S.side=-1;S.qty=0;render()">${S.side===-1?"&#10003; ":""}SELL</div></div></div>
+    <div class="fr"><span class="k dim">View</span><div class="seg">${[[1,"Bullish"],[-1,"Bearish"],[0,"Neutral"]].map(([v,l])=>`<div class="btn ${view===v?"sel":""}" onclick="setView(${v})">${view===v?"&#10003; ":""}${l}</div>`).join("")}</div></div>
+    <div class="fr"><span class="k dim">Qty</span><div class="btn" onclick="S.qty=Math.max(0,S.qty-step());render()">&minus;</div><span class="qty">${S.qty}</span><div class="btn" onclick="S.qty+=step();render()">+</div><div class="btn" onclick="S.qty=maxQty();render()">MAX</div></div>
+    <div class="tbl">
+    <div><span>Est. price (week close)</span><span class="vv">${px.toFixed(2)}</span></div>
+    <div><span>Est. ${S.side===1?"cost":"proceeds"}</span><span class="vv">${fmt(cost)}</span></div>
+    <div><span>Fee ${T.feePct}%</span><span class="vv">${fmt(fee)}</span></div>
+    <div><span>Position after</span><span class="vv">${after} sh = ${fmt(after*px)}</span></div>
+    <div><span>Limit check</span><span class="vv ${capUse>T.capPct?"bad":""}">${capUse.toFixed(1)}% of ${T.capPct}% cap ${capUse>T.capPct?"OVER":"OK"}</span></div>
+    <div><span>Risk check</span><span class="vv">eq ${fmt(eq)} / floor ${fmt(T.startCash*(1-T.floorPct/100))}</span></div></div>
+    <div class="dim" style="margin-top:4px">${tgt?`Target ${priceOf(tgt.tgt).toFixed(1)} (vertical count: ${tgt.n} boxes x ${T.reversal} ${view===-1?"below":"above"} ${priceOf(tgt.base).toFixed(1)})`:"Target: no count yet"}</div>
+    </div><div class="msg ${S.lastMsg.startsWith("Rej")?"bad":"acc"}">${S.lastMsg}</div></div></div>`;
+    bar.innerHTML=`<div class="btn" onclick="S.screen='watch';S.lastMsg='';render()">WATCHLIST</div><div class="btn go" onclick="place()">PLACE</div><div class="btn" onclick="advance()">ADVANCE</div>`}
+  else if(S.screen==="report"){
+    const R=S.report,r=pct(R.eq,R.eq0),br=pct(R.bn,R.b0);
+    m.innerHTML=`<div class="panel"><div class="hd">Week ${R.wk} close statement</div><div class="tbl">
+    <div><span>Equity</span><span class="vv">${fmt(R.eq0)} &gt; ${fmt(R.eq)} (${sg(r)}%)</span></div><div><span>Benchmark wk</span><span class="vv">${sg(br)}%</span></div>
+    ${S.failed?`<div><span class="bad b">Floor breached</span><span class="vv bad">period ends, mandate failed</span></div>`:pct(R.eq,T.startCash)<=-T.warnPct?`<div><span class="warn">Floor warning</span><span class="vv warn">${sg(pct(R.eq,T.startCash))}% from start</span></div>`:""}</div></div>
+    <div class="panel"><div class="hd">Tape</div><table><tr><th>Sym</th><th>Wk%</th><th>Boxes</th><th>RSI</th><th>MACD h</th></tr>
+    ${R.rows.map(x=>`<tr><td class="b">${S.W.codes[x.k]}</td><td class="${x.chg>=0?"acc":"bad"}">${sg(x.chg)}</td><td>${x.newBoxes?`+${x.newBoxes} <span class="${x.dir===1?"x":"o"}">${x.dir===1?"X":"O"}</span>`:"-"}</td><td>${Math.round(x.r0)}&gt;${Math.round(x.r1)}</td><td>${sg2(x.h0)}&gt;${sg2(x.h1)}</td></tr>${x.fired?`<tr><td></td><td colspan="4" style="text-align:left"><span class="sig ${x.fired.includes("BUY")?"":"s"}">${x.fired}</span> fired</td></tr>`:""}`).join("")}</table></div>
+    <div class="panel"><div class="hd">Calls resolved this week</div>${R.resolved.length?R.resolved.map(c=>`<div>${S.W.codes[c.k]} ${c.dir===1?"Bullish":"Bearish"} (wk ${c.wk}, ${c.pat}) <span class="${c.res==="right"?"acc":"bad"} b">${c.res}</span></div>`).join(""):'<div class="dim">none</div>'}<div class="dim" style="margin-top:4px">Call right = ${T.reversal} boxes the called way before ${T.reversal} against.</div></div>`;
+    const end=S.failed||S.week>=T.weeks;
+    bar.innerHTML=end?`<div class="btn go" onclick="S.screen='review';render();window.scrollTo(0,0)">PERIOD REVIEW</div>`:`<div class="btn" onclick="S.screen='watch';render()">WATCHLIST</div><div class="btn go" onclick="openChart(S.sel)">CHARTS</div>`}
+  else if(S.screen==="review"){
+    if(!S.base)S.base=baseline();
+    const eq=equity(),r=pct(eq,T.startCash),br=pct(bench(),T.startCash),ex=r-br,met=!S.failed&&ex>=T.mandate;
+    const cl=S.calls,right=cl.filter(c=>c.res==="right").length,wrong=cl.filter(c=>c.res==="wrong").length,open=cl.length-right-wrong,n=right+wrong;
+    const by=key=>{const g={};cl.filter(c=>c.res).forEach(c=>{const kk=key(c);g[kk]=g[kk]||[0,0];g[kk][1]++;if(c.res==="right")g[kk][0]++});return g};
+    const tbl=g=>Object.entries(g).map(([kk,[a,b]])=>`<div><span>${kk}</span><span class="vv">${a} of ${b}</span></div>`).join("")||'<div class="dim">none resolved</div>';
+    const eh=S.eqHist,bh=S.benchHist,lo=Math.min(...eh,...bh),hi=Math.max(...eh,...bh);
+    m.innerHTML=`<div class="panel"><div class="hd">Period review · ${S.week} weeks</div><div class="tbl">
+    <div><span>Return</span><span class="vv">${sg(r)}%</span></div><div><span>Benchmark (equal-weight watchlist)</span><span class="vv">${sg(br)}%</span></div>
+    <div><span>Excess</span><span class="vv b">${sg(ex)} pts (mandate +${(+T.mandate).toFixed(1)})</span></div>
+    <div><span>Result</span><span class="vv ${met?"acc":"bad"}">${S.failed?"Floor breached, mandate failed":met?"Mandate met":"Mandate not met"}</span></div>
+    <div><span>Max drawdown</span><span class="vv">${(()=>{const d=Math.min(0,pct(S.minEq,T.startCash));return d<0?sg(d):"0.0"})()}%</span></div><div><span>Orders / fees</span><span class="vv">${S.orders.length} / ${fmt(S.fees)}</span></div></div>
+    <svg viewBox="0 0 260 60" preserveAspectRatio="none" style="width:100%;height:60px;margin-top:6px"><path fill="none" stroke="var(--dim)" stroke-width="1.6" stroke-dasharray="5 4" vector-effect="non-scaling-stroke" d="${pathOf(bh,260,56,lo,hi)}"/><path fill="none" stroke="var(--accent)" stroke-width="1.8" vector-effect="non-scaling-stroke" d="${pathOf(eh,260,56,lo,hi)}"/></svg>
+    <div class="leg"><span><svg width="26" height="8"><line x1="0" y1="4" x2="26" y2="4" stroke="var(--accent)" stroke-width="2.4"/></svg> equity, solid</span><span><svg width="26" height="8"><line x1="0" y1="4" x2="26" y2="4" stroke="var(--dim)" stroke-width="2" stroke-dasharray="5 4"/></svg> benchmark, dashed</span></div></div>
+    <div class="panel"><div class="hd">Call record</div><div>${right} right / ${wrong} wrong / ${open} open · hit rate ${n?Math.round(100*right/n)+"%":"-"} (n=${n}${n<20?", small sample":""})</div>
+    <div class="hd" style="margin-top:6px">By pattern</div><div class="tbl">${tbl(by(c=>c.pat))}</div>
+    <div class="hd" style="margin-top:6px">By indicator</div><div class="tbl">${tbl(by(c=>(c.rsi>60?"RSI >60":c.rsi<40?"RSI <40":"RSI 40-60")))}${tbl(by(c=>c.mh))}</div></div>
+    <div class="panel"><div class="hd">Baseline</div>${typeof baselineHTML==="function"?baselineHTML(S.base):`<div>No-read strategies meet the mandate: idle cash ${S.base.cash}%, random buys ${S.base.rand}% of ${S.base.n} stand-in windows.</div>`}</div>`;
+    bar.innerHTML=`<div class="btn" onclick="newPeriod(S.seed)">RERUN</div><div class="btn" onclick="copyReport()">COPY</div><div class="btn go" onclick="newPeriod((Math.random()*90000|0)+10000)">NEXT</div>`}
+}
+
+</script>
+<script>
+"use strict";
+/* ---------- copy report ---------- */
+function reportText(){const eq=equity();return JSON.stringify({build:BUILD,src:dataSource(),seed:S.seed,week:S.week,tweaked:tweaked(),tweaks:T,equity:Math.round(eq),ret:+pct(eq,T.startCash).toFixed(2),bench:+pct(bench(),T.startCash).toFixed(2),failed:S.failed,fees:Math.round(S.fees),orders:S.orders,calls:S.calls.map(c=>({s:S.W.codes[c.k],d:c.dir,wk:c.wk,pat:c.pat,res:c.res||"open"})),baseline:S.base})}
+function copyReport(){const t=reportText();(navigator.clipboard?navigator.clipboard.writeText(t):Promise.reject()).then(()=>{S.lastMsg="Report copied";render()},()=>{prompt("Copy report",t)})}
+
+/* ---------- tweak menu + presets ---------- */
+function presets(){try{return JSON.parse(localStorage.getItem("pfdesk.presets")||"{}")}catch(e){return{}}}
+const esc=s=>String(s).replace(/[&<>"']/g,c=>"&#"+c.charCodeAt(0)+";");
+function openTweaks(){const P=presets();
+  $("modalBody").innerHTML=`<div class="hd">Settings · Tweak (testing)</div><div class="dim" style="margin:4px 0">Build ${BUILD} · data ${dataSource()} · seed ${S.seed}. Apply starts a new period.</div>
+  <div class="tw">${Object.keys(DEFAULTS).map(k=>`<label for="tw_${k}">${TWEAK_LABELS[k]} <span class="dim">(${DEFAULTS[k]})</span></label><input id="tw_${k}" type="number" step="any" value="${T[k]}" class="${+T[k]!==DEFAULTS[k]?"chg":""}">`).join("")}
+  <label for="tw_seed">Seed</label><input id="tw_seed" type="number" value="${S.seed}"></div>
+  <div class="row"><div class="btn go" onclick="applyTweaks()">APPLY + NEW PERIOD</div><div class="btn" onclick="T=Object.assign({},DEFAULTS);openTweaks()">DEFAULTS</div></div>
+  <div class="hd" style="margin-top:8px">Presets</div>
+  <div class="row"><div class="btn" onclick="savePreset()">SAVE PRESET</div><div class="btn" onclick="copyPreset()">COPY PRESET CODE</div><div class="btn" onclick="copyReport()">COPY REPORT</div></div>
+  ${Object.keys(P).map((n,ix)=>`<div class="row"><span style="flex:2;align-self:center">${esc(n)}</span><div class="btn" onclick="loadPreset(${ix})">LOAD</div><div class="btn" onclick="delPreset(${ix})">DELETE</div></div>`).join("")}
+  <div class="row"><div class="btn" onclick="$('modal').classList.remove('on')">CLOSE</div></div>`;
+  $("modal").classList.add("on")}
+function readTweaks(){const o={};Object.keys(DEFAULTS).forEach(k=>{const v=parseFloat($("tw_"+k).value);o[k]=isNaN(v)?DEFAULTS[k]:v});o.weeks=Math.max(1,Math.round(o.weeks));o.preWeeks=Math.max(30,Math.round(o.preWeeks));o.reversal=Math.max(1,Math.round(o.reversal));o.boxPct=Math.max(0.25,o.boxPct);return o}
+function applyTweaks(){T=readTweaks();try{localStorage.setItem("pfdesk.tweaks",JSON.stringify(T))}catch(e){}const sd=parseInt($("tw_seed").value)||S.seed;$("modal").classList.remove("on");newPeriod(sd)}
+function savePreset(){const n=prompt("Preset name");if(!n)return;const P=presets();P[n]=readTweaks();try{localStorage.setItem("pfdesk.presets",JSON.stringify(P))}catch(e){}openTweaks()}
+function loadPreset(ix){const P=presets(),n=Object.keys(P)[ix];T=Object.assign({},DEFAULTS,P[n]);openTweaks()}
+function delPreset(ix){const P=presets(),n=Object.keys(P)[ix];delete P[n];try{localStorage.setItem("pfdesk.presets",JSON.stringify(P))}catch(e){}openTweaks()}
+function copyPreset(){const t="PFDESK-PRESET:"+btoa(JSON.stringify(readTweaks()));(navigator.clipboard?navigator.clipboard.writeText(t):Promise.reject()).catch(()=>prompt("Preset code",t))}
+
+</script>
+<script>
+"use strict";
+const BUILD="st-slice-1";
+window.addEventListener("resize",()=>render());
+loadData().then(()=>newPeriod(48213));
+
+</script>
+<script>if("serviceWorker"in navigator)addEventListener("load",function(){navigator.serviceWorker.register("sw.js").catch(function(){})});</script>
+
+</body></html>
