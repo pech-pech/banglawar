@@ -1,0 +1,30 @@
+/* qcard.css: question hero panel + timer (Maker Q). Loaded after style.css. */
+#scr-duel{isolation:isolate} /* stays position:absolute from .screen (full height) */
+#scr-duel::before{content:"";position:absolute;left:50%;top:44%;width:130%;aspect-ratio:1;transform:translate(-50%,-50%);
+  background:radial-gradient(closest-side,rgba(61,42,156,.95),rgba(61,42,156,0) 70%);z-index:-1;pointer-events:none}
+.tm{gap:0;position:relative;margin-bottom:-2px}
+#timer-bar{height:26px;border-radius:13px;background:rgba(8,4,40,.7);box-shadow:inset 0 2px 4px rgba(0,0,0,.5),0 0 0 2px rgba(255,255,255,.08);overflow:hidden}
+#timer-fill{border-radius:13px;box-shadow:inset 0 3px 0 rgba(255,255,255,.35)}
+#timer-num{width:44px;min-width:44px;height:44px;margin-left:-30px;border-radius:50%;background:#fff;color:#1c1540;font-size:22px;font-weight:900;
+  display:flex;align-items:center;justify-content:center;text-align:center;box-shadow:0 3px 0 #c9c3ef;z-index:1}
+#timer-num small{font-size:11px;margin-left:1px;font-weight:800}
+#timer-bar.low{background:rgba(120,10,10,.6)}
+#timer-bar.low #timer-fill{background:#ef4444!important}
+#timer-num.low{color:#dc2626;animation:qpulse .5s ease-in-out infinite alternate}
+@keyframes qpulse{from{transform:scale(1)}to{transform:scale(1.14)}}
+#q-text{background:#fff;border-radius:20px;box-shadow:0 6px 0 #c9c3ef,0 14px 24px rgba(20,8,80,.45);padding:10px 16px 14px;
+  font-size:25px;font-weight:900;line-height:1.2;min-height:22vh;max-height:none;justify-content:flex-start;gap:0;text-align:center;overflow:hidden;margin-bottom:4px}
+#q-text.long{font-size:21px}
+#q-text .qh{display:flex;align-items:center;justify-content:space-between;gap:8px;padding-bottom:6px;border-bottom:2px solid #e7e3fa;flex:none}
+#q-text .t{font-size:12px;font-weight:900;color:#6d4fe0;letter-spacing:.1em;text-transform:uppercase}
+#q-text .qh-topic{display:inline-flex;align-items:center;gap:5px;min-width:0}
+#q-text .qh-topic>*:first-child{width:22px;height:22px;flex:none}
+#q-text .qh-lbl{font-size:11px;font-weight:800;color:#6d4fe0;letter-spacing:.05em;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#q-text .qb{flex:1;display:flex;align-items:center;justify-content:center;padding-top:6px;color:#1c1540}
+#scr-duel.has-fact #q-text{min-height:0;font-size:19px;padding:6px 14px 8px;margin-bottom:0}
+@media (max-width:360px){#q-text{font-size:21px}#q-text.long{font-size:18px}#timer-num{font-size:20px}}
+@media (max-height:720px){#q-text{min-height:20vh}}
+@media (prefers-reduced-motion:reduce){#timer-num.low{animation:none}#timer-fill{transition:none}}
+/* tall phones: answers stay chunky but capped; the hero panel takes the spare height */
+.btn-ans{max-height:88px}
+@media (min-height:760px){#q-text{flex:1 1 auto}}
