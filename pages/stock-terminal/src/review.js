@@ -52,7 +52,7 @@ function rvPeriodHTML(){
   return `<div class="rv-grid">${perf}${chart}${rec}${rvSignals()}${rvBaseline()}</div>`}
 SCREENS.review=function(){
   const ended=periodEnded(),jn=S.tab==="journal";
-  const top=topBar("Period review","Weeks 1 to "+S.week+(ended?" · end of period":" · so far"),devBadge());
+  const top=topBar("Period review",(layout()==="cover"?"Wks 1-"+S.week+(ended?" · ended":" · so far"):"Weeks 1 to "+S.week+(ended?" · end of period":" · so far")),devBadge());
   const main=rvTabs()+(jn?`<div class="rv-pane">${journalTabHTML()}</div>`:`<div class="rv-pane">${rvPeriodHTML()}</div>`);
   const bar=ended
     ?`<button class="btn outline" id="btnRerun" onclick="newPeriod(S.seed)"><span class="rv-l">Rerun window</span><span class="rv-s">Rerun</span></button><button class="btn outline" id="btnCopy" onclick="copyReport()">Copy report</button><button class="btn primary" id="btnNextPeriod" onclick="newPeriod((Math.random()*90000|0)+10000)">Next period</button>`

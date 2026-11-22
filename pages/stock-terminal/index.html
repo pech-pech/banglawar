@@ -51,6 +51,8 @@ button{font-family:inherit;color:inherit}
 .top .sub{color:var(--dim);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
 .top .top-r{margin-left:auto;display:flex;align-items:center;gap:8px;flex:none}
 .top .dev{background:none;font-family:var(--sans)}
+.top .dev{position:relative}
+.top .dev::after{content:"";position:absolute;left:-4px;right:-4px;top:50%;height:48px;transform:translateY(-50%)}
 .bar{margin:0 calc(-12px - env(safe-area-inset-left)) 0 calc(-12px - env(safe-area-inset-right));padding:10px calc(12px + env(safe-area-inset-right)) calc(10px + env(safe-area-inset-bottom)) calc(12px + env(safe-area-inset-left));gap:8px;background:var(--bg);border-top:1px solid var(--line)}
 .bar>.btn,.bar>button{flex:1;min-width:0;height:52px;display:grid;place-items:center;text-decoration:none}
 .bar>.btn.primary{flex:1.4}
@@ -972,26 +974,36 @@ function pfSVG(i,opt){
         // label sits on the empty side of the line, a few cells before the end
         const bx=lastPt.x-cs*0.5+nx*9,by=lastPt.y+(sup?cs*0.5:-cs*0.5)+ny*9;
         s+=`<text transform="translate(${_pfn(bx)} ${_pfn(by)}) rotate(${sup?-45:45})" text-anchor="end" font-size="11" fill="${sup?"var(--accent)":"var(--o)"}" ${halo}>${sup?"support":"resistance"}</text>`}}}
+  const lbx=[]; // placed label boxes {x1,x2,y1,y2} for collision avoidance
+  const lhit=(a,b)=>a.x1<b.x2&&b.x1<a.x2&&a.y1<b.y2&&b.y1<a.y2;
   // target
   if(tgt!=null){
     const tp=_pfPrice(tgt,_pfDp(tgt)),txt="Target "+tp;
     if(os===true){const y=_pfn(yOfU(Math.log(tgt)/LB()));
       s+=`<path d="M${x0} ${y}H${x0+gw}" stroke="var(--dim)" stroke-width="1.2" stroke-dasharray="5 4" fill="none"/>`;
       const ty=Math.max(y0+11,Math.min(y0+gh-3,+y-3));
+      lbx.push({x1:x0+gw-3-txt.length*6.2,x2:x0+gw-3,y1:ty-10,y2:ty+3});
       s+=`<text x="${x0+gw-3}" y="${ty}" text-anchor="end" font-size="11" fill="var(--dim)" ${halo}>${txt}</text>`}
     else{const up=os==="up",cw=txt.length*6.2+30,cx=x0+gw-cw+axisW-6,cy=up?1:y0+gh+axH+1;
       const cxx=Math.max(2,Math.min(w-cw-2,cx));
       s+=`<rect x="${_pfn(cxx)}" y="${cy}" width="${_pfn(cw)}" height="${chipH-4}" rx="${(chipH-4)/2}" fill="var(--surface2)" stroke="var(--dim)" stroke-dasharray="3 2"/>`;
       s+=`<text x="${_pfn(cxx+cw/2)}" y="${cy+(chipH-4)/2+4}" text-anchor="middle" font-size="11" fill="var(--dim)">${txt} ${up?"▲":"▼"}</text>`}}
   // signal triangle
+  const sigLbl=(t,cx,ty,j,col)=>{const wd=t.length*6.6+2;let st=j<2,y=ty+4,b;
+    const mk=()=>({x1:st?cx+8:cx-8-wd,x2:st?cx+8+wd:cx-8,y1:y-10,y2:y+3});
+    b=mk();
+    if(lbx.some(o=>lhit(b,o))){st=!st;b=mk()} // try opposite side of the triangle
+    for(const dy of [0,-12,12,-24,24]){if(!lbx.some(o=>lhit(b,o)))break;y=ty+4+dy;b=mk()}
+    lbx.push(b);
+    return `<text x="${_pfn(st?cx+8:cx-8)}" y="${_pfn(y)}" text-anchor="${st?"start":"end"}" font-size="11" font-weight="600" fill="${col}" ${halo}>${t}</text>`};
   if(si&&si.name&&si.col!=null&&si.col>=off0){
     const c=all[si.col],j=si.col-off,cx=x0+(j+.5)*cs,col=si.buy?"var(--x)":"var(--o)";
     if(si.buy){const r=rowOf(c.hi)-1;if(r>=0){const ty=y0+r*cs+cs/2;
       s+=`<path d="M${_pfn(cx)} ${_pfn(ty-5)}L${_pfn(cx+5)} ${_pfn(ty+4)}L${_pfn(cx-5)} ${_pfn(ty+4)}Z" fill="${col}"/>`;
-      s+=`<text x="${_pfn(j<2?cx+8:cx-8)}" y="${_pfn(ty+4)}" text-anchor="${j<2?"start":"end"}" font-size="11" font-weight="600" fill="${col}" ${halo}>Buy</text>`}}
+      s+=sigLbl("Buy",cx,ty,j,col)}}
     else{const r=rowOf(c.lo)+1;if(r<rows){const ty=y0+r*cs+cs/2;
       s+=`<path d="M${_pfn(cx)} ${_pfn(ty+5)}L${_pfn(cx+5)} ${_pfn(ty-4)}L${_pfn(cx-5)} ${_pfn(ty-4)}Z" fill="${col}"/>`;
-      s+=`<text x="${_pfn(j<2?cx+8:cx-8)}" y="${_pfn(ty+4)}" text-anchor="${j<2?"start":"end"}" font-size="11" font-weight="600" fill="${col}" ${halo}>Sell</text>`}}}
+      s+=sigLbl("Sell",cx,ty,j,col)}}}
   // trap labels
   pnfTraps(all).forEach(t=>{if(t.col<off0)return;const c=all[t.col],j=t.col-off;
     const r=rowOf(c.lo)+1,y=Math.min(y0+gh-2,y0+(r+1)*cs-3),cx=Math.max(x0+10,Math.min(x0+gw-10,x0+(j+.5)*cs));
@@ -1128,7 +1140,8 @@ function eqChart(eh,bh,floorEq,o){
   const step=pnNice(span/3.5),lo=Math.floor((vmin-span*.04)/step)*step,hi=Math.ceil((vmax+span*.06)/step)*step;
   const y=v=>b-(v-lo)/(hi-lo)*(b-t),x=j=>L+j*pw/(n-1);
   let s="";
-  for(let v=lo;v<=hi+1e-9;v+=step){if(Math.abs(y(v)-y(floorEq))<9)continue;
+  const kept=[y(floorEq)];
+  for(let v=lo;v<=hi+1e-9;v+=step){const yv=y(v);if(kept.some(k=>Math.abs(yv-k)<12))continue;kept.push(yv);
     s+=`<line x1="${L}" x2="${L+pw}" y1="${y(v).toFixed(1)}" y2="${y(v).toFixed(1)}" stroke="var(--grid)"/><text x="${L-6}" y="${y(v).toFixed(1)}" text-anchor="end" dominant-baseline="central">${pnCom(v)}</text>`}
   const fy=y(floorEq);
   s+=`<line x1="${L}" x2="${L+pw}" y1="${fy.toFixed(1)}" y2="${fy.toFixed(1)}" stroke="var(--o)" stroke-width="1.4"/>`
@@ -1141,7 +1154,7 @@ function eqChart(eh,bh,floorEq,o){
   if(eh.length>1)s+=`<path d="${pl(eh)}" fill="none" stroke="var(--accent)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>`;
   const s0=eh[0]||bh[0]||1,pc=v=>pnS((v/s0-1)*100,1)+"%";
   let ey=eh.length?y(eh[eh.length-1]):-99,by=bh.length?y(bh[bh.length-1]):-99;
-  let ety=ey,bty=by;if(Math.abs(ety-bty)<13){const mid=(ety+bty)/2,d=ety<=bty?-1:1;ety=mid+d*6.5;bty=mid-d*6.5}
+  let ety=ey,bty=by;if(Math.abs(ety-bty)<13){const mid=(ety+bty)/2,d=ety<=bty?-1:1;ety=mid+d*7;bty=mid-d*7}
   if(eh.length)s+=`<circle cx="${x(eh.length-1).toFixed(1)}" cy="${ey.toFixed(1)}" r="3.5" fill="var(--accent)"/><text x="${(x(eh.length-1)+8).toFixed(1)}" y="${ety.toFixed(1)}" dominant-baseline="central" style="fill:var(--accent);font-weight:700">${pc(eh[eh.length-1])}</text>`;
   if(bh.length)s+=`<circle cx="${x(bh.length-1).toFixed(1)}" cy="${by.toFixed(1)}" r="3" fill="var(--bg)" stroke="var(--dim)" stroke-width="1.6"/><text x="${(x(bh.length-1)+8).toFixed(1)}" y="${bty.toFixed(1)}" dominant-baseline="central" style="font-weight:700">${pc(bh[bh.length-1])}</text>`;
   const lg=`<div class="pn-lgd"><span class="pn-k pn-ka">Equity</span><span class="pn-k pn-kd">Benchmark</span><span class="pn-k pn-ko2">Floor</span></div>`;
@@ -1434,7 +1447,7 @@ function rvPeriodHTML(){
   return `<div class="rv-grid">${perf}${chart}${rec}${rvSignals()}${rvBaseline()}</div>`}
 SCREENS.review=function(){
   const ended=periodEnded(),jn=S.tab==="journal";
-  const top=topBar("Period review","Weeks 1 to "+S.week+(ended?" · end of period":" · so far"),devBadge());
+  const top=topBar("Period review",(layout()==="cover"?"Wks 1-"+S.week+(ended?" · ended":" · so far"):"Weeks 1 to "+S.week+(ended?" · end of period":" · so far")),devBadge());
   const main=rvTabs()+(jn?`<div class="rv-pane">${journalTabHTML()}</div>`:`<div class="rv-pane">${rvPeriodHTML()}</div>`);
   const bar=ended
     ?`<button class="btn outline" id="btnRerun" onclick="newPeriod(S.seed)"><span class="rv-l">Rerun window</span><span class="rv-s">Rerun</span></button><button class="btn outline" id="btnCopy" onclick="copyReport()">Copy report</button><button class="btn primary" id="btnNextPeriod" onclick="newPeriod((Math.random()*90000|0)+10000)">Next period</button>`

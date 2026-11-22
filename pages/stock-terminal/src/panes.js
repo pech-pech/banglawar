@@ -88,7 +88,8 @@ function eqChart(eh,bh,floorEq,o){
   const step=pnNice(span/3.5),lo=Math.floor((vmin-span*.04)/step)*step,hi=Math.ceil((vmax+span*.06)/step)*step;
   const y=v=>b-(v-lo)/(hi-lo)*(b-t),x=j=>L+j*pw/(n-1);
   let s="";
-  for(let v=lo;v<=hi+1e-9;v+=step){if(Math.abs(y(v)-y(floorEq))<9)continue;
+  const kept=[y(floorEq)];
+  for(let v=lo;v<=hi+1e-9;v+=step){const yv=y(v);if(kept.some(k=>Math.abs(yv-k)<12))continue;kept.push(yv);
     s+=`<line x1="${L}" x2="${L+pw}" y1="${y(v).toFixed(1)}" y2="${y(v).toFixed(1)}" stroke="var(--grid)"/><text x="${L-6}" y="${y(v).toFixed(1)}" text-anchor="end" dominant-baseline="central">${pnCom(v)}</text>`}
   const fy=y(floorEq);
   s+=`<line x1="${L}" x2="${L+pw}" y1="${fy.toFixed(1)}" y2="${fy.toFixed(1)}" stroke="var(--o)" stroke-width="1.4"/>`
@@ -101,7 +102,7 @@ function eqChart(eh,bh,floorEq,o){
   if(eh.length>1)s+=`<path d="${pl(eh)}" fill="none" stroke="var(--accent)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>`;
   const s0=eh[0]||bh[0]||1,pc=v=>pnS((v/s0-1)*100,1)+"%";
   let ey=eh.length?y(eh[eh.length-1]):-99,by=bh.length?y(bh[bh.length-1]):-99;
-  let ety=ey,bty=by;if(Math.abs(ety-bty)<13){const mid=(ety+bty)/2,d=ety<=bty?-1:1;ety=mid+d*6.5;bty=mid-d*6.5}
+  let ety=ey,bty=by;if(Math.abs(ety-bty)<13){const mid=(ety+bty)/2,d=ety<=bty?-1:1;ety=mid+d*7;bty=mid-d*7}
   if(eh.length)s+=`<circle cx="${x(eh.length-1).toFixed(1)}" cy="${ey.toFixed(1)}" r="3.5" fill="var(--accent)"/><text x="${(x(eh.length-1)+8).toFixed(1)}" y="${ety.toFixed(1)}" dominant-baseline="central" style="fill:var(--accent);font-weight:700">${pc(eh[eh.length-1])}</text>`;
   if(bh.length)s+=`<circle cx="${x(bh.length-1).toFixed(1)}" cy="${by.toFixed(1)}" r="3" fill="var(--bg)" stroke="var(--dim)" stroke-width="1.6"/><text x="${(x(bh.length-1)+8).toFixed(1)}" y="${bty.toFixed(1)}" dominant-baseline="central" style="font-weight:700">${pc(bh[bh.length-1])}</text>`;
   const lg=`<div class="pn-lgd"><span class="pn-k pn-ka">Equity</span><span class="pn-k pn-kd">Benchmark</span><span class="pn-k pn-ko2">Floor</span></div>`;

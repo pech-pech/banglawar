@@ -10,6 +10,8 @@ button{font-family:inherit;color:inherit}
 .top .sub{color:var(--dim);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
 .top .top-r{margin-left:auto;display:flex;align-items:center;gap:8px;flex:none}
 .top .dev{background:none;font-family:var(--sans)}
+.top .dev{position:relative}
+.top .dev::after{content:"";position:absolute;left:-4px;right:-4px;top:50%;height:48px;transform:translateY(-50%)}
 .bar{margin:0 calc(-12px - env(safe-area-inset-left)) 0 calc(-12px - env(safe-area-inset-right));padding:10px calc(12px + env(safe-area-inset-right)) calc(10px + env(safe-area-inset-bottom)) calc(12px + env(safe-area-inset-left));gap:8px;background:var(--bg);border-top:1px solid var(--line)}
 .bar>.btn,.bar>button{flex:1;min-width:0;height:52px;display:grid;place-items:center;text-decoration:none}
 .bar>.btn.primary{flex:1.4}

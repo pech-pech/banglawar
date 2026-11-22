@@ -88,26 +88,36 @@ function pfSVG(i,opt){
         // label sits on the empty side of the line, a few cells before the end
         const bx=lastPt.x-cs*0.5+nx*9,by=lastPt.y+(sup?cs*0.5:-cs*0.5)+ny*9;
         s+=`<text transform="translate(${_pfn(bx)} ${_pfn(by)}) rotate(${sup?-45:45})" text-anchor="end" font-size="11" fill="${sup?"var(--accent)":"var(--o)"}" ${halo}>${sup?"support":"resistance"}</text>`}}}
+  const lbx=[]; // placed label boxes {x1,x2,y1,y2} for collision avoidance
+  const lhit=(a,b)=>a.x1<b.x2&&b.x1<a.x2&&a.y1<b.y2&&b.y1<a.y2;
   // target
   if(tgt!=null){
     const tp=_pfPrice(tgt,_pfDp(tgt)),txt="Target "+tp;
     if(os===true){const y=_pfn(yOfU(Math.log(tgt)/LB()));
       s+=`<path d="M${x0} ${y}H${x0+gw}" stroke="var(--dim)" stroke-width="1.2" stroke-dasharray="5 4" fill="none"/>`;
       const ty=Math.max(y0+11,Math.min(y0+gh-3,+y-3));
+      lbx.push({x1:x0+gw-3-txt.length*6.2,x2:x0+gw-3,y1:ty-10,y2:ty+3});
       s+=`<text x="${x0+gw-3}" y="${ty}" text-anchor="end" font-size="11" fill="var(--dim)" ${halo}>${txt}</text>`}
     else{const up=os==="up",cw=txt.length*6.2+30,cx=x0+gw-cw+axisW-6,cy=up?1:y0+gh+axH+1;
       const cxx=Math.max(2,Math.min(w-cw-2,cx));
       s+=`<rect x="${_pfn(cxx)}" y="${cy}" width="${_pfn(cw)}" height="${chipH-4}" rx="${(chipH-4)/2}" fill="var(--surface2)" stroke="var(--dim)" stroke-dasharray="3 2"/>`;
       s+=`<text x="${_pfn(cxx+cw/2)}" y="${cy+(chipH-4)/2+4}" text-anchor="middle" font-size="11" fill="var(--dim)">${txt} ${up?"▲":"▼"}</text>`}}
   // signal triangle
+  const sigLbl=(t,cx,ty,j,col)=>{const wd=t.length*6.6+2;let st=j<2,y=ty+4,b;
+    const mk=()=>({x1:st?cx+8:cx-8-wd,x2:st?cx+8+wd:cx-8,y1:y-10,y2:y+3});
+    b=mk();
+    if(lbx.some(o=>lhit(b,o))){st=!st;b=mk()} // try opposite side of the triangle
+    for(const dy of [0,-12,12,-24,24]){if(!lbx.some(o=>lhit(b,o)))break;y=ty+4+dy;b=mk()}
+    lbx.push(b);
+    return `<text x="${_pfn(st?cx+8:cx-8)}" y="${_pfn(y)}" text-anchor="${st?"start":"end"}" font-size="11" font-weight="600" fill="${col}" ${halo}>${t}</text>`};
   if(si&&si.name&&si.col!=null&&si.col>=off0){
     const c=all[si.col],j=si.col-off,cx=x0+(j+.5)*cs,col=si.buy?"var(--x)":"var(--o)";
     if(si.buy){const r=rowOf(c.hi)-1;if(r>=0){const ty=y0+r*cs+cs/2;
       s+=`<path d="M${_pfn(cx)} ${_pfn(ty-5)}L${_pfn(cx+5)} ${_pfn(ty+4)}L${_pfn(cx-5)} ${_pfn(ty+4)}Z" fill="${col}"/>`;
-      s+=`<text x="${_pfn(j<2?cx+8:cx-8)}" y="${_pfn(ty+4)}" text-anchor="${j<2?"start":"end"}" font-size="11" font-weight="600" fill="${col}" ${halo}>Buy</text>`}}
+      s+=sigLbl("Buy",cx,ty,j,col)}}
     else{const r=rowOf(c.lo)+1;if(r<rows){const ty=y0+r*cs+cs/2;
       s+=`<path d="M${_pfn(cx)} ${_pfn(ty+5)}L${_pfn(cx+5)} ${_pfn(ty-4)}L${_pfn(cx-5)} ${_pfn(ty-4)}Z" fill="${col}"/>`;
-      s+=`<text x="${_pfn(j<2?cx+8:cx-8)}" y="${_pfn(ty+4)}" text-anchor="${j<2?"start":"end"}" font-size="11" font-weight="600" fill="${col}" ${halo}>Sell</text>`}}}
+      s+=sigLbl("Sell",cx,ty,j,col)}}}
   // trap labels
   pnfTraps(all).forEach(t=>{if(t.col<off0)return;const c=all[t.col],j=t.col-off;
     const r=rowOf(c.lo)+1,y=Math.min(y0+gh-2,y0+(r+1)*cs-3),cx=Math.max(x0+10,Math.min(x0+gw-10,x0+(j+.5)*cs));
