@@ -1,0 +1,111 @@
+/* desktop-duel.css: VS / duel / wager / result on wide landscape only (ADDENDUM D). Phone untouched. */
+@media (min-width:900px) and (min-aspect-ratio:1/1){
+  /* shared centred stage (~980px) */
+  #scr-duel,#scr-wager,#scr-result{padding-left:max(24px,calc((100% - 980px)/2));padding-right:max(24px,calc((100% - 980px)/2))}
+  #scr-duel button,#scr-wager button,#scr-result button{cursor:pointer;transition:transform .12s,filter .12s,box-shadow .12s}
+  #scr-duel button:focus-visible,#scr-wager button:focus-visible,#scr-result button:focus-visible{outline:3px solid var(--gold,#ffd23f);outline-offset:3px}
+
+  /* ---- VS intro: full-bleed, big avatars, centred badge ---- */
+  #scr-vs{position:fixed;inset:0;z-index:5}
+  #scr-vs .vs-p{max-width:40%}
+  #scr-vs .vs-p.vs-l{left:12%;top:12%}
+  #scr-vs .vs-p.vs-r{right:12%;bottom:22%}
+  #scr-vs .vs-p .av{width:min(240px,30vh)!important;height:min(240px,30vh)!important;border-width:8px;font-size:84px}
+  #scr-vs .vs-p .av>img{width:100%;height:100%}
+  #scr-vs .vs-name{font-size:clamp(30px,4.2vh,44px)}
+  #scr-vs .vs-lv{font-size:20px;padding:4px 16px}
+  #scr-vs .vs-badge{left:50%;top:50%;width:min(170px,22vh);height:min(170px,22vh);font-size:min(84px,11vh);border-width:8px}
+  #scr-vs .vs-topic{bottom:5vh}
+  #scr-vs .vs-topic-lbl{font-size:18px}
+  #scr-vs .vs-topic-chip{font-size:22px;padding:10px 26px}
+
+  /* ---- duel ---- */
+  #scr-duel{gap:12px;padding-top:14px;padding-bottom:10px}
+  #scr-duel::before{width:100%;top:46%}
+  #scr-duel .hdr{min-height:0;align-items:center;gap:20px}
+  #scr-duel .hdr .side{width:auto;min-width:200px;flex-direction:row;flex-wrap:wrap;align-items:center;justify-content:flex-start;column-gap:14px;row-gap:0}
+  #scr-duel .hdr .side.r{flex-direction:row-reverse;justify-content:flex-start}
+  #scr-duel .hdr .av-slot{grid-row:1/3}
+  #scr-duel .hdr .av{width:68px!important;height:68px!important;font-size:24px}
+  #scr-duel .hdr .nm{font-size:18px;max-width:180px;flex:1 1 100px;margin:0}
+  #scr-duel .hdr .side.l .nm{order:2;text-align:left}
+  #scr-duel .hdr .side.r .nm{text-align:right}
+  #scr-duel .hdr .sc{font-size:46px;order:3}
+  #scr-duel .hdr .side.l{display:grid;grid-template-columns:auto auto;grid-template-rows:auto auto;column-gap:14px;justify-items:start;align-items:center}
+  #scr-duel .hdr .side.r{display:grid;grid-template-columns:auto auto;grid-template-rows:auto auto;column-gap:14px;justify-items:end;align-items:center;direction:rtl}
+  #scr-duel .hdr .side.r>*{direction:ltr}
+  #scr-duel .hdr .side .av-slot{grid-column:1;grid-row:1/3}
+  #scr-duel .hdr .side .nm{grid-column:2;grid-row:1;align-self:end;max-width:200px}
+  #scr-duel .hdr .side .sc{grid-column:2;grid-row:2;align-self:start;justify-self:start;order:0}
+  #scr-duel .hdr .side.r .sc{justify-self:end}
+  #scr-duel .hdr .side.r .nm{justify-self:end}
+  #scr-duel .hdr .side .pop{top:0;font-size:26px}
+  #scr-duel .hdr .side.l .pop{right:auto;left:150px}
+  #scr-duel .hdr .side.r .pop{left:auto;right:150px}
+  #scr-duel .chip-answered{top:auto;bottom:-6px;font-size:13px;padding:3px 10px}
+  #scr-duel .hdr .mid{gap:6px}
+  #scr-duel .rnd{font-size:26px;padding:6px 22px}
+  #scr-duel .topic{font-size:15px}
+  #scr-duel .tm{width:100%}
+  #scr-duel #timer-bar{height:30px;border-radius:15px}
+  #scr-duel #timer-fill{border-radius:15px}
+  #scr-duel #timer-num{width:56px;min-width:56px;height:56px;font-size:28px;margin-left:-40px}
+  #scr-duel #q-text{font-size:36px;line-height:1.22;min-height:0;flex:1 1 auto;padding:12px 28px 16px;border-radius:24px}
+  #scr-duel #q-text.long{font-size:30px}
+  #scr-duel #q-text .t{font-size:14px}
+  #scr-duel #q-text .qh-lbl{font-size:13px}
+  #scr-duel #q-text .qh-topic>*:first-child{width:28px;height:28px}
+  #scr-duel #ans-wrap{display:grid;grid-template-columns:1fr 1fr;grid-auto-rows:minmax(96px,auto);gap:14px;flex:none}
+  #scr-duel .btn-ans{max-height:none;min-height:96px;font-size:28px;padding:8px 22px 8px 22px;border-left-width:14px;border-radius:16px}
+  #scr-duel .btn-ans .mark-p,#scr-duel .btn-ans .mark-r{width:36px;height:36px}
+  #scr-duel.has-fact .btn-ans{min-height:78px}
+  #scr-duel.has-fact #q-text{font-size:26px;padding:8px 24px 10px;min-height:0}
+  #scr-duel.has-fact .tm{display:flex}
+  #scr-duel .q-fact{font-size:18px;padding:10px 18px;max-height:none}
+  #scr-duel .btn-next{width:auto;align-self:center;min-width:320px;min-height:56px;font-size:20px}
+  #scr-duel .btn-ans:hover:not([disabled]){transform:translateY(-3px);filter:brightness(1.05);box-shadow:0 8px 0 rgba(0,0,0,.25),0 10px 20px rgba(0,0,0,.25)}
+  #scr-duel .btn-ans:active:not([disabled]){transform:translateY(1px)}
+  #scr-duel .btn-next:hover,#scr-wager .btn:hover,#scr-result .btn:hover,#scr-wager button:hover,#scr-result button:hover{transform:translateY(-2px);filter:brightness(1.07)}
+  #scr-duel .hc-keyhint,#scr-wager .hc-keyhint,#scr-result .hc-keyhint{display:block;text-align:center;font-size:13px;color:#cfc8ff;opacity:.8;flex:none;margin-top:-4px}
+
+  /* ---- wager ---- */
+  #scr-wager{gap:18px}
+  #scr-wager .wager-title{font-size:38px;padding:10px 60px}
+  #scr-wager .wager-lbl{font-size:15px}
+  #scr-wager #wager-scores{font-size:48px}
+  #scr-wager .res .av,#scr-wager #wager-scores .av{width:84px!important;height:84px!important}
+  #scr-wager .btn-wtopic{min-height:104px;font-size:22px;gap:6px}
+  #scr-wager .btn-wtopic img{width:52px;height:52px}
+  #scr-wager .btn-mult{min-height:84px;font-size:32px}
+  #scr-wager .wager-note{font-size:19px;padding:12px 18px}
+  #scr-wager #btn-wager-go{min-height:68px;font-size:26px;max-width:520px;width:100%;align-self:center;margin-top:0}
+
+  #scr-wager #wager-scores .nm,#scr-wager .nm{font-size:20px}
+
+  /* ---- results ---- */
+  #scr-result{gap:16px}
+  #scr-result .rb{font-size:56px;padding:8px 72px}
+  #scr-result .res .av{width:92px!important;height:92px!important;font-size:30px}
+  #scr-result .res .sc{font-size:56px}
+  #scr-result .res .nm{font-size:20px}
+  #scr-result .bd,#scr-result #res-k-wrap{padding:14px 16px 16px}
+  #scr-result #res-k{font-size:15px}
+  #scr-result #res-cells{gap:10px}
+  #scr-result .c{font-size:22px;padding:12px 0 10px;border-radius:12px}
+  #scr-result .c small{font-size:15px}
+  #scr-result .c-x2{font-size:12px;line-height:18px;top:-8px}
+  #scr-result .xp{font-size:22px;padding:14px 22px}
+  #scr-result .btns{flex-direction:row;gap:16px;margin-top:4px}
+  #scr-result .btns .btn{flex:1 1 0;min-height:64px;font-size:22px}
+  #scr-result .btn-report{min-height:44px;font-size:15px}
+  @media (min-height:900px){
+    #scr-duel{gap:18px;padding-top:24px;padding-bottom:18px}
+    #scr-duel #q-text{font-size:50px;padding:16px 40px 20px}
+    #scr-duel.has-fact #q-text{font-size:44px}
+    #scr-duel #q-text.long{font-size:40px}
+    #scr-duel #ans-wrap{gap:18px;grid-auto-rows:minmax(120px,auto)}
+    #scr-duel .btn-ans{min-height:120px;font-size:34px}
+    #scr-duel.has-fact .btn-ans{min-height:104px}
+    #scr-duel .q-fact{font-size:22px}
+  }
+}

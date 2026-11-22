@@ -1,0 +1,66 @@
+/* desktop-home.css: wide landscape only (ADDENDUM D). Phone layout untouched below 900px. */
+@media (min-width:900px) and (min-aspect-ratio:1/1){
+  #app{max-width:1200px}
+  @media (min-width:1280px){#scr-home .hc-wi,#scr-home .btn.btn-topic.hc-wi{width:150px}#scr-home #topic-row.hc-wheel{padding-left:calc(50% - 75px);padding-right:calc(50% - 75px)}}
+  /* full-viewport background: home screen breaks out of #app, content re-centred */
+  #scr-home.hc-home{position:fixed;inset:0;display:none;overflow:hidden;
+    padding:calc(14px + var(--sat,0px)) max(28px,calc((100vw - 1200px)/2 + 28px)) calc(12px + var(--sab,0px));
+    background-size:cover;background-position:center}
+  #scr-home.hc-home.active{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);
+    grid-template-rows:auto auto auto auto auto auto auto;column-gap:28px;row-gap:16px;align-content:center;font-size:1.15em}
+  #scr-home .hc-head{grid-column:1/-1;grid-row:1;gap:14px}
+  #scr-home .hc-emblem{width:52px;height:52px}
+  #scr-home h1.hc-title{font-size:40px}
+  #scr-home button.hc-gear,#scr-home #btn-settings.hc-gear{width:52px;height:52px;min-width:52px;min-height:52px}
+  #scr-home .hc-pcard{grid-column:1;grid-row:2/4;align-self:stretch;justify-content:center;padding:16px 20px 12px;gap:12px}
+  #scr-home .hc-mode{grid-column:1;grid-row:4/7;align-self:start;padding:14px 20px;gap:12px}
+  #scr-home .hc-wheelwrap{grid-column:2;grid-row:2/4}
+  #scr-home .hc-dots{grid-column:2;grid-row:4;margin-top:0}
+  #scr-home #home-rival{grid-column:2;grid-row:5;align-self:start}
+  #scr-home .hc-duelrow{grid-column:2;grid-row:6;align-self:start;margin-top:4px}
+  #scr-home #home-warn{grid-column:2;grid-row:5}
+  #scr-home .hc-build,#scr-home #home-build.hc-build{grid-column:2;grid-row:7;text-align:right;font-size:12px}
+  #scr-home .hc-keyhint{grid-column:1;grid-row:7;text-align:left;font-size:13px;color:#cfc8ff;opacity:.85;display:block}
+
+  /* bigger type + controls */
+  #scr-home .hc-pav{width:80px;height:80px}
+  #scr-home #in-name{height:52px;font-size:22px}
+  #scr-home .hc-gender,#scr-home #btn-gender{width:54px;height:54px;min-width:54px;min-height:54px}
+  #scr-home .hc-gender .hc-ico{width:48px;height:48px}
+  #scr-home .hc-seals>span{font-size:15px}
+  #scr-home .hc-gem,#scr-home .swatch.hc-gem{width:42px;height:42px;min-width:42px}
+  #scr-home .hc-gem .hc-ico{width:42px;height:42px}
+  #scr-home .hc-pill button,#scr-home #btn-mode-movie,#scr-home #btn-mode-book{height:46px;font-size:18px}
+  #scr-home .hc-step>span{font-size:17px}
+  #scr-home .hc-step button,#scr-home #btn-rt-minus,#scr-home #btn-rt-plus{width:46px;height:44px;min-width:46px}
+  #scr-home #in-readto{width:54px;height:42px;font-size:22px;line-height:42px}
+
+  /* wheel: 3 full items */
+  #scr-home .hc-wheelwrap{display:flex;align-items:center;padding:0 26px}
+  #scr-home #topic-row.hc-wheel{width:100%;height:100%;min-height:230px;gap:8px;padding:22px calc(50% - 70px) 12px}
+  #scr-home .hc-wi,#scr-home .btn.btn-topic.hc-wi{width:140px;height:176px;transform:scale(.82);opacity:.7;gap:6px;border-radius:20px}
+  #scr-home .hc-wi.sel,#scr-home .btn.btn-topic.hc-wi.sel{transform:scale(1);opacity:1}
+  #scr-home .hc-tic{width:68px;height:68px}
+  #scr-home .hc-tic img,#scr-home .hc-tic svg,#scr-home .hc-tic canvas,#scr-home .hc-tic>*{width:68px!important;height:68px!important}
+  #scr-home .hc-tnm{font-size:18px}
+  #scr-home .hc-tlv{font-size:14px}
+  #scr-home .hc-arrow{width:50px;height:50px;margin-top:-26px;font-size:34px}
+  #scr-home .hc-prev{left:-6px}#scr-home .hc-next{right:-6px}
+  #scr-home .hc-dot{width:10px;height:10px}
+  #scr-home #home-rival{font-size:20px}
+  #scr-home .hc-duel,#scr-home #btn-play.hc-duel{height:72px;min-height:72px;font-size:40px}
+  #scr-home .hc-duelrow>.hc-ico,#scr-home .hc-duelrow>.hc-ico-fb{width:40px;height:40px}
+
+  /* hover / focus */
+  #scr-home button,#scr-home .hc-gem,#scr-home .swatch{cursor:pointer}
+  #scr-home .hc-gender,#scr-home #btn-gender,#scr-home .hc-pill button,#scr-home .hc-step button,#scr-home .hc-gem,
+  #scr-home .hc-wi,#scr-home .hc-arrow,#scr-home .hc-gear,#scr-home .hc-duel{transition:transform .12s,filter .12s}
+  #scr-home .hc-gender:hover,#scr-home .hc-pill button:hover,#scr-home .hc-step button:hover,#scr-home .hc-gem:hover,
+  #scr-home .hc-arrow:hover,#scr-home .hc-gear:hover,#scr-home .hc-duel:hover{transform:translateY(-2px);filter:brightness(1.1)}
+  #scr-home .hc-wi:hover{transform:scale(.9) translateY(-2px);opacity:1;filter:brightness(1.05)}
+  #scr-home .hc-wi.sel:hover{transform:scale(1) translateY(-2px)}
+  #scr-home .hc-gender:active,#scr-home .hc-pill button:active,#scr-home .hc-step button:active,#scr-home .hc-arrow:active,#scr-home .hc-duel:active{transform:translateY(2px)}
+  #scr-home button:focus-visible,#scr-home .hc-gem:focus-visible{outline:3px solid #ffd23f;outline-offset:3px}
+  @media (min-width:1700px) and (min-height:950px){#scr-home.hc-home.active{zoom:1.3}}
+}
+@media not all and (min-width:900px) and (min-aspect-ratio:1/1){.hc-keyhint{display:none}}

@@ -616,6 +616,185 @@ canvas{display:block;border-radius:50%;flex:none}
   #scr-home .hc-duel,#scr-home #btn-play.hc-duel{font-size:28px}
 }
 
+/* desktop-home.css: wide landscape only (ADDENDUM D). Phone layout untouched below 900px. */
+@media (min-width:900px) and (min-aspect-ratio:1/1){
+  #app{max-width:1200px}
+  @media (min-width:1280px){#scr-home .hc-wi,#scr-home .btn.btn-topic.hc-wi{width:150px}#scr-home #topic-row.hc-wheel{padding-left:calc(50% - 75px);padding-right:calc(50% - 75px)}}
+  /* full-viewport background: home screen breaks out of #app, content re-centred */
+  #scr-home.hc-home{position:fixed;inset:0;display:none;overflow:hidden;
+    padding:calc(14px + var(--sat,0px)) max(28px,calc((100vw - 1200px)/2 + 28px)) calc(12px + var(--sab,0px));
+    background-size:cover;background-position:center}
+  #scr-home.hc-home.active{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);
+    grid-template-rows:auto auto auto auto auto auto auto;column-gap:28px;row-gap:16px;align-content:center;font-size:1.15em}
+  #scr-home .hc-head{grid-column:1/-1;grid-row:1;gap:14px}
+  #scr-home .hc-emblem{width:52px;height:52px}
+  #scr-home h1.hc-title{font-size:40px}
+  #scr-home button.hc-gear,#scr-home #btn-settings.hc-gear{width:52px;height:52px;min-width:52px;min-height:52px}
+  #scr-home .hc-pcard{grid-column:1;grid-row:2/4;align-self:stretch;justify-content:center;padding:16px 20px 12px;gap:12px}
+  #scr-home .hc-mode{grid-column:1;grid-row:4/7;align-self:start;padding:14px 20px;gap:12px}
+  #scr-home .hc-wheelwrap{grid-column:2;grid-row:2/4}
+  #scr-home .hc-dots{grid-column:2;grid-row:4;margin-top:0}
+  #scr-home #home-rival{grid-column:2;grid-row:5;align-self:start}
+  #scr-home .hc-duelrow{grid-column:2;grid-row:6;align-self:start;margin-top:4px}
+  #scr-home #home-warn{grid-column:2;grid-row:5}
+  #scr-home .hc-build,#scr-home #home-build.hc-build{grid-column:2;grid-row:7;text-align:right;font-size:12px}
+  #scr-home .hc-keyhint{grid-column:1;grid-row:7;text-align:left;font-size:13px;color:#cfc8ff;opacity:.85;display:block}
+
+  /* bigger type + controls */
+  #scr-home .hc-pav{width:80px;height:80px}
+  #scr-home #in-name{height:52px;font-size:22px}
+  #scr-home .hc-gender,#scr-home #btn-gender{width:54px;height:54px;min-width:54px;min-height:54px}
+  #scr-home .hc-gender .hc-ico{width:48px;height:48px}
+  #scr-home .hc-seals>span{font-size:15px}
+  #scr-home .hc-gem,#scr-home .swatch.hc-gem{width:42px;height:42px;min-width:42px}
+  #scr-home .hc-gem .hc-ico{width:42px;height:42px}
+  #scr-home .hc-pill button,#scr-home #btn-mode-movie,#scr-home #btn-mode-book{height:46px;font-size:18px}
+  #scr-home .hc-step>span{font-size:17px}
+  #scr-home .hc-step button,#scr-home #btn-rt-minus,#scr-home #btn-rt-plus{width:46px;height:44px;min-width:46px}
+  #scr-home #in-readto{width:54px;height:42px;font-size:22px;line-height:42px}
+
+  /* wheel: 3 full items */
+  #scr-home .hc-wheelwrap{display:flex;align-items:center;padding:0 26px}
+  #scr-home #topic-row.hc-wheel{width:100%;height:100%;min-height:230px;gap:8px;padding:22px calc(50% - 70px) 12px}
+  #scr-home .hc-wi,#scr-home .btn.btn-topic.hc-wi{width:140px;height:176px;transform:scale(.82);opacity:.7;gap:6px;border-radius:20px}
+  #scr-home .hc-wi.sel,#scr-home .btn.btn-topic.hc-wi.sel{transform:scale(1);opacity:1}
+  #scr-home .hc-tic{width:68px;height:68px}
+  #scr-home .hc-tic img,#scr-home .hc-tic svg,#scr-home .hc-tic canvas,#scr-home .hc-tic>*{width:68px!important;height:68px!important}
+  #scr-home .hc-tnm{font-size:18px}
+  #scr-home .hc-tlv{font-size:14px}
+  #scr-home .hc-arrow{width:50px;height:50px;margin-top:-26px;font-size:34px}
+  #scr-home .hc-prev{left:-6px}#scr-home .hc-next{right:-6px}
+  #scr-home .hc-dot{width:10px;height:10px}
+  #scr-home #home-rival{font-size:20px}
+  #scr-home .hc-duel,#scr-home #btn-play.hc-duel{height:72px;min-height:72px;font-size:40px}
+  #scr-home .hc-duelrow>.hc-ico,#scr-home .hc-duelrow>.hc-ico-fb{width:40px;height:40px}
+
+  /* hover / focus */
+  #scr-home button,#scr-home .hc-gem,#scr-home .swatch{cursor:pointer}
+  #scr-home .hc-gender,#scr-home #btn-gender,#scr-home .hc-pill button,#scr-home .hc-step button,#scr-home .hc-gem,
+  #scr-home .hc-wi,#scr-home .hc-arrow,#scr-home .hc-gear,#scr-home .hc-duel{transition:transform .12s,filter .12s}
+  #scr-home .hc-gender:hover,#scr-home .hc-pill button:hover,#scr-home .hc-step button:hover,#scr-home .hc-gem:hover,
+  #scr-home .hc-arrow:hover,#scr-home .hc-gear:hover,#scr-home .hc-duel:hover{transform:translateY(-2px);filter:brightness(1.1)}
+  #scr-home .hc-wi:hover{transform:scale(.9) translateY(-2px);opacity:1;filter:brightness(1.05)}
+  #scr-home .hc-wi.sel:hover{transform:scale(1) translateY(-2px)}
+  #scr-home .hc-gender:active,#scr-home .hc-pill button:active,#scr-home .hc-step button:active,#scr-home .hc-arrow:active,#scr-home .hc-duel:active{transform:translateY(2px)}
+  #scr-home button:focus-visible,#scr-home .hc-gem:focus-visible{outline:3px solid #ffd23f;outline-offset:3px}
+  @media (min-width:1700px) and (min-height:950px){#scr-home.hc-home.active{zoom:1.3}}
+}
+@media not all and (min-width:900px) and (min-aspect-ratio:1/1){.hc-keyhint{display:none}}
+
+/* desktop-duel.css: VS / duel / wager / result on wide landscape only (ADDENDUM D). Phone untouched. */
+@media (min-width:900px) and (min-aspect-ratio:1/1){
+  /* shared centred stage (~980px) */
+  #scr-duel,#scr-wager,#scr-result{padding-left:max(24px,calc((100% - 980px)/2));padding-right:max(24px,calc((100% - 980px)/2))}
+  #scr-duel button,#scr-wager button,#scr-result button{cursor:pointer;transition:transform .12s,filter .12s,box-shadow .12s}
+  #scr-duel button:focus-visible,#scr-wager button:focus-visible,#scr-result button:focus-visible{outline:3px solid var(--gold,#ffd23f);outline-offset:3px}
+
+  /* ---- VS intro: full-bleed, big avatars, centred badge ---- */
+  #scr-vs{position:fixed;inset:0;z-index:5}
+  #scr-vs .vs-p{max-width:40%}
+  #scr-vs .vs-p.vs-l{left:12%;top:12%}
+  #scr-vs .vs-p.vs-r{right:12%;bottom:22%}
+  #scr-vs .vs-p .av{width:min(240px,30vh)!important;height:min(240px,30vh)!important;border-width:8px;font-size:84px}
+  #scr-vs .vs-p .av>img{width:100%;height:100%}
+  #scr-vs .vs-name{font-size:clamp(30px,4.2vh,44px)}
+  #scr-vs .vs-lv{font-size:20px;padding:4px 16px}
+  #scr-vs .vs-badge{left:50%;top:50%;width:min(170px,22vh);height:min(170px,22vh);font-size:min(84px,11vh);border-width:8px}
+  #scr-vs .vs-topic{bottom:5vh}
+  #scr-vs .vs-topic-lbl{font-size:18px}
+  #scr-vs .vs-topic-chip{font-size:22px;padding:10px 26px}
+
+  /* ---- duel ---- */
+  #scr-duel{gap:12px;padding-top:14px;padding-bottom:10px}
+  #scr-duel::before{width:100%;top:46%}
+  #scr-duel .hdr{min-height:0;align-items:center;gap:20px}
+  #scr-duel .hdr .side{width:auto;min-width:200px;flex-direction:row;flex-wrap:wrap;align-items:center;justify-content:flex-start;column-gap:14px;row-gap:0}
+  #scr-duel .hdr .side.r{flex-direction:row-reverse;justify-content:flex-start}
+  #scr-duel .hdr .av-slot{grid-row:1/3}
+  #scr-duel .hdr .av{width:68px!important;height:68px!important;font-size:24px}
+  #scr-duel .hdr .nm{font-size:18px;max-width:180px;flex:1 1 100px;margin:0}
+  #scr-duel .hdr .side.l .nm{order:2;text-align:left}
+  #scr-duel .hdr .side.r .nm{text-align:right}
+  #scr-duel .hdr .sc{font-size:46px;order:3}
+  #scr-duel .hdr .side.l{display:grid;grid-template-columns:auto auto;grid-template-rows:auto auto;column-gap:14px;justify-items:start;align-items:center}
+  #scr-duel .hdr .side.r{display:grid;grid-template-columns:auto auto;grid-template-rows:auto auto;column-gap:14px;justify-items:end;align-items:center;direction:rtl}
+  #scr-duel .hdr .side.r>*{direction:ltr}
+  #scr-duel .hdr .side .av-slot{grid-column:1;grid-row:1/3}
+  #scr-duel .hdr .side .nm{grid-column:2;grid-row:1;align-self:end;max-width:200px}
+  #scr-duel .hdr .side .sc{grid-column:2;grid-row:2;align-self:start;justify-self:start;order:0}
+  #scr-duel .hdr .side.r .sc{justify-self:end}
+  #scr-duel .hdr .side.r .nm{justify-self:end}
+  #scr-duel .hdr .side .pop{top:0;font-size:26px}
+  #scr-duel .hdr .side.l .pop{right:auto;left:150px}
+  #scr-duel .hdr .side.r .pop{left:auto;right:150px}
+  #scr-duel .chip-answered{top:auto;bottom:-6px;font-size:13px;padding:3px 10px}
+  #scr-duel .hdr .mid{gap:6px}
+  #scr-duel .rnd{font-size:26px;padding:6px 22px}
+  #scr-duel .topic{font-size:15px}
+  #scr-duel .tm{width:100%}
+  #scr-duel #timer-bar{height:30px;border-radius:15px}
+  #scr-duel #timer-fill{border-radius:15px}
+  #scr-duel #timer-num{width:56px;min-width:56px;height:56px;font-size:28px;margin-left:-40px}
+  #scr-duel #q-text{font-size:36px;line-height:1.22;min-height:0;flex:1 1 auto;padding:12px 28px 16px;border-radius:24px}
+  #scr-duel #q-text.long{font-size:30px}
+  #scr-duel #q-text .t{font-size:14px}
+  #scr-duel #q-text .qh-lbl{font-size:13px}
+  #scr-duel #q-text .qh-topic>*:first-child{width:28px;height:28px}
+  #scr-duel #ans-wrap{display:grid;grid-template-columns:1fr 1fr;grid-auto-rows:minmax(96px,auto);gap:14px;flex:none}
+  #scr-duel .btn-ans{max-height:none;min-height:96px;font-size:28px;padding:8px 22px 8px 22px;border-left-width:14px;border-radius:16px}
+  #scr-duel .btn-ans .mark-p,#scr-duel .btn-ans .mark-r{width:36px;height:36px}
+  #scr-duel.has-fact .btn-ans{min-height:78px}
+  #scr-duel.has-fact #q-text{font-size:26px;padding:8px 24px 10px;min-height:0}
+  #scr-duel.has-fact .tm{display:flex}
+  #scr-duel .q-fact{font-size:18px;padding:10px 18px;max-height:none}
+  #scr-duel .btn-next{width:auto;align-self:center;min-width:320px;min-height:56px;font-size:20px}
+  #scr-duel .btn-ans:hover:not([disabled]){transform:translateY(-3px);filter:brightness(1.05);box-shadow:0 8px 0 rgba(0,0,0,.25),0 10px 20px rgba(0,0,0,.25)}
+  #scr-duel .btn-ans:active:not([disabled]){transform:translateY(1px)}
+  #scr-duel .btn-next:hover,#scr-wager .btn:hover,#scr-result .btn:hover,#scr-wager button:hover,#scr-result button:hover{transform:translateY(-2px);filter:brightness(1.07)}
+  #scr-duel .hc-keyhint,#scr-wager .hc-keyhint,#scr-result .hc-keyhint{display:block;text-align:center;font-size:13px;color:#cfc8ff;opacity:.8;flex:none;margin-top:-4px}
+
+  /* ---- wager ---- */
+  #scr-wager{gap:18px}
+  #scr-wager .wager-title{font-size:38px;padding:10px 60px}
+  #scr-wager .wager-lbl{font-size:15px}
+  #scr-wager #wager-scores{font-size:48px}
+  #scr-wager .res .av,#scr-wager #wager-scores .av{width:84px!important;height:84px!important}
+  #scr-wager .btn-wtopic{min-height:104px;font-size:22px;gap:6px}
+  #scr-wager .btn-wtopic img{width:52px;height:52px}
+  #scr-wager .btn-mult{min-height:84px;font-size:32px}
+  #scr-wager .wager-note{font-size:19px;padding:12px 18px}
+  #scr-wager #btn-wager-go{min-height:68px;font-size:26px;max-width:520px;width:100%;align-self:center;margin-top:0}
+
+  #scr-wager #wager-scores .nm,#scr-wager .nm{font-size:20px}
+
+  /* ---- results ---- */
+  #scr-result{gap:16px}
+  #scr-result .rb{font-size:56px;padding:8px 72px}
+  #scr-result .res .av{width:92px!important;height:92px!important;font-size:30px}
+  #scr-result .res .sc{font-size:56px}
+  #scr-result .res .nm{font-size:20px}
+  #scr-result .bd,#scr-result #res-k-wrap{padding:14px 16px 16px}
+  #scr-result #res-k{font-size:15px}
+  #scr-result #res-cells{gap:10px}
+  #scr-result .c{font-size:22px;padding:12px 0 10px;border-radius:12px}
+  #scr-result .c small{font-size:15px}
+  #scr-result .c-x2{font-size:12px;line-height:18px;top:-8px}
+  #scr-result .xp{font-size:22px;padding:14px 22px}
+  #scr-result .btns{flex-direction:row;gap:16px;margin-top:4px}
+  #scr-result .btns .btn{flex:1 1 0;min-height:64px;font-size:22px}
+  #scr-result .btn-report{min-height:44px;font-size:15px}
+  @media (min-height:900px){
+    #scr-duel{gap:18px;padding-top:24px;padding-bottom:18px}
+    #scr-duel #q-text{font-size:50px;padding:16px 40px 20px}
+    #scr-duel.has-fact #q-text{font-size:44px}
+    #scr-duel #q-text.long{font-size:40px}
+    #scr-duel #ans-wrap{gap:18px;grid-auto-rows:minmax(120px,auto)}
+    #scr-duel .btn-ans{min-height:120px;font-size:34px}
+    #scr-duel.has-fact .btn-ans{min-height:104px}
+    #scr-duel .q-fact{font-size:22px}
+  }
+}
+
 </style>
 </head><body><div id="app"></div>
 <script>
@@ -2402,6 +2581,93 @@ var TD = (typeof window!=='undefined'?(window.TD=window.TD||{}):(global.TD=globa
     $('res-seed').textContent = 'Seed ' + st.seed;
     $('btn-report').textContent = 'Copy report';
   };
+})();
+
+</script>
+<script>
+// desktop.js: keyboard shortcuts + desktop key hints. No layout (CSS lives in desktop-*.css).
+(function () {
+  if (typeof document === 'undefined') return;
+  var CSS = '.hc-keyhint{display:none}@media (min-width:900px) and (min-aspect-ratio:1/1){.hc-keyhint{display:block;text-align:center;font-size:13px;color:#cfc8ff;opacity:.85}}';
+  function $(id) { return document.getElementById(id); }
+  function vis(el) { return !!(el && el.offsetParent !== null && el.style.display !== 'none' && !el.disabled); }
+  function active() { return document.querySelector('.screen.active'); }
+  function typing() {
+    var a = document.activeElement;
+    if (!a) return false;
+    var t = (a.tagName || '').toLowerCase();
+    return t === 'input' || t === 'textarea' || t === 'select' || a.isContentEditable;
+  }
+  function click(el) { if (vis(el)) { el.click(); return true; } return false; }
+
+  function hint(parent, after, text) {
+    if (!parent || parent.querySelector('.hc-keyhint')) return;
+    var d = document.createElement('div');
+    d.className = 'hc-keyhint';
+    d.textContent = text;
+    if (after && after.parentNode === parent) parent.insertBefore(d, after.nextSibling);
+    else parent.appendChild(d);
+  }
+  function inject() {
+    var home = $('scr-home');
+    if (home) hint(home, home.querySelector('.hc-duelrow'), 'Keys: ← → pick topic · Enter duel');
+    var duel = $('scr-duel');
+    if (duel) hint(duel, null, '1-4 or A-D to answer · Enter next');
+  }
+  var st = document.createElement('style');
+  st.textContent = CSS;
+  (document.head || document.documentElement).appendChild(st);
+
+  var pending = false;
+  function sched() {
+    if (pending) return;
+    pending = true;
+    setTimeout(function () { pending = false; inject(); }, 0);
+  }
+  function start() {
+    inject();
+    if (typeof MutationObserver !== 'undefined') {
+      new MutationObserver(function (muts) {
+        for (var i = 0; i < muts.length; i++) {
+          if (muts[i].type === 'childList') {
+            var t = muts[i].target;
+            if (t.id === 'app' || (t.classList && t.classList.contains('screen'))) { sched(); return; }
+          }
+        }
+      }).observe(document.body, { childList: true, subtree: true });
+    }
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
+
+  document.addEventListener('keydown', function (e) {
+    if (e.ctrlKey || e.metaKey || e.altKey || e.defaultPrevented) return;
+    if (typing()) return;
+    var scr = active(); if (!scr) return;
+    var id = scr.id, k = e.key, K = k.length === 1 ? k.toUpperCase() : k, done = false;
+    if (id === 'scr-home') {
+      if (k === 'ArrowLeft') done = click($('btn-topic-prev'));
+      else if (k === 'ArrowRight') done = click($('btn-topic-next'));
+      else if (k === 'Enter') { if (document.activeElement && document.activeElement.tagName === 'BUTTON' && document.activeElement.id !== 'btn-play') return; done = click($('btn-play')); }
+      else if (K === 'G') done = click($('btn-gender'));
+    } else if (id === 'scr-duel') {
+      var n = '1234'.indexOf(k); if (n < 0) n = 'ABCD'.indexOf(K);
+      if (n >= 0 && k.length === 1) {
+        var btns = scr.querySelectorAll('.btn-ans'), vb = [];
+        for (var i = 0; i < btns.length; i++) if (btns[i].offsetParent !== null) vb.push(btns[i]);
+        if (vb[n]) { vb[n].click(); done = true; }
+      } else if (k === 'Enter' || k === ' ') done = click($('btn-next'));
+    } else if (id === 'scr-wager') {
+      var tb = scr.querySelectorAll('.btn-wtopic');
+      if (k === 'Enter' || k === ' ') { var b = scr.querySelector('.btn-mult.sel') || $('btn-x1'); done = click(b); }
+      else if (k === '1' || k === '2') done = click($(k === '1' ? 'btn-x1' : 'btn-x2')) ;
+    } else if (id === 'scr-result') {
+      if (K === 'R') done = click($('btn-rematch'));
+      else if (K === 'H' || k === 'Escape') done = click($('btn-home'));
+    } else if (id === 'scr-vs') {
+      if (k === 'Enter' || k === ' ') { var sk = scr.querySelector('button'); done = click(sk); }
+    }
+    if (done) e.preventDefault();
+  });
 })();
 
 </script>
