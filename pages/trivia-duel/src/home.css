@@ -72,35 +72,38 @@
 #scr-home #in-readto{width:44px;height:34px;min-width:0;padding:0;border:0;border-radius:10px;background:#fff;color:#1c1540;text-align:center;
   font:800 19px/34px system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;box-shadow:inset 0 -3px 0 #d6d0f0;outline:0;flex:none;margin:0}
 
-/* topics */
-#scr-home #topic-row.hc-grid,#scr-home .hc-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px 7px;flex:none}
-#scr-home .hc-tile,#scr-home .btn.btn-topic.hc-tile{flex:none;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:1px;
-  min-height:0;min-width:0;padding:5px 2px 4px;border:0;border-radius:14px;background:#fff;color:#1c1540;font-weight:800;position:relative;margin:0 0 5px;
-  --lip:#b9b2e0;box-shadow:0 5px 0 var(--lip);overflow:visible}
-#scr-home .hc-tile:active{transform:translateY(3px);box-shadow:0 2px 0 var(--lip)}
-#scr-home .hc-tile[data-topic=spells]{--lip:#8a4fff}
-#scr-home .hc-tile[data-topic=creatures]{--lip:#3fbf5f}
-#scr-home .hc-tile[data-topic=places]{--lip:#2fb5a8}
-#scr-home .hc-tile[data-topic=people]{--lip:#e0574f}
-#scr-home .hc-tile[data-topic=objects]{--lip:#e09a1f}
-#scr-home .hc-tile[data-topic=school]{--lip:#3f7be0}
-#scr-home .hc-tile[data-topic=plot]{--lip:#c44fd0}
-#scr-home .hc-tic{width:40px;height:40px;display:grid;place-items:center;flex:none;line-height:0}
-#scr-home .hc-tic img,#scr-home .hc-tic svg,#scr-home .hc-tic canvas,#scr-home .hc-tic>*{width:40px!important;height:40px!important;border-radius:10px;display:block}
-#scr-home .hc-tnm{font-size:13px;line-height:1.1;font-weight:800;text-align:center;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-#scr-home .hc-tlv{font-size:11px;font-weight:700;color:#6d5bd0;line-height:1}
-#scr-home .hc-tile.sel,#scr-home .btn.btn-topic.hc-tile.sel{outline:3px solid #ffd23f;outline-offset:1px;background:#fff8dc;
+/* topics: horizontal wheel */
+#scr-home .hc-wheelwrap{position:relative;flex:none}
+#scr-home #topic-row.hc-wheel{display:flex;flex-direction:row;align-items:center;gap:6px;overflow-x:auto;overflow-y:hidden;
+  scroll-snap-type:x mandatory;scrollbar-width:none;-ms-overflow-style:none;-webkit-overflow-scrolling:touch;overscroll-behavior-x:contain;
+  touch-action:pan-x;padding:9px calc(50% - 75px) 4px;margin:0;height:127px;box-sizing:border-box}
+#scr-home #topic-row.hc-wheel::-webkit-scrollbar{display:none}
+#scr-home .hc-wi,#scr-home .btn.btn-topic.hc-wi{flex:none;width:150px;height:112px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
+  scroll-snap-align:center;scroll-snap-stop:always;min-height:0;min-width:0;padding:6px 4px 5px;border:0;border-radius:16px;background:#fff;color:#1c1540;
+  font-weight:800;position:relative;margin:0 0 5px;--lip:#b9b2e0;box-shadow:0 5px 0 var(--lip);overflow:visible;
+  transform:scale(.74);opacity:.55;transition:transform .18s,opacity .18s,box-shadow .18s}
+#scr-home .hc-wi[data-topic=general]{--lip:#ffd23f}
+#scr-home .hc-wi[data-topic=spells]{--lip:#8a4fff}
+#scr-home .hc-wi[data-topic=creatures]{--lip:#3fbf5f}
+#scr-home .hc-wi[data-topic=places]{--lip:#2fb5a8}
+#scr-home .hc-wi[data-topic=people]{--lip:#e0574f}
+#scr-home .hc-wi[data-topic=objects]{--lip:#e09a1f}
+#scr-home .hc-wi[data-topic=school]{--lip:#3f7be0}
+#scr-home .hc-wi[data-topic=plot]{--lip:#c44fd0}
+#scr-home .hc-wi.sel,#scr-home .btn.btn-topic.hc-wi.sel{transform:scale(1);opacity:1;background:#fff8dc;outline:3px solid #ffd23f;outline-offset:1px;
   box-shadow:0 5px 0 var(--lip),0 0 16px 4px rgba(255,210,63,.75)}
-
-/* 5+ topics (two rows): compact tiles so the screen still fits without scroll */
-#scr-home .hc-grid:has(.hc-tile:nth-child(5)){gap:4px 7px}
-#scr-home .hc-grid:has(.hc-tile:nth-child(5)) .hc-tile{padding:3px 2px 2px;margin-bottom:4px}
-#scr-home .hc-grid:has(.hc-tile:nth-child(5)) .hc-tic,
-#scr-home .hc-grid:has(.hc-tile:nth-child(5)) .hc-tic img,
-#scr-home .hc-grid:has(.hc-tile:nth-child(5)) .hc-tic svg,
-#scr-home .hc-grid:has(.hc-tile:nth-child(5)) .hc-tic>*{width:32px!important;height:32px!important}
-#scr-home .hc-grid:has(.hc-tile:nth-child(5)) .hc-tnm{font-size:12px}
-#scr-home .hc-grid:has(.hc-tile:nth-child(5)) .hc-tlv{font-size:10px}
+#scr-home .hc-tic{width:56px;height:56px;display:grid;place-items:center;flex:none;line-height:0}
+#scr-home .hc-tic img,#scr-home .hc-tic svg,#scr-home .hc-tic canvas,#scr-home .hc-tic>*{width:56px!important;height:56px!important;border-radius:12px;display:block}
+#scr-home .hc-tnm{font-size:15px;line-height:1.1;font-weight:800;text-align:center;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#scr-home .hc-tlv{font-size:11px;font-weight:700;color:#6d5bd0;line-height:1}
+#scr-home .hc-arrow{position:absolute;top:50%;margin-top:-26px;width:46px;height:46px;min-width:44px;min-height:44px;padding:0 0 4px;border-radius:50%;border:2px solid #ffd23f;
+  background:rgba(27,18,69,.88);color:#ffd23f;font:900 32px/1 system-ui,sans-serif;display:grid;place-items:center;z-index:2;box-shadow:0 3px 0 #0e0a2a;cursor:pointer}
+#scr-home .hc-arrow:active{transform:translateY(2px);box-shadow:0 1px 0 #0e0a2a}
+#scr-home .hc-prev{left:0}
+#scr-home .hc-next{right:0}
+#scr-home .hc-dots{display:flex;justify-content:center;gap:7px;flex:none;margin-top:-4px}
+#scr-home .hc-dot{width:8px;height:8px;border-radius:50%;background:rgba(207,200,255,.4)}
+#scr-home .hc-dot.on{background:#ffd23f;box-shadow:0 0 6px rgba(255,210,63,.8)}
 
 /* rival stays as-is; keep it from shrinking */
 #scr-home #home-rival{flex:none}
@@ -121,10 +124,6 @@
   #scr-home h1.hc-title{font-size:25px}
   #scr-home .hc-pcard{padding:8px 10px 6px}
   #scr-home .hc-pav{width:56px;height:56px}
-  #scr-home .hc-grid{gap:5px}
-  #scr-home .hc-tic,#scr-home .hc-tic img,#scr-home .hc-tic svg,#scr-home .hc-tic canvas,#scr-home .hc-tic>*{width:34px!important;height:34px!important}
-  #scr-home .hc-tnm{font-size:12px;white-space:normal;overflow-wrap:anywhere}
-  #scr-home .hc-tlv{font-size:11px}
   #scr-home .hc-pill button,#scr-home #btn-mode-movie,#scr-home #btn-mode-book{font-size:13px;gap:4px}
   #scr-home .hc-duel,#scr-home #btn-play.hc-duel{font-size:28px}
 }

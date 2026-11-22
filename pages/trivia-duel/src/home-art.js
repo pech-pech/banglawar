@@ -16,6 +16,7 @@ var TD = (typeof window!=='undefined'?(window.TD=window.TD||{}):(global.TD=globa
   ['spells', 'creatures', 'places', 'people', 'objects', 'school', 'plot'].forEach(function (id) {
     A.topic[id] = 'art/topic-' + id + '.webp';
   });
+  A.topic.general = 'art/topic-general.webp';
   A.bgArena = 'art/bg-arena.webp';
 
   function el(tag, cls) { var e = document.createElement(tag); if (cls) e.className = cls; return e; }
