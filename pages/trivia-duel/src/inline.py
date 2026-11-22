@@ -12,7 +12,7 @@ def rd(n):
 shell = rd('shell.html')
 for m in ('<!--STYLE-->', '<!--SCRIPTS-->'):
     if m not in shell: sys.exit('shell.html lacks marker ' + m)
-style = '<style>\n' + rd('style.css') + '\n</style>'
+style = '<style>\n' + '\n'.join(rd(n) for n in ('style.css', 'buttons.css', 'qcard.css')) + '\n</style>'
 scripts = '\n'.join('<script>\n' + rd(n).replace('</script', '<\\/script') + '\n</script>' for n in SCRIPTS)
 head = ('<link rel="manifest" href="manifest.webmanifest">\n<meta name="theme-color" content="#2b1d6b">\n'
         '<link rel="icon" href="icon-192.png">\n<link rel="apple-touch-icon" href="icon-192.png">\n')

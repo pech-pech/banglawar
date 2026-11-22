@@ -189,8 +189,15 @@ var TD = (typeof window !== 'undefined' ? (window.TD = window.TD || {}) : (globa
     $('q-topic').textContent = topicLabel(q.topic);
     var qt = $('q-text');
     qt.innerHTML = '';
-    qt.appendChild(el('span', 't', 'Question ' + n));
-    qt.appendChild(document.createTextNode(q.q));
+    var qh = el('div', 'qh');
+    qh.appendChild(el('span', 't', 'Question ' + n));
+    var qchip = el('span', 'qh-topic');
+    try { qchip.appendChild(avTopic(q.topic, 22)); } catch (e) {}
+    qchip.appendChild(el('span', 'qh-lbl', topicLabel(q.topic)));
+    qh.appendChild(qchip);
+    qt.appendChild(qh);
+    qt.appendChild(el('div', 'qb', q.q));
+    qt.classList.toggle('long', String(q.q).length > 70);
     var btns = document.querySelectorAll('#scr-duel .btn-ans');
     for (var i = 0; i < btns.length; i++) {
       btns[i].className = 'btn-ans ans-c' + i;
@@ -217,6 +224,9 @@ var TD = (typeof window !== 'undefined' ? (window.TD = window.TD || {}) : (globa
     // green -> yellow -> red by remaining fraction (look A palette). Admin default: yellow below 50%, red below 25%.
     f.style.background = frac > 0.5 ? '#22c55e' : (frac > 0.25 ? '#facc15' : '#ef4444');
     setSec(secLeft);
+    var tb = $('timer-bar'); // qcard.css: < 4 s left -> red bar + pulsing badge. Admin default: 4 s.
+    if (tb) tb.classList.toggle('low', secLeft < 4);
+    var tn = $('timer-num'); if (tn) tn.classList.toggle('low', secLeft < 4);
   }
 
   function renderRivalAnswered(st) {

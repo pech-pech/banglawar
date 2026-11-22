@@ -175,7 +175,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
     ok(m2.ov.length === 0, 'revealed no overlap ' + vp.width + ' fact=' + m2.fact + ' ' + m2.ov.join(' '));
     ok(m2.sh <= m2.ch, 'revealed no scroll ' + vp.width + 'x' + vp.height + ' (' + m2.sh + '/' + m2.ch + ')');
     ok(m2.small.length === 0, 'revealed buttons >=56px ' + m2.small.join('|'));
-    if (vp.width === 344) await shot('duel-revealed-344');
+    if (vp.width === 344) { await sleep(300); await shot('duel-revealed-344'); }
     await page.reload(); await page.waitForSelector('#scr-home.active');
   }
 

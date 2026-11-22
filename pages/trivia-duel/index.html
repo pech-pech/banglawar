@@ -253,7 +253,7 @@ canvas{display:block;border-radius:50%;flex:none}
 /* ---------- coordinator additions: avatar.js / ui-duel.js / ui-end.js class names ---------- */
 .topic-img{border-radius:12px;object-fit:cover;flex:none;background:var(--bg2)}
 .topic-fb{border-radius:12px;display:grid;place-items:center;color:#fff;font-weight:900;flex:none;background:var(--violet)}
-.emblem-img{object-fit:contain;flex:none}
+.emblem-img{object-fit:cover;flex:none;border-radius:50%;box-shadow:0 0 0 3px var(--gold)}
 .emblem-fb{border-radius:50%;display:grid;place-items:center;background:var(--gold);color:var(--bg);font-weight:900;flex:none;border:4px solid var(--bg);box-shadow:0 0 0 3px var(--gold)}
 .av>img,.av>canvas{display:block;width:100%;height:100%;border-radius:50%;object-fit:cover}
 
@@ -349,6 +349,13 @@ canvas{display:block;border-radius:50%;flex:none}
 /* VS: keep rival block clear of the topic chip */
 .vs-p.vs-r{bottom:calc(112px + var(--sab))}
 
+/* art (td-proto-2b): images fill their circle; vs-bg is a low-opacity texture over the blue/orange split */
+.av>img.av-img{object-fit:cover;border-radius:50%}
+#scr-vs .vs-bg{z-index:1;opacity:.22;mix-blend-mode:soft-light;pointer-events:none}
+#scr-vs .vs-bg img{display:block;width:100%;height:100%;object-fit:cover}
+#scr-vs .vs-stripe{z-index:1}
+#scr-vs .vs-p,#scr-vs .vs-badge,#scr-vs .badge,#scr-vs .vs-topic{z-index:2}
+
 /* ---------- dev badge ---------- */
 #dev-badge{
   position:fixed;bottom:calc(4px + var(--sab));left:calc(4px + var(--sal));z-index:99;width:22px;height:22px;border-radius:50%;display:none;
@@ -360,6 +367,124 @@ canvas{display:block;border-radius:50%;flex:none}
   *,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}
   .pop{opacity:1;transform:none}
 }
+
+/* buttons.css - raised 3D game buttons. Loaded AFTER style.css (overrides only).
+   Admin defaults: radius 16, lip 6px, press = translateY(4px) + lip 2px in 80ms. */
+:root{--lip-h:6px;--lip-p:2px;--press-y:4px;--lip-neutral:#a9a3dc;--ok-lip:#15803d;--bad-lip:#991b1b;--dim-lip:#8a82bd}
+
+/* shared raised behaviour */
+.btn,.btn-seal,.btn-ans,.btn-topic,.btn-wtopic,.btn-mult,#btn-next,.btn-next,
+#btn-play,#btn-rematch,#btn-home,#btn-wager-go,#btn-x1,#btn-x2,#btn-mode-movie,#btn-mode-book{
+  border:0;border-radius:16px;position:relative;
+  --lip:var(--lip-neutral);
+  box-shadow:0 var(--lip-h) 0 var(--lip),0 calc(var(--lip-h) + 3px) 8px rgba(0,0,0,.22),inset 0 2px 0 rgba(255,255,255,.7);
+  transition:transform 80ms ease-out,box-shadow 80ms ease-out,filter 80ms;
+  margin-bottom:var(--lip-h);
+}
+.btn:active,.btn.pressed,.btn-seal:active,.btn-ans:active,.btn-ans.pressed,.btn-topic:active,.btn-wtopic:active,.btn-mult:active,
+#btn-next:active,.btn-next:active,#btn-play:active,#btn-rematch:active,#btn-home:active,#btn-wager-go:active,
+#btn-x1:active,#btn-x2:active,#btn-mode-movie:active,#btn-mode-book:active{
+  transform:translateY(var(--press-y));
+  box-shadow:0 var(--lip-p) 0 var(--lip),inset 0 2px 0 rgba(255,255,255,.5);
+}
+.btn:disabled{box-shadow:0 var(--lip-h) 0 var(--lip);transform:none}
+
+/* white-face buttons: gradient top highlight */
+.btn,.btn-topic,.btn-wtopic,.btn-mult,#btn-home,.btn.s,#btn-mode-movie,#btn-mode-book{
+  background:linear-gradient(#fff,#eef0ff);color:var(--ink);
+}
+/* orange primaries */
+#btn-next,.btn-next,#btn-play,#btn-rematch,#btn-wager-go,.btn.p,.btn-seal{
+  background:linear-gradient(#ff9a45,var(--orange));color:#fff;--lip:#c24e00;
+  text-shadow:0 2px 0 rgba(0,0,0,.2);
+}
+#btn-x2,#btn-x2.btn-mult{background:linear-gradient(#ffe273,var(--gold));color:var(--bg);--lip:#c99a00}
+#btn-x1{--lip:var(--lip-neutral)}
+#btn-mode-movie.sel,#btn-mode-book.sel{background:linear-gradient(#ffe273,var(--gold));--lip:#c99a00}
+#btn-reset-progress{background:linear-gradient(#f56565,var(--bad));--lip:var(--bad-lip);color:#fff}
+.btn-topic[data-topic=spells]{--lip:#7e2fd0}.btn-topic[data-topic=creatures]{--lip:var(--ok-lip)}.btn-topic[data-topic=places]{--lip:#0e8f81}
+.btn-topic,.btn-wtopic{border-bottom:0}
+.btn-wtopic{--lip:#7e2fd0}
+.btn.sel,.btn-topic.sel,.btn-wtopic.sel,.btn-mult.sel{outline:3px solid var(--gold);outline-offset:2px}
+/* flat utility buttons stay flat */
+#btn-report,#btn-settings,#btn-back,.btn-report{box-shadow:none;margin-bottom:0;background:rgba(0,0,0,.28)}
+#btn-report:active,#btn-settings:active,#btn-back:active{box-shadow:none;transform:translateY(2px)}
+#btn-settings{border-radius:50%}
+
+/* answer bars */
+#ans-wrap,.ans{gap:12px}
+.btn-ans{
+  --lip:var(--lip-neutral);--c:var(--blue);
+  min-height:60px;border-left:0;border-radius:16px;overflow:hidden;
+  padding:8px 14px 8px 34px;font-size:21px;font-weight:800;color:var(--ink);
+  background:linear-gradient(#fff,#eef0ff);
+}
+.btn-ans::before{ /* coloured inset pill tab */
+  content:"";position:absolute;left:9px;top:10px;bottom:10px;width:9px;border-radius:6px;
+  background:var(--c);box-shadow:inset 0 -2px 0 rgba(0,0,0,.2);
+}
+.btn-ans .ans-text{order:0}
+.btn-ans .mk{order:2}
+.btn-ans::after{order:1;font-size:26px;font-weight:900;line-height:1;flex:none}
+.btn-ans.ans-c0,.btn-ans:nth-child(1){--c:var(--blue)}
+.btn-ans.ans-c1,.btn-ans:nth-child(2){--c:var(--orange)}
+.btn-ans.ans-c2,.btn-ans:nth-child(3){--c:var(--violet)}
+.btn-ans.ans-c3,.btn-ans:nth-child(4){--c:var(--teal)}
+.btn-ans.ans-right,.btn-ans.ans-wrong{--c:inherit}
+.btn-ans.ans-right{background:linear-gradient(#4ade80,var(--ok));color:#fff;--lip:var(--ok-lip);animation:flash .2s ease-out both}
+.btn-ans.ans-right::before{background:var(--ok-lip)}
+.btn-ans.ans-right::after{content:"\2713";color:#fff}
+.btn-ans.ans-wrong{background:linear-gradient(#f05252,#dc2626);color:#fff;--lip:var(--bad-lip)}
+.btn-ans.ans-wrong::before{background:var(--bad-lip)}
+.btn-ans.ans-wrong::after{content:"\2715";color:#fff}
+.btn-ans.ans-dim{opacity:1;background:#a9a1d6;color:rgba(28,21,64,.62);--lip:var(--dim-lip);box-shadow:0 var(--lip-h) 0 var(--lip),inset 0 2px 0 rgba(255,255,255,.35)}
+.btn-ans.ans-dim::before{background:#8a82bd;box-shadow:none}
+.btn-ans.ans-right:active,.btn-ans.ans-wrong:active,.btn-ans.ans-dim:active{transform:none}
+.btn-ans .mk{display:flex}
+#scr-duel.has-fact .btn-ans{min-height:56px}
+
+/* fit small screens */
+@media (max-height:660px){#ans-wrap,.ans{gap:10px}.btn-ans{min-height:60px}}
+@media (max-width:360px){.btn-ans{font-size:19px;padding-left:32px}}
+@media (prefers-reduced-motion:reduce){
+  .btn,.btn-seal,.btn-ans,.btn-topic,.btn-wtopic,.btn-mult,#btn-next,.btn-next,#btn-play,#btn-rematch,#btn-home,#btn-wager-go,#btn-x1,#btn-x2{transition:none;animation:none}
+}
+/* home: selected mode is blue (set inline by ui-home.js) -> blue lip; picked topic tile = gold ring + warm face */
+#btn-mode-movie.sel,#btn-mode-book.sel{--lip:#1d4fd8}
+.btn-topic.sel{background:linear-gradient(#fffbea,#fff1c2)}
+/* home: the 10px flex gap already clears a 6px lip, so no extra margin (keeps home scroll-free at 475x638) */
+#scr-home .btn,#scr-home .btn-seal,#scr-home #btn-play{margin-bottom:0}
+
+/* qcard.css: question hero panel + timer (Maker Q). Loaded after style.css. */
+#scr-duel{isolation:isolate} /* stays position:absolute from .screen (full height) */
+#scr-duel::before{content:"";position:absolute;left:50%;top:44%;width:130%;aspect-ratio:1;transform:translate(-50%,-50%);
+  background:radial-gradient(closest-side,rgba(61,42,156,.95),rgba(61,42,156,0) 70%);z-index:-1;pointer-events:none}
+.tm{gap:0;position:relative;margin-bottom:-2px}
+#timer-bar{height:26px;border-radius:13px;background:rgba(8,4,40,.7);box-shadow:inset 0 2px 4px rgba(0,0,0,.5),0 0 0 2px rgba(255,255,255,.08);overflow:hidden}
+#timer-fill{border-radius:13px;box-shadow:inset 0 3px 0 rgba(255,255,255,.35)}
+#timer-num{width:44px;min-width:44px;height:44px;margin-left:-30px;border-radius:50%;background:#fff;color:#1c1540;font-size:22px;font-weight:900;
+  display:flex;align-items:center;justify-content:center;text-align:center;box-shadow:0 3px 0 #c9c3ef;z-index:1}
+#timer-num small{font-size:11px;margin-left:1px;font-weight:800}
+#timer-bar.low{background:rgba(120,10,10,.6)}
+#timer-bar.low #timer-fill{background:#ef4444!important}
+#timer-num.low{color:#dc2626;animation:qpulse .5s ease-in-out infinite alternate}
+@keyframes qpulse{from{transform:scale(1)}to{transform:scale(1.14)}}
+#q-text{background:#fff;border-radius:20px;box-shadow:0 6px 0 #c9c3ef,0 14px 24px rgba(20,8,80,.45);padding:10px 16px 14px;
+  font-size:25px;font-weight:900;line-height:1.2;min-height:22vh;max-height:none;justify-content:flex-start;gap:0;text-align:center;overflow:hidden;margin-bottom:4px}
+#q-text.long{font-size:21px}
+#q-text .qh{display:flex;align-items:center;justify-content:space-between;gap:8px;padding-bottom:6px;border-bottom:2px solid #e7e3fa;flex:none}
+#q-text .t{font-size:12px;font-weight:900;color:#6d4fe0;letter-spacing:.1em;text-transform:uppercase}
+#q-text .qh-topic{display:inline-flex;align-items:center;gap:5px;min-width:0}
+#q-text .qh-topic>*:first-child{width:22px;height:22px;flex:none}
+#q-text .qh-lbl{font-size:11px;font-weight:800;color:#6d4fe0;letter-spacing:.05em;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#q-text .qb{flex:1;display:flex;align-items:center;justify-content:center;padding-top:6px;color:#1c1540}
+#scr-duel.has-fact #q-text{min-height:0;font-size:19px;padding:6px 14px 8px;margin-bottom:0}
+@media (max-width:360px){#q-text{font-size:21px}#q-text.long{font-size:18px}#timer-num{font-size:20px}}
+@media (max-height:720px){#q-text{min-height:20vh}}
+@media (prefers-reduced-motion:reduce){#timer-num.low{animation:none}#timer-fill{transition:none}}
+/* tall phones: answers stay chunky but capped; the hero panel takes the spare height */
+.btn-ans{max-height:88px}
+@media (min-height:760px){#q-text{flex:1 1 auto}}
 
 </style>
 </head><body><div id="app"></div>
@@ -1457,7 +1582,7 @@ var TD = (typeof window!=='undefined'?(window.TD=window.TD||{}):(global.TD=globa
     var tiles = st('display:flex;gap:8px', el('div', { class: 'row', id: 'topic-row' }));
     (TD.TOPICS || []).forEach(function (t) {
       var b = el('button', { class: 'btn btn-topic topic-tile', type: 'button', 'data-topic': t.id });
-      st('flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;gap:4px;padding:8px 4px;border:3px solid transparent;border-radius:14px;background:#fff;color:#1c1540;font-weight:800;cursor:pointer', b);
+      st('flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;gap:4px;padding:8px 4px;border:0;border-radius:14px;color:#1c1540;font-weight:800;cursor:pointer', b); // face + 6px lip from buttons.css
       b.addEventListener('click', function () { S().picked = t.id; persist(); renderHome(); });
       tiles.appendChild(b);
     });
@@ -1514,8 +1639,6 @@ var TD = (typeof window!=='undefined'?(window.TD=window.TD||{}):(global.TD=globa
       tiles[i].appendChild(nm); tiles[i].appendChild(sub);
       var sel = id === save.picked;
       tiles[i].classList.toggle('sel', sel);
-      tiles[i].style.borderColor = sel ? '#ffd23f' : 'transparent';
-      tiles[i].style.boxShadow = sel ? '0 0 0 2px #2f7bff' : 'none';
     }
     var rv = ui.rivalOf(save.rivalStep);
     var av = $('home-rival-av');
@@ -1746,8 +1869,15 @@ var TD = (typeof window !== 'undefined' ? (window.TD = window.TD || {}) : (globa
     $('q-topic').textContent = topicLabel(q.topic);
     var qt = $('q-text');
     qt.innerHTML = '';
-    qt.appendChild(el('span', 't', 'Question ' + n));
-    qt.appendChild(document.createTextNode(q.q));
+    var qh = el('div', 'qh');
+    qh.appendChild(el('span', 't', 'Question ' + n));
+    var qchip = el('span', 'qh-topic');
+    try { qchip.appendChild(avTopic(q.topic, 22)); } catch (e) {}
+    qchip.appendChild(el('span', 'qh-lbl', topicLabel(q.topic)));
+    qh.appendChild(qchip);
+    qt.appendChild(qh);
+    qt.appendChild(el('div', 'qb', q.q));
+    qt.classList.toggle('long', String(q.q).length > 70);
     var btns = document.querySelectorAll('#scr-duel .btn-ans');
     for (var i = 0; i < btns.length; i++) {
       btns[i].className = 'btn-ans ans-c' + i;
@@ -1774,6 +1904,9 @@ var TD = (typeof window !== 'undefined' ? (window.TD = window.TD || {}) : (globa
     // green -> yellow -> red by remaining fraction (look A palette). Admin default: yellow below 50%, red below 25%.
     f.style.background = frac > 0.5 ? '#22c55e' : (frac > 0.25 ? '#facc15' : '#ef4444');
     setSec(secLeft);
+    var tb = $('timer-bar'); // qcard.css: < 4 s left -> red bar + pulsing badge. Admin default: 4 s.
+    if (tb) tb.classList.toggle('low', secLeft < 4);
+    var tn = $('timer-num'); if (tn) tn.classList.toggle('low', secLeft < 4);
   }
 
   function renderRivalAnswered(st) {

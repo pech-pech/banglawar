@@ -88,7 +88,7 @@ var TD = (typeof window!=='undefined'?(window.TD=window.TD||{}):(global.TD=globa
     var tiles = st('display:flex;gap:8px', el('div', { class: 'row', id: 'topic-row' }));
     (TD.TOPICS || []).forEach(function (t) {
       var b = el('button', { class: 'btn btn-topic topic-tile', type: 'button', 'data-topic': t.id });
-      st('flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;gap:4px;padding:8px 4px;border:3px solid transparent;border-radius:14px;background:#fff;color:#1c1540;font-weight:800;cursor:pointer', b);
+      st('flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;gap:4px;padding:8px 4px;border:0;border-radius:14px;color:#1c1540;font-weight:800;cursor:pointer', b); // face + 6px lip from buttons.css
       b.addEventListener('click', function () { S().picked = t.id; persist(); renderHome(); });
       tiles.appendChild(b);
     });
@@ -145,8 +145,6 @@ var TD = (typeof window!=='undefined'?(window.TD=window.TD||{}):(global.TD=globa
       tiles[i].appendChild(nm); tiles[i].appendChild(sub);
       var sel = id === save.picked;
       tiles[i].classList.toggle('sel', sel);
-      tiles[i].style.borderColor = sel ? '#ffd23f' : 'transparent';
-      tiles[i].style.boxShadow = sel ? '0 0 0 2px #2f7bff' : 'none';
     }
     var rv = ui.rivalOf(save.rivalStep);
     var av = $('home-rival-av');

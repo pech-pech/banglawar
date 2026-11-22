@@ -1,0 +1,86 @@
+/* buttons.css - raised 3D game buttons. Loaded AFTER style.css (overrides only).
+   Admin defaults: radius 16, lip 6px, press = translateY(4px) + lip 2px in 80ms. */
+:root{--lip-h:6px;--lip-p:2px;--press-y:4px;--lip-neutral:#a9a3dc;--ok-lip:#15803d;--bad-lip:#991b1b;--dim-lip:#8a82bd}
+
+/* shared raised behaviour */
+.btn,.btn-seal,.btn-ans,.btn-topic,.btn-wtopic,.btn-mult,#btn-next,.btn-next,
+#btn-play,#btn-rematch,#btn-home,#btn-wager-go,#btn-x1,#btn-x2,#btn-mode-movie,#btn-mode-book{
+  border:0;border-radius:16px;position:relative;
+  --lip:var(--lip-neutral);
+  box-shadow:0 var(--lip-h) 0 var(--lip),0 calc(var(--lip-h) + 3px) 8px rgba(0,0,0,.22),inset 0 2px 0 rgba(255,255,255,.7);
+  transition:transform 80ms ease-out,box-shadow 80ms ease-out,filter 80ms;
+  margin-bottom:var(--lip-h);
+}
+.btn:active,.btn.pressed,.btn-seal:active,.btn-ans:active,.btn-ans.pressed,.btn-topic:active,.btn-wtopic:active,.btn-mult:active,
+#btn-next:active,.btn-next:active,#btn-play:active,#btn-rematch:active,#btn-home:active,#btn-wager-go:active,
+#btn-x1:active,#btn-x2:active,#btn-mode-movie:active,#btn-mode-book:active{
+  transform:translateY(var(--press-y));
+  box-shadow:0 var(--lip-p) 0 var(--lip),inset 0 2px 0 rgba(255,255,255,.5);
+}
+.btn:disabled{box-shadow:0 var(--lip-h) 0 var(--lip);transform:none}
+
+/* white-face buttons: gradient top highlight */
+.btn,.btn-topic,.btn-wtopic,.btn-mult,#btn-home,.btn.s,#btn-mode-movie,#btn-mode-book{
+  background:linear-gradient(#fff,#eef0ff);color:var(--ink);
+}
+/* orange primaries */
+#btn-next,.btn-next,#btn-play,#btn-rematch,#btn-wager-go,.btn.p,.btn-seal{
+  background:linear-gradient(#ff9a45,var(--orange));color:#fff;--lip:#c24e00;
+  text-shadow:0 2px 0 rgba(0,0,0,.2);
+}
+#btn-x2,#btn-x2.btn-mult{background:linear-gradient(#ffe273,var(--gold));color:var(--bg);--lip:#c99a00}
+#btn-x1{--lip:var(--lip-neutral)}
+#btn-mode-movie.sel,#btn-mode-book.sel{background:linear-gradient(#ffe273,var(--gold));--lip:#c99a00}
+#btn-reset-progress{background:linear-gradient(#f56565,var(--bad));--lip:var(--bad-lip);color:#fff}
+.btn-topic[data-topic=spells]{--lip:#7e2fd0}.btn-topic[data-topic=creatures]{--lip:var(--ok-lip)}.btn-topic[data-topic=places]{--lip:#0e8f81}
+.btn-topic,.btn-wtopic{border-bottom:0}
+.btn-wtopic{--lip:#7e2fd0}
+.btn.sel,.btn-topic.sel,.btn-wtopic.sel,.btn-mult.sel{outline:3px solid var(--gold);outline-offset:2px}
+/* flat utility buttons stay flat */
+#btn-report,#btn-settings,#btn-back,.btn-report{box-shadow:none;margin-bottom:0;background:rgba(0,0,0,.28)}
+#btn-report:active,#btn-settings:active,#btn-back:active{box-shadow:none;transform:translateY(2px)}
+#btn-settings{border-radius:50%}
+
+/* answer bars */
+#ans-wrap,.ans{gap:12px}
+.btn-ans{
+  --lip:var(--lip-neutral);--c:var(--blue);
+  min-height:60px;border-left:0;border-radius:16px;overflow:hidden;
+  padding:8px 14px 8px 34px;font-size:21px;font-weight:800;color:var(--ink);
+  background:linear-gradient(#fff,#eef0ff);
+}
+.btn-ans::before{ /* coloured inset pill tab */
+  content:"";position:absolute;left:9px;top:10px;bottom:10px;width:9px;border-radius:6px;
+  background:var(--c);box-shadow:inset 0 -2px 0 rgba(0,0,0,.2);
+}
+.btn-ans .ans-text{order:0}
+.btn-ans .mk{order:2}
+.btn-ans::after{order:1;font-size:26px;font-weight:900;line-height:1;flex:none}
+.btn-ans.ans-c0,.btn-ans:nth-child(1){--c:var(--blue)}
+.btn-ans.ans-c1,.btn-ans:nth-child(2){--c:var(--orange)}
+.btn-ans.ans-c2,.btn-ans:nth-child(3){--c:var(--violet)}
+.btn-ans.ans-c3,.btn-ans:nth-child(4){--c:var(--teal)}
+.btn-ans.ans-right,.btn-ans.ans-wrong{--c:inherit}
+.btn-ans.ans-right{background:linear-gradient(#4ade80,var(--ok));color:#fff;--lip:var(--ok-lip);animation:flash .2s ease-out both}
+.btn-ans.ans-right::before{background:var(--ok-lip)}
+.btn-ans.ans-right::after{content:"\2713";color:#fff}
+.btn-ans.ans-wrong{background:linear-gradient(#f05252,#dc2626);color:#fff;--lip:var(--bad-lip)}
+.btn-ans.ans-wrong::before{background:var(--bad-lip)}
+.btn-ans.ans-wrong::after{content:"\2715";color:#fff}
+.btn-ans.ans-dim{opacity:1;background:#a9a1d6;color:rgba(28,21,64,.62);--lip:var(--dim-lip);box-shadow:0 var(--lip-h) 0 var(--lip),inset 0 2px 0 rgba(255,255,255,.35)}
+.btn-ans.ans-dim::before{background:#8a82bd;box-shadow:none}
+.btn-ans.ans-right:active,.btn-ans.ans-wrong:active,.btn-ans.ans-dim:active{transform:none}
+.btn-ans .mk{display:flex}
+#scr-duel.has-fact .btn-ans{min-height:56px}
+
+/* fit small screens */
+@media (max-height:660px){#ans-wrap,.ans{gap:10px}.btn-ans{min-height:60px}}
+@media (max-width:360px){.btn-ans{font-size:19px;padding-left:32px}}
+@media (prefers-reduced-motion:reduce){
+  .btn,.btn-seal,.btn-ans,.btn-topic,.btn-wtopic,.btn-mult,#btn-next,.btn-next,#btn-play,#btn-rematch,#btn-home,#btn-wager-go,#btn-x1,#btn-x2{transition:none;animation:none}
+}
+/* home: selected mode is blue (set inline by ui-home.js) -> blue lip; picked topic tile = gold ring + warm face */
+#btn-mode-movie.sel,#btn-mode-book.sel{--lip:#1d4fd8}
+.btn-topic.sel{background:linear-gradient(#fffbea,#fff1c2)}
+/* home: the 10px flex gap already clears a 6px lip, so no extra margin (keeps home scroll-free at 475x638) */
+#scr-home .btn,#scr-home .btn-seal,#scr-home #btn-play{margin-bottom:0}
