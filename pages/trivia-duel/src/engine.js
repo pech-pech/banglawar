@@ -1,6 +1,6 @@
 var TD = (typeof window !== 'undefined' ? (window.TD = window.TD || {}) : (global.TD = global.TD || {}));
 (function () {
-  TD.BUILD = 'td-proto-2';
+  TD.BUILD = 'td-proto-2b';
   TD.DEFAULTS = {
     timerSec: 15, basePts: 60, speedPts: 20,
     readCps: 18, readBaseSec: 1.0,
