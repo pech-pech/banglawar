@@ -635,6 +635,17 @@ canvas{display:block;border-radius:50%;flex:none}
   #scr-home .hc-corner,#scr-home .hc-corner .hc-ico{width:18px;height:18px}
 }
 
+/* merge-110: neutralise style.css (PR #110) 5-up wrapping #topic-row rules; wheel is a single scrolling row */
+#scr-home #topic-row.hc-wheel{flex-wrap:nowrap!important}
+#scr-home #topic-row.hc-wheel .btn-topic.hc-wi{flex:none!important;min-height:0!important;padding:6px 4px 5px!important;gap:2px!important;line-height:1.1}
+#scr-home #topic-row.hc-wheel .btn-topic.hc-wi>div{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+#scr-home #topic-row.hc-wheel .btn-topic.hc-wi>.hc-tic{overflow:visible}
+
+/* merge-110: wager topic row now 7 buttons (wrapping); keep it compact so the wager screen fits without scroll */
+#scr-wager .wager-topics{gap:6px}
+#scr-wager .wager-topics .btn-wtopic{min-height:50px;padding:3px 2px;font-size:13px;gap:1px;line-height:1.1}
+#scr-wager .wager-topics .btn-wtopic img,#scr-wager .wager-topics .btn-wtopic canvas,#scr-wager .wager-topics .btn-wtopic>div:first-child{width:26px!important;height:26px!important}
+
 /* duel-tall.css: phone / tablet-portrait duel fixes (D4 tall question card, D5 VS name vs sparkle). Never affects >=900px landscape. */
 @media (max-width:899px),(max-aspect-ratio:1/1){
   #scr-duel #q-text{flex:0 1 auto;min-height:0;max-height:34vh}
@@ -791,8 +802,8 @@ canvas{display:block;border-radius:50%;flex:none}
   #scr-wager .wager-lbl{font-size:15px}
   #scr-wager #wager-scores{font-size:48px}
   #scr-wager .res .av,#scr-wager #wager-scores .av{width:84px!important;height:84px!important}
-  #scr-wager .btn-wtopic{min-height:104px;font-size:22px;gap:6px}
-  #scr-wager .btn-wtopic img{width:52px;height:52px}
+  #scr-wager .btn-wtopic{min-height:66px;font-size:20px;gap:4px}
+  #scr-wager .btn-wtopic img{width:36px;height:36px}
   #scr-wager .btn-mult{min-height:84px;font-size:32px}
   #scr-wager .wager-note{font-size:19px;padding:12px 18px}
   #scr-wager #btn-wager-go{min-height:68px;font-size:26px;max-width:520px;width:100%;align-self:center;margin-top:0}
@@ -2003,7 +2014,9 @@ var TD = (typeof window!=='undefined'?(window.TD=window.TD||{}):(global.TD=globa
     for (var k = 0; k < d.length; k++) d[k].classList.toggle('on', k === i);
   }
   function goTo(i, smooth) {
-    var n = topicIds().length; i = (i + n) % n;
+    var n = topicIds().length;
+    if (i < 0 || i >= n) smooth = false;  // wrap-around: jump instantly (long smooth scroll over 8 tiles outlasts the commit timer)
+    i = (i + n) % n;
     var w = wheelEl(); if (!w || !w.clientWidth) return;
     curIdx = i; paintSel(i);
     try { w.scrollTo({ left: target(i), behavior: smooth ? 'smooth' : 'auto' }); } catch (e) { w.scrollLeft = target(i); }
