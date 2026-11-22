@@ -2176,7 +2176,7 @@ var TD = (typeof window !== 'undefined' ? (window.TD = window.TD || {}) : (globa
 <script>
 var TD = (typeof window !== 'undefined' ? (window.TD = window.TD || {}) : (global.TD = global.TD || {}));
 (function () {
-  TD.BUILD = 'td-home-1';
+  TD.BUILD = 'td-audio-1';
   TD.DEFAULTS = {
     timerSec: 15, basePts: 60, speedPts: 20,
     readCps: 18, readBaseSec: 1.0,
@@ -2192,7 +2192,8 @@ var TD = (typeof window !== 'undefined' ? (window.TD = window.TD || {}) : (globa
     rivalTimeSpread: 1.5,
     rivalReadFloor: 1,
     pickedPerDuel: 4,
-    xpWin: 30, xpLoss: 15, xpDraw: 20, xpPerLevel: 100
+    xpWin: 30, xpLoss: 15, xpDraw: 20, xpPerLevel: 100,
+    musicVol: 0.5, sfxVol: 0.8, musicOn: 1, sfxOn: 1, duckDb: 8
   };
   TD.RIVALS = [
     { step: 1, name: 'Neville Longbottom', look: { hair: '#5a3b22', hairStyle: 'short', face: 'round', glasses: 0, freckles: 0, hat: 0, robe: '#2b2b33' } },
@@ -3861,6 +3862,820 @@ var TD = (typeof window!=='undefined'?(window.TD=window.TD||{}):(global.TD=globa
     $('btn-report').textContent = 'Copy report';
   };
 })();
+
+</script>
+<script>
+// audio-core.js - TD.audio: AudioContext, buses, voice cap, cue registry, bgm routing. Levels marked [guess].
+// Chain: sfxBus | musicBus -> master (0.8 [guess]) -> DynamicsCompressor (safety limiter) -> destination.
+var TD = (typeof window !== 'undefined' ? (window.TD = window.TD || {}) : (global.TD = global.TD || {}));
+(function (G) {
+  'use strict';
+  var MAXV = 8, MIN_GAP = 0.04, FLOOR = 0.0001;
+  var ctx = null, master = null, limiter = null, sfxBus = null, musicBus = null, noiseBuf = null;
+  var unlocked = false, tried = false, hidden = false, visHooked = false;
+  var lv = { musicVol: 0.5, sfxVol: 0.8, musicOn: 1, sfxOn: 1, duckDb: 8 }; // [guess]
+  var cues = {}, lastPlay = {}, voices = [];
+  var wanted = null, mode = null, fileLoaded = false;
+  var bufCache = {}, fileSrc = null, fileGain = null, fileId = null, fileStarted = false;
+  var seedv = 0x7d5eed11;
+
+  function rnd() { // mulberry32, own seed, never Math.random
+    seedv = (seedv + 0x6d2b79f5) | 0;
+    var t = Math.imul(seedv ^ (seedv >>> 15), 1 | seedv);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  }
+  function clamp(v, a, b) { v = +v; if (!(v === v)) v = a; return v < a ? a : v > b ? b : v; }
+  function Ctor() { return G.AudioContext || G.webkitAudioContext || null; }
+  function music() { return TD.music || null; }
+
+  function ensure() {
+    if (ctx) return ctx;
+    if (tried) return null;
+    var C = Ctor(); if (!C) return null;
+    tried = true;
+    try {
+      ctx = new C();
+      master = ctx.createGain(); sfxBus = ctx.createGain(); musicBus = ctx.createGain();
+      master.gain.value = 0.8; // [guess]
+      limiter = ctx.createDynamicsCompressor();
+      try { limiter.threshold.value = -6; limiter.ratio.value = 12; limiter.attack.value = 0.003; limiter.release.value = 0.15; } catch (e) {}
+      sfxBus.connect(master); musicBus.connect(master); master.connect(limiter); limiter.connect(ctx.destination);
+      applyLevels(true);
+    } catch (e) { ctx = master = limiter = sfxBus = musicBus = null; }
+    return ctx;
+  }
+  function ramp(param, v, instant) {
+    try {
+      if (instant || !ctx || !param.linearRampToValueAtTime) { param.value = v; return; }
+      var t = ctx.currentTime;
+      if (param.cancelScheduledValues) param.cancelScheduledValues(t);
+      param.setValueAtTime(param.value, t);
+      param.linearRampToValueAtTime(v, t + 0.06);
+    } catch (e) { try { param.value = v; } catch (e2) {} }
+  }
+  function applyLevels(instant) {
+    if (!ctx) return;
+    ramp(sfxBus.gain, lv.sfxOn ? lv.sfxVol : 0, instant);
+    ramp(musicBus.gain, lv.musicOn ? lv.musicVol : 0, instant);
+  }
+  function resume() {
+    try { if (ctx && ctx.state === 'suspended' && ctx.resume) { var p = ctx.resume(); if (p && p.catch) p.catch(function () {}); } } catch (e) {}
+  }
+  function onVisibility() {
+    hidden = !!(G.document && G.document.hidden);
+    if (!ctx || !unlocked) return;
+    try {
+      if (hidden) { if (ctx.suspend) { var p = ctx.suspend(); if (p && p.catch) p.catch(function () {}); } } else resume();
+    } catch (e) {}
+  }
+  function unlock() {
+    try {
+      if (!ensure()) return;
+      var first = !unlocked;
+      unlocked = true;
+      if (!hidden) resume();
+      if (!visHooked && G.document && G.document.addEventListener) {
+        visHooked = true;
+        try { G.document.addEventListener('visibilitychange', onVisibility); } catch (e) {}
+      }
+      if (first && wanted) { var w = wanted; mode = null; bgm(w); }
+    } catch (e) {}
+  }
+  function getNoise() {
+    if (noiseBuf || !ctx) return noiseBuf;
+    try {
+      var sr = ctx.sampleRate || 44100, n = Math.floor(sr), b = ctx.createBuffer(1, n, sr), d = b.getChannelData(0);
+      for (var i = 0; i < n; i++) d[i] = rnd() * 2 - 1;
+      noiseBuf = b;
+    } catch (e) {}
+    return noiseBuf;
+  }
+  function live() { return !!(ctx && unlocked && lv.sfxOn && lv.sfxVol > 0); }
+  function core() {
+    return ctx ? { ctx: ctx, sfxBus: sfxBus, musicBus: musicBus, noise: getNoise, rnd: rnd, live: live } : null;
+  }
+  function setLevels(cfg) {
+    try {
+      if (!cfg) return;
+      if (cfg.musicVol != null) lv.musicVol = clamp(cfg.musicVol, 0, 1);
+      if (cfg.sfxVol != null) lv.sfxVol = clamp(cfg.sfxVol, 0, 1);
+      if (cfg.musicOn != null) lv.musicOn = cfg.musicOn ? 1 : 0;
+      if (cfg.sfxOn != null) lv.sfxOn = cfg.sfxOn ? 1 : 0;
+      if (cfg.duckDb != null) lv.duckDb = clamp(cfg.duckDb, 0, 24);
+      applyLevels(false);
+    } catch (e) {}
+  }
+  function registerCue(name, pri, dur, fn) {
+    if (!name || typeof fn !== 'function') return;
+    cues[name] = { pri: clamp(pri, 1, 3), dur: +dur > 0 ? +dur : 0.1, fn: fn };
+  }
+  function kill(v) {
+    for (var i = 0; i < v.nodes.length; i++) { try { v.nodes[i].stop(); } catch (e) {} }
+    v.end = -1;
+  }
+  function play(name, opts) {
+    try {
+      var c = Object.prototype.hasOwnProperty.call(cues, name) ? cues[name] : null;
+      if (!c) { api.missing++; return; }
+      if (!ctx || !unlocked || !lv.sfxOn || lv.sfxVol <= 0) return;
+      var t = ctx.currentTime, i;
+      if (lastPlay[name] != null && t >= lastPlay[name] && t - lastPlay[name] < MIN_GAP) return;
+      var a = [];
+      for (i = 0; i < voices.length; i++) if (voices[i].end > t) a.push(voices[i]);
+      voices = a;
+      if (a.length >= MAXV) { // steal oldest of lowest priority
+        var vi = -1;
+        for (i = 0; i < a.length; i++) {
+          if (vi < 0 || a[i].pri < a[vi].pri || (a[i].pri === a[vi].pri && a[i].t0 < a[vi].t0)) vi = i;
+        }
+        if (a[vi].pri > c.pri) return; // everything playing outranks the newcomer
+        kill(a[vi]); voices.splice(voices.indexOf(a[vi]), 1);
+      }
+      var v = { pri: c.pri, t0: t, end: t + c.dur + 0.05, nodes: [] };
+      voices.push(v);
+      lastPlay[name] = t;
+      var r = c.fn(core(), t, opts || {});
+      if (r && r.length) for (i = 0; i < r.length; i++) if (r[i]) v.nodes.push(r[i]);
+    } catch (e) {}
+  }
+  function duck(level, holdSec, relSec) {
+    if (!ctx || !musicBus) return;
+    try {
+      level = clamp(level, 0, 1);
+      var t = ctx.currentTime, p = musicBus.gain, base = lv.musicOn ? lv.musicVol : 0, hold = Math.max(0, +holdSec || 0), rel = Math.max(0.01, +relSec || 0.3);
+      if (p.cancelScheduledValues) p.cancelScheduledValues(t);
+      p.setValueAtTime(p.value, t);
+      p.linearRampToValueAtTime(base * level, t + 0.05);
+      p.setValueAtTime(base * level, t + 0.05 + hold);
+      p.linearRampToValueAtTime(base, t + 0.05 + hold + rel);
+    } catch (e) {}
+  }
+
+  // ---- bgm
+  function stopFile(fade) {
+    var s = fileSrc, g = fileGain;
+    fileSrc = fileGain = null; fileId = null; fileStarted = false;
+    if (!s) return;
+    try {
+      var t = ctx.currentTime, f = Math.max(0.02, +fade || 0);
+      if (g && g.gain) { if (g.gain.cancelScheduledValues) g.gain.cancelScheduledValues(t); g.gain.setValueAtTime(g.gain.value, t); g.gain.linearRampToValueAtTime(0, t + f); }
+      s.stop(t + f + 0.02);
+    } catch (e) { try { s.stop(); } catch (e2) {} }
+  }
+  function startFile(id, buf, fade) {
+    stopFile(fade);
+    var t = ctx.currentTime, s = ctx.createBufferSource(), g = ctx.createGain();
+    s.buffer = buf; s.loop = true;
+    g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(1, t + fade);
+    s.connect(g); g.connect(musicBus); s.start(t);
+    fileSrc = s; fileGain = g; fileId = id; fileStarted = true;
+  }
+  function bgmFile(id, url) {
+    try {
+      if (!ensure()) return Promise.resolve(false);
+      var done = function (buf) {
+        if (!buf) return false;
+        fileLoaded = true;
+        if (mode === 'duel' && wanted === 'duel' && unlocked && id === 'duel' && !fileStarted) { try { startFile(id, buf, 0.8); } catch (e) { return false; } }
+        return true;
+      };
+      if (bufCache[id] && bufCache[id].buf) return Promise.resolve(done(bufCache[id].buf));
+      if (bufCache[id] && bufCache[id].pending) return bufCache[id].pending;
+      if (typeof G.fetch !== 'function') return Promise.resolve(false);
+      var p = Promise.resolve().then(function () { return G.fetch(url); })
+        .then(function (r) { if (!r || r.ok === false) throw new Error('http'); return r.arrayBuffer(); })
+        .then(function (ab) {
+          return new Promise(function (res, rej) {
+            var pr = ctx.decodeAudioData(ab, res, rej);
+            if (pr && pr.then) pr.then(res, rej);
+          });
+        })
+        .then(function (buf) { bufCache[id] = { buf: buf }; return done(buf); })
+        .catch(function () { delete bufCache[id]; return false; });
+      bufCache[id] = { pending: p };
+      return p;
+    } catch (e) { return Promise.resolve(false); }
+  }
+  function stopMusicEngine(fade) { try { if (music() && music().stop) music().stop(fade); } catch (e) {} }
+  function bgm(m) {
+    try {
+      if (m !== 'menu' && m !== 'duel') m = null;
+      wanted = m;
+      if (!m) { stopBgm(0.8); return; }
+      if (!unlocked || !ctx) return; // applied at unlock
+      if (m === mode) return;
+      mode = m;
+      if (m === 'menu') {
+        stopFile(0.8);
+        if (music() && music().play) music().play('canon');
+      } else {
+        stopMusicEngine(0.8);
+        bgmFile('duel', 'audio/bgm-beethoven5.mp3').then(function (ok) {
+          if (mode !== 'duel') return;
+          if (!ok) { if (music() && music().play) music().play('mountain'); }
+          else if (!fileStarted && bufCache.duel && bufCache.duel.buf) startFile('duel', bufCache.duel.buf, 0.8);
+        });
+      }
+    } catch (e) {}
+  }
+  function stopBgm(fadeSec) {
+    try {
+      mode = null;
+      var f = fadeSec == null ? 0.8 : +fadeSec;
+      if (ctx) stopFile(f);
+      stopMusicEngine(f);
+    } catch (e) {}
+  }
+  function state() {
+    var t = ctx ? ctx.currentTime : 0, n = 0;
+    for (var i = 0; i < voices.length; i++) if (voices[i].end > t) n++;
+    return { unlocked: unlocked, mode: mode, missing: api.missing, voices: n, musicVol: lv.musicVol, sfxVol: lv.sfxVol, musicOn: lv.musicOn, sfxOn: lv.sfxOn, fileLoaded: fileLoaded };
+  }
+
+  var api = {
+    unlock: unlock, core: core, setLevels: setLevels, registerCue: registerCue, play: play, duck: duck,
+    bgm: bgm, bgmFile: bgmFile, stopBgm: stopBgm, state: state, missing: 0
+  };
+  TD.audio = api;
+  if (typeof module !== 'undefined') module.exports = api;
+})(typeof globalThis !== 'undefined' ? globalThis : this);
+
+</script>
+<script>
+// audio-sfx.js - Trivia Duel SFX: 14 synth cues registered on TD.audio.registerCue. Own synth, no samples. Levels are [guess].
+var TD = (typeof window !== 'undefined' ? (window.TD = window.TD || {}) : (global.TD = global.TD || {}));
+(function () {
+  'use strict';
+  var FLOOR = 0.0001, PEAK = 0.3;
+
+  function env(c, t, dur, pk, att) {
+    var g = c.ctx.createGain(), p = g.gain;
+    pk = Math.max(FLOOR * 2, Math.min(PEAK, pk)); att = Math.min(att || 0.004, dur * 0.5);
+    p.setValueAtTime(FLOOR, t); p.exponentialRampToValueAtTime(pk, t + att); p.exponentialRampToValueAtTime(FLOOR, t + dur);
+    return g;
+  }
+  function out(c, src, mid, g) {
+    var n = src;
+    if (mid) { n.connect(mid); n = mid; }
+    n.connect(g); g.connect(c.sfxBus);
+  }
+  function tone(c, nodes, type, f0, f1, t, dur, pk, o) {
+    o = o || {};
+    var s = c.ctx.createOscillator(), g = env(c, t, dur, pk, o.att), f = null;
+    s.type = type; s.frequency.setValueAtTime(f0, t);
+    if (f1 !== f0) s.frequency.exponentialRampToValueAtTime(f1, t + dur);
+    if (o.lp) { f = c.ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = o.lp; }
+    out(c, s, f, g); s.start(t); s.stop(t + dur + 0.03); nodes.push(s);
+  }
+  function burst(c, nodes, ft, f0, f1, t, dur, pk, o) {
+    o = o || {};
+    var s = c.ctx.createBufferSource(), f = c.ctx.createBiquadFilter(), g = env(c, t, dur, pk, o.att);
+    s.buffer = c.noise(); s.loop = true; f.type = ft; f.Q.value = o.q || 1;
+    f.frequency.setValueAtTime(f0, t); if (f1 !== f0) f.frequency.exponentialRampToValueAtTime(f1, t + dur);
+    out(c, s, f, g); s.start(t); s.stop(t + dur + 0.03); nodes.push(s);
+  }
+  function pv(c) { return 1 + (c.rnd() * 2 - 1) * 0.03; }
+
+  var C5 = 523.25, E5 = 659.25, G5 = 783.99, C6 = 1046.5, G6 = 1568, E6 = 1318.5;
+
+  var R = {
+    tap: [3, 0.06, function (c, t) { var n = [], p = pv(c); tone(c, n, 'sine', 900 * p, 600 * p, t, 0.05, 0.12); return n; }],
+    select: [3, 0.1, function (c, t) {
+      var n = [], p = pv(c);
+      tone(c, n, 'triangle', 420 * p, 300 * p, t, 0.08, 0.16, { lp: 1800 });
+      burst(c, n, 'bandpass', 1400, 1400, t, 0.03, 0.08, { q: 2 });
+      return n;
+    }],
+    qstart: [2, 0.35, function (c, t) {
+      var n = [], p = pv(c);
+      burst(c, n, 'bandpass', 500 * p, 2600 * p, t, 0.22, 0.12, { q: 1.2, att: 0.05 });
+      tone(c, n, 'sine', G5 * p, G5 * p, t + 0.14, 0.2, 0.1);
+      tone(c, n, 'sine', C6 * p, C6 * p, t + 0.18, 0.16, 0.07);
+      return n;
+    }],
+    correct: [3, 0.5, function (c, t) {
+      var n = [];
+      tone(c, n, 'sine', C6, C6, t, 0.3, 0.2); tone(c, n, 'sine', C6 * 2, C6 * 2, t, 0.12, 0.04);
+      tone(c, n, 'sine', G6, G6, t + 0.12, 0.38, 0.2); tone(c, n, 'sine', G6 * 1.5, G6 * 1.5, t + 0.12, 0.12, 0.03);
+      return n;
+    }],
+    wrong: [3, 0.4, function (c, t) {
+      var n = [];
+      tone(c, n, 'sine', 160, 70, t, 0.18, 0.28);
+      burst(c, n, 'lowpass', 300, 300, t, 0.05, 0.1);
+      tone(c, n, 'triangle', 330, 330, t + 0.1, 0.12, 0.12, { lp: 1500 });
+      tone(c, n, 'triangle', 311, 311, t + 0.22, 0.17, 0.12, { lp: 1500 });
+      return n;
+    }],
+    timeout: [3, 0.5, function (c, t) {
+      var n = [];
+      tone(c, n, 'sine', 196, 190, t, 0.48, 0.26, { att: 0.01 });
+      tone(c, n, 'sine', 196 * 2.4, 196 * 2.4, t, 0.3, 0.06);
+      tone(c, n, 'sine', 98, 96, t, 0.45, 0.14);
+      return n;
+    }],
+    tick: [1, 0.08, function (c, t, o) {
+      var n = [], u = !!(o && o.urgent);
+      tone(c, n, 'square', u ? 1500 : 1000, u ? 1100 : 750, t, 0.03, u ? 0.1 : 0.05, { lp: 2500 });
+      burst(c, n, 'bandpass', u ? 2200 : 1600, u ? 2200 : 1600, t, 0.02, u ? 0.06 : 0.03, { q: 2 });
+      return n;
+    }],
+    rivalSeal: [1, 0.2, function (c, t) {
+      var n = [];
+      burst(c, n, 'lowpass', 900, 400, t, 0.06, 0.18);
+      tone(c, n, 'sine', 140, 80, t, 0.15, 0.22);
+      return n;
+    }],
+    wager: [2, 0.5, function (c, t) {
+      var n = [], i, f;
+      for (i = 0; i < 4; i++) {
+        f = C5 * Math.pow(2, i * 0.25 + 0.0);
+        tone(c, n, 'sine', f, f * 1.01, t + i * 0.06, 0.26, 0.08);
+      }
+      burst(c, n, 'bandpass', 1200, 3200, t, 0.35, 0.05, { q: 1.5, att: 0.08 });
+      return n;
+    }],
+    wagerX2: [3, 0.5, function (c, t) {
+      var n = [], i, a = [C5, E5, G5, C6, E6, G6], f;
+      for (i = 0; i < 3; i++) tone(c, n, 'sine', C5 * (1 + i * 0.2), C5 * (1.15 + i * 0.2), t + i * 0.04, 0.3, 0.07);
+      for (i = 0; i < a.length; i++) { f = a[i]; tone(c, n, 'triangle', f, f, t + 0.1 + i * 0.05, 0.16, 0.1, { lp: 3500 }); }
+      return n;
+    }],
+    vs: [2, 0.8, function (c, t) {
+      var n = [];
+      tone(c, n, 'sine', 120, 55, t, 0.22, 0.3); burst(c, n, 'lowpass', 500, 200, t, 0.1, 0.16);
+      tone(c, n, 'sine', 100, 45, t + 0.22, 0.3, 0.3); burst(c, n, 'lowpass', 500, 200, t + 0.22, 0.1, 0.16);
+      tone(c, n, 'triangle', 200, 900, t + 0.35, 0.42, 0.1, { lp: 3000, att: 0.15 });
+      burst(c, n, 'bandpass', 300, 2800, t + 0.35, 0.42, 0.06, { q: 1, att: 0.2 });
+      return n;
+    }],
+    win: [3, 1.6, function (c, t) {
+      var n = [], a = [C5, E5, G5, C6], i, d, last;
+      for (i = 0; i < a.length; i++) {
+        last = i === a.length - 1;
+        d = last ? 0.9 : 0.2;
+        tone(c, n, 'triangle', a[i], a[i], t + i * 0.16, d, 0.2, { lp: 3800 });
+        tone(c, n, 'sine', a[i] * 2, a[i] * 2, t + i * 0.16, d * 0.6, 0.05);
+      }
+      tone(c, n, 'sine', G5, G5, t + 0.64, 0.9, 0.08);
+      return n;
+    }],
+    lose: [3, 1.2, function (c, t) {
+      var n = [], a = [440, 392, 329.63], i;
+      for (i = 0; i < a.length; i++) tone(c, n, 'triangle', a[i], a[i], t + i * 0.3, i === 2 ? 0.55 : 0.32, 0.17, { lp: 1800, att: 0.02 });
+      return n;
+    }],
+    draw: [3, 1.0, function (c, t) {
+      var n = [];
+      tone(c, n, 'triangle', 392, 392, t, 0.45, 0.16, { lp: 2400, att: 0.02 });
+      tone(c, n, 'triangle', 392, 392, t + 0.42, 0.5, 0.16, { lp: 2400, att: 0.02 });
+      tone(c, n, 'sine', 196, 196, t, 0.9, 0.08);
+      return n;
+    }],
+    pointsUp: [1, 0.2, function (c, t, o) {
+      var n = [], k = o && o.big ? 1.5 : 1;
+      tone(c, n, 'square', 1200 * k, 1200 * k, t, 0.05, 0.07, { lp: 3000 });
+      tone(c, n, 'square', 1600 * k, 1600 * k, t + 0.05, 0.1, 0.07, { lp: 3000 });
+      return n;
+    }]
+  };
+
+  // contract text says 14 but enumerates 15 names; all enumerated names are registered
+  var api = { names: Object.keys(R) };
+  TD.sfx = api;
+
+  try {
+    if (TD.audio && typeof TD.audio.registerCue === 'function') {
+      api.names.forEach(function (name) {
+        var r = R[name];
+        TD.audio.registerCue(name, r[0], r[1], function (c, t, opts) {
+          try { return r[2](c, t, opts || {}); } catch (e) { return []; }
+        });
+      });
+    }
+  } catch (e) { /* silent */ }
+
+  if (typeof module !== 'undefined') module.exports = api;
+})();
+
+</script>
+<script>
+// audio-music.js -> TD.music (build td-audio-1). Live look-ahead sequencer (25 ms timer, 120 ms look-ahead) on the audio clock.
+// Routes to TD.audio.core().musicBus (loops) / sfxBus (stings). Silent no-op (play/sting return false) while TD.audio.core() is null.
+// PROVENANCE (all tunes public domain; note strings written from memory, arrangements own; levels/tempi are [guess], tune by ear):
+//  canon    Canon in D, melody F#5 E5 D5 C#5 B4 A4 B4 C#5 x2 + pad + bass D A B F# G D G A. Pachelbel (d. 1706). 66 bpm [guess]. Arrangement own.
+//  mountain In the Hall of the Mountain King, first phrase B C# D E F# D F#. Grieg (d. 1907). Tempo ramp 100->150 over 8 bars then hold. Arrangement own.
+//  win      Ode to Joy 8-bar theme (Symphony 9). Beethoven (d. 1827). 200 bpm with ritard (~10 s); opts.short -> first 4 bars. Arrangement own.
+//  lose     Own composition: 4 descending notes in D minor, Gymnopedie-like mood (not Satie's notes). ~3 s. Original, admin default.
+//  draw     Twinkle line 1 (Ah vous dirai-je, Maman, K.265 theme). Mozart (d. 1791). ~2 s. Arrangement own.
+//  medal    Twinkle lines 1-2, 192 bpm. Mozart (d. 1791). Arrangement own.
+var TD = (typeof window !== 'undefined' ? (window.TD = window.TD || {}) : (global.TD = global.TD || {}));
+(function () {
+  'use strict';
+  var LOOK = 0.12, TICK = 25, FLOOR = 0.0001, XF = 0.8;
+  var SEMI = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
+  function midi(n) {
+    var m = /^([A-G])([#b]?)(-?\d)$/.exec(n); if (!m) return -1;
+    return 12 * (+m[3] + 1) + SEMI[m[1]] + (m[2] === '#' ? 1 : m[2] === 'b' ? -1 : 0);
+  }
+  // token NOTE[+NOTE]:BEATS, r = rest -> rows [startBeat, durBeats, midi]
+  function parse(str, shift) {
+    var out = [], t = 0, tk = String(str).trim().split(/\s+/), i, j, p, ns;
+    for (i = 0; i < tk.length; i++) {
+      if (!tk[i]) continue;
+      p = tk[i].split(':');
+      var d = +p[1];
+      if (p[0] !== 'r') { ns = p[0].split('+'); for (j = 0; j < ns.length; j++) out.push([t, d, midi(ns[j]) + (shift || 0)]); }
+      t += d;
+    }
+    return out;
+  }
+  function blen(str) { var s = 0, tk = String(str).trim().split(/\s+/); for (var i = 0; i < tk.length; i++) s += +tk[i].split(':')[1] || 0; return s; }
+  function rep(s, n) { var o = []; for (var i = 0; i < n; i++) o.push(s); return o.join(' '); }
+  function hz(m) { return 440 * Math.pow(2, (m - 69) / 12); }
+  function mulberry32(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; var t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+  var rnd = mulberry32(0x7D51CA);
+
+  // ---- note data
+  var ODE_A = 'F#4:1 F#4:1 G4:1 A4:1 A4:1 G4:1 F#4:1 E4:1 D4:1 D4:1 E4:1 F#4:1 ';
+  var ODE_M = ODE_A + 'F#4:1.5 E4:0.5 E4:2 ' + ODE_A + 'E4:1.5 D4:0.5 D4:2';
+  var ODE_B = 'D3:4 D3:2 A2:2 D3:4 A2:4 D3:4 D3:2 A2:2 D3:4 A2:2 D3:2';
+  var T1 = 'C5:1 C5:1 G5:1 G5:1 A5:1 A5:1 G5:2 ', T2 = 'F5:1 F5:1 E5:1 E5:1 D5:1 D5:1 C5:2 ';
+  var TW_B1 = 'C3:4 F3:2 C3:2 ', TW_B2 = 'F3:2 C3:2 G2:2 C3:2 ';
+  function mk(a, b, c, d, e, f, g) { return a + ':0.5 ' + b + ':0.5 ' + c + ':0.5 ' + d + ':0.5 ' + e + ':0.5 ' + f + ':0.5 ' + g + ':1 '; }
+  var MK = mk('B3', 'C#4', 'D4', 'E4', 'F#4', 'D4', 'F#4');
+
+  // loops: tempo = breakpoints [beat,bpm] for the first pass; tempo2 = for later passes (default same)
+  var PIECES = {
+    canon: { loop: true, tempo: [[0, 66]], tracks: [
+      { v: 'bell', g: 0.5, s: rep('F#5:2 E5:2 D5:2 C#5:2 B4:2 A4:2 B4:2 C#5:2', 2) },
+      { v: 'pad', g: 0.38, s: rep('D4+F#4+A4:2 C#4+E4+A4:2 D4+F#4+B4:2 C#4+F#4+A4:2 B3+D4+G4:2 D4+F#4+A4:2 B3+D4+G4:2 C#4+E4+A4:2', 2) },
+      { v: 'pluck', g: 0.42, s: rep('D3:2 A2:2 B2:2 F#2:2 G2:2 D3:2 G2:2 A2:2', 2) }] },
+    mountain: { loop: true, tempo: [[0, 100], [32, 150]], tempo2: [[0, 150]], tracks: [
+      { v: 'saw', g: 0.4, s: rep(MK, 8) },
+      { v: 'bell', g: 0.22, o: 12, s: rep(MK, 8) },
+      { v: 'pluck', g: 0.4, o: -12, s: rep('B3:1 F#3:1 B3:1 F#3:1', 8) }] }
+  };
+  var STINGS = {
+    win: { tempo: [[0, 200], [28, 190], [31, 120], [32, 90]], tracks: [{ v: 'bell', g: 0.6, s: ODE_M }, { v: 'pad', g: 0.35, s: ODE_B }], shortBeats: 16 },
+    lose: { tempo: [[0, 100]], tracks: [{ v: 'bell', g: 0.55, s: 'D5:1 C5:1 A4:1 F4:2.5' }, { v: 'pad', g: 0.35, s: 'D3+A3+F4:2 C3+G3+E4:1 A2+E3+C4:3.5' }] },
+    draw: { tempo: [[0, 240]], tracks: [{ v: 'bell', g: 0.55, s: T1 }, { v: 'pad', g: 0.28, s: TW_B1 }] },
+    medal: { tempo: [[0, 192]], tracks: [{ v: 'bell', g: 0.6, s: T1 + T2 }, { v: 'pad', g: 0.3, s: TW_B1 + TW_B2 }] }
+  };
+
+  // ---- voices: (c, t, dur, midiNote, vel, dest) -> array of started sources. All never throw out of pump (caller catches).
+  function env(c, t, pk, att, end) { var g = c.ctx.createGain(); g.gain.setValueAtTime(FLOOR, t); g.gain.exponentialRampToValueAtTime(Math.max(FLOOR * 2, pk), t + att); g.gain.exponentialRampToValueAtTime(FLOOR, end); return g; }
+  function osc(c, type, f, t, stop, dest, det) {
+    var o = c.ctx.createOscillator(); o.type = type; o.frequency.setValueAtTime(f, t); if (det && o.detune) o.detune.value = det;
+    o.connect(dest); o.start(t); o.stop(stop); return o;
+  }
+  var VOICE = {
+    bell: function (c, t, dur, m, vel, dest) {
+      var f = hz(m), d = Math.max(0.5, 1.5 - f / 2400), g = env(c, t, vel * 0.7, 0.004, t + d), h = c.ctx.createGain(), e = t + d + 0.05;
+      g.connect(dest); h.gain.value = 0.15; h.connect(g);
+      return [osc(c, 'sine', f, t, e, g), osc(c, 'sine', f * 3, t, e, h)];
+    },
+    pad: function (c, t, dur, m, vel, dest) {
+      var f = hz(m), att = Math.min(0.25, dur * 0.4), e = t + dur + 0.45, g = c.ctx.createGain(), lp = c.ctx.createBiquadFilter();
+      lp.type = 'lowpass'; lp.frequency.value = Math.min(2200, f * 4);
+      g.gain.setValueAtTime(FLOOR, t); g.gain.linearRampToValueAtTime(vel * 0.45, t + att); g.gain.setValueAtTime(vel * 0.45, t + dur);
+      g.gain.exponentialRampToValueAtTime(FLOOR, t + dur + 0.4);
+      lp.connect(g); g.connect(dest);
+      return [osc(c, 'triangle', f, t, e, lp), osc(c, 'sine', f, t, e, lp, 6 + rnd() * 3)];
+    },
+    pluck: function (c, t, dur, m, vel, dest) {
+      var f = hz(m), d = f < 150 ? 0.45 : 0.3, g = env(c, t, vel * 0.85, 0.005, t + d), lp = c.ctx.createBiquadFilter();
+      lp.type = 'lowpass'; lp.frequency.value = 1100; lp.connect(g); g.connect(dest);
+      return [osc(c, 'triangle', f, t, t + d + 0.05, lp)];
+    },
+    saw: function (c, t, dur, m, vel, dest) { // soft plucked saw, lowpassed [guess]
+      var f = hz(m), d = Math.max(0.14, Math.min(0.4, dur * 0.9)), g = env(c, t, vel * 0.5, 0.006, t + d), lp = c.ctx.createBiquadFilter();
+      lp.type = 'lowpass'; lp.frequency.setValueAtTime(1600, t); lp.frequency.exponentialRampToValueAtTime(380, t + d); lp.Q.value = 1;
+      lp.connect(g); g.connect(dest);
+      return [osc(c, 'sawtooth', f, t, t + d + 0.05, lp)];
+    }
+  };
+
+  // ---- compile: events + beat->seconds tables (1/8 beat steps, bpm linear between breakpoints, hold last)
+  function mkSec(tempo, len) {
+    function bpmAt(b) {
+      if (b <= tempo[0][0]) return tempo[0][1];
+      for (var k = 1; k < tempo.length; k++) if (b <= tempo[k][0]) return tempo[k - 1][1] + (tempo[k][1] - tempo[k - 1][1]) * (b - tempo[k - 1][0]) / (tempo[k][0] - tempo[k - 1][0]);
+      return tempo[tempo.length - 1][1];
+    }
+    var n = Math.ceil(len * 8) + 4, T = [0], k;
+    for (k = 0; k < n; k++) T.push(T[k] + 60 / bpmAt((k + 0.5) / 8) / 8);
+    return function (b) { var x = b * 8, i = Math.max(0, Math.min(n - 1, Math.floor(x))); return T[i] + (T[i + 1] - T[i]) * (x - i); };
+  }
+  function compile(def, maxBeats) {
+    var ev = [], len = 0, i, j, tr, rows;
+    for (i = 0; i < def.tracks.length; i++) {
+      tr = def.tracks[i]; rows = parse(tr.s, tr.o || 0);
+      for (j = 0; j < rows.length; j++) {
+        if (maxBeats && rows[j][0] >= maxBeats) continue;
+        ev.push({ b: rows[j][0], d: maxBeats ? Math.min(rows[j][1], maxBeats - rows[j][0]) : rows[j][1], m: rows[j][2], v: tr.v, g: tr.g || 0.5 });
+      }
+      len = Math.max(len, blen(tr.s));
+    }
+    if (maxBeats) len = Math.min(len, maxBeats);
+    ev.sort(function (a, b) { return a.b - b.b; });
+    return { ev: ev, len: len, sec1: mkSec(def.tempo, len), sec2: mkSec(def.tempo2 || def.tempo, len) };
+  }
+
+  // ---- engine state
+  var cur = null, old = null, stings = [], timer = null;
+  function core() { try { return (TD.audio && TD.audio.core && TD.audio.core()) || null; } catch (e) { return null; } }
+
+  function newTrack(k, dest, c, at, loop) {
+    var g = c.ctx.createGain(); g.connect(dest);
+    return { ev: k.ev, len: k.len, sec: k.sec1, sec2: k.sec2, loop: loop, g: g, idx: 0, t0: at, src: [], stop: false, done: false, endT: 0, killAt: 0 };
+  }
+  function pump(tr, now, c) {
+    if (tr.stop) return;
+    var guard = 0, e, ts, dur, s, i, endT;
+    while (guard++ < 4000) {
+      if (tr.idx >= tr.ev.length) {
+        endT = tr.t0 + tr.sec(tr.len);
+        if (!tr.loop) { tr.done = true; tr.endT = endT; return; }
+        if (endT > now + LOOK) return;
+        tr.t0 = endT; tr.idx = 0; tr.sec = tr.sec2; continue;
+      }
+      e = tr.ev[tr.idx]; ts = tr.t0 + tr.sec(e.b);
+      if (ts > now + LOOK) return;
+      tr.idx++;
+      if (ts < now - 0.25) continue; // far behind (tab was hidden): skip, no burst
+      if (!VOICE[e.v]) continue;
+      try {
+        dur = tr.sec(e.b + e.d) - tr.sec(e.b);
+        s = VOICE[e.v](c, Math.max(ts, now), dur, e.m, e.g, tr.g);
+        for (i = 0; i < s.length; i++) tr.src.push({ n: s[i], end: Math.max(ts, now) + dur + 2.5 });
+        if (tr.src.length > 96) tr.src = tr.src.filter(function (x) { return x.end > now; });
+      } catch (err) { /* silent */ }
+    }
+  }
+  function dispose(tr) {
+    if (!tr) return;
+    tr.stop = true;
+    for (var i = 0; i < tr.src.length; i++) { try { tr.src[i].n.stop(); } catch (e) { /* */ } }
+    tr.src = [];
+    try { tr.g.disconnect(); } catch (e) { /* */ }
+  }
+  function ramp(param, t, dur, from, to) {
+    try {
+      if (param.cancelScheduledValues) param.cancelScheduledValues(t);
+      param.setValueAtTime(Math.max(FLOOR, from), t);
+      param.linearRampToValueAtTime(Math.max(0, to), t + dur);
+    } catch (e) { /* */ }
+  }
+  function tick() {
+    try {
+      var c = core(), now, i;
+      if (!c) return;
+      now = c.ctx.currentTime;
+      if (cur) pump(cur, now, c);
+      if (old && now >= old.killAt) { dispose(old); old = null; }
+      for (i = stings.length - 1; i >= 0; i--) {
+        pump(stings[i], now, c);
+        if (stings[i].done && now >= stings[i].endT + 3) { dispose(stings[i]); stings.splice(i, 1); }
+      }
+      if (!cur && !old && !stings.length && timer) { clearInterval(timer); timer = null; }
+    } catch (e) { /* silent */ }
+  }
+  function ensureTimer() { if (!timer && typeof setInterval === 'function') { timer = setInterval(tick, TICK); if (timer && timer.unref) timer.unref(); } }
+
+  function play(id) {
+    try {
+      var def = PIECES[id], c = core();
+      if (!def || !c) return false;
+      if (cur && cur.id === id && !cur.stop) return true;
+      var now = c.ctx.currentTime, k = compile(def), tr;
+      if (old) { dispose(old); old = null; }
+      if (cur) { ramp(cur.g.gain, now, XF, cur.g.gain.value, 0); cur.stop = true; cur.killAt = now + XF + 0.1; old = cur; }
+      tr = newTrack(k, c.musicBus, c, now + 0.05, true);
+      tr.id = id;
+      if (old) { tr.g.gain.value = FLOOR; ramp(tr.g.gain, now, XF, FLOOR, 1); } else tr.g.gain.value = 1;
+      cur = tr; ensureTimer(); tick();
+      return true;
+    } catch (e) { return false; }
+  }
+  function stop(fadeSec) {
+    try {
+      var c = core(); if (!c) { cur = old = null; return; }
+      if (old) { dispose(old); old = null; }
+      if (!cur) return;
+      if (!(fadeSec > 0)) { dispose(cur); cur = null; return; }
+      var now = c.ctx.currentTime;
+      ramp(cur.g.gain, now, fadeSec, cur.g.gain.value, 0); cur.stop = true; cur.killAt = now + fadeSec + 0.1; old = cur; cur = null; ensureTimer();
+    } catch (e) { /* silent */ }
+  }
+  function sting(id, opts) {
+    try {
+      var def = STINGS[id], c = core();
+      if (!def || !c) return false;
+      var short = !!(opts && opts.short), k = compile(def, short && def.shortBeats ? def.shortBeats : 0);
+      var now = c.ctx.currentTime, tr = newTrack(k, c.sfxBus, c, now + 0.02, false);
+      tr.id = id; tr.g.gain.value = 0.9;
+      while (stings.length >= 2) dispose(stings.shift());
+      stings.push(tr);
+      try { if (TD.audio && TD.audio.duck) TD.audio.duck(0.3, k.sec1(k.len), 0.5); } catch (e) { /* */ }
+      ensureTimer(); pump(tr, now, c);
+      return true;
+    } catch (e) { return false; }
+  }
+
+  TD.music = {
+    play: play, stop: stop, sting: sting,
+    ids: ['canon', 'mountain'], stings: ['win', 'lose', 'draw', 'medal'],
+    isPlaying: function () { return !!(cur && !cur.stop); },
+    current: function () { return cur && !cur.stop ? cur.id : null; },
+    _tick: tick
+  };
+})();
+if (typeof module !== 'undefined') module.exports = TD.music;
+
+</script>
+<script>
+var TD = (typeof window !== 'undefined' ? (window.TD = window.TD || {}) : (global.TD = global.TD || {}));
+// audio-glue.js: wires TD.audio to the UI (screens, hooks, mute button). Loaded last. Never throws.
+(function () {
+  var attached = false, wanted = null, lastScreen = '', unlocked = false;
+  var lastSec = null, wagerCued = false, btn = null;
+
+  function A() { return TD.audio || null; }
+  function safe(fn) { try { return fn(); } catch (e) {} }
+  function play(n, o) { safe(function () { if (A() && A().play) A().play(n, o); }); }
+  function levels() { safe(function () { if (A() && TD.tweak) A().setLevels(TD.tweak.cfg); }); }
+
+  function setBgm(mode) {
+    wanted = mode;
+    if (unlocked) safe(function () { A().bgm(mode); });
+  }
+
+  function onUnlockGesture() {
+    if (unlocked) return;
+    unlocked = true;
+    safe(function () { A().unlock(); });
+    levels();
+    safe(function () { A().bgm(wanted); });
+  }
+
+  function activeScreen() {
+    var el = document.querySelector('#app .screen.active');
+    return el ? el.id : '';
+  }
+
+  function resultKind() {
+    var r = safe(function () { return TD.tweak.lastState.result; });
+    if (r === 'win') return 'win';
+    if (r === 'draw') return 'draw';
+    return 'lose';
+  }
+
+  function onScreen() {
+    var id = activeScreen();
+    if (!id || id === lastScreen) return;
+    var prev = lastScreen;
+    lastScreen = id;
+    if (id !== 'scr-wager') wagerCued = false;
+    if (id === 'scr-home' || id === 'scr-settings' || id === 'scr-vs') {
+      setBgm('menu');
+      if (id === 'scr-vs' && prev !== 'scr-vs') play('vs');
+    } else if (id === 'scr-duel' || id === 'scr-wager') {
+      setBgm('duel');
+    } else if (id === 'scr-result') {
+      wanted = null;
+      safe(function () { if (unlocked) A().stopBgm(0.4); });
+      var k = resultKind();
+      safe(function () { if (TD.music && TD.music.sting) TD.music.sting(k); });
+      play(k);
+    }
+  }
+
+  function wrap(obj, name, before, after) {
+    var orig = obj && obj[name];
+    if (typeof orig !== 'function' || orig.__audioWrapped) return;
+    var w = function () {
+      var args = arguments;
+      if (before) safe(function () { before.apply(null, args); });
+      var r = orig.apply(this, args);
+      if (after) safe(function () { after.apply(null, args); });
+      return r;
+    };
+    w.__audioWrapped = true;
+    obj[name] = w;
+  }
+
+  function wrapHooks() {
+    var ui = TD.ui;
+    if (!ui) return;
+    wrap(ui, 'renderQuestion', function () { lastSec = null; play('qstart'); });
+    wrap(ui, 'renderReveal', function (st, info) {
+      info = info || {};
+      play(info.pos < 0 ? 'timeout' : (info.pRight ? 'correct' : 'wrong'));
+      if (info.pPts > 0) play('pointsUp', { big: info.pPts >= 70 });
+    });
+    wrap(ui, 'renderRivalAnswered', function () { play('rivalSeal'); });
+    wrap(ui, 'renderTimer', function (frac, secLeft) {
+      if (typeof secLeft !== 'number') return;
+      var f = Math.floor(secLeft);
+      if (f !== lastSec) {
+        var prevSec = lastSec;
+        lastSec = f;
+        if (prevSec !== null && secLeft <= 5 && secLeft > 0) play('tick', { urgent: secLeft <= 2 });
+      }
+    });
+    wrap(ui, 'renderWager', function () {
+      if (!wagerCued) { wagerCued = true; play('wager'); }
+    });
+  }
+
+  function iconText() {
+    var c = safe(function () { return TD.tweak.cfg; }) || {};
+    return (c.musicOn || c.sfxOn) ? '🔊' : '🔇';
+  }
+  function refreshBtn() {
+    if (!btn) return;
+    var on = iconText() === '🔊';
+    btn.textContent = iconText();
+    btn.setAttribute('aria-label', 'Sound ' + (on ? 'on' : 'off'));
+  }
+
+  function wrapTweak() {
+    var tw = TD.tweak;
+    if (!tw || typeof tw.set !== 'function' || tw.set.__audioWrapped) return;
+    var orig = tw.set;
+    var w = function () {
+      var r = orig.apply(this, arguments);
+      levels();
+      refreshBtn();
+      return r;
+    };
+    w.__audioWrapped = true;
+    tw.set = w;
+  }
+
+  function addButton() {
+    if (document.getElementById('btn-audio')) return;
+    var st = document.createElement('style');
+    st.textContent = '#btn-audio{position:fixed;bottom:calc(env(safe-area-inset-bottom,0px) + 2px);right:2px;z-index:9999;' +
+      'min-width:32px;min-height:32px;width:32px;height:32px;border-radius:16px;border:1px solid rgba(255,255,255,.35);' +
+      'background:rgba(20,16,30,.65);color:#fff;font-size:15px;line-height:1;padding:0;cursor:pointer;' +
+      '-webkit-tap-highlight-color:transparent}#btn-audio:active{transform:scale(.94)}';
+    document.head.appendChild(st);
+    btn = document.createElement('button');
+    btn.id = 'btn-audio';
+    btn.type = 'button';
+    btn.addEventListener('click', function () {
+      var c = TD.tweak.cfg;
+      var on = (c.musicOn || c.sfxOn) ? 0 : 1;
+      TD.tweak.set('musicOn', on);
+      TD.tweak.set('sfxOn', on);
+    });
+    document.body.appendChild(btn);
+    refreshBtn();
+  }
+
+  function attach() {
+    if (attached) return;
+    attached = true;
+    if (typeof window === 'undefined' || typeof document === 'undefined') return;
+    var muted = safe(function () { return /[?&]mute=1(&|$)/.test(location.search); });
+    if (muted || !A()) return;
+    ['pointerdown', 'touchend', 'click', 'keydown'].forEach(function (ev) {
+      document.addEventListener(ev, onUnlockGesture, { capture: true, once: true });
+    });
+    wrapTweak();
+    wrapHooks();
+    safe(addButton);
+    levels();
+    var app = document.getElementById('app');
+    if (app && typeof MutationObserver !== 'undefined') {
+      new MutationObserver(onScreen).observe(app, { subtree: true, attributes: true, attributeFilter: ['class'] });
+    }
+    onScreen();
+    var x2 = document.getElementById('btn-x2');
+    // delegated clicks (btn-x2 is built later, so delegate)
+    document.addEventListener('click', function (e) {
+      safe(function () {
+        var t = e.target;
+        if (!t || !t.closest) return;
+        if (t.closest('#btn-audio')) return;
+        if (t.closest('#btn-x2')) play('wagerX2');
+        if (t.closest('.btn-ans')) play('select');
+        else if (t.closest('.btn, .btn-topic, .swatch, button')) play('tap');
+      });
+    }, true);
+    void x2;
+  }
+
+  TD.audioGlue = { version: 'td-audio-1', attach: attach };
+  if (typeof document !== 'undefined') {
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', attach);
+    else attach();
+  }
+})();
+if (typeof module !== 'undefined') module.exports = TD.audioGlue;
 
 </script>
 <script>
