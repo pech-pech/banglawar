@@ -22,73 +22,102 @@ var TD = (typeof window!=='undefined'?(window.TD=window.TD||{}):(global.TD=globa
   function label(id) { return ui.topicLabel ? ui.topicLabel(id) : id; }
   function st(css, e) { e.style.cssText = css; return e; }
 
+  // admin default: TD.ui.icon comes from home-art.js; fall back to a text span if it is missing
+  var GLYPH = { 'ico-boy': '♂', 'ico-girl': '♀', 'ico-gear': '⚙', 'ico-minus': '−', 'ico-plus': '+', 'ico-flame': '🕯', 'ico-film': '🎬', 'ico-book': '📖' };
+  function ic(name, px) {
+    if (ui.icon) return ui.icon(name, px);
+    var sp = el('span', { class: 'hc-ico hc-ico-fb', text: GLYPH[name] || '' });
+    return sp;
+  }
+  function gender() {
+    if (ui.gender) return ui.gender();
+    return S().gender === 'g' ? 'g' : 'b';
+  }
+  function playerAv(px) {
+    return TD.avatar && TD.avatar.player ? TD.avatar.player(S().name || 'You', S().seal || 0, px) : el('div');
+  }
+  function renderPav() {
+    var p = $('home-pav');
+    if (!p) return;
+    p.innerHTML = '';
+    p.appendChild(playerAv(64));
+  }
+  function paintGender() {
+    var g = gender(), b = $('btn-gender');
+    if (!b) return;
+    b.setAttribute('data-g', g);
+    b.setAttribute('aria-label', g === 'g' ? 'Girl' : 'Boy');
+    b.innerHTML = '';
+    b.appendChild(ic(g === 'g' ? 'ico-girl' : 'ico-boy', 40));
+  }
+
   function buildHome() {
     var s = $('scr-home'), save = S();
     if (!s) return;
     s.innerHTML = '';
+    s.classList.add('hc-home');
+    if (TD.ART && TD.ART.bgArena) s.style.setProperty('--hc-bg', 'url(' + TD.ART.bgArena + ')');
     // header: emblem + title + settings
     var emb = (TD.avatar && TD.avatar.emblem) ? TD.avatar.emblem(44) : el('div');
-    var settings = el('button', { class: 'btn btn-seal', id: 'btn-settings', title: 'Settings', type: 'button', text: '⚙' });
-    st('width:48px;height:48px;border-radius:14px;border:0;background:#1b1245;color:#fff;font-size:24px;font-weight:800;cursor:pointer', settings);
-    s.appendChild(st('display:flex;align-items:center;gap:10px', el('div', { class: 'home-head' }, [
+    var settings = el('button', { class: 'hc-gear', id: 'btn-settings', title: 'Settings', type: 'button' }, [ic('ico-gear', 28)]);
+    s.appendChild(el('div', { class: 'home-head hc-head' }, [
       emb,
-      st('flex:1;margin:0;font-size:28px;font-weight:900;color:#ffd23f', el('h1', { class: 'home-title', text: 'Candle Duel' })), // working name
+      el('h1', { class: 'home-title hc-title', text: 'Candle Duel' }), // working name
       settings
-    ])));
+    ]));
 
-    // name + seal
+    // player card: avatar + name + gender, seals
     var inName = el('input', { id: 'in-name', type: 'text', maxlength: '14', placeholder: 'Your name' });
     inName.value = save.name || '';
-    st('flex:1;min-width:0;height:44px;border-radius:12px;border:0;padding:0 12px;font-size:18px;font-weight:700;color:#1c1540;background:#fff', inName);
     inName.addEventListener('input', function () { S().name = inName.value.slice(0, 14); persist(); });
-    var sw = el('div', { class: 'swatches' });
-    st('display:flex;gap:10px', sw);
+    var gbtn = el('button', { class: 'hc-gender', id: 'btn-gender', type: 'button' });
+    gbtn.addEventListener('click', function () {
+      S().gender = gender() === 'g' ? 'b' : 'g'; persist();
+      paintGender(); renderPav();
+    });
+    var sw = el('div', { class: 'swatches hc-seals' });
+    sw.appendChild(el('span', { text: 'Seal' }));
     SEALS.forEach(function (col, i) {
-      var b = el('div', { class: 'swatch' + (i === save.seal ? ' sel' : ''), 'data-i': String(i) });
-      st('width:34px;height:34px;border-radius:50%;cursor:pointer;border:3px solid ' + (i === save.seal ? '#ffd23f' : 'transparent') + ';background:' + col, b);
+      var b = el('div', { class: 'swatch hc-gem' + (i === save.seal ? ' sel' : ''), 'data-i': String(i) }, [ic('gem-' + i, 34)]);
       b.addEventListener('click', function () {
         S().seal = i; persist();
         var all = sw.querySelectorAll('.swatch');
-        for (var j = 0; j < all.length; j++) {
-          all[j].classList.toggle('sel', j === i);
-          all[j].style.borderColor = j === i ? '#ffd23f' : 'transparent';
-        }
+        for (var j = 0; j < all.length; j++) all[j].classList.toggle('sel', j === i);
+        renderPav();
       });
       sw.appendChild(b);
     });
-    s.appendChild(st('display:flex;flex-direction:column;gap:10px;background:#3a2a8a;border-radius:16px;padding:12px', el('div', { class: 'card col' }, [
-      st('display:flex;gap:10px', el('div', { class: 'row' }, [inName])),
-      st('display:flex;align-items:center;gap:12px', el('div', { class: 'row' }, [
-        st('font-size:13px;font-weight:700;color:#cfc8ff', el('span', { text: 'Seal' })), sw]))
+    var corners = ['tl', 'tr', 'bl', 'br'].map(function (c) {
+      return el('span', { class: 'hc-corner hc-c-' + c }, [ic('fil-corner', 22)]);
+    });
+    s.appendChild(el('div', { class: 'card col hc-card hc-pcard' }, corners.concat([
+      el('div', { class: 'row hc-prow' }, [el('div', { id: 'home-pav', class: 'hc-pav' }), inName, gbtn]),
+      sw
     ])));
 
     // mode + read-to stepper
-    var bm = el('button', { class: 'btn grow', id: 'btn-mode-movie', type: 'button', text: 'Movie fan' });
-    var bb = el('button', { class: 'btn grow', id: 'btn-mode-book', type: 'button', text: 'Book reader' });
-    var minus = el('button', { class: 'btn', id: 'btn-rt-minus', type: 'button', text: '−' });
-    var plus = el('button', { class: 'btn', id: 'btn-rt-plus', type: 'button', text: '+' });
+    var bm = el('button', { class: 'btn grow', id: 'btn-mode-movie', type: 'button' }, [ic('ico-film', 20), document.createTextNode('Movie fan')]);
+    var bb = el('button', { class: 'btn grow', id: 'btn-mode-book', type: 'button' }, [ic('ico-book', 20), document.createTextNode('Book reader')]);
+    var minus = el('button', { class: 'btn', id: 'btn-rt-minus', type: 'button', 'aria-label': 'Fewer books' }, [ic('ico-minus', 36)]);
+    var plus = el('button', { class: 'btn', id: 'btn-rt-plus', type: 'button', 'aria-label': 'More books' }, [ic('ico-plus', 36)]);
     var rt = el('input', { id: 'in-readto', type: 'text', inputmode: 'numeric', maxlength: '1' });
     rt.readOnly = true;
-    st('width:48px;height:44px;text-align:center;border:0;border-radius:10px;font-size:20px;font-weight:800;color:#1c1540;background:#fff', rt);
-    [bm, bb].forEach(function (b) { st('flex:1;height:44px;border:0;border-radius:12px;font-size:16px;font-weight:800;cursor:pointer', b); });
-    [minus, plus].forEach(function (b) { st('width:44px;height:44px;border:0;border-radius:12px;font-size:22px;font-weight:900;background:#fff;color:#1c1540;cursor:pointer', b); });
     function setMode(m) { S().mode = m; persist(); renderHome(); }
     function setRt(v) { S().readUpTo = Math.max(1, Math.min(7, v)); persist(); renderHome(); }
     bm.addEventListener('click', function () { setMode('movie'); });
     bb.addEventListener('click', function () { setMode('book'); });
     minus.addEventListener('click', function () { setRt(S().readUpTo - 1); });
     plus.addEventListener('click', function () { setRt(S().readUpTo + 1); });
-    s.appendChild(st('display:flex;flex-direction:column;gap:10px;background:#3a2a8a;border-radius:16px;padding:12px', el('div', { class: 'card col' }, [
-      st('display:flex;gap:10px', el('div', { class: 'row' }, [bm, bb])),
-      st('display:flex;align-items:center;gap:10px', el('div', { class: 'row', id: 'readto-row' }, [
-        st('flex:1;font-size:14px;font-weight:700', el('span', { class: 'grow', text: 'Read up to book' })), minus, rt, plus]))
-    ])));
+    s.appendChild(el('div', { class: 'card col hc-card hc-mode' }, [
+      el('div', { class: 'row hc-pill' }, [bm, bb]),
+      el('div', { class: 'row hc-step', id: 'readto-row' }, [
+        el('span', { class: 'grow', text: 'Read up to book' }), minus, rt, plus])
+    ]));
 
     // topics
-    var tiles = st('display:flex;gap:8px', el('div', { class: 'row', id: 'topic-row' }));
+    var tiles = el('div', { class: 'row hc-grid', id: 'topic-row' });
     (TD.TOPICS || []).forEach(function (t) {
-      var b = el('button', { class: 'btn btn-topic topic-tile', type: 'button', 'data-topic': t.id });
-      st('flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;gap:4px;padding:8px 4px;border:0;border-radius:14px;color:#1c1540;font-weight:800;cursor:pointer', b); // face + 6px lip from buttons.css
+      var b = el('button', { class: 'btn btn-topic topic-tile hc-tile', type: 'button', 'data-topic': t.id });
       b.addEventListener('click', function () { S().picked = t.id; persist(); renderHome(); });
       tiles.appendChild(b);
     });
@@ -105,10 +134,9 @@ var TD = (typeof window!=='undefined'?(window.TD=window.TD||{}):(global.TD=globa
       ]))
     ])));
 
-    var play = el('button', { class: 'btn btn-seal btn-play', id: 'btn-play', type: 'button', text: 'DUEL' });
-    st('height:64px;border:0;border-radius:18px;background:#ff7a1a;color:#fff;font-size:34px;font-weight:900;letter-spacing:.08em;box-shadow:0 6px 0 #b8500a;cursor:pointer', play);
-    s.appendChild(play);
-    s.appendChild(st('font-size:11px;color:#cfc8ff;text-align:center', el('div', { class: 'small muted', id: 'home-build' })));
+    var play = el('button', { class: 'btn btn-seal btn-play hc-duel', id: 'btn-play', type: 'button', text: 'DUEL' });
+    s.appendChild(el('div', { class: 'hc-duelrow' }, [ic('ico-flame', 28), play, ic('ico-flame', 28)]));
+    s.appendChild(el('div', { class: 'small muted hc-build', id: 'home-build' }));
     // admin default: core binds #btn-play/#btn-settings by id after build (contract); no listeners added here
     homeBuilt = true;
   }
@@ -120,16 +148,13 @@ var TD = (typeof window!=='undefined'?(window.TD=window.TD||{}):(global.TD=globa
     var inName = $('in-name');
     if (inName && document.activeElement !== inName && inName.value !== (save.name || '')) inName.value = save.name || '';
     var sws = document.querySelectorAll('#scr-home .swatch');
-    for (var w = 0; w < sws.length; w++) {
-      sws[w].classList.toggle('sel', w === save.seal);
-      sws[w].style.borderColor = w === save.seal ? '#ffd23f' : 'transparent';
-    }
-    $('btn-mode-movie').classList.toggle('sel', save.mode === 'movie');
-    $('btn-mode-book').classList.toggle('sel', save.mode === 'book');
+    for (var w = 0; w < sws.length; w++) sws[w].classList.toggle('sel', w === save.seal);
+    paintGender();
+    renderPav();
     [['btn-mode-movie', 'movie'], ['btn-mode-book', 'book']].forEach(function (p) {
       var b = $(p[0]), on = save.mode === p[1];
-      b.style.background = on ? '#2f7bff' : '#fff';
-      b.style.color = on ? '#fff' : '#1c1540';
+      b.classList.toggle('sel', on);
+      b.classList.toggle('on', on);
     });
     $('in-readto').value = String(save.readUpTo);
     var tiles = document.querySelectorAll('.btn-topic');
@@ -138,13 +163,12 @@ var TD = (typeof window!=='undefined'?(window.TD=window.TD||{}):(global.TD=globa
       var xp = (save.topicXp && save.topicXp[id]) || 0;
       var lv = TD.engine.levelOf(xp, c);
       tiles[i].textContent = '';
-      if (TD.avatar && TD.avatar.topic) tiles[i].appendChild(TD.avatar.topic(id, 44));
-      var nm = el('div', { text: label(id) }); nm.style.fontSize = '15px';
-      var sub = el('div', { class: 'small', text: 'Lv ' + lv + ' · ' + xp + ' XP' });
-      sub.style.cssText = 'font-size:12px;font-weight:700;color:#6d5bd0';
-      tiles[i].appendChild(nm); tiles[i].appendChild(sub);
-      var sel = id === save.picked;
-      tiles[i].classList.toggle('sel', sel);
+      var tic = el('div', { class: 'hc-tic' });
+      if (TD.avatar && TD.avatar.topic) tic.appendChild(TD.avatar.topic(id, 40));
+      tiles[i].appendChild(tic);
+      tiles[i].appendChild(el('div', { class: 'hc-tnm', text: label(id) }));
+      tiles[i].appendChild(el('div', { class: 'small hc-tlv', text: 'Lv ' + lv + ' · ' + xp + ' XP' }));
+      tiles[i].classList.toggle('sel', id === save.picked);
     }
     var rv = ui.rivalOf(save.rivalStep);
     var av = $('home-rival-av');
