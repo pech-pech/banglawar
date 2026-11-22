@@ -42,7 +42,8 @@ const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.
     await page.evaluate(() => localStorage.clear());
     await page.reload(); await home();
 
-    // --- home layout
+    // --- home layout (measure with a middle topic selected so both neighbours exist)
+    if (desktop) { await page.click('#btn-topic-next').catch(() => {}); await sleep(500); }
     const m = await page.evaluate(() => {
       const s = document.querySelector('#scr-home'), d = document.documentElement;
       const R = e => { const x = document.querySelector(e); return x ? x.getBoundingClientRect() : null; };
@@ -56,6 +57,7 @@ const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.
         dw: d.scrollWidth, iw: innerWidth, pcx: pc && pc.left, pcr: pc && pc.right, whx: wh && wh.left, whr: wh && wh.right, pcw: pc && pc.width, vis, wv,
         picked: TD.ui.save.picked };
     });
+    if (desktop) { await page.click('#btn-topic-prev').catch(() => {}); await sleep(400); }
     ok(m.sh <= m.ch + 1 && m.dh <= m.ih + 1 && m.bh <= m.ih + 1, tag + ' home no vertical scroll ' + JSON.stringify({ sh: m.sh, ch: m.ch, dh: m.dh, ih: m.ih, bh: m.bh }));
     ok(m.dw <= m.iw + 1, tag + ' home no horizontal overflow');
     if (desktop) {

@@ -127,3 +127,22 @@
   #scr-home .hc-pill button,#scr-home #btn-mode-movie,#scr-home #btn-mode-book{font-size:13px;gap:4px}
   #scr-home .hc-duel,#scr-home #btn-play.hc-duel{font-size:28px}
 }
+
+/* QA fixes (phone/tablet-portrait only) */
+@media (max-width:899px),(max-aspect-ratio:1/1){
+  /* D2: spread content over tall screens */
+  #scr-home.hc-home{justify-content:space-between}
+}
+@media (min-height:760px) and (max-width:899px){
+  #scr-home.hc-home{padding-top:calc(max(14px,2.5vh) + var(--sat,0px));padding-bottom:calc(max(14px,3vh) + var(--sab,0px))}
+}
+@media (max-width:360px){
+  /* D1: next arrow clear of peek tile; D3: corner clear of avatar ring */
+  #scr-home .hc-arrow{width:34px;height:34px;min-width:34px;min-height:34px;font-size:22px;margin-top:-20px;padding:0 0 3px}
+  #scr-home .hc-prev{left:2px}
+  #scr-home .hc-next{right:2px}
+  #scr-home #topic-row.hc-wheel{padding-left:calc(50% - 75px);padding-right:calc(50% - 75px)}
+  #scr-home .hc-wi,#scr-home .btn.btn-topic.hc-wi{width:min(150px,40vw)}
+  #scr-home .hc-pcard{padding:12px 14px 8px}
+  #scr-home .hc-corner,#scr-home .hc-corner .hc-ico{width:18px;height:18px}
+}
