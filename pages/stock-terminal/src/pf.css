@@ -1,0 +1,6 @@
+/* pf- : point and figure drawing + signal chips */
+.chip.pf-trap{border-color:var(--warn);color:var(--warn)}
+.chip.pf-trap::before{content:"\26A0";font-size:11px}
+.chip.fresh.buy::before{content:"\25B2";font-size:9px}
+.chip.fresh.sell::before{content:"\25BC";font-size:9px}
+#pf,.pf-svg{display:block;max-width:100%;font-variant-numeric:tabular-nums}

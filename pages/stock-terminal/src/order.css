@@ -1,0 +1,29 @@
+/* order sheet (od-). Placement lives in base.css. */
+.od-wrap{display:flex;flex-direction:column;min-height:100%}
+.od-body{flex:1;display:flex;flex-direction:column;gap:6px;min-height:0}
+.od-title{font-size:16px;line-height:24px}
+.od-fr{display:flex;align-items:center;gap:8px}
+.od-k{flex:none;width:34px;font-size:12px;color:var(--dim)}
+.od-fr>.seg,.od-stp,.od-chips{flex:1;min-width:0}
+.od-wrap .seg>button{height:48px;white-space:nowrap;padding:0 2px;font-size:14px}
+.od-wrap .seg>button.on{background:rgba(61,139,253,.16);box-shadow:inset 0 0 0 1px var(--x)}
+.od-line{font-size:12px;line-height:16px}
+.od-line.ok{color:var(--accent)} .od-line.warn{color:var(--warn)}
+.od-sm{font-size:11px}
+.od-stp{display:flex;gap:8px}
+.od-stp .btn{flex:none;width:56px;height:48px;padding:0;font-size:22px;line-height:1}
+.od-qty{flex:1;text-align:center;font-size:20px;font-weight:700;height:48px;line-height:46px;border:1px solid var(--line);border-radius:var(--r);background:var(--bg)}
+.od-chips{display:flex;gap:8px}
+.od-chips button{flex:1;height:48px;border-radius:var(--r);border:1px solid var(--line);background:var(--surface2);color:var(--text);font:600 14px var(--sans)}
+.od-est .row{padding:0;min-height:30px;align-items:center;font-size:14px}
+.od-msg{flex:0 0 100%;font-size:13px;font-weight:600}
+.od-msg:empty{display:none}
+.od-bar{flex-wrap:wrap;position:sticky;bottom:0;margin:6px -12px -12px;padding:8px 12px 12px;background:var(--surface)}
+.od-bar .btn{height:52px}
+.od-bar .btn.outline,.od-bar .btn.primary{flex:1}
+/* integrator: wide side panel at 568 tall must show every row above the sticky bar */
+body[data-layout=wide] .od-body{gap:4px}
+body[data-layout=wide] .od-title{font-size:15px;line-height:20px}
+body[data-layout=wide] .od-est .row{min-height:22px;font-size:13px}
+body[data-layout=wide] .od-line{font-size:11px;line-height:14px}
+body[data-layout=wide] .od-bar{margin-top:4px;padding-top:6px;padding-bottom:8px}

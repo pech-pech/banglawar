@@ -3,7 +3,8 @@
 import os, sys
 H = os.path.dirname(os.path.abspath(__file__))
 OUT = os.path.join(H, '..', 'index.html')
-SCRIPTS = ['core.js', 'data.js', 'pnf.js', 'game.js', 'bots.js', 'ui.js', 'tweak.js', 'main.js']
+SCRIPTS = ['core.js', 'data.js', 'pnf.js', 'evcalc.js', 'evidence.js', 'game.js', 'bots.js', 'ui.js', 'pfsvg.js', 'panes.js', 'dash.js', 'chart.js', 'order.js', 'week.js', 'review.js', 'journal.js', 'tweak.js', 'main.js']
+STYLES = ['pro.css', 'base.css', 'pf.css', 'panes.css', 'dash.css', 'chart.css', 'order.css', 'week.css', 'review.css', 'journal.css', 'tweak.css']
 def rd(n):
     p = os.path.join(H, n)
     if not os.path.isfile(p):
@@ -12,9 +13,9 @@ def rd(n):
 shell = rd('shell.html')
 for m in ('<!--STYLE-->', '<!--SCRIPTS-->'):
     if m not in shell: sys.exit('shell.html lacks marker ' + m)
-style = '<style>\n' + rd('style.css') + '\n</style>'
+style = '<style>\n' + '\n'.join(rd(n) for n in STYLES) + '\n</style>'
 scripts = '\n'.join('<script>\n' + rd(n).replace('</script', '<\\/script') + '\n</script>' for n in SCRIPTS)
-head = ('<link rel="manifest" href="manifest.webmanifest">\n<meta name="theme-color" content="#0e1319">\n'
+head = ('<link rel="manifest" href="manifest.webmanifest">\n<meta name="theme-color" content="#0b0e14">\n'
         '<link rel="icon" href="icon-192.png">\n<link rel="apple-touch-icon" href="icon-192.png">\n')
 sw = ('<script>if("serviceWorker"in navigator)addEventListener("load",function(){'
       'navigator.serviceWorker.register("sw.js").catch(function(){})});</script>\n')

@@ -33,7 +33,7 @@ async function loadData(){
       }
       series.push({id:s.id,k:s.k,f:s.f,bars});
     }
-    DATA={nW:j.nW,series};_covN=-1;_covS=null;
+    DATA={nW:j.nW,series,ev:j.ev||null};_covN=-1;_covS=null;
   }catch(e){DATA=null}
 }
 function dataSource(){return(T.dataSrc===1&&DATA)?"real":"standin"}

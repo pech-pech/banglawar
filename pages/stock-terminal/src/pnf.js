@@ -70,3 +70,17 @@ function pfText(i,opt){
     if(W>=k1.length)out+="\n"+fit(k1);else if(W>=k2.length)out+="\n"+fit(k2);
     else out+="\n"+fit("BT=bull trap")+"\n"+fit("bt=bear trap")}
   return out}
+/* ---------- signal info (UI v2) ---------- */
+function sigInfo(cols){ // {name|null,buy,dir,col,age,fresh,reversed,trap}
+  const none={name:null,buy:false,dir:0,col:null,age:null,fresh:false,reversed:false,trap:null};
+  if(!cols||!cols.length)return none;
+  const s=pnfSignal(cols);if(!s)return none;
+  const n=cols.length,age=n-1-s.col,ref=cols[s.col-2];let reversed=false;
+  for(let j=s.col+1;j<n;j++){const c=cols[j];
+    if(s.buy&&c.d===-1&&ref&&c.lo<=ref.hi)reversed=true;
+    if(!s.buy&&c.d===1&&ref&&c.hi>=ref.lo)reversed=true}
+  const t=pnfTraps(cols).find(x=>x.col===s.col),trap=t?t.kind:null;
+  return{name:s.name,buy:s.buy,dir:s.buy?1:-1,col:s.col,age,fresh:age<=1&&!reversed,reversed,trap}}
+function sigLabel(name){
+  if(!name)return"No signal";
+  const t=String(name).toLowerCase().replace(/-/g," ");return t.charAt(0).toUpperCase()+t.slice(1)}
