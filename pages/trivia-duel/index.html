@@ -486,6 +486,347 @@ canvas{display:block;border-radius:50%;flex:none}
 .btn-ans{max-height:88px}
 @media (min-height:760px){#q-text{flex:1 1 auto}}
 
+/* home.css - Candle Duel home redesign (td-home-1). Loaded LAST. All rules scoped #scr-home / hc- to beat base specificity. */
+#scr-home.hc-home{background:#2b1d6b var(--hc-bg) center top/cover no-repeat;gap:6px;
+  padding:calc(8px + var(--sat,0px)) 12px calc(6px + var(--sab,0px));overflow:hidden}
+#scr-home .hc-ico{display:block;flex:none;object-fit:contain;pointer-events:none}
+#scr-home .hc-ico-fb{display:inline-grid;place-items:center;font-weight:900;line-height:1;color:#ffd23f;text-align:center}
+
+/* head */
+#scr-home .hc-head{display:flex;align-items:center;gap:10px;flex:none}
+#scr-home .hc-emblem{width:40px;height:40px;flex:none;border-radius:50%;background:#1b1245;border:2.5px solid #ffd23f;display:grid;place-items:center}
+#scr-home h1.hc-title{flex:1;margin:0;font-size:28px;font-weight:900;color:#ffd23f;line-height:1;text-align:left;
+  text-shadow:0 2px 0 #7a4b00,0 0 14px rgba(255,210,63,.45)}
+#scr-home button.hc-gear,#scr-home #btn-settings.hc-gear{width:42px;height:42px;min-width:42px;min-height:42px;padding:0;border-radius:13px;
+  border:2px solid #ffd23f;background:#1b1245;display:grid;place-items:center;box-shadow:0 3px 0 #0e0a2a;margin:0;flex:none;color:#ffd23f;font-size:22px}
+#scr-home #btn-settings.hc-gear:active{transform:translateY(2px);box-shadow:0 1px 0 #0e0a2a}
+
+/* cards */
+#scr-home .hc-card{background:#3a2a8a;border-radius:16px;padding:7px 10px;display:flex;flex-direction:column;gap:5px;color:#fff;flex:none;box-shadow:none}
+#scr-home .hc-pcard{position:relative;border-radius:18px;padding:8px 14px 6px;border:2px solid #ffd23f;gap:5px;
+  box-shadow:inset 0 0 0 3px #3a2a8a,inset 0 0 0 4.5px rgba(255,210,63,.65),0 0 14px rgba(255,210,63,.25)}
+#scr-home .hc-corner{position:absolute;width:22px;height:22px;display:block;pointer-events:none;line-height:0}
+#scr-home .hc-corner .hc-ico{width:22px;height:22px}
+#scr-home .hc-c-tl{top:-2px;left:-2px}
+#scr-home .hc-c-tr{top:-2px;right:-2px;transform:rotate(90deg)}
+#scr-home .hc-c-br{bottom:-2px;right:-2px;transform:rotate(180deg)}
+#scr-home .hc-c-bl{bottom:-2px;left:-2px;transform:rotate(270deg)}
+#scr-home .hc-prow{display:flex;align-items:center;gap:10px}
+#scr-home .hc-pav{width:58px;height:58px;border-radius:50%;flex:none;overflow:hidden;border:3px solid #ffd23f;box-shadow:0 0 0 2px #1b1245;
+  background:radial-gradient(circle at 50% 35%,#6a55c8,#2b1d6b);display:grid;place-items:center}
+#scr-home .hc-pav img,#scr-home .hc-pav svg,#scr-home .hc-pav canvas{width:100%;height:100%;display:block;object-fit:cover;border-radius:50%}
+#scr-home #in-name{flex:1;min-width:0;height:42px;border-radius:12px;border:0;padding:0 12px;font:700 18px system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  color:#1c1540;background:#fff;box-shadow:inset 0 -3px 0 #d6d0f0;outline:0;margin:0}
+#scr-home #in-name::placeholder{color:#8f87c4}
+#scr-home #in-name:focus{box-shadow:inset 0 -3px 0 #d6d0f0,0 0 0 3px #ffd23f}
+#scr-home .hc-gender,#scr-home #btn-gender{width:44px;height:44px;min-width:44px;min-height:44px;padding:0;border-radius:50%;border:0;background:#fff;
+  display:grid;place-items:center;flex:none;box-shadow:0 4px 0 #b9b2e0;margin:0 0 4px;position:relative}
+#scr-home .hc-gender:active{transform:translateY(3px);box-shadow:0 1px 0 #b9b2e0}
+#scr-home .hc-gender[data-g=g]{box-shadow:0 4px 0 #d98ab5}
+#scr-home .hc-gender .hc-ico{width:40px;height:40px}
+#scr-home .hc-gender .hc-ico-fb{color:#3b7bff;font-size:24px}
+#scr-home .hc-gender[data-g=g] .hc-ico-fb{color:#e0579f}
+
+/* seals */
+#scr-home .hc-seals{display:flex;align-items:center;gap:10px;min-height:34px}
+#scr-home .hc-seals>span{font-size:12px;font-weight:700;color:#cfc8ff;margin-right:2px}
+#scr-home .hc-gem,#scr-home .swatch.hc-gem{width:34px;height:34px;min-width:34px;padding:0;border:0;border-radius:50%;background:transparent;box-shadow:none;
+  flex:none;display:grid;place-items:center;cursor:pointer;margin:0}
+#scr-home .hc-gem .hc-ico{width:34px;height:34px}
+#scr-home .hc-gem .hc-ico-fb{font-size:26px}
+#scr-home .hc-gem.sel,#scr-home .swatch.hc-gem.sel{outline:3px solid #ffd23f;outline-offset:1px;box-shadow:0 0 10px rgba(255,210,63,.6)}
+#scr-home .hc-gem[data-i="0"] .hc-ico-fb{color:#3b7bff}
+#scr-home .hc-gem[data-i="1"] .hc-ico-fb{color:#2fb5a8}
+#scr-home .hc-gem[data-i="2"] .hc-ico-fb{color:#8a4fff}
+#scr-home .hc-gem[data-i="3"] .hc-ico-fb{color:#3fbf5f}
+
+/* mode pill + stepper */
+#scr-home .hc-pill{display:flex;border-radius:14px;background:#1b1245;padding:3px;gap:3px}
+#scr-home .hc-pill button,#scr-home #btn-mode-movie,#scr-home #btn-mode-book{flex:1 1 0;min-height:0;height:36px;padding:0 6px;border:0;border-radius:11px;
+  font:800 15px system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;display:flex;align-items:center;justify-content:center;gap:6px;
+  background:#fff;color:#1c1540;box-shadow:0 4px 0 #b9b2e0;margin:0 0 3px;--lip:#b9b2e0;text-shadow:none;outline:0}
+#scr-home .hc-pill button:active{transform:translateY(3px);box-shadow:0 1px 0 #b9b2e0}
+#scr-home .hc-pill button.on,#scr-home #btn-mode-movie.on,#scr-home #btn-mode-book.on,
+#scr-home #btn-mode-movie.sel,#scr-home #btn-mode-book.sel{background:#3b7bff;color:#fff;box-shadow:0 4px 0 #1f4fb8;--lip:#1f4fb8;outline:0}
+#scr-home .hc-pill .hc-ico{width:20px;height:20px}
+#scr-home .hc-pill button.on .hc-ico-fb{color:#fff}
+#scr-home .hc-step{display:flex;align-items:center;gap:10px}
+#scr-home .hc-step>span{flex:1;font-size:14px;font-weight:700;color:#fff}
+#scr-home .hc-step button,#scr-home #btn-rt-minus,#scr-home #btn-rt-plus{width:38px;height:36px;min-width:38px;min-height:0;padding:0;border-radius:11px;border:0;
+  background:#fff;color:#1c1540;display:grid;place-items:center;box-shadow:0 4px 0 #b9b2e0;margin:0 0 3px;flex:none}
+#scr-home .hc-step button:active{transform:translateY(3px);box-shadow:0 1px 0 #b9b2e0}
+#scr-home .hc-step .hc-ico{width:36px;height:36px}
+#scr-home .hc-step .hc-ico-fb{color:#1c1540;font-size:22px}
+#scr-home #in-readto{width:44px;height:34px;min-width:0;padding:0;border:0;border-radius:10px;background:#fff;color:#1c1540;text-align:center;
+  font:800 19px/34px system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;box-shadow:inset 0 -3px 0 #d6d0f0;outline:0;flex:none;margin:0}
+
+/* topics: horizontal wheel */
+#scr-home .hc-wheelwrap{position:relative;flex:none}
+#scr-home #topic-row.hc-wheel{display:flex;flex-direction:row;align-items:center;gap:6px;overflow-x:auto;overflow-y:hidden;
+  scroll-snap-type:x mandatory;scrollbar-width:none;-ms-overflow-style:none;-webkit-overflow-scrolling:touch;overscroll-behavior-x:contain;
+  touch-action:pan-x;padding:9px calc(50% - 75px) 4px;margin:0;height:127px;box-sizing:border-box}
+#scr-home #topic-row.hc-wheel::-webkit-scrollbar{display:none}
+#scr-home .hc-wi,#scr-home .btn.btn-topic.hc-wi{flex:none;width:150px;height:112px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
+  scroll-snap-align:center;scroll-snap-stop:always;min-height:0;min-width:0;padding:6px 4px 5px;border:0;border-radius:16px;background:#fff;color:#1c1540;
+  font-weight:800;position:relative;margin:0 0 5px;--lip:#b9b2e0;box-shadow:0 5px 0 var(--lip);overflow:visible;
+  transform:scale(.74);opacity:.55;transition:transform .18s,opacity .18s,box-shadow .18s}
+#scr-home .hc-wi[data-topic=general]{--lip:#ffd23f}
+#scr-home .hc-wi[data-topic=spells]{--lip:#8a4fff}
+#scr-home .hc-wi[data-topic=creatures]{--lip:#3fbf5f}
+#scr-home .hc-wi[data-topic=places]{--lip:#2fb5a8}
+#scr-home .hc-wi[data-topic=people]{--lip:#e0574f}
+#scr-home .hc-wi[data-topic=objects]{--lip:#e09a1f}
+#scr-home .hc-wi[data-topic=school]{--lip:#3f7be0}
+#scr-home .hc-wi[data-topic=plot]{--lip:#c44fd0}
+#scr-home .hc-wi.sel,#scr-home .btn.btn-topic.hc-wi.sel{transform:scale(1);opacity:1;background:#fff8dc;outline:3px solid #ffd23f;outline-offset:1px;
+  box-shadow:0 5px 0 var(--lip),0 0 16px 4px rgba(255,210,63,.75)}
+#scr-home .hc-tic{width:56px;height:56px;display:grid;place-items:center;flex:none;line-height:0}
+#scr-home .hc-tic img,#scr-home .hc-tic svg,#scr-home .hc-tic canvas,#scr-home .hc-tic>*{width:56px!important;height:56px!important;border-radius:12px;display:block}
+#scr-home .hc-tnm{font-size:15px;line-height:1.1;font-weight:800;text-align:center;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#scr-home .hc-tlv{font-size:11px;font-weight:700;color:#6d5bd0;line-height:1}
+#scr-home .hc-arrow{position:absolute;top:50%;margin-top:-26px;width:46px;height:46px;min-width:44px;min-height:44px;padding:0 0 4px;border-radius:50%;border:2px solid #ffd23f;
+  background:rgba(27,18,69,.88);color:#ffd23f;font:900 32px/1 system-ui,sans-serif;display:grid;place-items:center;z-index:2;box-shadow:0 3px 0 #0e0a2a;cursor:pointer}
+#scr-home .hc-arrow:active{transform:translateY(2px);box-shadow:0 1px 0 #0e0a2a}
+#scr-home .hc-prev{left:0}
+#scr-home .hc-next{right:0}
+#scr-home .hc-dots{display:flex;justify-content:center;gap:7px;flex:none;margin-top:-4px}
+#scr-home .hc-dot{width:8px;height:8px;border-radius:50%;background:rgba(207,200,255,.4)}
+#scr-home .hc-dot.on{background:#ffd23f;box-shadow:0 0 6px rgba(255,210,63,.8)}
+
+/* rival stays as-is; keep it from shrinking */
+#scr-home #home-rival{flex:none}
+#scr-home #home-warn{margin:0}
+
+/* duel row */
+#scr-home .hc-duelrow{display:flex;align-items:center;gap:8px;margin-top:2px;flex:none}
+#scr-home .hc-duelrow>.hc-ico,#scr-home .hc-duelrow>.hc-ico-fb{width:28px;height:28px;font-size:24px}
+#scr-home .hc-duel,#scr-home #btn-play.hc-duel{flex:1;width:auto;min-height:56px;height:58px;padding:0 10px;border:0;border-radius:18px;
+  background:#ff7a1a;color:#fff;font:900 32px system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;letter-spacing:.08em;text-transform:uppercase;
+  text-shadow:0 2px 0 rgba(0,0,0,.18);--lip:#b8500a;box-shadow:0 6px 0 #b8500a;margin:0 0 6px;align-self:auto}
+#scr-home .hc-duel:active,#scr-home #btn-play.hc-duel:active{transform:translateY(4px);box-shadow:0 2px 0 #b8500a}
+#scr-home .hc-build,#scr-home #home-build.hc-build{font-size:11px;color:#cfc8ff;text-align:center;opacity:.8;flex:none}
+
+/* narrow (Fold outer 344) */
+@media (max-width:360px){
+  #scr-home.hc-home{padding-left:8px;padding-right:8px;gap:5px}
+  #scr-home h1.hc-title{font-size:25px}
+  #scr-home .hc-pcard{padding:8px 10px 6px}
+  #scr-home .hc-pav{width:56px;height:56px}
+  #scr-home .hc-pill button,#scr-home #btn-mode-movie,#scr-home #btn-mode-book{font-size:13px;gap:4px}
+  #scr-home .hc-duel,#scr-home #btn-play.hc-duel{font-size:28px}
+}
+
+/* QA fixes (phone/tablet-portrait only) */
+@media (max-width:899px),(max-aspect-ratio:1/1){
+  /* D2: spread content over tall screens */
+  #scr-home.hc-home{justify-content:space-between}
+}
+@media (min-height:760px) and (max-width:899px){
+  #scr-home.hc-home{padding-top:calc(max(14px,2.5vh) + var(--sat,0px));padding-bottom:calc(max(14px,3vh) + var(--sab,0px))}
+}
+@media (max-width:360px){
+  /* D1: next arrow clear of peek tile; D3: corner clear of avatar ring */
+  #scr-home .hc-arrow{width:34px;height:34px;min-width:34px;min-height:34px;font-size:22px;margin-top:-20px;padding:0 0 3px}
+  #scr-home .hc-prev{left:2px}
+  #scr-home .hc-next{right:2px}
+  #scr-home #topic-row.hc-wheel{padding-left:calc(50% - 75px);padding-right:calc(50% - 75px)}
+  #scr-home .hc-wi,#scr-home .btn.btn-topic.hc-wi{width:min(150px,40vw)}
+  #scr-home .hc-pcard{padding:12px 14px 8px}
+  #scr-home .hc-corner,#scr-home .hc-corner .hc-ico{width:18px;height:18px}
+}
+
+/* duel-tall.css: phone / tablet-portrait duel fixes (D4 tall question card, D5 VS name vs sparkle). Never affects >=900px landscape. */
+@media (max-width:899px),(max-aspect-ratio:1/1){
+  #scr-duel #q-text{flex:0 1 auto;min-height:0;max-height:34vh}
+  #scr-duel #q-text .qb{flex:1 1 auto}
+  #scr-duel #ans-wrap{flex:0 1 auto;justify-content:center;margin-top:10px}
+  #scr-duel.active{justify-content:center}
+  #scr-vs .vs-name{font-size:clamp(18px,5vw,26px)}
+  #scr-vs .vs-bg{z-index:0}
+  #scr-vs .vs-p{z-index:3}
+}
+
+/* desktop-home.css: wide landscape only (ADDENDUM D). Phone layout untouched below 900px. */
+@media (min-width:900px) and (min-aspect-ratio:1/1){
+  #app{max-width:1200px}
+  /* full-viewport background: home screen breaks out of #app, content re-centred */
+  #scr-home.hc-home{position:fixed;inset:0;display:none;overflow:hidden;
+    padding:calc(14px + var(--sat,0px)) max(28px,calc((100vw - 1320px)/2)) calc(12px + var(--sab,0px));
+    background-size:cover;background-position:center}
+  #scr-home.hc-home.active{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);
+    grid-template-rows:auto auto auto auto auto auto auto;column-gap:32px;row-gap:16px;align-content:center;font-size:1.15em}
+  #scr-home .hc-head{grid-column:1/-1;grid-row:1;gap:14px}
+  #scr-home .hc-emblem{width:52px;height:52px}
+  #scr-home h1.hc-title{font-size:40px}
+  #scr-home button.hc-gear,#scr-home #btn-settings.hc-gear{width:52px;height:52px;min-width:52px;min-height:52px}
+  #scr-home .hc-pcard{grid-column:1;grid-row:2/4;align-self:stretch;justify-content:center;padding:16px 20px 12px;gap:12px}
+  #scr-home .hc-mode{grid-column:1;grid-row:4/7;align-self:start;padding:14px 20px;gap:12px}
+  #scr-home .hc-wheelwrap{grid-column:2;grid-row:2/4}
+  #scr-home .hc-dots{grid-column:2;grid-row:4;margin-top:0}
+  #scr-home #home-rival{grid-column:2;grid-row:5;align-self:start}
+  #scr-home .hc-duelrow{grid-column:2;grid-row:6;align-self:start;margin-top:4px}
+  #scr-home #home-warn{grid-column:2;grid-row:5}
+  #scr-home .hc-build,#scr-home #home-build.hc-build{grid-column:2;grid-row:7;text-align:right;font-size:12px}
+  #scr-home .hc-keyhint{grid-column:1;grid-row:7;text-align:left;font-size:13px;color:#cfc8ff;opacity:.85;display:block}
+
+  /* bigger type + controls */
+  #scr-home .hc-pav{width:80px;height:80px}
+  #scr-home #in-name{height:52px;font-size:22px}
+  #scr-home .hc-gender,#scr-home #btn-gender{width:54px;height:54px;min-width:54px;min-height:54px}
+  #scr-home .hc-gender .hc-ico{width:48px;height:48px}
+  #scr-home .hc-seals>span{font-size:15px}
+  #scr-home .hc-gem,#scr-home .swatch.hc-gem{width:42px;height:42px;min-width:42px}
+  #scr-home .hc-gem .hc-ico{width:42px;height:42px}
+  #scr-home .hc-pill button,#scr-home #btn-mode-movie,#scr-home #btn-mode-book{height:46px;font-size:17px;padding-left:8px;padding-right:8px}
+  #scr-home .hc-step>span{font-size:17px;white-space:nowrap}
+  #scr-home .hc-pill button,#scr-home #btn-mode-movie,#scr-home #btn-mode-book{white-space:nowrap}
+  #scr-home .hc-step button,#scr-home #btn-rt-minus,#scr-home #btn-rt-plus{width:46px;height:44px;min-width:46px}
+  #scr-home #in-readto{width:54px;height:42px;font-size:22px;line-height:42px}
+
+  /* wheel: 3 full items, arrows in side gutters outside the cards */
+  #scr-home{--wiw:128px}
+  @media (max-width:1199px){#scr-home{--wiw:112px}}
+  #scr-home .hc-wheelwrap{display:flex;align-items:center;padding:0 56px}
+  #scr-home #topic-row.hc-wheel{width:100%;height:100%;min-height:230px;gap:6px;padding:22px calc(50% - var(--wiw)/2) 12px}
+  #scr-home .hc-wi,#scr-home .btn.btn-topic.hc-wi{width:var(--wiw);height:176px;transform:scale(.82);opacity:.7;gap:6px;border-radius:20px}
+  #scr-home .hc-wi.sel,#scr-home .btn.btn-topic.hc-wi.sel{transform:scale(1);opacity:1}
+  #scr-home .hc-tic{width:68px;height:68px}
+  #scr-home .hc-tic img,#scr-home .hc-tic svg,#scr-home .hc-tic canvas,#scr-home .hc-tic>*{width:68px!important;height:68px!important}
+  #scr-home .hc-tnm{font-size:18px}
+  #scr-home .hc-tlv{font-size:14px}
+  #scr-home .hc-arrow{width:50px;height:50px;margin-top:-26px;font-size:34px}
+  #scr-home .hc-prev{left:0}#scr-home .hc-next{right:0}
+  #scr-home .hc-dot{width:10px;height:10px}
+  #scr-home #home-rival{font-size:20px}
+  #scr-home .hc-duel,#scr-home #btn-play.hc-duel{height:72px;min-height:72px;font-size:40px}
+  #scr-home .hc-duelrow>.hc-ico,#scr-home .hc-duelrow>.hc-ico-fb{width:40px;height:40px}
+
+  /* hover / focus */
+  #scr-home button,#scr-home .hc-gem,#scr-home .swatch{cursor:pointer}
+  #scr-home .hc-gender,#scr-home #btn-gender,#scr-home .hc-pill button,#scr-home .hc-step button,#scr-home .hc-gem,
+  #scr-home .hc-wi,#scr-home .hc-arrow,#scr-home .hc-gear,#scr-home .hc-duel{transition:transform .12s,filter .12s}
+  #scr-home .hc-gender:hover,#scr-home .hc-pill button:hover,#scr-home .hc-step button:hover,#scr-home .hc-gem:hover,
+  #scr-home .hc-arrow:hover,#scr-home .hc-gear:hover,#scr-home .hc-duel:hover{transform:translateY(-2px);filter:brightness(1.1)}
+  #scr-home .hc-wi:hover{transform:scale(.9) translateY(-2px);opacity:1;filter:brightness(1.05)}
+  #scr-home .hc-wi.sel:hover{transform:scale(1) translateY(-2px)}
+  #scr-home .hc-gender:active,#scr-home .hc-pill button:active,#scr-home .hc-step button:active,#scr-home .hc-arrow:active,#scr-home .hc-duel:active{transform:translateY(2px)}
+  #scr-home button:focus-visible,#scr-home .hc-gem:focus-visible{outline:3px solid #ffd23f;outline-offset:3px}
+  @media (min-width:1700px) and (min-height:950px){#scr-home.hc-home.active{zoom:1.45;padding-left:max(24px,calc((100vw/1.45 - 1060px)/2));padding-right:max(24px,calc((100vw/1.45 - 1060px)/2))}}
+}
+@media not all and (min-width:900px) and (min-aspect-ratio:1/1){.hc-keyhint{display:none}}
+
+/* desktop-duel.css: VS / duel / wager / result on wide landscape only (ADDENDUM D). Phone untouched. */
+@media (min-width:900px) and (min-aspect-ratio:1/1){
+  /* shared centred stage (~980px) */
+  #scr-duel,#scr-wager,#scr-result{padding-left:max(24px,calc((100% - 980px)/2));padding-right:max(24px,calc((100% - 980px)/2))}
+  #scr-duel button,#scr-wager button,#scr-result button{cursor:pointer;transition:transform .12s,filter .12s,box-shadow .12s}
+  #scr-duel button:focus-visible,#scr-wager button:focus-visible,#scr-result button:focus-visible{outline:3px solid var(--gold,#ffd23f);outline-offset:3px}
+
+  /* ---- VS intro: full-bleed, big avatars, centred badge ---- */
+  #scr-vs{position:fixed;inset:0;z-index:5}
+  #scr-vs .vs-p{max-width:40%}
+  #scr-vs .vs-p.vs-l{left:12%;top:12%}
+  #scr-vs .vs-p.vs-r{right:12%;bottom:22%}
+  #scr-vs .vs-p .av{width:min(240px,30vh)!important;height:min(240px,30vh)!important;border-width:8px;font-size:84px}
+  #scr-vs .vs-p .av>img{width:100%;height:100%}
+  #scr-vs .vs-name{font-size:clamp(30px,4.2vh,44px)}
+  #scr-vs .vs-lv{font-size:20px;padding:4px 16px}
+  #scr-vs .vs-badge{left:50%;top:50%;width:min(170px,22vh);height:min(170px,22vh);font-size:min(84px,11vh);border-width:8px}
+  #scr-vs .vs-topic{bottom:5vh}
+  #scr-vs .vs-topic-lbl{font-size:18px}
+  #scr-vs .vs-topic-chip{font-size:22px;padding:10px 26px}
+
+  /* ---- duel ---- */
+  #scr-duel{gap:12px;padding-top:14px;padding-bottom:10px}
+  #scr-duel::before{width:100%;height:100%;aspect-ratio:auto;top:50%}
+  #scr-duel .hdr{min-height:0;align-items:center;gap:20px}
+  #scr-duel .hdr .side{width:auto;min-width:200px;flex-direction:row;flex-wrap:wrap;align-items:center;justify-content:flex-start;column-gap:14px;row-gap:0}
+  #scr-duel .hdr .side.r{flex-direction:row-reverse;justify-content:flex-start}
+  #scr-duel .hdr .av-slot{grid-row:1/3}
+  #scr-duel .hdr .av{width:68px!important;height:68px!important;font-size:24px}
+  #scr-duel .hdr .nm{font-size:18px;max-width:180px;flex:1 1 100px;margin:0}
+  #scr-duel .hdr .side.l .nm{order:2;text-align:left}
+  #scr-duel .hdr .side.r .nm{text-align:right}
+  #scr-duel .hdr .sc{font-size:46px;order:3}
+  #scr-duel .hdr .side.l{display:grid;grid-template-columns:auto auto;grid-template-rows:auto auto;column-gap:14px;justify-items:start;align-items:center}
+  #scr-duel .hdr .side.r{display:grid;grid-template-columns:auto auto;grid-template-rows:auto auto;column-gap:14px;justify-items:end;align-items:center;direction:rtl}
+  #scr-duel .hdr .side.r>*{direction:ltr}
+  #scr-duel .hdr .side .av-slot{grid-column:1;grid-row:1/3}
+  #scr-duel .hdr .side .nm{grid-column:2;grid-row:1;align-self:end;max-width:200px}
+  #scr-duel .hdr .side .sc{grid-column:2;grid-row:2;align-self:start;justify-self:start;order:0}
+  #scr-duel .hdr .side.r .sc{justify-self:end}
+  #scr-duel .hdr .side.r .nm{justify-self:end}
+  #scr-duel .hdr .side .pop{top:0;font-size:26px}
+  #scr-duel .hdr .side.l .pop{right:auto;left:150px}
+  #scr-duel .hdr .side.r .pop{left:auto;right:150px}
+  #scr-duel .chip-answered{top:auto;bottom:-6px;font-size:13px;padding:3px 10px}
+  #scr-duel .hdr .mid{gap:6px}
+  #scr-duel .rnd{font-size:26px;padding:6px 22px}
+  #scr-duel .topic{font-size:15px}
+  #scr-duel .tm{width:100%}
+  #scr-duel #timer-bar{height:30px;border-radius:15px}
+  #scr-duel #timer-fill{border-radius:15px}
+  #scr-duel #timer-num{width:56px;min-width:56px;height:56px;font-size:28px;margin-left:-40px}
+  #scr-duel #q-text{font-size:36px;line-height:1.22;min-height:0;flex:1 1 auto;padding:12px 28px 16px;border-radius:24px}
+  #scr-duel #q-text.long{font-size:30px}
+  #scr-duel #q-text .t{font-size:14px}
+  #scr-duel #q-text .qh-lbl{font-size:13px}
+  #scr-duel #q-text .qh-topic>*:first-child{width:28px;height:28px}
+  #scr-duel #ans-wrap{display:grid;grid-template-columns:1fr 1fr;grid-auto-rows:minmax(96px,auto);gap:14px;flex:none}
+  #scr-duel .btn-ans{max-height:none;min-height:96px;font-size:28px;padding:8px 22px 8px 22px;border-left-width:14px;border-radius:16px}
+  #scr-duel .btn-ans .mark-p,#scr-duel .btn-ans .mark-r{width:36px;height:36px}
+  #scr-duel.has-fact .btn-ans{min-height:78px}
+  #scr-duel.has-fact #q-text{font-size:26px;padding:8px 24px 10px;min-height:0}
+  #scr-duel.has-fact .tm{display:flex}
+  #scr-duel .q-fact{font-size:18px;padding:10px 18px;max-height:none}
+  #scr-duel .btn-next{width:auto;align-self:center;min-width:320px;min-height:56px;font-size:20px}
+  #scr-duel .btn-ans:hover:not([disabled]){transform:translateY(-3px);filter:brightness(1.05);box-shadow:0 8px 0 rgba(0,0,0,.25),0 10px 20px rgba(0,0,0,.25)}
+  #scr-duel .btn-ans:active:not([disabled]){transform:translateY(1px)}
+  #scr-duel .btn-next:hover,#scr-wager .btn:hover,#scr-result .btn:hover,#scr-wager button:hover,#scr-result button:hover{transform:translateY(-2px);filter:brightness(1.07)}
+  #scr-duel .hc-keyhint,#scr-wager .hc-keyhint,#scr-result .hc-keyhint{display:block;text-align:center;font-size:13px;color:#cfc8ff;opacity:.8;flex:none;margin-top:-4px}
+
+  /* ---- wager ---- */
+  #scr-wager{gap:18px}
+  #scr-wager .wager-title{font-size:38px;padding:10px 60px}
+  #scr-wager .wager-lbl{font-size:15px}
+  #scr-wager #wager-scores{font-size:48px}
+  #scr-wager .res .av,#scr-wager #wager-scores .av{width:84px!important;height:84px!important}
+  #scr-wager .btn-wtopic{min-height:104px;font-size:22px;gap:6px}
+  #scr-wager .btn-wtopic img{width:52px;height:52px}
+  #scr-wager .btn-mult{min-height:84px;font-size:32px}
+  #scr-wager .wager-note{font-size:19px;padding:12px 18px}
+  #scr-wager #btn-wager-go{min-height:68px;font-size:26px;max-width:520px;width:100%;align-self:center;margin-top:0}
+
+  #scr-wager #wager-scores .nm,#scr-wager .nm{font-size:20px}
+
+  /* ---- results ---- */
+  #scr-result{gap:16px}
+  #scr-result .rb{font-size:56px;padding:8px 72px}
+  #scr-result .res .av{width:92px!important;height:92px!important;font-size:30px}
+  #scr-result .res .sc{font-size:56px}
+  #scr-result .res .nm{font-size:20px}
+  #scr-result .bd,#scr-result #res-k-wrap{padding:14px 16px 16px}
+  #scr-result #res-k{font-size:15px}
+  #scr-result #res-cells{gap:10px}
+  #scr-result .c{font-size:22px;padding:12px 0 10px;border-radius:12px}
+  #scr-result .c small{font-size:15px}
+  #scr-result .c-x2{font-size:12px;line-height:18px;top:-8px}
+  #scr-result .xp{font-size:22px;padding:14px 22px}
+  #scr-result .btns{flex-direction:row;gap:16px;margin-top:4px}
+  #scr-result .btns .btn{flex:1 1 0;min-height:64px;font-size:22px}
+  #scr-result .btn-report{min-height:44px;font-size:15px}
+  @media (min-height:900px){
+    #scr-duel{gap:18px;padding-top:24px;padding-bottom:18px}
+    #scr-duel #q-text{font-size:50px;padding:16px 40px 20px}
+    #scr-duel.has-fact #q-text{font-size:44px}
+    #scr-duel #q-text.long{font-size:40px}
+    #scr-duel #ans-wrap{gap:18px;grid-auto-rows:minmax(120px,auto)}
+    #scr-duel .btn-ans{min-height:120px;font-size:34px}
+    #scr-duel.has-fact .btn-ans{min-height:104px}
+    #scr-duel .q-fact{font-size:22px}
+  }
+}
+
 </style>
 </head><body><div id="app"></div>
 <script>
@@ -1167,6 +1508,100 @@ var TD = (typeof window!=='undefined'?(window.TD=window.TD||{}):(global.TD=globa
 
 </script>
 <script>
+var TD = (typeof window!=='undefined'?(window.TD=window.TD||{}):(global.TD=global.TD||{})); TD.ui = TD.ui || {};
+(function () {
+  // Home redesign art paths + gender-aware player avatar + icon helper.
+  // Missing files fall back silently to code-drawn visuals.
+  var A = TD.ART = TD.ART || {};
+  A.playerG = {};
+  for (var s = 0; s < 4; s++) {
+    A.playerG[s + 'b'] = 'art/player-' + s + '-b.webp';
+    A.playerG[s + 'g'] = 'art/player-' + s + '-g.webp';
+  }
+  var UI_NAMES = ['fil-corner', 'fil-edge', 'ring', 'star', 'ico-boy', 'ico-girl', 'ico-gear', 'ico-film', 'ico-book',
+    'ico-flame', 'ico-minus', 'ico-plus', 'gem-0', 'gem-1', 'gem-2', 'gem-3'];
+  A.ui = {};
+  UI_NAMES.forEach(function (n) { A.ui[n] = 'art/ui-' + n + '.webp'; });
+  A.topic = A.topic || {};
+  ['spells', 'creatures', 'places', 'people', 'objects', 'school', 'plot'].forEach(function (id) {
+    A.topic[id] = 'art/topic-' + id + '.webp';
+  });
+  A.topic.general = 'art/topic-general.webp';
+  A.bgArena = 'art/bg-arena.webp';
+
+  function el(tag, cls) { var e = document.createElement(tag); if (cls) e.className = cls; return e; }
+
+  TD.ui.gender = function () {
+    try {
+      if (TD.ui.save && (TD.ui.save.gender === 'b' || TD.ui.save.gender === 'g')) return TD.ui.save.gender;
+      if (typeof localStorage !== 'undefined') {
+        var j = JSON.parse(localStorage.getItem('td.save') || 'null');
+        if (j && (j.gender === 'b' || j.gender === 'g')) return j.gender;
+      }
+    } catch (e) {}
+    return 'b';
+  };
+
+  // admin default glyphs / colours
+  var GLYPH = { 'ico-boy': '♂', 'ico-girl': '♀', 'ico-gear': '⚙', 'ico-minus': '−', 'ico-plus': '+',
+    'ico-flame': '🕯', 'ico-film': '🎬', 'ico-book': '📖', 'star': '★' };
+  var GEMCOL = ['#2f7bff', '#19b5a5', '#8a4fe0', '#33b84f'];
+
+  TD.ui.icon = function (name, px) {
+    if (typeof document === 'undefined') return null;
+    var src = A.ui && A.ui[name];
+    var fb = function (node) {
+      var f = el('span', 'hc-ico hc-ico-fb');
+      var m = /^gem-(\d)$/.exec(name);
+      f.style.cssText = 'display:inline-flex;align-items:center;justify-content:center;width:' + px + 'px;height:' + px + 'px;font-size:' + Math.round(px * 0.7) + 'px;line-height:1';
+      if (m) { f.textContent = '●'; f.style.color = GEMCOL[+m[1]] || GEMCOL[0]; }
+      else f.textContent = GLYPH[name] || '';
+      if (node && node.parentNode) node.parentNode.replaceChild(f, node);
+      return f;
+    };
+    if (!src) return fb(null);
+    var img = el('img', 'hc-ico');
+    img.width = img.height = px; img.alt = ''; img.draggable = false;
+    img.style.width = img.style.height = px + 'px';
+    var failed = false;
+    img.onerror = function () { if (failed) return; failed = true; try { fb(img); } catch (e) {} };
+    img.src = src;
+    return img;
+  };
+
+  // Wrap player avatar: gendered art first, then ORIGINAL avatar (old art, then letter).
+  if (TD.avatar && TD.avatar.player && !TD.avatar.player._hcWrapped) {
+    var orig = TD.avatar.player;
+    var wrapped = function (name, seal, px) {
+      var key = (seal | 0) + TD.ui.gender();
+      var src = A.playerG && A.playerG[key];
+      if (!src || typeof document === 'undefined') return orig(name, seal, px);
+      var d = el('div', 'av av-player');
+      d.style.width = d.style.height = px + 'px';
+      var img = el('img', 'av-img');
+      img.width = img.height = px; img.alt = ''; img.draggable = false;
+      img.style.width = img.style.height = '100%';
+      var failed = false;
+      img.onerror = function () {
+        if (failed) return; failed = true;
+        try {
+          var o = orig(name, seal, px);
+          if (img.parentNode) img.parentNode.replaceChild(o.firstChild || o, img);
+          else d.appendChild(o.firstChild || o);
+        } catch (e) {}
+      };
+      img.src = src;
+      d.appendChild(img);
+      return d;
+    };
+    wrapped._hcWrapped = true;
+    TD.avatar.player = wrapped;
+  }
+})();
+if (typeof module !== 'undefined') module.exports = { ART: TD.ART, ui: TD.ui };
+
+</script>
+<script>
 var TD = (typeof window !== 'undefined' ? (window.TD = window.TD || {}) : (global.TD = global.TD || {})); TD.ui = TD.ui || {};
 // ui-core.js: logic only (no look). Ported from ui.js with the same engine call order:
 // planDuel up front; per question [Q7: drawQ7, rivalWager] shuffleAnswers, rivalAnswer.
@@ -1516,79 +1951,184 @@ var TD = (typeof window!=='undefined'?(window.TD=window.TD||{}):(global.TD=globa
   function label(id) { return ui.topicLabel ? ui.topicLabel(id) : id; }
   function st(css, e) { e.style.cssText = css; return e; }
 
+  // admin default: TD.ui.icon comes from home-art.js; fall back to a text span if it is missing
+  var GLYPH = { 'ico-boy': '♂', 'ico-girl': '♀', 'ico-gear': '⚙', 'ico-minus': '−', 'ico-plus': '+', 'ico-flame': '🕯', 'ico-film': '🎬', 'ico-book': '📖' };
+  function ic(name, px) {
+    if (ui.icon) return ui.icon(name, px);
+    var sp = el('span', { class: 'hc-ico hc-ico-fb', text: GLYPH[name] || '' });
+    return sp;
+  }
+  function gender() {
+    if (ui.gender) return ui.gender();
+    return S().gender === 'g' ? 'g' : 'b';
+  }
+  function playerAv(px) {
+    return TD.avatar && TD.avatar.player ? TD.avatar.player(S().name || 'You', S().seal || 0, px) : el('div');
+  }
+  function renderPav() {
+    var p = $('home-pav');
+    if (!p) return;
+    p.innerHTML = '';
+    p.appendChild(playerAv(64));
+  }
+  function paintGender() {
+    var g = gender(), b = $('btn-gender');
+    if (!b) return;
+    b.setAttribute('data-g', g);
+    b.setAttribute('aria-label', g === 'g' ? 'Girl' : 'Boy');
+    b.innerHTML = '';
+    b.appendChild(ic(g === 'g' ? 'ico-girl' : 'ico-boy', 40));
+  }
+
+
+  // ---- topic wheel ----
+  var curIdx = 0, userScroll = false, prog = false, tmr = 0;
+  function topicIds() { return ['general'].concat((TD.TOPICS || []).map(function (t) { return t.id; })); }
+  function tlabel(id) { return id === 'general' ? 'General' : label(id); }
+  function wheelEl() { return $('topic-row'); }
+  function nearest() {
+    var w = wheelEl(); if (!w) return 0;
+    var items = w.children, mid = w.scrollLeft + w.clientWidth / 2, best = 0, bd = 1e9;
+    for (var i = 0; i < items.length; i++) {
+      var d = Math.abs(items[i].offsetLeft + items[i].offsetWidth / 2 - mid);
+      if (d < bd) { bd = d; best = i; }
+    }
+    return best;
+  }
+  function target(i) { var w = wheelEl(), it = w.children[i]; return it.offsetLeft + it.offsetWidth / 2 - w.clientWidth / 2; }
+  function paintSel(i) {
+    var w = wheelEl(); if (!w) return;
+    for (var j = 0; j < w.children.length; j++) w.children[j].classList.toggle('sel', j === i);
+    var d = document.querySelectorAll('#topic-dots .hc-dot');
+    for (var k = 0; k < d.length; k++) d[k].classList.toggle('on', k === i);
+  }
+  function goTo(i, smooth) {
+    var n = topicIds().length; i = (i + n) % n;
+    var w = wheelEl(); if (!w || !w.clientWidth) return;
+    curIdx = i; paintSel(i);
+    try { w.scrollTo({ left: target(i), behavior: smooth ? 'smooth' : 'auto' }); } catch (e) { w.scrollLeft = target(i); }
+    if (smooth) { userScroll = true; prog = true; clearTimeout(tmr); tmr = setTimeout(commit, 450); } else { commitPick(i); }
+  }
+  function step(d) { goTo(curIdx + d, true); }
+  function place(smooth) {
+    var ids = topicIds(), i = ids.indexOf(S().picked);
+    if (i < 0) i = 0;
+    var w = wheelEl(); if (!w || !w.clientWidth) return;
+    curIdx = i; paintSel(i); w.scrollLeft = target(i);
+  }
+  function commitPick(i) {
+    var id = topicIds()[i];
+    if (S().picked !== id) { S().picked = id; persist(); }
+    updateWarn();
+  }
+  function commit() {
+    clearTimeout(tmr); userScroll = false; prog = false;
+    var w = wheelEl(); if (!w || !w.clientWidth) return;
+    var i = nearest(); curIdx = i; paintSel(i); commitPick(i);
+  }
+  function onScroll() {
+    var w = wheelEl(); if (!w || !w.clientWidth) return;
+    userScroll = true;
+    if (prog) { clearTimeout(tmr); tmr = setTimeout(commit, 150); return; }
+    var i = nearest(); if (i !== curIdx) { curIdx = i; paintSel(i); }
+    clearTimeout(tmr); tmr = setTimeout(commit, 120);
+  }
+  function updateWarn() {
+    var wn = $('home-warn'); if (!wn) return;
+    var save = S();
+    if (save.picked === 'general') { wn.textContent = ''; return; }
+    var pool = ui.poolFor ? ui.poolFor() : [];
+    var n = pool.filter(function (x) { return x.topic === save.picked; }).length;
+    wn.textContent = n < 7 ? ('Only ' + n + ' ' + tlabel(save.picked) + ' questions here. Duel will mix topics.') : '';
+  }
+
   function buildHome() {
     var s = $('scr-home'), save = S();
     if (!s) return;
+    // admin default: picked defaults to General (once, via td.homeWheel flag); invalid ids fall back to General
+    var seen = false;
+    try { seen = !!localStorage.getItem('td.homeWheel'); localStorage.setItem('td.homeWheel', '1'); } catch (e) { seen = true; }
+    if (!seen || topicIds().indexOf(save.picked) < 0) { save.picked = 'general'; persist(); }
     s.innerHTML = '';
-    // header: emblem + title + settings
+    s.classList.add('hc-home');
+    if (TD.ART && TD.ART.bgArena) s.style.setProperty('--hc-bg', 'url(' + TD.ART.bgArena + ')');
     var emb = (TD.avatar && TD.avatar.emblem) ? TD.avatar.emblem(44) : el('div');
-    var settings = el('button', { class: 'btn btn-seal', id: 'btn-settings', title: 'Settings', type: 'button', text: '⚙' });
-    st('width:48px;height:48px;border-radius:14px;border:0;background:#1b1245;color:#fff;font-size:24px;font-weight:800;cursor:pointer', settings);
-    s.appendChild(st('display:flex;align-items:center;gap:10px', el('div', { class: 'home-head' }, [
+    var settings = el('button', { class: 'hc-gear', id: 'btn-settings', title: 'Settings', type: 'button' }, [ic('ico-gear', 28)]);
+    s.appendChild(el('div', { class: 'home-head hc-head' }, [
       emb,
-      st('flex:1;margin:0;font-size:28px;font-weight:900;color:#ffd23f', el('h1', { class: 'home-title', text: 'Candle Duel' })), // working name
+      el('h1', { class: 'home-title hc-title', text: 'Candle Duel' }), // working name
       settings
-    ])));
+    ]));
 
-    // name + seal
     var inName = el('input', { id: 'in-name', type: 'text', maxlength: '14', placeholder: 'Your name' });
     inName.value = save.name || '';
-    st('flex:1;min-width:0;height:44px;border-radius:12px;border:0;padding:0 12px;font-size:18px;font-weight:700;color:#1c1540;background:#fff', inName);
     inName.addEventListener('input', function () { S().name = inName.value.slice(0, 14); persist(); });
-    var sw = el('div', { class: 'swatches' });
-    st('display:flex;gap:10px', sw);
+    var gbtn = el('button', { class: 'hc-gender', id: 'btn-gender', type: 'button' });
+    gbtn.addEventListener('click', function () {
+      S().gender = gender() === 'g' ? 'b' : 'g'; persist();
+      paintGender(); renderPav();
+    });
+    var sw = el('div', { class: 'swatches hc-seals' });
+    sw.appendChild(el('span', { text: 'Seal' }));
     SEALS.forEach(function (col, i) {
-      var b = el('div', { class: 'swatch' + (i === save.seal ? ' sel' : ''), 'data-i': String(i) });
-      st('width:34px;height:34px;border-radius:50%;cursor:pointer;border:3px solid ' + (i === save.seal ? '#ffd23f' : 'transparent') + ';background:' + col, b);
+      var b = el('div', { class: 'swatch hc-gem' + (i === save.seal ? ' sel' : ''), 'data-i': String(i) }, [ic('gem-' + i, 34)]);
       b.addEventListener('click', function () {
         S().seal = i; persist();
         var all = sw.querySelectorAll('.swatch');
-        for (var j = 0; j < all.length; j++) {
-          all[j].classList.toggle('sel', j === i);
-          all[j].style.borderColor = j === i ? '#ffd23f' : 'transparent';
-        }
+        for (var j = 0; j < all.length; j++) all[j].classList.toggle('sel', j === i);
+        renderPav();
       });
       sw.appendChild(b);
     });
-    s.appendChild(st('display:flex;flex-direction:column;gap:10px;background:#3a2a8a;border-radius:16px;padding:12px', el('div', { class: 'card col' }, [
-      st('display:flex;gap:10px', el('div', { class: 'row' }, [inName])),
-      st('display:flex;align-items:center;gap:12px', el('div', { class: 'row' }, [
-        st('font-size:13px;font-weight:700;color:#cfc8ff', el('span', { text: 'Seal' })), sw]))
+    var corners = ['tl', 'tr', 'bl', 'br'].map(function (c) {
+      return el('span', { class: 'hc-corner hc-c-' + c }, [ic('fil-corner', 22)]);
+    });
+    s.appendChild(el('div', { class: 'card col hc-card hc-pcard' }, corners.concat([
+      el('div', { class: 'row hc-prow' }, [el('div', { id: 'home-pav', class: 'hc-pav' }), inName, gbtn]),
+      sw
     ])));
 
-    // mode + read-to stepper
-    var bm = el('button', { class: 'btn grow', id: 'btn-mode-movie', type: 'button', text: 'Movie fan' });
-    var bb = el('button', { class: 'btn grow', id: 'btn-mode-book', type: 'button', text: 'Book reader' });
-    var minus = el('button', { class: 'btn', id: 'btn-rt-minus', type: 'button', text: '−' });
-    var plus = el('button', { class: 'btn', id: 'btn-rt-plus', type: 'button', text: '+' });
+    var bm = el('button', { class: 'btn grow', id: 'btn-mode-movie', type: 'button' }, [ic('ico-film', 20), document.createTextNode('Movie fan')]);
+    var bb = el('button', { class: 'btn grow', id: 'btn-mode-book', type: 'button' }, [ic('ico-book', 20), document.createTextNode('Book reader')]);
+    var minus = el('button', { class: 'btn', id: 'btn-rt-minus', type: 'button', 'aria-label': 'Fewer books' }, [ic('ico-minus', 36)]);
+    var plus = el('button', { class: 'btn', id: 'btn-rt-plus', type: 'button', 'aria-label': 'More books' }, [ic('ico-plus', 36)]);
     var rt = el('input', { id: 'in-readto', type: 'text', inputmode: 'numeric', maxlength: '1' });
     rt.readOnly = true;
-    st('width:48px;height:44px;text-align:center;border:0;border-radius:10px;font-size:20px;font-weight:800;color:#1c1540;background:#fff', rt);
-    [bm, bb].forEach(function (b) { st('flex:1;height:44px;border:0;border-radius:12px;font-size:16px;font-weight:800;cursor:pointer', b); });
-    [minus, plus].forEach(function (b) { st('width:44px;height:44px;border:0;border-radius:12px;font-size:22px;font-weight:900;background:#fff;color:#1c1540;cursor:pointer', b); });
     function setMode(m) { S().mode = m; persist(); renderHome(); }
     function setRt(v) { S().readUpTo = Math.max(1, Math.min(7, v)); persist(); renderHome(); }
     bm.addEventListener('click', function () { setMode('movie'); });
     bb.addEventListener('click', function () { setMode('book'); });
     minus.addEventListener('click', function () { setRt(S().readUpTo - 1); });
     plus.addEventListener('click', function () { setRt(S().readUpTo + 1); });
-    s.appendChild(st('display:flex;flex-direction:column;gap:10px;background:#3a2a8a;border-radius:16px;padding:12px', el('div', { class: 'card col' }, [
-      st('display:flex;gap:10px', el('div', { class: 'row' }, [bm, bb])),
-      st('display:flex;align-items:center;gap:10px', el('div', { class: 'row', id: 'readto-row' }, [
-        st('flex:1;font-size:14px;font-weight:700', el('span', { class: 'grow', text: 'Read up to book' })), minus, rt, plus]))
-    ])));
+    s.appendChild(el('div', { class: 'card col hc-card hc-mode' }, [
+      el('div', { class: 'row hc-pill' }, [bm, bb]),
+      el('div', { class: 'row hc-step', id: 'readto-row' }, [
+        el('span', { class: 'grow', text: 'Read up to book' }), minus, rt, plus])
+    ]));
 
-    // topics
-    var tiles = st('display:flex;gap:8px', el('div', { class: 'row', id: 'topic-row' }));
-    (TD.TOPICS || []).forEach(function (t) {
-      var b = el('button', { class: 'btn btn-topic topic-tile', type: 'button', 'data-topic': t.id });
-      st('flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;gap:4px;padding:8px 4px;border:0;border-radius:14px;color:#1c1540;font-weight:800;cursor:pointer', b); // face + 6px lip from buttons.css
-      b.addEventListener('click', function () { S().picked = t.id; persist(); renderHome(); });
-      tiles.appendChild(b);
+    // topics: one horizontal scroll wheel (general first, then TD.TOPICS)
+    var wheel = el('div', { class: 'row hc-wheel', id: 'topic-row' });
+    topicIds().forEach(function (id) {
+      var b = el('button', { class: 'btn btn-topic topic-tile hc-wi', type: 'button', 'data-topic': id });
+      b.addEventListener('click', function () {
+        var i = topicIds().indexOf(id);
+        if (i !== curIdx) goTo(i, true);
+      });
+      wheel.appendChild(b);
     });
-    s.appendChild(tiles);
+    var prev = el('button', { class: 'hc-arrow hc-prev', id: 'btn-topic-prev', type: 'button', 'aria-label': 'Previous topic', text: '‹' });
+    var next = el('button', { class: 'hc-arrow hc-next', id: 'btn-topic-next', type: 'button', 'aria-label': 'Next topic', text: '›' });
+    prev.addEventListener('click', function () { step(-1); });
+    next.addEventListener('click', function () { step(1); });
+    var dots = el('div', { class: 'hc-dots', id: 'topic-dots' });
+    topicIds().forEach(function () { dots.appendChild(el('span', { class: 'hc-dot' })); });
+    s.appendChild(el('div', { class: 'hc-wheelwrap' }, [wheel, prev, next]));
+    s.appendChild(dots);
+    wheel.addEventListener('scroll', onScroll, { passive: true });
+    wheel.addEventListener('scrollend', function () { commit(); });
+    if (typeof ResizeObserver !== 'undefined') new ResizeObserver(function () { if (!userScroll) place(false); }).observe(wheel);
 
-    // rival card
+    // rival card (unchanged)
     s.appendChild(st('display:flex;align-items:center;gap:12px;background:#3a2a8a;border-radius:16px;padding:12px', el('div', { class: 'card row', id: 'home-rival' }, [
       el('div', { id: 'home-rival-av' }),
       st('display:flex;flex-direction:column;gap:2px;flex:1;min-width:0', el('div', { class: 'col grow' }, [
@@ -1599,56 +2139,52 @@ var TD = (typeof window!=='undefined'?(window.TD=window.TD||{}):(global.TD=globa
       ]))
     ])));
 
-    var play = el('button', { class: 'btn btn-seal btn-play', id: 'btn-play', type: 'button', text: 'DUEL' });
-    st('height:64px;border:0;border-radius:18px;background:#ff7a1a;color:#fff;font-size:34px;font-weight:900;letter-spacing:.08em;box-shadow:0 6px 0 #b8500a;cursor:pointer', play);
-    s.appendChild(play);
-    s.appendChild(st('font-size:11px;color:#cfc8ff;text-align:center', el('div', { class: 'small muted', id: 'home-build' })));
-    // admin default: core binds #btn-play/#btn-settings by id after build (contract); no listeners added here
+    var play = el('button', { class: 'btn btn-seal btn-play hc-duel', id: 'btn-play', type: 'button', text: 'DUEL' });
+    s.appendChild(el('div', { class: 'hc-duelrow' }, [ic('ico-flame', 28), play, ic('ico-flame', 28)]));
+    s.appendChild(el('div', { class: 'small muted hc-build', id: 'home-build' }));
     homeBuilt = true;
   }
 
   function renderHome() {
     if (!homeBuilt) return;
     var save = S(), c = cfg();
-    // keep name + seal in sync with the save (e.g. after Reset progress)
     var inName = $('in-name');
     if (inName && document.activeElement !== inName && inName.value !== (save.name || '')) inName.value = save.name || '';
     var sws = document.querySelectorAll('#scr-home .swatch');
-    for (var w = 0; w < sws.length; w++) {
-      sws[w].classList.toggle('sel', w === save.seal);
-      sws[w].style.borderColor = w === save.seal ? '#ffd23f' : 'transparent';
-    }
-    $('btn-mode-movie').classList.toggle('sel', save.mode === 'movie');
-    $('btn-mode-book').classList.toggle('sel', save.mode === 'book');
+    for (var w = 0; w < sws.length; w++) sws[w].classList.toggle('sel', w === save.seal);
+    paintGender();
+    renderPav();
     [['btn-mode-movie', 'movie'], ['btn-mode-book', 'book']].forEach(function (p) {
       var b = $(p[0]), on = save.mode === p[1];
-      b.style.background = on ? '#2f7bff' : '#fff';
-      b.style.color = on ? '#fff' : '#1c1540';
+      b.classList.toggle('sel', on);
+      b.classList.toggle('on', on);
     });
     $('in-readto').value = String(save.readUpTo);
-    var tiles = document.querySelectorAll('.btn-topic');
+    if (topicIds().indexOf(save.picked) < 0) { save.picked = 'general'; persist(); }
+    var tiles = document.querySelectorAll('#topic-row .hc-wi');
     for (var i = 0; i < tiles.length; i++) {
       var id = tiles[i].getAttribute('data-topic');
       var xp = (save.topicXp && save.topicXp[id]) || 0;
       var lv = TD.engine.levelOf(xp, c);
-      tiles[i].textContent = '';
-      if (TD.avatar && TD.avatar.topic) tiles[i].appendChild(TD.avatar.topic(id, 44));
-      var nm = el('div', { text: label(id) }); nm.style.fontSize = '15px';
-      var sub = el('div', { class: 'small', text: 'Lv ' + lv + ' · ' + xp + ' XP' });
-      sub.style.cssText = 'font-size:12px;font-weight:700;color:#6d5bd0';
-      tiles[i].appendChild(nm); tiles[i].appendChild(sub);
-      var sel = id === save.picked;
-      tiles[i].classList.toggle('sel', sel);
+      var lvTxt = 'Lv ' + lv + ' · ' + xp + ' XP';
+      if (!tiles[i].firstChild) {  // content built once; later renders only update level text (wheel stays smooth)
+        var tic = el('div', { class: 'hc-tic' });
+        if (TD.avatar && TD.avatar.topic) tic.appendChild(TD.avatar.topic(id, 56));
+        tiles[i].appendChild(tic);
+        tiles[i].appendChild(el('div', { class: 'hc-tnm', text: tlabel(id) }));
+        tiles[i].appendChild(el('div', { class: 'small hc-tlv', text: lvTxt }));
+      } else {
+        tiles[i].lastChild.textContent = lvTxt;
+      }
     }
+    if (!userScroll) place(false);
     var rv = ui.rivalOf(save.rivalStep);
     var av = $('home-rival-av');
     av.innerHTML = '';
     if (TD.avatar && TD.avatar.rival) av.appendChild(TD.avatar.rival(rv.step, 64));
     $('home-rival-name').textContent = rv.name;
     $('home-rival-step').textContent = 'Rival ' + rv.step + '/5';
-    var pool = ui.poolFor ? ui.poolFor() : [];
-    var n = pool.filter(function (x) { return x.topic === save.picked; }).length;
-    $('home-warn').textContent = n < 7 ? ('Only ' + n + ' ' + label(save.picked) + ' questions here. Duel will mix topics.') : '';
+    updateWarn();
     $('home-build').textContent = 'build ' + TD.BUILD;
     if (ui.refreshBadge) ui.refreshBadge();
   }
@@ -2077,6 +2613,93 @@ var TD = (typeof window!=='undefined'?(window.TD=window.TD||{}):(global.TD=globa
     $('res-seed').textContent = 'Seed ' + st.seed;
     $('btn-report').textContent = 'Copy report';
   };
+})();
+
+</script>
+<script>
+// desktop.js: keyboard shortcuts + desktop key hints. No layout (CSS lives in desktop-*.css).
+(function () {
+  if (typeof document === 'undefined') return;
+  var CSS = '.hc-keyhint{display:none}@media (min-width:900px) and (min-aspect-ratio:1/1){.hc-keyhint{display:block;text-align:center;font-size:13px;color:#cfc8ff;opacity:.85}}';
+  function $(id) { return document.getElementById(id); }
+  function vis(el) { return !!(el && el.offsetParent !== null && el.style.display !== 'none' && !el.disabled); }
+  function active() { return document.querySelector('.screen.active'); }
+  function typing() {
+    var a = document.activeElement;
+    if (!a) return false;
+    var t = (a.tagName || '').toLowerCase();
+    return t === 'input' || t === 'textarea' || t === 'select' || a.isContentEditable;
+  }
+  function click(el) { if (vis(el)) { el.click(); return true; } return false; }
+
+  function hint(parent, after, text) {
+    if (!parent || parent.querySelector('.hc-keyhint')) return;
+    var d = document.createElement('div');
+    d.className = 'hc-keyhint';
+    d.textContent = text;
+    if (after && after.parentNode === parent) parent.insertBefore(d, after.nextSibling);
+    else parent.appendChild(d);
+  }
+  function inject() {
+    var home = $('scr-home');
+    if (home) hint(home, home.querySelector('.hc-duelrow'), 'Keys: ← → pick topic · Enter duel');
+    var duel = $('scr-duel');
+    if (duel) hint(duel, null, '1-4 or A-D to answer · Enter next');
+  }
+  var st = document.createElement('style');
+  st.textContent = CSS;
+  (document.head || document.documentElement).appendChild(st);
+
+  var pending = false;
+  function sched() {
+    if (pending) return;
+    pending = true;
+    setTimeout(function () { pending = false; inject(); }, 0);
+  }
+  function start() {
+    inject();
+    if (typeof MutationObserver !== 'undefined') {
+      new MutationObserver(function (muts) {
+        for (var i = 0; i < muts.length; i++) {
+          if (muts[i].type === 'childList') {
+            var t = muts[i].target;
+            if (t.id === 'app' || (t.classList && t.classList.contains('screen'))) { sched(); return; }
+          }
+        }
+      }).observe(document.body, { childList: true, subtree: true });
+    }
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
+
+  document.addEventListener('keydown', function (e) {
+    if (e.ctrlKey || e.metaKey || e.altKey || e.defaultPrevented) return;
+    if (typing()) return;
+    var scr = active(); if (!scr) return;
+    var id = scr.id, k = e.key, K = k.length === 1 ? k.toUpperCase() : k, done = false;
+    if (id === 'scr-home') {
+      if (k === 'ArrowLeft') done = click($('btn-topic-prev'));
+      else if (k === 'ArrowRight') done = click($('btn-topic-next'));
+      else if (k === 'Enter') { if (document.activeElement && document.activeElement.tagName === 'BUTTON' && document.activeElement.id !== 'btn-play') return; done = click($('btn-play')); }
+      else if (K === 'G') done = click($('btn-gender'));
+    } else if (id === 'scr-duel') {
+      var n = '1234'.indexOf(k); if (n < 0) n = 'ABCD'.indexOf(K);
+      if (n >= 0 && k.length === 1) {
+        var btns = scr.querySelectorAll('.btn-ans'), vb = [];
+        for (var i = 0; i < btns.length; i++) if (btns[i].offsetParent !== null) vb.push(btns[i]);
+        if (vb[n]) { vb[n].click(); done = true; }
+      } else if (k === 'Enter' || k === ' ') done = click($('btn-next'));
+    } else if (id === 'scr-wager') {
+      var tb = scr.querySelectorAll('.btn-wtopic');
+      if (k === 'Enter' || k === ' ') { var b = scr.querySelector('.btn-mult.sel') || $('btn-x1'); done = click(b); }
+      else if (k === '1' || k === '2') done = click($(k === '1' ? 'btn-x1' : 'btn-x2')) ;
+    } else if (id === 'scr-result') {
+      if (K === 'R') done = click($('btn-rematch'));
+      else if (K === 'H' || k === 'Escape') done = click($('btn-home'));
+    } else if (id === 'scr-vs') {
+      if (k === 'Enter' || k === ' ') { var sk = scr.querySelector('button'); done = click(sk); }
+    }
+    if (done) e.preventDefault();
+  });
 })();
 
 </script>

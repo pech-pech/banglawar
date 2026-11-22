@@ -1,0 +1,10 @@
+/* duel-tall.css: phone / tablet-portrait duel fixes (D4 tall question card, D5 VS name vs sparkle). Never affects >=900px landscape. */
+@media (max-width:899px),(max-aspect-ratio:1/1){
+  #scr-duel #q-text{flex:0 1 auto;min-height:0;max-height:34vh}
+  #scr-duel #q-text .qb{flex:1 1 auto}
+  #scr-duel #ans-wrap{flex:0 1 auto;justify-content:center;margin-top:10px}
+  #scr-duel.active{justify-content:center}
+  #scr-vs .vs-name{font-size:clamp(18px,5vw,26px)}
+  #scr-vs .vs-bg{z-index:0}
+  #scr-vs .vs-p{z-index:3}
+}
