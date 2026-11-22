@@ -1,0 +1,148 @@
+/* home.css - Candle Duel home redesign (td-home-1). Loaded LAST. All rules scoped #scr-home / hc- to beat base specificity. */
+#scr-home.hc-home{background:#2b1d6b var(--hc-bg) center top/cover no-repeat;gap:6px;
+  padding:calc(8px + var(--sat,0px)) 12px calc(6px + var(--sab,0px));overflow:hidden}
+#scr-home .hc-ico{display:block;flex:none;object-fit:contain;pointer-events:none}
+#scr-home .hc-ico-fb{display:inline-grid;place-items:center;font-weight:900;line-height:1;color:#ffd23f;text-align:center}
+
+/* head */
+#scr-home .hc-head{display:flex;align-items:center;gap:10px;flex:none}
+#scr-home .hc-emblem{width:40px;height:40px;flex:none;border-radius:50%;background:#1b1245;border:2.5px solid #ffd23f;display:grid;place-items:center}
+#scr-home h1.hc-title{flex:1;margin:0;font-size:28px;font-weight:900;color:#ffd23f;line-height:1;text-align:left;
+  text-shadow:0 2px 0 #7a4b00,0 0 14px rgba(255,210,63,.45)}
+#scr-home button.hc-gear,#scr-home #btn-settings.hc-gear{width:42px;height:42px;min-width:42px;min-height:42px;padding:0;border-radius:13px;
+  border:2px solid #ffd23f;background:#1b1245;display:grid;place-items:center;box-shadow:0 3px 0 #0e0a2a;margin:0;flex:none;color:#ffd23f;font-size:22px}
+#scr-home #btn-settings.hc-gear:active{transform:translateY(2px);box-shadow:0 1px 0 #0e0a2a}
+
+/* cards */
+#scr-home .hc-card{background:#3a2a8a;border-radius:16px;padding:7px 10px;display:flex;flex-direction:column;gap:5px;color:#fff;flex:none;box-shadow:none}
+#scr-home .hc-pcard{position:relative;border-radius:18px;padding:8px 14px 6px;border:2px solid #ffd23f;gap:5px;
+  box-shadow:inset 0 0 0 3px #3a2a8a,inset 0 0 0 4.5px rgba(255,210,63,.65),0 0 14px rgba(255,210,63,.25)}
+#scr-home .hc-corner{position:absolute;width:22px;height:22px;display:block;pointer-events:none;line-height:0}
+#scr-home .hc-corner .hc-ico{width:22px;height:22px}
+#scr-home .hc-c-tl{top:-2px;left:-2px}
+#scr-home .hc-c-tr{top:-2px;right:-2px;transform:rotate(90deg)}
+#scr-home .hc-c-br{bottom:-2px;right:-2px;transform:rotate(180deg)}
+#scr-home .hc-c-bl{bottom:-2px;left:-2px;transform:rotate(270deg)}
+#scr-home .hc-prow{display:flex;align-items:center;gap:10px}
+#scr-home .hc-pav{width:58px;height:58px;border-radius:50%;flex:none;overflow:hidden;border:3px solid #ffd23f;box-shadow:0 0 0 2px #1b1245;
+  background:radial-gradient(circle at 50% 35%,#6a55c8,#2b1d6b);display:grid;place-items:center}
+#scr-home .hc-pav img,#scr-home .hc-pav svg,#scr-home .hc-pav canvas{width:100%;height:100%;display:block;object-fit:cover;border-radius:50%}
+#scr-home #in-name{flex:1;min-width:0;height:42px;border-radius:12px;border:0;padding:0 12px;font:700 18px system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  color:#1c1540;background:#fff;box-shadow:inset 0 -3px 0 #d6d0f0;outline:0;margin:0}
+#scr-home #in-name::placeholder{color:#8f87c4}
+#scr-home #in-name:focus{box-shadow:inset 0 -3px 0 #d6d0f0,0 0 0 3px #ffd23f}
+#scr-home .hc-gender,#scr-home #btn-gender{width:44px;height:44px;min-width:44px;min-height:44px;padding:0;border-radius:50%;border:0;background:#fff;
+  display:grid;place-items:center;flex:none;box-shadow:0 4px 0 #b9b2e0;margin:0 0 4px;position:relative}
+#scr-home .hc-gender:active{transform:translateY(3px);box-shadow:0 1px 0 #b9b2e0}
+#scr-home .hc-gender[data-g=g]{box-shadow:0 4px 0 #d98ab5}
+#scr-home .hc-gender .hc-ico{width:40px;height:40px}
+#scr-home .hc-gender .hc-ico-fb{color:#3b7bff;font-size:24px}
+#scr-home .hc-gender[data-g=g] .hc-ico-fb{color:#e0579f}
+
+/* seals */
+#scr-home .hc-seals{display:flex;align-items:center;gap:10px;min-height:34px}
+#scr-home .hc-seals>span{font-size:12px;font-weight:700;color:#cfc8ff;margin-right:2px}
+#scr-home .hc-gem,#scr-home .swatch.hc-gem{width:34px;height:34px;min-width:34px;padding:0;border:0;border-radius:50%;background:transparent;box-shadow:none;
+  flex:none;display:grid;place-items:center;cursor:pointer;margin:0}
+#scr-home .hc-gem .hc-ico{width:34px;height:34px}
+#scr-home .hc-gem .hc-ico-fb{font-size:26px}
+#scr-home .hc-gem.sel,#scr-home .swatch.hc-gem.sel{outline:3px solid #ffd23f;outline-offset:1px;box-shadow:0 0 10px rgba(255,210,63,.6)}
+#scr-home .hc-gem[data-i="0"] .hc-ico-fb{color:#3b7bff}
+#scr-home .hc-gem[data-i="1"] .hc-ico-fb{color:#2fb5a8}
+#scr-home .hc-gem[data-i="2"] .hc-ico-fb{color:#8a4fff}
+#scr-home .hc-gem[data-i="3"] .hc-ico-fb{color:#3fbf5f}
+
+/* mode pill + stepper */
+#scr-home .hc-pill{display:flex;border-radius:14px;background:#1b1245;padding:3px;gap:3px}
+#scr-home .hc-pill button,#scr-home #btn-mode-movie,#scr-home #btn-mode-book{flex:1 1 0;min-height:0;height:36px;padding:0 6px;border:0;border-radius:11px;
+  font:800 15px system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;display:flex;align-items:center;justify-content:center;gap:6px;
+  background:#fff;color:#1c1540;box-shadow:0 4px 0 #b9b2e0;margin:0 0 3px;--lip:#b9b2e0;text-shadow:none;outline:0}
+#scr-home .hc-pill button:active{transform:translateY(3px);box-shadow:0 1px 0 #b9b2e0}
+#scr-home .hc-pill button.on,#scr-home #btn-mode-movie.on,#scr-home #btn-mode-book.on,
+#scr-home #btn-mode-movie.sel,#scr-home #btn-mode-book.sel{background:#3b7bff;color:#fff;box-shadow:0 4px 0 #1f4fb8;--lip:#1f4fb8;outline:0}
+#scr-home .hc-pill .hc-ico{width:20px;height:20px}
+#scr-home .hc-pill button.on .hc-ico-fb{color:#fff}
+#scr-home .hc-step{display:flex;align-items:center;gap:10px}
+#scr-home .hc-step>span{flex:1;font-size:14px;font-weight:700;color:#fff}
+#scr-home .hc-step button,#scr-home #btn-rt-minus,#scr-home #btn-rt-plus{width:38px;height:36px;min-width:38px;min-height:0;padding:0;border-radius:11px;border:0;
+  background:#fff;color:#1c1540;display:grid;place-items:center;box-shadow:0 4px 0 #b9b2e0;margin:0 0 3px;flex:none}
+#scr-home .hc-step button:active{transform:translateY(3px);box-shadow:0 1px 0 #b9b2e0}
+#scr-home .hc-step .hc-ico{width:36px;height:36px}
+#scr-home .hc-step .hc-ico-fb{color:#1c1540;font-size:22px}
+#scr-home #in-readto{width:44px;height:34px;min-width:0;padding:0;border:0;border-radius:10px;background:#fff;color:#1c1540;text-align:center;
+  font:800 19px/34px system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;box-shadow:inset 0 -3px 0 #d6d0f0;outline:0;flex:none;margin:0}
+
+/* topics: horizontal wheel */
+#scr-home .hc-wheelwrap{position:relative;flex:none}
+#scr-home #topic-row.hc-wheel{display:flex;flex-direction:row;align-items:center;gap:6px;overflow-x:auto;overflow-y:hidden;
+  scroll-snap-type:x mandatory;scrollbar-width:none;-ms-overflow-style:none;-webkit-overflow-scrolling:touch;overscroll-behavior-x:contain;
+  touch-action:pan-x;padding:9px calc(50% - 75px) 4px;margin:0;height:127px;box-sizing:border-box}
+#scr-home #topic-row.hc-wheel::-webkit-scrollbar{display:none}
+#scr-home .hc-wi,#scr-home .btn.btn-topic.hc-wi{flex:none;width:150px;height:112px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
+  scroll-snap-align:center;scroll-snap-stop:always;min-height:0;min-width:0;padding:6px 4px 5px;border:0;border-radius:16px;background:#fff;color:#1c1540;
+  font-weight:800;position:relative;margin:0 0 5px;--lip:#b9b2e0;box-shadow:0 5px 0 var(--lip);overflow:visible;
+  transform:scale(.74);opacity:.55;transition:transform .18s,opacity .18s,box-shadow .18s}
+#scr-home .hc-wi[data-topic=general]{--lip:#ffd23f}
+#scr-home .hc-wi[data-topic=spells]{--lip:#8a4fff}
+#scr-home .hc-wi[data-topic=creatures]{--lip:#3fbf5f}
+#scr-home .hc-wi[data-topic=places]{--lip:#2fb5a8}
+#scr-home .hc-wi[data-topic=people]{--lip:#e0574f}
+#scr-home .hc-wi[data-topic=objects]{--lip:#e09a1f}
+#scr-home .hc-wi[data-topic=school]{--lip:#3f7be0}
+#scr-home .hc-wi[data-topic=plot]{--lip:#c44fd0}
+#scr-home .hc-wi.sel,#scr-home .btn.btn-topic.hc-wi.sel{transform:scale(1);opacity:1;background:#fff8dc;outline:3px solid #ffd23f;outline-offset:1px;
+  box-shadow:0 5px 0 var(--lip),0 0 16px 4px rgba(255,210,63,.75)}
+#scr-home .hc-tic{width:56px;height:56px;display:grid;place-items:center;flex:none;line-height:0}
+#scr-home .hc-tic img,#scr-home .hc-tic svg,#scr-home .hc-tic canvas,#scr-home .hc-tic>*{width:56px!important;height:56px!important;border-radius:12px;display:block}
+#scr-home .hc-tnm{font-size:15px;line-height:1.1;font-weight:800;text-align:center;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#scr-home .hc-tlv{font-size:11px;font-weight:700;color:#6d5bd0;line-height:1}
+#scr-home .hc-arrow{position:absolute;top:50%;margin-top:-26px;width:46px;height:46px;min-width:44px;min-height:44px;padding:0 0 4px;border-radius:50%;border:2px solid #ffd23f;
+  background:rgba(27,18,69,.88);color:#ffd23f;font:900 32px/1 system-ui,sans-serif;display:grid;place-items:center;z-index:2;box-shadow:0 3px 0 #0e0a2a;cursor:pointer}
+#scr-home .hc-arrow:active{transform:translateY(2px);box-shadow:0 1px 0 #0e0a2a}
+#scr-home .hc-prev{left:0}
+#scr-home .hc-next{right:0}
+#scr-home .hc-dots{display:flex;justify-content:center;gap:7px;flex:none;margin-top:-4px}
+#scr-home .hc-dot{width:8px;height:8px;border-radius:50%;background:rgba(207,200,255,.4)}
+#scr-home .hc-dot.on{background:#ffd23f;box-shadow:0 0 6px rgba(255,210,63,.8)}
+
+/* rival stays as-is; keep it from shrinking */
+#scr-home #home-rival{flex:none}
+#scr-home #home-warn{margin:0}
+
+/* duel row */
+#scr-home .hc-duelrow{display:flex;align-items:center;gap:8px;margin-top:2px;flex:none}
+#scr-home .hc-duelrow>.hc-ico,#scr-home .hc-duelrow>.hc-ico-fb{width:28px;height:28px;font-size:24px}
+#scr-home .hc-duel,#scr-home #btn-play.hc-duel{flex:1;width:auto;min-height:56px;height:58px;padding:0 10px;border:0;border-radius:18px;
+  background:#ff7a1a;color:#fff;font:900 32px system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;letter-spacing:.08em;text-transform:uppercase;
+  text-shadow:0 2px 0 rgba(0,0,0,.18);--lip:#b8500a;box-shadow:0 6px 0 #b8500a;margin:0 0 6px;align-self:auto}
+#scr-home .hc-duel:active,#scr-home #btn-play.hc-duel:active{transform:translateY(4px);box-shadow:0 2px 0 #b8500a}
+#scr-home .hc-build,#scr-home #home-build.hc-build{font-size:11px;color:#cfc8ff;text-align:center;opacity:.8;flex:none}
+
+/* narrow (Fold outer 344) */
+@media (max-width:360px){
+  #scr-home.hc-home{padding-left:8px;padding-right:8px;gap:5px}
+  #scr-home h1.hc-title{font-size:25px}
+  #scr-home .hc-pcard{padding:8px 10px 6px}
+  #scr-home .hc-pav{width:56px;height:56px}
+  #scr-home .hc-pill button,#scr-home #btn-mode-movie,#scr-home #btn-mode-book{font-size:13px;gap:4px}
+  #scr-home .hc-duel,#scr-home #btn-play.hc-duel{font-size:28px}
+}
+
+/* QA fixes (phone/tablet-portrait only) */
+@media (max-width:899px),(max-aspect-ratio:1/1){
+  /* D2: spread content over tall screens */
+  #scr-home.hc-home{justify-content:space-between}
+}
+@media (min-height:760px) and (max-width:899px){
+  #scr-home.hc-home{padding-top:calc(max(14px,2.5vh) + var(--sat,0px));padding-bottom:calc(max(14px,3vh) + var(--sab,0px))}
+}
+@media (max-width:360px){
+  /* D1: next arrow clear of peek tile; D3: corner clear of avatar ring */
+  #scr-home .hc-arrow{width:34px;height:34px;min-width:34px;min-height:34px;font-size:22px;margin-top:-20px;padding:0 0 3px}
+  #scr-home .hc-prev{left:2px}
+  #scr-home .hc-next{right:2px}
+  #scr-home #topic-row.hc-wheel{padding-left:calc(50% - 75px);padding-right:calc(50% - 75px)}
+  #scr-home .hc-wi,#scr-home .btn.btn-topic.hc-wi{width:min(150px,40vw)}
+  #scr-home .hc-pcard{padding:12px 14px 8px}
+  #scr-home .hc-corner,#scr-home .hc-corner .hc-ico{width:18px;height:18px}
+}

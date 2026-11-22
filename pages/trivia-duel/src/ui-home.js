@@ -22,79 +22,184 @@ var TD = (typeof window!=='undefined'?(window.TD=window.TD||{}):(global.TD=globa
   function label(id) { return ui.topicLabel ? ui.topicLabel(id) : id; }
   function st(css, e) { e.style.cssText = css; return e; }
 
+  // admin default: TD.ui.icon comes from home-art.js; fall back to a text span if it is missing
+  var GLYPH = { 'ico-boy': '♂', 'ico-girl': '♀', 'ico-gear': '⚙', 'ico-minus': '−', 'ico-plus': '+', 'ico-flame': '🕯', 'ico-film': '🎬', 'ico-book': '📖' };
+  function ic(name, px) {
+    if (ui.icon) return ui.icon(name, px);
+    var sp = el('span', { class: 'hc-ico hc-ico-fb', text: GLYPH[name] || '' });
+    return sp;
+  }
+  function gender() {
+    if (ui.gender) return ui.gender();
+    return S().gender === 'g' ? 'g' : 'b';
+  }
+  function playerAv(px) {
+    return TD.avatar && TD.avatar.player ? TD.avatar.player(S().name || 'You', S().seal || 0, px) : el('div');
+  }
+  function renderPav() {
+    var p = $('home-pav');
+    if (!p) return;
+    p.innerHTML = '';
+    p.appendChild(playerAv(64));
+  }
+  function paintGender() {
+    var g = gender(), b = $('btn-gender');
+    if (!b) return;
+    b.setAttribute('data-g', g);
+    b.setAttribute('aria-label', g === 'g' ? 'Girl' : 'Boy');
+    b.innerHTML = '';
+    b.appendChild(ic(g === 'g' ? 'ico-girl' : 'ico-boy', 40));
+  }
+
+
+  // ---- topic wheel ----
+  var curIdx = 0, userScroll = false, prog = false, tmr = 0;
+  function topicIds() { return ['general'].concat((TD.TOPICS || []).map(function (t) { return t.id; })); }
+  function tlabel(id) { return id === 'general' ? 'General' : label(id); }
+  function wheelEl() { return $('topic-row'); }
+  function nearest() {
+    var w = wheelEl(); if (!w) return 0;
+    var items = w.children, mid = w.scrollLeft + w.clientWidth / 2, best = 0, bd = 1e9;
+    for (var i = 0; i < items.length; i++) {
+      var d = Math.abs(items[i].offsetLeft + items[i].offsetWidth / 2 - mid);
+      if (d < bd) { bd = d; best = i; }
+    }
+    return best;
+  }
+  function target(i) { var w = wheelEl(), it = w.children[i]; return it.offsetLeft + it.offsetWidth / 2 - w.clientWidth / 2; }
+  function paintSel(i) {
+    var w = wheelEl(); if (!w) return;
+    for (var j = 0; j < w.children.length; j++) w.children[j].classList.toggle('sel', j === i);
+    var d = document.querySelectorAll('#topic-dots .hc-dot');
+    for (var k = 0; k < d.length; k++) d[k].classList.toggle('on', k === i);
+  }
+  function goTo(i, smooth) {
+    var n = topicIds().length; i = (i + n) % n;
+    var w = wheelEl(); if (!w || !w.clientWidth) return;
+    curIdx = i; paintSel(i);
+    try { w.scrollTo({ left: target(i), behavior: smooth ? 'smooth' : 'auto' }); } catch (e) { w.scrollLeft = target(i); }
+    if (smooth) { userScroll = true; prog = true; clearTimeout(tmr); tmr = setTimeout(commit, 450); } else { commitPick(i); }
+  }
+  function step(d) { goTo(curIdx + d, true); }
+  function place(smooth) {
+    var ids = topicIds(), i = ids.indexOf(S().picked);
+    if (i < 0) i = 0;
+    var w = wheelEl(); if (!w || !w.clientWidth) return;
+    curIdx = i; paintSel(i); w.scrollLeft = target(i);
+  }
+  function commitPick(i) {
+    var id = topicIds()[i];
+    if (S().picked !== id) { S().picked = id; persist(); }
+    updateWarn();
+  }
+  function commit() {
+    clearTimeout(tmr); userScroll = false; prog = false;
+    var w = wheelEl(); if (!w || !w.clientWidth) return;
+    var i = nearest(); curIdx = i; paintSel(i); commitPick(i);
+  }
+  function onScroll() {
+    var w = wheelEl(); if (!w || !w.clientWidth) return;
+    userScroll = true;
+    if (prog) { clearTimeout(tmr); tmr = setTimeout(commit, 150); return; }
+    var i = nearest(); if (i !== curIdx) { curIdx = i; paintSel(i); }
+    clearTimeout(tmr); tmr = setTimeout(commit, 120);
+  }
+  function updateWarn() {
+    var wn = $('home-warn'); if (!wn) return;
+    var save = S();
+    if (save.picked === 'general') { wn.textContent = ''; return; }
+    var pool = ui.poolFor ? ui.poolFor() : [];
+    var n = pool.filter(function (x) { return x.topic === save.picked; }).length;
+    wn.textContent = n < 7 ? ('Only ' + n + ' ' + tlabel(save.picked) + ' questions here. Duel will mix topics.') : '';
+  }
+
   function buildHome() {
     var s = $('scr-home'), save = S();
     if (!s) return;
+    // admin default: picked defaults to General (once, via td.homeWheel flag); invalid ids fall back to General
+    var seen = false;
+    try { seen = !!localStorage.getItem('td.homeWheel'); localStorage.setItem('td.homeWheel', '1'); } catch (e) { seen = true; }
+    if (!seen || topicIds().indexOf(save.picked) < 0) { save.picked = 'general'; persist(); }
     s.innerHTML = '';
-    // header: emblem + title + settings
+    s.classList.add('hc-home');
+    if (TD.ART && TD.ART.bgArena) s.style.setProperty('--hc-bg', 'url(' + TD.ART.bgArena + ')');
     var emb = (TD.avatar && TD.avatar.emblem) ? TD.avatar.emblem(44) : el('div');
-    var settings = el('button', { class: 'btn btn-seal', id: 'btn-settings', title: 'Settings', type: 'button', text: '⚙' });
-    st('width:48px;height:48px;border-radius:14px;border:0;background:#1b1245;color:#fff;font-size:24px;font-weight:800;cursor:pointer', settings);
-    s.appendChild(st('display:flex;align-items:center;gap:10px', el('div', { class: 'home-head' }, [
+    var settings = el('button', { class: 'hc-gear', id: 'btn-settings', title: 'Settings', type: 'button' }, [ic('ico-gear', 28)]);
+    s.appendChild(el('div', { class: 'home-head hc-head' }, [
       emb,
-      st('flex:1;margin:0;font-size:28px;font-weight:900;color:#ffd23f', el('h1', { class: 'home-title', text: 'Candle Duel' })), // working name
+      el('h1', { class: 'home-title hc-title', text: 'Candle Duel' }), // working name
       settings
-    ])));
+    ]));
 
-    // name + seal
     var inName = el('input', { id: 'in-name', type: 'text', maxlength: '14', placeholder: 'Your name' });
     inName.value = save.name || '';
-    st('flex:1;min-width:0;height:44px;border-radius:12px;border:0;padding:0 12px;font-size:18px;font-weight:700;color:#1c1540;background:#fff', inName);
     inName.addEventListener('input', function () { S().name = inName.value.slice(0, 14); persist(); });
-    var sw = el('div', { class: 'swatches' });
-    st('display:flex;gap:10px', sw);
+    var gbtn = el('button', { class: 'hc-gender', id: 'btn-gender', type: 'button' });
+    gbtn.addEventListener('click', function () {
+      S().gender = gender() === 'g' ? 'b' : 'g'; persist();
+      paintGender(); renderPav();
+    });
+    var sw = el('div', { class: 'swatches hc-seals' });
+    sw.appendChild(el('span', { text: 'Seal' }));
     SEALS.forEach(function (col, i) {
-      var b = el('div', { class: 'swatch' + (i === save.seal ? ' sel' : ''), 'data-i': String(i) });
-      st('width:34px;height:34px;border-radius:50%;cursor:pointer;border:3px solid ' + (i === save.seal ? '#ffd23f' : 'transparent') + ';background:' + col, b);
+      var b = el('div', { class: 'swatch hc-gem' + (i === save.seal ? ' sel' : ''), 'data-i': String(i) }, [ic('gem-' + i, 34)]);
       b.addEventListener('click', function () {
         S().seal = i; persist();
         var all = sw.querySelectorAll('.swatch');
-        for (var j = 0; j < all.length; j++) {
-          all[j].classList.toggle('sel', j === i);
-          all[j].style.borderColor = j === i ? '#ffd23f' : 'transparent';
-        }
+        for (var j = 0; j < all.length; j++) all[j].classList.toggle('sel', j === i);
+        renderPav();
       });
       sw.appendChild(b);
     });
-    s.appendChild(st('display:flex;flex-direction:column;gap:10px;background:#3a2a8a;border-radius:16px;padding:12px', el('div', { class: 'card col' }, [
-      st('display:flex;gap:10px', el('div', { class: 'row' }, [inName])),
-      st('display:flex;align-items:center;gap:12px', el('div', { class: 'row' }, [
-        st('font-size:13px;font-weight:700;color:#cfc8ff', el('span', { text: 'Seal' })), sw]))
+    var corners = ['tl', 'tr', 'bl', 'br'].map(function (c) {
+      return el('span', { class: 'hc-corner hc-c-' + c }, [ic('fil-corner', 22)]);
+    });
+    s.appendChild(el('div', { class: 'card col hc-card hc-pcard' }, corners.concat([
+      el('div', { class: 'row hc-prow' }, [el('div', { id: 'home-pav', class: 'hc-pav' }), inName, gbtn]),
+      sw
     ])));
 
-    // mode + read-to stepper
-    var bm = el('button', { class: 'btn grow', id: 'btn-mode-movie', type: 'button', text: 'Movie fan' });
-    var bb = el('button', { class: 'btn grow', id: 'btn-mode-book', type: 'button', text: 'Book reader' });
-    var minus = el('button', { class: 'btn', id: 'btn-rt-minus', type: 'button', text: '−' });
-    var plus = el('button', { class: 'btn', id: 'btn-rt-plus', type: 'button', text: '+' });
+    var bm = el('button', { class: 'btn grow', id: 'btn-mode-movie', type: 'button' }, [ic('ico-film', 20), document.createTextNode('Movie fan')]);
+    var bb = el('button', { class: 'btn grow', id: 'btn-mode-book', type: 'button' }, [ic('ico-book', 20), document.createTextNode('Book reader')]);
+    var minus = el('button', { class: 'btn', id: 'btn-rt-minus', type: 'button', 'aria-label': 'Fewer books' }, [ic('ico-minus', 36)]);
+    var plus = el('button', { class: 'btn', id: 'btn-rt-plus', type: 'button', 'aria-label': 'More books' }, [ic('ico-plus', 36)]);
     var rt = el('input', { id: 'in-readto', type: 'text', inputmode: 'numeric', maxlength: '1' });
     rt.readOnly = true;
-    st('width:48px;height:44px;text-align:center;border:0;border-radius:10px;font-size:20px;font-weight:800;color:#1c1540;background:#fff', rt);
-    [bm, bb].forEach(function (b) { st('flex:1;height:44px;border:0;border-radius:12px;font-size:16px;font-weight:800;cursor:pointer', b); });
-    [minus, plus].forEach(function (b) { st('width:44px;height:44px;border:0;border-radius:12px;font-size:22px;font-weight:900;background:#fff;color:#1c1540;cursor:pointer', b); });
     function setMode(m) { S().mode = m; persist(); renderHome(); }
     function setRt(v) { S().readUpTo = Math.max(1, Math.min(7, v)); persist(); renderHome(); }
     bm.addEventListener('click', function () { setMode('movie'); });
     bb.addEventListener('click', function () { setMode('book'); });
     minus.addEventListener('click', function () { setRt(S().readUpTo - 1); });
     plus.addEventListener('click', function () { setRt(S().readUpTo + 1); });
-    s.appendChild(st('display:flex;flex-direction:column;gap:10px;background:#3a2a8a;border-radius:16px;padding:12px', el('div', { class: 'card col' }, [
-      st('display:flex;gap:10px', el('div', { class: 'row' }, [bm, bb])),
-      st('display:flex;align-items:center;gap:10px', el('div', { class: 'row', id: 'readto-row' }, [
-        st('flex:1;font-size:14px;font-weight:700', el('span', { class: 'grow', text: 'Read up to book' })), minus, rt, plus]))
-    ])));
+    s.appendChild(el('div', { class: 'card col hc-card hc-mode' }, [
+      el('div', { class: 'row hc-pill' }, [bm, bb]),
+      el('div', { class: 'row hc-step', id: 'readto-row' }, [
+        el('span', { class: 'grow', text: 'Read up to book' }), minus, rt, plus])
+    ]));
 
-    // topics
-    var tiles = st('display:flex;gap:8px', el('div', { class: 'row', id: 'topic-row' }));
-    (TD.TOPICS || []).forEach(function (t) {
-      var b = el('button', { class: 'btn btn-topic topic-tile', type: 'button', 'data-topic': t.id });
-      st('flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;gap:4px;padding:8px 4px;border:0;border-radius:14px;color:#1c1540;font-weight:800;cursor:pointer', b); // face + 6px lip from buttons.css
-      b.addEventListener('click', function () { S().picked = t.id; persist(); renderHome(); });
-      tiles.appendChild(b);
+    // topics: one horizontal scroll wheel (general first, then TD.TOPICS)
+    var wheel = el('div', { class: 'row hc-wheel', id: 'topic-row' });
+    topicIds().forEach(function (id) {
+      var b = el('button', { class: 'btn btn-topic topic-tile hc-wi', type: 'button', 'data-topic': id });
+      b.addEventListener('click', function () {
+        var i = topicIds().indexOf(id);
+        if (i !== curIdx) goTo(i, true);
+      });
+      wheel.appendChild(b);
     });
-    s.appendChild(tiles);
+    var prev = el('button', { class: 'hc-arrow hc-prev', id: 'btn-topic-prev', type: 'button', 'aria-label': 'Previous topic', text: '‹' });
+    var next = el('button', { class: 'hc-arrow hc-next', id: 'btn-topic-next', type: 'button', 'aria-label': 'Next topic', text: '›' });
+    prev.addEventListener('click', function () { step(-1); });
+    next.addEventListener('click', function () { step(1); });
+    var dots = el('div', { class: 'hc-dots', id: 'topic-dots' });
+    topicIds().forEach(function () { dots.appendChild(el('span', { class: 'hc-dot' })); });
+    s.appendChild(el('div', { class: 'hc-wheelwrap' }, [wheel, prev, next]));
+    s.appendChild(dots);
+    wheel.addEventListener('scroll', onScroll, { passive: true });
+    wheel.addEventListener('scrollend', function () { commit(); });
+    if (typeof ResizeObserver !== 'undefined') new ResizeObserver(function () { if (!userScroll) place(false); }).observe(wheel);
 
-    // rival card
+    // rival card (unchanged)
     s.appendChild(st('display:flex;align-items:center;gap:12px;background:#3a2a8a;border-radius:16px;padding:12px', el('div', { class: 'card row', id: 'home-rival' }, [
       el('div', { id: 'home-rival-av' }),
       st('display:flex;flex-direction:column;gap:2px;flex:1;min-width:0', el('div', { class: 'col grow' }, [
@@ -105,56 +210,52 @@ var TD = (typeof window!=='undefined'?(window.TD=window.TD||{}):(global.TD=globa
       ]))
     ])));
 
-    var play = el('button', { class: 'btn btn-seal btn-play', id: 'btn-play', type: 'button', text: 'DUEL' });
-    st('height:64px;border:0;border-radius:18px;background:#ff7a1a;color:#fff;font-size:34px;font-weight:900;letter-spacing:.08em;box-shadow:0 6px 0 #b8500a;cursor:pointer', play);
-    s.appendChild(play);
-    s.appendChild(st('font-size:11px;color:#cfc8ff;text-align:center', el('div', { class: 'small muted', id: 'home-build' })));
-    // admin default: core binds #btn-play/#btn-settings by id after build (contract); no listeners added here
+    var play = el('button', { class: 'btn btn-seal btn-play hc-duel', id: 'btn-play', type: 'button', text: 'DUEL' });
+    s.appendChild(el('div', { class: 'hc-duelrow' }, [ic('ico-flame', 28), play, ic('ico-flame', 28)]));
+    s.appendChild(el('div', { class: 'small muted hc-build', id: 'home-build' }));
     homeBuilt = true;
   }
 
   function renderHome() {
     if (!homeBuilt) return;
     var save = S(), c = cfg();
-    // keep name + seal in sync with the save (e.g. after Reset progress)
     var inName = $('in-name');
     if (inName && document.activeElement !== inName && inName.value !== (save.name || '')) inName.value = save.name || '';
     var sws = document.querySelectorAll('#scr-home .swatch');
-    for (var w = 0; w < sws.length; w++) {
-      sws[w].classList.toggle('sel', w === save.seal);
-      sws[w].style.borderColor = w === save.seal ? '#ffd23f' : 'transparent';
-    }
-    $('btn-mode-movie').classList.toggle('sel', save.mode === 'movie');
-    $('btn-mode-book').classList.toggle('sel', save.mode === 'book');
+    for (var w = 0; w < sws.length; w++) sws[w].classList.toggle('sel', w === save.seal);
+    paintGender();
+    renderPav();
     [['btn-mode-movie', 'movie'], ['btn-mode-book', 'book']].forEach(function (p) {
       var b = $(p[0]), on = save.mode === p[1];
-      b.style.background = on ? '#2f7bff' : '#fff';
-      b.style.color = on ? '#fff' : '#1c1540';
+      b.classList.toggle('sel', on);
+      b.classList.toggle('on', on);
     });
     $('in-readto').value = String(save.readUpTo);
-    var tiles = document.querySelectorAll('.btn-topic');
+    if (topicIds().indexOf(save.picked) < 0) { save.picked = 'general'; persist(); }
+    var tiles = document.querySelectorAll('#topic-row .hc-wi');
     for (var i = 0; i < tiles.length; i++) {
       var id = tiles[i].getAttribute('data-topic');
       var xp = (save.topicXp && save.topicXp[id]) || 0;
       var lv = TD.engine.levelOf(xp, c);
-      tiles[i].textContent = '';
-      if (TD.avatar && TD.avatar.topic) tiles[i].appendChild(TD.avatar.topic(id, 26));
-      var nm = el('div', { text: label(id) }); nm.style.fontSize = '13px';
-      var sub = el('div', { class: 'small', text: 'Lv ' + lv + ' · ' + xp + ' XP' });
-      sub.style.cssText = 'font-size:11px;white-space:nowrap;font-weight:700;color:#6d5bd0';
-      tiles[i].appendChild(nm); tiles[i].appendChild(sub);
-      var sel = id === save.picked;
-      tiles[i].classList.toggle('sel', sel);
+      var lvTxt = 'Lv ' + lv + ' · ' + xp + ' XP';
+      if (!tiles[i].firstChild) {  // content built once; later renders only update level text (wheel stays smooth)
+        var tic = el('div', { class: 'hc-tic' });
+        if (TD.avatar && TD.avatar.topic) tic.appendChild(TD.avatar.topic(id, 56));
+        tiles[i].appendChild(tic);
+        tiles[i].appendChild(el('div', { class: 'hc-tnm', text: tlabel(id) }));
+        tiles[i].appendChild(el('div', { class: 'small hc-tlv', text: lvTxt }));
+      } else {
+        tiles[i].lastChild.textContent = lvTxt;
+      }
     }
+    if (!userScroll) place(false);
     var rv = ui.rivalOf(save.rivalStep);
     var av = $('home-rival-av');
     av.innerHTML = '';
     if (TD.avatar && TD.avatar.rival) av.appendChild(TD.avatar.rival(rv.step, 64));
     $('home-rival-name').textContent = rv.name;
     $('home-rival-step').textContent = 'Rival ' + rv.step + '/5';
-    var pool = ui.poolFor ? ui.poolFor() : [];
-    var n = pool.filter(function (x) { return x.topic === save.picked; }).length;
-    $('home-warn').textContent = n < 7 ? ('Only ' + n + ' ' + label(save.picked) + ' questions here. Duel will mix topics.') : '';
+    updateWarn();
     $('home-build').textContent = 'build ' + TD.BUILD;
     if (ui.refreshBadge) ui.refreshBadge();
   }
