@@ -1,6 +1,6 @@
 var TD = (typeof window !== 'undefined' ? (window.TD = window.TD || {}) : (global.TD = global.TD || {}));
 (function () {
-  TD.BUILD = 'td-home-1';
+  TD.BUILD = 'td-audio-1';
   TD.DEFAULTS = {
     timerSec: 15, basePts: 60, speedPts: 20,
     readCps: 18, readBaseSec: 1.0,
@@ -16,7 +16,8 @@ var TD = (typeof window !== 'undefined' ? (window.TD = window.TD || {}) : (globa
     rivalTimeSpread: 1.5,
     rivalReadFloor: 1,
     pickedPerDuel: 4,
-    xpWin: 30, xpLoss: 15, xpDraw: 20, xpPerLevel: 100
+    xpWin: 30, xpLoss: 15, xpDraw: 20, xpPerLevel: 100,
+    musicVol: 0.5, sfxVol: 0.8, musicOn: 1, sfxOn: 1, duckDb: 8
   };
   TD.RIVALS = [
     { step: 1, name: 'Neville Longbottom', look: { hair: '#5a3b22', hairStyle: 'short', face: 'round', glasses: 0, freckles: 0, hat: 0, robe: '#2b2b33' } },
