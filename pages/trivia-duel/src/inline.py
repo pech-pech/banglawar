@@ -3,7 +3,7 @@
 import os, sys
 H = os.path.dirname(os.path.abspath(__file__))
 OUT = os.path.join(H, '..', 'index.html')
-SCRIPTS = ['q-spells.js', 'q-creatures.js', 'q-places.js', 'engine.js', 'tweak.js', 'avatar.js', 'home-art.js', 'ui-core.js', 'ui-home.js', 'ui-duel.js', 'ui-end.js', 'desktop.js']
+SCRIPTS = ['q-spells.js', 'q-creatures.js', 'q-places.js', 'q-people.js', 'q-objects.js', 'q-school.js', 'q-plot.js', 'engine.js', 'tweak.js', 'avatar.js', 'home-art.js', 'ui-core.js', 'ui-home.js', 'ui-duel.js', 'ui-end.js', 'desktop.js']
 def rd(n):
     p = os.path.join(H, n)
     if not os.path.isfile(p):

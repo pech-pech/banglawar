@@ -33,6 +33,7 @@
 #btn-mode-movie.sel,#btn-mode-book.sel{background:linear-gradient(#ffe273,var(--gold));--lip:#c99a00}
 #btn-reset-progress{background:linear-gradient(#f56565,var(--bad));--lip:var(--bad-lip);color:#fff}
 .btn-topic[data-topic=spells]{--lip:#7e2fd0}.btn-topic[data-topic=creatures]{--lip:var(--ok-lip)}.btn-topic[data-topic=places]{--lip:#0e8f81}
+.btn-topic[data-topic=people]{--lip:#a53a34}.btn-topic[data-topic=objects]{--lip:#a56d10}.btn-topic[data-topic=school]{--lip:#2a58a8}.btn-topic[data-topic=plot]{--lip:#8f2f9a}.btn-topic[data-topic=general]{--lip:#6a5fb0}
 .btn-topic,.btn-wtopic{border-bottom:0}
 .btn-wtopic{--lip:#7e2fd0}
 .btn.sel,.btn-topic.sel,.btn-wtopic.sel,.btn-mult.sel{outline:3px solid var(--gold);outline-offset:2px}

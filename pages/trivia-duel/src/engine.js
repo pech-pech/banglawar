@@ -1,6 +1,6 @@
 var TD = (typeof window !== 'undefined' ? (window.TD = window.TD || {}) : (global.TD = global.TD || {}));
 (function () {
-  TD.BUILD = 'td-proto-2b';
+  TD.BUILD = 'td-q420-1';
   TD.DEFAULTS = {
     timerSec: 15, basePts: 60, speedPts: 20,
     readCps: 18, readBaseSec: 1.0,
@@ -25,7 +25,9 @@ var TD = (typeof window !== 'undefined' ? (window.TD = window.TD || {}) : (globa
     { step: 4, name: 'Hermione Granger', look: { hair: '#6b4426', hairStyle: 'bushy', face: 'oval', glasses: 0, freckles: 0, hat: 0, robe: '#2b2b33' } },
     { step: 5, name: 'Professor McGonagall', look: { hair: '#1c1c1c', hairStyle: 'bun', face: 'long', glasses: 'square', freckles: 0, hat: 'pointed', robe: '#1f4a2e' } }
   ];
-  TD.TOPICS = [{ id: 'spells', label: 'Spells' }, { id: 'creatures', label: 'Creatures' }, { id: 'places', label: 'Places' }];
+  TD.TOPICS = [{ id: 'spells', label: 'Spells' }, { id: 'creatures', label: 'Creatures' }, { id: 'places', label: 'Places' },
+    { id: 'people', label: 'People' }, { id: 'objects', label: 'Objects' }, { id: 'school', label: 'School Life' }, { id: 'plot', label: 'Plot' }];
+  TD.GENERAL = { id: 'general', label: 'General' };
 
   var engine = {};
 
@@ -93,12 +95,18 @@ var TD = (typeof window !== 'undefined' ? (window.TD = window.TD || {}) : (globa
 
   engine.planDuel = function (pool, pickedTopic, memory, rnd, cfg) {
     var tiers = shuffle(['e', 'e', 'm', 'm', 'm', 'h'], rnd);
-    var others = TD.TOPICS.map(function (t) { return t.id; }).filter(function (id) { return id !== pickedTopic; });
-    var np = Math.max(0, Math.min(6, cfg.pickedPerDuel));
+    var all = TD.TOPICS.map(function (t) { return t.id; });
     var topics = [], i;
-    for (i = 0; i < np; i++) topics.push(pickedTopic);
-    for (i = 0; i < 6 - np; i++) topics.push(others[i % others.length]);
-    shuffle(topics, rnd);
+    if (pickedTopic === 'general') {
+      shuffle(all, rnd);
+      for (i = 0; i < 6; i++) topics.push(all[i % all.length]);
+    } else {
+      var others = shuffle(all.filter(function (id) { return id !== pickedTopic; }), rnd);
+      var np = Math.max(0, Math.min(6, cfg.pickedPerDuel));
+      for (i = 0; i < np; i++) topics.push(pickedTopic);
+      for (i = 0; i < 6 - np; i++) topics.push(others[i % others.length]);
+      shuffle(topics, rnd);
+    }
     var ex = new Set(), out = [];
     for (i = 0; i < 6; i++) {
       var q = engine.drawQuestion(pool, topics[i], tiers[i], memory, rnd, ex);
@@ -108,6 +116,7 @@ var TD = (typeof window !== 'undefined' ? (window.TD = window.TD || {}) : (globa
   };
 
   engine.drawQ7 = function (pool, wagerTopic, memory, rnd, cfg, excludeIds) {
+    if (wagerTopic === 'general') wagerTopic = pickOne(TD.TOPICS, rnd).id;
     return engine.drawQuestion(pool, wagerTopic, cfg.q7Hard ? 'h' : 'm', memory, rnd, excludeIds);
   };
 
@@ -170,7 +179,7 @@ var TD = (typeof window !== 'undefined' ? (window.TD = window.TD || {}) : (globa
     for (var i = 0; i <= n; i++) {
       var isQ7 = i === n, q;
       if (isQ7) {
-        q = engine.drawQ7(pool, topic, memory, rnd, cfg, ex);
+        q = engine.drawQ7(pool, opts.wagerTopic || topic, memory, rnd, cfg, ex);
         if (!q) break;
         ex.add(q.id);
       } else q = plan[i];
