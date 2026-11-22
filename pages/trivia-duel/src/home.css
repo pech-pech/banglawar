@@ -146,3 +146,14 @@
   #scr-home .hc-pcard{padding:12px 14px 8px}
   #scr-home .hc-corner,#scr-home .hc-corner .hc-ico{width:18px;height:18px}
 }
+
+/* merge-110: neutralise style.css (PR #110) 5-up wrapping #topic-row rules; wheel is a single scrolling row */
+#scr-home #topic-row.hc-wheel{flex-wrap:nowrap!important}
+#scr-home #topic-row.hc-wheel .btn-topic.hc-wi{flex:none!important;min-height:0!important;padding:6px 4px 5px!important;gap:2px!important;line-height:1.1}
+#scr-home #topic-row.hc-wheel .btn-topic.hc-wi>div{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+#scr-home #topic-row.hc-wheel .btn-topic.hc-wi>.hc-tic{overflow:visible}
+
+/* merge-110: wager topic row now 7 buttons (wrapping); keep it compact so the wager screen fits without scroll */
+#scr-wager .wager-topics{gap:6px}
+#scr-wager .wager-topics .btn-wtopic{min-height:50px;padding:3px 2px;font-size:13px;gap:1px;line-height:1.1}
+#scr-wager .wager-topics .btn-wtopic img,#scr-wager .wager-topics .btn-wtopic canvas,#scr-wager .wager-topics .btn-wtopic>div:first-child{width:26px!important;height:26px!important}

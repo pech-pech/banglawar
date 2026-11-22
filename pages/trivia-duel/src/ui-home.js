@@ -74,7 +74,9 @@ var TD = (typeof window!=='undefined'?(window.TD=window.TD||{}):(global.TD=globa
     for (var k = 0; k < d.length; k++) d[k].classList.toggle('on', k === i);
   }
   function goTo(i, smooth) {
-    var n = topicIds().length; i = (i + n) % n;
+    var n = topicIds().length;
+    if (i < 0 || i >= n) smooth = false;  // wrap-around: jump instantly (long smooth scroll over 8 tiles outlasts the commit timer)
+    i = (i + n) % n;
     var w = wheelEl(); if (!w || !w.clientWidth) return;
     curIdx = i; paintSel(i);
     try { w.scrollTo({ left: target(i), behavior: smooth ? 'smooth' : 'auto' }); } catch (e) { w.scrollLeft = target(i); }

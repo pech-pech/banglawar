@@ -36,7 +36,7 @@ var TD = (typeof window !== 'undefined' ? (window.TD = window.TD || {}) : (globa
   function topicXpDefaults() { var x = {}; TD.TOPICS.forEach(function (t) { x[t.id] = 0; }); return x; }
   function defSave() {
     return { v: 1, name: '', seal: 0, mode: 'movie', readUpTo: 7, topicXp: topicXpDefaults(),
-      memory: TD.engine.newMemory(), rivalStep: 1, picked: 'spells' };
+      memory: TD.engine.newMemory(), rivalStep: 1, picked: 'general' };
   }
   function loadSave() {
     var s = defSave();

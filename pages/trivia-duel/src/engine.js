@@ -1,6 +1,6 @@
 var TD = (typeof window !== 'undefined' ? (window.TD = window.TD || {}) : (global.TD = global.TD || {}));
 (function () {
-  TD.BUILD = 'td-q420-1';
+  TD.BUILD = 'td-home-1';
   TD.DEFAULTS = {
     timerSec: 15, basePts: 60, speedPts: 20,
     readCps: 18, readBaseSec: 1.0,

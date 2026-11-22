@@ -74,8 +74,8 @@
   #scr-wager .wager-lbl{font-size:15px}
   #scr-wager #wager-scores{font-size:48px}
   #scr-wager .res .av,#scr-wager #wager-scores .av{width:84px!important;height:84px!important}
-  #scr-wager .btn-wtopic{min-height:104px;font-size:22px;gap:6px}
-  #scr-wager .btn-wtopic img{width:52px;height:52px}
+  #scr-wager .btn-wtopic{min-height:66px;font-size:20px;gap:4px}
+  #scr-wager .btn-wtopic img{width:36px;height:36px}
   #scr-wager .btn-mult{min-height:84px;font-size:32px}
   #scr-wager .wager-note{font-size:19px;padding:12px 18px}
   #scr-wager #btn-wager-go{min-height:68px;font-size:26px;max-width:520px;width:100%;align-self:center;margin-top:0}
