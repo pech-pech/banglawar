@@ -59,8 +59,9 @@
       el.textContent = '';
       if (v && typeof v === 'object') {
         const mk = (cls, t) => { const s = doc.createElement('span'); s.className = cls; s.textContent = t; return s; };
-        el.append(mk('sb-team sb-home', app.shortName(v.home, 'PRESTON')), mk('sb-score', v.hs != null ? v.hs : 0),
-          mk('sb-score', v.as != null ? v.as : 0), mk('sb-team sb-away', app.shortName(v.away, '')));
+        const nm = (n, f) => { const x = app.shortName(n, f); return v.tag ? x.slice(0, 3) : x; };
+        el.append(mk('sb-team sb-home', nm(v.home, 'PRESTON')), mk('sb-score', v.hs != null ? v.hs : 0),
+          mk('sb-score', v.as != null ? v.as : 0), mk('sb-team sb-away', nm(v.away, '')));
         if (v.tag) { const t = mk('sb-tag', v.tag); t.style.cssText = 'flex:0 0 auto;font-size:12px;letter-spacing:.06em;color:var(--gold);border:1px solid var(--gold);border-radius:6px;padding:1px 6px'; el.append(t); }
       } else el.textContent = v == null ? 'SQUAD DUEL' : String(v);
     },
@@ -292,7 +293,9 @@
       // Builds a valid state for ?jump=...; wins every league match 3-0 unless a different count is asked.
       fakeLeague(n, me, opp) {
         const S = app.S, T = app.T;
-        for (let i = 0; i < n; i++) SD.season.recordMatchday(S, me == null ? 3 : me, opp == null ? 0 : opp, T);
+        let last = null;
+        for (let i = 0; i < n; i++) last = SD.season.recordMatchday(S, me == null ? 3 : me, opp == null ? 0 : opp, T);
+        return last;
       },
       // Auto-plays n league matches with a simple policy (first card, best legal action), through the real flow.
       simLeague(n) {
@@ -321,7 +324,7 @@
         const S = app.S, T = app.T;
         if (!SD.season) return false;
         const league7 = () => { if (S.season.md < 7) app.debug.fakeLeague(7 - S.season.md); };
-        if (name === 'table' || name === 'mdres') { app.debug.fakeLeague(2); app.lastMd = S.lastMd = null; }
+        if (name === 'table' || name === 'mdres') { const lm = app.debug.fakeLeague(2); app.lastMd = S.lastMd = name === 'mdres' ? (lm || null) : null; }
         if (name === 'cupintro' || name === 'end' || name === 'shootout') league7();
         if (name === 'end') { SD.season.recordCup(S, 2, 1, null); }
         if (name === 'shootout') {

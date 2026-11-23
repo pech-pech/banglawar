@@ -375,10 +375,10 @@ function runMatch(cfg, polName, hooks) {
       rec.events.push(ev);
       let g2 = 0;
       while (m.flags.extraShoot && g2++ < 2) {
-        if (pol.twinDecline && twinDeclines(ctx)) { m.flags.extraShoot = false; m.played = true; rec.twinDeclined = (rec.twinDeclined || 0) + 1; break; } // Twin Run: a second play this turn, a hand card as Shoot only (no turn spent)
         let best = null, bp = -1;
         for (const pid of m.hand) { if (!SD.engine.legal(m, pid).includes('shoot')) continue; const p = SD.engine.previewAttack(m, pid, 'shoot').chip.p; if (p > bp) { bp = p; best = pid; } }
-        if (!best) break;
+        // Twin Run is optional: shoot if chip >= 0.35 (and, for twinDecline policies, only when worth more than keeping the ball), else SD.engine.skipExtra
+        if (!best || bp < 0.35 || (pol.twinDecline && twinDeclines(ctx))) { SD.engine.skipExtra(m); rec.twinDeclined = (rec.twinDeclined || 0) + 1; break; }
         const e2 = SD.engine.playAttack(m, best, 'shoot'); if (!e2) break;
         rec.twin++; rec.picks.push({ pid: best, a: 'shoot', zone: e2.zone, extra: true }); rec.events.push(e2); ev = e2;
       }

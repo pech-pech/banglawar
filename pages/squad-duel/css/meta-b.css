@@ -117,7 +117,7 @@
 :is(#pull,#end) .mb-btn.primary { order: 2; flex: 1.4 1 0; color: var(--ink,#031018); background: linear-gradient(180deg,#4af6ff,#15c4e0); border-color: transparent; box-shadow: 0 0 16px rgba(44,240,255,.5); }
 :is(#pull,#end) .mb-btn:not(.primary) { order: 1; }
 :is(#pull,#end) .mb-btn.danger { background: linear-gradient(180deg,#ff7a90,#e0344f); color: #fff; box-shadow: 0 0 14px rgba(255,77,109,.5); }
-:is(#pull,#end) .mb-btn:disabled { opacity: .45; box-shadow: none; cursor: default; }
+:is(#pull,#end) .mb-btn:disabled { opacity: 1; background: #3a4768; border-color: #5b6b95; color: #f2f6ff; box-shadow: none; cursor: default; }
 :is(#pull,#end) .mb-btn:focus-visible, :is(#pull,#end) .slot12:focus-visible { outline: 3px solid var(--gold,#ffc83a); outline-offset: 2px; }
 
 /* overlays */

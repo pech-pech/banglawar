@@ -172,7 +172,7 @@
           });
           row.appendChild(b);
         });
-        root.appendChild(h('h3', { class: 'mgr-h', text: 'Captain: Trait + Signature again at half-time' }));
+        root.appendChild(h('h3', { class: 'mgr-h', text: 'Captain: Trait + Signature reset at half-time' }));
         root.appendChild(row);
       }
 

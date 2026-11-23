@@ -527,6 +527,13 @@
     return ev;
   }
 
+  // Twin Run is optional: decline the second play. Clears the flag and marks the turn played (no rng use); caller then runs nextPhase.
+  function skipExtra(m) {
+    if (m.phase !== 'attack' || !m.flags.extraShoot) return false;
+    m.flags.extraShoot = false; m.played = true;
+    return true;
+  }
+
   function playDefend(m, pid, stance) {
     if (m.phase !== 'defend' || m.played) return null;
     const ca = clubAction(m), action = ca.act;
@@ -645,7 +652,7 @@
     return ev;
   }
 
-  SD.engine = { newMatch, legal, tell, previewAttack, previewDefend, playAttack, playDefend: playDefendW, nextPhase, startHalf2,
+  SD.engine = { newMatch, legal, tell, previewAttack, previewDefend, playAttack, skipExtra, playDefend: playDefendW, nextPhase, startHalf2,
     actives, use, summary, drawTo, discardHand, playCard, onceUsed, markOnce, onceHalfUsed, markOnceHalf, fire, defendCards, attackCards, secondLookPeek, run };
 
   // ------------------------------------------------------------------

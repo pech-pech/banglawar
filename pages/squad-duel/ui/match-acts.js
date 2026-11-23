@@ -62,7 +62,7 @@
     if (w) {
       ['pass', 'dribble', 'through', 'shoot'].forEach((a) => {
         const v = Math.round((w[a] || 0) * 100);
-        if (v > 0) { cols.push('minmax(0,' + v + 'fr)'); segs += '<div class="seg w-' + a + '">' + esc(ACTS[a].label.replace('Through ball', 'Thru').replace(' ball', '')) + ' ' + v + '%</div>'; }
+        if (v > 0) { cols.push('minmax(0,' + v + 'fr)'); segs += '<div class="seg w-' + a + '">' + esc(v < 30 || (a === 'dribble' && v < 40) ? ({ pass: 'Pas', dribble: 'Drb', through: 'Thr', shoot: 'Sht' })[a] : ACTS[a].label.replace('Through ball', 'Thru').replace(' ball', '')) + ' ' + v + '%</div>'; }
       });
     }
     const bar = segs ? '<div class="stance wb" style="grid-template-columns:' + cols.join(' ') + '" role="img" aria-label="' + esc(text) + '">' + segs + '</div>' : '<div class="who">' + esc(text) + '</div>';
@@ -176,6 +176,7 @@
     box.className = 'four'; box.style.gridTemplateColumns = '';
     box.innerHTML = strip(U) + ['pass', 'dribble', 'through', 'shoot'].map((a) => {
       const A = ACTS[a], on = U.act === a, legal = list.includes(a);
+      if (a === 'through' && m.flags.extraShoot) return '<button class="act skip" id="act-skip" aria-label="Skip the Twin Run shot and end the turn"><span class="an">Skip shot</span><span class="pc">&nbsp;</span><span class="as">End turn</span></button>';
       let p = null;
       if (legal) {
         if (row) p = row.opts[a];

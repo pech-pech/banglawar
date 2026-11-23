@@ -101,3 +101,8 @@
 }
 #shootout .sh-duel.theirs .sd-l b{font-size:16px}
 #shootout .die.old{opacity:.4}
+
+/* visual-qa fixes: kicker name shrinks, rule line wraps */
+#shootout .sd-l b,#shootout .sd-r b{font-size:clamp(14px,5vw,20px)}
+#shootout .sh-card .rl{white-space:normal;overflow:visible;text-overflow:clip;overflow-wrap:anywhere;line-height:14px}
+#shootout .sh-card .rl u{display:block}

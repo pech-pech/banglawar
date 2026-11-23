@@ -52,6 +52,7 @@
       if (t.classList.contains('act') && t.dataset.a) return U.api.pickAct(t.dataset.a);
       if (t.classList.contains('act') && t.dataset.st) return U.api.pickStance(t.dataset.st);
       if (t.classList.contains('ab')) return U.api.useAbility(t.dataset.id);
+      if (id === 'act-skip') return U.api.skipExtra();
       if (id === 'btn-back') return U.api.undo();
       if (id === 'btn-confirm') return U.api.confirm();
       if (id === 'btn-next') return U.api.next();
@@ -63,10 +64,10 @@
   }
 
   // Every U.api call is recorded into S.live.inputs (except draw/finish) and autosaved after turn-level calls.
-  const REC = { pickCard: 1, pickAct: 1, pickStance: 1, useAbility: 1, undo: 1, confirm: 1, next: 1, startHalf2: 1 };
-  const SAVE = { confirm: 1, next: 1, useAbility: 1, startHalf2: 1 };
+  const REC = { pickCard: 1, pickAct: 1, pickStance: 1, useAbility: 1, undo: 1, confirm: 1, next: 1, startHalf2: 1, skipExtra: 1 };
+  const SAVE = { skipExtra: 1, confirm: 1, next: 1, useAbility: 1, startHalf2: 1 };
   function makeApi(U) {
-    const raw = { draw, pickCard, pickAct, pickStance, useAbility, undo, confirm, next, startHalf2, finish };
+    const raw = { draw, pickCard, pickAct, pickStance, useAbility, undo, confirm, skipExtra, next, startHalf2, finish };
     const api = {};
     Object.keys(raw).forEach((k) => {
       api[k] = (...a) => {
@@ -81,7 +82,7 @@
   }
   function replay(U, inputs) {
     U.replay = true;
-    const raw = { pickCard, pickAct, pickStance, useAbility, undo, confirm, next, startHalf2 };
+    const raw = { pickCard, pickAct, pickStance, useAbility, undo, confirm, skipExtra, next, startHalf2 };
     for (const inp of inputs) { const f = raw[inp.f]; if (f) f(U, ...(inp.a || [])); }
     U.busy = false;
   }
@@ -165,6 +166,15 @@
     clearTimeout(U.timer);
     U.ev = null; U.sel = null; U.act = null; U.stance = null; U.newIds = []; U.prevHand = null;
     SD.engine.nextPhase(m);
+    draw(U);
+  }
+  // Twin Run declined: end the turn as a normal won Dribble would (no second play)
+  function skipExtra(U) {
+    const m = U.m;
+    if (U.ev || U.busy || !SD.engine.skipExtra(m)) return;
+    U.sel = null; U.act = null; U.stance = null; U.newIds = []; U.prevHand = null;
+    SD.engine.nextPhase(m);
+    try { if (SD.ui.scene && SD.ui.scene.update) SD.ui.scene.update(m); } catch (e) { console.error('scene.update', e); }
     draw(U);
   }
   function startHalf2(U) {
