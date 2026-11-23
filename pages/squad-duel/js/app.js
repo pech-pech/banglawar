@@ -204,7 +204,7 @@
 
     matchSetup() {
       const S = app.S, T = app.T, P = SD.progress, D = SD.data;
-      app.ensureSeason();
+      app.ensureSeason(); app.sh = null;
       const SE = SD.season, hasSeason = !!(SE && SE.fixtureFor && S.season);
       let clubId, md, mode = 'home', homeSide = 'me', cup = false;
       if (hasSeason) {

@@ -596,5 +596,5 @@
 
   SD.ui = SD.ui || {};
   SD.ui.pull = { render: renderPull };
-  SD.ui.end = { render: renderEnd };
+  // SD.ui.end (slice trophy screen) retired: the season end screen is SD.ui.seasonEnd (ui/season.js).
 })();

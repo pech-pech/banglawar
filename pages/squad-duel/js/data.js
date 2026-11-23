@@ -251,8 +251,8 @@
       cup: { W: { coins: 100, sp: 2 }, L: { coins: 50, sp: 1 } }, // E3; shootout win = win pay (A-systems d)
       season: { cupWon: 300, cupLost: 100, place34: 50 } }, // E4, mirrors Tweak cupWinPay/cupLossPay/place34Pay
     PULL: { cost: 100, starter: { Rare: 0.70, Epic: 0.25, Legend: 0.05 }, normal: { Common: 0.55, Rare: 0.30, Epic: 0.12, Legend: 0.03 }, pityEpic: 10, pityLegend: 30, maxStars: 5, dupeCoinsAtMax: 25, commonCoins: 25 },
-    TROPHY: [{ id: 'm1', label: 'League match 1' }, { id: 'm2', label: 'League match 2' }, { id: 'more', label: '4 more League matches' }, { id: 'cup', label: 'Cup Final', locked: true }],
-    NEXT_GOAL: 'Next goal: win 4 more League matches with your squad to unlock the Cup Final.',
+    TROPHY: [{ id: 'lg', label: '7 League matches' }, { id: 'cup', label: 'Cup Final (top 2)', locked: true }],
+    NEXT_GOAL: 'Next goal: finish in the top 2 of the League to reach the Cup Final.',
     TWEAK_DEFAULTS,
     TWEAK_META
   };

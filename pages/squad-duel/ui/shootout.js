@@ -97,23 +97,24 @@
     }
 
     // ---- duel panel numbers ----
+    let cur = null;   // panel numbers of the kick in flight / just shown
     function sides() {
+      if ((busy || isDone()) && cur) return cur;
       const w = who();
       if (w === 'opp') {
-        const kb = (t.oppKickBonus == null ? 2 : t.oppKickBonus);
-        const base = ((m.club && m.club.def) || 0) + kb;
-        return { l1: opName, l2: 'ATTACK', ls: base, r1: 'YOUR KEEPER', rs: keeper.def, p: SH.oddsOpp ? SH.oddsOpp(sh) : null };
+        const cfg = sh.cfg || {};
+        return { l1: opName, l2: 'KICK', ls: cfg.club && cfg.club.kick, r1: 'YOUR KEEPER', rs: cfg.myKeeper ? cfg.myKeeper.def : keeper.def, p: SH.oddsOpp ? SH.oddsOpp(sh) : null };
       }
       const o = opts().find((x) => x.pid === sel);
-      return { l1: o ? o.name : 'YOU', l2: o ? (o.kind + ' ' + o.stat) : '', ls: null, r1: 'KEEPER', rs: m.club && m.club.keeper && m.club.keeper.def, p: o ? o.p : null };
+      return { l1: o ? o.name : 'YOU', l2: o ? (o.kind + ' ' + o.stat) : '', ls: null, r1: 'KEEPER', rs: sh.cfg && sh.cfg.club ? sh.cfg.club.keeper : (m.cs && m.cs.keeper), p: o ? o.p : null };
     }
 
-    function face(v, cls) { return '<i class="die ' + cls + (dice.rolling ? ' roll' : '') + '" aria-label="die">' + (v == null || dice.rolling ? '?' : v) + '</i>'; }
+    function face(v, cls) { const old = !dice.rolling && v != null && !isDone() && dice.who !== who(); return '<i class="die ' + cls + (dice.rolling ? ' roll' : '') + (old ? ' old' : '') + '" aria-label="die">' + (v == null || dice.rolling ? '?' : v) + '</i>'; }
 
     function ruleText() {
       const rr = opts().find((o) => o.ruleR);
-      let s = 'Each side adds one d6. A tie goes to the kicker. A natural 6 v 1 always wins.';
-      return s;
+      if (rr) return 'Keeper reads ' + rr.role + ': a tie goes to the keeper this kick. A natural 6 v 1 still holds.';
+      return 'The stat gap is halved, each side adds one d6, a tie goes to the kicker. A natural 6 v 1 always wins. Same role twice in a row: keeper wins ties.';
     }
 
     function draw() {
@@ -144,7 +145,7 @@
       const left = list.length ? list.length : 0;
       root.innerHTML =
         '<div class="sh-band"><svg viewBox="0 0 24 24" width="30" height="30" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M7 4h10v5a5 5 0 0 1-10 0z"/><path d="M7 6H4v2a3 3 0 0 0 3 3M17 6h3v2a3 3 0 0 1-3 3M12 14v4M8 20h8"/></svg>' +
-        '<div><b>CUP FINAL: SHOOTOUT</b><small>Coin toss: ' + esc(first) + ' kick first &middot; No Roar</small></div></div>' +
+        '<div><b>CUP FINAL: SHOOTOUT</b><small>Coin toss: ' + esc(first) + ' first &middot; No Roar</small></div></div>' +
         '<div class="sh-board" id="sh-score" aria-live="polite">' +
           '<div class="rw me"><span class="tn">' + meName + '</span>' + circles('me') + '<span class="sc">' + scoreOf('me') + '</span></div>' +
           '<div class="rw opp"><span class="tn">' + esc(opName) + '</span>' + circles('opp') + '<span class="sc">' + scoreOf('opp') + '</span></div>' +
@@ -169,7 +170,7 @@
       const d = root.querySelector('#btn-sh-done');
       if (d) d.addEventListener('click', () => {
         alive = false; clearTimeout(timer);
-        const s = sh; A.sh = null;
+        const s = sh; /* A.sh kept for Copy report; cleared at next matchSetup */
         if (A.endShootout) A.endShootout(s);
       });
     }
@@ -177,9 +178,9 @@
     function resultLine(ev) {
       const P = ev.pid ? byPid[ev.pid] : null;
       const nm = ev.side === 'me' ? ((P && P.name) || 'You') : opName;
-      const a = (ev.stat || 0) + (ev.dA || 0), b = (ev.vs || 0) + (ev.dB || 0);
+      const g = Math.trunc(((ev.stat || 0) - (ev.vs || 0)) / 2);
       const keeperTxt = ev.side === 'me' ? 'keeper' : 'your keeper';
-      let s = nm + ' ' + (ev.stat || 0) + '+' + (ev.dA || 0) + ' = ' + a + ' v ' + keeperTxt + ' ' + (ev.vs || 0) + '+' + (ev.dB || 0) + ' = ' + b + ': ' + (ev.scored ? 'GOAL' : 'SAVED');
+      let s = nm + ' ' + (ev.stat || 0) + ' v ' + keeperTxt + ' ' + (ev.vs || 0) + ', gap ' + (g >= 0 ? '+' : '') + g + ', dice ' + (ev.dA || 0) + ' v ' + (ev.dB || 0) + ': ' + (ev.scored ? 'GOAL' : 'SAVED');
       if (ev.chips && ev.chips.length) s += ' (' + ev.chips.join(', ') + ')';
       return s;
     }
@@ -187,6 +188,7 @@
     // play one kick: logic runs now, the board reveals after the dice settle
     function play(fn) {
       let ev;
+      { const was = busy; busy = false; cur = null; cur = sides(); busy = was; }
       try { ev = fn(); } catch (e) { ev = null; }
       if (!ev) { busy = false; draw(); return; }
       busy = true;

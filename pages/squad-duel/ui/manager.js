@@ -131,7 +131,7 @@
     let selected = null; // slot being swapped
     let flash = null;    // { slots: [..], msg } after a swap (row 24)
     let flashTimer = 0;
-    let detailPid = null; // U10 card detail overlay
+    let detailPid = SD.app.openCard || null; SD.app.openCard = null; // U10 card detail overlay (jump=card sets openCard)
 
     el.innerHTML = '';
     const root = h('div', { id: 'mgr' });

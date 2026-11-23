@@ -195,7 +195,7 @@
   }
 
   // ---- row 17: abilities say what they do, once / used; flash after use
-  const ABIL_TXT = { A1: 'see stance', S1: 'redraw hand' };
+  const ABIL_TXT = { A1: 'see stance', A3: 'see stance now', S1: 'redraw hand' };
   function abilUsed(m, id) {
     try { const inst = m.fx.find((x) => x.id === id); return !!(inst && SD.engine.onceUsed && SD.engine.onceUsed(m, inst)); } catch (e) { return false; }
   }
@@ -209,7 +209,7 @@
       const used = abilUsed(m, a.id), ok = a.can && canUse;
       const hint = ABIL_TXT[a.id] || 'special';
       const flashing = fl && fl.id === a.id;
-      const sm = flashing ? fl.html : used ? 'used' : ok ? '<span class="w">' + esc(hint) + ' · </span>once' : (m.phase === 'defend' && a.id === 'A1' ? '<span class="w">attack turns </span>only' : 'not now');
+      const sm = flashing ? fl.html : used ? 'used' : ok ? '<span class="w">' + esc(hint) + ' · </span>once' : (m.phase === 'defend' && (a.id === 'A1' || a.id === 'A3') ? '<span class="w">attack turns </span>only' : 'not now');
       return '<button class="ab' + (used ? ' used' : '') + (flashing ? ' flash' : '') + '" title="' + esc(a.label + ': ' + hint + ', once per match') + '" id="' + (ABIL_ID[a.id] || 'ab-' + String(a.id).toLowerCase()) + '" data-id="' + esc(a.id) + '" aria-disabled="' + !ok + '"><span class="abn">' + esc(a.label) + '</span><span class="abs">' + sm + '</span></button>';
     }).join('');
     ab.hidden = !acts.length;
@@ -222,19 +222,19 @@
     const a = SD.engine.actives(m).find((x) => x.id === id);
     if (!a || !a.can) return true;
     const before = m.hand.slice();
-    U.api.useAbility(U, id);
+    U.api.useAbility(id);
     let text = 'used';
     if (id === 'S1') {
       const nw = m.hand.filter((p) => !before.includes(p)).map((p) => nameOf(m, p));
       text = nw.length ? 'Redrawn<span class="w">: ' + esc(nw.join(', ')) + '</span>' : 'Hand redrawn';
-    } else if (id === 'A1') {
+    } else if (id === 'A1' || id === 'A3') {
       const st = tellOf(m).exact;
       text = st ? 'Stance: ' + esc(cap1(st)) : 'Stance seen';
     }
     U.acts_flash = { id, html: text };
     clearTimeout(U.acts_flashT);
-    U.acts_flashT = setTimeout(() => { U.acts_flash = null; if (!U.ev && U.el.isConnected && U.api.draw) U.api.draw(U); }, 2600);
-    if (U.api.draw) U.api.draw(U);
+    U.acts_flashT = setTimeout(() => { U.acts_flash = null; if (!U.ev && U.el.isConnected && U.api.draw) U.api.draw(); }, 2600);
+    if (U.api.draw) U.api.draw();
     return true;
   }
 

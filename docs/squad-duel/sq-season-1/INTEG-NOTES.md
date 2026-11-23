@@ -1,0 +1,11 @@
+- manager: kick id #btn-kickoff, back #btn-mgr-back; captain = pitch only.
+- data: TS 2,5,4,5,6,8,9 used (season draws 24.6% v 27 target). NEXT_GOAL/TROPHY still slice text. Old grimsby*/reading* keys removed: check club-ai/engine/app for reads.
+- tweak: Presets group collapsed; report reads SD.app.sh.
+- shootout: sh plain JSON; reads m.cs, m.fx, m.once, m.T. +2 bonus gives order gap 6.2 (design said 7.8).
+- meta-b: pull screen; had old data at test time, re-verify 20 grid + pullLog.
+- meta-a: tree uses own reqAny check not progress.canBuy (switch to canBuy); NO data-node attr on tier-3 (add data-node="A3|D3|S3"); continue id #btn-result-next.
+- progress: new state starts step 'hub'; season lazy.
+- fxp: saveZone ctx.zone/startZone; Yenna/Ruvo also write ctx.next.
+- engine: A3 = stance reveal this turn (needs UI active button via drawAbil); new hook defStance; halfTime after beginTurn half2.
+- shell: app has own STEPS/ensureSeason; fallback screens in app.js; jumps fake 3-0 wins; shootout resume restarts kick 1; verify manager/meta-a route via afterResult/go('match') (shell saw stale copies). Old e2e.js expected to fail on old steps: integrator updates or retires those checks.
+- seasonui: footer tabs; season end previews pay (nextSeason applies); Copy report button on end; cup intro -> manager.

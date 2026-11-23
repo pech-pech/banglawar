@@ -350,7 +350,7 @@
     const list = h('div', { class: 'nodes' }, nodes(TR.tab).map(function (n) {
       const st = nodeState(n);
       const tag = st === 'owned' ? 'OWNED' : st === 'fork-locked' ? 'TAKEN' : st === 'locked' ? (n.reqAny ? 'NEEDS T1 + T2' : 'NEEDS T' + ((nodeById(n.req) || {}).tier || 1)) : n.cost + ' SP';
-      return h('button', { type: 'button', class: 'node ' + st + (TR.sel === n.id ? ' sel' : ''), 'data-id': n.id, 'data-state': st, 'aria-pressed': TR.sel === n.id ? 'true' : 'false', on: { click: function () { TR.sel = n.id; renderTree(el); } } }, [
+      return h('button', { type: 'button', class: 'node ' + st + (TR.sel === n.id ? ' sel' : ''), 'data-id': n.id, 'data-node': n.id, 'data-state': st, 'aria-pressed': TR.sel === n.id ? 'true' : 'false', on: { click: function () { TR.sel = n.id; renderTree(el); } } }, [
         h('span', { class: 'nd-tier', text: 'T' + n.tier }),
         h('span', { class: 'nd-main' }, [
           h('span', { class: 'nd-name' }, [h('b', { text: n.name }), n.fork ? h('i', { class: 'nd-fork', text: '1 of 2' }) : null]),
@@ -430,7 +430,15 @@
     } } });
     const foot = h('div', { class: 'foot' }, [respec, next]);
 
-    [head, tabs, list, locked, detail, foot].forEach(function (n) { root.appendChild(n); });
+    // shortcut to the tier 3 nodes of the other trees (A3 Second Look, D3 Press Master, S3 Captain)
+    const t3 = h('div', { id: 'tree-t3', class: 'tree-t3' }, TABS.filter(function (t) { return t[0] !== TR.tab; }).map(function (t) {
+      const n = nodes(t[0]).filter(function (x) { return x.tier === 3; })[0];
+      if (!n) return null;
+      const stt = nodeState(n);
+      return h('button', { type: 'button', class: 'node t3 ' + stt, 'data-node': n.id, 'data-state': stt, on: { click: function () { TR.tab = t[0]; TR.sel = n.id; renderTree(el); } } }, [
+        h('span', { class: 'nd-tier', text: 'T3' }), h('b', { text: n.name }), h('span', { class: 'nd-cost', text: stt === 'owned' ? 'OWNED' : stt === 'locked' ? 'LOCKED' : n.cost + ' SP' })]);
+    }));
+    [head, tabs, list, t3, locked, detail, foot].forEach(function (n) { root.appendChild(n); });
 
     if (TR.confirm) {
       const tabName = (TABS.filter(function (t) { return t[0] === TR.tab; })[0] || [0, TR.tab])[1];

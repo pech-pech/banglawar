@@ -11,7 +11,7 @@
 #shootout .sh-board{flex:none;padding:8px 10px;border-radius:10px;background:var(--glass);border:1px solid var(--line)}
 #shootout .rw{display:flex;align-items:center;gap:6px;min-height:40px}
 #shootout .rw+.rw{margin-top:4px}
-#shootout .tn{flex:0 0 78px;font-size:15px;letter-spacing:.06em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#shootout .tn{flex:0 0 96px;font-size:15px;letter-spacing:.06em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 #shootout .rw.me .tn{color:#9cc0ff}
 #shootout .rw.opp .tn{color:#ff9aab}
 #shootout .cs{flex:1;min-width:0;display:flex;justify-content:flex-end;gap:5px}
@@ -47,7 +47,7 @@
 /* pick row: same glass card look as the LOCK-1 hand card */
 #shootout .sh-pick{flex:1 1 auto;min-height:0;display:flex;flex-direction:column;gap:6px}
 #shootout .sh-pick .hd{flex:none;font-size:12px;line-height:15px;letter-spacing:.08em;color:var(--dim)}
-#shootout .grid{flex:1 1 auto;min-height:0;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));grid-auto-rows:minmax(64px,1fr);gap:8px;max-height:196px}
+#shootout .grid{flex:1 1 auto;min-height:0;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));grid-auto-rows:minmax(64px,1fr);gap:8px;max-height:236px}
 #shootout .sh-card{position:relative;display:flex;flex-direction:column;justify-content:space-between;gap:2px;min-height:64px;padding:6px 7px;border-radius:8px;background:var(--glass);border:2px solid var(--line);color:var(--txt);text-align:left;min-width:0}
 #shootout .sh-card .nm{display:flex;align-items:center;gap:5px;font-size:14px;line-height:16px;color:#fff;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #shootout .sh-card .rl{font-size:12px;line-height:14px;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -99,3 +99,5 @@
 @media (min-width:420px) and (max-height:720px){
  #shootout .sd-l,#shootout .sd-r{flex-direction:column}
 }
+#shootout .sh-duel.theirs .sd-l b{font-size:16px}
+#shootout .die.old{opacity:.4}

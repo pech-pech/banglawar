@@ -6,7 +6,7 @@
   // ------------------------------------------------------------------
   const DEF_T = { die: 6, halfTurns: 6, handSize: 3, cap: 3, passBonus: 2, buildMax: 2, formCounter: 3, roarAt: 3,
     tellOn: true, coarseChip: false, flatterStarters: false, reducedMotion: false, autoNext: true,
-    grimsbyDef: 4, grimsbyKeeper: 7, grimsbyAtk: 7, readingDef: 5, readingKeeper: 8, readingAtk: 7,
+    
     trailShift: 0.1, fxOff: {} };
   const FORM = {
     Wall: { defVs: { dribble: 3 }, att: {} },
