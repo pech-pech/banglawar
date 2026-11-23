@@ -718,7 +718,7 @@ function expRetune() {
     const near = grid.slice().sort((x, y) => Math.abs(x.w - 48) - Math.abs(y.w - 48)).slice(0, 8);
     const full = []; near.forEach((g) => ['Wall', 'Diamond', 'Spear'].forEach((f) => { const R = mk(g.d, g.k, g.a, f, 1000, 'rothf' + g.d + g.k + g.a + f); full.push({ d: g.d, k: g.k, a: g.a, f, w: R.winPct, z0: R.z0Pct }); }));
     const A = full.filter(land).sort((x, y) => x.z0 - y.z0 || y.a - x.a)[0] || null;       // lands the band, lowest 0-0
-    const B = grid.filter((g) => g.z0 < 20).sort((x, y) => Math.abs(x.w - 48) - Math.abs(y.w - 48) || y.a - x.a)[0] || null; // 0-0 under 20, closest to 48 (Wall)
+    const B = full.concat(grid.map((g) => Object.assign({ f: 'Wall' }, g))).filter((g) => g.z0 < 20).sort((x, y) => Math.abs(x.w - 48) - Math.abs(y.w - 48) || y.a - x.a)[0] || null; // 0-0 under 20, closest to 48 (Wall)
     const both = full.filter((g) => land(g) && g.z0 < 20).sort((x, y) => y.a - x.a || (x.d + x.k) - (y.d + y.k))[0] || null;
     const cand = both || A || B;
     const conf = (g) => { const form = g.f || selectForm(cfgFor(md, club, 'expected', { T: { c_rotherham_def: g.d, c_rotherham_keeper: g.k, c_rotherham_atk: g.a } }), 'rothform' + g.d + g.k + g.a, 400).best;
