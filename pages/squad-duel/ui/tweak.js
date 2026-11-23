@@ -3,7 +3,7 @@
 
   const KEY_T = 'squadDuel.tweak.v1';
   const KEY_P = 'squadDuel.presets.v1';
-  const BUILD = 'sq-slice-1';
+  const BUILD = 'sq-ui-1';
 
   // admin default: fallback copy of CONTRACT section 9, used only when SD.data.TWEAK_DEFAULTS is missing (stubbed self-test).
   const FALLBACK_DEFAULTS = {

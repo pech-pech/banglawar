@@ -1,6 +1,6 @@
 (function () { 'use strict';
   const SD = (globalThis.SD = globalThis.SD || {});
-  const BUILD = 'sq-slice-1';
+  const BUILD = 'sq-ui-1';
   const doc = typeof document !== 'undefined' ? document : null;
   const qs = (typeof location !== 'undefined') ? new URLSearchParams(location.search) : new URLSearchParams('');
 

@@ -1,10 +1,10 @@
 // Squad Duel offline cache. Bump VERSION on every release.
-const VERSION = 'sq-slice-1';
+const VERSION = 'sq-ui-1';
 const CORE = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png', './icon-maskable-512.png',
   './fonts/atkinson-400.woff2', './fonts/atkinson-700.woff2',
-  './css/base.css', './css/manager.css', './css/match.css', './css/scene.css', './css/meta-a.css', './css/meta-b.css', './css/tweak.css',
+  './css/base.css', './css/manager.css', './css/match.css', './css/scene.css', './css/meta-a.css', './css/meta-b.css', './css/tweak.css', './css/match-result.css', './css/match-cards.css', './css/match-acts.css', './css/match-frame.css',
   './js/rng.js', './js/data.js', './js/odds.js', './js/club-ai.js', './js/fx-nodes.js', './js/fx-players.js', './js/engine.js', './js/progress.js', './js/gacha.js', './js/app.js',
-  './ui/scene.js', './ui/match.js', './ui/manager.js', './ui/meta-a.js', './ui/meta-b.js', './ui/tweak.js'];
+  './ui/scene.js', './ui/match-help.js', './ui/match-cards.js', './ui/match-acts.js', './ui/match-result.js', './ui/match-frame.js', './ui/match.js', './ui/manager.js', './ui/meta-a.js', './ui/meta-b.js', './ui/tweak.js'];
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(VERSION).then(c => Promise.allSettled(CORE.map(f => c.add(f)))).then(() => self.skipWaiting()));
 });
