@@ -3,7 +3,7 @@
 
   const KEY_T = 'squadDuel.tweak.v1';
   const KEY_P = 'squadDuel.presets.v1';
-  const BUILD = 'sq-slice-1';
+  const BUILD = 'sq-ui-1';
 
   // admin default: fallback copy of CONTRACT section 9, used only when SD.data.TWEAK_DEFAULTS is missing (stubbed self-test).
   const FALLBACK_DEFAULTS = {
@@ -100,7 +100,18 @@
   function syncDev() {
     try {
       const d = document.getElementById('dev');
-      if (d) d.hidden = !isDev();
+      if (d) {
+        const n = Object.keys(changed()).length;
+        d.hidden = !n;
+        d.textContent = 'DEV ' + n;
+        if (!d.__sdBound) {
+          d.__sdBound = true;
+          d.setAttribute('role', 'button'); d.setAttribute('tabindex', '0');
+          d.addEventListener('click', openAtChanged);
+          d.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openAtChanged(); } });
+        }
+        d.setAttribute('aria-label', 'Tweak: ' + n + ' changed value' + (n === 1 ? '' : 's') + '. Open first changed');
+      }
     } catch (e) { /* ignore */ }
   }
   function setValue(key, v) {
@@ -304,7 +315,6 @@
   }
   function copyReport() {
     return copyText(report()).then(function (ok) {
-      toast(ok ? 'Report copied' : 'Copy failed, select the text and copy by hand');
       return ok;
     });
   }
@@ -328,7 +338,7 @@
       gm[mt.group].push(mt);
     });
     groups.forEach(function (g) {
-      host.appendChild(el('h3', { text: g }));
+      host.appendChild(el('h3', { text: g, id: 'tw-sec-' + g.toLowerCase().replace(/[^a-z0-9]+/g, '-') }));
       gm[g].forEach(function (mt) {
         const row = el('label', { class: 'row', 'data-row': mt.key });
         const lab = el('span', { class: 'lab' }, [el('b', { text: mt.label || mt.key }), el('i', { text: 'default ' + (typeof D[mt.key] === 'boolean' ? (D[mt.key] ? 'on' : 'off') : D[mt.key]) })]);
@@ -348,6 +358,21 @@
             if (!setValue(mt.key, inp.value)) { /* bad text: restore */ }
             inp.value = values()[mt.key]; markRow(row, mt.key);
           });
+          const stepBy = function (dir) {
+            const st = isFinite(mt.step) && mt.step > 0 ? mt.step : 1;
+            let cur = parseFloat(inp.value); if (!isFinite(cur)) cur = values()[mt.key];
+            setValue(mt.key, Math.round((cur + dir * st) * 1e6) / 1e6);
+            inp.value = values()[mt.key]; markRow(row, mt.key);
+          };
+          const minus = el('button', { type: 'button', class: 'step', text: '-', 'aria-label': 'Decrease ' + (mt.label || mt.key) });
+          const plus = el('button', { type: 'button', class: 'step', text: '+', 'aria-label': 'Increase ' + (mt.label || mt.key) });
+          minus.addEventListener('click', function (e) { e.preventDefault(); stepBy(-1); });
+          plus.addEventListener('click', function (e) { e.preventDefault(); stepBy(1); });
+          row.appendChild(lab);
+          row.appendChild(el('span', { class: 'stp' }, [minus, inp, plus]));
+          markRow(row, mt.key);
+          host.appendChild(row);
+          return;
         }
         row.appendChild(lab); row.appendChild(inp);
         markRow(row, mt.key);
@@ -390,28 +415,34 @@
       host.appendChild(row);
     });
   }
+  function flash(btn, text) {
+    if (!btn) return;
+    if (btn.__orig == null) btn.__orig = btn.textContent;
+    btn.textContent = text;
+    clearTimeout(btn.__t);
+    btn.__t = setTimeout(function () { btn.textContent = btn.__orig; btn.__orig = null; }, 1500);
+  }
+  function jumpTo(node) {
+    if (!node) return;
+    try { node.scrollIntoView({ block: 'start', behavior: 'auto' }); } catch (e) { /* ignore */ }
+  }
+  function openAtChanged() {
+    open();
+    const row = root && root.querySelector('.row.chg');
+    if (row) { jumpTo(row); try { const i = row.querySelector('input'); if (i) i.focus({ preventScroll: true }); } catch (e) { /* ignore */ } }
+  }
   function build() {
     const S = (SD.app && SD.app.S) || {};
     const r = el('div', { id: 'tweak', role: 'dialog', 'aria-label': 'Tweak menu' });
-    const head = el('div', { class: 'tw-head' }, [
-      el('h2', { text: 'Tweak' }),
-      el('button', { type: 'button', id: 'tw-close', text: 'Close' })
-    ]);
+    const head = el('div', { class: 'tw-head' }, [el('h2', { text: 'Tweak' }), el('div', { class: 'tw-chips', id: 'tw-chips' })]);
     r.appendChild(head);
     const body = el('div', { class: 'tw-body' });
     body.appendChild(el('p', { class: 'note', text: 'Test values. Changes apply at the next match start. A DEV badge shows while any value is not default.' }));
-    body.appendChild(el('p', { id: 'tw-msg', 'aria-live': 'polite' }));
 
-    // report + presets
-    body.appendChild(el('h3', { text: 'Report and presets' }));
-    const bar = el('div', { class: 'bar' }, [
-      el('button', { type: 'button', id: 'btn-copy-report', class: 'pri', text: 'Copy report' }),
+    // presets
+    body.appendChild(el('h3', { text: 'Presets', id: 'tw-sec-presets' }));
+    body.appendChild(el('div', { class: 'bar' }, [
       el('button', { type: 'button', id: 'btn-copy-preset', text: 'Copy preset code' })
-    ]);
-    body.appendChild(bar);
-    body.appendChild(el('div', { class: 'name-row' }, [
-      el('input', { type: 'text', id: 'preset-name', maxlength: '24', placeholder: 'Preset name', autocomplete: 'off', 'aria-label': 'Preset name' }),
-      el('button', { type: 'button', id: 'btn-save-preset', text: 'Save preset' })
     ]));
     body.appendChild(el('div', { id: 'preset-list' }));
     body.appendChild(el('textarea', { id: 'preset-code', rows: '3', placeholder: 'Paste SDP1: code here', 'aria-label': 'Preset code' }));
@@ -419,7 +450,7 @@
 
     // seed
     const seed = el('div', { id: 'tw-seed' }, [
-      el('h3', { text: 'Seed' }),
+      el('h3', { text: 'Seed', id: 'tw-sec-seed' }),
       el('p', { class: 'note', text: 'Current seed: ' + (S.seed != null ? S.seed : 'none yet') }),
       el('div', { class: 'name-row' }, [
         el('input', { type: 'number', inputmode: 'numeric', id: 'tw-seed-input', placeholder: 'New seed', 'aria-label': 'New seed' }),
@@ -434,18 +465,45 @@
     body.appendChild(el('button', { type: 'button', id: 'tw-reset', text: 'Reset all to default' }));
     r.appendChild(body);
 
+    // sticky bottom bar (thumb zone): message, preset name, Copy report / Save preset / Close
+    r.appendChild(el('div', { class: 'tw-foot' }, [
+      el('p', { id: 'tw-msg', 'aria-live': 'polite' }),
+      el('input', { type: 'text', id: 'preset-name', maxlength: '24', placeholder: 'Preset name (to save)', autocomplete: 'off', 'aria-label': 'Preset name' }),
+      el('div', { class: 'tw-btns' }, [
+        el('button', { type: 'button', id: 'btn-copy-report', class: 'pri', text: 'Copy report' }),
+        el('button', { type: 'button', id: 'btn-save-preset', text: 'Save preset' }),
+        el('button', { type: 'button', id: 'tw-close', text: 'Close' })
+      ])
+    ]));
+
+    // section jump chips
+    const chips = r.querySelector('#tw-chips');
+    body.querySelectorAll('h3[id^="tw-sec-"]').forEach(function (h) {
+      const c = el('button', { type: 'button', class: 'chip', text: h.textContent });
+      c.addEventListener('click', function () { jumpTo(h); });
+      chips.appendChild(c);
+    });
+
     // events
     r.querySelector('#tw-close').addEventListener('click', close);
     r.querySelector('#tw-reset').addEventListener('click', function () { resetAll(); refreshInputs(); msg('All values reset to default.'); });
-    r.querySelector('#btn-copy-report').addEventListener('click', function () { copyReport().then(function (ok) { msg(ok ? 'Report copied.' : 'Copy failed.', !ok); }); });
+    r.querySelector('#btn-copy-report').addEventListener('click', function () {
+      const b = r.querySelector('#btn-copy-report');
+      copyReport().then(function (ok) { msg(ok ? 'Report copied.' : 'Copy failed.', !ok); flash(b, ok ? 'Copied' : 'Failed'); });
+    });
     r.querySelector('#btn-save-preset').addEventListener('click', function () {
       const res = savePreset(r.querySelector('#preset-name').value);
-      if (res.ok) { r.querySelector('#preset-name').value = ''; renderPresets(); msg('Saved "' + res.name + '".'); } else msg(res.why, true);
+      if (res.ok) {
+        r.querySelector('#preset-name').value = ''; renderPresets();
+        const n = Object.keys(changed()).length;
+        msg('Saved "' + res.name + '"' + (n ? '.' : ' with no changes (all defaults).'));
+        flash(r.querySelector('#btn-save-preset'), 'Saved');
+      } else { msg(res.why, true); if (/name/i.test(res.why)) { try { r.querySelector('#preset-name').focus(); } catch (e) { /* ignore */ } } }
     });
     r.querySelector('#btn-copy-preset').addEventListener('click', function () {
       const code = presetCode();
       r.querySelector('#preset-code').value = code;
-      copyText(code).then(function (ok) { msg(ok ? 'Preset code copied.' : 'Copy failed, copy it from the box.', !ok); });
+      copyText(code).then(function (ok) { msg(ok ? 'Preset code copied.' : 'Copy failed, copy it from the box.', !ok); flash(r.querySelector('#btn-copy-preset'), ok ? 'Copied' : 'Failed'); });
     });
     r.querySelector('#btn-load-code').addEventListener('click', function () {
       const res = applyCode(r.querySelector('#preset-code').value);
@@ -468,6 +526,7 @@
   function close() {
     if (root && root.parentNode) root.parentNode.removeChild(root);
     root = null;
+    try { if (SD.app && typeof SD.app.clearToast === 'function') SD.app.clearToast(); } catch (e) { /* ignore */ }
   }
   function isOpen() { return !!(root && root.isConnected); }
 
@@ -485,7 +544,7 @@
   }
 
   SD.tweak = {
-    values: values, isDev: isDev, syncDev: syncDev, open: open, close: close, isOpen: isOpen,
+    values: values, isDev: isDev, syncDev: syncDev, open: open, openAtChanged: openAtChanged, close: close, isOpen: isOpen,
     set: setValue, reset: resetAll, changed: changed,
     report: report, copyReport: copyReport, presetCode: presetCode, applyCode: applyCode,
     savePreset: savePreset, loadPreset: loadPreset, deletePreset: deletePreset

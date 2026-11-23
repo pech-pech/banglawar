@@ -24,13 +24,13 @@
 
   function geometry(W, H) {
     // stands take ~30% of the box, never thin (>=46), never so tall that 44px tokens do not fit
-    let sy = Math.max(46, Math.min(Math.round(H * 0.3), 120));
+    let sy = H < 170 ? Math.max(34, Math.round(H * 0.24)) : Math.max(46, Math.min(Math.round(H * 0.3), 120));
     const Rt = Math.max(15, Math.min(26, W * 0.0645));            // 22.2 at 344 -> 44px tokens
     const need = 4 * Rt + 30 + 26;                                  // two token rows + gaps + zone label strip
-    if (H - sy < need) sy = Math.max(46, H - need);
+    if (H - sy < need) sy = Math.max(H < 170 ? 34 : 46, H - need);
     const PH = H - sy;
     const labelH = 18, y0 = sy + labelH + 4, y1 = H - 4;
-    const R = Math.max(14, Math.min(Rt, (y1 - y0 - 6) / 4));
+    const R = Math.max(9, Math.min(Rt, (y1 - y0 - 4) / 4.6));
     const yT = y0 + R + 1, yB = y1 - R - 1, yM = (yT + yB) / 2;
     const cw = W / 3;
     const col = c => cw * c;
@@ -43,7 +43,7 @@
   }
 
   function tok(cx, cy, r, num, cls, ring, extra) {
-    const f = FILL[cls], fs = Math.round(r * (String(num).length > 1 ? 0.86 : 1.0));
+    const f = FILL[cls], fs = Math.max(12, Math.round(r * (String(num).length > 1 ? 0.86 : 1.0)));
     return `<g class="tk" data-num="${esc(num)}" data-cls="${cls}"${extra || ''}>` +
       (ring ? `<circle class="ring" cx="${cx}" cy="${cy}" r="${r + 5}" fill="none" stroke="${ring}" stroke-width="3"/>` : '') +
       `<ellipse cx="${cx}" cy="${cy + r * 0.9}" rx="${r * 0.9}" ry="${r * 0.25}" fill="#000" opacity=".4"/>` +
@@ -90,7 +90,7 @@
     const bcol = holder === 'me' ? zone : 2 - zone;
     const roar = !!(m && m.roarReady);
     const { sy, PH, R, cw, labelH } = g;
-    const roof = Math.round(sy * 0.1) + 3, bY = Math.max(roof + 4, sy - 14);
+    const roof = Math.round(sy * 0.1) + 3, bY = Math.max(roof + 4, sy - 16);
     let o = `<defs>
  <linearGradient id="sv-sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#03060f"/><stop offset="1" stop-color="#0d1a44"/></linearGradient>
  <linearGradient id="sv-cone" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#cfe6ff" stop-opacity=".7"/><stop offset="1" stop-color="#7fb4ff" stop-opacity=".02"/></linearGradient>
@@ -124,7 +124,7 @@
       [-9, 0, 9].forEach(dx => { o += `<circle cx="${x + dx}" cy="${roof - 1}" r="3" fill="#fff"/>`; });
     });
     // sponsor strip + club names
-    o += `<rect y="${bY}" width="${W}" height="14" fill="#071029"/><g font-size="11" font-weight="800" letter-spacing="2"><text x="10" y="${bY + 11}" fill="#2cf0ff">PRESTON</text><text x="${W - 10}" y="${bY + 11}" text-anchor="end" fill="#ff9fb0">GRIMSBY</text></g>`;
+    o += `<rect y="${bY}" width="${W}" height="16" fill="#071029"/><g font-size="12" font-weight="800" letter-spacing="2"><text x="10" y="${bY + 12.5}" fill="#2cf0ff">PRESTON</text><text x="${W - 10}" y="${bY + 12.5}" text-anchor="end" fill="#ff9fb0">${esc(((m && m.club && (m.club.label || m.club.name)) || 'OPPONENT').toUpperCase())}</text></g>`;
     // pitch
     o += `<rect y="${sy}" width="${W}" height="${PH}" fill="#0a5a2c"/><g>`;
     for (let i = 0; i < 8; i += 2) o += `<rect x="${W * i / 8}" y="${sy}" width="${W / 8}" height="${PH}" fill="#0e6b34"/>`;
@@ -144,9 +144,9 @@
     o += `<g fill="rgba(255,255,255,.14)" stroke="#fff" stroke-width="2"><rect x="0" y="${sy + PH / 2 - gh / 2}" width="5" height="${gh}"/><rect x="${W - 5}" y="${sy + PH / 2 - gh / 2}" width="5" height="${gh}"/></g>`;
     // zone labels
     const lab = (name, c, on) => {
-      const w = name.length * 8.4 + 14;
+      const w = name.length * 9.2 + 14;
       return `<g class="zl" data-zone="${c}"><rect x="${cw * c + cw / 2 - w / 2}" y="${sy + 3}" width="${w}" height="${labelH}" rx="3" fill="${on ? '#2cf0ff' : 'rgba(5,10,24,.9)'}" stroke="${on ? '#2cf0ff' : 'rgba(120,170,255,.45)'}"/>` +
-        `<text x="${cw * c + cw / 2}" y="${sy + 3 + 13}" text-anchor="middle" font-size="11" letter-spacing="1" fill="${on ? '#031018' : '#dfe8ff'}">${name}</text></g>`;
+        `<text x="${cw * c + cw / 2}" y="${sy + 3 + 13}" text-anchor="middle" font-size="12" letter-spacing="1" fill="${on ? '#031018' : '#dfe8ff'}">${name}</text></g>`;
     };
     o += lab('DEFENCE', 0, bcol === 0) + lab('MIDFIELD', 1, bcol === 1) + lab('ATTACK', 2, bcol === 2);
     // direction arrow
@@ -154,13 +154,15 @@
     // crowd meter (stands, top-left under the roof) + roar tag
     const need = (m && m.T && m.T.roarAt) || 3, crowd = m ? Math.min(need, m.crowd | 0) : 0;
     const mw = 76 + need * 15;
+    if (roof + 26 <= bY) {
     o += `<g class="cm" data-crowd="${crowd}"><rect x="8" y="${roof + 4}" width="${mw}" height="20" rx="4" fill="rgba(5,10,24,.92)" stroke="${roar ? '#ffc83a' : 'rgba(120,170,255,.5)'}"/>` +
-      `<text x="14" y="${roof + 18}" font-size="11" letter-spacing="1" fill="${roar ? '#ffc83a' : '#a9b8d8'}">${roar ? 'ROAR' : 'CROWD'}</text>`;
+      `<text x="14" y="${roof + 18}" font-size="12" letter-spacing="1" fill="${roar ? '#ffc83a' : '#a9b8d8'}">${roar ? 'ROAR' : 'CROWD'}</text>`;
     for (let i = 0; i < need; i++) {
       const on = roar || i < crowd;
       o += `<circle cx="${14 + 68 + i * 15}" cy="${roof + 14}" r="5" fill="${on ? '#ffc83a' : 'none'}" stroke="#ffc83a" stroke-width="2"/>`;
     }
     o += `</g>`;
+    }
     // tokens
     const P = g.pos, setup = m && m.setup, me = [];
     const keeperP = m ? m.keeper : null, outf = (setup && setup.outfield) || [];

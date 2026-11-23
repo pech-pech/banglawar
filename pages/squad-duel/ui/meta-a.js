@@ -29,6 +29,27 @@
   function traitOf(role) { return (SD.data && SD.data.TRAITS && SD.data.TRAITS[role]) || null; }
   // admin default: Trait text fallback when data.js has no text field
   function traitText(t) { return (t && (t.text || t.desc)) || ''; }
+  // row 27/38: data.js is frozen, so player-facing one-liners live here, keyed by data name; unknown names fall back to data text
+  const TRAIT_LINE = {
+    'Spare Ball': 'A won Pass draws you 1 extra card',
+    'Quick Feet': 'Dribble ignores Press, once a match',
+    'Second Strike': 'Re-roll your Shoot die, once a match',
+    'Hold Firm': 'Your first lost duel each match: ball stays',
+    'Big Read': 'Re-rolls the first scoring shot against you'
+  };
+  function traitLine(t) { return (t && TRAIT_LINE[t.name]) || traitText(t); }
+  const LOCKED_LINE = {
+    'Second Look': 'Swap your card after seeing the odds',
+    'Long Range': 'Anyone may shoot from Midfield, once',
+    'Finisher': 'After 2 goals, +1 on Shoot',
+    'Press Master': 'Press ignores the -1 vs Through, once',
+    'Sweeper': 'A lost duel at the back: ball stays put',
+    'Fortress': 'After a save, ball goes to your Midfield',
+    'Captain': 'A Signature move can fire twice',
+    'Scout Net': 'Scout line also shows their top card',
+    'Big Day': 'Home Roar needs 2 Crowd, not 3'
+  };
+  const TAB_NAME = { attack: 'Attack', defence: 'Defence', squad: 'Squad' };
 
   // ================= RESULT =================
   const R = { sel: null };
@@ -80,7 +101,8 @@
         h('span', { class: 'pr-gain', text: '+' + (gain || 0) + ' XP' })
       ]),
       h('span', { class: 'xp-bar' }, [fill]),
-      lvUp ? h('span', { class: 'pr-new', text: 'NEW TRAIT' }) : null
+      h('span', { class: 'pr-to', text: after.need > 0 ? 'to LV ' + (after.level + 1) + ': ' + Math.max(0, after.need - after.into) + ' XP' : 'MAX LEVEL' }),
+      lvUp ? h('span', { class: 'pr-new', text: (traitOf(p.role) || {}).name || 'NEW TRAIT' }) : null
     ]);
     // animate the bar after paint
     if (!reduced()) {
@@ -108,8 +130,8 @@
     if (info.level >= 2 || lu) {
       kids.push(h('div', { class: 'lvl-up' }, [
         h('span', { class: 'lu-k', text: 'LEVEL 2 TRAIT' }),
-        h('b', { class: 'lu-n', text: ' ' + (tr.name || (lu && typeof lu.trait === 'string' ? lu.trait : 'Trait')) }),
-        h('span', { class: 'lu-t', text: traitText(tr) ? ': ' + traitText(tr) : '' })
+        h('b', { class: 'lu-n', text: ' ' + (tr.name || (lu && lu.trait && lu.trait.name) || (lu && typeof lu.trait === 'string' ? lu.trait : 'Trait')) }),
+        h('span', { class: 'lu-t', text: traitLine(tr) })
       ]));
     }
     const lv3 = lvlFloor(3);
@@ -140,7 +162,8 @@
     const resWord = lr.res === 'W' ? 'WIN' : lr.res === 'L' ? 'LOSS' : 'DRAW';
     el.textContent = '';
     const root = h('div', { id: 'result', class: reduced() ? 'noanim' : '' });
-    try { if (app().setScorebug) app().setScorebug({ home: 'PRESTON', away: club.label || 'OPP', hs: lr.me, as: lr.opp }); } catch (e) { /* ignore */ }
+    // row 37: the score is printed once (in the scorebox); the header just says what this screen is
+    try { if (app().setScorebug) app().setScorebug('FULL TIME'); } catch (e) { /* ignore */ }
 
     // lineup order
     const lu = s.lineup || { keeper: null, outfield: [], bench: [] };
@@ -167,10 +190,14 @@
       h('div', { id: 'res-stamp', class: 'stamp ' + (lr.res === 'W' ? 'w' : lr.res === 'L' ? 'l' : 'd'), text: resWord })
     ]);
 
-    const rewards = h('div', { class: 'rewards' }, [
-      h('div', { id: 'rw-coins', class: 'rw coins' }, [h('span', { class: 'rw-k', text: 'COINS' }), h('b', { class: 'rw-v', text: '+' + (rew.coins || 0) })]),
-      h('div', { id: 'rw-sp', class: 'rw sp' }, [h('span', { class: 'rw-k', text: 'SKILL POINTS' }), h('b', { class: 'rw-v', text: '+' + (rew.sp || 0) })])
-    ]);
+    const whyPay = (rew.opening || mno === 1) ? 'Opening Day bonus' : (lr.res === 'W' ? 'Win payout' : lr.res === 'L' ? 'Loss payout' : 'Draw payout');
+    function rwTile(id, cls, k, v) {
+      return h('div', { id: id, class: 'rw ' + cls }, [
+        h('span', { class: 'rw-top' }, [h('span', { class: 'rw-k', text: k }), h('b', { class: 'rw-v', text: '+' + (v || 0) })]),
+        h('span', { class: 'rw-why', text: whyPay })
+      ]);
+    }
+    const rewards = h('div', { class: 'rewards' }, [rwTile('rw-coins', 'coins', 'COINS', rew.coins), rwTile('rw-sp', 'sp', 'SKILL POINTS', rew.sp)]);
 
     const grid = h('div', { id: 'xp-list', class: 'plist' });
     const det = h('div', { id: 'pl-detail', class: 'pdetail' });
@@ -189,7 +216,7 @@
     });
     refreshDetail();
 
-    const next = h('button', { id: 'btn-result-next', type: 'button', class: 'btn primary', text: mno >= 2 ? 'See your squad' : 'Spend Skill Points', on: { click: function () { go(mno >= 2 ? 'end' : 'tree'); } } });
+    const next = h('button', { id: 'btn-result-next', type: 'button', class: 'btn primary', text: mno >= 2 ? 'See your squad' : 'Spend SP', on: { click: function () { go(mno >= 2 ? 'end' : 'tree'); } } });
     const foot = h('div', { class: 'foot' }, [next]);
 
     [banner, score, rewards, grid, det, foot].forEach(function (n) { if (n) root.appendChild(n); });
@@ -225,6 +252,8 @@
       out.length = 0;
       LOCKED_FALLBACK[tab].forEach(function (c, i) { out.push({ tier: i + 3, name: c[0], text: c[1] }); });
     }
+    // row 38: player-facing copy (data text carries dev notes such as "capstone, only numeric node")
+    out.forEach(function (r) { r.text = LOCKED_LINE[r.name] || String(r.text || '').replace(/\s*\([^)]*(capstone|numeric|cap \+)[^)]*\)/i, ''); });
     return out.slice(0, 3);
   }
 
@@ -234,6 +263,10 @@
   function nodeById(id) { return ((SD.data && SD.data.NODES) || []).filter(function (n) { return n.id === id; })[0]; }
   function owned(id) { return (S().nodes || []).indexOf(id) > -1; }
 
+  function forkRival(n) {
+    if (!n || !n.fork) return null;
+    return ((SD.data && SD.data.NODES) || []).filter(function (x) { return x.fork === n.fork && x.id !== n.id; })[0] || null;
+  }
   function nodeState(n) {
     if (owned(n.id)) return 'owned';
     if (n.fork) {
@@ -268,45 +301,62 @@
 
     const list = h('div', { class: 'nodes' }, nodes(TR.tab).map(function (n) {
       const st = nodeState(n);
-      const tag = st === 'owned' ? 'OWNED' : st === 'fork-locked' ? 'FORK' : st === 'locked' ? 'LOCKED' : n.cost + ' SP';
+      const tag = st === 'owned' ? 'OWNED' : st === 'fork-locked' ? 'TAKEN' : st === 'locked' ? 'NEEDS T' + ((nodeById(n.req) || {}).tier || 1) : n.cost + ' SP';
       return h('button', { type: 'button', class: 'node ' + st + (TR.sel === n.id ? ' sel' : ''), 'data-id': n.id, 'data-state': st, 'aria-pressed': TR.sel === n.id ? 'true' : 'false', on: { click: function () { TR.sel = n.id; renderTree(el); } } }, [
         h('span', { class: 'nd-tier', text: 'T' + n.tier }),
         h('span', { class: 'nd-main' }, [
-          h('span', { class: 'nd-name' }, [h('b', { text: n.name }), n.fork ? h('i', { class: 'nd-fork', text: 'fork' }) : null]),
+          h('span', { class: 'nd-name' }, [h('b', { text: n.name }), n.fork ? h('i', { class: 'nd-fork', text: '1 of 2' }) : null]),
           h('span', { class: 'nd-text', text: n.text || '' })
         ]),
         h('span', { class: 'nd-cost', text: tag })
       ]);
     }));
 
-    const locked = h('div', { id: 'tree-locked', class: 'lockedtree' }, [h('div', { class: 'lk-head' }, [svgLock(), h('span', { text: 'Tiers 3-5 come later' })])].concat(
+    const locked = h('div', { id: 'tree-locked', class: 'lockedtree' }, [h('div', { class: 'lk-head' }, [svgLock(), h('span', { text: 'Tiers 3-5: coming later' })])].concat(
       lockedRows(TR.tab).map(function (r) {
-        return h('div', { class: 'lk-row', 'data-tier': r.tier }, [h('b', { text: 'T' + r.tier + ' ' + r.name }), h('span', { text: ' ' + r.text })]);
+        return h('div', { class: 'lk-row', 'data-tier': r.tier }, [h('b', { text: 'T' + r.tier + ' ' + r.name }), h('span', { class: 'lk-t', text: ' ' + r.text })]);
       })));
 
     // detail + buy
     const sel = nodeById(TR.sel);
     const st = sel ? nodeState(sel) : 'locked';
-    let why = '', canBuy = false;
+    let why = '', canBuy = false, buyText = sel ? 'Buy ' + sel.cost + ' SP' : 'Buy', jump = null, forkNote = '';
+    const rival = forkRival(sel);
+    const rivalTab = rival ? (TAB_NAME[rival.tab] || rival.tab) : '';
     if (sel) {
-      if (st === 'owned') why = 'You own this.';
-      else if (st === 'fork-locked') why = 'Fork: only one of Keep the Thread or Last Man. Respec this tab to switch.';
-      else if (st === 'locked') why = 'Needs ' + ((nodeById(sel.req) || {}).name || sel.req) + ' first.';
+      if (rival && st !== 'owned') {
+        forkNote = st === 'fork-locked'
+          ? 'Locked by ' + rival.name + ' (' + rivalTab + ' tab). Respec the ' + rivalTab + ' tab to switch.'
+          : 'Choose one: ' + sel.name + ' (' + (TAB_NAME[sel.tab] || sel.tab) + ') or ' + rival.name + ' (' + rivalTab + '). Buying one locks the other.';
+      }
+      if (st === 'owned') { why = 'You own this.'; buyText = 'Owned'; }
+      else if (st === 'fork-locked') { why = ''; buyText = 'Go to ' + rivalTab + ' tab'; jump = rival; }
+      else if (st === 'locked') { why = 'Needs ' + ((nodeById(sel.req) || {}).name || sel.req) + ' first.'; buyText = 'Needs ' + ((nodeById(sel.req) || {}).name || 'T1'); }
       else {
         let cb = { ok: (s.sp || 0) >= sel.cost, why: 'Needs ' + sel.cost + ' Skill Points' };
         try { if (SD.progress && SD.progress.canBuy) cb = SD.progress.canBuy(s, sel.id); } catch (e) { /* use local */ }
-        canBuy = !!cb.ok; why = cb.ok ? 'Costs ' + sel.cost + ' Skill Point' + (sel.cost > 1 ? 's' : '') + '.' : (cb.why || 'Not enough Skill Points.');
+        canBuy = !!cb.ok; why = cb.ok ? 'Costs ' + sel.cost + ' Skill Point' + (sel.cost > 1 ? 's' : '') + '.' : ('Needs ' + sel.cost + ' Skill Point' + (sel.cost > 1 ? 's' : '') + ', you have ' + (s.sp || 0) + '.');
+        if (!canBuy) buyText = 'Need ' + Math.max(1, sel.cost - (s.sp || 0)) + ' more SP';
       }
     }
-    const buy = h('button', { id: 'btn-buy', type: 'button', class: 'btn primary buy', disabled: canBuy ? null : true, text: st === 'owned' ? 'Owned' : (sel ? 'Buy ' + sel.cost + ' SP' : 'Buy'), on: { click: function () {
+    const buy = h('button', { id: 'btn-buy', type: 'button', class: 'btn primary buy' + (jump ? ' jump' : ''), disabled: (canBuy || jump) ? null : true, text: buyText, on: { click: function () {
       if (!sel) return;
+      if (jump) { TR.tab = jump.tab; TR.sel = jump.id; TR.confirm = false; renderTree(el); return; }
       try { SD.progress.buy(s, sel.id); } catch (e) { toast('Could not buy'); return; }
       save(); toast(sel.name + ' unlocked'); renderTree(el);
     } } });
+    // row 33: what changes in the next match (tree is only open between matches, so the next match is match 2)
+    const nextBox = sel ? h('div', { class: 'ndt-next' }, [
+      h('span', { class: 'nx-k', text: st === 'owned' ? 'IN MATCH 2' : 'FROM MATCH 2' }),
+      h('span', { class: 'nx-t', text: ' you will see ' }),
+      sel.chip ? h('b', { class: 'nx-chip', text: sel.chip }) : h('b', { class: 'nx-chip', text: sel.name })
+    ]) : null;
     const detail = h('div', { id: 'node-detail', class: 'ndetail ' + st }, [
       h('div', { class: 'ndt-text' }, [
         h('div', { class: 'ndt-name', text: sel ? sel.name : '' }),
         h('div', { class: 'ndt-desc', text: sel ? (sel.text || '') : '' }),
+        nextBox,
+        forkNote ? h('div', { class: 'ndt-fork', text: forkNote }) : null,
         h('div', { class: 'ndt-why', text: why })
       ]),
       buy
@@ -319,7 +369,7 @@
     const respec = h('button', { id: 'btn-respec', type: 'button', class: 'btn ghost', disabled: canRespec ? null : true, on: { click: function () { TR.confirm = true; renderTree(el); } } }, [
       h('span', { text: 'Respec tab' }), h('i', { text: rc + ' Coins' })
     ]);
-    const next = h('button', { id: 'btn-tree-next', type: 'button', class: 'btn primary', text: 'Go to the pull', on: { click: function () { TR.confirm = false; go('pull'); } } });
+    const next = h('button', { id: 'btn-tree-next', type: 'button', class: 'btn primary', text: 'To the pull', on: { click: function () { TR.confirm = false; go('pull'); } } });
     const foot = h('div', { class: 'foot' }, [respec, next]);
 
     [head, tabs, list, locked, detail, foot].forEach(function (n) { root.appendChild(n); });

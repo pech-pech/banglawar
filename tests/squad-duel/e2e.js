@@ -187,12 +187,85 @@ async function play(browser, base, tag, w, h, full, quiet) {
   return report;
 }
 
+
+// ---- sq-ui-1 contract checks (CONTRACT-UI.md "Tests") ----
+const sceneRect = (page) => page.evaluate(() => { const e = document.querySelector('#scene'); if (!e) return null; const r = e.getBoundingClientRect(); return { x: r.x, y: r.y, w: r.width, h: r.height }; });
+const rectDiff = (a, b) => Math.max(Math.abs(a.x - b.x), Math.abs(a.y - b.y), Math.abs(a.w - b.w), Math.abs(a.h - b.h));
+const fontScan = (page) => page.evaluate(() => {
+  const roots = ['#screen', '#top'].map(s => document.querySelector(s)).filter(Boolean);
+  if (!roots.length) return { missing: true, bad: [] };
+  const bad = [], seen = new Set();
+  const visible = (el) => { let x = el; while (x && x.nodeType === 1) { const c = getComputedStyle(x); if (x.hidden || c.display === 'none' || c.visibility === 'hidden' || c.opacity === '0') return false; x = x.parentElement; } return true; };
+  roots.forEach(root => {
+    const w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+    let n; while ((n = w.nextNode())) {
+      if (!n.nodeValue.trim()) continue;
+      const el = n.parentElement; if (!el || seen.has(el) || /^(SCRIPT|STYLE)$/.test(el.tagName)) continue;
+      seen.add(el);
+      if (!visible(el)) continue;
+      const r = el.getBoundingClientRect(); if (r.width === 0 || r.height === 0) continue;
+      const fs = parseFloat(getComputedStyle(el).fontSize);
+      if (fs < 11.95) bad.push((el.id ? '#' + el.id : (el.getAttribute('class') ? '.' + el.getAttribute('class').split(' ')[0] : el.tagName.toLowerCase())) + ' ' + fs + 'px "' + n.nodeValue.trim().slice(0, 14) + '"');
+    }
+  });
+  return { missing: false, bad };
+});
+// per-match accumulator for the contract checks
+function newAcc() { return { oddsBad: [], oddsTurns: 0, oddsMissingSel: 0, tot: [], totChecked: 0, totSel: 0, scene: [], sceneChecked: 0, font: [], fontMissing: false, press: 0, drop: 0, pressRes: 0, dropRes: 0, lastRect: null, pending: null, defN: 0 }; }
+async function preTurnChecks(page, acc, no, turn) {
+  const o = await page.evaluate(() => { const cs = [...document.querySelectorAll('#hand .card')]; return { n: cs.length, noOddsEl: cs.filter(c => !c.querySelector('.odds')).length, empty: cs.filter(c => { const e = c.querySelector('.odds'); return e && !(e.textContent || '').trim(); }).length, def: !!document.querySelector('#st-press,#st-drop') }; });
+  acc.oddsTurns++;
+  if (o.noOddsEl) acc.oddsMissingSel++;
+  if (o.noOddsEl || o.empty) acc.oddsBad.push('T' + turn + (o.def ? 'def' : 'att') + ' ' + o.noOddsEl + '/' + o.n + ' cards lack .odds, ' + o.empty + ' empty');
+  const r = await sceneRect(page); acc.lastRect = r;
+  const f = await fontScan(page); if (f.missing) acc.fontMissing = true; f.bad.forEach(b => acc.font.push('T' + turn + ' pick ' + b));
+}
+async function resultChecks(page, acc, turn) {
+  const d = await page.evaluate(() => {
+    const t = s => { const e = document.querySelector(s); return e ? (e.textContent || '').trim() : null; };
+    const log = (window.SD && SD.app && SD.app.m && SD.app.m.log) || [];
+    const ev = log[log.length - 1];
+    return { my: t('#band-my-tot'), op: t('#band-op-tot'), cause: ev ? ev.cause : null, side: ev ? ev.side : null };
+  });
+  acc.totChecked++;
+  if (d.my === null || d.op === null) { acc.totSel++; }
+  else {
+    const nums = d.cause ? [...d.cause.matchAll(/= (\d+)/g)].map(x => x[1]) : [];
+    if (nums.length < 2) acc.tot.push('T' + turn + ' cannot parse cause "' + (d.cause || '') + '"');
+    else {
+      const exp = d.side === 'me' ? { my: nums[0], op: nums[1] } : { my: nums[1], op: nums[0] };
+      if (d.my !== exp.my || d.op !== exp.op) acc.tot.push('T' + turn + ' ' + d.side + ' band ' + d.my + ' v ' + d.op + ' but cause ' + exp.my + ' v ' + exp.op);
+    }
+  }
+  const r = await sceneRect(page);
+  if (acc.lastRect && r) { acc.sceneChecked++; const df = rectDiff(acc.lastRect, r); if (df > 1) acc.scene.push('T' + turn + ' scene moved ' + df.toFixed(1) + 'px (' + Math.round(acc.lastRect.h) + ' -> ' + Math.round(r.h) + ' tall)'); }
+  const f = await fontScan(page); if (f.missing) acc.fontMissing = true; f.bad.forEach(b => acc.font.push('T' + turn + ' result ' + b));
+}
+function reportAcc(L, m, acc) {
+  const sum = a => a.slice(0, 4).join('; ') + (a.length > 4 ? ' (+' + (a.length - 4) + ' more)' : '');
+  rec(L(m + ' C1 band total == cause total'), acc.totChecked >= 8 && acc.totSel === 0 && acc.tot.length === 0,
+    acc.totSel ? 'MISSING selector #band-my-tot / #band-op-tot (result.drawBand) on ' + acc.totSel + ' turns' : acc.totChecked < 8 ? 'only ' + acc.totChecked + ' result states reached' : sum(acc.tot) || (acc.totChecked + ' turns ok'));
+  rec(L(m + ' C1 Press and Drop each picked + resolved'), acc.pressRes > 0 && acc.dropRes > 0, 'press picked ' + acc.press + ' resolved ' + acc.pressRes + ', drop picked ' + acc.drop + ' resolved ' + acc.dropRes);
+  rec(L(m + ' C2 every .card shows non-empty .odds'), acc.oddsBad.length === 0 && acc.oddsTurns > 0, acc.oddsMissingSel ? 'MISSING .card .odds element (m-cards) ' + sum(acc.oddsBad) : sum(acc.oddsBad) || (acc.oddsTurns + ' hands ok'));
+  const fk = [...new Set(acc.font.map(x => x.replace(/^T\d+ (pick|result) /, '').replace(/ "[^"]*"$/, '')))];
+  rec(L(m + ' C3 no text under 12px'), acc.font.length === 0 && !acc.fontMissing, acc.fontMissing ? 'MISSING #screen/#top root' : fk.length + ' distinct selectors <12px: ' + sum(fk));
+  rec(L(m + ' C4 #scene rect stable pick->result'), acc.sceneChecked > 0 && acc.scene.length === 0, acc.sceneChecked ? sum(acc.scene) || (acc.sceneChecked + ' turns +-1px') : 'MISSING #scene or no result state seen (m-frame row 14)');
+}
+
 async function playMatch(page, L, w, no, full, doShot) {
   const m = 'match' + no;
   await waitVis(page, '#hand', 8000);
   rec(L(m + ' shown'), await vis(page, '#info') && await vis(page, '#scene') && await vis(page, '#band'), '#info/#scene/#band');
   let turns = 0, guard = 0, firstShot = false, defShot = false, ht = false, ft = false;
+  const acc = newAcc();
+  // result state is momentary when autoNext fires in fast mode; hold it so the contract checks can read it (UI-only, no RNG effect)
+  if (!QUIET) await page.evaluate(() => { try { SD.app.m.T.autoNext = false; } catch (e) { } });
   while (guard++ < 400) {
+    if (!QUIET && acc.pending && await vis(page, '#btn-next')) {
+      await resultChecks(page, acc, acc.pending.turn);
+      if (acc.pending.stance === 'press') acc.pressRes++; else if (acc.pending.stance === 'drop') acc.dropRes++;
+      acc.pending = null;
+    }
     if (await vis(page, '#fulltime')) {
       if (!ft) { ft = true; await layout(page, L(m + ' fulltime')); await doShot(m + '-fulltime'); }
       await page.click('#btn-ft'); break;
@@ -208,8 +281,11 @@ async function playMatch(page, L, w, no, full, doShot) {
     const cards = await page.$$('#hand .card');
     if (cards.length && await vis(page, '#btn-confirm')) {
       const defending = await page.evaluate(() => !!document.querySelector('#st-press,#st-drop'));
+      if (!QUIET) await preTurnChecks(page, acc, no, turns + 1);
       await cards[0].click(); await page.waitForTimeout(50);
-      let act = await page.$('#acts button:not([disabled])');
+      let act = null, stance = null;
+      if (defending) { stance = (acc.defN++ % 2 === 0) ? 'press' : 'drop'; act = await page.$('#st-' + stance + ':not([disabled])'); if (!act) stance = null; }
+      if (!act) act = await page.$('#acts button:not([disabled])');
       if (!act) { rec(L(m + ' turn ' + (turns + 1) + ' action'), false, 'no enabled #acts button'); break; }
       await act.click(); await page.waitForTimeout(80);
       if (!(await enabled(page, '#btn-confirm'))) { rec(L(m + ' turn ' + (turns + 1) + ' confirm enabled'), false, '#btn-confirm still disabled after card+action'); break; }
@@ -217,7 +293,9 @@ async function playMatch(page, L, w, no, full, doShot) {
         if (!firstShot && !defending) { firstShot = true; await layout(page, L(m + ' attack-turn')); await doShot(m + '-attack'); }
       }
       if (defending && !defShot) { defShot = true; await layout(page, L(m + ' defend-turn')); await doShot(m + '-defend'); }
+      if (stance === 'press') acc.press++; else if (stance === 'drop') acc.drop++;
       await page.click('#btn-confirm'); turns++; await page.waitForTimeout(120);
+      if (!QUIET) acc.pending = { turn: turns, stance };
       continue;
     }
     await page.waitForTimeout(80);
@@ -228,6 +306,7 @@ async function playMatch(page, L, w, no, full, doShot) {
   rec(L(m + ' result shown'), await vis(page, '#result') && await vis(page, '#btn-result-next'), '#result/#btn-result-next');
   await layout(page, L('result' + no));
   await doShot('result' + no);
+  if (!QUIET) reportAcc(L, m, acc);
 }
 
 (async () => {

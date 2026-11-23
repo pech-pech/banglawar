@@ -3,11 +3,11 @@
   padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom);
   padding-left: env(safe-area-inset-left); padding-right: env(safe-area-inset-right); }
 #tweak * { box-sizing: border-box; }
-#tweak .tw-head { flex: none; display: flex; align-items: center; justify-content: space-between; gap: 8px;
-  padding: 4px 12px; border-bottom: 1px solid var(--line, rgba(120,170,255,.32)); background: var(--navy, #0a1330); }
-#tweak h2 { margin: 0; font-size: 20px; letter-spacing: .08em; text-transform: uppercase; color: var(--neon, #2cf0ff); }
+#tweak .tw-head { flex: none; display: flex; flex-direction: column; align-items: stretch; gap: 4px;
+  padding: 4px 12px 6px; border-bottom: 1px solid var(--line, rgba(120,170,255,.32)); background: var(--navy, #0a1330); }
+#tweak h2 { flex: none; margin: 0; font-size: 20px; letter-spacing: .08em; text-transform: uppercase; color: var(--neon, #2cf0ff); }
 #tweak h3 { margin: 18px 0 6px; font-size: 13px; letter-spacing: .1em; text-transform: uppercase; color: var(--gold, #ffc83a); }
-#tweak .tw-body { flex: 1; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; padding: 8px 12px 24px; }
+#tweak .tw-body { flex: 1; scroll-behavior: auto; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; padding: 8px 12px 24px; }
 #tweak .note { margin: 6px 0; color: var(--dim, #a9b8d8); font-size: 13px; line-height: 1.35; }
 #tweak #tw-msg { min-height: 18px; margin: 4px 0; font-size: 13px; color: var(--good, #7dffb0); }
 #tweak #tw-msg.bad { color: var(--red, #ff4d6d); }
@@ -45,3 +45,26 @@
 #tweak .row input[type=checkbox]:checked { background: var(--neon, #2cf0ff); border-color: var(--neon, #2cf0ff); }
 #tweak .row input[type=checkbox]:checked::after { content: "ON"; color: var(--ink, #031018); }
 @media (prefers-reduced-motion: reduce) { #tweak * { animation: none !important; transition: none !important; } }
+
+/* sq-ui-1 rows 44/45: chips, bottom bar, steppers, DEV badge */
+#tweak .tw-head h2 { font-size: 18px; }
+#tweak .tw-chips { display: flex; gap: 6px; overflow-x: auto; -webkit-overflow-scrolling: touch; padding-bottom: 2px; scrollbar-width: none; }
+#tweak .tw-chips::-webkit-scrollbar { display: none; }
+#tweak .chip { flex: none; min-height: 56px; min-width: 56px; padding: 0 14px; font-size: 14px; border-radius: 28px; }
+#tweak .tw-foot { flex: none; padding: 6px 12px; border-top: 1px solid var(--neon, #2cf0ff); background: var(--navy, #0a1330);
+  box-shadow: 0 -4px 14px rgba(0,0,0,.45); }
+#tweak .tw-foot #tw-msg { margin: 0 0 4px; min-height: 16px; font-size: 13px; line-height: 16px; }
+#tweak .tw-foot #preset-name { display: block; width: 100%; margin: 0 0 6px; }
+#tweak .tw-btns { display: grid; grid-template-columns: 1.15fr 1fr .8fr; gap: 6px; }
+#tweak .tw-btns button { padding: 0 4px; font-size: 14px; white-space: nowrap; }
+#tweak .tw-body { padding-bottom: 12px; }
+#tweak .stp { flex: none; display: flex; align-items: center; gap: 4px; }
+#tweak .row .stp input[type=number] { width: 64px; padding: 0 4px; -moz-appearance: textfield; appearance: textfield; }
+#tweak .row .stp input[type=number]::-webkit-outer-spin-button, #tweak .row .stp input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+#tweak .step { display: grid; place-items: center; text-align: center; padding: 0; font-size: 24px; line-height: 1; }
+#tweak .row { gap: 6px; }
+@media (max-height: 700px) { #tweak .tw-foot #preset-name { min-height: 56px; } }
+#dev { display: inline-flex; align-items: center; justify-content: center; min-width: 56px; min-height: 56px; height: 56px; padding: 0 6px;
+  border-radius: 8px; font-weight: 700; font-size: 13px; cursor: pointer; touch-action: manipulation; }
+#dev[hidden] { display: none; }
+#dev:focus-visible { outline: 2px solid var(--neon, #2cf0ff); outline-offset: -3px; }

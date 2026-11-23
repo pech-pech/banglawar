@@ -4,11 +4,9 @@
 #match button{min-height:56px}
 #match button:focus-visible{outline:3px solid var(--m-gold);outline-offset:2px}
 #match [hidden]{display:none!important}
-#match #info{flex:none;display:flex;flex-wrap:wrap;align-items:center;gap:4px 6px;padding:4px 8px 3px;background:#070e26}
-#match #info .turn{flex:1 1 auto;font-size:12px;line-height:16px;text-transform:uppercase;letter-spacing:.05em;color:var(--m-neon)}
+#match #info{flex:none;height:64px;box-sizing:border-box;overflow:hidden;background:#070e26}
 #match .tag{min-height:24px;display:flex;align-items:center;padding:2px 8px;border-radius:4px;background:#10224f;border:1px solid var(--m-line);font-size:12px;line-height:14px;color:var(--m-txt)}
 #match .tag b{color:var(--m-neon);letter-spacing:.06em;margin-right:4px}
-#match .brk{flex:1 0 100%;height:0}
 #match .gb{min-height:24px;display:flex;align-items:center;gap:6px;padding:2px 8px;border-radius:4px;background:rgba(5,10,24,.92);border:1px solid var(--m-line);font-size:12px;line-height:14px;letter-spacing:.04em;text-transform:uppercase;color:var(--m-txt);white-space:nowrap}
 #match .gb.ready{border-color:var(--m-gold);color:var(--m-gold)}
 #match .gb .dim{color:var(--m-dim)}
@@ -20,7 +18,7 @@
 /* scene box: scene.css draws inside */
 #match #scene{flex:1 1 auto;min-height:0;position:relative;overflow:hidden;background:#050a18}
 /* tell */
-#match #tell{flex:none;padding:6px 8px;background:linear-gradient(180deg,#0e1d46,#0a1330);display:flex;flex-wrap:wrap;gap:4px 12px;align-items:center;border-bottom:1px solid var(--m-line);min-height:34px}
+#match #tell{flex:none;height:52px;box-sizing:border-box;overflow:hidden;padding:4px 8px;background:linear-gradient(180deg,#0e1d46,#0a1330);display:flex;flex-wrap:wrap;gap:4px 12px;align-items:center;border-bottom:1px solid var(--m-line);align-content:center}
 #match #tell .who{flex:0 1 auto;display:flex;flex-wrap:wrap;align-items:center;gap:2px 8px;font-size:13px;line-height:18px;text-transform:uppercase;letter-spacing:.03em}
 #match #tell .k{font-size:12px;color:var(--m-dim);letter-spacing:.08em}
 #match #tell .nn{color:var(--m-dim);margin-right:5px}
@@ -37,7 +35,7 @@
 #match .seg.w-through{background:#3a1a5e;color:#e0c8ff}
 #match .seg.w-shoot{background:#5a1224;color:#ffc2cd}
 /* band */
-#match #band{flex:none;min-height:60px;padding:5px 8px;display:flex;flex-direction:column;justify-content:center;gap:2px;background:#070e26;font-size:12px;line-height:16px}
+#match #band{flex:none;height:104px;box-sizing:border-box;overflow:hidden;padding:5px 8px;display:flex;flex-direction:column;justify-content:center;gap:2px;background:#070e26;font-size:12px;line-height:16px}
 #match #band .chip{display:flex;align-items:center;gap:8px}
 #match #band .rows{flex:1;min-width:0;display:flex;flex-direction:column;gap:0}
 #match #band .ln{display:flex;flex-wrap:wrap;gap:0 5px;align-items:baseline;color:#dfe8ff}
@@ -128,23 +126,18 @@
 #match #btn-confirm[aria-disabled=true]{background:#1a2547;color:#a9b8d8;box-shadow:none;border:1px solid var(--m-line);cursor:default}
 /* overlays */
 #match .ov{position:absolute;inset:0;z-index:20;background:rgba(5,10,24,.92);display:flex;align-items:flex-end}
-#match .ovp{width:100%;min-height:60%;padding:16px 12px 14px;background:#0a1432;border-top:2px solid var(--m-neon);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;text-align:center}
+#match .ovp{width:100%;box-sizing:border-box;padding:18px 12px 18px;background:#0a1432;border-top:2px solid var(--m-neon);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;text-align:center}
 #match .ovp small{font-size:14px;letter-spacing:.14em;text-transform:uppercase;color:var(--m-neon)}
 #match .ovp h2{font-size:24px;line-height:28px;color:#fff;text-transform:uppercase}
-#match .ovp p{font-size:16px;color:#dfe8ff}
-#match .ovp button{align-self:flex-end;min-width:156px;min-height:56px;padding:0 12px;border-radius:8px;font-size:18px;text-transform:uppercase;letter-spacing:.05em;background:linear-gradient(180deg,#4af6ff,#15c4e0);color:var(--m-ink);text-align:center;font-weight:800;margin-top:12px}
+#match .ovp p{font-size:16px;line-height:22px;color:#dfe8ff;max-width:30em}
+#match .ovp button{align-self:center;min-width:156px;min-height:56px;padding:0 12px;border-radius:8px;font-size:18px;text-transform:uppercase;letter-spacing:.05em;background:linear-gradient(180deg,#4af6ff,#15c4e0);color:var(--m-ink);text-align:center;font-weight:800;margin-top:12px}
 #match .ovp .stamp{font-size:28px;min-height:48px;padding:0 24px}
 /* wide-short: 475x638 */
 @media (min-width:400px){
- #match #info{padding:2px 8px;flex-wrap:nowrap;gap:6px}
- #match #info .turn{flex:none}
- #match #info .tag{flex:1 1 0;min-width:0;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block;line-height:20px}
- #match #info .tag b{margin-right:4px}
- #match .brk{display:none}
- #match #tell{padding:2px 8px;gap:2px 12px;min-height:28px}
+ #match #tell{padding:2px 8px;gap:2px 12px}
  #match .stance{min-height:20px;flex:1 1 150px}
  #match .seg{min-height:20px;padding-top:0;padding-bottom:0}
- #match #band{min-height:40px;padding:2px 8px}
+ #match #band{padding:2px 8px}
  #match #band .od b{font-size:26px;line-height:28px}
  #match #band .od{min-width:64px}
  #match #band .od small{display:none}
@@ -184,5 +177,36 @@
  #match #abil{flex:0 0 auto;order:0}
  #match .ab{flex:none;min-width:80px}
  #match #btn-confirm,#match #btn-next{width:160px}
+}
+/* fixed hand and action heights so #scene never resizes between pick and result (row 14) */
+#match #hand{height:150px;box-sizing:border-box;overflow:hidden;align-content:start}
+#match #acts{height:112px;box-sizing:border-box;overflow:hidden;align-content:start}
+@media (min-width:400px){#match #hand{height:112px}#match #acts{height:101px}}
+#match #sum{max-height:56px;overflow:hidden}
+/* frame sizes (row 14): >=400 wide uses a 2-row info block; short screens trim tell and band */
+@media (min-width:400px){
+ #match #info{height:44px}
+ #match #tell{height:30px}
+}
+@media (min-width:400px) and (min-height:760px){
+ #match #tell{height:52px}
+ #match #band{height:104px}
+}
+@media (min-width:400px) and (max-height:759px){
+ #match #info{height:41px}
+ #match #band{height:76px}
+}
+/* wide landscape (816x568): pitch left, cards right */
+@media (min-width:700px) and (max-height:640px){
+ #match{display:grid;grid-template-columns:minmax(0,1fr) minmax(340px,46%);grid-template-rows:auto auto auto auto minmax(0,1fr) auto auto}
+ #match #info{grid-column:1;grid-row:1;height:64px}
+ #match #scene{grid-column:1;grid-row:2/6;min-height:0}
+ #match #tell{grid-column:1;grid-row:6}
+ #match #band{grid-column:1;grid-row:7;height:84px}
+ #match #h1{grid-column:2;grid-row:1;align-self:end}
+ #match #hand{grid-column:2;grid-row:2;align-self:start;height:129px}
+ #match #h2{display:none}
+ #match #acts{grid-column:2;grid-row:3;align-self:start}
+ #match #foot{grid-column:2;grid-row:4/8;align-self:end}
 }
 @media (prefers-reduced-motion:no-preference){#match .card,#match .act{transition:box-shadow .15s,border-color .15s}}

@@ -68,7 +68,8 @@
   function pct(v) { if (v == null) return '-'; const x = v <= 1 ? v * 100 : v; return Math.round(x) + '%'; }
 
   // ---------- shared 4x3 grid ----------
-  function buildGrid(S, onTap) {
+  function buildGrid(S, onTap, opts) {
+    opts = opts || {};
     const wrap = h('div', 'mb-gridwrap');
     const head = h('div', 'mb-gridhead');
     const sc = h('span', 'mb-squadcount', '', { id: 'squad-count' });
@@ -78,7 +79,7 @@
     wrap.appendChild(grid);
     function fill(S2) {
       grid.textContent = '';
-      let have = 0;
+      let have = 0, firstSil = true;
       players().forEach((p) => {
         const o = owned(S2, p.id);
         if (o) {
@@ -86,6 +87,7 @@
           const b = h('button', 'slot12 owned ' + rcls(p.rarity), null, { type: 'button', 'data-pid': p.id, 'aria-label': p.name + ', ' + p.role + ', ' + p.rarity });
           b.appendChild(svgBox('mb-ico', ROLE_ICON[p.role] || ''));
           b.appendChild(h('span', 'mb-nm', p.name));
+          b.appendChild(h('span', 'mb-role', p.role));
           const row = h('span', 'mb-sub');
           row.appendChild(pips(starsOf(o), 5));
           b.appendChild(row);
@@ -96,6 +98,8 @@
           const d = h('div', 'slot12 locked ' + rcls(p.rarity), null, { 'data-pid': p.id, role: 'img', 'aria-label': 'Not yet collected: ' + p.role + ', ' + p.rarity });
           d.appendChild(svgBox('mb-sil', SILHOUETTE));
           d.appendChild(svgBox('mb-ico', ROLE_ICON[p.role] || ''));
+          if (opts.fillLabel && firstSil) { d.appendChild(h('span', 'mb-fill', 'Pull to fill')); d.classList.add('first'); }
+          firstSil = false;
           grid.appendChild(d);
         }
       });
@@ -103,6 +107,34 @@
       return have;
     }
     return { wrap, grid, fill };
+  }
+
+  // Row 39: 6-word benefit leads; rule text (data) follows, trailing "No number" fragment dropped for display.
+  const SIG_BENEFIT = {
+    SIG_LIO: 'Can shoot from Midfield',
+    SIG_JOSS: 'Can defend from deck or discard',
+    SIG_ZEFA: 'Won Dribble moves two zones',
+    SIG_HADRO: "Shows opponent's pick for 2 turns",
+    SIG_YSOLDE: 'Rerolls a save that would fail'
+  };
+  function sigRule(t) { return String(t || '').replace(/[.;,]?\s*No number\.?\s*$/i, '').replace(/\s+$/, ''); }
+  const ROLE_STAT = { Striker: 'sho', Playmaker: 'pas', Winger: 'pac', Anchor: 'def', Keeper: 'def' };
+  // Row 39: who does the new player replace. Returns {pre, stat, post} or null.
+  function compareLine(S, p) {
+    if (!S || !S.lineup || !p) return null;
+    const key = ROLE_STAT[p.role] || 'def';
+    const pitch = [S.lineup.keeper].concat(S.lineup.outfield || []).filter(Boolean);
+    let cur = null;
+    pitch.forEach((id) => {
+      const q = pid2(id);
+      if (!q || q.id === p.id || q.role !== p.role) return;
+      if (!cur || (q[key] || 0) > (cur[key] || 0)) cur = q;
+    });
+    if (!cur) return { pre: 'Fills a new role: your lineup has no ' + p.role, stat: '', post: '' };
+    const a = p[key] || 0, b = cur[key] || 0;
+    const lbl = key.toUpperCase() + ' ' + a + ' v ' + b;
+    const who = cur.name + ' (your ' + p.role + ')';
+    return { pre: (a > b ? 'Better than ' : a === b ? 'Same as ' : 'Weaker than ') + who + ': ', stat: lbl, post: '', better: a > b };
   }
 
   function statRow(p, cls) {
@@ -202,8 +234,10 @@
       f.appendChild(id);
       f.appendChild(statRow(p));
       const sg = h('div', 'rc-sig');
-      if (p.sig) { sg.appendChild(h('b', null, 'Signature move: ' + p.sig.name)); sg.appendChild(h('span', null, p.sig.text || '')); }
-      else sg.appendChild(h('b', null, 'No Signature move'));
+      if (p.sig) {
+        sg.appendChild(h('b', null, SIG_BENEFIT[p.sig.id] || p.sig.name));
+        sg.appendChild(h('span', null, p.sig.name + ': ' + sigRule(p.sig.text)));
+      } else sg.appendChild(h('b', null, 'No Signature move'));
       f.appendChild(sg);
       if (res && !res.isNew && res.dupeCoins) f.appendChild(h('div', 'rc-dupe', 'Max stars: +' + res.dupeCoins + ' Coins'));
     }
@@ -223,6 +257,8 @@
     el.appendChild(root);
     const ui = { busy: false };
 
+    const left = h('div', 'mb-left');
+    root.appendChild(left);
     // head: coins
     const head = h('div', 'mb-head');
     const coinsB = h('div', 'mb-coins');
@@ -230,13 +266,13 @@
     coinsB.appendChild(h('b', null, '0', { id: 'coins' }));
     head.appendChild(coinsB);
     head.appendChild(h('span', 'mb-title', 'Pull a player'));
-    root.appendChild(head);
+    left.appendChild(head);
 
     // odds
     const odds = h('div', 'mb-odds');
     odds.appendChild(h('div', 'mb-oddslabel', '', { id: 'odds-label' }));
     odds.appendChild(h('div', 'mb-oddstable', null, { id: 'odds-table' }));
-    root.appendChild(odds);
+    left.appendChild(odds);
 
     // pity
     const pity = h('div', 'mb-pity', null, { id: 'pity' });
@@ -244,24 +280,27 @@
     pt.appendChild(h('span', 'pt-epic', '', { id: 'pity-text' }));
     pt.appendChild(h('span', 'pt-leg', '', { id: 'pity-leg' }));
     pity.appendChild(pt);
-    const pbar = h('div', 'mb-bar'); const pfill = h('i'); pbar.appendChild(pfill); pity.appendChild(pbar);
-    root.appendChild(pity);
+    const pbar = h('div', 'mb-bar pity-bar'); const pfill = h('i'); pbar.appendChild(pfill); pity.appendChild(pbar);
+    left.appendChild(pity);
 
     // reveal
     const revWrap = h('div', 'mb-revwrap');
     const rev = h('div', 'mb-reveal', null, { id: 'pull-reveal' });
     revWrap.appendChild(rev);
-    revWrap.appendChild(h('div', 'mb-note', '', { id: 'pull-note', 'aria-live': 'polite' }));
+    const cmpBox = h('div', 'mb-cmpbox');
+    cmpBox.appendChild(h('div', 'mb-cmp', '', { id: 'pull-cmp', 'aria-live': 'polite' }));
+    cmpBox.appendChild(h('div', 'mb-note', '', { id: 'pull-note', 'aria-live': 'polite' }));
+    left.appendChild(cmpBox);
     root.appendChild(revWrap);
 
     // grid
-    const g = buildGrid(state(), (pid) => showDetail(root, pid));
+    const g = buildGrid(state(), (pid) => showDetail(root, pid), { fillLabel: true });
     g.wrap.classList.add('area-grid');
     root.appendChild(g.wrap);
 
     // actions
     const acts = h('div', 'mb-actions');
-    const bPull = h('button', 'mb-btn', 'Pull (' + pullCost() + ' Coins)', { type: 'button', id: 'btn-pull' });
+    const bPull = h('button', 'mb-btn pullbtn', 'Pull ' + pullCost(), { type: 'button', id: 'btn-pull' });
     const bNext = h('button', 'mb-btn', 'Pick lineup', { type: 'button', id: 'btn-pull-next' });
     acts.appendChild(bPull); acts.appendChild(bNext);
     root.appendChild(acts);
@@ -271,7 +310,8 @@
       try { o = SD.gacha.oddsFor(S, tw()); } catch (e) {}
       const D = SD.data && SD.data.PULL;
       if (!o) o = { label: 'Normal odds', table: D ? D.normal : {} };
-      root.querySelector('#odds-label').textContent = o.label || '';
+      const lab = o.label || '';
+      root.querySelector('#odds-label').textContent = /^Starter/i.test(lab) ? 'Starter pull: Rare or better' : lab;
       const t = root.querySelector('#odds-table'); t.textContent = '';
       ['Common', 'Rare', 'Epic', 'Legend'].forEach((r) => {
         const c = h('div', 'od ' + rcls(r));
@@ -286,7 +326,9 @@
       const pe = (S.pity && S.pity.epic) || 0; const pl = (S.pity && S.pity.legend) || 0;
       let txt;
       try { txt = SD.gacha.pityText(S, T); } catch (e) { txt = 'Epic pity ' + pe + '/' + eMax; }
-      root.querySelector('#pity-text').textContent = txt;
+      const left = Math.max(1, eMax - pe);
+      root.querySelector('#pity-text').textContent = 'Epic guaranteed in ' + left;
+      root.querySelector('#pity-text').setAttribute('title', txt);
       root.querySelector('#pity-leg').textContent = 'Legend ' + pl + '/' + lMax;
       pfill.style.width = Math.min(100, Math.round(pe / eMax * 100)) + '%';
     }
@@ -307,13 +349,17 @@
       const nextPrimary = done || !can.ok;
       bNext.classList.toggle('primary', nextPrimary);
       bPull.classList.toggle('primary', !nextPrimary);
+      // Row 42: the greyed Pull button says why, on one line
+      const need = can.need || pullCost(); const hv = can.have != null ? can.have : S.coins || 0;
+      bPull.textContent = can.ok ? 'Pull ' + need : hv + ' of ' + need + ' Coins';
+      bPull.classList.toggle('short', !can.ok);
       const note = root.querySelector('#pull-note');
-      if (!ui.last && !can.ok) note.textContent = 'Need ' + (can.need || pullCost()) + ' Coins, you have ' + (can.have != null ? can.have : S.coins || 0) + '.';
+      note.textContent = can.ok ? '' : hv + ' of ' + need + ' Coins' + (done ? '. Pick lineup to continue.' : '.');
     }
     function showPlaceholder() {
       rev.textContent = '';
       const c = revealCard(null, null); c.classList.add('down', 'static'); rev.appendChild(c);
-      root.querySelector('#pull-note').textContent = '';
+      root.querySelector('#pull-cmp').textContent = '';
     }
     function showResult(res, animate) {
       const S = state();
@@ -321,9 +367,15 @@
       const c = revealCard(res.pid, res);
       rev.appendChild(c);
       const p = pid2(res.pid);
-      const note = root.querySelector('#pull-note');
-      note.textContent = res.isNew ? ('New player: ' + (p ? p.name : '') + ', ' + (p ? p.rarity : '') + ' ' + (p ? p.role : '') + '. Squad grows.')
-        : ('Duplicate: ' + (p ? p.name : '') + ' reaches Star ' + (res.stars || starsOf(owned(S, res.pid))) + '.');
+      const cmp = root.querySelector('#pull-cmp');
+      cmp.textContent = '';
+      if (res.isNew) {
+        const cl = compareLine(S, p);
+        if (cl) {
+          cmp.appendChild(document.createTextNode(cl.pre));
+          if (cl.stat) cmp.appendChild(h('b', cl.better ? 'up' : '', cl.stat));
+        } else cmp.textContent = 'New player: ' + (p ? p.name : '') + '. Squad grows.';
+      } else cmp.textContent = 'Duplicate: ' + (p ? p.name : '') + ' reaches Star ' + (res.stars || starsOf(owned(S, res.pid))) + '.';
       if (animate && !reduced() && !fast()) {
         c.classList.add('down');
         void c.offsetWidth;
@@ -387,6 +439,7 @@
 
     // trophy track
     const track = h('div', 'mb-track', null, { id: 'track' });
+    const moreWins = (S.results || []).filter((r) => r.matchNo > 2 && r.res === 'W').length;
     const steps = (SD.data && SD.data.TROPHY) || [{ id: 'm1', label: 'League match 1' }, { id: 'm2', label: 'League match 2' }, { id: 'more', label: '4 more League matches' }, { id: 'cup', label: 'Cup Final', locked: true }];
     steps.forEach((s) => {
       const d = h('div', 'step', null, { 'data-id': s.id });
@@ -403,10 +456,16 @@
           lbl.appendChild(h('span', 'sub', (res === 'W' ? 'Win ' : res === 'D' ? 'Draw ' : 'Loss ') + r.me + '-' + r.opp));
           d.setAttribute('aria-label', s.label + ': ' + (res === 'W' ? 'win' : res === 'D' ? 'draw' : 'loss'));
         } else { mark.appendChild(h('i', 'empty')); lbl.appendChild(h('span', 'sub', 'Not played')); }
+      } else if (s.id === 'more') {
+        d.classList.add('next');
+        mark.appendChild(h('i', 'dot'));
+        lbl.textContent = '';
+        lbl.appendChild(h('b', null, 'More matches ' + moreWins + '/4'));
+        lbl.appendChild(h('span', 'sub', 'Next step'));
       } else if (s.id === 'cup' || s.locked) {
         d.classList.add('locked');
         mark.innerHTML = CUP_SVG;
-        lbl.appendChild(h('span', 'sub', 'Locked'));
+        lbl.appendChild(h('span', 'sub', 'Locked: win 4 more'));
         d.setAttribute('aria-label', s.label + ': locked');
       } else {
         d.classList.add('next');
@@ -420,10 +479,17 @@
 
     // goal + pull 2 bar
     const info = h('div', 'mb-info');
-    info.appendChild(h('p', 'mb-goal', (SD.data && SD.data.NEXT_GOAL) || 'Next goal: win 4 more League matches with your squad to unlock the Cup Final.', { id: 'next-goal' }));
+    // Row 35: goal text matches the track ("More matches 0/4"); the build that replaces this screen owns the real goal.
+    const goal = h('div', 'mb-goalbox', null, { id: 'next-goal' });
+    goal.appendChild(h('span', 'gk', 'Cup Final'));
+    goal.appendChild(h('p', 'mb-goal', 'Locked: win 4 more matches (' + moreWins + '/4)'));
+    const segs = h('div', 'mb-segs', null, { 'aria-hidden': 'true' });
+    for (let i = 0; i < 4; i++) segs.appendChild(h('i', i < moreWins ? 'on' : ''));
+    goal.appendChild(segs);
+    info.appendChild(goal);
     const cost = pullCost(); const have = Math.min(S.coins || 0, cost);
     const pr = h('div', 'mb-pull2', null, { id: 'pull2' });
-    pr.appendChild(h('span', 'lbl', 'Pull 2: ' + have + '/' + cost));
+    pr.appendChild(h('span', 'lbl', (have >= cost ? 'Pull 2 ready: ' : 'Pull 2: ') + have + '/' + cost + ' Coins, opens next slice'));
     const bar = h('div', 'mb-bar gold'); const fl = h('i'); fl.style.width = Math.round(have / cost * 100) + '%'; bar.appendChild(fl); pr.appendChild(bar);
     info.appendChild(pr);
     root.appendChild(info);

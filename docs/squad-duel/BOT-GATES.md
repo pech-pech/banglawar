@@ -1,6 +1,6 @@
 # Squad Duel build bot: gate table
 
-Build sq-slice-1, shipped engine (pages/squad-duel/js). Run 2026-11-23T16:19:02Z. `node tests/squad-duel/bot.js` (n=3000 win-rate seeds, 4000 paired seeds per lift, 20000 duels per chip state).
+Build sq-slice-1, shipped engine (pages/squad-duel/js). Run 2026-11-23T18:03:40Z. `node tests/squad-duel/bot.js` (n=3000 win-rate seeds, 4000 paired seeds per lift, 20000 duels per chip state).
 
 Summary: PASS 28, EXPECTED-FAIL 1, MISS 11, INFO 6.
 
@@ -36,9 +36,9 @@ Policies (every move goes through SD.engine.playAttack / playDefend): skilled = 
 | Top card share of attack picks, skilled, reading | <= 45 % | mirelle 26 / pip 25 / tavo 25 / sunniva 20 / barro 4 / kessan 0 | 3000 (21944 picks) | PASS |
 | Advance share of attack picks, skilled, reading (Dribble, Through each) | <= 80 % each | Dribble 36 / Through 3 / Pass 33 / Shoot 27 | 3000 | PASS |
 | Staller (skilled until ahead, then Pass whenever legal) v skilled: points share on identical seeds | 48-52 (50 = equal) | 49.8  (Grimsby 49.9, Reading 49.6; staller wins 65.0 / 44.7 v skilled 65.5 / 46.6) (engine has no bot opponent, so "v skilled" = staller points / (staller + skilled points) against the same clubs, same seeds) | 3000 x 2 clubs | PASS |
-| Information: match 2 as shipped (Level 2 Traits on all 5 pitch players, one 3-SP node set), skilled wins | info (gate band 40-50 is on the bare line above) | grimsby: Level 2 traits only 81.3 / grimsby: L2 + A1,A2 82.0 / grimsby: L2 + D1,D2 88.9 / grimsby: L2 + S1,S2 83.9 / reading: Level 2 traits only 67.7 / reading: L2 + A1,A2 67.6 / reading: L2 + D1,D2 80.8 / reading: L2 + S1,S2 73.5 | 3000 each | INFO |
+| Information: match 2 as shipped (Level 2 Traits on all 5 pitch players, one 3-SP node set), skilled wins | info (gate band 40-50 is on the bare line above) | grimsby: Level 2 traits only 81.3 / grimsby: L2 + A1,A2 82.1 / grimsby: L2 + D1,D2 88.9 / grimsby: L2 + S1,S2 83.9 / reading: Level 2 traits only 67.7 / reading: L2 + A1,A2 67.8 / reading: L2 + D1,D2 80.8 / reading: L2 + S1,S2 73.5 | 3000 each | INFO |
 | Node A1 Sharp Eye alone lifts skilled wins | 2-15 pts, none over 15 (both clubs) | Grimsby +0.1 (se 0.3), Reading +0.9 (se 0.3); fires in 75 / 54 % of matches ; bot used {"A1":3008} / {"A1":2154} (below the 2 floor on Grimsby and Reading) | 4000 paired x 2 clubs | MISS |
-| Node A2 Keep the Thread (A1 owned in both arms) alone lifts skilled wins | 2-15 pts, none over 15 (both clubs) | AFTER ENGINE FIX (kept Build now survives to my next attack): Grimsby +0.1 (se 0.1), Reading +0.1 (se 0.1); fires in 35 / 35 % of matches (before fix: +0.0, could never change an outcome) | 4000 paired x 2 clubs | MISS |
+| Node A2 Keep the Thread (A1 owned in both arms) alone lifts skilled wins | 2-15 pts, none over 15 (both clubs) | Grimsby +0.1 (se 0.1), Reading +0.1 (se 0.1); fires in 35 / 35 % of matches ; bot used {"A1":2977} / {"A1":2155} (below the 2 floor on Grimsby and Reading) | 4000 paired x 2 clubs | MISS |
 | Node D1 Rebound alone lifts skilled wins | 2-15 pts, none over 15 (both clubs) | Grimsby +1.8 (se 0.4), Reading +4.0 (se 0.5); fires in 72 / 87 % of matches (below the 2 floor on Grimsby) | 4000 paired x 2 clubs | MISS |
 | Node D2 Last Man (D1 owned in both arms) alone lifts skilled wins | 2-15 pts, none over 15 (both clubs) | Grimsby +6.9 (se 0.5), Reading +11.7 (se 0.6); fires in 52 / 55 % of matches | 4000 paired x 2 clubs | PASS |
 | Node S1 Fresh Hand alone lifts skilled wins | 2-15 pts, none over 15 (both clubs) | Grimsby +1.5 (se 0.5), Reading +2.4 (se 0.6); fires in 67 / 65 % of matches ; bot used {"S1":2682} / {"S1":2615} (below the 2 floor on Grimsby) | 4000 paired x 2 clubs | MISS |
