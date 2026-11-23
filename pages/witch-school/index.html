@@ -1,0 +1,413 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#f4ead5">
+<title>Witch School (proto)</title>
+<link rel="manifest" href="manifest.webmanifest">
+<style>
+:root{--paper:#f4ead5;--ink:#2b2118;--accent:#8a5a2b;--soft:#e8dbbd;--line:#cdb995;--fs:18px;
+  --sat:env(safe-area-inset-top,0px);--sab:env(safe-area-inset-bottom,0px);--sal:env(safe-area-inset-left,0px);--sar:env(safe-area-inset-right,0px)}
+@media (min-width:400px){:root{--fs:19px}}
+@media (min-width:900px){:root{--fs:20px}}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--paper);color:var(--ink);
+  font-family:Georgia,"Iowan Old Style","Palatino Linotype",Palatino,"Times New Roman",serif;-webkit-text-size-adjust:100%}
+body{overflow:hidden}
+button,input,select,textarea{font:inherit;color:inherit}
+.screen{position:fixed;inset:0;display:none;flex-direction:column;width:100%;max-width:640px;margin:0 auto;
+  padding:calc(var(--sat) + 6px) calc(var(--sar) + 16px) calc(var(--sab) + 12px) calc(var(--sal) + 16px)}
+.screen.on{display:flex}
+.hud{display:flex;align-items:center;gap:8px;min-height:48px;flex:none}
+.hud .title{flex:1;font-size:14px;letter-spacing:.06em;text-transform:uppercase;color:var(--accent);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#devbadge{background:var(--accent);color:var(--paper);font:700 12px system-ui,sans-serif;padding:3px 8px;border-radius:10px;letter-spacing:.05em}
+#devbadge[hidden]{display:none}
+.gear{width:48px;height:48px;border:0;background:none;font-size:24px;cursor:pointer;color:var(--accent);border-radius:12px}
+.gear:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+#beat,.endtext{flex:1;min-height:0;overflow-y:auto;font-size:var(--fs);line-height:1.45;padding:6px 2px}
+#beat p,.endtext p{margin:0 0 .7em}
+#beat p.steepline{color:var(--accent);font-style:italic}
+.bar{flex:none;display:flex;flex-direction:column;gap:8px}
+#chip{flex:none;min-height:36px;display:flex;align-items:center;justify-content:center;margin-bottom:6px;font-style:italic;color:var(--accent);font-size:16px;text-align:center}
+#chip span{background:var(--soft);border:1px solid var(--line);border-radius:18px;padding:5px 14px;transition:opacity .25s}
+#chip span.gone{opacity:0}
+.btn,.choice{min-height:48px;border:2px solid var(--ink);background:var(--paper);border-radius:14px;padding:6px 14px;cursor:pointer;
+  font-size:17px;line-height:1.2;text-align:center;box-shadow:0 2px 0 var(--ink)}
+.choice{height:56px;display:flex;align-items:center;justify-content:center;gap:8px;font-size:16px}
+.choice .k{display:none;font:700 12px system-ui,sans-serif;border:1px solid var(--ink);border-radius:5px;padding:1px 6px}
+@media (min-width:900px){.choice .k{display:inline-block}}
+.primary{background:var(--ink);color:var(--paper)}
+.btn:active,.choice:active{transform:translateY(2px);box-shadow:none}
+#next{height:56px;font-size:18px}
+.btn[disabled]{opacity:.5}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}.btn:active,.choice:active{transform:none}}
+/* start */
+#start{justify-content:center;text-align:center}
+#start h1{font-size:34px;margin:0 0 6px;line-height:1.1}
+#start .sub{margin:0 0 28px;color:var(--accent);font-style:italic}
+#start .mid{flex:1;display:flex;flex-direction:column;justify-content:center}
+#buildid{font:12px ui-monospace,Menlo,monospace;color:var(--accent);opacity:.8;margin-top:18px}
+/* end */
+#endcard h2{font-size:26px;margin:4px 0 10px;line-height:1.15}
+.because{border-left:4px solid var(--accent);padding:2px 0 2px 12px;margin:10px 0;font-style:italic}
+.found{font:14px system-ui,sans-serif;color:var(--accent);margin-top:8px}
+/* steep */
+#steep{display:none;flex-direction:column;gap:8px}
+#steep.on{display:flex}
+#steep .prompt{font-size:15px;font-style:italic;text-align:center}
+#meter{position:relative;height:22px;border:2px solid var(--ink);border-radius:11px;background:var(--soft);overflow:hidden}
+#meter .band{position:absolute;top:0;bottom:0;background:#6f9a52;opacity:.85}
+#meter .fill{position:absolute;left:0;top:0;bottom:0;width:0;background:rgba(43,33,24,.35)}
+#steep .tries{font:13px system-ui,sans-serif;text-align:center;color:var(--accent)}
+#hold{touch-action:none;user-select:none;-webkit-user-select:none;height:56px}
+/* settings */
+#settings{position:fixed;inset:0;background:rgba(43,33,24,.45);display:none;z-index:10}
+#settings.on{display:block}
+#settings .sheet{position:absolute;left:50%;bottom:0;transform:translateX(-50%);width:100%;max-width:640px;max-height:92dvh;overflow-y:auto;
+  background:var(--paper);border-radius:18px 18px 0 0;padding:14px calc(var(--sar) + 16px) calc(var(--sab) + 16px) calc(var(--sal) + 16px);border:2px solid var(--ink);border-bottom:0}
+.sheet h3{margin:0;font-size:20px;flex:1}
+.sheet .top{display:flex;align-items:center;gap:8px;position:sticky;top:-14px;background:var(--paper);padding:4px 0}
+.sheet h4{margin:16px 0 6px;color:var(--accent);font-size:14px;text-transform:uppercase;letter-spacing:.06em}
+.row{display:flex;align-items:center;gap:8px;min-height:48px;font-size:16px;flex-wrap:wrap}
+.row label{flex:1;min-width:120px}
+.row input[type=number],.row select,.row input[type=text]{min-height:44px;border:2px solid var(--line);border-radius:10px;background:#fffaf0;padding:4px 8px;width:110px}
+.row input[type=text]{flex:1;width:auto;min-width:100px}
+.row input[type=checkbox]{width:28px;height:28px;accent-color:var(--accent)}
+.sheet textarea{width:100%;min-height:80px;border:2px solid var(--line);border-radius:10px;background:#fffaf0;padding:8px;font:12px ui-monospace,Menlo,monospace}
+.sheet .btn{font-size:15px;padding:6px 12px}
+.msg{font:13px system-ui,sans-serif;color:var(--accent);min-height:18px}
+</style>
+</head>
+<body>
+
+<section id="start" class="screen on">
+  <div class="hud"><span class="title"></span><span class="devbadge-slot"></span><button class="gear" data-gear aria-label="Settings">&#9881;</button></div>
+  <div class="mid">
+    <h1 id="gtitle">The missing bell</h1>
+    <p class="sub">a small story with three choices</p>
+    <div class="bar"><button class="btn primary" id="play" style="height:56px">Play</button></div>
+    <div id="buildid"></div>
+  </div>
+</section>
+
+<section id="reader" class="screen" aria-live="polite">
+  <div class="hud"><span class="title" id="hudtitle"></span><span id="devbadge" hidden>DEV</span><button class="gear" data-gear aria-label="Settings">&#9881;</button></div>
+  <div id="beat"></div>
+  <div id="chip" aria-live="polite"></div>
+  <div class="bar">
+    <div id="steep">
+      <div class="prompt" id="steepprompt"></div>
+      <div id="meter"><div class="band"></div><div class="fill"></div></div>
+      <div class="tries" id="steeptries"></div>
+      <button class="btn" id="hold">Hold the pot</button>
+    </div>
+    <div id="choices" class="bar"></div>
+  </div>
+</section>
+
+<section id="endcard" class="screen" aria-live="polite">
+  <div class="hud"><span class="title">The end</span><button class="gear" data-gear aria-label="Settings">&#9881;</button></div>
+  <div class="endtext">
+    <h2 id="endtitle"></h2>
+    <div id="endbody"></div>
+    <div id="becausebox"></div>
+    <div class="found" id="endfound"></div>
+  </div>
+  <div class="bar"><button class="btn primary" id="again" style="height:56px">Play again</button></div>
+</section>
+
+<div id="settings" role="dialog" aria-modal="true" aria-label="Settings">
+  <div class="sheet">
+    <div class="top"><h3>Settings</h3><button class="btn" id="setclose">Close</button></div>
+    <h4>Tweak</h4>
+    <div class="row"><label for="t_chips">Chips on</label><input type="checkbox" id="t_chips"></div>
+    <div class="row"><label for="t_chipSec">Chip seconds</label><input type="number" id="t_chipSec" min="0.5" max="10" step="0.5"></div>
+    <div class="row"><label for="t_textSize">Text size</label><select id="t_textSize"><option value="auto">auto</option><option value="18">18</option><option value="20">20</option><option value="22">22</option></select></div>
+    <div class="row"><label for="t_advance">Advance</label><select id="t_advance"><option value="tap">tap</option><option value="auto">auto (6 s)</option></select></div>
+    <div class="row"><label for="t_steep">Steeping stub</label><input type="checkbox" id="t_steep"></div>
+    <div class="row"><label for="t_band">Green band width</label><input type="number" id="t_band" min="0.1" max="0.5" step="0.05"></div>
+    <div class="row"><label for="t_test">Test mode</label><input type="checkbox" id="t_test"></div>
+    <div class="row"><label for="t_seed">Seed</label><input type="number" id="t_seed" step="1"></div>
+    <div class="row"><button class="btn" id="t_reset">Reset to defaults</button></div>
+
+    <h4>Presets</h4>
+    <div class="row"><input type="text" id="p_name" placeholder="Preset name" aria-label="Preset name" maxlength="30"><button class="btn" id="p_save">Save preset</button></div>
+    <div class="row"><select id="p_list" aria-label="Saved presets" style="flex:1;width:auto"></select><button class="btn" id="p_load">Load</button><button class="btn" id="p_del">Delete</button></div>
+    <div class="row"><button class="btn" id="p_copy">Copy preset code</button></div>
+
+    <h4>Report</h4>
+    <div class="row"><button class="btn" id="r_copy">Copy report</button><span class="msg" id="r_msg"></span></div>
+    <textarea id="r_text" readonly aria-label="Report text" hidden></textarea>
+
+    <h4>Paste run</h4>
+    <textarea id="run_in" placeholder="Paste a run line here" aria-label="Run line"></textarea>
+    <div class="row"><button class="btn" id="run_go">Replay this run</button><span class="msg" id="run_msg"></span></div>
+  </div>
+</div>
+
+<script src="story.js"></script>
+<script src="core.js"></script>
+<script>
+(function(){
+'use strict';
+var $=function(id){return document.getElementById(id)};
+var ST=STORY;
+var mem={};
+var storage=(function(){try{var s=window.localStorage;s.setItem('ws.t','1');s.removeItem('ws.t');return s}catch(e){return {getItem:function(k){return k in mem?mem[k]:null},setItem:function(k,v){mem[k]=String(v)},removeItem:function(k){delete mem[k]}}}})();
+var tune=Object.assign({},Core.TUNE_DEFAULT);
+var state=null, runSeed=tune.seed, readMs=[], beatStart=0, scene=null, steepLine=null;
+var chipTimer=null, autoTimer=null, steepRun=null;
+
+function show(id){['start','reader','endcard'].forEach(function(s){$(s).classList.toggle('on',s===id)})}
+function el(tag,cls,txt){var e=document.createElement(tag);if(cls)e.className=cls;if(txt!=null)e.textContent=txt;return e}
+function paras(box,lines){lines.forEach(function(l){box.appendChild(el('p',null,Core.render(ST,state,l)))})}
+
+function applyTune(){
+  var r=document.documentElement.style;
+  if(tune.textSize==='auto')r.removeProperty('--fs');else r.setProperty('--fs',tune.textSize+'px');
+  $('devbadge').hidden=!Object.keys(Core.tuneDiff(tune)).length;
+}
+
+function startRun(){
+  state=Core.newState(runSeed);readMs=[];steepLine=null;
+  stopTimers();
+  show('reader');
+  advanceView();
+}
+function stopTimers(){clearTimeout(chipTimer);clearTimeout(autoTimer);if(steepRun)steepRun.stop();steepRun=null}
+
+function clearChip(){clearTimeout(chipTimer);$('chip').textContent=''}
+function showChip(text){
+  clearChip();
+  if(!tune.chips||!text)return;
+  var s=el('span',null,text);$('chip').appendChild(s);
+  chipTimer=setTimeout(function(){s.className='gone';chipTimer=setTimeout(function(){if(s.parentNode)s.parentNode.removeChild(s)},300)},Math.max(0.5,tune.chipSec)*1000);
+}
+
+/* draw the scene for the current state.slot */
+function advanceView(){
+  clearTimeout(autoTimer);
+  if(state.slot==='end'){return showEnd()}
+  scene=Core.pick(ST,state);
+  var beat=$('beat');beat.textContent='';beat.scrollTop=0;
+  paras(beat,scene.text);
+  $('hudtitle').textContent=ST.title;
+  var box=$('choices');box.textContent='';
+  $('steep').classList.remove('on');
+  beatStart=performance.now();
+  if(scene.choices&&scene.choices.length){
+    scene.choices.forEach(function(c,i){
+      var b=el('button','choice');b.type='button';b.dataset.id=c.id;
+      b.appendChild(el('span','k',String(i+1)));b.appendChild(el('span',null,c.label));
+      b.addEventListener('click',function(){choose(c.id)});
+      box.appendChild(b);
+    });
+  }else if(tune.steep&&scene.slot==='s2'&&ST.steep&&!steepLine){
+    startSteep();
+  }else{
+    addNext();
+  }
+}
+function addNext(){
+  var b=el('button','btn primary','Continue');b.id='next';b.type='button';
+  b.addEventListener('click',cont);$('choices').appendChild(b);
+  if(tune.advance==='auto'){autoTimer=setTimeout(cont,6000)}
+}
+function recordRead(){readMs.push(Math.round(performance.now()-beatStart))}
+function choose(id){
+  if(!state||state.slot==='end')return;
+  recordRead();
+  var r=Core.apply(ST,state,id);
+  state=r.state;
+  state=Core.advance(ST,state);
+  showChip(r.chip);
+  advanceView();
+}
+function cont(){
+  if(!$('next'))return;
+  clearTimeout(autoTimer);
+  recordRead();
+  steepLine=null;
+  state=Core.advance(ST,state);
+  advanceView();
+}
+
+/* end */
+function showEnd(){
+  stopTimers();
+  var e=Core.pick(ST,state);
+  var line=Core.runLine(state,Core.tuneDiff(tune),readMs);
+  Core.saveRuns(storage,line);
+  var info=Core.endingsFound(Core.loadRuns(storage));
+  $('endtitle').textContent=e.title;
+  var body=$('endbody');body.textContent='';paras(body,e.text);
+  var bb=$('becausebox');bb.textContent='';
+  var because=function(){bb.textContent='';bb.appendChild(el('div','because','Because you '+String(e.because).replace(/^(because\s+)?you\s+/i,'')))};
+  if(tune.test){
+    var rv=el('button','btn','Reveal why');rv.type='button';rv.id='reveal';
+    rv.addEventListener('click',because);bb.appendChild(rv);
+  }else because();
+  $('endfound').textContent=info.found.length+' of '+info.total+' endings found';
+  clearChip();
+  show('endcard');
+}
+
+/* steeping stub */
+function startSteep(){
+  var S=$('steep');S.classList.add('on');
+  $('steepprompt').textContent=ST.steep.prompt||'';
+  var band=Math.min(0.5,Math.max(0.1,Number(tune.band)||0.25));
+  var rng=Core.rng(state.seed+7);
+  var hits=0,tries=0,t0=0,raf=0,holding=false,center=0;
+  var meter=$('meter'),fill=meter.querySelector('.fill'),bandEl=meter.querySelector('.band'),hold=$('hold');
+  var CYCLE=2000;
+  function newTry(){
+    center=0.3+rng.next()*0.5; // 0.3..0.8
+    center=Math.min(1-band/2,Math.max(band/2,center));
+    bandEl.style.left=((center-band/2)*100)+'%';bandEl.style.width=(band*100)+'%';
+    fill.style.width='0';
+    $('steeptries').textContent='Try '+(tries+1)+' of 3';
+    hold.disabled=false;
+  }
+  function loop(){var f=Math.min(1,(performance.now()-t0)/CYCLE);fill.style.width=(f*100)+'%';if(f<1&&holding)raf=requestAnimationFrame(loop)}
+  function down(ev){if(holding||hold.disabled)return;ev.preventDefault();holding=true;t0=performance.now();raf=requestAnimationFrame(loop)}
+  function up(){
+    if(!holding)return;holding=false;cancelAnimationFrame(raf);
+    var f=Math.min(1,(performance.now()-t0)/CYCLE);
+    if(Math.abs(f-center)<=band/2)hits++;
+    tries++;fill.style.width=(f*100)+'%';
+    if(tries>=3)finish();else setTimeout(newTry,350);
+    hold.disabled=tries>=3;
+  }
+  function finish(){
+    var grade=Core.steepGrade(hits);
+    steepLine=ST.steep.lines[grade];
+    $('steeptries').textContent=grade;
+    S.classList.remove('on');
+    var p=el('p','steepline',steepLine);$('beat').appendChild(p);
+    stop();
+    addNext();
+  }
+  function stop(){cancelAnimationFrame(raf);hold.removeEventListener('pointerdown',down);window.removeEventListener('pointerup',up);window.removeEventListener('pointercancel',up);hold.removeEventListener('keydown',kd);hold.removeEventListener('keyup',ku);steepRun=null}
+  function kd(e){if((e.key===' '||e.key==='Enter')&&!e.repeat)down(e)}
+  function ku(e){if(e.key===' '||e.key==='Enter'){e.preventDefault();up()}}
+  hold.addEventListener('pointerdown',down);window.addEventListener('pointerup',up);window.addEventListener('pointercancel',up);
+  hold.addEventListener('keydown',kd);hold.addEventListener('keyup',ku);
+  steepRun={stop:stop};
+  newTry();
+}
+
+/* settings */
+function fillSettings(){
+  $('t_chips').checked=!!tune.chips;$('t_chipSec').value=tune.chipSec;$('t_textSize').value=String(tune.textSize);
+  $('t_advance').value=tune.advance;$('t_steep').checked=!!tune.steep;$('t_band').value=tune.band;
+  $('t_test').checked=!!tune.test;$('t_seed').value=tune.seed;
+  refreshPresets();
+}
+function readTune(){
+  var n=function(id,d){var v=parseFloat($(id).value);return isFinite(v)?v:d};
+  tune.chips=$('t_chips').checked;tune.chipSec=n('t_chipSec',tune.chipSec);
+  var ts=$('t_textSize').value;tune.textSize=ts==='auto'?'auto':Number(ts);
+  tune.advance=$('t_advance').value;tune.steep=$('t_steep').checked;
+  tune.band=Math.min(0.5,Math.max(0.1,n('t_band',tune.band)));
+  tune.test=$('t_test').checked;
+  var sd=Math.round(n('t_seed',tune.seed));if(sd!==tune.seed){tune.seed=sd;runSeed=sd}
+  applyTune();
+}
+['t_chips','t_chipSec','t_textSize','t_advance','t_steep','t_band','t_test','t_seed'].forEach(function(id){
+  $(id).addEventListener('change',readTune);$(id).addEventListener('input',readTune);
+});
+$('t_reset').addEventListener('click',function(){tune=Object.assign({},Core.TUNE_DEFAULT);runSeed=tune.seed;fillSettings();applyTune()});
+function openSettings(){fillSettings();$('settings').classList.add('on');$('setclose').focus()}
+function closeSettings(){$('settings').classList.remove('on')}
+Array.prototype.forEach.call(document.querySelectorAll('[data-gear]'),function(g){g.addEventListener('click',openSettings)});
+$('setclose').addEventListener('click',closeSettings);
+$('settings').addEventListener('click',function(e){if(e.target===$('settings'))closeSettings()});
+
+function presetNames(){
+  var l;try{l=Core.listPresets(storage)}catch(e){l=[]}
+  if(!l)return [];
+  if(!Array.isArray(l))l=Object.keys(l);
+  return l.map(function(x){return typeof x==='string'?x:(x&&x.name)}).filter(Boolean);
+}
+function refreshPresets(){
+  var sel=$('p_list');sel.textContent='';
+  var names=presetNames();
+  if(!names.length){var o=el('option',null,'(no presets)');o.value='';sel.appendChild(o)}
+  names.forEach(function(n){var o=el('option',null,n);o.value=n;sel.appendChild(o)});
+}
+$('p_save').addEventListener('click',function(){
+  var n=$('p_name').value.trim();if(!n)return;
+  Core.savePreset(storage,n,Object.assign({},tune));refreshPresets();$('p_list').value=n;
+});
+$('p_load').addEventListener('click',function(){
+  var n=$('p_list').value;if(!n)return;
+  var t=Core.loadPreset(storage,n);if(!t)return;
+  tune=Object.assign({},Core.TUNE_DEFAULT,t);runSeed=tune.seed;fillSettings();applyTune();
+});
+$('p_del').addEventListener('click',function(){var n=$('p_list').value;if(!n)return;Core.deletePreset(storage,n);refreshPresets()});
+$('p_copy').addEventListener('click',function(){
+  copyText('ws-preset:'+JSON.stringify(tune),$('r_msg'),'Preset code copied');
+});
+
+function reportText(){
+  var runs=Core.loadRuns(storage),info=Core.endingsFound(runs);
+  return ['Witch School report, build '+Core.BUILD,'Runs (last '+runs.length+'):'].concat(runs,['Endings found: '+info.found.length+' of '+info.total+(info.found.length?' ('+info.found.join(', ')+')':'')]).join('\n');
+}
+function copyText(txt,msgEl,okMsg){
+  var ta=$('r_text');ta.value=txt;
+  function fallback(){
+    ta.hidden=false;ta.focus();ta.select();
+    var ok=false;try{ok=document.execCommand('copy')}catch(e){}
+    msgEl.textContent=ok?okMsg:'Select the text below and copy it';
+  }
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    navigator.clipboard.writeText(txt).then(function(){msgEl.textContent=okMsg;ta.hidden=true},fallback);
+  }else fallback();
+}
+$('r_copy').addEventListener('click',function(){copyText(reportText(),$('r_msg'),'Report copied')});
+
+$('run_go').addEventListener('click',function(){
+  var line=$('run_in').value.trim(),msg=$('run_msg');
+  var pm=/path=([^|]*)/.exec(line),sm=/seed=(-?\d+)/.exec(line);
+  if(!pm){msg.textContent='No path= found in that line';return}
+  var ids=pm[1].split(',').map(function(s){return s.trim()}).filter(Boolean);
+  var s=Core.newState(sm?Number(sm[1]):runSeed),i=0,guard=0;
+  while(s.slot!=='end'&&guard++<30){
+    var sc=Core.pick(ST,s);
+    if(sc.choices&&sc.choices.length){
+      var id=ids[i++],ok=sc.choices.some(function(c){return c.id===id});
+      if(!ok){msg.textContent='Path does not fit this story at step '+i;return}
+      s=Core.apply(ST,s,id).state;
+    }
+    s=Core.advance(ST,s);
+  }
+  state=s;readMs=[];msg.textContent='';closeSettings();showEnd();
+});
+
+/* wiring */
+$('play').addEventListener('click',function(){runSeed=tune.seed;startRun()});
+$('again').addEventListener('click',function(){runSeed=state.seed+1;startRun()});
+$('buildid').textContent='build '+Core.BUILD;
+$('gtitle').textContent=ST.title;
+document.addEventListener('keydown',function(e){
+  if($('settings').classList.contains('on')){if(e.key==='Escape')closeSettings();return}
+  var tg=e.target&&e.target.tagName;if(tg==='INPUT'||tg==='TEXTAREA'||tg==='SELECT')return;
+  if(e.ctrlKey||e.metaKey||e.altKey)return;
+  if($('reader').classList.contains('on')){
+    if(e.key==='1'||e.key==='2'){var cs=document.querySelectorAll('#choices .choice');var c=cs[Number(e.key)-1];if(c){e.preventDefault();c.click()}}
+    else if((e.key==='Enter'||e.key===' ')&&$('next')&&tg!=='BUTTON'){e.preventDefault();cont()}
+  }else if($('start').classList.contains('on')){
+    if((e.key==='Enter'||e.key===' ')&&tg!=='BUTTON'){e.preventDefault();$('play').click()}
+  }else if($('endcard').classList.contains('on')){
+    if((e.key==='Enter'||e.key===' ')&&tg!=='BUTTON'){e.preventDefault();$('again').click()}
+  }
+});
+applyTune();
+try{if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(function(){})}catch(e){}
+window.__ws={get state(){return state},get tune(){return tune}};
+})();
+</script>
+</body>
+</html>
