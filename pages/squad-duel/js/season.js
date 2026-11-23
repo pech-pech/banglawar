@@ -173,7 +173,8 @@
     if (c.played) return c.won ? { coins: tw(T, 'cupWinPay'), why: 'Cup won' } : { coins: tw(T, 'cupLossPay'), why: 'Cup Final reached' };
     const p = place(S).pos;
     if (p === 3 || p === 4) return { coins: tw(T, 'place34Pay'), why: 'Finished ' + (p === 3 ? '3rd' : '4th') };
-    return { coins: 0, why: 'Finished ' + p + 'th' };
+    const o = (p % 100 >= 11 && p % 100 <= 13) ? 'th' : (['th', 'st', 'nd', 'rd'][p % 10] || 'th');
+    return { coins: 0, why: 'Finished ' + p + o };
   }
   function endSeason(S, T) {
     const se = ensure(S);

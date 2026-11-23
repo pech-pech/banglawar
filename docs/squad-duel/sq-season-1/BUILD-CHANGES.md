@@ -19,7 +19,7 @@ Changed: js/data.js, js/progress.js (save v2), js/gacha.js, js/engine.js (home s
 - e2e.js (updated for the hub flow) 0 FAIL; e2e-season.js 0 FAIL (206 checks, 344x882 + 475x638, full season, cup, shootout, resume, same-seed replay).
 - bot.js (slice gates): d6, chip (20000 duels, worst 0.54 pt), cap +3, replay PASS. Content rows change as expected.
 - bot-season.js: 32 HIT, 27 MISS, 23 INFO. Full table docs/squad-duel/sq-season-1/BOT-SEASON.md.
-- Visual QA 344x882: 7 blockers found, all fixed (docs/squad-duel/sq-season-1/qa/).
+- Visual QA 344x882: 7 blockers found, 6 fixed; tree tier-3 "Second Look" text still cut after 3 lines in the list (full text in the detail strip when tapped). Also fixed "Finished 1th".
 
 ## Balance misses (reported as misses, not tuned: M's call)
 - Hard ladder skilled win % MD1-7: 54.9 / 57.6 / 54.4 / 59.6 / 58.6 / 61.9 / 52.5 v 60 / 52 / 52 / 50 / 48 / 46 / 42 (late clubs too easy).
