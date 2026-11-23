@@ -22,7 +22,23 @@
     P('hadro', 'Hadro', 'Playmaker', 'Epic', 5, 7, 6, 4, 6, '#6, grey streak, finger raised to temple',
       { id: 'SIG_HADRO', name: 'Read the Run', text: "For his next 2 turns (may cross half-time) the opponent's exact stance and attack pick are shown before you choose" }),
     P('ysolde', 'Ysolde', 'Keeper', 'Legend', 4, 6, 3, 9, 1, '#1, gold gloves, long cape-like kit trim, animated crest, leaning dive',
-      { id: 'SIG_YSOLDE', name: 'Last Hand', text: 'When a shot against you would score, reroll your Save d6 once and keep the new roll' })
+      { id: 'SIG_YSOLDE', name: 'Last Hand', text: 'When a shot against you would score, reroll your Save d6 once and keep the new roll' }),
+    P('dessa', 'Dessa', 'Winger', 'Rare', 7, 4, 6, 2, 17, '#17, short fringe, yellow boots, cutting-inside lean',
+      { id: 'SIG_DESSA', name: 'Sidestep', text: 'A tie on a duel where Dessa is the attacker and plays Dribble or Shoot goes to her' }),
+    P('yenna', 'Yenna', 'Playmaker', 'Rare', 4, 7, 5, 3, 16, '#16, round glasses, low ponytail, one arm out shielding the ball',
+      { id: 'SIG_YENNA', name: 'Hold Up', text: 'When Yenna loses an attack duel in your Defence or Midfield zone, you keep the ball in that zone (no turnover)' }),
+    P('ruvo', 'Ruvo', 'Striker', 'Rare', 3, 4, 8, 3, 18, '#18, big frame, shaved head, arms up at the penalty spot',
+      { id: 'SIG_RUVO', name: 'Follow Up', text: "When Ruvo's Shoot is saved, the ball stays in your Attack zone and you keep the turn (no turnover)" }),
+    P('veska', 'Veska', 'Winger', 'Epic', 7, 5, 8, 2, 20, '#20, green sleeves, glow-edge frame, mid-stride shooting stance',
+      { id: 'SIG_VESKA', name: 'Twin Run', text: "After Veska's Dribble wins in Midfield, you may play a second hand card this turn, as a Shoot only" }),
+    P('brannik', 'Brannik', 'Anchor', 'Epic', 3, 5, 2, 9, 2, '#2, thick beard, red captain tape, sliding block',
+      { id: 'SIG_BRANNIK', name: 'Second Tackle', perHalf: true, text: 'Once per half (twice a match): reroll your d6 on a defending duel where Brannik is your card, keep the new roll' }),
+    P('tobbin', 'Tobbin', 'Keeper', 'Epic', 3, 5, 1, 8, 13, '#13, orange kit, wide cap, one-arm throw',
+      { id: 'SIG_TOBBIN', name: 'Quick Throw', perHalf: true, text: 'Once per half: after you save a shot, your ball starts in your Midfield instead of your Defence' }),
+    P('maelis', 'Maelis', 'Striker', 'Legend', 6, 4, 9, 3, 99, '#99, silver boots, animated flame crest, spinning volley',
+      { id: 'SIG_MAELIS', name: 'Cold Finish', text: "A tie on Maelis's Shoot goes to her" }),
+    P('orlo', 'Orlo', 'Playmaker', 'Legend', 4, 9, 6, 4, 10, '#10, gold armband, animated crest, hands conducting',
+      { id: 'SIG_ORLO', name: 'Call for Ball', text: 'On an attacking turn you may play Orlo as your card even if he is in the deck or discard' })
   ];
   const BY_ID = {};
   PLAYERS.forEach(p => { BY_ID[p.id] = p; });
@@ -33,15 +49,15 @@
     { id: 'D1', tab: 'defence', tier: 1, cost: 1, name: 'Rebound', text: 'Once per match, reroll your d6 in one defending duel', chip: 'Rebound: rerolled 2 to 5', req: null, fork: null, active: true },
     { id: 'D2', tab: 'defence', tier: 2, cost: 2, name: 'Last Man', text: 'Once per match, a tie on a duel where I am the ATTACKER goes to me', chip: 'Last Man: tie to Tavo', req: 'D1', fork: 'AD2', active: true },
     { id: 'S1', tab: 'squad', tier: 1, cost: 1, name: 'Fresh Hand', text: 'Once per match, between turns, discard your whole hand and draw 3 (costs no turn; fewer than 3 in the deck: draw them, then reshuffle the discard and draw the rest)', chip: 'Fresh Hand ready', req: null, fork: null, active: true },
-    { id: 'S2', tab: 'squad', tier: 2, cost: 2, name: 'Fourth Card', text: 'Your hand is 4 cards for the whole match (draw up to 4 after each play)', chip: 'hand of 4', req: 'S1', fork: null, active: true }
+    { id: 'S2', tab: 'squad', tier: 2, cost: 2, name: 'Fourth Card', text: 'Your hand is 4 cards for the whole match (draw up to 4 after each play)', chip: 'hand of 4', req: 'S1', fork: null, active: true },
+    // tier 3 (A-systems f): need the lane's tier-1 node AND any one tier-2 node (reqAny)
+    { id: 'A3', tab: 'attack', tier: 3, cost: 3, name: 'Second Look', text: 'Once per match, after you chose a card and an action and saw the odds chip, you may take the pick back: choose another card from your hand and its action. The first card stays in your hand', chip: 'Second Look ready', req: 'A1', reqAny: ['A2', 'D2', 'S2'], fork: null, active: true },
+    { id: 'D3', tab: 'defence', tier: 3, cost: 3, name: 'Press Master', text: 'Once per match, when you Press and the club plays a Through ball, the -1 from Press does not apply (Press v Through counts 0). Fires by itself', chip: 'Press Master: Press v Through 0', req: 'D1', reqAny: ['A2', 'D2', 'S2'], fork: null, active: false },
+    { id: 'S3', tab: 'squad', tier: 3, cost: 3, name: 'Captain', text: 'Pick one lineup player (pitch or bench) before kick-off. At half-time his once-per-match Trait and once-per-match Signature are ready again', chip: 'Captain: armband', req: 'S1', reqAny: ['A2', 'D2', 'S2'], fork: null, active: false }
   ];
 
-  // CONTENT-SHEET 4b, tiers 3-5 (greyed, not playable). Tier-2 alternates listed for completeness at tier 2.
+  // CONTENT-SHEET 4b, tiers 4-5 only (greyed, not playable); tier 3 is live in NODES. Tier-2 alternates listed for completeness at tier 2.
   const LOCKED_TREE = [
-    { tier: 3,
-      attack: { name: 'Second Look', text: 'Once per match, after seeing the odds chip swap your chosen card for another card in your hand' },
-      defence: { name: 'Press Master', text: 'Your Press stance ignores the -1 vs Through once' },
-      squad: { name: 'Captain', text: 'Pick a lineup player, his Signature move may fire a second time at match 5+' } },
     { tier: 4,
       attack: { name: 'Long Range', text: 'Shoot allowed from Midfield for anyone, once' },
       defence: { name: 'Sweeper', text: 'A lost duel in Defence zone moves the ball nowhere, once' },
