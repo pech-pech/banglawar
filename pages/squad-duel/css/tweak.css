@@ -1,0 +1,47 @@
+#tweak { position: fixed; inset: 0; z-index: 900; display: flex; flex-direction: column;
+  background: var(--bg, #050a18); color: var(--txt, #f2f6ff); font-family: "Atkinson", system-ui, sans-serif; font-size: 14px;
+  padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom);
+  padding-left: env(safe-area-inset-left); padding-right: env(safe-area-inset-right); }
+#tweak * { box-sizing: border-box; }
+#tweak .tw-head { flex: none; display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  padding: 4px 12px; border-bottom: 1px solid var(--line, rgba(120,170,255,.32)); background: var(--navy, #0a1330); }
+#tweak h2 { margin: 0; font-size: 20px; letter-spacing: .08em; text-transform: uppercase; color: var(--neon, #2cf0ff); }
+#tweak h3 { margin: 18px 0 6px; font-size: 13px; letter-spacing: .1em; text-transform: uppercase; color: var(--gold, #ffc83a); }
+#tweak .tw-body { flex: 1; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; padding: 8px 12px 24px; }
+#tweak .note { margin: 6px 0; color: var(--dim, #a9b8d8); font-size: 13px; line-height: 1.35; }
+#tweak #tw-msg { min-height: 18px; margin: 4px 0; font-size: 13px; color: var(--good, #7dffb0); }
+#tweak #tw-msg.bad { color: var(--red, #ff4d6d); }
+#tweak button { min-height: 56px; min-width: 56px; padding: 0 14px; font: inherit; font-weight: 700; color: var(--txt, #f2f6ff);
+  background: var(--glass, rgba(14,24,52,.88)); border: 1px solid var(--line, rgba(120,170,255,.32)); border-radius: 12px; cursor: pointer; }
+#tweak button:active { background: rgba(44,240,255,.18); }
+#tweak button:focus-visible, #tweak input:focus-visible, #tweak textarea:focus-visible { outline: 2px solid var(--neon, #2cf0ff); outline-offset: 2px; }
+#tweak button.pri { background: var(--neon, #2cf0ff); color: var(--ink, #031018); border-color: var(--neon, #2cf0ff); }
+#tweak .bar { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+#tweak .name-row { display: flex; gap: 8px; margin-top: 8px; }
+#tweak .name-row input { flex: 1; min-width: 0; }
+#tweak input[type=text], #tweak input[type=number], #tweak textarea {
+  min-height: 56px; padding: 0 12px; font: inherit; color: var(--txt, #f2f6ff); background: rgba(3,16,24,.7);
+  border: 1px solid var(--line, rgba(120,170,255,.32)); border-radius: 12px; }
+#tweak textarea { display: block; width: 100%; margin-top: 8px; padding: 10px 12px; resize: vertical; font-size: 13px; word-break: break-all; }
+#tweak #btn-load-code, #tweak #tw-reset { width: 100%; margin-top: 8px; }
+#tweak #tw-reset { margin-top: 20px; border-color: var(--red, #ff4d6d); color: var(--red, #ff4d6d); }
+#tweak #tw-seed-go { flex: none; max-width: 52%; line-height: 1.15; font-size: 13px; }
+#tweak .preset { display: flex; align-items: center; gap: 6px; margin-top: 8px; padding: 4px 4px 4px 12px; min-height: 56px;
+  background: var(--glass, rgba(14,24,52,.88)); border: 1px solid var(--line, rgba(120,170,255,.32)); border-radius: 12px; }
+#tweak .preset .pn { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+#tweak .preset .pn b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#tweak .preset .pn i, #tweak .lab i { font-style: normal; font-size: 12px; color: var(--dim, #a9b8d8); }
+#tweak .preset button { min-height: 48px; min-height: 56px; padding: 0 10px; }
+#tweak .preset .arm { border-color: var(--red, #ff4d6d); color: var(--red, #ff4d6d); }
+#tweak .row { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 56px; padding: 4px 4px 4px 10px;
+  border-bottom: 1px solid rgba(120,170,255,.14); border-left: 3px solid transparent; }
+#tweak .row.chg { border-left-color: var(--gold, #ffc83a); background: rgba(255,200,58,.07); }
+#tweak .row .lab { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+#tweak .row .lab b { font-weight: 700; overflow-wrap: anywhere; }
+#tweak .row input[type=number] { flex: none; width: 104px; text-align: right; }
+#tweak .row input[type=checkbox] { flex: none; appearance: none; -webkit-appearance: none; width: 56px; height: 56px; margin: 0; cursor: pointer;
+  border: 1px solid var(--line, rgba(120,170,255,.32)); border-radius: 12px; background: rgba(3,16,24,.7); position: relative; }
+#tweak .row input[type=checkbox]::after { content: "OFF"; position: absolute; inset: 0; display: grid; place-items: center; font-size: 13px; font-weight: 700; color: var(--dim, #a9b8d8); }
+#tweak .row input[type=checkbox]:checked { background: var(--neon, #2cf0ff); border-color: var(--neon, #2cf0ff); }
+#tweak .row input[type=checkbox]:checked::after { content: "ON"; color: var(--ink, #031018); }
+@media (prefers-reduced-motion: reduce) { #tweak * { animation: none !important; transition: none !important; } }
