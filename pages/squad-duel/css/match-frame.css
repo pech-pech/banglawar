@@ -43,3 +43,13 @@
 /* half / full time panels (row 20) */
 #match #halftime .ovp,#match #fulltime .ovp{gap:10px}
 @media (min-width:600px){#match #info .gb .hm{display:inline}#match #info .gb .mx{display:inline}}
+/* landscape 2-col: left column is ~400px, keep the 3-row info layout */
+@media (min-width:700px) and (max-height:640px){
+ #match #info{grid-template-columns:minmax(0,1fr) auto auto;grid-template-rows:20px 18px 23px;column-gap:6px;padding:1px 8px}
+ #match #info.hm{grid-template-areas:"turn pips pips" "rib rib mode" "tag roar build"}
+ #match #info:not(.hm){grid-template-areas:"turn pips pips" "rib rib rib" "tag roar build"}
+ #match #info .gb .hm,#match #info .gb .mx{display:none}
+ #match #info .gb{padding:0 6px}
+ #match #ribbon{height:18px}
+ #match #roar{justify-self:stretch}
+}

@@ -24,13 +24,13 @@
 
   function geometry(W, H) {
     // stands take ~30% of the box, never thin (>=46), never so tall that 44px tokens do not fit
-    let sy = Math.max(46, Math.min(Math.round(H * 0.3), 120));
+    let sy = H < 170 ? Math.max(34, Math.round(H * 0.24)) : Math.max(46, Math.min(Math.round(H * 0.3), 120));
     const Rt = Math.max(15, Math.min(26, W * 0.0645));            // 22.2 at 344 -> 44px tokens
     const need = 4 * Rt + 30 + 26;                                  // two token rows + gaps + zone label strip
-    if (H - sy < need) sy = Math.max(46, H - need);
+    if (H - sy < need) sy = Math.max(H < 170 ? 34 : 46, H - need);
     const PH = H - sy;
     const labelH = 18, y0 = sy + labelH + 4, y1 = H - 4;
-    const R = Math.max(14, Math.min(Rt, (y1 - y0 - 6) / 4));
+    const R = Math.max(12, Math.min(Rt, (y1 - y0 - 4) / 4));
     const yT = y0 + R + 1, yB = y1 - R - 1, yM = (yT + yB) / 2;
     const cw = W / 3;
     const col = c => cw * c;
@@ -124,7 +124,7 @@
       [-9, 0, 9].forEach(dx => { o += `<circle cx="${x + dx}" cy="${roof - 1}" r="3" fill="#fff"/>`; });
     });
     // sponsor strip + club names
-    o += `<rect y="${bY}" width="${W}" height="16" fill="#071029"/><g font-size="12" font-weight="800" letter-spacing="2"><text x="10" y="${bY + 12.5}" fill="#2cf0ff">PRESTON</text><text x="${W - 10}" y="${bY + 12.5}" text-anchor="end" fill="#ff9fb0">GRIMSBY</text></g>`;
+    o += `<rect y="${bY}" width="${W}" height="16" fill="#071029"/><g font-size="12" font-weight="800" letter-spacing="2"><text x="10" y="${bY + 12.5}" fill="#2cf0ff">PRESTON</text><text x="${W - 10}" y="${bY + 12.5}" text-anchor="end" fill="#ff9fb0">${esc(((m && m.club && (m.club.label || m.club.name)) || 'OPPONENT').toUpperCase())}</text></g>`;
     // pitch
     o += `<rect y="${sy}" width="${W}" height="${PH}" fill="#0a5a2c"/><g>`;
     for (let i = 0; i < 8; i += 2) o += `<rect x="${W * i / 8}" y="${sy}" width="${W / 8}" height="${PH}" fill="#0e6b34"/>`;

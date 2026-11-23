@@ -59,3 +59,5 @@
 #match #acts{min-height:118px}
 #match #acts.four,#match #acts.two{grid-template-rows:auto 1fr}
 @media (min-width:400px){#match #acts{min-height:99px}}
+#match #tell .stance .seg{min-width:0;padding:0 5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#match #tell .stance.one .seg{display:block;line-height:20px}

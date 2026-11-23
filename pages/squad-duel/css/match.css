@@ -16,7 +16,7 @@
 #match .gb.bd .pp i{border-color:var(--m-neon)}
 #match .gb.bd .pp i.f{background:var(--m-neon)}
 /* scene box: scene.css draws inside */
-#match #scene{flex:1 1 auto;min-height:0;position:relative;overflow:hidden;background:#050a18}
+#match #scene{flex:1 1 auto;min-height:110px;position:relative;overflow:hidden;background:#050a18}
 /* tell */
 #match #tell{flex:none;height:52px;box-sizing:border-box;overflow:hidden;padding:4px 8px;background:linear-gradient(180deg,#0e1d46,#0a1330);display:flex;flex-wrap:wrap;gap:4px 12px;align-items:center;border-bottom:1px solid var(--m-line);align-content:center}
 #match #tell .who{flex:0 1 auto;display:flex;flex-wrap:wrap;align-items:center;gap:2px 8px;font-size:13px;line-height:18px;text-transform:uppercase;letter-spacing:.03em}
@@ -186,19 +186,19 @@
 /* frame sizes (row 14): >=400 wide uses a 2-row info block; short screens trim tell and band */
 @media (min-width:400px){
  #match #info{height:44px}
- #match #tell{height:38px}
+ #match #tell{height:34px}
 }
 @media (min-width:400px) and (min-height:760px){
  #match #tell{height:52px}
  #match #band{height:104px}
 }
 @media (min-width:400px) and (max-height:759px){
- #match #band{height:76px}
+ #match #band{height:64px}
 }
 /* wide landscape (816x568): pitch left, cards right */
 @media (min-width:700px) and (max-height:640px){
  #match{display:grid;grid-template-columns:minmax(0,1fr) minmax(340px,46%);grid-template-rows:auto auto auto auto minmax(0,1fr) auto auto}
- #match #info{grid-column:1;grid-row:1}
+ #match #info{grid-column:1;grid-row:1;height:64px}
  #match #scene{grid-column:1;grid-row:2/6;min-height:0}
  #match #tell{grid-column:1;grid-row:6}
  #match #band{grid-column:1;grid-row:7;height:84px}

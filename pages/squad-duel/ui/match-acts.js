@@ -39,7 +39,7 @@
       const nm = keeperAct && m.club.keeper ? m.club.keeper.name : d.name;
       const st = ev.clubStance;
       let bar = '';
-      if (!keeperAct && st) bar = '<div class="stance one" role="img" aria-label="' + esc(d.name) + ' ' + esc(st === 'press' ? 'pressed' : 'dropped') + '"><div class="seg ' + st + '">' + esc(d.name) + (st === 'press' ? ' pressed' : ' dropped') + (ev.action === 'pass' ? ' (no effect on Pass)' : '') + '</div></div>';
+      if (!keeperAct && st) bar = '<div class="stance one" role="img" aria-label="' + esc(d.name) + ' ' + esc(st === 'press' ? 'pressed' : 'dropped') + '"><div class="seg ' + st + '">' + esc(d.name) + (st === 'press' ? ' pressed' : ' dropped') + '</div></div>';
       return '<div class="who"><span class="k">' + (keeperAct ? 'Keeper' : 'Facing') + '</span><span>' + (keeperAct ? '' : '<span class="nn">' + esc(ZN[ev.zone] != null ? ZN[ev.zone] : '') + '</span>') + esc(nm) + '</span><span class="df">' + (keeperAct ? 'SAVE ' : 'DEF ') + esc(ev.oppScore) + '</span></div>' + bar;
     }
     const keeperShot = !ev.pid;
@@ -60,7 +60,7 @@
     if (w) {
       ['pass', 'dribble', 'through', 'shoot'].forEach((a) => {
         const v = Math.round((w[a] || 0) * 100);
-        if (v > 0) { cols.push('minmax(max-content,' + v + 'fr)'); segs += '<div class="seg w-' + a + '">' + esc(ACTS[a].label.replace(' ball', '')) + ' ' + v + '%</div>'; }
+        if (v > 0) { cols.push('minmax(0,' + v + 'fr)'); segs += '<div class="seg w-' + a + '">' + esc(ACTS[a].label.replace('Through ball', 'Thru').replace(' ball', '')) + ' ' + v + '%</div>'; }
       });
     }
     const bar = segs ? '<div class="stance wb" style="grid-template-columns:' + cols.join(' ') + '" role="img" aria-label="' + esc(text) + '">' + segs + '</div>' : '<div class="who">' + esc(text) + '</div>';

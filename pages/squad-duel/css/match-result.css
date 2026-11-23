@@ -1,18 +1,19 @@
 /* OWNER: match-result maker (sq-ui-1). Styles for ui/match-result.js only. */
 #match #band .rz{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:center;gap:4px}
 #match #band .rz .side{gap:5px;min-width:0}
-#match #band .rz .side svg{width:30px;height:30px;flex:none}
+#match #band .rz .side svg{width:28px;height:28px;flex:none}
 #match #band .rz .side.opp .tx small{text-align:right}
-#match #band .rz .side .tx{display:grid;grid-template-columns:auto minmax(0,1fr);column-gap:5px;align-items:center;min-width:0;flex:1}
-#match #band .rz .side .tx small{display:block;font-size:12px;line-height:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-#match #band .rz .side .tx b{display:block;grid-row:1/3;grid-column:1;font-size:24px;line-height:28px}
-#match #band .rz .side .tx small{grid-column:2}
-#match #band .rz .side.opp .tx{grid-template-columns:minmax(0,1fr) auto}
-#match #band .rz .side.opp .tx b{grid-column:2}
-#match #band .rz .side.opp .tx small{grid-column:1}
+#match #band .rz .side .tx{display:grid;grid-template-columns:auto minmax(0,1fr);column-gap:4px;align-items:baseline;min-width:0;flex:1}
+#match #band .rz .side .tx small{display:block;font-size:12px;line-height:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#match #band .rz .side .tx small:first-child{grid-column:1/3;grid-row:1}
+#match #band .rz .side .tx b{display:block;grid-row:2;grid-column:1;font-size:22px;line-height:22px}
+#match #band .rz .side .tx small:last-child{grid-row:2;grid-column:2}
 #match #band .rz .side .tx s{text-decoration:line-through;opacity:.7}
-#match #band .rz .side.opp .tx small{text-align:right}
-#match #band .rz .stamp{min-height:30px;padding:0 8px;font-size:15px;letter-spacing:.05em}
+#match #band .rz .side.opp .tx{grid-template-columns:minmax(0,1fr) auto}
+#match #band .rz .side.opp .tx small:first-child{grid-column:1/3;text-align:right}
+#match #band .rz .side.opp .tx small:last-child{grid-column:1;text-align:right}
+#match #band .rz .side.opp .tx b{grid-column:2}
+#match #band .rz .stamp{min-height:30px;padding:0 6px;font-size:14px;letter-spacing:.05em}
 #match #band .rz-note{font-size:12px;line-height:16px;color:#ffd166;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #match #band .rz-fx{display:flex;flex-wrap:wrap;gap:2px 4px;justify-content:center;max-height:34px;overflow:hidden}
 #match #band .rz-fx[hidden],#match #band .rz-note[hidden]{display:none}
