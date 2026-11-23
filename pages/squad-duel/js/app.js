@@ -39,13 +39,28 @@
       app._toastTimer = setTimeout(() => el.classList.remove('show'), 2600);
     },
 
+    clearToast() {
+      clearTimeout(app._toastTimer);
+      const el = $('toast');
+      if (el) { el.classList.remove('show'); el.textContent = ''; }
+    },
+
+    shortName(n, fallback) {
+      const raw = String(n == null ? fallback : n).trim();
+      const D = SD.data, clubs = (D && D.CLUBS) || {};
+      for (const k in clubs) if (clubs[k] && (clubs[k].name === raw || clubs[k].label === raw)) return String(clubs[k].label || raw).toUpperCase();
+      if (/^proud preston$/i.test(raw)) return 'PRESTON';
+      const w = raw.split(/\s+/);
+      return (w[w.length - 1] || raw).toUpperCase().slice(0, 9);
+    },
+
     setScorebug(v) {
       const el = $('scorebug'); if (!el) return;
       el.textContent = '';
       if (v && typeof v === 'object') {
         const mk = (cls, t) => { const s = doc.createElement('span'); s.className = cls; s.textContent = t; return s; };
-        el.append(mk('sb-team sb-home', v.home != null ? v.home : 'PRESTON'), mk('sb-score', v.hs != null ? v.hs : 0),
-          mk('sb-score', v.as != null ? v.as : 0), mk('sb-team sb-away', v.away != null ? v.away : ''));
+        el.append(mk('sb-team sb-home', app.shortName(v.home, 'PRESTON')), mk('sb-score', v.hs != null ? v.hs : 0),
+          mk('sb-score', v.as != null ? v.as : 0), mk('sb-team sb-away', app.shortName(v.away, '')));
       } else el.textContent = v == null ? 'SQUAD DUEL' : String(v);
     },
 
@@ -55,12 +70,14 @@
     },
 
     go(step) {
+      app.clearToast();
       if (app.S) { app.S.step = step; app.save(); }
       app.render();
     },
 
     render() {
       const el = $('screen'); if (!el) return;
+      app.clearToast();
       el.textContent = '';
       el.scrollTop = 0;
       if (doc) doc.body.classList.toggle('reduced', app.reduced);
@@ -94,7 +111,7 @@
       app.setScorebug('SQUAD DUEL');
       const has = !!(app.saved && app.saved.step);
       el.innerHTML = '<section id="start"><h1>SQUAD DUEL</h1><div class="sub">Proud Preston</div>' +
-        '<p class="tag">Turn-based stadium duels. Build your squad, pull new players, climb to the Cup.</p>' +
+        '<p class="tag">2 matches. Pick, play, pull a new player.</p>' +
         '<div class="btns">' + (has ? '<button type="button" id="btn-continue" class="primary">Continue</button>' : '') +
         '<button type="button" id="btn-new"' + (has ? '' : ' class="primary"') + '>New game</button></div>' +
         '<div id="build-id">build ' + BUILD + '</div></section>';
