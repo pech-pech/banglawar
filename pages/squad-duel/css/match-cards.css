@@ -1,1 +1,55 @@
 /* OWNER: match-cards maker (sq-ui-1). Styles for ui/match-cards.js only. */
+/* card body: free flow so the new lines (role job, odds, tags) stack in DOM order */
+#match .card{align-content:start}
+#match .card .role-job,#match .card .odds,#match .card .lv,#match .card .tags,#match .card .st,#match .card .rl,#match .card .nm2{grid-column:1/-1;grid-row:auto}
+#match .card .role-job{display:block;font-size:12px;line-height:14px;color:#c7d2ea}
+#match .card .role-job i{font-style:normal;color:var(--m-dim)}
+#match .card .odds{display:flex;align-items:center;gap:3px;font-size:13px;line-height:16px;font-weight:800;color:#fff;background:rgba(44,240,255,.10);border-radius:3px;padding:0 3px;white-space:nowrap}
+#match .card .odds s{text-decoration:none;color:var(--m-neon);font-size:13px}
+#match .card .odds.top{background:rgba(44,240,255,.26);color:var(--m-neon)}
+#match .card.best{border-color:var(--m-neon)}
+#match .card .st .hl.soft{background:rgba(44,240,255,.20);box-shadow:inset 0 0 0 1px rgba(44,240,255,.55)}
+#match .card .st .hl.soft em,#match .card .st .hl.soft b{color:#fff}
+/* tags */
+#match .card .tags{display:flex;flex-direction:column;gap:1px}
+#match .card .tg{font-size:12px;line-height:14px;overflow-wrap:anywhere}
+#match .card .tg.bench{color:#9fb4ff;letter-spacing:.06em}
+#match .card .tg.fd{color:var(--m-neon);letter-spacing:.06em;font-weight:800}
+#match .card .tg.wn{color:var(--m-neon)}
+#match .card .tg.used{color:var(--m-dim);opacity:.7}
+#match .card .tg u{text-decoration:none;border:1px solid currentColor;border-radius:3px;padding:0 3px;font-size:12px}
+/* NEW ribbon in the vacated slot */
+#match .card .gain{position:absolute;top:-1px;right:-1px;z-index:2;text-decoration:none;padding:1px 6px;border-radius:0 8px 0 6px;background:var(--m-good,#4be08a);color:var(--m-ink,#031018);font-size:12px;line-height:14px;font-weight:800;letter-spacing:.06em}
+#match .card.fresh{border-color:var(--m-good,#4be08a)}
+/* step headers: one block on the left, count/deck on the right */
+#match .hd>span:first-child{min-width:0}
+#match #h2{justify-content:flex-start}
+#match #h1 .cnt{display:flex;align-items:center;gap:6px}
+#match #btn-deck{min-width:56px;min-height:56px;padding:0 8px;border-radius:8px;border:1px solid var(--m-line);background:var(--m-glass);color:#dfe8ff;font:inherit;font-size:12px;line-height:14px;letter-spacing:.04em;text-transform:uppercase;display:flex;flex-direction:column;align-items:center;justify-content:center}
+#match #btn-deck small{font-size:12px;line-height:13px;letter-spacing:0;text-transform:none;color:var(--m-neon)}
+/* deck sheet */
+#match #deck-sheet{z-index:30}
+#match #deck-sheet .ovp{justify-content:flex-start;align-items:stretch;min-height:50%}
+#match #deck-sheet .dk-row small{display:block;margin-bottom:2px}
+#match #deck-sheet .dk-row p{font-size:16px;line-height:22px}
+#match #deck-sheet .dk-note{font-size:14px;color:var(--m-dim)}
+/* role job sits inside the role line (wraps below when narrow); role word is already shown there */
+#match .card .rl .role-job i{display:none}
+#match .card .rl .role-job{flex:0 1 auto}
+#match .card .rl .r2{display:none}
+/* level top-right, xp bar dropped to save height */
+#match .card{position:relative}
+#match .card .lv{position:absolute;right:6px;top:6px;margin:0}
+#match .card .lv .xp{display:none}
+#match .card .nm2{padding-right:34px}
+#match #h1{padding-top:0;padding-bottom:0}
+#match #hand.h4 .card .lv{position:absolute}
+@media (max-width:399px){
+ #match .card .rar{position:absolute;right:6px;top:26px;min-height:0;gap:3px}
+ #match .card .rar span:not(.chk){display:none}
+}
+#match .card .odds.ph{visibility:hidden;background:none}
+#match .card .tags{min-height:14px}
+#match #h1{flex-wrap:nowrap;align-items:center}
+#match #h1 #h1t{flex:1 1 0;min-width:0}
+#match #h1 .cnt{flex:none}

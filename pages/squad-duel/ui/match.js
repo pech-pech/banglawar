@@ -49,6 +49,7 @@
       if (id === 'btn-confirm') return confirm(U);
       if (id === 'btn-next') return next(U);
     });
+    U.api = { draw: () => draw(U), pickCard: (p) => pickCard(U, p), pickAct: (a) => pickAct(U, a), pickStance: (s) => pickStance(U, s), useAbility: (id) => useAbility(U, id), undo: () => undo(U), confirm: () => confirm(U), next: () => next(U), startHalf2: () => startHalf2(U), finish: () => finish(U) };
     draw(U);
   }
 
