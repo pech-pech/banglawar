@@ -9,7 +9,14 @@
   let cur = null;
 
   function render(el) {
-    const m = SD.engine.newMatch(app().matchSetup());
+    // Save/resume (S9): S.live = {setup, inputs[]}; Continue replays the recorded inputs (engine is deterministic).
+    const S = app().S, fresh = app().matchSetup();
+    let live = S && S.live;
+    if (!(live && live.setup && live.setup.seed === fresh.seed && Array.isArray(live.inputs))) {
+      live = null;
+      if (S) { S.live = { setup: JSON.parse(JSON.stringify(fresh)), inputs: [] }; }
+    }
+    const m = SD.engine.newMatch(live ? live.setup : fresh);
     app().m = m; SD.app = SD.app || {}; SD.app.m = m;
     const U = { m, el, sel: null, act: null, stance: null, ev: null, busy: false, over: null, timer: null, newIds: [], prevHand: null };
     cur = U;
@@ -38,19 +45,51 @@
       const t = e.target.closest('button'); if (!t) return;
       const id = t.id;
       for (const k of ['cards', 'acts', 'result', 'frame']) { const p = MP()[k]; if (p && p.click && p.click(U, t)) return; }
-      if (id === 'btn-half') return startHalf2(U);
-      if (id === 'btn-ft') return finish(U);
+      if (id === 'btn-half') return U.api.startHalf2();
+      if (id === 'btn-ft') return U.api.finish();
       if (U.busy || U.over) return;
-      if (t.classList.contains('card')) return pickCard(U, t.dataset.pid);
-      if (t.classList.contains('act') && t.dataset.a) return pickAct(U, t.dataset.a);
-      if (t.classList.contains('act') && t.dataset.st) return pickStance(U, t.dataset.st);
-      if (t.classList.contains('ab')) return useAbility(U, t.dataset.id);
-      if (id === 'btn-back') return undo(U);
-      if (id === 'btn-confirm') return confirm(U);
-      if (id === 'btn-next') return next(U);
+      if (t.classList.contains('card')) return U.api.pickCard(t.dataset.pid);
+      if (t.classList.contains('act') && t.dataset.a) return U.api.pickAct(t.dataset.a);
+      if (t.classList.contains('act') && t.dataset.st) return U.api.pickStance(t.dataset.st);
+      if (t.classList.contains('ab')) return U.api.useAbility(t.dataset.id);
+      if (id === 'btn-back') return U.api.undo();
+      if (id === 'btn-confirm') return U.api.confirm();
+      if (id === 'btn-next') return U.api.next();
     });
-    U.api = { draw: () => draw(U), pickCard: (p) => pickCard(U, p), pickAct: (a) => pickAct(U, a), pickStance: (s) => pickStance(U, s), useAbility: (id) => useAbility(U, id), undo: () => undo(U), confirm: () => confirm(U), next: () => next(U), startHalf2: () => startHalf2(U), finish: () => finish(U) };
+    U.api = makeApi(U);
+    if (live && live.inputs.length) { replay(U, live.inputs); U.replay = false; }
     draw(U);
+    if (U.ev) scheduleNext(U);
+  }
+
+  // Every U.api call is recorded into S.live.inputs (except draw/finish) and autosaved after turn-level calls.
+  const REC = { pickCard: 1, pickAct: 1, pickStance: 1, useAbility: 1, undo: 1, confirm: 1, next: 1, startHalf2: 1 };
+  const SAVE = { confirm: 1, next: 1, useAbility: 1, startHalf2: 1 };
+  function makeApi(U) {
+    const raw = { draw, pickCard, pickAct, pickStance, useAbility, undo, confirm, next, startHalf2, finish };
+    const api = {};
+    Object.keys(raw).forEach((k) => {
+      api[k] = (...a) => {
+        const S = app().S;
+        if (REC[k] && !U.replay && S && S.live && S.live.inputs) S.live.inputs.push({ f: k, a });
+        const r = raw[k](U, ...a);
+        if (SAVE[k] && !U.replay) { try { app().save && app().save(); } catch (e) { /* optional */ } }
+        return r;
+      };
+    });
+    return api;
+  }
+  function replay(U, inputs) {
+    U.replay = true;
+    const raw = { pickCard, pickAct, pickStance, useAbility, undo, confirm, next, startHalf2 };
+    for (const inp of inputs) { const f = raw[inp.f]; if (f) f(U, ...(inp.a || [])); }
+    U.busy = false;
+  }
+  // Headless rebuild of a live match (used when Continue lands on the shootout step).
+  function rebuild(setup, inputs) {
+    const m = SD.engine.newMatch(setup);
+    replay({ m, replay: true, q: () => null, el: null, newIds: [] }, inputs || []);
+    return m;
   }
 
   function pickCard(U, pid) {
@@ -101,6 +140,7 @@
       scheduleNext(U);
     };
     let p = null;
+    if (U.replay) { U.busy = false; return; }
     if (!isFast() && !isReduced() && SD.ui.scene && SD.ui.scene.play) {
       try { p = SD.ui.scene.play(ev); } catch (e) { console.error('scene.play', e); }
     }
@@ -112,11 +152,12 @@
     } else done();
   }
   function scheduleNext(U) {
+    if (U.replay) return;
     const T = U.m.T || {};
     if (T.autoNext === false) return;
     clearTimeout(U.timer);
     const wait = isFast() ? 0 : 1200;
-    U.timer = setTimeout(() => { if (cur === U && U.ev && !U.busy) next(U); }, wait);
+    U.timer = setTimeout(() => { if (cur === U && U.ev && !U.busy) U.api.next(); }, wait);
   }
   function next(U) {
     const m = U.m;
@@ -140,9 +181,10 @@
 
   // ---- drawing
   function draw(U) {
+    if (U.replay) return;
     const m = U.m, q = U.q;
     U.over = m.phase === 'halftime' ? 'half' : m.phase === 'full' ? 'full' : null;
-    try { if (app().setScorebug) app().setScorebug({ home: 'Proud Preston', away: (m.club && m.club.name) || 'Opponent', hs: m.score.me, as: m.score.opp }); } catch (e) { /* optional */ }
+    try { if (app().setScorebug) app().setScorebug({ home: 'Proud Preston', away: (m.club && m.club.name) || 'Opponent', hs: m.score.me, as: m.score.opp, tag: m.setup && m.setup.cup ? 'CUP FINAL' : '' }); } catch (e) { /* optional */ }
     const P = MP();
     P.frame.drawInfo(U); P.acts.drawTell(U); P.result.drawBand(U); P.cards.drawHand(U);
     if (U.ev) P.result.drawCause(U); else P.acts.drawActs(U);
@@ -152,5 +194,5 @@
     q('disccount').textContent = 'Discard ' + m.discard.length;
   }
 
-  SD.ui.match = { render, cur: () => cur };
+  SD.ui.match = { render, rebuild, cur: () => cur };
 })();

@@ -138,6 +138,8 @@
   function onceKey(inst) { return inst.id + ':' + (inst.pid || ''); }
   function onceUsed(m, inst) { return !!m.once[onceKey(inst)]; }
   function markOnce(m, inst) { m.once[onceKey(inst)] = true; }
+  function onceHalfUsed(m, inst) { return !!(m.onceHalf && m.onceHalf[onceKey(inst)]); }
+  function markOnceHalf(m, inst) { (m.onceHalf = m.onceHalf || {})[onceKey(inst)] = true; }
   function fire(m, ctx, inst, text) {
     if (ctx && ctx.preview) { if (text) (ctx.tags = ctx.tags || []).push(text); return; }
     const t = m.turnFx;
@@ -196,13 +198,17 @@
     const cards = {};
     setup.outfield.concat(setup.bench).forEach((P) => { cards[P.id] = P; });
     const seed = setup.seed >>> 0;
+    const mode = setup.mode || 'home';
+    const homeSide = setup.homeSide || (mode === 'neutral' ? 'none' : mode === 'away' ? 'opp' : 'me');
     const m = {
       seed, setup, club: setup.club, cs: C.stats(setup.club, T), T, half: 1, turn: 1, turnNo: 1,
-      holder: 'me', zone: 1, score: { me: 0, opp: 0 }, crowd: 0, roarReady: false, build: { me: 0, opp: 0 },
+      holder: homeSide === 'opp' ? 'opp' : 'me', zone: 1, score: { me: 0, opp: 0 }, crowd: 0, roarReady: false, build: { me: 0, opp: 0 },
+      mode, homeSide, cup: !!setup.cup, roar: null, roarClub: !!(homeSide === 'opp' || (setup.club && setup.club.roar)), onceHalf: {},
       deck: [], hand: [], discard: [], handSize: T.handSize, cards, keeper: setup.keeper,
       fx: [], once: {}, flags: {}, log: [], phase: 'attack', played: false, formation: setup.formation,
       rng: { main: makeRng(seed), deck: makeRng((seed ^ 0xA5A5A5A5) >>> 0), fxr: makeRng((seed ^ 0x5EED5EED) >>> 0) },
       stats: {}, lastAssist: null, turnFx: null, roll: null };
+    m.kick1 = m.holder;
     m.fx = collectFx(m, setup);
     const hs = { size: T.handSize }; run(m, 'handSize', hs); m.handSize = hs.size;
     m.deck = m.rng.deck.shuffle(setup.outfield.map((p) => p.id).concat(setup.bench.map((p) => p.id)));
@@ -216,7 +222,7 @@
     m.roll = { ua: R.next(), us: R.next(), da: R.d6(), db: R.d6() };
     m.turnFx = { fired: [], causes: [], tieBy: null };
     if (m.flags.keptNote) { m.turnFx.causes.push(m.flags.keptNote); m.turnFx.keptTag = m.flags.keptNote; if (m.turnFx.fired.indexOf('A2') < 0) m.turnFx.fired.push('A2'); m.flags.keptNote = null; }
-    m.played = false;
+    m.played = false; m.flags.extraShoot = false;
     m.phase = m.holder === 'me' ? 'attack' : 'defend';
     if (m.phase === 'defend') m._clubAct = null;
   }
@@ -231,7 +237,14 @@
     const actions = m.zone < 2 ? ['pass', 'dribble', 'through'] : ['pass', 'shoot'];
     const ctx = { pid, zone: m.zone, actions };
     run(m, 'legal', ctx);
+    if (m.flags.extraShoot) return ctx.actions.indexOf('shoot') >= 0 ? ['shoot'] : [];
     return ctx.actions;
+  }
+  function attackCards(m, preview) {
+    if (m.flags.extraShoot) return m.hand.slice();   // Twin Run: a hand card only
+    const ctx = { cards: m.hand.slice(), preview: preview !== false };
+    run(m, 'attackCards', ctx);
+    return ctx.cards;
   }
 
   function tell(m) {
@@ -270,7 +283,7 @@
     if (fa) bon.push({ k: m.formation, v: fa });
     if (action === 'pass') bon.push({ k: 'Pass', v: T.passBonus });
     else if (m.build.me) bon.push({ k: 'Build', v: m.build.me });
-    if (m.roarReady) bon.push({ k: 'Roar', v: 1 });
+    if (m.roar === 'me') bon.push({ k: 'Roar', v: 1 });
     const sum = bon.reduce((a, b) => a + b.v, 0), used = Math.min(T.cap, sum);
     bon.forEach((b) => parts.push(b));
     let capNote = null;
@@ -278,9 +291,14 @@
     return { parts, capNote, myScore: P[STAT_KEY[action]] + used, bonus: used };
   }
   function oppDefParts(m, action) {
-    if (action === 'shoot') return { oppParts: [{ k: m.club.keeper.name + ' save', v: m.cs.keeper }], oppScore: m.cs.keeper, oppName: m.club.keeper.name };
+    const cr = m.roar === 'opp' ? 1 : 0;
+    if (action === 'shoot') {
+      const parts = [{ k: m.club.keeper.name + ' save', v: m.cs.keeper }]; if (cr) parts.push({ k: 'Roar', v: 1 });
+      return { oppParts: parts, oppScore: m.cs.keeper + cr, oppName: m.club.keeper.name };
+    }
     const d = C.defender(m.club, m.zone);
-    return { oppParts: [{ k: d.name + ' DEF', v: m.cs.def }], oppScore: m.cs.def, oppName: d.name };
+    const parts = [{ k: d.name + ' DEF', v: m.cs.def }]; if (cr) parts.push({ k: 'Roar', v: 1 });
+    return { oppParts: parts, oppScore: m.cs.def + cr, oppName: d.name };
   }
   function nodeChips(m) {
     const out = [], D = defs();
@@ -306,7 +324,7 @@
     return { parts: ap.parts, capNote: ap.capNote, myScore: ap.myScore, oppParts: od.oppParts, oppScore: od.oppScore, gap, chip, tags };
   }
 
-  function defendRowInfo(m, P, action, stance) {
+  function defendRowInfo(m, P, action, stance, real) {
     const T = m.T, parts = [];
     let myDef;
     if (action === 'shoot') {
@@ -318,15 +336,19 @@
       const fc = (FORM[m.formation] || FORM.Wall).defVs[action];
       if (fc) { parts.push({ k: m.formation, v: T.formCounter }); myDef += T.formCounter; }
     }
-    if (m.roarReady) { parts.push({ k: 'Roar', v: 1 }); myDef += 1; }
-    const clubScore = m.cs.atk + Math.min(T.cap, action === 'pass' ? T.passBonus : m.build.opp);
-    const gap = clubScore - myDef + O.stanceMod(action, stance);
-    return { parts, myDef, clubScore, gap };
+    if (m.roar === 'me') { parts.push({ k: 'Roar', v: 1 }); myDef += 1; }
+    const clubScore = m.cs.atk + Math.min(T.cap, (action === 'pass' ? T.passBonus : m.build.opp) + (m.roar === 'opp' ? 1 : 0));
+    const dm = { action, stance, mod: O.stanceMod(action, stance), preview: !real, tags: [] };
+    run(m, 'defStance', dm);
+    const gap = clubScore - myDef + dm.mod;
+    return { parts, myDef, clubScore, gap, mod: dm.mod, tags: dm.tags };
   }
-  function clubAtkParts(m, action) {
+  function clubAtkParts(m, action, build, roar) {
     const T = m.T, parts = [{ k: m.club.label + ' ATK', v: m.cs.atk }];
-    if (action === 'pass') parts.push({ k: 'Pass', v: Math.min(T.cap, T.passBonus) });
-    else if (m.build.opp) parts.push({ k: 'Build', v: Math.min(T.cap, m.build.opp) });
+    const b = action === 'pass' ? T.passBonus : build, r = roar ? 1 : 0;
+    if (b) parts.push({ k: action === 'pass' ? 'Pass' : 'Build', v: b });
+    if (r) parts.push({ k: 'Roar', v: 1 });
+    if (b + r > T.cap) parts.push({ k: 'Cap', v: T.cap - b - r });
     return parts;
   }
 
@@ -342,13 +364,14 @@
     ACTIONS.forEach((a) => {
       if (!(w[a] > 0)) return;
       const r = defendRowInfo(m, P, a, stance);
-      rows.push({ action: a, w: w[a], gap: r.gap, myDef: r.myDef, parts: r.parts });
+      rows.push({ action: a, w: w[a], gap: r.gap, myDef: r.myDef, parts: r.parts, tags: r.tags });
     });
     const dc = O.defendChip(rows.map((r) => ({ action: r.action, w: r.w, gap: r.gap })), { dieN: m.T.die });
     rows.forEach((r) => { r.p = dc.byAction && dc.byAction[r.action] != null ? dc.byAction[r.action] : 1 - O.duel(r.gap, false, m.T.die); });
     const top = rows.slice().sort((a, b) => b.w - a.w)[0];
     const tl = tell(m);
-    return { rows, chip: { p: dc.p }, myDef: top ? top.myDef : 0, parts: top ? top.parts : [], tags: nodeChips(m).concat(tl.tags) };
+    const dtags = []; rows.forEach((r) => (r.tags || []).forEach((t) => { if (dtags.indexOf(t) < 0) dtags.push(t); }));
+    return { rows, chip: { p: dc.p }, myDef: top ? top.myDef : 0, parts: top ? top.parts : [], tags: nodeChips(m).concat(tl.tags, dtags) };
   }
 
   // ------------------------------------------------------------------
@@ -377,9 +400,20 @@
       else if (action === 'pass') next.build[side] = Math.min(T.buildMax, m.build[side] + 1);
       else { next.zone = Math.min(2, m.zone + 1); next.build[side] = 0; }
     } else { next.holder = other(side); next.zone = action === 'shoot' ? 0 : 1; next.build = { me: 0, opp: 0 }; }
-    const ctx = { side, pid, action, win, next, extraDraw: 0, preview: false };
+    const ctx = { side, pid, action, win, next, extraDraw: 0, preview: false, keepBall: false, keepTurn: false, extraShoot: false };
     run(m, 'after', ctx);
-    return { goal, ctx, next: ctx.next };
+    const nx = ctx.next;
+    // Hold Up: my lost attack in Defence/Midfield keeps the ball in that zone. Idempotent with hooks that wrote next directly.
+    if (side === 'me' && !win && action !== 'shoot' && ctx.keepBall) { nx.holder = 'me'; nx.zone = m.zone; }
+    // Follow Up: my Shoot saved, I keep the ball in Attack
+    if (side === 'me' && !win && action === 'shoot' && ctx.keepTurn) { nx.holder = 'me'; nx.zone = 2; }
+    // Quick Throw: after my keeper saves, my ball starts in the zone the hook names (default Defence)
+    if (side === 'opp' && !win && action === 'shoot') {
+      const sz = { zone: 0, startZone: null, preview: false }; run(m, 'saveZone', sz);
+      const z = typeof sz.startZone === 'number' ? sz.startZone : sz.zone;
+      if (typeof z === 'number') nx.zone = Math.max(0, Math.min(2, z));
+    }
+    return { goal, ctx, next: nx };
   }
 
   function resolve(m, o) {
@@ -397,9 +431,11 @@
 
   function crowdStep(m, meWon) {
     const T = m.T;
-    m.roarReady = false;
-    m.crowd = meWon ? Math.min(T.roarAt, m.crowd + 1) : Math.max(0, m.crowd - 1);
-    if (m.crowd >= T.roarAt) { m.roarReady = true; m.crowd = 0; }
+    m.roar = null; m.roarReady = false;
+    if (m.homeSide === 'none') return;   // neutral ground: no crowd for either side
+    const homeWon = m.homeSide === 'me' ? meWon : !meWon;
+    m.crowd = homeWon ? Math.min(T.roarAt, m.crowd + 1) : Math.max(0, m.crowd - 1);
+    if (m.crowd >= T.roarAt) { m.roar = m.homeSide; m.roarReady = m.roar === 'me'; m.crowd = 0; }
   }
 
   function outcomeText(m, side, action, win, next, goal) {
@@ -427,10 +463,12 @@
   }
 
   function playAttack(m, pid, action) {
-    if (m.phase !== 'attack' || m.played || m.hand.indexOf(pid) < 0) return null;
+    if (m.phase !== 'attack' || m.played || attackCards(m, false).indexOf(pid) < 0) return null;
     if (legal(m, pid).indexOf(action) < 0) return null;
     const P = m.cards[pid], T = m.T, R = m.roll;
     const ev = baseEvent(m, 'me');
+    const wasExtra = !!m.flags.extraShoot;
+    if (wasExtra) { m.flags.extraShoot = false; ev.extra = true; }
     const ap = attackParts(m, P, action), od = oppDefParts(m, action);
     const tl = tell(m);
     const pw = tl.pressW;
@@ -479,6 +517,13 @@
       after: { holder: m.holder, zone: m.zone, build: { me: m.build.me, opp: m.build.opp } }, club: m.club.id, clubStance: stance,
       capNote: ap.capNote, formation: m.formation, handNames: ev.hand.map((id) => m.cards[id].name) });
     m.played = true; m.log.push(ev);
+    // Twin Run: after a won Dribble the turn goes on; the next play must be a hand card as Shoot, no turn spent
+    if (win && action === 'dribble' && fin.ctx.extraShoot && !wasExtra && m.zone === 2 && m.holder === 'me' && m.hand.length) {
+      const X = m.rng.fxr;
+      m.roll = { ua: X.next(), us: X.next(), da: X.d6(), db: X.d6() };
+      m.turnFx = { fired: [], causes: [], tieBy: null };
+      m.flags.extraShoot = true; m.played = false; ev.extraNext = true;
+    }
     return ev;
   }
 
@@ -496,7 +541,7 @@
     let chipP = null;
     if (usesCard) chipP = previewDefend(m, pid, stance).chip.p;
     else chipP = 1 - O.duel(defendRowInfo(m, null, 'shoot', stance).gap, false, T.die);
-    const info = defendRowInfo(m, P, action, stance);
+    const info = defendRowInfo(m, P, action, stance, true);
     const r = resolve(m, { side: 'opp', pid: usesCard ? pid : null, action, gap: info.gap, tieAtt: false });
     const clubWin = r.win, meWon = !clubWin;
     let goal = null, save = false;
@@ -511,13 +556,13 @@
     crowdStep(m, meWon);
     const fx = m.turnFx;
     const holderName = usesCard ? P.name : m.keeper.name;
-    const modTxt = O.stanceMod(action, stance) ? ' ' + sgn(O.stanceMod(action, stance)) + ' my ' + cap1(stance) : '';
-    let cause = m.club.label + ' ' + ACT_NAME[action] + ' ' + info.clubScore + modTxt + ' +d' + r.da + ' = ' + (info.clubScore + O.stanceMod(action, stance) + r.da) +
+    const modTxt = info.mod ? ' ' + sgn(info.mod) + ' my ' + cap1(stance) : '';
+    let cause = m.club.label + ' ' + ACT_NAME[action] + ' ' + info.clubScore + modTxt + ' +d' + r.da + ' = ' + (info.clubScore + info.mod + r.da) +
       ' v ' + holderName + ' ' + info.myDef + ' +d' + r.db + ' = ' + (info.myDef + r.db) + ': ' + (clubWin ? m.club.label + ' won' : 'I held') +
       ', ' + (goal ? 'GOAL against' : action === 'shoot' ? 'saved' : clubWin ? (action === 'pass' ? 'Build ' + fin.next.build.opp : 'to ' + ZONE_NAME[fin.next.zone]) : 'ball won');
     if ((r.da === T.die && r.db === 1) || (r.da === 1 && r.db === T.die)) cause += ' (natural ' + r.da + ' v ' + r.db + ')';
     if (fx.causes.length) cause += '. ' + fx.causes.join('; ');
-    Object.assign(ev, { pid: usesCard ? pid : null, action, stance, parts: info.parts, oppParts: clubAtkParts(m.setup && m, action).length ? clubAtkParts(m, action) : [],
+    Object.assign(ev, { pid: usesCard ? pid : null, action, stance, parts: info.parts, oppParts: [],
       myScore: info.myDef, oppScore: info.clubScore, gap: info.gap, chip: { p: chipP }, dice: { att: r.da, def: r.db },
       rerolls: fx.rerolls.slice(), tieBy: fx.tieBy, win: clubWin, meWon, goal, save, cause,
       tags: nodeChips(m).concat(tl.tags), fxFired: fx.fired.slice(), score: { me: m.score.me, opp: m.score.opp },
@@ -543,8 +588,10 @@
   function startHalf2(m) {
     if (m.phase !== 'halftime') return m.phase;
     m.half = 2; m.turn = 1; m.turnNo = m.T.halfTurns + 1;
-    m.holder = 'opp'; m.zone = 1; m.build = { me: 0, opp: 0 }; m.lastAssist = null; m.flags.keptBuild = 0;
+    m.holder = other(m.kick1 || 'me'); m.zone = 1; m.build = { me: 0, opp: 0 }; m.lastAssist = null; m.flags.keptBuild = 0;
+    m.onceHalf = {};
     beginTurn(m);
+    run(m, 'halfTime', { preview: false });
     return m.phase;
   }
 
@@ -573,30 +620,33 @@
     return false;
   }
 
+  // Second Look (A3, admin default): once spent this turn, the club's real stance is shown (no duel rng moved), so the pick can be redone.
+  function secondLookPeek(m) {
+    if (m.phase !== 'attack' || !m.flags || m.flags.secondLookTurn !== m.turnNo) return null;
+    return { stance: clubStance(m), turnNo: m.turnNo };
+  }
   function summary(m) {
     const fired = [];
     m.log.forEach((e) => (e.fxFired || []).forEach((id) => { if (fired.indexOf(id) < 0) fired.push(id); }));
     const s = m.score;
     return { matchNo: m.setup.matchNo, club: m.club.id, score: { me: s.me, opp: s.opp }, res: s.me > s.opp ? 'W' : s.me < s.opp ? 'L' : 'D',
-      stats: JSON.parse(JSON.stringify(m.stats)), fxUsed: fired };
+      stats: JSON.parse(JSON.stringify(m.stats)), fxUsed: fired,
+      mode: m.mode, cup: m.cup, level: s.me === s.opp, season: m.setup.season, md: m.setup.md };
   }
 
   // Event oppParts for defence must use the build BEFORE the turn: wrap playDefend.
   const _playDefend = playDefend;
   function playDefendW(m, pid, stance) {
-    const bOpp = m.build.opp, ca = m.phase === 'defend' && !m.played ? clubAction(m).act : null;
+    const bOpp = m.build.opp, rOpp = m.roar === 'opp', ca = m.phase === 'defend' && !m.played ? clubAction(m).act : null;
     const ev = _playDefend(m, pid, stance);
     if (ev && ca) {
-      const T = m.T, parts = [{ k: m.club.label + ' ATK', v: m.cs.atk }];
-      if (ca === 'pass') parts.push({ k: 'Pass', v: Math.min(T.cap, T.passBonus) });
-      else if (bOpp) parts.push({ k: 'Build', v: Math.min(T.cap, bOpp) });
-      ev.oppParts = parts;
+      ev.oppParts = clubAtkParts(m, ca, bOpp, rOpp);
     }
     return ev;
   }
 
   SD.engine = { newMatch, legal, tell, previewAttack, previewDefend, playAttack, playDefend: playDefendW, nextPhase, startHalf2,
-    actives, use, summary, drawTo, discardHand, playCard, onceUsed, markOnce, fire, defendCards, run };
+    actives, use, summary, drawTo, discardHand, playCard, onceUsed, markOnce, onceHalfUsed, markOnceHalf, fire, defendCards, attackCards, secondLookPeek, run };
 
   // ------------------------------------------------------------------
   // Self-test (Node: `node engine.js`)

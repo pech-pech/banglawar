@@ -3,25 +3,27 @@
 
   const KEY_T = 'squadDuel.tweak.v1';
   const KEY_P = 'squadDuel.presets.v1';
-  const BUILD = 'sq-ui-1';
+  const BUILD = 'sq-season-1';
 
-  // admin default: fallback copy of CONTRACT section 9, used only when SD.data.TWEAK_DEFAULTS is missing (stubbed self-test).
+  // admin default: fallback copy, used only when SD.data.TWEAK_DEFAULTS / TWEAK_META are missing (stubbed self-test).
   const FALLBACK_DEFAULTS = {
     die: 6, halfTurns: 6, handSize: 3, cap: 3, passBonus: 2, buildMax: 2, formCounter: 3, roarAt: 3,
     tellOn: true, coarseChip: false, flatterStarters: false, reducedMotion: false, autoNext: true,
-    grimsbyDef: 4, grimsbyKeeper: 7, grimsbyAtk: 7, readingDef: 5, readingKeeper: 8, readingAtk: 7,
     trailShift: 0.1, openingCoins: 100, openingSP: 3, pullCost: 100, starterRare: 70, starterEpic: 25, starterLegend: 5,
     pityEpic: 10, xpGoal: 10, xpDuel: 3, xpWin: 20, respecCost: 50, fxOff: {}
   };
   const BOOLS = { tellOn: 1, coarseChip: 1, flatterStarters: 1, reducedMotion: 1, autoNext: 1 };
-  const GROUPS = {
-    Match: ['die', 'halfTurns', 'handSize', 'cap', 'passBonus', 'buildMax', 'formCounter', 'roarAt', 'trailShift'],
-    Display: ['tellOn', 'coarseChip', 'reducedMotion', 'autoNext'],
-    Clubs: ['grimsbyDef', 'grimsbyKeeper', 'grimsbyAtk', 'readingDef', 'readingKeeper', 'readingAtk'],
-    Squad: ['flatterStarters'],
-    Rewards: ['openingCoins', 'openingSP', 'xpGoal', 'xpDuel', 'xpWin', 'respecCost'],
-    Pulls: ['pullCost', 'starterRare', 'starterEpic', 'starterLegend', 'pityEpic']
+  const FALLBACK_GROUPS = {
+    Rules: ['die', 'halfTurns', 'handSize', 'cap', 'passBonus', 'buildMax', 'formCounter', 'roarAt', 'tellOn', 'coarseChip', 'flatterStarters', 'reducedMotion', 'autoNext'],
+    Clubs: ['trailShift'],
+    Economy: ['openingCoins', 'openingSP'],
+    Pulls: ['pullCost', 'starterRare', 'starterEpic', 'starterLegend', 'pityEpic'],
+    Progress: ['xpGoal', 'xpDuel', 'xpWin', 'respecCost']
   };
+  // group order in the menu (D-ux 7); unknown groups follow in meta order
+  const GROUP_ORDER = ['Season', 'Clubs', 'Pulls', 'Rules', 'Economy', 'Progress'];
+  const collapsedState = {};   // group -> true(open)/false(closed), kept for the session (module life)
+  let searchQ = '';
 
   // ---------- helpers ----------
   function lsGet(k) { try { return globalThis.localStorage.getItem(k); } catch (e) { return null; } }
@@ -36,8 +38,8 @@
     const m = SD.data && SD.data.TWEAK_META;
     if (Array.isArray(m) && m.length) return m;
     const d = FALLBACK_DEFAULTS, out = [];
-    Object.keys(GROUPS).forEach(function (g) {
-      GROUPS[g].forEach(function (k) {
+    Object.keys(FALLBACK_GROUPS).forEach(function (g) {
+      FALLBACK_GROUPS[g].forEach(function (k) {
         if (!(k in d)) return;
         const isB = !!BOOLS[k];
         out.push({ key: k, label: k, group: g, min: 0, max: isB ? 1 : 1000, step: (k === 'trailShift' ? 0.05 : 1), type: isB ? 'bool' : 'num' });
@@ -78,6 +80,7 @@
     if (typeof d[key] === 'boolean') return (v === true || v === 1 || v === 'true' || v === '1');
     let n = typeof v === 'number' ? v : parseFloat(v);
     if (!isFinite(n)) return undefined;
+    if (mt && mt.type === 'choice') n = Math.round(n);
     if (mt && isFinite(mt.min)) n = Math.max(mt.min, n);
     if (mt && isFinite(mt.max)) n = Math.min(mt.max, n);
     return n;
@@ -293,7 +296,7 @@
       (S.spent ? ' | spent a' + S.spent.attack + ' d' + S.spent.defence + ' s' + S.spent.squad : ''));
     if (S.owned) out.push('Owned: ' + Object.keys(S.owned).map(function (k) { const o = S.owned[k]; return nameOf(k) + ' *' + o.stars + ' L' + o.level + ' xp' + o.xp; }).join(', '));
     out.push('Coins ' + (S.coins != null ? S.coins : '?') + ' | SP ' + (S.sp != null ? S.sp : '?') + ' | pulls ' + (S.pulls || 0));
-    out.push('Results: ' + ((S.results && S.results.length) ? S.results.map(function (r) { return 'M' + r.matchNo + ' v ' + r.club + ' ' + r.me + '-' + r.opp + ' ' + r.res; }).join('; ') : 'none yet'));
+    out.push('Results: ' + ((S.results && S.results.length) ? S.results.map(function (r) { return (r.md != null ? 'S' + (r.season || 1) + ' MD' + r.md : 'M' + r.matchNo) + ' v ' + r.club + ' ' + r.me + '-' + r.opp + ' ' + r.res; }).join('; ') : 'none yet'));
     out.push('Legend: dice = attacker die v defender die; odds = chance shown to me; Z0/1/2 = Defence/Midfield/Attack in holder view.');
 
     const logs = [];
@@ -311,6 +314,20 @@
       out.push(matchSummary(i + 1, logs[i], S));
     }
     if (!logs.some(Boolean)) out.push('(no matches played yet)');
+    // season + shootout lines (D-ux 6); guarded, other makers own those functions
+    try {
+      if (S.season && SD.season && typeof SD.season.reportLines === 'function') {
+        const ls = SD.season.reportLines(S, T);
+        if (Array.isArray(ls) && ls.length) { out.push(''); ls.forEach(function (l) { out.push(String(l)); }); }
+      }
+    } catch (e) { out.push('(season report failed)'); }
+    try {
+      const sh = A.sh || A.shootout || (S.season && S.season.cup && S.season.cup.shoot && S.season.cup.shoot.kicks ? S.season.cup.shoot : null);
+      if (sh && SD.shootout && typeof SD.shootout.reportLines === 'function') {
+        const ls = SD.shootout.reportLines(sh);
+        if (Array.isArray(ls) && ls.length) ls.forEach(function (l) { out.push(String(l)); });
+      }
+    } catch (e) { out.push('(shootout report failed)'); }
     return out.join('\n');
   }
   function copyReport() {
@@ -328,64 +345,148 @@
   function markRow(row, key) {
     const d = defaults()[key];
     row.classList.toggle('chg', !same(values()[key], d));
+    const det = row.closest && row.closest('details.grp');
+    if (det) updateGroup(det);
+  }
+  function updateGroup(det) {
+    const n = det.querySelectorAll('.row.chg').length;
+    const b = det.querySelector('summary .gcount');
+    if (b) { b.textContent = n ? String(n) : ''; b.hidden = !n; }
+    det.classList.toggle('has-chg', n > 0);
+  }
+  function slug(g) { return g.toLowerCase().replace(/[^a-z0-9]+/g, '-'); }
+  function showDefault(v, mt) {
+    if (typeof v === 'boolean') return v ? 'on' : 'off';
+    if (mt && mt.type === 'choice' && mt.options) return mt.options[v] != null ? mt.options[v] : v;
+    return v;
+  }
+  function clubHead(key) {
+    const m = /^c_([a-z0-9]+)_/.exec(key);
+    if (!m) return null;
+    let name = m[1].charAt(0).toUpperCase() + m[1].slice(1);
+    try { const c = SD.data && SD.data.CLUBS && SD.data.CLUBS[m[1]]; if (c && (c.label || c.name)) name = c.label || c.name; } catch (e) { /* ignore */ }
+    return { id: m[1], name: name };
+  }
+  function makeRow(mt, T, D) {
+    const key = mt.key;
+    const isChoice = mt.type === 'choice' && Array.isArray(mt.options);
+    const row = el('div', { class: 'row' + (isChoice ? ' choice' : ''), 'data-row': key });
+    const lab = el('span', { class: 'lab' }, [el('b', { text: mt.label || key }), el('i', { text: 'default ' + showDefault(D[key], mt) })]);
+    row.appendChild(lab);
+    if (isChoice) {
+      const seg = el('div', { class: 'seg', role: 'group', 'data-key': key, 'data-choice': '1', 'aria-label': mt.label || key });
+      mt.options.forEach(function (o, i) {
+        const b = el('button', { type: 'button', class: 'seg-b', text: o, 'data-v': i });
+        b.setAttribute('aria-pressed', T[key] === i ? 'true' : 'false');
+        b.addEventListener('click', function () {
+          setValue(key, i);
+          seg.querySelectorAll('.seg-b').forEach(function (x) { x.setAttribute('aria-pressed', x === b ? 'true' : 'false'); });
+          markRow(row, key);
+        });
+        seg.appendChild(b);
+      });
+      row.appendChild(seg);
+    } else if (mt.type === 'bool' || typeof D[key] === 'boolean') {
+      const inp = el('input', { type: 'checkbox', 'data-key': key, 'aria-label': mt.label || key });
+      inp.checked = !!T[key];
+      inp.addEventListener('change', function () { setValue(key, inp.checked); markRow(row, key); });
+      row.appendChild(inp);
+    } else {
+      const inp = el('input', { type: 'number', inputmode: 'decimal', 'data-key': key, min: mt.min, max: mt.max, step: mt.step || 1, 'aria-label': mt.label || key });
+      inp.value = T[key];
+      inp.addEventListener('input', function () {
+        const v = parseFloat(inp.value);
+        if (isFinite(v) && (mt.min == null || v >= mt.min) && (mt.max == null || v <= mt.max)) { setValue(key, v); markRow(row, key); }
+      });
+      inp.addEventListener('change', function () {
+        setValue(key, inp.value);
+        inp.value = values()[key]; markRow(row, key);
+      });
+      const stepBy = function (dir) {
+        const st = isFinite(mt.step) && mt.step > 0 ? mt.step : 1;
+        let cur = parseFloat(inp.value); if (!isFinite(cur)) cur = values()[key];
+        setValue(key, Math.round((cur + dir * st) * 1e6) / 1e6);
+        inp.value = values()[key]; markRow(row, key);
+      };
+      const minus = el('button', { type: 'button', class: 'step', text: '-', 'aria-label': 'Decrease ' + (mt.label || key) });
+      const plus = el('button', { type: 'button', class: 'step', text: '+', 'aria-label': 'Increase ' + (mt.label || key) });
+      minus.addEventListener('click', function (e) { e.preventDefault(); stepBy(-1); });
+      plus.addEventListener('click', function (e) { e.preventDefault(); stepBy(1); });
+      row.appendChild(el('span', { class: 'stp' }, [minus, inp, plus]));
+    }
+    const dd = defaults()[key];
+    row.classList.toggle('chg', !same(T[key], dd));
+    row.setAttribute('data-text', ((mt.label || '') + ' ' + key).toLowerCase());
+    return row;
   }
   function buildRows(host) {
     const T = values(), D = defaults();
-    const groups = [], gm = {};
+    const gm = {}, seen = [];
     meta().forEach(function (mt) {
       if (mt.key === 'fxOff') return;
-      if (!gm[mt.group]) { gm[mt.group] = []; groups.push(mt.group); }
+      if (!gm[mt.group]) { gm[mt.group] = []; seen.push(mt.group); }
       gm[mt.group].push(mt);
     });
+    const groups = GROUP_ORDER.filter(function (g) { return gm[g]; }).concat(seen.filter(function (g) { return GROUP_ORDER.indexOf(g) < 0; }));
     groups.forEach(function (g) {
-      host.appendChild(el('h3', { text: g, id: 'tw-sec-' + g.toLowerCase().replace(/[^a-z0-9]+/g, '-') }));
+      const det = el('details', { class: 'grp', 'data-group': g, id: 'tw-sec-' + slug(g) });
+      det.appendChild(el('summary', null, [
+        el('span', { class: 'gname', text: g }),
+        el('span', { class: 'gcount', hidden: true }),
+        el('span', { class: 'gcar', 'aria-hidden': 'true' })
+      ]));
+      const inner = el('div', { class: 'gbody' });
+      let lastClub = '';
       gm[g].forEach(function (mt) {
-        const row = el('label', { class: 'row', 'data-row': mt.key });
-        const lab = el('span', { class: 'lab' }, [el('b', { text: mt.label || mt.key }), el('i', { text: 'default ' + (typeof D[mt.key] === 'boolean' ? (D[mt.key] ? 'on' : 'off') : D[mt.key]) })]);
-        let inp;
-        if (mt.type === 'bool' || typeof D[mt.key] === 'boolean') {
-          inp = el('input', { type: 'checkbox', 'data-key': mt.key });
-          inp.checked = !!T[mt.key];
-          inp.addEventListener('change', function () { setValue(mt.key, inp.checked); markRow(row, mt.key); });
-        } else {
-          inp = el('input', { type: 'number', inputmode: 'decimal', 'data-key': mt.key, min: mt.min, max: mt.max, step: mt.step || 1 });
-          inp.value = T[mt.key];
-          inp.addEventListener('input', function () {
-            const v = parseFloat(inp.value);
-            if (isFinite(v) && (mt.min == null || v >= mt.min) && (mt.max == null || v <= mt.max)) { setValue(mt.key, v); markRow(row, mt.key); }
-          });
-          inp.addEventListener('change', function () {
-            if (!setValue(mt.key, inp.value)) { /* bad text: restore */ }
-            inp.value = values()[mt.key]; markRow(row, mt.key);
-          });
-          const stepBy = function (dir) {
-            const st = isFinite(mt.step) && mt.step > 0 ? mt.step : 1;
-            let cur = parseFloat(inp.value); if (!isFinite(cur)) cur = values()[mt.key];
-            setValue(mt.key, Math.round((cur + dir * st) * 1e6) / 1e6);
-            inp.value = values()[mt.key]; markRow(row, mt.key);
-          };
-          const minus = el('button', { type: 'button', class: 'step', text: '-', 'aria-label': 'Decrease ' + (mt.label || mt.key) });
-          const plus = el('button', { type: 'button', class: 'step', text: '+', 'aria-label': 'Increase ' + (mt.label || mt.key) });
-          minus.addEventListener('click', function (e) { e.preventDefault(); stepBy(-1); });
-          plus.addEventListener('click', function (e) { e.preventDefault(); stepBy(1); });
-          row.appendChild(lab);
-          row.appendChild(el('span', { class: 'stp' }, [minus, inp, plus]));
-          markRow(row, mt.key);
-          host.appendChild(row);
-          return;
+        const ch = (g === 'Clubs') ? clubHead(mt.key) : null;
+        if (ch && ch.id !== lastClub) {
+          lastClub = ch.id;
+          inner.appendChild(el('h4', { class: 'sub', text: ch.name, 'data-sub': ch.id }));
+        } else if (!ch && g === 'Clubs' && lastClub) {
+          lastClub = '';
+          inner.appendChild(el('h4', { class: 'sub', text: 'General' }));
         }
-        row.appendChild(lab); row.appendChild(inp);
-        markRow(row, mt.key);
-        host.appendChild(row);
+        inner.appendChild(makeRow(mt, T, D));
       });
+      det.appendChild(inner);
+      const hasChg = !!det.querySelector('.row.chg');
+      det.open = (g in collapsedState) ? !!collapsedState[g] : hasChg;
+      det.addEventListener('toggle', function () { if (!searchQ) collapsedState[g] = det.open; });
+      updateGroup(det);
+      host.appendChild(det);
     });
+  }
+  function applySearch() {
+    if (!root) return;
+    const q = searchQ.trim().toLowerCase();
+    let any = 0;
+    root.querySelectorAll('details.grp').forEach(function (det) {
+      let shown = 0;
+      det.querySelectorAll('.row').forEach(function (r) {
+        const ok = !q || r.getAttribute('data-text').indexOf(q) >= 0 || det.getAttribute('data-group').toLowerCase().indexOf(q) >= 0;
+        r.hidden = !ok; if (ok) shown++;
+      });
+      det.querySelectorAll('h4.sub').forEach(function (h) {
+        let n = h.nextElementSibling, vis = false;
+        while (n && n.classList.contains('row')) { if (!n.hidden) vis = true; n = n.nextElementSibling; }
+        h.hidden = !vis;
+      });
+      det.hidden = !!q && !shown;
+      if (q && shown) det.open = true;
+      else if (!q) det.open = (det.getAttribute('data-group') in collapsedState) ? !!collapsedState[det.getAttribute('data-group')] : det.classList.contains('has-chg');
+      any += shown;
+    });
+    const em = root.querySelector('#tw-empty');
+    if (em) em.hidden = !(q && !any);
   }
   function refreshInputs() {
     if (!root) return;
     const T = values();
     root.querySelectorAll('[data-key]').forEach(function (i) {
       const k = i.getAttribute('data-key');
-      if (i.type === 'checkbox') i.checked = !!T[k]; else i.value = T[k];
+      if (i.getAttribute('data-choice')) {
+        i.querySelectorAll('.seg-b').forEach(function (b) { b.setAttribute('aria-pressed', String(+b.getAttribute('data-v')) === String(T[k]) ? 'true' : 'false'); });
+      } else if (i.type === 'checkbox') i.checked = !!T[k]; else i.value = T[k];
       const row = i.closest('.row'); if (row) markRow(row, k);
     });
   }
@@ -429,39 +530,55 @@
   function openAtChanged() {
     open();
     const row = root && root.querySelector('.row.chg');
-    if (row) { jumpTo(row); try { const i = row.querySelector('input'); if (i) i.focus({ preventScroll: true }); } catch (e) { /* ignore */ } }
+    if (row) {
+      const det = row.closest('details'); if (det) { det.open = true; collapsedState[det.getAttribute('data-group')] = true; }
+      jumpTo(row); try { const i = row.querySelector('input,button'); if (i) i.focus({ preventScroll: true }); } catch (e) { /* ignore */ }
+    }
   }
   function build() {
     const S = (SD.app && SD.app.S) || {};
     const r = el('div', { id: 'tweak', role: 'dialog', 'aria-label': 'Tweak menu' });
-    const head = el('div', { class: 'tw-head' }, [el('h2', { text: 'Tweak' }), el('div', { class: 'tw-chips', id: 'tw-chips' })]);
+    const search = el('input', { type: 'search', id: 'tw-search', placeholder: 'Search values', autocomplete: 'off', 'aria-label': 'Search values' });
+    const head = el('div', { class: 'tw-head' }, [
+      el('div', { class: 'tw-top' }, [el('h2', { text: 'Tweak' }), search]),
+      el('div', { class: 'tw-chips', id: 'tw-chips' })]);
     r.appendChild(head);
     const body = el('div', { class: 'tw-body' });
     body.appendChild(el('p', { class: 'note', text: 'Test values. Changes apply at the next match start. A DEV badge shows while any value is not default.' }));
 
     // presets
-    body.appendChild(el('h3', { text: 'Presets', id: 'tw-sec-presets' }));
-    body.appendChild(el('div', { class: 'bar' }, [
-      el('button', { type: 'button', id: 'btn-copy-preset', text: 'Copy preset code' })
-    ]));
-    body.appendChild(el('div', { id: 'preset-list' }));
-    body.appendChild(el('textarea', { id: 'preset-code', rows: '3', placeholder: 'Paste SDP1: code here', 'aria-label': 'Preset code' }));
-    body.appendChild(el('button', { type: 'button', id: 'btn-load-code', text: 'Load code' }));
-
-    // seed
-    const seed = el('div', { id: 'tw-seed' }, [
-      el('h3', { text: 'Seed', id: 'tw-sec-seed' }),
-      el('p', { class: 'note', text: 'Current seed: ' + (S.seed != null ? S.seed : 'none yet') }),
-      el('div', { class: 'name-row' }, [
-        el('input', { type: 'number', inputmode: 'numeric', id: 'tw-seed-input', placeholder: 'New seed', 'aria-label': 'New seed' }),
-        el('button', { type: 'button', id: 'tw-seed-go', text: 'New game with this seed' })
+    const pre = el('details', { class: 'grp misc', id: 'tw-sec-presets', 'data-misc': '1' }, [
+      el('summary', null, [el('span', { class: 'gname', text: 'Presets' }), el('span', { class: 'gcar', 'aria-hidden': 'true' })]),
+      el('div', { class: 'gbody' }, [
+        el('div', { class: 'bar' }, [el('button', { type: 'button', id: 'btn-copy-preset', text: 'Copy preset code' })]),
+        el('div', { id: 'preset-list' }),
+        el('textarea', { id: 'preset-code', rows: '3', placeholder: 'Paste SDP1: code here', 'aria-label': 'Preset code' }),
+        el('button', { type: 'button', id: 'btn-load-code', text: 'Load code' })
       ])
     ]);
+    pre.open = !!collapsedState.Presets;
+    pre.addEventListener('toggle', function () { collapsedState.Presets = pre.open; });
+    body.appendChild(pre);
+
+    // seed
+    const seed = el('details', { class: 'grp misc', id: 'tw-sec-seed', 'data-misc': '1' }, [
+      el('summary', null, [el('span', { class: 'gname', text: 'Seed' }), el('span', { class: 'gcar', 'aria-hidden': 'true' })]),
+      el('div', { class: 'gbody', id: 'tw-seed' }, [
+        el('p', { class: 'note', text: 'Current seed: ' + (S.seed != null ? S.seed : 'none yet') }),
+        el('div', { class: 'name-row' }, [
+          el('input', { type: 'number', inputmode: 'numeric', id: 'tw-seed-input', placeholder: 'New seed', 'aria-label': 'New seed' }),
+          el('button', { type: 'button', id: 'tw-seed-go', text: 'New game with this seed' })
+        ])
+      ])
+    ]);
+    seed.open = !!collapsedState.Seed;
+    seed.addEventListener('toggle', function () { collapsedState.Seed = seed.open; });
     body.appendChild(seed);
 
     const rows = el('div', { class: 'rows' });
     buildRows(rows);
     body.appendChild(rows);
+    body.appendChild(el('p', { class: 'note', id: 'tw-empty', hidden: true, text: 'No value matches that search.' }));
     body.appendChild(el('button', { type: 'button', id: 'tw-reset', text: 'Reset all to default' }));
     r.appendChild(body);
 
@@ -476,13 +593,18 @@
       ])
     ]));
 
-    // section jump chips
+    // group jump chips: open that group and scroll to it
     const chips = r.querySelector('#tw-chips');
-    body.querySelectorAll('h3[id^="tw-sec-"]').forEach(function (h) {
-      const c = el('button', { type: 'button', class: 'chip', text: h.textContent });
-      c.addEventListener('click', function () { jumpTo(h); });
+    body.querySelectorAll('details.grp').forEach(function (d) {
+      const nm = d.querySelector('.gname').textContent;
+      const c = el('button', { type: 'button', class: 'chip', text: nm });
+      c.addEventListener('click', function () {
+        if (searchQ) { searchQ = ''; search.value = ''; applySearch(); }
+        d.hidden = false; d.open = true; collapsedState[d.getAttribute('data-group') || nm] = true; jumpTo(d);
+      });
       chips.appendChild(c);
     });
+    search.addEventListener('input', function () { searchQ = search.value; applySearch(); });
 
     // events
     r.querySelector('#tw-close').addEventListener('click', close);
@@ -521,6 +643,7 @@
     root = build();
     (document.getElementById('app') || document.body).appendChild(root);
     renderPresets();
+    searchQ = '';
     try { root.querySelector('#tw-close').focus(); } catch (e) { /* ignore */ }
   }
   function close() {

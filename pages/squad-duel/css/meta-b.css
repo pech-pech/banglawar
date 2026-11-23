@@ -7,16 +7,12 @@
   background: radial-gradient(ellipse at 50% -10%, rgba(63,125,255,.22), transparent 60%), var(--bg,#050a18);
 }
 #pull *, #end * { box-sizing: border-box; }
-#pull { grid-template-columns: 1fr; grid-template-rows: auto minmax(0,1fr) auto auto;
-  grid-template-areas: "left" "rev" "grid" "act"; }
-#pull .mb-left { display: flex; flex-direction: column; gap: 8px; grid-area: left; min-height: 0; }
 #end { grid-template-columns: 1fr; grid-template-rows: auto auto auto minmax(0,1fr) auto;
   grid-template-areas: "head" "grid" "track" "info" "act"; }
 #pull .mb-head, #end .mb-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 36px; }
-#pull .mb-revwrap { display: contents; } #pull .mb-reveal { grid-area: rev; }
-#pull .area-grid, #end .area-grid { grid-area: grid; }
+#end .area-grid { grid-area: grid; }
 #end .mb-head { grid-area: head; } #end .mb-track { grid-area: track; } #end .mb-info { grid-area: info; }
-#pull .mb-actions, #end .mb-actions { grid-area: act; }
+#end .mb-actions { grid-area: act; }
 
 :is(#pull,#end) .r-common { --rc: var(--r-common,#a9b8d8); }
 :is(#pull,#end) .r-rare { --rc: var(--r-rare,#3f7dff); }
@@ -164,14 +160,6 @@
 
 /* wide: 475x638 */
 @media (min-width: 420px) {
-  #pull { grid-template-columns: minmax(0,1fr) 270px; grid-template-rows: auto minmax(0,1fr) auto;
-    grid-template-areas: "left grid" "left rev" "act act"; }
-  #pull .mb-cmpbox { align-items: flex-start; text-align: left; }
-  #pull .mb-head { flex-wrap: wrap; }
-  #pull .mb-pityrow { flex-direction: column; gap: 2px; }
-  #pull .mb-oddstable { grid-template-columns: repeat(2,1fr); }
-  #pull .rcard { max-height: none; }
-  #pull .mb-grid { grid-auto-rows: 76px; }
   #end { grid-template-columns: 270px minmax(0,1fr); grid-template-rows: auto auto minmax(0,1fr) auto;
     grid-template-areas: "head head" "grid track" "grid info" "act act"; }
   #end .mb-track { grid-template-columns: 1fr; gap: 4px; align-content: start; }
@@ -185,3 +173,65 @@
 /* reduced motion: no flip, no glow animation */
 #pull.rm .rc-in, #pull.rm .rc-in * { transition: none !important; animation: none !important; }
 @media (prefers-reduced-motion: reduce) { #pull .rc-in, #pull .rc-in * { transition: none !important; animation: none !important; } }
+
+/* ---- U9 pull (season): 4x5 grid, two pity bars, last 5, reveal overlay ---- */
+#pull { grid-template-columns: 1fr; grid-template-rows: auto auto auto auto minmax(0,1fr) auto; gap: 8px; align-content: stretch;
+  grid-template-areas: "head" "odds" "pity" "last" "gw" "foot"; }
+#pull .pg-head { grid-area: head; min-height: 32px; }
+#pull .pg-odds { grid-area: odds; }
+#pull .pg-pity { grid-area: pity; display: flex; flex-direction: column; gap: 6px; }
+#pull .pg-last { grid-area: last; }
+#pull .pg-gw { grid-area: gw; display: flex; flex-direction: column; gap: 4px; min-height: 0; }
+#pull .pg-foot { grid-area: foot; }
+#pull .pr { display: grid; grid-template-columns: 96px 1fr 92px; align-items: center; gap: 8px; font-size: 13px; letter-spacing: .04em; text-transform: uppercase; }
+#pull .pr .n { color: var(--rc); white-space: nowrap; }
+#pull .pr .t { text-align: right; color: var(--dim,#a9b8d8); font-size: 12px; white-space: nowrap; }
+#pull .pr .mb-bar.pity-bar { height: 10px; border-radius: 5px; }
+#pull .pr .mb-bar.pity-bar i { background: var(--rc); border-radius: 5px; min-width: 2px; }
+#pull .pg-last { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 6px; min-height: 28px; font-size: 12px; color: var(--dim,#a9b8d8); }
+#pull .pg-last .lbl { text-transform: uppercase; letter-spacing: .06em; margin-right: 2px; }
+#pull .lp { display: inline-flex; align-items: center; gap: 4px; padding: 2px 6px; border-radius: 4px; background: rgba(5,10,24,.55); border-bottom: 3px solid var(--rc); font-size: 12px; line-height: 16px; color: var(--txt,#f2f6ff); }
+#pull .lp .new { width: 7px; height: 7px; border-radius: 50%; background: var(--neon,#2cf0ff); box-shadow: 0 0 6px var(--neon,#2cf0ff); }
+#pull .pg-gh { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+#pull .pg-sub { font-size: 12px; color: var(--dim,#a9b8d8); letter-spacing: .06em; text-transform: uppercase; }
+#pull .pg-grid { flex: 0 1 auto; min-height: 0; display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); grid-template-rows: repeat(5, minmax(48px, 76px)); gap: 6px; align-content: start; }
+#pull .pc { position: relative; min-width: 0; padding: 4px 2px; border-radius: 8px; border: 2px solid var(--rc); background: var(--glass,rgba(14,24,52,.88)); color: var(--txt,#f2f6ff); font: inherit;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; overflow: hidden; text-align: center; }
+#pull .pc.owned { cursor: pointer; padding-top: 14px; box-shadow: 0 0 8px color-mix(in srgb, var(--rc) 30%, transparent); }
+#pull .pc.owned .mb-ico { position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; }
+#pull .pc .mb-nm { font-size: 13px; line-height: 14px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#pull .pg-pips { display: inline-flex; gap: 1px; }
+#pull .pg-pips .mb-pip { width: 10px; height: 10px; }
+#pull .pg-pips .mb-pip.fill { animation: pgfill .7s ease-out; }
+@keyframes pgfill { 0% { transform: scale(2.2); filter: drop-shadow(0 0 6px #ffc83a); } 100% { transform: scale(1); filter: none; } }
+#pull .pc.dupe { border-color: var(--gold,#ffc83a); box-shadow: 0 0 12px rgba(255,200,58,.5); background: #1b2347; padding-top: 16px; }
+#pull .pc.dupe .mb-ico { display: none; }
+#pull .pc .bd { position: absolute; top: 0; right: 0; left: 0; text-align: center; border-radius: 0 0 6px 6px; font-size: 12px; line-height: 14px; padding: 0 2px; background: var(--gold,#ffc83a); color: var(--ink,#031018); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#pull .pc .mb-new { position: absolute; top: 2px; right: 3px; font-size: 12px; line-height: 14px; padding: 0 4px; border-radius: 4px; background: var(--neon,#2cf0ff); color: var(--ink,#031018); }
+#pull .pc.locked { background: rgba(5,10,24,.7); border-style: dashed; opacity: .9; }
+#pull .pc.locked .mb-sil { display: block; width: 26px; height: 30px; color: rgba(169,184,216,.3); }
+#pull .pc.locked .mb-sil svg { width: 100%; height: 100%; }
+#pull .pc.locked .mb-ico { position: absolute; right: 3px; bottom: 3px; width: 16px; height: 16px; }
+#pull .mb-btn.pullbtn.short { font-size: 14px; letter-spacing: .02em; }
+#pull .pg-foot .mb-btn { flex: 1 1 0; } #pull .pg-foot .mb-btn.primary { flex: 1.5 1 0; }
+/* reveal overlay */
+#pull .pg-reveal { gap: 10px; align-items: stretch; }
+#pull .pg-reveal .mb-reveal { flex: 0 1 300px; min-height: 240px; height: 300px; max-height: 58%; }
+#pull .pg-reveal .mb-cmp { text-align: center; font-size: 14px; line-height: 18px; min-height: 36px; }
+#pull .pg-reveal .rcard { max-height: none; }
+#pull .pg-reveal .mb-actions { flex: none; }
+@media (min-width: 420px) {
+  #pull { grid-template-columns: minmax(0,1fr) 270px; grid-template-rows: auto auto auto auto 1fr; column-gap: 10px; row-gap: 6px; padding-top: 6px;
+    grid-template-areas: "head gw" "odds gw" "pity gw" "last gw" "foot gw"; }
+  #pull .pg-head { flex-direction: column; align-items: flex-start; gap: 4px; }
+  #pull .mb-oddstable { grid-template-columns: repeat(2, 1fr); }
+  #pull .mb-oddslabel { font-size: 12px; line-height: 15px; white-space: normal; min-height: 30px; }
+  #pull .pr { grid-template-columns: 1fr auto; gap: 2px 4px; }
+  #pull .pr .mb-bar { grid-column: 1 / -1; grid-row: 2; }
+  #pull .pg-foot { align-self: end; flex-direction: column-reverse; }
+  #pull .pg-foot .mb-btn { min-height: 56px; flex: none; }
+  #pull .pg-grid { grid-template-rows: repeat(5, 62px); gap: 5px; }
+  #pull .pc .mb-nm { font-size: 12px; }
+  #pull .pg-pips .mb-pip { width: 9px; height: 9px; }
+  #pull .pg-last { min-height: 0; }
+}

@@ -87,4 +87,55 @@
   // S2 Fourth Card: hand of 4 for the whole match.
   SD.fxDefs.S2 = { id: 'S2', kind: 'node', name: 'Fourth Card', short: 'hand of 4', perPlayer: false,
     hooks: { handSize(m, ctx) { ctx.size = Math.max(ctx.size || 0, 4); } }, active: null };
+
+  // A3 Second Look (active, tier 3). Admin default: once per match, on my attack turn before the pick; shows the club's real stance
+  // this turn (engine.secondLookPeek, no duel rng moved) so the pick can be made again. Chips become exact like Sharp Eye.
+  SD.fxDefs.A3 = { id: 'A3', kind: 'node', name: 'Second Look', short: 'Second Look ready', perPlayer: false,
+    hooks: {
+      tell(m, ctx) {
+        m.flags = m.flags || {};
+        if (m.flags.secondLookTurn !== m.turnNo) return;
+        const st = ctx.peek && ctx.peek.stance;
+        if (!st) return;
+        ctx.exact = st;
+        if (Array.isArray(ctx.tags)) ctx.tags.push('Second Look: ' + cap(st));
+      }
+    },
+    active: {
+      label: 'Second Look',
+      can(m, inst) { return m.phase === 'attack' && !used(m, inst) && !(m.flags && m.flags.secondLookTurn === m.turnNo); },
+      use(m, inst) { m.flags = m.flags || {}; mark(m, inst); m.flags.secondLookTurn = m.turnNo; fire(m, {}, inst, 'Second Look: club stance seen, pick again'); }
+    } };
+
+  // D3 Press Master (passive, tier 3): once per match, when I Press and the club plays Through, the Press modifier counts 0.
+  // Uses the engine hook 'defStance' ctx {action, stance, mod, preview, tags}.
+  SD.fxDefs.D3 = { id: 'D3', kind: 'node', name: 'Press Master', short: 'Press Master', perPlayer: false,
+    hooks: {
+      defStance(m, ctx, inst) {
+        if (ctx.action !== 'through' || ctx.stance !== 'press' || !ctx.mod || used(m, inst)) return;
+        ctx.mod = 0;
+        if (ctx.preview) { if (Array.isArray(ctx.tags) && ctx.tags.indexOf('Press Master: Press v Through 0') < 0) ctx.tags.push('Press Master: Press v Through 0'); return; }
+        mark(m, inst);
+        fire(m, ctx, inst, 'Press Master: -1 ignored');
+      }
+    }, active: null };
+
+  // S3 Captain (tier 3): at half-time the once-per-match Trait and Signature (and once-per-half keys) of setup.captain are ready again.
+  SD.fxDefs.S3 = { id: 'S3', kind: 'node', name: 'Captain', short: 'Captain', perPlayer: false,
+    hooks: {
+      halfTime(m, ctx, inst) {
+        const pid = m.setup && m.setup.captain;
+        if (!pid) return;
+        m.fx.forEach((i) => {
+          if (i.pid !== pid) return;
+          const key = i.id + ':' + (i.pid || '');
+          const wasOnce = !!(m.once && m.once[key]), wasHalf = !!(m.onceHalf && m.onceHalf[key]);
+          if (!wasOnce && !wasHalf) return;
+          if (wasOnce) delete m.once[key];
+          if (wasHalf) delete m.onceHalf[key];
+          const d = SD.fxDefs[i.id];
+          fire(m, ctx, inst, 'Captain: ' + ((d && d.name) || i.id) + ' ready again');
+        });
+      }
+    }, active: null };
 })();

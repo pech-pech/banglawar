@@ -249,60 +249,79 @@
     return card;
   }
 
+  // ---------- U9 pull screen ----------
+  const OLD_SHIPPED = { tavo: 1, mirelle: 1, pip: 1, sunniva: 1, kessan: 1, barro: 1, ondra: 1, lio: 1, joss: 1, zefa: 1, hadro: 1, ysolde: 1 };
+  const RANK = { Legend: 0, Epic: 1, Rare: 2, Common: 3 };
+  const SLOTS = 20;
+  function gridPlayers() {
+    const all = ((SD.data && SD.data.PLAYERS) || []).slice(0, SLOTS);
+    return all;
+  }
+  // pity bars: SD.gacha.pity(S,T) when present, else computed from S.pity + Tweak/data (admin default fallback)
+  function pityInfo(S) {
+    const T = tw(); const D = (SD.data && SD.data.PULL) || {};
+    try { if (SD.gacha && SD.gacha.pity) { const p = SD.gacha.pity(S, T); if (p && p.epic && p.legend) return p; } } catch (e) {}
+    const eOf = T.pityEpic || D.pityEpic || 10; const lOf = T.pityLegend || D.pityLegend || 30;
+    return { epic: { n: (S.pity && S.pity.epic) || 0, of: eOf }, legend: { n: (S.pity && S.pity.legend) || 0, of: lOf } };
+  }
+  function pullLog(S) {
+    if (S.pullLog && S.pullLog.length) return S.pullLog.slice(0, 5);
+    return S.lastPull && S.lastPull.pid && (S.pulls || 0) > 0 ? [S.lastPull] : [];
+  }
+
   function renderPull(el) {
     if (!el) return;
     const root = h('section', null, null, { id: 'pull' });
     if (reduced()) root.classList.add('rm');
     el.textContent = '';
     el.appendChild(root);
-    const ui = { busy: false };
+    const ui = { busy: false, dupe: {} }; // dupe: session-only gold tags {pid: {tag, from}}
 
-    const left = h('div', 'mb-left');
-    root.appendChild(left);
-    // head: coins
-    const head = h('div', 'mb-head');
+    // head
+    const head = h('div', 'mb-head pg-head');
+    head.appendChild(h('span', 'mb-title', 'Pull a player'));
     const coinsB = h('div', 'mb-coins');
     coinsB.appendChild(h('span', 'lbl', 'Coins'));
     coinsB.appendChild(h('b', null, '0', { id: 'coins' }));
     head.appendChild(coinsB);
-    head.appendChild(h('span', 'mb-title', 'Pull a player'));
-    left.appendChild(head);
+    root.appendChild(head);
 
-    // odds
-    const odds = h('div', 'mb-odds');
+    // odds (label is one fixed line: the starter label never changes box height)
+    const odds = h('div', 'mb-odds pg-odds');
     odds.appendChild(h('div', 'mb-oddslabel', '', { id: 'odds-label' }));
     odds.appendChild(h('div', 'mb-oddstable', null, { id: 'odds-table' }));
-    left.appendChild(odds);
+    root.appendChild(odds);
 
-    // pity
-    const pity = h('div', 'mb-pity', null, { id: 'pity' });
-    const pt = h('div', 'mb-pityrow');
-    pt.appendChild(h('span', 'pt-epic', '', { id: 'pity-text' }));
-    pt.appendChild(h('span', 'pt-leg', '', { id: 'pity-leg' }));
-    pity.appendChild(pt);
-    const pbar = h('div', 'mb-bar pity-bar'); const pfill = h('i'); pbar.appendChild(pfill); pity.appendChild(pbar);
-    left.appendChild(pity);
+    // both pity bars
+    const pity = h('div', 'pg-pity', null, { id: 'pity' });
+    [['epic', 'Epic pity', 'r-epic'], ['legend', 'Legend pity', 'r-legend']].forEach((x) => {
+      const r = h('div', 'pr ' + x[2], null, { id: 'pity-' + x[0] });
+      r.appendChild(h('span', 'n', x[1]));
+      const bar = h('div', 'mb-bar pity-bar'); bar.appendChild(h('i')); r.appendChild(bar);
+      r.appendChild(h('span', 't', ''));
+      pity.appendChild(r);
+    });
+    root.appendChild(pity);
 
-    // reveal
-    const revWrap = h('div', 'mb-revwrap');
-    const rev = h('div', 'mb-reveal', null, { id: 'pull-reveal' });
-    revWrap.appendChild(rev);
-    const cmpBox = h('div', 'mb-cmpbox');
-    cmpBox.appendChild(h('div', 'mb-cmp', '', { id: 'pull-cmp', 'aria-live': 'polite' }));
-    cmpBox.appendChild(h('div', 'mb-note', '', { id: 'pull-note', 'aria-live': 'polite' }));
-    left.appendChild(cmpBox);
-    root.appendChild(revWrap);
+    // last 5 pulls
+    const last = h('div', 'pg-last', null, { id: 'pull-last' });
+    root.appendChild(last);
 
     // grid
-    const g = buildGrid(state(), (pid) => showDetail(root, pid), { fillLabel: true });
-    g.wrap.classList.add('area-grid');
-    root.appendChild(g.wrap);
+    const gw = h('div', 'pg-gw');
+    const gh = h('div', 'pg-gh');
+    gh.appendChild(h('span', 'mb-gridhead', '', { id: 'squad-count' }));
+    gh.appendChild(h('span', 'pg-sub', '', { id: 'grid-sub' }));
+    gw.appendChild(gh);
+    const grid = h('div', 'pg-grid', null, { id: 'grid' });
+    gw.appendChild(grid);
+    root.appendChild(gw);
 
-    // actions
-    const acts = h('div', 'mb-actions');
-    const bPull = h('button', 'mb-btn pullbtn', 'Pull ' + pullCost(), { type: 'button', id: 'btn-pull' });
-    const bNext = h('button', 'mb-btn', 'Pick lineup', { type: 'button', id: 'btn-pull-next' });
-    acts.appendChild(bPull); acts.appendChild(bNext);
+    // foot
+    const acts = h('div', 'mb-actions pg-foot');
+    const bBack = h('button', 'mb-btn', 'Hub', { type: 'button', id: 'btn-pull-back' });
+    const bPull = h('button', 'mb-btn primary pullbtn', 'Pull ' + pullCost(), { type: 'button', id: 'btn-pull' });
+    acts.appendChild(bBack); acts.appendChild(bPull);
     root.appendChild(acts);
 
     function paintOdds(S) {
@@ -311,7 +330,9 @@
       const D = SD.data && SD.data.PULL;
       if (!o) o = { label: 'Normal odds', table: D ? D.normal : {} };
       const lab = o.label || '';
-      root.querySelector('#odds-label').textContent = /^Starter/i.test(lab) ? 'Starter pull: Rare or better' : lab;
+      let txt = /^Starter/i.test(lab) ? 'Starter pull: Rare or better' : (lab || 'Normal odds');
+      if (!/starter/i.test(txt)) txt = txt.replace(/\.$/, '') + '. ' + pullCost() + ' Coins a pull.';
+      root.querySelector('#odds-label').textContent = txt;
       const t = root.querySelector('#odds-table'); t.textContent = '';
       ['Common', 'Rare', 'Epic', 'Legend'].forEach((r) => {
         const c = h('div', 'od ' + rcls(r));
@@ -321,16 +342,71 @@
       });
     }
     function paintPity(S) {
-      const T = tw(); const D = (SD.data && SD.data.PULL) || {};
-      const eMax = T.pityEpic || D.pityEpic || 10; const lMax = T.pityLegend || D.pityLegend || 30;
-      const pe = (S.pity && S.pity.epic) || 0; const pl = (S.pity && S.pity.legend) || 0;
-      let txt;
-      try { txt = SD.gacha.pityText(S, T); } catch (e) { txt = 'Epic pity ' + pe + '/' + eMax; }
-      const left = Math.max(1, eMax - pe);
-      root.querySelector('#pity-text').textContent = 'Epic guaranteed in ' + left;
-      root.querySelector('#pity-text').setAttribute('title', txt);
-      root.querySelector('#pity-leg').textContent = 'Legend ' + pl + '/' + lMax;
-      pfill.style.width = Math.min(100, Math.round(pe / eMax * 100)) + '%';
+      const p = pityInfo(S);
+      ['epic', 'legend'].forEach((k) => {
+        const r = root.querySelector('#pity-' + k); const x = p[k];
+        const n = Math.min(x.n, x.of);
+        r.querySelector('i').style.width = Math.min(100, Math.round(n / x.of * 100)) + '%';
+        r.querySelector('.t').textContent = n + '/' + x.of + ' · in ' + Math.max(1, x.of - n);
+        r.setAttribute('aria-label', (k === 'epic' ? 'Epic' : 'Legend') + ' pity ' + n + ' of ' + x.of);
+      });
+    }
+    function paintLast(S) {
+      last.textContent = '';
+      const log = pullLog(S);
+      last.appendChild(h('span', 'lbl', log.length ? 'Last ' + log.length : 'No pulls yet'));
+      log.forEach((r) => {
+        const p = pid2(r.pid); if (!p) return;
+        const c = h('span', 'lp ' + rcls(p.rarity));
+        c.appendChild(h('span', 'nm', p.name));
+        if (r.isNew) c.appendChild(h('i', 'new', null, { 'aria-label': 'new' }));
+        last.appendChild(c);
+      });
+    }
+    function cell(S, p) {
+      const o = owned(S, p.id);
+      const dp = ui.dupe[p.id];
+      if (o) {
+        const b = h('button', 'pc owned ' + rcls(p.rarity) + (dp ? ' dupe' : ''), null, { type: 'button', 'data-pid': p.id, 'aria-label': p.name + ', ' + p.role + ', ' + p.rarity + ', ' + starsOf(o) + ' stars' });
+        b.classList.add('grid-cell');
+        b.appendChild(svgBox('mb-ico', ROLE_ICON[p.role] || ''));
+        b.appendChild(h('span', 'mb-nm', p.name));
+        const pw = h('span', 'pg-pips');
+        const maxS = (SD.data && SD.data.PULL && SD.data.PULL.maxStars) || 5;
+        const n = starsOf(o);
+        for (let i = 0; i < maxS; i++) {
+          const pip = svgBox('mb-pip' + (i < n ? ' on' : '') + (dp && i === n - 1 ? ' fill' : ''), STAR);
+          pw.appendChild(pip);
+        }
+        b.appendChild(pw);
+        if (dp) b.appendChild(h('span', 'bd', dp.tag));
+        else if (o.isNew) b.appendChild(h('span', 'mb-new', 'NEW'));
+        b.addEventListener('click', () => showDetail(root, p.id));
+        return b;
+      }
+      const d = h('div', 'pc locked ' + rcls(p.rarity), null, { 'data-pid': p.id, role: 'img', 'aria-label': 'Not found yet, ' + p.rarity });
+      d.classList.add('grid-cell');
+      d.appendChild(svgBox('mb-sil', SILHOUETTE));
+      if (OLD_SHIPPED[p.id] && ROLE_ICON[p.role]) d.appendChild(svgBox('mb-ico', ROLE_ICON[p.role]));
+      return d;
+    }
+    function paintGrid(S) {
+      grid.textContent = '';
+      const ps = gridPlayers();
+      const have = ps.filter((p) => owned(S, p.id)).length;
+      const sorted = ps.slice().sort((a, b) => {
+        const oa = owned(S, a.id) ? 0 : 1, ob = owned(S, b.id) ? 0 : 1;
+        return oa - ob || (RANK[a.rarity] - RANK[b.rarity]) || (ps.indexOf(a) - ps.indexOf(b));
+      });
+      sorted.forEach((p) => grid.appendChild(cell(S, p)));
+      for (let i = sorted.length; i < SLOTS; i++) { // admin default: pad until data has 20 players
+        const d = h('div', 'pc locked r-common', null, { role: 'img', 'aria-label': 'Not found yet' });
+        d.appendChild(svgBox('mb-sil', SILHOUETTE)); grid.appendChild(d);
+      }
+      root.querySelector('#squad-count').textContent = 'Squad ' + have + '/' + SLOTS;
+      const lastD = Object.keys(ui.dupe).pop();
+      const q = lastD && pid2(lastD);
+      root.querySelector('#grid-sub').textContent = q && owned(S, lastD) ? q.name + ': ' + starsOf(owned(S, lastD)) + (starsOf(owned(S, lastD)) === 1 ? ' Star' : ' Stars') + (ui.dupe[lastD].up ? ', stat up' : '') : '';
     }
     function canPull(S) {
       try { return SD.gacha.canPull(S, tw()); } catch (e) { return { ok: (S.coins || 0) >= pullCost(), need: pullCost(), have: S.coins || 0 }; }
@@ -338,51 +414,46 @@
     function paint() {
       const S = state(); if (!S) return;
       root.querySelector('#coins').textContent = String(S.coins || 0);
-      paintOdds(S); paintPity(S);
-      g.fill(S);
+      paintOdds(S); paintPity(S); paintLast(S); paintGrid(S);
       const can = canPull(S);
-      bPull.disabled = ui.busy || !can.ok;
-      const done = (S.pulls || 0) > 0;
-      bNext.disabled = ui.busy || !(done || !can.ok);
-      bPull.classList.toggle('primary', !bNext.classList.contains('primary'));
-      // primary = the button that moves the game forward
-      const nextPrimary = done || !can.ok;
-      bNext.classList.toggle('primary', nextPrimary);
-      bPull.classList.toggle('primary', !nextPrimary);
-      // Row 42: the greyed Pull button says why, on one line
       const need = can.need || pullCost(); const hv = can.have != null ? can.have : S.coins || 0;
-      bPull.textContent = can.ok ? 'Pull ' + need : hv + ' of ' + need + ' Coins';
+      bPull.disabled = ui.busy || !can.ok;
+      bPull.textContent = can.ok ? 'Pull ' + need : 'Need ' + need + ' · you have ' + hv;
       bPull.classList.toggle('short', !can.ok);
-      const note = root.querySelector('#pull-note');
-      note.textContent = can.ok ? '' : hv + ' of ' + need + ' Coins' + (done ? '. Pick lineup to continue.' : '.');
     }
-    function showPlaceholder() {
-      rev.textContent = '';
-      const c = revealCard(null, null); c.classList.add('down', 'static'); rev.appendChild(c);
-      root.querySelector('#pull-cmp').textContent = '';
+
+    // reveal overlay (full sheet over the grid); tap anywhere or primary closes
+    function closeReveal() {
+      const ov = root.querySelector('#pull-reveal'); if (!ov) return;
+      ov.remove(); ui.busy = false; paint();
+      try { bPull.focus(); } catch (e) {}
     }
     function showResult(res, animate) {
-      const S = state();
-      rev.textContent = '';
+      const S = state(); const p = pid2(res.pid);
+      const ov = h('div', 'mb-overlay pg-reveal', null, { id: 'pull-reveal', role: 'dialog', 'aria-label': 'Pull result' });
+      const rv = h('div', 'mb-reveal');
       const c = revealCard(res.pid, res);
-      rev.appendChild(c);
-      const p = pid2(res.pid);
-      const cmp = root.querySelector('#pull-cmp');
-      cmp.textContent = '';
+      rv.appendChild(c); ov.appendChild(rv);
+      const cmp = h('div', 'mb-cmp', '', { id: 'pull-cmp', 'aria-live': 'polite' });
       if (res.isNew) {
         const cl = compareLine(S, p);
-        if (cl) {
-          cmp.appendChild(document.createTextNode(cl.pre));
-          if (cl.stat) cmp.appendChild(h('b', cl.better ? 'up' : '', cl.stat));
-        } else cmp.textContent = 'New player: ' + (p ? p.name : '') + '. Squad grows.';
-      } else cmp.textContent = 'Duplicate: ' + (p ? p.name : '') + ' reaches Star ' + (res.stars || starsOf(owned(S, res.pid))) + '.';
-      if (animate && !reduced() && !fast()) {
-        c.classList.add('down');
-        void c.offsetWidth;
-        requestAnimationFrame(() => requestAnimationFrame(() => c.classList.remove('down')));
-        ui.busy = true;
-        setTimeout(() => { ui.busy = false; paint(); }, 700);
+        if (cl) { cmp.appendChild(document.createTextNode(cl.pre)); if (cl.stat) cmp.appendChild(h('b', cl.better ? 'up' : '', cl.stat)); }
+        else cmp.textContent = 'New player: ' + (p ? p.name : '') + '.';
+      } else {
+        const st = res.stars || starsOf(owned(S, res.pid));
+        cmp.textContent = res.dupeCoins ? p.name + ' is at max Stars: +' + res.dupeCoins + ' Coins.' : 'Duplicate: ' + (p ? p.name : '') + ' reaches Star ' + st + '.';
       }
+      ov.appendChild(cmp);
+      const a = h('div', 'mb-actions');
+      const ok = h('button', 'mb-btn primary', 'Nice', { type: 'button', id: 'btn-reveal-close' });
+      a.appendChild(ok); ov.appendChild(a);
+      root.appendChild(ov);
+      ov.addEventListener('click', closeReveal);
+      if (animate && !reduced() && !fast()) {
+        c.classList.add('down'); void c.offsetWidth;
+        requestAnimationFrame(() => requestAnimationFrame(() => c.classList.remove('down')));
+      }
+      try { ok.focus(); } catch (e) {}
     }
 
     bPull.addEventListener('click', () => {
@@ -392,20 +463,19 @@
       let res = null;
       try { res = SD.gacha.pull(S, tw()); } catch (e) { toast('Pull failed'); return; }
       if (!res || res.error) { toast((res && res.why) || 'Not enough Coins'); paint(); return; }
-      ui.last = res;
+      if (!res.isNew) { // dupe: Star pip fills, gold tag for this visit
+        const st = res.stars || starsOf(owned(S, res.pid));
+        ui.dupe[res.pid] = { tag: res.dupeCoins ? '+' + res.dupeCoins + ' Coins' : 'STAR +1', up: st === 2 || st === 4 };
+      }
+      ui.last = res; ui.busy = true;
       try { app().save && app().save(); } catch (e) {}
-      showResult(res, true);
       paint();
+      showResult(res, true);
     });
-    bNext.addEventListener('click', () => {
-      if (bNext.disabled) return;
-      try { app().go && app().go('manager2'); } catch (e) {}
+    bBack.addEventListener('click', () => {
+      try { if (app().toHub) app().toHub(); else if (app().go) app().go('hub'); } catch (e) {}
     });
 
-    // initial
-    const S0 = state();
-    if (S0 && S0.lastPull && (S0.pulls || 0) > 0 && S0.lastPull.pid) { ui.last = S0.lastPull; showResult(S0.lastPull, false); }
-    else showPlaceholder();
     paint();
   }
 

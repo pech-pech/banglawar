@@ -10,6 +10,8 @@
     if (U.ev) { box.innerHTML = playedTell(U); return; }   // row 12: the turn just played, not the next one
     if (m.phase === 'defend') { box.innerHTML = defendTell(U); return; }
     if (m.phase === 'halftime' || m.phase === 'full') { return; }
+    // SEASON-SPEC section 3: Press does nothing in my Attack zone, so the Attack-zone tell row is hidden (data value stays).
+    if (m.phase === 'attack' && m.zone === 2) { box.innerHTML = ''; return; }
     const tl = tellOf(m), d = tl.defender || { name: '?', zone: m.zone, press: 0 };
     const act = U.act, keeperAct = act === 'shoot';
     const defVal = keeperAct ? (m.cs && m.cs.keeper) : (m.cs && m.cs.def);
