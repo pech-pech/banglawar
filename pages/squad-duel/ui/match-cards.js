@@ -24,17 +24,19 @@
     if (!lit && row && row.best) soft = STATK[row.best.k] || '';
     // tags: bench, from deck, trait / signature with what they do and "used"
     let tag = '';
+    const fullTags = [];
     if (benchIds(m).indexOf(pid) >= 0) tag += '<span class="tg bench">BENCH</span>';
     if (!U.ev && m.phase === 'defend' && m.hand.indexOf(pid) < 0) tag += '<span class="tg fd">' + ((m.deck || []).indexOf(pid) >= 0 ? 'FROM DECK' : 'FROM DISCARD') + '</span>';
     const TR = SD.data && SD.data.TRAITS && SD.data.TRAITS[P.role];
     const D = SD.fxDefs || {};
-    const fxTag = (id, cls) => {
+    const fxTag = (id, cls, label) => {
       const inst = fxInst(m, id, pid), d = D[id];
       const used = usedOf(m, inst);
-      const txt = (d && d.short) || id;
-      return '<span class="tg ' + cls + (used ? ' used' : '') + '" title="' + esc(txt) + '">' + esc(txt) + (used ? ' <u>used</u>' : '') + '</span>';
+      const full = (d && d.short) || id;
+      fullTags.push(full + (used ? ' (used)' : ''));
+      return '<span class="tg ' + cls + (used ? ' used' : '') + '" title="' + esc(full) + '">' + esc(label || (d && d.name) || id) + (used ? ' <u>used</u>' : '') + '</span>';
     };
-    if (P.level >= 2 && TR) tag += fxTag(TR.id, P.role === 'Winger' && !U.ev && m.phase === 'attack' ? 'tr wn' : 'tr');
+    if (P.level >= 2 && TR) tag += fxTag(TR.id, P.role === 'Winger' && !U.ev && m.phase === 'attack' ? 'tr wn' : 'tr', TR.name);
     if (P.sig && P.sig.id) tag += fxTag(P.sig.id, 'sg');
     else if (P.sig && P.sig.name) tag += '<span class="tg sg">' + esc(P.sig.name) + '</span>';
     let xpbar = '';
@@ -54,7 +56,7 @@
     else if (U.ev) odds = '<span class="odds ph" aria-hidden="true">&nbsp;</span>';   // keeps the card height steady on the result
     const isTop = G && G.top && G.top.pid === pid;
     const newLabel = isNew ? (U.newIds.indexOf(pid) > 0 ? '+1 CARD' : 'NEW') : '';
-    return '<button class="card' + (on ? ' on' : '') + (isTop ? ' best' : '') + (isNew ? ' fresh' : '') + '" data-pid="' + esc(pid) + '" aria-pressed="' + on + '" aria-label="' + esc(P.name) + ', ' + esc(P.role) + ', level ' + (P.level || 1) + (row && row.best ? ', best ' + (ALAB[row.best.k] || row.best.k) + ' ' + pctNum(row.best.p) : '') + '">' +
+    return '<button class="card' + (on ? ' on' : '') + (isTop ? ' best' : '') + (isNew ? ' fresh' : '') + '" data-pid="' + esc(pid) + '" aria-pressed="' + on + '" aria-label="' + esc(P.name) + ', ' + esc(P.role) + ', level ' + (P.level || 1) + (fullTags.length ? '. ' + fullTags.join('. ') : '') + (row && row.best ? ', best ' + (ALAB[row.best.k] || row.best.k) + ' ' + pctNum(row.best.p) : '') + '">' +
       (newLabel ? '<u class="gain">' + newLabel + '</u>' : '') +
       '<span class="nm2">' + esc(P.name) + '</span>' +
       '<span class="rl"><i class="sb">' + esc(num) + '</i><span>' + esc(P.role) + '</span><span class="r2">' + esc(P.rarity) + '</span>' + job + '</span>' +

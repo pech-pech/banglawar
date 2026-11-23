@@ -30,7 +30,7 @@
     if (H - sy < need) sy = Math.max(H < 170 ? 34 : 46, H - need);
     const PH = H - sy;
     const labelH = 18, y0 = sy + labelH + 4, y1 = H - 4;
-    const R = Math.max(12, Math.min(Rt, (y1 - y0 - 4) / 4));
+    const R = Math.max(9, Math.min(Rt, (y1 - y0 - 4) / 4.6));
     const yT = y0 + R + 1, yB = y1 - R - 1, yM = (yT + yB) / 2;
     const cw = W / 3;
     const col = c => cw * c;
@@ -43,7 +43,7 @@
   }
 
   function tok(cx, cy, r, num, cls, ring, extra) {
-    const f = FILL[cls], fs = Math.round(r * (String(num).length > 1 ? 0.86 : 1.0));
+    const f = FILL[cls], fs = Math.max(12, Math.round(r * (String(num).length > 1 ? 0.86 : 1.0)));
     return `<g class="tk" data-num="${esc(num)}" data-cls="${cls}"${extra || ''}>` +
       (ring ? `<circle class="ring" cx="${cx}" cy="${cy}" r="${r + 5}" fill="none" stroke="${ring}" stroke-width="3"/>` : '') +
       `<ellipse cx="${cx}" cy="${cy + r * 0.9}" rx="${r * 0.9}" ry="${r * 0.25}" fill="#000" opacity=".4"/>` +
@@ -154,6 +154,7 @@
     // crowd meter (stands, top-left under the roof) + roar tag
     const need = (m && m.T && m.T.roarAt) || 3, crowd = m ? Math.min(need, m.crowd | 0) : 0;
     const mw = 76 + need * 15;
+    if (roof + 26 <= bY) {
     o += `<g class="cm" data-crowd="${crowd}"><rect x="8" y="${roof + 4}" width="${mw}" height="20" rx="4" fill="rgba(5,10,24,.92)" stroke="${roar ? '#ffc83a' : 'rgba(120,170,255,.5)'}"/>` +
       `<text x="14" y="${roof + 18}" font-size="12" letter-spacing="1" fill="${roar ? '#ffc83a' : '#a9b8d8'}">${roar ? 'ROAR' : 'CROWD'}</text>`;
     for (let i = 0; i < need; i++) {
@@ -161,6 +162,7 @@
       o += `<circle cx="${14 + 68 + i * 15}" cy="${roof + 14}" r="5" fill="${on ? '#ffc83a' : 'none'}" stroke="#ffc83a" stroke-width="2"/>`;
     }
     o += `</g>`;
+    }
     // tokens
     const P = g.pos, setup = m && m.setup, me = [];
     const keeperP = m ? m.keeper : null, outf = (setup && setup.outfield) || [];

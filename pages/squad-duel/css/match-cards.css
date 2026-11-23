@@ -53,3 +53,14 @@
 #match #h1{flex-wrap:nowrap;align-items:center}
 #match #h1 #h1t{flex:1 1 0;min-width:0}
 #match #h1 .cnt{flex:none}
+/* QA fixes: single-line tags (full text in title/aria), check badge bottom-right, NEW pill straddles top edge, wide stat labels spaced */
+#match .card .tg{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;overflow-wrap:normal}
+#match .card .tags{max-height:14px;overflow:hidden;padding-right:24px;flex-direction:row;flex-wrap:nowrap;gap:0 6px;min-width:0}
+#match .card .tags .tg{flex:0 1 auto;min-width:0}
+#match .card .rar{top:auto;bottom:4px;right:5px}
+#match .card .gain{top:-9px;right:6px;border-radius:9px;padding:0 7px;border:1px solid var(--m-ink,#031018)}
+@media (min-width:400px){
+ #match .card .st{grid-template-columns:repeat(4,auto);justify-content:space-between;gap:0}
+ #match .card .st span{padding:0 1px}
+ #match .card .st em{letter-spacing:-.03em}
+}

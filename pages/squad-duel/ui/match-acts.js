@@ -66,7 +66,7 @@
     const bar = segs ? '<div class="stance wb" style="grid-template-columns:' + cols.join(' ') + '" role="img" aria-label="' + esc(text) + '">' + segs + '</div>' : '<div class="who">' + esc(text) + '</div>';
     let tags = '';
     if (tl.clubPick) tags += '<span class="df tg">Club plays: ' + esc((ACTS[tl.clubPick] || { label: tl.clubPick }).label) + '</span>';
-    return '<div class="who"><span class="k">Club picks</span><span>' + esc(clubShort(m)) + '</span><span class="df">ATK ' + esc(m.cs && m.cs.atk) + '</span>' + tags + '</div>' + bar;
+    return '<div class="who"><span class="k ck">Club picks</span><span>' + esc(clubShort(m)) + '</span><span class="df">ATK ' + esc(m.cs && m.cs.atk) + '</span>' + tags + '</div>' + bar;
   }
 
   function partsLine(parts, total) {

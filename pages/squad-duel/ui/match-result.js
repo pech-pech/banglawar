@@ -138,7 +138,7 @@
       let line;
       if (ev.goal === 'opp') line = 'Conceded. ' + ev.score.me + '-' + ev.score.opp + '.';
       else if (ev.goal) line = 'Goal! ' + ev.score.me + '-' + ev.score.opp + '.';
-      else if (ev.side === 'opp' && ev.after && !ev.save) line = ev.after.holder === 'opp' ? clubShort(m) + ' keep the ball' + (ev.after.zone !== ev.zone ? ' in ' + ZN[ev.after.zone] : '') + ', you defend again.' : 'You win the ball in ' + ZN[ev.after.zone] + '. Your turn to attack.';
+      else if (ev.side === 'opp' && ev.after && !ev.save) line = ev.after.holder === 'opp' ? clubShort(m) + ' keep it' + (ev.after.zone !== ev.zone ? ' in ' + ZN[ev.after.zone] : '') + ', you defend again.' : 'You win the ball in ' + ZN[ev.after.zone] + '. Your turn to attack.';
       else if (ev.save) line = 'Saved. Ball stays with Preston.';
       else if (ev.after && ev.after.holder === ev.side && ev.after.zone === ev.zone) line = 'Ball stays in ' + ZN[ev.zone] + (ev.side === 'me' && ev.action === 'pass' ? '. Build +1.' : '.');
       else if (ev.after) line = (ev.after.holder === 'me' ? 'Preston' : clubShort(m)) + ' ball in ' + ZN[ev.after.zone] + '.';

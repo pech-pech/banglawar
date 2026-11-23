@@ -53,3 +53,12 @@
  #match #ribbon{height:18px}
  #match #roar{justify-self:stretch}
 }
+@media (min-width:400px) and (max-height:759px){
+ #match #info{grid-template-rows:20px 19px}
+ #match #info .gb,#match #info .tag{height:19px;line-height:17px}
+ #match #ribbon{height:18px}
+}
+@media (min-width:700px) and (max-height:640px){
+ #match #info{grid-template-rows:20px 18px 23px}
+ #match #info .gb,#match #info .tag{height:22px;line-height:20px}
+}

@@ -29,3 +29,5 @@
 #match .rzc .ln2 s{opacity:.65}
 #match .rzc .ln2.odd{color:#ffd166}
 @media (max-height:700px){#match .rzc .rzp{font-size:12px;line-height:15px}#match .rzc .rzp p{font-size:13px;line-height:16px}#match .rzc .ln2{font-size:12px;line-height:15px}}
+#match #band:has(.rz){padding-top:2px;padding-bottom:2px;gap:2px}
+#match #band .rz,#match #band .rz-note,#match #band .rz-fx{flex:none}
