@@ -1,6 +1,8 @@
 <!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chart School</title>
+<meta name="pgs-build" content="__PGS_BUILD__">
+<script src="../_shared/update.js" defer></script>
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#0b0e14">
 <link rel="icon" href="icon-192.png">
@@ -187,7 +189,7 @@ function header(title, sub, opts){
   opts = opts || {};
   var dev = '', build = (typeof BUILD !== 'undefined') ? BUILD : '';
   try{ if(typeof tweaked === 'function' && tweaked()) dev = '<span class="dev">DEV ' + esc((typeof S !== 'undefined' && S && S.seed) || (typeof T !== 'undefined' && T && T.seed) || '') + '</span> '; }catch(e){}
-  var h = '<div class="top"><span>Chart School · Reading desk</span><span class="num">' + dev + esc(build) + '</span></div><div class="hd">';
+  var h = '<div class="top"><span>Chart School · Reading desk</span><span class="num">' + dev + esc(build) + ' <span data-pgs-build></span></span></div><div class="hd">';
   if(!opts.root) h += '<button class="ib" data-act="back" aria-label="Back">' + ICON_BACK + '</button>';
   h += '<div class="ttl">' + esc(title) + (sub ? '<small>' + esc(sub) + '</small>' : '') + '</div>';
   if(opts.pill) h += opts.pill;
@@ -1648,6 +1650,5 @@ loadSheets().then(function(){
 });
 
 </script>
-<script>if("serviceWorker"in navigator)addEventListener("load",function(){navigator.serviceWorker.register("sw.js").catch(function(){})});</script>
 
 </body></html>

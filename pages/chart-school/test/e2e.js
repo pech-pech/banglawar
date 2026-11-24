@@ -266,7 +266,7 @@ async function run(browser, base, size) {
 (async () => {
   fs.mkdirSync(QA, { recursive: true });
   const srv = await start(0);
-  const base = 'http://127.0.0.1:' + srv.port + '/';
+  const base = 'http://127.0.0.1:' + srv.port + '/chart-school/';
   const browser = await chromium.launch();
   try {
     for (const s of SIZES) {
