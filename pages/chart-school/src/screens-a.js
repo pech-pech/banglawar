@@ -40,8 +40,13 @@
     var total = T.sheetsPerSession || 2;
     var x = Math.min((S.sess && S.sess.done || 0) + 1, total);
     var code = nextCode();
-    var dots = '';
-    for (var i = 0; i < 7; i++) dots += '<span class="dot"></span>';
+    var dots = '', nRead = 7;
+    try {
+      var ni = S.order && S.order.length ? S.order[S.pos % S.order.length] : null;
+      var nsh = open && curSheet() ? curSheet() : (ni != null && SHEETS ? SHEETS[ni] : null);
+      if (nsh && nsh.ans) nRead = 6 + ((nsh.ans.R1 === 'Double top buy' || nsh.ans.R1 === 'Triple top buy') ? 1 : 0);
+    } catch (e) {}
+    for (var i = 0; i < nRead; i++) dots += '<span class="dot"></span>';
     var base = '';
     if (T.showBaseNote) {
       var up = Math.round(((META && META.base && META.base.up10) || 0.62) * 100);
@@ -53,7 +58,7 @@
       '<section class="card" aria-label="Accuracy record"><div class="ch"><span class="cap">Accuracy record</span><span class="cap faint">lifetime, right / total</span></div>' + rows + '</section>' +
       '<section class="card next" aria-label="Next sheet"><div class="cap">' + (open ? 'Open sheet' : 'Next sheet') + '</div>' +
       '<div class="big"><span class="code">' + (code ? esc(code) : '&middot;&middot;&middot;') + '</span>' +
-      '<span class="meta num">7 readings<br>then 10 weeks<br>Sheet ' + x + ' of ' + total + '</span></div>' +
+      '<span class="meta num">' + nRead + ' readings<br>then 10 weeks<br>Sheet ' + x + ' of ' + total + '</span></div>' +
       '<div class="steps" aria-hidden="true">' + dots + '<span class="wk">then 10 weeks</span></div>' +
       '<div class="list">Signal, support and resistance, trend line, vertical count, RSI, MACD, divergence. All open, no clock.' +
       (T.paperOrder ? ' Paper order is optional.' : '') + '</div></section>' +
@@ -95,7 +100,7 @@
       var yours = r.skipped ? 'skipped' : (d && d.given !== null && d.given !== undefined ? ansText(r.type, d.given) : '');
       var eng = d ? ansText(r.type, d.answer) : '';
       return '<div class="mk ' + (r.ok ? 'good' : 'bad') + '"><span class="n">' + esc(nameOf(r.type)) + '</span>' +
-        '<span class="r">' + (yours || eng ? 'You: ' + esc(yours || '-') + (eng ? ' &middot; Engine reading: ' + esc(eng) : '') : mark) + '</span></div>';
+        '<span class="r">' + (yours || eng ? '<span>You: ' + esc(yours || '-') + '</span>' + (eng ? '<span>Engine reading: ' + esc(eng) + '</span>' : '') : mark) + '</span></div>';
     }).join('');
     var done = sessionDone();
     var total = T.sheetsPerSession || 2;

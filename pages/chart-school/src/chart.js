@@ -59,7 +59,10 @@
     var top = hi + 2, bot = lo - 2; // 2-box margin only
     var rows = top - bot + 1;
     var ch = Math.max(9, Math.min(268 / rows, 14));
-    var ph = rows * ch, OY = 6, H = Math.round(OY + ph + 26);
+    var nTop = 0, nBot = 0;
+    ovs.forEach(function (o) { if (o.k === "row" || o.k === "line") { if (o.box > top) nTop++; else if (o.box < bot) nBot++; } });
+    var STRIP = 17;
+    var ph = rows * ch, OY = 6 + STRIP * nTop, H = Math.round(OY + ph + 26 + STRIP * nBot + (nBot ? 2 : 0));
     function ty(b) { return (top - b) * ch; }       // top edge of box b
     function cy(b) { return ty(b) + ch / 2; }
     function cx(j) { return (j - first) * c; }       // left edge of column j
@@ -126,24 +129,22 @@
     }
 
     // overlays
-    var edgeN = { 1: 0, "-1": 0 };
+    var edgeN = { 1: 0, "-1": 0 }, placed = [];
+    function freeY(y0, dir) { var yy = y0, t = 0; while (t++ < 12 && placed.some(function (p) { return Math.abs(p - yy) < 14; })) yy += dir * 14; placed.push(yy); return yy; }
     var pills = []; // {y, txt, bg, fg, stroke}
     var lineYs = [];
     ovs.forEach(function (o) {
       var eng2 = o.style !== "pick";
       if (o.k === "row" || o.k === "line") {
         var off = o.box > top ? 1 : (o.box < bot ? -1 : 0);
-        var y = off ? (off > 0 ? 6 : ph - 6) : cy(o.box);
-        if (off) {
-          var ac = eng2 ? "var(--text)" : "var(--dim)";
-          el(g, "line", { x1: 0, y1: f1(y), x2: f1(pw), y2: f1(y), stroke: ac, "stroke-width": eng2 ? 1.8 : 1.5, "stroke-dasharray": eng2 ? "6 3.5" : "1.5 4" });
-          var en = edgeN[off]++, ly2 = y + (off > 0 ? 11 + 14 * en : -11 - 14 * en);
-          el(g, "path", { d: off > 0 ? "M" + f1(pw - 10) + " " + f1(y + 12) + "l5 0 -2.5 -5z" : "M" + f1(pw - 10) + " " + f1(y - 12) + "l5 0 -2.5 5z", fill: ac, stroke: "none" });
-          el(g, "text", { x: f1(pw - 14), y: f1(ly2), "text-anchor": "end", "dominant-baseline": "central", "font-size": 11, "font-weight": eng2 ? 700 : 400, fill: ac },
-            (o.label || disp(o.box)) + (off > 0 ? " \u2191" : " \u2193"));
-          pills.push({ y: y, box: o.box, txt: disp(o.box), bg: eng2 ? "var(--text)" : "var(--bg)", fg: eng2 ? "var(--bg)" : "var(--dim)", stroke: eng2 ? null : "var(--dim)" });
+        if (off) { // off-chart marker: text strip outside the plot, no line, no axis pill
+          var ac = eng2 ? "var(--text)" : "var(--dim)", k2 = edgeN[off]++;
+          var sy = off > 0 ? -STRIP * (nTop - k2) + STRIP / 2 : ph + 26 + STRIP * k2 + STRIP / 2 + 1;
+          var tt = (o.label || ("objective " + disp(o.box))) + ", off chart " + (off > 0 ? "\u2191" : "\u2193");
+          el(g, "text", { x: f1(pw - 2), y: f1(sy), "text-anchor": "end", "dominant-baseline": "central", "font-size": 11, "font-weight": eng2 ? 700 : 400, fill: ac, "font-style": eng2 ? null : "italic" }, tt);
           return;
         }
+        var y = cy(o.box);
         if (o.k === "row") {
           el(g, "rect", { x: 0.5, y: f1(ty(o.box) + 0.5), width: f1(pw - 1), height: f1(ch - 1), rx: 2, fill: eng2 ? "var(--text)" : "none", "fill-opacity": 0.1,
             stroke: eng2 ? "var(--text)" : "var(--dim)", "stroke-width": eng2 ? 1.6 : 1.3, "stroke-dasharray": eng2 ? null : "1.5 3" });
@@ -151,7 +152,7 @@
           el(g, "line", eng2 ? { x1: 0, y1: f1(y), x2: f1(pw), y2: f1(y), stroke: "var(--text)", "stroke-width": 1.8, "stroke-dasharray": "6 3.5" }
             : { x1: 0, y1: f1(y), x2: f1(pw), y2: f1(y), stroke: "var(--dim)", "stroke-width": 1.5, "stroke-dasharray": "1.5 4", "stroke-linecap": "round" });
         }
-        if (o.label) el(g, "text", { x: f1(pw - 5), y: f1(eng2 ? y - (o.k === "row" ? ch / 2 + 7 : 10) : y + (o.k === "row" ? ch / 2 + 7 : 10)), "text-anchor": "end", "dominant-baseline": "central",
+        if (o.label) el(g, "text", { x: f1(pw - 5), y: f1(freeY(eng2 ? y - (o.k === "row" ? ch / 2 + 7 : 10) : y + (o.k === "row" ? ch / 2 + 7 : 10), eng2 ? -1 : 1)), "text-anchor": "end", "dominant-baseline": "central",
           "font-size": eng2 ? 12 : 11, "font-weight": eng2 ? 700 : 400, fill: eng2 ? "var(--text)" : "var(--dim)" }, o.label);
         pills.push({ y: y, box: o.box, txt: disp(o.box), bg: eng2 ? "var(--text)" : "var(--bg)", fg: eng2 ? "var(--bg)" : "var(--dim)", stroke: eng2 ? null : "var(--dim)" });
       } else if (o.k === "col") {
@@ -160,7 +161,9 @@
         el(g, "rect", { x: f1(rx - 1), y: f1(ty(cc.hi) - 1), width: f1(c + 3), height: f1(nb * ch + 3), rx: 3, fill: "none", stroke: "var(--text)", "stroke-width": 2.2 });
         if (o.label) {
           var anchor = rx > pw * 0.5 ? "end" : "start", lxx = anchor === "end" ? rx - 8 : rx + c + 8;
-          el(g, "text", { x: f1(lxx), y: f1(cy((cc.lo + cc.hi) / 2)), "text-anchor": anchor, "dominant-baseline": "central", "font-size": 11, fill: "var(--text)", "font-variant-numeric": "tabular-nums" }, o.label);
+          var cyy = freeY(cy((cc.lo + cc.hi) / 2), 1), tw = String(o.label).length * 5.8 + 8;
+          el(g, "rect", { x: f1(anchor === "end" ? lxx - tw + 3 : lxx - 4), y: f1(cyy - 8), width: f1(tw), height: 16, rx: 3, fill: "var(--bg)", "fill-opacity": 0.85 });
+          el(g, "text", { x: f1(lxx), y: f1(cyy), "text-anchor": anchor, "dominant-baseline": "central", "font-size": 11, fill: "var(--text)", "font-variant-numeric": "tabular-nums" }, o.label);
         }
       } else if (o.k === "sig") {
         var sc = cols[o.col]; if (!sc || o.col < first) return;
