@@ -9,8 +9,9 @@ const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.png': 'image/pn
 let hits = [];
 const srv = http.createServer((q, r) => {
   let p = decodeURIComponent(q.url.split('?')[0]); hits.push(p); if (p === '/') p = '/index.html';
-  const f = path.join(ROOT, p);
-  if (!f.startsWith(ROOT) || !fs.existsSync(f) || fs.statSync(f).isDirectory()) { r.writeHead(404); return r.end(); }
+  const SH = path.resolve(ROOT, '..', '_shared');
+  const f = p.startsWith('/_shared/') ? path.join(SH, p.slice(9)) : path.join(ROOT, p);
+  if (!(f.startsWith(ROOT) || f.startsWith(SH)) || !fs.existsSync(f) || fs.statSync(f).isDirectory()) { r.writeHead(404); return r.end(); }
   r.writeHead(200, { 'content-type': MIME[path.extname(f)] || 'application/octet-stream' }); r.end(fs.readFileSync(f));
 });
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -41,7 +42,7 @@ async function boot(ctx, url, errs, netfail) {
   const missing = want.filter((w) => paths.indexOf('/' + w) < 0);
   ok(missing.length === 0, `cache holds all ${want.length} files (index, manifest, 3 icons, ${want.length - 5} assets); missing: ${missing.join(',') || 'none'}`);
   const swSrc = fs.readFileSync(path.join(ROOT, 'sw.js'), 'utf8');
-  const listed = (swSrc.match(/'[a-z0-9\-]+\.webp'/gi) || []).map((s) => s.replace(/'/g, ''));
+  const listed = (swSrc.match(/'\.\/assets\/[a-z0-9\-]+\.webp'/gi) || []).map((s) => s.replace(/'|\.\/assets\//g, ''));
   const onDisk = fs.readdirSync(path.join(ROOT, 'assets'));
   ok(onDisk.every((f) => listed.indexOf(f) >= 0) && listed.every((f) => onDisk.indexOf(f) >= 0), `sw.js asset list matches assets/ on disk (${listed.length} vs ${onDisk.length})`);
   const gameAssets = await page.evaluate(() => PL.Assets.missing());
@@ -68,8 +69,9 @@ async function boot(ctx, url, errs, netfail) {
     const miss = await p2.evaluate(() => PL.Assets.missing()), chip = await p2.evaluate(() => PL_TEST.chips());
     ok(miss.length === 0 && !chip.artFallback, `offline: art shows, no "ART: fallback" chip (missing ${miss.join(',') || 'none'})`);
     ok(hits.length === 0, `offline: no request reached the server (${hits.length}: ${hits.slice(0, 4).join(',')})`);
-    ok(errs2.length === 0, `offline: no console/page errors ${errs2.slice(0, 3).join(' || ')}`);
-    const expectedFail = nf2.filter((u) => !/favicon|sw\.js/.test(u));
+    const errs2f = errs2.filter((m) => !/Failed to load resource: net::ERR_FAILED/.test(m)); // shared update.js is outside the offline cache (HTTP cache only); game must still boot
+    ok(errs2f.length === 0, `offline: no console/page errors ${errs2f.slice(0, 3).join(' || ')}`);
+    const expectedFail = nf2.filter((u) => !/favicon|sw\.js|_shared\/update\.js/.test(u));
     ok(expectedFail.length === 0, `offline: no unexpected network failures ${expectedFail.slice(0, 3).join(' || ')}`);
     await p2.evaluate(() => PL_TEST.startMode('short', 7)); await sleep(500);
     ok(await p2.evaluate(() => PL_TEST.screen()) === 'play', 'offline: a climb starts and plays');

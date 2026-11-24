@@ -43,7 +43,7 @@ function render(){
     ${[0,1,2,3,4,5].map(k=>{const i=stockInfo(k),c=i.c,last=i.cols[i.cols.length-1],chg=pct(c[c.length-1],c[c.length-2]),h=i.m.h[i.m.h.length-1];
       return`<tr class="rowlink" onclick="openChart(${k})"><td class="b">${S.W.codes[k]}</td><td>${c[c.length-1].toFixed(2)}</td><td class="${chg>=0?"acc":"bad"}">${sg(chg)}</td><td><span class="${last.d===1?"x":"o"}">${last.d===1?"X":"O"}</span> ${i.sig?`<span class="sig ${i.sig.buy?"":"s"}">${i.sig.buy?"BUY":"SELL"}</span>`:""}${trapChip(i,1)}</td><td>${Math.round(i.r[i.r.length-1])}</td><td class="${h>=0?"acc":"dim"}">${sg2(h)}</td><td>${S.pos[k]||"-"}</td></tr>`}).join("")}</table></div>
     <div class="panel"><div class="tbl"><div><span class="dim">Cash</span><span class="vv">${fmt(S.cash)}</span></div><div><span class="dim">Fees paid</span><span class="vv">${fmt(S.fees)}</span></div><div><span class="dim">Floor</span><span class="vv">${fmt(T.startCash*(1-T.floorPct/100))} (warn ${fmt(T.startCash*(1-T.warnPct/100))})</span></div></div></div>
-    <div class="msg dim">Tap a row to open chart. Orders fill at week close. Build ${BUILD}.</div>`;
+    <div class="msg dim">Tap a row to open chart. Orders fill at week close. Build ${BUILD}. <span data-pgs-build></span></div>`;
     bar.innerHTML=`<div class="btn" onclick="openTweaks()">SETTINGS</div><div class="btn" onclick="copyReport()">COPY</div><div class="btn go" onclick="advance()">ADVANCE</div>`}
   else if(S.screen==="chart"){
     const k=S.sel,i=stockInfo(k),px=closeNow(k),eq=equity(),vc=i.vc,last=i.cols[i.cols.length-1];

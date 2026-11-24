@@ -104,6 +104,7 @@ body.rl-paper .rlh .rlh-word{color:#24406e;text-shadow:none;background:#fff;bord
   const bestEl = el('p', 'rlh-best rlh-panel', sb, '');
   const verEl = el('p', 'rlh-ver', sb, '');
   verEl.style.cssText = 'margin:6px 0 0;font-size:12px;opacity:.7;text-align:center';
+  const pgsEl = el('p', 'rlh-pgsb', sb, ''); pgsEl.setAttribute('data-pgs-build', ''); pgsEl.style.cssText = 'margin:2px 0 0;font-size:10px;opacity:.6;text-align:center';
   const loadEl = el('p', 'rlh-best rlh-panel', sb, 'Loading physics...');
   const dailyBtn = btn('Daily run', '', sb, () => call('onStart', 'daily'));
   const randBtn = btn('Random run', 'alt', sb, () => call('onStart', 'random'));

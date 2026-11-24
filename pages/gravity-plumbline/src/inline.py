@@ -11,10 +11,10 @@ s = shell.replace('<!--PARTS-->', '<script>\n' + js.replace('</script', '<\\/scr
 head = ('<link rel="manifest" href="manifest.webmanifest">\n'
         '<meta name="theme-color" content="#232a5c">\n'
         '<meta name="mobile-web-app-capable" content="yes">\n'
-        '<link rel="icon" href="icon-192.png">\n<link rel="apple-touch-icon" href="icon-192.png">\n')
-reg = ("<script>if('serviceWorker' in navigator&&isSecureContext)"
-       "addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(e=>console.warn('sw',e)));"
-       "try{screen.orientation&&screen.orientation.lock&&matchMedia('(display-mode: fullscreen)').matches&&screen.orientation.lock('portrait').catch(()=>{});}catch(_){}</script>\n")
+        '<link rel="icon" href="icon-192.png">\n<link rel="apple-touch-icon" href="icon-192.png">\n'
+        '<meta name="pgs-build" content="__PGS_BUILD__">\n<script src="../_shared/update.js" defer></script>\n')
+reg = ('<span data-pgs-build style="position:fixed;left:6px;bottom:calc(3px + env(safe-area-inset-bottom));font:10px system-ui,sans-serif;opacity:.6;color:#fff;pointer-events:none;z-index:6"></span>\n'
+       "<script>try{screen.orientation&&screen.orientation.lock&&matchMedia('(display-mode: fullscreen)').matches&&screen.orientation.lock('portrait').catch(()=>{});}catch(_){}</script>\n")
 assert s.count('</head>') == 1 and s.count('</body>') == 1
 s = s.replace('</head>', head + '</head>').replace('</body>', reg + '</body>')
 open(OUT, 'w', encoding='utf-8').write(s)

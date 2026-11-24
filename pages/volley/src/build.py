@@ -43,10 +43,9 @@ def pwa(s):
     head = ('<link rel="manifest" href="manifest.webmanifest">\n'
             '<meta name="theme-color" content="#1b1a17">\n'
             '<meta name="mobile-web-app-capable" content="yes">\n'
+            '<meta name="pgs-build" content="__PGS_BUILD__">\n<script src="../_shared/update.js" defer></script>\n'
             '<link rel="icon" href="icon-192.png">\n<link rel="apple-touch-icon" href="icon-192.png">\n')
-    reg = ("<script>if('serviceWorker' in navigator&&isSecureContext)"
-           "addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(e=>console.warn('sw',e)));"
-           "try{screen.orientation&&screen.orientation.lock&&matchMedia('(display-mode: fullscreen)').matches&&screen.orientation.lock('portrait').catch(()=>{});}catch(_){}</script>\n")
+    reg = ("<script>try{screen.orientation&&screen.orientation.lock&&matchMedia('(display-mode: fullscreen)').matches&&screen.orientation.lock('portrait').catch(()=>{});}catch(_){}</script>\n")
     assert s.count('</head>') == 1 and s.count('</body>') == 1
     return s.replace('</head>', head + '</head>').replace('</body>', reg + '</body>')
 

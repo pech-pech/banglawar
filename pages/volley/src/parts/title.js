@@ -163,6 +163,7 @@ function show(opts){
   else if (M && M.resetSignal && M.RESET_LINE) line = M.RESET_LINE;   // [spec] shown once after a wipe (R20); Home repeats it as a toast
   el.querySelector('.pvt-reset').textContent = line;
   el.querySelector('.pvt-ver').textContent = 'Build ' + ((V.UI && V.UI.BUILD) || '-');
+  try { var pv = el.querySelector('.pvt-ver'), ps = document.createElement('span'); ps.setAttribute('data-pgs-build', ''); ps.textContent = 'build ' + (window.PGS_BUILD || 'dev'); pv.appendChild(document.createTextNode(' | ')); pv.appendChild(ps); } catch (_) {}
   el.classList.remove('out'); (document.body || document.documentElement).appendChild(el);
   vis = true; shownAt = performance.now();
   draw(); layoutName();

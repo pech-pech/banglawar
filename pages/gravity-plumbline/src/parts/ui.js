@@ -640,7 +640,7 @@ const PL = (globalThis.PL = globalThis.PL || {});
     L.push('tuned: ' + (tuned ? 'YES (not saved as best) ' : 'no ') + (TW ? TW.reportLine(true) : ''));
     if (complete) L.push('result: medal ' + complete.medal + (complete.flipStar ? ' +flipstar' : '') + '  newBest ' + complete.newBest +
       (complete.best ? '  best ' + (complete.best.ticks * C.DT).toFixed(2) + 's/' + complete.best.flips + ' flips/' + complete.best.medal : ''));
-    L.push('build: ' + BUILD);
+    L.push('build: ' + BUILD + '  pgs: ' + (window.PGS_BUILD || 'none'));
     L.push('UA: ' + navigator.userAgent);
     L.push('viewport: ' + view.W + 'x' + view.H + ' dpr ' + view.dpr + ' inset t' + view.inset.t + ' b' + view.inset.b);
     L.push('avg fps: ' + avgFps().toFixed(1) + (PL.Vfx && PL.Vfx.stats ? '  vfx ' + (() => { try { const s = PL.Vfx.stats(); return s.quality + (s.auto ? ' auto' : '') + (s.reduced ? ' reduced' : ''); } catch (_) { return '?'; } })() : ''));

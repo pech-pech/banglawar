@@ -122,6 +122,7 @@ export function buildReport(info) {
   const lines = [
     'Ridgeline report',
     'build: ' + fmt(info.build),
+    'pgs_build: ' + fmt(typeof window !== 'undefined' ? window.PGS_BUILD : undefined),
     'seed: ' + fmt(info.seed),
     'mode: ' + fmt(info.mode),
     'result: ' + fmt(info.result),

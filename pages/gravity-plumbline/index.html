@@ -13,6 +13,8 @@ html,body{margin:0;padding:0;width:100%;height:100%;background:#151a3d;overflow:
 <meta name="mobile-web-app-capable" content="yes">
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
+<meta name="pgs-build" content="__PGS_BUILD__">
+<script src="../_shared/update.js" defer></script>
 </head>
 <body>
 <canvas id="game"></canvas>
@@ -6886,7 +6888,7 @@ const PL = (globalThis.PL = globalThis.PL || {});
     L.push('tuned: ' + (tuned ? 'YES (not saved as best) ' : 'no ') + (TW ? TW.reportLine(true) : ''));
     if (complete) L.push('result: medal ' + complete.medal + (complete.flipStar ? ' +flipstar' : '') + '  newBest ' + complete.newBest +
       (complete.best ? '  best ' + (complete.best.ticks * C.DT).toFixed(2) + 's/' + complete.best.flips + ' flips/' + complete.best.medal : ''));
-    L.push('build: ' + BUILD);
+    L.push('build: ' + BUILD + '  pgs: ' + (window.PGS_BUILD || 'none'));
     L.push('UA: ' + navigator.userAgent);
     L.push('viewport: ' + view.W + 'x' + view.H + ' dpr ' + view.dpr + ' inset t' + view.inset.t + ' b' + view.inset.b);
     L.push('avg fps: ' + avgFps().toFixed(1) + (PL.Vfx && PL.Vfx.stats ? '  vfx ' + (() => { try { const s = PL.Vfx.stats(); return s.quality + (s.auto ? ' auto' : '') + (s.reduced ? ' reduced' : ''); } catch (_) { return '?'; } })() : ''));
@@ -7278,6 +7280,7 @@ const PL = (globalThis.PL = globalThis.PL || {});
 
 })();
 </script>
-<script>if('serviceWorker' in navigator&&isSecureContext)addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(e=>console.warn('sw',e)));try{screen.orientation&&screen.orientation.lock&&matchMedia('(display-mode: fullscreen)').matches&&screen.orientation.lock('portrait').catch(()=>{});}catch(_){}</script>
+<span data-pgs-build style="position:fixed;left:6px;bottom:calc(3px + env(safe-area-inset-bottom));font:10px system-ui,sans-serif;opacity:.6;color:#fff;pointer-events:none;z-index:6"></span>
+<script>try{screen.orientation&&screen.orientation.lock&&matchMedia('(display-mode: fullscreen)').matches&&screen.orientation.lock('portrait').catch(()=>{});}catch(_){}</script>
 </body>
 </html>

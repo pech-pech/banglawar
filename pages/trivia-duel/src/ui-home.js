@@ -259,6 +259,7 @@ var TD = (typeof window!=='undefined'?(window.TD=window.TD||{}):(global.TD=globa
     $('home-rival-step').textContent = 'Rival ' + rv.step + '/5';
     updateWarn();
     $('home-build').textContent = 'build ' + TD.BUILD;
+    try { var pb = document.createElement('span'); pb.setAttribute('data-pgs-build', ''); pb.textContent = 'build ' + (window.PGS_BUILD || 'dev'); $('home-build').appendChild(document.createTextNode(' | ')); $('home-build').appendChild(pb); } catch (_) {}
     if (ui.refreshBadge) ui.refreshBadge();
   }
 

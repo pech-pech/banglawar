@@ -3,6 +3,8 @@
 <meta name="theme-color" content="#0e1319">
 <title>Stock Terminal</title>
 <link rel="manifest" href="manifest.webmanifest">
+<meta name="pgs-build" content="__PGS_BUILD__">
+<script src="../_shared/update.js" defer></script>
 <meta name="theme-color" content="#0e1319">
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
@@ -386,7 +388,7 @@ function render(){
     ${[0,1,2,3,4,5].map(k=>{const i=stockInfo(k),c=i.c,last=i.cols[i.cols.length-1],chg=pct(c[c.length-1],c[c.length-2]),h=i.m.h[i.m.h.length-1];
       return`<tr class="rowlink" onclick="openChart(${k})"><td class="b">${S.W.codes[k]}</td><td>${c[c.length-1].toFixed(2)}</td><td class="${chg>=0?"acc":"bad"}">${sg(chg)}</td><td><span class="${last.d===1?"x":"o"}">${last.d===1?"X":"O"}</span> ${i.sig?`<span class="sig ${i.sig.buy?"":"s"}">${i.sig.buy?"BUY":"SELL"}</span>`:""}${trapChip(i,1)}</td><td>${Math.round(i.r[i.r.length-1])}</td><td class="${h>=0?"acc":"dim"}">${sg2(h)}</td><td>${S.pos[k]||"-"}</td></tr>`}).join("")}</table></div>
     <div class="panel"><div class="tbl"><div><span class="dim">Cash</span><span class="vv">${fmt(S.cash)}</span></div><div><span class="dim">Fees paid</span><span class="vv">${fmt(S.fees)}</span></div><div><span class="dim">Floor</span><span class="vv">${fmt(T.startCash*(1-T.floorPct/100))} (warn ${fmt(T.startCash*(1-T.warnPct/100))})</span></div></div></div>
-    <div class="msg dim">Tap a row to open chart. Orders fill at week close. Build ${BUILD}.</div>`;
+    <div class="msg dim">Tap a row to open chart. Orders fill at week close. Build ${BUILD}. <span data-pgs-build></span></div>`;
     bar.innerHTML=`<div class="btn" onclick="openTweaks()">SETTINGS</div><div class="btn" onclick="copyReport()">COPY</div><div class="btn go" onclick="advance()">ADVANCE</div>`}
   else if(S.screen==="chart"){
     const k=S.sel,i=stockInfo(k),px=closeNow(k),eq=equity(),vc=i.vc,last=i.cols[i.cols.length-1];
@@ -445,7 +447,7 @@ function render(){
 <script>
 "use strict";
 /* ---------- copy report ---------- */
-function reportText(){const eq=equity();return JSON.stringify({build:BUILD,src:dataSource(),seed:S.seed,week:S.week,tweaked:tweaked(),tweaks:T,equity:Math.round(eq),ret:+pct(eq,T.startCash).toFixed(2),bench:+pct(bench(),T.startCash).toFixed(2),failed:S.failed,fees:Math.round(S.fees),orders:S.orders,calls:S.calls.map(c=>({s:S.W.codes[c.k],d:c.dir,wk:c.wk,pat:c.pat,res:c.res||"open"})),baseline:S.base})}
+function reportText(){const eq=equity();return JSON.stringify({build:BUILD,pgs_build:(typeof window!=="undefined"?window.PGS_BUILD:undefined),src:dataSource(),seed:S.seed,week:S.week,tweaked:tweaked(),tweaks:T,equity:Math.round(eq),ret:+pct(eq,T.startCash).toFixed(2),bench:+pct(bench(),T.startCash).toFixed(2),failed:S.failed,fees:Math.round(S.fees),orders:S.orders,calls:S.calls.map(c=>({s:S.W.codes[c.k],d:c.dir,wk:c.wk,pat:c.pat,res:c.res||"open"})),baseline:S.base})}
 function copyReport(){const t=reportText();(navigator.clipboard?navigator.clipboard.writeText(t):Promise.reject()).then(()=>{S.lastMsg="Report copied";render()},()=>{prompt("Copy report",t)})}
 
 /* ---------- tweak menu + presets ---------- */
@@ -476,6 +478,5 @@ window.addEventListener("resize",()=>render());
 loadData().then(()=>newPeriod(48213));
 
 </script>
-<script>if("serviceWorker"in navigator)addEventListener("load",function(){navigator.serviceWorker.register("sw.js").catch(function(){})});</script>
 
 </body></html>

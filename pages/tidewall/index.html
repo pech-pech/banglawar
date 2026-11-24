@@ -77,12 +77,15 @@ body.short #tw-fold .tw-tcard{padding:14px 20px}body.short #tw-fold svg{display:
 <meta name="mobile-web-app-capable" content="yes">
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
+<meta name="pgs-build" content="__PGS_BUILD__">
+<script src="../_shared/update.js" defer></script>
 </head>
 <body>
 <section id="scr-title" class="scr">
   <div class="tw-tcard">
     <h1>Tidewall</h1>
     <p id="t-sub">Keep the lamp lit.</p>
+    <div style="font-size:10px;opacity:.6;text-align:center" data-pgs-build></div>
     <button id="b-continue" class="tw-big">Continue</button>
     <div class="tw-row"><button id="b-settings-t" class="tw-ghost">Settings</button></div>
   </div>
@@ -5816,6 +5819,6 @@ window.__join = { store, ledger, router, get active() { return active && active.
 })();
 
 </script>
-<script>if('serviceWorker' in navigator&&isSecureContext)addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(e=>console.warn('sw',e)));try{screen.orientation&&screen.orientation.lock&&matchMedia('(display-mode: fullscreen)').matches&&screen.orientation.lock('landscape').catch(()=>{});}catch(_){}</script>
+<script>try{screen.orientation&&screen.orientation.lock&&matchMedia('(display-mode: fullscreen)').matches&&screen.orientation.lock('landscape').catch(()=>{});}catch(_){}</script>
 </body>
 </html>

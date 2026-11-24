@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#c9a24a">
 <title>Burn Window</title>
+<meta name="pgs-build" content="__PGS_BUILD__">
+<script src="../_shared/update.js" defer></script>
 <style>html,body{margin:0;overflow:hidden;touch-action:none;background:#0a1214;height:100%}canvas{display:block;width:100vw;height:100vh;touch-action:none}</style>
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="mobile-web-app-capable" content="yes">
@@ -12,6 +14,7 @@
 <link rel="apple-touch-icon" href="icon-192.png">
 </head>
 <body style="margin:0;overflow:hidden;touch-action:none;background:#0a1214">
+<span data-pgs-build style="position:fixed;left:6px;bottom:calc(2px + env(safe-area-inset-bottom));font:10px system-ui,sans-serif;opacity:.6;color:#fff;pointer-events:none;z-index:2"></span>
 <canvas id="c"></canvas>
 <script>
 /* sim.js */
@@ -426,6 +429,7 @@
     return {
       game: 'Burn Window',
       version: 'bw-0.2.2',
+      pgs_build: window.PGS_BUILD || null,
       seed: info.seed,
       renderer: 'Canvas2D',
       device: info.device || {},
@@ -2146,6 +2150,6 @@
 
 </script>
 
-<script>if('serviceWorker' in navigator&&isSecureContext)addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(e=>console.warn('sw',e)));try{screen.orientation&&screen.orientation.lock&&(matchMedia('(display-mode: fullscreen)').matches||matchMedia('(display-mode: standalone)').matches)&&screen.orientation.lock('portrait').catch(()=>{});}catch(_){}</script>
+<script>try{screen.orientation&&screen.orientation.lock&&(matchMedia('(display-mode: fullscreen)').matches||matchMedia('(display-mode: standalone)').matches)&&screen.orientation.lock('portrait').catch(()=>{});}catch(_){}</script>
 </body>
 </html>

@@ -16,8 +16,6 @@ style = '<style>\n' + '\n'.join(rd(n) for n in ('style.css', 'buttons.css', 'qca
 scripts = '\n'.join('<script>\n' + rd(n).replace('</script', '<\\/script') + '\n</script>' for n in SCRIPTS)
 head = ('<link rel="manifest" href="manifest.webmanifest">\n<meta name="theme-color" content="#2b1d6b">\n'
         '<link rel="icon" href="icon-192.png">\n<link rel="apple-touch-icon" href="icon-192.png">\n')
-sw = ('<script>if("serviceWorker"in navigator)addEventListener("load",function(){'
-      'navigator.serviceWorker.register("sw.js").catch(function(){})});</script>\n')
-html = shell.replace('<!--STYLE-->', head + style).replace('<!--SCRIPTS-->', scripts + '\n' + sw)
+html = shell.replace('<!--STYLE-->', head + style).replace('<!--SCRIPTS-->', scripts + '\n')
 open(OUT, 'w', encoding='utf-8').write(html)
 print('wrote %s (%.1f KB)' % (os.path.normpath(OUT), len(html.encode('utf-8')) / 1024))

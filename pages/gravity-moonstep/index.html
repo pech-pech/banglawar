@@ -6,6 +6,8 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <link rel="manifest" href="manifest.webmanifest">
+<meta name="pgs-build" content="__PGS_BUILD__">
+<script src="../_shared/update.js" defer></script>
 <link rel="icon" href="icon-192.png">
 <link rel="stylesheet" href="src/ui.css">
 <link rel="apple-touch-icon" href="icon-192.png">
@@ -21,5 +23,5 @@ canvas#c{position:fixed;inset:0;width:100%;height:100%;display:block;touch-actio
 <script src="src/draw.js"></script>
 <script src="src/ui.js"></script>
 <script src="src/game.js"></script>
-<script>if('serviceWorker' in navigator)window.addEventListener('load',function(){navigator.serviceWorker.register('sw.js').catch(function(){})});</script>
+<span data-pgs-build style="position:fixed;left:6px;bottom:calc(3px + env(safe-area-inset-bottom));font:10px system-ui,sans-serif;opacity:.6;color:#fff;pointer-events:none;z-index:6"></span>
 </body></html>

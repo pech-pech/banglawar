@@ -91,10 +91,6 @@ export async function copyText(text) {
   } catch { return false; }
 }
 
-export function registerSW() {
-  try { if (window.isSecureContext && 'serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {}); } catch {}
-}
-
 // ---- Tweak menu ----
 const GROUPS = [ // admin default grouping per contract
   ['Day & market', ['runSec', 'tickMs', 'buyLockMs', 'longPressMs', 'startCash', 'slotVol', 'tierVol', 'volScale', 'K', 'M', 'regimeMin', 'regimeMax', 'pUp', 'pDown']],

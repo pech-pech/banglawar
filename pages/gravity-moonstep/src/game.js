@@ -139,6 +139,7 @@
   function buildReport() {
     var extra = {
       attempt: attemptNo,
+      pgsBuild: window.PGS_BUILD || null,
       attempts: store.attempts,
       aimedVsLanded: s.jumpLog,
       viewKey: view ? view.key : '',

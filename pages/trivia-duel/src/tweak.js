@@ -50,7 +50,7 @@ var tweak = (function () {
     for (var i = 0; i < rivals.length; i++) if (rivals[i].step === step) rname = rivals[i].name;
     var df = diffs(), dk = Object.keys(df);
     var lines = [];
-    lines.push('Build: ' + (TD.BUILD || '?'));
+    lines.push('Build: ' + (TD.BUILD || '?') + '  PGS: ' + (window.PGS_BUILD || 'dev'));
     lines.push('Seed: ' + state.seed + '  Mode: ' + state.mode + '  ReadUpTo: ' + state.readUpTo);
     lines.push('Picked topic: ' + state.pickedTopic + '  Wager topic: ' + state.wagerTopic);
     lines.push('Rival: step ' + step + ' ' + rname);
