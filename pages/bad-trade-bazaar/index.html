@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Bad Trade Bazaar</title>
+<meta name="theme-color" content="#1a0f0a">
+<meta name="color-scheme" content="dark">
+<meta name="description" content="Every losing trade leaves a scar card that you can slot into your build, so your worst calls become your strongest perks.">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="stylesheet" href="style.css">
+</head>
+<body data-screen="start">
+
+<!-- shared art, drawn once, reused with <use> (CSS/SVG only, no network) -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <defs>
+    <radialGradient id="glow"><stop offset="0" stop-color="#ffb347" stop-opacity=".65"/><stop offset="1" stop-color="#ffb347" stop-opacity="0"/></radialGradient>
+    <g id="art-awning">
+      <path d="M0 0h43v38a21.5 14 0 01-43 0z" fill="#b8322a"/><path d="M43 0h43v38a21.5 14 0 01-43 0z" fill="#f0dcae"/>
+      <path d="M86 0h43v38a21.5 14 0 01-43 0z" fill="#b8322a"/><path d="M129 0h43v38a21.5 14 0 01-43 0z" fill="#f0dcae"/>
+      <path d="M172 0h43v38a21.5 14 0 01-43 0z" fill="#b8322a"/><path d="M215 0h43v38a21.5 14 0 01-43 0z" fill="#f0dcae"/>
+      <path d="M258 0h43v38a21.5 14 0 01-43 0z" fill="#b8322a"/><path d="M301 0h43v38a21.5 14 0 01-43 0z" fill="#f0dcae"/>
+      <path d="M0 1h344" stroke="#5a1a14" stroke-width="3"/>
+    </g>
+    <g id="art-stall">
+      <g><line x1="48" y1="0" x2="48" y2="26" stroke="#6b4a2a" stroke-width="2"/><circle cx="48" cy="40" r="27" fill="url(#glow)"/><rect x="39" y="26" width="18" height="26" rx="6" fill="#ffb347" stroke="#7a3f10" stroke-width="2"/><rect x="42" y="32" width="12" height="14" rx="4" fill="#fff0b0"/></g>
+      <g><line x1="172" y1="0" x2="172" y2="48" stroke="#6b4a2a" stroke-width="2"/><circle cx="172" cy="62" r="33" fill="url(#glow)"/><rect x="163" y="48" width="18" height="26" rx="6" fill="#ffb347" stroke="#7a3f10" stroke-width="2"/><rect x="166" y="54" width="12" height="14" rx="4" fill="#fff0b0"/></g>
+      <g><line x1="296" y1="0" x2="296" y2="22" stroke="#6b4a2a" stroke-width="2"/><circle cx="296" cy="36" r="27" fill="url(#glow)"/><rect x="287" y="22" width="18" height="26" rx="6" fill="#ffb347" stroke="#7a3f10" stroke-width="2"/><rect x="290" y="28" width="12" height="14" rx="4" fill="#fff0b0"/></g>
+      <rect x="0" y="150" width="344" height="88" fill="#2a1a10"/><path d="M0 150h344" stroke="#7a5230" stroke-width="3"/>
+      <g fill="#8a5a2c" stroke="#3b2310" stroke-width="2"><rect x="18" y="164" width="70" height="50" rx="3"/><rect x="104" y="172" width="58" height="42" rx="3"/><rect x="248" y="162" width="76" height="52" rx="3"/></g>
+      <g fill="#e8923a"><circle cx="40" cy="160" r="9"/><circle cx="58" cy="158" r="9"/><circle cx="74" cy="161" r="9"/></g>
+      <g fill="#6fbf73"><circle cx="268" cy="158" r="9"/><circle cx="288" cy="156" r="9"/><circle cx="306" cy="159" r="9"/></g>
+      <g fill="#f5c542" stroke="#7a5a00" stroke-width="1.5"><circle cx="180" cy="200" r="8"/><circle cx="198" cy="204" r="8"/><circle cx="214" cy="198" r="8"/></g>
+      <g transform="rotate(-2 172 110)"><rect x="70" y="96" width="204" height="40" rx="3" fill="#f3e6c4" stroke="#8b6b3a" stroke-width="2"/><circle cx="86" cy="116" r="5" fill="#2b1608"/><path d="M104 122l22-14 18 10 24-16 22 12 30-14" fill="none" stroke="#8a1f17" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/></g>
+    </g>
+  </defs>
+</svg>
+
+<div id="dev-badge" hidden>DEV</div>
+
+<!-- ============ START ============ -->
+<main id="screen-start" class="screen active">
+  <div class="start-art" aria-hidden="true">
+    <svg viewBox="0 0 344 238" preserveAspectRatio="xMidYMid slice"><use href="#art-stall"/><use href="#art-awning"/></svg>
+  </div>
+  <h1 id="title">Bad Trade Bazaar</h1>
+  <p class="tagline">Every losing trade leaves a 'scar' card that you can slot into your build, so your worst calls become your strongest perks.</p>
+  <section class="loop">
+    <h2>Loop</h2>
+    <ol>
+      <li>Tap to buy or sell auto-ticking stocks during a three-minute run</li>
+      <li>Collect scar cards from losses</li>
+      <li>Then reset the run</li>
+      <li>Slot scars to boost the next one</li>
+    </ol>
+  </section>
+  <button type="button" id="btn-play" class="btn big">Play</button>
+  <button type="button" id="btn-settings-start" class="btn secondary">Settings</button>
+  <div id="build-id">btb-slice-1</div>
+</main>
+
+<!-- ============ RUN ============ -->
+<main id="screen-run" class="screen">
+  <div class="timer"><span class="lbl">TIME</span><span id="hud-timer" class="v">3:00</span></div>
+  <div class="cash">
+    <svg width="22" height="22" viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="8.5" fill="#f5c542" stroke="#6a4a00" stroke-width="1.5"/><text x="10" y="14" text-anchor="middle" font-size="11" font-weight="bold" font-family="Arial" fill="#6a4a00">$</text></svg>
+    <span id="hud-cash" class="v">$100</span>
+  </div>
+  <button type="button" id="btn-settings" class="gear" aria-label="Settings">
+    <svg width="28" height="28" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 8.5a3.5 3.5 0 100 7 3.5 3.5 0 000-7zm8.5 4.2v-1.4l-2-.6a6.8 6.8 0 00-.6-1.4l1-1.8-1-1-1.8 1a6.8 6.8 0 00-1.4-.6l-.6-2h-1.4l-.6 2a6.8 6.8 0 00-1.4.6l-1.8-1-1 1 1 1.8c-.3.4-.5.9-.6 1.4l-2 .6v1.4l2 .6c.1.5.3 1 .6 1.4l-1 1.8 1 1 1.8-1c.4.3.9.5 1.4.6l.6 2h1.4l.6-2c.5-.1 1-.3 1.4-.6l1.8 1 1-1-1-1.8c.3-.4.5-.9.6-1.4z" fill="none" stroke="#ffd77a" stroke-width="1.6" stroke-linejoin="round"/></svg>
+  </button>
+  <div id="banner" role="img" aria-label="Bad Trade Bazaar">
+    <svg viewBox="0 0 344 52" preserveAspectRatio="xMidYMid slice"><use href="#art-awning"/><rect x="42" y="8" width="260" height="30" rx="6" fill="#2b1608" stroke="#f5c542" stroke-width="2"/><text x="172" y="30" text-anchor="middle" font-family="Georgia,'Times New Roman',serif" font-weight="bold" font-size="20" letter-spacing="1.5" fill="#ffd77a">BAD TRADE BAZAAR</text></svg>
+  </div>
+  <div id="build-strip"><div class="slot"></div><div class="slot"></div><div class="slot"></div></div>
+  <div class="tray-row">
+    <div id="tray"></div>
+    <div class="legend"><span class="stamp">SPARE</span><span>= bonus $</span></div>
+  </div>
+  <div id="toast" role="status" aria-live="polite"></div>
+  <div class="stage" aria-hidden="true"><svg viewBox="0 0 344 238" preserveAspectRatio="xMidYMid slice"><use href="#art-stall"/></svg></div>
+  <div class="rows">
+    <div class="row" id="row-0">
+      <div class="info">
+        <div class="line1"><span class="stock-name">Calm</span><span class="price">$10.40</span></div>
+        <div class="held">Flat</div>
+        <canvas class="spark" width="304" height="80"></canvas>
+      </div>
+      <button type="button" class="tog" id="tog-0" data-mode="buy" data-loss="0"><span class="face">BUY $33</span><span class="chip" hidden></span></button>
+    </div>
+    <div class="row" id="row-1">
+      <div class="info">
+        <div class="line1"><span class="stock-name">Middle</span><span class="price">$23.90</span></div>
+        <div class="held">Held 1.4 · avg $25.00</div>
+        <canvas class="spark" width="304" height="80"></canvas>
+      </div>
+      <button type="button" class="tog" id="tog-1" data-mode="sell" data-loss="1"><span class="face">SELL −$8</span><span class="chip">+SCAR Penny Nick</span></button>
+    </div>
+    <div class="row" id="row-2">
+      <div class="info">
+        <div class="line1"><span class="stock-name">Wild</span><span class="price">$66.20</span></div>
+        <div class="held">Held 0.5 · avg $60.00</div>
+        <canvas class="spark" width="304" height="80"></canvas>
+      </div>
+      <button type="button" class="tog" id="tog-2" data-mode="sell" data-loss="0" data-win="1"><span class="face">SELL +$12</span><span class="chip">Tycoon</span></button>
+    </div>
+  </div>
+</main>
+
+<!-- ============ END ============ -->
+<main id="screen-end" class="screen">
+  <header class="hdr"><h2>Time's up</h2><span class="sub">Bad Trade Bazaar</span></header>
+  <section class="result">
+    <div class="lbl">CASH</div>
+    <div id="end-cash">100 → 100</div>
+    <div id="end-pl"></div>
+  </section>
+  <div class="sec-label">SCARS THIS RUN</div>
+  <div id="end-scars"></div>
+  <div id="end-proto"></div>
+  <div class="end-art" aria-hidden="true"><svg viewBox="0 0 344 238" preserveAspectRatio="xMidYMid slice"><use href="#art-stall"/></svg></div>
+  <button type="button" id="btn-copy-report" class="btn secondary">Copy report</button>
+  <button type="button" id="btn-reset-run" class="btn big">RESET RUN → SLOT SCARS</button>
+</main>
+
+<!-- ============ SLOT ============ -->
+<main id="screen-slot" class="screen">
+  <header class="hdr"><h2>Build</h2><span class="sub">Tap a scar, then a slot</span></header>
+  <div id="slots">
+    <button type="button" class="slot-big" data-slot="0"></button>
+    <button type="button" class="slot-big" data-slot="1"></button>
+    <button type="button" class="slot-big" data-slot="2"></button>
+  </div>
+  <div id="slot-effect"></div>
+  <div class="slot-flex">
+    <svg class="slot-art" viewBox="0 0 344 238" preserveAspectRatio="xMidYMid slice" aria-hidden="true"><use href="#art-stall"/></svg>
+    <div id="spare-note"></div>
+  </div>
+  <div id="collection"></div>
+  <button type="button" id="btn-start-run" class="btn big">START RUN</button>
+</main>
+
+<!-- ============ SETTINGS OVERLAY ============ -->
+<div id="settings" role="dialog" aria-modal="true" aria-label="Settings">
+  <header class="set-hdr"><h2>Settings</h2><button type="button" id="btn-settings-close" class="btn secondary sq" aria-label="Close settings">✕</button></header>
+  <div id="settings-body"></div>
+</div>
+
+<script type="module" src="ui.js"></script>
+</body>
+</html>
