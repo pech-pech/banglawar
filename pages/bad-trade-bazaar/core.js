@@ -1,50 +1,57 @@
 // Bad Trade Bazaar core: pure game rules. No DOM, no clock, no Math.random. Runs in Node and browser.
-// Reproduces work/sim/sim-spare.js mode A, cap 10.
-export const BUILD = 'btb-slice-1';
-
-export const DEFAULTS = {
-  runSec: 180, tickMs: 1000, startCash: 100, slots: 3, stackCap: 2,
-  base: [10, 25, 60], vol: [0.010, 0.018, 0.030], volScale: 1,
-  K: 0.08, M: 0.8, regimeMin: 10, regimeMax: 25, pUp: 0.35, pDown: 0.35,
-  saleCut: 0.015, lossLine: 0.04, holdSec: 15, endScar: true,
-  spareCash: 1, spareCap: 10, buyLockMs: 300,
-  perk: [0.30, 8, 0.02, 0.30, 1.0, 0.8],
-  run1Seed: 'btb-run1-s1' // admin default: searched so a 2% dip within 25 s of an early buy exists in run 1
-};
-
-export const STOCKS = ['Calm', 'Middle', 'Wild'];
-export const SCARS = [
-  { type: 0, name: 'Penny Nick',  stock: 0, big: false, kind: 'gain',   only: -1 },
-  { type: 1, name: 'Deep Cut',    stock: 0, big: true,  kind: 'cash' },
-  { type: 2, name: 'Sharp Eye',   stock: 1, big: false, kind: 'disc' },
-  { type: 3, name: 'Cushion',     stock: 1, big: true,  kind: 'refund' },
-  { type: 4, name: 'Wild Streak', stock: 2, big: false, kind: 'gain',   only: 2 },
-  { type: 5, name: 'Tycoon',      stock: 2, big: true,  kind: 'hold' }
+// Rules ported from the lessons sim (core-lots.mjs lots/sell, core-lessons.mjs carry cash + perks bought from carried cash).
+export const BUILD = 'btb-lessons-1';
+export const SLOTS = ['Calm', 'Middle', 'Wild'];
+export const TIERS = ['Dune Lane', 'Copper Row', 'Saffron Court', 'Pearl Gate'];
+export const GOODS = [
+  { id: 0, name: 'Dune Millet', kind: 'food', tier: 1, slot: 0, base: 10 }, { id: 1, name: 'Lantern Oil', kind: 'fuel', tier: 1, slot: 1, base: 25 }, { id: 2, name: 'Ember Pepper', kind: 'spice', tier: 1, slot: 2, base: 60 },
+  { id: 3, name: 'Hill Wool', kind: 'cloth', tier: 2, slot: 0, base: 30 }, { id: 4, name: 'Tinker Copper', kind: 'metal', tier: 2, slot: 1, base: 75 }, { id: 5, name: 'Peacock Dye', kind: 'dye', tier: 2, slot: 2, base: 180 },
+  { id: 6, name: 'Kiln Tiles', kind: 'craft', tier: 3, slot: 0, base: 90 }, { id: 7, name: 'Brass Lanterns', kind: 'metal craft', tier: 3, slot: 1, base: 220 }, { id: 8, name: 'Sun Saffron', kind: 'spice', tier: 3, slot: 2, base: 540 },
+  { id: 9, name: 'Moon Silver', kind: 'metal', tier: 4, slot: 0, base: 250 }, { id: 10, name: 'Amber Resin', kind: 'incense', tier: 4, slot: 1, base: 650 }, { id: 11, name: 'Sea Pearls', kind: 'gem', tier: 4, slot: 2, base: 1600 }
 ];
+export const SCARS = [
+  { type: 0, slot: 0, big: false, name: 'Calm Nick' }, { type: 1, slot: 0, big: true, name: 'Calm Shield' }, { type: 2, slot: 1, big: false, name: 'Middle Nick' },
+  { type: 3, slot: 1, big: true, name: 'Middle Shield' }, { type: 4, slot: 2, big: false, name: 'Wild Nick' }, { type: 5, slot: 2, big: true, name: 'Wild Shield' }
+];
+export const PERKS = [
+  { key: 'seed', name: 'Bigger Purse-Belt', scope: 'global' }, { key: 'fee', name: 'Friendly Tax-Man', scope: 'global' }, { key: 'scales', name: 'Lucky Scales', scope: 'global' },
+  { key: 'streak', name: 'Hot Streak', scope: 'global' }, { key: 'clean', name: 'Clean Slate', scope: 'global' }, { key: 'tycoon', name: 'Patient Merchant', scope: 'global' },
+  { key: 'spec0', name: 'Calm Specialist', scope: 0 }, { key: 'spec1', name: 'Middle Specialist', scope: 1 }, { key: 'wild', name: 'Wild Specialist', scope: 2 }
+];
+export const DEFAULTS = {
+  runSec: 180, tickMs: 1000, buyLockMs: 300, longPressMs: 450, startCash: 100, lots: 3, maxPerGood: 3,
+  slotVol: [0.010, 0.018, 0.030], tierVol: [1, 1.15, 1.30, 1.45], volScale: 1, K: 0.08, M: 0.8, regimeMin: 10, regimeMax: 25, pUp: 0.35, pDown: 0.35,
+  saleCut: 0.015, lossLine: 0.04, holdSec: 15, endScar: true, dumpSec: 3,
+  lessonRate: 0.5, stopLine: [0.04, 0.06, 0.08], lessonSlots: 2, lessonsOn: true,
+  perkSlots: 3, shopOn: true, priceScale: 0.7, streakMax: 4,
+  perkVal: { seed: 8, fee: 0.5, scales: 0.25, streak: 0.15, clean: 0.35, tycoon: 0.6, spec0: 0.8, spec1: 0.8, wild: 0.8 },
+  price: { seed: 20, fee: 20, scales: 35, streak: 40, clean: 45, tycoon: 50, spec0: 25, spec1: 30, wild: 40 },
+  tierUnlock: [0, 200, 500, 1200], bustCash: 5,
+  run1Seed: 'btb-run1-s1', sameMarkets: true, protoMinTrades: 4, protoTarget: 1.30
+};
 
 const round2 = (x) => Math.round(x * 100) / 100;
 const pct = (x) => `${Math.round(x * 1000) / 10}%`;
 const num = (x) => `${Math.round(x * 100) / 100}`;
+const isObj = (x) => x && typeof x === 'object' && !Array.isArray(x);
 
-export function mkConfig(config) {
-  const c = { ...DEFAULTS, ...(config || {}) };
-  for (const k of Object.keys(DEFAULTS)) if (Array.isArray(DEFAULTS[k])) c[k] = (Array.isArray(c[k]) ? c[k] : DEFAULTS[k]).slice();
-  return c;
+function clone(x) {
+  if (Array.isArray(x)) return x.map(clone);
+  if (isObj(x)) { const o = {}; for (const k of Object.keys(x)) o[k] = clone(x[k]); return o; }
+  return x;
 }
-
-export function perkText(type, config) {
-  const c = mkConfig(config);
-  const v = c.perk[type];
-  switch (type) {
-    case 0: return `Wins pay +${pct(v)}`;
-    case 1: return `Start run +$${num(v)}`;
-    case 2: return `Buys ${pct(v)} cheaper`;
-    case 3: return `Losses refund ${pct(v)}`;
-    case 4: return `Wild wins pay +${pct(v)}`;
-    case 5: return `Wins held ${c.holdSec}s+ pay +${pct(v)}`;
-    default: return '';
+function merge(dst, src) {
+  for (const k of Object.keys(src)) {
+    const v = src[k];
+    if (v === undefined) continue;
+    if (Array.isArray(v)) dst[k] = clone(v);
+    else if (isObj(v)) { if (!isObj(dst[k])) dst[k] = {}; merge(dst[k], v); }
+    else dst[k] = v;
   }
+  return dst;
 }
+export function mkConfig(partial) { return merge(clone(DEFAULTS), partial || {}); }
+const cfg = (c) => (c && isObj(c.perkVal) && isObj(c.price) ? c : mkConfig(c));
 
 export function hash(str) {
   let h = 2166136261;
@@ -61,19 +68,93 @@ export function mulberry32(a) {
   };
 }
 
+const perkOf = (key) => PERKS.find((p) => p.key === key);
+
+export function perkPrice(key, c) { c = cfg(c); return round2(c.price[key] * c.priceScale); }
+
+export function perkText(key, c) {
+  c = cfg(c);
+  const v = c.perkVal[key];
+  switch (key) {
+    case 'seed': return `Start each day +$${num(v)}`;
+    case 'fee': return `Sale fee on wins cut by ${pct(v)}`;
+    case 'scales': return `Every win pays +${pct(v)}`;
+    case 'streak': return `Each win in a row adds +${pct(v)}, up to ${c.streakMax} wins`;
+    case 'clean': return `A day with no losing sale: wins pay +${pct(v)}`;
+    case 'tycoon': return `Wins held ${c.holdSec}s or more pay +${pct(v)}`;
+    case 'spec0': return `Wins on the Calm good pay +${pct(v)}`;
+    case 'spec1': return `Wins on the Middle good pay +${pct(v)}`;
+    case 'wild': return `Wins on the Wild good pay +${pct(v)}`;
+    default: return '';
+  }
+}
+
+export function scarText(type, c) {
+  c = cfg(c);
+  const s = SCARS[type];
+  if (!s) return '';
+  return s.big ? `Losing ${SLOTS[s.slot]} sale past ${pct(c.stopLine[s.slot])}: rest paid back` : `Losing ${SLOTS[s.slot]} sale: fee waived`;
+}
+
 export function newProfile(salt) {
-  return { v: 1, salt: String(salt), collection: [0, 0, 0, 0, 0, 0], build: Array(DEFAULTS.slots).fill(null), sparesNext: 0, runs: [] };
+  return {
+    v: 2, salt: String(salt), cash: null, day: 0, stall: 1, maxTier: 1, picks: [0, 1, 2], cover: [0, 0, 0, 0, 0, 0], owned: [0, 0, 0, 0, 0, 0],
+    lessons: [], perksOwned: [], perks: [], days: [], ledger: { lossCash: 0, coverGranted: 0, paid: 0 }
+  };
 }
 
-export function runSeed(profile, config) {
-  const c = mkConfig(config);
-  if (profile.runs.length === 0) return c.run1Seed;
-  return `btb-${profile.salt}-r${profile.runs.length + 1}`;
+export function dayCash(profile, c) { c = cfg(c); return profile.cash == null ? c.startCash : profile.cash; }
+export function unlockedGoods(profile, c) { return GOODS.filter((g) => g.tier <= profile.maxTier); }
+
+export function setPick(profile, slot, goodId, c) {
+  const g = GOODS[goodId];
+  if (!g || g.slot !== slot || g.tier > profile.maxTier) return false;
+  profile.picks[slot] = goodId;
+  return true;
 }
 
-function series(seed, i, c) {
+export function togglePerk(profile, key, c) {
+  c = cfg(c);
+  if (!profile.perksOwned.includes(key)) return false;
+  const at = profile.perks.indexOf(key);
+  if (at >= 0) { profile.perks.splice(at, 1); return true; }
+  if (profile.perks.length >= c.perkSlots) return false;
+  profile.perks.push(key);
+  return true;
+}
+
+export function toggleLesson(profile, type, c) {
+  c = cfg(c);
+  if (!(type >= 0 && type < SCARS.length) || profile.owned[type] !== 1) return false;
+  const at = profile.lessons.indexOf(type);
+  if (at >= 0) { profile.lessons.splice(at, 1); return true; }
+  if (profile.lessons.length >= c.lessonSlots) return false;
+  profile.lessons.push(type);
+  return true;
+}
+
+export function canBuyPerk(profile, key, c) {
+  c = cfg(c);
+  if (!c.shopOn || !perkOf(key) || profile.perksOwned.includes(key)) return false;
+  return dayCash(profile, c) - perkPrice(key, c) >= c.bustCash; // admin default: shopping can never bust you
+}
+
+export function buyPerk(profile, key, c) {
+  c = cfg(c);
+  if (!canBuyPerk(profile, key, c)) return false;
+  profile.cash = dayCash(profile, c) - perkPrice(key, c);
+  profile.perksOwned.push(key);
+  if (profile.perks.length < c.perkSlots) profile.perks.push(key);
+  return true;
+}
+
+export function daySeed(profile, c) {
+  c = cfg(c);
+  return (c.sameMarkets || profile.day === 0) ? c.run1Seed : `btb-${profile.salt}-d${profile.day + 1}`;
+}
+
+function series(seed, i, p0, vol, c) {
   const r = mulberry32(hash(seed + ':stock' + i));
-  const p0 = c.base[i], vol = c.vol[i] * c.volScale;
   let p = p0, left = 0, dir = 0;
   const out = [p];
   for (let t = 1; t <= c.runSec; t++) {
@@ -85,209 +166,183 @@ function series(seed, i, c) {
     left--;
     const noise = (r() + r() - 1);
     const ret = dir * c.M * vol + c.K * Math.log(p0 / p) + vol * noise;
-    p = Math.max(0.5, Math.round(p * (1 + ret) * 100) / 100);
+    p = Math.max(0.005 * p0, round2(p * (1 + ret))); // admin default floor
     out.push(p);
   }
   return out;
 }
 
-function perkSum(build, c) {
-  const e = { gain: [0, 0, 0], hold: 0, disc: 0, cash: 0, refund: 0 };
-  for (const ty of build) {
-    if (ty == null) continue;
-    const s = SCARS[ty], v = c.perk[ty];
-    if (s.kind === 'gain') { for (let i = 0; i < 3; i++) if (s.only < 0 || s.only === i) e.gain[i] += v; }
-    else e[s.kind] += v;
-  }
-  return e;
-}
-
-export function validateBuild(profile, config) {
-  const c = mkConfig(config);
-  const used = Array(SCARS.length).fill(0);
-  const out = [];
-  for (let s = 0; s < c.slots; s++) {
-    const ty = profile.build && profile.build[s] != null ? profile.build[s] : null;
-    if (ty != null && ty >= 0 && ty < SCARS.length && used[ty] < Math.min(c.stackCap, profile.collection[ty] || 0)) { used[ty]++; out.push(ty); }
-    else out.push(null);
-  }
-  profile.build = out;
-  return out;
-}
-
-export function setSlot(profile, slotIndex, type, config) {
-  const c = mkConfig(config);
-  if (!(slotIndex >= 0 && slotIndex < c.slots)) return false;
-  validateBuild(profile, c);
-  if (type == null) { profile.build[slotIndex] = null; return true; }
-  if (!(type >= 0 && type < SCARS.length)) return false;
-  let used = 0;
-  profile.build.forEach((b, s) => { if (s !== slotIndex && b === type) used++; });
-  if (used >= Math.min(c.stackCap, profile.collection[type] || 0)) return false;
-  profile.build[slotIndex] = type;
-  return true;
-}
-
-export function newRun(profile, config) {
-  const c = mkConfig(config);
-  const build = validateBuild(profile, c).slice();
-  const perks = perkSum(build, c);
-  const seed = runSeed(profile, c);
-  const startCash = c.startCash + perks.cash + (profile.sparesNext || 0);
+export function newDay(profile, c) {
+  c = cfg(c);
+  const seed = daySeed(profile, c);
+  const perkKeys = c.shopOn ? profile.perks.slice(0, c.perkSlots) : [];
+  const has = (k) => perkKeys.includes(k);
+  const startCash = dayCash(profile, c) + (has('seed') ? c.perkVal.seed : 0);
+  const goods = [0, 1, 2].map((slot) => {
+    let g = GOODS[profile.picks[slot]];
+    if (!g || g.slot !== slot || g.tier > profile.maxTier) g = GOODS.find((x) => x.slot === slot && x.tier <= profile.maxTier); // admin default: bad pick falls back to lowest tier
+    return g;
+  });
+  const px = goods.map((g, i) => series(seed, i, g.base, c.slotVol[i] * c.tierVol[g.tier - 1] * c.volScale, c));
+  if (!Array.isArray(profile.cover)) profile.cover = [0, 0, 0, 0, 0, 0];
   return {
-    config: c, seed, t: 0, runSec: c.runSec, cash: startCash, startCash,
-    px: [0, 1, 2].map((i) => series(seed, i, c)),
-    pos: [null, null, null], over: false, firstTap: null, trades: 0, losing: 0, deliberate: 0,
-    drops: [], log: [], build, perks,
-    owned: profile.collection.slice(), ended: false
+    c, seed, day: profile.day + 1, stall: profile.stall, t: 0, cash: startCash, startCash, goods, px, lots: [], nextLotId: 1, over: false,
+    trades: 0, losing: 0, deliberate: 0, has, perkKeys, lessons: c.lessonsOn ? profile.lessons.slice(0, c.lessonSlots) : [],
+    cover: profile.cover, earned: [0, 0, 0, 0, 0, 0], drops: [], streak: 0, lostToday: false, paid: 0, lossCash: 0, events: []
   };
 }
 
-function flat(state) { return state.pos.filter((x) => !x).length; }
-
-export function buyPreview(state, i) {
-  const n = flat(state);
-  return { lot: n ? state.cash / n : 0 };
+export const lotsOf = (s, i) => s.lots.filter((x) => x.good === i);
+export const freeLots = (s) => s.c.lots - s.lots.length;
+export function canBuy(s, i) {
+  return !s.over && s.t < s.c.runSec && freeLots(s) > 0 && lotsOf(s, i).length < s.c.maxPerGood && s.cash / freeLots(s) > 1;
+}
+export function buyPreview(s, i) { return canBuy(s, i) ? s.cash / freeLots(s) : 0; }
+export function buy(s, i) {
+  if (!canBuy(s, i)) return null;
+  const price = s.px[i][s.t], cost = s.cash / freeLots(s);
+  const lot = { id: s.nextLotId++, good: i, qty: cost / price, buyPrice: price, cost, t: s.t };
+  s.lots.push(lot);
+  s.cash -= cost;
+  s.events.push({ k: 'buy', i, cost });
+  return lot;
 }
 
-export function canBuy(state, i) {
-  if (state.over || state.t >= state.runSec || state.pos[i]) return false;
-  return buyPreview(state, i).lot > 1;
+// best = highest simple result, worst = lowest; ties by lot id
+function pick(s, i, which) {
+  const ls = lotsOf(s, i);
+  if (!ls.length) return null;
+  const p = s.px[i][s.t], res = (x) => x.qty * p * (1 - s.c.saleCut) - x.cost;
+  ls.sort((a, b) => (which === 'worst' ? res(a) - res(b) : res(b) - res(a)) || a.id - b.id);
+  return ls[0];
 }
 
-export function buy(state, i) {
-  if (!canBuy(state, i)) return null;
-  const p = state.px[i][state.t];
-  const lot = buyPreview(state, i).lot;
-  const qty = lot / (p * (1 - state.perks.disc));
-  state.pos[i] = { qty, buyPrice: p, cost: lot, t: state.t };
-  state.cash -= lot;
-  if (state.firstTap == null) state.firstTap = state.t;
-  const ev = { kind: 'buy', t: state.t, i, price: p, lot };
-  state.log.push(ev);
-  return ev;
-}
-
-function evalSell(state, i, auto) {
-  const x = state.pos[i];
-  if (!x) return null;
-  const c = state.config, e = state.perks;
-  const p = state.px[i][state.t];
-  let proceeds = x.qty * p * (1 - c.saleCut);
-  const gain = proceeds - x.cost;
+// pure: work out one sale without touching state
+function evalSell(s, x, auto) {
+  const i = x.good, c = s.c, v = c.perkVal, p = s.px[i][s.t];
   const loss = p < x.buyPrice;
-  let perkTag = null;
+  const cut = (!loss && s.has('fee')) ? c.saleCut * (1 - v.fee) : c.saleCut;
+  let proceeds = x.qty * p * (1 - cut);
+  const gain = proceeds - x.cost;
+  const refunds = []; let refund = 0, net = 0, scarType = null;
   if (loss) {
-    if (gain < 0) proceeds += -gain * e.refund;
+    const cashLoss = Math.max(0, -gain);
+    const small = i * 2, big = i * 2 + 1;
+    if (cashLoss > 0 && s.lessons.includes(small)) { // fee lesson (fix: never refunds more than the price drop itself)
+      const r = Math.min(x.qty * p * c.saleCut, x.qty * (x.buyPrice - p) * (1 - c.saleCut), cashLoss - refund, s.cover[small]); // admin default: (1-saleCut) keeps sale return non-decreasing in price
+      if (r > 0) { refunds.push({ type: small, amount: r }); refund += r; }
+    }
+    const linePrice = x.buyPrice * (1 - c.stopLine[i]);
+    if (cashLoss > 0 && s.lessons.includes(big) && p < linePrice) { // stop lesson: loss past the line paid back from cover
+      const r = Math.min(x.qty * (linePrice - p) * (1 - c.saleCut), cashLoss - refund, s.cover[big]); // admin default: same monotone fix
+      if (r > 0) { refunds.push({ type: big, amount: r }); refund += r; }
+    }
+    proceeds += refund;
+    net = cashLoss - refund;
+    if (!auto || c.endScar) scarType = i * 2 + ((x.buyPrice - p) / x.buyPrice >= c.lossLine ? 1 : 0);
   } else {
-    const g = Math.max(0, gain);
-    const held = state.t - x.t >= c.holdSec;
-    const extra = g * (e.gain[i] + (held ? e.hold : 0));
-    proceeds += extra;
-    if (extra > 0) {
-      if (held && e.hold > 0) perkTag = 'Tycoon';
-      else if (i === 2 && state.build.includes(4)) perkTag = 'Wild Streak';
-      else if (state.build.includes(0)) perkTag = 'Penny Nick';
+    const g = Math.max(0, gain); let m = 0; // gains only on cash profit after the cut
+    if (g > 0) {
+      if (s.has('scales')) m += v.scales;
+      if (s.has('wild') && i === 2) m += v.wild;
+      if (s.has('spec0') && i === 0) m += v.spec0;
+      if (s.has('spec1') && i === 1) m += v.spec1;
+      if (s.has('tycoon') && s.t - x.t >= c.holdSec) m += v.tycoon;
+      if (s.has('streak')) m += v.streak * Math.min(c.streakMax, s.streak);
+      if (s.has('clean') && !s.lostToday) m += v.clean;
+      proceeds += g * m;
     }
   }
-  let scar = null;
-  if (loss && (!auto || c.endScar)) {
-    const type = i * 2 + ((x.buyPrice - p) / x.buyPrice >= c.lossLine ? 1 : 0);
-    const spare = Math.min(c.stackCap, state.owned[type]) >= c.stackCap;
-    scar = { type, name: SCARS[type].name, spare };
-  }
-  return { x, p, proceeds, pnl: proceeds - x.cost, loss, scar, perkTag };
+  return { loss, won: !loss && gain > 0, proceeds, pnl: proceeds - x.cost, refund, refunds, net, scarType, lotId: x.id };
 }
 
-export function sellPreview(state, i) {
-  const r = evalSell(state, i, false);
-  if (!r) return null;
-  return { pnl: round2(r.pnl), loss: r.loss, scar: r.scar, perkTag: r.perkTag };
+export function sellPreview(s, i, which = 'best') {
+  if (s.over) return null;
+  const x = pick(s, i, which);
+  if (!x) return null;
+  const r = evalSell(s, x, false);
+  return { pnl: round2(r.pnl), loss: r.loss, refund: round2(r.refund), scarType: r.scarType, lotId: r.lotId };
 }
 
-function doSell(state, i, auto) {
-  const r = evalSell(state, i, auto);
-  if (!r) return null;
-  state.cash += r.proceeds;
-  state.pos[i] = null;
-  state.trades++;
-  if (state.firstTap == null && !auto) state.firstTap = state.t;
+function doSell(s, x, auto) {
+  if (!x) return null;
+  const r = evalSell(s, x, auto);
+  for (const f of r.refunds) { s.cover[f.type] -= f.amount; s.events.push({ k: 'paid', type: f.type, amount: round2(f.amount) }); }
+  s.paid += r.refund;
+  s.cash += r.proceeds;
+  s.lots.splice(s.lots.indexOf(x), 1);
+  s.trades++;
   if (r.loss) {
-    state.losing++;
-    if (!auto && state.runSec - state.t >= 10) state.deliberate++;
+    s.lossCash += r.net;
+    s.losing++; s.streak = 0; s.lostToday = true;
+    if (!auto && s.t - x.t < s.c.dumpSec) s.deliberate++;
+    if (r.scarType != null) {
+      s.earned[r.scarType] += s.c.lessonRate * r.net;
+      s.drops.push({ type: r.scarType, net: r.net, t: s.t });
+      s.events.push({ k: 'drop', type: r.scarType, net: round2(r.net) });
+    }
+  } else if (r.won) {
+    s.streak++;
   }
-  const ev = { kind: 'sell', t: state.t, i, price: r.p, pnl: round2(r.pnl), loss: r.loss, scar: r.scar, perkTag: r.perkTag };
-  if (auto) ev.auto = true;
-  if (r.scar) {
-    if (!r.scar.spare) state.owned[r.scar.type]++;
-    state.drops.push({ type: r.scar.type, spare: r.scar.spare, t: state.t, i, pnl: round2(r.pnl) });
-  }
-  state.log.push(ev);
-  return ev;
+  s.events.push({ k: 'sell', i: x.good, pnl: round2(r.pnl), loss: r.loss });
+  return { loss: r.loss, pnl: round2(r.pnl), refund: round2(r.refund), scarType: r.scarType, lotId: x.id };
 }
 
-export function sell(state, i) {
-  if (state.over) return null;
-  return doSell(state, i, false);
+export function sell(s, i, which = 'best') {
+  if (s.over) return null;
+  return doSell(s, pick(s, i, which), false);
 }
 
-export function tick(state) {
-  if (state.over) return [];
-  state.t++;
-  const evs = [{ kind: 'tick', t: state.t }];
-  if (state.t >= state.runSec) {
-    for (let i = 0; i < 3; i++) { const ev = doSell(state, i, true); if (ev) evs.push(ev); }
-    state.over = true;
-    const end = { kind: 'end', t: state.t };
-    state.log.push(end);
-    evs.push(end);
+export function tick(s) {
+  if (s.over) return false;
+  s.t++;
+  if (s.t >= s.c.runSec) {
+    s.events.push({ k: 'bell' });
+    for (let i = 0; i < 3; i++) while (lotsOf(s, i).length) doSell(s, pick(s, i, 'best'), true);
+    s.over = true;
   }
-  return evs;
+  return s.over;
 }
 
-export function endRun(profile, state) {
-  if (state.summary) return state.summary;
-  const c = state.config;
-  const types = [], build = state.build.slice();
-  let spares = 0;
-  for (const d of state.drops) {
-    if (d.spare) spares++;
-    else { types.push(d.type); profile.collection[d.type] = Math.min(c.stackCap, profile.collection[d.type] + 1); }
+export function endDay(profile, s) {
+  if (s.summary) return s.summary;
+  const c = s.c;
+  const ownedBefore = profile.owned.slice();
+  const grew = [], newScars = [];
+  let granted = 0;
+  for (let ty = 0; ty < 6; ty++) {
+    if (s.earned[ty] > 0) {
+      if (ownedBefore[ty] === 1) grew.push({ type: ty, add: round2(s.earned[ty]) });
+      profile.cover[ty] += s.earned[ty]; profile.owned[ty] = 1; granted += s.earned[ty];
+    }
   }
-  profile.sparesNext = Math.min(c.spareCap, spares) * c.spareCash;
+  for (const d of s.drops) {
+    if (ownedBefore[d.type] !== 1 && !newScars.includes(d.type)) newScars.push(d.type);
+    profile.owned[d.type] = 1;
+  }
+  profile.ledger.lossCash += s.lossCash; profile.ledger.coverGranted += granted; profile.ledger.paid += s.paid;
+  const startCash = s.startCash, endCash = s.cash;
+  profile.cash = endCash; // no floor, never adds cash
+  profile.day++;
+  const unlocked = [];
+  for (let k = 2; k <= 4; k++) if (endCash >= c.tierUnlock[k - 1] && profile.maxTier < k) { profile.maxTier = k; unlocked.push(k); }
   const summary = {
-    n: profile.runs.length + 1, seed: state.seed, startCash: round2(state.startCash), endCash: round2(state.cash),
-    trades: state.trades, losing: state.losing, deliberate: state.deliberate, scars: types, spares,
-    build, firstTap: state.firstTap, cut: c.saleCut
+    day: s.day, stall: s.stall, seed: s.seed, goods: s.goods.map((g) => g.name), startCash: round2(startCash), endCash: round2(endCash),
+    profit: round2(endCash - startCash), rate: startCash > 0 ? (endCash - startCash) / startCash : 0, trades: s.trades, losing: s.losing, deliberate: s.deliberate,
+    paid: round2(s.paid), drops: s.drops.map((d) => ({ type: d.type, net: round2(d.net) })), grew, newScars, unlocked, bust: endCash < c.bustCash,
+    perks: s.perkKeys.slice(), lessons: s.lessons.slice(), coverAfter: profile.cover.map(round2)
   };
-  profile.runs.push(summary);
-  state.summary = summary;
-  state.ended = true;
-  validateBuild(profile, c);
+  profile.days.push(summary);
+  s.summary = summary;
   return summary;
 }
 
-export function protoCheck(profile) {
-  const runs = profile.runs;
-  const run1 = runs.length ? runs[0].endCash : null;
-  const deliberateLosses = runs.reduce((a, r) => a + r.deliberate, 0);
-  if (runs.length < 5) return { run1, medianR3to5: null, ratio: null, pass: null, deliberateLosses };
-  const m = runs.slice(2, 5).map((r) => r.endCash).sort((a, b) => a - b)[1];
-  const ratio = m / run1;
-  return { run1, medianR3to5: m, ratio, pass: ratio >= 1.3, deliberateLosses };
-}
-
-export function report(profile, config) {
-  const c = mkConfig(config);
-  const lines = [`Bad Trade Bazaar ${BUILD} report`];
-  const diffs = Object.keys(DEFAULTS).filter((k) => JSON.stringify(c[k]) !== JSON.stringify(DEFAULTS[k]));
-  lines.push(diffs.length ? 'config: ' + diffs.map((k) => `${k}=${JSON.stringify(c[k])}`).join(' ') : 'config: default');
-  const nm = (t) => (t == null ? '-' : SCARS[t].name);
-  for (const r of profile.runs) {
-    lines.push(`run ${r.n} seed ${r.seed} start ${r.startCash} end ${r.endCash} trades ${r.trades} losing ${r.losing} (deliberate ${r.deliberate}) scars [${r.scars.map(nm).join(', ')}] spares ${r.spares} build [${r.build.map(nm).join(', ')}] firstTap ${r.firstTap == null ? '-' : r.firstTap + 's'}`);
-  }
-  const p = protoCheck(profile);
-  const verdict = p.pass == null ? 'needs 5 runs' : p.pass ? 'PASS' : 'FAIL';
-  lines.push(`PROTO end cash run1 ${p.run1 == null ? '-' : p.run1}, median r3-5 ${p.medianR3to5 == null ? '-' : p.medianR3to5}, ratio ${p.ratio == null ? '-' : Math.round(p.ratio * 100) + '%'} -> ${verdict}; deliberate losses total ${p.deliberateLosses}`);
-  return lines.join('\n');
+export function newStall(profile, c) {
+  profile.cash = null;
+  profile.stall++;
+  profile.maxTier = 1;
+  profile.picks = [0, 1, 2];
+  profile.perksOwned = []; profile.perks = [];
+  for (let k = 0; k < profile.cover.length; k++) profile.cover[k] = 0; // in place: keeps live refs
+  return profile;
 }

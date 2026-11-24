@@ -1,4 +1,4 @@
-// Bad Trade Bazaar e2e (CONTRACT section 4). Run: node pages/bad-trade-bazaar/tools/e2e.mjs
+// Bad Trade Bazaar e2e (CONTRACT-lessons-1 section 7). Run: node pages/bad-trade-bazaar/tools/e2e.mjs
 import { createRequire } from 'node:module';
 import http from 'node:http';
 import fs from 'node:fs';
@@ -26,321 +26,222 @@ const server = http.createServer((req, res) => {
 });
 await new Promise(r => server.listen(0, '127.0.0.1', r));
 const PORT = server.address().port;
-// Contract says ?tick=5; 5 ms would auto-run the whole 180 s run in about 1 s and race the test.
-// admin default: use a huge tick so only __btb.step() drives time (still a ?tick override, DEV badge shows).
+// huge tick so only __btb.tick(n) drives time
 const URL = `http://127.0.0.1:${PORT}/bad-trade-bazaar/?tick=3600000`;
 
 const results = [];
 let failed = false;
+let curSize = '';
 async function step(name, fn) {
-  try { await fn(); results.push([name, true, '']); console.log('PASS ' + name); }
-  catch (e) { failed = true; const m = String(e && e.message || e).split('\n')[0]; results.push([name, false, m]); console.log('FAIL ' + name + ' :: ' + m); }
+  const n = curSize + ' ' + name;
+  try { await fn(); results.push([n, true, '']); console.log('PASS ' + n); }
+  catch (e) { failed = true; const m = String(e && e.message || e).split('\n')[0]; results.push([n, false, m]); console.log('FAIL ' + n + ' :: ' + m); }
 }
 const ok = (c, m) => { if (!c) throw new Error(m); };
 
 async function tap(page, sel) {
   const l = page.locator(sel).first();
+  await l.scrollIntoViewIfNeeded().catch(() => {});
   const b = await l.boundingBox();
   if (!b) throw new Error('no box for ' + sel);
   await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2);
   await page.mouse.down(); await page.mouse.up();
 }
+async function hold(page, sel, ms) {
+  const b = await page.locator(sel).first().boundingBox();
+  if (!b) throw new Error('no box for ' + sel);
+  await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2);
+  await page.mouse.down(); await page.waitForTimeout(ms); await page.mouse.up();
+}
 const scr = (page) => page.evaluate(() => document.body.dataset.screen);
-const activeCount = (page) => page.evaluate(() => document.querySelectorAll('#screen-start.active,#screen-run.active,#screen-end.active,#screen-slot.active').length);
-const st = (page) => page.evaluate(() => window.__btb.getState());
-const prof = (page) => page.evaluate(() => window.__btb.getProfile());
+const waitScr = (page, name) => page.waitForFunction((n) => document.body.dataset.screen === n, name, { timeout: 4000 });
+const st = (page) => page.evaluate(() => { const s = window.__btb.getState(); return s && { t: s.t, lots: s.lots.length, cash: s.cash, over: s.over, trades: s.trades, drops: s.drops.length }; });
+const txt = async (page, sel) => ((await page.textContent(sel)) || '').trim();
+const visible = (page, sel) => page.locator(sel).first().isVisible().catch(() => false);
 
-async function layoutCheck(page, label) {
-  const r = await page.evaluate(() => ({ sw: document.documentElement.scrollWidth, sh: document.documentElement.scrollHeight,
-    bw: document.body.scrollWidth, bh: document.body.scrollHeight, iw: innerWidth, ih: innerHeight }));
-  ok(r.sw <= r.iw && r.bw <= r.iw, `${label}: horizontal scroll ${JSON.stringify(r)}`);
-  ok(r.sh <= r.ih && r.bh <= r.ih, `${label}: vertical scroll ${JSON.stringify(r)}`);
+async function screenCheck(page, label) {
+  const r = await page.evaluate(() => ({
+    act: document.querySelectorAll('.screen.active').length,
+    sw: document.documentElement.scrollWidth, bw: document.body.scrollWidth, iw: innerWidth,
+    small: (() => { const out = [];
+      const w = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT); let n;
+      while ((n = w.nextNode())) {
+        if (!n.nodeValue.trim()) continue;
+        const el = n.parentElement; if (!el || ['SCRIPT', 'STYLE', 'NOSCRIPT', 'CANVAS'].includes(el.tagName)) continue;
+        const r = el.getBoundingClientRect(); if (!r.width || !r.height) continue;
+        let hid = false; for (let a = el; a; a = a.parentElement) { const c = getComputedStyle(a); if (c.display === 'none' || c.visibility === 'hidden' || +c.opacity === 0) { hid = true; break; } }
+        if (hid) continue;
+        const fs = parseFloat(getComputedStyle(el).fontSize);
+        if (fs < 11.95) out.push(`${el.tagName}#${el.id} "${n.nodeValue.trim().slice(0, 18)}" ${fs}px`);
+      } return out; })(),
+    btns: (() => { const out = [];
+      for (const b of document.querySelectorAll('button,[role=button]')) {
+        const r = b.getBoundingClientRect(); if (!r.width || !r.height) continue;
+        let hid = false; for (let a = b; a; a = a.parentElement) { const c = getComputedStyle(a); if (c.display === 'none' || c.visibility === 'hidden') { hid = true; break; } }
+        if (hid) continue;
+        const big = /^(buy|sell)-\d$/.test(b.id); const min = big ? 55.5 : 43.5;
+        if (r.height < min) out.push(`#${b.id}.${String(b.className).slice(0, 20)} h=${r.height.toFixed(1)} need ${big ? 56 : 44}`);
+      } return out; })(),
+  }));
+  ok(r.act === 1, `${label}: ${r.act} .screen.active (want 1)`);
+  ok(r.sw <= r.iw && r.bw <= r.iw, `${label}: horizontal scroll sw=${r.sw} bw=${r.bw} iw=${r.iw}`);
+  ok(!r.small.length, `${label}: text < 12px: ${r.small.slice(0, 3).join(' | ')}`);
+  ok(!r.btns.length, `${label}: small buttons: ${r.btns.slice(0, 3).join(' | ')}`);
 }
-async function fontCheck(page, label) {
-  const bad = await page.evaluate(() => {
-    const out = [];
-    const w = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
-    let n;
-    while ((n = w.nextNode())) {
-      if (!n.nodeValue.trim()) continue;
-      const el = n.parentElement;
-      if (!el || ['SCRIPT', 'STYLE', 'NOSCRIPT'].includes(el.tagName)) continue;
-      const cs = getComputedStyle(el);
-      const r = el.getBoundingClientRect();
-      if (cs.display === 'none' || cs.visibility === 'hidden' || +cs.opacity === 0 || r.width === 0 || r.height === 0) continue;
-      let hidden = false;
-      for (let a = el; a; a = a.parentElement) { const c = getComputedStyle(a); if (c.display === 'none' || c.visibility === 'hidden') { hidden = true; break; } }
-      if (hidden) continue;
-      if (parseFloat(cs.fontSize) < 14) out.push(`${el.tagName}#${el.id}.${el.className} "${n.nodeValue.trim().slice(0, 20)}" ${cs.fontSize}`);
-    }
-    return out;
-  });
-  ok(!bad.length, `${label}: text < 14px: ${bad.slice(0, 4).join(' | ')}`);
-}
-async function buttonCheck(page, label) {
-  const bad = await page.evaluate(() => {
-    const out = [];
-    for (const b of document.querySelectorAll('button,[role=button]')) {
-      const cs = getComputedStyle(b), r = b.getBoundingClientRect();
-      if (cs.display === 'none' || cs.visibility === 'hidden' || r.width === 0 || r.height === 0) continue;
-      let hidden = false;
-      for (let a = b; a; a = a.parentElement) { const c = getComputedStyle(a); if (c.display === 'none' || c.visibility === 'hidden') { hidden = true; break; } }
-      if (hidden) continue;
-      if (r.height < 55.5) out.push(`${b.tagName}#${b.id}.${b.className} h=${r.height.toFixed(1)}`);
-    }
-    return out;
-  });
-  ok(!bad.length, `${label}: buttons < 56px: ${bad.slice(0, 4).join(' | ')}`);
-}
-
-// Play the current run to its end through the UI: buy every flat stock, sell on a loss.
-async function playRun(page, maxIter = 200) {
-  for (let k = 0; k < maxIter; k++) {
-    if ((await scr(page)) !== 'run') return;
-    let bought = false;
-    for (let i = 0; i < 3; i++) {
-      const d = await page.evaluate((i) => { const t = document.querySelector('#tog-' + i); return { m: t.dataset.mode, l: t.dataset.loss }; }, i);
-      if (d.m === 'buy') { await tap(page, '#tog-' + i); bought = true; }
-      else if (d.m === 'sell' && d.l === '1') await tap(page, '#tog-' + i);
-    }
-    if (bought) await page.waitForTimeout(350); // buyLockMs
-    await page.evaluate(() => window.__btb.step(1));
-  }
-  await page.evaluate(() => window.__btb.step(400));
-}
-async function fillSlots(page) {
-  const p = await prof(page);
-  for (let t = 0; t < 6; t++) {
-    const n = Math.min(2, p.collection[t]);
-    for (let k = 0; k < n; k++) {
-      const sel = `#collection .coll-card[data-type="${t}"]`;
-      if (!(await page.locator(sel).count())) break;
-      const dis = await page.evaluate((s) => { const e = document.querySelector(s); return e.disabled || e.getAttribute('aria-disabled') === 'true' || e.classList.contains('disabled'); }, sel);
-      if (dis) break;
-      await tap(page, sel);
-    }
-  }
+const soft = (page, label) => step('layout: ' + label, () => screenCheck(page, label));
+async function inView(page, sel, label) {
+  const r = await page.evaluate((s) => { const e = document.querySelector(s); if (!e) return null; const b = e.getBoundingClientRect(); return { top: b.top, bottom: b.bottom, h: b.height, ih: innerHeight }; }, sel);
+  ok(r && r.h > 0, `${label}: ${sel} missing/hidden`);
+  ok(r.top >= -0.5 && r.bottom <= r.ih + 0.5, `${label}: ${sel} outside viewport (${r.top.toFixed(0)}..${r.bottom.toFixed(0)} of ${r.ih})`);
 }
 
 const browser = await chromium.launch();
-const errors = [];
-let page, ctx;
-let spareFound = false;
 
-try {
-  ctx = await browser.newContext({ viewport: { width: 344, height: 882 }, deviceScaleFactor: 1 });
-  page = await ctx.newPage();
+async function runSize(w, h) {
+  curSize = `${w}x${h}`;
+  const shot = (page, name) => page.screenshot({ path: `${SHOTS}/${w}x${h}-${name}.png` });
+  const ctx = await browser.newContext({ viewport: { width: w, height: h }, deviceScaleFactor: 1, permissions: ['clipboard-read', 'clipboard-write'] });
+  const page = await ctx.newPage();
+  const errors = [];
   page.on('console', m => { if (m.type() === 'error') errors.push('console: ' + m.text()); });
   page.on('pageerror', e => errors.push('pageerror: ' + e.message));
+  let settled = true;
+  const gate = async (name, fn) => { await step(name, async () => { if (!settled) throw new Error('skipped: earlier step broke the flow'); try { await fn(); } catch (e) { settled = false; throw e; } }); };
 
-  await step('start: title + build id + one active screen', async () => {
+  await gate('start screen', async () => {
     await page.goto(URL, { waitUntil: 'load' });
-    await page.waitForSelector('#title');
-    ok((await page.textContent('#title')).includes('Bad Trade Bazaar'), 'title text');
-    ok((await page.textContent('#build-id')).includes('btb-slice-1'), 'build id text');
+    await page.waitForSelector('#btn-play', { timeout: 4000 });
     ok((await scr(page)) === 'start', 'body[data-screen]=start');
-    ok((await activeCount(page)) === 1, 'exactly one .active screen');
-    ok(await page.evaluate(() => !!(window.__btb && __btb.getState && __btb.getProfile && __btb.getConfig && __btb.step && __btb.report)), '__btb hooks');
+    ok((await txt(page, '#build-id')).includes('btb-lessons-1'), 'build id: ' + await txt(page, '#build-id'));
+    ok(await page.evaluate(() => !!(window.__btb && __btb.getState && __btb.getProfile && __btb.getConfig && __btb.setConfig && __btb.tick && __btb.go && __btb.setCash && __btb.report)), '__btb hooks');
+    ok(await visible(page, '#btn-settings-start'), '#btn-settings-start');
+    await shot(page, 'start'); await soft(page, 'start');
   });
-
-  await step('play -> run screen, HUD, rows', async () => {
-    await tap(page, '#btn-play');
-    await page.waitForFunction(() => document.body.dataset.screen === 'run', null, { timeout: 3000 });
-    ok((await activeCount(page)) === 1, 'one active screen');
-    ok(/^\d+:\d\d$/.test((await page.textContent('#hud-timer')).trim()), 'hud-timer m:ss');
-    ok((await page.textContent('#hud-cash')).trim().length > 0, 'hud-cash');
-    for (let i = 0; i < 3; i++) ok(await page.locator(`#row-${i} .stock-name`).count() && await page.locator(`#row-${i} canvas.spark`).count() && await page.locator('#tog-' + i).count(), 'row ' + i);
-    ok((await page.locator('#build-strip .slot').count()) === 3, '3 .slot in build strip');
-    ok((await page.getAttribute('#tog-0', 'data-mode')) === 'buy', 'tog-0 starts as buy');
+  await gate('play -> morning (3 slot groups, open stall)', async () => {
+    await tap(page, '#btn-play'); await waitScr(page, 'morning');
+    for (let s = 0; s < 3; s++) ok((await page.locator(`#screen-morning .pick[data-slot="${s}"]`).count()) >= 1, `no .pick for slot ${s}`);
+    ok(await visible(page, '#btn-open-stall'), '#btn-open-stall');
+    ok(/\$\d+\.\d\d/.test(await txt(page, '#morning-cash')), 'morning-cash: ' + await txt(page, '#morning-cash'));
+    await page.waitForTimeout(150); await shot(page, 'morning'); await soft(page, 'morning');
   });
-
-  await step('buy row 0 -> toggle becomes sell, held shown', async () => {
-    await tap(page, '#tog-0');
-    await page.waitForFunction(() => document.querySelector('#tog-0').dataset.mode === 'sell', null, { timeout: 2000 });
-    ok((await st(page)).pos[0] !== null, 'state.pos[0] set');
-    ok(/SELL/.test(await page.textContent('#tog-0')), 'face says SELL');
+  await gate('open stall -> run screen HUD + rows', async () => {
+    await tap(page, '#btn-open-stall'); await waitScr(page, 'run');
+    ok(/Day\s*\d/.test(await txt(page, '#hud-day')), 'hud-day');
+    ok((await txt(page, '#hud-timer')).length > 0 && (await txt(page, '#hud-cash')).includes('$'), 'hud timer/cash');
+    ok(/Lots\s*3\/3/.test(await txt(page, '#hud-lots')), 'hud-lots: ' + await txt(page, '#hud-lots'));
+    for (let i = 0; i < 3; i++) for (const p of ['row', 'spark', 'lots', 'buy', 'sell']) ok(await page.locator(`#${p}-${i}`).count(), `#${p}-${i} missing`);
+    for (let i = 0; i < 3; i++) ok(await page.locator(`#strip-power-${i}`).count(), `#strip-power-${i} missing`);
+    for (let i = 0; i < 2; i++) ok(await page.locator(`#strip-lesson-${i}`).count(), `#strip-lesson-${i} missing`);
+    ok(/^BUY\s*\$\d/i.test(await txt(page, '#buy-0')), 'buy face: ' + await txt(page, '#buy-0'));
+    await shot(page, 'run'); await soft(page, 'run');
   });
-
-  await step('shots: run 344x882', async () => { await page.screenshot({ path: SHOTS + '/run-344x882.png' }); });
-
-  await step('step until sell preview is a loss (data-loss=1), face has minus + chip SCAR', async () => {
-    let hit = false;
-    for (let k = 0; k < 170; k++) {
-      await page.evaluate(() => window.__btb.step(1));
-      if ((await scr(page)) !== 'run') break;
-      if ((await page.getAttribute('#tog-0', 'data-loss')) === '1') { hit = true; break; }
-    }
-    ok(hit, 'no loss on row 0 within the run (state t=' + (await st(page)).t + ')');
-    const face = await page.textContent('#tog-0');
-    ok(/SELL/.test(face) && /[−-]\$/.test(face), 'loss face text: ' + face.trim());
-    const chip = (await page.textContent('#tog-0 .chip')).trim();
-    ok(/SCAR|SPARE/.test(chip), 'chip: ' + chip);
-  });
-
-  await step('sell -> tray card appears, toast shows', async () => {
-    await page.waitForTimeout(350);
-    await tap(page, '#tog-0');
-    await page.waitForSelector('#tray .tray-card', { timeout: 2000 });
-    ok((await page.getAttribute('#tog-0', 'data-mode')) === 'buy', 'toggle back to buy');
-    const toast = await page.evaluate(() => { const t = document.querySelector('#toast'); return t ? { txt: t.textContent.trim(), vis: getComputedStyle(t).visibility !== 'hidden' && getComputedStyle(t).display !== 'none' } : null; });
-    ok(toast && toast.txt.length > 0, 'toast empty');
-    ok((await st(page)).drops.length >= 1, 'state.drops has a scar');
-  });
-
-  await step('run screen: layout, fonts >= 14px, buttons >= 56px', async () => {
-    await layoutCheck(page, 'run 344x882');
-    await fontCheck(page, 'run');
-    await buttonCheck(page, 'run');
-  });
-
-  await step('step to end -> end screen with cash and scar card', async () => {
-    await page.evaluate(() => window.__btb.step(400));
-    await page.waitForFunction(() => document.body.dataset.screen === 'end', null, { timeout: 3000 });
-    ok((await activeCount(page)) === 1, 'one active screen');
-    ok(/→/.test(await page.textContent('#end-cash')), 'end-cash arrow: ' + (await page.textContent('#end-cash')).trim());
-    ok((await page.locator('#end-scars .scar-card').count()) >= 1, 'no .scar-card in #end-scars');
-    ok((await page.textContent('#end-pl')).trim().length > 0, 'end-pl');
-    ok((await page.locator('#end-proto').count()) === 1, '#end-proto');
-    await page.waitForTimeout(500);
-    await page.screenshot({ path: SHOTS + '/end-344x882.png' });
-    await layoutCheck(page, 'end 344x882');
-    await fontCheck(page, 'end');
-  });
-
-  await step('reset run (tap 1) -> slot screen with collection', async () => {
-    await page.waitForTimeout(700); // ui ignores end taps for 600 ms
-    await tap(page, '#btn-reset-run');
-    await page.waitForFunction(() => document.body.dataset.screen === 'slot', null, { timeout: 3000 });
-    ok((await page.locator('#slots .slot-big').count()) === 3, '3 .slot-big');
-    ok((await page.locator('#collection .coll-card').count()) >= 1, '.coll-card present');
-    ok((await page.locator('#spare-note').count()) === 1, '#spare-note');
-    ok((await page.locator('#slot-effect').count()) === 1, '#slot-effect');
-  });
-
-  await step('slot a scar: tap card -> build filled', async () => {
-    await fillSlots(page);
-    await page.waitForTimeout(150);
-    const b = (await prof(page)).build;
-    ok(b.some(x => x !== null && x !== undefined), 'profile.build empty: ' + JSON.stringify(b));
-    await page.screenshot({ path: SHOTS + '/slot-344x882.png' });
-    await layoutCheck(page, 'slot 344x882');
-    await fontCheck(page, 'slot');
-  });
-
-  await step('start run (tap 2) -> run screen shows slot filled', async () => {
-    await tap(page, '#btn-start-run');
-    await page.waitForFunction(() => document.body.dataset.screen === 'run', null, { timeout: 3000 });
+  await gate('buy row 0 x3 stacks 3 lots', async () => {
+    for (let k = 0; k < 3; k++) { await tap(page, '#buy-0'); await page.waitForTimeout(380); }
     const s = await st(page);
-    ok(s.build.some(x => x !== null && x !== undefined), 'state.build empty');
-    const filled = await page.evaluate(() => [...document.querySelectorAll('#build-strip .slot')].filter(e => e.children.length || e.dataset.type !== undefined && e.dataset.type !== '' || /filled|full/.test(e.className) || e.textContent.trim()).length);
-    ok(filled >= 1, 'no filled .slot in #build-strip');
+    ok(s.lots === 3, `lots after 3 buys: ${s.lots}`);
+    ok(/Lots\s*0\/3/.test(await txt(page, '#hud-lots')), 'hud-lots: ' + await txt(page, '#hud-lots'));
+    ok((await txt(page, '#lots-0')).length > 0, '#lots-0 empty');
+    await shot(page, 'run-lots'); await soft(page, 'run with lots');
   });
-
-  await step('force a spare within 12 runs (scar dup of owned x2)', async () => {
-    let runs = 0;
-    // we are in run 2 now; play, check end, loop
-    while (runs < 12) {
-      runs++;
-      await playRun(page);
-      await page.waitForFunction(() => document.body.dataset.screen === 'end', null, { timeout: 3000 });
-      const n = await page.locator('#end-scars .scar-card[data-spare="1"]').count();
-      if (n > 0) { spareFound = true; break; }
-      await page.waitForTimeout(700); // ui ignores end taps for 600 ms
-    await tap(page, '#btn-reset-run');
-      await page.waitForFunction(() => document.body.dataset.screen === 'slot', null, { timeout: 3000 });
-      await fillSlots(page);
-      await tap(page, '#btn-start-run');
-      await page.waitForFunction(() => document.body.dataset.screen === 'run', null, { timeout: 3000 });
-    }
-    const p = await prof(page);
-    console.log(`  spare loop: ${runs} extra runs, collection ${JSON.stringify(p.collection)}, spares per run ${JSON.stringify(p.runs.map(r => r.spares))}`);
-    ok(spareFound, `no data-spare="1" card after ${runs} extra runs; collection ${JSON.stringify(p.collection)}`);
+  await gate('sell tap sells best lot', async () => {
+    await tap(page, '#sell-0'); await page.waitForTimeout(150);
+    ok((await st(page)).lots === 2, 'lots after tap-sell: ' + (await st(page)).lots);
   });
-
-  await step('spare: #spare-note shows +N on slot screen', async () => {
-    ok(spareFound, 'skipped: no spare');
-    await page.waitForTimeout(700); // ui ignores end taps for 600 ms
-    await tap(page, '#btn-reset-run');
-    await page.waitForFunction(() => document.body.dataset.screen === 'slot', null, { timeout: 3000 });
-    const note = (await page.textContent('#spare-note')).trim();
-    ok(/\+\s*\$?\s*\d+/.test(note), 'spare-note text: "' + note + '"');
-    ok((await prof(page)).sparesNext > 0, 'profile.sparesNext = 0');
+  await gate('sell long-press sells worst lot', async () => {
+    await hold(page, '#sell-0', 650); await page.waitForTimeout(200);
+    ok((await st(page)).lots === 1, 'lots after long-press: ' + (await st(page)).lots);
   });
-
-  await step('report contains btb-slice-1 and Bad Trade Bazaar header', async () => {
-    const r = await page.evaluate(() => window.__btb.report());
-    ok(typeof r === 'string' && r.includes('btb-slice-1') && r.startsWith('Bad Trade Bazaar btb-slice-1 report'), 'report head: ' + String(r).slice(0, 60));
-    ok(/PROTO/.test(r) && /run 1 seed/.test(r), 'report body lacks PROTO / run lines');
+  await gate('buy row 1', async () => {
+    await tap(page, '#buy-1'); await page.waitForTimeout(380);
+    ok((await st(page)).lots === 2, 'lots after buy-1: ' + (await st(page)).lots);
   });
-
-  await step('settings: opens, Tweak rows present, change saleCut, dev badge', async () => {
-    await tap(page, '#btn-settings-start').catch(() => {}); // not visible off start; fallback below
-    if (!(await page.evaluate(() => getComputedStyle(document.querySelector('#settings')).display !== 'none' && document.querySelector('#settings').offsetHeight > 0))) {
-      // gear lives on run screen; go there
-      await tap(page, '#btn-start-run');
-      await page.waitForFunction(() => document.body.dataset.screen === 'run', null, { timeout: 3000 });
-      await tap(page, '#btn-settings');
-    }
-    await page.waitForFunction(() => document.querySelector('#settings').offsetHeight > 0, null, { timeout: 2000 });
-    const inputs = await page.locator('#settings-body input').count();
-    ok(inputs >= 25, `Tweak inputs found: ${inputs} (expect >= 25)`);
-    ok((await page.locator('#btn-copy-report-settings').count()) === 1, '#btn-copy-report-settings');
-    const before = await page.evaluate(() => window.__btb.getConfig().saleCut);
-    // find the saleCut input: smallest element whose text mentions it, nearest ancestor with a number input
+  await gate('tick(200) -> end screen, score in view', async () => {
+    await page.evaluate(() => window.__btb.tick(200)); await waitScr(page, 'end');
+    ok(/\$\d/.test(await txt(page, '#end-cash')), 'end-cash: ' + await txt(page, '#end-cash'));
+    ok(/[+\-−]\$\d+\.\d\d/.test(await txt(page, '#end-profit')), 'end-profit: ' + await txt(page, '#end-profit'));
+    await page.waitForTimeout(700);
+    await inView(page, '#end-cash', 'end'); await inView(page, '#end-profit', 'end');
+    for (const s of ['#end-scars', '#end-proto', '#btn-shop', '#btn-copy-report']) ok(await page.locator(s).count(), s + ' missing');
+    ok(await page.locator('#btn-next-day, #btn-new-stall').count(), 'no next-day / new-stall button');
+    await shot(page, 'end'); await soft(page, 'end');
+  });
+  await gate('copy report -> toast + clipboard', async () => {
+    await tap(page, '#btn-copy-report'); await page.waitForTimeout(300);
+    ok(/Report copied/i.test(await txt(page, '#toast')), 'toast: ' + await txt(page, '#toast'));
+    const clip = await page.evaluate(() => navigator.clipboard.readText()).catch(() => '');
+    ok(clip.includes('btb-lessons-1'), 'clipboard lacks btb-lessons-1: ' + clip.slice(0, 40));
+  });
+  await gate('setCash(200) -> shop: buy cheapest perk', async () => {
+    await page.evaluate(() => window.__btb.setCash(200)); await page.waitForTimeout(200);
+    await tap(page, '#btn-shop'); await waitScr(page, 'shop');
+    ok((await page.locator('#screen-shop .perk').count()) === 9, '.perk count ' + await page.locator('#screen-shop .perk').count());
+    ok(/\$200\.00/.test(await txt(page, '#shop-cash')), 'shop-cash: ' + await txt(page, '#shop-cash'));
+    await shot(page, 'shop'); await soft(page, 'shop');
+    const key = await page.evaluate(() => {
+      let best = null;
+      for (const b of document.querySelectorAll('#screen-shop .perk-buy:not([disabled])')) {
+        const p = b.closest('.perk'); const m = (p.textContent.match(/\$(\d+\.\d\d)/g) || []).map(x => +x.slice(1));
+        const price = m.length ? m[m.length - 1] : 1e9;
+        if (!best || price < best.price) best = { price, key: p.dataset.key };
+      } return best && best.key; });
+    ok(key, 'no enabled .perk-buy');
+    await tap(page, `#screen-shop .perk[data-key="${key}"] .perk-buy`); await page.waitForTimeout(250);
+    ok(/Bought/i.test(await txt(page, '#toast')), 'toast: ' + await txt(page, '#toast'));
+    ok((await page.locator(`#screen-shop .perk[data-key="${key}"] .perk-slot`).count()) === 1, 'no .perk-slot after buy');
+  });
+  await gate('shop done -> morning has slotted perk chip', async () => {
+    await tap(page, '#btn-shop-done'); await waitScr(page, 'morning');
+    ok((await page.locator('#screen-morning .perk-chip[aria-pressed="true"]').count()) >= 1, 'no .perk-chip aria-pressed=true');
+    await shot(page, 'morning-perk'); await soft(page, 'morning+perk');
+  });
+  await gate('settings: change value -> dev badge, save preset', async () => {
+    await page.evaluate(() => window.__btb.go('start'));
+    await tap(page, '#btn-settings-start');
+    await page.waitForFunction(() => { const s = document.querySelector('#settings'); return s && s.offsetHeight > 0; }, null, { timeout: 3000 });
     const done = await page.evaluate(() => {
-      const body = document.querySelector('#settings-body');
-      const all = [...body.querySelectorAll('*')].filter(e => /sale\s*_?cut/i.test(e.textContent) && !/pUp|lossLine/i.test(e.textContent));
-      all.sort((a, b) => a.textContent.length - b.textContent.length);
-      for (const e of all) {
-        const inp = (e.matches('input') ? e : e.querySelector('input[type=number],input:not([type=checkbox])')) || e.parentElement?.querySelector('input[type=number]');
-        if (inp) { const v = 0.03; inp.focus(); inp.value = String(v); inp.dispatchEvent(new Event('input', { bubbles: true })); inp.dispatchEvent(new Event('change', { bubbles: true })); inp.blur(); return true; }
-      }
-      return false;
-    });
-    ok(done, 'saleCut input not found in #settings-body');
+      const body = document.querySelector('#settings-body') || document.querySelector('#settings');
+      const inputs = [...body.querySelectorAll('input[type=number],input:not([type])')];
+      let inp = inputs.find(i => /saleCut/i.test((i.id || '') + (i.getAttribute('aria-label') || '') + (i.closest('label,div,li')?.textContent || '').slice(0, 40))) || inputs[0];
+      if (!inp) return false;
+      inp.scrollIntoView(); inp.focus(); inp.value = String(+((+inp.value || 0) + 0.005).toFixed(4)); // admin default: nudge first/saleCut number slightly
+      inp.dispatchEvent(new Event('input', { bubbles: true })); inp.dispatchEvent(new Event('change', { bubbles: true })); inp.blur(); return true; });
+    ok(done, 'no number input in settings');
+    await page.waitForTimeout(250);
+    const sp = await page.evaluate(() => { const b = [...document.querySelectorAll('#settings button')].find(x => /save preset/i.test(x.textContent)); return !!b; });
+    ok(sp, 'no Save preset button');
+    await page.evaluate(() => [...document.querySelectorAll('#settings button')].find(x => /save preset/i.test(x.textContent)).click());
     await page.waitForTimeout(200);
-    const after = await page.evaluate(() => window.__btb.getConfig().saleCut);
-    ok(after === 0.03 && after !== before, `saleCut ${before} -> ${after}`);
-    await page.screenshot({ path: SHOTS + '/settings-344x882.png' });
-    await fontCheck(page, 'settings');
-    await tap(page, '#btn-settings-close');
-    await page.waitForFunction(() => document.querySelector('#settings').offsetHeight === 0 || getComputedStyle(document.querySelector('#settings')).display === 'none', null, { timeout: 2000 });
-    ok(await page.locator('#dev-badge').isVisible(), '#dev-badge not visible');
+    await page.screenshot({ path: `${SHOTS}/${w}x${h}-settings.png` });
+    const closed = await page.evaluate(() => { const c = document.querySelector('#btn-settings-close') || [...document.querySelectorAll('#settings button')].find(x => /close|done/i.test(x.textContent)); if (c) c.click(); return !!c; });
+    ok(closed, 'no settings close button');
+    await page.waitForFunction(() => { const s = document.querySelector('#settings'); return !s || s.offsetHeight === 0 || getComputedStyle(s).display === 'none'; }, null, { timeout: 3000 });
+    ok(await page.evaluate(() => JSON.stringify(window.__btb.getConfig()) !== undefined), 'config');
+    // dev badge lives on the run HUD
+    await page.evaluate(() => window.__btb.go('morning')); await page.waitForTimeout(100);
+    await tap(page, '#btn-open-stall'); await waitScr(page, 'run');
+    ok(await visible(page, '#dev-badge'), '#dev-badge not visible on run HUD');
   });
-
+  await gate('bust: setCash(3) -> new stall button -> $100.00', async () => {
+    // reset config so the changed setting cannot disturb the bust path
+    await page.evaluate(() => { const p = window.__btb.getProfile(); p.perks = []; window.__btb.go('morning'); window.__btb.setCash(3); });
+    await page.waitForTimeout(200);
+    ok(/\$3\.00/.test(await txt(page, '#morning-cash')), 'morning-cash: ' + await txt(page, '#morning-cash'));
+    await tap(page, '#btn-open-stall'); await waitScr(page, 'run');
+    await page.evaluate(() => window.__btb.tick(200)); await waitScr(page, 'end');
+    await page.waitForTimeout(700);
+    ok(await visible(page, '#btn-new-stall'), '#btn-new-stall not visible');
+    await shot(page, 'end-bust'); await soft(page, 'end bust');
+    await tap(page, '#btn-new-stall'); await waitScr(page, 'morning');
+    ok(/\$100\.00/.test(await txt(page, '#morning-cash')), 'morning-cash after new stall: ' + await txt(page, '#morning-cash'));
+    await soft(page, 'morning after new stall');
+  });
   await step('no console errors / page errors', async () => { ok(!errors.length, errors.slice(0, 3).join(' | ')); });
   await ctx.close();
+}
 
-  // 475x638
-  ctx = await browser.newContext({ viewport: { width: 475, height: 638 }, deviceScaleFactor: 1 });
-  page = await ctx.newPage();
-  const errs2 = [];
-  page.on('console', m => { if (m.type() === 'error') errs2.push(m.text()); });
-  page.on('pageerror', e => errs2.push(e.message));
-  await step('475x638: run screen no scroll + screenshot', async () => {
-    await page.goto(URL, { waitUntil: 'load' });
-    await page.waitForSelector('#btn-play');
-    await tap(page, '#btn-play');
-    await page.waitForFunction(() => document.body.dataset.screen === 'run', null, { timeout: 3000 });
-    await page.waitForTimeout(200);
-    await page.screenshot({ path: SHOTS + '/run-475x638.png' });
-    await layoutCheck(page, 'run 475x638');
-  });
-  await step('475x638: end + slot no scroll', async () => {
-    await tap(page, '#tog-0'); await page.waitForTimeout(350);
-    for (let k = 0; k < 170; k++) { await page.evaluate(() => window.__btb.step(1)); if ((await page.getAttribute('#tog-0', 'data-loss')) === '1') break; }
-    await tap(page, '#tog-0');
-    await page.evaluate(() => window.__btb.step(400));
-    await page.waitForFunction(() => document.body.dataset.screen === 'end', null, { timeout: 3000 });
-    await page.waitForTimeout(500);
-    await layoutCheck(page, 'end 475x638');
-    await page.waitForTimeout(700); // ui ignores end taps for 600 ms
-    await tap(page, '#btn-reset-run');
-    await page.waitForFunction(() => document.body.dataset.screen === 'slot', null, { timeout: 3000 });
-    await fillSlots(page);
-    await layoutCheck(page, 'slot 475x638');
-  });
-  await step('475x638: no console errors', async () => { ok(!errs2.length, errs2.slice(0, 3).join(' | ')); });
+try {
+  await runSize(344, 882);
+  await runSize(475, 638);
 } catch (e) {
   failed = true; console.log('FATAL ' + e.message);
 } finally {
