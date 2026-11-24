@@ -1,4 +1,5 @@
-// Bot gate for Bad Trade Bazaar. node tools/bots.mjs [seeds=200] [runs=6] [--selftest]
+// Bot gate for Bad Trade Bazaar. node tools/bots.mjs [seeds=200] [runs=6] [--selftest] [--same] [--g2]
+// --same: sameMarkets on (every run replays run 1 market). --g2: where the fixed run-1 seed sits vs random markets.
 // Ports the 7 bots of sim-spare.js; drives core only through newRun/tick/buy/sell/endRun.
 import * as C from '../core.js';
 const { DEFAULTS, SCARS, newProfile, newRun, tick, buy, sell, sellPreview, canBuy, endRun, setSlot, protoCheck, report, mulberry32, hash } = C;
@@ -27,7 +28,14 @@ function pickBuild(profile) {
   for (let s = b.length; s < SLOTS; s++) setSlot(profile, s, null, DEFAULTS);
 }
 const sk = (i, t, p, mk) => t < 165 && p < P0[i] * 0.93 && t >= 2 && p > mk[i][t - 2];
+const peak = [0, 0, 0];
+// strong: trend rider matched to M's no-scar play (btb-run1-s1: 146, 7 trades, 0 losses; M 149.4, 7, 0). Never sells below buy before the bell.
+const strong = {
+  buy: (i, t, p, mk) => { const ok = t >= 3 && t < 170 && p > mk[i][t - 3] * 1.04 && p > mk[i][t - 1]; if (ok) peak[i] = p; return ok; },
+  sell: (i, t, p, pos) => { peak[i] = Math.max(peak[i], p); return p <= peak[i] * 0.97 && p >= pos.buyPrice; }
+};
 const bots = {
+  strong,
   idle: { buy: () => false, sell: () => false },
   noLoss: { buy: (i, t, p, mk, r) => t < 150 && r() < 0.10, sell: (i, t, p, pos) => p >= pos.buyPrice * 1.03 },
   dump: { buy: (i, t) => t < 170, sell: (i, t, p, pos) => p < pos.buyPrice },
@@ -114,7 +122,7 @@ function selftest() {
   endRun(p3, s4);
   ck(p3.sparesNext === 0, 'spares pay once');
   // 4) report
-  ck(report(p3, DEFAULTS).includes('btb-slice-1') && report(p3, DEFAULTS).startsWith('Bad Trade Bazaar btb-slice-1 report'), 'report text');
+  ck(report(p3, DEFAULTS).includes('btb-tune-1') && report(p3, DEFAULTS).startsWith('Bad Trade Bazaar btb-tune-1 report'), 'report text');
   // 5) run1 seed visible loss chance
   const s5 = newRun(newProfile('x'), DEFAULTS);
   let vis = false;
@@ -124,6 +132,18 @@ function selftest() {
   process.exit(fails ? 1 : 0);
 }
 if (args.includes('--selftest')) selftest();
+if (args.includes('--g2')) {
+  console.log(`G2 fixed run-1 seed ${DEFAULTS.run1Seed} vs ${SEEDS} random markets (run 1, empty build)`);
+  for (const b of ['strong', 'skilled', 'human', 'noLoss']) {
+    const fixed = playRun(newProfile('g2'), DEFAULTS, bots[b], b).endCash;
+    const e = [];
+    for (let n = 0; n < SEEDS; n++) e.push(playRun(newProfile('g' + n), { ...DEFAULTS, run1Seed: `btb-g2-${n}` }, bots[b], b).endCash);
+    const pctl = Math.round(100 * e.filter((x) => x < fixed).length / e.length);
+    console.log(`${b.padEnd(8)} fixed ${fixed} | random p10/p50/p90 ${f3(e)} | fixed seed percentile ${pctl}`);
+  }
+  process.exit(0);
+}
+const SAME = args.includes('--same');
 
 const res = {};
 for (const b in bots) {
@@ -131,7 +151,7 @@ for (const b in bots) {
   for (let k = 0; k < RUNS; k++) { o.end.push([]); o.sp.push([]); }
   for (let n = 0; n < SEEDS; n++) {
     const profile = newProfile(String(n));
-    const cfg = { ...DEFAULTS, run1Seed: `btb-${n}-r1` };
+    const cfg = { ...DEFAULTS, run1Seed: `btb-${n}-r1`, sameMarkets: SAME };
     for (let k = 0; k < RUNS; k++) {
       const sum = playRun(profile, cfg, bots[b], b);
       o.end[k].push(sum.endCash); o.sp[k].push(sum.spares);
@@ -139,7 +159,7 @@ for (const b in bots) {
     o.proto.push(protoCheck(profile));
   }
 }
-console.log(`seeds=${SEEDS} runs=${RUNS} END cash p10/p50/p90`);
+console.log(`seeds=${SEEDS} runs=${RUNS} markets=${SAME ? 'same' : 'fresh'} END cash p10/p50/p90`);
 console.log('bot'.padEnd(13) + '| run1 | run3 | run6 | spares/run mean');
 const avg = (a) => a.reduce((x, y) => x + y, 0) / a.length;
 for (const b in bots) {

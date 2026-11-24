@@ -1,6 +1,6 @@
 // Bad Trade Bazaar core: pure game rules. No DOM, no clock, no Math.random. Runs in Node and browser.
 // Reproduces work/sim/sim-spare.js mode A, cap 10.
-export const BUILD = 'btb-slice-1';
+export const BUILD = 'btb-tune-1';
 
 export const DEFAULTS = {
   runSec: 180, tickMs: 1000, startCash: 100, slots: 3, stackCap: 2,
@@ -9,7 +9,8 @@ export const DEFAULTS = {
   saleCut: 0.015, lossLine: 0.04, holdSec: 15, endScar: true,
   spareCash: 1, spareCap: 10, buyLockMs: 300,
   perk: [0.30, 8, 0.02, 0.30, 1.0, 0.8],
-  run1Seed: 'btb-run1-s1' // admin default: searched so a 2% dip within 25 s of an early buy exists in run 1
+  run1Seed: 'btb-run1-s1', // admin default: searched so a 2% dip within 25 s of an early buy exists in run 1
+  sameMarkets: false // fair test mode: every run replays run 1's markets
 };
 
 export const STOCKS = ['Calm', 'Middle', 'Wild'];
@@ -67,7 +68,7 @@ export function newProfile(salt) {
 
 export function runSeed(profile, config) {
   const c = mkConfig(config);
-  if (profile.runs.length === 0) return c.run1Seed;
+  if (c.sameMarkets || profile.runs.length === 0) return c.run1Seed;
   return `btb-${profile.salt}-r${profile.runs.length + 1}`;
 }
 
@@ -177,6 +178,12 @@ function evalSell(state, i, auto) {
   const gain = proceeds - x.cost;
   const loss = p < x.buyPrice;
   let perkTag = null;
+  let scar = null;
+  if (loss && (!auto || c.endScar)) {
+    const type = i * 2 + ((x.buyPrice - p) / x.buyPrice >= c.lossLine ? 1 : 0);
+    const spare = Math.min(c.stackCap, state.owned[type]) >= c.stackCap;
+    scar = { type, name: SCARS[type].name, spare };
+  }
   if (loss) {
     if (gain < 0) proceeds += -gain * e.refund;
   } else {
@@ -189,12 +196,6 @@ function evalSell(state, i, auto) {
       else if (i === 2 && state.build.includes(4)) perkTag = 'Wild Streak';
       else if (state.build.includes(0)) perkTag = 'Penny Nick';
     }
-  }
-  let scar = null;
-  if (loss && (!auto || c.endScar)) {
-    const type = i * 2 + ((x.buyPrice - p) / x.buyPrice >= c.lossLine ? 1 : 0);
-    const spare = Math.min(c.stackCap, state.owned[type]) >= c.stackCap;
-    scar = { type, name: SCARS[type].name, spare };
   }
   return { x, p, proceeds, pnl: proceeds - x.cost, loss, scar, perkTag };
 }
@@ -282,6 +283,7 @@ export function report(profile, config) {
   const lines = [`Bad Trade Bazaar ${BUILD} report`];
   const diffs = Object.keys(DEFAULTS).filter((k) => JSON.stringify(c[k]) !== JSON.stringify(DEFAULTS[k]));
   lines.push(diffs.length ? 'config: ' + diffs.map((k) => `${k}=${JSON.stringify(c[k])}`).join(' ') : 'config: default');
+  lines.push(c.sameMarkets ? 'markets: same (run 1 seed every run)' : 'markets: fresh (run 1 fixed, runs 2+ random)');
   const nm = (t) => (t == null ? '-' : SCARS[t].name);
   for (const r of profile.runs) {
     lines.push(`run ${r.n} seed ${r.seed} start ${r.startCash} end ${r.endCash} trades ${r.trades} losing ${r.losing} (deliberate ${r.deliberate}) scars [${r.scars.map(nm).join(', ')}] spares ${r.spares} build [${r.build.map(nm).join(', ')}] firstTap ${r.firstTap == null ? '-' : r.firstTap + 's'}`);
