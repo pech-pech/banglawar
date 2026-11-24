@@ -139,7 +139,7 @@ async function run(browser, base, size) {
 
   await page.goto(base + 'index.html');
   await page.waitForFunction(() => document.body.dataset.screen === 'desk', null, { timeout: 15000 });
-  ok((await page.locator('body').innerText()).includes('cs-proto-1'), `${tag} build id not visible on desk`);
+  ok((await page.locator('body').innerText()).includes('cs-proto-2'), `${tag} build id not visible on desk`);
   ok((await page.locator('body').innerText()).includes('Chart School'), `${tag} "Chart School" not visible`);
   await look(page, tag, 'desk');
 
@@ -244,7 +244,7 @@ async function run(browser, base, size) {
   ok(await page.evaluate((c) => T.chartCols === c, cc), `${tag} loaded preset did not restore chartCols ${cc}`);
   const rep = await page.evaluate(() => { try { return reportText(); } catch (e) { return 'ERR ' + e.message; } });
   let repOk = false;
-  try { const j = JSON.parse(rep); repOk = j.build === 'cs-proto-1' && !!j.record; } catch (e) { /* not JSON */ }
+  try { const j = JSON.parse(rep); repOk = j.build === 'cs-proto-2' && !!j.record; } catch (e) { /* not JSON */ }
   ok(repOk, `${tag} reportText not JSON with build + record: ${String(rep).slice(0, 80)}`);
   ok(await page.locator('#modalBody').evaluate(b => [...b.querySelectorAll('button, [data-act]')].some(x => /copy report/i.test(x.textContent))), `${tag} no Copy report in tweak menu`);
   await look(page, tag, 'tweaks-preset');

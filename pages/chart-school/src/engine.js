@@ -1,6 +1,6 @@
 "use strict";
 // Chart School engine (global CSE; module.exports in node). Single source of the charting conventions C1-C7.
-// Ported from gen-items.js (floor/ceil, first column, R2/R2b, R5-R7 identical); R3 is 3-way, R4 follows C6.
+// Ported from gen-items.js (floor/ceil, first column, R2/R2b, R5-R7 identical); R3 is 3-way (Dorsey BSL/BRL), R4 follows C6.
 var CSE=(function(){
 var LB=Math.log(1.02),REV=3;
 function boxOf(p){return Math.floor(Math.log(p)/LB+1e-9)}
@@ -10,7 +10,7 @@ function disp(p){var v=p*100;return v>=100?String(Math.round(v)):v.toFixed(1)}
 var dp=function(b){return disp(priceOf(b))};
 var OPTIONS={
  R1:["Double top buy","Triple top buy","Double bottom sell","Triple bottom sell","No signal"],
- R3:["Above by 3+ boxes","Within 2 boxes above","On or below"],
+ R3:["Uptrend, 3+ boxes above support","Uptrend, near support","Downtrend, below resistance"],
  R5:["Above 70","50 to 70","30 to 50","Below 30"],
  R6:["Positive rising","Positive falling","Negative rising","Negative falling"],
  R7:["Bearish","Bullish","None"]};
@@ -43,6 +43,33 @@ function rsi(c,n){n=n||14;var o=[50],ag=0,al=0;for(var i=1;i<c.length;i++){var d
  if(i<=n){ag+=g/n;al+=l/n}else{ag=(ag*(n-1)+g)/n;al=(al*(n-1)+l)/n}o.push(al===0?100:100-100/(1+ag/al))}return o}
 function macd(c){var f=ema(c,12),s=ema(c,26),m=f.map(function(x,i){return x-s[i]}),sg=ema(m,9);return{macd:m,signal:sg,hist:m.map(function(x,i){return x-sg[i]})}}
 
+// C5: Dorsey Bullish Support Line / Bearish Resistance Line, 1 box per column, flipping when broken. Causal over the shipped columns.
+function trend(eng){
+ var cols=eng.cols,J=cols.length-1,j,a=-1,b=-1;
+ if(J<0)return{segs:[],active:null};
+ for(j=0;j<=J;j++){var c=cols[j];
+  if(c.d===-1&&(a<0||c.lo<cols[a].lo))a=j;
+  if(c.d===1&&(b<0||c.hi>cols[b].hi))b=j}
+ var segs=[],cur;
+ if(a>=0&&(b<0||a<b))cur={kind:"BSL",col0:a,box0:cols[a].lo-1};
+ else cur={kind:"BRL",col0:b,box0:cols[b].hi+1};
+ for(;;){
+  var brk=-1;
+  for(j=cur.col0+1;j<=J;j++){var q=cols[j];
+   if(cur.kind==="BSL"){if(q.d===-1&&q.lo<=cur.box0+(j-cur.col0)){brk=j;break}}
+   else if(q.d===1&&q.hi>=cur.box0-(j-cur.col0)){brk=j;break}}
+  if(brk<0){segs.push({kind:cur.kind,col0:cur.col0,box0:cur.box0,col1:J});break}
+  segs.push({kind:cur.kind,col0:cur.col0,box0:cur.box0,col1:brk});
+  var best=-1;
+  for(j=cur.col0;j<=brk;j++){var w=cols[j];
+   if(cur.kind==="BSL"){if(w.d===1&&(best<0||w.hi>=cols[best].hi))best=j}
+   else if(w.d===-1&&(best<0||w.lo<=cols[best].lo))best=j}
+  cur=cur.kind==="BSL"?{kind:"BRL",col0:best,box0:cols[best].hi+1}:{kind:"BSL",col0:best,box0:cols[best].lo-1};
+ }
+ var l=segs[segs.length-1];
+ return{segs:segs,active:{kind:l.kind,col0:l.col0,box0:l.box0}};
+}
+
 function readAll(bars){
  var out={R1:null,R2:null,R2b:null,R3:null,R4:null,R5:null,R6:null,R7:null,disc:{}};
  var n=bars.length,E=pnf(bars),cols=E.cols,J=cols.length-1,cl=bars.map(function(b){return b.c});
@@ -56,12 +83,9 @@ function readAll(bars){
  for(j=J-1;j>=0&&(oi<0||xi<0);j--){if(cols[j].d===-1&&oi<0)oi=j;if(cols[j].d===1&&xi<0)xi=j}
  if(oi>=0)out.R2={answer:cols[oi].lo,col:oi};else out.disc.R2="no completed O column";
  if(xi>=0)out.R2b={answer:cols[xi].hi,col:xi};else out.disc.R2b="no completed X column";
- // R3: Bullish Support Line, 3-way
- var base=Math.max(0,cols.length-30),best=null,bj=-1;
- for(j=base;j<cols.length;j++){if(cols[j].d===-1&&(best===null||cols[j].lo<best)){best=cols[j].lo;bj=j}}
- if(bj<0)out.disc.R3="no O column in last 30";
- else{var line=best-1+(J-bj),d=bc-line;
-  out.R3={answer:d>=3?OPTIONS.R3[0]:d>=1?OPTIONS.R3[1]:OPTIONS.R3[2],anchorCol:bj,anchorLo:best,lineAtCur:line,closeBox:bc,d:d}}
+ // R3: Dorsey trend line (BSL / BRL), 3-way
+ var T=trend(E),act=T.active,line=act.kind==="BSL"?act.box0+(J-act.col0):act.box0-(J-act.col0),d=bc-line;
+ out.R3={answer:act.kind==="BRL"?OPTIONS.R3[2]:d>=3?OPTIONS.R3[0]:OPTIONS.R3[1],kind:act.kind,lineAtCur:line,closeBox:bc,d:d,segs:T.segs};
  // R4 (C6): count the buy SIGNAL column
  if(sig.indexOf("buy")>=0){
   if(sj<=1)out.disc.R4="signal column index <= 1";
@@ -103,10 +127,10 @@ var RULES={
   "Its highest box is the resistance box.",
   "Each box is 2%. Pick the row of that highest box."]},
  R3:{title:"Trend line",lines:[
-  "Look at the last 30 columns and find the lowest O box. If two O columns share it, take the earliest one.",
-  "The support line starts 1 box under that box and rises 1 box for every column after it, at 45 degrees.",
-  "Read the line at the current column, then count boxes from the line up to the last close.",
-  "3 or more boxes up is Above by 3+ boxes. 1 or 2 boxes up is Within 2 boxes above. On the line or under it is On or below."]},
+  "The support line rises 45 degrees, 1 box for every column. It starts 1 box under the lowest O box, if that comes before the highest X box.",
+  "When an O column reaches the support line, the line is broken. The resistance line takes over from 1 box above the highest X box since the support line began, and falls 1 box per column.",
+  "When an X column reaches the resistance line, it is broken, and a support line takes over from 1 box under the lowest O box since then. Lines flip back and forth like this.",
+  "Read the line that is active at the current column. Support line with the close 3 or more boxes above it is Uptrend, 3+ boxes above support. Closer than that is Uptrend, near support. A resistance line is Downtrend, below resistance."]},
  R4:{title:"Vertical count",lines:[
   "Find the buy signal column. Count its boxes, low to high.",
   "Multiply by 3. Add that many boxes above the column's lowest box.",
@@ -142,9 +166,10 @@ function explain(type,reads,given){
   var what=type==="R2"?"The most recent completed O column ends at its lowest box, ":"The most recent completed X column ends at its highest box, ";
   if(ok)return "Right: "+what.replace("ends at","has").replace(", ","")+" "+dp(r.answer)+".";
   var df=Math.abs(given-r.answer);return "Marked: off by "+plural(df,"box")+". "+what+dp(r.answer)+"."}
- if(type==="R3"){var R=reads.R3;
-  var t=R.d>=1?plural(R.d,"box")+" above the line":"on or below the line";
-  return pre+"the close is "+t+" (line at "+dp(R.lineAtCur)+", close at "+dp(R.closeBox)+")"+(ok?".":", the engine reading is "+r.answer+".")}
+ if(type==="R3"){var R=reads.R3,tl;
+  if(R.kind==="BRL")tl="the resistance line is active at "+dp(R.lineAtCur)+" and the close is at "+dp(R.closeBox);
+  else tl="the support line is active at "+dp(R.lineAtCur)+" and the close is "+(R.d>=1?plural(R.d,"box")+" above it":"on it or under it")+", close at "+dp(R.closeBox);
+  return pre+tl+(ok?".":", so the engine reading is "+r.answer+".")}
  if(type==="R4"){
   if(ok)return "Right: "+r.boxes+" boxes x 3 = "+(3*r.boxes)+" boxes above the column's lowest box, "+dp(r.from)+", gives "+dp(r.answer)+".";
   var d4=Math.abs(given-r.answer);return "Marked: off by "+plural(d4,"box")+". The count starts at the column's lowest box, "+dp(r.from)+". "+r.boxes+" boxes x 3 = "+(3*r.boxes)+", so the objective is "+dp(r.answer)+"."}
@@ -158,6 +183,6 @@ function explain(type,reads,given){
  return pre+"engine reading "+String(r.answer)+"."
 }
 
-return{boxOf:boxOf,boxUp:boxUp,priceOf:priceOf,disp:disp,pnf:pnf,rsi:rsi,macd:macd,readAll:readAll,OPTIONS:OPTIONS,TYPES:TYPES,NAMES:NAMES,RULES:RULES,explain:explain};
+return{boxOf:boxOf,boxUp:boxUp,priceOf:priceOf,disp:disp,pnf:pnf,trend:trend,rsi:rsi,macd:macd,readAll:readAll,OPTIONS:OPTIONS,TYPES:TYPES,NAMES:NAMES,RULES:RULES,explain:explain};
 })();
 if(typeof module!=="undefined"&&module.exports)module.exports=CSE;

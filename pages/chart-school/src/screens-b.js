@@ -8,7 +8,7 @@
     R1: ["Signal: what do the last 3 columns show?", "Look for a double or triple top or bottom break."],
     R2: ["Support: which box is the low of the last completed O column?", "Set the box, or tap a row on the chart."],
     R2b: ["Resistance: which box is the high of the last completed X column?", "Set the box, or tap a row on the chart."],
-    R3: ["Trend line: where is the last close against the support line?", "Count boxes between the close and the line."],
+    R3: ["Trend: which line is active and where is the close?", "Follow the 45 degree line: support rises, resistance falls."],
     R4: ["Vertical count: set the price objective.", "Use the buy signal column. Set the objective box, or tap a row on the chart."],
     R5: ["RSI(14): which band is it in?", "Read the RSI pane."],
     R6: ["MACD(12,26,9): what is the histogram doing?", "Sign, and direction against last week."],
@@ -120,6 +120,7 @@
 
     var ov = [{ k: "close", box: c.closeBox }];
     if (stepper) ov.push({ k: "row", box: UI.pick, label: "your pick", style: "pick" });
+    if (type !== "R3") { try { ov.push({ k: "trend", segs: CSE.trend(c.eng).segs }); } catch (e) {} }
     drawChart(c, {
       overlays: ov, pick: stepper ? UI.pick : null,
       onRow: stepper ? function (box) { UI.pick = box; keepScroll(render); } : null
@@ -194,7 +195,7 @@
       ov.push({ k: "row", box: ans.answer, label: "engine " + CSE.disp(CSE.priceOf(ans.answer)), style: "engine" });
       if (typeof given === "number") ov.push({ k: "row", box: given, label: "your row", style: "pick" });
     } else if (type === "R3" && ans) {
-      ov.push({ k: "bsl", anchorCol: ans.anchorCol, anchorLo: ans.anchorLo });
+      ov.push({ k: "trend", segs: CSE.trend(c.eng).segs });
     } else if (type === "R4" && ans) {
       ov.push({ k: "col", col: ans.col, label: ans.boxes + " boxes" });
       ov.push({ k: "line", box: ans.answer, label: "engine objective " + CSE.disp(CSE.priceOf(ans.answer)), style: "engine" });
@@ -276,6 +277,7 @@
 
     var ov = [{ k: "close", box: CSE.boxOf(closes[closes.length - 1]) }];
     if (R.R4) ov.push({ k: "line", box: R.R4.answer, label: "objective", style: "engine" });
+    try { ov.push({ k: "trend", segs: CSE.trend(eng).segs }); } catch (e) {}
 
     var poText;
     if (S.cur.order) {

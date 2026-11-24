@@ -81,6 +81,41 @@ function macd(c) {
   return m.map((v, i) => v - s[i]);                      // hist
 }
 
+// ---- C5 trend lines ----
+// line state: {kind, col (anchor column), start (box at anchor col), dir (+1 BSL / -1 BRL)}
+function trend(cols) {
+  const N = cols.length;
+  let lowO = null, highX = null;
+  for (let j = 0; j < N; j++) {
+    if (cols[j].d === -1 && (lowO === null || cols[j].lo < cols[lowO].lo)) lowO = j;   // ties earliest
+    if (cols[j].d === 1 && (highX === null || cols[j].hi > cols[highX].hi)) highX = j;
+  }
+  let st;
+  if (lowO === null && highX === null) return null;
+  if (highX === null || (lowO !== null && lowO < highX)) st = { kind: 'BSL', col: lowO, start: cols[lowO].lo - 1, dir: 1 };
+  else st = { kind: 'BRL', col: highX, start: cols[highX].hi + 1, dir: -1 };
+  for (;;) {
+    let brk = -1;
+    for (let j = st.col + 1; j < N; j++) {
+      const ln = st.start + st.dir * (j - st.col);
+      if (st.kind === 'BSL' && cols[j].d === -1 && cols[j].lo <= ln) { brk = j; break; }
+      if (st.kind === 'BRL' && cols[j].d === 1 && cols[j].hi >= ln) { brk = j; break; }
+    }
+    if (brk < 0) return st;
+    if (st.kind === 'BSL') {
+      let bj = -1, bv = -Infinity;
+      for (let j = st.col; j <= brk; j++) if (cols[j].d === 1 && cols[j].hi >= bv) { bv = cols[j].hi; bj = j; }  // ties latest
+      if (bj < 0) return st;   // no X between anchor and break: cannot switch
+      st = { kind: 'BRL', col: bj, start: bv + 1, dir: -1 };
+    } else {
+      let bj = -1, bv = Infinity;
+      for (let j = st.col; j <= brk; j++) if (cols[j].d === -1 && cols[j].lo <= bv) { bv = cols[j].lo; bj = j; }
+      if (bj < 0) return st;
+      st = { kind: 'BSL', col: bj, start: bv - 1, dir: 1 };
+    }
+  }
+}
+
 // ---- solve one sheet ----
 function solve(sheet) {
   const bars = sheet.bars.map((x) => ({ h: x[0], l: x[1], c: x[2] }));
@@ -93,15 +128,14 @@ function solve(sheet) {
   out.R2 = null; out.R2b = null;
   for (let j = cols.length - 2; j >= 0; j--) if (cols[j].d === -1) { out.R2 = cols[j].lo; break; }
   for (let j = cols.length - 2; j >= 0; j--) if (cols[j].d === 1) { out.R2b = cols[j].hi; break; }
-  // R3 (C5)
+  // R3 (C5, FIX 2): Dorsey BSL/BRL that flip when broken
   const N = cols.length;
-  let at = -1, low = Infinity;
-  for (let j = Math.max(0, N - 30); j < N; j++) if (cols[j].d === -1 && cols[j].lo < low) { low = cols[j].lo; at = j; }
   out.R3 = null;
-  if (at < 0) out.disc.R3 = 'no O column';
+  const tl = trend(cols);
+  if (!tl) out.disc.R3 = 'no O/X column to anchor';
   else {
-    const line = low - 1 + (N - 1 - at), d = boxOf(c[W]) - line;
-    out.R3 = d >= 3 ? 'Above by 3+ boxes' : d >= 1 ? 'Within 2 boxes above' : 'On or below';
+    const line = tl.start + tl.dir * (N - 1 - tl.col), d = boxOf(c[W]) - line;
+    out.R3 = tl.kind === 'BRL' ? 'Downtrend, below resistance' : d >= 3 ? 'Uptrend, 3+ boxes above support' : 'Uptrend, near support';
   }
   // R4 (C6)
   out.R4 = null;

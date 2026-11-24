@@ -1,5 +1,5 @@
 /* Chart School main: render dispatch, boot. */
-const BUILD = "cs-proto-1";
+const BUILD = "cs-proto-2";
 window.ACT = window.ACT || {};
 var SCREENS = {desk:'renderDesk', reading:'renderReading', marked:'renderMarked', order:'renderOrder', evidence:'renderEvidence', summary:'renderSummary', journal:'renderJournal'};
 ACT.back = function(){ go('desk'); }; /* admin default: back always returns to the desk; an open sheet stays open ("Continue sheet") */

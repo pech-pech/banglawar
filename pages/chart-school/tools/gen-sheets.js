@@ -93,7 +93,7 @@ const sheets=chosen.map(({c,v},i)=>{const W=window(c.si,c.w),r=CSE.readAll(toObj
   const ans={R1:r.R1.answer};ans[v.key]=r[v.key].answer;ans.R3=r.R3.answer;ans.R4=r.R4?r.R4.answer:null;ans.R5=r.R5.answer;ans.R6=r.R6.answer;ans.R7=r.R7.answer;
   if(ans[v.key]!==v.ans)throw new Error("ans mismatch "+i);
   return{id:"S"+String(i+1).padStart(4,"0"),stock:c.si,bars:W.bars,fwd:W.fwd,r2key:v.key,ans}});
-const out={build:"cs-proto-1",seed:SEED,conventions:"C1 2% log box; C2 3-box reversal, high/low, one direction per week; C3 first column X from bar 0; C4 Dorsey double/triple top and bottom signals; C5 bullish support line from lowest O in last 30 columns; C6 vertical count = 3 x boxes of the buy-signal column; C7 completed = not the last column. Bars normalised by first shipped close.",base,sigStats,sheets};
+const out={build:"cs-proto-2",seed:SEED,conventions:"C1 2% log box; C2 3-box reversal, high/low, one direction per week; C3 first column X from bar 0; C4 Dorsey double/triple top and bottom signals; C5 Dorsey BSL/BRL trend lines, 45 degrees, one box per column; C6 vertical count = 3 x boxes of the buy-signal column; C7 completed = not the last column. Bars normalised by first shipped close.",base,sigStats,sheets};
 const json=JSON.stringify(out);
 // self-check: every shipped sheet's answers equal the engine on the shipped bars
 for(const s of sheets){const r=CSE.readAll(toObj(s.bars));
@@ -107,7 +107,7 @@ const pct=x=>(100*x).toFixed(0)+"%";
 const mixLine=t=>{const tot=Object.values(cnt[t]).reduce((a,b)=>a+b,0)||1,nt=Object.values(natural[t]||{}).reduce((a,b)=>a+b,0)||1;
   return "| "+(t==="R2*"?"R2/R2b buckets":t)+" | "+TG[t].map(c=>c+" "+pct(cnt[t][c]/tot)+" (nat "+pct((natural[t][c]||0)/nt)+")").join("; ")+" |"};
 const bt=bots.botTable(out,CSE);
-let md="# GEN-REPORT (Chart School, cs-proto-1)\nSeed "+SEED+". Run: `node tools/gen-sheets.js` (data from /home/user/stockdata/stocks/, engine = src/engine.js).\n\n";
+let md="# GEN-REPORT (Chart School, cs-proto-2)\nSeed "+SEED+". Run: `node tools/gen-sheets.js` (data from /home/user/stockdata/stocks/, engine = src/engine.js).\n\n";
 md+="## Output\n- data/sheets.json: "+sheets.length+" sheets, "+(json.length/1024).toFixed(0)+" KB ("+(json.length/1048576).toFixed(2)+" MB, limit 1.2 MB).\n- Pool: "+NPOOL+" draws over "+stocks.length+" stocks, "+drawn+" distinct, "+valid+" valid sheet candidates ("+pct(valid/drawn)+").\n- Selection: greedy joint balancing (all 7 readings at once), 8-week spacing per stock, cap "+CAP+" sheets per stock (admin default). Stocks used: "+Object.keys(perStock).length+".\n- Base: up10 "+base.up10+" over "+base.n+" weeks. sigStats: "+Object.entries(sigStats).map(([k,v])=>k+" n="+v.n+" follow="+v.follow).join("; ")+"\n\n";
 md+="## Achieved class mix (shipped, vs natural mix in the valid pool)\n| type | mix |\n|---|---|\n"+Object.keys(TG).map(mixLine).join("\n")+"\n\nR4 exists on "+Object.values(cnt.R4).reduce((a,b)=>a+b,0)+" sheets (buy signals only). r2key: R2 "+sheets.filter(s=>s.r2key==="R2").length+", R2b "+sheets.filter(s=>s.r2key==="R2b").length+".\n\n";
 md+="## Discard rates (engine discards over distinct pool draws; a draw can hit several)\n"+Object.entries(disc).map(([t,m])=>"- "+t+": "+Object.entries(m).map(([r,n])=>r+" "+n+" ("+pct(n/drawn)+")").join("; ")).join("\n")+"\n- Sheet-level: "+Object.entries(sheetDisc).map(([r,n])=>r+" "+n).join("; ")+"; kept "+valid+" of "+drawn+".\n\n";

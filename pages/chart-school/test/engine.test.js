@@ -51,15 +51,31 @@ eq(CSE.readAll([bar(10,8)]).disc.R2,"no completed O column","R2 discard w/o comp
 // R1 later column wins / only last 3 columns
 R=CSE.readAll([bar(10,8),bar(10,7),bar(11,8),bar(11,8)]);
 eq(R.R1.answer,"Double top buy","R1 still in last 3 cols");
-// R3 three classes (anchor col1 lo7, line at col2 = 7)
+// trend lines (C5), hand-built columns
+const C=(d,lo,hi)=>({d:d,lo:lo,hi:hi});
+const tr=cols=>CSE.trend({cols:cols});
+let T=tr([C(1,5,10),C(-1,6,9),C(1,7,12),C(-1,8,11)]);
+eq(T.segs,[{kind:"BSL",col0:1,box0:5,col1:3}],"BSL only");eq(T.active,{kind:"BSL",col0:1,box0:5},"BSL active");
+T=tr([C(1,5,10),C(-1,6,9),C(1,7,12),C(-1,7,11)]);
+eq(T.segs,[{kind:"BSL",col0:1,box0:5,col1:3},{kind:"BRL",col0:2,box0:13,col1:3}],"BSL broken -> BRL (lo equals line)");
+T=tr([C(1,5,10),C(-1,6,9),C(1,7,12),C(-1,7,11),C(1,8,11)]);
+eq(T.segs.map(s=>s.kind+s.col0+":"+s.box0+">"+s.col1),["BSL1:5>3","BRL2:13>4","BSL3:6>4"],"BRL broken -> BSL");eq(T.active,{kind:"BSL",col0:3,box0:6},"BSL active after flip");
+T=tr([C(1,5,13),C(-1,9,12),C(1,10,12)]);
+eq(T.segs.map(s=>s.kind+s.col0+":"+s.box0+">"+s.col1),["BRL0:14>2","BSL1:8>2"],"start BRL when the high comes first");
+T=tr([C(1,4,9),C(-1,6,8),C(1,7,9)]);eq(T.segs[0].col0,0,"start tie: highest X earliest");
+T=tr([C(-1,5,9),C(1,6,12),C(-1,8,11),C(1,9,12),C(-1,8,11)]);
+eq(T.segs.map(s=>s.kind+s.col0+":"+s.box0+">"+s.col1),["BSL0:4>4","BRL3:13>4"],"break tie: highest X latest");
+T=tr([C(-1,6,9),C(1,7,12),C(-1,6,10),C(1,7,10)]);eq(T.segs[0].col0,0,"start tie: lowest O earliest");
+T=tr([C(1,5,10)]);eq(T.active,{kind:"BRL",col0:0,box0:11},"single column starts BRL");
+// R3 three classes via readAll
 const r3=cb=>CSE.readAll([bar(10,8),bar(10,7),bar(11,8,cb)]).R3;
-eq(r3(10).answer,"Above by 3+ boxes","R3 d=3");eq(r3(9).answer,"Within 2 boxes above","R3 d=2");
-eq(r3(8).answer,"Within 2 boxes above","R3 d=1");eq(r3(7).answer,"On or below","R3 d=0");eq(r3(6).answer,"On or below","R3 d=-1");
-eq([r3(10).anchorCol,r3(10).anchorLo,r3(10).lineAtCur,r3(10).d],[1,7,7,3],"R3 fields");
-eq(CSE.readAll([bar(10,8)]).R3,null,"R3 null w/o O column");
-// R3 ties: earliest O column
-R=CSE.readAll([bar(10,8),bar(10,7),bar(10,8),bar(10,7),bar(10,8)]);
-eq(R.R3.anchorCol,1,"R3 tie goes to earliest");
+eq([r3(10).kind,r3(10).lineAtCur,r3(10).d,r3(10).segs.length],["BSL",7,3,1],"R3 fields");
+eq(r3(10).answer,"Uptrend, 3+ boxes above support","R3 d=3");eq(r3(9).answer,"Uptrend, near support","R3 d=2");
+eq(r3(7).answer,"Uptrend, near support","R3 d=0 near");
+eq(CSE.OPTIONS.R3.length,3,"R3 three options");
+R=CSE.readAll([bar(12,10),bar(12,9),bar(12,8)]);
+eq([R.R3.kind,R.R3.answer],["BRL","Downtrend, below resistance"],"R3 BRL class");
+eq(CSE.readAll([bar(10,8)]).R3.kind,"BRL","R3 never null");
 // R4 = signal column count, objective lo+3*boxes
 R=CSE.readAll(dt);
 eq(R.R4,{answer:20,col:2,boxes:4,from:8},"R4 signal column count 8+3*4");

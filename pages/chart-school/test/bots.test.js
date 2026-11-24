@@ -1,7 +1,7 @@
 "use strict";
 // Bot gate. Node: `node test/bots.test.js` (exit 1 on fail). Also exports botTable(sheetsObj, CSE) for tools/gen-sheets.js.
 const fs=require("fs"),path=require("path");
-const OPT={R1:["Double top buy","Triple top buy","Double bottom sell","Triple bottom sell","No signal"],R3:["Above by 3+ boxes","Within 2 boxes above","On or below"],
+const OPT={R1:["Double top buy","Triple top buy","Double bottom sell","Triple bottom sell","No signal"],R3:["Uptrend, 3+ boxes above support","Uptrend, near support","Downtrend, below resistance"],
  R5:["Above 70","50 to 70","30 to 50","Below 30"],R6:["Positive rising","Positive falling","Negative rising","Negative falling"],R7:["Bearish","Bullish","None"]};
 const LIM=0.4;
 const mode=a=>{const m={};a.forEach(x=>m[x]=(m[x]||0)+1);return Object.keys(m).sort((x,y)=>m[y]-m[x])[0]};

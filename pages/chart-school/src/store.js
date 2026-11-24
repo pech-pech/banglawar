@@ -244,7 +244,7 @@ function orderResult() {
 }
 
 /* ---------- report ---------- */
-function buildId() { try { return BUILD; } catch (e) { return META.build || "cs-proto-1"; } }
+function buildId() { try { return BUILD; } catch (e) { return META.build || "cs-proto-2"; } }
 function reportText() {
   return JSON.stringify({
     build: buildId(), seed: S.seed, tweaks: T, tweaked: tweaked(),

@@ -37,12 +37,10 @@
     var eng = opt.eng || { cols: [], cells: [] };
     var cols = eng.cols || [];
     var nCols = cols.length;
-    var N = Math.max(4, opt.cols || 24);
-    var first = Math.max(0, nCols - N); // first shown column index
+    var N0 = Math.max(4, opt.cols || 24);
     var ovs = opt.overlays || [];
     var W = hostW(host);
     var pw = W - AX;
-    var c = pw / N; // cell width
     clear(host);
     if (!nCols) { var s0 = el(host, "svg", { width: W, height: 40, viewBox: "0 0 " + W + " 40", role: "img", "aria-label": "Empty point and figure chart" }); return s0; }
 
@@ -50,22 +48,37 @@
     var wk = {};
     (eng.cells || []).forEach(function (q) { wk[q.col + ":" + q.box] = q.week; });
 
-    // visible box range
-    var lo = Infinity, hi = -Infinity;
-    for (var j = first; j < nCols; j++) { lo = Math.min(lo, cols[j].lo); hi = Math.max(hi, cols[j].hi); }
-    function inc(b) { if (b == null || isNaN(b)) return; lo = Math.min(lo, b); hi = Math.max(hi, b); }
-    ovs.forEach(function (o) { if (o.k === "close") inc(o.box); }); // overlays never widen the range (edge markers instead)
-    inc(opt.pick);
-    var top = hi + 2, bot = lo - 2; // 2-box margin only
-    var rows = top - bot + 1;
-    var ch = Math.max(9, Math.min(268 / rows, 14));
+    // SQUARE cells: one size for rows and columns. cell = min(pw/N0, row size 9..14); spare width shows more columns.
+    var N = N0, first, lo, hi, top, bot, rows, ch = 14, cell = 14, j, it;
+    function range() {
+      first = Math.max(0, nCols - N);
+      lo = Infinity; hi = -Infinity;
+      for (j = first; j < nCols; j++) { lo = Math.min(lo, cols[j].lo); hi = Math.max(hi, cols[j].hi); }
+      function inc(b) { if (b == null || isNaN(b)) return; lo = Math.min(lo, b); hi = Math.max(hi, b); }
+      ovs.forEach(function (o) { if (o.k === "close") inc(o.box); }); // overlays never widen the range (edge markers instead)
+      inc(opt.pick);
+      top = hi + 2; bot = lo - 2; rows = top - bot + 1;
+      ch = Math.max(9, Math.min(268 / rows, 14));
+    }
+    range();
+    for (it = 0; it < 4; it++) {
+      cell = Math.min(pw / N0, ch);
+      var nN = Math.max(N0, Math.floor(pw / cell + 1e-6));
+      if (nN === N) break;
+      N = nN; range();
+    }
+    cell = Math.min(pw / N0, ch);
+    N = Math.max(N0, Math.floor(pw / cell + 1e-6));
+    first = Math.max(0, nCols - N);
+    ch = cell; var c = cell;
     var nTop = 0, nBot = 0;
     ovs.forEach(function (o) { if (o.k === "row" || o.k === "line") { if (o.box > top) nTop++; else if (o.box < bot) nBot++; } });
     var STRIP = 17;
     var ph = rows * ch, OY = 6 + STRIP * nTop, H = Math.round(OY + ph + 26 + STRIP * nBot + (nBot ? 2 : 0));
+    var XO = pw - N * c; // slack on the left so the last column meets the axis
     function ty(b) { return (top - b) * ch; }       // top edge of box b
     function cy(b) { return ty(b) + ch / 2; }
-    function cx(j) { return (j - first) * c; }       // left edge of column j
+    function cx(j) { return XO + (j - first) * c; }  // left edge of column j
 
     var s = el(host, "svg", { width: W, height: H, viewBox: "0 0 " + W + " " + H, role: "img",
       "aria-label": "Point and figure chart, " + nCols + " columns, box 2 percent, last " + disp(cols[nCols - 1].d === 1 ? cols[nCols - 1].hi : cols[nCols - 1].lo) });
@@ -73,8 +86,8 @@
 
     // grid
     var i, r;
-    for (i = 0; i <= N; i++) el(g, "line", { x1: f1(i * c + 0.5), y1: 0, x2: f1(i * c + 0.5), y2: f1(ph), stroke: "var(--grid)", "stroke-width": 1 });
-    for (r = 0; r <= rows; r++) el(g, "line", { x1: 0, y1: f1(r * ch + 0.5), x2: f1(pw), y2: f1(r * ch + 0.5), stroke: "var(--grid)", "stroke-width": 1 });
+    for (i = 0; i <= N; i++) el(g, "line", { x1: f1(XO + i * c + 0.5), y1: 0, x2: f1(XO + i * c + 0.5), y2: f1(ph), stroke: "var(--grid)", "stroke-width": 1 });
+    for (r = 0; r <= rows; r++) el(g, "line", { x1: f1(XO), y1: f1(r * ch + 0.5), x2: f1(pw), y2: f1(r * ch + 0.5), stroke: "var(--grid)", "stroke-width": 1 });
     el(g, "line", { x1: f1(pw + 0.5), y1: 0, x2: f1(pw + 0.5), y2: f1(ph), stroke: "var(--line)", "stroke-width": 1 });
 
     // column axis
@@ -90,24 +103,27 @@
     
 
 
-    // support line (accent, always)
+    // trend lines (Dorsey BSL/BRL): line box at column j = box0 +/- (j - col0), through box centres; square cells => true 45 degrees
     ovs.forEach(function (o) {
-      if (o.k !== "bsl") return;
-      var pts = [], lastJ = nCols - 1, jj, b0, firstJ = null, lastIn = null;
-      for (jj = Math.max(o.anchorCol, first); jj <= lastJ; jj++) {
-        var lb = o.anchorLo - 1 + (jj - o.anchorCol);
-        if (lb < bot || lb > top) continue;
-        if (firstJ == null) firstJ = jj;
-        lastIn = jj;
-        pts.push(f1(cx(jj) + c / 2) + "," + f1(cy(lb)));
-      }
-      if (pts.length > 1) {
-        el(g, "polyline", { points: pts.join(" "), fill: "none", stroke: "var(--accent)", "stroke-width": 1.5, "stroke-linecap": "round", "stroke-linejoin": "round" });
-        // label rotated 45 deg along the line, near the middle, offset below the line
-        var mj = firstJ + (lastIn - firstJ) * 0.45, mb = o.anchorLo - 1 + (mj - o.anchorCol);
-        var lx = cx(mj) + c / 2 + 9, ly = cy(mb) + 9;
-        el(g, "text", { x: f1(lx), y: f1(ly), transform: "rotate(-45 " + f1(lx) + " " + f1(ly) + ")", "text-anchor": "middle", "dominant-baseline": "central", "font-size": 11, "font-weight": 600, fill: "var(--accent)" }, o.label || "support");
-      }
+      if (o.k !== "trend") return;
+      (o.segs || []).forEach(function (sg, si, sa) {
+        var act = si === sa.length - 1;
+        var up = sg.kind === "BSL", pts = [], jj, ja = Math.max(sg.col0, first), jb = Math.min(sg.col1, nCols - 1), jf = null, jl = null;
+        for (jj = ja; jj <= jb; jj++) {
+          var lb = sg.box0 + (up ? 1 : -1) * (jj - sg.col0);
+          if (lb < bot || lb > top) continue;
+          if (jf == null) jf = jj;
+          jl = jj;
+          pts.push(f1(cx(jj) + c / 2) + "," + f1(cy(lb)));
+        }
+        if (pts.length < 2) return;
+        var clr = up ? "var(--accent)" : "var(--o)";
+        el(g, "polyline", { points: pts.join(" "), fill: "none", stroke: clr, "stroke-width": act ? 1.5 : 1, "stroke-opacity": act ? 1 : 0.45, "stroke-dasharray": up ? null : "5 3", "stroke-linecap": "round", "stroke-linejoin": "round" });
+        if (!act) return;
+        var mj = jf + (jl - jf) * 0.5, mb = sg.box0 + (up ? 1 : -1) * (mj - sg.col0);
+        var lx = cx(mj) + c / 2 + (up ? 9 : 9), ly = cy(mb) + (up ? 9 : -9);
+        el(g, "text", { x: f1(lx), y: f1(ly), transform: "rotate(" + (up ? -45 : 45) + " " + f1(lx) + " " + f1(ly) + ")", "text-anchor": "middle", "dominant-baseline": "central", "font-size": 11, "font-weight": 600, fill: clr }, up ? "support" : "resistance");
+      });
     });
 
     // boxes
