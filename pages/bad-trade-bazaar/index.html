@@ -6,11 +6,12 @@
 <title>Bad Trade Bazaar</title>
 <meta name="theme-color" content="#1a0f0a">
 <meta name="color-scheme" content="dark">
-<meta name="description" content="Every losing trade leaves a scar card that you can slot into your build, so your worst calls become your strongest perks.">
+<meta name="description" content="Trade bazaar goods for one day. Profit buys power. Losses teach lessons.">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
 <link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="day.css">
 </head>
 <body data-screen="start">
 
@@ -47,101 +48,75 @@
     <svg viewBox="0 0 344 238" preserveAspectRatio="xMidYMid slice"><use href="#art-stall"/><use href="#art-awning"/></svg>
   </div>
   <h1 id="title">Bad Trade Bazaar</h1>
-  <p class="tagline">Every losing trade leaves a 'scar' card that you can slot into your build, so your worst calls become your strongest perks.</p>
-  <section class="loop">
-    <h2>Loop</h2>
-    <ol>
-      <li>Tap to buy or sell auto-ticking stocks during a three-minute run</li>
-      <li>Collect scar cards from losses</li>
-      <li>Then reset the run</li>
-      <li>Slot scars to boost the next one</li>
-    </ol>
-  </section>
+  <p class="tagline">Trade bazaar goods for one day. Profit buys power. Losses teach lessons.</p>
   <button type="button" id="btn-play" class="btn big">Play</button>
   <button type="button" id="btn-settings-start" class="btn secondary">Settings</button>
-  <div id="build-id">btb-tune-1</div>
+  <div id="build-id">btb-lessons-1</div>
 </main>
+
+<!-- ============ MORNING (filled by ui-day.js) ============ -->
+<main id="screen-morning" class="screen"></main>
 
 <!-- ============ RUN ============ -->
 <main id="screen-run" class="screen">
-  <div class="timer"><span class="lbl">TIME</span><span id="hud-timer" class="v">3:00</span></div>
-  <div class="cash">
-    <svg width="22" height="22" viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="8.5" fill="#f5c542" stroke="#6a4a00" stroke-width="1.5"/><text x="10" y="15" text-anchor="middle" font-size="14" font-weight="bold" font-family="Arial" fill="#6a4a00">$</text></svg>
-    <span id="hud-cash" class="v">$100</span>
+  <div class="hud">
+    <div class="timer"><span class="lbl">TIME</span><span id="hud-timer" class="v">3:00</span></div>
+    <div class="cash"><span class="lbl">CASH</span><span id="hud-cash" class="v">$100.00</span></div>
+    <button type="button" id="btn-settings" class="gear" aria-label="Settings">
+      <svg width="28" height="28" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 8.5a3.5 3.5 0 100 7 3.5 3.5 0 000-7zm8.5 4.2v-1.4l-2-.6a6.8 6.8 0 00-.6-1.4l1-1.8-1-1-1.8 1a6.8 6.8 0 00-1.4-.6l-.6-2h-1.4l-.6 2a6.8 6.8 0 00-1.4.6l-1.8-1-1 1 1 1.8c-.3.4-.5.9-.6 1.4l-2 .6v1.4l2 .6c.1.5.3 1 .6 1.4l-1 1.8 1 1 1.8-1c.4.3.9.5 1.4.6l.6 2h1.4l.6-2c.5-.1 1-.3 1.4-.6l1.8 1 1-1-1-1.8c.3-.4.5-.9.6-1.4z" fill="none" stroke="#ffd77a" stroke-width="1.6" stroke-linejoin="round"/></svg>
+    </button>
   </div>
-  <button type="button" id="btn-settings" class="gear" aria-label="Settings">
-    <svg width="28" height="28" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 8.5a3.5 3.5 0 100 7 3.5 3.5 0 000-7zm8.5 4.2v-1.4l-2-.6a6.8 6.8 0 00-.6-1.4l1-1.8-1-1-1.8 1a6.8 6.8 0 00-1.4-.6l-.6-2h-1.4l-.6 2a6.8 6.8 0 00-1.4.6l-1.8-1-1 1 1 1.8c-.3.4-.5.9-.6 1.4l-2 .6v1.4l2 .6c.1.5.3 1 .6 1.4l-1 1.8 1 1 1.8-1c.4.3.9.5 1.4.6l.6 2h1.4l.6-2c.5-.1 1-.3 1.4-.6l1.8 1 1-1-1-1.8c.3-.4.5-.9.6-1.4z" fill="none" stroke="#ffd77a" stroke-width="1.6" stroke-linejoin="round"/></svg>
-  </button>
+  <div class="hud2"><span id="hud-day">Day 1</span><span id="hud-lots">Lots 3/3 free</span></div>
   <div id="banner" role="img" aria-label="Bad Trade Bazaar">
     <svg viewBox="0 0 344 52" preserveAspectRatio="xMidYMid slice"><use href="#art-awning"/><rect x="42" y="8" width="260" height="30" rx="6" fill="#2b1608" stroke="#f5c542" stroke-width="2"/><text x="172" y="30" text-anchor="middle" font-family="Georgia,'Times New Roman',serif" font-weight="bold" font-size="20" letter-spacing="1.5" fill="#ffd77a">BAD TRADE BAZAAR</text></svg>
   </div>
-  <div id="build-strip"><div class="slot"></div><div class="slot"></div><div class="slot"></div></div>
-  <div class="tray-row">
-    <div id="tray"></div>
-    <div class="legend"><span class="stamp">SPARE</span><span>= bonus $</span></div>
+  <div id="build-strip">
+    <div class="slot power" id="strip-power-0"></div><div class="slot power" id="strip-power-1"></div><div class="slot power" id="strip-power-2"></div>
+    <div class="slot lesson" id="strip-lesson-0"></div><div class="slot lesson" id="strip-lesson-1"></div>
   </div>
   <div id="toast" role="status" aria-live="polite"></div>
-  <div class="stage" aria-hidden="true"><svg viewBox="0 0 344 238" preserveAspectRatio="xMidYMid slice"><use href="#art-stall"/></svg></div>
   <div class="rows">
     <div class="row" id="row-0">
       <div class="info">
-        <div class="line1"><span class="stock-name">Calm</span><span class="price">$10.40</span></div>
-        <div class="held">Flat</div>
-        <canvas class="spark" width="304" height="80"></canvas>
+        <div class="line1"><span class="stock-name">Good</span><span class="kind"></span></div>
+        <div class="line2"><span class="price" id="price-0">$0.00</span><span class="held" id="lots-0">No lots</span></div>
+        <canvas class="spark" id="spark-0" width="200" height="60"></canvas>
       </div>
-      <button type="button" class="tog" id="tog-0" data-mode="buy" data-loss="0"><span class="face">BUY $33</span><span class="chip" hidden></span></button>
+      <div class="btns">
+        <button type="button" class="bs buy" id="buy-0"><span class="face">BUY</span><span class="chip" hidden></span></button>
+        <button type="button" class="bs sell" id="sell-0" data-loss="0"><span class="face">SELL</span><span class="chip" hidden></span></button>
+      </div>
     </div>
     <div class="row" id="row-1">
       <div class="info">
-        <div class="line1"><span class="stock-name">Middle</span><span class="price">$23.90</span></div>
-        <div class="held">Held 1.4 · avg $25.00</div>
-        <canvas class="spark" width="304" height="80"></canvas>
+        <div class="line1"><span class="stock-name">Good</span><span class="kind"></span></div>
+        <div class="line2"><span class="price" id="price-1">$0.00</span><span class="held" id="lots-1">No lots</span></div>
+        <canvas class="spark" id="spark-1" width="200" height="60"></canvas>
       </div>
-      <button type="button" class="tog" id="tog-1" data-mode="sell" data-loss="1"><span class="face">SELL −$8</span><span class="chip">+SCAR Penny Nick</span></button>
+      <div class="btns">
+        <button type="button" class="bs buy" id="buy-1"><span class="face">BUY</span><span class="chip" hidden></span></button>
+        <button type="button" class="bs sell" id="sell-1" data-loss="0"><span class="face">SELL</span><span class="chip" hidden></span></button>
+      </div>
     </div>
     <div class="row" id="row-2">
       <div class="info">
-        <div class="line1"><span class="stock-name">Wild</span><span class="price">$66.20</span></div>
-        <div class="held">Held 0.5 · avg $60.00</div>
-        <canvas class="spark" width="304" height="80"></canvas>
+        <div class="line1"><span class="stock-name">Good</span><span class="kind"></span></div>
+        <div class="line2"><span class="price" id="price-2">$0.00</span><span class="held" id="lots-2">No lots</span></div>
+        <canvas class="spark" id="spark-2" width="200" height="60"></canvas>
       </div>
-      <button type="button" class="tog" id="tog-2" data-mode="sell" data-loss="0" data-win="1"><span class="face">SELL +$12</span><span class="chip">Tycoon</span></button>
+      <div class="btns">
+        <button type="button" class="bs buy" id="buy-2"><span class="face">BUY</span><span class="chip" hidden></span></button>
+        <button type="button" class="bs sell" id="sell-2" data-loss="0"><span class="face">SELL</span><span class="chip" hidden></span></button>
+      </div>
     </div>
   </div>
 </main>
 
-<!-- ============ END ============ -->
-<main id="screen-end" class="screen">
-  <header class="hdr"><h2>Time's up</h2><span class="sub">Bad Trade Bazaar</span></header>
-  <section class="result">
-    <div class="lbl">CASH</div>
-    <div id="end-cash">100 → 100</div>
-    <div id="end-pl"></div>
-  </section>
-  <div class="sec-label">SCARS THIS RUN</div>
-  <div id="end-scars"></div>
-  <div id="end-proto"></div>
-  <div class="end-art" aria-hidden="true"><svg viewBox="0 0 344 238" preserveAspectRatio="xMidYMid slice"><use href="#art-stall"/></svg></div>
-  <button type="button" id="btn-copy-report" class="btn secondary">Copy report</button>
-  <button type="button" id="btn-reset-run" class="btn big">RESET RUN → SLOT SCARS</button>
-</main>
+<!-- ============ END (filled by ui-day.js) ============ -->
+<main id="screen-end" class="screen"></main>
 
-<!-- ============ SLOT ============ -->
-<main id="screen-slot" class="screen">
-  <header class="hdr"><h2>Build</h2><span class="sub">Tap a scar, then a slot</span></header>
-  <div id="slots">
-    <button type="button" class="slot-big" data-slot="0"></button>
-    <button type="button" class="slot-big" data-slot="1"></button>
-    <button type="button" class="slot-big" data-slot="2"></button>
-  </div>
-  <div id="slot-effect"></div>
-  <div class="slot-flex">
-    <svg class="slot-art" viewBox="0 0 344 238" preserveAspectRatio="xMidYMid slice" aria-hidden="true"><use href="#art-stall"/></svg>
-    <div id="spare-note"></div>
-  </div>
-  <div id="collection"></div>
-  <button type="button" id="btn-start-run" class="btn big">START RUN</button>
-</main>
+<!-- ============ SHOP (filled by ui-day.js) ============ -->
+<main id="screen-shop" class="screen"></main>
 
 <!-- ============ SETTINGS OVERLAY ============ -->
 <div id="settings" role="dialog" aria-modal="true" aria-label="Settings">

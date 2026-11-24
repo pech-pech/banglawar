@@ -1,6 +1,6 @@
 // Bad Trade Bazaar offline cache. VERSION must equal BUILD in core.js. Network-first for every GET.
-const VERSION = 'btb-tune-1';
-const CORE = ['./', './index.html', './style.css', './core.js', './ui.js', './house.js', './manifest.webmanifest', './icon-192.png', './icon-512.png', './icon-maskable-512.png'];
+const VERSION = 'btb-lessons-1';
+const CORE = ['./', './index.html', './style.css', './core.js', './ui.js', './ui-day.js', './day.css', './report.js', './house.js', './manifest.webmanifest', './icon-192.png', './icon-512.png', './icon-maskable-512.png'];
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(VERSION).then(c => Promise.allSettled(CORE.map(f => c.add(f)))).then(() => self.skipWaiting()));
 });
