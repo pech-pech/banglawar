@@ -137,7 +137,7 @@ try {
     await page.goto(URL, { waitUntil: 'load' });
     await page.waitForSelector('#title');
     ok((await page.textContent('#title')).includes('Bad Trade Bazaar'), 'title text');
-    ok((await page.textContent('#build-id')).includes('btb-slice-1'), 'build id text');
+    ok((await page.textContent('#build-id')).includes('btb-tune-1'), 'build id text');
     ok((await scr(page)) === 'start', 'body[data-screen]=start');
     ok((await activeCount(page)) === 1, 'exactly one .active screen');
     ok(await page.evaluate(() => !!(window.__btb && __btb.getState && __btb.getProfile && __btb.getConfig && __btb.step && __btb.report)), '__btb hooks');
@@ -267,9 +267,9 @@ try {
     ok((await prof(page)).sparesNext > 0, 'profile.sparesNext = 0');
   });
 
-  await step('report contains btb-slice-1 and Bad Trade Bazaar header', async () => {
+  await step('report contains btb-tune-1 and Bad Trade Bazaar header', async () => {
     const r = await page.evaluate(() => window.__btb.report());
-    ok(typeof r === 'string' && r.includes('btb-slice-1') && r.startsWith('Bad Trade Bazaar btb-slice-1 report'), 'report head: ' + String(r).slice(0, 60));
+    ok(typeof r === 'string' && r.includes('btb-tune-1') && r.startsWith('Bad Trade Bazaar btb-tune-1 report'), 'report head: ' + String(r).slice(0, 60));
     ok(/PROTO/.test(r) && /run 1 seed/.test(r), 'report body lacks PROTO / run lines');
   });
 
@@ -306,6 +306,25 @@ try {
     await tap(page, '#btn-settings-close');
     await page.waitForFunction(() => document.querySelector('#settings').offsetHeight === 0 || getComputedStyle(document.querySelector('#settings')).display === 'none', null, { timeout: 2000 });
     ok(await page.locator('#dev-badge').isVisible(), '#dev-badge not visible');
+  });
+
+  await step('settings: toggle sameMarkets, report shows markets: same', async () => {
+    const open = () => page.evaluate(() => document.querySelector('#settings').offsetHeight > 0);
+    if (!(await open())) {
+      await tap(page, '#btn-settings').catch(() => {});
+      if (!(await open())) await tap(page, '#btn-settings-start').catch(() => {});
+    }
+    await page.waitForFunction(() => document.querySelector('#settings').offsetHeight > 0, null, { timeout: 2000 });
+    ok((await page.evaluate(() => window.__btb.report())).includes('markets: fresh'), 'report should start with markets: fresh');
+    await page.evaluate(() => document.querySelector('#tw-sameMarkets').scrollIntoView());
+    await tap(page, '#tw-sameMarkets');
+    await page.waitForTimeout(200);
+    ok((await page.evaluate(() => window.__btb.getConfig().sameMarkets)) === true, 'sameMarkets not true after toggle');
+    const r = await page.evaluate(() => window.__btb.report());
+    ok(r.includes('markets: same'), 'report lacks markets: same: ' + r.slice(0, 160));
+    await tap(page, '#tw-sameMarkets'); // restore
+    await tap(page, '#btn-settings-close');
+    await page.waitForFunction(() => document.querySelector('#settings').offsetHeight === 0 || getComputedStyle(document.querySelector('#settings')).display === 'none', null, { timeout: 2000 });
   });
 
   await step('no console errors / page errors', async () => { ok(!errors.length, errors.slice(0, 3).join(' | ')); });

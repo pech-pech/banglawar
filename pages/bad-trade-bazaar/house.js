@@ -70,7 +70,8 @@ export function registerSW() {
 
 const STEPS = { runSec: 5, tickMs: 50, startCash: 5, slots: 1, stackCap: 1, volScale: 0.1, K: 0.01, M: 0.1, regimeMin: 1, regimeMax: 1, pUp: 0.05, pDown: 0.05, saleCut: 0.005, lossLine: 0.005, holdSec: 1, spareCash: 1, spareCap: 1, buyLockMs: 50 };
 const stepFor = (key, v) => STEPS[key] ?? (key === 'base' ? 1 : key === 'vol' ? 0.001 : key === 'perk' ? 0.05 : (Math.abs(v) >= 10 ? 1 : 0.01));
-const nice = (k) => k.replace(/([A-Z])/g, ' $1').replace(/^./, c => c.toUpperCase());
+const LABELS = { sameMarkets: 'Same markets every run (fair test)' };
+const nice = (k) => LABELS[k] || k.replace(/([A-Z])/g, ' $1').replace(/^./, c => c.toUpperCase());
 
 const CSS = `
 .tw-note{font-size:14px;margin:0 0 10px;opacity:.85}
