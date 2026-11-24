@@ -1,6 +1,6 @@
 (function () { 'use strict';
   const SD = (globalThis.SD = globalThis.SD || {});
-  const BUILD = 'sq-season-1';
+  const BUILD = 'sq-season-1b';
   const doc = typeof document !== 'undefined' ? document : null;
   const qs = (typeof location !== 'undefined') ? new URLSearchParams(location.search) : new URLSearchParams('');
 
@@ -358,7 +358,7 @@
         app.go(STEPS.indexOf(step) >= 0 ? step : 'hub');
       } else app.render();
       if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) {
-        navigator.serviceWorker.register('sw.js').catch(() => {});
+        navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then(r => r.update()).catch(() => {});
       }
     }
   };
