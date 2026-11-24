@@ -2,6 +2,8 @@
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Sixes</title>
+<meta name="pgs-build" content="__PGS_BUILD__">
+<script src="../_shared/update.js" defer></script>
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#1C2A22">
 <meta name="mobile-web-app-capable" content="yes">
@@ -50,6 +52,6 @@
 </head>
 <body class="skin-art skin-retro-green">
 <main id="app"></main>
+<span data-pgs-build style="position:fixed;left:6px;bottom:calc(2px + env(safe-area-inset-bottom));font:10px system-ui,sans-serif;opacity:.6;color:#fff;pointer-events:none;z-index:2"></span>
 <script type="module" src="js/main.js"></script>
-<script>if('serviceWorker' in navigator&&isSecureContext)addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch((e)=>console.warn('sw',e)));</script>
 </body></html>

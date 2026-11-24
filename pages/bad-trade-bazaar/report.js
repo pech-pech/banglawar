@@ -70,7 +70,7 @@ export function report(profile, c) {
   const L = profile.ledger || { lossCash: 0, coverGranted: 0, paid: 0 };
   const ok = L.paid <= L.coverGranted + 1e-9 && L.coverGranted <= 0.5 * L.lossCash + 1e-9;
   const out = [];
-  out.push(`Bad Trade Bazaar ${BUILD} | stall ${profile.stall} | day ${profile.day} | cash ${m2(cash)}`);
+  out.push(`Bad Trade Bazaar ${BUILD} pgs_build ${(typeof window !== 'undefined' && window.PGS_BUILD) || 'n/a'} | stall ${profile.stall} | day ${profile.day} | cash ${m2(cash)}`);
   out.push(c.sameMarkets ? `markets: same (seed ${c.run1Seed})` : 'markets: new each day');
   out.push(Object.keys(dev).length ? `config: DEV ${JSON.stringify(dev)}` : 'config: default');
   for (const s of profile.days || []) out.push(dayLine(s, c));

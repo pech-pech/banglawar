@@ -118,8 +118,11 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;touch-action:none
 <meta name="theme-color" content="#05060d">
 <meta name="mobile-web-app-capable" content="yes">
 <link rel="icon" href="icon-192.png">
+<meta name="pgs-build" content="__PGS_BUILD__">
+<script src="../_shared/update.js" defer></script>
 <link rel="apple-touch-icon" href="icon-192.png">
 </head><body>
+<span data-pgs-build style="position:fixed;left:6px;bottom:calc(3px + env(safe-area-inset-bottom));font:10px system-ui,sans-serif;opacity:.6;color:#fff;pointer-events:none;z-index:6"></span>
 <div id="stage">
  <div class="hud" id="score">0</div><div class="hud" id="wave"></div><div class="hud" id="lives"></div>
  <div class="hud" id="combo"></div><div class="hud" id="msg"></div>
@@ -3082,5 +3085,5 @@ function bEnd(tr){tr.active=false;strokes.delete(tr.id);}
 function startHook(m,seed){TYPED=seed==null?null:(+seed>>>0);startGame(m||'classic');}
 window.__hb={get FX(){return window.FX;},get peak(){return G.peak;},tierOf,spring,easeOutBack,autoTrackId,FILE_TRACKS,applyTheme,get THEME(){return THEME;},autoTrackIndex,trackForWave,buildMusic,get CLEAR(){return CLEAR;},COL,get SAVE(){return SAVE;},ACH,TRAILS,get MODE(){return MODE;},get DAILY(){return DAILY;},dailySeed,todayStr,unlock,showTitle,finish,toastQ,get toastCur(){return toastCur;},wv,buildPicker,loadSave,tick,draw,bStart,bMove,bEnd,setManual(v){manualClock=!!v;if(v){manualT=performance.now()/1000;lastTs=0;}},get seed(){return SEED;},clearTrails(){trails.length=0;},nextWave,
   G,W,H,dl,get R(){return R},start:startHook,get renderer(){return R&&R.name;},accuracy,stage,au,get audio(){return window.HBAudio||null;}};
-</script><script>if('serviceWorker' in navigator&&isSecureContext)addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(e=>console.warn('sw',e)));try{screen.orientation&&screen.orientation.lock&&matchMedia('(display-mode: fullscreen)').matches&&screen.orientation.lock('landscape').catch(()=>{});}catch(_){}</script>
+</script><script>try{screen.orientation&&screen.orientation.lock&&matchMedia('(display-mode: fullscreen)').matches&&screen.orientation.lock('landscape').catch(()=>{});}catch(_){}</script>
 </body></html>

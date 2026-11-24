@@ -15,6 +15,8 @@ html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font-family
 #view canvas,#pad canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
 #ovStart,#ovEnd{position:absolute;inset:0;z-index:10}
 </style><link rel="manifest" href="manifest.webmanifest">
+<meta name="pgs-build" content="__PGS_BUILD__">
+<script src="../_shared/update.js" defer></script>
 <meta name="theme-color" content="#0d1410">
 <meta name="mobile-web-app-capable" content="yes">
 <link rel="icon" href="icon-192.png">
@@ -249,6 +251,7 @@ if (typeof module !== 'undefined') module.exports = LOL;
   function buildStart() {
     var o = $('ovStart'); o.textContent = '';
     o.appendChild(el('h1', null, 'Last Over Lane'));
+    var pb = el('span', null, ''); pb.setAttribute('data-pgs-build', ''); pb.style.cssText = 'font-size:10px;opacity:.6;position:absolute;top:4px;right:8px'; o.appendChild(pb);
     o.appendChild(el('div', 'sub', 'One tap. Pick a shot, tap a sector, hit the ball on time.'));
     var ul = el('ul');
     ['Edge into a fielder is caught.', 'Good Drive or Slog into a fielder is caught.', 'Edge into Loft is always caught.',
@@ -1650,5 +1653,5 @@ if (typeof module !== 'undefined') module.exports = LOL;
   window.__lol = { G, get renderer() { return renderer(); }, gpuReadback: () => (G.gpuOn ? P.gpu.readback() : Promise.resolve(null)), get match() { return G.m; }, get cur() { return G.cur; }, get corr() { return liveCorr(); }, onTap, LOL };
 })();
 </script>
-<script>if('serviceWorker' in navigator&&isSecureContext)addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(e=>console.warn('sw',e)));try{screen.orientation&&screen.orientation.lock&&matchMedia('(display-mode: fullscreen)').matches&&screen.orientation.lock('portrait').catch(()=>{});}catch(_){}</script>
+<script>try{screen.orientation&&screen.orientation.lock&&matchMedia('(display-mode: fullscreen)').matches&&screen.orientation.lock('portrait').catch(()=>{});}catch(_){}</script>
 </body></html>

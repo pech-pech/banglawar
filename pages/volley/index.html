@@ -521,6 +521,8 @@ body.h-short{--pv-ui-touch:48px}
 <meta name="mobile-web-app-capable" content="yes">
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
+<meta name="pgs-build" content="__PGS_BUILD__">
+<script src="../_shared/update.js" defer></script>
 </head>
 <body>
 <div id="stage">
@@ -768,6 +770,7 @@ function show(opts){
   else if (M && M.resetSignal && M.RESET_LINE) line = M.RESET_LINE;   // [spec] shown once after a wipe (R20); Home repeats it as a toast
   el.querySelector('.pvt-reset').textContent = line;
   el.querySelector('.pvt-ver').textContent = 'Build ' + ((V.UI && V.UI.BUILD) || '-');
+  try { var pv = el.querySelector('.pvt-ver'), ps = document.createElement('span'); ps.setAttribute('data-pgs-build', ''); ps.textContent = 'build ' + (window.PGS_BUILD || 'dev'); pv.appendChild(document.createTextNode(' | ')); pv.appendChild(ps); } catch (_) {}
   el.classList.remove('out'); (document.body || document.documentElement).appendChild(el);
   vis = true; shownAt = performance.now();
   draw(); layoutName();
@@ -10060,7 +10063,7 @@ UI.report = function(){
   var m = hooks.metrics ? hooks.metrics() : {}, S = m.S || {}, st = S.stats || {};
   var braced = st.playSteps ? Math.round(100 * (st.bracedSteps || 0) / st.playSteps) : 0;
   var r = {
-    build: BUILD, date: new Date().toISOString(), tuneChanged: tuneDiff(), window: (G.innerWidth | 0) + 'x' + (G.innerHeight | 0), seed: S.seed, renderer: m.renderer, viewport: m.viewport, dpr: G.devicePixelRatio || 1,
+    build: BUILD, pgsBuild: window.PGS_BUILD || 'dev', date: new Date().toISOString(), tuneChanged: tuneDiff(), window: (G.innerWidth | 0) + 'x' + (G.innerHeight | 0), seed: S.seed, renderer: m.renderer, viewport: m.viewport, dpr: G.devicePixelRatio || 1,
     ua: navigator.userAgent,
     frameMs: m.frame, gapsOver50ms: m.gaps,
     bracedUptimePct: braced, hitsBy: st.hitsBy, roomTimes: st.roomTimes, kills: st.kills, deaths: m.deaths,
@@ -13042,6 +13045,6 @@ if (document.readyState === 'loading') document.addEventListener('DOMContentLoad
 })();
 
 </script>
-<script>if('serviceWorker' in navigator&&isSecureContext)addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(e=>console.warn('sw',e)));try{screen.orientation&&screen.orientation.lock&&matchMedia('(display-mode: fullscreen)').matches&&screen.orientation.lock('portrait').catch(()=>{});}catch(_){}</script>
+<script>try{screen.orientation&&screen.orientation.lock&&matchMedia('(display-mode: fullscreen)').matches&&screen.orientation.lock('portrait').catch(()=>{});}catch(_){}</script>
 </body>
 </html>

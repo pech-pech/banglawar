@@ -314,7 +314,7 @@
     if (log.length > 6000) { log = log.slice(log.length - 6000); trunc = true; }
     var run = sim ? sim.report() : null;
     var o = {
-      game: 'wellhand', version: VERSION,
+      game: 'wellhand', version: VERSION, pgsBuild: window.PGS_BUILD || null,
       device: { innerW: window.innerWidth, innerH: window.innerHeight, dpr: window.devicePixelRatio || 1, ua: navigator.userAgent },
       run: run,
       attempts: attempts.slice(),

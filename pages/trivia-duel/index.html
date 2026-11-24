@@ -1,6 +1,8 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="pgs-build" content="__PGS_BUILD__">
+<script src="../_shared/update.js" defer></script>
 <title>Candle Duel</title>
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#2b1d6b">
@@ -2444,7 +2446,7 @@ var tweak = (function () {
     for (var i = 0; i < rivals.length; i++) if (rivals[i].step === step) rname = rivals[i].name;
     var df = diffs(), dk = Object.keys(df);
     var lines = [];
-    lines.push('Build: ' + (TD.BUILD || '?'));
+    lines.push('Build: ' + (TD.BUILD || '?') + '  PGS: ' + (window.PGS_BUILD || 'dev'));
     lines.push('Seed: ' + state.seed + '  Mode: ' + state.mode + '  ReadUpTo: ' + state.readUpTo);
     lines.push('Picked topic: ' + state.pickedTopic + '  Wager topic: ' + state.wagerTopic);
     lines.push('Rival: step ' + step + ' ' + rname);
@@ -3433,6 +3435,7 @@ var TD = (typeof window!=='undefined'?(window.TD=window.TD||{}):(global.TD=globa
     $('home-rival-step').textContent = 'Rival ' + rv.step + '/5';
     updateWarn();
     $('home-build').textContent = 'build ' + TD.BUILD;
+    try { var pb = document.createElement('span'); pb.setAttribute('data-pgs-build', ''); pb.textContent = 'build ' + (window.PGS_BUILD || 'dev'); $('home-build').appendChild(document.createTextNode(' | ')); $('home-build').appendChild(pb); } catch (_) {}
     if (ui.refreshBadge) ui.refreshBadge();
   }
 
@@ -4765,6 +4768,5 @@ if (typeof module !== 'undefined') module.exports = TD.audioGlue;
 })();
 
 </script>
-<script>if("serviceWorker"in navigator)addEventListener("load",function(){navigator.serviceWorker.register("sw.js").catch(function(){})});</script>
 
 </body></html>

@@ -1,6 +1,6 @@
 "use strict";
 /* ---------- copy report ---------- */
-function reportText(){const eq=equity();return JSON.stringify({build:BUILD,src:dataSource(),seed:S.seed,week:S.week,tweaked:tweaked(),tweaks:T,equity:Math.round(eq),ret:+pct(eq,T.startCash).toFixed(2),bench:+pct(bench(),T.startCash).toFixed(2),failed:S.failed,fees:Math.round(S.fees),orders:S.orders,calls:S.calls.map(c=>({s:S.W.codes[c.k],d:c.dir,wk:c.wk,pat:c.pat,res:c.res||"open"})),baseline:S.base})}
+function reportText(){const eq=equity();return JSON.stringify({build:BUILD,pgs_build:(typeof window!=="undefined"?window.PGS_BUILD:undefined),src:dataSource(),seed:S.seed,week:S.week,tweaked:tweaked(),tweaks:T,equity:Math.round(eq),ret:+pct(eq,T.startCash).toFixed(2),bench:+pct(bench(),T.startCash).toFixed(2),failed:S.failed,fees:Math.round(S.fees),orders:S.orders,calls:S.calls.map(c=>({s:S.W.codes[c.k],d:c.dir,wk:c.wk,pat:c.pat,res:c.res||"open"})),baseline:S.base})}
 function copyReport(){const t=reportText();(navigator.clipboard?navigator.clipboard.writeText(t):Promise.reject()).then(()=>{S.lastMsg="Report copied";render()},()=>{prompt("Copy report",t)})}
 
 /* ---------- tweak menu + presets ---------- */

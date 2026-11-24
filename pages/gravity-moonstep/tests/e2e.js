@@ -7,8 +7,10 @@ fs.mkdirSync(SHOTS, { recursive: true });
 const MIME = { '.css': 'text/css', '.html': 'text/html', '.js': 'text/javascript', '.json': 'application/json', '.webmanifest': 'application/manifest+json', '.png': 'image/png', '.svg': 'image/svg+xml' };
 const server = http.createServer((req, res) => {
   let p = decodeURIComponent(req.url.split('?')[0]); if (p.endsWith('/')) p += 'index.html';
-  const f = path.join(ROOT, p);
-  if (!f.startsWith(ROOT) || !fs.existsSync(f) || fs.statSync(f).isDirectory()) { res.writeHead(404); return res.end('nf'); }
+  if (p === '/version.json' && !fs.existsSync(path.join(ROOT, 'version.json'))) { res.writeHead(200, { 'Content-Type': 'application/json' }); return res.end('{}'); } // unstamped dev build
+  const SH = path.resolve(ROOT, '..', '_shared');
+  const f = p.startsWith('/_shared/') ? path.join(SH, p.slice(9)) : path.join(ROOT, p);
+  if (!(f.startsWith(ROOT) || f.startsWith(SH)) || !fs.existsSync(f) || fs.statSync(f).isDirectory()) { res.writeHead(404); return res.end('nf'); }
   res.writeHead(200, { 'Content-Type': MIME[path.extname(f)] || 'application/octet-stream', 'Cache-Control': 'no-store' });
   fs.createReadStream(f).pipe(res);
 });

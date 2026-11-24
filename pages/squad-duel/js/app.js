@@ -121,7 +121,7 @@
         '<p class="tag">A season of 7 matches and a Cup Final.</p>' +
         '<div class="btns">' + (has ? '<button type="button" id="btn-continue" class="primary">Continue</button>' : '') +
         '<button type="button" id="btn-new"' + (has ? '' : ' class="primary"') + '>New game</button></div>' +
-        '<div id="build-id">build ' + BUILD + '</div></section>';
+        '<div id="build-id">build ' + BUILD + ' <span data-pgs-build></span></div></section>';
       const c = $('btn-continue');
       if (c) c.addEventListener('click', () => app.continueGame());
       const n = $('btn-new');
@@ -357,9 +357,6 @@
         const step = jump === 'card' ? 'manager' : jump;
         app.go(STEPS.indexOf(step) >= 0 ? step : 'hub');
       } else app.render();
-      if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) {
-        navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then(r => r.update()).catch(() => {});
-      }
     }
   };
 

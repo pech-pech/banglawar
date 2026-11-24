@@ -78,6 +78,8 @@ button,input,select,textarea{font:inherit;color:inherit}
 .sheet .btn{font-size:15px;padding:6px 12px}
 .msg{font:13px system-ui,sans-serif;color:var(--accent);min-height:18px}
 </style>
+<meta name="pgs-build" content="__PGS_BUILD__">
+<script src="../_shared/update.js" defer></script>
 </head>
 <body>
 
@@ -88,6 +90,7 @@ button,input,select,textarea{font:inherit;color:inherit}
     <p class="sub">a small story with three choices</p>
     <div class="bar"><button class="btn primary" id="play" style="height:56px">Play</button></div>
     <div id="buildid"></div>
+    <div style="font:10px ui-monospace,Menlo,monospace;opacity:.6" data-pgs-build></div>
   </div>
 </section>
 
@@ -353,7 +356,7 @@ $('p_copy').addEventListener('click',function(){
 
 function reportText(){
   var runs=Core.loadRuns(storage),info=Core.endingsFound(runs);
-  return ['Witch School report, build '+Core.BUILD,'Runs (last '+runs.length+'):'].concat(runs,['Endings found: '+info.found.length+' of '+info.total+(info.found.length?' ('+info.found.join(', ')+')':'')]).join('\n');
+  return ['Witch School report, build '+Core.BUILD+' (pgs '+(window.PGS_BUILD||'dev')+')','Runs (last '+runs.length+'):'].concat(runs,['Endings found: '+info.found.length+' of '+info.total+(info.found.length?' ('+info.found.join(', ')+')':'')]).join('\n');
 }
 function copyText(txt,msgEl,okMsg){
   var ta=$('r_text');ta.value=txt;
@@ -405,7 +408,6 @@ document.addEventListener('keydown',function(e){
   }
 });
 applyTune();
-try{if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(function(){})}catch(e){}
 window.__ws={get state(){return state},get tune(){return tune}};
 })();
 </script>

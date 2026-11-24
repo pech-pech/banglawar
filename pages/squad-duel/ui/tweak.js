@@ -285,7 +285,7 @@
     const S = A.S || {};
     const T = values(), D = defaults();
     const out = [];
-    out.push('SQUAD DUEL REPORT | build ' + (S.build || BUILD) + ' | seed ' + (S.seed != null ? S.seed : '?') + ' | step ' + (S.step || '?'));
+    out.push('SQUAD DUEL REPORT | build ' + (S.build || BUILD) + ' | seed ' + (S.seed != null ? S.seed : '?') + ' | step ' + (S.step || '?') + ' | pgs_build ' + (window.PGS_BUILD || '?'));
     const diffs = Object.keys(T).filter(function (k) { return k !== 'fxOff' && !same(T[k], D[k]); })
       .map(function (k) { return k + ' ' + D[k] + '->' + T[k]; });
     const fxo = Object.keys(T.fxOff || {}).filter(function (k) { return T.fxOff[k]; });

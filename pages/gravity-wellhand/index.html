@@ -3,6 +3,8 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
 <title>Wellhand</title>
 <link rel="manifest" href="manifest.webmanifest">
+<meta name="pgs-build" content="__PGS_BUILD__">
+<script src="../_shared/update.js" defer></script>
 <meta name="theme-color" content="#070b14">
 <meta name="mobile-web-app-capable" content="yes">
 <link rel="icon" href="icon-192.png"><link rel="apple-touch-icon" href="icon-192.png">
@@ -31,5 +33,5 @@ html,body{margin:0;height:100%;background:#070b14;color:#dff;font-family:system-
 <script src="render.js"></script>
 <script src="tests.js"></script>
 <script src="app.js"></script>
-<script>if('serviceWorker' in navigator&&isSecureContext)addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(e=>console.warn('sw',e)));</script>
+<span data-pgs-build style="position:fixed;left:6px;bottom:calc(3px + env(safe-area-inset-bottom));font:10px system-ui,sans-serif;opacity:.6;color:#fff;pointer-events:none;z-index:6"></span>
 </body></html>

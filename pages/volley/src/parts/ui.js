@@ -486,7 +486,7 @@ UI.report = function(){
   var m = hooks.metrics ? hooks.metrics() : {}, S = m.S || {}, st = S.stats || {};
   var braced = st.playSteps ? Math.round(100 * (st.bracedSteps || 0) / st.playSteps) : 0;
   var r = {
-    build: BUILD, date: new Date().toISOString(), tuneChanged: tuneDiff(), window: (G.innerWidth | 0) + 'x' + (G.innerHeight | 0), seed: S.seed, renderer: m.renderer, viewport: m.viewport, dpr: G.devicePixelRatio || 1,
+    build: BUILD, pgsBuild: window.PGS_BUILD || 'dev', date: new Date().toISOString(), tuneChanged: tuneDiff(), window: (G.innerWidth | 0) + 'x' + (G.innerHeight | 0), seed: S.seed, renderer: m.renderer, viewport: m.viewport, dpr: G.devicePixelRatio || 1,
     ua: navigator.userAgent,
     frameMs: m.frame, gapsOver50ms: m.gaps,
     bracedUptimePct: braced, hitsBy: st.hitsBy, roomTimes: st.roomTimes, kills: st.kills, deaths: m.deaths,
