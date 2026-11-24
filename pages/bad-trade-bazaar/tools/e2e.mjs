@@ -208,6 +208,7 @@ try {
   });
 
   await step('reset run (tap 1) -> slot screen with collection', async () => {
+    await page.waitForTimeout(700); // ui ignores end taps for 600 ms
     await tap(page, '#btn-reset-run');
     await page.waitForFunction(() => document.body.dataset.screen === 'slot', null, { timeout: 3000 });
     ok((await page.locator('#slots .slot-big').count()) === 3, '3 .slot-big');
@@ -244,7 +245,8 @@ try {
       await page.waitForFunction(() => document.body.dataset.screen === 'end', null, { timeout: 3000 });
       const n = await page.locator('#end-scars .scar-card[data-spare="1"]').count();
       if (n > 0) { spareFound = true; break; }
-      await tap(page, '#btn-reset-run');
+      await page.waitForTimeout(700); // ui ignores end taps for 600 ms
+    await tap(page, '#btn-reset-run');
       await page.waitForFunction(() => document.body.dataset.screen === 'slot', null, { timeout: 3000 });
       await fillSlots(page);
       await tap(page, '#btn-start-run');
@@ -257,6 +259,7 @@ try {
 
   await step('spare: #spare-note shows +N on slot screen', async () => {
     ok(spareFound, 'skipped: no spare');
+    await page.waitForTimeout(700); // ui ignores end taps for 600 ms
     await tap(page, '#btn-reset-run');
     await page.waitForFunction(() => document.body.dataset.screen === 'slot', null, { timeout: 3000 });
     const note = (await page.textContent('#spare-note')).trim();
@@ -331,6 +334,7 @@ try {
     await page.waitForFunction(() => document.body.dataset.screen === 'end', null, { timeout: 3000 });
     await page.waitForTimeout(500);
     await layoutCheck(page, 'end 475x638');
+    await page.waitForTimeout(700); // ui ignores end taps for 600 ms
     await tap(page, '#btn-reset-run');
     await page.waitForFunction(() => document.body.dataset.screen === 'slot', null, { timeout: 3000 });
     await fillSlots(page);

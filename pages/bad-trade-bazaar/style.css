@@ -29,7 +29,7 @@
   --sans:system-ui,-apple-system,'Segoe UI',Roboto,Arial,sans-serif;
   --mt:max(24px,env(safe-area-inset-top)); --mb:max(24px,env(safe-area-inset-bottom));
   --ml:max(8px,env(safe-area-inset-left)); --mr:max(8px,env(safe-area-inset-right));
-  --tc:56px; /* tray card width */
+  --tc:96px; /* tray card width */
   --glyph:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='4' y='2' width='16' height='20' rx='3' fill='none' stroke='%23000' stroke-width='2'/%3E%3Cpath d='M8 6l5 4-4 3 6 5' fill='none' stroke='%23000' stroke-width='2.2' stroke-linejoin='round' stroke-linecap='round'/%3E%3C/svg%3E");
   --glyph-b:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='4' y='2' width='16' height='20' rx='3' fill='none' stroke='%23000' stroke-width='2'/%3E%3Cpath d='M8 6l5 4-4 3 6 5M16 5l-3 3M9 17l-2 3' fill='none' stroke='%23000' stroke-width='2.2' stroke-linejoin='round' stroke-linecap='round'/%3E%3Ccircle cx='12' cy='12' r='1.3' fill='%23000'/%3E%3C/svg%3E");
 }
@@ -93,7 +93,7 @@ svg{display:block}
 #tray:empty::after{content:"Scars you earn land here";font:700 14px/1.2 var(--sans);color:var(--cream2);opacity:.85;white-space:nowrap}
 .tray-card{position:relative;flex:none;width:var(--tc);height:56px;border-radius:6px;background:var(--ink2);border:2px solid var(--acc,var(--brown2));
   display:flex;align-items:center;justify-content:center;color:var(--cream)}
-.tray-card .ini{font:800 16px/1 var(--sans);letter-spacing:0}
+.tray-card .ini{font:800 14px/1.1 var(--sans);letter-spacing:0;text-align:center;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;padding:0 3px}
 .badge{position:absolute;right:-4px;top:-8px;background:var(--gold);color:var(--ink);font:800 14px/1 var(--sans);border-radius:9px;padding:2px 5px}
 .legend{display:none;flex:1;min-width:0;flex-direction:column;font:700 14px/1.15 var(--sans);color:var(--cream2);align-items:flex-start}
 .stamp{color:#ffb7a4;border:2px solid #ff8a6e;border-radius:4px;padding:0 4px;transform:rotate(-4deg);letter-spacing:1px;display:inline-block;margin-bottom:2px}
@@ -120,8 +120,8 @@ canvas.spark{display:block;width:100%;flex:1 1 0;min-height:24px;max-height:60px
 
 /* toggle */
 .tog{flex:none;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;padding:2px 4px;min-width:0;
-  border:2px solid var(--ink);border-radius:10px;box-shadow:0 4px 0 #1a0d04;color:var(--ink);background:var(--amber);position:relative;font-family:var(--sans)}
-.face{display:flex;align-items:center;gap:5px;font:900 22px/1 var(--sans);white-space:nowrap}
+  border:2px solid var(--ink);border-radius:10px;box-shadow:0 4px 0 #1a0d04;color:var(--ink);background:var(--amber);position:relative;margin:0 4px 4px 0;font-family:var(--sans)}
+.face{display:flex;align-items:center;gap:4px;font:900 18px/1 var(--sans);white-space:nowrap}
 .chip{max-width:100%;height:32px;padding:0 4px;display:flex;align-items:center;justify-content:center;
   font:800 14px/1 var(--sans);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .tog[data-mode=buy]{background:var(--amber)}
@@ -208,7 +208,7 @@ body.dev #dev-badge{display:block}
 #collection{order:2;flex:none;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));grid-template-rows:repeat(2,100px);gap:8px}
 #slot-effect{order:3;flex:none;height:56px;display:flex;align-items:center;padding:0 12px;font:700 14px/1.2 var(--sans);color:var(--cream);background:rgba(43,22,8,.6);border:2px solid var(--brown);border-radius:10px;overflow:hidden}
 .slot-flex{order:4;flex:1 1 0;min-height:0;display:flex;align-items:center;justify-content:center}
-.slot-art{display:none}
+.slot-art{display:none!important}
 #spare-note{font:700 14px/1.2 var(--sans);color:var(--gold);text-align:center}
 #btn-start-run{order:5;flex:none}
 .coll-card{display:grid;grid-template-columns:28px minmax(0,1fr);column-gap:6px;align-content:center;text-align:left;justify-items:start;padding:2px 6px;border-top-width:6px}
@@ -273,9 +273,7 @@ body.dev #dev-badge{display:block}
   /* slot */
   #slots{grid-template-columns:repeat(3,104px);justify-content:space-between;height:136px;gap:8px}
   #slot-effect{order:2;margin-top:0}
-  .slot-flex{order:3;position:relative;border-radius:12px;overflow:hidden;border:2px solid var(--brown);background:#1b0f14}
-  .slot-art{display:block;position:absolute;inset:0}
-  #spare-note{position:relative;background:rgba(26,15,10,.85);padding:6px 10px;border-radius:8px}
+  #spare-note[hidden]{display:none}
   #collection{order:4;grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:repeat(3,104px)}
   #btn-start-run{order:5}
   #screen-slot{gap:8px}

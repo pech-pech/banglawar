@@ -149,12 +149,7 @@ function frame(ts) {
 document.addEventListener('visibilitychange', () => { last = null; acc = 0; });
 
 // ---------- helpers ----------
-const money = (v) => {
-  const a = Math.abs(v);
-  const r = Math.round(a);
-  if (r === 0 && a > 0.005) return a.toFixed(1);
-  return String(r);
-};
+const money = (v) => Math.abs(v).toFixed(2); // one format everywhere: 2 decimals, unit added by caller
 const signed = (v) => (v < 0 ? '−$' : '+$') + money(v);
 const fmtTime = (s) => {
   s = Math.max(0, Math.ceil(s));
@@ -322,7 +317,7 @@ function renderTray() {
       card.title = scarName(type);
       const ini = document.createElement('span');
       ini.className = 'ini';
-      ini.textContent = initials(scarName(type));
+      ini.textContent = scarName(type);
       const badge = document.createElement('span');
       badge.className = 'badge';
       card.append(ini, badge);
@@ -501,7 +496,9 @@ function renderSlot() {
   for (const t of profile.build || []) if (t != null) counts[t] = (counts[t] || 0) + 1;
   const parts = Object.keys(counts).map(Number).map((t) => core.perkText(t, config).replace(/\n/g, ' ') + (counts[t] > 1 ? ` ×${counts[t]}` : ''));
   setText($('slot-effect'), parts.length ? parts.join(' · ') : 'No scars slotted');
-  setText($('spare-note'), `+${profile.sparesNext || 0} cash from spares at start`);
+  const sn = $('spare-note');
+  setText(sn, `+$${profile.sparesNext || 0} cash from spares at start`);
+  if (sn) sn.hidden = !(profile.sparesNext > 0);
 }
 
 function setSlot(idx, type) {
