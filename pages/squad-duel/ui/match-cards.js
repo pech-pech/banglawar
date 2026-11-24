@@ -51,7 +51,7 @@
     let odds = '';
     if (row && row.best) {
       const isTop = G.top && G.top.pid === pid;
-      odds = '<span class="odds' + (isTop ? ' top' : '') + '" data-p="' + row.best.p + '">' + (isTop ? '<s aria-label="best pick">&#9733;</s>' : '') + esc((ALAB[row.best.k] || row.best.k) + ' ' + pctText(m, row.best.p)) + '</span>';
+      odds = '<span class="odds' + (isTop ? ' top' : '') + '" data-p="' + row.best.p + '">' + (isTop ? '<s aria-label="best pick">&#9733;</s>' : '') + esc((row.best.k === 'dribble' ? 'Drb' : (ALAB[row.best.k] || row.best.k)) + ' ' + pctText(m, row.best.p)) + '</span>';
     }
     else if (U.ev) odds = '<span class="odds ph" aria-hidden="true">&nbsp;</span>';   // keeps the card height steady on the result
     const isTop = G && G.top && G.top.pid === pid;

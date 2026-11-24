@@ -106,12 +106,32 @@
 
   function render(el) {
     const S = SD.app.S;
-    const matchNo = (SD.progress && SD.progress.matchNo ? SD.progress.matchNo(S) : 1) || 1;
-    const clubId = SD.data.FIXTURES[matchNo - 1] || SD.data.FIXTURES[0];
-    const club = SD.data.CLUBS[clubId];
+    const T = SD.app.T;
+    // opponent: season fixture (league) or cup opponent; fallback to shipped FIXTURES list
+    let opp = null;
+    try {
+      const sea = SD.season, cs = S.season;
+      if (sea && cs && cs.md === 7 && !(cs.cup && cs.cup.played) && sea.cupGate) {
+        const g = sea.cupGate(S);
+        if (g && g.reached && g.opp) opp = { md: 8, cup: true, clubId: g.opp, mode: 'neutral' };
+      }
+      if (!opp && sea && sea.fixtureFor) {
+        const f = sea.fixtureFor(S);
+        if (f) opp = { md: f.md, cup: false, clubId: f.clubId, mode: f.mode || (f.home ? 'home' : 'away') };
+      }
+    } catch (e) { opp = null; }
+    if (!opp) {
+      const mn = (SD.progress && SD.progress.matchNo ? SD.progress.matchNo(S) : 1) || 1;
+      opp = { md: mn, cup: false, clubId: SD.data.FIXTURES[mn - 1] || SD.data.FIXTURES[0], mode: 'home' };
+    }
+    let club = null;
+    try { if (SD.season && SD.season.clubFor) club = SD.season.clubFor(S, opp.clubId, T, opp.md); } catch (e) { club = null; }
+    if (!club) club = SD.data.CLUBS[opp.clubId];
+    const matchNo = opp.md;
     let selected = null; // slot being swapped
     let flash = null;    // { slots: [..], msg } after a swap (row 24)
     let flashTimer = 0;
+    let detailPid = SD.app.openCard || null; SD.app.openCard = null; // U10 card detail overlay (jump=card sets openCard)
 
     el.innerHTML = '';
     const root = h('div', { id: 'mgr' });
@@ -122,11 +142,39 @@
       const L = S.lineup;
       const slotPid = { k: L.keeper, o0: L.outfield[0], o1: L.outfield[1], o2: L.outfield[2], o3: L.outfield[3], b0: L.bench[0], b1: L.bench[1] };
 
+      const back = h('button', { type: 'button', id: 'btn-mgr-back', 'aria-label': 'Back to hub' }, [h('span', { 'aria-hidden': 'true', text: '‹' })]);
+      back.addEventListener('click', () => { SD.app.save(); if (SD.app.toHub) SD.app.toHub(); else SD.app.go('hub'); });
+      const modeWord = opp.mode === 'neutral' ? 'NEUTRAL' : opp.mode === 'away' ? 'AWAY' : 'HOME';
+      const subTx = opp.cup ? 'Cup Final · pick five' : 'Matchday ' + matchNo + ' of 7 · pick five';
       root.appendChild(h('div', { class: 'mgr-head' }, [
-        h('div', { class: 'mgr-title' }, [h('span', { class: 'mgr-club', text: 'PROUD PRESTON' }), h('span', { class: 'mgr-sub', text: 'Match ' + matchNo + ' · pick your five' })]),
-        h('div', { class: 'mgr-vs', id: 'mgr-vs', text: 'v ' + String(club.name || club.label).toUpperCase() })
+        back,
+        h('div', { class: 'mgr-title' }, [h('span', { class: 'mgr-club', text: 'PROUD PRESTON' }), h('span', { class: 'mgr-sub', text: subTx })])
       ]));
+      root.appendChild(h('div', { class: 'mgr-chips' }, [
+        h('span', { class: 'chip mode m-' + opp.mode, id: 'mgr-mode', text: modeWord }),
+        h('span', { class: 'mgr-vs', id: 'mgr-vs', text: 'v ' + String(club.name || club.label).toUpperCase() })
+      ]));
+      if (club.hint) root.appendChild(h('div', { class: 'mgr-chips' }, [h('span', { class: 'chip hint', id: 'mgr-hint', text: club.hint })]));
       root.appendChild(h('p', { id: 'scout', text: club.scout }));
+
+      // Captain pick (Squad tier 3 node S3 only)
+      if ((S.nodes || []).indexOf('S3') >= 0) {
+        const lu = S.lineup, ids = [lu.keeper].concat(lu.outfield);
+        const row = h('div', { id: 'captain-pick', role: 'group', 'aria-label': 'Captain' });
+        ids.forEach(pid => {
+          const P = playerOf(pid), on = S.captain === pid;
+          const b = h('button', { type: 'button', class: 'cap' + (on ? ' on' : ''), 'data-pid': pid, 'aria-pressed': on ? 'true' : 'false' }, [
+            h('small', { text: on ? 'CAPTAIN' : 'Captain?' }), h('b', { text: P.name })
+          ]);
+          b.addEventListener('click', () => {
+            if (SD.progress && SD.progress.setCaptain) SD.progress.setCaptain(S, pid); else S.captain = pid;
+            SD.app.save(); paint();
+          });
+          row.appendChild(b);
+        });
+        root.appendChild(h('h3', { class: 'mgr-h', text: 'Captain: Trait + Signature reset at half-time' }));
+        root.appendChild(row);
+      }
 
       // row 23: new pull strip
       const newIds = Object.keys(S.owned || {}).filter(pid => S.owned[pid] && S.owned[pid].isNew && SD.data.byId(pid));
@@ -175,8 +223,8 @@
         b.addEventListener('click', () => { S.formation = n; SD.app.save(); paint(); });
         forms.appendChild(b);
       });
-      const kick = h('button', { type: 'button', id: 'btn-kickoff' }, [h('span', { text: 'Kick off v ' + cap(club.label || club.name) }), h('i', { 'aria-hidden': 'true', text: '›' })]);
-      kick.addEventListener('click', () => { SD.app.save(); SD.app.go('match' + matchNo); });
+      const kick = h('button', { type: 'button', id: 'btn-kickoff' }, [h('span', { text: (opp.cup ? 'Cup Final v ' : 'Kick off v ') + cap(club.label || club.name) }), h('i', { 'aria-hidden': 'true', text: '›' })]);
+      kick.addEventListener('click', () => { SD.app.save(); SD.app.go('match'); });
       const ctrlCol = h('div', { class: 'mgr-col b' }, [h('h3', { class: 'mgr-h', text: 'Formation' }), forms]);
 
       const body = h('div', { class: 'mgr-body' }, [squadCol, ctrlCol]);
@@ -185,6 +233,42 @@
 
       if (flash) root.appendChild(h('div', { id: 'swap-toast', role: 'status', text: flash.msg }));
       if (selected) root.appendChild(panel(selected, slotPid));
+      if (detailPid) root.appendChild(detail(detailPid));
+    }
+
+    // U10 player card detail: stats old -> new (risen stat in neon), Trait, Signature, Close
+    function detail(pid) {
+      const base = SD.data.byId(pid) || {}, P = playerOf(pid), own = (S.owned && S.owned[pid]) || {};
+      const lvl = P.level || 1, stars = own.stars || 0;
+      const maxS = (SD.data.PULL && SD.data.PULL.maxStars) || 5;
+      const rar = String(P.rarity || 'Common').toLowerCase();
+      const stats = h('div', { class: 'cd-stats' });
+      STAT_KEYS.forEach(k => {
+        const o = base[k], n = P[k], up = n > o;
+        stats.appendChild(h('div', { class: 'cd-stat' + (up ? ' up' : '') }, [
+          h('span', { class: 'k', text: k.toUpperCase() }),
+          h('span', { class: 'v', text: up ? o + ' → ' + n : String(n) })
+        ]));
+      });
+      const tr = SD.data.TRAITS && SD.data.TRAITS[P.role];
+      const tbox = h('div', { class: 'cd-box' + (lvl >= 2 ? '' : ' dim') }, tr ? (lvl >= 2
+        ? [h('b', { text: 'Trait: ' + tr.name }), h('span', { text: traitLine(P) })]
+        : [h('b', { text: 'Level 2 gives a Trait' })]) : [h('b', { text: 'No Trait' })]);
+      const sg = P.sig || base.sig;
+      const sbox = h('div', { class: 'cd-box sig' }, sg
+        ? [h('b', { text: 'Signature: ' + sg.name }), h('span', { text: sg.text || '' })]
+        : [h('b', { text: 'No Signature move' })]);
+      const close = h('button', { type: 'button', id: 'btn-cd-close' }, ['Close']);
+      close.addEventListener('click', () => { detailPid = null; paint(); });
+      const pips = '★'.repeat(stars) + '☆'.repeat(Math.max(0, maxS - stars));
+      return h('div', { id: 'card-detail', role: 'dialog', 'aria-label': P.name + ' details' }, [
+        h('div', { class: 'cd-card r-' + rar }, [
+          h('div', { class: 'cd-top' }, [icon(P.role), h('div', { class: 'cd-title' }, [
+            h('b', { text: P.name }), h('small', { text: P.rarity + ' ' + P.role + ' · Level ' + lvl + ' · ' + pips })])]),
+          stats, tbox, sbox
+        ]),
+        close
+      ]);
     }
 
     function panel(sl, slotPid) {
@@ -209,7 +293,7 @@
       ids.forEach(pid => {
         const P = playerOf(pid), ts = topStat(P);
         const isCur = pid === cur;
-        const b = h('button', { type: 'button', class: 'sq-card' + (isCur ? ' cur' : '') + (isNewP(pid) ? ' isnew' : ''), 'data-pid': pid, 'aria-label': P.name + (isCur ? ' (here now)' : '') }, [
+        const b = h('button', { type: 'button', class: 'sq-main', 'data-pid': pid, 'aria-label': P.name + (isCur ? ' (here now)' : '') }, [
           h('span', { class: 'sq-ic' }, [icon(P.role)]),
           h('span', { class: 'sq-tx' }, [
             h('b', { text: P.name }),
@@ -237,7 +321,10 @@
           }, 1400);
           SD.app.save(); selected = null; paint();
         });
-        list.appendChild(b);
+        const info = h('button', { type: 'button', class: 'sq-info', 'data-pid': pid, 'aria-label': 'Card details for ' + P.name }, [h('span', { text: 'Card' })]);
+        info.addEventListener('click', () => { detailPid = pid; paint(); });
+        const row = h('div', { class: 'sq-card' + (isCur ? ' cur' : '') + (isNewP(pid) ? ' isnew' : ''), 'data-pid': pid }, [b, info]);
+        list.appendChild(row);
       });
       const close = h('button', { type: 'button', id: 'btn-sq-close', class: 'sq-close' }, ['Close']);
       close.addEventListener('click', () => { selected = null; paint(); });

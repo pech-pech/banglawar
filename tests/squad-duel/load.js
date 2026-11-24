@@ -6,7 +6,7 @@ const path = require('path');
 
 const JS_DIR = path.resolve(__dirname, '../../pages/squad-duel/js');
 // CONTRACT-BUILD section 0 order (UI files are not loaded: Node has no DOM).
-const ORDER = ['rng', 'data', 'odds', 'club-ai', 'fx-nodes', 'fx-players', 'engine', 'progress', 'gacha'];
+const ORDER = ['rng', 'data', 'odds', 'club-ai', 'fx-nodes', 'fx-players', 'engine', 'progress', 'gacha', 'season', 'shootout'];
 
 function load() {
   globalThis.SD = globalThis.SD || {};

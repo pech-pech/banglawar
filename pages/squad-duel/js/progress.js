@@ -1,10 +1,11 @@
 (function () { 'use strict';
   const SD = (globalThis.SD = globalThis.SD || {});
-  const KEY = 'squadDuel.v1';
-  const STEPS = ['manager1', 'match1', 'result1', 'tree', 'pull', 'manager2', 'match2', 'result2', 'end'];
+  const KEY = 'squadDuel.v2';
+  const STEPS = ['start', 'hub', 'table', 'manager', 'match', 'result', 'mdres', 'tree', 'pull', 'cupintro', 'shootout', 'end'];
+  const SQUAD_MAX = 20;
   const STATS = ['pac', 'pas', 'sho', 'def'];
   // admin default: fallbacks used only when SD.data is missing a field (data.js wins when present)
-  const FALLBACK_T = { openingCoins: 100, openingSP: 3, respecCost: 50, xpGoal: 10, xpDuel: 3, xpWin: 20, flatterStarters: false };
+  const FALLBACK_T = { openingCoins: 100, openingSP: 3, respecCost: 50, xpGoal: 10, xpDuel: 3, xpWin: 20, flatterStarters: false, cupMatchWin: 100, cupMatchLoss: 50 };
   const FALLBACK_XP = { duelWon: 3, goal: 10, assist: 5, save: 8, win: 20, draw: 12, loss: 12, benchShare: 0.5, levels: [0, 30, 80, 150] };
   const FALLBACK_PAY = { opening: { coins: 100, sp: 3 }, later: { W: { coins: 100, sp: 2 }, D: { coins: 70, sp: 1 }, L: { coins: 50, sp: 1 } } };
   const ROLE_STAT = { Striker: 'sho', Playmaker: 'pas', Winger: 'pac', Anchor: 'def', Keeper: 'def' };
@@ -22,12 +23,16 @@
     const owned = {};
     (D().PLAYERS || []).forEach((p) => { if (p.starter) owned[p.id] = { stars: 0, xp: 0, level: 1, isNew: false }; });
     const dl = D().DEFAULT_LINEUP || { keeper: null, outfield: [], bench: [] };
-    return {
-      v: 1, build: 'sq-slice-1', seed: seed == null ? 1 : seed, step: 'manager1',
+    const S = {
+      v: 2, build: 'sq-season-1', seed: seed == null ? 1 : seed, step: 'hub',
       coins: 0, sp: 0, owned, lineup: clone(dl), formation: 'Wall', nodes: [],
       spent: { attack: 0, defence: 0, squad: 0 }, pulls: 0, pity: { epic: 0, legend: 0 },
-      lastPull: null, results: [], reports: []
+      lastPull: null, pullLog: [], results: [], reports: [], captain: null, cupsWon: 0, seasonsPlayed: 0,
+      season: null, live: null
     };
+    // lazy: season.js may load later; the shell fills S.season when this stays null
+    if (SD.season && SD.season.newSeason) S.season = SD.season.newSeason(S, 1);
+    return S;
   }
 
   function load() {
@@ -35,7 +40,7 @@
       const ls = storage(); if (!ls) return null;
       const raw = ls.getItem(KEY); if (!raw) return null;
       const s = JSON.parse(raw);
-      if (!s || typeof s !== 'object' || typeof s.v !== 'number' || !s.owned || !s.lineup) return null;
+      if (!s || typeof s !== 'object' || typeof s.v !== 'number' || s.v < 2 || !s.owned || !s.lineup) return null;
       return s;
     } catch (e) { return null; }
   }
@@ -89,20 +94,35 @@
     if ((o.stars || 0) >= 2) bump += 1;
     if ((o.stars || 0) >= 4) bump += 1;
     P[top] = Math.min(10, P[top] + bump);
+    if ((o.level || 1) >= 4) { // Level 4 (SEASON-SPEC P1, A-systems e)
+      if (base.role === 'Keeper') P.def = Math.min(10, P.def + 1); // Keeper: +1 DEF, outside the +3 rise
+      else {
+        const second = ['sho', 'pas', 'pac', 'def'].filter((k) => k !== top)
+          .reduce((best, k) => (best == null || P[k] > P[best] ? k : best), null); // tie order SHO, PAS, PAC, DEF
+        if (second) P[second] = Math.min(10, P[second] + 1);
+      }
+    }
     P.level = o.level || 1; P.stars = o.stars || 0;
     return P;
   }
 
+  // legacy slice helper, kept as export
   const matchNo = (S) => (['manager1', 'match1', 'result1'].indexOf(S.step) >= 0 ? 1 : 2);
 
   function applyMatch(S, summary, T) {
     const t = TT(T), X = XPT(), pay = PAY();
     const reward = { coins: 0, sp: 0, xp: {}, levelUps: [], opening: false };
     if (!summary) return reward;
-    const mNo = summary.matchNo || matchNo(S);
-    if ((S.results || []).some((r) => r.matchNo === mNo)) return reward; // admin default: a match pays once
-    const res = summary.res;
-    const resXP = res === 'W' ? t.xpWin : (res === 'D' ? X.draw : X.loss);
+    const season = summary.season || (S.season && S.season.no) || 1;
+    const cup = !!summary.cup;
+    // admin default: md falls back to next matchday of S.season, then to the slice matchNo
+    let md = cup ? 'cup' : (summary.md != null ? summary.md : (S.season ? (S.season.md || 0) + 1 : (summary.matchNo || matchNo(S))));
+    if ((S.results || []).some((r) => r.season === season && r.md === md)) return reward; // a match pays once per (season, md|'cup')
+    let res = summary.res;
+    const sh = summary.shoot || null;
+    const level = cup && sh && sh.me !== sh.opp && (res === 'D' || summary.level || summary.score.me === summary.score.opp);
+    if (level) res = sh.me > sh.opp ? 'W' : 'L'; // shootout decides the Cup result
+    const resXP = level ? X.draw : (res === 'W' ? t.xpWin : (res === 'D' ? X.draw : X.loss)); // cup level = draw XP
     const pitch = [S.lineup.keeper].concat(S.lineup.outfield || []);
     const bench = S.lineup.bench || [];
     const st = summary.stats || {};
@@ -112,7 +132,7 @@
       gain[pid] = (e.duelsWon || 0) * t.xpDuel + (e.goals || 0) * t.xpGoal + (e.assists || 0) * X.assist + (e.saves || 0) * X.save + resXP;
     });
     bench.forEach((pid) => { gain[pid] = Math.floor(resXP * X.benchShare); });
-    const opening = mNo === 1;
+    const opening = season === 1 && md === 1; // Opening day: season 1 matchday 1 only
     Object.keys(gain).forEach((pid) => {
       const o = S.owned[pid]; if (!o) return;
       const before = o.level || 1, xp0 = o.xp || 0;
@@ -126,13 +146,12 @@
         reward.levelUps.push({ pid, level: o.level, trait: o.level === 2 ? (tr || null) : null });
       }
     });
+    const later = (pay.later && pay.later[res]) || FALLBACK_PAY.later[res] || { coins: 0, sp: 0 };
     if (opening) { reward.opening = true; reward.coins = t.openingCoins; reward.sp = t.openingSP; }
-    else {
-      const p = (pay.later && pay.later[res]) || FALLBACK_PAY.later[res] || { coins: 0, sp: 0 };
-      reward.coins = p.coins; reward.sp = p.sp;
-    }
+    else if (cup) { reward.coins = res === 'W' ? t.cupMatchWin : t.cupMatchLoss; reward.sp = later.sp; } // E3 cup pay
+    else { reward.coins = later.coins; reward.sp = later.sp; }
     S.coins += reward.coins; S.sp += reward.sp;
-    S.results.push({ matchNo: mNo, club: summary.club, me: summary.score.me, opp: summary.score.opp, res });
+    S.results.push({ season, md, matchNo: typeof md === 'number' ? md : 8, club: summary.club, me: summary.score.me, opp: summary.score.opp, res, shoot: sh ? { me: sh.me, opp: sh.opp } : null });
     return reward;
   }
 
@@ -143,6 +162,7 @@
     if (!n) return bad('Unknown node');
     if (S.nodes.indexOf(id) >= 0) return bad('Already owned');
     if (n.req && S.nodes.indexOf(n.req) < 0) return bad('Needs ' + n.req + ' first');
+    if (n.reqAny && n.reqAny.length && !n.reqAny.some((r) => S.nodes.indexOf(r) >= 0)) return bad('Needs one of ' + n.reqAny.join(' or ') + ' first');
     if (n.fork && (D().NODES || []).some((o) => o.id !== id && o.fork === n.fork && S.nodes.indexOf(o.id) >= 0)) return bad('Other fork path chosen: respec to switch');
     if (S.sp < n.cost) return bad('Need ' + n.cost + ' Skill Points');
     return { ok: true, why: '' };
@@ -180,6 +200,7 @@
     const nk = lu.outfield.concat(lu.bench).find((pid) => D().byId(pid).role === 'Keeper');
     if (nk) return bad('Only the keeper slot takes a Keeper');
     S.lineup = { keeper: lu.keeper, outfield: lu.outfield.slice(), bench: lu.bench.slice() };
+    if (S.captain && all.indexOf(S.captain) < 0) S.captain = null; // captain must be in the lineup
     return { ok: true, why: '' };
   }
 
@@ -197,8 +218,18 @@
     return setLineup(S, lu);
   }
 
-  const squadCount = (S) => ({ have: Object.keys(S.owned).length, of: 12 });
+  const squadCount = (S) => ({ have: Object.keys(S.owned).length, of: SQUAD_MAX });
+
+  // pid in lineup (pitch or bench) or null to clear; admin default: no S3 gate here (shell passes captain only with S3)
+  function setCaptain(S, pid) {
+    if (pid == null) { S.captain = null; return { ok: true, why: '' }; }
+    const L = S.lineup, all = [L.keeper].concat(L.outfield || [], L.bench || []);
+    if (!S.owned[pid]) return bad('Not owned');
+    if (all.indexOf(pid) < 0) return bad('Captain must be in the lineup');
+    S.captain = pid;
+    return { ok: true, why: '' };
+  }
 
   SD.progress = { STEPS, KEY, newState, load, save, wipe, levelOf, xpNext, statsOf, matchNo, applyMatch,
-    canBuy, buy, respec, setLineup, swap, squadCount };
+    canBuy, buy, respec, setLineup, swap, squadCount, setCaptain };
 })();

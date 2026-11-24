@@ -54,13 +54,19 @@
   // ================= RESULT =================
   const R = { sel: null };
 
-  function resultStep(s) {
-    return (s.step === 'result2') ? 2 : (s.step === 'result1') ? 1 : ((s.results || []).length || 1);
-  }
-
+  // season result: results[] rows are {season, md: 1..7|'cup', club, me, opp, res, shoot}; old slice rows had matchNo
   function lastResult(s) {
     const rs = s.results || [];
-    return rs.length ? rs[rs.length - 1] : { matchNo: 1, club: 'grimsby', me: 0, opp: 0, res: 'D' };
+    return rs.length ? rs[rs.length - 1] : { md: 1, club: 'grimsby', me: 0, opp: 0, res: 'D', shoot: null };
+  }
+  function isCup(r) { return r.md === 'cup' || r.md === 8 || r.cup === true; }
+  function mdOf(r) { return isCup(r) ? 'cup' : (typeof r.md === 'number' ? r.md : (r.matchNo || 1)); }
+  // shootout score: SD.app.lastShoot when present, else the stored result row
+  function shootOf(r) {
+    const sh = app().lastShoot || r.shoot || null;
+    if (!sh) return null;
+    const sc = sh.score || sh;
+    return (typeof sc.me === 'number' && typeof sc.opp === 'number') ? { me: sc.me, opp: sc.opp } : null;
   }
 
   function lvlFloor(level) {
@@ -79,6 +85,24 @@
   }
 
   function pct(into, need) { return need > 0 ? Math.max(0, Math.min(100, Math.round(100 * into / need))) : 100; }
+
+  const STAT_KEYS = ['pac', 'pas', 'sho', 'def'];
+  // old -> new stats for a player who reached `level` this match (Level 3 / Level 4 rises)
+  function statRise(pid, level, gain) {
+    try {
+      const s = S(), o = s.owned && s.owned[pid];
+      if (!o || !SD.progress || !SD.progress.statsOf || !SD.progress.levelOf) return null;
+      const lvBefore = SD.progress.levelOf(Math.max(0, (o.xp || 0) - (gain || 0)));
+      if (lvBefore >= level) return null;
+      const now = SD.progress.statsOf(s, pid, T());
+      const alt = Object.assign({}, s, { owned: Object.assign({}, s.owned, { [pid]: Object.assign({}, o, { level: lvBefore }) }) });
+      const was = SD.progress.statsOf(alt, pid, T());
+      if (!now || !was) return null;
+      const out = [];
+      STAT_KEYS.forEach(function (k) { if (now[k] !== was[k]) out.push({ k: k.toUpperCase(), from: was[k], to: now[k] }); });
+      return out.length ? out : null;
+    } catch (e) { return null; }
+  }
 
   function playerRow(pid, slotTag, gain, lvUp, bench) {
     const s = S();
@@ -134,11 +158,22 @@
         h('span', { class: 'lu-t', text: traitLine(tr) })
       ]));
     }
-    const lv3 = lvlFloor(3);
-    const togo = Math.max(0, lv3 - own.xp);
-    kids.push(h('div', { class: 'lvl-locked' }, [
-      svgLock(), h('span', { text: 'Level 3: +1 top stat (' + togo + ' XP to go)' })
-    ]));
+    // Level 3 / Level 4: the stat that rose, old -> new (only when this match caused it)
+    if (lu && lu.level >= 3) {
+      const rise = statRise(pid, lu.level, (app().lastReward && app().lastReward.xp || {})[pid]);
+      kids.push(h('div', { class: 'lvl-up stat-rise' }, [
+        h('span', { class: 'lu-k', text: 'LEVEL ' + lu.level + (lu.level === 4 ? ': +1 SECOND STAT' : ': +1 TOP STAT') }),
+        h('span', { class: 'lu-t' }, rise ? rise.map(function (r) {
+          return h('span', { class: 'rise', 'data-stat': r.k }, [h('span', { text: r.k + ' ' + r.from + ' ' }), h('i', { text: '->' }), h('b', { text: ' ' + r.to })]);
+        }) : [document.createTextNode('Stats up')])
+      ]));
+    }
+    const nextLv = info.level + 1, floor = lvlFloor(nextLv);
+    if (info.level < 4) {
+      kids.push(h('div', { class: 'lvl-locked' }, [
+        svgLock(), h('span', { text: 'Level ' + nextLv + ': ' + (nextLv === 4 ? '+1 second stat' : nextLv === 3 ? '+1 top stat' : 'a Trait') + ' (' + Math.max(0, floor - own.xp) + ' XP to go)' })
+      ]));
+    } else kids.push(h('div', { class: 'lvl-locked' }, [h('span', { text: 'Max level' })]));
     return kids;
   }
 
@@ -157,13 +192,17 @@
     const s = S();
     const rew = app().lastReward || { coins: 0, sp: 0, xp: {}, levelUps: [], opening: false };
     const lr = lastResult(s);
-    const mno = resultStep(s);
+    const md = mdOf(lr), cup = md === 'cup';
+    const sh = shootOf(lr);
     const club = (SD.data && SD.data.CLUBS && SD.data.CLUBS[lr.club]) || { name: lr.club || 'Opponent', label: 'OPP' };
-    const resWord = lr.res === 'W' ? 'WIN' : lr.res === 'L' ? 'LOSS' : 'DRAW';
+    // level at full time in the Cup: the shootout decides the word
+    let res = lr.res;
+    if (sh && lr.me === lr.opp && sh.me !== sh.opp) res = sh.me > sh.opp ? 'W' : 'L';
+    const resWord = res === 'W' ? 'WIN' : res === 'L' ? 'LOSS' : 'DRAW';
     el.textContent = '';
     const root = h('div', { id: 'result', class: reduced() ? 'noanim' : '' });
     // row 37: the score is printed once (in the scorebox); the header just says what this screen is
-    try { if (app().setScorebug) app().setScorebug('FULL TIME'); } catch (e) { /* ignore */ }
+    try { if (app().setScorebug) app().setScorebug(cup ? 'CUP FINAL' : 'FULL TIME'); } catch (e) { /* ignore */ }
 
     // lineup order
     const lu = s.lineup || { keeper: null, outfield: [], bench: [] };
@@ -177,9 +216,11 @@
       R.sel = (levelUps[0] && levelUps[0].pid) || (order[0] && order[0][0]);
     }
 
-    const banner = rew.opening || mno === 1
-      ? h('div', { id: 'opening', class: 'banner' }, [h('b', { text: 'OPENING DAY' }), h('span', { text: ' every starter on the pitch reaches Level 2' })])
-      : null;
+    const banner = cup
+      ? h('div', { id: 'cup-banner', class: 'banner cup' }, [h('b', { text: 'CUP FINAL' }), h('span', { text: sh ? ' decided on kicks' : ' full time' })])
+      : rew.opening
+        ? h('div', { id: 'opening', class: 'banner' }, [h('b', { text: 'OPENING DAY' }), h('span', { text: ' every starter on the pitch reaches Level 2' })])
+        : h('div', { id: 'md-banner', class: 'banner md' }, [h('b', { text: 'MATCHDAY ' + md + ' OF 7' }), h('span', { text: (s.season && s.season.no ? ' season ' + s.season.no : '') })]);
 
     const score = h('div', { class: 'scorebox' }, [
       h('div', { class: 'sc-teams' }, [
@@ -187,10 +228,14 @@
         h('span', { class: 'sc-n', id: 'res-score', text: lr.me + ' - ' + lr.opp }),
         h('span', { class: 'sc-t away', text: club.label || club.name })
       ]),
-      h('div', { id: 'res-stamp', class: 'stamp ' + (lr.res === 'W' ? 'w' : lr.res === 'L' ? 'l' : 'd'), text: resWord })
+      h('div', { id: 'res-stamp', class: 'stamp ' + (res === 'W' ? 'w' : res === 'L' ? 'l' : 'd'), text: resWord })
     ]);
+    const shootLine = sh ? h('div', { id: 'res-shoot', class: 'shootline' }, [
+      h('span', { class: 'sl-k', text: 'SHOOTOUT' }), h('b', { class: 'sl-n', text: sh.me + ' - ' + sh.opp }),
+      h('span', { class: 'sl-t', text: sh.me > sh.opp ? 'Preston win on kicks' : 'Lost on kicks' })
+    ]) : null;
 
-    const whyPay = (rew.opening || mno === 1) ? 'Opening Day bonus' : (lr.res === 'W' ? 'Win payout' : lr.res === 'L' ? 'Loss payout' : 'Draw payout');
+    const whyPay = rew.why || (rew.opening ? 'Opening Day bonus' : (cup ? 'Cup Final ' : '') + (res === 'W' ? (cup ? 'win' : 'Win payout') : res === 'L' ? (cup ? 'loss' : 'Loss payout') : (cup ? 'draw' : 'Draw payout')));
     function rwTile(id, cls, k, v) {
       return h('div', { id: id, class: 'rw ' + cls }, [
         h('span', { class: 'rw-top' }, [h('span', { class: 'rw-k', text: k }), h('b', { class: 'rw-v', text: '+' + (v || 0) })]),
@@ -216,21 +261,23 @@
     });
     refreshDetail();
 
-    const next = h('button', { id: 'btn-result-next', type: 'button', class: 'btn primary', text: mno >= 2 ? 'See your squad' : 'Spend SP', on: { click: function () { go(mno >= 2 ? 'end' : 'tree'); } } });
+    const next = h('button', { id: 'btn-result-next', type: 'button', class: 'btn primary', text: cup ? 'Season review' : 'Matchday results', on: { click: function () {
+      if (app().afterResult) app().afterResult(); else go('hub'); // fallback if shell has no afterResult
+    } } });
     const foot = h('div', { class: 'foot' }, [next]);
 
-    [banner, score, rewards, grid, det, foot].forEach(function (n) { if (n) root.appendChild(n); });
+    [banner, score, shootLine, rewards, grid, det, foot].forEach(function (n) { if (n) root.appendChild(n); });
     el.appendChild(root);
   }
 
   // ================= TREE =================
   const TR = { tab: 'attack', sel: null, confirm: false };
   const TABS = [['attack', 'Attack'], ['defence', 'Defence'], ['squad', 'Squad']];
-  // admin default: fallback copy of CONTENT-SHEET 4b tiers 3-5 if SD.data.LOCKED_TREE is absent or shaped differently
+  // admin default: fallback copy of tiers 4-5 if SD.data.LOCKED_TREE is absent or shaped differently (tier 3 is real now)
   const LOCKED_FALLBACK = {
-    attack: [['Second Look', 'After seeing the odds chip, swap your card for another in hand, once'], ['Long Range', 'Shoot allowed from Midfield for anyone, once'], ['Finisher', 'After 2 goals, +1 bonus on Shoot']],
-    defence: [['Press Master', 'Press stance ignores the -1 vs Through once'], ['Sweeper', 'A lost duel in Defence zone moves the ball nowhere, once'], ['Fortress', 'After a save, ball goes to your Midfield']],
-    squad: [['Captain', 'Pick a player: his Signature move may fire a second time at match 5+'], ['Scout Net', 'Scout line also shows the opponent top card'], ['Big Day', 'Home Roar needs 2 Crowd, not 3']]
+    attack: [['Long Range', 'Shoot allowed from Midfield for anyone, once'], ['Finisher', 'After 2 goals, +1 bonus on Shoot']],
+    defence: [['Sweeper', 'A lost duel in Defence zone moves the ball nowhere, once'], ['Fortress', 'After a save, ball goes to your Midfield']],
+    squad: [['Scout Net', 'Scout line also shows the opponent top card'], ['Big Day', 'Home Roar needs 2 Crowd, not 3']]
   };
 
   function lockedRows(tab) {
@@ -240,21 +287,21 @@
       if (Array.isArray(LT)) {
         LT.forEach(function (r, i) {
           if (!r) return;
-          if (r.tab === tab && r.name) { out.push({ tier: r.tier, name: r.name, text: r.text || '' }); return; }
+          if (r.tab === tab && r.name) { if ((r.tier || 4) >= 4) out.push({ tier: r.tier, name: r.name, text: r.text || '' }); return; }
           const c = r[tab];
-          if (c) out.push({ tier: r.tier || i + 3, name: typeof c === 'string' ? c.split(':')[0] : (c.name || ''), text: typeof c === 'string' ? (c.indexOf(':') > -1 ? c.slice(c.indexOf(':') + 1).trim() : '') : (c.text || '') });
+          if (c && (r.tier || i + 4) >= 4) out.push({ tier: r.tier || i + 4, name: typeof c === 'string' ? c.split(':')[0] : (c.name || ''), text: typeof c === 'string' ? (c.indexOf(':') > -1 ? c.slice(c.indexOf(':') + 1).trim() : '') : (c.text || '') });
         });
       } else if (LT && Array.isArray(LT[tab])) {
-        LT[tab].forEach(function (c, i) { out.push({ tier: c.tier || i + 3, name: c.name, text: c.text || '' }); });
+        LT[tab].forEach(function (c, i) { if ((c.tier || i + 4) >= 4) out.push({ tier: c.tier || i + 4, name: c.name, text: c.text || '' }); });
       }
     } catch (e) { out.length = 0; }
-    if (out.length < 3) {
+    if (out.length < 2) {
       out.length = 0;
-      LOCKED_FALLBACK[tab].forEach(function (c, i) { out.push({ tier: i + 3, name: c[0], text: c[1] }); });
+      LOCKED_FALLBACK[tab].forEach(function (c, i) { out.push({ tier: i + 4, name: c[0], text: c[1] }); });
     }
     // row 38: player-facing copy (data text carries dev notes such as "capstone, only numeric node")
     out.forEach(function (r) { r.text = LOCKED_LINE[r.name] || String(r.text || '').replace(/\s*\([^)]*(capstone|numeric|cap \+)[^)]*\)/i, ''); });
-    return out.slice(0, 3);
+    return out.slice(0, 2);
   }
 
   function nodes(tab) {
@@ -274,6 +321,7 @@
       if (other) return 'fork-locked';
     }
     if (n.req && !owned(n.req)) return 'locked';
+    if (n.reqAny && n.reqAny.length && !n.reqAny.some(owned)) return 'locked';
     return 'buyable';
   }
 
@@ -283,7 +331,7 @@
     const s = S();
     el.textContent = '';
     if (!nodes(TR.tab).length) TR.tab = 'attack';
-    if (!TR.sel || (nodeById(TR.sel) || {}).tab !== TR.tab) TR.sel = (nodes(TR.tab)[0] || {}).id;
+    if (!TR.sel || (nodeById(TR.sel) || {}).tab !== TR.tab) TR.sel = ((nodes(TR.tab).filter(function (n) { return nodeState(n) === 'buyable'; })[0]) || nodes(TR.tab)[0] || {}).id; // first buyable node, else first
     const root = h('div', { id: 'tree', class: reduced() ? 'noanim' : '' });
 
     const head = h('div', { class: 'thead' }, [
@@ -301,8 +349,8 @@
 
     const list = h('div', { class: 'nodes' }, nodes(TR.tab).map(function (n) {
       const st = nodeState(n);
-      const tag = st === 'owned' ? 'OWNED' : st === 'fork-locked' ? 'TAKEN' : st === 'locked' ? 'NEEDS T' + ((nodeById(n.req) || {}).tier || 1) : n.cost + ' SP';
-      return h('button', { type: 'button', class: 'node ' + st + (TR.sel === n.id ? ' sel' : ''), 'data-id': n.id, 'data-state': st, 'aria-pressed': TR.sel === n.id ? 'true' : 'false', on: { click: function () { TR.sel = n.id; renderTree(el); } } }, [
+      const tag = st === 'owned' ? 'OWNED' : st === 'fork-locked' ? 'TAKEN' : st === 'locked' ? (n.reqAny ? 'NEEDS T1 + T2' : 'NEEDS T' + ((nodeById(n.req) || {}).tier || 1)) : n.cost + ' SP';
+      return h('button', { type: 'button', class: 'node ' + st + (TR.sel === n.id ? ' sel' : ''), 'data-id': n.id, 'data-node': n.id, 'data-state': st, 'aria-pressed': TR.sel === n.id ? 'true' : 'false', on: { click: function () { TR.sel = n.id; renderTree(el); } } }, [
         h('span', { class: 'nd-tier', text: 'T' + n.tier }),
         h('span', { class: 'nd-main' }, [
           h('span', { class: 'nd-name' }, [h('b', { text: n.name }), n.fork ? h('i', { class: 'nd-fork', text: '1 of 2' }) : null]),
@@ -312,7 +360,7 @@
       ]);
     }));
 
-    const locked = h('div', { id: 'tree-locked', class: 'lockedtree' }, [h('div', { class: 'lk-head' }, [svgLock(), h('span', { text: 'Tiers 3-5: coming later' })])].concat(
+    const locked = h('div', { id: 'tree-locked', class: 'lockedtree' }, [h('div', { class: 'lk-head' }, [svgLock(), h('span', { text: 'Tiers 4-5: coming later' })])].concat(
       lockedRows(TR.tab).map(function (r) {
         return h('div', { class: 'lk-row', 'data-tier': r.tier }, [h('b', { text: 'T' + r.tier + ' ' + r.name }), h('span', { class: 'lk-t', text: ' ' + r.text })]);
       })));
@@ -331,7 +379,14 @@
       }
       if (st === 'owned') { why = 'You own this.'; buyText = 'Owned'; }
       else if (st === 'fork-locked') { why = ''; buyText = 'Go to ' + rivalTab + ' tab'; jump = rival; }
-      else if (st === 'locked') { why = 'Needs ' + ((nodeById(sel.req) || {}).name || sel.req) + ' first.'; buyText = 'Needs ' + ((nodeById(sel.req) || {}).name || 'T1'); }
+      else if (st === 'locked') {
+        const reqN = (nodeById(sel.req) || {}).name || sel.req;
+        const missing1 = sel.req && !owned(sel.req);
+        if (sel.reqAny && sel.reqAny.length && !sel.reqAny.some(owned)) {
+          why = (missing1 ? 'Needs ' + reqN + ' and any tier 2 node first.' : 'Needs any tier 2 node first.');
+          buyText = missing1 ? 'Needs T1 + T2' : 'Needs a tier 2';
+        } else { why = 'Needs ' + reqN + ' first.'; buyText = 'Needs ' + reqN; }
+      }
       else {
         let cb = { ok: (s.sp || 0) >= sel.cost, why: 'Needs ' + sel.cost + ' Skill Points' };
         try { if (SD.progress && SD.progress.canBuy) cb = SD.progress.canBuy(s, sel.id); } catch (e) { /* use local */ }
@@ -345,9 +400,9 @@
       try { SD.progress.buy(s, sel.id); } catch (e) { toast('Could not buy'); return; }
       save(); toast(sel.name + ' unlocked'); renderTree(el);
     } } });
-    // row 33: what changes in the next match (tree is only open between matches, so the next match is match 2)
+    // row 33: what changes in the next match (tree is only open between matches)
     const nextBox = sel ? h('div', { class: 'ndt-next' }, [
-      h('span', { class: 'nx-k', text: st === 'owned' ? 'IN MATCH 2' : 'FROM MATCH 2' }),
+      h('span', { class: 'nx-k', text: st === 'owned' ? 'IN YOUR NEXT MATCH' : 'FROM YOUR NEXT MATCH' }),
       h('span', { class: 'nx-t', text: ' you will see ' }),
       sel.chip ? h('b', { class: 'nx-chip', text: sel.chip }) : h('b', { class: 'nx-chip', text: sel.name })
     ]) : null;
@@ -369,10 +424,21 @@
     const respec = h('button', { id: 'btn-respec', type: 'button', class: 'btn ghost', disabled: canRespec ? null : true, on: { click: function () { TR.confirm = true; renderTree(el); } } }, [
       h('span', { text: 'Respec tab' }), h('i', { text: rc + ' Coins' })
     ]);
-    const next = h('button', { id: 'btn-tree-next', type: 'button', class: 'btn primary', text: 'To the pull', on: { click: function () { TR.confirm = false; go('pull'); } } });
+    const next = h('button', { id: 'btn-tree-back', type: 'button', class: 'btn primary', text: 'Back to hub', on: { click: function () {
+      TR.confirm = false;
+      if (app().toHub) app().toHub(); else go('hub'); // fallback if shell has no toHub
+    } } });
     const foot = h('div', { class: 'foot' }, [respec, next]);
 
-    [head, tabs, list, locked, detail, foot].forEach(function (n) { root.appendChild(n); });
+    // shortcut to the tier 3 nodes of the other trees (A3 Second Look, D3 Press Master, S3 Captain)
+    const t3 = h('div', { id: 'tree-t3', class: 'tree-t3' }, TABS.filter(function (t) { return t[0] !== TR.tab; }).map(function (t) {
+      const n = nodes(t[0]).filter(function (x) { return x.tier === 3; })[0];
+      if (!n) return null;
+      const stt = nodeState(n);
+      return h('button', { type: 'button', class: 'node t3 ' + stt, 'data-node': n.id, 'data-state': stt, on: { click: function () { TR.tab = t[0]; TR.sel = n.id; renderTree(el); } } }, [
+        h('span', { class: 'nd-tier', text: 'T3' }), h('b', { text: n.name }), h('span', { class: 'nd-cost', text: stt === 'owned' ? 'OWNED' : stt === 'locked' ? 'LOCKED' : n.cost + ' SP' })]);
+    }));
+    [head, tabs, list, t3, locked, detail, foot].forEach(function (n) { root.appendChild(n); });
 
     if (TR.confirm) {
       const tabName = (TABS.filter(function (t) { return t[0] === TR.tab; })[0] || [0, TR.tab])[1];

@@ -68,3 +68,31 @@
   border-radius: 8px; font-weight: 700; font-size: 13px; cursor: pointer; touch-action: manipulation; }
 #dev[hidden] { display: none; }
 #dev:focus-visible { outline: 2px solid var(--neon, #2cf0ff); outline-offset: -3px; }
+
+/* sq-season-1: search, collapsible groups, club sub-heads, choice rows */
+#tweak .tw-top { display: flex; align-items: center; gap: 8px; }
+#tweak .tw-top h2 { flex: none; }
+#tweak #tw-search { flex: 1; min-width: 0; width: 100%; min-height: 56px; padding: 0 12px; font: inherit; color: var(--txt, #f2f6ff);
+  background: rgba(3,16,24,.7); border: 1px solid var(--line, rgba(120,170,255,.32)); border-radius: 12px; -webkit-appearance: none; appearance: none; }
+#tweak details.grp { margin: 8px 0 0; border: 1px solid var(--line, rgba(120,170,255,.32)); border-radius: 12px; background: rgba(14,24,52,.5); }
+#tweak details.grp.has-chg { border-color: var(--gold, #ffc83a); }
+#tweak details.grp[hidden], #tweak .row[hidden], #tweak h4.sub[hidden], #tweak #tw-empty[hidden] { display: none; }
+#tweak details.grp > summary { display: flex; align-items: center; gap: 8px; min-height: 56px; padding: 0 12px; cursor: pointer; list-style: none;
+  font-size: 14px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--gold, #ffc83a); }
+#tweak details.grp > summary::-webkit-details-marker { display: none; }
+#tweak details.grp > summary .gname { flex: 1; }
+#tweak .gcount { min-width: 24px; height: 24px; padding: 0 7px; border-radius: 12px; display: inline-grid; place-items: center;
+  background: var(--gold, #ffc83a); color: var(--ink, #031018); font-size: 13px; letter-spacing: 0; }
+#tweak .gcount[hidden] { display: none; }
+#tweak .gcar { width: 10px; height: 10px; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: rotate(45deg); margin: -4px 4px 0 0; }
+#tweak details.grp[open] > summary .gcar { transform: rotate(-135deg); margin-top: 4px; }
+#tweak details.grp > summary:focus-visible { outline: 2px solid var(--neon, #2cf0ff); outline-offset: 2px; }
+#tweak details.grp .gbody { padding: 0 8px 10px; }
+#tweak h4.sub { margin: 14px 0 2px 4px; font-size: 13px; letter-spacing: .1em; text-transform: uppercase; color: var(--neon, #2cf0ff); }
+#tweak .row.choice { flex-wrap: wrap; }
+#tweak .row.choice .lab { flex: 1 1 100%; }
+#tweak .seg { flex: 1 1 100%; display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; padding-bottom: 4px; }
+#tweak .seg-b { padding: 0 4px; font-size: 15px; }
+#tweak .seg-b[aria-pressed="true"] { background: var(--neon, #2cf0ff); color: var(--ink, #031018); border-color: var(--neon, #2cf0ff); }
+#tweak .tw-chips .chip { font-size: 13px; padding: 0 12px; }
+#tweak .tw-head { padding-bottom: 4px; }

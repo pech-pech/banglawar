@@ -1,0 +1,425 @@
+{
+ "01-start": {
+  "small": [],
+  "tap": [],
+  "clip": [],
+  "hscroll": false,
+  "vscroll": false,
+  "over": [],
+  "screenScroll": [
+   826,
+   826
+  ],
+  "errs": []
+ },
+ "02-hub": {
+  "small": [],
+  "tap": [],
+  "clip": [],
+  "hscroll": false,
+  "vscroll": false,
+  "over": [],
+  "screenScroll": [
+   826,
+   826
+  ],
+  "errs": []
+ },
+ "03-table": {
+  "small": [],
+  "tap": [],
+  "clip": [],
+  "hscroll": false,
+  "vscroll": false,
+  "over": [],
+  "screenScroll": [
+   826,
+   826
+  ],
+  "errs": []
+ },
+ "04-fixtures": {
+  "small": [],
+  "tap": [],
+  "clip": [],
+  "hscroll": false,
+  "vscroll": false,
+  "over": [],
+  "screenScroll": [
+   826,
+   826
+  ],
+  "errs": []
+ },
+ "05-mdres": {
+  "small": [],
+  "tap": [],
+  "clip": [],
+  "hscroll": false,
+  "vscroll": false,
+  "over": [],
+  "screenScroll": [
+   826,
+   826
+  ],
+  "errs": []
+ },
+ "06-manager-s3": {
+  "small": [],
+  "tap": [],
+  "clip": [],
+  "hscroll": false,
+  "vscroll": false,
+  "over": [],
+  "screenScroll": [
+   826,
+   826
+  ],
+  "errs": []
+ },
+ "06b-manager": {
+  "small": [],
+  "tap": [],
+  "clip": [],
+  "hscroll": false,
+  "vscroll": false,
+  "over": [],
+  "screenScroll": [
+   826,
+   826
+  ],
+  "errs": []
+ },
+ "07-card-detail": {
+  "small": [],
+  "tap": [],
+  "clip": [],
+  "hscroll": false,
+  "vscroll": false,
+  "over": [],
+  "screenScroll": [
+   826,
+   826
+  ],
+  "errs": []
+ },
+ "08-cupintro": {
+  "small": [],
+  "tap": [],
+  "clip": [],
+  "hscroll": false,
+  "vscroll": false,
+  "over": [],
+  "screenScroll": [
+   826,
+   826
+  ],
+  "errs": []
+ },
+ "match-md0-fixture": {
+  "md": 1,
+  "clubId": "grimsby",
+  "home": true,
+  "mode": "home"
+ },
+ "09-match-md0-home": {
+  "small": [],
+  "tap": [],
+  "clip": [],
+  "hscroll": false,
+  "vscroll": false,
+  "over": [],
+  "screenScroll": [
+   826,
+   826
+  ],
+  "errs": []
+ },
+ "match-md1-fixture": {
+  "md": 2,
+  "clubId": "reading",
+  "home": true,
+  "mode": "home"
+ },
+ "09-match-md1-home": {
+  "small": [],
+  "tap": [],
+  "clip": [],
+  "hscroll": false,
+  "vscroll": false,
+  "over": [],
+  "screenScroll": [
+   826,
+   826
+  ],
+  "errs": []
+ },
+ "match-md2-fixture": {
+  "md": 3,
+  "clubId": "bolton",
+  "home": false,
+  "mode": "away"
+ },
+ "09-match-md2-away": {
+  "small": [],
+  "tap": [],
+  "clip": [
+   [
+    ".seg.w-dribble",
+    "x",
+    96,
+    82,
+    "Dribble 25%"
+   ]
+  ],
+  "hscroll": false,
+  "vscroll": false,
+  "over": [],
+  "screenScroll": [
+   826,
+   826
+  ],
+  "errs": []
+ },
+ "09-match-cup": {
+  "small": [],
+  "tap": [],
+  "clip": [
+   [
+    ".sb-team.sb-home",
+    "x",
+    62,
+    58,
+    "PRESTON"
+   ],
+   [
+    ".sb-team.sb-away",
+    "x",
+    53,
+    50,
+    "BOLTON"
+   ]
+  ],
+  "hscroll": false,
+  "vscroll": false,
+  "over": [],
+  "screenScroll": [
+   826,
+   826
+  ],
+  "errs": []
+ },
+ "10-shootout-start": {
+  "small": [],
+  "tap": [],
+  "clip": [
+   [
+    "b",
+    "x",
+    84,
+    82,
+    "Mirelle"
+   ]
+  ],
+  "hscroll": false,
+  "vscroll": false,
+  "over": [],
+  "screenScroll": [
+   826,
+   826
+  ],
+  "errs": []
+ },
+ "11-shootout-mid": {
+  "small": [],
+  "tap": [],
+  "clip": [
+   [
+    ".rl",
+    "x",
+    117,
+    83,
+    "Winger keeper reads"
+   ]
+  ],
+  "hscroll": false,
+  "vscroll": false,
+  "over": [
+   [
+    "u",
+    283,
+    357,
+    "keeper reads"
+   ]
+  ],
+  "screenScroll": [
+   826,
+   826
+  ],
+  "errs": []
+ },
+ "12-shootout-done": {
+  "small": [],
+  "tap": [],
+  "clip": [
+   [
+    ".rl",
+    "x",
+    117,
+    83,
+    "Winger keeper reads"
+   ]
+  ],
+  "hscroll": false,
+  "vscroll": false,
+  "over": [
+   [
+    "u",
+    283,
+    357,
+    "keeper reads"
+   ]
+  ],
+  "screenScroll": [
+   826,
+   826
+  ],
+  "errs": []
+ },
+ "13-end-won": {
+  "small": [],
+  "tap": [],
+  "clip": [],
+  "hscroll": false,
+  "vscroll": false,
+  "over": [],
+  "screenScroll": [
+   826,
+   826
+  ],
+  "errs": []
+ },
+ "14-end-nofinal": {
+  "small": [],
+  "tap": [],
+  "clip": [],
+  "hscroll": false,
+  "vscroll": false,
+  "over": [],
+  "screenScroll": [
+   826,
+   826
+  ],
+  "errs": []
+ },
+ "15-pull": {
+  "small": [],
+  "tap": [],
+  "clip": [],
+  "hscroll": false,
+  "vscroll": false,
+  "over": [],
+  "screenScroll": [
+   826,
+   826
+  ],
+  "errs": []
+ },
+ "15b-pull-reveal": {
+  "small": [],
+  "tap": [],
+  "clip": [],
+  "hscroll": false,
+  "vscroll": false,
+  "over": [],
+  "screenScroll": [
+   826,
+   826
+  ],
+  "errs": []
+ },
+ "16-tree": {
+  "small": [],
+  "tap": [],
+  "clip": [
+   [
+    ".nd-text",
+    "y",
+    42,
+    28,
+    "Once per match, you see t"
+   ],
+   [
+    ".nd-text",
+    "y",
+    98,
+    28,
+    "Once per match, after you"
+   ]
+  ],
+  "hscroll": false,
+  "vscroll": false,
+  "over": [],
+  "screenScroll": [
+   826,
+   826
+  ],
+  "errs": []
+ },
+ "16b-tree-sp": {
+  "small": [],
+  "tap": [],
+  "clip": [
+   [
+    ".nd-text",
+    "y",
+    42,
+    28,
+    "Once per match, you see t"
+   ],
+   [
+    ".nd-text",
+    "y",
+    98,
+    28,
+    "Once per match, after you"
+   ]
+  ],
+  "hscroll": false,
+  "vscroll": false,
+  "over": [],
+  "screenScroll": [
+   826,
+   826
+  ],
+  "errs": []
+ },
+ "16c-tree-t3": {
+  "small": [],
+  "tap": [],
+  "clip": [
+   [
+    ".nd-text",
+    "y",
+    42,
+    28,
+    "Once per match, you see t"
+   ],
+   [
+    ".nd-text",
+    "y",
+    98,
+    28,
+    "Once per match, after you"
+   ]
+  ],
+  "hscroll": false,
+  "vscroll": false,
+  "over": [],
+  "screenScroll": [
+   826,
+   826
+  ],
+  "errs": []
+ }
+}

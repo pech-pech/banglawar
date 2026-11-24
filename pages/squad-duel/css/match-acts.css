@@ -62,3 +62,4 @@
 #match #tell .stance .seg{min-width:0;padding:0 5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 #match #tell .stance.one .seg{display:block;line-height:20px}
 @media (min-width:400px){#match #tell .k.ck{display:none}}
+#match #tell .stance.wb .seg{padding:0 4px;letter-spacing:.01em}

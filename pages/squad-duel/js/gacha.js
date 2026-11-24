@@ -2,7 +2,7 @@
   const SD = (globalThis.SD = globalThis.SD || {});
 
   // admin default: hard fallbacks when SD.data / T keys are missing
-  const FALLBACK = { pullCost: 100, starterRare: 70, starterEpic: 25, starterLegend: 5, pityEpic: 10,
+  const FALLBACK = { commonCoins: 25, pityUnowned: true, pullCost: 100, starterRare: 70, starterEpic: 25, starterLegend: 5, pityEpic: 10,
     pityLegend: 30, maxStars: 5, dupeCoinsAtMax: 25,
     normal: { Common: 0.55, Rare: 0.30, Epic: 0.12, Legend: 0.03 } };
   const TIERS = ['Common', 'Rare', 'Epic', 'Legend'];
@@ -16,7 +16,8 @@
   function pullCfg() { return (SD.data && SD.data.PULL) || {}; }
   function maxStars() { return pullCfg().maxStars || FALLBACK.maxStars; }
   function dupeCoins() { return pullCfg().dupeCoinsAtMax || FALLBACK.dupeCoinsAtMax; }
-  function legendPity() { return pullCfg().pityLegend || FALLBACK.pityLegend; }
+  function legendPity(T) { const v = tw(T, 'pityLegend'); return v || pullCfg().pityLegend || FALLBACK.pityLegend; }
+  function commonCoins(T) { const v = tw(T, 'commonCoins'); return v != null ? v : dupeCoins(); }
   function normalTable() { return pullCfg().normal || FALLBACK.normal; }
   function starterTable(T) {
     return { Rare: tw(T, 'starterRare') / 100, Epic: tw(T, 'starterEpic') / 100, Legend: tw(T, 'starterLegend') / 100 };
@@ -59,7 +60,7 @@
     const R = SD.rng.make(SD.rng.pullSeed(S.seed, pullNo));
     const pityBefore = S.pity.epic;
     const epicAt = tw(T, 'pityEpic');
-    const legAt = legendPity();
+    const legAt = legendPity(T);
 
     let table = starter ? starterTable(T) : normalTable();
     // draw order: tier roll, then pick roll (always exactly 2 draws)
@@ -68,20 +69,29 @@
     let tier = roll(table, rTier, TIERS);
 
     // pity (the pull that would reach the limit is forced)
+    let forced = false;
     if (S.pity.legend + 1 >= legAt) {
-      tier = 'Legend';
+      tier = 'Legend'; forced = true;
     } else if (S.pity.epic + 1 >= epicAt && tier !== 'Epic' && tier !== 'Legend') {
-      tier = 'Epic'; // admin default: Epic pity forces exactly Epic (Legend has its own pity)
+      tier = 'Epic'; forced = true; // admin default: Epic pity forces exactly Epic (Legend has its own pity)
     }
 
-    let pid;
+    const mx = maxStars();
+    let pid, commonPip = false, commonPaid = 0;
     if (tier === 'Common') {
+      // E7: +1 pip on a random starter under max; coins only when all starters are maxed (skip maxed)
       const starters = Object.keys(S.owned).filter(function (id) { const p = pdata(id); return p && p.starter; });
-      const list = starters.length ? starters : Object.keys(S.owned);
-      pid = list[Math.min(list.length - 1, Math.floor(rPick * list.length))];
+      const base = starters.length ? starters : Object.keys(S.owned);
+      const under = base.filter(function (id) { return (S.owned[id].stars || 0) < mx; });
+      if (under.length) { pid = under[Math.min(under.length - 1, Math.floor(rPick * under.length))]; commonPip = true; }
+      else { pid = base[Math.min(base.length - 1, Math.floor(rPick * base.length))]; commonPaid = commonCoins(T); }
     } else {
       let list = pool().filter(function (id) { return pdata(id).rarity === tier; });
       if (!list.length) list = pool(); // admin default: empty tier falls back to whole pool
+      if (forced && tw(T, 'pityUnowned') !== false) {
+        const fresh = list.filter(function (id) { return !S.owned[id]; });
+        if (fresh.length) list = fresh; // pity picks an unowned player of that rarity if any
+      }
       pid = list[Math.min(list.length - 1, Math.floor(rPick * list.length))];
       tier = pdata(pid).rarity;
     }
@@ -94,7 +104,8 @@
       S.owned[pid] = { stars: 0, xp: 0, level: 1, isNew: true };
     } else {
       stars = cur.stars || 0;
-      if (stars >= maxStars()) { dupeCoinsPaid = dupeCoins(); }
+      if (commonPaid) { dupeCoinsPaid = commonPaid; }
+      else if (stars >= mx) { dupeCoinsPaid = dupeCoins(); }
       else { stars += 1; cur.stars = stars; }
       cur.isNew = false; // admin default: a dupe does not raise the New flag
     }
@@ -105,8 +116,9 @@
     S.pity.legend = rarity === 'Legend' ? 0 : S.pity.legend + 1;
 
     const res = { pullNo, pid, rarity, isNew, stars, dupeCoins: dupeCoinsPaid,
-      pityBefore, pityAfter: S.pity.epic, starter };
+      pityBefore, pityAfter: S.pity.epic, starter, forced, common: rarity === 'Common', pip: commonPip };
     S.lastPull = res;
+    S.pullLog = [Object.assign({}, res)].concat(S.pullLog || []).slice(0, 10); // newest first, keep 10
     return res;
   }
 
@@ -114,5 +126,10 @@
     return 'Epic pity ' + ((S.pity && S.pity.epic) || 0) + '/' + tw(T, 'pityEpic');
   }
 
-  SD.gacha = { cost, canPull, oddsFor, pull, pityText };
+  function pity(S, T) {
+    const p = (S && S.pity) || {};
+    return { epic: { n: p.epic || 0, of: tw(T, 'pityEpic') }, legend: { n: p.legend || 0, of: legendPity(T) } };
+  }
+
+  SD.gacha = { pity, cost, canPull, oddsFor, pull, pityText };
 })();

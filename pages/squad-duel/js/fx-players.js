@@ -15,6 +15,17 @@
     if (E && E.markOnce) return E.markOnce(m, inst);
     m.once = m.once || {}; m.once[key(inst)] = true;
   }
+  // once per HALF (Brannik, Tobbin): engine helpers when present, else local keys that include m.half
+  function onceHalfUsed(m, inst) {
+    const E = SD.engine;
+    if (E && E.onceHalfUsed) return E.onceHalfUsed(m, inst);
+    return !!(m.onceHalf && m.onceHalf[key(inst) + ':' + m.half]);
+  }
+  function markOnceHalf(m, inst) {
+    const E = SD.engine;
+    if (E && E.markOnceHalf) return E.markOnceHalf(m, inst);
+    m.onceHalf = m.onceHalf || {}; m.onceHalf[key(inst) + ':' + m.half] = true;
+  }
   function fire(m, ctx, inst, text) {
     const E = SD.engine;
     if (E && E.fire) return E.fire(m, ctx, inst, text);
@@ -129,7 +140,15 @@
       after(m, ctx, inst) {
         if (ctx.preview || ctx.side !== 'me' || ctx.action !== 'dribble' || !ctx.win || !isOwner(ctx, inst) || !ctx.next) return;
         const z = Math.min(2, m.zone + 2);
-        if (z <= ctx.next.zone) return;
+        if (z <= ctx.next.zone) {
+          // P6 fix: no second zone to move (dribble already reaches Attack) -> Build +1 instead
+          const b = ctx.next.build || (ctx.next.build = { me: 0, opp: 0 });
+          const nb = Math.min(m.T.buildMax, (b.me || 0) + 1);
+          if (nb <= (b.me || 0)) return;
+          b.me = nb;
+          fire(m, ctx, inst, 'Wing Switch: no second zone, Build +1');
+          return;
+        }
         ctx.next.zone = z;
         fire(m, ctx, inst, 'Wing Switch: dribble moved 2 zones');
       } } };
@@ -163,5 +182,100 @@
         const from = ctx.db, to = ctx.reroll('def');
         const w = win(ctx);
         fire(m, ctx, inst, 'Last Hand: save rerolled ' + from + ' to ' + to + (w ? ', still beaten' : ', saved'));
+      } } };
+
+  // ---------- Season Signatures (B-economy a) ----------
+  // tie goes to the owner (preRoll shows it in the chip; roll names the cause when the tie really happened)
+  function tieHooks(actions, label) {
+    return {
+      preRoll(m, ctx, inst) {
+        if (ctx.side !== 'me' || !isOwner(ctx, inst) || actions.indexOf(ctx.action) < 0) return;
+        ctx.tieAtt = true;
+        if (ctx.preview && Array.isArray(ctx.tags)) ctx.tags.push(label + ': ties go to me');
+      },
+      roll(m, ctx, inst) {
+        if (ctx.preview || ctx.side !== 'me' || !isOwner(ctx, inst) || actions.indexOf(ctx.action) < 0) return;
+        if (!ctx.tie || !ctx.win || !ctx.tieAtt) return;
+        if (m.turnFx && !m.turnFx.tieBy) m.turnFx.tieBy = inst.id;
+        fire(m, ctx, inst, label + ': tie went to ' + ((m.cards && m.cards[inst.pid] && m.cards[inst.pid].name) || 'me'));
+      } };
+  }
+  D.SIG_DESSA = { id: 'SIG_DESSA', kind: 'sig', name: 'Sidestep', short: 'Sidestep: ties on Dribble/Shoot go to Dessa', perPlayer: true, active: null,
+    hooks: tieHooks(['dribble', 'shoot'], 'Sidestep') };
+
+  D.SIG_MAELIS = { id: 'SIG_MAELIS', kind: 'sig', name: 'Cold Finish', short: 'Cold Finish: ties on her Shoot go to Maelis', perPlayer: true, active: null,
+    hooks: tieHooks(['shoot'], 'Cold Finish') };
+
+  // lost attack duel in Defence or Midfield: ball stays in that zone (no turnover)
+  D.SIG_YENNA = { id: 'SIG_YENNA', kind: 'sig', name: 'Hold Up', short: 'Hold Up: lost attack in Defence/Midfield, ball stays', perPlayer: true, active: null,
+    hooks: {
+      after(m, ctx, inst) {
+        if (ctx.preview || ctx.side !== 'me' || ctx.win || !isOwner(ctx, inst) || !ctx.next || m.zone > 1) return;
+        ctx.keepBall = true;
+        ctx.next.holder = 'me'; ctx.next.zone = m.zone; // belt and braces: same result if the engine also reads keepBall
+        fire(m, ctx, inst, 'Hold Up: lost duel, ball stays in ' + (m.zone === 0 ? 'Defence' : 'Midfield'));
+      } } };
+
+  // saved Shoot: ball stays in my Attack zone, I keep the turn
+  D.SIG_RUVO = { id: 'SIG_RUVO', kind: 'sig', name: 'Follow Up', short: 'Follow Up: saved shot, I keep the ball in Attack', perPlayer: true, active: null,
+    hooks: {
+      after(m, ctx, inst) {
+        if (ctx.preview || ctx.side !== 'me' || ctx.action !== 'shoot' || ctx.win || !isOwner(ctx, inst) || !ctx.next) return;
+        ctx.keepTurn = true;
+        ctx.next.holder = 'me'; ctx.next.zone = 2;
+        fire(m, ctx, inst, 'Follow Up: shot saved, ball stays in Attack and I keep the turn');
+      } } };
+
+  // won Dribble in Midfield: a second hand card this turn, Shoot only
+  D.SIG_VESKA = { id: 'SIG_VESKA', kind: 'sig', name: 'Twin Run', short: 'Twin Run: won Midfield Dribble, second card as Shoot', perPlayer: true, active: null,
+    hooks: {
+      after(m, ctx, inst) {
+        if (ctx.preview || ctx.side !== 'me' || ctx.action !== 'dribble' || !ctx.win || !isOwner(ctx, inst) || m.zone !== 1) return;
+        ctx.extraShoot = true;
+        fire(m, ctx, inst, 'Twin Run: play a second card now, as a Shoot');
+      } } };
+
+  // once per HALF: reroll my d6 on a defending duel where Brannik is my card (keep the new roll)
+  D.SIG_BRANNIK = { id: 'SIG_BRANNIK', kind: 'sig', name: 'Second Tackle', short: 'Second Tackle: reroll a defence once per half', perPlayer: true, perHalf: true, active: null,
+    hooks: {
+      roll(m, ctx, inst) {
+        if (ctx.preview || ctx.side !== 'opp' || !isOwner(ctx, inst) || onceHalfUsed(m, inst)) return;
+        // admin default: only spend it when the club's attack would win (a reroll of an already-held duel is a waste)
+        if (!ctx.win) return;
+        markOnceHalf(m, inst);
+        const from = ctx.db, to = ctx.reroll('def');
+        const w = win(ctx);
+        fire(m, ctx, inst, 'Second Tackle: defence rerolled ' + from + ' to ' + to + (w ? ', still beaten' : ', held'));
+      } } };
+
+  // once per HALF: after my keeper saves, my ball starts in Midfield (zone 1) instead of Defence
+  D.SIG_TOBBIN = { id: 'SIG_TOBBIN', kind: 'sig', name: 'Quick Throw', short: 'Quick Throw: after a save, ball starts in Midfield', perPlayer: true, perHalf: true, active: null,
+    hooks: {
+      // ctx.zone = start zone index (writable). Engine default 0 (Defence).
+      saveZone(m, ctx, inst) {
+        if (ctx.preview || !isKeeperOwner(m, inst) || onceHalfUsed(m, inst)) return;
+        if ((ctx.zone || 0) >= 1) return;
+        markOnceHalf(m, inst);
+        ctx.zone = 1; ctx.startZone = 1;
+        fire(m, ctx, inst, 'Quick Throw: save thrown out to Midfield');
+      } } };
+
+  // play Orlo as my attack card even when he is in the deck or discard (not once)
+  D.SIG_ORLO = { id: 'SIG_ORLO', kind: 'sig', name: 'Call for Ball', short: 'Call for Ball: play Orlo from deck/discard', perPlayer: true, active: null,
+    hooks: {
+      attackCards(m, ctx, inst) {
+        const f = flags(m);
+        if (!ctx.preview) f.orloOffered = false;
+        if (!ctx.cards || ctx.cards.indexOf(inst.pid) >= 0) return;
+        const inDeck = (m.deck || []).indexOf(inst.pid) >= 0, inDisc = (m.discard || []).indexOf(inst.pid) >= 0;
+        if (!inDeck && !inDisc) return;
+        ctx.cards.push(inst.pid);
+        if (!ctx.preview) f.orloOffered = true;
+      },
+      onPlay(m, ctx, inst) {
+        if (ctx.preview || ctx.pid !== inst.pid || ctx.side === 'opp') return;
+        const f = flags(m);
+        if (f.orloOffered) fire(m, ctx, inst, 'Call for Ball: Orlo played from outside the hand');
+        f.orloOffered = false;
       } } };
 })();

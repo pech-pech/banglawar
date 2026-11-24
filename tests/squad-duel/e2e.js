@@ -70,7 +70,9 @@ async function play(browser, base, tag, w, h, full, quiet) {
     await page.goto(base + '/squad-duel/?seed=12345&fast=1&reset=1', { waitUntil: 'load' });
     await click(page, '#btn-new', L('start #btn-new'));
     await page.waitForTimeout(200);
-    await layout(page, L('start'));
+    await layout(page, L('hub'));
+    await click(page, '#hub-play', L('hub #hub-play'));
+    await page.waitForTimeout(200);
     // start screenshot taken before click? take after reload below
     // manager 1
     await waitVis(page, '#mgr');
@@ -92,8 +94,11 @@ async function play(browser, base, tag, w, h, full, quiet) {
     await playMatch(page, L, w, 1, full, doShot);
     // result 1
     await click(page, '#btn-result-next', L('result1 #btn-result-next'));
-    // (result screen asserted inside playMatch end)
-    // tree
+    // matchday results -> hub -> tree
+    rec(L('mdres shown'), await waitVis(page, '#mdres', 4000), '#mdres');
+    await layout(page, L('mdres'));
+    await click(page, '#btn-hub', L('mdres #btn-hub'));
+    await click(page, '#hub-tree', L('hub #hub-tree'));
     await waitVis(page, '#tree');
     await layout(page, L('tree'));
     await doShot('tree');
@@ -113,7 +118,8 @@ async function play(browser, base, tag, w, h, full, quiet) {
       }
       await doShot('tree-bought');
     }
-    await click(page, '#btn-tree-next', L('tree #btn-tree-next'));
+    await click(page, '#btn-tree-back', L('tree #btn-tree-back'));
+    await click(page, '#hub-pull', L('hub #hub-pull'));
     // pull
     await waitVis(page, '#pull');
     await layout(page, L('pull'));
@@ -127,9 +133,11 @@ async function play(browser, base, tag, w, h, full, quiet) {
       await layout(page, L('pull-reveal'));
       await doShot('pull-reveal');
     }
-    rec(L('pull grid'), await vis(page, '#grid') && (await page.$$('#grid .slot12')).length === 12, 'slot12 count ' + (await page.$$('#grid .slot12')).length);
+    if (await vis(page, '#btn-reveal-close')) { await page.click('#btn-reveal-close'); await page.waitForTimeout(200); }
+    rec(L('pull grid 20'), (await page.$$('#pull .grid-cell')).length === 20, 'grid-cell count ' + (await page.$$('#pull .grid-cell')).length);
     await doShot('pull-grid');
-    await click(page, '#btn-pull-next', L('pull #btn-pull-next'));
+    await click(page, '#btn-pull-back', L('pull #btn-pull-back'));
+    await click(page, '#hub-play', L('hub #hub-play 2'));
     // manager 2
     await waitVis(page, '#mgr');
     await layout(page, L('manager2'));
@@ -143,7 +151,7 @@ async function play(browser, base, tag, w, h, full, quiet) {
       const cards = [...document.querySelectorAll('#mgr-squad .sq-card')];
       if (!cards.length) return 'nocards';
       const pick = cards.find(c => c.querySelector('.badge-new') || /new/i.test(c.className)) || cards[cards.length - 1];
-      const pid = pick.getAttribute('data-pid'); pick.click(); await wait(150);
+      const pid = pick.getAttribute('data-pid'); (pick.querySelector('button:not(.sq-info)') || pick).click(); await wait(150);
       const now = [...document.querySelectorAll('#mgr .slot')].map(s => s.getAttribute('data-slot') + ':' + (s.textContent || '').slice(0, 30));
       return 'swapped ' + pid + ' into ' + slot.getAttribute('data-slot') + ' / cards ' + cards.length;
     });
@@ -153,10 +161,15 @@ async function play(browser, base, tag, w, h, full, quiet) {
     await click(page, '#btn-kickoff');
     await playMatch(page, L, w, 2, full, doShot);
     await click(page, '#btn-result-next', L('result2 #btn-result-next'));
-    await waitVis(page, '#end');
-    rec(L('end shown'), await vis(page, '#end') && await vis(page, '#grid') && await vis(page, '#track') && await vis(page, '#btn-restart'), '#end/#grid/#track/#btn-restart');
-    await layout(page, L('end'));
-    await doShot('end');
+    await waitVis(page, '#mdres');
+    await click(page, '#btn-hub', L('mdres2 #btn-hub'));
+    await click(page, '#hub-table', L('hub #hub-table'));
+    rec(L('table shown (8 rows)'), await waitVis(page, '#table', 4000) && (await page.$$('#tbl-rows .tbl-row')).length === 8, 'rows ' + (await page.$$('#tbl-rows .tbl-row')).length);
+    await layout(page, L('table'));
+    await doShot('table');
+    await click(page, '#btn-hub', L('table #btn-hub'));
+    rec(L('hub shown'), await vis(page, '#hub'), '#hub');
+    await layout(page, L('hub after'));
     report = await page.evaluate(() => SD.tweak.report());
     if (full && !quiet && w === 344) {
       // gear / dev
@@ -165,7 +178,7 @@ async function play(browser, base, tag, w, h, full, quiet) {
       await layout(page, L('tweak'));
       await doShot('tweak');
       const key = await page.evaluate(() => {
-        const el = document.querySelector('#tweak [data-key]'); if (!el) return null;
+        const el = document.querySelector('#tweak [data-key]:not([data-choice])'); if (!el) return null;
         const k = el.getAttribute('data-key');
         if (el.type === 'checkbox') { el.checked = !el.checked; }
         else if (el.tagName === 'SELECT') { el.selectedIndex = (el.selectedIndex + 1) % el.options.length; }
