@@ -219,3 +219,11 @@ body.hc .btn.primary{color:#000}
 .mb .p{left:50%;background:var(--x)}.mb .m{right:50%;background:var(--o)}
 /* reduced motion: no transitions or animation */
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{transition:none!important;animation:none!important;scroll-behavior:auto!important}}
+/* fix1 (M 2026-11-25, wide / landscape): stock and sector P&F side by side so each fills its card without growing
+   taller than the screen; everything else keeps a full row */
+@media (min-width:700px){
+  .stack{flex-direction:row;flex-wrap:wrap;align-items:flex-start}
+  .stack>*{flex:1 1 100%;min-width:0}
+  .stack>.card.pf:not(.secp){flex:3 1 0}
+  .stack>.card.secp{flex:2 1 0}
+}

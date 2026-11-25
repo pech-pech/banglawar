@@ -97,7 +97,8 @@
         bars: o.bars || c.bars, eng: o.eng || c.eng, newFrom: o.newFrom == null ? null : o.newFrom,
         cols: T.chartCols || 24, showColNums: !!T.showColNums, overlays: o.overlays || [],
         pick: o.pick == null ? null : o.pick, onRow: o.onRow || null, height: o.height || 300,
-        cell: 15, minCell: o.minCell || 8, fitHeight: !!o.fitHeight, maxPlotH: o.maxPlotH || null, keepCol: o.keepCol == null ? null : o.keepCol /* v2: fixed 15px cells, last columns that fit */
+        cell: 15, minCell: o.minCell || 8, fitHeight: !!o.fitHeight, maxPlotH: o.maxPlotH || null, keepCol: o.keepCol == null ? null : o.keepCol,
+        growMax: o.growMax || Math.round(Math.max(560, (window.innerHeight || 800) * 1.15)) /* fix1: grid fills the width; cells grow, chart at most ~1 screen tall */
       };
       if (o.compact) op.compact = true;
       drawPnf(host, op);
@@ -113,7 +114,8 @@
         bars: o.bars || c.sec.bars, eng: o.eng || c.sec.eng, newFrom: o.newFrom == null ? null : o.newFrom,
         cols: T.chartCols || 24, showColNums: false, overlays: o.overlays || [],
         height: sh, compact: true, title: "Sector · " + c.sec.name,
-        cell: 11, minCell: o.minCell || 6, fitHeight: !!o.fitHeight, maxPlotH: o.maxPlotH || Math.max(66, sh - 46) /* v2: 11px cells, cropped like the stock chart */
+        cell: 11, minCell: o.minCell || 6, fitHeight: !!o.fitHeight, maxPlotH: o.maxPlotH || Math.max(66, sh - 46),
+        growMax: o.growMax || Math.round((window.innerHeight || 800) * 0.8) /* fix1: fills the width like the stock chart */
       });
     });
   }
@@ -348,20 +350,37 @@
     var ov = [{ k: "close", box: c.closeBox }];
     var t1 = trendOv(c.eng); if (t1) ov.push(t1);
     var secCap = Math.max(66, (T.sectorHeight || 180) - 46);
+    var sov = [];
+    if (sec) { var t2 = trendOv(c.sec.eng); if (t2) sov.push(t2); }
+    function gapped(id) { /* fix1: a chart that cannot fill the card width inside its height budget */
+      var sv = $(id) && $(id).querySelector("svg[data-gap]");
+      return !!(sv && +sv.dataset.gap > 2 * +sv.dataset.cell);
+    }
     if (tall) {
       var secMin = sec ? 110 + SECPAD + GAP : 0;
       drawChart(c, { overlays: ov, minCell: 7, fitHeight: true, maxPlotH: Math.max(150, Math.min(270, room - SVGPAD - GAP - callH - secMin)) });
     } else {
       drawChart(c, { overlays: ov, minCell: 7, fitHeight: true, maxPlotH: Math.max(120, Math.min(270, room - SVGPAD - GAP - callH)) });
     }
-    if (sec) {
-      var sov = [], t2 = trendOv(c.sec.eng); if (t2) sov.push(t2);
+    var callFirst = gapped("pf");
+    if (sec && !callFirst) {
       var secPlot = secCap;
       if (tall) {
         var pfCard = pf.parentNode, used = pfCard ? pfCard.getBoundingClientRect().bottom + (window.scrollY || 0) : pfTop + 260;
         secPlot = Math.max(66, Math.min(secCap, barTop - 8 - used - GAP - callH - GAP - SECPAD));
       }
       drawSector(c, { overlays: sov, maxPlotH: secPlot, minCell: 5, fitHeight: tall });
+      if (tall && gapped("pfs")) callFirst = true;
+    }
+    if (callFirst) {
+      /* fix1: the charts cannot fill the width in the room left beside the call controls: controls first (on screen),
+         then both charts at full width below (they scroll), never a half-empty chart */
+      var stk = document.querySelector(".callstack"), pfc = pf.parentNode, sc2 = $("pfs") ? $("pfs").parentNode : null;
+      stk.insertBefore(cc, stk.firstChild);
+      stk.appendChild(pfc);
+      if (sc2) stk.appendChild(sc2);
+      drawChart(c, { overlays: ov, minCell: 7 });
+      if (sec) drawSector(c, { overlays: sov, minCell: 5 });
     }
     var inp = $("horizon");
     if (inp) {

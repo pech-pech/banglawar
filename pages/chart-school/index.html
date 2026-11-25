@@ -261,6 +261,14 @@ body.hc .btn.primary{color:#000}
 .mb .p{left:50%;background:var(--x)}.mb .m{right:50%;background:var(--o)}
 /* reduced motion: no transitions or animation */
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{transition:none!important;animation:none!important;scroll-behavior:auto!important}}
+/* fix1 (M 2026-11-25, wide / landscape): stock and sector P&F side by side so each fills its card without growing
+   taller than the screen; everything else keeps a full row */
+@media (min-width:700px){
+  .stack{flex-direction:row;flex-wrap:wrap;align-items:flex-start}
+  .stack>*{flex:1 1 100%;min-width:0}
+  .stack>.card.pf:not(.secp){flex:3 1 0}
+  .stack>.card.secp{flex:2 1 0}
+}
 
 </style>
 </head><body>
@@ -1045,8 +1053,13 @@ function openTweaks() {
     var wk = {};
     (eng.cells || []).forEach(function (q) { wk[q.col + ":" + q.box] = q.week; });
 
-    // v2 sizing: fixed SQUARE cells (15 stock, 11 sector). Show the last columns that fit the width, crop the rows to the
-    // box range of those columns (+MARG). If the rows do not fit the height budget: fewer columns first, then smaller cells.
+    // fix1 sizing (M 2026-11-25: "left half of the card is empty"). SQUARE cells, the grid fills the plot width:
+    //  1. pref(N) = the legible cell for the last N columns: height budget / rows(N), clamped to [MINC, CELL].
+    //  2. Add older columns until N columns of pref(N) fill the width (more columns can add rows -> smaller pref -> more
+    //     columns; N only grows, so this settles on the least stable N).
+    //  3. Cell = width / N, so the grid meets both edges. When every shipped column already fits, the cells grow (up to
+    //     CMAX) and the chart gets taller (reading / marked / outcome scroll). Cells never pass CMAX or the hard height
+    //     cap (opt.growMax; fitHeight = strict budget on the call screen): then the grid is centred, never left-padded.
     var needN = 0; // columns an overlay points at must stay in view
     ovs.forEach(function (o) { if ((o.k === "col" || o.k === "sig" || o.k === "exit") && o.col != null && o.col >= 0 && o.col < nCols) needN = Math.max(needN, nCols - o.col); });
     if (opt.keepCol != null && opt.keepCol >= 0 && opt.keepCol < nCols) needN = Math.max(needN, nCols - opt.keepCol);
@@ -1059,42 +1072,50 @@ function openTweaks() {
       inc(opt.pick);
       return { first: f, lo: l, hi: h, top: h + MARG, bot: l - MARG, rows: h - l + 1 + 2 * MARG };
     }
-    // N = columns shown; c = min(CELL, height budget / rows). Take the most columns that keep c >= GOOD; otherwise the
-    // column count with the biggest cells (ties: more columns). Volatile charts trade history for legible boxes.
-    var GOOD = +opt.goodCell || Math.round(CELL * 0.8), NMIN = Math.max(1, +opt.minCols || 10);
-    var fit = Math.max(1, Math.min(NCAP, Math.floor(pw / CELL + 1e-6))), nHi = Math.max(1, Math.min(fit, nCols));
-    var nLo = Math.min(nHi, NMIN);
-    if (needN > nHi) { nHi = needN; nLo = needN; }
-    nLo = Math.max(nLo, Math.min(needN, nHi));
-    var R = null, nn, bestC = -1, cand = [];
-    for (nn = nHi; nn >= nLo; nn--) {
-      var q = rangeFor(nn), cq = Math.min(CELL, pw / nn, MAXPH / q.rows);
-      cand.push({ q: q, c: cq, n: nn });
-      if (cq > bestC) bestC = cq;
+    var FLOOR = opt.fitHeight ? 3 : MINC; // call screen: stay in the height budget even if cells get small
+    var CMAX = +opt.maxCell || CELL * 2;
+    var GROW = opt.fitHeight ? MAXPH : Math.max(MAXPH, +opt.growMax || MAXPH * 2);
+    function pref(n) { return Math.max(FLOOR, Math.min(CELL, MAXPH / rangeFor(n).rows)); }
+    function settle(n0, cap, pf) {
+      var n = n0;
+      for (var it = 0; it < 400; it++) {
+        var n2 = Math.min(cap, Math.max(n, Math.floor(pw / pf(n) + 1e-6)));
+        if (n2 === n) break;
+        n = n2;
+      }
+      return n;
     }
-    var want = bestC >= GOOD ? GOOD : bestC * 0.85; // most columns whose cells are near the best size
-    for (nn = 0; nn < cand.length; nn++) if (cand[nn].c >= want - 1e-6) { R = cand[nn].q; c = cand[nn].c; N = cand[nn].n; break; }
-    c = Math.floor(c * 2) / 2; // half-pixel steps
-    if (c < MINC) c = opt.fitHeight ? Math.max(3, Math.min(MINC, MAXPH / R.rows)) : Math.min(MINC, pw / N); // under MINC: grow taller, or (fitHeight) stay in budget
-    // cells came out smaller than CELL: fill spare width with older columns that need no new rows
-    var fitC = Math.min(NCAP, Math.floor(pw / c + 1e-6));
-    while (R.first > 0 && nCols - R.first < fitC && cols[R.first - 1].lo >= R.lo && cols[R.first - 1].hi <= R.hi) R.first--;
-    N = nCols - R.first;
+    // T.chartCols ("Columns shown") caps the columns while the chart stays under the hard height cap; past it, more columns
+    N = settle(Math.max(1, Math.min(nCols, needN || 1)), opt.fitHeight ? nCols : Math.min(nCols, Math.max(NCAP, needN)), pref);
+    if (!opt.fitHeight && N < nCols && rangeFor(N).rows * pw / N > GROW) {
+      N = settle(N, nCols, function (n) { return Math.max(FLOOR, Math.min(CELL, GROW / rangeFor(n).rows)); });
+    }
+    var R = rangeFor(N);
+    c = Math.min(pw / N, CMAX, Math.max(FLOOR, GROW / R.rows));
+    if (opt.fitHeight) c = Math.min(c, Math.max(3, MAXPH / R.rows));
+    // every shipped column shown and still far from the width (a 4-column sector chart): the fill cannot happen, so do
+    // not blow the cells up into a tall narrow tower either; modest cells, centred
+    if (N === nCols && N * c < 0.6 * pw) c = Math.min(c, Math.max(CELL * 1.25, MAXPH / R.rows));
     first = R.first; lo = R.lo; hi = R.hi; top = R.top; bot = R.bot; rows = R.rows;
+    var gap = Math.max(0, pw - N * c);
+    if (gap < 1) gap = 0;
+    var X0 = Math.round(gap / 2); // centring offset (only when the cell cap or height cap stops the fill)
+    pw = pw - gap;                // from here on pw = grid width; the price axis sits right of it
+    var WE = pw + AX;
     var ch = c;
     var nTop = 0, nBot = 0;
     ovs.forEach(function (o) { if (o.k === "row" || o.k === "line") { if (o.box > top) nTop++; else if (o.box < bot) nBot++; } });
     var STRIP = 17;
     var ph = rows * ch, OY = 6 + TT + STRIP * nTop, H = Math.round(OY + ph + AXH + STRIP * nBot + (nBot ? 2 : 0));
-    var XO = pw - N * c; // slack on the left so the last column meets the axis
+    var XO = 0;
     function ty(b) { return (top - b) * ch; }       // top edge of box b
     function cy(b) { return ty(b) + ch / 2; }
     function cx(j) { return pw - (nCols - j) * c; }  // left edge of column j; the last column always meets the axis
 
-    var s = el(host, "svg", { "data-cell": f1(c), "data-rows": rows, width: W, height: H, viewBox: "0 0 " + W + " " + H, role: "img",
+    var s = el(host, "svg", { "data-cell": f1(c), "data-rows": rows, "data-cols": N, "data-ncols": nCols, "data-gap": f1(gap), "data-x0": X0, "data-grid-left": X0, width: W, height: H, viewBox: "0 0 " + W + " " + H, role: "img",
       "aria-label": "Point and figure chart, " + nCols + " columns, box 2 percent, last " + disp(cols[nCols - 1].d === 1 ? cols[nCols - 1].hi : cols[nCols - 1].lo) });
     if (opt.title) el(s, "text", { x: 10, y: 11, "dominant-baseline": "central", "font-size": 12, "font-weight": 600, fill: "var(--dim)" }, opt.title);
-    var g = el(s, "g", { transform: "translate(0," + OY + ")" });
+    var g = el(s, "g", { transform: "translate(" + X0 + "," + OY + ")", "data-grid": "1" });
 
     // grid
     var i, r;
@@ -1114,9 +1135,32 @@ function openTweaks() {
         minTickX = Math.min(minTickX, x);
       }
     }
-    if (!opt.showColNums && minTickX > 34) el(g, "text", { x: 6, y: f1(ly0), "font-size": FS, fill: "var(--dim)" }, "col");
+    var colTxt = !opt.showColNums && minTickX > 34; // "col" caption (or the trend legend) at the left of the column axis
+
+    // occupied cells (marks), so labels can look for free cells
+    var occ = {};
+    for (j = first; j < nCols; j++) for (var ob = cols[j].lo; ob <= cols[j].hi; ob++) occ[j + ":" + ob] = 1;
+    function occAt(x, y) {
+      if (x < 0 || x >= pw || y < 0 || y >= ph) return 0;
+      return occ[(first + Math.floor(x / c)) + ":" + (top - Math.floor(y / ch))] ? 1 : 0;
+    }
+    // cells under a straight text strip centred at (x, y) along unit vector (ux, uy), length L: null if it leaves the plot
+    function stripCost(x, y, ux, uy, L, th) {
+      var seen = {}, n = 0, t, k;
+      for (t = -L / 2; t <= L / 2 + 0.01; t += 2) {
+        for (k = -1; k <= 1; k++) {
+          var px = x + ux * t - uy * th * k, py = y + uy * t + ux * th * k;
+          if (px < 1 || px > pw - 1 || py < 1 || py > ph - 1) return null;
+          var key = Math.floor(px / c) + ":" + Math.floor(py / ch);
+          if (!seen[key]) { seen[key] = 1; n += occAt(px, py); }
+        }
+      }
+      return n;
+    }
+    var legend = []; // trend labels that found no room in the grid: shown as a small key instead
 
     // trend lines (Dorsey BSL/BRL): line box at column j = box0 +/- (j - col0), through box centres; square cells => true 45 degrees
+    var tLabels = [];
     ovs.forEach(function (o) {
       if (o.k !== "trend") return;
       (o.segs || []).forEach(function (sg, si, sa) {
@@ -1132,46 +1176,93 @@ function openTweaks() {
         if (pts.length < 2) return;
         var clr = up ? "var(--accent)" : "var(--o)";
         el(g, "polyline", { points: pts.join(" "), fill: "none", stroke: clr, "stroke-width": act ? 1.5 : 1, "stroke-opacity": act ? 1 : 0.45, "stroke-dasharray": up ? null : "5 3", "stroke-linecap": "round", "stroke-linejoin": "round" });
-        if (!act) return;
-        // label beside the line (below support, above resistance), kept inside the plot: clear of the price axis and the left edge
-        var lbl = up ? "support" : "resistance", hw = lbl.length * 6.2 * 0.7071 / 2 + 2, off = 8;
-        var xmin = Math.max(XO, cx(jf) + c / 2) + hw - off, xmax = Math.min(pw, cx(jl) + c / 2) - hw - off;
-        var xm = cx(jf + (jl - jf) * 0.5) + c / 2;
-        if (xmax >= xmin) xm = Math.max(xmin, Math.min(xmax, xm)); else xm = Math.min(xm, pw - hw - off);
-        function lyAt(x0) { var m0 = (x0 - c / 2 - pw) / c + nCols; return cy(sg.box0 + (up ? 1 : -1) * (m0 - sg.col0)) + (up ? off : -off); }
-        if (xmax >= xmin && (lyAt(xm) < hw || lyAt(xm) > ph - hw)) { // keep it inside the plot vertically too: slide along the line
-          var bx2 = null;
-          for (var xs = xmin; xs <= xmax + 0.01; xs += c / 2) { var yv = lyAt(xs); if (yv >= hw && yv <= ph - hw && (bx2 == null || Math.abs(xs - xm) < Math.abs(bx2 - xm))) bx2 = xs; }
-          if (bx2 != null) xm = bx2;
-        }
-        var lx = xm + off, ly = lyAt(xm);
-        el(g, "text", { x: f1(lx), y: f1(ly), transform: "rotate(" + (up ? -45 : 45) + " " + f1(lx) + " " + f1(ly) + ")", "text-anchor": "middle", "dominant-baseline": "central", "font-size": 11, "font-weight": 600, fill: clr }, lbl);
+        if (act) tLabels.push({ sg: sg, up: up, jf: jf, jl: jl, clr: clr });
       });
     });
+    // trend label: along the line, inside the grid, on the cells with the fewest marks (support prefers below, resistance
+    // above; ties: nearer the latest columns). No spot inside the grid with at most 1 marked cell -> key under the chart.
+    tLabels.forEach(function (t) {
+      var lbl = t.up ? "support" : "resistance", L = lbl.length * 6.2 + 2, R2 = Math.SQRT1_2;
+      var ux = R2, uy = t.up ? -R2 : R2, d = 9, best = null, sides = t.up ? [1, -1] : [-1, 1];
+      var x0 = cx(t.jf) + c / 2, y0 = cy(t.sg.box0 + (t.up ? 1 : -1) * (t.jf - t.sg.col0)), span = (t.jl - t.jf) * c * Math.SQRT2;
+      for (var s1 = 0; s1 <= span + 0.01; s1 += Math.max(2, c / 2)) {
+        sides.forEach(function (sd, si) {
+          // normal pointing below the line for sd=1 (screen y down): rotate u by +90 degrees -> (-uy, ux)
+          var nx = -uy * sd, ny = ux * sd;
+          var mx = x0 + ux * s1 + nx * d, my = y0 + uy * s1 + ny * d;
+          var cost = stripCost(mx, my, ux, uy, L, 4.5);
+          if (cost == null) return;
+          var sc = cost * 100 + si * 3 + (span - s1) / Math.max(1, span) * 2;
+          if (!best || sc < best.sc) best = { sc: sc, cost: cost, x: mx, y: my };
+        });
+      }
+      if (!best || best.cost > 1) { legend.push({ txt: lbl, clr: t.clr, dash: !t.up }); return; }
+      el(g, "text", { x: f1(best.x), y: f1(best.y), transform: "rotate(" + (t.up ? -45 : 45) + " " + f1(best.x) + " " + f1(best.y) + ")", "text-anchor": "middle", "dominant-baseline": "central", "font-size": 11, "font-weight": 600, fill: t.clr, "data-trendlabel": lbl }, lbl);
+    });
+    if (legend.length) {
+      // key: in the title row (sector chart) or at the left of the column axis when the column numbers leave room
+      var kx, ky, kp, kAnchorEnd = !!opt.title;
+      if (opt.title) { kp = s; kx = W - 6; ky = 11; }
+      else if (minTickX > 90) { kp = g; kx = 4; ky = ly0 - 4; colTxt = false; }
+      if (kp) {
+        legend.forEach(function (lg) {
+          var tw = lg.txt.length * 6.2, x1 = kAnchorEnd ? kx - tw - 20 : kx;
+          el(kp, "line", { x1: f1(x1), y1: f1(ky), x2: f1(x1 + 14), y2: f1(ky), stroke: lg.clr, "stroke-width": 1.5, "stroke-dasharray": lg.dash ? "5 3" : null });
+          el(kp, "text", { x: f1(x1 + 18), y: f1(ky), "dominant-baseline": "central", "font-size": 11, "font-weight": 600, fill: lg.clr, "data-trendkey": lg.txt }, lg.txt);
+          kx = kAnchorEnd ? x1 - 10 : x1 + tw + 30;
+        });
+      }
+    }
+    if (colTxt) el(g, "text", { x: 6, y: f1(ly0), "font-size": FS, fill: "var(--dim)" }, "col");
 
     // boxes
     var gl = Math.min(c, ch), ins = Math.max(Math.min(2.5, gl * 0.3), gl * 0.2); // small cells keep a visible glyph (no negative radius)
+    if (gl > 16) ins = gl * 0.24; // big cells (fill-width charts): keep the glyph in proportion
     for (j = first; j < nCols; j++) {
       var col = cols[j], isX = col.d === 1, clr = isX ? "var(--x)" : "var(--o)";
       for (var b = col.lo; b <= col.hi; b++) {
         var bx = cx(j), by = ty(b);
         var fresh = opt.newFrom != null && wk[j + ":" + b] != null && wk[j + ":" + b] >= opt.newFrom;
         var gx = bx + (c - gl) / 2, gy = by + (ch - gl) / 2;
+        var sw = gl > 16 ? 2.4 : 1.8;
         if (fresh) el(g, "rect", { x: f1(bx + 1.5), y: f1(by + 1.5), width: f1(Math.max(0.5, c - 2)), height: f1(Math.max(0.5, ch - 2)), fill: clr, "fill-opacity": 0.22, stroke: clr, "stroke-width": 1 });
         if (isX) {
           el(g, "path", { d: "M" + f1(gx + ins + 1) + " " + f1(gy + ins + 1) + "L" + f1(gx + gl - ins) + " " + f1(gy + gl - ins) + "M" + f1(gx + gl - ins) + " " + f1(gy + ins + 1) + "L" + f1(gx + ins + 1) + " " + f1(gy + gl - ins),
-            stroke: clr, "stroke-width": fresh ? 2.2 : 1.8, "stroke-linecap": "round", fill: "none" });
+            stroke: clr, "stroke-width": fresh ? sw + 0.4 : sw, "stroke-linecap": "round", fill: "none" });
         } else {
-          el(g, "circle", { cx: f1(bx + c / 2 + 0.5), cy: f1(by + ch / 2 + 0.5), r: f1(Math.max(0.8, (gl - 2 * ins) / 2)), stroke: clr, "stroke-width": fresh ? 2.2 : 1.8, fill: "none" });
+          el(g, "circle", { cx: f1(bx + c / 2 + 0.5), cy: f1(by + ch / 2 + 0.5), r: f1(Math.max(0.8, (gl - 2 * ins) / 2)), stroke: clr, "stroke-width": fresh ? sw + 0.4 : sw, fill: "none" });
         }
       }
+    }
+
+    // row / line label: a small pill ON the grid at the first run of free cells from the left edge (rows: its own row,
+    // then the next one away from the other label). No free run -> no label (the axis pill still marks the row).
+    var labRows = {};
+    function rowLabel(box, txt, engine) {
+      var w = Math.round(String(txt).length * (engine ? 6.4 : 5.9) + 10), hgt = 15;
+      var tries = engine ? [box, box + 1, box - 1] : [box, box - 1, box + 1];
+      for (var ti = 0; ti < tries.length; ti++) {
+        var rb = tries[ti];
+        if (rb < bot || rb > top || labRows[rb]) continue;
+        var yc = cy(rb), y1 = yc - hgt / 2, y2 = yc + hgt / 2;
+        for (var xs = 2; xs + w <= pw - 2; xs += Math.max(2, c / 2)) {
+          var hit = 0;
+          for (var px = xs; px <= xs + w && !hit; px += 2) for (var py = y1; py <= y2 && !hit; py += 2) hit = occAt(px, py);
+          if (hit) continue;
+          labRows[rb] = 1;
+          el(g, "rect", { x: f1(xs), y: f1(y1), width: w, height: hgt, rx: 4, fill: engine ? "var(--text)" : "var(--bg)", stroke: engine ? "none" : "var(--dim)", "stroke-width": 1 });
+          el(g, "text", { x: f1(xs + w / 2), y: f1(yc + 0.5), "text-anchor": "middle", "dominant-baseline": "central", "font-size": 11, "font-weight": engine ? 700 : 600, fill: engine ? "var(--bg)" : "var(--text)", "data-rowlabel": txt }, txt);
+          return true;
+        }
+      }
+      return false;
     }
 
     // overlays
     var edgeN = { 1: 0, "-1": 0 }, placed = [];
     function freeY(y0, dir) { var yy = y0, t = 0; while (t++ < 12 && placed.some(function (p) { return Math.abs(p - yy) < 14; })) yy += dir * 14; placed.push(yy); return yy; }
-    var pills = []; // {y, txt, bg, fg, stroke}
-    var lineYs = [];
+    var pills = []; // {y, box, txt, bg, fg, stroke, rank}
+    var rowLabs = [], rowBoxes = {};
     ovs.forEach(function (o) {
       var eng2 = o.style !== "pick";
       if (o.k === "row" || o.k === "line") {
@@ -1179,10 +1270,11 @@ function openTweaks() {
         if (off) { // off-chart marker: text strip outside the plot, no line, no axis pill
           var ac = eng2 ? "var(--text)" : "var(--dim)", k2 = edgeN[off]++;
           var sy = off > 0 ? -STRIP * (nTop - k2) + STRIP / 2 : ph + 26 + STRIP * k2 + STRIP / 2 + 1;
-          var tt = (o.label || ("objective " + disp(o.box))) + ", off chart " + (off > 0 ? "\u2191" : "\u2193");
+          var tt = (o.label || ("objective " + disp(o.box))) + ", off chart " + (off > 0 ? "↑" : "↓");
           el(g, "text", { x: f1(pw - 2), y: f1(sy), "text-anchor": "end", "dominant-baseline": "central", "font-size": 11, "font-weight": eng2 ? 700 : 400, fill: ac, "font-style": eng2 ? null : "italic" }, tt);
           return;
         }
+        rowBoxes[o.box] = 1;
         var y = cy(o.box);
         if (o.k === "row") {
           el(g, "rect", { x: 0.5, y: f1(ty(o.box) + 0.5), width: f1(pw - 1), height: f1(Math.max(0.5, ch - 1)), rx: 2, fill: eng2 ? "var(--text)" : "none", "fill-opacity": 0.1,
@@ -1191,9 +1283,8 @@ function openTweaks() {
           el(g, "line", eng2 ? { x1: 0, y1: f1(y), x2: f1(pw), y2: f1(y), stroke: "var(--text)", "stroke-width": 1.8, "stroke-dasharray": "6 3.5" }
             : { x1: 0, y1: f1(y), x2: f1(pw), y2: f1(y), stroke: "var(--dim)", "stroke-width": 1.5, "stroke-dasharray": "1.5 4", "stroke-linecap": "round" });
         }
-        if (o.label) el(g, "text", { x: f1(pw - 5), y: f1(freeY(eng2 ? y - (o.k === "row" ? ch / 2 + 7 : 10) : y + (o.k === "row" ? ch / 2 + 7 : 10), eng2 ? -1 : 1)), "text-anchor": "end", "dominant-baseline": "central",
-          "font-size": eng2 ? 12 : 11, "font-weight": eng2 ? 700 : 400, fill: eng2 ? "var(--text)" : "var(--dim)" }, o.label);
-        pills.push({ y: y, box: o.box, txt: disp(o.box), bg: eng2 ? "var(--text)" : "var(--bg)", fg: eng2 ? "var(--bg)" : "var(--dim)", stroke: eng2 ? null : "var(--dim)" });
+        if (o.label) rowLabs.push({ box: o.box, txt: o.label, engine: eng2 });
+        pills.push({ y: y, box: o.box, txt: disp(o.box), bg: eng2 ? "var(--text)" : "var(--bg)", fg: eng2 ? "var(--bg)" : "var(--text)", stroke: eng2 ? null : "var(--dim)", rank: eng2 ? 1 : 2 });
       } else if (o.k === "col") {
         var cc = cols[o.col]; if (!cc || o.col < first) return;
         var rx = cx(o.col), nb = cc.hi - cc.lo + 1;
@@ -1231,25 +1322,34 @@ function openTweaks() {
         el(g, "text", { x: 13, y: f1(ey - 8.5), "dominant-baseline": "central", "font-size": 11, "font-weight": 700, fill: "var(--accent)" }, nl);
       } else if (o.k === "close") {
         var yc = cy(o.box);
-        el(g, "line", { x1: f1(pw), y1: f1(yc), x2: f1(pw + 4), y2: f1(yc), stroke: "var(--text)", "stroke-width": 1 });
-        pills.push({ y: yc, box: o.box, txt: disp(o.box), bg: "var(--text)", fg: "var(--bg)", stroke: null, first: true });
+        pills.push({ y: yc, box: o.box, txt: disp(o.box), bg: "var(--text)", fg: "var(--bg)", stroke: null, rank: 0 });
       }
     });
-    if (opt.pick != null) {
+    if (opt.pick != null && !rowBoxes[opt.pick] && opt.pick >= bot && opt.pick <= top) { // a row overlay at the pick already marks it
       var yp = cy(opt.pick);
       el(g, "line", { x1: 0, y1: f1(yp), x2: f1(pw), y2: f1(yp), stroke: "var(--dim)", "stroke-width": 1.5, "stroke-dasharray": "5 3" });
-      pills.push({ y: yp, box: opt.pick, txt: disp(opt.pick), bg: "var(--bg)", fg: "var(--text)", stroke: "var(--dim)" });
+      pills.push({ y: yp, box: opt.pick, txt: disp(opt.pick), bg: "var(--bg)", fg: "var(--text)", stroke: "var(--dim)", rank: 2 });
     }
+    rowLabs.sort(function (a, b) { return (b.engine ? 1 : 0) - (a.engine ? 1 : 0); }).forEach(function (r) { rowLabel(r.box, r.txt, r.engine); });
 
-    // price axis: label every 2 boxes (even box numbers); a pill replaces the label at its own row
-    pills.sort(function (a, b) { return a.y - b.y; });
-    for (i = 0; i < pills.length; i++) { // spread apart so no two pills overlap
-      var prev = i ? pills[i - 1].py : -1e9;
-      pills[i].py = Math.max(pills[i].y, prev + 17.5);
-    }
-    pills.forEach(function (p) { p.hide = p.box; });
-    var pillBoxes = {};
-    pills.forEach(function (p) { pillBoxes[p.box] = 1; });
+    // price axis pills: ONE pill per distinct box (close > engine > pick style). Pills that would touch are spread as a
+    // block centred on their rows, kept inside the plot; a short tick at the axis marks each true row.
+    var byBox = {};
+    pills.forEach(function (p) { if (!byBox[p.box] || p.rank < byBox[p.box].rank) byBox[p.box] = p; });
+    pills = Object.keys(byBox).map(function (k) { return byBox[k]; }).sort(function (a, b) { return a.y - b.y; });
+    var PH = 18, clusters = [];
+    pills.forEach(function (p) {
+      var cl = clusters[clusters.length - 1];
+      if (cl && p.y - cl[cl.length - 1].y < PH) cl.push(p); else clusters.push([p]);
+    });
+    var lastBottom = -1e9;
+    clusters.forEach(function (cl) {
+      var mid = cl.reduce(function (a, p) { return a + p.y; }, 0) / cl.length, h0 = mid - (cl.length - 1) * PH / 2;
+      h0 = Math.max(h0, lastBottom + PH, 8.5 - (nTop ? STRIP * nTop : 0));
+      h0 = Math.min(h0, ph + AXH - 8.5 - (cl.length - 1) * PH);
+      cl.forEach(function (p, i) { p.py = h0 + i * PH; });
+      lastBottom = cl[cl.length - 1].py;
+    });
     var stride = compact ? 3 : 2; // never let labels crowd: widen the stride on tiny cells
     while (stride * ch < FS + 3) stride++;
     for (var bb = bot; bb <= top; bb++) {
@@ -1259,16 +1359,21 @@ function openTweaks() {
       el(g, "text", { x: pw + 8, y: f1(yy + 1), "dominant-baseline": "central", "font-size": FS, fill: "var(--dim)", "font-variant-numeric": "tabular-nums" }, disp(bb));
     }
     pills.forEach(function (p) {
-      if (Math.abs(p.py - p.y) > 1) el(g, "line", { x1: f1(pw), y1: f1(p.y), x2: f1(pw + 5), y2: f1(p.py), stroke: "var(--dim)", "stroke-width": 1 });
-      pill(g, W, p.py, p.txt, p.bg, p.fg, p.stroke);
+      el(g, "line", { x1: f1(pw), y1: f1(p.y), x2: f1(pw + 4), y2: f1(p.y), stroke: "var(--text)", "stroke-width": 1.2 });
+      if (Math.abs(p.py - p.y) > 1) {
+        var pwid = Math.round(p.txt.length * 6.1 + 8);
+        el(g, "path", { d: "M" + f1(pw + 4) + " " + f1(p.y) + "L" + f1(WE - 2 - pwid) + " " + f1(p.py), stroke: "var(--dim)", "stroke-width": 1, fill: "none" });
+      }
+      pill(g, WE, p.py, p.txt, p.bg, p.fg, p.stroke);
     });
+    s.setAttribute("data-pills", pills.length);
 
     // row tap targets (invisible, full width), on top so taps always land
     if (typeof opt.onRow === "function") {
       var tg = el(g, "g", { "data-taprows": "1" });
       for (var tb = bot; tb <= top; tb++) {
         (function (box) {
-          var rc = el(tg, "rect", { x: 0, y: f1(ty(box)), width: W, height: f1(ch), fill: "transparent", style: "cursor:pointer", "data-box": box });
+          var rc = el(tg, "rect", { x: -X0, y: f1(ty(box)), width: W, height: f1(ch), fill: "transparent", style: "cursor:pointer", "data-box": box });
           rc.addEventListener("click", function (ev) { opt.onRow(box); });
         })(tb);
       }
@@ -1687,7 +1792,8 @@ function openTweaks() {
         bars: o.bars || c.bars, eng: o.eng || c.eng, newFrom: o.newFrom == null ? null : o.newFrom,
         cols: T.chartCols || 24, showColNums: !!T.showColNums, overlays: o.overlays || [],
         pick: o.pick == null ? null : o.pick, onRow: o.onRow || null, height: o.height || 300,
-        cell: 15, minCell: o.minCell || 8, fitHeight: !!o.fitHeight, maxPlotH: o.maxPlotH || null, keepCol: o.keepCol == null ? null : o.keepCol /* v2: fixed 15px cells, last columns that fit */
+        cell: 15, minCell: o.minCell || 8, fitHeight: !!o.fitHeight, maxPlotH: o.maxPlotH || null, keepCol: o.keepCol == null ? null : o.keepCol,
+        growMax: o.growMax || Math.round(Math.max(560, (window.innerHeight || 800) * 1.15)) /* fix1: grid fills the width; cells grow, chart at most ~1 screen tall */
       };
       if (o.compact) op.compact = true;
       drawPnf(host, op);
@@ -1703,7 +1809,8 @@ function openTweaks() {
         bars: o.bars || c.sec.bars, eng: o.eng || c.sec.eng, newFrom: o.newFrom == null ? null : o.newFrom,
         cols: T.chartCols || 24, showColNums: false, overlays: o.overlays || [],
         height: sh, compact: true, title: "Sector · " + c.sec.name,
-        cell: 11, minCell: o.minCell || 6, fitHeight: !!o.fitHeight, maxPlotH: o.maxPlotH || Math.max(66, sh - 46) /* v2: 11px cells, cropped like the stock chart */
+        cell: 11, minCell: o.minCell || 6, fitHeight: !!o.fitHeight, maxPlotH: o.maxPlotH || Math.max(66, sh - 46),
+        growMax: o.growMax || Math.round((window.innerHeight || 800) * 0.8) /* fix1: fills the width like the stock chart */
       });
     });
   }
@@ -1938,20 +2045,37 @@ function openTweaks() {
     var ov = [{ k: "close", box: c.closeBox }];
     var t1 = trendOv(c.eng); if (t1) ov.push(t1);
     var secCap = Math.max(66, (T.sectorHeight || 180) - 46);
+    var sov = [];
+    if (sec) { var t2 = trendOv(c.sec.eng); if (t2) sov.push(t2); }
+    function gapped(id) { /* fix1: a chart that cannot fill the card width inside its height budget */
+      var sv = $(id) && $(id).querySelector("svg[data-gap]");
+      return !!(sv && +sv.dataset.gap > 2 * +sv.dataset.cell);
+    }
     if (tall) {
       var secMin = sec ? 110 + SECPAD + GAP : 0;
       drawChart(c, { overlays: ov, minCell: 7, fitHeight: true, maxPlotH: Math.max(150, Math.min(270, room - SVGPAD - GAP - callH - secMin)) });
     } else {
       drawChart(c, { overlays: ov, minCell: 7, fitHeight: true, maxPlotH: Math.max(120, Math.min(270, room - SVGPAD - GAP - callH)) });
     }
-    if (sec) {
-      var sov = [], t2 = trendOv(c.sec.eng); if (t2) sov.push(t2);
+    var callFirst = gapped("pf");
+    if (sec && !callFirst) {
       var secPlot = secCap;
       if (tall) {
         var pfCard = pf.parentNode, used = pfCard ? pfCard.getBoundingClientRect().bottom + (window.scrollY || 0) : pfTop + 260;
         secPlot = Math.max(66, Math.min(secCap, barTop - 8 - used - GAP - callH - GAP - SECPAD));
       }
       drawSector(c, { overlays: sov, maxPlotH: secPlot, minCell: 5, fitHeight: tall });
+      if (tall && gapped("pfs")) callFirst = true;
+    }
+    if (callFirst) {
+      /* fix1: the charts cannot fill the width in the room left beside the call controls: controls first (on screen),
+         then both charts at full width below (they scroll), never a half-empty chart */
+      var stk = document.querySelector(".callstack"), pfc = pf.parentNode, sc2 = $("pfs") ? $("pfs").parentNode : null;
+      stk.insertBefore(cc, stk.firstChild);
+      stk.appendChild(pfc);
+      if (sc2) stk.appendChild(sc2);
+      drawChart(c, { overlays: ov, minCell: 7 });
+      if (sec) drawSector(c, { overlays: sov, minCell: 5 });
     }
     var inp = $("horizon");
     if (inp) {

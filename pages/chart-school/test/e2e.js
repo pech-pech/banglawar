@@ -9,11 +9,12 @@ const fs = require('fs');
 const { chromium } = require('playwright');
 const { start } = require('./serve');
 
-const QA = path.resolve(__dirname, '..', 'qa', 'v2');
+const QA = path.resolve(__dirname, '..', 'qa', 'v2', 'fix1');
 const BUILD = 'cs-v2-1';
-const SIZES = [{ w: 344, h: 882 }, { w: 475, h: 638 }];
+const SIZES = [{ w: 344, h: 882 }, { w: 416, h: 608 }, { w: 475, h: 638 }, { w: 816, h: 568 }]; // 416x608 = M's phone; 816x568 = landscape inner
 const FORBIDDEN = /\b(level|score|quiz|lesson|streak|passed|rung|hold|sell order)s?\b/i;
 const fails = [];
+const STATS = { exempt: 0, looks: 0, by: {} };
 let checks = 0;
 
 function ok(cond, msg) { checks++; if (!cond) { fails.push(msg); console.log('  FAIL ' + msg); } }
@@ -44,6 +45,42 @@ async function look(page, tag, label, shot) {
       if (h < 47.5) out.small.push((el.dataset.act || el.dataset.opt || el.id || el.textContent.trim()).slice(0, 30) + '=' + Math.round(h));
     });
     out.tiny = [...document.querySelectorAll('#pfs svg[data-cell]')].map(s => +s.dataset.cell).filter(c => c < 3);
+    // fix1: the P&F grid fills the card: its left edge sits within ~2 cells of the card's inner left edge. Only exception:
+    // every shipped column is already shown and the cell cap / height cap stops the fill (grid centred, counted).
+    out.grid = []; out.exempt = 0;
+    document.querySelectorAll('#main svg[data-grid-left]').forEach(s => {
+      const card = s.closest('.card'); if (!card) return;
+      const cs = getComputedStyle(card), cb = card.getBoundingClientRect();
+      const inner = cb.left + parseFloat(cs.borderLeftWidth) + parseFloat(cs.paddingLeft);
+      const left = s.getBoundingClientRect().left + +s.dataset.gridLeft, cell = +s.dataset.cell;
+      if (left - inner <= 2 * cell + 1) return;
+      if (+s.dataset.cols === +s.dataset.ncols) { out.exempt++; out.exemptOf = (out.exemptOf || []).concat((s.closest('#pfs') ? 'sector' : 'stock') + ':' + s.dataset.cols + 'c gap' + Math.round(+s.dataset.gap / +s.dataset.cell)); return; }
+      out.grid.push((s.closest('#pfs') ? 'sector' : 'stock') + ' left ' + Math.round(left - inner) + 'px cell ' + cell + ' cols ' + s.dataset.cols + '/' + s.dataset.ncols);
+    });
+    // fix1: one axis pill per distinct price; labels never over the axis numbers
+    out.dupPills = [];
+    document.querySelectorAll('#main svg[data-pills]').forEach(s => {
+      const t = [...s.querySelectorAll('rect + text')].filter(x => x.getAttribute('font-weight') === '700' && x.getAttribute('text-anchor') === 'middle' && /^[0-9.]+$/.test(x.textContent));
+      const seen = {}; t.forEach(x => { if (seen[x.textContent]) out.dupPills.push(x.textContent); seen[x.textContent] = 1; });
+    });
+    out.lblHits = [];
+    document.querySelectorAll('#main svg [data-trendlabel], #main svg [data-rowlabel]').forEach(l => {
+      const a = l.getBoundingClientRect(), svg = l.closest('svg');
+      svg.querySelectorAll('text').forEach(t => {
+        if (t === l || t.hasAttribute('data-trendlabel') || t.hasAttribute('data-rowlabel') || !/^[0-9.]+$|^col$/.test(t.textContent)) return;
+        const b = t.getBoundingClientRect();
+        const ix = Math.min(a.right, b.right) - Math.max(a.left, b.left), iy = Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top);
+        if (ix > 2 && iy > 2 && !l.hasAttribute('data-trendlabel')) out.lblHits.push(l.textContent + '/' + t.textContent);
+        // rotated labels: test the label's centre band only (bbox of a rotated text is loose)
+        if (l.hasAttribute('data-trendlabel')) { const cx = (a.left + a.right) / 2, cy = (a.top + a.bottom) / 2; if (cx > b.left - 3 && cx < b.right + 3 && cy > b.top - 3 && cy < b.bottom + 3) out.lblHits.push(l.textContent + '/' + t.textContent); }
+      });
+    });
+    out.callVis = null;
+    const cc = document.getElementById('callc'), bar = document.getElementById('bar');
+    if (cc && document.body.dataset.screen === 'call') {
+      const b = cc.getBoundingClientRect(), bt = bar ? bar.getBoundingClientRect().top : window.innerHeight;
+      out.callVis = b.top >= 0 && b.bottom <= bt + 1 ? 'ok' : Math.round(b.top) + '..' + Math.round(b.bottom) + ' bar ' + Math.round(bt);
+    }
     document.querySelectorAll('#main svg').forEach(s => {
       const b = s.getBoundingClientRect();
       if (b.right > window.innerWidth + 0.5 || b.left < -0.5) out.wide.push(Math.round(b.left) + '..' + Math.round(b.right));
@@ -58,6 +95,11 @@ async function look(page, tag, label, shot) {
   ok(r.overflow <= 0, `${tag} ${label}: horizontal overflow ${r.overflow}px`);
   ok(r.wide.length === 0, `${tag} ${label}: svg outside viewport ${r.wide.join(', ')}`);
   ok(!r.tiny.length, `${tag} ${label}: sector chart cells under 3px: ${r.tiny.join(', ')}`);
+  ok(r.grid.length === 0, `${tag} ${label}: P&F grid does not fill the card: ${r.grid.join('; ')}`);
+  ok(r.dupPills.length === 0, `${tag} ${label}: duplicate axis pills ${r.dupPills.join(', ')}`);
+  ok(r.lblHits.length === 0, `${tag} ${label}: chart label over axis text ${r.lblHits.join(', ')}`);
+  if (r.callVis != null) ok(r.callVis === 'ok', `${tag} ${label}: call controls not on screen (${r.callVis})`);
+  STATS.exempt += r.exempt; STATS.looks++; (r.exemptOf || []).forEach(e => { const k = tag + ' ' + e.split(':')[0]; STATS.by[k] = (STATS.by[k] || 0) + 1; });
   ok(r.small.length === 0, `${tag} ${label}: controls under 48px: ${r.small.join(', ')}`);
   ok(r.bad.length === 0, `${tag} ${label}: bad text ${r.bad.join(', ')}`);
   ok(r.forb.length === 0, `${tag} ${label}: forbidden words ${r.forb.join(', ')}`);
@@ -92,6 +134,12 @@ async function playChart(page, tag, n, opts, st) {
     if (opts.shots && !st.shotReading && /^S/.test(type) && await has(page, '#pfs svg')) {
       st.shotReading = true;
       await look(page, tag, 'reading-sector', 'reading-sector');
+    } else if (opts.shots && !st.shotStep && ['R2', 'R2b', 'R4'].includes(type)) {
+      st.shotStep = true; st.looked.add('r' + type);
+      await look(page, tag, 'reading-' + type, 'reading-stepper');
+    } else if (opts.shots && !st.shotOpt && /^R/.test(type) && !['R2', 'R2b', 'R4'].includes(type)) {
+      st.shotOpt = true; st.looked.add('r' + type);
+      await look(page, tag, 'reading-' + type, 'reading-option');
     } else if (opts.first || !st.looked.has('r' + type)) { st.looked.add('r' + type); await look(page, tag, 'reading-' + type); }
     if (opts.first && i === 0) {
       await act(page, 'rule');
@@ -111,7 +159,7 @@ async function playChart(page, tag, n, opts, st) {
     await act(page, 'submit');
     ok((await screen(page)) === 'marked', `${tag} submit on ${type} did not show marked (${await screen(page)})`);
     ok(/Right|Marked/.test(await page.locator('#main').innerText()), `${tag} marked view for ${type} lacks Right/Marked`);
-    if (!st.looked.has('m' + type)) { st.looked.add('m' + type); await look(page, tag, 'marked-' + type, opts.shots && /^S/.test(type) && !st.shotMarked ? (st.shotMarked = true, 'marked-sector') : null); }
+    if (!st.looked.has('m' + type)) { st.looked.add('m' + type); await look(page, tag, 'marked-' + type, opts.shots && /^S/.test(type) && !st.shotMarked ? (st.shotMarked = true, 'marked-sector') : (opts.shots && ['R2', 'R2b', 'R4'].includes(type) && !st.shotMarkedStep ? (st.shotMarkedStep = true, 'marked-stepper') : null)); }
     await act(page, 'next');
   }
   ok((await screen(page)) === 'call', `${tag} chart ${n}: after 3 readings got ${await screen(page)}`);
@@ -149,7 +197,7 @@ async function playChart(page, tag, n, opts, st) {
   ok(await page.evaluate(() => S.cur.call) === opts.call, `${tag} call not set to ${opts.call}`);
   ok(await page.evaluate(() => S.cur.h) === h, `${tag} horizon lost after picking the call`);
   ok(!(await page.locator('[data-act="confirm-call"]').first().isDisabled()), `${tag} Confirm call still disabled`);
-  if (opts.shots && !st.shotCall) { st.shotCall = true; await look(page, tag, 'call', 'call'); } else await look(page, tag, 'call');
+  if (opts.shots && !st.shotCall) { st.shotCall = true; await look(page, tag, 'call', 'call'); await page.screenshot({ path: path.join(QA, `${tag}-call-viewport.png`) }); } else await look(page, tag, 'call');
   await act(page, 'confirm-call');
   ok((await screen(page)) === 'outcome', `${tag} confirm went to ${await screen(page)}`);
   const exp = await page.evaluate((hh) => curSheet().fwdRet[hh - 1], h);
@@ -331,6 +379,7 @@ async function run(browser, base, size) {
     await browser.close();
     await srv.close();
   }
+  console.log(`grid fill: ${STATS.exempt} centred charts (all shipped columns shown, cap reached) over ${STATS.looks} screens ` + JSON.stringify(STATS.by));
   console.log(`e2e: ${checks - fails.length}/${checks} checks ok`);
   if (fails.length) { console.log('FAILURES:\n' + fails.map(f => ' - ' + f).join('\n')); process.exit(1); }
   console.log('e2e PASS');
