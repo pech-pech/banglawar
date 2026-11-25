@@ -185,7 +185,7 @@ var RULES={
   "Compare this week, or last week, with the 12 closes before it.",
   "Bearish: the close is above all 12 prior closes, but RSI is lower than RSI at the highest prior close.",
   "Bullish: the close is below all 12 prior closes, but RSI is higher than RSI at the lowest prior close.",
-  "If neither holds, the reading is None."]}
+  "If neither is true, the reading is None."]}
 };
 
 RULES.S1={title:"Sector signal",lines:RULES.R1.lines.map(function(l){return l}).concat(["Read this on the sector chart, not the stock chart."])};

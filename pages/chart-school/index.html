@@ -204,6 +204,9 @@ body.hc .btn.primary{color:#000}
 .retc.neg{border-left:4px dashed var(--o)}.retc.neg .rb{border-color:var(--o);border-style:dashed}
 .retc.flat{border-left:4px dotted var(--dim)}
 .ret.pos,.ret.neg{font-weight:700}
+/* integrator: return colours used by screens-a (retCls good/bad on totals and trade rows) */
+.code.good,b.good,span.good{color:var(--x)}.code.bad,b.bad,span.bad{color:var(--o)}
+.mk .r b{font-weight:700}
 
 </style>
 </head><body>
@@ -448,7 +451,7 @@ var RULES={
   "Compare this week, or last week, with the 12 closes before it.",
   "Bearish: the close is above all 12 prior closes, but RSI is lower than RSI at the highest prior close.",
   "Bullish: the close is below all 12 prior closes, but RSI is higher than RSI at the lowest prior close.",
-  "If neither holds, the reading is None."]}
+  "If neither is true, the reading is None."]}
 };
 
 RULES.S1={title:"Sector signal",lines:RULES.R1.lines.map(function(l){return l}).concat(["Read this on the sector chart, not the stock chart."])};
@@ -803,7 +806,7 @@ function record() {
 }
 
 /* ---------- text helpers ---------- */
-function pctTxt(x, d) { return (x >= 0 ? "+" : "") + x.toFixed(d == null ? 1 : d) + "%"; }
+function pctTxt(x, d) { d = d == null ? 1 : d; var m = Math.pow(10, d), r = Math.round(x * m) / m; if (r === 0 || !isFinite(r)) r = 0; return (r >= 0 ? "+" : "") + r.toFixed(d) + "%"; } /* no "-0.0%" */
 function retTxt(f, d) { return pctTxt(f * 100, d); } /* fraction -> "+4.2%" / "-3.1%" */
 function nTxt(n) { return String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, ","); }
 
@@ -1319,9 +1322,7 @@ function openTweaks() {
   function num(v) { return typeof v === 'number' && isFinite(v) ? v : null; }
   function fmtRet(v) {
     v = num(v); if (v === null) return '';
-    var p = Math.round(v * 1000) / 10; // 1 decimal
-    if (p === 0) p = 0; // avoid -0
-    return (p > 0 ? '+' : '') + p.toFixed(1) + '%';
+    return retTxt(v, 1); /* store: signed, 1 decimal, never -0.0% */
   }
   function retCls(v) { v = num(v); return v === null ? '' : v >= 0 ? 'good' : 'bad'; }
   function runOf() { return (typeof S !== 'undefined' && S && S.run) || { charts: 0, trades: [], skipped: 0, done: false }; }
@@ -1331,7 +1332,8 @@ function openTweaks() {
   function bestOf() { return (typeof S !== 'undefined' && S && S.best && num(S.best.ret) !== null) ? S.best : null; }
   function bestLine() {
     var b = bestOf();
-    return b ? 'Best run ' + fmtRet(b.ret) + ' (' + ((b.trades && b.trades.length != null ? b.trades.length : b.trades) || 0) + ' trades)' : 'Best run: none yet';
+    var n = b ? (Array.isArray(b.trades) ? b.trades.length : (+b.trades || 0)) : 0; /* S.best.trades is an int (old shapes tolerated) */
+    return b ? 'Best run ' + fmtRet(b.ret) + ' (' + n + ' trade' + (n === 1 ? '' : 's') + ')' : 'Best run: none yet';
   }
   function callText(e) {
     if (!e) return '';
@@ -1346,9 +1348,10 @@ function openTweaks() {
     try { rows = record().map(recRow).join(''); } catch (e) {}
     var run = runOf(), nT = (run.trades || []).length, nC = run.charts || 0;
     var open = !!(S.cur && !S.cur.fin);
-    var started = open || nC > 0 || nT > 0;
-    var tx = Math.min(nT + 1, runTrades()), cy = Math.min(nC + (open ? 1 : 1), runCharts());
-    var rr = curRun();
+    var done = !!run.done;
+    var started = !done && (open || nC > 0 || nT > 0);
+    var tx = done ? 1 : Math.min(nT + 1, runTrades()), cy = done ? 1 : Math.min(nC + 1, runCharts());
+    var rr = done ? 0 : curRun();
     var base = '';
     if (T.showBaseNote) {
       var up = Math.round(((META && META.base && META.base.up10) || 0.62) * 100);
@@ -1358,7 +1361,7 @@ function openTweaks() {
     }
     $('main').innerHTML = header('Trading desk', 'Your run and your record', { root: true, gear: true }) +
       '<section class="card next" aria-label="Current run"><div class="cap">' + (started ? 'Current run' : 'New run') + '</div>' +
-      '<div class="big"><span class="code num">' + (nT ? fmtRet(rr) : '+0.0%') + '</span>' +
+      '<div class="big"><span class="code num">' + (nT && !done ? fmtRet(rr) : '+0.0%') + '</span>' +
       '<span class="meta num">Trade ' + tx + ' of ' + runTrades() + '<br>Chart ' + cy + ' of ' + runCharts() + '<br>' + esc(bestLine()) + '</span></div>' +
       '<div class="list">Read each chart, make your call, pick a horizon of 3 to 10 weeks. The run ends at your ' + runTrades() + 'th Buy.</div></section>' +
       '<section class="card" aria-label="Accuracy record" style="font-size:.92em"><div class="ch"><span class="cap">Accuracy record</span><span class="cap faint">lifetime, right / total</span></div>' + rows + '</section>' +
@@ -1366,7 +1369,7 @@ function openTweaks() {
       '<p class="dim" style="font-size:12px;margin:4px 2px 8px">This desk trains chart reading. It makes no profit promise.</p>';
     bar([
       { act: 'journal', label: 'Journal', kind: 'out' },
-      { act: 'open-sheet', label: started ? 'Continue' : 'Start run', kind: 'primary' }
+      { act: 'open-sheet', label: started ? 'Continue run' : 'Start run', kind: 'primary' }
     ]);
   };
 
@@ -1413,7 +1416,7 @@ function openTweaks() {
     $('main').innerHTML = header('Run complete', tr.length + ' trades over ' + (run.charts || 0) + ' charts', {}) +
       '<section class="card next" aria-label="Run result"><div class="cap">Total return</div>' +
       '<div class="big"><span class="code num ' + retCls(total) + '" style="font-size:44px">' + esc(fmtRet(total) || '+0.0%') + '</span>' +
-      '<span class="meta num">' + tr.length + ' trades</span></div>' +
+      '<span class="meta num">' + tr.length + ' trade' + (tr.length === 1 ? '' : 's') + '</span></div>' +
       '<div class="list num">' + esc(isBest ? 'New best run' : bestLine()) + '</div></section>' +
       '<section class="card"><div class="cap">Trades</div>' + list + '</section>';
     bar([{ act: 'journal', label: 'Journal', kind: 'out' }, { act: 'new-run', label: 'New run', kind: 'primary' }]);
@@ -1490,11 +1493,7 @@ function openTweaks() {
     return !!STEPPER[type];
   }
   function isSec(type) { return type === "S1" || type === "S2"; }
-  function fmtPct(r) {
-    var v = Math.round(r * 1000) / 10;
-    if (v === 0) v = 0;
-    return (v > 0 ? "+" : (v < 0 ? "-" : "")) + Math.abs(v).toFixed(1) + "%";
-  }
+  function fmtPct(r) { return retTxt(r, 1); } /* store: signed, 1 decimal */
   function retWord(r) {
     var v = Math.round(r * 1000) / 10;
     return v > 0 ? "Gain" : (v < 0 ? "Loss" : "Flat");
@@ -1780,7 +1779,7 @@ function openTweaks() {
       '<button class="btn" data-act="h-up" aria-label="One week longer">+</button></div>' +
       '<div class="hzt" aria-hidden="true"><span>3</span><span>10 weeks</span></div></div>';
     var callCard = '<div class="card callc"><div class="cap2">' + esc(tradeLine()) + '</div>' + seg +
-      '<p class="dim note">Buy holds for the horizon. Don\'t buy takes no trade; you still see what happened.</p></div>';
+      '<p class="dim note">Buy keeps the trade open for the horizon. Don\'t buy takes no trade; you still see what happened.</p></div>';
 
     $("main").innerHTML = hd + '<div class="stack"><div class="card pf">' + '<div id="pf"></div></div>' +
       secPane(c, "call") + callCard + hz + '</div>';

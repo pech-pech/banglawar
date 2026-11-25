@@ -308,7 +308,7 @@
       '<button class="btn" data-act="h-up" aria-label="One week longer">+</button></div>' +
       '<div class="hzt" aria-hidden="true"><span>3</span><span>10 weeks</span></div></div>';
     var callCard = '<div class="card callc"><div class="cap2">' + esc(tradeLine()) + '</div>' + seg +
-      '<p class="dim note">Buy holds for the horizon. Don\'t buy takes no trade; you still see what happened.</p></div>';
+      '<p class="dim note">Buy keeps the trade open for the horizon. Don\'t buy takes no trade; you still see what happened.</p></div>';
 
     $("main").innerHTML = hd + '<div class="stack"><div class="card pf">' + '<div id="pf"></div></div>' +
       secPane(c, "call") + callCard + hz + '</div>';
