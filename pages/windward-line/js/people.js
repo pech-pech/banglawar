@@ -48,6 +48,7 @@ export function spawnPeople(state) {
   const P = {
     n, x: new Float32Array(n), y: new Float32Array(n), mode: new Uint8Array(n), hp: new Float32Array(n),
     freeze: new Int16Array(n), home: new Int16Array(n), tx: new Float32Array(n), ty: new Float32Array(n),
+    exp: new Uint8Array(n), // 1 = was within cfg.exposeR cells of fire while outside a shelter (balance-1)
   };
   let homes = map.homes && map.homes.length ? map.homes : [{ x: map.town ? map.town.x + map.town.w / 2 : MAP_W / 2, y: map.town ? map.town.y + map.town.h / 2 : MAP_H * 0.8, r: 8, count: n }];
   let k = 0;
@@ -58,7 +59,7 @@ export function spawnPeople(state) {
   for (let h = 0; k < n; h++) placeAt(P, k++, h % homes.length, homes[h % homes.length], grid, rng); // admin default: remainder spread round-robin
   for (let i = 0; i < n; i++) { P.hp[i] = cfg.hp; P.mode[i] = MODE.CALM; P.freeze[i] = 0; P.tx[i] = P.x[i]; P.ty[i] = P.y[i]; }
   state.people = P;
-  state.counts.safe = 0; state.counts.lost = 0; state.counts.inZone = 0;
+  state.counts.safe = 0; state.counts.lost = 0; state.counts.inZone = 0; state._firstLoss = false;
   for (const z of state.zones || []) z.inside = 0;
   state._prng = state.rng.fork('people-run');
   state._gtok = new Float32Array(N);
@@ -140,6 +141,21 @@ function rebuildBlocks(g) {
   return total;
 }
 
+// balance-1: nearM[c] = 1 when a burning cell is within r cells (Chebyshev). Two O(N) sliding-window passes.
+const nearH = new Uint16Array(N), nearM = new Uint8Array(N), rowPre = new Uint16Array(Math.max(MAP_W, MAP_H) + 1);
+function buildNear(burn, r) {
+  for (let y = 0; y < MAP_H; y++) {
+    const row = y * MAP_W; rowPre[0] = 0;
+    for (let x = 0; x < MAP_W; x++) rowPre[x + 1] = rowPre[x] + (burn[row + x] > 0 ? 1 : 0);
+    for (let x = 0; x < MAP_W; x++) nearH[row + x] = rowPre[Math.min(MAP_W, x + r + 1)] - rowPre[Math.max(0, x - r)];
+  }
+  for (let x = 0; x < MAP_W; x++) {
+    rowPre[0] = 0;
+    for (let y = 0; y < MAP_H; y++) rowPre[y + 1] = rowPre[y] + (nearH[y * MAP_W + x] > 0 ? 1 : 0);
+    for (let y = 0; y < MAP_H; y++) nearM[y * MAP_W + x] = rowPre[Math.min(MAP_H, y + r + 1)] - rowPre[Math.max(0, y - r)] > 0 ? 1 : 0;
+  }
+}
+
 // Is there a burning block within r cells (block-rect distance, conservative)? returns true/false
 function fireWithin(px, py, r) {
   const r2 = r * r;
@@ -155,11 +171,15 @@ function fireWithin(px, py, r) {
   return false;
 }
 
+function firstLoss(state, P, i) {
+  if (state._firstLoss) return;
+  state._firstLoss = true;
+  pushEvent(state, 'first-loss', P.x[i], P.y[i], 'First loss in the ' + sideName(P.x[i], P.y[i]));
+}
 function lose(state, P, i) {
   P.mode[i] = MODE.LOST;
-  const first = state.counts.lost === 0;
   state.counts.lost++;
-  if (first) pushEvent(state, 'first-loss', P.x[i], P.y[i], 'First loss in the ' + sideName(P.x[i], P.y[i]));
+  firstLoss(state, P, i);
 }
 
 export function peopleStep(state) {
@@ -172,6 +192,7 @@ export function peopleStep(state) {
   if (state._flowDirty || state._flowTick === undefined || state.tick - state._flowTick >= secToTicks(cfg, cfg.repathSec)) buildFlow(state);
 
   const totalFire = rebuildBlocks(g);
+  if (totalFire) buildNear(g.burn, Math.max(1, cfg.exposeR | 0));
   occ.fill(0);
   const zones = state.zones || [], gz = state._gz, tok = state._gtok;
   const rate = cfg.gateFlow * dt, tcap = Math.max(rate, 1) + 1;
@@ -195,6 +216,8 @@ export function peopleStep(state) {
 
     // --- lost checks
     if (burn[c] > 0) { lose(state, P, i); continue; }
+    // balance-1: within cfg.exposeR cells of fire outside a shelter = caught in the open (counts lost unless sheltered later)
+    if (totalFire && nearM[c] && P.exp && !P.exp[i]) { P.exp[i] = 1; firstLoss(state, P, i); }
     if (totalFire && bnear[((cyi / BS) | 0) * BW + ((cxi / BS) | 0)]) {
       let dmg = 0, hot = false;
       for (let yy = Math.max(0, cyi - 1); yy <= Math.min(MAP_H - 1, cyi + 1) && !hot; yy++)

@@ -24,7 +24,8 @@ button { cursor: pointer; -webkit-tap-highlight-color: transparent; touch-action
   gap: 0; text-align: center; font-size: 13px; line-height: 15px; font-weight: 600; white-space: nowrap; }
 .btn small { font-size: 12px; line-height: 14px; font-weight: 400; color: var(--dim); }
 .btn:disabled { opacity: .45; cursor: default; }
-.btn[aria-pressed="true"], .btn.on { border-color: var(--accent); background: #12303d; box-shadow: inset 0 0 0 1px var(--accent); }
+.btn[aria-pressed="true"]:not(.pause), .btn.on { border-color: var(--accent); background: #12303d; box-shadow: inset 0 0 0 1px var(--accent); }
+.btn.pause.paused { background: var(--fire); border-color: var(--fire); color: #1a0d00; box-shadow: none; }
 .btn.armed { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent); background: #12303d; }
 .btn.primary { background: var(--fire); border-color: var(--fire); color: #1a0d00; min-height: 56px; font-size: 18px; font-weight: 800; letter-spacing: .04em; }
 .btn.accent { background: var(--accent); border-color: var(--accent); color: #00222e; min-height: 56px; font-size: 16px; font-weight: 700; }
@@ -32,12 +33,12 @@ button { cursor: pointer; -webkit-tap-highlight-color: transparent; touch-action
 /* ---- top bar ---- */
 #topbar { grid-area: top; padding: calc(6px + var(--st)) calc(var(--gx) + var(--sr)) 6px calc(var(--gx) + var(--sl));
   background: var(--panel); border-bottom: 1px solid var(--line); display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.tb-row1 { display: flex; align-items: center; gap: 10px; min-height: 48px; }
-.tb-money { font-size: 18px; font-weight: 800; color: var(--text); min-width: 56px; }
-.tb-safe { flex: 1 1 auto; font-size: 14px; font-weight: 600; color: var(--text); }
+.tb-row1 { display: flex; align-items: center; gap: 6px; min-height: 48px; }
+.tb-money { font-size: 17px; font-weight: 800; color: var(--text); min-width: 0; }
+.tb-safe { flex: 1 1 auto; min-width: 0; font-size: 13px; white-space: nowrap; font-weight: 600; color: var(--text); }
 .tb-safe.low { color: var(--fire); }
 .tb-safe.ok { color: var(--ok); }
-.tb-time { font-size: 16px; font-weight: 700; font-variant-numeric: tabular-nums; min-width: 40px; text-align: right; }
+.tb-time { font-size: 16px; font-weight: 700; font-variant-numeric: tabular-nums; min-width: 0; text-align: right; }
 .tb-row2 { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 2px 10px; min-height: 22px; font-size: 12px; line-height: 16px; color: var(--dim); }
 .tb-wind { display: inline-flex; align-items: center; gap: 4px; color: var(--text); }
 .tb-wind svg { width: 20px; height: 20px; flex: none; }
@@ -60,7 +61,7 @@ button { cursor: pointer; -webkit-tap-highlight-color: transparent; touch-action
 .tools .btn { flex: 1 1 0; min-width: 48px; padding: 4px 2px; }
 .row-b { display: flex; flex-wrap: wrap; gap: 6px; align-items: stretch; }
 .chips { display: flex; gap: 6px; }
-.chips .btn { width: 48px; padding: 4px 0; }
+.chips .btn { width: 48px; padding: 4px 0; white-space: normal; font-size: 12px; line-height: 14px; }
 .row-b > .btn.edit { flex: 1 1 56px; }
 #btn-start { flex: 1 1 100%; }
 .runrow { display: flex; gap: 6px; }
@@ -68,6 +69,13 @@ button { cursor: pointer; -webkit-tap-highlight-color: transparent; touch-action
 .runrow .btn.pause { flex: 1.6 1 0; }
 .callins .btn { min-height: 56px; }
 
+/* narrow: one fixed tray height in plan and run (no map jump) */
+@media (min-height: 701px) {
+  #tray-plan, #tray-run { height: 232px; overflow: hidden; }
+  #tray-run { justify-content: center; gap: 10px; }
+  .callins .btn { min-height: 76px; }
+  .runrow:not(.callins) .btn { min-height: 64px; }
+}
 /* short narrow screens: START shares the row */
 @media (max-width: 599px) and (max-height: 700px) {
   .row-b { flex-wrap: nowrap; }
@@ -78,7 +86,8 @@ button { cursor: pointer; -webkit-tap-highlight-color: transparent; touch-action
 @media (min-width: 600px) and (orientation: landscape), (min-width: 900px) {
   #app { grid-template-columns: minmax(0, 1fr) 240px; grid-template-rows: auto minmax(0, 1fr);
     grid-template-areas: "top tray" "map tray"; }
-  #tray-plan, #tray-run { border-top: 0; border-left: 1px solid var(--line); overflow-y: auto; padding-top: calc(8px + var(--st)); }
+  #tray-plan, #tray-run { height: auto; overflow-y: auto; justify-content: flex-start; border-top: 0; border-left: 1px solid var(--line); overflow-y: auto; padding-top: calc(8px + var(--st)); }
+  .callins .btn, .runrow:not(.callins) .btn { min-height: 56px; }
   .tools { display: grid; grid-template-columns: 1fr 1fr; }
   .tools .btn { flex: none; }
   .chips { flex: 1 1 100%; }
@@ -119,6 +128,8 @@ button { cursor: pointer; -webkit-tap-highlight-color: transparent; touch-action
 .panel-body h3 { margin: 0; font-size: 13px; color: var(--dim); font-weight: 600; }
 .line { display: flex; gap: 8px; align-items: stretch; }
 .line .btn { flex: 1 1 0; flex-direction: row; }
+.line.stack { flex-direction: column; }
+.line.stack .btn { white-space: normal; }
 .line input { flex: 1 1 0; min-width: 0; min-height: 48px; padding: 0 12px; font-size: 16px; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; }
 #tweak-panel { min-height: 0; }
 @media (min-width: 600px) and (orientation: landscape), (min-width: 900px) {

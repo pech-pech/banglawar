@@ -127,7 +127,7 @@ stars (count of cfg.stars reached), cause: causeLine(state), hash: hashState(sta
 `causeLine(state)`: ONE line naming the first breach: "Wind shift hit west break at 1:04" (break-breach after
 wind-shift), "Fire broke the north break at 0:52", "Embers jumped the north break at 0:41", "Embers reached the east
 shelter at 1:12", "Road cut south-west at 0:58", "Gate closed at the west shelter at 1:02"; no breach but loss:
-"Fire reached people in the south-west at 0:47, no shelter near"; win: "Held: 64% safe". sideName + fmtTime.
+"Fire reached people in the south-west at 0:47, no shelter near"; win: "Passed: 64% alive (40 lost). First loss: south at 0:29" (see sim.js). sideName + fmtTime.
 `hashState` = FNV-1a 32-bit over tick, grid.burn, grid.burnt, people x/y quantised (x*4|0), people.mode, money.
 `runToEnd(state, maxTicks=20000)` steps until phase 'result'. `startRun` requires phase plan: spawnPeople, sets
 nextSpotTick, shiftAtTick, phase 'run', buildFlow. Same seed + plan + inputs = same hash.
@@ -206,3 +206,10 @@ manifest like pages/chart-school/manifest.webmanifest (name Windward Line, theme
 Icons by code (PIL if present, else node canvas-free PNG writer): dark bg, orange fire dots, cyan shelter square, white dots.
 index.html (M8) head must carry `<meta name="pgs-build" content="__PGS_BUILD__">` and
 `<script src="../_shared/update.js" defer></script>`, register `./sw.js`.
+
+## Balance-1 changes (2026-11-25, after QA; see games-design/city-swarm-defense/2026-11-25-build/BALANCE-1.md)
+- Score = % of people ALIVE at end (like the reference "% saved"). Anyone outside a shelter or refuge who was ever
+  within cfg.exposeR (6) cells of fire counts lost at the end (people.exp flag).
+- One shelter holds at most cfg.zoneCapMax (130) people (applied in sim.startRun). zoneCostPerCell 20, zoneCapPerCell 1.0.
+- Houses inside a shelter can burn; cleared shelter ground cannot.
+- Stage 1 wind travels toward the town (deg 0, level 1) so stage 1 teaches; stage 2 225 -> shift -180 at 60 s.

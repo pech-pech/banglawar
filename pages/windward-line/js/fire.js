@@ -38,8 +38,10 @@ export function windFactor(state, dx, dy) {
   return f < cfg.windFloor ? cfg.windFloor : (f > cfg.windCap ? cfg.windCap : f);
 }
 
+// balance-1 (admin default): a shelter clears its ground, but HOUSE cells inside it can still catch fire
+// (spread from a burning neighbour or an ember), so a box over the town is not a fireproof firebreak.
 function ignitable(g, i) {
-  return BURNABLE[g.type[i]] && g.burn[i] === 0 && !g.burnt[i] && g.zone[i] === 0;
+  return BURNABLE[g.type[i]] && g.burn[i] === 0 && !g.burnt[i] && (g.zone[i] === 0 || g.type[i] === TYPE.HOUSE);
 }
 
 function lightCell(state, f, i) {
@@ -138,7 +140,7 @@ export function fireStep(state) {
         heat[n]++;
         continue;
       }
-      if (!BURNABLE[nt] || burn[n] > 0 || burnt[n] || zone[n] !== 0 || stamp[n] === stampId) continue;
+      if (!BURNABLE[nt] || burn[n] > 0 || burnt[n] || (zone[n] !== 0 && nt !== TYPE.HOUSE) || stamp[n] === stampId) continue;
       let p = cfg.ignite[nt] * wf8[k];
       if (wet[n] > 0) p *= cfg.wetFactor;
       if (rng.next() < p) { stamp[n] = stampId; fresh.push(n); }
@@ -209,7 +211,7 @@ export function fireStep(state) {
     if (zone[n] !== 0) {
       const zid = zone[n] - 1, key = 'zone' + zid;
       if (!f.once.has(key)) { f.once.add(key); pushEvent(state, 'zone-hit', ix, iy, 'Embers reached the ' + sideName(ix, iy) + ' shelter'); }
-      continue;
+      if (type[n] !== TYPE.HOUSE) continue; // cleared shelter ground: ember dies; a house inside can still catch (below)
     }
     if (!ignitable(g, n) || stamp[n] === stampId) continue;
     let p = cfg.emberLand[type[n]];

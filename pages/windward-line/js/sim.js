@@ -43,6 +43,8 @@ export function startRun(state) {
   state.wind.shiftDeg = state.wind.shiftAtTick == null ? null : S.shiftDeg;
   state._sprayHits = new Uint8Array(MAP_W * MAP_H);
   state._accSec = 0;
+  // balance-1 (admin default): one shelter holds at most cfg.zoneCapMax people, so one big box cannot hold the town
+  for (const z of state.zones) z.cap = Math.min(z.cap, cfg.zoneCapMax);
   for (const c of state.crews) {
     c.tank = cfg.tank; c.lost = false; c._acc = 0;
     // admin default: water refill if any WATER cell within refillWaterDist
@@ -151,7 +153,7 @@ function crewStep(state, refillNow) {
       for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
         const d = Math.hypot(x - c.x, y - c.y); if (d > c.range) continue;
         const i = idx(x, y);
-        if (!BURNABLE[grid.type[i]] || grid.burnt[i] || grid.burn[i] > 0 || grid.wet[i] > 0 || grid.zone[i]) continue;
+        if (!BURNABLE[grid.type[i]] || grid.burnt[i] || grid.burn[i] > 0 || grid.wet[i] > 0 || (grid.zone[i] && grid.type[i] !== TYPE.HOUSE)) continue;
         let near = false;
         for (const b of burning) if (Math.abs(b.x - x) <= 2 && Math.abs(b.y - y) <= 2) { near = true; break; }
         if (near) cand.push({ i, d });
@@ -246,11 +248,11 @@ function score(state) {
   const { people, grid, counts } = state;
   let safe = 0, refuge = 0, lost = 0, alive = 0;
   const t = grid.type;
+  const exp = people.exp;
   for (let k = 0; k < people.n; k++) {
     const m = people.mode[k];
     if (m === MODE.LOST || people.hp[k] <= 0) { lost++; continue; }
-    alive++;
-    if (m === MODE.SAFE) { safe++; continue; }
+    if (m === MODE.SAFE) { alive++; safe++; continue; }
     const x = Math.round(people.x[k]), y = Math.round(people.y[k]);
     let ok = false;
     for (let dy = -1; dy <= 1 && !ok; dy++) for (let dx = -1; dx <= 1; dx++) {
@@ -258,7 +260,10 @@ function score(state) {
       const tt = t[idx(x + dx, y + dy)];
       if (tt === TYPE.WATER || tt === TYPE.ROCK) { ok = true; break; }
     }
-    if (ok) refuge++;
+    if (ok) { refuge++; alive++; continue; }
+    // balance-1 (admin default): outside a shelter/refuge, only people never within cfg.exposeR of fire count alive
+    if (exp && exp[k]) { lost++; continue; }
+    alive++;
   }
   const p0 = counts.people0 || 1;
   if (!people.n) alive = p0; // run never started people: nobody lost
@@ -281,9 +286,14 @@ export function finishRun(state) {
 export function causeLine(state) {
   const pct = state.result ? state.result.pct : (state._pct != null ? state._pct : score(state).pct);
   const win = pct >= state.cfg.winFloor;
-  if (win) return 'Held: ' + pct + '% alive';
   const fb = state.firstBreach, sec = (e) => fmtTime(e.tick * state.cfg.tickSec);
   const fl = state.events.find((e) => e.kind === 'first-loss');
+  if (win) {
+    // balance-1: one line that still reads well when many were lost
+    const lost = state.counts.alive != null && state.counts.people0 ? state.counts.people0 - state.counts.alive : 0;
+    if (lost <= 0) return 'Passed: ' + pct + '% alive';
+    return `Passed: ${pct}% alive (${lost} lost)` + (fl ? `. First loss: ${sideName(fl.x, fl.y)} at ${sec(fl)}` : '');
+  }
   if (fl && !(state.zones && state.zones.length)) return `No shelter: fire reached people in the ${sideName(fl.x, fl.y)} at ${sec(fl)}`;
   if (fb) {
     const side = sideName(fb.x, fb.y), t = sec(fb);

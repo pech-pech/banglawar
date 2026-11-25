@@ -56,3 +56,25 @@ test('causeLine non-empty for failed run; sec reported', () => {
     assert.ok(q.result.sec > 0);
   }
 });
+
+// balance-1 (QA-A/QA-B: proto too easy). Idle must not win stage 1; one big box must usually lose stage 2.
+test('idle stage 1 loses seed 1 and >= 90% of seeds 1..100', () => {
+  assert.ok(!runBot('idle', 1, 1).result.win, 'idle stage 1 seed 1 must lose');
+  let loss = 0; const N = 100;
+  for (let seed = 1; seed <= N; seed++) if (!runBot('idle', 1, seed).result.win) loss++;
+  console.log(`idle stage 1 loss rate: ${loss}% over ${N} seeds`);
+  assert.ok(loss / N >= 0.9, `TUNING TARGET: idle stage 1 should lose >= 90%, got ${loss}%`);
+});
+
+test('bigbox stage 2 loses >= 60% of seeds', () => {
+  let loss = 0; const N = 100;
+  for (let seed = 1; seed <= N; seed++) if (!runBot('bigbox', 2, seed).result.win) loss++;
+  console.log(`bigbox stage 2 loss rate: ${loss}% over ${N} seeds`);
+  assert.ok(loss / N >= 0.6, `TUNING TARGET: one big shelter should lose stage 2 >= 60%, got ${loss}%`);
+});
+
+test('win line reads as one line with losses', () => {
+  const r = runBot('skilled', 1, 1);
+  console.log('win line:', r.result.cause);
+  if (r.result.win) assert.match(r.result.cause, /^Passed: \d+% alive( \(\d+ lost\)(\. First loss: [a-z-]+ at \d+:\d\d)?)?$/);
+});

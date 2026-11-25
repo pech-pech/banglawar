@@ -5,7 +5,7 @@ import { STAGES, fmtTime, cfgDiffers, windVec, defaultCfg } from './contract.js'
 const TOOL_NAME = { zone: 'Shelter', break: 'Firebreak', road: 'Road', crew: 'Crew', pump: 'Pump' };
 const TOOL_HINT = {
   zone: 'Drag a box over town roads: road cells on the edge become gates',
-  break: 'Drag a line to cut a firebreak (W = width)',
+  break: 'Drag a line to cut a firebreak (pick 1, 2 or 3 wide)',
   road: 'Drag a line to lay road; bridges cross water',
   crew: 'Tap a building to station a hose crew',
   pump: 'Tap a building to make it a pump house (1 per round)',
@@ -39,7 +39,7 @@ export function initUI(root, api) {
   const top = el('div', null, null, { id: 'topbar' });
   const r1 = el('div', 'tb-row1');
   const tMoney = el('span', 'tb-money', '$0');
-  const tSafe = el('span', 'tb-safe', 'Alive 100% / 25%');
+  const tSafe = el('span', 'tb-safe', 'Alive 100% · need 25%');
   const tTime = el('span', 'tb-time', '0:00');
   const bSettings = btn('', '⚙', { id: 'btn-settings', 'aria-label': 'Settings' });
   r1.append(tMoney, tSafe, tTime, bSettings);
@@ -77,7 +77,7 @@ export function initUI(root, api) {
   const chips = el('div', 'chips');
   const wBtns = {};
   for (const w of [1, 2, 3]) {
-    const b = btn('', 'W' + w, { 'data-width': String(w), 'aria-label': 'Break width ' + w, 'aria-pressed': 'false' });
+    const b = btn('', w + ' wide', { 'data-width': String(w), 'aria-label': 'Break width ' + w + ' cells', 'aria-pressed': 'false' });
     wBtns[w] = b; chips.appendChild(b);
   }
   const bUndo = btn('edit', 'Undo', { 'data-act': 'undo' });
@@ -153,7 +153,7 @@ export function initUI(root, api) {
   const line3 = el('div', 'line');
   const bS1 = btn('', 'Stage 1', { 'data-stage': '1' });
   const bS2 = btn('', 'Stage 2', { 'data-stage': '2' });
-  line3.append(bS1, bS2);
+  line3.classList.add('stack'); line3.append(bS1, bS2);
   secStage.append(line3);
   const secTweak = el('section');
   secTweak.append(el('h3', null, 'Tweaks'));
@@ -174,11 +174,12 @@ export function initUI(root, api) {
   let evSeen = 0, warned = false, shiftedEv = false, evStateId = null;
   let toastTimer = 0;
   let presetN = 0;
+  let resultWanted = false; // result sheet logically open (hidden visually while the unlock card shows)
   const cfgOf = (s) => (s && s.cfg) || call('getCfg') || defaultCfg;
 
   // ---------- overlay stacking ----------
   function syncInert() {
-    const anyOpen = !result.hidden || !unlock.hidden || !settings.hidden;
+    const anyOpen = resultWanted || !unlock.hidden || !settings.hidden;
     for (const e of [top, trayPlan, trayRun, document.getElementById('map')]) {
       if (!e) continue;
       setAttr(e, 'aria-hidden', anyOpen ? 'true' : null);
@@ -186,6 +187,7 @@ export function initUI(root, api) {
     }
     const topIsUnlock = !unlock.hidden;
     const resCovered = topIsUnlock || !settings.hidden;
+    setHidden(result, resultWanted && !unlock.hidden ? true : !resultWanted);
     setAttr(result, 'aria-hidden', resCovered ? 'true' : null);
     setAttr(result, 'inert', resCovered ? '' : null);
     const setCovered = !unlock.hidden;
@@ -194,7 +196,8 @@ export function initUI(root, api) {
   }
   function refreshStagePicker() {
     const un = !!call('isUnlocked', 'dozer');
-    setHidden(bS2, !un);
+    setText(bS2, un ? 'Stage 2' : 'Stage 2 (locked: win stage 1)');
+    setDis(bS2, !un);
     const cur = last ? last.stage : 1;
     setCls(bS1, 'on', cur === 1); setCls(bS2, 'on', cur === 2);
     setAttr(bS1, 'aria-pressed', cur === 1 ? 'true' : 'false'); setAttr(bS2, 'aria-pressed', cur === 2 ? 'true' : 'false');
@@ -226,7 +229,7 @@ export function initUI(root, api) {
     setHidden(bNext, !(r.win && st === 1));
     setText(rNote, r.win && st === 2 ? 'Valley 1 continues - stages 3 to 5 later' : '');
     setHidden(rNote, !(r.win && st === 2));
-    result.hidden = false; syncInert();
+    resultWanted = true; syncInert();
   }
   function showUnlock(text) {
     let body = String(text == null ? '' : text).replace(/^\s*Dozer line unlocked\s*[:.\-–]?\s*/i, '');
@@ -234,7 +237,7 @@ export function initUI(root, api) {
     unlock.hidden = false; refreshStagePicker(); syncInert();
   }
   function hideOverlays() {
-    result.hidden = true; unlock.hidden = true; syncInert();
+    resultWanted = false; unlock.hidden = true; syncInert();
   }
   function toast(text) {
     toastEl.textContent = String(text == null ? '' : text); toastEl.hidden = false;
@@ -277,7 +280,7 @@ export function initUI(root, api) {
         case 'retry': hideOverlays(); call('retry'); break;
         case 'edit': hideOverlays(); call('editPlan'); break;
         case 'next': hideOverlays(); call('nextStage'); break;
-        case 'unlock-ok': unlock.hidden = true; syncInert(); break;
+        case 'unlock-ok': unlock.hidden = true; syncInert(); break; // result sheet comes back
         case 'close-settings': closeSettings(); break;
         case 'seed-apply': { const n = parseInt(seedIn.value, 10); if (isFinite(n)) { call('setSeed', n); toast('Seed ' + n); } break; }
       }
@@ -302,7 +305,7 @@ export function initUI(root, api) {
     const c = state.counts || { lost: 0, people0: 1 };
     // integrator: score = % alive (lead call); shown as Alive N% / floor
     const pct = phase === 'result' && state.result ? state.result.pct : Math.floor(100 * (c.people0 - (c.lost || 0)) / Math.max(1, c.people0));
-    setText(tSafe, 'Alive ' + pct + '% / ' + cfg.winFloor + '%');
+    setText(tSafe, 'Alive ' + pct + '% · need ' + cfg.winFloor + '%');
     setCls(tSafe, 'ok', pct >= cfg.winFloor); setCls(tSafe, 'low', pct < cfg.winFloor && phase !== 'plan');
     setText(tTime, fmtTime(phase === 'plan' ? 0 : state.tick * cfg.tickSec));
     setText(tStageTxt, 'Valley 1 · stage ' + state.stage + '/2');
@@ -350,13 +353,21 @@ export function initUI(root, api) {
     setDis(bUndo, !hasPlan); setDis(bClear, !hasPlan);
     // info row
     let name = '', msg = '', bad = false;
-    if (!tool) { msg = 'Pick a tool, or drag the map to pan'; }
+    const zs = state.zones || [];
+    let capTxt = '';
+    if (tool === 'zone' || zs.length) {
+      let held = 0; for (const z of zs) held += Math.min(z.cap || 0, cfg.zoneCapMax || 1e9);
+      capTxt = 'Shelters hold ' + held + ' of ' + stg.people + ' people';
+    }
+    if (!tool) { msg = capTxt || 'Pick a tool, or drag the map to pan'; }
     else {
       name = TOOL_NAME[tool] || tool;
       let p = null;
       try { p = (typeof A.getPreview === 'function' ? A.getPreview() : (window.WL && window.WL.overlay && window.WL.overlay.preview)) || null; } catch (e) { p = null; }
       if (p && p.cost != null) { msg = '$' + p.cost + (p.ok === false ? ' - cannot place here' : ''); bad = p.ok === false; }
       else msg = TOOL_HINT[tool] || '';
+      if (capTxt && tool === 'zone' && !(p && p.cost != null)) msg = capTxt;
+      else if (capTxt) msg += ' · ' + capTxt;
     }
     const key = name + '|' + msg + '|' + bad;
     if (infoTxt._k !== key) {
@@ -386,7 +397,7 @@ export function initUI(root, api) {
     }
     if (armed && (phase !== 'run' || (ci[armed] && ci[armed].left <= 0))) armed = null;
     setText(bPause, state.paused ? 'Resume' : 'Pause');
-    setAttr(bPause, 'aria-pressed', state.paused ? 'true' : 'false'); setCls(bPause, 'on', state.paused);
+    setAttr(bPause, 'aria-pressed', state.paused ? 'true' : 'false'); setCls(bPause, 'paused', state.paused);
     setDis(bPause, phase !== 'run');
     for (const k in spBtns) { const on = +k === state.speed; setAttr(spBtns[k], 'aria-pressed', on ? 'true' : 'false'); setCls(spBtns[k], 'on', on); setDis(spBtns[k], phase !== 'run'); }
   }

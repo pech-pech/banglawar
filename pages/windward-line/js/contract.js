@@ -43,7 +43,7 @@ export const defaultCfg = Object.freeze({
   tickSec: 0.25,            // sim seconds per tick at 1x
   roundMaxSec: 150,         // hard timer
   quietR: 24,               // round ends when no fire/ember is this close to unsheltered people (after first threat)
-  endQuietSec: 8,           // no fire/ember for this long = round ends
+  endQuietSec: 12,          // no fire/ember for this long = round ends (balance-1: was 8; rounds ~89 s / ~115 s)
   winFloor: 25,             // % safe needed (both stages)
   stars: [50, 70, 90],      // extra medals as stars
   // fire
@@ -51,18 +51,21 @@ export const defaultCfg = Object.freeze({
   ignite:    { 1: 0.12, 2: 0.07, 3: 0.08 },   // per burning neighbour per tick, before wind
   heatW:     { 1: 0.5, 2: 1.0, 3: 1.5 },
   windK: 0.7, windFloor: 0.25, windCap: 3.0,  // factor = clamp(1 + windK*W*cos, floor, cap)
-  emberRate: 0.004,         // per burning cell per tick, x(1+W), woods x1 house x1.5 grass x0.3
+  emberRate: 0.006,         // per burning cell per tick, x(1+W), woods x1 house x1.5 grass x0.3. balance-1: was 0.004 (fire died at the river/top road, idle won)
   emberFlightBase: 4, emberFlightPerW: 5, emberConeDeg: 20, emberSpeed: 2, // cells per tick
   emberLand: { 1: 0.5, 2: 0.3, 3: 0.4 },
   wetFactor: 0.1, wetTicks: 80,
   // firebreak (barrier)
   breakCost: 5, breakWidth: 2, breakHoldPerW: 10, breakHeatR: 2,
   // shelter zone
-  zoneCostPerCell: 8, zoneCapPerCell: 0.5, zoneMinSide: 4, gateFlow: 5, // gateFlow people per second per gate
+  // balance-1 (admin default): was cost 8, cap 0.5/cell, no max. Perimeter pricing made capacity grow with money squared,
+  // so one big box beat every split plan; now one box holds at most zoneCapMax and a 23x18 box costs 1560.
+  zoneCostPerCell: 20, zoneCapPerCell: 1.0, zoneCapMax: 130, zoneMinSide: 4, gateFlow: 5, // gateFlow people per second per gate
   // road
   roadCost: 3,
   // people
   awareR: 16, freezeShare: 0.2, freezeSec: 2, walkSpd: 1.5, runRoad: 3.0, runOff: 2.0, roadCap: 6,
+  exposeR: 6,               // balance-1, admin default: unsheltered people ever this close (cells) to fire count lost at end
   heatDps: 2, smokeDps: 0.5, hp: 10, repathSec: 2, smokeLen: 4,
   // hose crew
   crewBase: 30, crewPerCell: 10, crewRangeBase: 3, tank: 60, refill: 4, refillWaterDist: 6, sprayPerTick: 2, sprayOutTicks: 2,
@@ -83,7 +86,8 @@ export const TWEAK_SPEC = [
   ['ignite.1', 'Grass ignite', 0.02, 0.8, 0.01], ['ignite.2', 'Woods ignite', 0.02, 0.8, 0.01], ['ignite.3', 'House ignite', 0.02, 0.8, 0.01],
   ['windK', 'Wind strength k', 0, 1.5, 0.05], ['emberRate', 'Ember rate', 0, 0.05, 0.001], ['emberFlightPerW', 'Ember flight per W', 0, 12, 1],
   ['breakHoldPerW', 'Break hold per width', 1, 20, 1], ['breakWidth', 'Break width', 1, 5, 1], ['breakCost', 'Break cost/cell', 1, 20, 1],
-  ['zoneCostPerCell', 'Shelter cost/edge cell', 1, 30, 1], ['zoneCapPerCell', 'Shelter capacity/cell', 0.1, 2, 0.1], ['gateFlow', 'Gate flow /s', 1, 20, 1],
+  ['zoneCostPerCell', 'Shelter cost/edge cell', 1, 40, 1], ['zoneCapPerCell', 'Shelter capacity/cell', 0.1, 2, 0.1], ['zoneCapMax', 'Shelter max people', 20, 1000, 10],
+  ['exposeR', 'Caught-in-open radius', 1, 12, 1], ['gateFlow', 'Gate flow /s', 1, 20, 1],
   ['roadCost', 'Road cost/cell', 0, 20, 1], ['awareR', 'Aware radius', 4, 40, 1], ['runRoad', 'Run speed road', 0.5, 6, 0.1], ['runOff', 'Run speed off-road', 0.5, 6, 0.1],
   ['heatDps', 'Heat damage /s', 0, 10, 0.5], ['crewBase', 'Crew base cost', 0, 100, 5], ['tank', 'Crew tank', 10, 200, 5],
   ['pumpCost', 'Pump house cost', 0, 400, 10], ['bomberUses', 'Bomber uses', 0, 6, 1], ['bomberDelaySec', 'Bomber delay s', 0, 30, 1], ['bomberLen', 'Bomber line cells', 4, 30, 1],

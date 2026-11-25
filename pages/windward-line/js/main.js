@@ -197,8 +197,7 @@ function computeFit() {
 }
 function fitCamera() {
   computeFit();
-  view.scale = fit.scale;
-  setCentre({ x: MAP_W * CELL_PX / 2, y: MAP_H * CELL_PX / 2 });
+  view.scale = fit.scale; view.ox = fit.ox; view.oy = fit.oy; // top-anchored first fit; later resizes keep the centre
 }
 function clampView() {
   const lo = fit.scale * 0.8, hi = fit.scale * 8;

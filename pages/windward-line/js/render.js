@@ -31,8 +31,11 @@ export function screenToCell(view, px, py) {
 }
 
 export function fitView(viewW, viewH) {
-  const scale = Math.min(viewW / (MAP_W * CELL_PX), viewH / (MAP_H * CELL_PX));
-  return { scale, ox: -(viewW - MAP_W * CELL_PX * scale) / 2, oy: -(viewH - MAP_H * CELL_PX * scale) / 2 };
+  // admin default: fill the free height. Scale = full map width visible; if the map is then shorter than the view,
+  // grow to fill the height (crops a little width, pan for the rest). Bottom-anchored when taller so the town (south) is in view; pan up for the rest.
+  const scale = Math.max(viewW / (MAP_W * CELL_PX), viewH / (MAP_H * CELL_PX));
+  const mw = MAP_W * CELL_PX * scale, mh = MAP_H * CELL_PX * scale;
+  return { scale, ox: -(viewW - mw) / 2, oy: mh <= viewH ? -(viewH - mh) / 2 : mh - viewH };
 }
 
 function resize(r) {
@@ -168,16 +171,20 @@ export function draw(r, state, view, overlay) {
   // people
   const P = state.people;
   if (P && P.n > 0) {
-    const base = Math.max(2, S * 0.55), pr = base + 1;
-    const paths = [new Path2D(), new Path2D(), new Path2D(), new Path2D(), new Path2D()];
+    const base = Math.max(3, S * 0.7), pr = base + 1.5;
+    const paths = [new Path2D(), new Path2D(), new Path2D(), new Path2D(), new Path2D(), new Path2D()];
+    const resPhase = state.phase === 'result', ex = P.exp;
     for (let i = 0; i < P.n; i++) {
-      const m = P.mode[i], sz = m === MODE.PANIC ? pr : base;
+      let m = P.mode[i];
+      const sz = m === MODE.PANIC ? pr : base;
+      if (ex && ex[i] && m !== MODE.SAFE) m = resPhase ? MODE.LOST : 5; // exposed: grey at result, orange tint while running
       paths[m].rect(P.x[i] * S - ox - sz / 2, P.y[i] * S - oy - sz / 2, sz, sz);
     }
-    ctx.fillStyle = '#555'; ctx.fill(paths[MODE.LOST]);
+    ctx.fillStyle = '#6a6a6a'; ctx.fill(paths[MODE.LOST]);
     ctx.fillStyle = '#f2f2f2'; ctx.fill(paths[MODE.CALM]); ctx.fill(paths[MODE.AWARE]);
     ctx.fillStyle = '#6fe3ff'; ctx.fill(paths[MODE.SAFE]);
     ctx.fillStyle = '#ffffff'; ctx.fill(paths[MODE.PANIC]);
+    ctx.fillStyle = '#ffb27a'; ctx.fill(paths[5]); // exposed to fire but alive (faint orange)
   }
 
   // embers
@@ -246,17 +253,15 @@ export function draw(r, state, view, overlay) {
 
   // wind arrow, map NE corner (world anchored, clamped on screen). admin default position.
   if (state.wind) {
-    const lvl = state.wind.level | 0;
-    let ax = sx(MAP_W - 8), ay = sy(9);
+        let ax = sx(MAP_W - 8), ay = sy(9);
     ax = Math.max(34, Math.min(vw - 34, ax)); ay = Math.max(50, Math.min(vh - 60, ay));
     const wx = state.wind.vx, wy = state.wind.vy, L = 18;
     ctx.fillStyle = 'rgba(8,10,14,0.7)'; ctx.beginPath(); ctx.arc(ax, ay, 27, 0, 6.2832); ctx.fill();
     ctx.strokeStyle = '#e8eef5'; ctx.fillStyle = '#e8eef5'; ctx.lineWidth = 3; ctx.lineCap = 'round';
-    ctx.beginPath(); ctx.moveTo(ax - wx * L * 0.7, ay - wy * L * 0.7 - 4); ctx.lineTo(ax + wx * L * 0.7, ay + wy * L * 0.7 - 4); ctx.stroke();
-    const hx = ax + wx * L * 0.7, hy = ay + wy * L * 0.7 - 4, nx = -wy, ny = wx;
+    ctx.beginPath(); ctx.moveTo(ax - wx * L * 0.7, ay - wy * L * 0.7); ctx.lineTo(ax + wx * L * 0.7, ay + wy * L * 0.7); ctx.stroke();
+    const hx = ax + wx * L * 0.7, hy = ay + wy * L * 0.7, nx = -wy, ny = wx;
     ctx.beginPath(); ctx.moveTo(hx + wx * 6, hy + wy * 6); ctx.lineTo(hx + nx * 6, hy + ny * 6); ctx.lineTo(hx - nx * 6, hy - ny * 6); ctx.closePath(); ctx.fill();
-    ctx.lineCap = 'butt'; ctx.font = FONT; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillText('W' + lvl, ax, ay + 17);
+    ctx.lineCap = 'butt'; // no text label: top bar already names the wind
   }
   r.lastMs = (typeof performance !== 'undefined') ? performance.now() - t0 : 0;
 }
