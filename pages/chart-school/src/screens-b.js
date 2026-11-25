@@ -169,7 +169,7 @@
     if (showSector(c, type)) {
       var sov = [];
       if (type !== "S2") { var t2 = trendOv(c.sec.eng); if (t2) sov.push(t2); }
-      drawSector(c, { overlays: sov });
+      drawSector(c, { overlays: sov, maxPlotH: isSec(type) ? 220 : null }); /* sector reading: the sector chart is the subject */
     }
     drawPanes(show, closes, {});
     bar([
@@ -275,7 +275,7 @@
       secPane(c, type) + paneHtml(show, closes) + msg + '</div>';
 
     drawChart(c, { overlays: ov, pick: null });
-    if (showSector(c, type)) drawSector(c, { overlays: sov });
+    if (showSector(c, type)) drawSector(c, { overlays: sov, maxPlotH: isSec(type) ? 220 : null });
     drawPanes(show, closes, { rsiMark: (type === "R7" && R.R7 && R.R7.ref != null) ? { t: R.R7.ref } : null });
     bar([
       { act: "rule", label: "Review rule", kind: "out" },

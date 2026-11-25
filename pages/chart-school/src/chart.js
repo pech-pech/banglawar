@@ -147,8 +147,13 @@
         var xmin = Math.max(XO, cx(jf) + c / 2) + hw - off, xmax = Math.min(pw, cx(jl) + c / 2) - hw - off;
         var xm = cx(jf + (jl - jf) * 0.5) + c / 2;
         if (xmax >= xmin) xm = Math.max(xmin, Math.min(xmax, xm)); else xm = Math.min(xm, pw - hw - off);
-        var mj = (xm - c / 2 - pw) / c + nCols, mb = sg.box0 + (up ? 1 : -1) * (mj - sg.col0);
-        var lx = xm + off, ly = cy(mb) + (up ? off : -off);
+        function lyAt(x0) { var m0 = (x0 - c / 2 - pw) / c + nCols; return cy(sg.box0 + (up ? 1 : -1) * (m0 - sg.col0)) + (up ? off : -off); }
+        if (xmax >= xmin && (lyAt(xm) < hw || lyAt(xm) > ph - hw)) { // keep it inside the plot vertically too: slide along the line
+          var bx2 = null;
+          for (var xs = xmin; xs <= xmax + 0.01; xs += c / 2) { var yv = lyAt(xs); if (yv >= hw && yv <= ph - hw && (bx2 == null || Math.abs(xs - xm) < Math.abs(bx2 - xm))) bx2 = xs; }
+          if (bx2 != null) xm = bx2;
+        }
+        var lx = xm + off, ly = lyAt(xm);
         el(g, "text", { x: f1(lx), y: f1(ly), transform: "rotate(" + (up ? -45 : 45) + " " + f1(lx) + " " + f1(ly) + ")", "text-anchor": "middle", "dominant-baseline": "central", "font-size": 11, "font-weight": 600, fill: clr }, lbl);
       });
     });
