@@ -122,5 +122,43 @@ for(const t of CSE.TYPES){const r=reads[t];if(!r)continue;
  ok(!bad.test(right+wrong),"explain no banned word "+t)}
 eq(CSE.explain("R4",reads,reads.R4.answer+1).indexOf("Marked: off by 1 box. The count starts at the column's lowest box, "+CSE.disp(P(reads.R4.from))),0,"explain R4 wording");
 for(const w of ["No signal"])ok(typeof CSE.explain("R1",{R1:{answer:"No signal",col:null}},"Double top buy")==="string","explain R1 no signal wrong");
+// ---- v2: readSector / pickReads
+{
+const fs=require("fs"),sh=JSON.parse(fs.readFileSync(__dirname+"/../data/sheets.json","utf8")).sheets;
+const mp={"Double top buy":0,"Triple top buy":1,"Double bottom sell":2,"Triple bottom sell":3,"No signal":4};
+const objs=b=>b.map(x=>({h:x[0],l:x[1],c:x[2]}));
+let cnt=0;
+for(const s of sh.slice(0,60)){const a=CSE.readAll(objs(s.bars)),r=CSE.readSector(objs(s.bars)),r2=CSE.readSector(s.bars);cnt++;
+ eq(r.S1.answer,CSE.OPTIONS.S1[mp[a.R1.answer]],"S1 = R1 mapped");eq(r.S1.col,a.R1.col,"S1 col");
+ eq(r.S2.answer,CSE.OPTIONS.S2[CSE.OPTIONS.R3.indexOf(a.R3.answer)],"S2 = R3 mapped");eq(r.S2.kind,a.R3.kind,"S2 kind");eq(r.S2.segs,a.R3.segs,"S2 segs");
+ eq(r2.S2.answer,r.S2.answer,"array bars ok")}
+ok(cnt>0,"sheets sampled");
+eq(CSE.readSector([]),{S1:null,S2:null},"readSector empty");
+eq(CSE.KINDS,{R1:"opt",R2:"step",R2b:"step",R3:"opt",R4:"step",R5:"opt",R6:"opt",R7:"opt",S1:"opt",S2:"opt"},"KINDS");
+eq(CSE.NAMES.S1,"Sector signal","NAMES S1");eq(CSE.NAMES.S2,"Sector trend","NAMES S2");
+ok(CSE.TYPES.includes("S1")&&CSE.TYPES.includes("S2"),"TYPES S1 S2");
+const sr=CSE.readSector(objs(sh[0].bars));
+ok(/^Right/.test(CSE.explain("S1",{},sr.S1.answer,sr)),"explain S1 right");
+ok(/^Marked/.test(CSE.explain("S2",{},"x",sr)),"explain S2 marked");
+// pickReads
+const mb=a=>()=>{a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296};
+const mk=(r4)=>({r2key:"R2b",ans:{R1:"x",R2b:1,R3:"x",R4:r4,R5:"x",R6:"x",R7:"x",S1:"x",S2:"x"}});
+let withS=0,N=3000,prev=[],bad3=0,rep=0,d=0;
+for(let i=0;i<N;i++){const sheet=mk(i%2?5:null),p=CSE.pickReads(sheet,mb(i),prev),p2=CSE.pickReads(sheet,mb(i),prev);
+ if(JSON.stringify(p)!==JSON.stringify(p2))d++;
+ if(p.length!==3||new Set(p).size!==3)bad3++;
+ const pool=["R1","R2b","R3","R5","R6","R7","S1","S2"].concat(i%2?["R4"]:[]);
+ for(const t of p)if(!pool.includes(t))bad3++;
+ if(!p.some(t=>t[0]==="R"))bad3++;
+ if(p.filter(t=>CSE.KINDS[t]==="step").length>1)bad3++;
+ const ss=p.filter(t=>t[0]==="S");if(ss.length>1||(ss.length&&p[2]!==ss[0]))bad3++;
+ if(ss.length)withS++;
+ if(p.some(t=>prev.includes(t)))rep++;
+ prev=p}
+eq(bad3,0,"pickReads invariants");eq(d,0,"pickReads deterministic");
+ok(Math.abs(withS/N-0.67)<0.04,"S share ~2/3: "+withS/N);
+ok(rep/N<0.05,"prevTypes mostly avoided: "+rep/N);
+eq(CSE.pickReads({r2key:"R2",ans:{R1:1,R2:1,R3:1,R4:null,R5:1,R6:1,R7:1}},mb(3),[]).every(t=>t[0]==="R"),true,"no sector when sheet lacks S answers");
+}
 console.log(n+" checks, "+fail+" failed");
 process.exit(fail?1:0);

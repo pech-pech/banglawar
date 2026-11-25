@@ -8,7 +8,7 @@ function header(title, sub, opts){
   opts = opts || {};
   var dev = '', build = (typeof BUILD !== 'undefined') ? BUILD : '';
   try{ if(typeof tweaked === 'function' && tweaked()) dev = '<span class="dev">DEV ' + esc((typeof S !== 'undefined' && S && S.seed) || (typeof T !== 'undefined' && T && T.seed) || '') + '</span> '; }catch(e){}
-  var h = '<div class="top"><span>Chart School · Reading desk</span><span class="num">' + dev + esc(build) + ' <span data-pgs-build></span></span></div><div class="hd">';
+  var h = '<div class="top"><span>Chart School · Trading desk</span><span class="num">' + dev + esc(build) + ' <span data-pgs-build></span></span></div><div class="hd">';
   if(!opts.root) h += '<button class="ib" data-act="back" aria-label="Back">' + ICON_BACK + '</button>';
   h += '<div class="ttl">' + esc(title) + (sub ? '<small>' + esc(sub) + '</small>' : '') + '</div>';
   if(opts.pill) h += opts.pill;

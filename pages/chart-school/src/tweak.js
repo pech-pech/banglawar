@@ -3,15 +3,16 @@
 var TWEAK_LABELS = {
   showRsi: "RSI pane", showMacd: "MACD pane", showColNums: "Column numbers", chartCols: "Columns shown",
   readingOrder: "Reading order", evidenceAuto: "Auto-advance weeks", showBaseNote: "Base-rate note",
-  paperOrder: "Paper order step", sheetsPerSession: "Sheets per session", textSize: "Text size",
+  horizonDefault: "Default horizon (weeks, 3 to 10)", runTrades: "Trades per run", runCharts: "Charts per run (cap)",
+  showSector: "Sector chart", sectorHeight: "Sector chart height (px)", textSize: "Text size",
   highContrast: "High contrast", seed: "Seed"
 };
-var TWEAK_BOOL = ["showRsi", "showMacd", "showColNums", "evidenceAuto", "showBaseNote", "paperOrder", "highContrast"];
+var TWEAK_BOOL = ["showRsi", "showMacd", "showColNums", "evidenceAuto", "showBaseNote", "showSector", "highContrast"];
 /* Built-in presets (overrides on top of DEFAULTS; seed is never overwritten by a preset: admin default). */
 var BUILTIN_PRESETS = [
   { name: "Plain", set: {} },
   { name: "Large chart", set: { chartCols: 16, textSize: 1.15 } },
-  { name: "Minimal", set: { showMacd: 0, showBaseNote: 0, paperOrder: 0 } }
+  { name: "Minimal", set: { showMacd: 0, showBaseNote: 0, showSector: 0 } }
 ];
 function twEsc(s) { return String(s).replace(/[&<>"']/g, function (c) { return "&#" + c.charCodeAt(0) + ";"; }); }
 function userPresets() {
@@ -53,12 +54,12 @@ function twLoadCode() {
   try { twApplySet(JSON.parse(atob(v.slice(15)))); } catch (e) { var m = $("tw_msg"); if (m) m.textContent = "Preset code could not be read."; }
 }
 function twNewSession() {
-  newSession(T.seed); twClose(); go("desk");
+  newRun(T.seed); twClose(); go("desk");
 }
 function twResetJournal() {
   var ok = true; try { ok = confirm("Reset journal and accuracy record? This cannot be undone."); } catch (e) { }
   if (!ok) return;
-  S.journal = []; S.rec = freshRec(); newSession(S.seed); twClose(); go("desk");
+  S.journal = []; S.rec = freshRec(); newRun(S.seed); twClose(); go("desk");
 }
 function twClose() { var m = $("modal"); if (m) m.classList.remove("on"); }
 
@@ -73,7 +74,8 @@ function openTweaks() {
       ctl = '<div class="seg"><button class="btn' + (T[k] === "fixed" ? " primary" : "") + '" onclick="twSet(\'' + k + '\',\'fixed\')">Fixed</button>' +
         '<button class="btn' + (T[k] === "shuffled" ? " primary" : "") + '" onclick="twSet(\'' + k + '\',\'shuffled\')">Shuffled</button></div>';
     } else {
-      ctl = '<input id="tw_' + k + '" type="number" inputmode="decimal" step="' + (k === "textSize" ? "0.05" : "1") + '" value="' + twEsc(T[k]) + '" onchange="twNum(\'' + k + '\')" style="width:100%;min-height:48px">';
+      var rg = { horizonDefault: [3, 10], runTrades: [1, 50], runCharts: [1, 100], sectorHeight: [80, 300], chartCols: [8, 40] }[k];
+      ctl = '<input id="tw_' + k + '" type="number" inputmode="decimal"' + (rg ? ' min="' + rg[0] + '" max="' + rg[1] + '"' : '') + ' step="' + (k === "textSize" ? "0.05" : "1") + '" value="' + twEsc(T[k]) + '" onchange="twNum(\'' + k + '\')" style="width:100%;min-height:48px">';
     }
     rows += '<div class="card" style="margin:6px 0"><div style="display:flex;justify-content:space-between;gap:8px"><b>' + lab + '</b><span class="dim">' +
       (ch ? "changed · default " + twEsc(DEFAULTS[k]) : "default") + '</span></div>' + ctl + '</div>';
@@ -85,8 +87,8 @@ function openTweaks() {
   $("modalBody").innerHTML =
     '<div class="card"><b>Settings</b><div class="dim" style="margin-top:4px">Build ' + twEsc(buildId()) + ' · seed ' + twEsc(T.seed) +
     (tweaked() ? ' · <b>DEV</b> (settings differ from defaults)' : '') + '<br>Changes apply live.</div></div>' + rows +
-    '<div class="card"><b>Seed</b><div class="dim">A new seed or a new session reshuffles the sheet order. Your record and journal are kept.</div>' +
-    '<div class="row"><button class="btn primary" onclick="twNewSession()">New session with this seed</button></div></div>' +
+    '<div class="card"><b>Seed</b><div class="dim">A new seed or a new run reshuffles the chart order. Your record, journal and best run are kept.</div>' +
+    '<div class="row"><button class="btn primary" onclick="twNewSession()">New run with this seed</button></div></div>' +
     '<div class="card"><b>Presets</b><div class="row seg">' + built + '</div>' + user +
     '<div class="row"><button class="btn" onclick="twSavePreset()">Save preset</button><button class="btn" onclick="twCopyPreset()">Copy preset code</button><button class="btn" onclick="copyReport()">Copy report</button></div>' +
     '<div class="row"><input id="tw_code" type="text" placeholder="CSCHOOL-PRESET:..." style="flex:2;min-height:48px"><button class="btn" onclick="twLoadCode()">Load code</button></div>' +

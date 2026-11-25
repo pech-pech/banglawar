@@ -14,8 +14,11 @@ var OPTIONS={
  R5:["Above 70","50 to 70","30 to 50","Below 30"],
  R6:["Positive rising","Positive falling","Negative rising","Negative falling"],
  R7:["Bearish","Bullish","None"]};
-var TYPES=["R1","R2","R2b","R3","R4","R5","R6","R7"];
-var NAMES={R1:"Signal",R2:"Support / resistance",R2b:"Support / resistance",R3:"Trend line",R4:"Vertical count",R5:"RSI",R6:"MACD",R7:"Divergence"};
+OPTIONS.S1=OPTIONS.R1.slice();
+OPTIONS.S2=["Sector uptrend, 3+ boxes above support","Sector uptrend, near support","Sector downtrend, below resistance"];
+var TYPES=["R1","R2","R2b","R3","R4","R5","R6","R7","S1","S2"];
+var KINDS={R1:"opt",R2:"step",R2b:"step",R3:"opt",R4:"step",R5:"opt",R6:"opt",R7:"opt",S1:"opt",S2:"opt"};
+var NAMES={S1:"Sector signal",S2:"Sector trend",R1:"Signal",R2:"Support / resistance",R2b:"Support / resistance",R3:"Trend line",R4:"Vertical count",R5:"RSI",R6:"MACD",R7:"Divergence"};
 
 function pnf(bars){
  var cols=[],colOfWeek=[],cells=[],c=null;
@@ -111,6 +114,38 @@ function readAll(bars){
  return out;
 }
 
+// Sector reads: S1 = R1 logic, S2 = R3 logic on the sector chart. secBars = [{h,l,c}] or [[h,l,c]].
+function readSector(secBars){
+ var out={S1:null,S2:null};
+ if(!secBars||!secBars.length)return out;
+ var b=secBars.map(function(x){return Array.isArray(x)?{h:x[0],l:x[1],c:x[2]}:x});
+ var r=readAll(b),k=r.R3.kind;
+ out.S1={answer:r.R1.answer,col:r.R1.col};
+ out.S2={answer:k==="BRL"?OPTIONS.S2[2]:r.R3.d>=3?OPTIONS.S2[0]:OPTIONS.S2[1],kind:k,segs:r.R3.segs,lineAtCur:r.R3.lineAtCur,closeBox:r.R3.closeBox,d:r.R3.d};
+ return out;
+}
+
+function mulberry(seed){return function(){seed|=0;seed=seed+0x6D2B79F5|0;var t=Math.imul(seed^seed>>>15,1|seed);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+
+// 3 distinct reading types: stock reads first, sector read last (V2, V3).
+function pickReads(sheet,rng,prevTypes){
+ rng=rng||mulberry(1);
+ var prev=prevTypes||[],ans=sheet.ans||null,has=function(t){return!ans||ans[t]!=null};
+ var stock=["R1",sheet.r2key||"R2","R3","R4","R5","R6","R7"].filter(has);
+ var sec=["S1","S2"].filter(function(t){return ans&&ans[t]!=null});
+ function shuf(a){a=a.slice();for(var i=a.length-1;i>0;i--){var j=Math.floor(rng()*(i+1)),t=a[i];a[i]=a[j];a[j]=t}return a}
+ var wantSec=rng()<0.67&&sec.length>0,out=[],steps=0;
+ var secPick=null;
+ if(wantSec){var sf=sec.filter(function(t){return prev.indexOf(t)<0});if(!sf.length)sf=sec;secPick=shuf(sf)[0]}
+ var need=3-(secPick?1:0);
+ var fresh=shuf(stock.filter(function(t){return prev.indexOf(t)<0})),old=shuf(stock.filter(function(t){return prev.indexOf(t)>=0}));
+ function take(list,strict){for(var i=0;i<list.length&&out.length<need;i++){var t=list[i];if(out.indexOf(t)>=0)continue;
+  if(KINDS[t]==="step"&&steps>=1&&strict)continue;if(KINDS[t]==="step")steps++;out.push(t)}}
+ take(fresh,true);take(old,true);take(fresh,false);take(old,false);
+ if(secPick)out.push(secPick);
+ return out;
+}
+
 var RULES={
  R1:{title:"Signal",lines:[
   "Each box is 2%, and a column turns after a 3-box reversal, using the weekly high and low.",
@@ -153,9 +188,21 @@ var RULES={
   "If neither holds, the reading is None."]}
 };
 
+RULES.S1={title:"Sector signal",lines:RULES.R1.lines.map(function(l){return l}).concat(["Read this on the sector chart, not the stock chart."])};
+RULES.S2={title:"Sector trend",lines:RULES.R3.lines.concat(["Read this on the sector chart, not the stock chart."])};
+
 function plural(n,w){return n+" "+w+(n===1?"":"es")}
 function bandRsi(v){return v>70?"above 70":v>50?"between 50 and 70":v>30?"between 30 and 50":"below 30"}
-function explain(type,reads,given){
+function explain(type,reads,given,secReads){
+ if(type==="S1"||type==="S2"){
+  var q=(secReads&&secReads[type])||(reads&&reads[type]);if(!q)return "No engine reading for this sheet.";
+  var sok=given===q.answer,sp=sok?"Right: ":"Marked: ";
+  if(type==="S1"){
+   if(q.answer==="No signal")return sp+"no signal fired on the sector chart in the last 3 columns"+(sok?".":", you marked "+given+".");
+   return sp+(sok?"the sector chart shows "+q.answer+" in column "+(q.col+1)+".":"the sector chart shows "+q.answer+" in column "+(q.col+1)+", you marked "+given+".")}
+  var tl=q.kind==="BRL"?"the sector resistance line is active"+(q.lineAtCur!=null?" at "+dp(q.lineAtCur):"")+(q.closeBox!=null?" and the close is at "+dp(q.closeBox):""):
+   "the sector support line is active"+(q.lineAtCur!=null?" at "+dp(q.lineAtCur):"")+(q.d!=null?" and the close is "+(q.d>=1?plural(q.d,"box")+" above it":"on it or under it"):"");
+  return sp+tl+(sok?".":", so the sector reading is "+q.answer+".")}
  var r=reads&&reads[type];if(!r)return "No engine reading for this sheet.";
  var ok=given===r.answer,pre=ok?"Right: ":"Marked: ",e;
  if(type==="R1"){
@@ -183,6 +230,6 @@ function explain(type,reads,given){
  return pre+"engine reading "+String(r.answer)+"."
 }
 
-return{boxOf:boxOf,boxUp:boxUp,priceOf:priceOf,disp:disp,pnf:pnf,trend:trend,rsi:rsi,macd:macd,readAll:readAll,OPTIONS:OPTIONS,TYPES:TYPES,NAMES:NAMES,RULES:RULES,explain:explain};
+return{boxOf:boxOf,boxUp:boxUp,priceOf:priceOf,disp:disp,pnf:pnf,trend:trend,rsi:rsi,macd:macd,readAll:readAll,readSector:readSector,pickReads:pickReads,KINDS:KINDS,OPTIONS:OPTIONS,TYPES:TYPES,NAMES:NAMES,RULES:RULES,explain:explain};
 })();
 if(typeof module!=="undefined"&&module.exports)module.exports=CSE;

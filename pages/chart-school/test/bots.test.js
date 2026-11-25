@@ -2,11 +2,13 @@
 // Bot gate. Node: `node test/bots.test.js` (exit 1 on fail). Also exports botTable(sheetsObj, CSE) for tools/gen-sheets.js.
 const fs=require("fs"),path=require("path");
 const OPT={R1:["Double top buy","Triple top buy","Double bottom sell","Triple bottom sell","No signal"],R3:["Uptrend, 3+ boxes above support","Uptrend, near support","Downtrend, below resistance"],
+ S1:["Double top buy","Triple top buy","Double bottom sell","Triple bottom sell","No signal"],S2:["Sector uptrend, 3+ boxes above support","Sector uptrend, near support","Sector downtrend, below resistance"],
  R5:["Above 70","50 to 70","30 to 50","Below 30"],R6:["Positive rising","Positive falling","Negative rising","Negative falling"],R7:["Bearish","Bullish","None"]};
 const LIM=0.4;
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
 const mode=a=>{const m={};a.forEach(x=>m[x]=(m[x]||0)+1);return Object.keys(m).sort((x,y)=>m[y]-m[x])[0]};
 function botTable(data,CSE){
-  const O=(CSE&&CSE.OPTIONS)||OPT,sheets=data.sheets,rows=[];
+  const O=Object.assign({},OPT,(CSE&&CSE.OPTIONS)||{}),sheets=data.sheets,rows=[];
   const info=sheets.map(s=>{const bars=s.bars.map(b=>({h:b[0],l:b[1],c:b[2]})),E=CSE.pnf(bars),cols=E.cols;
     const w30=cols.slice(Math.max(0,cols.length-30)),lo=Math.min(...w30.map(c=>c.lo)),hi=Math.max(...w30.map(c=>c.hi)),bc=CSE.boxOf(bars[bars.length-1].c);
     return{s,lo,hi,bc}});
@@ -29,7 +31,7 @@ function botTable(data,CSE){
     rows.push({type:name,n:L.length,random:L.reduce((a,x)=>a+1/x.p.rows,0)/L.length,common:L.filter(x=>x.p.rel===mo).length/L.length,
       first:Math.max(L.filter(low).length,L.filter(high).length)/L.length,
       note:"most common offset = "+mo+" boxes from close; lowest "+pct(L.filter(low).length/L.length)+", highest "+pct(L.filter(high).length/L.length)})};
-  ["R1","R3","R5","R6","R7"].forEach(optType);
+  ["R1","R3","R5","R6","R7"].concat(sheets.every(s=>s.ans.S1&&s.ans.S2)?["S1","S2"]:[]).forEach(optType);
   // R2 pooled "Support / resistance" (offset signed by key: R2 below close, R2b above close, bot knows the key)
   const g2=i=>({rel:i.rel2,rows:i.rows2,lo:i.lo,hi:i.hi,ans:i.R2a,key:i.R2k});
   const L2=info.map((i,k)=>({k,p:g2(i)}));
@@ -42,19 +44,20 @@ function botTable(data,CSE){
     rows.push({type:key,n:L.length,random:L.reduce((a,x)=>a+1/x.p.rows,0)/L.length,common:L.filter(x=>x.p.rel===mo[key]).length/L.length,
       first:L.filter(x=>key==="R2"?x.p.ans===x.p.lo:x.p.ans===x.p.hi).length/L.length,note:"offset "+mo[key]})}
   stepGroup("R4",i=>i.R4a==null?null:{rel:i.rel4,rows:i.rows4,lo:i.lo,hi:i.hi+40,ans:i.R4a});
-  // 6+ of 7 readings per sheet (Poisson-binomial for random bot; exact for the deterministic bots)
-  const pAtLeast6=ps=>{let d=[1];for(const p of ps){const n=new Array(d.length+1).fill(0);d.forEach((v,k)=>{n[k]+=v*(1-p);n[k+1]+=v*p});d=n}return d.slice(6).reduce((a,b)=>a+b,0)};
-  const six={random:0,common:0,first:0};
-  per.forEach(o=>{const ts=Object.keys(o);six.random+=pAtLeast6(ts.map(t=>o[t].random));
-    six.common+=+(ts.reduce((a,t)=>a+o[t].common,0)>=6);six.first+=+(ts.reduce((a,t)=>a+o[t].first,0)>=6)});
-  for(const b in six)six[b]/=sheets.length;
+  // 3 of 3: per sheet, CSE.pickReads (several seeds) picks 3 types; a bot gets 3 of 3 only if right on all three
+  const NS=20,keyOf=t=>t==="R2"||t==="R2b"?"R2*":t;
+  const six={random:0,common:0,first:0};let pick=!!(CSE&&CSE.pickReads);
+  if(pick){sheets.forEach((s,k)=>{for(let q=0;q<NS;q++){const ts=CSE.pickReads(s,mulberry32(k*977+q+1),[]);
+    if(!ts||ts.length!==3||new Set(ts).size!==3)throw new Error("pickReads must return 3 distinct types");
+    for(const b in six)six[b]+=ts.reduce((a,t)=>a*per[k][keyOf(t)][b],1)/NS}});
+    for(const b in six)six[b]/=sheets.length}
   const gated=rows.filter(r=>r.type!=="R2"&&r.type!=="R2b"); // pooled row gates; R2/R2b separately reported
   const fails=[];
   rows.forEach(r=>["random","common","first"].forEach(b=>{if(r[b]>=LIM)fails.push(r.type+" "+b+" "+pct(r[b]))}));
-  for(const b in six)if(six[b]>=0.01)fails.push("6+ of 7 "+b+" "+(six[b]*100).toFixed(2)+"%");
+  if(pick)for(const b in six)if(six[b]>=0.1)fails.push("3 of 3 "+b+" "+(six[b]*100).toFixed(2)+"%");
   let md="| type | n | random | most common | first / lowest-highest | note |\n|---|---|---|---|---|---|\n"+rows.map(r=>"| "+r.type+" | "+r.n+" | "+pct(r.random)+" | "+pct(r.common)+" | "+pct(r.first)+" | "+r.note+" |").join("\n");
-  md+="\n\nSheets where a bot gets 6+ of 7 readings right: random "+(six.random*100).toFixed(3)+"%, most-common "+(six.common*100).toFixed(2)+"%, first-option "+(six.first*100).toFixed(2)+"% (limit 1%).\n";
-  md+=fails.length?"\n**Verdict: FAIL.** Bots at or over 40% (or 6+ of 7 at/over 1%): "+fails.join("; ")+"\n":"\n**Verdict: PASS.** Every bot under 40% on every type; 6+ of 7 under 1%.\n";
+  md+="\n\n"+(pick?"Charts where a bot gets 3 of 3 picked readings right (CSE.pickReads, "+NS+" seeds per sheet): random "+(six.random*100).toFixed(3)+"%, most-common "+(six.common*100).toFixed(2)+"%, first-option "+(six.first*100).toFixed(2)+"% (limit 10%).":"3 of 3 check NOT RUN: CSE.pickReads missing.")+"\n";
+  md+=fails.length?"\n**Verdict: FAIL.** Bots at or over 40% (or 3 of 3 at/over 10%): "+fails.join("; ")+"\n":"\n**Verdict: PASS.** Every bot under 40% on every type"+(pick?"; 3 of 3 under 10%.":"; 3 of 3 not run (pickReads missing).")+"\n";
   return{rows,six,fails,pass:!fails.length,md}}
 const pct=x=>(100*x).toFixed(1)+"%";
 module.exports={botTable};

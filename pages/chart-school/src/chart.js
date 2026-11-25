@@ -41,6 +41,8 @@
     var ovs = opt.overlays || [];
     var W = hostW(host);
     var pw = W - AX;
+    var HT = Math.max(100, +opt.height || 300), compact = !!opt.compact, TT = opt.title ? 14 : 0;
+    var FS = compact ? 9 : 11; // axis font
     clear(host);
     if (!nCols) { var s0 = el(host, "svg", { width: W, height: 40, viewBox: "0 0 " + W + " 40", role: "img", "aria-label": "Empty point and figure chart" }); return s0; }
 
@@ -58,7 +60,8 @@
       ovs.forEach(function (o) { if (o.k === "close") inc(o.box); }); // overlays never widen the range (edge markers instead)
       inc(opt.pick);
       top = hi + 2; bot = lo - 2; rows = top - bot + 1;
-      ch = Math.max(9, Math.min(268 / rows, 14));
+      // plot height budget = height - top pad 6 - title strip - column axis 26 (default 300 -> 268, as v1)
+      ch = Math.min((HT - 32 - TT) / rows, 14);
     }
     range();
     for (it = 0; it < 4; it++) {
@@ -74,14 +77,15 @@
     var nTop = 0, nBot = 0;
     ovs.forEach(function (o) { if (o.k === "row" || o.k === "line") { if (o.box > top) nTop++; else if (o.box < bot) nBot++; } });
     var STRIP = 17;
-    var ph = rows * ch, OY = 6 + STRIP * nTop, H = Math.round(OY + ph + 26 + STRIP * nBot + (nBot ? 2 : 0));
+    var ph = rows * ch, OY = 6 + TT + STRIP * nTop, H = Math.round(OY + ph + 26 + STRIP * nBot + (nBot ? 2 : 0));
     var XO = pw - N * c; // slack on the left so the last column meets the axis
     function ty(b) { return (top - b) * ch; }       // top edge of box b
     function cy(b) { return ty(b) + ch / 2; }
-    function cx(j) { return XO + (j - first) * c; }  // left edge of column j
+    function cx(j) { return pw - (nCols - j) * c; }  // last column always meets the axis  // left edge of column j
 
     var s = el(host, "svg", { width: W, height: H, viewBox: "0 0 " + W + " " + H, role: "img",
       "aria-label": "Point and figure chart, " + nCols + " columns, box 2 percent, last " + disp(cols[nCols - 1].d === 1 ? cols[nCols - 1].hi : cols[nCols - 1].lo) });
+    if (opt.title) el(s, "text", { x: 4, y: 8, "dominant-baseline": "central", "font-size": 11, "font-weight": 600, fill: "var(--dim)" }, opt.title);
     var g = el(s, "g", { transform: "translate(0," + OY + ")" });
 
     // grid
@@ -94,10 +98,10 @@
     for (j = first; j < nCols; j++) {
       var n1 = j + 1, x = cx(j) + c / 2;
       if (opt.showColNums) {
-        el(g, "text", { x: f1(x), y: f1(ph + 15), "text-anchor": "middle", "font-size": c < 12 ? 8 : 9, fill: "var(--dim)", "font-variant-numeric": "tabular-nums" }, n1);
+        el(g, "text", { x: f1(x), y: f1(ph + 15), "text-anchor": "middle", "font-size": c < 12 ? 8 : FS, fill: "var(--dim)", "font-variant-numeric": "tabular-nums" }, n1);
       } else if (n1 % 5 === 0) {
         el(g, "line", { x1: f1(cx(j) + c + 0.5), y1: f1(ph), x2: f1(cx(j) + c + 0.5), y2: f1(ph + 4), stroke: "var(--dim)", "stroke-width": 1 });
-        el(g, "text", { x: f1(cx(j) + c), y: f1(ph + 17), "text-anchor": "middle", "font-size": 11, fill: "var(--dim)" }, n1);
+        el(g, "text", { x: f1(cx(j) + c), y: f1(ph + 17), "text-anchor": "middle", "font-size": FS, fill: "var(--dim)" }, n1);
       }
     }
     
@@ -189,6 +193,23 @@
         el(g, "path", { d: buy ? "M" + f1(tx) + " " + f1(tyy - 5) + "L" + f1(tx + 5) + " " + f1(tyy + 4) + "L" + f1(tx - 5) + " " + f1(tyy + 4) + "Z"
           : "M" + f1(tx) + " " + f1(tyy + 5) + "L" + f1(tx + 5) + " " + f1(tyy - 4) + "L" + f1(tx - 5) + " " + f1(tyy - 4) + "Z", fill: tcl });
         if (o.label) el(g, "text", { x: f1(tx - 9), y: f1(tyy + 0.5), "text-anchor": "end", "dominant-baseline": "central", "font-size": 11, "font-weight": 600, fill: tcl }, o.label);
+      } else if (o.k === "exit") {
+        if (o.col == null || o.col < first || o.col >= nCols) return;
+        var ex = cx(o.col);
+        el(g, "rect", { x: f1(ex), y: 0, width: f1(c), height: f1(ph), fill: "var(--text)", "fill-opacity": 0.08 });
+        el(g, "line", { x1: f1(ex + c / 2), y1: 0, x2: f1(ex + c / 2), y2: f1(ph), stroke: "var(--text)", "stroke-width": 1.6, "stroke-dasharray": "5 3" });
+        var el2 = o.label || "Exit", ew = el2.length * 5.8 + 8, ea = ex + c / 2 > pw * 0.5;
+        var exx = ea ? ex + c / 2 - 4 : ex + c / 2 + 4;
+        el(g, "rect", { x: f1(ea ? exx - ew + 3 : exx - 4), y: 1, width: f1(ew), height: 15, rx: 3, fill: "var(--bg)", "fill-opacity": 0.85 });
+        el(g, "text", { x: f1(exx), y: 8.5, "text-anchor": ea ? "end" : "start", "dominant-baseline": "central", "font-size": 11, "font-weight": 700, fill: "var(--text)" }, el2);
+      } else if (o.k === "entry") {
+        if (o.box == null || o.box < bot || o.box > top) return;
+        var ey = cy(o.box);
+        el(g, "line", { x1: 0, y1: f1(ey), x2: f1(pw), y2: f1(ey), stroke: "var(--accent)", "stroke-width": 1.5, "stroke-dasharray": "2 3" });
+        el(g, "path", { d: "M0 " + f1(ey - 5) + "L7 " + f1(ey) + "L0 " + f1(ey + 5) + "Z", fill: "var(--accent)" });
+        var nl = o.label || "Entry", nw = nl.length * 5.8 + 8;
+        el(g, "rect", { x: 9, y: f1(ey - 16), width: f1(nw), height: 15, rx: 3, fill: "var(--bg)", "fill-opacity": 0.85 });
+        el(g, "text", { x: 13, y: f1(ey - 8.5), "dominant-baseline": "central", "font-size": 11, "font-weight": 700, fill: "var(--accent)" }, nl);
       } else if (o.k === "close") {
         var yc = cy(o.box);
         el(g, "line", { x1: f1(pw), y1: f1(yc), x2: f1(pw + 4), y2: f1(yc), stroke: "var(--text)", "stroke-width": 1 });
@@ -210,11 +231,13 @@
     pills.forEach(function (p) { p.hide = p.box; });
     var pillBoxes = {};
     pills.forEach(function (p) { pillBoxes[p.box] = 1; });
+    var stride = compact ? 3 : 2; // never let labels crowd: widen the stride on tiny cells
+    while (stride * ch < FS + 3) stride++;
     for (var bb = bot; bb <= top; bb++) {
-      if (((bb % 2) + 2) % 2 !== 0) continue;
+      if (((bb % stride) + stride) % stride !== 0) continue;
       var yy = cy(bb);
       if (pills.some(function (p) { return Math.abs(p.py - yy) < 13; })) continue; // would be covered: pill already states a price nearby
-      el(g, "text", { x: pw + 8, y: f1(yy + 1), "dominant-baseline": "central", "font-size": 11, fill: "var(--dim)", "font-variant-numeric": "tabular-nums" }, disp(bb));
+      el(g, "text", { x: pw + 8, y: f1(yy + 1), "dominant-baseline": "central", "font-size": FS, fill: "var(--dim)", "font-variant-numeric": "tabular-nums" }, disp(bb));
     }
     pills.forEach(function (p) {
       if (Math.abs(p.py - p.y) > 1) el(g, "line", { x1: f1(pw), y1: f1(p.y), x2: f1(pw + 5), y2: f1(p.py), stroke: "var(--dim)", "stroke-width": 1 });

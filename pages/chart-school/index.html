@@ -172,6 +172,38 @@ body.hc .card,body.hc .btn,body.hc .ib{border-color:var(--line)}
 body.hc .btn.primary{color:#000}
 /* narrow (Fold cover 344) */
 @media (max-width:380px){.opts button,.opt{font-size:13px}.ttl{font-size:17px}.dots{gap:3px}.dots .d span{font-size:10px}}
+/* v2: sector pane, options, call, horizon slider, return text */
+.secp{margin-top:0}
+.optgrid{display:flex;flex-direction:column;gap:8px;margin-bottom:10px}
+.optgrid.two{display:grid;grid-template-columns:1fr 1fr}
+.optgrid .opt{height:56px;justify-content:flex-start;text-align:left;white-space:normal;line-height:1.15}
+.optgrid .opt.on{box-shadow:inset 0 0 0 2px var(--text);background:var(--surface2)}
+.btn.wide{width:100%;height:48px;background:transparent}
+.callc .seg{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:6px 0 8px}
+.callc .seg>button{height:56px;border:1px solid var(--line);border-radius:var(--r);background:var(--surface2);color:var(--text);font:700 16px var(--sans);padding:0 6px;min-width:0}
+.callc .seg>button.on{box-shadow:inset 0 0 0 2px var(--text);background:var(--surface)}
+.callc .note{margin:0;font-size:13px}
+.hz{padding-bottom:8px}
+.hzh{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:4px}
+.hzh b{font-size:22px}
+.hzrow{display:flex;align-items:center;gap:8px}
+.hzrow .btn{flex:none;width:48px;height:48px;padding:0;font-size:24px;line-height:1}
+.hzs{flex:1;min-width:0;height:56px;display:flex;align-items:center}
+.hz input[type=range]{width:100%;min-width:0;height:56px;margin:0;background:transparent;-webkit-appearance:none;appearance:none;touch-action:pan-y}
+.hz input[type=range]::-webkit-slider-runnable-track{height:8px;border-radius:4px;background:var(--surface2);border:1px solid var(--line)}
+.hz input[type=range]::-moz-range-track{height:8px;border-radius:4px;background:var(--surface2);border:1px solid var(--line)}
+.hz input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:40px;height:40px;margin-top:-17px;border-radius:50%;background:var(--text);border:3px solid var(--bg);box-shadow:0 0 0 2px var(--accent)}
+.hz input[type=range]::-moz-range-thumb{width:34px;height:34px;border-radius:50%;background:var(--text);border:3px solid var(--bg);box-shadow:0 0 0 2px var(--accent)}
+.hz input[type=range]:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.hzt{display:flex;justify-content:space-between;font-size:11px;color:var(--dim);padding:0 60px 0 60px}
+.retc{padding:10px 12px}
+.retl{font-size:16px;font-weight:700;line-height:1.3;overflow-wrap:anywhere}
+.retw{font-size:13px;margin-top:2px;color:var(--dim)}
+.retw .rb{display:inline-block;padding:1px 8px;border-radius:10px;border:1.5px solid var(--dim);font-weight:700;color:var(--text)}
+.retc.pos{border-left:4px solid var(--x)}.retc.pos .rb{border-color:var(--x)}
+.retc.neg{border-left:4px dashed var(--o)}.retc.neg .rb{border-color:var(--o);border-style:dashed}
+.retc.flat{border-left:4px dotted var(--dim)}
+.ret.pos,.ret.neg{font-weight:700}
 
 </style>
 </head><body>
@@ -189,7 +221,7 @@ function header(title, sub, opts){
   opts = opts || {};
   var dev = '', build = (typeof BUILD !== 'undefined') ? BUILD : '';
   try{ if(typeof tweaked === 'function' && tweaked()) dev = '<span class="dev">DEV ' + esc((typeof S !== 'undefined' && S && S.seed) || (typeof T !== 'undefined' && T && T.seed) || '') + '</span> '; }catch(e){}
-  var h = '<div class="top"><span>Chart School · Reading desk</span><span class="num">' + dev + esc(build) + ' <span data-pgs-build></span></span></div><div class="hd">';
+  var h = '<div class="top"><span>Chart School · Trading desk</span><span class="num">' + dev + esc(build) + ' <span data-pgs-build></span></span></div><div class="hd">';
   if(!opts.root) h += '<button class="ib" data-act="back" aria-label="Back">' + ICON_BACK + '</button>';
   h += '<div class="ttl">' + esc(title) + (sub ? '<small>' + esc(sub) + '</small>' : '') + '</div>';
   if(opts.pill) h += opts.pill;
@@ -245,8 +277,11 @@ var OPTIONS={
  R5:["Above 70","50 to 70","30 to 50","Below 30"],
  R6:["Positive rising","Positive falling","Negative rising","Negative falling"],
  R7:["Bearish","Bullish","None"]};
-var TYPES=["R1","R2","R2b","R3","R4","R5","R6","R7"];
-var NAMES={R1:"Signal",R2:"Support / resistance",R2b:"Support / resistance",R3:"Trend line",R4:"Vertical count",R5:"RSI",R6:"MACD",R7:"Divergence"};
+OPTIONS.S1=OPTIONS.R1.slice();
+OPTIONS.S2=["Sector uptrend, 3+ boxes above support","Sector uptrend, near support","Sector downtrend, below resistance"];
+var TYPES=["R1","R2","R2b","R3","R4","R5","R6","R7","S1","S2"];
+var KINDS={R1:"opt",R2:"step",R2b:"step",R3:"opt",R4:"step",R5:"opt",R6:"opt",R7:"opt",S1:"opt",S2:"opt"};
+var NAMES={S1:"Sector signal",S2:"Sector trend",R1:"Signal",R2:"Support / resistance",R2b:"Support / resistance",R3:"Trend line",R4:"Vertical count",R5:"RSI",R6:"MACD",R7:"Divergence"};
 
 function pnf(bars){
  var cols=[],colOfWeek=[],cells=[],c=null;
@@ -342,6 +377,38 @@ function readAll(bars){
  return out;
 }
 
+// Sector reads: S1 = R1 logic, S2 = R3 logic on the sector chart. secBars = [{h,l,c}] or [[h,l,c]].
+function readSector(secBars){
+ var out={S1:null,S2:null};
+ if(!secBars||!secBars.length)return out;
+ var b=secBars.map(function(x){return Array.isArray(x)?{h:x[0],l:x[1],c:x[2]}:x});
+ var r=readAll(b),k=r.R3.kind;
+ out.S1={answer:r.R1.answer,col:r.R1.col};
+ out.S2={answer:k==="BRL"?OPTIONS.S2[2]:r.R3.d>=3?OPTIONS.S2[0]:OPTIONS.S2[1],kind:k,segs:r.R3.segs,lineAtCur:r.R3.lineAtCur,closeBox:r.R3.closeBox,d:r.R3.d};
+ return out;
+}
+
+function mulberry(seed){return function(){seed|=0;seed=seed+0x6D2B79F5|0;var t=Math.imul(seed^seed>>>15,1|seed);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+
+// 3 distinct reading types: stock reads first, sector read last (V2, V3).
+function pickReads(sheet,rng,prevTypes){
+ rng=rng||mulberry(1);
+ var prev=prevTypes||[],ans=sheet.ans||null,has=function(t){return!ans||ans[t]!=null};
+ var stock=["R1",sheet.r2key||"R2","R3","R4","R5","R6","R7"].filter(has);
+ var sec=["S1","S2"].filter(function(t){return ans&&ans[t]!=null});
+ function shuf(a){a=a.slice();for(var i=a.length-1;i>0;i--){var j=Math.floor(rng()*(i+1)),t=a[i];a[i]=a[j];a[j]=t}return a}
+ var wantSec=rng()<0.67&&sec.length>0,out=[],steps=0;
+ var secPick=null;
+ if(wantSec){var sf=sec.filter(function(t){return prev.indexOf(t)<0});if(!sf.length)sf=sec;secPick=shuf(sf)[0]}
+ var need=3-(secPick?1:0);
+ var fresh=shuf(stock.filter(function(t){return prev.indexOf(t)<0})),old=shuf(stock.filter(function(t){return prev.indexOf(t)>=0}));
+ function take(list,strict){for(var i=0;i<list.length&&out.length<need;i++){var t=list[i];if(out.indexOf(t)>=0)continue;
+  if(KINDS[t]==="step"&&steps>=1&&strict)continue;if(KINDS[t]==="step")steps++;out.push(t)}}
+ take(fresh,true);take(old,true);take(fresh,false);take(old,false);
+ if(secPick)out.push(secPick);
+ return out;
+}
+
 var RULES={
  R1:{title:"Signal",lines:[
   "Each box is 2%, and a column turns after a 3-box reversal, using the weekly high and low.",
@@ -384,9 +451,21 @@ var RULES={
   "If neither holds, the reading is None."]}
 };
 
+RULES.S1={title:"Sector signal",lines:RULES.R1.lines.map(function(l){return l}).concat(["Read this on the sector chart, not the stock chart."])};
+RULES.S2={title:"Sector trend",lines:RULES.R3.lines.concat(["Read this on the sector chart, not the stock chart."])};
+
 function plural(n,w){return n+" "+w+(n===1?"":"es")}
 function bandRsi(v){return v>70?"above 70":v>50?"between 50 and 70":v>30?"between 30 and 50":"below 30"}
-function explain(type,reads,given){
+function explain(type,reads,given,secReads){
+ if(type==="S1"||type==="S2"){
+  var q=(secReads&&secReads[type])||(reads&&reads[type]);if(!q)return "No engine reading for this sheet.";
+  var sok=given===q.answer,sp=sok?"Right: ":"Marked: ";
+  if(type==="S1"){
+   if(q.answer==="No signal")return sp+"no signal fired on the sector chart in the last 3 columns"+(sok?".":", you marked "+given+".");
+   return sp+(sok?"the sector chart shows "+q.answer+" in column "+(q.col+1)+".":"the sector chart shows "+q.answer+" in column "+(q.col+1)+", you marked "+given+".")}
+  var tl=q.kind==="BRL"?"the sector resistance line is active"+(q.lineAtCur!=null?" at "+dp(q.lineAtCur):"")+(q.closeBox!=null?" and the close is at "+dp(q.closeBox):""):
+   "the sector support line is active"+(q.lineAtCur!=null?" at "+dp(q.lineAtCur):"")+(q.d!=null?" and the close is "+(q.d>=1?plural(q.d,"box")+" above it":"on it or under it"):"");
+  return sp+tl+(sok?".":", so the sector reading is "+q.answer+".")}
  var r=reads&&reads[type];if(!r)return "No engine reading for this sheet.";
  var ok=given===r.answer,pre=ok?"Right: ":"Marked: ",e;
  if(type==="R1"){
@@ -414,20 +493,24 @@ function explain(type,reads,given){
  return pre+"engine reading "+String(r.answer)+"."
 }
 
-return{boxOf:boxOf,boxUp:boxUp,priceOf:priceOf,disp:disp,pnf:pnf,trend:trend,rsi:rsi,macd:macd,readAll:readAll,OPTIONS:OPTIONS,TYPES:TYPES,NAMES:NAMES,RULES:RULES,explain:explain};
+return{boxOf:boxOf,boxUp:boxUp,priceOf:priceOf,disp:disp,pnf:pnf,trend:trend,rsi:rsi,macd:macd,readAll:readAll,readSector:readSector,pickReads:pickReads,KINDS:KINDS,OPTIONS:OPTIONS,TYPES:TYPES,NAMES:NAMES,RULES:RULES,explain:explain};
 })();
 if(typeof module!=="undefined"&&module.exports)module.exports=CSE;
 
 </script>
 <script>
 "use strict";
-/* Chart School store. Plain browser script (no modules). Uses CSE (engine.js), render() and BUILD (main.js) at runtime only. */
-var STATE_KEY = "cschool.state", TWEAK_KEY = "cschool.tweaks", PRESET_KEY = "cschool.presets", STATE_V = 1;
-var SCREENS = ["desk", "reading", "marked", "order", "evidence", "summary", "journal"];
-var RTYPES = ["R1", "R2", "R3", "R4", "R5", "R6", "R7"]; /* record keys (R2 pools R2 + R2b) */
+/* Chart School store (v2). Plain browser script (no modules). Uses CSE (engine.js), render() and BUILD (main.js) at runtime only. */
+var STATE_KEY = "cschool.state", TWEAK_KEY = "cschool.tweaks", PRESET_KEY = "cschool.presets", STATE_V = 2;
+var SCREENS = ["desk", "reading", "marked", "call", "outcome", "summary", "runend", "journal"];
+var RTYPES = ["R1", "R2", "R3", "R4", "R5", "R6", "R7", "S1", "S2"]; /* record keys (R2 pools R2 + R2b) */
+var ALLTYPES = ["R1", "R2", "R2b", "R3", "R4", "R5", "R6", "R7", "S1", "S2"];
+var STEP_TYPES = ["R2", "R2b", "R4"];
+var CALLS = ["Buy", "Don't buy"];
 var DEFAULTS = {
   showRsi: 1, showMacd: 1, showColNums: 0, chartCols: 24, readingOrder: "fixed", evidenceAuto: 0,
-  showBaseNote: 1, paperOrder: 1, sheetsPerSession: 2, textSize: 1.0, highContrast: 0, seed: 48213
+  showBaseNote: 1, horizonDefault: 6, runTrades: 10, runCharts: 20, showSector: 1, sectorHeight: 150,
+  textSize: 1.0, highContrast: 0, seed: 48213
 };
 var SHEETS = [], META = {}, RESTORED = false;
 
@@ -464,9 +547,12 @@ function cleanTweaks(o) {
     if (typeof v !== "number" || !isFinite(v)) v = DEFAULTS[k];
     out[k] = v;
   }
-  ["showRsi", "showMacd", "showColNums", "evidenceAuto", "showBaseNote", "paperOrder", "highContrast"].forEach(function (b) { out[b] = out[b] ? 1 : 0; });
+  ["showRsi", "showMacd", "showColNums", "evidenceAuto", "showBaseNote", "showSector", "highContrast"].forEach(function (b) { out[b] = out[b] ? 1 : 0; });
   out.chartCols = Math.max(8, Math.min(40, Math.round(out.chartCols)));
-  out.sheetsPerSession = Math.max(1, Math.min(50, Math.round(out.sheetsPerSession)));
+  out.horizonDefault = Math.max(3, Math.min(10, Math.round(out.horizonDefault)));
+  out.runTrades = Math.max(1, Math.min(50, Math.round(out.runTrades)));
+  out.runCharts = Math.max(1, Math.min(100, Math.round(out.runCharts)));
+  out.sectorHeight = Math.max(80, Math.min(300, Math.round(out.sectorHeight)));
   out.textSize = Math.max(0.8, Math.min(1.5, Math.round(out.textSize * 100) / 100));
   out.seed = Math.max(1, Math.min(2147483646, Math.round(out.seed)));
   return out;
@@ -477,26 +563,49 @@ function tweaked() { for (var k in DEFAULTS) if (T[k] !== DEFAULTS[k]) return tr
 
 /* ---------- state ---------- */
 function freshRec() { var r = {}; RTYPES.forEach(function (t) { r[t] = { k: 0, n: 0 }; }); return r; }
+function freshRun(id, seed) { return { id: id, seed: seed, charts: 0, trades: [], skipped: 0, done: false }; }
 function freshState(seed) {
-  return { seed: seed, screen: "desk", sess: { done: 0 }, order: [], pos: 0, cur: null, journal: [], rec: freshRec() };
+  return { seed: seed, screen: "desk", order: [], pos: 0, cur: null, journal: [], rec: freshRec(), run: freshRun(1, seed), best: null, prevTypes: [] };
 }
 function isInt(x) { return typeof x === "number" && isFinite(x) && Math.floor(x) === x; }
+function isNum(x) { return typeof x === "number" && isFinite(x); }
+function clampH(h) { h = Math.round(Number(h)); if (!isFinite(h)) h = T.horizonDefault; return Math.max(3, Math.min(10, h)); }
+function validRec(rec) {
+  if (!rec || typeof rec !== "object") return false;
+  for (var i = 0; i < RTYPES.length; i++) { var r = rec[RTYPES[i]]; if (!r || !isInt(r.k) || !isInt(r.n) || r.k > r.n || r.k < 0) return false; }
+  return true;
+}
+function validTrade(t) { return t && typeof t === "object" && isInt(t.sheetIdx) && isInt(t.h) && isNum(t.ret); }
 function validState(o) {
   if (!o || typeof o !== "object" || !isInt(o.seed) || SCREENS.indexOf(o.screen) < 0) return false;
-  if (!o.sess || !isInt(o.sess.done) || !Array.isArray(o.order) || !isInt(o.pos) || !Array.isArray(o.journal)) return false;
-  if (!o.order.every(isInt)) return false;
-  if (!o.rec || typeof o.rec !== "object") return false;
-  for (var i = 0; i < RTYPES.length; i++) { var r = o.rec[RTYPES[i]]; if (!r || !isInt(r.k) || !isInt(r.n) || r.k > r.n || r.k < 0) return false; }
+  if (!Array.isArray(o.order) || !isInt(o.pos) || !Array.isArray(o.journal) || !Array.isArray(o.prevTypes)) return false;
+  if (!o.order.every(isInt) || !validRec(o.rec)) return false;
+  var u = o.run;
+  if (!u || typeof u !== "object" || !isInt(u.id) || !isInt(u.seed) || !isInt(u.charts) || u.charts < 0 || !isInt(u.skipped) || typeof u.done !== "boolean" || !Array.isArray(u.trades) || !u.trades.every(validTrade)) return false;
+  if (o.best !== null && !(o.best && typeof o.best === "object" && isNum(o.best.ret) && isInt(o.best.trades))) return false;
   if (o.cur !== null) {
     var c = o.cur;
-    if (!c || typeof c !== "object" || !isInt(c.sheetIdx) || typeof c.code !== "string" || !Array.isArray(c.reads) || !c.reads.length || !isInt(c.i) || c.i < 0 || c.i >= c.reads.length || !isInt(c.step) || c.step < 0 || c.step > 10) return false;
+    if (!c || typeof c !== "object" || !isInt(c.sheetIdx) || typeof c.code !== "string" || !Array.isArray(c.reads) || !c.reads.length || !isInt(c.i) || c.i < 0 || c.i >= c.reads.length) return false;
     for (var j = 0; j < c.reads.length; j++) if (!c.reads[j] || typeof c.reads[j].type !== "string") return false;
+    if (c.call !== null && CALLS.indexOf(c.call) < 0) return false;
+    if (!isInt(c.h) || c.h < 3 || c.h > 10 || !isInt(c.k) || c.k < 0 || c.k > 10) return false;
   }
   return true;
 }
+/* v1 (or older) saved state: start a new run, keep rec + journal. Never throws. */
+function migrateState(o) {
+  var s = freshState(T.seed);
+  try {
+    var old = o && o.S;
+    if (old && old.rec && typeof old.rec === "object") RTYPES.forEach(function (t) { var r = old.rec[t]; if (r && isInt(r.k) && isInt(r.n) && r.k >= 0 && r.k <= r.n) s.rec[t] = { k: r.k, n: r.n }; });
+    if (old && Array.isArray(old.journal)) s.journal = old.journal.filter(function (e) { return e && typeof e === "object"; }).slice(-500);
+  } catch (e) { }
+  return s;
+}
 var S = (function () {
   var o = lsJson(STATE_KEY);
-  if (o && o.v <= STATE_V && validState(o.S)) { RESTORED = true; return o.S; }
+  if (o && o.v === STATE_V && validState(o.S)) { RESTORED = true; return o.S; }
+  if (o && isInt(o.v) && o.v < STATE_V) return migrateState(o);
   return freshState(T.seed);
 })();
 
@@ -518,9 +627,9 @@ function sheetsOk() { return Array.isArray(SHEETS) && SHEETS.length > 0; }
 function fixAfterLoad() {
   var n = SHEETS.length;
   var okOrder = S.order.length === n && S.order.every(function (x) { return x >= 0 && x < n; });
-  if (!okOrder) { var keep = { rec: S.rec, journal: S.journal }; newSession(S.seed); S.rec = keep.rec; S.journal = keep.journal; return; }
-  if (S.cur && (S.cur.sheetIdx >= n || S.cur.reads.some(function (r) { return ["R1", "R2", "R2b", "R3", "R4", "R5", "R6", "R7"].indexOf(r.type) < 0; }))) { S.cur = null; S.screen = "desk"; }
-  if (!S.cur && S.screen !== "desk" && S.screen !== "journal") S.screen = "desk";
+  if (!okOrder) { var idx = []; for (var i = 0; i < n; i++) idx.push(i); S.order = shuffled(idx, rng(S.run.seed)); S.pos = 0; S.cur = null; S.screen = "desk"; save(); return; }
+  if (S.cur && (S.cur.sheetIdx >= n || S.cur.reads.some(function (r) { return ALLTYPES.indexOf(r.type) < 0; }))) { S.cur = null; S.screen = "desk"; }
+  if (!S.cur && S.screen !== "desk" && S.screen !== "journal" && !(S.screen === "runend" && S.run.done)) S.screen = "desk";
 }
 function loadSheets() {
   return fetch("data/sheets.json").then(function (r) {
@@ -535,15 +644,18 @@ function loadSheets() {
   });
 }
 
-function newSession(seed) {
-  seed = isInt(seed) ? seed : T.seed;
-  var rec = S && S.rec ? S.rec : freshRec(), jr = S && S.journal ? S.journal : [];
+/* New run: reshuffles sheet order; keeps rec, journal, best. seed optional (default: tweak seed + run id, admin default). */
+function newRun(seed) {
+  var id = (S && S.run && isInt(S.run.id) ? S.run.id : 0) + 1;
+  seed = isInt(seed) ? seed : ((T.seed + id * 7919) % 2147483646) + 1;
   var n = sheetsOk() ? SHEETS.length : 0, idx = [];
   for (var i = 0; i < n; i++) idx.push(i);
-  S = { seed: seed, screen: "desk", sess: { done: 0 }, order: shuffled(idx, rng(seed)), pos: 0, cur: null, journal: jr, rec: rec };
+  S = { seed: seed, screen: "desk", order: shuffled(idx, rng(seed)), pos: 0, cur: null, journal: S && S.journal ? S.journal : [],
+    rec: S && S.rec ? S.rec : freshRec(), run: freshRun(id, seed), best: S && S.best ? S.best : null, prevTypes: [] };
   save();
   return S;
 }
+function newSession(seed) { return newRun(seed); } /* v1 name, kept so old callers do not break */
 
 /* ---------- masked 3-letter codes (admin default: blocklist of well-known 3-letter Nasdaq/NYSE codes) ---------- */
 var CODE_BLOCK = ("AMD ADP ADI AEP AMT ANF ARM ATO AXP BAC BKR CME CSX DIS DOW EXC FOX GEN HAL IBM MAR MCD MSI NKE PEP PFE QQQ SPY UPS VTI WBA WMT XEL XOM CAT CVX ABT AIG AMC ALL CCL DAL DVN FCX FIS HON HPQ JNJ JPM LLY LOW LUV MMM MRK NOC NVO OXY RTX SLB SNY TGT TMO TSM UAL UNH USB WFC YUM CRM CMG CTA DHR DUK EOG ETN GLW HCA ICE ILMN INTC KLA LIN MET MDT MDB NEE NOW PAY PNC PSX ROK SHW SPG SYK TJX TFC TRV VLO VRT WDC WEC WMB ZTS TTD TEAM ADSK ABNB").split(" ");
@@ -557,21 +669,25 @@ function codeFor(seed, sheetIdx) {
 }
 
 /* ---------- sheet flow ---------- */
-function isBuy(a) { return a === "Double top buy" || a === "Triple top buy"; }
 function curSheet() { return S.cur && sheetsOk() ? SHEETS[S.cur.sheetIdx] || null : null; }
 function curRead() { return S.cur ? S.cur.reads[S.cur.i] || null : null; }
+function isStep(t) { return STEP_TYPES.indexOf(t) >= 0; }
+function isSectorType(t) { return t === "S1" || t === "S2"; }
 
 function openSheet() {
   if (!sheetsOk()) return null;
-  if (S.cur && !S.cur.fin) { go(["reading", "marked", "order", "evidence"].indexOf(S.screen) >= 0 ? S.screen : "reading"); return S.cur; } /* continue the open sheet */
-  if (!S.order.length) newSession(S.seed);
+  if (S.cur && !S.cur.fin) { go(["reading", "marked", "call", "outcome"].indexOf(S.screen) >= 0 ? S.screen : "reading"); return S.cur; } /* continue the open chart */
+  if (S.run.done || !S.order.length) newRun(S.run.done ? undefined : S.seed);
   var idx = S.order[S.pos % S.order.length]; S.pos++;
-  var sh = SHEETS[idx], ans = sh.ans || {}, types = ["R1", sh.r2key === "R2b" ? "R2b" : "R2", "R3"];
-  if (isBuy(ans.R1)) types.push("R4");
-  types.push("R5", "R6", "R7");
-  if (T.readingOrder === "shuffled") types = shuffled(types, rng((S.seed | 0) * 31 + idx * 977 + 5));
+  var sh = SHEETS[idx], ans = sh.ans || {};
+  var types = CSE.pickReads(sh, rng(S.run.seed + S.run.charts), S.prevTypes);
+  if (T.readingOrder === "shuffled") { /* stock reads shuffled, sector read stays last */
+    var st = types.filter(function (t) { return !isSectorType(t); }), sc = types.filter(isSectorType);
+    types = shuffled(st, rng((S.seed | 0) * 31 + idx * 977 + 5)).concat(sc);
+  }
+  S.prevTypes = types.slice();
   S.cur = {
-    sheetIdx: idx, code: codeFor(S.seed, idx), i: 0, order: null, step: 0, fin: false,
+    sheetIdx: idx, code: codeFor(S.seed, idx), i: 0, fin: false, call: null, h: T.horizonDefault, k: 0, confirmed: false,
     reads: types.map(function (t) { return { type: t, answer: ans[t], given: null, ok: null, skipped: false }; })
   };
   go("reading");
@@ -582,9 +698,10 @@ function recKey(t) { return t === "R2b" ? "R2" : t; }
 function submitReading(given) {
   var r = curRead();
   if (!r || r.given !== null || r.skipped) return null;
-  var ok = (r.type === "R2" || r.type === "R2b" || r.type === "R4") ? Number(given) === Number(r.answer) : given === r.answer;
+  var ok = isStep(r.type) ? Number(given) === Number(r.answer) : given === r.answer;
   r.given = given; r.ok = ok;
-  var rc = S.rec[recKey(r.type)]; rc.n++; if (ok) rc.k++;
+  var rc = S.rec[recKey(r.type)]; if (!rc) rc = S.rec[recKey(r.type)] = { k: 0, n: 0 };
+  rc.n++; if (ok) rc.k++;
   save();
   return ok;
 }
@@ -598,33 +715,76 @@ function nextReading() {
   var c = S.cur, r = curRead();
   if (!c || !r || (r.given === null && !r.skipped)) return; /* guard: only advance past an answered or skipped reading */
   if (c.i + 1 < c.reads.length) { c.i++; go("reading"); }
-  else go(T.paperOrder ? "order" : "evidence");
+  else go("call");
 }
-function setOrder(kind) {
-  if (!S.cur) return;
-  S.cur.order = (kind === "Buy" || kind === "Hold" || kind === "Sell") ? kind : null;
+
+/* ---------- the call ---------- */
+function setCall(kind) {
+  if (!S.cur || S.cur.confirmed) return;
+  S.cur.call = CALLS.indexOf(kind) >= 0 ? kind : null;
   save();
+}
+function setHorizon(h) {
+  if (!S.cur || S.cur.confirmed) return S.cur ? S.cur.h : 0;
+  S.cur.h = clampH(h);
+  save();
+  return S.cur.h;
+}
+/* return at week +k (fraction) for the open chart; k 0 = 0 */
+function retAt(k) {
+  var sh = curSheet(); if (!sh || !(k > 0)) return 0;
+  var fr = sh.fwdRet;
+  if (Array.isArray(fr) && isNum(fr[k - 1])) return fr[k - 1];
+  var f = sh.fwd || [], b = sh.bars || [];
+  if (f[k - 1] && b.length) return f[k - 1][2] / b[b.length - 1][2] - 1;
+  return 0;
+}
+function confirmCall() {
+  var c = S.cur, sh = curSheet();
+  if (!c || !sh || c.confirmed || CALLS.indexOf(c.call) < 0) return false;
+  c.confirmed = true; c.k = 0;
+  if (c.call === "Buy") S.run.trades.push({ code: c.code, sheetIdx: c.sheetIdx, h: c.h, ret: retAt(c.h) });
+  else S.run.skipped++;
+  go("outcome");
+  return true;
 }
 function advanceWeek() {
   var c = S.cur; if (!c) return 0;
   var f = (curSheet() || {}).fwd || [];
-  if (c.step < Math.min(10, f.length || 10)) c.step++;
+  if (c.k < Math.min(c.h, f.length || 10)) c.k++;
   save();
   if (typeof render === "function") render();
-  return c.step;
+  return c.k;
+}
+/* return so far at the shown week (fraction): Buy = trade return so far; Don't buy = price move (no trade) */
+function curRet() { return S.cur ? retAt(S.cur.k) : 0; }
+function runReturn(trades) {
+  var t = Array.isArray(trades) ? trades : S.run.trades, p = 1;
+  for (var i = 0; i < t.length; i++) p *= 1 + t[i].ret;
+  return p - 1;
+}
+function runInfo() {
+  return { id: S.run.id, trade: Math.min(S.run.trades.length + (S.run.done ? 0 : 1), T.runTrades), trades: S.run.trades.length, runTrades: T.runTrades,
+    chart: Math.min(S.run.charts + (S.cur && !S.cur.fin ? 1 : 0), T.runCharts), charts: S.run.charts, runCharts: T.runCharts,
+    skipped: S.run.skipped, ret: runReturn(), best: S.best, done: S.run.done };
 }
 function finishSheet() {
   var c = S.cur; if (!c || c.fin) return;
-  var res = orderResult();
+  var buy = c.call === "Buy", ms = c.confirmed ? retAt(c.h) : null;
   S.journal.push({
-    code: c.code, sheetIdx: c.sheetIdx,
+    code: c.code, sheetIdx: c.sheetIdx, run: S.run.id,
+    types: c.reads.map(function (r) { return r.type; }),
     reads: c.reads.map(function (r) { return { type: r.type, ok: r.ok, skipped: !!r.skipped }; }),
-    order: c.order, orderPct: res.pct, evidence: evidenceLine()
+    call: c.call, h: c.h, ret: buy && c.confirmed ? ms : null, moved: ms
   });
-  c.fin = true; S.sess.done++;
-  go("summary");
+  c.fin = true; S.run.charts++;
+  if (S.run.trades.length >= T.runTrades || S.run.charts >= T.runCharts) {
+    S.run.done = true;
+    var r = runReturn();
+    if (!S.best || r > S.best.ret) S.best = { ret: r, trades: S.run.trades.length };
+    go("runend");
+  } else go("summary");
 }
-function sessionDone() { return S.sess.done >= T.sheetsPerSession; }
 
 /* ---------- accuracy record ---------- */
 function wilson(k, n) {
@@ -642,35 +802,20 @@ function record() {
   });
 }
 
-/* ---------- evidence + order ---------- */
+/* ---------- text helpers ---------- */
 function pctTxt(x, d) { return (x >= 0 ? "+" : "") + x.toFixed(d == null ? 1 : d) + "%"; }
+function retTxt(f, d) { return pctTxt(f * 100, d); } /* fraction -> "+4.2%" / "-3.1%" */
 function nTxt(n) { return String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, ","); }
-function evidenceLine() {
-  var sh = curSheet(); if (!sh) return "";
-  var a = sh.ans && sh.ans.R1, up = META.base ? Math.round(META.base.up10 * 100) : null;
-  var baseTxt = up == null ? "" : " · base " + up + "% up";
-  var st = META.sigStats && META.sigStats[a];
-  if (!st || !st.n) return (a || "No signal") + ": no history to compare" + baseTxt;
-  var f = st.follow > 1 ? st.follow : st.follow * 100;
-  return a + ": followed through " + Math.round(f) + "% of " + nTxt(st.n) + " seen" + baseTxt;
-}
-function orderResult() {
-  var c = S.cur, sh = curSheet();
-  if (!c || !sh) return { pct: 0, text: "No paper order" };
-  var f = sh.fwd || [], b = sh.bars, w0 = b[b.length - 1][2];
-  var last = c.step > 0 && f[c.step - 1] ? f[c.step - 1][2] : w0;
-  var mv = (last / w0 - 1) * 100;
-  if (c.order === "Buy") return { pct: mv, text: "Buy: " + pctTxt(mv) + " from the week W close" };
-  if (c.order === "Hold" || c.order === "Sell") return { pct: 0, text: c.order + ": stayed out, price moved " + pctTxt(mv) };
-  return { pct: 0, text: "No paper order" };
-}
 
 /* ---------- report ---------- */
-function buildId() { try { return BUILD; } catch (e) { return META.build || "cs-proto-2"; } }
+function buildId() { try { return BUILD; } catch (e) { return META.build || "cs-v2-1"; } }
 function reportText() {
   return JSON.stringify({
     build: buildId(), seed: S.seed, tweaks: T, tweaked: tweaked(),
     record: record().map(function (r) { return { key: r.key, name: r.name, k: r.k, n: r.n, lo: +r.lo.toFixed(3), hi: +r.hi.toFixed(3) }; }),
+    run: { id: S.run.id, seed: S.run.seed, charts: S.run.charts, skipped: S.run.skipped, done: S.run.done, ret: +runReturn().toFixed(5),
+      trades: S.run.trades.map(function (t) { return { code: t.code, h: t.h, ret: +t.ret.toFixed(5) }; }) },
+    best: S.best, call: S.cur ? { call: S.cur.call, h: S.cur.h, k: S.cur.k, types: S.cur.reads.map(function (r) { return r.type; }) } : null,
     journal: S.journal.slice(-10)
   });
 }
@@ -690,15 +835,16 @@ function copyReport() {
 var TWEAK_LABELS = {
   showRsi: "RSI pane", showMacd: "MACD pane", showColNums: "Column numbers", chartCols: "Columns shown",
   readingOrder: "Reading order", evidenceAuto: "Auto-advance weeks", showBaseNote: "Base-rate note",
-  paperOrder: "Paper order step", sheetsPerSession: "Sheets per session", textSize: "Text size",
+  horizonDefault: "Default horizon (weeks, 3 to 10)", runTrades: "Trades per run", runCharts: "Charts per run (cap)",
+  showSector: "Sector chart", sectorHeight: "Sector chart height (px)", textSize: "Text size",
   highContrast: "High contrast", seed: "Seed"
 };
-var TWEAK_BOOL = ["showRsi", "showMacd", "showColNums", "evidenceAuto", "showBaseNote", "paperOrder", "highContrast"];
+var TWEAK_BOOL = ["showRsi", "showMacd", "showColNums", "evidenceAuto", "showBaseNote", "showSector", "highContrast"];
 /* Built-in presets (overrides on top of DEFAULTS; seed is never overwritten by a preset: admin default). */
 var BUILTIN_PRESETS = [
   { name: "Plain", set: {} },
   { name: "Large chart", set: { chartCols: 16, textSize: 1.15 } },
-  { name: "Minimal", set: { showMacd: 0, showBaseNote: 0, paperOrder: 0 } }
+  { name: "Minimal", set: { showMacd: 0, showBaseNote: 0, showSector: 0 } }
 ];
 function twEsc(s) { return String(s).replace(/[&<>"']/g, function (c) { return "&#" + c.charCodeAt(0) + ";"; }); }
 function userPresets() {
@@ -740,12 +886,12 @@ function twLoadCode() {
   try { twApplySet(JSON.parse(atob(v.slice(15)))); } catch (e) { var m = $("tw_msg"); if (m) m.textContent = "Preset code could not be read."; }
 }
 function twNewSession() {
-  newSession(T.seed); twClose(); go("desk");
+  newRun(T.seed); twClose(); go("desk");
 }
 function twResetJournal() {
   var ok = true; try { ok = confirm("Reset journal and accuracy record? This cannot be undone."); } catch (e) { }
   if (!ok) return;
-  S.journal = []; S.rec = freshRec(); newSession(S.seed); twClose(); go("desk");
+  S.journal = []; S.rec = freshRec(); newRun(S.seed); twClose(); go("desk");
 }
 function twClose() { var m = $("modal"); if (m) m.classList.remove("on"); }
 
@@ -760,7 +906,8 @@ function openTweaks() {
       ctl = '<div class="seg"><button class="btn' + (T[k] === "fixed" ? " primary" : "") + '" onclick="twSet(\'' + k + '\',\'fixed\')">Fixed</button>' +
         '<button class="btn' + (T[k] === "shuffled" ? " primary" : "") + '" onclick="twSet(\'' + k + '\',\'shuffled\')">Shuffled</button></div>';
     } else {
-      ctl = '<input id="tw_' + k + '" type="number" inputmode="decimal" step="' + (k === "textSize" ? "0.05" : "1") + '" value="' + twEsc(T[k]) + '" onchange="twNum(\'' + k + '\')" style="width:100%;min-height:48px">';
+      var rg = { horizonDefault: [3, 10], runTrades: [1, 50], runCharts: [1, 100], sectorHeight: [80, 300], chartCols: [8, 40] }[k];
+      ctl = '<input id="tw_' + k + '" type="number" inputmode="decimal"' + (rg ? ' min="' + rg[0] + '" max="' + rg[1] + '"' : '') + ' step="' + (k === "textSize" ? "0.05" : "1") + '" value="' + twEsc(T[k]) + '" onchange="twNum(\'' + k + '\')" style="width:100%;min-height:48px">';
     }
     rows += '<div class="card" style="margin:6px 0"><div style="display:flex;justify-content:space-between;gap:8px"><b>' + lab + '</b><span class="dim">' +
       (ch ? "changed · default " + twEsc(DEFAULTS[k]) : "default") + '</span></div>' + ctl + '</div>';
@@ -772,8 +919,8 @@ function openTweaks() {
   $("modalBody").innerHTML =
     '<div class="card"><b>Settings</b><div class="dim" style="margin-top:4px">Build ' + twEsc(buildId()) + ' · seed ' + twEsc(T.seed) +
     (tweaked() ? ' · <b>DEV</b> (settings differ from defaults)' : '') + '<br>Changes apply live.</div></div>' + rows +
-    '<div class="card"><b>Seed</b><div class="dim">A new seed or a new session reshuffles the sheet order. Your record and journal are kept.</div>' +
-    '<div class="row"><button class="btn primary" onclick="twNewSession()">New session with this seed</button></div></div>' +
+    '<div class="card"><b>Seed</b><div class="dim">A new seed or a new run reshuffles the chart order. Your record, journal and best run are kept.</div>' +
+    '<div class="row"><button class="btn primary" onclick="twNewSession()">New run with this seed</button></div></div>' +
     '<div class="card"><b>Presets</b><div class="row seg">' + built + '</div>' + user +
     '<div class="row"><button class="btn" onclick="twSavePreset()">Save preset</button><button class="btn" onclick="twCopyPreset()">Copy preset code</button><button class="btn" onclick="copyReport()">Copy report</button></div>' +
     '<div class="row"><input id="tw_code" type="text" placeholder="CSCHOOL-PRESET:..." style="flex:2;min-height:48px"><button class="btn" onclick="twLoadCode()">Load code</button></div>' +
@@ -828,6 +975,8 @@ function openTweaks() {
     var ovs = opt.overlays || [];
     var W = hostW(host);
     var pw = W - AX;
+    var HT = Math.max(100, +opt.height || 300), compact = !!opt.compact, TT = opt.title ? 14 : 0;
+    var FS = compact ? 9 : 11; // axis font
     clear(host);
     if (!nCols) { var s0 = el(host, "svg", { width: W, height: 40, viewBox: "0 0 " + W + " 40", role: "img", "aria-label": "Empty point and figure chart" }); return s0; }
 
@@ -845,7 +994,8 @@ function openTweaks() {
       ovs.forEach(function (o) { if (o.k === "close") inc(o.box); }); // overlays never widen the range (edge markers instead)
       inc(opt.pick);
       top = hi + 2; bot = lo - 2; rows = top - bot + 1;
-      ch = Math.max(9, Math.min(268 / rows, 14));
+      // plot height budget = height - top pad 6 - title strip - column axis 26 (default 300 -> 268, as v1)
+      ch = Math.min((HT - 32 - TT) / rows, 14);
     }
     range();
     for (it = 0; it < 4; it++) {
@@ -861,14 +1011,15 @@ function openTweaks() {
     var nTop = 0, nBot = 0;
     ovs.forEach(function (o) { if (o.k === "row" || o.k === "line") { if (o.box > top) nTop++; else if (o.box < bot) nBot++; } });
     var STRIP = 17;
-    var ph = rows * ch, OY = 6 + STRIP * nTop, H = Math.round(OY + ph + 26 + STRIP * nBot + (nBot ? 2 : 0));
+    var ph = rows * ch, OY = 6 + TT + STRIP * nTop, H = Math.round(OY + ph + 26 + STRIP * nBot + (nBot ? 2 : 0));
     var XO = pw - N * c; // slack on the left so the last column meets the axis
     function ty(b) { return (top - b) * ch; }       // top edge of box b
     function cy(b) { return ty(b) + ch / 2; }
-    function cx(j) { return XO + (j - first) * c; }  // left edge of column j
+    function cx(j) { return pw - (nCols - j) * c; }  // last column always meets the axis  // left edge of column j
 
     var s = el(host, "svg", { width: W, height: H, viewBox: "0 0 " + W + " " + H, role: "img",
       "aria-label": "Point and figure chart, " + nCols + " columns, box 2 percent, last " + disp(cols[nCols - 1].d === 1 ? cols[nCols - 1].hi : cols[nCols - 1].lo) });
+    if (opt.title) el(s, "text", { x: 4, y: 8, "dominant-baseline": "central", "font-size": 11, "font-weight": 600, fill: "var(--dim)" }, opt.title);
     var g = el(s, "g", { transform: "translate(0," + OY + ")" });
 
     // grid
@@ -881,10 +1032,10 @@ function openTweaks() {
     for (j = first; j < nCols; j++) {
       var n1 = j + 1, x = cx(j) + c / 2;
       if (opt.showColNums) {
-        el(g, "text", { x: f1(x), y: f1(ph + 15), "text-anchor": "middle", "font-size": c < 12 ? 8 : 9, fill: "var(--dim)", "font-variant-numeric": "tabular-nums" }, n1);
+        el(g, "text", { x: f1(x), y: f1(ph + 15), "text-anchor": "middle", "font-size": c < 12 ? 8 : FS, fill: "var(--dim)", "font-variant-numeric": "tabular-nums" }, n1);
       } else if (n1 % 5 === 0) {
         el(g, "line", { x1: f1(cx(j) + c + 0.5), y1: f1(ph), x2: f1(cx(j) + c + 0.5), y2: f1(ph + 4), stroke: "var(--dim)", "stroke-width": 1 });
-        el(g, "text", { x: f1(cx(j) + c), y: f1(ph + 17), "text-anchor": "middle", "font-size": 11, fill: "var(--dim)" }, n1);
+        el(g, "text", { x: f1(cx(j) + c), y: f1(ph + 17), "text-anchor": "middle", "font-size": FS, fill: "var(--dim)" }, n1);
       }
     }
     
@@ -976,6 +1127,23 @@ function openTweaks() {
         el(g, "path", { d: buy ? "M" + f1(tx) + " " + f1(tyy - 5) + "L" + f1(tx + 5) + " " + f1(tyy + 4) + "L" + f1(tx - 5) + " " + f1(tyy + 4) + "Z"
           : "M" + f1(tx) + " " + f1(tyy + 5) + "L" + f1(tx + 5) + " " + f1(tyy - 4) + "L" + f1(tx - 5) + " " + f1(tyy - 4) + "Z", fill: tcl });
         if (o.label) el(g, "text", { x: f1(tx - 9), y: f1(tyy + 0.5), "text-anchor": "end", "dominant-baseline": "central", "font-size": 11, "font-weight": 600, fill: tcl }, o.label);
+      } else if (o.k === "exit") {
+        if (o.col == null || o.col < first || o.col >= nCols) return;
+        var ex = cx(o.col);
+        el(g, "rect", { x: f1(ex), y: 0, width: f1(c), height: f1(ph), fill: "var(--text)", "fill-opacity": 0.08 });
+        el(g, "line", { x1: f1(ex + c / 2), y1: 0, x2: f1(ex + c / 2), y2: f1(ph), stroke: "var(--text)", "stroke-width": 1.6, "stroke-dasharray": "5 3" });
+        var el2 = o.label || "Exit", ew = el2.length * 5.8 + 8, ea = ex + c / 2 > pw * 0.5;
+        var exx = ea ? ex + c / 2 - 4 : ex + c / 2 + 4;
+        el(g, "rect", { x: f1(ea ? exx - ew + 3 : exx - 4), y: 1, width: f1(ew), height: 15, rx: 3, fill: "var(--bg)", "fill-opacity": 0.85 });
+        el(g, "text", { x: f1(exx), y: 8.5, "text-anchor": ea ? "end" : "start", "dominant-baseline": "central", "font-size": 11, "font-weight": 700, fill: "var(--text)" }, el2);
+      } else if (o.k === "entry") {
+        if (o.box == null || o.box < bot || o.box > top) return;
+        var ey = cy(o.box);
+        el(g, "line", { x1: 0, y1: f1(ey), x2: f1(pw), y2: f1(ey), stroke: "var(--accent)", "stroke-width": 1.5, "stroke-dasharray": "2 3" });
+        el(g, "path", { d: "M0 " + f1(ey - 5) + "L7 " + f1(ey) + "L0 " + f1(ey + 5) + "Z", fill: "var(--accent)" });
+        var nl = o.label || "Entry", nw = nl.length * 5.8 + 8;
+        el(g, "rect", { x: 9, y: f1(ey - 16), width: f1(nw), height: 15, rx: 3, fill: "var(--bg)", "fill-opacity": 0.85 });
+        el(g, "text", { x: 13, y: f1(ey - 8.5), "dominant-baseline": "central", "font-size": 11, "font-weight": 700, fill: "var(--accent)" }, nl);
       } else if (o.k === "close") {
         var yc = cy(o.box);
         el(g, "line", { x1: f1(pw), y1: f1(yc), x2: f1(pw + 4), y2: f1(yc), stroke: "var(--text)", "stroke-width": 1 });
@@ -997,11 +1165,13 @@ function openTweaks() {
     pills.forEach(function (p) { p.hide = p.box; });
     var pillBoxes = {};
     pills.forEach(function (p) { pillBoxes[p.box] = 1; });
+    var stride = compact ? 3 : 2; // never let labels crowd: widen the stride on tiny cells
+    while (stride * ch < FS + 3) stride++;
     for (var bb = bot; bb <= top; bb++) {
-      if (((bb % 2) + 2) % 2 !== 0) continue;
+      if (((bb % stride) + stride) % stride !== 0) continue;
       var yy = cy(bb);
       if (pills.some(function (p) { return Math.abs(p.py - yy) < 13; })) continue; // would be covered: pill already states a price nearby
-      el(g, "text", { x: pw + 8, y: f1(yy + 1), "dominant-baseline": "central", "font-size": 11, fill: "var(--dim)", "font-variant-numeric": "tabular-nums" }, disp(bb));
+      el(g, "text", { x: pw + 8, y: f1(yy + 1), "dominant-baseline": "central", "font-size": FS, fill: "var(--dim)", "font-variant-numeric": "tabular-nums" }, disp(bb));
     }
     pills.forEach(function (p) {
       if (Math.abs(p.py - p.y) > 1) el(g, "line", { x1: f1(pw), y1: f1(p.y), x2: f1(pw + 5), y2: f1(p.py), stroke: "var(--dim)", "stroke-width": 1 });
@@ -1115,7 +1285,7 @@ function openTweaks() {
 
 </script>
 <script>
-/* screens-a.js (SCR-A): desk, summary, journal, rule card. Plain script, globals only. */
+/* screens-a.js (SCR-A): desk, runend, summary, journal, rule card. Plain script, globals only. */
 (function () {
 
   // Wilson band values may arrive as 0..1 or 0..100 (admin default: accept both).
@@ -1146,44 +1316,57 @@ function openTweaks() {
       (r.few ? '<span class="tf"><span aria-hidden="true">&#9675;</span> too few to tell</span>' : '') + '</div></div>';
   }
 
-  function nextCode() {
-    // Peek the code only if a sheet is open; otherwise the code is assigned on open (admin default).
-    return S.cur && !S.cur.fin && S.cur.code ? S.cur.code : null;
+  function num(v) { return typeof v === 'number' && isFinite(v) ? v : null; }
+  function fmtRet(v) {
+    v = num(v); if (v === null) return '';
+    var p = Math.round(v * 1000) / 10; // 1 decimal
+    if (p === 0) p = 0; // avoid -0
+    return (p > 0 ? '+' : '') + p.toFixed(1) + '%';
   }
+  function retCls(v) { v = num(v); return v === null ? '' : v >= 0 ? 'good' : 'bad'; }
+  function runOf() { return (typeof S !== 'undefined' && S && S.run) || { charts: 0, trades: [], skipped: 0, done: false }; }
+  function runTrades() { return (typeof T !== 'undefined' && T && T.runTrades) || 10; }
+  function runCharts() { return (typeof T !== 'undefined' && T && T.runCharts) || 20; }
+  function curRun() { try { return typeof runReturn === 'function' ? (num(runReturn()) || 0) : 0; } catch (e) { return 0; } }
+  function bestOf() { return (typeof S !== 'undefined' && S && S.best && num(S.best.ret) !== null) ? S.best : null; }
+  function bestLine() {
+    var b = bestOf();
+    return b ? 'Best run ' + fmtRet(b.ret) + ' (' + ((b.trades && b.trades.length != null ? b.trades.length : b.trades) || 0) + ' trades)' : 'Best run: none yet';
+  }
+  function callText(e) {
+    if (!e) return '';
+    if (e.call === 'Buy') return 'Buy, ' + (e.h || '?') + ' weeks';
+    if (e.call === "Don't buy") return "Don't buy";
+    return 'No call';
+  }
+  function retText(e) { return e && e.call === 'Buy' && num(e.ret) !== null ? fmtRet(e.ret) : 'No trade'; }
 
   window.renderDesk = function () {
-    var rows = record().map(recRow).join('');
+    var rows = '';
+    try { rows = record().map(recRow).join(''); } catch (e) {}
+    var run = runOf(), nT = (run.trades || []).length, nC = run.charts || 0;
     var open = !!(S.cur && !S.cur.fin);
-    var total = T.sheetsPerSession || 2;
-    var x = Math.min((S.sess && S.sess.done || 0) + 1, total);
-    var code = nextCode();
-    var dots = '', nRead = 7;
-    try {
-      var ni = S.order && S.order.length ? S.order[S.pos % S.order.length] : null;
-      var nsh = open && curSheet() ? curSheet() : (ni != null && SHEETS ? SHEETS[ni] : null);
-      if (nsh && nsh.ans) nRead = 6 + ((nsh.ans.R1 === 'Double top buy' || nsh.ans.R1 === 'Triple top buy') ? 1 : 0);
-    } catch (e) {}
-    for (var i = 0; i < nRead; i++) dots += '<span class="dot"></span>';
+    var started = open || nC > 0 || nT > 0;
+    var tx = Math.min(nT + 1, runTrades()), cy = Math.min(nC + (open ? 1 : 1), runCharts());
+    var rr = curRun();
     var base = '';
     if (T.showBaseNote) {
       var up = Math.round(((META && META.base && META.base.up10) || 0.62) * 100);
       base = '<section class="card base" aria-label="Base rate">' +
         '<svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true"><circle cx="11" cy="11" r="9.5" fill="none" stroke="var(--dim)" stroke-width="1.5"/><path d="M11 10v6" stroke="var(--dim)" stroke-width="1.8" stroke-linecap="round"/><circle cx="11" cy="6.8" r="1.1" fill="var(--dim)"/></svg>' +
-        '<p>These stocks mostly rose. A bullish call is right about <b class="num">' + up + '%</b> of the time with no chart at all.</p></section>';
+        '<p>These stocks mostly rose. A price that is higher after 10 weeks happens about <b class="num">' + up + '%</b> of the time with no chart at all.</p></section>';
     }
-    $('main').innerHTML = header('Reading desk', 'Your record and the next sheet', { root: true, gear: true }) +
-      '<section class="card" aria-label="Accuracy record"><div class="ch"><span class="cap">Accuracy record</span><span class="cap faint">lifetime, right / total</span></div>' + rows + '</section>' +
-      '<section class="card next" aria-label="Next sheet"><div class="cap">' + (open ? 'Open sheet' : 'Next sheet') + '</div>' +
-      '<div class="big"><span class="code">' + (code ? esc(code) : '&middot;&middot;&middot;') + '</span>' +
-      '<span class="meta num">' + nRead + ' readings<br>then 10 weeks<br>Sheet ' + x + ' of ' + total + '</span></div>' +
-      '<div class="steps" aria-hidden="true">' + dots + '<span class="wk">then 10 weeks</span></div>' +
-      '<div class="list">Signal, support and resistance, trend line, vertical count, RSI, MACD, divergence. All open, no clock.' +
-      (T.paperOrder ? ' Paper order is optional.' : '') + '</div></section>' +
+    $('main').innerHTML = header('Trading desk', 'Your run and your record', { root: true, gear: true }) +
+      '<section class="card next" aria-label="Current run"><div class="cap">' + (started ? 'Current run' : 'New run') + '</div>' +
+      '<div class="big"><span class="code num">' + (nT ? fmtRet(rr) : '+0.0%') + '</span>' +
+      '<span class="meta num">Trade ' + tx + ' of ' + runTrades() + '<br>Chart ' + cy + ' of ' + runCharts() + '<br>' + esc(bestLine()) + '</span></div>' +
+      '<div class="list">Read each chart, make your call, pick a horizon of 3 to 10 weeks. The run ends at your ' + runTrades() + 'th Buy.</div></section>' +
+      '<section class="card" aria-label="Accuracy record" style="font-size:.92em"><div class="ch"><span class="cap">Accuracy record</span><span class="cap faint">lifetime, right / total</span></div>' + rows + '</section>' +
       base +
       '<p class="dim" style="font-size:12px;margin:4px 2px 8px">This desk trains chart reading. It makes no profit promise.</p>';
     bar([
       { act: 'journal', label: 'Journal', kind: 'out' },
-      { act: 'open-sheet', label: open ? 'Continue sheet' : 'Open sheet', kind: 'primary' }
+      { act: 'open-sheet', label: started ? 'Continue' : 'Start run', kind: 'primary' }
     ]);
   };
 
@@ -1195,19 +1378,9 @@ function openTweaks() {
 
   function lastEntry() { return S.journal && S.journal.length ? S.journal[S.journal.length - 1] : null; }
 
-  function orderLine(e) {
-    if (!e || !e.order) return 'No paper order placed.';
-    var t = 'Paper order: ' + esc(e.order);
-    if (typeof e.orderPct === 'number') {
-      t += e.order === 'Buy' ? ' &middot; ' + (e.orderPct >= 0 ? '+' : '') + e.orderPct.toFixed(1) + '%' : ' &middot; stayed out';
-    }
-    return t;
-  }
-
   window.renderSummary = function () {
     var e = lastEntry();
     var reads = (e && e.reads) || [];
-    // Detail (your answer / engine reading) only exists on S.cur while still held; admin default: fall back to type + mark.
     var det = (S.cur && S.cur.reads) || [];
     var right = 0;
     reads.forEach(function (r) { if (r.ok === true) right++; });
@@ -1219,30 +1392,43 @@ function openTweaks() {
       return '<div class="mk ' + (r.ok ? 'good' : 'bad') + '"><span class="n">' + esc(nameOf(r.type)) + '</span>' +
         '<span class="r">' + (yours || eng ? '<span>You: ' + esc(yours || '-') + '</span>' + (eng ? '<span>Engine reading: ' + esc(eng) + '</span>' : '') : mark) + '</span></div>';
     }).join('');
-    var done = sessionDone();
-    var total = T.sheetsPerSession || 2;
-    $('main').innerHTML = header((e ? e.code + ' · ' : '') + 'Sheet summary', 'Readings and the 10 weeks after', {}) +
-      '<section class="card"><div class="sh"><b>Readings ' + right + ' right of ' + reads.length + '</b><span class="dim num">this sheet</span></div>' +
+    var run = runOf();
+    $('main').innerHTML = header((e ? e.code + ' · ' : '') + 'Chart summary', 'Readings, your call and the outcome', {}) +
+      '<section class="card"><div class="sh"><b>Readings ' + right + ' right of ' + reads.length + '</b><span class="dim num">this chart</span></div>' +
       marks(reads) + rows + '</section>' +
-      '<section class="card ev num">' + esc(e && e.evidence ? e.evidence : evidenceLine()) + '</section>' +
-      '<section class="card po num">' + orderLine(e) + '</section>' +
-      (done ? '<p class="dim" style="margin:6px 2px">Session done (' + total + ' sheets).</p>' : '');
-    bar(done
-      ? [{ act: 'desk', label: 'Back to desk', kind: 'primary' }]
-      : [{ act: 'desk', label: 'Desk', kind: 'out' }, { act: 'open-sheet', label: 'Next sheet', kind: 'primary' }]);
+      '<section class="card po num"><div class="sh"><b>' + esc(callText(e)) + '</b><b class="' + (e && e.call === 'Buy' ? retCls(e.ret) : '') + '">' + esc(retText(e)) + '</b></div>' +
+      (e && e.call !== 'Buy' && num(e.moved) !== null ? '<div class="dim">Price moved ' + esc(fmtRet(e.moved)) + ' over ' + esc(e.h || '?') + ' weeks (no trade).</div>' : '') + '</section>' +
+      '<p class="dim num" style="margin:6px 2px">Trade ' + Math.min((run.trades || []).length + 1, runTrades()) + ' of ' + runTrades() + ' next &middot; run return ' + esc(fmtRet(curRun()) || '+0.0%') + '</p>';
+    bar([{ act: 'desk', label: 'Desk', kind: 'out' }, { act: 'open-sheet', label: 'Next chart', kind: 'primary' }]);
+  };
+
+  window.renderRunEnd = function () {
+    var run = runOf(), tr = run.trades || [], total = curRun();
+    var best = bestOf();
+    var isBest = best && num(best.ret) !== null && Math.abs(best.ret - total) < 1e-9;
+    var list = tr.length ? tr.map(function (t, i) {
+      return '<div class="mk ' + retCls(t.ret) + '"><span class="n num">' + (i + 1) + '. ' + esc(t.code || '---') + '</span>' +
+        '<span class="r num"><span>' + esc(t.h || '?') + ' weeks</span><b>' + esc(fmtRet(t.ret) || '--') + '</b></span></div>';
+    }).join('') : '<p class="dim" style="margin:0">No trades in this run.</p>';
+    $('main').innerHTML = header('Run complete', tr.length + ' trades over ' + (run.charts || 0) + ' charts', {}) +
+      '<section class="card next" aria-label="Run result"><div class="cap">Total return</div>' +
+      '<div class="big"><span class="code num ' + retCls(total) + '" style="font-size:44px">' + esc(fmtRet(total) || '+0.0%') + '</span>' +
+      '<span class="meta num">' + tr.length + ' trades</span></div>' +
+      '<div class="list num">' + esc(isBest ? 'New best run' : bestLine()) + '</div></section>' +
+      '<section class="card"><div class="cap">Trades</div>' + list + '</section>';
+    bar([{ act: 'journal', label: 'Journal', kind: 'out' }, { act: 'new-run', label: 'New run', kind: 'primary' }]);
   };
 
   window.renderJournal = function () {
     var list = (S.journal || []).slice().reverse();
     var body = list.length ? list.map(function (e) {
-      var right = 0, n = 0;
-      (e.reads || []).forEach(function (r) { if (!r.skipped) n++; if (r.ok === true) right++; });
+      var right = 0;
+      (e.reads || []).forEach(function (r) { if (r.ok === true) right++; });
       return '<section class="card"><div class="sh"><b>' + esc(e.code) + '</b><span class="dim num">' + right + ' right of ' + (e.reads || []).length + '</span></div>' +
         marks(e.reads || []) +
-        '<div class="num" style="margin:6px 0 2px">' + orderLine(e) + '</div>' +
-        '<div class="dim num" style="font-size:12px">' + esc(e.evidence || '') + '</div></section>';
-    }).join('') : '<section class="card"><p style="margin:0">No sheets in the journal yet. Finish a sheet and it is listed here.</p></section>';
-    $('main').innerHTML = header('Journal', 'Newest sheet first', {}) + body;
+        '<div class="num" style="margin:6px 0 2px"><b>' + esc(callText(e)) + '</b> &middot; <span class="' + (e.call === 'Buy' ? retCls(e.ret) : '') + '">' + esc(retText(e)) + '</span></div></section>';
+    }).join('') : '<section class="card"><p style="margin:0">No charts in the journal yet. Finish a chart and it is listed here.</p></section>';
+    $('main').innerHTML = header('Journal', 'Newest chart first', {}) + body;
     bar([
       { act: 'copy-report', label: 'Copy report', kind: 'out' },
       { act: 'desk', label: 'Desk', kind: 'primary' }
@@ -1259,10 +1445,13 @@ function openTweaks() {
 
   window.ACT = window.ACT || {};
   ACT['open-sheet'] = function () {
-    /* FM integration fix: a finished sheet (S.cur.fin) must open the next one; openSheet() continues an open sheet itself.
-       admin default: after a finished session, opening a sheet starts the next session count. */
-    if ((!S.cur || S.cur.fin) && sessionDone()) S.sess.done = 0;
+    // A finished run starts a fresh one (admin default).
+    if (S.run && S.run.done && typeof newRun === 'function') newRun((S.run.seed | 0) + 1);
     openSheet();
+  };
+  ACT['new-run'] = function () {
+    if (typeof newRun === 'function') newRun(((S.run && S.run.seed) | 0) + 1 || T.seed);
+    go('desk');
   };
   ACT.journal = function () { go('journal'); };
   ACT.desk = function () { go('desk'); };
@@ -1277,10 +1466,10 @@ function openTweaks() {
 
 </script>
 <script>
-/* screens-b.js (Maker SCR-B): reading, marked, order, evidence. Plain browser script. */
+/* screens-b.js (Maker SCR-B): reading, marked, call, outcome. Plain browser script. */
 (function () {
   window.ACT = window.ACT || {};
-  window.UI = window.UI || { key: null, pick: null, order: null, timer: null };
+  window.UI = window.UI || { key: null, pick: null, timer: null };
   var UI = window.UI;
 
   var QUESTION = {
@@ -1291,9 +1480,29 @@ function openTweaks() {
     R4: ["Vertical count: set the price objective.", "Use the buy signal column. Set the objective box, or tap a row on the chart."],
     R5: ["RSI(14): which band is it in?", "Read the RSI pane."],
     R6: ["MACD(12,26,9): what is the histogram doing?", "Sign, and direction against last week."],
-    R7: ["Divergence: do price and RSI disagree?", "Compare the latest swing in price with RSI at the same points."]
+    R7: ["Divergence: do price and RSI disagree?", "Compare the latest swing in price with RSI at the same points."],
+    S1: ["Sector signal: what do the last 3 columns of the sector chart show?", "Read the lower chart. Look for a double or triple top or bottom break."],
+    S2: ["Sector trend: which line is active on the sector chart?", "Read the lower chart. Support rises, resistance falls."]
   };
   var STEPPER = { R2: 1, R2b: 1, R4: 1 };
+  function isStep(type) {
+    if (typeof CSE !== "undefined" && CSE.KINDS && CSE.KINDS[type]) return CSE.KINDS[type] === "step";
+    return !!STEPPER[type];
+  }
+  function isSec(type) { return type === "S1" || type === "S2"; }
+  function fmtPct(r) {
+    var v = Math.round(r * 1000) / 10;
+    if (v === 0) v = 0;
+    return (v > 0 ? "+" : (v < 0 ? "-" : "")) + Math.abs(v).toFixed(1) + "%";
+  }
+  function retWord(r) {
+    var v = Math.round(r * 1000) / 10;
+    return v > 0 ? "Gain" : (v < 0 ? "Loss" : "Flat");
+  }
+  function retCls(r) {
+    var v = Math.round(r * 1000) / 10;
+    return v > 0 ? "pos" : (v < 0 ? "neg" : "flat");
+  }
 
   function toBars(a) {
     return (a || []).map(function (b) {
@@ -1303,11 +1512,16 @@ function openTweaks() {
   function ctx() {
     var sh = curSheet(), bars = toBars(sh.bars);
     var close = bars[bars.length - 1].c;
-    return { sh: sh, bars: bars, close: close, closeBox: CSE.boxOf(close), eng: CSE.pnf(bars), reads: CSE.readAll(bars) };
+    var o = { sh: sh, bars: bars, close: close, closeBox: CSE.boxOf(close), eng: CSE.pnf(bars), reads: CSE.readAll(bars), sec: null };
+    if (sh.sec && Array.isArray(sh.sec.bars) && sh.sec.bars.length) {
+      var sb = toBars(sh.sec.bars);
+      o.sec = { name: sh.sec.name || "", bars: sb, fwd: toBars(sh.sec.fwd), eng: CSE.pnf(sb), reads: (typeof CSE.readSector === "function" ? (CSE.readSector(sb) || {}) : {}) };
+    }
+    return o;
   }
   function sync() {
     var key = S.cur.sheetIdx + ":" + S.cur.i;
-    if (UI.key !== key) { UI.key = key; UI.pick = null; UI.order = null; }
+    if (UI.key !== key) { UI.key = key; UI.pick = null; }
   }
   function keepScroll(fn) { var y = window.scrollY || 0; fn(); try { window.scrollTo(0, y); } catch (e) {} }
   function safe(host, fn) {
@@ -1351,27 +1565,46 @@ function openTweaks() {
   function drawChart(c, o) {
     var host = $("pf");
     safe(host, function () {
-      drawPnf(host, {
+      var op = {
         bars: o.bars || c.bars, eng: o.eng || c.eng, newFrom: o.newFrom == null ? null : o.newFrom,
         cols: T.chartCols || 24, showColNums: !!T.showColNums, overlays: o.overlays || [],
-        pick: o.pick == null ? null : o.pick, onRow: o.onRow || null
+        pick: o.pick == null ? null : o.pick, onRow: o.onRow || null, height: o.height || 300
+      };
+      if (o.compact) op.compact = true;
+      drawPnf(host, op);
+    });
+  }
+  function drawSector(c, o) {
+    var host = $("pfs");
+    if (!host || !c.sec) return;
+    o = o || {};
+    safe(host, function () {
+      drawPnf(host, {
+        bars: o.bars || c.sec.bars, eng: o.eng || c.sec.eng, newFrom: o.newFrom == null ? null : o.newFrom,
+        cols: T.chartCols || 24, showColNums: false, overlays: o.overlays || [],
+        height: o.height || T.sectorHeight || 150, compact: true, title: "Sector · " + c.sec.name
       });
     });
   }
+  function showSector(c, type) { return !!(c.sec && (T.showSector || isSec(type))); }
+  function secPane(c, type) {
+    return showSector(c, type) ? '<div class="card pf secp"><div class="pfwrap" id="pfs"></div></div>' : "";
+  }
+  function trendOv(eng) { try { return { k: "trend", segs: CSE.trend(eng).segs }; } catch (e) { return null; } }
+  function subLine(c) { return "Week " + c.bars.length + ", box 2%, last " + esc(CSE.disp(c.close)); }
 
   /* ---------- reading ---------- */
   window.renderReading = function () {
     sync();
     clearTimer();
     var c = ctx(), rd = curRead(), type = rd.type, n = S.cur.reads.length;
-    var stepper = !!STEPPER[type];
+    var stepper = isStep(type);
     if (stepper && UI.pick == null) UI.pick = c.closeBox;
     var q = QUESTION[type] || [CSE.NAMES[type], ""];
     var show = paneShow(type);
     var closes = c.bars.map(function (b) { return b.c; });
 
-    var h = header(esc(S.cur.code) + " · Reading " + (S.cur.i + 1) + " of " + n,
-      "Week " + c.bars.length + ", box 2%, last " + esc(CSE.disp(c.close)), { gear: true });
+    var h = header(esc(S.cur.code) + " · Reading " + (S.cur.i + 1) + " of " + n, subLine(c), { gear: true });
 
     var qhtml = '<div class="card q"><h2>' + esc(q[0]) + '</h2><p>' + esc(q[1]) + '</p>';
     if (stepper) {
@@ -1381,29 +1614,32 @@ function openTweaks() {
         '<span class="qty num" id="stepVal">' + esc(CSE.disp(CSE.priceOf(UI.pick))) + '<small>your pick</small></span>' +
         '<button class="btn" id="stepUp" data-act="step-up" aria-label="Higher one box">+</button></div>';
     } else {
-      var opts = CSE.OPTIONS[type] || [];
+      var opts = (CSE.OPTIONS && CSE.OPTIONS[type]) || [];
       var grid = opts.length === 4;
-      qhtml += '<div style="display:' + (grid ? "grid;grid-template-columns:1fr 1fr" : "flex;flex-direction:column") + ';gap:8px;margin-bottom:10px">';
+      qhtml += '<div class="optgrid' + (grid ? " two" : "") + '">';
       opts.forEach(function (o) {
         var on = UI.pick === o;
-        qhtml += '<button class="btn opt' + (on ? " on" : "") + '" data-opt="' + esc(o) + '" aria-pressed="' + on +
-          '" style="height:56px;display:flex;align-items:center;justify-content:flex-start;gap:6px;text-align:left;white-space:normal;line-height:1.15' +
-          (on ? ";box-shadow:inset 0 0 0 2px var(--text);background:var(--surface2)" : "") + '"><span>' + esc(o) + '</span></button>'; /* FM fix: tick comes from style.css .opt.on::before (was drawn twice) */
+        qhtml += '<button class="btn opt' + (on ? " on" : "") + '" data-opt="' + esc(o) + '" aria-pressed="' + on + '"><span>' + esc(o) + '</span></button>';
       });
       qhtml += '</div>';
     }
-    qhtml += '<button class="btn out" data-act="rule" style="width:100%;height:48px;background:transparent">Review rule</button></div>';
+    qhtml += '<button class="btn out wide" data-act="rule">Review rule</button></div>';
 
     $("main").innerHTML = h + '<div class="stack"><div class="card pf">' + chipsRow() + '<div id="pf"></div></div>' +
-      paneHtml(show, closes) + qhtml + '</div>';
+      secPane(c, type) + paneHtml(show, closes) + qhtml + '</div>';
 
     var ov = [{ k: "close", box: c.closeBox }];
     if (stepper) ov.push({ k: "row", box: UI.pick, label: "your pick", style: "pick" });
-    if (type !== "R3") { try { ov.push({ k: "trend", segs: CSE.trend(c.eng).segs }); } catch (e) {} }
+    if (type !== "R3") { var t1 = trendOv(c.eng); if (t1) ov.push(t1); }
     drawChart(c, {
       overlays: ov, pick: stepper ? UI.pick : null,
       onRow: stepper ? function (box) { UI.pick = box; keepScroll(render); } : null
     });
+    if (showSector(c, type)) {
+      var sov = [];
+      if (type !== "S2") { var t2 = trendOv(c.sec.eng); if (t2) sov.push(t2); }
+      drawSector(c, { overlays: sov });
+    }
     drawPanes(show, closes, {});
     bar([
       { act: "skip", label: "Skip", kind: "out" },
@@ -1424,7 +1660,8 @@ function openTweaks() {
   ACT.opt = function (a) {
     var v = typeof a === "string" ? a : (a && a.dataset ? a.dataset.opt : null);
     if (v == null) return;
-    if (S.screen === "order") UI.order = v; else UI.pick = v;
+    if (S.screen === "call") { if (typeof setCall === "function") setCall(v); }
+    else UI.pick = v;
     keepScroll(render);
   };
   ACT.submit = function () {
@@ -1451,7 +1688,7 @@ function openTweaks() {
     sync();
     clearTimer();
     var c = ctx(), rd = curRead(), type = rd.type, n = S.cur.reads.length;
-    var R = c.reads, ans = R[type];
+    var R = c.reads, SR = c.sec ? c.sec.reads : {}, ans = R[type];
     var show = paneShow(type);
     var closes = c.bars.map(function (b) { return b.c; });
     var nCols = c.eng.cols.length;
@@ -1462,10 +1699,8 @@ function openTweaks() {
       (rd.ok ? '<svg width="10" height="10" viewBox="0 0 10 10"><path d="M1.5 5.5L4 8L8.5 2" fill="none" stroke="' + pillClr + '" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>'
         : '<svg width="10" height="10" viewBox="0 0 10 10"><path d="M2 2L8 8M8 2L2 8" stroke="' + pillClr + '" stroke-width="2" stroke-linecap="round"/></svg>') +
       esc(pillTxt) + '</span>';
-    var h = header(esc(S.cur.code) + " · Reading " + (S.cur.i + 1) + " of " + n,
-      "Week " + c.bars.length + ", box 2%, last " + esc(CSE.disp(c.close)), { pill: pill });
+    var h = header(esc(S.cur.code) + " · Reading " + (S.cur.i + 1) + " of " + n, subLine(c), { pill: pill });
 
-    // overlays per type, engine reading
     var ov = [{ k: "close", box: c.closeBox }];
     var given = rd.given;
     if (type === "R1") {
@@ -1474,14 +1709,20 @@ function openTweaks() {
       ov.push({ k: "row", box: ans.answer, label: "engine " + CSE.disp(CSE.priceOf(ans.answer)), style: "engine" });
       if (typeof given === "number") ov.push({ k: "row", box: given, label: "your row", style: "pick" });
     } else if (type === "R3" && ans) {
-      ov.push({ k: "trend", segs: CSE.trend(c.eng).segs });
+      var t3 = trendOv(c.eng); if (t3) ov.push(t3);
     } else if (type === "R4" && ans) {
       ov.push({ k: "col", col: ans.col, label: ans.boxes + " boxes" });
       ov.push({ k: "line", box: ans.answer, label: "engine objective " + CSE.disp(CSE.priceOf(ans.answer)), style: "engine" });
       if (typeof given === "number") ov.push({ k: "line", box: given, label: "your objective", style: "pick" });
     }
+    var sov = [];
+    if (c.sec) {
+      if (type === "S1" && SR.S1 && SR.S1.col != null && SR.S1.answer !== "No signal") {
+        sov.push({ k: "sig", col: SR.S1.col, label: /sell/.test(SR.S1.answer) ? "Sell" : "Buy" });
+      }
+      if (isSec(type)) { var t4 = trendOv(c.sec.eng); if (t4) sov.push(t4); }
+    }
 
-    // signal chip
     var chip = "";
     if (type === "R1" && R.R1 && R.R1.answer !== "No signal") {
       var sell = /sell/.test(R.R1.answer), fresh = R.R1.col === nCols - 1;
@@ -1489,7 +1730,7 @@ function openTweaks() {
     }
 
     var sentence = "";
-    try { sentence = CSE.explain(type, R, given); } catch (e) { sentence = ""; }
+    try { sentence = CSE.explain(type, R, given, SR); } catch (e) { sentence = ""; }
     if (rd.skipped) sentence = "Skipped. " + sentence;
     var ci = sentence.indexOf(":"), head = "", rest = sentence;
     if (ci > 0 && ci < 40) { head = sentence.slice(0, ci + 1); rest = sentence.slice(ci + 1); }
@@ -1500,99 +1741,136 @@ function openTweaks() {
     $("main").innerHTML = h + '<div class="stack">' +
       '<div class="card" style="padding:4px 4px 6px"><div class="dots">' + marks(S.cur.reads) + '</div></div>' +
       '<div class="card pf">' + chipsRow() + chip + '<div class="pfwrap" id="pf"></div></div>' +
-      paneHtml(show, closes) + msg + '</div>';
+      secPane(c, type) + paneHtml(show, closes) + msg + '</div>';
 
     drawChart(c, { overlays: ov, pick: null });
+    if (showSector(c, type)) drawSector(c, { overlays: sov });
     drawPanes(show, closes, { rsiMark: (type === "R7" && R.R7 && R.R7.ref != null) ? { t: R.R7.ref } : null });
     bar([
       { act: "rule", label: "Review rule", kind: "out" },
-      { act: "next", label: more ? "Next reading" : "To the 10 weeks", kind: "primary" }
+      { act: "next", label: more ? "Next reading" : "To your call", kind: "primary" }
     ]);
   };
 
-  /* ---------- order ---------- */
-  window.renderOrder = function () {
+  /* ---------- call ---------- */
+  function curH() {
+    var h = S.cur && typeof S.cur.h === "number" ? S.cur.h : (T.horizonDefault || 6);
+    return Math.max(3, Math.min(10, Math.round(h)));
+  }
+  function tradeLine() {
+    var tr = (S.run && S.run.trades) ? S.run.trades.length : 0;
+    var max = (T && T.runTrades) || 10;
+    return "Trade " + Math.min(tr + 1, max) + " of " + max;
+  }
+  function weeksText(h) { return h + " weeks"; }
+  window.renderCall = function () {
     sync();
     clearTimer();
-    var c = ctx(), closes = c.bars.map(function (b) { return b.c; });
-    var h = header(esc(S.cur.code) + " · Paper order", "Week " + c.bars.length + ", last " + esc(CSE.disp(c.close)), {});
-    var seg = '<div class="seg" role="group" aria-label="Paper order">';
-    ["Buy", "Hold", "Sell"].forEach(function (o) {
-      var on = UI.order === o;
-      seg += '<button class="' + (on ? "on" : "") + '" data-opt="' + o + '" aria-pressed="' + on + '">' + o + '</button>';
+    var c = ctx(), h = curH(), pick = S.cur.call || null;
+    var hd = header(esc(S.cur.code) + " · Your call", subLine(c), { gear: true });
+    var seg = '<div class="seg" role="group" aria-label="Your call">';
+    ["Buy", "Don't buy"].forEach(function (o) {
+      var on = pick === o;
+      seg += '<button class="' + (on ? "on" : "") + '" data-opt="' + esc(o) + '" aria-pressed="' + on + '">' + esc(o) + '</button>';
     });
     seg += '</div>';
-    $("main").innerHTML = h + '<div class="stack"><div class="card pf">' + chipsRow() + '<div id="pf"></div></div>' +
-      '<div class="card"><div class="cap" style="margin-bottom:6px">Paper order (optional, never in the accuracy record)</div>' + seg +
-      '<p class="dim" style="margin:10px 0 0;font-size:13px">Long only. Sell means stay out.</p></div></div>';
-    drawChart(c, { overlays: [{ k: "close", box: c.closeBox }] });
+    var hz = '<div class="card hz"><div class="hzh"><span class="cap2">Time horizon</span><b class="num" id="hLabel" aria-live="polite">' + esc(weeksText(h)) + '</b></div>' +
+      '<div class="hzrow"><button class="btn" data-act="h-down" aria-label="One week shorter">&minus;</button>' +
+      '<div class="hzs"><input type="range" id="horizon" min="3" max="10" step="1" value="' + h + '" aria-label="Time horizon in weeks"></div>' +
+      '<button class="btn" data-act="h-up" aria-label="One week longer">+</button></div>' +
+      '<div class="hzt" aria-hidden="true"><span>3</span><span>10 weeks</span></div></div>';
+    var callCard = '<div class="card callc"><div class="cap2">' + esc(tradeLine()) + '</div>' + seg +
+      '<p class="dim note">Buy holds for the horizon. Don\'t buy takes no trade; you still see what happened.</p></div>';
+
+    $("main").innerHTML = hd + '<div class="stack"><div class="card pf">' + '<div id="pf"></div></div>' +
+      secPane(c, "call") + callCard + hz + '</div>';
+
+    var ov = [{ k: "close", box: c.closeBox }];
+    var t1 = trendOv(c.eng); if (t1) ov.push(t1);
+    drawChart(c, { overlays: ov, height: 200, compact: true });
+    if (showSector(c, "call")) {
+      var sov = [], t2 = trendOv(c.sec.eng); if (t2) sov.push(t2);
+      drawSector(c, { overlays: sov, height: Math.min(T.sectorHeight || 150, 130) });
+    }
+    var inp = $("horizon");
+    if (inp) {
+      inp.addEventListener("input", function () {
+        var v = parseInt(inp.value, 10);
+        if (typeof setHorizon === "function") setHorizon(v);
+        paintH();
+      });
+    }
     bar([
-      { act: "skip-order", label: "Skip order", kind: "out" },
-      { act: "place-order", label: "Place paper order", kind: "primary", disabled: !UI.order }
+      { act: "back-reading", label: "Review charts", kind: "out" },
+      { act: "confirm-call", label: "Confirm call", kind: "primary", disabled: !pick }
     ]);
   };
-  ACT["skip-order"] = function () { setOrder(null); go("evidence"); };
-  ACT["place-order"] = function () { if (!UI.order) return; setOrder(UI.order); go("evidence"); };
+  function paintH() {
+    var h = curH(), l = $("hLabel"), i = $("horizon");
+    if (l) l.textContent = weeksText(h);
+    if (i && String(i.value) !== String(h)) i.value = h;
+  }
+  function bumpH(d) {
+    if (typeof setHorizon === "function") setHorizon(curH() + d);
+    paintH();
+  }
+  ACT["h-down"] = function () { bumpH(-1); };
+  ACT["h-up"] = function () { bumpH(1); };
+  ACT["back-reading"] = function () {
+    if (S.cur && S.cur.reads) S.cur.i = S.cur.reads.length - 1;
+    UI.key = null;
+    go("marked");
+  };
+  ACT["confirm-call"] = function () {
+    if (!S.cur || !S.cur.call) return;
+    if (typeof confirmCall === "function") confirmCall();
+    UI.key = null;
+  };
 
-  /* ---------- evidence ---------- */
-  window.renderEvidence = function () {
+  /* ---------- outcome ---------- */
+  window.renderOutcome = function () {
     sync();
     clearTimer();
-    var c = ctx(), k = S.cur.step || 0, fwd = toBars(c.sh.fwd).slice(0, k);
+    var c = ctx(), h = curH();
+    var k = Math.max(0, Math.min(h, S.cur.k != null ? S.cur.k : (S.cur.step || 0)));
+    var fwd = c.sh.fwd ? toBars(c.sh.fwd).slice(0, k) : [];
     var all = c.bars.concat(fwd), eng = CSE.pnf(all);
     var closes = all.map(function (b) { return b.c; });
-    var show = { rsi: !!T.showRsi, macd: !!T.showMacd };
-    var R = c.reads;
-
-    var h = header(esc(S.cur.code) + " · Week +" + k + " of 10", "Readings done. Stepping one week per tap.", {});
-
-    var line = "";
-    if (R.R4) {
-      var objP = CSE.priceOf(R.R4.answer), hi = -1e9, reached = false;
-      fwd.forEach(function (b) { if (b.h > hi) hi = b.h; if (CSE.boxOf(b.h) >= R.R4.answer) reached = true; });
-      line = '<div class="line1 num"><b>Objective ' + esc(CSE.disp(objP)) + ':</b> ' + (reached ? "reached" : "not reached yet") +
-        (fwd.length ? ". High so far <b>" + esc(CSE.disp(hi)) + "</b>" : ". No weeks stepped yet") + '</div>';
+    var buy = S.cur.call === "Buy";
+    var ret = 0;
+    if (k > 0) {
+      if (c.sh.fwdRet && typeof c.sh.fwdRet[k - 1] === "number") ret = c.sh.fwdRet[k - 1];
+      else if (fwd[k - 1]) ret = fwd[k - 1].c / c.close - 1;
     }
+    var hd = header(esc(S.cur.code) + " · Outcome", buy ? "Buy, " + weeksText(h) : "Don't buy, " + weeksText(h), {});
 
-    var ov = [{ k: "close", box: CSE.boxOf(closes[closes.length - 1]) }];
-    if (R.R4) ov.push({ k: "line", box: R.R4.answer, label: "objective", style: "engine" });
-    try { ov.push({ k: "trend", segs: CSE.trend(eng).segs }); } catch (e) {}
+    var txt = "Week +" + k + " of " + h + " · " + (buy ? "return so far " : "price moved ") + fmtPct(ret) + (buy ? "" : " (no trade)");
+    var line = '<div class="card retc ' + retCls(ret) + '"><div class="retl num">' + esc(txt) + '</div>' +
+      '<div class="retw"><span class="rb">' + esc(buy ? retWord(ret) : (ret > 0 ? "Rose" : (ret < 0 ? "Fell" : "Flat"))) + '</span>' +
+      (k >= h ? '<span> · final, week +' + h + '</span>' : '') + '</div></div>';
 
-    var poText;
-    if (S.cur.order) {
-      var res = orderResult();
-      poText = "<b>Paper order:</b> " + esc(S.cur.order) + (res && res.text ? " · " + esc(res.text) : "");
-    } else poText = "<b>Paper order:</b> none placed";
-    var po = '<div class="card po"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 2l8 15H2z" fill="none" stroke="var(--x)" stroke-width="1.8" stroke-linejoin="round"/></svg><div class="t num">' + poText + '</div></div>';
+    var ov = [{ k: "entry", box: c.closeBox, label: "entry" }];
+    if (k > 0) ov.push({ k: "exit", col: eng.cols.length - 1, label: k >= h ? "exit" : "week +" + k });
+    var key = k > 0 ? '<span class="key"><svg viewBox="0 0 14 14"><rect x="1.5" y="1.5" width="11" height="11" fill="var(--x)" fill-opacity=".22" stroke="var(--x)"/><path d="M4.5 4.5l5 5M9.5 4.5l-5 5" stroke="var(--x)" stroke-width="1.6" stroke-linecap="round"/></svg>New in ' + k + ' week' + (k === 1 ? "" : "s") + '</span>' : '<span>Chart at your call</span>';
 
-    var rds = S.cur.reads, right = rds.filter(function (r) { return r.ok === true; }).length;
-    var list = rds.map(function (r) {
-      var good = r.ok === true;
-      return '<div class="mk ' + (good ? "good" : "bad") + '">' + (r.skipped ? ICON_SKIP : (good ? ICON_OK : ICON_NO)) +
-        '<span class="n">' + esc(CSE.NAMES[r.type] || r.type) + '</span><span class="r">' + (r.skipped ? "Skipped" : (good ? "Right" : "Marked wrong")) + '</span></div>';
-    }).join("");
-    var sum = '<div class="card"><div class="sh"><b>Readings ' + right + ' right of ' + rds.length + '</b><span class="dim num">this sheet</span></div>' +
-      '<div class="dots">' + marks(rds) + '</div>' + list + '</div>';
-    var ev = '<div class="card ev num">' + esc(evidenceLine()) + '</div>';
+    var sec = "";
+    var sk = c.sec ? c.sec.fwd.slice(0, k) : [], sall = c.sec ? c.sec.bars.concat(sk) : [];
+    if (c.sec && T.showSector) sec = '<div class="card pf secp"><div class="pfwrap" id="pfs"></div></div>';
 
-    var key = k > 0 ? '<span class="key"><svg viewBox="0 0 14 14"><rect x="1.5" y="1.5" width="11" height="11" fill="var(--x)" fill-opacity=".22" stroke="var(--x)"/><path d="M4.5 4.5l5 5M9.5 4.5l-5 5" stroke="var(--x)" stroke-width="1.6" stroke-linecap="round"/></svg>New in ' + k + ' week' + (k === 1 ? "" : "s") + '</span>' : '<span>Sheet week</span>';
-    $("main").innerHTML = h + '<div class="stack"><div class="card pf"><div class="cs">' + key + '<span class="num">Box 2% · 3-box reversal</span></div>' +
-      '<div class="pfwrap" id="pf"></div>' + line + '</div>' + paneHtml(show, closes) + po + sum + ev + '</div>';
+    $("main").innerHTML = hd + '<div class="stack">' + line +
+      '<div class="card pf"><div class="cs">' + key + '<span class="num">Box 2% · 3-box reversal</span></div><div class="pfwrap" id="pf"></div></div>' +
+      sec + '</div>';
 
-    drawChart(c, { bars: all, eng: eng, newFrom: k > 0 ? c.bars.length : null, overlays: ov });
-    drawPanes(show, closes, { newFrom: k > 0 ? c.bars.length : null });
-
-    var done = k >= 10;
+    drawChart(c, { bars: all, eng: eng, newFrom: k > 0 ? c.bars.length : null, overlays: ov, height: 260 });
+    if (sec) {
+      var seng = CSE.pnf(sall);
+      drawSector(c, { bars: sall, eng: seng, newFrom: k > 0 ? c.sec.bars.length : null, overlays: [] });
+    }
+    var done = k >= h;
     bar([
       { act: "copy-report", label: "Copy report", kind: "out" },
-      done ? { act: "finish", label: "Sheet summary", kind: "primary" } : { act: "advance", label: "Advance week", kind: "primary" }
+      done ? { act: "finish", label: "Chart summary", kind: "primary" } : { act: "advance", label: "Advance week", kind: "primary" }
     ]);
-    if (!done && T.evidenceAuto) {
-      UI.timer = setTimeout(function () {
-        UI.timer = null;
-        if (S.screen === "evidence" && S.cur && (S.cur.step || 0) === k) { advanceWeek(); render(); }
-      }, 700);
-    }
   };
   ACT.advance = function () { clearTimer(); advanceWeek(); render(); };
 })();
@@ -1600,9 +1878,10 @@ function openTweaks() {
 </script>
 <script>
 /* Chart School main: render dispatch, boot. */
-const BUILD = "cs-proto-2";
+const BUILD = "cs-v2-1";
 window.ACT = window.ACT || {};
-var SCREENS = {desk:'renderDesk', reading:'renderReading', marked:'renderMarked', order:'renderOrder', evidence:'renderEvidence', summary:'renderSummary', journal:'renderJournal'};
+/* SCREEN_FN (not SCREENS: store.js owns the SCREENS list used by its validator) */
+var SCREEN_FN = {desk:'renderDesk', reading:'renderReading', marked:'renderMarked', call:'renderCall', outcome:'renderOutcome', summary:'renderSummary', journal:'renderJournal', runend:'renderRunEnd'};
 ACT.back = function(){ go('desk'); }; /* admin default: back always returns to the desk; an open sheet stays open ("Continue sheet") */
 ACT.settings = function(){ if(typeof openTweaks === 'function') openTweaks(); };
 ACT.desk = ACT.desk || function(){ go('desk'); };
@@ -1616,32 +1895,25 @@ function applyLook(){
 }
 function render(){
   applyLook();
-  var scr = (typeof S !== 'undefined' && S && SCREENS[S.screen]) ? S.screen : 'desk';
+  var scr = (typeof S !== 'undefined' && S && SCREEN_FN[S.screen]) ? S.screen : 'desk';
   document.body.dataset.screen = scr;
   var main = $('main');
   try{
-    window[SCREENS[scr]]();
+    window[SCREEN_FN[scr]]();
   }catch(e){
     if(window.console) console.error(e);
     main.innerHTML = '<section class="card"><b>Something went wrong drawing this screen.</b><p class="dim">' + esc(e && e.message) + '</p></section>';
     bar([{act:'desk', label:'Desk', kind:'primary'}]);
   }
 }
-function sheetCount(){ return Array.isArray(SHEETS) ? SHEETS.length : (SHEETS && SHEETS.sheets ? SHEETS.sheets.length : 0); }
-function savedValid(){
-  try{
-    var n = sheetCount();
-    if(!S || !Array.isArray(S.order) || !S.order.length || !SCREENS[S.screen]) return false;
-    if(!S.order.every(function(i){ return i >= 0 && i < n; })) return false;
-    if(S.cur && !(S.cur.sheetIdx >= 0 && S.cur.sheetIdx < n && Array.isArray(S.cur.reads))) return false;
-    if(!S.cur && S.screen !== 'desk' && S.screen !== 'journal') return false;
-    return true;
-  }catch(e){ return false; }
+/* store.js validates saved state at load (v1 state migrates to a new run) and fixAfterLoad() repairs order / open chart */
+function needsNewRun(){
+  try{ return !S || !S.run || !Array.isArray(S.order) || !S.order.length || (S.cur && !curSheet()); }catch(e){ return true; }
 }
 var _rz = 0;
 window.addEventListener('resize', function(){ cancelAnimationFrame(_rz); _rz = requestAnimationFrame(render); });
 loadSheets().then(function(){
-  if(!savedValid()) newSession(T.seed);
+  if(needsNewRun()) newRun(T.seed);
   render();
 }).catch(function(e){
   if(window.console) console.error(e);

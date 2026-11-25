@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Independent solver for Chart School (Checker SOLVE). Written from CONTRACT.md text only
-// (CHARTING CONVENTIONS C1-C7, READING TYPES R1-R7). Does NOT load src/engine.js.
+// (CHARTING CONVENTIONS C1-C7, READING TYPES R1-R7; v2 adds S1/S2 = R1/R3 on the sector chart). Does NOT load src/engine.js.
 // Usage: node test/solver.test.js [sheets.json]   exit 1 if any type < 99% agreement.
 'use strict';
 const fs = require('fs');
@@ -137,6 +137,18 @@ function solve(sheet) {
     const line = tl.start + tl.dir * (N - 1 - tl.col), d = boxOf(c[W]) - line;
     out.R3 = tl.kind === 'BRL' ? 'Downtrend, below resistance' : d >= 3 ? 'Uptrend, 3+ boxes above support' : 'Uptrend, near support';
   }
+  // S1 / S2 (v2): R1 and R3 logic on the sector chart (sheet.sec.bars)
+  out.S1 = null; out.S2 = null;
+  if (sheet.sec && Array.isArray(sheet.sec.bars) && sheet.sec.bars.length) {
+    const sb = sheet.sec.bars.map((x) => ({ h: x[0], l: x[1], c: x[2] }));
+    const sc = pnf(sb), sN = sc.length;
+    out.S1 = r1(sc).ans;
+    const st = trend(sc);
+    if (st) {
+      const sl = st.start + st.dir * (sN - 1 - st.col), sd = boxOf(sb[sb.length - 1].c) - sl;
+      out.S2 = st.kind === 'BRL' ? 'Sector downtrend, below resistance' : sd >= 3 ? 'Sector uptrend, 3+ boxes above support' : 'Sector uptrend, near support';
+    }
+  }
   // R4 (C6)
   out.R4 = null;
   if (sig.ans === 'Double top buy' || sig.ans === 'Triple top buy') {
@@ -182,6 +194,7 @@ if (require.main === module) {
     const m = solve(sh), a = sh.ans, k2 = sh.r2key;
     const checks = [['R1', m.R1, a.R1], [k2, m[k2], a[k2]], ['R3', m.R3, a.R3],
       ['R4', m.R4, a.R4 == null ? null : a.R4], ['R5', m.R5, a.R5], ['R6', m.R6, a.R6], ['R7', m.R7, a.R7]];
+    if (sh.sec) checks.push(['S1', m.S1, a.S1 == null ? null : a.S1], ['S2', m.S2, a.S2 == null ? null : a.S2]);
     for (const [t, mine, theirs] of checks) {
       const key = t;
       const s = T(key); s.n++;
@@ -192,7 +205,7 @@ if (require.main === module) {
   }
   let fail = false;
   const rows = [];
-  for (const t of ['R1', 'R2', 'R2b', 'R3', 'R4', 'R5', 'R6', 'R7']) {
+  for (const t of ['R1', 'R2', 'R2b', 'R3', 'R4', 'R5', 'R6', 'R7', 'S1', 'S2']) {
     const s = stat[t]; if (!s) { rows.push(t + ' n=0'); continue; }
     const pct = 100 * s.ok / s.n;
     if (pct < 99) fail = true;
