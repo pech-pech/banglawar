@@ -1,0 +1,41 @@
+{
+  "gate": "pgs-layout-gate",
+  "version": 1,
+  "game": "windward-line",
+  "gameHash": "sha256:13fd5d3e859a22e59ab120986d19158d5e15b6c97f7d2feba38f920fdc3d43eb",
+  "commit": "f5d6454703e62e12da61c8961183778a2ba60ce0",
+  "createdAt": "2026-11-25T19:04:32.108Z",
+  "verdict": "PASS",
+  "sizes": [
+    "fold-cover-344x882",
+    "fold-cover-475x638",
+    "fold-open-704x823",
+    "fold-open-882x704",
+    "s23u-384x824",
+    "desk-1366x768",
+    "desk-1920x1080"
+  ],
+  "states": [
+    "plan-empty",
+    "plan-built",
+    "plan-stage2",
+    "run-early",
+    "run-mid",
+    "run-paused",
+    "callin-armed",
+    "result-win",
+    "result-fail",
+    "unlock",
+    "settings-open"
+  ],
+  "counts": {
+    "hard": 0,
+    "soft": 0,
+    "waived": 0,
+    "ignored": 0
+  },
+  "issues": [],
+  "waivers": [],
+  "notChecked": [],
+  "summary": "Layout gate: PASS, 7 sizes x 11 states, 0 fail, 0 soft, 0 waived"
+}
