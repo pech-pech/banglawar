@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+<rect width="512" height="512" fill="#0b0e14"/>
+<g stroke="#1c2433" stroke-width="3" fill="none"><path d="M136 61V421"/><path d="M196 61V421"/><path d="M256 61V421"/><path d="M316 61V421"/><path d="M376 61V421"/><path d="M136 61H376"/><path d="M136 121H376"/><path d="M136 181H376"/><path d="M136 241H376"/><path d="M136 301H376"/><path d="M136 361H376"/><path d="M136 421H376"/></g>
+<path d="M166 421L346 241" stroke="#8a97b2" stroke-width="8" stroke-linecap="round"/>
+<g fill="none" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"><circle cx="166" cy="331" r="20.16" stroke="#ff9f43"/><circle cx="166" cy="271" r="20.16" stroke="#ff9f43"/><path d="M206.8 251.8L245.2 290.2M245.2 251.8L206.8 290.2" stroke="#4da3ff"/><path d="M206.8 191.8L245.2 230.2M245.2 191.8L206.8 230.2" stroke="#4da3ff"/><path d="M206.8 131.8L245.2 170.2M245.2 131.8L206.8 170.2" stroke="#4da3ff"/><circle cx="286" cy="211" r="20.16" stroke="#ff9f43"/><circle cx="286" cy="151" r="20.16" stroke="#ff9f43"/><path d="M326.8 191.8L365.2 230.2M365.2 191.8L326.8 230.2" stroke="#4da3ff"/><path d="M326.8 131.8L365.2 170.2M365.2 131.8L326.8 170.2" stroke="#4da3ff"/><path d="M326.8 71.8L365.2 110.2M365.2 71.8L326.8 110.2" stroke="#4da3ff"/></g>
+</svg>

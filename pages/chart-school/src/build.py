@@ -15,10 +15,9 @@ for m in ('<!--STYLE-->', '<!--SCRIPTS-->'):
 css = rd('pro.css') + '\n' + rd('style.css')
 style = '<style>\n' + css + '\n</style>'
 scripts = '\n'.join('<script>\n' + rd(n).replace('</script', '<\\/script') + '\n</script>' for n in SCRIPTS)
-head = ('<link rel="manifest" href="manifest.webmanifest">\n<meta name="theme-color" content="#0b0e14">\n'
+head = ('<meta name="pgs-build" content="__PGS_BUILD__">\n<script src="../_shared/update.js" defer></script>\n<link rel="manifest" href="manifest.webmanifest">\n<meta name="theme-color" content="#0b0e14">\n'
         '<link rel="icon" href="icon-192.png">\n<link rel="apple-touch-icon" href="icon-192.png">\n')
-sw = ('<script>if("serviceWorker"in navigator)addEventListener("load",function(){'
-      'navigator.serviceWorker.register("sw.js").catch(function(){})});</script>\n')
+sw = ''  # SW registration lives in ../_shared/update.js (PR #124 shared core)
 html = shell.replace('<!--STYLE-->', head + style).replace('<!--SCRIPTS-->', scripts + '\n' + sw)
 open(OUT, 'w', encoding='utf-8').write(html)
 print('wrote %s (%.1f KB)' % (os.path.normpath(OUT), len(html.encode('utf-8')) / 1024))

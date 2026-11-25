@@ -1,7 +1,8 @@
 /* Chart School main: render dispatch, boot. */
-const BUILD = "cs-proto-1";
+const BUILD = "cs-v2-1";
 window.ACT = window.ACT || {};
-var SCREENS = {desk:'renderDesk', reading:'renderReading', marked:'renderMarked', order:'renderOrder', evidence:'renderEvidence', summary:'renderSummary', journal:'renderJournal'};
+/* SCREEN_FN (not SCREENS: store.js owns the SCREENS list used by its validator) */
+var SCREEN_FN = {desk:'renderDesk', reading:'renderReading', marked:'renderMarked', call:'renderCall', outcome:'renderOutcome', summary:'renderSummary', journal:'renderJournal', runend:'renderRunEnd'};
 ACT.back = function(){ go('desk'); }; /* admin default: back always returns to the desk; an open sheet stays open ("Continue sheet") */
 ACT.settings = function(){ if(typeof openTweaks === 'function') openTweaks(); };
 ACT.desk = ACT.desk || function(){ go('desk'); };
@@ -15,32 +16,25 @@ function applyLook(){
 }
 function render(){
   applyLook();
-  var scr = (typeof S !== 'undefined' && S && SCREENS[S.screen]) ? S.screen : 'desk';
+  var scr = (typeof S !== 'undefined' && S && SCREEN_FN[S.screen]) ? S.screen : 'desk';
   document.body.dataset.screen = scr;
   var main = $('main');
   try{
-    window[SCREENS[scr]]();
+    window[SCREEN_FN[scr]]();
   }catch(e){
     if(window.console) console.error(e);
     main.innerHTML = '<section class="card"><b>Something went wrong drawing this screen.</b><p class="dim">' + esc(e && e.message) + '</p></section>';
     bar([{act:'desk', label:'Desk', kind:'primary'}]);
   }
 }
-function sheetCount(){ return Array.isArray(SHEETS) ? SHEETS.length : (SHEETS && SHEETS.sheets ? SHEETS.sheets.length : 0); }
-function savedValid(){
-  try{
-    var n = sheetCount();
-    if(!S || !Array.isArray(S.order) || !S.order.length || !SCREENS[S.screen]) return false;
-    if(!S.order.every(function(i){ return i >= 0 && i < n; })) return false;
-    if(S.cur && !(S.cur.sheetIdx >= 0 && S.cur.sheetIdx < n && Array.isArray(S.cur.reads))) return false;
-    if(!S.cur && S.screen !== 'desk' && S.screen !== 'journal') return false;
-    return true;
-  }catch(e){ return false; }
+/* store.js validates saved state at load (v1 state migrates to a new run) and fixAfterLoad() repairs order / open chart */
+function needsNewRun(){
+  try{ return !S || !S.run || !Array.isArray(S.order) || !S.order.length || (S.cur && !curSheet()); }catch(e){ return true; }
 }
 var _rz = 0;
 window.addEventListener('resize', function(){ cancelAnimationFrame(_rz); _rz = requestAnimationFrame(render); });
 loadSheets().then(function(){
-  if(!savedValid()) newSession(T.seed);
+  if(needsNewRun()) newRun(T.seed);
   render();
 }).catch(function(e){
   if(window.console) console.error(e);
