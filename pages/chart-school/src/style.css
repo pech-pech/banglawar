@@ -165,3 +165,13 @@ body.hc .btn.primary{color:#000}
 /* integrator: return colours used by screens-a (retCls good/bad on totals and trade rows) */
 .code.good,b.good,span.good{color:var(--x)}.code.bad,b.bad,span.bad{color:var(--o)}
 .mk .r b{font-weight:700}
+/* integrator: top line never wraps (build stamp can be long) */
+.top{gap:8px;white-space:nowrap;overflow:hidden}
+.top>span:first-child{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis}
+.top>span.num{flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis}
+/* integrator: runend trade list, one line per trade */
+.trl{display:flex;align-items:center;gap:10px;min-height:40px;border-bottom:1px solid var(--line);font-size:14px}
+.trl:last-child{border-bottom:0}
+.trl .n{flex:1;min-width:0}.trl .w{color:var(--dim);font-size:13px}.trl b{min-width:64px;text-align:right}
+/* integrator: summary call/return card spans the width */
+.po{flex-wrap:wrap}.po>.sh,.po>.dim{flex:1 1 100%}.po>.sh{margin:0}

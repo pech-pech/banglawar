@@ -207,6 +207,16 @@ body.hc .btn.primary{color:#000}
 /* integrator: return colours used by screens-a (retCls good/bad on totals and trade rows) */
 .code.good,b.good,span.good{color:var(--x)}.code.bad,b.bad,span.bad{color:var(--o)}
 .mk .r b{font-weight:700}
+/* integrator: top line never wraps (build stamp can be long) */
+.top{gap:8px;white-space:nowrap;overflow:hidden}
+.top>span:first-child{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis}
+.top>span.num{flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis}
+/* integrator: runend trade list, one line per trade */
+.trl{display:flex;align-items:center;gap:10px;min-height:40px;border-bottom:1px solid var(--line);font-size:14px}
+.trl:last-child{border-bottom:0}
+.trl .n{flex:1;min-width:0}.trl .w{color:var(--dim);font-size:13px}.trl b{min-width:64px;text-align:right}
+/* integrator: summary call/return card spans the width */
+.po{flex-wrap:wrap}.po>.sh,.po>.dim{flex:1 1 100%}.po>.sh{margin:0}
 
 </style>
 </head><body>
@@ -512,7 +522,7 @@ var STEP_TYPES = ["R2", "R2b", "R4"];
 var CALLS = ["Buy", "Don't buy"];
 var DEFAULTS = {
   showRsi: 1, showMacd: 1, showColNums: 0, chartCols: 24, readingOrder: "fixed", evidenceAuto: 0,
-  showBaseNote: 1, horizonDefault: 6, runTrades: 10, runCharts: 20, showSector: 1, sectorHeight: 150,
+  showBaseNote: 1, horizonDefault: 6, runTrades: 10, runCharts: 20, showSector: 1, sectorHeight: 180, /* integrator: 150 -> 180 (sector legibility, admin default) */
   textSize: 1.0, highContrast: 0, seed: 48213
 };
 var SHEETS = [], META = {}, RESTORED = false;
@@ -980,6 +990,8 @@ function openTweaks() {
     var pw = W - AX;
     var HT = Math.max(100, +opt.height || 300), compact = !!opt.compact, TT = opt.title ? 14 : 0;
     var FS = compact ? 9 : 11; // axis font
+    var MINC = +opt.minCell || 0, MAXH = Math.max(HT, +opt.maxHeight || HT);
+    var NMAX = Math.max(N0, +opt.maxCols || Math.round(N0 * 1.5)); // spare width shows more columns, but not without limit (more columns = more rows = tinier cells)
     clear(host);
     if (!nCols) { var s0 = el(host, "svg", { width: W, height: 40, viewBox: "0 0 " + W + " 40", role: "img", "aria-label": "Empty point and figure chart" }); return s0; }
 
@@ -998,18 +1010,27 @@ function openTweaks() {
       inc(opt.pick);
       top = hi + 2; bot = lo - 2; rows = top - bot + 1;
       // plot height budget = height - top pad 6 - title strip - column axis 26 (default 300 -> 268, as v1)
-      ch = Math.min((HT - 32 - TT) / rows, 14);
+      var avail = HT - 32 - TT;
+      ch = Math.min(avail / rows, 14);
+      // integrator: legibility floor. When many rows would make cells tiny, grow the chart up to opt.maxHeight.
+      if (MINC && ch < MINC) ch = Math.min(Math.max(avail, Math.min(MAXH - 32 - TT, rows * MINC)) / rows, 14);
     }
     range();
     for (it = 0; it < 4; it++) {
       cell = Math.min(pw / N0, ch);
-      var nN = Math.max(N0, Math.floor(pw / cell + 1e-6));
+      var nN = Math.min(NMAX, Math.max(N0, Math.floor(pw / cell + 1e-6)));
       if (nN === N) break;
       N = nN; range();
     }
     cell = Math.min(pw / N0, ch);
-    N = Math.max(N0, Math.floor(pw / cell + 1e-6));
+    N = Math.min(NMAX, Math.max(N0, Math.floor(pw / cell + 1e-6)));
+    if (N !== nN) range(); // keep rows in step with the columns actually shown
+    cell = Math.min(pw / N0, ch);
     first = Math.max(0, nCols - N);
+    // integrator: when cells are height-bound, fill spare width with older columns that fit the current rows (no new rows)
+    var fitN = Math.floor(pw / cell + 1e-6);
+    while (first > 0 && nCols - first < fitN && cols[first - 1].lo >= lo && cols[first - 1].hi <= hi) first--;
+    N = Math.max(N, nCols - first);
     ch = cell; var c = cell;
     var nTop = 0, nBot = 0;
     ovs.forEach(function (o) { if (o.k === "row" || o.k === "line") { if (o.box > top) nTop++; else if (o.box < bot) nBot++; } });
@@ -1020,7 +1041,7 @@ function openTweaks() {
     function cy(b) { return ty(b) + ch / 2; }
     function cx(j) { return pw - (nCols - j) * c; }  // last column always meets the axis  // left edge of column j
 
-    var s = el(host, "svg", { width: W, height: H, viewBox: "0 0 " + W + " " + H, role: "img",
+    var s = el(host, "svg", { "data-cell": f1(c), "data-rows": rows, width: W, height: H, viewBox: "0 0 " + W + " " + H, role: "img",
       "aria-label": "Point and figure chart, " + nCols + " columns, box 2 percent, last " + disp(cols[nCols - 1].d === 1 ? cols[nCols - 1].hi : cols[nCols - 1].lo) });
     if (opt.title) el(s, "text", { x: 4, y: 8, "dominant-baseline": "central", "font-size": 11, "font-weight": 600, fill: "var(--dim)" }, opt.title);
     var g = el(s, "g", { transform: "translate(0," + OY + ")" });
@@ -1068,19 +1089,19 @@ function openTweaks() {
     });
 
     // boxes
-    var gl = Math.min(c, ch), ins = Math.max(2.5, gl * 0.2);
+    var gl = Math.min(c, ch), ins = Math.max(Math.min(2.5, gl * 0.3), gl * 0.2); // small cells keep a visible glyph (no negative radius)
     for (j = first; j < nCols; j++) {
       var col = cols[j], isX = col.d === 1, clr = isX ? "var(--x)" : "var(--o)";
       for (var b = col.lo; b <= col.hi; b++) {
         var bx = cx(j), by = ty(b);
         var fresh = opt.newFrom != null && wk[j + ":" + b] != null && wk[j + ":" + b] >= opt.newFrom;
         var gx = bx + (c - gl) / 2, gy = by + (ch - gl) / 2;
-        if (fresh) el(g, "rect", { x: f1(bx + 1.5), y: f1(by + 1.5), width: f1(c - 2), height: f1(ch - 2), fill: clr, "fill-opacity": 0.22, stroke: clr, "stroke-width": 1 });
+        if (fresh) el(g, "rect", { x: f1(bx + 1.5), y: f1(by + 1.5), width: f1(Math.max(0.5, c - 2)), height: f1(Math.max(0.5, ch - 2)), fill: clr, "fill-opacity": 0.22, stroke: clr, "stroke-width": 1 });
         if (isX) {
           el(g, "path", { d: "M" + f1(gx + ins + 1) + " " + f1(gy + ins + 1) + "L" + f1(gx + gl - ins) + " " + f1(gy + gl - ins) + "M" + f1(gx + gl - ins) + " " + f1(gy + ins + 1) + "L" + f1(gx + ins + 1) + " " + f1(gy + gl - ins),
             stroke: clr, "stroke-width": fresh ? 2.2 : 1.8, "stroke-linecap": "round", fill: "none" });
         } else {
-          el(g, "circle", { cx: f1(bx + c / 2 + 0.5), cy: f1(by + ch / 2 + 0.5), r: f1((gl - 2 * ins) / 2), stroke: clr, "stroke-width": fresh ? 2.2 : 1.8, fill: "none" });
+          el(g, "circle", { cx: f1(bx + c / 2 + 0.5), cy: f1(by + ch / 2 + 0.5), r: f1(Math.max(0.8, (gl - 2 * ins) / 2)), stroke: clr, "stroke-width": fresh ? 2.2 : 1.8, fill: "none" });
         }
       }
     }
@@ -1103,7 +1124,7 @@ function openTweaks() {
         }
         var y = cy(o.box);
         if (o.k === "row") {
-          el(g, "rect", { x: 0.5, y: f1(ty(o.box) + 0.5), width: f1(pw - 1), height: f1(ch - 1), rx: 2, fill: eng2 ? "var(--text)" : "none", "fill-opacity": 0.1,
+          el(g, "rect", { x: 0.5, y: f1(ty(o.box) + 0.5), width: f1(pw - 1), height: f1(Math.max(0.5, ch - 1)), rx: 2, fill: eng2 ? "var(--text)" : "none", "fill-opacity": 0.1,
             stroke: eng2 ? "var(--text)" : "var(--dim)", "stroke-width": eng2 ? 1.6 : 1.3, "stroke-dasharray": eng2 ? null : "1.5 3" });
         } else {
           el(g, "line", eng2 ? { x1: 0, y1: f1(y), x2: f1(pw), y2: f1(y), stroke: "var(--text)", "stroke-width": 1.8, "stroke-dasharray": "6 3.5" }
@@ -1410,8 +1431,8 @@ function openTweaks() {
     var best = bestOf();
     var isBest = best && num(best.ret) !== null && Math.abs(best.ret - total) < 1e-9;
     var list = tr.length ? tr.map(function (t, i) {
-      return '<div class="mk ' + retCls(t.ret) + '"><span class="n num">' + (i + 1) + '. ' + esc(t.code || '---') + '</span>' +
-        '<span class="r num"><span>' + esc(t.h || '?') + ' weeks</span><b>' + esc(fmtRet(t.ret) || '--') + '</b></span></div>';
+      return '<div class="trl num"><span class="n">' + (i + 1) + '. ' + esc(t.code || '---') + '</span>' +
+        '<span class="w">' + esc(t.h || '?') + ' weeks</span><b class="' + retCls(t.ret) + '">' + esc(fmtRet(t.ret) || '--') + '</b></div>';
     }).join('') : '<p class="dim" style="margin:0">No trades in this run.</p>';
     $('main').innerHTML = header('Run complete', tr.length + ' trades over ' + (run.charts || 0) + ' charts', {}) +
       '<section class="card next" aria-label="Run result"><div class="cap">Total return</div>' +
@@ -1567,7 +1588,8 @@ function openTweaks() {
       var op = {
         bars: o.bars || c.bars, eng: o.eng || c.eng, newFrom: o.newFrom == null ? null : o.newFrom,
         cols: T.chartCols || 24, showColNums: !!T.showColNums, overlays: o.overlays || [],
-        pick: o.pick == null ? null : o.pick, onRow: o.onRow || null, height: o.height || 300
+        pick: o.pick == null ? null : o.pick, onRow: o.onRow || null, height: o.height || 300,
+        minCell: 7, maxHeight: o.maxHeight || Math.round((o.height || 300) * 1.4) /* integrator: legibility floor */
       };
       if (o.compact) op.compact = true;
       drawPnf(host, op);
@@ -1580,8 +1602,9 @@ function openTweaks() {
     safe(host, function () {
       drawPnf(host, {
         bars: o.bars || c.sec.bars, eng: o.eng || c.sec.eng, newFrom: o.newFrom == null ? null : o.newFrom,
-        cols: T.chartCols || 24, showColNums: false, overlays: o.overlays || [],
-        height: o.height || T.sectorHeight || 150, compact: true, title: "Sector · " + c.sec.name
+        cols: Math.min(T.chartCols || 24, 16), showColNums: false, overlays: o.overlays || [], /* integrator: 16 sector cols max, legibility */
+        height: o.height || T.sectorHeight || 180, compact: true, title: "Sector · " + c.sec.name,
+        minCell: 6, maxHeight: Math.max(o.height || T.sectorHeight || 180, 260), maxCols: 20
       });
     });
   }
@@ -1782,14 +1805,14 @@ function openTweaks() {
       '<p class="dim note">Buy keeps the trade open for the horizon. Don\'t buy takes no trade; you still see what happened.</p></div>';
 
     $("main").innerHTML = hd + '<div class="stack"><div class="card pf">' + '<div id="pf"></div></div>' +
-      secPane(c, "call") + callCard + hz + '</div>';
+      callCard + hz + secPane(c, "call") + "</div>"; /* integrator: controls above the fold at 344x882; sector chart below them */
 
     var ov = [{ k: "close", box: c.closeBox }];
     var t1 = trendOv(c.eng); if (t1) ov.push(t1);
-    drawChart(c, { overlays: ov, height: 200, compact: true });
+    drawChart(c, { overlays: ov, height: 220, maxHeight: 290, compact: true });
     if (showSector(c, "call")) {
       var sov = [], t2 = trendOv(c.sec.eng); if (t2) sov.push(t2);
-      drawSector(c, { overlays: sov, height: Math.min(T.sectorHeight || 150, 130) });
+      drawSector(c, { overlays: sov, height: Math.min(T.sectorHeight || 180, 150) });
     }
     var inp = $("horizon");
     if (inp) {

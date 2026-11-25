@@ -96,7 +96,8 @@
       var op = {
         bars: o.bars || c.bars, eng: o.eng || c.eng, newFrom: o.newFrom == null ? null : o.newFrom,
         cols: T.chartCols || 24, showColNums: !!T.showColNums, overlays: o.overlays || [],
-        pick: o.pick == null ? null : o.pick, onRow: o.onRow || null, height: o.height || 300
+        pick: o.pick == null ? null : o.pick, onRow: o.onRow || null, height: o.height || 300,
+        minCell: 7, maxHeight: o.maxHeight || Math.round((o.height || 300) * 1.4) /* integrator: legibility floor */
       };
       if (o.compact) op.compact = true;
       drawPnf(host, op);
@@ -109,8 +110,9 @@
     safe(host, function () {
       drawPnf(host, {
         bars: o.bars || c.sec.bars, eng: o.eng || c.sec.eng, newFrom: o.newFrom == null ? null : o.newFrom,
-        cols: T.chartCols || 24, showColNums: false, overlays: o.overlays || [],
-        height: o.height || T.sectorHeight || 150, compact: true, title: "Sector · " + c.sec.name
+        cols: Math.min(T.chartCols || 24, 16), showColNums: false, overlays: o.overlays || [], /* integrator: 16 sector cols max, legibility */
+        height: o.height || T.sectorHeight || 180, compact: true, title: "Sector · " + c.sec.name,
+        minCell: 6, maxHeight: Math.max(o.height || T.sectorHeight || 180, 260), maxCols: 20
       });
     });
   }
@@ -311,14 +313,14 @@
       '<p class="dim note">Buy keeps the trade open for the horizon. Don\'t buy takes no trade; you still see what happened.</p></div>';
 
     $("main").innerHTML = hd + '<div class="stack"><div class="card pf">' + '<div id="pf"></div></div>' +
-      secPane(c, "call") + callCard + hz + '</div>';
+      callCard + hz + secPane(c, "call") + "</div>"; /* integrator: controls above the fold at 344x882; sector chart below them */
 
     var ov = [{ k: "close", box: c.closeBox }];
     var t1 = trendOv(c.eng); if (t1) ov.push(t1);
-    drawChart(c, { overlays: ov, height: 200, compact: true });
+    drawChart(c, { overlays: ov, height: 220, maxHeight: 290, compact: true });
     if (showSector(c, "call")) {
       var sov = [], t2 = trendOv(c.sec.eng); if (t2) sov.push(t2);
-      drawSector(c, { overlays: sov, height: Math.min(T.sectorHeight || 150, 130) });
+      drawSector(c, { overlays: sov, height: Math.min(T.sectorHeight || 180, 150) });
     }
     var inp = $("horizon");
     if (inp) {

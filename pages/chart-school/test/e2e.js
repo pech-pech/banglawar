@@ -43,6 +43,7 @@ async function look(page, tag, label, shot) {
       const h = el.getBoundingClientRect().height;
       if (h < 47.5) out.small.push((el.dataset.act || el.dataset.opt || el.id || el.textContent.trim()).slice(0, 30) + '=' + Math.round(h));
     });
+    out.tiny = [...document.querySelectorAll('#pfs svg[data-cell]')].map(s => +s.dataset.cell).filter(c => c < 3);
     document.querySelectorAll('#main svg').forEach(s => {
       const b = s.getBoundingClientRect();
       if (b.right > window.innerWidth + 0.5 || b.left < -0.5) out.wide.push(Math.round(b.left) + '..' + Math.round(b.right));
@@ -56,6 +57,7 @@ async function look(page, tag, label, shot) {
   }, FORBIDDEN.source);
   ok(r.overflow <= 0, `${tag} ${label}: horizontal overflow ${r.overflow}px`);
   ok(r.wide.length === 0, `${tag} ${label}: svg outside viewport ${r.wide.join(', ')}`);
+  ok(!r.tiny.length, `${tag} ${label}: sector chart cells under 3px: ${r.tiny.join(', ')}`);
   ok(r.small.length === 0, `${tag} ${label}: controls under 48px: ${r.small.join(', ')}`);
   ok(r.bad.length === 0, `${tag} ${label}: bad text ${r.bad.join(', ')}`);
   ok(r.forb.length === 0, `${tag} ${label}: forbidden words ${r.forb.join(', ')}`);
@@ -222,7 +224,7 @@ async function migration(browser, base, size) {
 
 async function run(browser, base, size) {
   const tag = size.w + 'x' + size.h;
-  const shots = size.w === 344;
+  const shots = true; // 344x882 is the required set; 475x638 kept for comparison
   console.log('== ' + tag);
   const { ctx, page, errs } = await newPage(browser, base, size);
   await page.goto(base + 'index.html');

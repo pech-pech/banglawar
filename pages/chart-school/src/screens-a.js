@@ -120,8 +120,8 @@
     var best = bestOf();
     var isBest = best && num(best.ret) !== null && Math.abs(best.ret - total) < 1e-9;
     var list = tr.length ? tr.map(function (t, i) {
-      return '<div class="mk ' + retCls(t.ret) + '"><span class="n num">' + (i + 1) + '. ' + esc(t.code || '---') + '</span>' +
-        '<span class="r num"><span>' + esc(t.h || '?') + ' weeks</span><b>' + esc(fmtRet(t.ret) || '--') + '</b></span></div>';
+      return '<div class="trl num"><span class="n">' + (i + 1) + '. ' + esc(t.code || '---') + '</span>' +
+        '<span class="w">' + esc(t.h || '?') + ' weeks</span><b class="' + retCls(t.ret) + '">' + esc(fmtRet(t.ret) || '--') + '</b></div>';
     }).join('') : '<p class="dim" style="margin:0">No trades in this run.</p>';
     $('main').innerHTML = header('Run complete', tr.length + ' trades over ' + (run.charts || 0) + ' charts', {}) +
       '<section class="card next" aria-label="Run result"><div class="cap">Total return</div>' +

@@ -8,7 +8,7 @@ var STEP_TYPES = ["R2", "R2b", "R4"];
 var CALLS = ["Buy", "Don't buy"];
 var DEFAULTS = {
   showRsi: 1, showMacd: 1, showColNums: 0, chartCols: 24, readingOrder: "fixed", evidenceAuto: 0,
-  showBaseNote: 1, horizonDefault: 6, runTrades: 10, runCharts: 20, showSector: 1, sectorHeight: 150,
+  showBaseNote: 1, horizonDefault: 6, runTrades: 10, runCharts: 20, showSector: 1, sectorHeight: 180, /* integrator: 150 -> 180 (sector legibility, admin default) */
   textSize: 1.0, highContrast: 0, seed: 48213
 };
 var SHEETS = [], META = {}, RESTORED = false;
