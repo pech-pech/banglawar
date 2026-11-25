@@ -29,7 +29,7 @@ export function createState(stage, cfg, seed) {
     money: S.money, spent: 0,
     counts: { people0: S.people, safe: 0, lost: 0, burning: 0, burnt: 0, inZone: 0 },
     events: [], firstBreach: null, spotIndex: 0, nextSpotTick: S.newSpotEvery > 0 ? secToTicks(cfg, S.newSpotEvery) : Infinity, quietTicks: 0,
-    inputs: [], result: null,
+    inputs: [], replay: [], result: null,
     _sprayHits: new Uint8Array(N),
   };
 }
@@ -167,6 +167,8 @@ function crewStep(state, refillNow) {
 export function step(state) {
   if (state.phase !== PHASE.RUN) return;
   const { cfg, wind, map } = state, S = STAGES[state.stage];
+  // 0 replay: re-queue recorded live call-ins at their original tick (retry / edit plan), before wind and resolution
+  if (state.replay && state.replay.length) for (const r of state.replay) if (r.tick === state.tick) queueCallin(state, r.type, r.x, r.y);
   // 1 wind
   if (wind.shiftAtTick != null && !wind.shifted) {
     const warnAt = Math.max(0, wind.shiftAtTick - secToTicks(cfg, cfg.forecastLeadSec));

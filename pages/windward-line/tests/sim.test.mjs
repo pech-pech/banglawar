@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createState, startRun, runToEnd, hashState, causeLine } from '../js/sim.js';
+import { createState, startRun, step, queueCallin, runToEnd, hashState, causeLine } from '../js/sim.js';
 import { buildMap, validateMap } from '../js/map.js';
 import { defaultCfg, STAGES } from '../js/contract.js';
 import { applyPlan, runBot, idlePlan, naivePlan, skilledPlan } from './plans.mjs';
@@ -22,10 +22,50 @@ test('run finishes under 20000 ticks', () => {
   }
 });
 
-test('same seed + plan -> same hash; changed plan -> different hash', () => {
+test('same seed + plan -> same hash', () => {
   assert.equal(hashOf(1, 5), hashOf(1, 5));
-  const extra = (s) => [{ t: 'break', x0: 20, y0: 80, x1: 30, y1: 80, width: 1 }]; // cheap, money changes the hash
-  assert.notEqual(hashOf(1, 5), hashOf(1, 5, extra));
+});
+
+// cost-neutral change: the same 31-cell break moved 6 rows, money equal, so only the fire/people outcome can differ
+test('cost-neutral plan change -> different hash and different outcome on some seed 1..5', () => {
+  const run = (seed, y) => {
+    const s = createState(1, defaultCfg, seed);
+    applyPlan(s, skilledPlan(s).slice(0, 3));
+    const rej = applyPlan(s, [{ t: 'break', x0: 30, y0: y, x1: 60, y1: y, width: 1 }]);
+    assert.equal(rej.length, 0);
+    startRun(s); runToEnd(s, 20000);
+    return { hash: hashState(s), pct: s.result.pct, burnt: s.counts.burnt, money: Math.round(s.money) };
+  };
+  let diffHash = 0, diffOutcome = 0;
+  for (let seed = 1; seed <= 5; seed++) {
+    const a = run(seed, 50), b = run(seed, 56);
+    assert.equal(a.money, b.money, 'money must be equal');
+    if (a.hash !== b.hash) diffHash++;
+    if (a.pct !== b.pct || a.burnt !== b.burnt) diffOutcome++;
+  }
+  assert.ok(diffHash >= 1, 'hash differs on at least one seed');
+  assert.ok(diffOutcome >= 1, 'pct or burnt differs on at least one seed');
+});
+
+test('retry: same seed + plan + replayed inputs -> same hash', () => {
+  const play = (replay) => {
+    const s = createState(1, defaultCfg, 3);
+    applyPlan(s, skilledPlan(s));
+    if (replay) s.replay = replay.map((r) => ({ ...r }));
+    startRun(s);
+    for (let n = 0; s.phase === 'run' && n < 20000; n++) {
+      if (!replay && (s.tick === 30 || s.tick === 80)) queueCallin(s, 'bomber', 48, 60 + (s.tick > 50 ? 10 : 0));
+      step(s);
+    }
+    return s;
+  };
+  const a = play(null);
+  assert.equal(a.inputs.length, 2, 'two live call-ins recorded');
+  const b = play(a.inputs);
+  assert.deepEqual(b.inputs, a.inputs, 'replay re-records identical inputs');
+  assert.equal(hashState(b), hashState(a));
+  const c = play([]); // no inputs = different run
+  assert.notEqual(hashState(c), hashState(a));
 });
 
 test('idle stage 2 loss rate (tuning target >= 95%)', () => {
@@ -77,4 +117,28 @@ test('win line reads as one line with losses', () => {
   const r = runBot('skilled', 1, 1);
   console.log('win line:', r.result.cause);
   if (r.result.win) assert.match(r.result.cause, /^Passed: \d+% alive( \(\d+ lost\)(\. First loss: [a-z-]+ at \d+:\d\d)?)?$/);
+});
+
+// per-kind causeLine, synthetic event lists (stage 1 state, positions chosen per side)
+test('causeLine per kind', () => {
+  const mk = (pct, events, zones = [{}]) => {
+    const s = createState(1, defaultCfg, 1);
+    s.zones = zones; s._pct = pct; s.counts.alive = pct; s.counts.people0 = 100;
+    for (const e of events) {
+      const ev = { tick: 100, x: 48, y: 20, text: '', ...e }; s.events.push(ev);
+      if (!s.firstBreach && ['break-breach', 'ember-jump', 'gate-closed', 'zone-hit', 'road-cut'].includes(ev.kind)) s.firstBreach = ev;
+    }
+    return causeLine(s);
+  };
+  const loss = { kind: 'first-loss', tick: 120 };
+  assert.match(mk(20, [{ kind: 'wind-shift', tick: 50 }, { kind: 'break-breach' }, loss]), /^Wind shift hit [a-z-]+ break at \d+:\d\d$/);
+  assert.match(mk(20, [{ kind: 'break-breach' }, loss]), /^Fire broke the [a-z-]+ break at \d+:\d\d$/);
+  assert.match(mk(20, [{ kind: 'ember-jump' }, loss]), /^Embers jumped the [a-z-]+ break at \d+:\d\d$/);
+  assert.match(mk(20, [{ kind: 'zone-hit' }, loss]), /^Embers reached the [a-z-]+ shelter at \d+:\d\d$/);
+  assert.match(mk(20, [{ kind: 'road-cut' }, loss]), /^Road cut [a-z-]+ at \d+:\d\d$/);
+  assert.match(mk(20, [{ kind: 'gate-closed' }, loss]), /^Gate closed at the [a-z-]+ shelter at \d+:\d\d$/);
+  assert.match(mk(20, [loss], []), /^No shelter: fire reached people in the [a-z-]+ at \d+:\d\d$/);
+  assert.match(mk(20, [loss]), /^Fire reached people in the [a-z-]+ at \d+:\d\d, no shelter near$/);
+  assert.match(mk(64, [loss]), /^Passed: 64% alive \(36 lost\)\. First loss: [a-z-]+ at \d+:\d\d$/);
+  assert.equal(mk(100, []), 'Passed: 100% alive');
 });

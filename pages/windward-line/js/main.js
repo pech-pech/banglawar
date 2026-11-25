@@ -66,7 +66,10 @@ function newState(st, sd) {
 }
 function rebuildSame(keepPlan) {
   const old = state.plan.slice();
+  // replay live call-ins from the last run (admin default: edit plan + START replays them too)
+  const replay = (state.inputs && state.inputs.length ? state.inputs : (state.replay || [])).map((r) => ({ tick: r.tick, type: r.type, x: r.x, y: r.y }));
   state = createState(state.stage, cfg, state.seed);
+  state.replay = replay;
   stage = state.stage;
   for (const a of old) applyAction(state, a);
   clearInteraction();

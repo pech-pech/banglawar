@@ -70,7 +70,7 @@ export function installTestHook(WL) {
     const r = s.result;
     if (win && !(r && r.win)) {
       // admin default fallback: force a representative win so the result sheet is always reachable.
-      s.result = { win: true, pct: 62, stars: 1, cause: 'Held: 62% alive', hash: 0, sec: 88 };
+      s.result = { win: true, pct: 62, stars: 1, cause: 'Passed: 62% alive (38 lost). First loss: south at 0:29', hash: 0, sec: 88 };
       s.phase = 'result';
     } else if (!win && (!r || r.win)) {
       // admin default fallback: force a representative fail.

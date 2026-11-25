@@ -131,6 +131,7 @@ shelter at 1:12", "Road cut south-west at 0:58", "Gate closed at the west shelte
 `hashState` = FNV-1a 32-bit over tick, grid.burn, grid.burnt, people x/y quantised (x*4|0), people.mode, money.
 `runToEnd(state, maxTicks=20000)` steps until phase 'result'. `startRun` requires phase plan: spawnPeople, sets
 nextSpotTick, shiftAtTick, phase 'run', buildFlow. Same seed + plan + inputs = same hash.
+Retry / Edit plan: main.js copies the last run's `state.inputs` into `newState.replay`; `step()` re-queues each replay entry via `queueCallin` at its original tick (step 0, before wind and call-in resolution). Retry same plan therefore replays the live call-ins; Edit plan + START replays them too by default (admin default; a changed plan may make them land differently). `state.replay:[{tick,type,x,y}]`, empty on a fresh state.
 `queueCallin(state,type,x,y)` -> {ok,reason}: phase run, tool in STAGES tools, uses left > 0; pushes queue
 {atTick: tick + secToTicks(delay)}, inputs.
 createState: rng = makeRng(seed); money = STAGES[stage].money; callins left from cfg; people arrays empty (n=0) until

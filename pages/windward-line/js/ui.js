@@ -1,6 +1,7 @@
 // Windward Line - DOM UI (M7). initUI(root, api) -> {update, showResult, showUnlock, hideOverlays, toast, openSettings, closeSettings}
 // Builds every element inside root except #map (already there). update() runs every frame: DOM touched only on change.
-import { STAGES, fmtTime, cfgDiffers, windVec, defaultCfg } from './contract.js';
+import { resultMark } from './render.js';
+import { STAGES, CELL_PX, fmtTime, cfgDiffers, windVec, defaultCfg } from './contract.js';
 
 const TOOL_NAME = { zone: 'Shelter', break: 'Firebreak', road: 'Road', crew: 'Crew', pump: 'Pump' };
 const TOOL_HINT = {
@@ -113,7 +114,8 @@ export function initUI(root, api) {
   const bRetry = btn('primary', 'Retry same plan', { 'data-act': 'retry' });
   const bEdit = btn('', 'Edit plan', { 'data-act': 'edit' });
   const bNext = btn('accent', 'Next stage', { 'data-act': 'next' });
-  rCard.append(rBig, rVerdict, rStars, rCause, rNote, bRetry, bEdit, bNext);
+  const bSee = btn('', 'See on map', { 'data-act': 'see-map' }); bSee.hidden = true;
+  rCard.append(rBig, rVerdict, rStars, rCause, rNote, bSee, bRetry, bEdit, bNext);
   result.appendChild(rCard);
 
   // ---------- unlock ----------
@@ -165,7 +167,9 @@ export function initUI(root, api) {
 
   const toastEl = el('div', null, '', { id: 'toast', role: 'status', 'aria-live': 'polite' }); toastEl.hidden = true;
 
-  root.append(top, trayPlan, trayRun, result, unlock, settings, toastEl);
+  const bBack = btn('accent', 'Back to result', { 'data-act': 'back-result' }); bBack.hidden = true;
+  Object.assign(bBack.style, { position: 'fixed', zIndex: '25', left: '50%', transform: 'translateX(-50%)', width: 'auto', minWidth: '160px', height: '48px', minHeight: '48px', padding: '0 20px', bottom: 'calc(16px + env(safe-area-inset-bottom, 0px))', flexDirection: 'row' });
+  root.append(bBack, top, trayPlan, trayRun, result, unlock, settings, toastEl);
 
   // ---------- state ----------
   let armed = null;       // armed call-in (local mirror unless api.getArmed exists)
@@ -174,12 +178,12 @@ export function initUI(root, api) {
   let evSeen = 0, warned = false, shiftedEv = false, evStateId = null;
   let toastTimer = 0;
   let presetN = 0;
-  let resultWanted = false; // result sheet logically open (hidden visually while the unlock card shows)
+  let resultWanted = false, mapMode = false; // result sheet logically open (hidden visually while the unlock card shows)
   const cfgOf = (s) => (s && s.cfg) || call('getCfg') || defaultCfg;
 
   // ---------- overlay stacking ----------
   function syncInert() {
-    const anyOpen = resultWanted || !unlock.hidden || !settings.hidden;
+    const anyOpen = (resultWanted && !mapMode) || !unlock.hidden || !settings.hidden;
     for (const e of [top, trayPlan, trayRun, document.getElementById('map')]) {
       if (!e) continue;
       setAttr(e, 'aria-hidden', anyOpen ? 'true' : null);
@@ -187,7 +191,8 @@ export function initUI(root, api) {
     }
     const topIsUnlock = !unlock.hidden;
     const resCovered = topIsUnlock || !settings.hidden;
-    setHidden(result, resultWanted && !unlock.hidden ? true : !resultWanted);
+    setHidden(result, resultWanted && !unlock.hidden ? true : (!resultWanted || mapMode));
+    bBack.hidden = !(resultWanted && mapMode) || !settings.hidden;
     setAttr(result, 'aria-hidden', resCovered ? 'true' : null);
     setAttr(result, 'inert', resCovered ? '' : null);
     const setCovered = !unlock.hidden;
@@ -229,7 +234,17 @@ export function initUI(root, api) {
     setHidden(bNext, !(r.win && st === 1));
     setText(rNote, r.win && st === 2 ? 'Valley 1 continues - stages 3 to 5 later' : '');
     setHidden(rNote, !(r.win && st === 2));
+    mapMode = false; bSee.hidden = !resultMark(s);
     resultWanted = true; syncInert();
+  }
+  function seeOnMap() {
+    const s = last, mk = resultMark(s), W = window.WL, v = W && W.view, m = document.getElementById('map');
+    if (mk && v && m) { // centre the camera on the mark (admin default)
+      const S = CELL_PX * v.scale;
+      v.ox = (mk.x + 0.5) * S - (m.clientWidth || window.innerWidth) / 2;
+      v.oy = (mk.y + 0.5) * S - (m.clientHeight || window.innerHeight) / 2;
+    }
+    mapMode = true; syncInert(); try { W && W.render && W.render(); } catch (e) { /* ignore */ }
   }
   function showUnlock(text) {
     let body = String(text == null ? '' : text).replace(/^\s*Dozer line unlocked\s*[:.\-–]?\s*/i, '');
@@ -237,7 +252,7 @@ export function initUI(root, api) {
     unlock.hidden = false; refreshStagePicker(); syncInert();
   }
   function hideOverlays() {
-    resultWanted = false; unlock.hidden = true; syncInert();
+    resultWanted = false; mapMode = false; unlock.hidden = true; syncInert();
   }
   function toast(text) {
     toastEl.textContent = String(text == null ? '' : text); toastEl.hidden = false;
@@ -277,6 +292,8 @@ export function initUI(root, api) {
         case 'undo': call('undo'); break;
         case 'clear': call('clearAll'); break;
         case 'pause': call('pause', !(last && last.paused)); break;
+        case 'see-map': seeOnMap(); break;
+        case 'back-result': mapMode = false; syncInert(); break;
         case 'retry': hideOverlays(); call('retry'); break;
         case 'edit': hideOverlays(); call('editPlan'); break;
         case 'next': hideOverlays(); call('nextStage'); break;

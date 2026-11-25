@@ -1,7 +1,16 @@
 // Windward Line - render.js (M6). Canvas 2D. Imports only contract.js.
 // Terrain (grid.type + burnt) cached in an offscreen 96x128 canvas (1 px per cell), scaled with smoothing off.
 // Static vector overlays (building outlines, break outlines) cached as Path2D in cell units. Dynamic layers per frame.
-import { TYPE, MODE, MAP_W, MAP_H, CELL_PX, windVec } from './contract.js';
+import { TYPE, MODE, MAP_W, MAP_H, CELL_PX, windVec, fmtTime } from './contract.js';
+
+// result mark: state.firstBreach {x,y,tick,kind}, else the first 'first-loss' event. Shared with ui.js (See on map).
+export function resultMark(state) {
+  if (!state || state.phase !== 'result') return null;
+  const fb = state.firstBreach;
+  if (fb && fb.x != null) return { x: fb.x, y: fb.y, tick: fb.tick, label: 'first breach' };
+  const fl = (state.events || []).find((e) => e.kind === 'first-loss');
+  return fl && fl.x != null ? { x: fl.x, y: fl.y, tick: fl.tick, label: 'first loss' } : null;
+}
 
 const COL = {
   bg: '#0d1117', [TYPE.GRASS]: '#3d4a2a', [TYPE.WOODS]: '#1f3a24', [TYPE.HOUSE]: '#b9a27a', [TYPE.ROAD]: '#5a5f66',
@@ -263,5 +272,19 @@ export function draw(r, state, view, overlay) {
     ctx.beginPath(); ctx.moveTo(hx + wx * 6, hy + wy * 6); ctx.lineTo(hx + nx * 6, hy + ny * 6); ctx.lineTo(hx - nx * 6, hy - ny * 6); ctx.closePath(); ctx.fill();
     ctx.lineCap = 'butt'; // no text label: top bar already names the wind
   }
+  // result mark: static white ring (3 cells) + label tag, no animation
+  const mk = resultMark(state);
+  if (mk) {
+    const mx = sx(mk.x + 0.5), my = sy(mk.y + 0.5), rr = 3 * S;
+    ctx.save();
+    ctx.strokeStyle = 'rgba(8,10,14,0.85)'; ctx.lineWidth = 6; ctx.beginPath(); ctx.arc(mx, my, rr, 0, 6.2832); ctx.stroke();
+    ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(mx, my, rr, 0, 6.2832); ctx.stroke();
+    ctx.restore();
+    const txt = mk.label + ' ' + fmtTime(mk.tick * (cfg.tickSec || 0.25));
+    const lb = labelBox(ctx, txt, mx, my - rr - 18, vw, vh);
+    ctx.fillStyle = '#fff'; ctx.fillText(txt, lb.tx, lb.ty);
+    ctx.strokeStyle = '#fff'; ctx.lineWidth = 1; ctx.strokeRect(lb.x + 0.5, lb.y + 0.5, lb.bw - 1, lb.bh - 1);
+  }
+
   r.lastMs = (typeof performance !== 'undefined') ? performance.now() - t0 : 0;
 }
