@@ -259,6 +259,8 @@ body.hc .btn.primary{color:#000}
 .mb::before{content:"";position:absolute;left:50%;top:-4px;bottom:-4px;width:1px;background:var(--faint)}
 .mb span{position:absolute;top:0;bottom:0;border-radius:2px}
 .mb .p{left:50%;background:var(--x)}.mb .m{right:50%;background:var(--o)}
+/* reduced motion: no transitions or animation */
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{transition:none!important;animation:none!important;scroll-behavior:auto!important}}
 
 </style>
 </head><body>
