@@ -97,7 +97,7 @@
         bars: o.bars || c.bars, eng: o.eng || c.eng, newFrom: o.newFrom == null ? null : o.newFrom,
         cols: T.chartCols || 24, showColNums: !!T.showColNums, overlays: o.overlays || [],
         pick: o.pick == null ? null : o.pick, onRow: o.onRow || null, height: o.height || 300,
-        minCell: 7, maxHeight: o.maxHeight || Math.round((o.height || 300) * 1.4) /* integrator: legibility floor */
+        cell: 15, minCell: o.minCell || 8, fitHeight: !!o.fitHeight, maxPlotH: o.maxPlotH || null, keepCol: o.keepCol == null ? null : o.keepCol /* v2: fixed 15px cells, last columns that fit */
       };
       if (o.compact) op.compact = true;
       drawPnf(host, op);
@@ -107,12 +107,13 @@
     var host = $("pfs");
     if (!host || !c.sec) return;
     o = o || {};
+    var sh = o.height || T.sectorHeight || 180;
     safe(host, function () {
       drawPnf(host, {
         bars: o.bars || c.sec.bars, eng: o.eng || c.sec.eng, newFrom: o.newFrom == null ? null : o.newFrom,
-        cols: Math.min(T.chartCols || 24, 16), showColNums: false, overlays: o.overlays || [], /* integrator: 16 sector cols max, legibility */
-        height: o.height || T.sectorHeight || 180, compact: true, title: "Sector · " + c.sec.name,
-        minCell: 6, maxHeight: Math.max(o.height || T.sectorHeight || 180, 260), maxCols: 20
+        cols: T.chartCols || 24, showColNums: false, overlays: o.overlays || [],
+        height: sh, compact: true, title: "Sector · " + c.sec.name,
+        cell: 11, minCell: o.minCell || 6, fitHeight: !!o.fitHeight, maxPlotH: o.maxPlotH || Math.max(66, sh - 46) /* v2: 11px cells, cropped like the stock chart */
       });
     });
   }
@@ -162,7 +163,7 @@
     if (stepper) ov.push({ k: "row", box: UI.pick, label: "your pick", style: "pick" });
     if (type !== "R3") { var t1 = trendOv(c.eng); if (t1) ov.push(t1); }
     drawChart(c, {
-      overlays: ov, pick: stepper ? UI.pick : null,
+      overlays: ov, pick: stepper ? UI.pick : null, keepCol: (type === "R4" && c.reads.R4 && c.reads.R4.col != null) ? c.reads.R4.col : null,
       onRow: stepper ? function (box) { UI.pick = box; keepScroll(render); } : null
     });
     if (showSector(c, type)) {
@@ -293,34 +294,74 @@
     return "Trade " + Math.min(tr + 1, max) + " of " + max;
   }
   function weeksText(h) { return h + " weeks"; }
+  function chartLine() {
+    var n = (S.run && S.run.charts) || 0, max = (T && T.runCharts) || 20;
+    return "chart " + Math.min(n + 1, max) + " of " + max + " in this run";
+  }
+  var TRI_UP = '<svg class="tri" viewBox="0 0 12 12" aria-hidden="true"><path d="M6 1.5l5 9H1z" fill="var(--x)"/></svg>';
+  var TRI_DN = '<svg class="tri" viewBox="0 0 12 12" aria-hidden="true"><path d="M6 10.5l5-9H1z" fill="var(--o)"/></svg>';
+  window.TRI_UP = TRI_UP; window.TRI_DN = TRI_DN;
+  function keyHtml() {
+    return '<span class="key"><svg viewBox="0 0 12 12" aria-hidden="true"><path d="M2 2l8 8M10 2l-8 8" stroke="var(--x)" stroke-width="1.8" stroke-linecap="round"/></svg><span>up</span>' +
+      '<svg viewBox="0 0 12 12" aria-hidden="true"><circle cx="6" cy="6" r="4" stroke="var(--o)" stroke-width="1.8" fill="none"/></svg><span>down</span></span>';
+  }
   window.renderCall = function () {
     sync();
     clearTimer();
     var c = ctx(), h = curH(), pick = S.cur.call || null;
-    var hd = header(esc(S.cur.code) + " · Your call", subLine(c), { gear: true });
+    var nR = (S.cur.reads || []).length;
+    var hd = header("Your call", S.cur.code + " · " + nR + " reading" + (nR === 1 ? "" : "s") + " marked · last " + CSE.disp(c.close), { gear: true });
     var seg = '<div class="seg" role="group" aria-label="Your call">';
     ["Buy", "Don't buy"].forEach(function (o) {
       var on = pick === o;
       seg += '<button class="' + (on ? "on" : "") + '" data-opt="' + esc(o) + '" aria-pressed="' + on + '">' + esc(o) + '</button>';
     });
     seg += '</div>';
-    var hz = '<div class="card hz"><div class="hzh"><span class="cap2">Time horizon</span><b class="num" id="hLabel" aria-live="polite">' + esc(weeksText(h)) + '</b></div>' +
-      '<div class="hzrow"><button class="btn" data-act="h-down" aria-label="One week shorter">&minus;</button>' +
-      '<div class="hzs"><input type="range" id="horizon" min="3" max="10" step="1" value="' + h + '" aria-label="Time horizon in weeks"></div>' +
-      '<button class="btn" data-act="h-up" aria-label="One week longer">+</button></div>' +
-      '<div class="hzt" aria-hidden="true"><span>3</span><span>10 weeks</span></div></div>';
-    var callCard = '<div class="card callc"><div class="cap2">' + esc(tradeLine()) + '</div>' + seg +
-      '<p class="dim note">Buy keeps the trade open for the horizon. Don\'t buy takes no trade; you still see what happened.</p></div>';
+    var rr = 0; try { rr = runReturn(); } catch (e) { rr = 0; }
+    var rv = Math.round(rr * 1000), nT = (S.run && S.run.trades) ? S.run.trades.length : 0;
+    var rrHtml = '<b class="num ' + (rv > 0 ? "up" : (rv < 0 ? "down" : "")) + '">' + (rv > 0 ? TRI_UP : (rv < 0 ? TRI_DN : "")) + esc(fmtPct(rr)) + '</b>';
+    var ticks = "";
+    for (var t = 3; t <= 10; t++) ticks += '<span' + (t === h ? ' class="on"' : '') + '>' + t + '</span>';
+    var callCard = '<div class="card callc" id="callc">' +
+      '<div class="st"><span><b class="num">' + esc(tradeLine()) + '</b><small class="num">' + esc(chartLine()) + '</small></span>' +
+      '<span class="rr">' + rrHtml + '<small>' + (nT ? "run return so far" : "run return, no trades yet") + '</small></span></div>' + seg +
+      '<div class="hzh"><span class="cap">Horizon</span><span class="v num"><b id="hLabel" aria-live="polite">' + esc(weeksText(h)) + '</b><small id="hx">closes at week +' + h + '</small></span></div>' +
+      '<div class="sl"><button class="btn" data-act="h-down" aria-label="One week shorter">&minus;</button>' +
+      '<input type="range" id="horizon" min="3" max="10" step="1" value="' + h + '" aria-label="Time horizon in weeks">' +
+      '<button class="btn" data-act="h-up" aria-label="One week longer">+</button><div class="tk num" id="tk" aria-hidden="true">' + ticks + '</div></div></div>';
+    var stockCard = '<div class="card pf"><div class="cs tg"><span class="tags"><span>' + esc(S.cur.code) + '</span><span>Box 2%</span><span>3-box</span><span>Weekly</span></span>' + keyHtml() + '</div><div id="pf"></div></div>';
+    var sec = showSector(c, "call"), secCard = secPane(c, "call");
+    /* v2 mockup: stock, sector, call card on one screen. Short screens (475x638): call card above the sector chart. */
+    var tall = (window.innerHeight || 800) >= 760;
+    $("main").innerHTML = hd + '<div class="stack callstack">' + stockCard + (tall ? secCard + callCard : callCard + secCard) + "</div>";
+    bar([
+      { act: "back-reading", label: "Review charts", kind: "out" },
+      { act: "confirm-call", label: "Confirm call", kind: "primary", disabled: !pick }
+    ]);
 
-    $("main").innerHTML = hd + '<div class="stack"><div class="card pf">' + '<div id="pf"></div></div>' +
-      callCard + hz + secPane(c, "call") + "</div>"; /* integrator: controls above the fold at 344x882; sector chart below them */
-
+    /* height budget: everything from the stock chart to the call card fits above the bottom bar */
+    var bEl = $("bar"), pf = $("pf"), cc = $("callc");
+    var barTop = bEl && bEl.offsetHeight ? window.innerHeight - bEl.offsetHeight : window.innerHeight - 76;
+    var pfTop = pf ? pf.getBoundingClientRect().top + (window.scrollY || 0) : 200;
+    var callH = cc ? cc.offsetHeight : 220, GAP = 8, SVGPAD = 6 + 24, SECPAD = 6 + 20 + 20 + 2;
+    var room = barTop - pfTop - 8 - 2; /* 8 slack, 2 card border */
     var ov = [{ k: "close", box: c.closeBox }];
     var t1 = trendOv(c.eng); if (t1) ov.push(t1);
-    drawChart(c, { overlays: ov, height: 220, maxHeight: 290, compact: true });
-    if (showSector(c, "call")) {
+    var secCap = Math.max(66, (T.sectorHeight || 180) - 46);
+    if (tall) {
+      var secMin = sec ? 110 + SECPAD + GAP : 0;
+      drawChart(c, { overlays: ov, minCell: 7, fitHeight: true, maxPlotH: Math.max(150, Math.min(270, room - SVGPAD - GAP - callH - secMin)) });
+    } else {
+      drawChart(c, { overlays: ov, minCell: 7, fitHeight: true, maxPlotH: Math.max(120, Math.min(270, room - SVGPAD - GAP - callH)) });
+    }
+    if (sec) {
       var sov = [], t2 = trendOv(c.sec.eng); if (t2) sov.push(t2);
-      drawSector(c, { overlays: sov, height: Math.min(T.sectorHeight || 180, 150) });
+      var secPlot = secCap;
+      if (tall) {
+        var pfCard = pf.parentNode, used = pfCard ? pfCard.getBoundingClientRect().bottom + (window.scrollY || 0) : pfTop + 260;
+        secPlot = Math.max(66, Math.min(secCap, barTop - 8 - used - GAP - callH - GAP - SECPAD));
+      }
+      drawSector(c, { overlays: sov, maxPlotH: secPlot, minCell: 5, fitHeight: tall });
     }
     var inp = $("horizon");
     if (inp) {
@@ -330,15 +371,18 @@
         paintH();
       });
     }
-    bar([
-      { act: "back-reading", label: "Review charts", kind: "out" },
-      { act: "confirm-call", label: "Confirm call", kind: "primary", disabled: !pick }
-    ]);
+    paintH();
   };
   function paintH() {
-    var h = curH(), l = $("hLabel"), i = $("horizon");
+    var h = curH(), l = $("hLabel"), i = $("horizon"), x = $("hx"), tk = $("tk");
     if (l) l.textContent = weeksText(h);
+    if (x) x.textContent = "closes at week +" + h;
     if (i && String(i.value) !== String(h)) i.value = h;
+    if (i) { /* track fill ends at the thumb centre (thumb 36px) */
+      var w = i.clientWidth || 1, px = 18 + (h - 3) / 7 * (w - 36);
+      i.style.setProperty("--p", (px / w * 100).toFixed(2) + "%");
+    }
+    if (tk) [].forEach.call(tk.children, function (sp) { sp.className = (+sp.textContent === h) ? "on" : ""; });
   }
   function bumpH(d) {
     if (typeof setHorizon === "function") setHorizon(curH() + d);

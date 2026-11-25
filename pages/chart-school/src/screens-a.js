@@ -115,20 +115,57 @@
     bar([{ act: 'desk', label: 'Desk', kind: 'out' }, { act: 'open-sheet', label: 'Next chart', kind: 'primary' }]);
   };
 
+  var UP = '<svg class="tri" viewBox="0 0 12 12" aria-hidden="true"><path d="M6 1.5l5 9H1z" fill="var(--x)"/></svg>';
+  var DN = '<svg class="tri" viewBox="0 0 12 12" aria-hidden="true"><path d="M6 10.5l5-9H1z" fill="var(--o)"/></svg>';
+  function sgn(v) { v = Math.round((num(v) || 0) * 1000); return v > 0 ? 1 : v < 0 ? -1 : 0; }
+  /* run return after each trade: step line, one dot per trade, end pill. No zero line (return only, no baseline). */
+  function drawEq(host, tr) {
+    if (!host || !tr.length) return;
+    var NS = 'http://www.w3.org/2000/svg';
+    function el(p, t, a, x) { var e = document.createElementNS(NS, t); for (var k in a) e.setAttribute(k, a[k]); if (x != null) e.textContent = x; p.appendChild(e); return e; }
+    var cum = [0], eq = 1;
+    tr.forEach(function (t) { eq *= 1 + (num(t.ret) || 0); cum.push((eq - 1) * 100); });
+    var W = Math.max(200, host.clientWidth || 300), H = 64, tot = cum[cum.length - 1], txt = fmtRet(tot / 100) || '+0.0%';
+    var pwid = Math.round(txt.length * 6.2 + 8), pw = W - pwid - 6, pt = 9, pb = 16, n = tr.length;
+    var hi = Math.max.apply(null, cum), lo = Math.min.apply(null, cum);
+    if (hi - lo < 1) { hi += 0.5; lo -= 0.5; }
+    function y(v) { return pt + (hi - v) / (hi - lo) * (H - pt - pb); }
+    function x(i) { return 6 + i * (pw - 12) / Math.max(1, n); }
+    var s = el(host, 'svg', { 'class': 'eq', width: W, height: H, viewBox: '0 0 ' + W + ' ' + H, role: 'img', 'aria-label': 'Run return after each trade, ending ' + txt });
+    var d = 'M' + x(0).toFixed(1) + ' ' + y(0).toFixed(1);
+    for (var i = 1; i <= n; i++) d += 'H' + x(i).toFixed(1) + 'V' + y(cum[i]).toFixed(1);
+    el(s, 'path', { d: d, fill: 'none', stroke: 'var(--text)', 'stroke-width': 1.6, 'stroke-linejoin': 'round' });
+    for (var j = 1; j <= n; j++) el(s, 'circle', { cx: x(j).toFixed(1), cy: y(cum[j]).toFixed(1), r: 2.6, fill: (num(tr[j - 1].ret) || 0) >= 0 ? 'var(--x)' : 'var(--o)' });
+    var yt = Math.max(9, Math.min(H - pb - 8, y(tot)));
+    el(s, 'rect', { x: W - 2 - pwid, y: (yt - 8.5).toFixed(1), width: pwid, height: 17, rx: 4, fill: 'var(--text)' });
+    el(s, 'text', { x: (W - 2 - pwid / 2).toFixed(1), y: (yt + 0.5).toFixed(1), 'text-anchor': 'middle', 'dominant-baseline': 'central', 'font-size': 11, 'font-weight': 700, fill: 'var(--bg)' }, txt);
+    el(s, 'text', { x: x(Math.min(1, n)).toFixed(1), y: H - 3, 'text-anchor': 'middle', 'font-size': 11, fill: 'var(--dim)' }, 'trade 1');
+    if (n > 2) el(s, 'text', { x: x(n).toFixed(1), y: H - 3, 'text-anchor': 'end', 'font-size': 11, fill: 'var(--dim)' }, 'trade ' + n);
+  }
+
   window.renderRunEnd = function () {
     var run = runOf(), tr = run.trades || [], total = curRun();
-    var best = bestOf();
-    var isBest = best && num(best.ret) !== null && Math.abs(best.ret - total) < 1e-9;
-    var list = tr.length ? tr.map(function (t, i) {
-      return '<div class="trl num"><span class="n">' + (i + 1) + '. ' + esc(t.code || '---') + '</span>' +
-        '<span class="w">' + esc(t.h || '?') + ' weeks</span><b class="' + retCls(t.ret) + '">' + esc(fmtRet(t.ret) || '--') + '</b></div>';
+    var best = bestOf(), sg = sgn(total);
+    var isBest = best && num(best.ret) !== null && Math.abs(best.ret - total) < 1e-9 && tr.length > 0;
+    var nb = best ? (+best.trades || 0) : 0;
+    var mx = 0;
+    tr.forEach(function (t) { mx = Math.max(mx, Math.abs(num(t.ret) || 0)); });
+    var list = tr.length ? '<div class="th"><span>#</span><span>Code</span><span>Horizon</span><span></span><span>Return</span></div>' + tr.map(function (t, i) {
+      var r = num(t.ret) || 0, g = sgn(r), w = mx ? (Math.abs(r) / mx * 48).toFixed(1) : 0;
+      return '<div class="tr num"><span class="i">' + (i + 1) + '</span><span class="c">' + esc(t.code || '---') + '</span>' +
+        '<span class="h">' + esc(t.h || '?') + ' weeks</span><span class="mb" aria-hidden="true"><span class="' + (r >= 0 ? 'p' : 'm') + '" style="width:' + w + '%"></span></span>' +
+        '<b class="ret ' + (g > 0 ? 'up' : g < 0 ? 'down' : '') + '">' + (g > 0 ? UP : g < 0 ? DN : '') + esc(fmtRet(r) || '--') + '</b></div>';
     }).join('') : '<p class="dim" style="margin:0">No trades in this run.</p>';
-    $('main').innerHTML = header('Run complete', tr.length + ' trades over ' + (run.charts || 0) + ' charts', {}) +
-      '<section class="card next" aria-label="Run result"><div class="cap">Total return</div>' +
-      '<div class="big"><span class="code num ' + retCls(total) + '" style="font-size:44px">' + esc(fmtRet(total) || '+0.0%') + '</span>' +
-      '<span class="meta num">' + tr.length + ' trade' + (tr.length === 1 ? '' : 's') + '</span></div>' +
-      '<div class="list num">' + esc(isBest ? 'New best run' : bestLine()) + '</div></section>' +
-      '<section class="card"><div class="cap">Trades</div>' + list + '</section>';
+    var bestRow = '<div class="brow"><span class="dim">' + (isBest ? 'New best run' : 'Best run') + '</span><span class="num">' +
+      (best ? '<b>' + esc(fmtRet(best.ret)) + '</b> <span class="dim">&middot; ' + nb + ' trade' + (nb === 1 ? '' : 's') + '</span>' : '<span class="dim">none yet</span>') + '</span></div>';
+    $('main').innerHTML = header('Run complete', tr.length + ' trade' + (tr.length === 1 ? '' : 's') + ' · ' + (run.charts || 0) + ' charts seen', {}) +
+      '<div class="stack"><section class="card hero" aria-label="Run result"><div class="cap">Total return</div>' +
+      '<div class="big"><span class="n num ' + (sg > 0 ? 'up' : sg < 0 ? 'down' : '') + '">' + esc(fmtRet(total) || '+0.0%') + '</span>' +
+      '<span class="w"><b class="' + (sg > 0 ? 'up' : sg < 0 ? 'down' : 'dim') + '">' + (sg > 0 ? UP : sg < 0 ? DN : '') + (sg > 0 ? 'gain' : sg < 0 ? 'loss' : 'flat') + '</b>' +
+      '<span class="dim num">' + tr.length + ' trade' + (tr.length === 1 ? '' : 's') + '</span></span></div>' +
+      '<div id="eq"></div>' + bestRow + '</section>' +
+      '<section class="card tl" aria-label="Trades in this run">' + list + '</section></div>';
+    drawEq($('eq'), tr);
     bar([{ act: 'journal', label: 'Journal', kind: 'out' }, { act: 'new-run', label: 'New run', kind: 'primary' }]);
   };
 

@@ -179,23 +179,43 @@ body.hc .btn.primary{color:#000}
 .optgrid .opt{height:56px;justify-content:flex-start;text-align:left;white-space:normal;line-height:1.15}
 .optgrid .opt.on{box-shadow:inset 0 0 0 2px var(--text);background:var(--surface2)}
 .btn.wide{width:100%;height:48px;background:transparent}
-.callc .seg{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:6px 0 8px}
-.callc .seg>button{height:56px;border:1px solid var(--line);border-radius:var(--r);background:var(--surface2);color:var(--text);font:700 16px var(--sans);padding:0 6px;min-width:0}
-.callc .seg>button.on{box-shadow:inset 0 0 0 2px var(--text);background:var(--surface)}
-.callc .note{margin:0;font-size:13px}
-.hz{padding-bottom:8px}
-.hzh{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:4px}
-.hzh b{font-size:22px}
-.hzrow{display:flex;align-items:center;gap:8px}
-.hzrow .btn{flex:none;width:48px;height:48px;padding:0;font-size:24px;line-height:1}
-.hzs{flex:1;min-width:0;height:56px;display:flex;align-items:center}
-.hz input[type=range]{width:100%;min-width:0;height:56px;margin:0;background:transparent;-webkit-appearance:none;appearance:none;touch-action:pan-y}
-.hz input[type=range]::-webkit-slider-runnable-track{height:8px;border-radius:4px;background:var(--surface2);border:1px solid var(--line)}
-.hz input[type=range]::-moz-range-track{height:8px;border-radius:4px;background:var(--surface2);border:1px solid var(--line)}
-.hz input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:40px;height:40px;margin-top:-17px;border-radius:50%;background:var(--text);border:3px solid var(--bg);box-shadow:0 0 0 2px var(--accent)}
-.hz input[type=range]::-moz-range-thumb{width:34px;height:34px;border-radius:50%;background:var(--text);border:3px solid var(--bg);box-shadow:0 0 0 2px var(--accent)}
-.hz input[type=range]:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-.hzt{display:flex;justify-content:space-between;font-size:11px;color:var(--dim);padding:0 60px 0 60px}
+/* v2 call card (mockup call.html) */
+.callc{padding:10px 12px 8px}
+.callc .st{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:8px}
+.callc .st b{font-size:16px;font-weight:700}
+.callc .st small{display:block;font-size:12px;color:var(--dim);white-space:nowrap}
+.callc .st .rr{text-align:right;white-space:nowrap}
+.callc .st .rr b{display:inline-flex;align-items:center;gap:5px}
+.tri{width:10px;height:10px;flex:none}
+.callc .seg{display:flex;border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+.callc .seg>button{flex:1;height:56px;min-width:0;border:0;border-right:1px solid var(--line);border-radius:0;background:var(--surface);color:var(--text);font:600 16px var(--sans);padding:0 6px}
+.callc .seg>button:last-child{border-right:0}
+.callc .seg>button:first-child{border-radius:9px 0 0 9px}.callc .seg>button:last-child{border-radius:0 9px 9px 0}
+.callc .seg>button.on{background:var(--surface2);box-shadow:inset 0 0 0 2px var(--text);border-right-color:transparent}
+.callc .seg>button:has(+ button.on){border-right-color:transparent}
+.callc .seg>button.on::before{content:"\2713\00a0"}
+.callc .hzh{display:flex;justify-content:space-between;align-items:baseline;gap:6px;margin:10px 0 2px}
+.callc .hzh .v{white-space:nowrap}
+.callc .hzh .v b{font-size:22px;font-weight:700;line-height:1}
+.callc .hzh .v small{font-size:12px;color:var(--dim);margin-left:6px}
+.sl{display:grid;grid-template-columns:48px 1fr 48px;column-gap:8px;align-items:center}
+.sl .btn{width:48px;height:56px;min-width:0;padding:0;font-size:24px;line-height:1}
+.sl input[type=range]{-webkit-appearance:none;appearance:none;width:100%;min-width:0;height:56px;margin:0;background:transparent;touch-action:pan-y}
+.sl input[type=range]::-webkit-slider-runnable-track{height:8px;border-radius:4px;background:linear-gradient(to right,var(--text) 0,var(--text) var(--p,43%),var(--surface2) var(--p,43%));border:1px solid var(--line)}
+.sl input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:36px;height:36px;margin-top:-15px;border-radius:50%;background:var(--text);border:4px solid var(--bg);box-shadow:0 0 0 2px var(--text)}
+.sl input[type=range]::-moz-range-track{height:8px;border-radius:4px;background:var(--surface2);border:1px solid var(--line)}
+.sl input[type=range]::-moz-range-progress{height:8px;border-radius:4px;background:var(--text)}
+.sl input[type=range]::-moz-range-thumb{width:28px;height:28px;border-radius:50%;background:var(--text);border:4px solid var(--bg);box-shadow:0 0 0 2px var(--text)}
+.sl input[type=range]:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.tk{grid-column:2;display:flex;justify-content:space-between;padding:0 12px;margin-top:-8px;font-size:11px;color:var(--dim)}
+.tk span{width:12px;text-align:center}.tk span.on{color:var(--text);font-weight:700}
+/* v2 chart header row: tags + up/down key */
+.cs.tg{justify-content:space-between;align-items:center;flex-wrap:nowrap;gap:6px;padding:8px 10px 6px}
+.cs .tags{display:flex;gap:5px;min-width:0;overflow:hidden;height:auto;padding:0;border:0;border-radius:0;line-height:normal}
+.cs .tags span{flex:none}
+.cs .key{font-size:11px;color:var(--dim);white-space:nowrap;gap:4px}
+.cs .key svg{width:12px;height:12px;flex:none}
+.cs .key svg+span{margin-right:4px}
 .retc{padding:10px 12px}
 .retl{font-size:16px;font-weight:700;line-height:1.3;overflow-wrap:anywhere}
 .retw{font-size:13px;margin-top:2px;color:var(--dim)}
@@ -210,13 +230,35 @@ body.hc .btn.primary{color:#000}
 /* integrator: top line never wraps (build stamp can be long) */
 .top{gap:8px;white-space:nowrap;overflow:hidden}
 .top>span:first-child{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis}
-.top>span.num{flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis}
+.top>span.num{flex:0 0 auto;display:inline-flex;align-items:center;gap:6px}
 /* integrator: runend trade list, one line per trade */
 .trl{display:flex;align-items:center;gap:10px;min-height:40px;border-bottom:1px solid var(--line);font-size:14px}
 .trl:last-child{border-bottom:0}
 .trl .n{flex:1;min-width:0}.trl .w{color:var(--dim);font-size:13px}.trl b{min-width:64px;text-align:right}
 /* integrator: summary call/return card spans the width */
 .po{flex-wrap:wrap}.po>.sh,.po>.dim{flex:1 1 100%}.po>.sh{margin:0}
+/* v2 run end (mockup runend.html) */
+.hero{padding:12px}
+.hero .big{display:flex;align-items:flex-end;gap:10px;margin:4px 0 2px}
+.hero .n{font-size:52px;font-weight:700;line-height:1;letter-spacing:-.01em}
+.hero .w{display:flex;flex-direction:column;gap:2px;padding-bottom:5px;font-size:14px;line-height:1.2}
+.hero .w b{display:inline-flex;align-items:center;gap:5px;font-size:15px}
+.hero .w .tri{width:12px;height:12px}
+.hero svg.eq{display:block;margin:8px 0 2px;max-width:100%}
+.hero .brow{display:flex;justify-content:space-between;align-items:baseline;gap:8px;padding-top:6px;font-size:14px}.hero .brow b{font-weight:700}
+.tl{padding:10px 12px 4px}
+.tl .th,.tl .tr{display:grid;grid-template-columns:18px 44px 68px 1fr 70px;column-gap:6px;align-items:center}
+.tl .th{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--dim);padding-bottom:4px;border-bottom:1px solid var(--line)}
+.tl .th span:last-child,.tl .tr .ret{text-align:right}
+.tl .tr{height:34px;border-bottom:1px solid var(--line);font-size:14px}
+.tl .tr:last-child{border-bottom:0}
+.tl .tr .i{color:var(--faint);font-size:12px}.tl .tr .c{font-weight:700;letter-spacing:.04em}.tl .tr .h{color:var(--dim);white-space:nowrap}
+.tl .tr .ret{font-weight:700;white-space:nowrap;display:inline-flex;align-items:center;justify-content:flex-end;gap:3px}
+.tl .tr .ret .tri{width:9px;height:9px}
+.mb{position:relative;height:10px}
+.mb::before{content:"";position:absolute;left:50%;top:-4px;bottom:-4px;width:1px;background:var(--faint)}
+.mb span{position:absolute;top:0;bottom:0;border-radius:2px}
+.mb .p{left:50%;background:var(--x)}.mb .m{right:50%;background:var(--o)}
 
 </style>
 </head><body>
@@ -234,7 +276,7 @@ function header(title, sub, opts){
   opts = opts || {};
   var dev = '', build = (typeof BUILD !== 'undefined') ? BUILD : '';
   try{ if(typeof tweaked === 'function' && tweaked()) dev = '<span class="dev">DEV ' + esc((typeof S !== 'undefined' && S && S.seed) || (typeof T !== 'undefined' && T && T.seed) || '') + '</span> '; }catch(e){}
-  var h = '<div class="top"><span>Chart School · Trading desk</span><span class="num">' + dev + esc(build) + ' <span data-pgs-build></span></span></div><div class="hd">';
+  var h = '<div class="top"><span>Chart School · Trading desk</span><span class="num bld">' + dev + esc(build) + '</span></div><div class="hd">';
   if(!opts.root) h += '<button class="ib" data-act="back" aria-label="Back">' + ICON_BACK + '</button>';
   h += '<div class="ttl">' + esc(title) + (sub ? '<small>' + esc(sub) + '</small>' : '') + '</div>';
   if(opts.pill) h += opts.pill;
@@ -984,14 +1026,16 @@ function openTweaks() {
     var eng = opt.eng || { cols: [], cells: [] };
     var cols = eng.cols || [];
     var nCols = cols.length;
-    var N0 = Math.max(4, opt.cols || 24);
+    var NCAP = Math.max(4, opt.cols || 24); // T.chartCols: max columns shown
     var ovs = opt.overlays || [];
     var W = hostW(host);
     var pw = W - AX;
-    var HT = Math.max(100, +opt.height || 300), compact = !!opt.compact, TT = opt.title ? 14 : 0;
-    var FS = compact ? 9 : 11; // axis font
-    var MINC = +opt.minCell || 0, MAXH = Math.max(HT, +opt.maxHeight || HT);
-    var NMAX = Math.max(N0, +opt.maxCols || Math.round(N0 * 1.5)); // spare width shows more columns, but not without limit (more columns = more rows = tinier cells)
+    var HT = Math.max(100, +opt.height || 300), compact = !!opt.compact, TT = opt.title ? 20 : 0;
+    var FS = 11; // axis font (v2 mockups: 11px on both charts)
+    var AXH = compact ? 20 : 24; // column axis strip under the plot
+    var CELL = +opt.cell || (compact ? 11 : 15), MINC = Math.min(CELL, +opt.minCell || (compact ? 6 : 8));
+    var MAXPH = +opt.maxPlotH || (HT - 6 - TT - AXH); // plot height budget (rows x cell)
+    var MARG = opt.margin != null ? +opt.margin : 1;   // empty boxes above / below the marks
     clear(host);
     if (!nCols) { var s0 = el(host, "svg", { width: W, height: 40, viewBox: "0 0 " + W + " 40", role: "img", "aria-label": "Empty point and figure chart" }); return s0; }
 
@@ -999,51 +1043,55 @@ function openTweaks() {
     var wk = {};
     (eng.cells || []).forEach(function (q) { wk[q.col + ":" + q.box] = q.week; });
 
-    // SQUARE cells: one size for rows and columns. cell = min(pw/N0, row size 9..14); spare width shows more columns.
-    var N = N0, first, lo, hi, top, bot, rows, ch = 14, cell = 14, j, it;
-    function range() {
-      first = Math.max(0, nCols - N);
-      lo = Infinity; hi = -Infinity;
-      for (j = first; j < nCols; j++) { lo = Math.min(lo, cols[j].lo); hi = Math.max(hi, cols[j].hi); }
-      function inc(b) { if (b == null || isNaN(b)) return; lo = Math.min(lo, b); hi = Math.max(hi, b); }
-      ovs.forEach(function (o) { if (o.k === "close") inc(o.box); }); // overlays never widen the range (edge markers instead)
+    // v2 sizing: fixed SQUARE cells (15 stock, 11 sector). Show the last columns that fit the width, crop the rows to the
+    // box range of those columns (+MARG). If the rows do not fit the height budget: fewer columns first, then smaller cells.
+    var needN = 0; // columns an overlay points at must stay in view
+    ovs.forEach(function (o) { if ((o.k === "col" || o.k === "sig" || o.k === "exit") && o.col != null && o.col >= 0 && o.col < nCols) needN = Math.max(needN, nCols - o.col); });
+    if (opt.keepCol != null && opt.keepCol >= 0 && opt.keepCol < nCols) needN = Math.max(needN, nCols - opt.keepCol);
+    var first, lo, hi, top, bot, rows, c, N, j;
+    function rangeFor(n) {
+      var f = Math.max(0, nCols - n), l = Infinity, h = -Infinity, k;
+      for (k = f; k < nCols; k++) { l = Math.min(l, cols[k].lo); h = Math.max(h, cols[k].hi); }
+      function inc(b) { if (b == null || isNaN(b)) return; l = Math.min(l, b); h = Math.max(h, b); }
+      ovs.forEach(function (o) { if (o.k === "close" || o.k === "entry") inc(o.box); }); // other overlays never widen the range (edge markers instead)
       inc(opt.pick);
-      top = hi + 2; bot = lo - 2; rows = top - bot + 1;
-      // plot height budget = height - top pad 6 - title strip - column axis 26 (default 300 -> 268, as v1)
-      var avail = HT - 32 - TT;
-      ch = Math.min(avail / rows, 14);
-      // integrator: legibility floor. When many rows would make cells tiny, grow the chart up to opt.maxHeight.
-      if (MINC && ch < MINC) ch = Math.min(Math.max(avail, Math.min(MAXH - 32 - TT, rows * MINC)) / rows, 14);
+      return { first: f, lo: l, hi: h, top: h + MARG, bot: l - MARG, rows: h - l + 1 + 2 * MARG };
     }
-    range();
-    for (it = 0; it < 4; it++) {
-      cell = Math.min(pw / N0, ch);
-      var nN = Math.min(NMAX, Math.max(N0, Math.floor(pw / cell + 1e-6)));
-      if (nN === N) break;
-      N = nN; range();
+    // N = columns shown; c = min(CELL, height budget / rows). Take the most columns that keep c >= GOOD; otherwise the
+    // column count with the biggest cells (ties: more columns). Volatile charts trade history for legible boxes.
+    var GOOD = +opt.goodCell || Math.round(CELL * 0.8), NMIN = Math.max(1, +opt.minCols || 10);
+    var fit = Math.max(1, Math.min(NCAP, Math.floor(pw / CELL + 1e-6))), nHi = Math.max(1, Math.min(fit, nCols));
+    var nLo = Math.min(nHi, NMIN);
+    if (needN > nHi) { nHi = needN; nLo = needN; }
+    nLo = Math.max(nLo, Math.min(needN, nHi));
+    var R = null, nn, bestC = -1, cand = [];
+    for (nn = nHi; nn >= nLo; nn--) {
+      var q = rangeFor(nn), cq = Math.min(CELL, pw / nn, MAXPH / q.rows);
+      cand.push({ q: q, c: cq, n: nn });
+      if (cq > bestC) bestC = cq;
     }
-    cell = Math.min(pw / N0, ch);
-    N = Math.min(NMAX, Math.max(N0, Math.floor(pw / cell + 1e-6)));
-    if (N !== nN) range(); // keep rows in step with the columns actually shown
-    cell = Math.min(pw / N0, ch);
-    first = Math.max(0, nCols - N);
-    // integrator: when cells are height-bound, fill spare width with older columns that fit the current rows (no new rows)
-    var fitN = Math.floor(pw / cell + 1e-6);
-    while (first > 0 && nCols - first < fitN && cols[first - 1].lo >= lo && cols[first - 1].hi <= hi) first--;
-    N = Math.max(N, nCols - first);
-    ch = cell; var c = cell;
+    var want = bestC >= GOOD ? GOOD : bestC * 0.85; // most columns whose cells are near the best size
+    for (nn = 0; nn < cand.length; nn++) if (cand[nn].c >= want - 1e-6) { R = cand[nn].q; c = cand[nn].c; N = cand[nn].n; break; }
+    c = Math.floor(c * 2) / 2; // half-pixel steps
+    if (c < MINC) c = opt.fitHeight ? Math.max(3, Math.min(MINC, MAXPH / R.rows)) : Math.min(MINC, pw / N); // under MINC: grow taller, or (fitHeight) stay in budget
+    // cells came out smaller than CELL: fill spare width with older columns that need no new rows
+    var fitC = Math.min(NCAP, Math.floor(pw / c + 1e-6));
+    while (R.first > 0 && nCols - R.first < fitC && cols[R.first - 1].lo >= R.lo && cols[R.first - 1].hi <= R.hi) R.first--;
+    N = nCols - R.first;
+    first = R.first; lo = R.lo; hi = R.hi; top = R.top; bot = R.bot; rows = R.rows;
+    var ch = c;
     var nTop = 0, nBot = 0;
     ovs.forEach(function (o) { if (o.k === "row" || o.k === "line") { if (o.box > top) nTop++; else if (o.box < bot) nBot++; } });
     var STRIP = 17;
-    var ph = rows * ch, OY = 6 + TT + STRIP * nTop, H = Math.round(OY + ph + 26 + STRIP * nBot + (nBot ? 2 : 0));
+    var ph = rows * ch, OY = 6 + TT + STRIP * nTop, H = Math.round(OY + ph + AXH + STRIP * nBot + (nBot ? 2 : 0));
     var XO = pw - N * c; // slack on the left so the last column meets the axis
     function ty(b) { return (top - b) * ch; }       // top edge of box b
     function cy(b) { return ty(b) + ch / 2; }
-    function cx(j) { return pw - (nCols - j) * c; }  // last column always meets the axis  // left edge of column j
+    function cx(j) { return pw - (nCols - j) * c; }  // left edge of column j; the last column always meets the axis
 
     var s = el(host, "svg", { "data-cell": f1(c), "data-rows": rows, width: W, height: H, viewBox: "0 0 " + W + " " + H, role: "img",
       "aria-label": "Point and figure chart, " + nCols + " columns, box 2 percent, last " + disp(cols[nCols - 1].d === 1 ? cols[nCols - 1].hi : cols[nCols - 1].lo) });
-    if (opt.title) el(s, "text", { x: 4, y: 8, "dominant-baseline": "central", "font-size": 11, "font-weight": 600, fill: "var(--dim)" }, opt.title);
+    if (opt.title) el(s, "text", { x: 10, y: 11, "dominant-baseline": "central", "font-size": 12, "font-weight": 600, fill: "var(--dim)" }, opt.title);
     var g = el(s, "g", { transform: "translate(0," + OY + ")" });
 
     // grid
@@ -1052,18 +1100,19 @@ function openTweaks() {
     for (r = 0; r <= rows; r++) el(g, "line", { x1: f1(XO), y1: f1(r * ch + 0.5), x2: f1(pw), y2: f1(r * ch + 0.5), stroke: "var(--grid)", "stroke-width": 1 });
     el(g, "line", { x1: f1(pw + 0.5), y1: 0, x2: f1(pw + 0.5), y2: f1(ph), stroke: "var(--line)", "stroke-width": 1 });
 
-    // column axis
+    // column axis: tick + number every 5 columns (10 on the compact sector chart), "col" at the left
+    var every = compact ? 10 : 5, ly0 = ph + (compact ? 14 : 17), minTickX = Infinity;
     for (j = first; j < nCols; j++) {
       var n1 = j + 1, x = cx(j) + c / 2;
       if (opt.showColNums) {
         el(g, "text", { x: f1(x), y: f1(ph + 15), "text-anchor": "middle", "font-size": c < 12 ? 8 : FS, fill: "var(--dim)", "font-variant-numeric": "tabular-nums" }, n1);
-      } else if (n1 % 5 === 0) {
-        el(g, "line", { x1: f1(cx(j) + c + 0.5), y1: f1(ph), x2: f1(cx(j) + c + 0.5), y2: f1(ph + 4), stroke: "var(--dim)", "stroke-width": 1 });
-        el(g, "text", { x: f1(cx(j) + c), y: f1(ph + 17), "text-anchor": "middle", "font-size": FS, fill: "var(--dim)" }, n1);
+      } else if (n1 % every === 0) {
+        el(g, "line", { x1: f1(x + 0.5), y1: f1(ph), x2: f1(x + 0.5), y2: f1(ph + 4), stroke: "var(--dim)", "stroke-width": 1 });
+        el(g, "text", { x: f1(x), y: f1(ly0), "text-anchor": "middle", "font-size": FS, fill: "var(--dim)", "font-variant-numeric": "tabular-nums" }, n1);
+        minTickX = Math.min(minTickX, x);
       }
     }
-    
-
+    if (!opt.showColNums && minTickX > 34) el(g, "text", { x: 6, y: f1(ly0), "font-size": FS, fill: "var(--dim)" }, "col");
 
     // trend lines (Dorsey BSL/BRL): line box at column j = box0 +/- (j - col0), through box centres; square cells => true 45 degrees
     ovs.forEach(function (o) {
@@ -1082,9 +1131,14 @@ function openTweaks() {
         var clr = up ? "var(--accent)" : "var(--o)";
         el(g, "polyline", { points: pts.join(" "), fill: "none", stroke: clr, "stroke-width": act ? 1.5 : 1, "stroke-opacity": act ? 1 : 0.45, "stroke-dasharray": up ? null : "5 3", "stroke-linecap": "round", "stroke-linejoin": "round" });
         if (!act) return;
-        var mj = jf + (jl - jf) * 0.5, mb = sg.box0 + (up ? 1 : -1) * (mj - sg.col0);
-        var lx = cx(mj) + c / 2 + (up ? 9 : 9), ly = cy(mb) + (up ? 9 : -9);
-        el(g, "text", { x: f1(lx), y: f1(ly), transform: "rotate(" + (up ? -45 : 45) + " " + f1(lx) + " " + f1(ly) + ")", "text-anchor": "middle", "dominant-baseline": "central", "font-size": 11, "font-weight": 600, fill: clr }, up ? "support" : "resistance");
+        // label beside the line (below support, above resistance), kept inside the plot: clear of the price axis and the left edge
+        var lbl = up ? "support" : "resistance", hw = lbl.length * 6.2 * 0.7071 / 2 + 2, off = 8;
+        var xmin = Math.max(XO, cx(jf) + c / 2) + hw - off, xmax = Math.min(pw, cx(jl) + c / 2) - hw - off;
+        var xm = cx(jf + (jl - jf) * 0.5) + c / 2;
+        if (xmax >= xmin) xm = Math.max(xmin, Math.min(xmax, xm)); else xm = Math.min(xm, pw - hw - off);
+        var mj = (xm - c / 2 - pw) / c + nCols, mb = sg.box0 + (up ? 1 : -1) * (mj - sg.col0);
+        var lx = xm + off, ly = cy(mb) + (up ? off : -off);
+        el(g, "text", { x: f1(lx), y: f1(ly), transform: "rotate(" + (up ? -45 : 45) + " " + f1(lx) + " " + f1(ly) + ")", "text-anchor": "middle", "dominant-baseline": "central", "font-size": 11, "font-weight": 600, fill: clr }, lbl);
       });
     });
 
@@ -1426,20 +1480,57 @@ function openTweaks() {
     bar([{ act: 'desk', label: 'Desk', kind: 'out' }, { act: 'open-sheet', label: 'Next chart', kind: 'primary' }]);
   };
 
+  var UP = '<svg class="tri" viewBox="0 0 12 12" aria-hidden="true"><path d="M6 1.5l5 9H1z" fill="var(--x)"/></svg>';
+  var DN = '<svg class="tri" viewBox="0 0 12 12" aria-hidden="true"><path d="M6 10.5l5-9H1z" fill="var(--o)"/></svg>';
+  function sgn(v) { v = Math.round((num(v) || 0) * 1000); return v > 0 ? 1 : v < 0 ? -1 : 0; }
+  /* run return after each trade: step line, one dot per trade, end pill. No zero line (return only, no baseline). */
+  function drawEq(host, tr) {
+    if (!host || !tr.length) return;
+    var NS = 'http://www.w3.org/2000/svg';
+    function el(p, t, a, x) { var e = document.createElementNS(NS, t); for (var k in a) e.setAttribute(k, a[k]); if (x != null) e.textContent = x; p.appendChild(e); return e; }
+    var cum = [0], eq = 1;
+    tr.forEach(function (t) { eq *= 1 + (num(t.ret) || 0); cum.push((eq - 1) * 100); });
+    var W = Math.max(200, host.clientWidth || 300), H = 64, tot = cum[cum.length - 1], txt = fmtRet(tot / 100) || '+0.0%';
+    var pwid = Math.round(txt.length * 6.2 + 8), pw = W - pwid - 6, pt = 9, pb = 16, n = tr.length;
+    var hi = Math.max.apply(null, cum), lo = Math.min.apply(null, cum);
+    if (hi - lo < 1) { hi += 0.5; lo -= 0.5; }
+    function y(v) { return pt + (hi - v) / (hi - lo) * (H - pt - pb); }
+    function x(i) { return 6 + i * (pw - 12) / Math.max(1, n); }
+    var s = el(host, 'svg', { 'class': 'eq', width: W, height: H, viewBox: '0 0 ' + W + ' ' + H, role: 'img', 'aria-label': 'Run return after each trade, ending ' + txt });
+    var d = 'M' + x(0).toFixed(1) + ' ' + y(0).toFixed(1);
+    for (var i = 1; i <= n; i++) d += 'H' + x(i).toFixed(1) + 'V' + y(cum[i]).toFixed(1);
+    el(s, 'path', { d: d, fill: 'none', stroke: 'var(--text)', 'stroke-width': 1.6, 'stroke-linejoin': 'round' });
+    for (var j = 1; j <= n; j++) el(s, 'circle', { cx: x(j).toFixed(1), cy: y(cum[j]).toFixed(1), r: 2.6, fill: (num(tr[j - 1].ret) || 0) >= 0 ? 'var(--x)' : 'var(--o)' });
+    var yt = Math.max(9, Math.min(H - pb - 8, y(tot)));
+    el(s, 'rect', { x: W - 2 - pwid, y: (yt - 8.5).toFixed(1), width: pwid, height: 17, rx: 4, fill: 'var(--text)' });
+    el(s, 'text', { x: (W - 2 - pwid / 2).toFixed(1), y: (yt + 0.5).toFixed(1), 'text-anchor': 'middle', 'dominant-baseline': 'central', 'font-size': 11, 'font-weight': 700, fill: 'var(--bg)' }, txt);
+    el(s, 'text', { x: x(Math.min(1, n)).toFixed(1), y: H - 3, 'text-anchor': 'middle', 'font-size': 11, fill: 'var(--dim)' }, 'trade 1');
+    if (n > 2) el(s, 'text', { x: x(n).toFixed(1), y: H - 3, 'text-anchor': 'end', 'font-size': 11, fill: 'var(--dim)' }, 'trade ' + n);
+  }
+
   window.renderRunEnd = function () {
     var run = runOf(), tr = run.trades || [], total = curRun();
-    var best = bestOf();
-    var isBest = best && num(best.ret) !== null && Math.abs(best.ret - total) < 1e-9;
-    var list = tr.length ? tr.map(function (t, i) {
-      return '<div class="trl num"><span class="n">' + (i + 1) + '. ' + esc(t.code || '---') + '</span>' +
-        '<span class="w">' + esc(t.h || '?') + ' weeks</span><b class="' + retCls(t.ret) + '">' + esc(fmtRet(t.ret) || '--') + '</b></div>';
+    var best = bestOf(), sg = sgn(total);
+    var isBest = best && num(best.ret) !== null && Math.abs(best.ret - total) < 1e-9 && tr.length > 0;
+    var nb = best ? (+best.trades || 0) : 0;
+    var mx = 0;
+    tr.forEach(function (t) { mx = Math.max(mx, Math.abs(num(t.ret) || 0)); });
+    var list = tr.length ? '<div class="th"><span>#</span><span>Code</span><span>Horizon</span><span></span><span>Return</span></div>' + tr.map(function (t, i) {
+      var r = num(t.ret) || 0, g = sgn(r), w = mx ? (Math.abs(r) / mx * 48).toFixed(1) : 0;
+      return '<div class="tr num"><span class="i">' + (i + 1) + '</span><span class="c">' + esc(t.code || '---') + '</span>' +
+        '<span class="h">' + esc(t.h || '?') + ' weeks</span><span class="mb" aria-hidden="true"><span class="' + (r >= 0 ? 'p' : 'm') + '" style="width:' + w + '%"></span></span>' +
+        '<b class="ret ' + (g > 0 ? 'up' : g < 0 ? 'down' : '') + '">' + (g > 0 ? UP : g < 0 ? DN : '') + esc(fmtRet(r) || '--') + '</b></div>';
     }).join('') : '<p class="dim" style="margin:0">No trades in this run.</p>';
-    $('main').innerHTML = header('Run complete', tr.length + ' trades over ' + (run.charts || 0) + ' charts', {}) +
-      '<section class="card next" aria-label="Run result"><div class="cap">Total return</div>' +
-      '<div class="big"><span class="code num ' + retCls(total) + '" style="font-size:44px">' + esc(fmtRet(total) || '+0.0%') + '</span>' +
-      '<span class="meta num">' + tr.length + ' trade' + (tr.length === 1 ? '' : 's') + '</span></div>' +
-      '<div class="list num">' + esc(isBest ? 'New best run' : bestLine()) + '</div></section>' +
-      '<section class="card"><div class="cap">Trades</div>' + list + '</section>';
+    var bestRow = '<div class="brow"><span class="dim">' + (isBest ? 'New best run' : 'Best run') + '</span><span class="num">' +
+      (best ? '<b>' + esc(fmtRet(best.ret)) + '</b> <span class="dim">&middot; ' + nb + ' trade' + (nb === 1 ? '' : 's') + '</span>' : '<span class="dim">none yet</span>') + '</span></div>';
+    $('main').innerHTML = header('Run complete', tr.length + ' trade' + (tr.length === 1 ? '' : 's') + ' · ' + (run.charts || 0) + ' charts seen', {}) +
+      '<div class="stack"><section class="card hero" aria-label="Run result"><div class="cap">Total return</div>' +
+      '<div class="big"><span class="n num ' + (sg > 0 ? 'up' : sg < 0 ? 'down' : '') + '">' + esc(fmtRet(total) || '+0.0%') + '</span>' +
+      '<span class="w"><b class="' + (sg > 0 ? 'up' : sg < 0 ? 'down' : 'dim') + '">' + (sg > 0 ? UP : sg < 0 ? DN : '') + (sg > 0 ? 'gain' : sg < 0 ? 'loss' : 'flat') + '</b>' +
+      '<span class="dim num">' + tr.length + ' trade' + (tr.length === 1 ? '' : 's') + '</span></span></div>' +
+      '<div id="eq"></div>' + bestRow + '</section>' +
+      '<section class="card tl" aria-label="Trades in this run">' + list + '</section></div>';
+    drawEq($('eq'), tr);
     bar([{ act: 'journal', label: 'Journal', kind: 'out' }, { act: 'new-run', label: 'New run', kind: 'primary' }]);
   };
 
@@ -1589,7 +1680,7 @@ function openTweaks() {
         bars: o.bars || c.bars, eng: o.eng || c.eng, newFrom: o.newFrom == null ? null : o.newFrom,
         cols: T.chartCols || 24, showColNums: !!T.showColNums, overlays: o.overlays || [],
         pick: o.pick == null ? null : o.pick, onRow: o.onRow || null, height: o.height || 300,
-        minCell: 7, maxHeight: o.maxHeight || Math.round((o.height || 300) * 1.4) /* integrator: legibility floor */
+        cell: 15, minCell: o.minCell || 8, fitHeight: !!o.fitHeight, maxPlotH: o.maxPlotH || null, keepCol: o.keepCol == null ? null : o.keepCol /* v2: fixed 15px cells, last columns that fit */
       };
       if (o.compact) op.compact = true;
       drawPnf(host, op);
@@ -1599,12 +1690,13 @@ function openTweaks() {
     var host = $("pfs");
     if (!host || !c.sec) return;
     o = o || {};
+    var sh = o.height || T.sectorHeight || 180;
     safe(host, function () {
       drawPnf(host, {
         bars: o.bars || c.sec.bars, eng: o.eng || c.sec.eng, newFrom: o.newFrom == null ? null : o.newFrom,
-        cols: Math.min(T.chartCols || 24, 16), showColNums: false, overlays: o.overlays || [], /* integrator: 16 sector cols max, legibility */
-        height: o.height || T.sectorHeight || 180, compact: true, title: "Sector · " + c.sec.name,
-        minCell: 6, maxHeight: Math.max(o.height || T.sectorHeight || 180, 260), maxCols: 20
+        cols: T.chartCols || 24, showColNums: false, overlays: o.overlays || [],
+        height: sh, compact: true, title: "Sector · " + c.sec.name,
+        cell: 11, minCell: o.minCell || 6, fitHeight: !!o.fitHeight, maxPlotH: o.maxPlotH || Math.max(66, sh - 46) /* v2: 11px cells, cropped like the stock chart */
       });
     });
   }
@@ -1654,7 +1746,7 @@ function openTweaks() {
     if (stepper) ov.push({ k: "row", box: UI.pick, label: "your pick", style: "pick" });
     if (type !== "R3") { var t1 = trendOv(c.eng); if (t1) ov.push(t1); }
     drawChart(c, {
-      overlays: ov, pick: stepper ? UI.pick : null,
+      overlays: ov, pick: stepper ? UI.pick : null, keepCol: (type === "R4" && c.reads.R4 && c.reads.R4.col != null) ? c.reads.R4.col : null,
       onRow: stepper ? function (box) { UI.pick = box; keepScroll(render); } : null
     });
     if (showSector(c, type)) {
@@ -1785,34 +1877,74 @@ function openTweaks() {
     return "Trade " + Math.min(tr + 1, max) + " of " + max;
   }
   function weeksText(h) { return h + " weeks"; }
+  function chartLine() {
+    var n = (S.run && S.run.charts) || 0, max = (T && T.runCharts) || 20;
+    return "chart " + Math.min(n + 1, max) + " of " + max + " in this run";
+  }
+  var TRI_UP = '<svg class="tri" viewBox="0 0 12 12" aria-hidden="true"><path d="M6 1.5l5 9H1z" fill="var(--x)"/></svg>';
+  var TRI_DN = '<svg class="tri" viewBox="0 0 12 12" aria-hidden="true"><path d="M6 10.5l5-9H1z" fill="var(--o)"/></svg>';
+  window.TRI_UP = TRI_UP; window.TRI_DN = TRI_DN;
+  function keyHtml() {
+    return '<span class="key"><svg viewBox="0 0 12 12" aria-hidden="true"><path d="M2 2l8 8M10 2l-8 8" stroke="var(--x)" stroke-width="1.8" stroke-linecap="round"/></svg><span>up</span>' +
+      '<svg viewBox="0 0 12 12" aria-hidden="true"><circle cx="6" cy="6" r="4" stroke="var(--o)" stroke-width="1.8" fill="none"/></svg><span>down</span></span>';
+  }
   window.renderCall = function () {
     sync();
     clearTimer();
     var c = ctx(), h = curH(), pick = S.cur.call || null;
-    var hd = header(esc(S.cur.code) + " · Your call", subLine(c), { gear: true });
+    var nR = (S.cur.reads || []).length;
+    var hd = header("Your call", S.cur.code + " · " + nR + " reading" + (nR === 1 ? "" : "s") + " marked · last " + CSE.disp(c.close), { gear: true });
     var seg = '<div class="seg" role="group" aria-label="Your call">';
     ["Buy", "Don't buy"].forEach(function (o) {
       var on = pick === o;
       seg += '<button class="' + (on ? "on" : "") + '" data-opt="' + esc(o) + '" aria-pressed="' + on + '">' + esc(o) + '</button>';
     });
     seg += '</div>';
-    var hz = '<div class="card hz"><div class="hzh"><span class="cap2">Time horizon</span><b class="num" id="hLabel" aria-live="polite">' + esc(weeksText(h)) + '</b></div>' +
-      '<div class="hzrow"><button class="btn" data-act="h-down" aria-label="One week shorter">&minus;</button>' +
-      '<div class="hzs"><input type="range" id="horizon" min="3" max="10" step="1" value="' + h + '" aria-label="Time horizon in weeks"></div>' +
-      '<button class="btn" data-act="h-up" aria-label="One week longer">+</button></div>' +
-      '<div class="hzt" aria-hidden="true"><span>3</span><span>10 weeks</span></div></div>';
-    var callCard = '<div class="card callc"><div class="cap2">' + esc(tradeLine()) + '</div>' + seg +
-      '<p class="dim note">Buy keeps the trade open for the horizon. Don\'t buy takes no trade; you still see what happened.</p></div>';
+    var rr = 0; try { rr = runReturn(); } catch (e) { rr = 0; }
+    var rv = Math.round(rr * 1000), nT = (S.run && S.run.trades) ? S.run.trades.length : 0;
+    var rrHtml = '<b class="num ' + (rv > 0 ? "up" : (rv < 0 ? "down" : "")) + '">' + (rv > 0 ? TRI_UP : (rv < 0 ? TRI_DN : "")) + esc(fmtPct(rr)) + '</b>';
+    var ticks = "";
+    for (var t = 3; t <= 10; t++) ticks += '<span' + (t === h ? ' class="on"' : '') + '>' + t + '</span>';
+    var callCard = '<div class="card callc" id="callc">' +
+      '<div class="st"><span><b class="num">' + esc(tradeLine()) + '</b><small class="num">' + esc(chartLine()) + '</small></span>' +
+      '<span class="rr">' + rrHtml + '<small>' + (nT ? "run return so far" : "run return, no trades yet") + '</small></span></div>' + seg +
+      '<div class="hzh"><span class="cap">Horizon</span><span class="v num"><b id="hLabel" aria-live="polite">' + esc(weeksText(h)) + '</b><small id="hx">closes at week +' + h + '</small></span></div>' +
+      '<div class="sl"><button class="btn" data-act="h-down" aria-label="One week shorter">&minus;</button>' +
+      '<input type="range" id="horizon" min="3" max="10" step="1" value="' + h + '" aria-label="Time horizon in weeks">' +
+      '<button class="btn" data-act="h-up" aria-label="One week longer">+</button><div class="tk num" id="tk" aria-hidden="true">' + ticks + '</div></div></div>';
+    var stockCard = '<div class="card pf"><div class="cs tg"><span class="tags"><span>' + esc(S.cur.code) + '</span><span>Box 2%</span><span>3-box</span><span>Weekly</span></span>' + keyHtml() + '</div><div id="pf"></div></div>';
+    var sec = showSector(c, "call"), secCard = secPane(c, "call");
+    /* v2 mockup: stock, sector, call card on one screen. Short screens (475x638): call card above the sector chart. */
+    var tall = (window.innerHeight || 800) >= 760;
+    $("main").innerHTML = hd + '<div class="stack callstack">' + stockCard + (tall ? secCard + callCard : callCard + secCard) + "</div>";
+    bar([
+      { act: "back-reading", label: "Review charts", kind: "out" },
+      { act: "confirm-call", label: "Confirm call", kind: "primary", disabled: !pick }
+    ]);
 
-    $("main").innerHTML = hd + '<div class="stack"><div class="card pf">' + '<div id="pf"></div></div>' +
-      callCard + hz + secPane(c, "call") + "</div>"; /* integrator: controls above the fold at 344x882; sector chart below them */
-
+    /* height budget: everything from the stock chart to the call card fits above the bottom bar */
+    var bEl = $("bar"), pf = $("pf"), cc = $("callc");
+    var barTop = bEl && bEl.offsetHeight ? window.innerHeight - bEl.offsetHeight : window.innerHeight - 76;
+    var pfTop = pf ? pf.getBoundingClientRect().top + (window.scrollY || 0) : 200;
+    var callH = cc ? cc.offsetHeight : 220, GAP = 8, SVGPAD = 6 + 24, SECPAD = 6 + 20 + 20 + 2;
+    var room = barTop - pfTop - 8 - 2; /* 8 slack, 2 card border */
     var ov = [{ k: "close", box: c.closeBox }];
     var t1 = trendOv(c.eng); if (t1) ov.push(t1);
-    drawChart(c, { overlays: ov, height: 220, maxHeight: 290, compact: true });
-    if (showSector(c, "call")) {
+    var secCap = Math.max(66, (T.sectorHeight || 180) - 46);
+    if (tall) {
+      var secMin = sec ? 110 + SECPAD + GAP : 0;
+      drawChart(c, { overlays: ov, minCell: 7, fitHeight: true, maxPlotH: Math.max(150, Math.min(270, room - SVGPAD - GAP - callH - secMin)) });
+    } else {
+      drawChart(c, { overlays: ov, minCell: 7, fitHeight: true, maxPlotH: Math.max(120, Math.min(270, room - SVGPAD - GAP - callH)) });
+    }
+    if (sec) {
       var sov = [], t2 = trendOv(c.sec.eng); if (t2) sov.push(t2);
-      drawSector(c, { overlays: sov, height: Math.min(T.sectorHeight || 180, 150) });
+      var secPlot = secCap;
+      if (tall) {
+        var pfCard = pf.parentNode, used = pfCard ? pfCard.getBoundingClientRect().bottom + (window.scrollY || 0) : pfTop + 260;
+        secPlot = Math.max(66, Math.min(secCap, barTop - 8 - used - GAP - callH - GAP - SECPAD));
+      }
+      drawSector(c, { overlays: sov, maxPlotH: secPlot, minCell: 5, fitHeight: tall });
     }
     var inp = $("horizon");
     if (inp) {
@@ -1822,15 +1954,18 @@ function openTweaks() {
         paintH();
       });
     }
-    bar([
-      { act: "back-reading", label: "Review charts", kind: "out" },
-      { act: "confirm-call", label: "Confirm call", kind: "primary", disabled: !pick }
-    ]);
+    paintH();
   };
   function paintH() {
-    var h = curH(), l = $("hLabel"), i = $("horizon");
+    var h = curH(), l = $("hLabel"), i = $("horizon"), x = $("hx"), tk = $("tk");
     if (l) l.textContent = weeksText(h);
+    if (x) x.textContent = "closes at week +" + h;
     if (i && String(i.value) !== String(h)) i.value = h;
+    if (i) { /* track fill ends at the thumb centre (thumb 36px) */
+      var w = i.clientWidth || 1, px = 18 + (h - 3) / 7 * (w - 36);
+      i.style.setProperty("--p", (px / w * 100).toFixed(2) + "%");
+    }
+    if (tk) [].forEach.call(tk.children, function (sp) { sp.className = (+sp.textContent === h) ? "on" : ""; });
   }
   function bumpH(d) {
     if (typeof setHorizon === "function") setHorizon(curH() + d);
