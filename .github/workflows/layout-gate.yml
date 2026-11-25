@@ -1,0 +1,60 @@
+name: Layout gate
+on:
+  pull_request:
+    paths: ['pages/**', 'tools/layout-gate/**', '.github/workflows/layout-gate.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install gate and Chromium
+        run: |
+          cd tools/layout-gate
+          npm install --no-audit --no-fund
+          npx playwright install --with-deps chromium
+      - name: Gate unit tests
+        run: cd tools/layout-gate && npm test
+      - name: New games need a layout-gate.json marker
+        if: github.event_name == 'pull_request'
+        run: node tools/layout-gate/gated.mjs --check-new "origin/${{ github.base_ref }}"
+      - name: Run gate on changed gated games
+        id: gate
+        run: |
+          set -o pipefail
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            games=$(node tools/layout-gate/gated.mjs --changed "origin/${{ github.base_ref }}")
+          else
+            games=$(node tools/layout-gate/gated.mjs --list)
+          fi
+          mkdir -p layout-out
+          failed=""
+          if [ -z "$games" ]; then
+            echo "Layout gate: no gated games changed" | tee -a "$GITHUB_STEP_SUMMARY"
+          fi
+          for g in $games; do
+            if node tools/layout-gate/gate.mjs --game "$g" --out "layout-out/$g" | tee "layout-out/$g.txt"; then
+              :
+            else
+              failed="$failed $g"
+            fi
+            echo "- \`$g\`: $(tail -n 1 "layout-out/$g.txt")" >> "$GITHUB_STEP_SUMMARY"
+          done
+          if [ -n "$failed" ]; then
+            echo "Layout gate FAILED for:$failed" | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+      - name: Upload layout report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: layout-out
+          path: layout-out
+          if-no-files-found: ignore

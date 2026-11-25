@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Layout gate good fixture</title>
+<style>
+  body { margin: 0; font: 16px/1.4 system-ui, sans-serif; color: #111; background: #fff; }
+  main { max-width: 640px; margin: 0 auto; padding: 16px; position: relative; }
+  h1 { font-size: 24px; margin: 0 0 8px; }
+  p { margin: 0 0 12px; }
+  .ribbon { width: 160px; overflow: hidden; white-space: nowrap; background: #eef; margin-bottom: 12px; font-size: 14px; }
+  .deco { position: absolute; top: 16px; left: 16px; font-size: 24px; color: #ccc; }
+  .nav { display: flex; gap: 8px; margin-bottom: 16px; }
+  .btn { flex: 1; min-width: 48px; min-height: 48px; font: inherit; font-size: 16px; padding: 0 8px; }
+  .link { display: inline-block; min-width: 48px; min-height: 48px; line-height: 48px; }
+  .field { display: block; font-size: 14px; margin-bottom: 4px; }
+  input[type=text] { width: 100%; box-sizing: border-box; min-height: 48px; font-size: 16px; margin-bottom: 12px; }
+  .card { border: 1px solid #aaa; padding: 8px; margin-bottom: 12px; }
+  .card svg { display: block; width: 100%; height: auto; }
+  .sec { display: none; }
+  body[data-state=home] #s-home, body[data-state=chart] #s-chart, body[data-state=list] #s-list { display: block; }
+  ul { list-style: none; margin: 0; padding: 0; }
+  li { display: flex; align-items: center; justify-content: space-between; min-height: 56px; border-bottom: 1px solid #ddd; }
+  .note { font-size: 13px; color: #444; }
+</style>
+</head>
+<body data-state="home">
+<main>
+  <div class="deco" data-layout="ignore">Chart school</div>
+  <h1>Chart school</h1>
+  <div class="ribbon" data-layout-ok="marquee ribbon clips on purpose"><span>Breaking news scrolls across this ribbon continuously forever</span></div>
+
+  <div class="nav">
+    <button class="btn" data-act="go-home">Home</button>
+    <button class="btn" data-act="go-chart">Chart</button>
+    <button class="btn" data-act="go-list">Lessons</button>
+  </div>
+
+  <section class="sec" id="s-home">
+    <p>Pick a lesson, read the chart and make your call.</p>
+    <label class="field" for="nick">Your nickname</label>
+    <input id="nick" type="text" value="Guest">
+    <a class="link" href="#help">Help</a>
+    <p class="note">Progress is saved on this device only.</p>
+  </section>
+
+  <section class="sec" id="s-chart">
+    <div class="card">
+      <svg id="chart" data-layout="fill" viewBox="0 0 320 180" role="img" aria-label="Weekly score chart">
+        <text x="8" y="16" font-size="13" fill="#111">Weekly score</text>
+        <g stroke="#ccc" stroke-width="1">
+          <line x1="8" y1="40" x2="312" y2="40"/>
+          <line x1="8" y1="90" x2="312" y2="90"/>
+          <line x1="8" y1="140" x2="312" y2="140"/>
+        </g>
+        <g data-layout="mark" fill="#3b7dd8">
+          <rect x="16"  y="90"  width="30" height="50"/>
+          <rect x="58"  y="60"  width="30" height="80"/>
+          <rect x="100" y="75"  width="30" height="65"/>
+          <rect x="142" y="45"  width="30" height="95"/>
+          <rect x="184" y="70"  width="30" height="70"/>
+          <rect x="226" y="55"  width="30" height="85"/>
+          <rect x="268" y="85"  width="30" height="55"/>
+        </g>
+        <g font-size="12" fill="#111" text-anchor="middle">
+          <text x="31"  y="160">Mon</text>
+          <text x="73"  y="160">Tue</text>
+          <text x="115" y="160">Wed</text>
+          <text x="157" y="160">Thu</text>
+          <text x="199" y="160">Fri</text>
+          <text x="241" y="160">Sat</text>
+          <text x="283" y="160">Sun</text>
+        </g>
+      </svg>
+    </div>
+    <div class="card">
+      <svg id="dots" viewBox="0 0 300 60" role="img" aria-label="Streak dots">
+        <g fill="#3b7dd8">
+          <circle cx="15" cy="30" r="8"/><circle cx="48" cy="30" r="8"/><circle cx="81" cy="30" r="8"/>
+          <circle cx="114" cy="30" r="8"/><circle cx="147" cy="30" r="8"/><circle cx="180" cy="30" r="8"/>
+          <circle cx="213" cy="30" r="8"/><circle cx="246" cy="30" r="8"/><circle cx="279" cy="30" r="8"/>
+        </g>
+      </svg>
+    </div>
+  </section>
+
+  <section class="sec" id="s-list">
+    <ul>
+      <li><span>First lesson</span><button class="btn" style="flex:none;width:96px" data-act="open-1">Open</button></li>
+      <li><span>Second lesson</span><button class="btn" style="flex:none;width:96px" data-act="open-2">Open</button></li>
+      <li><span>Third lesson</span><button class="btn" style="flex:none;width:96px" data-act="open-3">Open</button></li>
+    </ul>
+  </section>
+</main>
+
+<script>
+  window.__test = {
+    ready: true,
+    states: function () { return ['home', 'chart', 'list']; },
+    goto: function (name) { document.body.setAttribute('data-state', name); return Promise.resolve(); },
+    seed: function () {}
+  };
+</script>
+</body>
+</html>

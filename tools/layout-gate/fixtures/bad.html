@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Layout gate bad fixture</title>
+<style>
+  body { margin: 0; padding: 8px 12px; font: 16px/1.3 system-ui, sans-serif; color: #111; background: #fff; }
+  .sec { display: none; margin-bottom: 16px; border-top: 2px solid #c00; }
+  body[data-state=all-bad] .sec,
+  body[data-state=layout] #s-layout,
+  body[data-state=tap] #s-tap,
+  body[data-state=text] #s-text,
+  body[data-state=bar] #s-bar { display: block; }
+  #bar { position: fixed; left: 0; right: 0; bottom: 0; height: 64px; background: #234; color: #fff; z-index: 5; }
+  h2 { font-size: 14px; margin: 4px 0; }
+  .stack { position: relative; height: 44px; }
+  .stack span { position: absolute; white-space: nowrap; }
+  #cov-wrap { position: relative; height: 60px; margin-top: 8px; }
+  #cov-wrap .shield { position: absolute; inset: 0; background: rgba(0,0,0,.06); }
+</style>
+</head>
+<body data-state="all-bad">
+
+<!-- h-scroll, offscreen -->
+<section class="sec" id="s-layout">
+  <h2>layout</h2>
+  <div id="wide" style="width:600px;height:16px;background:#ddd"></div>
+  <p style="position:absolute;left:380px;top:10px;margin:0">Off right edge</p>
+  <div id="fx" style="position:fixed;left:-300px;top:200px;width:120px;height:30px;background:#fcc">Hidden fixed</div>
+</section>
+
+<!-- tap-small, tap-covered -->
+<section class="sec" id="s-tap">
+  <h2>tap</h2>
+  <button id="tiny" style="width:20px;height:20px">x</button>
+  <div id="cov-wrap"><button id="cov" style="width:140px;height:56px">Covered</button><div class="shield"></div></div>
+</section>
+
+<!-- clipped, text-overlap, dup-label, text-small, text-over-mark, fill-empty, svg-empty-half -->
+<section class="sec" id="s-text">
+  <h2>text</h2>
+  <div id="clip" style="width:120px;height:22px;overflow:hidden;white-space:nowrap">This sentence is far too long to fit</div>
+  <div id="ell" style="width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Truncated with an ellipsis</div>
+  <div class="stack"><span style="left:0;top:0">Overlapping alpha</span><span style="left:12px;top:6px">Overlapping beta</span></div>
+  <div class="stack"><span style="left:0;top:0">Duplicate</span><span style="left:4px;top:2px">Duplicate</span></div>
+  <p id="small" style="font-size:9px;margin:4px 0">Tiny print caption</p>
+  <svg id="chart" viewBox="0 0 300 120" width="100%" height="120">
+    <g data-layout="mark">
+      <rect x="20" y="30" width="60" height="80" fill="#69c"/>
+      <rect x="100" y="50" width="60" height="60" fill="#69c"/>
+      <rect x="180" y="40" width="60" height="70" fill="#69c"/>
+    </g>
+    <text x="28" y="75" font-size="14" fill="#000">Revenue</text>
+  </svg>
+  <div id="fillbox" data-layout="fill" style="height:80px;border:1px solid #888"><div style="width:30px;height:60px;background:#c66"></div></div>
+  <svg id="lopsided" viewBox="0 0 300 100" width="100%" height="100">
+    <circle cx="10" cy="20" r="5"/><circle cx="20" cy="40" r="5"/><circle cx="30" cy="60" r="5"/>
+    <circle cx="40" cy="80" r="5"/><circle cx="50" cy="20" r="5"/><circle cx="15" cy="70" r="5"/>
+    <circle cx="25" cy="30" r="5"/><circle cx="35" cy="50" r="5"/><circle cx="45" cy="70" r="5"/>
+    <circle cx="55" cy="90" r="5"/>
+    <text x="120" y="50" font-size="6">tiny label</text>
+  </svg>
+</section>
+
+<!-- under-bar: tall content, fixed bottom bar, no bottom padding: the last button stays under the bar -->
+<section class="sec" id="s-bar">
+  <h2>bar</h2>
+  <div style="height:1400px;background:#f4f4f4"></div>
+  <button id="lastbtn" style="display:block;width:200px;height:56px;margin:0">Last action</button>
+</section>
+<div id="bar" style="display:none">Bar</div>
+
+<script>
+  window.__test = {
+    ready: true,
+    states: function () { return ['all-bad', 'tap', 'text', 'layout', 'bar']; },
+    goto: function (name) { document.body.setAttribute('data-state', name); document.getElementById('bar').style.display = name === 'bar' ? 'block' : 'none'; window.scrollTo(0, 0); return Promise.resolve(); },
+    seed: function () {}
+  };
+</script>
+</body>
+</html>

@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>canvas fixture (bad)</title>
+<style>
+  html,body{margin:0;background:#101820;color:#fff;font-family:sans-serif;overflow:hidden}
+  canvas{display:block;width:100vw;height:60vh}
+</style></head>
+<body>
+<canvas id="game"></canvas>
+<script>
+// Bad canvas fixture. Bitmap is 2x the CSS size (DPR-style) and drawing uses a transform.
+// States: overlap, dup, outside, half (each triggers exactly one canvas check), plus ok.
+(function () {
+  var SCALE = 2, cv = document.getElementById('game'), ctx = cv.getContext('2d'), state = 'ok';
+  function size() {
+    var r = cv.getBoundingClientRect();
+    var w = Math.round(r.width * SCALE), h = Math.round(r.height * SCALE);
+    if (cv.width !== w || cv.height !== h) { cv.width = w; cv.height = h; }
+    return { w: r.width, h: r.height };
+  }
+  function shapes(W, H, halves) {
+    var cols = ['#e63946', '#2a9d8f', '#e9c46a', '#457b9d', '#f4a261', '#9b5de5'];
+    var n = 6;
+    for (var i = 0; i < n; i++) {
+      var x = halves === 'left' ? 10 + i * (W / 2 - 20) / n : 10 + i * (W - 20) / n;
+      ctx.fillStyle = cols[i % cols.length];
+      ctx.fillRect(x, H * 0.55, (halves === 'left' ? (W / 2 - 30) / n : (W - 30) / n) - 4, H * 0.3);
+    }
+  }
+  function draw() {
+    var s = size(), W = s.w, H = s.h;
+    ctx.setTransform(SCALE, 0, 0, SCALE, 0, 0);
+    ctx.clearRect(0, 0, W, H);
+    ctx.fillStyle = '#101820'; ctx.fillRect(0, 0, W, H);
+    shapes(W, H, state === 'half' ? 'left' : 'all');
+    ctx.save();
+    ctx.translate(8, 8);                       // camera offset
+    ctx.font = '16px sans-serif'; ctx.textBaseline = 'alphabetic'; ctx.textAlign = 'left';
+    ctx.fillStyle = '#fff';
+    if (state === 'overlap') {
+      ctx.fillText('SCORE 120', 10, 30);
+      ctx.fillText('HIGH 9999', 20, 34);      // overlaps the line above
+    } else if (state === 'dup') {
+      ctx.fillText('WAVE 2', 10, 30);
+      ctx.fillText('WAVE 2', 12, 31);         // same label drawn twice
+    } else if (state === 'outside') {
+      ctx.textAlign = 'right';
+      ctx.fillText('GAME OVER, TRY AGAIN', W - 8 + 60, 30);   // sticks out of the right edge
+      ctx.textAlign = 'left';
+    } else if (state === 'half') {
+      ctx.fillText('LEFT ONLY', 10, 30);
+    } else {
+      ctx.fillText('SCORE 120', 10, 30);
+      ctx.textAlign = 'right'; ctx.fillText('LIVES 3', W - 24, 30);
+    }
+    ctx.restore();
+  }
+  window.__test = {
+    ready: true,
+    states: function () { return ['overlap', 'dup', 'outside', 'half', 'ok']; },
+    goto: function (n) { state = n; draw(); return Promise.resolve(); },
+    seed: function () {}
+  };
+  addEventListener('resize', draw);
+  draw();
+})();
+</script></body></html>
