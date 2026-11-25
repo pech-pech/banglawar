@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>canvas fixture (good)</title>
+<style>
+  html,body{margin:0;background:#101820;color:#fff;font-family:sans-serif;overflow:hidden}
+  canvas{display:block;width:100vw;height:70vh}
+</style></head>
+<body>
+<canvas id="game"></canvas>
+<script>
+// Clean canvas fixture: 2x bitmap, transform, text sized to fit, content in both halves.
+// States: menu, play, over.
+(function () {
+  var SCALE = 2, cv = document.getElementById('game'), ctx = cv.getContext('2d'), state = 'menu';
+  var cols = ['#e63946', '#2a9d8f', '#e9c46a', '#457b9d', '#f4a261', '#9b5de5'];
+  function size() {
+    var r = cv.getBoundingClientRect();
+    var w = Math.round(r.width * SCALE), h = Math.round(r.height * SCALE);
+    if (cv.width !== w || cv.height !== h) { cv.width = w; cv.height = h; }
+    return { w: r.width, h: r.height };
+  }
+  function fit(text, maxW, fs) {           // shrink font until the text fits maxW
+    for (; fs > 8; fs--) { ctx.font = 'bold ' + fs + 'px sans-serif'; if (ctx.measureText(text).width <= maxW) break; }
+    return fs;
+  }
+  function bars(W, H) {
+    var n = 6, gap = 6, bw = (W - 24 - gap * (n - 1)) / n;
+    for (var i = 0; i < n; i++) {
+      ctx.fillStyle = cols[i];
+      ctx.fillRect(12 + i * (bw + gap), H * 0.5, bw, H * 0.35);
+    }
+  }
+  function draw() {
+    var s = size(), W = s.w, H = s.h;
+    ctx.setTransform(SCALE, 0, 0, SCALE, 0, 0);
+    ctx.clearRect(0, 0, W, H);
+    ctx.fillStyle = '#101820'; ctx.fillRect(0, 0, W, H);
+    ctx.save();
+    ctx.translate(6, 6);                    // camera offset
+    var iw = W - 12;                        // inner width after the offset
+    ctx.fillStyle = '#fff'; ctx.textBaseline = 'alphabetic';
+    if (state === 'menu') {
+      bars(W - 12, H);
+      var fs = fit('CANVAS RUNNER', iw - 24, 30);
+      ctx.textAlign = 'center'; ctx.fillText('CANVAS RUNNER', iw / 2, H * 0.25);
+      fit('TAP TO START', iw - 24, 16);
+      ctx.fillText('TAP TO START', iw / 2, H * 0.25 + fs + 8);
+    } else if (state === 'play') {
+      bars(W - 12, H);
+      fit('SCORE 120', iw / 2 - 12, 18);
+      ctx.textAlign = 'left'; ctx.fillText('SCORE 120', 4, 22);
+      fit('LIVES 3', iw / 2 - 12, 18);
+      ctx.textAlign = 'right'; ctx.fillText('LIVES 3', iw - 4, 22);
+      fit('SPEED', 60, 12);
+      ctx.textAlign = 'center';
+      ctx.fillText('SPEED', iw / 2, H * 0.4);
+    } else {
+      bars(W - 12, H);
+      var f2 = fit('GAME OVER', iw - 24, 30);
+      ctx.textAlign = 'center'; ctx.fillText('GAME OVER', iw / 2, H * 0.25);
+      fit('BEST 1450', iw - 24, 16);
+      ctx.fillText('BEST 1450', iw / 2, H * 0.25 + f2 + 6);
+    }
+    ctx.restore();
+  }
+  window.__test = {
+    ready: true,
+    states: function () { return ['menu', 'play', 'over']; },
+    goto: function (n) { state = n; draw(); return Promise.resolve(); },
+    seed: function () {}
+  };
+  addEventListener('resize', draw);
+  draw();
+})();
+</script></body></html>
