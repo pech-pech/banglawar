@@ -2,9 +2,9 @@
   "gate": "pgs-layout-gate",
   "version": 1,
   "game": "windward-line",
-  "gameHash": "sha256:a9e7051fed9ddadd6821da71639a911137a4b391432f63eeb087e95b41129726",
-  "commit": "d2f727341de2525d8ae813c1e3d372ce4ca565cc",
-  "createdAt": "2026-11-25T19:43:05.853Z",
+  "gameHash": "sha256:1fc44aa77ff1105eada5d47e8b6a827aebb1ee01327b59bf51a1ce54265019ed",
+  "commit": "1bde32c1dc6872f659f92a230c2a54c9345f333c",
+  "createdAt": "2026-11-26T03:54:04.351Z",
   "verdict": "PASS",
   "sizes": [
     "fold-cover-344x882",

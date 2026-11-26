@@ -161,6 +161,49 @@ export function initTweak(panelEl, getCfg, setCfg) {
     }
   }
 
+  // Frame stats checkbox (not a gameplay tweak: no DEV badge, not in cfg)
+  {
+    const KEY = 'wl-frame-stats';
+    const row = el('div', 'tw-row');
+    const lab = el('label', 'tw-head'); lab.style.cursor = 'pointer'; lab.style.alignItems = 'center'; lab.style.minHeight = '48px';
+    const cb = el('input'); cb.type = 'checkbox'; cb.id = 'tw-frame-stats'; cb.style.cssText = 'width:48px;height:48px;accent-color:#39d0ff;margin:0' /* integrator: layout gate tap >= 48 */;
+    lab.appendChild(el('span', 'tw-label', 'Frame stats')); lab.appendChild(cb);
+    row.appendChild(lab); root.appendChild(row);
+    let box = null, raf = 0, last = 0;
+    const fx = (v, d) => (typeof v === 'number' && isFinite(v) ? v.toFixed(d) : '--');
+    const paint = () => {
+      const s = (typeof window !== 'undefined' && window.WL && window.WL.stats) || {};
+      const l1 = 'fps ' + fx(s.fps, 0) + ' | frame p50 ' + fx(s.p50, 1) + ' p95 ' + fx(s.p95, 1) + ' max ' + fx(s.max, 0);
+      const l2 = 'draw ' + fx(s.drawMs, 1) + ' ms | sim ' + fx(s.simMs, 1) + ' | fire ' + fx(s.fireCells, 0) + ' | jump ' + fx(s.maxJump, 1) + ' px';
+      box.textContent = l1 + '\n' + l2;
+    };
+    const tick = (t) => {
+      raf = 0;
+      if (!box) return;
+      if (t - last >= 250) { last = t; paint(); }
+      raf = requestAnimationFrame(tick);
+    };
+    const setOn = (on, save) => {
+      cb.checked = on;
+      if (save) { try { localStorage.setItem(KEY, on ? '1' : '0'); } catch (e) {} }
+      if (on && !box) {
+        box = document.getElementById('frame-stats');
+        if (!box) {
+          box = el('div'); box.id = 'frame-stats'; box.setAttribute('data-layout', 'ignore');
+          (document.getElementById('app') || document.body).appendChild(box);
+        }
+        box.hidden = false; box.style.whiteSpace = 'pre'; paint();
+        if (!raf) raf = requestAnimationFrame(tick);
+      } else if (!on && box) {
+        if (raf) cancelAnimationFrame(raf);
+        raf = 0; box.remove(); box = null;
+      }
+    };
+    cb.addEventListener('change', () => setOn(cb.checked, true));
+    let saved = false; try { saved = localStorage.getItem(KEY) === '1'; } catch (e) {}
+    if (saved) setOn(true, false);
+  }
+
   for (const [key, label, min, max, step] of TWEAK_SPEC) {
     const row = el('div', 'tw-row');
     const head = el('div', 'tw-head'); const lab = el('span', 'tw-label', label); const val = el('span', 'tw-val');

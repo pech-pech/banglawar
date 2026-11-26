@@ -1,5 +1,5 @@
 // Windward Line - main.js (M8): boot, fixed-step loop, input, save, window.WL.
-import { defaultCfg, cloneCfg, STAGES, PHASE, MAP_W, MAP_H, CELL_PX } from './contract.js';
+import { defaultCfg, cloneCfg, breakRating, STAGES, PHASE, MAP_W, MAP_H, CELL_PX } from './contract.js';
 import { createState, startRun, step, queueCallin, finishRun, hashState } from './sim.js';
 import { applyAction, undo, refundAll, rebuild, buildingAt, costOf } from './plan.js';
 import { initRender, draw, screenToCell, fitView } from './render.js';
@@ -21,12 +21,21 @@ function loadSave() {
         if (Array.isArray(o.unlocked)) save.unlocked = o.unlocked.filter((s) => typeof s === 'string');
         if (o.best && typeof o.best === 'object') save.best = o.best;
         if (Number.isFinite(o.seed)) save.seed = o.seed | 0;
+        if (typeof o.calm === 'boolean') save.calm = o.calm;
       }
     }
   } catch (e) { /* storage blocked: run without save */ }
 }
 function writeSave() { try { localStorage.setItem(SAVE_KEY, JSON.stringify(save)); } catch (e) { /* ignore */ } }
 loadSave();
+
+// ---------- helpers / calm motion ----------
+const clamp = (x, a, b) => (x < a ? a : x > b ? b : x); // admin default (util.js has the same)
+const easeInOutCubic = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
+const mqReduce = (typeof matchMedia === 'function') ? matchMedia('(prefers-reduced-motion: reduce)') : null;
+let calm = typeof save.calm === 'boolean' ? save.calm : !!(mqReduce && mqReduce.matches);
+function applyCalm() { try { document.documentElement.classList.toggle('calm', calm); } catch (e) { /* ignore */ } }
+if (mqReduce && mqReduce.addEventListener) mqReduce.addEventListener('change', () => { if (typeof save.calm !== 'boolean') { calm = mqReduce.matches; applyCalm(); } });
 
 // ---------- core vars ----------
 const app = document.getElementById('app');
@@ -171,6 +180,8 @@ const api = {
     } catch (e) { toast('Copy failed'); }
   },
   isUnlocked,
+  getCalm: () => calm,
+  setCalm(b) { calm = !!b; save.calm = calm; writeSave(); applyCalm(); if (calm) tween = null; if (ui) ui.update(state); return calm; },
 };
 
 // ---------- layout / camera ----------
@@ -198,9 +209,28 @@ function computeFit() {
   const f = fitView(rect.w, rect.h);
   fit = { scale: f.scale || 1, ox: f.ox, oy: f.oy };
 }
+// camera tween (#7): programmatic moves ease 300 ms; never while a pointer is down; calm/test: instant
+let tween = null;
+function applyView(to) {
+  const busy = !!(window.__test && window.__test.busy);
+  const d = Math.abs(to.ox - view.ox) + Math.abs(to.oy - view.oy) + Math.abs(to.scale - view.scale) * 100;
+  if (!viewReady || calm || busy || ptrs.size > 0 || d < 0.5) { view.ox = to.ox; view.oy = to.oy; view.scale = to.scale; tween = null; return; }
+  tween = { ox0: view.ox, oy0: view.oy, s0: view.scale, to: { ox: to.ox, oy: to.oy, scale: to.scale }, t0: 0, dur: 300 };
+}
+function stepTween(t) {
+  if (!tween) return;
+  if (ptrs.size > 0 || calm) { if (calm) { const o = tween.to; view.ox = o.ox; view.oy = o.oy; view.scale = o.scale; } tween = null; return; }
+  if (!tween.t0) tween.t0 = t;
+  const k = clamp((t - tween.t0) / tween.dur, 0, 1), e = easeInOutCubic(k), o = tween.to;
+  view.ox = tween.ox0 + (o.ox - tween.ox0) * e;
+  view.oy = tween.oy0 + (o.oy - tween.oy0) * e;
+  view.scale = tween.s0 + (o.scale - tween.s0) * e;
+  if (k >= 1) tween = null;
+}
 function fitCamera() {
   computeFit();
-  view.scale = fit.scale; view.ox = fit.ox; view.oy = fit.oy; // top-anchored first fit; later resizes keep the centre
+  // top-anchored first fit; later resizes keep the centre
+  applyView({ scale: fit.scale, ox: fit.ox, oy: fit.oy });
 }
 function clampView() {
   const lo = fit.scale * 0.8, hi = fit.scale * 8;
@@ -214,6 +244,7 @@ function resize() {
   const W = window.innerWidth, H = window.innerHeight;
   dpr = Math.min(2, window.devicePixelRatio || 1);
   const nw = Math.max(1, Math.round(app.clientWidth || W)), nh = Math.max(1, Math.round(app.clientHeight || H));
+  const from = { ox: view.ox, oy: view.oy, scale: view.scale };
   const centre = viewReady ? worldCentre() : null;
   const wasFit = viewReady && Math.abs(view.scale - fit.scale) < 1e-6;
   // integrator: render.js is the single owner of the canvas backing size and dpr transform
@@ -227,12 +258,18 @@ function resize() {
   else view.scale = Math.max(fit.scale * 0.8, view.scale * (fit.scale / oldFit));
   setCentre(centre);
   clampView();
+  const to = { ox: view.ox, oy: view.oy, scale: view.scale };
+  view.ox = from.ox; view.oy = from.oy; view.scale = from.scale;
+  applyView(to);
 }
 
 // ---------- render ----------
 function render() {
   if (!rend || !state) return;
   overlay.armed = armed;
+  overlay.alpha = curAlpha;
+  overlay.paused = !!(state && state.paused);
+  overlay.calm = calm;
   draw(rend, state, view, overlay);
 }
 
@@ -278,6 +315,7 @@ function previewFor(a) {
   const p = { t: a.t, ok, cost };
   if (a.t === 'zone') Object.assign(p, { x: a.x, y: a.y, w: a.w, h: a.h, x0: a.x, y0: a.y, x1: a.x + a.w - 1, y1: a.y + a.h - 1 });
   else Object.assign(p, { x0: a.x0, y0: a.y0, x1: a.x1, y1: a.y1, width: a.width });
+  if (a.t === 'break') p.hold = breakRating(state.cfg || cfg, a.width || breakWidth, state.wind && state.wind.level);
   return p;
 }
 function inPlan() { return state.phase === PHASE.PLAN && !settingsOpen; }
@@ -412,18 +450,66 @@ function onResult() {
 }
 
 // ---------- loop ----------
-let last = 0, acc = 0, uiAcc = 0;
+let last = 0, acc = 0, uiAcc = 0, curAlpha = 0, lastAlpha = 0;
+// perf ring + accumulators
+const RING = 240, ring = new Float32Array(RING), sorted = new Float32Array(RING);
+let ringN = 0, ringI = 0, simMs = 0, statT = 0, snapBase = 0;
+const stats = { fps: 0, p50: 0, p95: 0, max: 0, drawMs: 0, simMs: 0, fireCells: 0, maxJump: 0 };
+const acct = { frames: 0, le17: 0, le25: 0, le34: 0, gt34: 0, max: 0, maxJumpPx: 0, fireMaxDelta: 0, snaps: 0, hist: new Uint32Array(102) };
+function perfReset() {
+  acct.frames = acct.le17 = acct.le25 = acct.le34 = acct.gt34 = 0; acct.max = 0; acct.maxJumpPx = 0; acct.fireMaxDelta = 0; acct.snaps = 0; acct.hist.fill(0);
+  snapBase = (rend && rend.dbg && rend.dbg.snaps) || 0; // integrator: rend.dbg.snaps is cumulative; report snaps since reset
+}
+function pushPerf(ms, t) {
+  ring[ringI] = ms; ringI = (ringI + 1) % RING; if (ringN < RING) ringN++;
+  acct.frames++;
+  if (ms <= 17) acct.le17++; else if (ms <= 25) acct.le25++; else if (ms <= 34) acct.le34++; else acct.gt34++;
+  if (ms > acct.max) acct.max = ms;
+  acct.hist[Math.min(101, Math.round(ms))]++;
+  const d = rend && rend.dbg;
+  if (d) {
+    if (d.maxJump > acct.maxJumpPx) acct.maxJumpPx = d.maxJump;
+    if (d.fireMaxDelta > acct.fireMaxDelta) acct.fireMaxDelta = d.fireMaxDelta;
+    acct.snaps = Math.max(0, (d.snaps || 0) - snapBase);
+  }
+  if (t - statT >= 250 && ringN > 4) {
+    statT = t;
+    for (let i = 0; i < ringN; i++) sorted[i] = ring[i];
+    const v = sorted.subarray(0, ringN).sort();
+    const q = (p) => v[Math.min(ringN - 1, Math.floor(p * ringN))];
+    let sum = 0; for (let i = 0; i < ringN; i++) sum += v[i];
+    stats.fps = sum > 0 ? Math.round(1000 * ringN / sum) : 0;
+    stats.p50 = q(0.5); stats.p95 = q(0.95); stats.max = v[ringN - 1];
+    stats.drawMs = rend && rend.lastMs || 0; stats.simMs = simMs;
+    stats.fireCells = d ? d.fireCells || 0 : 0; stats.maxJump = d ? d.maxJump || 0 : 0;
+  }
+}
+function perfSnapshot() {
+  // p95 over everything since reset, from the 1 ms histogram
+  let acc2 = 0, p95 = 0; const target = acct.frames * 0.95;
+  for (let i = 0; i < acct.hist.length; i++) { acc2 += acct.hist[i]; if (acc2 >= target) { p95 = i; break; } }
+  return { frames: acct.frames, le17: acct.le17, le25: acct.le25, le34: acct.le34, gt34: acct.gt34, p95, max: acct.max,
+    maxJumpPx: acct.maxJumpPx, fireMaxDelta: acct.fireMaxDelta, snaps: acct.snaps };
+}
 function frame(t) {
   requestAnimationFrame(frame);
   const dt = last ? Math.min(0.25, (t - last) / 1000) : 0;
+  if (last) pushPerf(t - last, t);
   last = t;
   try {
+    stepTween(t);
     if (state.phase === PHASE.RUN && !state.paused) {
       acc += dt * (state.speed || 1) / cfg.tickSec;
       let n = Math.min(8, Math.floor(acc));
       acc -= n; if (acc > 8) acc = 0;
+      const s0 = performance.now();
       while (n-- > 0 && state.phase === PHASE.RUN) step(state);
-    } else acc = 0;
+      simMs = performance.now() - s0;
+      curAlpha = state.phase === PHASE.RUN ? clamp(acc, 0, 1) : 0;
+      lastAlpha = curAlpha;
+    } else if (state.phase === PHASE.RUN) {
+      curAlpha = lastAlpha; // paused: keep acc and alpha
+    } else { acc = 0; curAlpha = 0; lastAlpha = 0; }
     if (state.phase === PHASE.RESULT && !resultShown) onResult();
     uiAcc += dt;
     if (uiAcc >= 0.1) { uiAcc = 0; ui.update(state); }
@@ -454,6 +540,7 @@ function boot() {
     window.__bench = { msPerTick: ms, hash: hashState(state) };
     state.paused = true;
   }
+  applyCalm();
   window.addEventListener('resize', resize);
   window.addEventListener('orientationchange', resize);
   if (window.visualViewport) window.visualViewport.addEventListener('resize', resize);
@@ -467,6 +554,11 @@ function boot() {
     get view() { return view; },
     get ui() { return ui; },
     get overlay() { return overlay; },
+    get stats() { return stats; },
+    get rend() { return rend; },
+    perf(reset) { const r = perfSnapshot(); if (reset) perfReset(); return r; },
+    setCalm: (b) => api.setCalm(b),
+    getCalm: () => api.getCalm(),
     set resultShown(v) { resultShown = !!v; },
     api,
     newState(s, sd) { const r = newState(s, sd); if (ui) { ui.hideOverlays(); ui.update(state); } return r; },
