@@ -188,6 +188,24 @@ export function initUI(root, api) {
   Object.assign(bBack.style, { position: 'fixed', zIndex: '25', left: '50%', transform: 'translateX(-50%)', width: 'auto', minWidth: '160px', height: '48px', minHeight: '48px', padding: '0 20px', bottom: 'calc(16px + env(safe-area-inset-bottom, 0px))', flexDirection: 'row' });
   root.append(bBack, top, trayPlan, trayRun, result, unlock, warn, settings, toastEl);
 
+  // stage2-fix item 6: shelter-reach warning, same card as the no-shelter one. null = fine.
+  function reachWarning() {
+    const r = call('shelterReach'), cfg = call('getCfg') || defaultCfg;
+    if (!r || !r.zones) return null;
+    const gateWord = r.gateless === r.zones ? (r.zones === 1 ? 'Your shelter has' : 'Your shelters have') + ' no gate: no road touches its edge, so nobody can get in. Drag the box over a road.' : '';
+    if (r.gateless === r.zones) return { head: 'Shelter has no gate', body: gateWord + ' Start anyway?' };
+    if (r.share >= cfg.reachWarnShare) return null;
+    const pct = Math.round(r.share * 100);
+    return { head: 'Few can reach a shelter', body: 'Only ' + pct + '% of people can walk to a shelter gate in ' + r.sec + ' s.' + (r.gateless ? ' ' + r.gateless + ' shelter' + (r.gateless > 1 ? 's have' : ' has') + ' no gate.' : '') + ' Move a shelter closer to town or lay a road. Start anyway?' };
+  }
+
+  function tryStart() {
+    const noShelter = !(last && last.zones && last.zones.length);
+    const w = noShelter ? { head: 'No shelter', body: 'No shelter: people have nowhere safe to go. Start anyway?' } : reachWarning();
+    if (w) { wHead.textContent = w.head; wBody.textContent = w.body; warn.setAttribute('aria-label', w.head); warn.hidden = false; syncInert(); const f = warn.querySelector('[data-act="warn-back"]'); if (f && f.focus) f.focus(); return false; }
+    call('start'); return true;
+  }
+
   // ---------- state ----------
   let armed = null;       // armed call-in (local mirror unless api.getArmed exists)
   let bw = 2;             // break width
@@ -322,8 +340,7 @@ export function initUI(root, api) {
     } else if (t.dataset.stage) {
       hideOverlays(); closeSettings(); call('goStage', +t.dataset.stage);
     } else if (t.id === 'btn-start') {
-      const noShelter = !(last && last.zones && last.zones.length);
-      if (noShelter) { warn.hidden = false; syncInert(); const f = warn.querySelector('[data-act="warn-back"]'); if (f && f.focus) f.focus(); } else call('start');
+      tryStart();
     } else if (t.id === 'calm-toggle') { if (A.setCalm) { call('setCalm', !isCalm()); refreshCalm(); }
     } else if (t.id === 'btn-settings') { openSettings();
     } else if (t.id === 'btn-copy') { call('copyReport');
@@ -484,5 +501,5 @@ export function initUI(root, api) {
   }
 
   syncInert();
-  return { update, showResult, showUnlock, hideOverlays, toast, openSettings, closeSettings };
+  return { update, showResult, showUnlock, hideOverlays, toast, openSettings, closeSettings, tryStart };
 }

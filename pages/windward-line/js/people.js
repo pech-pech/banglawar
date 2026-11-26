@@ -121,6 +121,26 @@ export function buildFlow(state) {
   state._flowTick = state.tick; state._flowDirty = false;
 }
 
+// stage2-fix item 6 (admin default): plan-phase check. Share of people whose home has a walk path to an open shelter gate
+// within cfg.reachSec (flow cost / runRoad ~ seconds). Zones with no road cell on their edge have no gate at all.
+// Pure read of the plan: only grid.dist and the flow scratch are touched, both rebuilt by startRun.
+export function shelterReach(state) {
+  const zones = state.zones || [], cfg = state.cfg, total = STAGES[state.stage].people;
+  const gateless = zones.filter((z) => !z.gates || !z.gates.length).length;
+  const out = { total, reach: 0, share: 0, zones: zones.length, gateless, sec: cfg.reachSec };
+  if (!zones.length || gateless === zones.length) return out;
+  for (const z of zones) z.inside = z.inside || 0;
+  buildFlow(state);
+  const dist = state.grid.dist, homes = state.map.homes || [];
+  let reach = 0;
+  for (const h of homes) {
+    const d = dist[(h.y | 0) * MAP_W + (h.x | 0)];
+    if (d !== Infinity && d / cfg.runRoad <= cfg.reachSec) reach += h.count;
+  }
+  out.reach = reach; out.share = total ? reach / total : 0;
+  return out;
+}
+
 function rebuildBlocks(g) {
   bcnt.fill(0); bsx.fill(0); bsy.fill(0); bnear.fill(0);
   const burn = g.burn; let total = 0;

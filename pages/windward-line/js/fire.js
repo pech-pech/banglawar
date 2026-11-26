@@ -94,6 +94,25 @@ function breakCentre(state, f, id) {
   return c;
 }
 
+// A standing break shadows the ground downwind of it: walk back along the ember's flight line up to breakShadowN cells;
+// a break cell there cuts the landing chance (wide breaks cut harder).
+function breakShadow(state, e, ix, iy) {
+  const cfg = state.cfg, N = cfg.breakShadowN | 0;
+  if (N <= 0 || !state.breaks || !state.breaks.length) return 1;
+  const sp = Math.hypot(e.vx, e.vy) || 1, ux = e.vx / sp, uy = e.vy / sp, brk = state.grid.brk;
+  let mul = 1;
+  for (let k = 1; k <= N; k++) {
+    const x = Math.round(ix - ux * k), y = Math.round(iy - uy * k);
+    if (x < 0 || y < 0 || x >= MAP_W || y >= MAP_H) break;
+    const id = brk[y * MAP_W + x] - 1;
+    if (id < 0) continue;
+    const b = state.breaks[id];
+    const m = ((b && b.width) || cfg.breakWidth) >= 2 ? cfg.breakShadowMulWide : cfg.breakShadowMul;
+    if (m < mul) mul = m;
+  }
+  return mul;
+}
+
 export function fireStep(state) {
   const f = fz(state), cfg = state.cfg, g = state.grid, rng = state._fireRng;
   const w = wvec(state), level = w.level || 0, counts = state.counts;
@@ -125,6 +144,8 @@ export function fireStep(state) {
   const windAng = Math.atan2(wy, wx);
   const coneRad = cfg.emberConeDeg * Math.PI / 180;
   const flight = cfg.emberFlightBase + cfg.emberFlightPerW * level;
+  const spreadMul = state.stage === 2 ? cfg.spreadMulStage2 : 1;
+  const emberOn = state.tick >= Math.round(cfg.emberGraceSec / cfg.tickSec);
 
   // pass 1: spread, ember spawn, road heat, break heat accumulation (burning cells in list order)
   for (let li = 0; li < list.length; li++) {
@@ -141,12 +162,12 @@ export function fireStep(state) {
         continue;
       }
       if (!BURNABLE[nt] || burn[n] > 0 || burnt[n] || (zone[n] !== 0 && nt !== TYPE.HOUSE) || stamp[n] === stampId) continue;
-      let p = cfg.ignite[nt] * wf8[k];
+      let p = cfg.ignite[nt] * wf8[k] * spreadMul;
       if (wet[n] > 0) p *= cfg.wetFactor;
       if (rng.next() < p) { stamp[n] = stampId; fresh.push(n); }
     }
     // embers
-    if (level >= 0 && rng.next() < cfg.emberRate * (1 + level) * emberMul(t)) {
+    if (emberOn && level >= 0 && rng.next() < cfg.emberRate * (1 + level) * emberMul(t)) {
       const a = windAng + (rng.next() * 2 - 1) * coneRad;
       state.embers.push({ x: x + 0.5, y: y + 0.5, vx: Math.cos(a) * cfg.emberSpeed, vy: Math.sin(a) * cfg.emberSpeed, left: flight, from: { x, y }, crossed: null });
     }
@@ -216,6 +237,7 @@ export function fireStep(state) {
     if (!ignitable(g, n) || stamp[n] === stampId) continue;
     let p = cfg.emberLand[type[n]];
     if (wet[n] > 0) p *= cfg.wetFactor;
+    p *= breakShadow(state, e, ix, iy);
     if (rng.next() < p) {
       stamp[n] = stampId; fresh.push(n);
       if (e.crossed) for (const id of e.crossed) {

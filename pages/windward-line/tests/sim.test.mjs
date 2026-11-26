@@ -173,3 +173,109 @@ test('breakRating: stage 1 wind 1 -> 1 wide weak, 2 wide slow front, 3 wide hold
   assert.ok(breakHold(c, 2) > breakHold(c, 1) && breakHold(c, 3) > breakHold(c, 2));
   assert.match(breakRating(c, 1, 1).text, /breaks fast/);
 });
+
+// ---- stage2-fix (M's Copy report, stage 2 seed 1, hash f9e7cc91 on build cafc680e87) ----
+import { shelterReach } from '../js/people.js';
+import { fireStep } from '../js/fire.js';
+const M_PLAN = [
+  { t: 'break', x0: 41, y0: 13, x1: 63, y1: 13, width: 1 }, { t: 'break', x0: 42, y0: 18, x1: 63, y1: 18, width: 1 },
+  { t: 'break', x0: 41, y0: 24, x1: 63, y1: 24, width: 2 }, { t: 'break', x0: 40, y0: 82, x1: 63, y1: 82, width: 2 },
+  { t: 'break', x0: 41, y0: 54, x1: 63, y1: 54, width: 2 }, { t: 'pump', buildingId: 3 }, { t: 'crew', buildingId: 4 },
+  { t: 'crew', buildingId: 3 }, { t: 'crew', buildingId: 2 }, { t: 'zone', x: 21, y: 115, w: 13, h: 5 },
+];
+const playM = (cfg, zoneFix) => {
+  const s = createState(2, cfg || defaultCfg, 1);
+  const plan = M_PLAN.map((a) => (zoneFix && a.t === 'zone' ? { ...a, x: 20, y: 112 } : a)); // same size box moved up onto the x=20 road column and y=114 road row
+  assert.deepEqual(applyPlan(s, plan), []);
+  const ci = { 66: ['bomber', 27, 59], 113: ['bomber', 26, 49], 160: ['dozer', 52, 58] };
+  startRun(s);
+  while (s.phase === 'run' && s.tick < 20000) { const c = ci[s.tick]; if (c) queueCallin(s, ...c); step(s); }
+  return s;
+};
+
+test('item 1: M plan seed 1 -> shelter has 0 gates, so 0 of 900 can enter (not a pathing bug)', () => {
+  const s = playM();
+  assert.equal(s.zones[0].gates.length, 0, 'zone x21..33 y115..119 has no road cell on its edge');
+  assert.equal(s.counts.safe, 0); assert.equal(s.counts.inZone, 0);
+  assert.match(s.result.cause, /^No one reached the [a-z-]+ shelter: no road touches its edge, so it has no gate$/);
+  const f = playM(null, true);
+  assert.ok(f.zones[0].gates.length > 0, 'same box over a road gets gates');
+  assert.ok(f.counts.safe > 0, 'people reach it when it has a gate: ' + f.counts.safe);
+});
+
+test('item 2: no embers before the ember grace (15 s = tick 60); grace 0 spawns them earlier', () => {
+  const embersBy = (grace) => {
+    const cfg = cloneCfg(defaultCfg); cfg.emberGraceSec = grace;
+    const s = createState(2, cfg, 1); startRun(s); let seen = 0;
+    for (let n = 0; n < 59; n++) { step(s); seen += s.embers.length; }
+    return seen;
+  };
+  assert.equal(defaultCfg.emberGraceSec, 15);
+  assert.equal(embersBy(15), 0, 'no embers before 15 s');
+  assert.ok(embersBy(0) > 0, 'embers exist early without grace');
+});
+
+test('item 3: a width-2 break holds >= 30 s head-on on seed 1; shadow cuts ember jumps vs shadow off', () => {
+  const run = (cfgMut, width, seed) => {
+    const cfg = cloneCfg(defaultCfg); if (cfgMut) cfgMut(cfg);
+    const s = createState(2, cfg, seed);
+    assert.deepEqual(applyPlan(s, [{ t: 'break', x0: 34, y0: 27, x1: 46, y1: 15, width }]), []); // across the first NE run of the fire
+    startRun(s);
+    let first = Infinity;
+    while (s.phase === 'run' && s.tick < 600) { step(s); const e = s.events.find((v) => v.kind === 'break-breach' || v.kind === 'ember-jump'); if (e) { first = e.tick * cfg.tickSec; break; } }
+    return first;
+  };
+  assert.ok(run(null, 2, 1) >= 30, 'width 2 holds >= 30 s on seed 1');
+  const off = (c) => { c.breakShadowMul = 1; c.breakShadowMulWide = 1; };
+  let on = 0, none = 0;
+  for (let seed = 1; seed <= 30; seed++) { if (run(null, 2, seed) < 60) on++; if (run(off, 2, seed) < 60) none++; }
+  console.log(`width-2 breach/jump before 60 s over 30 seeds: shadow on ${on}, off ${none}`);
+  assert.ok(none >= on + 2, 'shadow on cuts early jumps');
+});
+
+test('item 4: stage 2 spread x0.75, stage 1 untouched; idle still loses', () => {
+  assert.equal(defaultCfg.spreadMulStage2, 0.75);
+  let loss = 0; for (let seed = 1; seed <= 40; seed++) if (!runBot('idle', 2, seed).result.win) loss++;
+  assert.equal(loss, 40);
+});
+
+test('item 5: cause line picks the decisive cause, not the first event', () => {
+  const mk = (events, gates = [1], safe = 0) => {
+    const s = createState(2, defaultCfg, 1);
+    s.zones = [{ x: 20, y: 100, w: 12, h: 8, gates }];
+    s.people = { ...s.people, n: 10 }; s.counts.safe = safe; s.counts.alive = 10; s.counts.people0 = 100; s._pct = 10;
+    for (const e of events) s.events.push({ tick: 300, x: 48, y: 20, text: '', ...e });
+    return causeLine(s);
+  };
+  const ej = { kind: 'ember-jump', tick: 20 }, bb = { kind: 'break-breach', tick: 40 }, rc = { kind: 'road-cut', tick: 302 }, zh = { kind: 'zone-hit', tick: 361 }, gc = { kind: 'gate-closed', tick: 350 };
+  assert.match(mk([ej, bb, rc]), /^No one reached the [a-z-]+ shelter: road cut at 1:15$/);
+  assert.match(mk([ej, rc, zh]), /embers hit it at 1:30$/);
+  assert.match(mk([ej, bb, gc]), /gate closed at 1:27$/);
+  assert.match(mk([ej, bb]), /fire broke the [a-z-]+ break at 0:10$/);
+  assert.match(mk([ej]), /embers jumped the [a-z-]+ break at 0:05$/);
+  assert.match(mk([ej], []), /no road touches its edge, so it has no gate$/);
+  // someone reached shelter: ordering shelter > road > break > ember
+  assert.match(mk([ej, bb, rc, zh], [1], 5), /^Embers reached the [a-z-]+ shelter at 1:30$/);
+  assert.match(mk([ej, bb, rc], [1], 5), /^Road cut [a-z-]+ at 1:15$/);
+  assert.match(mk([ej, bb], [1], 5), /^Fire broke the [a-z-]+ break at 0:10$/);
+  assert.match(mk([ej], [1], 5), /^Embers jumped the [a-z-]+ break at 0:05$/);
+});
+
+test('item 6: shelter-reach check warns on a gateless or far shelter, passes a good plan', () => {
+  const s = createState(2, defaultCfg, 1); applyPlan(s, M_PLAN);
+  const r = shelterReach(s);
+  assert.equal(r.gateless, 1); assert.equal(r.share, 0);
+  const g = createState(2, defaultCfg, 1); applyPlan(g, skilledPlan(g));
+  const rg = shelterReach(g);
+  console.log('shelter reach: M plan', r.share, 'skilled', rg.share.toFixed(2));
+  assert.ok(rg.share >= defaultCfg.reachWarnShare, 'skilled plan does not trigger the warning: ' + rg.share);
+  const n = createState(2, defaultCfg, 1); applyPlan(n, [{ t: 'zone', x: 20, y: 112, w: 13, h: 5 }]);
+  const rn = shelterReach(n);
+  assert.equal(rn.gateless, 0); assert.ok(rn.share > 0 && rn.share < defaultCfg.reachWarnShare, 'lone corner box reaches under half in 8 s, so warns: ' + rn.share);
+  const e = createState(2, defaultCfg, 1); assert.equal(shelterReach(e).zones, 0);
+  // check is read-only for the run: same hash with and without calling it
+  const a = createState(2, defaultCfg, 4), b = createState(2, defaultCfg, 4);
+  applyPlan(a, skilledPlan(a)); applyPlan(b, skilledPlan(b)); shelterReach(b);
+  startRun(a); startRun(b); runToEnd(a, 20000); runToEnd(b, 20000);
+  assert.equal(hashState(a), hashState(b));
+});
