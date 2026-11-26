@@ -57,6 +57,9 @@ export const defaultCfg = Object.freeze({
   wetFactor: 0.1, wetTicks: 80,
   // firebreak (barrier)
   breakCost: 5, breakWidth: 2, breakHoldPerW: 10, breakHeatR: 2,
+  // stage1-clarity (admin default): flat hold on top of per-width, so a 1-wide break holds a weak front with no wind (measured:
+  // base 6 -> 1-wide holds 26/30 seeds at wind 0, still breaks at wind 1). breakTypicalHeat = heat a woods front puts on a break cell at wind 0 (preview only).
+  breakHoldBase: 6, breakTypicalHeat: 12,
   // shelter zone
   // balance-1 (admin default): was cost 8, cap 0.5/cell, no max. Perimeter pricing made capacity grow with money squared,
   // so one big box beat every split plan; now one box holds at most zoneCapMax and a 23x18 box costs 1560.
@@ -85,7 +88,7 @@ export const TWEAK_SPEC = [
   ['burnTicks.1', 'Grass burn ticks', 2, 40, 1], ['burnTicks.2', 'Woods burn ticks', 4, 80, 1], ['burnTicks.3', 'House burn ticks', 4, 80, 1],
   ['ignite.1', 'Grass ignite', 0.02, 0.8, 0.01], ['ignite.2', 'Woods ignite', 0.02, 0.8, 0.01], ['ignite.3', 'House ignite', 0.02, 0.8, 0.01],
   ['windK', 'Wind strength k', 0, 1.5, 0.05], ['emberRate', 'Ember rate', 0, 0.05, 0.001], ['emberFlightPerW', 'Ember flight per W', 0, 12, 1],
-  ['breakHoldPerW', 'Break hold per width', 1, 20, 1], ['breakWidth', 'Break width', 1, 5, 1], ['breakCost', 'Break cost/cell', 1, 20, 1],
+  ['breakHoldPerW', 'Break hold per width', 1, 20, 1], ['breakHoldBase', 'Break hold base', 0, 20, 1], ['breakWidth', 'Break width', 1, 5, 1], ['breakCost', 'Break cost/cell', 1, 20, 1],
   ['zoneCostPerCell', 'Shelter cost/edge cell', 1, 40, 1], ['zoneCapPerCell', 'Shelter capacity/cell', 0.1, 2, 0.1], ['zoneCapMax', 'Shelter max people', 20, 1000, 10],
   ['exposeR', 'Caught-in-open radius', 1, 12, 1], ['gateFlow', 'Gate flow /s', 1, 20, 1],
   ['roadCost', 'Road cost/cell', 0, 20, 1], ['awareR', 'Aware radius', 4, 40, 1], ['runRoad', 'Run speed road', 0.5, 6, 0.1], ['runOff', 'Run speed off-road', 0.5, 6, 0.1],
@@ -94,6 +97,14 @@ export const TWEAK_SPEC = [
   ['dozerUses', 'Dozer uses', 0, 4, 1], ['dozerDelaySec', 'Dozer delay s', 0, 30, 1], ['dozerLen', 'Dozer line cells', 2, 20, 1],
   ['spotMax', 'Max new spot fires', 0, 10, 1],
 ];
+
+// firebreak hold strength vs heat: width cells -> hold number; rating vs a typical woods front in the current wind.
+export function breakHold(cfg, width) { return cfg.breakHoldPerW * width + (cfg.breakHoldBase || 0); }
+export function breakRating(cfg, width, windLevel) {
+  const wf = Math.min(cfg.windCap, Math.max(cfg.windFloor, 1 + cfg.windK * (windLevel || 0))); // fire pushed straight at the break
+  const ratio = breakHold(cfg, width) / (cfg.breakTypicalHeat * wf);
+  return ratio < 1 ? { key: 'weak', ratio, text: 'breaks fast in this wind' } : ratio < 1.5 ? { key: 'mid', ratio, text: 'holds a slow front' } : { key: 'strong', ratio, text: 'holds' };
+}
 
 export function getPath(o, path) { return path.split('.').reduce((a, k) => (a == null ? a : a[k]), o); }
 export function setPath(o, path, v) { const ks = path.split('.'); let a = o; for (let i = 0; i < ks.length - 1; i++) a = a[ks[i]]; a[ks[ks.length - 1]] = v; }

@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createState, startRun, step, queueCallin, runToEnd, hashState, causeLine } from '../js/sim.js';
 import { buildMap, validateMap } from '../js/map.js';
-import { defaultCfg, STAGES } from '../js/contract.js';
+import { defaultCfg, cloneCfg, breakHold, breakRating, STAGES } from '../js/contract.js';
 import { applyPlan, runBot, idlePlan, naivePlan, skilledPlan } from './plans.mjs';
 
 const hashOf = (stage, seed, extra) => {
@@ -141,4 +141,35 @@ test('causeLine per kind', () => {
   assert.match(mk(20, [loss]), /^Fire reached people in the [a-z-]+ at \d+:\d\d, no shelter near$/);
   assert.match(mk(64, [loss]), /^Passed: 64% alive \(36 lost\)\. First loss: [a-z-]+ at \d+:\d\d$/);
   assert.equal(mk(100, []), 'Passed: 100% alive');
+});
+
+// stage1-clarity fix 3: a 1-wide break holds a weak front (no wind) a bit longer, but still fails in stage 1 wind.
+test('1-wide break: holds weak fire with no wind, still breaks in wind 1, base hold is the cause', () => {
+  const breaches = (base, level, N = 20) => {
+    let n = 0;
+    for (let seed = 1; seed <= N; seed++) {
+      const cfg = cloneCfg(defaultCfg); cfg.breakHoldBase = base;
+      const s = createState(1, cfg, seed); s.wind.level = level;
+      const rej = applyPlan(s, [{ t: 'break', x0: 30, y0: 50, x1: 60, y1: 50, width: 1 }]); assert.equal(rej.length, 0);
+      startRun(s); runToEnd(s, 20000);
+      if (s.events.some((e) => e.kind === 'break-breach')) n++;
+    }
+    return n;
+  };
+  const before = breaches(0, 0), after = breaches(defaultCfg.breakHoldBase, 0), wind = breaches(defaultCfg.breakHoldBase, 1);
+  console.log(`1-wide breach, no wind: base 0 -> ${before}/20, default -> ${after}/20; wind 1 default -> ${wind}/20`);
+  assert.ok(before >= 18, 'old hold: 1-wide breaks with no wind');
+  assert.ok(after <= 5, 'new hold: 1-wide holds weak no-wind fire on >= 75% of seeds');
+  assert.ok(wind >= 10, 'stage 1 wind still breaks a 1-wide break');
+});
+
+// stage1-clarity fix 2: hold rating shown on the break preview and info row
+test('breakRating: stage 1 wind 1 -> 1 wide weak, 2 wide slow front, 3 wide holds; no wind -> 1 wide not weak', () => {
+  const c = defaultCfg;
+  assert.equal(breakRating(c, 1, STAGES[1].windLevel).key, 'weak');
+  assert.equal(breakRating(c, 2, STAGES[1].windLevel).key, 'mid');
+  assert.equal(breakRating(c, 3, STAGES[1].windLevel).key, 'strong');
+  assert.notEqual(breakRating(c, 1, 0).key, 'weak');
+  assert.ok(breakHold(c, 2) > breakHold(c, 1) && breakHold(c, 3) > breakHold(c, 2));
+  assert.match(breakRating(c, 1, 1).text, /breaks fast/);
 });

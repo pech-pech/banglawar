@@ -1,7 +1,7 @@
 // Windward Line - DOM UI (M7). initUI(root, api) -> {update, showResult, showUnlock, hideOverlays, toast, openSettings, closeSettings}
 // Builds every element inside root except #map (already there). update() runs every frame: DOM touched only on change.
 import { resultMark } from './render.js';
-import { STAGES, CELL_PX, fmtTime, cfgDiffers, windVec, defaultCfg } from './contract.js';
+import { breakRating, STAGES, CELL_PX, fmtTime, cfgDiffers, windVec, defaultCfg } from './contract.js';
 
 const TOOL_NAME = { zone: 'Shelter', break: 'Firebreak', road: 'Road', crew: 'Crew', pump: 'Pump' };
 const TOOL_HINT = {
@@ -127,6 +127,16 @@ export function initUI(root, api) {
   uCard.append(uHead, uBody, bOk);
   unlock.appendChild(uCard);
 
+  // ---------- no-shelter warning (stage1-clarity fix 1) ----------
+  const warn = el('div', 'overlay', null, { id: 'warn', role: 'dialog', 'aria-label': 'No shelter' }); warn.hidden = true;
+  const wCard = el('div', 'card');
+  const wHead = el('h2', null, 'No shelter');
+  const wBody = el('p', null, 'No shelter: people have nowhere safe to go. Start anyway?');
+  const bWarnGo = btn('', 'Start anyway', { 'data-act': 'warn-go' });
+  const bWarnBack = btn('primary', 'Back to plan', { 'data-act': 'warn-back' });
+  wCard.append(wHead, wBody, bWarnBack, bWarnGo);
+  warn.appendChild(wCard);
+
   // ---------- settings ----------
   const settings = el('div', 'overlay', null, { id: 'settings', role: 'dialog', 'aria-label': 'Settings' }); settings.hidden = true;
   const panel = el('div', 'panel');
@@ -169,7 +179,7 @@ export function initUI(root, api) {
 
   const bBack = btn('accent', 'Back to result', { 'data-act': 'back-result' }); bBack.hidden = true;
   Object.assign(bBack.style, { position: 'fixed', zIndex: '25', left: '50%', transform: 'translateX(-50%)', width: 'auto', minWidth: '160px', height: '48px', minHeight: '48px', padding: '0 20px', bottom: 'calc(16px + env(safe-area-inset-bottom, 0px))', flexDirection: 'row' });
-  root.append(bBack, top, trayPlan, trayRun, result, unlock, settings, toastEl);
+  root.append(bBack, top, trayPlan, trayRun, result, unlock, warn, settings, toastEl);
 
   // ---------- state ----------
   let armed = null;       // armed call-in (local mirror unless api.getArmed exists)
@@ -183,7 +193,7 @@ export function initUI(root, api) {
 
   // ---------- overlay stacking ----------
   function syncInert() {
-    const anyOpen = (resultWanted && !mapMode) || !unlock.hidden || !settings.hidden;
+    const anyOpen = (resultWanted && !mapMode) || !unlock.hidden || !settings.hidden || !warn.hidden;
     for (const e of [top, trayPlan, trayRun, document.getElementById('map')]) {
       if (!e) continue;
       setAttr(e, 'aria-hidden', anyOpen ? 'true' : null);
@@ -252,7 +262,7 @@ export function initUI(root, api) {
     unlock.hidden = false; refreshStagePicker(); syncInert();
   }
   function hideOverlays() {
-    resultWanted = false; mapMode = false; unlock.hidden = true; syncInert();
+    resultWanted = false; mapMode = false; unlock.hidden = true; warn.hidden = true; syncInert();
   }
   function toast(text) {
     toastEl.textContent = String(text == null ? '' : text); toastEl.hidden = false;
@@ -281,7 +291,9 @@ export function initUI(root, api) {
       call('setSpeed', +t.dataset.speed);
     } else if (t.dataset.stage) {
       hideOverlays(); closeSettings(); call('goStage', +t.dataset.stage);
-    } else if (t.id === 'btn-start') { call('start');
+    } else if (t.id === 'btn-start') {
+      const noShelter = !(last && last.zones && last.zones.length);
+      if (noShelter) { warn.hidden = false; syncInert(); const f = warn.querySelector('[data-act="warn-back"]'); if (f && f.focus) f.focus(); } else call('start');
     } else if (t.id === 'btn-settings') { openSettings();
     } else if (t.id === 'btn-copy') { call('copyReport');
     } else if (t.id === 'btn-save-preset') {
@@ -297,6 +309,8 @@ export function initUI(root, api) {
         case 'retry': hideOverlays(); call('retry'); break;
         case 'edit': hideOverlays(); call('editPlan'); break;
         case 'next': hideOverlays(); call('nextStage'); break;
+        case 'warn-back': warn.hidden = true; syncInert(); break;
+        case 'warn-go': warn.hidden = true; syncInert(); call('start'); break;
         case 'unlock-ok': unlock.hidden = true; syncInert(); break; // result sheet comes back
         case 'close-settings': closeSettings(); break;
         case 'seed-apply': { const n = parseInt(seedIn.value, 10); if (isFinite(n)) { call('setSeed', n); toast('Seed ' + n); } break; }
@@ -383,6 +397,11 @@ export function initUI(root, api) {
       try { p = (typeof A.getPreview === 'function' ? A.getPreview() : (window.WL && window.WL.overlay && window.WL.overlay.preview)) || null; } catch (e) { p = null; }
       if (p && p.cost != null) { msg = '$' + p.cost + (p.ok === false ? ' - cannot place here' : ''); bad = p.ok === false; }
       else msg = TOOL_HINT[tool] || '';
+      if (tool === 'break' && !bad) { // stage1-clarity fix 2: hold strength vs the wind right now
+        const r = breakRating(cfg, bw, state.wind && state.wind.level);
+        if (!(p && p.cost != null)) msg = 'Drag a line';
+        msg += ' · ' + bw + ' wide: ' + r.text;
+      }
       if (capTxt && tool === 'zone' && !(p && p.cost != null)) msg = capTxt;
       else if (capTxt) msg += ' · ' + capTxt;
     }

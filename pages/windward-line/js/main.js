@@ -1,5 +1,5 @@
 // Windward Line - main.js (M8): boot, fixed-step loop, input, save, window.WL.
-import { defaultCfg, cloneCfg, STAGES, PHASE, MAP_W, MAP_H, CELL_PX } from './contract.js';
+import { defaultCfg, cloneCfg, breakRating, STAGES, PHASE, MAP_W, MAP_H, CELL_PX } from './contract.js';
 import { createState, startRun, step, queueCallin, finishRun, hashState } from './sim.js';
 import { applyAction, undo, refundAll, rebuild, buildingAt, costOf } from './plan.js';
 import { initRender, draw, screenToCell, fitView } from './render.js';
@@ -278,6 +278,7 @@ function previewFor(a) {
   const p = { t: a.t, ok, cost };
   if (a.t === 'zone') Object.assign(p, { x: a.x, y: a.y, w: a.w, h: a.h, x0: a.x, y0: a.y, x1: a.x + a.w - 1, y1: a.y + a.h - 1 });
   else Object.assign(p, { x0: a.x0, y0: a.y0, x1: a.x1, y1: a.y1, width: a.width });
+  if (a.t === 'break') p.hold = breakRating(state.cfg || cfg, a.width || breakWidth, state.wind && state.wind.level);
   return p;
 }
 function inPlan() { return state.phase === PHASE.PLAN && !settingsOpen; }

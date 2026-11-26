@@ -254,9 +254,10 @@ export function draw(r, state, view, overlay) {
       if (p.t === 'crew') { ctx.beginPath(); ctx.arc(sx(ex), sy(ey), (cfg.crewRangeBase || 3) * S + Math.sqrt(bw * bh) * S, 0, 6.2832); ctx.stroke(); }
     }
     if (ex == null) { ex = p.x + (p.w || 0); ey = p.y + (p.h || 0); }
-    const txt = (p.cost != null ? '$' + p.cost : '') + (p.ok ? '' : (p.cost != null ? ' ' : '') + 'no');
+    const HS = { weak: 'weak', mid: 'slow front', strong: 'holds' };
+    const txt = (p.cost != null ? '$' + p.cost : '') + (p.ok ? '' : (p.cost != null ? ' ' : '') + 'no') + (p.hold && p.ok ? ' · ' + HS[p.hold.key] : '');
     const lb = labelBox(ctx, txt, sx(ex), sy(ey) - 64, vw, vh);
-    ctx.fillStyle = p.ok ? '#8dff9f' : '#ff8a8a'; ctx.fillText(txt, lb.tx, lb.ty);
+    ctx.fillStyle = !p.ok ? '#ff8a8a' : (p.hold && p.hold.key === 'weak' ? '#ffd27a' : '#8dff9f'); ctx.fillText(txt, lb.tx, lb.ty);
     ctx.strokeStyle = solid; ctx.lineWidth = 1; ctx.strokeRect(lb.x + 0.5, lb.y + 0.5, lb.bw - 1, lb.bh - 1);
   }
 

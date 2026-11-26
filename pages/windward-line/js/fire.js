@@ -1,6 +1,6 @@
 // Windward Line - fire.js (variant A, M2a). Pure sim, no DOM, all randomness via state.rng fork 'fire'.
 // Burning cells are tracked in a list (state._fire.list) so a tick costs O(burning), not O(map).
-import { TYPE, BURNABLE, MAP_W, MAP_H, idx, cx, cy, windVec, pushEvent, sideName } from './contract.js';
+import { breakHold, TYPE, BURNABLE, MAP_W, MAP_H, idx, cx, cy, windVec, pushEvent, sideName } from './contract.js';
 
 const DX = [-1, 0, 1, -1, 1, -1, 0, 1];
 const DY = [-1, -1, -1, 0, 0, 1, 1, 1];
@@ -171,7 +171,7 @@ export function fireStep(state) {
     const c = f.hTouched[ti], h = f.hacc[c], id = brk[c] - 1;
     const b = state.breaks[id];
     const width = (b && b.width) || cfg.breakWidth;
-    const hold = cfg.breakHoldPerW * width;
+    const hold = breakHold(cfg, width);
     if (h <= hold) continue;
     if (rng.next() >= Math.min(1, (h - hold) / hold)) continue;
     const kk = 1 + rng.int(width + 1);

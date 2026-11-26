@@ -214,3 +214,8 @@ index.html (M8) head must carry `<meta name="pgs-build" content="__PGS_BUILD__">
 - One shelter holds at most cfg.zoneCapMax (130) people (applied in sim.startRun). zoneCostPerCell 20, zoneCapPerCell 1.0.
 - Houses inside a shelter can burn; cleared shelter ground cannot.
 - Stage 1 wind travels toward the town (deg 0, level 1) so stage 1 teaches; stage 2 225 -> shift -180 at 60 s.
+
+## stage1-clarity (2026-11-26)
+- `cfg.breakHoldBase` (6) adds a flat hold to every firebreak: hold = breakHoldPerW x width + breakHoldBase. `cfg.breakTypicalHeat` (12) is preview-only.
+- `contract.js` exports `breakHold(cfg,width)` and `breakRating(cfg,width,windLevel)` -> {key:'weak'|'mid'|'strong', ratio, text}. Break preview (`preview.hold`) and the info row use it.
+- UI: START with no shelter opens `#warn` (`data-act` warn-back / warn-go). `hideOverlays()` closes it.
