@@ -219,3 +219,17 @@ index.html (M8) head must carry `<meta name="pgs-build" content="__PGS_BUILD__">
 - `cfg.breakHoldBase` (6) adds a flat hold to every firebreak: hold = breakHoldPerW x width + breakHoldBase. `cfg.breakTypicalHeat` (12) is preview-only.
 - `contract.js` exports `breakHold(cfg,width)` and `breakRating(cfg,width,windLevel)` -> {key:'weak'|'mid'|'strong', ratio, text}. Break preview (`preview.hold`) and the info row use it.
 - UI: START with no shelter opens `#warn` (`data-act` warn-back / warn-go). `hideOverlays()` closes it.
+
+## wl-look-1 (visual overhaul: Look A + smooth motion, 2026-11-26)
+Draw-only change: sim files (contract.js, rng.js, map.js, fire.js, people.js, sim.js, plan.js) untouched; hashState of any run unchanged (tests/smooth.e2e.cjs guards it).
+- File map: js/render.js is a thin shell (initRender, draw, screenToCell, fitView, resultMark, resize). Layers under js/r/: util.js (palette, helpers, easing, follow, angLerp),
+  terrain.js (land/water/roads/breaks bake, burnt cross-fade), built.js (buildings, zones, gates, pumps, crews, tank bars, placement pop), fire.js (eased fire field + glow, embers, strike ring),
+  people.js (tick-interpolated dots), callins.js (queue lines, aim, bomber pass, dozer sweep), hud.js (selection, plan preview follow, wind arrow, result mark, pause dim). Each layer keeps state on r.<layer>.
+- Frame ctx f (built once by the shell, reused each draw; layers read only): r, ctx, state, view, overlay, g, cfg, S (px per cell), ox, oy, vw, vh, MW, MH, sx(), sy(), tick, alpha, now, dt (s, <= 0.05),
+  time (world seconds, frozen while paused), run, paused, result, calm, tickChanged, reset (state/stage/phase changed or tick went back: snap, no tween), wv. Shell also sets r.bld = state.map.buildings.
+- overlay (main.js -> draw): alpha = progress to next sim tick (0 outside run; held while paused), paused = !!state.paused, calm = reduced motion flag.
+- r.dbg {maxJump, fireMaxDelta, fireCells, snaps(cumulative)}; r.lastMs = draw ms.
+- WL.stats {fps, p50, p95, max, drawMs, simMs, fireCells, maxJump} (~4x/s). WL.perf(reset) -> {frames, le17, le25, le34, gt34, p95, max, maxJumpPx, fireMaxDelta, snaps since reset}. WL.rend = render handle.
+- Calm motion: save.calm (true/false/unset = follow prefers-reduced-motion); api.getCalm/setCalm, WL.getCalm/setCalm; toggles html.calm; Settings row #calm-toggle. Calm = no tweens (instant camera, count-up, money roll), CSS fades <= 120 ms, no transforms.
+- Frame stats: Tweak panel checkbox #tw-frame-stats (localStorage 'wl-frame-stats', not a gameplay tweak, no DEV badge) shows div#frame-stats (data-layout="ignore").
+- Tests: tests/smooth.e2e.cjs (hash guard, smoothness 1x / 1x from tick 150 / 4x, calm). window.__test.busy is true during goto so ui.js/main.js skip tweens for deterministic stills.

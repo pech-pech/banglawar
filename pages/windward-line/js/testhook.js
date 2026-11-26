@@ -81,6 +81,11 @@ export function installTestHook(WL) {
   }
 
   async function goto(name) {
+    window.__test.busy = true;
+    try { await gotoInner(name); } finally { window.__test.busy = false; }
+  }
+
+  async function gotoInner(name) {
     closeOverlays();
     let s;
     switch (name) {
@@ -117,6 +122,8 @@ export function installTestHook(WL) {
     ready: raf2(),
     states: () => STATES.slice(),
     goto,
+    busy: false,
+    botPlan, // used by tests/smooth.e2e.cjs (same plan in page and in node)
     seed(n) { seedN = (n | 0) || 1; },
     hash: () => hashState(WL.state),
   };

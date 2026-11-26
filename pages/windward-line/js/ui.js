@@ -71,7 +71,7 @@ export function initUI(root, api) {
   const toolBtns = {};
   for (const t of PLAN_TOOLS) {
     const b = btn('', null, { 'data-tool': t, 'aria-pressed': 'false' });
-    const n = el('span', null, TOOL_NAME[t]); const c = el('small', null, '');
+    const n = el('span', 'tool tool-name', TOOL_NAME[t]); const c = el('small', 'tool tool-cost', '');
     b.append(n, c); b._c = c; toolBtns[t] = b; tools.appendChild(b);
   }
   const rowB = el('div', 'row-b');
@@ -109,6 +109,8 @@ export function initUI(root, api) {
   const rBig = el('div', 'big', '0%');
   const rVerdict = el('div', 'verdict', '');
   const rStars = el('div', 'stars', '');
+  const starEls = [];
+  for (let i = 0; i < 3; i++) { const sp = el('span', 'star', '★'); starEls.push(sp); rStars.appendChild(sp); }
   const rCause = el('div', null, '', { id: 'cause' });
   const rNote = el('div', 'note', '');
   const bRetry = btn('primary', 'Retry same plan', { 'data-act': 'retry' });
@@ -171,7 +173,12 @@ export function initUI(root, api) {
   secTweak.append(el('h3', null, 'Tweaks'));
   const tweakPanel = el('div', null, null, { id: 'tweak-panel' });
   secTweak.append(tweakPanel);
-  pBody.append(secRun, secSeed, secStage, secTweak);
+  const secCalm = el('section');
+  secCalm.append(el('h3', null, 'Motion'));
+  const bCalm = btn('', 'Calm motion: off', { id: 'calm-toggle', 'aria-pressed': 'false' });
+  bCalm.style.minHeight = '48px'; // integrator: layout gate tap >= 48
+  secCalm.append(bCalm);
+  pBody.append(secRun, secSeed, secStage, secCalm, secTweak);
   panel.append(pHead, pBody);
   settings.appendChild(panel);
 
@@ -186,7 +193,12 @@ export function initUI(root, api) {
   let bw = 2;             // break width
   let last = null;        // last state seen
   let evSeen = 0, warned = false, shiftedEv = false, evStateId = null;
-  let toastTimer = 0;
+  let toastTimer = 0, toastOut = 0;
+  let countRaf = 0, starTimers = [];
+  let moneyShown = null, moneyRaf = 0, moneyFrom = 0, moneyTo = 0, moneyT0 = 0;
+  const isCalm = () => !!(A.getCalm ? call('getCalm') : false); // admin default guard
+  const noTween = () => isCalm() || !!(window.__test && window.__test.busy);
+  const eoc = (t) => 1 - Math.pow(1 - t, 3);
   let presetN = 0;
   let resultWanted = false, mapMode = false; // result sheet logically open (hidden visually while the unlock card shows)
   const cfgOf = (s) => (s && s.cfg) || call('getCfg') || defaultCfg;
@@ -217,9 +229,14 @@ export function initUI(root, api) {
     setCls(bS1, 'on', cur === 1); setCls(bS2, 'on', cur === 2);
     setAttr(bS1, 'aria-pressed', cur === 1 ? 'true' : 'false'); setAttr(bS2, 'aria-pressed', cur === 2 ? 'true' : 'false');
   }
+  function refreshCalm() {
+    const on = isCalm();
+    setAttr(bCalm, 'aria-pressed', on ? 'true' : 'false'); setText(bCalm, 'Calm motion: ' + (on ? 'on' : 'off'));
+    setDis(bCalm, !A.setCalm);
+  }
   function openSettings() {
     if (!settings.hidden) return;
-    refreshStagePicker();
+    refreshStagePicker(); refreshCalm();
     settings.hidden = false; syncInert();
     call('openSettings');
   }
@@ -233,11 +250,24 @@ export function initUI(root, api) {
     const s = state || last; if (!s) return;
     const r = s.result || { win: false, pct: s.counts ? Math.floor(100 * s.counts.safe / Math.max(1, s.counts.people0)) : 0, stars: 0, cause: '' };
     const floor = cfgOf(s).winFloor;
-    setText(rBig, r.pct + '%');
+    cancelAnimationFrame(countRaf); for (const id of starTimers) clearTimeout(id); starTimers = [];
     setText(rVerdict, (r.win ? 'PASS' : 'FAIL') + ' · floor ' + floor + '%');
     setCls(rVerdict, 'pass', r.win); setCls(rVerdict, 'fail', !r.win);
     const n = Math.max(0, Math.min(3, r.stars | 0));
-    setText(rStars, '★'.repeat(n) + '☆'.repeat(3 - n));
+    for (let i = 0; i < 3; i++) { starEls[i].classList.remove('pop'); setCls(starEls[i], 'on', false); }
+    const earn = () => { for (let i = 0; i < n; i++) starEls[i].classList.add('on'); };
+    const popStars = () => { for (let i = 0; i < n; i++) starTimers.push(setTimeout(() => { starEls[i].classList.add('on', 'pop'); }, i * 250)); };
+    if (noTween()) { rBig._t = null; setText(rBig, r.pct + '%'); earn(); }
+    else {
+      rBig._t = null; setText(rBig, '0%');
+      const t0 = performance.now(), target = r.pct;
+      const step = (now) => {
+        const k = Math.min(1, (now - t0) / 900);
+        const v = Math.round(target * eoc(k)); rBig.textContent = v + '%'; rBig._t = v + '%';
+        if (k < 1) countRaf = requestAnimationFrame(step); else { setText(rBig, target + '%'); popStars(); }
+      };
+      countRaf = requestAnimationFrame(step);
+    }
     setAttr(rStars, 'aria-label', n + ' of 3 stars');
     setText(rCause, r.cause || '');
     const st = s.stage;
@@ -265,9 +295,9 @@ export function initUI(root, api) {
     resultWanted = false; mapMode = false; unlock.hidden = true; warn.hidden = true; syncInert();
   }
   function toast(text) {
-    toastEl.textContent = String(text == null ? '' : text); toastEl.hidden = false;
-    clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => { toastEl.hidden = true; }, 2400);
+    toastEl.textContent = String(text == null ? '' : text); toastEl.hidden = false; toastEl.classList.remove('out');
+    clearTimeout(toastTimer); clearTimeout(toastOut);
+    toastTimer = setTimeout(() => { toastEl.classList.add('out'); toastOut = setTimeout(() => { toastEl.hidden = true; toastEl.classList.remove('out'); }, 200); }, 2200);
   }
 
   // ---------- events ----------
@@ -294,6 +324,7 @@ export function initUI(root, api) {
     } else if (t.id === 'btn-start') {
       const noShelter = !(last && last.zones && last.zones.length);
       if (noShelter) { warn.hidden = false; syncInert(); const f = warn.querySelector('[data-act="warn-back"]'); if (f && f.focus) f.focus(); } else call('start');
+    } else if (t.id === 'calm-toggle') { if (A.setCalm) { call('setCalm', !isCalm()); refreshCalm(); }
     } else if (t.id === 'btn-settings') { openSettings();
     } else if (t.id === 'btn-copy') { call('copyReport');
     } else if (t.id === 'btn-save-preset') {
@@ -319,6 +350,20 @@ export function initUI(root, api) {
   });
   seedIn.addEventListener('keydown', (e) => { if (e.key === 'Enter') bApply.click(); });
 
+  function setMoney(v) {
+    if (moneyShown === null || noTween()) { moneyShown = v; moneyTo = v; cancelAnimationFrame(moneyRaf); moneyRaf = 0; setText(tMoney, '$' + v); return; }
+    if (v === moneyTo) return;
+    moneyFrom = moneyShown; moneyTo = v; moneyT0 = performance.now();
+    if (moneyRaf) return;
+    const step = (now) => {
+      const k = Math.min(1, (now - moneyT0) / 300);
+      moneyShown = Math.round(moneyFrom + (moneyTo - moneyFrom) * eoc(k));
+      setText(tMoney, '$' + moneyShown);
+      moneyRaf = k < 1 ? requestAnimationFrame(step) : 0;
+    };
+    moneyRaf = requestAnimationFrame(step);
+  }
+
   // ---------- per-frame update ----------
   function update(state) {
     if (!state) return;
@@ -332,7 +377,7 @@ export function initUI(root, api) {
     const stg = STAGES[state.stage] || STAGES[1];
 
     // top bar
-    setText(tMoney, '$' + Math.max(0, Math.round(state.money)));
+    setMoney(Math.max(0, Math.round(state.money)));
     const c = state.counts || { lost: 0, people0: 1 };
     // integrator: score = % alive (lead call); shown as Alive N% / floor
     const pct = phase === 'result' && state.result ? state.result.pct : Math.floor(100 * (c.people0 - (c.lost || 0)) / Math.max(1, c.people0));
