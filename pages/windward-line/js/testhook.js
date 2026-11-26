@@ -4,7 +4,7 @@ import { applyAction } from './plan.js';
 import { startRun, step, finishRun, queueCallin, runToEnd, hashState } from './sim.js';
 
 const STATES = ['plan-empty', 'plan-built', 'plan-stage2', 'run-early', 'run-mid', 'run-paused',
-  'callin-armed', 'result-win', 'result-fail', 'unlock', 'settings-open'];
+  'callin-armed', 'result-win', 'result-fail', 'unlock', 'settings-open', 'warn-no-gate', 'warn-far'];
 
 export function installTestHook(WL) {
   let seedN = 1;
@@ -106,6 +106,8 @@ export function installTestHook(WL) {
       case 'result-fail': s = buildResult(false); break;
       case 'unlock': s = buildResult(true); break;
       case 'settings-open': s = fresh(1); botPlan(s); break;
+      case 'warn-no-gate': s = fresh(2); applyAction(s, { t: 'zone', x: 21, y: 115, w: 13, h: 5 }); break; // M's seed 1 shelter: below the last town road
+      case 'warn-far': s = fresh(2); applyAction(s, { t: 'zone', x: 20, y: 112, w: 13, h: 5 }); break; // gate yes, far corner: few can reach it
       default: throw new Error('unknown state: ' + name);
     }
     if (s.phase === 'result') { try { WL.resultShown = true; } catch (e) { /* ignore */ } } // no auto unlock card over result-win
@@ -114,6 +116,7 @@ export function installTestHook(WL) {
       try { WL.ui.showResult(s); } catch (e) { /* ignore */ }
     }
     if (name === 'unlock') { try { WL.ui.showUnlock('Call it in during a run to cut a fuel neck. Lands 10 s after you aim.'); } catch (e) { /* ignore */ } }
+    if (name === 'warn-no-gate' || name === 'warn-far') { try { WL.ui.tryStart(); } catch (e) { /* ignore */ } }
     if (name === 'settings-open') { try { WL.api.openSettings(); } catch (e) { /* ignore */ } }
     await raf2();
   }

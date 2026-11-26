@@ -1,6 +1,7 @@
 // Windward Line - main.js (M8): boot, fixed-step loop, input, save, window.WL.
 import { defaultCfg, cloneCfg, breakRating, STAGES, PHASE, MAP_W, MAP_H, CELL_PX } from './contract.js';
 import { createState, startRun, step, queueCallin, finishRun, hashState } from './sim.js';
+import { shelterReach } from './people.js';
 import { applyAction, undo, refundAll, rebuild, buildingAt, costOf } from './plan.js';
 import { initRender, draw, screenToCell, fitView } from './render.js';
 import { initUI } from './ui.js';
@@ -153,6 +154,7 @@ const api = {
     ui.update(state);
   },
   getCfg: () => cfg,
+  shelterReach: () => shelterReach(state),
   setCfg(c) {
     cfg = cloneCfg(c);
     breakWidth = cfg.breakWidth;

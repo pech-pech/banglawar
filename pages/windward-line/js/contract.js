@@ -54,6 +54,9 @@ export const defaultCfg = Object.freeze({
   emberRate: 0.006,         // per burning cell per tick, x(1+W), woods x1 house x1.5 grass x0.3. balance-1: was 0.004 (fire died at the river/top road, idle won)
   emberFlightBase: 4, emberFlightPerW: 5, emberConeDeg: 20, emberSpeed: 2, // cells per tick
   emberLand: { 1: 0.5, 2: 0.3, 3: 0.4 },
+  // stage2-fix (admin default): no embers before emberGraceSec; a standing break shadows embers landing within breakShadowN cells
+  // downwind of it (landing chance x breakShadowMul, x breakShadowMulWide for width >= 2); stage 2 base spread x spreadMulStage2.
+  emberGraceSec: 15, breakShadowN: 6, breakShadowMul: 0.25, breakShadowMulWide: 0.1, spreadMulStage2: 0.75,
   wetFactor: 0.1, wetTicks: 80,
   // firebreak (barrier)
   breakCost: 5, breakWidth: 2, breakHoldPerW: 10, breakHeatR: 2,
@@ -79,6 +82,8 @@ export const defaultCfg = Object.freeze({
   dozerUses: 1, dozerDelaySec: 10, dozerLen: 8,
   // lightning
   spotMax: 2,
+  reachSec: 8, reachWarnShare: 0.5, // (town is 62x34: 8 s ~ 24 walk cost; a lone corner box reaches ~25%, 4 spread boxes 100%)
+  // plan warning: share of people with a road path to a shelter gate within reachSec; warn under reachWarnShare
   forecastLeadSec: 20,      // wind shift shown this early in the forecast strip / tell
 });
 
@@ -96,6 +101,9 @@ export const TWEAK_SPEC = [
   ['pumpCost', 'Pump house cost', 0, 400, 10], ['bomberUses', 'Bomber uses', 0, 6, 1], ['bomberDelaySec', 'Bomber delay s', 0, 30, 1], ['bomberLen', 'Bomber line cells', 4, 30, 1],
   ['dozerUses', 'Dozer uses', 0, 4, 1], ['dozerDelaySec', 'Dozer delay s', 0, 30, 1], ['dozerLen', 'Dozer line cells', 2, 20, 1],
   ['spotMax', 'Max new spot fires', 0, 10, 1],
+  ['emberGraceSec', 'Ember grace s', 0, 60, 1], ['breakShadowN', 'Break ember shadow cells', 0, 12, 1], ['breakShadowMul', 'Break shadow landing x', 0, 1, 0.05],
+  ['breakShadowMulWide', 'Wide break shadow landing x', 0, 1, 0.05], ['spreadMulStage2', 'Stage 2 spread x', 0.3, 1.5, 0.05],
+  ['reachSec', 'Shelter reach warn s', 2, 60, 1], ['reachWarnShare', 'Shelter reach warn share', 0, 1, 0.05],
 ];
 
 // firebreak hold strength vs heat: width cells -> hold number; rating vs a typical woods front in the current wind.

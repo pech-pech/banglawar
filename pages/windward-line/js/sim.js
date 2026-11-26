@@ -288,7 +288,7 @@ export function finishRun(state) {
 export function causeLine(state) {
   const pct = state.result ? state.result.pct : (state._pct != null ? state._pct : score(state).pct);
   const win = pct >= state.cfg.winFloor;
-  const fb = state.firstBreach, sec = (e) => fmtTime(e.tick * state.cfg.tickSec);
+  const sec = (e) => fmtTime(e.tick * state.cfg.tickSec);
   const fl = state.events.find((e) => e.kind === 'first-loss');
   if (win) {
     // balance-1: one line that still reads well when many were lost
@@ -296,7 +296,25 @@ export function causeLine(state) {
     if (lost <= 0) return 'Passed: ' + pct + '% alive';
     return `Passed: ${pct}% alive (${lost} lost)` + (fl ? `. First loss: ${sideName(fl.x, fl.y)} at ${sec(fl)}` : '');
   }
-  if (fl && !(state.zones && state.zones.length)) return `No shelter: fire reached people in the ${sideName(fl.x, fl.y)} at ${sec(fl)}`;
+  const zones = state.zones || [];
+  if (fl && !zones.length) return `No shelter: fire reached people in the ${sideName(fl.x, fl.y)} at ${sec(fl)}`;
+  // stage2-fix item 5: name the decisive cause, not the first event. Order: nobody reached a shelter > shelter breached >
+  // road cut > break breached > ember jump (earliest event of the highest kind present).
+  const find = (...kinds) => state.events.find((e) => kinds.indexOf(e.kind) >= 0);
+  const started = state.people && state.people.n > 0;
+  if (zones.length && started && state.counts.safe === 0) {
+    const z0 = zones[0];
+    const where = zones.length === 1 ? `the ${sideName(z0.x + (z0.w >> 1), z0.y + (z0.h >> 1))} shelter` : 'any shelter';
+    const open = zones.some((z) => !z.gates || z.gates.length);
+    if (zones.every((z) => z.gates && !z.gates.length)) return `No one reached ${where}: no road touches its edge, so it has no gate`;
+    const sb = find('gate-closed', 'zone-hit'), rc = find('road-cut'), bb = find('break-breach'), ej = find('ember-jump');
+    if (sb) return `No one reached ${where}: ` + (sb.kind === 'gate-closed' ? `gate closed at ${sec(sb)}` : `embers hit it at ${sec(sb)}`);
+    if (rc) return `No one reached ${where}: road cut at ${sec(rc)}`;
+    if (bb) return `No one reached ${where}: fire broke the ${sideName(bb.x, bb.y)} break at ${sec(bb)}`;
+    if (ej) return `No one reached ${where}: embers jumped the ${sideName(ej.x, ej.y)} break at ${sec(ej)}`;
+    return open ? `No one reached ${where}: fire cut the way at ${fl ? sec(fl) : fmtTime(state.tick * state.cfg.tickSec)}` : `No one reached ${where}`;
+  }
+  const fb = find('gate-closed', 'zone-hit') || find('road-cut') || find('break-breach') || find('ember-jump');
   if (fb) {
     const side = sideName(fb.x, fb.y), t = sec(fb);
     switch (fb.kind) {
